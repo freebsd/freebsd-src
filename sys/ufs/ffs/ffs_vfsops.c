@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.31 (Berkeley) 5/20/95
- * $Id: ffs_vfsops.c,v 1.58 1997/10/11 18:31:36 phk Exp $
+ * $Id: ffs_vfsops.c,v 1.59 1997/10/12 20:26:12 phk Exp $
  */
 
 #include "opt_quota.h"
@@ -555,6 +555,10 @@ ffs_mountfs(devvp, mp, p, malloctype)
 	ump->um_malloctype = malloctype;
 	ump->um_fs = malloc((u_long)fs->fs_sbsize, M_UFSMNT,
 	    M_WAITOK);
+	ump->um_blkatoff = ffs_blkatoff;
+	ump->um_truncate = ffs_truncate;
+	ump->um_valloc = ffs_valloc;
+	ump->um_vfree = ffs_vfree;
 	bcopy(bp->b_data, ump->um_fs, (u_int)fs->fs_sbsize);
 	if (fs->fs_sbsize < SBSIZE)
 		bp->b_flags |= B_INVAL;

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vnops.c	8.19 (Berkeley) 5/27/95
- * $Id: cd9660_vnops.c,v 1.42 1997/10/15 10:03:58 phk Exp $
+ * $Id: cd9660_vnops.c,v 1.43 1997/10/15 13:22:39 phk Exp $
  */
 
 #include <sys/param.h>
@@ -569,7 +569,7 @@ cd9660_readdir(ap)
 	idp->curroff = uio->uio_offset;
 
 	if ((entryoffsetinblock = idp->curroff & bmask) &&
-	    (error = VOP_BLKATOFF(vdp, (off_t)idp->curroff, NULL, &bp))) {
+	    (error = cd9660_blkatoff(vdp, (off_t)idp->curroff, NULL, &bp))) {
 		FREE(idp, M_TEMP);
 		return (error);
 	}
@@ -585,7 +585,7 @@ cd9660_readdir(ap)
 			if (bp != NULL)
 				brelse(bp);
 			if (error =
-			    VOP_BLKATOFF(vdp, (off_t)idp->curroff, NULL, &bp))
+			    cd9660_blkatoff(vdp, (off_t)idp->curroff, NULL, &bp))
 				break;
 			entryoffsetinblock = 0;
 		}
@@ -953,44 +953,6 @@ cd9660_pathconf(ap)
 }
 
 /*
- * Global vfs data structures for isofs
- */
-#define cd9660_create \
-	((int (*) __P((struct  vop_create_args *)))eopnotsupp)
-#define cd9660_mknod ((int (*) __P((struct  vop_mknod_args *)))eopnotsupp)
-#define cd9660_write ((int (*) __P((struct  vop_write_args *)))eopnotsupp)
-#ifdef NFS
-#define	 cd9660_lease_check lease_check
-#else
-#define	 cd9660_lease_check ((int (*) __P((struct vop_lease_args *)))nullop)
-#endif
-#define cd9660_poll vop_nopoll
-#define cd9660_fsync ((int (*) __P((struct  vop_fsync_args *)))nullop)
-#define cd9660_remove \
-	((int (*) __P((struct  vop_remove_args *)))eopnotsupp)
-#define cd9660_link ((int (*) __P((struct  vop_link_args *)))eopnotsupp)
-#define cd9660_rename \
-	((int (*) __P((struct  vop_rename_args *)))eopnotsupp)
-#define cd9660_mkdir ((int (*) __P((struct  vop_mkdir_args *)))eopnotsupp)
-#define cd9660_rmdir ((int (*) __P((struct  vop_rmdir_args *)))eopnotsupp)
-#define cd9660_symlink \
-	((int (*) __P((struct vop_symlink_args *)))eopnotsupp)
-#define cd9660_advlock \
-	((int (*) __P((struct vop_advlock_args *)))eopnotsupp)
-#define cd9660_valloc ((int(*) __P(( \
-		struct vnode *pvp, \
-		int mode, \
-		struct ucred *cred, \
-		struct vnode **vpp))) eopnotsupp)
-#define cd9660_vfree ((int (*) __P((struct  vop_vfree_args *)))eopnotsupp)
-#define cd9660_truncate \
-	((int (*) __P((struct  vop_truncate_args *)))eopnotsupp)
-#define cd9660_update \
-	((int (*) __P((struct  vop_update_args *)))eopnotsupp)
-#define cd9660_bwrite \
-	((int (*) __P((struct  vop_bwrite_args *)))eopnotsupp)
-
-/*
  * Global vfs data structures for cd9660
  */
 vop_t **cd9660_vnodeop_p;
@@ -998,47 +960,28 @@ struct vnodeopv_entry_desc cd9660_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) vn_default_error },
 	{ &vop_abortop_desc,		(vop_t *) cd9660_abortop },
 	{ &vop_access_desc,		(vop_t *) cd9660_access },
-	{ &vop_advlock_desc,		(vop_t *) cd9660_advlock },
-	{ &vop_blkatoff_desc,		(vop_t *) cd9660_blkatoff },
 	{ &vop_bmap_desc,		(vop_t *) cd9660_bmap },
-	{ &vop_bwrite_desc,		(vop_t *) vn_bwrite },
 	{ &vop_cachedlookup_desc,	(vop_t *) cd9660_lookup },
 	{ &vop_close_desc,		(vop_t *) cd9660_close },
-	{ &vop_create_desc,		(vop_t *) cd9660_create },
-	{ &vop_fsync_desc,		(vop_t *) cd9660_fsync },
+	{ &vop_fsync_desc,		(vop_t *) nullop },
 	{ &vop_getattr_desc,		(vop_t *) cd9660_getattr },
 	{ &vop_inactive_desc,		(vop_t *) cd9660_inactive },
 	{ &vop_ioctl_desc,		(vop_t *) cd9660_ioctl },
 	{ &vop_islocked_desc,		(vop_t *) cd9660_islocked },
-	{ &vop_lease_desc,		(vop_t *) cd9660_lease_check },
-	{ &vop_link_desc,		(vop_t *) cd9660_link },
 	{ &vop_lock_desc,		(vop_t *) cd9660_lock },
 	{ &vop_lookup_desc,		(vop_t *) vfs_cache_lookup },
-	{ &vop_mkdir_desc,		(vop_t *) cd9660_mkdir },
-	{ &vop_mknod_desc,		(vop_t *) cd9660_mknod },
 	{ &vop_mmap_desc,		(vop_t *) cd9660_mmap },
 	{ &vop_open_desc,		(vop_t *) cd9660_open },
 	{ &vop_pathconf_desc,		(vop_t *) cd9660_pathconf },
-	{ &vop_poll_desc,		(vop_t *) cd9660_poll },
 	{ &vop_print_desc,		(vop_t *) cd9660_print },
 	{ &vop_read_desc,		(vop_t *) cd9660_read },
 	{ &vop_readdir_desc,		(vop_t *) cd9660_readdir },
 	{ &vop_readlink_desc,		(vop_t *) cd9660_readlink },
 	{ &vop_reclaim_desc,		(vop_t *) cd9660_reclaim },
-	{ &vop_remove_desc,		(vop_t *) cd9660_remove },
-	{ &vop_rename_desc,		(vop_t *) cd9660_rename },
-	{ &vop_revoke_desc,		(vop_t *) cd9660_revoke },
-	{ &vop_rmdir_desc,		(vop_t *) cd9660_rmdir },
 	{ &vop_seek_desc,		(vop_t *) cd9660_seek },
 	{ &vop_setattr_desc,		(vop_t *) cd9660_setattr },
 	{ &vop_strategy_desc,		(vop_t *) cd9660_strategy },
-	{ &vop_symlink_desc,		(vop_t *) cd9660_symlink },
-	{ &vop_truncate_desc,		(vop_t *) cd9660_truncate },
 	{ &vop_unlock_desc,		(vop_t *) cd9660_unlock },
-	{ &vop_update_desc,		(vop_t *) cd9660_update },
-	{ &vop_valloc_desc,		(vop_t *) cd9660_valloc },
-	{ &vop_vfree_desc,		(vop_t *) cd9660_vfree },
-	{ &vop_write_desc,		(vop_t *) cd9660_write },
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc cd9660_vnodeop_opv_desc =
@@ -1052,7 +995,6 @@ vop_t **cd9660_specop_p;
 struct vnodeopv_entry_desc cd9660_specop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) spec_vnoperate },
 	{ &vop_access_desc,		(vop_t *) cd9660_access },
-	{ &vop_bwrite_desc,		(vop_t *) vn_bwrite },
 	{ &vop_getattr_desc,		(vop_t *) cd9660_getattr },
 	{ &vop_inactive_desc,		(vop_t *) cd9660_inactive },
 	{ &vop_islocked_desc,		(vop_t *) cd9660_islocked },
@@ -1061,7 +1003,6 @@ struct vnodeopv_entry_desc cd9660_specop_entries[] = {
 	{ &vop_reclaim_desc,		(vop_t *) cd9660_reclaim },
 	{ &vop_setattr_desc,		(vop_t *) cd9660_setattr },
 	{ &vop_unlock_desc,		(vop_t *) cd9660_unlock },
-	{ &vop_update_desc,		(vop_t *) cd9660_update },
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc cd9660_specop_opv_desc =
@@ -1072,7 +1013,6 @@ vop_t **cd9660_fifoop_p;
 struct vnodeopv_entry_desc cd9660_fifoop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) fifo_vnoperate },
 	{ &vop_access_desc,		(vop_t *) cd9660_access },
-	{ &vop_bwrite_desc,		(vop_t *) vn_bwrite },
 	{ &vop_getattr_desc,		(vop_t *) cd9660_getattr },
 	{ &vop_inactive_desc,		(vop_t *) cd9660_inactive },
 	{ &vop_islocked_desc,		(vop_t *) cd9660_islocked },
@@ -1081,7 +1021,6 @@ struct vnodeopv_entry_desc cd9660_fifoop_entries[] = {
 	{ &vop_reclaim_desc,		(vop_t *) cd9660_reclaim },
 	{ &vop_setattr_desc,		(vop_t *) cd9660_setattr },
 	{ &vop_unlock_desc,		(vop_t *) cd9660_unlock },
-	{ &vop_update_desc,		(vop_t *) cd9660_update },
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc cd9660_fifoop_opv_desc =

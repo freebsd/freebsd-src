@@ -56,6 +56,7 @@
 
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
+#include <ufs/ufs/ufsmount.h>
 
 #include <gnu/ext2fs/ext2_fs.h>
 #include <gnu/ext2fs/ext2_fs_sb.h>
@@ -383,26 +384,22 @@ fail:
  * ext2_new_inode(), to make sure we get the policies right
  */
 int
-ext2_valloc(ap)
-	struct vop_valloc_args /* {
-		struct vnode *a_pvp;
-		int a_mode;
-		struct ucred *a_cred;
-		struct vnode **a_vpp;
-	} */ *ap;
+ext2_valloc(pvp, mode, cred, vpp)
+	struct vnode *pvp;
+	int mode;
+	struct ucred *cred;
+	struct vnode **vpp;
 {
-	register struct vnode *pvp = ap->a_pvp;
 	register struct inode *pip;
 	register struct ext2_sb_info *fs;
 	register struct inode *ip;
-	mode_t mode = ap->a_mode;
 	ino_t ino;
 	int i, error;
 #if !defined(__FreeBSD__)
 	struct timeval time;
 #endif
 	
-	*ap->a_vpp = NULL;
+	*vpp = NULL;
 	pip = VTOI(pvp);
 	fs = pip->i_e2fs;
 	if (fs->s_es->s_free_inodes_count == 0)
@@ -413,12 +410,12 @@ ext2_valloc(ap)
 
 	if (ino == 0)
 		goto noinodes;
-	error = VFS_VGET(pvp->v_mount, ino, ap->a_vpp);
+	error = VFS_VGET(pvp->v_mount, ino, vpp);
 	if (error) {
-		VOP_VFREE(pvp, ino, mode);
+		UFS_VFREE(pvp, ino, mode);
 		return (error);
 	}
-	ip = VTOI(*ap->a_vpp);
+	ip = VTOI(*vpp);
 
 	/* 
 	  the question is whether using VGET was such good idea at all -
@@ -448,7 +445,7 @@ printf("ext2_valloc: allocated inode %d\n", ino);
 */
 	return (0);
 noinodes:
-	ext2_fserr(fs, ap->a_cred->cr_uid, "out of inodes");
+	ext2_fserr(fs, cred->cr_uid, "out of inodes");
 	uprintf("\n%s: create/symlink failed, no inodes free\n", fs->fs_fsmnt);
 	return (ENOSPC);
 }
@@ -525,25 +522,21 @@ ext2_blkfree(ip, bno, size)
  * the maintenance of the actual bitmaps is again up to the linux code
  */
 int
-ext2_vfree(ap)
-	struct vop_vfree_args /* {
-		struct vnode *a_pvp;
-		ino_t a_ino;
-		int a_mode;
-	} */ *ap;
+ext2_vfree(pvp, ino, mode)
+	struct vnode *pvp;
+	ino_t ino;
+	int mode;
 {
 	register struct ext2_sb_info *fs;
 	register struct inode *pip;
-	ino_t ino = ap->a_ino;
-	int	mode;
 
-	pip = VTOI(ap->a_pvp);
+	pip = VTOI(pvp);
 	fs = pip->i_e2fs;
 	if ((u_int)ino >= fs->s_inodes_per_group * fs->s_groups_count)
 		panic("ifree: range: dev = 0x%x, ino = %d, fs = %s",
 		    pip->i_dev, ino, fs->fs_fsmnt);
 
-/* ext2_debug("ext2_vfree (%d, %d) called\n", pip->i_number, ap->a_mode);
+/* ext2_debug("ext2_vfree (%d, %d) called\n", pip->i_number, mode);
  */
 	ext2_discard_prealloc(pip);
 
@@ -553,7 +546,7 @@ ext2_vfree(ap)
 	   'set i_mode to zero to denote an unused inode' is
 	 */
 	mode = pip->i_mode;
-	pip->i_mode = ap->a_mode;	
+	pip->i_mode = mode;	
 	ext2_free_inode(pip);	
 	pip->i_mode = mode;
 	return (0);

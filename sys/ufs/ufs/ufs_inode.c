@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_inode.c	8.9 (Berkeley) 5/14/95
- * $Id: ufs_inode.c,v 1.17 1997/10/14 14:22:31 phk Exp $
+ * $Id: ufs_inode.c,v 1.18 1997/10/14 18:46:48 phk Exp $
  */
 
 #include "opt_quota.h"
@@ -83,12 +83,12 @@ ufs_inactive(ap)
 		if (!getinoquota(ip))
 			(void)chkiq(ip, -1, NOCRED, 0);
 #endif
-		error = VOP_TRUNCATE(vp, (off_t)0, 0, NOCRED, p);
+		error = UFS_TRUNCATE(vp, (off_t)0, 0, NOCRED, p);
 		ip->i_rdev = 0;
 		mode = ip->i_mode;
 		ip->i_mode = 0;
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
-		VOP_VFREE(vp, ip->i_number, mode);
+		UFS_VFREE(vp, ip->i_number, mode);
 	}
 	if (ip->i_flag & (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) {
 		gettime(&tv);

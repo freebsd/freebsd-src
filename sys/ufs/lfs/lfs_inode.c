@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_inode.c	8.9 (Berkeley) 5/8/95
- * $Id: lfs_inode.c,v 1.17 1997/03/22 09:33:55 bde Exp $
+ * $Id: lfs_inode.c,v 1.18 1997/09/02 20:06:48 bde Exp $
  */
 
 #include "opt_quota.h"
@@ -154,20 +154,16 @@ lfs_update(ap)
  */
 /* ARGSUSED */
 int
-lfs_truncate(ap)
-	struct vop_truncate_args /* {
-		struct vnode *a_vp;
-		off_t a_length;
-		int a_flags;
-		struct ucred *a_cred;
-		struct proc *a_p;
-	} */ *ap;
+lfs_truncate(vp, length, flags, cred, p)
+	struct vnode *vp;
+	off_t length;
+	int flags;
+	struct ucred *cred;
+	struct proc *p;
 {
 	register struct indir *inp;
 	register int i;
 	register ufs_daddr_t *daddrp;
-	register struct vnode *vp = ap->a_vp;
-	off_t length = ap->a_length;
 	struct buf *bp, *sup_bp;
 	struct timeval tv;
 	struct ifile *ifp;
@@ -378,7 +374,7 @@ lfs_truncate(ap)
 	}
 #endif
 	fs->lfs_avail += fragstodb(fs, a_released);
-	e1 = vinvalbuf(vp, (length > 0) ? V_SAVE : 0, ap->a_cred, ap->a_p,
+	e1 = vinvalbuf(vp, (length > 0) ? V_SAVE : 0, cred, p,
 	    0, 0);
 	e2 = VOP_UPDATE(vp, &tv, &tv, 0);
 	return (e1 ? e1 : e2 ? e2 : 0);

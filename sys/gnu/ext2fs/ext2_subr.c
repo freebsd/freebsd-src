@@ -56,13 +56,11 @@
  * remaining space in the directory.
  */
 int
-ext2_blkatoff(ap)
-	struct vop_blkatoff_args /* {
-		struct vnode *a_vp;
-		off_t a_offset;
-		char **a_res;
-		struct buf **a_bpp;
-	} */ *ap;
+ext2_blkatoff(vp, offset, res, bpp)
+	struct vnode *vp;
+	off_t offset;
+	char **res;
+	struct buf **bpp;
 {
 	struct inode *ip;
 	register struct ext2_sb_info *fs;
@@ -70,19 +68,19 @@ ext2_blkatoff(ap)
 	daddr_t lbn;
 	int bsize, error;
 
-	ip = VTOI(ap->a_vp);
+	ip = VTOI(vp);
 	fs = ip->i_e2fs;
-	lbn = lblkno(fs, ap->a_offset);
+	lbn = lblkno(fs, offset);
 	bsize = blksize(fs, ip, lbn);
 
-	*ap->a_bpp = NULL;
-	if (error = bread(ap->a_vp, lbn, bsize, NOCRED, &bp)) {
+	*bpp = NULL;
+	if (error = bread(vp, lbn, bsize, NOCRED, &bp)) {
 		brelse(bp);
 		return (error);
 	}
-	if (ap->a_res)
-		*ap->a_res = (char *)bp->b_data + blkoff(fs, ap->a_offset);
-	*ap->a_bpp = bp;
+	if (res)
+		*res = (char *)bp->b_data + blkoff(fs, offset);
+	*bpp = bp;
 	return (0);
 }
 

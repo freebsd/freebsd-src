@@ -38,7 +38,7 @@
  *	from: @(#)ufs_lookup.c	7.33 (Berkeley) 5/19/91
  *
  *	@(#)cd9660_lookup.c	8.2 (Berkeley) 1/23/94
- * $Id: cd9660_lookup.c,v 1.17 1997/08/26 07:32:30 phk Exp $
+ * $Id: cd9660_lookup.c,v 1.18 1997/09/10 19:43:15 phk Exp $
  */
 
 #include <sys/param.h>
@@ -165,7 +165,7 @@ cd9660_lookup(ap)
 	} else {
 		dp->i_offset = dp->i_diroff;
 		if ((entryoffsetinblock = dp->i_offset & bmask) &&
-		    (error = VOP_BLKATOFF(vdp, (off_t)dp->i_offset, NULL, &bp)))
+		    (error = cd9660_blkatoff(vdp, (off_t)dp->i_offset, NULL, &bp)))
 				return (error);
 		numdirpasses = 2;
 		nchstats.ncs_2passes++;
@@ -183,7 +183,7 @@ searchloop:
 			if (bp != NULL)
 				brelse(bp);
 			if (error =
-			    VOP_BLKATOFF(vdp, (off_t)dp->i_offset, NULL, &bp))
+			    cd9660_blkatoff(vdp, (off_t)dp->i_offset, NULL, &bp))
 				return (error);
 			entryoffsetinblock = 0;
 		}
@@ -280,7 +280,7 @@ foundino:
 			    lblkno(imp, saveoffset)) {
 				if (bp != NULL)
 					brelse(bp);
-				if (error = VOP_BLKATOFF(vdp,
+				if (error = cd9660_blkatoff(vdp,
 				    (off_t)saveoffset, NULL, &bp))
 					return (error);
 			}
@@ -394,13 +394,11 @@ found:
  * remaining space in the directory.
  */
 int
-cd9660_blkatoff(ap)
-	struct vop_blkatoff_args /* {
-		struct vnode *a_vp;
-		off_t a_offset;
-		char **a_res;
-		struct buf **a_bpp;
-	} */ *ap;
+cd9660_blkatoff(vp, offset, res, bpp)
+	struct vnode *vp;
+	off_t offset;
+	char **res;
+	struct buf **bpp;
 {
 	struct iso_node *ip;
 	register struct iso_mnt *imp;
@@ -408,18 +406,18 @@ cd9660_blkatoff(ap)
 	daddr_t lbn;
 	int bsize, error;
 
-	ip = VTOI(ap->a_vp);
+	ip = VTOI(vp);
 	imp = ip->i_mnt;
-	lbn = lblkno(imp, ap->a_offset);
+	lbn = lblkno(imp, offset);
 	bsize = blksize(imp, ip, lbn);
 	
-	if (error = bread(ap->a_vp, lbn, bsize, NOCRED, &bp)) {
+	if (error = bread(vp, lbn, bsize, NOCRED, &bp)) {
 		brelse(bp);
-		*ap->a_bpp = NULL;
+		*bpp = NULL;
 		return (error);
 	}
-	if (ap->a_res)
-		*ap->a_res = (char *)bp->b_data + blkoff(imp, ap->a_offset);
-	*ap->a_bpp = bp;
+	if (res)
+		*res = (char *)bp->b_data + blkoff(imp, offset);
+	*bpp = bp;
 	return (0);
 }

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_alloc.c	8.18 (Berkeley) 5/26/95
- * $Id: ffs_alloc.c,v 1.38 1997/10/14 14:22:23 phk Exp $
+ * $Id: ffs_alloc.c,v 1.39 1997/10/14 18:46:41 phk Exp $
  */
 
 #include "opt_quota.h"
@@ -48,6 +48,7 @@
 
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
+#include <ufs/ufs/ufsmount.h>
 
 #include <ufs/ffs/fs.h>
 #include <ufs/ffs/ffs_extern.h>
@@ -545,23 +546,19 @@ fail:
  *      available inode is located.
  */
 int
-ffs_valloc(ap)
-	struct vop_valloc_args /* {
-		struct vnode *a_pvp;
-		int a_mode;
-		struct ucred *a_cred;
-		struct vnode **a_vpp;
-	} */ *ap;
+ffs_valloc(pvp, mode, cred, vpp)
+	struct vnode *pvp;
+	int mode;
+	struct ucred *cred;
+	struct vnode **vpp;
 {
-	register struct vnode *pvp = ap->a_pvp;
 	register struct inode *pip;
 	register struct fs *fs;
 	register struct inode *ip;
-	mode_t mode = ap->a_mode;
 	ino_t ino, ipref;
 	int cg, error;
 
-	*ap->a_vpp = NULL;
+	*vpp = NULL;
 	pip = VTOI(pvp);
 	fs = pip->i_fs;
 	if (fs->fs_cstotal.cs_nifree == 0)
@@ -578,12 +575,12 @@ ffs_valloc(ap)
 					(allocfcn_t *)ffs_nodealloccg);
 	if (ino == 0)
 		goto noinodes;
-	error = VFS_VGET(pvp->v_mount, ino, ap->a_vpp);
+	error = VFS_VGET(pvp->v_mount, ino, vpp);
 	if (error) {
-		VOP_VFREE(pvp, ino, mode);
+		UFS_VFREE(pvp, ino, mode);
 		return (error);
 	}
-	ip = VTOI(*ap->a_vpp);
+	ip = VTOI(*vpp);
 	if (ip->i_mode) {
 		printf("mode = 0%o, inum = %ld, fs = %s\n",
 		    ip->i_mode, ip->i_number, fs->fs_fsmnt);
@@ -602,7 +599,7 @@ ffs_valloc(ap)
 		ip->i_gen = random() / 2 + 1;
 	return (0);
 noinodes:
-	ffs_fserr(fs, ap->a_cred->cr_uid, "out of inodes");
+	ffs_fserr(fs, cred->cr_uid, "out of inodes");
 	uprintf("\n%s: create/symlink failed, no inodes free\n", fs->fs_fsmnt);
 	return (ENOSPC);
 }
@@ -1404,21 +1401,18 @@ ffs_checkblk(ip, bno, size)
  * The specified inode is placed back in the free map.
  */
 int
-ffs_vfree(ap)
-	struct vop_vfree_args /* {
-		struct vnode *a_pvp;
-		ino_t a_ino;
-		int a_mode;
-	} */ *ap;
+ffs_vfree(pvp, ino, mode)
+	struct vnode *pvp;
+	ino_t ino;
+	int mode;
 {
 	register struct fs *fs;
 	register struct cg *cgp;
 	register struct inode *pip;
-	ino_t ino = ap->a_ino;
 	struct buf *bp;
 	int error, cg;
 
-	pip = VTOI(ap->a_pvp);
+	pip = VTOI(pvp);
 	fs = pip->i_fs;
 	if ((u_int)ino >= fs->fs_ipg * fs->fs_ncg)
 		panic("ffs_vfree: range: dev = 0x%x, ino = %d, fs = %s",
@@ -1449,7 +1443,7 @@ ffs_vfree(ap)
 	cgp->cg_cs.cs_nifree++;
 	fs->fs_cstotal.cs_nifree++;
 	fs->fs_cs(fs, cg).cs_nifree++;
-	if ((ap->a_mode & IFMT) == IFDIR) {
+	if ((mode & IFMT) == IFDIR) {
 		cgp->cg_cs.cs_ndir--;
 		fs->fs_cstotal.cs_ndir--;
 		fs->fs_cs(fs, cg).cs_ndir--;

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.49 1997/09/21 04:24:09 dyson Exp $
+ * $Id: vnode.h,v 1.50 1997/10/12 20:26:07 phk Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -373,11 +373,6 @@ struct vnodeopv_desc {
 };
 
 /*
- * A default routine which just returns an error.
- */
-int vn_default_error __P((void));
-
-/*
  * A generic structure.
  * This can be used by bypass routines to identify generic arguments.
  */
@@ -385,6 +380,14 @@ struct vop_generic_args {
 	struct vnodeop_desc *a_desc;
 	/* other random data follows, presumably */
 };
+
+/*
+ * A default routine for vnops we shouldn't hit
+ */
+int vn_defaultop __P((struct vop_generic_args *ap));
+
+/* XXX: compat until fixed all places*/
+#define vn_default_error vn_defaultop
 
 #ifdef DEBUG_VFS_LOCKS
 /*

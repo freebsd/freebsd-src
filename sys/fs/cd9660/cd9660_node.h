@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_node.h	8.6 (Berkeley) 5/14/95
- * $Id: cd9660_node.h,v 1.12 1997/08/26 07:32:31 phk Exp $
+ * $Id: cd9660_node.h,v 1.13 1997/10/12 20:23:36 phk Exp $
  */
 
 /*
@@ -105,8 +105,7 @@ int cd9660_inactive __P((struct vop_inactive_args *));
 int cd9660_reclaim __P((struct vop_reclaim_args *));
 int cd9660_bmap __P((struct vop_bmap_args *));
 int cd9660_pathconf __P((struct vop_pathconf_args *));
-int cd9660_blkatoff __P((struct vop_blkatoff_args *));
-#define cd9660_revoke vop_revoke
+int cd9660_blkatoff __P((struct vnode *vp, off_t offset, char **res, struct buf **bpp));
 
 void cd9660_defattr __P((struct iso_directory_record *,
 			struct iso_node *, struct buf *, enum ISO_FTYPE));

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.58 1997/09/21 04:24:14 dyson Exp $
+ * $Id: ufs_vnops.c,v 1.59 1997/10/15 13:24:07 phk Exp $
  */
 
 #include "opt_quota.h"
@@ -415,7 +415,7 @@ ufs_setattr(ap)
 				return (EROFS);
 			break;
 		}
-		if (error = VOP_TRUNCATE(vp, vap->va_size, 0, cred, p))
+		if (error = UFS_TRUNCATE(vp, vap->va_size, 0, cred, p))
 			return (error);
 	}
 	ip = VTOI(vp);
@@ -1156,7 +1156,7 @@ abortit:
 		if (doingdirectory) {
 			if (--xp->i_nlink != 0)
 				panic("ufs_rename: linked directory");
-			error = VOP_TRUNCATE(tvp, (off_t)0, IO_SYNC,
+			error = UFS_TRUNCATE(tvp, (off_t)0, IO_SYNC,
 			    tcnp->cn_cred, tcnp->cn_proc);
 		}
 		xp->i_flag |= IN_CHANGE;
@@ -1334,7 +1334,7 @@ ufs_mkdir(ap)
 	 * but not have it entered in the parent directory. The entry is
 	 * made later after writing "." and ".." entries.
 	 */
-	error = VOP_VALLOC(dvp, dmode, cnp->cn_cred, &tvp);
+	error = UFS_VALLOC(dvp, dmode, cnp->cn_cred, &tvp);
 	if (error)
 		goto out;
 	ip = VTOI(tvp);
@@ -1344,7 +1344,7 @@ ufs_mkdir(ap)
 	if ((error = getinoquota(ip)) ||
 	    (error = chkiq(ip, 1, cnp->cn_cred, 0))) {
 		zfree(namei_zone, cnp->cn_pnbuf);
-		VOP_VFREE(tvp, ip->i_number, dmode);
+		UFS_VFREE(tvp, ip->i_number, dmode);
 		vput(tvp);
 		vput(dvp);
 		return (error);
@@ -1520,7 +1520,7 @@ ufs_rmdir(ap)
 	 * worry about them later.
 	 */
 	ip->i_nlink -= 2;
-	error = VOP_TRUNCATE(vp, (off_t)0, IO_SYNC, cnp->cn_cred,
+	error = UFS_TRUNCATE(vp, (off_t)0, IO_SYNC, cnp->cn_cred,
 	    cnp->cn_proc);
 	cache_purge(ITOV(ip));
 out:
@@ -2092,7 +2092,7 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 	if ((mode & IFMT) == 0)
 		mode |= IFREG;
 
-	error = VOP_VALLOC(dvp, mode, cnp->cn_cred, &tvp);
+	error = UFS_VALLOC(dvp, mode, cnp->cn_cred, &tvp);
 	if (error) {
 		zfree(namei_zone, cnp->cn_pnbuf);
 		vput(dvp);
@@ -2105,7 +2105,7 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 	if ((error = getinoquota(ip)) ||
 	    (error = chkiq(ip, 1, cnp->cn_cred, 0))) {
 		zfree(namei_zone, cnp->cn_pnbuf);
-		VOP_VFREE(tvp, ip->i_number, mode);
+		UFS_VFREE(tvp, ip->i_number, mode);
 		vput(tvp);
 		vput(dvp);
 		return (error);
@@ -2174,23 +2174,16 @@ ufs_missingop(ap)
 vop_t **ufs_vnodeop_p;
 static struct vnodeopv_entry_desc ufs_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) vn_default_error },
-
-	{ &vop_blkatoff_desc,		(vop_t *) ufs_missingop },
 	{ &vop_fsync_desc,		(vop_t *) ufs_missingop },
 	{ &vop_getpages_desc,		(vop_t *) ufs_missingop },
 	{ &vop_read_desc,		(vop_t *) ufs_missingop },
 	{ &vop_reallocblks_desc,	(vop_t *) ufs_missingop },
-	{ &vop_truncate_desc,		(vop_t *) ufs_missingop },
 	{ &vop_update_desc,		(vop_t *) ufs_missingop },
-	{ &vop_valloc_desc,		(vop_t *) ufs_missingop },
-	{ &vop_vfree_desc,		(vop_t *) ufs_missingop },
 	{ &vop_write_desc,		(vop_t *) ufs_missingop },
-
 	{ &vop_abortop_desc,		(vop_t *) ufs_abortop },
 	{ &vop_access_desc,		(vop_t *) ufs_access },
 	{ &vop_advlock_desc,		(vop_t *) ufs_advlock },
 	{ &vop_bmap_desc,		(vop_t *) ufs_bmap },
-	{ &vop_bwrite_desc,		(vop_t *) vn_bwrite },
 	{ &vop_cachedlookup_desc,	(vop_t *) ufs_lookup },
 	{ &vop_close_desc,		(vop_t *) ufs_close },
 	{ &vop_create_desc,		(vop_t *) ufs_create },
@@ -2198,7 +2191,6 @@ static struct vnodeopv_entry_desc ufs_vnodeop_entries[] = {
 	{ &vop_inactive_desc,		(vop_t *) ufs_inactive },
 	{ &vop_ioctl_desc,		(vop_t *) ufs_ioctl },
 	{ &vop_islocked_desc,		(vop_t *) ufs_islocked },
-	{ &vop_lease_desc,		(vop_t *) ufs_lease_check },
 	{ &vop_link_desc,		(vop_t *) ufs_link },
 	{ &vop_lock_desc,		(vop_t *) ufs_lock },
 	{ &vop_lookup_desc,		(vop_t *) vfs_cache_lookup },
@@ -2207,14 +2199,12 @@ static struct vnodeopv_entry_desc ufs_vnodeop_entries[] = {
 	{ &vop_mmap_desc,		(vop_t *) ufs_mmap },
 	{ &vop_open_desc,		(vop_t *) ufs_open },
 	{ &vop_pathconf_desc,		(vop_t *) ufs_pathconf },
-	{ &vop_poll_desc,		(vop_t *) ufs_poll },
 	{ &vop_print_desc,		(vop_t *) ufs_print },
 	{ &vop_readdir_desc,		(vop_t *) ufs_readdir },
 	{ &vop_readlink_desc,		(vop_t *) ufs_readlink },
 	{ &vop_reclaim_desc,		(vop_t *) ufs_reclaim },
 	{ &vop_remove_desc,		(vop_t *) ufs_remove },
 	{ &vop_rename_desc,		(vop_t *) ufs_rename },
-	{ &vop_revoke_desc,		(vop_t *) ufs_revoke },
 	{ &vop_rmdir_desc,		(vop_t *) ufs_rmdir },
 	{ &vop_seek_desc,		(vop_t *) ufs_seek },
 	{ &vop_setattr_desc,		(vop_t *) ufs_setattr },
@@ -2230,13 +2220,9 @@ static struct vnodeopv_desc ufs_vnodeop_opv_desc =
 vop_t **ufs_specop_p;
 static struct vnodeopv_entry_desc ufs_specop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) spec_vnoperate },
-
 	{ &vop_fsync_desc,		(vop_t *) ufs_missingop },
 	{ &vop_update_desc,		(vop_t *) ufs_missingop },
-	{ &vop_vfree_desc,		(vop_t *) ufs_missingop },
-
 	{ &vop_access_desc,		(vop_t *) ufs_access },
-	{ &vop_bwrite_desc,		(vop_t *) vn_bwrite },
 	{ &vop_close_desc,		(vop_t *) ufsspec_close },
 	{ &vop_getattr_desc,		(vop_t *) ufs_getattr },
 	{ &vop_inactive_desc,		(vop_t *) ufs_inactive },
@@ -2256,13 +2242,9 @@ static struct vnodeopv_desc ufs_specop_opv_desc =
 vop_t **ufs_fifoop_p;
 static struct vnodeopv_entry_desc ufs_fifoop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) fifo_vnoperate },
-
 	{ &vop_fsync_desc,		(vop_t *) ufs_missingop },
 	{ &vop_update_desc,		(vop_t *) ufs_missingop },
-	{ &vop_vfree_desc,		(vop_t *) ufs_missingop },
-
 	{ &vop_access_desc,		(vop_t *) ufs_access },
-	{ &vop_bwrite_desc,		(vop_t *) vn_bwrite },
 	{ &vop_close_desc,		(vop_t *) ufsfifo_close },
 	{ &vop_getattr_desc,		(vop_t *) ufs_getattr },
 	{ &vop_inactive_desc,		(vop_t *) ufs_inactive },
