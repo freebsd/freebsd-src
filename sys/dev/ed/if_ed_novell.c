@@ -161,6 +161,7 @@ ed_probe_Novell_generic(device_t dev, int flags)
 			return (ENXIO);
 		}
 	}
+	sc->chip_type = ED_CHIP_TYPE_DP8390;
 
 	/* 8k of memory plus an additional 8k if 16bit */
 	memsize = 8192 + sc->isa16bit * 8192;
