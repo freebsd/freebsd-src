@@ -227,8 +227,8 @@ state(KINFO *k, VARENT *ve)
 		*cp = 'W';
 		break;
 
-	case SMTX:
-		*cp = 'M';
+	case SLOCK:
+		*cp = 'L';
 		break;
 
 	case SZOMB:
@@ -420,15 +420,15 @@ lstarted(KINFO *k, VARENT *ve)
 }
 
 void
-mtxname(KINFO *k, VARENT *ve)
+lockname(KINFO *k, VARENT *ve)
 {
 	VAR *v;
 
 	v = ve->var;
-	if (k->ki_p->ki_kiflag & KI_MTXBLOCK) {
-		if (k->ki_p->ki_mtxname[0] != 0)
+	if (k->ki_p->ki_kiflag & KI_LOCKBLOCK) {
+		if (k->ki_p->ki_lockname[0] != 0)
 			(void)printf("%-*.*s", v->width, v->width,
-				      k->ki_p->ki_mtxname);
+				      k->ki_p->ki_lockname);
 		else
 			(void)printf("%-*s", v->width, "???");
 	} else
@@ -466,10 +466,10 @@ mwchan(KINFO *k, VARENT *ve)
 		else
 			(void)printf("%-*lx", v->width,
 			    (long)k->ki_p->ki_wchan);
-	} else if (k->ki_p->ki_kiflag & KI_MTXBLOCK) {
-		if (k->ki_p->ki_mtxname[0]) {
+	} else if (k->ki_p->ki_kiflag & KI_LOCKBLOCK) {
+		if (k->ki_p->ki_lockname[0]) {
 			(void)printf("%-*.*s", v->width, v->width,
-			    k->ki_p->ki_mtxname);
+			    k->ki_p->ki_lockname);
 		} else {
 			(void)printf("%-*s", v->width, "???");
 		}

@@ -191,7 +191,7 @@ will display information.
 .Pp
 A complete list of the available keywords are listed below.
 Some of these keywords are further specified as follows:
-.Bl -tag -width mtxname
+.Bl -tag -width lockname
 .It %cpu
 The cpu utilization of the process; this is a decaying average over up to
 a minute of previous (real) time.
@@ -232,17 +232,15 @@ The exact time the command started, using the ``%c'' format described in
 .Xr strftime 3 .
 .It lvl
 The LOMAC level of the process.
-.It mtxname
-The name of the
-.Xr mutex 9
-that the process is currently blocked on.
+.It lockname
+The name of the lock that the process is currently blocked on.
 If the name is invalid or unknown, then
 .Dq ???\&
 is displayed.
 .It mwchan
-The event name if the process is blocked normally, or the mutex name if
-the process is blocked on a mutex.
-See the wchan and mtxname keywords
+The event name if the process is blocked normally, or the lock name if
+the process is blocked on a lock.
+See the wchan and lockname keywords
 for details.
 .It nice
 The process scheduling increment (see
@@ -272,8 +270,8 @@ Marks a process which is in
 .Xr jail 2 .
 The hostname of the prison can be found in
 .Ql Li /proc/<pid>/status .
-.It M
-Marks a process that is waiting to acquire a mutex.
+.It L
+Marks a process that is waiting to acquire a lock.
 .It R
 Marks a runnable process.
 .It S
@@ -408,11 +406,10 @@ total page reclaims
 total messages received (reads from pipes/sockets)
 .It msgsnd
 total messages sent (writes on pipes/sockets)
-.It mtxname
-.Xr mutex 9
-currently blocked on (as a symbolic name)
+.It lockname
+lock currently blocked on (as a symbolic name)
 .It mwchan
-wait channel or mutex currently blocked on
+wait channel or lock currently blocked on
 .It nice
 nice value (alias ni)
 .It nivcsw

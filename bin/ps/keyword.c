@@ -110,7 +110,7 @@ static VAR var[] = {
 		LONG, "ld", 0},
 	{"msgsnd", "MSGSND", NULL, USER, rvar, NULL, 4, ROFF(ru_msgsnd),
 		LONG, "ld", 0},
-	{"mtxname", "MUTEX", NULL, LJUST, mtxname, NULL, 6, 0, CHAR, NULL,
+	{"lockname", "LOCK", NULL, LJUST, lockname, NULL, 6, 0, CHAR, NULL,
 		0},
 	{"mwchan", "MWCHAN", NULL, LJUST, mwchan, NULL, 6, 0, CHAR, NULL, 0},
 	{"ni", "", "nice", 0, NULL, NULL, 0, 0, CHAR, NULL, 0},

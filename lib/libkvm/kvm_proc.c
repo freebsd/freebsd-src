@@ -317,12 +317,12 @@ nopgrp:
 		}
 		if ((proc.p_state != PRS_ZOMBIE) &&
 		    (mtd.td_blocked != 0)) {
-			kp->ki_kiflag |= KI_MTXBLOCK;
-			if (mtd.td_mtxname)
+			kp->ki_kiflag |= KI_LOCKBLOCK;
+			if (mtd.td_lockname)
 				(void)kvm_read(kd,
-				    (u_long)mtd.td_mtxname,
-				    kp->ki_mtxname, MTXNAMELEN);
-			kp->ki_mtxname[MTXNAMELEN] = 0;
+				    (u_long)mtd.td_lockname,
+				    kp->ki_lockname, LOCKNAMELEN);
+			kp->ki_lockname[LOCKNAMELEN] = 0;
 		}
 		bintime2timeval(&proc.p_runtime, &tv);
 		kp->ki_runtime = (u_int64_t)tv.tv_sec * 1000000 + tv.tv_usec;
@@ -349,8 +349,8 @@ nopgrp:
 					} else if (
 					    TD_IS_SLEEPING(&mtd)) {
 						kp->ki_stat = SSLEEP;
-					} else if (TD_ON_MUTEX(&mtd)) {
-						kp->ki_stat = SMTX;
+					} else if (TD_ON_LOCK(&mtd)) {
+						kp->ki_stat = SLOCK;
 					} else {
 						kp->ki_stat = SWAIT;
 					}
