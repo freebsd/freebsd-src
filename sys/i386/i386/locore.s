@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.68 1996/04/30 11:58:56 phk Exp $
+ *	$Id: locore.s,v 1.69 1996/05/02 14:19:43 phk Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -104,7 +104,7 @@ tmpstk:
 
 	.globl	_boothowto,_bootdev
 
-	.globl	_cpu,_atdevbase,_cpu_vendor,_cpu_id,_bootinfo
+	.globl	_cpu,_cpu_vendor,_cpu_id,_bootinfo
 	.globl	_cpu_high, _cpu_feature
 
 _cpu:	.long	0				/* are we 386, 386sx, or 486 */
@@ -113,7 +113,6 @@ _cpu_high:	.long	0			/* highest arg to CPUID */
 _cpu_feature:	.long	0			/* features */
 _cpu_vendor:	.space	20			/* CPU origin code */
 _bootinfo:	.space	BOOTINFO_SIZE		/* bootinfo that we can handle */
-_atdevbase:	.long	0			/* location of start of iomem in virtual */
 
 _KERNend:	.long	0			/* phys addr end of kernel (just after bss) */
 physfree:	.long	0			/* phys addr of next free page */
@@ -156,15 +155,31 @@ _bdb_exists:	.long	0
 
 /*
  * fillkpt
- *	eax = (page frame address | control | status) == pte
- *	ebx = address of page table
+ *	eax = page frame address
+ *	ebx = index into page table
  *	ecx = how many pages to map
+ * 	base = base address of page dir/table
+ *	prot = protection bits
  */
-#define	fillkpt		\
-1:	movl	%eax,(%ebx)	; \
-	addl	$PAGE_SIZE,%eax	; /* increment physical address */ \
-	addl	$4,%ebx		; /* next pte */ \
+#define	fillkpt(base, prot)		  \
+	shll	$2, %ebx		; \
+	addl	base, %ebx		; \
+	orl	$PG_V+prot, %eax	; \
+1:	movl	%eax,(%ebx)		; \
+	addl	$PAGE_SIZE,%eax		; /* increment physical address */ \
+	addl	$4,%ebx			; /* next pte */ \
 	loop	1b
+
+/*
+ * fillkptphys(prot)
+ *	eax = physical address
+ *	ecx = how many pages to map
+ *	prot = protection bits
+ */
+#define	fillkptphys(prot)		  \
+	movl	%eax, %ebx		; \
+	shrl	$PAGE_SHIFT, %ebx	; \
+	fillkpt(R(_KPTphys), prot)
 
 	.text
 /**********************************************************************
@@ -688,8 +703,8 @@ create_pagetables:
 over_symalloc:
 #endif
 
-	addl	$PAGE_SIZE-1,%esi
-	andl	$~(PAGE_SIZE-1),%esi
+	addl	$PAGE_MASK,%esi
+	andl	$~PAGE_MASK,%esi
 	movl	%esi,R(_KERNend)	/* save end of kernel */
 	movl	%esi,R(physfree)	/* next free page is at end of kernel */
 
@@ -712,105 +727,74 @@ over_symalloc:
 	movl	%esi,R(p0upt)
 
 /* Map read-only from zero to the end of the kernel text section */
-	movl	R(_KPTphys), %esi
-	movl	$R(_etext),%ecx
-	addl	$PAGE_SIZE-1,%ecx
-	shrl	$PAGE_SHIFT,%ecx
-	movl	$PG_V|PG_KR,%eax
-	movl	%esi, %ebx
+	xorl	%eax, %eax
 #ifdef BDE_DEBUGGER
 /* If the debugger is present, actually map everything read-write. */
 	cmpl	$0,R(_bdb_exists)
 	jne	map_read_write
 #endif
-	fillkpt
+	movl	$R(_etext),%ecx
+	addl	$PAGE_MASK,%ecx
+	shrl	$PAGE_SHIFT,%ecx
+	fillkptphys(0)
 
 /* Map read-write, data, bss and symbols */
+	movl	$R(_etext),%eax
 map_read_write:
-	andl	$PG_FRAME,%eax
 	movl	R(_KERNend),%ecx
 	subl	%eax,%ecx
 	shrl	$PAGE_SHIFT,%ecx
-	orl	$PG_V|PG_KW,%eax
-	fillkpt
+	fillkptphys(PG_RW)
 
 /* Map page directory. */
 	movl	R(_IdlePTD), %eax
 	movl	$1, %ecx
-	movl	%eax, %ebx
-	shrl	$PAGE_SHIFT-2, %ebx
-	addl	R(_KPTphys), %ebx
-	orl	$PG_V|PG_KW, %eax
-	fillkpt
+	fillkptphys(PG_RW)
 
 /* Map proc0's page table for the UPAGES the physical way.  */
 	movl	R(p0upt), %eax
 	movl	$1, %ecx
-	movl	%eax, %ebx
-	shrl	$PAGE_SHIFT-2, %ebx
-	addl	R(_KPTphys), %ebx
-	orl	$PG_V|PG_KW, %eax
-	fillkpt
+	fillkptphys(PG_RW)
 
 /* Map proc0s UPAGES the physical way */
 	movl	R(upa), %eax
 	movl	$UPAGES, %ecx
-	movl	%eax, %ebx
-	shrl	$PAGE_SHIFT-2, %ebx
-	addl	R(_KPTphys), %ebx
-	orl	$PG_V|PG_KW, %eax
-	fillkpt
+	fillkptphys(PG_RW)
 
-/* ... and in the special page table for this purpose. */
+/* Map ISA hole */
+	movl	$ISA_HOLE_START, %eax
+	movl	$ISA_HOLE_LENGTH>>PAGE_SHIFT, %ecx
+	fillkptphys(PG_RW|PG_N)
+
+/* Map proc0s UPAGES in the special page table for this purpose. */
 	movl	R(upa), %eax
+	movl	$KSTKPTEOFF, %ebx
 	movl	$UPAGES, %ecx
-	orl	$PG_V|PG_KW, %eax
-	movl	R(p0upt), %ebx
-	addl	$(KSTKPTEOFF * PTESIZE), %ebx
-	fillkpt
+	fillkpt(R(p0upt), PG_RW)
 
 /* and put the page table in the pde. */
 	movl	R(p0upt), %eax
-	movl	R(_IdlePTD), %esi
-	orl	$PG_V|PG_KW,%eax
-	movl	%eax,KSTKPTDI*PDESIZE(%esi)
-
-/* Map ISA hole */
-#define ISA_HOLE_START	  0xa0000
-#define ISA_HOLE_LENGTH (0x100000-ISA_HOLE_START)
-	movl	$ISA_HOLE_LENGTH>>PAGE_SHIFT, %ecx
-	movl	$ISA_HOLE_START, %eax
-	movl	%eax, %ebx
-/* XXX 2 is magic for log2(PTESIZE). */
-	shrl	$PAGE_SHIFT-2, %ebx
-	addl	R(_KPTphys), %ebx
-/* XXX could load %eax directly with $ISA_HOLE_START|PG_V|PG_KW_PG_N. */
-	orl	$PG_V|PG_KW|PG_N, %eax
-	fillkpt
-/* XXX could load %eax directly with $ISA_HOLE_START+KERNBASE. */
-	movl	$ISA_HOLE_START, %eax
-	addl	$KERNBASE, %eax
-	movl	%eax, R(_atdevbase)
+	movl	$KSTKPTDI, %ebx
+	movl	$1, %ecx
+	fillkpt(R(_IdlePTD), PG_RW)
 
 /* install a pde for temporary double map of bottom of VA */
-	movl	R(_IdlePTD), %esi
 	movl	R(_KPTphys), %eax
-	orl     $PG_V|PG_KW, %eax
-	movl	%eax, (%esi)
+	xorl	%ebx, %ebx
+	movl	$1, %ecx
+	fillkpt(R(_IdlePTD), PG_RW)
 
 /* install pde's for pt's */
-	movl	R(_IdlePTD), %esi
 	movl	R(_KPTphys), %eax
-	orl     $PG_V|PG_KW, %eax
-	movl	$(NKPT), %ecx
-	lea	(KPTDI*PDESIZE)(%esi), %ebx
-	fillkpt
+	movl	$KPTDI, %ebx
+	movl	$NKPT, %ecx
+	fillkpt(R(_IdlePTD), PG_RW)
 
 /* install a pde recursively mapping page directory as a page table */
-	movl	R(_IdlePTD), %esi
-	movl	%esi,%eax
-	orl	$PG_V|PG_KW,%eax
-	movl	%eax,PTDPTDI*PDESIZE(%esi)
+	movl	R(_IdlePTD), %eax
+	movl	$PTDPTDI, %ebx
+	movl	$1,%ecx
+	fillkpt(R(_IdlePTD), PG_RW)
 
 	ret
 

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.186 1996/05/01 08:38:36 bde Exp $
+ *	$Id: machdep.c,v 1.187 1996/05/02 14:19:47 phk Exp $
  */
 
 #include "npx.h"
@@ -168,6 +168,7 @@ int	bouncepages = 0;
 extern int freebufspace;
 int	msgbufmapped = 0;		/* set when safe to use msgbuf */
 int _udatasel, _ucodesel;
+u_int	atdevbase;
 
 
 int physmem = 0;
@@ -1313,6 +1314,8 @@ init386(first)
 
 	proc0.p_addr = proc0paddr;
 
+	atdevbase = ISA_HOLE_START + KERNBASE;
+
 	/*
 	 * Initialize the console before we print anything out.
 	 */
@@ -1498,7 +1501,7 @@ init386(first)
 		/*
 		 * map page into kernel: valid, read/write, non-cacheable
 		 */
-		*(int *)CMAP1 = PG_V | PG_KW | PG_N | target_page;
+		*(int *)CMAP1 = PG_V | PG_RW | PG_N | target_page;
 		pmap_update();
 
 		tmp = *(int *)CADDR1;

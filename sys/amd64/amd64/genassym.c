@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.34 1996/04/13 11:22:57 bde Exp $
+ *	$Id: genassym.c,v 1.35 1996/05/02 14:19:40 phk Exp $
  */
 
 #include <stdio.h>
@@ -111,6 +111,7 @@ main()
 	printf("#define\tNKPDE %d\n", NKPDE);
 	printf("#define\tNKPT %d\n", NKPT);
 	printf("#define\tPAGE_SHIFT %d\n", PAGE_SHIFT);
+	printf("#define\tPAGE_MASK %d\n", PAGE_MASK);
 	printf("#define\tPDRSHIFT %d\n", PDRSHIFT);
 	printf("#define\tUSRSTACK 0x%lx\n", USRSTACK);
 	printf("#define\tVM_MAXUSER_ADDRESS 0x%lx\n", VM_MAXUSER_ADDRESS);

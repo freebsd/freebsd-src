@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.86 1996/04/22 05:23:08 dyson Exp $
+ *	$Id: pmap.c,v 1.87 1996/05/02 14:19:52 phk Exp $
  */
 
 /*
@@ -121,7 +121,7 @@ static void	init_pv_entries __P((int));
 #define pmap_pde_v(pte)		((*(int *)pte & PG_V) != 0)
 #define pmap_pte_w(pte)		((*(int *)pte & PG_W) != 0)
 #define pmap_pte_m(pte)		((*(int *)pte & PG_M) != 0)
-#define pmap_pte_u(pte)		((*(int *)pte & PG_U) != 0)
+#define pmap_pte_u(pte)		((*(int *)pte & PG_A) != 0)
 #define pmap_pte_v(pte)		((*(int *)pte & PG_V) != 0)
 
 #define pmap_pte_set_w(pte, v) ((v)?(*(int *)pte |= PG_W):(*(int *)pte &= ~PG_W))
@@ -177,8 +177,6 @@ static __inline void pmap_remove_entry __P((struct pmap *pmap, pv_entry_t pv,
 					vm_offset_t va));
 static void pmap_remove_pte __P((struct pmap *pmap, pt_entry_t *ptq,
 					vm_offset_t sva));
-static vm_page_t
-		pmap_pte_vm_page __P((pmap_t pmap, vm_offset_t pt));
 static boolean_t
 		pmap_testbit __P((vm_offset_t pa, int bit));
 static void *	pmap_getpdir __P((void));
@@ -608,7 +606,7 @@ pmap_pinit(pmap)
 
 	/* install self-referential address mapping entry */
 	*(int *) (pmap->pm_pdir + PTDPTDI) =
-	    ((int) pmap_kextract((vm_offset_t) pmap->pm_pdir)) | PG_V | PG_KW;
+	    ((int) pmap_kextract((vm_offset_t) pmap->pm_pdir)) | PG_V | PG_RW;
 
 	pmap->pm_count = 1;
 }
@@ -651,7 +649,7 @@ pmap_growkernel(vm_offset_t addr)
 			vm_page_remove(nkpg);
 			pmap_zero_page(VM_PAGE_TO_PHYS(nkpg));
 		}
-		pdir_pde(PTD, kernel_vm_end) = (pd_entry_t) (VM_PAGE_TO_PHYS(nkpg) | PG_V | PG_KW);
+		pdir_pde(PTD, kernel_vm_end) = (pd_entry_t) (VM_PAGE_TO_PHYS(nkpg) | PG_V | PG_RW);
 		nkpg = NULL;
 
 		for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
@@ -986,7 +984,6 @@ pmap_remove(pmap, sva, eva)
 	register vm_offset_t eva;
 {
 	register pt_entry_t *ptbase;
-	vm_offset_t va;
 	vm_offset_t pdnxt;
 	vm_offset_t ptpaddr;
 	vm_offset_t sindex, eindex;
@@ -1161,7 +1158,6 @@ pmap_protect(pmap, sva, eva, prot)
 	vm_prot_t prot;
 {
 	register pt_entry_t *pte;
-	register vm_offset_t va;
 	register pt_entry_t *ptbase;
 	vm_offset_t pdnxt;
 	vm_offset_t ptpaddr;
@@ -1188,7 +1184,6 @@ pmap_protect(pmap, sva, eva, prot)
 	eindex = i386_btop(eva);
 
 	for (; sindex < eindex; sindex = pdnxt) {
-		int pprot;
 		int pbits;
 
 		pdnxt = ((sindex + NPTEPG) & ~(NPTEPG - 1));
@@ -1254,7 +1249,6 @@ pmap_enter(pmap, va, pa, prot, wired)
 	register pt_entry_t *pte;
 	vm_offset_t opa;
 	register pv_entry_t pv, npv;
-	int ptevalid;
 	vm_offset_t origpte, newpte;
 
 	if (pmap == NULL)
@@ -1389,15 +1383,15 @@ validate:
 	if (wired)
 		newpte |= PG_W;
 	if (va < UPT_MIN_ADDRESS)
-		newpte |= PG_u;
+		newpte |= PG_U;
 	else if (va < UPT_MAX_ADDRESS)
-		newpte |= PG_u | PG_RW;
+		newpte |= PG_U | PG_RW;
 
 	/*
 	 * if the mapping or permission bits are different, we need
 	 * to update the pte.
 	 */
-	if ((origpte & ~(PG_M|PG_U)) != newpte) {
+	if ((origpte & ~(PG_M|PG_A)) != newpte) {
 		*pte = (pt_entry_t) newpte;
 		if (origpte)
 			pmap_update_1pg(va);
@@ -1426,7 +1420,6 @@ pmap_qenter(va, m, count)
 	int count;
 {
 	int i;
-	int anyvalid = 0;
 	register pt_entry_t *pte;
 
 	for (i = 0; i < count; i++) {
@@ -1559,7 +1552,7 @@ pmap_enter_quick(pmap, va, pa)
 	/*
 	 * Now validate mapping with RO protection
 	 */
-	*pte = (pt_entry_t) ((int) (pa | PG_V | PG_u));
+	*pte = (pt_entry_t) ((int) (pa | PG_V | PG_U));
 
 	return;
 }
@@ -1678,7 +1671,6 @@ pmap_prefault(pmap, addra, entry, object)
 	vm_offset_t addr;
 	vm_pindex_t pindex;
 	vm_page_t m;
-	int pageorder_index;
 
 	if (entry->object.vm_object != object)
 		return;
@@ -1815,7 +1807,7 @@ pmap_zero_page(phys)
 	if (*(int *) CMAP2)
 		panic("pmap_zero_page: CMAP busy");
 
-	*(int *) CMAP2 = PG_V | PG_KW | (phys & PG_FRAME);
+	*(int *) CMAP2 = PG_V | PG_RW | (phys & PG_FRAME);
 	bzero(CADDR2, PAGE_SIZE);
 
 	*(int *) CMAP2 = 0;
@@ -1836,8 +1828,8 @@ pmap_copy_page(src, dst)
 	if (*(int *) CMAP1 || *(int *) CMAP2)
 		panic("pmap_copy_page: CMAP busy");
 
-	*(int *) CMAP1 = PG_V | PG_KW | (src & PG_FRAME);
-	*(int *) CMAP2 = PG_V | PG_KW | (dst & PG_FRAME);
+	*(int *) CMAP1 = PG_V | PG_RW | (src & PG_FRAME);
+	*(int *) CMAP2 = PG_V | PG_RW | (dst & PG_FRAME);
 
 #if __GNUC__ > 1
 	memcpy(CADDR2, CADDR1, PAGE_SIZE);
@@ -1935,7 +1927,7 @@ pmap_testbit(pa, bit)
 			 * mark UPAGES as always modified, and ptes as never
 			 * modified.
 			 */
-			if (bit & (PG_U|PG_M)) {
+			if (bit & (PG_A|PG_M)) {
 				if ((pv->pv_va >= clean_sva) && (pv->pv_va < clean_eva)) {
 					continue;
 				}
@@ -1967,9 +1959,8 @@ pmap_changebit(pa, bit, setem)
 	boolean_t setem;
 {
 	register pv_entry_t pv;
-	register pt_entry_t *pte, npte;
+	register pt_entry_t *pte;
 	vm_offset_t va;
-	int changed;
 	int s;
 
 	if (!pmap_is_managed(pa))
@@ -2057,7 +2048,7 @@ pmap_phys_address(ppn)
 boolean_t
 pmap_is_referenced(vm_offset_t pa)
 {
-	return pmap_testbit((pa), PG_U);
+	return pmap_testbit((pa), PG_A);
 }
 
 /*
@@ -2089,7 +2080,7 @@ pmap_clear_modify(vm_offset_t pa)
 void
 pmap_clear_reference(vm_offset_t pa)
 {
-	pmap_changebit((pa), PG_U, FALSE);
+	pmap_changebit((pa), PG_A, FALSE);
 }
 
 /*
