@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_prtsub_rcsid[] = "$FreeBSD$";
+const char _uuconf_prtsub_rcsid[] = "$Id$";
 #endif
 
 /* Clear the information in a port.  This can only clear the type

@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_stafil_rcsid[] = "$FreeBSD$";
+const char _uuconf_stafil_rcsid[] = "$Id$";
 #endif
 
 /* Get the name of the UUCP statistics file.  */
