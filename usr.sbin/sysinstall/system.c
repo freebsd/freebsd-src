@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id$
+ * $Id: system.c,v 1.1.1.1 1995/04/27 12:50:34 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -20,6 +20,7 @@
 #include <sys/reboot.h>
 #include <sys/fcntl.h>
 #include <sys/ioctl.h>
+#include <sys/wait.h>
 
 /* Handle interrupt signals (duh!) */
 static void
@@ -87,8 +88,11 @@ systemShutdown(void)
     /* REALLY exit! */
     if (getpid() == 1)
 	reboot(RB_HALT);
+    else
+	exit(1);
 }
 
+/* Run some general command */
 int
 systemExecute(char *command)
 {
@@ -105,3 +109,67 @@ systemExecute(char *command)
     return status;
 }
 
+/* Find and execute a shell */
+int
+systemShellEscape(void)
+{
+    char *sh = NULL;
+
+    if (file_executable("/bin/sh"))
+	sh = "/bin/sh";
+    else if (file_executable("/stand/sh"))
+	sh = "/stand/sh";
+    else {
+	msgWarn("No shell available, sorry!");
+	return 1;
+    }
+    setenv("PS1", "freebsd% ", 1);
+    dialog_clear();
+    dialog_update();
+    move(0, 0);
+    standout();
+    addstr("Type `exit' to leave this shell and continue installallation");
+    standend();
+    refresh();
+    end_dialog();
+    DialogActive = FALSE;
+    if (fork() == 0)
+	execlp(sh, "-sh", 0);
+    else
+	wait(NULL);
+    dialog_clear();
+    DialogActive = TRUE;
+    return 0;
+}
+
+/* Display a file in a filebox */
+int
+systemDisplayFile(char *file)
+{
+    char buf[FILENAME_MAX], *cp, *fname = NULL;
+
+    if (file_readable(file))
+	fname = file;
+    else if ((cp = getenv("LANG")) != NULL) {
+	snprintf(buf, FILENAME_MAX, "%s/%s", cp, file);
+	if (file_readable(buf))
+	    fname = buf;
+    }
+    else {
+	snprintf(buf, FILENAME_MAX, "english/%s", file);
+	if (file_readable(buf))
+	    fname = buf;
+    }
+    if (!fname) {
+	snprintf(buf, FILENAME_MAX, "The %s file is not provided on this particular floppy image.", file);
+	dialog_msgbox("Sorry!", buf, -1, -1, 1);
+	dialog_clear_norefresh();
+	return 1;
+    }
+    else {
+	dialog_clear_norefresh();
+	dialog_textbox(file, fname, LINES, COLS);
+	dialog_clear_norefresh();
+    }
+    return 0;
+}

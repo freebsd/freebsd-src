@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.1.1.1 1995/04/27 12:50:35 jkh Exp $
+ * $Id: install.c,v 1.2 1995/04/27 18:03:53 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -57,3 +57,8 @@ installExpress(void)
     return 0;
 }
 
+int
+installMaint(void)
+{
+    return 0;
+}
