@@ -1470,28 +1470,6 @@ SYSCTL_INT(_kern, OID_AUTO, openfiles, CTLFLAG_RD,
     &nfiles, 0, "System-wide number of open files");
 
 static void
-fildesc_clone(void *arg, char *name, int namelen, dev_t *dev)
-{
-	int u;
-
-	if (*dev != NODEV)
-		return;
-	if (dev_stdclone(name, NULL, "fd/", &u) != 1)
-		return;
-	if (u <= 2)
-		return;
-	/* Don't clone higher than it makes sense */
-	if (u >= maxfilesperproc)
-		return;
-	/* And don't clone higher than our minors will support */
-	if (u > 0xffffff)
-		return;
-	u = unit2minor(u);
-	*dev = make_dev(&fildesc_cdevsw, u, UID_BIN, GID_BIN, 0666, name);
-	return;
-}
-
-static void
 fildesc_drvinit(void *unused)
 {
 	dev_t dev;
@@ -1502,7 +1480,6 @@ fildesc_drvinit(void *unused)
 	make_dev_alias(dev, "stdout");
 	dev = make_dev(&fildesc_cdevsw, 2, UID_BIN, GID_BIN, 0666, "fd/2");
 	make_dev_alias(dev, "stderr");
-	EVENTHANDLER_REGISTER(dev_clone, fildesc_clone, 0, 1000);
 	if (!devfs_present) {
 		int fd;
 
