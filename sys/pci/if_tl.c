@@ -1445,14 +1445,14 @@ static int tl_newbuf(sc, c)
 
 	MGETHDR(m_new, M_DONTWAIT, MT_DATA);
 	if (m_new == NULL) {
-		printf("tl%d: no memory for rx list -- packet dropped!",
+		printf("tl%d: no memory for rx list -- packet dropped!\n",
 				sc->tl_unit);
 		return(ENOBUFS);
 	}
 
 	MCLGET(m_new, M_DONTWAIT);
 	if (!(m_new->m_flags & M_EXT)) {
-		printf("tl%d: no memory for rx list -- packet dropped!",
+		printf("tl%d: no memory for rx list -- packet dropped!\n",
 				 sc->tl_unit);
 		m_freem(m_new);
 		return(ENOBUFS);
@@ -1465,10 +1465,10 @@ static int tl_newbuf(sc, c)
 	c->tl_mbuf = m_new;
 	c->tl_next = NULL;
 	c->tl_ptr->tlist_frsize = MCLBYTES;
-	c->tl_ptr->tlist_cstat = TL_CSTAT_READY;
 	c->tl_ptr->tlist_fptr = 0;
 	c->tl_ptr->tl_frag.tlist_dadr = vtophys(mtod(m_new, caddr_t));
 	c->tl_ptr->tl_frag.tlist_dcnt = MCLBYTES;
+	c->tl_ptr->tlist_cstat = TL_CSTAT_READY;
 
 	return(0);
 }
@@ -1509,9 +1509,11 @@ static int tl_intvec_rxeof(xsc, type)
 	sc = xsc;
 	ifp = &sc->arpcom.ac_if;
 
-	while(sc->tl_cdata.tl_rx_head->tl_ptr->tlist_cstat & TL_CSTAT_FRAMECMP){
-		r++;
+	while(sc->tl_cdata.tl_rx_head != NULL) {
 		cur_rx = sc->tl_cdata.tl_rx_head;
+		if (!(cur_rx->tl_ptr->tlist_cstat & TL_CSTAT_FRAMECMP))
+			break;
+		r++;
 		sc->tl_cdata.tl_rx_head = cur_rx->tl_next;
 		m = cur_rx->tl_mbuf;
 		total_len = cur_rx->tl_ptr->tlist_frsize;
@@ -1588,13 +1590,18 @@ static int tl_intvec_rxeoc(xsc, type)
 {
 	struct tl_softc		*sc;
 	int			r;
+	struct tl_chain_data	*cd;
+
 
 	sc = xsc;
+	cd = &sc->tl_cdata;
 
 	/* Flush out the receive queue and ack RXEOF interrupts. */
 	r = tl_intvec_rxeof(xsc, type);
 	CMD_PUT(sc, TL_CMD_ACK | r | (type & ~(0x00100000)));
 	r = 1;
+	cd->tl_rx_head = &cd->tl_rx_chain[0];
+	cd->tl_rx_tail = &cd->tl_rx_chain[TL_RX_LIST_CNT - 1];
 	CSR_WRITE_4(sc, TL_CH_PARM, vtophys(sc->tl_cdata.tl_rx_head->tl_ptr));
 	r |= (TL_CMD_GO|TL_CMD_RT);
 	return(r);
@@ -1905,14 +1912,14 @@ static int tl_encap(sc, c, m_head)
 
 		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
 		if (m_new == NULL) {
-			printf("tl%d: no memory for tx list", sc->tl_unit);
+			printf("tl%d: no memory for tx list\n", sc->tl_unit);
 			return(1);
 		}
 		if (m_head->m_pkthdr.len > MHLEN) {
 			MCLGET(m_new, M_DONTWAIT);
 			if (!(m_new->m_flags & M_EXT)) {
 				m_freem(m_new);
-				printf("tl%d: no memory for tx list",
+				printf("tl%d: no memory for tx list\n",
 				sc->tl_unit);
 				return(1);
 			}
