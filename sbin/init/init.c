@@ -1084,7 +1084,7 @@ start_getty(sp)
 	int too_quick = 0;
 	char term[64], *env[2];
 
-	if (current_time > sp->se_started &&
+	if (current_time >= sp->se_started &&
 	    current_time - sp->se_started < GETTY_SPACING) {
 		if (++sp->se_nspace > GETTY_NSPACE) {
 			sp->se_nspace = 0;
