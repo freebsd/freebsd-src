@@ -4,6 +4,7 @@
 MAN=	aac.4 \
 	acpi.4 \
 	acpi_thermal.4 \
+	acpi_video.4 \
 	adv.4 \
 	adw.4 \
 	agp.4 \
