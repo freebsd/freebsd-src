@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: periodic.8,v 1.4 1997/08/16 17:08:35 pst Exp $
+.\"	$Id: periodic.8,v 1.5 1997/08/19 16:49:35 pst Exp $
 .\"
 .Dd 13 August 1997
 .Os FreeBSD 3.0
@@ -112,10 +112,10 @@ Additionally, the system registry will typically have a
 variable reading:
 .Dl local_cron="/usr/local/etc/periodic /usr/X11R6/etc/periodic" # cron script dirs.
 .Sh SEE ALSO
-.Xr cron 8 ,
+.Xr sh 1 ,
 .Xr crontab 5 ,
 .Xr rc.conf 5 ,
-.Xr sh 1
+.Xr cron 8
 .Rs
 .Sh DIAGNOSTICS
 Exit status is 0 on success, and 1 if the command
