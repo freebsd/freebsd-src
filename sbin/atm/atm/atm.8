@@ -22,7 +22,7 @@
 .\" Copies of this Software may be made, however, the above copyright
 .\" notice must be reproduced on all copies.
 .\"
-.\" @(#) $Id: atm.1,v 1.4 1998/08/26 21:38:28 johnc Exp $
+.\" @(#) $Id: atm.8,v 1.1 1998/09/15 08:22:45 phk Exp $
 .\"
 .\"
 .de EX		\"Begin example
@@ -178,19 +178,22 @@ Two types of interfaces are supported:
 physical interfaces and network interfaces.
 A physical interface represents a physical point of attachment to an
 ATM network.
-A physical interface has an ATM address associated with it.
+A physical interface has an ATM address associated with it, except
+when the PVC-only signalling manager is being used.
 .PP
 A network interface is a logical interface.
 One or more network interfaces are associated with a physical
 interface;  each network interface has an IP address associated with it.
-For interfaces controlled by the SPANS or PVC signalling managers,
-there must be one and
-only one network interface associated with each physical interface.
 For UNI-controlled interfaces, there can be up to 256 network
 interfaces associated with a physical interface.
 In this case, the correspondence between the network interface and
 the ATM address is determined by the selector field (the last
 byte) of the physical interface's ATM address.
+For PVC-only interfaces, there can be up to 256 logical interfaces
+associated with each physical interface.
+For interfaces controlled by the SPANS signalling manager,
+there must be one and
+only one network interface associated with each physical interface.
 .SS "Keyword and Documentation Conventions"
 Command and subcommand keywords can be abbreviated by simply giving
 enough of the first part of the keyword to make it unique.

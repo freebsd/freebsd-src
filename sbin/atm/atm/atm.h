@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm.h,v 1.9 1998/07/09 21:23:53 johnc Exp $
+ *	@(#) $Id: atm.h,v 1.1 1998/09/15 08:22:45 phk Exp $
  *
  */
 
@@ -35,7 +35,7 @@
  *
  */
 
-#define	MAX_NIFS	32		/* Max network interfaces */
+#define	MAX_NIFS	256		/* Max network interfaces */
 #define	MIN_VCI		32		/* Smallest non-reserved VCI */
 
 #ifndef TRUE
