@@ -578,11 +578,8 @@ kvm_uread (core_kd, p, memaddr, myaddr, len)
 
   if (devmem) 
     {
-      cp = myaddr;
-
       sprintf (procfile, "/proc/%d/mem", p->p_pid);
       fd = open (procfile, O_RDONLY, 0);
-
       if (fd < 0)
 	{
 	  error ("cannot open %s", procfile);
@@ -590,12 +587,13 @@ kvm_uread (core_kd, p, memaddr, myaddr, len)
 	  return (0);
 	}
 
+      cp = myaddr;
       while (len > 0)
 	{
-	  if (lseek (fd, memaddr, 0) == -1 && errno != 0)
+	  errno = 0;
+	  if (lseek (fd, (off_t)memaddr, 0) == -1 && errno != 0)
 	    {
-	      error ("invalid address (%x) in %s",
-		    memaddr, procfile);
+	      error ("invalid address (%x) in %s", memaddr, procfile);
 	      break;
 	    }
 	  amount = read (fd, cp, len);
@@ -604,13 +602,18 @@ kvm_uread (core_kd, p, memaddr, myaddr, len)
 	      error ("error reading %s", procfile);
 	      break;
 	    }
+	  if (amount == 0)
+	    {
+	      error ("EOF reading %s", procfile);
+	      break;
+	    }
 	  cp += amount;
 	  memaddr += amount;
 	  len -= amount;
 	}
 
       close (fd);
-      return (ssize_t) (cp - myaddr);
+      return ((ssize_t) (cp - myaddr));
     }
   else
     return (kernel_core_file_hook (core_kd, memaddr, myaddr, len));
