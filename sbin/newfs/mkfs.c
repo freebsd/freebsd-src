@@ -457,7 +457,7 @@ mkfs(struct partition *pp, char *fsys)
 	}
 	if (Eflag == 2)
 		printf("** Leaving BAD MAGIC on Eflag 2\n");
-	else if( Oflag != 1 )
+	else if (Oflag != 1)
 		sblock.fs_magic = FS_UFS2_MAGIC;
 
 	/*
