@@ -152,7 +152,9 @@ thread_init(void *mem, int size)
 	    ("size mismatch: %d != %d\n", size, (int)sizeof(struct thread)));
 
 	td = (struct thread *)mem;
+	mtx_lock(&Giant);
 	pmap_new_thread(td);
+	mtx_unlock(&Giant);
 	cpu_thread_setup(td);
 	cached_threads++;	/* XXXSMP */
 	allocated_threads++;	/* XXXSMP */
