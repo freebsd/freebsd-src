@@ -54,6 +54,7 @@ extern int sc_height;
 extern int jump_sline;
 extern int bs_mode;
 extern int more_mode;
+extern int status_col;
 extern POSITION start_attnpos;
 extern POSITION end_attnpos;
 #if HILITE_SEARCH
@@ -511,7 +512,8 @@ is_hilited(pos, epos, nohide)
 {
 	struct hilite *hl;
 
-	if (start_attnpos != NULL_POSITION && 
+	if (!status_col &&
+	    start_attnpos != NULL_POSITION && 
 	    pos < end_attnpos &&
 	     (epos == NULL_POSITION || epos > start_attnpos))
 		/*
