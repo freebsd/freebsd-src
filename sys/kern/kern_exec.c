@@ -396,10 +396,8 @@ interpret:
 #endif
 		/* Make sure file descriptors 0..2 are in use.  */
 		error = fdcheckstd(td);
-		if (error != 0) {
-			oldcred = NULL;
+		if (error != 0)
 			goto done1;
-		}
 		/*
 		 * Set the new credentials.
 		 */
