@@ -447,7 +447,6 @@ invlpg(u_long addr)
 	__asm __volatile("invlpg %0" : : "m" (*(char *)addr) : "memory");
 }
 
-/* XXX these are replaced with rdmsr/wrmsr */
 static __inline u_int
 rfs(void)
 {
@@ -462,6 +461,18 @@ rgs(void)
 	u_int sel;
 	__asm __volatile("movl %%gs,%0" : "=rm" (sel));
 	return (sel);
+}
+
+static __inline void
+load_ds(u_int sel)
+{
+	__asm __volatile("movl %0,%%ds" : : "rm" (sel));
+}
+
+static __inline void
+load_es(u_int sel)
+{
+	__asm __volatile("movl %0,%%es" : : "rm" (sel));
 }
 
 static __inline void

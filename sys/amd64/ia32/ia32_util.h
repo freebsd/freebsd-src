@@ -44,7 +44,7 @@ struct ia32_ps_strings {
 	int	ps_nenvstr;	/* the number of environment strings */
 };
 
-#define IA32_USRSTACK	(4L*1024*1024*1024 - PAGE_SIZE)
+#define IA32_USRSTACK	USRSTACK
 #define IA32_PS_STRINGS	(IA32_USRSTACK - sizeof(struct ia32_ps_strings))
 
 static __inline caddr_t stackgap_init(void);
