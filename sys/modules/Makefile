@@ -267,7 +267,7 @@ SUBDIR+=linprocfs \
 .endif
 
 .if ${MACHINE_ARCH} == "sparc64"
-SUBDIR+=if_hme \
+SUBDIR+=hme \
 	gem
 .endif
 
