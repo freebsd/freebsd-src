@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" Author: Hartmut Brandt <harti@freebsd.org>
+.\" Author: Hartmut Brandt <harti@FreeBSD.org>
 .\"
 .\" $FreeBSD$
 .\"
@@ -35,11 +35,12 @@
 .Os
 .Sh NAME
 .Nm patm
-.Nd Device driver for IDT77252 based ATM interfaces (ProSum and IDT)
+.Nd "device driver for IDT77252 based ATM interfaces (ProSum and IDT)"
 .Sh SYNOPSIS
 .Cd device patm
 .Cd device utopia
 .Cd device atm
+.Pp
 .Cd options NATM
 .Cd options LIBMBPOOL
 .Sh DESCRIPTION
@@ -74,53 +75,70 @@ This may be used for monitoring purposes.
 The following sysctls are recognized by the driver additionally to those
 handled by
 .Xr utopia 4 :
-.Bl -tag -width XXX
-.It Cm hw.atm.patmN.istats
+.Bl -tag -width indent
+.It Va hw.atm.patm Ns Ar N Ns Va .istats
 Returns a list of
-.Dv uint32_t
+.Vt uint32_t
 statistic counters with internal driver statistics.
-.It Cm hw.atm.patmN.eeprom
+.It Va hw.atm.patm Ns Ar N Ns Va .eeprom
 This is a read-only variable containing the contents of the on-board EEPROM
 device.
-.It Cm hw.atm.patmN.lbuf_max
+.It Va hw.atm.patm Ns Ar N Ns Va .lbuf_max
 This puts an upper limit on the number of large receive buffers the
 driver will allocate.
-This is a read-only variable that can be set via a loader tunable.
-.It Cm hw.atm.patmN.tx_maxmaps
+This is a read-only variable that can be set via a
+.Xr loader 8
+tunable.
+.It Va hw.atm.patm Ns Ar N Ns Va .tx_maxmaps
 This is the upper limit of transmission DMA maps the driver will allocate.
-This is read-only but may be set via a loader tunable.
-.It Cm hw.atm.patmN.debug
-.Em (only if debugging enabled)
+This is read-only but may be set via a
+.Xr loader 8
+tunable.
+.It Va hw.atm.patm Ns Ar N Ns Va .debug
+.Bf Em
+(Only if debugging enabled.)
+.Ef
 These are debugging flags.
 See
-.Fn if_patmvar.h
+.Pa src/sys/dev/patm/if_patmvar.h
 for the possible flags.
-This may be initialized via a loader tunable.
-.It Cm hw.atm.patmN.regs
-.Em (only if debugging enabled)
+This may be initialized via a
+.Xr loader 8
+tunable.
+.It Va hw.atm.patm Ns Ar N Ns Va .regs
+.Bf Em
+(Only if debugging enabled.)
+.Ef
 Returns the current values of the card's registers.
-.It Cm hw.atm.patmN.tsq
+.It Va hw.atm.patm Ns Ar N Ns Va .tsq
 Returns the transmit status queue.
 .El
 .Pp
-When loaded the driver initializes several variables from loader tunables:
-.Bl -tag -width XXX
-.It Cm hw.patmN.lbuf_max
-This initializes the corresponding sysctl variable and defines an upper
+When loaded, the driver initializes several variables from
+.Xr loader 8
+tunables:
+.Bl -tag -width indent
+.It Va hw.patm Ns Ar N Ns Va .lbuf_max
+This initializes the corresponding
+.Xr sysctl 8
+variable and defines an upper
 limit on the number of large receive buffers (mbuf clusters).
-.It Cm hw.patmN.tx_maxmaps
-This initializes the corresponding sysctl variable and is the maximum
+.It Va hw.patm Ns Ar N Ns Va .tx_maxmaps
+This initializes the corresponding
+.Xr sysctl 8
+variable and is the maximum
 number of DMA maps for transmission that the driver will allocated.
-.It Cm hw.patmN.debug
-.Em (only if debugging enabled)
+.It Va hw.patm Ns Ar N Ns Va .debug
+.Bf Em
+(Only if debugging enabled.)
+.Ef
 Initializes the debugging flags.
 .El
 .Pp
 The driver supports the media options
-.Ar sdh ,
-.Ar noscramb
+.Cm sdh , noscramb
 and
-.Ar unassigned
+.Cm unassigned
 (see
 .Xr utopia 4 )
 when the card is a 155MBit card.
@@ -165,10 +183,10 @@ The Tx cell counter in the utopia statistics is wrong, because the chip
 uses idle cells for spacing and the PHY counts these cells.
 While there is a configuration option for the chip to switch of these cells
 and, according to the documentation, this should not influence cell spacing,
-it does, so the driver let's the chip generate idle cells.
+it does, so the driver lets the chip generate idle cells.
 .Sh ACKNOWLEDGEMENTS
 Thanks to Christian Bucari from ProSum for lending two of these cards to enable
 the development of this driver.
 Thanks also for answering my questions.
 .Sh AUTHORS
-.An Harti Brandt Aq harti@freebsd.org .
+.An Harti Brandt Aq harti@FreeBSD.org
