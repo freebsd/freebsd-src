@@ -86,6 +86,22 @@ NON_GPROF_ENTRY(MPentry)
 	movl	R(IdlePTD), %eax
 	movl	%eax,%cr3	
 #endif
+#ifndef DISABLE_PSE
+	cmpl	$0, R(pseflag)
+	je	1f
+	movl	%cr4, %eax
+	orl	$CR4_PSE, %eax
+	movl	%eax, %cr4
+1:
+#endif
+#ifndef DISABLE_PG_G
+	cmpl	$0, R(pgeflag)
+	je	2f
+	movl	%cr4, %eax
+	orl	$CR4_PGE, %eax
+	movl	%eax, %cr4
+2:
+#endif
 	movl	%cr0,%eax
 	orl	$CR0_PE|CR0_PG,%eax		/* enable paging */
 	movl	%eax,%cr0			/* let the games begin! */
