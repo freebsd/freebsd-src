@@ -121,6 +121,7 @@ struct pro {
     {"ip", PRO_BOOL, true, ON, &ps.indent_parameters},
     {"i", PRO_INT, 8, 0, &ps.ind_size},
     {"lc", PRO_INT, 0, 0, &block_comment_max_col},
+    {"ldi", PRO_INT, -1, 0, &ps.local_decl_indent},
     {"lp", PRO_BOOL, true, ON, &lineup_to_parens},
     {"l", PRO_INT, 78, 0, &max_col},
     {"nbacc", PRO_BOOL, false, OFF, &blanklines_around_conditional_compilation},

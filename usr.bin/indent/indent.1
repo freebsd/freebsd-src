@@ -69,6 +69,7 @@
 .Op Fl \&ip | Fl nip
 .Op Fl l Ns Ar n
 .Op Fl \&lc Ns Ar n
+.Op Fl \&ldi Ns Ar n
 .Op Fl \&lp | Fl nlp
 .Op Fl npro
 .Op Fl pcs | Fl npcs
@@ -219,8 +220,10 @@ left of code.  Specifying the default
 lines-up these comments with the code.  See the section on comment
 indentation below.
 .It Fl \&di Ns Ar n
-Specifies the indentation, in character positions, from a declaration keyword
-to the following identifier.  The default is
+Specifies the indentation, in character positions,
+of global variable names and all struct/union member names
+relative to the beginning of their type declaration.
+The default is
 .Fl di16  .
 .It Fl dj , ndj
 .Fl \&dj
@@ -267,6 +270,12 @@ margin.  The default is
 .Fl \&ip  .
 .It Fl l Ns Ar n
 Maximum length of an output line.  The default is 78.
+.It Fl \&ldi Ns Ar n
+Specifies the indentation, in character positions,
+of local variable names
+relative to the beginning of their type declaration.
+The default is for local variable names to be indented
+by the same amount as global ones.
 .It Fl \&lp , nlp
 Lines-up code surrounded by parenthesis in continuation lines.  If a line
 has a left paren which is not closed on that line, then continuation lines
