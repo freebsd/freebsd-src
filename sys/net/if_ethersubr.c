@@ -671,6 +671,9 @@ ether_ifattach(ifp, bpf)
 		bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 	if (ng_ether_attach_p != NULL)
 		(*ng_ether_attach_p)(ifp);
+#ifdef BRIDGE
+	bdgtakeifaces();
+#endif
 }
 
 /*
@@ -686,6 +689,9 @@ ether_ifdetach(ifp, bpf)
 	if (bpf)
 		bpfdetach(ifp);
 	if_detach(ifp);
+#ifdef BRIDGE
+	bdgtakeifaces();
+#endif
 }
 
 SYSCTL_DECL(_net_link);
