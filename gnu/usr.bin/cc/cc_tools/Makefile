@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.3 1997/02/22 15:44:58 peter Exp $
+# $Id: Makefile,v 1.4 1997/10/05 09:39:07 jkh Exp $
 #
 
 #
@@ -131,24 +131,24 @@ beforedepend:	${BINFORMAT}
 
 aout:
 	@rm -f elf
-	echo '#include "i386/freebsd.h"'     > tm.h
-	echo '#include "i386/xm-freebsd.h"'  > config.h
-	echo '#include "i386/xm-freebsd.h"'  > hconfig.h
-	echo '#include "i386/xm-freebsd.h"'  > tconfig.h
-	echo '#include "cp/lang-options.h"'  > options.h
-	echo '#include "cp/lang-specs.h"'    > specs.h
-	echo '#include "f2c-specs.h"'        >> specs.h
+	echo '#include "${MACHINE}/freebsd.h"'     > tm.h
+	echo '#include "${MACHINE}/xm-freebsd.h"'  > config.h
+	echo '#include "${MACHINE}/xm-freebsd.h"'  > hconfig.h
+	echo '#include "${MACHINE}/xm-freebsd.h"'  > tconfig.h
+	echo '#include "cp/lang-options.h"'        > options.h
+	echo '#include "cp/lang-specs.h"'          > specs.h
+	echo '#include "f2c-specs.h"'              >> specs.h
 	@touch aout
 
 elf:
 	@rm -f aout
-	echo '#include "i386/freebsd-elf.h"' > tm.h
-	echo '#include "i386/xm-freebsd.h"'  > config.h
-	echo '#include "i386/xm-freebsd.h"'  > hconfig.h
-	echo '#include "i386/xm-freebsd.h"'  > tconfig.h
-	echo '#include "cp/lang-options.h"'  > options.h
-	echo '#include "cp/lang-specs.h"'    > specs.h
-	echo '#include "f2c-specs.h"'        >> specs.h
+	echo '#include "${MACHINE}/freebsd-elf.h"' > tm.h
+	echo '#include "${MACHINE}/xm-freebsd.h"'  > config.h
+	echo '#include "${MACHINE}/xm-freebsd.h"'  > hconfig.h
+	echo '#include "${MACHINE}/xm-freebsd.h"'  > tconfig.h
+	echo '#include "cp/lang-options.h"'        > options.h
+	echo '#include "cp/lang-specs.h"'          > specs.h
+	echo '#include "f2c-specs.h"'              >> specs.h
 	@touch elf
 
 CLEANFILES+=	config.h hconfig.h tconfig.h tm.h options.h specs.h elf aout
