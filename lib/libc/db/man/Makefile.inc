@@ -1,12 +1,11 @@
 #       from @(#)Makefile.inc	8.1 (Berkeley) 6/4/93
-#	$Id:$
+#	$Id: Makefile.inc,v 1.5 1997/09/24 20:38:10 julian Exp $
 
 .PATH: ${.CURDIR}/../libc/db/man
 
-# Only build man pages with libc.
 .if ${LIB} == "c"
 # mpool.3
-MAN3+=	db/man/btree.3 db/man/dbopen.3 db/man/hash.3 db/man/recno.3
-MAN3+=	db/man/mpool.3
+MAN3+=	btree.3 dbopen.3 hash.3 recno.3
+MAN3+=	mpool.3
 MLINKS+= dbopen.3 db.3
 .endif
