@@ -1616,7 +1616,7 @@ crypto/des/des_ecb.c		optional crypto
 crypto/des/des_setkey.c		optional crypto
 crypto/sha1.c			optional crypto
 crypto/sha2/sha2.c		optional crypto
-pccard/pccard.c		count card
+pccard/pccard.c		optional card
 pccard/pccard_beep.c	optional card
 pccard/pccard_nbk.c	optional card
 pccard/pcic.c		optional pcic card
