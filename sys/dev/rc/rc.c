@@ -58,9 +58,6 @@
 
 #define	IOBASE_ADDRS	14
 
-#define	DEV_TO_RC(dev)		(struct rc_chans *)((dev)->si_drv1)
-#define	TTY_TO_RC(tty)		DEV_TO_RC((tty)->t_dev)
-
 #define rcin(sc, port)		RC_IN(sc, port)
 #define rcout(sc, port, v)	RC_OUT(sc, port, v)
 
@@ -80,13 +77,9 @@
 
 #define RC_FAKEID       0x10
 
-#define CALLOUT(dev)    (((intptr_t)(dev)->si_drv2) != 0)
-
 /* Per-channel structure */
 struct rc_chans  {
 	struct rc_softc *rc_rcb;                /* back ptr             */
-	struct cdev *rc_dev;		/* non-callout device	*/
-	struct cdev *rc_cdev;		/* callout device	*/
 	u_short          rc_flags;              /* Misc. flags          */
 	int              rc_chan;               /* Channel #            */
 	u_char           rc_ier;                /* intr. enable reg     */
@@ -94,7 +87,7 @@ struct rc_chans  {
 	u_char           rc_cor2;               /* options reg          */
 	u_char           rc_pendcmd;            /* special cmd pending  */
 	u_int            rc_dcdwaits;           /* how many waits DCD in open */
-	struct tty       rc_tp;                 /* tty struct           */
+	struct tty      *rc_tp;                 /* tty struct           */
 	u_char          *rc_iptr;               /* Chars input buffer         */
 	u_char          *rc_hiwat;              /* hi-water mark        */
 	u_char          *rc_bufend;             /* end of buffer        */
@@ -116,20 +109,19 @@ struct rc_softc {
 	bus_space_handle_t sc_bh;
 	u_int            sc_unit;       /* unit #               */
 	u_char           sc_dtr;        /* DTR status           */
-	int		 sc_opencount;
 	int		 sc_scheduled_event;
 	void		*sc_swicookie;
 	struct rc_chans  sc_channels[CD180_NCHAN]; /* channels */
 };
 
 /* Static prototypes */
+static t_close_t rc_close;
 static void rc_break(struct tty *, int);
 static void rc_release_resources(device_t dev);
 static void rc_intr(void *);
 static void rc_hwreset(struct rc_softc *, unsigned int);
 static int  rc_test(struct rc_softc *);
 static void rc_discard_output(struct rc_chans *);
-static void rc_hardclose(struct rc_chans *);
 static int  rc_modem(struct tty *, int, int);
 static void rc_start(struct tty *);
 static void rc_stop(struct tty *, int rw);
@@ -140,17 +132,6 @@ static void rc_reinit(struct rc_softc *);
 static void printrcflags();
 #endif
 static void rc_wait0(struct rc_softc *sc, int chan, int line);
-
-static	d_open_t	rcopen;
-static	d_close_t	rcclose;
-
-static struct cdevsw rc_cdevsw = {
-	.d_version =	D_VERSION,
-	.d_open =	rcopen,
-	.d_close =	rcclose,
-	.d_name =	"rc",
-	.d_flags =	D_TTY | D_NEEDGIANT,
-};
 
 static devclass_t rc_devclass;
 
@@ -231,7 +212,6 @@ rc_attach(device_t dev)
 	struct rc_softc *sc;
 	u_int port;
 	int base, chan, error, i, x;
-	struct cdev *cdev;
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
@@ -313,23 +293,15 @@ rc_attach(device_t dev)
 		rc->rc_hiwat   = &rc->rc_ibuf[RC_IHIGHWATER];
 		rc->rc_optr    = rc->rc_obufend  = rc->rc_obuf;
 		callout_init(&rc->rc_dtrcallout, 0);
-		tp = &rc->rc_tp;
-		ttychars(tp);
-		tp->t_lflag = tp->t_iflag = tp->t_oflag = 0;
-		tp->t_cflag = TTYDEF_CFLAG;
-		tp->t_ispeed = tp->t_ospeed = TTYDEF_SPEED;
-		cdev = make_dev(&rc_cdevsw, chan + base,
-		    UID_ROOT, GID_WHEEL, 0600, "ttym%d", chan + base);
-		cdev->si_drv1 = rc;
-		cdev->si_drv2 = 0;
-		cdev->si_tty = tp;
-		rc->rc_dev = cdev;
-		cdev = make_dev(&rc_cdevsw, chan + base + 128,
-		    UID_UUCP, GID_DIALER, 0660, "cuam%d", chan + base);
-		cdev->si_drv1 = rc;
-		cdev->si_drv2 = (void *)1;
-		cdev->si_tty = tp;
-		rc->rc_cdev = cdev;
+		tp = rc->rc_tp = ttyalloc();
+		tp->t_sc = rc;
+		tp->t_oproc   = rc_start;
+		tp->t_param   = rc_param;
+		tp->t_modem   = rc_modem;
+		tp->t_break   = rc_break;
+		tp->t_close   = rc_close;
+		tp->t_stop    = rc_stop;
+		ttycreate(tp, NULL, 0, MINOR_CALLOUT, "m%d", chan + base);
 	}
 
 	error = bus_setup_intr(dev, sc->sc_irq, INTR_TYPE_TTY, rc_intr, sc,
@@ -356,16 +328,10 @@ rc_detach(device_t dev)
 	int error, i;
 
 	sc = device_get_softc(dev);
-	if (sc->sc_opencount > 0)
-		return (EBUSY);
-	sc->sc_opencount = -1;
 
 	rc = sc->sc_channels;
-	for (i = 0; i < CD180_NCHAN; i++, rc++) {
-		ttygone(&rc->rc_tp);
-		destroy_dev(rc->rc_dev);
-		destroy_dev(rc->rc_cdev);
-	}
+	for (i = 0; i < CD180_NCHAN; i++, rc++)
+		ttyfree(rc->rc_tp);
 
 	error = bus_teardown_intr(dev, sc->sc_irq, sc->sc_hwicookie);
 	if (error)
@@ -439,7 +405,7 @@ rc_intr(void *arg)
 			}
 			chan = ((rcin(sc, CD180_GICR) & GICR_CHAN) >> GICR_LSH);
 			rc = &sc->sc_channels[chan];
-			t_state = rc->rc_tp.t_state;
+			t_state = rc->rc_tp->t_state;
 			/* Do RTS flow control stuff */
 			if (  (rc->rc_flags & RC_RTSFLOW)
 			    || !(t_state & TS_ISOPEN)
@@ -478,7 +444,7 @@ rc_intr(void *arg)
 						optr[INPUT_FLAGS_SHIFT] = 0;
 						optr++;
 						sc->sc_scheduled_event++;
-						if (val != 0 && val == rc->rc_tp.t_hotchar)
+						if (val != 0 && val == rc->rc_tp->t_hotchar)
 							swi_sched(sc->sc_swicookie, 0);
 					}
 				} else {
@@ -500,16 +466,16 @@ rc_intr(void *arg)
 						*/
 						if (   !(iack & (RCSR_PE|RCSR_FE|RCSR_Break))
 						    || ((!(iack & (RCSR_PE|RCSR_FE))
-						    ||  !(rc->rc_tp.t_iflag & IGNPAR))
+						    ||  !(rc->rc_tp->t_iflag & IGNPAR))
 						    && (!(iack & RCSR_Break)
-						    ||  !(rc->rc_tp.t_iflag & IGNBRK)))) {
+						    ||  !(rc->rc_tp->t_iflag & IGNBRK)))) {
 							if (   (iack & (RCSR_PE|RCSR_FE))
 							    && (t_state & TS_CAN_BYPASS_L_RINT)
 							    && ((iack & RCSR_FE)
 							    ||  ((iack & RCSR_PE)
-							    &&  (rc->rc_tp.t_iflag & INPCK))))
+							    &&  (rc->rc_tp->t_iflag & INPCK))))
 								val = 0;
-							else if (val != 0 && val == rc->rc_tp.t_hotchar)
+							else if (val != 0 && val == rc->rc_tp->t_hotchar)
 								swi_sched(sc->sc_swicookie, 0);
 							optr[0] = val;
 							optr[INPUT_FLAGS_SHIFT] = iack;
@@ -623,7 +589,7 @@ rc_start(struct tty *tp)
 	struct rc_chans *rc;
 	int s;
 
-	rc = TTY_TO_RC(tp);
+	rc = tp->t_sc;
 	if (rc->rc_flags & RC_OSBUSY)
 		return;
 	sc = rc->rc_rcb;
@@ -698,7 +664,7 @@ rc_pollcard(void *arg)
 	do {
 		rc = sc->sc_channels;
 		for (chan = 0; chan < CD180_NCHAN; rc++, chan++) {
-			tp = &rc->rc_tp;
+			tp = rc->rc_tp;
 #ifdef RCDEBUG
 			if (rc->rc_flags & (RC_DORXFER|RC_DOXXFER|RC_MODCHG|
 			    RC_WAS_BUFOVFL|RC_WAS_SILOVFL))
@@ -796,7 +762,7 @@ done1: ;
 				critical_enter();
 				sc->sc_scheduled_event -= LOTS_OF_EVENTS;
 				rc->rc_flags &= ~RC_DOXXFER;
-				rc->rc_tp.t_state &= ~TS_BUSY;
+				rc->rc_tp->t_state &= ~TS_BUSY;
 				critical_exit();
 				ttyld_start(tp);
 			}
@@ -813,7 +779,7 @@ rc_stop(struct tty *tp, int rw)
 	struct rc_chans *rc;
 	u_char *tptr, *eptr;
 
-	rc = TTY_TO_RC(tp);
+	rc = tp->t_sc;
 	sc = rc->rc_rcb;
 #ifdef RCDEBUG
 	device_printf(sc->sc_dev, "channel %d: rc_stop %s%s\n",
@@ -841,131 +807,14 @@ rc_stop(struct tty *tp, int rw)
 	critical_exit();
 }
 
-static int
-rcopen(struct cdev *dev, int flag, int mode, d_thread_t *td)
-{
-	struct rc_softc *sc;
-	struct rc_chans *rc;
-	struct tty *tp;
-	int s, error = 0;
-
-	rc = DEV_TO_RC(dev);
-	sc = rc->rc_rcb;
-	tp = &rc->rc_tp;
-	if (sc->sc_opencount < 0)
-		return (ENXIO);
-	sc->sc_opencount++;
-#ifdef RCDEBUG
-	device_printf(sc->sc_dev, "channel %d: rcopen: dev %p\n",
-	    rc->rc_chan, dev);
-#endif
-	s = spltty();
-
-again:
-	error = ttydtrwaitsleep(tp);
-	if (error != 0)
-		goto out;
-	if (tp->t_state & TS_ISOPEN) {
-		if (CALLOUT(dev)) {
-			if (!(rc->rc_flags & RC_ACTOUT)) {
-				error = EBUSY;
-				goto out;
-			}
-		} else {
-			if (rc->rc_flags & RC_ACTOUT) {
-				if (flag & O_NONBLOCK) {
-					error = EBUSY;
-					goto out;
-				}
-				error = tsleep(&rc->rc_rcb,
-				     TTIPRI|PCATCH, "rcbi", 0);
-				if (error)
-					goto out;
-				goto again;
-			}
-		}
-		if (tp->t_state & TS_XCLUDE &&
-		    suser(td)) {
-			error = EBUSY;
-			goto out;
-		}
-	} else {
-		tp->t_oproc   = rc_start;
-		tp->t_param   = rc_param;
-		tp->t_modem   = rc_modem;
-		tp->t_break   = rc_break;
-		tp->t_stop    = rc_stop;
-		tp->t_dev     = dev;
-
-		if (CALLOUT(dev))
-			tp->t_cflag |= CLOCAL;
-		else
-			tp->t_cflag &= ~CLOCAL;
-
-		error = rc_param(tp, &tp->t_termios);
-		if (error)
-			goto out;
-		(void) rc_modem(tp, SER_DTR | SER_RTS, 0);
-
-		if ((rc->rc_msvr & MSVR_CD) || CALLOUT(dev))
-			ttyld_modem(tp, 1);
-	}
-	if (!(tp->t_state & TS_CARR_ON) && !CALLOUT(dev)
-	    && !(tp->t_cflag & CLOCAL) && !(flag & O_NONBLOCK)) {
-		rc->rc_dcdwaits++;
-		error = tsleep(TSA_CARR_ON(tp), TTIPRI | PCATCH, "rcdcd", 0);
-		rc->rc_dcdwaits--;
-		if (error != 0)
-			goto out;
-		goto again;
-	}
-	error = ttyld_open(tp, dev);
-	ttyldoptim(tp);
-	if ((tp->t_state & TS_ISOPEN) && CALLOUT(dev))
-		rc->rc_flags |= RC_ACTOUT;
-out:
-	(void) splx(s);
-
-	if(rc->rc_dcdwaits == 0 && !(tp->t_state & TS_ISOPEN))
-		rc_hardclose(rc);
-
-	return error;
-}
-
-static int
-rcclose(struct cdev *dev, int flag, int mode, d_thread_t *td)
-{
-	struct rc_softc *sc;
-	struct rc_chans *rc;
-	struct tty *tp;
-	int  s;
-
-	rc = DEV_TO_RC(dev);
-	sc = rc->rc_rcb;
-	tp = &rc->rc_tp;
-#ifdef RCDEBUG
-	device_printf(sc->sc_dev, "channel %d: rcclose dev %p\n",
-	    rc->rc_chan, dev);
-#endif
-	s = spltty();
-	ttyld_close(tp, flag);
-	ttyldoptim(tp);
-	rc_hardclose(rc);
-	tty_close(tp);
-	splx(s);
-	KASSERT(sc->sc_opencount > 0, ("rcclose: non-positive open count"));
-	sc->sc_opencount--;
-	return 0;
-}
-
 static void
-rc_hardclose(struct rc_chans *rc)
+rc_close(struct tty *tp)
 {
+	struct rc_chans *rc;
 	struct rc_softc *sc;
-	struct tty *tp;
 	int s;
 
-	tp = &rc->rc_tp;
+	rc = tp->t_sc;
 	sc = rc->rc_rcb;
 	s = spltty();
 	rcout(sc, CD180_CAR, rc->rc_chan);
@@ -1031,7 +880,7 @@ rc_param(struct tty *tp, struct termios *ts)
 	odivs = RC_BRD(ts->c_ospeed);
 	idivs = RC_BRD(ts->c_ispeed);
 
-	rc = TTY_TO_RC(tp);
+	rc = tp->t_sc;
 	sc = rc->rc_rcb;
 	s = spltty();
 
@@ -1179,7 +1028,7 @@ rc_reinit(struct rc_softc *sc)
 	rc_hwreset(sc, RC_FAKEID);
 	rc = sc->sc_channels;
 	for (i = 0; i < CD180_NCHAN; i++, rc++)
-		(void) rc_param(&rc->rc_tp, &rc->rc_tp.t_termios);
+		(void) rc_param(rc->rc_tp, &rc->rc_tp->t_termios);
 }
 
 /* Modem control routines */
@@ -1192,7 +1041,7 @@ rc_modem(struct tty *tp, int biton, int bitoff)
 	u_char *dtr;
 	u_char msvr;
 
-	rc = DEV_TO_RC(tp->t_dev);
+	rc = tp->t_sc;
 	sc = rc->rc_rcb;
 	dtr = &sc->sc_dtr;
 	rcout(sc, CD180_CAR, rc->rc_chan);
@@ -1236,7 +1085,7 @@ rc_break(struct tty *tp, int brk)
 {
 	struct rc_chans *rc;
 
-	rc = DEV_TO_RC(tp->t_dev);
+	rc = tp->t_sc;
 
 	if (brk)
 		rc->rc_pendcmd = CD180_C_SBRK;
@@ -1430,9 +1279,9 @@ rc_discard_output(struct rc_chans *rc)
 		rc->rc_flags &= ~RC_DOXXFER;
 	}
 	rc->rc_optr = rc->rc_obufend;
-	rc->rc_tp.t_state &= ~TS_BUSY;
+	rc->rc_tp->t_state &= ~TS_BUSY;
 	critical_exit();
-	ttwwakeup(&rc->rc_tp);
+	ttwwakeup(rc->rc_tp);
 }
 
 static void
