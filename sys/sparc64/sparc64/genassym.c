@@ -30,7 +30,6 @@
 #include <sys/param.h>
 #include <sys/assym.h>
 #include <sys/errno.h>
-#include <sys/gmon.h>
 #include <sys/ktr.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
@@ -134,10 +133,6 @@ ASSYM(IC_SIZE, offsetof(struct cacheinfo, ic_size));
 ASSYM(IC_LINESIZE, offsetof(struct cacheinfo, ic_linesize));
 
 ASSYM(ICA_PA, offsetof(struct ipi_cache_args, ica_pa));
-
-ASSYM(GMON_PROF_OFF, GMON_PROF_OFF);
-ASSYM(GMON_PROF_HIRES, GMON_PROF_HIRES);
-ASSYM(GM_STATE, offsetof(struct gmonparam, state));
 
 ASSYM(KTR_PROC, KTR_PROC);
 ASSYM(KTR_TRAP, KTR_TRAP);
