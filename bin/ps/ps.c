@@ -103,7 +103,7 @@ static uid_t	*getuids(const char *, int *);
 
 static char dfmt[] = "pid tt state time command";
 static char jfmt[] = "user pid ppid pgid jobc state tt time command";
-static char lfmt[] = "uid pid ppid cpu pri nice vsz rss wchan state tt time command";
+static char lfmt[] = "uid pid ppid cpu pri nice vsz rss mwchan state tt time command";
 static char   o1[] = "pid";
 static char   o2[] = "tt state time command";
 static char ufmt[] = "user pid %cpu %mem vsz rss tt state start time command";
