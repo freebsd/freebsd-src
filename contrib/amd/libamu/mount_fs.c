@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Erez Zadok
+ * Copyright (c) 1997-2001 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: mount_fs.c,v 1.8 1999/09/18 08:38:06 ezk Exp $
+ * $Id: mount_fs.c,v 1.11.2.5 2001/04/14 21:08:25 ezk Exp $
  * $FreeBSD$
  *
  */
@@ -105,6 +105,14 @@ struct opt_tab mnt_flags[] =
 #if defined(MNT2_GEN_OPT_OVERLAY) && defined(MNTTAB_OPT_OVERLAY)
   {MNTTAB_OPT_OVERLAY, MNT2_GEN_OPT_OVERLAY},
 #endif /* defined(MNT2_GEN_OPT_OVERLAY) && defined(MNTTAB_OPT_OVERLAY) */
+
+#if defined(MNT2_NFS_OPT_PROPLIST) && defined(MNTTAB_OPT_PROPLIST)
+  {MNTTAB_OPT_PROPLIST, MNT2_NFS_OPT_PROPLIST},
+#endif /* defined(MNT2_NFS_OPT_PROPLIST) && defined(MNTTAB_OPT_PROPLIST) */
+
+#if defined(MNT2_NFS_OPT_NONLM) && defined(MNTTAB_OPT_NOLOCK)
+  {MNTTAB_OPT_NOLOCK, MNT2_NFS_OPT_NONLM},
+#endif /* defined(MNT2_NFS_OPT_NONLM) && defined(MNTTAB_OPT_NOLOCK) */
 
   {0, 0}
 };
@@ -178,14 +186,10 @@ mount_fs(mntent_t *mnt, int flags, caddr_t mnt_data, int retry, MTYPE_TYPE type,
   char optsbuf[48];
 # endif /* defined(MNTTAB_OPT_DEV) || (defined(HAVE_FS_NFS3) && defined(MNTTAB_OPT_VERS)) || defined(MNTTAB_OPT_PROTO) */
 #endif /* MOUNT_TABLE_ON_FILE */
-#ifdef DEBUG
-  char buf[80];			/* buffer for sprintf */
-#endif /* DEBUG */
 
 #ifdef DEBUG
-  sprintf(buf, "%s%s%s",
-	  "%s fstype ", MTYPE_PRINTF_TYPE, " (%s) flags %#x (%s)");
-  dlog(buf, mnt->mnt_dir, type, mnt->mnt_type, flags, mnt->mnt_opts);
+  dlog("%s fstype " MTYPE_PRINTF_TYPE " (%s) flags %#x (%s)",
+       mnt->mnt_dir, type, mnt->mnt_type, flags, mnt->mnt_opts);
 #endif /* DEBUG */
 
 again:
@@ -385,6 +389,9 @@ compute_nfs_args(nfs_args_t *nap, mntent_t *mntp, int genflags, struct sockaddr_
 # ifdef MNT2_NFS_OPT_NFSV3
     nap->flags |= MNT2_NFS_OPT_NFSV3;
 # endif /* MNT2_NFS_OPT_NFSV3 */
+# ifdef MNT2_NFS_OPT_VER3
+    nap->flags |= MNT2_NFS_OPT_VER3;
+# endif /* MNT2_NFS_OPT_VER3 */
   } else
 #endif /* HAVE_FS_NFS3 */
     NFS_FH_DREF(nap->NFS_FH_FIELD, &(fhp->v2.fhs_fh));
@@ -646,6 +653,12 @@ compute_nfs_args(nfs_args_t *nap, mntent_t *mntp, int genflags, struct sockaddr_
      * Either turn on the "allow interrupts" option, or
      * turn off the "disallow interrupts" option"
      */
+# ifdef MNT2_NFS_OPT_INTR
+    nap->flags |= MNT2_NFS_OPT_INTR;
+# endif /* MNT2_NFS_OPT_INTR */
+# ifdef MNT2_NFS_OPT_NOINTR
+    nap->flags &= ~MNT2_NFS_OPT_NOINTR;
+# endif /* MNT2_NFS_OPT_NOINTR */
 # ifdef MNT2_NFS_OPT_INT
     nap->flags |= MNT2_NFS_OPT_INT;
 # endif /* MNT2_NFS_OPT_INT */
@@ -691,6 +704,11 @@ compute_nfs_args(nfs_args_t *nap, mntent_t *mntp, int genflags, struct sockaddr_
   }
 #endif /* MNT2_NFS_OPT_POSIX && MNTTAB_OPT_POSIX */
 
+#if defined(MNT2_NFS_OPT_PROPLIST) && defined(MNTTAB_OPT_PROPLIST)
+  if (hasmntopt(mntp, MNTTAB_OPT_PROPLIST) != NULL)
+    nap->flags |= MNT2_NFS_OPT_PROPLIST;
+#endif /* defined(MNT2_NFS_OPT_PROPLIST) && defined(MNTTAB_OPT_PROPLIST) */
+
 #if defined(MNT2_NFS_OPT_MAXGRPS) && defined(MNTTAB_OPT_MAXGROUPS)
   nap->maxgrouplist = hasmntval(mntp, MNTTAB_OPT_MAXGROUPS);
   if (nap->maxgrouplist != NULL)
@@ -726,7 +744,7 @@ compute_automounter_nfs_args(nfs_args_t *nap, mntent_t *mntp)
    * Don't let the kernel cache symbolic links we generate, or else lookups
    * will bypass amd and fail to remount stuff as needed.
    */
-  plog(XLOG_INFO, "turning on NFS option symttl and setting value to %d", 0);
+  plog(XLOG_INFO, "turning on NFS option symttl and setting value to 0");
   nap->flags |= MNT2_NFS_OPT_SYMTTL;
   nap->symttl = 0;
 #endif /* MNT2_NFS_OPT_SYMTTL */
@@ -748,8 +766,8 @@ compute_automounter_nfs_args(nfs_args_t *nap, mntent_t *mntp)
 
 #ifdef MNT2_NFS_OPT_DUMBTIMR
   /*
-   * Don't let the kernel start computing throughput of Amd The numbers will
-   * be meaningless because of the way Amd does mount retries.
+   * Don't let the kernel start computing throughput of Amd.  The numbers
+   * will be meaningless because of the way Amd does mount retries.
    */
   plog(XLOG_INFO, "%s: disabling nfs congestion window", mntp->mnt_dir);
   nap->flags |= MNT2_NFS_OPT_DUMBTIMR;
