@@ -5,7 +5,8 @@ CLEANFILES+= ${LOCALES:S/$/.out/g}
 
 LOCALES=	en_US.ISO_8859-1 \
 		nl_NL.ISO_8859-1 \
-		ru_RU.KOI8-R
+		ru_RU.KOI8-R \
+		sv_SE.ISO_8859-1
 
 LOCALEDIR=      ${DESTDIR}/usr/share/locale
 
