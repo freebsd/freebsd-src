@@ -246,14 +246,15 @@ $(CONF): Makefile
 .endfor
 
 
+.ORDER: $(OUTPUTS) objs
 $(OUTPUTS): $(CONF)
 	MAKEOBJDIRPREFIX=${CRUNCHOBJS} crunchgen -q -m $(OUTMK) -c $(OUTC) \
 	    $(CONF)
 
-$(PROG): $(OUTPUTS)
+$(PROG): $(OUTPUTS) objs
 	MAKEOBJDIRPREFIX=${CRUNCHOBJS} make -f $(OUTMK) 
 
-objs:
+objs: $(OUTMK)
 	MAKEOBJDIRPREFIX=${CRUNCHOBJS} make -f $(OUTMK) objs
 
 # <sigh> Someone should replace the bin/csh and bin/sh build-tools with
