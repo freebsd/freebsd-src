@@ -1,5 +1,6 @@
 /*	main.c		*/
 #include <sys/types.h>
+#include <sys/stat.h>
 #include "header.h"
 #include <pwd.h>
 static char copyright[]="\nLarn is copyrighted 1986 by Noah Morgan.\n";
@@ -41,6 +42,7 @@ main(argc,argv)
 	int hard;
 	char *ptr=0,*ttype;
 	struct passwd *pwe;
+	struct stat sb;
 
 /*
  *	first task is to identify the player
@@ -98,7 +100,7 @@ main(argc,argv)
 /*
  *	now make scoreboard if it is not there (don't clear)
  */
-	if (access(scorefile,0) == -1) /* not there */
+	if (stat(scorefile,&sb) < 0 || sb.st_size == 0) /* not there */
 		makeboard();
 
 /*
