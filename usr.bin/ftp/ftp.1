@@ -297,6 +297,11 @@ If no local file is specified, or if
 is
 .Sq Fl ,
 the output is sent to the terminal.
+.Pp
+As this command provides extra information which is system-dependent,
+you should use the
+.Ic nlist
+command instead if you only want a plain list of files.
 .It Ic disconnect
 A synonym for
 .Ic close .
@@ -419,22 +424,8 @@ A synonym for
 .It Ic lpwd
 Print the working directory on the local machine.
 .It Ic \&ls Op Ar remote-directory Op Ar local-file
-Print a list of the files in a
-directory on the remote machine.
-If
-.Ar remote-directory
-is left unspecified, the current working directory is used.
-If interactive prompting is on,
-.Nm
-will prompt the user to verify that the last argument is indeed the
-target local file for receiving
-.Ic ls
-output.
-If no local file is specified, or if
-.Ar local-file
-is
-.Fl  ,
-the output is sent to the terminal.
+A synonym for
+.Ic dir .
 .It Ic macdef Ar macro-name
 Define a macro.
 Subsequent lines are stored as the macro
@@ -543,8 +534,29 @@ exist on the current system, the remote file is considered
 Otherwise, this command is identical to
 .Ar get .
 .It Ic nlist Op Ar remote-directory Op Ar local-file
-A synonym for
-.Ic ls .
+Print a list of the files in a
+directory on the remote machine.
+If
+.Ar remote-directory
+is left unspecified, the current working directory is used.
+If interactive prompting is on,
+.Nm
+will prompt the user to verify that the last argument is indeed the
+target local file for receiving
+.Ic ls
+output.
+If no local file is specified, or if
+.Ar local-file
+is
+.Fl  ,
+the output is sent to the terminal.
+.Pp
+Note that this command only returns the filenames in the remote
+directory.  If you wish to see more information about the files (often
+size, modification time, and so on),
+you should use the
+.Ic dir
+command instead.
 .It Ic nmap Op Ar inpattern outpattern
 Set or unset the filename mapping mechanism.
 If no arguments are specified, the filename mapping mechanism is unset.
