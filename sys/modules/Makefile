@@ -188,6 +188,7 @@ SUBDIR+=3dfx \
 	scsi_low \
 	smbfs \
 	sound \
+	speaker \
 	splash \
 	sppp \
 	sr \
@@ -201,7 +202,6 @@ SUBDIR+=3dfx \
 SUBDIR+=aac \
 	acpi \
 	asr \
-	atspeaker \
 	cardbus \
 	cbb \
 	ciss \
@@ -217,7 +217,6 @@ SUBDIR+=aac \
 .elif ${MACHINE} == "pc98"
 SUBDIR+=canbepm \
 	canbus \
-	pcspeaker \
 	pmc \
 	snc
 .endif
