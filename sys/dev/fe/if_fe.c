@@ -21,7 +21,7 @@
  */
 
 /*
- * $Id: if_fe.c,v 1.50 1999/05/04 12:59:59 kato Exp $
+ * $Id: if_fe.c,v 1.51 1999/07/06 19:22:48 des Exp $
  *
  * Device driver for Fujitsu MB86960A/MB86965A based Ethernet cards.
  * To be used with FreeBSD 3.x
@@ -86,29 +86,6 @@
 #include <net/if_mib.h>
 #include <net/if_media.h>
 #include <net/if_types.h>
-
-#ifdef INET
-#include <netinet/in.h>
-#include <netinet/if_ether.h>
-#endif
-
-/* IPX code is not tested.  FIXME.  */
-#ifdef IPX
-#include <netipx/ipx.h>
-#include <netipx/ipx_if.h>
-#endif
-
-/* To be used with IPv6 package of INRIA.  */
-#ifdef INET6
-/* IPv6 added by shin 96.2.6 */
-#include <netinet/if_ether6.h>
-#endif
-
-/* XNS code is not tested.  FIXME.  */
-#ifdef NS
-#include <netns/ns.h>
-#include <netns/ns_if.h>
-#endif
 
 #if NBPF > 0
 #include <net/bpf.h>

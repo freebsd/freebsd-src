@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_le.c,v 1.50 1999/05/11 19:54:12 phk Exp $
+ * $Id: if_le.c,v 1.51 1999/07/06 19:22:49 des Exp $
  */
 
 /*
@@ -53,21 +53,6 @@
 #include <net/if_dl.h>
 
 #include "bpf.h"
-
-#ifdef INET
-#include <netinet/in.h>
-#include <netinet/if_ether.h>
-#endif
-
-#ifdef IPX
-#include <netipx/ipx.h>
-#include <netipx/ipx_if.h>
-#endif
-
-#ifdef NS
-#include <netns/ns.h>
-#include <netns/ns_if.h>
-#endif
 
 #include <machine/clock.h>
 
@@ -513,65 +498,11 @@ le_ioctl(
     s = splimp();
 
     switch (cmd) {
-	case SIOCSIFADDR: {
-	    struct ifaddr *ifa = (struct ifaddr *)data;
-
-	    ifp->if_flags |= IFF_UP;
-	    switch(ifa->ifa_addr->sa_family) {
-#ifdef INET
-		case AF_INET: {
-		    (*sc->if_init)(ifp->if_unit);
-		    arp_ifinit((struct arpcom *)ifp, ifa);
-		    break;
-		}
-#endif /* INET */
-#ifdef IPX
-		/* This magic copied from if_is.c; I don't use XNS,
-		 * so I have no way of telling if this actually
-		 * works or not.
-		 */
-		case AF_IPX: {
-		    struct ipx_addr *ina = &(IA_SIPX(ifa)->sipx_addr);
-		    if (ipx_nullhost(*ina)) {
-			ina->x_host = *(union ipx_host *)(sc->le_ac.ac_enaddr);
-		    } else {
-			ifp->if_flags &= ~IFF_RUNNING;
-			bcopy((caddr_t)ina->x_host.c_host,
-			      (caddr_t)sc->le_ac.ac_enaddr,
-			      sizeof sc->le_ac.ac_enaddr);
-		    }
-
-		    (*sc->if_init)(ifp->if_unit);
-		    break;
-		}
-#endif /* IPX */
-#ifdef NS
-		/* This magic copied from if_is.c; I don't use XNS,
-		 * so I have no way of telling if this actually
-		 * works or not.
-		 */
-		case AF_NS: {
-		    struct ns_addr *ina = &(IA_SNS(ifa)->sns_addr);
-		    if (ns_nullhost(*ina)) {
-			ina->x_host = *(union ns_host *)(sc->le_ac.ac_enaddr);
-		    } else {
-			ifp->if_flags &= ~IFF_RUNNING;
-			bcopy((caddr_t)ina->x_host.c_host,
-			      (caddr_t)sc->le_ac.ac_enaddr,
-			      sizeof sc->le_ac.ac_enaddr);
-		    }
-
-		    (*sc->if_init)(ifp->if_unit);
-		    break;
-		}
-#endif /* NS */
-		default: {
-		    (*sc->if_init)(ifp->if_unit);
-		    break;
-		}
-	    }
-	    break;
-	}
+        case SIOCSIFADDR:
+        case SIOCGIFADDR:
+        case SIOCSIFMTU:
+                error = ether_ioctl(ifp, command, data);
+                break;
 
 	case SIOCSIFFLAGS: {
 	    (*sc->if_init)(ifp->if_unit);

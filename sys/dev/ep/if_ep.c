@@ -38,7 +38,7 @@
  */
 
 /*
- *  $Id: if_ep.c,v 1.80 1999/07/06 19:22:46 des Exp $
+ *  $Id: if_ep.c,v 1.81 1999/07/25 01:20:36 hosokawa Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -77,21 +77,6 @@
 #endif
 
 #include <net/if.h>
-
-#ifdef INET
-#include <netinet/in.h>
-#include <netinet/if_ether.h>
-#endif
-
-#ifdef IPX
-#include <netipx/ipx.h>
-#include <netipx/ipx_if.h>
-#endif
-
-#ifdef NS
-#include <netns/ns.h>
-#include <netns/ns_if.h>
-#endif
 
 #if NBPF > 0
 #include <net/bpf.h>
@@ -1225,7 +1210,6 @@ epioctl(ifp, cmd, data)
     u_long cmd;
     caddr_t data;
 {
-    register struct ifaddr *ifa = (struct ifaddr *) data;
     struct ep_softc *sc = ifp->if_softc;
     struct ifreq *ifr = (struct ifreq *) data;
     int s, error = 0;
@@ -1234,67 +1218,11 @@ epioctl(ifp, cmd, data)
 
     switch (cmd) {
       case SIOCSIFADDR:
-	ifp->if_flags |= IFF_UP;
-
-	/* netifs are BUSY when UP */
-
-	switch (ifa->ifa_addr->sa_family) {
-#ifdef INET
-	  case AF_INET:
-	    epinit(sc);	/* before arpwhohas */
-	    arp_ifinit((struct arpcom *)ifp, ifa);
-	    break;
-#endif
-#ifdef IPX
-	  case AF_IPX:
-	    {
-		register struct ipx_addr *ina = &(IA_SIPX(ifa)->sipx_addr);
-
-		if (ipx_nullhost(*ina))
-		    ina->x_host =
-			*(union ipx_host *) (sc->arpcom.ac_enaddr);
-		else {
-		    ifp->if_flags &= ~IFF_RUNNING;
-		    bcopy((caddr_t) ina->x_host.c_host,
-			  (caddr_t) sc->arpcom.ac_enaddr,
-			  sizeof(sc->arpcom.ac_enaddr));
-		}
-		epinit(sc);
-		break;
-	    }
-#endif
-#ifdef NS
-	  case AF_NS:
-	    {
-		register struct ns_addr *ina = &(IA_SNS(ifa)->sns_addr);
-
-		if (ns_nullhost(*ina))
-		    ina->x_host =
-			*(union ns_host *) (sc->arpcom.ac_enaddr);
-		else {
-		    ifp->if_flags &= ~IFF_RUNNING;
-		    bcopy((caddr_t) ina->x_host.c_host,
-			  (caddr_t) sc->arpcom.ac_enaddr,
-			  sizeof(sc->arpcom.ac_enaddr));
-		}
-		epinit(sc);
-		break;
-	    }
-#endif
-	  default:
-	    epinit(sc);
-	    break;
-	}
-	break;
       case SIOCGIFADDR:
-	{ 
-	  struct sockaddr *sa; 
- 
-	  sa = (struct sockaddr *) & ifr->ifr_data;
-	  bcopy((caddr_t) sc->arpcom.ac_enaddr, 
-		(caddr_t) sa->sa_data, ETHER_ADDR_LEN);
-	}
-	break;
+      case SIOCSIFMTU:
+        error = ether_ioctl(ifp, command, data);
+        break;
+
       case SIOCSIFFLAGS:
 
 	if ((ifp->if_flags & IFF_UP) == 0 && ifp->if_flags & IFF_RUNNING) {
@@ -1315,17 +1243,6 @@ epioctl(ifp, cmd, data)
 	      sizeof(sc->sc_addr));
 	break;
 #endif
-	case SIOCSIFMTU:
-
-		/*
-		 * Set the interface MTU.
-		 */
-		if (ifr->ifr_mtu > ETHERMTU) {
-			error = EINVAL;
-		} else {
-			ifp->if_mtu = ifr->ifr_mtu;
-		}
-		break; 
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 	    /*
