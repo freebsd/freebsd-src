@@ -2757,7 +2757,8 @@ allocbuf(struct buf *bp, int size)
 					    VM_ALLOC_SYSTEM | VM_ALLOC_WIRED);
 					if (m == NULL) {
 						VM_WAIT;
-						vm_pageout_deficit += desiredpages - bp->b_npages;
+						atomic_add_int(&vm_pageout_deficit,
+						    desiredpages - bp->b_npages);
 					} else {
 						vm_page_lock_queues();
 						vm_page_wakeup(m);
@@ -3488,7 +3489,8 @@ tryagain:
 		    VM_ALLOC_SYSTEM | VM_ALLOC_WIRED);
 		vm_object_unlock(kernel_object);
 		if (!p) {
-			vm_pageout_deficit += (to - from) >> PAGE_SHIFT;
+			atomic_add_int(&vm_pageout_deficit,
+			    (to - from) >> PAGE_SHIFT);
 			VM_WAIT;
 			goto tryagain;
 		}
