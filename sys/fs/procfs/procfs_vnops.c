@@ -239,11 +239,8 @@ procfs_ioctl(ap)
 		return ENOTTY;
 	}
 
-	if ((error = p_can(p, procp, P_CAN_DEBUG, NULL))) {
-		if (error == ESRCH)
-			error = ENOENT;
-		return (error);
-	}
+	if ((error = p_can(p, procp, P_CAN_DEBUG, NULL)))
+		return (error == ESRCH ? ENOENT : error);
 
 	switch (ap->a_command) {
 	case PIOCBIS:
