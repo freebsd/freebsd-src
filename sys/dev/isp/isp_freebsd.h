@@ -1,5 +1,5 @@
-/* $Id: isp_freebsd.h,v 1.8 1999/01/10 02:51:06 mjacob Exp $ */
-/* release_12_28_98_A+ */
+/* $Id: isp_freebsd.h,v 1.9 1999/01/10 11:15:23 mjacob Exp $ */
+/* release_5_11_99 */
 /*
  * Qlogic ISP SCSI Host Adapter FreeBSD Wrapper Definitions (non CAM version)
  *---------------------------------------
@@ -36,7 +36,7 @@
 #define	_ISP_FREEBSD_H
 
 #define	ISP_PLATFORM_VERSION_MAJOR	0
-#define	ISP_PLATFORM_VERSION_MINOR	98
+#define	ISP_PLATFORM_VERSION_MINOR	991
 
 #include <sys/param.h>
 
@@ -45,8 +45,13 @@
 #endif
 
 #if	__FreeBSD_version >= 300004
+#define	MAXISPREQUEST	256
 #include <dev/isp/isp_freebsd_cam.h>
 #else
+#define	MAXISPREQUEST		64
+#ifndef	SCSI_ISP_PREFER_MEM_MAP
+#define	SCSI_ISP_PREFER_MEM_MAP	0
+#endif
 
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -60,29 +65,22 @@
 #include <vm/pmap.h>
 #include <sys/kernel.h>
 
+
 #define	ISP_SCSI_XFER_T		struct scsi_xfer
+
 struct isposinfo {
 	char			name[8];
 	int			unit;
 	struct scsi_link	_link;
-#if	__FreeBSD_version >=	300001
-	struct callout_handle	watchid;
-#endif
+	int8_t			delay_throttle_count;
 };
-
-#define	MAXISPREQUEST	64
 
 #include <dev/isp/ispreg.h>
 #include <dev/isp/ispvar.h>
 #include <dev/isp/ispmbox.h>
 
-#define	PRINTF			printf
-#define	IDPRINTF(lev, x)	if (isp->isp_dblev >= lev) printf x
+#define	PVS			"Qlogic ISP Driver, FreeBSD Non-Cam"
 #define	DFLT_DBLEVEL		1
-
-#define	MEMZERO			BZERO
-#define	MEMCPY(dst, src, amt)	bcopy((src), (dst), (amt))
-
 #define	ISP_LOCKVAL_DECL	int isp_spl_save
 #define	ISP_ILOCKVAL_DECL	ISP_LOCKVAL_DECL
 #define	ISP_UNLOCK(isp)		(void) splx(isp_spl_save)
@@ -94,8 +92,9 @@ struct isposinfo {
 #define	XS_NULL(xs)		xs == NULL || xs->sc_link == NULL
 #define	XS_ISP(xs)		\
 	((struct ispsoftc *) (xs)->sc_link->adapter_softc)
-#define	XS_LUN(xs)		(xs)->sc_link->lun
-#define	XS_TGT(xs)		(xs)->sc_link->target
+#define	XS_LUN(xs)		((int) (xs)->sc_link->lun)
+#define	XS_TGT(xs)		((int) (xs)->sc_link->target)
+#define	XS_CHANNEL(xs)		((int) (xs)->sc_link->adapter_bus)
 #define	XS_RESID(xs)		(xs)->resid
 #define	XS_XFRLEN(xs)		(xs)->datalen
 #define	XS_CDBLEN(xs)		(xs)->cmdlen
@@ -144,26 +143,114 @@ struct isposinfo {
 
 #define	isp_name	isp_osinfo.name
 
-#define	SYS_DELAY(x)	DELAY(x)
-
-#define	WATCH_INTERVAL		30
-#if	__FreeBSD_version >=	300001
-#define	START_WATCHDOG(f, s)	\
-	(s)->isp_osinfo.watchid = timeout(f, s, WATCH_INTERVAL * hz), \
-	s->isp_dogactive = 1
-#define	STOP_WATCHDOG(f, s)	untimeout(f, s, (s)->isp_osinfo.watchid),\
-	(s)->isp_dogactive = 0
-#else
-#define	START_WATCHDOG(f, s)	\
-	timeout(f, s, WATCH_INTERVAL * hz), s->isp_dogactive = 1
-#define	STOP_WATCHDOG(f, s)	untimeout(f, s), (s)->isp_dogactive = 0
-#endif
-
-#define	RESTART_WATCHDOG(f, s)	START_WATCHDOG(f, s)
-extern void isp_attach __P((struct ispsoftc *));
-extern void isp_uninit __P((struct ispsoftc *));
-
-#define	PVS 				"Qlogic ISP Driver, FreeBSD Non-Cam"
+#define	SCSI_QFULL	0x28
 
 #endif	/* __FreeBSD_version >= 300004 */
+
+extern void isp_attach(struct ispsoftc *);
+extern void isp_uninit(struct ispsoftc *);
+
+#define	MEMZERO			bzero
+#define	MEMCPY(dst, src, amt)	bcopy((src), (dst), (amt))
+#ifdef	__alpha__
+#define	MemoryBarrier	alpha_mb
+#else
+#define	MemoryBarrier()
+#endif
+
+
+#define	DMA_MSW(x)	(((x) >> 16) & 0xffff)
+#define	DMA_LSW(x)	(((x) & 0xffff))
+
+#define	IDPRINTF(lev, x)	if (isp->isp_dblev >= lev) printf x
+#define	PRINTF			printf
+
+#define	SYS_DELAY(x)	DELAY(x)
+
+#define	FC_FW_READY_DELAY	(5 * 1000000)
+
+static __inline void isp_prtstst(ispstatusreq_t *sp);
+static __inline const char *isp2100_fw_statename(int state);
+static __inline const char *isp2100_pdb_statename(int pdb_state);
+
+static __inline void isp_prtstst(ispstatusreq_t *sp)
+{
+	char buf[128];
+	sprintf(buf, "states->");
+	if (sp->req_state_flags & RQSF_GOT_BUS)
+		sprintf(buf, "%s%s", buf, "GOT_BUS ");
+	if (sp->req_state_flags & RQSF_GOT_TARGET)
+		sprintf(buf, "%s%s", buf, "GOT_TGT ");
+	if (sp->req_state_flags & RQSF_SENT_CDB)
+		sprintf(buf, "%s%s", buf, "SENT_CDB ");
+	if (sp->req_state_flags & RQSF_XFRD_DATA)
+		sprintf(buf, "%s%s", buf, "XFRD_DATA ");
+	if (sp->req_state_flags & RQSF_GOT_STATUS)
+		sprintf(buf, "%s%s", buf, "GOT_STS ");
+	if (sp->req_state_flags & RQSF_GOT_SENSE)
+		sprintf(buf, "%s%s", buf, "GOT_SNS ");
+	if (sp->req_state_flags & RQSF_XFER_COMPLETE)
+		sprintf(buf, "%s%s", buf, "XFR_CMPLT ");
+	sprintf(buf, "%s%s", buf, "\n");
+	sprintf(buf, "%s%s", buf, "status->");
+	if (sp->req_status_flags & RQSTF_DISCONNECT)
+		sprintf(buf, "%s%s", buf, "Disconnect ");
+	if (sp->req_status_flags & RQSTF_SYNCHRONOUS)
+		sprintf(buf, "%s%s", buf, "Sync_xfr ");
+	if (sp->req_status_flags & RQSTF_PARITY_ERROR)
+		sprintf(buf, "%s%s", buf, "Parity ");
+	if (sp->req_status_flags & RQSTF_BUS_RESET)
+		sprintf(buf, "%s%s", buf, "Bus_Reset ");
+	if (sp->req_status_flags & RQSTF_DEVICE_RESET)
+		sprintf(buf, "%s%s", buf, "Device_Reset ");
+	if (sp->req_status_flags & RQSTF_ABORTED)
+		sprintf(buf, "%s%s", buf, "Aborted ");
+	if (sp->req_status_flags & RQSTF_TIMEOUT)
+		sprintf(buf, "%s%s", buf, "Timeout ");
+	if (sp->req_status_flags & RQSTF_NEGOTIATION)
+		sprintf(buf, "%s%s", buf, "Negotiation ");
+	printf(buf, "%s\n", buf);
+}
+
+static __inline const char *isp2100_fw_statename(int state)
+{
+	static char buf[16];
+	switch(state) {
+	case FW_CONFIG_WAIT:	return "Config Wait";
+	case FW_WAIT_AL_PA:	return "Waiting for AL_PA";
+	case FW_WAIT_LOGIN:	return "Wait Login";
+	case FW_READY:		return "Ready";
+	case FW_LOSS_OF_SYNC:	return "Loss Of Sync";
+	case FW_ERROR:		return "Error";
+	case FW_REINIT:		return "Re-Init";
+	case FW_NON_PART:	return "Nonparticipating";
+	default:
+		sprintf(buf, "0x%x", state);
+		return buf;
+	}
+}
+
+static __inline const char *isp2100_pdb_statename(int pdb_state)
+{
+	static char buf[16];
+	switch(pdb_state) {
+	case PDB_STATE_DISCOVERY:	return "Port Discovery";
+	case PDB_STATE_WDISC_ACK:	return "Waiting Port Discovery ACK";
+	case PDB_STATE_PLOGI:		return "Port Login";
+	case PDB_STATE_PLOGI_ACK:	return "Wait Port Login ACK";
+	case PDB_STATE_PRLI:		return "Process Login";
+	case PDB_STATE_PRLI_ACK:	return "Wait Process Login ACK";
+	case PDB_STATE_LOGGED_IN:	return "Logged In";
+	case PDB_STATE_PORT_UNAVAIL:	return "Port Unavailable";
+	case PDB_STATE_PRLO:		return "Process Logout";
+	case PDB_STATE_PRLO_ACK:	return "Wait Process Logout ACK";
+	case PDB_STATE_PLOGO:		return "Port Logout";
+	case PDB_STATE_PLOG_ACK:	return "Wait Port Logout ACK";
+	default:
+		sprintf(buf, "0x%x", pdb_state);
+		return buf;
+	}
+}
+
+#define	ISP_NO_FASTPOST_FC	1
 #endif	/* _ISP_FREEBSD_H */
