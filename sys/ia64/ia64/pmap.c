@@ -362,7 +362,7 @@ pmap_bootstrap()
 	 * enough sparse, causing us to (try to) create a huge VHPT.
 	 */
 	vhpt_size = 15;
-	while ((1<<vhpt_size) < ia64_btop(Maxmem) * 32)
+	while ((1<<vhpt_size) < Maxmem * 32)
 		vhpt_size++;
 
 	vhpt_base = 0;
