@@ -377,7 +377,9 @@ acpi_cpu_shutdown(device_t dev)
 
     /* Wait for all processors to exit acpi_cpu_idle(). */
     smp_rendezvous(NULL, NULL, NULL, NULL);
+#if 0
     while (cpu_idle_busy > 0)
+#endif
 	DELAY(1);
 
     return_VALUE (0);
