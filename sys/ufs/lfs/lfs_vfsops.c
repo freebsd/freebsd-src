@@ -31,8 +31,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_vfsops.c	8.7 (Berkeley) 4/16/94
- * $Id: lfs_vfsops.c,v 1.12 1995/08/28 09:19:12 julian Exp $
+ * $Id: lfs_vfsops.c,v 1.13 1995/12/17 21:09:53 phk Exp $
  */
+
+#include "opt_quota.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
