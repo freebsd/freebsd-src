@@ -89,7 +89,11 @@ d_open_t  ufmopen;
 d_close_t ufmclose;
 d_ioctl_t ufmioctl;
 
+#if __FreeBSD_version >= 500000
 #define UFM_CDEV_MAJOR	MAJOR_AUTO
+#else
+#define UFM_CDEV_MAJOR	200
+#endif
 
 Static struct cdevsw ufm_cdevsw = {
 	.d_open =	ufmopen,
