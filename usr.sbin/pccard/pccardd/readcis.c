@@ -47,6 +47,7 @@ static void cis_info(struct cis *, unsigned char *, int);
 static void device_desc(unsigned char *, int, struct dev_mem *);
 static void config_map(struct cis *, unsigned char *, int);
 static void cis_config(struct cis *, unsigned char *, int);
+static void cis_func_id(struct cis *, unsigned char *, int);
 static struct tuple_list *read_one_tuplelist(int, int, off_t);
 static struct tuple_list *read_tuples(int);
 static struct tuple *find_tuple_in_list(struct tuple_list *, unsigned char);
@@ -123,6 +124,10 @@ readcis(int fd)
 			case CIS_CONFIG:	/* 0x1B */
 				cis_config(cp, tp->data, tp->length);
 				break;
+			case CIS_FUNC_ID:       /* 0x21 */
+				cis_func_id(cp, tp->data, tp->length);
+				break;
+ 
 			}
 		}
 	return (cp);
@@ -180,6 +185,15 @@ cis_info(struct cis *cp, unsigned char *p, int len)
 	strncpy(cp->add_info1, p, CIS_MAXSTR - 1);
 	while (*p++);
 	strncpy(cp->add_info2, p, CIS_MAXSTR - 1);
+}
+/*
+ *      Fills in CIS function ID.
+ */
+static void
+cis_func_id(struct cis *cp, unsigned char *p, int len)
+{
+	cp->func_id1 = *p++;
+	cp->func_id2 = *p++;
 }
 
 /*
