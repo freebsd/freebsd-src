@@ -59,6 +59,10 @@ __FBSDID("$FreeBSD$");
 static void domaininit(void *);
 SYSINIT(domain, SI_SUB_PROTO_DOMAIN, SI_ORDER_FIRST, domaininit, NULL)
 
+static void domainfinalize(void *);
+SYSINIT(domainfin, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_FIRST, domainfinalize,
+    NULL)
+
 static struct callout pffast_callout;
 static struct callout pfslow_callout;
 
@@ -66,6 +70,7 @@ static void	pffasttimo(void *);
 static void	pfslowtimo(void *);
 
 struct domain *domains;		/* registered protocol domains */
+int domain_init_status = 0;
 struct mtx dom_mtx;		/* domain list lock */
 MTX_SYSINIT(domain, &dom_mtx, "domain list", MTX_DEF);
 
@@ -160,6 +165,24 @@ net_add_domain(void *data)
 	mtx_lock(&dom_mtx);
 	dp->dom_next = domains;
 	domains = dp;
+
+	KASSERT(domain_init_status >= 1,
+	    ("attempt to net_add_domain(%s) before domaininit()",
+	    dp->dom_name));
+#ifndef INVARIANTS
+	if (domain_init_status == 0)
+		printf("WARNING: attempt to net_add_domain(%s) before "
+		    "domaininit()\n", dp->dom_name);
+#endif
+#ifdef notyet
+	KASSERT(domain_init_status < 2,
+	    ("attempt to net_add_domain(%s) after domainfinalize()",
+	    dp->dom_name));
+#else
+	if (domain_init_status != 0)
+		printf("WARNING: attempt to net_add_domain(%s) after "
+		    "domainfinalize()\n", dp->dom_name);
+#endif
 	mtx_unlock(&dom_mtx);
 	net_init_domain(dp);
 }
@@ -188,10 +211,24 @@ domaininit(void *dummy)
 		callout_init(&pfslow_callout, 0);
 	}
 
+	mtx_lock(&dom_mtx);
+	KASSERT(domain_init_status == 0, ("domaininit called too late!"));
+	domain_init_status = 1;
+	mtx_unlock(&dom_mtx);
+
 	callout_reset(&pffast_callout, 1, pffasttimo, NULL);
 	callout_reset(&pfslow_callout, 1, pfslowtimo, NULL);
 }
 
+/* ARGSUSED*/
+static void
+domainfinalize(void *dummy)
+{
+	mtx_lock(&dom_mtx);
+	KASSERT(domain_init_status == 1, ("domainfinalize called too late!"));
+	domain_init_status = 2;
+	mtx_unlock(&dom_mtx);	
+}
 
 struct protosw *
 pffindtype(family, type)
