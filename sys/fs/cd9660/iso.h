@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso.h	8.2 (Berkeley) 1/23/94
- * $Id: iso.h,v 1.2 1994/08/02 07:41:38 davidg Exp $
+ * $Id: iso.h,v 1.3 1994/09/09 11:11:01 dfr Exp $
  */
 
 #define ISODCL(from, to) (to - from + 1)
@@ -45,7 +45,11 @@ struct iso_volume_descriptor {
 	char type[ISODCL(1,1)]; /* 711 */
 	char id[ISODCL(2,6)];
 	char version[ISODCL(7,7)];
-	char data[ISODCL(8,2048)];
+	char unused[ISODCL(8,8)];
+	char type_sierra[ISODCL(9,9)]; /* 711 */
+	char id_sierra[ISODCL(10,14)];
+	char version_sierra[ISODCL(15,15)];
+	char data[ISODCL(16,2048)];
 };
 
 /* volume descriptor types */
@@ -53,13 +57,15 @@ struct iso_volume_descriptor {
 #define ISO_VD_END 255
 
 #define ISO_STANDARD_ID "CD001"
-#define ISO_ECMA_ID     "CDW01"
+#define ISO_ECMA_ID	"CDW01"
+
+#define ISO_SIERRA_ID	"CDROM"
 
 struct iso_primary_descriptor {
-	char type			[ISODCL (  1,   1)]; /* 711 */
-	char id				[ISODCL (  2,   6)];
-	char version			[ISODCL (  7,   7)]; /* 711 */
-	char unused1			[ISODCL (  8,   8)];
+	char type			[ISODCL (  1,	1)]; /* 711 */
+	char id				[ISODCL (  2,	6)];
+	char version			[ISODCL (  7,	7)]; /* 711 */
+	char unused1			[ISODCL (  8,	8)];
 	char system_id			[ISODCL (  9,  40)]; /* achars */
 	char volume_id			[ISODCL ( 41,  72)]; /* dchars */
 	char unused2			[ISODCL ( 73,  80)];
@@ -91,6 +97,43 @@ struct iso_primary_descriptor {
 	char unused5			[ISODCL (1396, 2048)];
 };
 #define ISO_DEFAULT_BLOCK_SIZE		2048
+
+struct iso_sierra_primary_descriptor {
+	char unknown1			[ISODCL (  1,	8)]; /* 733 */
+	char type			[ISODCL (  9,	9)]; /* 711 */
+	char id				[ISODCL ( 10,  14)];
+	char version			[ISODCL ( 15,  15)]; /* 711 */
+	char unused1			[ISODCL ( 16,  16)];
+	char system_id			[ISODCL ( 17,  48)]; /* achars */
+	char volume_id			[ISODCL ( 49,  80)]; /* dchars */
+	char unused2			[ISODCL ( 81,  88)];
+	char volume_space_size		[ISODCL ( 89,  96)]; /* 733 */
+	char unused3			[ISODCL ( 97, 128)];
+	char volume_set_size		[ISODCL (129, 132)]; /* 723 */
+	char volume_sequence_number	[ISODCL (133, 136)]; /* 723 */
+	char logical_block_size		[ISODCL (137, 140)]; /* 723 */
+	char path_table_size		[ISODCL (141, 148)]; /* 733 */
+	char type_l_path_table		[ISODCL (149, 152)]; /* 731 */
+	char opt_type_l_path_table	[ISODCL (153, 156)]; /* 731 */
+	char unknown2			[ISODCL (157, 160)]; /* 731 */
+	char unknown3			[ISODCL (161, 164)]; /* 731 */
+	char type_m_path_table		[ISODCL (165, 168)]; /* 732 */
+	char opt_type_m_path_table	[ISODCL (169, 172)]; /* 732 */
+	char unknown4			[ISODCL (173, 176)]; /* 732 */
+	char unknown5			[ISODCL (177, 180)]; /* 732 */
+	char root_directory_record	[ISODCL (181, 214)]; /* 9.1 */
+	char volume_set_id		[ISODCL (215, 342)]; /* dchars */
+	char publisher_id		[ISODCL (343, 470)]; /* achars */
+	char preparer_id		[ISODCL (471, 598)]; /* achars */
+	char application_id		[ISODCL (599, 726)]; /* achars */
+	char copyright_id		[ISODCL (727, 790)]; /* achars */
+	char creation_date		[ISODCL (791, 806)]; /* ? */
+	char modification_date		[ISODCL (807, 822)]; /* ? */
+	char expiration_date		[ISODCL (823, 838)]; /* ? */
+	char effective_date		[ISODCL (839, 854)]; /* ? */
+	char file_structure_version	[ISODCL (855, 855)]; /* 711 */
+	char unused4			[ISODCL (856, 2048)];
+};
 
 struct iso_directory_record {
 	char length			[ISODCL (1, 1)]; /* 711 */
@@ -129,7 +172,8 @@ struct iso_extended_attributes {
 };
 
 /* CD-ROM Format type */
-enum ISO_FTYPE  { ISO_FTYPE_DEFAULT, ISO_FTYPE_9660, ISO_FTYPE_RRIP, ISO_FTYPE_ECMA };
+enum ISO_FTYPE	{ ISO_FTYPE_DEFAULT, ISO_FTYPE_9660, ISO_FTYPE_RRIP,
+		  ISO_FTYPE_ECMA, ISO_FTYPE_HIGH_SIERRA };
 
 #ifndef	ISOFSMNT_ROOT
 #define	ISOFSMNT_ROOT	0
@@ -153,7 +197,7 @@ struct iso_mnt {
 	char root[ISODCL (157, 190)];
 	int root_extent;
 	int root_size;
-	enum ISO_FTYPE  iso_ftype;
+	enum ISO_FTYPE	iso_ftype;
 	
 	int rr_skip;
 	int rr_skip0;

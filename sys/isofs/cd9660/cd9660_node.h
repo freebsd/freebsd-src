@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_node.h	8.2 (Berkeley) 1/23/94
- * $Id: cd9660_node.h,v 1.2 1994/08/02 07:41:22 davidg Exp $
+ * $Id: cd9660_node.h,v 1.3 1994/09/15 19:46:00 bde Exp $
  */
 
 /*
@@ -94,7 +94,7 @@ struct iso_node {
 	long i_size;
 	long iso_start;		/* actual start of data of file (may be different */
 				/* from iso_extent, if file has extended attributes) */
-	ISO_RRIP_INODE  inode;
+	ISO_RRIP_INODE	inode;
 };
 
 #define	i_forw		i_chain[0]
@@ -135,10 +135,10 @@ int cd9660_strategy __P((struct vop_strategy_args *));
 int cd9660_print __P((struct vop_print_args *));
 int cd9660_islocked __P((struct vop_islocked_args *));
 void cd9660_defattr __P((struct iso_directory_record *,
-			struct iso_node *, struct buf *));
+			struct iso_node *, struct buf *, enum ISO_FTYPE));
 void cd9660_deftstamp __P((struct iso_directory_record *,
-			struct iso_node *, struct buf *));
-int cd9660_tstamp_conv7 __P((char *pi, struct timespec *pu));
+			struct iso_node *, struct buf *, enum ISO_FTYPE));
+int cd9660_tstamp_conv7 __P((char *pi, struct timespec *pu, enum ISO_FTYPE));
 int cd9660_tstamp_conv17 __P((unsigned char *pi, struct timespec *pu));
 void isodirino __P((ino_t *inump, struct iso_directory_record *isodir,
 		    struct iso_mnt *imp));
