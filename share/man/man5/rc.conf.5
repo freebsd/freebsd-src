@@ -53,14 +53,17 @@ The
 .Pa /etc/rc.conf
 file is included from the file
 .Pa /etc/defaults/rc.conf ,
-which specifies the default settings for all the available options. Options
+which specifies the default settings for all the available options.
+Options
 need only be specified in 
 .Pa /etc/rc.conf
-when the system administrator wishes to override these defaults. The file
+when the system administrator wishes to override these defaults.
+The file
 .Pa /etc/rc.conf.local
 is used to override settings in
 .Pa /etc/rc.conf
-for historical reasons. See the
+for historical reasons.
+See the
 .Dq rc_conf_files
 option below.
 .Pp
@@ -202,7 +205,8 @@ as an argument.
 .It Ar tcp_extensions
 (bool) Set to
 .Ar NO
-by default. Setting this to YES enables certain TCP options as described by
+by default.
+Setting this to YES enables certain TCP options as described by
 .Rs
 .%T RFC 1323
 .Re
@@ -229,8 +233,10 @@ peer is still up and reachable.
 .Ar NO
 by default.
 Setting to YES will cause the kernel to ignore TCP frames that have both
-the SYN and FIN flags set. This prevents OS fingerprinting, but may
-break some legitimate applications. This option is only available if the
+the SYN and FIN flags set.
+This prevents OS fingerprinting, but may
+break some legitimate applications.
+This option is only available if the
 kernel was built with the TCP_DROP_SYNFIN option.
 .It Ar tcp_restrict_rst
 (bool) Set to
@@ -249,7 +255,8 @@ Setting to YES will cause the kernel to ignore ICMP REDIRECT packets.
 (bool) Set to
 .Ar NO
 by default.
-Setting to YES will cause the kernel to log ICMP REDIRECT packets. Note that
+Setting to YES will cause the kernel to log ICMP REDIRECT packets.
+Note that
 the log messages are not rate-limited, so this option should only be used
 for troubleshooting your own network.
 .It Ar network_interfaces
@@ -314,7 +321,8 @@ See the manual for a full description.
 .It Ar ppp_nat
 (bool) If set to
 .Ar YES ,
-enables packet aliasing. Used in conjunction with
+enables packet aliasing.
+Used in conjunction with
 .Ar gateway_enable
 allows hosts on private network addresses access to the Internet using
 this host as a network address translating router.
@@ -326,7 +334,8 @@ this host as a network address translating router.
 the settings in
 .Pa /etc/defaults/rc.conf .
 The files will be read in the order in which they are specified and should
-include the full path to the file. By default, the files specified are
+include the full path to the file.
+By default, the files specified are
 .Pa /etc/rc.conf
 and
 .Pa /etc/rc.conf.local
@@ -475,7 +484,8 @@ is set, start
 .Xr mountd 8 ,
 but not
 .Xr nfsd 8
-daemon. It is commonly needed to run CFS without real NFS used.
+daemon.
+It is commonly needed to run CFS without real NFS used.
 .It Ar weak_mountd_authentication
 (bool) If set to
 .Ar YES ,
@@ -996,7 +1006,8 @@ versapad         Interlink VersaPad (serial)
 
 .Ed
 Even if your mouse is not in the above list, it may be compatible
-with one in the list. Refer to the man page for
+with one in the list.
+Refer to the man page for
 .Xr moused 8
 for compatibility information.
 .Pp
@@ -1009,7 +1020,8 @@ mouse data is converted to this single canonical format when
 using
 .Xr moused 8 .
 If the client program does not support the sysmouse type, 
-specify the mousesystems type. It is the second prefered type.
+specify the mousesystems type.
+It is the second prefered type.
 .It Ar moused_port
 (str) If
 .Ar moused_enable

@@ -16,7 +16,8 @@ The
 .Nm meteor
 driver provides support for a PCI
 .Em video
-capture. It allows the capture of 24 bit RGB, 16 bit RGB and 16 bit YUV 
+capture.
+It allows the capture of 24 bit RGB, 16 bit RGB and 16 bit YUV 
 output formats.
 .Pp
 .Sh Meteor Driver Installation
@@ -66,7 +67,8 @@ probed.  The default number of pages allocated by the kernel is 151.
 This means that there are (151*4096) bytes available for use.
 .Pp
 .Em options METEOR_DEALLOC_PAGES
-deallocate all pages when closing the device. Note, the chance of
+deallocate all pages when closing the device.
+Note, the chance of
 contiguously re-allocating new pages are very small.  The default
 behavior is to not deallocate pages.
 .Pp
@@ -88,7 +90,8 @@ The Meteor capture driver has three modes of capture operation.
 1) Conventional read(2) interface.
 .in +0.5i
 .Pp
-This mode is the easiest and slowest to use. This mode is great for
+This mode is the easiest and slowest to use.
+This mode is great for
 capturing a single field at little programming cost.
 .Pp
 In this mode, the user opens the device, set the capture mode
@@ -175,7 +178,8 @@ main()
 .Pp
 The single capture mode is designed for conferencing tools such as nv.
 These tools need to control the starting of the image capture and also
-need several frames a second. The continuous capture mode is designed
+need several frames a second.
+The continuous capture mode is designed
 for applications that want free-running data.
 .Pp
 In this mode, the user opens the device, set the capture mode
@@ -266,15 +270,18 @@ main()
 .Pp
 .in +0.5i
 This continuous capture mode is synchronized with the application that
-processes up to 32 frames. This gives the advantages of both single and
+processes up to 32 frames.
+This gives the advantages of both single and
 continuous capture modes. 
 .Pp
 The kernel notifies the application of a new data by raising an
-application defined signal. The driver also shares a structure with
+application defined signal.
+The driver also shares a structure with
 the application that allows them to communicate which frame has been
 written by the kernel and which frame has been read by the application.
 .Pp
-The shared structure starts on the first page after your data. The
+The shared structure starts on the first page after your data.
+The
 structure address can be found by calculation:
 .in +0.5i
 .Pp
@@ -287,25 +294,30 @@ structure address can be found by calculation:
 ((number_rows * number_columns * pixel_depth + 4095)/4096) * 4096
 .in -0.5i
 .Pp
-The shared structure is of type struct meteor_mem. The two most
+The shared structure is of type struct meteor_mem.
+The two most
 important fields are called active and num_active_buf. active
 is a bitmap of frames written by the kernel. num_active_bufs is
-a count of frames marked in the active field. When a frame is read
+a count of frames marked in the active field.
+When a frame is read
 in by the driver, the num_active_bufs count is tested, if this
 count is below the threshold of number of active frames (value
 in meteor_mem's hiwat variable), the bit representing frame
 number in the buffer is stored in the active variable, the
 num_active_bufs is incremented, the kernel then raises the specified
-signal to activate the user application. The user application's
+signal to activate the user application.
+The user application's
 responsibility when getting the signal is to check the active bitmap
 to determine the lowest active frame, use the data as the application
 desires, clear the bitmap entry for that frame, and decrement the
-num_active_bufs. If the threshold of number of active frames (hiwat)
+num_active_bufs.
+If the threshold of number of active frames (hiwat)
 has been exceeded, no new frames or signal from the kernel will occur
 until the num_active_bufs is less than or equal to lowat.
 .Pp
 The driver loads the frames in a round-robin fashion. it is expected
-that the user removes them in the same order. The driver does not
+that the user removes them in the same order.
+The driver does not
 check to see if the frame is already active.
 .Pp
 The frame_size and number of frames in the buffer are also provided
@@ -314,7 +326,8 @@ application will not change the operation of the driver.
 .Pp
 In programming for this mode, the user opens the device, sets the
 geometry, mmaps the data/common control structure, then starts the
-continuous capture mode. A special signal catcher is required to
+continuous capture mode.
+A special signal catcher is required to
 process the frames as they are read by the kernel.
 .Pp
 When specifying the geometry (See: ioctl METEORSETGEO), it
@@ -451,7 +464,8 @@ attributes.
 .Pp
 IT IS VERY IMPORTANT TO CHECK FOR ERRORS ON THESE RETURNING IOCTLs.
 Errors indicate that something is very wrong with the ioctl and the
-application should not attempt to proceed further with capturing. The
+application should not attempt to proceed further with capturing.
+The
 meteor capture driver still makes attempts to stop the next capture step if
 an error occurred in a previous step but was ignored by the application
 programmer.
@@ -470,12 +484,14 @@ number of rows (lines high) in output image
 .It Dv columns
 number of pixels in a row (width) in output image
 .It Dv frames
-number of frames in buffer. Should be 1, unless using
+number of frames in buffer.
+Should be 1, unless using
 the multi-framed synchronous capture mode (METEORCAPFRM)
 which REQUIRES frames to be larger than 1.
 .Pp
 Note: if rows, columns or frames is not changed, then
-the existing values are used. The system defaults
+the existing values are used.
+The system defaults
 is 640x480x1.
 .It Dv oformat
 you may choose one of the following output format:
@@ -499,12 +515,14 @@ rows * column / 4 bytes of odd  v)
 .El
 .Pp
 The METEORSETGEO ioctl will fail if more than one entry from a category
-is selected. It is highly recommended that a METEORSETGEO is done
+is selected.
+It is highly recommended that a METEORSETGEO is done
 before capturing data because you cannot guarantee the initial mode
 the card.
 .Pp
 The METEORSETGEO will also attempt to reallocate a new contiguous
-kernel buffer if the new geometry exceeds the old geometry. On
+kernel buffer if the new geometry exceeds the old geometry.
+On
 other hand, if the new geometry will fit in the existing buffer,
 the existing buffer is used. 
 .Pp
@@ -543,7 +561,8 @@ Autodetect.
 .in +0.5i
 .Pp
 METEORSINPUT and METEORGINPUT are used to set and read the camera
-input device. Using the DB9 connector on the Meteor card, 4 input
+input device.
+Using the DB9 connector on the Meteor card, 4 input
 devices can be connected and an input camera can be selected with this
 ioctl.
 .Pp
@@ -667,7 +686,8 @@ variables in the structure as inputs
 .El
 .It Dv signal
 signal to send to application when a new
-frame has been captured. This signal will
+frame has been captured.
+This signal will
 only be raised if the captured frame is saved.
 .It Dv lowat
 see below
@@ -715,7 +735,8 @@ invalid unsigned char pointer.
 8) ioctl requests METEORGHUE and METEORSHUE
 .in +0.5i
 .Pp
-METEORGHUE and METEORSHUE are used to get and set the hue. The
+METEORGHUE and METEORSHUE are used to get and set the hue.
+The
 signed character has legal values are from +127 which represent
 +178.6 degrees to -128 which represents -180 degrees.
 .Pp
@@ -733,7 +754,8 @@ invalid signed char pointer.
 .Pp
 METEORGCOUNT is used to get the count of frame errors, DMA errors and
 count of the number of frames captured that have occurred since
-the device was opened. METEORSCOUNT can be used to reinitialize the
+the device was opened.
+METEORSCOUNT can be used to reinitialize the
 counters.
 .Pp
 This ioctl routines use the meteor_counts structure that has the
@@ -758,11 +780,13 @@ invalid meteor_counts structure pointer.
 .Sh Known Bugs:
 .in +0.5i
 .Pp
-1) IIC register is difficult to set. We got around that by adding a long
+1) IIC register is difficult to set.
+We got around that by adding a long
 wait at each IIC register write.
 .Pp
 2) We had difficulties getting the Meteor capture card to work on systems
-that used NCR chipset SCSI cards. It is possible that the Meteor and NCR SCSI
+that used NCR chipset SCSI cards.
+It is possible that the Meteor and NCR SCSI
 could work together using the newer TRITON motherboards.
 .in -0.5i
 .Pp
