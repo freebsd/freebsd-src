@@ -249,8 +249,6 @@ void	sigexit(struct thread *td, int signum) __dead2;
 void	siginit(struct proc *p);
 void	signotify(struct thread *td);
 void	trapsignal(struct thread *td, int sig, u_long code);
-int	do_sigprocmask(struct thread *td, int how,
-			sigset_t *set, sigset_t *oset, int old);
 int	sig_ffs(sigset_t *set);
 
 /*
