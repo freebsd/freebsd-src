@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.31.2.4 1995/09/20 10:43:11 jkh Exp $
+ * $Id: disks.c,v 1.31.2.5 1995/09/22 23:35:17 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -198,7 +198,7 @@ diskPartition(Disk *d)
 			       "drive and eat you up!\n\n"
 			       "Do you insist on dedicating the entire disk this way?");
 		if(rv)
-		    msgInfo("You can't say you haven't been warned!");
+		    msgInfo("Well OK, but you can't say you haven't been warned!");
 		All_FreeBSD(d, rv);
 	    }
 	    record_chunks(d);

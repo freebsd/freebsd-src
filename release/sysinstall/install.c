@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.2 1995/09/18 17:00:19 peter Exp $
+ * $Id: install.c,v 1.71.2.3 1995/09/22 23:22:20 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -201,13 +201,15 @@ int
 installExpress(char *str)
 {
     msgConfirm("In the next menu, you will need to set up a DOS-style\n"
-	       "partitioning scheme for your hard disk.  If you don't\n"
-	       "want to do anything special, just type `A' to use the\n"
-	       "whole disk and then `Q' to quit.");
+	       "(\"fdisk\") partitioning scheme for your hard disk.  If you\n"
+	       "don't want to do anything special, just type `A' to use the\n"
+	       "whole disk and then `Q' to quit.  If you wish to share\n"
+	       "a disk with multiple operating systems, do NOT use the\n"
+	       "`A' command.");
     diskPartitionEditor("express");
     
     msgConfirm("Next, you need to lay out BSD partitions inside of the\n"
-	       "DOS-style partition just created.  If you don't want to\n"
+	       "fdisk partition just created.  If you don't want to\n"
 	       "do anything special, just type `A' to use the default\n"
 	       "partitioning scheme and then `Q' to quit.");
     diskLabelEditor("express");
