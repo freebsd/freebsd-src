@@ -258,12 +258,13 @@ fixes, etc).
       <sect>
         <heading>Usenet newsgroups<label id="eresources:news"></heading>
 
-        <p>In addition to two FreeBSD specific newsgroups on Usenet, there
-          are many other in which FreeBSD is discussed or are otherwise
-          relevant to FreeBSD users.  Keyword searchable archives are
-	  available for some of these newsgroups from 
-          <url url="http://minnie.cs.adfa.oz.au/BSD-info/bsdnews_search.html">
-	  courtesy of Warren Toomey <tt>&lt;wkt@cs.adfa.oz.au&gt;</tt>.
+        <p>In addition to two FreeBSD specific newsgroups, there
+          are many others in which FreeBSD is discussed or are
+          otherwise relevant to FreeBSD users. <url
+          url="http://minnie.cs.adfa.oz.au/BSD-info/bsdnews_search.html"
+          name="Keyword searchable archives"> are available for
+          some of these newsgroups from courtesy of Warren Toomey
+          <tt>&lt;wkt@cs.adfa.oz.au&gt;</tt>.
 
         <sect1>
           <heading>BSD specific newsgroups</heading>
