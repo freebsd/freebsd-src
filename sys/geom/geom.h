@@ -98,14 +98,12 @@ struct g_class {
 	 */
 	LIST_ENTRY(g_class)	class;
 	LIST_HEAD(,g_geom)	geom;
-	u_int			protect;
 };
 
 /*
  * The g_geom is an instance of a g_class.
  */
 struct g_geom {
-	u_int			protect;
 	char			*name;
 	struct g_class		*class;
 	LIST_ENTRY(g_geom)	geom;
@@ -141,7 +139,6 @@ struct g_bioq {
  */
 
 struct g_consumer {
-	u_int			protect;
 	struct g_geom		*geom;
 	LIST_ENTRY(g_consumer)	consumer;
 	struct g_provider	*provider;
@@ -156,7 +153,6 @@ struct g_consumer {
  * A g_provider is a "logical disk".
  */
 struct g_provider {
-	u_int			protect;
 	char			*name;
 	LIST_ENTRY(g_provider)	provider;
 	struct g_geom		*geom;
