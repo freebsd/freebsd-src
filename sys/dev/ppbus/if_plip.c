@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  *
  *	From Id: lpt.c,v 1.55.2.1 1996/11/12 09:08:38 phk Exp
- *	$Id: if_plip.c,v 1.7 1999/01/09 18:10:37 nsouch Exp $
+ *	$Id: if_plip.c,v 1.8 1999/01/23 17:07:49 nsouch Exp $
  */
 
 /*
@@ -131,11 +131,12 @@
 
 #define	LPIPTBLSIZE	256	/* Size of octet translation table */
 
-#ifndef PLIP_DEBUG
-#define lprintf (void)
-#else
 #define lprintf		if (lptflag) printf
+
+#ifdef PLIP_DEBUG
 static int volatile lptflag = 1;
+#else
+static int volatile lptflag = 0;
 #endif
 
 struct lpt_softc {
