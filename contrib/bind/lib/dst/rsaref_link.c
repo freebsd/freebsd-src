@@ -700,7 +700,6 @@ dst_rsaref_init_random_struct(R_RANDOM_STRUCT * randomstruct)
 	 * This must be the FIRST CALL
 	 */
 	gettimeofday(&tv, 0);
-	assert(tv.tv_usec >= 0 && tv.tv_usec < 1000000);
 	R_RandomUpdate(randomstruct, (u_char *) &tv,
 		       sizeof(struct timeval));
 

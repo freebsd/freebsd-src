@@ -204,7 +204,6 @@ do_time(dst_work *work)
 	zone = (struct timezone *) tmp;
 	mtime = (struct timeval *)(tmp + sizeof(struct timezone));
 	gettimeofday(mtime, zone);
-	assert(mtime->tv_usec >= 0 && mtime->tv_usec < 1000000);
 	cnt = sizeof(tmp);
 	my_digest(work, tmp, sizeof(tmp));
 
