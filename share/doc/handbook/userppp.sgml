@@ -1,4 +1,4 @@
-<!-- $Id:$ -->
+<!-- $Id: userppp.sgml,v 1.1 1995/07/29 13:08:02 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect>Setting up user PPP<label id="userppp">
@@ -183,8 +183,8 @@ namedflags="NO"
      If your provider allocates you a static IP address then use this in place
      of 10.0.0.1.
 
-     <!-- XXX --> <em>(* What should they do if they are
-     allocated an IP address dynamically?)</em>
+     <!-- XXX <em>(* What should they do if they are
+     allocated an IP address dynamically?)</em> -->
 
 <sect2>Create the /etc/resolv.conf file
 
@@ -283,12 +283,16 @@ x.x.x.x:
     may or may not want to do this, depending on how many people have access
     to your ppp system.
 
-<sect1>* PPP and Dynamic IP configuration
+<sect1>PPP and Dynamic IP configuration
 
-<!-- XXX 
-<p>* Don't have a clue how to do this. Could someone who does
-    submit something to go in here?
--->
+<!-- XXX -->
+ <p>If you service provider does not assign static IP numbers,
+   <tt>ppp</tt> can be configured to negotiate the local address.  This is
+   done by specifying 0 as the local IP address:
+<tscreen><verb>
+set ifaddr 0 0
+</verb></tscreen>
+   See the <tt>ppp(8)</tt> manual page for more detailed information.
 
 <sect1>Final system configuration
 
