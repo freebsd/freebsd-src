@@ -10,4 +10,5 @@ appl/xnlock
 doc/standardisation
 lib/des
 lib/editline
+lib/kdfs
 lib/otp
