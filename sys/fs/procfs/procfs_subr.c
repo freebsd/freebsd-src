@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_subr.c	8.6 (Berkeley) 5/14/95
  *
- *	$Id: procfs_subr.c,v 1.17 1997/08/02 14:32:18 bde Exp $
+ *	$Id: procfs_subr.c,v 1.18 1997/12/06 04:11:12 sef Exp $
  */
 
 #include <sys/param.h>
@@ -353,9 +353,10 @@ vfs_findname(nm, buf, buflen)
 }
 
 void
-procfs_exit(pid_t pid)
+procfs_exit(struct proc *p)
 {
 	struct pfsnode *pfs;
+	pid_t pid = p->p_pid;
 
 	for (pfs = pfshead; pfs ; pfs = pfs->pfs_next) {
 		if (pfs->pfs_pid == pid)

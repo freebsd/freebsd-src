@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.61 1997/12/06 04:11:10 sef Exp $
+ * $Id: kern_exit.c,v 1.62 1997/12/07 18:16:43 sef Exp $
  */
 
 #include "opt_ktrace.h"
@@ -114,9 +114,6 @@ exit1(p, rv)
 	register struct proc *q, *nq;
 	register struct vmspace *vm;
 	ele_p ep = exit_list;
-#ifdef PROCFS
-	extern void procfs_exit(pid_t);
-#endif
 
 	if (p->p_pid == 1) {
 		printf("init died (signal %d, exit %d)\n",
@@ -160,14 +157,6 @@ exit1(p, rv)
 	vmsizmon();
 #endif
 	STOPEVENT(p, S_EXIT, rv);
-
-#ifdef PROCFS
-	/*
-	 * Now that we're back from stopevent(), force a close
-	 * of all open procfs files for this process.
-	 */
-	procfs_exit(p->p_pid);
-#endif
 
 	/* 
 	 * Check if any LKMs need anything done at process exit.
