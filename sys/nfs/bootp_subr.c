@@ -1,4 +1,4 @@
-/*	$Id: bootp_subr.c,v 1.13 1998/03/30 09:53:38 phk Exp $	*/
+/*	$Id: bootp_subr.c,v 1.14 1998/08/18 00:32:47 bde Exp $	*/
 
 /*
  * Copyright (c) 1995 Gordon Ross, Adam Glass
@@ -264,8 +264,10 @@ bootpc_call(call,reply,procp)
 	struct sockaddr_in *sin, sa;
 	struct mbuf *m;
 	struct uio auio;
+	struct sockopt sopt;
 	struct iovec aio;
-	int error, rcvflg, timo, secs, len;
+	struct timeval tv;
+	int error, on, len, rcvflg, secs, timo;
 	u_int tport;
 
 	/*
@@ -274,36 +276,26 @@ bootpc_call(call,reply,procp)
 	if ((error = socreate(AF_INET, &so, SOCK_DGRAM, 0,procp)))
 		goto out;
 
-	m = m_get(M_WAIT, MT_SOOPTS);
-	if (m == NULL) {
-		error = ENOBUFS;
+	tv.tv_sec = 1;
+	tv.tv_usec = 0;
+	bzero(&sopt, sizeof sopt);
+	sopt.sopt_level = SOL_SOCKET;
+	sopt.sopt_name = SO_RCVTIMEO;
+	sopt.sopt_val = &tv;
+	sopt.sopt_valsize = sizeof tv;
+
+	if (error = sosetopt(so, &sopt))
 		goto out;
-	} else {
-		struct timeval *tv;
-		tv = mtod(m, struct timeval *);
-		m->m_len = sizeof(*tv);
-		tv->tv_sec = 1;
-		tv->tv_usec = 0;
-		if ((error = sosetopt(so, SOL_SOCKET, SO_RCVTIMEO, m, procp)))
-			goto out;
-	}
 
 	/*
 	 * Enable broadcast.
 	 */
-	{
-		int *on;
-		m = m_get(M_WAIT, MT_SOOPTS);
-		if (m == NULL) {
-			error = ENOBUFS;
-			goto out;
-		}
-		on = mtod(m, int *);
-		m->m_len = sizeof(*on);
-		*on = 1;
-		if ((error = sosetopt(so, SOL_SOCKET, SO_BROADCAST, m, procp)))
-			goto out;
-	}
+	on = 1;
+	sopt.sopt_val = &on;
+	sopt.sopt_valsize = sizeof on;
+	sopt.sopt_name = SO_BROADCAST;
+	if (error = sosetopt(so, &sopt))
+		goto out;
 
 	/*
 	 * Bind the local endpoint to a bootp client port.

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_var.h	8.2 (Berkeley) 1/9/95
- *	$Id: ip_var.h,v 1.42 1998/07/06 03:20:18 julian Exp $
+ *	$Id: ip_var.h,v 1.43 1998/07/13 12:20:07 bde Exp $
  */
 
 #ifndef _NETINET_IP_VAR_H_
@@ -160,8 +160,10 @@ struct	ipstat {
 #define	IP_ROUTETOIF		SO_DONTROUTE	/* bypass routing tables */
 #define	IP_ALLOWBROADCAST	SO_BROADCAST	/* can send broadcast packets */
 
+struct ip;
 struct inpcb;
 struct route;
+struct sockopt;
 
 extern struct	ipstat	ipstat;
 extern u_short	ip_id;				/* ip packet ctr, for ids */
@@ -175,8 +177,7 @@ extern u_long	(*ip_mcast_src) __P((int));
 extern int rsvp_on;
 extern struct	pr_usrreqs rip_usrreqs;
 
-int	 ip_ctloutput __P((int, struct socket *, int, int, struct mbuf **,
-			   struct proc *));
+int	 ip_ctloutput __P((struct socket *, struct sockopt *sopt));
 void	 ip_drain __P((void));
 void	 ip_freemoptions __P((struct ip_moptions *));
 void	 ip_init __P((void));
@@ -190,8 +191,7 @@ void	 ip_slowtimo __P((void));
 struct mbuf *
 	 ip_srcroute __P((void));
 void	 ip_stripoptions __P((struct mbuf *, struct mbuf *));
-int	 rip_ctloutput __P((int, struct socket *, int, int, struct mbuf **,
-			    struct proc *p));
+int	 rip_ctloutput __P((struct socket *, struct sockopt *));
 void	 rip_ctlinput __P((int, struct sockaddr *, void *));
 void	 rip_init __P((void));
 void	 rip_input __P((struct mbuf *, int));
@@ -200,8 +200,8 @@ void	ipip_input __P((struct mbuf *, int));
 void	rsvp_input __P((struct mbuf *, int));
 int	ip_rsvp_init __P((struct socket *));
 int	ip_rsvp_done __P((void));
-int	ip_rsvp_vif_init __P((struct socket *, struct mbuf *));
-int	ip_rsvp_vif_done __P((struct socket *, struct mbuf *));
+int	ip_rsvp_vif_init __P((struct socket *, struct sockopt *));
+int	ip_rsvp_vif_done __P((struct socket *, struct sockopt *));
 void	ip_rsvp_force_done __P((struct socket *));
 
 #ifdef IPDIVERT

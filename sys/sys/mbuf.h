@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mbuf.h	8.5 (Berkeley) 2/19/95
- * $Id: mbuf.h,v 1.26 1997/12/28 01:04:47 bde Exp $
+ * $Id: mbuf.h,v 1.27 1998/07/15 04:17:53 bde Exp $
  */
 
 #ifndef _SYS_MBUF_H_
@@ -138,7 +138,7 @@ struct mbuf {
 /*efine	MT_HTABLE	6*/	/* IMP host tables */
 /*efine	MT_ATABLE	7*/	/* address resolution tables */
 #define	MT_SONAME	8	/* socket name */
-#define	MT_SOOPTS	10	/* socket options */
+/*efine	MT_SOOPTS	10*/	/* socket options */
 #define	MT_FTABLE	11	/* fragment reassembly header */
 /*efine	MT_RIGHTS	12*/	/* access rights */
 /*efine	MT_IFADDR	13*/	/* interface address */
@@ -168,10 +168,10 @@ union mcluster {
  * drivers.
  */
 #define	MBUFLOCK(code) \
-	{ int ms = splimp(); \
+	do { int ms = splimp(); \
 	  { code } \
 	  splx(ms); \
-	}
+	} while(0)
 
 /*
  * mbuf allocation/deallocation macros:
@@ -348,10 +348,10 @@ union mcluster {
 }
 
 /* change mbuf to new type */
-#define MCHTYPE(m, t) { \
-	MBUFLOCK(mbstat.m_mtypes[(m)->m_type]--; mbstat.m_mtypes[t]++;) \
+#define MCHTYPE(m, t) do { \
+	MBUFLOCK(mbstat.m_mtypes[(m)->m_type]--; mbstat.m_mtypes[t]++;); \
 	(m)->m_type = t;\
-}
+} while(0)
 
 /* length to m_copy to copy all */
 #define	M_COPYALL	1000000000

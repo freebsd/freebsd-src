@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.94 1998/08/03 17:23:37 dfr Exp $
+ *	$Id: ip_fw.c,v 1.95 1998/08/11 19:08:42 bde Exp $
  */
 
 /*
@@ -34,6 +34,7 @@
 #include <sys/mbuf.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
+#include <sys/socketvar.h>
 #include <sys/sysctl.h>
 #include <net/if.h>
 #include <netinet/in.h>
@@ -60,6 +61,8 @@ static int fw_verbose_limit = IPFIREWALL_VERBOSE_LIMIT;
 static int fw_verbose_limit = 0;
 #endif
 
+#define	IPFW_DEFAULT_RULE	((u_int)(u_short)~0)
+
 static LIST_HEAD (ip_fw_head, ip_fw_chain) ip_fw_chain;
 
 static MALLOC_DEFINE(M_IPFW, "IpFw/IpAcct", "IpFw/IpAcct chain's");
@@ -83,9 +86,8 @@ SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, verbose_limit, CTLFLAG_RW, &fw_verbose_lim
 
 static int	add_entry __P((struct ip_fw_head *chainptr, struct ip_fw *frwl));
 static int	del_entry __P((struct ip_fw_head *chainptr, u_short number));
-static int	zero_entry __P((struct mbuf *m));
-static struct ip_fw *check_ipfw_struct __P((struct ip_fw *m));
-static struct ip_fw *check_ipfw_mbuf __P((struct mbuf *fw));
+static int	zero_entry __P((struct ip_fw *));
+static int	check_ipfw_struct __P((struct ip_fw *m));
 static __inline int
 		iface_match __P((struct ifnet *ifp, union ip_fw_if *ifu,
 				 int byname));
@@ -106,7 +108,7 @@ static ip_fw_ctl_t *old_ctl_ptr;
 static int	ip_fw_chk __P((struct ip **pip, int hlen,
 			struct ifnet *oif, u_int16_t *cookie, struct mbuf **m,
 			struct sockaddr_in **next_hop));
-static int	ip_fw_ctl __P((int stage, struct mbuf **mm));
+static int	ip_fw_ctl __P((struct sockopt *sopt));
 
 static char err_prefix[] = "ip_fw_ctl:";
 
@@ -424,7 +426,7 @@ ip_fw_chk(struct ip **pip, int hlen,
 	 */
 	chain = LIST_FIRST(&ip_fw_chain);
 	if ( skipto ) {
-		if (skipto >= 65535)
+		if (skipto >= IPFW_DEFAULT_RULE)
 			goto dropit;
 		while (chain && (chain->rule->fw_number <= skipto)) {
 			chain = LIST_NEXT(chain, chain);
@@ -645,7 +647,7 @@ got_match:
 	}
 
 #ifdef DIAGNOSTIC
-	/* Rule 65535 should always be there and should always match */
+	/* Rule IPFW_DEFAULT_RULE should always be there and should always match */
 	if (!chain)
 		panic("ip_fw: chain");
 #endif
@@ -734,16 +736,10 @@ add_entry(struct ip_fw_head *chainptr, struct ip_fw *frwl)
 	
 	s = splnet();
 
-	if (!LIST_FIRST(chainptr)) {
+	if (chainptr->lh_first == 0) {
 		LIST_INSERT_HEAD(chainptr, fwc, chain);
 		splx(s);
 		return(0);
-        } else if (ftmp->fw_number == (u_short)-1) {
-		if (fwc)  free(fwc, M_IPFW);
-		if (ftmp) free(ftmp, M_IPFW);
-		splx(s);
-		dprintf(("%s bad rule number\n", err_prefix));
-		return (EINVAL);
         }
 
 	/* If entry number is 0, find highest numbered rule and add 100 */
@@ -754,7 +750,7 @@ add_entry(struct ip_fw_head *chainptr, struct ip_fw *frwl)
 			else
 				break;
 		}
-		if (nbr < (u_short)-1 - 100)
+		if (nbr < IPFW_DEFAULT_RULE - 100)
 			nbr += 100;
 		ftmp->fw_number = nbr;
 	}
@@ -809,21 +805,12 @@ del_entry(struct ip_fw_head *chainptr, u_short number)
 }
 
 static int
-zero_entry(struct mbuf *m)
+zero_entry(struct ip_fw *frwl)
 {
-	struct ip_fw *frwl;
 	struct ip_fw_chain *fcp;
-	int s;
+	int s, cleared;
 
-	if (m) {
-		if (m->m_len != sizeof(struct ip_fw))
-			return(EINVAL);
-		frwl = mtod(m, struct ip_fw *);
-	}
-	else
-		frwl = NULL;
-
-	if (!frwl) {
+	if (frwl == 0) {
 		s = splnet();
 		for (fcp = LIST_FIRST(&ip_fw_chain); fcp; fcp = LIST_NEXT(fcp, chain)) {
 			fcp->rule->fw_bcnt = fcp->rule->fw_pcnt = 0;
@@ -832,7 +819,7 @@ zero_entry(struct mbuf *m)
 		splx(s);
 	}
 	else {
-		int cleared = 0;
+		cleared = 0;
 
 		/*
 		 *	It's possible to insert multiple chain entries with the
@@ -851,8 +838,8 @@ zero_entry(struct mbuf *m)
 				cleared = 1;
 				break;
 			}
-		if (!cleared)
-			return(EINVAL);	/* we didn't find any matching rules */
+		if (!cleared)	/* we didn't find any matching rules */
+			return (EINVAL);
 	}
 
 	if (fw_verbose) {
@@ -862,34 +849,22 @@ zero_entry(struct mbuf *m)
 			printf("ipfw: Accounting cleared.\n");
 	}
 
-	return(0);
+	return (0);
 }
 
-static struct ip_fw *
-check_ipfw_mbuf(struct mbuf *m)
-{
-	/* Check length */
-	if (m->m_len != sizeof(struct ip_fw)) {
-		dprintf(("%s len=%d, want %d\n", err_prefix, m->m_len,
-		    sizeof(struct ip_fw)));
-		return (NULL);
-	}
-	return(check_ipfw_struct(mtod(m, struct ip_fw *)));
-}
-
-static struct ip_fw *
+static int
 check_ipfw_struct(struct ip_fw *frwl)
 {
 	/* Check for invalid flag bits */
 	if ((frwl->fw_flg & ~IP_FW_F_MASK) != 0) {
 		dprintf(("%s undefined flag bits set (flags=%x)\n",
 		    err_prefix, frwl->fw_flg));
-		return (NULL);
+		return (EINVAL);
 	}
 	/* Must apply to incoming or outgoing (or both) */
 	if (!(frwl->fw_flg & (IP_FW_F_IN | IP_FW_F_OUT))) {
 		dprintf(("%s neither in nor out\n", err_prefix));
-		return (NULL);
+		return (EINVAL);
 	}
 	/* Empty interface name is no good */
 	if (((frwl->fw_flg & IP_FW_F_IIFNAME)
@@ -897,7 +872,7 @@ check_ipfw_struct(struct ip_fw *frwl)
 	    || ((frwl->fw_flg & IP_FW_F_OIFNAME)
 	      && !*frwl->fw_out_if.fu_via_if.name)) {
 		dprintf(("%s empty interface name\n", err_prefix));
-		return (NULL);
+		return (EINVAL);
 	}
 	/* Sanity check interface matching */
 	if ((frwl->fw_flg & IF_FW_F_VIAHACK) == IF_FW_F_VIAHACK) {
@@ -906,23 +881,23 @@ check_ipfw_struct(struct ip_fw *frwl)
 	    && (frwl->fw_flg & IP_FW_F_OIFACE)) {
 		dprintf(("%s outgoing interface check on incoming\n",
 		    err_prefix));
-		return (NULL);
+		return (EINVAL);
 	}
 	/* Sanity check port ranges */
 	if ((frwl->fw_flg & IP_FW_F_SRNG) && IP_FW_GETNSRCP(frwl) < 2) {
 		dprintf(("%s src range set but n_src_p=%d\n",
 		    err_prefix, IP_FW_GETNSRCP(frwl)));
-		return (NULL);
+		return (EINVAL);
 	}
 	if ((frwl->fw_flg & IP_FW_F_DRNG) && IP_FW_GETNDSTP(frwl) < 2) {
 		dprintf(("%s dst range set but n_dst_p=%d\n",
 		    err_prefix, IP_FW_GETNDSTP(frwl)));
-		return (NULL);
+		return (EINVAL);
 	}
 	if (IP_FW_GETNSRCP(frwl) + IP_FW_GETNDSTP(frwl) > IP_FW_MAX_PORTS) {
 		dprintf(("%s too many ports (%d+%d)\n",
 		    err_prefix, IP_FW_GETNSRCP(frwl), IP_FW_GETNDSTP(frwl)));
-		return (NULL);
+		return (EINVAL);
 	}
 	/*
 	 *	Protocols other than TCP/UDP don't use port range
@@ -932,7 +907,7 @@ check_ipfw_struct(struct ip_fw *frwl)
 	    (IP_FW_GETNSRCP(frwl) || IP_FW_GETNDSTP(frwl))) {
 		dprintf(("%s port(s) specified for non TCP/UDP rule\n",
 		    err_prefix));
-		return(NULL);
+		return (EINVAL);
 	}
 
 	/*
@@ -943,19 +918,19 @@ check_ipfw_struct(struct ip_fw *frwl)
 	if ((frwl->fw_src.s_addr & (~frwl->fw_smsk.s_addr)) || 
 		(frwl->fw_dst.s_addr & (~frwl->fw_dmsk.s_addr))) {
 		dprintf(("%s rule never matches\n", err_prefix));
-		return(NULL);
+		return (EINVAL);
 	}
 
 	if ((frwl->fw_flg & IP_FW_F_FRAG) &&
 		(frwl->fw_prot == IPPROTO_UDP || frwl->fw_prot == IPPROTO_TCP)) {
 		if (frwl->fw_nports) {
 			dprintf(("%s cannot mix 'frag' and ports\n", err_prefix));
-			return(NULL);
+			return (EINVAL);
 		}
 		if (frwl->fw_prot == IPPROTO_TCP &&
 			frwl->fw_tcpf != frwl->fw_tcpnf) {
 			dprintf(("%s cannot mix 'frag' and TCP flags\n", err_prefix));
-			return(NULL);
+			return (EINVAL);
 		}
 	}
 
@@ -967,14 +942,14 @@ check_ipfw_struct(struct ip_fw *frwl)
 		    && !(frwl->fw_prot == IPPROTO_TCP
 		      && frwl->fw_reject_code == IP_FW_REJECT_RST)) {
 			dprintf(("%s unknown reject code\n", err_prefix));
-			return(NULL);
+			return (EINVAL);
 		}
 		break;
 	case IP_FW_F_DIVERT:		/* Diverting to port zero is invalid */
 	case IP_FW_F_TEE:
 		if (frwl->fw_divert_port == 0) {
 			dprintf(("%s can't divert to port 0\n", err_prefix));
-			return (NULL);
+			return (EINVAL);
 		}
 		break;
 	case IP_FW_F_DENY:
@@ -987,117 +962,102 @@ check_ipfw_struct(struct ip_fw *frwl)
 		break;
 	default:
 		dprintf(("%s invalid command\n", err_prefix));
-		return(NULL);
-	}
-
-	return frwl;
-}
-
-static int
-ip_fw_ctl(int stage, struct mbuf **mm)
-{
-	int error;
-	/* 
-	 * If we have any number of rules, then it's worth while
-	 * using clusters for this. The smaller case is rare.
-	 * Note that using clusters for setsockopt is only in 3.0 at this time.
-	 */
-	struct mbuf *m;
-
-	if (stage == IP_FW_GET) {
-		/* 
-	 	 * If we have any number of rules, then it's worth while
-		 * using clusters for this. The smaller case is rare.
-		 * Note that using clusters for setsockopt is only in
-		 * 3.0 at this time.
-		 */
-		struct ip_fw_chain *fcp = LIST_FIRST(&ip_fw_chain);
-		*mm = m = m_get(M_WAIT, MT_SOOPTS);
-		if (m == NULL)  
-			return (ENOBUFS);
-		MCLGET(m, M_WAIT);
-		if (!(m->m_flags & M_EXT)) {
-abort:			m_freem(*mm);
-			*mm = NULL;
-			return (ENOBUFS);
-		}
-		m->m_len = 0;
-		for (; fcp; fcp = LIST_NEXT(fcp, chain)) {
-			/* Will we need a new cluster? */
-			if ((m->m_len + sizeof *(fcp->rule)) > MCLBYTES) {
-				m = m->m_next = m_get(M_WAIT, MT_SOOPTS);
-				if (m == NULL) {
-					goto abort;
-				}
-				MCLGET(m, M_WAIT);
-				if (!(m->m_flags & M_EXT)) {
-					goto abort;
-				}
-				m->m_len = 0;
-			}
-			memcpy(m->m_data + m->m_len, fcp->rule,
-					sizeof *(fcp->rule));
-			m->m_len += sizeof *(fcp->rule);
-		}
-		return (0);
-	}
-	m = *mm;
-	/* only allow get calls if secure mode > 2 */
-	if (securelevel > 2) {
-		if (m) (void)m_free(m);
-		return(EPERM);
-	}
-	if (stage == IP_FW_FLUSH) {
-		while (LIST_FIRST(&ip_fw_chain) != NULL && 
-		    LIST_FIRST(&ip_fw_chain)->rule->fw_number != (u_short)-1) {
-			struct ip_fw_chain *fcp = LIST_FIRST(&ip_fw_chain);
-			int s = splnet();
-			LIST_REMOVE(LIST_FIRST(&ip_fw_chain), chain);
-			splx(s);
-			free(fcp->rule, M_IPFW);
-			free(fcp, M_IPFW);
-		}
-		if (m) (void)m_free(m);
-		return (0);
-	}
-	if (stage == IP_FW_ZERO) {
-		error = zero_entry(m);
-		if (m) (void)m_free(m);
-		return (error);
-	}
-	if (m == NULL) {
-		printf("%s NULL mbuf ptr\n", err_prefix);
 		return (EINVAL);
 	}
 
-	if (stage == IP_FW_ADD) {
-		struct ip_fw *frwl = check_ipfw_mbuf(m);
+	return 0;
+}
 
-		if (!frwl)
+static int
+ip_fw_ctl(struct sockopt *sopt)
+{
+	int error, s;
+	size_t size;
+	char *buf, *bp;
+	struct ip_fw_chain *fcp;
+	struct ip_fw frwl;
+
+	/* Disallow sets in really-really secure mode. */
+	if (sopt->sopt_dir == SOPT_SET && securelevel >= 3)
+			return (EPERM);
+	error = 0;
+
+	switch (sopt->sopt_name) {
+	case IP_FW_GET:
+		for (fcp = LIST_FIRST(&ip_fw_chain), size = 0; fcp;
+		     fcp = LIST_NEXT(fcp, chain))
+			size += sizeof *fcp->rule;
+		buf = malloc(size, M_TEMP, M_WAITOK);
+		if (buf == 0) {
+			error = ENOBUFS;
+			break;
+		}
+
+		for (fcp = LIST_FIRST(&ip_fw_chain), bp = buf; fcp;
+		     fcp = LIST_NEXT(fcp, chain)) {
+			bcopy(fcp->rule, bp, sizeof *fcp->rule);
+			bp += sizeof *fcp->rule;
+		}
+		error = sooptcopyout(sopt, buf, size);
+		FREE(buf, M_TEMP);
+		break;
+
+	case IP_FW_FLUSH:
+		for (fcp = ip_fw_chain.lh_first; 
+		     fcp != 0 && fcp->rule->fw_number != IPFW_DEFAULT_RULE;
+		     fcp = ip_fw_chain.lh_first) {
+			s = splnet();
+			LIST_REMOVE(fcp, chain);
+			FREE(fcp->rule, M_IPFW);
+			FREE(fcp, M_IPFW);
+			splx(s);
+		}
+		break;
+
+	case IP_FW_ZERO:
+		if (sopt->sopt_val != 0) {
+			error = sooptcopyin(sopt, &frwl, sizeof frwl,
+					    sizeof frwl);
+			if (error || (error = zero_entry(&frwl)))
+				break;
+		} else {
+			error = zero_entry(0);
+		}
+		break;
+
+	case IP_FW_ADD:
+		error = sooptcopyin(sopt, &frwl, sizeof frwl, sizeof frwl);
+		if (error || (error = check_ipfw_struct(&frwl)))
+			break;
+
+		if (frwl.fw_number == IPFW_DEFAULT_RULE) {
+			dprintf(("%s can't add rule %u\n", err_prefix,
+				 (unsigned)IPFW_DEFAULT_RULE));
 			error = EINVAL;
-		else
-			error = add_entry(&ip_fw_chain, frwl);
-		if (m) (void)m_free(m);
-		return error;
-	}
-	if (stage == IP_FW_DEL) {
-		if (m->m_len != sizeof(struct ip_fw)) {
-			dprintf(("%s len=%d, want %d\n", err_prefix, m->m_len,
-			    sizeof(struct ip_fw)));
+		} else {
+			error = add_entry(&ip_fw_chain, &frwl);
+		}
+		break;
+
+	case IP_FW_DEL:
+		error = sooptcopyin(sopt, &frwl, sizeof frwl, sizeof frwl);
+		if (error)
+			break;
+
+		if (frwl.fw_number == IPFW_DEFAULT_RULE) {
+			dprintf(("%s can't delete rule %u\n", err_prefix,
+				 (unsigned)IPFW_DEFAULT_RULE));
 			error = EINVAL;
-		} else if (mtod(m, struct ip_fw *)->fw_number == (u_short)-1) {
-			dprintf(("%s can't delete rule 65535\n", err_prefix));
-			error = EINVAL;
-		} else
-			error = del_entry(&ip_fw_chain,
-			    mtod(m, struct ip_fw *)->fw_number);
-		if (m) (void)m_free(m);
-		return error;
+		} else {
+			error = del_entry(&ip_fw_chain, frwl.fw_number);
+		}
+		break;
+
+	default:
+		panic("ip_fw_ctl");
 	}
 
-	dprintf(("%s unknown request %d\n", err_prefix, stage));
-	if (m) (void)m_free(m);
-	return (EINVAL);
+	return (error);
 }
 
 void
@@ -1111,14 +1071,14 @@ ip_fw_init(void)
 
 	bzero(&default_rule, sizeof default_rule);
 	default_rule.fw_prot = IPPROTO_IP;
-	default_rule.fw_number = (u_short)-1;
+	default_rule.fw_number = IPFW_DEFAULT_RULE;
 #ifdef IPFIREWALL_DEFAULT_TO_ACCEPT
 	default_rule.fw_flg |= IP_FW_F_ACCEPT;
 #else
 	default_rule.fw_flg |= IP_FW_F_DENY;
 #endif
 	default_rule.fw_flg |= IP_FW_F_IN | IP_FW_F_OUT;
-	if (check_ipfw_struct(&default_rule) == NULL ||
+	if (check_ipfw_struct(&default_rule) != 0 ||
 	    add_entry(&ip_fw_chain, &default_rule))
 		panic("ip_fw_init");
 

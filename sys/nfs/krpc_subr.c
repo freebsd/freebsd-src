@@ -1,5 +1,5 @@
 /*	$NetBSD: krpc_subr.c,v 1.12.4.1 1996/06/07 00:52:26 cgd Exp $	*/
-/*	$Id: krpc_subr.c,v 1.9 1998/03/28 10:33:15 bde Exp $	*/
+/*	$Id: krpc_subr.c,v 1.10 1998/08/18 00:32:48 bde Exp $	*/
 
 /*
  * Copyright (c) 1995 Gordon Ross, Adam Glass
@@ -198,6 +198,8 @@ krpc_call(sa, prog, vers, func, data, from_p, procp)
 	struct mbuf *m, *nam, *mhead;
 	struct rpc_call *call;
 	struct rpc_reply *reply;
+	struct sockopt sopt;
+	struct timeval tv;
 	struct uio auio;
 	int error, rcvflg, timo, secs, len;
 	static u_int32_t xid = ~0xFF;
@@ -220,34 +222,26 @@ krpc_call(sa, prog, vers, func, data, from_p, procp)
 	if ((error = socreate(AF_INET, &so, SOCK_DGRAM, 0, procp)))
 		goto out;
 
-	m = m_get(M_WAIT, MT_SOOPTS);
-	if (m == NULL) {
-		error = ENOBUFS;
+	tv.tv_sec = 1;
+	tv.tv_usec = 0;
+	bzero(&sopt, sizeof sopt);
+	sopt.sopt_level = SOL_SOCKET;
+	sopt.sopt_name = SO_RCVTIMEO;
+	sopt.sopt_val = &tv;
+	sopt.sopt_valsize = sizeof tv;
+
+	if (error = sosetopt(so, &sopt))
 		goto out;
-	} else {
-		struct timeval *tv;
-		tv = mtod(m, struct timeval *);
-		m->m_len = sizeof(*tv);
-		tv->tv_sec = 1;
-		tv->tv_usec = 0;
-		if ((error = sosetopt(so, SOL_SOCKET, SO_RCVTIMEO, m, procp)))
-			goto out;
-	}
 
 	/*
 	 * Enable broadcast if necessary.
 	 */
 	if (from_p) {
-		int32_t *on;
-		m = m_get(M_WAIT, MT_SOOPTS);
-		if (m == NULL) {
-			error = ENOBUFS;
-			goto out;
-		}
-		on = mtod(m, int32_t *);
-		m->m_len = sizeof(*on);
-		*on = 1;
-		if ((error = sosetopt(so, SOL_SOCKET, SO_BROADCAST, m, procp)))
+		int on = 1;
+		sopt.sopt_name = SO_BROADCAST;
+		sopt.sopt_val = &on;
+		sopt.sopt_valsize = sizeof on;
+		if (error = sosetopt(so, &sopt))
 			goto out;
 	}
 

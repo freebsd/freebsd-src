@@ -33,7 +33,7 @@
  *
  *	@(#)spx_usrreq.h
  *
- * $Id: spx_usrreq.c,v 1.18 1998/02/09 06:10:26 eivind Exp $
+ * $Id: spx_usrreq.c,v 1.19 1998/05/01 18:30:02 bde Exp $
  */
 
 #include <sys/param.h>
@@ -1154,39 +1154,33 @@ spx_setpersist(cb)
 }
 
 int
-spx_ctloutput(req, so, level, name, value, p)
-	int req;
+spx_ctloutput(so, sopt)
 	struct socket *so;
-	int level, name;
-	struct mbuf **value;
-	struct proc *p;
+	struct sockopt *sopt;
 {
 	register struct mbuf *m;
 	struct ipxpcb *ipxp = sotoipxpcb(so);
 	register struct spxpcb *cb;
-	int mask, error = 0;
+	int mask, error;
+	short soptval;
+	u_short usoptval;
+	int optval;
 
-	if (level != IPXPROTO_SPX) {
+	error = 0;
+
+	if (sopt->sopt_level != IPXPROTO_SPX) {
 		/* This will have to be changed when we do more general
 		   stacking of protocols */
-		return (ipx_ctloutput(req, so, level, name, value, p));
+		return (ipx_ctloutput(so, sopt));
 	}
-	if (ipxp == NULL) {
-		error = EINVAL;
-		goto release;
-	} else
+	if (ipxp == NULL)
+		return (EINVAL);
+	else
 		cb = ipxtospxpcb(ipxp);
 
-	switch (req) {
-
-	case PRCO_GETOPT:
-		if (value == NULL)
-			return (EINVAL);
-		m = m_get(M_DONTWAIT, MT_DATA);
-		if (m == NULL)
-			return (ENOBUFS);
-		switch (name) {
-
+	switch (sopt->sopt_dir) {
+	case SOPT_GET:
+		switch (sopt->sopt_name) {
 		case SO_HEADERS_ON_INPUT:
 			mask = SF_HI;
 			goto get_flags;
@@ -1194,39 +1188,34 @@ spx_ctloutput(req, so, level, name, value, p)
 		case SO_HEADERS_ON_OUTPUT:
 			mask = SF_HO;
 		get_flags:
-			m->m_len = sizeof(short);
-			*mtod(m, short *) = cb->s_flags & mask;
+			soptval = cb->s_flags & mask;
+			error = sooptcopyout(sopt, &soptval, sizeof soptval);
 			break;
 
 		case SO_MTU:
-			m->m_len = sizeof(u_short);
-			*mtod(m, short *) = cb->s_mtu;
+			usoptval = cb->s_mtu;
+			error = sooptcopyout(sopt, &usoptval, sizeof usoptval);
 			break;
 
 		case SO_LAST_HEADER:
-			m->m_len = sizeof(struct spxhdr);
-			*mtod(m, struct spxhdr *) = cb->s_rhdr;
+			error = sooptcopyout(sopt, &cb->s_rhdr, 
+					     sizeof cb->s_rhdr);
 			break;
 
 		case SO_DEFAULT_HEADERS:
-			m->m_len = sizeof(struct spx);
-			*mtod(m, struct spxhdr *) = cb->s_shdr;
+			error = sooptcopyout(sopt, &cb->s_shdr, 
+					     sizeof cb->s_shdr);
 			break;
 
 		default:
-			error = EINVAL;
+			error = ENOPROTOOPT;
 		}
-		*value = m;
 		break;
 
-	case PRCO_SETOPT:
-		if (value == 0 || *value == 0) {
-			error = EINVAL;
-			break;
-		}
-		switch (name) {
-			int *ok;
-
+	case SOPT_SET:
+		switch (sopt->sopt_name) {
+			/* XXX why are these shorts on get and ints on set?
+			   that doesn't make any sense... */
 		case SO_HEADERS_ON_INPUT:
 			mask = SF_HI;
 			goto set_head;
@@ -1234,9 +1223,13 @@ spx_ctloutput(req, so, level, name, value, p)
 		case SO_HEADERS_ON_OUTPUT:
 			mask = SF_HO;
 		set_head:
+			error = sooptcopyin(sopt, &optval, sizeof optval,
+					    sizeof optval);
+			if (error)
+				break;
+
 			if (cb->s_flags & SF_PI) {
-				ok = mtod(*value, int *);
-				if (*ok)
+				if (optval)
 					cb->s_flags |= mask;
 				else
 					cb->s_flags &= ~mask;
@@ -1244,13 +1237,20 @@ spx_ctloutput(req, so, level, name, value, p)
 			break;
 
 		case SO_MTU:
-			cb->s_mtu = *(mtod(*value, u_short *));
+			error = sooptcopyin(sopt, &usoptval, sizeof usoptval,
+					    sizeof usoptval);
+			if (error)
+				break;
+			cb->s_mtu = usoptval;
 			break;
 
 #ifdef SF_NEWCALL
 		case SO_NEWCALL:
-			ok = mtod(*value, int *);
-			if (*ok) {
+			error = sooptcopyin(sopt, &optval, sizeof optval,
+					    sizeof optval);
+			if (error)
+				break;
+			if (optval) {
 				cb->s_flags2 |= SF_NEWCALL;
 				spx_newchecks[5]++;
 			} else {
@@ -1262,21 +1262,23 @@ spx_ctloutput(req, so, level, name, value, p)
 
 		case SO_DEFAULT_HEADERS:
 			{
-				register struct spxhdr *sp
-						= mtod(*value, struct spxhdr *);
-				cb->s_dt = sp->spx_dt;
-				cb->s_cc = sp->spx_cc & SPX_EM;
+				struct spxhdr sp;
+
+				error = sooptcopyin(sopt, &sp, sizeof sp,
+						    sizeof sp);
+				if (error)
+					break;
+				cb->s_dt = sp.spx_dt;
+				cb->s_cc = sp.spx_cc & SPX_EM;
 			}
 			break;
 
 		default:
-			error = EINVAL;
+			error = ENOPROTOOPT;
 		}
-		m_freem(*value);
 		break;
 	}
-	release:
-		return (error);
+	return (error);
 }
 
 static int

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.97 1998/07/13 12:12:24 bde Exp $
+ * $Id: ip_input.c,v 1.98 1998/08/17 01:05:24 bde Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -142,6 +142,9 @@ SYSCTL_INT(_net_inet_ip, IPCTL_DEFMTU, mtu, CTLFLAG_RW,
 #endif
 
 #ifdef COMPAT_IPFW
+
+#include <netinet/ip_fw.h>
+
 /* Firewall hooks */
 ip_fw_chk_t *ip_fw_chk_ptr;
 ip_fw_ctl_t *ip_fw_ctl_ptr;
@@ -1234,7 +1237,7 @@ ip_srcroute()
 
 	if (ip_nhops == 0)
 		return ((struct mbuf *)0);
-	m = m_get(M_DONTWAIT, MT_SOOPTS);
+	m = m_get(M_DONTWAIT, MT_HEADER);
 	if (m == 0)
 		return ((struct mbuf *)0);
 

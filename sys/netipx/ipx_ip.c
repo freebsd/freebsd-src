@@ -33,7 +33,7 @@
  * 
  *	@(#)ipx_ip.c
  *
- * $Id: ipx_ip.c,v 1.20 1998/02/09 06:10:20 eivind Exp $
+ * $Id: ipx_ip.c,v 1.21 1998/06/07 17:12:19 dfr Exp $
  */
 
 /*
@@ -316,17 +316,23 @@ struct ifnet *ifp;
 static struct ifreq ifr_ipxip = {"ipxip0"};
 
 int
-ipxip_route(so, m, p)
+ipxip_route(so, sopt)
 	struct socket *so;
-	register struct mbuf *m;
-	struct proc *p;
+	struct sockopt *sopt;
 {
-	register struct ipxip_req *rq = mtod(m, struct ipxip_req *);
-	struct sockaddr_ipx *ipx_dst = (struct sockaddr_ipx *)&rq->rq_ipx;
-	struct sockaddr_in *ip_dst = (struct sockaddr_in *)&rq->rq_ip;
-	struct route ro;
+	int error;
 	struct ifnet_en *ifn;
 	struct sockaddr_in *src;
+	struct ipxip_req rq;
+	struct sockaddr_ipx *ipx_dst;
+	struct sockaddr_in *ip_dst;
+	struct route ro;
+
+	error = sooptcopyin(sopt, &rq, sizeof rq, sizeof rq);
+	if (error)
+		return (error);
+	ipx_dst = (struct sockaddr_ipx *)&rq.rq_ipx;
+	ip_dst = (struct sockaddr_in *)&rq.rq_ip;
 
 	/*
 	 * First, make sure we already have an IPX address:
@@ -387,14 +393,14 @@ ipxip_route(so, m, p)
 	ifr_ipxip.ifr_name[4] = '0' + ipxipif.if_unit - 1;
 	ifr_ipxip.ifr_dstaddr = *(struct sockaddr *)ipx_dst;
 	ipx_control(so, (int)SIOCSIFDSTADDR, (caddr_t)&ifr_ipxip,
-			(struct ifnet *)ifn, p);
+			(struct ifnet *)ifn, sopt->sopt_p);
 
 	/* use any of our addresses */
 	satoipx_addr(ifr_ipxip.ifr_addr).x_host = 
 			ipx_ifaddr->ia_addr.sipx_addr.x_host;
 
 	return (ipx_control(so, (int)SIOCSIFADDR, (caddr_t)&ifr_ipxip,
-			(struct ifnet *)ifn, p));
+			(struct ifnet *)ifn, sopt->sopt_p));
 }
 
 static int

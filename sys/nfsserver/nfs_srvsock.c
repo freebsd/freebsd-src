@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_socket.c	8.5 (Berkeley) 3/30/95
- * $Id: nfs_socket.c,v 1.42 1998/07/15 02:32:24 bde Exp $
+ * $Id: nfs_socket.c,v 1.43 1998/08/01 09:04:02 peter Exp $
  */
 
 /*
@@ -282,16 +282,28 @@ nfs_connect(nmp, rep)
 		if (nmp->nm_sotype != SOCK_STREAM)
 			panic("nfscon sotype");
 		if (so->so_proto->pr_flags & PR_CONNREQUIRED) {
-			MGET(m, M_WAIT, MT_SOOPTS);
-			*mtod(m, int32_t *) = 1;
-			m->m_len = sizeof(int32_t);
-			sosetopt(so, SOL_SOCKET, SO_KEEPALIVE, m, p);
+			struct sockopt sopt;
+			int val;
+
+			bzero(&sopt, sizeof sopt);
+			sopt.sopt_level = SOL_SOCKET;
+			sopt.sopt_name = SO_KEEPALIVE;
+			sopt.sopt_val = &val;
+			sopt.sopt_valsize = sizeof val;
+			val = 1;
+			sosetopt(so, &sopt);
 		}
 		if (so->so_proto->pr_protocol == IPPROTO_TCP) {
-			MGET(m, M_WAIT, MT_SOOPTS);
-			*mtod(m, int32_t *) = 1;
-			m->m_len = sizeof(int32_t);
-			sosetopt(so, IPPROTO_TCP, TCP_NODELAY, m, p);
+			struct sockopt sopt;
+			int val;
+
+			bzero(&sopt, sizeof sopt);
+			sopt.sopt_level = IPPROTO_TCP;
+			sopt.sopt_name = TCP_NODELAY;
+			sopt.sopt_val = &val;
+			sopt.sopt_valsize = sizeof val;
+			val = 1;
+			sosetopt(so, &sopt);
 		}
 		sndreserve = (nmp->nm_wsize + NFS_MAXPKTHDR +
 		    sizeof (u_int32_t)) * 2;
@@ -1952,7 +1964,7 @@ nfs_msg(p, server, msg)
 void
 nfsrv_rcv(so, arg, waitflag)
 	struct socket *so;
-	caddr_t arg;
+	void *arg;
 	int waitflag;
 {
 	register struct nfssvc_sock *slp = (struct nfssvc_sock *)arg;
