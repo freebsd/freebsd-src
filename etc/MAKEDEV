@@ -131,6 +131,7 @@
 #	apm	Advanced Power Management BIOS
 #	apmctl	APM BIOS control device
 #	bpf*	packet filter
+#	crypto	crypto interface
 #	speaker	pc speaker
 #	tw*	xten power controller
 #	snd*	various sound cards
@@ -339,6 +340,7 @@ all)
 	sh MAKEDEV i4brbch0 i4brbch1			# cdev, ISDN
 	sh MAKEDEV agpgart				# cdev, AGP
 	sh MAKEDEV nsmb0				# cdev, SMB/CIFS
+	sh MAKEDEV crypto				# cdev, crypto
 	;;
 
 # a much restricted set of the above, to save precious i-nodes on the
@@ -1148,6 +1150,11 @@ cua?|cuaa?|cuaa??)
 	mknod cuaia$unit c 28 $(($m | 32 | 128)) uucp:dialer
 	mknod cuala$unit c 28 $(($m | 64 | 128)) uucp:dialer
 	umask 77
+	;;
+
+crypto)
+	mknod crypto c 70 0 root:operator
+	chmod 666 crypto
 	;;
 
 tty?|tty0?|ttyd?|ttyd??)
