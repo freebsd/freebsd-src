@@ -533,7 +533,7 @@ show_var(int *oid, int nlen)
 	case 'A':
 		if (!nflag)
 			printf("%s%s", name, sep);
-		printf("%s", p);
+		printf("%.*s", len, p);
 		return (0);
 		
 	case 'I':
