@@ -67,25 +67,25 @@ the following commands can be used:
 .Bl -tag -width "mmmmmmmmmm""
 .It Dv irqN line
 Sets the irq line for interrupt 0 or 1 on the card.
-Line=0 means the line
+A value of 0 means the line
 is unused.
 .It Dv drqN n
 Sets the drq channel used for DMA 0 or 1 on the card.
-Channel=4 means
+A value of 4 means
 the channel is unused.
 .It Dv portN address
-Sets the base address for the N-th port's range (N=0..7). address=0
-means that the port is not used.
+Sets the base address for the N-th port's range (N=0..7).
+A value of 0 means that the port is not used.
 .It Dv memN address
-Sets the base address for the N-th memory's range (N=0..3). address=0
-means that the memory range is not used.
+Sets the base address for the N-th memory's range (N=0..3).
+A value of 0 means that the memory range is not used.
 .It Dv bios
 Makes the PnP device use the configuration set by the BIOS.
 This
 is the default, and is generally ok if your BIOS has PnP support.
 If BIOS is used, then other parameters are ignored except "flags".
 .It Dv os
-Makes the PnP device to use the configuration specified in this entry.
+Makes the PnP device use the configuration specified in this entry.
 .It Dv enable
 Enables the PnP device.
 .It Dv disable
@@ -128,8 +128,8 @@ struct pnp_device {
 .Pp
 The probe routine must check that the vendor_id passed is a
 recognized one, that any necessary devices on the card are enabled,
-and returns a NULL value in case of failure or a non-NULL value
-(generally a pointer to the device name) unpon success.  In the probe
+and return a NULL value in case of failure or a non-NULL value
+(generally a pointer to the device name) upon success.  In the probe
 routine, the function
 .Fn read_pnp_parms
 can be used to check that the logical devices are enabled.
@@ -157,14 +157,14 @@ Device drivers in general should
 modify the configuration of a device, since either the BIOS or the user
 (through userconfig) should know better what to do.
 In particular,
-device driver
+device drivers
 .Em should not enable
 a logical device which has
 been found disabled,
 since this would defeat the override mechanism in userconfig.
 Device
 drivers may disable a logical device, or a port range, etc, but should
-do so only that particular device or parameter is known to cause
+do so only when that particular device or parameter is known to cause
 troubles.
 .It Fn enable_pnp_card void
 This function
