@@ -254,3 +254,64 @@ out:
 	PROC_UNLOCK(p);
 	return (error);
 }
+
+int
+thr_suspend(struct thread *td, struct thr_suspend_args *uap)
+	/* const struct timespec *timeout */
+{
+	struct timespec ts;
+	struct timeval	tv;
+	int error;
+	int hz;
+
+	hz = 0;
+	error = 0;
+	if (uap->timeout != NULL) {
+		error = copyin((const void *)uap->timeout, (void *)&ts,
+		    sizeof(struct timespec));
+		if (error != 0)
+			return (error);
+		if (ts.tv_nsec < 0 || ts.tv_nsec > 1000000000)
+			return (EINVAL);
+		if (ts.tv_sec == 0 && ts.tv_nsec == 0)
+			return (ETIMEDOUT);
+		TIMESPEC_TO_TIMEVAL(&tv, &ts);
+		hz = tvtohz(&tv);
+	}
+	PROC_LOCK(td->td_proc);
+	mtx_lock_spin(&sched_lock);
+	if ((td->td_flags & TDF_THRWAKEUP) == 0) {
+		mtx_unlock_spin(&sched_lock);
+		error = msleep((void *)td, &td->td_proc->p_mtx,
+		    td->td_priority | PCATCH, "lthr", hz);
+		mtx_lock_spin(&sched_lock);
+	}
+	td->td_flags &= ~TDF_THRWAKEUP;
+	mtx_unlock_spin(&sched_lock);
+	PROC_UNLOCK(td->td_proc);
+	return (error == EWOULDBLOCK ? ETIMEDOUT : error);
+}
+
+int
+thr_wake(struct thread *td, struct thr_wake_args *uap)
+	/* thr_id_t id */
+{
+	struct thread *tdsleeper, *ttd;
+
+	tdsleeper = ((struct thread *)uap->id);
+	PROC_LOCK(tdsleeper->td_proc);
+	FOREACH_THREAD_IN_PROC(tdsleeper->td_proc, ttd) {
+		if (ttd == tdsleeper)
+			break;
+	}
+	if (ttd == NULL) {
+		PROC_UNLOCK(tdsleeper->td_proc);
+		return (ESRCH);
+	}
+	mtx_lock_spin(&sched_lock);
+	tdsleeper->td_flags |= TDF_THRWAKEUP;
+	mtx_unlock_spin(&sched_lock);
+	wakeup_one((void *)tdsleeper);
+	PROC_UNLOCK(tdsleeper->td_proc);
+	return (0);
+}
