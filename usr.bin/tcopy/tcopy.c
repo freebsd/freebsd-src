@@ -31,19 +31,19 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
 static const char copyright[] =
 "@(#) Copyright (c) 1985, 1987, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
+#endif
 
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)tcopy.c	8.2 (Berkeley) 4/17/94";
+static const char sccsid[] = "@(#)tcopy.c	8.2 (Berkeley) 4/17/94";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -83,7 +83,8 @@ main(argc, argv)
 	enum {READ, VERIFY, COPY, COPYVERIFY} op = READ;
 	sig_t oldsig;
 	int ch, needeof;
-	char *buff, *inf;
+	char *buff;
+	const char *inf;
 
 	msg = stdout;
 	guesslen = 1;
@@ -280,7 +281,7 @@ r2:		if (inn != outn) {
 
 void
 intr(signo)
-	int signo;
+	int signo __unused;
 {
 	if (record) {
 		if (record - lastrec > 1)
@@ -289,7 +290,7 @@ intr(signo)
 			fprintf(msg, "record %qu\n", lastrec);
 	}
 	fprintf(msg, "interrupt at file %d: record %qu\n", filen, record);
-	fprintf(msg, "total length: %ld bytes\n", tsize + size);
+	fprintf(msg, "total length: %lld bytes\n", (intmax_t)(tsize + size));
 	exit(1);
 }
 
