@@ -64,6 +64,7 @@ static device_method_t acpi_button_methods[] = {
     DEVMETHOD(device_probe,	acpi_button_probe),
     DEVMETHOD(device_attach,	acpi_button_attach),
     DEVMETHOD(device_suspend,	acpi_button_suspend),
+    DEVMETHOD(device_shutdown,	acpi_button_suspend),
     DEVMETHOD(device_resume,	acpi_button_resume),
 
     {0, 0}
