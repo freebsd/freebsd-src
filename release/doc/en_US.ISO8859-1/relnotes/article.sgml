@@ -176,6 +176,12 @@
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
+    <para arch="i386,ia64,amd64">The &man.acpi.4; driver's CPU
+      component now supports idle states C1-C3 for both single and SMP
+      systems, providing power/heat savings when the processor is
+      idle, according to ACPI 2.0.  Additionally, the throttling
+      support has been updated to ACPI 2.0.</para>
+
     <para arch="i386">A bug that caused
       &man.atkbd.4; to register an AT keyboard during console initialization,
       even when no AT keyboard was connected,
