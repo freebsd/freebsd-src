@@ -2,94 +2,68 @@
 #
 # Common Alpha loader build rules
 
-.PATH:		${.CURDIR}/../common
+.PATH: ${.CURDIR}/../common
+
+PROG=		${BOOT}.sym
+INTERNALPROG=
 
 # Alpha-specific bootstrap sources
-SRCS+=		main.c conf.c
-.if ${BASE} == netboot
+SRCS=		start.S main.c conf.c vers.c
+.if ${BOOT} == "netboot"
 SRCS+=		dev_net.c
 .endif
+
+.PATH: ${.CURDIR}/../libalpha
 
 .if !defined(NOFORTH)
 # Enable BootForth
 BOOT_FORTH=	yes
 CFLAGS+=	-DBOOT_FORTH
 CFLAGS+=	-I${.CURDIR}/../../ficl -I${.CURDIR}/../../ficl/alpha
-.if exists(${.OBJDIR}/../../ficl/libficl.a)
 LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
-.else
-LIBFICL=	${.CURDIR}/../../ficl/libficl.a
-.endif
 .endif
 
 # Always add MI sources 
-.PATH:		${.CURDIR}/../../common
-.include	<${.CURDIR}/../../common/Makefile.inc>
-CFLAGS+=	-mno-fp-regs
-CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}
-CFLAGS+=	-I${.CURDIR}/../../.. -I.
+.PATH: ${.CURDIR}/../../common
+.include "${.CURDIR}/../../common/Makefile.inc"
+CFLAGS+=	-I${.CURDIR}/../../common
 CFLAGS+=	-DPRIMARY_LOAD_ADDRESS=${PRIMARY_LOAD_ADDRESS} \
 		-DSECONDARY_LOAD_ADDRESS=${SECONDARY_LOAD_ADDRESS}
 
-CLEANFILES+=	setdef0.c setdef0.o setdef1.c setdef1.o setdefs.h start.o \
-		vers.c vers.o ${BASE} ${BASE}.sym ${BASE}.list
+CLEANFILES+=	vers.c ${BOOT} ${BOOT}.sym
 
 CFLAGS+=	-Wall
 
 CFLAGS+=	-I${LIBSTANDDIR}
 CFLAGS+=	-I${.CURDIR}/..
-CRT=		start.o
-STRIP=
-BINDIR?=	/boot
-INSTALLFLAGS?=	-b
 
-all: ${BASE} ${BASE}.help
-
-vers.o: ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
+vers.c: ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
 	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
-	${CC} -c vers.c
 
-${BASE}: ${OBJS} ${LIBSTAND} ${LIBFICL} ${LIBALPHA} ${CRT} vers.o
-	${LD} -o ${BASE}.sym -M -e start -N -Ttext ${LOAD_ADDRESS} \
-	${CRT} ${OBJS} vers.o \
-	-L${DESTDIR}${LIBDIR} ${LIBSTAND} ${LIBALPHA} ${LIBFICL} ${LIBSTAND} \
-	>${.OBJDIR}/${BASE}.list
-	objcopy -O binary ${BASE}.sym ${BASE}
+LDFLAGS=-e start -N -Ttext ${LOAD_ADDRESS}
 
-CLEANFILES+=	${BASE}.help
-${BASE}.help: help.common help.alpha
+FILES=	${BOOT}
+# XXX INSTALLFLAGS_${BOOT}= -b
+FILESMODE_${BOOT}= ${BINMODE} -b
+
+${BOOT}: ${BOOT}.sym
+	objcopy -O binary ${BOOT}.sym ${.TARGET}
+
+DPADD=	${LIBALPHA} ${LIBFICL} ${LIBSTAND}
+LDADD=	${LIBALPHA} ${LIBFICL} -lstand
+
+.if defined(INSTALL_HELP)
+FILES+=	${BOOT}.help
+CLEANFILES+=	${BOOT}.help
+${BOOT}.help: help.common help.alpha
 	cat ${.ALLSRC} | awk -f ${.CURDIR}/../../common/merge_help.awk > ${.TARGET}
+.endif
 
-beforeinstall:
-.ifdef INSTALL_HELP
-.if exists(${.OBJDIR}/${BASE}.help)
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${.OBJDIR}/${BASE}.help ${DESTDIR}/boot
-.else
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${.CURDIR}/${BASE}.help ${DESTDIR}/boot
-.endif
-.endif
+.PATH: ${.CURDIR}/../../forth
 .if !exists(${DESTDIR}/boot/loader.rc)
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${.CURDIR}/../../forth/loader.rc ${DESTDIR}/boot
+FILES+=	loader.rc
 .endif
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${.CURDIR}/../../forth/loader.4th ${DESTDIR}/boot
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${.CURDIR}/../../forth/support.4th ${DESTDIR}/boot
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${.CURDIR}/../../forth/loader.conf ${DESTDIR}/boot/defaults
-
-
-start.o:	${.CURDIR}/../libalpha/start.S
-	${CC} -c ${CFLAGS} $<
-
-machine:
-	ln -sf ${.CURDIR}/../../../alpha/include machine
-
-CLEANFILES+=	machine
+FILES+=	loader.4th support.4th loader.conf
+FILESDIR_loader.conf= /boot/defaults
 
 .include <bsd.prog.mk>
-
-beforedepend ${OBJS}: machine
