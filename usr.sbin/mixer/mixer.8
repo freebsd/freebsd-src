@@ -1,0 +1,101 @@
+.\" Copyright (c) 1997
+.\"	Mike Pritchard <mpp@FreeBSD.ORG>.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the author nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY MIKE PRITCHARD AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd January 9, 1997
+.Dt MIXER 8
+.Os
+.Sh NAME
+.Nm mixer
+.Nd set/display soundcard mixer values
+.Sh SYNOPSIS
+.Nm
+.Nm mixer
+.Ar setting
+.Op Ar lvalue:rvalue
+.Nm mixer
+.Ar +rec | -rec
+.Op Ar device
+.Sh DESCRIPTION
+The
+.Nm
+command is used to set and display soundcard mixer settings. It may also be
+used to start and stop recording from the soundcard.  The list of mixer
+settings that may
+be modified are:  
+.Pp
+vol, bass, treble, synth, pcm, speaker, mic, cd, mix, 
+pcm2, rec, igain, ogain, line1, line2, and line3.
+.Pp
+Not all mixer settings are available on all soundcards.
+.Pp
+When
+.Nm
+is run without any arguments, all settings that are supported by the
+soundcard will be displayed.
+If the
+.Ar setting
+argument is specified, then only the value for
+the
+.Ar setting
+mixer will be displayed.
+.Pp
+To modify the mixer value
+.Ar setting ,
+the optional left and right channel settings of
+.Ar lvalue:rvalue
+may be specified.  The
+.Ar lvalue
+and 
+.Ar rvalue
+arguments may be from 0 - 100.
+.Pp
+To start recording, use the
+.Ar +rec
+argument.  To stop recording, use the
+.Ar -rec 
+argument.  The optional argument
+.Ar device
+may be specified to use a different
+mixer device.  The default device is
+.Pa /dev/mixer .
+.Sh FILES
+.Bl -tag -width /dev/mixer -compact
+.It Pa /dev/mixer
+The default mixer device.
+.Sh SEE ALSO
+.Xr cdcontrol 1 ,
+.Xr cdplay 1
+.Sh HISTORY
+The
+.Nm
+command first appeared in
+.Fx 2.0.5 .
+.Sh AUTHORS
+Craig Metz and Hannu Savolainen.
+This
+manual page was written by Mike Pritchard
+.Aq mpp@FreeBSD.ORG .
