@@ -107,6 +107,11 @@
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
+    <para arch="i386">Support for 80386 processors (the
+      <literal>I386_CPU</literal> kernel configuration option) has
+      been removed.  Users running this class of CPU should use &os;
+      5.<replaceable>X</replaceable> or earlier.</para>
+
     <para>The loader tunable <varname>debug.mpsafevm</varname> has been
       has been enabled by default.</para>
 
@@ -141,14 +146,28 @@
       <sect4 id="net-if">
 	<title>Network Interface Support</title>
 
-	<para></para>
+	<para>The &man.sf.4; driver now has support for device polling
+	  and &man.altq.4;. &merged;</para>
+
       </sect4>
     </sect3>
 
     <sect3 id="net-proto">
       <title>Network Protocols</title>
 
-      <para></para>
+      <para>Ongoing work is reducing the use of the Giant lock by the
+	network protocol stack and improving the locking
+	strategies.</para>
+
+      <para>A bug in TCP that sometimes caused RST packets to
+	be ignored if the receive window was zero bytes has been
+	fixed. &merged;</para>
+
+      <para>Several bugs in the TCP SACK implementation have been
+	fixed. &merged;</para>
+
+      <para>RFC 1644 T/TCP support has been removed.</para>
+
     </sect3>
 
     <sect3 id="disks">
@@ -174,10 +193,25 @@
   <sect2 id="userland">
     <title>Userland Changes</title>
 
+    <para>The <literal>create</literal> command of the &man.gpt.8;
+      utility now supports a <option>-f</option> command-line flag to
+      force creation of a GPT even when there is an MBR record on a
+      disk. &merged;</para>
+
+    <para>The <literal>NO_NIS</literal> compile-time knob for userland
+      has been added.  As its name implies, enabling this
+      <filename>Makefile</filename> variable will cause NIS support to
+      be excluded from various programs and will cause the NIS
+      utilities to not be built. &merged;</para>
+
     <para arch="i386">The &man.mkuzip.8;, which is a non-GPL
       utility to compress file system images for use with
       <literal>GEOM_UZIP</literal> &man.geom.4; module,
       has been added.</para>
+
+    <para>The &man.ncal.1; utility now supports a <option>-m</option>
+      flag to generate a calendar for a specified month in the current
+      year. &merged;</para>
 
     <sect3 id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
