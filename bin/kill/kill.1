@@ -50,17 +50,19 @@
 .Fl l
 .Op Ar exit_status
 .Nm
-.Fl signal_name
+.Fl Ar signal_name
 .Ar pid
 \&...
 .Nm
-.Fl signal_number
+.Fl Ar signal_number
 .Ar pid
 \&...
 .Sh DESCRIPTION
 The
 .Nm
-utility sends a signal to the processes specified by the pid operand(s).
+utility sends a signal to the processes specified by the
+.Ar pid
+operand(s).
 .Pp
 Only the super-user may send signals to other users' processes.
 .Pp
@@ -75,11 +77,11 @@ default
 If no operand is given, list the signal names; otherwise, write
 the signal name corresponding to
 .Ar exit_status .
-.It Fl signal_name
+.It Fl Ar signal_name
 A symbolic signal name specifying the signal to be sent instead of the
 default
 .Dv TERM .
-.It Fl signal_number
+.It Fl Ar signal_number
 A non-negative decimal integer, specifying the signal to be sent instead
 of the default
 .Dv TERM .
@@ -116,6 +118,23 @@ command which is similar or identical to this utility.
 Consult the
 .Xr builtin 1
 manual page.
+.Sh EXAMPLES
+Terminate
+the processes with pids 142 and 157:
+.Pp
+.Dl "kill 142 157"
+.Pp
+Send the hangup signal
+.Pq Dv SIGHUP
+to the process with pid 507:
+.Pp
+.Dl "kill -s HUP 507"
+.Pp
+Terminate the process group with pgid 117:
+.Pp
+.Dl "kill -- -117"
+.Sh DIAGNOSTICS
+.Ex -std
 .Sh SEE ALSO
 .Xr builtin 1 ,
 .Xr csh 1 ,
@@ -133,7 +152,7 @@ compatible.
 A
 .Nm
 command appeared in
-.At v6 .
+.At v3 .
 .Sh BUGS
 A replacement for the command
 .Dq Li kill 0
