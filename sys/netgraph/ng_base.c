@@ -1442,7 +1442,7 @@ ng_generic_msg(node_p here, struct ng_mesg *msg, const char *retaddr,
 
 	case NGM_BINARY2ASCII:
 	    {
-		int bufSize = 2000;	/* XXX hard coded constant */
+		int bufSize = 20 * 1024;	/* XXX hard coded constant */
 		const struct ng_parse_type *argstype;
 		const struct ng_cmdlist *c;
 		struct ng_mesg *rp, *binary, *ascii;
