@@ -286,10 +286,10 @@ pxe_open(struct open_file *f, ...)
 		if (!rootpath[1])
 			strcpy(rootpath, PXENFSROOTPATH);
 
-		for (i = 0; i < FNAME_SIZE; i++)
+		for (i = 0; rootpath[i] != '\0' && i < FNAME_SIZE; i++)
 			if (rootpath[i] == ':')
 				break;
-		if (i && i != FNAME_SIZE) {
+		if (i && i != FNAME_SIZE && rootpath[i] == ':') {
 			rootpath[i++] = '\0';
 			if (inet_addr(&rootpath[0]) != INADDR_NONE)
 				rootip.s_addr = inet_addr(&rootpath[0]);
