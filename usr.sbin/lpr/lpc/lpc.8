@@ -195,12 +195,12 @@ lock file for queue control
 .Xr printcap 5 ,
 .Xr lpd 8
 .Sh DIAGNOSTICS
-.Bl -tag -width indent
-.It Sy "?Ambiguous command"
+.Bl -diag
+.It "?Ambiguous command"
 abbreviation matches more than one command
-.It Sy "?Invalid command"
+.It "?Invalid command"
 no match was found
-.It Sy "?Privileged command"
+.It "?Privileged command"
 you must be a member of group "operator" or root to execute this command
 .El
 .Sh HISTORY
