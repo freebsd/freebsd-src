@@ -1031,7 +1031,7 @@ configNFSServer(dialogMenuItem *self)
 }
 
 int
-configTTYs(dialogMenuItem *self)
+configEtcTtys(dialogMenuItem *self)
 {
     char cmd[256];
 
