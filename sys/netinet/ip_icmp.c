@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_icmp.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_icmp.c,v 1.7.4.1 1995/07/23 05:52:51 davidg Exp $
+ * $Id: ip_icmp.c,v 1.7.4.2 1996/03/04 04:56:22 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -388,6 +388,8 @@ icmp_input(m, hlen)
 			    (struct sockaddr *)&icmpdst, m->m_pkthdr.rcvif);
 		if (ia == 0)
 			break;
+		if (ia->ia_ifp == 0)
+			break;
 		icp->icmp_type = ICMP_MASKREPLY;
 		icp->icmp_mask = ia->ia_sockmask.sin_addr.s_addr;
 		if (ip->ip_src.s_addr == 0) {
@@ -486,7 +488,7 @@ icmp_reflect(m)
 	for (ia = in_ifaddr; ia; ia = ia->ia_next) {
 		if (t.s_addr == IA_SIN(ia)->sin_addr.s_addr)
 			break;
-		if ((ia->ia_ifp->if_flags & IFF_BROADCAST) &&
+		if (ia->ifp && (ia->ia_ifp->if_flags & IFF_BROADCAST) &&
 		    t.s_addr == satosin(&ia->ia_broadaddr)->sin_addr.s_addr)
 			break;
 	}
