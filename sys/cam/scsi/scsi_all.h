@@ -469,11 +469,16 @@ struct scsi_start_stop_unit
 #define T_ASC1		0x0b
 #define	T_STORARRAY	0x0c
 #define	T_ENCLOSURE	0x0d
+#define	T_RBC		0x0e
+#define	T_OCRW		0x0f
 #define T_NODEVICE	0x1F
 #define	T_ANY		0xFF	/* Used in Quirk table matches */
 
 #define T_REMOV		1
 #define	T_FIXED		0
+
+
+#define	SHORT_INQUIRY_LENGTH	36
 
 struct scsi_inquiry_data
 {
@@ -519,6 +524,7 @@ struct scsi_inquiry_data
 #define		SCSI_REV_CCS		1
 #define		SCSI_REV_2		2
 #define		SCSI_REV_3		3
+#define		SCSI_REV_SPC2		4
 
 #define SID_ECMA	0x38
 #define SID_ISO		0xC0
@@ -541,6 +547,43 @@ struct scsi_inquiry_data
 	char	 product[SID_PRODUCT_SIZE];
 #define SID_REVISION_SIZE 4
 	char	 revision[SID_REVISION_SIZE];
+	/*
+	 * The following fields were taken from SCSI Primary Commands - 2
+	 * (SPC-2) Revision 14, Dated 11 November 1999
+	 */
+#define	SID_VENDOR_SPECIFIC_0_SIZE	20
+	u_int8_t vendor_specific0[SID_VENDOR_SPECIFIC_0_SIZE];
+	/*
+	 * An extension of SCSI Parallel Specific Values
+	 */
+#define	SID_SPI_IUS		0x01
+#define	SID_SPI_QAS		0x02
+#define	SID_SPI_CLOCK_ST	0x00
+#define	SID_SPI_CLOCK_DT	0x04
+#define	SID_SPI_CLOCK_DT_ST	0x0C
+	u_int8_t spi3data;
+	u_int8_t reserved2;
+	/*
+	 * Version Descriptors, stored 2 byte values.
+	 */
+	u_int8_t version1[2];
+	u_int8_t version2[2];
+	u_int8_t version3[2];
+	u_int8_t version4[2];
+	u_int8_t version5[2];
+	u_int8_t version6[2];
+	u_int8_t version7[2];
+	u_int8_t version8[2];
+
+	u_int8_t reserved3[22];
+
+	/*
+	 * The specifcation allows for 256 bytes of data, total.
+	 * We avoid overflow problems with common usages of u_int8_t
+	 * sizes by not getting at the last 4 bytes.
+	 */
+#define	SID_VENDOR_SPECIFIC_1_SIZE	(256 - 96 - 4)
+	u_int8_t vendor_specific1[SID_VENDOR_SPECIFIC_1_SIZE];
 };
 
 struct scsi_vpd_unit_serial_number
@@ -551,7 +594,7 @@ struct scsi_vpd_unit_serial_number
 	u_int8_t reserved;
 	u_int8_t length; /* serial number length */
 #define SVPD_SERIAL_NUM_SIZE 251
-	char	 serial_num[SVPD_SERIAL_NUM_SIZE];
+	u_int8_t serial_num[SVPD_SERIAL_NUM_SIZE];
 };
 
 struct scsi_read_capacity
