@@ -130,7 +130,7 @@ extern struct datalink *datalink_Clone(struct datalink *, const char *);
 extern struct datalink *iov2datalink(struct bundle *, struct iovec *, int *,
                                      int, int, int *, int *);
 extern int datalink2iov(struct datalink *, struct iovec *, int *, int, int *,
-                        int *, pid_t);
+                        int *);
 extern struct datalink *datalink_Destroy(struct datalink *);
 extern void datalink_GotAuthname(struct datalink *, const char *);
 extern void datalink_Up(struct datalink *, int, int);

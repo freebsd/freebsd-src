@@ -116,7 +116,7 @@ udp_Free(struct physical *p)
 
 static void
 udp_device2iov(struct device *d, struct iovec *iov, int *niov,
-               int maxiov, int *auxfd, int *nauxfd, pid_t newpid)
+               int maxiov, int *auxfd, int *nauxfd)
 {
   int sz = physical_MaxDeviceSize();
 

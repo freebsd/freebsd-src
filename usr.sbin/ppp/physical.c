@@ -634,7 +634,7 @@ physical_MaxDeviceSize()
 
 int
 physical2iov(struct physical *p, struct iovec *iov, int *niov, int maxiov,
-             int *auxfd, int *nauxfd, pid_t newpid)
+             int *auxfd, int *nauxfd)
 {
   struct device *h;
   int sz;
@@ -650,8 +650,7 @@ physical2iov(struct physical *p, struct iovec *iov, int *niov, int maxiov,
     timer_Stop(&p->link.lcp.fsm.StoppedTimer);
     timer_Stop(&p->link.ccp.fsm.StoppedTimer);
     if (p->handler) {
-      if (p->handler->device2iov)
-        h = p->handler;
+      h = p->handler;
       p->handler = (struct device *)(long)p->handler->type;
     }
 
@@ -661,7 +660,6 @@ physical2iov(struct physical *p, struct iovec *iov, int *niov, int maxiov,
     else
       p->session_owner = (pid_t)-1;
     timer_Stop(&p->link.throughput.Timer);
-    physical_ChangedPid(p, newpid);
   }
 
   if (*niov + 2 >= maxiov) {
@@ -672,28 +670,27 @@ physical2iov(struct physical *p, struct iovec *iov, int *niov, int maxiov,
     return -1;
   }
 
-  iov[*niov].iov_base = p ? (void *)p : malloc(sizeof *p);
+  iov[*niov].iov_base = (void *)p;
   iov[*niov].iov_len = sizeof *p;
   (*niov)++;
 
-  iov[*niov].iov_base = p ? (void *)p->link.throughput.SampleOctets :
-                            malloc(SAMPLE_PERIOD * sizeof(long long));
+  iov[*niov].iov_base = p ? (void *)p->link.throughput.SampleOctets : NULL;
   iov[*niov].iov_len = SAMPLE_PERIOD * sizeof(long long);
   (*niov)++;
 
   sz = physical_MaxDeviceSize();
   if (p) {
-    if (h)
-      (*h->device2iov)(h, iov, niov, maxiov, auxfd, nauxfd, newpid);
+    if (h && h->device2iov)
+      (*h->device2iov)(h, iov, niov, maxiov, auxfd, nauxfd);
     else {
       iov[*niov].iov_base = malloc(sz);
-      if (p->handler)
-        memcpy(iov[*niov].iov_base, p->handler, sizeof *p->handler);
+      if (h)
+        memcpy(iov[*niov].iov_base, h, sizeof *h);
       iov[*niov].iov_len = sz;
       (*niov)++;
     }
   } else {
-    iov[*niov].iov_base = malloc(sz);
+    iov[*niov].iov_base = NULL;
     iov[*niov].iov_len = sz;
     (*niov)++;
   }
@@ -701,10 +698,19 @@ physical2iov(struct physical *p, struct iovec *iov, int *niov, int maxiov,
   return p ? p->fd : 0;
 }
 
+const char *
+physical_LockedDevice(struct physical *p)
+{
+  if (p->fd >= 0 && *p->name.full == '/' && p->type != PHYS_DIRECT)
+    return p->name.base;
+
+  return NULL;
+}
+
 void
 physical_ChangedPid(struct physical *p, pid_t newpid)
 {
-  if (p->fd >= 0 && *p->name.full == '/' && p->type != PHYS_DIRECT) {
+  if (physical_LockedDevice(p)) {
     int res;
 
     if ((res = ID0uu_lock_txfr(p->name.base, newpid)) != UU_LOCK_OK)

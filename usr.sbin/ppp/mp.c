@@ -85,6 +85,18 @@
 #include "id.h"
 #include "arp.h"
 
+/*
+ * When we set our MP socket buffer size, we need some extra space
+ * for the kernel to use to transfer the file descriptors and their
+ * control structure.  In practice, this seems to be
+ *
+ *    sizeof(struct msghdr) + sizeof(int) * SEND_MAXFD
+ *
+ * (see bundle.c for SEND_MAXFD), but as this isn't actually documented,
+ * we just add ``a bit extra''
+ */
+#define SOCKET_OVERHEAD	100
+
 void
 peerid_Init(struct peerid *peer)
 {
@@ -1006,20 +1018,8 @@ static void
 mpserver_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
 {
   struct mpserver *s = descriptor2mpserver(d);
-  struct sockaddr in;
-  int fd, size;
 
-  size = sizeof in;
-  fd = accept(s->fd, &in, &size);
-  if (fd < 0) {
-    log_Printf(LogERROR, "mpserver_Read: accept(): %s\n", strerror(errno));
-    return;
-  }
-
-  if (in.sa_family == AF_LOCAL)
-    bundle_ReceiveDatalink(bundle, fd, (struct sockaddr_un *)&in);
-  else
-    close(fd);
+  bundle_ReceiveDatalink(bundle, s->fd);
 }
 
 static int
@@ -1046,7 +1046,7 @@ mpserver_Init(struct mpserver *s)
 int
 mpserver_Open(struct mpserver *s, struct peerid *peer)
 {
-  int f, l;
+  int f, l, bufsz;
   mode_t mask;
 
   if (s->fd != -1) {
@@ -1065,15 +1065,28 @@ mpserver_Open(struct mpserver *s, struct peerid *peer)
 
   s->socket.sun_family = AF_LOCAL;
   s->socket.sun_len = sizeof s->socket;
-  s->fd = ID0socket(PF_LOCAL, SOCK_STREAM, 0);
+  s->fd = ID0socket(PF_LOCAL, SOCK_DGRAM, 0);
   if (s->fd < 0) {
-    log_Printf(LogERROR, "mpserver: socket: %s\n", strerror(errno));
+    log_Printf(LogERROR, "mpserver: socket(): %s\n", strerror(errno));
     return MPSERVER_FAILED;
   }
 
   setsockopt(s->fd, SOL_SOCKET, SO_REUSEADDR, (struct sockaddr *)&s->socket,
              sizeof s->socket);
   mask = umask(0177);
+
+  /*
+   * Calculate how big a link is.  It's vital that we set our receive
+   * buffer size before binding the socket, otherwise we'll end up with
+   * a sendmsg() failing with ENOBUFS.
+   */
+
+  bufsz = bundle_LinkSize() + SOCKET_OVERHEAD;
+  log_Printf(LogDEBUG, "Setting MP socket buffer size to %d\n", bufsz);
+  if (setsockopt(s->fd, SOL_SOCKET, SO_RCVBUF, &bufsz, sizeof bufsz) == -1)
+    log_Printf(LogERROR, "setsockopt(SO_RCVBUF, %d): %s\n", bufsz,
+               strerror(errno));
+
   if (ID0bind_un(s->fd, &s->socket) < 0) {
     if (errno != EADDRINUSE) {
       log_Printf(LogPHASE, "mpserver: can't create bundle socket %s (%s)\n",
@@ -1083,12 +1096,17 @@ mpserver_Open(struct mpserver *s, struct peerid *peer)
       s->fd = -1;
       return MPSERVER_FAILED;
     }
+
+    /* Ok, so we'll play sender... set the send buffer size */
+    if (setsockopt(s->fd, SOL_SOCKET, SO_SNDBUF, &bufsz, sizeof bufsz) == -1)
+      log_Printf(LogERROR, "setsockopt(SO_SNDBUF, %d): %s\n", bufsz,
+                 strerror(errno));
     umask(mask);
     if (ID0connect_un(s->fd, &s->socket) < 0) {
       log_Printf(LogPHASE, "mpserver: can't connect to bundle socket %s (%s)\n",
                 s->socket.sun_path, strerror(errno));
       if (errno == ECONNREFUSED)
-        log_Printf(LogPHASE, "          Has the previous server died badly ?\n");
+        log_Printf(LogPHASE, "          The previous server died badly !\n");
       close(s->fd);
       s->fd = -1;
       return MPSERVER_FAILED;
@@ -1096,13 +1114,6 @@ mpserver_Open(struct mpserver *s, struct peerid *peer)
 
     /* Donate our link to the other guy */
     return MPSERVER_CONNECTED;
-  }
-
-  /* Listen for other ppp invocations that want to donate links */
-  if (listen(s->fd, 5) != 0) {
-    log_Printf(LogERROR, "mpserver: Unable to listen to socket"
-              " - BUNDLE overload?\n");
-    mpserver_Close(s);
   }
 
   return MPSERVER_LISTENING;
