@@ -123,7 +123,7 @@ __FBSDID("$FreeBSD$");
  * No values are saved to mc_trapno, mc_addr, mc_err, mc_cs, or mc_ss.
  * For the FPU state, only the floating point control word is stored.
  */
-ENTRY(_amd64_ctx_save)
+ENTRY(_amd64_save_context)
 	cmpq	$0, %rdi		/* check for null pointer */
 	jne	1f
 	movq	$-1, %rax
@@ -149,7 +149,7 @@ ENTRY(_amd64_ctx_save)
 	popq	%rax
 	movq	%rax, MC_RFLAGS(%rdi)	/* save flags */
 	movq	%rsp, %rax		/* setcontext pushes the return */
-	addq	$4, %rax		/*   address onto the stack; */
+	addq	$8, %rax		/*   address onto the stack; */
 	movq	%rax, MC_RSP(%rdi)	/*   account for this -- ???. */
 	fnstcw	MC_FP_CW_OFFSET(%rdi)	/* save FPU control word */
 	movq	$MC_OWNEDFP_NONE, MC_OWNEDFP_OFFSET(%rdi) /* no FP */
@@ -161,7 +161,7 @@ ENTRY(_amd64_ctx_save)
 /*
  * _amd64_ctx_restore(mcontext_t *mcp, intptr_t val, intptr_t *loc);
  */
-ENTRY(_amd64_ctx_restore)
+ENTRY(_amd64_restore_context)
 	cmpq	$0, %rdi		/* check for null pointer */
 	jne	1f
 	movq	$-1, %rax
@@ -198,7 +198,7 @@ ENTRY(_amd64_ctx_restore)
 5:	movq	MC_RSP(%rdi), %rsp	/* switch to context stack */
 	movq	MC_RIP(%rdi), %rax	/* return address on stack */
 	pushq	%rax
-	movq	MC_RSI(%rdi), %rax	/* rdi on stack */
+	movq	MC_RDI(%rdi), %rax	/* rdi on stack */
 	pushq	%rax
 	movq	MC_RDX(%rdi), %rax	/* rdx on stack */
 	pushq	%rax
@@ -209,7 +209,7 @@ ENTRY(_amd64_ctx_restore)
 	movq	MC_RAX(%rdi), %rax	/* restore rax */
 	/* At this point we're done with the context. */
 	cmpq	$0, %rdx		/* set *loc to val */
-	je	7f
+	je	6f
 	movq	%rsi, (%rdx)
 6:	popfq				/* restore flags */
 	popq	%rsi			/* restore rsi, rdx, and rdi */
