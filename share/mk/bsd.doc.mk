@@ -1,5 +1,5 @@
 #	from: @(#)bsd.doc.mk	5.3 (Berkeley) 1/2/91
-#	$Id: bsd.doc.mk,v 1.18 1995/02/25 20:51:09 phk Exp $
+#	$Id: bsd.doc.mk,v 1.21 1995/07/27 15:03:25 wollman Exp $
 
 PRINTER?=	ps
 
@@ -37,6 +37,14 @@ TRFLAGS+=	-s
 TRFALGS+=	-R
 .endif
 
+.if defined(NODOCCOMPRESS)
+DFILE=	${DOC}.${PRINTER}
+GZIPCMD=	cat
+.else
+DFILE=	${DOC}.${PRINTER}.gz
+GZIPCMD=	gzip -c
+.endif
+
 PAGES?=		1-
 
 # Compatibility mode flag for groff.  Use this when formatting documents with
@@ -46,11 +54,15 @@ COMPAT?=	-C
 .PATH: ${.CURDIR} ${SRCDIR}
 
 .MAIN:	all
-all:	${DOC}.${PRINTER}
+all:	${DFILE}
 
 .if !target(print)
-print: ${DOC}.${PRINTER}
-	lpr -P${PRINTER} ${DOC}.${PRINTER}
+print: ${DFILE}
+.if defined(NODOCCOMPRESS)
+	lpr -P${PRINTER} ${DFILE}
+.else
+	${GZIPCMD} -d ${DFILE} | lpr -P${PRINTER}
+.endif
 .endif
 
 .if !target(obj)
@@ -71,7 +83,7 @@ obj:
 
 clean:
 	rm -f ${DOC}.${PRINTER} ${DOC}.ps ${DOC}.ascii \
-		[eE]rrs mklog ${CLEANFILES}
+		${DOC}.ps.gz ${DOC}.ascii.gz [eE]rrs mklog ${CLEANFILES}
 
 cleandir: clean
 	cd ${.CURDIR}; rm -rf obj
@@ -87,7 +99,7 @@ realinstall:
                 true ; \
         fi
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-		${DOC}.${PRINTER} ${DESTDIR}${BINDIR}/${VOLUME}
+		${DFILE} ${DESTDIR}${BINDIR}/${VOLUME}
 
 install:	beforeinstall realinstall afterinstall
 
@@ -115,13 +127,14 @@ BINMODE=        444
 
 SRCDIR?=	${.CURDIR}
 
-.if !target(${DOC}.${PRINTER})
-CLEANFILES+=	${DOC}.${PRINTER}+
-
-${DOC}.${PRINTER}:	${SRCS}
-	(cd ${SRCDIR}; ${ROFF} ${.ALLSRC}) > ${.TARGET}+
-	rm -f ${.TARGET}
-	mv ${.TARGET}+ ${.TARGET}
+.if !target(${DFILE})
+${DFILE}:	${SRCS}
+	(cd ${SRCDIR}; ${ROFF} ${.ALLSRC}) | ${GZIPCMD} > ${.TARGET}
+.else
+.if !defined(NODOCCOMPRESS)
+${DFILE}:	${DOC}.${PRINTER}
+	${GZIPCMD} ${DOC}.${PRINTER} > ${.TARGET}
+.endif
 .endif
 
 .if !target(depend)
