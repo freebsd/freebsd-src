@@ -48,6 +48,12 @@
 
 	.text
 
+#ifdef SMP
+#define LK	lock ;
+#else
+#define LK
+#endif
+
 /*
  * cpu_throw()
  *
@@ -66,10 +72,7 @@ ENTRY(cpu_throw)
 	/* release bit from old pm_active */
 	movq	TD_PROC(%rdi), %rdx		/* oldtd->td_proc */
 	movq	P_VMSPACE(%rdx), %rdx		/* proc->p_vmspace */
-#ifdef SMP
-	lock
-#endif
-	btrl	%eax, VM_PMAP+PM_ACTIVE(%rdx)	/* clear old */
+	LK btrl	%eax, VM_PMAP+PM_ACTIVE(%rdx)	/* clear old */
 1:
 	movq	TD_PCB(%rsi),%rdx		/* newtd->td_proc */
 	movq	PCB_CR3(%rdx),%rdx
@@ -77,10 +80,7 @@ ENTRY(cpu_throw)
 	/* set bit in new pm_active */
 	movq	TD_PROC(%rsi),%rdx
 	movq	P_VMSPACE(%rdx), %rdx
-#ifdef SMP
-	lock
-#endif
-	btsl	%eax, VM_PMAP+PM_ACTIVE(%rdx)	/* set new */
+	LK btsl	%eax, VM_PMAP+PM_ACTIVE(%rdx)	/* set new */
 	jmp	sw1
 
 /*
@@ -92,13 +92,7 @@ ENTRY(cpu_throw)
  * %rsi = newtd
  */
 ENTRY(cpu_switch)
-
 	/* Switch to new thread.  First, save context. */
-#ifdef INVARIANTS
-	testq	%rdi,%rdi			/* no thread? */
-	jz	badsw2				/* no, panic */
-#endif
-
 	movq	TD_PCB(%rdi),%r8
 
 	movq	(%rsp),%rax			/* Hardware registers */
@@ -164,10 +158,6 @@ ENTRY(cpu_switch)
 1:
 
 	/* Save is done.  Now fire up new thread. Leave old vmspace. */
-#ifdef INVARIANTS
-	testq	%rsi,%rsi			/* no thread? */
-	jz	badsw3				/* no, panic */
-#endif
 	movq	TD_PCB(%rsi),%r8
 
 	/* switch address space */
@@ -185,18 +175,12 @@ ENTRY(cpu_switch)
 	/* Release bit from old pmap->pm_active */
 	movq	TD_PROC(%rdi), %rdx		/* oldproc */
 	movq	P_VMSPACE(%rdx), %rdx
-#ifdef SMP
-	lock
-#endif
-	btrl	%eax, VM_PMAP+PM_ACTIVE(%rdx)	/* clear old */
+	LK btrl	%eax, VM_PMAP+PM_ACTIVE(%rdx)	/* clear old */
 
 	/* Set bit in new pmap->pm_active */
 	movq	TD_PROC(%rsi),%rdx		/* newproc */
 	movq	P_VMSPACE(%rdx), %rdx
-#ifdef SMP
-	lock
-#endif
-	btsl	%eax, VM_PMAP+PM_ACTIVE(%rdx)	/* set new */
+	LK btsl	%eax, VM_PMAP+PM_ACTIVE(%rdx)	/* set new */
 
 sw1:
 	/*
@@ -275,76 +259,6 @@ sw1:
 
 	ret
 
-#ifdef INVARIANTS
-badsw1:
-	pushq	%rax
-	pushq	%rcx
-	pushq	%rdx
-	pushq	%rbx
-	pushq	%rbp
-	pushq	%rsi
-	pushq	%rdi
-	pushq	%r8
-	pushq	%r9
-	pushq	%r10
-	pushq	%r11
-	pushq	%r12
-	pushq	%r13
-	pushq	%r14
-	pushq	%r15
-	movq	$0,%rdi
-	movq	$0,%rsi
-	leaq	sw0_1,%rdx
-	call	__panic
-sw0_1:	.asciz	"cpu_throw: no newthread supplied"
-
-badsw2:
-	pushq	%rax
-	pushq	%rcx
-	pushq	%rdx
-	pushq	%rbx
-	pushq	%rbp
-	pushq	%rsi
-	pushq	%rdi
-	pushq	%r8
-	pushq	%r9
-	pushq	%r10
-	pushq	%r11
-	pushq	%r12
-	pushq	%r13
-	pushq	%r14
-	pushq	%r15
-	movq	$0,%rdi
-	movq	$0,%rsi
-	leaq	sw0_2,%rdx
-	call	__panic
-sw0_2:	.asciz	"cpu_switch: no curthread supplied"
-
-badsw3:
-	pushq	%rax
-	pushq	%rcx
-	pushq	%rdx
-	pushq	%rbx
-	pushq	%rbp
-	pushq	%rsi
-	pushq	%rdi
-	pushq	%r8
-	pushq	%r9
-	pushq	%r10
-	pushq	%r11
-	pushq	%r12
-	pushq	%r13
-	pushq	%r14
-	pushq	%r15
-	movq	$0,%rdi
-	movq	$0,%rsi
-	leaq	sw0_3,%rdx
-	call	__panic
-sw0_3:	.asciz	"cpu_switch: no newthread supplied"
-#endif
-
-noswitch:	.asciz	"cpu_switch: called!"
-nothrow:	.asciz	"cpu_throw: called!"
 /*
  * savectx(pcb)
  * Update pcb, saving current processor state.
