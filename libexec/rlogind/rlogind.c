@@ -1,6 +1,13 @@
 /*-
  * Copyright (c) 1983, 1988, 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 2002 Networks Associates Technology, Inc.
+ * All rights reserved.
+ *
+ * Portions of this software were developed for the FreeBSD Project by
+ * ThinkSec AS and NAI Labs, the Security Research Division of Network
+ * Associates, Inc.  under DARPA/SPAWAR contract N66001-01-C-8035
+ * ("CBOSS"), as part of the DARPA CHATS research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -72,13 +79,13 @@ static const char rcsid[] =
 
 #include <errno.h>
 #include <libutil.h>
+#include <paths.h>
 #include <pwd.h>
 #include <syslog.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include "pathnames.h"
 
 
 #ifndef TIOCPKT_WINDOW
@@ -177,7 +184,7 @@ main(int argc, char *argv[])
 	if (no_delay &&
 	    setsockopt(0, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on)) < 0)
 		syslog(LOG_WARNING, "setsockopt (TCP_NODELAY): %m");
-        if (from.su_family == AF_INET)
+	if (from.su_family == AF_INET)
       {
 	on = IPTOS_LOWDELAY;
 	if (setsockopt(0, IPPROTO_IP, IP_TOS, (char *)&on, sizeof(int)) < 0)
@@ -238,7 +245,7 @@ doit(int f, union sockunion *fromp)
 		}
 #ifdef IP_OPTIONS
 		if (fromp->su_family == AF_INET)
-              {
+	      {
 		u_char optbuf[BUFSIZ/3];
 		int optsize = sizeof(optbuf), ipproto, i;
 		struct protoent *ip;

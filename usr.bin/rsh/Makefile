@@ -7,8 +7,7 @@ CFLAGS+=-I${.CURDIR}/../../libexec/rlogind
 
 .if defined(MAKE_KERBEROS4) && !defined(NO_OPENSSL) && !defined(NOCRYPT)
 SRCS+=	krcmd.c kcmd.c rcmd_util.c
-CFLAGS+=-DKERBEROS -DCRYPT -DHAVE_CONFIG_H \
-	-I${.CURDIR}/../rlogin -I${.CURDIR} -I- \
+CFLAGS+=-DKERBEROS -DCRYPT -DHAVE_CONFIG_H -I- \
 	-I${.CURDIR}/../../kerberosIV/include \
 	-I${.CURDIR}/../../crypto/kerberosIV/include \
 	-I${.CURDIR}/../../crypto/kerberosIV/lib/roken \

@@ -3,7 +3,6 @@
 
 PROG=	rlogin
 SRCS=	rlogin.c
-CFLAGS+=-I${.CURDIR}/../../libexec/rlogind
 
 BINOWN=	root
 BINMODE=4555
