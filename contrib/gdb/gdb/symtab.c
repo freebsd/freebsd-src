@@ -4240,6 +4240,7 @@ in_prologue (pc, func_start)
      CORE_ADDR pc;
      CORE_ADDR func_start;
 {
+#if 0
   struct symtab_and_line sal;
   CORE_ADDR func_addr, func_end;
 
@@ -4266,6 +4267,7 @@ in_prologue (pc, func_start)
    is doing a stepi/nexti through code without symbols.  */
 
  nosyms:
+#endif
 
 /* If func_start is zero (meaning unknown) then we don't know whether pc is
    in the prologue or not.  I.E. it might be. */
