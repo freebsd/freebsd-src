@@ -202,8 +202,13 @@ ifdef(`PAGING',`
 ')
 		lgdtwm(gdtdesc) 		# Set GDT
 		movl %cr0,%eax			# Switch to
+ifdef(`PAGING',`
+		o16				#  protected mode
+		orl $0x80000001,%eax            #  and enable paging
+',`
 		o16				#  protected mode
 		orl $0x01,%eax			# 
+')
 		movl %eax,%cr0			#  
 		jmpfwi(SEL_SCODE,init.8)	# To 32-bit code
 init.8: 	xorl %ecx,%ecx			# Zero
