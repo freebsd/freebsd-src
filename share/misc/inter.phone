@@ -1,5 +1,7 @@
 # Country Code : City Code : City : Country
 #	@(#)inter.phone	8.1 (Berkeley) 6/9/93
+#	$Id$
+#
 7:095:Moscow:Russia
 7:::Kazakhstan
 7:::Kirgizstan
@@ -99,42 +101,6 @@
 43:512:Innsbruck:Austria
 43:662:Salzburg:Austria
 43:732:Linz:Austria
-44:171:London, Eng.:United Kingdom
-44:181:London, Eng.:United Kingdom
-44:1132:Leeds, Eng.:United Kingdom
-44:1142:Sheffield, Eng.:United Kingdom
-44:1159:Nottingham, Eng.:United Kingdom
-44:1162:Leicester, Eng.:United Kingdom
-44:1179:Bristol, Eng.:United Kingdom
-44:1202:Bournemouth, Eng.:United Kingdom
-44:1203:Coventry, Eng.:United Kingdom
-44:121:Birmingham, Eng.:United Kingdom
-44:1222:Cardiff, Wales:United Kingdom
-44:1223:Cambridge, Eng.:United Kingdom
-44:1232:Belfast, N. Ire.:United Kingdom
-44:1253:Blackpool, Eng.:United Kingdom
-44:1273:Brighton, Eng.:United Kingdom
-44:1274:Bradford, Eng.:United Kingdom
-44:131:Edinburgh, Scot.:United Kingdom
-44:1332:Derby, Eng.:United Kingdom
-44:141:Glasgow, Scot.:United Kingdom
-44:1472:Grimsby, Eng.:United Kingdom
-44:1473:Ipswich, Eng.:United Kingdom
-44:1482:Hull, Eng.:United Kingdom
-44:1484:Huddersfield, Eng.:United Kingdom
-44:1485:Hillington, Eng.:United Kingdom
-44:151:Liverpool, Eng.:United Kingdom
-44:1603:Norwich, Eng.:United Kingdom
-44:161:Manchester, Eng.:United Kingdom
-44:1642:Middlesborough, Eng.:United Kingdom
-44:1703:Southampton, Eng.:United Kingdom
-44:1705:Portsmouth, Eng.:United Kingdom
-44:1752:Plymouth, Eng.:United Kingdom
-44:1782:Stoke-on-Trent, Eng.:United Kingdom
-44:1865:Oxford, Eng.:United Kingdom
-44:1902:Wolverhampton, Eng.:United Kingdom
-44:1904:York, Eng.:United Kingdom
-44:191:Newcastle upon Tyne, Eng.:United Kingdom
 45:3:Copenhagen:Denmark
 45:6:Aarhus:Denmark
 45:8:Aalborg:Denmark
