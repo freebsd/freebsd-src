@@ -1,4 +1,4 @@
-<!-- $Id: hw.sgml,v 1.3 1995/08/25 22:14:30 jfieber Exp $ -->
+<!-- $Id: hw.sgml,v 1.4 1995/08/27 02:44:20 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- 
@@ -104,7 +104,7 @@
 	  cards are supported as well.  See the <tt>sio(4)</tt>
 	  manual page for detailed technical documentation.
 
-<sect2>Digiboard PC/8
+<sect2><heading>Digiboard PC/8</heading>
 
 	  <p><em>Contributed by &a.awebster;.<newline>26 August
 	      1995.</em>
@@ -130,7 +130,7 @@ device          sio11   at isa? port 0x138 tty flags 0xb05 irq 9 vector siointr
 	  flags represent the last SIO port, in this case 11 so
 	  flags are 0xb05.
 
-<sect2>Boca 16
+<sect2><heading>Boca 16</heading>
 
 	  <p><em>Contributed by &a.whiteside;.<newline>26 August
 	      1995.</em>
