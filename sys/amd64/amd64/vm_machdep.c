@@ -99,7 +99,6 @@ static struct {
 } sf_freelist;
 
 static u_int	sf_buf_alloc_want;
-extern int	nsfbufspeak, nsfbufsused;
 
 /*
  * Finish a fork operation, with process p2 nearly set up.
@@ -475,7 +474,7 @@ sf_buf_alloc(struct vm_page *m)
 		SLIST_REMOVE_HEAD(&sf_freelist.sf_head, free_list);
 		sf->m = m;
 		nsfbufsused++;
-		nsfbufspeak = max(nsfbufspeak, nsfbufsused);
+		nsfbufspeak = imax(nsfbufspeak, nsfbufsused);
 	}
 	mtx_unlock(&sf_freelist.sf_lock);
 	return (sf);

@@ -113,7 +113,6 @@ static struct {
 } sf_freelist;
 
 static u_int	sf_buf_alloc_want;
-extern int	nsfbufspeak, nsfbufsused;
 
 void
 cpu_thread_exit(struct thread *td)
@@ -367,7 +366,7 @@ sf_buf_alloc(struct vm_page *m)
 		SLIST_REMOVE_HEAD(&sf_freelist.sf_head, free_list);
 		sf->m = m;
 		nsfbufsused++;
-		nsfbufspeak = max(nsfbufspeak, nsfbufsused);
+		nsfbufspeak = imax(nsfbufspeak, nsfbufsused);
 	}
 	mtx_unlock(&sf_freelist.sf_lock);
 	return (sf);

@@ -112,7 +112,6 @@ static u_long sf_buf_hashmask;
 
 static TAILQ_HEAD(, sf_buf) sf_buf_freelist;
 static u_int	sf_buf_alloc_want;
-extern int	nsfbufspeak, nsfbufsused;
 
 /*
  * A lock used to synchronize access to the hash table and free list
@@ -615,7 +614,7 @@ sf_buf_alloc(struct vm_page *m)
 			sf->ref_count++;
 			if (sf->ref_count == 1) {
 				nsfbufsused++;
-				nsfbufspeak = max(nsfbufspeak, nsfbufsused);
+				nsfbufspeak = imax(nsfbufspeak, nsfbufsused);
 			}
 			goto done;
 		}
@@ -639,7 +638,7 @@ sf_buf_alloc(struct vm_page *m)
 	sf->ref_count = 1;
 	sf->m = m;
 	nsfbufsused++;
-	nsfbufspeak = max(nsfbufspeak, nsfbufsused);
+	nsfbufspeak = imax(nsfbufspeak, nsfbufsused);
 	pmap_qenter(sf->kva, &sf->m, 1);
 done:
 	mtx_unlock(&sf_buf_lock);
