@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.142 1997/08/31 21:06:40 peter Exp $
+#	$Id: Makefile,v 1.143 1997/09/05 09:11:24 peter Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -450,7 +450,7 @@ includes:
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 		-p ${DESTDIR}/usr/include
 .endif
-	cd ${.CURDIR}/include &&		${MAKE} all installhdrs symlinks
+	cd ${.CURDIR}/include &&		${MAKE} all beforeinstall
 	cd ${.CURDIR}/gnu/include &&		${MAKE} install
 	cd ${.CURDIR}/gnu/lib/libmp &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libobjc &&	${MAKE} beforeinstall
