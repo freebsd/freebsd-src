@@ -70,11 +70,13 @@ MALLOC_DEFINE(M_LINUX, "linux", "Linux mode structures");
 #define	SHELLMAGIC	0x2321
 #endif
 
-
 extern struct linker_set linux_ioctl_handler_set;
+
+void osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code);
 
 static int	elf_linux_fixup __P((long **stack_base,
     struct image_params *iparams));
+static int	exec_linux_imgact_try __P((struct image_params *iparams));
 
 static int
 elf_linux_fixup(long **stack_base, struct image_params *imgp)
@@ -112,19 +114,12 @@ elf_linux_fixup(long **stack_base, struct image_params *imgp)
 	return 0;
 }
 
-extern int _ucodesel, _udatasel;
-
-void osf1_sendsig __P((sig_t, int , sigset_t *, u_long ));
-void osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code);
-
 /*
  * If a linux binary is exec'ing something, try this image activator 
  * first.  We override standard shell script execution in order to
  * be able to modify the interpreter path.  We only do this if a linux
  * binary is doing the exec, so we do not create an EXEC module for it.
  */
-static int	exec_linux_imgact_try __P((struct image_params *iparams));
-
 static int
 exec_linux_imgact_try(imgp)
 	struct image_params *imgp;
