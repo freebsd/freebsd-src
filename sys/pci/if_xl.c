@@ -29,7 +29,6 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
  */
 
 /*
@@ -100,6 +99,9 @@
  * PCI-based NICs.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
@@ -147,11 +149,6 @@ MODULE_DEPEND(xl, miibus, 1, 1, 1);
 #define XL_USEIOSPACE
 
 #include <pci/if_xlreg.h>
-
-#if !defined(lint)
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
 
 #define XL905B_CSUM_FEATURES	(CSUM_IP | CSUM_TCP | CSUM_UDP)
 
