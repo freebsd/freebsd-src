@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 29, 2000
+.Dd October 27, 2000
 .Dt WX 4
 .Os FreeBSD
 .Sh NAME
@@ -36,7 +36,8 @@ Intel Gigabit Ethernet device driver
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for Intel Gigabit Ethernet PCI cards.
+driver provides support for Intel Gigabit Ethernet PCI cards- both the
+original WISEMAN and the newer LIVENGOOD chipsets.
 .Pp
 For more information on configuring this device, see
 .Xr ifconfig 8 .
@@ -48,4 +49,4 @@ driver was written by
 .Sh BUGS
 The
 .Nm
-does not recover well from link-up/link-down events.
+is a bit chatty about link-up/link-down events.
