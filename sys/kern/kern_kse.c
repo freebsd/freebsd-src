@@ -742,9 +742,9 @@ thread_suspend_check(int return_instead)
 				psignal(p->p_pptr, SIGCHLD);
 			}
 			PROC_UNLOCK(p->p_pptr);
+			mtx_lock_spin(&sched_lock);
 		}
 		mtx_assert(&Giant, MA_NOTOWNED);
-		mtx_lock_spin(&sched_lock);
 		p->p_suspcount++;
 		td->td_state = TDS_SUSPENDED;
 		TAILQ_INSERT_TAIL(&p->p_suspended, td, td_runq);
