@@ -43,7 +43,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl H | Fl L | Fl P
-.Op Fl Xdsx
+.Op Fl EXdsx
 .Op Fl f Ar pathname
 .Op Ar pathname ...\&
 .Ar expression
@@ -59,6 +59,15 @@ of each file in the tree.
 The options are as follows:
 .Pp
 .Bl -tag -width Ds
+.It Fl E
+Interpret regular expressions followed by
+.Ic -regex
+and
+.Ic -iregex
+options as extended (modern) regular expressions rather than basic
+regular expressions (BRE's).  The
+.Xr re_format 7
+manual page fully describes both formats.
 .It Fl H
 The
 .Fl H
@@ -286,6 +295,20 @@ may be used as part of
 .Ar pattern  .
 These characters may be matched explicitly by escaping them with a
 backslash (``\e'').
+.It Ic -iname Ar pattern 
+Like
+.Ic -name ,
+but the match is case insensitive.
+.It Ic -regex Ar pattern 
+True if the whole path of the file matches
+.Ar pattern
+using regular expression.  To match a file named ``./foo/xyzzy'', you
+can use the regular expression ``.*/[xyz]*'' or ``.*/foo/.*'', but not
+``xyzzy'' or ``/foo/''.
+.It Ic -iregex Ar pattern 
+Like
+.Ic -regex ,
+but the match is case insensitive.
 .It Ic -newer Ar file 
 True if the current file has a more recent last modification time than
 .Ar file  .
@@ -303,6 +326,10 @@ These characters may be matched explicitly by escaping them with a
 backslash (``\e'').
 Slashes (``/'') are treated as normal characters and do not have to be
 matched explicitly.
+.It Ic -ipath Ar pattern 
+Like
+.Ic -path ,
+but the match is case insensitive.
 .It Xo
 .Ic -perm
 .Oo Fl Oc Ns Ar mode
@@ -487,6 +514,7 @@ Print out a list of all the files that are either owned by ``wnj'' or
 that are newer than ``ttt''.
 .El
 .Sh SEE ALSO
+.Xr re_format 7,
 .Xr chflags 1 ,
 .Xr chmod 1 ,
 .Xr locate 1 ,
@@ -506,11 +534,14 @@ utility syntax is a superset of the syntax specified by the
 standard.
 .Pp
 All the single character options as well as the
+.Ic -iname ,
 .Ic -inum ,
+.Ic -iregex ,
 .Ic -print0 ,
 .Ic -delete ,
+.Ic -ls ,
 and
-.Ic -ls
+.Ic -regex
 primaries are extensions to
 .St -p1003.2 .
 .Pp
@@ -540,6 +571,13 @@ primaries did not replace the string ``{}'' in the utility name or the
 utility arguments if it had preceding or following non-whitespace characters.
 This version replaces it no matter where in the utility name or arguments
 it appears.
+.Pp
+The
+.Fl E
+option was implemented on the analogy of
+.Xr grep 1
+and
+.Xr sed 1 .
 .Sh BUGS
 The special characters used by
 .Nm

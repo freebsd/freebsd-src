@@ -49,6 +49,7 @@ static const char rcsid[] =
 #include <err.h>
 #include <errno.h>
 #include <fts.h>
+#include <regex.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>

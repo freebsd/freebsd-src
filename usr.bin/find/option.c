@@ -47,6 +47,7 @@ static const char rcsid[] =
 
 #include <err.h>
 #include <fts.h>
+#include <regex.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -82,7 +83,10 @@ static OPTION const options[] = {
 	{ "-fstype",	N_FSTYPE,	c_fstype,	O_ARGV },
 #endif
 	{ "-group",	N_GROUP,	c_group,	O_ARGV },
+	{ "-iname",	N_INAME,	c_iname,       	O_ARGV },
 	{ "-inum",	N_INUM,		c_inum,		O_ARGV },
+	{ "-ipath", 	N_IPATH,	c_ipath,	O_ARGV },
+	{ "-iregex",	N_IREGEX,	c_iregex,	O_ARGV },
 	{ "-links",	N_LINKS,	c_links,	O_ARGV },
 	{ "-ls",	N_LS,		c_ls,		O_ZERO },
 	{ "-maxdepth",  N_MAXDEPTH,     c_maxdepth,     O_ARGV },
@@ -101,6 +105,7 @@ static OPTION const options[] = {
 	{ "-print",	N_PRINT,	c_print,	O_ZERO },
 	{ "-print0",	N_PRINT0,	c_print0,	O_ZERO },
 	{ "-prune",	N_PRUNE,	c_prune,	O_ZERO },
+	{ "-regex",	N_REGEX,	c_regex,	O_ARGV },
 	{ "-size",	N_SIZE,		c_size,		O_ARGV },
 	{ "-type",	N_TYPE,		c_type,		O_ARGV },
 	{ "-user",	N_USER,		c_user,		O_ARGV },

@@ -63,7 +63,10 @@ PLAN	*c_follow __P((void));
 PLAN	*c_fstype __P((char *));
 #endif
 PLAN	*c_group __P((char *));
+PLAN	*c_iname __P((char *));
 PLAN	*c_inum __P((char *));
+PLAN	*c_ipath __P((char *));
+PLAN	*c_iregex __P((char *));
 PLAN	*c_links __P((char *));
 PLAN	*c_ls __P((void));
 PLAN	*c_name __P((char *));
@@ -75,6 +78,7 @@ PLAN	*c_perm __P((char *));
 PLAN	*c_print __P((void));
 PLAN	*c_print0 __P((void));
 PLAN	*c_prune __P((void));
+PLAN	*c_regex __P((char *));
 PLAN	*c_size __P((char *));
 PLAN	*c_type __P((char *));
 PLAN	*c_user __P((char *));
@@ -90,3 +94,4 @@ PLAN	*c_or __P((void));
 
 extern int ftsoptions, isdeprecated, isdepth, isoutput, issort, isxargs;
 extern int mindepth, maxdepth;
+extern int regexp_flags;
