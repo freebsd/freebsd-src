@@ -336,7 +336,8 @@ hashcmd(int argc __unused, char **argv __unused)
 	if (*argptr == NULL) {
 		for (pp = cmdtable ; pp < &cmdtable[CMDTABLESIZE] ; pp++) {
 			for (cmdp = *pp ; cmdp ; cmdp = cmdp->next) {
-				printentry(cmdp, verbose);
+				if (cmdp->cmdtype == CMDNORMAL)
+					printentry(cmdp, verbose);
 			}
 		}
 		return 0;
