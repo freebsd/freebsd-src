@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.100 1996/06/12 14:02:09 jkh Exp $
+ * $Id: install.c,v 1.101 1996/06/13 17:36:28 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -803,6 +803,7 @@ installVarDefaults(dialogMenuItem *self)
     variable_set2(VAR_FTP_STATE,		"passive");
     variable_set2(VAR_FTP_ONERROR,		"abort");
     variable_set2(VAR_FTP_RETRIES,		MAX_FTP_RETRIES);
+    variable_set2(VAR_PKG_TMPDIR,		"/usr/tmp");
     if (getpid() != 1)
 	variable_set2(SYSTEM_STATE,		"update");
     else

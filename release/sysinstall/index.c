@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.33 1996/06/08 08:01:49 jkh Exp $
+ * $Id: index.c,v 1.34 1996/06/12 14:02:06 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -43,7 +43,7 @@
 #include "sysinstall.h"
 
 /* Macros and magic values */
-#define MAX_MENU	13
+#define MAX_MENU	12
 #define _MAX_DESC	60
 
 static int	index_extract_one(Device *dev, PkgNodePtr top, PkgNodePtr who, Boolean depended);
@@ -60,7 +60,8 @@ static char *descrs[] = {
     "To unmark a package, press SPACE again.  To go to a previous menu,\n"
     "select the Cancel button.  To search for a package by name, press ESC.\n"
     "To finally extract packages, you should Cancel all the way out of any\n"
-    "submenus and then this top menu.",
+    "submenus and then this top menu.  NOTE:  The All category selection\n"
+    "creates a very large submenu. If you select it, please be patient.",
     "Package Targets", "These are the packages you've selected for extraction.\n\n"
     "If you're sure of these choices, select OK.\n"
     "If not, select Cancel to go back to the package selection menu.\n",
@@ -484,6 +485,7 @@ index_menu(PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll)
 	/* NULL delimiter so item_free() knows when to stop later */
 	nitems = item_add(nitems, NULL, NULL, NULL, NULL, NULL, NULL, 0, &curr, &max);
 
+recycle:
 	dialog_clear();
 	if (hasPackages)
 	    rval = dialog_checklist(top->name, top->desc, -1, -1, n > MAX_MENU ? MAX_MENU : n, -n, nitems, NULL);
@@ -508,7 +510,7 @@ index_menu(PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll)
 		else
 		    msgConfirm("Search string: %s yielded no hits.", cp);
 	    }
-	    continue;
+	    goto recycle;
 	}
 	items_free(nitems, &curr, &max);
 	restorescr(w);
