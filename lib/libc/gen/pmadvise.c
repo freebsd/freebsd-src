@@ -10,7 +10,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mman.h>
 
 int
-(posix_madvise)(void *address, size_t size, int how)
+posix_madvise(void *address, size_t size, int how)
 {
-	return posix_madvise(address, size, how);
+	return madvise(address, size, how);
 }
