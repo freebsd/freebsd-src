@@ -82,8 +82,8 @@ set_termcap(void)
     }
     if (ioctl(0, TIOCGSIZE, &ts) == -1) {
 	msgDebug("Unable to get terminal size - errno %d\n", errno);
-	ts.ts_lines = OnVTY ? VTY_STATUS_LINE : TTY_STATUS_LINE;
+	ts.ts_lines = 0;
     }
-    StatusLine = ts.ts_lines;
+    StatusLine = ts.ts_lines ? ts.ts_lines : (OnVTY ? VTY_STATUS_LINE : TTY_STATUS_LINE);
     return 0;
 }
