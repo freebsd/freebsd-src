@@ -45,7 +45,7 @@
 #include <rpc/rpc.h>
 
 #ifndef lint
-static char rcsid[] = "$Id: yp_server.c,v 1.2 1995/12/23 21:35:35 wpaul Exp $";
+static char rcsid[] = "$Id: yp_server.c,v 1.3 1996/01/10 16:07:39 wpaul Exp $";
 #endif /* not lint */
 
 int forked = 0;
@@ -622,7 +622,7 @@ static struct ypmaplist *yp_maplist_create(domain)
 	snprintf(yp_mapdir, sizeof(yp_mapdir), "%s/%s", yp_dir, domain);
 
 	if ((dird = opendir(yp_mapdir)) == NULL) {
-		yp_error("opendir(%s) failed: %s", strerror(errno));
+		yp_error("opendir(%s) failed: %s", yp_mapdir, strerror(errno));
 		return(NULL);
 	}
 
