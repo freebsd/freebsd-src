@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)00.contents	8.2 (Berkeley) 4/20/94
+.\" $FreeBSD$
 .\"
 .de ND
 .KE
@@ -40,8 +41,12 @@
 .EH 'USD Contents'''
 .TL
 UNIX User's Supplementary Documents (USD)
+.if \n(.U \{\
+.br
+.>> <a href="Title.html">Title.html</a>
+.\}
 .sp
-\s-24.4 Berkeley Software Distribution\s+2
+\s-2 4.4 Berkeley Software Distribution\s+2
 .sp
 \fRJune, 1993\fR
 .PP
@@ -78,6 +83,10 @@ a command interpreter especially popular for writing shell scripts.
 .ND
 .IP
 .tl 'An Introduction to the C shell''USD:4'
+.if \n(.U \{\
+.br
+.>> <a href="04.csh/paper.html">04.csh/paper.html</a>
+.\}
 .QP
 This introduction to
 .I csh,
@@ -101,6 +110,10 @@ Communicating with the World
 .ND
 .IP
 .tl 'Mail Reference Manual''USD:7'
+.if \n(.U \{\
+.br
+.>> <a href="07.mail/paper.html">07.mail/paper.html</a>
+.\}
 .QP
 Complete details on one of the programs for sending and reading your mail.
 .ND
@@ -121,21 +134,37 @@ An easy way to get started with the line editor,
 .ND
 .IP
 .tl 'Advanced Editing on Unix''USD:10'
+.if \n(.U \{\
+.br
+.>> <a href="10.exref/paper.html">10.exref/paper.html</a>
+.\}
 .QP
 The next step.
 .ND
 .IP
 .tl 'An Introduction to Display Editing with Vi''USD:11'
+.if \n(.U \{\
+.br
+.>> <a href="11.vitut/paper.html">11.vitut/paper.html</a>
+.\}
 .QP
 The document to learn to use the \fIvi\fR screen editor.
 .ND
 .IP
 .tl 'Ex Reference Manual (Version 3.7)''USD:12'
+.if \n(.U \{\
+.br
+.>> <a href="12.vi/paper.html">12.vi/paper.html</a>
+.\}
 .QP
 The final reference for the \fIex\fR editor.
 .ND
 .IP
 .tl 'Vi Reference Manual''USD:13'
+.if \n(.U \{\
+.br
+.>> <a href="13.viref/paper.html">13.viref/paper.html</a>
+.\}
 .QP
 The definitive reference for the \fInvi\fR editor.
 .ND
@@ -170,18 +199,30 @@ to lay out most documents.
 .ND
 .IP
 .tl 'A Revised Version of \-ms''USD:18'
+.if \n(.U \{\
+.br
+.>> <a href="18.msdiffs/paper.html">18.msdiffs/paper.html</a>
+.\}
 .QP
 A brief description of the Berkeley revisions made to the \-ms formatting
 macros for nroff and troff.
 .ND
 .IP
 .tl 'Writing Papers with \fInroff\fR using \-me''USD:19'
+.if \n(.U \{\
+.br
+.>> <a href="19.memacros/paper.html">19.memacros/paper.html</a>
+.\}
 .QP
 Another popular macro package for
 .I nroff.
 .ND
 .IP
 .tl '\-me Reference Manual''USD:20'
+.if \n(.U \{\
+.br
+.>> <a href="20.meref/paper.html">20.meref/paper.html</a>
+.\}
 .QP
 The final word on \-me.
 .ND
@@ -250,12 +291,20 @@ Amusements
 .ND
 .IP
 .tl 'A Guide to the Dungeons of Doom''USD:30'
+.if \n(.U \{\
+.br
+.>> <a href="30.rogue/paper.html">30.rogue/paper.html</a>
+.\}
 .QP
 An introduction to the popular game of \fIrogue\fP, a fantasy game
 which is one of the biggest known users of VAX cycles.
 .ND
 .IP
 .tl 'Star Trek''USD:31'
+.if \n(.U \{\
+.br
+.>> <a href="31.trek/paper.html">31.trek/paper.html</a>
+.\}
 .QP
 You are the Captain of the Starship Enterprise.  Wipe out the
 Klingons and save the Federation.

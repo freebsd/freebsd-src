@@ -36,8 +36,12 @@
 .EH 'SMM Contents'''
 .TL
 UNIX System Manager's Manual (SMM)
+.if \n(.U \{\
+.br
+.>> <a href="Title.html">Title.html</a>
+.\}
 .sp
-\s-24.4 Berkeley Software Distribution\s+2
+\s-2 4.4 Berkeley Software Distribution\s+2
 .sp
 \fRJune, 1993\fR
 .PP
@@ -55,36 +59,60 @@ system operation, administration,  and maintenance.
 System Installation and Administration
 .IP
 .tl 'Installing and Operating 4.4BSD''SMM:1'
+.if \n(.U \{\
+.br
+.>> <a href="01.setup/paper.html">01.setup/paper.html</a>
+.\}
 .QP
 The definitive reference document for those occasions when
 you find you need to start over again.
 
 .IP
 .tl 'Building 4.4BSD Kernels with \fIConfig\fP''SMM:2'
+.if \n(.U \{\
+.br
+.>> <a href="02.config/paper.html">02.config/paper.html</a>
+.\}
 .QP
 In-depth discussions of the use and operation of the \fIconfig\fP
 program, and how to build your very own Unix kernel.
 
 .IP
 .tl 'Fsck \- The UNIX File System Check Program''SMM:3'
+.if \n(.U \{\
+.br
+.>> <a href="03.fsck/paper.html">03.fsck/paper.html</a>
+.\}
 .QP
 A reference document for using the \fIfsck\fP program during
 times of file system distress.
 
 .IP
 .tl 'Disc Quotas in a UNIX Environment''SMM:4'
+.if \n(.U \{\
+.br
+.>> <a href="04.quotas/paper.html">04.quotas/paper.html</a>
+.\}
 .QP
 A light introduction to the techniques
 for limiting the use of disc resources.
 
 .IP
 .tl 'A Fast File System for UNIX''SMM:5'
+.if \n(.U \{\
+.br
+.>> <a href="05.fastfs/paper.html">05.fastfs/paper.html</a>
+.\}
 .QP
 A description of the 4.4BSD file system organization,
 design and implementation.
 
 .IP
 .tl 'The 4.4BSD NFS Implementation''SMM:6'
+.if \n(.U \{\
+.br
+.>> <a href="06.nfs/paper.html">06.nfs/paper.html</a>
+.\}
 .QP
 An overview of the design, implementation, and use of NFS on 4.4BSD.
 
@@ -96,24 +124,40 @@ for the line printer spooling system.
 
 .IP
 .tl 'Sendmail Installation and Operation Guide''SMM:8'
+.if \n(.U \{\
+.br
+.>> <a href="08.sendmailop/paper.html">08.sendmailop/paper.html</a>
+.\}
 .QP
 The last word in installing and operating the \fIsendmail\fP program.
 
 .ne 3
 .IP
 .tl 'Name Server Operations Guide for BIND''SMM:10'
+.if \n(.U \{\
+.br
+.>> <a href="10.named/paper.html">10.named/paper.html</a>
+.\}
 .QP
 Setting up and operating the name to Internet addressing software.
 If you have a network this will be of interest.
 
 .IP
 .tl 'Timed Installation and Operation Guide''SMM:11'
+.if \n(.U \{\
+.br
+.>> <a href="11.timedop/paper.html">11.timedop/paper.html</a>
+.\}
 .QP
 Describes how to maintain time synchronization between machines
 in a local network.
 
 .IP
 .tl 'The Berkeley UNIX Time Synchronization Protocol''SMM:12'
+.if \n(.U \{\
+.br
+.>> <a href="12.timed/paper.html">12.timed/paper.html</a>
+.\}
 .QP
 The protocols and algorithms used by timed,
 the network time synchronization daemon.
@@ -146,6 +190,10 @@ they cannot now (at least not so easily).
 
 .IP
 .tl 'Networking Implementation Notes, 4.4BSD Edition''SMM:18'
+.if \n(.U \{\
+.br
+.>> <a href="18.net/paper.html">18.net/paper.html</a>
+.\}
 .QP
 A concise description of the system interfaces used within the
 networking subsystem.
