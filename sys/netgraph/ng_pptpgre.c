@@ -658,6 +658,7 @@ ng_pptpgre_start_recv_ack_timer(node_p node)
 static void
 ng_pptpgre_recv_ack_timeout(void *arg)
 {
+	int s = splnet();
 	const node_p node = arg;
 	const priv_p priv = node->private;
 	struct ng_pptpgre_ackp *const a = &priv->ackp;
@@ -676,6 +677,7 @@ ng_pptpgre_recv_ack_timeout(void *arg)
 	/* Restart timer if there are any more outstanding frames */
 	if (priv->recvAck != priv->xmitSeq)
 		ng_pptpgre_start_recv_ack_timer(node);
+	splx(s);
 }
 
 /*
@@ -687,6 +689,7 @@ ng_pptpgre_recv_ack_timeout(void *arg)
 static void
 ng_pptpgre_send_ack_timeout(void *arg)
 {
+	int s = splnet();
 	const node_p node = arg;
 	const priv_p priv = node->private;
 	struct ng_pptpgre_ackp *const a = &priv->ackp;
@@ -694,6 +697,7 @@ ng_pptpgre_send_ack_timeout(void *arg)
 	/* Send a frame with an ack but no payload */
 	a->sackTimerRunning = 0;
   	ng_pptpgre_xmit(node, NULL, NULL);
+	splx(s);
 }
 
 /*************************************************************************
