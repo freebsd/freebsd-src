@@ -120,6 +120,8 @@ static struct swblock **swhash;
 static int swhash_mask;
 static int swap_async_max = 4;	/* maximum in-progress async I/O's	*/
 
+static struct vnode *swapdev_vp; /* XXX: This is not quite a real vnode */
+
 SYSCTL_INT(_vm, OID_AUTO, swap_async_max,
         CTLFLAG_RW, &swap_async_max, 0, "Maximum running async swap ops");
 
@@ -326,6 +328,11 @@ swap_pager_swap_init()
 	bzero(swhash, sizeof(struct swblock *) * n);
 
 	swhash_mask = n - 1;
+
+	n = getnewvnode(VT_NON, NULL, spec_vnodeop_p, &swapdev_vp);
+	if (n)
+		panic("Cannot get vnode for swapdev");
+	swapdev_vp->v_type = VBLK;
 }
 
 /*
