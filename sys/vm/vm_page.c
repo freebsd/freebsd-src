@@ -575,6 +575,11 @@ vm_page_insert(vm_page_t m, vm_object_t object, vm_pindex_t pindex)
 	 * show that the object has one more resident page.
 	 */
 	object->resident_page_count++;
+	/*
+	 * Hold the vnode until the last page is released.
+	 */
+	if (object->resident_page_count == 1 && object->type == OBJT_VNODE)
+		vhold((struct vnode *)object->handle);
 
 	/*
 	 * Since we are inserting a new and possibly dirty page,
@@ -630,6 +635,11 @@ vm_page_remove(vm_page_t m)
 	 */
 	object->resident_page_count--;
 	object->generation++;
+	/*
+	 * The vnode may now be recycled.
+	 */
+	if (object->resident_page_count == 0 && object->type == OBJT_VNODE)
+		vdrop((struct vnode *)object->handle);
 
 	m->object = NULL;
 }
@@ -995,7 +1005,6 @@ void
 vm_page_free_toq(vm_page_t m)
 {
 	struct vpgqueues *pq;
-	vm_object_t object = m->object;
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	cnt.v_tfree++;
@@ -1037,24 +1046,6 @@ vm_page_free_toq(vm_page_t m)
 				m->wire_count, (long)m->pindex);
 		}
 		panic("vm_page_free: freeing wired page");
-	}
-
-	/*
-	 * If we've exhausted the object's resident pages we want to free
-	 * it up.
-	 */
-	if (object && 
-	    (object->type == OBJT_VNODE) &&
-	    ((object->flags & OBJ_DEAD) == 0)
-	) {
-		struct vnode *vp = (struct vnode *)object->handle;
-
-		if (vp) {
-			VI_LOCK(vp);
-			if (VSHOULDFREE(vp))
-				vfree(vp);
-			VI_UNLOCK(vp);
-		}
 	}
 
 	/*
