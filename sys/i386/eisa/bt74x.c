@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: bt74x.c,v 1.1 1995/12/12 08:47:11 gibbs Exp $
+ *	$Id: bt74x.c,v 1.2 1995/12/14 14:19:13 peter Exp $
  */
 
 #include "eisa.h"
@@ -37,9 +37,11 @@
 
 #define EISA_DEVICE_ID_BUSLOGIC_74X_B	0x0ab34201
 #define EISA_DEVICE_ID_BUSLOGIC_74X_C	0x0ab34202
+#define	EISA_DEVICE_ID_AMI_4801		0x05a94801
 
-#define BT_IOSIZE	0x04		/* Move to central header */
-#define BT_EISA_IOSIZE	0x100
+#define BT_IOSIZE		0x04		/* Move to central header */
+#define BT_EISA_IOSIZE		0x100
+#define	BT_EISA_SLOT_OFFSET	0xc00
 
 #define EISA_IOCONF			0x08C
 #define		PORTADDR		0x07
@@ -60,6 +62,33 @@
 #define EISA_IRQ_TYPE                   0x08D
 #define       LEVEL                     0x40
 
+/* Definitions for the AMI Series 48 controler */
+#define	AMI_EISA_IOSIZE			0x500	/* Two separate ranges?? */
+#define	AMI_EISA_SLOT_OFFSET		0x800
+#define	AMI_EISA_IOCONF			0x000
+#define		AMI_DMA_CHANNEL		0x03
+#define		AMI_IRQ_CHANNEL		0x1c
+#define			AMI_INT_15	0x14
+#define			AMI_INT_14	0x10
+#define			AMI_INT_12	0x0c
+#define			AMI_INT_11	0x00
+#define			AMI_INT_10	0x08
+#define			AMI_INT_9	0x04
+#define		AMI_BIOS_ADDR		0xe0
+
+#define	AMI_EISA_IOCONF1		0x001
+#define		AMI_PORTADDR		0x0e
+#define			AMI_PORT_334	0x08
+#define			AMI_PORT_330	0x00
+#define			AMI_PORT_234	0x0c
+#define			AMI_PORT_230	0x04
+#define			AMI_PORT_134	0x0a
+#define			AMI_PORT_130	0x02
+#define		AMI_IRQ_LEVEL		0x01
+
+
+#define	AMI_MISC2_OPTIONS		0x49E
+#define		AMI_ENABLE_ISA_DMA	0x08
 
 static int	bt_eisa_probe __P((void));
 static int	bt_eisa_attach __P((struct eisa_device *e_dev));
@@ -98,6 +127,9 @@ bt_match(type)
 		case EISA_DEVICE_ID_BUSLOGIC_74X_C:
 			return ("Buslogic 74xC SCSI host adapter");
 			break;
+		case EISA_DEVICE_ID_AMI_4801:
+			return ("AMI Series 48 SCSI host adapter");
+			break;
 		default:
 			break;
 	}
@@ -118,74 +150,146 @@ bt_eisa_probe(void)
 		u_char ioconf;
 		u_long port;
 		int irq;
-		iobase = e_dev->ioconf.iobase;
+		iobase = (e_dev->ioconf.slot * EISA_SLOT_SIZE); 
+		if(e_dev->id == EISA_DEVICE_ID_AMI_4801) {
+			u_char ioconf1;
+			iobase += AMI_EISA_SLOT_OFFSET;
 
-#ifdef MULTIPLE_IOSPACES
-		eisa_add_iospace(e_dev, iobase, BT_EISA_IOSIZE);
-#endif
+			eisa_add_iospace(e_dev, iobase, AMI_EISA_IOSIZE,
+					 RESVADDR_NONE);
 
-		ioconf = inb(iobase + EISA_IOCONF);
-		/* Determine "ISA" I/O port */
-		switch (ioconf & PORTADDR) {
-			case PORT_330:
-				port = 0x330;
-				break;
-			case PORT_334:
-				port = 0x334;
-				break;
-			case PORT_230:
-				port = 0x230;
-				break;
-			case PORT_234:
-				port = 0x234;
-				break;
-			case PORT_130:
-				port = 0x130;
-				break;
-			case PORT_134:
-				port = 0x134;
-				break;
-			default:
-				/* Disabled */
-				printf("bt: Buslogic EISA Adapter at slot %d "
-				       "has a disabled I/O port.  Cannot "
-				       "attach.\n", e_dev->ioconf.slot);
-				continue;
+			ioconf = inb(iobase + AMI_EISA_IOCONF);
+			ioconf1 = inb(iobase + AMI_EISA_IOCONF1);
+			/* Determine "ISA" I/O port */
+			switch (ioconf1 & AMI_PORTADDR) {
+				case AMI_PORT_330:
+					port = 0x330;
+					break;
+				case AMI_PORT_334:
+					port = 0x334;
+					break;
+				case AMI_PORT_230:
+					port = 0x230;
+					break;
+				case AMI_PORT_234:
+					port = 0x234;
+					break;
+				case AMI_PORT_134:
+					port = 0x134;
+					break;
+				case AMI_PORT_130:
+					port = 0x130;
+					break;
+				default:
+					/* Disabled */
+					printf("bt: AMI EISA Adapter at "
+					       "slot %d has a disabled I/O "
+					       "port.  Cannot attach.\n",
+					       e_dev->ioconf.slot);
+					continue;
+			}
+
+			eisa_add_iospace(e_dev, port, BT_IOSIZE, RESVADDR_NONE);
+
+			/* Determine our IRQ */
+			switch (ioconf & AMI_IRQ_CHANNEL) {
+				case AMI_INT_11:
+					irq = 11;
+					break;
+				case AMI_INT_10:
+					irq = 10;
+					break;
+				case AMI_INT_15:
+					irq = 15;
+					break;
+				case AMI_INT_12:
+					irq = 12;
+					break;
+				case AMI_INT_14:
+					irq = 14;
+					break;
+				case AMI_INT_9:
+					irq = 9;
+					break;
+				default:
+					/* Disabled */
+					printf("bt: AMI EISA Adapter at "
+					       "slot %d has its IRQ disabled. "
+					       "Cannot attach.\n", 
+						e_dev->ioconf.slot);
+					continue;
+			}
 		}
+		else {
+			iobase += BT_EISA_SLOT_OFFSET;
 
-		eisa_add_iospace(e_dev, port, BT_IOSIZE);
+			eisa_add_iospace(e_dev, iobase, BT_EISA_IOSIZE,
+					RESVADDR_NONE);
 
-		/* Determine our IRQ */
-		switch (ioconf & IRQ_CHANNEL) {
-			case INT_11:
-				irq = 11;
-				break;
-			case INT_10:
-				irq = 10;
-				break;
-			case INT_15:
-				irq = 15;
-				break;
-			case INT_12:
-				irq = 12;
-				break;
-			case INT_14:
-				irq = 14;
-				break;
-			case INT_9:
-				irq = 9;
-				break;
-			default:
-				/* Disabled */
-				printf("bt: Buslogic EISA Adapter at slot %d "
-				       "has its IRQ disabled.  Cannot "
-				       "attach.\n", e_dev->ioconf.slot);
-				continue;
+			ioconf = inb(iobase + EISA_IOCONF);
+			/* Determine "ISA" I/O port */
+			switch (ioconf & PORTADDR) {
+				case PORT_330:
+					port = 0x330;
+					break;
+				case PORT_334:
+					port = 0x334;
+					break;
+				case PORT_230:
+					port = 0x230;
+					break;
+				case PORT_234:
+					port = 0x234;
+					break;
+				case PORT_130:
+					port = 0x130;
+					break;
+				case PORT_134:
+					port = 0x134;
+					break;
+				default:
+					/* Disabled */
+					printf("bt: Buslogic EISA Adapter at "
+					       "slot %d has a disabled I/O "
+					       "port.  Cannot attach.\n",
+					       e_dev->ioconf.slot);
+					continue;
+			}
+			eisa_add_iospace(e_dev, port, BT_IOSIZE, RESVADDR_NONE);
+
+			/* Determine our IRQ */
+			switch (ioconf & IRQ_CHANNEL) {
+				case INT_11:
+					irq = 11;
+					break;
+				case INT_10:
+					irq = 10;
+					break;
+				case INT_15:
+					irq = 15;
+					break;
+				case INT_12:
+					irq = 12;
+					break;
+				case INT_14:
+					irq = 14;
+					break;
+				case INT_9:
+					irq = 9;
+					break;
+				default:
+					/* Disabled */
+					printf("bt: Buslogic EISA Adapter at "
+					       "slot %d has its IRQ disabled. "
+					       "Cannot attach.\n", 
+						e_dev->ioconf.slot);
+					continue;
+			}
+
 		}
-
 		eisa_add_intr(e_dev, irq);
-
 		eisa_registerdev(e_dev, &bt_eisa_driver, &kdc_eisa_bt);
+
 		count++;
 	}
 	return count;
@@ -198,27 +302,41 @@ bt_eisa_attach(e_dev)
 	struct bt_data *bt;
 	int unit = e_dev->unit;
 	int irq = ffs(e_dev->ioconf.irq) - 1;
-#ifdef MULTIPLE_IOADDR
-	u_char level_intr = inb((e_dev->ioconf.iobase[1]) + EISA_IRQ_TYPE)
-				& LEVEL;
-#else
-	u_char level_intr = inb((e_dev->ioconf.slot * 0x1c00) + EISA_IRQ_TYPE)
-				& LEVEL;
-#endif
+	resvaddr_t *ioport;
+	resvaddr_t *eisa_ioport;
+	u_char level_intr;
+
+	/*
+	 * The addresses are sorted in increasing order
+	 * so we know the port to pass to the core bt
+	 * driver comes first.
+	 */
+	ioport = e_dev->ioconf.ioaddrs.lh_first;
+
+	if(!ioport)
+		return -1;
+
+	eisa_ioport = ioport->links.le_next;
+
+	if(!eisa_ioport)
+		return -1;
+
+	if(e_dev->id == EISA_DEVICE_ID_AMI_4801)
+		level_intr = inb(eisa_ioport->addr + AMI_EISA_IOCONF1)
+				& AMI_IRQ_LEVEL;
+	else
+		level_intr = inb(eisa_ioport->addr + EISA_IRQ_TYPE)
+                                & LEVEL;
 
 	eisa_reg_start(e_dev);
-	if(eisa_reg_iospace(e_dev, e_dev->ioconf.iobase, BT_IOSIZE)) {
+	if(eisa_reg_iospace(e_dev, ioport))
 		return -1;
-	}
 
-#ifdef MULTIPLE_IOADDR
-	/* Almost like this.  Will depend on the definition of iobase */
-	if(eisa_reg_iospace(e_dev, e_dev->ioconf.iobase[1], BT_EISA_IOSIZE)) {
+	if(eisa_reg_iospace(e_dev, eisa_ioport))
 		return -1;
-#endif
-	if(!(bt = bt_alloc(unit, e_dev->ioconf.iobase))) {
+
+	if(!(bt = bt_alloc(unit, ioport->addr)))
 		return -1;
-	}
 
 	if(eisa_reg_intr(e_dev, irq, bt_intr, (void *)bt, &bio_imask,
 			 /*shared ==*/level_intr)) {
