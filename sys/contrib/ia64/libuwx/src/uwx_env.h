@@ -39,7 +39,7 @@ struct uwx_scoreboard;
 
 #define NSCOREBOARDS	8	/* Initial allocation of scoreboards */
 
-#define NSPECIALREG	14
+#define NSPECIALREG	16	/* Must be even, so FRs are aligned */
 #define NPRESERVEDGR	4
 #define NPRESERVEDBR	5
 #define NPRESERVEDFR	20
@@ -61,7 +61,8 @@ struct uwx_context {
 #define VALID_GR_SHIFT	NSPECIALREG
 #define VALID_BR_SHIFT	(NSPECIALREG + NPRESERVEDGR)
 
-#define VALID_BASIC4	0x0f	/* IP, SP, BSP, PFS */
+#define VALID_BASIC4	0x0f	/* IP, SP, BSP, CFM */
+#define VALID_MARKERS	0x70	/* RP, PSP, PFS */
 
 struct uwx_history {
     uint64_t special[NSPECIALREG];
