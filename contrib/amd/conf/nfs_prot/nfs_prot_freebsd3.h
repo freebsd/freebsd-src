@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Erez Zadok
+ * Copyright (c) 1997-2001 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: nfs_prot_freebsd3.h,v 1.4 1999/03/30 17:22:54 ezk Exp $
+ * $Id: nfs_prot_freebsd3.h,v 1.5.2.1 2001/01/10 03:23:22 ezk Exp $
  * $FreeBSD$
  *
  */
@@ -171,7 +171,7 @@ typedef writeargs nfswriteargs;
 #ifdef NFSMNT_NFSV3
 
 # define MOUNT_NFS3 MOUNT_NFS
-# define MNTOPT_NFS3 "nfs"
+# define MNTOPT_NFS3	"nfs"
 
 /*
  * as of 3.0-RELEASE the nfs_fh3 that is defined in the system headers
