@@ -79,7 +79,7 @@ static struct	ip6q ip6q;	/* ip6 reassemble queue */
 #define	IP6Q_LOCK_INIT()	mtx_init(&ip6qlock, "ip6qlock", NULL, MTX_DEF);
 #define	IP6Q_LOCK()		mtx_lock(&ip6qlock)
 #define	IP6Q_TRYLOCK()		mtx_trylock(&ip6qlock)
-#define	IP6Q_LOCK_CHECK()	mtx_assert(&ip6qlock, MA_OWNED)
+#define	IP6Q_LOCK_ASSERT()	mtx_assert(&ip6qlock, MA_OWNED)
 #define	IP6Q_UNLOCK()		mtx_unlock(&ip6qlock)
 
 static MALLOC_DEFINE(M_FTABLE, "fragment", "fragment reassembly header");
@@ -575,7 +575,7 @@ frag6_freef(q6)
 {
 	struct ip6asfrag *af6, *down6;
 
-	IP6Q_LOCK_CHECK();
+	IP6Q_LOCK_ASSERT();
 
 	for (af6 = q6->ip6q_down; af6 != (struct ip6asfrag *)q6;
 	     af6 = down6) {
@@ -619,7 +619,7 @@ frag6_enq(af6, up6)
 	struct ip6asfrag *af6, *up6;
 {
 
-	IP6Q_LOCK_CHECK();
+	IP6Q_LOCK_ASSERT();
 
 	af6->ip6af_up = up6;
 	af6->ip6af_down = up6->ip6af_down;
@@ -635,7 +635,7 @@ frag6_deq(af6)
 	struct ip6asfrag *af6;
 {
 
-	IP6Q_LOCK_CHECK();
+	IP6Q_LOCK_ASSERT();
 
 	af6->ip6af_up->ip6af_down = af6->ip6af_down;
 	af6->ip6af_down->ip6af_up = af6->ip6af_up;
@@ -646,7 +646,7 @@ frag6_insque(new, old)
 	struct ip6q *new, *old;
 {
 
-	IP6Q_LOCK_CHECK();
+	IP6Q_LOCK_ASSERT();
 
 	new->ip6q_prev = old;
 	new->ip6q_next = old->ip6q_next;
@@ -659,7 +659,7 @@ frag6_remque(p6)
 	struct ip6q *p6;
 {
 
-	IP6Q_LOCK_CHECK();
+	IP6Q_LOCK_ASSERT();
 
 	p6->ip6q_prev->ip6q_next = p6->ip6q_next;
 	p6->ip6q_next->ip6q_prev = p6->ip6q_prev;
