@@ -6,7 +6,7 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer 
+ *    notice, this list of conditions and the following disclaimer
  *    in this position and unchanged.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: star_saver.c,v 1.1 1995/02/22 13:47:36 sos Exp $
+ *	$Id: star_saver.c,v 1.2 1995/03/30 15:10:03 sos Exp $
  */
 
 #include <sys/param.h>
@@ -48,31 +48,31 @@ void (*old_saver)();
  * Alternate saver that got its inspiration from a well known utility
  * package for an inferior^H^H^H^H^H^Hfamous OS.
  */
-void 
+void
 star_saver(int blank)
 {
 	scr_stat	*scp = cur_console;
 	int		cell, i;
 	char 		pattern[] = {"...........++++***   "};
-	char		colors[] = {FG_DARKGREY, FG_LIGHTGREY, 
+	char		colors[] = {FG_DARKGREY, FG_LIGHTGREY,
 				    FG_WHITE, FG_LIGHTCYAN};
 	static u_short 	stars[NUM_STARS][2];
- 
+
 	if (blank) {
 		if (!scrn_blanked) {
 			scrn_blanked = 1;
-			fillw((FG_LIGHTGREY|BG_BLACK)<<8|scr_map[0x20], Crtat, 
+			fillw((FG_LIGHTGREY|BG_BLACK)<<8|scr_map[0x20], Crtat,
 			      scp->xsize * scp->ysize);
 			set_border(0);
 			for(i=0; i<NUM_STARS; i++) {
-				stars[i][0] = 
+				stars[i][0] =
 					random() % (scp->xsize*scp->ysize);
 				stars[i][1] = 0;
 			}
 		}
 		cell = random() % NUM_STARS;
-		*((u_short*)(Crtat + stars[cell][0])) = 
-			scr_map[pattern[stars[cell][1]]] | 
+		*((u_short*)(Crtat + stars[cell][0])) =
+			scr_map[pattern[stars[cell][1]]] |
 				colors[random()%sizeof(colors)] << 8;
 		if ((stars[cell][1]+=(random()%4)) >= sizeof(pattern)-1) {
 			stars[cell][0] = random() % (scp->xsize*scp->ysize);

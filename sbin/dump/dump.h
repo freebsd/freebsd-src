@@ -108,7 +108,7 @@ int	mapdirs __P((ino_t maxino, long *tapesize));
 
 /* file dumping routines */
 void	blksout __P((daddr_t *blkp, int frags, ino_t ino));
-void	bread __P((daddr_t blkno, char *buf, int size));	
+void	bread __P((daddr_t blkno, char *buf, int size));
 void	dumpino __P((struct dinode *dp, ino_t ino));
 void	dumpmap __P((char *map, int type, ino_t ino));
 void	writeheader __P((ino_t ino));

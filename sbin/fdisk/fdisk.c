@@ -1,25 +1,25 @@
-/* 
+/*
  * Mach Operating System
  * Copyright (c) 1992 Carnegie Mellon University
  * All Rights Reserved.
- * 
+ *
  * Permission to use, copy, modify and distribute this software and its
  * documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
+ *
  * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
  * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND FOR
  * ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
- * 
+ *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
  *  School of Computer Science
  *  Carnegie Mellon University
  *  Pittsburgh PA 15213-3890
- * 
+ *
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
  */
@@ -89,37 +89,37 @@ static int i_flag  = 0;		/* replace partition data */
 static int u_flag  = 0;		/* update partition data */
 
 static unsigned char bootcode[] = {
-0x33, 0xc0, 0xfa, 0x8e, 0xd0, 0xbc, 0x00, 0x7c, 0x8e, 0xc0, 0x8e, 0xd8, 0xfb, 0x8b, 0xf4, 0xbf, 
-0x00, 0x06, 0xb9, 0x00, 0x02, 0xfc, 0xf3, 0xa4, 0xea, 0x1d, 0x06, 0x00, 0x00, 0xb0, 0x04, 0xbe, 
-0xbe, 0x07, 0x80, 0x3c, 0x80, 0x74, 0x0c, 0x83, 0xc6, 0x10, 0xfe, 0xc8, 0x75, 0xf4, 0xbe, 0xbd, 
-0x06, 0xeb, 0x43, 0x8b, 0xfe, 0x8b, 0x14, 0x8b, 0x4c, 0x02, 0x83, 0xc6, 0x10, 0xfe, 0xc8, 0x74, 
-0x0a, 0x80, 0x3c, 0x80, 0x75, 0xf4, 0xbe, 0xbd, 0x06, 0xeb, 0x2b, 0xbd, 0x05, 0x00, 0xbb, 0x00, 
-0x7c, 0xb8, 0x01, 0x02, 0xcd, 0x13, 0x73, 0x0c, 0x33, 0xc0, 0xcd, 0x13, 0x4d, 0x75, 0xef, 0xbe, 
-0x9e, 0x06, 0xeb, 0x12, 0x81, 0x3e, 0xfe, 0x7d, 0x55, 0xaa, 0x75, 0x07, 0x8b, 0xf7, 0xea, 0x00, 
-0x7c, 0x00, 0x00, 0xbe, 0x85, 0x06, 0x2e, 0xac, 0x0a, 0xc0, 0x74, 0x06, 0xb4, 0x0e, 0xcd, 0x10, 
+0x33, 0xc0, 0xfa, 0x8e, 0xd0, 0xbc, 0x00, 0x7c, 0x8e, 0xc0, 0x8e, 0xd8, 0xfb, 0x8b, 0xf4, 0xbf,
+0x00, 0x06, 0xb9, 0x00, 0x02, 0xfc, 0xf3, 0xa4, 0xea, 0x1d, 0x06, 0x00, 0x00, 0xb0, 0x04, 0xbe,
+0xbe, 0x07, 0x80, 0x3c, 0x80, 0x74, 0x0c, 0x83, 0xc6, 0x10, 0xfe, 0xc8, 0x75, 0xf4, 0xbe, 0xbd,
+0x06, 0xeb, 0x43, 0x8b, 0xfe, 0x8b, 0x14, 0x8b, 0x4c, 0x02, 0x83, 0xc6, 0x10, 0xfe, 0xc8, 0x74,
+0x0a, 0x80, 0x3c, 0x80, 0x75, 0xf4, 0xbe, 0xbd, 0x06, 0xeb, 0x2b, 0xbd, 0x05, 0x00, 0xbb, 0x00,
+0x7c, 0xb8, 0x01, 0x02, 0xcd, 0x13, 0x73, 0x0c, 0x33, 0xc0, 0xcd, 0x13, 0x4d, 0x75, 0xef, 0xbe,
+0x9e, 0x06, 0xeb, 0x12, 0x81, 0x3e, 0xfe, 0x7d, 0x55, 0xaa, 0x75, 0x07, 0x8b, 0xf7, 0xea, 0x00,
+0x7c, 0x00, 0x00, 0xbe, 0x85, 0x06, 0x2e, 0xac, 0x0a, 0xc0, 0x74, 0x06, 0xb4, 0x0e, 0xcd, 0x10,
 0xeb, 0xf4, 0xfb, 0xeb, 0xfe,
 'M', 'i', 's', 's', 'i', 'n', 'g', ' ',
 	'o', 'p', 'e', 'r', 'a', 't', 'i', 'n', 'g', ' ', 's', 'y', 's', 't', 'e', 'm', 0,
-'E', 'r', 'r', 'o', 'r', ' ', 'l', 'o', 'a', 'd', 'i', 'n', 'g', ' ', 
+'E', 'r', 'r', 'o', 'r', ' ', 'l', 'o', 'a', 'd', 'i', 'n', 'g', ' ',
 	'o', 'p', 'e', 'r', 'a', 't', 'i', 'n', 'g', ' ', 's', 'y', 's', 't', 'e', 'm', 0,
 'I', 'n', 'v', 'a', 'l', 'i', 'd', ' ',
 	'p', 'a', 'r', 't', 'i', 't', 'i', 'o', 'n', ' ', 't', 'a', 'b', 'l', 'e', 0,
 'A', 'u', 't', 'h', 'o', 'r', ' ', '-', ' ',
-	'S', 'i', 'e', 'g', 'm', 'a', 'r', ' ', 'S', 'c', 'h', 'm', 'i', 'd', 't', 0,0,0, 
+	'S', 'i', 'e', 'g', 'm', 'a', 'r', ' ', 'S', 'c', 'h', 'm', 'i', 'd', 't', 0,0,0,
 
-  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 
-  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 
-  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 
-  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 
-  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 
-  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 
-  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 
-  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 
-  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 
-  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 
-  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 
-  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 
-  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0 
+  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0
 };
 
 struct part_type
@@ -128,46 +128,46 @@ struct part_type
  char *name;
 }part_types[] =
 {
-	 {0x00, "unused"}   
-	,{0x01, "Primary DOS with 12 bit FAT"}   
-	,{0x02, "XENIX / filesystem"}  
-	,{0x03, "XENIX /usr filesystem"}  
-	,{0x04, "Primary DOS with 16 bit FAT"}   
-	,{0x05, "Extended DOS"}   
-	,{0x06, "Primary 'big' DOS (> 32MB)"}   
-	,{0x07, "OS/2 HPFS, QNX or Advanced UNIX"}  
-	,{0x08, "AIX filesystem"}   
-	,{0x09, "AIX boot partition or Coherent"}  
-	,{0x0A, "OS/2 Boot Manager or OPUS"}  
-	,{0x10, "OPUS"}   
-	,{0x40, "VENIX 286"}  
-	,{0x50, "DM"}   
-	,{0x51, "DM"}   
-	,{0x52, "CP/M or Microport SysV/AT"}  
-	,{0x56, "GB"}   
-	,{0x61, "Speed"}   
-	,{0x63, "ISC UNIX, other System V/386, GNU HURD or Mach"}  
-	,{0x64, "Novell Netware 2.xx"}      
-	,{0x65, "Novell Netware 3.xx"} 
-	,{0x75, "PCIX"}  
-	,{0x80, "Minix 1.1 ... 1.4a"} 
-	,{0x81, "Minix 1.4b ... 1.5.10"}   
-	,{0x82, "Linux swap"}   
-	,{0x83, "Linux filesystem"}   
-	,{0x93, "Amoeba filesystem"} 
-	,{0x94, "Amoeba bad block table"} 
-	,{0xA5, "FreeBSD/NetBSD/386BSD"} 
+	 {0x00, "unused"}
+	,{0x01, "Primary DOS with 12 bit FAT"}
+	,{0x02, "XENIX / filesystem"}
+	,{0x03, "XENIX /usr filesystem"}
+	,{0x04, "Primary DOS with 16 bit FAT"}
+	,{0x05, "Extended DOS"}
+	,{0x06, "Primary 'big' DOS (> 32MB)"}
+	,{0x07, "OS/2 HPFS, QNX or Advanced UNIX"}
+	,{0x08, "AIX filesystem"}
+	,{0x09, "AIX boot partition or Coherent"}
+	,{0x0A, "OS/2 Boot Manager or OPUS"}
+	,{0x10, "OPUS"}
+	,{0x40, "VENIX 286"}
+	,{0x50, "DM"}
+	,{0x51, "DM"}
+	,{0x52, "CP/M or Microport SysV/AT"}
+	,{0x56, "GB"}
+	,{0x61, "Speed"}
+	,{0x63, "ISC UNIX, other System V/386, GNU HURD or Mach"}
+	,{0x64, "Novell Netware 2.xx"}
+	,{0x65, "Novell Netware 3.xx"}
+	,{0x75, "PCIX"}
+	,{0x80, "Minix 1.1 ... 1.4a"}
+	,{0x81, "Minix 1.4b ... 1.5.10"}
+	,{0x82, "Linux swap"}
+	,{0x83, "Linux filesystem"}
+	,{0x93, "Amoeba filesystem"}
+	,{0x94, "Amoeba bad block table"}
+	,{0xA5, "FreeBSD/NetBSD/386BSD"}
 	,{0xA7, "NEXTSTEP"}
-	,{0xB7, "BSDI BSD/386 filesystem"} 
-	,{0xB8, "BSDI BSD/386 swap"} 
-	,{0xDB, "Concurrent CPM or C.DOS or CTOS"}  
-	,{0xE1, "Speed"}   
-	,{0xE3, "Speed"}   
-	,{0xE4, "Speed"}   
-	,{0xF1, "Speed"}   
-	,{0xF2, "DOS 3.3+ Secondary"}   
-	,{0xF4, "Speed"}   
-	,{0xFF, "BBT (Bad Blocks Table)"}  
+	,{0xB7, "BSDI BSD/386 filesystem"}
+	,{0xB8, "BSDI BSD/386 swap"}
+	,{0xDB, "Concurrent CPM or C.DOS or CTOS"}
+	,{0xE1, "Speed"}
+	,{0xE3, "Speed"}
+	,{0xE4, "Speed"}
+	,{0xF1, "Speed"}
+	,{0xF2, "DOS 3.3+ Secondary"}
+	,{0xF4, "Speed"}
+	,{0xFF, "BBT (Bad Blocks Table)"}
 };
 
 
@@ -216,7 +216,7 @@ int	i;
 
 	if (argc > 0)
 		disk = argv[0];
-	
+
 	if (open_disk(u_flag) < 0)
 		exit(1);
 
@@ -302,7 +302,7 @@ struct dos_partition *partp = (struct dos_partition *) (&mboot.parts[3]);
 int size = disksecs - start;
 int rest;
 
-	memcpy(mboot.bootinst, bootcode, sizeof(bootcode)); 
+	memcpy(mboot.bootinst, bootcode, sizeof(bootcode));
 	mboot.signature = BOOT_MAGIC;
 
 	partp->dp_typ = DOSPTYP_386BSD;
@@ -366,7 +366,7 @@ struct dos_partition *partp = ((struct dos_partition *) &mboot.parts) + i;
 			dos(partp->dp_start+partp->dp_size - 1,
 				&partp->dp_ecyl, &partp->dp_esect, &partp->dp_ehd);
 		}
-	    
+
 		print_part(i);
 	} while (!ok("Are we happy with this entry?"));
     }
@@ -456,7 +456,7 @@ open_disk(u_flag)
 {
 struct stat 	st;
 
-	if (stat(disk, &st) == -1) {		
+	if (stat(disk, &st) == -1) {
 		fprintf(stderr, "%s: Can't get file status of %s\n",
 			name, disk);
 		return -1;
@@ -516,7 +516,7 @@ get_params(verbose)
 
 read_s0()
 {
-	if (read_disk(0, (char *) mboot.bootinst) == -1) { 
+	if (read_disk(0, (char *) mboot.bootinst) == -1) {
 		fprintf(stderr, "%s: Can't read fdisk partition table\n", name);
 		return -1;
 	}
@@ -545,7 +545,7 @@ write_s0()
 	flag = 1;
 	if (ioctl(fd, DIOCWLABEL, &flag) < 0)
 		perror("ioctl DIOCWLABEL");
-	if (write_disk(0, (char *) mboot.bootinst) == -1) { 
+	if (write_disk(0, (char *) mboot.bootinst) == -1) {
 		fprintf(stderr, "%s: Can't write fdisk partition table\n",
 			name);
 		return -1;
@@ -687,7 +687,7 @@ int	type;
 	int	counter = 0;
 	struct	part_type *ptr = part_types;
 
-	
+
 	while(counter < numentries)
 	{
 		if(ptr->type == type)

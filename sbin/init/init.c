@@ -678,14 +678,14 @@ single_user()
 		return (state_func_t) requested_transition;
 
 	if (!WIFEXITED(status)) {
-		if (WTERMSIG(status) == SIGKILL) { 
-			/* 
-			 *  reboot(8) killed shell? 
+		if (WTERMSIG(status) == SIGKILL) {
+			/*
+			 *  reboot(8) killed shell?
 			 */
 			warning("single user shell terminated.");
 			sleep(STALL_TIMEOUT);
 			_exit(0);
-		} else {	
+		} else {
 			warning("single user shell terminated, restarting");
 			return (state_func_t) single_user;
 		}
@@ -797,7 +797,7 @@ start_session_db()
 		return (1);
 	}
 	return (0);
-		
+
 }
 
 /*
@@ -1215,7 +1215,7 @@ multi_user()
 	/*
 	 * If the administrator has not set the security level to -1
 	 * to indicate that the kernel should not run multiuser in secure
-	 * mode, and the run script has not set a higher level of security 
+	 * mode, and the run script has not set a higher level of security
 	 * than level 1, then put the kernel into secure mode.
 	 */
 	if (getsecuritylevel() == 0)
@@ -1391,7 +1391,7 @@ strk (char *p)
 	return 0;
 
     c = *t;
-    while (c == ' ' || c == '\t' ) 
+    while (c == ' ' || c == '\t' )
 	c = *++t;
     if (!c) {
 	t = 0;
@@ -1401,7 +1401,7 @@ strk (char *p)
     if (c == '\'') {
 	c = *++t;
 	q = t;
-	while (c && c != '\'') 
+	while (c && c != '\'')
 	    c = *++t;
 	if (!c)  /* unterminated string */
 	    q = t = 0;
@@ -1411,7 +1411,7 @@ strk (char *p)
 	while (c && c != ' ' && c != '\t' )
 	    c = *++t;
 	*t++ = 0;
-	if (!c) 
+	if (!c)
 	    t = 0;
     }
     return q;

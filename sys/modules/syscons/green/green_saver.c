@@ -6,7 +6,7 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer 
+ *    notice, this list of conditions and the following disclaimer
  *    in this position and unchanged.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: green_saver.c,v 1.1 1995/02/22 13:47:14 sos Exp $
  */
 
 #include <sys/param.h>
@@ -42,19 +42,19 @@ MOD_MISC("green_saver")
 void (*current_saver)();
 void (*old_saver)();
 
-static void 
+static void
 green_saver(int blank)
 {
 	u_char val;
 	if (blank) {
 		scrn_blanked = 1;
-		outb(TSIDX, 0x01); val = inb(TSREG); 
+		outb(TSIDX, 0x01); val = inb(TSREG);
 		outb(TSIDX, 0x01); outb(TSREG, val | 0x20);
 		outb(crtc_addr, 0x17); val = inb(crtc_addr + 1);
 		outb(crtc_addr + 1, val & ~0x80);
 	}
 	else {
-		outb(TSIDX, 0x01); val = inb(TSREG); 
+		outb(TSIDX, 0x01); val = inb(TSREG);
 		outb(TSIDX, 0x01); outb(TSREG, val & 0xDF);
 		outb(crtc_addr, 0x17); val = inb(crtc_addr + 1);
 		outb(crtc_addr + 1, val | 0x80);

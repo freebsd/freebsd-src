@@ -705,7 +705,7 @@ display(f, lp)
 
 			case FS_BSDLFS:
 				fprintf(f, "    %5d %5d %5d",
-				    pp->p_fsize, pp->p_fsize * pp->p_frag, 
+				    pp->p_fsize, pp->p_fsize * pp->p_frag,
 				    pp->p_cpg);
 				break;
 
@@ -720,7 +720,7 @@ display(f, lp)
 			else
 			    putc(' ', f);
 			fprintf(f, "- %d",
-			    (pp->p_offset + 
+			    (pp->p_offset +
 			    pp->p_size + lp->d_secpercyl - 1) /
 			    lp->d_secpercyl - 1);
 			if (pp->p_size % lp->d_secpercyl)

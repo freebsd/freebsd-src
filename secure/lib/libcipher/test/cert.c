@@ -3,7 +3,7 @@
  * shipped with UFC-crypt which is apparently derived from one distributed
  * with Phil Karns PD DES package.
  *
- * $Id: cert.c,v 1.1 1994/09/07 08:55:26 g89r4222 Exp $
+ * $Id: cert.c,v 1.1.1.1 1994/09/07 21:18:08 csgr Exp $
  */
 
 #include <stdio.h>
@@ -40,7 +40,7 @@ static struct crypt_test crypt16_tests[] = {
 };
 
 
-void good_bye() 
+void good_bye()
 {
   if(totfails == 0) {
     printf(" Passed validation\n");
@@ -59,7 +59,7 @@ char *cp;
 
 	for(i = 0; i < 8; i++){
 		t = 0;
-		for(j = 0; j < 8; j++) 
+		for(j = 0; j < 8; j++)
 			t = t << 1 | *cp++;
 		printf("%02x", t);
 	}

@@ -304,7 +304,7 @@ rsaencpwd_is(ap, data, cnt)
 		  Data(ap, RSA_ENCPWD_CHALLENGEKEY, (void *)chalkey, chalkey_len);
 		}
 		break;
-		
+
 	default:
 		Data(ap, RSA_ENCPWD_REJECT, 0, 0);
 		break;

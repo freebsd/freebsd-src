@@ -223,7 +223,7 @@ TerminalSpecialChars(c)
 /*
  * Flush output to the terminal
  */
- 
+
     void
 TerminalFlushOutput()
 {
@@ -946,7 +946,7 @@ process_rings(netin, netout, netex, ttyin, ttyout, poll)
 
     if (netout) {
 	FD_SET(net, &obits);
-    } 
+    }
     if (ttyout) {
 	FD_SET(tout, &obits);
     }

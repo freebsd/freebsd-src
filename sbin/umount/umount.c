@@ -121,7 +121,7 @@ main(argc, argv)
 	/* -h implies "-t nfs" if no -t flag. */
 	if ((nfshost != NULL) && (typelist == NULL))
 		maketypelist("nfs");
-		
+
 	if (all) {
 		if (setfsent() == 0)
 			err(1, "%s", _PATH_FSTAB);
@@ -159,7 +159,7 @@ umountall()
 		if (!selected(type))
 			continue;
 
-		/* 
+		/*
 		 * We want to unmount the file systems in the reverse order
 		 * that they were mounted.  So, we save off the file name
 		 * in some allocated memory, and then call recursively.

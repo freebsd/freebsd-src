@@ -366,7 +366,7 @@ removeentry(ep)
 
 /*
  * Table of unused string entries, sorted by length.
- * 
+ *
  * Entries are allocated in STRTBLINCR sized pieces so that names
  * of similar lengths can use the same entry. The value of STRTBLINCR
  * is chosen so that every entry has at least enough space to hold
@@ -422,7 +422,7 @@ freename(name)
 	char *name;
 {
 	struct strhdr *tp, *np;
-	
+
 	tp = &strtblhdr[strlen(name) / STRTBLINCR];
 	np = (struct strhdr *)name;
 	np->next = tp->next;
