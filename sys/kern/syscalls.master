@@ -342,7 +342,7 @@
 221	STD	BSD	{ int semget(key_t key, int nsems, int semflg); }
 222	STD	BSD	{ int semop(int semid, struct sembuf *sops, \
 			    u_int nsops); }
-223	STD	BSD	{ int semconfig(int flag); }
+223	UNIMPL	NOHIDE	semconfig
 224	STD	BSD	{ int msgctl(int msqid, int cmd, \
 			    struct msqid_ds *buf); }
 225	STD	BSD	{ int msgget(key_t key, int msgflg); }

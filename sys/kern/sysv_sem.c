@@ -26,8 +26,6 @@ struct semget_args;
 int semget __P((struct proc *p, struct semget_args *uap));
 struct semop_args;
 int semop __P((struct proc *p, struct semop_args *uap));
-struct semconfig_args;
-int semconfig __P((struct proc *p, struct semconfig_args *uap));
 #endif
 
 static struct sem_undo *semu_alloc __P((struct proc *p));
@@ -38,7 +36,7 @@ static void semundo_clear __P((int semid, int semnum));
 /* XXX casting to (sy_call_t *) is bogus, as usual. */
 static sy_call_t *semcalls[] = {
 	(sy_call_t *)__semctl, (sy_call_t *)semget,
-	(sy_call_t *)semop, (sy_call_t *)semconfig
+	(sy_call_t *)semop
 };
 
 static int	semtot = 0;
@@ -46,8 +44,6 @@ struct semid_ds *sema;		/* semaphore id pool */
 struct sem *sem;		/* semaphore pool */
 static struct sem_undo *semu_list; 	/* list of active undo structures */
 int	*semu;			/* undo structure pool */
-
-static struct proc *semlock_holder = NULL;
 
 void
 seminit(dummy)
@@ -87,61 +83,9 @@ semsys(p, uap)
 	} */ *uap;
 {
 
-	while (semlock_holder != NULL && semlock_holder != p)
-		(void) tsleep((caddr_t)&semlock_holder, (PZERO - 4), "semsys", 0);
-
 	if (uap->which >= sizeof(semcalls)/sizeof(semcalls[0]))
 		return (EINVAL);
 	return ((*semcalls[uap->which])(p, &uap->a2));
-}
-
-/*
- * Lock or unlock the entire semaphore facility.
- *
- * This will probably eventually evolve into a general purpose semaphore
- * facility status enquiry mechanism (I don't like the "read /dev/kmem"
- * approach currently taken by ipcs and the amount of info that we want
- * to be able to extract for ipcs is probably beyond what the capability
- * of the getkerninfo facility.
- *
- * At the time that the current version of semconfig was written, ipcs is
- * the only user of the semconfig facility.  It uses it to ensure that the
- * semaphore facility data structures remain static while it fishes around
- * in /dev/kmem.
- */
-
-#ifndef _SYS_SYSPROTO_H_
-struct semconfig_args {
-	semconfig_ctl_t	flag;
-};
-#endif
-
-int
-semconfig(p, uap)
-	struct proc *p;
-	struct semconfig_args *uap;
-{
-	int eval = 0;
-
-	switch (uap->flag) {
-	case SEM_CONFIG_FREEZE:
-		semlock_holder = p;
-		break;
-
-	case SEM_CONFIG_THAW:
-		semlock_holder = NULL;
-		wakeup((caddr_t)&semlock_holder);
-		break;
-
-	default:
-		printf("semconfig: unknown flag parameter value (%d) - ignored\n",
-		    uap->flag);
-		eval = EINVAL;
-		break;
-	}
-
-	p->p_retval[0] = 0;
-	return(eval);
 }
 
 /*
@@ -878,17 +822,6 @@ semexit(p)
 	register struct sem_undo **supptr;
 	int did_something;
 
-	/*
-	 * If somebody else is holding the global semaphore facility lock
-	 * then sleep until it is released.
-	 */
-	while (semlock_holder != NULL && semlock_holder != p) {
-#ifdef SEM_DEBUG
-		printf("semaphore facility locked - sleeping ...\n");
-#endif
-		(void) tsleep((caddr_t)&semlock_holder, (PZERO - 4), "semext", 0);
-	}
-
 	did_something = 0;
 
 	/*
@@ -903,7 +836,7 @@ semexit(p)
 	}
 
 	if (suptr == NULL)
-		goto unlock;
+		return;
 
 #ifdef SEM_DEBUG
 	printf("proc @%08x has undo structure with %d entries\n", p,
@@ -964,14 +897,4 @@ semexit(p)
 #endif
 	suptr->un_proc = NULL;
 	*supptr = suptr->un_next;
-
-unlock:
-	/*
-	 * If the exiting process is holding the global semaphore facility
-	 * lock then release it.
-	 */
-	if (semlock_holder == p) {
-		semlock_holder = NULL;
-		wakeup((caddr_t)&semlock_holder);
-	}
 }
