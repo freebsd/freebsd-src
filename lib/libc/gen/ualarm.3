@@ -29,7 +29,8 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)ualarm.3	8.2 (Berkeley) 4/19/94
+.\"     From: @(#)ualarm.3	8.2 (Berkeley) 4/19/94
+.\"     $Id$
 .\"
 .Dd April 19, 1994
 .Dt UALARM 3
@@ -68,7 +69,7 @@ microseconds after the timer expires (e.g. after
 microseconds have passed).
 .Sh RETURN VALUES
 When the signal has successfully been caught,
-.Fn alarm
+.Fn ualarm
 returns the amount of time left on the clock.
 The maximum number of
 .Ar microseconds
