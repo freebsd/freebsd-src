@@ -17,12 +17,13 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.19 1997/06/14 00:21:23 ache Exp $
+ * $Id: chap.c,v 1.7.2.8 1997/08/25 00:34:21 brian Exp $
  *
  *	TODO:
  */
 #include <sys/types.h>
 #include <time.h>
+#include <utmp.h>
 #include "fsm.h"
 #include "chap.h"
 #include "lcpproto.h"
@@ -32,6 +33,11 @@
 #include "loadalias.h"
 #include "vars.h"
 #include "auth.h"
+#ifdef __OpenBSD__
+#include "util.h"
+#else
+#include "libutil.h"
+#endif
 
 static char *chapcodes[] = {
   "???", "CHALLENGE", "RESPONSE", "SUCCESS", "FAILURE"
@@ -166,7 +172,22 @@ RecvChapTalk(struct fsmheader * chp, struct mbuf * bp)
        * Compare with the response
        */
       if (bcmp(cp, cdigest, 16) == 0) {
-	ChapOutput(CHAP_SUCCESS, chp->id, "Wellcome!!", 10);
+	ChapOutput(CHAP_SUCCESS, chp->id, "Welcome!!", 10);
+        if ((mode & MODE_DIRECT) && isatty(modem) && Enabled(ConfUtmp))
+	  if (Utmp)
+	    LogPrintf(LogERROR, "Oops, already logged in on %s\n",
+		      VarBaseDevice);
+	  else {
+	    struct utmp ut;
+	    memset(&ut, 0, sizeof(ut));
+	    time(&ut.ut_time);
+	    strncpy(ut.ut_name, name, sizeof(ut.ut_name)-1);
+	    strncpy(ut.ut_line, VarBaseDevice, sizeof(ut.ut_line)-1);
+	    if (logout(ut.ut_line))
+	      logwtmp(ut.ut_line, "", "");
+	    login(&ut);
+	    Utmp = 1;
+	  }
 	NewPhase(PHASE_NETWORK);
 	break;
       }

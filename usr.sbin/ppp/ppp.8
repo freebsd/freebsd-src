@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.19.2.28 1997/09/10 02:23:33 brian Exp $
+.\" $Id: ppp.8,v 1.19.2.29 1997/09/21 13:10:53 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -1478,28 +1478,40 @@ field number is reduced to one octet rather than two.
 Default: Enabled and Accepted.  This option decides if Predictor 1
 compression will be used.
 
+.It msext
+Default: Disabled.  This option allows the use of Microsoft's ppp
+extensions, supporting the negotiation of the Microsoft PPP DNS
+and the Microsoft NetBIOS NS.  Enabling this allows us to pass back
+the values given in "set ns" and "set nbns".
+
+.El
+The following options are not actually negotiated with the peer.
+Therefore, accepting or denying them makes no sense.
+
+.Bl -tag -width 20
 .It proxy
-Default: Disabled and Denied.  Unlike the other options (except
-passwdauth below), this is not negotiated with the peer.  Therefore,
-accepting or denying it is of no use.  Enabling this option will tell
+Default: Disabled.  Enabling this option will tell
 .Nm
 to proxy ARP for the peer.
 
-.It msext
-Default: Disabled and Accepted.  This option allows the use
-of Microsoft's ppp extensions, supporting the negotiation of
-the Microsoft PPP DNS and the Microsoft NetBIOS NS.
-
 .It passwdauth
-Default: Disabled and Denied.  Unlike the other options (except
-.Dq proxy
-above), this is not negotiated with the peer.  Therefore,
-accepting or denying it is of no use.  Enabling this option will
-tell the PAP authentication code to use the
+Default: Disabled.  Enabling this option will tell the PAP authentication
+code to use the
 .Pa passwd
 file to authenticate the caller rather than the
 .Pa ppp.secret
 file.
+
+.It utmp
+Default: Enabled.  Normally, when a user is authenticated using PAP or
+CHAP, and when
+.Nm
+is running in
+.Fl direct
+mode, an entry is made in the utmp and wtmp files for that user.  Disabling
+this option will tell ppp not to make any utmp or wtmp entries.  This is
+usually only necessary if you require the user to both login and authenticate
+themselves.
 
 .El
 
@@ -1830,12 +1842,12 @@ This sets the speed of the serial device.
 This command allows the setting of the idle timer, the LQR timer (if
 enabled) and the retry timer.
 
-.It set ns x.x.x.x
-This option allows the setting of the Microsoft PPP DNS server that
+.It set ns x.x.x.x y.y.y.y
+This option allows the setting of the Microsoft PPP DNS servers that
 will be negotiated.
 
-.It set nbns
-This option allows the setting of the Microsoft NetBIOS DNS server that
+.It set nbns x.x.x.x y.y.y.y
+This option allows the setting of the Microsoft NetBIOS DNS servers that
 will be negotiated.
 
 .It set help|?
