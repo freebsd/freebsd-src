@@ -31,11 +31,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_debug.c	8.1 (Berkeley) 6/11/93
- * $Id: lfs_debug.c,v 1.2 1994/08/02 07:54:33 davidg Exp $
+ * $Id: lfs_debug.c,v 1.3 1995/05/30 08:15:16 rgrimes Exp $
  */
 
 #ifdef DEBUG
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/namei.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
@@ -45,7 +46,10 @@
 #include <ufs/lfs/lfs.h>
 #include <ufs/lfs/lfs_extern.h>
 
-void
+static void	lfs_dump_dinode __P((struct dinode *dip));
+static void	lfs_dump_super __P((struct lfs *lfsp));
+
+static void
 lfs_dump_super(lfsp)
 	struct lfs *lfsp;
 {
@@ -112,7 +116,7 @@ lfs_dump_super(lfsp)
 	(void)printf("tstamp   %lx\n", lfsp->lfs_tstamp);
 }
 
-void
+static void
 lfs_dump_dinode(dip)
 	struct dinode *dip;
 {
