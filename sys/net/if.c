@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- *	$Id: if.c,v 1.52 1997/09/02 01:18:34 bde Exp $
+ *	$Id: if.c,v 1.53 1997/09/07 11:09:22 joerg Exp $
  */
 
 #include <sys/param.h>
@@ -639,6 +639,7 @@ ifioctl(so, cmd, data, p)
 		return error;
 
         case SIOCSIFMEDIA:
+	case SIOCSIFGENERIC:
 		error = suser(p->p_ucred, &p->p_acflag);
 		if (error)
 			return (error);
@@ -650,6 +651,7 @@ ifioctl(so, cmd, data, p)
 		return error;
 
 	case SIOCGIFMEDIA:
+	case SIOCGIFGENERIC:
 		if (ifp->if_ioctl == 0)
 			return (EOPNOTSUPP);
 		return ((*ifp->if_ioctl)(ifp, cmd, data));
