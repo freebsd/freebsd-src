@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 
 KMOD=	snake_saver_mod
 SRCS= 	snake_saver.c

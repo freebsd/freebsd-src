@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 
 KMOD=	star_saver_mod
 SRCS= 	star_saver.c
