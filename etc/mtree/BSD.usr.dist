@@ -341,6 +341,10 @@
             ..
             bg_BG.CP1251
             ..
+            ca_ES.ISO8859-1
+            ..
+            ca_ES.ISO8859-15
+            ..
             cs_CZ.ISO8859-2
             ..
             da_DK.ISO8859-1
@@ -668,6 +672,10 @@
             af_ZA.ISO8859-15
             ..
             bg_BG.CP1251
+            ..
+            ca_ES.ISO8859-1
+            ..
+            ca_ES.ISO8859-15
             ..
             cs_CZ.ISO8859-2
             ..
