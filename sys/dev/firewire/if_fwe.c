@@ -298,13 +298,11 @@ fwe_init(void *arg)
 		for (i = START; i < fc->nisodma; i ++) {
 			xferq = fc->ir[i];
 			if ((xferq->flag & FWXFERQ_OPEN) == 0)
-				break;
+				goto found;
 		}
-
-		if (i >= fc->nisodma) {
-			printf("no free dma channel\n");
-			return;
-		}
+		printf("no free dma channel\n");
+		return;
+found:
 		fwe->dma_ch = i;
 		fwe->stream_ch = stream_ch;
 		fwe->pkt_hdr.mode.stream.chtag = fwe->stream_ch;
