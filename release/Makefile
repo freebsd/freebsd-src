@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.66 1994/12/22 20:38:23 jkh Exp $
+#	$Id: Makefile,v 1.67 1994/12/22 21:34:36 jkh Exp $
 #
 
 FLOPPY=		fd0
@@ -59,12 +59,12 @@ kernel:	${.CURDIR}/../sys/i386/conf/GENERIC
 boot_12.flp: 
 	(cd ${.CURDIR}; EVIL_FLOPPY=yes ${MAKE} boot.flp)
 	mv boot.flp boot_12.flp
-	gzip -9 -c < boot_12.flp > boot_12.flp.gz
+	gzip -9 -c < boot_12.flp > boot_12.flp.gz &
 
 boot_144.flp:
 	(cd ${.CURDIR}; ${MAKE} boot.flp)
 	mv boot.flp boot_144.flp
-	gzip -9 -c < boot_144.flp > boot_144.flp.gz
+	gzip -9 -c < boot_144.flp > boot_144.flp.gz &
 
 boot.flp: 
 	crunchgen ${.CURDIR}/boot_flp.conf
@@ -78,7 +78,7 @@ boot.flp:
 	newfs -c 80 -b 4096 -f 512 -i 8192 -m 0 -o space /dev/r${FLOPPY}
 	mount -o async /dev/${FLOPPY} ${MNT}
 	mkdir ${MNT}/dev ${MNT}/stand ${MNT}/mnt
-	strip -x ${.CURDIR}/../sys/compile/GENERIC/kernel
+	strip ${.CURDIR}/../sys/compile/GENERIC/kernel
 	cp ${.CURDIR}/../sys/compile/GENERIC/kernel ${MNT}/kernel
 	cp ${DESTDIR}/usr/mdec/sdboot ${DESTDIR}/usr/mdec/bootsd ${MNT}/stand
 	( cd ${DESTDIR}/dev ; \
@@ -118,8 +118,7 @@ cpio.flp:
 	ls ${CPIO1} ${CPIO2} ${CPIO3} ${CPIO4B} | \
 		cpio -H newc -oa | gzip -9 | \
 		dd conv=osync > cpio.flp
-	gzip -9 -v < cpio.flp > cpio.flp.gz
-	ls -l cpio.flp*
+	gzip -9 -v < cpio.flp > cpio.flp.gz &
 
 floppies: boot_144.flp boot_12.flp cpio.flp
 
