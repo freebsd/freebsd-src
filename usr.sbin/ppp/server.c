@@ -30,7 +30,6 @@
 
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <arpa/inet.h>
 #include <sys/un.h>
 
 #include <errno.h>
@@ -43,7 +42,6 @@
 #include "log.h"
 #include "descriptor.h"
 #include "server.h"
-#include "id.h"
 #include "prompt.h"
 #include "ncpaddr.h"
 #include "probe.h"

@@ -82,6 +82,7 @@ static struct device execdevice = {
   NULL,
   NULL,
   NULL,
+  NULL,
   NULL
 };
 

@@ -30,9 +30,6 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <paths.h>
-#ifdef NOSUID
-#include <signal.h>
-#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -71,7 +68,6 @@
 #include "iplist.h"
 #include "slcompress.h"
 #include "ncpaddr.h"
-#include "ip.h"
 #include "ipcp.h"
 #include "filter.h"
 #include "descriptor.h"
@@ -1113,4 +1109,13 @@ physical_SetAsyncParams(struct physical *p, u_int32_t mymap, u_int32_t hismap)
     return (*p->handler->setasyncparams)(p, mymap, hismap);
 
   async_SetLinkParams(&p->async, mymap, hismap);
+}
+
+int
+physical_Slot(struct physical *p)
+{
+  if (p->handler && p->handler->slot)
+    return (*p->handler->slot)(p);
+
+  return -1;
 }

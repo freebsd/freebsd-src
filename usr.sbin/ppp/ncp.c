@@ -30,31 +30,23 @@
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
-#include <arpa/inet.h>
 #include <sys/socket.h>
-#include <net/if.h>
 #include <net/route.h>
-#include <netdb.h>
 #include <sys/un.h>
 
 #include <errno.h>
-#include <fcntl.h>
 #include <resolv.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
 #include <termios.h>
-#include <unistd.h>
 
 #include "layer.h"
-#include "ua.h"
 #include "defs.h"
 #include "command.h"
 #include "mbuf.h"
 #include "log.h"
 #include "timer.h"
 #include "fsm.h"
-#include "proto.h"
 #include "iplist.h"
 #include "throughput.h"
 #include "slcompress.h"
@@ -62,11 +54,9 @@
 #include "hdlc.h"
 #include "lcp.h"
 #include "ncpaddr.h"
-#include "ip.h"
 #include "ipcp.h"
 #include "filter.h"
 #include "descriptor.h"
-#include "vjcomp.h"
 #include "async.h"
 #include "ccp.h"
 #include "link.h"
@@ -78,16 +68,12 @@
 #include "ipv6cp.h"
 #include "ncp.h"
 #include "bundle.h"
-#include "id.h"
-#include "arp.h"
-#include "systems.h"
 #include "prompt.h"
 #include "route.h"
 #include "iface.h"
 #include "chat.h"
 #include "auth.h"
 #include "chap.h"
-#include "pap.h"
 #include "cbcp.h"
 #include "datalink.h"
 

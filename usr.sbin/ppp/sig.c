@@ -26,8 +26,6 @@
  * $FreeBSD$
  */
 
-#include <sys/types.h>
-
 #include <signal.h>
 
 #include "log.h"
