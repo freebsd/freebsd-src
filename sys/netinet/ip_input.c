@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.102 1998/10/16 03:55:01 peter Exp $
+ * $Id: ip_input.c,v 1.103 1998/10/27 09:11:41 dfr Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -711,13 +711,13 @@ ip_reass(m, fp, where)
 		fp->ipq_id = ip->ip_id;
 		fp->ipq_src = ip->ip_src;
 		fp->ipq_dst = ip->ip_dst;
-		fp->ipq_frags = 0;
+		fp->ipq_frags = m;
+		m->m_nextpkt = NULL;
 #ifdef IPDIVERT
 		fp->ipq_divert = 0;
 		fp->ipq_div_cookie = 0;
 #endif
-		q = 0;
-		goto insert;
+		goto inserted;
 	}
 
 #define GETIP(m)	((struct ip*)((m)->m_pkthdr.header))
@@ -732,7 +732,8 @@ ip_reass(m, fp, where)
 	/*
 	 * If there is a preceding segment, it may provide some of
 	 * our data already.  If so, drop the data from the incoming
-	 * segment.  If it provides all of our data, drop us.
+	 * segment.  If it provides all of our data, drop us, otherwise
+	 * stick new segment in the proper place.
 	 */
 	if (p) {
 		i = GETIP(p)->ip_off + GETIP(p)->ip_len - ip->ip_off;
@@ -743,6 +744,11 @@ ip_reass(m, fp, where)
 			ip->ip_off += i;
 			ip->ip_len -= i;
 		}
+		m->m_nextpkt = p->m_nextpkt;
+		p->m_nextpkt = m;
+	} else {
+		m->m_nextpkt = fp->ipq_frags;
+		fp->ipq_frags = m;
 	}
 
 	/*
@@ -760,14 +766,11 @@ ip_reass(m, fp, where)
 			break;
 		}
 		nq = q->m_nextpkt;
-		if (p)
-			p->m_nextpkt = nq;
-		else
-			fp->ipq_frags = nq;
+		m->m_nextpkt = nq;
 		m_freem(q);
 	}
 
-insert:
+inserted:
 
 #ifdef IPDIVERT
 	/*
@@ -782,16 +785,8 @@ insert:
 #endif
 
 	/*
-	 * Stick new segment in its place;
-	 * check for complete reassembly.
+	 * Check for complete reassembly.
 	 */
-	if (p == NULL) {
-		m->m_nextpkt = fp->ipq_frags;
-		fp->ipq_frags = m;
-	} else {
-		m->m_nextpkt = p->m_nextpkt;
-		p->m_nextpkt = m;
-	}
 	next = 0;
 	for (p = NULL, q = fp->ipq_frags; q; p = q, q = q->m_nextpkt) {
 		if (GETIP(q)->ip_off != next)
