@@ -1817,8 +1817,11 @@ ip_dn_ctl(struct sockopt *sopt)
     struct dn_pipe *p, tmp_pipe;
 
     /* Disallow sets in really-really secure mode. */
-    if (sopt->sopt_dir == SOPT_SET && securelevel >= 3)
-	return (EPERM);
+    if (sopt->sopt_dir == SOPT_SET) {
+	error =  securelevel_ge(sopt->sopt_td->td_proc->p_ucred, 3);
+	if (error)
+	    return (error);
+    }
 
     switch (sopt->sopt_name) {
     default :
