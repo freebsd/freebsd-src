@@ -458,7 +458,8 @@ fr_authioctlloop:
 
 			bzero((char *)&ro, sizeof(ro));
 #  if ((_BSDI_VERSION >= 199802) && (_BSDI_VERSION < 200005)) || \
-       defined(__OpenBSD__) || (defined(IRIX) && (IRIX >= 605))
+       defined(__OpenBSD__) || (defined(IRIX) && (IRIX >= 605)) || \
+       (__FreeBSD_version >= 500042)
 			error = ip_output(m, NULL, &ro, IP_FORWARDING, NULL,
 					  NULL);
 #  else

@@ -471,7 +471,7 @@ stf_output(ifp, m, dst, rt)
 	}
 
 	ifp->if_opackets++;
-	return ip_output(m, NULL, &sc->sc_ro, 0, NULL);
+	return ip_output(m, NULL, &sc->sc_ro, 0, NULL, NULL);
 }
 
 static int

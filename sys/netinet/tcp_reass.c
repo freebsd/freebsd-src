@@ -369,7 +369,7 @@ tcp_input(m, off0)
 
 	/* Grab info from MT_TAG mbufs prepended to the chain. */
 	for (;m && m->m_type == MT_TAG; m = m->m_next) { 
-		if (m->m_tag_id == PACKET_TAG_IPFORWARD)
+		if (m->_m_tag_id == PACKET_TAG_IPFORWARD)
 			next_hop = (struct sockaddr_in *)m->m_hdr.mh_data;
 	}
 #ifdef INET6

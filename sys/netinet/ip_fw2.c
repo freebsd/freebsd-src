@@ -1124,7 +1124,7 @@ send_pkt(struct ipfw_flow_id *id, u_int32_t seq, u_int32_t ack, int flags)
 	bzero (&sro, sizeof (sro));
 	ip_rtaddr(ip->ip_dst, &sro);
 	m->m_flags |= M_SKIP_FIREWALL;
-	ip_output(m, NULL, &sro, 0, NULL);
+	ip_output(m, NULL, &sro, 0, NULL, NULL);
 	if (sro.ro_rt)
 		RTFREE(sro.ro_rt);
 }
