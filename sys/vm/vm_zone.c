@@ -20,6 +20,7 @@
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/sysctl.h>
+#include <sys/vmmeter.h>
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>
@@ -305,6 +306,7 @@ _zget(vm_zone_t z)
 			bzero((caddr_t) zkva, PAGE_SIZE);
 			z->zpagecount++;
 			zone_kmem_pages++;
+			cnt.v_wire_count++;
 		}
 		nitems = (i * PAGE_SIZE) / z->zsize;
 	} else {
