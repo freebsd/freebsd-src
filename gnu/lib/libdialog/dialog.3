@@ -11,10 +11,10 @@
 .\" nor does the author assume any responsibility for damages incurred with
 .\" its use.
 .\"
-.\" $Id: dialog.3,v 1.8 1998/10/02 11:23:47 jkh Exp $
+.\" $Id: dialog.3,v 1.9 1999/03/05 14:43:29 bde Exp $
 .\"
 .Dd October 2, 1998
-.Dt dialog 3
+.Dt DIALOG 3
 .Os FreeBSD 2
 .Sh NAME
 .Nm draw_shadow ,
@@ -443,21 +443,25 @@ returned, result will contain a pointer from the array \fBnames\fR.
 .Sh SEE ALSO
 .Xr dialog 1 ,
 .Xr ncurses 3
-
 .Sh AUTHORS
-The primary author would appear to be Savio Lam <lam836@cs.cuhk.hk> with contributions over
-the years by Stuart Herbert <S.Herbert@sheffield.ac.uk>, Marc van Kempen <wmbfmk@urc.tue.nl>,
-Andrey Chernov <ache@freebsd.org>, Jordan Hubbard <jkh@freebsd.org> and
-Anatoly A. Orehovsky <tolik@mpeks.tomsk.su>.
-
+The primary author would appear to be
+.An Savio Lam Aq lam836@cs.cuhk.hk
+with contributions over the years by
+.An Stuart Herbert Aq S.Herbert@sheffield.ac.uk ,
+.An Marc van Kempen Aq wmbfmk@urc.tue.nl ,
+.An Andrey Chernov Aq ache@FreeBSD.org ,
+.An Jordan Hubbard Aq jkh@FreeBSD.org
+and
+.An Anatoly A. Orehovsky Aq tolik@mpeks.tomsk.su .
 .Sh HISTORY
 These functions appeared in
-.Em FreeBSD-2.0
-as the \fBdialog(1)\fR command and were soon split into library
+.Fx 2.0
+as the
+.Xr dialog 1
+command and were soon split into a separate library
 and command by Andrey Chernov.  Marc van Kempen implemented most of the
 extra controls and objects, Jordan Hubbard added the dialogMenuItem
 renovations and this man page and Anatoly A. Orehovsky implemented
 dialog_ftree() and dialog_tree().
-
 .Sh BUGS
 Sure!

@@ -36,5 +36,5 @@ The
 .Nm apropos
 utility exits 0 on success, and 1 if no keyword matched.
 .Sh SEE ALSO
-.Xr man 1 ,
-.Xr makewhatis 1
+.Xr makewhatis 1 ,
+.Xr man 1
