@@ -2,9 +2,9 @@
      The FreeBSD Russian Documentation Project
 
      $FreeBSD$
-     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/hardware/amd64/proc-amd64.sgml,v 1.1 2004/05/27 06:09:42 den Exp $
+     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/hardware/amd64/proc-amd64.sgml,v 1.2 2004/09/06 14:05:02 den Exp $
 
-     Original revision: 1.3
+     Original revision: 1.4
 -->
 
 <sect1 id="proc">
@@ -27,8 +27,8 @@
     Обычно те драйверы, которые правильно работают на других
     64-бит платформах, должны работать и здесь.</para>
 
-  <para>&os;/&arch; это очень молодая платформа FreeBSD.  Хотя
-    основная часть ядра FreeBSD и основные системные компоненты
+  <para>&os;/&arch; это очень молодая платформа &os;.  Хотя
+    основная часть ядра &os; и основные системные компоненты
     обычно очень стабильны, скорее всего еще остаются острые
     углы, особенно со сторонним программным обеспечением.</para>
 

@@ -2,9 +2,9 @@
 	The FreeBSD Russian Documentation Project
 
 	$FreeBSD$
-	$FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/installation/common/upgrade.sgml,v 1.2 2004/08/03 12:53:40 den Exp $
+	$FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/installation/common/upgrade.sgml,v 1.3 2004/09/06 14:05:03 den Exp $
 
-	Original revision: 1.12
+	Original revision: 1.13
 
 	This section contains the contents of the old UPGRADE.TXT
 	file.
@@ -208,7 +208,7 @@
     <para>Для тех, кто интересуется более гибким и
       <quote>интеллектуальным</quote> методом обновления, существует глава
       Руководства &os; <ulink
-      url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/cutting-edge.html">На
+      url="&url.books.handbook;/cutting-edge.html">На
       переднем крае разработок</ulink>.  Эта процедура относится к
       пересборке &os; из исходных текстов.  Она требует хорошего
       сетевого подключения, свободного места на диске и времени,
