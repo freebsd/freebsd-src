@@ -14,9 +14,7 @@ TESTS=	test-mbrtowc	\
 	test-wcstombs	\
 	test-mblen	\
 	test-iswctype	\
-	test-towctrans	\
-	test-sgetrune	\
-	test-sputrune
+	test-towctrans
 
 .PHONY: tests
 tests: ${TESTS}
