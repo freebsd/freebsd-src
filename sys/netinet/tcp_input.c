@@ -750,6 +750,7 @@ findpcb:
 		tiwin = th->th_win;
 
 #ifdef MAC
+	INP_LOCK_ASSERT(inp);
 	if (mac_check_inpcb_deliver(inp, m))
 		goto drop;
 #endif
