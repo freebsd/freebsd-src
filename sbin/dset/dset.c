@@ -30,6 +30,10 @@
 #include <machine/param.h>
 #include "i386/isa/isa_device.h"
 
+#include "i386/isa/pnp.h"
+struct pnp_cinfo new_ov[MAX_PNP_LDN]; 
+struct pnp_cinfo old_ov[MAX_PNP_LDN]; 
+
 #define TRUE	1
 #define FALSE 	0
 
@@ -57,6 +61,16 @@ struct nlist	nlaux[] = {
 	{"_num_eisa_slots"},
 	{""},
 };
+
+struct nlist   nlpnp[] = { 
+       {"_pnp_ldn_overrides"},
+       {""},                   
+};
+                                   
+struct nlist   nlconfig[] = {  
+       {"config.o"},
+       {""},                   
+};                                 
 
 int             quiet = FALSE;
 
@@ -336,7 +350,78 @@ main(ac, av)
 			}
 		}
 	}
-
+        if (kvm_nlist(kd, nlpnp) != 0) {
+                /* pnp_ldn_overrides need not exist, only handle it if found */
+                if (verbose)
+                        printf("pnp_ldn_overrides not found, ignoring.\n");
+        } else {
+                if (nlpnp[0].n_type == 0)
+                        fatal("kvm_nlist", "bad symbol type");
+                /* must handle it, read and write... */
+                pos1 = nlpnp[0].n_value ;
+                if (kvm_read(kd, pos1, &new_ov, sizeof(new_ov) ) < 0 )
+                        fatal("kvmread", NULL);
+                if (nlist(kernel, nlpnp) != 0)
+                        fatal("nlist", NULL);
+                if (nlpnp[0].n_type == 0)
+                        fatal("nlist", "bad symbol type");
+                pos = nlpnp[0].n_value + getpagesize() - entry;
+                if (lseek(f, pos, SEEK_SET) != pos)
+                        fatal("seek", NULL);
+                if ((res = read(f, (char *) &old_ov, sizeof(old_ov))) <= 0 )
+                        fatal("read", NULL);
+                if (testonly || bcmp(&old_ov, &new_ov, sizeof(old_ov)) ) {
+                    if (verbose) {
+                        int i;
+                        printf("CSN LDN conf en  irq  drq vendor_id. ....\n");
+                        for (i=0; i < MAX_PNP_LDN ; i++) {
+                            if (new_ov[i].csn>0 && new_ov[i].csn<255) {
+                                int maxp, maxm;
+                                for (maxp=7; maxp>=0 ; maxp--)
+                                    if (new_ov[i].port[maxp] !=0) break;
+                                for (maxm=3; maxm>=0 ; maxm--)
+                                    if (new_ov[i].mem[maxm].base !=0) break;
+                                printf("%3d %3d %-4s %c ",
+                                    new_ov[i].csn,
+                                    new_ov[i].ldn,
+                                    new_ov[i].override ? "OS":"BIOS",
+                                    new_ov[i].enable ? 'y':'n');
+                                printf(new_ov[i].irq[0] == 0 ? "  -":" %2d",
+                                   new_ov[i].irq[0]);
+                                printf(new_ov[i].irq[1] == 0 ? " - ":"%-2d",
+                                   new_ov[i].irq[1]);
+                                printf(new_ov[i].drq[0] == 4 ? " -":" %d",
+                                   new_ov[i].drq[0]);
+                                printf(new_ov[i].drq[1] == 4 ? " -":" %d",
+                                   new_ov[i].drq[1]);
+                                if (new_ov[i].vendor_id > 0)
+                                    printf(" 0x%08x", new_ov[i].vendor_id);
+                                if (new_ov[i].flags > 0)
+                                    printf(" flags 0x%08x", new_ov[i].flags);
+                                if (maxp >=0) {
+                                    int j;
+                                    printf(" port 0x%x", new_ov[i].port[0]);
+                                    for(j=1;j<=maxp;j++)
+                                        printf(" 0x%x", new_ov[i].port[j]);
+                                }
+                                if (maxm >=0) {
+                                    int j;
+                                    printf(" mem 0x%x", new_ov[i].mem[0].base);
+                                    for(j=1;j<=maxm;j++)
+                                        printf(" 0x%x", new_ov[i].mem[j].base);
+                                }
+                                printf("\n");
+                            }
+                        }
+                    }
+                    if (!testonly) {
+                        res = lseek(f, -(off_t) sizeof(new_ov),
+                                            SEEK_CUR);
+                        if (write(f,&new_ov, sizeof(new_ov)) <= 0)
+                                        fatal("write", NULL);
+                    }
+                }
+        }
 	if (chflags(kernel, flags) < 0)
 		fatal("chflags restore", NULL);
 
