@@ -288,8 +288,6 @@ cpu_switch_load_gs:
 1:
 	ret
 
-CROSSJUMPTARGET(sw1a)
-
 #ifdef INVARIANTS
 badsw2:
 	pushl	$sw0_2
