@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)types.h	8.4 (Berkeley) 1/21/94
- * $Id: types.h,v 1.6 1995/12/05 20:54:35 bde Exp $
+ * $Id: types.h,v 1.7 1995/12/10 02:34:14 bde Exp $
  */
 
 #ifndef _SYS_TYPES_H_
@@ -67,6 +67,7 @@ typedef	unsigned long	dev_t;		/* device number */
 typedef unsigned long	fixpt_t;	/* fixed point number */
 typedef	unsigned long	gid_t;		/* group id */
 typedef	unsigned long	ino_t;		/* inode number */
+typedef	long		key_t;		/* SYSV IPC Key */
 typedef	unsigned short	mode_t;		/* permissions */
 typedef	unsigned short	nlink_t;	/* link count */
 typedef	_BSD_OFF_T_	off_t;		/* file offset */

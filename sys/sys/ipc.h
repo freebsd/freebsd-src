@@ -41,7 +41,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ipc.h	8.3 (Berkeley) 1/21/94
- * $Id: ipc.h,v 1.4 1994/10/02 17:24:47 phk Exp $
+ * $Id: ipc.h,v 1.5 1994/12/30 05:38:14 davidg Exp $
  */
 
 /*
@@ -49,8 +49,6 @@
  */
 #ifndef _SYS_IPC_H_
 #define _SYS_IPC_H_
-
-typedef	long	key_t;	/* XXX should be in types.h */
 
 struct ipc_perm {
 	ushort	cuid;	/* creator user id */
