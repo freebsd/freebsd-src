@@ -57,7 +57,7 @@ FTP username: Specify username and password instead of anonymous.
 
 Tape Blocksize: Specify block size in 512 byte blocks of tape.
 
-    This defaults to 10 blocks, which should work with most
+    This defaults to 20 blocks, which should work with most
     tape drive + tar combinations.  It may not allow your particular
     drive to win any records for speed, however, and the more
     adventurous among you might try experimenting with larger sizes.
