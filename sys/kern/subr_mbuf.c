@@ -507,6 +507,8 @@ mb_pop_cont(struct mb_lstmngr *mb_list, int how, struct mb_pcpu_list *cnt_lst)
 	    how == M_TRYWAIT ? M_WAITOK : M_NOWAIT);
 	if (p == NULL) {
 		free(bucket, M_MBUF);
+		if (how == M_TRYWAIT)
+			mb_list->ml_mapfull = 1;
 		return (NULL);
 	}
 
@@ -618,7 +620,6 @@ mb_alloc(struct mb_lstmngr *mb_list, int how, short type)
 			 	   * we're willing to, but only after trying to
 				   * steal from other lists.
 				   */
-					mb_list->ml_mapfull = 1;
 					m = mb_alloc_wait(mb_list, type);
 				} else
 					/* XXX: No consistency. */
