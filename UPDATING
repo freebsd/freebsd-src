@@ -17,6 +17,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20031213:
+	src/lib/libc/gen/initgroups.c:1.8 now causes logins to fail
+	if the login process is unable to successfully set the
+	process credentials to include all groups defined for the
+	user.  The current kernel limit is 16 groups; administrators
+	may wish to check that users do not have over 16 groups
+	defined, or they will be unable to log in.
+
 20031112:
 	The statfs structure has been updated with 64-bit fields to
 	allow accurate reporting of multi-terabyte filesystem
