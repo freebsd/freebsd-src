@@ -17,10 +17,8 @@
 ** 29 jun 1998 (sadler) added variable sized hash table support
 */
 
-#include <stdlib.h>
-#include <stdio.h>          /* sprintf */
+#include <stand.h>
 #include <string.h>
-#include <ctype.h>
 #include "ficl.h"
 
 static char *dictCopyName(FICL_DICT *pDict, STRINGINFO si);
