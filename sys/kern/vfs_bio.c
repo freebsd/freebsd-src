@@ -3512,19 +3512,19 @@ vfs_bio_clrbuf(struct buf *bp)
 	if ((bp->b_flags & (B_VMIO | B_MALLOC)) == B_VMIO) {
 		bp->b_flags &= ~B_INVAL;
 		bp->b_ioflags &= ~BIO_ERROR;
+		if (bp->b_object != NULL)
+			VM_OBJECT_LOCK(bp->b_object);
 		if( (bp->b_npages == 1) && (bp->b_bufsize < PAGE_SIZE) &&
 		    (bp->b_offset & PAGE_MASK) == 0) {
 			mask = (1 << (bp->b_bufsize / DEV_BSIZE)) - 1;
-			if ((bp->b_pages[0]->valid & mask) == mask) {
-				bp->b_resid = 0;
-				return;
-			}
+			VM_OBJECT_LOCK_ASSERT(bp->b_pages[0]->object, MA_OWNED);
+			if ((bp->b_pages[0]->valid & mask) == mask)
+				goto unlock;
 			if (((bp->b_pages[0]->flags & PG_ZERO) == 0) &&
 			    ((bp->b_pages[0]->valid & mask) == 0)) {
 				bzero(bp->b_data, bp->b_bufsize);
 				bp->b_pages[0]->valid |= mask;
-				bp->b_resid = 0;
-				return;
+				goto unlock;
 			}
 		}
 		ea = sa = bp->b_data;
@@ -3535,6 +3535,7 @@ vfs_bio_clrbuf(struct buf *bp)
 			    (u_long)(vm_offset_t)ea,
 			    (u_long)(vm_offset_t)bp->b_data + bp->b_bufsize);
 			mask = ((1 << ((ea - sa) / DEV_BSIZE)) - 1) << j;
+			VM_OBJECT_LOCK_ASSERT(bp->b_pages[i]->object, MA_OWNED);
 			if ((bp->b_pages[i]->valid & mask) == mask)
 				continue;
 			if ((bp->b_pages[i]->valid & mask) == 0) {
@@ -3553,6 +3554,9 @@ vfs_bio_clrbuf(struct buf *bp)
 			vm_page_flag_clear(bp->b_pages[i], PG_ZERO);
 			vm_page_unlock_queues();
 		}
+unlock:
+		if (bp->b_object != NULL)
+			VM_OBJECT_UNLOCK(bp->b_object);
 		bp->b_resid = 0;
 	} else {
 		clrbuf(bp);
@@ -3570,8 +3574,6 @@ vm_hold_load_pages(struct buf * bp, vm_offset_t from, vm_offset_t to)
 	vm_offset_t pg;
 	vm_page_t p;
 	int index;
-
-	GIANT_REQUIRED;
 
 	to = round_page(to);
 	from = round_page(from);
