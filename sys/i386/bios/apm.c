@@ -13,7 +13,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.13 1995/07/16 10:11:30 bde Exp $
+ *	$Id: apm.c,v 1.14 1995/10/28 15:38:14 phk Exp $
  */
 
 #include "apm.h"
@@ -59,6 +59,10 @@
 #include <i386at/apm_setup.h>
 #include <i386at/apm_segments.h>
 #endif /* MACH_KERNEL */
+
+extern int apm_display_off __P((void));
+extern int apm_int __P((u_long *eax, u_long *ebx, u_long *ecx));
+extern void apm_resume __P((void));
 
 /* static data */
 struct apm_softc {
@@ -410,7 +414,7 @@ static struct timeval suspend_time;
 static struct timeval diff_time;
 
 static int
-apm_default_resume(struct apm_softc *sc)
+apm_default_resume(void *arg)
 {
 #ifdef __FreeBSD__
 	int pl;
@@ -437,7 +441,7 @@ apm_default_resume(struct apm_softc *sc)
 }
 
 static int
-apm_default_suspend(void)
+apm_default_suspend(void *arg)
 {
 #ifdef __FreeBSD__
 	int	pl;
