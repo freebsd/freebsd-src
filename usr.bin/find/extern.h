@@ -52,6 +52,7 @@ OPTION	*lookup_option(const char *);
 
 creat_f	c_Xmin;
 creat_f	c_Xtime;
+creat_f	c_acl;
 creat_f	c_and;
 creat_f	c_delete;
 creat_f	c_depth;
@@ -82,6 +83,7 @@ creat_f	c_xdev;
 
 exec_f	f_Xmin;
 exec_f	f_Xtime;
+exec_f	f_acl;
 exec_f	f_always_true;
 exec_f	f_closeparen;
 exec_f	f_delete;
