@@ -93,9 +93,7 @@ extern const char	*from_ip;	/* client machine's IP address */
 __BEGIN_DECLS
 void		 ctl_dumpcji(FILE *_dbg_stream, const char *_heading,
 		    struct cjobinfo *_cjinf);
-void		 ctl_freeinf(struct cjobinfo *_cjinf);
 static char	*ctl_getline(struct cjobinfo *_cjinf);
-struct cjobinfo	*ctl_readcf(const char *_ptrname, const char *_cfname);
 static void	 ctl_rewindcf(struct cjobinfo *_cjinf);
 char		*ctl_rmjob(const char *_ptrname, const char *_cfname);
 __END_DECLS
