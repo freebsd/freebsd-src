@@ -13,7 +13,7 @@ FILES=		termcap termcap.db
 all: termcap termcap.db
 
 termcap: reorder termcap.src
-	ex - ${.CURDIR}/termcap.src < ${.CURDIR}/reorder > /dev/null
+	TERM=dumb ex - ${.CURDIR}/termcap.src < ${.CURDIR}/reorder > /dev/null
 
 termcap.db: termcap
 	cap_mkdb termcap
