@@ -903,6 +903,10 @@ mdcreate_vnode(struct md_ioctl *mdio, struct thread *td)
 		return (EBUSY);
 	}
 
+	if (mdio->md_fwsectors != 0)
+		sc->fwsectors = mdio->md_fwsectors;
+	if (mdio->md_fwheads != 0)
+		sc->fwheads = mdio->md_fwheads;
 	sc->type = MD_VNODE;
 	sc->flags = mdio->md_options & MD_FORCE;
 	if (!(flags & FWRITE))
