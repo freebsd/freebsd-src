@@ -128,6 +128,34 @@ __ElfType(Auxinfo);
 #define	R_PPC_COUNT		37	/* Count of defined relocation types. */
 
 /*
+ * TLS relocations
+ */
+#define R_PPC_TLS		67
+#define R_PPC_DTPMOD32		68
+#define R_PPC_TPREL16		69
+#define R_PPC_TPREL16_LO	70
+#define R_PPC_TPREL16_HI	71
+#define R_PPC_TPREL16_HA	72
+#define R_PPC_TPREL32		73
+#define R_PPC_DTPREL16		74
+#define R_PPC_DTPREL16_LO	75
+#define R_PPC_DTPREL16_HI	76
+#define R_PPC_DTPREL16_HA	77
+#define R_PPC_DTPREL32		78
+#define R_PPC_GOT_TLSGD16	79
+#define R_PPC_GOT_TLSGD16_LO	80
+#define R_PPC_GOT_TLSGD16_HI	81
+#define R_PPC_GOT_TLSGD16_HA	82
+#define R_PPC_GOT_TLSLD16	83
+#define R_PPC_GOT_TLSLD16_LO	84
+#define R_PPC_GOT_TLSLD16_HI	85
+#define R_PPC_GOT_TLSLD16_HA	86
+#define R_PPC_GOT_TPREL16	87
+#define R_PPC_GOT_TPREL16_LO	88
+#define R_PPC_GOT_TPREL16_HI	89
+#define R_PPC_GOT_TPREL16_HA	90
+
+/*
  * The remaining relocs are from the Embedded ELF ABI, and are not in the
  *  SVR4 ELF ABI.
  */
