@@ -34,6 +34,7 @@
 #include <vm/vm_extern.h>
 #include <vm/vm_object.h>
 #include <vm/vm_pager.h>
+#include <machine/md_var.h>
 
 #ifndef SKI_ROOT_FILESYSTEM
 #define SKI_ROOT_FILESYSTEM	"ia64-root.fs"
