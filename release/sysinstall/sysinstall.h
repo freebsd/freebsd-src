@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.82.2.16 1997/01/22 00:28:59 jkh Exp $
+ * $Id: sysinstall.h,v 1.82.2.17 1997/01/24 21:06:03 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -185,6 +185,10 @@ typedef struct _variable {
     char *name;
     char *value;
 } Variable;
+
+#define NO_ECHO_OBJ(type)	((type) | (DITEM_NO_ECHO << 16))
+#define TYPE_OF_OBJ(type)	((type) & 0xff)
+#define ATTR_OF_OBJ(type)	((type) >> 16)
 
 /* A screen layout structure */
 typedef struct _layout {

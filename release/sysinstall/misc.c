@@ -1,7 +1,7 @@
 /*
  * Miscellaneous support routines..
  *
- * $Id: misc.c,v 1.22.2.4 1997/01/03 06:38:17 jkh Exp $
+ * $Id: misc.c,v 1.22.2.5 1997/01/15 04:50:17 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -347,18 +347,17 @@ Mount(char *mountp, void *dev)
 WINDOW *
 openLayoutDialog(char *helpfile, char *title, int x, int y, int width, int height)
 {
-    WINDOW              *win;
-    char                help[FILENAME_MAX];
-    
+    WINDOW		*win;
+    static char		help[FILENAME_MAX];
+
     /* We need a curses window */
     win = newwin(LINES, COLS, 0, 0);
     if (win) {
 	/* Say where our help comes from */
 	if (helpfile) {
-	    systemHelpFile(helpfile, help);
-	    use_helpfile(help);
+	    use_helpline("Press F1 for more information on this screen.");
+	    use_helpfile(systemHelpFile(helpfile, help));
 	}
-    
 	/* Setup a nice screen for us to splat stuff onto */
 	draw_box(win, y, x, height, width, dialog_attr, border_attr);
 	wattrset(win, dialog_attr);
@@ -378,10 +377,13 @@ initLayoutDialog(WINDOW *win, Layout *layout, int x, int y, int *max)
     
     n = 0;
     while (layout[n].help != NULL) {
-	switch (layout[n].type) {
+	int t = TYPE_OF_OBJ(layout[n].type);
+
+	switch (t) {
 	case STRINGOBJ:
 	    layout[n].obj = NewStringObj(win, layout[n].prompt, layout[n].var,
 					 layout[n].y + y, layout[n].x + x, layout[n].len, layout[n].maxlen);
+	    ((StringObj *)layout[n].obj)->attr_mask = ATTR_OF_OBJ(layout[n].type);
 	    break;
 	    
 	case BUTTONOBJ:
@@ -391,7 +393,7 @@ initLayoutDialog(WINDOW *win, Layout *layout, int x, int y, int *max)
 	default:
 	    msgFatal("Don't support this object yet!");
 	}
-	AddObj(&obj, layout[n].type, (void *) layout[n].obj);
+	AddObj(&obj, t, (void *) layout[n].obj);
 	n++;
     }
     *max = n - 1;
@@ -412,6 +414,7 @@ layoutDialogLoop(WINDOW *win, Layout *layout, ComposeObj **obj, int *n, int max,
     help_line[i] = '\0';
     use_helpline(help_line);
     display_helpline(win, LINES - 1, COLS - 1);
+    wrefresh(win);
 	    
     /* Ask for libdialog to do its stuff */
     ret = PollObj(obj);
