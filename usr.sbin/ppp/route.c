@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.47 1998/06/15 19:06:23 brian Exp $
+ * $Id: route.c,v 1.48 1998/06/15 19:06:55 brian Exp $
  *
  */
 
@@ -218,7 +218,8 @@ Index2Nam(int idx)
     mib[5] = 0;
 
     if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0) {
-      log_Printf(LogERROR, "Index2Nam: sysctl: estimate: %s\n", strerror(errno));
+      log_Printf(LogERROR, "Index2Nam: sysctl: estimate: %s\n",
+                 strerror(errno));
       return "???";
     }
     if ((buf = malloc(needed)) == NULL)

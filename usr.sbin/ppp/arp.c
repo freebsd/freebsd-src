@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: arp.c,v 1.27.2.15 1998/05/01 19:23:46 brian Exp $
+ * $Id: arp.c,v 1.28 1998/05/21 21:43:51 brian Exp $
  *
  */
 
@@ -100,7 +100,7 @@ arp_SetProxy(struct bundle *bundle, struct in_addr addr, int s)
    */
   memset(&arpmsg, 0, sizeof arpmsg);
   if (!get_ether_addr(s, addr, &arpmsg.hwa)) {
-    log_Printf(LogERROR, "Cannot determine ethernet address for proxy ARP\n");
+    log_Printf(LogWARN, "Cannot determine ethernet address for proxy ARP\n");
     return 0;
   }
   routes = ID0socket(PF_ROUTE, SOCK_RAW, AF_INET);
@@ -193,7 +193,8 @@ arp_SetProxy(struct bundle *bundle, struct in_addr addr, int s)
   ((struct sockaddr_in *)&arpreq.arp_pa)->sin_addr.s_addr = addr.s_addr;
   arpreq.arp_flags = ATF_PERM | ATF_PUBL;
   if (ID0ioctl(s, SIOCSARP, (caddr_t) & arpreq) < 0) {
-    log_Printf(LogERROR, "arp_SetProxy: ioctl(SIOCSARP): %s\n", strerror(errno));
+    log_Printf(LogERROR, "arp_SetProxy: ioctl(SIOCSARP): %s\n",
+               strerror(errno));
     return 0;
   }
   return 1;
@@ -211,7 +212,8 @@ arp_ClearProxy(struct bundle *bundle, struct in_addr addr, int s)
   SET_SA_FAMILY(arpreq.arp_pa, AF_INET);
   ((struct sockaddr_in *)&arpreq.arp_pa)->sin_addr.s_addr = addr.s_addr;
   if (ID0ioctl(s, SIOCDARP, (caddr_t) & arpreq) < 0) {
-    log_Printf(LogERROR, "arp_ClearProxy: ioctl(SIOCDARP): %s\n", strerror(errno));
+    log_Printf(LogERROR, "arp_ClearProxy: ioctl(SIOCDARP): %s\n",
+               strerror(errno));
     return 0;
   }
   return 1;
