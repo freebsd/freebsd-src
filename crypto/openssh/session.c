@@ -978,10 +978,11 @@ do_setup_env(char **env, Session *s, const char *shell)
 		/* Normal systems set SHELL by default. */
 		child_set_env(&env, &envsize, "SHELL", shell);
 	}
-#ifndef HAVE_LOGIN_CAP
 	if (getenv("TZ"))
+#ifdef HAVE_LOGIN_CAP
+	    if (options.use_login)
+#endif /* HAVE_LOGIN_CAP */
 		child_set_env(&env, &envsize, "TZ", getenv("TZ"));
-#endif /* !HAVE_LOGIN_CAP */
 
 	/* Set custom environment options from RSA authentication. */
 	if (!options.use_login) {
@@ -1007,10 +1008,11 @@ do_setup_env(char **env, Session *s, const char *shell)
 
 	if (s->ttyfd != -1)
 		child_set_env(&env, &envsize, "SSH_TTY", s->tty);
-#ifndef HAVE_LOGIN_CAP
 	if (s->term)
+#ifdef HAVE_LOGIN_CAP
+	    if (options.use_login)
+#endif /* HAVE_LOGIN_CAP */
 		child_set_env(&env, &envsize, "TERM", s->term);
-#endif /* !HAVE_LOGIN_CAP */
 	if (s->display)
 		child_set_env(&env, &envsize, "DISPLAY", s->display);
 	if (original_command)
