@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ftp.c,v 1.16 1996/04/28 20:53:56 jkh Exp $
+ * $Id: ftp.c,v 1.17 1996/07/08 10:08:00 jkh Exp $
  *
  * Return values have been sanitized:
  *	-1	error, but you (still) have a session.
@@ -20,10 +20,9 @@
 #include <netdb.h>
 #include <errno.h>
 #include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
 #include <stdarg.h>
 #include <string.h>
+#include <signal.h>
 #include <errno.h>
 #include <ctype.h>
 #include "ftp.h"
@@ -40,6 +39,14 @@ int FtpPort;
 #ifndef STANDALONE_FTP
 #include "sysinstall.h"
 #endif /*STANDALONE_FTP*/
+
+static int sigpipe_caught = 0;
+
+static void
+catch_pipe(int sig)
+{
+    sigpipe_caught = TRUE;
+}
 
 static void
 debug(FTP_t ftp, const char *fmt, ...)
@@ -64,8 +71,14 @@ static int
 writes(int fd, char *s)
 {
     int i = strlen(s);
-    if (i != write(fd, s, i))
+
+    signal(SIGPIPE, catch_pipe);
+    if (i != write(fd, s, i) || sigpipe_caught) {
+	if (sigpipe_caught)
+	    msgDebug("sigpipe caught during write - connection invalid\n");
+	sigpipe_caught = FALSE;
 	return IO_ERROR;
+    }
     return 0;
 }
 
@@ -75,10 +88,15 @@ get_a_line(FTP_t ftp)
     static char buf[BUFSIZ];
     int i,j;
 
-    for(i=0;i<BUFSIZ;) {
+    signal(SIGPIPE, catch_pipe);
+    for(i = 0; i < BUFSIZ;) {
 	j = read(ftp->fd_ctrl, buf+i, 1);
-	if (j != 1)
+	if (j != 1 || sigpipe_caught) {
+	    if (sigpipe_caught)
+		msgDebug("sigpipe caught during read - connection invalid\n");
+	    sigpipe_caught = FALSE;
 	    return 0;
+	}
 	if (buf[i] == '\r' || buf[i] == '\n') {
 	    if (!i)
 		continue;
