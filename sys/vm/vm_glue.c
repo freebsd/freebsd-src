@@ -230,14 +230,9 @@ vm_proc_new(struct proc *p)
 		/*
 		 * Get a uarea page.
 		 */
-		m = vm_page_grab(upobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
+		m = vm_page_grab(upobj, i,
+		    VM_ALLOC_NORMAL | VM_ALLOC_RETRY | VM_ALLOC_WIRED);
 		ma[i] = m;
-
-		/*
-		 * Wire the page.
-		 */
-		m->wire_count++;
-		cnt.v_wire_count++;
 
 		vm_page_wakeup(m);
 		vm_page_flag_clear(m, PG_ZERO);
