@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_balloc.c	8.4 (Berkeley) 9/23/93
- * $Id: ffs_balloc.c,v 1.6 1995/03/19 14:29:13 davidg Exp $
+ * $Id: ffs_balloc.c,v 1.7 1995/04/09 06:03:36 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -93,7 +93,6 @@ ffs_balloc(ip, bn, size, cred, bpp, flags)
 			if (error)
 				return (error);
 			ip->i_size = (nb + 1) * fs->fs_bsize;
-			vnode_pager_setsize(vp, (u_long)ip->i_size);
 			ip->i_db[nb] = dbtofsb(fs, bp->b_blkno);
 			ip->i_flag |= IN_CHANGE | IN_UPDATE;
 			if (flags & B_SYNC)
