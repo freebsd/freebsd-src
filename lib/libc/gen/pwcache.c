@@ -38,6 +38,7 @@ static char sccsid[] = "@(#)pwcache.c	8.1 (Berkeley) 6/4/93";
 #include <sys/types.h>
 
 #include <grp.h>
+#include <string.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <utmp.h>

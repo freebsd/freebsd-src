@@ -36,7 +36,7 @@ static char sccsid[] = "@(#)sleep.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/time.h>
-#include <sys/signal.h>
+#include <signal.h>
 #include <unistd.h>
 
 #define	setvec(vec, a) \

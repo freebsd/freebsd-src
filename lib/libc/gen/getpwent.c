@@ -547,7 +547,7 @@ char *user;
 static int
 _pw_breakout_yp(struct passwd *pw, char *res, int master)
 {
-	char *s, *c, *result;
+	char *s, *result;
 	static char resbuf[YPMAXRECORD+2];
 
 	/*
