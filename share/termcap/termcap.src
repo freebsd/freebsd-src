@@ -30,7 +30,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)termcap.src	8.2 (Berkeley) 11/17/93
-#	$Id: termcap.src,v 1.68 1996/12/08 16:15:02 ache Exp $
+#	$Id: termcap.src,v 1.69 1996/12/19 21:51:48 ache Exp $
 
 #	Termcap source file
 #	John Kunze, Berkeley
@@ -2331,17 +2331,16 @@ vt100|dec-vt100|vt100-am|vt100am|dec vt100:\
 	:ce=3\E[K:cd=50\E[J:so=2\E[7m:se=2\E[m:us=2\E[4m:ue=2\E[m:\
 	:md=2\E[1m:mr=2\E[7m:mb=2\E[5m:me=2\E[m:\
 	:is=\E>\E[?1;3;4;5l\E[?7;8h\E[1;24r\E[24;1H:\
-	:if=/usr/share/tabset/vt100:nw=2\EE:\
+	:if=/usr/share/tabset/vt100:nw=2\EE:ho=\E[H:\
 	:as=2\E(0:ae=2\E(B:ac=llmmkkjjuuttvvwwqqxxnnpprr``aa:\
 	:rs=\E>\E[?1;3;4;5l\E[?7;8h:ks=\E[?1h\E=:ke=\E[?1l\E>:\
 	:ku=\EOA:kd=\EOB:kr=\EOC:kl=\EOD:kb=\177:\
-	:ho=\E[H:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:pt:sr=2*\EM:vt#3:xn:\
+	:k0=\EOy:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:k5=\EOt:\
+	:k6=\EOu:k7=\EOv:k8=\EOl:k9=\EOw:k;=\EOx:@8=\EOM:\
+	:K1=\EOq:K2=\EOr:K3=\EOs:K4=\EOp:K5=\EOn:pt:sr=2*\EM:vt#3:xn:\
 	:sc=2\E7:rc=2\E8:cs=5\E[%i%d;%dr:UP=2\E[%dA:DO=2\E[%dB:RI=2\E[%dC:\
 	:LE=2\E[%dD:ct=2\E[3g:st=2\EH:ta=^I:ms:bl=^G:cr=^M:eo:it#8:ut:\
-	:@7=\E[4~:kh=\E[1~:kI=\E[2~:k0=\E[10~:\
-	:kD=\E[3~:k5=\E[15~:\
-	:k6=\E[17~:k7=\E[18~:k8=\E[19~:k9=\E[20~:k;=\E[21~:F1=\E[23~:\
-	:F2=\E[24~:kP=\E[5~:kN=\E[6~:
+	:RA=\E[?7l:SA=\E[?7h:
 vt100-nam|dec-vt100-nam|vt100nam|vt100 w/no am:\
 	:am@:xn@:\
 	:is=\E>\E[?1;3;4;5;7l\E[?8h\E[1;24r\E[24;1H:\
@@ -2432,9 +2431,6 @@ vt100-w-nam|dec-vt100-w-nam|dec vt100 132 cols (w/advanced video), no am:\
 	:co#132:vt@:tc=vt100-nam:
 vt102|dec-vt102-am|vt102am|vt100 w/adv. video:\
 	:al=\E[L:dl=\E[M:im=\E[4h:ei=\E[4l:mi:dc=\E[P:\
-	:k0=\EOp:k1=\EOq:k2=\EOr:k3=\EOs:k4=\EOt:k5=\EOu:\
-	:k6=\EOv:k7=\EOw:k8=\EOx:k9=\EOy:k;=\EOm:F1=\EOl:F2=\EOM:\
-	:@7=\E[K:kh=\E[H:kN=\E[Oq:kP=\E[Or:kI=\EOn:kD=\ED:\
 	:AL=\E[%dL:DL=\E[%dM:DC=\E[%dP:tc=vt100-np:
 vt102-nam|dec-vt102-nam|vt102nam|vt102 w/no am:\
 	:am@:xn@:\
@@ -2473,14 +2469,15 @@ pro350|decpro|dec pro console:\
 	:se=\E^N:so=\E^H:us=\E^D:ue=\E^C:\
 	:ae=\EG:as=\EF:
 #
-# From: Bracy H. Elton  <elton@lll-crg>
 vt200|vt220|vt220am|dec-vt220|dec vt200 series with jump scroll:\
-	:@7=\E[4~:kh=\E[1~:kI=\E[2~:k0=\E[10~:\
-	:kD=\E[3~:k1=\E[11~:k2=\E[12~:k3=\E[13~:k4=\E[14~:k5=\E[15~:\
-	:k6=\E[17~:k7=\E[18~:k8=\E[19~:k9=\E[20~:k;=\E[21~:F1=\E[23~:\
-	:F2=\E[24~:kP=\E[5~:kN=\E[6~:\
-	:K1=\EOw:K2=\EOy:K3=\EOu:K4=\EOq:K5=\EOs:\
-	:tc=vt102:
+	:@7=\E[4~:kD=\E[3~:kI=\E[2~:kN=\E[6~:kP=\E[5~:kh=\E[1~:\
+	:k6=\E[17~:k7=\E[18~:k8=\E[19~:k9=\E[20~:k;=\E[21~:\
+	:ve=\E[?25h:vi=\E[?25l:k0@:k5@:\
+	:F1=\E[23~:F2=\E[24~:ic=\E[@:IC=\E[%d@:ec=\E[%dX:tc=vt102:
+#
+vt320|vt300|vt340|dec vt320 with status line:\
+	:ds=\E[2$~\r\E[1$}\E[K\E[$}:ts=\E[2$~\E[1$}\E[1;%dH:\
+	:fs=\E[$}:tc=vt220:
 #
 # SC,SW names needed for screen(1)        ache
 SC|screen|VT 100/ANSI X3.64 virtual terminal:\
