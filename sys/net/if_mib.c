@@ -80,7 +80,8 @@ sysctl_ifdata(SYSCTL_HANDLER_ARGS) /* XXX bad syntax! */
 	if (namelen != 2)
 		return EINVAL;
 
-	if (name[0] <= 0 || name[0] > if_index)
+	if (name[0] <= 0 || name[0] > if_index ||
+	    ifaddr_byindex(name[0]) == NULL)
 		return ENOENT;
 
 	ifp = ifaddr_byindex(name[0])->ifa_ifp;

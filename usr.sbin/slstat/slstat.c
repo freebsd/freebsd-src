@@ -120,8 +120,12 @@ main(argc, argv)
 	for (i = 1; ; i++) {
 		name[4] = i;
 
-		if (sysctl(name, 6, &ifmd, &len, 0, 0) < 0)
+		if (sysctl(name, 6, &ifmd, &len, 0, 0) < 0) {
+			if (errno == ENOENT)
+				continue;
+
 			err(1, "sysctl");
+		}
 		if (strncmp(interface, ifmd.ifmd_name, IFNAMSIZ) == 0
 		    && ifmd.ifmd_data.ifi_type == IFT_SLIP) {
 			indx = i;
