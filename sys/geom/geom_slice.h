@@ -60,7 +60,6 @@ struct g_slicer {
 };
 
 g_dumpconf_t g_slice_dumpconf;
-struct g_provider * g_slice_addslice(struct g_geom *gp, int idx, off_t offset, off_t length, u_int sectorsize, const char *fmt, ...);
 int g_slice_config(struct g_geom *gp, u_int idx, int how, off_t offset, off_t length, u_int sectorsize, const char *fmt, ...);
 #define G_SLICE_CONFIG_CHECK	0
 #define G_SLICE_CONFIG_SET	1

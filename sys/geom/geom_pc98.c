@@ -152,7 +152,6 @@ g_pc98_taste(struct g_class *mp, struct g_provider *pp, int flags)
 {
 	struct g_geom *gp;
 	struct g_consumer *cp;
-	struct g_provider *pp2;
 	int error, i, npart;
 	struct g_pc98_softc *ms;
 	struct g_slicer *gsp;
@@ -237,7 +236,7 @@ g_pc98_taste(struct g_class *mp, struct g_provider *pp, int flags)
 			ms->type[i] = (ms->dp[i].dp_sid << 8) |
 				ms->dp[i].dp_mid;
 			g_topology_lock();
-			pp2 = g_slice_addslice(gp, i,
+			g_slice_config(gp, i, G_SLICE_CONFIG_SET,
 			    ms->dp[i].dp_scyl * spercyl,
 			    (ms->dp[i].dp_ecyl - ms->dp[i].dp_scyl + 1) *
 					       spercyl,
@@ -248,14 +247,12 @@ g_pc98_taste(struct g_class *mp, struct g_provider *pp, int flags)
 		break;
 	}
 	g_topology_lock();
-	error = g_access_rel(cp, -1, 0, 0);
-	if (npart > 0) {
-		LIST_FOREACH(pp, &gp->provider, provider)
-			g_error_provider(pp, 0);
-		return (gp);
+	g_access_rel(cp, -1, 0, 0);
+	if (LIST_EMPTY(&gp->provider)) {
+		g_std_spoiled(cp);
+		return (NULL);
 	}
-	g_std_spoiled(cp);
-	return (NULL);
+	return (gp);
 }
 
 static struct g_class g_pc98_class = {
