@@ -522,3 +522,7 @@
 			    struct timespec *timeout); }
 364	STD	BSD	{ int __cap_get_proc(struct cap *cap_p); }
 365	STD	BSD	{ int __cap_set_proc(struct cap *cap_p); }
+366	STD	BSD	{ int __cap_get_fd(int fd, struct cap *cap_p); }
+367	STD	BSD	{ int __cap_get_file(const char *path_p, struct cap *cap_p); }
+368	STD	BSD	{ int __cap_set_fd(int fd, struct cap *cap_p); }
+369	STD	BSD	{ int __cap_set_file(const char *path_p, struct cap *cap_p); }
