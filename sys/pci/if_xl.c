@@ -1462,14 +1462,16 @@ static int xl_attach(dev)
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = xl_ioctl;
 	ifp->if_output = ether_output;
-	if (sc->xl_type == XL_TYPE_905B)
+	if (sc->xl_type == XL_TYPE_905B) {
 		ifp->if_start = xl_start_90xB;
-	else
+		ifp->if_capabilities = IFCAP_RXCSUM;
+	} else
 		ifp->if_start = xl_start;
 	ifp->if_watchdog = xl_watchdog;
 	ifp->if_init = xl_init;
 	ifp->if_baudrate = 10000000;
 	ifp->if_snd.ifq_maxlen = XL_TX_LIST_CNT - 1;
+	ifp->if_capenable = ifp->if_capabilities;
 
 	/*
 	 * Now we have to see what sort of media we have.
@@ -1831,7 +1833,7 @@ static void xl_rxeof(sc)
         struct ifnet		*ifp;
 	struct xl_chain_onefrag	*cur_rx;
 	int			total_len = 0;
-	u_int16_t		rxstat;
+	u_int32_t		rxstat;
 
 	ifp = &sc->arpcom.ac_if;
 
@@ -1890,6 +1892,22 @@ again:
 
 		/* Remove header from mbuf and pass it on. */
 		m_adj(m, sizeof(struct ether_header));
+
+		if (sc->xl_type == XL_TYPE_905B) {
+			/* Do IP checksum checking. */
+			if (rxstat & XL_RXSTAT_IPCKOK)
+				m->m_pkthdr.csum_flags |= CSUM_IP_CHECKED;
+			if (!(rxstat & XL_RXSTAT_IPCKERR))
+				m->m_pkthdr.csum_flags |= CSUM_IP_VALID;
+			if ((rxstat & XL_RXSTAT_TCPCOK &&
+			     !(rxstat & XL_RXSTAT_TCPCKERR)) ||
+			    (rxstat & XL_RXSTAT_UDPCKOK &&
+			     !(rxstat & XL_RXSTAT_UDPCKERR))) {
+				m->m_pkthdr.csum_flags |=
+					CSUM_DATA_VALID|CSUM_PSEUDO_HDR;
+				m->m_pkthdr.csum_data = 0xffff;
+			}
+		}
 		ether_input(ifp, eh, m);
 	}
 
