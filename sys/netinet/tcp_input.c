@@ -160,12 +160,6 @@ SYSCTL_INT(_net_inet_tcp_reass, OID_AUTO, overflows, CTLFLAG_RD,
 	   &tcp_reass_overflows, 0,
 	   "Global number of TCP Segment Reassembly Queue Overflows");
 
-static int tcp_sack_recovery_initburst = 3;
-SYSCTL_INT(_net_inet_tcp_sack, OID_AUTO,
-	   initburst, CTLFLAG_RW,
-	   &tcp_sack_recovery_initburst, 0,
-	   "Initial Number of Rexmits when sack recovery is set up");
-
 struct inpcbhead tcb;
 #define	tcb6	tcb  /* for KAME src sync over BSD*'s */
 struct inpcbinfo tcbinfo;
@@ -1997,14 +1991,10 @@ trimthenstep6:
 					if (tp->sack_enable) {
 						tcpstat.tcps_sack_recovery_episode++;
 						tp->sack_newdata = tp->snd_nxt;
-						tp->snd_cwnd = 
-							tp->t_maxseg * tcp_sack_recovery_initburst;
+						tp->snd_cwnd = tp->t_maxseg;
 						(void) tcp_output(tp);
-						tp->snd_cwnd +=
-						    tp->snd_ssthresh;
 						goto drop;
 					}
-
 					tp->snd_nxt = th->th_ack;
 					tp->snd_cwnd = tp->t_maxseg;
 					(void) tcp_output(tp);
