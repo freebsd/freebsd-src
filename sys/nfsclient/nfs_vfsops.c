@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_vfsops.c,v 1.6 1994/10/17 17:47:39 phk Exp $
+ * $Id: nfs_vfsops.c,v 1.7 1994/10/22 17:52:59 phk Exp $
  */
 
 #include <sys/param.h>
@@ -66,6 +66,10 @@
 #include <nfs/nfsdiskless.h>
 #include <nfs/nqnfs.h>
 
+struct nfsstats nfsstats;
+static int nfs_sysctl(int *, u_int, void *, size_t *, void *, size_t,
+		      struct proc *);
+
 /*
  * nfs vfs operations.
  */
@@ -81,6 +85,7 @@ struct vfsops nfs_vfsops = {
 	nfs_fhtovp,
 	nfs_vptofh,
 	nfs_init,
+	nfs_sysctl
 };
 VFS_SET(nfs_vfsops, nfs, MOUNT_NFS, 0);
 
@@ -772,3 +777,47 @@ nfs_quotactl(mp, cmd, uid, arg, p)
 
 	return (EOPNOTSUPP);
 }
+
+/*
+ * Do that sysctl thang...
+ */
+static int
+nfs_sysctl(int *name, u_int namelen, void *oldp, size_t *oldlenp, void *newp,
+	   size_t newlen, struct proc *p)
+{
+	int rv;
+
+	/*
+	 * All names at this level are terminal.
+	 */
+	if(namelen > 1)
+		return ENOTDIR;	/* overloaded */
+
+	switch(name[0]) {
+	case NFS_NFSSTATS:
+		if(!oldp) {
+			*oldlenp = sizeof nfsstats;
+			return 0;
+		}
+
+		if(*oldlenp < sizeof nfsstats) {
+			*oldlenp = sizeof nfsstats;
+			return ENOMEM;
+		}
+
+		rv = copyout(&nfsstats, oldp, sizeof nfsstats);
+		if(rv) return rv;
+
+		if(newp && newlen != sizeof nfsstats)
+			return EINVAL;
+
+		if(newp) {
+			return copyin(newp, &nfsstats, sizeof nfsstats);
+		}
+		return 0;
+
+	default:
+		return EOPNOTSUPP;
+	}
+}
+
