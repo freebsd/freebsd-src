@@ -58,12 +58,15 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/cons.h>
+#include <sys/ktr.h>
 
 #include <vm/vm.h>
 
 #include <machine/db_machdep.h>
 #include <machine/pal.h>
 #include <machine/prom.h>
+#include <machine/mutex.h>
+#include <machine/smp.h>
 
 #include <alpha/alpha/db_instruction.h>
 
@@ -163,6 +166,7 @@ kdb_trap(a0, a1, a2, entry, regs)
 	if (entry != ALPHA_KENTRY_IF ||
 	    (a0 != ALPHA_IF_CODE_BUGCHK && a0 != ALPHA_IF_CODE_BPT
 		&& a0 != ALPHA_IF_CODE_GENTRAP)) {
+#if 0
 		if (ddb_mode) {
 			db_printf("ddbprinttrap from 0x%lx\n",	/* XXX */
 				  regs->tf_regs[FRAME_PC]);
@@ -173,9 +177,11 @@ kdb_trap(a0, a1, a2, entry, regs)
 			 */
 			return (0);
 		}
+#endif
 		if (db_nofault) {
 			jmp_buf *no_fault = db_nofault;
 			db_nofault = 0;
+			mtx_exit(&Giant, MTX_DEF);
 			longjmp(*no_fault, 1);
 		}
 	}
@@ -188,6 +194,12 @@ kdb_trap(a0, a1, a2, entry, regs)
 
 	s = splhigh();
 
+#if 0
+	db_printf("stopping %x\n", PCPU_GET(other_cpus));
+	stop_cpus(PCPU_GET(other_cpus));
+	db_printf("stopped_cpus=%x\n", stopped_cpus);
+#endif
+
 	db_active++;
 
 	if (ddb_mode) {
@@ -198,6 +210,10 @@ kdb_trap(a0, a1, a2, entry, regs)
 	    gdb_handle_exception(&ddb_regs, entry, a0);
 
 	db_active--;
+
+#if 0
+	restart_cpus(stopped_cpus);
+#endif
 
 	splx(s);
 
@@ -546,3 +562,135 @@ db_branch_taken(ins, pc, regs)
 
 	return (newpc);
 }
+
+#ifdef KTR
+
+static struct {
+	int cur;
+	int first;
+} tstate[NCPUS];
+static struct timespec lastt;
+static int db_tcpu = 0xff;
+static int db_mach_vtrace(void);
+
+DB_COMMAND(tbuf, db_mach_tbuf)
+{
+	int i;
+
+	for (i = 0; i < NCPUS; i++) {
+		struct ktr_entry *k1, *ck, *kend;
+		struct globaldata *pp;
+		struct timespec newk;
+
+		if ((pp = globaldata_find(i)) == NULL)
+			continue;
+
+		k1 = (struct ktr_entry *)pp->gd_ktr_buf;
+		ck = k1;
+		timespecclear(&newk);
+		kend = (struct ktr_entry *)(pp->gd_ktr_buf + KTR_SIZE);
+		while (k1 != kend) {
+			if (timespecisset(&k1->ktr_tv) &&
+			    timespeccmp(&k1->ktr_tv, &newk, >)) {
+				newk = k1->ktr_tv;
+				ck = k1;
+			}
+			k1++;
+		}
+		tstate[i].cur = ((uintptr_t)(ck) -
+		    (uintptr_t)pp->gd_ktr_buf) & (KTR_ESIZE-1);
+		tstate[i].first = tstate[i].cur | 0x80000000;
+	}
+	timespecclear(&lastt);
+	db_mach_vtrace();
+	return;
+}
+
+/*
+ * Print all trace entries
+ */
+DB_COMMAND(tall, db_mach_tall)
+{
+	int c;
+
+	db_mach_tbuf(addr, have_addr, count, modif);
+	while (db_mach_vtrace()) {
+		c = cncheckc();
+		if (c != -1)
+			break;
+	}
+	return;
+}
+
+DB_COMMAND(tnext, db_mach_tnext)
+{
+	db_mach_vtrace();
+}
+
+static int
+db_mach_vtrace(void)
+{
+	struct ktr_entry *kp;
+	struct ktr_entry *kpt;
+	char *d;
+	int i;
+	int wcpu;
+	struct globaldata *pp;
+	struct timespec ts;
+
+	/* Pick the newest trace entry from all CPU's */
+	kp = NULL;
+	wcpu = 0;
+	for (i = 0; i < NCPUS; i++) {
+		if (db_tcpu != 0xff && i != db_tcpu)
+			continue;
+		if (!(pp = globaldata_find(i)))
+			continue;
+		if (tstate[i].cur == tstate[i].first)
+			continue;
+		kpt = (struct ktr_entry *)((char *)pp->gd_ktr_buf +
+		    tstate[i].cur);
+		if (!kp || timespeccmp(&kp->ktr_tv, &kpt->ktr_tv, <)) {
+			kp = kpt;
+			wcpu = i;
+		}
+	}
+	if (!kp) {
+		db_printf("--- End of trace buffer ---\n");
+		return (0);
+	}
+
+	d = kp->ktr_desc;
+	if (d == NULL) 
+		d = "*** Empty ***";
+#if 0
+	if (kernacc(d, 80, B_READ) == 0)
+		d = "*** Corrupt entry ***";
+#endif
+	else if (lastt.tv_sec == 0) {
+		db_printf("Newest entry at clock %d.%06ld\n",
+			  kp->ktr_tv.tv_sec,
+			  kp->ktr_tv.tv_nsec / 1000);
+		lastt = kp->ktr_tv;
+	}
+	db_printf("\r%x %3x ", wcpu, tstate[wcpu].cur >> KTR_SHFT);
+	ts = lastt;
+	/* timespecsub(&ts, &kp->ktr_tv); */
+	db_printf("%4d.%06ld: ", ts.tv_sec, ts.tv_nsec / 1000);
+	lastt = kp->ktr_tv;
+	db_printf(d, kp->ktr_parm1, kp->ktr_parm2, kp->ktr_parm3,
+		    kp->ktr_parm4, kp->ktr_parm5);
+#if 0
+	if (kdebug_vflag)
+		db_printf("   p1=%x p2=%x p3=%x p4=%x p5=%x", (u_int)kp->ktr_parm1,
+		    (u_int)kp->ktr_parm2, (u_int)kp->ktr_parm3,
+		    (u_int)kp->ktr_parm4, (u_int)kp->ktr_parm5);
+#endif
+	db_printf("\n");
+	tstate[wcpu].first &= ~0x80000000;
+	tstate[wcpu].cur = (tstate[wcpu].cur - sizeof(struct ktr_entry)) &
+	    (KTR_ESIZE - 1);
+	return (1);
+}
+
+#endif
