@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.127 1998/05/06 22:14:46 julian Exp $
+ *      $Id: sd.c,v 1.128 1998/05/07 02:05:21 julian Exp $
  */
 
 #include "opt_bounce.h"
@@ -87,40 +87,41 @@ struct scsi_data {
 	u_int32_t flags;
 #define	SDINIT		0x04	/* device has been init'd */
 	struct disk_parms {
-		u_char  heads;	/* Number of heads */
-		u_int16_t cyls;	/* Number of cylinders */
-		u_char  sectors;	/*dubious *//* Number of sectors/track */
-		u_int16_t secsiz;	/* Number of bytes/sector */
-		u_int32_t disksize;	/* total number sectors */
+		u_char		heads;		/* Number of heads */
+		u_int16_t	cyls;		/* Number of cylinders */
+		u_char		sectors;/*XXX*/	/* Number of sectors/track */
+		u_int16_t	secsiz;		/* Number of bytes/sector */
+		u_int32_t	disksize;	/* total number sectors */
 	} params;
-	struct diskslices *dk_slices;	/* virtual drives */
-	struct buf_queue_head buf_queue;
-	int dkunit;		/* disk stats unit number */
+	struct diskslices	*dk_slices;	/* virtual drives */
+	struct buf_queue_head	buf_queue;
+	int			dkunit;		/* disk stats unit number */
 #ifdef	DEVFS
 #ifdef SLICE
-	struct slice	*slice;
-	int	mynor;
-	struct slicelimits limit;
-	struct scsi_link *sc_link;
-	int	unit;
-	struct intr_config_hook ich;
+	struct slice		*slice;
+	int			mynor;
+	struct slicelimits	limit;
+	struct scsi_link	*sc_link;
+	int			unit;
+	struct intr_config_hook	ich;
 #else	/* SLICE */
-	void	*b_devfs_token;
-	void	*c_devfs_token;
+	void			*b_devfs_token;
+	void			*c_devfs_token;
 #endif	/* SLICE */
-	void	*ctl_devfs_token;
+	void			*ctl_devfs_token;
 #endif
 };
 
+
+#ifndef	SLICE
 static int sdunit(dev_t dev) { return SDUNIT(dev); }
 static dev_t sdsetunit(dev_t dev, int unit) { return SDSETUNIT(dev, unit); }
-
 static errval sd_open __P((dev_t dev, int mode, int fmt, struct proc *p,
-		    struct scsi_link *sc_link));
+			struct scsi_link *sc_link));
 static errval sd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag,
-		struct proc *p, struct scsi_link *sc_link);
-static errval sd_close __P((dev_t dev, int fflag, int fmt, struct proc *p,
-		     struct scsi_link *sc_link));
+			struct proc *p, struct scsi_link *sc_link);
+static errval sd_close __P((dev_t dev, int flag, int fmt, struct proc *p,
+			struct scsi_link *sc_link));
 static void sd_strategy(struct buf *bp, struct scsi_link *sc_link);
 
 static	d_open_t	sdopen;
@@ -132,17 +133,17 @@ static	d_strategy_t	sdstrategy;
 
 #define CDEV_MAJOR 13
 #define BDEV_MAJOR 4
-#ifndef	SLICE
 static struct cdevsw sd_cdevsw;
 static struct bdevsw sd_bdevsw = 
 	{ sdopen,	sdclose,	sdstrategy,	sdioctl,	/*4*/
 	  sddump,	sdsize,		D_DISK,	"sd",	&sd_cdevsw,	-1 };
 #else	/* ! SLICE */
 
+static errval sdattach(struct scsi_link *sc_link);
 static sl_h_IO_req_t	sdsIOreq;	/* IO req downward (to device) */
 static sl_h_ioctl_t	sdsioctl;	/* ioctl req downward (to device) */
 static sl_h_open_t	sdsopen;	/* downwards travelling open */
-/*static sl_h_close_t	sdsclose; */	/* downwards travelling close */
+static sl_h_close_t	sdsclose;	/* downwards travelling close */
 static	void	sds_init (void *arg);
 static sl_h_dump_t	sdsdump;	/* core dump req downward */
 
@@ -155,7 +156,7 @@ static struct slice_handler slicetype = {
 	&sdsIOreq,
 	&sdsioctl,
 	&sdsopen,
-	/*&sdsclose*/NULL,
+	NULL,	/* was close, now free */
 	NULL,	/* revoke */
 	NULL,	/* claim */
 	NULL,	/* verify */
@@ -165,6 +166,7 @@ static struct slice_handler slicetype = {
 #endif
 
 
+#ifndef SLICE
 
 SCSI_DEVICE_ENTRIES(sd)
 
@@ -188,13 +190,41 @@ static struct scsi_device sd_switch =
 	sd_open,
 	sd_ioctl,
 	sd_close,
-#ifndef	SLICE
 	sd_strategy,
-#else	
+};
+#else	/* SLICE */
+static struct scsi_device sd_switch =
+{
+	sd_sense_handler,
+	sdstart,			/* have a queue, served by this */
+	NULL,			/* have no async handler */
+	NULL,			/* Use default 'done' routine */
+	"sd",
+	0,
+	{0, 0},
+	0,				/* Link flags */
+	sdattach,
+	"Direct-Access",
 	NULL,
-#endif
+	sizeof(struct scsi_data),
+	T_DIRECT,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
 };
 
+
+/* this should be called by the SYSINIT (?!) */
+void
+sdinit(void) 
+{
+	scsi_device_register(&sd_switch);
+}
+
+#endif	/* SLICE */
 static struct scsi_xfer sx;
 
 
@@ -332,14 +362,32 @@ sds_init(void *arg)
 /*
  * open the device. Make sure the partition info is a up-to-date as can be.
  */
+#ifdef	SLICE
+static int
+sdsopen(void *private, int flags, int mode, struct proc *p)
+#else /* !SLICE */
 static errval
-sd_open(dev, mode, fmt, p, sc_link)
-	dev_t	dev;
-	int	mode;
-	int	fmt;
-	struct proc *p;
-	struct scsi_link *sc_link;
+sd_open(dev_t dev, int mode, int fmt, struct proc *p, struct scsi_link *sc_link)
+#endif
 {
+#ifdef	SLICE
+	errval  errcode = 0;
+	struct scsi_data *sd = private;
+	struct scsi_link *sc_link = sd->sc_link;
+	u_int32_t unit = sd->unit;
+
+	if ((flags & (FREAD|FWRITE)) == 0) {
+		/* Mode chenge to mode 0 (closed) */
+		errcode = scsi_device_lock(sc_link);
+		if (errcode) {
+			return errcode;	/* how can close fail? */
+		}
+		scsi_prevent(sc_link, PR_ALLOW, SCSI_SILENT | SCSI_ERR_OK);
+		sc_link->flags &= ~SDEV_OPEN;
+		scsi_device_unlock(sc_link);
+		return (0);
+	}
+#else	/* !SLICE */
 	errval  errcode = 0;
 	u_int32_t unit;
 	struct disklabel label;
@@ -347,6 +395,7 @@ sd_open(dev, mode, fmt, p, sc_link)
 
 	unit = SDUNIT(dev);
 	sd = sc_link->sd;
+#endif	/* !SLICE */
 
 	/*
 	 * Make sure the disk has been initialised
@@ -357,9 +406,13 @@ sd_open(dev, mode, fmt, p, sc_link)
 		return (ENXIO);
 	}
 
+#ifdef	SLICE
+	SC_DEBUG(sc_link, SDEV_DB1, ("sdsopen: (unit %ld)\n", unit));
+#else	/* !SLICE */
 	SC_DEBUG(sc_link, SDEV_DB1,
 	    ("sd_open: dev=0x%lx (unit %ld, partition %d)\n",
 		dev, unit, PARTITION(dev)));
+#endif	/* !SLICE */
 
 	/*
 	 * "unit attention" errors should occur here if the
@@ -385,7 +438,7 @@ sd_open(dev, mode, fmt, p, sc_link)
 		 */
 		if (dsisopen(sd->dk_slices)) {
 			errcode = ENXIO;
-			goto bad;
+			goto close;
 		}
 
 		dsgone(&sd->dk_slices);
@@ -398,7 +451,7 @@ sd_open(dev, mode, fmt, p, sc_link)
 	if (scsi_test_unit_ready(sc_link, 0)) {
 		SC_DEBUG(sc_link, SDEV_DB3, ("device not reponding\n"));
 		errcode = ENXIO;
-		goto bad;
+		goto close;
 	}
 	SC_DEBUG(sc_link, SDEV_DB3, ("device ok\n"));
 
@@ -406,13 +459,14 @@ sd_open(dev, mode, fmt, p, sc_link)
 	 * Load the physical device parameters
 	 */
 	if(errcode = sd_get_parms(unit, 0))	/* sets SDEV_MEDIA_LOADED */
-		goto bad;
+		goto close;
 
 	SC_DEBUG(sc_link, SDEV_DB3, ("Params loaded "));
 
 	/* Lock the pack in. */
 	scsi_prevent(sc_link, PR_PREVENT, SCSI_ERR_OK | SCSI_SILENT);
 
+#ifndef	SLICE
 	/* Build label for whole disk. */
 	bzero(&label, sizeof label);
 	label.d_secsize = sd->params.secsiz;
@@ -425,12 +479,11 @@ sd_open(dev, mode, fmt, p, sc_link)
 		/* XXX as long as it's not 0 - readdisklabel divides by it (?) */
 	label.d_secperunit = sd->params.disksize;
 
-#ifndef	SLICE
 	/* Initialize slice tables. */
 	errcode = dsopen("sd", dev, fmt, &sd->dk_slices, &label, sdstrategy1,
 			 (ds_setgeom_t *)NULL, &sd_bdevsw, &sd_cdevsw);
 	if (errcode != 0)
-		goto bad;
+		goto close;
 #endif	/* !SLICE */
 	SC_DEBUG(sc_link, SDEV_DB3, ("Slice tables initialized "));
 
@@ -439,8 +492,13 @@ sd_open(dev, mode, fmt, p, sc_link)
 	scsi_device_unlock(sc_link);
 	return 0;
 
-bad:
-	if (!dsisopen(sd->dk_slices)) {
+close:
+#ifndef	SLICE
+	if (!dsisopen(sd->dk_slices))
+#else
+	if((sd->slice->flags & SLF_OPEN_STATE) == SLF_CLOSED)
+#endif
+	{
 		scsi_prevent(sc_link, PR_ALLOW, SCSI_ERR_OK | SCSI_SILENT);
 		sc_link->flags &= ~SDEV_OPEN;
 	}
@@ -448,17 +506,13 @@ bad:
 	return errcode;
 }
 
+#ifndef	SLICE
 /*
  * close the device.. only called if we are the LAST occurence of an open
  * device.  Convenient now but usually a pain.
  */
 static errval
-sd_close(dev, fflag, fmt, p, sc_link)
-	dev_t	dev;
-	int	fflag;
-	int	fmt;
-	struct proc *p;
-	struct scsi_link *sc_link;
+sd_close(dev_t dev,int mode, int fmt, struct proc *p, struct scsi_link *sc_link)
 {
 	struct scsi_data *sd;
 	errval errcode;
@@ -467,18 +521,15 @@ sd_close(dev, fflag, fmt, p, sc_link)
 	errcode = scsi_device_lock(sc_link);
 	if (errcode)
 		return errcode;
-#ifndef	SLICE
 	dsclose(dev, fmt, sd->dk_slices);
 	if (!dsisopen(sd->dk_slices)) {
 		scsi_prevent(sc_link, PR_ALLOW, SCSI_SILENT | SCSI_ERR_OK);
 		sc_link->flags &= ~SDEV_OPEN;
 	}
-#endif	/* ! SLICE */
 	scsi_device_unlock(sc_link);
 	return (0);
 }
 
-#ifndef	SLICE
 /*
  * Actually translate the requested transfer into one the physical driver
  * can understand.  The transfer is described by a buf and will include
@@ -1298,32 +1349,4 @@ bad:
 	biodone(bp);
 	return;
 }
-
-
-static int
-sdsopen(void *private, int flags, int mode, struct proc *p)
-{
-	struct scsi_data *sd;
-
-	sd = private;
-
-	if ((flags & (FREAD|FWRITE)) == 0) {
-		return(sdclose(makedev(0,sd->mynor), 0 , 0, p));
-	} else {
-		return(sdopen(makedev(0,sd->mynor), 0 , 0, p));
-	}
-}
-
-#if 0
-static void
-sdsclose(void *private, int flags, int mode, struct proc *p)
-{
-	struct scsi_data *sd;
-
-	sd = private;
-
-	sdclose(makedev(0,sd->mynor), 0 , 0, p);
-	return;
-}
-#endif 	/* 0 */
 #endif
