@@ -95,8 +95,6 @@ int	uiomove(void *cp, int n, struct uio *uio);
 int	uiomove_frombuf(void *buf, int buflen, struct uio *uio);
 int	uiomoveco(void *cp, int n, struct uio *uio, struct vm_object *obj,
 	    int disposable);
-struct mbuf *
-	m_uiotombuf(struct uio *uio, int how, int len);
 
 #else /* !_KERNEL */
 
