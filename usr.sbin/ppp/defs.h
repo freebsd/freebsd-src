@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: defs.h,v 1.34 1998/07/11 02:48:36 brian Exp $
+ * $Id: defs.h,v 1.35 1998/08/07 18:42:48 brian Exp $
  *
  *	TODO:
  */
@@ -45,7 +45,8 @@
 #define SCRIPT_LEN 512		/* Size of login scripts */
 #define LINE_LEN SCRIPT_LEN 	/* Size of login scripts */
 #define MAXARGS 40		/* How many args per config line */
-#define NCP_IDLE_TIMEOUT 180		/* Drop all links */
+#define NCP_IDLE_TIMEOUT 180	/* Drop all links */
+#define CHOKED_TIMEOUT 120	/* Delete queued packets w/ blocked tun */
 
 #define LINK_MINWEIGHT 20
 #define MIN_LQRPERIOD 2		/* Minimum LQR frequency */

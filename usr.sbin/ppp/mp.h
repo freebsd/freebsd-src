@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.h,v 1.2 1998/05/21 21:47:08 brian Exp $
+ *	$Id: mp.h,v 1.3 1998/05/23 17:05:28 brian Exp $
  */
 
 struct mbuf;
@@ -133,3 +133,4 @@ extern int mp_ShowStatus(struct cmdargs const *);
 extern const char *mp_Enddisc(u_char, const char *, int);
 extern int mp_SetEnddisc(struct cmdargs const *);
 extern void mp_LinkLost(struct mp *, struct datalink *);
+extern void mp_DeleteQueue(struct mp *);
