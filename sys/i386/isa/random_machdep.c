@@ -1,7 +1,7 @@
 /*
- * random.c -- A strong random number generator
+ * random_machdep.c -- A strong random number generator
  *
- * $Id: random_machdep.c,v 1.2 1995/12/27 11:22:01 markm Exp $
+ * $Id$
  *
  * Version 0.95, last modified 18-Oct-95
  * 
@@ -42,15 +42,16 @@
 #define MAX_BLKDEV 4
 
 #include <sys/param.h>
-#include <sys/cdefs.h>
-#include <sys/kernel.h>
-#include <sys/uio.h>
 #include <sys/systm.h>
-#include <i386/isa/isa.h>
-#include <i386/isa/timerreg.h>
-#include <i386/isa/isa_device.h>
+#include <sys/kernel.h>
+
+#include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/random.h>
+
+#include <i386/isa/isa.h>
+#include <i386/isa/isa_device.h>
+#include <i386/isa/timerreg.h>
 
 /*
  * The pool is stirred with a primitive polynomial of degree 128
@@ -170,8 +171,6 @@ add_entropy_word(struct random_bucket *r, const u_int32_t input)
  * keyboard scan codes, and 256 upwards for interrupts.
  * On the i386, this is assumed to be at most 16 bits, and the high bits
  * are used for a high-resolution timer.
- *
- * TODO: Read the time stamp register on the Pentium.
  */
 static void
 add_timer_randomness(struct random_bucket *r, struct timer_rand_state *state,
@@ -181,23 +180,24 @@ add_timer_randomness(struct random_bucket *r, struct timer_rand_state *state,
 	u_int		nbits;
 	u_int32_t	time;
 
-#if defined(I586_CPU)
-	if (cpu_class == CPUCLASS_586) {
+#if defined(I586_CPU) || defined(I686_CPU)
+	if (i586_ctr_rate != 0) {
 		u_long low, high;
 
-		__asm__(".byte 0x0f,0x31" :"=a" (low), "=d" (high)); /* RDTSC */
-		time = (u_int32_t) low;
-		num ^= (u_int32_t) high;
+		/* RDTSC. */
+		__asm __volatile(".byte 0x0f,0x31" :"=a" (low), "=d" (high));
+		num ^= low << 16;
 		r->entropy_count += 2;
-	}
-	else {
+	} else {
 #endif
-		outb(TIMER_MODE, TIMER_LATCH|TIMER_SEL0); /* latch ASAP */
+		disable_intr();
+		outb(TIMER_MODE, TIMER_SEL0 | TIMER_LATCH);
 		num ^= inb(TIMER_CNTR0) << 16;
 		num ^= inb(TIMER_CNTR0) << 24;
+		enable_intr();
 		r->entropy_count += 2;
-#if defined(I586_CPU)
-	} /* cpu_class == CPUCLASS_586 */
+#if defined(I586_CPU) || defined(I686_CPU)
+	}
 #endif
 		
 	time = ticks;
@@ -242,6 +242,7 @@ add_interrupt_randomness(int irq)
 	add_timer_randomness(&random_state, &irq_timer_state[irq], irq);
 }
 
+#ifdef notused
 void
 add_blkdev_randomness(int major)
 {
@@ -251,6 +252,7 @@ add_blkdev_randomness(int major)
 	add_timer_randomness(&random_state, &blkdev_timer_state[major],
 			     0x200+major);
 }
+#endif /* notused */
 
 /*
  * MD5 transform algorithm, taken from code written by Colin Plumb,
@@ -432,6 +434,7 @@ extract_entropy(struct random_bucket *r, char *buf, int nbytes)
 	return ret;
 }
 
+#ifdef notused /* XXX NOT the exported kernel interface */
 /*
  * This function is the exported kernel interface.  It returns some
  * number of good random numbers, suitable for seeding TCP sequence
@@ -442,6 +445,7 @@ get_random_bytes(void *buf, u_int nbytes)
 {
 	extract_entropy(&random_state, (char *) buf, nbytes);
 }
+#endif /* notused */
 
 u_int
 read_random(char *buf, u_int nbytes)
@@ -458,6 +462,7 @@ read_random_unlimited(char *buf, u_int nbytes)
 	return extract_entropy(&random_state, buf, nbytes);
 }
 
+#ifdef notused
 u_int
 write_random(const char *buf, u_int nbytes)
 {
@@ -475,3 +480,4 @@ write_random(const char *buf, u_int nbytes)
 	}
 	return nbytes;
 }
+#endif /* notused */
