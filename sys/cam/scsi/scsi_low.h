@@ -223,16 +223,6 @@ struct lun_info {
 	u_int li_flags;				/* real control flags */
 	u_int li_cfgflags;			/* given target cfgflags */
 	u_int li_quirks;			/* given target quirk */
-
-	/*
-	 * lun synch and wide data
- 	 */
-	struct synch {
-		u_int8_t offset;
-		u_int8_t period;
-	} li_maxsynch;		/* synch data */
-
-	u_int li_width;
 };
 
 struct targ_info {
@@ -319,9 +309,14 @@ struct targ_info {
 	u_int ti_msgoutlen;			/* msgout strlen */
 
 	/*
-	 * lun info size.
+	 * synch and wide data
  	 */
-	int ti_lunsize;	
+	struct synch {
+		u_int8_t offset;
+		u_int8_t period;
+	} ti_maxsynch;		/* synch data */
+
+	u_int ti_width;
 };
 
 /*************************************************
@@ -335,7 +330,7 @@ typedef struct scsi_low_softc *sc_low_t;
 
 #define	SC_LOW_INIT_T (int (*) __P((sc_low_t, int)))
 #define	SC_LOW_BUSRST_T (void (*) __P((sc_low_t)))
-#define	SC_LOW_LUN_INIT_T (int (*) __P((sc_low_t, struct targ_info *, struct lun_info *)))
+#define	SC_LOW_TARG_INIT_T (int (*) __P((sc_low_t, struct targ_info *)))
 #define	SC_LOW_SELECT_T (int (*) __P((sc_low_t, struct slccb *)))
 #define	SC_LOW_ATTEN_T (void (*) __P((sc_low_t)))
 #define	SC_LOW_NEXUS_T (int (*) __P((sc_low_t, struct targ_info *)))
@@ -346,7 +341,7 @@ typedef struct scsi_low_softc *sc_low_t;
 struct scsi_low_funcs {
 	int (*scsi_low_init) __P((sc_low_t, int));
 	void (*scsi_low_bus_reset) __P((sc_low_t));
-	int (*scsi_low_lun_init) __P((sc_low_t, struct targ_info *, struct lun_info *));
+	int (*scsi_low_targ_init) __P((sc_low_t, struct targ_info *));
 
 	int (*scsi_low_start_bus) __P((sc_low_t, struct slccb *));
 	int (*scsi_low_establish_nexus) __P((sc_low_t, struct targ_info *));
