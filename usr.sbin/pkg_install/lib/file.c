@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: file.c,v 1.13 1995/07/30 09:33:26 jkh Exp $";
+static const char *rcsid = "$Id: file.c,v 1.14 1995/07/30 09:41:21 jkh Exp $";
 #endif
 
 /*
@@ -239,7 +239,7 @@ fileGetURL(char *fname)
     }
     while (read(fd, &ch, 1) == 1)
 	write(fd, &ch, 1);
-    FtpEof(ftp);
+    FtpEOF(ftp);
     FtpClose(ftp);
     return tmpl;
 }
