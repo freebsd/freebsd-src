@@ -400,7 +400,8 @@ g_mbrext_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 	g_topology_assert();
 	if (strcmp(pp->geom->class->name, MBR_CLASS_NAME))
 		return (NULL);
-	gp = g_slice_new(mp, NDOSEXTPART, pp, &cp, &ms, sizeof *ms, g_mbrext_start);
+	gp = g_slice_new(mp, NDOSEXTPART, pp, &cp, &ms, sizeof *ms,
+	    g_mbrext_start);
 	if (gp == NULL)
 		return (NULL);
 	gsp = gp->softc;
