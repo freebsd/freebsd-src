@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.70.2.4 1996/11/28 08:17:38 phk Exp $
+ * $Id$
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -389,8 +389,7 @@ diskPartition(Device *dev, Disk *d)
 		 * disk (i.e., the disklabel starts at sector 0), even in cases where the user has requested
 		 * booteasy or a "standard" MBR -- both would be fatal in this case.
 		 */
-		if ((d->chunks->part->flags & CHUNK_FORCE_ALL) != CHUNK_FORCE_ALL
-		    && (mbrContents = getBootMgr(d->name)) != NULL)
+		if (!(d->chunks->part->flags & CHUNK_FORCE_ALL) && (mbrContents = getBootMgr(d->name)) != NULL)
 		    Set_Boot_Mgr(d, mbrContents);
 		
 		if (DITEM_STATUS(diskPartitionWrite(NULL)) != DITEM_SUCCESS)
