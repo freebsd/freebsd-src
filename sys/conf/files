@@ -561,7 +561,6 @@ netatm/uni/unisig_sigmgr_state.c	optional atm_uni atm_core
 netatm/uni/unisig_subr.c	optional atm_uni atm_core
 netatm/uni/unisig_util.c	optional atm_uni atm_core
 netatm/uni/unisig_vc_state.c	optional atm_uni atm_core
-netinet/fil.c		optional ipfilter inet
 netinet/if_atm.c	optional atm
 netinet/if_ether.c	optional ether
 netinet/igmp.c		optional inet
@@ -570,22 +569,14 @@ netinet/in.c		optional inet
 netinet/in_pcb.c	optional inet
 netinet/in_proto.c	optional inet
 netinet/in_rmx.c	optional inet
-netinet/ip_auth.c	optional ipfilter inet
 netinet/ip_divert.c	optional ipdivert
 netinet/ip_dummynet.c	optional dummynet
-netinet/ip_fil.c	optional ipfilter inet
 netinet/ip_flow.c	optional inet
-netinet/ip_frag.c	optional ipfilter inet
 netinet/ip_fw.c		optional ipfirewall
 netinet/ip_icmp.c	optional inet
 netinet/ip_input.c	optional inet
-netinet/ip_log.c	optional ipfilter inet
 netinet/ip_mroute.c	optional inet
-netinet/ip_nat.c	optional ipfilter inet
 netinet/ip_output.c	optional inet
-netinet/ip_proxy.c	optional ipfilter inet
-netinet/ip_state.c	optional ipfilter inet
-netinet/mlf_ipl.c	optional ipfilter inet
 netinet/raw_ip.c	optional inet
 netinet/tcp_debug.c	optional tcpdebug
 netinet/tcp_input.c	optional inet
