@@ -340,6 +340,13 @@ pccard_deactivate_function(device_t bus, device_t child)
 	return (0);
 }
 
+const struct pccard_product *
+pccard_product_lookup(device_t dev, const struct pccard_product *tab,
+    size_t ent_size, pccard_product_match_fn matchfn)
+{
+	return NULL;
+}
+
 static device_method_t pccard_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pccard_probe),
