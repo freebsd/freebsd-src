@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: stallion.c,v 1.20 1998/06/07 17:11:00 dfr Exp $
+ * $Id: stallion.c,v 1.21 1998/08/23 08:26:41 bde Exp $
  */
 
 /*****************************************************************************/
@@ -482,8 +482,8 @@ static void	stl_startrxtx(stlport_t *portp, int rx, int tx);
 static void	stl_disableintrs(stlport_t *portp);
 static void	stl_sendbreak(stlport_t *portp, long len);
 static void	stl_flush(stlport_t *portp, int flag);
-static int	stl_memioctl(dev_t dev, int cmd, caddr_t data, int flag,
-			struct proc *p);
+static int	stl_memioctl(dev_t dev, unsigned long cmd, caddr_t data,
+			int flag, struct proc *p);
 static int	stl_getbrdstats(caddr_t data);
 static int	stl_getportstats(stlport_t *portp, caddr_t data);
 static int	stl_clrportstats(stlport_t *portp, caddr_t data);
@@ -630,7 +630,7 @@ static int stlattach(struct isa_device *idp)
 	stlbrd_t	*brdp;
 
 #if DEBUG
-	printf("stlattach(idp=%x): unit=%d iobase=%x\n", idp,
+	printf("stlattach(idp=%p): unit=%d iobase=%x\n", (void *) idp,
 		idp->id_unit, idp->id_iobase);
 #endif
 
@@ -873,7 +873,8 @@ STATIC int stlclose(dev_t dev, int flag, int mode, struct proc *p)
 	int		x;
 
 #if DEBUG
-	printf("stlclose(dev=%x,flag=%x,mode=%x,p=%x)\n", dev, flag, mode, p);
+	printf("stlclose(dev=%lx,flag=%x,mode=%x,p=%p)\n", (unsigned long) dev,
+		flag, mode, (void *) p);
 #endif
 
 	if (dev & STL_MEMDEV)
@@ -900,7 +901,8 @@ STATIC int stlread(dev_t dev, struct uio *uiop, int flag)
 	stlport_t	*portp;
 
 #if DEBUG
-	printf("stlread(dev=%x,uiop=%x,flag=%x)\n", dev, uiop, flag);
+	printf("stlread(dev=%lx,uiop=%p,flag=%x)\n", (unsigned long) dev,
+		(void *) uiop, flag);
 #endif
 
 	portp = stl_dev2port(dev);
@@ -953,7 +955,8 @@ STATIC int stlwrite(dev_t dev, struct uio *uiop, int flag)
 	stlport_t	*portp;
 
 #if DEBUG
-	printf("stlwrite(dev=%x,uiop=%x,flag=%x)\n", dev, uiop, flag);
+	printf("stlwrite(dev=%lx,uiop=%p,flag=%x)\n", (unsigned long) dev,
+		(void *) uiop, flag);
 #endif
 
 	portp = stl_dev2port(dev);
@@ -964,7 +967,8 @@ STATIC int stlwrite(dev_t dev, struct uio *uiop, int flag)
 
 /*****************************************************************************/
 
-STATIC int stlioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
+STATIC int stlioctl(dev_t dev, unsigned long cmd, caddr_t data, int flag,
+		    struct proc *p)
 {
 	struct termios	*newtios, *localtios;
 	struct tty	*tp;
@@ -972,8 +976,8 @@ STATIC int stlioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *
 	int		error, i, x;
 
 #if DEBUG
-	printf("stlioctl(dev=%x,cmd=%x,data=%x,flag=%x,p=%x)\n", dev, cmd,
-		data, flag, p);
+	printf("stlioctl(dev=%lx,cmd=%lx,data=%p,flag=%x,p=%p)\n",
+		(unsigned long) dev, cmd, (void *) data, flag, (void *) p);
 #endif
 
 	dev = minor(dev);
@@ -1026,7 +1030,7 @@ STATIC int stlioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
 	if (1) {
 		struct termios	tios;
-		int		oldcmd;
+		unsigned long	oldcmd;
 
 		tios = tp->t_termios;
 		oldcmd = cmd;
@@ -1166,8 +1170,8 @@ STATIC stlport_t *stl_dev2port(dev_t dev)
 static int stl_rawopen(stlport_t *portp)
 {
 #if DEBUG
-	printf("stl_rawopen(portp=%x): brdnr=%d panelnr=%d portnr=%d\n",
-		portp, portp->brdnr, portp->panelnr, portp->portnr);
+	printf("stl_rawopen(portp=%p): brdnr=%d panelnr=%d portnr=%d\n",
+		(void *) portp, portp->brdnr, portp->panelnr, portp->portnr);
 #endif
 	stl_param(&portp->tty, &portp->tty.t_termios);
 	portp->sigs = stl_getsignals(portp);
@@ -1189,8 +1193,8 @@ static int stl_rawclose(stlport_t *portp)
 	struct tty	*tp;
 
 #if DEBUG
-	printf("stl_rawclose(portp=%x): brdnr=%d panelnr=%d portnr=%d\n",
-		portp, portp->brdnr, portp->panelnr, portp->portnr);
+	printf("stl_rawclose(portp=%p): brdnr=%d panelnr=%d portnr=%d\n",
+		(void *) portp, portp->brdnr, portp->panelnr, portp->portnr);
 #endif
 
 	tp = &portp->tty;
@@ -3079,14 +3083,15 @@ static int stl_clrportstats(stlport_t *portp, caddr_t data)
  *	The "staliomem" device is used for stats collection in this driver.
  */
 
-static int stl_memioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
+static int stl_memioctl(dev_t dev, unsigned long cmd, caddr_t data, int flag,
+			struct proc *p)
 {
 	stlbrd_t	*brdp;
 	int		brdnr, rc;
 
 #if DEBUG
-	printf("stl_memioctl(dev=%x,cmd=%x,data=%x,flag=%x)\n", (int) dev,
-		cmd, (int) data, flag);
+	printf("stl_memioctl(dev=%lx,cmd=%lx,data=%p,flag=%x)\n",
+		(unsigned long) dev, cmd, (void *) data, flag);
 #endif
 
 	brdnr = dev & 0x7;
