@@ -1,5 +1,5 @@
 #
-# editinfo,v 1.1 1992/03/21 06:49:39 berliner Exp
+# $Id: editinfo,v 1.1 1992/03/21 06:49:39 berliner Exp $
 #
 # The "editinfo" file is used to allow verification of logging
 # information.  It works best when a template (as specified in the

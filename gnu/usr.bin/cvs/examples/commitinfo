@@ -1,5 +1,5 @@
 #
-# commitinfo,v 1.2 1992/03/31 04:19:47 berliner Exp
+# $Id: commitinfo,v 1.2 1992/03/31 04:19:47 berliner Exp $
 #
 # The "commitinfo" file is used to control pre-commit checks.
 # The filter on the right is invoked with the repository and a list 

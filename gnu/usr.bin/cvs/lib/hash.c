@@ -2,7 +2,7 @@
  * Copyright (c) 1992, Brian Berliner and Jeff Polk
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.3 kit.
+ * specified in the README file that comes with the CVS 1.4 kit.
  * 
  * Polk's hash list manager.  So cool.
  */
@@ -10,31 +10,32 @@
 #include "cvs.h"
 
 #ifndef lint
-static char rcsid[] = "@(#)hash.c 1.14 92/03/31";
+static char rcsid[] = "$CVSid: @(#)hash.c 1.19 94/09/23 $";
+USE(rcsid)
 #endif
 
 /* global caches */
 static List *listcache = NULL;
 static Node *nodecache = NULL;
 
-#if __STDC__
-static void freenode_mem (Node * p);
-#else
-static void freenode_mem ();
-#endif				/* __STDC__ */
+static void freenode_mem PROTO((Node * p));
 
 /* hash function */
 static int
 hashp (key)
     char *key;
 {
-    register char *p;
-    register int n = 0;
+    unsigned int h = 0;
+    unsigned int g;
 
-    for (p = key; *p; p++)
-	n += *p;
+    while (*key != 0)
+    {
+	h = (h << 4) + *key++;
+	if ((g = h & 0xf0000000) != 0)
+	    h = (h ^ (g >> 24)) ^ g;
+    }
 
-    return (n % HASHSIZE);
+    return (h % HASHSIZE);
 }
 
 /*
@@ -60,7 +61,7 @@ getlist ()
     {
 	/* make a new list from scratch */
 	list = (List *) xmalloc (sizeof (List));
-	bzero ((char *) list, sizeof (List));
+	memset ((char *) list, 0, sizeof (List));
 	node = getnode ();
 	list->list = node;
 	node->type = HEADER;
@@ -130,7 +131,7 @@ getnode ()
     }
 
     /* always make it clean */
-    bzero ((char *) p, sizeof (Node));
+    memset ((char *) p, 0, sizeof (Node));
     p->type = UNKNOWN;
 
     return (p);
@@ -247,7 +248,8 @@ addnode (list, p)
 }
 
 /*
- * look up an entry in hash list table
+ * look up an entry in hash list table and return a pointer to the
+ * node.  Return NULL on error or not found.
  */
 Node *
 findnode (list, key)
@@ -273,9 +275,10 @@ findnode (list, key)
  * walk a list with a specific proc
  */
 int
-walklist (list, proc)
+walklist (list, proc, closure)
     List *list;
     int (*proc) ();
+    void *closure;
 {
     Node *head, *p;
     int err = 0;
@@ -285,7 +288,7 @@ walklist (list, proc)
 
     head = list->list;
     for (p = head->next; p != head; p = p->next)
-	err += proc (p);
+	err += proc (p, closure);
     return (err);
 }
 
@@ -335,4 +338,62 @@ sortlist (list, comp)
 	    head->prev = p;
 	}
     }
+}
+
+/* Debugging functions.  Quite useful to call from within gdb. */
+
+char *
+nodetypestring (type)
+    Ntype type;
+{
+    switch (type) {
+    case UNKNOWN:	return("UNKNOWN");
+    case HEADER:	return("HEADER");
+    case ENTRIES:	return("ENTRIES");
+    case FILES:		return("FILES");
+    case LIST:		return("LIST");
+    case RCSNODE:	return("RCSNODE");
+    case RCSVERS:	return("RCSVERS");
+    case DIRS:		return("DIRS");
+    case UPDATE:	return("UPDATE");
+    case LOCK:		return("LOCK");
+    case NDBMNODE:	return("NDBMNODE");
+    }
+
+    return("<trash>");
+}
+
+int
+printnode (node, closure)
+     Node *node;
+     void *closure;
+{
+    if (node == NULL)
+    {
+	(void) printf("NULL node.\n");
+	return(0);
+    }
+
+    (void) printf("Node at 0x%p: type = %s, key = 0x%p = \"%s\", data = 0x%p, next = 0x%p, prev = 0x%p\n",
+	   node, nodetypestring(node->type), node->key, node->key, node->data, node->next, node->prev);
+
+    return(0);
+}
+
+void
+printlist (list)
+    List *list;
+{
+    if (list == NULL)
+    {
+	(void) printf("NULL list.\n");
+	return;
+    }
+
+    (void) printf("List at 0x%p: list = 0x%p, HASHSIZE = %d, next = 0x%p\n",
+	   list, list->list, HASHSIZE, list->next);
+    
+    (void) walklist(list, printnode, NULL);
+
+    return;
 }

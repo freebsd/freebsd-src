@@ -3,7 +3,7 @@
  * Copyright (c) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.3 kit.
+ * specified in the README file that comes with the CVS 1.4 kit.
  * 
  * Add
  * 
@@ -27,17 +27,13 @@
 #include "cvs.h"
 
 #ifndef lint
-static char rcsid[] = "@(#)add.c 1.46 92/04/03";
+static char rcsid[] = "$CVSid: @(#)add.c 1.55 94/10/22 $";
+USE(rcsid)
 #endif
 
-#if __STDC__
-static int add_directory (char *repository, char *dir);
-static int build_entry (char *repository, char *user, char *options,
-		        char *message, List * entries);
-#else
-static int add_directory ();
-static int build_entry ();
-#endif				/* __STDC__ */
+static int add_directory PROTO((char *repository, char *dir));
+static int build_entry PROTO((char *repository, char *user, char *options,
+		        char *message, List * entries, char *tag));
 
 static char *add_usage[] =
 {
@@ -52,7 +48,7 @@ add (argc, argv)
     int argc;
     char *argv[];
 {
-    char message[MAXMESGLEN];
+    char *message = NULL;
     char *user;
     int i;
     char *repository;
@@ -67,9 +63,8 @@ add (argc, argv)
 	usage (add_usage);
 
     /* parse args */
-    message[0] = '\0';
     optind = 1;
-    while ((c = gnu_getopt (argc, argv, "k:m:")) != -1)
+    while ((c = getopt (argc, argv, "k:m:")) != -1)
     {
 	switch (c)
 	{
@@ -80,14 +75,7 @@ add (argc, argv)
 		break;
 
 	    case 'm':
-		if (strlen (optarg) >= sizeof (message))
-		{
-		    error (0, 0, "warning: message too long; truncated!");
-		    (void) strncpy (message, optarg, sizeof (message));
-		    message[sizeof (message) - 1] = '\0';
-		}
-		else
-		    (void) strcpy (message, optarg);
+		message = xstrdup (optarg);
 		break;
 	    case '?':
 	    default:
@@ -111,7 +99,8 @@ add (argc, argv)
 	int begin_err = err;
 
 	user = argv[i];
-	if (index (user, '/') != NULL)
+	strip_trailing_slashes (user);
+	if (strchr (user, '/') != NULL)
 	{
 	    error (0, 0,
 	     "cannot add files with '/' in their name; %s not added", user);
@@ -153,19 +142,18 @@ add (argc, argv)
 
 		    /* There is a user file, so build the entry for it */
 		    if (build_entry (repository, user, vers->options,
-				     message, entries) != 0)
-			err++;
-		    else if (!quiet)
+				     message, entries, vers->tag) != 0)
+		      err++;
+		    else 
 		    {
-			added_files++;
-			error (0, 0, "scheduling file `%s' for addition",
-			       user);
+		      added_files++;
+		      if (!quiet)
+		        error (0, 0, "scheduling file `%s' for addition", user);
 		    }
 		}
 	    }
 	    else
 	    {
-
 		/*
 		 * There is an RCS file already, so somebody else must've
 		 * added it
@@ -214,7 +202,7 @@ add (argc, argv)
 		    (void) strcpy (vers->vn_user, tmp);
 		    (void) sprintf (tmp, "Resurrected %s", user);
 		    Register (entries, user, vers->vn_user, tmp, vers->options,
-			      vers->tag, vers->date);
+			      vers->tag, vers->date, vers->ts_conflict);
 		    free (tmp);
 
 		    /* XXX - bugs here; this really resurrect the head */
@@ -257,6 +245,10 @@ add (argc, argv)
 	error (0, 0, "use 'cvs commit' to add %s permanently",
 	       (added_files == 1) ? "this file" : "these files");
     dellist (&entries);
+
+    if (message)
+	free (message);
+
     return (err);
 }
 
@@ -276,7 +268,7 @@ add_directory (repository, dir)
     char message[PATH_MAX + 100];
     char *tag, *date;
 
-    if (index (dir, '/') != NULL)
+    if (strchr (dir, '/') != NULL)
     {
 	error (0, 0,
 	       "directory %s not added; must be a direct sub-directory", dir);
@@ -334,9 +326,11 @@ add_directory (repository, dir)
     if (!isdir (rcsdir))
     {
 	mode_t omask;
-	char line[MAXLINELEN];
 	Node *p;
 	List *ulist;
+
+#if 0
+	char line[MAXLINELEN];
 
 	(void) printf ("Add directory %s to the repository (y/n) [n] ? ",
 		       rcsdir);
@@ -348,6 +342,8 @@ add_directory (repository, dir)
 	    error (0, 0, "directory %s not added", rcsdir);
 	    goto out;
 	}
+#endif
+
 	omask = umask (2);
 	if (mkdir (rcsdir, 0777) < 0)
 	{
@@ -389,12 +385,13 @@ out:
  * interrogating the user.  Returns non-zero on error.
  */
 static int
-build_entry (repository, user, options, message, entries)
+build_entry (repository, user, options, message, entries, tag)
     char *repository;
     char *user;
     char *options;
     char *message;
     List *entries;
+    char *tag;
 {
     char fname[PATH_MAX];
     char line[MAXLINELEN];
@@ -418,6 +415,7 @@ build_entry (repository, user, options, message, entries)
 
     /*
      * The options for the "add" command are store in the file CVS/user,p
+     * XXX - no they are not!
      */
     (void) sprintf (fname, "%s/%s%s", CVSADM, user, CVSEXT_OPT);
     fp = open_file (fname, "w+");
@@ -431,7 +429,7 @@ build_entry (repository, user, options, message, entries)
      */
     (void) sprintf (fname, "%s/%s%s", CVSADM, user, CVSEXT_LOG);
     fp = open_file (fname, "w+");
-    if (*message && fputs (message, fp) == EOF)
+    if (message && fputs (message, fp) == EOF)
 	    error (1, errno, "cannot write to %s", fname);
     if (fclose(fp) == EOF)
         error(1, errno, "cannot close %s", fname);
@@ -442,6 +440,6 @@ build_entry (repository, user, options, message, entries)
      * and ,t files, but who cares).
      */
     (void) sprintf (line, "Initial %s", user);
-    Register (entries, user, "0", line, options, (char *) 0, (char *) 0);
+    Register (entries, user, "0", line, options, tag, (char *) 0, (char *) 0);
     return (0);
 }

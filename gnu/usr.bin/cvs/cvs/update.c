@@ -3,7 +3,7 @@
  * Copyright (c) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.3 kit.
+ * specified in the README file that comes with the CVS 1.4 kit.
  * 
  * "update" updates the version in the present directory with respect to the RCS
  * repository.  The present version must have been created by "checkout". The
@@ -36,39 +36,26 @@
 #include "cvs.h"
 
 #ifndef lint
-static char rcsid[] = "@(#)update.c 1.83 92/04/10";
+static char rcsid[] = "$CVSid: @(#)update.c 1.95 94/10/22 $";
+USE(rcsid)
 #endif
 
-#if __STDC__
-static int checkout_file (char *file, char *repository, List *entries,
-			  List *srcfiles, Vers_TS *vers_ts, char *update_dir);
-static int isemptydir (char *dir);
-static int merge_file (char *file, char *repository, List *entries,
-		       Vers_TS *vers, char *update_dir);
-static int scratch_file (char *file, char *repository, List * entries,
-			 char *update_dir);
-static Dtype update_dirent_proc (char *dir, char *repository, char *update_dir);
-static int update_dirleave_proc (char *dir, int err, char *update_dir);
-static int update_file_proc (char *file, char *update_dir, char *repository,
-			     List * entries, List * srcfiles);
-static int update_filesdone_proc (int err, char *repository, char *update_dir);
-static int write_letter (char *file, int letter, char *update_dir);
-static void ignore_files (List * ilist, char *update_dir);
-static void join_file (char *file, List *srcfiles, Vers_TS *vers_ts,
-		       char *update_dir);
-#else
-static int update_file_proc ();
-static int update_filesdone_proc ();
-static Dtype update_dirent_proc ();
-static int update_dirleave_proc ();
-static int isemptydir ();
-static int scratch_file ();
-static int checkout_file ();
-static int write_letter ();
-static int merge_file ();
-static void ignore_files ();
-static void join_file ();
-#endif				/* __STDC__ */
+static int checkout_file PROTO((char *file, char *repository, List *entries,
+			  List *srcfiles, Vers_TS *vers_ts, char *update_dir));
+static int isemptydir PROTO((char *dir));
+static int merge_file PROTO((char *file, char *repository, List *entries,
+		       Vers_TS *vers, char *update_dir));
+static int scratch_file PROTO((char *file, char *repository, List * entries,
+			 char *update_dir));
+static Dtype update_dirent_proc PROTO((char *dir, char *repository, char *update_dir));
+static int update_dirleave_proc PROTO((char *dir, int err, char *update_dir));
+static int update_file_proc PROTO((char *file, char *update_dir, char *repository,
+			     List * entries, List * srcfiles));
+static int update_filesdone_proc PROTO((int err, char *repository, char *update_dir));
+static int write_letter PROTO((char *file, int letter, char *update_dir));
+static void ignore_files PROTO((List * ilist, char *update_dir));
+static void join_file PROTO((char *file, List *srcfiles, Vers_TS *vers_ts,
+		       char *update_dir, List *entries));
 
 static char *options = NULL;
 static char *tag = NULL;
@@ -81,7 +68,7 @@ static int update_build_dirs = 0;
 static int update_prune_dirs = 0;
 static int pipeout = 0;
 static List *ignlist = (List *) NULL;
-
+static time_t last_register_time;
 static char *update_usage[] =
 {
     "Usage:\n %s %s [-APQdflRpq] [-k kopt] [-r rev|-D date] [-j rev] [-I ign] [files...]\n",
@@ -121,7 +108,7 @@ update (argc, argv)
 
     /* parse the args */
     optind = 1;
-    while ((c = gnu_getopt (argc, argv, "ApPflRQqdk:r:D:j:I:")) != -1)
+    while ((c = getopt (argc, argv, "ApPflRQqdk:r:D:j:I:")) != -1)
     {
 	switch (c)
 	{
@@ -192,7 +179,10 @@ update (argc, argv)
     if (argc <= 0 && !pipeout)
     {
 	if (update_build_dirs)
-	    (void) unlink_file (CVSADM_ENTSTAT);
+	{
+	    if (unlink_file (CVSADM_ENTSTAT) < 0 && errno != ENOENT)
+		error (1, errno, "cannot remove file %s", CVSADM_ENTSTAT);
+	}
 
 	/* keep the CVS/Tag file current with the specified arguments */
 	if (aflag || tag || date)
@@ -256,14 +246,14 @@ do_update (argc, argv, xoptions, xtag, xdate, xforce, local, xbuild, xaflag,
     /* setup the join support */
     join_rev1 = xjoin_rev1;
     join_rev2 = xjoin_rev2;
-    if (join_rev1 && (cp = index (join_rev1, ':')) != NULL)
+    if (join_rev1 && (cp = strchr (join_rev1, ':')) != NULL)
     {
 	*cp++ = '\0';
 	date_rev1 = Make_Date (cp);
     }
     else
 	date_rev1 = (char *) NULL;
-    if (join_rev2 && (cp = index (join_rev2, ':')) != NULL)
+    if (join_rev2 && (cp = strchr (join_rev2, ':')) != NULL)
     {
 	*cp++ = '\0';
 	date_rev2 = Make_Date (cp);
@@ -275,7 +265,18 @@ do_update (argc, argv, xoptions, xtag, xdate, xforce, local, xbuild, xaflag,
     err = start_recursion (update_file_proc, update_filesdone_proc,
 			   update_dirent_proc, update_dirleave_proc,
 			   argc, argv, local, which, aflag, 1,
-			   preload_update_dir, 1);
+			   preload_update_dir, 1, 0);
+
+    /* see if we need to sleep before returning */
+    if (last_register_time)
+    {
+	time_t now;
+
+	(void) time (&now);
+	if (now == last_register_time)
+	    sleep (1);			/* to avoid time-stamp races */
+    }
+
     return (err);
 }
 
@@ -303,7 +304,8 @@ update_file_proc (file, update_dir, repository, entries, srcfiles)
     Vers_TS *vers;
 
     status = Classify_File (file, tag, date, options, force_tag_match,
-			    aflag, repository, entries, srcfiles, &vers);
+			    aflag, repository, entries, srcfiles, &vers,
+			    update_dir, pipeout);
     if (pipeout)
     {
 	/*
@@ -351,13 +353,65 @@ update_file_proc (file, update_dir, repository, entries, srcfiles)
 		break;
 	    case T_CONFLICT:		/* old punt-type errors */
 		retval = 1;
+		(void) write_letter (file, 'C', update_dir);
 		break;
-	    case T_NEEDS_MERGE:	/* needs merging */
+	    case T_NEEDS_MERGE:		/* needs merging */
 		retval = merge_file (file, repository, entries,
 				     vers, update_dir);
 		break;
 	    case T_MODIFIED:		/* locally modified */
-		retval = write_letter (file, 'M', update_dir);
+		retval = 0;
+		if (vers->ts_conflict)
+		{
+		    char *filestamp;
+		    int retcode;
+
+		    /*
+		     * If the timestamp has changed and no conflict indicators
+		     * are found, it isn't a 'C' any more.
+		     */
+		    filestamp = time_stamp (file);
+		    retcode = strcmp (vers->ts_conflict, filestamp);
+		    free (filestamp);
+
+		    if (retcode)
+		    {
+			/*
+			 * If the timestamps differ, look for Conflict
+			 * indicators to see if 'C' anyway.
+			 */
+			run_setup ("%s -s", GREP);
+			run_arg (RCS_MERGE_PAT);
+			run_arg (file);
+			retcode = run_exec (RUN_TTY, RUN_TTY,
+					    RUN_TTY,RUN_NORMAL);
+			if (retcode == -1)
+			{
+			    if (update_dir[0] == '\0')
+				error (1, errno,
+				"fork failed while examining conflict in `%s'",
+				       file);
+			    else
+				error (1, errno,
+			     "fork failed while examining conflict in `%s/%s'",
+				       update_dir, file);
+			}
+		    }
+		    if (!retcode)
+		    {
+			(void) write_letter (file, 'C', update_dir);
+			retval = 1;
+		    }
+		    else
+		    {
+			/* Reregister to clear conflict flag. */
+			Register (entries, file, vers->vn_rcs, vers->ts_rcs,
+				  vers->options, vers->tag,
+				  vers->date, (char *)0);
+		    }
+		}
+		if (!retval)
+		    retval = write_letter (file, 'M', update_dir);
 		break;
 	    case T_CHECKOUT:		/* needs checkout */
 		retval = checkout_file (file, repository, entries, srcfiles,
@@ -382,7 +436,7 @@ update_file_proc (file, update_dir, repository, entries, srcfiles)
 
     /* only try to join if things have gone well thus far */
     if (retval == 0 && join_rev1)
-	join_file (file, srcfiles, vers, update_dir);
+	join_file (file, srcfiles, vers, update_dir, entries);
 
     /* if this directory has an ignore list, add this file to it */
     if (ignlist)
@@ -392,7 +446,8 @@ update_file_proc (file, update_dir, repository, entries, srcfiles)
 	p = getnode ();
 	p->type = FILES;
 	p->key = xstrdup (file);
-	(void) addnode (ignlist, p);
+	if (addnode (ignlist, p) != 0)
+	    freenode (p);
     }
 
     freevers_ts (&vers);
@@ -423,6 +478,14 @@ update_filesdone_proc (err, repository, update_dir)
 	run_arg (CVSADM);
 	(void) run_exec (RUN_TTY, RUN_TTY, RUN_TTY, RUN_NORMAL);
     }
+#ifdef CVSADM_ROOT
+    else
+    {
+        /* If there is no CVS/Root file, add one */
+        if (!isfile (CVSADM_ROOT))
+	    Create_Root( (char *) NULL, CVSroot );
+    }
+#endif /* CVSADM_ROOT */
 
     return (err);
 }
@@ -441,6 +504,14 @@ update_dirent_proc (dir, repository, update_dir)
     char *repository;
     char *update_dir;
 {
+    if (ignore_directory (update_dir))
+      {
+	/* print the warm fuzzy message */
+	if (!quiet)
+	  error (0, 0, "Ignoring %s", update_dir);
+        return R_SKIP_ALL;
+      }
+
     if (!isdir (dir))
     {
 	/* if we aren't building dirs, blow it off */
@@ -472,7 +543,8 @@ update_dirent_proc (dir, repository, update_dir)
 	    char tmp[PATH_MAX];
 
 	    (void) sprintf (tmp, "%s/%s", dir, CVSADM_ENTSTAT);
-	    (void) unlink_file (tmp);
+	    if (unlink_file (tmp) < 0 && errno != ENOENT)
+		error (1, errno, "cannot remove file %s", tmp);
 	}
 
 	/* keep the CVS/Tag file current with the specified arguments */
@@ -515,7 +587,7 @@ update_dirleave_proc (dir, err, update_dir)
 	repository = Name_Repository ((char *) NULL, update_dir);
 	if (fgets (line, sizeof (line), fp) != NULL)
 	{
-	    if ((cp = rindex (line, '\n')) != NULL)
+	    if ((cp = strrchr (line, '\n')) != NULL)
 		*cp = '\0';
 	    run_setup ("%s %s", line, repository);
 	    (void) printf ("%s %s: Executing '", program_name, command_name);
@@ -534,6 +606,35 @@ update_dirleave_proc (dir, err, update_dir)
 	run_arg (CVSADM);
 	(void) run_exec (RUN_TTY, RUN_TTY, RUN_TTY, RUN_NORMAL);
     }
+#ifdef CVSADM_ROOT
+    else
+    {
+        /* If there is no CVS/Root file, add one */
+        if (!isreadable (CVSADM_ROOT))
+	{
+	    if (isfile (CVSADM_ROOT))
+	    {
+	        error (0, 0, "bad permissions %s/%s deleteing it", update_dir,
+		       CVSADM_ROOT);
+		if (unlink_file (CVSADM_ROOT) == -1)
+		{
+		    error (0, errno, "delete failed for %s/%s",
+			   update_dir, CVSADM_ROOT);
+		}
+	    }
+	    Create_Root( (char *) NULL, CVSroot );
+	}
+	else
+	{
+	    char *root = Name_Root( (char *) NULL, update_dir);
+
+	    if (root == NULL)
+	        Create_Root( (char *) NULL, CVSroot );
+	    else
+	        free (root);		/* all is well, release the storage */
+	}
+    }
+#endif /* CVSADM_ROOT */
 
     /* Prune empty dirs on the way out - if necessary */
     (void) chdir ("..");
@@ -556,7 +657,7 @@ isemptydir (dir)
     char *dir;
 {
     DIR *dirp;
-    struct direct *dp;
+    struct dirent *dp;
 
     if ((dirp = opendir (dir)) == NULL)
     {
@@ -671,8 +772,12 @@ checkout_file (file, repository, entries, srcfiles, vers_ts, update_dir)
 			      force_tag_match, set_time, entries, srcfiles);
 	    if (strcmp (xvers_ts->options, "-V4") == 0)
 		xvers_ts->options[0] = '\0';
+
+	    (void) time (&last_register_time);
+
 	    Register (entries, file, xvers_ts->vn_rcs, xvers_ts->ts_user,
-		      xvers_ts->options, xvers_ts->tag, xvers_ts->date);
+		      xvers_ts->options, xvers_ts->tag, xvers_ts->date,
+		      (char *)0);  /* Clear conflict flag on fresh checkout */
 
 	    /* fix up the vers structure, in case it is used by join */
 	    if (join_rev1)
@@ -727,7 +832,7 @@ checkout_file (file, repository, entries, srcfiles, vers_ts, update_dir)
 static int
 write_letter (file, letter, update_dir)
     char *file;
-    char letter;
+    int letter;
     char *update_dir;
 {
     if (!really_quiet)
@@ -791,11 +896,20 @@ merge_file (file, repository, entries, vers, update_dir)
 	rename_file (backup, file);
 	return (1);
     }
-    /* XXX - Might want to make sure that rcsmerge changed the file */
+
     if (strcmp (vers->options, "-V4") == 0)
 	vers->options[0] = '\0';
-    Register (entries, file, vers->vn_rcs, vers->ts_rcs, vers->options,
-	      vers->tag, vers->date);
+    (void) time (&last_register_time);
+    {
+	char *cp = 0;
+
+	if (status)
+	    cp = time_stamp (file);
+	Register (entries, file, vers->vn_rcs, vers->ts_rcs, vers->options,
+		  vers->tag, vers->date, cp);
+	if (cp)
+	    free (cp);
+    }
 
     /* fix up the vers structure, in case it is used by join */
     if (join_rev1)
@@ -803,6 +917,14 @@ merge_file (file, repository, entries, vers, update_dir)
 	if (vers->vn_user != NULL)
 	    free (vers->vn_user);
 	vers->vn_user = xstrdup (vers->vn_rcs);
+    }
+
+    if (!xcmp (backup, file))
+    {
+	printf ("%s already contains the differences between %s and %s\n",
+		user, vers->vn_user, vers->vn_rcs);
+	history_write ('G', update_dir, vers->vn_rcs, file, repository);
+	return (0);
     }
 
     /* possibly run GREP to see if there appear to be conflicts in the file */
@@ -839,98 +961,216 @@ merge_file (file, repository, entries, vers, update_dir)
  * (-j option)
  */
 static void
-join_file (file, srcfiles, vers, update_dir)
+join_file (file, srcfiles, vers, update_dir, entries)
     char *file;
     List *srcfiles;
     Vers_TS *vers;
     char *update_dir;
+    List *entries;
 {
     char user[PATH_MAX];
     char backup[PATH_MAX];
-    char *rev, *baserev;
     char *options;
     int status;
 
+    char *rev1;
+    char *rev2;
+    char *jrev1;
+    char *jrev2;
+    char *jdate1;
+    char *jdate2;
+
+    jrev1 = join_rev1;
+    jrev2 = join_rev2;
+    jdate1 = date_rev1;
+    jdate2 = date_rev2;
+
     /* determine if we need to do anything at all */
-    if (vers->vn_user == NULL || vers->srcfile == NULL ||
+    if (vers->srcfile == NULL ||
 	vers->srcfile->path == NULL)
     {
 	return;
     }
 
-    /* special handling when two revisions are specified */
-    if (join_rev1 && join_rev2)
+    /* in all cases, use two revs. */
+
+    /* if only one rev is specified, it becomes the second rev */
+    if (jrev2 == NULL)
     {
-	rev = RCS_getversion (vers->srcfile, join_rev2, date_rev2, 1);
-	if (rev == NULL)
+	jrev2 = jrev1;
+	jrev1 = NULL;
+	jdate2 = jdate1;
+	jdate1 = NULL;
+    }
+
+    /* convert the second rev spec, walking branches and dates. */
+
+    rev2 = RCS_getversion (vers->srcfile, jrev2, jdate2, 1);
+    if (rev2 == NULL)
+    {
+	if (!quiet)
 	{
-	    if (!quiet && date_rev2 == NULL)
+	    if (jdate2 != NULL)
 		error (0, 0,
-		       "cannot find revision %s in file %s", join_rev2, file);
+		       "cannot find revision %s as of %s in file %s",
+		       jrev2, jdate2, file);
+	    else
+		error (0, 0,
+		       "cannot find revision %s in file %s",
+		       jrev2, file);
 	    return;
 	}
+    }
+	
+    /* skip joining identical revs */
+    if (strcmp (rev2, vers->vn_user) == 0) /* no merge necessary */
+    {
+	free (rev2);
+	return;
+    }
 
-	baserev = RCS_getversion (vers->srcfile, join_rev1, date_rev1, 1);
-	if (baserev == NULL)
+    if (jrev1 == NULL)
+    {
+	char *tst;
+	/* if the first rev is missing, then it is implied to be the
+	   greatest common ancestor of both the join rev, and the
+	   checked out rev. */
+	
+	tst = vers->vn_user;
+	if (*tst == '!')
 	{
-	    if (!quiet && date_rev1 == NULL)
-		error (0, 0,
-		       "cannot find revision %s in file %s", join_rev1, file);
-	    free (rev);
-	    return;
+	    /* file was dead.  merge anyway and pretend it's been
+	       added. */
+	    ++tst;
+	    Register (entries, file, "0", vers->ts_user, vers->options,
+		      vers->tag, (char *) 0, (char *) 0);
+	}
+	rev1 = gca (tst, rev2);
+	if (rev1 == NULL)
+	{
+	    /* this should not be possible */
+	    error (0, 0, "bad gca");
+	    abort();
 	}
 
-	/*
-	 * nothing to do if:
-	 *	second revision matches our BASE revision (vn_user) &&
-	 *	both revisions are on the same branch
-	 */
-	if (strcmp (vers->vn_user, rev) == 0 &&
-	    numdots (baserev) == numdots (rev))
+	tst = RCS_gettag (vers->srcfile, rev2, 1);
+	if (tst == NULL)
 	{
-	    /* might be the same branch.  take a real look */
-	    char *dot = rindex (baserev, '.');
-	    int len = (dot - baserev) + 1;
+	    /* this should not be possible. */
+	    error (0, 0, "cannot find gca");
+	    abort();
+	}
 
-	    if (strncmp (baserev, rev, len) == 0)
-		return;
+	free (tst);
+
+	/* these two cases are noops */
+	if (strcmp (rev1, rev2) == 0)
+	{
+	    free (rev1);
+	    free (rev2);
+	    return;
 	}
     }
     else
     {
-	rev = RCS_getversion (vers->srcfile, join_rev1, date_rev1, 1);
-	if (rev == NULL)
-	    return;
-	if (strcmp (rev, vers->vn_user) == 0) /* no merge necessary */
-	{
-	    free (rev);
-	    return;
-	}
+	/* otherwise, convert the first rev spec, walking branches and
+	   dates.  */
 
-	baserev = RCS_whatbranch (file, join_rev1, srcfiles);
-	if (baserev)
+	rev1 = RCS_getversion (vers->srcfile, jrev1, jdate1, 1);
+	if (rev1 == NULL
+	    && !quiet)
 	{
-	    char *cp;
-
-	    /* we get a branch -- turn it into a revision, or NULL if trunk */
-	    if ((cp = rindex (baserev, '.')) == NULL)
-	    {
-		free (baserev);
-		baserev = (char *) NULL;
-	    }
+	    if (jdate1 != NULL)
+		error (0, 0,
+		       "cannot find revision %s as of %s in file %s",
+		       jrev1, jdate1, file);
 	    else
-		*cp = '\0';
+		error (0, 0,
+		       "cannot find revision %s in file %s",
+		       jrev1, file);
+	    return;
 	}
     }
-    if (baserev && strcmp (baserev, rev) == 0)
-    {
-	/* they match -> nothing to do */
-	free (rev);
-	free (baserev);
-	return;
-    }
 
-    /* OK, so we have a revision and possibly a base revision; continue on */
+    /* do the join */
+
+#if 0
+    dome {
+	/* special handling when two revisions are specified */
+	if (join_rev1 && join_rev2)
+	{
+	    rev = RCS_getversion (vers->srcfile, join_rev2, date_rev2, 1);
+	    if (rev == NULL)
+	    {
+		if (!quiet && date_rev2 == NULL)
+		    error (0, 0,
+			   "cannot find revision %s in file %s", join_rev2, file);
+		return;
+	    }
+	    
+	    baserev = RCS_getversion (vers->srcfile, join_rev1, date_rev1, 1);
+	    if (baserev == NULL)
+	    {
+		if (!quiet && date_rev1 == NULL)
+		    error (0, 0,
+			   "cannot find revision %s in file %s", join_rev1, file);
+		free (rev);
+		return;
+	    }
+	    
+	    /*
+	     * nothing to do if:
+	     *	second revision matches our BASE revision (vn_user) &&
+	     *	both revisions are on the same branch
+	     */
+	    if (strcmp (vers->vn_user, rev) == 0 &&
+		numdots (baserev) == numdots (rev))
+	    {
+		/* might be the same branch.  take a real look */
+		char *dot = strrchr (baserev, '.');
+		int len = (dot - baserev) + 1;
+		
+		if (strncmp (baserev, rev, len) == 0)
+		    return;
+	    }
+	}
+	else
+	{
+	    rev = RCS_getversion (vers->srcfile, join_rev1, date_rev1, 1);
+	    if (rev == NULL)
+		return;
+	    if (strcmp (rev, vers->vn_user) == 0) /* no merge necessary */
+	    {
+		free (rev);
+		return;
+	    }
+	    
+	    baserev = RCS_whatbranch (file, join_rev1, srcfiles);
+	    if (baserev)
+	    {
+		char *cp;
+		
+		/* we get a branch -- turn it into a revision, or NULL if trunk */
+		if ((cp = strrchr (baserev, '.')) == NULL)
+		{
+		    free (baserev);
+		    baserev = (char *) NULL;
+		}
+		else
+		    *cp = '\0';
+	    }
+	}
+	if (baserev && strcmp (baserev, rev) == 0)
+	{
+	    /* they match -> nothing to do */
+	    free (rev);
+	    free (baserev);
+	    return;
+	}
+    }
+#endif
+
+    /* OK, so we have two revisions; continue on */
     
     /*
      * The users currently modified file is moved to a backup file name
@@ -951,13 +1191,15 @@ join_file (file, srcfiles, vers, update_dir)
 
     options = vers->options;
 #ifdef HAVE_RCS5
+#if 0
     if (*options == '\0')
 	options = "-kk";		/* to ignore keyword expansions */
 #endif
+#endif
 
     /* XXX - Do merge by hand instead of using rcsmerge, due to -k handling */
-    run_setup ("%s%s %s %s%s -r%s", Rcsbin, RCS_RCSMERGE, options,
-	       baserev ? "-r" : "", baserev ? baserev : "", rev);
+    run_setup ("%s%s %s -r%s -r%s", Rcsbin, RCS_RCSMERGE, options,
+	       rev1, rev2);
     run_arg (vers->srcfile->path);
     status = run_exec (RUN_TTY, RUN_TTY, RUN_TTY, RUN_NORMAL);
     if (status != 0
@@ -967,14 +1209,28 @@ join_file (file, srcfiles, vers, update_dir)
 	)
     {
 	error (0, status == -1 ? errno : 0,
-	       "could not merge revision %s of %s", rev, user);
+	       "could not merge revision %s of %s", rev2, user);
 	error (status == -1 ? 1 : 0, 0, "restoring %s from backup file %s",
 	       user, backup);
 	rename_file (backup, file);
     }
-    free (rev);
-    if (baserev)
-	free (baserev);
+    free (rev1);
+    free (rev2);
+
+#ifdef HAVE_RCS5
+    if (status == 1)
+    {
+	char *cp = 0;
+
+	if (status)
+	    cp = time_stamp (file);
+	Register (entries, file, vers->vn_rcs, vers->ts_rcs, vers->options,
+		  vers->tag, vers->date, cp);
+	if (cp)
+	    free(cp);
+    }
+#endif
+
     return;
 }
 
@@ -988,7 +1244,7 @@ ignore_files (ilist, update_dir)
     char *update_dir;
 {
     DIR *dirp;
-    struct direct *dp;
+    struct dirent *dp;
     struct stat sb;
     char *file;
     char *xdir;
@@ -1011,18 +1267,47 @@ ignore_files (ilist, update_dir)
 	    continue;
 	if (findnode (ilist, file) != NULL)
 	    continue;
-	if (lstat (file, &sb) != -1)
-	{
-	    if (S_ISDIR (sb.st_mode))
-		continue;
-#ifdef S_IFLNK
-	    if (S_ISLNK (sb.st_mode))
-		continue;
+
+	if (
+#ifdef DT_DIR
+		dp->d_type != DT_UNKNOWN ||
 #endif
-	}
+		lstat(file, &sb) != -1) 
+	{
+
+	    if (
+#ifdef DT_DIR
+		dp->d_type == DT_DIR || dp->d_type == DT_UNKNOWN &&
+#endif
+		S_ISDIR(sb.st_mode))
+	    {
+		char temp[PATH_MAX];
+
+		(void) sprintf (temp, "%s/%s", file, CVSADM);
+		if (isdir (temp))
+		    continue;
+	    }
+#ifdef S_ISLNK
+	    else if (
+#ifdef DT_DIR
+		dp->d_type == DT_LNK || dp->d_type == DT_UNKNOWN && 
+#endif
+		S_ISLNK(sb.st_mode))
+	    {
+		continue;
+	    }
+#endif
+    	}
+	
 	if (ign_name (file))
 	    continue;
 	(void) write_letter (file, '?', xdir);
     }
     (void) closedir (dirp);
+}
+
+int
+joining ()
+{
+    return (join_rev1 != NULL);
 }

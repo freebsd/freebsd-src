@@ -3,7 +3,7 @@
  *    Copyright (c) 1989-1992, Brian Berliner
  *
  *    You may distribute under the terms of the GNU General Public License
- *    as specified in the README file that comes with the CVS 1.3 kit.
+ *    as specified in the README file that comes with the CVS 1.4 kit.
  *
  * Modules
  *
@@ -23,7 +23,8 @@
 #include "cvs.h"
 
 #ifndef lint
-static char rcsid[] = "@(#)modules.c 1.57 92/04/10";
+static char rcsid[] = "$CVSid: @(#)modules.c 1.62 94/09/29 $";
+USE(rcsid)
 #endif
 
 struct sortrec
@@ -34,13 +35,8 @@ struct sortrec
     char *comment;
 };
 
-#if __STDC__
-static int sort_order (CONST PTR l, CONST PTR r);
-static void save_d (char *k, int ks, char *d, int ds);
-#else
-static int sort_order ();
-static void save_d ();
-#endif				/* __STDC__ */
+static int sort_order PROTO((CONST PTR l, CONST PTR r));
+static void save_d PROTO((char *k, int ks, char *d, int ds));
 
 
 /*
@@ -117,6 +113,13 @@ do_module (db, mname, m_type, msg, callback_proc, where,
     if (getwd (cwd) == NULL)
 	error (1, 0, "cannot get current working directory: %s", cwd);
 
+    /* if this is a directory to ignore, add it to that list */
+    if (mname[0] == '!' && mname[1] != '\0')
+    {
+	ign_dir_add (mname+1);
+	return(err);
+    }
+
     /* strip extra stuff from the module name */
     strip_path (mname);
 
@@ -142,12 +145,20 @@ do_module (db, mname, m_type, msg, callback_proc, where,
 	val.dptr[val.dsize] = '\0';
 
 	/* If the line ends in a comment, strip it off */
-	if ((cp = index (val.dptr, '#')) != NULL)
+	if ((cp = strchr (val.dptr, '#')) != NULL)
 	{
 	    do
 		*cp-- = '\0';
 	    while (isspace (*cp));
 	}
+	else
+	{
+	    /* Always strip trailing spaces */
+	    cp = strchr (val.dptr, '\0');
+	    while (cp > val.dptr && isspace(*--cp))
+		*cp = '\0';
+	}
+
 	value = val.dptr;
 	mwhere = xstrdup (mname);
 	goto found;
@@ -161,7 +172,7 @@ do_module (db, mname, m_type, msg, callback_proc, where,
 	/* check to see if mname is a directory or file */
 
 	(void) sprintf (file, "%s/%s", CVSroot, mname);
-	if ((acp = rindex (mname, '/')) != NULL)
+	if ((acp = strrchr (mname, '/')) != NULL)
 	{
 	    *acp = '\0';
 	    (void) sprintf (attic_file, "%s/%s/%s/%s%s", CVSroot, mname,
@@ -183,13 +194,13 @@ do_module (db, mname, m_type, msg, callback_proc, where,
 	    if (isfile (file) || isfile (attic_file))
 	    {
 		/* if mname was a file, we have to split it into "dir file" */
-		if ((cp = rindex (mname, '/')) != NULL && cp != mname)
+		if ((cp = strrchr (mname, '/')) != NULL && cp != mname)
 		{
 		    char *slashp;
 
 		    /* put the ' ' in a copy so we don't mess up the original */
 		    value = strcpy (xvalue, mname);
-		    slashp = rindex (value, '/');
+		    slashp = strrchr (value, '/');
 		    *slashp = ' ';
 		}
 		else
@@ -218,7 +229,7 @@ do_module (db, mname, m_type, msg, callback_proc, where,
     }
 
     /* look up everything to the first / as a module */
-    if (mname[0] != '/' && (cp = index (mname, '/')) != NULL)
+    if (mname[0] != '/' && (cp = strchr (mname, '/')) != NULL)
     {
 	/* Make the slash the new end of the string temporarily */
 	*cp = '\0';
@@ -240,7 +251,7 @@ do_module (db, mname, m_type, msg, callback_proc, where,
 	    val.dptr[val.dsize] = '\0';
 
 	    /* If the line ends in a comment, strip it off */
-	    if ((cp2 = index (val.dptr, '#')) != NULL)
+	    if ((cp2 = strchr (val.dptr, '#')) != NULL)
 	    {
 		do
 		    *cp2-- = '\0';
@@ -282,7 +293,7 @@ do_module (db, mname, m_type, msg, callback_proc, where,
     value = zvalue;
 
     /* search the value for the special delimiter and save for later */
-    if ((cp = index (value, CVSMODULE_SPEC)) != NULL)
+    if ((cp = strchr (value, CVSMODULE_SPEC)) != NULL)
     {
 	*cp = '\0';			/* null out the special char */
 	spec_opt = cp + 1;		/* save the options for later */
@@ -326,6 +337,9 @@ do_module (db, mname, m_type, msg, callback_proc, where,
 				CVSROOTADM, CVSNULLREPOS);
 		if (!isfile (nullrepos))
 		    (void) mkdir (nullrepos, 0777);
+		if (!isdir (nullrepos))
+		    error (1, 0, "there is no repository %s", nullrepos);
+
 		Create_Admin (".", nullrepos, (char *) NULL, (char *) NULL);
 		if (!noexec)
 		{
@@ -363,7 +377,7 @@ do_module (db, mname, m_type, msg, callback_proc, where,
 
     /* parse the args */
     optind = 1;
-    while ((c = gnu_getopt (modargc, modargv, CVSMODULE_OPTS)) != -1)
+    while ((c = getopt (modargc, modargv, CVSMODULE_OPTS)) != -1)
     {
 	switch (c)
 	{
@@ -417,9 +431,16 @@ do_module (db, mname, m_type, msg, callback_proc, where,
 	int i;
 
 	for (i = 0; i < modargc; i++)
-	    err += do_module (db, modargv[i], m_type, msg, callback_proc,
-			      where, shorten, local_specified,
-			      run_module_prog, extra_arg);
+	{
+	    if (strcmp (mname, modargv[i]) == 0)
+		error (0, 0,
+		       "module `%s' in modules file contains infinite loop",
+		       mname);
+	    else
+		err += do_module (db, modargv[i], m_type, msg, callback_proc,
+				  where, shorten, local_specified,
+				  run_module_prog, extra_arg);
+	}
 	if (mwhere)
 	    free (mwhere);
 	free (zvalue);
@@ -445,7 +466,7 @@ do_module (db, mname, m_type, msg, callback_proc, where,
     {
 	char *next_opt;
 
-	cp = index (spec_opt, CVSMODULE_SPEC);
+	cp = strchr (spec_opt, CVSMODULE_SPEC);
 	if (cp != NULL)
 	{
 	    /* save the beginning of the next arg */
@@ -648,7 +669,7 @@ save_d (k, ks, d, ds)
 	s_rec->status = def_status;
 
 	/* Minor kluge, but general enough to maintain */
-	for (cp = s_rec->rest; (cp2 = index (cp, '-')) != NULL; cp = ++cp2)
+	for (cp = s_rec->rest; (cp2 = strchr (cp, '-')) != NULL; cp = ++cp2)
 	{
 	    if (*(cp2 + 1) == 's' && *(cp2 + 2) == ' ')
 	    {
@@ -665,7 +686,7 @@ save_d (k, ks, d, ds)
 	cp = s_rec->rest;
 
     /* Find comment field, clean up on all three sides & compress blanks */
-    if ((cp2 = cp = index (cp, '#')) != NULL)
+    if ((cp2 = cp = strchr (cp, '#')) != NULL)
     {
 	if (*--cp2 == ' ')
 	    *cp2 = '\0';
@@ -748,13 +769,13 @@ cat_module (status)
 
 	optind = 1;
 	wid = 0;
-	while ((c = gnu_getopt (argc, argv, CVSMODULE_OPTS)) != -1)
+	while ((c = getopt (argc, argv, CVSMODULE_OPTS)) != -1)
 	{
 	    if (!status)
 	    {
-		if (c == 'a')
+		if (c == 'a' || c == 'l')
 		{
-		    (void) printf (" -a");
+		    (void) printf (" -%c", c);
 		    wid += 3;		/* Could just set it to 3 */
 		}
 		else

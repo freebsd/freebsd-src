@@ -2,7 +2,7 @@
  * Copyright (c) 1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.3 kit.
+ * specified in the README file that comes with the CVS 1.4 kit.
  * 
  * A simple ndbm-emulator for CVS.  It parses a text file of the format:
  * 
@@ -18,7 +18,8 @@
 #ifdef MY_NDBM
 
 #ifndef lint
-static char rcsid[] = "@(#)myndbm.c 1.5 92/03/31";
+static char rcsid[] = "$CVSid: @(#)myndbm.c 1.7 94/09/23 $";
+USE(rcsid)
 #endif
 
 static void mydbm_load_file ();
@@ -138,7 +139,7 @@ mydbm_load_file (fp, list)
 
     for (cont = 0; fgets (line, sizeof (line), fp) != NULL;)
     {
-	if ((cp = rindex (line, '\n')) != NULL)
+	if ((cp = strrchr (line, '\n')) != NULL)
 	    *cp = '\0';			/* strip the newline */
 
 	/*
