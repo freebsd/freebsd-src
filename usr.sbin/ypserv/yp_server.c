@@ -392,6 +392,13 @@ ypproc_xfr_2_svc(ypreq_xfr *argp, struct svc_req *rqstp)
 		}
 		yp_error("ypxfr execl(%s): %s", ypxfr_command, strerror(errno));
 		YPXFR_RETURN(YPXFR_XFRERR)
+		/*
+		 * Just to safe, prevent PR #10970 from biting us in
+		 * the unlikely case that execing ypxfr fails. We don't
+		 * want to have any child processes spawned from this
+		 * child process.
+		 */
+		_exit(0);
 		break;
 	}
 	case -1:
@@ -540,10 +547,10 @@ ypproc_all_2_svc(ypreq_nokey *argp, struct svc_req *rqstp)
 	svc_sendreply(rqstp->rq_xprt, xdr_my_ypresp_all, (char *)&result);
 
 	/*
-	 * Returning NULL prevents the dispatcher from calling
-	 * svc_sendreply() since we already did it.
+	 * Proper fix for PR #10970: exit here so that we don't risk
+	 * having a child spawned from this sub-process.
 	 */
-	return (NULL);
+	_exit(0);
 }
 
 ypresp_master *
