@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.55 1996/08/04 03:28:14 jkh Exp $
+<date> $Id: freebsd-faq.sgml,v 1.56 1996/08/04 14:14:05 jraynard Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -356,6 +356,17 @@ Any entries with a &lt;XXX&gt; are under construction.
           administrator to get them for you.
       </sect1>
       
+      <sect1>
+        <heading>Is there anything about FreeBSD on IRC (Internet Relay Chat) ?</heading>
+        <p>
+          There are two channels about FreeBSD on IRC:
+          <enum>
+            <item>The main channel is &num;FreeBSD on the EFNET. You can
+                  use your regular IRC server for it.
+            <item>You can point your IRC client to <tt/irc.FreeBSD.org/
+                  This server is on BSDnet and hosts &num;FreeBSD. This
+                  is not the same channel.
+          </enum>
       <sect1>
         <heading>Books on FreeBSD</heading>
         <p> 
