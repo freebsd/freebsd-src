@@ -1,30 +1,114 @@
-2003-10-16  Release Manager
+2004-07-01  Release Manager
 
-	* GCC 3.3.2 Released.
+	* GCC 3.4.1 released.
+
+2004-04-18  Release Manager
+
+	* GCC 3.4.0 released.
+
+2004-03-01  Michael Matz  <matz@suse.de>
+
+	* Makefile.in (ALL_CFLAGS): Add -fno-strict-aliasing.
+
+2004-01-17  Andrew Pinski  <pinskia@physics.uc.edu>
+
+	PR target/10781
+	* encoding.c (rs6000_special_round_type_align): Define.
+
+2004-01-14  Adam Fedor  <fedor@gnu.org>
+
+	PR libobjc/12155
+	* selector.c (__objc_register_instance_methods_to_class): Free
+	new_list if not used.
+
+2004-01-09  Andrew Ruder  <aeruder@ksu.edu>
+
+	PR libobjc/11904
+	* sarray.c (sarray_free): Free array->is_copy_of latter.
+
+2003-12-01  Zack Weinberg  <zack@codesourcery.com>
+
+	PR 11433
+	* Protocol.m (descriptionForInstanceMethod): Don't dereference
+	instance_methods if it's NULL.
+	(descriptionForClassMethod): Likewise for class_methods.
+
+2003-10-24  Rainer Orth  <ro@TechFak.Uni-Bielefeld.DE>
+
+	* Makefile.in (runtime-info.h): Remove -Wp.
+
+2003-10-21  Rainer Orth  <ro@TechFak.Uni-Bielefeld.DE>
+
+	* Makefile.in (CC1OBJ): Remove.
+	(runtime-info.h): Invoke $(CC) so all MULTIFLAGS are handled
+	correctly.
+	Use .m extension for temporary file.
+	Remove assembler temp file.
+
+2003-10-20  Joseph S. Myers  <jsm@polyomino.org.uk>
+
+	* objc/hash.h (hash_string): Don't use a cast as an lvalue.
+
+2003-10-17  Rainer Orth  <ro@TechFak.Uni-Bielefeld.DE>
+
+	* Makefile.in (runtime-info.h): Use MULTIFLAGS.
 
 2003-09-09  Alan Modra  <amodra@bigpond.net.au>
 
 	* configure: Regenerate.
 
-2003-08-04  Release Manager
+2003-08-27  Alexander Malmberg  <alexander@malmberg.org>
 
-	* GCC 3.3.1 Released.
+	* Makefile.in, aclocal.m4: Update to $(libdir)/gcc/ instead of
+	(libdir)/gcc-lib/ when installing.
+	* configure: Regenerate.
 
-2003-08-04  Release Manager
+Thu Jul 10 10:27:43 2003  Nicola Pero  <n.pero@mi.flashnet.it>
 
-	* GCC 3.3.1 Released.
+	libobjc/9969
+	* sendmsg.c (get_imp): Fixed rare threading problem.
+	(__objc_responds_to): Similar fixes.
+	(objc_msg_lookup): Similar fixes.
+	(__objc_init_install_dtable): Lock the runtime before checking if the
+	table is installed.
 
-2003-05-13  Release Manager
+2003-05-23  Nathanael Nerode  <neroden@gcc.gnu.org>
 
-	* GCC 3.3 Released.
+	* hash.c, init.c, libobjc.def, libobjc_entry.c, linking.m,
+	makefile.dos, misc.c, nil_method.c, objects.c, sarray.c,
+	selector.c, sendmsg.c, thr-dce.c, thr-decosf1.c, thr-irix.c,
+	thr-mach.c, thr-objc.c, thr-os2.c, thr-posix.c, thr-pthreads.c,
+	thr-rtems.c, thr-single.c, thr-solaris.c, thr-vxworks.c,
+	thr-win32.c, thr.c: Replace "GNU CC" with "GCC".
+	* Makefile.in, NXConstStr.m, Object.m, Protocol.m, archive.c,
+	class.c, encoding.c, gc.c, objc/NXConstStr.h, objc/Object.h,
+	objc/Protocol.h, objc/encoding.h, objc/hash.h, objc/objc-api.h,
+	objc/objc-list.h, objc/objc.h, ocjc/runtime.h, objc/sarray.h,
+	objc/thr.h, objc/typedstream.h: Replace "GNU CC" with "GCC".
 
-2003-05-13  Release Manager
+Tue May 13 14:56:03 2003  Richard Frith-Macdonald <rfm@gnu.org>
+			  Nicola Pero  <n.pero@mi.flashnet.it>
 
-	* GCC 3.3 Released.
+	libobjc/10742
+	* init.c (class_superclass_of_class): New function.
+	(create_tree_of_subclasses_inherited_from): Use it.
+	(__objc_tree_insert_class): Likewise.
+	(class_is_subclass_of_class): Likewise.
 
-2003-05-13  Release Manager
+2003-04-11  David Chad  <davidc@freebsd.org>
+	    Loren J. Rittle  <ljrittle@acm.org>
 
-	* GCC 3.3 Released.
+	libobjc/8562
+	* objc/hash.h (hash_string): Constify correctly.
+	(compare_ptrs): Use direct compare.
+	* objc/objc-list.h (list_nth): Rename index to indx to avoid shadow.
+	* objc/sarray.h: Global rename index to indx to avoid shadow.
+
+2003-03-12  Andreas Schwab  <schwab@suse.de>
+
+	* aclocal.m4 (GLIBCPP_EXPORT_INSTALL_INFO): Avoid trailing /. in
+	glibcpp_toolexeclibdir.
+	* configure: Rebuilt.
 
 2003-02-20  Alexandre Oliva  <aoliva@redhat.com>
 
@@ -39,11 +123,24 @@
 	version_specific_libs is enabled.
 	* configure: Rebuilt.
 
-2003-01-26  Christian Cornelssen  <ccorn@cs.tu-berlin.de>
+2003-01-09  Christian Cornelssen  <ccorn@cs.tu-berlin.de>
 
 	* Makefile.in (FLAGS_TO_PASS): Also pass DESTDIR.
 	(install-libs, install-headers): Prepend $(DESTDIR) to
 	destination paths in all (un)installation commands.
+
+2002-12-02  Zack Weinberg  <zack@codesourcery.com>
+
+	* thr-objc.c: Include coretypes.h and tm.h.
+
+2002-12-01  Zack Weinberg  <zack@codesourcery.com>
+
+	* encoding.c, sendmsg.c: Include coretypes.h and tm.h.
+
+2002-11-26  Nathanael Nerode  <neroden@gcc.gnu.org>
+
+	* configure.in: Remove skip-this-dir support.
+	* configure: Regenerate.
 
 2002-09-22  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
 
@@ -188,7 +285,7 @@ Mon Dec 17 17:02:12 2001  Nicola Pero  <nicola@brainstorm.co.uk>
 
 2001-11-14  Aldy Hernandez  <aldyh@redhat.com>
 
-        * encoding.c: Add target_flags.
+	* encoding.c: Add target_flags.
 
 2001-11-07  Aldy Hernandez  <aldyh@redhat.com>
 
@@ -199,18 +296,18 @@ Mon Dec 17 17:02:12 2001  Nicola Pero  <nicola@brainstorm.co.uk>
 Mon Oct 29 21:29:21 2001  Nicola Pero  <n.pero@mi.flashnet.it>
 
 	* class.c: Rewritten the class table to use optimized, lock-free
-        lookup.  This more than doubles the speed of class method
-        invocations.  (class_table_setup), (class_table_insert),
-        (class_table_replace), (class_table_get_safe),
-        (class_table_next), (class_table_print),
-        (class_table_print_histogram): New functions.
-        (__objc_init_class_tables): Use class_table_setup.
-        (__objc_add_class_to_hash): Use class_table_get_safe and
-        class_table_insert.  (objc_lookup_class), (objc_get_class): Do not
-        assert the existence of the table; do not lock the runtime; use
-        class_table_get_safe.  (objc_next_class): Use class_table_next.
-        (__objc_resolve_class_links): Use class_table_next.
-        (class_pose_as): Use class_table_replace.
+	lookup.  This more than doubles the speed of class method
+	invocations.  (class_table_setup), (class_table_insert),
+	(class_table_replace), (class_table_get_safe),
+	(class_table_next), (class_table_print),
+	(class_table_print_histogram): New functions.
+	(__objc_init_class_tables): Use class_table_setup.
+	(__objc_add_class_to_hash): Use class_table_get_safe and
+	class_table_insert.  (objc_lookup_class), (objc_get_class): Do not
+	assert the existence of the table; do not lock the runtime; use
+	class_table_get_safe.  (objc_next_class): Use class_table_next.
+	(__objc_resolve_class_links): Use class_table_next.
+	(class_pose_as): Use class_table_replace.
 
 2001-09-10  Ovidiu Predescu  <ovidiu@cup.hp.com>
 
