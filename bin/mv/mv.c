@@ -60,11 +60,12 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
 
 #include "pathnames.h"
 
-int fflg, iflg;
+int fflg, iflg, vflg;
 
 int	copy __P((char *, char *));
 int	do_move __P((char *, char *));
@@ -82,7 +83,7 @@ main(argc, argv)
 	int ch;
 	char path[MAXPATHLEN];
 
-	while ((ch = getopt(argc, argv, "fi")) != -1)
+	while ((ch = getopt(argc, argv, "fiv")) != -1)
 		switch (ch) {
 		case 'i':
 			iflg = 1;
@@ -91,6 +92,9 @@ main(argc, argv)
 		case 'f':
 			fflg = 1;
 			iflg = 0;
+			break;
+		case 'v':
+			vflg = 1;
 			break;
 		default:
 			usage();
@@ -188,8 +192,11 @@ do_move(from, to)
 			}
 		}
 	}
-	if (!rename(from, to))
+	if (!rename(from, to)) {
+		if (vflg)
+			printf("%s -> %s\n", from, to);
 		return (0);
+	}
 
 	if (errno == EXDEV) {
 		struct statfs sfs;
@@ -299,6 +306,8 @@ err:		if (unlink(to))
 		warn("%s: remove", from);
 		return (1);
 	}
+	if (vflg)
+		printf("%s -> %s\n", from, to);
 	return (0);
 }
 
@@ -309,7 +318,7 @@ copy(from, to)
 	int pid, status;
 
 	if ((pid = fork()) == 0) {
-		execl(_PATH_CP, "mv", "-PRp", from, to, NULL);
+		execl(_PATH_CP, "mv", vflg ? "-PRpv" : "-PRp", from, to, NULL);
 		warn("%s", _PATH_CP);
 		_exit(1);
 	}
@@ -350,8 +359,9 @@ copy(from, to)
 void
 usage()
 {
+
 	(void)fprintf(stderr, "%s\n%s\n",
-		      "usage: mv [-f | -i] source target",
-		      "       mv [-f | -i] source ... directory");
-	exit(1);
+		      "usage: mv [-f | -i] [-v] source target",
+		      "       mv [-f | -i] [-v] source ... directory");
+	exit(EX_USAGE);
 }
