@@ -95,6 +95,7 @@ struct bio {
 /* bio_flags */
 #define BIO_ERROR	0x01
 #define BIO_DONE	0x02
+#define BIO_ONQUEUE	0x04
 
 #ifdef _KERNEL
 
