@@ -1,8 +1,3 @@
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
-
 /*
  *
  * FreeBSD install - a package for the installation and maintainance
@@ -21,8 +16,12 @@ static const char rcsid[] =
  * 18 July 1993
  *
  * This is the add module.
- *
  */
+
+#ifndef lint
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif
 
 #include <err.h>
 #include <sys/param.h>
@@ -57,7 +56,7 @@ static void usage __P((void));
 int
 main(int argc, char **argv)
 {
-    int ch, err;
+    int ch, error;
     char **start;
     char *cp;
 
@@ -168,10 +167,10 @@ main(int argc, char **argv)
     /* Set a reasonable umask */
     umask(022);
 
-    if ((err = pkg_perform(pkgs)) != 0) {
+    if ((error = pkg_perform(pkgs)) != 0) {
 	if (Verbose)
-	    warnx("%d package addition(s) failed", err);
-	return err;
+	    warnx("%d package addition(s) failed", error);
+	return error;
     }
     else
 	return 0;

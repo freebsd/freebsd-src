@@ -38,8 +38,9 @@
 #include "gzip.h"
 #include "pgp.h"
 
-/* Signatures follow a simple format
-   (endianess was chosen to conform to gzip header format)
+/*
+ * Signatures follow a simple format
+ * (endianess was chosen to conform to gzip header format)
  */
 
 SIGNTAG known_tags[KNOWN_TAGS] = { 

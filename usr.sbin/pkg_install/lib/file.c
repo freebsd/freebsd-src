@@ -158,12 +158,17 @@ fileGetURL(char *base, char *spec)
     if (!isURL(spec)) {
 	if (!base && !hint)
 	    return NULL;
-	/* We've been given an existing URL (that's known-good) and now we need
-	   to construct a composite one out of that and the basename we were
-	   handed as a dependency. */
+	/*
+	 * We've been given an existing URL (that's known-good) and now we need
+	 * to construct a composite one out of that and the basename we were
+	 * handed as a dependency.
+	 */
 	if (base) {
 	    strcpy(fname, base);
-	    /* Advance back two slashes to get to the root of the package hierarchy */
+	    /*
+	     * Advance back two slashes to get to the root of the package
+	     * hierarchy
+	     */
 	    cp = strrchr(fname, '/');
 	    if (cp) {
 		*cp = '\0';	/* chop name */
@@ -179,7 +184,10 @@ fileGetURL(char *base, char *spec)
 		return NULL;
 	}
 	else {
-	    /* Otherwise, we've been given an environment variable hinting at the right location from sysinstall */
+	    /*
+	     * Otherwise, we've been given an environment variable hinting
+	     * at the right location from sysinstall
+	     */
 	    strcpy(fname, hint);
 	    strcat(fname, spec);
             strcat(fname, ".tgz");
@@ -312,8 +320,9 @@ fileGetContents(char *fname)
     return contents;
 }
 
-/* Takes a filename and package name, returning (in "try") the canonical "preserve"
- * name for it.
+/*
+ * Takes a filename and package name, returning (in "try") the
+ * canonical "preserve" name for it.
  */
 Boolean
 make_preserve_name(char *try, int max, char *name, char *file)
@@ -464,7 +473,8 @@ unpack(char *pkg, char *flist)
     return 0;
 }
 
-/* Using fmt, replace all instances of:
+/*
+ * Using fmt, replace all instances of:
  *
  * %F	With the parameter "name"
  * %D	With the parameter "dir"

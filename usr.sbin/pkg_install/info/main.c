@@ -19,16 +19,16 @@
  *
  */
 
-#include <err.h>
 #include "lib.h"
 #include "info.h"
+#include <err.h>
 
 #ifndef lint
 static const char rcsid[] =
   "$FreeBSD$";
 #endif
 
-static char Options[] = "acdDe:fgGhiIkl:LmopqrRst:vx";
+static char Options[] = "acdDe:fgGhiIkl:LmopqrRst:vW:x";
 
 int	Flags		= 0;
 match_t	MatchType	= MATCH_GLOB;
@@ -36,6 +36,7 @@ Boolean Quiet		= FALSE;
 char *InfoPrefix	= "";
 char PlayPen[FILENAME_MAX];
 char *CheckPkg		= NULL;
+struct which_head *whead;
 
 static void usage __P((void));
 
@@ -45,6 +46,11 @@ main(int argc, char **argv)
     int ch;
     char **pkgs, **start;
     char *pkgs_split;
+
+    whead = malloc(sizeof(struct which_head));
+    if (whead == NULL)
+	err(2, NULL);
+    TAILQ_INIT(whead);
 
     pkgs = start = argv;
     if (argc == 1) {
@@ -148,6 +154,20 @@ main(int argc, char **argv)
 	    CheckPkg = optarg;
 	    break;
 
+	case 'W':
+	    {
+		struct which_entry *entp;
+
+		entp = calloc(1, sizeof(struct which_entry));
+		if (entp == NULL)
+		    err(2, NULL);
+		
+		strlcpy(entp->file, optarg, PATH_MAX);
+		entp->skip = FALSE;
+		TAILQ_INSERT_TAIL(whead, entp, next);
+		break;
+	    }
+
 	case 'h':
 	case '?':
 	default:
@@ -185,7 +205,8 @@ main(int argc, char **argv)
     }
 
     /* If no packages, yelp */
-    if (pkgs == start && MatchType != MATCH_ALL && !CheckPkg)
+    if (pkgs == start && MatchType != MATCH_ALL && !CheckPkg && 
+	TAILQ_EMPTY(whead))
 	warnx("missing package name(s)"), usage();
     *pkgs = NULL;
     return pkg_perform(start);
@@ -195,8 +216,8 @@ static void
 usage()
 {
     fprintf(stderr, "%s\n%s\n%s\n",
-	"usage: pkg_info [-cdDfiIkLmopqrRsv] [-e package] [-l prefix]",
-	"                [-t template] [pkg-name ...]",
+	"usage: pkg_info [-cdDfGiIkLmopqrRsvx] [-e package] [-l prefix]",
+	"                [-t template] [-W filename] [pkg-name ...]",
 	"       pkg_info -a [flags]");
     exit(1);
 }

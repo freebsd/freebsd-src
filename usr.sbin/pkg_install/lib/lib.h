@@ -112,6 +112,7 @@ typedef struct _pack Package;
 /* Prototypes */
 /* Misc */
 int		vsystem(const char *, ...);
+char		*vpipe(const char *, ...);
 void		cleanup(int);
 char		*make_playpen(char *, size_t);
 char		*where_playpen(void);
@@ -126,6 +127,9 @@ void		nuke_suffix(char *);
 void		str_lowercase(char *);
 char		*basename_of(char *);
 char		*strconcat(char *, char *);
+char		*get_string(char *, int, FILE *);
+int		s_strlcpy(char *, const char *, size_t);
+int		s_strlcat(char *, const char *, size_t);
 
 /* File */
 Boolean		fexists(char *);

@@ -173,8 +173,10 @@ pkg_perform(char **pkgs)
 
     /* Make first "real contents" pass over it */
     check_list(home, &plist);
-    (void) umask(022);	/* make sure gen'ed directories, files don't have
-			   group or other write bits. */
+    (void) umask(022);	/*
+			 * Make sure gen'ed directories, files don't have
+			 * group or other write bits.
+			 */
     /* copy_plist(home, &plist); */
     /* mark_plist(&plist); */
 
