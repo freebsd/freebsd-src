@@ -374,9 +374,6 @@ pmap_bootstrap()
 	 * physical memory and try to locate a region which is large
 	 * enough to contain the VHPT (which must be a power of two in
 	 * size and aligned to a natural boundary).
-	 * Don't use the difference between avail_start and avail_end
-	 * as a measure for memory size. The address space is often
-	 * enough sparse, causing us to (try to) create a huge VHPT.
 	 */
 	vhpt_size = 15;
 	while ((1<<vhpt_size) < Maxmem * 32)
