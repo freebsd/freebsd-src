@@ -68,13 +68,6 @@
   and improved, minor bugs were fixed, insecure coding practices were
   audited and corrected, and source code was cleaned up.</para>
 
-  <para>The release notes items are organized into three different
-  sections.  <xref linkend="kernel"> lists recent changes to the &os;
-  kernel.  Security fixes, including those pertaining to security
-  advisories, are listed in <xref linkend="security">.  Finally, <xref
-  linkend="userland"> covers changes to &os; userland applications
-  included in the base system.</para>
-
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
@@ -343,6 +336,11 @@
     <para>The system load average computation now adds some jitter to
     the timing of samples, in order to avoid synchronization with
     processes that run periodically. &merged;</para>
+
+    <para>Linux emulation now supports the kernel functionality
+    required by the
+    <port>emulators/linux_base-7</port> (RedHat 7.X emulation)
+    port. &merged;</para>
 
     <sect3>
       <title>Processor/Motherboard Support</title>
@@ -2257,6 +2255,9 @@
       <para>&man.traceroute.8; now takes its default maximum TTL value
       from the <varname>net.inet.ip.ttl</varname> sysctl
       variable. &merged;</para>
+
+      <para>The timezone database has been updated to the
+      <filename>tzdata2001d</filename> release. &merged;</para>
 
       <sect4>
         <title>CVS</title>
