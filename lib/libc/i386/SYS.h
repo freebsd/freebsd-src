@@ -35,7 +35,7 @@
  *
  *	from: @(#)SYS.h	5.5 (Berkeley) 5/7/91
  *
- *	$Id: SYS.h,v 1.5 1996/08/20 08:19:54 julian Exp $
+ *	$Id: SYS.h,v 1.6 1996/08/22 04:25:00 julian Exp $
  */
 
 #include <sys/syscall.h>
@@ -66,7 +66,7 @@
 
 #define	PSEUDO(x,y)	ENTRY(x); lea __CONCAT(SYS_,y), %eax; KERNCALL; ret
 #define	CALL(x,y)	call CNAME(y); addl $4*x,%esp
-/* gas fucks up offset -- although we don't currently need it, do for BCS */
+/* gas messes up offset -- although we don't currently need it, do for BCS */
 #define	LCALL(x,y)	.byte 0x9a ; .long y; .word x
 
 /*
