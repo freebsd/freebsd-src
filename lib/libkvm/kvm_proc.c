@@ -280,7 +280,8 @@ kvm_getprocs(kd, op, arg, cnt)
 	int op, arg;
 	int *cnt;
 {
-	int mib[4], size, st, nprocs;
+	int mib[4], st, nprocs;
+	size_t size;
 
 	if (kd->procbase != 0) {
 		free((void *)kd->procbase);
@@ -592,7 +593,8 @@ proc_verify(kd, kernp, p)
 	const struct proc *p;
 {
 	struct kinfo_proc kp;
-	int mib[4], st, len;
+	int mib[4], st;
+	size_t len;
 
 	mib[0] = CTL_KERN;
 	mib[1] = KERN_PROC;
