@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *      @(#)extern.h	8.1 (Berkeley) 6/6/93
+ * $FreeBSD$
  */
 
 #include <sys/cdefs.h>
@@ -67,6 +68,8 @@ extern int			num_selected;
 extern int			num_selections;
 extern long			select_generation;
 
+extern struct nlist		namelist[];
+
 int	 checkhost __P((struct inpcb *));
 int	 checkport __P((struct inpcb *));
 void	 closeiostat __P((WINDOW *));
@@ -97,6 +100,7 @@ void	 fetchnetstat __P((void));
 void	 fetchpigs __P((void));
 void	 fetchswap __P((void));
 void	 fetchtcp __P((void));
+void	 getsysctl __P((char *, void *, size_t));
 int	 initicmp __P((void));
 int	 initip __P((void));
 int	 initiostat __P((void));
@@ -145,3 +149,4 @@ void	 showswap __P((void));
 void	 showtcp __P((void));
 void	 status __P((void));
 void	 suspend __P((int));
+char	*sysctl_dynread __P((char *, size_t *));

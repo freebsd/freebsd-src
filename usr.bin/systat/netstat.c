@@ -60,6 +60,7 @@ static const char rcsid[] =
 #include <netinet/tcp.h>
 #include <netinet/tcpip.h>
 #include <netinet/tcp_seq.h>
+#include <netinet/tcp_var.h>
 #define TCPSTATES
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_timer.h>
@@ -76,7 +77,11 @@ static const char rcsid[] =
 #include "systat.h"
 #include "extern.h"
 
-static void enter __P((struct inpcb *, struct socket *, int, char *));
+static struct netinfo *enter __P((struct inpcb *, int, char *));
+static void enter_kvm __P((struct inpcb *, struct socket *, int, char *));
+static void enter_sysctl __P((struct inpcb *, struct xsocket *, int, char *));
+static void fetchnetstat_kvm __P((void));
+static void fetchnetstat_sysctl __P((void));
 static char *inetname __P((struct in_addr));
 static void inetprint __P((struct in_addr *, int, char *));
 
@@ -113,7 +118,6 @@ TAILQ_HEAD(netinfohead, netinfo) netcb = TAILQ_HEAD_INITIALIZER(netcb);
 static	int aflag = 0;
 static	int nflag = 0;
 static	int lastrow = 1;
-static	void enter(), inetprint();
 static	char *inetname();
 
 void
@@ -136,31 +140,37 @@ closenetstat(w)
 	}
 }
 
-static struct nlist namelist[] = {
+static char *miblist[] = {
+	"net.inet.tcp.pcblist",
+	"net.inet.udp.pcblist" 
+};
+
+struct nlist namelist[] = {
 #define	X_TCB	0
-	{ "_tcb" },
+	{ "tcb" },
 #define	X_UDB	1
-	{ "_udb" },
+	{ "udb" },
 	{ "" },
 };
 
 int
 initnetstat()
 {
-	if (kvm_nlist(kd, namelist)) {
-		nlisterr(namelist);
-		return(0);
-	}
-	if (namelist[X_TCB].n_value == 0) {
-		error("No symbols in namelist");
-		return(0);
-	}
 	protos = TCP|UDP;
 	return(1);
 }
 
 void
 fetchnetstat()
+{
+	if (use_kvm)
+		fetchnetstat_kvm();
+	else
+		fetchnetstat_sysctl();
+}
+
+static void
+fetchnetstat_kvm()
 {
 	register struct inpcb *next;
 	register struct netinfo *p;
@@ -201,9 +211,9 @@ again:
 		KREAD(inpcb.inp_socket, &sockb, sizeof (sockb));
 		if (istcp) {
 			KREAD(inpcb.inp_ppcb, &tcpcb, sizeof (tcpcb));
-			enter(&inpcb, &sockb, tcpcb.t_state, "tcp");
+			enter_kvm(&inpcb, &sockb, tcpcb.t_state, "tcp");
 		} else
-			enter(&inpcb, &sockb, 0, "udp");
+			enter_kvm(&inpcb, &sockb, 0, "udp");
 	}
 	if (istcp && (protos&UDP)) {
 		istcp = 0;
@@ -213,9 +223,116 @@ again:
 }
 
 static void
-enter(inp, so, state, proto)
+fetchnetstat_sysctl()
+{
+	register struct netinfo *p;
+	int idx;
+	struct xinpgen *inpg;
+	char *cur, *end;
+	struct inpcb *inpcb;
+	struct xinpcb *xip;
+	struct xtcpcb *xtp;
+	int plen;
+	size_t lsz;
+
+	TAILQ_FOREACH(p, &netcb, chain)
+		p->ni_seen = 0;
+	if (protos&TCP) {
+		idx = 0;
+	} else if (protos&UDP) {
+		idx = 1;
+	} else {
+		error("No protocols to display");
+		return;
+	}
+
+	for (;idx < 2; idx++) {
+		if (idx == 1 && !(protos&UDP))
+			break;
+		inpg = (struct xinpgen *)sysctl_dynread(miblist[idx], &lsz);
+		if (inpg == NULL) {
+			error("sysctl(%s...) failed", miblist[idx]);
+			continue;
+		}
+		/* 
+		 * We currently do no require a consistent pcb list.
+		 * Try to be robust in case of struct size changes 
+		 */
+		cur = ((char *)inpg) + inpg->xig_len;
+		/* There is also a trailing struct xinpgen */
+		end = ((char *)inpg) + lsz - inpg->xig_len;
+		if (end <= cur) {
+			free(inpg);
+			continue;
+		}
+		if (idx == 0) { /* TCP */
+			xtp = (struct xtcpcb *)cur;
+			plen = xtp->xt_len;
+		} else {
+			xip = (struct xinpcb *)cur;
+			plen = xip->xi_len;
+		}
+		while (cur + plen <= end) {
+			if (idx == 0) { /* TCP */
+				xtp = (struct xtcpcb *)cur;
+				inpcb = &xtp->xt_inp;
+			} else {
+				xip = (struct xinpcb *)cur;
+				inpcb = &xip->xi_inp;
+			}
+			cur += plen;
+
+			if (!aflag && inet_lnaof(inpcb->inp_laddr) == 
+			    INADDR_ANY)
+				continue;
+			if (nhosts && !checkhost(inpcb))
+				continue;
+			if (nports && !checkport(inpcb))
+				continue;
+			if (idx == 0)	/* TCP */
+				enter_sysctl(inpcb, &xtp->xt_socket, 
+				    xtp->xt_tp.t_state, "tcp");
+			else		/* UDP */
+				enter_sysctl(inpcb, &xip->xi_socket, 0, "udp");
+		}
+		free(inpg);
+	}
+}
+
+static void
+enter_kvm(inp, so, state, proto)
 	register struct inpcb *inp;
 	register struct socket *so;
+	int state;
+	char *proto;
+{
+	register struct netinfo *p;
+
+	if ((p = enter(inp, state, proto)) != NULL) {
+		p->ni_rcvcc = so->so_rcv.sb_cc;
+		p->ni_sndcc = so->so_snd.sb_cc;
+	}
+}
+
+static void
+enter_sysctl(inp, so, state, proto)
+	register struct inpcb *inp;
+	register struct xsocket *so;
+	int state;
+	char *proto;
+{
+	register struct netinfo *p;
+
+	if ((p = enter(inp, state, proto)) != NULL) {
+		p->ni_rcvcc = so->so_rcv.sb_cc;
+		p->ni_sndcc = so->so_snd.sb_cc;
+	}
+}
+
+
+static struct netinfo *
+enter(inp, state, proto)
+	register struct inpcb *inp;
 	int state;
 	char *proto;
 {
@@ -241,7 +358,7 @@ enter(inp, so, state, proto)
 	if (p == NULL) {
 		if ((p = malloc(sizeof(*p))) == NULL) {
 			error("Out of memory");
-			return;
+			return NULL;
 		}
 		TAILQ_INSERT_HEAD(&netcb, p, chain);
 		p->ni_line = -1;
@@ -252,10 +369,9 @@ enter(inp, so, state, proto)
 		p->ni_proto = proto;
 		p->ni_flags = NIF_LACHG|NIF_FACHG;
 	}
-	p->ni_rcvcc = so->so_rcv.sb_cc;
-	p->ni_sndcc = so->so_snd.sb_cc;
 	p->ni_state = state;
 	p->ni_seen = 1;
+	return p;
 }
 
 /* column locations */
@@ -270,7 +386,7 @@ enter(inp, so, state, proto)
 void
 labelnetstat()
 {
-	if (namelist[X_TCB].n_type == 0)
+	if (use_kvm && namelist[X_TCB].n_type == 0)
 		return;
 	wmove(wnd, 0, 0); wclrtobot(wnd);
 	mvwaddstr(wnd, 0, LADDR, "Local Address");
@@ -291,9 +407,12 @@ shownetstat()
 	 * away and adjust the position of connections
 	 * below to reflect the deleted line.
 	 */
-	TAILQ_FOREACH(p, &netcb, chain) {
-		if (p->ni_line == -1 || p->ni_seen)
+	p = TAILQ_FIRST(&netcb);
+	while (p != NULL) {
+		if (p->ni_line == -1 || p->ni_seen) {
+			p = TAILQ_NEXT(p, chain);
 			continue;
+		}
 		wmove(wnd, p->ni_line, 0); wdeleteln(wnd);
 		TAILQ_FOREACH(q, &netcb, chain)
 			if (q != p && q->ni_line > p->ni_line) {
@@ -302,7 +421,7 @@ shownetstat()
 				q->ni_flags |= NIF_LACHG|NIF_FACHG;
 			}
 		lastrow--;
-		q = TAILQ_PREV(p, netinfohead, chain);
+		q = TAILQ_NEXT(p, chain);
 		TAILQ_REMOVE(&netcb, p, chain);
 		free(p);
 		p = q;

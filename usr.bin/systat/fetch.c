@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef lint
@@ -36,6 +38,13 @@ static char sccsid[] = "@(#)fetch.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
 #include <sys/types.h>
+#include <sys/sysctl.h>
+
+#include <errno.h>
+#include <err.h>
+#include <string.h>
+#include <stdlib.h>
+
 #include "systat.h"
 #include "extern.h"
 
@@ -46,9 +55,94 @@ kvm_ckread(a, b, l)
 {
 	if (kvm_read(kd, (u_long)a, b, l) != l) {
 		if (verbose)
-			error("error reading kmem at %x\n", a);
+			error("error reading kmem at %x", a);
 		return (0);
 	}
 	else
 		return (1);
+}
+
+void getsysctl(name, ptr, len)
+	char *name;
+	void *ptr;
+	size_t len;
+{
+	int err;
+	size_t nlen = len;
+	if ((err = sysctlbyname(name, ptr, &nlen, NULL, 0)) != 0) {
+		error("sysctl(%s...) failed: %s", name, 
+		    strerror(errno));
+	}
+	if (nlen != len) {
+		error("sysctl(%s...) expected %d, got %d", name, 
+		    len, nlen);
+    }
+}
+
+/*
+ * Read sysctl data with variable size. Try some times (with increasing 
+ * buffers), fail if still too small.
+ * This is needed sysctls with possibly raplidly increasing data sizes,
+ * but imposes little overhead in the case of constant sizes.
+ * Returns NULL on error, or a pointer to freshly malloc()'ed memory that holds
+ * the requested data.
+ * If szp is not NULL, the size of the returned data will be written into *szp.
+ */
+
+/* Some defines: Number of tries. */
+#define SD_NTRIES  10
+/* Percent of over-allocation (initial) */
+#define SD_MARGIN  10 
+/* 
+ * Factor for over-allocation in percent (the margin is increased by this on
+ * any failed try).
+ */
+#define SD_FACTOR  50
+/* Maximum supported MIB depth */
+#define SD_MAXMIB  16
+
+char *
+sysctl_dynread(n, szp)
+	char *n;
+	size_t *szp;
+{
+	char   *rv = NULL;
+	int    mib[SD_MAXMIB];
+	size_t mibsz = SD_MAXMIB;
+	size_t mrg = SD_MARGIN;
+	size_t sz;
+	int i;
+
+	/* cache the MIB */
+	if (sysctlnametomib(n, mib, &mibsz) == -1) {
+		if (errno == ENOMEM) {
+			error("XXX: SD_MAXMIB too small, please bump!");
+		}
+		return NULL;
+	}
+	for (i = 0; i < SD_NTRIES; i++) {
+		/* get needed buffer size */
+		if (sysctl(mib, mibsz, NULL, &sz, NULL, 0) == -1)
+			break;
+		sz += sz * mrg / 100;
+		if ((rv = (char *)malloc(sz)) == NULL) {
+			error("Out of memory!");
+			return NULL;
+		}
+		if (sysctl(mib, mibsz, rv, &sz, NULL, 0) == -1) {
+			free(rv);
+			rv = NULL;
+			if (errno == ENOMEM) {
+				mrg += mrg * SD_FACTOR / 100;
+			} else
+				break;
+		} else {
+			/* success */
+			if (szp != NULL)
+				*szp = sz;
+			break;
+		}
+	}
+
+	return rv;
 }
