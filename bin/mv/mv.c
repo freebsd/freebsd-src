@@ -33,17 +33,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mv.c,v 1.7 1996/02/20 23:27:57 wosch Exp $
+ *	$Id: mv.c,v 1.8 1996/03/01 06:14:13 wosch Exp $
  */
 
 #ifndef lint
-static char copyright[] =
+static char const copyright[] =
 "@(#) Copyright (c) 1989, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)mv.c	8.2 (Berkeley) 4/2/94";
+static char const sccsid[] = "@(#)mv.c	8.2 (Berkeley) 4/2/94";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -79,7 +79,7 @@ main(argc, argv)
 	int ch;
 	char path[MAXPATHLEN + 1];
 
-	while ((ch = getopt(argc, argv, "fi")) != EOF)
+	while ((ch = getopt(argc, argv, "fi")) != -1)
 		switch (ch) {
 		case 'i':
 			iflg = 1;
@@ -206,20 +206,29 @@ fastcopy(from, to, sbp)
 	struct timeval tval[2];
 	static u_int blen;
 	static char *bp;
+	mode_t oldmode;
 	register int nread, from_fd, to_fd;
 
 	if ((from_fd = open(from, O_RDONLY, 0)) < 0) {
 		warn("%s", from);
 		return (1);
 	}
-	if ((to_fd =
-	    open(to, O_CREAT | O_TRUNC | O_WRONLY, sbp->st_mode)) < 0) {
+	if (blen < sbp->st_blksize) {
+		if (bp != NULL)
+			free(bp);
+		if ((bp = malloc(sbp->st_blksize)) == NULL) {
+			blen = 0;
+			warnx("malloc failed");
+			return (1);
+		}
+		blen = sbp->st_blksize;
+	}
+	while ((to_fd =
+	    open(to, O_CREAT | O_EXCL | O_TRUNC | O_WRONLY, 0)) < 0) {
+		if (errno == EEXIST && unlink(to) == 0)
+			continue;
 		warn("%s", to);
 		(void)close(from_fd);
-		return (1);
-	}
-	if (!blen && !(bp = malloc(blen = sbp->st_blksize))) {
-		warn(NULL);
 		return (1);
 	}
 	while ((nread = read(from_fd, bp, blen)) > 0)
@@ -237,10 +246,19 @@ err:		if (unlink(to))
 	}
 	(void)close(from_fd);
 
-	if (fchown(to_fd, sbp->st_uid, sbp->st_gid))
-		warn("%s: set owner/group", to);
+	oldmode = sbp->st_mode & ALLPERMS;
+	if (fchown(to_fd, sbp->st_uid, sbp->st_gid)) {
+		warn("%s: set owner/group (was: %u/%u)", to, sbp->st_uid,
+		    sbp->st_gid);
+		if (oldmode & (S_ISUID | S_ISGID)) {
+			warnx(
+"%s: owner/group changed; clearing suid/sgid (mode was 0%03o)",
+			    to, oldmode);
+			sbp->st_mode &= ~(S_ISUID | S_ISGID);
+		}
+	}
 	if (fchmod(to_fd, sbp->st_mode))
-		warn("%s: set mode", to);
+		warn("%s: set mode (was: 0%03o)", to, oldmode);
 
 	tval[0].tv_sec = sbp->st_atime;
 	tval[1].tv_sec = sbp->st_mtime;
