@@ -1060,13 +1060,18 @@ osf1_setuid(td, uap)
 
 	p = td->td_proc;
 	uid = SCARG(uap, uid);
+	newcred = crget();
+	PROC_LOCK(p);
 	oldcred = p->p_ucred;
 
 	if ((error = suser_cred(p->p_ucred, PRISON_ROOT)) != 0 &&
-	    uid != oldcred->cr_ruid && uid != oldcred->cr_svuid)
+	    uid != oldcred->cr_ruid && uid != oldcred->cr_svuid) {
+		PROC_UNLOCK(p);
+		crfree(newcred);
 		return (error);
+	}
 
-	newcred = crdup(oldcred);
+	crcopy(newcred, oldcred);
 	if (error == 0) {
 		if (uid != oldcred->cr_ruid) {
 			change_ruid(newcred, uid);
@@ -1082,6 +1087,7 @@ osf1_setuid(td, uap)
 		setsugid(p);
 	}
 	p->p_ucred = newcred;
+	PROC_UNLOCK(p);
 	crfree(oldcred);
 	return (0);
 }
@@ -1106,13 +1112,18 @@ osf1_setgid(td, uap)
 
 	p = td->td_proc;
 	gid = SCARG(uap, gid);
+	newcred = crget();
+	PROC_LOCK(p);
 	oldcred = p->p_ucred;
 
 	if (((error = suser_cred(p->p_ucred, PRISON_ROOT)) != 0 ) &&
-	    gid != oldcred->cr_rgid && gid != oldcred->cr_svgid)
+	    gid != oldcred->cr_rgid && gid != oldcred->cr_svgid) {
+		PROC_UNLOCK(p);
+		crfree(newcred);
 		return (error);
+	}
 
-	newcred = crdup(oldcred);
+	crcopy(newcred, oldcred);
 	if (error == 0) {
 		if (gid != oldcred->cr_rgid) {
 			change_rgid(newcred, gid);
@@ -1128,6 +1139,7 @@ osf1_setgid(td, uap)
 		setsugid(p);
 	}
 	p->p_ucred = newcred;
+	PROC_UNLOCK(p);
 	crfree(oldcred);
 	return (0);
 }
