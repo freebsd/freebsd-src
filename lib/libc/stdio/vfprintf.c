@@ -840,12 +840,16 @@ reswitch:	switch (ch) {
 				xdigs = xdigs_upper;
 				expchar = 'P';
 			}
+			if (prec >= 0)
+				prec++;
+			if (dtoaresult != NULL)
+				freedtoa(dtoaresult);
 			/*
 			 * XXX We don't actually have a conversion
 			 * XXX routine for this yet.
 			 */
 			if (flags & LONGDBL) {
-				fparg.ldbl = (double)GETARG(long double);
+				fparg.ldbl = GETARG(long double);
 				dtoaresult = cp =
 				    __hldtoa(fparg.ldbl, xdigs, prec,
 				    &expt, &signflag, &dtoaend);
@@ -855,8 +859,12 @@ reswitch:	switch (ch) {
 				    __hdtoa(fparg.dbl, xdigs, prec,
 				    &expt, &signflag, &dtoaend);
 			}
-			goto fp_begin;
-#endif
+			if (prec < 0)
+				prec = dtoaend - cp;
+			if (expt == INT_MAX)
+				ox[1] = '\0';
+			goto fp_common;
+#endif	/* HEXFLOAT */
 		case 'e':
 		case 'E':
 			expchar = ch;
@@ -892,6 +900,7 @@ fp_begin:
 				if (expt == 9999)
 					expt = INT_MAX;
 			}
+fp_common:
 			if (signflag)
 				sign = '-';
 			if (expt == INT_MAX) {	/* inf or nan */
@@ -1132,7 +1141,7 @@ number:			if ((dprec = prec) >= 0)
 		realsz = dprec > size ? dprec : size;
 		if (sign)
 			realsz++;
-		else if (ox[1])
+		if (ox[1])
 			realsz += 2;
 
 		prsize = width > realsz ? width : realsz;
@@ -1146,9 +1155,10 @@ number:			if ((dprec = prec) >= 0)
 			PAD(width - realsz, blanks);
 
 		/* prefix */
-		if (sign) {
+		if (sign)
 			PRINT(&sign, 1);
-		} else if (ox[1]) {	/* ox[1] is either x, X, or \0 */
+
+		if (ox[1]) {	/* ox[1] is either x, X, or \0 */
 			ox[0] = '0';
 			PRINT(ox, 2);
 		}
