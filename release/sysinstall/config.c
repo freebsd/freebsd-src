@@ -730,6 +730,11 @@ configRouter(dialogMenuItem *self)
 	    variable_unset(VAR_ROUTER);
 	}
     }
+    else {
+	variable_set2(VAR_ROUTER_ENABLE, "NO", 1);
+	variable_unset(VAR_ROUTERFLAGS);
+	variable_unset(VAR_ROUTER);
+    }
     return ret;
 }
 
