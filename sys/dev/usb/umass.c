@@ -719,10 +719,10 @@ umass_match_proto(struct umass_softc *sc, usbd_interface_handle iface,
 		sc->proto |= PROTO_CBI;
 #endif
 		break;
-	case UIPROTO_MASS_BULK:
+	case UIPROTO_MASS_BBB:
 		sc->proto |= PROTO_BBB;
 		break;
-	case UIPROTO_MASS_BULK_P:
+	case UIPROTO_MASS_BBB_P:
 		sc->drive = ZIP_100;
 		sc->proto |= PROTO_BBB;
 		sc->transfer_speed = UMASS_ZIP100_TRANSFER_SPEED;
