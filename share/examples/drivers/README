@@ -1,15 +1,17 @@
-Sat Feb  1 23:30:12 PST 1997 <Julian Elischer>
+$FreeBSD$
 
-These files are shell scripts.
+Author: Julian Elischer
+
+The files in this directory are shell scripts.
 
 They will, when run, create an example skeleton driver
 for you. You can use this driver as a starting point for
 writing drivers for your own devices. They have all the hooks needed
-for intiialisation, probing, attaching, as well as DEVFS
+for initialization, probing, attaching, as well as DEVFS
 node creation. They also create sample ioctl commands and a sample
 ioctl definition .h file in /sys/sys. In other words they are fully
 functional in a 'skeleton' sort of a way. They support multiple devices
-so that you may have several of your 'foobar' devices probed and atached
+so that you may have several of your 'foobar' devices probed and attached
 at once.
 
 I expect that these scripts will improve with time.
@@ -39,7 +41,3 @@ You should simply edit the driver and continue to use
 
 The driver will end up in /sys/i386/isa for the device driver script,
 and in /sys/dev for the pseudo driver script.
-
-
-
-
