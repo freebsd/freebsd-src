@@ -272,12 +272,12 @@ static struct da_quirk_entry da_quirk_table[] =
 	},
 	{
 		/*
-		 * Jungsoft NEXDISK USB flash key
-		 * PR: kern/54737
+		 * Power Quotient Int. (PQI) USB flash key
+		 * PR: kern/53067
 		 */
-		{T_DIRECT, SIP_MEDIA_REMOVABLE, "JUNGSOFT", "NEXDISK*", "*"},
-		/*quirks*/ DA_Q_NO_SYNC_CACHE
-	},
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Generic*", "USB Flash Disk*",
+		"*"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
+	}, 
  	{
  		/*
  		 * Creative Nomad MUVO mp3 player (USB)
@@ -286,6 +286,30 @@ static struct da_quirk_entry da_quirk_table[] =
  		{T_DIRECT, SIP_MEDIA_REMOVABLE, "CREATIVE", "NOMAD_MUVO", "*"},
  		/*quirks*/ DA_Q_NO_SYNC_CACHE|DA_Q_NO_PREVENT
  	},
+	{
+		/*
+		 * Jungsoft NEXDISK USB flash key
+		 * PR: kern/54737
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "JUNGSOFT", "NEXDISK*", "*"},
+		/*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/*
+		 * FreeDik USB Mini Data Drive
+		 * PR: kern/54786
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "FreeDik*", "Mini Data Drive",
+		"*"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/*
+		 * Sigmatel USB Flash MP3 Player
+		 * PR: kern/57046
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "SigmaTel", "MSCN", "*"},
+		/*quirks*/ DA_Q_NO_SYNC_CACHE|DA_Q_NO_PREVENT
+	},
 };
 
 static	d_open_t	daopen;
