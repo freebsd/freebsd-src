@@ -106,32 +106,31 @@ ibcs2_msgsys(td, uap)
 	struct thread *td;
 	struct ibcs2_msgsys_args *uap;
 {
-	switch (SCARG(uap, which)) {
+	switch (uap->which) {
 	case 0:				/* msgget */
-		SCARG(uap, which) = 1;
+		uap->which = 1;
 		return msgsys(td, (struct msgsys_args *)uap);
 	case 1: {			/* msgctl */
 		int error;
 		struct msgsys_args margs;
 		caddr_t sg = stackgap_init();
 
-		SCARG(&margs, which) = 0;
-		SCARG(&margs, a2) = SCARG(uap, a2);
-		SCARG(&margs, a4) =
+		margs.which = 0;
+		margs.a2 = uap->a2;
+		margs.a4 =
 		    (int)stackgap_alloc(&sg, sizeof(struct msqid_ds));
-		SCARG(&margs, a3) = SCARG(uap, a3);
-		switch (SCARG(&margs, a3)) {
+		margs.a3 = uap->a3;
+		switch (margs.a3) {
 		case IBCS2_IPC_STAT:
 			error = msgsys(td, &margs);
 			if (!error)
 				cvt_msqid2imsqid(
-				    (struct msqid_ds *)SCARG(&margs, a4),
-				    (struct ibcs2_msqid_ds *)SCARG(uap, a4));
+				    (struct msqid_ds *)margs.a4,
+				    (struct ibcs2_msqid_ds *)uap->a4);
 			return error;
 		case IBCS2_IPC_SET:
-			cvt_imsqid2msqid((struct ibcs2_msqid_ds *)SCARG(uap,
-									a4),
-					 (struct msqid_ds *)SCARG(&margs, a4));
+			cvt_imsqid2msqid((struct ibcs2_msqid_ds *)uap->a4,
+					 (struct msqid_ds *)margs.a4);
 			return msgsys(td, &margs);
 		case IBCS2_IPC_RMID:
 			return msgsys(td, &margs);
@@ -139,10 +138,10 @@ ibcs2_msgsys(td, uap)
 		return EINVAL;
 	}
 	case 2:				/* msgrcv */
-		SCARG(uap, which) = 3;
+		uap->which = 3;
 		return msgsys(td, (struct msgsys_args *)uap);
 	case 3:				/* msgsnd */
-		SCARG(uap, which) = 2;
+		uap->which = 2;
 		return msgsys(td, (struct msgsys_args *)uap);
 	default:
 		return EINVAL;
@@ -239,9 +238,9 @@ ibcs2_semsys(td, uap)
 {
 	int error;
 
-	switch (SCARG(uap, which)) {
+	switch (uap->which) {
 	case 0:					/* semctl */
-		switch(SCARG(uap, a4)) {
+		switch(uap->a4) {
 		case IBCS2_IPC_STAT:
 		    {
 			struct ibcs2_semid_ds *isp;
@@ -250,14 +249,14 @@ ibcs2_semsys(td, uap)
 			caddr_t sg = stackgap_init();
 
 
-			ssu = (union semun) SCARG(uap, a5);
+			ssu = (union semun) uap->a5;
 			sp = stackgap_alloc(&sg, sizeof(struct semid_ds));
 			sup = stackgap_alloc(&sg, sizeof(union semun));
 			sup->buf = sp;
-			SCARG(uap, a5) = (int)sup;
+			uap->a5 = (int)sup;
 			error = semsys(td, (struct semsys_args *)uap);
 			if (!error) {
-				SCARG(uap, a5) = (int)ssu.buf;
+				uap->a5 = (int)ssu.buf;
 				isp = stackgap_alloc(&sg, sizeof(*isp));
 				cvt_semid2isemid(sp, isp);
 				error = copyout((caddr_t)isp,
@@ -274,12 +273,12 @@ ibcs2_semsys(td, uap)
 
 			isp = stackgap_alloc(&sg, sizeof(*isp));
 			sp = stackgap_alloc(&sg, sizeof(*sp));
-			error = copyin((caddr_t)SCARG(uap, a5), (caddr_t)isp,
+			error = copyin((caddr_t)uap->a5, (caddr_t)isp,
 				       sizeof(*isp));
 			if (error)
 				return error;
 			cvt_isemid2semid(isp, sp);
-			SCARG(uap, a5) = (int)sp;
+			uap->a5 = (int)sp;
 			return semsys(td, (struct semsys_args *)uap);
 		    }
 		case IBCS2_SETVAL:
@@ -288,8 +287,8 @@ ibcs2_semsys(td, uap)
 			caddr_t sg = stackgap_init();
 
 			sp = stackgap_alloc(&sg, sizeof(*sp));
-			sp->val = (int) SCARG(uap, a5);
-			SCARG(uap, a5) = (int)sp;
+			sp->val = (int) uap->a5;
+			uap->a5 = (int)sp;
 			return semsys(td, (struct semsys_args *)uap);
 		    }
 		}
@@ -351,28 +350,28 @@ ibcs2_shmsys(td, uap)
 {
 	int error;
 
-	switch (SCARG(uap, which)) {
+	switch (uap->which) {
 	case 0:						/* shmat */
 		return shmsys(td, (struct shmsys_args *)uap);
 
 	case 1:						/* shmctl */
-		switch(SCARG(uap, a3)) {
+		switch(uap->a3) {
 		case IBCS2_IPC_STAT:
 		    {
 			struct ibcs2_shmid_ds *isp;
 			struct shmid_ds *sp;
 			caddr_t sg = stackgap_init();
 
-			isp = (struct ibcs2_shmid_ds *)SCARG(uap, a4);
+			isp = (struct ibcs2_shmid_ds *)uap->a4;
 			sp = stackgap_alloc(&sg, sizeof(*sp));
-			SCARG(uap, a4) = (int)sp;
+			uap->a4 = (int)sp;
 			error = shmsys(td, (struct shmsys_args *)uap);
 			if (!error) {
-				SCARG(uap, a4) = (int)isp;
+				uap->a4 = (int)isp;
 				isp = stackgap_alloc(&sg, sizeof(*isp));
 				cvt_shmid2ishmid(sp, isp);
 				error = copyout((caddr_t)isp,
-						(caddr_t)SCARG(uap, a4),
+						(caddr_t)uap->a4,
 						sizeof(*isp));
 			}
 			return error;
@@ -385,12 +384,12 @@ ibcs2_shmsys(td, uap)
 
 			isp = stackgap_alloc(&sg, sizeof(*isp));
 			sp = stackgap_alloc(&sg, sizeof(*sp));
-			error = copyin((caddr_t)SCARG(uap, a4), (caddr_t)isp,
+			error = copyin((caddr_t)uap->a4, (caddr_t)isp,
 				       sizeof(*isp));
 			if (error)
 				return error;
 			cvt_ishmid2shmid(isp, sp);
-			SCARG(uap, a4) = (int)sp;
+			uap->a4 = (int)sp;
 			return shmsys(td, (struct shmsys_args *)uap);
 		    }
 		}
