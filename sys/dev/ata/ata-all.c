@@ -353,6 +353,9 @@ ata_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, struct threa
     caddr_t buf;
     int error = ENOTTY;
 
+    if (cmd != IOCATA)
+	return error;
+
     DROP_GIANT();
     switch (iocmd->cmd) {
     case ATAGMAXCHANNEL:
