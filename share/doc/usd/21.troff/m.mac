@@ -66,6 +66,8 @@
 .hy 14
 .ds u \v'-0.3m'\s-2
 .ds d \s0\v'0.3m'
+.nr 2C 0
+.ds H
 .nr a .8i
 .nr b 1.6i
 .nr c 2.4i
@@ -110,7 +112,7 @@
 .ch fo \\nmu
 .if \\n(dn .fz
 .ns
-.mx
+.if dmx .mx
 .nr cl 0 1
 .mk
 ..
@@ -125,7 +127,7 @@
 .if \\nx .di fy
 ..
 .de fo
-.cx
+.if dcx .cx
 .nr dn 0
 .if \\nx .xf
 .nr x 0 \"disable fx
@@ -142,7 +144,8 @@
 .ps
 .nr S2 \\n(.s
 .ps 10
-'bp \}
+'bp
+.\}
 ..
 .de 2C
 .br
@@ -268,7 +271,6 @@ Form	Value\\$2	Argument	Notes\\$1	Explanation
 .de EM
 .br
 \&\c
-'bp
 .pl 2i
 ..
 .em EM
@@ -281,4 +283,6 @@ Form	Value\\$2	Argument	Notes\\$1	Explanation
 .ft R
 .ps \n(PS
 .ta \\nau \\nbu \\ncu \\ndu +\\neu
+..
+.de T&
 ..
