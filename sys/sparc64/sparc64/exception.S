@@ -125,7 +125,7 @@
  * tl bit allows us to detect both ranges with one test.
  *
  * This is:
- *	(((%tpc - %tba) >> 5) & ~0x200) >= 0x80 && <= 0xff
+ *	0x80 <= (((%tpc - %tba) >> 5) & ~0x200) <= 0xff
  *
  * Values outside of the trap table will produce negative or large positive
  * results.
@@ -314,10 +314,9 @@ ENTRY(tl0_kstack_fixup)
 	wrpr	%o0, 0, %otherwin
 	wrpr	%g0, 0, %canrestore
 	ldx	[PCPU(CURTHREAD)], %o0
-	ldx	[%o0 + TD_KSTACK], %o0
-	set	KSTACK_PAGES * PAGE_SIZE - SPOFF - CCFSZ, %o1
+	ldx	[%o0 + TD_PCB], %o0
 	retl
-	 add	%o0, %o1, %sp
+	 sub	%o0, SPOFF + CCFSZ, %sp
 END(tl0_kstack_fixup)
 
 	/*
@@ -392,22 +391,10 @@ END(tl0_sfsr_trap)
 	.macro	tl0_intr level, mask
 	tl0_kstack
 	set	\mask, %o2
-	b	%xcc, tl0_intr_call_trap
+	b	%xcc, tl0_intr
 	 mov	\level, %o1
 	.align	32
 	.endm
-
-/*
- * Actually call tl0_trap, and do some work that cannot be done in tl0_intr
- * because of space constraints.
- */
-ENTRY(tl0_intr_call_trap)
-	wr	%o2, 0, %asr21
-	rdpr	%pil, %o2
-	wrpr	%g0, %o1, %pil
-	b	%xcc, tl0_trap
-	 mov	T_INTR, %o0
-END(tl0_intr_call_trap)
 
 #define	INTR(level, traplvl)						\
 	tl ## traplvl ## _intr	level, 1 << level
@@ -902,6 +889,13 @@ END(tl0_sftrap)
 	.endr
 	.endm
 
+	.macro	tl0_syscall
+	tl0_kstack
+	rdpr	%pil, %o0
+	b	%xcc, tl0_syscall
+	 mov	T_SYSCALL, %o0
+	.endm
+
 	.macro	tl0_soft	count
 	.rept	\count
 	tl0_gen	T_SOFT
@@ -999,14 +993,14 @@ ENTRY(tl1_sfsr_trap)
 	 mov	%g1, %o0
 END(tl1_align_trap)
 
-	.macro	tl1_intr level, mask, type
+	.macro	tl1_intr level, mask
 	tl1_kstack
 	rdpr	%pil, %o2
 	wrpr	%g0, \level, %pil
 	set	\mask, %o3
 	wr	%o3, 0, %asr21
 	mov	T_INTR | T_KERNEL, %o0
-	b	%xcc, tl1_trap
+	b	%xcc, tl1_intr
 	 mov	\level, %o1
 	.align	32
 	.endm
@@ -1026,6 +1020,7 @@ ENTRY(intr_enqueue)
 	   , %g1, %g2, %g3, 7, 8, 9)
 	ldx	[PCPU(CURTHREAD)], %g2
 	stx	%g2, [%g1 + KTR_PARM1]
+	ldx	[%g2 + TD_PROC], %g2
 	add	%g2, P_COMM, %g2
 	stx	%g2, [%g1 + KTR_PARM2]
 	rdpr	%tl, %g2
@@ -1173,21 +1168,17 @@ END(intr_enqueue)
 	ldxa	[%g0] ASI_DMMU_TAG_TARGET_REG, %g1
 	srlx	%g1, TT_CTX_SHIFT, %g2
 	brnz,pn	%g2, tl1_dmmu_miss_user
-	 ldxa	[%g0] ASI_DMMU_TSB_8KB_PTR_REG, %g2
+	 EMPTY
 
-	/*
-	 * Convert the tte pointer to an stte pointer, and add extra bits to
-	 * accomodate for large tsb.
-	 */
-	sllx	%g2, STTE_SHIFT - TTE_SHIFT, %g2
-#ifdef notyet
-	mov	AA_DMMU_TAR, %g3
-	ldxa	[%g3] ASI_DMMU, %g3
-	srlx	%g3, TSB_1M_STTE_SHIFT, %g3
-	and	%g3, TSB_KERNEL_MASK >> TSB_1M_STTE_SHIFT, %g3
-	sllx	%g3, TSB_1M_STTE_SHIFT, %g3
-	add	%g2, %g3, %g2
-#endif
+	set	TSB_KERNEL_MASK, %g3
+	set	TSB_KERNEL_MIN_ADDRESS, %g4
+
+	wr	%g0, ASI_DMMU, %asi
+	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g2
+	srlx	%g2, PAGE_SHIFT, %g2
+	and	%g2, %g3, %g2
+	sllx	%g2, STTE_SHIFT, %g2
+	add	%g2, %g4, %g2
 
 	/*
 	 * Load the tte, check that it's valid and that the tags match.
@@ -1217,13 +1208,11 @@ END(intr_enqueue)
 	 */
 2:	wrpr	%g0, PSTATE_ALT, %pstate
 
-	wr	%g0, ASI_DMMU, %asi
 	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g1
 
 	tl1_kstack
 	sub	%sp, MF_SIZEOF, %sp
 	stx	%g1, [%sp + SPOFF + CCFSZ + MF_TAR]
-	wrpr	%g0, PSTATE_ALT, %pstate
 	rdpr	%pil, %o2
 	add	%sp, SPOFF + CCFSZ, %o1
 	b	%xcc, tl1_trap
@@ -1481,7 +1470,8 @@ ENTRY(tl1_spill_topcb)
 	stx	%g2, [%g6 + 8]
 	stx	%g3, [%g6 + 16]
 
-	ldx	[PCPU(CURPCB)], %g1
+	ldx	[PCPU(CURTHREAD)], %g1
+	ldx	[%g1 + TD_PCB], %g1
 	ldx	[%g1 + PCB_NSAVED], %g2
 
 	sllx	%g2, 3, %g3
@@ -1501,7 +1491,8 @@ ENTRY(tl1_spill_topcb)
 	rdpr	%tpc, %g2
 	stx	%g2, [%g1 + KTR_PARM1]
 	stx	%sp, [%g1 + KTR_PARM2]
-	ldx	[PCPU(CURPCB)], %g2
+	ldx	[PCPU(CURTHREAD)], %g2
+	ldx	[%g2 + TD_PCB], %g2
 	ldx	[%g2 + PCB_NSAVED], %g2
 	stx	%g2, [%g1 + KTR_PARM3]
 9:
@@ -1648,7 +1639,8 @@ tl0_breakpoint:
 	tl0_gen		T_BREAKPOINT	! 0x101 breakpoint
 	tl0_soft	6		! 0x102-0x107 trap instruction
 	tl0_soft	1		! 0x108 SVr4 syscall
-	tl0_gen		T_SYSCALL	! 0x109 BSD syscall
+tl0_bsd_syscall:
+	tl0_syscall			! 0x109 BSD syscall
 	tl0_soft	118		! 0x110-0x17f trap instruction
 	tl0_reserved	128		! 0x180-0x1ff reserved
 
@@ -1818,8 +1810,70 @@ ENTRY(tl0_trap)
 	stx	%g6, [%sp + SPOFF + CCFSZ + TF_G6]
 	stx	%g7, [%sp + SPOFF + CCFSZ + TF_G7]
 
-#if KTR_COMPILE & KTR_CT1
-	CATR(KTR_CT1, "tl0_trap: td=%p type=%#x arg=%#lx pil=%#lx ws=%#lx"
+#if KTR_COMPILE & KTR_TRAP
+	CATR(KTR_TRAP, "tl0_trap: td=%p type=%#x pil=%#lx pc=%#lx sp=%#lx"
+	    , %g1, %g2, %g3, 7, 8, 9)
+	ldx	[PCPU(CURTHREAD)], %g2
+	stx	%g2, [%g1 + KTR_PARM1]
+	stx	%o0, [%g1 + KTR_PARM2]
+	stx	%o2, [%g1 + KTR_PARM3]
+	rdpr	%tpc, %g2
+	stx	%g2, [%g1 + KTR_PARM4]
+	stx	%i6, [%g1 + KTR_PARM5]
+9:
+#endif
+
+	stx	%i0, [%sp + SPOFF + CCFSZ + TF_O0]
+	stx	%i1, [%sp + SPOFF + CCFSZ + TF_O1]
+	stx	%i2, [%sp + SPOFF + CCFSZ + TF_O2]
+	stx	%i3, [%sp + SPOFF + CCFSZ + TF_O3]
+	stx	%i4, [%sp + SPOFF + CCFSZ + TF_O4]
+	stx	%i5, [%sp + SPOFF + CCFSZ + TF_O5]
+	stx	%i6, [%sp + SPOFF + CCFSZ + TF_O6]
+	stx	%i7, [%sp + SPOFF + CCFSZ + TF_O7]
+
+.Ltl0_trap_spill:
+	call	trap
+	 add	%sp, CCFSZ + SPOFF, %o0
+	b,a	%xcc, tl0_ret
+	 nop
+END(tl0_trap)
+
+ENTRY(tl0_syscall)
+	/*
+	 * Force kernel store order.
+	 */
+	wrpr	%g0, PSTATE_ALT, %pstate
+
+	sub	%sp, TF_SIZEOF, %sp
+	
+	rdpr	%tstate, %l0
+	stx	%l0, [%sp + SPOFF + CCFSZ + TF_TSTATE]
+	rdpr	%tpc, %l1
+	stx	%l1, [%sp + SPOFF + CCFSZ + TF_TPC]
+	rdpr	%tnpc, %l2
+	stx	%l2, [%sp + SPOFF + CCFSZ + TF_TNPC]
+
+	stx	%o0, [%sp + SPOFF + CCFSZ + TF_TYPE]
+	stx	%o1, [%sp + SPOFF + CCFSZ + TF_ARG]
+	stx	%o2, [%sp + SPOFF + CCFSZ + TF_PIL]
+	stx	%o3, [%sp + SPOFF + CCFSZ + TF_WSTATE]
+
+	mov	%g7, %l0
+	wrpr	%g0, PSTATE_NORMAL, %pstate
+	mov	%l0, %g7	/* set up the normal %g7 */
+	wrpr	%g0, PSTATE_KERNEL, %pstate
+
+	stx	%g1, [%sp + SPOFF + CCFSZ + TF_G1]
+	stx	%g2, [%sp + SPOFF + CCFSZ + TF_G2]
+	stx	%g3, [%sp + SPOFF + CCFSZ + TF_G3]
+	stx	%g4, [%sp + SPOFF + CCFSZ + TF_G4]
+	stx	%g5, [%sp + SPOFF + CCFSZ + TF_G5]
+	stx	%g6, [%sp + SPOFF + CCFSZ + TF_G6]
+	stx	%g7, [%sp + SPOFF + CCFSZ + TF_G7]
+
+#if KTR_COMPILE & KTR_SYSC
+	CATR(KTR_SYSC, "tl0_syscall: td=%p type=%#x arg=%#lx pil=%#lx ws=%#lx"
 	    , %g1, %g2, %g3, 7, 8, 9)
 	ldx	[PCPU(CURTHREAD)], %g2
 	stx	%g2, [%g1 + KTR_PARM1]
@@ -1839,20 +1893,97 @@ ENTRY(tl0_trap)
 	stx	%i6, [%sp + SPOFF + CCFSZ + TF_O6]
 	stx	%i7, [%sp + SPOFF + CCFSZ + TF_O7]
 
-.Ltl0_trap_spill:
-	call	trap
+	call	syscall
 	 add	%sp, CCFSZ + SPOFF, %o0
-	
-	/* Fallthough. */
-END(tl0_trap)
+	b,a	%xcc, tl0_ret
+	 nop
+END(tl0_syscall)
 
-/* Return to tl0 (user process). */
-ENTRY(tl0_ret)
-#if KTR_COMPILE & KTR_CT1
-	CATR(KTR_CT1, "tl0_ret: td=%p (%s) pil=%#lx sflag=%#x"
+ENTRY(tl0_intr)
+	wr	%o2, 0, %asr21
+	rdpr	%pil, %o2
+	wrpr	%g0, %o1, %pil
+	mov	T_INTR, %o0
+
+	/*
+	 * Force kernel store order.
+	 */
+	wrpr	%g0, PSTATE_ALT, %pstate
+
+	sub	%sp, TF_SIZEOF, %sp
+	
+	rdpr	%tstate, %l0
+	stx	%l0, [%sp + SPOFF + CCFSZ + TF_TSTATE]
+	rdpr	%tpc, %l1
+	stx	%l1, [%sp + SPOFF + CCFSZ + TF_TPC]
+	rdpr	%tnpc, %l2
+	stx	%l2, [%sp + SPOFF + CCFSZ + TF_TNPC]
+
+	stx	%o0, [%sp + SPOFF + CCFSZ + TF_TYPE]
+	stx	%o1, [%sp + SPOFF + CCFSZ + TF_ARG]
+	stx	%o2, [%sp + SPOFF + CCFSZ + TF_PIL]
+	stx	%o3, [%sp + SPOFF + CCFSZ + TF_WSTATE]
+
+	mov	%g7, %l0
+	wrpr	%g0, PSTATE_NORMAL, %pstate
+	mov	%l0, %g7	/* set up the normal %g7 */
+	wrpr	%g0, PSTATE_KERNEL, %pstate
+
+	stx	%g1, [%sp + SPOFF + CCFSZ + TF_G1]
+	stx	%g2, [%sp + SPOFF + CCFSZ + TF_G2]
+	stx	%g3, [%sp + SPOFF + CCFSZ + TF_G3]
+	stx	%g4, [%sp + SPOFF + CCFSZ + TF_G4]
+	stx	%g5, [%sp + SPOFF + CCFSZ + TF_G5]
+	stx	%g6, [%sp + SPOFF + CCFSZ + TF_G6]
+	stx	%g7, [%sp + SPOFF + CCFSZ + TF_G7]
+
+#if KTR_COMPILE & KTR_INTR
+	CATR(KTR_INTR, "tl0_intr: td=%p type=%#x arg=%#lx pil=%#lx ws=%#lx"
 	    , %g1, %g2, %g3, 7, 8, 9)
 	ldx	[PCPU(CURTHREAD)], %g2
 	stx	%g2, [%g1 + KTR_PARM1]
+	stx	%o0, [%g1 + KTR_PARM2]
+	stx	%o1, [%g1 + KTR_PARM3]
+	stx	%o2, [%g1 + KTR_PARM4]
+	stx	%o3, [%g1 + KTR_PARM5]
+9:
+#endif
+
+	stx	%i0, [%sp + SPOFF + CCFSZ + TF_O0]
+	stx	%i1, [%sp + SPOFF + CCFSZ + TF_O1]
+	stx	%i2, [%sp + SPOFF + CCFSZ + TF_O2]
+	stx	%i3, [%sp + SPOFF + CCFSZ + TF_O3]
+	stx	%i4, [%sp + SPOFF + CCFSZ + TF_O4]
+	stx	%i5, [%sp + SPOFF + CCFSZ + TF_O5]
+	stx	%i6, [%sp + SPOFF + CCFSZ + TF_O6]
+	stx	%i7, [%sp + SPOFF + CCFSZ + TF_O7]
+
+	set	cnt+V_INTR, %l0
+	lduw	[%l0], %l1
+1:	add	%l1, 1, %l2
+	casa	[%l0] ASI_N, %l1, %l2
+	cmp	%l1, %l2
+	bne,pn	%xcc, 1b
+	 mov	%l2, %l1
+
+	set	intr_handlers, %l0
+	sllx	%o1, IH_SHIFT, %l1
+	add	%l0, %l1, %l0
+	ldx	[%l0 + IH_FUNC], %l1
+	call	%l1
+	 add	%sp, CCFSZ + SPOFF, %o0
+	b,a	%xcc, tl0_ret
+	 nop
+END(tl0_intr)
+
+/* Return to tl0 (user process). */
+ENTRY(tl0_ret)
+#if KTR_COMPILE & KTR_TRAP
+	CATR(KTR_TRAP, "tl0_ret: check ast td=%p (%s) pil=%#lx sflag=%#x"
+	    , %g1, %g2, %g3, 7, 8, 9)
+	ldx	[PCPU(CURTHREAD)], %g2
+	stx	%g2, [%g1 + KTR_PARM1]
+	ldx	[%g2 + TD_PROC], %g2
 	add	%g2, P_COMM, %g3
 	stx	%g3, [%g1 + KTR_PARM2]
 	rdpr	%pil, %g3
@@ -1863,19 +1994,19 @@ ENTRY(tl0_ret)
 #endif
 
 	wrpr	%g0, PIL_TICK, %pil
-	ldx	[PCPU(CURTHREAD)], %o0
-	ldx	[%o0 + TD_KSE], %o0
-	lduw	[%o0 + KE_FLAGS], %o1
-	and	%o1, KEF_ASTPENDING | KEF_NEEDRESCHED, %o1
-	brz,pt	%o1, 1f
+	ldx	[PCPU(CURTHREAD)], %l0
+	ldx	[%l0 + TD_KSE], %l1
+	lduw	[%l1 + KE_FLAGS], %l2
+	and	%l2, KEF_ASTPENDING | KEF_NEEDRESCHED, %l2
+	brz,pt	%l2, 1f
 	 nop
 	call	ast
 	 add	%sp, CCFSZ + SPOFF, %o0
 
-1:	ldx	[PCPU(CURPCB)], %o0
-	ldx	[%o0 + PCB_NSAVED], %o1
+1:	ldx	[%l0 + TD_PCB], %l1
+	ldx	[%l1 + PCB_NSAVED], %l2
 	mov	T_SPILL, %o0
-	brnz,a,pn %o1, .Ltl0_trap_spill
+	brnz,a,pn %l2, .Ltl0_trap_spill
 	 stx	%o0, [%sp + SPOFF + CCFSZ + TF_TYPE]
 
 	ldx	[%sp + SPOFF + CCFSZ + TF_G1], %g1
@@ -1928,17 +2059,17 @@ ENTRY(tl0_ret)
 	restore
 tl0_ret_fill:
 
-#if KTR_COMPILE & KTR_CT1
-	CATR(KTR_CT1, "tl0_ret: return td=%#lx pil=%#lx ts=%#lx pc=%#lx sp=%#lx"
+#if KTR_COMPILE & KTR_TRAP
+	CATR(KTR_TRAP, "tl0_ret: td=%#lx pil=%#lx ts=%#lx pc=%#lx sp=%#lx"
 	    , %g2, %g3, %g4, 7, 8, 9)
 	ldx	[PCPU(CURTHREAD)], %g3
 	stx	%g3, [%g2 + KTR_PARM1]
+	stx	%l0, [%g2 + KTR_PARM2]
 	rdpr	%tstate, %g3
-	stx	%g3, [%g2 + KTR_PARM2]
-	rdpr	%tpc, %g3
 	stx	%g3, [%g2 + KTR_PARM3]
-	stx	%sp, [%g2 + KTR_PARM4]
-	stx	%g1, [%g2 + KTR_PARM5]
+	rdpr	%tpc, %g3
+	stx	%g3, [%g2 + KTR_PARM4]
+	stx	%sp, [%g2 + KTR_PARM5]
 9:
 #endif
 
@@ -1946,8 +2077,8 @@ tl0_ret_fill:
 	retry
 tl0_ret_fill_end:
 
-#if KTR_COMPILE & KTR_CT1
-	CATR(KTR_CT1, "tl0_ret: fill magic wstate=%#lx sp=%#lx"
+#if KTR_COMPILE & KTR_TRAP
+	CATR(KTR_TRAP, "tl0_ret: fill magic wstate=%#lx sp=%#lx"
 	    , %l0, %l1, %l2, 7, 8, 9)
 	stx	%l4, [%l0 + KTR_PARM1]
 	stx	%sp, [%l0 + KTR_PARM2]
@@ -1955,7 +2086,7 @@ tl0_ret_fill_end:
 #endif
 
 	/*
-	 * The fill failed and magic has been preformed.  Call trap again,
+	 * The fill failed and magic has been performed.  Call trap again,
 	 * which will copyin the window on the user's behalf.
 	 */
 	wrpr	%l4, 0, %wstate
@@ -1986,20 +2117,13 @@ ENTRY(tl1_trap)
 	rdpr	%tnpc, %l2
 	stx	%l2, [%sp + SPOFF + CCFSZ + TF_TNPC]
 
-#if KTR_COMPILE & KTR_CT1
-	setx	trap_mask, %l4, %l3
-	andn	%o1, T_KERNEL, %l4
-	mov	1, %l5
-	sllx	%l5, %l4, %l4
-	ldx	[%l3], %l5
-	and	%l4, %l5, %l4
-	brz	%l4, 9f
-	 nop
-	CATR(KTR_CT1, "tl1_trap: td=%p pil=%#lx type=%#lx arg=%#lx pc=%#lx"
+#if KTR_COMPILE & KTR_TRAP
+	CATR(KTR_TRAP, "tl1_trap: td=%p pil=%#lx type=%#lx arg=%#lx pc=%#lx"
 	    , %l3, %l4, %l5, 7, 8, 9)
 	ldx	[PCPU(CURTHREAD)], %l4
 	stx	%l4, [%l3 + KTR_PARM1]
 #if 0
+	ldx	[%l4 + TD_PROC], %l4
 	add	%l4, P_COMM, %l4
 	stx	%l4, [%l3 + KTR_PARM2]
 #else
@@ -2054,17 +2178,8 @@ ENTRY(tl1_trap)
 	wrpr	%l2, 0, %tpc
 	wrpr	%l3, 0, %tnpc
 
-#if KTR_COMPILE & KTR_CT1
-	ldx	[%sp + SPOFF + CCFSZ + TF_TYPE], %l5
-	andn	%l5, T_KERNEL, %l4
-	mov	1, %l5
-	sllx	%l5, %l4, %l4
-	setx	trap_mask, %l4, %l3
-	ldx	[%l3], %l5
-	and	%l4, %l5, %l4
-	brz	%l4, 9f
-	 nop
-	CATR(KTR_CT1, "tl1_trap: return td=%p pil=%#lx sp=%#lx pc=%#lx"
+#if KTR_COMPILE & KTR_TRAP
+	CATR(KTR_TRAP, "tl1_trap: return td=%p pil=%#lx sp=%#lx pc=%#lx"
 	    , %l3, %l4, %l5, 7, 8, 9)
 	ldx	[PCPU(CURTHREAD)], %l4
 	stx	%l4, [%l3 + KTR_PARM1]
@@ -2078,17 +2193,116 @@ ENTRY(tl1_trap)
 	retry
 END(tl1_trap)
 
+ENTRY(tl1_intr)
+	sub	%sp, TF_SIZEOF, %sp
+
+	rdpr	%tstate, %l0
+	stx	%l0, [%sp + SPOFF + CCFSZ + TF_TSTATE]
+	rdpr	%tpc, %l1
+	stx	%l1, [%sp + SPOFF + CCFSZ + TF_TPC]
+	rdpr	%tnpc, %l2
+	stx	%l2, [%sp + SPOFF + CCFSZ + TF_TNPC]
+
+#if KTR_COMPILE & KTR_INTR
+	CATR(KTR_INTR, "tl1_intr: td=%p pil=%#lx type=%#lx arg=%#lx pc=%#lx"
+	    , %l3, %l4, %l5, 7, 8, 9)
+	ldx	[PCPU(CURTHREAD)], %l4
+	stx	%l4, [%l3 + KTR_PARM1]
+#if 0
+	ldx	[%l4 + TD_PROC], %l4
+	add	%l4, P_COMM, %l4
+	stx	%l4, [%l3 + KTR_PARM2]
+#else
+	stx	%o2, [%l3 + KTR_PARM2]
+#endif
+	andn	%o0, T_KERNEL, %l4
+	stx	%l4, [%l3 + KTR_PARM3]
+	stx	%o1, [%l3 + KTR_PARM4]
+	stx	%l1, [%l3 + KTR_PARM5]
+9:
+#endif
+
+	wrpr	%g0, 1, %tl
+	/* We may have trapped before %g7 was set up correctly. */
+	mov	%g7, %l0
+	wrpr	%g0, PSTATE_NORMAL, %pstate
+	mov	%l0, %g7
+	wrpr	%g0, PSTATE_KERNEL, %pstate
+
+	stx	%o0, [%sp + SPOFF + CCFSZ + TF_TYPE]
+	stx	%o1, [%sp + SPOFF + CCFSZ + TF_ARG]
+	stx	%o2, [%sp + SPOFF + CCFSZ + TF_PIL]
+
+	stx	%g1, [%sp + SPOFF + CCFSZ + TF_G1]
+	stx	%g2, [%sp + SPOFF + CCFSZ + TF_G2]
+	stx	%g3, [%sp + SPOFF + CCFSZ + TF_G3]
+	stx	%g4, [%sp + SPOFF + CCFSZ + TF_G4]
+	stx	%g5, [%sp + SPOFF + CCFSZ + TF_G5]
+	stx	%g6, [%sp + SPOFF + CCFSZ + TF_G6]
+
+	set	cnt+V_INTR, %l0
+	lduw	[%l0], %l1
+1:	add	%l1, 1, %l2
+	casa	[%l0] ASI_N, %l1, %l2
+	cmp	%l1, %l2
+	bne,pn	%xcc, 1b
+	 mov	%l2, %l1
+
+	set	intr_handlers, %l0
+	sllx	%o1, IH_SHIFT, %l1
+	add	%l0, %l1, %l0
+	ldx	[%l0 + IH_FUNC], %l1
+	call	%l1
+	 add	%sp, CCFSZ + SPOFF, %o0
+
+	ldx	[%sp + SPOFF + CCFSZ + TF_G1], %g1
+	ldx	[%sp + SPOFF + CCFSZ + TF_G2], %g2
+	ldx	[%sp + SPOFF + CCFSZ + TF_G3], %g3
+	ldx	[%sp + SPOFF + CCFSZ + TF_G4], %g4
+	ldx	[%sp + SPOFF + CCFSZ + TF_G5], %g5
+	ldx	[%sp + SPOFF + CCFSZ + TF_G6], %g6
+
+	ldx	[%sp + SPOFF + CCFSZ + TF_PIL], %l0
+	ldx	[%sp + SPOFF + CCFSZ + TF_TSTATE], %l1
+	ldx	[%sp + SPOFF + CCFSZ + TF_TPC], %l2
+	ldx	[%sp + SPOFF + CCFSZ + TF_TNPC], %l3
+
+	wrpr	%g0, PSTATE_ALT, %pstate
+
+	wrpr	%l0, 0, %pil
+
+	wrpr	%g0, 2, %tl
+	wrpr	%l1, 0, %tstate
+	wrpr	%l2, 0, %tpc
+	wrpr	%l3, 0, %tnpc
+
+#if KTR_COMPILE & KTR_INTR
+	CATR(KTR_INTR, "tl1_intr: return td=%p pil=%#lx sp=%#lx pc=%#lx"
+	    , %l3, %l4, %l5, 7, 8, 9)
+	ldx	[PCPU(CURTHREAD)], %l4
+	stx	%l4, [%l3 + KTR_PARM1]
+	stx	%l0, [%l3 + KTR_PARM2]
+	stx	%sp, [%l3 + KTR_PARM3]
+	stx	%l2, [%l3 + KTR_PARM4]
+9:
+#endif
+
+	restore
+	retry
+END(tl1_intr)
+
 /*
  * Freshly forked processes come here when switched to for the first time.
  * The arguments to fork_exit() have been setup in the locals, we must move
  * them to the outs.
  */
 ENTRY(fork_trampoline)
-#if KTR_COMPILE & KTR_CT1
-	CATR(KTR_CT1, "fork_trampoline: td=%p (%s) cwp=%#lx"
+#if KTR_COMPILE & KTR_PROC
+	CATR(KTR_PROC, "fork_trampoline: td=%p (%s) cwp=%#lx"
 	    , %g1, %g2, %g3, 7, 8, 9)
 	ldx	[PCPU(CURTHREAD)], %g2
 	stx	%g2, [%g1 + KTR_PARM1]
+	ldx	[%g2 + TD_PROC], %g2
 	add	%g2, P_COMM, %g2
 	stx	%g2, [%g1 + KTR_PARM2]
 	rdpr	%cwp, %g2
@@ -2101,4 +2315,5 @@ ENTRY(fork_trampoline)
 	call	fork_exit
 	 nop
 	b,a	%xcc, tl0_ret
+	 nop
 END(fork_trampoline)
