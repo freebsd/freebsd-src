@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.220 1998/12/27 12:35:48 phk Exp $
+ *	$Id: sio.c,v 1.221 1999/01/07 14:14:23 yokota Exp $
  */
 
 #include "opt_comconsole.h"
@@ -70,6 +70,9 @@
 
 #include <machine/clock.h>
 #include <machine/ipl.h>
+#ifndef SMP
+#include <machine/lock.h>
+#endif
 
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
