@@ -140,7 +140,7 @@ In c and r mode, this changes the directory before adding
 the following files.
 In x mode, change directories after opening the archive
 but before extracting entries from the archive.
-.It Fl -exclude Ar pattern
+.It Fl -exclude Ar pattern ( Fl W Cm exclude Ns = Ns Ar pattern )
 Do not process files or directories that match the
 specified pattern.
 Note that exclusions take precedence over patterns or filenames
@@ -165,7 +165,7 @@ for standard input or standard output.
 If not specified, the default tape device will be used.
 (On FreeBSD, the default tape device is
 .Pa /dev/sa0 . )
-.It Fl -fast-read
+.It Fl -fast-read ( Fl W Cm fast-read )
 (x and t mode only)
 Extract or list only the first archive entry that matches each pattern
 or filename operand.
@@ -182,7 +182,7 @@ target of the link will be archived, not the link itself.
 (c and r mode only)
 Synonym for
 .Fl L .
-.It Fl -include Ar pattern
+.It Fl -include Ar pattern ( Fl W Cm include Ns = Ns Ar pattern )
 Process only files or directories that match the specified pattern.
 Note that exclusions specified with
 .Fl -exclude
@@ -229,7 +229,7 @@ By default, the modification time is set to the time stored in the archive.
 .It Fl n
 (c, r, u modes only)
 Do not recursively archive the contents of directories.
-.It Fl -nodump
+.It Fl -nodump ( Fl W Cm nodump )
 (c and r modes only)
 Honor the nodump file flag by skipping this file.
 .It Fl O
@@ -301,6 +301,16 @@ will produce output similar to that of
 Additional
 .Fl v
 options will provide additional detail.
+.It Fl W Ar longopt=value
+Long options (preceded by
+.Fl - )
+are only supported directly on systems that have the
+.Xr getopt_long 3
+function.
+The
+.Fl W
+option can be used to access long options on systems that
+do not support this function.
 .It Fl w
 Ask for confirmation for every action.
 .It Fl X
@@ -620,16 +630,12 @@ convention can cause hard link information to be lost.
 (This is a consequence of the incompatible ways that different archive
 formats store hardlink information.)
 .Pp
-All features should be available using only short options in order
-to enhance portability to platforms that lack
-.Fn getopt_long .
-.Pp
 There are alternative long options for many of the short options that
 are deliberately not documented.
 .Sh HISTORY
 A
 .Nm tar
-command appeared in Sixth Edition Unix.
+command appeared in Seventh Edition Unix.
 There have been numerous other implementations,
 many of which extended the file format.
 John Gilmore's
