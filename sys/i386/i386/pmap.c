@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.115 1996/09/08 16:57:34 dyson Exp $
+ *	$Id: pmap.c,v 1.116 1996/09/08 20:44:10 dyson Exp $
  */
 
 /*
@@ -714,7 +714,7 @@ pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m) {
 		 */
 		pmap->pm_pdir[m->pindex] = 0;
 		--pmap->pm_stats.resident_count;
-		if ((((unsigned)pmap->pm_pdir[PTDPTDI]) & PG_FRAME) !=
+		if ((((unsigned)pmap->pm_pdir[PTDPTDI]) & PG_FRAME) ==
 			(((unsigned) PTDpde) & PG_FRAME)) {
 			/*
 			 * Do a pmap_update to make the invalidated mapping
