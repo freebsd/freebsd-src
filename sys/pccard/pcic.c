@@ -32,9 +32,10 @@
 
 #include <sys/param.h>
 #include <sys/bus.h>
-#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/sysctl.h>
+#include <sys/systm.h>
 
 #include <pccard/i82365.h>
 #include <pccard/pcic_pci.h>
@@ -75,6 +76,9 @@ static struct slot_ctrl pcic_cinfo = {
 	PCIC_MEM_WIN,
 	PCIC_IO_WIN
 };
+
+/* sysctl vars */
+SYSCTL_NODE(_hw, OID_AUTO, pcic, CTLFLAG_RD, 0, "PCIC parameters");
 
 /*
  * Read a register from the PCIC.
