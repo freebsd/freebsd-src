@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: xutil.c,v 1.2 1998/12/27 06:25:24 ezk Exp $
+ * $Id: xutil.c,v 1.1.1.3 1999/01/13 19:20:33 obrien Exp $
  *
  */
 
@@ -272,16 +272,18 @@ checkup_mem(void)
 
 /*
  * Take a log format string and expand occurrences of %m
- * with the current error code taken from errno.
+ * with the current error code taken from errno.  Make sure
+ * 'e' never gets longer than maxlen characters.
  */
 static void
-expand_error(char *f, char *e)
+expand_error(char *f, char *e, int maxlen)
 {
   extern int sys_nerr;
-  char *p;
+  char *p, *q;
   int error = errno;
+  int len = 0;
 
-  for (p = f; (*e = *p); e++, p++) {
+  for (p = f, q = e; (*q = *p) && len < maxlen; len++, q++, p++) {
     if (p[0] == '%' && p[1] == 'm') {
       const char *errstr;
       if (error < 0 || error >= sys_nerr)
@@ -289,13 +291,15 @@ expand_error(char *f, char *e)
       else
 	errstr = sys_errlist[error];
       if (errstr)
-	strcpy(e, errstr);
+	strcpy(q, errstr);
       else
-	sprintf(e, "Error %d", error);
-      e += strlen(e) - 1;
+	sprintf(q, "Error %d", error);
+      len += strlen(q) - 1;
+      q += strlen(q) - 1;
       p++;
     }
   }
+  e[maxlen-1] = '\0';		/* null terminate, to be sure */
 }
 
 
@@ -401,9 +405,15 @@ real_plog(int lvl, char *fmt, va_list vargs)
   checkup_mem();
 #endif /* DEBUG_MEM */
 
-  expand_error(fmt, efmt);
+  expand_error(fmt, efmt, 1024);
 
+  /*
+   * XXX: ptr is 1024 bytes long.  It is possible to write into it
+   * more than 1024 bytes, if efmt is already large, and vargs expand
+   * as well.
+   */
   vsprintf(ptr, efmt, vargs);
+  msg[1023] = '\0';		/* null terminate, to be sure */
 
   ptr += strlen(ptr);
   if (ptr[-1] == '\n')
