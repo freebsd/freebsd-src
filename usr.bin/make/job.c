@@ -1340,6 +1340,7 @@ JobRestart(Job *job)
 		 * actually put the thing in the job table.
 		 */
 		job->flags |= JOB_CONTINUING;
+		status = 0;
 		W_SETTERMSIG(&status, SIGCONT);
 		JobFinish(job, &status);
 
