@@ -20,5 +20,5 @@ PAMD +=	xserver
 
 install:
 	(cd ${.CURDIR} && \
-	    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 755 ${PAMD} \
+	    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 ${PAMD} \
 		${DESTDIR}/etc/pam.d)
