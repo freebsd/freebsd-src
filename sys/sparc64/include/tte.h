@@ -48,8 +48,8 @@
 #define	TT_VA_MASK	((1L << TT_VA_SIZE) - 1)
 
 #define	TT_G		(1L << 63)
-#define	TT_CTX(ctx)	(((u_long)(ctx) << TT_CTX_SHIFT) & TT_CTX_MASK)
-#define	TT_VA(va)	(((u_long)(va) >> TT_VA_SHIFT) & TT_VA_MASK)
+#define	TT_CTX(ctx)	(((u_long)(ctx) & TT_CTX_MASK) << TT_CTX_SHIFT)
+#define	TT_VA(va)	((u_long)(va) >> TT_VA_SHIFT)
 
 #define	TD_SIZE_SHIFT	(61)
 #define	TD_SOFT2_SHIFT	(50)
@@ -72,7 +72,9 @@
 #define	TD_VA_LOW_SHIFT	TD_SOFT2_SHIFT
 #define	TD_VA_LOW_MASK	TD_SOFT2_MASK
 
-#define	TS_EXEC		(1L << 3)
+#define	TS_EXEC		(1L << 5)
+#define	TS_INIT		(1L << 4)
+#define	TS_MNG		(1L << 3)
 #define	TS_MOD		(1L << 2)
 #define	TS_REF		(1L << 1)
 #define	TS_TSB		(1L << 0)
@@ -88,6 +90,8 @@
 #define	TD_VA_LOW(va)	(TD_VPN_LOW((va) >> PAGE_SHIFT))
 #define	TD_PA(pa)	((pa) & TD_PA_MASK)
 #define	TD_EXEC		(TS_EXEC << TD_SOFT_SHIFT)
+#define	TD_INIT		(TS_INIT << TD_SOFT_SHIFT)
+#define	TD_MNG		(TS_MNG << TD_SOFT_SHIFT)
 #define	TD_MOD		(TS_MOD << TD_SOFT_SHIFT)
 #define	TD_REF		(TS_REF << TD_SOFT_SHIFT)
 #define	TD_TSB		(TS_TSB << TD_SOFT_SHIFT)
@@ -113,7 +117,7 @@ struct	stte {
 static __inline u_int
 tte_get_ctx(struct tte tte)
 {
-	return ((tte.tte_tag & TT_CTX_MASK) >> TT_CTX_SHIFT);
+	return ((tte.tte_tag >> TT_CTX_SHIFT) & TT_CTX_MASK);
 }
 
 static __inline vm_offset_t
