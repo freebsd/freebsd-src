@@ -64,7 +64,6 @@
 #include <netgraph/ng_parse.h>
 #include <netgraph/ng_ether.h>
 
-#define IFP2AC(IFP)  ((struct arpcom *)IFP)
 #define IFP2NG(ifp)  ((struct ng_node *)((struct arpcom *)(ifp))->ac_netgraph)
 
 /* Per-node private data */

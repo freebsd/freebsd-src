@@ -500,7 +500,6 @@ ng_eiface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			bcopy(eaddr, priv->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 
 			/* And put it in the ifaddr list */
-#define IFP2AC(IFP) ((struct arpcom *)IFP)
 			TAILQ_FOREACH(ifa, &(ifp->if_addrhead), ifa_link) {
 				sdl = (struct sockaddr_dl *)ifa->ifa_addr;
 				if (sdl->sdl_type == IFT_ETHER) {

@@ -85,7 +85,6 @@ static const u_char iso88025_broadcastaddr[ISO88025_ADDR_LEN] =
 static int iso88025_resolvemulti (struct ifnet *, struct sockaddr **,
 				  struct sockaddr *);
 
-#define	IFP2AC(IFP)	((struct arpcom *)IFP)
 #define	senderr(e)	do { error = (e); goto bad; } while (0)
 
 /*
