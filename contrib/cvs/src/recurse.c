@@ -6,6 +6,7 @@
  * 
  * General recursion handler
  * 
+ * $FreeBSD$
  */
 
 #include "cvs.h"
@@ -13,9 +14,6 @@
 #include "fileattr.h"
 #include "edit.h"
 
-#ifdef CLIENT_SUPPORT
-static int do_argument_proc PROTO((Node * p, void *closure));
-#endif
 static int do_dir_proc PROTO((Node * p, void *closure));
 static int do_file_proc PROTO((Node * p, void *closure));
 static void addlist PROTO((List ** listp, char *key));
@@ -61,23 +59,6 @@ struct frame_and_entries {
     List *entries;
 };
 
-#ifdef CLIENT_SUPPORT
-/* This is a callback to send "Argument" commands to the server in the
-   case we've done a "cvs update" or "cvs commit" in a top-level
-   directory where there is no CVSADM directory. */
-
-static int
-do_argument_proc (p, closure)
-    Node *p;
-    void *closure;
-{
-    char *dir = p->key;
-    send_to_server ("Argument ", 0);
-    send_to_server (dir, 0);
-    send_to_server ("\012", 1);
-    return 0;
-}
-#endif
 
 /* Start a recursive command.
 
@@ -127,6 +108,9 @@ start_recursion (fileproc, filesdoneproc, direntproc, dirleaveproc, callerdat,
     int dosrcs;
 {
     int i, err = 0;
+#ifdef CLIENT_SUPPORT
+    List *args_to_send_when_finished = NULL;
+#endif
     List *files_by_dir = NULL;
     struct recursion_frame frame;
 
@@ -169,6 +153,29 @@ start_recursion (fileproc, filesdoneproc, direntproc, dirleaveproc, callerdat,
 
     if (argc == 0)
     {
+	int just_subdirs = (which & W_LOCAL) && !isdir (CVSADM);
+
+#ifdef CLIENT_SUPPORT
+	if (!just_subdirs
+	    && CVSroot_cmdline == NULL
+	    && client_active)
+	{
+	    char *root = Name_Root (NULL, update_dir);
+	    if (root && strcmp (root, current_root) != 0)
+		/* We're skipping this directory because it is for
+		   a different root.  Therefore, we just want to
+		   do the subdirectories only.  Processing files would
+		   cause a working directory from one repository to be
+		   processed against a different repository, which could
+		   cause all kinds of spurious conflicts and such.
+
+		   Question: what about the case of "cvs update foo"
+		   where we process foo/bar and not foo itself?  That
+		   seems to be handled somewhere (else) but why should
+		   it be a separate case?  Needs investigation...  */
+		just_subdirs = 1;
+	}
+#endif
 
 	/*
 	 * There were no arguments, so we'll probably just recurse. The
@@ -177,7 +184,7 @@ start_recursion (fileproc, filesdoneproc, direntproc, dirleaveproc, callerdat,
 	 * process each of the sub-directories, so we pretend like we were
 	 * called with the list of sub-dirs of the current dir as args
 	 */
-	if ((which & W_LOCAL) && !isdir (CVSADM))
+	if (just_subdirs)
 	{
 	    dirlist = Find_Directories ((char *) NULL, W_LOCAL, (List *) NULL);
 	    /* If there are no sub-directories, there is a certain logic in
@@ -204,17 +211,21 @@ start_recursion (fileproc, filesdoneproc, direntproc, dirleaveproc, callerdat,
 		   appropriate "Argument" commands to the server.  In
 		   this case, that won't have happened, so we need to
 		   do it here.  While this example uses "update", this
-		   generalizes to other commands. */
+		   generalizes to other commands.  */
 
-		err += walklist (dirlist, do_argument_proc, NULL);
+		/* This is the same call to Find_Directories as above.
+                   FIXME: perhaps it would be better to write a
+                   function that duplicates a list. */
+		args_to_send_when_finished = Find_Directories ((char *) NULL,
+							       W_LOCAL,
+							       (List *) NULL);
 	    }
 #endif
 	}
 	else
 	    addlist (&dirlist, ".");
 
-	err += do_recursion (&frame);
-	goto out;
+	goto do_the_work;
     }
 
 
@@ -335,14 +346,146 @@ start_recursion (fileproc, filesdoneproc, direntproc, dirleaveproc, callerdat,
 
     /* then do_recursion on the dirlist. */
     if (dirlist != NULL)
+    {
+    do_the_work:
 	err += do_recursion (&frame);
-
+    }
+	
     /* Free the data which expand_wild allocated.  */
     free_names (&argc, argv);
 
- out:
     free (update_dir);
     update_dir = NULL;
+
+#ifdef CLIENT_SUPPORT
+    if (args_to_send_when_finished != NULL)
+    {
+	/* FIXME (njc): in the multiroot case, we don't want to send
+	   argument commands for those top-level directories which do
+	   not contain any subdirectories which have files checked out
+	   from current_root.  If we do, and two repositories have a
+	   module with the same name, nasty things could happen.
+
+	   This is hard.  Perhaps we should send the Argument commands
+	   later in this procedure, after we've had a chance to notice
+	   which directores we're using (after do_recursion has been
+	   called once).  This means a _lot_ of rewriting, however.
+
+	   What we need to do for that to happen is descend the tree
+	   and construct a list of directories which are checked out
+	   from current_cvsroot.  Now, we eliminate from the list all
+	   of those directories which are immediate subdirectories of
+	   another directory in the list.  To say that the opposite
+	   way, we keep the directories which are not immediate
+	   subdirectories of any other in the list.  Here's a picture:
+
+			      a
+			     / \
+			    B   C
+			   / \
+			  D   e
+			     / \
+			    F   G
+			       / \
+			      H   I
+
+	   The node in capitals are those directories which are
+	   checked out from current_cvsroot.  We want the list to
+	   contain B, C, F, and G.  D, H, and I are not included,
+	   because their parents are also checked out from
+	   current_cvsroot.
+
+	   The algorithm should be:
+		   
+	   1) construct a tree of all directory names where each
+	   element contains a directory name and a flag which notes if
+	   that directory is checked out from current_cvsroot
+
+			      a0
+			     / \
+			    B1  C1
+			   / \
+			  D1  e0
+			     / \
+			    F1  G1
+			       / \
+			      H1  I1
+
+	   2) Recursively descend the tree.  For each node, recurse
+	   before processing the node.  If the flag is zero, do
+	   nothing.  If the flag is 1, check the node's parent.  If
+	   the parent's flag is one, change the current entry's flag
+	   to zero.
+
+			      a0
+			     / \
+			    B1  C1
+			   / \
+			  D0  e0
+			     / \
+			    F1  G1
+			       / \
+			      H0  I0
+
+	   3) Walk the tree and spit out "Argument" commands to tell
+	   the server which directories to munge.
+		   
+	   Yuck.  It's not clear this is worth spending time on, since
+	   we might want to disable cvs commands entirely from
+	   directories that do not have CVSADM files...
+
+	   Anyways, the solution as it stands has modified server.c
+	   (dirswitch) to create admin files [via server.c
+	   (create_adm_p)] in all path elements for a client's
+	   "Directory xxx" command, which forces the server to descend
+	   and serve the files there.  client.c (send_file_names) has
+	   also been modified to send only those arguments which are
+	   appropriate to current_root.
+
+	*/
+		
+	/* Construct a fake argc/argv pair. */
+		
+	int our_argc = 0, i;
+	char **our_argv = NULL;
+
+	if (! list_isempty (args_to_send_when_finished))
+	{
+	    Node *head, *p;
+
+	    head = args_to_send_when_finished->list;
+
+	    /* count the number of nodes */
+	    i = 0;
+	    for (p = head->next; p != head; p = p->next)
+		i++;
+	    our_argc = i;
+
+	    /* create the argument vector */
+	    our_argv = (char **) xmalloc (sizeof (char *) * our_argc);
+
+	    /* populate it */
+	    i = 0;
+	    for (p = head->next; p != head; p = p->next)
+		our_argv[i++] = xstrdup (p->key);
+	}
+
+	/* We don't want to expand widcards, since we've just created
+	   a list of directories directly from the filesystem. */
+	send_file_names (our_argc, our_argv, 0);
+
+	/* Free our argc/argv. */
+	if (our_argv != NULL)
+	{
+	    for (i = 0; i < our_argc; i++)
+		free (our_argv[i]);
+	    free (our_argv);
+	}
+
+	dellist (&args_to_send_when_finished);
+    }
+#endif
+    
     return (err);
 }
 
@@ -359,6 +502,7 @@ do_recursion (frame)
     char *srepository;
     List *entries = NULL;
     int should_readlock;
+    int process_this_directory = 1;
 
     /* do nothing if told */
     if (frame->flags == R_SKIP_ALL)
@@ -409,6 +553,57 @@ do_recursion (frame)
 	&& (should_readlock || noexec))
 	server_pause_check();
 #endif
+
+    /* Check the value in CVSADM_ROOT and see if it's in the list.  If
+       not, add it to our lists of CVS/Root directories and do not
+       process the files in this directory.  Otherwise, continue as
+       usual.  THIS_ROOT might be NULL if we're doing an initial
+       checkout -- check before using it.  The default should be that
+       we process a directory's contents and only skip those contents
+       if a CVS/Root file exists. 
+
+       If we're running the server, we want to process all
+       directories, since we're guaranteed to have only one CVSROOT --
+       our own.  */
+
+    if (
+	/* If -d was specified, it should override CVS/Root.
+
+	   In the single-repository case, it is long-standing CVS behavior
+	   and makes sense - the user might want another access method,
+	   another server (which mounts the same repository), &c.
+
+	   In the multiple-repository case, -d overrides all CVS/Root
+	   files.  That is the only plausible generalization I can
+	   think of.  */
+	CVSroot_cmdline == NULL
+
+#ifdef SERVER_SUPPORT
+	&& ! server_active
+#endif
+	)
+    {
+	char *this_root = Name_Root ((char *) NULL, update_dir);
+	if (this_root != NULL)
+	{
+	    if (findnode (root_directories, this_root) == NULL)
+	    {
+		/* Add it to our list. */
+
+		Node *n = getnode ();
+		n->type = UNKNOWN;
+		n->key = xstrdup (this_root);
+
+		if (addnode (root_directories, n))
+		    error (1, 0, "cannot add new CVSROOT %s", this_root);
+	
+	    }
+	
+	    process_this_directory = (strcmp (current_root, this_root) == 0);
+	
+	    free (this_root);
+	}
+    }
 
     /*
      * Fill in repository with the current repository
@@ -468,12 +663,26 @@ do_recursion (frame)
 		repository = Name_Repository ((char *) NULL, update_dir);
 
 	    /* find the files and fill in entries if appropriate */
-	    filelist = Find_Names (repository, lwhich, frame->aflag, &entries);
+	    if (process_this_directory)
+	    {
+		filelist = Find_Names (repository, lwhich, frame->aflag,
+				       &entries);
+		if (filelist == NULL)
+		{
+		    error (0, 0, "skipping directory %s", update_dir);
+		    /* Note that Find_Directories and the filesdoneproc
+		       in particular would do bad things ("? foo.c" in
+		       the case of some filesdoneproc's).  */
+		    goto skip_directory;
+		}
+	    }
 	}
 
 	/* find sub-directories if we will recurse */
 	if (frame->flags != R_SKIP_DIRS)
-	    dirlist = Find_Directories (repository, frame->which, entries);
+	    dirlist = Find_Directories (
+		process_this_directory ? repository : NULL,
+		frame->which, entries);
     }
     else
     {
@@ -487,7 +696,7 @@ do_recursion (frame)
     }
 
     /* process the files (if any) */
-    if (filelist != NULL && frame->fileproc)
+    if (process_this_directory && filelist != NULL && frame->fileproc)
     {
 	struct file_info finfo_struct;
 	struct frame_and_file frfile;
@@ -525,11 +734,12 @@ do_recursion (frame)
     }
 
     /* call-back files done proc (if any) */
-    if (dodoneproc && frame->filesdoneproc != NULL)
+    if (process_this_directory && dodoneproc && frame->filesdoneproc != NULL)
 	err = frame->filesdoneproc (frame->callerdat, err, repository,
 				    update_dir[0] ? update_dir : ".",
 				    entries);
 
+ skip_directory:
     fileattr_write ();
     fileattr_free ();
 
@@ -589,7 +799,24 @@ do_file_proc (p, closure)
     strcat (finfo->fullname, finfo->file);
 
     if (frfile->frame->dosrcs && repository)
+    {
 	finfo->rcs = RCS_parse (finfo->file, repository);
+
+	/* OK, without W_LOCAL the error handling becomes relatively
+	   simple.  The file names came from readdir() on the
+	   repository and so we know any ENOENT is an error
+	   (e.g. symlink pointing to nothing).  Now, the logic could
+	   be simpler - since we got the name from readdir, we could
+	   just be calling RCS_parsercsfile.  */
+	if (finfo->rcs == NULL
+	    && !(frfile->frame->which & W_LOCAL))
+	{
+	    error (0, 0, "could not read RCS file for %s", finfo->fullname);
+	    free (finfo->fullname);
+	    cvs_flushout ();
+	    return 0;
+	}
+    }
     else 
         finfo->rcs = (RCSNode *) NULL;
     ret = frfile->frame->fileproc (frfile->frame->callerdat, finfo);
@@ -625,6 +852,7 @@ do_dir_proc (p, closure)
     int err = 0;
     struct saved_cwd cwd;
     char *saved_update_dir;
+    int process_this_directory = 1;
 
     if (fncmp (dir, CVSADM) == 0)
     {
@@ -760,12 +988,62 @@ but CVS uses %s for its own purposes; skipping %s directory",
 	free (cvsadmdir);
     }
 
+    /* Only process this directory if the root matches.  This nearly
+       duplicates code in do_recursion. */
+
+    if (
+	/* If -d was specified, it should override CVS/Root.
+
+	   In the single-repository case, it is long-standing CVS behavior
+	   and makes sense - the user might want another access method,
+	   another server (which mounts the same repository), &c.
+
+	   In the multiple-repository case, -d overrides all CVS/Root
+	   files.  That is the only plausible generalization I can
+	   think of.  */
+	CVSroot_cmdline == NULL
+
+#ifdef SERVER_SUPPORT
+	&& ! server_active
+#endif
+	)
+    {
+	char *this_root = Name_Root (dir, update_dir);
+	if (this_root != NULL)
+	{
+	    if (findnode (root_directories, this_root) == NULL)
+	    {
+		/* Add it to our list. */
+
+		Node *n = getnode ();
+		n->type = UNKNOWN;
+		n->key = xstrdup (this_root);
+
+		if (addnode (root_directories, n))
+		    error (1, 0, "cannot add new CVSROOT %s", this_root);
+
+	    }
+
+	    process_this_directory = (strcmp (current_root, this_root) == 0);
+	    free (this_root);
+	}
+    }
+
     /* call-back dir entry proc (if any) */
     if (dir_return == R_SKIP_ALL)
 	;
     else if (frame->direntproc != NULL)
-	dir_return = frame->direntproc (frame->callerdat, dir, newrepos,
-					update_dir, frent->entries);
+    {
+	/* If we're doing the actual processing, call direntproc.
+           Otherwise, assume that we need to process this directory
+           and recurse. FIXME. */
+
+	if (process_this_directory)
+	    dir_return = frame->direntproc (frame->callerdat, dir, newrepos,
+					    update_dir, frent->entries);
+	else
+	    dir_return = R_PROCESS;
+    }
     else
     {
 	/* Generic behavior.  I don't see a reason to make the caller specify
@@ -811,7 +1089,7 @@ but CVS uses %s for its own purposes; skipping %s directory",
 	    (void) strcpy (update_dir, ".");
 
 	/* call-back dir leave proc (if any) */
-	if (frame->dirleaveproc != NULL)
+	if (process_this_directory && frame->dirleaveproc != NULL)
 	    err = frame->dirleaveproc (frame->callerdat, dir, err, update_dir,
 				       frent->entries);
 

@@ -14,6 +14,8 @@
  *	VendorReleTag	Tag for this particular release
  *
  * Additional arguments specify more Vendor Release Tags.
+ *
+ * $FreeBSD$
  */
 
 #include "cvs.h"
@@ -94,6 +96,17 @@ import (argc, argv)
 			   command_name);
 		break;
 	    case 'd':
+#ifdef SERVER_SUPPORT
+		if (server_active)
+		{
+		    /* CVS 1.10 and older clients will send this, but it
+		       doesn't do any good.  So tell the user we can't
+		       cope, rather than silently losing.  */
+		    error (0, 0,
+			   "warning: not setting the time of import from the file");
+		    error (0, 0, "due to client limitations");
+		}
+#endif
 		use_file_modtime = 1;
 		break;
 	    case 'b':
@@ -132,6 +145,20 @@ import (argc, argv)
     if (argc < 3)
 	usage (import_usage);
 
+#ifdef SERVER_SUPPORT
+    /* This is for handling the Checkin-time request.  It might seem a
+       bit odd to enable the use_file_modtime code even in the case
+       where Checkin-time was not sent for a particular file.  The
+       effect is that we use the time of upload, rather than the time
+       when we call RCS_checkin.  Since those times are both during
+       CVS's run, that seems OK, and it is easier to implement than
+       putting the "was Checkin-time sent" flag in CVS/Entries or some
+       such place.  */
+
+    if (server_active)
+	use_file_modtime = 1;
+#endif
+
     for (i = 1; i < argc; i++)		/* check the tags for validity */
     {
 	int j;
@@ -143,7 +170,8 @@ import (argc, argv)
     }
 
     /* XXX - this should be a module, not just a pathname */
-    if (! isabsolute (argv[0]))
+    if (! isabsolute (argv[0])
+	&& pathname_levels (argv[0]) == 0)
     {
 	if (CVSroot_directory == NULL)
 	{
@@ -158,9 +186,11 @@ import (argc, argv)
     }
     else
     {
-	repository = xmalloc (strlen (argv[0]) + 5);
-	(void) strcpy (repository, argv[0]);
-	repos_len = 0;
+	/* It is somewhere between a security hole and "unexpected" to
+	   let the client start mucking around outside the cvsroot
+	   (wouldn't get the right CVSROOT configuration, &c).  */
+	error (1, 0, "directory %s not relative within the repository",
+	       argv[0]);
     }
 
     /*
@@ -170,7 +200,7 @@ import (argc, argv)
      * must only have two dots in it (like "1.1.1").
      */
     for (cp = vbranch; *cp != '\0'; cp++)
-	if (!isdigit (*cp) && *cp != '.')
+	if (!isdigit ((unsigned char) *cp) && *cp != '.')
 	    error (1, 0, "%s is not a numeric branch", vbranch);
     if (numdots (vbranch) != 2)
 	error (1, 0, "Only branches with two dots are supported: %s", vbranch);
@@ -211,9 +241,6 @@ import (argc, argv)
     if (client_active)
     {
 	int err;
-
-	if (use_file_modtime)
-	    send_arg("-d");
 
 	if (vbranch[0] != '\0')
 	    option_with_arg ("-b", vbranch);
@@ -275,29 +302,52 @@ import (argc, argv)
     {
 	if (!really_quiet)
 	{
-	    char buf[80];
-	    sprintf (buf, "\n%d conflicts created by this import.\n",
-		     conflicts);
-	    cvs_output (buf, 0);
-	    cvs_output ("Use the following command to help the merge:\n\n",
-			0);
-	    cvs_output ("\t", 1);
-	    cvs_output (program_name, 0);
-	    cvs_output (" checkout -j", 0);
-	    cvs_output (argv[1], 0);
-	    cvs_output (":yesterday -j", 0);
-	    cvs_output (argv[1], 0);
-	    cvs_output (" ", 1);
-	    cvs_output (argv[0], 0);
-	    cvs_output ("\n\n", 0);
+	    char buf[20];
+	    char *buf2;
+
+	    cvs_output_tagged ("+importmergecmd", NULL);
+	    cvs_output_tagged ("newline", NULL);
+	    sprintf (buf, "%d", conflicts);
+	    cvs_output_tagged ("conflicts", buf);
+	    cvs_output_tagged ("text", " conflicts created by this import.");
+	    cvs_output_tagged ("newline", NULL);
+	    cvs_output_tagged ("text",
+			       "Use the following command to help the merge:");
+	    cvs_output_tagged ("newline", NULL);
+	    cvs_output_tagged ("newline", NULL);
+	    cvs_output_tagged ("text", "\t");
+	    cvs_output_tagged ("text", program_name);
+	    if (CVSroot_cmdline != NULL)
+	    {
+		cvs_output_tagged ("text", " -d ");
+		cvs_output_tagged ("text", CVSroot_cmdline);
+	    }
+	    cvs_output_tagged ("text", " checkout -j");
+	    buf2 = xmalloc (strlen (argv[1]) + 20);
+	    sprintf (buf2, "%s:yesterday", argv[1]);
+	    cvs_output_tagged ("mergetag1", buf2);
+	    free (buf2);
+	    cvs_output_tagged ("text", " -j");
+	    cvs_output_tagged ("mergetag2", argv[1]);
+	    cvs_output_tagged ("text", " ");
+	    cvs_output_tagged ("repository", argv[0]);
+	    cvs_output_tagged ("newline", NULL);
+	    cvs_output_tagged ("newline", NULL);
+	    cvs_output_tagged ("-importmergecmd", NULL);
 	}
 
+	/* FIXME: I'm not sure whether we need to put this information
+           into the loginfo.  If we do, then note that it does not
+           report any required -d option.  There is no particularly
+           clean way to tell the server about the -d option used by
+           the client.  */
 	(void) fprintf (logfp, "\n%d conflicts created by this import.\n",
 			conflicts);
 	(void) fprintf (logfp,
 			"Use the following command to help the merge:\n\n");
-	(void) fprintf (logfp, "\t%s checkout -j%s:yesterday -j%s %s\n\n",
-			program_name, argv[1], argv[1], argv[0]);
+	(void) fprintf (logfp, "\t%s checkout ", program_name);
+	(void) fprintf (logfp, "-j%s:yesterday -j%s %s\n\n",
+			argv[1], argv[1], argv[0]);
     }
     else
     {
@@ -340,9 +390,9 @@ import (argc, argv)
     return (err);
 }
 
-/*
- * process all the files in ".", then descend into other directories.
- */
+/* Process all the files in ".", then descend into other directories.
+   Returns 0 for success, or >0 on error (in which case a message
+   will have been printed).  */
 static int
 import_descend (message, vtag, targc, targv)
     char *message;
@@ -361,25 +411,27 @@ import_descend (message, vtag, targc, targv)
 
     if ((dirp = CVS_OPENDIR (".")) == NULL)
     {
+	error (0, errno, "cannot open directory");
 	err++;
     }
     else
     {
+	errno = 0;
 	while ((dp = readdir (dirp)) != NULL)
 	{
 	    if (strcmp (dp->d_name, ".") == 0 || strcmp (dp->d_name, "..") == 0)
-		continue;
+		goto one_more_time_boys;
 #ifdef SERVER_SUPPORT
 	    /* CVS directories are created in the temp directory by
 	       server.c because it doesn't special-case import.  So
 	       don't print a message about them, regardless of -I!.  */
 	    if (server_active && strcmp (dp->d_name, CVSADM) == 0)
-		continue;
+		goto one_more_time_boys;
 #endif
 	    if (ign_name (dp->d_name))
 	    {
 		add_log ('I', dp->d_name);
-		continue;
+		goto one_more_time_boys;
 	    }
 
 	    if (
@@ -418,12 +470,20 @@ import_descend (message, vtag, targc, targv)
                                                        vtag, targc, targv,
                                                        repository,
                                                        keyword_opt != NULL &&
-                                                       keyword_opt[0] == 'b');
+						       keyword_opt[0] == 'b',
+						       use_file_modtime);
 		else
 #endif
 		    err += process_import_file (message, dp->d_name,
 						vtag, targc, targv);
 	    }
+	one_more_time_boys:
+	    errno = 0;
+	}
+	if (errno != 0)
+	{
+	    error (0, errno, "cannot read directory");
+	    ++err;
 	}
 	(void) closedir (dirp);
     }
@@ -874,7 +934,7 @@ get_comment (user)
 	 */
 	(void) strcpy (suffix_path, cp);
 	for (cp = suffix_path; *cp; cp++)
-	    if (isupper (*cp))
+	    if (isupper ((unsigned char) *cp))
 		*cp = tolower (*cp);
 	suffix = suffix_path;
     }
