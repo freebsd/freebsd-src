@@ -25,7 +25,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: devfs_link.9,v 1.1 1995/12/31 00:08:18 joerg Exp $
+.\" $Id: devfs_link.9,v 1.2 1996/02/12 04:56:58 mpp Exp $
 .\"
 .Dd December 31, 1995
 .Os FreeBSD
@@ -36,22 +36,21 @@
 .Sh SYNOPSIS
 .Fd #include <sys/devfsext.h>
 .Ft void *
-.Fn devfs_link "char *path" "char *name" "void *original"
+.Fn devfs_link "void *original" "char *fmt" "..."
 .Sh DESCRIPTION
 The function
 .Nm
 takes a token from a previous call to
-.Fn devfs_add_devsw
+.Fn devfs_add_devswf
 or
 .Fn devfs_link
 as argument, and links it to an alias location denoted by
-.Ar path
-and
-.Ar name .
+.Ar fmt
+string.
 .Sh RETURN VALUES
 It returns a token for the newly linked devfs entry.
 .Sh SEE ALSO
-.Xr devfs_add_devsw 9
+.Xr devfs_add_devswf 9
 .Sh HISTORY
 The function
 .Nm
