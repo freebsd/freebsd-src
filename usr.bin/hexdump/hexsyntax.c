@@ -33,10 +33,10 @@
 
 #ifndef lint
 #if 0
-static char sccsid[] = "@(#)hexsyntax.c	8.1 (Berkeley) 6/6/93";
+static char sccsid[] = "@(#)hexsyntax.c	8.2 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id: hexsyntax.c,v 1.4.2.1 1997/07/11 06:25:55 charnier Exp $";
+	"$Id: hexsyntax.c,v 1.4.2.2 1997/08/29 05:29:21 imp Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -45,6 +45,8 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+
 #include "hexdump.h"
 
 off_t skip;				/* bytes to skip */
@@ -68,7 +70,7 @@ newsyntax(argc, argvp)
 		add("\"%08.8_ax  \" 8/1 \"%02x \" \"  \" 8/1 \"%02x \" ");
 		add("\"  |\" 16/1 \"%_p\" \"|\\n\"");
 	}
-	while ((ch = getopt(argc, argv, "bcCde:f:n:os:vx")) !=  -1)
+	while ((ch = getopt(argc, argv, "bcCde:f:n:os:vx")) != -1)
 		switch (ch) {
 		case 'b':
 			add("\"%07.7_Ax\n\"");

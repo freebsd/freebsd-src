@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)id.c	8.2 (Berkeley) 2/16/94";
 #endif
 static const char rcsid[] =
-	"$Id: id.c,v 1.3.2.1 1997/07/16 06:40:05 charnier Exp $";
+	"$Id: id.c,v 1.3.2.2 1997/08/29 05:29:22 imp Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -73,7 +73,7 @@ main(argc, argv)
 	int Gflag, ch, gflag, id, nflag, pflag, rflag, uflag;
 
 	Gflag = gflag = nflag = pflag = rflag = uflag = 0;
-	while ((ch = getopt(argc, argv, "Ggnpru")) !=  -1)
+	while ((ch = getopt(argc, argv, "Ggnpru")) != -1)
 		switch(ch) {
 		case 'G':
 			Gflag = 1;

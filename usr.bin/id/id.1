@@ -33,30 +33,31 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)id.1	8.1 (Berkeley) 6/6/93
+.\"	$Id$
 .\"
-.Dd "June 6, 1993"
+.Dd June 6, 1993
 .Dt ID 1
 .Os BSD 4.4
 .Sh NAME
 .Nm id
 .Nd return user identity
 .Sh SYNOPSIS
-.Nm id
+.Nm
 .Op Ar user
-.Nm id
+.Nm
 .Fl G Op Fl n
 .Op Ar user
-.Nm id
+.Nm
 .Fl g Op Fl nr
 .Op Ar user
-.Nm id
+.Nm
 .Fl p
-.Nm id
+.Nm
 .Fl u Op Fl nr
 .Op Ar user
 .Sh DESCRIPTION
 The
-.Nm id
+.Nm
 utility displays the user and group names and numeric IDs, of the
 calling process, to the standard output.
 If the real and effective IDs are different, both are displayed,
@@ -91,14 +92,19 @@ If the user name returned by
 is different from the login name referenced by the user ID, the name
 returned by
 .Xr getlogin 2
-is displayed, preceded by the keyword ``login''.
-The user ID as a name is displayed, preceded by the keyword ``uid''.
+is displayed, preceded by the keyword
+.Dq login .
+The user ID as a name is displayed, preceded by the keyword
+.Dq uid .
 If the effective user ID is different from the real user ID, the real user
-ID is displayed as a name, preceded by the keyword ``euid''.
+ID is displayed as a name, preceded by the keyword
+.Dq euid .
 If the effective group ID is different from the real group ID, the real group
-ID is displayed as a name, preceded by the keyword ``rgid''.
+ID is displayed as a name, preceded by the keyword
+.Dq rgid .
 The list of groups to which the user belongs is then displayed as names,
-preceded by the keyword ``groups''.
+preceded by the keyword
+.Dq groups .
 Each display is on a separate line.
 .It Fl r
 Display the real ID for the
@@ -111,13 +117,13 @@ Display the effective user ID as a number.
 .El
 .Pp
 The
-.Nm id
+.Nm
 utility exits 0 on success, and >0 if an error occurs.
 .Sh SEE ALSO
 .Xr who 1
 .Sh STANDARDS
 The
-.Nm id
+.Nm
 function is expected to conform to
 .St -p1003.2 .
 .Sh HISTORY

@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)arcs.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: arcs.c,v 1.2.6.1 1997/07/11 06:20:54 charnier Exp $";
+	"$Id: arcs.c,v 1.2.6.2 1997/07/15 08:16:36 charnier Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -380,7 +380,7 @@ cyclelink()
     cyclenl = (nltype *) calloc( ncycle + 1 , sizeof( nltype ) );
     if ( cyclenl == 0 ) {
 	warnx("no room for %d bytes of cycle headers",
-		   ( cycle + 1 ) * sizeof( nltype ) );
+		   ( ncycle + 1 ) * sizeof( nltype ) );
 	done();
     }
 	/*
@@ -484,7 +484,7 @@ cycleanalyze()
         cyclestack = (arctype **) calloc( size + 1 , sizeof( arctype *) );
 	if ( cyclestack == 0 ) {
 	    warnx("no room for %d bytes of cycle stack",
-			  ( size + 1 ) * sizeof( arctype *) );
+			   ( size + 1 ) * sizeof( arctype * ) );
 	    return;
 	}
 #	ifdef DEBUG

@@ -10,7 +10,7 @@ char *argv[];
 	int status = 0;
 
 	optind = 2;	/* Past the program name and the option letters. */
-	while ((c = getopt(argc, argv, argv[1])) !=  -1)
+	while ((c = getopt(argc, argv, argv[1])) != -1)
 		switch (c) {
 		case '?':
 			status = 1;	/* getopt routine gave message */

@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)head.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: head.c,v 1.3.2.1 1997/07/11 06:23:33 charnier Exp $";
+	"$Id: head.c,v 1.3.2.2 1997/08/29 05:29:20 imp Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -59,6 +59,7 @@ static const char rcsid[] =
  */
 
 void head __P((FILE *, int));
+void head_bytes __P((FILE *, int));
 void obsolete __P((char *[]));
 void usage __P((void));
 
@@ -71,13 +72,17 @@ main(argc, argv)
 {
 	register int ch;
 	FILE *fp;
-	int first, linecnt;
+	int first, linecnt = -1, bytecnt = -1;
 	char *ep;
 
 	obsolete(argv);
-	linecnt = 10;
-	while ((ch = getopt(argc, argv, "n:")) !=  -1)
+	while ((ch = getopt(argc, argv, "n:c:")) != -1)
 		switch(ch) {
+		case 'c':
+			bytecnt = strtol(optarg, &ep, 10);
+			if (*ep || bytecnt <= 0)
+				errx(1, "illegal byte count -- %s", optarg);
+			break;
 		case 'n':
 			linecnt = strtol(optarg, &ep, 10);
 			if (*ep || linecnt <= 0)
@@ -90,7 +95,11 @@ main(argc, argv)
 	argc -= optind;
 	argv += optind;
 
-	if (*argv)
+	if (linecnt != -1 && bytecnt != -1)
+		errx(1, "can't combine line and byte counts");
+	if (linecnt == -1 )
+		linecnt = 10;
+	if (*argv) {
 		for (first = 1; *argv; ++argv) {
 			if ((fp = fopen(*argv, "r")) == NULL) {
 				warn("%s", *argv);
@@ -102,11 +111,18 @@ main(argc, argv)
 				    first ? "" : "\n", *argv);
 				first = 0;
 			}
-			head(fp, linecnt);
+			if (bytecnt == -1)
+				head(fp, linecnt);
+			else
+				head_bytes(fp, bytecnt);
 			(void)fclose(fp);
 		}
-	else
+	}
+	else if (bytecnt == -1)
 		head(stdin, linecnt);
+	else
+		head_bytes(stdin, bytecnt);
+
 	exit(eval);
 }
 
@@ -126,12 +142,34 @@ head(fp, cnt)
 }
 
 void
+head_bytes(fp, cnt)
+	 FILE *fp;
+	 register int cnt;
+{
+	char buf[4096];
+	register int readlen;
+
+	while (cnt) {
+		if (cnt < sizeof(buf))
+			readlen = cnt;
+		else
+			readlen = sizeof(buf);
+		readlen = fread(buf, sizeof(char), readlen, fp);
+		if (readlen == EOF)
+			break;
+		if (fwrite(buf, sizeof(char), readlen, stdout) != readlen)
+			err(1, "stdout");
+		cnt -= readlen;
+	}
+}
+
+void
 obsolete(argv)
 	char *argv[];
 {
 	char *ap;
 
-	while (ap = *++argv) {
+	while ((ap = *++argv)) {
 		/* Return if "--" or not "-[0-9]*". */
 		if (ap[0] != '-' || ap[1] == '-' || !isdigit(ap[1]))
 			return;
@@ -147,6 +185,6 @@ obsolete(argv)
 void
 usage()
 {
-	(void)fprintf(stderr, "usage: head [-n lines] [file ...]\n");
+	(void)fprintf(stderr, "usage: head [-n lines] [-c bytes] [file ...]\n");
 	exit(1);
 }
