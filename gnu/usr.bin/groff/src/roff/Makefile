@@ -1,5 +1,5 @@
 # $FreeBSD$
 
-SUBDIR=		contrib doc font man src tmac
+SUBDIR=		groff grog nroff psroff troff
 
 .include <bsd.subdir.mk>
