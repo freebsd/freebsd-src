@@ -82,7 +82,10 @@ A number of NFS problems have been fixed.
 1.3. USERLAND CHANGES
 ---------------------
 
-(none yet logged)
+TCP Wrapper support in inetd(8) is now controlled with command-line
+options and dgram services may be wrapped in addition to previously
+wrapped service types. Please see the manpage for details, since inetd
+run without command-line options will do no wrapping.
 
 2. Supported Configurations
 ---------------------------
