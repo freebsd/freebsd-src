@@ -25,10 +25,149 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: kbdtables.h,v 1.30 1995/12/10 13:38:53 phk Exp $
+ *	$Id: kbdtables.h,v 1.31 1996/01/25 16:37:20 ache Exp $
  */
 
 #define SET8 0x80       	/* set eight bit on */
+
+#ifdef PC98
+/* PC-9801 keymap by kuribo@isl.melco.co.jp */
+static keymap_t key_map = { 0x80,	/* PC98 keymap */
+/*                                                            alt
+ * scan                          cntrl          alt    alt   cntrl
+ * code     base   shift  cntrl  shift   alt   shift  cntrl  shift  spcl  flgs
+ * ---------------------------------------------------------------------------
+ */
+/* sc=00 */ 0x1B,  0x1B,  0x1B,  0x1B,  0x1B,  0x1B,   DBG,  0x1B,  0x02, 0x00,
+/* sc=01 */  '1',   '!',   '!',   '!',   '1',   '!',   '!',   '!',  0x00, 0x00,
+/* sc=02 */  '2',  '\"',  0x1A,  0x1A,   '2',   '@',  0x00,  0x00,  0x00, 0x00,
+/* sc=03 */  '3',   '#',  0x1B,  0x1B,   '3',   '#',  0x1B,  0x1B,  0x00, 0x00,
+/* sc=04 */  '4',   '$',  0x1C,  0x1C,   '4',   '$',  0x1C,  0x1C,  0x00, 0x00,
+/* sc=05 */  '5',   '%',  0x1D,  0x1D,   '5',   '%',  0x1D,  0x1D,  0x00, 0x00,
+/* sc=06 */  '6',   '&',  0x1E,  0x1E,   '6',   '^',  0x1E,  0x1E,  0x00, 0x00,
+/* sc=07 */  '7',  '\'',  0x1F,  0x1F,   '7',   '&',   '&',   '&',  0x00, 0x00,
+/* sc=08 */  '8',   '(',  0x7F,  0x7F,   '8',   '*',  0x08,  0x08,  0x00, 0x00,
+/* sc=09 */  '9',   ')',   '9',   '9',   '9',   '(',   '(',   '(',  0x00, 0x00,
+/* sc=0a */  '0',   NOP,   '0',   '0',   '0',   ')',   ')',   ')',  0x40, 0x00,
+/* sc=0b */  '-',   '=',   '-',   '-',   '-',   '_',  0x1F,  0x1F,  0x00, 0x00,
+/* sc=0c */  '^',   '`',  0x1E,  0x1E,   '=',   '+',   '+',   '+',  0x00, 0x00,
+/* sc=0d */ '\\',   '|',  0x1C,  0x1C,  '\\',   '|',  0x1C,  0x1C,  0x00, 0x00,
+/* sc=0e */ 0x08,  0x08,  0x08,  0x08,  0x08,  0x08,  0x08,  0x08,  0x00, 0x00,
+/* sc=0f */ '\t',  '\t',  '\t',  '\t',  '\t',  '\t',  '\t',  '\t',  0x00, 0x00,
+/* sc=10 */  'q',   'Q',  0x11,  0x11,   'q',   'Q',  0x11,  0x11,  0x00, 0x01,
+/* sc=11 */  'w',   'W',  0x17,  0x17,   'w',   'W',  0x17,  0x17,  0x00, 0x01,
+/* sc=12 */  'e',   'E',  0x05,  0x05,   'e',   'E',  0x05,  0x05,  0x00, 0x01,
+/* sc=13 */  'r',   'R',  0x12,  0x12,   'r',   'R',  0x12,  0x12,  0x00, 0x01,
+/* sc=14 */  't',   'T',  0x14,  0x14,   't',   'T',  0x14,  0x14,  0x00, 0x01,
+/* sc=15 */  'y',   'Y',  0x19,  0x19,   'y',   'Y',  0x19,  0x19,  0x00, 0x01,
+/* sc=16 */  'u',   'U',  0x15,  0x15,   'u',   'U',  0x15,  0x15,  0x00, 0x01,
+/* sc=17 */  'i',   'I',  0x09,  0x09,   'i',   'I',  0x09,  0x09,  0x00, 0x01,
+/* sc=18 */  'o',   'O',  0x0F,  0x0F,   'o',   'O',  0x0F,  0x0F,  0x00, 0x01,
+/* sc=19 */  'p',   'P',  0x10,  0x10,   'p',   'P',  0x10,  0x10,  0x00, 0x01,
+/* sc=1a */  '@',   '~',  0x00,  0x00,   '[',   '{',  0x1B,  0x1B,  0x00, 0x00,
+/* sc=1b */  '[',   '{',  0x1B,  0x1B,   ']',   '}',  0x1D,  0x1D,  0x00, 0x00,
+/* sc=1c */ '\r',  '\r',  '\n',  '\n',  '\r',  '\r',  '\n',  '\n',  0x00, 0x00,
+/* sc=1d */  'a',   'A',  0x01,  0x01,   'a',   'A',  0x01,  0x01,  0x00, 0x01,
+/* sc=1e */  's',   'S',  0x13,  0x13,   's',   'S',  0x13,  0x13,  0x00, 0x01,
+/* sc=1f */  'd',   'D',  0x04,  0x04,   'd',   'D',  0x04,  0x04,  0x00, 0x01,
+/* sc=20 */  'f',   'F',  0x06,  0x06,   'f',   'F',  0x06,  0x06,  0x00, 0x01,
+/* sc=21 */  'g',   'G',  0x07,  0x07,   'g',   'G',  0x07,  0x07,  0x00, 0x01,
+/* sc=22 */  'h',   'H',  0x08,  0x08,   'h',   'H',  0x08,  0x08,  0x00, 0x01,
+/* sc=23 */  'j',   'J',  '\n',  '\n',   'j',   'J',  '\n',  '\n',  0x00, 0x01,
+/* sc=24 */  'k',   'K',  0x0B,  0x0B,   'k',   'K',  0x0B,  0x0B,  0x00, 0x01,
+/* sc=25 */  'l',   'L',  0x0C,  0x0C,   'l',   'L',  0x0C,  0x0C,  0x00, 0x01,
+/* sc=26 */  ';',   '+',   ';',   ';',   ';',   ':',   ';',   ';',  0x00, 0x00,
+/* sc=27 */  ':',   '*',   ':',   ':',  '\'',  '\"',  '\'',  '\'',  0x00, 0x00,
+/* sc=28 */  ']',   '}',  0x1D,  0x1D,   '`',   '~',   '~',   '~',  0x00, 0x00,
+/* sc=29 */  'z',   'Z',  0x1A,  0x1A,   'z',   'Z',  0x1A,  0x1A,  0x00, 0x01,
+/* sc=2a */  'x',   'X',  0x18,  0x18,   'x',   'X',  0x18,  0x18,  0x00, 0x01,
+/* sc=2b */  'c',   'C',  0x03,  0x03,   'c',   'C',  0x03,  0x03,  0x00, 0x01,
+/* sc=2c */  'v',   'V',  0x16,  0x16,   'v',   'V',  0x16,  0x16,  0x00, 0x01,
+/* sc=2d */  'b',   'B',  0x02,  0x02,   'b',   'B',  0x02,  0x02,  0x00, 0x01,
+/* sc=2e */  'n',   'N',  0x0E,  0x0E,   'n',   'N',  0x0E,  0x0E,  0x00, 0x01,
+/* sc=2f */  'm',   'M',  '\r',  '\r',   'm',   'M',  '\r',  '\r',  0x00, 0x01,
+/* sc=30 */  ',',   '<',   '<',   '<',   ',',   '<',   '<',   '<',  0x00, 0x00,
+/* sc=31 */  '.',   '>',   '>',   '>',   '.',   '>',   '>',   '>',  0x00, 0x00,
+/* sc=32 */  '/',   '?',  0x7F,  0x7F,   '/',   '?',  0x7F,  0x7F,  0x00, 0x00,
+/* sc=33 */  NOP,   '_',  0x1F,  0x1F,  '\\',   '|',  0x1C,  0x1C,  0x80, 0x00,
+/* sc=34 */  ' ',   ' ',  0x00,  0x00,   ' ',   ' ',  0x00,  0x00,  0x00, 0x00,
+/* sc=35 */ 0x1B,  0x1B,  0x1B,  0x1B,  0x1B,  0x1B,  0x1B,  0x1B,  0x00, 0x00,
+/* sc=36 */ F(51), F(51), F(51), F(51), F(51), F(51), F(51), F(51), 0xFF, 0x00,
+/* sc=37 */ F(59), F(59), F(59), F(59), F(59), F(59), F(59), F(59), 0xFF, 0x00,
+/* sc=38 */ F(60), F(60), F(60), F(60), F(60), F(60), F(60), F(60), 0xFF, 0x00,
+/* sc=39 */ 0x7F,  0x7F,  0x7F,  0x7F,  0x7F,  0x7F,   RBT,   RBT,  0x03, 0x02,
+/* sc=3a */ F(50), F(50), F(50), F(50), F(50), F(50), F(50), F(50), 0xFF, 0x00,
+/* sc=3b */ F(53), F(53), F(53), F(53), F(53), F(53), F(53), F(53), 0xFF, 0x00,
+/* sc=3c */ F(55), F(55), F(55), F(55), F(55), F(55), F(55), F(55), 0xFF, 0x00,
+/* sc=3d */ F(58), F(58), F(58), F(58), F(58), F(58), F(58), F(58), 0xFF, 0x00,
+/* sc=3e */ F(49), F(49), F(49), F(49), F(49), F(49), F(49), F(49), 0xFF, 0x00,
+/* sc=3f */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
+/* sc=40 */  '-',   '-',   '-',   '-',   '-',   '-',   '-',   '-',  0x00, 0x00,
+/* sc=41 */  '/',   '/',   '/',   '/',   '/',   '/',   '/',   '/',  0x00, 0x00,
+/* sc=42 */  '7',   '7',   '7',   '7',   '7',   '7',   '7',   '7',  0x00, 0x00,
+/* sc=43 */  '8',   '8',   '8',   '8',   '8',   '8',   '8',   '8',  0x00, 0x00,
+/* sc=44 */  '9',   '9',   '9',   '9',   '9',   '9',   '9',   '9',  0x00, 0x00,
+/* sc=45 */  '*',   '*',   '*',   '*',   '*',   '*',   '*',   '*',  0x00, 0x00,
+/* sc=46 */  '4',   '4',   '4',   '4',   '4',   '4',   '4',   '4',  0x00, 0x00,
+/* sc=47 */  '5',   '5',   '5',   '5',   '5',   '5',   '5',   '5',  0x00, 0x00,
+/* sc=48 */  '6',   '6',   '6',   '6',   '6',   '6',   '6',   '6',  0x00, 0x00,
+/* sc=49 */  '+',   '+',   '+',   '+',   '+',   '+',   '+',   '+',  0x00, 0x00,
+/* sc=4a */  '1',   '1',   '1',   '1',   '1',   '1',   '1',   '1',  0x00, 0x00,
+/* sc=4b */  '2',   '2',   '2',   '2',   '2',   '2',   '2',   '2',  0x00, 0x00,
+/* sc=4c */  '3',   '3',   '3',   '3',   '3',   '3',   '3',   '3',  0x00, 0x00,
+/* sc=4d */  '=',   '=',   '=',   '=',   '=',   '=',   '=',   '=',  0x00, 0x00,
+/* sc=4e */  '0',   '0',   '0',   '0',   '0',   '0',   '0',   '0',  0x00, 0x00,
+/* sc=4f */  ',',   ',',   ',',   ',',   ',',   ',',   ',',   ',',  0x00, 0x00,
+/* sc=50 */  '.',   '.',   '.',   '.',   '.',   '.',   '.',   '.',  0x00, 0x00,
+/* sc=51 */ 0x1B,  0x1B,  0x1B,  0x1B,  0x1B,  0x1B,  0x1B,  0x1B,  0x00, 0x00,
+/* sc=52 */ F(11), F(23), F(35), F(47), S(11), S(11), S(11), S(11), 0xFF, 0x00,
+/* sc=53 */ F(12), F(24), F(36), F(48), S(12), S(12), S(12), S(12), 0xFF, 0x00,
+/* sc=54 */  SLK,   SLK,   SLK,   SLK,   SLK,   SLK,   SLK,   SLK,  0xFF, 0x00,
+/* sc=55 */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
+/* sc=56 */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
+/* sc=57 */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
+/* sc=58 */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
+/* sc=59 */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
+/* sc=5a */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
+/* sc=5b */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
+/* sc=5c */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
+/* sc=5d */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
+/* sc=5e */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
+/* sc=5f */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
+/* sc=60 */ F(57), F(57), F(57), F(57), F(57), F(57), F(57), F(57), 0xFF, 0x00,
+/* sc=61 */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
+/* sc=62 */ F( 1), F(13), F(25), F(37), S( 1), S( 1), S( 1), S( 1), 0xFF, 0x00,
+/* sc=63 */ F( 2), F(14), F(26), F(38), S( 2), S( 2), S( 2), S( 2), 0xFF, 0x00,
+/* sc=64 */ F( 3), F(15), F(27), F(39), S( 3), S( 3), S( 3), S( 3), 0xFF, 0x00,
+/* sc=65 */ F( 4), F(16), F(28), F(40), S( 4), S( 4), S( 4), S( 4), 0xFF, 0x00,
+/* sc=66 */ F( 5), F(17), F(29), F(41), S( 5), S( 5), S( 5), S( 5), 0xFF, 0x00,
+/* sc=67 */ F( 6), F(18), F(30), F(42), S( 6), S( 6), S( 6), S( 6), 0xFF, 0x00,
+/* sc=68 */ F( 7), F(19), F(31), F(43), S( 7), S( 7), S( 7), S( 7), 0xFF, 0x00,
+/* sc=69 */ F( 8), F(20), F(32), F(44), S( 8), S( 8), S( 8), S( 8), 0xFF, 0x00,
+/* sc=6a */ F( 9), F(21), F(33), F(45), S( 9), S( 9), S( 9), S( 9), 0xFF, 0x00,
+/* sc=6b */ F(10), F(22), F(34), F(46), S(10), S(10), S(10), S(10), 0xFF, 0x00,
+/* sc=6c */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
+/* sc=6d */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
+/* sc=6e */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
+/* sc=6f */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
+/* sc=70 */  LSH,   LSH,   LSH,   LSH,   LSH,   LSH,   LSH,   LSH,  0xFF, 0x00,
+/* sc=71 */  CLK,   CLK,   CLK,   CLK,   CLK,   CLK,   CLK,   CLK,  0xFF, 0x00,
+/* sc=72 */ LALT,  LALT,  LALT,  LALT,  LALT,  LALT,  LALT,  LALT,  0xFF, 0x00,
+/* sc=73 */ LALT,  LALT,  LALT,  LALT,  LALT,  LALT,  LALT,  LALT,  0xFF, 0x00,
+/* sc=74 */ LCTR,  LCTR,  LCTR,  LCTR,  LCTR,  LCTR,  LCTR,  LCTR,  0xFF, 0x00,
+/* sc=75 */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
+/* sc=76 */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
+/* sc=77 */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
+/* sc=78 */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
+/* sc=79 */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
+/* sc=7a */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
+/* sc=7b */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
+/* sc=7c */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
+/* sc=7d */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
+/* sc=7e */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
+/* sc=7f */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
+};
+#endif
 
 #ifdef DKKEYMAP
 static keymap_t key_map = { 0x6C,	/* DK iso8859 keymap */
@@ -750,7 +889,7 @@ static keymap_t key_map = { 0xEC,        /* keys number */
 
 #endif
 
-#if !defined(DKKEYMAP) && !defined(UKKEYMAP) && !defined(GRKEYMAP) && !defined(SWKEYMAP) && !defined(RUKEYMAP)
+#if !defined(DKKEYMAP) && !defined(UKKEYMAP) && !defined(GRKEYMAP) && !defined(SWKEYMAP) && !defined(RUKEYMAP) && !defined(PC98)
 static keymap_t key_map = { 0x6C,	/* US iso8859 keymap */
 /*                                                            alt
  * scan                          cntrl          alt    alt   cntrl

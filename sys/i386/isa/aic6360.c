@@ -31,7 +31,7 @@
  */
 
 /*
- * $Id: aic6360.c,v 1.22 1996/09/06 23:07:07 phk Exp $
+ * $Id: aic6360.c,v 1.23 1996/10/15 19:22:04 bde Exp $
  *
  * Acknowledgements: Many of the algorithms used in this driver are
  * inspired by the work of Julian Elischer (julian@tfs.com) and
@@ -45,6 +45,10 @@
  * 2) Get the iov/uio stuff working. Is this a good thing ???
  * 3) Get the synch stuff working.
  * 4) Rewrite it to use malloc for the acb structs instead of static alloc.?
+ */
+
+/*
+ * PC-9801-100/AHA-1030P support by URATA S.
  */
 
 /*
@@ -183,6 +187,9 @@
 #define ST_MASK			0x3e /* bit 0,6,7 is reserved */
 
 /* AIC6360 definitions */
+#ifdef PC98
+#include <i386/isa/aic_98.h>
+#else
 #define SCSISEQ		(iobase + 0x00) /* SCSI sequence control */
 #define SXFRCTL0	(iobase + 0x01) /* SCSI transfer control 0 */
 #define SXFRCTL1	(iobase + 0x02) /* SCSI transfer control 1 */
@@ -222,6 +229,7 @@
 #define STACK		(iobase + 0x1d) /* Stack */
 #define TEST		(iobase + 0x1e) /* Test register */
 #define ID		(iobase + 0x1f) /* ID register */
+#endif
 
 #define IDSTRING "(C)1991ADAPTECAIC6360           "
 
@@ -609,6 +617,9 @@ static struct aic_data { /* One of these per adapter */
 	u_char	imess[AIC_MAX_MSG_LEN + 1];
 	u_char	*imp;		/* Message pointer (for multibyte messages) */
 	u_char	imlen;
+#ifdef PC98
+	int		*aicport;	/* I/O port information */
+#endif
 } *aicdata[NAIC];
 
 #define AIC_SHOWACBS 0x01
@@ -723,6 +734,15 @@ aicprobe(dev)
 	bzero(aic, sizeof(struct aic_data));
 	aicdata[unit] = aic;
 	aic->iobase = dev->id_iobase;
+#ifdef PC98
+	if (AIC_TYPE98(dev->id_flags) == AIC98_100) {
+		/* PC-9801-100 */
+		aic->aicport = aicport_100;
+	} else {
+		/* generic card */
+		aic->aicport = aicport_generic;
+	}
+#endif
 
 	if (aic_find(aic) != 0) {
 		aicdata[unit] = NULL;
@@ -730,6 +750,11 @@ aicprobe(dev)
 		return 0;
 	}
 	aicunit++;
+
+#ifdef PC98
+	if (AIC_TYPE98(dev->id_flags) == AIC98_100)
+		return 0x40;
+#endif
 	return 0x20;
 }
 

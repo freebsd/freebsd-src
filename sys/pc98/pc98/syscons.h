@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.h,v 1.5 1996/10/23 07:25:33 asami Exp $
+ *	$Id: syscons.h,v 1.6 1996/10/29 08:36:28 asami Exp $
  */
 
 #ifndef _PC98_PC98_SYSCONS_H_
@@ -98,14 +98,11 @@
 #ifndef AUTO_CLOCK
 #ifndef PC98_8M
 #define BELL_PITCH	1678
-#define TIMER_FREQ	2457600			/* should be in pc98.h */
 #else
 #define BELL_PITCH	1339
-#define TIMER_FREQ	1996800			/* should be in pc98.h */
 #endif
 #else /* AUTO_CLOCK */
 static unsigned int BELL_PITCH = 1678;
-static unsigned int TIMER_FREQ = 2457600;
 #endif /* AUTO_CLOCK */
 #else /* IBM-PC */
 #define BELL_PITCH	800

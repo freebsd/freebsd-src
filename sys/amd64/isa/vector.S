@@ -1,12 +1,26 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: vector.s,v 1.19 1996/04/11 21:18:47 bde Exp $
+ *	$Id: vector.s,v 1.20 1996/05/31 01:08:08 peter Exp $
+ */
+
+/*
+ * modified for PC98 by Kakefuda
  */
 
 #include "opt_auto_eoi.h"
 
 #include <i386/isa/icu.h>
+#ifdef PC98
+#include <pc98/pc98/pc98.h>
+#else
 #include <i386/isa/isa.h>
+#endif
+
+#ifdef PC98
+#define ICU_IMR_OFFSET		2	/* IO_ICU{1,2} + 2 */
+#else
+#define ICU_IMR_OFFSET		1	/* IO_ICU{1,2} + 1 */
+#endif
 
 #define	ICU_EOI			0x20	/* XXX - define elsewhere */
 
@@ -168,7 +182,7 @@ IDTVEC(vec_name) ; \
 	movb	_imen + IRQ_BYTE(irq_num),%al ; \
 	orb	$IRQ_BIT(irq_num),%al ; \
 	movb	%al,_imen + IRQ_BYTE(irq_num) ; \
-	outb	%al,$icu+1 ; \
+	outb	%al,$icu+ICU_IMR_OFFSET ; \
 	enable_icus ; \
 	incl	_cnt+V_INTR ;	/* tally interrupts */ \
 	movl	_cpl,%eax ; \
@@ -190,7 +204,7 @@ __CONCAT(Xresume,irq_num): ; \
 	movb	_imen + IRQ_BYTE(irq_num),%al ; \
 	andb	$~IRQ_BIT(irq_num),%al ; \
 	movb	%al,_imen + IRQ_BYTE(irq_num) ; \
-	outb	%al,$icu+1 ; \
+	outb	%al,$icu+ICU_IMR_OFFSET ; \
 	sti ;			/* XXX _doreti repeats the cli/sti */ \
 	MEXITCOUNT ; \
 	/* We could usually avoid the following jmp by inlining some of */ \

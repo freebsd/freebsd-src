@@ -36,7 +36,7 @@
  *
  *	@(#)icu.s	7.2 (Berkeley) 5/21/91
  *
- *	$Id: icu.s,v 1.24 1996/03/12 05:44:25 nate Exp $
+ *	$Id: icu.s,v 1.25 1996/05/31 01:08:07 peter Exp $
  */
 
 /*
@@ -278,6 +278,7 @@ vec0:
 	MEXITCOUNT
 	jmp	_Xintr0			/* XXX might need _Xfastintr0 */
 
+#ifndef PC98
 	ALIGN_TEXT
 vec8:
 	popl	%eax	
@@ -287,6 +288,7 @@ vec8:
 	cli
 	MEXITCOUNT
 	jmp	_Xintr8			/* XXX might need _Xfastintr8 */
+#endif
 
 #define BUILD_VEC(irq_num) \
 	ALIGN_TEXT ; \
@@ -301,6 +303,9 @@ __CONCAT(vec,irq_num): ; \
 	BUILD_VEC(5)
 	BUILD_VEC(6)
 	BUILD_VEC(7)
+#ifdef PC98
+	BUILD_VEC(8)
+#endif
 	BUILD_VEC(9)
 	BUILD_VEC(10)
 	BUILD_VEC(11)

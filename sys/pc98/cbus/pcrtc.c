@@ -34,7 +34,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.8 1996/10/23 07:25:13 asami Exp $
+ *	$Id: clock.c,v 1.9 1996/10/29 08:36:19 asami Exp $
+ */
+
+/*
+ * Routines to handle clock hardware.
  */
 
 /*
@@ -46,10 +50,6 @@
 
 /*
  * modified for PC98 by Kakefuda
- */
-
-/*
- * Primitive clock interrupt routines.
  */
 
 #include "opt_clock.h"
@@ -72,13 +72,12 @@
 #ifdef PC98
 #include <pc98/pc98/pc98.h>
 #include <i386/isa/isa_device.h>
-#include <pc98/pc98/timerreg.h>
 #else
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/rtc.h>
-#include <i386/isa/timerreg.h>
 #endif
+#include <i386/isa/timerreg.h>
 
 /*
  * 32-bit time_t's can't reach leap years before 1904 or after 2036, so we
@@ -109,52 +108,49 @@
 
 int	adjkerntz;		/* local offset	from GMT in seconds */
 int	disable_rtc_set;	/* disable resettodr() if != 0 */
-int	wall_cmos_clock;	/* wall	CMOS clock assumed if != 0 */
-
 u_int	idelayed;
 #if defined(I586_CPU) || defined(I686_CPU)
-u_int 	i586_ctr_bias;
+u_int	i586_ctr_bias;
 u_int	i586_ctr_comultiplier;
 u_int	i586_ctr_freq;
 u_int	i586_ctr_multiplier;
-long long	i586_last_tick;
-unsigned long	i586_avg_tick;
 #endif
 int	statclock_disable;
 u_int	stat_imask = SWI_CLOCK_MASK;
 #ifdef TIMER_FREQ
-static	u_int	timer_freq = TIMER_FREQ;
+u_int	timer_freq = TIMER_FREQ;
 #else
 #ifdef PC98
 #ifndef AUTO_CLOCK
 #ifndef PC98_8M
-static	u_int	timer_freq = 2457600;
+u_int	timer_freq = 2457600;
 #else	/* !PC98_8M */
-static	u_int	timer_freq = 1996800;
+u_int	timer_freq = 1996800;
 #endif	/* PC98_8M */
 #else	/* AUTO_CLOCK */
-static	u_int	timer_freq = 2457600;
+u_int	timer_freq = 2457600;
 #endif	/* AUTO_CLOCK */
 #else /* IBM-PC */
-static	u_int	timer_freq = 1193182;
+u_int	timer_freq = 1193182;
 #endif /* PC98 */
 #endif
-int 	timer0_max_count;
-u_int 	timer0_overflow_threshold;
-u_int 	timer0_prescaler_count;
+int	timer0_max_count;
+u_int	timer0_overflow_threshold;
+u_int	timer0_prescaler_count;
+int	wall_cmos_clock;	/* wall	CMOS clock assumed if != 0 */
 
 static	int	beeping = 0;
 static	u_int	clk_imask = HWI_MASK | SWI_MASK;
 static	const u_char daysinmonth[] = {31,28,31,30,31,30,31,31,30,31,30,31};
-static 	u_int	hardclock_max_count;
+static	u_int	hardclock_max_count;
 /*
  * XXX new_function and timer_func should not handle clockframes, but
  * timer_func currently needs to hold hardclock to handle the
  * timer0_state == 0 case.  We should use register_intr()/unregister_intr()
  * to switch between clkintr() and a slightly different timerintr().
  */
-static 	void	(*new_function) __P((struct clockframe *frame));
-static 	u_int	new_rate;
+static	void	(*new_function) __P((struct clockframe *frame));
+static	u_int	new_rate;
 #ifndef PC98
 static	u_char	rtc_statusa = RTCSA_DIVIDER | RTCSA_NOPROF;
 static	u_char	rtc_statusb = RTCSB_24HR | RTCSB_PINTR;
@@ -171,7 +167,7 @@ static 	u_char	timer0_state;
 static 	u_char	timer1_state;
 #endif
 static	u_char	timer2_state;
-static 	void	(*timer_func) __P((struct clockframe *frame)) = hardclock;
+static	void	(*timer_func) __P((struct clockframe *frame)) = hardclock;
 int		rtc_inb __P((void));
 
 #if defined(I586_CPU) || defined(I686_CPU)
@@ -437,7 +433,7 @@ getit(void)
 	disable_intr();
 
 	/* Select timer0 and latch counter value. */
-	outb(TIMER_MODE, TIMER_SEL0);
+	outb(TIMER_MODE, TIMER_SEL0 | TIMER_LATCH);
 
 	low = inb(TIMER_CNTR0);
 	high = inb(TIMER_CNTR0);
@@ -625,7 +621,7 @@ calibrate_clocks(void)
 	u_int count, prev_count, tot_count;
 	int sec, start_sec, timeout;
 
-	printf("Calibrating clock(s) relative to mc146818A clock...\n");
+	printf("Calibrating clock(s) relative to mc146818A clock ... ");
 	if (!(rtcin(RTC_STATUSD) & RTCSD_PWR))
 		goto fail;
 	timeout = 100000000;
@@ -782,7 +778,7 @@ startrtclock()
 	if (delta < timer_freq / 100) {
 #ifndef CLK_USE_I8254_CALIBRATION
 		if (bootverbose)
-		    printf(
+			printf(
 "CLK_USE_I8254_CALIBRATION not specified - using default frequency\n");
 		freq = timer_freq;
 #endif
@@ -802,7 +798,7 @@ startrtclock()
 #ifndef CLK_USE_I586_CALIBRATION
 	if (i586_ctr_freq != 0) {
 		if (bootverbose)
-		    printf(
+			printf(
 "CLK_USE_I586_CALIBRATION not specified - using old calibration method\n");
 		i586_ctr_freq = 0;
 	}
@@ -1114,10 +1110,8 @@ cpu_initclocks()
 	/*
 	 * Finish setting up anti-jitter measures.
 	 */
-	if (i586_ctr_freq != 0) {
-		i586_last_tick = rdtsc();
-		i586_ctr_bias = i586_last_tick;
-	}
+	if (i586_ctr_freq != 0)
+		i586_ctr_bias = rdtsc();
 #endif
 
 #ifndef PC98

@@ -302,6 +302,11 @@ struct sound_timer_operations {
 		{SNDCARD_TRXPRO_SB, "AudioTriX (SB mode)",	attach_trix_sb, probe_trix_sb},
 		{SNDCARD_TRXPRO_MPU, "AudioTriX MIDI",	attach_trix_mpu, probe_trix_mpu},
 #endif
+#ifdef PC98
+#ifndef EXCLUDE_PCM86
+	  {SNDCARD_PCM86,	"PC-9801-86/73",	attach_pcm86, probe_pcm86},
+#endif
+#endif
 		{0,			"*?*",			NULL, NULL}
 	};
 
@@ -383,6 +388,11 @@ struct sound_timer_operations {
 
 #ifndef EXCLUDE_YM3812
 		{SNDCARD_ADLIB, {FM_MONO, 0, 0}, SND_DEFAULT_ENABLE},
+#endif
+#ifdef PC98
+#ifndef EXCLUDE_PCM86
+	     {SNDCARD_PCM86,	{0, 0, 0}, SND_DEFAULT_ENABLE},
+#endif
 #endif
 		{0, {0}, 0}
 	};

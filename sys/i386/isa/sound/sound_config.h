@@ -79,23 +79,43 @@ If your card has nonstandard I/O address or IRQ number, change defines
    for the following settings in your kernel Makefile */
 
 #ifndef SBC_BASE
+#ifdef PC98
+#define SBC_BASE	0x20d2  /* 0x20d2 is the factory default. */
+#else
 #define SBC_BASE	0x220	/* 0x220 is the factory default. */
+#endif
 #endif
 
 #ifndef SBC_IRQ
+#ifdef PC98
+#define SBC_IRQ		10	/* IQR10 is not the factory default on PC9821.	 */
+#else
 #define SBC_IRQ		7	/* IQR7 is the factory default.	 */
+#endif
 #endif
 
 #ifndef SBC_DMA
+#ifdef PC98
+#define SBC_DMA		3
+#else
 #define SBC_DMA		1
+#endif
 #endif
 
 #ifndef SB16_DMA
+#ifdef PC98
+#define SB16_DMA	3
+#else
 #define SB16_DMA	6
+#endif
 #endif
 
 #ifndef SB16MIDI_BASE
+#ifdef PC98
+#define SB16MIDI_BASE	0x80d2
+#else
 #define SB16MIDI_BASE	0x300
+#endif
 #endif
 
 #ifndef PAS_BASE
@@ -248,7 +268,11 @@ If your card has nonstandard I/O address or IRQ number, change defines
 
 #define DMA_AUTOINIT		0x10
 
+#ifdef PC98
+#define FM_MONO		0x28d2	/* This is the I/O address used by AdLib */
+#else
 #define FM_MONO		0x388	/* This is the I/O address used by AdLib */
+#endif
 
 /* SEQ_MAX_QUEUE is the maximum number of sequencer events buffered by the
    driver. (There is no need to alter this) */

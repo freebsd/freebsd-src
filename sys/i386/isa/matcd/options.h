@@ -184,6 +184,16 @@
 
 #ifdef AUTOHUNT
 static int	port_hints[]={
+#ifdef PC98
+			0x30d2,
+			0x30d0,
+			0x30d4,
+			0x30d6,
+			0x30d8,
+			0x30da,
+			0x30dc,
+			0x30de,
+#else	/* IBM-PC */
 			0x230,	/*SB Pro & SB16*/
 			0x240,	/*SB Pro & SB16*/
 			0x250,	/*Creative omniCD standalone boards*/
@@ -205,6 +215,7 @@ static int	port_hints[]={
 			0x670,	/*IBM*/
 			0x690,	/*IBM*/
 #endif /*0*/
+#endif	/* PC98 */
 			-1};	/*use.  Table MUST end with -1*/
 #endif /*AUTOHUNT*/
 

@@ -358,7 +358,12 @@ static struct atapi_params *atapi_probe (int port, int unit)
 {
 	struct atapi_params *ap;
 	char tb [DEV_BSIZE];
+#ifdef PC98
+	int cnt;
 
+	outb(0x432,unit%2); 
+	print(("unit = %d,select %d\n",unit,unit%2)); 
+#endif
 	/* Wait for controller not busy. */
 	outb (port + AR_DRIVE, unit ? ARD_DRIVE1 : ARD_DRIVE0);
 	if (atapi_wait (port, 0) < 0) {
@@ -368,8 +373,20 @@ static struct atapi_params *atapi_probe (int port, int unit)
 	}
 
 	/* Issue ATAPI IDENTIFY command. */
+#ifdef PC98
+	outb (port + AR_DRIVE, unit/2 ? ARD_DRIVE1 : ARD_DRIVE0);
+
+	/* Wait for DRQ deassert. */
+	for (cnt=2000; cnt>0; --cnt)
+	  if (! (inb (0x640 + AR_STATUS) & ARS_DRQ))
+	    break;
+
+	outb (port + AR_COMMAND, ATAPIC_IDENTIFY);
+	DELAY(500);
+#else
 	outb (port + AR_DRIVE, unit ? ARD_DRIVE1 : ARD_DRIVE0);
 	outb (port + AR_COMMAND, ATAPIC_IDENTIFY);
+#endif
 
 	/* Check that device is present. */
 	if (inb (port + AR_STATUS) == 0xff) {
@@ -550,7 +567,13 @@ int atapi_start_cmd (struct atapi *ata, struct atapicmd *ac)
 	ac->result.error = 0;
 	ac->result.status = 0;
 
+#ifdef PC98
+	outb(0x432,(ac->unit)%2); 
+	print(("(ac->unit) = %d,select %d (2) \n",(ac->unit),(ac->unit)%2)); 
+	outb (ata->port + AR_DRIVE, (ac->unit)/2 ? ARD_DRIVE1 : ARD_DRIVE0);
+#else
 	outb (ata->port + AR_DRIVE, ac->unit ? ARD_DRIVE1 : ARD_DRIVE0);
+#endif
 	if (atapi_wait (ata->port, 0) < 0) {
 		printf ("atapi%d.%d: controller not ready for cmd\n",
 			ata->ctrlr, ac->unit);
@@ -631,6 +654,11 @@ int atapi_intr (int ctrlr)
 {
 	struct atapi *ata = atapitab + ctrlr;
 	struct atapicmd *ac = ata->queue;
+
+#ifdef PC98
+	outb(0x432,(ac->unit)%2);
+	print(("atapi_intr:(ac->unit)= %d,select %d\n",ac->unit,(ac->unit)%2));
+#endif
 
 	if (! ac) {
 		printf ("atapi%d: stray interrupt\n", ata->ctrlr);

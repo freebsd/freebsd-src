@@ -98,13 +98,20 @@ See matcd.c for Edit History
 
 #define	CMD		0		/*Write - commands*/
 #define	DATA		0		/*Read - data/status from drive*/
+#ifdef PC98
+#define	PHASE		0x100	/*Write - switch between data/status*/
+#define STATUS		0x100	/*Read - bus status */
+#define RESET		0x200	/*Write - reset all attached drives*/
+#define	ALTDATA		0x200	/*<20>Read - data on non Creative bds.*/
+#define SELECT		0x300	/*Write - drive select*/
+#else /* !PC98 */
 #define	PHASE		1		/*Write - switch between data/status*/
 #define STATUS		1		/*Read - bus status*/
 #define RESET		2		/*Write - reset all attached drives*/
 					/*Any value written will reset*/
 #define	ALTDATA		2		/*<20>Read - data on non Creative bds.*/
 #define SELECT		3		/*Write - drive select*/
-
+#endif        /*PC98*/
 
 /*	Creative PHASE port bit assignments
 */
