@@ -176,6 +176,13 @@ struct buf {
  *	B_MALLOC	Request that the buffer be allocated from the malloc
  *			pool, DEV_BSIZE aligned instead of PAGE_SIZE aligned.
  *
+ *	B_CLUSTEROK	This flag is typically set for B_DELWRI buffers
+ *			by filesystems that allow clustering when the buffer
+ *			is fully dirty and indicates that it may be clustered
+ *			with other adjacent dirty buffers.  Note the clustering
+ *			may not be used with the stage 1 data write under NFS
+ *			but may be used for the commit rpc portion.
+ *
  *	B_VMIO		Indicates that the buffer is tied into an VM object.
  *			The buffer's data is always PAGE_SIZE aligned even
  *			if b_bufsize and b_bcount are not.  ( b_bufsize is 
