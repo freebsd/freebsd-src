@@ -186,9 +186,8 @@ MD5Update (context, input, inputLen)
  * MD5 padding. Adds padding followed by original length.
  */
 
-void
-MD5Pad (context)
-	MD5_CTX *context;
+static void
+MD5Pad (MD5_CTX *context)
 {
 	unsigned char bits[8];
 	unsigned int index, padLen;
