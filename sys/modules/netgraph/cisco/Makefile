@@ -3,5 +3,6 @@
 
 KMOD=		ng_cisco
 SRCS= 		ng_cisco.c
+NOMAN=
 
 .include <bsd.kmod.mk>

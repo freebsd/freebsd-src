@@ -3,5 +3,6 @@
 
 KMOD=		ng_ppp
 SRCS= 		ng_ppp.c
+NOMAN=
 
 .include <bsd.kmod.mk>

@@ -4,6 +4,7 @@
 
 KMOD=   if_ef
 SRCS=   if_ef.c opt_ipx.h opt_inet.h opt_ef.h
+NOMAN=
 
 # If you need only limited number of frames comment out unneeded ones
 # this will reduce number of visible devices
