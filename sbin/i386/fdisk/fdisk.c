@@ -69,7 +69,7 @@ int secsize = 0;		/* the sensed sector size */
 const char *disk;
 const char *disks[] =
 {
-  "/dev/ad0", "/dev/wd0", "/dev/da0", "/dev/od0", 0
+  "/dev/ad0", "/dev/da0", 0
 };
 
 struct disklabel disklabel;		/* disk parameters */
@@ -692,9 +692,11 @@ int fd;
 static int
 open_disk(int u_flag)
 {
-struct stat 	st;
+	struct stat 	st;
 
 	if (stat(disk, &st) == -1) {
+		if (errno == ENOENT)
+			return -2;
 		warnx("can't get file status of %s", disk);
 		return -1;
 	}
