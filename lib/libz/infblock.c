@@ -12,7 +12,7 @@
 struct inflate_codes_state {int dummy;}; /* for buggy compilers */
 
 /* Table for deflate from PKZIP's appnote.txt. */
-local uInt border[] = { /* Order of the bit length code lengths */
+local const uInt border[] = { /* Order of the bit length code lengths */
         16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15};
 
 /*
@@ -249,6 +249,7 @@ int r;
                              &s->sub.trees.tb, z);
       if (t != Z_OK)
       {
+        ZFREE(z, s->sub.trees.blens);
         r = t;
         if (r == Z_DATA_ERROR)
           s->mode = BAD;
@@ -287,6 +288,8 @@ int r;
           if (i + j > 258 + (t & 0x1f) + ((t >> 5) & 0x1f) ||
               (c == 16 && i < 1))
           {
+            inflate_trees_free(s->sub.trees.tb, z);
+            ZFREE(z, s->sub.trees.blens);
             s->mode = BAD;
             z->msg = (char*)"invalid bit length repeat";
             r = Z_DATA_ERROR;
@@ -314,6 +317,7 @@ int r;
 #endif
         t = inflate_trees_dynamic(257 + (t & 0x1f), 1 + ((t >> 5) & 0x1f),
                                   s->sub.trees.blens, &bl, &bd, &tl, &td, z);
+        ZFREE(z, s->sub.trees.blens);
         if (t != Z_OK)
         {
           if (t == (uInt)Z_DATA_ERROR)
@@ -330,7 +334,6 @@ int r;
           r = Z_MEM_ERROR;
           LEAVE
         }
-        ZFREE(z, s->sub.trees.blens);
         s->sub.decode.codes = c;
         s->sub.decode.tl = tl;
         s->sub.decode.td = td;
