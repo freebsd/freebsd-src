@@ -349,8 +349,6 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	sc->sc_rx_th.wr_ihdr.it_len = sizeof(sc->sc_rx_th);
 	sc->sc_rx_th.wr_ihdr.it_present = ATH_RX_RADIOTAP_PRESENT;
 
-	if_printf(ifp, "802.11 address: %s\n", ether_sprintf(ic->ic_myaddr));
-
 	return 0;
 bad:
 	if (ah)
