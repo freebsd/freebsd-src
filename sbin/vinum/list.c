@@ -39,7 +39,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: list.c,v 1.20 1999/10/12 05:40:49 grog Exp grog $
+ * $Id: list.c,v 1.21 2000/01/03 02:58:07 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -49,6 +49,7 @@
 #include <sys/mman.h>
 #include <netdb.h>
 #include <setjmp.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -69,11 +70,11 @@
  * intended to be used immediately for printing.
  */
 char *
-roughlength(long long bytes, int lj)
+roughlength(int64_t bytes, int lj)
 {
     static char description[16];
 
-    if (bytes > (long long) MEGABYTE * 10000)		    /* gigabytes */
+    if (bytes > (int64_t) MEGABYTE * 10000)		    /* gigabytes */
 	sprintf(description, lj ? "%d GB" : "%10d GB", bytes / GIGABYTE);
     else if (bytes > KILOBYTE * 10000)			    /* megabytes */
 	sprintf(description, lj ? "%d MB" : "%10d MB", bytes / MEGABYTE);
@@ -150,13 +151,15 @@ vinum_ldi(int driveno, int recurse)
 	    t = drive.label.last_update.tv_sec;
 	    printf("\t\tConfig last updated %s",	    /* care: \n at end */
 		ctime(&t));
-	    printf("\t\tSize: %16qd bytes (%qd MB)\n\t\tUsed: %16qd bytes (%qd MB)\n"
+	    printf("\t\tSize: %16lld bytes (%lld MB)\n\t\tUsed: %16lld bytes (%lld MB)\n"
 		"\t\tAvailable: %11qd bytes (%d MB)\n",
-		drive.label.drive_size,			    /* bytes used */
-		(drive.label.drive_size / MEGABYTE),
-		drive.label.drive_size - drive.sectors_available * DEV_BSIZE,
-		(drive.label.drive_size - drive.sectors_available * DEV_BSIZE) / MEGABYTE,
-		drive.sectors_available * DEV_BSIZE,
+		(long long) drive.label.drive_size,	    /* bytes used */
+		(long long) (drive.label.drive_size / MEGABYTE),
+		(long long) (drive.label.drive_size - drive.sectors_available
+		    * DEV_BSIZE),
+		(long long) (drive.label.drive_size - drive.sectors_available
+		    * DEV_BSIZE) / MEGABYTE,
+		(long long) drive.sectors_available * DEV_BSIZE,
 		(int) (drive.sectors_available * DEV_BSIZE / MEGABYTE));
 	    printf("\t\tState: %s\n", drive_state(drive.state));
 	    if (drive.lasterror != 0)
@@ -186,16 +189,18 @@ vinum_ldi(int driveno, int recurse)
 			    strerror(errno));
 			longjmp(command_fail, -1);
 		    }
-		    printf("\t\t%9qd\t%9lld\n", freelist.offset, freelist.sectors);
+		    printf("\t\t%9lld\t%9lld\n",
+			(long long) freelist.offset,
+			(long long) freelist.sectors);
 		}
 	    }
 	} else if (!sflag) {
-	    printf("D %-21s State: %s\tDevice %s\tAvail: %qd/%qd MB",
+	    printf("D %-21s State: %s\tDevice %s\tAvail: %lld/%lld MB",
 		drive.label.name,
 		drive_state(drive.state),
 		drive.devicename,
-		drive.sectors_available * DEV_BSIZE / MEGABYTE,
-		(drive.label.drive_size / MEGABYTE));
+		(long long) drive.sectors_available * DEV_BSIZE / MEGABYTE,
+		(long long) (drive.label.drive_size / MEGABYTE));
 	    if (drive.label.drive_size != 0)
 		printf(" (%d%%)",
 		    (int) ((drive.sectors_available * 100 * DEV_BSIZE)
@@ -203,28 +208,36 @@ vinum_ldi(int driveno, int recurse)
 	}
 	if (sflag) {
 	    if (vflag || Verbose) {
-		printf("\t\tReads:  \t%16qd\n\t\tBytes read:\t%16qd (%s)\n",
-		    drive.reads,
-		    drive.bytes_read,
+		printf("\t\tReads:  \t%16lld\n\t\tBytes read:\t%16lld (%s)\n",
+		    (long long) drive.reads,
+		    (long long) drive.bytes_read,
 		    roughlength(drive.bytes_read, 1));
 		if (drive.reads != 0)
-		    printf("\t\tAverage read:\t%16qd bytes\n", drive.bytes_read / drive.reads);
-		printf("\t\tWrites: \t%16qd\n\t\tBytes written:\t%16qd (%s)\n",
-		    drive.writes,
-		    drive.bytes_written,
+		    printf("\t\tAverage read:\t%16lld bytes\n",
+			(long long) drive.bytes_read / drive.reads);
+		printf("\t\tWrites: \t%16lld\n\t\tBytes written:\t%16lld (%s)\n",
+		    (long long) drive.writes,
+		    (long long) drive.bytes_written,
 		    roughlength(drive.bytes_written, 1));
 		if (drive.writes != 0)
-		    printf("\t\tAverage write:\t%16qd bytes\n",
-			drive.bytes_written / drive.writes);
+		    printf("\t\tAverage write:\t%16lld bytes\n",
+			(long long) (drive.bytes_written / drive.writes));
 	    } else {					    /* non-verbose stats */
-		printf("%-15s\t%7qd\t%15qd\t", drive.label.name, drive.reads, drive.bytes_read);
+		printf("%-15s\t%7lld\t%15lld\t",
+		    drive.label.name,
+		    (long long) drive.reads,
+		    (long long) drive.bytes_read);
 		if (drive.reads != 0)
-		    printf("%7qd\t\t", drive.bytes_read / drive.reads);
+		    printf("%7lld\t\t",
+			(long long) (drive.bytes_read / drive.reads));
 		else
 		    printf("\t\t");
-		printf("%7qd\t%15qd\t", drive.writes, drive.bytes_written);
+		printf("%7lld\t%15lld\t",
+		    (long long) drive.writes,
+		    (long long) drive.bytes_written);
 		if (drive.writes != 0)
-		    printf("%7qd", drive.bytes_written / drive.writes);
+		    printf("%7lld",
+			(long long) (drive.bytes_written / drive.writes));
 	    }
 	}
 	printf("\n");
@@ -262,7 +275,7 @@ vinum_lvi(int volno, int recurse)
     get_volume_info(&vol, volno);
     if (vol.state != volume_unallocated) {
 	if (vflag) {
-	    printf("Volume %s:\tSize: %qd bytes (%qd MB)\n"
+	    printf("Volume %s:\tSize: %lld bytes (%lld MB)\n"
 		"\t\tState: %s\n\t\tFlags: %s%s%s\n",
 		vol.name,
 		((long long) vol.size) * DEV_BSIZE,
@@ -286,31 +299,39 @@ vinum_lvi(int volno, int recurse)
 		roughlength(vol.size << DEV_BSHIFT, 0));
 	if (sflag) {
 	    if (vflag || Verbose) {
-		printf("\t\tReads:  \t%16qd\n\t\tRecovered:\t%16qd\n\t\tBytes read:\t%16qd (%s)\n",
-		    vol.reads,
-		    vol.recovered_reads,
-		    vol.bytes_read,
+		printf("\t\tReads:  \t%16lld\n\t\tRecovered:\t%16lld\n\t\tBytes read:\t%16lld (%s)\n",
+		    (long long) vol.reads,
+		    (long long) vol.recovered_reads,
+		    (long long) vol.bytes_read,
 		    roughlength(vol.bytes_read, 1));
 		if (vol.reads != 0)
-		    printf("\t\tAverage read:\t%16qd bytes\n", vol.bytes_read / vol.reads);
-		printf("\t\tWrites: \t%16qd\n\t\tBytes written:\t%16qd (%s)\n",
-		    vol.writes,
-		    vol.bytes_written,
+		    printf("\t\tAverage read:\t%16lld bytes\n",
+			(long long) (vol.bytes_read / vol.reads));
+		printf("\t\tWrites: \t%16lld\n\t\tBytes written:\t%16lld (%s)\n",
+		    (long long) vol.writes,
+		    (long long) vol.bytes_written,
 		    roughlength(vol.bytes_written, 1));
 		if (vol.writes != 0)
-		    printf("\t\tAverage write:\t%16qd bytes\n",
-			vol.bytes_written / vol.writes);
+		    printf("\t\tAverage write:\t%16lld bytes\n",
+			(long long) (vol.bytes_written / vol.writes));
 		printf("\t\tActive requests:\t%8d\n", vol.active);
 	    } else {					    /* brief stats listing */
-		printf("%-15s\t%7qd\t%15qd\t", vol.name, vol.reads, vol.bytes_read);
+		printf("%-15s\t%7lld\t%15lld\t",
+		    vol.name,
+		    (long long) vol.reads,
+		    (long long) vol.bytes_read);
 		if (vol.reads != 0)
-		    printf("%7qd\t", vol.bytes_read / vol.reads);
+		    printf("%7lld\t",
+			(long long) (vol.bytes_read / vol.reads));
 		else
 		    printf("\t");
-		printf("%7qd\t", vol.recovered_reads);
-		printf("%7qd\t%15qd\t", vol.writes, vol.bytes_written);
+		printf("%7lld\t", (long long) vol.recovered_reads);
+		printf("%7lld\t%15lld\t",
+		    (long long) vol.writes,
+		    vol.bytes_written);
 		if (vol.writes != 0)
-		    printf("%7qd\n", vol.bytes_written / vol.writes);
+		    printf("%7lld\n",
+			(long long) (vol.bytes_written / vol.writes));
 		else
 		    printf("\n");
 	    }
@@ -380,7 +401,7 @@ vinum_lpi(int plexno, int recurse)
     get_plex_info(&plex, plexno);
     if (plex.state != plex_unallocated) {
 	if (vflag) {
-	    printf("Plex %s:\tSize:\t%9qd bytes (%qd MB)\n\t\tSubdisks: %8d\n",
+	    printf("Plex %s:\tSize:\t%9lld bytes (%lld MB)\n\t\tSubdisks: %8d\n",
 		plex.name,
 		(long long) plex.length * DEV_BSIZE,
 		(long long) plex.length * DEV_BSIZE / MEGABYTE,
@@ -433,47 +454,60 @@ vinum_lpi(int plexno, int recurse)
 	}
 	if (sflag) {
 	    if (vflag || Verbose) {
-		printf("\t\tReads:  \t%16qd\n\t\tBytes read:\t%16qd (%s)\n",
-		    plex.reads,
-		    plex.bytes_read,
+		printf("\t\tReads:  \t%16lld\n\t\tBytes read:\t%16lld (%s)\n",
+		    (long long) plex.reads,
+		    (long long) plex.bytes_read,
 		    roughlength(plex.bytes_read, 1));
 		if (plex.reads != 0)
-		    printf("\t\tAverage read:\t%16qd bytes\n", plex.bytes_read / plex.reads);
-		printf("\t\tWrites: \t%16qd\n\t\tBytes written:\t%16qd (%s)\n",
-		    plex.writes,
-		    plex.bytes_written,
+		    printf("\t\tAverage read:\t%16lld bytes\n",
+			(long long) (plex.bytes_read / plex.reads));
+		printf("\t\tWrites: \t%16lld\n\t\tBytes written:\t%16lld (%s)\n",
+		    (long long) plex.writes,
+		    (long long) plex.bytes_written,
 		    roughlength(plex.bytes_written, 1));
 		if (plex.writes != 0)
-		    printf("\t\tAverage write:\t%16qd bytes\n",
-			plex.bytes_written / plex.writes);
+		    printf("\t\tAverage write:\t%16lld bytes\n",
+			(long long) (plex.bytes_written / plex.writes));
 		if (((plex.reads + plex.writes) > 0)
 		    && ((plex.organization == plex_striped)
 			|| (plex.organization == plex_raid5)))
-		    printf("\t\tMultiblock:\t%16qd (%d%%)\n"
-			"\t\tMultistripe:\t%16qd (%d%%)\n",
-			plex.multiblock,
+		    printf("\t\tMultiblock:\t%16lld (%d%%)\n"
+			"\t\tMultistripe:\t%16lld (%d%%)\n",
+			(long long) plex.multiblock,
 			(int) (plex.multiblock * 100 / (plex.reads + plex.writes)),
-			plex.multistripe,
+			(long long) plex.multistripe,
 			(int) (plex.multistripe * 100 / (plex.reads + plex.writes)));
 		if (plex.recovered_reads)
-		    printf("\t\tRecovered reads:%16qd\n", plex.recovered_reads);
+		    printf("\t\tRecovered reads:%16lld\n",
+			(long long) plex.recovered_reads);
 		if (plex.degraded_writes)
-		    printf("\t\tDegraded writes:%16qd\n", plex.degraded_writes);
+		    printf("\t\tDegraded writes:%16lld\n",
+			(long long) plex.degraded_writes);
 		if (plex.parityless_writes)
-		    printf("\t\tParityless writes:%14qd\n", plex.parityless_writes);
+		    printf("\t\tParityless writes:%14lld\n",
+			(long long) plex.parityless_writes);
 	    } else {
-		printf("%-15s\t%7qd\t%15qd\t", plex.name, plex.reads, plex.bytes_read);
+		printf("%-15s\t%7lld\t%15lld\t",
+		    plex.name,
+		    (long long) plex.reads,
+		    (long long) plex.bytes_read);
 		if (plex.reads != 0)
-		    printf("%7qd\t", plex.bytes_read / plex.reads);
+		    printf("%7lld\t",
+			(long long) (plex.bytes_read / plex.reads));
 		else
 		    printf("\t");
-		printf("%7qd\t", plex.recovered_reads);
-		printf("%7qd\t%15qd\t", plex.writes, plex.bytes_written);
+		printf("%7lld\t", (long long) plex.recovered_reads);
+		printf("%7lld\t%15lld\t",
+		    (long long) plex.writes,
+		    (long long) plex.bytes_written);
 		if (plex.writes != 0)
-		    printf("%7qd\t", plex.bytes_written / plex.writes);
+		    printf("%7lld\t",
+			(long long) (plex.bytes_written / plex.writes));
 		else
 		    printf("\t");
-		printf("%7qd\t%7qd\n", plex.multiblock, plex.multistripe);
+		printf("%7lld\t%7lld\n",
+		    (long long) plex.multiblock,
+		    (long long) plex.multistripe);
 	    }
 	}
 	if (plex.subdisks > 0) {
@@ -483,7 +517,7 @@ vinum_lpi(int plexno, int recurse)
 		printf("\n");
 		for (sdno = 0; sdno < plex.subdisks; sdno++) {
 		    get_plex_sd_info(&sd, plexno, sdno);
-		    printf("\t\tSubdisk %d:\t%s\n\t\t  state: %s\tsize %11qd (%qd MB)\n",
+		    printf("\t\tSubdisk %d:\t%s\n\t\t  state: %s\tsize %11lld (%lld MB)\n",
 			sdno,
 			sd.name,
 			sd_state(sd.state),
@@ -533,10 +567,12 @@ vinum_lp(int argc, char *argv[], char *argv0[])
 void
 vinum_lsi(int sdno, int recurse)
 {
+    long long revived;					    /* keep an eye on revive progress */
+
     get_sd_info(&sd, sdno);
     if (sd.state != sd_unallocated) {
 	if (vflag) {
-	    printf("Subdisk %s:\n\t\tSize: %16qd bytes (%qd MB)\n\t\tState: %s\n",
+	    printf("Subdisk %s:\n\t\tSize: %16lld bytes (%lld MB)\n\t\tState: %s\n",
 		sd.name,
 		(long long) sd.sectors * DEV_BSIZE,
 		(long long) sd.sectors / (MEGABYTE / DEV_BSIZE),
@@ -544,11 +580,27 @@ vinum_lsi(int sdno, int recurse)
 	    if (sd.plexno >= 0) {
 		get_plex_info(&plex, sd.plexno);
 		printf("\t\tPlex %s", plex.name);
-		printf(" at offset %qd (%s)\n",
+		printf(" at offset %lld (%s)\n",
 		    (long long) sd.plexoffset * DEV_BSIZE,
 		    roughlength((long long) sd.plexoffset * DEV_BSIZE, 1));
 	    }
 	    if (sd.state == sd_reviving) {
+		if (sd.reviver == 0)
+		    printf("\t\t*** Start subdisk with 'start' command ***\n");
+		else {
+		    printf("\t\tReviver PID:\t%d\n", sd.reviver);
+		    if (kill(sd.reviver, 0) == -1) {
+			if (errno == ESRCH)		    /* no process */
+			    printf("\t\t*** Revive process has died ***\n");
+							    /* Don't report a problem that "can't happen" */
+		    } else {
+			revived = sd.revived;		    /* note how far we were */
+			sleep(1);
+			get_sd_info(&sd, sdno);
+			if (sd.revived == revived)	    /* no progress? */
+			    printf("\t\t*** Revive has stalled ***\n");
+		    }
+		}
 		printf("\t\tRevive pointer:\t\t%s (%d%%)\n",
 		    roughlength(sd.revived << DEV_BSHIFT, 0),
 		    (int) (((u_int64_t) (sd.revived * 100)) / sd.sectors));
@@ -572,10 +624,10 @@ vinum_lsi(int sdno, int recurse)
 		    drive.label.name,
 		    drive.devicename);
 	    else
-		printf("\t\tDrive %s (%s) at offset %qd (%s)\n",
+		printf("\t\tDrive %s (%s) at offset %lld (%s)\n",
 		    drive.label.name,
 		    drive.devicename,
-		    sd.driveoffset * DEV_BSIZE,
+		    (long long) (sd.driveoffset * DEV_BSIZE),
 		    roughlength(sd.driveoffset * DEV_BSIZE, 1));
 	} else if (!sflag) {				    /* brief listing, no stats */
 	    printf("S %-21s State: %s\t",
@@ -588,31 +640,57 @@ vinum_lsi(int sdno, int recurse)
 		    &(roughlength(sd.plexoffset << DEV_BSHIFT, 0))[2]);	/* what a kludge! */
 	    printf("Size: %s\n",
 		roughlength(sd.sectors << DEV_BSHIFT, 0));
+	    if (sd.state == sd_reviving) {
+		if (sd.reviver == 0)
+		    printf("\t\t\t*** Start %s with 'start' command ***\n",
+			sd.name);
+		else if (kill(sd.reviver, 0) == -1) {
+		    if (errno == ESRCH)			    /* no process */
+			printf("\t\t\t*** Revive process for %s has died ***\n",
+			    sd.name);
+							    /* Don't report a problem that "can't happen" */
+		} else {
+		    revived = sd.revived;		    /* note how far we were */
+		    sleep(1);
+		    get_sd_info(&sd, sdno);
+		    if (sd.revived == revived)		    /* no progress? */
+			printf("\t\t\t*** Revive of %s has stalled ***\n",
+			    sd.name);
+		}
+	    }
 	}
 	if (sflag) {
 	    if (vflag || Verbose) {
-		printf("\t\tReads:  \t%16qd\n\t\tBytes read:\t%16qd (%s)\n",
-		    sd.reads,
-		    sd.bytes_read,
+		printf("\t\tReads:  \t%16lld\n\t\tBytes read:\t%16lld (%s)\n",
+		    (long long) sd.reads,
+		    (long long) sd.bytes_read,
 		    roughlength(sd.bytes_read, 1));
 		if (sd.reads != 0)
-		    printf("\t\tAverage read:\t%16qd bytes\n", sd.bytes_read / sd.reads);
-		printf("\t\tWrites: \t%16qd\n\t\tBytes written:\t%16qd (%s)\n",
-		    sd.writes,
-		    sd.bytes_written,
+		    printf("\t\tAverage read:\t%16lld bytes\n",
+			(long long) (sd.bytes_read / sd.reads));
+		printf("\t\tWrites: \t%16lld\n\t\tBytes written:\t%16lld (%s)\n",
+		    (long long) sd.writes,
+		    (long long) sd.bytes_written,
 		    roughlength(sd.bytes_written, 1));
 		if (sd.writes != 0)
-		    printf("\t\tAverage write:\t%16qd bytes\n",
-			sd.bytes_written / sd.writes);
+		    printf("\t\tAverage write:\t%16lld bytes\n",
+			(long long) (sd.bytes_written / sd.writes));
 	    } else {
-		printf("%-15s\t%7qd\t%15qd\t", sd.name, sd.reads, sd.bytes_read);
+		printf("%-15s\t%7lld\t%15lld\t",
+		    sd.name,
+		    (long long) sd.reads,
+		    (long long) sd.bytes_read);
 		if (sd.reads != 0)
-		    printf("%7qd\t\t", sd.bytes_read / sd.reads);
+		    printf("%7lld\t\t",
+			(long long) (sd.bytes_read / sd.reads));
 		else
 		    printf("\t\t");
-		printf("%7qd\t%15qd\t", sd.writes, sd.bytes_written);
+		printf("%7lld\t%15lld\t",
+		    (long long) sd.writes,
+		    (long long) sd.bytes_written);
 		if (sd.writes != 0)
-		    printf("%7qd\n", sd.bytes_written / sd.writes);
+		    printf("%7lld\n",
+			(long long) (sd.bytes_written / sd.writes));
 		else
 		    printf("\n");
 	    }
@@ -1003,22 +1081,22 @@ printconfig(FILE * of, char *comment)
 	    if (sd.plexno >= 0) {
 		get_plex_info(&plex, sd.plexno);
 		fprintf(of,
-		    "%ssd name %s drive %s plex %s len %qds driveoffset %qds plexoffset %qds\n",
+		    "%ssd name %s drive %s plex %s len %llds driveoffset %llds plexoffset %llds\n",
 		    comment,
 		    sd.name,
 		    drive.label.name,
 		    plex.name,
-		    sd.sectors,
-		    sd.driveoffset,
-		    sd.plexoffset);
+		    (long long) sd.sectors,
+		    (long long) sd.driveoffset,
+		    (long long) sd.plexoffset);
 	    } else
 		fprintf(of,
-		    "%ssd name %s drive %s detached len %qds driveoffset %qds\n",
+		    "%ssd name %s drive %s detached len %llds driveoffset %llds\n",
 		    comment,
 		    sd.name,
 		    drive.label.name,
-		    sd.sectors,
-		    sd.driveoffset);
+		    (long long) sd.sectors,
+		    (long long) sd.driveoffset);
 	}
     }
 }
