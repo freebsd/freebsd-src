@@ -265,6 +265,7 @@ amrd_attach(device_t dev)
     sc->amrd_controller = (struct amr_softc *)device_get_softc(parent);
     sc->amrd_unit = device_get_unit(dev);
     sc->amrd_drive = device_get_ivars(dev);
+    sc->amrd_dev = dev;
 
     device_printf(dev, "%uMB (%u sectors), state 0x%x properties 0x%x\n",
 		  sc->amrd_drive->al_size / ((1024 * 1024) / AMR_BLKSIZE),
