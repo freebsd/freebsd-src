@@ -1544,7 +1544,7 @@ rf_DispatchKernelIO(queue, req)
 			raidbp->rf_buf.b_vp->v_numoutput++;
 		}
 #endif
-		BIO_STRATEGY(&raidbp->rf_buf);
+		(*devsw(raidbp->rf_buf.bio_dev)->d_strategy)(&raidbp->rf_buf);
 
 		break;
 
