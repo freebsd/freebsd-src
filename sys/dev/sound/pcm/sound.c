@@ -89,8 +89,8 @@ nomenclature:
 static devclass_t pcm_devclass;
 
 #ifdef USING_DEVFS
-int snd_unit;
-TUNABLE_INT_DECL("hw.snd.unit", 0, snd_unit);
+int snd_unit = 0;
+TUNABLE_INT("hw.snd.unit", &snd_unit);
 #endif
 
 SYSCTL_NODE(_hw, OID_AUTO, snd, CTLFLAG_RD, 0, "Sound driver");
