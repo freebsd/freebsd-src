@@ -54,13 +54,13 @@ and may be changed later with the
 program.
 This information is used by the system disk driver and by the bootstrap
 program to determine how to program the drive
-and where to find the filesystems on the disk partitions.
-Additional information is used by the filesystem in order
-to use the disk most efficiently and to locate important filesystem information.
+and where to find the file systems on the disk partitions.
+Additional information is used by the file system in order
+to use the disk most efficiently and to locate important file system information.
 The description of each partition contains an identifier for the partition
-type (standard filesystem, swap area, etc.).
-The filesystem updates the in-core copy of the label if it contains
-incomplete information about the filesystem.
+type (standard file system, swap area, etc.).
+The file system updates the in-core copy of the label if it contains
+incomplete information about the file system.
 .Pp
 The label is located in sector number
 .Dv LABELSECTOR

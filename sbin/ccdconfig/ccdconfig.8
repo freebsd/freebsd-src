@@ -142,8 +142,12 @@ The component devices need to name partitions of type
 as shown by
 .Xr disklabel 8 ) .
 .Sh EXAMPLES
-A number of ccdconfig examples are shown below.  The arguments passed
-to ccdconfig are exactly the same as you might place in the
+A number of
+.Nm
+examples are shown below.  The arguments passed
+to
+.Nm
+are exactly the same as you might place in the
 .Pa /etc/ccd.conf
 configuration file.  The first example creates a 4-disk stripe out of
 four scsi disk partitions.  The stripe uses a 64 sector interleave.
@@ -162,7 +166,7 @@ When you create a new ccd disk you generally want to
 .Nm disklabel
 it before doing anything else.  Once you create the initial label you can
 edit it, adding additional partitions.  The label itself takes up the first
-16 sectors of the ccd disk.  If all you are doing is creating filesystems
+16 sectors of the ccd disk.  If all you are doing is creating file systems
 with newfs, you do not have to worry about this as newfs will skip the
 label area.  However, if you intend to
 .Nm dd
@@ -190,8 +194,7 @@ An error on a ccd disk is usually unrecoverable unless you are using the
 mirroring option.  But mirroring has its own perils:  It assumes that
 both copies of the data at any given sector are the same.  This holds true
 until a write error occurs or until you replace either side of the mirror.
-.Nm Ccd
-uses a poor-man's mirroring implementation.  It works well enough that if
+This is a poor-man's mirroring implementation.  It works well enough that if
 you begin to get disk errors you should be able to backup the ccd disk,
 replace the broken hardware, and then regenerate the ccd disk.  If you need
 more than this you should look into external hardware RAID SCSI boxes,
@@ -211,5 +214,5 @@ default ccd configuration file
 .Sh HISTORY
 The
 .Nm
-command first appeared in
+utility first appeared in
 .Nx 1.0a .

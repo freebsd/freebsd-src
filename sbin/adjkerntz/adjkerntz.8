@@ -36,12 +36,14 @@
 .Nm
 .Fl a Op Fl s
 .Sh DESCRIPTION
-.Nm Adjkerntz
-maintains the proper relationship between the kernel clock, which
+The
+.Nm
+utility maintains the proper relationship between the kernel clock, which
 is always set to UTC, and the CMOS clock, which may be set to local
 time.
-.Nm Adjkerntz
-also informs the kernel about machine timezone shifts to
+The
+.Nm
+utility also informs the kernel about machine timezone shifts to
 maintain proper timestamps for local time file systems such as the MS-DOS
 file system.
 The main purpose of this thing is not general fixing of
@@ -56,8 +58,9 @@ If the file
 exists, it means that CMOS clock keeps local time (MS-DOS and MS-Windows
 compatible mode).
 If that file does not exist, it means that the CMOS clock keeps UTC time.
-.Nm Adjkerntz
-passes this state to the
+The
+.Nm
+utility passes this state to the
 .Pa machdep.wall_cmos_clock
 kernel variable.
 .Pp
@@ -69,18 +72,21 @@ is invoked in two ways:
 .Bl -tag -width 4n
 .It Fl i
 This form handles system startups and shutdowns.
-.Nm Adjkerntz
-is invoked with this option from
+The
+.Nm
+utility is invoked with this option from
 .Pa /etc/rc
 on entry to multi-user mode, before any other daemons have been started.
-.Nm Adjkerntz
-puts itself into the background.
+The
+.Nm
+utility puts itself into the background.
 Then, for a local time CMOS clock,
 .Nm
 reads the local time from it
 and sets the kernel clock to the corresponding UTC time.
-.Nm Adjkerntz
-also stores the local time zone offset into the
+The
+.Nm
+utility also stores the local time zone offset into the
 .Pa machdep.adjkerntz
 kernel variable, for use by subsequent invocations of
 .Em "'adjkerntz -a'"
@@ -106,8 +112,9 @@ This form is used to update the local time CMOS clock and kernel
 .Pa machdep.adjkerntz
 variable when time zone changes occur,
 e.g., when entering or leaving daylight savings time.
-.Nm Adjkerntz
-uses the kernel clock's UTC time,
+The
+.Nm
+utility uses the kernel clock's UTC time,
 the previously stored
 time zone offset, and the changed time zone rule to
 calculate a new time zone offset.
@@ -136,8 +143,9 @@ command line, or multiple
 instances could conflict with each other.
 .El
 .Pp
-.Nm Adjkerntz
-clears the kernel timezone structure and makes the kernel clock run
+The
+.Nm
+utility clears the kernel timezone structure and makes the kernel clock run
 in the UTC time zone.
 Super-user privileges are required for all operations.
 .Sh ENVIRONMENT
@@ -183,5 +191,5 @@ and exits with a nonzero return code.
 .Sh HISTORY
 The
 .Nm
-command appeared in
+utility appeared in
 .Fx 1.0 .
