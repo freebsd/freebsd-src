@@ -43,6 +43,17 @@
 
 #include <machine/ansi.h>
 
+#ifndef _ANSI_SOURCE
+/*
+ * Frequency of the clock ticks reported by times().  Deprecated - use
+ * sysconf(_SC_CLK_TCK) instead.
+ */
+#define	CLK_TCK		_BSD_CLOCKS_PER_SEC_
+#endif
+
+/* Frequency of the clock ticks reported by clock().  */
+#define	CLOCKS_PER_SEC	_BSD_CLOCKS_PER_SEC_
+
 #ifndef	NULL
 #define	NULL	0
 #endif
@@ -75,8 +86,6 @@ struct tm {
 	long	tm_gmtoff;	/* offset from CUT in seconds */
 	char	*tm_zone;	/* timezone abbreviation */
 };
-
-#include <machine/limits.h>	/* Include file containing CLK_TCK. */
 
 #include <sys/cdefs.h>
 
