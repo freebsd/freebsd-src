@@ -52,7 +52,7 @@ isonum_731 (char * p)
 
 
 int
-isonum_733 (char * p)
+isonum_733 (unsigned char * p)
 {
 	return (isonum_731 (p));
 }
@@ -104,7 +104,7 @@ struct iso_directory_record {
 	unsigned char interleave			[ISODCL (28, 28)]; /* 711 */
 	unsigned char volume_sequence_number	[ISODCL (29, 32)]; /* 723 */
 	unsigned char name_len		[ISODCL (33, 33)]; /* 711 */
-	unsigned char name			[0];
+	unsigned char name			[1];
 };
 
 #ifdef USE_TERMIOS
@@ -285,13 +285,15 @@ int
 dump_rr(struct iso_directory_record * idr)
 {
 	int len;
-	char * pnt;
+	unsigned char * pnt;
 
 	len = idr->length[0] & 0xff;
 	len -= sizeof(struct iso_directory_record);
+	len += sizeof(idr->name);
 	len -= idr->name_len[0];
-	pnt = (char *) idr;
+	pnt = (unsigned char *) idr;
 	pnt += sizeof(struct iso_directory_record);
+	pnt -= sizeof(idr->name);
 	pnt += idr->name_len[0];
 	if((idr->name_len[0] & 1) == 0){
 		pnt++;
@@ -318,9 +320,9 @@ showblock(int flag){
 		  if(idr->length[0] == 0) break;
 		  printf("%3d ", idr->length[0]);
 		  printf("[%2d] ", idr->volume_sequence_number[0]);
-		  printf("%5x ", *((unsigned int *) idr->extent));
-		  printf("%8d ", *((unsigned int *) idr->size));
-		  printf ((idr->flags[0] & 2) ? "*" : " ");
+		  printf("%5x ", isonum_733(idr->extent));
+		  printf("%8d ", isonum_733(idr->size));
+		  printf ((idr->flags[0] & 2) ? "*" : " "); 
 		  if(idr->name_len[0] == 1 && idr->name[0] == 0)
 			  printf(".             ");
 		  else if(idr->name_len[0] == 1 && idr->name[0] == 1)
