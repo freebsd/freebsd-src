@@ -122,6 +122,11 @@
 
 #include <net/bpf.h>
 
+#include "opt_bdg.h"
+#ifdef BRIDGE 
+#include <net/bridge.h>
+#endif
+
 #include <vm/vm.h>              /* for vtophys */
 #include <vm/pmap.h>            /* for vtophys */
 #include <machine/clock.h>      /* for DELAY */
@@ -2099,14 +2104,30 @@ static void dc_rxeof(sc)
 		ifp->if_ipackets++;
 		eh = mtod(m, struct ether_header *);
 
-		/*
-		 * Handle BPF listeners. Let the BPF user see the packet, but
-		 * don't pass it up to the ether_input() layer unless it's
+		/* Handle BPF listeners. Let the BPF user see the packet */
+		if (ifp->if_bpf)
+			bpf_mtap(ifp, m);
+
+#ifdef BRIDGE
+		if (do_bridge) {
+			struct ifnet *bdg_ifp ;
+			bdg_ifp = bridge_in(m);
+			if (bdg_ifp != BDG_LOCAL && bdg_ifp != BDG_DROP)
+				bdg_forward(&m, bdg_ifp);
+			if (((bdg_ifp != BDG_LOCAL) && (bdg_ifp != BDG_BCAST) &&			    (bdg_ifp != BDG_MCAST)) || bdg_ifp == BDG_DROP) {
+				m_freem(m);
+				continue;
+			}
+		}
+
+	eh = mtod(m, struct ether_header *);
+#endif
+
+		/* Don't pass it up to the ether_input() layer unless it's
 		 * a broadcast packet, multicast packet, matches our ethernet
 		 * address or the interface is in promiscuous mode.
 		 */
 		if (ifp->if_bpf) {
-			bpf_mtap(ifp, m);
 			if (ifp->if_flags & IFF_PROMISC &&
 				(bcmp(eh->ether_dhost, sc->arpcom.ac_enaddr,
 				    ETHER_ADDR_LEN) &&
