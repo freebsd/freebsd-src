@@ -10,10 +10,9 @@
 .Nd snoop on another tty line
 .Sh SYNOPSIS
 .Nm
-.Op Fl ciotnW
+.Op Fl cinotW
 .Op Fl f Ar snpdev
 .Op Ar tty
-.\"  watch [-ciotnW] [<tty name>]
 .Sh DESCRIPTION
 .Nm Watch
 allows the superuser to examine all data coming through a specified tty.
@@ -50,6 +49,15 @@ Interactive mode is a default if
 is started from a tty.
 If output is redirected to a file, interactive mode can still be requested
 by specifying this option.
+.It Fl n
+Disable the ability to switch the watched tty interactively.  This disables
+both change requests made with <control-X> as well as automatic prompting
+when the current tty is closed or overflows.  In all cases where a prompt
+would be displayed,
+.Nm
+will exit.  The reconnect flags are unaffected by
+this option.
+When this flag is used, <control-X> is passed through to the terminal.
 .It Fl o
 Reconnect on overflow.
 The behavior of
@@ -60,15 +68,6 @@ For more info see
 .Xr snp 4 .
 .It Fl t
 Print the date and time when observation of a given tty is started.
-.It Fl n
-Disable the ability to switch the watched tty interactively.  This disables
-both change requests made with <control-X> as well as automatic prompting
-when the current tty is closed or overflows.  In all cases where a prompt
-would be displayed,
-.Nm
-will exit.  The reconnect flags are unaffected by
-this option.
-When this flag is used, <control-X> is passed through to the terminal.
 .It Fl W
 Allow write access to observed tty.
 .It Ar tty
@@ -90,9 +89,6 @@ Clear screen.
 Change attached tty, unless this feature is disabled, in which case
 control-X is passed to the terminal as with other control characters.
 .El
-.Sh RESTRICTIONS
-Only the superuser can run
-.Nm .
 .Sh SEE ALSO
 .Xr pty 4 ,
 .Xr sio 4 ,
