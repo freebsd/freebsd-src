@@ -86,6 +86,7 @@ ASSYM(FRAME_SYSCALL,	FRAME_SYSCALL);
 ASSYM(TF_CR_IPSR,	offsetof(struct trapframe, tf_cr_ipsr));
 ASSYM(TF_CR_IFS,	offsetof(struct trapframe, tf_cr_ifs));
 ASSYM(TF_NDIRTY,	offsetof(struct trapframe, tf_ndirty));
+ASSYM(TF_AR_FPSR,	offsetof(struct trapframe, tf_ar_fpsr));
 ASSYM(TF_B,		offsetof(struct trapframe, tf_b));
 ASSYM(TF_R,		offsetof(struct trapframe, tf_r));
 ASSYM(TF_R_R1,		offsetof(struct trapframe, tf_r[FRAME_R1]));
