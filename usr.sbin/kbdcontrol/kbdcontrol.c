@@ -28,7 +28,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: kbdcontrol.c,v 1.13 1998/01/12 23:53:26 yokota Exp $";
+	"$Id: kbdcontrol.c,v 1.14 1998/05/05 19:02:01 des Exp $";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -768,10 +768,15 @@ set_bell_values(char *opt)
 {
 	int bell, duration, pitch;
 
+	bell = 0;
+	if (!strncmp(opt, "quiet.", 6)) {
+		bell = 2;
+		opt += 6;
+	}
 	if (!strcmp(opt, "visual"))
-		bell = 1, duration = 1, pitch = 800;
+		bell |= 1;
 	else if (!strcmp(opt, "normal"))
-		bell = 0, duration = 1, pitch = 800;
+		duration = 5, pitch = 800;
 	else {
 		char		*v1;
 
@@ -786,10 +791,13 @@ badopt:
 			warnx("argument to -b must be DURATION.PITCH");
 			return;
 		}
+		if (pitch != 0)
+			pitch = 1193182 / pitch;	/* in Hz */
+		duration /= 10;	/* in 10 m sec */
 	}
 
 	ioctl(0, CONS_BELLTYPE, &bell);
-	if (!bell)
+	if ((bell & ~2) == 0)
 		fprintf(stderr, "[=%d;%dB", pitch, duration);
 }
 
@@ -858,7 +866,7 @@ static void
 usage()
 {
 	fprintf(stderr, "%s\n%s\n%s\n",
-"usage: kbdcontrol [-dFx] [-b  duration.pitch | belltype]",
+"usage: kbdcontrol [-dFx] [-b  duration.pitch | [quiet.]belltype]",
 "                  [-r delay.repeat | speed] [-l mapfile] [-f # string]",
 "                  [-h size] [-L mapfile]");
 	exit(1);
