@@ -1079,28 +1079,46 @@ vnode_pager_generic_putpages(vp, m, bytecount, flags, rtvals)
 }
 
 struct vnode *
-vnode_pager_lock(object)
-	vm_object_t object;
+vnode_pager_lock(vm_object_t first_object)
 {
-	struct thread *td = curthread;	/* XXX */
+	struct vnode *vp;
+	vm_object_t backing_object, object;
 
-	GIANT_REQUIRED;
-
-	for (; object != NULL; object = object->backing_object) {
-		if (object->type != OBJT_VNODE)
+	VM_OBJECT_LOCK_ASSERT(first_object, MA_OWNED);
+	for (object = first_object; object != NULL; object = backing_object) {
+		if (object->type != OBJT_VNODE) {
+			if ((backing_object = object->backing_object) != NULL)
+				VM_OBJECT_LOCK(backing_object);
+			if (object != first_object)
+				VM_OBJECT_UNLOCK(object);
 			continue;
+		}
+	retry:
 		if (object->flags & OBJ_DEAD) {
+			if (object != first_object)
+				VM_OBJECT_UNLOCK(object);
 			return NULL;
 		}
-
-		/* XXX; If object->handle can change, we need to cache it. */
-		while (vget(object->handle,
-			LK_NOPAUSE | LK_SHARED | LK_RETRY | LK_CANRECURSE, td)){
-			if ((object->flags & OBJ_DEAD) || (object->type != OBJT_VNODE))
+		vp = object->handle;
+		VI_LOCK(vp);
+		VM_OBJECT_UNLOCK(object);
+		if (first_object != object)
+			VM_OBJECT_UNLOCK(first_object);
+		if (vget(vp, LK_CANRECURSE | LK_INTERLOCK | LK_NOPAUSE |
+		    LK_RETRY | LK_SHARED, curthread)) {
+			VM_OBJECT_LOCK(first_object);
+			if (object != first_object)
+				VM_OBJECT_LOCK(object);
+			if (object->type != OBJT_VNODE) {
+				if (object != first_object)
+					VM_OBJECT_UNLOCK(object);
 				return NULL;
+			}
 			printf("vnode_pager_lock: retrying\n");
+			goto retry;
 		}
-		return object->handle;
+		VM_OBJECT_LOCK(first_object);
+		return (vp);
 	}
 	return NULL;
 }
