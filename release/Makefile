@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.193.2.72 1997/03/12 02:35:23 jkh Exp $
+#	$Id: Makefile,v 1.193.2.73 1997/03/12 02:42:23 jkh Exp $
 #
 # How to roll a release:
 #
@@ -154,7 +154,7 @@ rerelease release:
 	echo "cd /usr/src/release/sysinstall"	>> ${CHROOTDIR}/mk
 	echo "make obj"				>> ${CHROOTDIR}/mk
 	echo "cd /usr/src/release"		>> ${CHROOTDIR}/mk
-	echo "make objlink"			>> ${CHROOTDIR}/mk
+	echo "make obj"			>> ${CHROOTDIR}/mk
 	echo "(cd obj; rm -f ${REDOREDO})"	>> ${CHROOTDIR}/mk
 	echo "make doRELEASE"			>> ${CHROOTDIR}/mk
 	echo "echo make ${.TARGET} Finished"	>> ${CHROOTDIR}/mk
