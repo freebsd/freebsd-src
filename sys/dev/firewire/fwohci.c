@@ -1051,8 +1051,8 @@ fwohci_txd(struct fwohci_softc *sc, struct fwohci_dbch *dbch)
 					break;
 				}
 			}
-			dbch->xferq.queued --;
 		}
+		dbch->xferq.queued --;
 		tr->xfer = NULL;
 
 		packets ++;
@@ -1071,35 +1071,35 @@ out:
 static void
 fwohci_drain(struct firewire_comm *fc, struct fw_xfer *xfer, struct fwohci_dbch *dbch)
 {
-	int i, s;
+	int i, s, found=0;
 	struct fwohcidb_tr *tr;
 
 	if(xfer->state != FWXF_START) return;
 
 	s = splfw();
 	tr = dbch->bottom;
-	for( i = 0 ; i <= dbch->xferq.queued  ; i ++){
+	for (i = 0; i < dbch->xferq.queued; i ++) {
 		if(tr->xfer == xfer){
-			s = splfw();
 			tr->xfer = NULL;
+#if 0
 			dbch->xferq.queued --;
-#if 1
 			/* XXX */
 			if (tr == dbch->bottom)
 				dbch->bottom = STAILQ_NEXT(tr, link);
-#endif
 			if (dbch->flags & FWOHCI_DBCH_FULL) {
 				printf("fwohci_drain: make slot\n");
 				dbch->flags &= ~FWOHCI_DBCH_FULL;
 				fwohci_start((struct fwohci_softc *)fc, dbch);
 			}
-				
-			splx(s);
+#endif
+			found ++;
 			break;
 		}
 		tr = STAILQ_NEXT(tr, link);
 	}
 	splx(s);
+	if (!found)
+		device_printf(fc->dev, "fwochi_drain: xfer not found\n");
 	return;
 }
 
@@ -1786,7 +1786,7 @@ fwohci_intr_body(struct fwohci_softc *sc, u_int32_t stat, int count)
 #ifndef ACK_ALL
 		OWRITE(sc, FWOHCI_INTSTATCLR, OHCI_INT_PHY_BUS_R);
 #endif
-#if 1
+#if 0
 		/* pending all pre-bus_reset packets */
 		fwohci_txd(sc, &sc->atrq);
 		fwohci_txd(sc, &sc->atrs);
@@ -1895,6 +1895,13 @@ fwohci_intr_body(struct fwohci_softc *sc, u_int32_t stat, int count)
 		if(buf == NULL) goto sidout;
 		bcopy((void *)(uintptr_t)(volatile void *)(fc->sid_buf + 1),
 								buf, plen);
+#if 1
+		/* pending all pre-bus_reset packets */
+		fwohci_txd(sc, &sc->atrq);
+		fwohci_txd(sc, &sc->atrs);
+		fwohci_arcv(sc, &sc->arrs, -1);
+		fwohci_arcv(sc, &sc->arrq, -1);
+#endif
 		fw_sidrcv(fc, buf, plen, 0);
 	}
 sidout:
@@ -2740,7 +2747,7 @@ fwohci_arcv(struct fwohci_softc *sc, struct fwohci_dbch *dbch, int count)
 				stat &= 0x1f;
 				switch(stat){
 				case FWOHCIEV_ACKPEND:
-#if 0
+#if 1
 					printf("fwohci_arcv: ack pending..\n");
 #endif
 					/* fall through */
