@@ -71,7 +71,6 @@
 #include "rc.h"
 #include "rp.h"
 #include "tw.h"
-#include "si.h"
 #include "asc.h"
 #include "stl.h"
 #include "stli.h"
@@ -129,7 +128,6 @@ extern struct isa_driver labpcdriver;
 extern struct isa_driver  rcdriver;
 extern struct isa_driver  rpdriver;
 extern struct isa_driver  twdriver;
-extern struct isa_driver  sidriver;
 extern struct isa_driver ascdriver;
 extern struct isa_driver stldriver;
 extern struct isa_driver stlidriver;
@@ -190,9 +188,6 @@ static struct old_isa_driver old_drivers[] = {
 #endif
 #if NTW > 0
 	{ INTR_TYPE_TTY, &twdriver },
-#endif
-#if NSI > 0
-	{ INTR_TYPE_TTY, &sidriver },
 #endif
 #if NASC > 0
 	{ INTR_TYPE_TTY, &ascdriver },
