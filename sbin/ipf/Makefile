@@ -5,7 +5,7 @@
 PROG=	ipf
 MAN=	ipf.4 ipf.5 ipf.8
 SRCS=	ipf.c parse.c opt.c facpri.c common.c
-CFLAGS+=-DUSE_INET6 -DIPL_NAME=\"/dev/ipl\" -I${.CURDIR}/../../contrib/ipfilter
+CFLAGS+=-DUSE_INET6 -DIPL_NAME=\"/dev/ipl\" -I- -I${.CURDIR}/../../sys/netinet -I${.CURDIR}/../../contrib/ipfilter
 
 MAINTAINER=	guido@freebsd.org
 
