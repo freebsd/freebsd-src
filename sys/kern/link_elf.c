@@ -67,10 +67,10 @@ typedef struct elf_file {
     vm_object_t		object;		/* VM object to hold file pages */
 #endif
     Elf_Dyn*		dynamic;	/* Symbol table etc. */
-    Elf_Off		nbuckets;	/* DT_HASH info */
-    Elf_Off		nchains;
-    const Elf_Off*	buckets;
-    const Elf_Off*	chains;
+    Elf_Hashelt		nbuckets;	/* DT_HASH info */
+    Elf_Hashelt		nchains;
+    const Elf_Hashelt*	buckets;
+    const Elf_Hashelt*	chains;
     caddr_t		hash;
     caddr_t		strtab;		/* DT_STRTAB */
     int			strsz;		/* DT_STRSZ */
@@ -299,7 +299,7 @@ parse_dynamic(elf_file_t ef)
 	case DT_HASH:
 	{
 	    /* From src/libexec/rtld-elf/rtld.c */
-	    const Elf_Off *hashtab = (const Elf_Off *)
+	    const Elf_Hashelt *hashtab = (const Elf_Hashelt *)
 		(ef->address + dp->d_un.d_ptr);
 	    ef->nbuckets = hashtab[0];
 	    ef->nchains = hashtab[1];
