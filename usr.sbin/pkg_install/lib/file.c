@@ -348,7 +348,8 @@ unpack(const char *pkg, const char *flist)
 	}
     }
     else
-	strcpy(args, "-z");
+	/* XXX: need to handle .tgz also */
+	strcpy(args, "-j");
     strcat(args, " -xpf");
     if (vsystem("tar %s '%s' %s", args, pkg, flist ? flist : "")) {
 	warnx("tar extract of %s failed!", pkg);
