@@ -274,6 +274,7 @@ pthread_cond_wait(pthread_cond_t * cond, pthread_mutex_t * mutex)
 		}
 
 		if ((_thread_run->cancelflags & PTHREAD_CANCEL_NEEDED) != 0) {
+			_thread_run->cancelflags &= ~PTHREAD_CANCEL_NEEDED;
 			_thread_exit_cleanup();
 			pthread_exit(PTHREAD_CANCELED);
 		}
@@ -431,6 +432,7 @@ pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 		}
 
 		if ((_thread_run->cancelflags & PTHREAD_CANCEL_NEEDED) != 0) {
+			_thread_run->cancelflags &= ~PTHREAD_CANCEL_NEEDED;
 			_thread_exit_cleanup();
 			pthread_exit(PTHREAD_CANCELED);
 		}
