@@ -38,7 +38,7 @@
 #define _SYS_USER_H_
 
 #include <machine/pcb.h>
-#ifndef KERNEL
+#ifndef _KERNEL
 /* stuff that *used* to be included by user.h, or is now needed */
 #include <sys/errno.h>
 #include <sys/time.h>
@@ -51,7 +51,7 @@
 #include <vm/pmap.h>		/* XXX */
 #include <sys/lock.h>		/* XXX */
 #include <vm/vm_map.h>		/* XXX */
-#endif /* !KERNEL */
+#endif /* !_KERNEL */
 #ifndef _SYS_RESOURCEVAR_H_
 #include <sys/resourcevar.h>
 #endif
@@ -130,13 +130,13 @@ struct	user {
 #define	U_sig	u_kproc.kp_proc.p_sig
 #define	U_code	u_kproc.kp_proc.p_code
 
-#ifndef KERNEL
+#ifndef _KERNEL
 #define	u_ar0	U_ar0
 #define	u_tsize	U_tsize
 #define	u_dsize	U_dsize
 #define	u_ssize	U_ssize
 #define	u_sig	U_sig
 #define	u_code	U_code
-#endif /* KERNEL */
+#endif
 
 #endif

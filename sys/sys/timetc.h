@@ -159,7 +159,7 @@ struct timecounter {
 	struct timecounter	*tc_tweak;
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 /* Operations on timespecs */
 #define	timespecclear(tvp)	((tvp)->tv_sec = (tvp)->tv_nsec = 0)
@@ -198,9 +198,9 @@ struct timecounter {
 
 /* timevaladd and timevalsub are not inlined */
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
-#ifndef KERNEL			/* NetBSD/OpenBSD compatable interfaces */
+#ifndef _KERNEL			/* NetBSD/OpenBSD compatable interfaces */
 
 #define	timerclear(tvp)		(tvp)->tv_sec = (tvp)->tv_usec = 0
 #define	timerisset(tvp)		((tvp)->tv_sec || (tvp)->tv_usec)
@@ -265,7 +265,7 @@ struct clockinfo {
 #define TIMER_ABSTIME	0x1	/* absolute timer */
 #endif
 
-#ifdef KERNEL
+#ifdef _KERNEL
 extern struct timecounter *timecounter;
 extern time_t	time_second;
 
@@ -285,7 +285,7 @@ void	timevaladd __P((struct timeval *, struct timeval *));
 void	timevalsub __P((struct timeval *, struct timeval *));
 int	tvtohz __P((struct timeval *));
 void	update_timecounter __P((struct timecounter *tc));
-#else /* !KERNEL */
+#else /* !_KERNEL */
 #include <time.h>
 
 #include <sys/cdefs.h>
@@ -301,6 +301,6 @@ int	settimeofday __P((const struct timeval *, const struct timezone *));
 int	utimes __P((const char *, const struct timeval *));
 __END_DECLS
 
-#endif /* !KERNEL */
+#endif /* !_KERNEL */
 
 #endif /* !_SYS_TIME_H_ */

@@ -37,7 +37,7 @@
 #ifndef _I386_ISA_ISA_DMA_H_
 #define	_I386_ISA_ISA_DMA_H_
 
-#ifdef KERNEL
+#ifdef _KERNEL
 void	isa_dmacascade __P((int chan));
 void	isa_dmadone __P((int flags, caddr_t addr, int nbytes, int chan));
 void	isa_dmainit __P((int chan, u_int bouncebufsize));
@@ -46,6 +46,6 @@ int	isa_dma_acquire __P((int chan));
 void	isa_dma_release __P((int chan));
 int	isa_dmastatus __P((int chan));
 int	isa_dmastop __P((int chan));
-#endif /* KERNEL */
+#endif
 
 #endif /* !_I386_ISA_ISA_DMA_H_ */

@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /*	$NetBSD: cpuconf.h,v 1.7 1997/11/06 00:42:03 thorpej Exp $	*/
 #ifndef	_ALPHA_CPUCONF_H
 #define	_ALPHA_CPUCONF_H
@@ -34,7 +35,7 @@
  * Additional reworking by Matthew Jacob for NASA/Ames Research Center.
  * Copyright (c) 1997
  */
-#ifdef KERNEL
+#ifdef _KERNEL
 /*
  * Platform Specific Information and Function Hooks.
  *
@@ -119,5 +120,5 @@ extern int ncpuinit;
 extern void platform_not_configured __P((int));
 extern void platform_not_supported __P((int));
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 #endif /* !_ALPHA_CPUCONF_H */

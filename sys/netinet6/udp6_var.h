@@ -67,7 +67,7 @@
 #ifndef _NETINET6_UDP6_VAR_H_
 #define	_NETINET6_UDP6_VAR_H_
 
-#ifdef KERNEL
+#ifdef _KERNEL
 SYSCTL_DECL(_net_inet6_udp6);
 
 extern struct	pr_usrreqs udp6_usrreqs;
@@ -77,6 +77,6 @@ int	udp6_input __P((struct mbuf **, int *, int));
 int	udp6_output __P((struct inpcb *inp, struct mbuf *m,
 			struct sockaddr *addr, struct mbuf *control,
 			struct proc *p));
-#endif /* KERNEL */
+#endif
 
 #endif /*_NETINET6_UDP6_VAR_H_*/

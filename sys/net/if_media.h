@@ -50,7 +50,7 @@
  * to implement this interface.
  */
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 #include <sys/queue.h>
 
@@ -104,7 +104,7 @@ void	ifmedia_set __P((struct ifmedia *ifm, int mword));
 int	ifmedia_ioctl __P((struct ifnet *ifp, struct ifreq *ifr,
 	    struct ifmedia *ifm, u_long cmd));
 
-#endif /*KERNEL */
+#endif /*_KERNEL */
 
 /*
  * if_media Options word:

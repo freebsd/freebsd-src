@@ -56,7 +56,7 @@ struct tms {
 	clock_t tms_cstime;	/* System CPU time of terminated child procs */
 };
 
-#ifndef KERNEL
+#ifndef _KERNEL
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS

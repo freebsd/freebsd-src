@@ -108,13 +108,13 @@ struct vesa_mode
     u_int16_t		v_offscreensize;
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 #define VESA_MODE(x)	((x) >= M_VESA_BASE)
 
 int vesa_load_ioctl(void);
 int vesa_unload_ioctl(void);
 
-#endif /* KERNEL */
+#endif
 
 #endif /* !_MACHINE_PC_VESA_H */

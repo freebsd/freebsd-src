@@ -140,7 +140,7 @@ struct radix_node_head {
 	struct	radix_node rnh_nodes[3];	/* empty tree for common case */
 };
 
-#ifndef KERNEL
+#ifndef _KERNEL
 #define Bcmp(a, b, n) bcmp(((char *)(a)), ((char *)(b)), (n))
 #define Bcopy(a, b, n) bcopy(((char *)(a)), ((char *)(b)), (unsigned)(n))
 #define Bzero(p, n) bzero((char *)(p), (int)(n));
@@ -152,7 +152,7 @@ struct radix_node_head {
 #define Bzero(p, n) bzero((caddr_t)(p), (unsigned)(n));
 #define R_Malloc(p, t, n) (p = (t) malloc((unsigned long)(n), M_RTABLE, M_DONTWAIT))
 #define Free(p) free((caddr_t)p, M_RTABLE);
-#endif /*KERNEL*/
+#endif /* _KERNEL */
 
 void	 rn_init __P((void));
 int	 rn_inithead __P((void **, int));

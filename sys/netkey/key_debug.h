@@ -55,16 +55,16 @@
 
 #define	KEYDEBUG(lev,arg) if ((key_debug_level & (lev)) == (lev)) { arg; }
 
-#ifdef KERNEL
+#ifdef _KERNEL
 extern u_int32_t key_debug_level;
-#endif /*KERNEL*/
+#endif
 
 struct sadb_msg;
 struct sadb_ext;
 extern void kdebug_sadb __P((struct sadb_msg *));
 extern void kdebug_sadb_x_policy __P((struct sadb_ext *));
 
-#ifdef KERNEL
+#ifdef _KERNEL
 struct secpolicy;
 struct secpolicyindex;
 struct secasindex;
@@ -77,7 +77,7 @@ extern void kdebug_secasindex __P((struct secasindex *));
 extern void kdebug_secasv __P((struct secasvar *));
 extern void kdebug_mbufhdr __P((struct mbuf *));
 extern void kdebug_mbuf __P((struct mbuf *));
-#endif /*KERNEL*/
+#endif
 
 struct sockaddr;
 extern void kdebug_sockaddr __P((struct sockaddr *));

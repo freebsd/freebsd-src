@@ -39,11 +39,11 @@
 
 #include <sys/ucred.h>
 
-#ifndef KERNEL
+#ifndef _KERNEL
 #if !defined(_POSIX_C_SOURCE) && !defined(_XOPEN_SOURCE)
 #include <sys/stat.h>
 #endif /* !_POSIX_C_SOURCE */
-#endif /* !KERNEL */
+#endif /* !_KERNEL */
 
 #include <sys/queue.h>
 #include <sys/lock.h>
@@ -291,7 +291,7 @@ struct ovfsconf {
 #define	VFCF_LOOPBACK	0x00100000	/* aliases some other mounted FS */
 #define	VFCF_UNICODE	0x00200000	/* stores file names as Unicode*/
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_MOUNT);
@@ -447,7 +447,7 @@ int	vfs_stduninit __P((struct vfsconf *));
 int	vfs_stdextattrctl __P((struct mount *mp, int cmd, char *attrname,
 		caddr_t arg, struct proc *p));
 
-#else /* !KERNEL */
+#else /* !_KERNEL */
 
 #include <sys/cdefs.h>
 
@@ -475,6 +475,6 @@ int	vfsisloadable __P((const char *));
 int	vfsload __P((const char *));
 __END_DECLS
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif /* !_SYS_MOUNT_H_ */

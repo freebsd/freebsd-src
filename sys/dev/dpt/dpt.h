@@ -1222,7 +1222,7 @@ typedef struct dpt_user_softc {
  * These all come from dpt_scsi.c
  *
  */
-#ifdef KERNEL
+#ifdef _KERNEL
 /* This function gets the current hi-res time and returns it to the caller */
 static __inline struct timeval
 dpt_time_now(void)
@@ -1244,7 +1244,7 @@ dpt_minor2unit(int minor)
 
 dpt_softc_t *dpt_minor2softc(int minor_no);
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 /*
  * This function substracts one timval structure from another,

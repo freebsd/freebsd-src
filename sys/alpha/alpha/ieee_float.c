@@ -1159,7 +1159,7 @@ ieee_convert_S_Q(fp_register_t f, int rnd,
 	return ieee_convert_T_Q(f, rnd, control, status);
 }
 
-#ifndef KERNEL
+#ifndef _KERNEL
 
 #include <stdio.h>
 #include <math.h>

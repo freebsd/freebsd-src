@@ -22,6 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $FreeBSD$
  */
 
 extern int do_bridge;
@@ -99,7 +100,7 @@ struct bdg_stats {
 
 #define BDG_STAT(ifp, type) bdg_stats.s[ifp->if_index].p_in[(int)type]++ 
  
-#ifdef KERNEL
+#ifdef _KERNEL
 /*
  * Find the right pkt destination:
  *	BDG_BCAST	is a broadcast
@@ -139,4 +140,4 @@ bridge_dst_lookup(struct mbuf *m)
 	return BDG_UNKNOWN ;
 }
 
-#endif /* KERNEL */
+#endif /* _KERNEL */

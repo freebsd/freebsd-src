@@ -33,7 +33,7 @@
  * Thanks to David Campbell work on the Linux driver and the Iomega specs
  * Thanks to Thiebault Moeglin for the drive
  */
-#ifdef KERNEL
+#ifdef _KERNEL
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -41,11 +41,11 @@
 
 #include <machine/clock.h>
 
-#endif	/* KERNEL */
+#endif	/* _KERNEL */
 
-#ifdef	KERNEL
+#ifdef	_KERNEL
 #include <sys/kernel.h>
-#endif /*KERNEL */
+#endif /* _KERNEL */
 
 #include "opt_vpo.h"
 

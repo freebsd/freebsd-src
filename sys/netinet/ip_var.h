@@ -124,7 +124,7 @@ struct	ipstat {
 	u_long	ips_nogif;		/* no match gif found */
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 /* flags passed to ip_output as last parameter */
 #define	IP_FORWARDING		0x1		/* most of ip header exists */
@@ -189,6 +189,6 @@ extern u_int16_t ip_divert_cookie;
 
 extern struct sockaddr_in *ip_fw_fwd_addr;
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif /* !_NETINET_IP_VAR_H_ */

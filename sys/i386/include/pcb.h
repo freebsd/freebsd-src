@@ -89,7 +89,7 @@ struct pcb {
 struct md_coredump {
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 #ifndef curpcb
 extern struct pcb *curpcb;		/* our current running pcb */

@@ -41,7 +41,7 @@
  * <net/if.h> does not depend on <sys/time.h> on most other systems.  This
  * helps userland compatability.  (struct timeval ifi_lastchange)
  */
-#ifndef KERNEL
+#ifndef _KERNEL
 #include <sys/time.h>
 #endif
 
@@ -241,14 +241,14 @@ struct if_laddrreq {
 	struct	sockaddr_storage dstaddr; /* out */
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_IFADDR);
 MALLOC_DECLARE(M_IFMADDR);
 #endif
 #endif
 
-#ifndef KERNEL
+#ifndef _KERNEL
 struct if_nameindex {
 	u_int	if_index;	/* 1, 2, ... */
 	char	*if_name;	/* null terminated name: "le0", ... */
@@ -262,7 +262,7 @@ void	 if_freenameindex __P((struct if_nameindex *));
 __END_DECLS
 #endif
 
-#ifdef KERNEL
+#ifdef _KERNEL
 struct proc;
 
 int	prison_if __P((struct proc *p, struct sockaddr *sa));

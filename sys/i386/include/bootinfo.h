@@ -67,7 +67,7 @@ struct bootinfo {
 	u_int32_t	bi_modulep;		/* preloaded modules */
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 extern struct bootinfo	bootinfo;
 #endif
 

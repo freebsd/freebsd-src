@@ -47,7 +47,7 @@
 
 #include <sys/linker_set.h>
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 /* for intrhook below */
 #include <sys/queue.h>
@@ -78,7 +78,7 @@ extern int lbolt;			/* once a second sleep address */
 extern int tickdelta;
 extern long timedelta;
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 /*
  * Enumerated types for known system startup interfaces.

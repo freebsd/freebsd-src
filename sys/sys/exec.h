@@ -72,7 +72,7 @@ struct execsw {
 
 #include <machine/exec.h>
 
-#ifdef KERNEL
+#ifdef _KERNEL
 #include <sys/cdefs.h>
 
 int exec_map_first_page __P((struct image_params *));        

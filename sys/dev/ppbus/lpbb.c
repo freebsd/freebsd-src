@@ -103,14 +103,14 @@ static int			lpbb_ppb_attach(struct ppb_device *dev);
 static struct lpbb_softc *lpbbdata[MAXLPBB];
 static int nlpbb = 0;
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 static struct ppb_driver lpbbdriver = {
     lpbb_ppb_probe, lpbb_ppb_attach, "lpbb"
 };
 DATA_SET(ppbdriver_set, lpbbdriver);
 
-#endif /* KERNEL */
+#endif
 
 static int
 lpbb_probe(device_t dev)

@@ -118,7 +118,7 @@ __ElfType(Auxinfo);
 #define ELF_TARG_MACH	EM_386
 #define ELF_TARG_VER	1
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 /*
  * On the i386 we load the dynamic linker where a userland call
@@ -129,5 +129,5 @@ __ElfType(Auxinfo);
 #define ELF_RTLD_ADDR(vmspace) \
     (round_page((vm_offset_t)(vmspace)->vm_daddr + MAXDSIZ))
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 #endif /* !_MACHINE_ELF_H_ */

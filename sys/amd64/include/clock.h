@@ -9,7 +9,7 @@
 #ifndef _MACHINE_CLOCK_H_
 #define	_MACHINE_CLOCK_H_
 
-#ifdef KERNEL
+#ifdef _KERNEL
 /*
  * i386 to clock driver interface.
  * XXX large parts of the driver and its interface are misplaced.
@@ -46,6 +46,6 @@ int	release_timer1 __P((void));
 int	sysbeep __P((int pitch, int period));
 void	i8254_restore __P((void));
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif /* !_MACHINE_CLOCK_H_ */

@@ -414,7 +414,7 @@ struct sf_hdtr {
 	int trl_cnt;		/* number of trailer iovec's */
 };
 
-#ifndef	KERNEL
+#ifndef	_KERNEL
 
 #include <sys/cdefs.h>
 
@@ -442,6 +442,6 @@ int	socketpair __P((int, int, int, int *));
 void	pfctlinput __P((int, struct sockaddr *));
 __END_DECLS
 
-#endif /* !KERNEL */
+#endif /* !_KERNEL */
 
 #endif /* !_SYS_SOCKET_H_ */

@@ -79,7 +79,7 @@ struct nsip_req {
 };
 #endif
 
-#ifdef	KERNEL
+#ifdef	_KERNEL
 struct	ns_ifaddr *ns_ifaddr;
 struct	ns_ifaddr *ns_iaonnetof();
 void	nsintr __P((void));

@@ -89,20 +89,20 @@ typedef	int32_t		swblk_t;	/* swap offset */
 typedef	int32_t		ufs_daddr_t;
 typedef	u_int32_t	uid_t;		/* user id */
 
-#ifdef KERNEL
+#ifdef _KERNEL
 typedef	int		boolean_t;
 typedef	u_int64_t	uoff_t;
 typedef	struct vm_page	*vm_page_t;
 #endif
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 struct specinfo;
 
 typedef	u_int32_t	udev_t;		/* device number */
 typedef struct specinfo	*dev_t;
 
-#else /* !KERNEL */
+#else /* !_KERNEL */
 
 typedef	u_int32_t	dev_t;		/* device number */
 #define udev_t dev_t
@@ -120,7 +120,7 @@ typedef	u_int32_t	dev_t;		/* device number */
 
 #endif /* _POSIX_SOURCE */
 
-#endif /* !KERNEL */
+#endif /* !_KERNEL */
 
 #include <machine/endian.h>
 
@@ -189,7 +189,7 @@ typedef	struct fd_set {
  * <stdio.h> to give broken programs a better chance of working with
  * 64-bit off_t's.
  */
-#ifndef KERNEL
+#ifndef _KERNEL
 __BEGIN_DECLS
 #ifndef _FTRUNCATE_DECLARED
 #define	_FTRUNCATE_DECLARED
@@ -208,7 +208,7 @@ void *	 mmap __P((void *, size_t, int, int, int, off_t));
 int	 truncate __P((const char *, off_t));
 #endif
 __END_DECLS
-#endif /* !KERNEL */
+#endif /* !_KERNEL */
 
 #endif /* !_POSIX_SOURCE */
 

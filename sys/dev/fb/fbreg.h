@@ -29,7 +29,7 @@
 #ifndef _DEV_FB_FBREG_H_
 #define _DEV_FB_FBREG_H_
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 #define V_MAX_ADAPTERS		8		/* XXX */
 
@@ -205,6 +205,6 @@ void		fb_dump_mode_info(char *driver, video_adapter_t *adp,
 int		fb_type(int adp_type);
 int		fb_commonioctl(video_adapter_t *adp, u_long cmd, caddr_t arg);
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif /* !_DEV_FB_FBREG_H_ */

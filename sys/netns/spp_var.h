@@ -186,7 +186,7 @@ struct	spp_istat {
 	struct sppstat newstats;
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 struct spp_istat spp_istat;
 
 /* Following was struct sppstat sppstat; */

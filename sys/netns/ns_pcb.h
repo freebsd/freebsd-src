@@ -77,7 +77,7 @@ struct nspcb {
 #define	NSRCVQ		2048
 
 
-#ifdef KERNEL
+#ifdef _KERNEL
 struct	nspcb nspcb;			/* head of list */
 struct	nspcb *ns_pcblookup();
 #endif

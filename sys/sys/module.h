@@ -60,7 +60,7 @@ typedef union modspecific {
     u_long	ulongval;
 } modspecific_t;
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 #define DECLARE_MODULE(name, data, sub, order) \
     SYSINIT(name##module, sub, order, module_register_init, &data) \
@@ -94,7 +94,7 @@ extern int mod_debug;
 
 #endif
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #define MAXMODNAME	32
 
@@ -106,7 +106,7 @@ struct module_stat {
     modspecific_t data;
 };
 
-#ifndef KERNEL
+#ifndef _KERNEL
 
 #include <sys/cdefs.h>
 

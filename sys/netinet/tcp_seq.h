@@ -78,7 +78,7 @@
 #define TCP_PAWS_IDLE	(24 * 24 * 60 * 60 * hz)
 					/* timestamp wrap-around time */
 
-#ifdef KERNEL
+#ifdef _KERNEL
 extern tcp_cc	tcp_ccgen;		/* global connection count */
 
 /*
@@ -98,5 +98,5 @@ extern tcp_cc	tcp_ccgen;		/* global connection count */
 extern tcp_seq	tcp_iss;		/* tcp initial send seq # */
 #else
 #define	TCP_ISSINCR	(250*1024)	/* increment for tcp_iss each second */
-#endif /* KERNEL */
+#endif /* _KERNEL */
 #endif /* _NETINET_TCP_SEQ_H_ */

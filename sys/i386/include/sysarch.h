@@ -64,7 +64,7 @@ struct i386_vm86_args {
 	char	*sub_args;		/* args */
 };
 
-#ifndef KERNEL
+#ifndef _KERNEL
 #include <sys/cdefs.h>
 
 union descriptor;
@@ -76,6 +76,6 @@ int i386_get_ioperm __P((unsigned int, unsigned int *, int *));
 int i386_set_ioperm __P((unsigned int, unsigned int, int));
 int i386_vm86 __P((int, void *));
 __END_DECLS
-#endif /* !KERNEL */
+#endif
 
 #endif /* !_MACHINE_SYSARCH_H_ */

@@ -32,7 +32,7 @@
 #ifndef _NETKEY_KEYDB_H_
 #define	_NETKEY_KEYDB_H_
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 /* Security Assocciation Index */
 /* NOTE: Encure to be same address family */
@@ -130,6 +130,6 @@ struct key_cb {
 	int any_count;
 };
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif /* _NETKEY_KEYDB_H_ */

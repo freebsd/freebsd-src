@@ -147,10 +147,10 @@ struct exec {
 #define EX_DYNAMIC	0x20	/* contains run-time link-edit info */
 #define EX_DPMASK	0x30	/* mask for the above */
 
-#ifdef KERNEL
+#ifdef _KERNEL
 struct proc;
 
 int	aout_coredump __P((struct proc *p, struct vnode *vp, off_t limit));
-#endif /* KERNEL */
+#endif
 
 #endif /* !_IMGACT_AOUT_H_ */

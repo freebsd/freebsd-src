@@ -102,7 +102,7 @@ struct pps_kcbind_args {
 #define PPS_IOC_FETCH		_IOWR('1', 6, struct pps_fetch_args)
 #define PPS_IOC_KCBIND		_IOW('1', 7, struct pps_kcbind_args)
 
-#ifdef KERNEL
+#ifdef _KERNEL
 struct pps_state {
 	pps_params_t	ppsparam;
 	pps_info_t	ppsinfo;
@@ -117,7 +117,7 @@ void pps_init __P((struct pps_state *pps));
 int pps_ioctl __P((u_long cmd, caddr_t data, struct pps_state *pps));
 void hardpps __P((struct timespec *tsp, long nsec));
 
-#else /* !KERNEL */
+#else /* !_KERNEL */
 
 static __inline int
 time_pps_create(int filedes, pps_handle_t *handle)
@@ -186,5 +186,5 @@ time_pps_kcbind(pps_handle_t handle, const int kernel_consumer,
 	return (ioctl(handle, PPS_IOC_KCBIND, &arg));
 }
 
-#endif /* !KERNEL */
+#endif /* !_KERNEL */
 #endif /* _SYS_TIMEPPS_H_ */

@@ -34,7 +34,7 @@
 #ifndef _NETKEY_KEY_H_
 #define	_NETKEY_KEY_H_
 
-#if defined(KERNEL)
+#ifdef _KERNEL
 
 extern struct key_cb key_cb;
 
@@ -74,5 +74,5 @@ extern void key_sa_routechange __P((struct sockaddr *dst));
 MALLOC_DECLARE(M_SECA);
 #endif /* MALLOC_DECLARE */
 
-#endif /* defined(KERNEL) */
+#endif /* _KERNEL */
 #endif /* _NETKEY_KEY_H_ */

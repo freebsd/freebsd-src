@@ -48,7 +48,7 @@
 #include <sys/queue.h>
 #include <sys/rtprio.h>			/* For struct rtprio. */
 #include <sys/signal.h>
-#ifndef KERNEL
+#ifndef _KERNEL
 #include <sys/time.h>			/* For structs itimerval, timeval. */
 #endif
 #include <sys/ucred.h>
@@ -304,7 +304,7 @@ struct	pcred {
 };
 
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_SESSION);
@@ -440,6 +440,6 @@ void	faultin __P((struct proc *p));
 struct proc *	chooseproc __P((void));
 u_int32_t	procrunnable __P((void));
 
-#endif	/* KERNEL */
+#endif	/* _KERNEL */
 
 #endif	/* !_SYS_PROC_H_ */

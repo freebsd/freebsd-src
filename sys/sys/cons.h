@@ -74,7 +74,7 @@ struct consdev {
 #define CN_INTERNAL	2	/* "internal" bit-mapped display */
 #define CN_REMOTE	3	/* serial interface with remote bit set */
 
-#ifdef KERNEL
+#ifdef _KERNEL
 extern	struct linker_set cons_set;
 extern	int cons_unavail;
 extern	struct consdev *cn_tab;
@@ -92,6 +92,6 @@ void	cninit __P((void));
 void	cninit_finish __P((void));
 void	cnputc __P((int));
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif /* !_MACHINE_CONS_H_ */

@@ -31,6 +31,8 @@
  * SUCH DAMAGE.
  *
  *	@(#)dirent.h	5.18 (Berkeley) 2/23/91
+ *
+ * $FreeBSD$
  */
 
 #ifndef _DIRENT_H_
@@ -103,6 +105,6 @@ int getdirentries __P((int, char *, int, long *));
 #endif /* not POSIX */
 __END_DECLS
 
-#endif /* !KERNEL */
+#endif /* !_KERNEL */
 
 #endif /* !_DIRENT_H_ */

@@ -29,7 +29,7 @@
 #ifndef __PPI_H
 #define __PPI_H
 
-#ifndef KERNEL
+#ifndef _KERNEL
 # include <sys/types.h>
 #endif
 #include <sys/ioccom.h>

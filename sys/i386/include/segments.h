@@ -242,7 +242,7 @@ struct region_descriptor {
 #define LBSDICALLS_SEL	16	/* BSDI system call gate */
 #define NLDT		(LBSDICALLS_SEL + 1)
 
-#ifdef KERNEL
+#ifdef _KERNEL
 #ifndef currentldt
 extern int	currentldt;
 #endif
@@ -259,6 +259,6 @@ void	sdtossd		__P((struct segment_descriptor *sdp,
 			     struct soft_segment_descriptor *ssdp));
 void	ssdtosd		__P((struct soft_segment_descriptor *ssdp,
 			     struct segment_descriptor *sdp));
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif /* !_MACHINE_SEGMENTS_H_ */

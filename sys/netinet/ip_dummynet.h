@@ -99,7 +99,7 @@ struct dn_pipe {			/* a pipe */
 #define DN_TO_IP_IN	2
 #define DN_TO_BDG_FWD	3
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 MALLOC_DECLARE(M_IPFW);
 
@@ -111,6 +111,6 @@ int dummynet_io(int pipe, int dir,
 	struct mbuf *m, struct ifnet *ifp, struct route *ro,
 	struct sockaddr_in * dst,
 	struct ip_fw_chain *rule, int flags);
-#endif /* KERNEL */
+#endif
 
 #endif /* _IP_DUMMYNET_H */

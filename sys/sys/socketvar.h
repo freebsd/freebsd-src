@@ -243,7 +243,7 @@ struct	xsocket {
 			    sowakeup((so), &(so)->so_snd); \
 			} while (0)
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 /*
  * Argument structure for sosetopt et seq.  This is in the KERNEL
@@ -376,6 +376,6 @@ int	soshutdown __P((struct socket *so, int how));
 void	sotoxsocket __P((struct socket *so, struct xsocket *xso));
 void	sowakeup __P((struct socket *so, struct sockbuf *sb));
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif /* !_SYS_SOCKETVAR_H_ */

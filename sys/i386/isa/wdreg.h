@@ -143,7 +143,7 @@
 #define	WDSD_IBM	0xa0		/* forced to 512 byte sector, ecc */
 #define	WDSD_LBA	0x40		/* use Logical Block Adressing */
 
-#ifdef KERNEL
+#ifdef _KERNEL
 /*
  * read parameters command returns this:
  */
@@ -317,4 +317,4 @@ extern struct wddma wddma[];
 
 void	wdintr __P((void *unit));
 
-#endif /* KERNEL */
+#endif /* _KERNEL */

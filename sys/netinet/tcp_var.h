@@ -336,7 +336,7 @@ struct	xtcpcb {
 }
 
 
-#ifdef KERNEL
+#ifdef _KERNEL
 #ifdef SYSCTL_DECL
 SYSCTL_DECL(_net_inet_tcp);
 #endif
@@ -385,6 +385,6 @@ extern	struct pr_usrreqs tcp_usrreqs;
 extern	u_long tcp_sendspace;
 extern	u_long tcp_recvspace;
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif /* _NETINET_TCP_VAR_H_ */

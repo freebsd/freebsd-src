@@ -33,7 +33,7 @@
 
 #include <machine/elf.h>
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 #define AUXARGS_ENTRY(pos, id, val) {suword(pos++, id); suword(pos++, val);}
 
@@ -105,6 +105,6 @@ struct proc;
 
 int	elf_coredump __P((struct proc *, struct vnode *, off_t));
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif /* !_SYS_IMGACT_ELF_H_ */

@@ -282,7 +282,7 @@ struct typelist {
 #define NGIOCGINFO	_IOR('N', 40, struct nodeinfo)	/* get node info */
 #define NGIOCSETNAME	_IOW('N', 41, struct ngm_name)	/* set node name */
 
-#ifdef KERNEL
+#ifdef _KERNEL
 /*
  * Allocate and initialize a netgraph message "msg" with "len"
  * extra bytes of argument. Sets "msg" to NULL if fails.
@@ -323,7 +323,7 @@ struct typelist {
 	    sizeof((rsp)->header.cmdstr));				\
 	  (rsp)->header.flags |= NGF_RESP;				\
 	} while (0)
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif /* _NETGRAPH_NG_MESSAGE_H_ */
 

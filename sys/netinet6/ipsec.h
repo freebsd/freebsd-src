@@ -39,7 +39,7 @@
 #include <net/pfkeyv2.h>
 #include <netkey/keydb.h>
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 /*
  * Security Policy Index
@@ -91,7 +91,7 @@ struct inpcbpolicy {
 	struct	secpolicy *sp_out;
 	int	priv;			/* privileged socket ? */
 };
-#endif /*KERNEL*/
+#endif /*_KERNEL*/
 
 #define	IPSEC_PORT_ANY		65535
 #define	IPSEC_ULPROTO_ANY	255
@@ -237,7 +237,7 @@ struct ipsecstat {
 	&ip6_ipsec_ecn, \
 }
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 #ifdef SYSCTL_DECL
 SYSCTL_DECL(_net_inet_ipsec);
@@ -305,16 +305,16 @@ extern int	ipsec4_tunnel_validate __P((struct ip *, u_int,
 
 extern struct	mbuf *ipsec_copypkt __P((struct mbuf *));
 
-#endif /*KERNEL*/
+#endif /*_KERNEL*/
 
-#ifndef KERNEL
+#ifndef _KERNEL
 
 extern caddr_t	 ipsec_set_policy __P((char *policy, int buflen));
 extern int	 ipsec_get_policylen __P((caddr_t buf));
 extern char	*ipsec_dump_policy __P((caddr_t buf, char *delimiter));
 
 extern char	*ipsec_strerror __P((void));
-#endif /*!KERNEL*/
+#endif /*!_KERNEL*/
 
 #endif /*_NETINET6_IPSEC_H_*/
 

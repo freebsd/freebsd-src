@@ -76,7 +76,7 @@
 #define MAXHOSTNAMELEN	256		/* max hostname size */
 
 /* More types and definitions used throughout the kernel. */
-#ifdef KERNEL
+#ifdef _KERNEL
 #include <sys/cdefs.h>
 #include <sys/errno.h>
 #include <sys/time.h>
@@ -85,14 +85,14 @@
 #define	TRUE	1
 #endif
 
-#ifndef KERNEL
+#ifndef _KERNEL
 /* Signals. */
 #include <sys/signal.h>
 #endif
 
 /* Machine type dependent parameters. */
 #include <machine/param.h>
-#ifndef KERNEL
+#ifndef _KERNEL
 #include <machine/limits.h>
 #endif
 
@@ -122,7 +122,7 @@
 #define	NBPW	sizeof(int)	/* number of bytes per word (integer) */
 
 #define	CMASK	022		/* default file mask: S_IWGRP|S_IWOTH */
-#ifdef KERNEL
+#ifdef _KERNEL
 #define	NODEV	(dev_t)(-1)	/* non-existent device */
 #define	NOUDEV	(udev_t)(-1)	/* non-existent device */
 #define	NOMAJ	256		/* non-existent device */
@@ -192,7 +192,7 @@
 #define powerof2(x)	((((x)-1)&(x))==0)
 
 /* Macros for min/max. */
-#ifndef KERNEL
+#ifndef _KERNEL
 #define	MIN(a,b) (((a)<(b))?(a):(b))
 #define	MAX(a,b) (((a)>(b))?(a):(b))
 #endif
@@ -244,7 +244,7 @@
  * Make this available for most of the kernel.  There were too many
  * things that included sys/systm.h just for panic().
  */
-#ifdef KERNEL
+#ifdef _KERNEL
 void	panic __P((const char *, ...)) __dead2 __printflike(1, 2);
 #endif
 

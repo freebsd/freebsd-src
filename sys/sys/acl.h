@@ -93,7 +93,7 @@ typedef struct acl	*acl_t;
 #define ACL_PERM_BITS		(ACL_PERM_EXEC | ACL_PERM_WRITE | ACL_PERM_READ)
 #define ACL_POSIX1E_BITS	(ACL_PERM_EXEC | ACL_PERM_WRITE | ACL_PERM_READ)
 
-#ifdef KERNEL
+#ifdef _KERNEL
 /*
  * Storage for ACLs and support structures
  */
@@ -124,7 +124,7 @@ int	generic_vop_getacl(struct vop_getacl_args *ap);
 int	generic_vop_aclcheck(struct vop_aclcheck_args *ap);
 int	posix1e_vop_aclcheck(struct vop_aclcheck_args *ap);
 
-#else /* KERNEL */
+#else /* _KERNEL */
 
 /*
  * Syscall interface -- use the library calls instead as the syscalls
@@ -165,5 +165,5 @@ int	acl_valid_file(const char *path_p, acl_type_t type, acl_t acl);
 int	acl_valid_fd(int fd, acl_type_t type, acl_t acl);
 int	acl_free(void *obj_p);
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 #endif /* _SYS_ACL_H */

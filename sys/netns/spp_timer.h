@@ -121,7 +121,7 @@ char *spptimers[] =
 		(tv) = (tvmax); \
 }
 
-#ifdef KERNEL
+#ifdef _KERNEL
 extern int spp_backoff[];
 #endif
 

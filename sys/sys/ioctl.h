@@ -42,7 +42,7 @@
 #ifndef	_SYS_IOCTL_H_
 #define	_SYS_IOCTL_H_
 
-#ifdef KERNEL
+#ifdef _KERNEL
 #warning "Don't #include ioctl.h in the kernel.  Include xxxio.h instead."
 #endif
 

@@ -56,7 +56,7 @@ struct	ipxstat {
 	u_long	ipxs_mtutoosmall;	/* the interface mtu is too small */
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 #ifdef SYSCTL_DECL
 SYSCTL_DECL(_net_ipx);
@@ -103,6 +103,6 @@ void	ipx_printhost __P((struct ipx_addr *addr));
 int	ipx_sockaddr __P((struct socket *so, struct sockaddr **nam));
 void	ipx_watch_output __P((struct mbuf *m, struct ifnet *ifp));
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif /* !_NETIPX_IPX_VAR_H_ */

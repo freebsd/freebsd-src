@@ -67,7 +67,7 @@ struct in_hcentry {
 #define	INHC_MULTICAST	0x0004	/* this address is multicast */
 #define	INHC_REDUCEDMTU	0x0008	/* we reduced the mtu via PMTU discovery */
 
-#ifdef KERNEL
+#ifdef _KERNEL
 /*
  * inhc_alloc can block while adding a new entry to the cache;
  * inhc_lookup will does not add new entries and so can be called
@@ -78,6 +78,6 @@ int	inhc_init(void);
 struct	in_hcentry *inhc_lookup(struct sockaddr_in *sin);
 #define	inhc_ref(inhc)	(hc_ref(&(inhc)->inhc_hc))
 #define	inhc_rele(inhc)	(hc_rele(&(inhc)->inhc_hc))
-#endif /* KERNEL */
+#endif
 
 #endif /* _NETINET_IN_HOSTCACHE_H */

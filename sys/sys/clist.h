@@ -43,7 +43,7 @@ struct cblock {
 	unsigned char c_info[CBSIZE];		/* characters */
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 extern	struct cblock *cfree;
 extern	int cfreecount;
 #endif

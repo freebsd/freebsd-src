@@ -37,7 +37,7 @@
 #ifndef _MACHINE_PROFILE_H_
 #define	_MACHINE_PROFILE_H_
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 /*
  * Config generates something to tell the compiler to align functions on 16
@@ -74,7 +74,7 @@
 #endif
 #endif /* GUPROF */
 
-#else /* !KERNEL */
+#else /* !_KERNEL */
 
 #define	FUNCTION_ALIGNMENT	4
 
@@ -105,7 +105,7 @@ mcount() \
 
 typedef	unsigned int	uintfptr_t;
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 /*
  * An unsigned integral type that can hold non-negative difference between
@@ -113,7 +113,7 @@ typedef	unsigned int	uintfptr_t;
  */
 typedef	u_int	fptrdiff_t;
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 void	mcount __P((uintfptr_t frompc, uintfptr_t selfpc));
 
@@ -129,7 +129,7 @@ void	stopguprof __P((struct gmonparam *p));
 #define	stopguprof(p)
 #endif /* GUPROF */
 
-#else /* !KERNEL */
+#else /* !_KERNEL */
 
 #include <sys/cdefs.h>
 
@@ -144,7 +144,7 @@ void	mcount __P((void)) __asm("mcount");
 static void	_mcount __P((uintfptr_t frompc, uintfptr_t selfpc));
 __END_DECLS
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #ifdef GUPROF
 /* XXX doesn't quite work outside kernel yet. */

@@ -1,4 +1,5 @@
 /*      $NetBSD: if_atm.h,v 1.7 1996/11/09 23:02:27 chuck Exp $       */
+/* $FreeBSD$ */
 
 /*
  *
@@ -35,12 +36,6 @@
 /*
  * net/if_atm.h
  */
-
-#if (defined(__FreeBSD__) || defined(__bsdi__)) && defined(KERNEL)
-#ifndef _KERNEL
-#define _KERNEL
-#endif
-#endif /* freebsd doesn't define _KERNEL */
 
 #if defined(__NetBSD__) || defined(__OpenBSD__) || defined(__bsdi__)
 #define RTALLOC1(A,B)		rtalloc1((A),(B))
