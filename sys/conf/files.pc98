@@ -93,6 +93,9 @@ contrib/dev/oltr/trlldmac.c	optional	oltr
 #dev/advansys/adv_isa.c		optional	adv isa
 dev/aic/aic_cbus.c		optional	aic isa
 #dev/ar/if_ar_isa.c		optional	ar isa
+dev/ct/bshw_machdep.c		optional	ct
+dev/ct/ct.c			optional	ct
+dev/ct/ct_isa.c			optional	ct isa
 dev/ed/if_ed_cbus.c		optional	ed isa
 dev/eisa/eisaconf.c		optional	eisa
 dev/fb/fb.c			optional	fb
