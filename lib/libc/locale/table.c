@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: table.c,v 1.9 1997/02/22 14:59:57 peter Exp $
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -87,6 +87,8 @@ _RuneLocale _DefaultRuneLocale = {
 	/*78*/	_L|_R|_G|_A,	_L|_R|_G|_A,	_L|_R|_G|_A,	_P|_R|_G,
 		_P|_R|_G,	_P|_R|_G,	_P|_R|_G,	_C,
 
+#ifdef C_LOCALE_EXTEND_TO_8859_1        /* can broke some programs */
+
 /* Populated from ISO 8859-1, attempt to not violate POSIX/ANSI	*/
 
 	/*80*/	_C,		_C,		_C,		_C,
@@ -121,6 +123,7 @@ _RuneLocale _DefaultRuneLocale = {
 		_R|_G,		_R|_G,		_R|_G,		_P|_R|_G,
 	/*F8*/	_R|_G,		_R|_G,		_R|_G,		_R|_G,
 		_R|_G,		_R|_G,		_R|_G,		_R|_G,
+#endif /* C_LOCALE_EXTEND_TO_8859_1 */
     },
     {	0x00,	0x01,	0x02,	0x03,	0x04,	0x05,	0x06,	0x07,
      	0x08,	0x09,	0x0a,	0x0b,	0x0c,	0x0d,	0x0e,	0x0f,
