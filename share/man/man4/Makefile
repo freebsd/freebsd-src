@@ -46,7 +46,9 @@ MAN=	aac.4 \
 	faith.4 \
 	fd.4 \
 	fdc.4 \
+	firewire.4 \
 	fpa.4 \
+	fwohci.4 \
 	fxp.4 \
 	gbde.4 \
 	geom.4 \
@@ -154,6 +156,7 @@ MAN=	aac.4 \
 	rp.4 \
 	sa.4 \
 	sbc.4 \
+	sbp.4 \
 	screen.4 \
 	scsi.4 \
 	sd.4 \
