@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.9.2.15 1998/06/07 00:18:30 brian Exp $
+#	$Id: Makefile,v 1.9.2.16 1998/06/07 17:10:22 brian Exp $
 
 PROG=	ppp
 SRCS=	arp.c async.c auth.c ccp.c chap.c chat.c command.c deflate.c \
@@ -25,6 +25,7 @@ SRCS+=	alias_cmd.c loadalias.c
 .endif
 
 .if exists(${.CURDIR}/../../secure) && !defined(NOCRYPT) && !defined(NOSECURE) && !defined(RELEASE_CRUNCH)
+DISTRIBUTION=des
 CFLAGS+=-DHAVE_DES
 SRCS+=	chap_ms.c
 LDADD+= -ldes
