@@ -6,14 +6,14 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id$
+ * $Id: libdisk.h,v 1.2 1995/04/29 01:55:23 phk Exp $
  *
  */
 
 typedef enum {whole, foo, fat, freebsd, extended, part, unused, reserved} chunk_e;
 
 #define CHAR_N static char *chunk_n[] = { \
-	"whole","foo","fat","freebsd","extended","part","unused","reserved"};
+	"whole","foo","fat","freebsd","extended","part","unused","reserved",0};
 
 struct disk {
 	char		*name;
@@ -101,6 +101,11 @@ Collapse_Chunk(struct disk *disk, struct chunk *chunk);
 int 
 Create_Chunk(struct disk *disk, u_long offset, u_long size, chunk_e type, int subtype, u_long flags);
 	/* Create a chunk with the specified paramters
+	 */
+
+void
+All_FreeBSD(struct disk *d);
+	/* Make one FreeBSD chunk covering the entire disk
 	 */
 
 char * 
