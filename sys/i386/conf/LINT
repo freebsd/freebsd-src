@@ -477,6 +477,7 @@ device		mn	# Munich32x/Falc54 Nx64kbit/sec cards.
 # See pppd(8) for more details.
 #
 pseudo-device	ether			#Generic Ethernet
+pseudo-device	vlan	1		#VLAN support
 pseudo-device	token			#Generic TokenRing
 pseudo-device	fddi			#Generic FDDI
 pseudo-device	sppp			#Generic Synchronous PPP
