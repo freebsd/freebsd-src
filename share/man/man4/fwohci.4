@@ -28,35 +28,41 @@
 .\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
-.\" 
+.\"
 .\" $FreeBSD$
 .\"
 .\"
 .Dd April 10, 2000
 .Dt FWOHCI 4
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm fwohci
-.Nd
-OHCI firewire chipset device driver
+.Nd OHCI firewire chipset device driver
 .Sh SYNOPSIS
 .Cd "device fwohci"
+.Cd "device firewire"
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for PCI firewire interface cards.
-The driver supports following OHCI chipsets.
+driver provides support for PCI/CardBus firewire interface cards.
+The driver supports following IEEE 1394 OHCI chipsets.
 .Pp
-.Bl -tag -width xxxxxxxxxxxxxxxxxxxx
-.It uPD72861
-.It TI TSB12LV22,LV23,26 and TSB43AA22
-.It Sony CX3022
-.It VIA VT6306
-.It Ricoh R5C552
-.Pp
+.Bl -item
+.It
+NEC uPD72861
+.It
+Texas Instruments TSB12LV{22,23,26}, TSB43{AA22,AB22/A}, PCI44{10A,50}
+.It
+Sony CX3022
+.It
+VIA VT6306
+.It
+Ricoh R5C552
 .El
 .Sh SEE ALSO
-.Xr firewire 8 ,
+.Xr firewire 4 ,
+.Xr fwcontrol 8 ,
+.Xr fwe 4 ,
 .Xr sbp 4
 .Sh HISTORY
 The
@@ -67,7 +73,6 @@ device driver first appeared in
 The
 .Nm
 device driver was written by
-.An Katsushi Kobayashi .
-.Pp
-This manual page was written by
-.An Katsushi Kobayashi .
+.An Katsushi Kobayashi
+and
+.An Hidetoshi Shimokawa .
