@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.82.2.1 1996/11/09 21:15:54 phk Exp $
+**  $Id: ncr.c,v 1.82.2.2 1996/12/21 02:22:34 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -989,13 +989,13 @@ struct ncb {
 	/*
 	**	The SCSI address of the host adapter.
 	*/
-	u_char	  myaddr;
+	u_char		myaddr;
 
 	/*
 	**	timing parameters
 	*/
-	u_char		ns_async;
 	u_char		ns_sync;
+	u_char		maxoffs;
 	u_char		rv_scntl3;
 
 	/*-----------------------------------------------
@@ -1253,7 +1253,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.82.2.1 1996/11/09 21:15:54 phk Exp $\n";
+	"\n$Id: ncr.c,v 1.82.2.2 1996/12/21 02:22:34 se Exp $\n";
 
 static const u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -3312,10 +3312,10 @@ static	void ncr_attach (pcici_t config_id, int unit)
 	**	Do chip dependent initialization.
 	*/
 
-	np->maxwide = 0;
+	np->maxwide   = 0;
 	np->rv_scntl3 = 0x13;	/* default: 40MHz clock */
-	np->ns_sync   = 25;	/* XXX no support for Fast-20, yet */
-	np->ns_async  = 50;
+	np->ns_sync   = 25;	/* in units of 4ns */
+	np->maxoffs   = 8;
 
 	/*
 	**	Get the frequency of the chip's clock.
@@ -3328,13 +3328,21 @@ static	void ncr_attach (pcici_t config_id, int unit)
 	switch (pci_conf_read (config_id, PCI_ID_REG)) {
 #endif /* __NetBSD__ */
 	case NCR_825_ID:
+	    {
+#ifndef __NetBSD__
+		u_char rev = pci_conf_read (config_id, PCI_CLASS_REG) & 0xff;
+		if ((rev & 0xf0) == 0x10)
+			np->maxoffs = 16;
+#endif /* !__NetBSD__ */
 		np->maxwide = 1;
 		break;
+	    }
 	case NCR_860_ID:
 		np->rv_scntl3 = 0x35;	/* always assume 80MHz clock for 860 */
 		break;
 	case NCR_875_ID:
 		np->maxwide = 1;
+		np->maxoffs = 16;
 		ncr_getclock(np);
 		break;
 	}
@@ -4529,7 +4537,7 @@ static void ncr_negotiate (struct ncb* np, struct tcb* tp)
 		minsync = 255;
 
 	tp->minsync = minsync;
-	tp->maxoffs = (minsync<255 ? 8 : 0);
+	tp->maxoffs = (minsync<255 ? np->maxoffs : 0);
 
 	/*
 	**	period=0: has to negotiate sync transfer
@@ -4565,7 +4573,7 @@ static void ncr_setsync (ncb_p np, ccb_p cp, u_char sxfer)
 	assert (target == (xp->sc_link->target & 0x0f));
 
 	tp = &np->target[target];
-	tp->period= sxfer&0xf ? ((sxfer>>5)+4) * np->ns_sync : 0xffff;
+	tp->period= sxfer&0x1f ? ((sxfer>>5)+4) * np->ns_sync : 0xffff;
 
 	if (tp->sval == sxfer) return;
 	tp->sval = sxfer;
@@ -4574,15 +4582,15 @@ static void ncr_setsync (ncb_p np, ccb_p cp, u_char sxfer)
 	**	Bells and whistles   ;-)
 	*/
 	PRINT_ADDR(xp);
-	if (sxfer & 0x0f) {
+	if (sxfer & 0x1f) {
+		unsigned f10 = 10000 << (tp->widedone ? tp->widedone -1 : 0);
+		unsigned mb10 = (f10 + tp->period/2) / tp->period;
 		/*
 		**  Disable extended Sreq/Sack filtering
 		*/
 		if (tp->period <= 200) OUTB (nc_stest2, 0);
-		printf ("%s%dns (%d Mb/sec) offset %d.\n",
-			tp->period<200 ? "FAST SCSI-2 ":"",
-			tp->period, (1000+tp->period/2)/tp->period,
-			sxfer & 0x0f);
+		printf ("%d.%d MB/s (%d ns, offset %d)\n",
+			mb10 / 10, mb10 % 10, tp->period, sxfer & 0x1f);
 	} else  printf ("asynchronous.\n");
 
 	/*
@@ -4633,9 +4641,9 @@ static void ncr_setwide (ncb_p np, ccb_p cp, u_char wide)
 	*/
 	PRINT_ADDR(xp);
 	if (scntl3 & EWS)
-		printf ("WIDE SCSI (16 bit) enabled.\n");
+		printf ("WIDE SCSI (16 bit) enabled");
 	else
-		printf ("WIDE SCSI disabled.\n");
+		printf ("WIDE SCSI disabled");
 
 	/*
 	**	set actual value and sync_status
