@@ -11,7 +11,7 @@ SRCS+=	alloc.c bpf.c conflex.c convert.c dispatch.c errwarn.c ethernet.c \
 	parse.c print.c raw.c socket.c tables.c tree.c upf.c
 
 CFLAGS+= -I${DIST_DIR}/includes -I${DIST_DIR}
-CFLAGS+= -DCLIENT_PATH='"PATH=/sbin:/bin:/usr/sbin:/usr/bin"'
+CFLAGS+= -DCLIENT_PATH='"PATH=/sbin:/bin:/usr/sbin:/usr/bin"' -Dwarn=dhcp_warn
 
 SCRIPTS=	scripts/freebsd
 SCRIPTSNAME=	dhclient-script
