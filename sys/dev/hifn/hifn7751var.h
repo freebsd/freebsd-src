@@ -138,7 +138,6 @@ struct hifn_session {
  */
 struct hifn_softc {
 	device_t		sc_dev;		/* device backpointer */
-	struct mtx		sc_mtx;		/* per-instance lock */
 	bus_dma_tag_t		sc_dmat;	/* parent DMA tag decriptor */
 	struct resource		*sc_bar0res;
 	bus_space_handle_t	sc_sh0;		/* bar0 bus space handle */
@@ -181,9 +180,6 @@ struct hifn_softc {
 	int			sc_suspended;
 	struct hifn_session	sc_sessions[2048];
 };
-
-#define	HIFN_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
-#define	HIFN_UNLOCK(_sc)	mtx_unlock(&(_sc)->sc_mtx)
 
 /*
  *  hifn_command_t
