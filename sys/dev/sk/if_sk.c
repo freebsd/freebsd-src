@@ -689,9 +689,10 @@ static int sk_newbuf(sc_if, c, m)
 		}
 
 		/* Attach the buffer to the mbuf */
-		MEXTADD(m_new, buf, SK_MCLBYTES, sk_jfree, NULL);
+		MEXTADD(m_new, buf, SK_JLEN, sk_jfree,
+		    (struct sk_if_softc *)sc_if); 
 		m_new->m_data = (void *)buf;
-		m_new->m_pkthdr.len = m_new->m_len = SK_MCLBYTES;
+		m_new->m_pkthdr.len = m_new->m_len = SK_JLEN;
 	} else {
 		/*
 	 	 * We're re-using a previously allocated mbuf;
@@ -699,7 +700,7 @@ static int sk_newbuf(sc_if, c, m)
 		 * default values.
 		 */
 		m_new = m;
-		m_new->m_len = m_new->m_pkthdr.len = SK_MCLBYTES;
+		m_new->m_len = m_new->m_pkthdr.len = SK_JLEN;
 		m_new->m_data = m_new->m_ext.ext_buf;
 	}
 
@@ -748,20 +749,12 @@ static int sk_alloc_jumbo_mem(sc_if)
 
 	/*
 	 * Now divide it up into 9K pieces and save the addresses
-	 * in an array. Note that we play an evil trick here by using
-	 * the first few bytes in the buffer to hold the the address
-	 * of the softc structure for this interface. This is because
-	 * sk_jfree() needs it, but it is called by the mbuf management
-	 * code which will not pass it to us explicitly.
+	 * in an array.
 	 */
 	ptr = sc_if->sk_cdata.sk_jumbo_buf;
 	for (i = 0; i < SK_JSLOTS; i++) {
-		u_int64_t		**aptr;
-		aptr = (u_int64_t **)ptr;
-		aptr[0] = (u_int64_t *)sc_if;
-		ptr += sizeof(u_int64_t);
-		sc_if->sk_cdata.sk_jslots[i].sk_buf = ptr;
-		ptr += SK_MCLBYTES;
+		sc_if->sk_cdata.sk_jslots[i] = ptr;
+		ptr += SK_JLEN;
 		entry = malloc(sizeof(struct sk_jpool_entry), 
 		    M_DEVBUF, M_NOWAIT);
 		if (entry == NULL) {
@@ -798,7 +791,7 @@ static void *sk_jalloc(sc_if)
 
 	SLIST_REMOVE_HEAD(&sc_if->sk_jfree_listhead, jpool_entries);
 	SLIST_INSERT_HEAD(&sc_if->sk_jinuse_listhead, entry, jpool_entries);
-	return(sc_if->sk_cdata.sk_jslots[entry->slot].sk_buf);
+	return(sc_if->sk_cdata.sk_jslots[entry->slot]);
 }
 
 /*
@@ -809,19 +802,17 @@ static void sk_jfree(buf, args)
 	void			*args;
 {
 	struct sk_if_softc	*sc_if;
-	u_int64_t		**aptr;
 	int		        i;
 	struct sk_jpool_entry   *entry;
 
 	/* Extract the softc struct pointer. */
-	aptr = (u_int64_t **)(buf - sizeof(u_int64_t));
-	sc_if = (struct sk_if_softc *)(aptr[0]);
+	sc_if = (struct sk_if_softc *)args;
 
 	if (sc_if == NULL)
-		panic("sk_jfree: can't find softc pointer!");
+		panic("sk_jfree: didn't get softc pointer!");
 
 	/* calculate the slot this buffer belongs to */
-	i = ((vm_offset_t)aptr 
+	i = ((vm_offset_t)buf
 	     - (vm_offset_t)sc_if->sk_cdata.sk_jumbo_buf) / SK_JLEN;
 
 	if ((i < 0) || (i >= SK_JSLOTS))
