@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.7.2.1 1996/11/12 09:07:46 phk Exp $
+ *	$Id: identcpu.c,v 1.7.2.2 1996/11/12 13:54:49 phk Exp $
  */
 
 #include "opt_cpu.h"
@@ -86,7 +86,7 @@ identifycpu(void)
 	strncpy(cpu_model, i386_cpus[cpu].cpu_name, sizeof cpu_model);
 
 #if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
-	if (!strcmp(cpu_vendor,"GenuineIntel")) {
+	if (strcmp(cpu_vendor,"GenuineIntel") == 0) {
 		if ((cpu_id & 0xf00) > 3) {
 			cpu_model[0] = '\0';
 
@@ -135,15 +135,28 @@ identifycpu(void)
 				break;
 			}
 		}
-	} else if (!strcmp(cpu_vendor,"AuthenticAMD")) {
+	} else if (strcmp(cpu_vendor,"AuthenticAMD") == 0) {
+		/*
+		 * Values taken from AMD Processor Recognition
+		 * http://www.amd.com/html/products/pcd/techdocs/appnotes/20734c.pdf
+		 */
 		cpu_model[0] = '\0';
 		strcpy(cpu_model, "AMD ");
-		switch (cpu_id & 0xF0) {
-		case 0xE0:
+		switch (cpu_id & 0xFF0) {
+		case 0x4E0:
 			strcat(cpu_model, "Am5x86 Write-Through");
 			break;
-		case 0xF0:
+		case 0x4F0:
 			strcat(cpu_model, "Am5x86 Write-Back");
+			break;
+		case 0x500:
+			strcat(cpu_model, "K5 model 0");
+			break;
+		case 0x510:
+			strcat(cpu_model, "K5 model 1");
+			break;
+		case 0x560:
+			strcat(cpu_model, "K6");
 			break;
 		default:
 			strcat(cpu_model, "Unknown");
@@ -193,7 +206,8 @@ identifycpu(void)
 	if(cpu_id)
 		printf("  Id = 0x%lx",cpu_id);
 
-	if (!strcmp(cpu_vendor, "GenuineIntel")) {
+	if (strcmp(cpu_vendor, "GenuineIntel") == 0 ||
+	    strcmp(cpu_vendor, "AuthenticAMD") == 0) {
 		printf("  Stepping=%ld", cpu_id & 0xf);
 		if (cpu_high > 0) {
 			/*
