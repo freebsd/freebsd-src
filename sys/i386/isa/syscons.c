@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.117.4.8 1996/05/01 04:01:29 bde Exp $
+ *  $Id: syscons.c,v 1.117.4.9 1996/05/11 23:18:22 joerg Exp $
  */
 
 #include "sc.h"
@@ -174,7 +174,7 @@ scprobe(struct isa_device *dev)
 	}
     }
 gotres:
-    if (!retries)
+    if (retries < 0)
 	printf("scprobe: keyboard won't accept RESET command\n");
     else {
 	i = 10;			/* At most 10 retries. */
