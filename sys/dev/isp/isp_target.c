@@ -49,7 +49,7 @@
 #endif
 
 #ifdef	ISP_TARGET_MODE
-int isp_tdebug = 1;
+int isp_tdebug = 0;
 
 static void isp_got_msg __P((struct ispsoftc *, int, in_entry_t *));
 static void isp_got_msg_fc __P((struct ispsoftc *, int, in_fcentry_t *));
