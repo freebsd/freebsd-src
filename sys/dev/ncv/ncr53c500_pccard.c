@@ -78,26 +78,23 @@ extern struct ncv_softc *ncvdata[];
 #define OFFSET_KME_KXLC004_01 0x10
 
 /* pccard support */
-#include	"apm.h"
-#if NAPM > 0
-#include	<machine/apm_bios.h>
-#endif /* NAPM > 0 */
-
 #include	"card.h"
 #if NCARD > 0
 #include	<sys/kernel.h>
 #include	<sys/module.h>
+#if !defined(__FreeBSD__) || __FreeBSD_version < 500014
 #include	<sys/select.h>
+#endif
 #include	<pccard/cardinfo.h>
 #include	<pccard/slot.h>
 
 static int ncvprobe(DEVPORT_PDEVICE devi);
 static int ncvattach(DEVPORT_PDEVICE devi);
 
-static int	ncv_card_intr __P((DEVPORT_PDEVICE));
 static void	ncv_card_unload __P((DEVPORT_PDEVICE));
 #if defined(__FreeBSD__) && __FreeBSD_version < 400001
 static int	ncv_card_init __P((DEVPORT_PDEVICE));
+static int	ncv_card_intr __P((DEVPORT_PDEVICE));
 #endif
 
 #if defined(__FreeBSD__) && __FreeBSD_version >= 400001
@@ -125,6 +122,11 @@ ncv_release_resource(DEVPORT_PDEVICE dev)
 				     sc->port_rid, sc->port_res);
 	}
 
+	if (sc->port_res_dmy) {
+		bus_release_resource(dev, SYS_RES_IOPORT,
+				     sc->port_rid_dmy, sc->port_res_dmy);
+	}
+
 	if (sc->irq_res) {
 		bus_release_resource(dev, SYS_RES_IRQ,
 				     sc->irq_rid, sc->irq_res);
@@ -141,20 +143,39 @@ ncv_alloc_resource(DEVPORT_PDEVICE dev)
 {
 	struct ncv_softc	*sc = device_get_softc(dev);
 	u_int32_t		flags = DEVPORT_PDEVFLAGS(dev);
-	u_int			iobase = DEVPORT_PDEVIOBASE(dev);
-	u_long			maddr, msize;
+	u_long			ioaddr, iosize, maddr, msize;
 	int			error;
 	bus_addr_t		offset = 0;
 
 	if(flags & KME_KXLC004_01)
 		offset = OFFSET_KME_KXLC004_01;
 
+	error = bus_get_resource(dev, SYS_RES_IOPORT, 0, &ioaddr, &iosize);
+	if (error || (iosize < (offset + NCVIOSZ))) {
+		return(ENOMEM);
+	}
+
 	sc->port_rid = 0;
 	sc->port_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->port_rid,
-					  iobase+offset, ~0, NCVIOSZ, RF_ACTIVE);
+					  ioaddr+offset, ioaddr+iosize-offset,
+					  iosize-offset, RF_ACTIVE);
 	if (sc->port_res == NULL) {
 		ncv_release_resource(dev);
 		return(ENOMEM);
+	}
+
+	if (offset != 0) {
+		sc->port_rid_dmy = 0;
+		sc->port_res_dmy = bus_alloc_resource(dev, SYS_RES_IOPORT, 
+						&sc->port_rid_dmy,
+						ioaddr, ioaddr+offset, offset, 
+						RF_ACTIVE);
+		if (sc->port_res_dmy == NULL) {
+			printf("Warning: cannot allocate IOPORT partially.\n");
+		}
+	} else {
+		sc->port_rid_dmy = 0;
+		sc->port_res_dmy = NULL;
 	}
 
 	sc->irq_rid = 0;
@@ -306,6 +327,14 @@ ncv_card_init(DEVPORT_PDEVICE devi)
 		return (ENXIO);
 	return (0);
 }
+
+static int
+ncv_card_intr(DEVPORT_PDEVICE devi)
+{
+
+	ncvintr(DEVPORT_PDEVGET_SOFTC(devi));
+	return 1;
+}
 #endif
 
 static void
@@ -316,14 +345,6 @@ ncv_card_unload(DEVPORT_PDEVICE devi)
 	printf("%s: unload\n", sc->sc_sclow.sl_xname);
 	scsi_low_deactivate((struct scsi_low_softc *)sc);
         scsi_low_dettach(&sc->sc_sclow);
-}
-
-static int
-ncv_card_intr(DEVPORT_PDEVICE devi)
-{
-
-	ncvintr(DEVPORT_PDEVGET_SOFTC(devi));
-	return 1;
 }
 
 static int

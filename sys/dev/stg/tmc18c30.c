@@ -150,6 +150,10 @@ extern struct cfdriver stg_cd;
 /**************************************************************
  * DECLARE
  **************************************************************/
+#ifdef __NetBSD__
+extern int delaycount;
+#endif
+
 /* static */
 static void stg_pio_read __P((struct stg_softc *, struct targ_info *));
 static void stg_pio_write __P((struct stg_softc *, struct targ_info *));
@@ -168,14 +172,13 @@ static int stghw_start_selection __P((struct stg_softc *sc, struct slccb *));
 static void stghw_bus_reset __P((struct stg_softc *));
 static void stghw_attention __P((struct stg_softc *));
 static int stg_nexus __P((struct stg_softc *, struct targ_info *));
-static int stg_lun_init __P((struct stg_softc *, struct targ_info *, struct lun_info *));
+static int stg_targ_init __P((struct stg_softc *, struct targ_info *));
 static __inline void stghw_bcr_write_1 __P((struct stg_softc *, u_int8_t));
-static void settimeout __P((void *));
 
 struct scsi_low_funcs stgfuncs = {
 	SC_LOW_INIT_T stg_world_start,
 	SC_LOW_BUSRST_T stghw_bus_reset,
-	SC_LOW_LUN_INIT_T stg_lun_init,
+	SC_LOW_TARG_INIT_T stg_targ_init,
 
 	SC_LOW_SELECT_T stghw_start_selection,
 	SC_LOW_NEXUS_T stg_nexus,
@@ -187,91 +190,6 @@ struct scsi_low_funcs stgfuncs = {
 
 	NULL,
 };
-
-/****************************************************
- * hwfuncs
- ****************************************************/
-static int
-stghw_check(sc)
-	struct stg_softc *sc;
-{
-	struct scsi_low_softc *slp = &sc->sc_sclow;
-	bus_space_tag_t iot = sc->sc_iot;
-	bus_space_handle_t ioh = sc->sc_ioh;
-	u_int16_t lsb, msb;
-
-	sc->sc_chip = TMCCHIP_UNK;
-	sc->sc_fsz = TMC18C50_FIFOSZ;
-	sc->sc_fcb = TMC18C50_FCB;
-	sc->sc_fcsp = 0;
-
-	sc->sc_fcRinit = FCTL_INTEN;
-	sc->sc_fcWinit = FCTL_PARENB | FCTL_INTEN;
-
-	if (slp->sl_cfgflags & CFG_NOATTEN)
-		sc->sc_imsg = 0;
-	else
-		sc->sc_imsg = BCTL_ATN;
-	sc->sc_busc = BCTL_BUSEN;
-
-	lsb = bus_space_read_1(iot, ioh, tmc_idlsb);
-	msb = bus_space_read_1(iot, ioh, tmc_idmsb);
-	switch (msb << 8 | lsb)
-	{
-		case 0x6127:
-			/* TMCCHIP_1800 not supported. (it's my policy) */
-			sc->sc_chip = TMCCHIP_1800;
-			return EINVAL;
-
-		case 0x60e9:
-			sc->sc_chip = TMCCHIP_18C50;
-			sc->sc_fcsp |= FCTL_CLRINT;
-			if (bus_space_read_1(iot, ioh, tmc_cfg2) & 0x02)
-			{
-				sc->sc_chip = TMCCHIP_18C30;
-				sc->sc_fsz = TMC18C30_FIFOSZ;
-				sc->sc_fcb = TMC18C30_FCB;
-			}
-			break;
-
-		default:
-			return ENODEV;
-	}
-
-	sc->sc_icinit = ICTL_ALLINT | sc->sc_fcb;
-	return 0;
-}
-
-static void
-stghw_init(sc)
-	struct stg_softc *sc;
-{
-	bus_space_tag_t iot = sc->sc_iot;
-	bus_space_handle_t ioh = sc->sc_ioh;
-
-	bus_space_write_1(iot, ioh, tmc_ictl, 0);
-	stghw_bcr_write_1(sc, BCTL_BUSFREE);
-	bus_space_write_1(iot, ioh, tmc_fctl, sc->sc_fcsp | sc->sc_fcRinit |
-					  FCTL_CLRFIFO);
-	bus_space_write_1(iot, ioh, tmc_fctl, sc->sc_fcRinit);
-	bus_space_write_1(iot, ioh, tmc_ictl, sc->sc_icinit);
-
-	bus_space_write_1(iot, ioh, tmc_ssctl, 0);
-}
-
-static int
-stg_lun_init(sc, ti, li)
-	struct stg_softc *sc;
-	struct targ_info *ti;
-	struct lun_info *li;
-{
-	struct stg_lun_info *sli = (void *) li;
-
-	li->li_maxsynch.period = 0;
-	li->li_maxsynch.offset = 8;
-	sli->sli_reg_synch = 0;
-	return 0;
-}	
 
 /****************************************************
  * scsi low interface
@@ -356,16 +274,22 @@ stg_world_start(sc, fdone)
 {
 	struct scsi_low_softc *slp = &sc->sc_sclow;
 	int error;
+#ifdef __FreeBSD__
 	intrmask_t s;
+#endif
 
 	if ((error = stghw_check(sc)) != 0)
 		return error;
 
+#ifdef __FreeBSD__
 	s = splcam();
+#endif
 	stghw_init(sc);
 	scsi_low_bus_reset(slp);
 	stghw_init(sc);
+#ifdef __FreeBSD__
 	splx(s);
+#endif
 
 	SOFT_INTR_REQUIRED(slp);
 	return 0;
@@ -377,32 +301,115 @@ stg_msg(sc, ti, msg)
 	struct targ_info *ti;
 	u_int msg;
 {
-	struct lun_info *li = ti->ti_li;
-	struct stg_lun_info *sli = (void *) li;
+	struct stg_targ_info *sti = (void *) ti;
 	u_int period, offset;
 
 	if (msg != SCSI_LOW_MSG_SYNCH)
 		return EINVAL;
 
- 	period = li->li_maxsynch.period;
-	offset = li->li_maxsynch.offset;
+ 	period = ti->ti_maxsynch.period;
+	offset = ti->ti_maxsynch.offset;
 	period = period << 2;
 	if (period >= 200)
 	{
-		sli->sli_reg_synch = (period - 200) / 50;
+		sti->sti_reg_synch = (period - 200) / 50;
 		if (period % 50)
-			sli->sli_reg_synch ++;
-		sli->sli_reg_synch |= SSCTL_SYNCHEN;
+			sti->sti_reg_synch ++;
+		sti->sti_reg_synch |= SSCTL_SYNCHEN;
 	}
 	else if (period >= 100)
 	{
-		sli->sli_reg_synch = (period - 100) / 50;
+		sti->sti_reg_synch = (period - 100) / 50;
 		if (period % 50)
-			sli->sli_reg_synch ++;
-		sli->sli_reg_synch |= SSCTL_SYNCHEN | SSCTL_FSYNCHEN;
+			sti->sti_reg_synch ++;
+		sti->sti_reg_synch |= SSCTL_SYNCHEN | SSCTL_FSYNCHEN;
 	}
 	return 0;
 }
+
+/****************************************************
+ * hwfuncs
+ ****************************************************/
+static int
+stghw_check(sc)
+	struct stg_softc *sc;
+{
+	struct scsi_low_softc *slp = &sc->sc_sclow;
+	bus_space_tag_t iot = sc->sc_iot;
+	bus_space_handle_t ioh = sc->sc_ioh;
+	u_int16_t lsb, msb;
+
+	sc->sc_chip = TMCCHIP_UNK;
+	sc->sc_fsz = TMC18C50_FIFOSZ;
+	sc->sc_fcb = TMC18C50_FCB;
+	sc->sc_fcsp = 0;
+
+	sc->sc_fcRinit = FCTL_INTEN;
+	sc->sc_fcWinit = FCTL_PARENB | FCTL_INTEN;
+
+	if (slp->sl_cfgflags & CFG_NOATTEN)
+		sc->sc_imsg = 0;
+	else
+		sc->sc_imsg = BCTL_ATN;
+	sc->sc_busc = BCTL_BUSEN;
+
+	lsb = bus_space_read_1(iot, ioh, tmc_idlsb);
+	msb = bus_space_read_1(iot, ioh, tmc_idmsb);
+	switch (msb << 8 | lsb)
+	{
+		case 0x6127:
+			/* TMCCHIP_1800 not supported. (it's my policy) */
+			sc->sc_chip = TMCCHIP_1800;
+			return EINVAL;
+
+		case 0x60e9:
+			sc->sc_chip = TMCCHIP_18C50;
+			sc->sc_fcsp |= FCTL_CLRINT;
+			if (bus_space_read_1(iot, ioh, tmc_cfg2) & 0x02)
+			{
+				sc->sc_chip = TMCCHIP_18C30;
+				sc->sc_fsz = TMC18C30_FIFOSZ;
+				sc->sc_fcb = TMC18C30_FCB;
+			}
+			break;
+
+		default:
+			return ENODEV;
+	}
+
+	sc->sc_icinit = ICTL_ALLINT | sc->sc_fcb;
+	return 0;
+}
+
+static void
+stghw_init(sc)
+	struct stg_softc *sc;
+{
+	bus_space_tag_t iot = sc->sc_iot;
+	bus_space_handle_t ioh = sc->sc_ioh;
+
+	bus_space_write_1(iot, ioh, tmc_ictl, 0);
+	stghw_bcr_write_1(sc, BCTL_BUSFREE);
+	bus_space_write_1(iot, ioh, tmc_fctl, sc->sc_fcsp | sc->sc_fcRinit |
+					  FCTL_CLRFIFO);
+	bus_space_write_1(iot, ioh, tmc_fctl, sc->sc_fcRinit);
+	bus_space_write_1(iot, ioh, tmc_ictl, sc->sc_icinit);
+
+	bus_space_write_1(iot, ioh, tmc_ssctl, 0);
+}
+
+static int
+stg_targ_init(sc, ti)
+	struct stg_softc *sc;
+	struct targ_info *ti;
+{
+	struct stg_targ_info *sti = (void *) ti;
+
+	ti->ti_maxsynch.period = 0;
+	ti->ti_maxsynch.offset = 8;
+	sti->sti_reg_synch = 0;
+	return 0;
+}	
 
 /**************************************************************
  * General probe attach
@@ -449,6 +456,11 @@ stgattachsubr(sc)
 
 	printf("\n");
 
+#ifdef __FreeBSD__
+	sc->sc_wc = 0x2000 * 2000;	/* XXX need calibration */
+#else
+	sc->sc_wc = delaycount * 2000;	/* 2 sec */
+#endif
 	sc->sc_idbit = (1 << slp->sl_hostid); 
 	slp->sl_funcs = &stgfuncs;
 
@@ -461,7 +473,7 @@ stgattachsubr(sc)
 	}
 
 	(void) scsi_low_attach(slp, 2, STG_NTARGETS, STG_NLUNS,
-				sizeof(struct stg_lun_info));
+				sizeof(struct stg_targ_info));
 }
 
 /**************************************************************
@@ -531,23 +543,14 @@ stg_pio_read(sc, ti)
 	bus_space_tag_t iot = sc->sc_iot;
 	bus_space_handle_t ioh = sc->sc_ioh;
 	struct sc_p *sp = &slp->sl_scp;
-	int s;
-	int tout = 0;
-#ifdef __FreeBSD__
-	struct callout_handle ch;
-#endif
+	int tout = sc->sc_wc;
 	u_int res;
 	u_int8_t stat;
 
 	bus_space_write_1(iot, ioh, tmc_fctl, sc->sc_fcRinit | FCTL_FIFOEN);
 
 	slp->sl_flags |= HW_PDMASTART;
-#ifdef __FreeBSD__
-	ch = timeout(settimeout, &tout, 2 * hz);
-#else
-	timeout(settimeout, &tout, 2 * hz);
-#endif
-	while (sp->scp_datalen > 0 && tout == 0)
+	while (sp->scp_datalen > 0 && tout -- > 0)
 	{
 		res = bus_space_read_2(iot, ioh, tmc_fdcnt);
 		if (res == 0)
@@ -578,18 +581,8 @@ stg_pio_read(sc, ti)
 		sp->scp_data += res;
 	}
 
-	s = splhigh();
-	if (tout == 0) {
-#ifdef __FreeBSD__
-		untimeout(settimeout, &tout, ch);
-#else
-		untimeout(settimeout, &tout);
-#endif
-		splx(s);
-	} else {
-		splx(s);
+	if (tout <= 0)
 		printf("%s pio read timeout\n", slp->sl_xname);
-	}
 }
 
 #define	WFIFO_CRIT	0x100
@@ -604,24 +597,15 @@ stg_pio_write(sc, ti)
 	bus_space_handle_t ioh = sc->sc_ioh;
 	struct sc_p *sp = &slp->sl_scp;
 	u_int res;
-	int s;
-	int tout = 0;
+	int tout = sc->sc_wc;
 	register u_int8_t stat;
-#ifdef __FreeBSD__
-	struct callout_handle ch;
-#endif
 
 	stat = sc->sc_fcWinit | FCTL_FIFOEN | FCTL_FIFOW;
 	bus_space_write_1(iot, ioh, tmc_fctl, stat | FCTL_CLRFIFO);
 	bus_space_write_1(iot, ioh, tmc_fctl, stat);
 
 	slp->sl_flags |= HW_PDMASTART;
-#ifdef __FreeBSD__
-	ch = timeout(settimeout, &tout, 2 * hz);
-#else
-	timeout(settimeout, &tout, 2 * hz);
-#endif
-	while (sp->scp_datalen > 0 && tout == 0)
+	while (sp->scp_datalen > 0 && tout -- > 0)
 	{
 		stat = bus_space_read_1(iot, ioh, tmc_bstat);
 		if ((stat & BSTAT_PHMASK) != 0)
@@ -645,18 +629,8 @@ stg_pio_write(sc, ti)
 		sp->scp_data += res;
 	}
 
-	s = splhigh();
-	if (tout == 0) {
-#ifdef __FreeBSD__
-		untimeout(settimeout, &tout, ch);
-#else
-		untimeout(settimeout, &tout);
-#endif
-		splx(s);
-	} else {
-		splx(s);
+	if (tout <= 0)
 		printf("%s pio write timeout\n", slp->sl_xname);
-	}
 }
 
 static int
@@ -668,59 +642,23 @@ stg_negate_signal(sc, mask, s)
 	struct scsi_low_softc *slp = &sc->sc_sclow;
 	bus_space_tag_t bst = sc->sc_iot;
 	bus_space_handle_t bsh = sc->sc_ioh;
-	int ss;
-	int tout = 0;
-#ifdef __FreeBSD__
-	struct callout_handle ch;
-#endif
+	int wc = (sc->sc_wc >> 2);
 	u_int8_t regv;
 
-#ifdef __FreeBSD__
-	ch = timeout(settimeout, &tout, 2 * hz);
-#else
-	timeout(settimeout, &tout, 2 * hz);
-#endif
 	do 
 	{
 		regv = bus_space_read_1(bst, bsh, tmc_bstat);
-		if (regv == 0xff) {
-			ss = splhigh();
-			if (tout == 0) {
-#ifdef __FreeBSD__
-				untimeout(settimeout, &tout, ch);
-#else
-				untimeout(settimeout, &tout);
-#endif
-			}
-			splx(ss);
+		if (regv == 0xff)
 			return EIO;
-		}
 	}
-	while ((regv & mask) != 0 && tout == 0);
+	while ((regv & mask) != 0 && (-- wc) > 0);
 
-	ss = splhigh();
-	if (tout == 0) {
-#ifdef __FreeBSD__
-		untimeout(settimeout, &tout, ch);
-#else
-		untimeout(settimeout, &tout);
-#endif
-		splx(ss);
-	} else {
-		splx(ss);
+	if (wc <= 0)
+	{
 		printf("%s: %s singal off timeout \n", slp->sl_xname, s);
 		return EIO;
 	}
 	return 0;
-}
-
-static void
-settimeout(arg)
-	void *arg;
-{
-	int *tout = arg;
-
-	*tout = 1;
 }
 
 static int
@@ -731,20 +669,11 @@ stg_expect_signal(sc, phase, mask)
 	struct scsi_low_softc *slp = &sc->sc_sclow;
 	bus_space_tag_t bst = sc->sc_iot;
 	bus_space_handle_t bsh = sc->sc_ioh;
+	int wc = (sc->sc_wc >> 2);
 	int rv = -1;
-	int s;
-	int tout = 0;
-#ifdef __FreeBSD__
-	struct callout_handle ch;
-#endif
 	u_int8_t ph;
 
 	phase &= BSTAT_PHMASK;
-#ifdef __FreeBSD__
-	ch = timeout(settimeout, &tout, hz/2);
-#else
-	timeout(settimeout, &tout, hz/2);
-#endif
 	do 
 	{
 		ph = bus_space_read_1(bst, bsh, tmc_bstat);
@@ -761,18 +690,9 @@ stg_expect_signal(sc, phase, mask)
 			break;
 		}
 	}
-	while (tout == 0);
+	while (wc -- > 0);
 
-	s = splhigh();
-	if (tout == 0) {
-#ifdef __FreeBSD__
-		untimeout(settimeout, &tout, ch);
-#else
-		untimeout(settimeout, &tout);
-#endif
-		splx(s);
-	} else {
-		splx(s);
+	if (wc <= 0) {
 		printf("%s: stg_expect_signal timeout\n", slp->sl_xname);
 		rv = -1;
 	}
@@ -907,14 +827,14 @@ stg_nexus(sc, ti)
 	bus_space_tag_t iot = sc->sc_iot;
 	bus_space_handle_t ioh = sc->sc_ioh;
 	struct lun_info *li = ti->ti_li;
-	struct stg_lun_info *sli = (void *) ti->ti_li;
+	struct stg_targ_info *sti = (void *) ti;
 
 	if (li->li_flags & SCSI_LOW_NOPARITY)
 		sc->sc_fcRinit &= ~FCTL_PARENB;
 	else
 		sc->sc_fcRinit |= FCTL_PARENB;
 
-	bus_space_write_1(iot, ioh, tmc_ssctl, sli->sli_reg_synch);
+	bus_space_write_1(iot, ioh, tmc_ssctl, sti->sti_reg_synch);
 	return 0;
 }
 

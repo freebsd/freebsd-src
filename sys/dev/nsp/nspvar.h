@@ -46,6 +46,7 @@ struct nsp_softc {
 	bus_space_handle_t sc_memh;
 
 	void *sc_ih;
+	int sc_wc;
 
 	int sc_seltout;				/* selection timeout counter */
 	int sc_timer;				/* timer start */
@@ -77,13 +78,13 @@ struct nsp_softc {
 };
 
 /*****************************************************************
- * Lun information 
+ * Target information 
  *****************************************************************/
-struct nsp_lun_info {
-	struct lun_info nli_li;			/* generic lun info */
+struct nsp_targ_info {
+	struct targ_info nti_ti;		/* generic target info */
 
-	u_int8_t nli_reg_syncr;			/* sync registers per devices */
-	u_int8_t nli_reg_ackwidth;		/* ackwidth per devices */
+	u_int8_t nti_reg_syncr;			/* sync registers per devices */
+	u_int8_t nti_reg_ackwidth;		/* ackwidth per devices */
 };
 
 /*****************************************************************
