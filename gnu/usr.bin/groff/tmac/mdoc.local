@@ -57,6 +57,7 @@
 .\" FreeBSD releases not found in doc-common
 .ds doc-operating-system-FreeBSD-4.9    4.9
 .ds doc-operating-system-FreeBSD-5.1    5.1
+.ds doc-operating-system-FreeBSD-5.2    5.2
 .
 .ec
 .
