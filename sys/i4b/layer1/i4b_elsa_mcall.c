@@ -33,9 +33,9 @@
  *	ELSA MicroLink MC/all card specific routines
  *	--------------------------------------------
  *
- *	$Id: i4b_elsa_mcall.c,v 1.1 1998/12/02 06:44:27 hm Exp $
+ *	$Id: i4b_elsa_mcall.c,v 1.2 1999/02/14 09:44:59 hm Exp $
  *
- *      last edit-date: [Tue Dec  1 07:45:53 1998]
+ *      last edit-date: [Sun Feb 14 10:26:29 1999]
  *
  *	-mh	started support for ELSA MC/all
  *

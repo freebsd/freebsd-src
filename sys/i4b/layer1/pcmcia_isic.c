@@ -33,9 +33,9 @@
  *	pcmcia_isic.c - pcmcia bus frontend for i4b_isic driver
  *	-------------------------------------------------------
  *
- *	$Id: pcmcia_isic.c,v 1.3 1998/12/05 18:05:04 hm Exp $ 
+ *	$Id: pcmcia_isic.c,v 1.4 1999/02/14 09:45:00 hm Exp $ 
  *
- *      last edit-date: [Fri Dec  4 10:38:43 1998]
+ *      last edit-date: [Sun Feb 14 10:29:29 1999]
  *
  *	-mh	original implementation
  *

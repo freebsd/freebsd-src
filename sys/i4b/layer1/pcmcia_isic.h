@@ -33,9 +33,9 @@
  *	pcmcia_isic.h - common definitions for pcmcia isic cards
  *	--------------------------------------------------------
  *
- *	$Id: pcmcia_isic.h,v 1.1 1998/12/02 06:44:30 hm Exp $ 
+ *	$Id: pcmcia_isic.h,v 1.2 1999/02/14 09:45:00 hm Exp $ 
  *
- *      last edit-date: [Mon Nov 30 21:19:14 1998]
+ *      last edit-date: [Sun Feb 14 10:29:33 1999]
  *
  *	-mh	original implementation
  *

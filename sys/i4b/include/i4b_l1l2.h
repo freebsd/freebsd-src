@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,9 +27,9 @@
  *	i4b_l1l2.h - i4b layer 1 / layer 2 interactions
  *	---------------------------------------------------
  *
- *	$Id: i4b_l1l2.h,v 1.7 1998/12/05 18:02:56 hm Exp $
+ *	$Id: i4b_l1l2.h,v 1.8 1999/02/14 09:44:55 hm Exp $
  *
- *	last edit-date: [Sat Dec  5 18:04:25 1998]
+ *	last edit-date: [Sun Feb 14 10:04:07 1999]
  *
  *---------------------------------------------------------------------------*/
 

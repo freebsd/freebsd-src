@@ -3,7 +3,7 @@
  *
  *   Copyright (c) 1998 German Tischler. All rights reserved.
  *
- *   Copyright (c) 1998 Hellmuth Michaelis. All rights reserved. 
+ *   Copyright (c) 1998, 1999 Hellmuth Michaelis. All rights reserved. 
  *
  *   Redistribution and use in source and binary forms, with or without
  *   modification, are permitted provided that the following conditions
@@ -37,9 +37,9 @@
  *	i4b_isic_pnp.c - i4b pnp support
  *	--------------------------------
  *
- *	$Id: i4b_isic_pnp.c,v 1.15 1998/12/20 11:07:59 hm Exp $
+ *	$Id: i4b_isic_pnp.c,v 1.16 1999/02/14 09:44:59 hm Exp $
  *
- *      last edit-date: [Fri Dec 18 20:54:56 1998]
+ *      last edit-date: [Sun Feb 14 10:27:52 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -249,12 +249,10 @@ isic_pnpprobe(struct isa_device *dev, unsigned int iobase2)
 
 	switch(dev->id_flags)
 	{
-#ifndef __FreeBSD__
 #ifdef TEL_S0_16_3_P
 		case FLAG_TELES_S0_163_PnP:
 			ret = isic_probe_s0163P(dev, iobase2);
 			break;
-#endif
 #endif
 
 #ifdef CRTX_S0_P

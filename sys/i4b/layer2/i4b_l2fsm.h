@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,9 +27,9 @@
  *      i4b_l2fsm.h - layer 2 FSM
  *      -------------------------
  *
- *	$Id: i4b_l2fsm.h,v 1.3 1998/12/05 18:05:13 hm Exp $ 
+ *	$Id: i4b_l2fsm.h,v 1.4 1999/02/14 09:45:00 hm Exp $ 
  *
- *      last edit-date: [Sat Dec  5 18:28:39 1998]
+ *      last edit-date: [Sun Feb 14 10:31:43 1999]
  *
  *---------------------------------------------------------------------------*/
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,9 +27,9 @@
  *	i4b_l4.h - kernel interface to userland header file
  *	---------------------------------------------------
  *
- *	$Id: i4b_l4.h,v 1.13 1998/12/05 18:05:50 hm Exp $ 
+ *	$Id: i4b_l4.h,v 1.14 1999/02/14 09:45:02 hm Exp $ 
  *
- *      last edit-date: [Sat Dec  5 18:35:34 1998]
+ *      last edit-date: [Sun Feb 14 10:35:08 1999]
  *
  *---------------------------------------------------------------------------*/
 
