@@ -11,6 +11,8 @@
   * that would normally be reported via the syslog daemon.
   * 
   * Author: Wietse Venema, Eindhoven University of Technology, The Netherlands.
+  *
+  * $FreeBSD$
   */
 
 #ifndef lint
@@ -68,8 +70,15 @@ char  **argv;
     int     ch;
     char   *inetcf = 0;
     int     count;
+#ifdef INET6
+    struct sockaddr_storage server_sin;
+    struct sockaddr_storage client_sin;
+    char *ap;
+    int alen;
+#else
     struct sockaddr_in server_sin;
     struct sockaddr_in client_sin;
+#endif
     struct stat st;
 
     /*
@@ -173,12 +182,35 @@ char  **argv;
 	if ((hp = find_inet_addr(server)) == 0)
 	    exit(1);
 	memset((char *) &server_sin, 0, sizeof(server_sin));
+#ifdef INET6
+	server_sin.ss_family = hp->h_addrtype;
+	switch (hp->h_addrtype) {
+	case AF_INET:
+	    ap = (char *)&((struct sockaddr_in *)&server_sin)->sin_addr;
+	    alen = sizeof(struct sockaddr_in);
+	    break;
+	case AF_INET6:
+	    ap = (char *)&((struct sockaddr_in6 *)&server_sin)->sin6_addr;
+	    alen = sizeof(struct sockaddr_in6);
+	    break;
+	default:
+	    exit(1);
+	}
+#ifdef SIN6_LEN
+	server_sin.ss_len = alen;
+#endif
+#else
 	server_sin.sin_family = AF_INET;
+#endif
 	request_set(&request, RQ_SERVER_SIN, &server_sin, 0);
 
 	for (count = 0; (addr = hp->h_addr_list[count]) != 0; count++) {
+#ifdef INET6
+	    memcpy(ap, addr, alen);
+#else
 	    memcpy((char *) &server_sin.sin_addr, addr,
 		   sizeof(server_sin.sin_addr));
+#endif
 
 	    /*
 	     * Force evaluation of server host name and address. Host name
@@ -230,12 +262,35 @@ char  **argv;
     if ((hp = find_inet_addr(client)) == 0)
 	exit(1);
     memset((char *) &client_sin, 0, sizeof(client_sin));
+#ifdef INET6
+    client_sin.ss_family = hp->h_addrtype;
+    switch (hp->h_addrtype) {
+    case AF_INET:
+	ap = (char *)&((struct sockaddr_in *)&client_sin)->sin_addr;
+	alen = sizeof(struct sockaddr_in);
+	break;
+    case AF_INET6:
+	ap = (char *)&((struct sockaddr_in6 *)&client_sin)->sin6_addr;
+	alen = sizeof(struct sockaddr_in6);
+	break;
+    default:
+	exit(1);
+    }
+#ifdef SIN6_LEN
+    client_sin.ss_len = alen;
+#endif
+#else
     client_sin.sin_family = AF_INET;
+#endif
     request_set(&request, RQ_CLIENT_SIN, &client_sin, 0);
 
     for (count = 0; (addr = hp->h_addr_list[count]) != 0; count++) {
+#ifdef INET6
+	memcpy(ap, addr, alen);
+#else
 	memcpy((char *) &client_sin.sin_addr, addr,
 	       sizeof(client_sin.sin_addr));
+#endif
 
 	/*
 	 * Force evaluation of client host name and address. Host name

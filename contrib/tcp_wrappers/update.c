@@ -11,6 +11,8 @@
   * Diagnostics are reported through syslog(3).
   * 
   * Author: Wietse Venema, Eindhoven University of Technology, The Netherlands.
+  *
+  * $FreeBSD$
   */
 
 #ifndef lint
@@ -46,10 +48,18 @@ va_list ap;
 	    request->fd = va_arg(ap, int);
 	    continue;
 	case RQ_CLIENT_SIN:
+#ifdef INET6
+	    request->client->sin = va_arg(ap, struct sockaddr *);
+#else
 	    request->client->sin = va_arg(ap, struct sockaddr_in *);
+#endif
 	    continue;
 	case RQ_SERVER_SIN:
+#ifdef INET6
+	    request->server->sin = va_arg(ap, struct sockaddr *);
+#else
 	    request->server->sin = va_arg(ap, struct sockaddr_in *);
+#endif
 	    continue;
 
 	    /*

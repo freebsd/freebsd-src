@@ -3,6 +3,8 @@
   * rlogind and kernel source, but all mistakes in it are my fault.
   *
   * Author: Wietse Venema, Eindhoven University of Technology, The Netherlands.
+  *
+  * $FreeBSD$
   */
 
 #ifndef lint
@@ -11,6 +13,9 @@ static char sccsid[] = "@(#) fix_options.c 1.6 97/04/08 02:29:19";
 
 #include <sys/types.h>
 #include <sys/param.h>
+#ifdef INET6
+#include <sys/socket.h>
+#endif
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -41,6 +46,22 @@ struct request_info *request;
     unsigned int opt;
     int     optlen;
     struct in_addr dummy;
+#ifdef INET6
+    struct sockaddr_storage ss;
+    int sslen;
+
+    /*
+     * check if this is AF_INET socket
+     * XXX IPv6 support?
+     */
+    sslen = sizeof(ss);
+    if (getsockname(fd, (struct sockaddr *)&ss, &sslen) < 0) {
+	syslog(LOG_ERR, "getpeername: %m");
+	clean_exit(request);
+    }
+    if (ss.ss_family != AF_INET)
+	return;
+#endif
 
     if ((ip = getprotobyname("ip")) != 0)
 	ipproto = ip->p_proto;
