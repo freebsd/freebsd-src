@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: disk.c,v 1.22.2.9 1998/03/23 03:28:04 jkh Exp $
+ * $Id: disk.c,v 1.22.2.10 1998/05/15 21:18:59 obrien Exp $
  *
  */
 
@@ -382,6 +382,7 @@ slice_type_name( int type, int subtype )
 					case 130:	return "linux_swap";
 					case 131:	return "ext2fs";
 					case 166:	return "OpenBSD FFS";	/* 0xA6 */
+					case 169:	return "NetBSD FFS";	/* 0xA9 */
 					case 182:	return "OpenBSD";		/* dedicated */
 					case 183:	return "bsd/os";
 					case 184:	return "bsd/os swap";
