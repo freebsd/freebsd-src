@@ -118,7 +118,8 @@ enum {
 	PAM_OLDAUTHTOK			=   7,
 	PAM_RUSER			=   8,
 	PAM_USER_PROMPT			=   9,
-	PAM_AUTHTOK_PROMPT		=  10		/* OpenPAM extension */
+	PAM_AUTHTOK_PROMPT		=  10,		/* OpenPAM extension */
+	PAM_NUM_ITEMS					/* OpenPAM extension */
 };
 
 #ifdef __cplusplus

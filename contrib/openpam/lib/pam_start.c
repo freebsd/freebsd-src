@@ -290,3 +290,37 @@ _pam_configure_service(pam_handle_t *pamh,
 
 	return (PAM_SYSTEM_ERR);
 }
+
+/*
+ * Error codes:
+ *
+ *	=pam_set_item
+ *	!PAM_SYMBOL_ERR
+ *	PAM_SYSTEM_ERR
+ *	PAM_BUF_ERR
+ */
+
+/**
+ * The =pam_start function creates and initializes a PAM context.
+ *
+ * The =service argument specifies the name of the policy to apply, and is
+ * stored in the =PAM_SERVICE item in the created context.
+ *
+ * The =user argument specifies the name of the target user - the user the
+ * created context will serve to authenticate.
+ * It is stored in the =PAM_USER item in the created context.
+ *
+ * The =pam_conv argument points to a =struct pam_conv describing the
+ * conversation function to use.
+ * This structure is defined as follows:
+ *
+ *     struct pam_conv {
+ *          int   (*conv)(int, const struct pam_message **,
+ *              struct pam_response **, void *);
+ *          void   *appdata_ptr;
+ *     };
+ *
+ * >pam_get_item
+ * >pam_set_item
+ * >pam_end
+ */

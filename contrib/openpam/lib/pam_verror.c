@@ -58,3 +58,20 @@ pam_verror(pam_handle_t *pamh,
 	free(rsp); /* ignore response */
 	return (r);
 }
+
+/*
+ * Error codes:
+ *
+ *     !PAM_SYMBOL_ERR
+ *	PAM_SYSTEM_ERR
+ *	PAM_BUF_ERR
+ *	PAM_CONV_ERR
+ */
+
+/**
+ * The =pam_verror function passes its arguments to =pam_vprompt with a
+ * =style argument of =PAM_ERROR_MSG, and discards the response.
+ *
+ * >pam_error
+ * >pam_vinfo
+ */

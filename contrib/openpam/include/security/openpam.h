@@ -49,6 +49,15 @@ extern "C" {
 /*
  * API extensions
  */
+const char *
+openpam_get_option(pam_handle_t *_pamh,
+	const char *_option);
+
+int
+openpam_set_option(pam_handle_t *_pamh,
+	const char *_option,
+	const char *_value);
+
 int
 pam_error(pam_handle_t *_pamh,
 	const char *_fmt,
@@ -196,7 +205,7 @@ static struct pam_module _pam_module = { name PAM_SOEXT, {		\
     pam_sm_authenticate, pam_sm_setcred, pam_sm_acct_mgmt,		\
     pam_sm_open_session, pam_sm_close_session, pam_sm_chauthtok },	\
     NULL, 0, NULL, NULL };						\
-DATA_SET(_openpam_modules, _pam_module)
+DATA_SET(_openpam_static_modules, _pam_module)
 #else
 /* normal case */
 #define PAM_EXTERN

@@ -47,6 +47,8 @@
 #if defined(openpam_log)
 
 /*
+ * OpenPAM extension
+ *
  * Log a message through syslog(3)
  */
 
@@ -121,3 +123,7 @@ openpam_log(int level, const char *fmt, ...)
 }
 
 #endif
+
+/*
+ * NOLIST
+ */

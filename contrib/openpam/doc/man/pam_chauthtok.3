@@ -33,7 +33,7 @@
 .\"
 .\" $Id$
 .\"
-.Dd February 9, 2002
+.Dd February 22, 2002
 .Dt PAM_CHAUTHTOK 3
 .Os
 .Sh NAME
@@ -46,18 +46,36 @@
 .Ft int
 .Fn pam_chauthtok "pam_handle_t *pamh" "int flags"
 .Sh DESCRIPTION
-The
-.Nm
-function is not yet documented.
+No description available.
 .Sh RETURN VALUES
 The
-.Fn
+.Nm
 function returns one of the following values:
-.Bl -tag -width PAM_AUTHTOK_DISABLE_AGING
+.Bl -tag -width 18n
+.It Bq Er PAM_ABORT
+General failure.
+.It Bq Er PAM_AUTHTOK_DISABLE_AGING
+Authentication token aging disabled.
+.It Bq Er PAM_AUTHTOK_ERR
+Authentication token failure.
+.It Bq Er PAM_AUTHTOK_LOCK_BUSY
+Authentication token lock busy.
+.It Bq Er PAM_AUTHTOK_RECOVERY_ERR
+Failed to recover old authentication token.
+.It Bq Er PAM_BUF_ERR
+Memory buffer error.
+.It Bq Er PAM_CONV_ERR
+Conversation failure.
+.It Bq Er PAM_PERM_DENIED
+Permission denied.
+.It Bq Er PAM_SERVICE_ERR
+Error in service module.
+.It Bq Er PAM_SYSTEM_ERR
+System error.
 .El
 .Sh SEE ALSO
-.Xr pam_strerror 3 ,
-.Xr pam 3
+.Xr pam 3 ,
+.Xr pam_strerror 3
 .Sh STANDARDS
 .Rs
 .%T "X/Open Single Sign-On Service (XSSO) - Pluggable Authentication Modules"

@@ -36,6 +36,13 @@
 
 #include <security/pam_appl.h>
 
+/*
+ * XSSO 4.2.1
+ * XSSO 6 page 48
+ *
+ * Get mapped password for the user
+ */
+
 int
 pam_get_mapped_authtok(pam_handle_t *pamh,
 	const char *target_module_username,
@@ -47,3 +54,7 @@ pam_get_mapped_authtok(pam_handle_t *pamh,
 
 	return (PAM_SYSTEM_ERR);
 }
+
+/*
+ * NODOC
+ */
