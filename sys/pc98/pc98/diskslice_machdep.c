@@ -250,9 +250,8 @@ reread_mbr:
 #endif
 	DEV_STRATEGY(bp, 1);
 	if (bufwait(bp) != 0) {
-		diskerr(&bp->b_io, "reading primary partition table: error",
-		    0, (struct disklabel *)NULL);
-		printf("\n");
+		disk_err(&bp->b_io, "reading primary partition table: error",
+		    0, 1);
 		error = EIO;
 		goto done;
 	}
@@ -533,9 +532,8 @@ mbr_extended(dev, lp, ssp, ext_offset, ext_size, base_ext_offset, nsectors,
 	bp->b_iocmd = BIO_READ;
 	DEV_STRATEGY(bp, 1);
 	if (bufwait(bp) != 0) {
-		diskerr(&bp->b_io, "reading extended partition table: error",
-		    0, (struct disklabel *)NULL);
-		printf("\n");
+		disk_err(&bp->b_io, "reading extended partition table: error",
+		    0, 1);
 		goto done;
 	}
 

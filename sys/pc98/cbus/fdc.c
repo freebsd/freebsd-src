@@ -3054,8 +3054,8 @@ retrier(struct fdc_data *fdc)
 	default:
 	fail:
 		if ((fd->options & FDOPT_NOERRLOG) == 0) {
-			diskerr(bp, "hard error", fdc->fd->skip / DEV_BSIZE,
-				(struct disklabel *)NULL);
+			disk_err(bp, "hard error",
+			    fdc->fd->skip / DEV_BSIZE, 0);
 			if (fdc->flags & FDC_STAT_VALID) {
 				printf(
 				" (ST0 %b ST1 %b ST2 %b cyl %u hd %u sec %u)\n",

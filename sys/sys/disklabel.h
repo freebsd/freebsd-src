@@ -395,7 +395,6 @@ struct	bio_queue_head;
 
 int	bounds_check_with_label(struct bio *bp, struct disklabel *lp,
 	    int wlabel);
-void	diskerr(struct bio *bp, char *what, int blkdone, struct disklabel *lp);
 dev_t	dkmodpart(dev_t dev, int part);
 dev_t	dkmodslice(dev_t dev, int slice);
 u_int	dkunit(dev_t dev);

@@ -11,15 +11,16 @@
  */
 
 #include "opt_geom.h"
-#ifndef GEOM
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/sysctl.h>
+#include <sys/stdint.h>
 #include <sys/bio.h>
 #include <sys/conf.h>
 #include <sys/disk.h>
+#ifndef GEOM
+#include <sys/kernel.h>
+#include <sys/sysctl.h>
 #include <sys/malloc.h>
 #include <sys/sysctl.h>
 #include <machine/md_var.h>
@@ -432,3 +433,39 @@ SYSCTL_INT(_debug_sizeof, OID_AUTO, disk, CTLFLAG_RD,
     0, sizeof(struct disk), "sizeof(struct disk)");
 
 #endif
+
+/*-
+ * Disk error is the preface to plaintive error messages
+ * about failing disk transfers.  It prints messages of the form
+ * 	"hp0g: BLABLABLA cmd=read fsbn 12345 of 12344-12347"
+ * blkdone should be -1 if the position of the error is unknown.
+ * The message is printed with printf.
+ */
+void
+disk_err(struct bio *bp, const char *what, int blkdone, int nl)
+{
+	daddr_t sn;
+
+	printf("%s: %s", devtoname(bp->bio_dev), what);
+	switch(bp->bio_cmd) {
+	case BIO_READ:		printf("cmd=read"); break;
+	case BIO_WRITE:		printf("cmd=write"); break;
+	case BIO_DELETE:	printf("cmd=delete"); break;
+	case BIO_GETATTR:	printf("cmd=getattr"); break;
+	case BIO_SETATTR:	printf("cmd=setattr"); break;
+	default:		printf("cmd=%x", bp->bio_cmd); break;
+	}
+	sn = bp->bio_blkno;
+	if (bp->bio_bcount <= DEV_BSIZE) {
+		printf("fsbn %jd%s", (intmax_t)sn, nl ? "\n" : "");
+		return;
+	}
+	if (blkdone >= 0) {
+		sn += blkdone;
+		printf("fsbn %jd of ", (intmax_t)sn);
+	}
+	printf("%jd-%jd", (intmax_t)bp->bio_blkno,
+	    (intmax_t)(bp->bio_blkno + (bp->bio_bcount - 1) / DEV_BSIZE));
+	if (nl)
+		printf("\n");
+}
