@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from:@(#)syscons.c	1.3 940129
- *	$Id: syscons.c,v 1.44 1994/04/21 14:22:26 sos Exp $
+ *	$Id: syscons.c,v 1.46 1994/05/25 08:59:56 rgrimes Exp $
  *
  */
 
@@ -94,7 +94,7 @@
 #define BELL_DURATION	5
 #define BELL_PITCH	800
 #define TIMER_FREQ	1193182			/* should be in isa.h */
-#define PCBURST		128
+#define PCBURST		256
 
 /* defines related to hardware addresses */
 #define	MONO_BASE	0x3B4			/* crt controller base mono */
@@ -1038,16 +1038,24 @@ void pcstart(struct tty *tp)
 
 	if (scp->status & SLKED) 
 		return;
-	s = spltty();
+	s = spltty(); /* Isn't start always called at spltty? */
 	if (!(tp->t_state & (TS_TIMEOUT|TS_BUSY|TS_TTSTOP))) {
 		tp->t_state |= TS_BUSY;
 		splx(s);
 		rbp = &tp->t_outq;
-		len = q_to_b(rbp, buf, PCBURST);
-		for (i=0; i<len; i++)
-			if (buf[i]) ansi_put(scp, buf[i]);
+		while (rbp->c_cc) {
+			len = q_to_b(rbp, buf, PCBURST);
+			for (i=0; i<len; i++)
+				if (buf[i]) ansi_put(scp, buf[i]);
+		}
 		s = spltty();
 		tp->t_state &= ~TS_BUSY;
+#if 0
+		if (rbp->c_cc) {
+			tp->t_state |= TS_TIMEOUT;
+			timeout((timeout_t)ttrstrt, (caddr_t)tp, 1);
+		}
+#endif
 		if (rbp->c_cc <= tp->t_lowat) {
 			if (tp->t_state & TS_ASLEEP) {
 				tp->t_state &= ~TS_ASLEEP;
