@@ -71,7 +71,7 @@ SYSCTL_INT(_hw_pcic, OID_AUTO, ignore_function_1, CTLFLAG_RD,
  * The following should be a hint, so we can do it on a per device
  * instance, but this is convenient.  Do not set this unless pci
  * routing doesn't work.  It is purposely vague and undocumented
- * at the moment.
+ * at the moment.  Sadly, this seems to be needed way too often.
  */
 static int pcic_intr_path = (int)pcic_iw_pci;
 TUNABLE_INT("hw.pcic.intr_path", &pcic_intr_path);
@@ -86,6 +86,12 @@ SYSCTL_INT(_hw_pcic, OID_AUTO, init_routing, CTLFLAG_RD,
 doing so will cause probelms.  Often when no interrupts appear to be routed\n\
 setting this tunable to 1 will resolve the problem.  PCI Cards will almost\n\
 always require this, while builtin bridges need it less often");
+
+static int pcic_ignore_pci = 0;
+TUNABLE_INT("hw.pcic.ignore_pci", &pcic_ignore_pci);
+SYSCTL_INT(_hw_pcic, OID_AUTO, ignore_pci, CTLFLAG_RD,
+    &pcic_ignore_pci, 0,
+    "When set, driver ignores pci cardbus bridges it would otherwise claim.");
 
 static void pcic_pci_cardbus_init(device_t);
 static pcic_intr_way_t pcic_pci_gen_func;
@@ -999,6 +1005,8 @@ pcic_pci_probe(device_t dev)
 	struct resource	*res;
 	int		rid;
 
+	if (pcic_ignore_pci)
+		return (ENXIO);
 	device_id = pci_get_devid(dev);
 	desc = NULL;
 	itm = pcic_pci_lookup(device_id, &pcic_pci_devs[0]);
