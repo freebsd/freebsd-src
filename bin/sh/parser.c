@@ -486,6 +486,7 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 			synexpect(-1);
 	case TAND:
 	case TOR:
+		synexpect(-1);
 	case TNL:
 	case TEOF:
 	case TWORD:
