@@ -4,8 +4,10 @@
 # name	getty				type	status		comments
 #
 vga	"/usr/libexec/getty Pc"	pc3	on secure
+com00	"/usr/libexec/getty std.9600"	unknown	off secure
 com01	"/usr/libexec/getty std.9600"	unknown	off secure
 com02	"/usr/libexec/getty std.9600"	unknown	off secure
+com03	"/usr/libexec/getty std.9600"	unknown	off secure
 ttyp0	none			network
 ttyp1	none			network
 ttyp2	none			network
