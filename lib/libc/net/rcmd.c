@@ -222,28 +222,40 @@ rresvport(alport)
 	int *alport;
 {
 	struct sockaddr_in sin;
-	int s;
+	int s, on, len;
 
 	sin.sin_family = AF_INET;
 	sin.sin_addr.s_addr = INADDR_ANY;
+	sin.sin_port = 0;
+
 	s = socket(AF_INET, SOCK_STREAM, 0);
 	if (s < 0)
 		return (-1);
-	for (;;) {
-		sin.sin_port = htons((u_short)*alport);
-		if (bind(s, (struct sockaddr *)&sin, sizeof(sin)) >= 0)
-			return (s);
-		if (errno != EADDRINUSE) {
-			(void)close(s);
-			return (-1);
-		}
-		(*alport)--;
-		if (*alport == IPPORT_RESERVED/2) {
-			(void)close(s);
-			errno = EAGAIN;		/* close */
-			return (-1);
-		}
+
+	on = IP_PORTRANGE_LOW;
+	if (setsockopt(s, IPPROTO_IP, IP_PORTRANGE, (char*)&on, sizeof(on)) < 0)
+	{
+		(void)close(s);
+		return(-1);
 	}
+
+	if (bind(s, (struct sockaddr *)&sin, sizeof(sin)) >= 0) {
+		/* attempt to find the port that we were assigned */
+		len = sizeof(sin);
+		if (getsockname(s, (struct sockaddr *)&sin, &len) >= 0)
+			*alport = ntohs(sin.sin_port);
+		else {
+			(void)close(s);
+			return (-1);
+		}
+
+		return (s);
+	}
+	if (errno == EADDRNOTAVAIL) 	/* no available ports? */
+		errno = EAGAIN;		/* "official" return for this case */
+
+	(void)close(s);
+	return (-1);
 }
 
 int	__check_rhosts_file = 1;
