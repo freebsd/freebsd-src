@@ -21,7 +21,11 @@ SRCS=	ncurses_def.h \
 INCS=	${NCURSES}/form/form.h
 
 CLEANFILES+=	ncurses_def.h
-CFLAGS+= -I. -I${.CURDIR}/../libncurses -I${NCURSES}/form -I${NCURSES}/menu \
+CFLAGS+= -I.
+.if exists(${.OBJDIR}/../libncurses)
+CFLAGS+= -I${.OBJDIR}/../libncurses
+.endif
+CFLAGS+=-I${.CURDIR}/../libncurses -I${NCURSES}/form -I${NCURSES}/menu \
 	-I${NCURSES}/include -Wall -DNDEBUG -DHAVE_CONFIG_H
 
 ncurses_def.h:	MKncurses_def.sh ncurses_defs
