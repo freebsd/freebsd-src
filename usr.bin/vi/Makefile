@@ -61,7 +61,7 @@ SRCS+=	ex.c ex_abbrev.c ex_append.c ex_args.c ex_argv.c ex_at.c ex_bang.c \
 	ex_read.c ex_screen.c ex_script.c ex_set.c ex_shell.c \
 	ex_shift.c ex_source.c ex_stop.c ex_subst.c ex_tag.c \
 	ex_txt.c ex_undo.c ex_usage.c ex_util.c ex_version.c ex_visual.c \
-	ex_write.c ex_yank.c ex_z.c ex_notcl.c ex_noperl.c
+	ex_write.c ex_yank.c ex_z.c ex_tcl.c ex_perl.c
 
 # Vi source.
 SRCS+=	getc.c v_at.c v_ch.c v_cmd.c v_delete.c v_ex.c v_increment.c v_init.c \
@@ -72,15 +72,6 @@ SRCS+=	getc.c v_at.c v_ch.c v_cmd.c v_delete.c v_ex.c v_increment.c v_init.c \
 
 # Vi screen source.
 SRCS+=	vs_line.c vs_msg.c vs_refresh.c vs_relative.c vs_smap.c vs_split.c
-
-# unifdef has some *weird* exit codes, sigh!  RTFM unifdef(1)...
-ex_notcl.c: ex_tcl.c
-	-unifdef -UHAVE_TCL_INTERP ${SRCDIR}/ex/ex_tcl.c > ${.TARGET}
-
-ex_noperl.c: ex_perl.c
-	-unifdef -UHAVE_PERL_INTERP ${SRCDIR}/ex/ex_perl.c > ${.TARGET}
-
-CLEANFILES+=	ex_notcl.c ex_noperl.c
 
 afterinstall:
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
