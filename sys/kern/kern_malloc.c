@@ -470,7 +470,7 @@ kmeminit(dummy)
 		vm_kmem_size = 2 * cnt.v_page_count * PAGE_SIZE;
 
 	/*
-	 * In mb_init(), we set up submaps for mbufs and clusters, in which
+	 * In mbuf_init(), we set up submaps for mbufs and clusters, in which
 	 * case we rounddown() (nmbufs * MSIZE) and (nmbclusters * MCLBYTES),
 	 * respectively. Mathematically, this means that what we do here may
 	 * amount to slightly more address space than we need for the submaps,
