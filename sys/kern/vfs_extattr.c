@@ -3518,7 +3518,6 @@ extattrctl(p, uap)
 		return (error);
 	error = vn_start_write(nd.ni_vp, &mp, V_WAIT | PCATCH);
 	NDFREE(&nd, 0);
-	vrele(nd.ni_vp);
 	if (error)
 		return (error);
 	error = VFS_EXTATTRCTL(mp, SCARG(uap, cmd), SCARG(uap, attrname),
@@ -3593,7 +3592,6 @@ done:
 	if (needfree)
 		FREE(needfree, M_IOV);
 	NDFREE(&nd, 0);
-	vrele(nd.ni_vp);
 	vn_finished_write(mp);
 	return (error);
 }
@@ -3626,7 +3624,6 @@ extattr_get_file(p, uap)
 	if (uap->iovcnt > UIO_SMALLIOV) {
 		if (uap->iovcnt > UIO_MAXIOV) {
 			NDFREE(&nd, 0);
-			vrele(nd.ni_vp);
 			return (EINVAL);
 		}
 		MALLOC(iov, struct iovec *, iovlen, M_IOV, M_WAITOK);
@@ -3664,7 +3661,6 @@ done:
 	if (needfree)
 		FREE(needfree, M_IOV);
 	NDFREE(&nd, 0);
-	vrele(nd.ni_vp);
 	return(error);
 }
 
@@ -3695,7 +3691,6 @@ extattr_delete_file(p, uap)
 	error = VOP_SETEXTATTR(nd.ni_vp, attrname, NULL, p->p_cred->pc_ucred,
 	    p);
 	NDFREE(&nd, 0);
-	vrele(nd.ni_vp);
 	vn_finished_write(mp);
 	return(error);
 }
