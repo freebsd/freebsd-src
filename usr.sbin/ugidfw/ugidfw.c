@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Networks Associates Technology, Inc.
+ * Copyright (c) 2002, 2004 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by NAI Labs, the
@@ -15,9 +15,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The names of the authors may not be used to endorse or promote
- *    products derived from this software without specific prior written
- *    permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -50,6 +47,9 @@ void
 usage(void)
 {
 
+	fprintf(stderr, "ugidfw add [subject [not] [uid uid] [gid gid]]"
+	    " [object [not] [uid uid] \\\n");
+	fprintf(stderr, "    [gid gid]] mode arswxn\n");
 	fprintf(stderr, "ugidfw list\n");
 	fprintf(stderr, "ugidfw set rulenum [subject [not] [uid uid] [gid gid]]"
 	    " [object [not] \\\n");
@@ -57,6 +57,29 @@ usage(void)
 	fprintf(stderr, "ugidfw remove rulenum\n");
 
 	exit(-1);
+}
+
+void
+add_rule(int argc, char *argv[])
+{
+	char errstr[BUFSIZ];
+	struct mac_bsdextended_rule rule;
+	long value;
+	int error, rulenum;
+	char *endp;
+
+	error = bsde_parse_rule(argc, argv, &rule, BUFSIZ, errstr);
+	if (error) {
+		fprintf(stderr, "%s\n", errstr);
+		return;
+	}
+
+	error = bsde_add_rule(&rulenum, &rule, BUFSIZ, errstr);
+	if (error) {
+		fprintf(stderr, "%s\n", errstr);
+		return;
+	}
+	printf("Added rule %d\n", rulenum);
 }
 
 void
@@ -168,7 +191,9 @@ main(int argc, char *argv[])
 	if (argc < 2)
 		usage();
 
-	if (strcmp("list", argv[1]) == 0) {
+	if (strcmp("add", argv[1]) == 0) {
+		add_rule(argc-2, argv+2);
+	} else if (strcmp("list", argv[1]) == 0) {
 		if (argc != 2)
 			usage();
 		list_rules();

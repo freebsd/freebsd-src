@@ -1,4 +1,4 @@
-.\" Copyright (c) 2002 Networks Associates Technology, Inc.
+.\" Copyright (c) 2002, 2004 Networks Associates Technology, Inc.
 .\" All rights reserved.
 .\"
 .\" This software was developed for the FreeBSD Project by Chris
@@ -15,9 +15,6 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. The names of the authors may not be used to endorse or promote
-.\"    products derived from this software without specific prior written
-.\"    permission.
 .\"
 .\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -33,13 +30,25 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 11, 2002
+.Dd February 24, 2004
 .Dt UGIDFW 8
 .Os
 .Sh NAME
 .Nm ugidfw
 .Nd "firewall-like access controls for file system objects"
 .Sh SYNOPSIS
+.Nm
+.Cm add
+.Cm subject
+.Op Cm not
+.Op Cm uid Ar uid
+.Op Cm gid Ar gid
+.Cm object
+.Op Cm not
+.Op Cm uid Ar uid
+.Op Cm gid Ar gid
+.Cm mode
+.Ar arswxn
 .Nm
 .Cm list
 .Nm
@@ -71,6 +80,27 @@ policy.
 .Pp
 The arguments are as follows:
 .Bl -tag -width indent -offset indent
+.It Cm add
+Add a new
+.Nm
+rule.
+.It Xo
+.Cm add
+.Cm subject
+.Op Cm not
+.Op Cm uid Ar uid
+.Op Cm gid Ar gid
+.Cm object
+.Op Cm not
+.Op Cm uid Ar uid
+.Op Cm gid Ar gid
+.Cm mode
+.Ar arswxn
+.Xc
+Add a new rule, automatically selecting the rule number.
+See the description of
+.Cm set
+for syntax information.
 .It Cm list
 Produces a list of all the current
 .Nm
