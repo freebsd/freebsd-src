@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.59 1999/08/05 10:32:07 brian Exp $
+ *	$Id: bundle.c,v 1.60 1999/08/06 20:04:01 brian Exp $
  */
 
 #include <sys/param.h>
@@ -1019,7 +1019,7 @@ bundle_ShowLinks(struct cmdargs const *arg)
     prompt_Printf(arg->prompt, "Name: %s [%s, %s]",
                   dl->name, mode2Nam(dl->physical->type), datalink_State(dl));
     if (dl->physical->link.throughput.rolling && dl->state == DATALINK_OPEN)
-      prompt_Printf(arg->prompt, " bandwidth %d, %qu bps (%qu bytes/sec)",
+      prompt_Printf(arg->prompt, " bandwidth %d, %llu bps (%llu bytes/sec)",
                     dl->mp.bandwidth ? dl->mp.bandwidth :
                                        physical_GetSpeed(dl->physical),
                     dl->physical->link.throughput.OctetsPerSecond * 8,
@@ -1032,7 +1032,7 @@ bundle_ShowLinks(struct cmdargs const *arg)
   if (secs > t->SamplePeriod)
     secs = t->SamplePeriod;
   if (secs)
-    prompt_Printf(arg->prompt, "Currently averaging %qu bps (%qu bytes/sec)"
+    prompt_Printf(arg->prompt, "Currently averaging %llu bps (%llu bytes/sec)"
                   " over the last %d secs\n", t->OctetsPerSecond * 8,
                   t->OctetsPerSecond, secs);
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: throughput.c,v 1.10 1999/08/05 10:32:15 brian Exp $
+ *	$Id: throughput.c,v 1.11 1999/08/06 01:34:03 brian Exp $
  */
 
 #include <sys/types.h>
@@ -101,7 +101,7 @@ throughput_disp(struct pppThroughput *t, struct prompt *prompt)
     prompt_Printf(prompt, "\n");
 
   divisor = secs_up ? secs_up : 1;
-  prompt_Printf(prompt, "%qu octets in, %qu octets out\n",
+  prompt_Printf(prompt, "%llu octets in, %llu octets out\n",
                 t->OctetsIn, t->OctetsOut);
   if (t->rolling) {
     prompt_Printf(prompt, "  overall   %6qu bytes/sec\n",
@@ -113,7 +113,7 @@ throughput_disp(struct pppThroughput *t, struct prompt *prompt)
     prompt_Printf(prompt, "  peak      %6qu bytes/sec on %s",
                   t->BestOctetsPerSecond, ctime(&t->BestOctetsPerSecondTime));
   } else
-    prompt_Printf(prompt, "Overall %qu bytes/sec\n",
+    prompt_Printf(prompt, "Overall %llu bytes/sec\n",
                   (t->OctetsIn + t->OctetsOut) / divisor);
 }
 
@@ -126,19 +126,19 @@ throughput_log(struct pppThroughput *t, int level, const char *title)
 
     secs_up = throughput_uptime(t);
     if (title)
-      log_Printf(level, "%s: Connect time: %d secs: %qu octets in, %qu octets"
+      log_Printf(level, "%s: Connect time: %d secs: %llu octets in, %llu octets"
                 " out\n", title, secs_up, t->OctetsIn, t->OctetsOut);
     else
-      log_Printf(level, "Connect time: %d secs: %qu octets in,"
-                 " %qu octets out\n", secs_up, t->OctetsIn, t->OctetsOut);
+      log_Printf(level, "Connect time: %d secs: %llu octets in,"
+                 " %llu octets out\n", secs_up, t->OctetsIn, t->OctetsOut);
     if (secs_up == 0)
       secs_up = 1;
     if (t->rolling)
-      log_Printf(level, " total %qu bytes/sec, peak %qu bytes/sec on %s",
+      log_Printf(level, " total %llu bytes/sec, peak %llu bytes/sec on %s",
                  (t->OctetsIn + t->OctetsOut) / secs_up, t->BestOctetsPerSecond,
                  ctime(&t->BestOctetsPerSecondTime));
     else
-      log_Printf(level, " total %qu bytes/sec\n",
+      log_Printf(level, " total %llu bytes/sec\n",
                  (t->OctetsIn + t->OctetsOut) / secs_up);
   }
 }
