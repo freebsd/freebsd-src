@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.69 1996/11/30 07:39:37 joerg Exp $
+ *      $Id: scsiconf.c,v 1.70 1996/12/07 22:45:15 joerg Exp $
  */
 
 #include "opt_scsi.h"
@@ -251,12 +251,16 @@ static struct scsidevs knowndevs[] =
 /* od's must be probed before sd's since some of them identify as T_DIRECT */
 #if NOD > 0
 	{
-		T_OPTICAL, T_OPTICAL, T_REMOV, "MATSHITA", "PD-1 LF-1000", "*",
+		T_OPTICAL, T_OPTICAL, T_REMOV, "MATSHITA", "PD-1 LF-100*", "*",
 		"od", SC_MORE_LUS
 	},
 	{
 		T_DIRECT, T_OPTICAL, T_REMOV, "SONY", "SMO-*", "*",
 		"od", SC_MORE_LUS
+	},
+	{
+		T_DIRECT, T_OPTICAL, T_REMOV, "MOST", "RMD-5200-S", "*",
+		"od", SC_ONE_LU
 	},
 	{
 		T_OPTICAL, T_OPTICAL, T_REMOV, "*", "*", "*",
