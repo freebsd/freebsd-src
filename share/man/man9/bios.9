@@ -56,8 +56,8 @@ the BIOS functions and data encountered on x86 PC-architecture systems.
 .Bl -tag -width 20n
 .It Fn bios_sigsearch
 Searches the BIOS address space for a service signature, usually an
-uppercase ASCII sequence surrounded by underscores.  The search begins
-at
+uppercase ASCII sequence surrounded by underscores.
+The search begins at
 .Fa start ,
 or at the beginning of the BIOS if
 .Fa start
@@ -67,11 +67,14 @@ bytes of the BIOS image and
 .Fa sig
 are compared at
 .Fa sigofs
-bytes offset from the current location.  If no match is found, the
+bytes offset from the current location.
+If no match is found, the
 current location is incremented by
 .Fa paralen
-bytes and the search repeated.  If the signature is found, its effective
-physical address is returned.  If no signature is found, zero is returned.
+bytes and the search repeated.
+If the signature is found, its effective
+physical address is returned.
+If no signature is found, zero is returned.
 .It Fn BIOS_VADDRTOPADDR
 Returns the effective physical address which corresponds to the kernel
 virtual address
@@ -94,7 +97,8 @@ parameter table during system startup.
 .Sh BIOS32
 At system startup, the BIOS is scanned for the BIOS32 Service Directory
 (part of the PCI specification), and the existence of the directory is
-recorded.  This can then be used to locate other services.
+recorded.
+This can then be used to locate other services.
 .Bl -tag -width 20n
 .It Fn bios32_SDlookup
 Attempts to locate the BIOS32 service matching the 4-byte identifier
@@ -104,8 +108,10 @@ field of the
 .Fa ent
 argument.
 .It Fn bios32
-Calls a bios32 function.  This presumes that the function is capable of
-working within the kernel segment (normally the case).  The virtual address
+Calls a bios32 function.
+This presumes that the function is capable of
+working within the kernel segment (normally the case).
+The virtual address
 of the entrypoint is supplied in
 .Fa entry
 and the register arguments to the function are supplied in
