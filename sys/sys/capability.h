@@ -50,6 +50,7 @@ struct cap {
 };
 typedef struct cap	*cap_t;
 
+#if defined(_KERNEL) | defined(_CAPABILITY_NEEDMACROS)
 #define	SET_CAPABILITY(mask, cap) do { \
 	(mask) |= cap; \
 	} while (0)
@@ -65,9 +66,29 @@ typedef struct cap	*cap_t;
  * Is (tcap) a logical subset of (scap)?
  */
 #define	CAP_SUBSET(scap,tcap) \
-	(((scap).c_permitted | (tcap).c_permitted == (scap).c_permitted) && \
-	((scap).c_effective | (tcap).c_effective == (scap).c_effective) && \
-	((scap).c_inheritable | (tcap).c_inheritable == (scap).c_inheritable))
+	((((scap).c_permitted | (tcap).c_permitted) == (scap).c_permitted) && \
+	(((scap).c_effective | (tcap).c_effective) == (scap).c_effective) && \
+	(((scap).c_inheritable | (tcap).c_inheritable) == (scap).c_inheritable))
+
+/*
+ * Put the union of the capability sets c1 and c2 into c2.
+ */
+#define CAP_UNITE(c1, c2) do { \
+	(c1).c_permitted |= (c2).c_permitted; \
+	(c1).c_effective |= (c2).c_effective; \
+	(c1).c_inheritable |= (c2).c_inheritable; \
+	} while (0)
+
+/*
+ * Test whether any bits in a cap set are set.
+ * XXX: due to capability setting constraints, it should actually be
+ * sufficient to check c_permitted.
+ */
+
+#define CAP_NONZERO(c) \
+	((c).c_permitted != 0 || (c).c_effective != 0 || (c).c_inheritable != 0)
+
+#endif
 
 /*
  * Possible flags for a particular capability.
@@ -109,7 +130,12 @@ typedef struct cap	*cap_t;
 #define	CAP_AUDIT_WRITE		(0x0000000000200000)
 
 /*
- * The following capability, borrowed from Linux, is unsafe
+ * The following is no longer functional.
+ * With our capability model, this serves no useful purpose. A process just
+ * has all the capabilities it needs, and if it are to be temporarily given
+ * up, they can be removed from the effective set.
+ * We do not support modifying the capabilities of other processes, as Linux
+ * (from which this one originated) does.
  */
 #define	CAP_SETPCAP		(0x0000000000400000)
 /* This is unallocated: */
@@ -130,7 +156,6 @@ typedef struct cap	*cap_t;
 /*
  * The following capabilities, borrowed from Linux, are unsafe in a
  * secure environment.
- *
  */
 #define	CAP_SYS_MODULE		(0x0000000080000000)
 #define	CAP_SYS_RAWIO		(0x0000000100000000)
@@ -139,7 +164,7 @@ typedef struct cap	*cap_t;
 #define	CAP_SYS_PACCT		(0x0000000800000000)
 #define	CAP_SYS_ADMIN		(0x0000001000000000)
 /*
- * Back to the safe ones, again
+ * Back to the safe ones, again.
  */
 #define	CAP_SYS_BOOT		(0x0000002000000000)
 #define	CAP_SYS_NICE		(0x0000004000000000)
@@ -155,7 +180,7 @@ typedef struct cap	*cap_t;
     CAP_MAC_READ | CAP_MAC_RELABEL_SUBJ | CAP_MAC_UPGRADE | \
     CAP_MAC_WRITE | CAP_INF_NOFLOAT_OBJ | CAP_INF_NOFLOAT_SUBJ | \
     CAP_INF_RELABEL_OBJ | CAP_INF_RELABEL_SUBJ | CAP_AUDIT_CONTROL | \
-    CAP_AUDIT_WRITE | CAP_SETPCAP | CAP_SYS_SETFFLAG | CAP_NET_BIND_SERVICE | \
+    CAP_AUDIT_WRITE | CAP_SYS_SETFFLAG | CAP_NET_BIND_SERVICE | \
     CAP_NET_BROADCAST | CAP_NET_ADMIN | CAP_NET_RAW | CAP_IPC_LOCK | \
     CAP_IPC_OWNER | CAP_SYS_MODULE | CAP_SYS_RAWIO | CAP_SYS_CHROOT | \
     CAP_SYS_PTRACE | CAP_SYS_PACCT | CAP_SYS_ADMIN | CAP_SYS_BOOT | \
