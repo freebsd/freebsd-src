@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.27 1995/07/29 13:39:46 bde Exp $
+ * $Id: if_sl.c,v 1.28 1995/07/31 21:01:36 bde Exp $
  */
 
 /*
@@ -109,6 +109,9 @@ Huh? Slip without inet?
 #include <sys/time.h>
 #include <net/bpf.h>
 #endif
+
+static void slattach __P((caddr_t));
+PSEUDO_SET(slattach, if_sl);
 
 /*
  * SLRMAX is a hard limit on input packet size.  To simplify the code
@@ -195,8 +198,9 @@ static struct linesw slipdisc =
 /*
  * Called from boot code to establish sl interfaces.
  */
-void
-slattach()
+static void
+slattach(udata)
+	caddr_t udata;
 {
 	register struct sl_softc *sc;
 	register int i = 0;
@@ -221,8 +225,6 @@ slattach()
 #endif
 	}
 }
-
-PSEUDO_SET(slattach, if_sl);
 
 static int
 slinit(sc)
