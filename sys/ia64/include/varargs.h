@@ -1,7 +1,5 @@
-/* $FreeBSD$ */
-/* From: NetBSD: varargs.h,v 1.7 1997/04/06 08:47:46 cgd Exp */
-
 /*-
+ * Copyright (c) 2002 David E. O'Brien.  All rights reserved.
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -39,19 +37,21 @@
  * SUCH DAMAGE.
  *
  *	@(#)varargs.h	8.2 (Berkeley) 3/22/94
+ * $FreeBSD$
  */
 
 #ifndef _MACHINE_VARARGS_H_
 #define	_MACHINE_VARARGS_H_
 
-#include <machine/stdarg.h>
+#include <machine/ansi.h>
 
+typedef _BSD_VA_LIST_ va_list;
 typedef int __builtin_va_alist_t __attribute__((__mode__(__word__)));
 
-#define	va_alist	__builtin_va_alist
-#define	va_dcl		__builtin_va_alist_t __builtin_va_alist; ...
-
-#undef va_start
-#define	va_start(ap)	__builtin_varargs_start(&(ap))
+#define	va_alist		__builtin_va_alist
+#define	va_dcl			__builtin_va_alist_t __builtin_va_alist; ...
+#define	va_start(ap)		__builtin_varargs_start(ap)
+#define	va_arg(ap, type)	__builtin_va_arg((ap), type)
+#define	va_end(ap)		__builtin_va_end(ap)
 
 #endif /* !_MACHINE_VARARGS_H_ */

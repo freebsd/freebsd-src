@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2002 David E. O'Brien.  All rights reserved.
  * Copyright (c) 2000 Tsubai Masanari.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,6 +31,21 @@
 #ifndef _POWERPC_VARARGS_H_
 #define	_POWERPC_VARARGS_H_
 
+#if defined(__GNUC__) && (__GNUC__ == 2 && __GNUC_MINOR__ > 95 || __GNUC__ >= 3)
+
+#include <machine/ansi.h>
+
+typedef _BSD_VA_LIST_ va_list;
+typedef int __builtin_va_alist_t __attribute__((__mode__(__word__)));
+
+#define	va_alist		__builtin_va_alist
+#define	va_dcl			__builtin_va_alist_t __builtin_va_alist; ...
+#define	va_start(ap)		__builtin_varargs_start(ap)
+#define	va_arg(ap, type)	__builtin_va_arg((ap), type)
+#define	va_end(ap)		__builtin_va_end(ap)
+
+#else	/* ! __GNUC__ post GCC 2.95 */
+
 #include <machine/stdarg.h>
 
 #define	va_alist	__builtin_va_alist
@@ -46,5 +62,7 @@
 	 (ap).__gpr = __va_first_gpr,					\
 	 (ap).__fpr = __va_first_fpr)
 #endif
+
+#endif /* __GNUC__ post GCC 2.95 */
 
 #endif /* _POWERPC_VARARGS_H_ */

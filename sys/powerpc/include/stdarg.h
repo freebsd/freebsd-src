@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2002 David E. O'Brien.  All rights reserved.
  * Copyright (c) 2000 Tsubai Masanari.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,6 +34,19 @@
 #include <machine/ansi.h>
 
 typedef _BSD_VA_LIST_	va_list;
+
+#if defined(__GNUC__) && (__GNUC__ == 2 && __GNUC_MINOR__ > 95 || __GNUC__ >= 3)
+
+#define	va_start(ap, last) \
+	__builtin_stdarg_start((ap), (last))
+
+#define	va_arg(ap, type) \
+	__builtin_va_arg((ap), type)
+
+#define	va_end(ap) \
+	__builtin_va_end(ap)
+
+#else	/* ! __GNUC__ post GCC 2.95 */
 
 #ifdef __lint__
 
@@ -116,5 +130,7 @@ typedef _BSD_VA_LIST_	va_list;
 #define	va_copy(dest, src)						\
 	((dest) = (src))
 #endif
+
+#endif /* __GNUC__ post GCC 2.95 */
 
 #endif /* _POWERPC_STDARG_H_ */
