@@ -3,7 +3,7 @@
 #
 # modified for PC-9801
 #
-#	$Id: files.pc98,v 1.24 1997/05/23 10:11:03 kato Exp $
+#	$Id: files.pc98,v 1.25 1997/05/31 12:39:57 kato Exp $
 #
 aic7xxx_asm			optional	ahc	device-driver	   \
 	dependency 	"$S/dev/aic7xxx/*.[chyl]"			   \
@@ -11,11 +11,15 @@ aic7xxx_asm			optional	ahc	device-driver	   \
 	no-obj no-implicit-rule						   \
 	clean		"aic7xxx_asm"
 #
+# The long compile-with and dependency lines are required because of
+# limitations in config: backslash-newline doesn't work in strings, and
+# dependency lines other than the first are silently ignored.
+#
 aic7xxx_{seq,reg}.h		optional	ahc	device-driver	   \
 	compile-with	"./aic7xxx_asm ${INCLUDES} -o aic7xxx_seq.h -r aic7xxx_reg.h $S/dev/aic7xxx/aic7xxx.seq"   \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"aic7xxx_seq.h aic7xxx_reg.h"			   \
-	dependency	"$S/dev/aic7xxx/aic7xxx.{reg,seq} aic7xxx_asm"
+	dependency	"$S/dev/aic7xxx/aic7xxx.{reg,seq} $S/scsi/scsi_message.h aic7xxx_asm"
 #
 linux_genassym			optional	compat_linux		   \
 	dependency 	"$S/i386/linux/linux_genassym.c $S/i386/linux/linux.h" \
@@ -128,7 +132,8 @@ i386/isa/if_lnc.c		optional	lnc	device-driver
 i386/isa/if_wl.c		optional	wl	device-driver
 #pc98/isa/if_ze.c		optional	ze	device-driver
 i386/isa/if_zp.c		optional	zp	device-driver
-i386/isa/ipl_funcs.c		standard
+i386/isa/ipl_funcs.c		standard				   \
+	compile-with	"${CC} -c ${CFLAGS} ${PROF:S/^$/-fomit-frame-pointer/} $<"
 pc98/pc98/pc98.c		optional	isa	device-driver
 pc98/isa/istallion.c		optional	stli	device-driver
 pc98/isa/joy.c			optional        joy     device-driver
@@ -227,7 +232,7 @@ i386/linux/linux_dummy.c	optional	compat_linux
 i386/linux/linux_file.c		optional	compat_linux
 i386/linux/linux_ioctl.c	optional	compat_linux
 i386/linux/linux_ipc.c		optional	compat_linux
-i386/linux/linux_locore.s	optional	compat_linux \
+i386/linux/linux_locore.s	optional	compat_linux		   \
   	dependency 	"linux_assym.h"
 i386/linux/linux_misc.c		optional	compat_linux
 i386/linux/linux_signal.c	optional	compat_linux
@@ -290,6 +295,4 @@ gnu/i386/fpemul/reg_u_sub.s	optional	gpl_math_emulate
 gnu/i386/fpemul/wm_shrx.s	optional	gpl_math_emulate
 gnu/i386/fpemul/wm_sqrt.s	optional	gpl_math_emulate
 gnu/i386/isa/dgb.c		optional	dgb	device-driver
-gnu/i386/isa/nic3008.c          optional        nic     device-driver
-gnu/i386/isa/nic3009.c          optional        nnic    device-driver
 pci/wd82371.c			optional	wd	device-driver
