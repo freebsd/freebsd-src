@@ -177,8 +177,10 @@ gpib_l_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	u = dev->si_drv1;
 
 	mtx_lock(&u->mutex);
-	if (u->busy)
+	if (u->busy) {
+		mtx_unlock(&u->mutex);
 		return (EBUSY);
+	}
 	u->busy = 1;
 	u->irq = gpib_l_irq;
 	mtx_unlock(&u->mutex);
