@@ -31,13 +31,29 @@
 .Dt SOCKSTAT 1
 .Sh NAME
 .Nm sockstat
-.Nd list open Internet sockets
+.Nd list open sockets
 .Sh SYNOPSIS
 .Nm
+.Op Fl 46u
 .Sh DESCRIPTION
 The
 .Nm
-command lists open Internet sockets.
+command lists open Internet or Unix domain sockets.
+.Pp
+The following options are available:
+.Bl -tag -width Fl
+.It Fl 4
+Show AF_INET (IPv4) sockets.
+.It Fl 6
+Show AF_INET6 (IPv6) sockets.
+.It Fl u
+Show AF_LOCAL (Unix) sockets.
+.El
+.Pp
+If no option is specified,
+.Nm
+will list sockets of all three types.
+.Pp
 The information listed for each
 socket is:
 .Bl -tag -width "FOREIGN ADDRESS"
@@ -50,11 +66,19 @@ The process ID of the command which holds the socket.
 .It Li FD
 The file descriptor number of the socket.
 .It Li PROTO
-The transport protocol associated with the socket.
+The transport protocol associated with the socket for Internet
+sockets, or the type of socket (stream or datagram) for Unix sockets.
+.It Li ADDRESS
+(Unix sockets only)
+For listening sockets, this is the filename of the socket.
+For other sockets, it is the name, PID and file descriptor number of
+the peer, or "(none)" if the socket is neither bound nor connected.
 .It Li LOCAL ADDRESS
+(Internet sockets only)
 The address the local end of the socket is bound to (see
 .Xr getsockname 2 ).
 .It Li FOREIGN ADDRESS
+(Internet sockets only)
 The address the foreign end of the socket is bound to (see
 .Xr getpeername 2 ).
 .El
