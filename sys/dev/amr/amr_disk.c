@@ -91,7 +91,7 @@ static	d_strategy_t	amrd_strategy;
 
 static struct cdevsw amrd_cdevsw = {
 		/* open */	amrd_open,
-		/* close */	noclose,
+		/* close */	nullclose,
 		/* read */	physread,
 		/* write */	physwrite,
 		/* ioctl */	noioctl,
