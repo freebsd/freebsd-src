@@ -142,7 +142,7 @@ thread_init(void *mem, int size)
 
 	td = (struct thread *)mem;
 	mtx_lock(&Giant);
-	pmap_new_thread(td);
+	pmap_new_thread(td, 0);
 	mtx_unlock(&Giant);
 	cpu_thread_setup(td);
 }

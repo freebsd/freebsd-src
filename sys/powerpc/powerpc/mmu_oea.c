@@ -1532,13 +1532,17 @@ pmap_remove_pages(pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 	pmap_remove(pm, sva, eva);
 }
 
+#ifndef KSTACK_MAX_PAGES
+#define KSTACK_MAX_PAGES 32
+#endif
+
 /*
  * Create the kernel stack and pcb for a new thread.
  * This routine directly affects the fork perf for a process and
  * create performance for a thread.
  */
 void
-pmap_new_thread(struct thread *td)
+pmap_new_thread(struct thread *td, int pages)
 {
 	vm_object_t	ksobj;
 	vm_offset_t	ks;
@@ -1548,21 +1552,27 @@ pmap_new_thread(struct thread *td)
 	/*
 	 * Allocate object for the kstack.
 	 */
-	ksobj = vm_object_allocate(OBJT_DEFAULT, KSTACK_PAGES);
+	ksobj = vm_object_allocate(OBJT_DEFAULT, pages);
 	td->td_kstack_obj = ksobj;
 
 	/*
 	 * Get a kernel virtual address for the kstack for this thread.
 	 */
 	ks = kmem_alloc_nofault(kernel_map,
-	    (KSTACK_PAGES + KSTACK_GUARD_PAGES) * PAGE_SIZE);
+	    (pages + KSTACK_GUARD_PAGES) * PAGE_SIZE);
 	if (ks == 0)
 		panic("pmap_new_thread: kstack allocation failed");
 	TLBIE(ks);
 	ks += KSTACK_GUARD_PAGES * PAGE_SIZE;
 	td->td_kstack = ks;
 
-	for (i = 0; i < KSTACK_PAGES; i++) {
+	/*
+	 * Knowing the number of pages allocated is useful when you
+	 * want to deallocate them.
+	 */
+	td->td_kstack_pages = pages;
+
+	for (i = 0; i < pages; i++) {
 		/*
 		 * Get a kernel stack page.
 		 */
@@ -1582,6 +1592,18 @@ pmap_new_thread(struct thread *td)
 
 void
 pmap_dispose_thread(struct thread *td)
+{
+	TODO;
+}
+
+void
+pmap_new_altkstack(struct thread *td, int pages)
+{
+	TODO;
+}
+
+void
+pmap_dispose_altkstack(struct thread *td)
 {
 	TODO;
 }

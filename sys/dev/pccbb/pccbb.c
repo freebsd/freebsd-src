@@ -680,7 +680,7 @@ cbb_attach(device_t brdev)
 	cbb_set(sc, CBB_SOCKET_EVENT, cbb_get(sc, CBB_SOCKET_EVENT));
 
 	/* Start the thread */
-	if (kthread_create(cbb_event_thread, sc, &sc->event_thread, 0,
+	if (kthread_create(cbb_event_thread, sc, &sc->event_thread, 0, 0,
 		"%s%d", device_get_name(sc->dev), device_get_unit(sc->dev))) {
 		device_printf (sc->dev, "unable to create event thread.\n");
 		panic ("cbb_create_event_thread");

@@ -118,7 +118,7 @@ fork(td, uap)
 	struct proc *p2;
 
 	mtx_lock(&Giant);
-	error = fork1(td, RFFDG | RFPROC, &p2);
+	error = fork1(td, RFFDG | RFPROC, 0, &p2);
 	if (error == 0) {
 		td->td_retval[0] = p2->p_pid;
 		td->td_retval[1] = 0;
@@ -140,7 +140,7 @@ vfork(td, uap)
 	struct proc *p2;
 
 	mtx_lock(&Giant);
-	error = fork1(td, RFFDG | RFPROC | RFPPWAIT | RFMEM, &p2);
+	error = fork1(td, RFFDG | RFPROC | RFPPWAIT | RFMEM, 0, &p2);
 	if (error == 0) {
 		td->td_retval[0] = p2->p_pid;
 		td->td_retval[1] = 0;
@@ -164,7 +164,7 @@ rfork(td, uap)
 	if ((uap->flags & RFKERNELONLY) != 0)
 		return (EINVAL);
 	mtx_lock(&Giant);
-	error = fork1(td, uap->flags, &p2);
+	error = fork1(td, uap->flags, 0, &p2);
 	if (error == 0) {
 		td->td_retval[0] = p2 ? p2->p_pid : 0;
 		td->td_retval[1] = 0;
@@ -215,9 +215,10 @@ SYSCTL_PROC(_kern, OID_AUTO, randompid, CTLTYPE_INT|CTLFLAG_RW,
     0, 0, sysctl_kern_randompid, "I", "Random PID modulus");
 
 int
-fork1(td, flags, procp)
+fork1(td, flags, pages, procp)
 	struct thread *td;			/* parent proc */
 	int flags;
+	int pages;
 	struct proc **procp;			/* child proc */
 {
 	struct proc *p2, *pptr;
@@ -470,6 +471,10 @@ again:
 	td2 = FIRST_THREAD_IN_PROC(p2);
 	kg2 = FIRST_KSEGRP_IN_PROC(p2);
 	ke2 = FIRST_KSE_IN_KSEGRP(kg2);
+
+	/* Allocate and switch to an alternate kstack if specified */
+	if (pages != 0)
+		pmap_new_altkstack(td2, pages);
 
 #define RANGEOF(type, start, end) (offsetof(type, end) - offsetof(type, start))
 

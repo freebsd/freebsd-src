@@ -55,7 +55,7 @@ kproc_start(udata)
 	int error;
 
 	error = kthread_create((void (*)(void *))kp->func, NULL,
-		    kp->global_procpp, 0, "%s", kp->arg0);
+		    kp->global_procpp, 0, 0, "%s", kp->arg0);
 	if (error)
 		panic("kproc_start: %s: error %d", kp->arg0, error);
 }
@@ -72,7 +72,7 @@ kproc_start(udata)
  */
 int
 kthread_create(void (*func)(void *), void *arg,
-    struct proc **newpp, int flags, const char *fmt, ...)
+    struct proc **newpp, int flags, int pages, const char *fmt, ...)
 {
 	int error;
 	va_list ap;
@@ -83,7 +83,7 @@ kthread_create(void (*func)(void *), void *arg,
 		panic("kthread_create called too soon");
 
 	error = fork1(&thread0, RFMEM | RFFDG | RFPROC | RFSTOPPED | flags,
-	    &p2);
+	    pages, &p2);
 	if (error)
 		return error;
 

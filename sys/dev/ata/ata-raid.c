@@ -463,7 +463,7 @@ ata_raid_rebuild(int array)
 	return ENXIO;
     if (rdp->flags & AR_F_REBUILDING)
 	return EBUSY;
-    return kthread_create(ar_rebuild, rdp, &rdp->pid, RFNOWAIT,
+    return kthread_create(ar_rebuild, rdp, &rdp->pid, RFNOWAIT, 0,
 			  "rebuilding ar%d", array);
 }
 

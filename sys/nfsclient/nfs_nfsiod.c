@@ -170,7 +170,7 @@ nfs_nfsiodnew(void)
 	if (newiod == -1)
 		return (-1);
 	error = kthread_create(nfssvc_iod, nfs_asyncdaemon + i, NULL, RFHIGHPID,
-	    "nfsiod %d", newiod);
+	    0, "nfsiod %d", newiod);
 	if (error)
 		return (-1);
 	nfs_numasync++;
