@@ -19,7 +19,7 @@ DATA1:=	${DATA5:S/l/r/g}
 NIL=
 
 all:
-	@echo '1..14'
+	@echo '1..16'
 	@echo 1:${DATA1} 2:${DATA2} 3:${DATA3} 4:${DATA4} 5:${DATA5} | \
 		diff -u ${.CURDIR}/regress.variables.out - || ${MAKE} failure
 	@echo "ok 1 - test_variables # Test variables detected no regression, output matches."
@@ -49,6 +49,10 @@ all:
 	@echo "ok 13 plus_flag # Test plus_flag detected no regression."
 	@! ${MAKE} shell >/dev/null 2>&1 && true || ${MAKE} failure
 	@echo "ok 14 shell # Test shell detected no regression."
+	@${MAKE} shell_1 || ${MAKE} failure
+	@echo "ok 15 shell_1 # Test shell_1 detected no regression."
+	@${MAKE} shell_2 || ${MAKE} failure
+	@echo "ok 16 shell_2 # Test shell_2 detected no regression."
 
 .if make(double)
 # Doubly-defined targets.  make(1) will warn, but use the "right" one.  If it
@@ -231,6 +235,51 @@ plus_flag_1:
 .SHELL: path=/nonexistent
 A!= echo ok
 shell:
+.endif
+
+.if make(shell_1)
+# Test if setting the shell by name only works. Because we have no ksh
+# in the base system we test that we can set sh and csh. We try only exact
+# matching names and do not exercise the rather strange matching algorithm.
+shell_1:
+	@${MAKE} shell_1_csh
+	@${MAKE} shell_1_sh
+.endif
+.if make(shell_1_csh)
+.SHELL: name="csh"
+shell_1_csh:
+	@echo $${shell} | grep -q '^/bin/csh$$'
+.endif
+.if make(shell_1_sh)
+.SHELL: name="sh"
+shell_1_sh:
+	@ps -ax -opid,command | awk '$$1=="'$$$$'" { print $$2 }' | grep -q '^/bin/sh$$'
+.endif
+
+.if make(shell_2)
+# Test if we can replace the shell specification. We do this by using
+# a shell scripts that prints us its arguments and standard input as the shell
+shell_2:
+	@${MAKE} -B shell_2B | \
+		diff -u ${.CURDIR}/regress.shell_2B.out - || false
+	@${MAKE} -j1 shell_2j | \
+		diff -u ${.CURDIR}/regress.shell_2j.out - || false
+.endif
+
+.if make(shell_2B)
+.SHELL: name="echo" path="${.CURDIR}/shell_test" quiet="be quiet" echo="be verbose" filter="be verbose" echoFlag="x" errFlag="y" hasErrCtl=y check="check errors" ignore="ignore errors"
+
+shell_2B:
+	-@funny $$
+	funnier $$
+.endif
+
+.if make(shell_2j)
+.SHELL: name="echo" path="${.CURDIR}/shell_test" quiet="be quiet" echo="be verbose" filter="be verbose" echoFlag="x" errFlag="y" hasErrCtl=y check="check errors" ignore="ignore errors"
+
+shell_2j:
+	-@funny $$
+	funnier $$
 .endif
 
 failure:
