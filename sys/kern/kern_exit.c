@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.32 1996/04/11 20:56:29 bde Exp $
+ * $Id: kern_exit.c,v 1.33 1996/06/12 05:07:28 gpalmer Exp $
  */
 
 #include "opt_ktrace.h"
@@ -156,8 +156,7 @@ exit1(p, rv)
 	 * may be mapped within that space also.
 	 */
 	if (vm->vm_refcnt == 1)
-		(void) vm_map_remove(&vm->vm_map, VM_MIN_ADDRESS,
-		    VM_MAXUSER_ADDRESS);
+		vm_map_remove_userspace(&vm->vm_map);
 
 	if (SESS_LEADER(p)) {
 		register struct session *sp = p->p_session;

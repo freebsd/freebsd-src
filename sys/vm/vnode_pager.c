@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.59 1996/03/19 05:13:22 dyson Exp $
+ *	$Id: vnode_pager.c,v 1.60 1996/05/03 21:01:54 phk Exp $
  */
 
 /*
@@ -525,7 +525,7 @@ vnode_pager_input_smlfs(object, m)
 		}
 	}
 	vm_pager_unmap_page(kva);
-	pmap_clear_modify(VM_PAGE_TO_PHYS(m));
+	pmap_tc_modified(m);
 	m->flags &= ~PG_ZERO;
 	if (error) {
 		return VM_PAGER_ERROR;
@@ -588,7 +588,7 @@ vnode_pager_input_old(object, m)
 		}
 		vm_pager_unmap_page(kva);
 	}
-	pmap_clear_modify(VM_PAGE_TO_PHYS(m));
+	pmap_tc_modified(m);
 	m->dirty = 0;
 	m->flags &= ~PG_ZERO;
 	return error ? VM_PAGER_ERROR : VM_PAGER_OK;
@@ -808,7 +808,7 @@ vnode_pager_leaf_getpages(object, m, count, reqpage)
 	relpbuf(bp);
 
 	for (i = 0; i < count; i++) {
-		pmap_clear_modify(VM_PAGE_TO_PHYS(m[i]));
+		pmap_tc_modified(m[i]);
 		m[i]->dirty = 0;
 		m[i]->valid = VM_PAGE_BITS_ALL;
 		m[i]->flags &= ~PG_ZERO;
