@@ -72,126 +72,6 @@ struct g_bsd_softc {
 	u_char	labelsum[16];
 };
 
-/*
- * The next 4 functions isolate us from how the compiler lays out and pads
- * "struct disklabel".  We treat what we read from disk as a bytestream and
- * explicitly convert it into a struct disklabel.  This makes us compiler-
- * endianness- and wordsize- agnostic.
- * For now we only have little-endian formats to deal with.
- */
-
-static void
-g_bsd_ledec_partition(u_char *ptr, struct partition *d)
-{
-	d->p_size = le32dec(ptr + 0);
-	d->p_offset = le32dec(ptr + 4);
-	d->p_fsize = le32dec(ptr + 8);
-	d->p_fstype = ptr[12];
-	d->p_frag = ptr[13];
-	d->p_cpg = le16dec(ptr + 14);
-}
-
-static void
-g_bsd_ledec_disklabel(u_char *ptr, struct disklabel *d)
-{
-	int i;
-
-	d->d_magic = le32dec(ptr + 0);
-	d->d_type = le16dec(ptr + 4);
-	d->d_subtype = le16dec(ptr + 6);
-	bcopy(ptr + 8, d->d_typename, 16);
-	bcopy(ptr + 24, d->d_packname, 16);
-	d->d_secsize = le32dec(ptr + 40);
-	d->d_nsectors = le32dec(ptr + 44);
-	d->d_ntracks = le32dec(ptr + 48);
-	d->d_ncylinders = le32dec(ptr + 52);
-	d->d_secpercyl = le32dec(ptr + 56);
-	d->d_secperunit = le32dec(ptr + 60);
-	d->d_sparespertrack = le16dec(ptr + 64);
-	d->d_sparespercyl = le16dec(ptr + 66);
-	d->d_acylinders = le32dec(ptr + 68);
-	d->d_rpm = le16dec(ptr + 72);
-	d->d_interleave = le16dec(ptr + 74);
-	d->d_trackskew = le16dec(ptr + 76);
-	d->d_cylskew = le16dec(ptr + 78);
-	d->d_headswitch = le32dec(ptr + 80);
-	d->d_trkseek = le32dec(ptr + 84);
-	d->d_flags = le32dec(ptr + 88);
-	d->d_drivedata[0] = le32dec(ptr + 92);
-	d->d_drivedata[1] = le32dec(ptr + 96);
-	d->d_drivedata[2] = le32dec(ptr + 100);
-	d->d_drivedata[3] = le32dec(ptr + 104);
-	d->d_drivedata[4] = le32dec(ptr + 108);
-	d->d_spare[0] = le32dec(ptr + 112);
-	d->d_spare[1] = le32dec(ptr + 116);
-	d->d_spare[2] = le32dec(ptr + 120);
-	d->d_spare[3] = le32dec(ptr + 124);
-	d->d_spare[4] = le32dec(ptr + 128);
-	d->d_magic2 = le32dec(ptr + 132);
-	d->d_checksum = le16dec(ptr + 136);
-	d->d_npartitions = le16dec(ptr + 138);
-	d->d_bbsize = le32dec(ptr + 140);
-	d->d_sbsize = le32dec(ptr + 144);
-	for (i = 0; i < MAXPARTITIONS; i++)
-		g_bsd_ledec_partition(ptr + 148 + 16 * i, &d->d_partitions[i]);
-}
-
-static void
-g_bsd_leenc_partition(u_char *ptr, struct partition *d)
-{
-	le32enc(ptr + 0, d->p_size);
-	le32enc(ptr + 4, d->p_offset);
-	le32enc(ptr + 8, d->p_fsize);
-	ptr[12] = d->p_fstype;
-	ptr[13] = d->p_frag;
-	le16enc(ptr + 14, d->p_cpg);
-}
-
-static void
-g_bsd_leenc_disklabel(u_char *ptr, struct disklabel *d)
-{
-	int i;
-
-	le32enc(ptr + 0, d->d_magic);
-	le16enc(ptr + 4, d->d_type);
-	le16enc(ptr + 6, d->d_subtype);
-	bcopy(d->d_typename, ptr + 8, 16);
-	bcopy(d->d_packname, ptr + 24, 16);
-	le32enc(ptr + 40, d->d_secsize);
-	le32enc(ptr + 44, d->d_nsectors);
-	le32enc(ptr + 48, d->d_ntracks);
-	le32enc(ptr + 52, d->d_ncylinders);
-	le32enc(ptr + 56, d->d_secpercyl);
-	le32enc(ptr + 60, d->d_secperunit);
-	le16enc(ptr + 64, d->d_sparespertrack);
-	le16enc(ptr + 66, d->d_sparespercyl);
-	le32enc(ptr + 68, d->d_acylinders);
-	le16enc(ptr + 72, d->d_rpm);
-	le16enc(ptr + 74, d->d_interleave);
-	le16enc(ptr + 76, d->d_trackskew);
-	le16enc(ptr + 78, d->d_cylskew);
-	le32enc(ptr + 80, d->d_headswitch);
-	le32enc(ptr + 84, d->d_trkseek);
-	le32enc(ptr + 88, d->d_flags);
-	le32enc(ptr + 92, d->d_drivedata[0]);
-	le32enc(ptr + 96, d->d_drivedata[1]);
-	le32enc(ptr + 100, d->d_drivedata[2]);
-	le32enc(ptr + 104, d->d_drivedata[3]);
-	le32enc(ptr + 108, d->d_drivedata[4]);
-	le32enc(ptr + 112, d->d_spare[0]);
-	le32enc(ptr + 116, d->d_spare[1]);
-	le32enc(ptr + 120, d->d_spare[2]);
-	le32enc(ptr + 124, d->d_spare[3]);
-	le32enc(ptr + 128, d->d_spare[4]);
-	le32enc(ptr + 132, d->d_magic2);
-	le16enc(ptr + 136, d->d_checksum);
-	le16enc(ptr + 138, d->d_npartitions);
-	le32enc(ptr + 140, d->d_bbsize);
-	le32enc(ptr + 144, d->d_sbsize);
-	for (i = 0; i < MAXPARTITIONS; i++)
-		g_bsd_leenc_partition(ptr + 148 + 16 * i, &d->d_partitions[i]);
-}
-
 static int
 g_bsd_ondisk_size(void)
 {
@@ -437,7 +317,7 @@ g_bsd_try(struct g_geom *gp, struct g_slicer *gsp, struct g_consumer *cp, int se
 
 	/* Decode into our native format. */
 	dl = &ms->ondisk;
-	g_bsd_ledec_disklabel(buf + secoff, dl);
+	bsd_disklabel_le_dec(buf + secoff, dl);
 
 	ondisk2inram(ms);
 
@@ -528,7 +408,7 @@ g_bsd_ioctl(void *arg, int flag)
 		return;
 	}
 	dl = &ms->ondisk;
-	g_bsd_leenc_disklabel(buf + secoff, dl);
+	bsd_disklabel_le_enc(buf + secoff, dl);
 	if (ms->labeloffset == ALPHA_LABEL_OFFSET) {
 		sum = 0;
 		for (i = 0; i < 63; i++)
@@ -582,7 +462,7 @@ g_bsd_diocbsdbb(dev_t dev, u_long cmd __unused, caddr_t data, int fflag __unused
 		cp = LIST_FIRST(&gp->consumer);
 		secsize = cp->provider->sectorsize;
 		dl = &ms->ondisk;
-		g_bsd_leenc_disklabel(buf + ms->labeloffset, dl);
+		bsd_disklabel_le_enc(buf + ms->labeloffset, dl);
 		if (ms->labeloffset == ALPHA_LABEL_OFFSET) {
 			sum = 0;
 			for (i = 0; i < 63; i++)
@@ -622,7 +502,7 @@ g_bsd_hotwrite(void *arg, int flag)
 	gsl = &gsp->slices[bp->bio_to->index];
 	p = (u_char*)bp->bio_data + ms->labeloffset 
 	    - (bp->bio_offset + gsl->offset);
-	g_bsd_ledec_disklabel(p, &fake.ondisk);
+	bsd_disklabel_le_dec(p, &fake.ondisk);
 	
 	ondisk2inram(&fake);
 	if (g_bsd_checklabel(&fake.inram)) {
@@ -643,7 +523,7 @@ g_bsd_hotwrite(void *arg, int flag)
 	/* Update our copy of the disklabel. */
 	ms->inram = fake.inram;
 	inram2ondisk(ms);
-	g_bsd_leenc_disklabel(p, &ms->ondisk);
+	bsd_disklabel_le_enc(p, &ms->ondisk);
 	g_slice_finish_hot(bp);
 }
 
