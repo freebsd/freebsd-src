@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: daemon.c,v 8.613 2002/06/05 21:26:35 gshapiro Exp $")
+SM_RCSID("@(#)$Id: daemon.c,v 8.613.2.11 2002/12/05 16:13:52 ca Exp $")
 
 #if defined(SOCK_STREAM) || defined(__GNU_LIBRARY__)
 # define USE_SOCK_STREAM	1
@@ -627,35 +627,40 @@ getrequests(e)
 			(void) getfallbackmxrr(FallBackMX);
 #endif /* NAMED_BIND */
 
-#if !PROFILING
-		/*
-		**  Create a pipe to keep the child from writing to the
-		**  socket until after the parent has closed it.  Otherwise
-		**  the parent may hang if the child has closed it first.
-		*/
-
-		if (pipe(pipefd) < 0)
-			pipefd[0] = pipefd[1] = -1;
-
-		(void) sm_blocksignal(SIGCHLD);
-		pid = fork();
-		if (pid < 0)
+		if (tTd(93, 100))
 		{
-			syserr("daemon: cannot fork");
-			if (pipefd[0] != -1)
-			{
-				(void) close(pipefd[0]);
-				(void) close(pipefd[1]);
-			}
-			(void) sm_releasesignal(SIGCHLD);
-			(void) sleep(10);
-			(void) close(t);
-			continue;
+			/* don't fork, handle connection in this process */
+			pid = 0;
+			pipefd[0] = pipefd[1] = -1;
 		}
+		else
+		{
+			/*
+			**  Create a pipe to keep the child from writing to
+			**  the socket until after the parent has closed
+			**  it.  Otherwise the parent may hang if the child
+			**  has closed it first.
+			*/
 
-#else /* !PROFILING */
-		pid = 0;
-#endif /* !PROFILING */
+			if (pipe(pipefd) < 0)
+				pipefd[0] = pipefd[1] = -1;
+
+			(void) sm_blocksignal(SIGCHLD);
+			pid = fork();
+			if (pid < 0)
+			{
+				syserr("daemon: cannot fork");
+				if (pipefd[0] != -1)
+				{
+					(void) close(pipefd[0]);
+					(void) close(pipefd[1]);
+				}
+				(void) sm_releasesignal(SIGCHLD);
+				(void) sleep(10);
+				(void) close(t);
+				continue;
+			}
+		}
 
 		if (pid == 0)
 		{
@@ -736,7 +741,6 @@ getrequests(e)
 						anynet_ntoa(&RealHostAddr));
 			}
 
-#if !PROFILING
 			if (pipefd[0] != -1)
 			{
 				auto char c;
@@ -758,7 +762,6 @@ getrequests(e)
 					continue;
 				(void) close(pipefd[0]);
 			}
-#endif /* !PROFILING */
 
 			/* control socket processing */
 			if (control)
@@ -914,8 +917,8 @@ getrequests(e)
 	if (Daemons[curdaemon].d_inputfilterlist != NULL)
 	{
 		for (i = 0;
-		     (Daemons[curdaemon].d_inputfilters[i] != NULL &&
-		      i < MAXFILTERS);
+		     (i < MAXFILTERS &&
+		      Daemons[curdaemon].d_inputfilters[i] != NULL);
 		     i++)
 		{
 			InputFilters[i] = Daemons[curdaemon].d_inputfilters[i];
@@ -1091,6 +1094,14 @@ opendaemonsocket(d, firsttime)
 						  d->d_name);
 				d->d_socket = -1;
 				continue;
+			}
+
+			if (SM_FD_SETSIZE > 0 && d->d_socket >= SM_FD_SETSIZE)
+			{
+				save_errno = EINVAL;
+				syserr("opendaemonsocket: daemon %s: server SMTP socket (%d) too large",
+				       d->d_name, d->d_socket);
+				goto fail;
 			}
 
 			/* turn on network debugging? */
@@ -3289,7 +3300,7 @@ getauthinfo(fd, may_be_forged)
 	char *ostype = NULL;
 	char **ha;
 	char ibuf[MAXNAME + 1];
-	static char hbuf[MAXNAME * 2 + 11];
+	static char hbuf[MAXNAME + MAXAUTHINFO + 11];
 
 	*may_be_forged = false;
 	falen = sizeof RealHostAddr;
@@ -3473,7 +3484,6 @@ getauthinfo(fd, may_be_forged)
 	/* put a timeout around the whole thing */
 	ev = sm_setevent(TimeOuts.to_ident, authtimeout, 0);
 
-
 	/* connect to foreign IDENT server using same address as SMTP socket */
 	s = socket(la.sa.sa_family, SOCK_STREAM, 0);
 	if (s < 0)
@@ -3567,10 +3577,10 @@ getauthinfo(fd, may_be_forged)
 	    (ostype[5] == ' ' || ostype[5] == '\0'))
 	{
 		(void) sm_strlcpy(hbuf, "IDENT:", sizeof hbuf);
-		cleanstrcpy(&hbuf[6], p, MAXNAME);
+		cleanstrcpy(&hbuf[6], p, MAXAUTHINFO);
 	}
 	else
-		cleanstrcpy(hbuf, p, MAXNAME);
+		cleanstrcpy(hbuf, p, MAXAUTHINFO);
 	len = strlen(hbuf);
 	(void) sm_strlcpyn(&hbuf[len], sizeof hbuf - len, 2, "@",
 			   RealHostName == NULL ? "localhost" : RealHostName);

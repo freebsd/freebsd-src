@@ -189,6 +189,13 @@ expanded.  This also applies to
 because ``define'' is an M4 keyword.  If you want to use them, surround
 them with directed quotes, `like this'.
 
+Since m4 uses single quotes (opening "`" and closing "'") to quote
+arguments, those quotes can't be used in arguments.  For example,
+it is not possible to define a rejection message containing a single
+quote. Usually there are simple workarounds by changing those
+messages; in the worst case it might be ok to change the value
+directly in the generated .cf file, which however is not advised.
+
 
 Notice:
 -------
@@ -466,6 +473,10 @@ CYRUSV2_MAILER_ARGS	[FILE /var/imap/socket/lmtp] The arguments passed
 			change the name of the Unix domain socket, or
 			to switch to delivery via TCP (e.g., `TCP $h lmtp')
 CYRUSV2_MAILER_QGRP	[undefined] The queue group for the cyrusv2 mailer.
+CYRUSV2_MAILER_CHARSET	[undefined] If defined, messages containing 8-bit data
+			that ARRIVE from an address that resolves to one the
+			Cyrus mailer and which are converted to MIME will
+			be labeled with this character set.
 confEBINDIR		[/usr/libexec] The directory for executables.
 			Currently used for FEATURE(`local_lmtp') and
 			FEATURE(`smrsh').
@@ -895,6 +906,12 @@ local_no_masquerade
 		if MASQUERADE_AS is used.  MASQUERADE_AS will only have effect
 		on addresses of mail going outside the local domain.
 
+masquerade_envelope
+		If masquerading is enabled (using MASQUERADE_AS) or the
+		genericstable is in use, this feature will cause envelope
+		addresses to also masquerade as being from the masquerade
+		host.  Normally only the header addresses are masqueraded.
+
 genericstable	This feature will cause unqualified addresses (i.e., without
 		a domain) and addresses with a domain listed in class {G}
 		to be looked up in a map and turned into another ("generic")
@@ -1058,6 +1075,9 @@ local_procmail	Use procmail or another delivery agent as the local mailer.
 		3. Flags for the mailer [default: SPfhn9]
 
 		Empty arguments cause the defaults to be taken.
+		Note that if you are on a system with a broken
+		setreuid() call, you may need to add -f $f to the procmail
+		argument vector to pass the proper sender to procmail.
 
 		For example, this allows it to use the maildrop
 		(http://www.flounder.net/~mrsam/maildrop/) mailer instead
@@ -1136,7 +1156,8 @@ relay_based_on_MX
 
 relay_mail_from
 		Allows relaying if the mail sender is listed as RELAY in
-		the access map.  If an optional argument `domain' is given,
+		the access map.  If an optional argument `domain' (this
+		is the literal word `domain', not a placeholder) is given,
 		relaying can be allowed just based on the domain portion
 		of the sender address.  This feature should only be used if
 		absolutely necessary as the sender address can be easily
@@ -1223,6 +1244,10 @@ dnsbl		Turns on rejection of hosts found in an DNS based rejection
 		to query different DNS based rejection lists.  See also
 		enhdnsbl for an enhanced version.
 
+		Set the DNSBL_MAP mc option to change the default map
+		definition from `host'.  Set the DNSBL_MAP_OPT mc option
+		to add additional options to the map specification used.
+
 		Some DNS based rejection lists cause failures if asked
 		for AAAA records. If your sendmail version is compiled
 		with IPv6 support (NETINET6) and you experience this
@@ -1258,6 +1283,9 @@ enhdnsbl	Enhanced version of dnsbl (see above).  Further arguments
 		shows, the default values are also used if an empty argument,
 		i.e., `', is specified.  This feature requires that sendmail
 		has been compiled with the flag DNSMAP (see sendmail/README).
+
+		Set the EDNSBL_TO mc option to change the DNS retry count
+		from the default value of 5.
 
 lookupdotdomain	Look up also .domain in the access map.  This allows to
 		match only subdomains.  It does not work well with
@@ -1323,14 +1351,19 @@ msp		Defines config file for Message Submission Program.
 		Some more hints about possible changes can be found below
 		in the section MESSAGE SUBMISSION PROGRAM.
 
-		Note: if localhost doesn't resolve to the IP address
-		of your local system (127.0.0.1 or ::1 for IPv6),
-		then you either need to fix your hostname resolution
-		(localhost and localhost.YOUR.DOMAIN should resolve
-		to that address by convention) or you need to specify
-		the IP address as argument, e.g.,
+		Note: Due to many problems, submit.mc uses
 
 			FEATURE(`msp', `[127.0.0.1]')
+
+		by default.  If you have a machine with IPv6 only,
+		change it to
+
+			FEATURE(`msp', `[IPv6:::1]')
+
+		If you want to continue using '[localhost]', (the behavior
+		up to 8.12.6), use
+
+			FEATURE(`msp')
 
 queuegroup	A simple example how to select a queue group based
 		on the full e-mail address or the domain of the
@@ -2188,15 +2221,16 @@ A slightly better solution is
 	FEATURE(`relay_mail_from')
 
 which allows relaying if the mail sender is listed as RELAY in the
-access map.  If an optional argument `domain' is given, the domain
-portion of the mail sender is also checked to allowing relaying.
-This option only works together with the tag From: for the LHS of
-the access map entries (see below: Finer control...).  This feature
-allows spammers to abuse your mail server by specifying a return
-address that you enabled in your access file.  This may be harder
-to figure out for spammers, but it should not be used unless
-necessary.  Instead use SMTP AUTH or STARTTLS to allow relaying
-for roaming users.
+access map.  If an optional argument `domain' (this is the literal
+word `domain', not a placeholder) is given, the domain portion of
+the mail sender is also checked to allowing relaying.  This option
+only works together with the tag From: for the LHS of the access
+map entries (see below: Finer control...).  This feature allows
+spammers to abuse your mail server by specifying a return address
+that you enabled in your access file.  This may be harder to figure
+out for spammers, but it should not be used unless necessary.
+Instead use SMTP AUTH or STARTTLS to allow relaying for roaming
+users.
 
 
 If source routing is used in the recipient address (e.g.,
@@ -2341,7 +2375,7 @@ The value part of the map can contain:
 
 For example:
 
-	cyberspammer.com	ERROR:550 "We don't accept mail from spammers"
+	cyberspammer.com	ERROR:"550 We don't accept mail from spammers"
 	okay.cyberspammer.com	OK
 	sendmail.org		RELAY
 	128.32			RELAY
@@ -2465,11 +2499,15 @@ instead of just disabling the DNS lookups in the backlists.
 
 
 The features described above make use of the check_relay, check_mail,
-and check_rcpt rulesets.  If you wish to include your own checks,
-you can put your checks in the rulesets Local_check_relay,
-Local_check_mail, and Local_check_rcpt.  For example if you wanted to
-block senders with all numeric usernames (i.e. 2312343@bigisp.com),
-you would use Local_check_mail and the regex map:
+and check_rcpt rulesets.  Note that check_relay checks the SMTP
+client hostname and IP address when the connection is made to your
+server.  It does not check if a mail message is being relayed to
+another server.  That check is done in check_rcpt.  If you wish to
+include your own checks, you can put your checks in the rulesets
+Local_check_relay, Local_check_mail, and Local_check_rcpt.  For
+example if you wanted to block senders with all numeric usernames
+(i.e. 2312343@bigisp.com), you would use Local_check_mail and the
+regex map:
 
 	LOCAL_CONFIG
 	Kallnumbers regex -a@MATCH ^[0-9]+$
@@ -2574,8 +2612,9 @@ the friend option and having
 
 	Spam:abuse@	FRIEND
 
-in the access map, mail to abuse@localdomain will get through.  It is
-also possible to specify a full address or an address with +detail:
+in the access map, mail to abuse@localdomain will get through (where
+"localdomain" is any domain in class {w}).  It is also possible to
+specify a full address or an address with +detail:
 
 	Spam:abuse@my.domain	FRIEND
 	Spam:me+abuse@		FRIEND
@@ -2597,9 +2636,10 @@ This is done by adding a ruleset call to the 'H' header definition command
 in sendmail.cf.  For example, this can be used to check the validity of
 a Message-ID: header:
 
-	LOCAL_RULESETS
+	LOCAL_CONFIG
 	HMessage-Id: $>CheckMessageId
 
+	LOCAL_RULESETS
 	SCheckMessageId
 	R< $+ @ $+ >		$@ OK
 	R$*			$#error $: 553 Header Error
@@ -2636,10 +2676,9 @@ probably not be used in production.
 
 	LOCAL_CONFIG
 	Kstorage macro
-
-	LOCAL_RULESETS
 	HMessage-Id: $>CheckMessageId
 
+	LOCAL_RULESETS
 	SCheckMessageId
 	# Record the presence of the header
 	R$*			$: $(storage {MessageIdCheck} $@ OK $) $1
@@ -2714,22 +2753,22 @@ ${server_addr} the address of the server of the current outgoing SMTP
 Relaying
 --------
 
-SMTP STARTTLS can allow relaying for senders who have successfully
-authenticated themselves.  This is done in the ruleset RelayAuth.  If the
-verification of the cert failed (${verify} != OK), relaying is subject to
-the usual rules.  Otherwise the DN of the issuer is looked up in the access
-map using the tag CERTISSUER.  If the resulting value is RELAY, relaying is
-allowed.  If it is SUBJECT, the DN of the cert subject is looked up next in
-the access map using the tag CERTSUBJECT.  If the value is RELAY, relaying
-is allowed.
 
-To make things a bit more flexible (or complicated), the values for
+SMTP STARTTLS can allow relaying for remote SMTP clients which have
+successfully authenticated themselves.  This is done in the ruleset
+RelayAuth.  If the verification of the cert failed (${verify} != OK),
+relaying is subject to the usual rules.  Otherwise the DN of the issuer is
+looked up in the access map using the tag CERTISSUER.  If the resulting
+value is RELAY, relaying is allowed.  If it is SUBJECT, the DN of the cert
+subject is looked up next in the access map using the tag CERTSUBJECT.  If
+the value is RELAY, relaying is allowed.
+
 ${cert_issuer} and ${cert_subject} can be optionally modified by regular
 expressions defined in the m4 variables _CERT_REGEX_ISSUER_ and
 _CERT_REGEX_SUBJECT_, respectively.  To avoid problems with those macros in
 rulesets and map lookups, they are modified as follows: each non-printable
-character and the characters '<', '>', '(', ')', '"', '+' are replaced by
-their HEX value with a leading '+'.  For example:
+character and the characters '<', '>', '(', ')', '"', '+', ' ' are replaced
+by their HEX value with a leading '+'.  For example:
 
 /C=US/ST=California/O=endmail.org/OU=private/CN=Darth Mail (Cert)/Email=
 darth+cert@endmail.org
@@ -2741,6 +2780,9 @@ Darth+20Mail+20+28Cert+29/Email=darth+2Bcert@endmail.org
 
 (line breaks have been inserted for readability).
 
+The  macros  which are subject to this encoding are ${cert_subject},
+${cert_issuer},  ${cn_subject},  and ${cn_issuer}.
+
 Examples:
 
 To allow relaying for everyone who can present a cert signed by
@@ -2750,7 +2792,7 @@ Darth+20Mail+20+28Cert+29/Email=darth+2Bcert@endmail.org
 
 simply use:
 
-CERTIssuer:/C=US/ST=California/O=endmail.org/OU=private/CN=
+CertIssuer:/C=US/ST=California/O=endmail.org/OU=private/CN=
 Darth+20Mail+20+28Cert+29/Email=darth+2Bcert@endmail.org	RELAY
 
 To allow relaying only for a subset of machines that have a cert signed by
@@ -2760,9 +2802,9 @@ Darth+20Mail+20+28Cert+29/Email=darth+2Bcert@endmail.org
 
 use:
 
-CERTIssuer:/C=US/ST=California/O=endmail.org/OU=private/CN=
+CertIssuer:/C=US/ST=California/O=endmail.org/OU=private/CN=
 Darth+20Mail+20+28Cert+29/Email=darth+2Bcert@endmail.org	SUBJECT
-CERTSubject:/C=US/ST=California/O=endmail.org/OU=private/CN=
+CertSubject:/C=US/ST=California/O=endmail.org/OU=private/CN=
 DeathStar/Email=deathstar@endmail.org		RELAY
 
 Note: line breaks have been inserted after "CN=" for readability,
@@ -3898,9 +3940,9 @@ confLDAP_DEFAULT_SPEC	LDAPDefaultSpec	[undefined] Default map
 					maps unless they are specified in
 					the individual map specification
 					('K' command).
-confCACERT_PATH		CACERTPath	[undefined] Path to directory
+confCACERT_PATH		CACertPath	[undefined] Path to directory
 					with certs of CAs.
-confCACERT		CACERTFile	[undefined] File containing one CA
+confCACERT		CACertFile	[undefined] File containing one CA
 					cert.
 confSERVER_CERT		ServerCertFile	[undefined] File containing the
 					cert of the server, i.e., this cert
@@ -3959,17 +4001,25 @@ confINPUT_MAIL_FILTERS	InputMailFilters
 confMILTER_LOG_LEVEL	Milter.LogLevel	[9] Log level for input mail filter
 					actions, defaults to LogLevel.
 confMILTER_MACROS_CONNECT	Milter.macros.connect
-					[empty]	Macros to transmit to milters
-					when a session connection starts.
+					[j, _, {daemon_name}, {if_name},
+					{if_addr}] Macros to transmit to
+					milters when a session connection
+					starts.
 confMILTER_MACROS_HELO	Milter.macros.helo
-					[empty]	Macros to transmit to milters
-					after HELO command.
+					[{tls_version}, {cipher},
+					{cipher_bits}, {cert_subject},
+					{cert_issuer}] Macros to transmit to
+					milters after HELO/EHLO command.
 confMILTER_MACROS_ENVFROM	Milter.macros.envfrom
-					[empty]	Macros to transmit to milters
-					after MAIL FROM command.
+					[i, {auth_type}, {auth_authen},
+					{auth_ssf}, {auth_author},
+					{mail_mailer}, {mail_host},
+					{mail_addr}] Macros to transmit to
+					milters after MAIL FROM command.
 confMILTER_MACROS_ENVRCPT	Milter.macros.envrcpt
-					[empty]	Macros to transmit to milters
-					after RCPT TO command.
+					[{rcpt_mailer}, {rcpt_host},
+					{rcpt_addr}] Macros to transmit to
+					milters after RCPT TO command.
 
 
 See also the description of OSTYPE for some parameters that can be
@@ -4020,13 +4070,12 @@ Example 3: To listen on both IPv4 and IPv6 interfaces, use
 A "Message Submission Agent" still uses all of the same rulesets for
 processing the message (and therefore still allows message rejection via
 the check_* rulesets).  In accordance with the RFC, the MSA will ensure
-that all domains in the envelope are fully qualified if the message is
-relayed to another MTA.  It will also enforce the normal address syntax
-rules and log error messages.  Additionally, by using the M=a modifier
-you can require authentication before messages are accepted by the MSA.
-Notice: Do NOT use the 'a' modifier on a public accessible MTA!
-Finally, the M=E modifier shown above disables ETRN as required by RFC
-2476.
+that all domains in envelope addresses are fully qualified if the message
+is relayed to another MTA.  It will also enforce the normal address syntax
+rules and log error messages.  Additionally, by using the M=a modifier you
+can require authentication before messages are accepted by the MSA.
+Notice: Do NOT use the 'a' modifier on a public accessible MTA!  Finally,
+the M=E modifier shown above disables ETRN as required by RFC 2476.
 
 Mail filters can be defined using the INPUT_MAIL_FILTER() and MAIL_FILTER()
 commands:
@@ -4311,4 +4360,4 @@ M4 DIVERSIONS
    8	DNS based blacklists
    9	special local rulesets (1 and 2)
 
-$Revision: 8.623.2.1 $, Last updated $Date: 2002/08/07 23:14:56 $
+$Revision: 8.623.2.18 $, Last updated $Date: 2002/12/29 04:16:51 $

@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: engine.c,v 8.109.2.1 2002/07/29 16:40:47 ca Exp $")
+SM_RCSID("@(#)$Id: engine.c,v 8.109.2.4 2002/12/03 17:27:32 ca Exp $")
 
 #include "libmilter.h"
 
@@ -116,22 +116,22 @@ static int	dec_arg2 __P((char *, size_t, char **, char **));
 **  this function is coded in trans_ok(), see below.
 */
 
-#define MASK(x)	(0x0001 << (x))	/* generate a bit "mask" for a state */
-#define NX_INIT	(MASK(ST_OPTS))
-#define NX_OPTS	(MASK(ST_CONN))
-#define NX_CONN	(MASK(ST_HELO) | MASK(ST_MAIL))
-#define NX_HELO	(MASK(ST_HELO) | MASK(ST_MAIL))
-#define NX_MAIL	(MASK(ST_RCPT) | MASK(ST_ABRT))
-#define NX_RCPT	(MASK(ST_HDRS) | MASK(ST_EOHS) | \
-		 MASK(ST_BODY) | MASK(ST_ENDM) | \
-		 MASK(ST_RCPT) | MASK(ST_ABRT))
-#define NX_HDRS	(MASK(ST_EOHS) | MASK(ST_HDRS) | MASK(ST_ABRT))
-#define NX_EOHS	(MASK(ST_BODY) | MASK(ST_ENDM) | MASK(ST_ABRT))
-#define NX_BODY	(MASK(ST_ENDM) | MASK(ST_BODY) | MASK(ST_ABRT))
-#define NX_ENDM	(MASK(ST_QUIT) | MASK(ST_MAIL))
+#define MI_MASK(x)	(0x0001 << (x))	/* generate a bit "mask" for a state */
+#define NX_INIT	(MI_MASK(ST_OPTS))
+#define NX_OPTS	(MI_MASK(ST_CONN))
+#define NX_CONN	(MI_MASK(ST_HELO) | MI_MASK(ST_MAIL))
+#define NX_HELO	(MI_MASK(ST_HELO) | MI_MASK(ST_MAIL))
+#define NX_MAIL	(MI_MASK(ST_RCPT) | MI_MASK(ST_ABRT))
+#define NX_RCPT	(MI_MASK(ST_HDRS) | MI_MASK(ST_EOHS) | \
+		 MI_MASK(ST_BODY) | MI_MASK(ST_ENDM) | \
+		 MI_MASK(ST_RCPT) | MI_MASK(ST_ABRT))
+#define NX_HDRS	(MI_MASK(ST_EOHS) | MI_MASK(ST_HDRS) | MI_MASK(ST_ABRT))
+#define NX_EOHS	(MI_MASK(ST_BODY) | MI_MASK(ST_ENDM) | MI_MASK(ST_ABRT))
+#define NX_BODY	(MI_MASK(ST_ENDM) | MI_MASK(ST_BODY) | MI_MASK(ST_ABRT))
+#define NX_ENDM	(MI_MASK(ST_QUIT) | MI_MASK(ST_MAIL))
 #define NX_QUIT	0
 #define NX_ABRT	0
-#define NX_SKIP MASK(ST_SKIP)
+#define NX_SKIP MI_MASK(ST_SKIP)
 
 static int next_states[] =
 {
@@ -255,7 +255,7 @@ mi_engine(ctx)
 		}
 		if (ctx->ctx_dbg > 4)
 			sm_dprintf("[%d] got cmd '%c' len %d\n",
-				(int) ctx->ctx_id, cmd, len);
+				(int) ctx->ctx_id, cmd, (int) len);
 		for (i = 0; i < ncmds; i++)
 		{
 			if (cmd == cmds[i].cm_cmd)
@@ -292,8 +292,8 @@ mi_engine(ctx)
 			if (ctx->ctx_dbg > 1)
 				sm_dprintf("[%d] abort: cur %d (%x) new %d (%x) next %x\n",
 					(int) ctx->ctx_id,
-					curstate, MASK(curstate),
-					newstate, MASK(newstate),
+					curstate, MI_MASK(curstate),
+					newstate, MI_MASK(newstate),
 					next_states[curstate]);
 
 			/* call abort only if in a mail transaction */
@@ -511,7 +511,7 @@ st_optionneg(g)
 		smi_log(SMI_LOG_ERR,
 			"%s: st_optionneg[%d]: len too short %d < %d",
 			g->a_ctx->ctx_smfi->xxfi_name,
-			(int) g->a_ctx->ctx_id, g->a_len,
+			(int) g->a_ctx->ctx_id, (int) g->a_len,
 			MILTER_OPTLEN);
 		return _SMFIS_ABORT;
 	}
@@ -615,7 +615,7 @@ st_connectinfo(g)
 			smi_log(SMI_LOG_ERR,
 				"%s: connect[%d]: wrong len %d >= %d",
 				g->a_ctx->ctx_smfi->xxfi_name,
-				(int) g->a_ctx->ctx_id, i, l);
+				(int) g->a_ctx->ctx_id, (int) i, (int) l);
 			return _SMFIS_ABORT;
 		}
 
@@ -990,7 +990,7 @@ trans_ok(old, new)
 	do
 	{
 		/* is this state transition allowed? */
-		if ((MASK(new) & next_states[s]) != 0)
+		if ((MI_MASK(new) & next_states[s]) != 0)
 			return true;
 
 		/*

@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: listener.c,v 8.85.2.1 2002/08/09 22:13:36 gshapiro Exp $")
+SM_RCSID("@(#)$Id: listener.c,v 8.85.2.7 2002/12/10 04:02:25 ca Exp $")
 
 /*
 **  listener.c -- threaded network listener
@@ -17,6 +17,7 @@ SM_RCSID("@(#)$Id: listener.c,v 8.85.2.1 2002/08/09 22:13:36 gshapiro Exp $")
 
 #include "libmilter.h"
 #include <sm/errstring.h>
+#include <sm/fdset.h>
 
 
 # if NETINET || NETINET6
@@ -73,7 +74,13 @@ mi_opensocket(conn, backlog, dbg, smfi)
 		(void) smutex_unlock(&L_Mutex);
 		return MI_FAILURE;
 	}
-
+	if (!SM_FD_OK_SELECT(listenfd))
+	{
+		smi_log(SMI_LOG_ERR, "%s: fd %d is larger than FD_SETSIZE %d",
+			smfi->xxfi_name, listenfd, FD_SETSIZE);
+		(void) smutex_unlock(&L_Mutex);
+		return MI_FAILURE;
+	}
 	return MI_SUCCESS;
 }
 
@@ -482,7 +489,7 @@ mi_milteropen(conn, backlog, name)
 		{
 			smi_log(SMI_LOG_ERR,
 				"%s: can't malloc(%d) for sockpath: %s",
-				name, len, sm_errstring(errno));
+				name, (int) len, sm_errstring(errno));
 			(void) closesocket(sock);
 			return INVALID_SOCKET;
 		}
@@ -630,9 +637,10 @@ mi_closener()
 			if (rs != 0)					\
 			{						\
 				smi_log(SMI_LOG_ERR,			\
-					"MI_SLEEP(): select() returned non-zero result %d, errno = %d",						\
+					"MI_SLEEP(): select() returned non-zero result %d, errno = %d",	\
 					rs, errno);			\
 			}						\
+			break;						\
 		}							\
 	}								\
 }
@@ -668,16 +676,7 @@ mi_listener(conn, dbg, smfi, timeout, backlog)
 		return MI_FAILURE;
 
 	clilen = L_socksize;
-
-	if (listenfd >= FD_SETSIZE)
-	{
-		smi_log(SMI_LOG_ERR, "%s: fd %d is larger than FD_SETSIZE %d",
-			smfi->xxfi_name, listenfd, FD_SETSIZE);
-		(void) smutex_unlock(&L_Mutex);
-		return MI_FAILURE;
-	}
 	(void) smutex_unlock(&L_Mutex);
-
 	while (mi_stop() == MILTER_CONT)
 	{
 		(void) smutex_lock(&L_Mutex);
@@ -753,6 +752,14 @@ mi_listener(conn, dbg, smfi, timeout, backlog)
 			(void) closesocket(connfd);
 			connfd = INVALID_SOCKET;
 			save_errno = EINVAL;
+		}
+
+		/* check if acceptable for select() */
+		if (ValidSocket(connfd) && !SM_FD_OK_SELECT(connfd))
+		{
+			(void) closesocket(connfd);
+			connfd = INVALID_SOCKET;
+			save_errno = ERANGE;
 		}
 
 		if (!ValidSocket(connfd))

@@ -20,7 +20,7 @@ SM_IDSTR(copyright,
      Copyright (c) 1993\n\
 	The Regents of the University of California.  All rights reserved.\n")
 
-SM_IDSTR(id, "@(#)$Id: smrsh.c,v 8.58 2002/05/25 02:41:31 ca Exp $")
+SM_IDSTR(id, "@(#)$Id: smrsh.c,v 8.58.2.2 2002/09/24 21:40:05 ca Exp $")
 
 /*
 **  SMRSH -- sendmail restricted shell
@@ -57,6 +57,8 @@ SM_IDSTR(id, "@(#)$Id: smrsh.c,v 8.58 2002/05/25 02:41:31 ca Exp $")
 #include <sm/limits.h>
 #include <sm/string.h>
 #include <sys/file.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <string.h>
 #include <ctype.h>
 #include <errno.h>
@@ -145,6 +147,7 @@ main(argc, argv)
 	char *newenv[2];
 	char pathbuf[1000];
 	char specialbuf[32];
+	struct stat st;
 
 #ifndef DEBUG
 # ifndef LOG_MAIL
@@ -287,12 +290,12 @@ main(argc, argv)
 			{
 				/* too long */
 				(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
-						     "%s: %s not available for sendmail programs (filename too long)\n",
+						     "%s: \"%s\" not available for sendmail programs (filename too long)\n",
 						      prg, cmd);
 				if (p != NULL)
 					*p = ' ';
 #ifndef DEBUG
-				syslog(LOG_CRIT, "uid %d: attempt to use %s (filename too long)",
+				syslog(LOG_CRIT, "uid %d: attempt to use \"%s\" (filename too long)",
 				       (int) getuid(), cmd);
 #endif /* ! DEBUG */
 				exit(EX_UNAVAILABLE);
@@ -302,16 +305,48 @@ main(argc, argv)
 			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
 					     "Trying %s\n", cmdbuf);
 #endif /* DEBUG */
-			if (access(cmdbuf, X_OK) < 0)
+			if (stat(cmdbuf, &st) < 0)
 			{
-				/* oops....  crack attack possiblity */
+				/* can't stat it */
 				(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
-						     "%s: %s not available for sendmail programs\n",
+						     "%s: \"%s\" not available for sendmail programs (stat failed)\n",
 						      prg, cmd);
 				if (p != NULL)
 					*p = ' ';
 #ifndef DEBUG
-				syslog(LOG_CRIT, "uid %d: attempt to use %s",
+				syslog(LOG_CRIT, "uid %d: attempt to use \"%s\" (stat failed)",
+				       (int) getuid(), cmd);
+#endif /* ! DEBUG */
+				exit(EX_UNAVAILABLE);
+			}
+			if (!S_ISREG(st.st_mode)
+#ifdef S_ISLNK
+			    && !S_ISLNK(st.st_mode)
+#endif /* S_ISLNK */
+			   )
+			{
+				/* can't stat it */
+				(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
+						     "%s: \"%s\" not available for sendmail programs (not a file)\n",
+						      prg, cmd);
+				if (p != NULL)
+					*p = ' ';
+#ifndef DEBUG
+				syslog(LOG_CRIT, "uid %d: attempt to use \"%s\" (not a file)",
+				       (int) getuid(), cmd);
+#endif /* ! DEBUG */
+				exit(EX_UNAVAILABLE);
+			}
+			if (access(cmdbuf, X_OK) < 0)
+			{
+				/* oops....  crack attack possiblity */
+				(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
+						     "%s: \"%s\" not available for sendmail programs\n",
+						      prg, cmd);
+				if (p != NULL)
+					*p = ' ';
+#ifndef DEBUG
+				syslog(LOG_CRIT, "uid %d: attempt to use \"%s\"",
 				       (int) getuid(), cmd);
 #endif /* ! DEBUG */
 				exit(EX_UNAVAILABLE);

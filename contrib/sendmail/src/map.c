@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: map.c,v 8.645.2.3 2002/08/09 22:23:13 gshapiro Exp $")
+SM_RCSID("@(#)$Id: map.c,v 8.645.2.7 2002/12/03 17:01:15 ca Exp $")
 
 #if LDAPMAP
 # include <sm/ldap.h>
@@ -29,10 +29,7 @@ SM_RCSID("@(#)$Id: map.c,v 8.645.2.3 2002/08/09 22:23:13 gshapiro Exp $")
 # endif /* R_FIRST */
 #endif /* NDBM */
 #if NEWDB
-# include <db.h>
-# ifndef DB_VERSION_MAJOR
-#  define DB_VERSION_MAJOR 1
-# endif /* ! DB_VERSION_MAJOR */
+# include "sm/bdb.h"
 #endif /* NEWDB */
 #if NIS
   struct dom_binding;	/* forward reference needed on IRIX */
@@ -2084,10 +2081,7 @@ db_map_open(map, mode, mapclassname, dbtype, openinfo)
 			flags |= DB_CREATE;
 		if (bitset(O_TRUNC, omode))
 			flags |= DB_TRUNCATE;
-
-#  if !HASFLOCK && defined(DB_FCNTL_LOCKING)
-		flags |= DB_FCNTL_LOCKING;
-#  endif /* !HASFLOCK && defined(DB_FCNTL_LOCKING) */
+		SM_DB_FLAG_ADD(flags);
 
 #  if DB_VERSION_MAJOR > 2
 		ret = db_create(&db, NULL, 0);
@@ -2115,7 +2109,9 @@ db_map_open(map, mode, mapclassname, dbtype, openinfo)
 #  endif /* DB_HASH_NELEM */
 		if (ret == 0 && db != NULL)
 		{
-			ret = db->open(db, buf, NULL, dbtype, flags, DBMMODE);
+			ret = db->open(db,
+					DBTXN	/* transaction for DB 4.1 */
+					buf, NULL, dbtype, flags, DBMMODE);
 			if (ret != 0)
 			{
 #ifdef DB_OLD_VERSION
@@ -4888,10 +4884,24 @@ ldapmap_set_defaults(spec)
 */
 
 /* what version of the ph map code we're running */
-static char phmap_id[PH_BUF_SIZE];
+static char phmap_id[128];
 
 /* sendmail version for phmap id string */
 extern const char Version[];
+
+/* assume we're using nph-1.1.x if not specified */
+# ifndef NPH_VERSION
+#  define NPH_VERSION		10100
+# endif
+
+/* compatibility for versions older than nph-1.2.0 */
+# if NPH_VERSION < 10200
+#  define PH_OPEN_ROUNDROBIN	PH_ROUNDROBIN
+#  define PH_OPEN_DONTID	PH_DONTID
+#  define PH_CLOSE_FAST		PH_FASTCLOSE
+#  define PH_ERR_DATAERR	PH_DATAERR
+#  define PH_ERR_NOMATCH	PH_NOMATCH
+# endif /* NPH_VERSION < 10200 */
 
 /*
 **  PH_MAP_PARSEARGS -- parse ph map definition args.
@@ -5090,7 +5100,12 @@ ph_timeout(unused)
 }
 
 static void
+#if NPH_VERSION >= 10200
+ph_map_send_debug(appdata, text)
+	void *appdata;
+#else
 ph_map_send_debug(text)
+#endif
 	char *text;
 {
 	if (LogLevel > 9)
@@ -5101,7 +5116,12 @@ ph_map_send_debug(text)
 }
 
 static void
+#if NPH_VERSION >= 10200
+ph_map_recv_debug(appdata, text)
+	void *appdata;
+#else
 ph_map_recv_debug(text)
+#endif
 	char *text;
 {
 	if (LogLevel > 10)
@@ -5178,9 +5198,14 @@ ph_map_open(map, mode)
 		}
 
 		/* open connection to server */
-		if (!ph_open(&(pmap->ph), host, PH_ROUNDROBIN|PH_DONTID,
-			     ph_map_send_debug, ph_map_recv_debug) &&
-		    !ph_id(pmap->ph, phmap_id))
+		if (ph_open(&(pmap->ph), host,
+			    PH_OPEN_ROUNDROBIN|PH_OPEN_DONTID,
+			    ph_map_send_debug, ph_map_recv_debug
+#if NPH_VERSION >= 10200
+			    , NULL
+#endif
+			    ) == 0
+		    && ph_id(pmap->ph, phmap_id) == 0)
 		{
 			if (ev != NULL)
 				sm_clrevent(ev);
@@ -5192,7 +5217,7 @@ ph_map_open(map, mode)
 		save_errno = errno;
 		if (ev != NULL)
 			sm_clrevent(ev);
-		pmap->ph_fastclose = PH_FASTCLOSE;
+		pmap->ph_fastclose = PH_CLOSE_FAST;
 		ph_map_close(map);
 		errno = save_errno;
 	}
@@ -5253,7 +5278,7 @@ ph_map_lookup(map, key, args, pstat)
 	i = ph_email_resolve(pmap->ph, key, pmap->ph_field_list, &value);
 	if (i == -1)
 		*pstat = EX_TEMPFAIL;
-	else if (i == PH_NOMATCH || i == PH_DATAERR)
+	else if (i == PH_ERR_NOMATCH || i == PH_ERR_DATAERR)
 		*pstat = EX_UNAVAILABLE;
 
   ph_map_lookup_abort:
@@ -5268,7 +5293,7 @@ ph_map_lookup(map, key, args, pstat)
 	if (*pstat == EX_TEMPFAIL)
 	{
 		save_errno = errno;
-		pmap->ph_fastclose = PH_FASTCLOSE;
+		pmap->ph_fastclose = PH_CLOSE_FAST;
 		ph_map_close(map);
 		errno = save_errno;
 	}

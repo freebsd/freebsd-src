@@ -10,7 +10,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: conf.h,v 1.90.2.4 2002/08/26 22:58:37 gshapiro Exp $
+ *	$Id: conf.h,v 1.90.2.13 2002/12/10 03:08:56 ca Exp $
  */
 
 /*
@@ -288,6 +288,10 @@ typedef int		pid_t;
 #  define SFS_TYPE	SFS_4ARGS	/* four argument statfs() call */
 #  define SFS_BAVAIL	f_bfree		/* alternate field name */
 #  define SYSLOG_BUFSIZE 512
+#  if defined(_SC_NPROC_ONLN) && !defined(_SC_NPROCESSORS_ONLN)
+    /* _SC_NPROC_ONLN is 'mpadmin -u', total # of unrestricted processors */
+#   define _SC_NPROCESSORS_ONLN	_SC_NPROC_ONLN
+#  endif /* if defined(_SC_NPROC_ONLN) && !defined(_SC_NPROCESSORS_ONLN) */
 #  ifdef IRIX6
 #   define STAT64	1
 #   define QUAD_T	unsigned long long
@@ -698,42 +702,45 @@ typedef int		pid_t;
 # endif /* NeXT */
 
 /*
-**  Apple Rhapsody
-**	Contributed by Wilfredo Sanchez <wsanchez@apple.com>
+**  Apple Darwin (aka Rhapsody)
 **
-**	Also used for Apple Darwin support.
+**      Contributed by Wilfredo Sanchez <wsanchez@mit.edu>
 */
 
 # if defined(DARWIN)
-#  define HASFCHMOD	1	/* has fchmod(2) syscall */
-#  define HASFLOCK	1	/* has flock(2) syscall */
-#  define HASUNAME	1	/* has uname(2) syscall */
-#  define HASUNSETENV	1
-#  define HASSETSID	1	/* has the setsid(2) POSIX syscall */
-#  define HASINITGROUPS	1
-#  define HASSETVBUF	1
-#  define HASSETREUID	0
-#  define HASSETEUID	1
-#  define USESETEUID	1	/* has usable seteuid(2) call */
-#  define HASLSTAT	1
-#  define HASSETRLIMIT	1
-#  define HASWAITPID	1
-#  define HASSTRERROR	1	/* has strerror(3) */
-#  define HASGETDTABLESIZE	1
-#  define HASGETUSERSHELL	1
-#  define HAS_IN_H	1
-#  define SM_CONF_GETOPT	0	/* need a replacement for getopt(3) */
-#  define BSD4_4_SOCKADDR	/* has sa_len */
-#  define NETLINK	1	/* supports AF_LINK */
-#  define HAS_ST_GEN	1	/* has st_gen field in stat struct */
-#  define GIDSET_T	gid_t
-#  define LA_TYPE	LA_SUBR		/* use getloadavg(3) */
-#  define SFS_TYPE	SFS_MOUNT	/* use <sys/mount.h> statfs() impl */
-#  define SPT_TYPE	SPT_PSSTRINGS
-#  define SPT_PADCHAR	'\0'	/* pad process title with nulls */
-#  define ERRLIST_PREDEFINED	/* don't declare sys_errlist */
+#  define HASFCHMOD		1	/* has fchmod(2) */
+#  define HASFCHOWN		1	/* has fchown(2) */
+#  define HASFLOCK		1	/* has flock(2) */
+#  define HASUNAME		1	/* has uname(2) */
+#  define HASUNSETENV		1	/* has unsetenv(3) */
+#  define HASSETSID		1	/* has the setsid(2) */
+#  define HASINITGROUPS	1	/* has initgroups(3) */
+#  define HASSETVBUF		1	/* has setvbuf (3) */
+#  define HASSETREUID		0	/* setreuid(2) unusable */
+#  define HASSETEUID		1	/* has seteuid(2) */
+#  define USESETEUID		1	/* has seteuid(2) */
+#  define HASSETEGID		1	/* has setegid(2) */
+#  define HASSETREGID		1	/* has setregid(2) */
+#  define HASSETRESGID		0	/* no setresgid(2) */
+#  define HASLSTAT		1	/* has lstat(2) */
+#  define HASSETRLIMIT		1	/* has setrlimit(2) */
+#  define HASWAITPID		1	/* has waitpid(2) */
+#  define HASGETDTABLESIZE	1	/* has getdtablesize(2) */
+#  define HAS_ST_GEN		1	/* has st_gen field in struct stat */
+#  define HASURANDOMDEV	1	/* has urandom(4) */
+#  define HASSTRERROR		1	/* has strerror(3) */
+#  define HASGETUSERSHELL	1	/* had getusershell(3) */
+#  define GIDSET_T		gid_t	/* getgroups(2) takes gid_t */
+#  define LA_TYPE		LA_SUBR	/* use getloadavg(3) */
+#  define SFS_TYPE		SFS_MOUNT	/* use <sys/mount.h> statfs() impl */
+#  define SPT_TYPE		SPT_PSSTRINGS	/* use magic PS_STRINGS pointer for setproctitle */
+#  define ERRLIST_PREDEFINED		/* don't declare sys_errlist */
+#  define BSD4_4_SOCKADDR		/* struct sockaddr has sa_len */
+#  define SAFENFSPATHCONF	0	/* unverified: pathconf(2) doesn't work on NFS */
+#  define HAS_IN_H		1
+#  define NETLINK		1	/* supports AF_LINK */
 #  ifndef NOT_SENDMAIL
-#   define sleep		sleepX
+#   define sleep sleepX
 extern unsigned int sleepX __P((unsigned int seconds));
 #  endif /* ! NOT_SENDMAIL */
 # endif /* defined(DARWIN) */
@@ -1300,10 +1307,6 @@ extern void		*malloc();
 **	Florian La Roche <rzsfl@rz.uni-sb.de>
 **	Karl London <karl@borg.demon.co.uk>
 **
-**  Last compiled against:	[07/21/98 @ 11:47:34 AM (Tuesday)]
-**	sendmail 8.9.1		bind-8.1.2		db-2.4.14
-**	gcc-2.8.1		glibc-2.0.94		linux-2.1.109
-**
 **  NOTE: Override HASFLOCK as you will but, as of 1.99.6, mixed-style
 **	file locking is no longer allowed.  In particular, make sure
 **	your DBM library and sendmail are both using either flock(2)
@@ -1323,7 +1326,6 @@ extern void		*malloc();
 #  ifndef USESETEUID
 #   define USESETEUID	0	/* has it due to POSIX, but doesn't work */
 #  endif /* USESETEUID */
-#  define SM_CONF_GETOPT	0	/* need a replacement for getopt(3) */
 #  define HASUNAME	1	/* use System V uname(2) system call */
 #  define HASUNSETENV	1	/* has unsetenv(3) call */
 #  define ERRLIST_PREDEFINED	/* don't declare sys_errlist */
@@ -2216,6 +2218,26 @@ typedef struct msgb		mblk_t;
 #  define _PATH_SENDMAILPID	"/var/run/sendmail.pid"
 # endif /* MOTO */
 
+/*
+**  Interix
+**	Contributed by Nedelcho Stanev <nedelcho.stanev@atlanticsky.com>
+**
+**	Used for Interix support.
+*/
+
+# if defined(__INTERIX)
+#  define HASURANDOMDEV		1
+#  define HASGETUSERSHELL	0
+#  define HASSTRERROR		1
+#  define HASUNSETENV		1
+#  define HASFCHOWN		1
+#  undef HAVE_SYS_ERRLIST
+#  define sys_errlist		__sys_errlist
+#  define sys_nerr		__sys_nerr
+#  define major(dev)		((int)(((dev) >> 8) & 0xff)
+#  define minor(dev)		((int)((dev) & 0xff)
+# endif /* defined(__INTERIX) */
+
 
 /**********************************************************************
 **  End of Per-Operating System defines
@@ -2695,6 +2717,11 @@ typedef void		(*sigfunc_t) __P((int));
 # ifndef SYSLOG_BUFSIZE
 #  define SYSLOG_BUFSIZE	1024
 # endif /* ! SYSLOG_BUFSIZE */
+
+/* for FD_SET() */
+#ifndef FD_SETSIZE
+# define FD_SETSIZE	256
+#endif /* ! FD_SETSIZE */
 
 /*
 **  Size of prescan buffer.
