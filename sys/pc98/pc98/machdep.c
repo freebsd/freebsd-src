@@ -219,8 +219,8 @@ cpu_startup(dummy)
 #ifdef PERFMON
 	perfmon_init();
 #endif
-	printf("real memory  = %u (%uK bytes)\n", ptoa(Maxmem),
-	    ptoa(Maxmem) / 1024);
+	printf("real memory  = %u (%u MB)\n", ptoa(Maxmem),
+	    ptoa(Maxmem) / 1048576);
 	/*
 	 * Display any holes after the first chunk of extended memory.
 	 */
@@ -240,8 +240,8 @@ cpu_startup(dummy)
 
 	vm_ksubmap_init(&kmi);
 
-	printf("avail memory = %u (%uK bytes)\n", ptoa(cnt.v_free_count),
-	    ptoa(cnt.v_free_count) / 1024);
+	printf("avail memory = %u (%u MB)\n", ptoa(cnt.v_free_count),
+	    ptoa(cnt.v_free_count) / 1048576);
 
 	/*
 	 * Set up buffers, so they can be used to read disk labels.
