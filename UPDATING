@@ -8,15 +8,24 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.  Important recent entries: 20040724 (default X changes).
 
+20041010:
+	The FreeBSD keyword is no longer a requirement for a valid
+	rc.d script. The rc(8) and rc.shutdown(8) scripts no longer check
+	for the existence of this keyword when ordering rc.d scripts.
+	This change touches most of the file in /etc/rc.d; therefore,
+	if you have not modified any files in that directory it may
+	be easier to rm -rf /etc/rc.d and then use the -i switch with
+	mergemaster(8).
+
+20041009:
+	One of the syscalls the 1:1 threading library libthr uses has
+	changed, thus breaking ABI compatibility. Make sure you rebuild
+	this library with the kernel.
+
 20041003:
 	The pfil API has gained an additional argument to pass an inpcb.
 	You should rebuild all pfil consuming modules: ipfw, ipfilter
 	and pf.
-
-20041007:
-	One of the syscalls the 1:1 threading library libthr uses has
-	changed, thus breaking ABI compatibility. Make sure you rebuild
-	this library with the kernel.
 
 20041001:
 	The following libraries had their version number bumped up:
