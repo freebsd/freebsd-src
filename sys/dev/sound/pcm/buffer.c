@@ -499,33 +499,6 @@ sndbuf_dispose(struct snd_dbuf *b, u_int8_t *to, unsigned int count)
 	return 0;
 }
 
-int
-sndbuf_uiomove(struct snd_dbuf *b, struct uio *uio, unsigned int count)
-{
-	int x, c, p, rd, err;
-
-	err = 0;
-	rd = (uio->uio_rw == UIO_READ)? 1 : 0;
-	if (count > uio->uio_resid)
-		return EINVAL;
-
-	if (count > (rd? sndbuf_getready(b) : sndbuf_getfree(b))) {
-		return EINVAL;
-	}
-
-	while (err == 0 && count > 0) {
-		p = rd? sndbuf_getreadyptr(b) : sndbuf_getfreeptr(b);
-		c = MIN(count, sndbuf_getsize(b) - p);
-		x = uio->uio_resid;
-		err = uiomove(sndbuf_getbufofs(b, p), c, uio);
-		x -= uio->uio_resid;
-		count -= x;
-		x = rd? sndbuf_dispose(b, NULL, x) : sndbuf_acquire(b, NULL, x);
-	}
-
-	return 0;
-}
-
 /* count is number of bytes we want added to destination buffer */
 int
 sndbuf_feed(struct snd_dbuf *from, struct snd_dbuf *to, struct pcm_channel *channel, struct pcm_feeder *feeder, unsigned int count)
