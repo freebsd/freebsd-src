@@ -101,8 +101,7 @@ struct rtentry {
 #define	rt_key(r)	((struct sockaddr *)((r)->rt_nodes->rn_key))
 #define	rt_mask(r)	((struct sockaddr *)((r)->rt_nodes->rn_mask))
 	struct	sockaddr *rt_gateway;	/* value */
-	short	rt_filler;		/* was short flags field */
-	short	rt_refcnt;		/* # held references */
+	long	rt_refcnt;		/* # held references */
 	u_long	rt_flags;		/* up/down?, host/net */
 	struct	ifnet *rt_ifp;		/* the answer: interface to use */
 	struct	ifaddr *rt_ifa;		/* the answer: interface to use */
