@@ -83,6 +83,8 @@ static const char rcsid[] =
 struct conf_entry {
 	char *log;		/* Name of the log */
 	char *pid_file;		/* PID file */
+	char *r_reason;		/* The reason this file is being rotated */
+	int rotate;		/* Non-zero if this file should be rotated */
 	int uid;		/* Owner of log */
 	int gid;		/* Group of log */
 	int numlogs;		/* Number of logs to keep */
@@ -104,6 +106,11 @@ int needroot = 1;		/* Root privs are necessary */
 int noaction = 0;		/* Don't do anything, just show it */
 int nosignal;			/* Do not send any signals */
 int force = 0;			/* Force the trim no matter what */
+int rotatereq = 0;		/* -R = Always rotate the file(s) as given */
+				/*    on the command (this also requires   */
+				/*    that a list of files *are* given on  */
+				/*    the run command). */
+char *requestor;		/* The name given on a -R request */
 char *archdirname;		/* Directory path to old logfiles archive */
 const char *conf = _PATH_CONF;	/* Configuration file to use */
 time_t timenow;
@@ -143,6 +150,7 @@ static time_t parseDWM(char *s, char *errline);
  * range 0 to 255, plus EOF.  Define wrappers which can take
  * values of type 'char', either signed or unsigned.
  */
+#define isprintch(Anychar)    isprint(((int) Anychar) & 255)
 #define isspacech(Anychar)    isspace(((int) Anychar) & 255)
 #define tolowerch(Anychar)    tolower(((int) Anychar) & 255)
 
@@ -204,6 +212,8 @@ init_entry(const char *fname, struct conf_entry *src_entry)
 		tempwork->pid_file = NULL;
 		if (src_entry->pid_file)
 			tempwork->pid_file = strdup(src_entry->pid_file);
+		tempwork->r_reason = NULL;
+		tempwork->rotate = 0;
 		tempwork->uid = src_entry->uid;
 		tempwork->gid = src_entry->gid;
 		tempwork->numlogs = src_entry->numlogs;
@@ -217,6 +227,8 @@ init_entry(const char *fname, struct conf_entry *src_entry)
 	} else {
 		/* Initialize as a "do-nothing" entry */
 		tempwork->pid_file = NULL;
+		tempwork->r_reason = NULL;
+		tempwork->rotate = 0;
 		tempwork->uid = NONE;
 		tempwork->gid = NONE;
 		tempwork->numlogs = 1;
@@ -252,13 +264,20 @@ free_entry(struct conf_entry *ent)
 		ent->pid_file = NULL;
 	}
 
+	if (ent->r_reason != NULL) {
+		free(ent->r_reason);
+		ent->r_reason = NULL;
+	}
+
 	free(ent);
 }
 
 static void
 do_entry(struct conf_entry * ent)
 {
+#define REASON_MAX	80
 	int size, modtime;
+	char temp_reason[REASON_MAX];
 
 	if (verbose) {
 		if (ent->flags & CE_COMPACT)
@@ -270,11 +289,12 @@ do_entry(struct conf_entry * ent)
 	}
 	size = sizefile(ent->log);
 	modtime = age_old_log(ent->log);
+	ent->rotate = 0;
 	if (size < 0) {
 		if (verbose)
 			printf("does not exist.\n");
 	} else {
-		if (ent->flags & CE_TRIMAT && !force) {
+		if (ent->flags & CE_TRIMAT && !force && !rotatereq) {
 			if (timenow < ent->trim_at
 			    || difftime(timenow, ent->trim_at) >= 60 * 60) {
 				if (verbose)
@@ -289,10 +309,35 @@ do_entry(struct conf_entry * ent)
 			printf("size (Kb): %d [%d] ", size, ent->size);
 		if (verbose && (ent->hours > 0))
 			printf(" age (hr): %d [%d] ", modtime, ent->hours);
-		if (force || ((ent->size > 0) && (size >= ent->size)) ||
-		    (ent->hours <= 0 && (ent->flags & CE_TRIMAT)) ||
-		    ((ent->hours > 0) && ((modtime >= ent->hours)
-			    || (modtime < 0)))) {
+
+		/*
+		 * Figure out if this logfile needs to be rotated.
+		 */
+		temp_reason[0] = '\0';
+		if (rotatereq) {
+			ent->rotate = 1;
+			snprintf(temp_reason, REASON_MAX, " due to -R from %s",
+			    requestor);
+		} else if (force) {
+			ent->rotate = 1;
+			snprintf(temp_reason, REASON_MAX, " due to -F request");
+		} else if ((ent->size > 0) && (size >= ent->size)) {
+			ent->rotate = 1;
+			snprintf(temp_reason, REASON_MAX, " due to size>%dK",
+			    ent->size);
+		} else if (ent->hours <= 0 && (ent->flags & CE_TRIMAT)) {
+			ent->rotate = 1;
+		} else if ((ent->hours > 0) && ((modtime >= ent->hours) ||
+		    (modtime < 0))) {
+			ent->rotate = 1;
+		}
+
+		/*
+		 * If the file needs to be rotated, then rotate it.
+		 */
+		if (ent->rotate) {
+			if (temp_reason[0] != '\0')
+				ent->r_reason = strdup(temp_reason);
 			if (verbose)
 				printf("--> trimming log....\n");
 			if (noaction && !verbose) {
@@ -313,6 +358,7 @@ do_entry(struct conf_entry * ent)
 				printf("--> skipping\n");
 		}
 	}
+#undef REASON_MAX
 }
 
 static void
@@ -334,7 +380,7 @@ PRS(int argc, char **argv)
 	}
 
 	/* Parse command line options. */
-	while ((c = getopt(argc, argv, "a:f:nrsvF")) != -1)
+	while ((c = getopt(argc, argv, "a:f:nrsvFR:")) != -1)
 		switch (c) {
 		case 'a':
 			archtodir++;
@@ -358,10 +404,27 @@ PRS(int argc, char **argv)
 		case 'F':
 			force++;
 			break;
+		case 'R':
+			rotatereq++;
+			requestor = strdup(optarg);
+			break;
 		default:
 			usage();
 			/* NOTREACHED */
 		}
+
+	if (rotatereq) {
+		if (optind == argc) {
+			warnx("At least one filename must be given when -R is specified.");
+			usage();
+			/* NOTREACHED */
+		}
+		/* Make sure "requestor" value is safe for a syslog message. */
+		for (p = requestor; *p != '\0'; p++) {
+			if (!isprintch(*p) && (*p != '\t'))
+				*p = '.';
+		}
+	}
 }
 
 static void
@@ -369,7 +432,8 @@ usage(void)
 {
 
 	fprintf(stderr,
-	    "usage: newsyslog [-Fnrsv] [-f config-file] [-a directory] [ filename ... ]\n");
+	    "usage: newsyslog [-Fnrsv] [-a directory] [-f config-file]\n"
+	    "                 [ [-R requestor] filename ... ]\n");
 	exit(1);
 }
 
@@ -999,8 +1063,12 @@ log_trim(const char *log, const struct conf_entry *log_ent)
 	xtra = "";
 	if (log_ent->def_cfg)
 		xtra = " using <default> rule";
-	fprintf(f, "%s %s newsyslog[%d]: logfile turned over%s\n",
-	    daytime, hostname, (int) getpid(), xtra);
+	if (log_ent->r_reason != NULL)
+		fprintf(f, "%s %s newsyslog[%d]: logfile turned over%s%s\n",
+		    daytime, hostname, (int) getpid(), log_ent->r_reason, xtra);
+	else
+		fprintf(f, "%s %s newsyslog[%d]: logfile turned over%s\n",
+		    daytime, hostname, (int) getpid(), xtra);
 	if (fclose(f) == EOF)
 		err(1, "log_trim: fclose:");
 	return (0);
