@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.29.2.8 1995/06/06 06:08:29 jkh Exp $
+ * $Id: tcpip.c,v 1.30 1995/06/11 19:30:12 rgrimes Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -126,7 +126,7 @@ static Layout layout[] = {
 { NULL },
 };
 
-#define _validByte(b) ((b) >= 0 && (b) < 255)
+#define _validByte(b) ((b) >= 0 && (b) <= 255)
 
 /* whine */
 static void
@@ -144,7 +144,7 @@ verifyIP(char *ip)
 
     if (ip && sscanf(ip, "%d.%d.%d.%d", &a, &b, &c, &d) == 4 &&
 	_validByte(a) && _validByte(b) && _validByte(c) &&
-	_validByte(d))
+	_validByte(d) && (d != 255))
 	return 1;
     else
 	return 0;
