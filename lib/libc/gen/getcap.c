@@ -69,7 +69,7 @@ static size_t	 topreclen;	/* toprec length */
 static char	*toprec;	/* Additional record specified by cgetset() */
 static int	 gottoprec;	/* Flag indicating retrieval of toprecord */
 
-static int	cdbget(DB *, char **, char *);
+static int	cdbget(DB *, char **, const char *);
 static int 	getent(char **, u_int *, char **, int, const char *, int, char *);
 static int	nfcmp(char *, char *);
 
@@ -533,19 +533,25 @@ tc_exp:	{
 }
 
 static int
-cdbget(DB *capdbp, char **bp, char *name)
+cdbget(DB *capdbp, char **bp, const char *name)
 {
 	DBT key, data;
+	char *namebuf;
 
-	key.data = name;
-	key.size = strlen(name);
+	namebuf = strdup(name);
+	if (namebuf == NULL)
+		return (-2);
+	key.data = namebuf;
+	key.size = strlen(namebuf);
 
 	for (;;) {
 		/* Get the reference. */
 		switch(capdbp->get(capdbp, &key, &data, 0)) {
 		case -1:
+			free(namebuf);
 			return (-2);
 		case 1:
+			free(namebuf);
 			return (-1);
 		}
 
@@ -558,6 +564,7 @@ cdbget(DB *capdbp, char **bp, char *name)
 	}
 
 	*bp = (char *)data.data + 1;
+	free(namebuf);
 	return (((char *)(data.data))[0] == TCERR ? 1 : 0);
 }
 
@@ -568,7 +575,7 @@ cdbget(DB *capdbp, char **bp, char *name)
 int
 cgetmatch(const char *buf, const char *name)
 {
-	char *np, *bp;
+	const char *np, *bp;
 
 	/*
 	 * Start search at beginning of record.
