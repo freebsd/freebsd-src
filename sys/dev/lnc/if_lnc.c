@@ -30,9 +30,9 @@
  * $FreeBSD$
  */
 
+/*
 #define DIAGNOSTIC
 #define DEBUG
-/*
  *
  * TODO ----
  *
