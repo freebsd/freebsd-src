@@ -40,6 +40,7 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <sys/param.h>
+#include <sys/queue.h>
 #include <sys/wait.h>
 #include <sys/time.h>
 
@@ -131,7 +132,7 @@ alarmcatch()
 			    "  DUMP: %s: (\"yes\" or \"no\") ",
 			    attnmessage);
 		else
-			msgtail("\7\7");
+			msgtail("\a\a");
 	} else {
 		if (timeout) {
 			msgtail("\n");
@@ -259,7 +260,7 @@ sendmes(tty, message)
 		setbuf(f_tty, buf);
 		(void) fprintf(f_tty,
 		    "\n\
-\7\7\7Message from the dump program to all operators at %d:%02d ...\r\n\n\
+\a\a\aMessage from the dump program to all operators at %d:%02d ...\r\n\n\
 DUMP: NEEDS ATTENTION: ",
 		    localclock->tm_hour, localclock->tm_min);
 		for (cp = lastmsg; ; cp++) {
@@ -401,11 +402,11 @@ allocfsent(fs)
 }
 
 struct	pfstab {
-	struct	pfstab *pf_next;
+	SLIST_ENTRY(pfstab) pf_list;
 	struct	fstab *pf_fstab;
 };
 
-static	struct pfstab *table;
+static	SLIST_HEAD(, pfstab) table;
 
 void
 getfstab()
@@ -427,8 +428,7 @@ getfstab()
 		if ((pf = (struct pfstab *)malloc(sizeof (*pf))) == NULL)
 			quit("%s\n", strerror(errno));
 		pf->pf_fstab = fs;
-		pf->pf_next = table;
-		table = pf;
+		SLIST_INSERT_HEAD(&table, pf, pf_list);
 	}
 	(void) endfsent();
 }
@@ -447,7 +447,7 @@ fstabsearch(key)
 	register struct fstab *fs;
 	char *rn;
 
-	for (pf = table; pf != NULL; pf = pf->pf_next) {
+	SLIST_FOREACH(pf, &table, pf_list) {
 		fs = pf->pf_fstab;
 		if (strcmp(fs->fs_file, key) == 0 ||
 		    strcmp(fs->fs_spec, key) == 0)

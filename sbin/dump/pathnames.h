@@ -31,11 +31,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)pathnames.h	8.1 (Berkeley) 6/5/93
+ # $FreeBSD$
  */
 
 #include <paths.h>
 
-#define	_PATH_DEFTAPE	"/dev/rsa0"
+#define	_PATH_DEFTAPE	"/dev/sa0"
 #define	_PATH_DTMP	"/etc/dtmp"
 #define	_PATH_DUMPDATES	"/etc/dumpdates"
 #define	_PATH_LOCK	"/tmp/dumplockXXXXXX"
