@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: modload.c,v 1.11 1996/04/26 18:39:48 erich Exp $
+ *	$Id: modload.c,v 1.12 1996/08/13 00:43:01 pst Exp $
  */
 
 #include <stdio.h>
@@ -256,7 +256,8 @@ main(argc, argv)
 		entry[strlen(entry) - 2] = '\0'; /* chop off .o */
 	}
 
-	modfd = open(out, O_RDWR | O_CREAT, 0666);
+	(void) unlink(out);
+	modfd = open(out, O_RDWR | O_CREAT | O_EXCL, 0600);
 	if(modfd < 0) {
 		err(1, "creating %s", out);
 	}
