@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.16.2.26 1995/10/26 08:55:32 jkh Exp $
+ * $Id: config.c,v 1.16.2.27 1995/10/27 01:22:52 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -238,28 +238,26 @@ configFstab(void)
 void
 configSysconfig(void)
 {
-    FILE *fp, *debug;
+    FILE *fp;
     char *lines[MAX_LINES], *cp;
     char line[256];
     Variable *v;
     int i, nlines = 0;
 
     fp = fopen("/etc/sysconfig", "rw");
-    debug = fopen("/tmp/ack", "w");
     if (!fp) {
 	dialog_clear();
 	msgConfirm("Unable to open /etc/sysconfig file!  Things may work\n"
 		   "rather strangely as a result of this.");
 	return;
     }
-    msgNotify("Constructing /etc/sysconfig file..");
+    msgNotify("Writing configuration changes to /etc/sysconfig file..");
     for (i = 0; i < MAX_LINES; i++) {
 	if (!fgets(line, 255, fp))
 	    break;
 	lines[nlines++] = strdup(line);
     }
     for (v = VarHead; v; v = v->next) {
-	fprintf(debug, "Checking for variable: %s <%s>\n", v->name, v->value);
 	for (i = 0; i < nlines; i++) {
 	    char tmp[256];
 
@@ -275,9 +273,7 @@ configSysconfig(void)
 		free(lines[i]);
 		lines[i] = (char *)malloc(strlen(v->name) + strlen(v->value) + 5);
 		sprintf(lines[i], "%s=\"%s\"\n", v->name, v->value);
-		fprintf(debug, "Found a match!  New line is: %s\n", lines[i]);
 	    }
-
 	}
     }
 
@@ -285,7 +281,6 @@ configSysconfig(void)
     rewind(fp);
     for (i = 0; i < nlines; i++) {
 	fprintf(fp, lines[i]);
-	fprintf(debug, "writing out `%s' to /etc/sysconfig\n", lines[i]);
 	/* Stand by for bogus special case handling - we try to dump the interface specs here */
 	if (!strncmp(lines[i], VAR_INTERFACES, strlen(VAR_INTERFACES))) {
 	    Device **devp;
@@ -293,14 +288,11 @@ configSysconfig(void)
 
 	    devp = deviceFind(NULL, DEVICE_TYPE_NETWORK);
 	    cnt = deviceCount(devp);
-	    fprintf(debug, "Found the %s line, now chewing through %d devices\n", VAR_INTERFACES, cnt);
 	    for (j = 0; j < cnt; j++) {
 		char iname[255];
 
 		snprintf(iname, 255, "%s%s", VAR_IFCONFIG, devp[j]->name);
-		fprintf(debug, "Searching for `%s' variable\n", iname);
 		if ((cp = variable_get(iname))) {
-		    fprintf(debug, "Writing out `%s=%s' interface line to /etc/sysconfig\n", iname, cp);
 		    fprintf(fp, "%s=\"%s\"\n", iname, cp);
 		}
 	    }
@@ -382,8 +374,14 @@ skip:
 int
 configNetworking(char *str)
 {
-    if (dmenuOpenSimple(&MenuNetworking))
-	return installNetworking(str);
+    int i;
+
+    if (dmenuOpenSimple(&MenuNetworking)) {
+	i = installNetworking(str);
+	if (i != RET_FAIL)
+	    configSysconfig();
+	return i;
+    }
     else
 	return RET_FAIL;
 }

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.42.2.35 1995/10/26 08:55:57 jkh Exp $
+ * $Id: menus.c,v 1.42.2.36 1995/10/27 01:22:58 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -104,7 +104,7 @@ consult the README file.",
 	DMENU_DISPLAY_FILE,	"COPYRIGHT", 0, 0	},
   { "Release",			"The release notes for this version of FreeBSD.",
 	DMENU_DISPLAY_FILE,	"relnotes", 0, 0	},
-  { "WEB",			"Go to the HTML documentation menu (post-install).",
+  { "HTML Docs",		"Go to the HTML documentation menu (post-install).",
 	DMENU_CALL,		docBrowser, 0, 0			},
   { "Exit",			"Exit this menu (returning to previous)",
 	DMENU_CANCEL,		NULL, 0, 0		},
@@ -722,7 +722,7 @@ software not provided in the base distributions.",
 	DMENU_CALL,		configPorts, 0, 1			},
       { "Root Password",	"Set the system manager's password",
 	DMENU_SYSTEM_COMMAND,	"passwd root", 0, 0			},
-      { "WEB",			"Go to the HTML documentation menu (post-install).",
+      { "HTML Docs",		"Go to the HTML documentation menu (post-install).",
 	DMENU_CALL,		docBrowser, 0, 0			},
       { "XFree86",		"Configure XFree86 (if installed)",
 	DMENU_SYSTEM_COMMAND,	"/usr/X11R6/bin/xf86config", 0, 0	},
@@ -748,13 +748,13 @@ aspects of your system's network configuration.",
 	DMENU_SET_VARIABLE,	"nfs_server=YES", 0, 0, dmenuVarCheck			},
   { "Gateway",			"This machine will route packets between interfaces",
 	DMENU_SET_VARIABLE,	"gateway=YES", 0, 0, dmenuVarCheck			},
-  { "gated",			"This machine wants to run gated",
+  { "Gated",			"This machine wants to run gated",
 	DMENU_SET_VARIABLE,	"gated=YES", 0, 0, dmenuVarCheck			},
-  { "ntpdate",			"Select a clock-syncronization server",
+  { "Ntpdate",			"Select a clock-syncronization server",
 	DMENU_SUBMENU,		&MenuNTP, (int)"ntpdate", 0, dmenuVarCheck		},
-  { "routed",			"Set flags for routed (default: -q)",
+  { "Routed",			"Set flags for routed (default: -q)",
 	DMENU_CALL,		configRoutedFlags, (int)"routed", 0, dmenuVarCheck	},
-  { "rwhod",			"This machine wants to run the rwho daemon",
+  { "Rwhod",			"This machine wants to run the rwho daemon",
 	DMENU_SET_VARIABLE,	"rwhod=YES", 0, 0, dmenuVarCheck			},
   { "Anon FTP",			"This machine wishes to allow anonymous FTP.",
 	DMENU_SET_VARIABLE,	"anon_ftp=YES", 0, 0, dmenuVarCheck			},
