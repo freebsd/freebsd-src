@@ -11,7 +11,7 @@
 .Nm watch
 .Op Fl ciotW
 .Ar tty
-.\"  watch [-ciotW] [<tty name>]
+.\"  watch [-ciotnW] [<tty name>]
 .Sh DESCRIPTION
 .Nm Watch
 allows the superuser to examine all data coming through a specified tty.
@@ -45,6 +45,12 @@ For more info see
 .Xr snp 4 .
 .It Fl t
 Print the date and time when observation of a given tty is started.
+.It Fl n
+Disable the ability to switch the watched tty interactively.  This disables
+both change requests made with <control-X> as well as automatic prompting
+when the current tty is closed or overflows.  In all cases where a prompt
+would be displayed, watch will exit.  The reconnect flags are unaffected by
+this option.
 .It Fl W
 Allow write access to observed tty.
 .It Ar tty
