@@ -20,6 +20,12 @@ STRIP?=	-s
 LDFLAGS+= -static
 .endif
 
+.if defined(PROG_CXX)
+PROG=	${PROG_CXX}
+DPADD+=	${LIBSTDCPLUSPLUS}
+LDADD+=	-lstdc++
+.endif
+
 .if defined(PROG)
 .if defined(SRCS)
 
@@ -37,7 +43,11 @@ ${PROG}: ${OBJS}
 .else !defined(SRCS)
 
 .if !target(${PROG})
+.if defined(PROG_CXX)
+SRCS=	${PROG}.cc
+.else
 SRCS=	${PROG}.c
+.endif
 
 # Always make an intermediate object file because:
 # - it saves time rebuilding when only the library has changed
