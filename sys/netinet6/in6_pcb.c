@@ -824,7 +824,7 @@ in6_pcbnotify(head, dst, fport_arg, src, lport_arg, cmd, notify)
 	u_int32_t flowinfo;
 	int errno, s;
 
-	if ((unsigned)cmd > PRC_NCMDS || dst->sa_family != AF_INET6)
+	if ((unsigned)cmd >= PRC_NCMDS || dst->sa_family != AF_INET6)
 		return;
 
 	sa6_dst = (struct sockaddr_in6 *)dst;

@@ -279,7 +279,7 @@ ipx_ctlinput(cmd, arg_as_sa, dummy)
 	caddr_t arg = (/* XXX */ caddr_t)arg_as_sa;
 	struct ipx_addr *ipx;
 
-	if (cmd < 0 || cmd > PRC_NCMDS)
+	if (cmd < 0 || cmd >= PRC_NCMDS)
 		return;
 	switch (cmd) {
 		struct sockaddr_ipx *sipx;

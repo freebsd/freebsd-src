@@ -638,7 +638,7 @@ spx_ctlinput(cmd, arg_as_sa, dummy)
 	struct ipx_addr *na;
 	struct sockaddr_ipx *sipx;
 
-	if (cmd < 0 || cmd > PRC_NCMDS)
+	if (cmd < 0 || cmd >= PRC_NCMDS)
 		return;
 
 	switch (cmd) {
