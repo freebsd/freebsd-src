@@ -5,8 +5,8 @@ PROG=	su
 SRCS=	su.c
 
 COPTS+=	-DLOGIN_CAP -DSKEY
-DPADD=	${LIBUTIL} ${LIBSKEY} ${LIBCRYPT} ${LIBMD}
-LDADD=	-lutil -lskey -lcrypt -lmd
+DPADD=	${LIBUTIL} ${LIBSKEY} ${LIBMD} ${LIBCRYPT}
+LDADD=	-lutil -lskey -lmd -lcrypt
 
 .if defined(WHEELSU)
 COPTS+=	-DWHEELSU
