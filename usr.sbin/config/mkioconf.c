@@ -641,7 +641,7 @@ i386_ioconf()
 			    !eq(mp->d_name, "isa"))
 				continue;
 			if(!old->d_name || strcmp(old->d_name, dp->d_name))
-				fprintf(fp, "extern struct isa_driver %sdriver;",
+				fprintf(fp, "extern struct isa_driver %3sdriver;",
 					dp->d_name);
 			if(eq(dp->d_name, "wdc")) seen_wdc++;
 			if(eq(dp->d_name, "fdc")) seen_fdc++;
@@ -689,9 +689,9 @@ isa_biotab(fp, table)
 		if (dp->d_unit == QUES || mp == 0 ||
 		    mp == TO_NEXUS || !eq(mp->d_name, table))
 			continue;
-		fprintf(fp, "{ -1, &%sdriver, %s,",
+		fprintf(fp, "{ -1, &%3sdriver, %8s,",
 			mp->d_name, mp->d_port);
-		fprintf(fp, "%s, %2d, C 0x%05X, %5d, %s,  %2d, 0x%04X, %2d, 0, 0, 0, 1 },\n",
+		fprintf(fp, "%6s, %2d, C 0x%05X, %5d, %8s,  %2d, 0x%04X, %2d, 0, 0, 0, 1 },\n",
 			sirq(mp->d_irq), mp->d_drq, mp->d_maddr,
 			mp->d_msize, shandler(mp), dp->d_unit,
 			dp->d_flags, dp->d_drive);
@@ -721,12 +721,12 @@ isa_devtab(fp, table, dev_idp)
 		mp = dp->d_conn;
 		if (mp == NULL || mp == TO_NEXUS || !eq(mp->d_name, "isa"))
 			continue;
-		fprintf(fp, "{ %2d, &%sdriver,", (*dev_idp)++, dp->d_name);
+		fprintf(fp, "{ %2d, &%3sdriver,", (*dev_idp)++, dp->d_name);
 		if (dp->d_port)
-			fprintf(fp, " %s,", dp->d_port);
+			fprintf(fp, " %8s,", dp->d_port);
 		else
 			fprintf(fp, "   0x%04x,", dp->d_portn);
-		fprintf(fp, "%s, %2d, C 0x%05X, %5d, %s,  %2d, 0x%04X, 0, 0, 0, 0, 1 },\n",
+		fprintf(fp, "%6s, %2d, C 0x%05X, %5d, %8s,  %2d, 0x%04X, 0, 0, 0, 0, 1 },\n",
 			sirq(dp->d_irq), dp->d_drq, dp->d_maddr,
 			dp->d_msize, shandler(dp), dp->d_unit,
 			dp->d_flags);
