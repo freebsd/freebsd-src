@@ -187,7 +187,6 @@ ext2_mount(mp, path, data, ndp, p)
 	struct vnode *devvp;
 	struct ufs_args args;
 	struct ufsmount *ump = 0;
-	struct ucred *uc;
 	register struct ext2_sb_info *fs;
 	size_t size;
 	int error, flags;
@@ -232,17 +231,11 @@ ext2_mount(mp, path, data, ndp, p)
 			 */
 			if (suser(p)) {
 				vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
-				PROC_LOCK(p);
-				uc = p->p_ucred;
-				crhold(uc);
-				PROC_UNLOCK(p);
 				if ((error = VOP_ACCESS(devvp, VREAD | VWRITE,
-				    uc, p)) != 0) {
-					crfree(uc);
+				    p->p_ucred, p)) != 0) {
 					VOP_UNLOCK(devvp, 0, p);
 					return (error);
 				}
-				crfree(uc);
 				VOP_UNLOCK(devvp, 0, p);
 			}
 
@@ -294,16 +287,10 @@ ext2_mount(mp, path, data, ndp, p)
 		if ((mp->mnt_flag & MNT_RDONLY) == 0)
 			accessmode |= VWRITE;
 		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
-		PROC_LOCK(p);
-		uc = p->p_ucred;
-		crhold(uc);
-		PROC_UNLOCK(p);
-		if ((error = VOP_ACCESS(devvp, accessmode, uc, p)) != 0) {
-			crfree(uc);
+		if ((error = VOP_ACCESS(devvp, accessmode, p->p_ucred, p)) != 0) {
 			vput(devvp);
 			return (error);
 		}
-		crfree(uc);
 		VOP_UNLOCK(devvp, 0, p);
 	}
 
@@ -629,7 +616,6 @@ ext2_mountfs(devvp, mp, p)
 {
 	register struct ufsmount *ump;
 	struct buf *bp;
-	struct ucred *uc;
 	register struct ext2_sb_info *fs;
 	struct ext2_super_block * es;
 	dev_t dev = devvp->v_rdev;
@@ -648,15 +634,8 @@ ext2_mountfs(devvp, mp, p)
 		return (error);
 	if (vcount(devvp) > 1 && devvp != rootvp)
 		return (EBUSY);
-	PROC_LOCK(p);
-	uc = p->p_ucred;
-	crhold(uc);
-	PROC_UNLOCK(p);
-	if ((error = vinvalbuf(devvp, V_SAVE, uc, p, 0, 0)) != 0) {
-		crfree(uc);
+	if ((error = vinvalbuf(devvp, V_SAVE, p->p_ucred, p, 0, 0)) != 0)
 		return (error);
-	}
-	crfree(uc);
 #ifdef READONLY
 /* turn on this to force it to be read-only */
 	mp->mnt_flag |= MNT_RDONLY;

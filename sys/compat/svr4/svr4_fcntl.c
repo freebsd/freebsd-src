@@ -249,7 +249,6 @@ fd_revoke(p, fd)
 	struct vnode *vp;
 	struct mount *mp;
 	struct vattr vattr;
-	struct ucred *uc;
 	int error, *retval;
 
 	retval = p->p_retval;
@@ -266,20 +265,12 @@ fd_revoke(p, fd)
 		goto out;
 	}
 
-	PROC_LOCK(p);
-	uc = p->p_ucred;
-	crhold(uc);
-	PROC_UNLOCK(p);
-	if ((error = VOP_GETATTR(vp, &vattr, uc, p)) != 0) {
-		crfree(uc);
+	if ((error = VOP_GETATTR(vp, &vattr, p->p_ucred, p)) != 0)
 		goto out;
-	}
 
-	if (uc->cr_uid != vattr.va_uid && (error = suser(p)) != 0) {
-		crfree(uc);
+	if (p->p_ucred->cr_uid != vattr.va_uid &&
+	    (error = suser(p)) != 0)
 		goto out;
-	}
-	crfree(uc);
 
 	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
 		goto out;
@@ -303,7 +294,6 @@ fd_truncate(p, fd, flp)
 	off_t start, length;
 	struct vnode *vp;
 	struct vattr vattr;
-	struct ucred *uc;
 	int error, *retval;
 	struct ftruncate_args ft;
 
@@ -319,13 +309,7 @@ fd_truncate(p, fd, flp)
 	if (fp->f_type != DTYPE_VNODE || vp->v_type == VFIFO)
 		return ESPIPE;
 
-	PROC_LOCK(p);
-	uc = p->p_ucred;
-	crhold(uc);
-	PROC_UNLOCK(p);
-	error = VOP_GETATTR(vp, &vattr, uc, p);
-	crfree(uc);
-	if (error != 0)
+	if ((error = VOP_GETATTR(vp, &vattr, p->p_ucred, p)) != 0)
 		return error;
 
 	length = vattr.va_size;
