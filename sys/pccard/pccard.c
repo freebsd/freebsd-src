@@ -555,12 +555,12 @@ allocate_driver(struct slot *slt, struct dev_desc *desc)
 			slt->ctrl->mapirq(slt, slt->irq);
 		}
 	}
-	devi->running = 1;
 	MALLOC(devi, struct pccard_devinfo *, sizeof(*devi), M_DEVBUF, M_WAITOK);
 	bzero(devi, sizeof(*devi));
 	/*
 	 *	Create an entry for the device under this slot.
 	 */
+	devi->running = 1;
 	devi->drv = drv;
 	devi->slt = slt;
 	devi->isahd.id_irq = irq;
