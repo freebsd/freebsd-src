@@ -46,11 +46,11 @@
 /*
  * flags to malloc.
  */
-#define	M_WAITOK	0x0000
 #define	M_NOWAIT	0x0001		/* do not block */
-#define	M_USE_RESERVE	0x0002		/* can alloc out of reserve memory */
-#define	M_ZERO		0x0004		/* bzero the allocation */
-#define	M_NOVM		0x0008		/* don't ask VM for pages */
+#define	M_WAITOK	0x0002		/* do not block */
+#define	M_ZERO		0x0100		/* bzero the allocation */
+#define	M_NOVM		0x0200		/* don't ask VM for pages */
+#define	M_USE_RESERVE	0x0400		/* can alloc out of reserve memory */
 
 #define	M_MAGIC		877983977	/* time when first defined :-) */
 
