@@ -38,11 +38,12 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)sysctl.c	8.1 (Berkeley) 6/6/93";
+static char sccsid[] = "@(#)sysctl.c	8.5 (Berkeley) 5/9/95";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/gmon.h>
+#include <sys/mount.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/socket.h>
@@ -70,10 +71,12 @@ struct ctlname netname[] = CTL_NET_NAMES;
 struct ctlname hwname[] = CTL_HW_NAMES;
 struct ctlname username[] = CTL_USER_NAMES;
 struct ctlname debugname[CTL_DEBUG_MAXID];
+struct ctlname *vfsname;
 #ifdef CTL_MACHDEP_NAMES
 struct ctlname machdepname[] = CTL_MACHDEP_NAMES;
 #endif
 char names[BUFSIZ];
+int lastused;
 
 struct list {
 	struct	ctlname *list;
@@ -84,7 +87,7 @@ struct list secondlevel[] = {
 	{ 0, 0 },			/* CTL_UNSPEC */
 	{ kernname, KERN_MAXID },	/* CTL_KERN */
 	{ vmname, VM_MAXID },		/* CTL_VM */
-	{ 0, 0 },			/* CTL_FS */
+	{ 0, 0 },			/* CTL_VFS */
 	{ netname, NET_MAXID },		/* CTL_NET */
 	{ 0, CTL_DEBUG_MAXID },		/* CTL_DEBUG */
 	{ hwname, HW_MAXID },		/* CTL_HW */
@@ -140,15 +143,16 @@ main(argc, argv)
 	argc -= optind;
 	argv += optind;
 
-	if (Aflag || aflag) {
+	if (argc == 0 && (Aflag || aflag)) {
 		debuginit();
+		vfsinit();
 		for (lvl1 = 1; lvl1 < CTL_MAXID; lvl1++)
 			listall(topname[lvl1].ctl_name, &secondlevel[lvl1]);
 		exit(0);
 	}
 	if (argc == 0)
 		usage();
-	while (argc-- > 0)
+	for (; *argv != NULL; ++argv)
 		parse(*argv, 1);
 	exit(0);
 }
@@ -185,12 +189,14 @@ parse(string, flags)
 	char *string;
 	int flags;
 {
-	int indx, type, state, size, len;
+	int indx, type, state, len;
+	size_t size;
 	int special = 0;
 	void *newval = 0;
 	int intval, newsize = 0;
 	quad_t quadval;
 	struct list *lp;
+	struct vfsconf vfc;
 	int mib[CTL_MAXNAME];
 	char *cp, *bufp, buf[BUFSIZ], strval[BUFSIZ];
 
@@ -211,6 +217,8 @@ parse(string, flags)
 	if ((indx = findname(string, "top", &bufp, &toplist)) == -1)
 		return;
 	mib[0] = indx;
+	if (indx == CTL_VFS)
+		vfsinit();
 	if (indx == CTL_DEBUG)
 		debuginit();
 	lp = &secondlevel[indx];
@@ -314,7 +322,26 @@ parse(string, flags)
 #endif
 		break;
 
-	case CTL_FS:
+	case CTL_VFS:
+		mib[3] = mib[1];
+		mib[1] = VFS_GENERIC;
+		mib[2] = VFS_CONF;
+		len = 4;
+		size = sizeof vfc;
+		if (sysctl(mib, 4, &vfc, &size, (void *)0, (size_t)0) < 0) {
+			perror("vfs print");
+			return;
+		}
+		if (flags == 0 && vfc.vfc_refcount == 0)
+			return;
+		if (!nflag)
+			fprintf(stdout, "%s has %d mounted instance%s\n",
+			    string, vfc.vfc_refcount,
+			    vfc.vfc_refcount != 1 ? "s" : "");
+		else
+			fprintf(stdout, "%d\n", vfc.vfc_refcount);
+		return;
+
 	case CTL_USER:
 		break;
 
@@ -450,14 +477,15 @@ parse(string, flags)
  */
 debuginit()
 {
-	int mib[3], size, loc, i;
+	int mib[3], loc, i;
+	size_t size;
 
 	if (secondlevel[CTL_DEBUG].list != 0)
 		return;
 	secondlevel[CTL_DEBUG].list = debugname;
 	mib[0] = CTL_DEBUG;
 	mib[2] = CTL_DEBUG_NAME;
-	for (loc = 0, i = 0; i < CTL_DEBUG_MAXID; i++) {
+	for (loc = lastused, i = 0; i < CTL_DEBUG_MAXID; i++) {
 		mib[1] = i;
 		size = BUFSIZ - loc;
 		if (sysctl(mib, 3, &names[loc], &size, NULL, 0) == -1)
@@ -466,6 +494,50 @@ debuginit()
 		debugname[i].ctl_type = CTLTYPE_INT;
 		loc += size;
 	}
+	lastused = loc;
+}
+
+/*
+ * Initialize the set of filesystem names
+ */
+vfsinit()
+{
+	int mib[4], maxtypenum, cnt, loc, size;
+	struct vfsconf vfc;
+	size_t buflen;
+
+	if (secondlevel[CTL_VFS].list != 0)
+		return;
+	mib[0] = CTL_VFS;
+	mib[1] = VFS_GENERIC;
+	mib[2] = VFS_MAXTYPENUM;
+	buflen = 4;
+	if (sysctl(mib, 3, &maxtypenum, &buflen, (void *)0, (size_t)0) < 0)
+		return;
+	if ((vfsname = malloc(maxtypenum * sizeof(*vfsname))) == 0)
+		return;
+	memset(vfsname, 0, maxtypenum * sizeof(*vfsname));
+	mib[2] = VFS_CONF;
+	buflen = sizeof vfc;
+	for (loc = lastused, cnt = 0; cnt < maxtypenum; cnt++) {
+		mib[3] = cnt;
+		if (sysctl(mib, 4, &vfc, &buflen, (void *)0, (size_t)0) < 0) {
+			if (errno == EOPNOTSUPP)
+				continue;
+			perror("vfsinit");
+			free(vfsname);
+			return;
+		}
+		strcat(&names[loc], vfc.vfc_name);
+		vfsname[cnt].ctl_name = &names[loc];
+		vfsname[cnt].ctl_type = CTLTYPE_INT;
+		size = strlen(vfc.vfc_name) + 1;
+		loc += size;
+	}
+	lastused = loc;
+	secondlevel[CTL_VFS].list = vfsname;
+	secondlevel[CTL_VFS].size = maxtypenum;
+	return;
 }
 
 struct ctlname inetname[] = CTL_IPPROTO_NAMES;

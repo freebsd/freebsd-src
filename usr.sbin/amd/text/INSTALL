@@ -159,7 +159,7 @@ enter a deadlock inside the kernel.  For example, attempting to automount a
 directory which is automounted.  This will cause the automounter to issue a mount
 request causing the kernel to send an NFS request back to the same automounter,
 which is currently stuck in a system call and unable to respond - even
-kill -KILL won't get you out of this one.
+kill -s KILL won't get you out of this one.
 
 There is nothing you can do to fix it without rebooting your machine, so...
 

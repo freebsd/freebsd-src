@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)os-bsd44.h	8.1 (Berkeley) 6/6/93
+ *	@(#)os-bsd44.h	8.2 (Berkeley) 5/10/95
  *
  * $Id: os-bsd44.h,v 5.2.2.1 1992/02/09 15:10:11 jsp beta $
  *
@@ -53,6 +53,12 @@
  * the protocol revision number.
  */
 #define	RPC_4
+
+#include <sys/param.h>
+#if BSD >= 199506
+#define NFS_HDR "misc-bsd44l.h"
+#define UFS_HDR "misc-bsd44l.h"
+#endif
 
 /*
  * Which version of the NFS interface are we using.
@@ -107,12 +113,31 @@
  * How to copy an address into an NFS filehandle
  */
 #undef NFS_SA_DREF
+#if BSD >= 199506
+#define	NFS_SA_DREF(dst, src) { \
+		(dst).addr = (struct sockaddr *) (src); \
+		(dst).addrlen = sizeof(*src); \
+		(dst).sotype = SOCK_DGRAM; \
+		(dst).proto = 0; \
+		(dst).fhsize = FHSIZE; \
+		(dst).wsize = NFS_WSIZE; \
+		(dst).rsize =  NFS_RSIZE; \
+		(dst).readdirsize =  NFS_READDIRSIZE; \
+		(dst).timeo = 10; \
+		(dst).retrans = NFS_RETRANS; \
+		(dst).maxgrouplist = NFS_MAXGRPS; \
+		(dst).readahead = NFS_DEFRAHEAD; \
+		(dst).leaseterm = 0; \
+		(dst).deadthresh = 0; \
+	}
+#else
 #define	NFS_SA_DREF(dst, src) { \
 		(dst).addr = (struct sockaddr *) (src); \
 		(dst).addrlen = sizeof(*src); \
 		(dst).sotype = SOCK_DGRAM; \
 		(dst).proto = 0; \
 	}
+#endif
 
 /*
  * Byte ordering
@@ -169,7 +194,11 @@ struct mntent {
  * Type of a file handle
  */
 #undef NFS_FH_TYPE
+#if BSD >= 199506
+#define NFS_FH_TYPE	void *
+#else
 #define	NFS_FH_TYPE	nfsv2fh_t *
+#endif
 
 /*
  * How to get a mount list
@@ -189,3 +218,11 @@ struct mntent {
  */
 #undef RE_HDR
 #define RE_HDR <regexp.h>
+
+#if BSD >= 199506
+#undef MTYPE_TYPE
+#define MTYPE_TYPE	char *
+#define MOUNT_NFS "nfs"
+#define MOUNT_UFS "ffs"
+#define MOUNT_MFS "mfs"
+#endif

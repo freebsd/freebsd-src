@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)ufs_ops.c	8.1 (Berkeley) 6/6/93
+ *	@(#)ufs_ops.c	8.2 (Berkeley) 5/10/95
  *
  * $Id: ufs_ops.c,v 5.2.2.1 1992/02/09 15:09:08 jsp beta $
  *
@@ -50,11 +50,11 @@
 typedef nfs_fh fhandle_t;
 #endif /* NFS_3 */
 
+#include <sys/mount.h>
+
 #ifdef UFS_HDR
 #include UFS_HDR
 #endif /* UFS_HDR */
-
-#include <sys/mount.h>
 
 /*
  * UN*X file system
