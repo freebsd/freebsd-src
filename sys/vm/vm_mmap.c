@@ -1038,7 +1038,7 @@ mlockall(td, uap)
 }
 
 #ifndef _SYS_SYSPROTO_H_
-struct mlockall_args {
+struct munlockall_args {
 	int	how;
 };
 #endif
