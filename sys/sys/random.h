@@ -51,10 +51,11 @@ struct harvest_select {
 	int ethernet;
 	int point_to_point;
 	int interrupt;
+	int swi;
 };
 
 extern struct harvest_select harvest;
 
-#endif
+#endif /* _KERNEL */
 
 #endif /* _SYS_RANDOM_H_ */
