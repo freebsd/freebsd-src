@@ -307,8 +307,6 @@ re_eeprom_putbyte(sc, addr)
 		EE_CLR(RL_EE_CLK);
 		DELAY(100);
 	}
-
-	return;
 }
 
 /*
@@ -349,8 +347,6 @@ re_eeprom_getword(sc, addr, dest)
 	CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_OFF);
 
 	*dest = word;
-
-	return;
 }
 
 /*
@@ -375,8 +371,6 @@ re_read_eeprom(sc, dest, off, cnt, swap)
 		else
 			*ptr = word;
 	}
-
-	return;
 }
 
 static int
@@ -569,7 +563,7 @@ static void
 re_miibus_statchg(dev)
 	device_t		dev;
 {
-	return;
+
 }
 
 /*
@@ -623,8 +617,6 @@ re_setmulti(sc)
 	CSR_WRITE_4(sc, RL_RXCFG, rxfilt);
 	CSR_WRITE_4(sc, RL_MAR0, hashes[0]);
 	CSR_WRITE_4(sc, RL_MAR4, hashes[1]);
-
-	return;
 }
 
 static void
@@ -644,8 +636,6 @@ re_reset(sc)
 		printf("re%d: reset never completed!\n", sc->rl_unit);
 
 	CSR_WRITE_1(sc, 0x82, 1);
-
-	return;
 }
 
 /*
@@ -928,8 +918,6 @@ re_dma_map_desc(arg, segs, nseg, mapsize, error)
 	d->rl_cmdstat |= htole32(RL_TDESC_CMD_EOF);
 	ctx->rl_maxsegs = nseg;
 	ctx->rl_idx = idx;
-
-	return;
 }
 
 /*
@@ -951,8 +939,6 @@ re_dma_map_addr(arg, segs, nseg, error)
 	KASSERT(nseg == 1, ("too many DMA segments, %d should be 1", nseg));
 	addr = arg;
 	*addr = segs->ds_addr;
-
-	return;
 }
 
 static int
@@ -1619,8 +1605,6 @@ re_rxeof(sc)
 	    BUS_DMASYNC_PREWRITE|BUS_DMASYNC_PREREAD);
 
 	sc->rl_ldata.rl_rx_prodidx = i;
-
-	return;
 }
 
 static void
@@ -1686,8 +1670,6 @@ re_txeof(sc)
 	 */
 	if (sc->rl_ldata.rl_tx_free != RL_TX_DESC_CNT)
 		CSR_WRITE_4(sc, RL_TIMERCNT, 1);
-
-	return;
 }
 
 static void
@@ -1705,8 +1687,6 @@ re_tick(xsc)
 
 	sc->rl_stat_ch = timeout(re_tick, sc, hz);
 	RL_UNLOCK(sc);
-
-	return;
 }
 
 #ifdef DEVICE_POLLING
@@ -1829,8 +1809,6 @@ re_intr(arg)
 done:
 #endif
 	RL_UNLOCK(sc);
-
-	return;
 }
 
 static int
@@ -2009,8 +1987,6 @@ re_start(ifp)
 	 * Set a timeout in case the chip goes out to lunch.
 	 */
 	ifp->if_timer = 5;
-
-	return;
 }
 
 static void
@@ -2182,8 +2158,6 @@ re_init(xsc)
 
 	sc->rl_stat_ch = timeout(re_tick, sc, hz);
 	RL_UNLOCK(sc);
-
-	return;
 }
 
 /*
@@ -2220,8 +2194,6 @@ re_ifmedia_sts(ifp, ifmr)
 	mii_pollstat(mii);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
-
-	return;
 }
 
 static int
@@ -2300,8 +2272,6 @@ re_watchdog(ifp)
 	re_init(sc);
 
 	RL_UNLOCK(sc);
-
-	return;
 }
 
 /*
@@ -2356,7 +2326,6 @@ re_stop(sc)
 	}
 
 	RL_UNLOCK(sc);
-	return;
 }
 
 /*
@@ -2415,6 +2384,4 @@ re_shutdown(dev)
 	sc = device_get_softc(dev);
 
 	re_stop(sc);
-
-	return;
 }
