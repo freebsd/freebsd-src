@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.17 1995/02/14 23:04:52 wollman Exp $
+ * $Id: ip_input.c,v 1.18 1995/03/16 18:14:55 bde Exp $
  */
 
 #include <sys/param.h>
@@ -44,6 +44,8 @@
 #include <sys/errno.h>
 #include <sys/time.h>
 #include <sys/kernel.h>
+#include <sys/syslog.h>
+
 #include <vm/vm.h>
 #include <sys/sysctl.h>
 
@@ -77,6 +79,7 @@ struct socket *ip_rsvpd;
 int	ipforwarding = IPFORWARDING;
 int	ipsendredirects = IPSENDREDIRECTS;
 int	ip_defttl = IPDEFTTL;
+int	ip_dosourceroute = 0;
 #ifdef DIAGNOSTIC
 int	ipprintfs = 0;
 #endif
@@ -106,11 +109,6 @@ static	struct ip_srcrt {
 	struct	in_addr route[MAX_IPOPTLEN/sizeof(struct in_addr)];
 } ip_srcrt;
 
-#ifdef GATEWAY
-extern	int if_index;
-u_long	*ip_ifmatrix;
-#endif
-
 static void save_rte __P((u_char *, struct in_addr));
 /*
  * IP initialization: fill in IP protocol switch table.
@@ -135,11 +133,6 @@ ip_init()
 	ipq.next = ipq.prev = &ipq;
 	ip_id = time.tv_sec & 0xffff;
 	ipintrq.ifq_maxlen = ipqmaxlen;
-#ifdef GATEWAY
-	i = (if_index + 1) * (if_index + 1) * sizeof (u_long);
-	ip_ifmatrix = (u_long *) malloc(i, M_RTABLE, M_WAITOK);
-	bzero((char *)ip_ifmatrix, i);
-#endif
 }
 
 struct	sockaddr_in ipaddr = { sizeof(ipaddr), AF_INET };
@@ -746,11 +739,25 @@ ip_dooptions(m)
 				save_rte(cp, ip->ip_src);
 				break;
 			}
+
+			if (!ip_dosourceroute) {
+				char buf[4*sizeof "123"];
+				strcpy(buf, inet_ntoa(ip->ip_dst));
+
+				log(LOG_WARNING, 
+				    "attempted source route from %s to %s\n",
+				    inet_ntoa(ip->ip_src), buf);
+				type = ICMP_UNREACH;
+				code = ICMP_UNREACH_SRCFAIL;
+				goto bad;
+			}
+
 			/*
 			 * locate outgoing interface
 			 */
 			bcopy((caddr_t)(cp + off), (caddr_t)&ipaddr.sin_addr,
 			    sizeof(ipaddr.sin_addr));
+
 			if (opt == IPOPT_SSRR) {
 #define	INA	struct in_ifaddr *
 #define	SA	struct sockaddr *
@@ -1091,12 +1098,6 @@ ip_forward(m, srcrt)
 	 */
 	mcopy = m_copy(m, 0, imin((int)ip->ip_len, 64));
 
-#ifdef bogus
-#ifdef GATEWAY
-	ip_ifmatrix[rt->rt_ifp->if_index +
-	     if_index * m->m_pkthdr.rcvif->if_index]++;
-#endif
-#endif
 	/*
 	 * If forwarding packet using same interface that it came in on,
 	 * perhaps should send a redirect to sender to shortcut a hop.
@@ -1202,6 +1203,9 @@ ip_sysctl(name, namelen, oldp, oldlenp, newp, newlen)
 			&ipsendredirects));
 	case IPCTL_DEFTTL:
 		return (sysctl_int(oldp, oldlenp, newp, newlen, &ip_defttl));
+	case IPCTL_SOURCEROUTE:
+		return (sysctl_int(oldp, oldlenp, newp, newlen, 
+				   &ip_dosourceroute));
 #ifdef notyet
 	case IPCTL_DEFMTU:
 		return (sysctl_int(oldp, oldlenp, newp, newlen, &ip_mtu));
