@@ -6,8 +6,8 @@
   </comment>
   <sectorsize>512</sectorsize>
   <mediasize>0</mediasize>
-  <fwsectors>0</fwsectors>
-  <fwheads>0</fwheads>
+  <fwsectors>17</fwsectors>
+  <fwheads>8</fwheads>
   <fwcylinders>0</fwcylinders>
   <sector>
     <offset>0</offset>
