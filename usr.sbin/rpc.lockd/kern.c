@@ -556,7 +556,7 @@ show(LOCKD_MSG *mp)
 	size_t len;
 	u_int8_t *p, *t, buf[NFS_SMALLFH*3+1];
 
-	printf("process ID: %lu\n", (long)mp->lm_msg_ident.pid);
+	syslog(LOG_DEBUG, "process ID: %lu\n", (long)mp->lm_msg_ident.pid);
 
 	fsidp = (fsid_t *)&mp->lm_fh;
 	fidp = (struct fid *)((u_int8_t *)&mp->lm_fh + sizeof(fsid_t));
@@ -570,13 +570,13 @@ show(LOCKD_MSG *mp)
 	}
 	*t = '\0';
 
-	printf("fh_len %d, fh %s\n", mp->lm_fh_len, buf);
+	syslog(LOG_DEBUG, "fh_len %d, fh %s\n", mp->lm_fh_len, buf);
 
 	/* Show flock structure. */
-	printf("start %qu; len %qu; pid %lu; type %d; whence %d\n",
+	syslog(LOG_DEBUG, "start %qu; len %qu; pid %lu; type %d; whence %d\n",
 	    mp->lm_fl.l_start, mp->lm_fl.l_len, (u_long)mp->lm_fl.l_pid,
 	    mp->lm_fl.l_type, mp->lm_fl.l_whence);
 
 	/* Show wait flag. */
-	printf("wait was %s\n", mp->lm_wait ? "set" : "not set");
+	syslog(LOG_DEBUG, "wait was %s\n", mp->lm_wait ? "set" : "not set");
 }
