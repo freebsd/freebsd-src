@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.613 1999/06/29 21:52:07 peter Exp $
+#	$Id: LINT,v 1.614 1999/07/01 18:39:23 jkh Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -560,7 +560,7 @@ options 	DEVFS			#devices filesystem
 # to copyright restraints on the code that implement it.
 #
 # Read ../../ufs/ffs/README.softupdates to learn what you need to
-# do to enable this.  ../../../contrib/sys/softupdates/README gives
+# do to enable this.  ../../contrib/softupdates/README gives
 # more details on how they actually work.
 #
 #options 	SOFTUPDATES
