@@ -59,7 +59,7 @@ IDTVEC(vec_name) ;							\
 	lock ; 								\
 	incl	(%eax) ;						\
 	MEXITCOUNT ;							\
-	jmp	doreti_next
+	jmp	_doreti
 
 #define IOAPICADDR(irq_num) CNAME(int_to_apicintpin) + 16 * (irq_num) + 8
 #define REDIRIDX(irq_num) CNAME(int_to_apicintpin) + 16 * (irq_num) + 12
@@ -231,7 +231,7 @@ __CONCAT(Xresume,irq_num): ;						\
 	APIC_ITRACE(apic_itrace_leave, irq_num, APIC_ITRACE_LEAVE) ;	\
 ;									\
 	MEXITCOUNT ;							\
-	jmp	doreti_next
+	jmp	_doreti
 
 /*
  * Handle "spurious INTerrupts".
@@ -386,7 +386,7 @@ _Xcpuast:
 	lock
 	incl	CNAME(cpuast_cnt)
 	MEXITCOUNT
-	jmp	doreti_next
+	jmp	_doreti
 1:
 	/* We are already in the process of delivering an ast for this CPU */
 	POP_FRAME
