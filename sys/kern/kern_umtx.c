@@ -119,6 +119,18 @@ static void umtx_key_release(struct umtx_key *key);
 
 SYSINIT(umtx, SI_SUB_EVENTHANDLER+1, SI_ORDER_MIDDLE, umtxq_init_chains, NULL);
 
+struct umtx_q *
+umtxq_alloc(void)
+{
+	return (malloc(sizeof(struct umtx_q), M_UMTX, M_WAITOK));
+}
+
+void
+umtxq_free(struct umtx_q *uq)
+{
+	free(uq, M_UMTX);
+}
+
 static void
 umtxq_init_chains(void *arg __unused)
 {
@@ -210,7 +222,6 @@ umtxq_insert(struct umtx_q *uq)
 	mtx_assert(umtxq_mtx(chain), MA_OWNED);
 	head = &umtxq_chains[chain].uc_queue;
 	LIST_INSERT_HEAD(head, uq, uq_next);
-	uq->uq_thread->td_umtxq = uq;
 	mtx_lock_spin(&sched_lock);
 	uq->uq_thread->td_flags |= TDF_UMTXQ;
 	mtx_unlock_spin(&sched_lock);
@@ -225,7 +236,6 @@ umtxq_remove(struct umtx_q *uq)
 	mtx_assert(umtxq_mtx(umtxq_hash(&uq->uq_key)), MA_OWNED);
 	if (uq->uq_thread->td_flags & TDF_UMTXQ) {
 		LIST_REMOVE(uq, uq_next);
-		uq->uq_thread->td_umtxq = NULL;
 		/* turning off TDF_UMTXQ should be the last thing. */
 		mtx_lock_spin(&sched_lock);
 		uq->uq_thread->td_flags &= ~TDF_UMTXQ;
@@ -434,11 +444,12 @@ fork_handler(void *arg, struct proc *p1, struct proc *p2, int flags)
 static int
 _do_lock(struct thread *td, struct umtx *umtx, long id, int timo)
 {
-	struct umtx_q uq;
+	struct umtx_q *uq;
 	intptr_t owner;
 	intptr_t old;
 	int error = 0;
 
+	uq = td->td_umtxq;
 	/*
 	 * Care must be exercised when dealing with umtx structure.  It
 	 * can fault on any access.
@@ -479,7 +490,7 @@ _do_lock(struct thread *td, struct umtx *umtx, long id, int timo)
 		 * If we caught a signal, we have retried and now
 		 * exit immediately.
 		 */
-		if (error || (error = umtxq_queue_me(td, umtx, &uq)) != 0)
+		if (error || (error = umtxq_queue_me(td, umtx, uq)) != 0)
 			return (error);
 
 		/*
@@ -493,12 +504,12 @@ _do_lock(struct thread *td, struct umtx *umtx, long id, int timo)
 
 		/* The address was invalid. */
 		if (old == -1) {
-			umtxq_lock(&uq.uq_key);
-			umtxq_busy(&uq.uq_key);
-			umtxq_remove(&uq);
-			umtxq_unbusy(&uq.uq_key);
-			umtxq_unlock(&uq.uq_key);
-			umtx_key_release(&uq.uq_key);
+			umtxq_lock(&uq->uq_key);
+			umtxq_busy(&uq->uq_key);
+			umtxq_remove(uq);
+			umtxq_unbusy(&uq->uq_key);
+			umtxq_unlock(&uq->uq_key);
+			umtx_key_release(&uq->uq_key);
 			return (EFAULT);
 		}
 
@@ -507,17 +518,17 @@ _do_lock(struct thread *td, struct umtx *umtx, long id, int timo)
 		 * and we need to retry or we lost a race to the thread
 		 * unlocking the umtx.
 		 */
-		umtxq_lock(&uq.uq_key);
+		umtxq_lock(&uq->uq_key);
 		if (old == owner && (td->td_flags & TDF_UMTXQ)) {
-			error = umtxq_sleep(td, &uq.uq_key,
+			error = umtxq_sleep(td, &uq->uq_key,
 				       td->td_priority | PCATCH,
 				       "umtx", timo);
 		}
-		umtxq_busy(&uq.uq_key);
-		umtxq_remove(&uq);
-		umtxq_unbusy(&uq.uq_key);
-		umtxq_unlock(&uq.uq_key);
-		umtx_key_release(&uq.uq_key);
+		umtxq_busy(&uq->uq_key);
+		umtxq_remove(uq);
+		umtxq_unbusy(&uq->uq_key);
+		umtxq_unlock(&uq->uq_key);
+		umtx_key_release(&uq->uq_key);
 	}
 
 	return (0);
@@ -614,45 +625,46 @@ do_unlock(struct thread *td, struct umtx *umtx, long id)
 static int
 do_wait(struct thread *td, struct umtx *umtx, long id, struct timespec *timeout)
 {
-	struct umtx_q uq;
+	struct umtx_q *uq;
 	struct timespec ts, ts2, ts3;
 	struct timeval tv;
 	long tmp;
 	int error = 0;
 
-	if ((error = umtxq_queue_me(td, umtx, &uq)) != 0)
+	uq = td->td_umtxq;
+	if ((error = umtxq_queue_me(td, umtx, uq)) != 0)
 		return (error);
 	tmp = fuword(&umtx->u_owner);
 	if (tmp != id) {
-		umtxq_lock(&uq.uq_key);
-		umtxq_remove(&uq);
-		umtxq_unlock(&uq.uq_key);
+		umtxq_lock(&uq->uq_key);
+		umtxq_remove(uq);
+		umtxq_unlock(&uq->uq_key);
 	} else if (timeout == NULL) {
-		umtxq_lock(&uq.uq_key);
+		umtxq_lock(&uq->uq_key);
 		if (td->td_flags & TDF_UMTXQ)
-			error = umtxq_sleep(td, &uq.uq_key,
+			error = umtxq_sleep(td, &uq->uq_key,
 			       td->td_priority | PCATCH, "ucond", 0);
 		if (!(td->td_flags & TDF_UMTXQ))
 			error = 0;
 		else
-			umtxq_remove(&uq);
-		umtxq_unlock(&uq.uq_key);
+			umtxq_remove(uq);
+		umtxq_unlock(&uq->uq_key);
 	} else {
 		getnanouptime(&ts);
 		timespecadd(&ts, timeout);
 		TIMESPEC_TO_TIMEVAL(&tv, timeout);
 		for (;;) {
-			umtxq_lock(&uq.uq_key);
+			umtxq_lock(&uq->uq_key);
 			if (td->td_flags & TDF_UMTXQ) {
-				error = umtxq_sleep(td, &uq.uq_key,
+				error = umtxq_sleep(td, &uq->uq_key,
 					    td->td_priority | PCATCH,
 					    "ucond", tvtohz(&tv));
 			}
 			if (!(td->td_flags & TDF_UMTXQ)) {
-				umtxq_unlock(&uq.uq_key);
+				umtxq_unlock(&uq->uq_key);
 				goto out;
 			}
-			umtxq_unlock(&uq.uq_key);
+			umtxq_unlock(&uq->uq_key);
 			if (error != ETIMEDOUT)
 				break;
 			getnanouptime(&ts2);
@@ -664,12 +676,12 @@ do_wait(struct thread *td, struct umtx *umtx, long id, struct timespec *timeout)
 			timespecsub(&ts3, &ts2);
 			TIMESPEC_TO_TIMEVAL(&tv, &ts3);
 		}
-		umtxq_lock(&uq.uq_key);
-		umtxq_remove(&uq);
-		umtxq_unlock(&uq.uq_key);
+		umtxq_lock(&uq->uq_key);
+		umtxq_remove(uq);
+		umtxq_unlock(&uq->uq_key);
 	}
 out:
-	umtx_key_release(&uq.uq_key);
+	umtx_key_release(&uq->uq_key);
 	if (error == ERESTART)
 		error = EINTR;
 	return (error);
