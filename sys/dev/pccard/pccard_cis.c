@@ -1,4 +1,4 @@
-/*	$NetBSD: pcmcia_cis.c,v 1.10 1998/12/29 09:03:15 marc Exp $	*/
+/* $NetBSD: pcmcia_cis.c,v 1.17 2000/02/10 09:01:52 chopps Exp $ */
 /* $FreeBSD$ */
 
 /*
@@ -78,8 +78,7 @@ pccard_read_cis(struct pccard_softc *sc)
 {
 	struct cis_state state;
 
-	state.count = 0;
-	state.gotmfc = 0;
+	bzero(&state, sizeof state);
 
 	state.card = &sc->card;
 
@@ -224,9 +223,8 @@ pccard_scan_cis(device_t dev, int (*fct)(struct pccard_tuple *, void *),
 					 * distant regions
 					 */
 					if ((addr >= PCCARD_CIS_SIZE) ||
-					    ((addr + length) < 0) ||
 					    ((addr + length) >=
-					      PCCARD_CIS_SIZE)) {
+					    PCCARD_CIS_SIZE)) {
 						DPRINTF((" skipped, "
 						    "too distant\n"));
 						break;
@@ -260,17 +258,50 @@ pccard_scan_cis(device_t dev, int (*fct)(struct pccard_tuple *, void *),
 					    "short %d\n", tuple.length));
 					break;
 				}
+				if (((tuple.length - 1) % 5) != 0) {
+					DPRINTF(("CISTPL_LONGLINK_MFC bogus "
+					    "length %d\n", tuple.length));
+					break;
+				}
 				/*
 				 * this is kind of ad hoc, as I don't have
 				 * any real documentation
 				 */
 				{
-					int i;
+					int i, tmp_count;
 
-					mfc_count =
+					/*
+					 * put count into tmp var so that
+					 * if we have to bail (because it's
+					 * a bogus count) it won't be
+					 * remembered for later use.
+					 */
+					tmp_count =
 					    pccard_tuple_read_1(&tuple, 0);
+
 					DPRINTF(("CISTPL_LONGLINK_MFC %d",
-					    mfc_count));
+					    tmp_count));
+
+					/*
+					 * make _sure_ it's the right size;
+					 * if too short, it may be a weird
+					 * (unknown/undefined) format
+					 */
+					if (tuple.length != (tmp_count*5 + 1)) {
+						DPRINTF((" bogus length %d\n",
+						    tuple.length));
+						break;
+					}
+					/*
+					 * sanity check for a programming
+					 * error which is difficult to find
+					 * when debugging.
+					 */
+					if (tmp_count >
+					    howmany(sizeof mfc, sizeof mfc[0]))
+						panic("CISTPL_LONGLINK_MFC mfc "
+						    "count would blow stack");
+                                        mfc_count = tmp_count;
 					for (i = 0; i < mfc_count; i++) {
 						mfc[i].common =
 						    (pccard_tuple_read_1(&tuple,
@@ -904,6 +935,10 @@ pccard_parse_cis_tuple(struct pccard_tuple *tuple, void *arg)
 			if (intface) {
 				reg = pccard_tuple_read_1(tuple, idx);
 				idx++;
+				cfe->flags &= ~(PCCARD_CFE_MWAIT_REQUIRED
+				    | PCCARD_CFE_RDYBSY_ACTIVE
+				    | PCCARD_CFE_WP_ACTIVE
+				    | PCCARD_CFE_BVD_ACTIVE);
 				if (reg & PCCARD_TPCE_IF_MWAIT)
 					cfe->flags |= PCCARD_CFE_MWAIT_REQUIRED;
 				if (reg & PCCARD_TPCE_IF_RDYBSY)
@@ -971,7 +1006,8 @@ pccard_parse_cis_tuple(struct pccard_tuple *tuple, void *arg)
 
 				reg = pccard_tuple_read_1(tuple, idx);
 				idx++;
-
+				cfe->flags &=
+				    ~(PCCARD_CFE_IO8 | PCCARD_CFE_IO16);
 				if (reg & PCCARD_TPCE_IO_BUSWIDTH_8BIT)
 					cfe->flags |= PCCARD_CFE_IO8;
 				if (reg & PCCARD_TPCE_IO_BUSWIDTH_16BIT)
@@ -1048,7 +1084,9 @@ pccard_parse_cis_tuple(struct pccard_tuple *tuple, void *arg)
 
 				reg = pccard_tuple_read_1(tuple, idx);
 				idx++;
-
+				cfe->flags &= ~(PCCARD_CFE_IRQSHARE
+				    | PCCARD_CFE_IRQPULSE
+				    | PCCARD_CFE_IRQLEVEL);
 				if (reg & PCCARD_TPCE_IR_SHARE)
 					cfe->flags |= PCCARD_CFE_IRQSHARE;
 				if (reg & PCCARD_TPCE_IR_PULSE)
@@ -1170,13 +1208,15 @@ pccard_parse_cis_tuple(struct pccard_tuple *tuple, void *arg)
 
 				reg = pccard_tuple_read_1(tuple, idx);
 				idx++;
-
+				cfe->flags &= ~(PCCARD_CFE_POWERDOWN
+				    | PCCARD_CFE_READONLY
+				    | PCCARD_CFE_AUDIO);
 				if (reg & PCCARD_TPCE_MI_PWRDOWN)
-					cfe->flags = PCCARD_CFE_POWERDOWN;
+					cfe->flags |= PCCARD_CFE_POWERDOWN;
 				if (reg & PCCARD_TPCE_MI_READONLY)
-					cfe->flags = PCCARD_CFE_READONLY;
+					cfe->flags |= PCCARD_CFE_READONLY;
 				if (reg & PCCARD_TPCE_MI_AUDIO)
-					cfe->flags = PCCARD_CFE_AUDIO;
+					cfe->flags |= PCCARD_CFE_AUDIO;
 				cfe->maxtwins = reg & PCCARD_TPCE_MI_MAXTWINS;
 
 				while (reg & PCCARD_TPCE_MI_EXT) {
