@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.82 1998/12/24 14:17:57 bde Exp $
+ *	$Id: cy.c,v 1.83 1999/01/08 19:17:46 bde Exp $
  */
 
 #include "opt_compat.h"
@@ -89,6 +89,7 @@
 #ifndef SMP
 #include <machine/lock.h>
 #endif
+#include <machine/psl.h>
 
 #include <i386/isa/isa_device.h>
 #include <i386/isa/cyreg.h>
@@ -2761,7 +2762,8 @@ cd_getreg(com, reg)
 	cy_align = com->cy_align;
 	iobase = com->iobase;
 	ef = read_eflags();
-	disable_intr();
+	if (ef & PSL_I)
+		disable_intr();
 	if (basecom->car != car)
 		cd_outb(iobase, CD1400_CAR, cy_align, basecom->car = car);
 	val = cd_inb(iobase, reg, cy_align);
@@ -2786,7 +2788,8 @@ cd_setreg(com, reg, val)
 	cy_align = com->cy_align;
 	iobase = com->iobase;
 	ef = read_eflags();
-	disable_intr();
+	if (ef & PSL_I)
+		disable_intr();
 	if (basecom->car != car)
 		cd_outb(iobase, CD1400_CAR, cy_align, basecom->car = car);
 	cd_outb(iobase, reg, cy_align, val);
