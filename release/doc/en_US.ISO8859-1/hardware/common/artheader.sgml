@@ -1,7 +1,7 @@
 <!-- $FreeBSD$ -->
 
 <articleinfo>
-  <title>&os; &release.current; &arch; Hardware Notes</title>
+  <title>&os;/&arch; &release.current; Hardware Notes</title>
 
   <corpauthor>The FreeBSD Documentation Project</corpauthor>
 
