@@ -27,7 +27,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: pas2_mixer.c,v 1.6 1994/08/02 07:40:24 davidg Exp $
  */
 
 #include "sound_config.h"
@@ -107,6 +106,14 @@ mixer_output (int right_vol, int left_vol, int div, int bits,
   int             left = left_vol * div / 100;
   int             right = right_vol * div / 100;
 
+  /*
+   * The Revision D cards have a problem with their MVA508 interface. The
+   * kludge-o-rama fix is to make a 16-bit quantity with identical LSB and
+   * MSBs out of the output byte and to do a 16-bit out to the mixer port -
+   * 1. We don't need to do this because the call to pas_write more than
+   * compensates for the timing problems.
+   */
+
   if (bits & P_M_MV508_MIXER)
     {				/*
 				 * Select input or output mixer
@@ -117,18 +124,18 @@ mixer_output (int right_vol, int left_vol, int div, int bits,
 
   if (bits == P_M_MV508_BASS || bits == P_M_MV508_TREBLE)
     {				/*
-				 * Bass and trebble are mono devices
+				 * Bass and treble are mono devices
 				 */
-      mix_write (P_M_MV508_ADDRESS | bits, PARALLEL_MIXER);
-      mix_write (left, PARALLEL_MIXER);
+      pas_write (P_M_MV508_ADDRESS | bits, PARALLEL_MIXER);
+      pas_write (left, PARALLEL_MIXER);
       right_vol = left_vol;
     }
   else
     {
-      mix_write (P_M_MV508_ADDRESS | P_M_MV508_LEFT | bits, PARALLEL_MIXER);
-      mix_write (left, PARALLEL_MIXER);
-      mix_write (P_M_MV508_ADDRESS | P_M_MV508_RIGHT | bits, PARALLEL_MIXER);
-      mix_write (right, PARALLEL_MIXER);
+      pas_write (P_M_MV508_ADDRESS | P_M_MV508_LEFT | bits, PARALLEL_MIXER);
+      pas_write (left, PARALLEL_MIXER);
+      pas_write (P_M_MV508_ADDRESS | P_M_MV508_RIGHT | bits, PARALLEL_MIXER);
+      pas_write (right, PARALLEL_MIXER);
     }
 
   return (left_vol | (right_vol << 8));
@@ -137,8 +144,8 @@ mixer_output (int right_vol, int left_vol, int div, int bits,
 void
 set_mode (int new_mode)
 {
-  mix_write (P_M_MV508_ADDRESS | P_M_MV508_MODE, PARALLEL_MIXER);
-  mix_write (new_mode, PARALLEL_MIXER);
+  pas_write (P_M_MV508_ADDRESS | P_M_MV508_MODE, PARALLEL_MIXER);
+  pas_write (new_mode, PARALLEL_MIXER);
 
   mode_control = new_mode;
 }
@@ -281,19 +288,6 @@ pas_mixer_set (int whichDev, unsigned int level)
 }
 
 /*****/
-
-static int
-getmixer (int dev, int chn)
-{
-  if (chn == P_M_MV508_RIGHT)
-    {
-      return (levels[dev] >> 8) & 0x7f;
-    }
-  else
-    {
-      return levels[dev] & 0x7f;
-    }
-}
 
 static void
 pas_mixer_reset (void)

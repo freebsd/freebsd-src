@@ -25,17 +25,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ics2101.c,v 1.3 1994/08/02 07:40:05 davidg Exp $
  */
 
 #include "sound_config.h"
 #if defined(CONFIGURE_SOUNDCARD) && !defined(EXCLUDE_GUS)
 
-#ifdef __FreeBSD__
 #include <machine/ultrasound.h>
-#else
-#include "ultrasound.h"
-#endif
 #include "gus_hw.h"
 
 #define MIX_DEVS	(SOUND_MASK_MIC|SOUND_MASK_LINE| \

@@ -26,7 +26,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: pas2_pcm.c,v 1.6 1994/08/02 07:40:28 davidg Exp $
  */
 
 #include "sound_config.h"
@@ -80,7 +79,7 @@ pcm_set_speed (int arg)
   tmp = pas_read (FILTER_FREQUENCY);
 
   /*
- * Set anti-aliasing filters according to sample rate. You reall *NEED*
+ * Set anti-aliasing filters according to sample rate. You really *NEED*
  * to enable this feature for all normal recording unless you want to
  * experiment with aliasing effects.
  * These filters apply to the selected "recording" source.
@@ -405,12 +404,7 @@ pas_pcm_init (long mem_start, struct address_info *hw_config)
     {
       audio_devs[my_devnum = num_audiodevs++] = &pas_pcm_operations;
       audio_devs[my_devnum]->dmachan = hw_config->dma;
-#ifndef NO_AUTODMA
       audio_devs[my_devnum]->buffcount = 1;
-#else
-      audio_devs[my_devnum]->flags &= ~DMA_AUTOMODE;
-      audio_devs[my_devnum]->buffcount = DSP_BUFFCOUNT;
-#endif
       audio_devs[my_devnum]->buffsize = 2 * DSP_BUFFSIZE;
     }
   else

@@ -1,6 +1,3 @@
-/*
- * $Id$
- */
 #define DSP_RESET	(sbc_base + 0x6)
 #define DSP_READ	(sbc_base + 0xA)
 #define DSP_WRITE	(sbc_base + 0xC)

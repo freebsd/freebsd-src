@@ -26,7 +26,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: sound_config.h,v 1.5 1994/08/02 07:40:53 davidg Exp $
  */
 
 #include "local.h"
@@ -53,15 +52,9 @@
 #endif
 
 #ifdef EXCLUDE_SEQUENCER
-#ifndef EXCLUDE_MIDI
 #define EXCLUDE_MIDI
-#endif
-#ifndef EXCLUDE_YM3812
 #define EXCLUDE_YM3812
-#endif
-#ifndef EXCLUDE_OPL3
 #define EXCLUDE_OPL3
-#endif
 #endif
 
 #ifndef SND_DEFAULT_ENABLE
@@ -123,18 +116,6 @@ If your card has nonstandard I/O address or IRQ number, change defines
 #define GUS_DMA		6
 #endif
 
-#ifndef GUS16_BASE
-#define GUS16_BASE	0x530
-#endif
-
-#ifndef GUS16_IRQ
-#define GUS16_IRQ	7
-#endif
-
-#ifndef GUS16_DMA
-#define GUS16_DMA	3
-#endif
-
 #ifndef MPU_BASE
 #define MPU_BASE	0x330
 #endif
@@ -156,20 +137,20 @@ If your card has nonstandard I/O address or IRQ number, change defines
 #define PSS_DMA         1
 #endif
 
-#ifndef MSS_BASE
-#define MSS_BASE        0x530
+#ifndef MAX_REALTIME_FACTOR
+#define MAX_REALTIME_FACTOR	4
 #endif
 
-#ifndef MSS_IRQ
-#define MSS_IRQ         10
+#ifndef MSS_BASE
+#define MSS_BASE	0x530
+#endif
+
+#ifndef MSS_IRQ	
+#define MSS_IRQ		10
 #endif
 
 #ifndef MSS_DMA
-#define MSS_DMA         3
-#endif
-
-#ifndef MAX_REALTIME_FACTOR
-#define MAX_REALTIME_FACTOR	4
+#define MSS_DMA		1
 #endif
 
 /************* PCM DMA buffer sizes *******************/
@@ -221,7 +202,7 @@ If your card has nonstandard I/O address or IRQ number, change defines
 #define SND_DEV_DSP16	5	/* Like /dev/dsp but 16 bits/sample */
 #define SND_DEV_STATUS	6	/* /dev/sndstat */
 /* #7 not in use now. Was in 2.4. Free for use after v3.0. */
-#define SND_DEV_SEQ2	8	/* /dev/sequecer, level 2 interface */
+#define SND_DEV_SEQ2	8	/* /dev/sequencer, level 2 interface */
 #define SND_DEV_SNDPROC 9	/* /dev/sndproc for programmable devices */
 #define SND_DEV_PSS	SND_DEV_SNDPROC
 

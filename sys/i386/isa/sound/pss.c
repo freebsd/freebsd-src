@@ -8,7 +8,7 @@
    make the pss card to emulate the SB stuff.
 
    I have provided a simple interface to the PSS unlike the
-   DOG version.  to download a new algorithim just cat it to
+   DOG version.  to download a new algorithm just cat it to
    /dev/pss 14,9.
 
    You really need to rebuild this with the synth.ld file
@@ -27,7 +27,7 @@
 
    and everything will be okay.
 
-   At first I was going to wory about applications that were using
+   At first I was going to worry about applications that were using
    the sound stuff and disallow the use of /dev/pss.  But for
    now I figured it doesn't matter.
 
@@ -39,13 +39,12 @@
 
    Probably everything else can be done via mmap
 
-   Oh if you want to develope code for the ADSP-21xx or Program the
+   Oh if you want to develop code for the ADSP-21xx or Program the
    1848 just send me mail and I will hook you up.
 
                marc.hoffman@analog.com
 
- * $Id: $
- */
+   */
 #include "sound_config.h"
 
 #if defined(CONFIGURE_SOUNDCARD) && !defined(EXCLUDE_PSS)
@@ -124,7 +123,7 @@ PSS_write (int data)
 {
   int             i, limit;
 
-  limit = GET_TIME () + 10;	/* The timeout is 0.1 secods */
+  limit = GET_TIME () + 10;	/* The timeout is 0.1 seconds */
   /*
    * Note! the i<5000000 is an emergency exit. The dsp_command() is sometimes
    * called while interrupts are disabled. This means that the timer is
@@ -159,7 +158,7 @@ pss_setaddr (int addr, int configAddr)
 
 /*_____ pss_checkint
          This function tests an interrupt number to see if
-	 it is availible. It takes the interrupt button
+	 it is available. It takes the interrupt button
 	 as it's argument and returns TRUE if the interrupt
 	 is ok.
 */
@@ -216,7 +215,7 @@ pss_checkint (int intNum)
       pss_outpw (pss_base + PSS_CONFIG, val);
       break;
     default:
-      printk ("unknown interupt selected. %d\n", intNum);
+      printk ("unknown interrupt selected. %d\n", intNum);
       return 0;
     }
 
@@ -305,7 +304,7 @@ pss_setint (int intNum, int configAddress)
       pss_outpw (configAddress, val);
       break;
     default:
-      printk ("pss_setint unkown int\n");
+      printk ("pss_setint unknown int\n");
     }
 }
 
@@ -724,10 +723,10 @@ pss_download_boot (unsigned char *block, int size)
 
 
 /* The following is a simple device driver for the pss.
-   All I really care about is comunication to and from the pss.
+   All I really care about is communication to and from the pss.
 
    The ability to reinitialize the <synth.ld>  This will be
-   default when release is choosen.
+   default when release is chosen.
 
    SNDCTL_PSS_DOWNLOAD:
 
@@ -739,9 +738,9 @@ pss_download_boot (unsigned char *block, int size)
                          where a write operation would effectively
 			 download a new ld.
 
-   14,0x09 -- /dev/psecho  would open up a comunication path to the
+   14,0x09 -- /dev/psecho  would open up a communication path to the
                          esc614 asic.  Given the ability to send
-			 messages to the asic and recive messages too.
+			 messages to the asic and receive messages too.
 
 			 All messages would get read and written in the
 			 same manner.  It would be up to the application
@@ -875,13 +874,13 @@ pss_ioctl (int dev, struct fileinfo *file,
 
 /* This is going to be used to implement
    waiting on messages sent from the DSP and to the
-   DSP when comunication is used via the pss directly.
+   DSP when communication is used via the pss directly.
 
-   We need to find out if the pss can generate a diffrent
-   interupt other than the one it has been setup for.
+   We need to find out if the pss can generate a different
+   interrupt other than the one it has been setup for.
 
    This way we can carry on a conversation with the pss
-   on a seprate chanel.  This would be usefull for debugging. */
+   on a separate channel.  This would be useful for debugging. */
 
 pss_select (int dev, struct fileinfo * file, int sel_type, select_table * wait)
 {

@@ -25,7 +25,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: gus_card.c,v 1.10 1994/10/14 09:01:20 jkh Exp $
  */
 
 #include "sound_config.h"
@@ -33,6 +32,8 @@
 #if defined(CONFIGURE_SOUNDCARD) && !defined(EXCLUDE_GUS)
 
 #include "gus_hw.h"
+
+void            gusintr (int);
 
 int             gus_base, gus_irq, gus_dma;
 extern int      gus_wave_volume;
@@ -127,7 +128,7 @@ gusintr (int irq)
 
 #ifndef EXCLUDE_GUSMAX
   if (have_gus_max)
-    ad1848_interrupt (irq);
+    adintr (irq);
 #endif
 
   while (1)
@@ -179,10 +180,8 @@ probe_gus_db16 (struct address_info *hw_config)
 long
 attach_gus_db16 (long mem_start, struct address_info *hw_config)
 {
-#if !defined(EXCLUDE_GUS)
   gus_pcm_volume = 100;
   gus_wave_volume = 90;
-#endif
 
   ad1848_init ("GUS 16 bit sampling", hw_config->io_base,
 	       hw_config->irq,

@@ -29,7 +29,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ad1848.c,v 1.2 1994/10/01 02:16:28 swallace Exp $
  */
 
 #define DEB(x)
@@ -72,8 +71,9 @@ static char     irq2dev[16] =
 {-1, -1, -1, -1, -1, -1, -1, -1,
  -1, -1, -1, -1, -1, -1, -1, -1};
 
-static int      ad_format_mask[2 /*devc->mode*/ ] =
+static int      ad_format_mask[3 /*devc->mode*/ ] =
 {
+  0,
   AFMT_U8 | AFMT_S16_LE | AFMT_MU_LAW | AFMT_A_LAW,
   AFMT_U8 | AFMT_S16_LE | AFMT_MU_LAW | AFMT_A_LAW | AFMT_U16_LE | AFMT_IMA_ADPCM
 };
@@ -209,7 +209,7 @@ ad1848_open (int dev, int mode)
     }
 
   if (devc->irq)		/* Not managed by another driver */
-    if ((err = snd_set_irq_handler (devc->irq, ad1848_interrupt)) < 0)
+    if ((err = snd_set_irq_handler (devc->irq, adintr)) < 0)
       {
 	printk ("ad1848: IRQ in use\n");
 	RESTORE_INTR (flags);
@@ -254,7 +254,7 @@ static int
 set_speed (ad1848_info * devc, int arg)
 {
   /*
- * The sampling speed is encoded in the least significant nible of I8. The
+ * The sampling speed is encoded in the least significant nibble of I8. The
  * LSB selects the clock source (0=24.576 MHz, 1=16.9344 Mhz) and other
  * three bits select the divisor (indirectly):
  *
@@ -602,7 +602,7 @@ ad1848_prepare_for_IO (int dev, int bsize, int bcount)
 
   ad_write (devc, 8, fs);
   /*
-   * Write to I8 starts resyncronization. Wait until it completes.
+   * Write to I8 starts resynchronization. Wait until it completes.
    */
   timeout = 10000;
   while (timeout > 0 && INB (devc->base) == 0x80)
@@ -624,7 +624,7 @@ ad1848_prepare_for_IO (int dev, int bsize, int bcount)
       ad_write (devc, 28, fs);
 
       /*
-   * Write to I28 starts resyncronization. Wait until it completes.
+   * Write to I28 starts resynchronization. Wait until it completes.
    */
       timeout = 10000;
       while (timeout > 0 && INB (devc->base) == 0x80)
@@ -660,7 +660,7 @@ int
 ad1848_detect (int io_base)
 {
 
-#define SDDB(x)	x
+#define AUDIO_DDB(x)	x
 
   unsigned char   tmp;
   int             i;
@@ -691,7 +691,7 @@ ad1848_detect (int io_base)
 
   if ((INB (devc->base) & 0x80) != 0x00)	/* Not a AD1884 */
     {
-      SDDB (printk ("ad_detect_A\n"));
+      AUDIO_DDB (printk ("ad_detect_A\n"));
       return 0;
     }
 
@@ -706,7 +706,7 @@ ad1848_detect (int io_base)
 
   if ((tmp1 = ad_read (devc, 0)) != 0xaa || (tmp2 = ad_read (devc, 1)) != 0x45)
     {
-      SDDB (printk ("ad_detect_B (%x/%x)\n", tmp1, tmp2));
+      AUDIO_DDB (printk ("ad_detect_B (%x/%x)\n", tmp1, tmp2));
       return 0;
     }
 
@@ -715,7 +715,7 @@ ad1848_detect (int io_base)
 
   if ((tmp1 = ad_read (devc, 0)) != 0x45 || (tmp2 = ad_read (devc, 1)) != 0xaa)
     {
-      SDDB (printk ("ad_detect_C (%x/%x)\n", tmp1, tmp2));
+      AUDIO_DDB (printk ("ad_detect_C (%x/%x)\n", tmp1, tmp2));
       return 0;
     }
 
@@ -729,7 +729,7 @@ ad1848_detect (int io_base)
 
   if ((tmp & 0x0f) != ((tmp1 = ad_read (devc, 12)) & 0x0f))
     {
-      SDDB (printk ("ad_detect_D (%x)\n", tmp1));
+      AUDIO_DDB (printk ("ad_detect_D (%x)\n", tmp1));
       return 0;
     }
 
@@ -750,7 +750,7 @@ ad1848_detect (int io_base)
   for (i = 0; i < 16; i++)
     if ((tmp1 = ad_read (devc, i)) != (tmp2 = ad_read (devc, i + 16)))
       {
-	SDDB (printk ("ad_detect_F(%d/%x/%x)\n", i, tmp1, tmp2));
+	AUDIO_DDB (printk ("ad_detect_F(%d/%x/%x)\n", i, tmp1, tmp2));
 	return 0;
       }
 
@@ -781,7 +781,7 @@ ad1848_detect (int io_base)
 	  ad_write (devc, 0, 0xaa);
 	  if ((tmp1 = ad_read (devc, 16)) == 0xaa)	/* Rotten bits? */
 	    {
-	      SDDB (printk ("ad_detect_H(%x)\n", tmp1));
+	      AUDIO_DDB (printk ("ad_detect_H(%x)\n", tmp1));
 	      return 0;
 	    }
 
@@ -865,7 +865,7 @@ ad1848_init (char *name, int io_base, int irq, int dma_playback, int dma_capture
 }
 
 void
-ad1848_interrupt (int irq)
+adintr (int irq)
 {
   unsigned char   status;
   ad1848_info    *devc;

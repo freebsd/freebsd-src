@@ -25,11 +25,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: opl3.c,v 1.6 1994/08/02 07:40:13 davidg Exp $
  */
 
 /*
  * Major improvements to the FM handling 30AUG92 by Rob Hooft,
+ */
+/*
  * hooft@chem.ruu.nl
  */
 
@@ -1174,11 +1175,7 @@ opl3_init (long mem_start)
   opl3_ok = 1;
   if (opl3_enabled)
     {
-#ifdef __FreeBSD__
-      printk ("snd1: <Yamaha OPL-3 FM>");
-#else
       printk (" <Yamaha OPL-3 FM>");
-#endif
       fm_model = 2;
       voice_alloc->max_voice = nr_voices = 18;
       fm_info.nr_drums = 0;
@@ -1193,19 +1190,23 @@ opl3_init (long mem_start)
 	else
 	  physical_voices[i].ioaddr = right_address;
 
-      /* Enable OPL-3 mode */
-      opl3_command (right_address, OPL3_MODE_REGISTER, OPL3_ENABLE);
 
-      /* Select all 2-OP voices */
-      opl3_command (right_address, CONNECTION_SELECT_REGISTER, 0x00);
+      opl3_command (right_address, OPL3_MODE_REGISTER, OPL3_ENABLE);	/*
+									 * Enable
+									 * OPL-3
+									 * mode
+									 */
+      opl3_command (right_address, CONNECTION_SELECT_REGISTER, 0x00);	/*
+									 * Select
+									 * all
+									 * 2-OP
+									 * *
+									 * voices
+									 */
     }
   else
     {
-#ifdef __FreeBSD__
-      printk ("snd1: <Yamaha 2-OP FM>");
-#else
       printk (" <Yamaha 2-OP FM>");
-#endif
       fm_model = 1;
       voice_alloc->max_voice = nr_voices = 9;
       fm_info.nr_drums = 0;

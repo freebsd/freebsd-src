@@ -26,7 +26,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: pas2_card.c,v 1.10 1994/10/01 02:16:55 swallace Exp $
  */
 
 #include "sound_config.h"
@@ -46,7 +45,6 @@ static int      pas_intr_mask = 0;
 static int      pas_irq = 0;
 
 static char     pas_model;
-static unsigned char board_rev_id;
 static char    *pas_model_names[] =
 {"", "Pro AudioSpectrum+", "CDPC", "Pro AudioSpectrum 16", "Pro AudioSpectrum 16D"};
 
@@ -70,23 +68,6 @@ void
 pas_write (unsigned char data, int ioaddr)
 {
   OUTB (data, ioaddr ^ translat_code);
-}
-
-/*
- * The Revision D cards have a problem with their MVA508 interface. The
- * kludge-o-rama fix is to make a 16-bit quantity with identical LSB and
- * MSBs out of the output byte and to do a 16-bit out to the mixer port -
- * 1.
- */
-
-void
-mix_write (unsigned char data, int ioaddr)
-{
-  if (pas_model == PAS_16D) {
-	outw ((ioaddr ^ translat_code) - 1, data | (data << 8));
-	outb (0, 0x80);
-  } else
-	OUTB (data, ioaddr ^ translat_code);
 }
 
 void
@@ -272,8 +253,8 @@ config_pas_hw (struct address_info *hw_config)
   else
     pas_write (0, PRESCALE_DIVIDER);
 
-  mix_write (P_M_MV508_ADDRESS | 5, PARALLEL_MIXER);
-  mix_write (5, PARALLEL_MIXER);
+  pas_write (P_M_MV508_ADDRESS | 5, PARALLEL_MIXER);
+  pas_write (5, PARALLEL_MIXER);
 
 #if !defined(EXCLUDE_SB_EMULATION) || !defined(EXCLUDE_SB)
 
@@ -367,7 +348,7 @@ detect_pas_hw (struct address_info *hw_config)
 				 */
     return 0;
 
-  pas_model = pas_read (CHIP_REV);
+  pas_model = O_M_1_to_card[pas_read (OPERATION_MODE_1) & 0x0f];
 
   return pas_model;
 }
@@ -380,14 +361,9 @@ attach_pas_card (long mem_start, struct address_info *hw_config)
   if (detect_pas_hw (hw_config))
     {
 
- 	board_rev_id = pas_read (BOARD_REV_ID);	
-	if (pas_model = pas_read (CHIP_REV))
+      if ((pas_model = O_M_1_to_card[pas_read (OPERATION_MODE_1) & 0x0f]))
 	{
-#ifdef __FreeBSD__
-	  printk ("snd3: <%s rev %d>", pas_model_names[(int) pas_model], board_rev_id);
-#else /* __FreeBSD__ */
 	  printk (" <%s rev %d>", pas_model_names[(int) pas_model], pas_read (BOARD_REV_ID));
-#endif /* __FreeBSD__ */
 	}
 
       if (config_pas_hw (hw_config))

@@ -37,7 +37,7 @@
  * before making the changes. It's possible that I have already made the
  * change. 
  *
- * $Id: os.h,v 1.12 1994/09/27 17:58:21 davidg Exp $
+ * os.h,v 1.13 1994/10/01 02:16:53 swallace Exp
  */
 
 /*
