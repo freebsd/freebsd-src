@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)vfprintf.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-		"$Id$";
+		"$Id: vfprintf.c,v 1.9 1996/06/22 10:34:02 jraynard Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /*
@@ -317,6 +317,7 @@ vfprintf(fp, fmt0, ap)
 	int dprec;		/* a copy of prec if [diouxX], 0 otherwise */
 	int realsz;		/* field size expanded by dprec, sign, etc */
 	int size;		/* size of converted field or string */
+	int prsize;             /* max size of printed field */
 	char *xdigs;		/* digits for [xX] conversion */
 #define NIOV 8
 	struct __suio uio;	/* output information: summary */
@@ -411,6 +412,10 @@ vfprintf(fp, fmt0, ap)
 		for (cp = fmt; (ch = *fmt) != '\0' && ch != '%'; fmt++)
 			/* void */;
 		if ((n = fmt - cp) != 0) {
+			if ((unsigned)ret + n > INT_MAX) {
+				ret = EOF;
+				goto error;
+			}
 			PRINT(cp, n);
 			ret += n;
 		}
@@ -724,6 +729,12 @@ number:			if ((dprec = prec) >= 0)
 		else if (flags & HEXPREFIX)
 			realsz += 2;
 
+		prsize = width > realsz ? width : realsz;
+		if ((unsigned)ret + prsize > INT_MAX) {
+			ret = EOF;
+			goto error;
+		}
+
 		/* right-adjusting blank padding */
 		if ((flags & (LADJUST|ZEROPAD)) == 0)
 			PAD(width - realsz, blanks);
@@ -797,7 +808,7 @@ number:			if ((dprec = prec) >= 0)
 			PAD(width - realsz, blanks);
 
 		/* finally, adjust ret */
-		ret += width > realsz ? width : realsz;
+		ret += prsize;
 
 		FLUSH();	/* copy out the I/O vectors */
 	}
