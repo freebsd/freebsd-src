@@ -46,9 +46,9 @@
 .Ft struct servent *
 .Fn getservent 
 .Ft struct servent *
-.Fn getservbyname "char *name" "char *proto"
+.Fn getservbyname "const char *name" "const char *proto"
 .Ft struct servent *
-.Fn getservbyport "int port" proto
+.Fn getservbyport "int port" "const char *proto"
 .Ft void
 .Fn setservent "int stayopen"
 .Ft void
