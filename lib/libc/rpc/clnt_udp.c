@@ -382,6 +382,20 @@ send_again:
 		}  /* end of unsuccessful completion */
 	}  /* end of valid reply message */
 	else {
+		/*
+		 * It's possible for xdr_replymsg() to fail partway
+		 * through its attempt to decode the result from the
+		 * server. If this happens, it will leave the reply
+		 * structure partially populated with dynamically
+		 * allocated memory. (This can happen if someone uses
+		 * clntudp_bufcreate() to create a CLIENT handle and
+		 * specifies a receive buffer size that is too small.)
+		 * This memory must be free()ed to avoid a leak.
+		 */
+		int op = reply_xdrs.x_op;
+		reply_xdrs.x_op = XDR_FREE;
+		xdr_replymsg(&reply_xdrs, &reply_msg);
+		reply_xdrs.x_op = op;
 		cu->cu_error.re_status = RPC_CANTDECODERES;
 	}
 	if (fds != &readfds)
