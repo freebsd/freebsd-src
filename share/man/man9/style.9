@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: style.9,v 1.24 1999/06/27 02:38:45 mpp Exp $
+.\"	$Id: style.9,v 1.25 1999/07/31 15:04:37 hoek Exp $
 .\"
 .Dd December 14, 1995
 .Dt STYLE 9
@@ -242,8 +242,11 @@ have a NOTREACHED comment.
 			break;
 		case 'n':
 			num = strtol(optarg, &ep, 10);
-			if (num <= 0 || *ep != '\e0')
-				errx("illegal number -- %s", optarg);
+			if (num <= 0 || *ep != '\e0') {
+				warnx("illegal number, -n argument -- %s",
+				    optarg);
+				usage();
+			}
 			break;
 		case '?':
 		default:
