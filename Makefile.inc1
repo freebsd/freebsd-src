@@ -355,14 +355,14 @@ installcheck:
 #
 # Installs everything compiled by a 'buildworld'.
 #
-installworld: installcheck
+distributeworld installworld: installcheck
 	mkdir -p ${INSTALLTMP}
 	for prog in [ awk cat chflags chmod chown date echo egrep find grep \
-	    ln make makewhatis mkdir mtree mv perl rm sed sh sysctl \
+	    ln make makewhatis mkdir mtree mv perl pwd_mkdb rm sed sh sysctl \
 	    test true uname wc zic; do \
 		cp `which $$prog` ${INSTALLTMP}; \
 	done
-	cd ${.CURDIR}; ${IMAKE} reinstall
+	cd ${.CURDIR}; ${IMAKE} re${.TARGET:S/world$//}
 	rm -rf ${INSTALLTMP}
 
 #
@@ -390,14 +390,11 @@ reinstall:
 	cd ${.CURDIR}/share/man; ${MAKE} makedb
 .endif
 
-#
-# distribworld
-#
-# Front-end to distribute to make sure the search path contains
-# the object directory. Needed for miniperl.
-#
-distribworld:
-	cd ${.CURDIR}; PATH=${TMPPATH} ${MAKE} -f Makefile.inc1 distribute
+redistribute:
+	@echo "--------------------------------------------------------------"
+	@echo ">>> Distributing everything.."
+	@echo "--------------------------------------------------------------"
+	cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 distribute
 
 #
 # buildkernel and installkernel

@@ -54,6 +54,14 @@ PORTSRELEASETAG?=	${AUXRELEASETAG}
 #WORLD_FLAGS=-j4
 #KERNEL_FLAGS=-j4
 
+TARGET_ARCH?=	${MACHINE_ARCH}
+.if ${TARGET_ARCH} == ${MACHINE_ARCH}
+TARGET?=	${MACHINE}
+.else
+TARGET?=	${TARGET_ARCH}
+.endif
+CROSSMAKE=	${MAKE} TARGET_ARCH=${TARGET_ARCH} TARGET=${TARGET}
+
 # If you are using a local CVS repository with components stored in 
 # non-standard modules, override these on the make commandline or
 # in the environment.
@@ -124,7 +132,7 @@ DIST_DOCS_ARCH_DEP=	installation relnotes hardware
 # Things which without too much trouble can be considered variables
 # BASE_DISTS are special in that they get full /etc installation sets.
 #
-.if ${MACHINE_ARCH} == "i386"
+.if ${TARGET_ARCH} == "i386"
 COMPAT_DISTS?=	compat1x compat20 compat21 compat22 compat3x compat4x
 .else
 COMPAT_DISTS?=	compat4x
@@ -142,8 +150,8 @@ MNT=			/mnt
 # Various floppy image parameters.
 #
 
-.if ${MACHINE_ARCH} == "i386"
-.if ${MACHINE} == "pc98"
+.if ${TARGET_ARCH} == "i386"
+.if ${TARGET} == "pc98"
 SMALLBOOTSIZE=		1200
 BOOTSIZE=		1440
 FIXITSIZE=		1440
@@ -168,7 +176,7 @@ FIXITLABEL=		fd1440
 MFSLABEL=		minimum3
 BIGBOOTLABEL=		minimum2
 .endif
-.elif ${MACHINE_ARCH} == "alpha"
+.elif ${TARGET_ARCH} == "alpha"
 BOOTSIZE=		1440
 FIXITSIZE=		2880
 MFSSIZE=		4320
@@ -232,7 +240,7 @@ CRUNCH_TARGETS=	boot fixit
 EXTRAS= cdrom.1 ftp.1
 .if defined(MAKE_ISOS)
 EXTRAS+= iso.1
-.if ${MACHINE} != "pc98"
+.if ${TARGET} != "pc98"
 BOOTABLE="-b"
 .endif
 .endif
@@ -248,7 +256,8 @@ MAKEREADMES=	true
 .endif
 
 TMAKE!=		cd ${.CURDIR}/..; ${MAKE} -f Makefile.inc1 -V TMAKE
-WMAKEENV!=	cd ${.CURDIR}/..; ${MAKE} -f Makefile.inc1 -V WMAKEENV
+WMAKEENV!=	echo MAKEFLAGS=\"-m ${.CURDIR}/../share/mk\"; \
+		cd ${.CURDIR}/..; ${CROSSMAKE} -f Makefile.inc1 -V WMAKEENV
 WMAKE=		${WMAKEENV} ${MAKE}
 
 rerelease release:
@@ -401,7 +410,7 @@ rerelease release:
 	echo "export MANBUILDCAT=YES"		>> ${CHROOTDIR}/mk
 	echo "if [ ! -f /tmp/.world_done ]; then" >> ${CHROOTDIR}/mk
 	echo "	cd /usr/src"			>> ${CHROOTDIR}/mk
-	echo "	make ${WORLD_FLAGS} -DNOCLEAN buildworld && \\" >> ${CHROOTDIR}/mk
+	echo "	${CROSSMAKE} ${WORLD_FLAGS} -DNOCLEAN buildworld && \\" >> ${CHROOTDIR}/mk
 	echo "	touch /tmp/.world_done"		>> ${CHROOTDIR}/mk
 	echo "fi"				>> ${CHROOTDIR}/mk
 	echo "cd /usr/src/release"		>> ${CHROOTDIR}/mk
@@ -440,23 +449,23 @@ release.1:
 # Install the system into the various distributions.
 release.2:
 	cd ${.CURDIR}/../etc && make distrib-dirs DESTDIR=${RD}/trees/base
-	cd ${.CURDIR}/.. && make distribworld DISTDIR=${RD}/trees
+	cd ${.CURDIR}/.. && ${CROSSMAKE} distributeworld DISTDIR=${RD}/trees
 	# Handle some grief caused by the munition braindeadness.
 	cd ${.CURDIR}/..; \
-	${MAKE} ${WORLD_FLAGS} -DNO_MAKEDB_RUN -DNOCRYPT \
+	${CROSSMAKE} ${WORLD_FLAGS} -DNO_MAKEDB_RUN -DNOCRYPT \
 	    SUBDIR_OVERRIDE="${FIXCRYPTO}" \
-	    buildworld distribworld DISTDIR=${RD}/trees
+	    buildworld distributeworld DISTDIR=${RD}/trees
 .if exists(${.CURDIR}/../kerberosIV) && exists(${.CURDIR}/../crypto) && !defined(NOKERBEROS)
 	cd ${.CURDIR}/..; \
-	${MAKE} ${WORLD_FLAGS} -DNO_MAKEDB_RUN -DMAKE_KERBEROS4 \
+	${CROSSMAKE} ${WORLD_FLAGS} -DNO_MAKEDB_RUN -DMAKE_KERBEROS4 \
 	    SUBDIR_OVERRIDE="kerberosIV ${K4PROGS}" \
-	    buildworld distribworld DISTDIR=${RD}/trees
+	    buildworld distributeworld DISTDIR=${RD}/trees
 .endif
 .if exists(${.CURDIR}/../kerberos5) && exists(${.CURDIR}/../crypto) && !defined(NOKERBEROS)
 	cd ${.CURDIR}/..; \
-	${MAKE} ${WORLD_FLAGS} -DNO_MAKEDB_RUN -DMAKE_KERBEROS5 \
+	${CROSSMAKE} ${WORLD_FLAGS} -DNO_MAKEDB_RUN -DMAKE_KERBEROS5 \
 	    SUBDIR_OVERRIDE="kerberos5 ${K5PROGS}" \
-	    buildworld distribworld DISTDIR=${RD}/trees
+	    buildworld distributeworld DISTDIR=${RD}/trees
 .endif
 	-chflags -R noschg ${RD}/trees
 	touch release.2
@@ -465,17 +474,17 @@ release.2:
 release.3:
 .for kernel in ${KERNELS}
 	cd ${.CURDIR}/..; \
-	${MAKE} ${KERNEL_FLAGS} -DNO_WERROR -DNO_MODULES \
+	${CROSSMAKE} ${KERNEL_FLAGS} -DNO_WERROR -DNO_MODULES \
 	    KERNCONF=${kernel} INSTKERNNAME=${kernel} kernel \
 	    DESTDIR=${RD}/trees/base
 .endfor
 	# Install a standard boot kernel+modules.
 	cd ${.CURDIR}/..; \
-	${MAKE} ${KERNEL_FLAGS} -DNO_WERROR \
+	${CROSSMAKE} ${KERNEL_FLAGS} -DNO_WERROR \
 	    kernel \
 	    DESTDIR=${RD}/trees/base; \
 	cd ${.CURDIR}/..; \
-	${MAKE} ${KERNEL_FLAGS} -DNO_MODULES \
+	${CROSSMAKE} ${KERNEL_FLAGS} -DNO_MODULES \
 	    reinstallkernel -DINSTALL_DEBUG \
 	    DESTDIR=${RD}/trees/base
 	touch release.3
@@ -488,10 +497,10 @@ release.4:
 .for j in ${CRUNCH_TARGETS}
 	rm -rf ${j}_crunch
 	mkdir ${j}_crunch
-.if exists(${.CURDIR}/${MACHINE}/${j}_crunch.conf)
-	cd ${j}_crunch; crunchgen ${.CURDIR}/${MACHINE}/${j}_crunch.conf
+.if exists(${.CURDIR}/${TARGET}/${j}_crunch.conf)
+	cd ${j}_crunch; ${WMAKEENV} crunchgen ${.CURDIR}/${TARGET}/${j}_crunch.conf
 .else
-	cd ${j}_crunch; crunchgen ${.CURDIR}/${j}_crunch.conf
+	cd ${j}_crunch; ${WMAKEENV} crunchgen ${.CURDIR}/${j}_crunch.conf
 .endif
 	cd ${j}_crunch; ${WMAKE} -f ${j}_crunch.mk subclean
 	cd ${.CURDIR}/..; ${TMAKE} build-tools
@@ -616,7 +625,7 @@ release.8:
 		ln -sf /stand $$dir; \
 	  done )
 	cp /sbin/dhclient-script ${RD}/mfsfd/stand
-.if ${MACHINE_ARCH} == "i386"
+.if ${TARGET_ARCH} == "i386"
 	cp ${.CURDIR}/../etc/defaults/pccard.conf ${RD}/mfsfd/etc/defaults/pccard.conf
 .endif
 	cp ${.CURDIR}/../etc/usbd.conf ${RD}/mfsfd/etc/usbd.conf
@@ -637,27 +646,27 @@ release.8:
 	  gzip -9c ${RND}/${RELNOTES_LANG}/$$i/article.txt > ${RD}/mfsfd/stand/help/`echo $${i} | tr 'a-z' 'A-Z'`.TXT.gz; \
 	done
 	@for i in ${DIST_DOCS_ARCH_DEP}; do \
-	  gzip -9c ${RND}/${RELNOTES_LANG}/$$i/${MACHINE_ARCH}/article.txt > ${RD}/mfsfd/stand/help/`echo $${i} | tr 'a-z' 'A-Z'`.TXT.gz; \
+	  gzip -9c ${RND}/${RELNOTES_LANG}/$$i/${TARGET_ARCH}/article.txt > ${RD}/mfsfd/stand/help/`echo $${i} | tr 'a-z' 'A-Z'`.TXT.gz; \
 	done
 	@mv ${RD}/mfsfd/stand/help/INSTALLATION.TXT.gz ${RD}/mfsfd/stand/help/INSTALL.TXT.gz
 .endif
 	-test -f ${.CURDIR}/install.cfg && cp ${.CURDIR}/install.cfg ${RD}/mfsfd
 	@mkdir -p ${RD}/mfsfd/boot
 	@cp ${RD}/trees/base/boot/boot* ${RD}/mfsfd/boot
-.if ${MACHINE} == "i386"
+.if ${TARGET} == "i386"
 	@cp ${RD}/trees/base/boot/mbr ${RD}/mfsfd/boot
 .endif
 	@cp ${RD}/trees/base/boot/loader.help ${RD}/mfsfd/boot
-	@cd ${.CURDIR}/../sys/${MACHINE}/conf && \
-	    sh ${.CURDIR}/${MACHINE_ARCH}/dokern.sh ${FDSIZE} < GENERIC > BOOTMFS && \
+	@cd ${.CURDIR}/../sys/${TARGET}/conf && \
+	    sh ${.CURDIR}/${TARGET_ARCH}/dokern.sh ${FDSIZE} < GENERIC > BOOTMFS && \
 	    [ -r GENERIC.hints ] && cp GENERIC.hints BOOTMFS.hints
-.if exists(${.CURDIR}/${MACHINE}/drivers.conf)
+.if exists(${.CURDIR}/${TARGET}/drivers.conf)
 	@perl ${.CURDIR}/scripts/driver-remove.pl \
-		${.CURDIR}/${MACHINE}/drivers.conf \
-		${.CURDIR}/../sys/${MACHINE}/conf/BOOTMFS
+		${.CURDIR}/${TARGET}/drivers.conf \
+		${.CURDIR}/../sys/${TARGET}/conf/BOOTMFS
 	@mkdir -p ${RD}/mfsfd/stand/modules
 	@perl ${.CURDIR}/scripts/driver-copy2.pl \
-	    ${.CURDIR}/${MACHINE}/drivers.conf \
+	    ${.CURDIR}/${TARGET}/drivers.conf \
 	    ${RD}/trees/base/boot/kernel ${RD}/mfsfd/stand/modules
 .endif
 	@echo "Making the regular boot floppy."
@@ -665,13 +674,13 @@ release.8:
 		tar xf - -C ${RD}/mfsfd/stand
 	@echo "Compressing doc files..."
 	@gzip -9 ${RD}/mfsfd/stand/help/*.hlp
-.if ${MACHINE_ARCH} == "alpha"
+.if ${TARGET_ARCH} == "alpha"
 	rm -rf ${RD}/mfsfd/stand/help/*
 .endif
 	sh -e ${.CURDIR}/scripts/doFS.sh -s mfsroot ${RD} ${MNT} \
 		${MFSSIZE} ${RD}/mfsfd ${MFSINODE} ${MFSLABEL}
 	@gzip -9vc mfsroot > mfsroot.gz
-.if ${MACHINE} == "pc98"
+.if ${TARGET} == "pc98"
 	@sh -e ${.CURDIR}/scripts/doFS.sh ${RD}/floppies/mfsroot.flp \
 		${RD} ${MNT} ${SMALLBOOTSIZE} mfsroot.gz \
 		${BOOTINODE} ${SMALLBOOTLABEL}
@@ -714,7 +723,7 @@ release.9:
 		${MNT} ${FIXITSIZE} ${RD}/fixitfd ${FIXITINODE} ${FIXITLABEL}
 # Do our last minute floppies directory setup in a convenient place.
 .if !defined(NODOC)
-	@cp ${RND}/${RELNOTES_LANG}/installation/${MACHINE_ARCH}/article.txt \
+	@cp ${RND}/${RELNOTES_LANG}/installation/${TARGET_ARCH}/article.txt \
 		${RD}/floppies/README.TXT
 	@(cd ${RD}/floppies; md5 README.TXT *.flp > CHECKSUM.MD5)
 .else
@@ -737,8 +746,8 @@ ftp.1:
 	  cp ${RND}/${RELNOTES_LANG}/$$i/article.html ${FD}/`echo $${i} | tr 'a-z' 'A-Z'`.HTM; \
 	done
 	@for i in ${DIST_DOCS_ARCH_DEP}; do \
-	  cp ${RND}/${RELNOTES_LANG}/$$i/${MACHINE_ARCH}/article.txt ${FD}/`echo $${i} | tr 'a-z' 'A-Z'`.TXT; \
-	  cp ${RND}/${RELNOTES_LANG}/$$i/${MACHINE_ARCH}/article.html ${FD}/`echo $${i} | tr 'a-z' 'A-Z'`.HTM; \
+	  cp ${RND}/${RELNOTES_LANG}/$$i/${TARGET_ARCH}/article.txt ${FD}/`echo $${i} | tr 'a-z' 'A-Z'`.TXT; \
+	  cp ${RND}/${RELNOTES_LANG}/$$i/${TARGET_ARCH}/article.html ${FD}/`echo $${i} | tr 'a-z' 'A-Z'`.HTM; \
 	done
 	@cp ${RND}/${RELNOTES_LANG}/readme/docbook.css ${FD}
 	@mv ${FD}/INSTALLATION.TXT ${FD}/INSTALL.TXT
@@ -776,14 +785,14 @@ cdrom.1:
 	  cp ${RND}/${RELNOTES_LANG}/$$i/article.html ${CD_DISC1}/`echo $${i} | tr 'a-z' 'A-Z'`.HTM; \
 	done
 	@for i in ${DIST_DOCS_ARCH_DEP}; do \
-	  cp ${RND}/${RELNOTES_LANG}/$$i/${MACHINE_ARCH}/article.txt ${CD_DISC1}/`echo $${i} | tr 'a-z' 'A-Z'`.TXT; \
-	  cp ${RND}/${RELNOTES_LANG}/$$i/${MACHINE_ARCH}/article.html ${CD_DISC1}/`echo $${i} | tr 'a-z' 'A-Z'`.HTM; \
+	  cp ${RND}/${RELNOTES_LANG}/$$i/${TARGET_ARCH}/article.txt ${CD_DISC1}/`echo $${i} | tr 'a-z' 'A-Z'`.TXT; \
+	  cp ${RND}/${RELNOTES_LANG}/$$i/${TARGET_ARCH}/article.html ${CD_DISC1}/`echo $${i} | tr 'a-z' 'A-Z'`.HTM; \
 	done
 	@cp ${RND}/${RELNOTES_LANG}/readme/docbook.css ${CD_DISC1}
 	@mv ${CD_DISC1}/INSTALLATION.TXT ${CD_DISC1}/INSTALL.TXT
 	@mv ${CD_DISC1}/INSTALLATION.HTM ${CD_DISC1}/INSTALL.HTM
 .endif
-.if ${MACHINE} != "pc98"
+.if ${TARGET} != "pc98"
 	@echo "Setting up /boot"
 	@cp -Rp ${CD_DISC2}/boot ${CD_DISC1}
 	@ln -f ${RD}/image.boot/mfsroot.gz ${CD_DISC1}/boot/mfsroot.gz
@@ -793,7 +802,7 @@ cdrom.1:
 	@echo 'mfsroot_name="/boot/mfsroot"' >> ${CD_DISC1}/boot/loader.conf
 	@ln -f ${CD_DISC1}/boot/loader.conf ${CD_DISC2}/boot/loader.conf
 .endif
-.if ${MACHINE} == "i386"
+.if ${TARGET} == "i386"
 	@mkdir -p ${CD_DISC2}/floppies
 	@cp ${CD_DISC1}/floppies/boot.flp ${CD_DISC2}/floppies
 .endif
@@ -807,19 +816,19 @@ cdrom.1:
 	touch cdrom.1
 
 iso.1:
-	@if [ -r ${.CURDIR}/${MACHINE_ARCH}/mkisoimages.sh ]; then \
+	@if [ -r ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh ]; then \
 		echo "Creating ISO images..."; \
-		sh ${.CURDIR}/${MACHINE_ARCH}/mkisoimages.sh ${BOOTABLE} \
+		sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh ${BOOTABLE} \
 		  fbsd_miniinst ${CD}/miniinst.iso ${CD_DISC1}; \
-		sh ${.CURDIR}/${MACHINE_ARCH}/mkisoimages.sh ${BOOTABLE} \
+		sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh ${BOOTABLE} \
 		  fbsd_livefs ${CD}/disc2.iso ${CD_DISC2}; \
 		if [ "x${CD_EXTRA_BITS}" != "x" ]; then \
-			sh ${.CURDIR}/${MACHINE_ARCH}/mkisoimages.sh ${BOOTABLE} \
+			sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh ${BOOTABLE} \
 			  fbsd_boot ${CD}/disc1.iso ${CD_DISC1} ${CD_EXTRA_BITS}; \
 			    && false; \
 		fi \
 	else \
-		echo "Do not know how to create an ISO for ${MACHINE_ARCH}."; \
+		echo "Do not know how to create an ISO for ${TARGET_ARCH}."; \
 	fi
 	touch iso.1
 
@@ -916,8 +925,8 @@ installCRUNCH:
 		ln -f ${RD}/crunch/${CRUNCH} ${DIR}/${CRUNCH}_crunch ; \
 	fi
 	@chmod 555 ${DIR}/${CRUNCH}_crunch
-	@if [ -f ${.CURDIR}/${MACHINE}/${CRUNCH}_crunch.conf ] ; then \
-		for i in `crunchgen -l ${.CURDIR}/${MACHINE}/${CRUNCH}_crunch.conf` ; do \
+	@if [ -f ${.CURDIR}/${TARGET}/${CRUNCH}_crunch.conf ] ; then \
+		for i in `crunchgen -l ${.CURDIR}/${TARGET}/${CRUNCH}_crunch.conf` ; do \
 			ln -f ${DIR}/${CRUNCH}_crunch ${DIR}/$$i ; \
 		done \
 	else \
@@ -934,23 +943,23 @@ doMFSKERN:
 	@rm -f ${RD}/kernels/BOOTMFS ${RD}/kernels/BOOTMFS.${FSIMAGE}
 	cd ${.CURDIR}/..; \
 	KERNEL_KO=BOOTMFS KODIR= \
-	    ${MAKE} ${KERNEL_FLAGS} -DNO_WERROR -DNO_MODULES -DNO_KERNELCLEAN \
+	    ${CROSSMAKE} ${KERNEL_FLAGS} -DNO_WERROR -DNO_MODULES -DNO_KERNELCLEAN \
 	    KERNCONF=BOOTMFS buildkernel reinstallkernel \
 	    DESTDIR=${RD}/kernels
-.if exists(${.CURDIR}/../sys/${MACHINE}/conf/BOOTMFS.hints)
-	cp ${.CURDIR}/../sys/${MACHINE}/conf/BOOTMFS.hints ${RD}/kernels
+.if exists(${.CURDIR}/../sys/${TARGET}/conf/BOOTMFS.hints)
+	cp ${.CURDIR}/../sys/${TARGET}/conf/BOOTMFS.hints ${RD}/kernels
 .endif
 	@rm -rf ${RD}/image.${FSIMAGE}
 	@mkdir ${RD}/image.${FSIMAGE}
 	@cd ${RD}/kernels && \
 	  (chflags noschg BOOTMFS || true) && \
-	  strip BOOTMFS && \
+	  ${WMAKEENV} strip BOOTMFS && \
 	  cp BOOTMFS BOOTMFS.${FSIMAGE} && \
 	  [ -r BOOTMFS.hints ] && mv BOOTMFS.hints BOOTMFS.${FSIMAGE}.hints
 	mv ${RD}/kernels/BOOTMFS ${RD}/image.${FSIMAGE}/kernel
 	@echo "Setting up /boot directory for ${FSIMAGE} floppy"
 	@mkdir -p ${RD}/image.${FSIMAGE}/boot
-.if ${MACHINE} == "i386"
+.if ${TARGET} == "i386"
 	@kgzip -vo ${RD}/image.${FSIMAGE}/boot/loader /boot/loader
 .else
 	@cp /boot/loader ${RD}/image.${FSIMAGE}/boot
@@ -970,7 +979,7 @@ doMFSKERN:
 	@echo "set hint.acpi.0.disable=1" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@echo "echo \\007\\007" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@echo "autoboot 10" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
-.if ${MACHINE_ARCH} == "i386" && ${AUTO_KEYBOARD_DETECT}
+.if ${TARGET_ARCH} == "i386" && ${AUTO_KEYBOARD_DETECT}
 	@echo "-P" >> ${RD}/image.${FSIMAGE}/boot.config
 .endif
 	@gzip -9v ${RD}/image.${FSIMAGE}/kernel
