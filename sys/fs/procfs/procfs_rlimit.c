@@ -49,7 +49,6 @@
 #include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
-#include <sys/tty.h>
 #include <sys/resourcevar.h>
 #include <sys/resource.h>
 #include <sys/types.h>

@@ -49,7 +49,6 @@
 #include <machine/reg.h>
 #include <miscfs/procfs/procfs.h>
 #include <vm/vm.h>
-#include <vm/vm_extern.h>
 
 int
 procfs_dodbregs(curp, p, pfs, uio)
