@@ -32,6 +32,7 @@ powerpc/powerpc/ofw_machdep.c	standard
 powerpc/powerpc/openpic.c	standard
 powerpc/powerpc/pic_if.m	standard
 powerpc/powerpc/pmap.c		standard
+powerpc/powerpc/setjmp.S	standard
 powerpc/powerpc/sigcode.S	standard
 powerpc/powerpc/suswintr.c	standard
 powerpc/powerpc/syncicache.c	standard
