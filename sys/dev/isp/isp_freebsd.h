@@ -63,6 +63,14 @@
 typedef void ispfwfunc __P((int, int, int, const u_int16_t **));
 
 #ifdef	ISP_TARGET_MODE
+#define	ATPDPSIZE	256
+typedef struct {
+	u_int32_t	orig_datalen;
+	u_int32_t	bytes_xfered;
+	u_int32_t	last_xframt;
+	u_int32_t	tag;
+} atio_private_data_t;
+
 typedef struct tstate {
 	struct tstate *next;
 	struct cam_path *owner;
@@ -100,12 +108,14 @@ struct isposinfo {
 #ifdef	ISP_TARGET_MODE
 #define	TM_WANTED		0x80
 #define	TM_BUSY			0x40
-#define	TM_TMODE_ENABLED	0x03
-	u_int8_t		tmflags;
-	u_int8_t		rstatus;
+#define	TM_WILDCARD_ENABLED	0x02
+#define	TM_TMODE_ENABLED	0x01
+	u_int8_t		tmflags[2];	/* two busses */
+	u_int8_t		rstatus[2];	/* two bussed */
 	u_int16_t		rollinfo;
 	tstate_t		tsdflt[2];	/* two busses */
 	tstate_t		*lun_hash[LUN_HASH_SIZE];
+	atio_private_data_t 	atpdp[ATPDPSIZE];
 #endif
 };
 
@@ -147,8 +157,11 @@ struct isposinfo {
 
 #define	MAXISPREQUEST(isp)	256
 
-#ifdef	__alpha__
+#if	defined(__alpha__)
 #define	MEMORYBARRIER(isp, type, offset, size)	alpha_mb()
+#elif	defined(__ia64__)
+#define	MEMORYBARRIER(isp, type, offset, size)	\
+	do { ia64_mf(); ia64_mf_a(); } while (0)
 #else
 #define	MEMORYBARRIER(isp, type, offset, size)
 #endif
@@ -345,12 +358,17 @@ isp_mbox_wait_complete(struct ispsoftc *isp)
 	} else {
 		int j;
 		for (j = 0; j < 60 * 10000; j++) {
-			if (isp_intr(isp) == 0) {
-				USEC_DELAY(500);
-			}
+			u_int16_t isr, sema, mbox;
 			if (isp->isp_mboxbsy == 0) {
 				break;
 			}
+			if (ISP_READ_ISR(isp, &isr, &sema, &mbox)) {
+				isp_intr(isp, isr, sema, mbox);
+				if (isp->isp_mboxbsy == 0) {
+					break;
+				}
+			}
+			USEC_DELAY(500);
 		}
 		if (isp->isp_mboxbsy != 0) {
 			isp_prt(isp, ISP_LOGWARN,

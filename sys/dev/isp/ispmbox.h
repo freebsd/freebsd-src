@@ -73,6 +73,7 @@
 #define MBOX_GET_ACT_NEG_STATE		0x0025
 #define MBOX_GET_ASYNC_DATA_SETUP_TIME	0x0026
 #define MBOX_GET_SBUS_PARAMS		0x0027
+#define		MBOX_GET_PCI_PARAMS	MBOX_GET_SBUS_PARAMS
 #define MBOX_GET_TARGET_PARAMS		0x0028
 #define MBOX_GET_DEV_QUEUE_PARAMS	0x0029
 #define	MBOX_GET_RESET_DELAY_PARAMS	0x002a
@@ -106,34 +107,45 @@
 #define		FW_FEATURE_LVD_NOTIFY	0x2
 #define		FW_FEATURE_FAST_POST	0x1
 
-#define	MBOX_ENABLE_TARGET_MODE		0x55
+#define	MBOX_ENABLE_TARGET_MODE		0x0055
 #define		ENABLE_TARGET_FLAG	0x8000
 #define		ENABLE_TQING_FLAG	0x0004
 #define		ENABLE_MANDATORY_DISC	0x0002
-#define	MBOX_GET_TARGET_STATUS		0x56
+#define	MBOX_GET_TARGET_STATUS		0x0056
 
-/* These are for the ISP2100 FC cards */
-#define	MBOX_GET_LOOP_ID		0x20
-#define	MBOX_GET_RESOURCE_COUNT		0x42
-#define	MBOX_EXEC_COMMAND_IOCB_A64	0x54
-#define	MBOX_INIT_FIRMWARE		0x60
-#define	MBOX_GET_INIT_CONTROL_BLOCK	0x61
-#define	MBOX_INIT_LIP			0x62
-#define	MBOX_GET_FC_AL_POSITION_MAP	0x63
-#define	MBOX_GET_PORT_DB		0x64
-#define	MBOX_CLEAR_ACA			0x65
-#define	MBOX_TARGET_RESET		0x66
-#define	MBOX_CLEAR_TASK_SET		0x67
-#define	MBOX_ABORT_TASK_SET		0x68
-#define	MBOX_GET_FW_STATE		0x69
-#define	MBOX_GET_PORT_NAME		0x6a
-#define	MBOX_GET_LINK_STATUS		0x6b
-#define	MBOX_INIT_LIP_RESET		0x6c
-#define	MBOX_SEND_SNS			0x6e
-#define	MBOX_FABRIC_LOGIN		0x6f
-#define	MBOX_SEND_CHANGE_REQUEST	0x70
-#define	MBOX_FABRIC_LOGOUT		0x71
-#define	MBOX_INIT_LIP_LOGIN		0x72
+/* These are for the ISP2X00 FC cards */
+#define	MBOX_GET_LOOP_ID		0x0020
+#define	MBOX_GET_FIRMWARE_OPTIONS	0x0028
+#define	MBOX_SET_FIRMWARE_OPTIONS	0x0038
+#define	MBOX_GET_RESOURCE_COUNT		0x0042
+#define	MBOX_ENHANCED_GET_PDB		0x0047
+#define	MBOX_EXEC_COMMAND_IOCB_A64	0x0054
+#define	MBOX_INIT_FIRMWARE		0x0060
+#define	MBOX_GET_INIT_CONTROL_BLOCK	0x0061
+#define	MBOX_INIT_LIP			0x0062
+#define	MBOX_GET_FC_AL_POSITION_MAP	0x0063
+#define	MBOX_GET_PORT_DB		0x0064
+#define	MBOX_CLEAR_ACA			0x0065
+#define	MBOX_TARGET_RESET		0x0066
+#define	MBOX_CLEAR_TASK_SET		0x0067
+#define	MBOX_ABORT_TASK_SET		0x0068
+#define	MBOX_GET_FW_STATE		0x0069
+#define	MBOX_GET_PORT_NAME		0x006A
+#define	MBOX_GET_LINK_STATUS		0x006B
+#define	MBOX_INIT_LIP_RESET		0x006C
+#define	MBOX_SEND_SNS			0x006E
+#define	MBOX_FABRIC_LOGIN		0x006F
+#define	MBOX_SEND_CHANGE_REQUEST	0x0070
+#define	MBOX_FABRIC_LOGOUT		0x0071
+#define	MBOX_INIT_LIP_LOGIN		0x0072
+
+#define	MBOX_GET_SET_DATA_RATE		0x005D	/* 23XX only */
+#define		MBGSD_GET_RATE	0
+#define		MBGSD_SET_RATE	1
+#define		MBGSD_ONEGB	0
+#define		MBGSD_TWOGB	1
+#define		MBGSD_AUTO	2
+
 
 #define	ISP2100_SET_PCI_PARAM		0x00ff
 
@@ -181,6 +193,7 @@ typedef struct {
 #define	ASYNC_LOOP_RESET		0x8013
 #define	ASYNC_PDB_CHANGED		0x8014
 #define	ASYNC_CHANGE_NOTIFY		0x8015
+#define	ASYNC_LIP_F8			0x8016
 #define	ASYNC_CMD_CMPLT			0x8020
 #define	ASYNC_CTIO_DONE			0x8021
 #define	ASYNC_IP_XMIT_DONE		0x8022
@@ -214,16 +227,16 @@ typedef struct {
  */
 
 #define	WRITE_REQUEST_QUEUE_IN_POINTER(isp, value)	\
-	ISP_WRITE(isp, INMAILBOX4, value)
+	ISP_WRITE(isp, isp->isp_rqstinrp, value)
 
-#define	READ_REQUEST_QUEUE_OUT_POINTER(isp)	\
-	ISP_READ(isp, OUTMAILBOX4)
+#define	READ_REQUEST_QUEUE_OUT_POINTER(isp)		\
+	ISP_READ(isp, isp->isp_rqstoutrp)
 
-#define	WRITE_RESPONSE_QUEUE_IN_POINTER(isp, value)	\
-	ISP_WRITE(isp, INMAILBOX5, value)
+#define	READ_RESPONSE_QUEUE_IN_POINTER(isp)		\
+	ISP_READ(isp, isp->isp_respinrp)
 
-#define	READ_RESPONSE_QUEUE_OUT_POINTER(isp)	\
-	ISP_READ(isp, OUTMAILBOX5)
+#define	WRITE_RESPONSE_QUEUE_OUT_POINTER(isp, value)	\
+	ISP_WRITE(isp, isp->isp_respoutrp, value)
 
 /*
  * Command Structure Definitions
@@ -235,7 +248,8 @@ typedef struct {
 } ispds_t;
 
 typedef struct {
-	u_int64_t	ds_base;
+	u_int32_t	ds_base;
+	u_int32_t	ds_basehi;
 	u_int32_t	ds_count;
 } ispds64_t;
 
@@ -348,7 +362,7 @@ typedef struct {
 #define	ISP_SBUSIFY_ISPREQ(a, b)
 #endif
 
-#define	ISP_RQDSEG_T2	3
+#define	ISP_RQDSEG_T2		3
 typedef struct {
 	isphdr_t	req_header;
 	u_int32_t	req_handle;
@@ -363,6 +377,22 @@ typedef struct {
 	u_int32_t	req_totalcnt;
 	ispds_t		req_dataseg[ISP_RQDSEG_T2];
 } ispreqt2_t;
+
+#define	ISP_RQDSEG_T3		2
+typedef struct {
+	isphdr_t	req_header;
+	u_int32_t	req_handle;
+	u_int8_t	req_lun_trn;
+	u_int8_t	req_target;
+	u_int16_t	req_scclun;
+	u_int16_t	req_flags;
+	u_int16_t	_res2;
+	u_int16_t	req_time;
+	u_int16_t	req_seg_count;
+	u_int32_t	req_cdb[4];
+	u_int32_t	req_totalcnt;
+	ispds64_t	req_dataseg[ISP_RQDSEG_T3];
+} ispreqt3_t;
 
 /* req_flag values */
 #define	REQFLAG_NODISCON	0x0001
@@ -404,6 +434,12 @@ typedef struct {
 	u_int32_t	_res1;
 	ispds_t		req_dataseg[ISP_CDSEG];
 } ispcontreq_t;
+
+#define	ISP_CDSEG64	5
+typedef struct {
+	isphdr_t	req_header;
+	ispds64_t	req_dataseg[ISP_CDSEG64];
+} ispcontreq64_t;
 
 typedef struct {
 	isphdr_t	req_header;
@@ -625,6 +661,10 @@ typedef struct isp_icb {
 #define	ICBXOPT_RIO_16BIT_DELAY	3
 #define	ICBXOPT_RIO_32BIT_DELAY	4
 
+/* These 3 only apply to the 2300 */
+#define	ICBZOPT_RATE_ONEGB	(MBGSD_ONEGB << 14)
+#define	ICBZOPT_RATE_TWOGB	(MBGSD_TWOGB << 14)
+#define	ICBZOPT_RATE_AUTO	(MBGSD_AUTO << 14)
 
 
 #define	ICB_MIN_FRMLEN		256
