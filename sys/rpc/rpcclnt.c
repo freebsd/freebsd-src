@@ -943,15 +943,15 @@ errout:
 	if (error) {
 		m_freem(*mp);
 		*mp = NULL;
-	} 
-
-	/*
-	 * Search for any mbufs that are not a multiple of 4 bytes
-	 * long or with m_data not longword aligned. These could
-	 * cause pointer alignment problems, so copy them to well
-	 * aligned mbufs.
-	 */
-	rpcclnt_realign(mp, 5 * RPCX_UNSIGNED);
+	} else {
+		/*
+		 * Search for any mbufs that are not a multiple of 4 bytes
+		 * long or with m_data not longword aligned. These could
+		 * cause pointer alignment problems, so copy them to well
+		 * aligned mbufs.
+		 */
+		rpcclnt_realign(mp, 5 * RPCX_UNSIGNED);
+	}
 	RPC_RETURN(error);
 }
 
@@ -1547,12 +1547,9 @@ rpcclnt_sndlock(flagp, task)
 	RPC_EXEC_CTX p;
 	int             slpflag = 0, slptimeo = 0;
 
-	if (task) {
-		p = task->r_td;
-		if (task->r_rpcclnt->rc_flag & RPCCLNT_INT)
-			slpflag = PCATCH;
-	} else
-		p = NULL;
+	p = task->r_td;
+	if (task->r_rpcclnt->rc_flag & RPCCLNT_INT)
+		slpflag = PCATCH;
 	while (*flagp & RPCCLNT_SNDLOCK) {
 		if (rpcclnt_sigintr(task->r_rpcclnt, task, p))
 			RPC_RETURN(EINTR);
