@@ -54,9 +54,9 @@ typedef struct utmp UTMP;
 
 int
 logout(line)
-	register char *line;
+	const char *line;
 {
-	register int fd;
+	int fd;
 	UTMP ut;
 	int rval;
 
