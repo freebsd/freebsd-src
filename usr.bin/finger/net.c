@@ -39,11 +39,12 @@
 static char sccsid[] = "@(#)net.c	8.4 (Berkeley) 4/28/95";
 #else
 static const char rcsid[] =
-	"$Id: net.c,v 1.6.2.2 1997/08/03 19:23:28 peter Exp $";
+	"$Id: net.c,v 1.6.2.3 1998/03/08 09:08:11 jkh Exp $";
 #endif
 #endif /* not lint */
 
 #include <sys/types.h>
+#include <sys/param.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -96,7 +97,7 @@ netfinger(name)
 		return;
 	}
 	sin.sin_family = hp->h_addrtype;
-	bcopy(hp->h_addr, (char *)&sin.sin_addr, hp->h_length);
+	bcopy(hp->h_addr, (char *)&sin.sin_addr, MIN(hp->h_length,sizeof(sin.sin_addr)));
 	sin.sin_port = sp->s_port;
 	if ((s = socket(hp->h_addrtype, SOCK_STREAM, 0)) < 0) {
 		perror("finger: socket");

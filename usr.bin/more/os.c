@@ -54,6 +54,7 @@ static char sccsid[] = "@(#)os.c	8.1 (Berkeley) 6/6/93";
 #include <signal.h>
 #include <setjmp.h>
 #include <stdio.h>
+#include <string.h>
 #include <less.h>
 #include "pathnames.h"
 
@@ -122,7 +123,8 @@ lsystem(cmd)
 			cmd = shell;
 		else
 		{
-			(void)sprintf(cmdbuf, "%s -c \"%s\"", shell, cmd);
+			(void)snprintf(cmdbuf, sizeof(cmdbuf),
+			    "%s -c \"%s\"", shell, cmd);
 			cmd = cmdbuf;
 		}
 	}
@@ -214,19 +216,17 @@ glob(filename)
 		/*
 		 * Read the output of <echo filename>.
 		 */
-		cmd = malloc((u_int)(strlen(filename)+8));
+		(void)asprintf(&cmd, "echo \"%s\"", filename);
 		if (cmd == NULL)
 			return (filename);
-		(void)sprintf(cmd, "echo \"%s\"", filename);
 	} else
 	{
 		/*
 		 * Read the output of <$SHELL -c "echo filename">.
 		 */
-		cmd = malloc((u_int)(strlen(p)+12));
+		(void)asprintf(&cmd, "%s -c \"echo %s\"", p, filename);
 		if (cmd == NULL)
 			return (filename);
-		(void)sprintf(cmd, "%s -c \"echo %s\"", p, filename);
 	}
 
 	if ((f = popen(cmd, "r")) == NULL)
@@ -254,7 +254,8 @@ bad_file(filename, message, len)
 	char *strcat(), *strerror();
 
 	if (stat(filename, &statbuf) < 0) {
-		(void)sprintf(message, "%s: %s", filename, strerror(errno));
+		(void)snprintf(message, len,
+		    "%s: %s", filename, strerror(errno));
 		return(message);
 	}
 	if ((statbuf.st_mode & S_IFMT) == S_IFDIR) {

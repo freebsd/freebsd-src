@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)reverse.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: reverse.c,v 1.5.2.1 1997/08/14 06:34:42 charnier Exp $";
+	"$Id: reverse.c,v 1.5.2.2 1998/03/08 13:29:46 jkh Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -228,7 +228,7 @@ r_buf(fp)
 	}
 
 	if (enomem) {
-		warnx("warning: %ld bytes discarded", enomem);
+		warnx("warning: %qd bytes discarded", enomem);
 		rval = 1;
 	}
 

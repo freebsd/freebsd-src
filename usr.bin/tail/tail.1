@@ -42,7 +42,11 @@
 .Nd display the last part of a file
 .Sh SYNOPSIS
 .Nm
-.Op Fl f Li | Fl r
+.Oo
+.Fl F |
+.Fl f |
+.Fl r
+.Oc
 .Oo
 .Fl b Ar number |
 .Fl c Ar number |
@@ -91,6 +95,20 @@ data to be appended to the input.
 The
 .Fl f
 option is ignored if the standard input is a pipe, but not if it is a FIFO.
+.It Fl F
+The
+.Fl F
+option implies the
+.Fl f
+option, but
+.Nm
+will also check to see if the file being followed has been renamed or rotated.
+The file is closed and reopened when
+.Nm
+detects that the filename being read from has a new inode number.
+The
+.Fl F
+option is ignored if reading from standard input rather than a file.
 .It Fl n Ar number
 The location is
 .Ar number
@@ -136,6 +154,7 @@ utility is expected to be a superset of the
 .St -p1003.2-92
 specification.
 In particular, the
+.Fl F ,
 .Fl b
 and
 .Fl r

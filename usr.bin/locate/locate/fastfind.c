@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: fastfind.c,v 1.6 1996/10/27 19:18:06 alex Exp $
+ * $Id: fastfind.c,v 1.6.2.1 1997/07/22 07:25:26 charnier Exp $
  */
 
 
@@ -89,10 +89,10 @@ statistic (fp, path_fcodes)
 
 	(void)printf("\nDatabase: %s\n", path_fcodes);
 	(void)printf("Compression: Front: %2.2f%%, ",
-		     (float)(100 * (size + big - (2 * NBG))) / chars);
-	(void)printf("Bigram: %2.2f%%, ", (float)(100 * (size - big)) / size);
+		     (size + big - (2 * NBG)) / (chars / (float)100));
+	(void)printf("Bigram: %2.2f%%, ", (size - big) / (size / (float)100));
 	(void)printf("Total: %2.2f%%\n", 
-		     (float)(100 * (size - (2 * NBG))) / chars);
+		     (size - (2 * NBG)) / (chars / (float)100));
 	(void)printf("Filenames: %d, ", lines);
 	(void)printf("Characters: %d, ", chars);
 	(void)printf("Database size: %d\n", size);
@@ -183,6 +183,9 @@ fastfind
 
 #ifdef FF_ICASE
 	/* set patend char to true */
+        for (c = 0; c < UCHAR_MAX + 1; c++)
+                table[c] = 0;
+
 	table[TOLOWER(*patend)] = 1;
 	table[toupper(*patend)] = 1;
 #endif /* FF_ICASE */

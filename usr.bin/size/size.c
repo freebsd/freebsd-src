@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)size.c	8.2 (Berkeley) 12/9/93";
 #endif
 static const char rcsid[] =
-	"$Id: size.c,v 1.1.1.1.8.2 1997/08/29 05:29:54 imp Exp $";
+	"$Id: size.c,v 1.1.1.1.8.3 1998/03/08 12:18:47 jkh Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -109,8 +109,8 @@ show(count, name)
 		(void)printf("text\tdata\tbss\tdec\thex\n");
 	}
 	total = head.a_text + head.a_data + head.a_bss;
-	(void)printf("%lu\t%lu\t%lu\t%lu\t%lx", head.a_text, head.a_data,
-	    head.a_bss, total, total);
+	(void)printf("%lu\t%lu\t%lu\t%lu\t%lx", (u_long)head.a_text,
+	    (u_long)head.a_data, (u_long)head.a_bss, total, total);
 	if (count > 1)
 		(void)printf("\t%s", name);
 	(void)printf("\n");

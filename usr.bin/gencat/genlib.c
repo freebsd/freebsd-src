@@ -147,29 +147,29 @@ char *cptr;
     static char	tok[MAXTOKEN+1];
     char	*tptr = tok;
 
-    while (*cptr && isspace(*cptr)) ++cptr;
-    while (*cptr && !isspace(*cptr)) *tptr++ = *cptr++;
+    while (*cptr && isspace((unsigned char)*cptr)) ++cptr;
+    while (*cptr && !isspace((unsigned char)*cptr)) *tptr++ = *cptr++;
     *tptr = '\0';
     return(tok);
 }
 static char *wskip(cptr)
 char *cptr;
 {
-    if (!*cptr || !isspace(*cptr)) {
+    if (!*cptr || !isspace((unsigned char)*cptr)) {
 	warning(cptr, "expected a space");
 	return(cptr);
     }
-    while (*cptr && isspace(*cptr)) ++cptr;
+    while (*cptr && isspace((unsigned char)*cptr)) ++cptr;
     return(cptr);
 }
 static char *cskip(cptr)
 char *cptr;
 {
-    if (!*cptr || isspace(*cptr)) {
+    if (!*cptr || isspace((unsigned char)*cptr)) {
 	warning(cptr, "wasn't expecting a space");
 	return(cptr);
     }
-    while (*cptr && !isspace(*cptr)) ++cptr;
+    while (*cptr && !isspace((unsigned char)*cptr)) ++cptr;
     return(cptr);
 }
 
@@ -202,7 +202,7 @@ char quote;
 	if (quote && *cptr == quote) {
 	    char	*tmp;
 	    tmp = cptr+1;
-	    if (*tmp && (!isspace(*tmp) || *wskip(tmp))) {
+	    if (*tmp && (!isspace((unsigned char)*tmp) || *wskip(tmp))) {
 		warning(cptr, "unexpected quote character, ignoreing");
 		*tptr++ = *cptr++;
 	    } else {
@@ -256,10 +256,10 @@ char quote;
 		++cptr;
 		break;
 	      default:
-		if (isdigit(*cptr)) {
+		if (isdigit((unsigned char)*cptr)) {
 		    *tptr = 0;
 		    for (i = 0; i < 3; ++i) {
-			if (!isdigit(*cptr)) break;
+			if (!isdigit((unsigned char)*cptr)) break;
 			if (*cptr > '7') warning(cptr, "octal number greater than 7?!");
 			*tptr *= 8;
 			*tptr += (*cptr - '0');
@@ -378,7 +378,7 @@ int fd;
 		    if (!*cptr) quote = 0;
 		    else quote = *cptr;
 		}
-	    } else if (isspace(*cptr)) {
+	    } else if (isspace((unsigned char)*cptr)) {
 		cptr = wskip(cptr);
 		if (*cptr == '#') {
 		    ++cptr;
@@ -391,7 +391,7 @@ int fd;
 		}
 	    }
 	} else {
-	    if (isdigit(*cptr) || *cptr == '#') {
+	    if (isdigit((unsigned char)*cptr) || *cptr == '#') {
 		if (*cptr == '#') {
 		    ++msgid;
 		    ++cptr;
@@ -400,7 +400,7 @@ int fd;
 			hconst[0] = '\0';
 			continue;
 		    }
-		    if (!isspace(*cptr)) warning(cptr, "expected a space");
+		    if (!isspace((unsigned char)*cptr)) warning(cptr, "expected a space");
 		    ++cptr;
 		    if (!*cptr) {
 			MCAddMsg(msgid, "", hconst);

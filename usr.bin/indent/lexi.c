@@ -152,7 +152,8 @@ lexi()
 
 	if (isdigit(*buf_ptr) || buf_ptr[0] == '.' && isdigit(buf_ptr[1])) {
 	    int         seendot = 0,
-	                seenexp = 0;
+	                seenexp = 0,
+			seensfx = 0;
 	    if (*buf_ptr == '0' &&
 		    (buf_ptr[1] == 'x' || buf_ptr[1] == 'X')) {
 		*e_token++ = *buf_ptr++;
@@ -183,8 +184,25 @@ lexi()
 				*e_token++ = *buf_ptr++;
 			}
 		}
-	    if (*buf_ptr == 'L' || *buf_ptr == 'l')
-		*e_token++ = *buf_ptr++;
+	    while (1) {
+		if (!(seensfx & 1) &&
+			(*buf_ptr == 'U' || *buf_ptr == 'u')) {
+		    CHECK_SIZE_TOKEN;
+		    *e_token++ = *buf_ptr++;
+		    seensfx |= 1;
+		    continue;
+		}
+        	if (!(seensfx & 2) &&
+			(*buf_ptr == 'L' || *buf_ptr == 'l')) {
+		    CHECK_SIZE_TOKEN;
+		    if (buf_ptr[1] == buf_ptr[0])
+		        *e_token++ = *buf_ptr++;
+		    *e_token++ = *buf_ptr++;
+		    seensfx |= 2;
+		    continue;
+		}
+		break;
+	    }
 	}
 	else
 	    while (chartype[*buf_ptr] == alphanum) {	/* copy it over */

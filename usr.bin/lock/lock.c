@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)lock.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: lock.c,v 1.2.2.2 1997/08/29 05:29:29 imp Exp $";
+	"$Id: lock.c,v 1.2.2.3 1997/09/15 08:32:17 jkh Exp $";
 #endif /* not lint */
 
 /*
@@ -88,6 +88,7 @@ main(argc, argv)
 {
 	struct passwd *pw;
 	struct timeval timval;
+	time_t timval_sec;
 	struct itimerval ntimer, otimer;
 	struct tm *timp;
 	int ch, sectimeout, usemine;
@@ -130,7 +131,8 @@ main(argc, argv)
 	if (gettimeofday(&timval, (struct timezone *)NULL))
 		err(1, "gettimeofday");
 	nexttime = timval.tv_sec + (sectimeout * 60);
-	timp = localtime(&timval.tv_sec);
+	timval_sec = timval.tv_sec;
+	timp = localtime(&timval_sec);
 	ap = asctime(timp);
 	tzn = timp->tm_zone;
 

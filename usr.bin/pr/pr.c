@@ -1255,6 +1255,7 @@ nxtfile(argc, argv, fname, buf, dt)
 {
 	FILE *inf = NULL;
 	struct timeval tv;
+	time_t tv_sec;
 	struct timezone tz;
 	struct tm *timeptr = NULL;
 	struct stat statbuf;
@@ -1282,7 +1283,8 @@ nxtfile(argc, argv, fname, buf, dt)
 			eoptind = argc - 1;
 			return(NULL);
 		}
-		timeptr = localtime(&(tv.tv_sec));
+		tv_sec = tv.tv_sec;
+		timeptr = localtime(&tv_sec);
 	}
 	for (; eoptind < argc; ++eoptind) {
 		if (strcmp(argv[eoptind], "-") == 0) {
@@ -1305,7 +1307,8 @@ nxtfile(argc, argv, fname, buf, dt)
 					strerror(errno));
 				return(NULL);
 			}
-			timeptr = localtime(&(tv.tv_sec));
+			tv_sec = tv.tv_sec;
+			timeptr = localtime(&tv_sec);
 		} else {
 			/*
 			 * normal file processing
@@ -1336,7 +1339,8 @@ nxtfile(argc, argv, fname, buf, dt)
 					     strerror(errno));
 					return(NULL);
 				}
-				timeptr = localtime(&(tv.tv_sec));
+				tv_sec = tv.tv_sec;
+				timeptr = localtime(&tv_sec);
 			} else {
 				if (fstat(fileno(inf), &statbuf) < 0) {
 					++errcnt;

@@ -30,25 +30,23 @@
 #
 # Sequence of databases is important.
 #
-# $Id: concatdb.sh,v 1.3 1996/10/31 22:46:52 wosch Exp $
+# $Id: concatdb.sh,v 1.3.2.1 1997/12/13 18:20:59 sef Exp $
 
 # The directory containing locate subprograms
-: ${LIBEXECDIR=/usr/libexec}; export LIBEXECDIR
+: ${LIBEXECDIR:=/usr/libexec}; export LIBEXECDIR
 
 PATH=$LIBEXECDIR:/bin:/usr/bin:$PATH; export PATH
 
 umask 077			# protect temp files
 
-TMPDIR=${TMPDIR:-/tmp}; export TMPDIR;
-if test X"$TMPDIR" = X -o ! -d "$TMPDIR"; then
-	TMPDIR=/tmp; export TMPDIR
-fi
+: ${TMPDIR:=/var/tmp}; export TMPDIR;
+test -d "$TMPDIR" || TMPDIR=/var/tmp
 
 # utilities to built locate database
-: ${bigram=locate.bigram}
-: ${code=locate.code}
-: ${sort=sort}
-: ${locate=locate}
+: ${bigram:=locate.bigram}
+: ${code:=locate.code}
+: ${sort:=sort}
+: ${locate:=locate}
 
 
 case $# in 

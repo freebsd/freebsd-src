@@ -44,6 +44,7 @@ static char sccsid[] = "@(#)screen.c	8.2 (Berkeley) 4/20/94";
  */
 
 #include <stdio.h>
+#include <string.h>
 #include <less.h>
 
 #define TERMIOS 1
