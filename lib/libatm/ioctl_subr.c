@@ -161,7 +161,7 @@ get_vcc_info(const char *intf, struct air_vcc_rsp **vccp)
 	air.air_opcode = AIOCS_INF_VCC;
 	bzero(air.air_vcc_intf, sizeof(air.air_vcc_intf));
 	if (intf != NULL && strlen(intf) != 0)
-		strcpy(air.air_vcc_intf, intf);
+		strncpy(air.air_vcc_intf, intf, IFNAMSIZ - 1);
 
 	buf_len = do_info_ioctl(&air, buf_len);
 
@@ -375,7 +375,7 @@ get_cfg_info(const char *intf, struct air_cfg_rsp **cfgp)
         air.air_opcode = AIOCS_INF_CFG;
         bzero ( air.air_cfg_intf, sizeof(air.air_cfg_intf));
         if ( intf != NULL && strlen(intf) != 0 )
-                strcpy ( air.air_cfg_intf, intf );
+                strncpy(air.air_cfg_intf, intf, IFNAMSIZ - 1);
 
         buf_len = do_info_ioctl ( &air, buf_len );
 
@@ -411,7 +411,7 @@ get_intf_info(const char *intf, struct air_int_rsp **intp)
         air.air_opcode = AIOCS_INF_INT;
         bzero ( air.air_int_intf, sizeof(air.air_int_intf));
         if ( intf != NULL && strlen(intf) != 0 )
-                strcpy ( air.air_int_intf, intf );
+                strncpy(air.air_int_intf, intf, IFNAMSIZ - 1);
 
         buf_len = do_info_ioctl ( &air, buf_len );
  
@@ -448,7 +448,7 @@ get_netif_info(const char *intf, struct air_netif_rsp **netp)
         air.air_opcode = AIOCS_INF_NIF;
         bzero ( air.air_int_intf, sizeof(air.air_int_intf) );
         if ( intf != NULL && strlen(intf) != 0 )
-                strcpy ( air.air_int_intf, intf );
+                strncpy(air.air_int_intf, intf, IFNAMSIZ - 1);
 
         buf_len = do_info_ioctl ( &air, buf_len );
 
