@@ -47,7 +47,6 @@ static int ata_dmaalloc(struct ata_channel *);
 static void ata_dmafree(struct ata_channel *);
 static void ata_dmasetupd_cb(void *, bus_dma_segment_t *, int, int);
 static int ata_dmasetup(struct ata_device *, caddr_t, int32_t);
-static int ata_dmastatus(struct ata_channel *);
 
 /* local vars */
 static MALLOC_DEFINE(M_ATADMA, "ATA DMA", "ATA driver DMA");
@@ -73,7 +72,6 @@ ata_dmainit(struct ata_channel *ch)
     ch->dma->setup = ata_dmasetup;
     ch->dma->start = ata_dmastart;
     ch->dma->stop = ata_dmastop;
-    ch->dma->status = ata_dmastatus;
     ch->dma->alignment = 2;
     return 0;
 }
@@ -217,12 +215,6 @@ ata_dmasetup(struct ata_device *atadev, caddr_t data, int32_t count)
 	return -1;
     }
     return 0;
-}
-
-static int
-ata_dmastatus(struct ata_channel *ch)
-{
-    return ch->dma->flags & ATA_DMA_ACTIVE;
 }
 
 int

@@ -40,8 +40,8 @@ struct ata_chip_id {
 
 /* structure describing a PCI ATA controller */
 struct ata_pci_controller {
-    struct resource	 *r_bmio;
-    struct resource	 *r_mem;
+    struct resource	 *r_io1;
+    struct resource	 *r_io2;
     struct resource	 *r_irq;
     void		 *handle;
     struct ata_chip_id	 *chip;
