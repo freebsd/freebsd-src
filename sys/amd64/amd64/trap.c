@@ -271,6 +271,7 @@ trap(frame)
 		/*
 		 * First check that we shouldn't just abort.
 		 * But check if we are the single thread first!
+		 * XXX p_singlethread not locked, but should be safe.
 		 */
 		if ((p->p_flag & P_WEXIT) && (p->p_singlethread != td)) {
 			PROC_LOCK(p); /* check if thisis really needed */
