@@ -189,7 +189,7 @@ void		 set_socket(int);
 void		 stat_changed(struct slot *);
 void		 process_client(void);
 
-#define	IOPORTS	0x400
+#define	IOPORTS	0x1000		/* allow most of the low ports */
 #define	MEMUNIT	0x1000
 #define	MEMSTART 0xA0000
 #define	MEMEND	0x100000
