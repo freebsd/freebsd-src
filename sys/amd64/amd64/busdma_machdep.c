@@ -562,18 +562,16 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 			pmap_t pmap,
 			int flags,
 			bus_addr_t *lastaddrp,
+			bus_dma_segment_t *segs,
 			int *segp,
 			int first)
 {
-	bus_dma_segment_t *segs;
 	bus_size_t sgsize;
 	bus_addr_t curaddr, lastaddr, baddr, bmask;
 	vm_offset_t vaddr;
 	bus_addr_t paddr;
 	int needbounce = 0;
 	int seg;
-
-	segs = dmat->segments;
 
 	if (map == NULL)
 		map = &nobounce_dmamap;
@@ -714,7 +712,7 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	}
 
 	error = _bus_dmamap_load_buffer(dmat, map, buf, buflen, NULL, flags,
-	     &lastaddr, &nsegs, 1);
+	     &lastaddr, dmat->segments, &nsegs, 1);
 
 	if (error == EINPROGRESS) {
 		CTR3(KTR_BUSDMA, "bus_dmamap_load: tag %p tag flags 0x%x "
@@ -727,8 +725,8 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	else
 		(*callback)(callback_arg, dmat->segments, nsegs + 1, 0);
 
-	CTR2(KTR_BUSDMA, "bus_dmamap_load: tag %p tag flags 0x%x error 0",
-	    dmat, dmat->flags);
+	CTR3(KTR_BUSDMA, "bus_dmamap_load: tag %p tag flags 0x%x error 0 "
+	    "nsegs %d", dmat, dmat->flags, nsegs + 1);
 	return (0);
 }
 
@@ -759,7 +757,7 @@ bus_dmamap_load_mbuf(bus_dma_tag_t dmat, bus_dmamap_t map,
 				error = _bus_dmamap_load_buffer(dmat, map,
 						m->m_data, m->m_len,
 						NULL, flags, &lastaddr,
-						&nsegs, first);
+						dmat->segments, &nsegs, first);
 				first = 0;
 			}
 		}
@@ -774,8 +772,8 @@ bus_dmamap_load_mbuf(bus_dma_tag_t dmat, bus_dmamap_t map,
 		(*callback)(callback_arg, dmat->segments,
 			    nsegs+1, m0->m_pkthdr.len, error);
 	}
-	CTR3(KTR_BUSDMA, "bus_dmamap_load_mbuf: tag %p tag flags 0x%x "
-	    "error %d", dmat, dmat->flags, error);
+	CTR4(KTR_BUSDMA, "bus_dmamap_load_mbuf: tag %p tag flags 0x%x "
+	    "error %d nsegs %d", dmat, dmat->flags, error, nsegs + 1);
 	return (error);
 }
 
@@ -819,8 +817,8 @@ bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map,
 
 		if (minlen > 0) {
 			error = _bus_dmamap_load_buffer(dmat, map,
-					addr, minlen,
-					pmap, flags, &lastaddr, &nsegs, first);
+					addr, minlen, pmap, flags, &lastaddr,
+					dmat->segments, &nsegs, first);
 			first = 0;
 
 			resid -= minlen;
@@ -834,8 +832,8 @@ bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map,
 		(*callback)(callback_arg, dmat->segments,
 			    nsegs+1, uio->uio_resid, error);
 	}
-	CTR3(KTR_BUSDMA, "bus_dmamap_load_uio: tag %p tag flags 0x%x "
-	    "error %d", dmat, dmat->flags, error);
+	CTR4(KTR_BUSDMA, "bus_dmamap_load_uio: tag %p tag flags 0x%x "
+	    "error %d nsegs %d", dmat, dmat->flags, error, nsegs + 1);
 	return (error);
 }
 
