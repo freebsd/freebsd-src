@@ -319,7 +319,7 @@ pccard_get_memory_offset(device_t bus, device_t child, int rid,
 }
 
 static int
-pccard_get_function(device_t bus, device_t child, int *function)
+pccard_get_function_num(device_t bus, device_t child, int *function)
 {
 	*function = 0;
 	return (0);
@@ -373,7 +373,7 @@ static device_method_t pccard_methods[] = {
 	DEVMETHOD(card_get_res_flags,	pccard_get_res_flags),
 	DEVMETHOD(card_set_memory_offset, pccard_set_memory_offset),
  	DEVMETHOD(card_get_memory_offset, pccard_get_memory_offset),
-	DEVMETHOD(card_get_function,	pccard_get_function),
+	DEVMETHOD(card_get_function,	pccard_get_function_num),
 	DEVMETHOD(card_activate_function, pccard_activate_function),
 	DEVMETHOD(card_deactivate_function, pccard_deactivate_function),
 	DEVMETHOD(card_compat_do_probe, pccard_compat_do_probe),
