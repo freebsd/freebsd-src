@@ -1,8 +1,8 @@
 # Makefile for groff macros
 
-TMACOWN?=	bin
-TMACGRP?=	bin
-TMACMODE?=	444
+TMACOWN?=	${BINOWN}
+TMACGRP?=	${BINGRP}
+TMACMODE?=	${NOBINMODE}
 TMACDIR?=	/usr/share/tmac
 MDOCDIR?=	${TMACDIR}/mdoc
 
