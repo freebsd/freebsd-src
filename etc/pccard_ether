@@ -1,5 +1,7 @@
 #!/bin/sh -
 #
+#	$Id:$
+#
 # pccard_ether interfacename [ifconfig option]
 #
 # example: pccard_ether ep0 -link0
