@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:49  rpd
- *	$Id: disk.c,v 1.25 1997/02/22 09:30:09 peter Exp $
+ * $FreeBSD$
  */
 
 /*

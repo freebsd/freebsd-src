@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: istallion.c,v 1.22 1998/08/23 09:57:09 bde Exp $
+ * $FreeBSD$
  */
 
 /*****************************************************************************/

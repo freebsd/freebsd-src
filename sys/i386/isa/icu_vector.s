@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: icu_vector.s,v 1.8 1998/08/11 15:08:12 bde Exp $
+ * $FreeBSD$
  */
 
 /*

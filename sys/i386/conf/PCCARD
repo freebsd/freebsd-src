@@ -16,7 +16,7 @@
 # device lines is also present in the ./LINT configuration file. If you are
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: PCCARD,v 1.15.2.1 1999/08/13 15:58:56 kuriyama Exp $
+# $FreeBSD$
 
 machine		"i386"
 cpu		"I386_CPU"

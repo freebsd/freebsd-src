@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mpapic.c,v 1.32 1998/09/06 22:41:40 tegge Exp $
+ * $FreeBSD$
  */
 
 #include "opt_smp.h"

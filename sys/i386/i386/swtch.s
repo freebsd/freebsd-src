@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.75 1998/07/28 17:35:09 bde Exp $
+ * $FreeBSD$
  */
 
 #include "npx.h"

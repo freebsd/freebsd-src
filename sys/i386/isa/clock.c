@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.129.2.2 1999/06/25 03:06:06 green Exp $
+ * $FreeBSD$
  */
 
 /*

@@ -27,7 +27,7 @@
  *	i4b_ioctl.h - messages kernel <--> userland
  *	-------------------------------------------
  *
- *	$Id: i4b_ioctl.h,v 1.58 1998/12/22 19:48:24 hm Exp $ 
+ * $FreeBSD$ 
  *
  *      last edit-date: [Tue Dec 22 20:33:46 1998]
  *

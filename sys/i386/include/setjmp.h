@@ -1,4 +1,4 @@
-/* $Id: setjmp.h,v 1.1 1998/01/10 23:04:51 jb Exp $ */
+/* $FreeBSD$ */
 /*
  * Copyright (c) 1998 John Birrell <jb@cimlogic.com.au>.
  * All rights reserved.

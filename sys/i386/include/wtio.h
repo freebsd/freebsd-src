@@ -19,7 +19,7 @@
  * This driver is derived from the old 386bsd Wangtek streamer tape driver,
  * made by Robert Baron at CMU, based on Intel sources.
  *
- * $Id$
+ * $FreeBSD$
  *
  */
 

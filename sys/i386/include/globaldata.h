@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: globaldata.h,v 1.6 1998/08/18 07:47:12 msmith Exp $
+ * $FreeBSD$
  */
 
 /*

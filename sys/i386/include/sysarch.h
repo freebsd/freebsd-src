@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sysarch.h,v 1.9 1998/07/28 03:33:27 jlemon Exp $
+ * $FreeBSD$
  */
 
 /*

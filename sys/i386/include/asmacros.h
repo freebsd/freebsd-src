@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: asmacros.h,v 1.15 1997/03/09 13:57:33 bde Exp $
+ * $FreeBSD$
  */
 
 #ifndef _MACHINE_ASMACROS_H_

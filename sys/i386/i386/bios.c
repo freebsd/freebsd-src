@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: bios.c,v 1.11 1998/07/15 03:58:57 bde Exp $
+ * $FreeBSD$
  */
 
 /*

@@ -1,4 +1,4 @@
-/* $Id: linux_genassym.c,v 1.7 1998/02/01 18:47:56 bde Exp $ */
+/* $FreeBSD$ */
 
 #include <sys/param.h>
 

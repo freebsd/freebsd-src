@@ -1,6 +1,6 @@
 # Makefile for syscall tables
 #
-# $Id$
+# $FreeBSD$
 
 all:
 	@echo "make ibcs2_sysent.c, ibcs2_isc_sysent.c or ibcs2_xenix_sysent.c only"

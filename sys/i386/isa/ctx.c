@@ -8,7 +8,7 @@
  *	of this software, nor does the author assume any responsibility
  *	for damages incurred with its use.
  *
- *	$Id: ctx.c,v 1.28 1998/06/14 10:52:52 bde Exp $
+ * $FreeBSD$
  */
 
 /*

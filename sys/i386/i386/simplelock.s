@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: simplelock.s,v 1.8 1998/01/19 17:33:08 tegge Exp $
+ * $FreeBSD$
  */
 
 /*

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.4 1998/03/12 12:26:47 bde Exp $
+# $FreeBSD$
 #
 
 PROG=	boot

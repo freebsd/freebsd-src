@@ -28,7 +28,7 @@
  *
  * from: svr4_util.h,v 1.5 1994/11/18 02:54:31 christos Exp
  * from: linux_util.h,v 1.2 1995/03/05 23:23:50 fvdl Exp
- * $Id: linux_util.h,v 1.7 1998/12/16 16:28:57 bde Exp $
+ * $FreeBSD$
  */
 
 /*

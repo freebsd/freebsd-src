@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ipl.h,v 1.14 1998/08/11 15:08:12 bde Exp $
+ * $FreeBSD$
  */
 
 #ifndef _MACHINE_IPL_H_

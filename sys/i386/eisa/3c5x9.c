@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: 3c5x9.c,v 1.9 1997/02/22 09:31:52 peter Exp $
+ * $FreeBSD$
  */
 
 #include "eisa.h"

@@ -1,6 +1,6 @@
 # This file tells what major numbers the various possible swap devices have.
 #
-#	$Id: devices.i386,v 1.14 1998/09/15 10:01:13 gibbs Exp $
+# $FreeBSD$
 #
 wd	0
 wfd	1
