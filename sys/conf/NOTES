@@ -1683,6 +1683,9 @@ options 	MSIZE=512	# mbuf size in bytes
 #
 # The `fatm' device provides support for Fore PCA200E ATM PCI cards.
 #
+# The `patm' device provides support for IDT77252 based cards like
+# ProSum's ProATM-155 and ProATM-25 and IDT's evaluation boards.
+#
 # atm device provides generic atm functions and is required for
 # atm devices.
 # NATM enables the netnatm protocol family that can be used to
@@ -1699,6 +1702,7 @@ device		atm
 device		en
 device		fatm			#Fore PCA200E
 device		hatm			#Fore/Marconi HE155/622
+device		patm			#IDT77252 cards (ProATM and IDT)
 device		utopia			#ATM PHY driver
 options 	NATM			#native ATM
 
