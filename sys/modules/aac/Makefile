@@ -3,7 +3,7 @@
 .PATH: ${.CURDIR}/../../dev/aac
 
 KMOD=	aac
-SRCS=	aac.c aac_pci.c aac_disk.c
+SRCS=	aac.c aac_pci.c aac_disk.c opt_aac.h
 SRCS+=	device_if.h bus_if.h pci_if.h
 
 CFLAGS+= -DAAC_COMPAT_LINUX
