@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: pipe.h,v 1.4 1996/05/01 04:18:20 bde Exp $
+ * $Id: pipe.h,v 1.5 1996/07/12 05:44:30 bde Exp $
  */
 
 #ifndef _SYS_PIPE_H_
@@ -40,6 +40,10 @@
 #define PIPE_SIZE	16384
 #endif
 
+#ifndef BIG_PIPE_SIZE
+#define BIG_PIPE_SIZE	(64*1024)
+#endif
+
 /*
  * PIPE_MINDIRECT MUST be smaller than PIPE_SIZE and MUST be bigger
  * than PIPE_BUF.
@@ -48,7 +52,7 @@
 #define PIPE_MINDIRECT	8192
 #endif
 
-#define PIPENPAGES	(PIPE_SIZE / PAGE_SIZE + 1)
+#define PIPENPAGES	(BIG_PIPE_SIZE / PAGE_SIZE + 1)
 
 /*
  * Pipe buffer information.
