@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_syscalls.c	8.4 (Berkeley) 2/21/94
- * $Id: uipc_syscalls.c,v 1.43 1998/11/06 19:16:30 dg Exp $
+ * $Id: uipc_syscalls.c,v 1.44 1998/11/14 23:36:17 dg Exp $
  */
 
 #include "opt_compat.h"
@@ -1645,7 +1645,7 @@ retry_space:
 		 * after checking the connection state above in order to avoid
 		 * a race condition with sbwait().
 		 */
-		if (sbspace(&so->so_snd) <= 0) {
+		if (sbspace(&so->so_snd) < so->so_snd.sb_lowat) {
 			if (so->so_state & SS_NBIO) {
 				m_freem(m);
 				sbunlock(&so->so_snd);
