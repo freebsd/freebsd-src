@@ -335,11 +335,6 @@ static void	wldump(int unit);
 static void	wl_cache_store(int, int, struct ether_header *, struct mbuf *);
 static void     wl_cache_zero(int unit);
 #endif
-#ifdef MULTICAST
-# if defined(__FreeBSD__) && __FreeBSD_version < 300000
-static int      check_allmulti(int unit);
-# endif
-#endif
 
 /* array for maping irq numbers to values for the irq parameter register */
 static int irqvals[16] = { 
@@ -678,13 +673,8 @@ wlinit(void *xsc)
     if (sc->wl_if.if_flags & IFF_DEBUG)
 	printf("wl%d: entered wlinit()\n",sc->unit);
 #endif
-#if defined(__FreeBSD__) && __FreeBSD_version >= 300000
-    if (TAILQ_FIRST(&ifp->if_addrhead) == (struct ifaddr *)0) {
-#else
-    if (ifp->if_addrlist == (struct ifaddr *)0) {
-#endif
+    if (TAILQ_FIRST(&ifp->if_addrhead) == (struct ifaddr *)0)
 	return;
-    }
     oldpri = splimp();
     if ((stat = wlhwrst(sc->unit)) == TRUE) {
 	sc->wl_if.if_flags |= IFF_RUNNING;   /* same as DSF_RUNNING */
@@ -1212,37 +1202,7 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
     case SIOCADDMULTI:
     case SIOCDELMULTI:
 
-#if defined(__FreeBSD__) && __FreeBSD_version < 300000
-	if (cmd == SIOCADDMULTI) {
-	    error = ether_addmulti(ifr, &sc->wl_ac);
-	}
-	else {
-	    error = ether_delmulti(ifr, &sc->wl_ac);
-	}
-
-	/* see if we should be in all multicast mode
-	 * note that 82586 cannot do that, must simulate with
-	 * promiscuous mode
-	 */
-	if ( check_allmulti(unit)) {
-		ifp->if_flags |=  IFF_ALLMULTI;
-	    	sc->mode |= MOD_ENAL;
-		sc->flags &= ~DSF_RUNNING;
-		wlinit(sc);
-		error = 0;
-		break;
-	}
-
-	if (error == ENETRESET) {
-	    if (sc->flags & DSF_RUNNING) {
-		sc->flags &= ~DSF_RUNNING;
-		wlinit(sc);
-	    }
-	    error = 0;
-	}
-#else
 	wlinit(sc);
-#endif
 	break;
 #endif	/* MULTICAST */
 
@@ -1991,13 +1951,8 @@ wlconfig(int unit)
     short		base = sc->base;
 
 #if	MULTICAST
-#if defined(__FreeBSD__) && __FreeBSD_version >= 300000
     struct ifmultiaddr *ifma;
     u_char *addrp;
-#else
-    struct ether_multi *enm;
-    struct ether_multistep step;
-#endif
     int cnt = 0;
 #endif	/* MULTICAST */
 
@@ -2059,7 +2014,6 @@ wlconfig(int unit)
     outw(PIOP1(base), 0);				/* ac_status */
     outw(PIOP1(base), AC_MCSETUP|AC_CW_EL);		/* ac_command */
     outw(PIOR1(base), OFFSET_CU + 8);
-#if defined(__FreeBSD__) && __FreeBSD_version >= 300000
     TAILQ_FOREACH(ifma, &sc->wl_if.if_multiaddrs, ifma_link) {
 	if (ifma->ifma_addr->sa_family != AF_LINK)
 	    continue;
@@ -2070,41 +2024,6 @@ wlconfig(int unit)
         outw(PIOP1(base), addrp[4] + (addrp[5] << 8));
         ++cnt;
     }
-#else
-    ETHER_FIRST_MULTI(step, &sc->wl_ac, enm);
-    while (enm != NULL) {
-	unsigned int lo, hi;
-	/* break if setting a multicast range, else we would crash */
-	if (bcmp(enm->enm_addrlo, enm->enm_addrhi, 6) != 0) {
-		break;
-	}
-	lo = (enm->enm_addrlo[3] << 16) + (enm->enm_addrlo[4] << 8)
-	    + enm->enm_addrlo[5];
-	hi = (enm->enm_addrhi[3] << 16) + (enm->enm_addrhi[4] << 8)
-	    + enm->enm_addrhi[5];
-	while (lo <= hi) {
-	    outw(PIOP1(base),enm->enm_addrlo[0] +
-		 (enm->enm_addrlo[1] << 8));
-	    outw(PIOP1(base),enm->enm_addrlo[2] +
-		 ((lo >> 8) & 0xff00));
-	    outw(PIOP1(base), ((lo >> 8) & 0xff) +
-		 ((lo << 8) & 0xff00));
-/* #define MCASTDEBUG */
-#ifdef MCASTDEBUG
-printf("mcast_addr[%d,%d,%d] %x %x %x %x %x %x\n", lo, hi, cnt,
-		enm->enm_addrlo[0],
-		enm->enm_addrlo[1],
-		enm->enm_addrlo[2],
-		enm->enm_addrlo[3],
-		enm->enm_addrlo[4],
-		enm->enm_addrlo[5]);
-#endif
-	    ++cnt;
-	    ++lo;
-	}
-	ETHER_NEXT_MULTI(step, enm);
-    }
-#endif
     outw(PIOR1(base), OFFSET_CU + 6);		/* mc-cnt */
     outw(PIOP1(base), cnt * WAVELAN_ADDR_SIZE);
     if (wlcmd(unit, "config()-mcaddress") == 0)
@@ -2625,41 +2544,3 @@ void wl_cache_store (int unit, int base, struct ether_header *eh,
 
 }
 #endif /* WLCACHE */
-
-/*
- * determine if in all multicast mode or not
- * 
- * returns: 1 if IFF_ALLMULTI should be set
- *	    else 0
- */
-#ifdef MULTICAST
-
-#if defined(__FreeBSD__) && __FreeBSD_version < 300000	/* not required */
-static int
-check_allmulti(int unit)
-{
-    register struct wl_softc *sc = WLSOFTC(unit);
-    short  base = sc->base;
-    struct ether_multi *enm;
-    struct ether_multistep step;
-
-    ETHER_FIRST_MULTI(step, &sc->wl_ac, enm);
-    while (enm != NULL) {
-	unsigned int lo, hi;
-#ifdef MDEBUG
-		printf("enm_addrlo %x:%x:%x:%x:%x:%x\n", enm->enm_addrlo[0], enm->enm_addrlo[1],
-		enm->enm_addrlo[2], enm->enm_addrlo[3], enm->enm_addrlo[4],
-		enm->enm_addrlo[5]);
-		printf("enm_addrhi %x:%x:%x:%x:%x:%x\n", enm->enm_addrhi[0], enm->enm_addrhi[1],
-		enm->enm_addrhi[2], enm->enm_addrhi[3], enm->enm_addrhi[4],
-		enm->enm_addrhi[5]);
-#endif
-	if (bcmp(enm->enm_addrlo, enm->enm_addrhi, 6) != 0) {
-		return(1);
-	}
-	ETHER_NEXT_MULTI(step, enm);
-    }
-    return(0);
-}
-#endif
-#endif
