@@ -1,5 +1,5 @@
 %{
-
+/* $FreeBSD$ */
 /*
  * Copyright (c) 1985
  *    The Regents of the University of California.  All rights reserved.
@@ -101,6 +101,7 @@ static char sccsid[] = "@(#)commands.l	5.13 (Berkeley) 7/24/90";
 
 extern char rootServerName[];
 extern void PrintHelp();
+extern void ViewList(char *);
 
 #define YY_INPUT(buf, result, max_size) \
 	{ \
@@ -157,7 +158,7 @@ nslookup_yy_input(buf, result, max_size, intr)
 
 %}
 WS	[ \t]
-FLET	[A-Za-z0-9.*\\]
+FLET	[A-Za-z0-9.*\\_]
 LET	[A-Za-z0-9.*]
 NAME	[A-Za-z0-9.*=_/-]
 %%
@@ -196,7 +197,7 @@ NAME	[A-Za-z0-9.*=_/-]
 					    return(1);
 					}
 ^{WS}*view{WS}+{NAME}+{WS}*$	{
-					    ViewList(yytext);
+					    ViewList((char *)yytext);
 					    return(1);
 					}
 ^{WS}*ls{WS}+(("-a"|"-d"|"-h"|"-m"|"-s"){WS}+)?{LET}{NAME}*{WS}+>>?{WS}+{NAME}+{WS}*$	{
