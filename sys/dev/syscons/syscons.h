@@ -155,6 +155,13 @@ typedef struct sc_vtb {
 	int		vtb_tail;	/* valid for VTB_RINGBUFFER only */
 } sc_vtb_t;
 
+/* text cursor attributes */
+struct cursor_attr {
+	int		flags;
+	int		base;
+	int		height;
+};
+
 /* softc */
 
 struct keyboard;
@@ -172,8 +179,10 @@ typedef struct sc_softc {
 	int		flags;			/* status flags */
 #define SC_VISUAL_BELL	(1 << 0)
 #define SC_QUIET_BELL	(1 << 1)
+#if 0 /* not used anymore */
 #define SC_BLINK_CURSOR	(1 << 2)
 #define SC_CHAR_CURSOR	(1 << 3)
+#endif
 #define SC_MOUSE_ENABLED (1 << 4)
 #define	SC_SCRN_IDLE	(1 << 5)
 #define	SC_SCRN_BLANKED	(1 << 6)
@@ -205,8 +214,8 @@ typedef struct sc_softc {
 
 	long		scrn_time_stamp;
 
-	char		cursor_base;
-	char		cursor_height;
+	struct cursor_attr dflt_curs_attr;
+	struct cursor_attr curs_attr;
 
 	u_char      	scr_map[256];
 	u_char      	scr_rmap[256];
@@ -267,8 +276,9 @@ typedef struct scr_stat {
 	int		cursor_oldpos;		/* cursor old buffer position */
 	u_short		cursor_saveunder_char;	/* saved char under cursor */
 	u_short		cursor_saveunder_attr;	/* saved attr under cursor */
-	char		cursor_base;		/* cursor base line # */
-	char		cursor_height;		/* cursor height */
+	struct cursor_attr dflt_curs_attr;
+	struct cursor_attr curr_curs_attr;
+	struct cursor_attr curs_attr;
 
 	int		mouse_pos;		/* mouse buffer position */
 	int		mouse_oldpos;		/* mouse old buffer position */
@@ -517,6 +527,8 @@ void		sc_puts(scr_stat *scp, u_char *buf, int len);
 void		sc_draw_cursor_image(scr_stat *scp);
 void		sc_remove_cursor_image(scr_stat *scp);
 void		sc_set_cursor_image(scr_stat *scp);
+void		sc_change_cursor_shape(scr_stat *scp, int flags,
+				       int base, int height);
 int		sc_clean_up(scr_stat *scp);
 int		sc_switch_scr(sc_softc_t *sc, u_int next_scr);
 void		sc_alloc_scr_buffer(scr_stat *scp, int wait, int discard);
