@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: camcontrol.c,v 1.9.2.1 1999/05/07 00:42:44 ken Exp $
+ *	$Id: camcontrol.c,v 1.9.2.2 1999/05/10 23:32:49 ken Exp $
  */
 
 #include <sys/ioctl.h>
@@ -1557,8 +1557,8 @@ scsicmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 			hook.argc = argc - optind;
 			hook.argv = argv + optind;
 			hook.got = 0;
-			buff_encode_visit(cdb, sizeof(cdb), tstr,
-					  iget, &hook);
+			cdb_len = buff_encode_visit(cdb, sizeof(cdb), tstr,
+						    iget, &hook);
 			/*
 			 * Increment optind by the number of arguments the
 			 * encoding routine processed.  After each call to
@@ -1693,7 +1693,7 @@ scsicmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 		case 3:
 		case 6:
 		case 7:
-			cdb_len = 1;
+		        /* computed by buff_encode_visit */
 			break;
 		case 4:
 			cdb_len = 16;
