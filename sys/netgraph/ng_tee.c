@@ -351,11 +351,11 @@ ngt_rcvdata(hook_p hook, item_p item)
 		}
 	}
 	/* Deliver frame out destination hook */
-	dest->stats.outOctets += m->m_pkthdr.len;
-	dest->stats.outFrames++;
-	if (dest->hook)
+	if (dest->hook) {
+		dest->stats.outOctets += m->m_pkthdr.len;
+		dest->stats.outFrames++;
 		NG_FWD_ITEM_HOOK(error, item, dest->hook);
-	else
+	} else
 		NG_FREE_ITEM(item);
 	return (error);
 }
