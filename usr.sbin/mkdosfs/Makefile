@@ -1,16 +1,23 @@
-# $Id$
-#
+# $Id: Makefile,v 1.3 1997/02/22 16:06:35 peter Exp $
+
 PROG=	mkdosfs
 
-CFLAGS+= -Wall
+CFLAGS+=	-Wall
 
 ###################################################################
 #
 # Everything below is solely intented for maintenance.
 # As you can see, it requires as86/ld86 from the ``bcc'' package.
+
+# Uncomment this for maintenance.
+# Warning: doing this may result in the distribution copy of bootcode.h
+# being rebuilt if an objects are built in the current directory.
 #
-# For this reason, the bootcode.h target puts the result into
-# ${.CURDIR}
+#MKDOSFS_MAINTENANCE=	yes
+
+.if defined(MKDOSFS_MAINTENANCE)
+CFLAGS+=	-I.
+CLEANFILES+=	bootcode.h
 
 AS86=		as86
 LD86=		ld86
@@ -18,6 +25,7 @@ AS86FLAGS=	-0
 LD86FLAGS=	-0 -s
 
 CLEANFILES+=	*.obj *.bin *.com
+
 .SUFFIXES: .asm .obj .bin .com
 
 .asm.obj:
@@ -34,10 +42,10 @@ CLEANFILES+=	*.obj *.bin *.com
 	dd bs=32 skip=1 of=${.TARGET} if=${.PREFIX}.tmp
 	rm -f ${.PREFIX}.tmp
 
-## Do NOT depend this on bootcode.bin unless you've installed the
-## bcc package!
-bootcode.h: ## bootcode.bin
-	@echo converting bootcode.bin into bootcode.h...
+all beforedepend: bootcode.h
+
+bootcode.h: bootcode.bin
+	@echo converting ${.TARGET} into ${.TARGET}...
 	@perl -e 'if(read(STDIN,$$buf,512)<512) {		\
 			die "Read error on .bin file\n";	\
 		}						\
@@ -53,7 +61,7 @@ bootcode.h: ## bootcode.bin
 		}						\
 		print "};\n\n";					\
 		print "#endif /* BOOTCODE_H */\n";' 		\
-	< bootcode.bin > ${.CURDIR}/bootcode.h
+	< ${.ALLSRC} > ${.TARGET}
+.endif
 
 .include <bsd.prog.mk>
-
