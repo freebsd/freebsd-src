@@ -707,6 +707,7 @@ breadn(struct vnode * vp, daddr_t blkno, int size,
 		if (bp->b_rcred == NOCRED && cred != NOCRED)
 			bp->b_rcred = crhold(cred);
 		vfs_busy_pages(bp, 0);
+		bp->b_iooffset = dbtob(bp->b_blkno);
 		if (vp->v_type == VCHR)
 			VOP_SPECSTRATEGY(vp, bp);
 		else
@@ -730,6 +731,7 @@ breadn(struct vnode * vp, daddr_t blkno, int size,
 				rabp->b_rcred = crhold(cred);
 			vfs_busy_pages(rabp, 0);
 			BUF_KERNPROC(rabp);
+			rabp->b_iooffset = dbtob(rabp->b_blkno);
 			if (vp->v_type == VCHR)
 				VOP_SPECSTRATEGY(vp, rabp);
 			else
@@ -871,6 +873,7 @@ bwrite(struct buf * bp)
 	splx(s);
 	if (oldflags & B_ASYNC)
 		BUF_KERNPROC(bp);
+	bp->b_iooffset = dbtob(bp->b_blkno);
 	if (bp->b_vp->v_type == VCHR)
 		VOP_SPECSTRATEGY(bp->b_vp, bp);
 	else
