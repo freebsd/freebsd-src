@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 5/31/93
-#	$Id: Makefile,v 1.6 1997/08/09 22:34:01 brian Exp $
+# $FreeBSD$
 
 PROG=	date
 SRCS=	date.c netdate.c vary.c

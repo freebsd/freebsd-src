@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)csh.h	8.1 (Berkeley) 5/31/93
- *	$Id: csh.h,v 1.6 1997/08/08 00:53:59 steve Exp $
+ * $FreeBSD$
  */
 
 /*

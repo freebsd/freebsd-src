@@ -40,7 +40,7 @@
 static char sccsid[] = "@(#)tar.c	8.2 (Berkeley) 4/18/94";
 #endif
 static const char rcsid[] =
-	"$Id: tar.c,v 1.11 1998/10/20 05:52:33 msmith Exp $";
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include <sys/types.h>

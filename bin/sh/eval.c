@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)eval.c	8.9 (Berkeley) 6/8/95";
 #endif
 static const char rcsid[] =
-	"$Id: eval.c,v 1.19 1999/05/08 10:21:46 kris Exp $";
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include <signal.h>
