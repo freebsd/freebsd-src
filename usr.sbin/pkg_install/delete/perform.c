@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: perform.c,v 1.16 1998/09/11 07:26:58 jkh Exp $";
+	"$Id: perform.c,v 1.17 1998/11/11 06:09:04 jkh Exp $";
 #endif
 
 /*
@@ -54,6 +54,11 @@ pkg_do(char *pkg)
     PackingList p;
     char *tmp;
     int len;
+    /* support for separate pre/post install scripts */
+    int new_m = 0;
+    char pre_script[FILENAME_MAX] = DEINSTALL_FNAME;
+    char post_script[FILENAME_MAX];
+    char pre_arg[FILENAME_MAX], post_arg[FILENAME_MAX];
 
     if (!pkg || !(len = strlen(pkg)))
 	return 1;
@@ -66,18 +71,22 @@ pkg_do(char *pkg)
 
     sprintf(LogDir, "%s/%s", (tmp = getenv(PKG_DBDIR)) ? tmp : DEF_LOG_DIR,
     	    pkg);
+
     if (!fexists(LogDir)) {
 	warnx("no such package '%s' installed", pkg);
 	return 1;
     }
+
     if (!getcwd(home, FILENAME_MAX)) {
 	cleanup(0);
 	errx(2, "unable to get current working directory!");
     }
+
     if (chdir(LogDir) == FAIL) {
 	warnx("unable to change directory to %s! deinstall failed", LogDir);
 	return 1;
     }
+
     if (!isemptyfile(REQUIRED_BY_FNAME)) {
 	char buf[512];
 	warnx("package `%s' is required by these other packages\n"
@@ -93,23 +102,29 @@ pkg_do(char *pkg)
 	if (!Force)
 	    return 1;
     }
+
     sanity_check(LogDir);
     cfile = fopen(CONTENTS_FNAME, "r");
+
     if (!cfile) {
 	warnx("unable to open '%s' file", CONTENTS_FNAME);
 	return 1;
     }
+
     /* If we have a prefix, add it now */
     if (Prefix)
 	add_plist(&Plist, PLIST_CWD, Prefix);
     read_plist(&Plist, cfile);
     fclose(cfile);
     p = find_plist(&Plist, PLIST_CWD);
+
     if (!p) {
 	warnx("package '%s' doesn't have a prefix", pkg);
 	return 1;
     }
+
     setenv(PKG_PREFIX_VNAME, p->name, 1);
+
     if (fexists(REQUIRE_FNAME)) {
 	if (Verbose)
 	    printf("Executing 'require' script.\n");
@@ -121,34 +136,81 @@ pkg_do(char *pkg)
 		return 1;
 	}
     }
-    if (!NoDeInstall && fexists(DEINSTALL_FNAME)) {
+
+    /* Test whether to use the old method of passing tokens to deinstallation
+     * scripts, and set appropriate variables..
+     */
+
+    if (fexists(POST_DEINSTALL_FNAME)) {
+	new_m = 1;
+	sprintf(post_script, "%s", POST_DEINSTALL_FNAME);
+	sprintf(pre_arg, "");
+	sprintf(post_arg, "");
+    } else {
+	if (fexists(DEINSTALL_FNAME)) {
+	    sprintf(post_script, "%s", DEINSTALL_FNAME);
+	    sprintf(pre_arg, "DEINSTALL");
+	    sprintf(post_arg, "POST-DEINSTALL");
+	}
+    }
+
+    if (!NoDeInstall && fexists(pre_script)) {
 	if (Fake)
 	    printf("Would execute de-install script at this point.\n");
 	else {
-	    vsystem("chmod +x %s", DEINSTALL_FNAME);	/* make sure */
-	    if (vsystem("./%s %s DEINSTALL", DEINSTALL_FNAME, pkg)) {
+	    vsystem("chmod +x %s", pre_script);	/* make sure */
+	    if (vsystem("./%s %s %s", pre_script, pkg, pre_arg)) {
 		warnx("deinstall script returned error status");
 		if (!Force)
 		    return 1;
 	    }
 	}
     }
+
     if (chdir(home) == FAIL) {
 	cleanup(0);
 	errx(2, "Toto! This doesn't look like Kansas anymore!");
     }
+
     if (!Fake) {
 	/* Some packages aren't packed right, so we need to just ignore delete_package()'s status.  Ugh! :-( */
 	if (delete_package(FALSE, CleanDirs, &Plist) == FAIL)
 	    warnx(
 	"couldn't entirely delete package (perhaps the packing list is\n"
 	"incorrectly specified?)");
+    }
+
+    if (chdir(LogDir) == FAIL) {
+ 	warnx("unable to change directory to %s! deinstall failed", LogDir);
+ 	return 1;
+    }
+
+    if (!NoDeInstall && fexists(post_script)) {
+ 	if (Fake)
+ 	    printf("Would execute post-deinstall script at this point.\n");
+ 	else {
+ 	    vsystem("chmod +x %s", post_script);	/* make sure */
+ 	    if (vsystem("./%s %s %s", post_script, pkg, post_arg)) {
+ 		warnx("post-deinstall script returned error status");
+ 		if (!Force)
+ 		    return 1;
+ 	    }
+ 	}
+    }
+
+    if (chdir(home) == FAIL) {
+ 	cleanup(0);
+ 	errx(2, "Toto! This doesn't look like Kansas anymore!");
+    }
+
+    if (!Fake) {
 	if (vsystem("%s -r %s", REMOVE_CMD, LogDir)) {
 	    warnx("couldn't remove log entry in %s, deinstall failed", LogDir);
 	    if (!Force)
 		return 1;
 	}
     }
+
     for (p = Plist.head; p ; p = p->next) {
 	if (p->type != PLIST_PKGDEP)
 	    continue;

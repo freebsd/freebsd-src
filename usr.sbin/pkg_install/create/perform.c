@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: perform.c,v 1.45 1998/09/11 07:26:57 jkh Exp $";
+	"$Id: perform.c,v 1.46 1998/12/05 06:28:58 asami Exp $";
 #endif
 
 /*
@@ -156,10 +156,20 @@ pkg_perform(char **pkgs)
 	add_plist(&plist, PLIST_IGNORE, NULL);
 	add_plist(&plist, PLIST_FILE, INSTALL_FNAME);
     }
+    if (PostInstall) {
+	copy_file(home, PostInstall, POST_INSTALL_FNAME);
+	add_plist(&plist, PLIST_IGNORE, NULL);
+	add_plist(&plist, PLIST_FILE, POST_INSTALL_FNAME);
+    }
     if (DeInstall) {
 	copy_file(home, DeInstall, DEINSTALL_FNAME);
 	add_plist(&plist, PLIST_IGNORE, NULL);
 	add_plist(&plist, PLIST_FILE, DEINSTALL_FNAME);
+    }
+    if (PostDeInstall) {
+	copy_file(home, PostDeInstall, POST_DEINSTALL_FNAME);
+	add_plist(&plist, PLIST_IGNORE, NULL);
+	add_plist(&plist, PLIST_FILE, POST_DEINSTALL_FNAME);
     }
     if (Require) {
 	copy_file(home, Require, REQUIRE_FNAME);
@@ -270,8 +280,12 @@ make_dist(char *home, char *pkg, char *suffix, Package *plist)
 
     if (Install)
 	fprintf(totar, "%s\n", INSTALL_FNAME);
+    if (PostInstall)
+	fprintf(totar, "%s\n", POST_INSTALL_FNAME);
     if (DeInstall)
 	fprintf(totar, "%s\n", DEINSTALL_FNAME);
+    if (PostDeInstall)
+	fprintf(totar, "%s\n", POST_DEINSTALL_FNAME);
     if (Require)
 	fprintf(totar, "%s\n", REQUIRE_FNAME);
     if (Display)

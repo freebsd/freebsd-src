@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: perform.c,v 1.24 1998/02/16 17:16:38 jkh Exp $";
+	"$Id: perform.c,v 1.25 1998/09/11 07:26:58 jkh Exp $";
 #endif
 
 /*
@@ -179,8 +179,12 @@ pkg_do(char *pkg)
 	    show_plist("Packing list:\n", &plist, (plist_t)-1);
 	if ((Flags & SHOW_INSTALL) && fexists(INSTALL_FNAME))
 	    show_file("Install script:\n", INSTALL_FNAME);
+	if ((Flags & SHOW_INSTALL) && fexists(POST_INSTALL_FNAME))
+	    show_file("Post-Install script:\n", POST_INSTALL_FNAME);
 	if ((Flags & SHOW_DEINSTALL) && fexists(DEINSTALL_FNAME))
 	    show_file("De-Install script:\n", DEINSTALL_FNAME);
+	if ((Flags & SHOW_DEINSTALL) && fexists(POST_DEINSTALL_FNAME))
+	    show_file("Post-DeInstall script:\n", POST_DEINSTALL_FNAME);
 	if ((Flags & SHOW_MTREE) && fexists(MTREE_FNAME))
 	    show_file("mtree file:\n", MTREE_FNAME);
 	if (Flags & SHOW_PREFIX)
