@@ -651,6 +651,7 @@ ng_ether_rcv_upper(node_p node, struct mbuf *m, meta_p meta)
 	m->m_data += sizeof(*eh);
 	m->m_len -= sizeof(*eh);
 	m->m_pkthdr.len -= sizeof(*eh);
+	m->m_pkthdr.rcvif = priv->ifp;
 
 	/* Route packet back in */
 	NG_FREE_META(meta);
