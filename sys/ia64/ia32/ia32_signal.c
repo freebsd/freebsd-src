@@ -51,6 +51,7 @@
 #include <sys/sysent.h>
 #include <sys/vnode.h>
 #include <sys/imgact_elf.h>
+#include <sys/sysproto.h>
 
 #include <machine/frame.h>
 #include <machine/md_var.h>
@@ -64,181 +65,41 @@
 #include <vm/vm_object.h>
 #include <vm/vm_extern.h>
 
-#include <ia64/ia32/ia32_util.h>
+#include <compat/freebsd32/freebsd32_util.h>
+#include <compat/freebsd32/freebsd32_proto.h>
+#include <compat/ia32/ia32_signal.h>
 #include <i386/include/psl.h>
 #include <i386/include/segments.h>
 #include <i386/include/specialreg.h>
 
-static register_t *ia32_copyout_strings(struct image_params *imgp);
-static void ia32_setregs(struct thread *td, u_long entry, u_long stack,
-    u_long ps_strings);
-
-extern struct sysent ia32_sysent[];
-
-static char ia32_sigcode[] = {
-	0xff, 0x54, 0x24, 0x10,		/* call *SIGF_HANDLER(%esp) */
-	0x8d, 0x44, 0x24, 0x14,		/* lea SIGF_UC(%esp),%eax */
-	0x50,				/* pushl %eax */
-	0xf7, 0x40, 0x54, 0x00, 0x00, 0x02, 0x02, /* testl $PSL_VM,UC_EFLAGS(%eax) */
-	0x75, 0x03,			/* jne 9f */
-	0x8e, 0x68, 0x14,		/* movl UC_GS(%eax),%gs */
-	0xb8, 0x57, 0x01, 0x00, 0x00,	/* 9: movl $SYS_sigreturn,%eax */
-	0x50,				/* pushl %eax */
-	0xcd, 0x80,			/* int $0x80 */
-	0xeb, 0xfe,			/* 0: jmp 0b */
-	0
-};
-static int ia32_szsigcode = sizeof(ia32_sigcode);
-
-struct sysentvec ia32_freebsd_sysvec = {
-	SYS_MAXSYSCALL,
-	ia32_sysent,
-	0,
-	0,
-	NULL,
-	0,
-	NULL,
-	NULL,
-	elf32_freebsd_fixup,
-	sendsig,
-	ia32_sigcode,
-	&ia32_szsigcode,
-	NULL,
-	"FreeBSD ELF",
-	elf32_coredump,
-	NULL,
-	IA32_MINSIGSTKSZ,
-	IA32_PAGE_SIZE,
-	0,
-	IA32_USRSTACK,
-	IA32_USRSTACK,
-	IA32_PS_STRINGS,
-	VM_PROT_ALL,
-	ia32_copyout_strings,
-	ia32_setregs,
-	NULL
-};
-
-static Elf32_Brandinfo ia32_brand_info = {
-						ELFOSABI_FREEBSD,
-						EM_386,
-						"FreeBSD",
-						"/compat/ia32",
-						"/lib/ld-elf.so.1",
-						&ia32_freebsd_sysvec
-					  };
-
-SYSINIT(ia32, SI_SUB_EXEC, SI_ORDER_ANY,
-	(sysinit_cfunc_t) elf32_insert_brand_entry,
-	&ia32_brand_info);
-
-static register_t *
-ia32_copyout_strings(struct image_params *imgp)
+/*
+ * Signal sending has not been implemented on ia64.  This causes
+ * the sigtramp code to not understand the arguments and the application
+ * will generally crash if it tries to handle a signal.  Calling
+ * sendsig() means that at least untrapped signals will work.
+ */
+void
+ia32_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 {
-	int argc, envc;
-	u_int32_t *vectp;
-	char *stringp, *destp;
-	u_int32_t *stack_base;
-	struct ia32_ps_strings *arginfo;
-	int szsigcode;
-
-	/*
-	 * Calculate string base and vector table pointers.
-	 * Also deal with signal trampoline code for this exec type.
-	 */
-	arginfo = (struct ia32_ps_strings *)IA32_PS_STRINGS;
-	szsigcode = *(imgp->proc->p_sysent->sv_szsigcode);
-	destp =	(caddr_t)arginfo - szsigcode - IA32_USRSPACE -
-	    roundup((ARG_MAX - imgp->stringspace), sizeof(char *));
-
-	/*
-	 * install sigcode
-	 */
-	if (szsigcode)
-		copyout(imgp->proc->p_sysent->sv_sigcode,
-			((caddr_t)arginfo - szsigcode), szsigcode);
-
-	/*
-	 * If we have a valid auxargs ptr, prepare some room
-	 * on the stack.
-	 */
-	if (imgp->auxargs) {
-		/*
-		 * 'AT_COUNT*2' is size for the ELF Auxargs data. This is for
-		 * lower compatibility.
-		 */
-		imgp->auxarg_size = (imgp->auxarg_size) ? imgp->auxarg_size
-			: (AT_COUNT * 2);
-		/*
-		 * The '+ 2' is for the null pointers at the end of each of
-		 * the arg and env vector sets,and imgp->auxarg_size is room
-		 * for argument of Runtime loader.
-		 */
-		vectp = (u_int32_t *) (destp - (imgp->argc + imgp->envc + 2 +
-				       imgp->auxarg_size) * sizeof(u_int32_t));
-
-	} else
-		/*
-		 * The '+ 2' is for the null pointers at the end of each of
-		 * the arg and env vector sets
-		 */
-		vectp = (u_int32_t *)
-			(destp - (imgp->argc + imgp->envc + 2) * sizeof(u_int32_t));
-
-	/*
-	 * vectp also becomes our initial stack base
-	 */
-	vectp = (void*)((uintptr_t)vectp & ~15);
-	stack_base = vectp;
-
-	stringp = imgp->stringbase;
-	argc = imgp->argc;
-	envc = imgp->envc;
-
-	/*
-	 * Copy out strings - arguments and environment.
-	 */
-	copyout(stringp, destp, ARG_MAX - imgp->stringspace);
-
-	/*
-	 * Fill in "ps_strings" struct for ps, w, etc.
-	 */
-	suword32(&arginfo->ps_argvstr, (u_int32_t)(intptr_t)vectp);
-	suword32(&arginfo->ps_nargvstr, argc);
-
-	/*
-	 * Fill in argument portion of vector table.
-	 */
-	for (; argc > 0; --argc) {
-		suword32(vectp++, (u_int32_t)(intptr_t)destp);
-		while (*stringp++ != 0)
-			destp++;
-		destp++;
-	}
-
-	/* a null vector table pointer separates the argp's from the envp's */
-	suword32(vectp++, 0);
-
-	suword32(&arginfo->ps_envstr, (u_int32_t)(intptr_t)vectp);
-	suword32(&arginfo->ps_nenvstr, envc);
-
-	/*
-	 * Fill in environment portion of vector table.
-	 */
-	for (; envc > 0; --envc) {
-		suword32(vectp++, (u_int32_t)(intptr_t)destp);
-		while (*stringp++ != 0)
-			destp++;
-		destp++;
-	}
-
-	/* end of vector table is a null pointer */
-	suword32(vectp, 0);
-
-	return ((register_t *)stack_base);
+	sendsig(catcher, sig, mask, code);
 }
 
-static void
+#ifdef COMPAT_FREEBSD4
+int
+freebsd4_freebsd32_sigreturn(struct thread *td, struct freebsd4_freebsd32_sigreturn_args *uap)
+{
+	return (sigreturn(td, (struct sigreturn_args *)uap));
+}
+#endif
+
+int
+freebsd32_sigreturn(struct thread *td, struct freebsd32_sigreturn_args *uap)
+{
+	return (sigreturn(td, (struct sigreturn_args *)uap));
+}
+
+
+void
 ia32_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 {
 	struct trapframe *tf = td->td_frame;
@@ -261,8 +122,8 @@ ia32_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 	tf->tf_special.sp = stack;
 
 	/* Point the RSE backstore to something harmless. */
-	tf->tf_special.bspstore = (IA32_PS_STRINGS - ia32_szsigcode -
-	    IA32_USRSPACE + 15) & ~15;
+	tf->tf_special.bspstore = (FREEBSD32_PS_STRINGS - sz_ia32_sigcode -
+	    SPARE_USRSPACE + 15) & ~15;
 
 	codesel = LSEL(LUCODE_SEL, SEL_UPL);
 	datasel = LSEL(LUDATA_SEL, SEL_UPL);
@@ -276,7 +137,7 @@ ia32_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 	/*
 	 * Build the GDT and LDT.
 	 */
-	gdt = IA32_USRSTACK;
+	gdt = FREEBSD32_USRSTACK;
 	vm_map_find(&vmspace->vm_map, 0, 0, &gdt, IA32_PAGE_SIZE << 1, 0,
 	    VM_PROT_ALL, VM_PROT_ALL, 0);
 	ldt = gdt + IA32_PAGE_SIZE;
@@ -292,12 +153,12 @@ ia32_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 	desc.sd_hibase = ldt >> 24;
 	copyout(&desc, (caddr_t) gdt + 8*GLDT_SEL, sizeof(desc));
 
-	desc.sd_lolimit = ((IA32_USRSTACK >> 12) - 1) & 0xffff;
+	desc.sd_lolimit = ((FREEBSD32_USRSTACK >> 12) - 1) & 0xffff;
 	desc.sd_lobase = 0;
 	desc.sd_type = SDT_MEMERA;
 	desc.sd_dpl = SEL_UPL;
 	desc.sd_p = 1;
-	desc.sd_hilimit = ((IA32_USRSTACK >> 12) - 1) >> 16;
+	desc.sd_hilimit = ((FREEBSD32_USRSTACK >> 12) - 1) >> 16;
 	desc.sd_def32 = 1;
 	desc.sd_gran = 1;
 	desc.sd_hibase = 0;
@@ -306,14 +167,14 @@ ia32_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 	copyout(&desc, (caddr_t) ldt + 8*LUDATA_SEL, sizeof(desc));
 
 	codeseg = 0		/* base */
-		+ (((IA32_USRSTACK >> 12) - 1) << 32) /* limit */
+		+ (((FREEBSD32_USRSTACK >> 12) - 1) << 32) /* limit */
 		+ ((long)SDT_MEMERA << 52)
 		+ ((long)SEL_UPL << 57)
 		+ (1L << 59) /* present */
 		+ (1L << 62) /* 32 bits */
 		+ (1L << 63); /* page granularity */
 	dataseg = 0		/* base */
-		+ (((IA32_USRSTACK >> 12) - 1) << 32) /* limit */
+		+ (((FREEBSD32_USRSTACK >> 12) - 1) << 32) /* limit */
 		+ ((long)SDT_MEMRWA << 52)
 		+ ((long)SEL_UPL << 57)
 		+ (1L << 59) /* present */
@@ -350,7 +211,7 @@ ia32_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 	ia64_set_eflag(PSL_USER);
 
 	/* PS_STRINGS value for BSD/OS binaries.  It is 0 for non-BSD/OS. */
-	tf->tf_scratch.gr11 = IA32_PS_STRINGS;
+	tf->tf_scratch.gr11 = FREEBSD32_PS_STRINGS;
 
 	/*
 	 * XXX - Linux emulator
