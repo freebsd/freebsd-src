@@ -85,7 +85,7 @@ main(argc, argv)
 			noclean = 1;
 			break;
 		case 'o':
-			getmntopts(optarg, mopts, &mntflags);
+			getmntopts(optarg, mopts, &mntflags, 0);
 			break;
 		case 's':
 			short_rds = 1;
