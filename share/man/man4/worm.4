@@ -32,7 +32,7 @@
 .\" USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 .\" DAMAGE.
 .\"
-.\" $Id: worm.4,v 1.7 1996/12/26 16:15:39 wosch Exp $
+.\" $Id: worm.4,v 1.6.2.1 1996/12/31 22:55:26 mpp Exp $
 .\" "
 .Dd January 27, 1996
 .Dt WORM 4
@@ -41,14 +41,14 @@
 .Nm worm
 .Nd write-once (CD-R) disk driver
 .Sh SYNOPSIS
-.Cd disk worm0
-.Cd disk worm0 target 5 lun 0
+.Cd disk worm0 at scbus?
+.Cd disk worm0 at scbus 1 target 5 lun 0
 .Sh DESCRIPTION
 The
 .Nm worm
-driver provides support for a 
+driver provides support for 
 .Em SCSI
-write-once device, in particular for a CD-R recording device.  The
+CD-R recording devices.  The
 driver attempts to abstract the dirty hardware work to a common API as
 good as possible.  Due to the very special nature of CD-R devices and
 their handling requirements, this API applies some more constraints to
