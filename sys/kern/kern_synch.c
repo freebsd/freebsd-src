@@ -374,7 +374,7 @@ msleep(ident, mtx, priority, wmesg, timo)
 	const char *wmesg;
 {
 	struct proc *p = curproc;
-	int s, sig, catch = priority & PCATCH;
+	int sig, catch = priority & PCATCH;
 	int rval = 0;
 	WITNESS_SAVE_DECL(mtx);
 
@@ -384,7 +384,6 @@ msleep(ident, mtx, priority, wmesg, timo)
 #endif
 	WITNESS_SLEEP(0, mtx);
 	mtx_lock_spin(&sched_lock);
-	s = splhigh();
 	if (cold || panicstr) {
 		/*
 		 * After a panic, or during autoconfiguration,
@@ -395,7 +394,6 @@ msleep(ident, mtx, priority, wmesg, timo)
 		if (mtx != NULL && priority & PDROP)
 			mtx_unlock_flags(mtx, MTX_NOSWITCH);
 		mtx_unlock_spin(&sched_lock);
-		splx(s);
 		return (0);
 	}
 
@@ -463,7 +461,6 @@ msleep(ident, mtx, priority, wmesg, timo)
 	        "msleep resume: proc %p (pid %d, %s), schedlock %p",
 		p, p->p_pid, p->p_comm, (void *) sched_lock.mtx_lock);
 resume:
-	splx(s);
 	p->p_sflag &= ~PS_SINTR;
 	if (p->p_sflag & PS_TIMEOUT) {
 		p->p_sflag &= ~PS_TIMEOUT;
@@ -485,10 +482,12 @@ resume:
 		if (KTRPOINT(p, KTR_CSW))
 			ktrcsw(p->p_tracep, 0, 0);
 #endif
+		PROC_LOCK(p);
 		if (SIGISMEMBER(p->p_sigacts->ps_sigintr, sig))
 			rval = EINTR;
 		else
 			rval = ERESTART;
+		PROC_UNLOCK(p);
 		goto out;
 	}
 out:
@@ -653,10 +652,12 @@ resume:
 			if (KTRPOINT(p, KTR_CSW))
 				ktrcsw(p->p_tracep, 0, 0);
 #endif
+			PROC_LOCK(p);
 			if (SIGISMEMBER(p->p_sigacts->ps_sigintr, sig))
 				rval = EINTR;
 			else
 				rval = ERESTART;
+			PROC_UNLOCK(p);
 			goto out;
 		}
 #ifdef KTRACE
@@ -848,27 +849,7 @@ mi_switch()
 #if 0
 	register struct rlimit *rlim;
 #endif
-	int x;
 	u_int sched_nest;
-
-	/*
-	 * XXX this spl is almost unnecessary.  It is partly to allow for
-	 * sloppy callers that don't do it (issignal() via CURSIG() is the
-	 * main offender).  It is partly to work around a bug in the i386
-	 * cpu_switch() (the ipl is not preserved).  We ran for years
-	 * without it.  I think there was only a interrupt latency problem.
-	 * The main caller, msleep(), does an splx() a couple of instructions
-	 * after calling here.  The buggy caller, issignal(), usually calls
-	 * here at spl0() and sometimes returns at splhigh().  The process
-	 * then runs for a little too long at splhigh().  The ipl gets fixed
-	 * when the process returns to user mode (or earlier).
-	 *
-	 * It would probably be better to always call here at spl0(). Callers
-	 * are prepared to give up control to another process, so they must
-	 * be prepared to be interrupted.  The clock stuff here may not
-	 * actually need splstatclock().
-	 */
-	x = splstatclock();
 
 	mtx_assert(&sched_lock, MA_OWNED | MA_NOTRECURSED);
 
@@ -907,8 +888,10 @@ mi_switch()
 			mtx_lock_spin(&sched_lock);
 		} else {
 			mtx_unlock_spin(&sched_lock);
+			PROC_LOCK(p);
 			psignal(p, SIGXCPU);
 			mtx_lock_spin(&sched_lock);
+			PROC_UNLOCK_NOSWITCH(p);
 			if (rlim->rlim_cur < rlim->rlim_max) {
 				/* XXX: we should make a private copy */
 				rlim->rlim_cur += 5;
@@ -937,7 +920,6 @@ mi_switch()
 	if (PCPU_GET(switchtime.tv_sec) == 0)
 		microuptime(PCPU_PTR(switchtime));
 	PCPU_SET(switchticks, ticks);
-	splx(x);
 }
 
 /*
