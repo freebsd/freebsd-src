@@ -593,21 +593,32 @@ header_common(struct archive *a, struct tar *tar, struct archive_entry *entry,
 		 */
 		if (st->st_size > 0)
 			st->st_mode |= S_IFREG;
+
 		/*
-		 * A tricky point: Traditionally, tar programs have
+		 * A tricky point: Traditionally, tar readers have
 		 * ignored the size field when reading hardlink
-		 * entries.  As a result, some programs write non-zero
-		 * sizes, even though the body is empty and expect the
-		 * reader to ignore that.  POSIX.1-2001 broke this by
-		 * permitting hardlink entries to store valid bodies
-		 * in pax interchange format.  Since there is no hard
-		 * and fast way to distinguish pax interchange from
+		 * entries, and some writers put non-zero sizes even
+		 * though the body is empty.  POSIX.1-2001 broke with
+		 * this tradition by permitting hardlink entries to
+		 * store valid bodies in pax interchange format, but
+		 * not in ustar format.  Since there is no hard and
+		 * fast way to distinguish pax interchange from
 		 * earlier archives (the 'x' and 'g' entries are
 		 * optional, after all), we need a heuristic.  Here, I
 		 * use the bid function to test whether or not there's
-		 * a valid header following.
+		 * a valid header following.  Of course, if we know
+		 * this is pax interchange format, then we must obey
+		 * the size.
+		 *
+		 * This heuristic will only fail for a pax interchange
+		 * archive that is storing hardlink bodies, no pax
+		 * extended attribute entries have yet occurred, and
+		 * we encounter a hardlink entry for a file that is
+		 * itself an uncompressed tar archive.
 		 */
-		if (st->st_size > 0  &&  archive_read_format_tar_bid(a) > 50)
+		if (st->st_size > 0  &&
+		    a->archive_format != ARCHIVE_FORMAT_TAR_PAX_INTERCHANGE  &&
+		    archive_read_format_tar_bid(a) > 50)
 			st->st_size = 0;
 		break;
 	case '2': /* Symlink */
