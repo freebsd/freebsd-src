@@ -55,8 +55,6 @@
 #include <sys/malloc.h>
 #include <miscfs/umapfs/umap.h>
 
-extern int	umapfs_init __P((struct vfsconf *));
-
 static int	umapfs_fhtovp __P((struct mount *mp, struct fid *fidp,
 				   struct mbuf *nam, struct vnode **vpp,
 				   int *exflagsp, struct ucred **credanonp));
