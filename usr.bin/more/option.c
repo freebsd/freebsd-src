@@ -33,7 +33,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)option.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -51,6 +55,8 @@ int tagoption;
 
 char *firstsearch;
 extern int sc_height;
+
+static void usage __P((void));
 
 option(argc, argv)
 	int argc;
@@ -120,9 +126,15 @@ option(argc, argv)
 			break;
 		case '?':
 		default:
-			fprintf(stderr,
-			    "usage: more [-ceinus] [-t tag] [-x tabs] [-/ pattern] [-#] [file ...]\n");
-			exit(1);
+			usage();
 		}
 	return(optind);
+}
+
+static void
+usage()
+{
+	fprintf(stderr,
+	"usage: more [-ceinus] [-t tag] [-x tabs] [-/ pattern] [-#] [file ...]\n");
+	exit(1);
 }
