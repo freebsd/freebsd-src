@@ -44,6 +44,7 @@ static void chn_dmaupdate(pcm_channel *c);
 static void chn_wrintr(pcm_channel *c);
 static void chn_rdintr(pcm_channel *c);
 static u_int32_t chn_start(pcm_channel *c);
+static int chn_buildfeeder(pcm_channel *c);
 /*
  * SOUND OUTPUT
 
@@ -187,7 +188,7 @@ chn_dmaupdate(pcm_channel *c)
 
 	hwptr = chn_getptr(c);
 	delta = (b->bufsize + hwptr - b->hp) % b->bufsize;
-	if (delta >= ((b->bufsize * 3) / 4)) {
+	if (delta >= ((b->bufsize * 15) / 16)) {
 		if (!(c->flags & (CHN_F_CLOSING | CHN_F_ABORTING)))
 			device_printf(c->parent->dev, "hwptr went backwards %d -> %d\n", b->hp, hwptr);
 	}
@@ -307,14 +308,16 @@ static int
 chn_wrfeed2nd(pcm_channel *c, struct uio *buf)
 {
     	snd_dbuf *bs = &c->buffer2nd;
-	int l, w, wacc;
+	int l, w, wacc, hl;
+	u_int8_t hackbuf[64];
 
 	/* The DMA buffer may have some space. */
 	while (chn_wrfeed(c) > 0);
 
 	/* ensure we always have a whole number of samples */
 	wacc = 0;
-	while (buf->uio_resid > 0 && bs->fl > 0) {
+	hl = 0;
+	while (buf->uio_resid > 0 && bs->fl > 64) {
 		/*
 		 * The size of the data to move here does not have to be
 		 * aligned. We take care of it upon moving the data to a
@@ -322,7 +325,14 @@ chn_wrfeed2nd(pcm_channel *c, struct uio *buf)
 		 */
 		l = min(bs->fl, bs->bufsize - bs->fp);
 		/* Move the samples, update the markers and pointers. */
-		w = c->feeder->feed(c->feeder, c, bs->buf + bs->fp, l, buf);
+		if (l < 64) {
+			w = c->feeder->feed(c->feeder, c, hackbuf, 64, buf);
+			l = min(w, bs->bufsize - bs->fp);
+			bcopy(hackbuf, bs->buf + bs->fp, l);
+			if (w > l)
+				bcopy(hackbuf + l, bs->buf, w - l);
+		} else
+			w = c->feeder->feed(c->feeder, c, bs->buf + bs->fp, l, buf);
 		if (w == 0)
 			panic("no feed");
 		bs->rl += w;
@@ -850,11 +860,18 @@ chn_dma_setmap(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 int
 chn_allocbuf(snd_dbuf *b, bus_dma_tag_t parent_dmat)
 {
-	if (bus_dmamem_alloc(parent_dmat, (void **)&b->buf,
+	b->parent_dmat = parent_dmat;
+	if (bus_dmamem_alloc(b->parent_dmat, (void **)&b->buf,
 			     BUS_DMA_NOWAIT, &b->dmamap)) return -1;
-	if (bus_dmamap_load(parent_dmat, b->dmamap, b->buf,
+	if (bus_dmamap_load(b->parent_dmat, b->dmamap, b->buf,
 			    b->bufsize, chn_dma_setmap, b, 0)) return -1;
 	return 0;
+}
+
+void
+chn_freebuf(snd_dbuf *b)
+{
+	bus_dmamem_free(b->parent_dmat, b->buf, b->dmamap);
 }
 
 static void
@@ -1087,6 +1104,18 @@ chn_flush(pcm_channel *c)
 }
 
 int
+fmtvalid(u_int32_t fmt, u_int32_t *fmtlist)
+{
+	int i;
+
+	for (i = 0; fmtlist[i]; i++)
+		if (fmt == fmtlist[i])
+			return 1;
+
+	return 0;
+}
+
+int
 chn_reset(pcm_channel *c, u_int32_t fmt)
 {
 	int r = 0;
@@ -1097,6 +1126,7 @@ chn_reset(pcm_channel *c, u_int32_t fmt)
 	if (r)
 		return r;
 	if (fmt) {
+		c->speed = DSP_DEFAULT_SPEED;
 		r = chn_setformat(c, fmt);
 		if (r == 0)
 			r = chn_setspeed(c, DSP_DEFAULT_SPEED);
@@ -1127,8 +1157,19 @@ chn_init(pcm_channel *c, void *devinfo, int dir)
 	snd_dbuf       *bs = &c->buffer2nd;
 
 	/* Initialize the hardware and DMA buffer first. */
+	c->feeder = malloc(sizeof(*(c->feeder)), M_DEVBUF, M_NOWAIT);
+	*(c->feeder) = *feeder_getroot();
+	c->feederdesc = malloc(sizeof(*(c->feeder)), M_DEVBUF, M_NOWAIT);
+	c->feederdesc->type = FEEDER_ROOT;
+	c->feederdesc->in = 0;
+	c->feederdesc->out = 0;
+	c->feederdesc->flags = 0;
+	c->feederdesc->idx = 0;
+	c->feeder->desc = c->feederdesc;
+	c->feeder->source = NULL;
+
 	c->flags = 0;
-	c->feeder = &feeder_root;
+	c->feederflags = 0;
 	c->buffer.chan = -1;
 	c->devinfo = c->init(devinfo, &c->buffer, c, dir);
 	if (c->devinfo == NULL || c->buffer.bufsize == 0)
@@ -1142,12 +1183,28 @@ chn_init(pcm_channel *c, void *devinfo, int dir)
 }
 
 int
+chn_kill(pcm_channel *c)
+{
+	if (c->flags & CHN_F_TRIGGERED)
+		chn_trigger(c, PCMTRIG_ABORT);
+	while (chn_removefeeder(c) == 0);
+	free(c->feeder->desc, M_DEVBUF);
+	free(c->feeder, M_DEVBUF);
+	if (c->free)
+		c->free(c->devinfo);
+	else
+		chn_freebuf(&c->buffer);
+	c->flags |= CHN_F_DEAD;
+	return 0;
+}
+
+int
 chn_setdir(pcm_channel *c, int dir)
 {
 	int r;
 
 	c->direction = dir;
-	r = c->setdir(c->devinfo, c->direction);
+	r = c->setdir? c->setdir(c->devinfo, c->direction) : 0;
 	if (!r && ISA_DMA(&c->buffer))
 		c->buffer.dir = (dir == PCMDIR_PLAY)? ISADMA_WRITE : ISADMA_READ;
 	return r;
@@ -1169,11 +1226,45 @@ chn_setvolume(pcm_channel *c, int left, int right)
 int
 chn_setspeed(pcm_channel *c, int speed)
 {
+	pcm_feeder *f;
+	int r, hwspd, delta;
+
+	DEB(printf("want speed %d, ", speed));
 	if (speed <= 0)
 		return EINVAL;
-	/* could add a feeder for rate conversion */
 	if (CANCHANGE(c)) {
-		c->speed = c->setspeed(c->devinfo, speed);
+		c->speed = speed;
+		hwspd = speed;
+		RANGE(hwspd, chn_getcaps(c)->minspeed, chn_getcaps(c)->maxspeed);
+		DEB(printf("try speed %d, ", hwspd));
+		hwspd = c->setspeed(c->devinfo, hwspd);
+		DEB(printf("got speed %d, ", hwspd));
+		delta = hwspd - speed;
+		if (delta < 0)
+			delta = -delta;
+		c->feederflags &= ~(1 << FEEDER_RATE);
+		if (delta > 500)
+			c->feederflags |= 1 << FEEDER_RATE;
+		else
+			speed = hwspd;
+		r = chn_buildfeeder(c);
+		DEB(printf("r = %d\n", r));
+		if (r)
+			return r;
+		if (!(c->feederflags & (1 << FEEDER_RATE)))
+			return 0;
+		f = chn_findfeeder(c, FEEDER_RATE);
+		DEB(printf("feedrate = %p\n", f));
+		if (f == NULL)
+			return EINVAL;
+		r = feeder_set(f, FEEDRATE_SRC, speed);
+		DEB(printf("feeder_set(FEEDRATE_SRC, %d) = %d\n", speed, r));
+		if (r)
+			return r;
+		r = feeder_set(f, FEEDRATE_DST, hwspd);
+		DEB(printf("feeder_set(FEEDRATE_DST, %d) = %d\n", hwspd, r));
+		if (r)
+			return r;
 		return 0;
 	}
 	c->speed = speed;
@@ -1186,18 +1277,26 @@ chn_setformat(pcm_channel *c, u_int32_t fmt)
 {
 	snd_dbuf *b = &c->buffer;
 	snd_dbuf *bs = &c->buffer2nd;
+	int r;
 
 	u_int32_t hwfmt;
 	if (CANCHANGE(c)) {
+		DEB(printf("want format %d\n", fmt));
 		c->format = fmt;
-		hwfmt = chn_feedchain(c);
-		if ((c->flags & CHN_F_MAPPED) && c->format != hwfmt)
-			return EINVAL;
+		c->feederdesc->out = c->format;
+		hwfmt = c->format;
+		c->feederflags &= ~(1 << FEEDER_FMT);
+		if (!fmtvalid(hwfmt, chn_getcaps(c)->fmtlist))
+			c->feederflags |= 1 << FEEDER_FMT;
+		r = chn_buildfeeder(c);
+		if (r)
+			return r;
+		hwfmt = c->feeder->desc->out;
 		b->fmt = hwfmt;
 		bs->fmt = hwfmt;
 		chn_resetbuf(c);
 		c->setformat(c->devinfo, hwfmt);
-		return 0;
+		return chn_setspeed(c, c->speed);
 	}
 	c->format = fmt;
 	c->flags |= CHN_F_INIT;
@@ -1286,4 +1385,69 @@ pcmchan_caps *
 chn_getcaps(pcm_channel *c)
 {
 	return c->getcaps(c->devinfo);
+}
+
+u_int32_t
+chn_getformats(pcm_channel *c)
+{
+	u_int32_t *fmtlist, fmts;
+	int i;
+
+	fmtlist = chn_getcaps(c)->fmtlist;
+	fmts = 0;
+	for (i = 0; fmtlist[i]; i++)
+		fmts |= fmtlist[i];
+
+	return fmts;
+}
+
+static int
+chn_buildfeeder(pcm_channel *c)
+{
+	pcm_feeder *f;
+	struct pcm_feederdesc desc;
+	u_int32_t tmp[2], src, dst, type, flags;
+
+	while (chn_removefeeder(c) == 0);
+	c->align = 0;
+	flags = c->feederflags;
+	src = c->feeder->desc->out;
+	if ((c->flags & CHN_F_MAPPED) && (flags != 0))
+		return EINVAL;
+	DEB(printf("not mapped, flags %x, ", flags));
+	for (type = FEEDER_RATE; type <= FEEDER_LAST; type++) {
+		if (flags & (1 << type)) {
+			desc.type = type;
+			desc.in = 0;
+			desc.out = 0;
+			desc.flags = 0;
+			DEB(printf("find feeder type %d, ", type));
+			f = feeder_get(&desc);
+			DEB(printf("got %p\n", f));
+			if (f == NULL)
+				return EINVAL;
+			dst = f->desc->in;
+			if (src != dst) {
+ 				DEB(printf("build fmtchain from %x to %x: ", src, dst));
+				tmp[0] = dst;
+				tmp[1] = 0;
+				if (chn_fmtchain(c, tmp) == 0)
+					return EINVAL;
+ 				DEB(printf("ok\n"));
+			}
+			if (chn_addfeeder(c, f))
+				return EINVAL;
+			src = f->desc->out;
+			DEB(printf("added feeder %p, output %x\n", f, src));
+			dst = 0;
+			flags &= ~(1 << type);
+		}
+	}
+	if (!fmtvalid(src, chn_getcaps(c)->fmtlist)) {
+		if (chn_fmtchain(c, chn_getcaps(c)->fmtlist) == 0)
+			return EINVAL;
+		DEB(printf("built fmtchain from %x to %x\n", src, c->feeder->desc->out));
+		flags &= ~(1 << FEEDER_FMT);
+	}
+	return 0;
 }
