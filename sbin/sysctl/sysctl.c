@@ -58,7 +58,7 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-static int	aflag, bflag, eflag, Nflag, nflag, oflag, xflag;
+static int	aflag, bflag, dflag, eflag, Nflag, nflag, oflag, xflag;
 
 static int	oidfmt(int *, int, char *, u_int *);
 static void	parse(char *);
@@ -71,8 +71,8 @@ usage(void)
 {
 
 	(void)fprintf(stderr, "%s\n%s\n",
-	    "usage: sysctl [-beNnox] variable[=value] ...",
-	    "       sysctl [-beNnox] -a");
+	    "usage: sysctl [-bdeNnox] variable[=value] ...",
+	    "       sysctl [-bdeNnox] -a");
 	exit(1);
 }
 
@@ -83,7 +83,7 @@ main(int argc, char **argv)
 	setbuf(stdout,0);
 	setbuf(stderr,0);
 
-	while ((ch = getopt(argc, argv, "AabeNnowxX")) != -1) {
+	while ((ch = getopt(argc, argv, "AabdeNnowxX")) != -1) {
 		switch (ch) {
 		case 'A':
 			/* compatibility */
@@ -94,6 +94,9 @@ main(int argc, char **argv)
 			break;
 		case 'b':
 			bflag = 1;
+			break;
+		case 'd':
+			dflag = 1;
 			break;
 		case 'e':
 			eflag = 1;
@@ -409,6 +412,15 @@ show_var(int *oid, int nlen)
 	else
 		sep = ": ";
 
+	if (dflag) {	/* just print description */
+		qoid[1] = 5;
+		j = sizeof(buf);
+		i = sysctl(qoid, nlen + 2, buf, &j, 0, 0);
+		if (!nflag)
+			printf("%s%s", name, sep);
+		printf("%s", buf);
+		return (0);
+	}
 	/* find an estimate of how much we need for this var */
 	j = 0;
 	i = sysctl(oid, nlen, 0, &j, 0, 0);
