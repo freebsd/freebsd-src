@@ -40,7 +40,42 @@
 #include <term.h>		/* cur_term, pad_char */
 #include <termcap.h>		/* ospeed */
 
-MODULE_ID("$Id: lib_baudrate.c,v 1.19 2000/12/10 02:55:07 tom Exp $")
+/*
+ * These systems use similar header files, which define B1200 as 1200, etc.,
+ * but can be overridden by defining USE_OLD_TTY so B1200 is 9, which makes all
+ * of the indices up to B115200 fit nicely in a 'short', allowing us to retain
+ * ospeed's type for compatibility.
+ */
+#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
+#undef B0
+#undef B50
+#undef B75
+#undef B110
+#undef B134
+#undef B150
+#undef B200
+#undef B300
+#undef B600
+#undef B1200
+#undef B1800
+#undef B2400
+#undef B4800
+#undef B9600
+#undef B19200
+#undef EXTA
+#undef B38400
+#undef EXTB
+#undef B57600
+#undef B115200
+#undef B230400
+#undef B460800
+#define USE_OLD_TTY
+#include <sys/ttydev.h>
+#else
+#undef USE_OLD_TTY
+#endif /* USE_OLD_TTY */
+
+MODULE_ID("$Id: lib_baudrate.c,v 1.21 2001/06/30 22:59:22 tom Exp $")
 
 /*
  *	int
@@ -162,15 +197,20 @@ baudrate(void)
 	    ret = 9600;
 	ospeed = _nc_ospeed(ret);
 	returnCode(ret);
-    } else
+    }
 #endif
 
-#ifdef TERMIOS
-	ospeed = cfgetospeed(&cur_term->Nttyb);
+#ifdef USE_OLD_TTY
+    result = cfgetospeed(&cur_term->Nttyb);
+    ospeed = _nc_ospeed(result);
 #else
-	ospeed = cur_term->Nttyb.sg_ospeed;
+#ifdef TERMIOS
+    ospeed = cfgetospeed(&cur_term->Nttyb);
+#else
+    ospeed = cur_term->Nttyb.sg_ospeed;
 #endif
     result = _nc_baudrate(ospeed);
+#endif /* __FreeBSD__ */
     if (cur_term != 0)
 	cur_term->_baudrate = result;
 
