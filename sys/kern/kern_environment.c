@@ -85,7 +85,7 @@ kenv(td, uap)
 	char *name, *value;
 	size_t len, done;
 	int error, i;
-       
+
 	KASSERT(dynamic_kenv, ("kenv: dynamic_kenv = 0"));
 
 	error = 0;
@@ -368,16 +368,16 @@ unsetenv(const char *name)
 int
 getenv_string(const char *name, char *data, int size)
 {
-    char *tmp;
+	char *tmp;
 
-    tmp = getenv(name);
-    if (tmp != NULL) {
-	strncpy(data, tmp, size);
-	freeenv(tmp);
-	data[size - 1] = 0;
-	return (1);
-    } else
-	return (0);
+	tmp = getenv(name);
+	if (tmp != NULL) {
+		strncpy(data, tmp, size);
+		freeenv(tmp);
+		data[size - 1] = 0;
+		return (1);
+	} else
+		return (0);
 }
 
 /*
@@ -386,14 +386,13 @@ getenv_string(const char *name, char *data, int size)
 int
 getenv_int(const char *name, int *data)
 {
-    quad_t tmp;
-    int rval;
+	quad_t tmp;
+	int rval;
 
-    rval = getenv_quad(name, &tmp);
-    if (rval) {
-	*data = (int) tmp;
-    }
-    return (rval);
+	rval = getenv_quad(name, &tmp);
+	if (rval)
+		*data = (int) tmp;
+	return (rval);
 }
 
 /*
@@ -402,22 +401,21 @@ getenv_int(const char *name, int *data)
 int
 getenv_quad(const char *name, quad_t *data)
 {
-    char	*value;
-    char	*vtp;
-    quad_t	iv;
-    
-    if ((value = getenv(name)) == NULL)
-	return(0);
-    
-    iv = strtoq(value, &vtp, 0);
-    if ((vtp == value) || (*vtp != '\0')) {
-	freeenv(value); 
-	return(0);
-    }
-    
-    freeenv(value);
-    *data = iv;
-    return(1);
+	char	*value;
+	char	*vtp;
+	quad_t	iv;
+
+	value = getenv(name);
+	if (value == NULL)
+		return (0);
+	iv = strtoq(value, &vtp, 0);
+	if ((vtp == value) || (*vtp != '\0')) {
+		freeenv(value);
+		return (0);
+	}
+	freeenv(value);
+	*data = iv;
+	return (1);
 }
 
 /*
@@ -427,14 +425,15 @@ getenv_quad(const char *name, quad_t *data)
 static char *
 kernenv_next(char *cp)
 {
-    if (cp != NULL) {
-	while (*cp != 0)
-	    cp++;
-	cp++;
-	if (*cp == 0)
-	    cp = NULL;
-    }
-    return(cp);
+
+	if (cp != NULL) {
+		while (*cp != 0)
+			cp++;
+		cp++;
+		if (*cp == 0)
+			cp = NULL;
+	}
+	return (cp);
 }
 
 void

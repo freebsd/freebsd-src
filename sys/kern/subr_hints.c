@@ -61,7 +61,7 @@ res_find(int *line, int *startln,
 
 	if (checkmethod) {
 		switch (hintmode) {
-		case 0:		/* config supplied nothing */
+		case 0:		/* loader hints in environment only */
 			break;
 		case 1:		/* static hints only */
 			hintp = static_hints;
@@ -118,9 +118,8 @@ res_find(int *line, int *startln,
 			sx_sunlock(&kenv_lock);
 			return (ENOENT);
 		}
-	} else {
+	} else
 		cp = hintp;
-	}
 	while (cp) {
 		hit = 1;
 		(*line)++;
