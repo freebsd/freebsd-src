@@ -62,7 +62,6 @@ int
 _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	       void *(*start_routine) (void *), void *arg)
 {
-	struct pthread	*curthread = _get_curthread();
 	struct itimerval itimer;
 	int		f_gc = 0;
 	int             ret = 0;
@@ -117,7 +116,7 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	getcontext(&new_thread->ctx);
 	new_thread->ctx.uc_stack.ss_sp = new_thread->stack;
 	new_thread->ctx.uc_stack.ss_size = pattr->stacksize_attr;
-	makecontext(&new_thread->ctx, _thread_start, 1);
+	makecontext(&new_thread->ctx, _thread_start, 1, new_thread);
 
 	/* Copy the thread attributes: */
 	memcpy(&new_thread->attr, pattr, sizeof(struct pthread_attr));
@@ -209,19 +208,12 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 }
 
 void
-_thread_start(void)
+_thread_start(pthread_t thread)
 {
-	struct pthread	*curthread = _get_curthread_slow();
-
-	curthread->arch_id = _set_curthread(curthread);
-
-	if (_get_curthread() != curthread) {
-		_thread_printf("%x - %x\n", _get_curthread(), curthread);
-		abort();
-	}
+	thread->arch_id = _set_curthread(thread);
 
 	/* Run the current thread's start routine with argument: */
-	pthread_exit(curthread->start_routine(curthread->arg));
+	pthread_exit(thread->start_routine(thread->arg));
 
 	/* This point should never be reached. */
 	PANIC("Thread has resumed after exit");

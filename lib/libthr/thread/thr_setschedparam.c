@@ -42,7 +42,6 @@ int
 _pthread_setschedparam(pthread_t pthread, int policy, 
 	const struct sched_param *param)
 {
-	pthread_t curthread;
 	int old_prio, in_readyq = 0, ret = 0;
 
 	if ((param == NULL) || (policy < SCHED_FIFO) || (policy > SCHED_RR))
@@ -52,7 +51,6 @@ _pthread_setschedparam(pthread_t pthread, int policy,
 	    (param->sched_priority > PTHREAD_MAX_PRIORITY))
 		return (ENOTSUP);
 
-	curthread = _get_curthread();
 	/* Find the thread in the list of active threads: */
 	if ((ret = _find_thread(pthread)) == 0) {
 		GIANT_LOCK(curthread);

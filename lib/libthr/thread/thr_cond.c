@@ -137,8 +137,6 @@ _pthread_cond_init(pthread_cond_t *cond, const pthread_condattr_t *cond_attr)
 int
 _pthread_cond_destroy(pthread_cond_t *cond)
 {
-	struct pthread	*curthread = _get_curthread();
-
 	if (cond == NULL || *cond == NULL)
 		return (EINVAL);
 
@@ -182,7 +180,6 @@ int
 _pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 		       const struct timespec * abstime)
 {
-	struct pthread	*curthread = _get_curthread();
 	struct timespec *time;
 	int	rval = 0;
 	int	done = 0;
@@ -340,7 +337,6 @@ _pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 int
 _pthread_cond_signal(pthread_cond_t * cond)
 {
-	struct pthread	*curthread = _get_curthread();
 	int             rval = 0;
 	pthread_t       pthread;
 
@@ -388,7 +384,6 @@ _pthread_cond_signal(pthread_cond_t * cond)
 int
 _pthread_cond_broadcast(pthread_cond_t * cond)
 {
-	struct pthread	*curthread = _get_curthread();
 	int             rval = 0;
 	pthread_t       pthread;
 
@@ -442,7 +437,6 @@ _pthread_cond_broadcast(pthread_cond_t * cond)
 void
 _cond_wait_backout(pthread_t pthread)
 {
-	struct pthread	*curthread = _get_curthread();
 	pthread_cond_t	cond;
 
 	cond = pthread->data.cond;
