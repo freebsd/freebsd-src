@@ -927,16 +927,6 @@ readtoken1(int firstc, char const *syntax, char *eofmark, int striptabs)
 
 	STARTSTACKSTR(out);
 	loop: {	/* for each line, until end of word */
-#if ATTY
-		if (c == '\034' && doprompt
-		 && attyset() && ! equal(termval(), "emacs")) {
-			attyline();
-			if (syntax == BASESYNTAX)
-				return readtoken();
-			c = pgetc();
-			goto loop;
-		}
-#endif
 		CHECKEND();	/* set c to PEOF if at end of here document */
 		for (;;) {	/* until end of line or end of word */
 			CHECKSTRSPACE(3, out);	/* permit 3 calls to USTPUTC */

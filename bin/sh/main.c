@@ -141,11 +141,7 @@ main(int argc, char *argv[])
 			    exitshell(exitstatus);
 		}
 		reset();
-		if (exception == EXINT
-#if ATTY
-		 && (! attyset() || equal(termval(), "emacs"))
-#endif
-		 ) {
+		if (exception == EXINT) {
 			out2c('\n');
 			flushout(&errout);
 		}
