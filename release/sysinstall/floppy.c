@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: floppy.c,v 1.6.2.13 1995/06/06 00:11:51 jkh Exp $
+ * $Id: floppy.c,v 1.6.2.14 1995/06/07 05:50:57 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -60,6 +60,8 @@
 
 static Device *floppyDev;
 static Boolean floppyMounted;
+
+static char *distWanted;
 
 /* For finding floppies */
 static int
@@ -127,7 +129,12 @@ mediaInitFloppy(Device *dev)
 	msgConfirm("Unable to make directory mountpoint for %s!", dev->devname);
 	return FALSE;
     }
-    msgConfirm("Please insert next floppy into %s and press return", dev->description);
+    if (!distWanted)
+    	msgConfirm("Please insert next floppy into %s", dev->description);
+    else {
+	msgConfirm("Please insert floppy containing %s into %s", distWanted, dev->description);
+	distWanted = NULL;
+    }
     memset(&dosargs, 0, sizeof dosargs);
     dosargs.fspec = dev->devname;
     dosargs.uid = dosargs.gid = 0;
@@ -164,6 +171,7 @@ mediaGetFloppy(Device *dev, char *file, Attribs *dist_attrs)
 		    msgConfirm("GetFloppy: Failed to get %s after retries;\ngiving up.", file);
 		    return -1;
 		}
+		distWanted = buf;
 		(*dev->shutdown)(dev);
 		if (!(dev->init)(dev))
 		    return -1;
