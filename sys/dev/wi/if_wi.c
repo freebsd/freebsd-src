@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_wi.c,v 1.55 1999/06/06 16:41:44 wpaul Exp $
+ *	$Id: if_wi.c,v 1.56 1999/07/04 14:35:23 wpaul Exp $
  */
 
 /*
@@ -116,7 +116,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_wi.c,v 1.55 1999/06/06 16:41:44 wpaul Exp $";
+	"$Id: if_wi.c,v 1.56 1999/07/04 14:35:23 wpaul Exp $";
 #endif
 
 static struct wi_softc wi_softc[NWI];
@@ -415,6 +415,14 @@ static void wi_rxeof(sc)
 	if (rx_frame.wi_status == WI_STAT_1042 ||
 	    rx_frame.wi_status == WI_STAT_TUNNEL ||
 	    rx_frame.wi_status == WI_STAT_WMP_MSG) {
+		if((rx_frame.wi_dat_len + WI_SNAPHDR_LEN) > MCLBYTES) {
+			printf("wi%d: oversized packet received "
+			    "(wi_dat_len=%d, wi_status=0x%x)\n", sc->wi_unit,
+			    rx_frame.wi_dat_len, rx_frame.wi_status);
+			m_freem(m);
+			ifp->if_ierrors++;
+			return;
+		}
 		m->m_pkthdr.len = m->m_len =
 		    rx_frame.wi_dat_len + WI_SNAPHDR_LEN;
 
@@ -433,6 +441,15 @@ static void wi_rxeof(sc)
 			return;
 		}
 	} else {
+		if((rx_frame.wi_dat_len +
+		    sizeof(struct ether_header)) > MCLBYTES) {
+			printf("wi%d: oversized packet received "
+			    "(wi_dat_len=%d, wi_status=0x%x)\n", sc->wi_unit,
+			    rx_frame.wi_dat_len, rx_frame.wi_status);
+			m_freem(m);
+			ifp->if_ierrors++;
+			return;
+		}
 		m->m_pkthdr.len = m->m_len =
 		    rx_frame.wi_dat_len + sizeof(struct ether_header);
 
