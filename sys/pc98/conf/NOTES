@@ -387,7 +387,6 @@ hint.mse.0.irq="13"
 
 # ar:   Arnet SYNC/570i hdlc sync 2/4 port V.35/X.21 serial driver
 #       (requires sppp)
-# cx:   Cronyx/Sigma multiport sync/async (with Cisco or PPP framing)
 # ed:   Western Digital and SMC 80xx; Novell NE1000 and NE2000; 3Com 3C503
 #       HP PC Lan+, various PC Card devices (refer to etc/defauls/pccard.conf)
 #       (requires miibus)
@@ -414,11 +413,6 @@ hint.ar.0.at="isa"
 hint.ar.0.port="0x300"
 hint.ar.0.irq="10"
 hint.ar.0.maddr="0xd0000"
-device		cx	1
-hint.cx.0.at="isa"
-hint.cx.0.port="0x240"
-hint.cx.0.irq="15"
-hint.cx.0.drq="7"
 device		ed
 #options 	ED_NO_MIIBUS		# Disable ed miibus support
 hint.ed.0.at="isa"
