@@ -35,7 +35,11 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
+#if 0
 static char sccsid[] = "@(#)findfp.c	8.2 (Berkeley) 1/4/94";
+#endif
+static const char rcsid[] =
+		"$Id$";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -65,6 +69,8 @@ FILE __sF[3] = {
 	std(__SWR|__SNBF, STDERR_FILENO)	/* stderr */
 };
 struct glue __sglue = { &uglue, 3, __sF };
+
+static struct glue *	moreglue __P((int));
 
 static struct glue *
 moreglue(n)

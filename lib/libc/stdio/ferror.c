@@ -35,7 +35,11 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
+#if 0
 static char sccsid[] = "@(#)ferror.c	8.1 (Berkeley) 6/4/93";
+#endif
+static const char rcsid[] =
+		"$Id$";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stdio.h>
@@ -45,7 +49,8 @@ static char sccsid[] = "@(#)ferror.c	8.1 (Berkeley) 6/4/93";
  */
 #undef ferror
 
-int ferror(fp)
+int
+ferror(fp)
 	FILE *fp;
 {
 	return (__sferror(fp));

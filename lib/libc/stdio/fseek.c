@@ -35,7 +35,11 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
+#if 0
 static char sccsid[] = "@(#)fseek.c	8.3 (Berkeley) 1/2/94";
+#endif
+static const char rcsid[] =
+		"$Id$";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -99,7 +103,7 @@ fseek(fp, offset, whence)
 			curoff = fp->_offset;
 		else {
 			curoff = (*seekfn)(fp->_cookie, (fpos_t)0, SEEK_CUR);
-			if (curoff == -1L) {
+			if (curoff == -1) {
 #ifdef _THREAD_SAFE
 				_thread_funlockfile(fp);
 #endif

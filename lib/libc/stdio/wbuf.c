@@ -35,7 +35,11 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
+#if 0
 static char sccsid[] = "@(#)wbuf.c	8.1 (Berkeley) 6/4/93";
+#endif
+static const char rcsid[] =
+		"$Id$";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stdio.h>
@@ -46,7 +50,8 @@ static char sccsid[] = "@(#)wbuf.c	8.1 (Berkeley) 6/4/93";
  * the given file.  Flush the buffer out if it is or becomes full,
  * or if c=='\n' and the file is line buffered.
  */
-int __swbuf(c, fp)
+int
+__swbuf(c, fp)
 	register int c;
 	register FILE *fp;
 {

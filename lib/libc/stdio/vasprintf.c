@@ -24,7 +24,7 @@
  */
 
 #if defined(LIBC_RCS) && !defined(lint)
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: vasprintf.c,v 1.1 1996/05/27 10:49:43 peter Exp $";
 #endif /* LIBC_RCS and not lint */
 
 #include <stdio.h>
@@ -44,10 +44,12 @@ struct bufcookie {
 	int	left;
 };
 
+static int 	writehook __P((void *cookie, const char *, int));
+
 static int
 writehook(cookie, buf, len)
 	void *cookie;
-	char *buf;
+	const char *buf;
 	int   len;
 {
 	struct bufcookie *h = (struct bufcookie *)cookie;
@@ -59,12 +61,12 @@ writehook(cookie, buf, len)
 		/* grow malloc region */
 		h->left = h->left + len + CHUNK_SPARE;
 		h->size = h->size + len + CHUNK_SPARE;
-		h->base = realloc(h->base, h->size);
+		h->base = realloc(h->base, (size_t)h->size);
 		if (h->base == NULL)
 			return (-1);
 	}
 	/* "write" it */
-	(void)memcpy(h->base + h->size - h->left, buf, len);
+	(void)memcpy(h->base + h->size - h->left, buf, (size_t)len);
 	h->left -= len;
 	return (0);
 }
@@ -101,7 +103,7 @@ vasprintf(str, fmt, ap)
 		return (-1);
 
 	h.base[h.size - h.left] = '\0';
-	*str = realloc(h.base, h.size - h.left + 1);
+	*str = realloc(h.base, (size_t)(h.size - h.left + 1));
 	if (*str == NULL)	/* failed to realloc it to actual size */
 		return -1;
 	return (ret);

@@ -35,7 +35,11 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
+#if 0
 static char sccsid[] = "@(#)vfprintf.c	8.1 (Berkeley) 6/4/93";
+#endif
+static const char rcsid[] =
+		"$Id$";
 #endif /* LIBC_SCCS and not lint */
 
 /*
@@ -66,6 +70,11 @@ static char sccsid[] = "@(#)vfprintf.c	8.1 (Berkeley) 6/4/93";
 
 /* Define FLOATING_POINT to get floating point. */
 #define	FLOATING_POINT
+
+static int	__sprint __P((FILE *, struct __suio *));
+static int	__sbprintf __P((FILE *, const char *, va_list));
+static char *	__ultoa __P((u_long, char *, int, int, char *));
+static char *	__uqtoa __P((u_quad_t, char *, int, int, char *));
 
 /*
  * Flush out all the vectors defined by the given uio,
@@ -620,7 +629,7 @@ fp_begin:		if (prec == -1)
 				 * NUL in the first `prec' characters, and
 				 * strlen() will go further.
 				 */
-				char *p = memchr(cp, 0, prec);
+				char *p = memchr(cp, 0, (size_t)prec);
 
 				if (p != NULL) {
 					size = p - cp;
