@@ -40,7 +40,7 @@
 .Nd display kernel trace data
 .Sh SYNOPSIS
 .Nm
-.Op Fl dnlRT
+.Op Fl dnlERT
 .Op Fl f Ar file
 .Op Fl m Ar maxdata
 .Op Fl p Ar pid
@@ -89,6 +89,8 @@ Display only trace events that correspond to the process
 .Ar pid .
 This may be useful when there are multiple processes recorded in the
 same trace file.
+.It Fl E
+Display elapsed timestamps (time since beginning of trace).
 .It Fl R
 Display relative timestamps (time since previous entry).
 .It Fl T
