@@ -165,11 +165,15 @@ main(int ac, char **av)
 	char **command;
 	struct procfs_status pfs;
 	struct ex_types *funcs;
-	int in_exec = 0;
-	char *fname = NULL;
-	int sigexit = 0;
+	int in_exec, sigexit, initial_open;
+	char *fname;
 	struct trussinfo *trussinfo;
 	char *signame;
+
+	in_exec = 0;
+	sigexit = 0;
+	fname = NULL;
+	initial_open = 1;
 
 	/* Initialize the trussinfo struct */
 	trussinfo = (struct trussinfo *)malloc(sizeof(struct trussinfo));
@@ -246,9 +250,11 @@ main(int ac, char **av)
 
 START_TRACE:
 	Procfd = start_tracing(
-	    trussinfo->pid, S_EXEC | S_SCE | S_SCX | S_CORE | S_EXIT |
+	    trussinfo->pid, initial_open,
+	    S_EXEC | S_SCE | S_SCX | S_CORE | S_EXIT |
 	    ((trussinfo->flags & NOSIGS) ? 0 : S_SIG),
 	    ((trussinfo->flags & FOLLOWFORKS) ? PF_FORK : 0));
+	initial_open = 0;
 	if (Procfd == -1)
 		return (0);
 
