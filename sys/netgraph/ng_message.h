@@ -44,11 +44,21 @@
 #define _NETGRAPH_NG_MESSAGE_H_
 
 /* ASCII string size limits */
-#define NG_TYPELEN	15	/* max type name len (16 with null) */
-#define NG_HOOKLEN	15	/* max hook name len (16 with null) */
-#define NG_NODELEN	15	/* max node name len (16 with null) */
-#define NG_PATHLEN	511	/* max path len     (512 with null) */
-#define NG_CMDSTRLEN	15	/* max command string (16 with null) */
+#define	NG_TYPESIZ	32	/* max type name len (including null) */
+#define	NG_HOOKSIZ	32	/* max hook name len (including null) */
+#define	NG_NODESIZ	32	/* max node name len (including null) */
+#define	NG_PATHSIZ	512	/* max path len (including null) */
+#define	NG_CMDSTRSIZ	32	/* max command string (including null) */
+
+#ifndef BURN_BRIDGES
+/* don't use these - they will go away */
+#define NG_TYPELEN	(NG_TYPESIZ - 1)
+#define NG_HOOKLEN	(NG_HOOKSIZ - 1)
+#define NG_NODELEN	(NG_NODESIZ - 1)
+#define NG_PATHLEN	(NG_PATHSIZ - 1)
+#define NG_CMDSTRLEN	(NG_CMDSTRSIZ - 1)
+#endif
+
 #define NG_TEXTRESPONSE 1024	/* allow this length for a text response */
 
 /* A netgraph message */
