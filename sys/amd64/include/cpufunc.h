@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.44 1995/12/28 23:34:17 davidg Exp $
+ *	$Id: cpufunc.h,v 1.45 1996/01/16 07:42:08 bde Exp $
  */
 
 /*
@@ -296,6 +296,36 @@ write_eflags(u_long ef)
 	__asm __volatile("pushl %0; popfl" : : "r" (ef));
 }
 
+static __inline long long
+rdmsr(unsigned msr)
+{
+	long long rv;
+	__asm __volatile(".byte 0x0f, 0x32" : "=A" (rv) : "c" (msr));
+	return rv;
+}
+
+static __inline long long
+rdtsc(void)
+{
+	long long rv;
+	__asm __volatile(".byte 0x0f, 0x31" : "=A" (rv));
+	return rv;
+}
+
+static __inline long long
+rdpmc(unsigned pmc)
+{
+	long long rv;
+	__asm __volatile(".byte 0x0f, 0x33" : "=A" (rv) : "c" (pmc));
+	return rv;
+}
+
+static __inline void
+wrmsr(unsigned msr, long long newval)
+{
+	__asm __volatile(".byte 0x0f, 0x33" : : "A" (newval), "c" (msr));
+}
+
 #else /* !__GNUC__ */
 
 int	bdb		__P((void));
@@ -318,6 +348,10 @@ void	pmap_update	__P((void));
 u_long	read_eflags	__P((void));
 u_long	rcr2		__P((void));
 void	write_eflags	__P((u_long ef));
+quad_t	rdmsr		__P((unsigned msr));
+quad_t	rdtsc		__P((void));
+quad_t	rdpmc		__P((unsigned pmc));
+void	wrmsr		__P((unsigned msr, quad_t newval));
 
 #endif	/* __GNUC__ */
 
