@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.173 1998/04/27 16:21:33 bde Exp $
+#	$Id: Makefile,v 1.174 1998/05/02 12:29:48 bde Exp $
 #
 # While porting to the another architecture include the bootstrap instead
 # of the normal build.
@@ -293,18 +293,18 @@ buildworld:
 	@echo " Rebuilding ${DESTDIR}/usr/include"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR} && SHARED=symlinks ${BMAKE} includes
-.if !defined(NOTOOLS)
-	@echo
-	@echo "--------------------------------------------------------------"
-	@echo " Rebuilding tools needed to build the bootstrap libraries"
-	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR} && ${BMAKE} lib-tools
-.endif
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding bootstrap libraries"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR} && ${BMAKE} bootstrap-libraries
+.if !defined(NOTOOLS)
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo " Rebuilding tools needed to build libraries"
+	@echo "--------------------------------------------------------------"
+	cd ${.CURDIR} && ${BMAKE} lib-tools
+.endif
 .if !defined(NOTOOLS)
 	@echo
 	@echo "--------------------------------------------------------------"
