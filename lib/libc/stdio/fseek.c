@@ -144,8 +144,7 @@ _fseeko(fp, offset, whence, ltest)
 			curoff += fp->_p - fp->_bf._base;
 
 		/* curoff always >= 0 */
-		if (offset > 0 &&
-		    curoff > (ltest ? LONG_MAX : OFF_MAX) - offset) {
+		if (offset > 0 && curoff > OFF_MAX - offset) {
 			errno = EOVERFLOW;
 			return (EOF);
 		}
@@ -212,8 +211,7 @@ _fseeko(fp, offset, whence, ltest)
 		if (_fstat(fp->_file, &st))
 			goto dumb;
 		/* st.st_size always >= 0 */
-		if (offset > 0 &&
-		    st.st_size > (ltest ? LONG_MAX : OFF_MAX) - offset) {
+		if (offset > 0 && st.st_size > OFF_MAX - offset) {
 			errno = EOVERFLOW;
 			return (EOF);
 		}
