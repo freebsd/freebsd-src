@@ -256,7 +256,8 @@ main(argc, argv, envp)
 	ip6flag = 1;
 	s = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
 	if (s < 0 && (errno == EPROTONOSUPPORT ||
-	   errno == EPFNOSUPPORT || errno == EAFNOSUPPORT))
+	   errno == EPFNOSUPPORT || errno == EAFNOSUPPORT) ||
+	   (getnetconfigent("udp6") == NULL && getnetconfigent("tcp6") == NULL))
 		ip6flag = 0;
 	else
 		close(s);
