@@ -1,5 +1,5 @@
 #	from: @(#)bsd.doc.mk	5.3 (Berkeley) 1/2/91
-#	$Id: bsd.doc.mk,v 1.40 1997/11/02 18:50:53 wosch Exp $
+#	$Id: bsd.doc.mk,v 1.41 1997/11/09 15:03:11 wosch Exp $
 #
 # The include file <bsd.doc.mk> handles installing BSD troff documents.
 #
@@ -96,12 +96,12 @@ print: ${DFILE}
 .endif
 .endif
 
-CLEANFILES+=	${DOC}.${PRINTERDEVICE} \
-		${DOC}.${PRINTERDEVICE}${DCOMPRESS_EXT} \
-		${DOC}.ascii ${DOC}.ascii${DCOMPRESS_EXT} \
+.if ${PRINTERDEVICE} != "ascii" && ${PRINTERDEVICE} != "ps"
+CLEANFILES+=	${DOC}.${PRINTERDEVICE} ${DOC}.${PRINTERDEVICE}${DCOMPRESS_EXT}
+.endif
+CLEANFILES+=	${DOC}.ascii ${DOC}.ascii${DCOMPRESS_EXT} \
 		${DOC}.ps ${DOC}.ps${DCOMPRESS_EXT} \
 		${DOC}.html ${DOC}-*.html
-
 
 FILES?=	${SRCS}
 realinstall:
