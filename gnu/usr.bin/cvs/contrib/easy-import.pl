@@ -8,7 +8,7 @@
 #
 # Written by Jörg Wunsch, 95/03/07, and placed in the public domain.
 #
-# $Id: easy-import.pl,v 1.5 1996/01/02 07:39:03 joerg Exp $
+# $Id: easy-import.pl,v 1.5.2.2 1996/06/05 02:39:41 jkh Exp $
 
 require "complete.pl";
 require "getopts.pl";
@@ -22,7 +22,7 @@ sub scan_opts
 
     $dont_do_it = "-n" if $opt_n;
     if($opt_v) {
-	print STDERR '$Source: /pub/FreeBSD/FreeBSD-CVS/src/gnu/usr.bin/cvs/contrib/easy-import.pl,v $ $Revision: 1.5 $' . "\n"; # 'emacs kludge
+	print STDERR '$Source: /home/ncvs/src/gnu/usr.bin/cvs/contrib/easy-import.pl,v $ $Revision: 1.5.2.2 $' . "\n"; # 'emacs kludge
 	exit 0;
     }
     die "usage: $0 [-v] [-n] [moduledir]\n" .
@@ -162,20 +162,20 @@ sub cvs_init
 sub lsmodules
 {
     # list all known CVS modules
-    local(@rv, $mname, $_);
+    local(%rv, $mname, $mpath, $_);
 
-    @rv = ();
+    %rv = ();
 
     open(CVS, "cvs co -c|");
     while($_ = <CVS>) {
 	chop;
-	($mname) = split;
+	($mname,$mpath) = split;
 	next if $mname eq "";
-	@rv = (@rv, $mname);
+	$rv{$mname} = $mpath;
     }
     close(CVS);
 
-    return @rv;
+    return %rv;
 }
 
 
@@ -259,39 +259,7 @@ $area = "$rep/$selected";
 
 print "\n${so}[Working on:${se} ${us}$area${ue}${so}]${se}\n";
 
-for(;;) {
-    $| = 1;
-    print "${so}Enter the module path:${se} $area/";
-    $| = 0;
-    $modpath = <>;
-    chop $modpath;
-    if ($modpath eq "") {
-	print "\a${us}You cannot use an empty module path.${ue}\n";
-	next;
-    }
-    last if ! -d "$cvsroot/$area/$modpath";
-    print "\a${us}This module path does already exist; " .
-	"choose another one.${ue}\n";
-}
-
-
-@newdirs = ();
-$dir1 = "$cvsroot/$area";
-$dir2 = "$area";
-
-@newdirs = (@newdirs, "$dir2") if ! -d $dir1;
-
-foreach $ele (split(/\//, $modpath)) {
-    $dir1 = "$dir1/$ele";
-    $dir2 = "$dir2/$ele";
-    @newdirs = (@newdirs, "$dir2") if ! -d $dir1;
-}
-
-print "${so}You're going to create the following new directories:${se}\n";
-
-&list(@newdirs);
-
-@cvsmods = &lsmodules();
+%cvsmods = &lsmodules();
 
 for(;;) {
     $| = 1;
@@ -303,11 +271,52 @@ for(;;) {
 	print "\a${us}You cannot use an empty module name.${ue}\n";
 	next;
     }
-    last if !&contains($modname, @cvsmods);
-    print "\a${us}This module name does already exist; " .
-	"choose another one.${ue}\n";
+    last if !$cvsmods{$modname};
+    print "\a${us}This module name does already exist;\n" .
+	"do you intend to create a vendor-branch import?${ue}: ";
+    $rep = <>;
+    if ($rep =~ /\s*[yY]/) {
+	($area,$modpath) = split(/\//,$cvsmods{$modname},2);
+	$branchimport = 1;
+	last;
+    }
+    print "${us}Choose another name.${ue}\n";
 }
 
+
+if(!$branchimport) {
+    for(;;) {
+	$| = 1;
+	print "${so}Enter the module path:${se} $area/";
+	$| = 0;
+	$modpath = <>;
+	chop $modpath;
+	if ($modpath eq "") {
+	    print "\a${us}You cannot use an empty module path.${ue}\n";
+	    next;
+	}
+	last if ! -d "$cvsroot/$area/$modpath";
+	print "\a${us}This module path does already exist; " .
+	    "choose another one.${ue}\n";
+    }
+
+
+    @newdirs = ();
+    $dir1 = "$cvsroot/$area";
+    $dir2 = "$area";
+
+    @newdirs = (@newdirs, "$dir2") if ! -d $dir1;
+
+    foreach $ele (split(/\//, $modpath)) {
+	$dir1 = "$dir1/$ele";
+	$dir2 = "$dir2/$ele";
+	@newdirs = (@newdirs, "$dir2") if ! -d $dir1;
+    }
+
+    print "${so}You're going to create the following new directories:${se}\n";
+
+    &list(@newdirs);
+}
 
 for(;;) {
     $| = 1;
@@ -334,37 +343,38 @@ print "${so}This is your last chance to interrupt, " .
 $| = 0;
 <>;
 
-$mod = "";
-foreach $tmp (@cvsmods) {
-    if($tmp gt $modname) {
-	$mod = $tmp;
-	last;
+if (!$branchimport) {
+    $mod = "";
+    foreach $tmp (sort(keys(%cvsmods))) {
+	if($tmp gt $modname) {
+	    $mod = $tmp;
+	    last;
+	}
     }
+    if($mod eq "") {
+	# we are going to append our module
+	$cmd = "\$\na\n";
+    } else {
+	# we can insert it
+	$cmd = "/^${mod}[ \t]/\ni\n";
+    }
+
+    print "${so}Checking out the modules database...${se}\n";
+    system("cvs co modules") && die "${us}failed.\n${ue}";
+
+    print "${so}Inserting new module...${se}\n";
+    open(ED, "|ed modules/modules") || die "${us}Cannot start ed${ue}\n";
+    print(ED "${cmd}${modname}" . ' ' x (16 - length($modname)) .
+	  "$area/${modpath}\n.\nw\nq\n");
+    close(ED);
+
+    print "${so}Commiting new modules database...${se}\n";
+    system("cvs $dont_do_it commit -m \"  " .
+	   "${modname} --> $area/${modpath}\" modules")
+	&& die "Commit failed\n";
+
+    system("cvs $dont_do_it -Q release -d modules");
 }
-
-if($mod eq "") {
-    # we are going to append our module
-    $cmd = "\$\na\n";
-} else {
-    # we can insert it
-    $cmd = "/^${mod}[ \t]/\ni\n";
-}
-
-print "${so}Checking out the modules database...${se}\n";
-system("cvs co modules") && die "${us}failed.\n${ue}";
-
-print "${so}Inserting new module...${se}\n";
-open(ED, "|ed modules/modules") || die "${us}Cannot start ed${ue}\n";
-print(ED "${cmd}${modname}" . ' ' x (16 - length($modname)) .
-      "$area/${modpath}\n.\nw\nq\n");
-close(ED);
-
-print "${so}Commiting new modules database...${se}\n";
-system("cvs $dont_do_it commit -m \"  " .
-       "${modname} --> $area/${modpath}\" modules")
-    && die "Commit failed\n";
-
-system("cvs $dont_do_it -Q release -d modules");
 
 print "${so}Importing source.  Enter a commit message in the editor.${se}\n";
 
