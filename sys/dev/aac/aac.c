@@ -70,13 +70,14 @@
 #include <dev/aac/aac_ioctl.h>
 #include <dev/aac/aacvar.h>
 #include <dev/aac/aac_tables.h>
+#include <dev/aac/aac_cam.h>
 
 static void	aac_startup(void *arg);
 static void	aac_add_container(struct aac_softc *sc,
 				  struct aac_mntinforesp *mir, int f);
+static void	aac_get_bus_info(struct aac_softc *sc);
 
 /* Command Processing */
-static void	aac_startio(struct aac_softc *sc);
 static void	aac_timeout(struct aac_softc *sc);
 static int	aac_start(struct aac_command *cm);
 static void	aac_complete(void *context, int pending);
@@ -87,9 +88,6 @@ static void	aac_host_command(struct aac_softc *sc);
 static void	aac_host_response(struct aac_softc *sc);
 
 /* Command Buffer Management */
-static int	aac_alloc_command(struct aac_softc *sc,
-				  struct aac_command **cmp);
-static void	aac_release_command(struct aac_command *cm);
 static void	aac_map_command_helper(void *arg, bus_dma_segment_t *segs,
 				       int nseg, int error);
 static int	aac_alloc_commands(struct aac_softc *sc);
@@ -327,6 +325,10 @@ aac_attach(struct aac_softc *sc)
 				   SHUTDOWN_PRI_DEFAULT)) == NULL)
 	device_printf(sc->aac_dev, "shutdown event registration failed\n");
 
+	/* Register with CAM for the non-DASD devices */
+	if (!(sc->quirks & AAC_QUIRK_NOCAM))
+		aac_get_bus_info(sc);
+
 	return(0);
 }
 
@@ -349,7 +351,7 @@ aac_startup(void *arg)
 	/* disconnect ourselves from the intrhook chain */
 	config_intrhook_disestablish(&sc->aac_ich);
 
-	aac_get_sync_fib(sc, &fib, 0);
+	aac_alloc_sync_fib(sc, &fib, 0);
 	mi = (struct aac_mntinfo *)&fib->data[0];
 
 	/* loop over possible containers */
@@ -409,7 +411,7 @@ aac_add_container(struct aac_softc *sc, struct aac_mntinforesp *mir, int f)
 		      mir->MntTable[0].FileSystemName,
 		      mir->MntTable[0].Capacity, mir->MntTable[0].VolType);
 	
-		if ((child = device_add_child(sc->aac_dev, NULL, -1)) == NULL)
+		if ((child = device_add_child(sc->aac_dev, "aacd", -1)) == NULL)
 			device_printf(sc->aac_dev, "device_add_child failed\n");
 		else
 			device_set_ivars(child, co);
@@ -545,7 +547,7 @@ aac_shutdown(device_t dev)
 	 */
 	device_printf(sc->aac_dev, "shutting down controller...");
 
-	aac_get_sync_fib(sc, &fib, AAC_SYNC_LOCK_FORCE);
+	aac_alloc_sync_fib(sc, &fib, AAC_SYNC_LOCK_FORCE);
 	cc = (struct aac_close_command *)&fib->data[0];
 
 	cc->Command = VM_CloseAll;
@@ -669,7 +671,7 @@ aac_intr(void *arg)
 /*
  * Start as much queued I/O as possible on the controller
  */
-static void
+void
 aac_startio(struct aac_softc *sc)
 {
 	struct aac_command *cm;
@@ -781,7 +783,7 @@ aac_host_command(struct aac_softc *sc)
 				/* XXX Compute the Size field? */
 				size = fib->Header.Size;
 				if (size > sizeof(struct aac_fib)) {
-	 				size = sizeof(struct aac_fib);
+					size = sizeof(struct aac_fib);
 					fib->Header.Size = size;
 				}
 				/*
@@ -1041,7 +1043,7 @@ aac_wait_command(struct aac_command *cm, int timeout)
 /*
  * Allocate a command.
  */
-static int
+int
 aac_alloc_command(struct aac_softc *sc, struct aac_command **cmp)
 {
 	struct aac_command *cm;
@@ -1058,7 +1060,7 @@ aac_alloc_command(struct aac_softc *sc, struct aac_command **cmp)
 /*
  * Release a command back to the freelist.
  */
-static void
+void
 aac_release_command(struct aac_command *cm)
 {
 	debug_called(3);
@@ -1330,8 +1332,8 @@ aac_init(struct aac_softc *sc)
 	 * Create DMA tag for the common structure and allocate it.
 	 */
 	if (bus_dma_tag_create(sc->aac_parent_dmat, 	/* parent */
-			       1, 0, 			/* algnmnt, boundary */
-			       BUS_SPACE_MAXADDR,	/* lowaddr */
+			       1, 0,			/* algnmnt, boundary */
+			       BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 			       BUS_SPACE_MAXADDR, 	/* highaddr */
 			       NULL, NULL, 		/* filter, filterarg */
 			       sizeof(struct aac_common), /* maxsize */
@@ -1350,7 +1352,7 @@ aac_init(struct aac_softc *sc)
 	}
 	bus_dmamap_load(sc->aac_common_dmat, sc->aac_common_dmamap,
 			sc->aac_common, sizeof(*sc->aac_common), aac_common_map,
-		        sc, 0);
+			sc, 0);
 	bzero(sc->aac_common, sizeof(*sc->aac_common));
 	
 	/*
@@ -1515,7 +1517,7 @@ aac_sync_command(struct aac_softc *sc, u_int32_t command,
  * Grab the sync fib area.
  */
 int
-aac_get_sync_fib(struct aac_softc *sc, struct aac_fib **fib, int flags)
+aac_alloc_sync_fib(struct aac_softc *sc, struct aac_fib **fib, int flags)
 {
 
 	/*
@@ -2070,11 +2072,12 @@ aac_describe_controller(struct aac_softc *sc)
 
 	debug_called(2);
 
-	aac_get_sync_fib(sc, &fib, 0);
+	aac_alloc_sync_fib(sc, &fib, 0);
 
 	fib->data[0] = 0;
 	if (aac_sync_fib(sc, RequestAdapterInfo, 0, fib, 1)) {
 		device_printf(sc->aac_dev, "RequestAdapterInfo failed\n");
+		aac_release_sync_fib(sc);
 		return;
 	}
 	info = (struct aac_adapter_info *)&fib->data[0];
@@ -2093,6 +2096,8 @@ aac_describe_controller(struct aac_softc *sc)
 		      info->KernelRevision.external.comp.dash,
 		      info->KernelRevision.buildNumber,
 		      (u_int32_t)(info->SerialNumber & 0xffffff));
+
+	aac_release_sync_fib(sc);
 }
 
 /*
@@ -2366,7 +2371,7 @@ aac_handle_aif(struct aac_softc *sc, struct aac_fib *fib)
 			 * doesn't tell us anything else!  Re-enumerate the
 			 * containers and sort things out.
 			 */
-			aac_get_sync_fib(sc, &fib, 0);
+			aac_alloc_sync_fib(sc, &fib, 0);
 			mi = (struct aac_mntinfo *)&fib->data[0];
 			mi->Command = VM_NameServe;
 			mi->MntType = FT_FILESYS;
@@ -2697,3 +2702,101 @@ aac_query_disk(struct aac_softc *sc, caddr_t uptr)
 	return (error);
 }
 
+static void
+aac_get_bus_info(struct aac_softc *sc)
+{
+	struct aac_fib *fib;
+	struct aac_ctcfg *c_cmd;
+	struct aac_ctcfg_resp *c_resp;
+	struct aac_vmioctl *vmi;
+	struct aac_vmi_businf_resp *vmi_resp;
+	struct aac_getbusinf businfo;
+	struct aac_cam_inf *caminf;
+	device_t child;
+	int i, found, error;
+
+	aac_alloc_sync_fib(sc, &fib, 0);
+	c_cmd = (struct aac_ctcfg *)&fib->data[0];
+
+	c_cmd->Command = VM_ContainerConfig;
+	c_cmd->cmd = CT_GET_SCSI_METHOD;
+	c_cmd->param = 0;
+
+	error = aac_sync_fib(sc, ContainerCommand, 0, fib,
+	    sizeof(struct aac_ctcfg));
+	if (error) {
+		device_printf(sc->aac_dev, "Error %d sending "
+		    "VM_ContainerConfig command\n", error);
+		aac_release_sync_fib(sc);
+		return;
+	}
+
+	c_resp = (struct aac_ctcfg_resp *)&fib->data[0];
+	if (c_resp->Status != ST_OK) {
+		device_printf(sc->aac_dev, "VM_ContainerConfig returned 0x%x\n",
+		    c_resp->Status);
+		aac_release_sync_fib(sc);
+		return;
+	}
+
+	sc->scsi_method_id = c_resp->param;
+
+	vmi = (struct aac_vmioctl *)&fib->data[0];
+	vmi->Command = VM_Ioctl;
+	vmi->ObjType = FT_DRIVE;
+	vmi->MethId = sc->scsi_method_id;
+	vmi->ObjId = 0;
+	vmi->IoctlCmd = GetBusInfo;
+
+	error = aac_sync_fib(sc, ContainerCommand, 0, fib,
+	    sizeof(struct aac_vmioctl));
+	if (error) {
+		device_printf(sc->aac_dev, "Error %d sending VMIoctl command\n",
+		    error);
+		aac_release_sync_fib(sc);
+		return;
+	}
+
+	vmi_resp = (struct aac_vmi_businf_resp *)&fib->data[0];
+	if (vmi_resp->Status != ST_OK) {
+		device_printf(sc->aac_dev, "VM_Ioctl returned %d\n",
+		    vmi_resp->Status);
+		aac_release_sync_fib(sc);
+		return;
+	}
+
+	bcopy(&vmi_resp->BusInf, &businfo, sizeof(struct aac_getbusinf));
+	aac_release_sync_fib(sc);
+
+	found = 0;
+	for (i = 0; i < businfo.BusCount; i++) {
+		if (businfo.BusValid[i] != AAC_BUS_VALID)
+			continue;
+
+		MALLOC(caminf, struct aac_cam_inf *,
+		    sizeof(struct aac_cam_inf), M_AACBUF, M_NOWAIT | M_ZERO);
+		if (caminf == NULL)
+			continue;
+
+		child = device_add_child(sc->aac_dev, "aacp", -1);
+		if (child == NULL) {
+			device_printf(sc->aac_dev, "device_add_child failed\n");
+			continue;
+		}
+
+		caminf->TargetsPerBus = businfo.TargetsPerBus;
+		caminf->BusNumber = i;
+		caminf->InitiatorBusId = businfo.InitiatorBusId[i];
+		caminf->aac_sc = sc;
+
+		device_set_ivars(child, caminf);
+		device_set_desc(child, "SCSI Passthrough Bus");
+
+		found = 1;
+	}
+
+	if (found)
+		bus_generic_attach(sc->aac_dev);
+
+	return;
+}
