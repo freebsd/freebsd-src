@@ -19,7 +19,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
  * @(#) $Header: /tcpdump/master/tcpdump/ethertype.h,v 1.12 2000/09/23 08:03:30 guy Exp $ (LBL)
- * $FreeBSD$
+ * $FreeBSD: src/contrib/tcpdump/ethertype.h,v 1.4.2.1 2001/07/26 22:30:00 fenner Exp $
  */
 
 /*

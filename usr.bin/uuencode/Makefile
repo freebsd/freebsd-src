@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/uuencode/Makefile,v 1.2.14.1 2001/04/25 11:29:42 ru Exp $
 
 PROG=	uuencode
 MAN=	uuencode.1 uuencode.format.5

@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/if_vlan_var.h,v 1.5.2.2 2001/08/01 00:47:50 fenner Exp $
  */
 
 #ifndef _NET_IF_VLAN_VAR_H_

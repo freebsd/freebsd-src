@@ -33,12 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/i386/gen/fabs.S,v 1.5 1999/08/27 23:59:20 peter Exp $
  */
 
 #if defined(LIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$FreeBSD$"
+	.asciz "$FreeBSD: src/lib/libc/i386/gen/fabs.S,v 1.5 1999/08/27 23:59:20 peter Exp $"
 #endif /* LIBC_RCS and not lint */
 
 #include "DEFS.h"

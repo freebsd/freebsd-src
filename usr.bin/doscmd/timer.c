@@ -1,7 +1,7 @@
 /*
 ** No copyright?!
 **
-** $FreeBSD$
+** $FreeBSD: src/usr.bin/doscmd/timer.c,v 1.2.2.1 2001/05/25 12:27:40 tg Exp $
 */
 #include "doscmd.h"
 

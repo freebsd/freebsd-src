@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.8 (Berkeley) 4/18/94
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/gnu/ext2fs/ext2_vfsops.c,v 1.63.2.3 2001/08/14 18:03:19 gallatin Exp $
  */
 
 #include "opt_quota.h"

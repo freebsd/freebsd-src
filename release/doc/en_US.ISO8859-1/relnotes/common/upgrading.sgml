@@ -1,5 +1,5 @@
 <!--
-	$FreeBSD$ 
+	$FreeBSD: src/release/doc/en_US.ISO8859-1/relnotes/common/upgrading.sgml,v 1.1.2.3 2001/07/26 16:46:47 bmah Exp $ 
 
 	Summary information on upgrading FreeBSD.  This comes from
 	the similarly-named section of RELNOTES.TXT.

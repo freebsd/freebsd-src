@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THEPOSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/pci/als4000.h,v 1.1.2.2 2001/08/01 03:40:57 cg Exp $
  */
 
 #define ALS_PCI_ID0 		0x40004005

@@ -22,7 +22,7 @@ static char copyright[] =
 static char id[] = "@(#)$Id: rmail.c,v 8.39.4.12 2001/05/07 22:06:39 gshapiro Exp $";
 #endif /* ! lint */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/sendmail/rmail/rmail.c,v 1.4.6.5 2001/06/09 17:40:36 gshapiro Exp $ */
 
 /*
  * RMAIL -- UUCP mail server.

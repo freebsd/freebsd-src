@@ -60,7 +60,7 @@
 #endif
 
 #ifdef RCSID
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$FreeBSD: src/gnu/usr.bin/gzip/bits.c,v 1.7 1999/08/27 23:35:49 peter Exp $";
 #endif
 
 /* ===========================================================================

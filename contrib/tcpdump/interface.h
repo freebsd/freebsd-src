@@ -19,7 +19,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
  * @(#) $Header: /tcpdump/master/tcpdump/interface.h,v 1.149 2001/01/02 22:47:06 guy Exp $ (LBL)
- * $FreeBSD$
+ * $FreeBSD: src/contrib/tcpdump/interface.h,v 1.4.2.1 2001/07/26 22:30:00 fenner Exp $
  */
 
 #ifndef tcpdump_interface_h

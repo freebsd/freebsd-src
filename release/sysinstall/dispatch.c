@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $FreeBSD$
+ * $FreeBSD: src/release/sysinstall/dispatch.c,v 1.35.2.4 2001/08/10 02:40:47 rwatson Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

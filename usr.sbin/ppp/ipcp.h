@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/ipcp.h,v 1.30.2.4 2001/07/31 07:54:04 brian Exp $
  */
 
 #define	IPCP_MAXCODE	CODE_CODEREJ

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/linprocfs/Makefile,v 1.1.2.3 2000/06/06 11:53:28 des Exp $
 
 .PATH:	${.CURDIR}/../../i386/linux/linprocfs
 KMOD=	linprocfs

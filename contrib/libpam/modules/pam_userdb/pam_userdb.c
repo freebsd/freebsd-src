@@ -2,7 +2,7 @@
  
 /*
  * $Id: pam_userdb.c,v 1.4 2000/12/04 15:02:16 baggins Exp $
- * $FreeBSD$
+ * $FreeBSD: src/contrib/libpam/modules/pam_userdb/pam_userdb.c,v 1.1.1.1.2.2 2001/06/11 15:28:33 markm Exp $
  * Written by Cristian Gafton <gafton@redhat.com> 1996/09/10
  * See the end of the file for Copyright Information
  */

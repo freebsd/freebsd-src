@@ -20,7 +20,7 @@
  *
  * Hacked version of print-ether.c  Larry Lile <lile@stdio.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/tcpdump/print-token.c,v 1.3.2.1 2001/07/26 22:30:01 fenner Exp $
  */
 #ifndef lint
 static const char rcsid[] =

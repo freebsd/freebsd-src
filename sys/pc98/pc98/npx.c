@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/pc98/pc98/npx.c,v 1.54.2.4 2001/08/28 03:44:08 nyan Exp $
  */
 
 #include "opt_cpu.h"

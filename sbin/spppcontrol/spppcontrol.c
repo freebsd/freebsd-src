@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sbin/spppcontrol/spppcontrol.c,v 1.7.2.1 2001/07/30 10:30:11 dd Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

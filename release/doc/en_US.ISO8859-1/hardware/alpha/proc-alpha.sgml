@@ -1,6 +1,6 @@
 <sect1>
   <sect1info>
-    <pubdate>$FreeBSD$</pubdate>
+    <pubdate>$FreeBSD: src/release/doc/en_US.ISO8859-1/hardware/alpha/proc-alpha.sgml,v 1.13.2.10 2001/08/30 13:20:59 wilko Exp $</pubdate>
   </sect1info>
 
   <title>Supported processors and motherboards</title>

@@ -2,7 +2,7 @@
  * pam_krb5.h
  *
  * $Id: pam_krb5.h,v 1.5 1999/01/19 23:43:10 fcusack Exp $
- * $FreeBSD$
+ * $FreeBSD: src/lib/libpam/modules/pam_krb5/pam_krb5.h,v 1.1.2.2 2001/07/29 18:57:30 markm Exp $
  */
 
 int get_user_info(pam_handle_t *, char *, int, char **);

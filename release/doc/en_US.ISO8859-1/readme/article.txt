@@ -1,0 +1,254 @@
+                           FreeBSD 4.4-RELEASE README
+
+  The FreeBSD Project
+
+   Copyright (c) 2000, 2001 by The FreeBSD Documentation Project
+
+   $FreeBSD: src/release/doc/en_US.ISO8859-1/readme/article.sgml,v
+   1.1.2.6.2.1 2001/09/14 18:21:05 bmah Exp $
+
+     ----------------------------------------------------------------------
+
+     This document gives a brief introduction to FreeBSD 4.4-RELEASE. It
+     includes a roadmap to the other release documentation files, as well as
+     some pointers on obtaining FreeBSD and contacting the FreeBSD
+     development team.
+
+     ----------------------------------------------------------------------
+
+                                 1 Introduction
+
+   This distribution is a release of FreeBSD 4.4-RELEASE, the latest point
+   along the 4-STABLE branch.
+
+     ----------------------------------------------------------------------
+
+1.1 About FreeBSD
+
+   FreeBSD is an operating system based on 4.4 BSD Lite for Intel, AMD, Cyrix
+   or NexGen ``x86'' based PC hardware and Compaq (formerly DEC) Alpha
+   computers. Versions for the IA64, PowerPC, and Sparc64 architectures are
+   currently under development as well. FreeBSD works with a wide variety of
+   peripherals and configurations and can be used for everything from
+   software development to games to Internet Service Provision.
+
+   This release of FreeBSD contains everything you need to run such a system,
+   including full source code for the kernel and all utilities in the base
+   distribution. With the source distribution installed, you can literally
+   recompile the entire system from scratch with one command, making it ideal
+   for students, researchers, or users who simply want to see how it all
+   works.
+
+   A large collection of third-party ported software (the ``Ports
+   Collection'') is also provided to make it easy to obtain and install all
+   your favorite traditional UNIX utilities for FreeBSD. Each ``port''
+   consists of a set of scripts to retrieve, configure, build, and install a
+   piece of software, with a single command. Over 5,400 ports, from editors
+   to programming languages to graphical applications, make FreeBSD a
+   powerful and comprehensive operating environment that extends far beyond
+   what's provided by many commercial versions of UNIX. Most ports are also
+   available as pre-compiled ``packages'', which can be quickly installed
+   from the installation program.
+
+     ----------------------------------------------------------------------
+
+1.2 Target Audience
+
+   This release of FreeBSD is suitable for all users. It has undergone a
+   period of testing and quality assurance checking to ensure the highest
+   reliability and dependability.
+
+     ----------------------------------------------------------------------
+
+                              2 Obtaining FreeBSD
+
+   FreeBSD may be obtained in a variety of ways. This section focuses on
+   those ways that are primarily of use for obtaining a complete FreeBSD
+   distribution, rather than updating an existing installation.
+
+     ----------------------------------------------------------------------
+
+2.1 CDROM and DVD
+
+   FreeBSD -RELEASE distributions may be ordered on CDROM or DVD from several
+   publishers. This is frequently the most convenient way to obtain FreeBSD
+   for new installations, as it provides a convenient way to quickly
+   reinstall the system if necessary. Some distributions include some of the
+   optional, precompiled ``packages'' from the FreeBSD Ports Collection.
+
+   A list of the CDROM and DVD publishers known to the project are listed in
+   the ``Obtaining FreeBSD'' appendix to the Handbook.
+
+     ----------------------------------------------------------------------
+
+2.2 FTP
+
+   You can use FTP to retrieve FreeBSD and any or all of its optional
+   packages from ftp://ftp.FreeBSD.org/, which is the official FreeBSD
+   release site, or any of its ``mirrors''.
+
+   Lists of locations that mirror FreeBSD can be found in the FTP Sites
+   section of the Handbook, or on the http://www.freebsdmirrors.org/ Web
+   pages. Finding a close (in networking terms) mirror from which to download
+   the distribution is highly recommended.
+
+   Additional mirror sites are always welcome. Contact
+   <freebsd-admin@FreeBSD.org> for more details on becoming an official
+   mirror site.
+
+   Mirrors generally contain the floppy disk images necessary to begin an
+   installation, as well as the distribution files needed for the install
+   process itself. Some mirrors also contain some of the ISO images necessary
+   to create a CDROM of a FreeBSD release.
+
+     ----------------------------------------------------------------------
+
+                        3 Contacting the FreeBSD Project
+
+3.1 Email and Mailing Lists
+
+   For any questions or general technical support issues, please send mail to
+   the FreeBSD general questions mailing list
+   <freebsd-questions@FreeBSD.org>.
+
+   If you're tracking the -stable development efforts, you must join the
+   FreeBSD-stable mailing list <freebsd-stable@FreeBSD.org>, in order to keep
+   abreast of recent developments and changes that may affect the way you use
+   and maintain the system.
+
+   Additionally, being a largely-volunteer effort, the FreeBSD Project is
+   always happy to have extra hands willing to help -- there are already far
+   more desired enhancements than there is time to implement them. To contact
+   the developers on technical matters, or with offers of help, please send
+   mail to the FreeBSD technical discussions mailing list
+   <freebsd-hackers@FreeBSD.org>.
+
+   Please note that these mailing lists can experience significant amounts of
+   traffic and if you have slow or expensive mail access and are only
+   interested in keeping up with significant FreeBSD events, you may find it
+   preferable to subscribe instead to the FreeBSD announcements mailing list
+   <freebsd-announce@FreeBSD.org>.
+
+   All of the mailing lists can be freely joined by anyone wishing to do so.
+   Send mail to <majordomo@FreeBSD.org> and include the keyword help on a
+   line by itself somewhere in the body of the message. This will give you
+   more information on joining the various lists, accessing archives, etc.
+   There are a number of mailing lists targeted at special interest groups
+   not mentioned here; more information can be obtained either through
+   majordomo or the mailing lists section of the FreeBSD Web site.
+
+     Important: Do not send email to the lists asking to be subscribed. Use
+     the <majordomo@FreeBSD.org> address instead.
+
+     ----------------------------------------------------------------------
+
+3.2 Submitting Problem Reports
+
+   Suggestions, bug reports and contributions of code are always valued --
+   please do not hesitate to report any problems you may find. Bug reports
+   with attached fixes are of course even more welcome.
+
+   The preferred method to submit bug reports from a machine with Internet
+   mail connectivity is to use the send-pr(1) command or use the Web form at
+   http://www.FreeBSD.org/send-pr.html. ``Problem Reports'' (PRs) submitted
+   in this way will be filed and their progress tracked; the FreeBSD
+   developers will do their best to respond to all reported bugs as soon as
+   possible. A list of all active PRs is available on the FreeBSD Web site;
+   this list is useful to see what potential problems other users have
+   encountered.
+
+   Note that send-pr(1) itself is a shell script that should be easy to move
+   even onto a non-FreeBSD system. Using this interface is highly preferred.
+   If, for some reason, you are unable to use send-pr(1) to submit a bug
+   report, you can try to send it to the FreeBSD problem reports mailing list
+   <freebsd-bugs@FreeBSD.org>.
+
+   In any case, before submitting a PR, please try to determine whether the
+   problem might have already been fixed since.
+
+     ----------------------------------------------------------------------
+
+                               4 Further Reading
+
+4.1 Release Documentation
+
+   A number of other files provide more specific information about this
+   release distribution. These files are provided in various formats. Most
+   distributions will include both ASCII text (.TXT) and HTML (.HTM)
+   renditions. Some distributions may also include other formats such as
+   PostScript (.PS) or Portable Document Format (.PDF).
+
+     * README.TXT: This file, which gives some general information about
+       FreeBSD as well as some cursory notes about obtaining a distribution.
+
+     * RELNOTES.TXT: The release notes, showing what's new and different in
+       FreeBSD 4.4-RELEASE compared to FreeBSD 4.3-RELEASE.
+
+     * HARDWARE.TXT: The hardware compatability list, showing devices with
+       which FreeBSD has been tested and is known to work.
+
+     * INSTALL.TXT: Installation instructions for installing FreeBSD from its
+       distribution media.
+
+     * ERRATA.TXT: Release errata. Late-breaking, post-release information
+       can be found in this file, which is principally applicable to releases
+       (as opposed to snapshots). It is important to consult this file before
+       installing a release of FreeBSD, as it contains the latest information
+       on problems which have been found and fixed since the release was
+       created.
+
+   Most of this information is also available from the Documentation menu
+   during installation. Once the system is installed, you can revisit this
+   menu by running the sysinstall(8) utility.
+
+     Note: It is extremely important to read the errata for any given release
+     before installing it, to learn about any ``late-breaking news'' or
+     post-release problems. The errata file accompanying each release (most
+     likely right next to this file) is already out of date by definition,
+     but other copies are kept updated on the Internet and should be
+     consulted as the ``current errata'' for this release. These other copies
+     of the errata are located at http://www.FreeBSD.org/releases/ (as well
+     as any sites which keep up-to-date mirrors of this location).
+
+     ----------------------------------------------------------------------
+
+4.2 Books and Articles
+
+   Two highly-useful collections of FreeBSD-related information, maintained
+   by the FreeBSD Project, are the FreeBSD Handbook and FreeBSD FAQ
+   (Frequently Asked Questions document). On-line versions of the Handbook
+   and FAQ are always available from the FreeBSD Documentation page or its
+   mirrors. If you install the doc distribution set, you can use a Web
+   browser to read the Handbook and FAQ locally.
+
+   A listing of books and other documents about FreeBSD can be found in the
+   bibliography of the FreeBSD Handbook. Because of FreeBSD's strong UNIX
+   heritage, many other articles and books written for UNIX systems are
+   applicable as well, some of which are also listed in the bibliography.
+
+     ----------------------------------------------------------------------
+
+                               5 Acknowledgments
+
+   FreeBSD represents the cumulative work of many hundreds, if not thousands,
+   of individuals from around the world who have worked countless hours to
+   bring about this release. For a complete list of FreeBSD developers and
+   contributors, please see Contributors to FreeBSD on the FreeBSD Web site
+   or any of its mirrors.
+
+   Special thanks also go to the many thousands of FreeBSD users and testers
+   all over the world, without whom this release simply would not have been
+   possible.
+
+     ----------------------------------------------------------------------
+
+     This file, and other release-related documents, can be downloaded from
+                      ftp://ftp.FreeBSD.org/pub/FreeBSD/.
+
+     For questions about FreeBSD, read the documentation before contacting
+                            <questions@FreeBSD.org>.
+
+   All users of FreeBSD 4-STABLE should subscribe to the <stable@FreeBSD.org>
+                                 mailing list.
+
+       For questions about this documentation, e-mail <doc@FreeBSD.org>.

@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:34:13  rpd
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/boot/cdboot/asm.S,v 1.2 1999/08/28 00:43:17 peter Exp $
  */
 
 

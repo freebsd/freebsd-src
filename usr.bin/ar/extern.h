@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.3 (Berkeley) 4/2/94
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/ar/extern.h,v 1.1.1.1.14.1 2001/08/02 00:51:00 obrien Exp $
  */
 
 int	append __P((char **));

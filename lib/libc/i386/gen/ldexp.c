@@ -33,11 +33,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/i386/gen/ldexp.c,v 1.6 1999/08/27 23:59:21 peter Exp $
  */
 
 #if defined(LIBC_RCS) && !defined(lint)
-static const char rcsid[] = "$FreeBSD$";
+static const char rcsid[] = "$FreeBSD: src/lib/libc/i386/gen/ldexp.c,v 1.6 1999/08/27 23:59:21 peter Exp $";
 #endif /* LIBC_RCS and not lint */
 
 /*

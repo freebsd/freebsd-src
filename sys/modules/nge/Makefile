@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/nge/Makefile,v 1.2.2.1 2001/06/19 19:42:42 wpaul Exp $
 
 .PATH: ${.CURDIR}/../../dev/nge
 

@@ -380,5 +380,5 @@ Steven M. Schultz for providing 2.8BSD, 2.10BSD, 2.11BSD manual pages.
 Copyright (c) 1997-2001 Wolfram Schneider <wosch@FreeBSD.ORG>
 URL: ftp://ftp.freebsd.org/pub/FreeBSD/branches/-current/src/share/misc/bsd-family-tree
 
-$FreeBSD$
+$FreeBSD: src/share/misc/bsd-family-tree,v 1.21.2.6 2001/04/19 08:55:50 wosch Exp $
 

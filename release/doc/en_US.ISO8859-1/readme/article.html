@@ -1,0 +1,446 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+  <head>
+    <meta name="generator" content="HTML Tidy, see www.w3.org">
+    <title>FreeBSD 4.4-RELEASE README</title>
+    <meta name="GENERATOR" content=
+    "Modular DocBook HTML Stylesheet Version 1.71 ">
+    <link rel="STYLESHEET" type="text/css" href="docbook.css">
+  </head>
+
+  <body class="ARTICLE" bgcolor="#FFFFFF" text="#000000" link=
+  "#0000FF" vlink="#840084" alink="#0000FF">
+    <div class="ARTICLE">
+      <div class="TITLEPAGE">
+        <h1 class="TITLE"><a name="AEN2">FreeBSD 4.4-RELEASE
+        README</a></h1>
+
+        <h3 class="CORPAUTHOR">The FreeBSD Project</h3>
+
+        <p class="COPYRIGHT">Copyright &copy; 2000, 2001 by The
+        FreeBSD Documentation Project</p>
+
+        <p class="PUBDATE">$FreeBSD:
+        src/release/doc/en_US.ISO8859-1/readme/article.sgml,v
+        1.1.2.6.2.1 2001/09/14 18:21:05 bmah Exp $<br>
+        </p>
+        <hr>
+      </div>
+
+      <blockquote class="ABSTRACT">
+        <div class="ABSTRACT">
+          <a name="AEN10"></a>
+
+          <p>This document gives a brief introduction to FreeBSD
+          4.4-RELEASE. It includes a roadmap to the other release
+          documentation files, as well as some pointers on
+          obtaining FreeBSD and contacting the FreeBSD development
+          team.</p>
+        </div>
+      </blockquote>
+
+      <div class="SECT1">
+        <hr>
+
+        <h1 class="SECT1"><a name="AEN12">1 Introduction</a></h1>
+
+        <p>This distribution is a release of FreeBSD 4.4-RELEASE,
+        the latest point along the 4-STABLE branch.</p>
+
+        <div class="SECT2">
+          <hr>
+
+          <h2 class="SECT2"><a name="AEN15">1.1 About
+          FreeBSD</a></h2>
+
+          <p>FreeBSD is an operating system based on 4.4 BSD Lite
+          for Intel, AMD, Cyrix or NexGen ``x86'' based PC hardware
+          and Compaq (formerly DEC) Alpha computers. Versions for
+          the IA64, PowerPC, and Sparc64 architectures are
+          currently under development as well. FreeBSD works with a
+          wide variety of peripherals and configurations and can be
+          used for everything from software development to games to
+          Internet Service Provision.</p>
+
+          <p>This release of FreeBSD contains everything you need
+          to run such a system, including full source code for the
+          kernel and all utilities in the base distribution. With
+          the source distribution installed, you can literally
+          recompile the entire system from scratch with one
+          command, making it ideal for students, researchers, or
+          users who simply want to see how it all works.</p>
+
+          <p>A large collection of third-party ported software (the
+          ``Ports Collection'') is also provided to make it easy to
+          obtain and install all your favorite traditional UNIX
+          utilities for FreeBSD. Each ``port'' consists of a set of
+          scripts to retrieve, configure, build, and install a
+          piece of software, with a single command. Over 5,400
+          ports, from editors to programming languages to graphical
+          applications, make FreeBSD a powerful and comprehensive
+          operating environment that extends far beyond what's
+          provided by many commercial versions of UNIX. Most ports
+          are also available as pre-compiled ``packages'', which
+          can be quickly installed from the installation
+          program.</p>
+        </div>
+
+        <div class="SECT2">
+          <hr>
+
+          <h2 class="SECT2"><a name="AEN24">1.2 Target
+          Audience</a></h2>
+
+          <p>This release of FreeBSD is suitable for all users. It
+          has undergone a period of testing and quality assurance
+          checking to ensure the highest reliability and
+          dependability.</p>
+        </div>
+      </div>
+
+      <div class="SECT1">
+        <hr>
+
+        <h1 class="SECT1"><a name="AEN27">2 Obtaining
+        FreeBSD</a></h1>
+
+        <p>FreeBSD may be obtained in a variety of ways. This
+        section focuses on those ways that are primarily of use for
+        obtaining a complete FreeBSD distribution, rather than
+        updating an existing installation.</p>
+
+        <div class="SECT2">
+          <hr>
+
+          <h2 class="SECT2"><a name="AEN30">2.1 CDROM and
+          DVD</a></h2>
+
+          <p>FreeBSD -RELEASE distributions may be ordered on CDROM
+          or DVD from several publishers. This is frequently the
+          most convenient way to obtain FreeBSD for new
+          installations, as it provides a convenient way to quickly
+          reinstall the system if necessary. Some distributions
+          include some of the optional, precompiled ``packages''
+          from the FreeBSD Ports Collection.</p>
+
+          <p>A list of the CDROM and DVD publishers known to the
+          project are listed in the <a href=
+          "http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/mirrors.html"
+           target="_top">``Obtaining FreeBSD''</a> appendix to the
+          Handbook.</p>
+        </div>
+
+        <div class="SECT2">
+          <hr>
+
+          <h2 class="SECT2"><a name="AEN37">2.2 FTP</a></h2>
+
+          <p>You can use FTP to retrieve FreeBSD and any or all of
+          its optional packages from <a href=
+          "ftp://ftp.FreeBSD.org/" target=
+          "_top">ftp://ftp.FreeBSD.org/</a>, which is the official
+          FreeBSD release site, or any of its ``mirrors''.</p>
+
+          <p>Lists of locations that mirror FreeBSD can be found in
+          the <a href=
+          "http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/mirrors-ftp.html"
+           target="_top">FTP Sites</a> section of the Handbook, or
+          on the <a href="http://www.freebsdmirrors.org/" target=
+          "_top">http://www.freebsdmirrors.org/</a> Web pages.
+          Finding a close (in networking terms) mirror from which
+          to download the distribution is highly recommended.</p>
+
+          <p>Additional mirror sites are always welcome. Contact
+          <tt class="EMAIL">&lt;<a href=
+          "mailto:freebsd-admin@FreeBSD.org">freebsd-admin@FreeBSD.org</a>&gt;</tt>
+          for more details on becoming an official mirror site.</p>
+
+          <p>Mirrors generally contain the floppy disk images
+          necessary to begin an installation, as well as the
+          distribution files needed for the install process itself.
+          Some mirrors also contain some of the ISO images
+          necessary to create a CDROM of a FreeBSD release.</p>
+        </div>
+      </div>
+
+      <div class="SECT1">
+        <hr>
+
+        <h1 class="SECT1"><a name="CONTACTING">3 Contacting the
+        FreeBSD Project</a></h1>
+
+        <div class="SECT2">
+          <h2 class="SECT2"><a name="AEN50">3.1 Email and Mailing
+          Lists</a></h2>
+
+          <p>For any questions or general technical support issues,
+          please send mail to the FreeBSD general questions mailing
+          list <tt class="EMAIL">&lt;<a href=
+          "mailto:freebsd-questions@FreeBSD.org">freebsd-questions@FreeBSD.org</a>&gt;</tt>.</p>
+
+          <p>If you're tracking the -stable development efforts,
+          you <i class="EMPHASIS">must</i> join the FreeBSD-stable
+          mailing list <tt class="EMAIL">&lt;<a href=
+          "mailto:freebsd-stable@FreeBSD.org">freebsd-stable@FreeBSD.org</a>&gt;</tt>,
+          in order to keep abreast of recent developments and
+          changes that may affect the way you use and maintain the
+          system.</p>
+
+          <p>Additionally, being a largely-volunteer effort, the
+          FreeBSD Project is always happy to have extra hands
+          willing to help -- there are already far more desired
+          enhancements than there is time to implement them. To
+          contact the developers on technical matters, or with
+          offers of help, please send mail to the FreeBSD technical
+          discussions mailing list <tt class="EMAIL">&lt;<a href=
+          "mailto:freebsd-hackers@FreeBSD.org">freebsd-hackers@FreeBSD.org</a>&gt;</tt>.</p>
+
+          <p>Please note that these mailing lists can experience <i
+          class="EMPHASIS">significant</i> amounts of traffic and
+          if you have slow or expensive mail access and are only
+          interested in keeping up with significant FreeBSD events,
+          you may find it preferable to subscribe instead to the
+          FreeBSD announcements mailing list <tt class=
+          "EMAIL">&lt;<a href=
+          "mailto:freebsd-announce@FreeBSD.org">freebsd-announce@FreeBSD.org</a>&gt;</tt>.</p>
+
+          <p>All of the mailing lists can be freely joined by
+          anyone wishing to do so. Send mail to <tt class=
+          "EMAIL">&lt;<a href=
+          "mailto:majordomo@FreeBSD.org">majordomo@FreeBSD.org</a>&gt;</tt>
+          and include the keyword <tt class="LITERAL">help</tt> on
+          a line by itself somewhere in the body of the message.
+          This will give you more information on joining the
+          various lists, accessing archives, etc. There are a
+          number of mailing lists targeted at special interest
+          groups not mentioned here; more information can be
+          obtained either through majordomo or the <a href=
+          "http://www.FreeBSD.org/support.html#mailing-list"
+          target="_top">mailing lists section</a> of the FreeBSD
+          Web site.</p>
+
+          <div class="IMPORTANT">
+            <blockquote class="IMPORTANT">
+              <p><b>Important:</b> Do <i class="EMPHASIS">not</i>
+              send email to the lists asking to be subscribed. Use
+              the <tt class="EMAIL">&lt;<a href=
+              "mailto:majordomo@FreeBSD.org">majordomo@FreeBSD.org</a>&gt;</tt>
+              address instead.</p>
+            </blockquote>
+          </div>
+        </div>
+
+        <div class="SECT2">
+          <hr>
+
+          <h2 class="SECT2"><a name="AEN70">3.2 Submitting Problem
+          Reports</a></h2>
+
+          <p>Suggestions, bug reports and contributions of code are
+          always valued -- please do not hesitate to report any
+          problems you may find. Bug reports with attached fixes
+          are of course even more welcome.</p>
+
+          <p>The preferred method to submit bug reports from a
+          machine with Internet mail connectivity is to use the <a
+          href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=send-pr&amp;sektion=1">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">send-pr</span>(1)</span></a> command or
+          use the Web form at <a href=
+          "http://www.FreeBSD.org/send-pr.html" target=
+          "_top">http://www.FreeBSD.org/send-pr.html</a>. ``Problem
+          Reports'' (PRs) submitted in this way will be filed and
+          their progress tracked; the FreeBSD developers will do
+          their best to respond to all reported bugs as soon as
+          possible. <a href=
+          "http://www.FreeBSD.org/cgi/query-pr-summary.cgi" target=
+          "_top">A list of all active PRs</a> is available on the
+          FreeBSD Web site; this list is useful to see what
+          potential problems other users have encountered.</p>
+
+          <p>Note that <a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=send-pr&amp;sektion=1">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">send-pr</span>(1)</span></a> itself is a
+          shell script that should be easy to move even onto a
+          non-FreeBSD system. Using this interface is highly
+          preferred. If, for some reason, you are unable to use <a
+          href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=send-pr&amp;sektion=1">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">send-pr</span>(1)</span></a> to submit a
+          bug report, you can try to send it to the FreeBSD problem
+          reports mailing list <tt class="EMAIL">&lt;<a href=
+          "mailto:freebsd-bugs@FreeBSD.org">freebsd-bugs@FreeBSD.org</a>&gt;</tt>.</p>
+
+          <p>In any case, before submitting a PR, please try to
+          determine whether the problem might have already been
+          fixed since.</p>
+        </div>
+      </div>
+
+      <div class="SECT1">
+        <hr>
+
+        <h1 class="SECT1"><a name="AEN89">4 Further
+        Reading</a></h1>
+
+        <div class="SECT2">
+          <h2 class="SECT2"><a name="RELEASE-DOCS">4.1 Release
+          Documentation</a></h2>
+
+          <p>A number of other files provide more specific
+          information about this release distribution. These files
+          are provided in various formats. Most distributions will
+          include both ASCII text (<tt class="FILENAME">.TXT</tt>)
+          and HTML (<tt class="FILENAME">.HTM</tt>) renditions.
+          Some distributions may also include other formats such as
+          PostScript (<tt class="FILENAME">.PS</tt>) or Portable
+          Document Format (<tt class="FILENAME">.PDF</tt>).</p>
+
+          <ul>
+            <li>
+              <p><tt class="FILENAME">README.TXT</tt>: This file,
+              which gives some general information about FreeBSD as
+              well as some cursory notes about obtaining a
+              distribution.</p>
+            </li>
+
+            <li>
+              <p><tt class="FILENAME">RELNOTES.TXT</tt>: The
+              release notes, showing what's new and different in
+              FreeBSD 4.4-RELEASE compared to FreeBSD
+              4.3-RELEASE.</p>
+            </li>
+
+            <li>
+              <p><tt class="FILENAME">HARDWARE.TXT</tt>: The
+              hardware compatability list, showing devices with
+              which FreeBSD has been tested and is known to
+              work.</p>
+            </li>
+
+            <li>
+              <p><tt class="FILENAME">INSTALL.TXT</tt>:
+              Installation instructions for installing FreeBSD from
+              its distribution media.</p>
+            </li>
+
+            <li>
+              <p><tt class="FILENAME">ERRATA.TXT</tt>: Release
+              errata. Late-breaking, post-release information can
+              be found in this file, which is principally
+              applicable to releases (as opposed to snapshots). It
+              is important to consult this file before installing a
+              release of FreeBSD, as it contains the latest
+              information on problems which have been found and
+              fixed since the release was created.</p>
+            </li>
+          </ul>
+          <br>
+          <br>
+
+          <p>Most of this information is also available from the
+          Documentation menu during installation. Once the system
+          is installed, you can revisit this menu by running the <a
+          href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=sysinstall&amp;sektion=8">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">sysinstall</span>(8)</span></a>
+          utility.</p>
+
+          <div class="NOTE">
+            <blockquote class="NOTE">
+              <p><b>Note:</b> It is extremely important to read the
+              errata for any given release before installing it, to
+              learn about any ``late-breaking news'' or
+              post-release problems. The errata file accompanying
+              each release (most likely right next to this file) is
+              already out of date by definition, but other copies
+              are kept updated on the Internet and should be
+              consulted as the ``current errata'' for this release.
+              These other copies of the errata are located at <a
+              href="http://www.FreeBSD.org/releases/" target=
+              "_top">http://www.FreeBSD.org/releases/</a> (as well
+              as any sites which keep up-to-date mirrors of this
+              location).</p>
+            </blockquote>
+          </div>
+        </div>
+
+        <div class="SECT2">
+          <hr>
+
+          <h2 class="SECT2"><a name="AEN123">4.2 Books and
+          Articles</a></h2>
+
+          <p>Two highly-useful collections of FreeBSD-related
+          information, maintained by the FreeBSD Project, are the
+          FreeBSD Handbook and FreeBSD FAQ (Frequently Asked
+          Questions document). On-line versions of the <a href=
+          "http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/"
+           target="_top">Handbook</a> and <a href=
+          "http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/faq/"
+          target="_top">FAQ</a> are always available from the <a
+          href="http://www.FreeBSD.org/docs.html" target=
+          "_top">FreeBSD Documentation page</a> or its mirrors. If
+          you install the <tt class="FILENAME">doc</tt>
+          distribution set, you can use a Web browser to read the
+          Handbook and FAQ locally.</p>
+
+          <p>A listing of books and other documents about FreeBSD
+          can be found in the <a href=
+          "http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/bibliography.html"
+           target="_top">bibliography</a> of the FreeBSD Handbook.
+          Because of FreeBSD's strong UNIX heritage, many other
+          articles and books written for UNIX systems are
+          applicable as well, some of which are also listed in the
+          bibliography.</p>
+        </div>
+      </div>
+
+      <div class="SECT1">
+        <hr>
+
+        <h1 class="SECT1"><a name="AEN132">5
+        Acknowledgments</a></h1>
+
+        <p>FreeBSD represents the cumulative work of many hundreds,
+        if not thousands, of individuals from around the world who
+        have worked countless hours to bring about this release.
+        For a complete list of FreeBSD developers and contributors,
+        please see <a href=
+        "http://www.FreeBSD.org/doc/en_US.ISO8859-1/articles/contributors/"
+         target="_top">Contributors to FreeBSD</a> on the FreeBSD
+        Web site or any of its mirrors.</p>
+
+        <p>Special thanks also go to the many thousands of FreeBSD
+        users and testers all over the world, without whom this
+        release simply would not have been possible.</p>
+      </div>
+    </div>
+    <hr>
+
+    <p align="center"><small>This file, and other release-related
+    documents, can be downloaded from <a href=
+    "ftp://ftp.FreeBSD.org/pub/FreeBSD/">ftp://ftp.FreeBSD.org/pub/FreeBSD/</a>.</small></p>
+
+    <p align="center"><small>For questions about FreeBSD, read the
+    <a href="http://www.FreeBSD.org/docs.html">documentation</a>
+    before contacting &lt;<a href=
+    "mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&gt;.</small></p>
+
+    <p align="center"><small><small>All users of FreeBSD 4-STABLE
+    should subscribe to the &lt;<a href=
+    "mailto:stable@FreeBSD.org">stable@FreeBSD.org</a>&gt; mailing
+    list.</small></small></p>
+
+    <p align="center">For questions about this documentation,
+    e-mail &lt;<a href=
+    "mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&gt;.</p>
+    <br>
+    <br>
+  </body>
+</html>
+

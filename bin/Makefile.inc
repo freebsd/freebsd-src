@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.1 (Berkeley) 5/31/93
-# $FreeBSD$
+# $FreeBSD: src/bin/Makefile.inc,v 1.11 1999/08/27 23:12:21 peter Exp $
 
 BINDIR?=	/bin
 CFLAGS+=	-Wall -Wformat

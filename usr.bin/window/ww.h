@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ww.h	8.1 (Berkeley) 6/6/93
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/window/ww.h,v 1.3.12.1 2001/05/17 09:45:01 obrien Exp $
  */
 
 #ifdef OLD_TTY

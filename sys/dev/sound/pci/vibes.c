@@ -27,7 +27,7 @@
  * detached, haven't been able to remedy this with any combination of
  * muting.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/pci/vibes.c,v 1.4.2.5 2001/09/03 20:03:42 orion Exp $
  */
 
 #include <dev/sound/pcm/sound.h>

@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 4/2/94
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/chpass/Makefile,v 1.20.2.2 2001/08/02 01:21:20 obrien Exp $
 
 PROG=	chpass
 CFLAGS+=-Wall

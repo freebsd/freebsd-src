@@ -31,7 +31,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/telnet/Makefile,v 1.14.2.1 2000/07/04 01:04:55 ps Exp $
 #
 
 PROG=	telnet

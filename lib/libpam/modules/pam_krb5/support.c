@@ -3,7 +3,7 @@
  *
  * Support functions for pam_krb5
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libpam/modules/pam_krb5/support.c,v 1.1.2.1 2001/06/07 09:37:07 markm Exp $
  */
 
 static const char rcsid[] = "$Id: support.c,v 1.8 2000/01/04 09:50:03 fcusack Exp $";

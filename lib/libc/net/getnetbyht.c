@@ -44,7 +44,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)getnetent.c	8.1 (Berkeley) 6/4/93";
 static char orig_rcsid[] = "From: Id: getnetent.c,v 8.4 1997/06/01 20:34:37 vixie Exp";
-static chat rcsid[] = "$FreeBSD$";
+static chat rcsid[] = "$FreeBSD: src/lib/libc/net/getnetbyht.c,v 1.7 1999/08/28 00:00:07 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>

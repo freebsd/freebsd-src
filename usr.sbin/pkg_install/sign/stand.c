@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.sbin/pkg_install/sign/stand.c,v 1.1.2.1 2001/03/05 03:43:53 wes Exp $ */
 
 #include "stand.h"
 

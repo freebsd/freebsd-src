@@ -12,7 +12,7 @@
 .\" The University of Texas at Austin
 .\" Austin, Texas  78712
 .\"
-.\" $FreeBSD$
+.\" $FreeBSD: src/gnu/usr.bin/man/man/man.man,v 1.10.2.5 2001/04/26 17:14:47 ru Exp $
 .\"
 .Dd January 5, 1991
 .Dt MAN 1

@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/release/sysinstall/dhcp.c,v 1.3.8.1 2001/09/17 07:30:17 jkh Exp $
  *
  * Copyright (c) 1999
  *	C. Stone.  All rights reserved.

@@ -64,7 +64,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mroute.c	8.2 (Berkeley) 4/28/95
- *	$FreeBSD$
+ *	$FreeBSD: src/usr.bin/netstat/mroute6.c,v 1.1.2.5 2001/08/10 09:07:09 ru Exp $
  */
 
 #ifdef INET6

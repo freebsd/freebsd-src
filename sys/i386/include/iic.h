@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/iic.h,v 1.3 1999/08/28 00:44:16 peter Exp $
  *
  */
 #ifndef __IIC_H

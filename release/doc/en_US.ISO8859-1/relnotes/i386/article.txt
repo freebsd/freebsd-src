@@ -1,0 +1,636 @@
+                     FreeBSD 4.4-RELEASE i386 Release Notes
+
+  The FreeBSD Project
+
+   Copyright (c) 2000, 2001 by The FreeBSD Documentation Project
+
+     ----------------------------------------------------------------------
+
+     ----------------------------------------------------------------------
+
+                                 1 Introduction
+
+   This document contains the release notes for FreeBSD 4.4-RELEASE on the
+   i386 hardware platform. It describes new features of FreeBSD that have
+   been added (or changed) since 4.3-RELEASE.
+
+   This distribution of FreeBSD 4.4-RELEASE is a release distribution. It can
+   be found at ftp://ftp.FreeBSD.org/pub/FreeBSD/ or any of its mirrors. More
+   information on obtaining this (or other) release distributions of FreeBSD
+   can be found in the ``Obtaining FreeBSD'' appendix to the FreeBSD
+   Handbook.
+
+     ----------------------------------------------------------------------
+
+                                  2 What's New
+
+   $FreeBSD: src/release/doc/en_US.ISO8859-1/relnotes/common/new.sgml,v
+   1.22.2.86.2.1 2001/09/14 19:35:01 bmah Exp $
+
+   This section describes the most user-visible new or changed features in
+   FreeBSD since 4.3-RELEASE.
+
+   Many additional changes were made to FreeBSD that are not listed here for
+   lack of space. For example, documentation was corrected and improved,
+   minor bugs were fixed, insecure coding practices were audited and
+   corrected, and source code was cleaned up.
+
+   The release notes items are organized into three different sections.
+   Section 2.1 lists recent changes to the FreeBSD kernel. Security fixes,
+   including those pertaining to security advisories, are listed in Section
+   2.2. Finally, Section 2.3 covers changes to FreeBSD userland applications
+   included in the base system.
+
+     ----------------------------------------------------------------------
+
+2.1 Kernel Changes
+
+   The O_DIRECT flag has been added to open(2) and fcntl(2). Specifying this
+   flag for open files will attempt to minimize the cache effects of reading
+   and writing.
+
+   An orm(4) device has been added to claim the option ROMs in the ISA memory
+   I/O space, to prevent other drivers from mistakenly assigning addresses
+   that conflict with these ROMs.
+
+   The out-of-swap process termination code now begins killing processes
+   earlier to avoid deadlocks; it now also takes into account the swap space
+   used by processes when computing the process sizes.
+
+   Network device cloning has been implemented, and the gif(4) device has
+   been modified to take advantage of it. Thus, instead of specifying how
+   many gif(4) interfaces are available in kernel configuration files,
+   ifconfig(8)'s create option should be used when another device instance is
+   desired.
+
+   Two new ddb(4) commands, hwatch and dhwatch, have been introduced.
+   Analogous to watch and dwatch, they install hardware watchpoints (as
+   opposed to software watchpoints) if supported by the architecture.
+
+   A nmdm(4) null-modem terminal driver has been added.
+
+   The stl(4) driver now supports the PCI and ISA EasyIO multi-port serial
+   cards from Stallion Technologies based on the Signetics SC26C194/8
+   Intelligent Quad/Octal UART.
+
+   The maxusers kernel configuration parameter is now a boot-time tunable
+   variable. The kernel parameters derived from maxusers are now also
+   tunables and can be overridden at boot-time. The hz parameter is also now
+   a tunable.
+
+   The FreeBSD boot loader now contains a workaround to support CDROM booting
+   on certain IBM BIOSs that expect the first sector of the emulated floppy
+   to contain a valid MS-DOS BPB that they can modify.
+
+     ----------------------------------------------------------------------
+
+  2.1.1 Processor/Motherboard Support
+
+   Detection for new processors, such as the Transmeta Crusoe, and Transmeta
+   Crusoe with LongRun, has been added.
+
+   Support for Streaming SIMD Extensions (SSE) has been introduced. The
+   CPU_ENABLE_SSE kernel option controls whether support is compiled into the
+   kernel.
+
+     ----------------------------------------------------------------------
+
+  2.1.2 Network Interface Support
+
+   The fxp(4) driver now requires a device miibus entry in the kernel
+   configuration file.
+
+   The wx(4) driver now supports the Intel PRO1000-F and PRO1000-T
+   (10/100/1000) adapters.
+
+   The an(4) driver now supports the Cisco Aironet 350 series of adaptors and
+   has received a few bug fixes; promiscuous mode now works, and it can be
+   configured before being brought up.
+
+   The xl(4) driver now supports reception of VLAN tagged frames (on the
+   ``Cyclone'' or newer chipsets).
+
+   The ti(4) driver correctly masks VLAN tags.
+
+   Added the nge(4) driver, which supports PCI Gigabit Ethernet adapters
+   based on the National Semiconductor DP83820 and DP83821 Gigabit Ethernet
+   controller chips, including the D-Link DGE-500T, SMC EZ Card 1000
+   (SMC9462TX), Asante FriendlyNet GigaNIC 1000TA and 1000TPC and Addtron
+   AEG320T. This driver supports transmit and receive checksum offloading.
+
+   The lge(4) driver has been added to support the Level 1 LXT1001
+   NetCellerator Gigabit Ethernet controller chip. This device is used on
+   some fiber optic GigE cards from SMC, D-Link and Addtron. Jumbograms and
+   TCP/IP checksum offload on receive are supported, although hardware VLAN
+   filtering is not.
+
+   The tx(4) driver now supports the fiber-optic SMC 9432FTX NICs.
+
+   The ed(4) driver now has support for D-Link DL10022 chips, necessary for
+   the NetGear FA-410TX and other cards. As a result, device miibus is
+   required in kernel configurations using the ed(4) driver.
+
+   The txp(4) driver has been added to support NICs based on the 3Com 3XP
+   Typhoon/Sidewinder (3CR990) chipset.
+
+     ----------------------------------------------------------------------
+
+  2.1.3 Network Protocols
+
+   TCP now has RFC 1323 extensions enabled by default in rc.conf(5).
+
+   RFC 1323 and RFC 1644 TCP extensions are now disabled for a connection in
+   progress if no response has been received by the third SYN segment sent.
+   This behavior tries to work around (very old) terminal servers with buggy
+   VJ header compression implementations.
+
+   The TCP_RESTRICT_RST kernel option has been removed. Similar functionality
+   can be achieved with the net.inet.tcp.blackhole sysctl variable.
+
+   The TCP implementation no longer requires the allocation of a TCP template
+   structure for each connection; this should reduce the buffer usage on
+   large systems handling many connections.
+
+   A new sysctl net.inet.ip.check_interface, which is off by default, causes
+   IP to verify that an incoming packet arrives on an interface that has an
+   address matching the packet's destination address.
+
+   A new options RANDOM_IP_ID kernel option causes the ID field of IP packets
+   to be randomized. This closes a minor information leak which allows a
+   remote observer to determine the rate at which the machine is generating
+   packets, since the default behavior is to increment a counter for each
+   packet sent.
+
+     ----------------------------------------------------------------------
+
+  2.1.4 Disks and Storage
+
+   The asr(4) driver now supports the Adaptec 2000S and 2005S Zero-Channel
+   RAID controllers.
+
+   The aac(4) driver now supports the Adaptec SCSI RAID 5400S controller.
+
+   The ata(4) driver again has write-caching enabled by default.
+
+   The wd(4) compatibility devices were removed from the ata(4) driver.
+
+     ----------------------------------------------------------------------
+
+  2.1.5 Filesystems
+
+   smbfs (CIFS) support in kernel has been added. The corresponding userland
+   filesystem mount utility can be found in the net/smbfs port in the FreeBSD
+   Ports Collection.
+
+   A simple hash-based lookup optimization for large directories called
+   dirhash has been added. Conditional on the UFS_DIRHASH kernel option, it
+   improves the speed of operations on very large directories at the expense
+   of some memory.
+
+     ----------------------------------------------------------------------
+
+  2.1.6 PCCARD Support
+
+   On many modern hosts, PCCARD devices can be configured to route their
+   interrupts via either the ISA or PCI interrupt paths. The pcic(4) driver
+   has been updated to support both interrupt paths (formerly, only routing
+   via ISA was supported). In most cases, configuration of PCMCIA devices in
+   laptops is simpler and more flexible. In addition, various Cardbus bridge
+   PCI cards (such as those used by Orinoco PCI NICs) are now supported. Some
+   hosts may experience problems, such as hangs or panics, with PCI interrupt
+   routing; they can frequently be made to work by forcing the older-style
+   ISA interrupt routing. The following lines, placed in /boot/loader.conf,
+   may fix the problem:
+
+     hw.pcic.intr_path="1"
+     hw.pcic.irq="0"
+
+   When installing FreeBSD on such a system, typing the following lines to
+   the boot loader may be helpful in starting up FreeBSD for the first time:
+
+   
+
+     ok set hw.pcic.intr_path="1"
+     ok set hw.pcic.irq="0"
+
+   PCCARD ejection can sometimes result in a hang; a workaround for these
+   cases is to perform a:
+
+     # pccardc power 0 slot
+
+     ----------------------------------------------------------------------
+
+  2.1.7 Multimedia Support
+
+   A driver for the Advance Logic ALS4000 has been added.
+
+     ----------------------------------------------------------------------
+
+  2.1.8 Contributed Software
+
+   IPFilter has been updated to 3.4.20.
+
+     ----------------------------------------------------------------------
+
+    2.1.8.1 isdn4bsd
+
+   isdn4bsd has been updated to version 1.0.1. As a result of this update,
+   users of the i4bisppp(4) (kernel PPP over ISDN) driver must now use
+   ispppcontrol(8) instead of spppcontrol(8) to configure and control these
+   network interfaces.
+
+   The ihfc(4) driver for supporting Cologne Chip Designs HFC devices under
+   isdn4bsd has been added.
+
+   The itjc(4) driver for supporting NETjet-S / Teles PCI-TJ devices under
+   isdn4bsd has been added.
+
+   Experimental support for the Eicon.Diehl DIVA 2.0 and 2.02 ISA PnP ISDN
+   cards has been added to the isic(4) isdn4bsd driver.
+
+   Active CAPI-based ISDN cards manufacured by AVM are now supported using
+   the i4bcapi(4) and the iavc(4) driver. The supported cards are the AVM B1
+   PCI and AVM B1 ISA Basic Rate cards and the AVM T1 Primary Rate cards.
+
+   A new maxconnecttime keyword is now accepted in isdnd.rc(5) files to limit
+   the time a connection may remain open.
+
+     ----------------------------------------------------------------------
+
+    2.1.8.2 KAME
+
+   The IPv6 stack is now based on a snapshot based on the KAME Project's IPv6
+   snapshot as of 28 May, 2001. Most of the items listed in this section are
+   a result of this import. Section 2.3.1.2 lists userland updates to the
+   KAME IPv6 stack.
+
+   gif(4) is now based on RFC 2893, rather than RFC 1933. The IFF_LINK2
+   interface flag can be used to control ingress filtering.
+
+   IPSec has received some enhancements, including the ability to use the
+   Rijndael and SHA2 algorithms. IPSec RC5 support has been removed due to
+   patent issues.
+
+   stf(4) now conforms to RFC 3056; the IFF_LINK2 interface flag can be used
+   to control ingress filtering.
+
+   IPv6 has better checking of illegal addresses (such as loopback addresses)
+   on physical networks.
+
+   The IPV6_V6ONLY socket option is now completely supported. The kernel's
+   default behavior with respect to this option is controlled by the
+   net.inet6.ip6.v6only sysctl variable.
+
+   RFC 3041 (Privacy Extensions for Stateless Address Autoconfiguration) is
+   now supported. It can be enabled via the net.inet6.ip6.use_tempaddr sysctl
+   variable.
+
+     ----------------------------------------------------------------------
+
+2.2 Security-Related Changes
+
+   The security fix mentioned in security advisory FreeBSD-SA-01:39, which
+   governs initial sequence number generation for TCP connections, has raised
+   some possible compatibility issues. To mitigate this effect, the fix can
+   now be enabled or disabled using the net.inet.tcp.tcp_seq_genscheme sysctl
+   variable.
+
+   A vulnerability in the fts(3) routines (used by applications for
+   recursively traversing a filesystem) could allow a program to operate on
+   files outside the intended directory hierarchy. This bug has been fixed
+   (see security advisory FreeBSD-SA-01:40).
+
+   portmap(8) is now turned off by default, although it will be started
+   automatically on machines that enable NFS serving, NIS services, or amd(8)
+   through rc.conf(5).
+
+   A flaw allowed some signal handlers to remain in effect in a child process
+   after being exec-ed from its parent. This allowed an attacker to execute
+   arbitrary code in the context of a setuid binary. This flaw has been
+   corrected (see security advisory FreeBSD-SA-01:42).
+
+   A remote buffer overflow in tcpdump(1) has been fixed (see security
+   advisory FreeBSD-SA-01:48).
+
+   A remote buffer overflow in telnetd(8) has been fixed (see security
+   advisory FreeBSD-SA-01:49).
+
+   The new net.inet.ip.maxfragpackets and net.inet.ip6.maxfragpackets sysctl
+   variables limit the amount of memory that can be consumed by IPv4 and IPv6
+   packet fragments, which defends against some denial of service attacks
+   (see security advisory FreeBSD-SA-01:52).
+
+   The number of ``security profiles'' available in sysinstall(8) for new
+   installations has been reduced to two.
+
+   All services in inetd.conf are now disabled by default for new
+   installations. sysinstall(8) gives the option of enabling or disabling
+   inetd(8) on new installations, as well as editing inetd.conf.
+
+   A flaw in the implementation of the ipfw(8) me rules on point-to-point
+   links has been corrected. Formerly, me filter rules would match the remote
+   IP address of a point-to-point interface in addition to the intended local
+   IP address (see security advisory FreeBSD-SA-01:53).
+
+   A vulnerability in procfs(5), which could allow a process to read
+   sensitive information from another process's memory space, has been closed
+   (see security advisory FreeBSD-SA-01:55).
+
+   The PARANOID hostname checking in tcp_wrappers now works as advertised
+   (see security advisory FreeBSD-SA-01:56).
+
+   A local root exploit in sendmail(8) has been closed (see security advisory
+   FreeBSD-SA-01:57).
+
+   A remote root vulnerability in lpd(8) has been closed (see security
+   advisory FreeBSD-SA-01:58).
+
+   A race condition in rmuser(8) that briefly exposed a world-readable
+   /etc/master.passwd has been fixed (see security advisory
+   FreeBSD-SA-01:59).
+
+   All non-root-owned binaries in standard system paths now have the schg
+   flag set to prevent exploit vectors when run by cron(8), by root, or by a
+   user other then the one owning the binary. In addition, uustat(1) is now
+   run via /etc/periodic/daily/410.status-uucp as uucp, not root.
+
+   A security hole in the form of a buffer overflow in the semop(2) system
+   call has been closed.
+
+     ----------------------------------------------------------------------
+
+2.3 Userland Changes
+
+   ip6fw(8) now has the ability to use a preprocessor and use the -q (quiet)
+   flag when reading from a file.
+
+   ping(8) now supports a -m option to set the TTL of outgoing packets.
+
+   ln(1) now takes a -h flag to avoid following a target that is a link, with
+   a -n flag for compatibility with other implementations.
+
+   find(1) now has the -anewer, -cnewer, -mnewer, -okdir, and
+   -newer[acm][acmt] primaries for comparisons of file timestamps.
+
+   The performance of the ELF dynamic linker has been improved.
+
+   ifconfig(8) can now accept addresses in slash/CIDR notation.
+
+   c89(1) has been converted from a shell script to a binary executable,
+   fixing some minor bugs.
+
+   vidcontrol(1) now supports a -p option to take a snapshot of a syscons(4)
+   video buffer. These snapshots can be manipulated by the graphics/scr2png
+   utility in the Ports Collection.
+
+   vidcontrol(1) now allows the user to omit the font size specification when
+   loading a font, and has some better error-handling.
+
+   telnet(1) now supports a -u flag to allow connections to UNIX-domain
+   (AF_UNIX) sockets.
+
+   newfs(8) now takes a -U option to enable softupdates on a new filesystem.
+
+   libcrypt now has support for Blowfish password hashing.
+
+   Ukrainian language support has been added to the FreeBSD console.
+
+   savecore(8) now works correctly on machines with 2 GB or more of RAM.
+
+   The syntax of inetd(8)'s support for faithd(8) is now compatible with that
+   of other BSDs.
+
+   The ident protocol support in inetd(8) has been cleaned up and updated.
+
+   inetd(8) now has the ability to manage UNIX-domain sockets.
+
+   The resolver(3) in FreeBSD now implements EDNS0 support, which will be
+   necessary when working with IPv6 transport-ready resolvers/DNS servers.
+
+   df(1) now takes a -l option to only display information about
+   locally-mounted filesystems.
+
+   whois(1) now directs queries for IP addresses to ARIN. If a query to ARIN
+   references APNIC or RIPE, the appropriate server will also be queried,
+   provided that the -Q option is not specified.
+
+   The -T option to dump(8) no longer swallows an extra argument.
+
+   dump(8) has a new -D option, allowing the path to the /etc/dumpdates file
+   to be changed.
+
+   libfetch now has support for a HTTP_USER_AGENT environment variable.
+
+   The getprogname(3) and setprogname(3) library functions have been added to
+   manipulate the name of the current program. They are used by
+   error-reporting routines to produce consistent output.
+
+   xargs(1) now supports a -J replstr option that allows the user to tell
+   xargs(1) to insert the data read from standard input at a specific point
+   in the command line arguments, rather than at the end.
+
+   ifconfig(8) now has support for setting parameters for IEEE 802.11
+   wireless network devices. wi(4) and an(4) devices are supported.
+
+   ifconfig(8) no longer displays the list of supported media by default.
+   Instead it displays it when the -m option is given.
+
+   lpd(8) now takes two new options: -c will log all connection errors to
+   syslogd(8), while -W will allow connections from non-reserved ports.
+
+   lpc(8) has been improved; lpc clean is now somewhat safer, and a new lpc
+   tclean command has been added to check to see what files would be removed
+   by lpc clean.
+
+   du(1) now takes a -I command-line flag to ignore/skip files and
+   subdirectories matching a specified shell-glob mask.
+
+   growfs(8), a utility for growing FFS filesystems, has been added.
+   ffsinfo(8), a utility for dump all the meta-information of an existing
+   filesystem, has also been added.
+
+   mail(1) now takes a -E flag to avoid sending messages with empty bodies.
+
+   vidcontrol(1) now supports a -C option to clear the history buffer for a
+   given tty, as well as a -h option to set the size of the history buffer.
+
+   last(1) now implements a -d option that provides a ``snapshot'' of who was
+   logged in at a particular date and time.
+
+   libcrypt and libdescrypt have been unified to provide a configurable
+   password authentication hash library. Both the md5 and des hash methods
+   are provided unless the des hash is specifically compiled out.
+
+   install(1) has a number of new features, including the -b and -B options
+   for backing up existing target files and the -S option for ``safe''
+   (atomic copy) operation. The -c (copy) flag is now the default, and the -D
+   (debugging) flag has been withdrawn. install(1) now issues a warning if -d
+   (create directories) and -C (copy changed files only) are used together.
+
+   The FreeBSD Makefile infrastructure now supports the WARNS directive from
+   NetBSD. This directive controls the addition of compiler warning flags to
+   CFLAGS in a relatively compiler-neutral manner.
+
+   A new fsck_msdosfs(8) utility has been added to check the consistency of
+   MS-DOS filesystems.
+
+   The kldconfig(8) utility has been added to make it easier to manipulate
+   the kernel module search path.
+
+   moused(8) now takes a -a option to control mouse acceleration.
+
+   The tcpmssfixup ppp(8) option now adjusts the maximum receive segment size
+   of incoming TCP SYN segments as well as outgoing TCP SYN segments.
+
+   sysctl(8) now supports a -N option to print out variable names only.
+
+   sysctl(8) has replaced the -A and -X options with -ao and -ax
+   respectively; the former options are now deprecated. The -w flag is
+   deprecated as well; it is not needed to determine the user's intentions.
+
+   cdcontrol(1) now supports next and prev commands to skip forwards or
+   backwards a specified number of tracks while playing an audio CD.
+
+   col(1) now takes a -p flag to force unknown control sequences to be passed
+   through unchanged.
+
+   tmpnam(3) will now use the TMPDIR environment variable, if set, to specify
+   the location of temporary files.
+
+   rc(8) now deletes all non-directory files in /var/run and /var/spool/lock
+   at boot time.
+
+   fmtcheck(3), a function for checking consistency of format string
+   arguments, has been added.
+
+   apmd(8) now has the ability to monitor battery levels and execute commands
+   based on percentage or minutes of battery life remaining via the
+   apm_battery configuration directive. See the commented-out examples in
+   /etc/apmd.conf for the syntax.
+
+   pppd(8) (the control program for kernel-level PPP) is now installed mode
+   4550 and root:dialer, rather than mode 4555 (in other words, it is no
+   longer world-executable). Users of pppd(8) may need to change their group
+   settings.
+
+     ----------------------------------------------------------------------
+
+  2.3.1 Contributed Software
+
+   BIND is now built with the NOADDITIONAL flag, which causes named(8) to
+   operate in a more consistent fashion for certain common misconfigurations.
+
+   BIND has been updated to 8.2.4-REL.
+
+   Binutils have been upgraded to 2.11.2.
+
+   bzip2 1.0.1 has been imported; this brings the bzip2(1) program and the
+   libbz2 library to the base system.
+
+   The ee(1) Easy Editor has been updated to 1.4.2.
+
+   file has been updated to 3.36.
+
+   gcc(1) now supports the environment variable GCC_OPTIONS, which can hold a
+   set of default options for GCC.
+
+   GNATS has been updated to 3.113.
+
+   groff and its related utilities have been updated to FSF version 1.17.2.
+   This import brings in a new mdoc(7) macro package (sometimes referred to
+   as mdocNG), which removes many of the limitations of its predecessor.
+
+   libpcap has been updated to 0.6.2.
+
+   OpenSSL has been upgraded to 0.9.6a.
+
+   sendmail and associated utilities have been upgraded to version 8.11.6.
+   See /usr/src/contrib/sendmail/RELEASE_NOTES for more information.
+
+   traceroute(8) now takes its default maximum TTL value from the
+   net.inet.ip.ttl sysctl variable.
+
+   tcpdump has been updated to 3.6.3.
+
+     ----------------------------------------------------------------------
+
+    2.3.1.1 CVSup
+
+   CVSup, a frequently used utility in the FreeBSD Ports Collection, was
+   formerly installable using several ports and packages. The net/cvsup-bin
+   and net/cvsupd-bin ports/packages are no longer necessary or available;
+   the net/cvsup port should be used instead.
+
+   CVSup has been updated to 16.1_3, which is available in the FreeBSD Ports
+   Collection as net/cvsup. This update fixes a long-standing (but only
+   recently encountered) bug which affects the timestamps on all files after
+   Sun Sep 9 01:46:40 UTC 2001 (1,000,000,000 seconds after the UNIX epoch).
+
+     ----------------------------------------------------------------------
+
+    2.3.1.2 KAME
+
+   The IPv6 stack is now based on a snapshot based on the KAME Project's IPv6
+   snapshot as of 28 May, 2001. Most of the items listed in this section are
+   a result of this import. Section 2.1.8.2 lists kernel updates to the KAME
+   IPv6 stack.
+
+   faithd(8) now supports a configuration file for access control.
+
+   ifconfig(8) can now perform the functions of gifconfig(8).
+
+   ifconfig(8) can now perform the functions of prefix(8). prefix(8) is now a
+   shell script for partial backwards compatibility.
+
+   ndp(8) now implements garbage collection for stale NDP entries, as
+   described in RFC 2461 (Neighbor Discovery for IP Version 6 (IPv6)).
+
+   pim6dd(8) and pim6sd(8) have been removed due to restrictive licensing
+   conditions. These programs are available in the ports collection as
+   net/pim6dd and net/pim6sd.
+
+   route6d(8) now supports an -n flag to avoid updating the kernel forwarding
+   table.
+
+   The -R (router renumbering) option to rtadvd(8) is currently ignored.
+
+     ----------------------------------------------------------------------
+
+  2.3.2 Ports/Packages Collection
+
+   pkg_version(1) now takes a -s flag to limit its operation to
+   ports/packages matching a given string.
+
+     ----------------------------------------------------------------------
+
+                 3 Upgrading from previous releases of FreeBSD
+
+   If you're upgrading from a previous release of FreeBSD, most likely it's
+   4.X and there may be some issues affecting you, depending of course on
+   your chosen method of upgrading. There are two popular ways of upgrading
+   FreeBSD distributions:
+
+     * Using sources, via /usr/src
+
+     * Using the binary upgrade option of sysinstall(8).
+
+   Please read the INSTALL.TXT file for more information, preferably before
+   beginning an upgrade. If you are upgrading from source, please be sure to
+   read /usr/src/UPDATING as well.
+
+   Finally, if you want to use one of various means to track the -STABLE or
+   -CURRENT branches of FreeBSD, please be sure to consult the ``-CURRENT vs.
+   -STABLE'' section of the FreeBSD Handbook.
+
+     ----------------------------------------------------------------------
+
+     This file, and other release-related documents, can be downloaded from
+                      ftp://ftp.FreeBSD.org/pub/FreeBSD/.
+
+     For questions about FreeBSD, read the documentation before contacting
+                            <questions@FreeBSD.org>.
+
+   All users of FreeBSD 4-STABLE should subscribe to the <stable@FreeBSD.org>
+                                 mailing list.
+
+       For questions about this documentation, e-mail <doc@FreeBSD.org>.

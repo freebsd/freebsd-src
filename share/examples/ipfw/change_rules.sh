@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/share/examples/ipfw/change_rules.sh,v 1.2.2.1 2001/06/13 12:37:38 dcs Exp $
 
 # Change ipfw(8) rules with safety guarantees for remote operation
 #

@@ -31,7 +31,7 @@
  * 09/28/93 Released version 1.0
  * 09/93 Original developed by Gordon W. Ross <gwr@mc.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/libexec/bootpd/tools/bootptest/bootptest.c,v 1.7 1999/08/28 00:09:25 peter Exp $
  */
 
 char *usage = "bootptest [-h] server-name [vendor-data-template-file]";

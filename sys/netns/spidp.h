@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spidp.h	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/netns/spidp.h,v 1.8 1999/08/28 00:49:52 peter Exp $
  */
 
 #ifndef _NETNS_SPIDP_H_

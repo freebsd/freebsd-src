@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/fxp/Makefile,v 1.9.2.2 2001/07/25 17:46:03 jlemon Exp $
 
 .PATH:	${.CURDIR}/../../dev/fxp
 KMOD	= if_fxp

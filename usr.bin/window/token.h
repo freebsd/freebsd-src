@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)token.h	8.1 (Berkeley) 6/6/93
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/window/token.h,v 1.1.1.1.14.1 2001/05/17 09:45:01 obrien Exp $
  */
 
 #define token		(cx.x_token)

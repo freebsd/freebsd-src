@@ -23,7 +23,7 @@ Boston, MA 02111-1307, USA.  */
 /* This file lives in at least two places: libiberty and gcc.
    Don't change one without the other.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/gcc/pexecute.c,v 1.3 1999/11/04 10:26:31 obrien Exp $ */
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"

@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.5 (Berkeley) 3/31/94
-# $FreeBSD$
+# $FreeBSD: src/sbin/Makefile,v 1.77.2.4 2001/08/01 05:52:35 obrien Exp $
 
 # XXX MISSING:		icheck ncheck
 

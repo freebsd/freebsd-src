@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/ld/Makefile.alpha,v 1.7.2.3 2001/02/21 21:35:40 obrien Exp $
 #
 
 .if	${TARGET_ARCH} == "alpha"

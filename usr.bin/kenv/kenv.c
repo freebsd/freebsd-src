@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/kenv/kenv.c,v 1.1.2.1 2000/08/08 19:24:23 peter Exp $
  */
 #include <sys/types.h>
 #include <sys/sysctl.h>

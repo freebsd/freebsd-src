@@ -3,7 +3,7 @@
  *
  * Heimdal compatability layer.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libpam/modules/pam_krb5/compat_heimdal.c,v 1.1.2.2 2001/07/29 18:57:30 markm Exp $
  */
 
 #include <errno.h>

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THEPOSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/pci/t4dwave.c,v 1.9.2.8 2001/08/30 23:10:50 greid Exp $
  */
 
 #include <dev/sound/pcm/sound.h>

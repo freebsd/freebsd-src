@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/inetd/Makefile,v 1.18.2.3 2001/07/17 10:45:03 dwmalone Exp $
 
 MAINTAINER=	dwmalone
 

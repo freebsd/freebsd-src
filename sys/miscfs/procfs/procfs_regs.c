@@ -37,7 +37,7 @@
  *	@(#)procfs_regs.c	8.4 (Berkeley) 6/15/94
  *
  * From:
- * $FreeBSD$
+ * $FreeBSD: src/sys/miscfs/procfs/procfs_regs.c,v 1.10.2.2 2001/08/04 13:12:24 rwatson Exp $
  */
 
 #include <sys/param.h>

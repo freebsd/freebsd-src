@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/mail/lex.c,v 1.5.6.3 2001/06/12 22:34:47 mikeh Exp $
  */
 
 #ifndef lint
@@ -38,7 +38,7 @@
 static char sccsid[] = "@(#)lex.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/mail/lex.c,v 1.5.6.3 2001/06/12 22:34:47 mikeh Exp $";
 #endif /* not lint */
 
 #include "rcv.h"

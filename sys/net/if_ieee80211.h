@@ -1,5 +1,5 @@
 /*	$NetBSD: if_ieee80211.h,v 1.5 2000/07/21 04:47:40 onoe Exp $	*/
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/net/if_ieee80211.h,v 1.3.2.3 2001/07/04 00:12:38 brooks Exp $ */
 
 #ifndef _NET_IF_IEEE80211_H_
 #define _NET_IF_IEEE80211_H_

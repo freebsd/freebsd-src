@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/netkey/keysock.c,v 1.1.2.2 2001/07/03 11:02:00 ume Exp $	*/
 /*	$KAME: keysock.c,v 1.24 2000/12/03 00:41:48 itojun Exp $	*/
 
 /*

@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/netinet6/esp_input.c,v 1.1.2.3 2001/07/03 11:01:50 ume Exp $	*/
 /*	$KAME: esp_input.c,v 1.55 2001/03/23 08:08:47 itojun Exp $	*/
 
 /*

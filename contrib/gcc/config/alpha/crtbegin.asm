@@ -193,4 +193,4 @@ __do_frame_takedown:
 .weak __deregister_frame_info
 
 .section	.rodata
-	.ascii "$FreeBSD$\0"
+	.ascii "$FreeBSD: src/contrib/gcc/config/alpha/crtbegin.asm,v 1.1.1.2.2.3 2001/08/19 00:01:16 obrien Exp $\0"

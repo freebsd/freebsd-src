@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/rtadvd/rrenum.h,v 1.1.2.2 2001/07/03 11:02:14 ume Exp $
  */
 
 void rr_input __P((int, struct icmp6_router_renum *, struct in6_pktinfo *,

@@ -1,0 +1,208 @@
+<HTML
+><HEAD
+><TITLE
+>FreeBSD
+    4.4-RELEASE
+    Errata</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.71
+"><LINK
+REL="STYLESHEET"
+TYPE="text/css"
+HREF="docbook.css"></HEAD
+><BODY
+CLASS="ARTICLE"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="ARTICLE"
+><DIV
+CLASS="TITLEPAGE"
+><H1
+CLASS="TITLE"
+><A
+NAME="AEN2"
+>FreeBSD
+    4.4-RELEASE
+    Errata</A
+></H1
+><H3
+CLASS="CORPAUTHOR"
+>    The FreeBSD Project
+    </H3
+><P
+CLASS="COPYRIGHT"
+>Copyright &copy; 2000, 2001 by The FreeBSD Documentation Project</P
+><P
+CLASS="PUBDATE"
+>$FreeBSD: src/release/doc/en_US.ISO8859-1/errata/article.sgml,v 1.1.2.22.2.3 2001/09/17 16:41:36 bmah Exp $<BR></P
+><HR></DIV
+><BLOCKQUOTE
+CLASS="ABSTRACT"
+><DIV
+CLASS="ABSTRACT"
+><A
+NAME="AEN10"
+></A
+><P
+></P
+><P
+>This document lists errata items for FreeBSD 
+    4.4-RELEASE,
+    containing significant information
+    discovered after the release.  This information includes 
+    security advisories, as well as
+    news relating to the software or documentation
+    that could affect its operation or usability.  An up-to-date
+    version of this document should always be consulted before
+    installing this version of FreeBSD.</P
+><P
+>This errata document for FreeBSD 
+    4.4-RELEASE
+    will be
+    maintained until the release of FreeBSD 4.5-RELEASE.</P
+><P
+></P
+></DIV
+></BLOCKQUOTE
+><DIV
+CLASS="SECT1"
+><HR><H1
+CLASS="SECT1"
+><A
+NAME="AEN13"
+>1  Introduction</A
+></H1
+><P
+>This errata document contains ``late-breaking news''
+    about FreeBSD
+    4.4-RELEASE.
+    Before installing this version,
+    it is important to consult this document to learn about
+    any post-release discoveries or 
+    problems that may already have been found and
+    fixed.</P
+><P
+>Any
+    version of this
+    errata document actually distributed with the
+    release (for example, on a CDROM distribution) will be out of
+    date by definition, but other copies are kept updated on the Internet and
+    should be consulted as the ``current errata'' for this
+    release.  These other copies of the errata are located at <A
+HREF="http://www.FreeBSD.org/releases/"
+TARGET="_top"
+>http://www.FreeBSD.org/releases/</A
+>,
+    plus any sites which keep up-to-date mirrors of this
+    location.</P
+><P
+>Source and binary snapshots of FreeBSD 4-STABLE also
+    contain up-to-date copies of this document (as of the time of the
+    snapshot).</P
+><P
+>For a list of all FreeBSD CERT security advisories, see <A
+HREF="http://www.FreeBSD.org/security/"
+TARGET="_top"
+>http://www.FreeBSD.org/security/</A
+> or <A
+HREF="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/"
+TARGET="_top"
+>ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/</A
+>.</P
+></DIV
+><DIV
+CLASS="SECT1"
+><HR><H1
+CLASS="SECT1"
+><A
+NAME="AEN24"
+>2  Security Advisories and Notices</A
+></H1
+><P
+>Support for per-user <TT
+CLASS="FILENAME"
+>~/.login_conf</TT
+>
+    files (as documented in <A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=login.conf&sektion=5"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>login.conf</SPAN
+>(5)</SPAN
+></A
+>) has been disabled due
+    to incorect merging of local and global settings.  This problem
+    will be fixed in future releases.</P
+></DIV
+><DIV
+CLASS="SECT1"
+><HR><H1
+CLASS="SECT1"
+><A
+NAME="AEN31"
+>3  System Update Information</A
+></H1
+><P
+>The handling of some types of comments in <A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=printcap&sektion=5"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>printcap</SPAN
+>(5)</SPAN
+></A
+>
+      files is faulty.  If a comment line ends in
+      <TT
+CLASS="LITERAL"
+>:\</TT
+> (the characters normally used to indicate
+      the continuation of a printer definition), the line following
+      the comment will be parsed as a part of the previous printer
+      definition.</P
+></DIV
+></DIV
+><hr><p
+align="center"
+><small
+>This file, and other release-related documents, can be downloaded from <A
+HREF="ftp://ftp.FreeBSD.org/pub/FreeBSD/"
+>ftp://ftp.FreeBSD.org/pub/FreeBSD/</A
+>.</small
+></p
+><p
+align="center"
+><small
+>For questions about FreeBSD, read the <A
+HREF="http://www.FreeBSD.org/docs.html"
+>documentation</A
+> before contacting &#60;<A
+HREF="mailto:questions@FreeBSD.org"
+>questions@FreeBSD.org</A
+>&#62;.<p
+align="center"
+><small
+>All users of FreeBSD 4-STABLE should subscribe to the &#60;<A
+HREF="mailto:stable@FreeBSD.org"
+>stable@FreeBSD.org</A
+>&#62; mailing list.</small
+></p
+><p
+align="center"
+>For questions about this documentation, e-mail &#60;<A
+HREF="mailto:doc@FreeBSD.org"
+>doc@FreeBSD.org</A
+>&#62;.</p
+></small
+></p
+></BODY
+></HTML
+>

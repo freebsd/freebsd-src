@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/periodic/monthly/999.local,v 1.2.2.3 2001/08/01 20:38:39 obrien Exp $
 #
 
 # If there is a global system configuration file, suck it in.

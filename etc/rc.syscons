@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.syscons,v 1.1.2.2 2001/08/01 20:14:05 obrien Exp $
 #	Do syscons configuration
 #
 

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libsmdb/Makefile,v 1.1.2.3 2000/10/26 23:05:11 gshapiro Exp $
 
 MAINTAINER=	gshapiro@FreeBSD.org
 

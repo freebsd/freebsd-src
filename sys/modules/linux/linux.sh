@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/linux/linux.sh,v 1.8 1999/12/13 08:38:22 cracauer Exp $
 
 FOUND=`kldstat -v | egrep 'linux(aout|elf)'`
 

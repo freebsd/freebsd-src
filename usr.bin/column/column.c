@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/column/column.c,v 1.4.6.2 2001/08/02 01:34:19 obrien Exp $
  */
 
 #ifndef lint

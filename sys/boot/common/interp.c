@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/common/interp.c,v 1.22.2.5 2001/03/04 04:46:18 obrien Exp $
  */
 /*
  * Simple commandline interpreter, toplevel and misc.

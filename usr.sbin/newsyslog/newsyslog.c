@@ -25,7 +25,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-"$FreeBSD$";
+"$FreeBSD: src/usr.sbin/newsyslog/newsyslog.c,v 1.25.2.3 2001/07/19 05:12:46 kris Exp $";
 #endif	/* not lint */
 
 #define OSF

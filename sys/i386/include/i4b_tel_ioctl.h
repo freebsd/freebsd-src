@@ -29,7 +29,7 @@
  *
  *	$Id: i4b_tel_ioctl.h,v 1.13 2000/01/12 14:49:36 hm Exp $ 
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/i4b_tel_ioctl.h,v 1.6.2.1 2001/08/01 17:45:01 obrien Exp $
  *
  *      last edit-date: [Wed Jan 12 15:47:11 2000]
  *

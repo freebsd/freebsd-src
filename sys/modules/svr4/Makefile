@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/svr4/Makefile,v 1.13.2.2 2001/04/25 11:24:16 ru Exp $
 
 MAINTAINER=	newton@FreeBSD.org
 

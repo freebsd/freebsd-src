@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.2 (Berkeley) 4/28/95
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/finger/extern.h,v 1.2.6.1 2000/09/01 20:14:16 brian Exp $
  */
 
 extern char tbuf[1024];			/* Temp buffer for anybody. */

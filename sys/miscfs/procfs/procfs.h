@@ -37,7 +37,7 @@
  *	@(#)procfs.h	8.9 (Berkeley) 5/14/95
  *
  * From:
- * $FreeBSD$
+ * $FreeBSD: src/sys/miscfs/procfs/procfs.h,v 1.32.2.2 2001/08/12 14:29:19 rwatson Exp $
  */
 
 /*

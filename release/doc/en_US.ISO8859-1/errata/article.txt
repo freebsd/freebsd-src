@@ -1,0 +1,73 @@
+                           FreeBSD 4.4-RELEASE Errata
+
+  The FreeBSD Project
+
+   Copyright (c) 2000, 2001 by The FreeBSD Documentation Project
+
+   $FreeBSD: src/release/doc/en_US.ISO8859-1/errata/article.sgml,v
+   1.1.2.22.2.3 2001/09/17 16:41:36 bmah Exp $
+
+     ----------------------------------------------------------------------
+
+     This document lists errata items for FreeBSD 4.4-RELEASE, containing
+     significant information discovered after the release. This information
+     includes security advisories, as well as news relating to the software
+     or documentation that could affect its operation or usability. An
+     up-to-date version of this document should always be consulted before
+     installing this version of FreeBSD.
+
+     This errata document for FreeBSD 4.4-RELEASE will be maintained until
+     the release of FreeBSD 4.5-RELEASE.
+
+     ----------------------------------------------------------------------
+
+                                 1 Introduction
+
+   This errata document contains ``late-breaking news'' about FreeBSD
+   4.4-RELEASE. Before installing this version, it is important to consult
+   this document to learn about any post-release discoveries or problems that
+   may already have been found and fixed.
+
+   Any version of this errata document actually distributed with the release
+   (for example, on a CDROM distribution) will be out of date by definition,
+   but other copies are kept updated on the Internet and should be consulted
+   as the ``current errata'' for this release. These other copies of the
+   errata are located at http://www.FreeBSD.org/releases/, plus any sites
+   which keep up-to-date mirrors of this location.
+
+   Source and binary snapshots of FreeBSD 4-STABLE also contain up-to-date
+   copies of this document (as of the time of the snapshot).
+
+   For a list of all FreeBSD CERT security advisories, see
+   http://www.FreeBSD.org/security/ or
+   ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/.
+
+     ----------------------------------------------------------------------
+
+                       2 Security Advisories and Notices
+
+   Support for per-user ~/.login_conf files (as documented in login.conf(5))
+   has been disabled due to incorect merging of local and global settings.
+   This problem will be fixed in future releases.
+
+     ----------------------------------------------------------------------
+
+                          3 System Update Information
+
+   The handling of some types of comments in printcap(5) files is faulty. If
+   a comment line ends in :\ (the characters normally used to indicate the
+   continuation of a printer definition), the line following the comment will
+   be parsed as a part of the previous printer definition.
+
+     ----------------------------------------------------------------------
+
+     This file, and other release-related documents, can be downloaded from
+                      ftp://ftp.FreeBSD.org/pub/FreeBSD/.
+
+     For questions about FreeBSD, read the documentation before contacting
+                            <questions@FreeBSD.org>.
+
+   All users of FreeBSD 4-STABLE should subscribe to the <stable@FreeBSD.org>
+                                 mailing list.
+
+       For questions about this documentation, e-mail <doc@FreeBSD.org>.

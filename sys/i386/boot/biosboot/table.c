@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:36:43  rpd
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/boot/biosboot/table.c,v 1.20 1999/08/28 00:43:15 peter Exp $
  */
 
 /*

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/usr.sbin/atm/scspd/scsp_config_lex.c,v 1.3 1999/08/28 01:15:32 peter Exp $
  *
  */
 
@@ -62,7 +62,7 @@
 #include "scsp_config_parse.h"
 
 #ifndef lint
-__RCSID("@(#) $FreeBSD$");
+__RCSID("@(#) $FreeBSD: src/usr.sbin/atm/scspd/scsp_config_lex.c,v 1.3 1999/08/28 01:15:32 peter Exp $");
 #endif
 
 

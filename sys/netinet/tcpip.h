@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcpip.h	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/tcpip.h,v 1.8 1999/08/28 00:49:34 peter Exp $
  */
 
 #ifndef _NETINET_TCPIP_H_

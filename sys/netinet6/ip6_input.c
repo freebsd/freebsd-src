@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/netinet6/ip6_input.c,v 1.11.2.10 2001/07/24 19:10:18 brooks Exp $	*/
 /*	$KAME: ip6_input.c,v 1.194 2001/05/27 13:28:35 itojun Exp $	*/
 
 /*

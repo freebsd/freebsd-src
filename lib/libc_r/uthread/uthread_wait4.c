@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_wait4.c,v 1.10.2.1 2000/11/09 23:46:04 deischen Exp $
  */
 #include <sys/types.h>
 

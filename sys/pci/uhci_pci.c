@@ -34,7 +34,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/pci/uhci_pci.c,v 1.26.2.4 2001/08/15 17:03:08 nsayer Exp $
  */
 
 /* Universal Host Controller Interface

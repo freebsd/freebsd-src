@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 5/31/93
-# $FreeBSD$
+# $FreeBSD: src/games/rogue/Makefile,v 1.4.2.2 2001/04/25 09:29:02 ru Exp $
 
 PROG=	rogue
 CFLAGS+=-DUNIX -fwritable-strings

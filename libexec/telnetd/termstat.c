@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)termstat.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/libexec/telnetd/termstat.c,v 1.9.2.3 2001/07/23 22:02:29 kris Exp $";
 #endif /* not lint */
 
 #include "telnetd.h"

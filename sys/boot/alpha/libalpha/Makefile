@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/alpha/libalpha/Makefile,v 1.7.2.1 2000/10/28 01:05:39 gallatin Exp $
 
 LIB=		alpha
 NOPIC=		true

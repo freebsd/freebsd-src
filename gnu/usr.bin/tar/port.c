@@ -17,7 +17,7 @@ You should have received a copy of the GNU General Public License
 along with GNU Tar; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/tar/port.c,v 1.6.6.1 2000/07/20 10:35:08 kris Exp $ */
 
 #include <stdio.h>
 #include <sys/types.h>

@@ -24,7 +24,7 @@
  *
  * capi/capi_msgs.c	The CAPI i4b message handlers.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/capi/capi_msgs.c,v 1.1.2.1 2001/08/10 14:08:34 obrien Exp $
  */
 
 #include "i4bcapi.h"

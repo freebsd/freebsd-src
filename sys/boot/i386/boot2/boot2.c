@@ -14,7 +14,7 @@
  */
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/i386/boot2/boot2.c,v 1.28.2.4 2001/08/14 22:55:29 jhb Exp $
  */
 
 #include <sys/param.h>

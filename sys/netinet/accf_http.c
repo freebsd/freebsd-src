@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/netinet/accf_http.c,v 1.1.2.3 2001/01/03 19:52:37 alfred Exp $
  */
 
 #define ACCEPT_FILTER_MOD

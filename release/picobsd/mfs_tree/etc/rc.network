@@ -1,5 +1,5 @@
 #!/bin/sh -
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/mfs_tree/etc/rc.network,v 1.1.2.1 2001/02/14 23:47:02 luigi Exp $
 network_pass1() {
     echo -n 'Doing initial network setup:'
     # Set the host name if it is not already set

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/bin/csh/nls/ja/Makefile,v 1.4.2.1 2000/07/04 05:29:28 obrien Exp $
 
 NL=     ja
 DL=     ja_JP.EUC

@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/which/which.pl,v 1.14 1999/08/28 01:07:39 peter Exp $
 
 $all = $silent = $found = 0;
 @path = split(/:/, $ENV{'PATH'});

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/gen/getobjformat.c,v 1.3 1999/12/18 04:47:43 obrien Exp $
  */
 
 #include <sys/param.h>

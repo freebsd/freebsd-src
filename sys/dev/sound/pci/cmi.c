@@ -39,7 +39,7 @@
  * differences visible in register dumps between times that work and
  * those that don't.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/pci/cmi.c,v 1.1.2.5 2001/09/03 14:48:41 orion Exp $
  */
 
 #include <dev/sound/pcm/sound.h>

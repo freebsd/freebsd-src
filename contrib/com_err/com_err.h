@@ -37,7 +37,7 @@
  */
 
 /* $Id: com_err.h,v 1.3 1998/05/02 20:13:28 assar Exp $ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/com_err/com_err.h,v 1.2 2000/01/14 18:28:23 bde Exp $ */
 
 /* MIT compatible com_err library */
 

@@ -29,7 +29,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/share/misc/scsi_modes,v 1.6.6.3 2001/05/25 16:16:55 joerg Exp $
 #
 # The ordering is alphabetical by page name, as it appears in the SCSI spec.
 

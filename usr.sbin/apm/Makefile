@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/apm/Makefile,v 1.10.2.1 2001/04/25 12:09:17 ru Exp $
 
 PROG=		apm
 LINKS=		${BINDIR}/apm ${BINDIR}/zzz

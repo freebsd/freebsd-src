@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 5/31/93
-# $FreeBSD$
+# $FreeBSD: src/games/cribbage/Makefile,v 1.7.2.1 2001/04/25 09:28:51 ru Exp $
 
 PROG=	cribbage
 DPADD=	${LIBCURSES} ${LIBTERMCAP} ${LIBCOMPAT}

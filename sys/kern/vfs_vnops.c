@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_vnops.c	8.2 (Berkeley) 1/21/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/vfs_vnops.c,v 1.87.2.7 2001/06/03 05:00:09 dillon Exp $
  */
 
 #include <sys/param.h>

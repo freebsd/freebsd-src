@@ -1,0 +1,1410 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+  <head>
+    <meta name="generator" content="HTML Tidy, see www.w3.org">
+    <title>FreeBSD 4.4-RELEASE i386 Release Notes</title>
+    <meta name="GENERATOR" content=
+    "Modular DocBook HTML Stylesheet Version 1.71 ">
+    <link rel="STYLESHEET" type="text/css" href="docbook.css">
+  </head>
+
+  <body class="ARTICLE" bgcolor="#FFFFFF" text="#000000" link=
+  "#0000FF" vlink="#840084" alink="#0000FF">
+    <div class="ARTICLE">
+      <div class="TITLEPAGE">
+        <h1 class="TITLE"><a name="AEN2">FreeBSD 4.4-RELEASE i386
+        Release Notes</a></h1>
+
+        <h3 class="CORPAUTHOR">The FreeBSD Project</h3>
+
+        <p class="COPYRIGHT">Copyright &copy; 2000, 2001 by The
+        FreeBSD Documentation Project</p>
+        <hr>
+      </div>
+
+      <div class="SECT1">
+        <hr>
+
+        <h1 class="SECT1"><a name="AEN9">1 Introduction</a></h1>
+
+        <p>This document contains the release notes for FreeBSD
+        4.4-RELEASE on the i386 hardware platform. It describes new
+        features of FreeBSD that have been added (or changed) since
+        4.3-RELEASE.</p>
+
+        <p>This distribution of FreeBSD 4.4-RELEASE is a release
+        distribution. It can be found at <a href=
+        "ftp://ftp.FreeBSD.org/pub/FreeBSD/" target=
+        "_top">ftp://ftp.FreeBSD.org/pub/FreeBSD/</a> or any of its
+        mirrors. More information on obtaining this (or other)
+        release distributions of FreeBSD can be found in the <a
+        href="http://www.FreeBSD.org/handbook/mirrors.html" target=
+        "_top">``Obtaining FreeBSD'' appendix</a> to the <a href=
+        "http://www.FreeBSD.org/handbook/" target="_top">FreeBSD
+        Handbook</a>.</p>
+      </div>
+
+      <div class="SECT1">
+        <hr>
+
+        <h1 class="SECT1"><a name="AEN17">2 What's New</a></h1>
+        $FreeBSD:
+        src/release/doc/en_US.ISO8859-1/relnotes/common/new.sgml,v
+        1.22.2.86.2.1 2001/09/14 19:35:01 bmah Exp $
+
+        <p>This section describes the most user-visible new or
+        changed features in FreeBSD since 4.3-RELEASE.</p>
+
+        <p>Many additional changes were made to FreeBSD that are
+        not listed here for lack of space. For example,
+        documentation was corrected and improved, minor bugs were
+        fixed, insecure coding practices were audited and
+        corrected, and source code was cleaned up.</p>
+
+        <p>The release notes items are organized into three
+        different sections. <a href="#KERNEL">Section 2.1</a> lists
+        recent changes to the FreeBSD kernel. Security fixes,
+        including those pertaining to security advisories, are
+        listed in <a href="#SECURITY">Section 2.2</a>. Finally, <a
+        href="#USERLAND">Section 2.3</a> covers changes to FreeBSD
+        userland applications included in the base system.</p>
+
+        <div class="SECT2">
+          <hr>
+
+          <h2 class="SECT2"><a name="KERNEL">2.1 Kernel
+          Changes</a></h2>
+
+          <p>The <tt class="LITERAL">O_DIRECT</tt> flag has been
+          added to <a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=open&amp;sektion=2">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">open</span>(2)</span></a> and <a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=fcntl&amp;sektion=2">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">fcntl</span>(2)</span></a>. Specifying
+          this flag for open files will attempt to minimize the
+          cache effects of reading and writing.</p>
+
+          <p>An <a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=orm&amp;sektion=4">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">orm</span>(4)</span></a> device has been
+          added to claim the option ROMs in the ISA memory I/O
+          space, to prevent other drivers from mistakenly assigning
+          addresses that conflict with these ROMs.</p>
+
+          <p>The out-of-swap process termination code now begins
+          killing processes earlier to avoid deadlocks; it now also
+          takes into account the swap space used by processes when
+          computing the process sizes.</p>
+
+          <p>Network device cloning has been implemented, and the
+          <a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=gif&amp;sektion=4">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">gif</span>(4)</span></a> device has been
+          modified to take advantage of it. Thus, instead of
+          specifying how many <a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=gif&amp;sektion=4">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">gif</span>(4)</span></a> interfaces are
+          available in kernel configuration files, <a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=ifconfig&amp;sektion=8">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">ifconfig</span>(8)</span></a>'s <tt
+          class="OPTION">create</tt> option should be used when
+          another device instance is desired.</p>
+
+          <p>Two new <a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=ddb&amp;sektion=4">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">ddb</span>(4)</span></a> commands, <tt
+          class="COMMAND">hwatch</tt> and <tt class=
+          "COMMAND">dhwatch</tt>, have been introduced. Analogous
+          to <tt class="COMMAND">watch</tt> and <tt class=
+          "COMMAND">dwatch</tt>, they install hardware watchpoints
+          (as opposed to software watchpoints) if supported by the
+          architecture.</p>
+
+          <p>A <a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=nmdm&amp;sektion=4">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">nmdm</span>(4)</span></a> null-modem
+          terminal driver has been added.</p>
+
+          <p>The <a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=stl&amp;sektion=4">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">stl</span>(4)</span></a> driver now
+          supports the PCI and ISA EasyIO multi-port serial cards
+          from Stallion Technologies based on the Signetics
+          SC26C194/8 Intelligent Quad/Octal UART.</p>
+
+          <p>The <tt class="VARNAME">maxusers</tt> kernel
+          configuration parameter is now a boot-time tunable
+          variable. The kernel parameters derived from <tt class=
+          "VARNAME">maxusers</tt> are now also tunables and can be
+          overridden at boot-time. The <tt class="VARNAME">hz</tt>
+          parameter is also now a tunable.</p>
+
+          <p>The FreeBSD boot loader now contains a workaround to
+          support CDROM booting on certain IBM BIOSs that expect
+          the first sector of the emulated floppy to contain a
+          valid MS-DOS BPB that they can modify.</p>
+
+          <div class="SECT3">
+            <hr>
+
+            <h3 class="SECT3"><a name="AEN75">2.1.1
+            Processor/Motherboard Support</a></h3>
+
+            <p>Detection for new processors, such as the Transmeta
+            Crusoe, and Transmeta Crusoe with LongRun, has been
+            added.</p>
+
+            <p>Support for Streaming <span class=
+            "ACRONYM">SIMD</span> Extensions (<span class=
+            "ACRONYM">SSE</span>) has been introduced. The <tt
+            class="LITERAL">CPU_ENABLE_SSE</tt> kernel option
+            controls whether support is compiled into the
+            kernel.</p>
+          </div>
+
+          <div class="SECT3">
+            <hr>
+
+            <h3 class="SECT3"><a name="AEN111">2.1.2 Network
+            Interface Support</a></h3>
+
+            <p>The <a href=
+            "http://www.FreeBSD.org/cgi/man.cgi?query=fxp&amp;sektion=4">
+            <span class="CITEREFENTRY"><span class=
+            "REFENTRYTITLE">fxp</span>(4)</span></a> driver now
+            requires a <tt class="LITERAL">device miibus</tt> entry
+            in the kernel configuration file.</p>
+
+            <p>The <a href=
+            "http://www.FreeBSD.org/cgi/man.cgi?query=wx&amp;sektion=4">
+            <span class="CITEREFENTRY"><span class=
+            "REFENTRYTITLE">wx</span>(4)</span></a> driver now
+            supports the Intel PRO1000-F and PRO1000-T
+            (10/100/1000) adapters.</p>
+
+            <p>The <a href=
+            "http://www.FreeBSD.org/cgi/man.cgi?query=an&amp;sektion=4">
+            <span class="CITEREFENTRY"><span class=
+            "REFENTRYTITLE">an</span>(4)</span></a> driver now
+            supports the Cisco Aironet 350 series of adaptors and
+            has received a few bug fixes; promiscuous mode now
+            works, and it can be configured before being brought
+            <tt class="LITERAL">up</tt>.</p>
+
+            <p>The <a href=
+            "http://www.FreeBSD.org/cgi/man.cgi?query=xl&amp;sektion=4">
+            <span class="CITEREFENTRY"><span class=
+            "REFENTRYTITLE">xl</span>(4)</span></a> driver now
+            supports reception of VLAN tagged frames (on the
+            ``Cyclone'' or newer chipsets).</p>
+
+            <p>The <a href=
+            "http://www.FreeBSD.org/cgi/man.cgi?query=ti&amp;sektion=4">
+            <span class="CITEREFENTRY"><span class=
+            "REFENTRYTITLE">ti</span>(4)</span></a> driver
+            correctly masks VLAN tags.</p>
+
+            <p>Added the <a href=
+            "http://www.FreeBSD.org/cgi/man.cgi?query=nge&amp;sektion=4">
+            <span class="CITEREFENTRY"><span class=
+            "REFENTRYTITLE">nge</span>(4)</span></a> driver, which
+            supports PCI Gigabit Ethernet adapters based on the
+            National Semiconductor DP83820 and DP83821 Gigabit
+            Ethernet controller chips, including the D-Link
+            DGE-500T, SMC EZ Card 1000 (SMC9462TX), Asante
+            FriendlyNet GigaNIC 1000TA and 1000TPC and Addtron
+            AEG320T. This driver supports transmit and receive
+            checksum offloading.</p>
+
+            <p>The <a href=
+            "http://www.FreeBSD.org/cgi/man.cgi?query=lge&amp;sektion=4">
+            <span class="CITEREFENTRY"><span class=
+            "REFENTRYTITLE">lge</span>(4)</span></a> driver has
+            been added to support the Level 1 LXT1001 NetCellerator
+            Gigabit Ethernet controller chip. This device is used
+            on some fiber optic GigE cards from SMC, D-Link and
+            Addtron. Jumbograms and TCP/IP checksum offload on
+            receive are supported, although hardware VLAN filtering
+            is not.</p>
+
+            <p>The <a href=
+            "http://www.FreeBSD.org/cgi/man.cgi?query=tx&amp;sektion=4">
+            <span class="CITEREFENTRY"><span class=
+            "REFENTRYTITLE">tx</span>(4)</span></a> driver now
+            supports the fiber-optic SMC 9432FTX NICs.</p>
+
+            <p>The <a href=
+            "http://www.FreeBSD.org/cgi/man.cgi?query=ed&amp;sektion=4">
+            <span class="CITEREFENTRY"><span class=
+            "REFENTRYTITLE">ed</span>(4)</span></a> driver now has
+            support for D-Link DL10022 chips, necessary for the
+            NetGear FA-410TX and other cards. As a result, <tt
+            class="LITERAL">device miibus</tt> is required in
+            kernel configurations using the <a href=
+            "http://www.FreeBSD.org/cgi/man.cgi?query=ed&amp;sektion=4">
+            <span class="CITEREFENTRY"><span class=
+            "REFENTRYTITLE">ed</span>(4)</span></a> driver.</p>
+
+            <p>The <a href=
+            "http://www.FreeBSD.org/cgi/man.cgi?query=txp&amp;sektion=4">
+            <span class="CITEREFENTRY"><span class=
+            "REFENTRYTITLE">txp</span>(4)</span></a> driver has
+            been added to support NICs based on the 3Com 3XP
+            Typhoon/Sidewinder (3CR990) chipset.</p>
+          </div>
+
+          <div class="SECT3">
+            <hr>
+
+            <h3 class="SECT3"><a name="AEN160">2.1.3 Network
+            Protocols</a></h3>
+
+            <p>TCP now has RFC 1323 extensions enabled by default
+            in <a href=
+            "http://www.FreeBSD.org/cgi/man.cgi?query=rc.conf&amp;sektion=5">
+            <span class="CITEREFENTRY"><span class=
+            "REFENTRYTITLE">rc.conf</span>(5)</span></a>.</p>
+
+            <p>RFC 1323 and RFC 1644 TCP extensions are now
+            disabled for a connection in progress if no response
+            has been received by the third SYN segment sent. This
+            behavior tries to work around (very old) terminal
+            servers with buggy VJ header compression
+            implementations.</p>
+
+            <p>The <tt class="LITERAL">TCP_RESTRICT_RST</tt> kernel
+            option has been removed. Similar functionality can be
+            achieved with the <tt class=
+            "VARNAME">net.inet.tcp.blackhole</tt> sysctl
+            variable.</p>
+
+            <p>The TCP implementation no longer requires the
+            allocation of a TCP template structure for each
+            connection; this should reduce the buffer usage on
+            large systems handling many connections.</p>
+
+            <p>A new sysctl <tt class=
+            "VARNAME">net.inet.ip.check_interface</tt>, which is
+            off by default, causes IP to verify that an incoming
+            packet arrives on an interface that has an address
+            matching the packet's destination address.</p>
+
+            <p>A new <tt class="LITERAL">options RANDOM_IP_ID</tt>
+            kernel option causes the ID field of IP packets to be
+            randomized. This closes a minor information leak which
+            allows a remote observer to determine the rate at which
+            the machine is generating packets, since the default
+            behavior is to increment a counter for each packet
+            sent.</p>
+          </div>
+
+          <div class="SECT3">
+            <hr>
+
+            <h3 class="SECT3"><a name="AEN175">2.1.4 Disks and
+            Storage</a></h3>
+
+            <p>The <a href=
+            "http://www.FreeBSD.org/cgi/man.cgi?query=asr&amp;sektion=4">
+            <span class="CITEREFENTRY"><span class=
+            "REFENTRYTITLE">asr</span>(4)</span></a> driver now
+            supports the Adaptec 2000S and 2005S Zero-Channel RAID
+            controllers.</p>
+
+            <p>The <a href=
+            "http://www.FreeBSD.org/cgi/man.cgi?query=aac&amp;sektion=4">
+            <span class="CITEREFENTRY"><span class=
+            "REFENTRYTITLE">aac</span>(4)</span></a> driver now
+            supports the Adaptec SCSI RAID 5400S controller.</p>
+
+            <p>The <a href=
+            "http://www.FreeBSD.org/cgi/man.cgi?query=ata&amp;sektion=4">
+            <span class="CITEREFENTRY"><span class=
+            "REFENTRYTITLE">ata</span>(4)</span></a> driver again
+            has write-caching enabled by default.</p>
+
+            <p>The <a href=
+            "http://www.FreeBSD.org/cgi/man.cgi?query=wd&amp;sektion=4">
+            <span class="CITEREFENTRY"><span class=
+            "REFENTRYTITLE">wd</span>(4)</span></a> compatibility
+            devices were removed from the <a href=
+            "http://www.FreeBSD.org/cgi/man.cgi?query=ata&amp;sektion=4">
+            <span class="CITEREFENTRY"><span class=
+            "REFENTRYTITLE">ata</span>(4)</span></a> driver.</p>
+          </div>
+
+          <div class="SECT3">
+            <hr>
+
+            <h3 class="SECT3"><a name="AEN197">2.1.5
+            Filesystems</a></h3>
+
+            <p>smbfs (CIFS) support in kernel has been added. The
+            corresponding userland filesystem mount utility can be
+            found in the <a href=
+            "http://www.FreeBSD.org/cgi/url.cgi?ports/net/smbfs/pkg-descr">
+            <tt class="PORT">net/smbfs</tt></a> port in the FreeBSD
+            Ports Collection.</p>
+
+            <p>A simple hash-based lookup optimization for large
+            directories called <tt class="LITERAL">dirhash</tt> has
+            been added. Conditional on the <tt class=
+            "LITERAL">UFS_DIRHASH</tt> kernel option, it improves
+            the speed of operations on very large directories at
+            the expense of some memory.</p>
+          </div>
+
+          <div class="SECT3">
+            <hr>
+
+            <h3 class="SECT3"><a name="AEN204">2.1.6 PCCARD
+            Support</a></h3>
+
+            <p>On many modern hosts, PCCARD devices can be
+            configured to route their interrupts via either the ISA
+            or PCI interrupt paths. The <a href=
+            "http://www.FreeBSD.org/cgi/man.cgi?query=pcic&amp;sektion=4">
+            <span class="CITEREFENTRY"><span class=
+            "REFENTRYTITLE">pcic</span>(4)</span></a> driver has
+            been updated to support both interrupt paths (formerly,
+            only routing via ISA was supported). In most cases,
+            configuration of PCMCIA devices in laptops is simpler
+            and more flexible. In addition, various Cardbus bridge
+            PCI cards (such as those used by Orinoco PCI NICs) are
+            now supported. Some hosts may experience problems, such
+            as hangs or panics, with PCI interrupt routing; they
+            can frequently be made to work by forcing the
+            older-style ISA interrupt routing. The following lines,
+            placed in <tt class="FILENAME">/boot/loader.conf</tt>,
+            may fix the problem:</p>
+<pre class="PROGRAMLISTING">
+    hw.pcic.intr_path="1"
+    hw.pcic.irq="0"
+</pre>
+
+            <p>When installing FreeBSD on such a system, typing the
+            following lines to the boot loader may be helpful in
+            starting up FreeBSD for the first time:</p>
+
+            <p>&#13;</p>
+<pre class="SCREEN">
+    <tt class="PROMPT">ok</tt> <tt class=
+"USERINPUT"><b>set hw.pcic.intr_path="1"</b></tt>
+    <tt class="PROMPT">ok</tt> <tt class=
+"USERINPUT"><b>set hw.pcic.irq="0"</b></tt>
+</pre>
+            <br>
+            <br>
+
+            <p>PCCARD ejection can sometimes result in a hang; a
+            workaround for these cases is to perform a:</p>
+<pre class="SCREEN">
+    <tt class="PROMPT">#</tt> <tt class=
+"USERINPUT"><b>pccardc power 0 <tt class=
+"REPLACEABLE"><i>slot</i></tt></b></tt>
+</pre>
+          </div>
+
+          <div class="SECT3">
+            <hr>
+
+            <h3 class="SECT3"><a name="AEN224">2.1.7 Multimedia
+            Support</a></h3>
+
+            <p>A driver for the Advance Logic ALS4000 has been
+            added.</p>
+          </div>
+
+          <div class="SECT3">
+            <hr>
+
+            <h3 class="SECT3"><a name="AEN227">2.1.8 Contributed
+            Software</a></h3>
+
+            <p><b class="APPLICATION">IPFilter</b> has been updated
+            to 3.4.20.</p>
+
+            <div class="SECT4">
+              <hr>
+
+              <h4 class="SECT4"><a name="AEN231">2.1.8.1
+              isdn4bsd</a></h4>
+
+              <p><b class="APPLICATION">isdn4bsd</b> has been
+              updated to version 1.0.1. As a result of this update,
+              users of the <a href=
+              "http://www.FreeBSD.org/cgi/man.cgi?query=i4bisppp&amp;sektion=4">
+              <span class="CITEREFENTRY"><span class=
+              "REFENTRYTITLE">i4bisppp</span>(4)</span></a> (kernel
+              PPP over ISDN) driver <i class="EMPHASIS">must</i>
+              now use <a href=
+              "http://www.FreeBSD.org/cgi/man.cgi?query=ispppcontrol&amp;sektion=8">
+              <span class="CITEREFENTRY"><span class=
+              "REFENTRYTITLE">ispppcontrol</span>(8)</span></a>
+              instead of <a href=
+              "http://www.FreeBSD.org/cgi/man.cgi?query=spppcontrol&amp;sektion=8">
+              <span class="CITEREFENTRY"><span class=
+              "REFENTRYTITLE">spppcontrol</span>(8)</span></a> to
+              configure and control these network interfaces.</p>
+
+              <p>The <a href=
+              "http://www.FreeBSD.org/cgi/man.cgi?query=ihfc&amp;sektion=4">
+              <span class="CITEREFENTRY"><span class=
+              "REFENTRYTITLE">ihfc</span>(4)</span></a> driver for
+              supporting Cologne Chip Designs HFC devices under <b
+              class="APPLICATION">isdn4bsd</b> has been added.</p>
+
+              <p>The <a href=
+              "http://www.FreeBSD.org/cgi/man.cgi?query=itjc&amp;sektion=4">
+              <span class="CITEREFENTRY"><span class=
+              "REFENTRYTITLE">itjc</span>(4)</span></a> driver for
+              supporting NETjet-S / Teles PCI-TJ devices under <b
+              class="APPLICATION">isdn4bsd</b> has been added.</p>
+
+              <p>Experimental support for the Eicon.Diehl DIVA 2.0
+              and 2.02 ISA PnP ISDN cards has been added to the <a
+              href=
+              "http://www.FreeBSD.org/cgi/man.cgi?query=isic&amp;sektion=4">
+              <span class="CITEREFENTRY"><span class=
+              "REFENTRYTITLE">isic</span>(4)</span></a> <b class=
+              "APPLICATION">isdn4bsd</b> driver.</p>
+
+              <p>Active CAPI-based ISDN cards manufacured by AVM
+              are now supported using the <a href=
+              "http://www.FreeBSD.org/cgi/man.cgi?query=i4bcapi&amp;sektion=4">
+              <span class="CITEREFENTRY"><span class=
+              "REFENTRYTITLE">i4bcapi</span>(4)</span></a> and the
+              <a href=
+              "http://www.FreeBSD.org/cgi/man.cgi?query=iavc&amp;sektion=4">
+              <span class="CITEREFENTRY"><span class=
+              "REFENTRYTITLE">iavc</span>(4)</span></a> driver. The
+              supported cards are the AVM B1 PCI and AVM B1 ISA
+              Basic Rate cards and the AVM T1 Primary Rate
+              cards.</p>
+
+              <p>A new <tt class="LITERAL">maxconnecttime</tt>
+              keyword is now accepted in <a href=
+              "http://www.FreeBSD.org/cgi/man.cgi?query=isdnd.rc&amp;sektion=5">
+              <span class="CITEREFENTRY"><span class=
+              "REFENTRYTITLE">isdnd.rc</span>(5)</span></a> files
+              to limit the time a connection may remain open.</p>
+            </div>
+
+            <div class="SECT4">
+              <hr>
+
+              <h4 class="SECT4"><a name="KAME-KERNEL">2.1.8.2
+              KAME</a></h4>
+
+              <p>The IPv6 stack is now based on a snapshot based on
+              the KAME Project's IPv6 snapshot as of 28 May, 2001.
+              Most of the items listed in this section are a result
+              of this import. <a href="#KAME-USERLAND">Section
+              2.3.1.2</a> lists userland updates to the KAME IPv6
+              stack.</p>
+
+              <p><a href=
+              "http://www.FreeBSD.org/cgi/man.cgi?query=gif&amp;sektion=4">
+              <span class="CITEREFENTRY"><span class=
+              "REFENTRYTITLE">gif</span>(4)</span></a> is now based
+              on RFC 2893, rather than RFC 1933. The <tt class=
+              "LITERAL">IFF_LINK2</tt> interface flag can be used
+              to control ingress filtering.</p>
+
+              <p><b class="APPLICATION">IPSec</b> has received some
+              enhancements, including the ability to use the
+              Rijndael and SHA2 algorithms. IPSec RC5 support has
+              been removed due to patent issues.</p>
+
+              <p><a href=
+              "http://www.FreeBSD.org/cgi/man.cgi?query=stf&amp;sektion=4">
+              <span class="CITEREFENTRY"><span class=
+              "REFENTRYTITLE">stf</span>(4)</span></a> now conforms
+              to RFC 3056; the <tt class="LITERAL">IFF_LINK2</tt>
+              interface flag can be used to control ingress
+              filtering.</p>
+
+              <p>IPv6 has better checking of illegal addresses
+              (such as loopback addresses) on physical
+              networks.</p>
+
+              <p>The <tt class="VARNAME">IPV6_V6ONLY</tt> socket
+              option is now completely supported. The kernel's
+              default behavior with respect to this option is
+              controlled by the <tt class=
+              "VARNAME">net.inet6.ip6.v6only</tt> sysctl
+              variable.</p>
+
+              <p>RFC 3041 (Privacy Extensions for Stateless Address
+              Autoconfiguration) is now supported. It can be
+              enabled via the <tt class=
+              "VARNAME">net.inet6.ip6.use_tempaddr</tt> sysctl
+              variable.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="SECT2">
+          <hr>
+
+          <h2 class="SECT2"><a name="SECURITY">2.2 Security-Related
+          Changes</a></h2>
+
+          <p>The security fix mentioned in security advisory
+          FreeBSD-SA-01:39, which governs initial sequence number
+          generation for TCP connections, has raised some possible
+          compatibility issues. To mitigate this effect, the fix
+          can now be enabled or disabled using the <tt class=
+          "VARNAME">net.inet.tcp.tcp_seq_genscheme</tt> sysctl
+          variable.</p>
+
+          <p>A vulnerability in the <a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=fts&amp;sektion=3">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">fts</span>(3)</span></a> routines (used
+          by applications for recursively traversing a filesystem)
+          could allow a program to operate on files outside the
+          intended directory hierarchy. This bug has been fixed
+          (see security advisory FreeBSD-SA-01:40).</p>
+
+          <p><a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=portmap&amp;sektion=8">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">portmap</span>(8)</span></a> is now
+          turned off by default, although it will be started
+          automatically on machines that enable NFS serving, NIS
+          services, or <a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=amd&amp;sektion=8">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">amd</span>(8)</span></a> through <a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=rc.conf&amp;sektion=5">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">rc.conf</span>(5)</span></a>.</p>
+
+          <p>A flaw allowed some signal handlers to remain in
+          effect in a child process after being exec-ed from its
+          parent. This allowed an attacker to execute arbitrary
+          code in the context of a setuid binary. This flaw has
+          been corrected (see security advisory
+          FreeBSD-SA-01:42).</p>
+
+          <p>A remote buffer overflow in <a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=tcpdump&amp;sektion=1">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">tcpdump</span>(1)</span></a> has been
+          fixed (see security advisory FreeBSD-SA-01:48).</p>
+
+          <p>A remote buffer overflow in <a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=telnetd&amp;sektion=8">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">telnetd</span>(8)</span></a> has been
+          fixed (see security advisory FreeBSD-SA-01:49).</p>
+
+          <p>The new <tt class=
+          "VARNAME">net.inet.ip.maxfragpackets</tt> and <tt class=
+          "VARNAME">net.inet.ip6.maxfragpackets</tt> sysctl
+          variables limit the amount of memory that can be consumed
+          by IPv4 and IPv6 packet fragments, which defends against
+          some denial of service attacks (see security advisory
+          FreeBSD-SA-01:52).</p>
+
+          <p>The number of ``security profiles'' available in <a
+          href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=sysinstall&amp;sektion=8">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">sysinstall</span>(8)</span></a> for new
+          installations has been reduced to two.</p>
+
+          <p>All services in <tt class="FILENAME">inetd.conf</tt>
+          are now disabled by default for new installations. <a
+          href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=sysinstall&amp;sektion=8">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">sysinstall</span>(8)</span></a> gives the
+          option of enabling or disabling <a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=inetd&amp;sektion=8">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">inetd</span>(8)</span></a> on new
+          installations, as well as editing <tt class=
+          "FILENAME">inetd.conf</tt>.</p>
+
+          <p>A flaw in the implementation of the <a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=ipfw&amp;sektion=8">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">ipfw</span>(8)</span></a> <tt class=
+          "LITERAL">me</tt> rules on point-to-point links has been
+          corrected. Formerly, <tt class="LITERAL">me</tt> filter
+          rules would match the remote IP address of a
+          point-to-point interface in addition to the intended
+          local IP address (see security advisory
+          FreeBSD-SA-01:53).</p>
+
+          <p>A vulnerability in <a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=procfs&amp;sektion=5">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">procfs</span>(5)</span></a>, which could
+          allow a process to read sensitive information from
+          another process's memory space, has been closed (see
+          security advisory FreeBSD-SA-01:55).</p>
+
+          <p>The <tt class="LITERAL">PARANOID</tt> hostname
+          checking in <b class="APPLICATION">tcp_wrappers</b> now
+          works as advertised (see security advisory
+          FreeBSD-SA-01:56).</p>
+
+          <p>A local root exploit in <a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=sendmail&amp;sektion=8">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">sendmail</span>(8)</span></a> has been
+          closed (see security advisory FreeBSD-SA-01:57).</p>
+
+          <p>A remote root vulnerability in <a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=lpd&amp;sektion=8">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">lpd</span>(8)</span></a> has been closed
+          (see security advisory FreeBSD-SA-01:58).</p>
+
+          <p>A race condition in <a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=rmuser&amp;sektion=8">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">rmuser</span>(8)</span></a> that briefly
+          exposed a world-readable <tt class=
+          "FILENAME">/etc/master.passwd</tt> has been fixed (see
+          security advisory FreeBSD-SA-01:59).</p>
+
+          <p>All non-<tt class="USERNAME">root</tt>-owned binaries
+          in standard system paths now have the <tt class=
+          "LITERAL">schg</tt> flag set to prevent exploit vectors
+          when run by <a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=cron&amp;sektion=8">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">cron</span>(8)</span></a>, by <tt class=
+          "USERNAME">root</tt>, or by a user other then the one
+          owning the binary. In addition, <a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=uustat&amp;sektion=1">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">uustat</span>(1)</span></a> is now run
+          via <tt class=
+          "FILENAME">/etc/periodic/daily/410.status-uucp</tt> as
+          <tt class="USERNAME">uucp</tt>, not <tt class=
+          "USERNAME">root</tt>.</p>
+
+          <p>A security hole in the form of a buffer overflow in
+          the <a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=semop&amp;sektion=2">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">semop</span>(2)</span></a> system call
+          has been closed.</p>
+        </div>
+
+        <div class="SECT2">
+          <hr>
+
+          <h2 class="SECT2"><a name="USERLAND">2.3 Userland
+          Changes</a></h2>
+
+          <p><a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=ip6fw&amp;sektion=8">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">ip6fw</span>(8)</span></a> now has the
+          ability to use a preprocessor and use the <tt class=
+          "OPTION">-q</tt> (quiet) flag when reading from a
+          file.</p>
+
+          <p><a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=ping&amp;sektion=8">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">ping</span>(8)</span></a> now supports a
+          <tt class="OPTION">-m</tt> option to set the TTL of
+          outgoing packets.</p>
+
+          <p><a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=ln&amp;sektion=1">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">ln</span>(1)</span></a> now takes a <tt
+          class="OPTION">-h</tt> flag to avoid following a target
+          that is a link, with a <tt class="OPTION">-n</tt> flag
+          for compatibility with other implementations.</p>
+
+          <p><a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=find&amp;sektion=1">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">find</span>(1)</span></a> now has the <tt
+          class="OPTION">-anewer</tt>, <tt class=
+          "OPTION">-cnewer</tt>, <tt class="OPTION">-mnewer</tt>,
+          <tt class="OPTION">-okdir</tt>, and <tt class=
+          "OPTION">-newer[acm][acmt]</tt> primaries for comparisons
+          of file timestamps.</p>
+
+          <p>The performance of the ELF dynamic linker has been
+          improved.</p>
+
+          <p><a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=ifconfig&amp;sektion=8">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">ifconfig</span>(8)</span></a> can now
+          accept addresses in slash/CIDR notation.</p>
+
+          <p><a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=c89&amp;sektion=1">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">c89</span>(1)</span></a> has been
+          converted from a shell script to a binary executable,
+          fixing some minor bugs.</p>
+
+          <p><a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=vidcontrol&amp;sektion=1">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">vidcontrol</span>(1)</span></a> now
+          supports a <tt class="OPTION">-p</tt> option to take a
+          snapshot of a <a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=syscons&amp;sektion=4">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">syscons</span>(4)</span></a> video
+          buffer. These snapshots can be manipulated by the <a
+          href=
+          "http://www.FreeBSD.org/cgi/url.cgi?ports/graphics/scr2png/pkg-descr">
+          <tt class="PORT">graphics/scr2png</tt></a> utility in the
+          Ports Collection.</p>
+
+          <p><a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=vidcontrol&amp;sektion=1">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">vidcontrol</span>(1)</span></a> now
+          allows the user to omit the font size specification when
+          loading a font, and has some better error-handling.</p>
+
+          <p><a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=telnet&amp;sektion=1">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">telnet</span>(1)</span></a> now supports
+          a <tt class="OPTION">-u</tt> flag to allow connections to
+          UNIX-domain (<tt class="LITERAL">AF_UNIX</tt>)
+          sockets.</p>
+
+          <p><a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=newfs&amp;sektion=8">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">newfs</span>(8)</span></a> now takes a
+          <tt class="OPTION">-U</tt> option to enable softupdates
+          on a new filesystem.</p>
+
+          <p><tt class="FILENAME">libcrypt</tt> now has support for
+          Blowfish password hashing.</p>
+
+          <p>Ukrainian language support has been added to the
+          FreeBSD console.</p>
+
+          <p><a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=savecore&amp;sektion=8">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">savecore</span>(8)</span></a> now works
+          correctly on machines with 2 GB or more of RAM.</p>
+
+          <p>The syntax of <a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=inetd&amp;sektion=8">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">inetd</span>(8)</span></a>'s support for
+          <a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=faithd&amp;sektion=8">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">faithd</span>(8)</span></a> is now
+          compatible with that of other BSDs.</p>
+
+          <p>The <tt class="LITERAL">ident</tt> protocol support in
+          <a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=inetd&amp;sektion=8">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">inetd</span>(8)</span></a> has been
+          cleaned up and updated.</p>
+
+          <p><a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=inetd&amp;sektion=8">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">inetd</span>(8)</span></a> now has the
+          ability to manage UNIX-domain sockets.</p>
+
+          <p>The <a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=resolver&amp;sektion=3">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">resolver</span>(3)</span></a> in FreeBSD
+          now implements EDNS0 support, which will be necessary
+          when working with IPv6 transport-ready resolvers/DNS
+          servers.</p>
+
+          <p><a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=df&amp;sektion=1">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">df</span>(1)</span></a> now takes a <tt
+          class="OPTION">-l</tt> option to only display information
+          about locally-mounted filesystems.</p>
+
+          <p><a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=whois&amp;sektion=1">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">whois</span>(1)</span></a> now directs
+          queries for IP addresses to ARIN. If a query to ARIN
+          references APNIC or RIPE, the appropriate server will
+          also be queried, provided that the <tt class=
+          "OPTION">-Q</tt> option is not specified.</p>
+
+          <p>The <tt class="OPTION">-T</tt> option to <a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=dump&amp;sektion=8">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">dump</span>(8)</span></a> no longer
+          swallows an extra argument.</p>
+
+          <p><a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=dump&amp;sektion=8">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">dump</span>(8)</span></a> has a new <tt
+          class="OPTION">-D</tt> option, allowing the path to the
+          <tt class="FILENAME">/etc/dumpdates</tt> file to be
+          changed.</p>
+
+          <p><tt class="FILENAME">libfetch</tt> now has support for
+          a <tt class="ENVAR">HTTP_USER_AGENT</tt> environment
+          variable.</p>
+
+          <p>The <a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=getprogname&amp;sektion=3">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">getprogname</span>(3)</span></a> and <a
+          href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=setprogname&amp;sektion=3">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">setprogname</span>(3)</span></a> library
+          functions have been added to manipulate the name of the
+          current program. They are used by error-reporting
+          routines to produce consistent output.</p>
+
+          <p><a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=xargs&amp;sektion=1">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">xargs</span>(1)</span></a> now supports a
+          <tt class="OPTION">-J</tt> <tt class=
+          "REPLACEABLE"><i>replstr</i></tt> option that allows the
+          user to tell <a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=xargs&amp;sektion=1">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">xargs</span>(1)</span></a> to insert the
+          data read from standard input at a specific point in the
+          command line arguments, rather than at the end.</p>
+
+          <p><a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=ifconfig&amp;sektion=8">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">ifconfig</span>(8)</span></a> now has
+          support for setting parameters for IEEE 802.11 wireless
+          network devices. <a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=wi&amp;sektion=4">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">wi</span>(4)</span></a> and <a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=an&amp;sektion=4">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">an</span>(4)</span></a> devices are
+          supported.</p>
+
+          <p><a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=ifconfig&amp;sektion=8">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">ifconfig</span>(8)</span></a> no longer
+          displays the list of supported media by default. Instead
+          it displays it when the <tt class="OPTION">-m</tt> option
+          is given.</p>
+
+          <p><a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=lpd&amp;sektion=8">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">lpd</span>(8)</span></a> now takes two
+          new options: <tt class="OPTION">-c</tt> will log all
+          connection errors to <a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=syslogd&amp;sektion=8">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">syslogd</span>(8)</span></a>, while <tt
+          class="OPTION">-W</tt> will allow connections from
+          non-reserved ports.</p>
+
+          <p><a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=lpc&amp;sektion=8">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">lpc</span>(8)</span></a> has been
+          improved; <tt class="COMMAND">lpc clean</tt> is now
+          somewhat safer, and a new <tt class="COMMAND">lpc
+          tclean</tt> command has been added to check to see what
+          files would be removed by <tt class="COMMAND">lpc
+          clean</tt>.</p>
+
+          <p><a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=du&amp;sektion=1">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">du</span>(1)</span></a> now takes a <tt
+          class="OPTION">-I</tt> command-line flag to ignore/skip
+          files and subdirectories matching a specified shell-glob
+          mask.</p>
+
+          <p><a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=growfs&amp;sektion=8">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">growfs</span>(8)</span></a>, a utility
+          for growing FFS filesystems, has been added. <a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=ffsinfo&amp;sektion=8">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">ffsinfo</span>(8)</span></a>, a utility
+          for dump all the meta-information of an existing
+          filesystem, has also been added.</p>
+
+          <p><a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=mail&amp;sektion=1">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">mail</span>(1)</span></a> now takes a <tt
+          class="OPTION">-E</tt> flag to avoid sending messages
+          with empty bodies.</p>
+
+          <p><a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=vidcontrol&amp;sektion=1">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">vidcontrol</span>(1)</span></a> now
+          supports a <tt class="OPTION">-C</tt> option to clear the
+          history buffer for a given tty, as well as a <tt class=
+          "OPTION">-h</tt> option to set the size of the history
+          buffer.</p>
+
+          <p><a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=last&amp;sektion=1">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">last</span>(1)</span></a> now implements
+          a <tt class="OPTION">-d</tt> option that provides a
+          ``snapshot'' of who was logged in at a particular date
+          and time.</p>
+
+          <p><tt class="FILENAME">libcrypt</tt> and <tt class=
+          "FILENAME">libdescrypt</tt> have been unified to provide
+          a configurable password authentication hash library. Both
+          the md5 and des hash methods are provided unless the des
+          hash is specifically compiled out.</p>
+
+          <p><a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=install&amp;sektion=1">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">install</span>(1)</span></a> has a number
+          of new features, including the <tt class="OPTION">-b</tt>
+          and <tt class="OPTION">-B</tt> options for backing up
+          existing target files and the <tt class="OPTION">-S</tt>
+          option for ``safe'' (atomic copy) operation. The <tt
+          class="OPTION">-c</tt> (copy) flag is now the default,
+          and the <tt class="OPTION">-D</tt> (debugging) flag has
+          been withdrawn. <a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=install&amp;sektion=1">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">install</span>(1)</span></a> now issues a
+          warning if <tt class="OPTION">-d</tt> (create
+          directories) and <tt class="OPTION">-C</tt> (copy changed
+          files only) are used together.</p>
+
+          <p>The FreeBSD <tt class="FILENAME">Makefile</tt>
+          infrastructure now supports the <tt class=
+          "VARNAME">WARNS</tt> directive from NetBSD. This
+          directive controls the addition of compiler warning flags
+          to <tt class="VARNAME">CFLAGS</tt> in a relatively
+          compiler-neutral manner.</p>
+
+          <p>A new <a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=fsck_msdosfs&amp;sektion=8">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">fsck_msdosfs</span>(8)</span></a> utility
+          has been added to check the consistency of MS-DOS
+          filesystems.</p>
+
+          <p>The <a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=kldconfig&amp;sektion=8">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">kldconfig</span>(8)</span></a> utility
+          has been added to make it easier to manipulate the kernel
+          module search path.</p>
+
+          <p><a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=moused&amp;sektion=8">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">moused</span>(8)</span></a> now takes a
+          <tt class="OPTION">-a</tt> option to control mouse
+          acceleration.</p>
+
+          <p>The <tt class="LITERAL">tcpmssfixup</tt> <a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=ppp&amp;sektion=8">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">ppp</span>(8)</span></a> option now
+          adjusts the maximum receive segment size of incoming TCP
+          SYN segments as well as outgoing TCP SYN segments.</p>
+
+          <p><a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=sysctl&amp;sektion=8">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">sysctl</span>(8)</span></a> now supports
+          a <tt class="OPTION">-N</tt> option to print out variable
+          names only.</p>
+
+          <p><a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=sysctl&amp;sektion=8">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">sysctl</span>(8)</span></a> has replaced
+          the <tt class="OPTION">-A</tt> and <tt class=
+          "OPTION">-X</tt> options with <tt class="OPTION">-ao</tt>
+          and <tt class="OPTION">-ax</tt> respectively; the former
+          options are now deprecated. The <tt class=
+          "OPTION">-w</tt> flag is deprecated as well; it is not
+          needed to determine the user's intentions.</p>
+
+          <p><a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=cdcontrol&amp;sektion=1">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">cdcontrol</span>(1)</span></a> now
+          supports <tt class="LITERAL">next</tt> and <tt class=
+          "LITERAL">prev</tt> commands to skip forwards or
+          backwards a specified number of tracks while playing an
+          audio CD.</p>
+
+          <p><a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=col&amp;sektion=1">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">col</span>(1)</span></a> now takes a <tt
+          class="OPTION">-p</tt> flag to force unknown control
+          sequences to be passed through unchanged.</p>
+
+          <p><a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=tmpnam&amp;sektion=3">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">tmpnam</span>(3)</span></a> will now use
+          the <tt class="ENVAR">TMPDIR</tt> environment variable,
+          if set, to specify the location of temporary files.</p>
+
+          <p><a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=rc&amp;sektion=8">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">rc</span>(8)</span></a> now deletes all
+          non-directory files in <tt class="FILENAME">/var/run</tt>
+          and <tt class="FILENAME">/var/spool/lock</tt> at boot
+          time.</p>
+
+          <p><a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=fmtcheck&amp;sektion=3">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">fmtcheck</span>(3)</span></a>, a function
+          for checking consistency of format string arguments, has
+          been added.</p>
+
+          <p><a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=apmd&amp;sektion=8">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">apmd</span>(8)</span></a> now has the
+          ability to monitor battery levels and execute commands
+          based on percentage or minutes of battery life remaining
+          via the <tt class="LITERAL">apm_battery</tt>
+          configuration directive. See the commented-out examples
+          in <tt class="FILENAME">/etc/apmd.conf</tt> for the
+          syntax.</p>
+
+          <p><a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=pppd&amp;sektion=8">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">pppd</span>(8)</span></a> (the control
+          program for kernel-level PPP) is now installed mode <tt
+          class="LITERAL">4550</tt> and <tt class=
+          "USERNAME">root</tt><tt class="LITERAL">:</tt><tt class=
+          "GROUPNAME">dialer</tt>, rather than mode <tt class=
+          "LITERAL">4555</tt> (in other words, it is no longer
+          world-executable). Users of <a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=pppd&amp;sektion=8">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">pppd</span>(8)</span></a> may need to
+          change their group settings.</p>
+
+          <div class="SECT3">
+            <hr>
+
+            <h3 class="SECT3"><a name="AEN678">2.3.1 Contributed
+            Software</a></h3>
+
+            <p><b class="APPLICATION">BIND</b> is now built with
+            the <tt class="LITERAL">NOADDITIONAL</tt> flag, which
+            causes <a href=
+            "http://www.FreeBSD.org/cgi/man.cgi?query=named&amp;sektion=8">
+            <span class="CITEREFENTRY"><span class=
+            "REFENTRYTITLE">named</span>(8)</span></a> to operate
+            in a more consistent fashion for certain common
+            misconfigurations.</p>
+
+            <p><b class="APPLICATION">BIND</b> has been updated to
+            8.2.4-REL.</p>
+
+            <p><b class="APPLICATION">Binutils</b> have been
+            upgraded to 2.11.2.</p>
+
+            <p><b class="APPLICATION">bzip2</b> 1.0.1 has been
+            imported; this brings the <a href=
+            "http://www.FreeBSD.org/cgi/man.cgi?query=bzip2&amp;sektion=1">
+            <span class="CITEREFENTRY"><span class=
+            "REFENTRYTITLE">bzip2</span>(1)</span></a> program and
+            the <tt class="FILENAME">libbz2</tt> library to the
+            base system.</p>
+
+            <p>The <a href=
+            "http://www.FreeBSD.org/cgi/man.cgi?query=ee&amp;sektion=1">
+            <span class="CITEREFENTRY"><span class=
+            "REFENTRYTITLE">ee</span>(1)</span></a> <b class=
+            "APPLICATION">Easy Editor</b> has been updated to
+            1.4.2.</p>
+
+            <p><b class="APPLICATION">file</b> has been updated to
+            3.36.</p>
+
+            <p><a href=
+            "http://www.FreeBSD.org/cgi/man.cgi?query=gcc&amp;sektion=1">
+            <span class="CITEREFENTRY"><span class=
+            "REFENTRYTITLE">gcc</span>(1)</span></a> now supports
+            the environment variable <tt class=
+            "ENVAR">GCC_OPTIONS</tt>, which can hold a set of
+            default options for <b class="APPLICATION">GCC</b>.</p>
+
+            <p><b class="APPLICATION">GNATS</b> has been updated to
+            3.113.</p>
+
+            <p><b class="APPLICATION">groff</b> and its related
+            utilities have been updated to FSF version 1.17.2. This
+            import brings in a new <a href=
+            "http://www.FreeBSD.org/cgi/man.cgi?query=mdoc&amp;sektion=7">
+            <span class="CITEREFENTRY"><span class=
+            "REFENTRYTITLE">mdoc</span>(7)</span></a> macro package
+            (sometimes referred to as <tt class=
+            "LITERAL">mdocNG</tt>), which removes many of the
+            limitations of its predecessor.</p>
+
+            <p><b class="APPLICATION">libpcap</b> has been updated
+            to 0.6.2.</p>
+
+            <p><b class="APPLICATION">OpenSSL</b> has been upgraded
+            to 0.9.6a.</p>
+
+            <p><b class="APPLICATION">sendmail</b> and associated
+            utilities have been upgraded to version 8.11.6. See <tt
+            class=
+            "FILENAME">/usr/src/contrib/sendmail/RELEASE_NOTES</tt>
+            for more information.</p>
+
+            <p><a href=
+            "http://www.FreeBSD.org/cgi/man.cgi?query=traceroute&amp;sektion=8">
+            <span class="CITEREFENTRY"><span class=
+            "REFENTRYTITLE">traceroute</span>(8)</span></a> now
+            takes its default maximum TTL value from the <tt class=
+            "VARNAME">net.inet.ip.ttl</tt> sysctl variable.</p>
+
+            <p><b class="APPLICATION">tcpdump</b> has been updated
+            to 3.6.3.</p>
+
+            <div class="SECT4">
+              <hr>
+
+              <h4 class="SECT4"><a name="AEN731">2.3.1.1
+              CVSup</a></h4>
+
+              <p><b class="APPLICATION">CVSup</b>, a frequently
+              used utility in the FreeBSD Ports Collection, was
+              formerly installable using several ports and
+              packages. The <a href=
+              "http://www.FreeBSD.org/cgi/url.cgi?ports/net/cvsup-bin/pkg-descr">
+              <tt class="PORT">net/cvsup-bin</tt></a> and <a href=
+              "http://www.FreeBSD.org/cgi/url.cgi?ports/net/cvsupd-bin/pkg-descr">
+              <tt class="PORT">net/cvsupd-bin</tt></a>
+              ports/packages are no longer necessary or available;
+              the <a href=
+              "http://www.FreeBSD.org/cgi/url.cgi?ports/net/cvsup/pkg-descr">
+              <tt class="PORT">net/cvsup</tt></a> port should be
+              used instead.</p>
+
+              <p><b class="APPLICATION">CVSup</b> has been updated
+              to 16.1_3, which is available in the FreeBSD Ports
+              Collection as <a href=
+              "http://www.FreeBSD.org/cgi/url.cgi?ports/net/cvsup/pkg-descr">
+              <tt class="PORT">net/cvsup</tt></a>. This update
+              fixes a long-standing (but only recently encountered)
+              bug which affects the timestamps on all files after
+              Sun Sep 9 01:46:40 UTC 2001 (1,000,000,000 seconds
+              after the UNIX epoch).</p>
+            </div>
+
+            <div class="SECT4">
+              <hr>
+
+              <h4 class="SECT4"><a name="KAME-USERLAND">2.3.1.2
+              KAME</a></h4>
+
+              <p>The IPv6 stack is now based on a snapshot based on
+              the KAME Project's IPv6 snapshot as of 28 May, 2001.
+              Most of the items listed in this section are a result
+              of this import. <a href="#KAME-KERNEL">Section
+              2.1.8.2</a> lists kernel updates to the KAME IPv6
+              stack.</p>
+
+              <p><a href=
+              "http://www.FreeBSD.org/cgi/man.cgi?query=faithd&amp;sektion=8">
+              <span class="CITEREFENTRY"><span class=
+              "REFENTRYTITLE">faithd</span>(8)</span></a> now
+              supports a configuration file for access control.</p>
+
+              <p><a href=
+              "http://www.FreeBSD.org/cgi/man.cgi?query=ifconfig&amp;sektion=8">
+              <span class="CITEREFENTRY"><span class=
+              "REFENTRYTITLE">ifconfig</span>(8)</span></a> can now
+              perform the functions of <a href=
+              "http://www.FreeBSD.org/cgi/man.cgi?query=gifconfig&amp;sektion=8">
+              <span class="CITEREFENTRY"><span class=
+              "REFENTRYTITLE">gifconfig</span>(8)</span></a>.</p>
+
+              <p><a href=
+              "http://www.FreeBSD.org/cgi/man.cgi?query=ifconfig&amp;sektion=8">
+              <span class="CITEREFENTRY"><span class=
+              "REFENTRYTITLE">ifconfig</span>(8)</span></a> can now
+              perform the functions of <a href=
+              "http://www.FreeBSD.org/cgi/man.cgi?query=prefix&amp;sektion=8">
+              <span class="CITEREFENTRY"><span class=
+              "REFENTRYTITLE">prefix</span>(8)</span></a>. <a href=
+              "http://www.FreeBSD.org/cgi/man.cgi?query=prefix&amp;sektion=8">
+              <span class="CITEREFENTRY"><span class=
+              "REFENTRYTITLE">prefix</span>(8)</span></a> is now a
+              shell script for partial backwards compatibility.</p>
+
+              <p><a href=
+              "http://www.FreeBSD.org/cgi/man.cgi?query=ndp&amp;sektion=8">
+              <span class="CITEREFENTRY"><span class=
+              "REFENTRYTITLE">ndp</span>(8)</span></a> now
+              implements garbage collection for stale NDP entries,
+              as described in RFC 2461 (Neighbor Discovery for IP
+              Version 6 (IPv6)).</p>
+
+              <p><a href=
+              "http://www.FreeBSD.org/cgi/man.cgi?query=pim6dd&amp;sektion=8">
+              <span class="CITEREFENTRY"><span class=
+              "REFENTRYTITLE">pim6dd</span>(8)</span></a> and <a
+              href=
+              "http://www.FreeBSD.org/cgi/man.cgi?query=pim6sd&amp;sektion=8">
+              <span class="CITEREFENTRY"><span class=
+              "REFENTRYTITLE">pim6sd</span>(8)</span></a> have been
+              removed due to restrictive licensing conditions.
+              These programs are available in the ports collection
+              as <a href=
+              "http://www.FreeBSD.org/cgi/url.cgi?ports/net/pim6dd/pkg-descr">
+              <tt class="PORT">net/pim6dd</tt></a> and <a href=
+              "http://www.FreeBSD.org/cgi/url.cgi?ports/net/pim6sd/pkg-descr">
+              <tt class="PORT">net/pim6sd</tt></a>.</p>
+
+              <p><a href=
+              "http://www.FreeBSD.org/cgi/man.cgi?query=route6d&amp;sektion=8">
+              <span class="CITEREFENTRY"><span class=
+              "REFENTRYTITLE">route6d</span>(8)</span></a> now
+              supports an <tt class="OPTION">-n</tt> flag to avoid
+              updating the kernel forwarding table.</p>
+
+              <p>The <tt class="OPTION">-R</tt> (router
+              renumbering) option to <a href=
+              "http://www.FreeBSD.org/cgi/man.cgi?query=rtadvd&amp;sektion=8">
+              <span class="CITEREFENTRY"><span class=
+              "REFENTRYTITLE">rtadvd</span>(8)</span></a> is
+              currently ignored.</p>
+            </div>
+          </div>
+
+          <div class="SECT3">
+            <hr>
+
+            <h3 class="SECT3"><a name="AEN789">2.3.2 Ports/Packages
+            Collection</a></h3>
+
+            <p><a href=
+            "http://www.FreeBSD.org/cgi/man.cgi?query=pkg_version&amp;sektion=1">
+            <span class="CITEREFENTRY"><span class=
+            "REFENTRYTITLE">pkg_version</span>(1)</span></a> now
+            takes a <tt class="OPTION">-s</tt> flag to limit its
+            operation to ports/packages matching a given
+            string.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="SECT1">
+        <hr>
+
+        <h1 class="SECT1"><a name="AEN796">3 Upgrading from
+        previous releases of FreeBSD</a></h1>
+
+        <p>If you're upgrading from a previous release of FreeBSD,
+        most likely it's 4.X and there may be some issues affecting
+        you, depending of course on your chosen method of
+        upgrading. There are two popular ways of upgrading FreeBSD
+        distributions:</p>
+
+        <p></p>
+
+        <ul>
+          <li>
+            <p>Using sources, via <tt class=
+            "FILENAME">/usr/src</tt></p>
+          </li>
+
+          <li>
+            <p>Using the binary upgrade option of <a href=
+            "http://www.FreeBSD.org/cgi/man.cgi?query=sysinstall&amp;sektion=8">
+            <span class="CITEREFENTRY"><span class=
+            "REFENTRYTITLE">sysinstall</span>(8)</span></a>.</p>
+          </li>
+        </ul>
+        <br>
+        <br>
+
+        <p>Please read the <tt class="FILENAME">INSTALL.TXT</tt>
+        file for more information, preferably <i class=
+        "EMPHASIS">before</i> beginning an upgrade. If you are
+        upgrading from source, please be sure to read <tt class=
+        "FILENAME">/usr/src/UPDATING</tt> as well.</p>
+
+        <p>Finally, if you want to use one of various means to
+        track the -STABLE or -CURRENT branches of FreeBSD, please
+        be sure to consult the <a href=
+        "http://www.FreeBSD.org/handbook/current-stable.html"
+        target="_top">``-CURRENT vs. -STABLE''</a> section of the
+        <a href="http://www.FreeBSD.org/handbook/" target=
+        "_top">FreeBSD Handbook</a>.</p>
+      </div>
+    </div>
+    <hr>
+
+    <p align="center"><small>This file, and other release-related
+    documents, can be downloaded from <a href=
+    "ftp://ftp.FreeBSD.org/pub/FreeBSD/">ftp://ftp.FreeBSD.org/pub/FreeBSD/</a>.</small></p>
+
+    <p align="center"><small>For questions about FreeBSD, read the
+    <a href="http://www.FreeBSD.org/docs.html">documentation</a>
+    before contacting &lt;<a href=
+    "mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&gt;.</small></p>
+
+    <p align="center"><small><small>All users of FreeBSD 4-STABLE
+    should subscribe to the &lt;<a href=
+    "mailto:stable@FreeBSD.org">stable@FreeBSD.org</a>&gt; mailing
+    list.</small></small></p>
+
+    <p align="center">For questions about this documentation,
+    e-mail &lt;<a href=
+    "mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&gt;.</p>
+    <br>
+    <br>
+  </body>
+</html>
+

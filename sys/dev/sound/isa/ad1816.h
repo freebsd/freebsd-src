@@ -4,7 +4,7 @@
  * This file contains information and macro definitions for
  * the ad1816 chip
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/isa/ad1816.h,v 1.1.2.1 2001/08/01 03:40:55 cg Exp $
  */
 
 /* AD1816 register macros */

@@ -29,7 +29,7 @@
  *
  *	$Id: i4b_ing.c,v 1.10 2000/04/27 11:35:00 hm Exp $
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/driver/i4b_ing.c,v 1.10.2.2 2001/08/13 12:19:22 hm Exp $
  *
  *	last edit-date: [Thu Apr 27 13:33:18 2000]
  *

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/tc/mcclock_ioasic.c,v 1.3 1999/08/28 00:39:10 peter Exp $ */
 /* $NetBSD: mcclock_ioasic.c,v 1.8 1997/09/02 13:20:14 thorpej Exp $ */
 
 /*

@@ -25,7 +25,7 @@
  *
  * Low-level routines relating to the user capabilities database
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libutil/login_cap.c,v 1.17.2.2.4.1 2001/09/17 07:30:17 jkh Exp $
  */
 
 #include <stdio.h>

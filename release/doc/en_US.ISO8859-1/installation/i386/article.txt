@@ -1,0 +1,1240 @@
+               FreeBSD 4.4-RELEASE i386 Installation Instructions
+
+  The FreeBSD Project
+
+   Copyright (c) 2000, 2001 by The FreeBSD Documentation Project
+
+     ----------------------------------------------------------------------
+
+     This article gives some brief instructions on installing FreeBSD
+     4.4-RELEASE for the i386 architecture, with particular emphasis given to
+     obtaining a FreeBSD distribution. Some notes on troubleshooting and
+     frequently-asked questions are also given.
+
+     ----------------------------------------------------------------------
+
+                              1 Installing FreeBSD
+
+   This section documents the process of installing a new distribution of
+   FreeBSD. These instructions pay particular emphasis to the process of
+   obtaining the FreeBSD 4.4-RELEASE distribution and to beginning the
+   installation procedure. The ``Installing FreeBSD'' chapter of the FreeBSD
+   Handbook provides more in-depth information about the installation program
+   itself, including a guided walkthrough with screenshots.
+
+   If you are upgrading from a previous release of FreeBSD, please see
+   Section 3 for instructions on upgrading.
+
+     ----------------------------------------------------------------------
+
+1.1 Getting Started
+
+   Probably the most important pre-installation step that can be taken is
+   that of reading the various instruction documents provided with FreeBSD. A
+   roadmap of documents pertaining to this release of FreeBSD can be found in
+   README.TXT, which can usually be found in the same location as this file;
+   most of these documents, such as the release notes and the hardware
+   compatability list, are also accessible in the Documentation menu of the
+   installer.
+
+   Note that on-line versions of the FreeBSD FAQ and Handbook are also
+   available from the FreeBSD Project Web site, if you have an Internet
+   connection.
+
+   This collection of documents may seem daunting, but the time spent reading
+   them will likely be saved many times over. Being familiar with what
+   resources are available can also be helpful in the event of problems
+   during installation.
+
+   The best laid plans sometimes go awry, so if you run into trouble take a
+   look at Section 4, which contains valuable troubleshooting information.
+   You should also read an updated copy of ERRATA.TXT before installing,
+   since this will alert you to any problems which have reported in the
+   interim for your particular release.
+
+     Important: While FreeBSD does its best to safeguard against accidental
+     loss of data, it's still more than possible to wipe out your entire disk
+     with this installation if you make a mistake. Please do not proceed to
+     the final FreeBSD installation menu unless you've adequately backed up
+     any important data first.
+
+     ----------------------------------------------------------------------
+
+1.2 Hardware Requirements
+
+   FreeBSD for the i386 requires a 386 or better processor to run (sorry,
+   there is no support for 286 processors) and at least 5 megs of RAM to
+   install and 4 megs of RAM to run. You will need at least 100MB of free
+   hard drive space for the most minimal installation. See below for ways of
+   shrinking existing DOS partitions in order to install FreeBSD.
+
+   If you are not familiar with configuring hardware for FreeBSD, you should
+   be sure to read the HARDWARE.TXT file; it contains important information
+   on what hardware is supported by FreeBSD.
+
+     ----------------------------------------------------------------------
+
+1.3 Floppy Disk Image Instructions
+
+   Depending on how you choose to install FreeBSD, you may need to create a
+   set of floppy disks (usually two) to begin the installation process. This
+   section briefly describes how to create these disks, either from a CDROM
+   installation or from the Internet. Note that in the common case of
+   installing FreeBSD from CDROM, on a machine that supports bootable CDROMs,
+   the steps outlined in this section will not be needed and can be skipped.
+
+   For a normal CDROM or network installation, all you need to copy onto
+   actual floppies from the floppies/ directory are the kern.flp and
+   mfsroot.flp images (for 1.44MB floppies).
+
+   Getting these images over the network is easy. Simply fetch the
+   release/floppies/kern.flp and release/floppies/mfsroot.flp files from
+   ftp://ftp.FreeBSD.org/pub/FreeBSD/ or one of the many mirrors listed at
+   FTP Sites section of the Handbook, or on the
+   http://www.freebsdmirrors.org/ Web pages.
+
+   Get two blank, freshly formatted floppies and image copy kern.flp onto one
+   and mfsroot.flp onto the other. These images are not DOS files. You cannot
+   simply copy them to a DOS or UFS floppy as regular files, you need to
+   ``image'' copy them to the floppy with fdimage.exe under DOS (see the
+   tools directory on your CDROM or FreeBSD FTP mirror) or the dd(1) command
+   in UNIX.
+
+   For example, to create the kernel floppy image from DOS, you'd do
+   something like this:
+
+     C> fdimage kern.flp a:
+
+   Assuming that you'd copied fdimage.exe and kern.flp into a directory
+   somewhere. You would do the same for mfsroot.flp, of course.
+
+   If you're creating the boot floppy from a UNIX machine, you may find that:
+
+     # dd if=floppies/kern.flp of=/dev/rfd0
+
+   or
+
+     # dd if=floppies/kern.flp of=/dev/floppy
+
+   work well, depending on your hardware and operating system environment
+   (different versions of UNIX have different names for the floppy drive).
+
+     ----------------------------------------------------------------------
+
+1.4 Installing FreeBSD from CDROM or the Internet
+
+   The easiest type of installation is from CDROM. If you have a supported
+   CDROM drive and a FreeBSD installation CDROM, there are 2 ways of starting
+   the installation from it:
+
+     * If your system supports bootable CDROM media (usually an option which
+       can be selectively enabled in the controller's setup menu or in the PC
+       BIOS for some systems) and you have it enabled, FreeBSD supports the
+       ``El Torrito'' bootable CD standard. Simply put the installation CD in
+       your CDROM drive and boot the system to begin installation.
+
+     * Build a set of FreeBSD boot floppies from the floppies/ directory in
+       every FreeBSD distribution. Either simply use the makeflp.bat script
+       from DOS or read Section 1.3 for more information on creating the
+       bootable floppies under different operating systems. Then you simply
+       boot from the first floppy and you should soon be in the FreeBSD
+       installation.
+
+   If you don't have a CDROM (or your computer does not support booting from
+   CDROM) and would like to simply install over the net using PPP, SLIP or a
+   dedicated connection. You should start the installation by building a set
+   of FreeBSD boot floppy from the files floppies/kern.flp and
+   floppies/mfsroot.flp using the instructions found in Section 1.3. Restart
+   your computer using the kern.flp disk; when prompted, insert the
+   mfsroot.flp disk. Then, please go to Section 1.5.5 for additional tips on
+   installing via FTP or NFS.
+
+     ----------------------------------------------------------------------
+
+1.5 Detail on various installation types
+
+   Once you've gotten yourself to the initial installation screen somehow,
+   you should be able to follow the various menu prompts and go from there.
+   If you've never used the FreeBSD installation before, you are also
+   encouraged to read some of the documentation in the Documentation submenu
+   as well as the general ``Usage'' instructions on the first menu.
+
+     Note: If you get stuck at a screen, press the F1 key for online
+     documentation relevant to that specific section.
+
+   If you've never installed FreeBSD before, or even if you have, the
+   ``Standard'' installation mode is the most recommended since it makes sure
+   that you'll visit all the various important checklist items along the way.
+   If you're much more comfortable with the FreeBSD installation process and
+   know exactly what you want to do, use the ``Express'' or ``Custom''
+   installation options. If you're upgrading an existing system, use the
+   ``Upgrade'' option.
+
+   The FreeBSD installer supports the direct use of floppy, DOS, tape, CDROM,
+   FTP, NFS and UFS partitions as installation media; further tips on
+   installing from each type of media are listed below.
+
+     ----------------------------------------------------------------------
+
+  1.5.1 Installing from a Network CDROM
+
+   If you simply wish to install from a local CDROM drive then see Section
+   1.4. If you don't have a CDROM drive on your system and wish to use a
+   FreeBSD distribution CD in the CDROM drive of another system to which you
+   have network connectivity, there are also several ways of going about it:
+
+     * If you would be able to FTP install FreeBSD directly from the CDROM
+       drive in some FreeBSD machine, it's quite easy: You simply add the
+       following line to the password file (using the vipw(8) command):
+
+     ftp:*:99:99::0:0:FTP:/cdrom:/sbin/nologin
+
+       On the machine on which you are running the install, go to the Options
+       menu and set Release Name to any. You may then choose a Media type of
+       FTP and type in ftp://machine after picking ``URL'' in the ftp sites
+       menu.
+
+         Warning: This may allow anyone on the local network (or Internet) to
+         make ``anonymous FTP'' connections to this machine, which may not be
+         desirable.
+
+     * If you would rather use NFS to export the CDROM directly to the
+       machine(s) you'll be installing from, you need to first add an entry
+       to the /etc/exports file (on the machine with the CDROM drive). The
+       example below allows the machine ziggy.foo.com to mount the CDROM
+       directly via NFS during installation:
+
+     /cdrom          -ro             ziggy.foo.com
+
+       The machine with the CDROM must also be configured as an NFS server,
+       of course, and if you're not sure how to do that then an NFS
+       installation is probably not the best choice for you unless you're
+       willing to read up on rc.conf(5) and configure things appropriately.
+       Assuming that this part goes smoothly, you should be able to enter:
+       cdrom-host:/cdrom as the path for an NFS installation when the target
+       machine is installed, e.g. wiggy:/cdrom.
+
+     ----------------------------------------------------------------------
+
+  1.5.2 Installing from Floppies
+
+   If you must install from floppy disks, either due to unsupported hardware
+   or just because you enjoy doing things the hard way, you must first
+   prepare some floppies for the install.
+
+   First, make your boot floppies as described in Section 1.3.
+
+   Second, peruse Section 2 and pay special attention to the ``Distribution
+   Format'' section since it describes which files you're going to need to
+   put onto floppy and which you can safely skip.
+
+   Next you will need, at minimum, as many 1.44MB floppies as it takes to
+   hold all files in the bin (binary distribution) directory. If you're
+   preparing these floppies under DOS, then these floppies must be formatted
+   using the MS-DOS FORMAT command. If you're using Windows, use the Windows
+   File Manager format command.
+
+     Important: Frequently, floppy disks come ``factory preformatted''. While
+     convenient, many problems reported by users in the past have resulted
+     from the use of improperly formatted media. Re-format them yourself,
+     just to make sure.
+
+   If you're creating the floppies from another FreeBSD machine, a format is
+   still not a bad idea though you don't need to put a DOS filesystem on each
+   floppy. You can use the disklabel(8) and newfs(8) commands to put a UFS
+   filesystem on a floppy, as the following sequence of commands illustrates:
+
+     # fdformat -f 1440 fd0.1440
+     # disklabel -w -r fd0.1440 floppy3
+     # newfs -t 2 -u 18 -l 1 -i 65536 /dev/fd0
+
+   After you've formatted the floppies for DOS or UFS, you'll need to copy
+   the files onto them. The distribution files are split into chunks
+   conveniently sized so that 5 of them will fit on a conventional 1.44MB
+   floppy. Go through all your floppies, packing as many files as will fit on
+   each one, until you've got all the distributions you want packed up in
+   this fashion. Each distribution should go into its own subdirectory on the
+   floppy, e.g.: a:\bin\bin.inf, a:\bin\bin.aa, a:\bin\bin.ab, ...
+
+     Important: The bin.inf file also needs to go on the first floppy of the
+     bin set since it is read by the installation program in order to figure
+     out how many additional pieces to look for when fetching and
+     concatenating the distribution. When putting distributions onto
+     floppies, the distname.inf file must occupy the first floppy of each
+     distribution set. This is also covered in README.TXT.
+
+   Once you come to the Media screen of the install, select ``Floppy'' and
+   you'll be prompted for the rest.
+
+     ----------------------------------------------------------------------
+
+  1.5.3 Installing from a DOS partition
+
+   To prepare for installation from an MS-DOS partition you should simply
+   copy the files from the distribution into a directory called FREEBSD on
+   the Primary DOS partition (C:). For example, to do a minimal installation
+   of FreeBSD from DOS using files copied from the CDROM, you might do
+   something like this:
+
+     C:\> MD C:\FREEBSD
+     C:\> XCOPY /S E:\BIN C:\FREEBSD\BIN
+
+   Assuming that E: was where your CD was mounted.
+
+   For as many distributions as you wish to install from DOS (and you have
+   free space for), install each one in a directory under C:\FREEBSD - the
+   BIN dist is only the minimal requirement.
+
+   Once you've copied the directories, you can simply launch the installation
+   from floppies as normal and select ``DOS'' as your media type when the
+   time comes.
+
+     ----------------------------------------------------------------------
+
+  1.5.4 Installing from QIC/SCSI Tape
+
+   When installing from tape, the installation program expects the files to
+   be simply tar'ed onto it, so after fetching all of the files for the
+   distributions you're interested in, simply use tar(1) to get them onto the
+   tape with a command something like this:
+
+     # cd /where/you/have/your/dists
+     # tar cvf /dev/rsa0 dist1 .. dist2
+
+   When you go to do the installation, you should also make sure that you
+   leave enough room in some temporary directory (which you'll be allowed to
+   choose) to accommodate the full contents of the tape you've created. Due
+   to the non-random access nature of tapes, this method of installation
+   requires quite a bit of temporary storage. You should expect to require as
+   much temporary storage as you have stuff written on tape.
+
+     Note: When going to do the installation, the tape must be in the drive
+     before booting from the boot floppies. The installation ``probe'' may
+     otherwise fail to find it.
+
+   Now create a boot floppy as described in Section 1.3 and proceed with the
+   installation.
+
+     ----------------------------------------------------------------------
+
+  1.5.5 Installing over a Network using FTP or NFS
+
+   After making the boot floppies as described in the first section, you can
+   load the rest of the installation over a network using one of 3 types of
+   connections: serial port, parallel port, or Ethernet.
+
+     ----------------------------------------------------------------------
+
+    1.5.5.1 Serial Port
+
+   SLIP support is rather primitive, and is limited primarily to hard-wired
+   links, such as a serial cable running between two computers. The link must
+   be hard-wired because the SLIP installation doesn't currently offer a
+   dialing capability. If you need to dial out with a modem or otherwise
+   dialog with the link before connecting to it, then I recommend that the
+   PPP utility be used instead.
+
+   If you're using PPP, make sure that you have your Internet Service
+   Provider's IP address and DNS information handy as you'll need to know it
+   fairly early in the installation process. You may also need to know your
+   own IP address, though PPP supports dynamic address negotiation and may be
+   able to pick up this information directly from your ISP if they support
+   it.
+
+   You will also need to know how to use the various ``AT commands'' for
+   dialing out with your particular brand of modem as the PPP dialer provides
+   only a very simple terminal emulator.
+
+     ----------------------------------------------------------------------
+
+    1.5.5.2 Parallel Port
+
+   If a hard-wired connection to another FreeBSD or Linux machine is
+   available, you might also consider installing over a ``laplink'' style
+   parallel port cable. The data rate over the parallel port is much higher
+   than what is typically possible over a serial line (up to 50k/sec), thus
+   resulting in a quicker installation. It's not typically necessary to use
+   ``real'' IP addresses when using a point-to-point parallel cable in this
+   way and you can generally just use RFC 1918 style addresses for the ends
+   of the link (e.g. 10.0.0.1, 10.0.0.2, etc).
+
+     Important: If you use a Linux machine rather than a FreeBSD machine as
+     your PLIP peer, you will also have to specify link0 in the TCP/IP setup
+     screen's ``extra options for ifconfig'' field in order to be compatible
+     with Linux's slightly different PLIP protocol.
+
+     ----------------------------------------------------------------------
+
+    1.5.5.3 Ethernet
+
+   FreeBSD supports many common Ethernet cards; a table of supported cards is
+   provided as part of the FreeBSD Hardware Notes (see HARDWARE.TXT in the
+   Documentation menu on the boot floppy or the top level directory of the
+   CDROM). If you are using one of the supported PCMCIA Ethernet cards, also
+   be sure that it's plugged in before the laptop is powered on. FreeBSD does
+   not, unfortunately, currently support ``hot insertion'' of PCMCIA cards
+   during installation.
+
+   You will also need to know your IP address on the network, the netmask
+   value for your subnet and the name of your machine. Your system
+   administrator can tell you which values are appropriate to your particular
+   network setup. If you will be referring to other hosts by name rather than
+   IP address, you'll also need a name server and possibly the address of a
+   gateway (if you're using PPP, it's your provider's IP address) to use in
+   talking to it. If you want to install by FTP via an HTTP proxy (see
+   below), you will also need the proxy's address.
+
+   If you do not know the answers to these questions then you should really
+   probably talk to your system administrator first before trying this type
+   of installation. Using a randomly chosen IP address or netmask on a live
+   network is almost guaranteed not to work, and will probably result in a
+   lecture from said system administrator.
+
+   Once you have a network connection of some sort working, the installation
+   can continue over NFS or FTP.
+
+     ----------------------------------------------------------------------
+
+    1.5.5.4 NFS installation tips
+
+   NFS installation is fairly straight-forward: Simply copy the FreeBSD
+   distribution files you want onto a server somewhere and then point the NFS
+   media selection at it.
+
+   If this server supports only ``privileged port'' access (this is generally
+   the default for Sun and Linux workstations), you will need to set this
+   option in the Options menu before installation can proceed.
+
+   If you have a poor quality Ethernet card which suffers from very slow
+   transfer rates, you may also wish to toggle the appropriate Options flag.
+
+   In order for NFS installation to work, the server must also support
+   ``subdir mounts'', e.g. if your FreeBSD distribution directory lives on
+   wiggy:/usr/archive/stuff/FreeBSD, then wiggy will have to allow the direct
+   mounting of /usr/archive/stuff/FreeBSD, not just /usr or
+   /usr/archive/stuff.
+
+   In FreeBSD's /etc/exports file this is controlled by the -alldirs option.
+   Other NFS servers may have different conventions. If you are getting
+   Permission Denied messages from the server then it's likely that you don't
+   have this properly enabled.
+
+     ----------------------------------------------------------------------
+
+    1.5.5.5 FTP Installation tips
+
+   FTP installation may be done from any mirror site containing a reasonably
+   up-to-date version of FreeBSD. A full menu of reasonable choices for
+   almost any location in the world is provided in the FTP site menu during
+   installation.
+
+   If you are installing from some other FTP site not listed in this menu, or
+   you are having troubles getting your name server configured properly, you
+   can also specify your own URL by selecting the ``URL'' choice in that
+   menu. A URL can contain a hostname or an IP address, so something like the
+   following would work in the absence of a name server:
+
+     ftp://216.66.64.162/pub/FreeBSD/releases/i386/4.2-RELEASE
+
+   There are three FTP installation modes you can use:
+
+     * FTP: This method uses the standard ``Active'' mode for transfers, in
+       which the server initiates a connection to the client. This will not
+       work through most firewalls but will often work best with older FTP
+       servers that do not support passive mode. If your connection hangs
+       with passive mode, try this one.
+
+     * FTP Passive: This sets the FTP "Passive" mode which prevents the
+       server from opening connections to the client. This option is best for
+       users to pass through firewalls that do not allow incoming connections
+       on random port addresses.
+
+     * FTP via an HTTP proxy: This option instructs FreeBSD to use HTTP to
+       connect to a proxy for all FTP operations. The proxy will translate
+       the requests and send them to the FTP server. This allows the user to
+       pass through firewalls that do not allow FTP at all, but offer an HTTP
+       proxy. You must specify the hostname of the proxy in addition to the
+       FTP server.
+
+       In the rare case that you have an FTP proxy that does not go through
+       HTTP, you can specify the URL as something like:
+
+     ftp://foo.bar.com:port/pub/FreeBSD
+
+       In the URL above, port is the port number of the proxy FTP server.
+
+     ----------------------------------------------------------------------
+
+  1.5.6 Tips for Serial Console Users
+
+   If you'd like to install FreeBSD on a machine using just a serial port
+   (e.g. you don't have or wish to use a VGA card), please follow these
+   steps:
+
+    1. Connect some sort of ANSI (vt100) compatible terminal or terminal
+       emulation program to the COM1 port of the PC you are installing
+       FreeBSD onto.
+
+    2. Unplug the keyboard (yes, that's correct!) and then try to boot from
+       floppy or the installation CDROM, depending on the type of
+       installation media you have, with the keyboard unplugged.
+
+    3. If you don't get any output on your serial console, plug the keyboard
+       in again and wait for some beeps. If you are booting from the CDROM,
+       proceed to step 5 as soon as you hear the beep.
+
+    4. For a floppy boot, the first beep means to remove the kern.flp floppy
+       and insert the mfsroot.flp floppy, after which you should press Enter
+       and wait for another beep.
+
+    5. Hit the space bar, then enter
+
+     boot -h
+
+       and you should now definitely be seeing everything on the serial port.
+       If that still doesn't work, check your serial cabling as well as the
+       settings on your terminal emulation program or actual terminal device.
+       It should be set for 9600 baud, 8 bits, no parity.
+
+     ----------------------------------------------------------------------
+
+1.6 Question and Answer Section for i386 Architecture Users
+
+   1.6.1. Help! I have no space! Do I need to delete everything first?
+
+   1.6.2. Can I use compressed DOS filesystems from FreeBSD?
+
+   1.6.3. Can I mount my DOS extended partitions?
+
+   1.6.4. Can I run DOS binaries under FreeBSD?
+
+   1.6.1. Help! I have no space! Do I need to delete everything first?
+
+   If your machine is already running DOS and has little or no free space
+   available for FreeBSD's installation, all is not lost! You may find the
+   FIPS utility, provided in the tools/ subdirectory on the FreeBSD CDROM or
+   on the various FreeBSD ftp sites, to be quite useful.
+
+   FIPS allows you to split an existing DOS partition into two pieces,
+   preserving the original partition and allowing you to install onto the
+   second free piece. You first ``defrag'' your DOS partition, using the DOS
+   6.xx DEFRAG utility or the Norton Disk Tools, then run FIPS. It will
+   prompt you for the rest of the information it needs. Afterwards, you can
+   reboot and install FreeBSD on the new partition. Also note that FIPS will
+   create the second partition as a ``clone'' of the first, so you'll
+   actually see that you now have two DOS Primary partitions where you
+   formerly had one. Don't be alarmed! You can simply delete the extra DOS
+   Primary partition (making sure it's the right one by examining its size).
+
+   FIPS does NOT currently work with FAT32 or VFAT style partitions as used
+   by newer versions of Windows 95. To split up such a partition, you will
+   need a commercial product such as Partition Magic. Sorry, but this is just
+   the breaks if you've got a Windows partition hogging your whole disk and
+   you don't want to reinstall from scratch.
+
+   1.6.2. Can I use compressed DOS filesystems from FreeBSD?
+
+   No. If you are using a utility such as Stacker(tm) or DoubleSpace(tm),
+   FreeBSD will only be able to use whatever portion of the filesystem you
+   leave uncompressed. The rest of the filesystem will show up as one large
+   file (the stacked/dblspaced file!). Do not remove that file as you will
+   probably regret it greatly!
+
+   It is probably better to create another uncompressed DOS extended
+   partition and use this for communications between DOS and FreeBSD if such
+   is your desire.
+
+   1.6.3. Can I mount my DOS extended partitions?
+
+   Yes. DOS extended partitions are mapped in at the end of the other
+   ``slices'' in FreeBSD, e.g. your D: drive might be /dev/da0s5, your E:
+   drive /dev/da0s6, and so on. This example assumes, of course, that your
+   extended partition is on SCSI drive 0. For IDE drives, substitute ad for
+   da appropriately. You otherwise mount extended partitions exactly like you
+   would mount any other DOS drive, e.g.:
+
+     # mount -t msdos /dev/da0s5 /dos_d
+
+   1.6.4. Can I run DOS binaries under FreeBSD?
+
+   Ongoing work with BSDI's doscmd(1) utility will suffice in many cases,
+   though it still has some rough edges. If you're interested in working on
+   this, please send mail to the FreeBSD-emulation mailing list
+   <freebsd-emulation@FreeBSD.org> and indicate that you're interested in
+   joining this ongoing effort!
+
+   The emulators/pcemu port/package in the FreeBSD Ports Collection which
+   emulates an 8088 and enough BIOS services to run DOS text mode
+   applications. It requires the X Window System (XFree86) to operate.
+
+     ----------------------------------------------------------------------
+
+                             2 Distribution Format
+
+   A typical FreeBSD distribution directory looks something like this:
+
+     ERRATA.HTM      README.TXT      compat1x        dict            manpages
+     ERRATA.TXT      RELNOTES.HTM    compat20        doc             packages
+     HARDWARE.HTM    RELNOTES.TXT    compat21        docbook.css     ports
+     HARDWARE.TXT    XF86336         compat22        floppies        proflibs
+     INSTALL.HTM     bin             compat3x        games           src
+     INSTALL.TXT     catpages        compat4x        info            tools
+     README.HTM      cdrom.inf       crypto          kernel
+
+   If you want to do a CDROM, FTP or NFS installation from this distribution
+   directory, all you need to do is make the 1.44MB boot floppies from the
+   floppies directory (see Section 1.3 for instructions on how to do this),
+   boot them and follow the instructions. The rest of the data needed during
+   the installation will be obtained automatically based on your selections.
+   If you've never installed FreeBSD before, you also want to read the
+   entirety of this document (the installation instructions) file.
+
+   If you're trying to do some other type of installation or are merely
+   curious about how a distribution is organized, what follows is a more
+   thorough description of each item in more detail:
+
+    1. The *.TXT and *.HTM files contain documentation (for example, this
+       document is contained in both INSTALL.TXT and INSTALL.HTM) and should
+       be read before starting an installation. The *.TXT files are plain
+       text, while the *.HTM files are HTML files that can be read by almost
+       any Web browser. Some distributions may contain documentation in other
+       formats as well, such as PDF or PostScript.
+
+    2. docbook.css is a Cascading Style Sheet (CSS) file used by some Web
+       browsers for formatting the HTML documentation.
+
+    3. The XF86336 directory contains the XFree86 project's 3.3.6 release and
+       consists of a series of gzip'd tar files which contain each component
+       of the XFree86 distribution.
+
+    4. The bin, catpages, crypto, dict, doc, games, info, manpages, proflibs,
+       and src directories contain the primary distribution components of
+       FreeBSD itself and are split into smaller files for easy packing onto
+       floppies (should that be necessary).
+
+    5. The compat1x, compat20, compat21, compat22, compat3x, and compat4x
+       directories contain distributions for compatibility with older
+       releases and are distributed as single gzip'd tar files - they can be
+       installed during release time or later by running their install.sh
+       scripts.
+
+    6. The floppies/ subdirectory contains the floppy installation images;
+       further information on using them can be found in Section 1.3.
+
+    7. The packages and ports directories contain the FreeBSD Packages and
+       Ports Collections. Packages may be installed from the packages
+       directory by running the command:
+
+     #/stand/sysinstall configPackages
+
+       Packages can also be installed by feeding individual filenames in
+       packages/ to the pkg_add(1) command.
+
+       The Ports Collection may be installed like any other distribution and
+       requires about 100MB unpacked. More information on the ports
+       collection may be obtained from http://www.FreeBSD.org/ports/ or
+       locally from /usr/share/doc/handbook if you've installed the doc
+       distribution.
+
+    8. Last of all, the tools directory contains various DOS tools for
+       discovering disk geometries, installing boot managers and the like. It
+       is purely optional and provided only for user convenience.
+
+   A typical distribution directory (for example, the info distribution)
+   looks like this internally:
+
+     CHECKSUM.MD5    info.ab         info.ad         info.inf        install.sh
+     info.aa         info.ac         info.ae         info.mtree
+
+   The CHECKSUM.MD5 file contains MD5 signatures for each file, should data
+   corruption be suspected, and is purely for reference. It is not used by
+   the actual installation and does not need to be copied with the rest of
+   the distribution files. The info.a* files are split, gzip'd tar files, the
+   contents of which can be viewed by doing:
+
+     # cat info.a* | tar tvzf -
+
+   During installation, they are automatically concatenated and extracted by
+   the installation procedure.
+
+   The info.inf file is also necessary since it is read by the installation
+   program in order to figure out how many pieces to look for when fetching
+   and concatenating the distribution. When putting distributions onto
+   floppies, the .inf file must occupy the first floppy of each distribution
+   set!
+
+   The info.mtree file is another non-essential file which is provided for
+   user reference. It contains the MD5 signatures of the unpacked
+   distribution files and can be later used with the mtree(8) program to
+   verify the installation permissions and checksums against any possible
+   modifications to the file. When used with the bin distribution, this can
+   be an excellent way of detecting trojan horse attacks on your system.
+
+   Finally, the install.sh file is for use by those who want to install the
+   distribution after installation time. To install the info distribution
+   from CDROM after a system was installed, for example, you'd do:
+
+     # cd /cdrom/info
+     # sh install.sh
+
+     ----------------------------------------------------------------------
+
+                              3 Upgrading FreeBSD
+
+   These instructions describe a procedure for doing a binary upgrade from an
+   older version of FreeBSD.
+
+     Warning: While the FreeBSD upgrade procedure does its best to safeguard
+     against accidental loss of data, it is still more than possible to wipe
+     out your entire disk with this installation! Please do not accept the
+     final confirmation request unless you have adequately backed up any
+     important data files.
+
+     Important: These notes assume that you are using the version of
+     sysinstall(8) supplied with the version of FreeBSD to which you intend
+     to upgrade. Using a mismatched version of sysinstall(8) is almost
+     guaranteed to cause problems and has been known to leave systems in an
+     unusable state. The most commonly made mistake in this regard is the use
+     of an old copy of sysinstall(8) from an existing installation to upgrade
+     to a newer version of FreeBSD. This is not recommended.
+
+     ----------------------------------------------------------------------
+
+3.1 Introduction
+
+   The upgrade procedure replaces distributions selected by the user with
+   those corresponding to the new FreeBSD release. It preserves standard
+   system configuration data, as well as user data, installed packages and
+   other software.
+
+   Administrators contemplating an upgrade are encouraged to study this
+   section in its entirety before commencing an upgrade. Failure to do so may
+   result in a failed upgrade or loss of data.
+
+     ----------------------------------------------------------------------
+
+  3.1.1 Upgrade Overview
+
+   Upgrading of a distribution is performed by extracting the new version of
+   the component over the top of the previous version. Files belonging to the
+   old distribution are not deleted.
+
+   System configuration is preserved by retaining and restoring the previous
+   version of the following files:
+
+   Xaccel.ini, XF86Config, adduser.conf, aliases, aliases.db, amd.map,
+   crontab, csh.cshrc, csh.login, csh.logout, cvsupfile, dhclient.conf,
+   disktab, dm.conf, dumpdates, exports, fbtab, fstab, ftpusers, gettytab,
+   gnats, group, hosts, host.conf, hosts.allow, hosts.equiv, hosts.lpd,
+   inetd.conf, kerberosIV, localtime, login.access, login.conf, mail,
+   mail.rc, make.conf, manpath.config, master.passwd, modems, motd, namedb,
+   networks, newsyslog.conf, pam.conf, passwd, periodic, ppp, printcap,
+   profile, pwd.db, rc.conf, rc.conf.local, rc.firewall, rc.local, remote,
+   resolv.conf, rmt, sendmail.cf, sendmail.cw, services, shells, skeykeys,
+   spwd.db, ssh, syslog.conf, ttys, uucp
+
+   The versions of these files which correspond to the new version are moved
+   to /etc/upgrade/. The system administrator may peruse these new versions
+   and merge components as desired. Note that many of these files are
+   interdependent, and the best merge procedure is to copy all site-specific
+   data from the current files into the new.
+
+   During the upgrade procedure, the administrator is prompted for a location
+   into which all files from /etc/ are saved. In the event that local
+   modifications have been made to other files, they may be subsequently
+   retrieved from this location.
+
+     ----------------------------------------------------------------------
+
+3.2 Procedure
+
+   This section details the upgrade procedure. Particular attention is given
+   to items which substantially differ from a normal installation.
+
+     ----------------------------------------------------------------------
+
+  3.2.1 Backup
+
+   User data and system configuration should be backed up before upgrading.
+   While the upgrade procedure does its best to prevent accidental mistakes,
+   it is possible to partially or completely destroy data and configuration
+   information.
+
+     ----------------------------------------------------------------------
+
+  3.2.2 Mount Filesystems
+
+   The disklabel editor is entered with the nominated disk's filesystem
+   devices listed. Prior to commencing the upgrade, the administrator should
+   make a note of the device names and corresponding mountpoints. These
+   mountpoints should be entered here. Do notset the ``newfs flag'' for any
+   filesystems, as this will cause data loss.
+
+     ----------------------------------------------------------------------
+
+  3.2.3 Select Distributions
+
+   When selecting distributions, there are no constraints on which must be
+   selected. As a general rule, the bin distribution should be selected for
+   an update, and the man distribution if manpages are already installed.
+   Other distributions may be selected beyond those originally installed if
+   the administrator wishes to add additional functionality.
+
+     ----------------------------------------------------------------------
+
+  3.2.4 After Installation
+
+   Once the installation procedure has completed, the administrator is
+   prompted to examine the new configuration files. At this point, checks
+   should be made to ensure that the system configuration is valid. In
+   particular, the /etc/rc.conf and /etc/fstab files should be checked.
+
+     ----------------------------------------------------------------------
+
+3.3 Alternative Upgrade Techniques
+
+   Those interested in an upgrade method that allows more flexibility and
+   sophistication should take a look at the ``Upgrading FreeBSD from source''
+   tutorial found at http://www.FreeBSD.org/docs.html. This method requires
+   reliable network connectivity, extra disk space and spare time, but has
+   advantages for networks and other more complex installations.
+
+     ----------------------------------------------------------------------
+
+                               4 Troubleshooting
+
+4.1 Repairing an Existing FreeBSD Installation
+
+   FreeBSD features a ``Fixit'' option in the top menu of the boot floppy. To
+   use it, you will also need either a fixit.flp image floppy, generated in
+   the same fashion as the boot floppy, or the ``live filesystem'' CDROM;
+   typically the second CDROM in a multi-disc FreeBSD distribution.
+
+   To invoke fixit, simply boot the kern.flp floppy, choose the ``Fixit''
+   item and insert the fixit floppy or CDROM when asked. You will then be
+   placed into a shell with a wide variety of commands available (in the
+   /stand and /mnt2/stand directories) for checking, repairing and examining
+   file systems and their contents. Some UNIX administration experience is
+   required to use the fixit option.
+
+     ----------------------------------------------------------------------
+
+4.2 Common Installation Problems, Q&A
+
+   4.2.1. I go to boot from the hard disk for the first time after installing
+   FreeBSD, the kernel loads and probes my hardware, but stops with messages
+   like:
+
+   4.2.2. I go to boot from the hard disk for the first time after installing
+   FreeBSD, but the Boot Manager prompt just prints F? at the boot menu each
+   time but the boot won't go any further.
+
+   4.2.1. I go to boot from the hard disk for the first time after installing
+   FreeBSD, the kernel loads and probes my hardware, but stops with messages
+   like:
+
+     changing root device to wd1s1a panic: cannot mount root
+
+   What is wrong? What can I do?
+
+   What is this bios_drive:interface(unit,partition)kernel_name thing that is
+   displayed with the boot help?
+
+   There is a longstanding problem in the case where the boot disk is not the
+   first disk in the system. The BIOS uses a different numbering scheme to
+   FreeBSD, and working out which numbers correspond to which is difficult to
+   get right.
+
+   In the case where the boot disk is not the first disk in the system,
+   FreeBSD can need some help finding it. There are two common situations
+   here, and in both of these cases, you need to tell FreeBSD where the root
+   filesystem is. You do this by specifying the BIOS disk number, the disk
+   type and the FreeBSD disk number for that type.
+
+   The first situation is where you have two IDE disks, each configured as
+   the master on their respective IDE busses, and wish to boot FreeBSD from
+   the second disk. The BIOS sees these as disk 0 and disk 1, while FreeBSD
+   sees them as wd0 and wd2.
+
+   FreeBSD is on BIOS disk 1, of type wd and the FreeBSD disk number is 2, so
+   you would say:
+
+     1:wd(2,a)kernel
+
+   Note that if you have a slave on the primary bus, the above is not
+   necessary (and is effectively wrong).
+
+   The second situation involves booting from a SCSI disk when you have one
+   or more IDE disks in the system. In this case, the FreeBSD disk number is
+   lower than the BIOS disk number. If you have two IDE disks as well as the
+   SCSI disk, the SCSI disk is BIOS disk 2, type da and FreeBSD disk number
+   0, so you would say:
+
+     2:da(0,a)kernel
+
+   To tell FreeBSD that you want to boot from BIOS disk 2, which is the first
+   SCSI disk in the system. If you only had one IDE disk, you would use '1:'
+   instead.
+
+   Once you have determined the correct values to use, you can put the
+   command exactly as you would have typed it in the /boot.config file using
+   a standard text editor. Unless instructed otherwise, FreeBSD will use the
+   contents of this file as the default response to the boot: prompt.
+
+   4.2.2. I go to boot from the hard disk for the first time after installing
+   FreeBSD, but the Boot Manager prompt just prints F? at the boot menu each
+   time but the boot won't go any further.
+
+   The hard disk geometry was set incorrectly in the Partition editor when
+   you installed FreeBSD. Go back into the partition editor and specify the
+   actual geometry of your hard disk. You must reinstall FreeBSD again from
+   the beginning with the correct geometry.
+
+   If you are failing entirely in figuring out the correct geometry for your
+   machine, here's a tip: Install a small DOS partition at the beginning of
+   the disk and install FreeBSD after that. The install program will see the
+   DOS partition and try to infer the correct geometry from it, which usually
+   works.
+
+   The following tip is no longer recommended, but is left here for
+   reference:
+
+     If you are setting up a truly dedicated FreeBSD server or workstation
+     where you don't care for (future) compatibility with DOS, Linux or
+     another operating system, you've also got the option to use the entire
+     disk (`A' in the partition editor), selecting the non-standard option
+     where FreeBSD occupies the entire disk from the very first to the very
+     last sector. This will leave all geometry considerations aside, but is
+     somewhat limiting unless you're never going to run anything other than
+     FreeBSD on a disk.
+
+     ----------------------------------------------------------------------
+
+4.3 Known Hardware Problems, Q&A
+
+     Note: Please send hardware tips for this section to Jordan K. Hubbard
+     <jkh@FreeBSD.org>.
+
+   4.3.1. The mcd(4) driver keeps thinking that it has found a device and
+   this stops my Intel EtherExpress card from working.
+
+   4.3.2. FreeBSD claims to support the 3Com PCMCIA card, but my card isn't
+   recognized when it's plugged into my laptop.
+
+   4.3.3. FreeBSD finds my PCMCIA network card, but no packets appear to be
+   sent even though it claims to be working.
+
+   4.3.4. The system finds my ed(4) network card, but I keep getting device
+   timeout errors.
+
+   4.3.5. I have a Matsushita/Panasonic drive but it isn't recognized by the
+   system.
+
+   4.3.6. I booted the install floppy on my IBM ThinkPad (tm) laptop, and the
+   keyboard is all messed up.
+
+   4.3.7. When I try to boot the install floppy, I see the following message
+   and nothing seems to be happening. I cannot enter anything from the
+   keyboard either.
+
+   4.3.8. I have a Matsushita/Panasonic CR-522, a Matsushita/Panasonic CR-523
+   or a TEAC CD55a drive, but it is not recognized even when the correct I/O
+   port is set.
+
+   4.3.9. I'm trying to install from a tape drive but all I get is something
+   like this on the screen:
+
+   4.3.10. I've installed FreeBSD onto my system, but it hangs when booting
+   from the hard drive with the message:
+
+   4.3.11. My system can not find my Intel EtherExpress 16 card.
+
+   4.3.12. When installing on an EISA HP Netserver, my on-board AIC-7xxx SCSI
+   controller isn't detected.
+
+   4.3.13. I have a Panasonic AL-N1 or Rios Chandler Pentium machine and I
+   find that the system hangs before ever getting into the installation now.
+
+   4.3.14. I have this CMD640 IDE controller that is said to be broken.
+
+   4.3.15. On a Compaq Aero notebook, I get the message ``No floppy devices
+   found! Please check ...'' when trying to install from floppy.
+
+   4.3.16. When I go to boot my Intel AL440LX (``Atlanta'') -based system
+   from the hard disk the first time, it stops with a Read Error message.
+
+   4.3.17. When installing on an Dell Poweredge XE, Dell proprietary RAID
+   controller DSA (Dell SCSI Array) isn't recognized.
+
+   4.3.18. My Ethernet adapter is detected as an AMD PCnet-FAST (or similar)
+   but it doesn't work. (Eg. onboard Ethernet on IBM Netfinity 5xxx or 7xxx)
+
+   4.3.19. I have an IBM EtherJet PCI card, it is detected by the fxp(4)
+   driver correctly, but the lights on the card don't come on and it doesn't
+   connect to the network.
+
+   4.3.20. When I configure the network during installation on an IBM
+   Netfinity 3500, the system freezes.
+
+   4.3.21. When I install onto a drive managed by a Mylex PCI RAID
+   controller, the system fails to boot (eg. with a read error message).
+
+   4.3.1. The mcd(4) driver keeps thinking that it has found a device and
+   this stops my Intel EtherExpress card from working.
+
+   Use the UserConfig utility (see HARDWARE.TXT) and disable the probing of
+   the mcd0 and mcd1 devices. Generally speaking, you should only leave the
+   devices that you will be using enabled in your kernel.
+
+   4.3.2. FreeBSD claims to support the 3Com PCMCIA card, but my card isn't
+   recognized when it's plugged into my laptop.
+
+   There are a couple of possible problems. First of all, FreeBSD does not
+   support multi-function cards, so if you have a combo Ethernet/modem card
+   (such as the 3C562), it won't work. The default driver for the 3C589 card
+   was written just like all of the other drivers in FreeBSD, and depend on
+   the card's own configuration data stored in NVRAM to work. You must
+   correctly configure FreeBSD's driver to match the IRQ, port, and IOMEM
+   stored in NVRAM.
+
+   Unfortunately, the only program capable of reading them is the 3COM
+   supplied DOS program. This program must be run on a absolutely clean
+   system (no other drivers must be running), and the program will whine
+   about CARD-Services not being found, but it will continue. This is
+   necessary to read the NVRAM values. You want to know the IRQ, port, and
+   IOMEM values (the latter is called the CIS tuple by 3COM). The first two
+   can be set in the program, the third is un-settable, and can only be read.
+   Once you have these values, set them in UserConfig and your card will be
+   recognized.
+
+   4.3.3. FreeBSD finds my PCMCIA network card, but no packets appear to be
+   sent even though it claims to be working.
+
+   Many PCMCIA cards have the ability to use either the 10-Base2 (BNC) or
+   10-BaseT connectors for connecting to the network. The driver is unable to
+   ``auto-select'' the correct connector, so you must tell it which connector
+   to use. In order to switch between the two connectors, the link flags must
+   be set. Depending on the model of the card, -link0 link1 or -link0 -link1
+   will choose the correct network connector. You can set these in
+   sysinstall(8) by using the Extra options to ifconfig: field in the network
+   setup screen.
+
+   4.3.4. The system finds my ed(4) network card, but I keep getting device
+   timeout errors.
+
+   Your card is probably on a different IRQ from what is specified in the
+   kernel configuration. The ed driver does not use the `soft' configuration
+   by default (values entered using EZSETUP in DOS), but it will use the
+   software configuration if you specify ? in the IRQ field of your kernel
+   config file.
+
+   Either move the jumper on the card to a hard configuration setting
+   (altering the kernel settings if necessary), or specify the IRQ as -1 in
+   UserConfig or ? in your kernel config file. This will tell the kernel to
+   use the soft configuration.
+
+   Another possibility is that your card is at IRQ 9, which is shared by IRQ
+   2 and frequently a cause of problems (especially when you have a VGA card
+   using IRQ 2!). You should not use IRQ 2 or 9 if at all possible.
+
+   4.3.5. I have a Matsushita/Panasonic drive but it isn't recognized by the
+   system.
+
+   Make certain that the I/O port that the matcd(4) driver is set to is
+   correct for the host interface card you have. (Some SoundBlaster DOS
+   drivers report a hardware I/O port address for the CD-ROM interface that
+   is 0x10 lower than it really is.)
+
+   If you are unable to determine the settings for the card by examining the
+   board or documentation, you can use UserConfig to change the 'port'
+   address (I/O port) to -1 and start the system. This setting causes the
+   driver to look at a number of I/O ports that various manufacturers use for
+   their Matsushita/Panasonic/Creative CD-ROM interfaces. Once the driver
+   locates the address, you should run UserConfig again and specify the
+   correct address. Leaving the 'port' parameter set to -1 increases the
+   amount of time that it takes the system to boot, and this could interfere
+   with other devices.
+
+   The double-speed Matsushita CR-562 and CR-563 are the only drives that are
+   supported.
+
+   4.3.6. I booted the install floppy on my IBM ThinkPad (tm) laptop, and the
+   keyboard is all messed up.
+
+   Older IBM laptops use a non-standard keyboard controller, so you must tell
+   the keyboard driver (atkbd0) to go into a special mode which works on the
+   ThinkPads. Change the atkbd0 'Flags' to 0x4 in UserConfig and it should
+   work fine. (Look in the Input Menu for 'Keyboard'.)
+
+   4.3.7. When I try to boot the install floppy, I see the following message
+   and nothing seems to be happening. I cannot enter anything from the
+   keyboard either.
+
+     Keyboard: no
+
+   Due to lack of space, full support for old XT/AT (84-key) keyboards is no
+   longer available in the bootblocks. Some notebook computers may also have
+   this type of keyboard. If you are still using this kind of hardware, you
+   will see the above message appears when you boot from the CD-ROM or an
+   install floppy.
+
+   As soon as you see this message, hit the space bar, and you will see the
+   prompt:
+
+     >> FreeBSD/i386 BOOT
+     Default: x:xx(x,x)/boot/loader
+     boot:
+
+   Then enter -Dh, and things should proceed normally.
+
+   4.3.8. I have a Matsushita/Panasonic CR-522, a Matsushita/Panasonic CR-523
+   or a TEAC CD55a drive, but it is not recognized even when the correct I/O
+   port is set.
+
+   These CD-ROM drives are currently not supported by FreeBSD. The command
+   sets for these drives are not compatible with the double-speed CR-562 and
+   CR-563 drives.
+
+   The single-speed CR-522 and CR-523 drives can be identified by their use
+   of a CD-caddy.
+
+   4.3.9. I'm trying to install from a tape drive but all I get is something
+   like this on the screen:
+
+     sa0(aha0:1:0) NOT READY csi 40,0,0,0
+
+   There's a limitation in the current sysinstall(8) that the tape must be in
+   the drive while sysinstall(8) is started or it won't be detected. Try
+   again with the tape in the drive the whole time.
+
+   4.3.10. I've installed FreeBSD onto my system, but it hangs when booting
+   from the hard drive with the message:
+
+     Changing root to /dev/da0a
+
+   his problem may occur in a system with a 3com 3c509 Ethernet adapter. The
+   ep(4) device driver appears to be sensitive to probes for other devices
+   that also use address 0x300. Boot your FreeBSD system by power cycling the
+   machine (turn off and on). At the Boot: prompt specify the -c. This will
+   invoke UserConfig (see Section 4.1 above). Use the disable command to
+   disable the device probes for all devices at address 0x300 except the ep0
+   driver. On exit, your machine should successfully boot FreeBSD.
+
+   4.3.11. My system can not find my Intel EtherExpress 16 card.
+
+   You must set your Intel EtherExpress 16 card to be memory mapped at
+   address 0xD0000, and set the amount of mapped memory to 32K using the
+   Intel supplied softset.exe program.
+
+   4.3.12. When installing on an EISA HP Netserver, my on-board AIC-7xxx SCSI
+   controller isn't detected.
+
+   This is a known problem, and will hopefully be fixed in the future. In
+   order to get your system installed at all, boot with the -c option into
+   UserConfig, but don't use the pretty visual mode but the plain old CLI
+   mode. Type:
+
+     eisa 12
+     quit
+
+   at the prompt. (Instead of `quit', you might also type `visual', and
+   continue the rest of the configuration session in visual mode.) While it's
+   recommended to compile a custom kernel, dset now also understands to save
+   this value.
+
+   Refer to the FAQ topic 3.16 for an explanation of the problem, and for how
+   to continue. Remember that you can find the FAQ on your local system in
+   /usr/share/doc/FAQ, provided you have installed the `doc' distribution.
+
+   4.3.13. I have a Panasonic AL-N1 or Rios Chandler Pentium machine and I
+   find that the system hangs before ever getting into the installation now.
+
+   Your machine doesn't like the new i586_copyout and i586_copyin code for
+   some reason. To disable this, boot the installation boot floppy and when
+   it comes to the very first menu (the choice to drop into kernel UserConfig
+   mode or not) choose the command-line interface (``expert mode'') version
+   and type the following at it:
+
+     flags npx0 1
+
+   Then proceed normally to boot. This will be saved into your kernel, so you
+   only need to do it once.
+
+   4.3.14. I have this CMD640 IDE controller that is said to be broken.
+
+   Yes, it is. FreeBSD does not support this controller except through the
+   legacy wdc driver.
+
+   4.3.15. On a Compaq Aero notebook, I get the message ``No floppy devices
+   found! Please check ...'' when trying to install from floppy.
+
+   With Compaq being always a little different from other systems, they do
+   not announce their floppy drive in the CMOS RAM of an Aero notebook.
+   Therefore, the floppy disk driver assumes there is no drive configured. Go
+   to the UserConfig screen, and set the Flags value of the fdc0 device to
+   0x1. This pretends the existence of the first floppy drive (as a 1.44 MB
+   drive) to the driver without asking the CMOS at all.
+
+   4.3.16. When I go to boot my Intel AL440LX (``Atlanta'') -based system
+   from the hard disk the first time, it stops with a Read Error message.
+
+   There appears to be a bug in the BIOS on at least some of these boards,
+   this bug results in the FreeBSD bootloader thinking that it is booting
+   from a floppy disk. This is only a problem if you are not using the
+   BootEasy boot manager. Slice the disk in ``compatible''mode and install
+   BootEasy during the FreeBSD installation to avoid the bug, or upgrade the
+   BIOS (see Intel's website for details).
+
+   4.3.17. When installing on an Dell Poweredge XE, Dell proprietary RAID
+   controller DSA (Dell SCSI Array) isn't recognized.
+
+   Configure the DSA to use AHA-1540 emulation using EISA configuration
+   utility. After that FreeBSD detects the DSA as an Adaptec AHA-1540 SCSI
+   controller, with irq 11 and port 340. Under emulation mode system will use
+   DSA RAID disks, but you cannot use DSA-specific features such as watching
+   RAID health.
+
+   4.3.18. My Ethernet adapter is detected as an AMD PCnet-FAST (or similar)
+   but it doesn't work. (Eg. onboard Ethernet on IBM Netfinity 5xxx or 7xxx)
+
+   The lnc(4) driver is currently faulty, and will often not work correctly
+   with the PCnet-FAST and PCnet-FAST+. You need to install a different
+   Ethernet adapter.
+
+   4.3.19. I have an IBM EtherJet PCI card, it is detected by the fxp(4)
+   driver correctly, but the lights on the card don't come on and it doesn't
+   connect to the network.
+
+   We don't understand why this happens. Neither do IBM (we asked them). The
+   card is a standard Intel EtherExpress Pro/100 with an IBM label on it, and
+   these cards normally work just fine. You may see these symptoms only in
+   some IBM Netfinity servers. The only solution is to install a different
+   Ethernet adapter.
+
+   4.3.20. When I configure the network during installation on an IBM
+   Netfinity 3500, the system freezes.
+
+   There is a problem with the onboard Ethernet in the Netfinity 3500 which
+   we have not been able to identify at this time. It may be related to the
+   SMP features of the system being misconfigured. You will have to install
+   another Ethernet adapter and avoid attempting to configure the onboard
+   adapter at any time.
+
+   4.3.21. When I install onto a drive managed by a Mylex PCI RAID
+   controller, the system fails to boot (eg. with a read error message).
+
+   There is a bug in the Mylex driver which results in it ignoring the
+   ``8GB'' geometry mode setting in the BIOS. Use the 2GB mode instead.
+
+     ----------------------------------------------------------------------
+
+     This file, and other release-related documents, can be downloaded from
+                      ftp://ftp.FreeBSD.org/pub/FreeBSD/.
+
+     For questions about FreeBSD, read the documentation before contacting
+                            <questions@FreeBSD.org>.
+
+   All users of FreeBSD 4-STABLE should subscribe to the <stable@FreeBSD.org>
+                                 mailing list.
+
+       For questions about this documentation, e-mail <doc@FreeBSD.org>.

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libpam/modules/pam_kerberosIV/klogin.c,v 1.11 2000/02/24 22:24:37 markm Exp $
  */
 
 #ifndef lint

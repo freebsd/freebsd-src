@@ -1,4 +1,4 @@
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/sys/pci/ohci_pci.c,v 1.16.2.3 2001/08/15 17:03:08 nsayer Exp $ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

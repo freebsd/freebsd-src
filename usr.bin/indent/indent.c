@@ -46,7 +46,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)indent.c	5.17 (Berkeley) 6/7/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/indent/indent.c,v 1.5.2.5 2001/03/04 08:34:49 kris Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

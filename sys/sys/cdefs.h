@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cdefs.h	8.8 (Berkeley) 1/9/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/cdefs.h,v 1.28.2.4 2001/06/02 17:36:24 obrien Exp $
  */
 
 #ifndef	_SYS_CDEFS_H_

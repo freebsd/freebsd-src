@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/vm/vm_param.h,v 1.13 1999/12/29 04:55:12 peter Exp $
  */
 
 /*

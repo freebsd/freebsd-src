@@ -1,6 +1,6 @@
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* hack.rumors.c - version 1.0.3 */
-/* $FreeBSD$ */
+/* $FreeBSD: src/games/hack/hack.rumors.c,v 1.3 1999/11/16 02:57:10 billf Exp $ */
 
 #include	<stdio.h>
 #include	"hack.h"		/* for RUMORFILE and BSD (index) */

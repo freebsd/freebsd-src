@@ -1,5 +1,5 @@
 # ex:ts=8
-$FreeBSD$
+$FreeBSD: src/contrib/libio/FREEBSD-upgrade,v 1.2 1999/11/01 07:35:24 obrien Exp $
 
 For the import of libio, files were pruned by:
 

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/tc/sticreg.h,v 1.2 1999/08/28 00:39:10 peter Exp $ */
 /*	$NetBSD: sticreg.h,v 1.1 1997/11/08 07:27:50 jonathan Exp $	*/
 
 /*

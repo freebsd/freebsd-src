@@ -37,7 +37,7 @@
  * advised of the possibility of such damage.
  *
  * $Id: commands.c,v 1.14 2000/11/14 20:01:23 grog Exp grog $
- * $FreeBSD$
+ * $FreeBSD: src/sbin/vinum/commands.c,v 1.31.2.4 2001/08/01 09:14:47 obrien Exp $
  */
 
 #include <ctype.h>

@@ -1,5 +1,5 @@
 /*	$NetBSD: tfind.c,v 1.2 1999/09/16 11:45:37 lukem Exp $	*/
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libc/stdlib/tfind.c,v 1.1.2.1 2000/08/17 07:38:39 jhb Exp $ */
 
 /*
  * Tree search generalized from Knuth (6.2.2) Algorithm T just like

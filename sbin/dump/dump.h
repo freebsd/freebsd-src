@@ -32,7 +32,7 @@
  *
  *	@(#)dump.h	8.2 (Berkeley) 4/28/95
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/dump/dump.h,v 1.7.6.1 2001/08/01 06:29:35 obrien Exp $
  */
 
 #define MAXINOPB	(MAXBSIZE / sizeof(struct dinode))

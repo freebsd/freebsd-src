@@ -1,7 +1,7 @@
 /*
  * hrvatski praznici
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/calendar/calendars/hr_HR.ISO_8859-2/calendar.praznici,v 1.6 1999/08/28 00:59:28 peter Exp $
  */
 
 #ifndef _hr_HR_ISO_8859_2_praznici

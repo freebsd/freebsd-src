@@ -116,7 +116,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sys/i386/isa/if_wi.c,v 1.18.2.12 2001/08/28 06:21:14 imp Exp $";
 #endif
 
 #ifdef foo

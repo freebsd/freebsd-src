@@ -1,6 +1,6 @@
 #
 # $Id: Makefile,v 1.7 1997/04/05 06:43:41 morgan Exp morgan $
-# $FreeBSD$
+# $FreeBSD: src/contrib/libpam/modules/pam_deny/Makefile,v 1.3.4.2 2001/06/11 15:28:17 markm Exp $
 #
 # This Makefile controls a build process of $(TITLE) module for
 # Linux-PAM. You should not modify this Makefile (unless you know

@@ -19,7 +19,7 @@
 #
 # For hardware specific information check HARDWARE.TXT
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/alpha/conf/GENERIC,v 1.71.2.15 2001/07/30 17:31:41 wpaul Exp $
 
 machine		alpha
 cpu		EV4

@@ -27,7 +27,7 @@
  *	i4b_i4bdrv.c - i4b userland interface driver
  *	--------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/layer4/i4b_i4bdrv.c,v 1.11.2.4 2001/09/11 09:49:53 kris Exp $
  *
  *      last edit-date: [Sat Aug 11 18:08:10 2001]
  *

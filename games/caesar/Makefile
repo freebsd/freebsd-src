@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 5/31/93
-# $FreeBSD$
+# $FreeBSD: src/games/caesar/Makefile,v 1.4.6.2 2001/04/25 14:03:58 ru Exp $
 
 PROG=	caesar
 DPADD=	${LIBM}

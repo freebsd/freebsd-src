@@ -22,7 +22,7 @@ static char copyright[] =
 static char id[] = "@(#)$Id: mail.local.c,v 8.143.4.58 2001/06/01 05:33:31 gshapiro Exp $";
 #endif /* ! lint */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/sendmail/mail.local/mail.local.c,v 1.6.6.6 2001/08/01 03:19:43 gshapiro Exp $ */
 
 /*
 **  This is not intended to work on System V derived systems

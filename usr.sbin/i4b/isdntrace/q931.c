@@ -29,7 +29,7 @@
  *
  *	$Id: q931.c,v 1.10 2000/02/14 16:25:22 hm Exp $ 
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdntrace/q931.c,v 1.6.2.1 2001/08/01 17:45:08 obrien Exp $
  *
  *      last edit-date: [Mon Feb 14 14:51:13 2000]
  *

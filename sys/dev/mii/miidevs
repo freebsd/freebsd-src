@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/sys/dev/mii/miidevs,v 1.4.2.6 2001/06/18 18:49:13 wpaul Exp $
 /*$NetBSD: miidevs,v 1.6 1999/05/14 11:37:30 drochner Exp $*/
 
 /*-

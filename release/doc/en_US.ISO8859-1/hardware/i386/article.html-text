@@ -1,0 +1,6824 @@
+<HTML
+><HEAD
+><TITLE
+>FreeBSD 4.4-RELEASE i386 Hardware Notes</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.71
+"><LINK
+REL="STYLESHEET"
+TYPE="text/css"
+HREF="docbook.css"></HEAD
+><BODY
+CLASS="ARTICLE"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="ARTICLE"
+><DIV
+CLASS="TITLEPAGE"
+><H1
+CLASS="TITLE"
+><A
+NAME="AEN2"
+>FreeBSD 4.4-RELEASE i386 Hardware Notes</A
+></H1
+><H3
+CLASS="CORPAUTHOR"
+>The FreeBSD Documentation Project</H3
+><P
+CLASS="COPYRIGHT"
+>Copyright &copy; 2000, 2001 by The FreeBSD Documentation Project</P
+><HR></DIV
+><DIV
+CLASS="SECT1"
+><HR><H1
+CLASS="SECT1"
+><A
+NAME="AEN9"
+>1  Introduction</A
+></H1
+><P
+>This document contains the hardware compatability notes for
+  FreeBSD 4.4-RELEASE on the i386 hardware platform.  It lists
+  devices known to work on this platform, as well as some notes on
+  boot-time kernel customization that may be useful when attempting to
+  configure support for new devices.</P
+><DIV
+CLASS="NOTE"
+><BLOCKQUOTE
+CLASS="NOTE"
+><P
+><B
+>Note: </B
+>This document includes information specific to the i386
+    hardware platform.  Versions of the hardware compatability notes
+    for other architectures will differ in some details.</P
+></BLOCKQUOTE
+></DIV
+></DIV
+><DIV
+CLASS="SECT1"
+><HR><H1
+CLASS="SECT1"
+><A
+NAME="AEN14"
+>2  Supported Processors and Motherboards</A
+></H1
+><P
+>FreeBSD for the i386 currently runs on a wide variety of ISA,
+  VLB, EISA, MCA and PCI bus based PC's, ranging from 386sx to
+  Pentium 4 class machines (though the 386sx is not
+  recommended).</P
+></DIV
+><DIV
+CLASS="SECT1"
+><HR><H1
+CLASS="SECT1"
+><A
+NAME="AEN17"
+>3  Supported Devices</A
+></H1
+>$FreeBSD: src/release/doc/en_US.ISO8859-1/hardware/common/dev.sgml,v 1.13.2.14 2001/09/06 23:17:00 bmah Exp $<P
+>This section describes the devices currently known to be
+  supported by with FreeBSD on the i386 platform.  Other configurations
+  may also work, but simply have not been tested yet.  Feedback,
+  updates, and corrections to this list are encouraged.</P
+><P
+>Where possible, the drivers applicable to each device or class
+  of devices is listed.  If the driver in question has a manual page
+  in the FreeBSD base distribution (most should), it is referenced here.</P
+><DIV
+CLASS="SECT2"
+><HR><H2
+CLASS="SECT2"
+><A
+NAME="AEN23"
+>3.1  Disk Controllers</A
+></H2
+><P
+>IDE/ATA controllers (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=ata&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>ata</SPAN
+>(4)</SPAN
+></A
+> driver)
+        <P
+></P
+><UL
+><LI
+><P
+>Acerlabs Aladdin</P
+></LI
+><LI
+><P
+>AMD 756</P
+></LI
+><LI
+><P
+>CMD 646, 648 ATA66, and 649 ATA100</P
+></LI
+><LI
+><P
+>Cypress 82C693</P
+></LI
+><LI
+><P
+>Cyrex 5530</P
+></LI
+><LI
+><P
+>HighPoint HPT366, HPT370</P
+></LI
+><LI
+><P
+>Intel PIIX, PIIX3, PIIX4</P
+></LI
+><LI
+><P
+>Intel ICH, ICH2</P
+></LI
+><LI
+><P
+>Promise ATA100 OEM chip (pdc20265)</P
+></LI
+><LI
+><P
+>Promise Fasttrak-33, -66, -100</P
+></LI
+><LI
+><P
+>Promise Ultra-33, -66, -100</P
+></LI
+><LI
+><P
+>ServerWorks ROSB4 ATA33</P
+></LI
+><LI
+><P
+>SiS 5591</P
+></LI
+><LI
+><P
+>VIA 82C586, 82C686a, 82C686b</P
+></LI
+></UL
+>
+    </P
+><P
+>Adaptec SCSI Controllers
+      <P
+></P
+><UL
+><LI
+><P
+>Adaptec 1535 ISA SCSI controllers</P
+></LI
+><LI
+><P
+>Adaptec 154x series ISA SCSI controllers 
+	  (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=aha&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>aha</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+></LI
+><LI
+><P
+>Adaptec 164x series MCA SCSI controllers (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=aha&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>aha</SPAN
+>(4)</SPAN
+></A
+> 
+	  driver)</P
+></LI
+><LI
+><P
+>Adaptec 174x series EISA SCSI controller in standard
+	  and enhanced mode (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=aha&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>aha</SPAN
+>(4)</SPAN
+></A
+> and <A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=ahb&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>ahb</SPAN
+>(4)</SPAN
+></A
+> dirver)</P
+></LI
+><LI
+><P
+>Adaptec 19160/274x/284x/291x/2920/2930/2940/2950/29160/3940/3950/3960/39160/398x/494x
+	  series EISA/VLB/PCI SCSI controllers, including
+	  Narrow/Wide/Twin/Ultra/Ultra2 variants (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=ahc&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>ahc</SPAN
+>(4)</SPAN
+></A
+>
+	  driver)</P
+></LI
+><LI
+><P
+>Adaptec AIC7770, AIC7850, AIC7860, AIC7870, AIC7880, 
+	  and AIC789x on-board
+	  SCSI controllers (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=ahc&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>ahc</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+></LI
+><LI
+><P
+>Adaptec 1510 series ISA SCSI controllers (not for
+	  bootable devices)</P
+></LI
+><LI
+><P
+>Adaptec 152x series ISA SCSI controllers (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=aha&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>aha</SPAN
+>(4)</SPAN
+></A
+>
+	  driver)</P
+></LI
+><LI
+><P
+>Adaptec AIC-6260 and AIC-6360 based boards, which
+	  includes the AHA-152x and SoundBlaster SCSI cards
+	  (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=aic&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>aic</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+></LI
+></UL
+>
+    </P
+><P
+>Adaptec 2100S/32x0S/34x0S SCSI RAID
+    controllers (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=asr&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>asr</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+><P
+>Adaptec 2000S/2005S Zero-Channel RAID controllers
+    (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=asr&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>asr</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+><P
+>Adaptec 2400A ATA-100 RAID controller
+    (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=asr&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>asr</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+><P
+>Adaptec FSA family RAID controllers (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=aac&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>aac</SPAN
+>(4)</SPAN
+></A
+> driver)
+      <P
+></P
+><UL
+><LI
+><P
+>Adaptec AAC-2622</P
+></LI
+><LI
+><P
+>Adaptec AAC-364</P
+></LI
+><LI
+><P
+>Adaptec SCSI RAID 5400S</P
+></LI
+><LI
+><P
+>Dell PERC 2/QC</P
+></LI
+><LI
+><P
+>Dell PERC 2/Si</P
+></LI
+><LI
+><P
+>Dell PERC 3/Di</P
+></LI
+><LI
+><P
+>Dell PERC 3/QC</P
+></LI
+><LI
+><P
+>Dell PERC 3/Si</P
+></LI
+><LI
+><P
+>HP NetRAID-4M</P
+></LI
+></UL
+>
+    </P
+><P
+>AdvanSys SCSI controllers (all models, <A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=adv&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>adv</SPAN
+>(4)</SPAN
+></A
+> and
+    <A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=adw&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>adw</SPAN
+>(4)</SPAN
+></A
+> drivers)</P
+><P
+>BusLogic MultiMaster ``W'' Series Host Adapters
+    (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=bt&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>bt</SPAN
+>(4)</SPAN
+></A
+> driver):
+      <P
+></P
+><UL
+><LI
+><P
+>BT-948</P
+></LI
+><LI
+><P
+>BT-958</P
+></LI
+><LI
+><P
+>BT-958D</P
+></LI
+></UL
+>
+    </P
+><P
+>BusLogic MultiMaster ``C'' Series Host Adapters
+    (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=bt&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>bt</SPAN
+>(4)</SPAN
+></A
+> driver):
+      <P
+></P
+><UL
+><LI
+><P
+>BT-946C</P
+></LI
+><LI
+><P
+>BT-956C</P
+></LI
+><LI
+><P
+>BT-956CD</P
+></LI
+><LI
+><P
+>BT-445C</P
+></LI
+><LI
+><P
+>BT-747C</P
+></LI
+><LI
+><P
+>BT-757C</P
+></LI
+><LI
+><P
+>BT-757CD</P
+></LI
+><LI
+><P
+>BT-545C</P
+></LI
+><LI
+><P
+>BT-540CF</P
+></LI
+></UL
+>
+    </P
+><P
+>BusLogic MultiMaster ``S'' Series Host Adapters
+    (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=bt&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>bt</SPAN
+>(4)</SPAN
+></A
+> driver):
+      <P
+></P
+><UL
+><LI
+><P
+>BT-445S</P
+></LI
+><LI
+><P
+>BT-747S</P
+></LI
+><LI
+><P
+>BT-747D</P
+></LI
+><LI
+><P
+>BT-757S</P
+></LI
+><LI
+><P
+>BT-757D</P
+></LI
+><LI
+><P
+>BT-545S</P
+></LI
+><LI
+><P
+>BT-542D</P
+></LI
+><LI
+><P
+>BT-742A</P
+></LI
+><LI
+><P
+>BT-542B</P
+></LI
+></UL
+>
+    </P
+><P
+>BusLogic MultiMaster ``A'' Series Host Adapters
+    (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=bt&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>bt</SPAN
+>(4)</SPAN
+></A
+> driver):
+      <P
+></P
+><UL
+><LI
+><P
+>BT-742A</P
+></LI
+><LI
+><P
+>BT-542B</P
+></LI
+></UL
+>
+    </P
+><DIV
+CLASS="NOTE"
+><BLOCKQUOTE
+CLASS="NOTE"
+><P
+><B
+>Note: </B
+>BusLogic/Mylex ``Flashpoint'' adapters are not yet
+      supported.</P
+></BLOCKQUOTE
+></DIV
+><DIV
+CLASS="NOTE"
+><BLOCKQUOTE
+CLASS="NOTE"
+><P
+><B
+>Note: </B
+>AMI FastDisk controllers that are true BusLogic
+      MultiMaster clones are also supported.</P
+></BLOCKQUOTE
+></DIV
+><DIV
+CLASS="NOTE"
+><BLOCKQUOTE
+CLASS="NOTE"
+><P
+><B
+>Note: </B
+>The Buslogic/Bustek BT-640 and Storage Dimensions SDC3211B
+      and SDC3211F Microchannel (MCA) bus adapters are also
+      supported.</P
+></BLOCKQUOTE
+></DIV
+><P
+>DPT SmartCACHE Plus, SmartCACHE III, SmartRAID III, SmartCACHE IV and
+    SmartRAID IV SCSI/RAID controllers (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=dpt&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>dpt</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+><P
+>DPT SmartRAID V and VI SCSI RAID controllers
+    (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=asr&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>asr</SPAN
+>(4)</SPAN
+></A
+> driver)
+      <P
+></P
+><UL
+><LI
+><P
+>PM1554</P
+></LI
+><LI
+><P
+>PM2554</P
+></LI
+><LI
+><P
+>PM2654</P
+></LI
+><LI
+><P
+>PM2865</P
+></LI
+><LI
+><P
+>PM2754</P
+></LI
+><LI
+><P
+>PM3755</P
+></LI
+><LI
+><P
+>PM3757</P
+></LI
+></UL
+>
+    </P
+><P
+>AMI MegaRAID Express and Enterprise family RAID controllers
+    (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=amr&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>amr</SPAN
+>(4)</SPAN
+></A
+> driver)
+      <P
+></P
+><UL
+><LI
+><P
+>MegaRAID Series 418</P
+></LI
+><LI
+><P
+>MegaRAID Enterprise 1200 (Series 428)</P
+></LI
+><LI
+><P
+>MegaRAID Enterprise 1300 (Series 434)</P
+></LI
+><LI
+><P
+>MegaRAID Enterprise 1400 (Series 438)</P
+></LI
+><LI
+><P
+>MegaRAID Enterprise 1500 (Series 467)</P
+></LI
+><LI
+><P
+>MegaRAID Enterprise 1600 (Series 471)</P
+></LI
+><LI
+><P
+>MegaRAID Elite 1500 (Series 467)</P
+></LI
+><LI
+><P
+>MegaRAID Elite 1600 (Series 493)</P
+></LI
+><LI
+><P
+>MegaRAID Express 100 (Series 466WS)</P
+></LI
+><LI
+><P
+>MegaRAID Express 200 (Series 466)</P
+></LI
+><LI
+><P
+>MegaRAID Express 300 (Series 490)</P
+></LI
+><LI
+><P
+>MegaRAID Express 500 (Series 475)</P
+></LI
+><LI
+><P
+>Dell PERC</P
+></LI
+><LI
+><P
+>Dell PERC 2/SC</P
+></LI
+><LI
+><P
+>Dell PERC 2/DC</P
+></LI
+><LI
+><P
+>Dell PERC 3/DCL</P
+></LI
+><LI
+><P
+>HP NetRaid-1si</P
+></LI
+><LI
+><P
+>HP NetRaid-3si</P
+></LI
+><LI
+><P
+>HP Embedded NetRaid</P
+></LI
+></UL
+>
+    </P
+><DIV
+CLASS="NOTE"
+><BLOCKQUOTE
+CLASS="NOTE"
+><P
+><B
+>Note: </B
+>Booting from these controllers is supported.  EISA
+      adapters are not supported.</P
+></BLOCKQUOTE
+></DIV
+><P
+>Mylex DAC960 and DAC1100 RAID controllers with 2.x, 3.x, 4.x
+    and 5.x firmware (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=mlx&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>mlx</SPAN
+>(4)</SPAN
+></A
+> driver)
+      <P
+></P
+><UL
+><LI
+><P
+>DAC960P</P
+></LI
+><LI
+><P
+>DAC960PD</P
+></LI
+><LI
+><P
+>DAC960PDU</P
+></LI
+><LI
+><P
+>DAC960PL</P
+></LI
+><LI
+><P
+>DAC960PJ</P
+></LI
+><LI
+><P
+>DAC960PG</P
+></LI
+><LI
+><P
+>AcceleRAID 150</P
+></LI
+><LI
+><P
+>AcceleRAID 250</P
+></LI
+><LI
+><P
+>eXtremeRAID 1100</P
+></LI
+></UL
+>
+    </P
+><DIV
+CLASS="NOTE"
+><BLOCKQUOTE
+CLASS="NOTE"
+><P
+><B
+>Note: </B
+>Booting from these controllers is supported. EISA adapters
+      are not supported.</P
+></BLOCKQUOTE
+></DIV
+><P
+>Mylex PCI to SCSI RAID controllers with 6.x firmware
+    (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=mly&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>mly</SPAN
+>(4)</SPAN
+></A
+> driver)
+      <P
+></P
+><UL
+><LI
+><P
+>AcceleRAID 160</P
+></LI
+><LI
+><P
+>AcceleRAID 170</P
+></LI
+><LI
+><P
+>AcceleRAID 352</P
+></LI
+><LI
+><P
+>eXtremeRAID 2000</P
+></LI
+><LI
+><P
+>eXtremeRAID 3000</P
+></LI
+></UL
+>
+    </P
+><DIV
+CLASS="NOTE"
+><BLOCKQUOTE
+CLASS="NOTE"
+><P
+><B
+>Note: </B
+>Compatible Mylex controllers not listed should work, but
+      have not been verified.</P
+></BLOCKQUOTE
+></DIV
+><P
+>3ware Escalade ATA RAID controllers (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=twe&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>twe</SPAN
+>(4)</SPAN
+></A
+> driver)
+      <P
+></P
+><UL
+><LI
+><P
+>5000 series</P
+></LI
+><LI
+><P
+>6000 series</P
+></LI
+><LI
+><P
+>7000 series</P
+></LI
+></UL
+>
+    </P
+><P
+>LSI/SymBios (formerly NCR) 53C810, 53C810a, 53C815, 53C825,
+    53C825a, 53C860, 53C875, 53C875a, 53C876, 53C885, 53C895, 53C895a,
+    53C896, 53C1010-33, 53C1010-66, 53C1000, 53C1000R PCI
+    SCSI controllers, either embedded on motherboard or on add-on
+    boards (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=ncr&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>ncr</SPAN
+>(4)</SPAN
+></A
+> and <A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=sym&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>sym</SPAN
+>(4)</SPAN
+></A
+> drivers)
+      <P
+></P
+><UL
+><LI
+><P
+>ASUS SC-200, SC-896</P
+></LI
+><LI
+><P
+>Data Technology DTC3130 (all variants)</P
+></LI
+><LI
+><P
+>DawiControl DC2976UW</P
+></LI
+><LI
+><P
+>Diamond FirePort (all)</P
+></LI
+><LI
+><P
+>NCR cards (all)</P
+></LI
+><LI
+><P
+>Symbios cards (all)</P
+></LI
+><LI
+><P
+>Tekram DC390W, 390U, 390F, 390U2B, 390U2W, 390U3D, and
+	  390U3W</P
+></LI
+><LI
+><P
+>Tyan S1365</P
+></LI
+></UL
+>
+    </P
+><P
+>NCR 53C500 based PC-Card SCSI host adapters (ncv
+    driver)
+      <P
+></P
+><UL
+><LI
+><P
+>IO DATA PCSC-DV</P
+></LI
+><LI
+><P
+>KME KXLC002 (TAXAN ICD-400PN, etc.), KXLC004</P
+></LI
+><LI
+><P
+>Macnica Miracle SCSI-II mPS110</P
+></LI
+><LI
+><P
+>Media Intelligent MSC-110, MSC-200</P
+></LI
+><LI
+><P
+>NEC PC-9801N-J03R</P
+></LI
+><LI
+><P
+>New Media Corporation BASICS SCSI</P
+></LI
+><LI
+><P
+>Qlogic Fast SCSI</P
+></LI
+><LI
+><P
+>RATOC REX-9530, REX-5572 (as SCSI only)</P
+></LI
+></UL
+>
+    </P
+><P
+>TMC 18C30, 18C50 based ISA/PC-Card SCSI host
+    adapters (stg driver)
+      <P
+></P
+><UL
+><LI
+><P
+>Future Domain SCSI2GO</P
+></LI
+><LI
+><P
+>IBM SCSI PCMCIA Card</P
+></LI
+><LI
+><P
+>ICM PSC-2401 SCSI</P
+></LI
+><LI
+><P
+>Melco IFC-SC</P
+></LI
+><LI
+><P
+>RATOC REX-5536, REX-5536AM, REX-5536M,
+	  REX-9836A</P
+></LI
+></UL
+>
+    </P
+><P
+>Qlogic controllers and variants (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=isp&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>isp</SPAN
+>(4)</SPAN
+></A
+> driver)
+      <P
+></P
+><UL
+><LI
+><P
+>Qlogic 1020, 1040 SCSI and Ultra SCSI host
+	  adapters</P
+></LI
+><LI
+><P
+>Qlogic 1240 dual Ultra SCSI controllers</P
+></LI
+><LI
+><P
+>Qlogic 1080 Ultra2 LVD and 1280 Dual Ultra2 LVD
+	  controllers</P
+></LI
+><LI
+><P
+>Qlogic 12160 Ultra3 LVD controllers</P
+></LI
+><LI
+><P
+>Qlogic 2100 and Qlogic 2200 Fibre Channel SCSI
+	  controllers</P
+></LI
+><LI
+><P
+>Performance Technology SBS440 ISP1000 variants</P
+></LI
+><LI
+><P
+>Performance Technology SBS450 ISP1040 variants</P
+></LI
+><LI
+><P
+>Performance Technology SBS470 ISP2100 variants</P
+></LI
+><LI
+><P
+>Antares Microsystems P-0033 ISP2100 variants</P
+></LI
+></UL
+>
+    </P
+><P
+>DTC 3290 EISA SCSI controller in 1542 emulation mode.</P
+><P
+>Tekram DC390 and DC390T controllers, maybe other cards based
+    on the AMD 53c974 as well (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=amd&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>amd</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+><P
+>Workbit Ninja SCSI-3 based PC-Card SCSI host
+    adapters (nsp driver)
+      <P
+></P
+><UL
+><LI
+><P
+>Alpha-Data AD-PCS201</P
+></LI
+><LI
+><P
+>IO DATA CBSC16</P
+></LI
+></UL
+>
+    </P
+><P
+>Parallel to SCSI interfaces (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=vpo&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>vpo</SPAN
+>(4)</SPAN
+></A
+> driver)
+      <P
+></P
+><UL
+><LI
+><P
+>AIC 7110 SCSI controller (built-in to Iomega ZIP drive)</P
+></LI
+><LI
+><P
+>Iomega Jaz Traveller interface</P
+></LI
+><LI
+><P
+>Iomega MatchMaker SCSI interface (built-in to Iomega
+	  ZIP+ drive)</P
+></LI
+></UL
+>
+    </P
+><P
+>With all supported SCSI controllers, full support is
+    provided for SCSI-I, SCSI-II, and SCSI-III peripherals, including
+    hard disks, optical disks, tape drives (including DAT, 8mm
+    Exabyte, Mammoth, and DLT), medium changers, processor target
+    devices and CD-ROM drives.  WORM devices that support CD-ROM
+    commands are supported for read-only access by the CD-ROM drivers
+    (such as <A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=cd&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>cd</SPAN
+>(4)</SPAN
+></A
+>).  WORM/CD-R/CD-RW writing support is provided
+    by <A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=cdrecord&sektion=1"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>cdrecord</SPAN
+>(1)</SPAN
+></A
+>, which is a part of the
+    <A
+HREF="http://www.FreeBSD.org/cgi/url.cgi?ports/sysutils/cdrtools/pkg-descr"
+><TT
+CLASS="PORT"
+>sysutils/cdrtools</TT
+></A
+> port in the Ports Collection.</P
+><P
+>The following CD-ROM type systems are supported at this
+    time:
+      <P
+></P
+><UL
+><LI
+><P
+>SCSI interface (also includes ProAudio Spectrum and
+          SoundBlaster SCSI) (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=cd&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>cd</SPAN
+>(4)</SPAN
+></A
+>)</P
+></LI
+><LI
+><P
+>Matsushita/Panasonic (Creative SoundBlaster)
+	  proprietary interface (562/563 models) (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=matcd&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>matcd</SPAN
+>(4)</SPAN
+></A
+>)</P
+></LI
+><LI
+><P
+>Sony proprietary interface (all models) (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=scd&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>scd</SPAN
+>(4)</SPAN
+></A
+>)</P
+></LI
+><LI
+><P
+>ATAPI IDE interface (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=acd&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>acd</SPAN
+>(4)</SPAN
+></A
+>)</P
+></LI
+></UL
+>
+    </P
+><P
+>The following drivers were supported under the old SCSI
+    subsystem, but are not yet supported under the new CAM SCSI
+    subsystem:
+      <P
+></P
+><UL
+><LI
+><P
+>NCR5380/NCR53400 (``ProAudio Spectrum'')
+	  SCSI controller</P
+></LI
+><LI
+><P
+>UltraStor 14F, 24F and 34F SCSI controllers.
+	    <DIV
+CLASS="NOTE"
+><BLOCKQUOTE
+CLASS="NOTE"
+><P
+><B
+>Note: </B
+>There is work-in-progress to port the
+              UltraStor driver to the new CAM SCSI framework, but no
+              estimates on when or if it will be completed.</P
+></BLOCKQUOTE
+></DIV
+>
+          </P
+></LI
+><LI
+><P
+>Seagate ST01/02 SCSI controllers</P
+></LI
+><LI
+><P
+>Future Domain 8xx/950 series SCSI controllers</P
+></LI
+><LI
+><P
+>WD7000 SCSI controller</P
+></LI
+></UL
+>
+    </P
+><P
+>The following device is unmaintained:
+      <P
+></P
+><UL
+><LI
+><P
+>Mitsumi proprietary CD-ROM interface (all
+	  models) (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=mcd&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>mcd</SPAN
+>(4)</SPAN
+></A
+>)</P
+></LI
+></UL
+>
+    </P
+></DIV
+><DIV
+CLASS="SECT2"
+><HR><H2
+CLASS="SECT2"
+><A
+NAME="ETHERNET"
+>3.2  Ethernet Interfaces</A
+></H2
+><P
+>Adaptec Duralink PCI Fast Ethernet adapters based on the Adaptec
+    AIC-6915 Fast Ethernet controller chip (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=sf&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>sf</SPAN
+>(4)</SPAN
+></A
+> driver)
+      <P
+></P
+><UL
+><LI
+><P
+>ANA-62011 64-bit single port 10/100baseTX adapter</P
+></LI
+><LI
+><P
+>ANA-62022 64-bit dual port 10/100baseTX adapter</P
+></LI
+><LI
+><P
+>ANA-62044 64-bit quad port 10/100baseTX adapter</P
+></LI
+><LI
+><P
+>ANA-69011 32-bit single port 10/100baseTX
+	  adapter</P
+></LI
+><LI
+><P
+>ANA-62020 64-bit single port 100baseFX adapter</P
+></LI
+></UL
+>
+    </P
+><P
+>Allied-Telesis AT1700 and RE2000 cards
+    (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=fe&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>fe</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+><P
+>Alteon Networks PCI Gigabit Ethernet NICs based on the Tigon
+    1 and Tigon 2 chipsets (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=ti&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>ti</SPAN
+>(4)</SPAN
+></A
+> driver)
+      <P
+></P
+><UL
+><LI
+><P
+>3Com 3c985-SX (Tigon 1 and 2)</P
+></LI
+><LI
+><P
+>Alteon AceNIC (Tigon 1 and 2)</P
+></LI
+><LI
+><P
+>Alteon AceNIC 1000baseT (Tigon 2)</P
+></LI
+><LI
+><P
+>Asante PCI 1000BASE-SX Gigabit Ethernet Adapter</P
+></LI
+><LI
+><P
+>Asante GigaNIX1000T Gigabit Ethernet Adapter</P
+></LI
+><LI
+><P
+>DEC/Compaq EtherWORKS 1000</P
+></LI
+><LI
+><P
+>Farallon PN9000SX</P
+></LI
+><LI
+><P
+>NEC Gigabit Ethernet</P
+></LI
+><LI
+><P
+>Netgear GA620 (Tigon 2)</P
+></LI
+><LI
+><P
+>Netgear GA620T (Tigon 2, 1000baseT)</P
+></LI
+><LI
+><P
+>Silicon Graphics Gigabit Ethernet</P
+></LI
+></UL
+>
+    </P
+><P
+>AMD PCnet NICs (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=lnc&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>lnc</SPAN
+>(4)</SPAN
+></A
+> and <A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=pcn&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>pcn</SPAN
+>(4)</SPAN
+></A
+> drivers)
+      <P
+></P
+><UL
+><LI
+><P
+>AMD PCnet/PCI (79c970 &#38; 53c974 or 79c974)</P
+></LI
+><LI
+><P
+>AMD PCnet/FAST</P
+></LI
+><LI
+><P
+>PCnet/FAST+</P
+></LI
+><LI
+><P
+>PCnet/FAST III</P
+></LI
+><LI
+><P
+>PCnet/PRO</P
+></LI
+><LI
+><P
+>PCnet/Home</P
+></LI
+><LI
+><P
+>HomePNA</P
+></LI
+></UL
+>
+    </P
+><P
+>SMC 83c17x (EPIC)-based Ethernet NICs (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=tx&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>tx</SPAN
+>(4)</SPAN
+></A
+> driver)
+      <P
+></P
+><UL
+><LI
+><P
+>SMC EtherPower II 9432 series</P
+></LI
+></UL
+>
+    </P
+><P
+>SMC Ethernet NICs (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=ed&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>ed</SPAN
+>(4)</SPAN
+></A
+> driver)
+      <P
+></P
+><UL
+><LI
+><P
+>Elite 16 WD8013 Ethernet interface</P
+></LI
+><LI
+><P
+>Most WD8003E, WD8003EBT, WD8003W, WD8013W, WD8003S,
+	  WD8003SBT and WD8013EBT based clones</P
+></LI
+><LI
+><P
+>SMC Elite Ultra</P
+></LI
+></UL
+>
+    </P
+><P
+>RealTek RTL 8002 Pocket Ethernet (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=rdp&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>rdp</SPAN
+>(4)</SPAN
+></A
+>
+    driver)</P
+><P
+>RealTek 8129/8139 Fast Ethernet NICs (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=rl&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>rl</SPAN
+>(4)</SPAN
+></A
+> driver)
+      <P
+></P
+><UL
+><LI
+><P
+>Accton ``Cheetah'' EN1207D (MPX 5030/5038;
+	  RealTek 8139 clone)</P
+></LI
+><LI
+><P
+>Allied Telesyn AT2550</P
+></LI
+><LI
+><P
+>Allied Telesyn AT2500TX</P
+></LI
+><LI
+><P
+>D-Link DFE-538TX</P
+></LI
+><LI
+><P
+>Genius GF100TXR (RTL8139)</P
+></LI
+><LI
+><P
+>KTX-9130TX 10/100 Fast Ethernet</P
+></LI
+><LI
+><P
+>NDC Communications NE100TX-E</P
+></LI
+><LI
+><P
+>Netronix Inc. EA-1210 NetEther 10/100</P
+></LI
+><LI
+><P
+>OvisLink LEF-8129TX</P
+></LI
+><LI
+><P
+>OvisLink LEF-8139TX</P
+></LI
+><LI
+><P
+>SMC EZ Card 10/100 PCI 1211-TX</P
+></LI
+></UL
+>
+    </P
+><P
+>Lite-On 82c168/82c169 PNIC Fast Ethernet NICs (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=dc&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>dc</SPAN
+>(4)</SPAN
+></A
+> driver)
+      <P
+></P
+><UL
+><LI
+><P
+>Kingston KNE110TX</P
+></LI
+><LI
+><P
+>LinkSys EtherFast LNE100TX</P
+></LI
+><LI
+><P
+>Matrox FastNIC 10/100</P
+></LI
+><LI
+><P
+>NetGear FA310-TX Rev. D1</P
+></LI
+></UL
+></P
+><P
+>Macronix 98713, 98713A, 98715, 98715A and 98725 Fast
+    Ethernet NICs (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=dc&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>dc</SPAN
+>(4)</SPAN
+></A
+> driver)
+      <P
+></P
+><UL
+><LI
+><P
+>Accton EN1217 (98715A)</P
+></LI
+><LI
+><P
+>Adico AE310TX (98715A)</P
+></LI
+><LI
+><P
+>Compex RL100-TX (98713 or 98713A)</P
+></LI
+><LI
+><P
+>CNet Pro120A (98713 or 98713A)</P
+></LI
+><LI
+><P
+>CNet Pro120B (98715)</P
+></LI
+><LI
+><P
+>NDC Communications SFA100A (98713A)</P
+></LI
+><LI
+><P
+>SVEC PN102TX (98713)</P
+></LI
+></UL
+>
+    </P
+><P
+>Macronix/Lite-On PNIC II LC82C115 Fast Ethernet NICs
+    (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=dc&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>dc</SPAN
+>(4)</SPAN
+></A
+> driver)
+      <P
+></P
+><UL
+><LI
+><P
+>LinkSys EtherFast LNE100TX Version 2</P
+></LI
+></UL
+>
+    </P
+><P
+>Winbond W89C840F Fast Ethernet NICs (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=wb&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>wb</SPAN
+>(4)</SPAN
+></A
+> driver)
+      <P
+></P
+><UL
+><LI
+><P
+>Trendware TE100-PCIE</P
+></LI
+></UL
+>
+    </P
+><P
+>VIA Technologies VT3043 ``Rhine I'' and VT86C100A
+    ``Rhine II'' Fast Ethernet NICs (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=vr&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>vr</SPAN
+>(4)</SPAN
+></A
+> driver)
+      <P
+></P
+><UL
+><LI
+><P
+>AOpen/Acer ALN-320</P
+></LI
+><LI
+><P
+>D-Link DFE-530TX</P
+></LI
+><LI
+><P
+>Hawking Technologies PN102TX</P
+></LI
+></UL
+>
+    </P
+><P
+>Silicon Integrated Systems SiS 900 and SiS 7016 PCI Fast
+    Ethernet NICs (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=sis&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>sis</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+><P
+>National Semiconductor DP83815 Fast Ethernet NICs
+    (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=sis&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>sis</SPAN
+>(4)</SPAN
+></A
+> driver)
+      <P
+></P
+><UL
+><LI
+><P
+>NetGear FA311-TX</P
+></LI
+><LI
+><P
+>NetGear FA312-TX</P
+></LI
+></UL
+>
+    </P
+><P
+>National Semiconductor DP83820 and DP83821 Gigabit Ethernet
+    NICs (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=nge&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>nge</SPAN
+>(4)</SPAN
+></A
+> driver)
+      <P
+></P
+><UL
+><LI
+><P
+>Addtron AEG320T</P
+></LI
+><LI
+><P
+>Asante FriendlyNet GigaNIC 1000TA and 1000TPC</P
+></LI
+><LI
+><P
+>D-Link DGE-500T</P
+></LI
+><LI
+><P
+>LinkSys EG1032 (32-bit PCI) and EG1064 (64-bit PCI)</P
+></LI
+><LI
+><P
+>Netgear GA622T</P
+></LI
+><LI
+><P
+>SMC EZ Card 1000 (SMC9462TX)</P
+></LI
+><LI
+><P
+>Surecom Technology EP-320G-TX</P
+></LI
+></UL
+>
+    </P
+><P
+>Sundance Technologies ST201 PCI Fast Ethernet NICs
+    (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=ste&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>ste</SPAN
+>(4)</SPAN
+></A
+> driver)
+      <P
+></P
+><UL
+><LI
+><P
+>D-Link DFE-550TX</P
+></LI
+></UL
+>
+    </P
+><P
+>SysKonnect SK-984x PCI Gigabit Ethernet cards (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=sk&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>sk</SPAN
+>(4)</SPAN
+></A
+> drivers)
+      <P
+></P
+><UL
+><LI
+><P
+>SK-9821 1000baseT copper, single port</P
+></LI
+><LI
+><P
+>SK-9822 1000baseT copper, dual port</P
+></LI
+><LI
+><P
+>SK-9841 1000baseLX single mode fiber, single port</P
+></LI
+><LI
+><P
+>SK-9842 1000baseLX single mode fiber, dual port</P
+></LI
+><LI
+><P
+>SK-9843 1000baseSX multimode fiber, single port</P
+></LI
+><LI
+><P
+>SK-9844 1000baseSX multimode fiber, dual port</P
+></LI
+></UL
+>
+    </P
+><P
+>Texas Instruments ThunderLAN PCI NICs (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=tl&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>tl</SPAN
+>(4)</SPAN
+></A
+> driver)
+      <P
+></P
+><UL
+><LI
+><P
+>Compaq Netelligent 10, 10/100, 10/100 Proliant, 10/100
+	  Dual-Port</P
+></LI
+><LI
+><P
+>Compaq Netelligent 10/100 TX Embedded UTP, 10 T PCI
+	  UTP/Coax, 10/100 TX UTP</P
+></LI
+><LI
+><P
+>Compaq NetFlex 3P, 3P Integrated, 3P w/BNC</P
+></LI
+><LI
+><P
+>Olicom OC-2135/2138, OC-2325, OC-2326 10/100 TX UTP</P
+></LI
+><LI
+><P
+>Racore 8165 10/100baseTX</P
+></LI
+><LI
+><P
+>Racore 8148 10baseT/100baseTX/100baseFX
+	  multi-personality</P
+></LI
+></UL
+>
+    </P
+><P
+>ADMtek Inc. AL981-based PCI Fast Ethernet NICs (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=dc&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>dc</SPAN
+>(4)</SPAN
+></A
+>
+    driver)</P
+><P
+>ADMtek Inc. AN985-based PCI Fast Ethernet NICs (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=dc&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>dc</SPAN
+>(4)</SPAN
+></A
+>
+    driver)
+      <P
+></P
+><UL
+><LI
+><P
+>LinkSys EtherFast LNE100TX v4.0/4.1</P
+></LI
+></UL
+>
+    </P
+><P
+>ADMtek Inc. AN986-based USB Ethernet NICs (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=aue&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>aue</SPAN
+>(4)</SPAN
+></A
+> driver)
+      <P
+></P
+><UL
+><LI
+><P
+>Billionton USB100</P
+></LI
+><LI
+><P
+>D-Link DSB-650TX</P
+></LI
+><LI
+><P
+>LinkSys USB100TX</P
+></LI
+><LI
+><P
+>Melco Inc. LUA-TX</P
+></LI
+><LI
+><P
+>SMC 2202USB</P
+></LI
+></UL
+>
+    </P
+><P
+>CATC USB-EL1210A-based USB Ethernet NICs (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=cue&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>cue</SPAN
+>(4)</SPAN
+></A
+> driver)
+      <P
+></P
+><UL
+><LI
+><P
+>Belkin F5U011</P
+></LI
+><LI
+><P
+>Belkin F5U111</P
+></LI
+><LI
+><P
+>CATC Netmate</P
+></LI
+><LI
+><P
+>CATC Netmate II</P
+></LI
+></UL
+>
+    </P
+><P
+>Kawasaki LSI KU5KUSB101B-based USB Ethernet NICs
+    (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=kue&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>kue</SPAN
+>(4)</SPAN
+></A
+> driver)
+      <P
+></P
+><UL
+><LI
+><P
+>3Com 3c19250</P
+></LI
+><LI
+><P
+>Abocom URE 450</P
+></LI
+><LI
+><P
+>ADS Technologies USB-10BT</P
+></LI
+><LI
+><P
+>ATen UC10T</P
+></LI
+><LI
+><P
+>Corega USB-T</P
+></LI
+><LI
+><P
+>D-Link DSB-650</P
+></LI
+><LI
+><P
+>Entrega NET-USB-E45</P
+></LI
+><LI
+><P
+>LinkSys USB10T</P
+></LI
+><LI
+><P
+>Netgear EA101</P
+></LI
+><LI
+><P
+>Peracom USB Ethernet Adapter</P
+></LI
+><LI
+><P
+>SMC 2102USB</P
+></LI
+><LI
+><P
+>SMC 2104USB</P
+></LI
+></UL
+>
+    </P
+><P
+>ASIX Electronics AX88140A PCI NICs (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=dc&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>dc</SPAN
+>(4)</SPAN
+></A
+> driver)
+      <P
+></P
+><UL
+><LI
+><P
+>Alfa Inc. GFC2204</P
+></LI
+><LI
+><P
+>CNet Pro110B</P
+></LI
+></UL
+>
+    </P
+><P
+>DEC EtherWORKS II NICs (DE200, DE201, DE202, and
+    DE422) (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=le&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>le</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+><P
+>DEC EtherWORKS III NICs (DE203, DE204, and DE205)
+    (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=le&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>le</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+><P
+>DEC Etherworks NICs (DE305) (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=ed&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>ed</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+><P
+>DEC DC21040, DC21041, DC21140, DC21141, DC21142, and DC21143
+    based NICs (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=de&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>de</SPAN
+>(4)</SPAN
+></A
+> driver)
+      <P
+></P
+><UL
+><LI
+><P
+>Asante</P
+></LI
+><LI
+><P
+>Cogent EM100FX and EM440TX</P
+></LI
+><LI
+><P
+>DEC DE425, DE435, DE450, and DE500</P
+></LI
+><LI
+><P
+>SMC Etherpower 8432T, 9332, and 9334</P
+></LI
+><LI
+><P
+>ZYNX ZX 3xx</P
+></LI
+></UL
+>
+    </P
+><P
+>DEC/Intel 21143 based Fast Ethernet NICs (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=dc&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>dc</SPAN
+>(4)</SPAN
+></A
+> driver)
+      <P
+></P
+><UL
+><LI
+><P
+>DEC DE500-BA</P
+></LI
+><LI
+><P
+>Compaq Presario 7900 series built-in Ethernet</P
+></LI
+><LI
+><P
+>D-Link DFE-570TX</P
+></LI
+><LI
+><P
+>Kingston KNE100TX</P
+></LI
+><LI
+><P
+>LinkSys EtherFast 10/100 Instant GigaDrive built-in Ethernet</P
+></LI
+></UL
+>
+    </P
+><P
+>Davicom DM9100 and DM9102 PCI Fast Ethernet NICs (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=dc&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>dc</SPAN
+>(4)</SPAN
+></A
+> driver)
+      <P
+></P
+><UL
+><LI
+><P
+>Jaton Corporation XpressNet</P
+></LI
+></UL
+>
+    </P
+><P
+>Fujitsu MB86960A/MB86965A based Fast Ethernet NICs
+    (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=fe&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>fe</SPAN
+>(4)</SPAN
+></A
+> driver)
+      <P
+></P
+><UL
+><LI
+><P
+>CONTEC C-NET(PC)C Ethernet</P
+></LI
+><LI
+><P
+>Eiger Labs EPX-10BT</P
+></LI
+><LI
+><P
+>Fujitsu FMV-J182, FMV-J182A, MBH10302, MBH10303
+	  Ethernet PCMCIA</P
+></LI
+><LI
+><P
+>Fujitsu Towa LA501 Ethernet</P
+></LI
+><LI
+><P
+>HITACHI HT-4840-11</P
+></LI
+><LI
+><P
+>NextCom J Link NC5310</P
+></LI
+><LI
+><P
+>RATOC REX-5588, REX-9822, REX-4886, REX-R280</P
+></LI
+><LI
+><P
+>TDK LAK-CD021, LAK-CD021A, LAK-CD021BX</P
+></LI
+></UL
+>
+    </P
+><P
+>HP PC Lan+ cards (model numbers: 27247B and 27252A)
+    (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=ed&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>ed</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+><P
+>Intel EtherExpress NICs
+      <P
+></P
+><UL
+><LI
+><P
+>Intel EtherExpress 16 (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=ie&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>ie</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+></LI
+><LI
+><P
+>Intel EtherExpress Pro/10 and Pro/10+ Ethernet
+	  (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=ex&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>ex</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+></LI
+><LI
+><P
+>Intel EtherExpress Pro/100B PCI Fast Ethernet
+	  (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=fxp&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>fxp</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+></LI
+><LI
+><P
+>Intel PRO/1000, PRO/1000-F, and PRO/1000-T Gigabit Ethernet
+	  (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=wx&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>wx</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+></LI
+><LI
+><P
+>Intel InBusiness 10/100 PCI Network Adapter
+	  (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=fxp&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>fxp</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+></LI
+><LI
+><P
+>Intel PRO/100+ Management Adapter (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=fxp&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>fxp</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+></LI
+></UL
+>
+    </P
+><P
+>Isolan AT 4141-0 (16 bit)</P
+><P
+>Isolink 4110 (8 bit)</P
+><P
+>Novell NE1000, NE2000, and NE2100 Ethernet interface
+    (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=ed&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>ed</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+><P
+>Novell NE2000 clones (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=ed&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>ed</SPAN
+>(4)</SPAN
+></A
+> driver)
+      <P
+></P
+><UL
+><LI
+><P
+>NetVin 5000</P
+></LI
+><LI
+><P
+>RealTek 8029</P
+></LI
+><LI
+><P
+>Surecom NE-34</P
+></LI
+><LI
+><P
+>VIA VT86C926</P
+></LI
+><LI
+><P
+>Winbond W89C940</P
+></LI
+></UL
+>
+    </P
+><P
+>3Com Ethernet and Fast Ethernet NICs
+      <P
+></P
+><UL
+><LI
+><P
+>3C450-TX HomeConnect adapter (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=xl&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>xl</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+></LI
+><LI
+><P
+>3C501 (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=el&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>el</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+></LI
+><LI
+><P
+>3C503 Etherlink II (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=ed&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>ed</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+></LI
+><LI
+><P
+>3C507 Etherlink 16/TP (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=ie&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>ie</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+></LI
+><LI
+><P
+>3C509 (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=ep&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>ep</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+></LI
+><LI
+><P
+>3C529 MCA (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=ep&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>ep</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+></LI
+><LI
+><P
+>3C579 EISA (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=ep&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>ep</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+></LI
+><LI
+><P
+>3C589/589B/589C/589D/589E/XE589ET/574TX/574B
+	  PC-card/PCMCIA (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=ep&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>ep</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+></LI
+><LI
+><P
+>3C590/592/595 (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=vx&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>vx</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+></LI
+><LI
+><P
+>3C900/905/905B/905C PCI (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=xl&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>xl</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+></LI
+><LI
+><P
+>3C556/556B MiniPCI (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=xl&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>xl</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+></LI
+><LI
+><P
+>EISA (Fast) Etherlink III / (Fast) Etherlink XL</P
+></LI
+><LI
+><P
+>3c980/3c980B Fast Etherlink XL server adapter
+	  (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=xl&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>xl</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+></LI
+><LI
+><P
+>3cSOHO100-TX OfficeConnect adapter (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=xl&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>xl</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+></LI
+></UL
+>
+    </P
+><P
+>Crystal Semiconductor CS89x0-based NICs 
+    (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=cs&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>cs</SPAN
+>(4)</SPAN
+></A
+> driver)
+      <P
+></P
+><UL
+><LI
+><P
+>IBM Etherjet ISA</P
+></LI
+></UL
+>
+    </P
+><P
+>NE2000 compatible PC-Card (PCMCIA) Ethernet and
+    FastEthernet cards (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=ed&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>ed</SPAN
+>(4)</SPAN
+></A
+> driver)
+      <P
+></P
+><UL
+><LI
+><P
+>AR-P500 Ethernet card</P
+></LI
+><LI
+><P
+>Accton EN2212/EN2216/UE2216(OEM)</P
+></LI
+><LI
+><P
+>Allied Telesis CentreCOM LA100-PCM_V2</P
+></LI
+><LI
+><P
+>AmbiCom 10BaseT card</P
+></LI
+><LI
+><P
+>BayNetworks NETGEAR FA410TXC Fast Ethernet</P
+></LI
+><LI
+><P
+>CNet BC40 adapter</P
+></LI
+><LI
+><P
+>COREGA Ether PCC-T/EtherII PCC-T/FEther PCC-TXF/PCC-TXD</P
+></LI
+><LI
+><P
+>Compex Net-A adapter</P
+></LI
+><LI
+><P
+>CyQ've ELA-010</P
+></LI
+><LI
+><P
+>D-Link DE-650/660</P
+></LI
+><LI
+><P
+>Danpex EN-6200P2</P
+></LI
+><LI
+><P
+>Elecom Laneed LD-CDL/TX</P
+></LI
+><LI
+><P
+>IO DATA PCLATE</P
+></LI
+><LI
+><P
+>IBM Creditcard Ethernet I/II</P
+></LI
+><LI
+><P
+>IC-CARD Ethernet/IC-CARD+ Ethernet</P
+></LI
+><LI
+><P
+>Linksys EC2T/PCMPC100,EtherFast 10/100 PC Card
+	  (PCMPC100 V2)</P
+></LI
+><LI
+><P
+>Melco LPC-T/LPC2-T/LPC2-CLT/LPC2-TX/LPC3-TX/LPC3-CLX</P
+></LI
+><LI
+><P
+>NDC Ethernet Instant-Link</P
+></LI
+><LI
+><P
+>National Semiconductor InfoMover NE4100</P
+></LI
+><LI
+><P
+>NetGear FA-410TX</P
+></LI
+><LI
+><P
+>Network Everywhere Ethernet 10BaseT PC Card</P
+></LI
+><LI
+><P
+>Planex FNW-3600-T</P
+></LI
+><LI
+><P
+>Socket LP-E</P
+></LI
+><LI
+><P
+>Surecom EtherPerfect EP-427</P
+></LI
+><LI
+><P
+>TDK LAK-CD031,Grey Cell GCS2000 Ethernet Card</P
+></LI
+><LI
+><P
+>Telecom Device SuperSocket RE450T</P
+></LI
+></UL
+>
+    </P
+><P
+>Megahertz X-Jack Ethernet PC-Card CC-10BT (sn
+    driver)</P
+><P
+>Xircom CreditCard adapters (16 bit) and
+    workalikes (xe driver)
+      <P
+></P
+><UL
+><LI
+><P
+>Accton EN2226/Fast EtherCard (16-bit verison)</P
+></LI
+><LI
+><P
+>Compaq Netelligent 10/100 PC Card</P
+></LI
+><LI
+><P
+>Intel EtherExpress PRO/100 Mobile Adapter (16-bit
+	  verison)</P
+></LI
+><LI
+><P
+>Xircom 10/100 Network PC Card adapter</P
+></LI
+><LI
+><P
+>Xircom Realport card + modem(Ethernet part)</P
+></LI
+><LI
+><P
+>Xircom CreditCard Ethernet 10/100</P
+></LI
+><LI
+><P
+>Xircom CreditCard 10Base-T ``CreditCard Ethernet
+	  Adapter IIps'' (PS-CE2-10)</P
+></LI
+><LI
+><P
+>Xircom CreditCard Ethernet 10/100 + modem (Ethernet
+	  part)</P
+></LI
+></UL
+>
+    </P
+><P
+>National Semiconductor DP8393X (SONIC) Ethernet
+    cards (snc driver)
+      <P
+></P
+><UL
+><LI
+><P
+>NEC PC-9801-83, -84, -103, and -104</P
+></LI
+><LI
+><P
+>NEC PC-9801N-25 and -J02R</P
+></LI
+></UL
+>
+    </P
+><P
+>Gigabit Ethernet cards based on the Level 1
+    LXT1001 NetCellerator controller (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=lge&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>lge</SPAN
+>(4)</SPAN
+></A
+> driver)
+      <P
+></P
+><UL
+><LI
+><P
+>D-Link DGE-500SX</P
+></LI
+><LI
+><P
+>SMC TigerCard 1000 (SMC9462SX)</P
+></LI
+></UL
+>
+    </P
+><P
+>Ethernet and Fast Ethernet NICs based on the 3Com
+    3XP Typhoon/Sidewinder (3CR990) chipset (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=txp&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>txp</SPAN
+>(4)</SPAN
+></A
+> driver)
+      <P
+></P
+><UL
+><LI
+><P
+>3Com 3CR990-TX-95</P
+></LI
+><LI
+><P
+>3Com 3CR990-TX-97</P
+></LI
+><LI
+><P
+>3Com 3CR990B-SRV</P
+></LI
+><LI
+><P
+>3Com 3CR990B-TXM</P
+></LI
+><LI
+><P
+>3Com 3CR990SVR95</P
+></LI
+><LI
+><P
+>3Com 3CR990SVR97</P
+></LI
+></UL
+>
+    </P
+></DIV
+><DIV
+CLASS="SECT2"
+><HR><H2
+CLASS="SECT2"
+><A
+NAME="AEN1137"
+>3.3  FDDI Interfaces</A
+></H2
+><P
+>DEC DEFPA/DEFEA FDDI NICs (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=fpa&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>fpa</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+></DIV
+><DIV
+CLASS="SECT2"
+><HR><H2
+CLASS="SECT2"
+><A
+NAME="AEN1143"
+>3.4  ATM Interfaces</A
+></H2
+><P
+>Efficient Networks, Inc. ENI-155p ATM PCI Adapters
+    (hea driver)</P
+><P
+>FORE Systems, Inc. PCA-200E ATM PCI Adapters (hfa driver)</P
+><P
+>The ATM support in FreeBSD supports the following signaling
+    protocols:
+      <P
+></P
+><UL
+><LI
+><P
+>The ATM Forum UNI 3.1 signaling protocol</P
+></LI
+><LI
+><P
+>The ATM Forum UNI 3.0 signaling protocol</P
+></LI
+><LI
+><P
+>The ATM Forum ILMI address registration</P
+></LI
+><LI
+><P
+>FORE Systems' proprietary SPANS signaling protocol</P
+></LI
+><LI
+><P
+>Permanent Virtual Channels (PVCs)</P
+></LI
+></UL
+>
+    </P
+><P
+>Support for the IETF ``Classical IP and ARP over
+    ATM'' model is provided, compliant with the following RFCs
+    and Internet Drafts:
+      <P
+></P
+><UL
+><LI
+><P
+>RFC 1483, ``Multiprotocol Encapsulation over ATM
+          Adaptation Layer 5''</P
+></LI
+><LI
+><P
+>RFC 1577, ``Classical IP and ARP over ATM''</P
+></LI
+><LI
+><P
+>RFC 1626, ``Default IP MTU for use over ATM
+          AAL5''</P
+></LI
+><LI
+><P
+>RFC 1755, ``ATM Signaling Support for IP over ATM''</P
+></LI
+><LI
+><P
+>RFC 2225, ``Classical IP and ARP over ATM''</P
+></LI
+><LI
+><P
+>RFC 2334, ``Server Cache Synchronization Protocol
+	  (SCSP)''</P
+></LI
+><LI
+><P
+>Internet Draft
+	  <TT
+CLASS="FILENAME"
+>draft-ietf-ion-scsp-atmarp-00.txt</TT
+>, ``A
+	  Distributed ATMARP Service Using SCSP''</P
+></LI
+></UL
+>
+    </P
+><P
+>Support for an ATM sockets interface is also provided.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><HR><H2
+CLASS="SECT2"
+><A
+NAME="AEN1185"
+>3.5  Wireless Network Interfaces</A
+></H2
+><P
+>NCR / AT&amp;T / Lucent Technologies WaveLan T1-speed
+    ISA/radio LAN cards (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=wl&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>wl</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+><P
+>Lucent Technologies WaveLAN/IEEE 802.11 PCMCIA and ISA
+    standard speed (2Mbps) and turbo speed (6Mbps) wireless network
+    adapters and workalikes (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=wi&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>wi</SPAN
+>(4)</SPAN
+></A
+> driver)
+      <DIV
+CLASS="NOTE"
+><BLOCKQUOTE
+CLASS="NOTE"
+><P
+><B
+>Note: </B
+>The ISA versions of these adapters are actually PCMCIA
+        cards combined with an ISA to PCMCIA bridge card, so both kinds
+        of devices work with the same driver.</P
+></BLOCKQUOTE
+></DIV
+>
+      <P
+></P
+><UL
+><LI
+><P
+>NCR WaveLAN/IEEE 802.11</P
+></LI
+><LI
+><P
+>3COM 3crwe737A AirConnect Wireless LAN PC Card</P
+></LI
+><LI
+><P
+>Addtron AWA100</P
+></LI
+><LI
+><P
+>Cabletron RoamAbout 802.11 DS</P
+></LI
+><LI
+><P
+>Compaq WL100</P
+></LI
+><LI
+><P
+>Corega KK Wireless LAN PCC-11</P
+></LI
+><LI
+><P
+>ELECOM Air@Hawk/LD-WL11/PCC</P
+></LI
+><LI
+><P
+>Farallon Skyline 11Mbps Wireless</P
+></LI
+><LI
+><P
+>ICOM SL-1100</P
+></LI
+><LI
+><P
+>Laneed Wireless card</P
+></LI
+><LI
+><P
+>Melco Airconnect WLI-PCM-L11</P
+></LI
+><LI
+><P
+>NEC Wireless Card CMZ-RT-WP</P
+></LI
+><LI
+><P
+>PLANEX GeoWave/GW-NS110</P
+></LI
+><LI
+><P
+>TDK LAK-CD011WL</P
+></LI
+></UL
+>
+    </P
+><P
+>Aironet 802.11 wireless adapters (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=an&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>an</SPAN
+>(4)</SPAN
+></A
+> driver)
+      <P
+></P
+><UL
+><LI
+><P
+>Aironet 4500/4800 series
+	  (PCMCIA, PCI, and ISA adapters are all supported)</P
+></LI
+><LI
+><P
+>Cisco Systems Aironet 340, 341, and 342</P
+></LI
+></UL
+>
+    </P
+><P
+>Raytheon Raylink 2.4GHz wireless adapters (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=ray&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>ray</SPAN
+>(4)</SPAN
+></A
+> driver)
+      <P
+></P
+><UL
+><LI
+><P
+>Webgear Aviator</P
+></LI
+><LI
+><P
+>Webgear Aviator Pro</P
+></LI
+><LI
+><P
+>Raylink PC Card</P
+></LI
+></UL
+>
+    </P
+><P
+>AMD Am79C930 and Harris (Intersil) based 802.11 cards (awi driver)
+      <P
+></P
+><UL
+><LI
+><P
+>BayStack 650 and 660</P
+></LI
+><LI
+><P
+>Farallon SkyLINE Wireless</P
+></LI
+><LI
+><P
+>Icom SL-200</P
+></LI
+><LI
+><P
+>Melco WLI-PCM</P
+></LI
+><LI
+><P
+>NEL SSMagic</P
+></LI
+><LI
+><P
+>Netwave AirSurfer Plus and AirSurfer Pro</P
+></LI
+><LI
+><P
+>ZoomAir 4000</P
+></LI
+></UL
+>
+    </P
+></DIV
+><DIV
+CLASS="SECT2"
+><HR><H2
+CLASS="SECT2"
+><A
+NAME="AEN1262"
+>3.6  ISDN Interfaces</A
+></H2
+><P
+>AcerISDN P10 ISA PnP (experimental)</P
+><P
+>Asuscom ISDNlink 128K ISA</P
+><P
+>ASUSCOM P-IN100-ST-D (and other Winbond W6692-based cards)</P
+><P
+>AVM
+      <P
+></P
+><UL
+><LI
+><P
+>A1</P
+></LI
+><LI
+><P
+>B1 ISA (tested with V2.0)</P
+></LI
+><LI
+><P
+>B1 PCI (tested with V4.0)</P
+></LI
+><LI
+><P
+>Fritz!Card classic</P
+></LI
+><LI
+><P
+>Fritz!Card PnP</P
+></LI
+><LI
+><P
+>Fritz!Card PCI</P
+></LI
+><LI
+><P
+>T1</P
+></LI
+></UL
+>
+    </P
+><P
+>Creatix
+      <P
+></P
+><UL
+><LI
+><P
+>ISDN-S0</P
+></LI
+><LI
+><P
+>ISDN-S0 P&amp;P</P
+></LI
+></UL
+>
+    </P
+><P
+>Dr. Neuhaus Niccy Go@ and compatibles</P
+><P
+>Dynalink IS64PH</P
+><P
+>Eicon Diehl DIVA 2.0 and 2.02</P
+><P
+>ELSA
+      <P
+></P
+><UL
+><LI
+><P
+>ELSA PCC-16</P
+></LI
+><LI
+><P
+>QuickStep 1000pro ISA</P
+></LI
+><LI
+><P
+>MicroLink ISDN/PCI</P
+></LI
+><LI
+><P
+>QuickStep 1000pro PCI</P
+></LI
+></UL
+>
+    </P
+><P
+>ITK ix1 Micro ( &lt; V.3, non-PnP version )</P
+><P
+>Sedlbauer Win Speed</P
+><P
+>Siemens I-Surf 2.0</P
+><P
+>TELEINT ISDN SPEED No.1 (experimental)</P
+><P
+>Teles
+      <P
+></P
+><UL
+><LI
+><P
+>S0/8</P
+></LI
+><LI
+><P
+>S0/16</P
+></LI
+><LI
+><P
+>S0/16.3</P
+></LI
+><LI
+><P
+>S0/16.3 PnP</P
+></LI
+><LI
+><P
+>16.3c ISA PnP (experimental)</P
+></LI
+><LI
+><P
+>Teles PCI-TJ</P
+></LI
+></UL
+>
+    </P
+><P
+>Traverse Technologies NETjet-S PCI</P
+><P
+>USRobotics Sportster ISDN TA intern</P
+><P
+>Winbond W6692 based PCI cards</P
+></DIV
+><DIV
+CLASS="SECT2"
+><HR><H2
+CLASS="SECT2"
+><A
+NAME="AEN1323"
+>3.7  Multi-port Serial Interfaces</A
+></H2
+><P
+>AST 4 port serial card using shared IRQ</P
+><P
+>ARNET serial cards (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=ar&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>ar</SPAN
+>(4)</SPAN
+></A
+> driver)
+      <P
+></P
+><UL
+><LI
+><P
+>ARNET 8 port serial card using shared IRQ</P
+></LI
+><LI
+><P
+>ARNET (now Digiboard) Sync 570/i high-speed serial</P
+></LI
+></UL
+>
+    </P
+><P
+>Boca multi-port serial cards
+      <P
+></P
+><UL
+><LI
+><P
+>Boca BB1004 4-Port serial card (Modems
+	  <I
+CLASS="EMPHASIS"
+>not</I
+> supported)</P
+></LI
+><LI
+><P
+>Boca IOAT66 6-Port serial card (Modems supported)</P
+></LI
+><LI
+><P
+>Boca BB1008 8-Port serial card (Modems
+	  <I
+CLASS="EMPHASIS"
+>not</I
+> supported)</P
+></LI
+><LI
+><P
+>Boca BB2016 16-Port serial card (Modems supported)</P
+></LI
+></UL
+>
+    </P
+><P
+>Comtrol Rocketport card (rp driver)</P
+><P
+>Cyclades Cyclom-y serial board (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=cy&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>cy</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+><P
+>STB 4 port card using shared IRQ</P
+><P
+>DigiBoard intelligent serial cards (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=dgb&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>dgb</SPAN
+>(4)</SPAN
+></A
+> driver)
+      <P
+></P
+><UL
+><LI
+><P
+>DigiBoard PC/Xe series</P
+></LI
+><LI
+><P
+>DigiBoard PC/Xi series</P
+></LI
+></UL
+>
+    </P
+><P
+>SDL Communication serial boards
+      <P
+></P
+><UL
+><LI
+><P
+>SDL Communications Riscom/8 Serial Board (rc driver)</P
+></LI
+><LI
+><P
+>SDL Communications RISCom/N2 and N2pci high-speed sync
+	  serial boards (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=sr&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>sr</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+></LI
+></UL
+>
+    </P
+><P
+>Stallion Technologies multiport serial boards
+      <P
+></P
+><UL
+><LI
+><P
+>EasyIO (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=stl&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>stl</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+></LI
+><LI
+><P
+>EasyConnection 8/32 (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=stl&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>stl</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+></LI
+><LI
+><P
+>EasyConnection 8/64 (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=stli&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>stli</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+></LI
+><LI
+><P
+>ONboard 4/16 (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=stli&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>stli</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+></LI
+><LI
+><P
+>Brumby (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=stli&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>stli</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+></LI
+></UL
+>
+    </P
+><P
+>Specialix SI/XIO/SX multiport serial cards, with both the
+    older SIHOST2.x and the new ``enhanced'' (transputer
+    based, aka JET) host cards (ISA, EISA and PCI are supported)
+    (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=si&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>si</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+></DIV
+><DIV
+CLASS="SECT2"
+><HR><H2
+CLASS="SECT2"
+><A
+NAME="AEN1403"
+>3.8  Audio Devices</A
+></H2
+><P
+>Advance (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=sbc&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>sbc</SPAN
+>(4)</SPAN
+></A
+> driver)
+      <P
+></P
+><UL
+><LI
+><P
+>Asound 100 and 110</P
+></LI
+><LI
+><P
+>Logic ALS120 and ALS4000</P
+></LI
+></UL
+>
+    </P
+><P
+>CMedia sound chips
+      <P
+></P
+><UL
+><LI
+><P
+>CMI8338/CMI8738</P
+></LI
+></UL
+>
+    </P
+><P
+>Crystal Semiconductor (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=csa&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>csa</SPAN
+>(4)</SPAN
+></A
+> driver)
+      <P
+></P
+><UL
+><LI
+><P
+>CS461x/462x Audio Accelerator</P
+></LI
+><LI
+><P
+>CS428x Audio Controller</P
+></LI
+></UL
+>
+    </P
+><P
+>ENSONIQ (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=pcm&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>pcm</SPAN
+>(4)</SPAN
+></A
+> driver)
+      <P
+></P
+><UL
+><LI
+><P
+>AudioPCI ES1370/1371</P
+></LI
+></UL
+>
+    </P
+><P
+>ESS
+      <P
+></P
+><UL
+><LI
+><P
+>ES1868, ES1869, ES1879 and ES1888 (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=sbc&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>sbc</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+></LI
+><LI
+><P
+>Maestro-1, Maestro-2, and Maestro-2E</P
+></LI
+><LI
+><P
+>Maestro-3/Allegro</P
+><DIV
+CLASS="NOTE"
+><BLOCKQUOTE
+CLASS="NOTE"
+><P
+><B
+>Note: </B
+>The Maestro-3/Allegro cannot be compiled into the
+	    FreeBSD kernel due to licensing restrictions, it cannot be
+	    compiled into the kernel.  To use this driver, add
+	    the following line to
+	    <TT
+CLASS="FILENAME"
+>/boot/loader.conf</TT
+>:</P
+><PRE
+CLASS="SCREEN"
+>    <TT
+CLASS="USERINPUT"
+><B
+>maestro3_load="YES"</B
+></TT
+></PRE
+></BLOCKQUOTE
+></DIV
+></LI
+></UL
+>
+    </P
+><P
+>ForteMedia fm801</P
+><P
+>Gravis (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=gusc&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>gusc</SPAN
+>(4)</SPAN
+></A
+> driver)
+      <P
+></P
+><UL
+><LI
+><P
+>UltraSound MAX</P
+></LI
+><LI
+><P
+>UltraSound PnP</P
+></LI
+></UL
+>
+    </P
+><P
+>Intel 443MX, 810, 815, and 815E integrated sound
+    devices (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=pcm&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>pcm</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+><P
+>MSS/WSS Compatible DSPs (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=pcm&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>pcm</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+><P
+>NeoMagic 256AV/ZX (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=pcm&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>pcm</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+><P
+>OPTi 931/82C931 (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=pcm&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>pcm</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+><P
+>S3 Sonicvibes</P
+><P
+>Creative Technologies SoundBlaster series (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=sbc&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>sbc</SPAN
+>(4)</SPAN
+></A
+> driver)
+      <P
+></P
+><UL
+><LI
+><P
+>SoundBlaster</P
+></LI
+><LI
+><P
+>SoundBlaster Pro</P
+></LI
+><LI
+><P
+>SoundBlaster AWE-32</P
+></LI
+><LI
+><P
+>SoundBlaster AWE-64</P
+></LI
+><LI
+><P
+>SoundBlaster AWE-64 GOLD</P
+></LI
+><LI
+><P
+>SoundBlaster ViBRA-16</P
+></LI
+></UL
+>
+    </P
+><P
+>Trident 4DWave DX/NX (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=pcm&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>pcm</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+><P
+>VIA Technologies VT82C686A</P
+><P
+>Yamaha
+      <P
+></P
+><UL
+><LI
+><P
+>DS1</P
+></LI
+><LI
+><P
+>DS1e</P
+></LI
+></UL
+>
+    </P
+></DIV
+><DIV
+CLASS="SECT2"
+><HR><H2
+CLASS="SECT2"
+><A
+NAME="AEN1505"
+>3.9  Camera and Video Capture Devices</A
+></H2
+><P
+>Brooktree Bt848/849/878/879-based frame grabbers (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=bktr&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>bktr</SPAN
+>(4)</SPAN
+></A
+>
+    driver)
+      <P
+></P
+><UL
+><LI
+><P
+>AverMedia cards</P
+></LI
+><LI
+><P
+>Hauppauge Wincast TV and WinTV boards (PCI)</P
+></LI
+><LI
+><P
+>Intel Smart Video Recorder III</P
+></LI
+><LI
+><P
+>Miro PC TV</P
+></LI
+><LI
+><P
+>STB TV PCI</P
+></LI
+><LI
+><P
+>Video Highway XTreme</P
+></LI
+><LI
+><P
+>VideoLogic Captivator PCI</P
+></LI
+></UL
+>
+    </P
+><P
+>Connectix QuickCam</P
+><P
+>Cortex1 frame grabber (ctx driver)</P
+><P
+>Creative Labs Video Spigot frame grabber (spigot driver)</P
+><P
+>Matrox Meteor Video frame grabber (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=meteor&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>meteor</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+></DIV
+><DIV
+CLASS="SECT2"
+><HR><H2
+CLASS="SECT2"
+><A
+NAME="USB"
+>3.10  USB Devices</A
+></H2
+><P
+>A range of USB peripherals are supported; devices known to
+    work are listed in this section.  Owing to the
+    generic nature of most USB devices, with some exceptions any
+    device of a given class will be supported, even if not explicitly
+    listed here.</P
+><DIV
+CLASS="NOTE"
+><BLOCKQUOTE
+CLASS="NOTE"
+><P
+><B
+>Note: </B
+>USB Ethernet adapters can be found in the section listing <A
+HREF="#ETHERNET"
+>Ethernet interfaces</A
+>.</P
+></BLOCKQUOTE
+></DIV
+><P
+>Host Controllers (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=ohci&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>ohci</SPAN
+>(4)</SPAN
+></A
+> and <A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=uhci&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>uhci</SPAN
+>(4)</SPAN
+></A
+> drivers)
+      <P
+></P
+><UL
+><LI
+><P
+>ALi Aladdin-V</P
+></LI
+><LI
+><P
+>AMD-756</P
+></LI
+><LI
+><P
+>CMD Tech 670 &#38; 673</P
+></LI
+><LI
+><P
+>Intel 82371SB (PIIX3)</P
+></LI
+><LI
+><P
+>Intel 82371AB and EB (PIIX4)</P
+></LI
+><LI
+><P
+>Intel 82801AA (ICH)</P
+></LI
+><LI
+><P
+>Intel 82801AB (ICH0)</P
+></LI
+><LI
+><P
+>Intel 82801BA/BAM (ICH2)</P
+></LI
+><LI
+><P
+>Intel 82443MX</P
+></LI
+><LI
+><P
+>NEC uPD 9210</P
+></LI
+><LI
+><P
+>OPTi 82C861 (FireLink)</P
+></LI
+><LI
+><P
+>SiS 5571</P
+></LI
+><LI
+><P
+>VIA 83C572 USB</P
+></LI
+><LI
+><P
+>UHCI or OHCI compliant motherboard chipsets (no
+	  exceptions known)</P
+></LI
+></UL
+>
+    </P
+><P
+>USB host controllers (PCI)
+      <P
+></P
+><UL
+><LI
+><P
+>ADS Electronics PCI plug-in card (2 ports)</P
+></LI
+><LI
+><P
+>Entrega PCI plug-in card (4 ports)</P
+></LI
+></UL
+>
+    </P
+><P
+>Hubs
+      <P
+></P
+><UL
+><LI
+><P
+>Andromeda hub</P
+></LI
+><LI
+><P
+>MacAlly self powered hub (4 ports)</P
+></LI
+><LI
+><P
+>NEC hub</P
+></LI
+></UL
+>
+    </P
+><P
+>Keyboards (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=ukbd&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>ukbd</SPAN
+>(4)</SPAN
+></A
+> driver)
+      <P
+></P
+><UL
+><LI
+><P
+>Apple iMac keyboard</P
+></LI
+><LI
+><P
+>BTC BTC7935 keyboard with PS/2 mouse port</P
+></LI
+><LI
+><P
+>Cherry G81-3504 keyboard</P
+></LI
+><LI
+><P
+>Logitech M2452 keyboard</P
+></LI
+><LI
+><P
+>MacAlly iKey keyboard</P
+></LI
+><LI
+><P
+>Microsoft keyboard</P
+></LI
+></UL
+>
+    </P
+><P
+>Miscellaneous
+      <P
+></P
+><UL
+><LI
+><P
+>ActiveWire I/O Board</P
+></LI
+><LI
+><P
+>Rio500 MP3 player (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=urio&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>urio</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+></LI
+></UL
+>
+    </P
+><P
+>Modems (umodem driver)
+      <P
+></P
+><UL
+><LI
+><P
+>3Com 5605</P
+></LI
+><LI
+><P
+>Metricom Ricochet GS USB wireless modem</P
+></LI
+></UL
+>
+    </P
+><P
+>Mice (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=ums&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>ums</SPAN
+>(4)</SPAN
+></A
+> driver)
+      <P
+></P
+><UL
+><LI
+><P
+>Agiler Mouse 29UO</P
+></LI
+><LI
+><P
+>Apple iMac Mouse</P
+></LI
+><LI
+><P
+>Belkin Mouse</P
+></LI
+><LI
+><P
+>Chic mouse</P
+></LI
+><LI
+><P
+>Cypress mouse</P
+></LI
+><LI
+><P
+>Genius Niche mouse</P
+></LI
+><LI
+><P
+>Kensington Mouse-in-a-Box</P
+></LI
+><LI
+><P
+>Logitech wheel mouse (3 buttons)</P
+></LI
+><LI
+><P
+>Logitech PS/2 / USB mouse (3 buttons)</P
+></LI
+><LI
+><P
+>MacAlly mouse (3 buttons)</P
+></LI
+><LI
+><P
+>Microsoft IntelliMouse (3 buttons)</P
+></LI
+><LI
+><P
+>Trust Ami Mouse (3 buttons)</P
+></LI
+></UL
+>
+    </P
+><P
+>Printers and parallel printer conversion cables (ulpt driver)
+      <P
+></P
+><UL
+><LI
+><P
+>ATen parallel printer adapter</P
+></LI
+><LI
+><P
+>Belkin F5U002 parallel printer adapter</P
+></LI
+><LI
+><P
+>Entrega USB-to-parallel printer adapter</P
+></LI
+></UL
+>
+    </P
+><P
+>Scanners (through SANE) (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=uscanner&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>uscanner</SPAN
+>(4)</SPAN
+></A
+> driver)
+      <P
+></P
+><UL
+><LI
+><P
+>Perfection 636U</P
+></LI
+><LI
+><P
+>HP ScanJet 4100C, 5200C, 6300C</P
+></LI
+></UL
+>
+    </P
+><P
+>Storage (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=umass&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>umass</SPAN
+>(4)</SPAN
+></A
+> driver)
+      <P
+></P
+><UL
+><LI
+><P
+>Iomega USB Zip 100Mb (primitive support still)</P
+></LI
+><LI
+><P
+>Matshita CF-VFDU03 floppy drive</P
+></LI
+><LI
+><P
+>Microtech USB-SCSI-HD 50 USB to SCSI cable</P
+></LI
+><LI
+><P
+>Panasonic floppy drive</P
+></LI
+><LI
+><P
+>Y-E Data floppy drive (720/1.44/2.88Mb)</P
+></LI
+></UL
+>
+    </P
+></DIV
+><DIV
+CLASS="SECT2"
+><HR><H2
+CLASS="SECT2"
+><A
+NAME="AEN1682"
+>3.11  Miscellaneous</A
+></H2
+><P
+>FAX-Modem/PCCARD
+      <P
+></P
+><UL
+><LI
+><P
+>Melco IGM-PCM56K/IGM-PCM56KH</P
+></LI
+><LI
+><P
+>Nokia Card Phone 2.0 (gsm900/dcs1800 HSCSD terminal)</P
+></LI
+></UL
+>
+    </P
+><P
+>Floppy drives (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=fd&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>fd</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+><P
+>Genius and Mustek hand scanners</P
+><P
+>GPB and Transputer drivers</P
+><P
+>HP4020, HP6020, Philips CDD2000/CDD2660 and Plasmon CD-R
+    drives</P
+><P
+>Keyboards including:
+      <P
+></P
+><UL
+><LI
+><P
+>AT-style keyboards</P
+></LI
+><LI
+><P
+>PS/2 keyboards</P
+></LI
+><LI
+><P
+>USB keyboards (specific instances are listed in the
+	  section describing <A
+HREF="#USB"
+>USB devices</A
+>)</P
+></LI
+></UL
+>
+    </P
+><P
+>Loran-C receiver (Dave Mills experimental hardware, loran driver).</P
+><P
+>Mice including:
+      <P
+></P
+><UL
+><LI
+><P
+>Bus mice (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=mse&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>mse</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+></LI
+><LI
+><P
+>PS/2 mice (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=psm&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>psm</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+></LI
+><LI
+><P
+>Serial mice</P
+></LI
+><LI
+><P
+>USB mice (specific instances are listed in the
+	  section describing <A
+HREF="#USB"
+>USB devices</A
+>)</P
+></LI
+></UL
+>
+    </P
+><P
+>Parallel ports</P
+><P
+>PC-compatible joysticks (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=joy&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>joy</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+><P
+>PHS Data Communication Card/PCCARD
+      <P
+></P
+><UL
+><LI
+><P
+>NTT DoCoMo P-in Comp@ct</P
+></LI
+><LI
+><P
+>Panasonic KX-PH405</P
+></LI
+><LI
+><P
+>SII MC-P200</P
+></LI
+></UL
+>
+    </P
+><P
+>Serial ports</P
+><P
+>X-10 power controllers (<A
+HREF="http://www.FreeBSD.org/cgi/man.cgi?query=tw&sektion=4"
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>tw</SPAN
+>(4)</SPAN
+></A
+> driver)</P
+><P
+>Xilinx XC6200-based reconfigurable hardware cards compatible
+    with the HOT1 from <A
+HREF="http://www.vcc.com/"
+TARGET="_top"
+>Virtual
+    Computers</A
+> (xrpu driver).</P
+></DIV
+></DIV
+><DIV
+CLASS="SECT1"
+><HR><H1
+CLASS="SECT1"
+><A
+NAME="AEN1744"
+>4  Boot-time Kernel Configuration</A
+></H1
+><P
+>This section describes the boot-time configuration of the
+  FreeBSD kernel.</P
+><DIV
+CLASS="SECT2"
+><HR><H2
+CLASS="SECT2"
+><A
+NAME="AEN1747"
+>4.1  Default Configuration</A
+></H2
+><P
+>The following table contains a list of all of the devices
+    that are present in the <TT
+CLASS="FILENAME"
+>GENERIC</TT
+> kernel.  This
+    is the essential part of the operating system that is placed in
+    your root partition during the installation process.  A compressed
+    version of the <TT
+CLASS="FILENAME"
+>GENERIC</TT
+> kernel is also used on
+    the installation floppy diskette and DOS boot image.</P
+><P
+>The table describes the various parameters used by the
+    driver to communicate with the hardware in your system.  There are
+    four parameters in the table, though not all are used by each and
+    every device:
+
+      <DIV
+CLASS="INFORMALTABLE"
+><A
+NAME="AEN1753"
+></A
+><P
+></P
+><TABLE
+BORDER="0"
+CLASS="CALSTABLE"
+><TBODY
+><TR
+><TD
+WIDTH="17%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>Port</TD
+><TD
+WIDTH="83%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>The starting I/O port used by the device, shown in hexadecimal.</TD
+></TR
+><TR
+><TD
+WIDTH="17%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>IRQ</TD
+><TD
+WIDTH="83%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>The interrupt the device uses to alert the driver to an event,
+	    given in decimal.</TD
+></TR
+><TR
+><TD
+WIDTH="17%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>DRQ</TD
+><TD
+WIDTH="83%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>The DMA (direct memory access) channel the device uses to move
+	    data to and from main memory, also given in decimal.</TD
+></TR
+><TR
+><TD
+WIDTH="17%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>IOMem</TD
+><TD
+WIDTH="83%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>The lowest (or starting) memory address used by the device,
+	    also shown in hexadecimal.</TD
+></TR
+></TBODY
+></TABLE
+><P
+></P
+></DIV
+>
+
+    If an entry in the table has `n/a' for a value then it means that
+    the parameter in question does not apply to that device.  A value
+    of `dyn' means that the correct value should be determined
+    automatically by the kernel when the system boots and that you
+    don't need to worry about it.</P
+><P
+>If an entry is marked with an *, it means that support is
+    currently not available for it but should be back as soon as
+    someone converts the driver to work within the new (post-4.0)
+    framework.</P
+><P
+>      <DIV
+CLASS="INFORMALTABLE"
+><A
+NAME="AEN1772"
+></A
+><P
+></P
+><TABLE
+BORDER="0"
+CLASS="CALSTABLE"
+><THEAD
+><TR
+><TH
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>Device</TH
+><TH
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>Port</TH
+><TH
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>IRQ</TH
+><TH
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>DRQ</TH
+><TH
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>IOMem</TH
+><TH
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>Description</TH
+></TR
+></THEAD
+><TBODY
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>fdc0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>3f0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>6</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>2</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>Floppy disk controller</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>ata0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>170</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>14</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>ATA/ATAPI controller</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>ata1</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>170</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>15</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>ATA/ATAPI controller</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>atadisk0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>ATA disk drives</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>atapicd0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>ATAPI CDROM drives</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>atapifd0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>ATAPI floppy drives</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>atapist0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>ATAPI tape drives</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>adv0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>AdvanSys Narrow SCSI controllers</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>adw0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>AdvanSys Wide SCSI controllers</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>amd0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>AMD 53C974 (Tekram DC390(T))</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>ncr0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>NCR PCI SCSI controller</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>bt0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>330</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>Buslogic SCSI controller</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>aha0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>330</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>5</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>Adaptec 154x/1535 SCSI controller</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>ahb0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>Adaptec 174x SCSI controller</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>ahc0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>Adaptec 274x/284x/294x SCSI controller</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>aic0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>340</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>11</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>Adaptec 152x/AIC-6360/AIC-6260 SCSI controller</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>isp0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>QLogic 10X0, 1240 Ultra SCSI, 1080/1280 Ultra2 SCSI, 12160 Ultra3 SCSI, 2X00 Fibre Channel SCSI controller</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dpt0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>DPT RAID SCSI controllers</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>amr0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>AMI MegaRAID controllers</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>mlx0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>Mylex DAC960 RAID controllers</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>twe0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>3ware Escalade RAID controllers</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>asr0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>DPT SmartRaid V, VI, and Adaptec SCSI RAID</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>mly0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>Mylex AcceleRAID/eXtremeRAID</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>aac</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>Adaptec FSA family PCI SCSI RAID</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>ncv</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>NCR 53C500 based PC-Card SCSI</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>nsp</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>Workbit Ninja SCSI-3 based PC-Card SCSI</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>stg</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>TMC 18C30/50 based ISA/PC-Card SCSI</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>wt0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>300</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>5</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>1</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>Wangtek and Archive QIC-02/QIC-36</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>psm0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>60</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>12</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>PS/2 Mouse</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>mcd0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>300</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>10</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>Mitsumi CD-ROM</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>matcd0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>230</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>Matsushita/Panasonic CD-ROM</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>scd0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>230</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>Sony CD-ROM</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>sio0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>3f8</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>4</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>Serial Port 0 (COM1)</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>sio1</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>2f8</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>3</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>Serial Port 1 (COM2)</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>ppc0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>7</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>Printer ports</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dc0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>DEC/Intel 21143 cards and workalikes</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>de0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>DEC DC21x40 PCI based cards (including 21140 100bT cards)</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>ed0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>280</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>10</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>d8000</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>WD &#38; SMC 80xx; Novell NE1000 &#38; NE2000; 3Com 3C503; HP PC Lan+</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>ep0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>300</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>10</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>3Com 3C509, 3C529, 3C556, 3C562D, 3C563D, 3C572, 3C574X, 3C579, 3C589</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>ex0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>Intel EtherExpress Pro/10 cards</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>fe0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>300</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>Allied-Telesyn AT1700, RE2000 and Fujitsu FMV-180 series cards.</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>fxp0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>Intel EtherExpress Pro/100B and Intel PRO/100+ Management Adapter</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>ie0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>300</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>10</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>d0000</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>AT&amp;T StarLAN 10 and EN100; 3Com 3C507; NI5210; Intel EtherExpress (8/16,16[TP]) cards</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>le0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>300</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>5</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>d0000</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>Digital Equipment EtherWorks 2 and EtherWorks 3</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>lnc0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>280</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>10</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>Lance/PCnet cards (Isolan, Novell NE2100, NE32-VL, some PCnet-PCI cards)</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>pcn0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>AMD PCnet/FAST, PCnet/FAST+, PCnet/FAST III, PCnet/PRO, PCnet/Home, and HomePNA cards</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>rl0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>RealTek 8129/8139 fast ethernet</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>sf0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>Adaptec AIC-6915 fast ethernet</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>sis0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>SiS 900/SiS 7016 fast ethernet</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>sn0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>0x300</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>10</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>SMC 91xx ethernet</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>ste0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>Sundance ST201 fast ethernet</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>tl0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>TI TNET100 'ThunderLAN' cards.</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>tx0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>SMC 9432 'Epic' fast ethernet</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>wb0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>Winbond W89C840F PCI based cards.</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>vr0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>VIA VT3043/VT86C100A PCI based cards.</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>vx0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>3Com 3c59x ((Fast) Etherlink III)</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>xe0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>Xircom CreditCard adapters (16 bit)</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>xl0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>3Com 3c900, 3c905, 3c905B, 3c905C, 3c980, 3cSOHO100 ((Fast) Etherlink XL)</TD
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>cs0</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>0x300</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>dyn</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="10%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>n/a</TD
+><TD
+WIDTH="50%"
+ALIGN="LEFT"
+VALIGN="TOP"
+>Crystal Semiconductor CS89x0-based cards.</TD
+></TR
+></TBODY
+></TABLE
+><P
+></P
+></DIV
+>
+    </P
+><P
+>If the hardware in your computer is not set to the same
+    settings as those shown in the table and the item in conflict is
+    not marked 'dyn', you will have to either reconfigure your
+    hardware or use UserConfig to reconfigure the kernel to match the
+    way your hardware is currently set (see the next section).</P
+><P
+>If the settings do not match, the kernel may be unable to
+    locate or reliably access the devices in your system.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><HR><H2
+CLASS="SECT2"
+><A
+NAME="AEN2204"
+>4.2  Using UserConfig to change FreeBSD kernel settings</A
+></H2
+><DIV
+CLASS="NOTE"
+><BLOCKQUOTE
+CLASS="NOTE"
+><P
+><B
+>Note: </B
+>The markup for this section leaves a lot to be desired.</P
+></BLOCKQUOTE
+></DIV
+><P
+>The FreeBSD kernel on the install floppy contains drivers
+    for every piece of hardware that could conceivably be used to
+    install the rest of the system with.  Unfortunately, PC hardware
+    being what it is, some of these devices can be difficult to detect
+    accurately, and for some, the process of detecting another can
+    cause irreversible confusion.</P
+><P
+>To make this process easier, FreeBSD provides UserConfig.
+    With this tool the user can configure and disable device drivers
+    before the kernel is loaded, avoiding potential conflicts, and
+    eliminating the need to reconfigure hardware to suit the default
+    driver settings.</P
+><P
+>Once FreeBSD is installed, it will remember the changes made using
+    UserConfig, so that they only need be made once.</P
+><P
+>It is important to disable drivers that are not relevant to
+    a system in order to minimize the possibility of interference,
+    which can cause problems that are difficult to track down.</P
+><P
+>UserConfig features a command line interface for users with
+    serial consoles or a need to type commands, and a full screen
+    ``visual'' interface, which provides point-and-shoot
+    configuration functionality.</P
+><P
+>Here is a sample UserConfig screen shot in
+    ``visual'' mode:</P
+><PRE
+CLASS="SCREEN"
+>    ---Active Drivers---------------------------10 Conflicts------Dev---IRQ--Port--
+     Storage :  (Collapsed)
+     Network :
+      NE1000,NE2000,3C503,WD/SMC80xx Ethernet adapters    CONF  ed0       5  0x280
+      NE1000,NE2000,3C503,WD/SMC80xx Ethernet adapters    CONF  ed1       5  0x300 
+     Communications : (Collapsed)
+     Input : (Collapsed)
+     Multimedia :
+    ---Inactive Drivers-------------------------------------------Dev--------------
+     Storage :
+     Network : (Collapsed)
+     Communications :
+     Input :
+     Multimedia :
+    
+    
+    ---Parameters-for-device-ed0---------------------------------------------------
+     Port address : 0x280      Memory address : 0xd8000
+     IRQ number   : 5          Memory size    : 0x2000
+     Flags        : 0x0000
+    -------------------------------------------------------------------------------
+      IO Port address (Hexadecimal, 0x1-0x2000)
+      [TAB]   Change fields           [Q]   Save device parameters</PRE
+><P
+>The screen is divided into four sections:
+      <P
+></P
+><UL
+><LI
+><P
+>Active Drivers.  Listed here are the device drivers
+          that are currently enabled, and their basic
+          parameters.</P
+></LI
+><LI
+><P
+>Inactive Drivers.  These drivers are present, but are
+	  disabled.</P
+></LI
+><LI
+><P
+>Parameter edit field.  This area is used for editing
+	  driver parameters.</P
+></LI
+><LI
+><P
+>Help area.  Keystroke help is displayed here.</P
+></LI
+></UL
+>
+    </P
+><P
+>One of the Active and Inactive lists is always in use, and
+    the current entry in the list will be shown with a highlight bar.
+    If there are more entries in a list than can be shown, it will
+    scroll.  The bar can be moved up and down using the cursor keys,
+    and moved between lists with the TAB key.</P
+><P
+>Drivers in the Active list may be marked
+    <TT
+CLASS="LITERAL"
+>CONF</TT
+>.  This indicates that one or more of their
+    parameters conflicts with another device, and indicates a
+    potential for problems.  The total number of conflicts is
+    displayed at the top of the screen.</P
+><P
+>As a general rule, conflicts should be avoided, either by
+    disabling conflicting devices that are not present in the system,
+    or by altering their configuration so that they match the
+    installed hardware.</P
+><P
+>In the list areas, drivers are grouped by their basic
+    function.  Groups can be <TT
+CLASS="LITERAL"
+>Collapsed</TT
+> to simplify
+    the display (this is the default state for all groups).  If a
+    group is collapsed, it will be shown with
+    <TT
+CLASS="LITERAL"
+>Collapsed</TT
+> in the list, as above.  To Expand a
+    Collapsed group, position the highlight bar over the group heading
+    and press Enter.  To Collapse it again, repeat the process.</P
+><P
+>When a device driver in the Active list is highlighted, its
+    full parameters are displayed in the Parameter edit area.  Note
+    that not all drivers use all possible parameters, and some
+    hardware supported by drivers may not use all the parameters the
+    driver supports.</P
+><P
+>To disable a driver, go to the Active list, Expand the group
+    it is in, highlight the driver and press Del.  The driver will
+    move to its group in the Inactive list.  (If the group is
+    collapsed or off the screen, you may not see the driver in its new
+    location.)</P
+><P
+>To enable a driver, go to the Inactive list, Expand the
+    group it is in, highlight the driver and press Enter.  The
+    highlight will move to the Active list, and the driver you have
+    just enabled will be highlighted, ready to be configured.</P
+><P
+>To configure a driver, go to the Active list, Expand the
+    group it is in, highlight the driver and press Enter.  The cursor
+    will move to the Parameter edit area, and the device's parameters
+    may be edited.</P
+><P
+>While editing parameters, the TAB and cursor keys can be
+    used to move between fields.  Most numeric values (except IRQ) are
+    entered in hexadecimal, as indicated by the '0x' at the beginning
+    of the field.  The allowable values for a given field are show in
+    the Key Help area when the field is active.</P
+><P
+>To finish configuring a driver, press 'Q'.</P
+><P
+>Note that PCI, Microchannel and EISA devices can be probed
+    reliably, therefore they are not shown in the table above nor can
+    their settings be changed using UserConfig.</P
+></DIV
+></DIV
+></DIV
+><hr><p
+align="center"
+><small
+>This file, and other release-related documents, can be downloaded from <A
+HREF="ftp://ftp.FreeBSD.org/pub/FreeBSD/"
+>ftp://ftp.FreeBSD.org/pub/FreeBSD/</A
+>.</small
+></p
+><p
+align="center"
+><small
+>For questions about FreeBSD, read the <A
+HREF="http://www.FreeBSD.org/docs.html"
+>documentation</A
+> before contacting &#60;<A
+HREF="mailto:questions@FreeBSD.org"
+>questions@FreeBSD.org</A
+>&#62;.<p
+align="center"
+><small
+>All users of FreeBSD 4-STABLE should subscribe to the &#60;<A
+HREF="mailto:stable@FreeBSD.org"
+>stable@FreeBSD.org</A
+>&#62; mailing list.</small
+></p
+><p
+align="center"
+>For questions about this documentation, e-mail &#60;<A
+HREF="mailto:doc@FreeBSD.org"
+>doc@FreeBSD.org</A
+>&#62;.</p
+></small
+></p
+></BODY
+></HTML
+>

@@ -1,0 +1,2247 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+  <head>
+    <meta name="generator" content="HTML Tidy, see www.w3.org">
+    <title>FreeBSD 4.4-RELEASE alpha Installation
+    Instructions</title>
+    <meta name="GENERATOR" content=
+    "Modular DocBook HTML Stylesheet Version 1.71 ">
+    <link rel="STYLESHEET" type="text/css" href="docbook.css">
+  </head>
+
+  <body class="ARTICLE" bgcolor="#FFFFFF" text="#000000" link=
+  "#0000FF" vlink="#840084" alink="#0000FF">
+    <div class="ARTICLE">
+      <div class="TITLEPAGE">
+        <h1 class="TITLE"><a name="AEN2">FreeBSD 4.4-RELEASE alpha
+        Installation Instructions</a></h1>
+
+        <h3 class="CORPAUTHOR">The FreeBSD Project</h3>
+
+        <p class="COPYRIGHT">Copyright &copy; 2000, 2001 by The
+        FreeBSD Documentation Project</p>
+        <hr>
+      </div>
+
+      <blockquote class="ABSTRACT">
+        <div class="ABSTRACT">
+          <a name="AEN9"></a>
+
+          <p>This article gives some brief instructions on
+          installing FreeBSD 4.4-RELEASE for the alpha
+          architecture, with particular emphasis given to obtaining
+          a FreeBSD distribution. Some notes on troubleshooting and
+          frequently-asked questions are also given.</p>
+        </div>
+      </blockquote>
+
+      <div class="SECT1">
+        <hr>
+
+        <h1 class="SECT1"><a name="AEN11">1 Installing
+        FreeBSD</a></h1>
+
+        <p>This section documents the process of installing a new
+        distribution of FreeBSD. These instructions pay particular
+        emphasis to the process of obtaining the FreeBSD
+        4.4-RELEASE distribution and to beginning the installation
+        procedure. The <a href=
+        "http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/install.html"
+         target="_top">``Installing FreeBSD''</a> chapter of the <a
+        href=
+        "http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/"
+         target="_top">FreeBSD Handbook</a> provides more in-depth
+        information about the installation program itself,
+        including a guided walkthrough with screenshots.</p>
+
+        <p>If you are upgrading from a previous release of FreeBSD,
+        please see <a href="#UPGRADING">Section 3</a> for
+        instructions on upgrading.</p>
+
+        <div class="SECT2">
+          <hr>
+
+          <h2 class="SECT2"><a name="GETTING-STARTED">1.1 Getting
+          Started</a></h2>
+
+          <p>Probably the most important pre-installation step that
+          can be taken is that of reading the various instruction
+          documents provided with FreeBSD. A roadmap of documents
+          pertaining to this release of FreeBSD can be found in <tt
+          class="FILENAME">README.TXT</tt>, which can usually be
+          found in the same location as this file; most of these
+          documents, such as the release notes and the hardware
+          compatability list, are also accessible in the
+          Documentation menu of the installer.</p>
+
+          <p>Note that on-line versions of the FreeBSD <a href=
+          "http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/faq/"
+          target="_top">FAQ</a> and <a href=
+          "http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/"
+           target="_top">Handbook</a> are also available from the
+          <a href="http://www.FreeBSD.org/" target="_top">FreeBSD
+          Project Web site</a>, if you have an Internet
+          connection.</p>
+
+          <p>This collection of documents may seem daunting, but
+          the time spent reading them will likely be saved many
+          times over. Being familiar with what resources are
+          available can also be helpful in the event of problems
+          during installation.</p>
+
+          <p>The best laid plans sometimes go awry, so if you run
+          into trouble take a look at <a href="#TROUBLE">Section
+          4</a>, which contains valuable troubleshooting
+          information. You should also read an updated copy of <tt
+          class="FILENAME">ERRATA.TXT</tt> before installing, since
+          this will alert you to any problems which have reported
+          in the interim for your particular release.</p>
+
+          <div class="IMPORTANT">
+            <blockquote class="IMPORTANT">
+              <p><b>Important:</b> While FreeBSD does its best to
+              safeguard against accidental loss of data, it's still
+              more than possible to <i class="EMPHASIS">wipe out
+              your entire disk</i> with this installation if you
+              make a mistake. Please do not proceed to the final
+              FreeBSD installation menu unless you've adequately
+              backed up any important data first.</p>
+            </blockquote>
+          </div>
+        </div>
+
+        <div class="SECT2">
+          <hr>
+
+          <h2 class="SECT2"><a name="AEN34">1.2 Hardware
+          Requirements</a></h2>
+
+          <p>FreeBSD for the alpha supports the alpha platforms
+          described in <tt class="FILENAME">HARDWARE.TXT</tt>.</p>
+
+          <p>You will need a dedicated disk for FreeBSD/alpha. It
+          is not possible to share a disk with another operating
+          system at this time. This disk will need to be attached
+          to a SCSI controller which is supported by the SRM
+          firmware or an IDE disk assuming the SRM in your machine
+          supports booting from IDE disks.</p>
+
+          <p>Your root filesystem MUST be the first partition
+          (partition <tt class="LITERAL">a</tt>) on the disk to be
+          bootable.</p>
+
+          <p>You will need the SRM console firmware for your
+          platform. In some cases, it is possible to switch between
+          AlphaBIOS (or ARC) firmware and SRM. In others it will be
+          necessary to download new firmware from the vendor's Web
+          site.</p>
+
+          <p>If you are not familiar with configuring hardware for
+          FreeBSD, you should be sure to read the <tt class=
+          "FILENAME">HARDWARE.TXT</tt> file; it contains important
+          information on what hardware is supported by FreeBSD.</p>
+        </div>
+
+        <div class="SECT2">
+          <hr>
+
+          <h2 class="SECT2"><a name="FLOPPIES">1.3 Floppy Disk
+          Image Instructions</a></h2>
+
+          <p>Depending on how you choose to install FreeBSD, you
+          may need to create a set of floppy disks (usually two) to
+          begin the installation process. This section briefly
+          describes how to create these disks, either from a CDROM
+          installation or from the Internet. Note that in the
+          common case of installing FreeBSD from CDROM, on a
+          machine that supports bootable CDROMs, the steps outlined
+          in this section will not be needed and can be
+          skipped.</p>
+
+          <p>For a normal CDROM or network installation, all you
+          need to copy onto actual floppies from the <tt class=
+          "FILENAME">floppies/</tt> directory are the <tt class=
+          "FILENAME">kern.flp</tt> and <tt class=
+          "FILENAME">mfsroot.flp</tt> images (for 1.44MB
+          floppies).</p>
+
+          <p>Getting these images over the network is easy. Simply
+          fetch the <tt class="REPLACEABLE"><i>release</i></tt><tt
+          class="FILENAME">/floppies/kern.flp</tt> and <tt class=
+          "REPLACEABLE"><i>release</i></tt><tt class=
+          "FILENAME">/floppies/mfsroot.flp</tt> files from <a href=
+          "ftp://ftp.FreeBSD.org/pub/FreeBSD/" target=
+          "_top">ftp://ftp.FreeBSD.org/pub/FreeBSD/</a> or one of
+          the many mirrors listed at <a href=
+          "http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/mirrors-ftp.html"
+           target="_top">FTP Sites</a> section of the Handbook, or
+          on the <a href="http://www.freebsdmirrors.org/" target=
+          "_top">http://www.freebsdmirrors.org/</a> Web pages.</p>
+
+          <p>Get two blank, freshly formatted floppies and image
+          copy <tt class="FILENAME">kern.flp</tt> onto one and <tt
+          class="FILENAME">mfsroot.flp</tt> onto the other. These
+          images are <i class="EMPHASIS">not</i> DOS files. You
+          cannot simply copy them to a DOS or UFS floppy as regular
+          files, you need to ``image'' copy them to the floppy with
+          <tt class="FILENAME">fdimage.exe</tt> under DOS (see the
+          <tt class="FILENAME">tools</tt> directory on your CDROM
+          or FreeBSD FTP mirror) or the <a href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=dd&amp;sektion=1">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">dd</span>(1)</span></a> command in
+          UNIX.</p>
+
+          <p>For example, to create the kernel floppy image from
+          DOS, you'd do something like this:</p>
+<pre class="SCREEN">
+    <tt class="PROMPT">C&gt;</tt> <tt class=
+"USERINPUT"><b>fdimage kern.flp a:</b></tt>
+</pre>
+
+          <p>Assuming that you'd copied <tt class=
+          "FILENAME">fdimage.exe</tt> and <tt class=
+          "FILENAME">kern.flp</tt> into a directory somewhere. You
+          would do the same for <tt class=
+          "FILENAME">mfsroot.flp</tt>, of course.</p>
+
+          <p>If you're creating the boot floppy from a UNIX
+          machine, you may find that:</p>
+<pre class="SCREEN">
+    <tt class="PROMPT">#</tt> <tt class=
+"USERINPUT"><b>dd if=floppies/kern.flp of=/dev/rfd0</b></tt>
+</pre>
+
+          <p>or</p>
+<pre class="SCREEN">
+    <tt class="PROMPT">#</tt> <tt class=
+"USERINPUT"><b>dd if=floppies/kern.flp of=/dev/floppy</b></tt>
+</pre>
+
+          <p>work well, depending on your hardware and operating
+          system environment (different versions of UNIX have
+          different names for the floppy drive).</p>
+
+          <p>If you're on an alpha machine that can network-boot
+          its floppy images or you have a 2.88MB or LS-120 floppy
+          capable of taking a 2.88MB image on an x86 machine, you
+          may wish to use the single (but twice as large) <tt
+          class="FILENAME">boot.flp</tt> image. It contains the
+          contents of <tt class="FILENAME">kern.flp</tt> and <tt
+          class="FILENAME">mfsroot.flp</tt> on a single floppy.
+          This file should also be used as the boot file for those
+          mastering ``El Torito'' bootable CD images. See the <a
+          href=
+          "http://www.FreeBSD.org/cgi/man.cgi?query=mkisofs&amp;sektion=8">
+          <span class="CITEREFENTRY"><span class=
+          "REFENTRYTITLE">mkisofs</span>(8)</span></a> command for
+          more information.</p>
+        </div>
+
+        <div class="SECT2">
+          <hr>
+
+          <h2 class="SECT2"><a name="START-INSTALLATION">1.4
+          Installing FreeBSD from CDROM or the Internet</a></h2>
+
+          <p>The easiest type of installation is from CDROM. If you
+          have a supported CDROM drive and a FreeBSD installation
+          CDROM, you can boot FreeBSD directly from the CDROM.
+          Insert the CDROM into the drive and type the following
+          command to start the installation (substituting the name
+          of the appropriate CDROM drive if necessary):</p>
+<pre class="SCREEN">
+    &gt;&gt;&gt;<tt class="USERINPUT"><b>boot dka0</b></tt>
+</pre>
+
+          <p>Alternatively you can boot the installation from
+          floppy disk. You should start the installation by
+          building a set of FreeBSD boot floppy from the files <tt
+          class="FILENAME">floppies/kern.flp</tt> and <tt class=
+          "FILENAME">floppies/mfsroot.flp</tt> using the
+          instructions found in <a href="#FLOPPIES">Section
+          1.3</a>. From the SRM console prompt (<tt class=
+          "LITERAL">&gt;&gt;&gt;</tt>), just insert the <tt class=
+          "FILENAME">kern.flp</tt> floppy and type the following
+          command to start the installation:</p>
+<pre class="SCREEN">
+    &gt;&gt;&gt;<tt class="USERINPUT"><b>boot dva0</b></tt>
+</pre>
+
+          <p>Insert the <tt class="FILENAME">mfsroot.flp</tt>
+          floppy when prompted and you will end up at the first
+          screen of the install program.</p>
+        </div>
+
+        <div class="SECT2">
+          <hr>
+
+          <h2 class="SECT2"><a name="AEN127">1.5 Detail on various
+          installation types</a></h2>
+
+          <p>Once you've gotten yourself to the initial
+          installation screen somehow, you should be able to follow
+          the various menu prompts and go from there. If you've
+          never used the FreeBSD installation before, you are also
+          encouraged to read some of the documentation in the
+          Documentation submenu as well as the general ``Usage''
+          instructions on the first menu.</p>
+
+          <div class="NOTE">
+            <blockquote class="NOTE">
+              <p><b>Note:</b> If you get stuck at a screen, press
+              the <b class="KEYCAP">F1</b> key for online
+              documentation relevant to that specific section.</p>
+            </blockquote>
+          </div>
+
+          <p>If you've never installed FreeBSD before, or even if
+          you have, the ``Standard'' installation mode is the most
+          recommended since it makes sure that you'll visit all the
+          various important checklist items along the way. If
+          you're much more comfortable with the FreeBSD
+          installation process and know <i class=
+          "EMPHASIS">exactly</i> what you want to do, use the
+          ``Express'' or ``Custom'' installation options. If you're
+          upgrading an existing system, use the ``Upgrade''
+          option.</p>
+
+          <p>The FreeBSD installer supports the direct use of
+          floppy, DOS, tape, CDROM, FTP, NFS and UFS partitions as
+          installation media; further tips on installing from each
+          type of media are listed below.</p>
+
+          <p>Once the install procedure has finished, you will be
+          able to start FreeBSD/alpha by typing something like this
+          to the SRM prompt:</p>
+<pre class="SCREEN">
+    &gt;&gt;&gt;<tt class="USERINPUT"><b>boot dkc0</b></tt>
+</pre>
+
+          <p>This instructs the firmware to boot the specified
+          disk. To find the SRM names of disks in your machine, use
+          the <tt class="LITERAL">show device</tt> command:</p>
+<pre class="SCREEN">
+    &gt;&gt;&gt;<tt class="USERINPUT"><b>show device</b></tt>
+    dka0.0.0.4.0               DKA0           TOSHIBA CD-ROM XM-57  3476
+    dkc0.0.0.1009.0            DKC0                       RZ1BB-BS  0658
+    dkc100.1.0.1009.0          DKC100             SEAGATE ST34501W  0015
+    dva0.0.0.0.1               DVA0
+    ewa0.0.0.3.0               EWA0              00-00-F8-75-6D-01
+    pkc0.7.0.1009.0            PKC0                  SCSI Bus ID 7  5.27
+    pqa0.0.0.4.0               PQA0                       PCI EIDE
+    pqb0.0.1.4.0               PQB0                       PCI EIDE
+</pre>
+
+          <p>This example is from a Digital Personal Workstation
+          433au and shows three disks attached to the machine. The
+          first is a CDROM called <tt class="DEVICENAME">dka0</tt>
+          and the other two are disks and are called <tt class=
+          "DEVICENAME">dkc0</tt> and <tt class=
+          "DEVICENAME">dkc100</tt> repectively.</p>
+
+          <p>You can specify which kernel file to load and what
+          boot options to use with the <tt class=
+          "OPTION">-file</tt> and <tt class="OPTION">-flags</tt>
+          options, for example:</p>
+<pre class="SCREEN">
+    <tt class="PROMPT">&gt;&gt;&gt;</tt> <tt class=
+"USERINPUT"><b>boot -file kernel.old -flags s</b></tt>
+</pre>
+
+          <p>To make FreeBSD/alpha boot automatically, use these
+          commands:</p>
+<pre class="SCREEN">
+    <tt class="PROMPT">&gt;&gt;&gt;</tt> <tt class=
+"USERINPUT"><b>set boot_osflags a</b></tt>
+    <tt class="PROMPT">&gt;&gt;&gt;</tt> <tt class=
+"USERINPUT"><b>set bootdef_dev dkc0</b></tt>
+    <tt class="PROMPT">&gt;&gt;&gt;</tt> <tt class=
+"USERINPUT"><b>set auto_action BOOT</b></tt>
+</pre>
+
+          <div class="SECT3">
+            <hr>
+
+            <h3 class="SECT3"><a name="AEN166">1.5.1 Installing
+            from a Network CDROM</a></h3>
+
+            <p>If you simply wish to install from a local CDROM
+            drive then see <a href="#START-INSTALLATION">Section
+            1.4</a>. If you don't have a CDROM drive on your system
+            and wish to use a FreeBSD distribution CD in the CDROM
+            drive of another system to which you have network
+            connectivity, there are also several ways of going
+            about it:</p>
+
+            <ul>
+              <li>
+                <p>If you would be able to FTP install FreeBSD
+                directly from the CDROM drive in some FreeBSD
+                machine, it's quite easy: You simply add the
+                following line to the password file (using the <a
+                href=
+                "http://www.FreeBSD.org/cgi/man.cgi?query=vipw&amp;sektion=8">
+                <span class="CITEREFENTRY"><span class=
+                "REFENTRYTITLE">vipw</span>(8)</span></a>
+                command):</p>
+<pre class="SCREEN">
+    ftp:*:99:99::0:0:FTP:/cdrom:/sbin/nologin
+</pre>
+
+                <p>On the machine on which you are running the
+                install, go to the Options menu and set Release
+                Name to <tt class="LITERAL">any</tt>. You may then
+                choose a Media type of <tt class="LITERAL">FTP</tt>
+                and type in <tt class="FILENAME">ftp://<tt class=
+                "REPLACEABLE"><i>machine</i></tt></tt> after
+                picking ``URL'' in the ftp sites menu.</p>
+
+                <div class="WARNING">
+                  <blockquote class="WARNING">
+                    <p><b>Warning:</b> This may allow anyone on the
+                    local network (or Internet) to make ``anonymous
+                    FTP'' connections to this machine, which may
+                    not be desirable.</p>
+                  </blockquote>
+                </div>
+              </li>
+
+              <li>
+                <p>If you would rather use NFS to export the CDROM
+                directly to the machine(s) you'll be installing
+                from, you need to first add an entry to the <tt
+                class="FILENAME">/etc/exports</tt> file (on the
+                machine with the CDROM drive). The example below
+                allows the machine <tt class=
+                "HOSTID">ziggy.foo.com</tt> to mount the CDROM
+                directly via NFS during installation:</p>
+<pre class="SCREEN">
+    /cdrom          -ro             ziggy.foo.com
+</pre>
+
+                <p>The machine with the CDROM must also be
+                configured as an NFS server, of course, and if
+                you're not sure how to do that then an NFS
+                installation is probably not the best choice for
+                you unless you're willing to read up on <a href=
+                "http://www.FreeBSD.org/cgi/man.cgi?query=rc.conf&amp;sektion=5">
+                <span class="CITEREFENTRY"><span class=
+                "REFENTRYTITLE">rc.conf</span>(5)</span></a> and
+                configure things appropriately. Assuming that this
+                part goes smoothly, you should be able to enter:
+                <tt class="FILENAME"><tt class=
+                "REPLACEABLE"><i>cdrom-host</i></tt>:/cdrom</tt> as
+                the path for an NFS installation when the target
+                machine is installed, e.g. <tt class=
+                "FILENAME">wiggy:/cdrom</tt>.</p>
+              </li>
+            </ul>
+          </div>
+
+          <div class="SECT3">
+            <hr>
+
+            <h3 class="SECT3"><a name="AEN198">1.5.2 Installing
+            from Floppies</a></h3>
+
+            <p>If you must install from floppy disks, either due to
+            unsupported hardware or just because you enjoy doing
+            things the hard way, you must first prepare some
+            floppies for the install.</p>
+
+            <p>First, make your boot floppies as described in <a
+            href="#FLOPPIES">Section 1.3</a>.</p>
+
+            <p>Second, peruse <a href="#LAYOUT">Section 2</a> and
+            pay special attention to the ``Distribution Format''
+            section since it describes which files you're going to
+            need to put onto floppy and which you can safely
+            skip.</p>
+
+            <p>Next you will need, at minimum, as many 1.44MB
+            floppies as it takes to hold all files in the <tt
+            class="FILENAME">bin</tt> (binary distribution)
+            directory. If you're preparing these floppies under
+            DOS, then these floppies <i class="EMPHASIS">must</i>
+            be formatted using the MS-DOS <tt class=
+            "FILENAME">FORMAT</tt> command. If you're using
+            Windows, use the Windows File Manager format
+            command.</p>
+
+            <div class="IMPORTANT">
+              <blockquote class="IMPORTANT">
+                <p><b>Important:</b> Frequently, floppy disks come
+                ``factory preformatted''. While convenient, many
+                problems reported by users in the past have
+                resulted from the use of improperly formatted
+                media. Re-format them yourself, just to make
+                sure.</p>
+              </blockquote>
+            </div>
+
+            <p>If you're creating the floppies from another FreeBSD
+            machine, a format is still not a bad idea though you
+            don't need to put a DOS filesystem on each floppy. You
+            can use the <a href=
+            "http://www.FreeBSD.org/cgi/man.cgi?query=disklabel&amp;sektion=8">
+            <span class="CITEREFENTRY"><span class=
+            "REFENTRYTITLE">disklabel</span>(8)</span></a> and <a
+            href=
+            "http://www.FreeBSD.org/cgi/man.cgi?query=newfs&amp;sektion=8">
+            <span class="CITEREFENTRY"><span class=
+            "REFENTRYTITLE">newfs</span>(8)</span></a> commands to
+            put a UFS filesystem on a floppy, as the following
+            sequence of commands illustrates:</p>
+<pre class="SCREEN">
+    <tt class="PROMPT">#</tt> <tt class=
+"USERINPUT"><b>fdformat -f 1440 fd0.1440</b></tt>
+    <tt class="PROMPT">#</tt> <tt class=
+"USERINPUT"><b>disklabel -w -r fd0.1440 floppy3</b></tt>
+    <tt class="PROMPT">#</tt> <tt class=
+"USERINPUT"><b>newfs -t 2 -u 18 -l 1 -i 65536 /dev/fd0</b></tt>
+</pre>
+
+            <p>After you've formatted the floppies for DOS or UFS,
+            you'll need to copy the files onto them. The
+            distribution files are split into chunks conveniently
+            sized so that 5 of them will fit on a conventional
+            1.44MB floppy. Go through all your floppies, packing as
+            many files as will fit on each one, until you've got
+            all the distributions you want packed up in this
+            fashion. Each distribution should go into its own
+            subdirectory on the floppy, e.g.: <tt class=
+            "FILENAME">a:\bin\bin.inf</tt>, <tt class=
+            "FILENAME">a:\bin\bin.aa</tt>, <tt class=
+            "FILENAME">a:\bin\bin.ab</tt>, ...</p>
+
+            <div class="IMPORTANT">
+              <blockquote class="IMPORTANT">
+                <p><b>Important:</b> The <tt class=
+                "FILENAME">bin.inf</tt> file also needs to go on
+                the first floppy of the <tt class=
+                "FILENAME">bin</tt> set since it is read by the
+                installation program in order to figure out how
+                many additional pieces to look for when fetching
+                and concatenating the distribution. When putting
+                distributions onto floppies, the <tt class=
+                "FILENAME">distname.inf</tt> file <i class=
+                "EMPHASIS">must</i> occupy the first floppy of each
+                distribution set. This is also covered in <tt
+                class="FILENAME">README.TXT</tt>.</p>
+              </blockquote>
+            </div>
+
+            <p>Once you come to the Media screen of the install,
+            select ``Floppy'' and you'll be prompted for the
+            rest.</p>
+          </div>
+
+          <div class="SECT3">
+            <hr>
+
+            <h3 class="SECT3"><a name="AEN257">1.5.4 Installing
+            from QIC/SCSI Tape</a></h3>
+
+            <p>When installing from tape, the installation program
+            expects the files to be simply tar'ed onto it, so after
+            fetching all of the files for the distributions you're
+            interested in, simply use <a href=
+            "http://www.FreeBSD.org/cgi/man.cgi?query=tar&amp;sektion=1">
+            <span class="CITEREFENTRY"><span class=
+            "REFENTRYTITLE">tar</span>(1)</span></a> to get them
+            onto the tape with a command something like this:</p>
+<pre class="SCREEN">
+    <tt class="PROMPT">#</tt> <tt class="USERINPUT"><b>cd <tt
+class="REPLACEABLE"><i>/where/you/have/your/dists</i></tt></b></tt>
+    <tt class="PROMPT">#</tt> <tt class=
+"USERINPUT"><b>tar cvf /dev/rsa0 <tt class=
+"REPLACEABLE"><i>dist1</i></tt> .. <tt class=
+"REPLACEABLE"><i>dist2</i></tt></b></tt>
+</pre>
+
+            <p>When you go to do the installation, you should also
+            make sure that you leave enough room in some temporary
+            directory (which you'll be allowed to choose) to
+            accommodate the <i class="EMPHASIS">full</i> contents
+            of the tape you've created. Due to the non-random
+            access nature of tapes, this method of installation
+            requires quite a bit of temporary storage. You should
+            expect to require as much temporary storage as you have
+            stuff written on tape.</p>
+
+            <div class="NOTE">
+              <blockquote class="NOTE">
+                <p><b>Note:</b> When going to do the installation,
+                the tape must be in the drive <i class=
+                "EMPHASIS">before</i> booting from the boot
+                floppies. The installation ``probe'' may otherwise
+                fail to find it.</p>
+              </blockquote>
+            </div>
+
+            <p>Now create a boot floppy as described in <a href=
+            "#FLOPPIES">Section 1.3</a> and proceed with the
+            installation.</p>
+          </div>
+
+          <div class="SECT3">
+            <hr>
+
+            <h3 class="SECT3"><a name="FTPNFS">1.5.5 Installing
+            over a Network using FTP or NFS</a></h3>
+
+            <p>After making the boot floppies as described in the
+            first section, you can load the rest of the
+            installation over a network using one of 3 types of
+            connections: serial port, parallel port, or
+            Ethernet.</p>
+
+            <div class="SECT4">
+              <hr>
+
+              <h4 class="SECT4"><a name="AEN282">1.5.5.1 Serial
+              Port</a></h4>
+
+              <p>SLIP support is rather primitive, and is limited
+              primarily to hard-wired links, such as a serial cable
+              running between two computers. The link must be
+              hard-wired because the SLIP installation doesn't
+              currently offer a dialing capability. If you need to
+              dial out with a modem or otherwise dialog with the
+              link before connecting to it, then I recommend that
+              the PPP utility be used instead.</p>
+
+              <p>If you're using PPP, make sure that you have your
+              Internet Service Provider's IP address and DNS
+              information handy as you'll need to know it fairly
+              early in the installation process. You may also need
+              to know your own IP address, though PPP supports
+              dynamic address negotiation and may be able to pick
+              up this information directly from your ISP if they
+              support it.</p>
+
+              <p>You will also need to know how to use the various
+              ``AT commands'' for dialing out with your particular
+              brand of modem as the PPP dialer provides only a very
+              simple terminal emulator.</p>
+            </div>
+
+            <div class="SECT4">
+              <hr>
+
+              <h4 class="SECT4"><a name="AEN288">1.5.5.2 Parallel
+              Port</a></h4>
+
+              <p>If a hard-wired connection to another FreeBSD or
+              Linux machine is available, you might also consider
+              installing over a ``laplink'' style parallel port
+              cable. The data rate over the parallel port is much
+              higher than what is typically possible over a serial
+              line (up to 50k/sec), thus resulting in a quicker
+              installation. It's not typically necessary to use
+              ``real'' IP addresses when using a point-to-point
+              parallel cable in this way and you can generally just
+              use RFC 1918 style addresses for the ends of the link
+              (e.g. <tt class="HOSTID">10.0.0.1</tt>, <tt class=
+              "HOSTID">10.0.0.2</tt>, etc).</p>
+
+              <div class="IMPORTANT">
+                <blockquote class="IMPORTANT">
+                  <p><b>Important:</b> If you use a Linux machine
+                  rather than a FreeBSD machine as your PLIP peer,
+                  you will also have to specify <tt class=
+                  "OPTION">link0</tt> in the TCP/IP setup screen's
+                  ``extra options for ifconfig'' field in order to
+                  be compatible with Linux's slightly different
+                  PLIP protocol.</p>
+                </blockquote>
+              </div>
+            </div>
+
+            <div class="SECT4">
+              <hr>
+
+              <h4 class="SECT4"><a name="AEN299">1.5.5.3
+              Ethernet</a></h4>
+
+              <p>FreeBSD supports many common Ethernet cards; a
+              table of supported cards is provided as part of the
+              FreeBSD Hardware Notes (see <tt class=
+              "FILENAME">HARDWARE.TXT</tt> in the Documentation
+              menu on the boot floppy or the top level directory of
+              the CDROM). If you are using one of the supported
+              PCMCIA Ethernet cards, also be sure that it's plugged
+              in <i class="EMPHASIS">before</i> the laptop is
+              powered on. FreeBSD does not, unfortunately,
+              currently support ``hot insertion'' of PCMCIA cards
+              during installation.</p>
+
+              <p>You will also need to know your IP address on the
+              network, the <tt class="OPTION">netmask</tt> value
+              for your subnet and the name of your machine. Your
+              system administrator can tell you which values are
+              appropriate to your particular network setup. If you
+              will be referring to other hosts by name rather than
+              IP address, you'll also need a name server and
+              possibly the address of a gateway (if you're using
+              PPP, it's your provider's IP address) to use in
+              talking to it. If you want to install by FTP via an
+              HTTP proxy (see below), you will also need the
+              proxy's address.</p>
+
+              <p>If you do not know the answers to these questions
+              then you should really probably talk to your system
+              administrator <i class="EMPHASIS">first</i> before
+              trying this type of installation. Using a randomly
+              chosen IP address or netmask on a live network is
+              almost guaranteed not to work, and will probably
+              result in a lecture from said system
+              administrator.</p>
+
+              <p>Once you have a network connection of some sort
+              working, the installation can continue over NFS or
+              FTP.</p>
+            </div>
+
+            <div class="SECT4">
+              <hr>
+
+              <h4 class="SECT4"><a name="AEN310">1.5.5.4 NFS
+              installation tips</a></h4>
+
+              <p>NFS installation is fairly straight-forward:
+              Simply copy the FreeBSD distribution files you want
+              onto a server somewhere and then point the NFS media
+              selection at it.</p>
+
+              <p>If this server supports only ``privileged port''
+              access (this is generally the default for Sun and
+              Linux workstations), you will need to set this option
+              in the Options menu before installation can
+              proceed.</p>
+
+              <p>If you have a poor quality Ethernet card which
+              suffers from very slow transfer rates, you may also
+              wish to toggle the appropriate Options flag.</p>
+
+              <p>In order for NFS installation to work, the server
+              must also support ``subdir mounts'', e.g. if your
+              FreeBSD distribution directory lives on <tt class=
+              "FILENAME">wiggy:/usr/archive/stuff/FreeBSD</tt>,
+              then <tt class="HOSTID">wiggy</tt> will have to allow
+              the direct mounting of <tt class=
+              "FILENAME">/usr/archive/stuff/FreeBSD</tt>, not just
+              <tt class="FILENAME">/usr</tt> or <tt class=
+              "FILENAME">/usr/archive/stuff</tt>.</p>
+
+              <p>In FreeBSD's <tt class=
+              "FILENAME">/etc/exports</tt> file this is controlled
+              by the <tt class="OPTION">-alldirs</tt> option. Other
+              NFS servers may have different conventions. If you
+              are getting <tt class="LITERAL">Permission
+              Denied</tt> messages from the server then it's likely
+              that you don't have this properly enabled.</p>
+            </div>
+
+            <div class="SECT4">
+              <hr>
+
+              <h4 class="SECT4"><a name="AEN327">1.5.5.5 FTP
+              Installation tips</a></h4>
+
+              <p>FTP installation may be done from any mirror site
+              containing a reasonably up-to-date version of
+              FreeBSD. A full menu of reasonable choices for almost
+              any location in the world is provided in the FTP site
+              menu during installation.</p>
+
+              <p>If you are installing from some other FTP site not
+              listed in this menu, or you are having troubles
+              getting your name server configured properly, you can
+              also specify your own URL by selecting the ``URL''
+              choice in that menu. A URL can contain a hostname or
+              an IP address, so something like the following would
+              work in the absence of a name server:</p>
+<pre class="SCREEN">
+    ftp://216.66.64.162/pub/FreeBSD/releases/alpha/4.2-RELEASE
+</pre>
+
+              <p>There are three FTP installation modes you can
+              use:</p>
+
+              <ul>
+                <li>
+                  <p>FTP: This method uses the standard ``Active''
+                  mode for transfers, in which the server initiates
+                  a connection to the client. This will not work
+                  through most firewalls but will often work best
+                  with older FTP servers that do not support
+                  passive mode. If your connection hangs with
+                  passive mode, try this one.</p>
+                </li>
+
+                <li>
+                  <p>FTP Passive: This sets the FTP "Passive" mode
+                  which prevents the server from opening
+                  connections to the client. This option is best
+                  for users to pass through firewalls that do not
+                  allow incoming connections on random port
+                  addresses.</p>
+                </li>
+
+                <li>
+                  <p>FTP via an HTTP proxy: This option instructs
+                  FreeBSD to use HTTP to connect to a proxy for all
+                  FTP operations. The proxy will translate the
+                  requests and send them to the FTP server. This
+                  allows the user to pass through firewalls that do
+                  not allow FTP at all, but offer an HTTP proxy.
+                  You must specify the hostname of the proxy in
+                  addition to the FTP server.</p>
+
+                  <p>In the rare case that you have an FTP proxy
+                  that does not go through HTTP, you can specify
+                  the URL as something like:</p>
+<pre class="SCREEN">
+    <tt class="USERINPUT"><b>ftp://foo.bar.com:<tt class=
+"REPLACEABLE"><i>port</i></tt>/pub/FreeBSD</b></tt>
+</pre>
+
+                  <p>In the URL above, <tt class=
+                  "REPLACEABLE"><i>port</i></tt> is the port number
+                  of the proxy FTP server.</p>
+                </li>
+              </ul>
+              <br>
+              <br>
+            </div>
+          </div>
+
+          <div class="SECT3">
+            <hr>
+
+            <h3 class="SECT3"><a name="AEN348">1.5.6 Tips for
+            Serial Console Users</a></h3>
+
+            <p>If you'd like to install FreeBSD on a machine using
+            just a serial port (e.g. you don't have or wish to use
+            a VGA card), please follow these steps:</p>
+
+            <div class="PROCEDURE">
+              <ol type="1">
+                <li>
+                  <p>Connect some sort of ANSI (vt100) compatible
+                  terminal or terminal emulation program to the <tt
+                  class="DEVICENAME">COM1</tt> port of the PC you
+                  are installing FreeBSD onto.</p>
+                </li>
+
+                <li>
+                  <p>Unplug the keyboard (yes, that's correct!) and
+                  then try to boot from floppy or the installation
+                  CDROM, depending on the type of installation
+                  media you have, with the keyboard unplugged.</p>
+                </li>
+
+                <li>
+                  <p>If you don't get any output on your serial
+                  console, plug the keyboard in again and wait for
+                  some beeps. If you are booting from the CDROM,
+                  proceed to <a href="#HITSPACE">step 5</a> as soon
+                  as you hear the beep.</p>
+                </li>
+
+                <li>
+                  <p>For a floppy boot, the first beep means to
+                  remove the <tt class="FILENAME">kern.flp</tt>
+                  floppy and insert the <tt class=
+                  "FILENAME">mfsroot.flp</tt> floppy, after which
+                  you should press <b class="KEYCAP">Enter</b> and
+                  wait for another beep.</p>
+                </li>
+
+                <li>
+                  <a name="HITSPACE"></a>
+
+                  <p>Hit the space bar, then enter</p>
+<pre class="SCREEN">
+    <tt class="USERINPUT"><b>boot -h</b></tt>
+</pre>
+
+                  <p>and you should now definitely be seeing
+                  everything on the serial port. If that still
+                  doesn't work, check your serial cabling as well
+                  as the settings on your terminal emulation
+                  program or actual terminal device. It should be
+                  set for 9600 baud, 8 bits, no parity.</p>
+                </li>
+              </ol>
+            </div>
+          </div>
+        </div>
+
+        <div class="SECT2">
+          <hr>
+
+          <h2 class="SECT2"><a name="AEN370">1.6 Question and
+          Answer Section for alpha Architecture Users</a></h2>
+
+          <div class="QANDASET">
+            <dl>
+              <dt>1.6.1. <a href="#Q1.6.1.">Can I boot from the ARC
+              or Alpha BIOS Console?</a></dt>
+
+              <dt>1.6.2. <a href="#Q1.6.2.">Help! I have no space!
+              Do I need to delete everything first?</a></dt>
+
+              <dt>1.6.3. <a href="#Q1.6.3.">Can I mount my Compaq
+              Tru64 or VMS extended partitions?</a></dt>
+
+              <dt>1.6.4. <a href="#Q1.6.4.">What about support for
+              Compaq Tru64 (OSF/1) binaries?</a></dt>
+
+              <dt>1.6.5. <a href="#Q1.6.5.">What about support for
+              Linux binaries?</a></dt>
+
+              <dt>1.6.6. <a href="#Q1.6.6.">What about support for
+              NT Alpha binaries?</a></dt>
+            </dl>
+
+            <div class="QANDAENTRY">
+              <div class="QUESTION">
+                <p><a name="Q1.6.1."></a><b>1.6.1.</b> Can I boot
+                from the ARC or Alpha BIOS Console?</p>
+              </div>
+
+              <div class="ANSWER">
+                <p><b></b>No. FreeBSD, like Compaq Tru64 and VMS,
+                will only boot from the SRM console.</p>
+              </div>
+            </div>
+
+            <div class="QANDAENTRY">
+              <div class="QUESTION">
+                <p><a name="Q1.6.2."></a><b>1.6.2.</b> Help! I have
+                no space! Do I need to delete everything first?</p>
+              </div>
+
+              <div class="ANSWER">
+                <p><b></b>Unfortunately, yes.</p>
+              </div>
+            </div>
+
+            <div class="QANDAENTRY">
+              <div class="QUESTION">
+                <p><a name="Q1.6.3."></a><b>1.6.3.</b> Can I mount
+                my Compaq Tru64 or VMS extended partitions?</p>
+              </div>
+
+              <div class="ANSWER">
+                <p><b></b>No, not at this time.</p>
+              </div>
+            </div>
+
+            <div class="QANDAENTRY">
+              <div class="QUESTION">
+                <p><a name="Q1.6.4."></a><b>1.6.4.</b> What about
+                support for Compaq Tru64 (OSF/1) binaries?</p>
+              </div>
+
+              <div class="ANSWER">
+                <p><b></b>FreeBSD can run Tru64 applications very
+                well using the <a href=
+                "http://www.FreeBSD.org/cgi/url.cgi?ports/emulators/osf1_base/pkg-descr">
+                <tt class="PORT">emulators/osf1_base</tt></a>
+                port/package.</p>
+              </div>
+            </div>
+
+            <div class="QANDAENTRY">
+              <div class="QUESTION">
+                <p><a name="Q1.6.5."></a><b>1.6.5.</b> What about
+                support for Linux binaries?</p>
+              </div>
+
+              <div class="ANSWER">
+                <p><b></b>FreeBSD can run AlphaLinux binaries with
+                the assistance of the <a href=
+                "http://www.FreeBSD.org/cgi/url.cgi?ports/emulators/linux_base/pkg-descr">
+                <tt class="PORT">emulators/linux_base</tt></a>
+                port/package.</p>
+              </div>
+            </div>
+
+            <div class="QANDAENTRY">
+              <div class="QUESTION">
+                <p><a name="Q1.6.6."></a><b>1.6.6.</b> What about
+                support for NT Alpha binaries?</p>
+              </div>
+
+              <div class="ANSWER">
+                <p><b></b>FreeBSD is not able to run NT
+                applications natively, although it has the ability
+                to mount NT partitions.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="SECT1">
+        <hr>
+
+        <h1 class="SECT1"><a name="LAYOUT">2 Distribution
+        Format</a></h1>
+
+        <p>A typical FreeBSD distribution directory looks something
+        like this:</p>
+<pre class="SCREEN">
+    ERRATA.HTM      README.TXT      compat1x        dict            manpages
+    ERRATA.TXT      RELNOTES.HTM    compat20        doc             packages
+    HARDWARE.HTM    RELNOTES.TXT    compat21        docbook.css     ports
+    HARDWARE.TXT    XF86336         compat22        floppies        proflibs
+    INSTALL.HTM     bin             compat3x        games           src
+    INSTALL.TXT     catpages        compat4x        info            tools
+    README.HTM      cdrom.inf       crypto          kernel
+</pre>
+
+        <p>If you want to do a CDROM, FTP or NFS installation from
+        this distribution directory, all you need to do is make the
+        1.44MB boot floppies from the floppies directory (see <a
+        href="#FLOPPIES">Section 1.3</a> for instructions on how to
+        do this), boot them and follow the instructions. The rest
+        of the data needed during the installation will be obtained
+        automatically based on your selections. If you've never
+        installed FreeBSD before, you also want to read the
+        entirety of this document (the installation instructions)
+        file.</p>
+
+        <p>If you're trying to do some other type of installation
+        or are merely curious about how a distribution is
+        organized, what follows is a more thorough description of
+        each item in more detail:</p>
+
+        <ol type="1">
+          <li>
+            <p>The <tt class="FILENAME">*.TXT</tt> and <tt class=
+            "FILENAME">*.HTM</tt> files contain documentation (for
+            example, this document is contained in both <tt class=
+            "FILENAME">INSTALL.TXT</tt> and <tt class=
+            "FILENAME">INSTALL.HTM</tt>) and should be read before
+            starting an installation. The <tt class=
+            "FILENAME">*.TXT</tt> files are plain text, while the
+            <tt class="FILENAME">*.HTM</tt> files are HTML files
+            that can be read by almost any Web browser. Some
+            distributions may contain documentation in other
+            formats as well, such as PDF or PostScript.</p>
+          </li>
+
+          <li>
+            <p><tt class="FILENAME">docbook.css</tt> is a Cascading
+            Style Sheet (CSS) file used by some Web browsers for
+            formatting the HTML documentation.</p>
+          </li>
+
+          <li>
+            <p>The <tt class="FILENAME">XF86336</tt> directory
+            contains the XFree86 project's 3.3.6 release and
+            consists of a series of gzip'd tar files which contain
+            each component of the XFree86 distribution.</p>
+          </li>
+
+          <li>
+            <p>The <tt class="FILENAME">bin</tt>, <tt class=
+            "FILENAME">catpages</tt>, <tt class=
+            "FILENAME">crypto</tt>, <tt class="FILENAME">dict</tt>,
+            <tt class="FILENAME">doc</tt>, <tt class=
+            "FILENAME">games</tt>, <tt class="FILENAME">info</tt>,
+            <tt class="FILENAME">manpages</tt>, <tt class=
+            "FILENAME">proflibs</tt>, and <tt class=
+            "FILENAME">src</tt> directories contain the primary
+            distribution components of FreeBSD itself and are split
+            into smaller files for easy packing onto floppies
+            (should that be necessary).</p>
+          </li>
+
+          <li>
+            <p>The <tt class="FILENAME">compat1x</tt>, <tt class=
+            "FILENAME">compat20</tt>, <tt class=
+            "FILENAME">compat21</tt>, <tt class=
+            "FILENAME">compat22</tt>, <tt class=
+            "FILENAME">compat3x</tt>, and <tt class=
+            "FILENAME">compat4x</tt> directories contain
+            distributions for compatibility with older releases and
+            are distributed as single gzip'd tar files - they can
+            be installed during release time or later by running
+            their <tt class="FILENAME">install.sh</tt> scripts.</p>
+          </li>
+
+          <li>
+            <p>The <tt class="FILENAME">floppies/</tt> subdirectory
+            contains the floppy installation images; further
+            information on using them can be found in <a href=
+            "#FLOPPIES">Section 1.3</a>.</p>
+          </li>
+
+          <li>
+            <p>The <tt class="FILENAME">packages</tt> and <tt
+            class="FILENAME">ports</tt> directories contain the
+            FreeBSD Packages and Ports Collections. Packages may be
+            installed from the packages directory by running the
+            command:</p>
+<pre class="SCREEN">
+    <tt class="PROMPT">#</tt><tt class=
+"USERINPUT"><b>/stand/sysinstall configPackages</b></tt>
+</pre>
+
+            <p>Packages can also be installed by feeding individual
+            filenames in <tt class="FILENAME">packages</tt>/ to the
+            <a href=
+            "http://www.FreeBSD.org/cgi/man.cgi?query=pkg_add&amp;sektion=1">
+            <span class="CITEREFENTRY"><span class=
+            "REFENTRYTITLE">pkg_add</span>(1)</span></a>
+            command.</p>
+
+            <p>The Ports Collection may be installed like any other
+            distribution and requires about 100MB unpacked. More
+            information on the ports collection may be obtained
+            from <a href="http://www.FreeBSD.org/ports/" target=
+            "_top">http://www.FreeBSD.org/ports/</a> or locally
+            from <tt class="FILENAME">/usr/share/doc/handbook</tt>
+            if you've installed the <tt class="FILENAME">doc</tt>
+            distribution.</p>
+          </li>
+
+          <li>
+            <p>Last of all, the <tt class="FILENAME">tools</tt>
+            directory contains various DOS tools for discovering
+            disk geometries, installing boot managers and the like.
+            It is purely optional and provided only for user
+            convenience.</p>
+          </li>
+        </ol>
+        <br>
+        <br>
+
+        <p>A typical distribution directory (for example, the <tt
+        class="FILENAME">info</tt> distribution) looks like this
+        internally:</p>
+<pre class="SCREEN">
+    CHECKSUM.MD5    info.ab         info.ad         info.inf        install.sh
+    info.aa         info.ac         info.ae         info.mtree
+</pre>
+
+        <p>The <tt class="FILENAME">CHECKSUM.MD5</tt> file contains
+        MD5 signatures for each file, should data corruption be
+        suspected, and is purely for reference. It is not used by
+        the actual installation and does not need to be copied with
+        the rest of the distribution files. The <tt class=
+        "FILENAME">info.a*</tt> files are split, gzip'd tar files,
+        the contents of which can be viewed by doing:</p>
+<pre class="SCREEN">
+    <tt class="PROMPT">#</tt> <tt class=
+"USERINPUT"><b>cat info.a* | tar tvzf -</b></tt>
+</pre>
+
+        <p>During installation, they are automatically concatenated
+        and extracted by the installation procedure.</p>
+
+        <p>The <tt class="FILENAME">info.inf</tt> file is also
+        necessary since it is read by the installation program in
+        order to figure out how many pieces to look for when
+        fetching and concatenating the distribution. When putting
+        distributions onto floppies, the <tt class=
+        "FILENAME">.inf</tt> file <i class="EMPHASIS">must</i>
+        occupy the first floppy of each distribution set!</p>
+
+        <p>The <tt class="FILENAME">info.mtree</tt> file is another
+        non-essential file which is provided for user reference. It
+        contains the MD5 signatures of the <i class=
+        "EMPHASIS">unpacked</i> distribution files and can be later
+        used with the <a href=
+        "http://www.FreeBSD.org/cgi/man.cgi?query=mtree&amp;sektion=8">
+        <span class="CITEREFENTRY"><span class=
+        "REFENTRYTITLE">mtree</span>(8)</span></a> program to
+        verify the installation permissions and checksums against
+        any possible modifications to the file. When used with the
+        <tt class="FILENAME">bin</tt> distribution, this can be an
+        excellent way of detecting trojan horse attacks on your
+        system.</p>
+
+        <p>Finally, the <tt class="FILENAME">install.sh</tt> file
+        is for use by those who want to install the distribution
+        after installation time. To install the info distribution
+        from CDROM after a system was installed, for example, you'd
+        do:</p>
+<pre class="SCREEN">
+    <tt class="PROMPT">#</tt> <tt class=
+"USERINPUT"><b>cd /cdrom/info</b></tt>
+    <tt class="PROMPT">#</tt> <tt class=
+"USERINPUT"><b>sh install.sh</b></tt>
+</pre>
+      </div>
+
+      <div class="SECT1">
+        <hr>
+
+        <h1 class="SECT1"><a name="UPGRADING">3 Upgrading
+        FreeBSD</a></h1>
+
+        <p>These instructions describe a procedure for doing a
+        binary upgrade from an older version of FreeBSD.</p>
+
+        <div class="WARNING">
+          <blockquote class="WARNING">
+            <p><b>Warning:</b> While the FreeBSD upgrade procedure
+            does its best to safeguard against accidental loss of
+            data, it is still more than possible to <i class=
+            "EMPHASIS">wipe out your entire disk</i> with this
+            installation! Please do not accept the final
+            confirmation request unless you have adequately backed
+            up any important data files.</p>
+          </blockquote>
+        </div>
+
+        <div class="IMPORTANT">
+          <blockquote class="IMPORTANT">
+            <p><b>Important:</b> These notes assume that you are
+            using the version of <a href=
+            "http://www.FreeBSD.org/cgi/man.cgi?query=sysinstall&amp;sektion=8">
+            <span class="CITEREFENTRY"><span class=
+            "REFENTRYTITLE">sysinstall</span>(8)</span></a>
+            supplied with the version of FreeBSD to which you
+            intend to upgrade. Using a mismatched version of <a
+            href=
+            "http://www.FreeBSD.org/cgi/man.cgi?query=sysinstall&amp;sektion=8">
+            <span class="CITEREFENTRY"><span class=
+            "REFENTRYTITLE">sysinstall</span>(8)</span></a> is
+            almost guaranteed to cause problems and has been known
+            to leave systems in an unusable state. The most
+            commonly made mistake in this regard is the use of an
+            old copy of <a href=
+            "http://www.FreeBSD.org/cgi/man.cgi?query=sysinstall&amp;sektion=8">
+            <span class="CITEREFENTRY"><span class=
+            "REFENTRYTITLE">sysinstall</span>(8)</span></a> from an
+            existing installation to upgrade to a newer version of
+            FreeBSD. This is <i class="EMPHASIS">not</i>
+            recommended.</p>
+          </blockquote>
+        </div>
+
+        <div class="SECT2">
+          <hr>
+
+          <h2 class="SECT2"><a name="AEN569">3.1
+          Introduction</a></h2>
+
+          <p>The upgrade procedure replaces distributions selected
+          by the user with those corresponding to the new FreeBSD
+          release. It preserves standard system configuration data,
+          as well as user data, installed packages and other
+          software.</p>
+
+          <p>Administrators contemplating an upgrade are encouraged
+          to study this section in its entirety before commencing
+          an upgrade. Failure to do so may result in a failed
+          upgrade or loss of data.</p>
+
+          <div class="SECT3">
+            <hr>
+
+            <h3 class="SECT3"><a name="AEN573">3.1.1 Upgrade
+            Overview</a></h3>
+
+            <p>Upgrading of a distribution is performed by
+            extracting the new version of the component over the
+            top of the previous version. Files belonging to the old
+            distribution are not deleted.</p>
+
+            <p>System configuration is preserved by retaining and
+            restoring the previous version of the following
+            files:</p>
+
+            <p><tt class="FILENAME">Xaccel.ini</tt>, <tt class=
+            "FILENAME">XF86Config</tt>, <tt class=
+            "FILENAME">adduser.conf</tt>, <tt class=
+            "FILENAME">aliases</tt>, <tt class=
+            "FILENAME">aliases.db</tt>, <tt class=
+            "FILENAME">amd.map</tt>, <tt class=
+            "FILENAME">crontab</tt>, <tt class=
+            "FILENAME">csh.cshrc</tt>, <tt class=
+            "FILENAME">csh.login</tt>, <tt class=
+            "FILENAME">csh.logout</tt>, <tt class=
+            "FILENAME">cvsupfile</tt>, <tt class=
+            "FILENAME">dhclient.conf</tt>, <tt class=
+            "FILENAME">disktab</tt>, <tt class=
+            "FILENAME">dm.conf</tt>, <tt class=
+            "FILENAME">dumpdates</tt>, <tt class=
+            "FILENAME">exports</tt>, <tt class=
+            "FILENAME">fbtab</tt>, <tt class="FILENAME">fstab</tt>,
+            <tt class="FILENAME">ftpusers</tt>, <tt class=
+            "FILENAME">gettytab</tt>, <tt class=
+            "FILENAME">gnats</tt>, <tt class="FILENAME">group</tt>,
+            <tt class="FILENAME">hosts</tt>, <tt class=
+            "FILENAME">host.conf</tt>, <tt class=
+            "FILENAME">hosts.allow</tt>, <tt class=
+            "FILENAME">hosts.equiv</tt>, <tt class=
+            "FILENAME">hosts.lpd</tt>, <tt class=
+            "FILENAME">inetd.conf</tt>, <tt class=
+            "FILENAME">kerberosIV</tt>, <tt class=
+            "FILENAME">localtime</tt>, <tt class=
+            "FILENAME">login.access</tt>, <tt class=
+            "FILENAME">login.conf</tt>, <tt class=
+            "FILENAME">mail</tt>, <tt class=
+            "FILENAME">mail.rc</tt>, <tt class=
+            "FILENAME">make.conf</tt>, <tt class=
+            "FILENAME">manpath.config</tt>, <tt class=
+            "FILENAME">master.passwd</tt>, <tt class=
+            "FILENAME">modems</tt>, <tt class="FILENAME">motd</tt>,
+            <tt class="FILENAME">namedb</tt>, <tt class=
+            "FILENAME">networks</tt>, <tt class=
+            "FILENAME">newsyslog.conf</tt>, <tt class=
+            "FILENAME">pam.conf</tt>, <tt class=
+            "FILENAME">passwd</tt>, <tt class=
+            "FILENAME">periodic</tt>, <tt class=
+            "FILENAME">ppp</tt>, <tt class=
+            "FILENAME">printcap</tt>, <tt class=
+            "FILENAME">profile</tt>, <tt class=
+            "FILENAME">pwd.db</tt>, <tt class=
+            "FILENAME">rc.conf</tt>, <tt class=
+            "FILENAME">rc.conf.local</tt>, <tt class=
+            "FILENAME">rc.firewall</tt>, <tt class=
+            "FILENAME">rc.local</tt>, <tt class=
+            "FILENAME">remote</tt>, <tt class=
+            "FILENAME">resolv.conf</tt>, <tt class=
+            "FILENAME">rmt</tt>, <tt class=
+            "FILENAME">sendmail.cf</tt>, <tt class=
+            "FILENAME">sendmail.cw</tt>, <tt class=
+            "FILENAME">services</tt>, <tt class=
+            "FILENAME">shells</tt>, <tt class=
+            "FILENAME">skeykeys</tt>, <tt class=
+            "FILENAME">spwd.db</tt>, <tt class="FILENAME">ssh</tt>,
+            <tt class="FILENAME">syslog.conf</tt>, <tt class=
+            "FILENAME">ttys</tt>, <tt class=
+            "FILENAME">uucp</tt></p>
+
+            <p>The versions of these files which correspond to the
+            new version are moved to <tt class=
+            "FILENAME">/etc/upgrade/</tt>. The system administrator
+            may peruse these new versions and merge components as
+            desired. Note that many of these files are
+            interdependent, and the best merge procedure is to copy
+            all site-specific data from the current files into the
+            new.</p>
+
+            <p>During the upgrade procedure, the administrator is
+            prompted for a location into which all files from <tt
+            class="FILENAME">/etc/</tt> are saved. In the event
+            that local modifications have been made to other files,
+            they may be subsequently retrieved from this
+            location.</p>
+          </div>
+        </div>
+
+        <div class="SECT2">
+          <hr>
+
+          <h2 class="SECT2"><a name="AEN648">3.2 Procedure</a></h2>
+
+          <p>This section details the upgrade procedure. Particular
+          attention is given to items which substantially differ
+          from a normal installation.</p>
+
+          <div class="SECT3">
+            <hr>
+
+            <h3 class="SECT3"><a name="AEN651">3.2.1
+            Backup</a></h3>
+
+            <p>User data and system configuration should be backed
+            up before upgrading. While the upgrade procedure does
+            its best to prevent accidental mistakes, it is possible
+            to partially or completely destroy data and
+            configuration information.</p>
+          </div>
+
+          <div class="SECT3">
+            <hr>
+
+            <h3 class="SECT3"><a name="AEN654">3.2.2 Mount
+            Filesystems</a></h3>
+
+            <p>The disklabel editor is entered with the nominated
+            disk's filesystem devices listed. Prior to commencing
+            the upgrade, the administrator should make a note of
+            the device names and corresponding mountpoints. These
+            mountpoints should be entered here. <i class=
+            "EMPHASIS">Do not</i>set the ``newfs flag'' for any
+            filesystems, as this will cause data loss.</p>
+          </div>
+
+          <div class="SECT3">
+            <hr>
+
+            <h3 class="SECT3"><a name="AEN659">3.2.3 Select
+            Distributions</a></h3>
+
+            <p>When selecting distributions, there are no
+            constraints on which must be selected. As a general
+            rule, the <tt class="LITERAL">bin</tt> distribution
+            should be selected for an update, and the <tt class=
+            "LITERAL">man</tt> distribution if manpages are already
+            installed. Other distributions may be selected beyond
+            those originally installed if the administrator wishes
+            to add additional functionality.</p>
+          </div>
+
+          <div class="SECT3">
+            <hr>
+
+            <h3 class="SECT3"><a name="FSTAB">3.2.4 After
+            Installation</a></h3>
+
+            <p>Once the installation procedure has completed, the
+            administrator is prompted to examine the new
+            configuration files. At this point, checks should be
+            made to ensure that the system configuration is valid.
+            In particular, the <tt class=
+            "FILENAME">/etc/rc.conf</tt> and <tt class=
+            "FILENAME">/etc/fstab</tt> files should be checked.</p>
+          </div>
+        </div>
+
+        <div class="SECT2">
+          <hr>
+
+          <h2 class="SECT2"><a name="AEN669">3.3 Alternative
+          Upgrade Techniques</a></h2>
+
+          <p>Those interested in an upgrade method that allows more
+          flexibility and sophistication should take a look at the
+          ``Upgrading FreeBSD from source'' tutorial found at
+          http://www.FreeBSD.org/docs.html. This method requires
+          reliable network connectivity, extra disk space and spare
+          time, but has advantages for networks and other more
+          complex installations.</p>
+        </div>
+      </div>
+
+      <div class="SECT1">
+        <hr>
+
+        <h1 class="SECT1"><a name="TROUBLE">4
+        Troubleshooting</a></h1>
+
+        <div class="SECT2">
+          <h2 class="SECT2"><a name="REPAIRING">4.1 Repairing an
+          Existing FreeBSD Installation</a></h2>
+
+          <p>FreeBSD features a ``Fixit'' option in the top menu of
+          the boot floppy. To use it, you will also need either a
+          <tt class="FILENAME">fixit.flp</tt> image floppy,
+          generated in the same fashion as the boot floppy, or the
+          ``live filesystem'' CDROM; typically the second CDROM in
+          a multi-disc FreeBSD distribution.</p>
+
+          <p>To invoke fixit, simply boot the <tt class=
+          "FILENAME">kern.flp</tt> floppy, choose the ``Fixit''
+          item and insert the fixit floppy or CDROM when asked. You
+          will then be placed into a shell with a wide variety of
+          commands available (in the <tt class=
+          "FILENAME">/stand</tt> and <tt class=
+          "FILENAME">/mnt2/stand</tt> directories) for checking,
+          repairing and examining file systems and their contents.
+          Some UNIX administration experience <i class=
+          "EMPHASIS">is</i> required to use the fixit option.</p>
+        </div>
+
+        <div class="SECT2">
+          <hr>
+
+          <h2 class="SECT2"><a name="AEN687">4.2 Common
+          Installation Problems, Q&amp;A</a></h2>
+
+          <div class="QANDASET">
+            <dl>
+              <dt>4.2.1. <a href="#Q4.2.1.">I go to boot from the
+              hard disk for the first time after installing
+              FreeBSD, the kernel loads and probes my hardware, but
+              stops with messages like:</a></dt>
+
+              <dt>4.2.2. <a href="#Q4.2.2.">I go to boot from the
+              hard disk for the first time after installing
+              FreeBSD, but the Boot Manager prompt just prints <tt
+              class="LITERAL">F?</tt> at the boot menu each time
+              but the boot won't go any further.</a></dt>
+            </dl>
+
+            <div class="QANDAENTRY">
+              <div class="QUESTION">
+                <p><a name="Q4.2.1."></a><b>4.2.1.</b> I go to boot
+                from the hard disk for the first time after
+                installing FreeBSD, the kernel loads and probes my
+                hardware, but stops with messages like:</p>
+<pre class="SCREEN">
+    changing root device to wd1s1a panic: cannot mount root
+</pre>
+
+                <p>What is wrong? What can I do?</p>
+
+                <p>What is this <tt class=
+                "LITERAL">bios_drive:interface(unit,partition)kernel_name</tt>
+                thing that is displayed with the boot help?</p>
+              </div>
+
+              <div class="ANSWER">
+                <p><b></b>There is a longstanding problem in the
+                case where the boot disk is not the first disk in
+                the system. The BIOS uses a different numbering
+                scheme to FreeBSD, and working out which numbers
+                correspond to which is difficult to get right.</p>
+
+                <p>In the case where the boot disk is not the first
+                disk in the system, FreeBSD can need some help
+                finding it. There are two common situations here,
+                and in both of these cases, you need to tell
+                FreeBSD where the root filesystem is. You do this
+                by specifying the BIOS disk number, the disk type
+                and the FreeBSD disk number for that type.</p>
+
+                <p>The first situation is where you have two IDE
+                disks, each configured as the master on their
+                respective IDE busses, and wish to boot FreeBSD
+                from the second disk. The BIOS sees these as disk 0
+                and disk 1, while FreeBSD sees them as <tt class=
+                "DEVICENAME">wd0</tt> and <tt class=
+                "DEVICENAME">wd2</tt>.</p>
+
+                <p>FreeBSD is on BIOS disk 1, of type <tt class=
+                "LITERAL">wd</tt> and the FreeBSD disk number is 2,
+                so you would say:</p>
+<pre class="SCREEN">
+    <tt class="USERINPUT"><b>1:wd(2,a)kernel</b></tt>
+</pre>
+
+                <p>Note that if you have a slave on the primary
+                bus, the above is not necessary (and is effectively
+                wrong).</p>
+
+                <p>The second situation involves booting from a
+                SCSI disk when you have one or more IDE disks in
+                the system. In this case, the FreeBSD disk number
+                is lower than the BIOS disk number. If you have two
+                IDE disks as well as the SCSI disk, the SCSI disk
+                is BIOS disk 2, type <tt class="LITERAL">da</tt>
+                and FreeBSD disk number 0, so you would say:</p>
+<pre class="SCREEN">
+    <tt class="USERINPUT"><b>2:da(0,a)kernel</b></tt>
+</pre>
+
+                <p>To tell FreeBSD that you want to boot from BIOS
+                disk 2, which is the first SCSI disk in the system.
+                If you only had one IDE disk, you would use '1:'
+                instead.</p>
+
+                <p>Once you have determined the correct values to
+                use, you can put the command exactly as you would
+                have typed it in the <tt class=
+                "FILENAME">/boot.config</tt> file using a standard
+                text editor. Unless instructed otherwise, FreeBSD
+                will use the contents of this file as the default
+                response to the <tt class="LITERAL">boot:</tt>
+                prompt.</p>
+              </div>
+            </div>
+
+            <div class="QANDAENTRY">
+              <div class="QUESTION">
+                <p><a name="Q4.2.2."></a><b>4.2.2.</b> I go to boot
+                from the hard disk for the first time after
+                installing FreeBSD, but the Boot Manager prompt
+                just prints <tt class="LITERAL">F?</tt> at the boot
+                menu each time but the boot won't go any
+                further.</p>
+              </div>
+
+              <div class="ANSWER">
+                <p><b></b>The hard disk geometry was set
+                incorrectly in the Partition editor when you
+                installed FreeBSD. Go back into the partition
+                editor and specify the actual geometry of your hard
+                disk. You must reinstall FreeBSD again from the
+                beginning with the correct geometry.</p>
+
+                <p>If you are failing entirely in figuring out the
+                correct geometry for your machine, here's a tip:
+                Install a small DOS partition at the beginning of
+                the disk and install FreeBSD after that. The
+                install program will see the DOS partition and try
+                to infer the correct geometry from it, which
+                usually works.</p>
+
+                <p>The following tip is no longer recommended, but
+                is left here for reference:</p>
+                <a name="AEN724"></a>
+
+                <blockquote class="BLOCKQUOTE">
+                  <p>If you are setting up a truly dedicated
+                  FreeBSD server or workstation where you don't
+                  care for (future) compatibility with DOS, Linux
+                  or another operating system, you've also got the
+                  option to use the entire disk (`A' in the
+                  partition editor), selecting the non-standard
+                  option where FreeBSD occupies the entire disk
+                  from the very first to the very last sector. This
+                  will leave all geometry considerations aside, but
+                  is somewhat limiting unless you're never going to
+                  run anything other than FreeBSD on a disk.</p>
+                </blockquote>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="SECT2">
+          <hr>
+
+          <h2 class="SECT2"><a name="AEN726">4.3 Known Hardware
+          Problems, Q&amp;A</a></h2>
+
+          <div class="NOTE">
+            <blockquote class="NOTE">
+              <p><b>Note:</b> Please send hardware tips for this
+              section to Jordan K. Hubbard <tt class="EMAIL">&lt;<a
+              href=
+              "mailto:jkh@FreeBSD.org">jkh@FreeBSD.org</a>&gt;</tt>.</p>
+            </blockquote>
+          </div>
+
+          <div class="QANDASET">
+            <dl>
+              <dt>4.3.1. <a href="#Q4.3.1.">The <span class=
+              "CITEREFENTRY"><span class=
+              "REFENTRYTITLE">mcd</span>(4)</span> driver keeps
+              thinking that it has found a device and this stops my
+              Intel EtherExpress card from working.</a></dt>
+
+              <dt>4.3.2. <a href="#Q4.3.2.">FreeBSD claims to
+              support the 3Com PCMCIA card, but my card isn't
+              recognized when it's plugged into my laptop.</a></dt>
+
+              <dt>4.3.3. <a href="#Q4.3.3.">FreeBSD finds my PCMCIA
+              network card, but no packets appear to be sent even
+              though it claims to be working.</a></dt>
+
+              <dt>4.3.4. <a href="#Q4.3.4.">The system finds my
+              <span class="CITEREFENTRY"><span class=
+              "REFENTRYTITLE">ed</span>(4)</span> network card, but
+              I keep getting device timeout errors.</a></dt>
+
+              <dt>4.3.5. <a href="#Q4.3.5.">I have a
+              Matsushita/Panasonic drive but it isn't recognized by
+              the system.</a></dt>
+
+              <dt>4.3.6. <a href="#Q4.3.6.">I booted the install
+              floppy on my IBM ThinkPad (tm) laptop, and the
+              keyboard is all messed up.</a></dt>
+
+              <dt>4.3.7. <a href="#Q4.3.7.">When I try to boot the
+              install floppy, I see the following message and
+              nothing seems to be happening. I cannot enter
+              anything from the keyboard either.</a></dt>
+
+              <dt>4.3.8. <a href="#Q4.3.8.">I have a
+              Matsushita/Panasonic CR-522, a Matsushita/Panasonic
+              CR-523 or a TEAC CD55a drive, but it is not
+              recognized even when the correct I/O port is
+              set.</a></dt>
+
+              <dt>4.3.9. <a href="#Q4.3.9.">I'm trying to install
+              from a tape drive but all I get is something like
+              this on the screen:</a></dt>
+
+              <dt>4.3.10. <a href="#Q4.3.10.">I've installed
+              FreeBSD onto my system, but it hangs when booting
+              from the hard drive with the message:</a></dt>
+
+              <dt>4.3.11. <a href="#Q4.3.11.">My system can not
+              find my Intel EtherExpress 16 card.</a></dt>
+
+              <dt>4.3.12. <a href="#Q4.3.12.">When installing on an
+              EISA HP Netserver, my on-board AIC-7xxx SCSI
+              controller isn't detected.</a></dt>
+
+              <dt>4.3.13. <a href="#Q4.3.13.">I have a Panasonic
+              AL-N1 or Rios Chandler Pentium machine and I find
+              that the system hangs before ever getting into the
+              installation now.</a></dt>
+
+              <dt>4.3.14. <a href="#Q4.3.14.">I have this CMD640
+              IDE controller that is said to be broken.</a></dt>
+
+              <dt>4.3.15. <a href="#Q4.3.15.">On a Compaq Aero
+              notebook, I get the message ``No floppy devices
+              found! Please check ...'' when trying to install from
+              floppy.</a></dt>
+
+              <dt>4.3.16. <a href="#Q4.3.16.">When I go to boot my
+              Intel AL440LX (``Atlanta'') -based system from the
+              hard disk the first time, it stops with a <tt class=
+              "LITERAL">Read Error</tt> message.</a></dt>
+
+              <dt>4.3.17. <a href="#Q4.3.17.">When installing on an
+              Dell Poweredge XE, Dell proprietary RAID controller
+              DSA (Dell SCSI Array) isn't recognized.</a></dt>
+
+              <dt>4.3.18. <a href="#Q4.3.18.">My Ethernet adapter
+              is detected as an AMD PCnet-FAST (or similar) but it
+              doesn't work. (Eg. onboard Ethernet on IBM Netfinity
+              5xxx or 7xxx)</a></dt>
+
+              <dt>4.3.19. <a href="#Q4.3.19.">I have an IBM
+              EtherJet PCI card, it is detected by the <span class=
+              "CITEREFENTRY"><span class=
+              "REFENTRYTITLE">fxp</span>(4)</span> driver
+              correctly, but the lights on the card don't come on
+              and it doesn't connect to the network.</a></dt>
+
+              <dt>4.3.20. <a href="#Q4.3.20.">When I configure the
+              network during installation on an IBM Netfinity 3500,
+              the system freezes.</a></dt>
+
+              <dt>4.3.21. <a href="#Q4.3.21.">When I install onto a
+              drive managed by a Mylex PCI RAID controller, the
+              system fails to boot (eg. with a <tt class=
+              "LITERAL">read error</tt> message).</a></dt>
+            </dl>
+
+            <div class="QANDAENTRY">
+              <div class="QUESTION">
+                <p><a name="Q4.3.1."></a><b>4.3.1.</b> The <span
+                class="CITEREFENTRY"><span class=
+                "REFENTRYTITLE">mcd</span>(4)</span> driver keeps
+                thinking that it has found a device and this stops
+                my Intel EtherExpress card from working.</p>
+              </div>
+
+              <div class="ANSWER">
+                <p><b></b>Use the UserConfig utility (see <tt
+                class="FILENAME">HARDWARE.TXT</tt>) and disable the
+                probing of the <tt class="DEVICENAME">mcd0</tt> and
+                <tt class="DEVICENAME">mcd1</tt> devices. Generally
+                speaking, you should only leave the devices that
+                you will be using enabled in your kernel.</p>
+              </div>
+            </div>
+
+            <div class="QANDAENTRY">
+              <div class="QUESTION">
+                <p><a name="Q4.3.2."></a><b>4.3.2.</b> FreeBSD
+                claims to support the 3Com PCMCIA card, but my card
+                isn't recognized when it's plugged into my
+                laptop.</p>
+              </div>
+
+              <div class="ANSWER">
+                <p><b></b>There are a couple of possible problems.
+                First of all, FreeBSD does not support
+                multi-function cards, so if you have a combo
+                Ethernet/modem card (such as the 3C562), it won't
+                work. The default driver for the 3C589 card was
+                written just like all of the other drivers in
+                FreeBSD, and depend on the card's own configuration
+                data stored in NVRAM to work. You must correctly
+                configure FreeBSD's driver to match the IRQ, port,
+                and IOMEM stored in NVRAM.</p>
+
+                <p>Unfortunately, the only program capable of
+                reading them is the 3COM supplied DOS program. This
+                program must be run on a absolutely clean system
+                (no other drivers must be running), and the program
+                will whine about CARD-Services not being found, but
+                it will continue. This is necessary to read the
+                NVRAM values. You want to know the IRQ, port, and
+                IOMEM values (the latter is called the CIS tuple by
+                3COM). The first two can be set in the program, the
+                third is un-settable, and can only be read. Once
+                you have these values, set them in UserConfig and
+                your card will be recognized.</p>
+              </div>
+            </div>
+
+            <div class="QANDAENTRY">
+              <div class="QUESTION">
+                <p><a name="Q4.3.3."></a><b>4.3.3.</b> FreeBSD
+                finds my PCMCIA network card, but no packets appear
+                to be sent even though it claims to be working.</p>
+              </div>
+
+              <div class="ANSWER">
+                <p><b></b>Many PCMCIA cards have the ability to use
+                either the 10-Base2 (BNC) or 10-BaseT connectors
+                for connecting to the network. The driver is unable
+                to ``auto-select'' the correct connector, so you
+                must tell it which connector to use. In order to
+                switch between the two connectors, the link flags
+                must be set. Depending on the model of the card,
+                <tt class="OPTION">-link0 link1</tt> or <tt class=
+                "OPTION">-link0 -link1</tt> will choose the correct
+                network connector. You can set these in <a href=
+                "http://www.FreeBSD.org/cgi/man.cgi?query=sysinstall&amp;sektion=8">
+                <span class="CITEREFENTRY"><span class=
+                "REFENTRYTITLE">sysinstall</span>(8)</span></a> by
+                using the <tt class="LITERAL">Extra options to
+                ifconfig:</tt> field in the network setup
+                screen.</p>
+              </div>
+            </div>
+
+            <div class="QANDAENTRY">
+              <div class="QUESTION">
+                <p><a name="Q4.3.4."></a><b>4.3.4.</b> The system
+                finds my <span class="CITEREFENTRY"><span class=
+                "REFENTRYTITLE">ed</span>(4)</span> network card,
+                but I keep getting device timeout errors.</p>
+              </div>
+
+              <div class="ANSWER">
+                <p><b></b>Your card is probably on a different IRQ
+                from what is specified in the kernel configuration.
+                The ed driver does not use the `soft' configuration
+                by default (values entered using EZSETUP in DOS),
+                but it will use the software configuration if you
+                specify <tt class="LITERAL">?</tt> in the IRQ field
+                of your kernel config file.</p>
+
+                <p>Either move the jumper on the card to a hard
+                configuration setting (altering the kernel settings
+                if necessary), or specify the IRQ as <tt class=
+                "LITERAL">-1</tt> in UserConfig or <tt class=
+                "LITERAL">?</tt> in your kernel config file. This
+                will tell the kernel to use the soft
+                configuration.</p>
+
+                <p>Another possibility is that your card is at IRQ
+                9, which is shared by IRQ 2 and frequently a cause
+                of problems (especially when you have a VGA card
+                using IRQ 2!). You should not use IRQ 2 or 9 if at
+                all possible.</p>
+              </div>
+            </div>
+
+            <div class="QANDAENTRY">
+              <div class="QUESTION">
+                <p><a name="Q4.3.5."></a><b>4.3.5.</b> I have a
+                Matsushita/Panasonic drive but it isn't recognized
+                by the system.</p>
+              </div>
+
+              <div class="ANSWER">
+                <p><b></b>Make certain that the I/O port that the
+                <a href=
+                "http://www.FreeBSD.org/cgi/man.cgi?query=matcd&amp;sektion=4">
+                <span class="CITEREFENTRY"><span class=
+                "REFENTRYTITLE">matcd</span>(4)</span></a> driver
+                is set to is correct for the host interface card
+                you have. (Some SoundBlaster DOS drivers report a
+                hardware I/O port address for the CD-ROM interface
+                that is 0x10 lower than it really is.)</p>
+
+                <p>If you are unable to determine the settings for
+                the card by examining the board or documentation,
+                you can use UserConfig to change the 'port' address
+                (I/O port) to -1 and start the system. This setting
+                causes the driver to look at a number of I/O ports
+                that various manufacturers use for their
+                Matsushita/Panasonic/Creative CD-ROM interfaces.
+                Once the driver locates the address, you should run
+                UserConfig again and specify the correct address.
+                Leaving the 'port' parameter set to -1 increases
+                the amount of time that it takes the system to
+                boot, and this could interfere with other
+                devices.</p>
+
+                <p>The double-speed Matsushita CR-562 and CR-563
+                are the only drives that are supported.</p>
+              </div>
+            </div>
+
+            <div class="QANDAENTRY">
+              <div class="QUESTION">
+                <p><a name="Q4.3.6."></a><b>4.3.6.</b> I booted the
+                install floppy on my IBM ThinkPad (tm) laptop, and
+                the keyboard is all messed up.</p>
+              </div>
+
+              <div class="ANSWER">
+                <p><b></b>Older IBM laptops use a non-standard
+                keyboard controller, so you must tell the keyboard
+                driver (atkbd0) to go into a special mode which
+                works on the ThinkPads. Change the atkbd0 'Flags'
+                to 0x4 in UserConfig and it should work fine. (Look
+                in the Input Menu for 'Keyboard'.)</p>
+              </div>
+            </div>
+
+            <div class="QANDAENTRY">
+              <div class="QUESTION">
+                <p><a name="Q4.3.7."></a><b>4.3.7.</b> When I try
+                to boot the install floppy, I see the following
+                message and nothing seems to be happening. I cannot
+                enter anything from the keyboard either.</p>
+<pre class="SCREEN">
+    Keyboard: no
+</pre>
+              </div>
+
+              <div class="ANSWER">
+                <p><b></b>Due to lack of space, full support for
+                old XT/AT (84-key) keyboards is no longer available
+                in the bootblocks. Some notebook computers may also
+                have this type of keyboard. If you are still using
+                this kind of hardware, you will see the above
+                message appears when you boot from the CD-ROM or an
+                install floppy.</p>
+
+                <p>As soon as you see this message, hit the space
+                bar, and you will see the prompt:</p>
+<pre class="SCREEN">
+    &gt;&gt; FreeBSD/i386 BOOT
+    Default: x:xx(x,x)/boot/loader 
+    boot:
+</pre>
+
+                <p>Then enter <tt class=
+                "USERINPUT"><b>-Dh</b></tt>, and things should
+                proceed normally.</p>
+              </div>
+            </div>
+
+            <div class="QANDAENTRY">
+              <div class="QUESTION">
+                <p><a name="Q4.3.8."></a><b>4.3.8.</b> I have a
+                Matsushita/Panasonic CR-522, a Matsushita/Panasonic
+                CR-523 or a TEAC CD55a drive, but it is not
+                recognized even when the correct I/O port is
+                set.</p>
+              </div>
+
+              <div class="ANSWER">
+                <p><b></b>These CD-ROM drives are currently not
+                supported by FreeBSD. The command sets for these
+                drives are not compatible with the double-speed
+                CR-562 and CR-563 drives.</p>
+
+                <p>The single-speed CR-522 and CR-523 drives can be
+                identified by their use of a CD-caddy.</p>
+              </div>
+            </div>
+
+            <div class="QANDAENTRY">
+              <div class="QUESTION">
+                <p><a name="Q4.3.9."></a><b>4.3.9.</b> I'm trying
+                to install from a tape drive but all I get is
+                something like this on the screen:</p>
+<pre class="SCREEN">
+    sa0(aha0:1:0) NOT READY csi 40,0,0,0
+</pre>
+              </div>
+
+              <div class="ANSWER">
+                <p><b></b>There's a limitation in the current <a
+                href=
+                "http://www.FreeBSD.org/cgi/man.cgi?query=sysinstall&amp;sektion=8">
+                <span class="CITEREFENTRY"><span class=
+                "REFENTRYTITLE">sysinstall</span>(8)</span></a>
+                that the tape <i class="EMPHASIS">must</i> be in
+                the drive while <a href=
+                "http://www.FreeBSD.org/cgi/man.cgi?query=sysinstall&amp;sektion=8">
+                <span class="CITEREFENTRY"><span class=
+                "REFENTRYTITLE">sysinstall</span>(8)</span></a> is
+                started or it won't be detected. Try again with the
+                tape in the drive the whole time.</p>
+              </div>
+            </div>
+
+            <div class="QANDAENTRY">
+              <div class="QUESTION">
+                <p><a name="Q4.3.10."></a><b>4.3.10.</b> I've
+                installed FreeBSD onto my system, but it hangs when
+                booting from the hard drive with the message:</p>
+<pre class="SCREEN">
+    Changing root to /dev/da0a
+</pre>
+              </div>
+
+              <div class="ANSWER">
+                <p><b></b>his problem may occur in a system with a
+                3com 3c509 Ethernet adapter. The <a href=
+                "http://www.FreeBSD.org/cgi/man.cgi?query=ep&amp;sektion=4">
+                <span class="CITEREFENTRY"><span class=
+                "REFENTRYTITLE">ep</span>(4)</span></a> device
+                driver appears to be sensitive to probes for other
+                devices that also use address 0x300. Boot your
+                FreeBSD system by power cycling the machine (turn
+                off and on). At the <tt class="LITERAL">Boot:</tt>
+                prompt specify the <tt class="OPTION">-c</tt>. This
+                will invoke UserConfig (see <a href=
+                "#REPAIRING">Section 4.1</a> above). Use the <tt
+                class="LITERAL">disable</tt> command to disable the
+                device probes for all devices at address 0x300
+                except the ep0 driver. On exit, your machine should
+                successfully boot FreeBSD.</p>
+              </div>
+            </div>
+
+            <div class="QANDAENTRY">
+              <div class="QUESTION">
+                <p><a name="Q4.3.11."></a><b>4.3.11.</b> My system
+                can not find my Intel EtherExpress 16 card.</p>
+              </div>
+
+              <div class="ANSWER">
+                <p><b></b>You must set your Intel EtherExpress 16
+                card to be memory mapped at address 0xD0000, and
+                set the amount of mapped memory to 32K using the
+                Intel supplied <tt class=
+                "FILENAME">softset.exe</tt> program.</p>
+              </div>
+            </div>
+
+            <div class="QANDAENTRY">
+              <div class="QUESTION">
+                <p><a name="Q4.3.12."></a><b>4.3.12.</b> When
+                installing on an EISA HP Netserver, my on-board
+                AIC-7xxx SCSI controller isn't detected.</p>
+              </div>
+
+              <div class="ANSWER">
+                <p><b></b>This is a known problem, and will
+                hopefully be fixed in the future. In order to get
+                your system installed at all, boot with the <tt
+                class="OPTION">-c</tt> option into UserConfig, but
+                <i class="EMPHASIS">don't</i> use the pretty visual
+                mode but the plain old CLI mode. Type:</p>
+<pre class="SCREEN">
+    <tt class="USERINPUT"><b>eisa 12</b></tt>
+    <tt class="USERINPUT"><b>quit</b></tt>
+</pre>
+
+                <p>at the prompt. (Instead of `quit', you might
+                also type `visual', and continue the rest of the
+                configuration session in visual mode.) While it's
+                recommended to compile a custom kernel, dset now
+                also understands to save this value.</p>
+
+                <p>Refer to the FAQ topic 3.16 for an explanation
+                of the problem, and for how to continue. Remember
+                that you can find the FAQ on your local system in
+                /usr/share/doc/FAQ, provided you have installed the
+                `doc' distribution.</p>
+              </div>
+            </div>
+
+            <div class="QANDAENTRY">
+              <div class="QUESTION">
+                <p><a name="Q4.3.13."></a><b>4.3.13.</b> I have a
+                Panasonic AL-N1 or Rios Chandler Pentium machine
+                and I find that the system hangs before ever
+                getting into the installation now.</p>
+              </div>
+
+              <div class="ANSWER">
+                <p><b></b>Your machine doesn't like the new <tt
+                class="LITERAL">i586_copyout</tt> and <tt class=
+                "LITERAL">i586_copyin</tt> code for some reason. To
+                disable this, boot the installation boot floppy and
+                when it comes to the very first menu (the choice to
+                drop into kernel UserConfig mode or not) choose the
+                command-line interface (``expert mode'') version
+                and type the following at it:</p>
+<pre class="SCREEN">
+    <tt class="USERINPUT"><b>flags npx0 1</b></tt>
+</pre>
+
+                <p>Then proceed normally to boot. This will be
+                saved into your kernel, so you only need to do it
+                once.</p>
+              </div>
+            </div>
+
+            <div class="QANDAENTRY">
+              <div class="QUESTION">
+                <p><a name="Q4.3.14."></a><b>4.3.14.</b> I have
+                this CMD640 IDE controller that is said to be
+                broken.</p>
+              </div>
+
+              <div class="ANSWER">
+                <p><b></b>Yes, it is. FreeBSD does not support this
+                controller except through the legacy wdc
+                driver.</p>
+              </div>
+            </div>
+
+            <div class="QANDAENTRY">
+              <div class="QUESTION">
+                <p><a name="Q4.3.15."></a><b>4.3.15.</b> On a
+                Compaq Aero notebook, I get the message ``No floppy
+                devices found! Please check ...'' when trying to
+                install from floppy.</p>
+              </div>
+
+              <div class="ANSWER">
+                <p><b></b>With Compaq being always a little
+                different from other systems, they do not announce
+                their floppy drive in the CMOS RAM of an Aero
+                notebook. Therefore, the floppy disk driver assumes
+                there is no drive configured. Go to the UserConfig
+                screen, and set the Flags value of the fdc0 device
+                to 0x1. This pretends the existence of the first
+                floppy drive (as a 1.44 MB drive) to the driver
+                without asking the CMOS at all.</p>
+              </div>
+            </div>
+
+            <div class="QANDAENTRY">
+              <div class="QUESTION">
+                <p><a name="Q4.3.16."></a><b>4.3.16.</b> When I go
+                to boot my Intel AL440LX (``Atlanta'') -based
+                system from the hard disk the first time, it stops
+                with a <tt class="LITERAL">Read Error</tt>
+                message.</p>
+              </div>
+
+              <div class="ANSWER">
+                <p><b></b>There appears to be a bug in the BIOS on
+                at least some of these boards, this bug results in
+                the FreeBSD bootloader thinking that it is booting
+                from a floppy disk. This is only a problem if you
+                are not using the BootEasy boot manager. Slice the
+                disk in ``compatible''mode and install BootEasy
+                during the FreeBSD installation to avoid the bug,
+                or upgrade the BIOS (see Intel's website for
+                details).</p>
+              </div>
+            </div>
+
+            <div class="QANDAENTRY">
+              <div class="QUESTION">
+                <p><a name="Q4.3.17."></a><b>4.3.17.</b> When
+                installing on an Dell Poweredge XE, Dell
+                proprietary RAID controller DSA (Dell SCSI Array)
+                isn't recognized.</p>
+              </div>
+
+              <div class="ANSWER">
+                <p><b></b>Configure the DSA to use AHA-1540
+                emulation using EISA configuration utility. After
+                that FreeBSD detects the DSA as an Adaptec AHA-1540
+                SCSI controller, with irq 11 and port 340. Under
+                emulation mode system will use DSA RAID disks, but
+                you cannot use DSA-specific features such as
+                watching RAID health.</p>
+              </div>
+            </div>
+
+            <div class="QANDAENTRY">
+              <div class="QUESTION">
+                <p><a name="Q4.3.18."></a><b>4.3.18.</b> My
+                Ethernet adapter is detected as an AMD PCnet-FAST
+                (or similar) but it doesn't work. (Eg. onboard
+                Ethernet on IBM Netfinity 5xxx or 7xxx)</p>
+              </div>
+
+              <div class="ANSWER">
+                <p><b></b>The <a href=
+                "http://www.FreeBSD.org/cgi/man.cgi?query=lnc&amp;sektion=4">
+                <span class="CITEREFENTRY"><span class=
+                "REFENTRYTITLE">lnc</span>(4)</span></a> driver is
+                currently faulty, and will often not work correctly
+                with the PCnet-FAST and PCnet-FAST+. You need to
+                install a different Ethernet adapter.</p>
+              </div>
+            </div>
+
+            <div class="QANDAENTRY">
+              <div class="QUESTION">
+                <p><a name="Q4.3.19."></a><b>4.3.19.</b> I have an
+                IBM EtherJet PCI card, it is detected by the <span
+                class="CITEREFENTRY"><span class=
+                "REFENTRYTITLE">fxp</span>(4)</span> driver
+                correctly, but the lights on the card don't come on
+                and it doesn't connect to the network.</p>
+              </div>
+
+              <div class="ANSWER">
+                <p><b></b>We don't understand why this happens.
+                Neither do IBM (we asked them). The card is a
+                standard Intel EtherExpress Pro/100 with an IBM
+                label on it, and these cards normally work just
+                fine. You may see these symptoms only in some IBM
+                Netfinity servers. The only solution is to install
+                a different Ethernet adapter.</p>
+              </div>
+            </div>
+
+            <div class="QANDAENTRY">
+              <div class="QUESTION">
+                <p><a name="Q4.3.20."></a><b>4.3.20.</b> When I
+                configure the network during installation on an IBM
+                Netfinity 3500, the system freezes.</p>
+              </div>
+
+              <div class="ANSWER">
+                <p><b></b>There is a problem with the onboard
+                Ethernet in the Netfinity 3500 which we have not
+                been able to identify at this time. It may be
+                related to the SMP features of the system being
+                misconfigured. You will have to install another
+                Ethernet adapter and avoid attempting to configure
+                the onboard adapter at any time.</p>
+              </div>
+            </div>
+
+            <div class="QANDAENTRY">
+              <div class="QUESTION">
+                <p><a name="Q4.3.21."></a><b>4.3.21.</b> When I
+                install onto a drive managed by a Mylex PCI RAID
+                controller, the system fails to boot (eg. with a
+                <tt class="LITERAL">read error</tt> message).</p>
+              </div>
+
+              <div class="ANSWER">
+                <p><b></b>There is a bug in the Mylex driver which
+                results in it ignoring the ``8GB'' geometry mode
+                setting in the BIOS. Use the 2GB mode instead.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <hr>
+
+    <p align="center"><small>This file, and other release-related
+    documents, can be downloaded from <a href=
+    "ftp://ftp.FreeBSD.org/pub/FreeBSD/">ftp://ftp.FreeBSD.org/pub/FreeBSD/</a>.</small></p>
+
+    <p align="center"><small>For questions about FreeBSD, read the
+    <a href="http://www.FreeBSD.org/docs.html">documentation</a>
+    before contacting &lt;<a href=
+    "mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&gt;.</small></p>
+
+    <p align="center"><small><small>All users of FreeBSD 4-STABLE
+    should subscribe to the &lt;<a href=
+    "mailto:stable@FreeBSD.org">stable@FreeBSD.org</a>&gt; mailing
+    list.</small></small></p>
+
+    <p align="center">For questions about this documentation,
+    e-mail &lt;<a href=
+    "mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&gt;.</p>
+    <br>
+    <br>
+  </body>
+</html>
+

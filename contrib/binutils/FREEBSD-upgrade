@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/contrib/binutils/FREEBSD-upgrade,v 1.2.2.4 2001/08/01 23:02:21 obrien Exp $
 
 To strip down a new version of GNU binutils for import, extract
 the files like this:

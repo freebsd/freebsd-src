@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/tx/Makefile,v 1.4.2.2 2001/09/01 07:17:11 semenu Exp $
 
 .PATH:	${.CURDIR}/../../pci
 KMOD	= if_tx

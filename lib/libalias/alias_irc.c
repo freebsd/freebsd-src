@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libalias/alias_irc.c,v 1.5.2.4 2001/08/21 16:42:42 ru Exp $
  */
 
 /* Alias_irc.c intercepts packages contain IRC CTCP commands, and

@@ -31,7 +31,7 @@
  *
  * $Id: //depot/src/aic7xxx/aic7770.c#12 $
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/aic7xxx/aic7770.c,v 1.1.2.4 2001/07/28 18:46:39 gibbs Exp $
  */
 
 #include <dev/aic7xxx/aic7xxx_freebsd.h>

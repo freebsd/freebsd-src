@@ -14,7 +14,7 @@
 ## SOFTWARE.
 
 # $Id: Makefile,v 8.51 2000/12/23 08:02:53 vixie Exp $
-# $FreeBSD$
+# $FreeBSD: src/contrib/bind/bin/named/Makefile,v 1.3.2.3 2001/01/29 21:44:25 asmodai Exp $
 
 DESTDIR=
 CC= cc

@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/crypto/sha2/sha2.c,v 1.2.2.1 2001/07/03 11:01:36 ume Exp $	*/
 /*	$KAME: sha2.c,v 1.6 2001/03/12 11:31:04 itojun Exp $	*/
 
 /*

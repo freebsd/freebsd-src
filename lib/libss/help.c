@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libss/help.c,v 1.5.6.1 2000/09/20 09:49:17 jkh Exp $ */
 
 /*
  * Copyright 1987, 1988 by MIT Student Information Processing Board

@@ -48,7 +48,7 @@
 %/*static char sccsid[] = "from: @(#)rstat.x 1.2 87/09/18 Copyr 1987 Sun Micro";*/
 %/*static char sccsid[] = "from: @(#)rstat.x	2.2 88/08/01 4.0 RPCSRC";*/
 %static const char rcsid[] =
-%  "$FreeBSD$";
+%  "$FreeBSD: src/include/rpcsvc/rstat.x,v 1.6 1999/08/27 23:45:11 peter Exp $";
 %#endif /* not lint */
 
 #endif /* def RPC_HDR */

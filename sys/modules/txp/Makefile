@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/txp/Makefile,v 1.2.2.1 2001/07/30 17:31:41 wpaul Exp $
 
 .PATH: ${.CURDIR}/../../dev/txp
 

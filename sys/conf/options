@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/conf/options,v 1.191.2.35 2001/08/03 00:47:27 archie Exp $
 #
 #        On the handling of kernel options
 #

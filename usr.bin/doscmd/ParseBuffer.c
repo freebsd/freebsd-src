@@ -29,7 +29,7 @@
  *
  *	BSDI ParseBuffer.c,v 2.2 1996/04/08 19:32:15 bostic Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/doscmd/ParseBuffer.c,v 1.2.2.1 2001/08/02 02:17:15 obrien Exp $
  */
 
 #include <stdlib.h>

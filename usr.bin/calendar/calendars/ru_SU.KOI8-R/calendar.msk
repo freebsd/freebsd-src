@@ -1,7 +1,7 @@
 /*
  * Перевод часов для московской временной зоны
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/calendar/calendars/ru_SU.KOI8-R/calendar.msk,v 1.5 1999/08/28 00:59:29 peter Exp $
  */
 
 #ifndef _ru_SU_KOI8_R_msk_
