@@ -101,9 +101,10 @@ static void	acpi_px_available(struct acpi_perf_softc *sc);
 static void	acpi_px_startup(void *arg);
 static void	acpi_px_notify(ACPI_HANDLE h, UINT32 notify, void *context);
 static int	acpi_px_settings(device_t dev, struct cf_setting *sets,
-		    int *count, int *type);
+		    int *count);
 static int	acpi_px_set(device_t dev, const struct cf_setting *set);
 static int	acpi_px_get(device_t dev, struct cf_setting *set);
+static int	acpi_px_type(device_t dev, int *type);
 
 static device_method_t acpi_perf_methods[] = {
 	/* Device interface */
@@ -115,6 +116,7 @@ static device_method_t acpi_perf_methods[] = {
 	/* cpufreq interface */
 	DEVMETHOD(cpufreq_drv_set,	acpi_px_set),
 	DEVMETHOD(cpufreq_drv_get,	acpi_px_get),
+	DEVMETHOD(cpufreq_drv_type,	acpi_px_type),
 	DEVMETHOD(cpufreq_drv_settings,	acpi_px_settings),
 	{0, 0}
 };
@@ -392,7 +394,7 @@ acpi_px_to_set(device_t dev, struct acpi_px *px, struct cf_setting *set)
 }
 
 static int
-acpi_px_settings(device_t dev, struct cf_setting *sets, int *count, int *type)
+acpi_px_settings(device_t dev, struct cf_setting *sets, int *count)
 {
 	struct acpi_perf_softc *sc;
 	int x, y;
@@ -408,9 +410,6 @@ acpi_px_settings(device_t dev, struct cf_setting *sets, int *count, int *type)
 	for (x = sc->px_max_avail; x < sc->px_count; x++, y++)
 		acpi_px_to_set(dev, &sc->px_states[x], &sets[y]);
 	*count = sc->px_count - sc->px_max_avail;
-	*type = CPUFREQ_TYPE_ABSOLUTE;
-	if (sc->info_only)
-		*type |= CPUFREQ_FLAG_INFO_ONLY;
 
 	return (0);
 }
@@ -500,5 +499,20 @@ acpi_px_get(device_t dev, struct cf_setting *set)
 		set->freq = CPUFREQ_VAL_UNKNOWN;
 	}
 
+	return (0);
+}
+
+static int
+acpi_px_type(device_t dev, int *type)
+{
+	struct acpi_perf_softc *sc;
+
+	if (type == NULL)
+		return (EINVAL);
+	sc = device_get_softc(dev);
+
+	*type = CPUFREQ_TYPE_ABSOLUTE;
+	if (sc->info_only)
+		*type |= CPUFREQ_FLAG_INFO_ONLY;
 	return (0);
 }
