@@ -183,9 +183,9 @@ openpic_probe(device_t dev)
 	}
 
 	sc->sc_ncpu = ((val & OPENPIC_FEATURE_LAST_CPU_MASK) >>
-	    OPENPIC_FEATURE_LAST_CPU_SHIFT);
+	    OPENPIC_FEATURE_LAST_CPU_SHIFT) + 1;
 	sc->sc_nirq = ((val & OPENPIC_FEATURE_LAST_IRQ_MASK) >>
-	    OPENPIC_FEATURE_LAST_IRQ_SHIFT);
+	    OPENPIC_FEATURE_LAST_IRQ_SHIFT) + 1;
 
 	device_set_desc(dev, "OpenPIC interrupt controller");
 	return (0);
@@ -201,14 +201,14 @@ openpic_attach(device_t dev)
 	softc = sc;
 
 	device_printf(dev,
-	    "Version %s, supports up to %d CPUs and up to %d irqs\n",
-	    sc->sc_version, sc->sc_ncpu+1, sc->sc_nirq+1);
+	    "Version %s, supports %d CPUs and %d irqs\n",
+	    sc->sc_version, sc->sc_ncpu, sc->sc_nirq);
 
 	sc->sc_rman.rm_type = RMAN_ARRAY;
 	sc->sc_rman.rm_descr = device_get_nameunit(dev);
 
 	if (rman_init(&sc->sc_rman) != 0 ||
-	    rman_manage_region(&sc->sc_rman, 0, sc->sc_nirq) != 0) {
+	    rman_manage_region(&sc->sc_rman, 0, sc->sc_nirq - 1) != 0) {
 		device_printf(dev, "could not set up resource management");
 		return (ENXIO);
 	}
@@ -458,6 +458,8 @@ start:
 	/*mtmsr(msr | PSL_EE);*/
 
 	/* do the interrupt thang */
+	if (irq != 41 && irq != 19 && irq != 20)
+		printf("openpic_intr: irq %d\n", irq);
 	intr_handle(irq);
 
 	mtmsr(msr);

@@ -52,6 +52,7 @@ static const char rcsid[] =
 #include <vm/vm_map.h>
 
 #include <machine/bus.h>
+#include <machine/cpufunc.h>
 
 struct bus_dma_tag {
 	bus_dma_tag_t     parent;
@@ -512,4 +513,8 @@ bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map)
 
 void
 bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
-{}
+{
+
+	if ((op == BUS_DMASYNC_PREREAD) || (op == BUS_DMASYNC_PREWRITE))
+		powerpc_mb();
+}
