@@ -849,6 +849,11 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 		res = bus_alloc_resource(cbdev, SYS_RES_MEMORY, &rid, 0,
 		    (dinfo->mprefetchable & dinfo->mbelow1mb)?0xFFFFF:~0UL,
 		    mem_psize, flags);
+		if (res == NULL) {
+			device_printf(cbdev,
+			    "Can't get memory for prefetch mem\n");
+			return (EIO);
+		}
 		start = rman_get_start(res);
 		end = rman_get_end(res);
 		DEVPRINTF((cbdev, "Prefetchable memory at %x-%x\n", start, end));
@@ -890,6 +895,11 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 		res = bus_alloc_resource(cbdev, SYS_RES_MEMORY, &rid, 0,
 		    ((~dinfo->mprefetchable) & dinfo->mbelow1mb)?0xFFFFF:~0UL,
 		    mem_nsize, flags);
+		if (res == NULL) {
+			device_printf(cbdev,
+			    "Can't get memory for non-prefetch mem\n");
+			return (EIO);
+		}
 		start = rman_get_start(res);
 		end = rman_get_end(res);
 		DEVPRINTF((cbdev, "Non-prefetchable memory at %x-%x\n",
@@ -930,6 +940,11 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 		rid = 0;
 		res = bus_alloc_resource(cbdev, SYS_RES_IOPORT, &rid, 0,
 		    (dinfo->ibelow1mb)?0xFFFFF:~0UL, io_size, flags);
+		if (res == NULL) {
+			device_printf(cbdev,
+			    "Can't get memory for IO ports\n");
+			return (EIO);
+		}
 		start = rman_get_start(res);
 		end = rman_get_end(res);
 		DEVPRINTF((cbdev, "IO port at %x-%x\n", start, end));
@@ -951,6 +966,10 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 	rid = 0;
 	res = bus_alloc_resource(cbdev, SYS_RES_IRQ, &rid, 0, ~0UL, 1,
 	    RF_SHAREABLE);
+	if (res == NULL) {
+		device_printf(cbdev, "Can't get memory for irq\n");
+		return (EIO);
+	}
 	start = rman_get_start(res);
 	end = rman_get_end(res);
 	bus_release_resource(cbdev, SYS_RES_IRQ, rid, res);
