@@ -476,12 +476,6 @@ ndis_attach(dev)
 	/* Check for task offload support. */
 	ndis_probe_offload(sc);
 
-	/*
-	 * An NDIS device was detected. Inform the world.
-	 */
-	device_printf(dev, "%s address: %6D\n",
-	    sc->ndis_80211 ? "802.11" : "Ethernet", eaddr, ":");
-
 	ifp = &sc->arpcom.ac_if;
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
