@@ -1226,6 +1226,8 @@ static void dm_tick(xsc)
 	mii = device_get_softc(sc->dm_miibus);
 	mii_tick(mii);
 
+	sc->dm_stat_ch = timeout(dm_tick, sc, hz);
+
 	splx(s);
 
 	return;
