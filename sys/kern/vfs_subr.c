@@ -1442,20 +1442,6 @@ pbrelvp(bp)
 }
 
 /*
- * Change the vnode a pager buffer is associated with.
- */
-void
-pbreassignbuf(bp, newvp)
-	struct buf *bp;
-	struct vnode *newvp;
-{
-
-	KASSERT(bp->b_flags & B_PAGING,
-	    ("pbreassignbuf() on non phys bp %p", bp));
-	bp->b_vp = newvp;
-}
-
-/*
  * Reassign a buffer from one vnode to another.
  * Used to assign file specific control information
  * (indirect blocks) to the vnode to which they belong.

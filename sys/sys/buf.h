@@ -499,7 +499,6 @@ void	pbgetvp(struct vnode *, struct buf *);
 void	pbrelvp(struct buf *);
 int	allocbuf(struct buf *bp, int size);
 void	reassignbuf(struct buf *, struct vnode *);
-void	pbreassignbuf(struct buf *, struct vnode *);
 struct	buf *trypbuf(int *);
 
 #endif /* _KERNEL */
