@@ -259,13 +259,13 @@ Boston, MA 02111-1307, USA.  */
 
 #undef  ASM_OUTPUT_ALIGN
 #define ASM_OUTPUT_ALIGN(FILE, LOG)      				\
-  do {									\
-  if ((LOG)!=0) {							\
-    if (in_text_section())						\
-      fprintf ((FILE), "\t.p2align %d,0x90\n", (LOG));			\
-    else								\
-      fprintf ((FILE), "\t.p2align %d\n", (LOG));			\
-  }									\
+  do {					     				\
+    if ((LOG)!=0) {							\
+      if (in_text_section())						\
+	fprintf ((FILE), "\t.p2align %d,0x90\n", (LOG));		\
+      else								\
+	fprintf ((FILE), "\t.p2align %d\n", (LOG));			\
+    }									\
   } while (0)
 
 #undef  ASM_OUTPUT_ALIGNED_COMMON
