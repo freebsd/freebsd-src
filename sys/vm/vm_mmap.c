@@ -875,7 +875,7 @@ RestartScan:
 				 * if the page is resident, then gather information about
 				 * it.
 				 */
-				if (m) {
+				if (m != NULL && m->valid != 0) {
 					mincoreinfo = MINCORE_INCORE;
 					vm_page_lock_queues();
 					if (m->dirty ||
