@@ -92,6 +92,6 @@ static void
 usage()
 {
 	(void)fprintf(stderr,
-	    "usage: env [-] [-i] [name=value ...] [command]\n");
+	    "usage: env [-] [-i] [name=value ...] [utility [argument ...]]\n");
 	exit(1);
 }
