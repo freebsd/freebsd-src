@@ -205,8 +205,8 @@ check_space(char *savedir, off_t dumpsize)
 static void
 DoFile(char *savedir, const char *device)
 {
+	static char *buf = NULL;
 	struct kerneldumpheader kdhf, kdhl;
-	char buf[1024 * 1024];
 	off_t mediasize, dumpsize, firsthd, lasthd, dmpcnt;
 	FILE *info, *fp;
 	int fd, fdinfo, error, wl;
@@ -218,6 +218,20 @@ DoFile(char *savedir, const char *device)
 	dmpcnt = 0;
 	mediasize = 0;
 
+	/*
+	 * XXX On ia64 something breaks when the buffer is put on the
+	 * stack. When the buffer is roughly larger than 128K the read()
+	 * below simply fails with errno=14 (EFAULT). We work around
+	 * this by doing a on-time allocation...
+	 */
+	if (buf == NULL) {
+		buf = malloc(1024 * 1024);
+		if (buf == NULL) {
+			syslog(LOG_ERR, "%m");
+			return;
+		}
+	}
+
 	if (verbose)
 		printf("checking for kernel dump on device %s\n", device);
 
@@ -226,6 +240,7 @@ DoFile(char *savedir, const char *device)
 		syslog(LOG_ERR, "%s: %m", device);
 		return;
 	}
+
 	error = ioctl(fd, DIOCGMEDIASIZE, &mediasize);
 	if (!error)
 		error = ioctl(fd, DIOCGSECTORSIZE, &sectorsize);
