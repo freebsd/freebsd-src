@@ -553,7 +553,6 @@ start_init(void *dummy)
 	mac_create_root_mount(td->td_ucred, TAILQ_FIRST(&mountlist));
 #endif
 
-#ifndef NODEVFS
 	/*
 	 * For disk based systems, we probably cannot do this yet
 	 * since the fs will be read-only.  But a NFS root
@@ -567,7 +566,6 @@ start_init(void *dummy)
 		    "fspath", "/dev", NULL);
 	if (error != 0)
 		init_does_devfs = 1;
-#endif
 
 	/*
 	 * Need just enough stack to hold the faked-up "execve()" arguments.
