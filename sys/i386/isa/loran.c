@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: loran.c,v 1.16 1999/04/28 10:52:39 dt Exp $
+ * $Id: loran.c,v 1.17 1999/05/06 22:13:04 peter Exp $
  *
  * This device-driver helps the userland controlprogram for a LORAN-C
  * receiver avoid monopolizing the CPU.
@@ -58,12 +58,10 @@ struct datapoint {
 	dphead_t		*home;
 
 	/* Fields used only in userland */
+	void			(*proc)(struct datapoint *);
 	void			*ident;
 	int			index;
-	double			ival;
-	double			qval;
-	double			sval;
-	double			mval;
+	char			*name;
 
 };
 
