@@ -203,8 +203,16 @@ You may want to keep logging console output of several machines. Conserve-com
 in the ports collection should help you. Insert the following lines
 in the conserver.cf
 .Bd -literal -offset indent
-local:|/usr/sbin/dconschat -rh 25::&:
-remote:|/usr/sbin/dconschat -rh 25 -t 0x00112233445566677::&:
+console local {
+	master localhost;
+	type exec;
+	exec /usr/sbin/dconschat -rh 25;
+}
+console remote {
+	master localhost;
+	type exec;
+	exec /usr/sbin/dconschat -rh 25 -t 0x0011223344556677;
+}
 .Ed
 .Sh FILES
 .Bl -tag -width indent
