@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vm86.c,v 1.25 1999/05/12 21:38:45 luoqi Exp $
+ *	$Id: vm86.c,v 1.26 1999/06/01 18:19:48 jlemon Exp $
  */
 
 #include <sys/param.h>
@@ -453,12 +453,14 @@ vm86_initialize(void)
 
 	vm86pcb = pcb;
 
+#if 0
         /*
          * use whatever is leftover of the vm86 page layout as a
          * message buffer so we can capture early output.
          */
         msgbufinit((vm_offset_t)vm86paddr + sizeof(struct vm86_layout),
             ctob(3) - sizeof(struct vm86_layout));
+#endif
 }
 
 vm_offset_t
