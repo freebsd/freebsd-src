@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_conf.c	8.8 (Berkeley) 3/31/94
- * $Id: vfs_conf.c,v 1.15 1997/10/12 20:24:23 phk Exp $
+ * $Id: vfs_conf.c,v 1.16 1997/10/16 07:32:14 julian Exp $
  */
 
 /*
@@ -144,8 +144,6 @@ vfs_mountrootfs(fsname)
 error_2:	/* mount error*/
 
 	vfs_unbusy(mp, p);
-
-error_1:	/* lock error*/
 
 	/* free mount struct before failing*/
 	free( mp, M_MOUNT);

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id: kern_time.c,v 1.38 1997/10/26 20:26:28 phk Exp $
+ * $Id: kern_time.c,v 1.39 1997/11/06 19:29:16 phk Exp $
  */
 
 #include <sys/param.h>
@@ -333,7 +333,6 @@ signanosleep(p, uap)
 {
 	struct timespec rmt, rqt;
 	int error, error2;
-	struct sigacts *ps = p->p_sigacts;
 	sigset_t mask;
 
 	error = copyin(SCARG(uap, rqtp), &rqt, sizeof(rqt));

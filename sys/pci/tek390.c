@@ -123,7 +123,6 @@ static void DC390_InvalidCmd( PACB pACB );
  * XXX No timeouts are scheduled in this driver as the timeout handler
  *     doesn't do anything yet!!!
  */
-static void DC390_timeout( void *arg1);
 static void DC390_reset (PACB pACB);
 static PUCHAR  phystovirt( PSRB pSRB, ULONG xferCnt );
 
@@ -217,9 +216,7 @@ static PACB	pACB_current = NULL;
 static PDCB	pPrevDCB = NULL;
 static USHORT	adapterCnt = 0;
 static USHORT	CurrSyncOffset = 0;
-static USHORT	mech2Agent;
-static ULONG	mech1addr;
-static UCHAR	mech2bus, mech2CfgSPenR, CurrentID, CurrentLUN;
+static UCHAR	CurrentID, CurrentLUN;
 
 static PVOID DC390_phase0[]={
        DC390_DataOut_0,
@@ -981,15 +978,6 @@ DC390_reset (PACB pACB)
     DoWaitingSRB( pACB );
     splx(flags);
     return;
-}
-
-
-void
-DC390_timeout( void *arg1)
-{
-    PSRB  pSRB;
-
-    pSRB = (PSRB) arg1;
 }
 
 

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.31 1997/11/05 15:12:44 kato Exp $
+ *	$Id: identcpu.c,v 1.32 1997/11/06 03:10:28 kato Exp $
  */
 
 #include "opt_cpu.h"
@@ -707,7 +707,6 @@ static void
 print_AMD_info(void) 
 {
 	u_long regs[4];
-	int i;
 
 	do_cpuid(0x80000000, regs);
 	if (regs[0] >= 0x80000005) {

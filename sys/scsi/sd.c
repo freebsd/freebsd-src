@@ -15,7 +15,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.111 1997/09/21 22:03:14 gibbs Exp $
+ *      $Id: sd.c,v 1.112 1997/10/12 08:54:47 joerg Exp $
  */
 
 #include "opt_bounce.h"
@@ -68,7 +68,9 @@ static u_int32_t sdstrats, sdqueues;
  makedev(major(DEV), dkmakeminor((U), dkslice(DEV), dkpart(DEV)))
 
 static errval	sd_get_parms __P((int unit, int flags));
+#if 0
 static errval	sd_reassign_blocks __P((int unit, int block));
+#endif
 static u_int32_t	sd_size __P((int unit, int flags));
 static	void	sdstrategy1 __P((struct buf *));
 
@@ -727,6 +729,7 @@ sd_size(unit, flags)
 	return (size);
 }
 
+#if 0
 /*
  * Tell the device to map out a defective block
  */
@@ -759,6 +762,8 @@ sd_reassign_blocks(unit, block)
 		NULL,
 		SCSI_DATA_OUT));
 }
+#endif
+
 #define b2tol(a)	(((unsigned)(a##_1) << 8) + (unsigned)a##_0 )
 
 /*

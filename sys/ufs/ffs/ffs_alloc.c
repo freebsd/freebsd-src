@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_alloc.c	8.18 (Berkeley) 5/26/95
- * $Id: ffs_alloc.c,v 1.40 1997/10/16 10:49:19 phk Exp $
+ * $Id: ffs_alloc.c,v 1.41 1997/10/16 20:32:33 phk Exp $
  */
 
 #include "opt_quota.h"
@@ -60,8 +60,6 @@ static ufs_daddr_t ffs_alloccg __P((struct inode *, int, ufs_daddr_t, int));
 static ufs_daddr_t ffs_alloccgblk __P((struct fs *, struct cg *, ufs_daddr_t));
 static void	ffs_clusteracct	__P((struct fs *, struct cg *, ufs_daddr_t,
 				     int));
-static ufs_daddr_t ffs_clusteralloc __P((struct inode *, int, ufs_daddr_t,
-	    int));
 static ino_t	ffs_dirpref __P((struct fs *));
 static ufs_daddr_t ffs_fragextend __P((struct inode *, int, long, int, int));
 static void	ffs_fserr __P((struct fs *, u_int, char *));
@@ -334,8 +332,6 @@ SYSCTL_INT(_vfs_ffs, FFS_ASYNCFREE, doasyncfree, CTLFLAG_RW, &doasyncfree, 0, ""
 
 int doreallocblks = 1;
 SYSCTL_INT(_vfs_ffs, FFS_REALLOCBLKS, doreallocblks, CTLFLAG_RW, &doreallocblks, 0, "");
-
-static int prtrealloc = 0;
 
 int
 ffs_reallocblks(ap)

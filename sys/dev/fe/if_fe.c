@@ -21,7 +21,7 @@
  */
 
 /*
- * $Id: if_fe.c,v 1.32 1997/10/26 21:08:41 nate Exp $
+ * $Id: if_fe.c,v 1.33 1997/10/29 15:54:19 nate Exp $
  *
  * Device driver for Fujitsu MB86960A/MB86965A based Ethernet cards.
  * To be used with FreeBSD 2.x
@@ -1128,7 +1128,7 @@ fe_init_ati ( struct fe_softc * sc )
 static int
 fe_probe_gwy ( DEVICE * dev, struct fe_softc * sc )
 {
-	int i,type;
+	int i;
 
 	static struct fe_simple_probe_struct probe_table [] = {
 		{ FE_DLCR2, 0x70, 0x00 },
@@ -1680,7 +1680,7 @@ static void
 fe_init ( int unit )
 {
 	struct fe_softc *sc = &fe_softc[unit];
-	int i, s;
+	int s;
 
 #if FE_DEBUG >= 3
 	fe_dump( LOG_INFO, sc, "init()" );

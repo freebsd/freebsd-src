@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cache.c	8.5 (Berkeley) 3/22/95
- * $Id: vfs_cache.c,v 1.34 1997/10/15 13:22:52 phk Exp $
+ * $Id: vfs_cache.c,v 1.35 1997/10/16 10:47:54 phk Exp $
  */
 
 #include <sys/param.h>
@@ -156,8 +156,7 @@ cache_lookup(dvp, vpp, cnp)
 	struct vnode **vpp;
 	struct componentname *cnp;
 {
-	register struct namecache *ncp, *nnp;
-	register struct nchashhead *ncpp;
+	register struct namecache *ncp;
 
 	if (!doingcache) {
 		cnp->cn_flags &= ~MAKEENTRY;
@@ -331,8 +330,6 @@ void
 cache_purge(vp)
 	struct vnode *vp;
 {
-	struct namecache *ncp;
-	struct nchashhead *ncpp;
 	static u_long nextid;
 
 	while (!LIST_EMPTY(&vp->v_cache_src)) 

@@ -46,7 +46,7 @@
  * in Germany will I accept domestic beer.  This code may or may not work
  * and I certainly make no claims as to its fitness for *any* purpose.
  * 
- * $Id: kern_threads.c,v 1.3 1997/09/02 20:05:44 bde Exp $
+ * $Id: kern_threads.c,v 1.4 1997/11/06 19:29:16 phk Exp $
  */
 
 #include <sys/param.h>
@@ -70,7 +70,7 @@ int
 thr_sleep(struct proc *p, struct thr_sleep_args *uap) {
 	int sleepstart;
 	struct timespec ts;
-	struct timeval atv, utv;
+	struct timeval atv;
 	int error, s, timo;
 
 	timo = 0;
