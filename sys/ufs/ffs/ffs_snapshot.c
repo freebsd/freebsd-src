@@ -316,7 +316,7 @@ restart:
 	 * Since we have marked it as a snapshot it is safe to
 	 * unlock it as no process will be allowed to write to it.
 	 */
-	if ((error = VOP_FSYNC(vp, MNT_WAIT, td)) != 0)
+	if ((error = ffs_syncvnode(vp, MNT_WAIT)) != 0)
 		goto out;
 	VOP_UNLOCK(vp, 0, td);
 	/*
@@ -700,7 +700,7 @@ out:
 	mp->mnt_flag = flag;
 	if (error)
 		(void) UFS_TRUNCATE(vp, (off_t)0, 0, NOCRED, td);
-	(void) VOP_FSYNC(vp, MNT_WAIT, td);
+	(void) ffs_syncvnode(vp, MNT_WAIT);
 	if (error)
 		vput(vp);
 	else
@@ -1727,7 +1727,7 @@ retry:
 			bcopy(savedcbp->b_data, cbp->b_data, fs->fs_bsize);
 			bawrite(cbp);
 			if (dopersistence && ip->i_effnlink > 0)
-				(void) VOP_FSYNC(vp, MNT_WAIT, td);
+				(void) ffs_syncvnode(vp, MNT_WAIT);
 			continue;
 		}
 		/*
@@ -1737,7 +1737,7 @@ retry:
 			bzero(cbp->b_data, fs->fs_bsize);
 			bawrite(cbp);
 			if (dopersistence && ip->i_effnlink > 0)
-				(void) VOP_FSYNC(vp, MNT_WAIT, td);
+				(void) ffs_syncvnode(vp, MNT_WAIT);
 			break;
 		}
 		savedcbp = cbp;
@@ -1751,7 +1751,7 @@ retry:
 		vp = savedcbp->b_vp;
 		bawrite(savedcbp);
 		if (dopersistence && VTOI(vp)->i_effnlink > 0)
-			(void) VOP_FSYNC(vp, MNT_WAIT, td);
+			(void) ffs_syncvnode(vp, MNT_WAIT);
 	}
 	/*
 	 * If we have been unable to allocate a block in which to do
@@ -1813,7 +1813,7 @@ ffs_snapshot_mount(mp)
 			} else {
 				reason = "old format snapshot";
 				(void)UFS_TRUNCATE(vp, (off_t)0, 0, NOCRED, td);
-				(void)VOP_FSYNC(vp, MNT_WAIT, td);
+				(void)ffs_syncvnode(vp, MNT_WAIT);
 			}
 			printf("ffs_snapshot_mount: %s inode %d\n",
 			    reason, fs->fs_snapinum[snaploc]);
@@ -2094,7 +2094,7 @@ retry:
 			bcopy(savedcbp->b_data, cbp->b_data, fs->fs_bsize);
 			bawrite(cbp);
 			if (dopersistence && ip->i_effnlink > 0)
-				(void) VOP_FSYNC(vp, MNT_WAIT, td);
+				(void) ffs_syncvnode(vp, MNT_WAIT);
 			continue;
 		}
 		/*
@@ -2104,7 +2104,7 @@ retry:
 			bzero(cbp->b_data, fs->fs_bsize);
 			bawrite(cbp);
 			if (dopersistence && ip->i_effnlink > 0)
-				(void) VOP_FSYNC(vp, MNT_WAIT, td);
+				(void) ffs_syncvnode(vp, MNT_WAIT);
 			break;
 		}
 		savedcbp = cbp;
@@ -2118,7 +2118,7 @@ retry:
 		vp = savedcbp->b_vp;
 		bawrite(savedcbp);
 		if (dopersistence && VTOI(vp)->i_effnlink > 0)
-			(void) VOP_FSYNC(vp, MNT_WAIT, td);
+			(void) ffs_syncvnode(vp, MNT_WAIT);
 	}
 	if (snapshot_locked)
 		VOP_UNLOCK(vp, 0, td);
