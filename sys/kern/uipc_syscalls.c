@@ -962,6 +962,7 @@ recvit(td, s, mp, namelenp)
 	for (i = 0; i < mp->msg_iovlen; i++, iov++) {
 		if ((auio.uio_resid += iov->iov_len) < 0) {
 			fputsock(so);
+			mtx_unlock(&Giant);
 			return (EINVAL);
 		}
 	}
