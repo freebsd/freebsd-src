@@ -38,7 +38,7 @@
  */
 
 /*
- *  $Id: if_ep.c,v 1.37 1995/12/15 00:54:11 bde Exp $
+ *  $Id: if_ep.c,v 1.38 1996/01/26 09:27:22 phk Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -106,9 +106,10 @@
 #include <i386/isa/isa_device.h>
 #include <i386/isa/icu.h>
 #include <i386/isa/if_epreg.h>
+#include <i386/isa/elink.h>
 
 static int eeprom_rdy __P((struct isa_device *is));
-static int ep_look_for_board_at __P((struct isa_device *is));
+static struct ep_board *ep_look_for_board_at(struct isa_device *);
 static int get_e __P((struct isa_device *is, int offset));
 
 static int epprobe __P((struct isa_device *));
@@ -163,11 +164,7 @@ ep_registerdev(struct isa_device *id)
 
 static int ep_current_tag = EP_LAST_TAG + 1;
 
-static struct {
-	int epb_addr;	/* address of this board */
-	char epb_used;	/* was this entry already used for configuring ? */
-	}
-	ep_board[EP_MAX_BOARDS + 1];
+static struct ep_board ep_board[EP_MAX_BOARDS + 1];
 
 static int
 eeprom_rdy(is)
@@ -183,11 +180,11 @@ eeprom_rdy(is)
     return (1);
 }
 
-static int
+static struct ep_board *
 ep_look_for_board_at(is)
     struct isa_device *is;
 {
-    int data, i, j, io_base, id_port = EP_ID_PORT;
+    int data, i, j, io_base, id_port = ELINK_ID_PORT;
     int nisa = 0, neisa = 0;
 
     if (ep_current_tag == (EP_LAST_TAG + 1)) {
@@ -212,30 +209,50 @@ ep_look_for_board_at(is)
 	     * Once activated, all the registers are mapped in the range
 	     * x000 - x00F, where x is the slot number.
              */
+	    ep_board[neisa].epb_isa = 0;
 	    ep_board[neisa].epb_used = 0;
 	    ep_board[neisa++].epb_addr = j * EP_EISA_START;
 	}
 	ep_current_tag--;
 
         /* Look for the ISA boards. Init and leave them actived */
-	outb(id_port, 0xc0);	/* Global reset */
+	outb(id_port, 0);
+	outb(id_port, 0);
+
+	elink_idseq(0xCF);
+
+	elink_reset();
 	DELAY(10000);
 	for (i = 0; i < EP_MAX_BOARDS; i++) {
 	    outb(id_port, 0);
 	    outb(id_port, 0);
-	    send_ID_sequence(id_port);
+	    elink_idseq(0xCF);
 
 	    data = get_eeprom_data(id_port, EEPROM_MFG_ID);
 	    if (data != MFG_ID)
 		break;
 
 	    /* resolve contention using the Ethernet address */
-	    for (j = 0; j < 3; j++)
-		data = get_eeprom_data(id_port, j);
 
+	    for (j = 0; j < 3; j++)
+		 get_eeprom_data(id_port, j);
+
+	    /* and save this address for later use */
+
+	    for (j = 0; j < 3; j++)
+		 ep_board[neisa+nisa].eth_addr[j] = get_eeprom_data(id_port, j);
+
+	    ep_board[neisa+nisa].res_cfg =
+		get_eeprom_data(id_port, EEPROM_RESOURCE_CFG);
+
+	    ep_board[neisa+nisa].prod_id =
+		get_eeprom_data(id_port, EEPROM_PROD_ID);
+
+	    ep_board[neisa].epb_isa = 1;
 	    ep_board[neisa+nisa].epb_used = 0;
 	    ep_board[neisa+nisa++].epb_addr =
-		(get_eeprom_data(id_port, EEPROM_ADDR_CFG) & 0x1f) * 0x10 + 0x200;
+			(get_eeprom_data(id_port, EEPROM_ADDR_CFG) & 0x1f) * 0x10 + 0x200;
+
 	    outb(id_port, ep_current_tag);	/* tags board */
 	    outb(id_port, ACTIVATE_ADAPTER_TO_CONFIG);
 	    ep_current_tag--;
@@ -275,18 +292,20 @@ ep_look_for_board_at(is)
 
 	IS_BASE=ep_board[i].epb_addr;
 	ep_board[i].epb_used=1;
-	return 1;
+
+	return &ep_board[i];
     } else {
 	for (i=0; ep_board[i].epb_addr && ep_board[i].epb_addr != IS_BASE; i++);
 
-	if( ep_board[i].epb_used || ep_board[i].epb_addr != IS_BASE)
+	if( ep_board[i].epb_used || ep_board[i].epb_addr != IS_BASE) 
 	    return 0;
 
 	if (inw(IS_BASE + EP_W0_EEPROM_COMMAND) & EEPROM_TST_MODE)
 	    printf("ep%d: 3c5x9 at 0x%x in test mode. Erase pencil mark!\n",
 		   is->id_unit, IS_BASE);
 	ep_board[i].epb_used=1;
-	return 1;
+
+	return &ep_board[i];
     }
 }
 
@@ -313,23 +332,25 @@ epprobe(is)
 {
     struct ep_softc *sc = &ep_softc[is->id_unit];
     u_short k;
+    int i;
 
     ep_registerdev(is);
 
-    if (!ep_look_for_board_at(is))
+    if(( sc->epb=ep_look_for_board_at(is) )==0)
 	return (0);
     /*
      * The iobase was found and MFG_ID was 0x6d50. PROD_ID should be
      * 0x9[0-f]50
      */
     GO_WINDOW(0);
-    k = get_e(is, EEPROM_PROD_ID);
+    k = sc->epb->epb_isa ? sc->epb->prod_id : get_e(is, EEPROM_PROD_ID);
     if ((k & 0xf0ff) != (PROD_ID & 0xf0ff)) {
 	printf("epprobe: ignoring model %04x\n", k);
 	return (0);
     }
 
-    k = get_e(is, EEPROM_RESOURCE_CFG);
+    k = sc->epb->epb_isa ? sc->epb->res_cfg : get_e(is, EEPROM_RESOURCE_CFG);
+
     k >>= 12;
 
     /* Now we have two cases again:
@@ -404,7 +425,7 @@ epattach(is)
     p = (u_short *) & sc->arpcom.ac_enaddr;
     for (i = 0; i < 3; i++) {
 	GO_WINDOW(0);
-	p[i] = htons(get_e(is, i));
+	p[i] = htons( sc->epb->epb_isa ? sc->epb->eth_addr[i] : get_e(is, i) );
 	GO_WINDOW(2);
 	outw(BASE + EP_W2_ADDR_0 + (i * 2), ntohs(p[i]));
     }
@@ -431,14 +452,16 @@ epattach(is)
     ifp->if_unit = is->id_unit;
     ifp->if_name = "ep";
     ifp->if_mtu = ETHERMTU;
-    ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX;
+    ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
     ifp->if_output = ether_output;
     ifp->if_start = epstart;
     ifp->if_ioctl = epioctl;
     ifp->if_watchdog = epwatchdog;
 
     if_attach(ifp);
-    kdc_ep[is->id_unit].kdc_state = DC_BUSY;
+
+    /* device attach does transition from UNCONFIGURED to IDLE state */
+    kdc_ep[is->id_unit].kdc_state=DC_IDLE;
 
     /*
      * Fill the hardware address into ifa_addr if we find an AF_LINK entry.
@@ -675,12 +698,8 @@ startagain:
 	splx(s);
 	return;
     }
-#if 0
-    len = m->m_pkthdr.len;
-#else
     for (len = 0, top = m; m; m = m->m_next)
 	len += m->m_len;
-#endif
 
     pad = padmap[len & 3];
 
@@ -817,7 +836,13 @@ rescan:
 		   sc->rx_no_first, sc->rx_no_mbuf, sc->rx_bpf_disc, sc->rx_overrunf,
 		   sc->rx_overrunl, sc->tx_underrun);
 #else
-	    printf("ep%d: Status: %x\n", unit, status);
+
+#ifdef DIAGNOSTIC
+	    printf("ep%d: Status: %x (input buffer overflow)\n", unit, status);
+#else
+	    ++sc->arpcom.ac_if.if_ierrors;
+#endif
+
 #endif
 	    epinit(unit);
 	    splx(x);
@@ -1137,6 +1162,10 @@ epioctl(ifp, cmd, data)
     switch (cmd) {
       case SIOCSIFADDR:
 	ifp->if_flags |= IFF_UP;
+
+	/* netifs are BUSY when UP */
+	kdc_ep[ifp->if_unit].kdc_state=DC_BUSY;
+
 	switch (ifa->ifa_addr->sa_family) {
 #ifdef INET
 	  case AF_INET:
@@ -1195,6 +1224,11 @@ epioctl(ifp, cmd, data)
 	}
 	break;
       case SIOCSIFFLAGS:
+	/* UP controls BUSY/IDLE */
+	kdc_ep[ifp->if_unit].kdc_state= ( (ifp->if_flags & IFF_UP)
+		? DC_BUSY
+		: DC_IDLE );
+
 	if ((ifp->if_flags & IFF_UP) == 0 && ifp->if_flags & IFF_RUNNING) {
 	    ifp->if_flags &= ~IFF_RUNNING;
 	    epstop(ifp->if_unit);
@@ -1207,19 +1241,6 @@ epioctl(ifp, cmd, data)
 	}
 
 	/* NOTREACHED */
-
-	if (ifp->if_flags & IFF_UP && (ifp->if_flags & IFF_RUNNING) == 0)
-	    epinit(ifp->if_unit);
-
-	if ( (ifp->if_flags & IFF_PROMISC) &&  !ep_ftst(F_PROMISC) ) {
-	    ep_fset(F_PROMISC);
-	    epinit(ifp->if_unit);
-	    }
-	else if( !(ifp->if_flags & IFF_PROMISC) && ep_ftst(F_PROMISC) ) {
-	    ep_frst(F_PROMISC);
-	    epinit(ifp->if_unit);
-	    }
-
 	break;
 #ifdef notdef
       case SIOCGHWADDR:
@@ -1237,8 +1258,15 @@ epioctl(ifp, cmd, data)
 		} else {
 			ifp->if_mtu = ifr->ifr_mtu;
 		}
-		break;
-
+		break; 
+	case SIOCADDMULTI:
+	case SIOCDELMULTI:
+	    /* Now this driver has no support for programmable
+	     * multicast filters. If some day it will gain this
+	     * support this part of code must be extended.
+	     */
+	    error=0;
+	    break;
       default:
 		error = EINVAL;
     }

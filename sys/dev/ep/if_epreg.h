@@ -31,7 +31,7 @@
 
  */
 /*
- *  $Id: if_epreg.h,v 1.7 1995/04/10 21:25:06 jkh Exp $
+ *  $Id: if_epreg.h,v 1.8 1995/05/30 08:02:09 rgrimes Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -71,6 +71,8 @@ struct ep_softc {
 
 #define         F_ACCESS_32_BITS 0x100
 
+    struct ep_board *epb;
+
 #ifdef  EP_LOCAL_STATS
     short tx_underrun;
     short rx_no_first;
@@ -80,6 +82,17 @@ struct ep_softc {
     short rx_overrunl;
 #endif
 };
+
+struct ep_board {
+	int epb_addr;	/* address of this board */
+	char epb_used;	/* was this entry already used for configuring ? */
+				/* data from EEPROM for later use */
+	char epb_isa;	/* flag: this is an ISA card */
+	u_short eth_addr[3];	/* Ethernet address */
+	u_short prod_id;	/* product ID */
+	u_short res_cfg;	/* resource configuration */
+	};
+
 
 /*
  * Some global constants
