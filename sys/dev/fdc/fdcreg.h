@@ -39,7 +39,7 @@
  */
 
 /* uses NEC765 controller */
-#include <isa/ic/nec765.h>
+#include <dev/ic/nec765.h>
 
 /* registers */
 #define	FDOUT	2	/* Digital Output Register (W) */

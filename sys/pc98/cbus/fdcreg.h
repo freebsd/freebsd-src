@@ -39,7 +39,7 @@
  */
 
 /* uses NEC765 controller */
-#include <isa/ic/nec765.h>
+#include <dev/ic/nec765.h>
 
 #ifdef PC98
 /* registers */
