@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.2 (Berkeley) 9/23/93
- * $Id: tty_pty.c,v 1.8 1995/02/28 00:21:05 pst Exp $
+ * $Id: tty_pty.c,v 1.9 1995/04/09 22:28:24 ache Exp $
  */
 
 /*
@@ -159,8 +159,8 @@ ptsclose(dev, flag, mode, p)
 	int err;
 
 	tp = &pt_tty[minor(dev)];
-	ptcwakeup(tp, FREAD|FWRITE);
 	err = (*linesw[tp->t_line].l_close)(tp, flag);
+	ptsstop(tp, FREAD|FWRITE);
 	(void) ttyclose(tp);
 	return (err);
 }
