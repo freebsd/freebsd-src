@@ -337,7 +337,7 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 		newmap = malloc(sizeof(*newmap), M_DEVBUF, M_NOWAIT | M_ZERO);
 		if (newmap == NULL) {
 			CTR3(KTR_BUSDMA, "bus_dmamem_alloc: tag %p tag "
-			    "flags %0x%x error Md", dmat, dmat->flags, ENOMEM);
+			    "flags 0x%x error %d", dmat, dmat->flags, ENOMEM);
 			return (ENOMEM);
 		}
 		dmat->map_count++;
