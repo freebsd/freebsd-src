@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.105 1995/07/22 16:44:50 bde Exp $
+ *	$Id: sio.c,v 1.106 1995/07/29 04:05:57 bde Exp $
  */
 
 #include "sio.h"
@@ -2082,13 +2082,11 @@ disc_optim(tp, t, com)
 	struct termios	*t;
 	struct com_s	*com;
 {
-	if (!(t->c_iflag & (ICRNL | IGNCR | IMAXBEL | INLCR | ISTRIP
-			   | IXOFF | IXON))
+	if (!(t->c_iflag & (ICRNL | IGNCR | IMAXBEL | INLCR | ISTRIP | IXON))
 	    && (!(t->c_iflag & BRKINT) || (t->c_iflag & IGNBRK))
-	    && (!(t->c_iflag & PARMRK) ||
-		(t->c_iflag & (IGNPAR|IGNBRK)) == (IGNPAR|IGNBRK))
-	    && !(t->c_lflag & (ECHO | ECHONL | ICANON | IEXTEN | ISIG
-			   | PENDIN))
+	    && (!(t->c_iflag & PARMRK)
+		|| (t->c_iflag & (IGNPAR | IGNBRK)) == (IGNPAR | IGNBRK))
+	    && !(t->c_lflag & (ECHO | ICANON | IEXTEN | ISIG | PENDIN))
 	    && linesw[tp->t_line].l_rint == ttyinput)
 		tp->t_state |= TS_CAN_BYPASS_L_RINT;
 	else
