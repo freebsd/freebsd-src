@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.67 1997/09/02 20:06:26 bde Exp $
+ * $Id: if_de.c,v 1.68 1997/09/11 15:27:34 peter Exp $
  *
  */
 
@@ -5125,6 +5125,8 @@ tulip_pci_attach(
     retval = pci_map_mem(config_id, PCI_CBMA, (vm_offset_t *) &csr_base, &pa_csrs);
 #endif
     if (!retval) {
+	free((caddr_t) sc->tulip_rxdescs, M_DEVBUF);
+	free((caddr_t) sc->tulip_rxdescs, M_DEVBUF);
 	free((caddr_t) sc, M_DEVBUF);
 	return;
     }
