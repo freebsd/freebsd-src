@@ -1,7 +1,5 @@
 /*-
- *  dgreg.h $Id: dgreg.h,v 1.4 1995/07/13 08:07:46 root Exp root $
- *
- *  Copyright (C) 1995 by Serge Babkin <babkin@hq.icb.chel.su>
+ *  dgreg.h $Id: dgreg.h,v 1.1 1995/09/03 19:52:55 jkh Exp $
  *
  *  Digiboard driver.
  *
@@ -11,10 +9,6 @@
  *  De Jongh <troyd@digibd.com> or <troyd@skypoint.com> 
  *  which is under GNU General Public License version 2 so this driver 
  *  is forced to be under GPL 2 too.
- *
- *	Serge Babkin does not guarantee that this file is totally correct
- *  for any given task and users of this file must accept responsibility
- *  for any damage that occurs from the application of this file.
  *
  *  Written by Serge Babkin,
  *      Joint Stock Commercial Bank "Chelindbank"
