@@ -1,4 +1,4 @@
-.\"	$Id: getvfsent.3,v 1.4.2.1 1997/02/28 05:49:18 mpp Exp $
+.\"	$Id: getvfsent.3,v 1.4.2.2 1998/05/25 21:32:47 steve Exp $
 .\"	Written by Garrett A. Wollman, September 1994.
 .\"	This manual page is in the public domain.
 .\"
@@ -139,8 +139,8 @@ struct vfsconf *vfc;
 /* setup code here */
 
 vfc = getvfsbyname("cd9660");
-if(!vfc && vfsisloadable("cd9660")) {
-	if(vfsload("cd9660")) {
+if (!vfc && vfsisloadable("cd9660")) {
+	if (vfsload("cd9660")) {
 		err(EX_OSERR, "vfsload(cd9660)");
 	}
 	endvfsent();    /* flush cache */
