@@ -59,7 +59,7 @@ Samedi
 #
 # x_fmt
 #
-%d.%m.%Y
+%d.%m.%y
 #
 # c_fmt
 #
@@ -67,11 +67,11 @@ Samedi
 #
 # am
 #
-
+  
 #
 # pm
 #
-
+pm
 #
 # date_fmt
 #
@@ -92,11 +92,10 @@ octobre
 novembre
 décembre
 #
-# md_order
+# Ef_fmt
 #
-dm
+%e %b
 #
-# ampm_fmt
+# EF_fmt
 #
-
-# EOF
+%e %B

@@ -34,14 +34,14 @@ November
 Dezember
 #
 # Short weekdays names
-#
-So
-Mo
-Di
-Mi
-Do
-Fr
-Sa
+# (padded with a space to conform with other languages)
+So 
+Mo 
+Di 
+Mi 
+Do 
+Fr 
+Sa 
 #
 # Long weekdays names
 #
@@ -59,7 +59,7 @@ Samstag
 #
 # x_fmt
 #
-%d.%m.%Y
+%d.%m.%y
 #
 # c_fmt
 #
@@ -92,11 +92,10 @@ Oktober
 November
 Dezember
 #
-# md_order
+# Ef_fmt
 #
-dm
+%e %b
 #
-# ampm_fmt
+# EF_fmt
 #
-%I:%M:%S %p
-# EOF
+%e %B
