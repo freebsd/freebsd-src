@@ -474,6 +474,14 @@ MTA selector.
 Set to not build manual pages
 .It Va NO_MAKEDEV
 .Pq Vt bool
+Set to avoid installing
+.Pa MAKEDEV
+and
+.Pa MAKEDEV.local
+in
+.Pa /dev .
+.It Va NO_MAKEDEV_RUN
+.Pq Vt bool
 Set to avoid running
 .Dq Li "MAKEDEV all"
 on
