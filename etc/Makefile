@@ -5,7 +5,7 @@
 SUBDIR=	sendmail
 .endif
 
-BIN1=   amd.map apmd.conf auth.conf \
+BIN1=	amd.map apmd.conf auth.conf \
 	crontab csh.cshrc csh.login csh.logout \
 	dhclient.conf dm.conf fbtab ftpusers gettytab group \
 	hosts hosts.allow hosts.equiv hosts.lpd \
@@ -46,12 +46,14 @@ MTREE=	BSD.include.dist BSD.local.dist BSD.root.dist BSD.usr.dist \
 .if !defined(NO_SENDMAIL)
 MTREE+=	BSD.sendmail.dist
 .endif
-NAMEDB= PROTO.localhost.rev PROTO.localhost-v6.rev named.conf named.root \
+
+NAMEDB=	PROTO.localhost.rev PROTO.localhost-v6.rev named.conf named.root \
 	make-localhost
-PPPCNF= ppp.conf
+
+PPPCNF=	ppp.conf
+
 ETCMAIL=Makefile README mailer.conf access.sample virtusertable.sample \
 	mailertable.sample aliases
-
 
 # Special top level files for FreeBSD
 FREEBSD=COPYRIGHT
@@ -69,11 +71,13 @@ distribute:
 
 distribution:
 	cd ${.CURDIR}; \
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 ${BIN1} ${DESTDIR}/etc; \
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 755 ${BIN2} ${DESTDIR}/etc; \
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 600 \
-	    master.passwd nsmb.conf opieaccess ${DESTDIR}/etc; \
-	pwd_mkdb -p -d ${DESTDIR}/etc ${DESTDIR}/etc/master.passwd
+	    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 \
+		${BIN1} ${DESTDIR}/etc; \
+	    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 755 \
+		${BIN2} ${DESTDIR}/etc; \
+	    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 600 \
+		master.passwd nsmb.conf opieaccess ${DESTDIR}/etc; \
+	    pwd_mkdb -p -d ${DESTDIR}/etc ${DESTDIR}/etc/master.passwd
 	cd ${.CURDIR}/defaults; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 \
 	    ${DEFAULTS} ${DESTDIR}/etc/defaults
 	cd ${.CURDIR}/periodic; ${MAKE} install
@@ -90,31 +94,31 @@ distribution:
 .endif
 .if exists(${.CURDIR}/../crypto) && !defined(NO_OPENSSL)
 .if !defined(NO_OPENSSH)
-	cd ${.CURDIR}; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 ${SSH} \
-	    ${DESTDIR}/etc/ssh
+	cd ${.CURDIR}; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 \
+	    ${SSH} ${DESTDIR}/etc/ssh
 .endif
-	cd ${.CURDIR}; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 ${SSL} \
-	    ${DESTDIR}/etc/ssl
+	cd ${.CURDIR}; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 \
+	    ${SSL} ${DESTDIR}/etc/ssl
 .endif
 .if !defined(NO_MAKEDEV_INSTALL)
 	cd ${.CURDIR}; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 555 \
-	     MAKEDEV.local MAKEDEV ${DESTDIR}/dev
+	    MAKEDEV.local MAKEDEV ${DESTDIR}/dev
 .if !defined(NO_MAKEDEV_RUN)
 	cd ${DESTDIR}/dev; sh MAKEDEV all
 .endif
 .endif
 	cd ${.CURDIR}/root; \
-		${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 dot.cshrc \
-		    ${DESTDIR}/root/.cshrc; \
-		${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 dot.klogin \
-		    ${DESTDIR}/root/.klogin; \
-		${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 dot.login \
-		    ${DESTDIR}/root/.login; \
-		${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 dot.profile \
-		    ${DESTDIR}/root/.profile; \
-		rm -f ${DESTDIR}/.cshrc ${DESTDIR}/.profile; \
-		ln ${DESTDIR}/root/.cshrc ${DESTDIR}/.cshrc; \
-		ln ${DESTDIR}/root/.profile ${DESTDIR}/.profile
+	    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 \
+		dot.cshrc ${DESTDIR}/root/.cshrc; \
+	    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 \
+		dot.klogin ${DESTDIR}/root/.klogin; \
+	    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 \
+		dot.login ${DESTDIR}/root/.login; \
+	    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 \
+		dot.profile ${DESTDIR}/root/.profile; \
+	    rm -f ${DESTDIR}/.cshrc ${DESTDIR}/.profile; \
+	    ln ${DESTDIR}/root/.cshrc ${DESTDIR}/.cshrc; \
+	    ln ${DESTDIR}/root/.profile ${DESTDIR}/.profile
 	cd ${.CURDIR}/mtree; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${MTREE} ${DESTDIR}/etc/mtree
 	cd ${.CURDIR}/namedb; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 \
@@ -156,9 +160,8 @@ distribution:
 	    ${DESTDIR}/var/run/utmp
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 ${.CURDIR}/minfree \
 	    ${DESTDIR}/var/crash
-	cd ${.CURDIR}/..; \
-	    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${FREEBSD} \
-		${DESTDIR}/
+	cd ${.CURDIR}/..; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
+		${FREEBSD} ${DESTDIR}/
 .if !defined(NOMAN)
 	cd ${.CURDIR}/../share/man; ${MAKE} makedb
 .endif
@@ -213,11 +216,10 @@ distrib-dirs:
 	done
 
 etc-examples:
-	cd ${.CURDIR}; \
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${BIN1} ${BIN2} \
-	    nsmb.conf opieaccess ${DESTDIR}/usr/share/examples/etc
-	cd ${.CURDIR}/defaults; \
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${DEFAULTS} \
-	    ${DESTDIR}/usr/share/examples/etc/defaults
+	cd ${.CURDIR}; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
+	    ${BIN1} ${BIN2} nsmb.conf opieaccess \
+	    ${DESTDIR}/usr/share/examples/etc
+	cd ${.CURDIR}/defaults; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
+	    ${DEFAULTS} ${DESTDIR}/usr/share/examples/etc/defaults
 
 .include <bsd.prog.mk>
