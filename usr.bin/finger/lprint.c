@@ -35,7 +35,12 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)lprint.c	8.1 (Berkeley) 6/6/93";
+#else
+static const char rcsid[] =
+	"$Id$";
+#endif
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -46,6 +51,7 @@ static char sccsid[] = "@(#)lprint.c	8.1 (Berkeley) 6/6/93";
 #include <db.h>
 #include <pwd.h>
 #include <utmp.h>
+#include <err.h>
 #include <errno.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -76,7 +82,7 @@ lflag_print()
 	for (sflag = R_FIRST;; sflag = R_NEXT) {
 		r = (*db->seq)(db, &key, &data, sflag);
 		if (r == -1)
-			err("db seq: %s", strerror(errno));
+			err(1, "db seq");
 		if (r == 1)
 			break;
 		pn = *(PERSON **)data.data;
