@@ -83,7 +83,7 @@ If
 .Fa mode
 is
 .Dv LIO_NOWAIT ,
-the requests are processed asynchronously and the signal specified by
+the requests are processed asynchronously, and the signal specified by
 .Fa sig
 is sent when all operations have completed.
 If
@@ -95,7 +95,7 @@ the calling process is not notified of I/O completion.
 The order in which the requests are carried out is not specified;
 in particular, there is no guarantee that they will be executed in
 the order 0, 1, ...,
-.Fa nent Ns \&-1 .
+.Fa nent Ns \-1 .
 .Sh RETURN VALUES
 If
 .Fa mode
@@ -104,7 +104,7 @@ is
 the
 .Fn lio_listio
 function returns 0 if the operations completed successfully,
-otherwise -1.
+otherwise \-1.
 .Pp
 If
 .Fa mode
@@ -113,7 +113,7 @@ is
 the
 .Fn lio_listio
 function 0 if the operations are successfully queued,
-otherwise -1.
+otherwise \-1.
 .Sh ERRORS
 The
 .Fn lio_listio
@@ -152,8 +152,7 @@ and
 If
 .Fn lio_listio
 succeeds, or fails with an error code of
-.Er EAGAIN ,
-.Er EINTR ,
+.Er EAGAIN , EINTR ,
 or
 .Er EIO ,
 some of the requests may have been initiated.
