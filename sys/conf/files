@@ -1071,6 +1071,7 @@ net/if_tap.c		optional tap
 net/if_vlan.c		optional vlan
 net/intrq.c		standard
 net/net_osdep.c		standard
+net/netisr.c		standard
 net/ppp_deflate.c	optional ppp_deflate
 net/ppp_tty.c		optional ppp
 net/pfil.c		optional pfil_hooks
