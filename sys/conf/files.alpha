@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.alpha,v 1.9 1998/09/16 08:22:09 dfr Exp $
+#	$Id: files.alpha,v 1.10 1998/09/17 09:38:36 dfr Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -122,6 +122,7 @@ libkern/index.c			standard
 libkern/mcount.c		optional	profiling-routine
 libkern/qsort.c			standard
 libkern/random.c		standard
+libkern/rindex.c		standard
 libkern/scanc.c			standard
 libkern/skpc.c			standard
 libkern/strcat.c		standard
