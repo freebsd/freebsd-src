@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.14 1995/12/21 19:20:57 davidg Exp $
+ *	$Id: exception.s,v 1.15 1996/03/02 19:37:37 peter Exp $
  */
 
 #include "npx.h"				/* NNPX */
@@ -154,6 +154,7 @@ IDTVEC(align)
 	TRAP(T_ALIGNFLT)
 
 	SUPERALIGN_TEXT
+	.globl	_alltraps
 _alltraps:
 	pushal
 	pushl	%ds
