@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.12 1998/05/29 18:33:08 brian Exp $
+ *	$Id: bundle.c,v 1.13 1998/06/06 20:50:54 brian Exp $
  */
 
 #include <sys/param.h>
@@ -482,8 +482,6 @@ bundle_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
   int result, want, queued, nlinks;
 
   result = 0;
-  for (dl = bundle->links; dl; dl = dl->next)
-    result += descriptor_UpdateSet(&dl->desc, r, w, e, n);
 
   /* If there are aren't many packets queued, look for some more. */
   for (nlinks = 0, dl = bundle->links; dl; dl = dl->next)
@@ -520,6 +518,10 @@ bundle_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
       }
     }
   }
+
+  /* Which links need a select() ? */
+  for (dl = bundle->links; dl; dl = dl->next)
+    result += descriptor_UpdateSet(&dl->desc, r, w, e, n);
 
   /*
    * This *MUST* be called after the datalink UpdateSet()s as it
