@@ -204,27 +204,20 @@ atalkprotopr(off, name)
 	u_long off;
 	char *name;
 {
-	struct ddpcb cb;
-	register struct ddpcb *prev, *next;
-	struct ddpcb *initial;
+	struct ddpcb *this, *next;
 
 	if (off == 0)
 		return;
-	kread(off, (char *)&initial, sizeof (struct ddpcb *));
-	ddpcb = cb;
-	prev = (struct ddpcb *)off;
-	for (next = initial ;next != NULL; prev = next) {
-		u_long ppcb;
-
-		kread((u_long)next, (char *)&ddpcb, sizeof (ddpcb));
+	kread(off, (char *)&this, sizeof (struct ddpcb *));
+	for ( ; this != NULL; this = next) {
+		kread((u_long)this, (char *)&ddpcb, sizeof (ddpcb));
 		next = ddpcb.ddp_next;
 #if 0
 		if (!aflag && atalk_nullhost(ddpcb.ddp_lsat) ) {
 			continue;
 		}
 #endif
-		kread((u_long)ddpcb.ddp_socket,
-				(char *)&sockb, sizeof (sockb));
+		kread((u_long)ddpcb.ddp_socket, (char *)&sockb, sizeof (sockb));
 		if (first) {
 			printf("Active ATALK connections");
 			if (aflag)
@@ -240,7 +233,7 @@ atalkprotopr(off, name)
 			first = 0;
 		}
 		if (Aflag)
-			printf("%8lx ", ppcb);
+			printf("%8lx ", (u_long) this);
 		printf("%-5.5s %6lu %6lu ", name, sockb.so_rcv.sb_cc,
 			sockb.so_snd.sb_cc);
 		printf(Aflag?" %-18.18s":" %-22.22s", atalk_print(

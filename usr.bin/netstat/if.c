@@ -135,7 +135,7 @@ intpr(interval, ifnetaddr)
 	u_long ifaddraddr;
 	u_long ifaddrfound;
 	u_long ifnetfound;
-	struct sockaddr *sa;
+	struct sockaddr *sa = NULL;
 	char name[32], tname[16];
 
 	if (ifnetaddr == 0) {
@@ -199,7 +199,8 @@ intpr(interval, ifnetaddr)
 			}
 #define CP(x) ((char *)(x))
 			cp = (CP(ifaddr.ifa.ifa_addr) - CP(ifaddraddr)) +
-				CP(&ifaddr); sa = (struct sockaddr *)cp;
+				CP(&ifaddr);
+			sa = (struct sockaddr *)cp;
 			switch (sa->sa_family) {
 			case AF_UNSPEC:
 				printf("%-13.13s ", "none");
