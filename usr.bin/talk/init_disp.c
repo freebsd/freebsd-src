@@ -75,7 +75,6 @@ void
 init_display()
 {
 	struct sigaction sa;
-	int i;
 
 	if (initscr() == NULL)
 		errx(1, "Terminal type unset or lacking necessary features.");
@@ -104,8 +103,11 @@ init_display()
 	wclear(his_win.x_win);
 
 	line_win = newwin(1, COLS, my_win.x_nlines, 0);
-	for (i = 0; i < COLS; i++)
-		mvwaddch(line_win, 0, i, '-');
+#if defined(hline) || defined(whline) || defined(NCURSES_VERSION)
+	whline(line_win, 0, COLS);
+#else
+	box(line_win, '-', '-');
+#endif
 	wrefresh(line_win);
 	/* let them know we are working on it */
 	current_state = "No connection yet";
