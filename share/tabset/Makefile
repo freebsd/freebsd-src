@@ -5,7 +5,10 @@ FILES=	3101 9837 aa aed512 beehive diablo dtc382 hp700-wy ibm3101 std \
 	xerox1730-lm zenith29
 NOOBJ=	noobj
 
-all clean cleandir depend lint tags:
+all depend lint tags:
+
+clean cleandir:
+	rm -f ${FILES}
 
 install:
 	for i in ${FILES} ; do ; uudecode < $$i.uu ; done
