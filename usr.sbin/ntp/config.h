@@ -619,10 +619,10 @@
 #define HAVE_RANDOM 1
 
 /* Define if you have the rtprio function.  */
-#define HAVE_RTPRIO 1
+/* #undef HAVE_RTPRIO 1 */
 
 /* Define if you have the sched_setscheduler function.  */
-#define HAVE_SCHED_SETSCHEDULER 1
+/* #undef HAVE_SCHED_SETSCHEDULER 1 */
 
 /* Define if you have the setlinebuf function.  */
 #define HAVE_SETLINEBUF 1
