@@ -1575,6 +1575,11 @@ rl_start(ifp)
 		    RL_CUR_TXMBUF(sc)->m_pkthdr.len);
 
 		RL_INC(sc->rl_cdata.cur_tx);
+
+		/*
+		 * Set a timeout in case the chip goes out to lunch.
+		 */
+		ifp->if_timer = 5;
 	}
 
 	/*
@@ -1585,10 +1590,6 @@ rl_start(ifp)
 	if (RL_CUR_TXMBUF(sc) != NULL)
 		ifp->if_flags |= IFF_OACTIVE;
 
-	/*
-	 * Set a timeout in case the chip goes out to lunch.
-	 */
-	ifp->if_timer = 5;
 	RL_UNLOCK(sc);
 
 	return;
