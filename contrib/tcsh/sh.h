@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.h,v 3.87 2000/01/14 22:57:28 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.h,v 3.88 2000/06/10 22:06:27 kim Exp $ */
 /*
  * sh.h: Catch it all globals and includes file!
  */
@@ -121,12 +121,12 @@ typedef int sigret_t;
  *	MAILINTVL	How often to mailcheck; more often is more expensive
  */
 #ifdef BUFSIZE
-# if	   BUFSIZE < 1024
+# if	   BUFSIZE < 4096
 #  undef   BUFSIZE
-#  define  BUFSIZE	1024	/* buffer size should be no less than this */
+#  define  BUFSIZE	4096	/* buffer size should be no less than this */
 # endif
 #else
-# define   BUFSIZE	1024
+# define   BUFSIZE	4096
 #endif /* BUFSIZE */
 
 #define FORKSLEEP	10	/* delay loop on non-interactive fork failure */
