@@ -78,13 +78,13 @@ int dialog_prgbox(unsigned char *title, const unsigned char *line, int height, i
 
   if (!use_shell) {
     char cmdline[MAX_LEN];
-    char *av[51], **ap = av, *val;
-    int first = 1;
+    char *av[51], **ap = av, *val, *p;
 
     strcpy(cmdline, line);
-    while ((val = strtok(first ? cmdline : NULL, " \t")) != NULL) {
-      first = 0;
-      *ap++ = val;
+    p = cmdline;
+    while ((val = strsep(&p," \t")) != NULL) {
+      if (*val != '\0')
+	*ap++ = val;
     }
     *ap = NULL;
     f = raw_popen(name = av[0], av, "r");
