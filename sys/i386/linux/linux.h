@@ -135,8 +135,10 @@ struct linux_new_utsname {
 #define	LINUX_SIGPWR		30
 #define	LINUX_SIGUNUSED		31
 
-#define	LINUX_NSIG		64
 #define	LINUX_SIGTBLSZ		31
+#define	LINUX_NSIG_WORDS	2
+#define	LINUX_NBPW		32
+#define	LINUX_NSIG		(LINUX_NBPW * LINUX_NSIG_WORDS)
 
 /* sigaction flags */
 #define	LINUX_SA_NOCLDSTOP	0x00000001
@@ -174,7 +176,7 @@ typedef void	(*linux_handler_t)(int);
 typedef u_long	linux_osigset_t;
 
 typedef struct {
-	u_int	__bits[2];
+	u_int	__bits[LINUX_NSIG_WORDS];
 } linux_sigset_t;
 
 typedef struct {
@@ -289,6 +291,42 @@ typedef struct siginfo {
 #define lsi_band         _sifields._sigpoll._band
 #define lsi_fd           _sifields._sigpoll._fd
 
+struct linux_fpreg {
+	u_int16_t significand[4];
+	u_int16_t exponent;
+};
+
+struct linux_fpxreg {
+	u_int16_t significand[4];
+	u_int16_t exponent;
+	u_int16_t padding[3];
+};
+
+struct linux_xmmreg {
+	u_int32_t element[4];
+};
+
+struct linux_fpstate {
+	/* Regular FPU environment */
+	u_int32_t		cw;
+	u_int32_t		sw;
+	u_int32_t		tag;
+	u_int32_t		ipoff;
+	u_int32_t		cssel;
+	u_int32_t		dataoff;
+	u_int32_t		datasel;
+	struct linux_fpreg	_st[8];
+	u_int16_t		status;
+	u_int16_t		magic;  /* 0xffff = regular FPU data */
+
+	/* FXSR FPU environment */
+	u_int32_t		_fxsr_env[6]; /* env is ignored */
+	u_int32_t		mxcsr;
+	u_int32_t		reserved;
+	struct linux_fpxreg	_fxsr_st[8];  /* reg data is ignored */
+	struct linux_xmmreg	_xmm[8];
+	u_int32_t		padding[56];
+};
 
 /*
  * We make the stack look like Linux expects it when calling a signal
@@ -299,6 +337,8 @@ typedef struct siginfo {
 struct linux_sigframe {
 	int	sf_sig;
 	struct	linux_sigcontext sf_sc;
+	struct  linux_fpstate fpstate;
+	u_int	extramask[LINUX_NSIG_WORDS-1];
 	linux_handler_t sf_handler;
 };
 
