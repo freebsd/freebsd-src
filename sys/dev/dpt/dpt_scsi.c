@@ -43,7 +43,7 @@
  *	       arrays that span controllers (Wow!).
  */
 
-#ident "$Id: dpt_scsi.c,v 1.20 1998/10/15 23:46:24 gibbs Exp $"
+#ident "$Id: dpt_scsi.c,v 1.21 1998/12/22 00:52:27 eivind Exp $"
 
 #define _DPT_C_
 
@@ -300,13 +300,9 @@ dptallocsgmap(struct dpt_softc *dpt)
 		return (NULL);
 	}
 
-	if (bus_dmamap_load(dpt->sg_dmat, sg_map->sg_dmamap, sg_map->sg_vaddr,
-			    PAGE_SIZE, dptmapmem, &sg_map->sg_physaddr, /*flags*/0)) {
-	    	bus_dmamem_free(dpt->sg_dmat, sg_map->sg_vaddr,
-				sg_map->sg_dmamap);
-		free(sg_map, M_DEVBUF);
-		return (NULL);
-	}
+	(void)bus_dmamap_load(dpt->sg_dmat, sg_map->sg_dmamap, sg_map->sg_vaddr,
+			      PAGE_SIZE, dptmapmem, &sg_map->sg_physaddr,
+			      /*flags*/0);
 
 	SLIST_INSERT_HEAD(&dpt->sg_maps, sg_map, links);
 
