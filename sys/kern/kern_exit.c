@@ -349,11 +349,10 @@ exit1(p, rv)
 			wakeup((caddr_t)pp);
 	}
 
-	if (p->p_sigparent && p->p_pptr != initproc) {
-	        psignal(p->p_pptr, p->p_sigparent);
-	} else {
+	if (p->p_pptr == initproc)
 	        psignal(p->p_pptr, SIGCHLD);
-	}
+	else if (p->p_sigparent != 0)
+	        psignal(p->p_pptr, p->p_sigparent);
 
 	wakeup((caddr_t)p->p_pptr);
 #if defined(tahoe)
