@@ -6,7 +6,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.227.2.27 1997/10/08 05:05:27 asami Exp $
+# $Id: bsd.port.mk,v 1.227.2.28 1997/11/12 10:42:26 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -565,6 +565,10 @@ MASTER_SITE_SUNSITE+=	\
 MASTER_SITES?=
 PATCH_SITES?=
 
+# To avoid double-slashes
+MASTER_SITE_SUBDIR?=	.
+PATCH_SITE_SUBDIR?=	.
+
 # Substitute subdirectory names
 MASTER_SITES:=	${MASTER_SITES:S/%SUBDIR%/${MASTER_SITE_SUBDIR}/}
 PATCH_SITES:=	${PATCH_SITES:S/%SUBDIR%/${PATCH_SITE_SUBDIR}/}
@@ -747,6 +751,12 @@ IGNORE=	"is restricted: ${RESTRICTED}"
 IGNORE=	"uses X11, but ${X11BASE} not found"
 .elif defined(BROKEN)
 IGNORE=	"is marked as broken: ${BROKEN}"
+.endif
+
+.if (defined(MANUAL_PACKAGE_BUILD) && defined(PACKAGE_BUILDING))
+IGNORE=	"package has to be built manually: ${MANUAL_PACKAGE_BUILD}"
+clean:
+	@${IGNORECMD}
 .endif
 
 .if defined(IGNORE)
