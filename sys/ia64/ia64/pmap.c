@@ -117,6 +117,7 @@
 #include <vm/vm_pageout.h>
 #include <vm/vm_pager.h>
 #include <vm/uma.h>
+#include <vm/uma_int.h>
 
 #include <sys/user.h>
 
@@ -226,9 +227,6 @@ struct mtx pmap_ridmutex;
  * Data for the pv entry allocation mechanism
  */
 static uma_zone_t pvzone;
-#if 0
-static struct vm_object pvzone_obj;
-#endif
 static int pv_entry_count = 0, pv_entry_max = 0, pv_entry_high_water = 0;
 static int pmap_pagedaemon_waken = 0;
 static struct pv_entry *pvbootentries;
@@ -238,9 +236,6 @@ static int pvbootnext, pvbootmax;
  * Data for allocating PTEs for user processes.
  */
 static uma_zone_t ptezone;
-#if 0
-static struct vm_object ptezone_obj;
-#endif
 
 /*
  * VHPT instrumentation.
@@ -264,7 +259,6 @@ static void	ia64_protection_init(void);
 static void	pmap_invalidate_all(pmap_t pmap);
 static void	pmap_remove_all(vm_page_t m);
 static void	pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m);
-static void	*pmap_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait);       
 
 vm_offset_t
 pmap_steal_memory(vm_size_t size)
@@ -484,11 +478,40 @@ pmap_bootstrap()
 	pmap_invalidate_all(kernel_pmap);
 }
 
-static void *
-pmap_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
+void *
+uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 {
+	static vm_pindex_t color;
+	vm_page_t m;
+	int pflags;
+	void *va;
+
 	*flags = UMA_SLAB_PRIV;
-	return (void *)IA64_PHYS_TO_RR7(ia64_tpa(kmem_alloc(kernel_map, bytes)));
+	if ((wait & (M_NOWAIT|M_USE_RESERVE)) == M_NOWAIT)
+		pflags = VM_ALLOC_INTERRUPT;
+	else
+		pflags = VM_ALLOC_SYSTEM;
+	if (wait & M_ZERO)
+		pflags |= VM_ALLOC_ZERO;
+	m = vm_page_alloc(NULL, color++, pflags | VM_ALLOC_NOOBJ);
+	if (m) {
+		va = (void *)IA64_PHYS_TO_RR7(VM_PAGE_TO_PHYS(m));
+		if ((m->flags & PG_ZERO) == 0)
+			bzero(va, PAGE_SIZE);
+		return (va);
+	}
+	return (NULL);
+}
+
+void
+uma_small_free(void *mem, int size, u_int8_t flags)
+{
+	vm_page_t m;
+
+	m = PHYS_TO_VM_PAGE(IA64_RR_MASK((u_int64_t)mem));
+	vm_page_lock_queues();
+	vm_page_free(m);
+	vm_page_unlock_queues();
 }
 
 /*
@@ -527,12 +550,10 @@ pmap_init(vm_offset_t phys_start, vm_offset_t phys_end)
 		initial_pvs = MAXPV;
 	pvzone = uma_zcreate("PV ENTRY", sizeof (struct pv_entry),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM);
-	uma_zone_set_allocf(pvzone, pmap_allocf);
 	uma_prealloc(pvzone, initial_pvs);
 
 	ptezone = uma_zcreate("PT ENTRY", sizeof (struct ia64_lpte), 
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM);
-	uma_zone_set_allocf(ptezone, pmap_allocf);
 	uma_prealloc(ptezone, initial_pvs);
 
 	/*
@@ -559,10 +580,6 @@ pmap_init2()
 	TUNABLE_INT_FETCH("vm.pmap.shpgperproc", &shpgperproc);
 	pv_entry_max = shpgperproc * maxproc + vm_page_array_size;
 	pv_entry_high_water = 9 * (pv_entry_max / 10);
-#if 0	/* incompatable with pmap_allocf above */
-	uma_zone_set_obj(pvzone, &pvzone_obj, pv_entry_max);
-	uma_zone_set_obj(ptezone, &ptezone_obj, pv_entry_max);
-#endif
 }
 
 
