@@ -105,11 +105,6 @@ name).
 
 There are a few other options to the configure script:
 
---with-rsh=PATH allows you to specify the path to your rsh program. 
-Normally ./configure will search the current $PATH for 'rsh'. You 
-may need to specify this option if rsh is not in your path or has a
-different name.
-
 --with-pam enables PAM support.
 
 --enable-gnome-askpass will build the GNOME passphrase dialog. You
@@ -226,4 +221,4 @@ Please refer to the "reporting bugs" section of the webpage at
 http://www.openssh.com/
 
 
-$Id: INSTALL,v 1.53 2002/05/13 05:22:21 djm Exp $
+$Id: INSTALL,v 1.54 2002/06/24 16:26:49 stevesk Exp $

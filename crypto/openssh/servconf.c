@@ -10,7 +10,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: servconf.c,v 1.111 2002/06/20 23:05:55 markus Exp $");
+RCSID("$OpenBSD: servconf.c,v 1.112 2002/06/23 09:46:51 deraadt Exp $");
 
 #if defined(KRB4)
 #include <krb.h>
@@ -257,7 +257,7 @@ fill_default_server_options(ServerOptions *options)
 	if (use_privsep == -1)
 		use_privsep = 1;
 
-#if !defined(HAVE_MMAP) || !defined(MAP_ANON)
+#if !defined(HAVE_MMAP_ANON_SHARED)
 	if (use_privsep && options->compression == 1) {
 		error("This platform does not support both privilege "
 		    "separation and compression");
@@ -423,7 +423,7 @@ add_one_listen_addr(ServerOptions *options, char *addr, u_short port)
 	hints.ai_family = IPv4or6;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = (addr == NULL) ? AI_PASSIVE : 0;
-	snprintf(strport, sizeof strport, "%d", port);
+	snprintf(strport, sizeof strport, "%u", port);
 	if ((gaierr = getaddrinfo(addr, strport, &hints, &aitop)) != 0)
 		fatal("bad addr or host: %s (%s)",
 		    addr ? addr : "<NULL>",
@@ -439,9 +439,8 @@ process_server_config_line(ServerOptions *options, char *line,
     const char *filename, int linenum)
 {
 	char *cp, **charptr, *arg, *p;
-	int *intptr, value;
+	int *intptr, value, i, n;
 	ServerOpCodes opcode;
-	int i, n;
 
 	cp = line;
 	arg = strdelim(&cp);
@@ -765,7 +764,8 @@ parse_flag:
 			if (options->num_allow_users >= MAX_ALLOW_USERS)
 				fatal("%s line %d: too many allow users.",
 				    filename, linenum);
-			options->allow_users[options->num_allow_users++] = xstrdup(arg);
+			options->allow_users[options->num_allow_users++] =
+			    xstrdup(arg);
 		}
 		break;
 
@@ -774,7 +774,8 @@ parse_flag:
 			if (options->num_deny_users >= MAX_DENY_USERS)
 				fatal( "%s line %d: too many deny users.",
 				    filename, linenum);
-			options->deny_users[options->num_deny_users++] = xstrdup(arg);
+			options->deny_users[options->num_deny_users++] =
+			    xstrdup(arg);
 		}
 		break;
 
@@ -783,7 +784,8 @@ parse_flag:
 			if (options->num_allow_groups >= MAX_ALLOW_GROUPS)
 				fatal("%s line %d: too many allow groups.",
 				    filename, linenum);
-			options->allow_groups[options->num_allow_groups++] = xstrdup(arg);
+			options->allow_groups[options->num_allow_groups++] =
+			    xstrdup(arg);
 		}
 		break;
 
@@ -921,10 +923,9 @@ parse_flag:
 void
 read_server_config(ServerOptions *options, const char *filename)
 {
-	FILE *f;
+	int linenum, bad_options = 0;
 	char line[1024];
-	int linenum;
-	int bad_options = 0;
+	FILE *f;
 
 	f = fopen(filename, "r");
 	if (!f) {

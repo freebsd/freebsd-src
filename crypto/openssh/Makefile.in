@@ -1,4 +1,4 @@
-# $Id: Makefile.in,v 1.215 2002/06/21 01:38:53 mouring Exp $
+# $Id: Makefile.in,v 1.217 2002/06/25 23:45:42 tim Exp $
 
 # uncomment if you run a non bourne compatable shell. Ie. csh
 #SHELL = @SH@
@@ -26,6 +26,7 @@ SFTP_SERVER=$(libexecdir)/sftp-server
 SSH_KEYSIGN=$(libexecdir)/ssh-keysign
 RAND_HELPER=$(libexecdir)/ssh-rand-helper
 PRIVSEP_PATH=@PRIVSEP_PATH@
+SSH_PRIVSEP_USER=@SSH_PRIVSEP_USER@
 
 PATHS= -DSSHDIR=\"$(sysconfdir)\" \
 	-D_PATH_SSH_PROGRAM=\"$(SSH_PROGRAM)\" \
@@ -197,8 +198,12 @@ distprep: catman-do
 	$(AUTORECONF)
 	(cd scard && $(MAKE) -f Makefile.in distprep)
 
-install: $(CONFIGFILES) $(MANPAGES) $(TARGETS) install-files host-key
+install: $(CONFIGFILES) $(MANPAGES) $(TARGETS) install-files host-key check-user
 install-nokeys: $(CONFIGFILES) $(MANPAGES) $(TARGETS) install-files
+
+check-user:
+	id $(SSH_PRIVSEP_USER) || \
+		echo "WARNING: Privilege separation user \"$(SSH_PRIVSEP_USER)\" does not exist"
 
 scard-install:
 	(cd scard && $(MAKE) DESTDIR=$(DESTDIR) install)
@@ -212,6 +217,8 @@ install-files: scard-install
 	$(srcdir)/mkinstalldirs $(DESTDIR)$(mandir)/$(mansubdir)5
 	$(srcdir)/mkinstalldirs $(DESTDIR)$(mandir)/$(mansubdir)8
 	$(srcdir)/mkinstalldirs $(DESTDIR)$(libexecdir)
+	$(srcdir)/mkinstalldirs $(DESTDIR)$(PRIVSEP_PATH)
+	chmod 0700 $(DESTDIR)$(PRIVSEP_PATH)
 	$(INSTALL) -m 0755 -s ssh $(DESTDIR)$(bindir)/ssh
 	$(INSTALL) -m 0755 -s scp $(DESTDIR)$(bindir)/scp
 	$(INSTALL) -m 0755 -s ssh-add $(DESTDIR)$(bindir)/ssh-add
@@ -234,7 +241,7 @@ install-files: scard-install
 	$(INSTALL) -m 644 sshd_config.5.out $(DESTDIR)$(mandir)/$(mansubdir)5/sshd_config.5
 	$(INSTALL) -m 644 ssh_config.5.out $(DESTDIR)$(mandir)/$(mansubdir)5/ssh_config.5
 	$(INSTALL) -m 644 sshd.8.out $(DESTDIR)$(mandir)/$(mansubdir)8/sshd.8
-	if [ ! -z "$(INSTALL_SSH_PRNG_CMDS)" ]; then \
+	if [ ! -z "$(INSTALL_SSH_RAND_HELPER)" ]; then \
 		$(INSTALL) -m 644 ssh-rand-helper.8.out $(DESTDIR)$(mandir)/$(mansubdir)8/ssh-rand-helper.8 ; \
 	fi
 	@NO_SFTP@$(INSTALL) -m 644 sftp.1.out $(DESTDIR)$(mandir)/$(mansubdir)1/sftp.1
