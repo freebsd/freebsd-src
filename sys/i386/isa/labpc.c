@@ -407,14 +407,13 @@ labpcinit(void)
 	if (NLABPC > MAX_UNITS)
 		return 0;
 
-	labpcs = malloc(NLABPC * sizeof(struct ctlr *), M_DEVBUF, M_NOWAIT);
-	if (labpcs)
-	{
-		bzero(labpcs, NLABPC * sizeof(struct ctlr *));
-		return 1;
-	}
+	labpcs = malloc(NLABPC * sizeof(struct ctlr *), M_DEVBUF,
+		M_NOWAIT | M_ZERO);
+	if (labpcs == NULL)
+		return 0;
+
 	cdevsw_add(&labpc_cdevsw);
-	return 0;
+	return 1;
 }
 
 static int
