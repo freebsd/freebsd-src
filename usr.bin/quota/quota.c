@@ -41,8 +41,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-/*static char sccsid[] = "from: @(#)quota.c	8.1 (Berkeley) 6/6/93";*/
-static char rcsid[] = "$Id: quota.c,v 1.9 1995/06/18 11:00:49 cgd Exp $";
+static char sccsid[] = "from: @(#)quota.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
 /*
@@ -183,7 +182,7 @@ showuid(uid)
 		name = pwd->pw_name;
 	myuid = getuid();
 	if (uid != myuid && myuid != 0) {
-		printf("quota: %s (uid %d): permission denied\n", name, uid);
+		printf("quota: %s (uid %lu): permission denied\n", name, uid);
 		return;
 	}
 	showquotas(USRQUOTA, uid, name);
@@ -204,7 +203,7 @@ showusrname(name)
 	}
 	myuid = getuid();
 	if (pwd->pw_uid != myuid && myuid != 0) {
-		fprintf(stderr, "quota: %s (uid %d): permission denied\n",
+		fprintf(stderr, "quota: %s (uid %u): permission denied\n",
 		    name, pwd->pw_uid);
 		return;
 	}
@@ -239,7 +238,7 @@ showgid(gid)
 				break;
 		if (i >= ngroups && getuid() != 0) {
 			fprintf(stderr,
-			    "quota: %s (gid %d): permission denied\n",
+			    "quota: %s (gid %lu): permission denied\n",
 			    name, gid);
 			return;
 		}
@@ -274,7 +273,7 @@ showgrpname(name)
 				break;
 		if (i >= ngroups && getuid() != 0) {
 			fprintf(stderr,
-			    "quota: %s (gid %d): permission denied\n",
+			    "quota: %s (gid %u): permission denied\n",
 			    name, grp->gr_gid);
 			return;
 		}
@@ -346,13 +345,16 @@ showquotas(type, id, name)
 			} 
 			printf("%15s%8lu%c%7lu%8lu%8s"
 				, nam
-				, (u_long) (dbtob(qup->dqblk.dqb_curblocks) / 1024)
+				, (u_long) (dbtob(qup->dqblk.dqb_curblocks)
+					    / 1024)
 				, (msgb == (char *)0) ? ' ' : '*'
-				, (u_long) (dbtob(qup->dqblk.dqb_bsoftlimit) / 1024)
-				, (u_long) (dbtob(qup->dqblk.dqb_bhardlimit) / 1024)
+				, (u_long) (dbtob(qup->dqblk.dqb_bsoftlimit)
+					    / 1024)
+				, (u_long) (dbtob(qup->dqblk.dqb_bhardlimit)
+					    / 1024)
 				, (msgb == (char *)0) ? ""
 				    :timeprt(qup->dqblk.dqb_btime));
-			printf("%8d%c%7d%8d%8s\n"
+			printf("%8lu%c%7lu%8lu%8s\n"
 				, qup->dqblk.dqb_curinodes
 				, (msgi == (char *)0) ? ' ' : '*'
 				, qup->dqblk.dqb_isoftlimit
@@ -373,7 +375,7 @@ heading(type, id, name, tag)
 	char *name, *tag;
 {
 
-	printf("Disk quotas for %s %s (%cid %d): %s\n", qfextension[type],
+	printf("Disk quotas for %s %s (%cid %lu): %s\n", qfextension[type],
 	    name, *qfextension[type], id, tag);
 	if (!qflag && tag[0] == '\0') {
 		printf("%15s%8s %7s%8s%8s%8s %7s%8s%8s\n"
@@ -409,14 +411,14 @@ timeprt(seconds)
 	minutes = (seconds + 30) / 60;
 	hours = (minutes + 30) / 60;
 	if (hours >= 36) {
-		sprintf(buf, "%ddays", (hours + 12) / 24);
+		sprintf(buf, "%lddays", (hours + 12) / 24);
 		return (buf);
 	}
 	if (minutes >= 60) {
-		sprintf(buf, "%2d:%d", minutes / 60, minutes % 60);
+		sprintf(buf, "%2ld:%ld", minutes / 60, minutes % 60);
 		return (buf);
 	}
-	sprintf(buf, "%2d", minutes);
+	sprintf(buf, "%2ld", minutes);
 	return (buf);
 }
 
@@ -444,13 +446,15 @@ getprivs(id, quotatype)
 	setfsent();
 	for (i=0; i<nfst; i++) {
 		if (qup == NULL) {
-			if ((qup = (struct quotause *)malloc(sizeof *qup)) == NULL) {
+			if ((qup = (struct quotause *)malloc(sizeof *qup))
+			    == NULL) {
 				fprintf(stderr, "quota: out of memory\n");
 				exit(2);
 			}
 		}
 		if (fst[i].f_type == MOUNT_NFS) {
-			if (getnfsquota(&fst[i], NULL, qup, id, quotatype) == 0)
+			if (getnfsquota(&fst[i], NULL, qup, id, quotatype)
+			    == 0)
 				continue;
 		} else if (fst[i].f_type == MOUNT_UFS) {
 			/*
