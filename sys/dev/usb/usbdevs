@@ -401,6 +401,7 @@ product LEXMARK S2450		0x0009	Optra S 2450
 /* Linksys products */
 product LINKSYS USB10T		0x2202	USB10T Ethernet
 product LINKSYS USB100TX	0x2203	USB100TX Ethernet
+product LINKSYS USB10TA		0x2206	USB10TA Ethernet
 
 /* Logitech products */
 product LOGITECH M2452		0x0203	M2452 keyboard
