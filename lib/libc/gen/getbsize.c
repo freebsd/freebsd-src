@@ -44,12 +44,13 @@ __FBSDID("$FreeBSD$");
 
 char *
 getbsize(headerlenp, blocksizep)
-	int *headerlenp;
+	size_t *headerlenp;
 	long *blocksizep;
 {
 	static char header[20];
 	long n, max, mul, blocksize;
-	char *ep, *p, *form;
+	char *ep, *p;
+	const char *form;
 
 #define	KB	(1024L)
 #define	MB	(1024L * 1024L)
