@@ -16,7 +16,7 @@
  *
  * From: Version 2.0, Fri Oct  6 20:39:21 MSK 1995
  *
- * $Id: if_sppp.h,v 1.12 1998/12/20 19:06:22 phk Exp $
+ * $Id: if_sppp.h,v 1.13 1998/12/27 21:30:44 phk Exp $
  */
 
 #ifndef _NET_IF_SPPP_H_
@@ -83,7 +83,8 @@ struct sppp {
 	struct  ifqueue pp_fastq; /* fast output queue */
 	struct	ifqueue pp_cpq;	/* PPP control protocol queue */
 	struct  sppp *pp_next;  /* next interface in keepalive list */
-	u_int   pp_flags;       /* use Cisco protocol instead of PPP */
+	u_int   pp_mode;        /* major protocol modes (cisco/ppp/...) */
+	u_int   pp_flags;       /* sub modes */
 	u_short pp_alivecnt;    /* keepalive packets counter */
 	u_short pp_loopcnt;     /* loopback detection counter */
 	u_long  pp_seq;         /* local sequence number */
@@ -132,7 +133,6 @@ struct sppp {
 };
 
 #define PP_KEEPALIVE    0x01    /* use keepalive protocol */
-#define PP_CISCO        0x02    /* use Cisco protocol instead of PPP */
 				/* 0x04 was PP_TIMO */
 #define PP_CALLIN	0x08	/* we are being called */
 #define PP_NEEDAUTH	0x10	/* remote requested authentication */
