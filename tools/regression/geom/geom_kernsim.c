@@ -46,6 +46,7 @@
 #include <sys/errno.h>
 #include <sys/time.h>
 #include <geom/geom.h>
+#include <geom/geom_int.h>
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <machine/atomic.h>
