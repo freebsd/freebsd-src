@@ -170,4 +170,4 @@ static moduledata_t bktr_mem_mod = {
         0
 };
 DECLARE_MODULE(bktr_mem, bktr_mem_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
-
+MODULE_VERSION(bktr_mem, 1);
