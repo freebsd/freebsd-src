@@ -776,8 +776,8 @@ fork_exit(callout, arg, frame)
 	td->td_savecrit = CRITICAL_FORK;
 	CTR3(KTR_PROC, "fork_exit: new proc %p (pid %d, %s)", p, p->p_pid,
 	    p->p_comm);
-	if (PCPU_GET(switchtime.tv_sec) == 0)
-		microuptime(PCPU_PTR(switchtime));
+	if (PCPU_GET(switchtime.sec) == 0)
+		binuptime(PCPU_PTR(switchtime));
 	PCPU_SET(switchticks, ticks);
 	mtx_unlock_spin(&sched_lock);
 
