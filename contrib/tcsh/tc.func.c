@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tc.func.c,v 3.87 1999/08/14 21:24:13 christos Exp $ */
+/* $Header: /src/pub/tcsh/tc.func.c,v 3.88 2000/06/10 22:05:39 kim Exp $ */
 /*
  * tc.func.c: New tcsh builtins.
  */
@@ -36,7 +36,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: tc.func.c,v 3.87 1999/08/14 21:24:13 christos Exp $")
+RCSID("$Id: tc.func.c,v 3.88 2000/06/10 22:05:39 kim Exp $")
 
 #include "ed.h"
 #include "ed.defns.h"		/* for the function names */
@@ -90,12 +90,15 @@ static	void	 getremotehost	__P((void));
  */
 
 /*
- * expand_lex: Take the given lex and put an expanded version of it in the
- * string buf. First guy in lex list is ignored; last guy is ^J which we
- * ignore Only take lex'es from position from to position to inclusive Note:
- * csh sometimes sets bit 8 in characters which causes all kinds of problems
- * if we don't mask it here. Note: excl's in lexes have been un-back-slashed
- * and must be re-back-slashed
+ * expand_lex: Take the given lex and put an expanded version of it in
+ * the string buf. First guy in lex list is ignored; last guy is ^J
+ * which we ignore. Only take lex'es from position 'from' to position
+ * 'to' inclusive
+ *
+ * Note: csh sometimes sets bit 8 in characters which causes all kinds
+ * of problems if we don't mask it here. Note: excl's in lexes have been
+ * un-back-slashed and must be re-back-slashed
+ *
  * (PWP: NOTE: this returns a pointer to the END of the string expanded
  *             (in other words, where the NUL is).)
  */
