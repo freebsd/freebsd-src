@@ -136,7 +136,7 @@ A pointer to
 .Va struct res
 is returned on success, a null pointer otherwise.
 .Sh EXAMPLES
-This is some example code that allocates a 32-bit I/O port and an IRQ.
+This is some example code that allocates a 32 byte I/O port range and an IRQ.
 The values of
 .Va portid
 and
@@ -149,7 +149,7 @@ should be saved in the softc of the device after these calls.
 	portid = 0;
 	irqid = 0;
 	portres = bus_alloc_resource(dev, SYS_RES_IOPORT, &portid,
-			0ul, ~0ul, 4, RF_ACTIVE);
+			0ul, ~0ul, 32, RF_ACTIVE);
 	irqres = bus_alloc_resource(dev, SYS_RES_IRQ, &irqid,
 			0ul, ~0ul, 1, RF_ACTIVE | RF_SHAREABLE);
 .Ed
