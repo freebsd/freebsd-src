@@ -48,14 +48,16 @@
 #
 # DANGER!  WARNING!  LOOK OUT!  VORSICHT!
 #
-# If you add any of the ports collections to this file, be sure to
-# specify them like this:
+# If you add any of the ports or doc collections to this file, be sure to
+# specify them with a "tag" value set to ".", like this:
 #
 #   ports-all tag=.
+#   doc-all tag=.
 #
 # If you leave out the "tag=." portion, CVSup will delete all of
-# the files in your ports tree.  That is because the ports collections
-# do not use the same tags as the main part of the FreeBSD source tree.
+# the files in your ports or doc tree.  That is because the ports and doc
+# collections do not use the same tags as the main part of the FreeBSD 
+# source tree.
 #
 ###############################################################################
 
