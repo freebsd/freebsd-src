@@ -213,6 +213,22 @@
     <para>&man.ping.8; now supports a <option>-A</option> option to
     beep when packets are lost.</para>
 
+    <para>&man.route.8; is now more verbose when changing indirect
+    routes, in the case of a gateway route that is the same route as
+    the one being modified.</para>
+
+    <para>&man.route.8; now uses
+    <literal><replaceable>host</replaceable>/<replaceable>bits</replaceable></literal>
+    syntax instead of 
+    <literal><replaceable>net</replaceable>/<replaceable>bits</replaceable></literal>
+    syntax, for compatibility with &man.netstat.1;.</para>
+
+    <para>&man.route.8; can now create <quote>proxy only</quote>
+    published ARP entries.</para>
+
+    <para>&man.wall.1; now supports a <option>-g</option> flag to
+    write a message to all users of a given group.</para>
+
     <sect3>
       <title>Contributed Software</title>
 
