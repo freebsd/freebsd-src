@@ -440,6 +440,7 @@ vendor EIGERLABS		-1	Eiger labs,Inc.
 vendor EPSON			-1	Seiko Epson Corporation
 vendor EXP			-1	EXP Computer Inc
 vendor FUTUREDOMAIN		-1	FutureDomain
+vendor FREECOM			-1	Freecom
 vendor GEMTEK			-1	Gem Tek
 vendor ICOM			-1	ICOM Inc
 vendor INTERSIL			-1	Intersil
@@ -500,6 +501,7 @@ product EIGERLABS EPX_AA2000	{ "Eiger&splabs,Inc.", "EPX-AA2000&spPC&spSound&spC
 product EPSON EEN10B		{ "Seiko&spEpson&spCorp.", "Ethernet", "P/N:&spEEN10B&spRev.&sp00", NULL } Epson EEN10B
 product EPSON SC200		{ "EPSON", "SCSI-2&spPC&spCard&spSC200", NULL, NULL } Media Intelligent SCSI-2 PC Card MSC-200
 product EXP EXPMULTIMEDIA	{ "EXP&sp&sp&sp", "PnPIDE", "F1", NULL } EXP IDE/ATAPI DVD Card
+product FREECOM PCCARDIDE	{ "FREECOM", "PCCARD-IDE", NULL, NULL } FREECOM PCCARD-IDE
 product FUJITSU FMV_J181	{ "PCMCIA&spMBH10302", "01", NULL, NULL } FUJITSU FMV-J181 PCMCIA Card
 product FUJITSU FMV_J182	{ "FUJITSU", "LAN&spCard(FMV-J182)", "Ver.01", NULL } FUJITSU FMV-J182 PCMCIA Card
 product FUJITSU FMV_J182A	{ "FUJITSU", "LAN&spCard(FMV-J182)", "Ver.02", NULL } FUJITSU FMV-J182A PCMCIA Card
