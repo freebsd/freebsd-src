@@ -127,7 +127,7 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 {
 	int error, ff = RFPROC | RFSTOPPED;
 	struct proc *p2;
-	struct thread *td;
+	struct thread *td2;
 	int exit_signal;
 	vm_offset_t start;
 
@@ -167,8 +167,8 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	PROC_LOCK(p2);
 	p2->p_sigparent = exit_signal;
 	PROC_UNLOCK(p2);
-	td = FIRST_THREAD_IN_PROC(p2);
-	td->td_pcb->pcb_hw.apcb_usp = (unsigned long)args->stack;
+	td2 = FIRST_THREAD_IN_PROC(p2);
+	td2->td_pcb->pcb_hw.apcb_usp = (unsigned long)args->stack;
 
 #ifdef DEBUG
 	if (ldebug(clone))
