@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.207 1998/08/03 08:28:14 bde Exp $
+#	$Id: Makefile,v 1.208 1998/08/04 16:00:47 peter Exp $
 #
 # While porting to the another architecture include the bootstrap instead
 # of the normal build.
@@ -141,7 +141,7 @@ CLEANDIR=	cleandir
 .endif
 .endif
 
-.if !defined(NOCLEAN) && ${.MAKEFLAGS:M-j} == ""
+.if !defined(NOCLEAN)
 _NODEPEND=	true
 .endif
 .if defined(_NODEPEND)
