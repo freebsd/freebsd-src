@@ -240,7 +240,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	fp->fr_local[0] = (u_long)fork_return;
 	fp->fr_local[1] = (u_long)td2;
 	fp->fr_local[2] = (u_long)tf;
-	pcb2->pcb_fp = (u_long)fp - SPOFF;
+	pcb2->pcb_sp = (u_long)fp - SPOFF;
 	pcb2->pcb_pc = (u_long)fork_trampoline - 8;
 
 	/*
@@ -286,7 +286,7 @@ cpu_set_fork_handler(struct thread *td, void (*func)(void *), void *arg)
 	struct pcb *pcb;
 
 	pcb = td->td_pcb;
-	fp = (struct frame *)(pcb->pcb_fp + SPOFF);
+	fp = (struct frame *)(pcb->pcb_sp + SPOFF);
 	fp->fr_local[0] = (u_long)func;
 	fp->fr_local[1] = (u_long)arg;
 }

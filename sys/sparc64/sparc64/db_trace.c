@@ -142,7 +142,7 @@ db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count,
 				return;
 			}
 			td = FIRST_THREAD_IN_PROC(p);	/* XXXKSE */
-			addr = td->td_pcb->pcb_fp;
+			addr = td->td_pcb->pcb_sp;
 		}
 	}
 	fp = (struct frame *)(addr + SPOFF);

@@ -244,7 +244,7 @@ ASSYM(TD_PROC, offsetof(struct thread, td_proc));
 
 ASSYM(PCB_SIZEOF, sizeof(struct pcb));
 ASSYM(PCB_FPSTATE, offsetof(struct pcb, pcb_fpstate));
-ASSYM(PCB_FP, offsetof(struct pcb, pcb_fp));
+ASSYM(PCB_SP, offsetof(struct pcb, pcb_sp));
 ASSYM(PCB_PC, offsetof(struct pcb, pcb_pc));
 ASSYM(PCB_NSAVED, offsetof(struct pcb, pcb_nsaved));
 ASSYM(PCB_RWSP, offsetof(struct pcb, pcb_rwsp));

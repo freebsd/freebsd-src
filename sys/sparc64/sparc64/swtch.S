@@ -83,7 +83,7 @@ ENTRY(cpu_switch)
 	 */
 1:	flushw
 	wrpr	%g0, 0, %cleanwin
-	stx	%fp, [%l1 + PCB_FP]
+	stx	%fp, [%l1 + PCB_SP]
 	stx	%i7, [%l1 + PCB_PC]
 
 	/*
@@ -98,12 +98,12 @@ ENTRY(cpu_switch)
 	ldx	[%o0 + TD_PCB], %g2
 	ldx	[%g2 + PCB_PC], %g3
 	stx	%g3, [%g1 + KTR_PARM2]
-	ldx	[%g2 + PCB_FP], %g3
+	ldx	[%g2 + PCB_SP], %g3
 	stx	%g3, [%g1 + KTR_PARM3]
 9:
 #endif
 	ldx	[%o0 + TD_PCB], %o1
-	ldx	[%o1 + PCB_FP], %fp
+	ldx	[%o1 + PCB_SP], %fp
 	ldx	[%o1 + PCB_PC], %i7
 	sub	%fp, CCFSZ, %sp
 	stx	%o0, [PCPU(CURTHREAD)]
@@ -271,7 +271,7 @@ ENTRY(savectx)
 	flushw
 	call	savefpctx
 	 mov	%i0, %o0
-	stx	%fp, [%i0 + PCB_FP]
+	stx	%fp, [%i0 + PCB_SP]
 	stx	%i7, [%i0 + PCB_PC]
 	ret
 	 restore %g0, 0, %o0
