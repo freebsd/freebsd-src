@@ -1,5 +1,9 @@
 # $FreeBSD$
 
+.if ${MACHINE_ARCH} != "ia64"
+_wizard=	wizard.c
+.endif
+
 PROG=	sysinstall
 MAN=	sysinstall.8
 SRCS=	anonFTP.c cdrom.c command.c config.c devices.c dhcp.c \
@@ -8,7 +12,7 @@ SRCS=	anonFTP.c cdrom.c command.c config.c devices.c dhcp.c \
 	label.c main.c makedevs.c media.c menus.c misc.c modules.c \
 	mouse.c msg.c network.c nfs.c options.c package.c \
 	system.c tape.c tcpip.c termcap.c ttys.c ufs.c usb.c user.c \
-	variable.c wizard.c keymap.h
+	variable.c ${_wizard} keymap.h
 
 .if ${MACHINE} == "pc98"
 SRCS+=  pccard.c
