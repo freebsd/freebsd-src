@@ -32,83 +32,84 @@
 .\"	@(#)rogue.6	8.1 (Berkeley) 5/31/93
 .\" $FreeBSD$
 .\"
-.TH ROGUE 6 "May 31, 1993"
-.UC 4
-.SH NAME
-rogue \- exploring The Dungeons of Doom
-.SH SYNOPSIS
-.B /usr/games/rogue
-[
-.B \-r
-]
-[
-.I save_file
-]
-[
-.B \-s
-]
-[
-.B \-d
-]
-.SH DESCRIPTION
-.PP
-.I Rogue
-is a computer fantasy game with a new twist.  It is crt oriented and the
-object of the game is to survive the attacks of various monsters and get
-a lot of gold, rather than the puzzle solving orientation of most computer
-fantasy games.
-.PP
-To get started you really only need to know two commands.  The command
-.B ?
+.Dd December 07, 2000
+.Dt ROGUE 6
+.Os
+.Sh NAME
+.Nm rogue
+.Nd exploring The Dungeons of Doom
+.Sh SYNOPSYS
+.Nm
+.Op Fl r
+.Op Ar save_file
+.Op Fl s
+.Op Fl d
+.Sh DESCRIPTION
+The game
+.Nm
+is a computer fantasy with a new twist.
+It is crt oriented and the object of the game is to survive
+the attacks of various monsters and get a lot of gold, rather
+than the puzzle solving orientation of most computer fantasy games.
+.Pp
+To get started you really only need to know two commands.
+The command
+.Ql ?
 will give you a list of the available commands and the command
-.B /
+.Ql /
 will identify the things you see on the screen.
-.PP
+.Pp
 To win the game (as opposed to merely playing to beat other people's high
-scores) you must locate the Amulet of Yendor which is somewhere below
-the 20th level of the dungeon and get it out.  Nobody has achieved this
+scores) you must locate the
+.Em Amulet of Yendor
+which is somewhere below the 20th level of the dungeon and get it out.
+Nobody has achieved this
 yet and if somebody does, they will probably go down in history as a hero
 among heroes.
-.PP
+.Pp
 When the game ends, either by your death, when you quit, or if you (by
 some miracle) manage to win,
-.I rogue
+.Nm
 will give you a list of the top-ten scorers.  The scoring is based entirely
 upon how much gold you get.  There is a 10% penalty for getting yourself
 killed.
-.PP
+.Pp
 If
-.I save_file
+.Ar save_file
 is specified,
-rogue will be restored from the specified saved game file.
-.PP
+.Nm
+will be restored from the specified saved game file.
+.Pp
 The
-.B \-s
+.Fl s
 option will print out the list of scores.
-.PP
+.Pp
 For more detailed directions, read the document
-.I "A Guide to the Dungeons of Doom."
-.SH AUTHORS
-Timothy Stoehr,
-Michael C. Toy,
-Kenneth C. R. C. Arnold,
-Glenn Wichman
-.SH FILES
-.DT
-.ta \w'/usr/games/lib/rogue_roll\ \ \ 'u
-/var/games/rogue.scores	Score file
-.br
-rogue.save	Default save file
-.SH SEE ALSO
-Michael C. Toy
-and
-Kenneth C. R. C. Arnold,
-.I "A guide to the Dungeons of Doom"
-.SH BUGS
-.PP
+.Rs
+.%B A Guide to the Dungeons of Doom
+.Re
+.Sh AUTHORS
+.An Timothy Stoehr ,
+.An Michael C. Toy ,
+.An Kenneth C. R. C. Arnold ,
+.An Glenn Wichman
+.Sh FILES
+.Bl -tag -width /var/games/rogue.scorresXX -compact
+.It Pa /var/games/rogue.scores
+Score file
+.It Pa rogue.save
+Default save file
+.El
+.Sh SEE ALSO
+.Rs
+.%A Michael C. Toy
+.%A Kenneth C. R. C. Arnold
+.%B A Guide to the Dungeons of Doom
+.%O (see /usr/share/doc/usd/30.rogue/)
+.Re
+.Sh BUGS
 Probably infinite, although none are known.
-However,
-that Ice Monsters sometimes transfix you permanently is
-.I not
+However, that Ice Monsters sometimes transfix you permanently is
+.Em not
 a bug.
 It's a feature.
