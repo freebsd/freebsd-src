@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * $Id: asc.c,v 1.14 1995/12/22 15:39:41 bde Exp $
+ * $Id: asc.c,v 1.15 1996/01/13 20:43:08 bde Exp $
  */
 
 #include "asc.h"
@@ -47,9 +47,6 @@
 #include "malloc.h"
 #include "kernel.h"
 #include "ioctl.h"
-#include "tty.h"
-#include "uio.h"
-#include "syslog.h"
 
 #include "i386/isa/isa.h"
 #include "i386/isa/isa_device.h"
@@ -65,10 +62,6 @@
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/ioctl.h>
-#include <sys/tty.h>
-#include <sys/uio.h>
-#include <sys/syslog.h>
-#include <sys/kernel.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
@@ -89,6 +82,8 @@
 
 #define PROBE_FAIL    0
 #define PROBE_SUCCESS IO_ASCSIZE
+#define ATTACH_FAIL   0
+#define ATTACH_SUCCESS 1
 #define SUCCESS       0
 #define FAIL         -1
 #define INVALID       FAIL
@@ -291,6 +286,7 @@ get_resolution(struct asc_unit *scu)
 /***
  *** buffer_allocate
  ***	allocate/reallocate a buffer
+ ***	Now just checks that the preallocated buffer is large enough.
  ***/
 
 static int
@@ -307,24 +303,6 @@ buffer_allocate(struct asc_unit *scu)
       size= ( (MAX_BUFSIZE+scu->linesize-1) / scu->linesize)*scu->linesize;
       lprintf("asc.buffer_allocate: 0x%x bytes are too much, try 0x%x\n",
 	  size1, size);
-      /* return ENOMEM; */
-  }
-
-  if ( scu->sbuf.base != NULL )
-    if ( scu->sbuf.size == size ) {
-	lprintf("asc.buffer_allocate: keep old buffer\n");
-	return SUCCESS;
-    } else {
-	lprintf("asc.buffer_allocate: release old buffer\n");
-	free( scu->sbuf.base, M_DEVBUF );
-    }
-
-  scu->sbuf.base = (char *)malloc(size, M_DEVBUF, M_WAITOK);
-
-  if ( scu->sbuf.base == NULL ) {
-      lprintf("asc.buffer_allocate: "
-	     "buffer allocatation failed for size = 0x%x\n",
-	     scu->sbuf.size);
       return ENOMEM;
   }
 
@@ -467,8 +445,27 @@ ascattach(struct isa_device *isdp)
   scu->flags |= FLAG_DEBUG;
   printf("asc%d: [GI1904/Trust Ami-Scan Grey, type S2]\n", unit);
 
-  /* initialize buffer structure */
-  scu->sbuf.base = NULL;
+  /*
+   * Initialize buffer structure.
+   * XXX this must be done early to give a good chance of getting a
+   * contiguous buffer.  This wastes memory.
+   */
+#ifdef FREEBSD_1_X
+  /*
+   * The old contigmalloc() didn't have a `low/minpa' arg, and took masks
+   * instead of multipliers for the alignments.
+   */
+  scu->sbuf.base = contigmalloc((unsigned long)MAX_BUFSIZE, M_DEVBUF, M_NOWAIT,
+			        0xfffffful, 0ul, 0xfffful);
+#else
+  scu->sbuf.base = contigmalloc((unsigned long)MAX_BUFSIZE, M_DEVBUF, M_NOWAIT,
+				0ul, 0xfffffful, 1ul, 0x10000ul);
+#endif
+  if ( scu->sbuf.base == NULL )
+    {
+      lprintf("asc%d.attach: buffer allocation failed\n", unit);
+      return ATTACH_FAIL;	/* XXX attach must not fail */
+    }
   scu->sbuf.size = INVALID;
   scu->sbuf.rptr  = INVALID;
 
@@ -504,7 +501,7 @@ ascattach(struct isa_device *isdp)
 					((unit<<6) + DBUG_MASK + FRMT_PBM),
 					DV_CHR, ASC_UID,  ASC_GID, 0666);
 #endif /*DEVFS*/
-  return 1; /* attach must not fail */
+  return ATTACH_SUCCESS;
 }
 
 /**************************************************************************
@@ -568,24 +565,30 @@ ascintr(int unit)
 STATIC int
 ascopen(dev_t dev, int flags, int fmt, struct proc *p)
 {
-  int unit = UNIT(minor(dev)) & UNIT_MASK;
-  struct asc_unit *scu = unittab + unit;
-  
-  lprintf("asc%d.open: minor %d icnt %ld\n", unit, minor(dev), scu->icnt);
+  struct asc_unit *scu;
+  int unit;
 
-  if ( unit >= NASC || !( scu->flags & ATTACHED ) ) {
-      lprintf("asc%d.open: unit was not attached successfully, flags 0x%04x\n",
+  unit = UNIT(minor(dev)) & UNIT_MASK;
+  if ( unit >= NASC )
+    {
+#ifdef ASCDEBUG
+      /* XXX lprintf isn't valid here since there is no scu. */
+      printf("asc%d.open: unconfigured unit number (max %d)\n", unit, NASC);
+#endif
+      return ENXIO;
+    }
+  scu = unittab + unit;
+  if ( !( scu->flags & ATTACHED ) )
+    {
+      lprintf("asc%d.open: unit was not attached successfully 0x04x\n",
 	     unit, scu->flags);
       return ENXIO;
-  }
-  
-  if ( scu->flags & OPEN ) {
-      lprintf("asc%d.open: already open", unit);
-      return EBUSY;
-  }
-  scu->flags = ATTACHED | OPEN;      
+    }
 
-  if ( minor(dev) & DBUG_MASK ) scu->flags |= FLAG_DEBUG;
+  if ( minor(dev) & DBUG_MASK )
+    scu->flags |= FLAG_DEBUG;
+  else
+    scu->flags &= ~FLAG_DEBUG;
 
   switch(minor(dev) & FRMT_MASK) {
   case FRMT_PBM:
@@ -601,6 +604,14 @@ ascopen(dev_t dev, int flags, int fmt, struct proc *p)
     return ENXIO;
   }
   
+  lprintf("asc%d.open: minor %d icnt %ld\n", unit, minor(dev), scu->icnt);
+
+  if ( scu->flags & OPEN ) {
+      lprintf("asc%d.open: already open", unit);
+      return EBUSY;
+  }
+  scu->flags = ATTACHED | OPEN;      
+
   asc_reset(scu);
   get_resolution(scu);
   return SUCCESS;
@@ -664,8 +675,6 @@ ascclose(dev_t dev, int flags, int fmt, struct proc *p)
   outb(ASC_CFG, scu->cfg_byte);
     /* --- disable dma controller ? --- */
     /* --- disable interrupts on the controller (sub_24) --- */
-
-  if ( scu->sbuf.base != NULL ) free( scu->sbuf.base, M_DEVBUF );
 
   scu->sbuf.base = NULL;
   scu->sbuf.size = INVALID;

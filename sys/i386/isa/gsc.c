@@ -43,9 +43,6 @@
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/ioctl.h>
-#include <sys/uio.h>
-#include <sys/syslog.h>
-#include <sys/kernel.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
@@ -64,6 +61,8 @@
 
 #define PROBE_FAIL    0
 #define PROBE_SUCCESS IO_GSCSIZE
+#define ATTACH_FAIL   0
+#define ATTACH_SUCCESS 1
 #define SUCCESS       0
 #define FAIL         -1
 #define INVALID       FAIL
@@ -264,6 +263,7 @@ get_geometry(const struct gsc_unit *scu)
 /***********************************************************************
  *
  * buffer_allocate -- allocate/reallocate a buffer
+ * Now just checks that the preallocated buffer is large enough.
  */
 
 static int
@@ -278,28 +278,6 @@ buffer_allocate(struct gsc_unit *scu)
   if ( size > MAX_BUFSIZE )
     {
       lprintf("gsc.buffer_allocate: 0x%x bytes are too much\n", size);
-      return ENOMEM;
-    }
-
-  if ( scu->sbuf.base != NULL )
-    if ( scu->sbuf.size == size )
-      {
-	lprintf("gsc.buffer_allocate: keep old buffer\n");
-	return SUCCESS;
-      }
-    else
-      {
-	lprintf("gsc.buffer_allocate: release old buffer\n");
-	free( scu->sbuf.base, M_DEVBUF );
-      }
-
-  scu->sbuf.base = (char *)malloc(size, M_DEVBUF, M_WAITOK);
-
-  if ( scu->sbuf.base == NULL )
-    {
-      lprintf("gsc.buffer_allocate: "
-	     "buffer allocatation failed for size = 0x%x\n",
-	     scu->sbuf.size);
       return ENOMEM;
     }
 
@@ -457,6 +435,15 @@ gscprobe (struct isa_device *isdp)
     return PROBE_FAIL;
   }
 
+  if (isdp->id_drq < 0)
+    isdp->id_drq = scu->channel;
+  if (scu->channel != isdp->id_drq)
+    {
+      lprintf("gsc%d.probe: drq mismatch: config: %d; hardware: %d\n",
+	      unit, isdp->id_drq, scu->channel);
+      return PROBE_FAIL;
+    }
+
   geom.g_res = stb & GSC_RES_MASK;
   scu->geometry = lookup_geometry(geom, scu);
   if (scu->geometry == INVALID)
@@ -511,8 +498,18 @@ gscattach(struct isa_device *isdp)
   printf("gsc%d: GeniScan GS-4500 at %ddpi\n",
 	 unit, geomtab[scu->geometry].dpi);
 
-  /* initialize buffer structure */
-  scu->sbuf.base = NULL;
+  /*
+   * Initialize buffer structure.
+   * XXX this must be done early to give a good chance of getting a
+   * contiguous buffer.  This wastes memory.
+   */
+  scu->sbuf.base = contigmalloc((unsigned long)MAX_BUFSIZE, M_DEVBUF, M_NOWAIT,
+				0ul, 0xfffffful, 1ul, 0x10000ul);
+  if ( scu->sbuf.base == NULL )
+    {
+      lprintf("gsc%d.attach: buffer allocation failed\n", unit);
+      return ATTACH_FAIL;	/* XXX attach must not fail */
+    }
   scu->sbuf.size = INVALID;
   scu->sbuf.poi  = INVALID;
 
@@ -543,7 +540,7 @@ gscattach(struct isa_device *isdp)
 					DV_CHR, GSC_UID,  GSC_GID, 0666);
 #endif /*DEVFS*/
 
-  return SUCCESS; /* attach must not fail */
+  return ATTACH_SUCCESS;
 }
 
 /***********************************************************************
@@ -558,8 +555,25 @@ gscattach(struct isa_device *isdp)
 static	int
 gscopen  (dev_t dev, int flags, int fmt, struct proc *p)
 {
-  int unit = UNIT(minor(dev)) & UNIT_MASK;
-  struct gsc_unit *scu = unittab + unit;
+  struct gsc_unit *scu;
+  int unit;
+
+  unit = UNIT(minor(dev)) & UNIT_MASK;
+  if ( unit >= NGSC )
+    {
+#ifdef GSCDEBUG
+      /* XXX lprintf isn't valid here since there is no scu. */
+      printf("gsc%d.open: unconfigured unit number (max %d)\n", unit, NGSC);
+#endif
+      return ENXIO;
+    }
+  scu = unittab + unit;
+  if ( !( scu->flags & ATTACHED ) )
+    {
+      lprintf("gsc%d.open: unit was not attached successfully 0x04x\n",
+	     unit, scu->flags);
+      return ENXIO;
+    }
 
   if ( minor(dev) & DBUG_MASK )
     scu->flags |= FLAG_DEBUG;
@@ -582,13 +596,6 @@ gscopen  (dev_t dev, int flags, int fmt, struct proc *p)
 
   lprintf("gsc%d.open: minor %d\n",
 	 unit, minor(dev));
-
-  if ( unit >= NGSC || !( scu->flags & ATTACHED ) )
-    {
-      lprintf("gsc%d.open: unit was not attached successfully 0x04x\n",
-	     unit, scu->flags);
-      return ENXIO;
-    }
 
   if ( scu->flags & OPEN )
     {
@@ -626,8 +633,6 @@ gscclose (dev_t dev, int flags, int fmt, struct proc *p)
     }
 
   outb(scu->ctrl, scu->ctrl_byte & ~GSC_POWER_ON);
-
-  if ( scu->sbuf.base != NULL ) free( scu->sbuf.base, M_DEVBUF );
 
   scu->sbuf.base = NULL;
   scu->sbuf.size = INVALID;
