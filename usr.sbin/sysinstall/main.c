@@ -38,6 +38,8 @@
 #include <sys/signal.h>
 #include <sys/fcntl.h>
 
+const char *StartName;		/* Initial contents of argv[0] */
+
 static void
 screech(int sig)
 {
@@ -49,6 +51,9 @@ int
 main(int argc, char **argv)
 {
     int choice, scroll, curr, max, status;
+    
+    /* Record name to be able to restart */
+    StartName = argv[0];
 
     /* Catch fatal signals and complain about them if running as init */
     if (getpid() == 1) {

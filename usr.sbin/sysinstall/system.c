@@ -39,15 +39,50 @@ static pid_t ehs_pid;
  * due to our having bogotified the internal state of dialog or curses,
  * but we'll give it a try.
  */
+static int
+intr_continue(dialogMenuItem *self)
+{
+	return DITEM_LEAVE_MENU;
+}
+
+static int
+intr_reboot(dialogMenuItem *self)
+{
+	systemShutdown(-1);
+	/* NOTREACHED */
+	return 0;
+}
+
+static int
+intr_restart(dialogMenuItem *self)
+{
+	execl(StartName, StartName, NULL);
+	/* NOTREACHED */
+	return -1;
+}
+
+static dialogMenuItem intrmenu[] = {
+	{ "Abort",   "Abort the installation", NULL, intr_reboot },
+	{ "Restart", "Restart the installation program", NULL, intr_restart },
+	{ "Continue", "Continue the installation", NULL, intr_continue },
+};
+
+
 static void
 handle_intr(int sig)
 {
     WINDOW *save = savescr();
 
-    if (!msgYesNo("Are you sure you want to abort the installation?"))
-	systemShutdown(-1);
-    else
-	restorescr(save);
+    use_helpline(NULL);
+    use_helpfile(NULL);
+    if (OnVTY) {
+        ioctl(0, VT_ACTIVATE, 1);       /* Switch back */
+        msgInfo(NULL);
+    }
+    (void)dialog_menu("Installation interrupt",
+		     "Do you want to abort the installation?",
+		     -1, -1, 3, -3, intrmenu, NULL, NULL, NULL);
+    restorescr(save);
 }
 
 /* Expand a file into a convenient location, nuking it each time */
@@ -75,6 +110,7 @@ void
 systemInitialize(int argc, char **argv)
 {
     int i, boothowto;
+    sigset_t signalset;
 
     signal(SIGINT, SIG_IGN);
     globalsInit();
@@ -150,6 +186,14 @@ systemInitialize(int argc, char **argv)
     if (!getenv("HOME"))
 	setenv("HOME", "/", 1);
     signal(SIGINT, handle_intr);
+    /*
+     * Make sure we can be interrupted even if we were re-executed
+     * from an interrupt.
+     */
+    sigemptyset(&signalset);
+    sigaddset(&signalset, SIGINT);
+    sigprocmask(SIG_UNBLOCK, &signalset, NULL);
+
     (void)vsystem("rm -rf %s", DOC_TMP_DIR);
 }
 
