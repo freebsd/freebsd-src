@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file providing the above
  *    conditions are met.
  *
- * $Id: libutil.h,v 1.1.4.5 1997/08/31 20:11:34 brian Exp $
+ * $Id$
  */
 
 #ifndef _LIBUTIL_H_
@@ -51,7 +51,9 @@ __END_DECLS
 #define UU_LOCK_OK (0)
 #define UU_LOCK_OPEN_ERR (-1)
 #define UU_LOCK_READ_ERR (-2)
-#define UU_LOCK_SEEK_ERR (-3)
+#define UU_LOCK_CREAT_ERR (-3)
 #define UU_LOCK_WRITE_ERR (-4)
+#define UU_LOCK_LINK_ERR (-5)
+#define UU_LOCK_TRY_ERR (-6)
 
 #endif /* !_LIBUTIL_H_ */
