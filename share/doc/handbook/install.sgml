@@ -1,4 +1,4 @@
-<!-- $Id: install.sgml,v 1.9.2.5 1995/10/30 17:48:19 jfieber Exp $ -->
+<!-- $Id: install.sgml,v 1.16 1995/11/20 01:10:23 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -156,7 +156,7 @@ Boot:
 	configurations, various SCSI controller, network and
 	serial cards is also provided.
 
-	A minimum of four megabytes of RAM is required to run FreeBSD.
+	A minimum of five megabytes of RAM is required to run FreeBSD.
 	To run the X-window system, eight megabytes of RAM is the
 	recommended minimum.
 
@@ -200,18 +200,18 @@ Boot:
 	      more details.
 
 	    <item>Buslogic 545S &amp; 545c
-		<bf>Note:</bf> that Buslogic was formerly known as "Bustec".
+		<bf>Note:</bf> that Buslogic was formerly known as "Bustek".
 	    <item>Buslogic 445S/445c VLB SCSI controller
-	    <item>Buslogic 742A, 747S, 747c EISA SCSI controller.
+	    <item>Buslogic 742A/747S/747c EISA SCSI controller.
 	    <item>Buslogic 946c PCI SCSI controller
 	    <item>Buslogic 956c PCI SCSI controller
 
-	    <item>NCR 53C810 and 53C825 PCI SCSI controller.
+            <item>NCR 53C810/53C815/53C825/53C860/53C875 PCI SCSI controller.
 	    <item>NCR5380/NCR53400 (``ProAudio Spectrum'') SCSI controller. 
 
 	    <item>DTC 3290 EISA SCSI controller in 1542 emulation mode.
 
-	    <item>UltraStor 14F, 24F and 34F SCSI controllers.
+	    <item>UltraStor 14F/24F/34F SCSI controllers.
 
 	    <item>Seagate ST01/02 SCSI controllers.
 
@@ -254,7 +254,21 @@ Boot:
 
 	    <item>DEC EtherWORKS III NICs (DE203, DE204, and DE205)
 	    <item>DEC EtherWORKS II NICs (DE200, DE201, DE202, and DE422)
-	    <item>DEC DC21140 based NICs (SMC???? DE???)
+	    <item>DEC DC21140/DC21141 based NICs:
+		<itemize>
+		<item>ASUS		PCI-L101-TB
+		<item>Accton		ENI1203
+		<item>Cogent		EM960PCI
+		<item>D-Link		DE-530
+		<item>DEC		DE435
+		<item>Danpex		EN-9400P3
+		<item>JCIS		Condor JC1260
+		<item>Linksys		EtherPCI
+		<item>Mylex		LNP101
+		<item>SMC		EtherPower 10/100 (Model 9332)
+		<item>SMC		EtherPower (Model 8432)
+		<item>Zynx		ZX342
+		</itemize>
 	    <item>DEC FDDI (DEFPA/DEFEA) NICs
 
 	    <item>Fujitsu FMV-181 and FMV-182
@@ -284,7 +298,8 @@ Boot:
 
         <p><em>Note:</em> FreeBSD does not currently suppport
           PnP (plug-n-play) features present on some ethernet
-          cards.  If your card has PnP, it should be disabled.
+          cards.  If your card has PnP and is giving you problems,
+          try disabling its PnP features.
 
       <sect1><heading>Miscellaneous devices</heading>
 
@@ -305,8 +320,8 @@ Boot:
 	    <item>SDL Communications Riscom/8 Serial Board.
 
 	    <item>Adlib, SoundBlaster, SoundBlaster Pro,
-	      ProAudioSpectrum, Gravis UltraSound and Roland
-	      MPU-401 sound cards.
+	      ProAudioSpectrum, Gravis UltraSound, Gravis UltraSound MAX
+	      and Roland MPU-401 sound cards.
 
 	  </itemize>
 
@@ -327,14 +342,14 @@ Boot:
 	  IDE CDROM, then please skip to <ref id="install:msdos" 
           name="MS-DOS Preparation">.
 
-	  There is not a lot of preparatory work that needs to be
-	  done to successfully install from one of Walnut Creek's
-	  FreeBSD CDROMs (other CDROM distributions may work as
-	  well, we simply cannot say as we have no hand or say in
-	  their creation).  You can either boot into the CD
-	  installation directly from DOS using Walnut Creek's
-	  supplied ``install.bat'' batch file or you can make a
-	  boot floppy with the ``makeflp.bat'' command.
+	  There is not a lot of preparatory work that needs to be done to
+	  successfully install from one of Walnut Creek's FreeBSD CDROMs (other
+	  CDROM distributions may work as well, though we cannot say for certain
+	  as we have no hand or say in how they're created).  You can either
+	  boot into the CD installation directly from DOS using Walnut Creek's
+	  supplied ``install.bat'' batch file or you can make a boot floppy with
+	  the ``makeflp.bat'' command [NOTE: If you're using an IDE CDROM, use
+	  the inst_ide.bat or atapiflp.bat batch files instead].
 
 	  For the easiest interface of all (from DOS), type
 	  ``view''.  This will bring up a DOS menu utility that
@@ -349,27 +364,12 @@ Boot:
 	  menu and load the entire distribution from CDROM.  No
 	  other types of installation media should be required.
 
-	  After your system is fully installed and you have
-	  rebooted from the hard disk, you should find the CD
-	  mounted on the directory <bf>/cdrom</bf>.  A utility
-	  called `lndir' comes with the XFree86 distribution
-	  which you may also find useful: It allows you to create
-	  "link tree" directories to things on Read-Only media
-	  like CDROM.  One example might be something like this:
+	  After your system is fully installed and you have rebooted
+	  from the hard disk, you can mount the cdrom at any time by
+	  typing: <tt>mount /cdrom</tt>
 
-<tscreen><verb>
-mkdir /usr/ports
-lndir /cdrom/ports /usr/ports
-</verb></tscreen>
-
-	  Which would allow you to then ``cd /usr/ports; make''
-	  and get all the sources from the CD, but yet create all
-	  the intermediate files in <bf>/usr/ports</bf>, which is
-	  presumably on a more writable media.
-
-	  This is, in fact, what the Ports entry in the
-	  Configuration menu does at installation time if you
-	  select it.
+	  Before removing the CD again, also note that it's necessary to first
+	  type: <tt>umount /cdrom</tt>.  Don't just remove it from the drive!
 
 	  <quote><bf>Special note:</bf> Before invoking the
 	    installation, be sure that the CDROM is in the drive
@@ -377,9 +377,8 @@ lndir /cdrom/ports /usr/ports
 	    true if you wish the CDROM to be added to the default
 	    system configuration automatically during the install
 	    (whether or not you actually use it as the
-	    installation media). <!-- XXX This will be fixed for
-	    2.1, but for now this simple work-around will ensure
-	    that your CDROM is detected properly. --></quote>
+	    installation media).
+	  </quote>
 
 	  Finally, if you would like people to be able to FTP
 	  install FreeBSD directly from the CDROM in your
@@ -392,8 +391,8 @@ lndir /cdrom/ports /usr/ports
 ftp:*:99:99::0:0:FTP:/cdrom:/nonexistent
 </verb></tscreen>
 
-	  No further work is necessary.  The other installers
-	  will now be able to chose a Media type of FTP and type
+	  Anyone with network connectivity to your machine (and permission
+	  to log into it) can now chose a Media type of FTP and type
 	  in: <tt>ftp://<em>your machine</em></tt> after picking ``Other''
 	  in the ftp sites menu.
 
@@ -404,28 +403,41 @@ ftp:*:99:99::0:0:FTP:/cdrom:/nonexistent
 	  things the hard way, you must first prepare some
 	  floppies for the install.
 
-	  The first floppy you will need is ``floppies/root.flp'',
-	  which is somewhat special in that it is not a DOS
-	  filesystem floppy at all, but rather an ``image''
-	  floppy (it is actually a gzip'd cpio file).  You can use
-	  the rawrite.exe program to do this under DOS, or dd to
-	  do it on a UNIX Workstation.  See <ref id="install"
-	  name="the beginning of this guide"> for examples. of
-	  how to create the boot floppy.  Once this floppy is
-	  made, go on to make the distribution set floppies:
 
-	  You will need, at minimum, as many 1.44MB or 1.2MB
-	  floppies as it takes to hold all files in the bin
-	  (binary distribution) directory.  These floppies
-	  <em>must</em> be formatted using MS-DOS, using the
-	  FORMAT command in MS-DOS or the File Manager format
-	  command in Microsoft Windows(tm).  Do <em>not</em>
-	  trust Factory Preformatted floppies.  Format them again
-	  yourself, just to make sure.
+	  The first floppy you'll need in addition to the boot.flp image is
+	  ``floppies/root.flp'', which is somewhat special in that it's not a
+	  DOS filesystem floppy at all, but rather a floppy "image" (it's
+	  actually a gzip'd cpio file).  You can create this floppy in the same
+	  way that you created the boot floppy <ref id="install"
+	    name="the beginning of this guide">.  Once this floppy is
+	  made, you can go on to make the distribution set floppies
+	  using ordinary DOS or UFS (if you're preparing the floppies on
+	  another FreeBSD machine) formatted diskettes.
 
-	  Many problems reported by our users in the past have
-	  resulted from the use of improperly formatted media, so
-	  we simply take special care to mention it here!
+	  You will need, at minimum, as many 1.44MB or 1.2MB floppies as
+	  it takes to hold all files in the bin (binary distribution)
+	  directory.  If you're preparing these floppies under DOS, then
+	  THESE floppies *must* be formatted using the MS-DOS FORMAT
+	  command.  If you're using Windows, use the Windows File
+	  Manager format command.
+
+	  Do <em>not</em> trust Factory Preformatted floppies!  Format
+	  them again yourself, just to make sure.  Many problems
+	  reported by our users in the past have resulted from the use
+	  of improperly formatted media, which is why I'm taking such
+	  special care to mention it here!
+
+	  If you're creating the floppies from another FreeBSD machine,
+	  a format is still not a bad idea though you don't need to put
+	  a DOS filesystem on each floppy.  You can use the `disklabel'
+	  and `newfs' commands to put a UFS filesystem on them instead,
+	  like so:
+<tscreen><verb>
+disklabel -w -r fd0 floppy3     (use floppy5 for 1.2MB disks)
+newfs /dev/rfd0
+</verb></tscreen>
+	  Then you can mount and write to them like any other file
+	  system.
 
 	  After you have DOS formatted the floppies, you will
 	  need to copy the files onto them.  The distribution
