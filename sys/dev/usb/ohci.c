@@ -469,7 +469,7 @@ ohci_alloc_std_chain(struct ohci_pipe *opipe, ohci_softc_t *sc,
 
 	cur = std;
 
-	dataphysend = DMAADDR(dma, len - 1);
+	dataphysend = OHCI_PAGE(DMAADDR(dma, len - 1));
 	tdflags = 
 	    (rd ? OHCI_TD_IN : OHCI_TD_OUT) | 
 	    OHCI_TD_NOCC | OHCI_TD_TOGGLE_CARRY | 
@@ -484,8 +484,8 @@ ohci_alloc_std_chain(struct ohci_pipe *opipe, ohci_softc_t *sc,
 
 		/* The OHCI hardware can handle at most one page crossing. */
 #if defined(__NetBSD__) || defined(__OpenBSD__)
-		if (OHCI_PAGE(dataphys) == OHCI_PAGE(dataphysend) ||
-		    OHCI_PAGE(dataphys) + OHCI_PAGE_SIZE == OHCI_PAGE(dataphysend))
+		if (OHCI_PAGE(dataphys) == dataphysend ||
+		    OHCI_PAGE(dataphys) + OHCI_PAGE_SIZE == dataphysend)
 #elif defined(__FreeBSD__)
 		/* XXX This is pretty broken: Because we do not allocate
 		 * a contiguous buffer (contiguous in physical pages) we
@@ -493,7 +493,7 @@ ohci_alloc_std_chain(struct ohci_pipe *opipe, ohci_softc_t *sc,
 		 * So check whether the start and end of the buffer are on
 		 * the same page.
 		 */
-		if (OHCI_PAGE(dataphys) == OHCI_PAGE(dataphysend))
+		if (OHCI_PAGE(dataphys) == dataphysend)
 #endif
 		{
 			/* we can handle it in this TD */
@@ -510,6 +510,8 @@ ohci_alloc_std_chain(struct ohci_pipe *opipe, ohci_softc_t *sc,
 			/* must use multiple TDs, fill as much as possible. */
 			curlen = 2 * OHCI_PAGE_SIZE - 
 				 OHCI_PAGE_MASK(dataphys);
+			if (curlen > len)	/* may have fit in one page */
+				curlen = len;
 #elif defined(__FreeBSD__)
 			/* See comment above (XXX) */
 			curlen = OHCI_PAGE_SIZE - 
