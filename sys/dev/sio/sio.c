@@ -686,6 +686,7 @@ static struct isa_pnp_id sio_ids[] = {
 	{0x3024a341, NULL},	/* PMC2430 - Pace 56 Voice Internal Modem */
 	{0x1000eb49, NULL},	/* ROK0010 - Rockwell ? */
 	{0x5002734a, NULL},	/* RSS0250 - 5614Jx3(G) Internal Modem */
+	{0x6202734a, NULL},	/* RSS0262 - 5614Jx3[G] V90+K56Flex Modem */
 	{0xc100ad4d, NULL},	/* SMM00C1 - Leopard 56k PnP */
 	{0x9012b04e, NULL},	/* SUP1290 - Supra ? */
 	{0x1013b04e, NULL},	/* SUP1310 - SupraExpress 336i PnP */
