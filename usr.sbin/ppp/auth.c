@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  * 
- * $Id:$
+ * $Id: auth.c,v 1.2 1995/02/26 12:17:12 amurai Exp $
  * 
  *	TODO:
  *		o Imprement check against with registerd IP addresses.
@@ -35,13 +35,14 @@ LOCAL_AUTH_VALID
 LocalAuthInit(void){
 
   char *p;
-	
+
   if ( gethostname( VarShortHost, sizeof(VarShortHost))) {
-  	return(1);
+  	return(NOT_FOUND);
   }
   if ( p = strchr( VarShortHost, '.' ) )
 	*p = '\0';
 
+  VarLocalAuth = LOCAL_NO_AUTH;
   return LocalAuthValidate( SECRETFILE, VarShortHost, "" );
 
 }

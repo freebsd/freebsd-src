@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id:$
+ * $Id: main.c,v 1.2 1995/02/26 12:17:41 amurai Exp $
  * 
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -40,6 +40,9 @@
 #include "ipcp.h"
 #include "vars.h"
 #include "auth.h"
+
+#define LAUTH_M1 "Warning: No password entry for this host in ppp.secret\n"
+#define LAUTH_M2 "Warning: All manipulation is allowed by anyone in a world\n"
 
 #ifndef O_NONBLOCK
 #ifdef O_NDELAY
@@ -242,8 +245,11 @@ char **argv;
 
   switch ( LocalAuthInit() ) {
     case NOT_FOUND:
-    	fprintf(stderr, "Warning: No password entry in secret file\n");
-    	fprintf(stderr, "Warning: Anyone is allowd manipulating!!!\n");
+    	fprintf(stderr,LAUTH_M1);
+    	fprintf(stderr,LAUTH_M2);
+	fflush (stderr);
+	/* Fall down */
+    case VALID:
 	VarLocalAuth = LOCAL_AUTH;
 	break;
     default:
@@ -409,7 +415,6 @@ ReadTty()
 #ifdef DEBUG
       logprintf("connection closed.\n");
 #endif
-      VarLocalAuth = LOCAL_NO_AUTH;
       close(netfd);
       netfd = -1;
       mode &= ~MODE_INTER;
@@ -639,6 +644,18 @@ DoLoop()
 	perror("dup2");
       mode |= MODE_INTER;
       Greetings();
+      switch ( LocalAuthInit() ) {
+         case NOT_FOUND:
+    	    fprintf(stdout,LAUTH_M1);
+    	    fprintf(stdout,LAUTH_M2);
+            fflush(stdout);
+	    /* Fall down */
+         case VALID:
+	    VarLocalAuth = LOCAL_AUTH;
+	    break;
+         default:
+	    break;
+      }
       (void) IsInteractive();
       Prompt(0);
     }
