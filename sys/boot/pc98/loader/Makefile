@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.6 1999/04/19 11:02:19 kato Exp $
+# $Id: Makefile,v 1.7 1999/04/25 03:56:44 kato Exp $
 
 BASE=		loader
 PROG=		${BASE}
@@ -6,7 +6,7 @@ MAN5=		../../forth/loader.conf.5
 MAN8=		../../i386/loader/loader.8 ../../forth/loader.4th.8
 #NOMAN=
 STRIP=
-NEWVERSWHAT=	"bootstrap loader"
+NEWVERSWHAT=	"bootstrap loader" pc98
 BINDIR?=	/boot
 
 CFLAGS+=	-DPC98
@@ -69,8 +69,8 @@ CFLAGS+=	-DNEW_LINKER_SET
 #CFLAGS+=	-g
 #LDFLAGS+=	-g
 
-vers.o:
-	sh ${.CURDIR}/../../i386/loader/newvers.sh ${.CURDIR}/../../i386/loader/version ${NEWVERSWHAT}
+vers.o:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/../../i386/loader/version
+	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/../../i386/loader/version ${NEWVERSWHAT}
 	${CC} -c vers.c
 
 ${BASE}: ${BASE}.bin ${BTXLDR} ${BTXKERN} ${BTXCRT} ${BASE}.help

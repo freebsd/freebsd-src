@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.33 1999/04/24 17:25:35 dcs Exp $
+# $Id: Makefile,v 1.34 1999/04/24 17:49:47 dcs Exp $
 
 BASE=		loader
 PROG=		${BASE}
@@ -6,7 +6,7 @@ MAN5=		../../forth/loader.conf.5
 MAN8=		loader.8 ../../forth/loader.4th.8
 #NOMAN=
 STRIP=
-NEWVERSWHAT=	"bootstrap loader"
+NEWVERSWHAT=	"bootstrap loader" i386
 BINDIR?=	/boot
 
 # architecture-specific loader code
@@ -66,8 +66,8 @@ CFLAGS+=	-DNEW_LINKER_SET
 #CFLAGS+=	-g
 #LDFLAGS+=	-g
 
-vers.o:
-	sh ${.CURDIR}/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
+vers.o:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
+	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
 	${CC} -c vers.c
 
 ${BASE}: ${BASE}.bin ${BTXLDR} ${BTXKERN} ${BTXCRT} ${BASE}.help
