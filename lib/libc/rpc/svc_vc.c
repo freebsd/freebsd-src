@@ -412,23 +412,21 @@ read_vc(xprtp, buf, len)
 
 	sock = xprt->xp_fd;
 
-        do {
-                pollfd.fd = sock;
-                pollfd.events = POLLIN;
+	do {
+		pollfd.fd = sock;
+		pollfd.events = POLLIN;
 		pollfd.revents = 0;
-                switch (_poll(&pollfd, 1, milliseconds)) {
-                case -1:
-                        if (errno == EINTR) {
-                                continue;
-                        }
-                        /*FALLTHROUGH*/
-                case 0:
-                        goto fatal_err;
- 
-                default:
-                        break;
-                }
-        } while ((pollfd.revents & POLLIN) == 0);
+		switch (_poll(&pollfd, 1, milliseconds)) {
+		case -1:
+			if (errno == EINTR)
+				continue;
+			/*FALLTHROUGH*/
+			case 0:
+				goto fatal_err;
+			default:
+				break;
+		}
+	} while ((pollfd.revents & POLLIN) == 0);
 
 	sa = (struct sockaddr *)xprt->xp_rtaddr.buf;
 	if (sa->sa_family == AF_LOCAL) {
