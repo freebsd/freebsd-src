@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.6 1995/12/09 08:17:24 peter Exp $
+ *  $Id: linux_misc.c,v 1.7 1995/12/14 22:35:45 bde Exp $
  */
 
 #include <sys/param.h>
@@ -74,6 +74,7 @@ int
 linux_alarm(struct proc *p, struct linux_alarm_args *args, int *retval)
 {
     struct itimerval it, old_it;
+    struct timeval tv;
     int s;
 
 #ifdef DEBUG
@@ -85,18 +86,20 @@ linux_alarm(struct proc *p, struct linux_alarm_args *args, int *retval)
     it.it_interval.tv_usec = 0;
     s = splclock();
     old_it = p->p_realtimer;
+    tv = time;
     if (timerisset(&old_it.it_value))
-	if (timercmp(&old_it.it_value, &time, <))
+	if (timercmp(&old_it.it_value, &tv, <))
 	    timerclear(&old_it.it_value);
 	else
-	    timevalsub(&old_it.it_value, &time);
+	    timevalsub(&old_it.it_value, &tv);
     splx(s);
     if (itimerfix(&it.it_value) || itimerfix(&it.it_interval))
 	return EINVAL;
     s = splclock();
     untimeout(realitexpire, (caddr_t)p);
+    tv = time;
     if (timerisset(&it.it_value)) {
-	timevaladd(&it.it_value, &time);
+	timevaladd(&it.it_value, &tv);
 	timeout(realitexpire, (caddr_t)p, hzto(&it.it_value));
     }
     p->p_realtimer = it;
@@ -141,16 +144,16 @@ linux_brk(struct proc *p, struct linux_brk_args *args, int *retval)
 #else
     struct vmspace *vm = p->p_vmspace;
     vm_offset_t new, old;
-    struct obreak_args {
-	vm_offset_t newsize;
-    } tmp;
+    struct obreak_args /* {
+	char * nsize;
+    } */ tmp;
 
 #ifdef DEBUG
     printf("Linux-emul(%d): brk(%08x)\n", p->p_pid, args->dsend);
 #endif
     old = (vm_offset_t)vm->vm_daddr + ctob(vm->vm_dsize);
     new = (vm_offset_t)args->dsend;
-    tmp.newsize = new;
+    tmp.nsize = (char *) new;
     if (((caddr_t)new > vm->vm_daddr) && !obreak(p, &tmp, retval))
 	retval[0] = (int)new;
     else
@@ -348,13 +351,13 @@ linux_select(struct proc *p, struct linux_select_args *args, int *retval)
 	fd_set *exceptfds;
 	struct timeval *timeout; 
     } linux_args;
-    struct {
+    struct select_args /* {
 	unsigned int nd;
 	fd_set *in;
 	fd_set *ou;
 	fd_set *ex;
 	struct timeval *tv;
-    } bsd_args;
+    } */ bsd_args;
     int error;
 
     if ((error = copyin((caddr_t)args->ptr, (caddr_t)&linux_args,
@@ -426,7 +429,7 @@ linux_mmap(struct proc *p, struct linux_mmap_args *args, int *retval)
 	int fd;
 	int pos;
     } linux_args;
-    struct {
+    struct mmap_args /* {
 	caddr_t addr;
 	size_t len;
 	int prot;
@@ -434,7 +437,7 @@ linux_mmap(struct proc *p, struct linux_mmap_args *args, int *retval)
 	int fd;
 	long pad;
 	off_t pos;
-    } bsd_args;
+    } */ bsd_args;
     int error;
 
     if ((error = copyin((caddr_t)args->ptr, (caddr_t)&linux_args,
@@ -577,10 +580,10 @@ struct linux_utime_args {
 int
 linux_utime(struct proc *p, struct linux_utime_args *args, int *retval)
 {
-    struct bsd_utimes_args {
-	char	*fname;
+    struct utimes_args /* {
+	char	*path;
 	struct	timeval *tptr;
-    } bsdutimes;
+    } */ bsdutimes;
     struct timeval tv;
 
 #ifdef DEBUG
@@ -589,7 +592,7 @@ linux_utime(struct proc *p, struct linux_utime_args *args, int *retval)
     tv.tv_sec = (long)args->timeptr;
     tv.tv_usec = 0;
     bsdutimes.tptr = &tv;
-    bsdutimes.fname = args->fname;
+    bsdutimes.path = args->fname;
     return utimes(p, &bsdutimes, retval);
 }
 
@@ -602,13 +605,12 @@ struct linux_waitpid_args {
 int
 linux_waitpid(struct proc *p, struct linux_waitpid_args *args, int *retval)
 {
-    struct wait4_args {
+    struct wait_args /* {
 	int pid;
 	int *status;
 	int options;
 	struct	rusage *rusage;
-	int compat;
-    } tmp;
+    } */ tmp;
     int error, tmpstat;
 
 #ifdef DEBUG
@@ -619,7 +621,6 @@ linux_waitpid(struct proc *p, struct linux_waitpid_args *args, int *retval)
     tmp.status = args->status;
     tmp.options = args->options;
     tmp.rusage = NULL;
-    tmp.compat = 0;
 
     if (error = wait4(p, &tmp, retval))
 	return error;
@@ -644,13 +645,12 @@ struct linux_wait4_args {
 int 
 linux_wait4(struct proc *p, struct linux_wait4_args *args, int *retval)
 {
-    struct wait4_args {
+    struct wait_args /* {
 	int pid;
 	int *status;
 	int options;
 	struct	rusage *rusage;
-	int compat;
-    } tmp;
+    } */ tmp;
     int error, tmpstat;
 
 #ifdef DEBUG
@@ -661,7 +661,6 @@ linux_wait4(struct proc *p, struct linux_wait4_args *args, int *retval)
     tmp.status = args->status;
     tmp.options = args->options;
     tmp.rusage = args->rusage;
-    tmp.compat = 0;
 
     if (error = wait4(p, &tmp, retval))
 	return error;

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_signal.c,v 1.1 1995/06/25 17:32:40 sos Exp $
+ *  $Id: linux_signal.c,v 1.2 1995/11/22 07:43:50 bde Exp $
  */
 
 #include <sys/param.h>
@@ -74,11 +74,11 @@ linux_sigaction(struct proc *p, struct linux_sigaction_args *args, int *retval)
 {
     linux_sigaction_t linux_sa;
     struct sigaction *nsa = NULL, *osa = NULL, bsd_sa;
-    struct sigaction_args {
-	int sig;
+    struct sigaction_args /* {
+	int signum;
 	struct sigaction *nsa;
 	struct sigaction *osa;
-    } sa;
+    } */ sa;
     int error;
     
 #ifdef DEBUG
@@ -103,7 +103,7 @@ linux_sigaction(struct proc *p, struct linux_sigaction_args *args, int *retval)
 	if (error = copyout(&bsd_sa, nsa, sizeof(struct sigaction)))
 	    return error;
     }
-    sa.sig = linux_to_bsd_signal[args->sig];
+    sa.signum = linux_to_bsd_signal[args->sig];
     sa.nsa = nsa;
     sa.osa = osa;
     if ((error = sigaction(p, &sa, retval)))
@@ -227,12 +227,14 @@ struct linux_sigsuspend_args {
 int
 linux_sigsuspend(struct proc *p, struct linux_sigsuspend_args *args,int *retval)
 {
-    sigset_t tmp;
+    struct sigsuspend_args /* {
+	int mask;
+    } */ tmp;
 
 #ifdef DEBUG
     printf("Linux-emul(%d): sigsuspend(%08x)\n", p->p_pid, args->mask);
 #endif
-    tmp = linux_to_bsd_sigmask(args->mask);
+    tmp.mask = linux_to_bsd_sigmask(args->mask);
     return sigsuspend(p, &tmp , retval);
 }
 
@@ -244,10 +246,10 @@ struct linux_kill_args {
 int
 linux_kill(struct proc *p, struct linux_kill_args *args, int *retval)
 {
-    struct {
+    struct kill_args /* {
 	int pid;
 	int signum;
-    } tmp;
+    } */ tmp;
 
 #ifdef DEBUG
     printf("Linux-emul(%d): kill(%d, %d)\n", 

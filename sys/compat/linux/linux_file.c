@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_file.c,v 1.3 1995/10/10 23:13:27 swallace Exp $
+ *  $Id: linux_file.c,v 1.4 1995/11/22 07:43:45 bde Exp $
  */
 
 #include <sys/param.h>
@@ -55,11 +55,11 @@ struct linux_creat_args {
 int
 linux_creat(struct proc *p, struct linux_creat_args *args, int *retval)
 {
-    struct {
+    struct open_args /* {
 	char *path;
 	int flags;
 	int mode;
-    } bsd_open_args;
+    } */ bsd_open_args;
 
 #ifdef DEBUG
     printf("Linux-emul(%d): creat(%s, %d)\n", 
@@ -80,11 +80,11 @@ struct linux_open_args {
 int
 linux_open(struct proc *p, struct linux_open_args *args, int *retval)
 {
-    struct {
+    struct open_args /* {
 	char *path;
 	int flags;
 	int mode;
-    } bsd_open_args;
+    } */ bsd_open_args;
     int error;
     
 #ifdef DEBUG
@@ -189,11 +189,11 @@ int
 linux_fcntl(struct proc *p, struct linux_fcntl_args *args, int *retval)
 {
     int error, result;
-    struct fcntl_args {
+    struct fcntl_args /* {
 	int fd;
 	int cmd;
 	int arg;
-    } fcntl_args; 
+    } */ fcntl_args; 
     struct linux_flock linux_flock;
     struct flock *bsd_flock = 
 	(struct flock *)ua_alloc_init(sizeof(struct flock));
@@ -289,24 +289,22 @@ int
 linux_lseek(struct proc *p, struct linux_lseek_args *args, int *retval)
 {
 
-    struct lseek_args {
-	int fdes;
+    struct lseek_args /* {
+	int fd;
 	int pad;
-	off_t off;
+	off_t offset;
 	int whence;
-    } tmp_args;
-    off_t tmp_retval;
+    } */ tmp_args;
     int error;
 
 #ifdef DEBUG
     printf("Linux-emul(%d): lseek(%d, %d, %d)\n",
 	   p->p_pid, args->fdes, args->off, args->whence);
 #endif
-    tmp_args.fdes = args->fdes;
-    tmp_args.off = (off_t)args->off;
+    tmp_args.fd = args->fdes;
+    tmp_args.offset = (off_t)args->off;
     tmp_args.whence = args->whence;
-    error = lseek(p, &tmp_args, &tmp_retval);
-    *retval = (int)tmp_retval;
+    error = lseek(p, &tmp_args, retval);
     return error;
 }
 

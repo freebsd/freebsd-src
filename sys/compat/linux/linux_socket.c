@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_socket.c,v 1.1 1995/06/25 17:32:41 sos Exp $
+ *  $Id: linux_socket.c,v 1.2 1995/11/22 07:43:50 bde Exp $
  */
 
 /* XXX we use functions that might not exist. */
@@ -130,11 +130,11 @@ static int
 linux_socket(struct proc *p, struct linux_socket_args *args, int *retval)
 {
     struct linux_socket_args linux_args;
-    struct {
+    struct socket_args /* {
 	int domain;
 	int type;
 	int protocol;
-    } bsd_args;
+    } */ bsd_args;
     int error;
 
     if ((error=copyin((caddr_t)args, (caddr_t)&linux_args, sizeof(linux_args))))
@@ -157,11 +157,11 @@ static int
 linux_bind(struct proc *p, struct linux_bind_args *args, int *retval)
 {
     struct linux_bind_args linux_args;
-    struct {
+    struct bind_args /* {
 	int s;
 	caddr_t name;
 	int namelen;
-    } bsd_args;
+    } */ bsd_args;
     int error;
 
     if ((error=copyin((caddr_t)args, (caddr_t)&linux_args, sizeof(linux_args))))
@@ -182,11 +182,11 @@ static int
 linux_connect(struct proc *p, struct linux_connect_args *args, int *retval)
 {
     struct linux_connect_args linux_args;
-    struct {
+    struct connect_args /* {
 	int s;
 	caddr_t name;
 	int namelen;
-    } bsd_args;
+    } */ bsd_args;
     int error;
 
     if ((error=copyin((caddr_t)args, (caddr_t)&linux_args, sizeof(linux_args))))
@@ -206,10 +206,10 @@ static int
 linux_listen(struct proc *p, struct linux_listen_args *args, int *retval)
 {
     struct linux_listen_args linux_args;
-    struct {
+    struct listen_args /* {
 	int s;
 	int backlog;
-    } bsd_args;
+    } */ bsd_args;
     int error;
 
     if ((error=copyin((caddr_t)args, (caddr_t)&linux_args, sizeof(linux_args))))
@@ -229,11 +229,11 @@ static int
 linux_accept(struct proc *p, struct linux_accept_args *args, int *retval)
 {
     struct linux_accept_args linux_args;
-    struct accept_args {
+    struct accept_args /* {
 	int s;
 	caddr_t name;
 	int *anamelen;
-    } bsd_args;
+    } */ bsd_args;
     int error;
 
     if ((error=copyin((caddr_t)args, (caddr_t)&linux_args, sizeof(linux_args))))
@@ -254,11 +254,11 @@ static int
 linux_getsockname(struct proc *p, struct linux_getsockname_args *args, int *retval)
 {
     struct linux_getsockname_args linux_args;
-    struct {
+    struct getsockname_args /* {
 	int fdes;
 	caddr_t asa;
 	int *alen;
-    } bsd_args;
+    } */ bsd_args;
     int error;
 
     if ((error=copyin((caddr_t)args, (caddr_t)&linux_args, sizeof(linux_args))))
@@ -279,11 +279,11 @@ static int
 linux_getpeername(struct proc *p, struct linux_getpeername_args *args, int *retval)
 {
     struct linux_getpeername_args linux_args;
-    struct getpeername_args {
+    struct ogetpeername_args /* {
 	int fdes;
 	caddr_t asa;
 	int *alen;
-    } bsd_args;
+    } */ bsd_args;
     int error;
 
     if ((error=copyin((caddr_t)args, (caddr_t)&linux_args, sizeof(linux_args))))
@@ -305,12 +305,12 @@ static int
 linux_socketpair(struct proc *p, struct linux_socketpair_args *args, int *retval)
 {
     struct linux_socketpair_args linux_args;
-    struct {
+    struct socketpair_args /* {
 	int domain;
 	int type;
 	int protocol;
 	int *rsv;
-    } bsd_args;
+    } */ bsd_args;
     int error;
 
     if ((error=copyin((caddr_t)args, (caddr_t)&linux_args, sizeof(linux_args))))
@@ -335,12 +335,12 @@ static int
 linux_send(struct proc *p, struct linux_send_args *args, int *retval)
 {
     struct linux_send_args linux_args;
-    struct {
+    struct osend_args /* {
 	int s;
 	caddr_t buf;
 	int len;
 	int flags;
-    } bsd_args;
+    } */ bsd_args;
     int error;
 
     if ((error=copyin((caddr_t)args, (caddr_t)&linux_args, sizeof(linux_args))))
@@ -363,12 +363,12 @@ static int
 linux_recv(struct proc *p, struct linux_recv_args *args, int *retval)
 {
     struct linux_recv_args linux_args;
-    struct {
+    struct orecv_args /* {
 	int s;
 	caddr_t buf;
 	int len;
 	int flags;
-    } bsd_args;
+    } */ bsd_args;
     int error;
 
     if ((error=copyin((caddr_t)args, (caddr_t)&linux_args, sizeof(linux_args))))
@@ -393,14 +393,14 @@ static int
 linux_sendto(struct proc *p, struct linux_sendto_args *args, int *retval)
 {
     struct linux_sendto_args linux_args;
-    struct {
+    struct sendto_args /* {
 	int s;
 	caddr_t buf;
 	size_t len;
 	int flags;
 	caddr_t to;
 	int tolen;
-    } bsd_args;
+    } */ bsd_args;
     int error;
 
     if ((error=copyin((caddr_t)args, (caddr_t)&linux_args, sizeof(linux_args))))
@@ -427,14 +427,14 @@ static int
 linux_recvfrom(struct proc *p, struct linux_recvfrom_args *args, int *retval)
 {
     struct linux_recvfrom_args linux_args;
-    struct {
+    struct recvfrom_args /* {
 	int s;
 	caddr_t buf;
 	size_t len;
 	int flags;
 	caddr_t from;
 	int *fromlenaddr;
-    } bsd_args;
+    } */ bsd_args;
     int error;
 
     if ((error=copyin((caddr_t)args, (caddr_t)&linux_args, sizeof(linux_args))))
@@ -457,10 +457,10 @@ static int
 linux_shutdown(struct proc *p, struct linux_shutdown_args *args, int *retval)
 {
     struct linux_shutdown_args linux_args;
-    struct {
+    struct shutdown_args /* {
 	int s;
 	int how;
-    } bsd_args;
+    } */ bsd_args;
     int error;
 
     if ((error=copyin((caddr_t)args, (caddr_t)&linux_args, sizeof(linux_args))))
@@ -482,13 +482,13 @@ static int
 linux_setsockopt(struct proc *p, struct linux_setsockopt_args *args, int *retval)
 {
     struct linux_setsockopt_args linux_args;
-    struct {
+    struct setsockopt_args /* {
 	int s;
 	int level;
 	int name;
 	caddr_t val;
 	int valsize;
-    } bsd_args;
+    } */ bsd_args;
     int error, name;
 
     if ((error=copyin((caddr_t)args, (caddr_t)&linux_args, sizeof(linux_args))))
@@ -525,13 +525,13 @@ static int
 linux_getsockopt(struct proc *p, struct linux_getsockopt_args *args, int *retval)
 {
     struct linux_getsockopt_args linux_args;
-    struct {
+    struct getsockopt_args /* {
 	int s;
 	int level;
 	int name;
 	caddr_t val;
 	int *avalsize;
-    } bsd_args;
+    } */ bsd_args;
     int error, name;
 
     if ((error=copyin((caddr_t)args, (caddr_t)&linux_args, sizeof(linux_args))))
