@@ -1399,7 +1399,7 @@ sppp_cp_input(const struct cp *cp, struct sppp *sp, struct mbuf *m)
 			(cp->tld)(sp);
 			/* fall through */
 		case STATE_ACK_RCVD:
-			sppp_cp_change_state(cp, sp, STATE_ACK_SENT);
+			sppp_cp_change_state(cp, sp, STATE_REQ_SENT);
 			(cp->scr)(sp);
 			break;
 		case STATE_CLOSING:
