@@ -1203,6 +1203,8 @@ static void dc_setcfg(sc, media)
 	}
 
 	if (IFM_SUBTYPE(media) == IFM_100_TX) {
+		DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_SPEEDSEL);
+		DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_HEARTBEAT);
 		if (sc->dc_pmode == DC_PMODE_MII) {
 			DC_SETBIT(sc, DC_WATCHDOG, DC_WDOG_JABBERDIS);
 			DC_CLRBIT(sc, DC_NETCFG, (DC_NETCFG_PCS|
@@ -1223,11 +1225,11 @@ static void dc_setcfg(sc, media)
 			DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_PCS);
 			DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_SCRAMBLER);
 		}
-		DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_SPEEDSEL);
-		DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_HEARTBEAT);
 	}
 
 	if (IFM_SUBTYPE(media) == IFM_10_T) {
+		DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_SPEEDSEL);
+		DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_HEARTBEAT);
 		if (sc->dc_pmode == DC_PMODE_MII) {
 			DC_SETBIT(sc, DC_WATCHDOG, DC_WDOG_JABBERDIS);
 			DC_CLRBIT(sc, DC_NETCFG, (DC_NETCFG_PCS|
@@ -1247,8 +1249,6 @@ static void dc_setcfg(sc, media)
 			DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_PCS);
 			DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_SCRAMBLER);
 		}
-		DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_SPEEDSEL);
-		DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_HEARTBEAT);
 	}
 
 	/*
@@ -1514,7 +1514,7 @@ static int dc_attach(dev)
 	case DC_DEVICEID_21143:
 		sc->dc_type = DC_TYPE_21143;
 		sc->dc_flags |= DC_TX_POLL|DC_TX_USE_TX_INTR;
-		sc->dc_flags |= DC_REDUCED_MII_POLL|DC_21143_NWAY;
+		sc->dc_flags |= DC_REDUCED_MII_POLL;
 		break;
 	case DC_DEVICEID_DM9100:
 	case DC_DEVICEID_DM9102:
@@ -1613,8 +1613,10 @@ static int dc_attach(dev)
 		DELAY(10000);
 		if (media & DC_CWUC_MII_ABILITY)
 			sc->dc_pmode = DC_PMODE_MII;
-		if (media & DC_CWUC_SYM_ABILITY)
+		if (media & DC_CWUC_SYM_ABILITY) {
 			sc->dc_pmode = DC_PMODE_SYM;
+			sc->dc_flags |= DC_21143_NWAY;
+		}
 		/*
 		 * If none of the bits are set, then this NIC
 		 * isn't meant to support 'wake up LAN' mode.
@@ -1705,6 +1707,7 @@ static int dc_attach(dev)
 
 	if (error && DC_IS_INTEL(sc)) {
 		sc->dc_pmode = DC_PMODE_SYM;
+		sc->dc_flags |= DC_21143_NWAY;
 		mii_phy_probe(dev, &sc->dc_miibus,
 		    dc_ifmedia_upd, dc_ifmedia_sts);
 		error = 0;
@@ -2265,8 +2268,10 @@ static void dc_tick(xsc)
 		} else {
 			r = CSR_READ_4(sc, DC_ISR);
 			if ((r & DC_ISR_RX_STATE) == DC_RXSTATE_WAIT &&
-			    sc->dc_cdata.dc_tx_prod == 0)
+			    sc->dc_cdata.dc_tx_cnt == 0)
 				mii_tick(mii);
+				if (!(mii->mii_media_status & IFM_ACTIVE))
+					sc->dc_link = 0;
 		}
 	} else
 		mii_tick(mii);
