@@ -122,7 +122,7 @@ exec_svr4_imgact(imgp)
     /*
      * Destroy old process VM and create a new one (with a new stack)
      */
-    exec_new_vmspace(imgp, VM_MIN_ADDRESS, VM_MAXUSER_ADDRESS, USRSTACK);
+    exec_new_vmspace(imgp, &svr4_sysvec);
     vmspace = imgp->proc->p_vmspace;
 
     /*

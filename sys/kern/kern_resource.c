@@ -52,6 +52,7 @@
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
 #include <sys/sx.h>
+#include <sys/sysent.h>
 #include <sys/time.h>
 
 #include <vm/vm.h>
@@ -593,13 +594,15 @@ dosetrlimit(td, which, limp)
 			vm_prot_t prot;
 
 			if (limp->rlim_cur > alimp->rlim_cur) {
-				prot = VM_PROT_ALL;
+				prot = p->p_sysent->sv_stackprot;
 				size = limp->rlim_cur - alimp->rlim_cur;
-				addr = USRSTACK - limp->rlim_cur;
+				addr = p->p_sysent->sv_usrstack -
+				    limp->rlim_cur;
 			} else {
 				prot = VM_PROT_NONE;
 				size = alimp->rlim_cur - limp->rlim_cur;
-				addr = USRSTACK - alimp->rlim_cur;
+				addr = p->p_sysent->sv_usrstack -
+				    alimp->rlim_cur;
 			}
 			addr = trunc_page(addr);
 			size = round_page(size);

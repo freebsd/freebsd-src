@@ -78,6 +78,7 @@
 #include <sys/mman.h>
 #include <sys/vnode.h>
 #include <sys/resourcevar.h>
+#include <sys/sysent.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -2364,7 +2365,7 @@ vm_map_stack (vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
 	vm_size_t      init_ssize;
 	int            rv;
 
-	if (VM_MIN_ADDRESS > 0 && addrbos < VM_MIN_ADDRESS)
+	if (addrbos < vm_map_min(map))
 		return (KERN_NO_SPACE);
 
 	if (max_ssize < sgrowsiz)
@@ -2552,9 +2553,7 @@ Retry:
 	}
 
 	rv = vm_map_insert(map, NULL, 0, addr, stack_entry->start,
-			   VM_PROT_ALL,
-			   VM_PROT_ALL,
-			   0);
+	    p->p_sysent->sv_stackprot, VM_PROT_ALL, 0);
 
 	/* Adjust the available stack space by the amount we grew. */
 	if (rv == KERN_SUCCESS) {

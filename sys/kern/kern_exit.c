@@ -287,10 +287,10 @@ exit1(td, rv)
 	if (--vm->vm_refcnt == 0) {
 		if (vm->vm_shm)
 			shmexit(p);
-		pmap_remove_pages(vmspace_pmap(vm), VM_MIN_ADDRESS,
-		    VM_MAXUSER_ADDRESS);
-		(void) vm_map_remove(&vm->vm_map, VM_MIN_ADDRESS,
-		    VM_MAXUSER_ADDRESS);
+		pmap_remove_pages(vmspace_pmap(vm), vm_map_min(&vm->vm_map),
+		    vm_map_max(&vm->vm_map));
+		(void) vm_map_remove(&vm->vm_map, vm_map_min(&vm->vm_map),
+		    vm_map_max(&vm->vm_map));
 		vm->vm_freer = p;
 	}
 

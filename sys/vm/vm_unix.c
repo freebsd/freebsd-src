@@ -93,7 +93,7 @@ obreak(td, uap)
 			error = ENOMEM;
 			goto done;
 		}
-		if (new > VM_MAXUSER_ADDRESS) {
+		if (new > vm_map_max(&vm->vm_map)) {
 			error = ENOMEM;
 			goto done;
 		}
