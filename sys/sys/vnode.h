@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.8 1994/09/22 22:10:49 wollman Exp $
+ * $Id: vnode.h,v 1.9 1994/09/25 19:34:02 phk Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -414,6 +414,8 @@ void	vprint __P((char *, struct vnode *));
 void 	vput __P((struct vnode *vp));
 void 	vref __P((struct vnode *vp));
 void 	vrele __P((struct vnode *vp));
+
+void	vfs_opv_init __P((struct vnodeopv_desc **));
 #endif /* KERNEL */
 
 #endif /* !_SYS_VNODE_H_ */

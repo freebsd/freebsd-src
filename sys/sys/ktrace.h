@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ktrace.h	8.1 (Berkeley) 6/2/93
- * $Id: ktrace.h,v 1.4 1994/09/27 20:39:46 phk Exp $
+ * $Id: ktrace.h,v 1.5 1994/09/27 21:26:56 phk Exp $
  */
 
 #ifndef _SYS_KTRACE_H_
@@ -150,7 +150,15 @@ struct ktr_csw {
 #define KTRFAC_ACTIVE	0x20000000	/* ktrace logging in progress, ignore */
 
 #ifdef	KERNEL
-void	ktrnamei __P((struct vnode *vp,char *path));
+void	ktrnamei __P((struct vnode *,char *));
+void	ktrcsw __P((struct vnode *,int,int));
+void	ktrwrite   __P((struct vnode *, struct ktr_header *));
+int	ktrcanset __P((struct proc *,struct proc *));
+int	ktrsetchildren __P((struct proc *,struct proc *,int,int,struct vnode *));
+int	ktrops __P((struct proc *,struct proc *,int,int,struct vnode *));
+void	ktrpsig __P((struct vnode *,int, sig_t, int, int));
+void	ktrgenio __P((struct vnode *,int, enum uio_rw,struct iovec *,int,int));
+
 #else	/* KERNEL */
 
 #include <sys/cdefs.h>

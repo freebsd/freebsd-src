@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.4 (Berkeley) 2/23/94
- * $Id: systm.h,v 1.10 1994/09/15 20:24:27 bde Exp $
+ * $Id: systm.h,v 1.11 1994/09/18 21:30:30 bde Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -108,6 +108,7 @@ int	enoioctl __P((void));
 int	enxio __P((void));
 int	eopnotsupp __P((void));
 int	seltrue __P((dev_t dev, int which, struct proc *p));
+int	ureadc __P((int, struct uio *));
 void	*hashinit __P((int count, int type, u_long *hashmask));
 
 __dead void	panic __P((const char *, ...)) __dead2;
