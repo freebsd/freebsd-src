@@ -475,8 +475,8 @@ kmeminit(dummy)
 	if ((vm_kmem_size / 2) > (cnt.v_page_count * PAGE_SIZE))
 		vm_kmem_size = 2 * cnt.v_page_count * PAGE_SIZE;
 
-	npg = (nmbufs * MSIZE + nmbclusters * MCLBYTES + vm_kmem_size)
-		/ PAGE_SIZE;
+	npg = (nmbufs * MSIZE + nmbclusters * MCLBYTES + nmbcnt *
+	    sizeof(union mext_refcnt) + vm_kmem_size) / PAGE_SIZE;
 
 	kmemusage = (struct kmemusage *) kmem_alloc(kernel_map,
 		(vm_size_t)(npg * sizeof(struct kmemusage)));
