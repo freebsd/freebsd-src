@@ -1,4 +1,4 @@
-<!-- $Id: handbook.sgml,v 1.7.4.5 1995/10/30 17:48:17 jfieber Exp $ -->
+<!-- $Id: handbook.sgml,v 1.34 1995/11/20 01:10:20 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN" [
@@ -78,13 +78,7 @@ Web server">.
          documentation supplied by the <url url="http://www.xfree86.org/"
          name="The XFree86 Project, Inc">.
 
-    <chapt><heading>Managing hardware</heading>
-      <sect><heading>* Adding and reconfiguring disks</heading>
-      &scsi;
-      &esdi;
-      <sect><heading>* Tapes and backups</heading>
-      <sect><heading>* Serial ports</heading>
-      <sect><heading>* Sound cards</heading>
+    &hw;
 
 <!-- ************************************************************ -->	      
 
@@ -140,7 +134,6 @@ Web server">.
     &mirrors;
     &bibliography;
     &eresources;
-    &hw;
     <chapt><heading>Assorted technical topics</heading>
       &booting;
       &memoryuse;
