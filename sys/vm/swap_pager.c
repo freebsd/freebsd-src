@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.59 1996/01/19 03:59:41 dyson Exp $
+ * $Id: swap_pager.c,v 1.60 1996/01/31 13:14:21 davidg Exp $
  */
 
 /*
@@ -178,6 +178,8 @@ static void	swap_pager_ridpages __P((vm_page_t *m, int count,
 static void	swap_pager_setvalid __P((vm_object_t object,
 					 vm_offset_t offset, int valid));
 static void	swapsizecheck __P((void));
+
+#define SWAPLOW (vm_swap_size < (512 * btodb(PAGE_SIZE)))
 
 static inline void
 swapsizecheck()
@@ -1086,7 +1088,7 @@ swap_pager_getpages(object, m, count, reqpage)
 			 * the clean flag so that the page contents will be
 			 * preserved.
 			 */
-			if (swap_pager_full) {
+			if (SWAPLOW) {
 				for (i = 0; i < count; i++) {
 					m[i]->dirty = VM_PAGE_BITS_ALL;
 				}
