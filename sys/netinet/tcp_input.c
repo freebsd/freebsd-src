@@ -1177,7 +1177,6 @@ findpcb:
 		callout_reset(tp->tt_keep, tcp_keepinit, tcp_timer_keep, tp);
 		dropsocket = 0;		/* committed to socket */
 		tcpstat.tcps_accepts++;
-		ND6_HINT((struct tcpcb *)inp->inp_ppcb);
 		goto trimthenstep6;
 		}
 
