@@ -77,6 +77,117 @@ gv_stripe_active(struct gv_plex *p, struct bio *bp)
 	return (overlap);
 }
 
+int
+gv_rebuild_raid5(struct gv_plex *p, struct gv_raid5_packet *wp, struct bio *bp,
+    caddr_t addr, off_t boff, off_t bcount)
+{
+	struct gv_sd *broken, *s;
+	struct gv_bioq *bq;
+	struct bio *cbp, *pbp;
+	off_t len_left, real_len, real_off, stripeend, stripeoff, stripestart;
+
+	if (p == NULL || LIST_EMPTY(&p->subdisks))
+		return (ENXIO);
+
+	/* Offset of the start address from the start of the stripe. */
+	stripeoff = boff % (p->stripesize * (p->sdcount - 1));
+	KASSERT(stripeoff >= 0, ("gv_build_raid5_request: stripeoff < 0"));
+
+	/* The offset of the stripe on this subdisk. */
+	stripestart = (boff - stripeoff) / (p->sdcount - 1);
+	KASSERT(stripestart >= 0, ("gv_build_raid5_request: stripestart < 0"));
+
+	stripeoff %= p->stripesize;
+
+	/* The offset of the request on this subdisk. */
+	real_off = stripestart + stripeoff;
+
+	stripeend = stripestart + p->stripesize;
+	len_left = stripeend - real_off;
+	KASSERT(len_left >= 0, ("gv_build_raid5_request: len_left < 0"));
+
+	/* Find the right subdisk. */
+	broken = NULL;
+	LIST_FOREACH(s, &p->subdisks, in_plex) {
+		if (s->state != GV_SD_UP)
+			broken = s;
+	}
+
+	/* Parity stripe not found. */
+	if (broken == NULL)
+		return (ENXIO);
+
+	switch (broken->state) {
+	case GV_SD_UP:
+		return (EINVAL);
+
+	case GV_SD_STALE:
+		if (!(bp->bio_cflags & GV_BIO_REBUILD))
+			return (ENXIO);
+
+		printf("GEOM_VINUM: sd %s is reviving\n", broken->name);
+		gv_set_sd_state(broken, GV_SD_REVIVING, GV_SETSTATE_FORCE);
+		break;
+
+	case GV_SD_REVIVING:
+		break;
+
+	default:
+		/* All other subdisk states mean it's not accessible. */
+		return (ENXIO);
+	}
+
+	real_len = (bcount <= len_left) ? bcount : len_left;
+	wp->length = real_len;
+	wp->data = addr;
+	wp->lockbase = real_off;
+
+	KASSERT(wp->length >= 0, ("gv_build_raid5_request: wp->length < 0"));
+
+	/* Read all subdisks. */
+	LIST_FOREACH(s, &p->subdisks, in_plex) {
+		/* Skip the broken subdisk. */
+		if (s == broken)
+			continue;
+
+		cbp = g_clone_bio(bp);
+		if (cbp == NULL)
+			return (ENOMEM);
+		cbp->bio_cmd = BIO_READ;
+		cbp->bio_data = g_malloc(real_len, M_WAITOK);
+		cbp->bio_cflags |= GV_BIO_MALLOC;
+		cbp->bio_offset = real_off;
+		cbp->bio_length = real_len;
+		cbp->bio_done = gv_plex_done;
+		cbp->bio_caller2 = s->consumer;
+		cbp->bio_driver1 = wp;
+
+		GV_ENQUEUE(bp, cbp, pbp);
+
+		bq = g_malloc(sizeof(*bq), M_WAITOK | M_ZERO);
+		bq->bp = cbp;
+		TAILQ_INSERT_TAIL(&wp->bits, bq, queue);
+	}
+
+	/* Write the parity data. */
+	cbp = g_clone_bio(bp);
+	if (cbp == NULL)
+		return (ENOMEM);
+	cbp->bio_data = g_malloc(real_len, M_WAITOK | M_ZERO);
+	cbp->bio_cflags |= GV_BIO_MALLOC;
+	cbp->bio_offset = real_off;
+	cbp->bio_length = real_len;
+	cbp->bio_done = gv_plex_done;
+	cbp->bio_caller2 = broken->consumer;
+	cbp->bio_driver1 = wp;
+	cbp->bio_cflags |= GV_BIO_REBUILD;
+	wp->parity = cbp;
+
+	p->synced = boff;
+
+	return (0);
+}
+
 /* Build a request group to perform (part of) a RAID5 request. */
 int
 gv_build_raid5_req(struct gv_plex *p, struct gv_raid5_packet *wp,
@@ -165,6 +276,9 @@ gv_build_raid5_req(struct gv_plex *p, struct gv_raid5_packet *wp,
 	wp->lockbase = real_off;
 
 	KASSERT(wp->length >= 0, ("gv_build_raid5_request: wp->length < 0"));
+
+	if ((p->flags & GV_PLEX_SYNCING) && (boff + real_len < p->synced))
+		type = REQ_TYPE_NORMAL;
 
 	switch (bp->bio_cmd) {
 	case BIO_READ:
