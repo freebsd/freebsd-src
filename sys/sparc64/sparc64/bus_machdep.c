@@ -301,84 +301,6 @@ nexus_dmamap_destroy(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, bus_dmamap_t map)
 	return (0);
 }
 
-#define BUS_DMAMAP_NSEGS ((BUS_SPACE_MAXSIZE / PAGE_SIZE) + 1)
-
-/*
- * Common function for loading a DMA map with a linear buffer.  May
- * be called by bus-specific DMA map load functions.
- *
- * Most SPARCs have IOMMUs in the bus controllers.  In those cases
- * they only need one segment and will use virtual addresses for DVMA.
- * Those bus controllers should intercept these vectors and should
- * *NEVER* call nexus_dmamap_load() which is used only by devices that
- * bypass DVMA.
- */
-static int
-nexus_dmamap_load(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, bus_dmamap_t map,
-    void *buf, bus_size_t buflen, bus_dmamap_callback_t *callback,
-    void *callback_arg, int flags)
-{
-	vm_offset_t vaddr;
-	vm_offset_t paddr;
-#ifdef __GNUC__
-	bus_dma_segment_t dm_segments[ddmat->dt_nsegments];
-#else
-	bus_dma_segment_t dm_segments[BUS_DMAMAP_NSEGS];
-#endif
-	bus_dma_segment_t *sg;
-	int seg;
-	int error;
-	vm_offset_t nextpaddr;
-	bus_size_t size;
-
-	error = 0;
-
-	vaddr = (vm_offset_t)buf;
-	sg = &dm_segments[0];
-	seg = 1;
-	sg->ds_len = 0;
-
-	map->buf = buf;
-	map->buflen = buflen;
-	map->start = (bus_addr_t)buf;
-
-	nextpaddr = 0;
-	do {
-		paddr = pmap_kextract(vaddr);
-		size = PAGE_SIZE - (paddr & PAGE_MASK);
-		if (size > buflen)
-			size = buflen;
-
-		if (sg->ds_len == 0) {
-			sg->ds_addr = paddr;
-			sg->ds_len = size;
-		} else if (paddr == nextpaddr) {
-			sg->ds_len += size;
-		} else {
-			/* Go to the next segment */
-			sg++;
-			seg++;
-			if (seg > ddmat->dt_nsegments)
-				break;
-			sg->ds_addr = paddr;
-			sg->ds_len = size;
-		}
-		vaddr += size;
-		nextpaddr = paddr + size;
-		buflen -= size;
-	} while (buflen > 0);
-
-	if (buflen != 0) {
-		printf("bus_dmamap_load: Too many segs! buf_len = 0x%lx\n",
-		       (u_long)buflen);
-		error = EFBIG;
-	}
-
-	(*callback)(callback_arg, dm_segments, seg, error);
-
-	return (0);
-}
-
 /*
  * Utility function to load a linear buffer.  lastaddrp holds state
  * between invocations (for multiple-buffer loads).  segp contains
@@ -386,10 +308,9 @@ nexus_dmamap_load(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, bus_dmamap_t map,
  * first indicates if this is the first invocation of this function.
  */
 static int
-_nexus_dmamap_load_buffer(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat,
-    bus_dma_segment_t segs[], void *buf, bus_size_t buflen,
-    struct thread *td, int flags, vm_offset_t *lastaddrp,
-    int *segp, int first)
+_nexus_dmamap_load_buffer(bus_dma_tag_t ddmat, bus_dma_segment_t segs[],
+    void *buf, bus_size_t buflen, struct thread *td, int flags,
+    vm_offset_t *lastaddrp, int *segp, int first)
 {
 	bus_size_t sgsize;
 	bus_addr_t curaddr, lastaddr, baddr, bmask;
@@ -467,6 +388,40 @@ _nexus_dmamap_load_buffer(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat,
 }
 
 /*
+ * Common function for loading a DMA map with a linear buffer.  May
+ * be called by bus-specific DMA map load functions.
+ *
+ * Most SPARCs have IOMMUs in the bus controllers.  In those cases
+ * they only need one segment and will use virtual addresses for DVMA.
+ * Those bus controllers should intercept these vectors and should
+ * *NEVER* call nexus_dmamap_load() which is used only by devices that
+ * bypass DVMA.
+ */
+static int
+nexus_dmamap_load(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, bus_dmamap_t map,
+    void *buf, bus_size_t buflen, bus_dmamap_callback_t *callback,
+    void *callback_arg, int flags)
+{
+#ifdef __GNUC__
+	bus_dma_segment_t dm_segments[ddmat->dt_nsegments];
+#else
+	bus_dma_segment_t dm_segments[BUS_DMAMAP_NSEGS];
+#endif
+	vm_offset_t lastaddr;
+	int error, nsegs;
+
+	error = _nexus_dmamap_load_buffer(ddmat, dm_segments, buf, buflen,
+	    NULL, flags, &lastaddr, &nsegs, 1);
+
+	if (error == 0) {
+		(*callback)(callback_arg, dm_segments, nsegs + 1, 0);
+	} else
+		(*callback)(callback_arg, NULL, 0, error);
+
+	return (0);
+}
+
+/*
  * Like nexus_dmamap_load(), but for mbufs.
  */
 static int
@@ -492,7 +447,7 @@ nexus_dmamap_load_mbuf(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat,
 		struct mbuf *m;
 
 		for (m = m0; m != NULL && error == 0; m = m->m_next) {
-			error = _nexus_dmamap_load_buffer(pdmat, ddmat,
+			error = _nexus_dmamap_load_buffer(ddmat,
 			    dm_segments, m->m_data, m->m_len, NULL, flags,
 			    &lastaddr, &nsegs, first);
 			first = 0;
@@ -551,8 +506,8 @@ nexus_dmamap_load_uio(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat,
 			resid < iov[i].iov_len ? resid : iov[i].iov_len;
 		caddr_t addr = (caddr_t) iov[i].iov_base;
 
-		error = _nexus_dmamap_load_buffer(pdmat, ddmat, dm_segments,
-		    addr, minlen, td, flags, &lastaddr, &nsegs, first);
+		error = _nexus_dmamap_load_buffer(ddmat, dm_segments, addr,
+		    minlen, td, flags, &lastaddr, &nsegs, first);
 		first = 0;
 
 		resid -= minlen;
@@ -600,15 +555,13 @@ nexus_dmamap_sync(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, bus_dmamap_t map,
 		 */
 		membar(Sync);
 	}
+#if 0
+	/* Should not be needed. */
 	if (op == BUS_DMASYNC_POSTREAD) {
-		/*
-		 * Invalidate the caches (it is unclear whether that is really
-		 * needed. The manual only mentions that PCI transactions are
-		 * cache coherent).
-		 */
 		ecache_flush((vm_offset_t)map->buf,
 		    (vm_offset_t)map->buf + map->buflen - 1);
 	}
+#endif
 	if (op == BUS_DMASYNC_POSTWRITE) {
 		/* Nothing to do.  Handled by the bus controller. */
 	}
