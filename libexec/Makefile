@@ -24,7 +24,6 @@ SUBDIR=	atrun \
 	rshd \
 	talkd \
 	tftpd \
-	uucpd \
 	xtend \
 	ypxfr
 
@@ -34,6 +33,10 @@ SUBDIR+=named-xfer
 
 .if !defined(NO_SENDMAIL)
 SUBDIR+=mail.local smrsh
+.endif
+
+.if !defined(NOUUCP)
+SUBDIR+=uucpd
 .endif
 
 .if ${OBJFORMAT} == aout
