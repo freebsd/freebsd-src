@@ -39,7 +39,7 @@ divert(-1)
 #
 
 divert(0)dnl
-VERSIONID(`$Id: hub.mc,v 1.1 1997/08/14 14:42:06 peter Exp $')
+VERSIONID(`$Id: hub.mc,v 1.1.4.1 1997/08/14 15:03:42 peter Exp $')
 
 OSTYPE(bsd4.4)dnl
 DOMAIN(generic)dnl
@@ -76,6 +76,7 @@ define(`confRECEIVED_HEADER', `$?sfrom $s $.$?_($?s$|from $.$_)$.
 define(`confHOST_STATUS_DIRECTORY', `.hoststat')dnl
 define(`confMAX_DAEMON_CHILDREN', `8')dnl
 define(`confCONNECTION_THROTTLE_RATE', `1')dnl
+define(`confFORWARD_PATH', `/var/forward/$u')dnl
 
 LOCAL_CONFIG
 Cw localhost freefall.freebsd.org
