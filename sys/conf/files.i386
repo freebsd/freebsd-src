@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.209 1998/12/27 12:44:55 phk Exp $
+#	$Id: files.i386,v 1.210 1998/12/27 12:52:46 phk Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -142,7 +142,6 @@ i386/isa/lpt.c			optional	lpt	device-driver
 i386/isa/labpc.c		optional	labpc	device-driver
 i386/isa/mcd.c			optional	mcd	device-driver
 i386/isa/mse.c			optional	mse	device-driver
-#i386/isa/ncr5380.c		optional	nca	device-driver
 i386/isa/npx.c			mandatory	npx	device-driver
 i386/isa/pcaudio.c		optional	pca	device-driver
 i386/isa/matcd/matcd.c		optional	matcd	device-driver
@@ -158,7 +157,6 @@ i386/isa/random_machdep.c	standard
 i386/isa/rc.c			optional	rc	device-driver
 i386/isa/rp.c			optional	rp	device-driver
 i386/isa/scd.c			optional	scd	device-driver
-#i386/isa/seagate.c		optional	sea	device-driver
 i386/isa/si.c			optional	si	device-driver
 i386/isa/si2_z280.c		optional	si	device-driver
 i386/isa/si3_t225.c		optional	si	device-driver
@@ -238,7 +236,6 @@ i386/isa/scvesactl.c		optional	sc	device-driver
 i386/isa/videoio.c		optional	sc	device-driver
 i386/isa/vesa.c			optional	sc	device-driver
 i386/isa/tw.c			optional	tw	device-driver
-#i386/isa/ultra14f.c		optional	uha	device-driver
 i386/isa/wd.c			optional	wdc	device-driver
 i386/isa/wd.c			optional	wd	device-driver
 i386/isa/atapi.c		optional	atapi	device-driver
@@ -246,7 +243,6 @@ i386/isa/atapi-cd.c		optional	acd	device-driver
 i386/isa/wcd.c			optional	wcd	device-driver
 i386/isa/wfd.c			optional	wfd	device-driver
 i386/isa/wst.c			optional	wst	device-driver
-i386/isa/wd7000.c		optional	wds	device-driver
 i386/isa/wt.c			optional	wt	device-driver
 i386/linux/imgact_linux.c	optional	compat_linux
 i386/linux/linux_dummy.c	optional	compat_linux

@@ -1,13 +1,13 @@
-#	$Id: Makefile,v 1.90 1998/12/27 12:44:49 phk Exp $
+#	$Id: Makefile,v 1.91 1998/12/27 12:52:39 phk Exp $
 
 MAN4=	adv.4 adw.4 aha.4 ahb.4 ahc.4 aic.4 alog.4 apm.4 ar.4 asc.4 bktr.4 \
 	bt.4 cs.4 cx.4 cy.4 de.4 \
 	dgb.4 dpt.4 ed.4 el.4 en.4 ep.4 ex.4 fdc.4 fe.4 fxp.4 gsc.4 ie.4 \
 	io.4 joy.4 keyboard.4 labpc.4 le.4 lnc.4 lp.4 lpt.4 matcd.4 mcd.4 \
-	mem.4 meteor.4 mouse.4 mse.4 mtio.4 mx.4 nca.4 ncr.4 npx.4 \
+	mem.4 meteor.4 mouse.4 mse.4 mtio.4 mx.4 ncr.4 npx.4 \
 	pcf.4 pcm.4 perfmon.4 pn.4 pnp.4 ppc.4 psm.4 \
-	rdp.4 rl.4 sb.4 scd.4 screen.4 sea.4 si.4 sio.4 \
-	spkr.4 sr.4 sysmouse.4 tl.4 tw.4 tx.4 uha.4 vr.4 vx.4 \
+	rdp.4 rl.4 sb.4 scd.4 screen.4 si.4 sio.4 \
+	spkr.4 sr.4 sysmouse.4 tl.4 tw.4 tx.4 vr.4 vx.4 \
 	wb.4 wd.4 wfd.4 wl.4 wt.4 xl.4 ze.4 zp.4
 
 MLINKS=		adv.4 ../adv.4
@@ -54,7 +54,6 @@ MLINKS+=	mouse.4 ../mouse.4
 MLINKS+=	mse.4 ../mse.4
 MLINKS+=	mtio.4 ../mtio.4
 MLINKS+=	mx.4 ../mx.4
-MLINKS+=	nca.4 ../nca.4
 MLINKS+=	ncr.4 ../ncr.4
 MLINKS+=	npx.4 ../npx.4
 MLINKS+=	pcf.4 ../pcf.4
@@ -69,7 +68,6 @@ MLINKS+=	rl.4 ../rl.4
 MLINKS+=	sb.4 ../sb.4
 MLINKS+=	scd.4 ../scd.4
 MLINKS+=	screen.4 ../screen.4
-MLINKS+=	sea.4 ../sea.4
 MLINKS+=	si.4 ../si.4
 MLINKS+=	sio.4 ../sio.4
 MLINKS+=	spkr.4 ../spkr.4 spkr.4 speaker.4 spkr.4 ../speaker.4
@@ -78,7 +76,6 @@ MLINKS+=	sysmouse.4 ../sysmouse.4
 MLINKS+=	tl.4 ../tl.4
 MLINKS+=	tw.4 ../tw.4
 MLINKS+=	tx.4 ../tx.4
-MLINKS+=	uha.4 ../uha.4
 MLINKS+=	vr.4 ../vr.4
 MLINKS+=	vx.4 ../vx.4
 MLINKS+=	wb.4 ../wb.4
