@@ -292,10 +292,10 @@ ngt_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 		dest = &sc->left;
 	} else if (hinfo == &sc->right2left) {
 		dup = NULL;
-		dest = &sc->left;
+		dest = &sc->right;
 	} else if (hinfo == &sc->left2right) {
 		dup = NULL;
-		dest = &sc->right;
+		dest = &sc->left;
 	} else
 		panic("%s: no hook!", __FUNCTION__);
 
