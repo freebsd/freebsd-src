@@ -215,10 +215,6 @@ main(int argc, char **argv)
 #ifndef SHELL
 	(void)setlocale(LC_CTYPE, "");
 #endif
-	/* XXX work around the absence of an eaccess(2) syscall */
-	(void)setgid(getegid());
-	(void)setuid(geteuid());
-
 	t_wp = &argv[1];
 	res = !oexpr(t_lex(*t_wp));
 
@@ -365,18 +361,18 @@ filstat(char *nm, enum token mode)
 
 	switch (mode) {
 	case FILRD:
-		return access(nm, R_OK) == 0;
+		return (eaccess(nm, R_OK) == 0);
 	case FILWR:
-		return access(nm, W_OK) == 0;
+		return (eaccess(nm, W_OK) == 0);
 	case FILEX:
-		/* XXX work around access(2) false positives for superuser */
-		if (access(nm, X_OK) != 0)
+		/* XXX work around eaccess(2) false positives for superuser */
+		if (eaccess(nm, X_OK) != 0)
 			return 0;
-		if (S_ISDIR(s.st_mode) || getuid() != 0)
+		if (S_ISDIR(s.st_mode) || geteuid() != 0)
 			return 1;
 		return (s.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) != 0;
 	case FILEXIST:
-		return access(nm, F_OK) == 0;
+		return (eaccess(nm, F_OK) == 0);
 	case FILREG:
 		return S_ISREG(s.st_mode);
 	case FILDIR:
