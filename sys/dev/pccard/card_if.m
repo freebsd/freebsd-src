@@ -55,6 +55,10 @@ METHOD int get_res_flags {
 	u_long	 *value;
 };
 
+#
+# Sets the memory offset of the pccard bridge's window into attribute
+# or common memory space.
+#
 METHOD int set_memory_offset {
 	device_t  dev;
 	device_t  child;
@@ -62,16 +66,49 @@ METHOD int set_memory_offset {
         u_int32_t offset;
 }
 
+#
+# pccard bridges call this method to initate the attachment of a card
+#
 METHOD int attach_card {
 	device_t  dev;
 }
 
+#
+# pccard bridges call this to detach a card.
+#
 METHOD int detach_card {
 	device_t  dev;
 	int	  flags;
 }
 
+#
+# Returns the type of card this is.  Maybe we don't need this.
+#
 METHOD int get_type {
 	device_t  dev;
 	int	  *type;
+}
+
+#
+# Returns the function number for this device.
+#
+METHOD int get_function {
+	device_t  dev;
+	device_t  child;
+	int	  *func;
+}
+
+#
+# Activates (and powers up if necessary) the card's nth function
+# since each function gets its own device, there is no need to
+# to specify a function number
+#
+METHOD int activate_function {
+	device_t  dev;
+	device_t  child;
+}
+
+METHOD int deactivate_function {
+	device_t  dev;
+	device_t  child;
 }
