@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media_strategy.c,v 1.17 1995/05/24 17:49:18 jkh Exp $
+ * $Id: media_strategy.c,v 1.18 1995/05/24 18:21:49 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -654,7 +654,6 @@ mediaGetFTP(char *dist)
 		
 	    }
 	    FtpEOF(ftp);
-	    close(fd);
 	}
 	close(1);
 	msgDebug("Extract of %s finished with success!!!\n", dist);
