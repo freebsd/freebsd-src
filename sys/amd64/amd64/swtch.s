@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.53 1997/06/22 16:03:35 peter Exp $
+ *	$Id: swtch.s,v 1.2 1997/07/15 00:12:55 smp Exp smp $
  */
 
 #include "npx.h"
@@ -45,10 +45,10 @@
 #include <machine/ipl.h>
 #include <machine/smptests.h>		/** TEST_LOPRIO */
 
-#if defined(SMP)
+#ifdef SMP
 #include <machine/pmap.h>
 #include <machine/apic.h>
-#endif
+#endif /* SMP */
 
 #include "assym.s"
 
@@ -67,23 +67,25 @@
  * queues.
  */
 	.data
+
 #ifndef SMP
 	.globl	_curpcb
-_curpcb:	.long	0			/* pointer to curproc's PCB area */
-#endif
+_curpcb:	.long	0		/* pointer to curproc's PCB area */
+#endif /* !SMP */
+
 	.globl	_whichqs, _whichrtqs, _whichidqs
 
-_whichqs:	.long	0			/* which run queues have data */
-_whichrtqs:	.long	0			/* which realtime run queues have data */
-_whichidqs:	.long	0			/* which idletime run queues have data */
-	.globl	_hlt_vector
-_hlt_vector:	.long	_default_halt		/* pointer to halt routine */
+_whichqs:	.long	0		/* which run queues have data */
+_whichrtqs:	.long	0		/* which realtime run qs have data */
+_whichidqs:	.long	0		/* which idletime run qs have data */
 
+	.globl	_hlt_vector
+_hlt_vector:	.long	_default_halt	/* pointer to halt routine */
 
 	.globl	_qs,_cnt,_panic
 
 	.globl	_want_resched
-_want_resched:	.long	0			/* we need to re-run the scheduler */
+_want_resched:	.long	0		/* we need to re-run the scheduler */
 
 	.text
 /*
@@ -246,11 +248,10 @@ rem3id:	.asciz	"remrq.id"
  */
 	ALIGN_TEXT
 _idle:
-#ifdef SMP
-	movl	_smp_active, %eax
-	cmpl	$0, %eax
+#if defined(SMP) && defined(DIAGNOSTIC)
+	cmpl	$0, _smp_active
 	jnz	badsw3
-#endif /* SMP */
+#endif /* SMP && DIAGNOSTIC */
 	xorl	%ebp,%ebp
 	movl	$HIDENAME(tmpstk),%esp
 	movl	_IdlePTD,%ecx
@@ -314,7 +315,7 @@ ENTRY(cpu_switch)
 	movb	P_ONCPU(%ecx), %al		/* save "last" cpu */
 	movb	%al, P_LASTCPU(%ecx)
 	movb	$0xff, P_ONCPU(%ecx)		/* "leave" the cpu */
-#endif
+#endif /* SMP */
 
 	movl	P_ADDR(%ecx),%ecx
 
@@ -330,10 +331,12 @@ ENTRY(cpu_switch)
 
 #ifdef SMP
 	movl	_mp_lock, %eax
-	cmpl	$0xffffffff, %eax		/* is it free? */
+#ifdef DIAGNOSTIC
+	cmpl	$FREE_LOCK, %eax		/* is it free? */
 	je	badsw4				/* yes, bad medicine! */
-	andl	$0x00ffffff, %eax		/* clear CPU portion */
-	movl	%eax,PCB_MPNEST(%ecx)		/* store it */
+#endif /* DIAGNOSTIC */
+	andl	$COUNT_FIELD, %eax		/* clear CPU portion */
+	movl	%eax, PCB_MPNEST(%ecx)		/* store it */
 #endif /* SMP */
 
 #if NNPX > 0
@@ -446,16 +449,16 @@ swtch_com:
 	movl	P_ADDR(%ecx),%edx
 	movl	PCB_CR3(%edx),%ebx
 
-#if defined(SMP)
+#ifdef SMP
 	/* Grab the private PT pointer from the outgoing process's PTD */
-	movl	$_PTD,%esi
+	movl	$_PTD, %esi
 	movl	4*MPPTDI(%esi), %eax		/* fetch cpu's prv pt */
-#endif
+#endif /* SMP */
 
 	/* switch address space */
 	movl	%ebx,%cr3
 
-#if defined(SMP)
+#ifdef SMP
 	/* Copy the private PT to the new process's PTD */
 	/* XXX yuck, the _PTD changes when we switch, so we have to
 	 * reload %cr3 after changing the address space.
@@ -466,8 +469,8 @@ swtch_com:
 	movl	%eax, 4*MPPTDI(%esi)		/* restore cpu's prv page */
 
 	/* XXX: we have just changed the page tables.. reload.. */
-	movl	%ebx,%cr3
-#endif
+	movl	%ebx, %cr3
+#endif /* SMP */
 
 #ifdef HOW_TO_SWITCH_TSS			/* example only */
 	/* Fix up tss pointer to floating pcb/stack structure */
@@ -509,18 +512,19 @@ swtch_com:
 #ifdef SMP
 	movl	_cpuid,%eax
 	movb	%al, P_ONCPU(%ecx)
-#endif
-	movl	%edx,_curpcb
-	movl	%ecx,_curproc			/* into next process */
+#endif /* SMP */
+	movl	%edx, _curpcb
+	movl	%ecx, _curproc			/* into next process */
 
 #ifdef SMP
-#if defined(TEST_LOPRIO)
-	/* Set us to prefer to get irq's from the apic since we have the lock */
-	movl	lapic_tpr, %eax			/* get TPR register contents */
-	andl	$0xffffff00, %eax		/* clear the prio field */
-	movl	%eax, lapic_tpr			/* now hold loprio for INTs */
+#ifdef TEST_LOPRIO				/* hold LOPRIO for INTs */
+#ifdef CHEAP_TPR
+	movl	$0, lapic_tpr
+#else
+	andl	$~APIC_TPR_PRIO, lapic_tpr
+#endif /* CHEAP_TPR */
 #endif /* TEST_LOPRIO */
-	movl	_cpu_lockid,%eax
+	movl	_cpu_lockid, %eax
 	orl	PCB_MPNEST(%edx), %eax		/* add next count from PROC */
 	movl	%eax, _mp_lock			/* load the mp_lock */
 #endif /* SMP */
@@ -569,7 +573,7 @@ badsw2:
 sw0_2:	.asciz	"cpu_switch: not SRUN"
 #endif
 
-#ifdef SMP
+#if defined(SMP) && defined(DIAGNOSTIC)
 badsw3:
 	pushl	$sw0_3
 	call	_panic
@@ -581,7 +585,7 @@ badsw4:
 	call	_panic
 
 sw0_4:	.asciz	"cpu_switch: do not have lock"
-#endif
+#endif /* SMP && DIAGNOSTIC */
 
 /*
  * savectx(pcb)
