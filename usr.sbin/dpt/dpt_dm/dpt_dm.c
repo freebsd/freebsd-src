@@ -30,12 +30,13 @@
 
 /* dpt_dm.c: Dump a DPT metrics structure */
 
-#ident "$Id: dpt_dm.c,v 1.8 1998/01/21 17:38:32 ShimonR Exp ShimonR $"
+#ident "$Id: dpt_dm.c,v 1.1 1998/08/03 16:43:36 root Exp root $"
 
 #include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
+#include <stdarg.h>
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <sys/queue.h>
@@ -231,6 +232,19 @@ scsi_cmd_name(u_int8_t cmd)
     }
 }
 
+static const char *
+tmpsprintf(int buffer, const char *format, ...) 
+{
+    static char buffers[16][16];
+    va_list ap;
+
+    va_start(ap, format);
+    vsnprintf(buffers[buffer], 16, format, ap);
+    va_end(ap);
+    return buffers[buffer];
+}
+
+
 int
 main(int argc, char **argv, char **argp)
 {
@@ -246,27 +260,31 @@ main(int argc, char **argv, char **argp)
     }
 
     if ( (result = ioctl(fd, DPT_IOCTL_INTERNAL_METRICS, &metrics)) != 0 ) {
-	(void)fprintf(stderr, "%s ERROR:  Failed to send IOCTL %x - %s\n",
+	(void)fprintf(stderr, "%s ERROR:  Failed to send IOCTL %lx - %s\n",
 		      argv[0], DPT_IOCTL_INTERNAL_METRICS,
 		      strerror(errno));
 	exit(2);
     }
 
     /* Interrupt related measurements */
-    (void)fprintf(stdout, "Interrupts:%d:%d:%d:%d\n\nCommands:\n",
+    (void)fprintf(stdout, "Interrupts:%u:%u:%s:%u\n\nCommands:\n",
 		  metrics.aborted_interrupts,
 		  metrics.spurious_interrupts,
-		  metrics.min_intr_time,
+		  metrics.min_intr_time == BIG_ENOUGH ?
+		  	"N/A" :
+		  	tmpsprintf(0, "%u", metrics.min_intr_time),
 		  metrics.max_intr_time);
 
     /* SCSI Commands, can be no more than 256 of them */
     for (ndx = 0; ndx < 256; ndx++) {
 	if (metrics.command_count[ndx] != 0) {
-	    (void)fprintf(stdout, "%d:%s:%d:%d:%d\n",
+	    (void)fprintf(stdout, "%u:%s:%u:%s:%d\n",
 			  ndx,
 			  scsi_cmd_name((u_int8_t)ndx), 
 			  metrics.command_count[ndx],
-			  metrics.min_command_time[ndx],
+			  metrics.min_command_time[ndx] == BIG_ENOUGH ?
+			  	"N/A" :
+			  	tmpsprintf(0, "%u", metrics.min_command_time[ndx]),
 			  metrics.max_command_time[ndx]);
 	}
     }
@@ -370,22 +388,30 @@ main(int argc, char **argv, char **argp)
 	
     }
     
-    (void)fprintf(stdout, "\nQueues:%u:%u:%u:%u:%u:%u:%u:%u:%u\n", 
+    (void)fprintf(stdout, "\nQueues:%u:%s:%u:%u:%s:%u:%u:%s:%u\n", 
 		  metrics.max_waiting_count,
-		  metrics.min_waiting_time,
+		  metrics.min_waiting_time == BIG_ENOUGH ?
+		  	"N/A" :
+		  	tmpsprintf(0, "%u", metrics.min_waiting_time),
 		  metrics.max_waiting_time,
 		  metrics.max_submit_count,
-		  metrics.min_submit_time,
+		  metrics.min_submit_time == BIG_ENOUGH ?
+		  	"N/A" :
+		  	tmpsprintf(1, "%u", metrics.min_submit_time),
 		  metrics.max_submit_time,
 		  metrics.max_complete_count,
-		  metrics.min_complete_time,
+		  metrics.min_complete_time == BIG_ENOUGH ?
+		  	"N/A" :
+		  	tmpsprintf(2, "%u", metrics.min_complete_time),
 		  metrics.max_complete_time);
 
-    (void)fprintf(stdout, "Hardware Ports:%u:%u:%u:%u\n",
+    (void)fprintf(stdout, "Hardware Ports:%u:%u:%u:%s\n",
 		  metrics.command_collisions,
 		  metrics.command_too_busy,
 		  metrics.max_eata_tries,
-		  metrics.min_eata_tries);
+		  metrics.min_eata_tries == BIG_ENOUGH ?
+		  	"N/A" :
+		    	tmpsprintf(0, "%u", metrics.min_eata_tries));
 
     return(0);
 }
