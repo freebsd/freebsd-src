@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.186 1995/10/17 20:58:08 asami Exp $
+# $Id: bsd.port.mk,v 1.187 1995/11/17 16:49:40 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -1005,16 +1005,34 @@ _DEPENDS_USE:	.USE
 	@for i in ${DEPENDS_TMP}; do \
 		prog=`/bin/echo $$i | /usr/bin/sed -e 's/:.*//'`; \
 		dir=`/bin/echo $$i | /usr/bin/sed -e 's/.*://'`; \
-		${ECHO_MSG} "===>  ${PKGNAME} depends on executable:  $$prog ($$dir)"; \
+		if expr "$$prog" : \\/ >/dev/null; then \
+			${ECHO_MSG} "===>  ${PKGNAME} depends on file:  $$prog ($$dir)"; \
+		else \
+			${ECHO_MSG} "===>  ${PKGNAME} depends on executable:  $$prog ($$dir)"; \
+		fi; \
 	done
 .else
 	@for i in ${DEPENDS_TMP}; do \
 		prog=`/bin/echo $$i | /usr/bin/sed -e 's/:.*//'`; \
 		dir=`/bin/echo $$i | /usr/bin/sed -e 's/.*://'`; \
-		if which -s "$$prog"; then \
-			${ECHO_MSG} "===>  ${PKGNAME} depends on executable: $$prog - found"; \
+		if expr "$$prog" : \\/ >/dev/null; then \
+			if [ -e "$$prog" ]; then \
+				${ECHO_MSG} "===>  ${PKGNAME} depends on file: $$prog - found"; \
+				notfound=0; \
+			else \
+				${ECHO_MSG} "===>  ${PKGNAME} depends on file: $$prog - not found"; \
+				notfound=1; \
+			fi; \
 		else \
-			${ECHO_MSG} "===>  ${PKGNAME} depends on executable: $$prog - not found"; \
+			if which -s "$$prog"; then \
+				${ECHO_MSG} "===>  ${PKGNAME} depends on executable: $$prog - found"; \
+				notfound=0; \
+			else \
+				${ECHO_MSG} "===>  ${PKGNAME} depends on executable: $$prog - not found"; \
+				notfound=1; \
+			fi; \
+		fi; \
+		if [ $$notfound != 0 ]; then \
 			${ECHO_MSG} "===>  Verifying build for $$prog in $$dir"; \
 			if [ ! -d "$$dir" ]; then \
 				${ECHO_MSG} ">> No directory for $$prog.  Skipping.."; \
