@@ -1,6 +1,6 @@
 <!-- $FreeBSD$ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.48 -->
+<!-- Original revision: 1.52 -->
 
 <!-- 
 Names and email address of contributing authors and CVS committers.
@@ -44,9 +44,9 @@ and double quotes.
   <tt><htmlurl url='mailto:bde@FreeBSD.ORG'
   name='&lt;bde@FreeBSD.ORG&gt;'></tt>">
 
-<!ENTITY a.brian "Brian N. Handy
-  <tt><htmlurl url='mailto:handy@sxt4.physics.montana.edu'
-  name='&lt;handy@sxt4.physics.montana.edu&gt;'></tt>">
+<!ENTITY a.brian "Brian Somers
+  <tt><htmlurl url='mailto:brian@awfulhak.demon.co.uk'
+  name='&lt;brian@awfulhak.demon.co.uk&gt;'></tt>">
 
 <!ENTITY a.cawimm "Charles A. Wimmer
   <tt><htmlurl url='mailto:cawimm@FreeBSD.ORG' 
@@ -143,6 +143,10 @@ and double quotes.
 <!ENTITY a.guido  "Guido van Rooij 
   <tt><htmlurl url='mailto:guido@FreeBSD.ORG'
   name='&lt;guido@FreeBSD.ORG&gt;'></tt>">
+
+<!ENTITY a.handy "Brian N. Handy
+  <tt><htmlurl url='mailto:handy@sxt4.physics.montana.edu'
+  name='&lt;handy@sxt4.physics.montana.edu&gt;'></tt>">
 
 <!ENTITY a.hm "Hellmuth Michaelis
   <tt><htmlurl url='mailto:hm@kts.org'
@@ -392,7 +396,7 @@ and double quotes.
   <tt><htmlurl url='mailto:uhclem@FreeBSD.ORG' 
   name='&lt;uhclem@FreeBSD.ORG&gt;'></tt>">
 
-<!ENTITY a.ulf "Ulf Zimmerman 
+<!ENTITY a.ulf "Ulf Zimmermann 
   <tt><htmlurl url='mailto:ulf@FreeBSD.ORG' 
   name='&lt;ulf@FreeBSD.ORG&gt;'></tt>">
 
