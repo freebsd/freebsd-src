@@ -43,6 +43,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <grp.h>
 #include <sys/mman.h>
 #include <netdb.h>
 #include <paths.h>
@@ -103,6 +104,9 @@ struct _drive drive;
 jmp_buf command_fail;					    /* return on a failed command */
 int superdev;						    /* vinum super device */
 int no_devfs = 1;					    /* set if we have no devfs active */
+gid_t gid_operator;					    /* group operator for chown */
+#define GROUP_OPERATOR "operator"
+#define UID_ROOT 0					    /* no need to lookup... */
 
 void start_daemon(void);
 
@@ -115,6 +119,7 @@ int
 main(int argc, char *argv[], char *envp[])
 {
     struct stat histstat;
+    struct group *g;
 
     if (modfind(VINUMMOD) < 0) {
 	/* need to load the vinum module */
@@ -197,6 +202,9 @@ main(int argc, char *argv[], char *envp[])
     /* Check if the dæmon is running.  If not, start it in the
      * background */
     start_daemon();
+    if ((g = getgrnam(GROUP_OPERATOR)) != NULL)
+	gid_operator = g->gr_gid;
+    endgrent();
 
     if (argc > 1) {					    /* we have a command on the line */
 	if (setjmp(command_fail) != 0)			    /* long jumped out */
@@ -606,17 +614,20 @@ make_vol_dev(int volno, int recurse)
 	sprintf(filename, VINUM_DIR "/%s", vol.name);
 	if (mknod(filename, S_IRUSR | S_IWUSR | S_IRGRP | S_IFCHR, voldev) < 0)
 	    fprintf(stderr, "Can't create %s: %s\n", filename, strerror(errno));
+	(void)chown(filename, UID_ROOT, gid_operator);
 
 	/* Create /dev/vinum/vol/<myvol> */
 	sprintf(filename, VINUM_DIR "/vol/%s", vol.name);
 	if (mknod(filename, S_IRUSR | S_IWUSR | S_IRGRP | S_IFCHR, voldev) < 0)
 	    fprintf(stderr, "Can't create %s: %s\n", filename, strerror(errno));
+	(void)chown(filename, UID_ROOT, gid_operator);
 
 	if (vol.plexes > 0) {
 	    /* Create /dev/vinum/vol/<myvol>.plex/ */
 	    sprintf(filename, VINUM_DIR "/vol/%s.plex", vol.name);
 	    if (mkdir(filename, S_IRUSR | S_IWUSR | S_IRGRP | S_IXOTH) < 0)
 		fprintf(stderr, "Can't create %s: %s\n", filename, strerror(errno));
+	    (void)chown(filename, UID_ROOT, gid_operator);
 	}
 	if (recurse)
 	    for (plexno = 0; plexno < vol.plexes; plexno++)
@@ -643,6 +654,7 @@ make_plex_dev(int plexno, int recurse)
 	sprintf(filename, VINUM_DIR "/plex/%s", plex.name);
 	if (mknod(filename, S_IRUSR | S_IWUSR | S_IRGRP | S_IFCHR, plexdev) < 0)
 	    fprintf(stderr, "Can't create %s: %s\n", filename, strerror(errno));
+	(void)chown(filename, UID_ROOT, gid_operator);
 
 	if (plex.volno >= 0) {
 	    get_volume_info(&vol, plex.volno);
@@ -652,11 +664,13 @@ make_plex_dev(int plexno, int recurse)
 	    sprintf(filename, VINUM_DIR "/vol/%s.plex/%s", vol.name, plex.name);
 	    if (mknod(filename, S_IRUSR | S_IWUSR | S_IRGRP | S_IFCHR, plexdev) < 0)
 		fprintf(stderr, "Can't create %s: %s\n", filename, strerror(errno));
+	    (void)chown(filename, UID_ROOT, gid_operator);
 
 	    /* Create directory /dev/vinum/vol/<vol>.plex/<plex>.sd */
 	    sprintf(filename, VINUM_DIR "/vol/%s.plex/%s.sd", vol.name, plex.name);
 	    if (mkdir(filename, S_IRUSR | S_IWUSR | S_IRGRP | S_IXOTH) < 0)
 		fprintf(stderr, "Can't create %s: %s\n", filename, strerror(errno));
+	    (void)chown(filename, UID_ROOT, gid_operator);
 	}
 	if (recurse) {
 	    for (sdno = 0; sdno < plex.subdisks; sdno++) {
@@ -682,6 +696,7 @@ make_sd_dev(int sdno)
 	sprintf(filename, VINUM_DIR "/sd/%s", sd.name);
 	if (mknod(filename, S_IRUSR | S_IWUSR | S_IRGRP | S_IFCHR, sddev) < 0)
 	    fprintf(stderr, "Can't create %s: %s\n", filename, strerror(errno));
+	(void)chown(filename, UID_ROOT, gid_operator);
     }
 }
 
