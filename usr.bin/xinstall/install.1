@@ -40,14 +40,14 @@
 .Nd install binaries
 .Sh SYNOPSIS
 .Nm install
-.Op Fl CcDMps
+.Op Fl CcDMpsv
 .Op Fl f Ar flags
 .Op Fl g Ar group
 .Op Fl m Ar mode
 .Op Fl o Ar owner
 .Ar file1 file2
 .Nm install
-.Op Fl CcDMps
+.Op Fl CcDMpsv
 .Op Fl f Ar flags
 .Op Fl g Ar group
 .Op Fl m Ar mode
@@ -57,6 +57,7 @@
 .Ar fileN directory
 .Nm install
 .Fl d
+.Op Fl v
 .Op Fl g Ar group
 .Op Fl m Ar mode
 .Op Fl o Ar owner
@@ -131,6 +132,12 @@ exec's the command
 .Xr strip  1
 to strip binaries so that install can be portable over a large
 number of systems and binary types.
+.It Fl v
+Causes
+.Nm
+to show when
+.Fl C
+acutally installs something.
 .El
 .Pp
 By default,
@@ -183,3 +190,10 @@ over a NFS file system.  Other file systems do not have a concept of flags.
 .Nm
 will only warn when flags could not be set on a file system
 that does not support them.
+.Pp
+.Nm
+with
+.Fl v
+falsely says a file is copied when
+.Fl C
+snaps hard links.
