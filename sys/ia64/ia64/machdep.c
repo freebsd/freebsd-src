@@ -400,37 +400,6 @@ map_pal_code(void)
 }
 
 void
-map_port_space(void)
-{
-	struct ia64_pte pte;
-	u_int64_t psr;
-
-	/* XXX we should fail hard if there's no I/O port space. */
-	if (ia64_port_base == 0)
-		return;
-
-	bzero(&pte, sizeof(pte));
-	pte.pte_p = 1;
-	pte.pte_ma = PTE_MA_UC;
-	pte.pte_a = 1;
-	pte.pte_d = 1;
-	pte.pte_pl = PTE_PL_KERN;
-	pte.pte_ar = PTE_AR_RW;
-	pte.pte_ppn = ia64_port_base >> 12;
-
-	__asm __volatile("ptr.d %0,%1" :: "r"(ia64_port_base), "r"(24 << 2));
-
-	__asm __volatile("mov	%0=psr" : "=r" (psr));
-	__asm __volatile("rsm	psr.ic|psr.i");
-	__asm __volatile("srlz.d");
-	__asm __volatile("mov	cr.ifa=%0" :: "r"(ia64_port_base));
-	__asm __volatile("mov	cr.itir=%0" :: "r"(IA64_ID_PAGE_SHIFT << 2));
-	__asm __volatile("itr.d dtr[%0]=%1" :: "r"(2), "r"(*(u_int64_t*)&pte));
-	__asm __volatile("mov	psr.l=%0" :: "r" (psr));
-	__asm __volatile("srlz.d");
-}
-
-void
 map_gateway_page(void)
 {
 	struct ia64_pte pte;
@@ -545,8 +514,6 @@ ia64_init(void)
 		else if (mdp->Type == EfiPalCode)
 			ia64_pal_base = mdp->PhysicalStart;
 	}
-
-	map_port_space();
 
 	metadata_missing = 0;
 	if (bootinfo.bi_modulep)
