@@ -38,7 +38,7 @@
 /*
  * Trace steps through libufs, to be used at entry and erroneous return.
  */
-#define	DEBUG(str)						\
+#define	ERROR(uufsd, str)					\
 do {								\
 	fprintf(stderr, "libufs in %s", __func__);		\
 	if (str != NULL)					\
@@ -46,9 +46,15 @@ do {								\
 	if (errno)						\
 		fprintf(stderr, ": %s", strerror(errno));	\
 	fprintf(stderr, "\n");					\
+	if ((uufsd) != NULL)					\
+		(uufsd)->d_error = str;				\
 } while (0)
 #else	/* _LIBUFS_DEBUGGING */
-#define	DEBUG(str)	/* nil */
+#define	DEBUG(uufsd, str)					\
+do {								\
+	if ((uufsd) != NULL)					\
+		(uufsd)->d_error = str;				\
+} while (0)
 #endif	/* _LIBUFS_DEBUGGING */
 #endif	/* _LIBUFS */
 
@@ -89,11 +95,6 @@ __BEGIN_DECLS
  */
 ssize_t bread(struct uufsd *, ufs2_daddr_t, void *, size_t);
 ssize_t bwrite(struct uufsd *, ufs2_daddr_t, const void *, size_t);
-
-/*
- * error.c
- */
-void libufs_printerror(struct uufsd *);
 
 /*
  * inode.c
