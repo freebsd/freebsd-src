@@ -1,6 +1,6 @@
-<!-- $Id: policies.sgml,v 1.8 1997/02/25 04:57:30 hanai Exp $ -->
+<!-- $Id: policies.sgml,v 1.9 1997/04/07 04:56:51 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.12 -->
+<!-- Original revision: 1.14 -->
 
 <chapt><heading>ソースツリーのガイドラインおよび方針
 <label id="policies">
@@ -140,7 +140,7 @@ CVS に寄贈ソフトウェアを取り込む際には, 事故があってはいけません.
 とって便利になるように, 移植の際に, src/tools ディレクトリ上に, 
 (必要に応じて)そのユーティリティを必ずチェックインしてください. 
 
-<p> src/contrib/tcl レベルのディレクトリには,  README.FreeBSD と
+<p> src/contrib/tcl レベルのディレクトリには,  FREEBSD-upgrade と
 呼ばれるファイルが追加されており, そのファイルでは 次のような内容が
 記述されています. 
 
@@ -152,10 +152,10 @@ CVS に寄贈ソフトウェアを取り込む際には, 事故があってはいけません.
  <item> FreeBSD に特化した変更点の概要
 </itemize>
 
-<p>しかしながら, 寄贈ソースと一緒に README.FreeBSD ファイルを
+<p>しかしながら, 寄贈ソースと一緒に FREEBSD-upgrade ファイルを
 取り込まないでください.
 それよりむしろ, (訳注:このファイルを)初回に取り込んだ後は,
-コマンド ``cvs add README.FreeBSD ; cvs ci'' を実行してください.
+コマンド ``cvs add FREEBSD-upgrade ; cvs ci'' を実行してください.
 ``src/contrib/cpio'' を例にすると, 次のようになります:
 
 <verb>このディレクトリは「ベンダ」ブランチ上のオリジナル配布ファイル
