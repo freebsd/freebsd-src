@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.43.2.6 1995/05/31 23:51:15 jkh Exp $
+ * $Id: system.c,v 1.43.2.7 1995/06/01 09:26:15 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -195,7 +195,6 @@ systemChangeFont(const u_char font[])
 	if (ioctl(0, PIO_FONT8x16, font) < 0)
 	    msgConfirm("Sorry!  Unable to load font for %s", getenv("LANG"));
     }
-    dialog_clear();
 }
 
 void
@@ -227,8 +226,10 @@ systemChangeTerminal(char *color, const u_char c_term[],
 	    init_acs();
 	    cbreak(); noecho();
 	}
-	dialog_clear();
     }
+    clear();
+    refresh();
+    dialog_clear();
 }
 
 void
@@ -239,7 +240,6 @@ systemChangeScreenmap(const u_char newmap[])
 	    msgConfirm("Sorry!  Unable to load the screenmap for %s",
 		       getenv("LANG"));
     }
-    dialog_clear();
 }
 
 int
