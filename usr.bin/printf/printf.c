@@ -71,7 +71,7 @@ static const char rcsid[] =
 #include <locale.h>
 #endif
 
-#define PF(f, func) { \
+#define PF(f, func) do { \
 	char *b = NULL; \
 	if (fieldwidth) \
 		if (precision) \
@@ -86,16 +86,17 @@ static const char rcsid[] =
 		(void)fputs(b, stdout); \
 		free(b); \
 	} \
-}
+} while (0)
 
 static int	 asciicode(void);
 static int	 escape(char *);
 static int	 getchr(void);
-static double	 getdouble(void);
+static int	 getdouble(double *);
 static int	 getint(int *);
-static int	 getquad(quad_t *);
-static const char	*getstr(void);
-static char	*mklong(char *, int);
+static int	 getquads(quad_t *, u_quad_t *, int);
+static const char
+		*getstr(void);
+static char	*mkquad(char *, int);
 static void	 usage(void);
 
 static char **gargv;
@@ -110,7 +111,7 @@ main(argc, argv)
 	char *argv[];
 {
 	static const char *skip1, *skip2;
-	int ch, chopped, end, fieldwidth, precision;
+	int ch, chopped, end, fieldwidth, precision, rval;
 	char convch, nextch, *format, *fmt, *start;
 
 #ifndef BUILTIN
@@ -143,6 +144,7 @@ main(argc, argv)
 	skip2 = "0123456789";
 
 	chopped = escape(fmt = format = *argv);	/* backslash interpretation */
+	rval = 0;
 	gargv = ++argv;
 	for (;;) {
 		end = 0;
@@ -152,7 +154,7 @@ next:		for (start = fmt;; ++fmt) {
 				/* avoid infinite loop */
 				if (chopped) {
 					(void)printf("%s", start);
-					return (0);
+					return (rval);
 				}
 				if (end == 1) {
 					warnx1("missing format character",
@@ -163,7 +165,7 @@ next:		for (start = fmt;; ++fmt) {
 				if (fmt > start)
 					(void)printf("%s", start);
 				if (!*gargv)
-					return (0);
+					return (rval);
 				fmt = format;
 				goto next;
 			}
@@ -217,15 +219,26 @@ next:		for (start = fmt;; ++fmt) {
 			char *p;
 			int getout;
 
-			if ((p = strdup(getstr())) == NULL)
-				err(1, NULL);
+#ifdef SHELL
+			p = savestr(getstr());
+#else
+			p = strdup(getstr());
+#endif
+			if (p == NULL) {
+				warnx2("%s", strerror(ENOMEM), NULL);
+				return (1);
+			}
 			getout = escape(p);
 			*(fmt - 1) = 's';
-			PF(start, p)
+			PF(start, p);
 			*(fmt - 1) = 'b';
+#ifdef SHELL
+			ckfree(p);
+#else
 			free(p);
+#endif
 			if (getout)
-				return (0);
+				return (rval);
 			break;
 		}
 		case 'c': {
@@ -243,19 +256,27 @@ next:		for (start = fmt;; ++fmt) {
 			break;
 		}
 		case 'd': case 'i': case 'o': case 'u': case 'x': case 'X': {
-			quad_t p;
 			char *f;
+			quad_t val;
+			u_quad_t uval;
+			int signedconv;
 
-			if ((f = mklong(start, convch)) != NULL &&
-			    !getquad(&p)) {
-				PF(f, p);
-			}
+			signedconv = (convch == 'd' || convch == 'i');
+			if ((f = mkquad(start, convch)) == NULL)
+				return (1);
+			if (getquads(&val, &uval, signedconv))
+				rval = 1;
+			if (signedconv)
+				PF(f, val);
+			else
+				PF(f, uval);
 			break;
 		}
 		case 'e': case 'E': case 'f': case 'g': case 'G': {
 			double p;
 
-			p = getdouble();
+			if (getdouble(&p))
+				rval = 1;
 			PF(start, p);
 			break;
 		}
@@ -269,14 +290,14 @@ next:		for (start = fmt;; ++fmt) {
 }
 
 static char *
-mklong(str, ch)
+mkquad(str, ch)
 	char *str;
 	int ch;
 {
 	static char *copy;
 	static size_t copy_size;
-	size_t len, newlen;
 	char *newcopy;
+	size_t len, newlen;
 
 	len = strlen(str) + 2;
 	if (len > copy_size) {
@@ -286,7 +307,10 @@ mklong(str, ch)
 #else
 		if ((newcopy = realloc(copy, newlen)) == NULL)
 #endif
+		{
+			warnx2("%s", strerror(ENOMEM), NULL);
 			return (NULL);
+		}
 		copy = newcopy;
 		copy_size = newlen;
 	}
@@ -384,69 +408,91 @@ getint(ip)
 	int *ip;
 {
 	quad_t val;
+	u_quad_t uval;
+	int rval;
 
-	if (getquad(&val))
+	if (getquads(&val, &uval, 1))
 		return (1);
-	if (val < INT_MIN || val > INT_MAX)
+	rval = 0;
+	if (val < INT_MIN || val > INT_MAX) {
 		warnx3("%s: %s", *gargv, strerror(ERANGE));
+		rval = 1;
+	}
 	*ip = (int)val;
-	return (0);
+	return (rval);
 }
 
 static int
-getquad(lp)
-	quad_t *lp;
+getquads(qp, uqp, signedconv)
+	quad_t *qp;
+	u_quad_t *uqp;
+	int signedconv;
 {
-	quad_t val;
 	char *ep;
+	int rval;
 
 	if (!*gargv) {
-		*lp = 0;
+		*qp = 0;
 		return (0);
 	}
-
 	if (**gargv == '"' || **gargv == '\'') {
-		*lp = (quad_t)asciicode();
+		if (signedconv)
+			*qp = asciicode();
+		else
+			*uqp = asciicode();
 		return (0);
 	}
-
+	rval = 0;
 	errno = 0;
-	val = strtoq(*gargv, &ep, 0);
-	if (ep == *gargv)
+	if (signedconv)
+		*qp = strtoq(*gargv, &ep, 0);
+	else
+		*uqp = strtouq(*gargv, &ep, 0);
+	if (ep == *gargv) {
 		warnx2("%s: expected numeric value", *gargv, NULL);
-	else if (*ep != '\0')
+		rval = 1;
+	}
+	else if (*ep != '\0') {
 		warnx2("%s: not completely converted", *gargv, NULL);
-	if (errno == ERANGE)
+		rval = 1;
+	}
+	if (errno == ERANGE) {
 		warnx3("%s: %s", *gargv, strerror(ERANGE));
-	*lp = val;
+		rval = 1;
+	}
 	++gargv;
-	return (0);
+	return (rval);
 }
 
-static double
-getdouble()
+static int
+getdouble(dp)
+	double *dp;
 {
-	double val;
 	char *ep;
+	int rval;
 
 	if (!*gargv)
-		return ((double)0);
-
+		return (0);
 	if (**gargv == '"' || **gargv == '\'') {
-		val = (double)asciicode();
-		return (val);
+		*dp = asciicode();
+		return (0);
 	}
-
+	rval = 1;
 	errno = 0;
-	val = strtod(*gargv, &ep);
-	if (ep == *gargv)
+	*dp = strtod(*gargv, &ep);
+	if (ep == *gargv) {
 		warnx2("%s: expected numeric value", *gargv, NULL);
-	else if (*ep != '\0')
+		rval = 1;
+	} else if (*ep != '\0') {
 		warnx2("%s: not completely converted", *gargv, NULL);
-	if (errno == ERANGE)
+		rval = 1;
+	}
+	if (errno == ERANGE) {
 		warnx3("%s: %s", *gargv, strerror(ERANGE));
+		rval = 1;
+	}
 	++gargv;
-	return (val);
+	return (rval);
 }
 
 static int
