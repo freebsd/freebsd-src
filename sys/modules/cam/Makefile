@@ -19,6 +19,7 @@ SRCS+=	opt_ses.h
 SRCS+=	device_if.h bus_if.h vnode_if.h
 SRCS+=	cam.c cam_periph.c cam_queue.c
 SRCS+=	cam_sim.c cam_xpt.c
+SRCS+=	cam_extend.c
 SRCS+=	scsi_all.c scsi_cd.c scsi_ch.c
 SRCS+=	scsi_da.c
 SRCS+=	scsi_pass.c

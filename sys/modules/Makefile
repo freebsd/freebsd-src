@@ -11,6 +11,7 @@ SUBDIR=	accf_data \
 	aue \
 	bge \
 	bridge \
+	cam \
 	ccd \
 	cd9660 \
 	coda \
