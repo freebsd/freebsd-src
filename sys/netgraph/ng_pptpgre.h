@@ -45,7 +45,7 @@
 
 /* Node type name and magic cookie */
 #define NG_PPTPGRE_NODE_TYPE	"pptpgre"
-#define NGM_PPTPGRE_COOKIE	942783546
+#define NGM_PPTPGRE_COOKIE	942783547
 
 /* Hook names */
 #define NG_PPTPGRE_HOOK_UPPER	"upper"		/* to upper layers */
@@ -55,6 +55,7 @@
 struct ng_pptpgre_conf {
 	u_char		enabled;	/* enables traffic flow */
 	u_char		enableDelayedAck;/* enables delayed acks */
+	u_char		enableAlwaysAck;/* always include ack with data */
 	u_int16_t	cid;		/* my call id */
 	u_int16_t	peerCid;	/* peer call id */
 	u_int16_t	recvWin;	/* peer recv window size */
@@ -65,12 +66,13 @@ struct ng_pptpgre_conf {
 /* Keep this in sync with the above structure definition */
 #define NG_PPTPGRE_CONF_TYPE_INFO	{			\
 	{							\
-	  { "enabled",		&ng_parse_int8_type	},	\
-	  { "enableDelayedAck",	&ng_parse_int8_type	},	\
-	  { "cid",		&ng_parse_int16_type	},	\
-	  { "peerCid",		&ng_parse_int16_type	},	\
-	  { "recvWin",		&ng_parse_int16_type	},	\
-	  { "peerPpd",		&ng_parse_int16_type	},	\
+	  { "enabled",		&ng_parse_uint8_type	},	\
+	  { "enableDelayedAck",	&ng_parse_uint8_type	},	\
+	  { "enableAlwaysAck",	&ng_parse_uint8_type	},	\
+	  { "cid",		&ng_parse_hint16_type	},	\
+	  { "peerCid",		&ng_parse_hint16_type	},	\
+	  { "recvWin",		&ng_parse_uint16_type	},	\
+	  { "peerPpd",		&ng_parse_uint16_type	},	\
 	  { NULL },						\
 	}							\
 }
@@ -92,26 +94,28 @@ struct ng_pptpgre_stats {
 	u_int32_t recvDuplicates;	/* packets rec'd with duplicate seq # */
 	u_int32_t recvLoneAcks;		/* ack-only packets rec'd */
 	u_int32_t recvAckTimeouts;	/* times peer failed to ack in time */
+	u_int32_t memoryFailures;	/* times we couldn't allocate memory */
 };
 
 /* Keep this in sync with the above structure definition */
 #define NG_PPTPGRE_STATS_TYPE_INFO	{			\
 	{							\
-	  { "xmitPackets",	&ng_parse_int32_type	},	\
-	  { "xmitOctets",	&ng_parse_int32_type	},	\
-	  { "xmitLoneAcks",	&ng_parse_int32_type	},	\
-	  { "xmitDrops",	&ng_parse_int32_type	},	\
-	  { "xmitTooBig",	&ng_parse_int32_type	},	\
-	  { "recvPackets",	&ng_parse_int32_type	},	\
-	  { "recvOctets",	&ng_parse_int32_type	},	\
-	  { "recvRunts",	&ng_parse_int32_type	},	\
-	  { "recvBadGRE",	&ng_parse_int32_type	},	\
-	  { "recvBadAcks",	&ng_parse_int32_type	},	\
-	  { "recvBadCID",	&ng_parse_int32_type	},	\
-	  { "recvOutOfOrder",	&ng_parse_int32_type	},	\
-	  { "recvDuplicates",	&ng_parse_int32_type	},	\
-	  { "recvLoneAcks",	&ng_parse_int32_type	},	\
-	  { "recvAckTimeouts",	&ng_parse_int32_type	},	\
+	  { "xmitPackets",	&ng_parse_uint32_type	},	\
+	  { "xmitOctets",	&ng_parse_uint32_type	},	\
+	  { "xmitLoneAcks",	&ng_parse_uint32_type	},	\
+	  { "xmitDrops",	&ng_parse_uint32_type	},	\
+	  { "xmitTooBig",	&ng_parse_uint32_type	},	\
+	  { "recvPackets",	&ng_parse_uint32_type	},	\
+	  { "recvOctets",	&ng_parse_uint32_type	},	\
+	  { "recvRunts",	&ng_parse_uint32_type	},	\
+	  { "recvBadGRE",	&ng_parse_uint32_type	},	\
+	  { "recvBadAcks",	&ng_parse_uint32_type	},	\
+	  { "recvBadCID",	&ng_parse_uint32_type	},	\
+	  { "recvOutOfOrder",	&ng_parse_uint32_type	},	\
+	  { "recvDuplicates",	&ng_parse_uint32_type	},	\
+	  { "recvLoneAcks",	&ng_parse_uint32_type	},	\
+	  { "recvAckTimeouts",	&ng_parse_uint32_type	},	\
+	  { "memoryFailures",	&ng_parse_uint32_type	},	\
 	  { NULL }						\
 	}							\
 }
