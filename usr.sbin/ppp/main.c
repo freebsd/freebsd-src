@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.44 1997/04/14 23:48:15 brian Exp $
+ * $Id: main.c,v 1.45 1997/04/21 01:01:48 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -78,6 +78,7 @@ static int server;
 static pid_t BGPid = 0;
 struct sockaddr_in ifsin;
 char pid_filename[128];
+int tunno;
 
 static void
 TtyInit()
@@ -296,8 +297,6 @@ main(argc, argv)
 int argc;
 char **argv;
 {
-  int tunno;
-
   argc--; argv++;
 
   mode = MODE_INTER;		/* default operation is interactive mode */
@@ -311,9 +310,6 @@ char **argv;
   if (SelectSystem("default", CONFFILE) < 0) {
     fprintf(stderr, "Warning: No default entry is given in config file.\n");
   }
-
-  if (LogOpen())
-    exit(EX_START);
 
   switch ( LocalAuthInit() ) {
     case NOT_FOUND:
