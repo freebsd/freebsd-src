@@ -121,7 +121,7 @@
 	enable it.</para>
 
       <para arch="i386">On some systems, the BIOS does not activate
-	the I/O ports and memory of PC devices, thus making them
+	the I/O ports and memory of PCI devices, thus making them
 	unusable.  The <literal>PCI_ENABLE_IO_MODES</literal> kernel
 	option forces &os; to enable these devices so that they can be
 	used.</para>
@@ -453,7 +453,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <para>&man.mergemaster.8; now supports two new flags.
       The <option>-p</option> flag enables a
-      <quote>pre-<literal>buildworld</literal></quote> mode to files
+      <quote>pre-<literal>buildworld</literal></quote> mode to compare files
       known to be essential to the success of the
       <literal>buildworld</literal> and
       <literal>installworld</literal> system updating steps.  The
@@ -516,7 +516,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       compatability with &os; CURRENT, X11R6, and a number of
       other UNIX versions.</para>
 
-    <para>The locale support was sync-ed with the code from &os;
+    <para>The locale support was synchronized with the code from &os;
       -CURRENT.  This change brings support for the
       <literal>LC_NUMERIC</literal>, <literal>LC_MONETARY</literal>,
       and <literal>LC_MESSAGES</literal> categories, as well as
