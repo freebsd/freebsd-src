@@ -67,6 +67,7 @@ static const char rcsid[] =
 #define	RUNICHOST	"whois.ripn.net"
 #define	MNICHOST	"whois.ra.net"
 #define	QNICHOST_TAIL	".whois-servers.net"
+#define	SNICHOST	"whois.6bone.net"
 #define	WHOIS_PORT	43
 
 #define WHOIS_RECURSE		0x01
@@ -97,7 +98,7 @@ main(argc, argv)
 	qnichost = NULL;
 	flags = 0;
 	use_qnichost = 0;
-	while ((ch = getopt(argc, argv, "adgh:impQrR")) != -1)
+	while ((ch = getopt(argc, argv, "adgh:impQrR6")) != -1)
 		switch((char)ch) {
 		case 'a':
 			host = ANICHOST;
@@ -128,6 +129,9 @@ main(argc, argv)
 			break;
 		case 'R':
 			host = RUNICHOST;
+			break;
+		case '6':
+			host = SNICHOST;
 			break;
 		case '?':
 		default:
@@ -276,6 +280,6 @@ static void
 usage()
 {
 	(void)fprintf(stderr,
-	    "usage: whois [-adgimpQrR] [-h hostname] name ...\n");
+	    "usage: whois [-adgimpQrR6] [-h hostname] name ...\n");
 	exit(EX_USAGE);
 }
