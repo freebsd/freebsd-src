@@ -225,12 +225,15 @@ main(int ac, char **av)
 			printf("ttydev:0x%x\n", tdev);
 	}
 	if (user) {
-		pw = getpwnam(user);
-		if (pw == NULL)
-			errx(1, "user %s does not exist", user);
-		uid = pw->pw_uid;
-		if (dflag)
-			printf("uid:%d\n", uid);
+		uid = strtol(user, &ep, 10);
+		if ((ep - user) < strlen(user)) {
+			pw = getpwnam(user);
+			if (pw == NULL)
+				errx(1, "user %s does not exist", user);
+			uid = pw->pw_uid;
+			if (dflag)
+				printf("uid:%d\n", uid);
+		}
 	} else {
 		uid = getuid();
 		if (uid != 0) {
