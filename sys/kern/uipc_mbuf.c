@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/mac.h>
 #include <sys/malloc.h>
@@ -50,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/domain.h>
 #include <sys/protosw.h>
+#include <sys/uio.h>
 
 int	max_linkhdr;
 int	max_protohdr;
@@ -1028,3 +1030,57 @@ nospace:
 }
 
 #endif
+
+struct mbuf *
+m_uiotombuf(struct uio *uio, int how, int len)
+{
+	struct mbuf	*m_new = NULL, *m_final = NULL;
+	int		progress = 0, error = 0, length, total;
+
+	if (len > 0)
+		total = min(uio->uio_resid, len);
+	else
+		total = uio->uio_resid;
+
+	if (total > MHLEN)
+		m_final = m_getcl(how, MT_DATA, M_PKTHDR);
+	else
+		m_final = m_gethdr(how, MT_DATA);
+
+	if (m_final == NULL)
+		goto nospace;
+
+	m_new = m_final;
+
+	while (progress < total) {
+		length = total - progress;
+		if (length > MCLBYTES)
+			length = MCLBYTES;
+
+		if (m_new == NULL) {
+			if (length > MLEN)
+				m_new = m_getcl(how, MT_DATA, 0);
+			else
+				m_new = m_get(how, MT_DATA);
+			if (m_new == NULL)
+				goto nospace;
+		}
+
+		error = uiomove(mtod(m_new, void *), length, uio);
+		if (error)
+			goto nospace;
+		progress += length;
+		m_new->m_len = length;
+		if (m_new != m_final)
+			m_cat(m_final, m_new);
+		m_new = NULL;
+	}
+	m_fixhdr(m_final);
+	return (m_final);
+nospace:
+	if (m_new)
+		m_free(m_new);
+	if (m_final)
+		m_freem(m_final);
+	return (NULL);
+}

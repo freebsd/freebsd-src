@@ -483,3 +483,45 @@ copyinstrfrom(const void * __restrict src, void * __restrict dst, size_t len,
 	}
 	return (error);
 }
+
+int
+iov_to_uio(struct iovec *iovp, u_int iovcnt, struct uio *auio)
+{
+	int error = 0, i;
+	u_int iovlen;
+	struct iovec *iov = NULL;
+
+	if (iovcnt < 0)
+		panic("iovcnt < 0!\n");
+
+        /* note: can't use iovlen until iovcnt is validated */
+        iovlen = iovcnt * sizeof (struct iovec);
+        if (iovcnt > UIO_MAXIOV) {
+               error = EINVAL;
+               goto done;
+        }
+        MALLOC(iov, struct iovec *, iovlen, M_IOV, M_WAITOK);
+        auio->uio_iov = iov;
+        auio->uio_iovcnt = iovcnt;
+        auio->uio_segflg = UIO_USERSPACE;
+        auio->uio_offset = -1;
+        if ((error = copyin(iovp, iov, iovlen)))
+                goto done;
+        auio->uio_resid = 0;
+        for (i = 0; i < iovcnt; i++) {
+                if (iov->iov_len > INT_MAX - auio->uio_resid) {
+                        error = EINVAL;
+                        goto done;
+                }
+                auio->uio_resid += iov->iov_len;
+                iov++;
+        }
+
+done:
+	if (error && auio->uio_iov) {
+		FREE(auio->uio_iov, M_IOV);
+		auio->uio_iov = NULL;
+	}
+	return (error);
+
+}
