@@ -1,6 +1,6 @@
-<!-- $Id: authors.sgml,v 1.16 1997/02/22 13:00:35 peter Exp $ -->
+<!-- $Id: authors.sgml,v 1.17 1997/02/25 04:53:54 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.60 -->
+<!-- Original revision: 1.61 -->
 
 <!-- 
 Names and email address of contributing authors and CVS committers.
@@ -46,8 +46,8 @@ Please keep this list in alphabetical order by entity names.
   name='&lt;bde@FreeBSD.ORG&gt;'></tt>">
 
 <!ENTITY a.brian "Brian Somers
-  <tt><htmlurl url='mailto:brian@awfulhak.demon.co.uk'
-  name='&lt;brian@awfulhak.demon.co.uk&gt;'></tt>">
+  <tt><htmlurl url='mailto:brian@awfulhak.org'
+  name='&lt;brian@awfulhak.org&gt;'></tt>">
 
 <!ENTITY a.cawimm "Charles A. Wimmer
   <tt><htmlurl url='mailto:cawimm@FreeBSD.ORG' 
