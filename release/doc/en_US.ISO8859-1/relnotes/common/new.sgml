@@ -115,6 +115,8 @@
       <literal>NODEVFS</literal> option has been removed from the set of
       possible kernel configuration options.</para>
 
+    <para>Linux emulation mode now supports IPv6.</para>
+
     <!-- Above this line, sort kernel changes by manpage/keyword-->
 
     <para>A second process scheduler, designed to be a general purpose
@@ -156,13 +158,20 @@
     <sect3>
       <title>Network Interface Support</title>
 
-      <para>A new module provides 802.11 link-layer support.  The
+      <para>The cm driver now supports IPX. &merged;</para>
+
+      <para>A new wlan module provides 802.11 link-layer support.  The
 	&man.wi.4; driver now uses this facility.</para>
 
     </sect3>
 
     <sect3>
       <title>Network Protocols</title>
+
+      <para>It is now possible to build the
+        <literal>FAST_IPSEC</literal> and <literal>INET6</literal>
+        options into the same kernel.  (They still cannot be used
+        together, however.)</para>
 
       <para>A bug in TCP NewReno, which caused premature exit from
 	fast recovery when NewReno was enabled, has been
@@ -188,6 +197,9 @@
       <para>The root filesystem can now be located on a &man.vinum.4;
 	volume.  More information can be found in the &man.vinum.4;
 	manual page.</para>
+
+      <para arch="pc98">The wfd and wst drivers, which have been
+        broken for some time, have been removed.</para>
 
     </sect3>
 
@@ -218,6 +230,17 @@
 
   <sect2 id="userland">
     <title>Userland Changes</title>
+
+    <para arch="alpha,i386">The <filename>compat4x</filename>
+      distribution now includes the
+      <filename>libcrypto.so.2</filename>,
+      <filename>libgmp.so.3</filename>, and
+      <filename>libssl.so.2</filename> libraries from &os;
+      4.7-RELEASE.
+
+    <para>&man.config.8; now implements a <literal>nodevice</literal>
+      kernel configuration file directive that cancels the effect of a
+      <literal>device</literal> directive.</para>
 
     <para>The <option>-N</option> and <option>-W</option> flags to
       &man.disklabel.8; have been retired.</para>
@@ -294,6 +317,16 @@
     <para>The &man.libgeom.3; library has been added to allow some
       userland access to the &man.geom.4; subsystem.</para>
 
+    <para>&man.mount.nfs.8; now supports a <option>-c</option> to
+      avoid doing a &man.connect.2; for UDP mount points.  This option
+      must be used if the server does not reply to requests from the
+      standard NFS port number 2049 or if it replies to requests using
+      a different IP address (which can occur if the server is
+      multi-homed).  Setting the
+      <varname>vfs.nfs.nfs_ip_paranoia</varname> sysctl to
+      <literal>0</literal> will make this option the
+      default. &merged;</para>
+
     <para>&man.newsyslog.8; now supports a <literal>W</literal> flag
       to force previously-started compression jobs for an entry (or
       group of entries specified with the <literal>G</literal> flag)
@@ -308,6 +341,9 @@
 
     <para>&man.ping.8; now supports a <option>-D</option> flag to set
       the <quote>Don't Fragment</quote> bit on outgoing packets.</para>
+
+    <para>&man.ping.8; now supports a <option>-M</option> flag to use
+      ICMP mask request messages instead of ICMP echo requests.</para>
 
     <para>&man.ping.8; now supports a <option>-z</option> flag to set
       the Type of Service bits in outgoing packets.</para>
