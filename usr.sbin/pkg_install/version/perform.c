@@ -51,9 +51,10 @@ pkg_perform(char **indexarg)
     /*
      * Try to find and open the INDEX. We only check IndexFile != NULL
      * later, if we actually need the INDEX.
+     * XXX This should not be hard-coded to INDEX-5.
      */
     if (*indexarg == NULL)
-	snprintf(tmp, PATH_MAX, "%s/INDEX", PORTS_DIR);
+	snprintf(tmp, PATH_MAX, "%s/INDEX-5", PORTS_DIR);
     else
 	strlcpy(tmp, *indexarg, PATH_MAX);
     if (isURL(tmp))
