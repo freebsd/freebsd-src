@@ -2389,7 +2389,7 @@ Job_Empty(void)
  *	Find a matching shell in 'shells' given its final component.
  *
  * Results:
- *	A pointer to a freshly allocated Shell structure with is a copy
+ *	A pointer to a freshly allocated Shell structure with a copy
  *	of the static structure or NULL if no shell with the given name
  *	is found.
  *
@@ -2402,45 +2402,29 @@ static Shell *
 JobMatchShell(const char *name)
 {
     const struct CShell	*sh;	      /* Pointer into shells table */
-    const struct CShell	*match;     /* Longest-matching shell */
     struct Shell *nsh;
-    const char *cp1;
-    const char *cp2;
-    const char *eoname;
 
-    eoname = name + strlen(name);
+    for (sh = shells; sh < shells + sizeof(shells) / sizeof(shells[0]); sh++)
+	if (strcmp(sh->name, name) == 0)
+	    break;
 
-    match = NULL;
-
-    for (sh = shells; sh < shells + sizeof(shells) / sizeof(shells[0]); sh++) {
-	for (cp1 = eoname - strlen(sh->name), cp2 = sh->name;
-	     *cp1 != '\0' && *cp1 == *cp2;
-	     cp1++, cp2++) {
-		 continue;
-	}
-	if (*cp1 != *cp2) {
-	    continue;
-	} else if (match == NULL || strlen(match->name) < strlen(sh->name)) {
-	   match = sh;
-	}
-    }
-    if (match == NULL)
+    if (sh == shells + sizeof(shells) / sizeof(shells[0]))
 	return (NULL);
 
     /* make a copy */
     nsh = emalloc(sizeof(*nsh));
 
-    nsh->name = estrdup(match->name);
-    nsh->echoOff = estrdup(match->echoOff);
-    nsh->echoOn = estrdup(match->echoOn);
-    nsh->hasEchoCtl = match->hasEchoCtl;
-    nsh->noPrint = estrdup(match->noPrint);
-    nsh->noPLen = match->noPLen;
-    nsh->hasErrCtl = match->hasErrCtl;
-    nsh->errCheck = estrdup(match->errCheck);
-    nsh->ignErr = estrdup(match->ignErr);
-    nsh->echo = estrdup(match->echo);
-    nsh->exit = estrdup(match->exit);
+    nsh->name = estrdup(sh->name);
+    nsh->echoOff = estrdup(sh->echoOff);
+    nsh->echoOn = estrdup(sh->echoOn);
+    nsh->hasEchoCtl = sh->hasEchoCtl;
+    nsh->noPrint = estrdup(sh->noPrint);
+    nsh->noPLen = sh->noPLen;
+    nsh->hasErrCtl = sh->hasErrCtl;
+    nsh->errCheck = estrdup(sh->errCheck);
+    nsh->ignErr = estrdup(sh->ignErr);
+    nsh->echo = estrdup(sh->echo);
+    nsh->exit = estrdup(sh->exit);
 
     return (nsh);
 }
