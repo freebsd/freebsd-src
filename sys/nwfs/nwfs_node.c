@@ -83,6 +83,7 @@ nwfs_hash_init(void) {
 
 void
 nwfs_hash_free(void) {
+	lockdestroy(&nwhashlock);
 	free(nwhashtbl, M_NWFSHASH);
 }
 

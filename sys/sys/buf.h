@@ -229,10 +229,12 @@ struct buf {
 /*
  * Buffer locking
  */
-extern struct simplelock buftimelock;	/* Interlock on setting prio and timo */
+extern struct mtx buftimelock;		/* Interlock on setting prio and timo */
 extern char *buf_wmesg;			/* Default buffer lock message */
 #define BUF_WMESG "bufwait"
 #include <sys/proc.h>			/* XXX for curproc */
+#include <machine/mutex.h>
+
 /*
  * Initialize a lock.
  */
@@ -249,7 +251,7 @@ BUF_LOCK(struct buf *bp, int locktype)
 	int s, ret;
 
 	s = splbio();
-	simple_lock(&buftimelock);
+	mtx_enter(&buftimelock, MTX_DEF);
 	locktype |= LK_INTERLOCK;
 	bp->b_lock.lk_wmesg = buf_wmesg;
 	bp->b_lock.lk_prio = PRIBIO + 4;
@@ -268,7 +270,7 @@ BUF_TIMELOCK(struct buf *bp, int locktype, char *wmesg, int catch, int timo)
 	int s, ret;
 
 	s = splbio();
-	simple_lock(&buftimelock);
+	mtx_enter(&buftimelock, MTX_DEF);
 	locktype |= LK_INTERLOCK;
 	bp->b_lock.lk_wmesg = wmesg;
 	bp->b_lock.lk_prio = (PRIBIO + 4) | catch;
@@ -296,8 +298,12 @@ BUF_UNLOCK(struct buf *bp)
  * Free a buffer lock.
  */
 #define BUF_LOCKFREE(bp) 			\
+do {						\
 	if (BUF_REFCNT(bp) > 0)			\
-		panic("free locked buf")
+		panic("free locked buf");	\
+	lockdestroy(&(bp)->b_lock);		\
+} while (0)
+
 /*
  * When initiating asynchronous I/O, change ownership of the lock to the
  * kernel. Once done, the lock may legally released by biodone. The
@@ -423,6 +429,7 @@ buf_deallocate(struct buf *bp)
 {
 	if (bioops.io_deallocate)
 		(*bioops.io_deallocate)(bp);
+	BUF_LOCKFREE(bp);
 }
 
 static __inline void

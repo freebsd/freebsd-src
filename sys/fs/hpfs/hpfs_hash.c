@@ -43,6 +43,8 @@
 #include <sys/malloc.h>
 #include <sys/proc.h>
 
+#include <machine/mutex.h>
+
 #include <fs/hpfs/hpfs.h>
 
 MALLOC_DEFINE(M_HPFSHASH, "HPFS hash", "HPFS node hash tables");
@@ -69,6 +71,16 @@ hpfs_hphashinit()
 	hpfs_hphashtbl = HASHINIT(desiredvnodes, M_HPFSHASH, M_WAITOK,
 	    &hpfs_hphash);
 	simple_lock_init(&hpfs_hphash_slock);
+}
+
+/*
+ * Destroy inode hash table.
+ */
+void
+hpfs_hphashdestroy(void)
+{
+
+	lockdestroy(&hpfs_hphash_lock);
 }
 
 /*
@@ -126,7 +138,7 @@ loop:
 	for (hp = HPNOHASH(dev, ino)->lh_first; hp; hp = hp->h_hash.le_next) {
 		if (ino == hp->h_no && dev == hp->h_dev) {
 			vp = HPTOV(hp);
-			simple_lock (&vp->v_interlock);
+			mtx_enter(&vp->v_interlock, MTX_DEF);
 			simple_unlock (&hpfs_hphash_slock);
 			if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, p))
 				goto loop;

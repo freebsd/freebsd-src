@@ -61,7 +61,7 @@ struct	bio_ops bioops;		/* I/O operation notification */
 
 struct buf *buf;		/* buffer header pool */
 struct swqueue bswlist;
-struct simplelock buftimelock;	/* Interlock on setting prio and timo */
+struct mtx buftimelock;		/* Interlock on setting prio and timo */
 
 static void vm_hold_free_pages(struct buf * bp, vm_offset_t from,
 		vm_offset_t to);
@@ -290,7 +290,7 @@ bufinit(void)
 
 	TAILQ_INIT(&bswlist);
 	LIST_INIT(&invalhash);
-	simple_lock_init(&buftimelock);
+	mtx_init(&buftimelock, "buftime lock", MTX_DEF);
 
 	for (i = 0; i <= bufhashmask; i++)
 		LIST_INIT(&bufhashtbl[i]);

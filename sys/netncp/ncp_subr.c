@@ -124,6 +124,7 @@ ncp_done(void) {
 			ncp_conn_unlock(ncp,p);
 	}
 	ncp_conn_unlocklist(p);
+	ncp_conn_destroy();
 }
 
 

@@ -674,7 +674,7 @@ again:
 		nextvp = vp->v_mntvnodes.le_next;
 		if (vp->v_type == VNON)
 			continue;
-		simple_lock(&vp->v_interlock);
+		mtx_enter(&vp->v_interlock, MTX_DEF);
 		simple_unlock(&mntvnode_slock);
 		error = vget(vp, LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK, p);
 		if (error) {

@@ -230,9 +230,9 @@ done:
 	} else {
 
 		/* register with list of mounted filesystems */
-		simple_lock(&mountlist_slock);
+		mtx_enter(&mountlist_mtx, MTX_DEF);
 		TAILQ_INSERT_HEAD(&mountlist, mp, mnt_list);
-		simple_unlock(&mountlist_slock);
+		mtx_exit(&mountlist_mtx, MTX_DEF);
 
 		/* sanity check system clock against root filesystem timestamp */
 		inittodr(mp->mnt_time);

@@ -203,6 +203,7 @@ struct vmspace {
  *		as unbraced elements in a higher level statement.
  */
 
+/* XXX This macro is not called anywhere, and (map)->ref_lock doesn't exist. */
 #define	vm_map_lock_drain_interlock(map) \
 	do { \
 		lockmgr(&(map)->lock, LK_DRAIN|LK_INTERLOCK, \
@@ -290,15 +291,15 @@ _vm_map_lock_upgrade(vm_map_t map, struct proc *p) {
 
 #define vm_map_set_recursive(map) \
 	do { \
-		simple_lock(&(map)->lock.lk_interlock); \
+		mtx_enter(&(map)->lock.lk_interlock, MTX_DEF); \
 		(map)->lock.lk_flags |= LK_CANRECURSE; \
-		simple_unlock(&(map)->lock.lk_interlock); \
+		mtx_exit(&(map)->lock.lk_interlock, MTX_DEF); \
 	} while(0)
 #define vm_map_clear_recursive(map) \
 	do { \
-		simple_lock(&(map)->lock.lk_interlock); \
+		mtx_enter(&(map)->lock.lk_interlock, MTX_DEF); \
 		(map)->lock.lk_flags &= ~LK_CANRECURSE; \
-		simple_unlock(&(map)->lock.lk_interlock); \
+		mtx_exit(&(map)->lock.lk_interlock, MTX_DEF); \
 	} while(0)
 
 /*
@@ -355,6 +356,7 @@ int vm_map_find __P((vm_map_t, vm_object_t, vm_ooffset_t, vm_offset_t *, vm_size
 int vm_map_findspace __P((vm_map_t, vm_offset_t, vm_size_t, vm_offset_t *));
 int vm_map_inherit __P((vm_map_t, vm_offset_t, vm_offset_t, vm_inherit_t));
 void vm_map_init __P((struct vm_map *, vm_offset_t, vm_offset_t));
+void vm_map_destroy __P((struct vm_map *));
 int vm_map_insert __P((vm_map_t, vm_object_t, vm_ooffset_t, vm_offset_t, vm_offset_t, vm_prot_t, vm_prot_t, int));
 int vm_map_lookup __P((vm_map_t *, vm_offset_t, vm_prot_t, vm_map_entry_t *, vm_object_t *,
     vm_pindex_t *, vm_prot_t *, boolean_t *));

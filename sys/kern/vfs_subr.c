@@ -145,7 +145,7 @@ SYSCTL_INT(_vfs, OID_AUTO, ioopt, CTLFLAG_RW, &vfs_ioopt, 0, "");
 /* mounted fs */
 struct mntlist mountlist = TAILQ_HEAD_INITIALIZER(mountlist);
 /* For any iteration/modification of mountlist */
-struct simplelock mountlist_slock;
+struct mtx mountlist_mtx;
 /* For any iteration/modification of mnt_vnodelist */
 struct simplelock mntvnode_slock;
 /*
@@ -238,6 +238,7 @@ vntblinit()
 {
 
 	desiredvnodes = maxproc + cnt.v_page_count / 4;
+	mtx_init(&mountlist_mtx, "mountlist", MTX_DEF);
 	simple_lock_init(&mntvnode_slock);
 	simple_lock_init(&mntid_slock);
 	simple_lock_init(&spechash_slock);
@@ -260,7 +261,7 @@ int
 vfs_busy(mp, flags, interlkp, p)
 	struct mount *mp;
 	int flags;
-	struct simplelock *interlkp;
+	struct mtx *interlkp;
 	struct proc *p;
 {
 	int lkflags;
@@ -270,7 +271,7 @@ vfs_busy(mp, flags, interlkp, p)
 			return (ENOENT);
 		mp->mnt_kern_flag |= MNTK_MWAIT;
 		if (interlkp) {
-			simple_unlock(interlkp);
+			mtx_exit(interlkp, MTX_DEF);
 		}
 		/*
 		 * Since all busy locks are shared except the exclusive
@@ -280,7 +281,7 @@ vfs_busy(mp, flags, interlkp, p)
 		 */
 		tsleep((caddr_t)mp, PVFS, "vfs_busy", 0);
 		if (interlkp) {
-			simple_lock(interlkp);
+			mtx_enter(interlkp, MTX_DEF);
 		}
 		return (ENOENT);
 	}
@@ -384,15 +385,15 @@ vfs_getvfs(fsid)
 {
 	register struct mount *mp;
 
-	simple_lock(&mountlist_slock);
+	mtx_enter(&mountlist_mtx, MTX_DEF);
 	TAILQ_FOREACH(mp, &mountlist, mnt_list) {
 		if (mp->mnt_stat.f_fsid.val[0] == fsid->val[0] &&
 		    mp->mnt_stat.f_fsid.val[1] == fsid->val[1]) {
-			simple_unlock(&mountlist_slock);
+			mtx_exit(&mountlist_mtx, MTX_DEF);
 			return (mp);
 	    }
 	}
-	simple_unlock(&mountlist_slock);
+	mtx_exit(&mountlist_mtx, MTX_DEF);
 	return ((struct mount *) 0);
 }
 
@@ -554,7 +555,7 @@ getnewvnode(tag, mp, vops, vpp)
 		if (LIST_FIRST(&vp->v_cache_src) != NULL ||
 		    (VOP_GETVOBJECT(vp, &object) == 0 &&
 		     (object->resident_page_count || object->ref_count)) ||
-		    !simple_lock_try(&vp->v_interlock)) {
+		    !mtx_try_enter(&vp->v_interlock, MTX_DEF)) {
 			TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
 			vp = NULL;
 			continue;
@@ -564,7 +565,7 @@ getnewvnode(tag, mp, vops, vpp)
 		 */
 		if (vn_start_write(vp, &vnmp, V_NOWAIT) == 0)
 			break;
-		simple_unlock(&vp->v_interlock);
+		mtx_exit(&vp->v_interlock, MTX_DEF);
 		TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
 		vp = NULL;
 	}
@@ -577,7 +578,7 @@ getnewvnode(tag, mp, vops, vpp)
 		if (vp->v_type != VBAD) {
 			vgonel(vp, p);
 		} else {
-			simple_unlock(&vp->v_interlock);
+			mtx_exit(&vp->v_interlock, MTX_DEF);
 		}
 		vn_finished_write(vnmp);
 
@@ -605,7 +606,7 @@ getnewvnode(tag, mp, vops, vpp)
 		simple_unlock(&vnode_free_list_slock);
 		vp = (struct vnode *) zalloc(vnode_zone);
 		bzero((char *) vp, sizeof *vp);
-		simple_lock_init(&vp->v_interlock);
+		mtx_init(&vp->v_interlock, "vnode interlock", MTX_DEF);
 		vp->v_dd = vp;
 		cache_purge(vp);
 		LIST_INIT(&vp->v_cache_src);
@@ -777,12 +778,12 @@ vinvalbuf(vp, flags, cred, p, slpflag, slptimeo)
 	/*
 	 * Destroy the copy in the VM cache, too.
 	 */
-	simple_lock(&vp->v_interlock);
+	mtx_enter(&vp->v_interlock, MTX_DEF);
 	if (VOP_GETVOBJECT(vp, &object) == 0) {
 		vm_object_page_remove(object, 0, 0,
 			(flags & V_SAVE) ? TRUE : FALSE);
 	}
-	simple_unlock(&vp->v_interlock);
+	mtx_exit(&vp->v_interlock, MTX_DEF);
 
 	if (!TAILQ_EMPTY(&vp->v_dirtyblkhd) || !TAILQ_EMPTY(&vp->v_cleanblkhd))
 		panic("vinvalbuf: flush failed");
@@ -1423,10 +1424,10 @@ vget(vp, flags, p)
 	 * the VXLOCK flag is set.
 	 */
 	if ((flags & LK_INTERLOCK) == 0)
-		simple_lock(&vp->v_interlock);
+		mtx_enter(&vp->v_interlock, MTX_DEF);
 	if (vp->v_flag & VXLOCK) {
 		vp->v_flag |= VXWANT;
-		simple_unlock(&vp->v_interlock);
+		mtx_exit(&vp->v_interlock, MTX_DEF);
 		tsleep((caddr_t)vp, PINOD, "vget", 0);
 		return (ENOENT);
 	}
@@ -1445,15 +1446,15 @@ vget(vp, flags, p)
 			 * before sleeping so that multiple processes do
 			 * not try to recycle it.
 			 */
-			simple_lock(&vp->v_interlock);
+			mtx_enter(&vp->v_interlock, MTX_DEF);
 			vp->v_usecount--;
 			if (VSHOULDFREE(vp))
 				vfree(vp);
-			simple_unlock(&vp->v_interlock);
+			mtx_exit(&vp->v_interlock, MTX_DEF);
 		}
 		return (error);
 	}
-	simple_unlock(&vp->v_interlock);
+	mtx_exit(&vp->v_interlock, MTX_DEF);
 	return (0);
 }
 
@@ -1463,9 +1464,9 @@ vget(vp, flags, p)
 void
 vref(struct vnode *vp)
 {
-	simple_lock(&vp->v_interlock);
+	mtx_enter(&vp->v_interlock, MTX_DEF);
 	vp->v_usecount++;
-	simple_unlock(&vp->v_interlock);
+	mtx_exit(&vp->v_interlock, MTX_DEF);
 }
 
 /*
@@ -1480,14 +1481,14 @@ vrele(vp)
 
 	KASSERT(vp != NULL, ("vrele: null vp"));
 
-	simple_lock(&vp->v_interlock);
+	mtx_enter(&vp->v_interlock, MTX_DEF);
 
 	KASSERT(vp->v_writecount < vp->v_usecount, ("vrele: missed vn_close"));
 
 	if (vp->v_usecount > 1) {
 
 		vp->v_usecount--;
-		simple_unlock(&vp->v_interlock);
+		mtx_exit(&vp->v_interlock, MTX_DEF);
 
 		return;
 	}
@@ -1509,7 +1510,7 @@ vrele(vp)
 	} else {
 #ifdef DIAGNOSTIC
 		vprint("vrele: negative ref count", vp);
-		simple_unlock(&vp->v_interlock);
+		mtx_exit(&vp->v_interlock, MTX_DEF);
 #endif
 		panic("vrele: negative ref cnt");
 	}
@@ -1527,7 +1528,7 @@ vput(vp)
 
 	KASSERT(vp != NULL, ("vput: null vp"));
 
-	simple_lock(&vp->v_interlock);
+	mtx_enter(&vp->v_interlock, MTX_DEF);
 
 	KASSERT(vp->v_writecount < vp->v_usecount, ("vput: missed vn_close"));
 
@@ -1549,7 +1550,7 @@ vput(vp)
 	 * call VOP_INACTIVE with the node locked.  So, in the case of
 	 * vrele, we explicitly lock the vnode before calling VOP_INACTIVE.
 	 */
-		simple_unlock(&vp->v_interlock);
+		mtx_exit(&vp->v_interlock, MTX_DEF);
 		VOP_INACTIVE(vp, p);
 
 	} else {
@@ -1633,12 +1634,12 @@ loop:
 		if (vp == skipvp)
 			continue;
 
-		simple_lock(&vp->v_interlock);
+		mtx_enter(&vp->v_interlock, MTX_DEF);
 		/*
 		 * Skip over a vnodes marked VSYSTEM.
 		 */
 		if ((flags & SKIPSYSTEM) && (vp->v_flag & VSYSTEM)) {
-			simple_unlock(&vp->v_interlock);
+			mtx_exit(&vp->v_interlock, MTX_DEF);
 			continue;
 		}
 		/*
@@ -1647,7 +1648,7 @@ loop:
 		 */
 		if ((flags & WRITECLOSE) &&
 		    (vp->v_writecount == 0 || vp->v_type != VREG)) {
-			simple_unlock(&vp->v_interlock);
+			mtx_exit(&vp->v_interlock, MTX_DEF);
 			continue;
 		}
 
@@ -1683,7 +1684,7 @@ loop:
 		if (busyprt)
 			vprint("vflush: busy vnode", vp);
 #endif
-		simple_unlock(&vp->v_interlock);
+		mtx_exit(&vp->v_interlock, MTX_DEF);
 		busy++;
 	}
 	simple_unlock(&mntvnode_slock);
@@ -1767,7 +1768,7 @@ vclean(vp, flags, p)
 		 * Inline copy of vrele() since VOP_INACTIVE
 		 * has already been called.
 		 */
-		simple_lock(&vp->v_interlock);
+		mtx_enter(&vp->v_interlock, MTX_DEF);
 		if (--vp->v_usecount <= 0) {
 #ifdef DIAGNOSTIC
 			if (vp->v_usecount < 0 || vp->v_writecount != 0) {
@@ -1777,11 +1778,15 @@ vclean(vp, flags, p)
 #endif
 			vfree(vp);
 		}
-		simple_unlock(&vp->v_interlock);
+		mtx_exit(&vp->v_interlock, MTX_DEF);
 	}
 
 	cache_purge(vp);
-	vp->v_vnlock = NULL;
+	if (vp->v_vnlock) {
+		lockdestroy(vp->v_vnlock);
+		vp->v_vnlock = NULL;
+	}
+	lockdestroy(&vp->v_lock);
 
 	if (VSHOULDFREE(vp))
 		vfree(vp);
@@ -1822,7 +1827,7 @@ vop_revoke(ap)
 	 */
 	if (vp->v_flag & VXLOCK) {
 		vp->v_flag |= VXWANT;
-		simple_unlock(&vp->v_interlock);
+		mtx_exit(&vp->v_interlock, MTX_DEF);
 		tsleep((caddr_t)vp, PINOD, "vop_revokeall", 0);
 		return (0);
 	}
@@ -1849,7 +1854,7 @@ vrecycle(vp, inter_lkp, p)
 	struct proc *p;
 {
 
-	simple_lock(&vp->v_interlock);
+	mtx_enter(&vp->v_interlock, MTX_DEF);
 	if (vp->v_usecount == 0) {
 		if (inter_lkp) {
 			simple_unlock(inter_lkp);
@@ -1857,7 +1862,7 @@ vrecycle(vp, inter_lkp, p)
 		vgonel(vp, p);
 		return (1);
 	}
-	simple_unlock(&vp->v_interlock);
+	mtx_exit(&vp->v_interlock, MTX_DEF);
 	return (0);
 }
 
@@ -1871,7 +1876,7 @@ vgone(vp)
 {
 	struct proc *p = curproc;	/* XXX */
 
-	simple_lock(&vp->v_interlock);
+	mtx_enter(&vp->v_interlock, MTX_DEF);
 	vgonel(vp, p);
 }
 
@@ -1891,7 +1896,7 @@ vgonel(vp, p)
 	 */
 	if (vp->v_flag & VXLOCK) {
 		vp->v_flag |= VXWANT;
-		simple_unlock(&vp->v_interlock);
+		mtx_exit(&vp->v_interlock, MTX_DEF);
 		tsleep((caddr_t)vp, PINOD, "vgone", 0);
 		return;
 	}
@@ -1900,7 +1905,7 @@ vgonel(vp, p)
 	 * Clean out the filesystem specific data.
 	 */
 	vclean(vp, DOCLOSE, p);
-	simple_lock(&vp->v_interlock);
+	mtx_enter(&vp->v_interlock, MTX_DEF);
 
 	/*
 	 * Delete from old mount point vnode list, if on one.
@@ -1943,7 +1948,7 @@ vgonel(vp, p)
 	}
 
 	vp->v_type = VBAD;
-	simple_unlock(&vp->v_interlock);
+	mtx_exit(&vp->v_interlock, MTX_DEF);
 }
 
 /*
@@ -2064,9 +2069,9 @@ DB_SHOW_COMMAND(lockedvnodes, lockedvnodes)
 	struct vnode *vp;
 
 	printf("Locked vnodes\n");
-	simple_lock(&mountlist_slock);
+	mtx_enter(&mountlist_mtx, MTX_DEF);
 	for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
-		if (vfs_busy(mp, LK_NOWAIT, &mountlist_slock, p)) {
+		if (vfs_busy(mp, LK_NOWAIT, &mountlist_mtx, p)) {
 			nmp = TAILQ_NEXT(mp, mnt_list);
 			continue;
 		}
@@ -2074,11 +2079,11 @@ DB_SHOW_COMMAND(lockedvnodes, lockedvnodes)
 			if (VOP_ISLOCKED(vp, NULL))
 				vprint((char *)0, vp);
 		}
-		simple_lock(&mountlist_slock);
+		mtx_enter(&mountlist_mtx, MTX_DEF);
 		nmp = TAILQ_NEXT(mp, mnt_list);
 		vfs_unbusy(mp, p);
 	}
-	simple_unlock(&mountlist_slock);
+	mtx_exit(&mountlist_mtx, MTX_DEF);
 }
 #endif
 
@@ -2183,9 +2188,9 @@ sysctl_vnode(SYSCTL_HANDLER_ARGS)
 		return (SYSCTL_OUT(req, 0,
 			(numvnodes + KINFO_VNODESLOP) * (VPTRSZ + VNODESZ)));
 
-	simple_lock(&mountlist_slock);
+	mtx_enter(&mountlist_mtx, MTX_DEF);
 	for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
-		if (vfs_busy(mp, LK_NOWAIT, &mountlist_slock, p)) {
+		if (vfs_busy(mp, LK_NOWAIT, &mountlist_mtx, p)) {
 			nmp = TAILQ_NEXT(mp, mnt_list);
 			continue;
 		}
@@ -2211,11 +2216,11 @@ again:
 			simple_lock(&mntvnode_slock);
 		}
 		simple_unlock(&mntvnode_slock);
-		simple_lock(&mountlist_slock);
+		mtx_enter(&mountlist_mtx, MTX_DEF);
 		nmp = TAILQ_NEXT(mp, mnt_list);
 		vfs_unbusy(mp, p);
 	}
-	simple_unlock(&mountlist_slock);
+	mtx_exit(&mountlist_mtx, MTX_DEF);
 
 	return (0);
 }
@@ -2574,7 +2579,7 @@ loop:
 				continue;
 		}
 
-		simple_lock(&vp->v_interlock);
+		mtx_enter(&vp->v_interlock, MTX_DEF);
 		if (VOP_GETVOBJECT(vp, &obj) == 0 &&
 		    (obj->flags & OBJ_MIGHTBEDIRTY)) {
 			if (!vget(vp,
@@ -2586,7 +2591,7 @@ loop:
 				vput(vp);
 			}
 		} else {
-			simple_unlock(&vp->v_interlock);
+			mtx_exit(&vp->v_interlock, MTX_DEF);
 		}
 	}
 	if (anyio && (--tries > 0))
@@ -2838,14 +2843,14 @@ sync_fsync(ap)
 	 * Walk the list of vnodes pushing all that are dirty and
 	 * not already on the sync list.
 	 */
-	simple_lock(&mountlist_slock);
-	if (vfs_busy(mp, LK_EXCLUSIVE | LK_NOWAIT, &mountlist_slock, p) != 0) {
-		simple_unlock(&mountlist_slock);
+	mtx_enter(&mountlist_mtx, MTX_DEF);
+	if (vfs_busy(mp, LK_EXCLUSIVE | LK_NOWAIT, &mountlist_mtx, p) != 0) {
+		mtx_exit(&mountlist_mtx, MTX_DEF);
 		return (0);
 	}
 	if (vn_start_write(NULL, &mp, V_NOWAIT) != 0) {
 		vfs_unbusy(mp, p);
-		simple_unlock(&mountlist_slock);
+		mtx_exit(&mountlist_mtx, MTX_DEF);
 		return (0);
 	}
 	asyncflag = mp->mnt_flag & MNT_ASYNC;

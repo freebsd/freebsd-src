@@ -215,6 +215,7 @@ vmspace_free(vm)
 		vm_map_unlock(&vm->vm_map);
 
 		pmap_release(vmspace_pmap(vm));
+		vm_map_destroy(&vm->vm_map);
 		zfree(vmspace_zone, vm);
 	}
 }
@@ -259,6 +260,13 @@ vm_map_init(map, min, max)
 	map->hint = &map->header;
 	map->timestamp = 0;
 	lockinit(&map->lock, PVM, "thrd_sleep", 0, LK_NOPAUSE);
+}
+
+void
+vm_map_destroy(map)
+	struct vm_map *map;
+{
+	lockdestroy(&map->lock);
 }
 
 /*

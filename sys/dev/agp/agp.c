@@ -271,6 +271,7 @@ agp_generic_detach(device_t dev)
 	struct agp_softc *sc = device_get_softc(dev);
 	bus_release_resource(dev, SYS_RES_MEMORY, AGP_APBASE, sc->as_aperture);
 	lockmgr(&sc->as_lock, LK_DRAIN, 0, curproc);
+	lockdestroy(&sc->as_lock);
 	destroy_dev(sc->as_devnode);
 	agp_flush_cache();
 	return 0;
