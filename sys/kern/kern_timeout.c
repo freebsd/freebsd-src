@@ -232,8 +232,8 @@ softclock(void *dummy)
 				c_func = c->c_func;
 				c_arg = c->c_arg;
 				c_flags = c->c_flags;
-				c->c_func = NULL;
 				if (c->c_flags & CALLOUT_LOCAL_ALLOC) {
+					c->c_func = NULL;
 					c->c_flags = CALLOUT_LOCAL_ALLOC;
 					SLIST_INSERT_HEAD(&callfree, c,
 							  c_links.sle);
