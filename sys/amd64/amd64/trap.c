@@ -295,7 +295,7 @@ trap(frame)
 #ifdef DEV_NPX
 			ucode = npxtrap();
 			if (ucode == -1)
-				goto out;
+				goto userout;
 #else
 			ucode = code;
 #endif
@@ -345,7 +345,7 @@ trap(frame)
 			}
 #endif
 			if (i == -1)
-				goto out;
+				goto userout;
 			if (i == 0)
 				goto user;
 
@@ -370,7 +370,7 @@ trap(frame)
 				lastalert = time_second;
 			}
 			mtx_unlock(&Giant);
-			goto out;
+			goto userout;
 #else /* !POWERFAIL_NMI */
 			/* machine/parity/power fail/"kitchen sink" faults */
 			/* XXX Giant */
@@ -385,7 +385,7 @@ trap(frame)
 					kdb_trap (type, 0, &frame);
 				}
 #endif /* DDB */
-				goto out;
+				goto userout;
 			} else if (panic_on_nmi)
 				panic("NMI indicates hardware failure");
 			break;
@@ -406,7 +406,7 @@ trap(frame)
 #ifdef DEV_NPX
 			/* transparent fault (due to context switch "late") */
 			if (npxdna())
-				goto out;
+				goto userout;
 #endif
 			if (!pmath_emulate) {
 				i = SIGFPE;
@@ -418,7 +418,7 @@ trap(frame)
 			mtx_unlock(&Giant);
 			if (i == 0) {
 				if (!(frame.tf_eflags & PSL_T))
-					goto out;
+					goto userout;
 				frame.tf_eflags &= ~PSL_T;
 				i = SIGTRAP;
 			}
@@ -662,6 +662,10 @@ trap(frame)
 user:
 	userret(td, &frame, sticks);
 	mtx_assert(&Giant, MA_NOTOWNED);
+userout:
+#ifdef DIAGNOSTIC
+	cred_free_thread(td);
+#endif
 out:
 	return;
 }
@@ -1105,6 +1109,10 @@ syscall(frame)
 	 * is not the case, this code will need to be revisited.
 	 */
 	STOPEVENT(p, S_SCX, code);
+
+#ifdef DIAGNOSTIC
+	cred_free_thread(td);
+#endif
 
 #ifdef WITNESS
 	if (witness_list(td)) {
