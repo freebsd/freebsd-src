@@ -653,7 +653,7 @@ m_tag_find(struct mbuf *m, int type, struct m_tag *start)
  * If a tag is present devalidate it also.
  */
 static __inline struct sockaddr_in *
-m_claim_next_hop(struct mbuf *m, int type)
+m_claim_next(struct mbuf *m, int type)
 {
 	struct m_tag *mtag = m_tag_find(m, type, NULL);
 	if (mtag) {
