@@ -142,6 +142,9 @@ in_pcballoc(so, pcbinfo, p)
 	struct proc *p;
 {
 	register struct inpcb *inp;
+#ifdef IPSEC
+	int error;
+#endif
 
 	inp = zalloc(pcbinfo->ipi_zone);
 	if (inp == NULL)
@@ -150,6 +153,13 @@ in_pcballoc(so, pcbinfo, p)
 	inp->inp_gencnt = ++pcbinfo->ipi_gencnt;
 	inp->inp_pcbinfo = pcbinfo;
 	inp->inp_socket = so;
+#ifdef IPSEC
+	error = ipsec_init_policy(so, &inp->inp_sp);
+	if (error != 0) {
+		zfree(pcbinfo->ipi_zone, inp);
+		return error;
+	}
+#endif /*IPSEC*/
 #if defined(INET6)
 	if (INP_SOCKAF(so) == AF_INET6 && !ip6_mapped_addr_on)
 		inp->inp_flags |= IN6P_IPV6_V6ONLY;
