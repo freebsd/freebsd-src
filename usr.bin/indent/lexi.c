@@ -64,7 +64,7 @@ struct templ {
     int         rwcode;
 };
 
-struct templ specials[100] =
+struct templ specials[1000] =
 {
     {"switch", 1},
     {"case", 2},
@@ -86,6 +86,8 @@ struct templ specials[100] =
     {"global", 4},
     {"extern", 4},
     {"void", 4},
+    {"const", 4},
+    {"volatile", 4},
     {"goto", 0},
     {"return", 0},
     {"if", 5},
