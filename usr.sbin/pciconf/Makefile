@@ -2,6 +2,5 @@
 
 PROG=	pciconf
 MAN8=	pciconf.8
-CFLAGS+=	-I/sys
 
 .include <bsd.prog.mk>
