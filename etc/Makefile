@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.60 1994/05/19 18:06:46 guido Exp $
+#	$Id: Makefile,v 1.61 1994/06/01 00:58:05 phk Exp $
 
 NOOBJ=	noobj
 
@@ -225,7 +225,7 @@ kcopy-kernels: ../sys/i386/conf/GENERICAH ../sys/i386/conf/GENERICBT
 
 kcopy-floppy:
 	disklabel -w -r ${FLOPPY} ${FLOPPY_TYPE} \
-		/usr/mdec/fdboot /usr/mdec/bootfd
+		${DESTDIR}/usr/mdec/fdboot ${DESTDIR}/usr/mdec/bootfd
 	newfs -b 4096 -c 80 -f 512 -i 10240 -m 0 -o space \
 		r${FLOPPY} ${FLOPPY_TYPE}
 	mount /dev/${FLOPPY} ${MOUNT}
@@ -316,7 +316,7 @@ cdins_bt.flp:
 
 filesyst.flp:
 	disklabel -w -r ${FLOPPY} ${FLOPPY_TYPE} \
-		/usr/mdec/fdboot /usr/mdec/bootfd
+		${DESTDIR}/usr/mdec/fdboot ${DESTDIR}/usr/mdec/bootfd
 	newfs -b 4096 -c 80 -f 512 -i 10240 -m 0 -o space \
 		r${FLOPPY}  ${FLOPPY_TYPE}
 	mount /dev/${FLOPPY}  ${MOUNT}
@@ -361,7 +361,7 @@ filesyst.flp:
 
 cpio.flp:
 	disklabel -w -r ${FLOPPY} ${FLOPPY_TYPE} \
-		/usr/mdec/fdboot /usr/mdec/bootfd
+		${DESTDIR}/usr/mdec/fdboot ${DESTDIR}/usr/mdec/bootfd
 	newfs -b 4096 -c 80 -f 512 -i 65536 -m 0 -o space \
 			r${FLOPPY}  ${FLOPPY_TYPE}
 	mount /dev/${FLOPPY} ${MOUNT}
