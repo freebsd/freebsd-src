@@ -1,13 +1,9 @@
 /*
- *
- * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
- * --------------------         -----   ----------------------
- * CURRENT PATCH LEVEL:         1       00098
- * --------------------         -----   ----------------------
- *
- * 16 Feb 93	Julian Elischer		ADDED for SCSI system
+ * 16 Feb 93	Julian Elischer	(julian@dialix.oz.au)
  */
 /* Shared between kernel & process */
+#ifndef SYS_CDIO_H
+#define SYS_CDIO_H
 
 struct cd_toc_entry {
 	u_char	:8;
@@ -145,5 +141,17 @@ struct	ioc_vol
 #define	CDIOCSTOP	_IO('c',23)
 #define	CDIOCEJECT	_IO('c',24)
 
+struct ioc_play_msf
+{
+	u_char	start_m;
+	u_char	start_s;
+	u_char	start_f;
+	u_char	end_m;
+	u_char	end_s;
+	u_char	end_f;
+};
+#define	CDIOCPLAYMSF	_IOW('c',25,struct ioc_play_msf)
 
 
+
+#endif /* SYS_CDIO_H */
