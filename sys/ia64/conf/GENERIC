@@ -55,7 +55,7 @@ options 	_KPOSIX_PRIORITY_SCHEDULING	# Posix P1003_1B RT extensions
 # Various "busses"
 device 		acpi		# ACPI support (mandatory)
 device		firewire	# FireWire bus code
-device		miibus		# MII bus support (ethernet)
+device		miibus		# MII bus support (Ethernet)
 device		pci		# PCI bus support
 device		scbus		# SCSI bus (required for SCSI)
 device		usb		# USB Bus (required for USB)
@@ -123,9 +123,9 @@ device		sis		# Silicon Integrated Systems SiS 900/SiS 7016
 device		xl		# 3Com 3c90x ("Boomerang", "Cyclone")
 
 # USB Ethernet
-device		aue		# ADMtek USB ethernet
-device		cue		# CATC USB ethernet
-device		kue		# Kawasaki LSI USB ethernet
+device		aue		# ADMtek USB Ethernet
+device		cue		# CATC USB Ethernet
+device		kue		# Kawasaki LSI USB Ethernet
 
 # FireWire support
 device		sbp		# SCSI over FireWire (need scbus & da)
