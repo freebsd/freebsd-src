@@ -51,7 +51,8 @@ and unless this fails, the system will resume multi-user operations.
 .Sy Cold starts .
 Most i386 PCs attempt to boot first from floppy disk drive 0 (sometimes
 known as drive A:) and, failing that, from hard disk drive 0 (sometimes
-known as drive C:, or as drive 0x80 to the BIOS).  Some BIOSes allow
+known as drive C:, or as drive 0x80 to the BIOS).
+Some BIOSes allow
 you to change this default sequence, and may also include a CD-ROM
 drive as a boot device.
 .Pp
@@ -77,10 +78,12 @@ or
 .Sy /
 is displayed) before
 .Xr loader 8
-is invoked.  Booting will also be attempted at stage two, if the
+is invoked.
+Booting will also be attempted at stage two, if the
 third stage cannot be loaded.
 .Pp
-The remainder of this subsection deals only with the boot blocks.  The
+The remainder of this subsection deals only with the boot blocks.
+The
 .Xr loader 8
 program is documented separately.
 .Pp
@@ -100,11 +103,13 @@ of either the floppy or the hard disk.
 This boot may be aborted by typing any character on the keyboard
 at the
 .Ql boot:
-prompt.  At this time, the following input will be accepted:
+prompt.
+At this time, the following input will be accepted:
 .Bl -tag -width indent
 .It Ic \&?
 Give a short listing of the files in the root directory of the default
-boot device, as a hint about available boot files.  (A
+boot device, as a hint about available boot files.
+(A
 .Ic ?\&
 may also be specified as the last segment of a path, in which case
 the listing will be of the relevant subdirectory.)
@@ -122,7 +127,8 @@ Specify boot file and flags.
 The drive number as recognized by the BIOS.
 0 for the first drive, 1 for the second drive, etc.
 .It Ar interface
-The type of controller to boot from.  Note that the controller is required
+The type of controller to boot from.
+Note that the controller is required
 to have BIOS support since the BIOS services are used to load the
 boot file image.
 .Pp
@@ -145,11 +151,13 @@ The unit number of the drive on the interface being used.
 .It Oo Ar slice , Oc Ns Ar part
 The partition letter inside the
 .Bx
-portion of the disk.  See
+portion of the disk.
+See
 .Xr disklabel 8 .
 By convention, only partition
 .Ql a
-contains a bootable image.  If sliced disks are used
+contains a bootable image.
+If sliced disks are used
 .Pq Dq fdisk partitions ,
 any
 .Ar slice
@@ -167,7 +175,8 @@ slice (also known as
 slice) is booted from.
 .It Ar filename
 The pathname of the file to boot (relative to the root directory
-on the specified partition).  Defaults to
+on the specified partition).
+Defaults to
 .Pa /kernel .
 Symbolic links are not supported (hard links are).
 .It Fl aCcDdghmnPprsv
@@ -181,23 +190,28 @@ ask for the device to mount as the root file system.
 boot from CDROM.
 .It Fl c
 run UserConfig to modify hardware parameters for the loaded
-kernel.  If the kernel was built with one of
+kernel.
+If the kernel was built with one of
 .Dv USERCONFIG , INTRO_USERCONFIG , VISUAL_USERCONFIG
 options,
 remain in UserConfig regardless of any
 .Ic quit
 commands present in the script.
 .It Fl D
-toggle single and dual console configurations.  In the single
+toggle single and dual console configurations.
+In the single
 configuration the console will be either the internal display
 or the serial port, depending on the state of the
 .Fl h
-option below.  In the dual console configuration,
+option below.
+In the dual console configuration,
 both the internal display and the serial port will become the console
 at the same time, regardless of the state of the
 .Fl h
-option.  However, the dual console configuration takes effect only during
-the boot prompt.  Once the kernel is loaded, the console specified
+option.
+However, the dual console configuration takes effect only during
+the boot prompt.
+Once the kernel is loaded, the console specified
 by the
 .Fl h
 option becomes the only console.
@@ -209,12 +223,15 @@ as early as possible in kernel initialization.
 .It Fl g
 use the GDB remote debugging protocol.
 .It Fl h
-toggle internal and serial consoles.  You can use this to switch
-console devices.  For instance, if you boot from the internal console,
+toggle internal and serial consoles.
+You can use this to switch
+console devices.
+For instance, if you boot from the internal console,
 you can use the
 .Fl h
 option to force the kernel to use the serial port as its
-console device.  Alternatively, if you boot from the serial port,
+console device.
+Alternatively, if you boot from the serial port,
 you can use this option to force the kernel to use the internal display
 as the console instead.
 The serial port driver
@@ -223,7 +240,8 @@ has a flag to override this option.
 If that flag is set, the serial port will always be used as the console,
 regardless of the
 .Fl h
-option described here.  See the man page for
+option described here.
+See the man page for
 .Xr sio 4
 for more details.
 .It Fl m
@@ -233,7 +251,8 @@ ignore key press to interrupt boot before
 .Xr loader 8
 is invoked.
 .It Fl P
-probe the keyboard.  If no keyboard is found, the
+probe the keyboard.
+If no keyboard is found, the
 .Fl D
 and
 .Fl h
@@ -262,7 +281,8 @@ be verbose during device probing (and later).
 You may put a BIOS drive number, a controller type, a unit number,
 a partition, a kernel file name, and any valid option in
 .Pa /boot.config
-to set defaults.  Enter them in one line just as you type at the
+to set defaults.
+Enter them in one line just as you type at the
 .Ql boot:
 prompt.
 .Sh FILES
@@ -325,7 +345,8 @@ On older machines, or otherwise where EDD support (disk packet
 interface support) is not available, all boot-related files and
 structures (including the kernel) that need to be accessed during the
 boot phase must reside on the disk at or below cylinder 1023 (as the
-BIOS understands the geometry).  When a
+BIOS understands the geometry).
+When a
 .Dq Disk error 0x1
 is reported by the second-stage bootstrap, it generally means that this
 requirement has not been adhered to.
@@ -341,7 +362,8 @@ Due to space constraints, the keyboard probe initiated by the
 .Fl P
 option is simply a test that the BIOS has detected an
 .Dq extended
-keyboard.  If an
+keyboard.
+If an
 .Dq XT/AT
 keyboard (with no F11 and F12 keys, etc.) is attached, the probe will
 fail.

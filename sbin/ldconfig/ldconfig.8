@@ -48,7 +48,8 @@ utility is used to prepare a set of
 .Dq hints
 for use by the dynamic linker
 to facilitate quick lookup of shared libraries available in multiple
-directories.  It scans a set of built-in system directories and any
+directories.
+It scans a set of built-in system directories and any
 .Ar directories
 specified on the command line (in the given order) looking for
 shared libraries and stores the results in a system file to forestall
@@ -57,8 +58,10 @@ operations the dynamic linker would have to perform to load the
 required shared libraries.
 .Pp
 Files named on the command line are expected to contain directories
-to scan for shared libraries.  Each directory's pathname must start on a new
-line.  Blank lines and lines starting with the comment character
+to scan for shared libraries.
+Each directory's pathname must start on a new
+line.
+Blank lines and lines starting with the comment character
 .Ql \&#
 are ignored.
 Filenames must conform to the
@@ -105,15 +108,18 @@ Generate the hints for a.out format shared libraries.
 .It Fl elf
 Generate the hints for ELF format shared libraries.
 .It Fl R
-Rescan the previously configured directories.  This opens the previous hints
-file and fetches the directory list from the header.  Any additional pathnames
+Rescan the previously configured directories.
+This opens the previous hints
+file and fetches the directory list from the header.
+Any additional pathnames
 on the command line are also processed.
 This is the default action when no parameters are given.
 .It Fl f Ar hints_file
 Read and/or update the specified hints file, instead of the standard file.
 This option is provided primarily for testing.
 .It Fl i
-Run in insecure mode. The security checks will not be performed.
+Run in insecure mode.
+The security checks will not be performed.
 .It Fl m
 Instead of replacing the contents of the hints file
 with those found in the directories specified,
@@ -125,7 +131,8 @@ are also rescanned for new shared libraries.
 .It Fl r
 List the current contents of the hints file
 on the standard output.
-The hints file is not modified.  The list of
+The hints file is not modified.
+The list of
 directories stored in the hints file is included.
 .It Fl s
 Do not scan the built-in system directory
@@ -160,7 +167,8 @@ Overrides
 .Fl aout
 or
 .Fl elf
-is the default.  If set, its value should be either
+is the default.
+If set, its value should be either
 .Ql aout
 or
 .Ql elf .
@@ -184,7 +192,8 @@ Determines whether
 .Fl aout
 or
 .Fl elf
-is the default.  If present, it must consist of a single line
+is the default.
+If present, it must consist of a single line
 containing either
 .Ql OBJFORMAT=aout
 or

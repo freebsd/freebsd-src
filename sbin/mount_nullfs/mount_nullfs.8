@@ -103,7 +103,8 @@ The
 .Nm
 utility takes two arguments, the pathname
 of the lower vfs (target-pn) and the pathname where the null
-layer will appear in the namespace (mount-point-pn).  After
+layer will appear in the namespace (mount-point-pn).
+After
 the null layer is put into place, the contents
 of target-pn subtree will be aliased under mount-point-pn.
 .\"
@@ -111,15 +112,19 @@ of target-pn subtree will be aliased under mount-point-pn.
 .Sh OPERATION OF A NULL LAYER
 The null layer is the minimum file system layer,
 simply bypassing all possible operations to the lower layer
-for processing there.  The majority of its activity centers
+for processing there.
+The majority of its activity centers
 on the bypass routine, through which nearly all vnode operations
 pass.
 .Pp
 The bypass routine accepts arbitrary vnode operations for
-handling by the lower layer.  It begins by examining vnode
+handling by the lower layer.
+It begins by examining vnode
 operation arguments and replacing any null-nodes by their
-lower-layer equivalents.  It then invokes the operation
-on the lower layer.  Finally, it replaces the null-nodes
+lower-layer equivalents.
+It then invokes the operation
+on the lower layer.
+Finally, it replaces the null-nodes
 in the arguments and, if a vnode is returned by the operation,
 stacks a null-node on top of the returned vnode.
 .Pp
@@ -144,11 +149,13 @@ information.
 .\"
 .Sh INSTANTIATING VNODE STACKS
 Mounting associates the null layer with a lower layer,
-in effect stacking two VFSes.  Vnode stacks are instead
+in effect stacking two VFSes.
+Vnode stacks are instead
 created on demand as files are accessed.
 .Pp
 The initial mount creates a single vnode stack for the
-root of the new null layer.  All other vnode stacks
+root of the new null layer.
+All other vnode stacks
 are created as a result of vnode operations on
 this or other null vnode stacks.
 .Pp
@@ -168,7 +175,8 @@ the root null-node (which was created when the null layer was mounted).
 Now consider opening
 .Pa sys .
 A vop_lookup would be
-done on the root null-node.  This operation would bypass through
+done on the root null-node.
+This operation would bypass through
 to the lower layer which would return a vnode representing
 the UFS
 .Pa sys .
@@ -197,8 +205,10 @@ null layer.
 .\"
 .Sh INVOKING OPERATIONS ON LOWER LAYERS
 There are two techniques to invoke operations on a lower layer
-when the operation cannot be completely bypassed.  Each method
-is appropriate in different situations.  In both cases,
+when the operation cannot be completely bypassed.
+Each method
+is appropriate in different situations.
+In both cases,
 it is the responsibility of the aliasing layer to make
 the operation arguments "correct" for the lower layer
 by mapping a vnode argument to the lower layer.
@@ -217,7 +227,8 @@ the lower layer with the
 .Em VOP_OPERATIONNAME
 interface.
 The advantage of this method is that it is easy to invoke
-arbitrary operations on the lower layer.  The disadvantage
+arbitrary operations on the lower layer.
+The disadvantage
 is that vnode arguments must be manually mapped.
 .\"
 .\"
@@ -228,8 +239,11 @@ UCLA Technical Report CSD-910056,
 .Em "Stackable Layers: an Architecture for File System Development" .
 .Sh BUGS
 THIS FILE SYSTEM TYPE IS NOT YET FULLY SUPPORTED (READ: IT DOESN'T WORK)
-AND USING IT MAY, IN FACT, DESTROY DATA ON YOUR SYSTEM.  USE AT YOUR
-OWN RISK.  BEWARE OF DOG.  SLIPPERY WHEN WET.
+AND USING IT MAY, IN FACT, DESTROY DATA ON YOUR SYSTEM.
+USE AT YOUR
+OWN RISK.
+BEWARE OF DOG.
+SLIPPERY WHEN WET.
 .Pp
 This code also needs an owner in order to be less dangerous - serious
 hackers can apply by sending mail to

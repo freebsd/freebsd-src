@@ -112,7 +112,7 @@ name search is performed.
 Care should be taken with this in environments where not all
 file systems are mounted (yet) by the time
 .Nm
-is being run (e.g. when they are mounted over NFS).
+is being run (e.g.\& when they are mounted over NFS).
 Once
 .Fl p
 has been specified, optional
@@ -175,7 +175,8 @@ needs.
 The following options are available:
 .Bl -tag -width flag
 .It Fl a
-While listing, show counter values.  See also
+While listing, show counter values.
+See also
 .Dq show
 command.
 .It Fl f
@@ -189,11 +190,14 @@ without actually passing them into the kernel.
 .It Fl q
 While adding, zeroing or flushing, be quiet about actions (implies '-f').
 This is useful for adjusting rules by executing multiple ip6fw commands in a
-script (e.g. sh /etc/rc.firewall), or by processing a file of many ip6fw rules,
-across a remote login session.  If a flush is performed in normal
-(verbose) mode, it prints a message.  Because all rules are flushed, the
+script (e.g.\& sh /etc/rc.firewall), or by processing a file of many ip6fw rules,
+across a remote login session.
+If a flush is performed in normal
+(verbose) mode, it prints a message.
+Because all rules are flushed, the
 message cannot be delivered to the login session, the login session is
-closed and the remainder of the ruleset is not processed.  Access to the
+closed and the remainder of the ruleset is not processed.
+Access to the
 console is required to recover.
 .It Fl t
 While listing, show last match timestamp.
@@ -257,7 +261,8 @@ then when a packet matches a rule with the
 .Dq log
 keyword or a clear/resetlog is performed, a message will be logged to
 .Xr syslogd 8 ,
-or, if that fails, to the console.  If the kernel was compiled with the
+or, if that fails, to the console.
+If the kernel was compiled with the
 .Dv IPV6FIREWALL_VERBOSE_LIMIT
 option, then logging will cease after the number of packets
 specified by the option are received for that particular
@@ -335,9 +340,10 @@ and the length of the port list is limited to
 .In netinet6/ip6_fw.h )
 ports.
 .Pp
-Fragmented packets which have a non-zero offset (i.e. not the first
+Fragmented packets which have a non-zero offset (i.e., not the first
 fragment) will never match a rule which has one or more port
-specifications.  See the
+specifications.
+See the
 .Ar frag
 option for details on matching fragmented packets.
 .Pp
@@ -405,7 +411,7 @@ or
 is invalid.
 .Pp
 A packet may not have a receive or transmit interface: packets originating
-from the local host have no receive interface. while packets destined for
+from the local host have no receive interface, while packets destined for
 the local host have no transmit interface.
 .Pp
 Additional
@@ -469,7 +475,8 @@ with a
 A rule which contains a
 .Ar tcpflags
 specification can never match a fragmented packet which has
-a non-zero offset.  See the
+a non-zero offset.
+See the
 .Ar frag
 option for details on matching fragmented packets.
 .It icmptypes Ar types
