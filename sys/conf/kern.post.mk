@@ -42,6 +42,10 @@ ${SYSTEM_OBJS}: vnode_if.h ${BEFORE_DEPEND:M*.h} ${MFILES:T:S/.m$/.h/}
 .endif
 
 .for mfile in ${MFILES}
+# XXX the low quality .m.o rules gnerated by config are normally used
+# instead of the .m.c rules here.
+${mfile:T:S/.m$/.c/}: ${mfile}
+	${AWK} -f $S/tools/makeobjops.awk ${mfile} -c
 ${mfile:T:S/.m$/.h/}: ${mfile}
 	${AWK} -f $S/tools/makeobjops.awk ${mfile} -h
 .endfor
@@ -90,14 +94,17 @@ kernel-depend:
 	if [ -f .depend ]; then mv .depend .olddep; fi
 	${MAKE} _kernel-depend
 
+# XXX this belongs elsewhere (inside GEN_CFILES if possible).
+GEN_M_CFILES=	${MFILES:T:S/.m$/.c/}
+
 # The argument list can be very long, so use make -V and xargs to
 # pass it to mkdep.
 _kernel-depend: assym.s vnode_if.h ${BEFORE_DEPEND} \
-	    ${CFILES} ${SYSTEM_CFILES} ${GEN_CFILES} ${SFILES} \
-	    ${SYSTEM_SFILES} ${MFILES:T:S/.m$/.h/}
+	    ${CFILES} ${SYSTEM_CFILES} ${GEN_CFILES} ${GEN_M_CFILES} \
+	    ${SFILES} ${SYSTEM_SFILES} ${MFILES:T:S/.m$/.h/}
 	if [ -f .olddep ]; then mv .olddep .depend; fi
 	rm -f .newdep
-	${MAKE} -V CFILES -V SYSTEM_CFILES -V GEN_CFILES | \
+	${MAKE} -V CFILES -V SYSTEM_CFILES -V GEN_CFILES -V GEN_M_CFILES | \
 	    MKDEP_CPP="${CC} -E" CC="${CC}" xargs mkdep -a -f .newdep ${CFLAGS}
 	${MAKE} -V SFILES -V SYSTEM_SFILES | \
 	    MKDEP_CPP="${CC} -E" xargs mkdep -a -f .newdep ${ASM_CFLAGS}
