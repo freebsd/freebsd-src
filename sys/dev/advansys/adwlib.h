@@ -49,8 +49,6 @@
 
 #include "opt_adw.h"
 
-#include <stddef.h>	/* for offsetof */
-
 #include <dev/advansys/adwmcode.h>
 
 #define ADW_DEF_MAX_HOST_QNG	253

@@ -40,8 +40,6 @@
 #include <opt_aic7xxx.h>	/* for config options */
 #include <pci.h>		/* for NPCI */
 
-#include <stddef.h>		/* For offsetof */
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>		/* For device_t */
