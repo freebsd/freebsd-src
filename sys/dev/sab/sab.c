@@ -1111,7 +1111,7 @@ sab_cnprobe(struct consdev *cn)
 		cn->cn_pri = CN_DEAD;
 	else {
 		cn->cn_pri = CN_REMOTE;
-		cn->cn_dev = sc->sc_si;
+		strcpy(cn->cn_name, devtoname(sc->sc_si));
 		cn->cn_tp = sc->sc_tty;
 	}
 }
