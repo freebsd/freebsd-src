@@ -1,5 +1,5 @@
 /*
- * $Id: user.c,v 1.4 1996/12/14 23:09:10 jkh Exp $
+ * $Id: user.c,v 1.5 1996/12/15 11:22:37 joerg Exp $
  *
  * Copyright (c) 1996
  *      Jörg Wunsch. All rights reserved.
@@ -8,6 +8,7 @@
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
+ *      Jordan K Hubbard. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,19 +34,11 @@
  *
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <utmp.h>
-#include <sys/param.h>
-#include <string.h>
-#include <sysexits.h>
-#include <dialog.h>
-#include "ui_objects.h"
-#include "dir.h"
-#include "dialog.priv.h"
-#include "colors.h"
 #include "sysinstall.h"
+#include <utmp.h>
+#include <ctype.h>
+#include <sys/param.h>
+#include <sysexits.h>
 
 /* The help file for the user mgmt screen */
 #define USER_HELPFILE		"usermgmt"
@@ -87,87 +80,74 @@ static int	okbutton, cancelbutton;
 #define USER_DIALOG_WIDTH	COLS - 16
 #define USER_DIALOG_HEIGHT	LINES - 2
 
-/* The screen layout structure */
-typedef struct _layout {
-    int		y;		/* x & Y co-ordinates */
-    int		x;
-    int		len;		/* The size of the dialog on the screen */
-    int		maxlen;		/* How much the user can type in ... */
-    char	*prompt;	/* The string for the prompt */
-    char	*help;		/* The display for the help line */
-    void	*var;		/* The var to set when this changes */
-    int		type;		/* The type of the dialog to create */
-    void	*obj;		/* The obj pointer returned by libdialog */
-} Layout;
-
 /* The group configuration menu. */
 static Layout groupLayout[] = {
 #define LAYOUT_GNAME		0
-{ 4, 10, 20, GNAME_FIELD_LEN - 1,
-	"Group name:", "The alphanumeric name of the new group (mandatory)",
-	gname, STRINGOBJ, NULL },
+    { 4, 10, 20, GNAME_FIELD_LEN - 1,
+      "Group name:", "The alphanumeric name of the new group (mandatory)",
+      gname, STRINGOBJ, NULL },
 #define LAYOUT_GID		1
-{ 4, 38, 10, GID_FIELD_LEN - 1,
-	"GID:", "The numerical ID for this group (leave blank for automatic choice)",
-	gid, STRINGOBJ, NULL },
+    { 4, 38, 10, GID_FIELD_LEN - 1,
+      "GID:", "The numerical ID for this group (leave blank for automatic choice)",
+      gid, STRINGOBJ, NULL },
 #define LAYOUT_GMEMB		2
-{ 11, 10, 40, GMEMB_FIELD_LEN - 1,
-	"Group members:", "Who belongs to this group (i.e., gets access rights for it)",
-	gmemb, STRINGOBJ, NULL },
+    { 11, 10, 40, GMEMB_FIELD_LEN - 1,
+      "Group members:", "Who belongs to this group (i.e., gets access rights for it)",
+      gmemb, STRINGOBJ, NULL },
 #define LAYOUT_OKBUTTON		3
-{ 18, 15, 0, 0,
-	"OK", "Select this if you are happy with these settings",
-	&okbutton, BUTTONOBJ, NULL },
+    { 18, 15, 0, 0,
+      "OK", "Select this if you are happy with these settings",
+      &okbutton, BUTTONOBJ, NULL },
 #define LAYOUT_CANCELBUTTON	4
-{ 18, 35, 0, 0,
-	"CANCEL", "Select this if you wish to cancel this screen",
-	&cancelbutton, BUTTONOBJ, NULL },
-{ NULL },
+    { 18, 35, 0, 0,
+      "CANCEL", "Select this if you wish to cancel this screen",
+      &cancelbutton, BUTTONOBJ, NULL },
+    { NULL },
 };
 
 /* The user configuration menu. */
 static Layout userLayout[] = {
 #define LAYOUT_UNAME		0
-{ 3, 6, UT_NAMESIZE, UT_NAMESIZE + 4,
-	"Login ID:", "The login name of the new user (mandatory)",
-	uname, STRINGOBJ, NULL },
+    { 3, 6, UT_NAMESIZE, UT_NAMESIZE + 4,
+      "Login ID:", "The login name of the new user (mandatory)",
+      uname, STRINGOBJ, NULL },
 #define LAYOUT_UID		1
-{ 3, 23, 8, UID_FIELD_LEN - 1,
-	"UID:", "The numerical ID for this user (leave blank for automatic choice)",
-	uid, STRINGOBJ, NULL },
+    { 3, 23, 8, UID_FIELD_LEN - 1,
+      "UID:", "The numerical ID for this user (leave blank for automatic choice)",
+      uid, STRINGOBJ, NULL },
 #define LAYOUT_UGROUP		2
-{ 3, 33, 8, UGROUP_FIELD_LEN - 1,
-	"Group:", "The login group name for this user (leave blank for automatic choice)",
-	ugroup, STRINGOBJ, NULL },
+    { 3, 33, 8, UGROUP_FIELD_LEN - 1,
+      "Group:", "The login group name for this user (leave blank for automatic choice)",
+      ugroup, STRINGOBJ, NULL },
 #define LAYOUT_PASSWD		3
-{ 3, 43, 15, PASSWD_FIELD_LEN - 1,
-	"Password:", "The password for this user (enter this field with care!)",
-	passwd, STRINGOBJ, NULL },
+    { 3, 43, 15, PASSWD_FIELD_LEN - 1,
+      "Password:", "The password for this user (enter this field with care!)",
+      passwd, STRINGOBJ, NULL },
 #define LAYOUT_GECOS		4
-{ 8, 6, 33, GECOS_FIELD_LEN - 1,
-	"Full name:", "The user's full name (comment)",
-	gecos, STRINGOBJ, NULL },
+    { 8, 6, 33, GECOS_FIELD_LEN - 1,
+      "Full name:", "The user's full name (comment)",
+      gecos, STRINGOBJ, NULL },
 #define LAYOUT_UMEMB		5
-{ 8, 43, 15, UMEMB_FIELD_LEN - 1,
-	"Member groups:", "The groups this user belongs to (i.e. gets access rights for)",
-	umemb, STRINGOBJ, NULL },
+    { 8, 43, 15, UMEMB_FIELD_LEN - 1,
+      "Member groups:", "The groups this user belongs to (i.e. gets access rights for)",
+      umemb, STRINGOBJ, NULL },
 #define LAYOUT_HOMEDIR		6
-{ 13, 6, 20, HOMEDIR_FIELD_LEN - 1,
-	"Home directory:", "The user's home directory (leave blank for default)",
-	homedir, STRINGOBJ, NULL },
+    { 13, 6, 20, HOMEDIR_FIELD_LEN - 1,
+      "Home directory:", "The user's home directory (leave blank for default)",
+      homedir, STRINGOBJ, NULL },
 #define LAYOUT_SHELL		7
-{ 13, 29, 29, SHELL_FIELD_LEN - 1,
-	"Login shell:", "The user's login shell (leave blank for default)",
-	shell, STRINGOBJ, NULL },
+    { 13, 29, 29, SHELL_FIELD_LEN - 1,
+      "Login shell:", "The user's login shell (leave blank for default)",
+      shell, STRINGOBJ, NULL },
 #define LAYOUT_U_OKBUTTON	8
-{ 18, 15, 0, 0,
-	"OK", "Select this if you are happy with these settings",
+    { 18, 15, 0, 0,
+      "OK", "Select this if you are happy with these settings",
 	&okbutton, BUTTONOBJ, NULL },
 #define LAYOUT_U_CANCELBUTTON	9
-{ 18, 35, 0, 0,
-	"CANCEL", "Select this if you wish to cancel this screen",
-	&cancelbutton, BUTTONOBJ, NULL },
-{ NULL },
+    { 18, 35, 0, 0,
+      "CANCEL", "Select this if you wish to cancel this screen",
+      &cancelbutton, BUTTONOBJ, NULL },
+    { NULL },
 };
 
 /* whine */
@@ -357,10 +337,8 @@ userAddGroup(dialogMenuItem *self)
 {
     WINDOW              *ds_win, *save;
     ComposeObj          *obj = NULL;
-    ComposeObj		*first, *last;
-    int                 n=0, quit=FALSE, cancel=FALSE, ret;
-    int			max, firsttime=TRUE;
-    char		help[FILENAME_MAX];
+    int                 n = 0, cancel = FALSE, ret;
+    int			max, firsttime = TRUE;
 
     if (RunningAsInit && !strstr(variable_get(SYSTEM_STATE), "install")) {
         msgConfirm("This option may only be used after the system is installed, sorry!");
@@ -370,18 +348,14 @@ userAddGroup(dialogMenuItem *self)
     save = savescr();
     dialog_clear_norefresh();
     /* We need a curses window */
-    ds_win = newwin(LINES, COLS, 0, 0);
-    if (ds_win == 0)
-	msgFatal("Cannot open AddGroup dialog window!!");
+    if (!(ds_win = openLayoutDialog(USER_HELPFILE, " User and Group Management ",
+				    USER_DIALOG_X, USER_DIALOG_Y, USER_DIALOG_WIDTH, USER_DIALOG_HEIGHT))) {
+	beep();
+	msgConfirm("Cannot open addgroup dialog window!!");
+	return(DITEM_FAILURE);
+    }
 
-    /* Say where our help comes from */
-    use_helpfile(systemHelpFile(USER_HELPFILE, help));
-
-    /* Setup a nice screen for us to splat stuff onto */
-    draw_box(ds_win, USER_DIALOG_Y, USER_DIALOG_X, USER_DIALOG_HEIGHT, USER_DIALOG_WIDTH,
-	     dialog_attr, border_attr);
-    wattrset(ds_win, dialog_attr);
-    mvwaddstr(ds_win, USER_DIALOG_Y, USER_DIALOG_X + 18, " Users and Group Management ");
+    /* Draw a group entry box */
     draw_box(ds_win, USER_DIALOG_Y + 2, USER_DIALOG_X + 8, USER_DIALOG_HEIGHT - 6,
 	     USER_DIALOG_WIDTH - 17, dialog_attr, border_attr);
     wattrset(ds_win, dialog_attr);
@@ -391,115 +365,22 @@ userAddGroup(dialogMenuItem *self)
     CLEAR(gid);
     CLEAR(gmemb);
 
-    /* Loop over the layout list, create the objects, and add them
-       onto the chain of objects that dialog uses for traversal*/
-    n = 0;
-#define lt groupLayout[n]
-    while (lt.help != NULL) {
-	switch (lt.type) {
-	case STRINGOBJ:
-	    lt.obj = NewStringObj(ds_win, lt.prompt, lt.var,
-				  lt.y + USER_DIALOG_Y, lt.x + USER_DIALOG_X,
-				  lt.len, lt.maxlen);
-	    break;
-
-	case BUTTONOBJ:
-	    lt.obj = NewButtonObj(ds_win, lt.prompt, lt.var,
-				  lt.y + USER_DIALOG_Y, lt.x + USER_DIALOG_X);
-	    break;
-
-	default:
-	    msgFatal("Don't support this object yet!");
-	}
-	AddObj(&obj, lt.type, (void *) lt.obj);
-	n++;
-    }
-    max = n - 1;
-
-    /* Find the last object we can traverse to */
-    last = obj;
-    while (last->next)
-	last = last->next;
-
-    /* Find the first object in the list */
-    first = obj;
-    for (first = obj; first->prev; first = first->prev);
-
     /* Some more initialisation before we go into the main input loop */
-    n = 0;
+    obj = initLayoutDialog(ds_win, groupLayout, USER_DIALOG_X, USER_DIALOG_Y, &max);
+
+reenter:
     cancelbutton = okbutton = 0;
-
-    /* Incoming user data - DUCK! */
-    while (!quit) {
-	char help_line[80];
-	int i, len = strlen(lt.help);
-
-	/* Display the help line at the bottom of the screen */
-	for (i = 0; i < 79; i++)
-	    help_line[i] = (i < len) ? lt.help[i] : ' ';
-	help_line[i] = '\0';
-	use_helpline(help_line);
-	display_helpline(ds_win, LINES - 1, COLS - 1);
-
-	/* Ask for libdialog to do its stuff */
-	ret = PollObj(&obj);
-
-	/* Handle special case stuff that libdialog misses. Sigh */
-	switch (ret) {
-	    /* Bail out */
-	case SEL_ESC:
-	    quit = TRUE, cancel=TRUE;
-	    break;
-
-	    /* This doesn't work for list dialogs. Oh well. Perhaps
-	       should special case the move from the OK button ``up''
-	       to make it go to the interface list, but then it gets
-	       awkward for the user to go back and correct screw up's
-	       in the per-interface section */
-
-	case KEY_DOWN:
-	case SEL_TAB:
-	case SEL_CR:
-	    if (firsttime && n == LAYOUT_GNAME)
-	    {
-		/* fill in the blanks, well, just the GID */
-		completeGroup();
-		RefreshStringObj(groupLayout[LAYOUT_GID].obj);
-		firsttime = FALSE;
-	    }
-	    if (n < max)
-		++n;
-	    else
-		n = 0;
-	    break;
-
-	    /* The user has pressed enter over a button object */
-	case SEL_BUTTON:
- 	    if (cancelbutton)
-		cancel = TRUE, quit = TRUE;
-	    else {
-		if (verifyGroupSettings())
-		    quit = TRUE;
-	    }
-	    break;
-
-	case KEY_UP:
-	case SEL_BACKTAB:
-	    if (n)
-		--n;
-	    else
-		n = max;
-	    break;
-
-	case KEY_F(1):
-	    display_helpfile();
-
-	    /* They tried some key combination we don't support - tell them! */
-	default:
-	    beep();
+    while (layoutDialogLoop(ds_win, groupLayout, &obj, &n, max, &cancelbutton, &cancel)) {
+	if (firsttime && n == LAYOUT_GNAME) {
+	    /* fill in the blanks, well, just the GID */
+	    completeGroup();
+	    RefreshStringObj(groupLayout[LAYOUT_GID].obj);
+	    firsttime = FALSE;
 	}
     }
-#undef lt
+
+    if (!verifyGroupSettings())
+	goto reenter;
 
     /* Clear this crap off the screen */
     dialog_clear_norefresh();
@@ -507,11 +388,12 @@ userAddGroup(dialogMenuItem *self)
 
     if (!cancel) {
 	addGroup(ds_win);
-	restorescr(save);
-	return DITEM_SUCCESS;
+	ret = DITEM_SUCCESS;
     }
+    else
+	ret = DITEM_FAILURE;
     restorescr(save);
-    return DITEM_FAILURE;
+    return ret;
 }
 
 /* Check for the settings on the screen. */
@@ -776,10 +658,8 @@ userAddUser(dialogMenuItem *self)
 {
     WINDOW              *ds_win, *save;
     ComposeObj          *obj = NULL;
-    ComposeObj		*first, *last;
-    int                 n=0, quit=FALSE, cancel=FALSE, ret;
-    int			max, firsttime=TRUE;
-    char		help[FILENAME_MAX];
+    int                 n = 0, cancel = FALSE, ret;
+    int			max, firsttime = TRUE;
 
     if (RunningAsInit && !strstr(variable_get(SYSTEM_STATE), "install")) {
         msgConfirm("This option may only be used after the system is installed, sorry!");
@@ -788,19 +668,16 @@ userAddUser(dialogMenuItem *self)
 
     save = savescr();
     dialog_clear_norefresh();
+
     /* We need a curses window */
-    ds_win = newwin(LINES, COLS, 0, 0);
-    if (ds_win == 0)
-	msgFatal("Cannot open AddUser dialog window!!");
+    if (!(ds_win = openLayoutDialog(USER_HELPFILE, " User and Group Management ",
+				    USER_DIALOG_X, USER_DIALOG_Y, USER_DIALOG_WIDTH, USER_DIALOG_HEIGHT))) {
+	beep();
+	msgConfirm("Cannot open adduser dialog window!!");
+	return(DITEM_FAILURE);
+    }
 
-    /* Say where our help comes from */
-    use_helpfile(systemHelpFile(USER_HELPFILE, help));
-
-    /* Setup a nice screen for us to splat stuff onto */
-    draw_box(ds_win, USER_DIALOG_Y, USER_DIALOG_X, USER_DIALOG_HEIGHT, USER_DIALOG_WIDTH,
-	     dialog_attr, border_attr);
-    wattrset(ds_win, dialog_attr);
-    mvwaddstr(ds_win, USER_DIALOG_Y, USER_DIALOG_X + 18, " Users and Group Management ");
+    /* Draw a user entry box */
     draw_box(ds_win, USER_DIALOG_Y + 1, USER_DIALOG_X + 3, USER_DIALOG_HEIGHT - 5,
 	     USER_DIALOG_WIDTH - 6, dialog_attr, border_attr);
     wattrset(ds_win, dialog_attr);
@@ -814,124 +691,28 @@ userAddUser(dialogMenuItem *self)
     CLEAR(umemb);
     CLEAR(homedir);
     CLEAR(shell);
-    
-    /* Loop over the layout list, create the objects, and add them
-       onto the chain of objects that dialog uses for traversal*/
-    n = 0;
-#define lt userLayout[n]
-    while (lt.help != NULL) {
-	if (n == LAYOUT_PASSWD)
-	    DialogInputAttrs = DITEM_NO_ECHO;	/* This will affect the new string object if set */
-	switch (lt.type) {
-	case STRINGOBJ:
-	    lt.obj = NewStringObj(ds_win, lt.prompt, lt.var,
-				  lt.y + USER_DIALOG_Y, lt.x + USER_DIALOG_X,
-				  lt.len, lt.maxlen);
-	    break;
-
-	case BUTTONOBJ:
-	    lt.obj = NewButtonObj(ds_win, lt.prompt, lt.var,
-				  lt.y + USER_DIALOG_Y, lt.x + USER_DIALOG_X);
-	    break;
-
-	default:
-	    msgFatal("Don't support this object yet!");
-	}
-	AddObj(&obj, lt.type, (void *) lt.obj);
-	DialogInputAttrs = 0;
-	n++;
-    }
-    max = n - 1;
-
-    /* Find the last object we can traverse to */
-    last = obj;
-    while (last->next)
-	last = last->next;
-
-    /* Find the first object in the list */
-    first = obj;
-    for (first = obj; first->prev; first = first->prev);
 
     /* Some more initialisation before we go into the main input loop */
-    n = 0;
+    obj = initLayoutDialog(ds_win, userLayout, USER_DIALOG_X, USER_DIALOG_Y, &max);
+    
+reenter:
     cancelbutton = okbutton = 0;
-
-    /* Incoming user data - DUCK! */
-    while (!quit) {
-	char help_line[80];
-	int i, len = strlen(lt.help);
-
-	/* Display the help line at the bottom of the screen */
-	for (i = 0; i < 79; i++)
-	    help_line[i] = (i < len) ? lt.help[i] : ' ';
-	help_line[i] = '\0';
-	use_helpline(help_line);
-	display_helpline(ds_win, LINES - 1, COLS - 1);
-
-	/* Ask for libdialog to do its stuff */
-	ret = PollObj(&obj);
-
-	/* Handle special case stuff that libdialog misses. Sigh */
-	switch (ret) {
-	    /* Bail out */
-	case SEL_ESC:
-	    quit = TRUE, cancel=TRUE;
-	    break;
-
-	    /* This doesn't work for list dialogs. Oh well. Perhaps
-	       should special case the move from the OK button ``up''
-	       to make it go to the interface list, but then it gets
-	       awkward for the user to go back and correct screw up's
-	       in the per-interface section */
-
-	case KEY_DOWN:
-	case SEL_TAB:
-	case SEL_CR:
-	    if (firsttime && n == LAYOUT_UNAME)
-	    {
-		/* fill in the blanks, well, just the GID */
-		completeUser();
-		RefreshStringObj(userLayout[LAYOUT_UID].obj);
-		RefreshStringObj(userLayout[LAYOUT_UGROUP].obj);
-		RefreshStringObj(userLayout[LAYOUT_GECOS].obj);
-		RefreshStringObj(userLayout[LAYOUT_UMEMB].obj);
-		RefreshStringObj(userLayout[LAYOUT_HOMEDIR].obj);
-		RefreshStringObj(userLayout[LAYOUT_SHELL].obj);
-		firsttime = FALSE;
-	    }
-	    if (n < max)
-		++n;
-	    else
-		n = 0;
-	    break;
-
-	    /* The user has pressed enter over a button object */
-	case SEL_BUTTON:
- 	    if (cancelbutton)
-		cancel = TRUE, quit = TRUE;
-	    else {
-		if (verifyUserSettings(ds_win))
-		    quit = TRUE;
-	    }
-	    break;
-
-	case KEY_UP:
-	case SEL_BACKTAB:
-	    if (n)
-		--n;
-	    else
-		n = max;
-	    break;
-
-	case KEY_F(1):
-	    display_helpfile();
-
-	    /* They tried some key combination we don't support - tell them! */
-	default:
-	    beep();
+    while (layoutDialogLoop(ds_win, userLayout, &obj, &n, max, &cancelbutton, &cancel)) {
+	if (firsttime && n == LAYOUT_UNAME) {
+	    /* fill in the blanks, well, just the GID */
+	    completeUser();
+	    RefreshStringObj(userLayout[LAYOUT_UID].obj);
+	    RefreshStringObj(userLayout[LAYOUT_UGROUP].obj);
+	    RefreshStringObj(userLayout[LAYOUT_GECOS].obj);
+	    RefreshStringObj(userLayout[LAYOUT_UMEMB].obj);
+	    RefreshStringObj(userLayout[LAYOUT_HOMEDIR].obj);
+	    RefreshStringObj(userLayout[LAYOUT_SHELL].obj);
+	    firsttime = FALSE;
 	}
     }
-#undef lt
+
+    if (!verifyUserSettings(ds_win))
+	goto reenter;
 
     /* Clear this crap off the screen */
     dialog_clear_norefresh();
@@ -939,10 +720,11 @@ userAddUser(dialogMenuItem *self)
 
     if (!cancel) {
 	addUser(ds_win);
-	restorescr(save);
-	return DITEM_SUCCESS;
+	ret = DITEM_SUCCESS;
     }
+    else
+	ret = DITEM_FAILURE;
     restorescr(save);
-    return DITEM_FAILURE;
+    return ret;
 }
 

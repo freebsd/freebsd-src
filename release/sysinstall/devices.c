@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.55 1996/12/14 23:08:52 jkh Exp $
+ * $Id: devices.c,v 1.56 1996/12/26 21:03:04 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -35,20 +35,17 @@
  */
 
 #include "sysinstall.h"
-
 #include <sys/fcntl.h>
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <sys/errno.h>
 #include <sys/time.h>
-
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <arpa/inet.h>
-
 #include <ctype.h>
 
 static Device *Devices[DEV_MAX];
