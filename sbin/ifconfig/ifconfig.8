@@ -50,6 +50,10 @@
 .Op Ar protocol_family
 .Nm ifconfig
 .Ar -a
+.Nm ifconfig
+.Ar -au
+.Nm ifconfig
+.Ar -ad
 .Sh DESCRIPTION
 .Nm Ifconfig
 is used to assign an address
@@ -264,7 +268,18 @@ the hardware will be re-initialized.
 .Nm Ifconfig
 .Ar -a
 displays information on all interfaces.  When followed by a configuration
-parameter, will also set the configuration on all interfaces.
+parameter, it will also set the configuration on all interfaces.
+.Pp
+.Nm Ifconfig
+.Ar -au
+is similar to
+.Nm ifconfig
+.Ar -a ,
+except it only affects interfaces that are currently marked as up.
+Conversely,
+.Nm ifconfig
+.Ar -ad
+affects only interfaces that are marked down.
 .Pp
 .Nm Ifconfig
 displays the current configuration for a network interface
