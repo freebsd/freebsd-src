@@ -10,7 +10,8 @@ SRCS+=	big5.c btowc.c collate.c collcmp.c euc.c fix_grouping.c \
 	mbrlen.c \
 	mbrtowc.c mbsinit.c mbsnrtowcs.c \
 	mbsrtowcs.c mbtowc.c mbstowcs.c \
-	mskanji.c nextwctype.c nl_langinfo.c nomacros.c none.c rune.c \
+	mskanji.c nextwctype.c nl_langinfo.c nomacros.c none.c rpmatch.c \
+	rune.c \
 	runetype.c setlocale.c setrunelocale.c \
 	table.c \
 	tolower.c toupper.c utf8.c wcrtomb.c wcsnrtombs.c \
@@ -29,7 +30,7 @@ MAN+=	btowc.3 \
 	mbrtowc.3 \
 	mbsinit.3 \
 	mbsrtowcs.3 mbstowcs.3 mbtowc.3 multibyte.3 \
-	nextwctype.3 nl_langinfo.3 \
+	nextwctype.3 nl_langinfo.3 rpmatch.3 \
 	setlocale.3 toascii.3 tolower.3 toupper.3 towlower.3 towupper.3 \
 	wcsftime.3 \
 	wcrtomb.3 \

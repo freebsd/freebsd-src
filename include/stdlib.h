@@ -263,6 +263,7 @@ void	 qsort_r(void *, size_t, size_t, void *,
 int	 radixsort(const unsigned char **, int, const unsigned char *,
 	    unsigned);
 void    *reallocf(void *, size_t);
+int	 rpmatch(const char *);
 void	 setprogname(const char *);
 int	 sradixsort(const unsigned char **, int, const unsigned char *,
 	    unsigned);
