@@ -63,7 +63,6 @@ __FBSDID("$FreeBSD$");
 #if (defined(__i386__) && !defined(PC98)) || defined(__amd64__) || \
     defined (__ia64__)
 #include <contrib/dev/acpica/acpi.h>
-#include <dev/acpica/acpivar.h>
 #include "acpi_if.h"
 #else
 #define ACPI_PWR_FOR_SLEEP(x, y, z)
@@ -1919,7 +1918,7 @@ pci_cfg_save(device_t dev, struct pci_devinfo *dinfo, int setstate)
 
 	/*
 	 * Some drivers apparently write to these registers w/o updating our
-	 * cahced copy.  No harm happens if we update the copy, so do so here
+	 * cached copy.  No harm happens if we update the copy, so do so here
 	 * so we can restore them.  The COMMAND register is modified by the
 	 * bus w/o updating the cache.  This should represent the normally
 	 * writable portion of the 'defined' part of type 0 headers.  In
