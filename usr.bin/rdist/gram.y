@@ -37,6 +37,9 @@ static char sccsid[] = "@(#)gram.y	8.1 (Berkeley) 6/9/93";
 #endif /* not lint */
 
 #include "defs.h"
+#include <sys/types.h>
+#include <regex.h>
+#include <limits.h>
 
 struct	cmd *cmds = NULL;
 struct	cmd *last_cmd;
@@ -163,11 +166,19 @@ cmd:		  INSTALL options opt_namelist SM = {
 		}
 		| PATTERN namelist SM = {
 			struct namelist *nl;
-			char *cp, *re_comp();
+			regex_t rx;
+			int val;
+			char errbuf[_POSIX2_LINE_MAX];
 
-			for (nl = $2; nl != NULL; nl = nl->n_next)
-				if ((cp = re_comp(nl->n_name)) != NULL)
-					yyerror(cp);
+			for (nl = $2; nl != NULL; nl = nl->n_next) {
+				if (val = regcomp(&rx, nl->n_name, 
+						  REG_EXTENDED)) {
+					regerror(val, &rx, errbuf, 
+						 sizeof errbuf);
+					yyerror(errbuf);
+				}
+				regfree(&rx);
+			}
 			$1->sc_args = expand($2, E_VARS);
 			$$ = $1;
 		}

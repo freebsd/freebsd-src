@@ -7,8 +7,6 @@ OBJS+=	gram.o
 BINOWN=	root
 BINMODE=4555
 INSTALLFLAGS=-fschg
-DPADD=	${LIBCOMPAT}
-LDADD=	-lcompat
 CLEANFILES=y.tab.h
 
 .include <bsd.prog.mk>
