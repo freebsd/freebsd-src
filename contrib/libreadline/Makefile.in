@@ -1,0 +1,192 @@
+## -*- text -*- ####################################################
+#								   #
+# Makefile for the GNU Readline and History Libraries.		   #
+#								   #
+####################################################################
+
+srcdir = @srcdir@
+VPATH = .:@srcdir@
+topdir = @top_srcdir@
+BUILD_DIR = @BUILD_DIR@
+
+INSTALL = @INSTALL@
+INSTALL_PROGRAM = @INSTALL_PROGRAM@
+INSTALL_DATA = @INSTALL_DATA@
+
+CC = @CC@
+RANLIB = @RANLIB@
+AR = @AR@
+RM = rm -f
+CP = cp
+MV = mv
+
+# See the file STANDALONE for the -D defines that readline understands
+
+CFLAGS = @CFLAGS@
+LOCAL_CFLAGS = @LOCAL_CFLAGS@
+CPPFLAGS = @CPPFLAGS@
+LDFLAGS = @LDFLAGS@
+
+DEFS = @DEFS@
+
+INCLUDES = -I. -I$(BUILD_DIR) -I$(topdir) -I$(topdir)/lib
+
+CCFLAGS = $(DEFS) $(APP_CFLAGS) $(CPPFLAGS) ${INCLUDES} $(LOCAL_CFLAGS) $(CFLAGS)
+
+# Here is a rule for making .o files from .c files that doesn't force
+# the type of the machine (like -sun3) into the flags.
+.c.o:
+	$(CC) -c $(CCFLAGS) $<
+
+# The name of the main library target.
+LIBRARY_NAME = libreadline.a
+
+# The C code source files for this library.
+CSOURCES = $(srcdir)/readline.c $(srcdir)/funmap.c $(srcdir)/keymaps.c \
+	   $(srcdir)/vi_mode.c $(srcdir)/parens.c $(srcdir)/rltty.c \
+	   $(srcdir)/complete.c $(srcdir)/bind.c $(srcdir)/isearch.c \
+	   $(srcdir)/display.c $(srcdir)/signals.c $(srcdir)/emacs_keymap.c \
+	   $(srcdir)/vi_keymap.c $(srcdir)/util.c $(srcdir)/kill.c \
+	   $(srcdir)/undo.c $(srcdir)/macro.c $(srcdir)/input.c \
+	   $(srcdir)/callback.c $(srcdir)/terminal.c $(srcdir)/xmalloc.c \
+	   $(srcdir)/history.c $(srcdir)/histsearch.c $(srcdir)/histexpand.c \
+	   $(srcdir)/histfile.c $(srcdir)/nls.c \
+	   $(srcdir)/tilde.c \
+
+# The header files for this library.
+HSOURCES = readline.h rldefs.h chardefs.h keymaps.h history.h histlib.h \
+	   posixstat.h tilde.h rlconf.h tcap.h
+
+HISTOBJ = history.o histexpand.o histfile.o histsearch.o
+TILDEOBJ= tilde.o
+OBJECTS = readline.o vi_mode.o funmap.o keymaps.o parens.o search.o \
+	  rltty.o complete.o bind.o isearch.o display.o signals.o \
+	  util.o kill.o undo.o macro.o input.o callback.o terminal.o \
+	  nls.o xmalloc.o \
+	  $(HISTOBJ) $(TILDEOBJ)
+
+# The texinfo files which document this library.
+DOCSOURCE = doc/rlman.texinfo doc/rltech.texinfo doc/rluser.texinfo
+DOCOBJECT = doc/readline.dvi
+DOCSUPPORT = doc/Makefile
+DOCUMENTATION = $(DOCSOURCE) $(DOCOBJECT) $(DOCSUPPORT)
+
+SUPPORT = Makefile ChangeLog $(DOCSUPPORT) examples/[-a-z.]*
+
+SOURCES  = $(CSOURCES) $(HSOURCES) $(DOCSOURCE)
+
+THINGS_TO_TAR = $(SOURCES) $(SUPPORT)
+
+INSTALLED_HEADERS = readline.h chardefs.h keymaps.h history.h tilde.h
+
+##########################################################################
+
+all: libreadline.a libhistory.a
+
+libreadline.a: $(OBJECTS)
+	$(RM) -f $@
+	$(AR) cr $@ $(OBJECTS)
+	-test -n "$(RANLIB)" && $(RANLIB) $@
+
+libhistory.a: $(HISTOBJ) xmalloc.o
+	$(RM) -f $@
+	$(AR) cr $@ $(HISTOBJ) xmalloc.o
+	-test -n "$(RANLIB)" && $(RANLIB) $@
+
+documentation: force
+	test -d doc || mkdir doc
+	-( cd doc && $(MAKE) $(MFLAGS) )
+
+force:
+
+# The rule for 'includes' is written funny so that the if statement
+# always returns TRUE unless there really was an error installing the
+# include files.
+install: installdirs libreadline.a
+	for file in $(INSTALLED_HEADERS) ; do \
+		$(INSTALL_DATA) $(srcdir)/$$file $(includedir)/readline ; \
+	done
+	-${MV} $(libdir)/libreadline.a $(libdir)/libreadline.old
+	${INSTALL_DATA} libreadline.a $(libdir)/libreadline.a
+	-test -n "$(RANLIB)" && $(RANLIB) -t $(bindir)/libreadline.a
+
+installdirs:	$(topdir)/support/mkdirs
+	$(SHELL) $(topdir)/support/mkdirs $(includedir) \
+		$(includedir)/readline $(libdir) $(infodir) $(man3dir)
+
+uninstall:
+	cd $(includedir)/readline && ${RM} -f ${INSTALLED_HEADERS}
+	cd $(libdir) && ${RM} -f libreadline.a libreadline.old
+
+tags:	force
+	etags $(CSOURCES) $(HSOURCES)
+
+TAGS:	force
+	ctags -x $(CSOURCES) $(HSOURCES) > $@
+
+readline: readline.h rldefs.h chardefs.h
+readline: $(OBJECTS)
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(READLINE_DEFINES) \
+	  $(LOCAL_INCLUDES) -DTEST -o readline readline.c vi_mode.o funmap.o \
+	  keymaps.o -ltermcap
+
+clean:	force
+	$(RM) $(OBJECTS) *.a
+	-( cd doc && $(MAKE) $(MFLAGS) $@ )
+
+distclean realclean maintainer-clean: clean
+	-( cd doc && $(MAKE) $(MFLAGS) $@ )
+	$(RM) Makefile
+
+mostlyclean: clean
+	-( cd doc && $(MAKE) $(MFLAGS) $@ )
+
+# Dependencies
+readline.o: readline.c readline.h rldefs.h rlconf.h chardefs.h tcap.h
+readline.o: keymaps.h history.h
+vi_mode.o: rldefs.h rlconf.h readline.h history.h
+funmap.o: funmap.c readline.h rlconf.h
+keymaps.o: keymaps.c emacs_keymap.c vi_keymap.c keymaps.h chardefs.h rlconf.h
+history.o: history.h histlib.h
+histexpand.o: history.h histlib.h
+histsearch.o: history.h histlib.h
+histfile.o: history.h histlib.h
+isearch.o: readline.h history.h
+search.o: readline.h history.h
+display.o: readline.h history.h rldefs.h rlconf.h tcap.h
+complete.o: readline.h rldefs.h rlconf.h posixdir.h posixstat.h
+rltty.o: rldefs.h rlconf.h readline.h rltty.h
+bind.o: rldefs.h rlconf.h readline.h history.h
+signals.o: rldefs.h rlconf.h readline.h history.h
+parens.o: readline.h
+kill.o: rldefs.h rlconf.h readline.h history.h
+macro.o: rldefs.h rlconf.h readline.h history.h
+undo.o: rldefs.h rlconf.h readline.h history.h
+input.o: rldefs.h rlconf.h readline.h history.h
+callback.o: rlconf.h rldefs.h readline.h
+terminal.o: rlconf.h rldefs.h readline.h tcap.h history.h
+
+bind.o: $(BUILD_DIR)/config.h
+callback.o: $(BUILD_DIR)/config.h
+complete.o: $(BUILD_DIR)/config.h
+display.o: $(BUILD_DIR)/config.h
+funmap.o: $(BUILD_DIR)/config.h
+histexpand.o: $(BUILD_DIR)/config.h
+histfile.o: $(BUILD_DIR)/config.h
+history.o: $(BUILD_DIR)/config.h
+histsearch.o: $(BUILD_DIR)/config.h
+input.o: $(BUILD_DIR)/config.h
+isearch.o: $(BUILD_DIR)/config.h
+keymaps.o: $(BUILD_DIR)/config.h
+kill.o: $(BUILD_DIR)/config.h
+macro.o: $(BUILD_DIR)/config.h
+parens.o: $(BUILD_DIR)/config.h
+readline.o: $(BUILD_DIR)/config.h
+rltty.o: $(BUILD_DIR)/config.h
+search.o: $(BUILD_DIR)/config.h
+signals.o: $(BUILD_DIR)/config.h
+tilde.o: $(BUILD_DIR)/config.h
+undo.o: $(BUILD_DIR)/config.h
+util.o: $(BUILD_DIR)/config.h
+vi_mode.o: $(BUILD_DIR)/config.h
+xmalloc.o: $(BUILD_DIR)/config.h
