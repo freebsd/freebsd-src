@@ -381,6 +381,12 @@
       stages of kernel initialization (before the system enters into
       single-user mode). &merged;</para>
 
+    <para>The kernel memory allocator is now a slab memory allocator,
+      similar to that used in Solaris.  This is a SMP-safe memory
+      allocator that has near-linear performance as the number of CPUs
+      increases.  It also allows for reduced memory
+      fragmentation.</para>
+
     <sect3>
       <title>Processor/Motherboard Support</title>
 
@@ -925,6 +931,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
       <para>The TCP implementation now properly ignores packets
 	addressed to IP-layer broadcast addresses. &merged;</para>
+
+      <para>The ephemeral port range used for TCP and UDP has been
+	changed to 49152&ndash;65535 (the old default was
+	1024&ndash;5000).  This increases the number of concurrent
+	outgoing connections/streams.</para>
     </sect3>
 
     <sect3>
@@ -2716,7 +2727,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	8.3.1-REL. &merged;</para>
 
       <para><application>Binutils</application> has been updated to a
-	21 February 2002 snapshot from the FSF 2.12 branch.</para>
+	2.12.0.</para>
 
       <para><application>bzip2</application> 1.0.2 has been imported;
 	this brings the &man.bzip2.1; program and the
@@ -2730,7 +2741,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	3.37.</para>
 
       <para><application>gcc</application> has been updated to
-	2.95.3. &merged;</para>
+	a snapshot of the 2.95 development branch from 20 March 2002
+	(this snapshot includes changes made after the release of
+	<application>gcc</application>2.95.3).</para>
 
       <para>&man.gcc.1; now uses a unified <filename>libgcc</filename>
 	rather than a separate one for threaded and non-threaded
@@ -2814,7 +2827,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
         <application>Linux-PAM</application>.</para>
 
       <para>The <application>OPIE</application> one-time-password
-	suite has been updated to 2.32. &merged; It has completely
+	suite has been updated to 2.4.  It has completely
 	replaced the functionality of
 	<application>S/Key</application>.</para>
 
@@ -2944,7 +2957,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	  <application>OpenSSH</application> users in the USA no
 	  longer need to rely on the restrictively-licensed RSAREF
 	  toolkit which is required to handle RSA keys.  Among other
-	  new features: A client and server for sftp has been added.
+	  new features: A client and server for &man.sftp.1; has been added.
 	  &man.scp.1; can now handle files larger than 2 GBytes.  A
 	  limit on the number of outstanding, unauthenticated
 	  connections in &man.sshd.8; has been added.  Support has
@@ -2953,9 +2966,34 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	  <application>SOCKS4</application> proxy has been added to
 	  &man.ssh.1;. &merged;</para>
 
+	<para><application>OpenSSH</application> has been updated to
+	  version 3.1.  Among the changes:
+	    <itemizedlist>
+	      <listitem>
+	        <para>The <filename>*2</filename> files are obsolete
+		  (for example,
+		  <filename>~/.ssh/known_hosts</filename> can hold the 
+		  contents of
+		  <filename>~/.ssh/known_hosts2</filename>).</para>
+	      </listitem>
+	      <listitem>
+	        <para>&man.ssh-keygen.1; can import and export keys using
+		  the SECSH Public Key File Format, for key exchange
+		  with several commercial SSH implementations.</para>
+	      </listitem>
+	      <listitem>
+	        <para>&man.ssh-add.1; now adds all three default keys.</para>
+	      </listitem>
+	      <listitem>
+	        <para>&man.ssh-keygen.1; no longer defaults to a
+		  specific key type; one must be specified with the
+		  <option>-t</option> option.</para>
+	      </listitem>
+	    </itemizedlist>
+	  </para>
+
 	<para><application>OpenSSH</application> can now authenticate
-	  using OPIE passwords in SSH1 mode.  Support is not yet
-	  available in SSH2 mode. &merged;</para>
+	  using <application>OPIE</application> passwords.</para>
 
 	<para><application>PAM</application> support for
 	  <application>OpenSSH</application> has been added.</para>
