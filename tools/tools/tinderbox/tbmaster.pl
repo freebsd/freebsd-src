@@ -37,6 +37,7 @@ use Sys::Hostname;
 my %CONFIGS	= (
     # Global settings
     'global' => {
+	'SANDBOX'	=> '/home/des/tinderbox',
 	'LOGDIR'	=> '/home/des/public_html',
 	'OPTIONS'	=> [ '--verbose' ],
 	'EMAIL'		=> 'des+%%arch%%-%%branch%%@freebsd.org',
@@ -92,13 +93,11 @@ my %CONFIGS	= (
 	    'i386'	=> [ 'i386' ],
 	},
 	'ENV'		=> {
-	    'NOCRYPT'		=> 'YES',
 	    'NOLIBC_R'		=> 'YES',
+	    'NOPERL'		=> 'YES',
 	    'NOPROFILE'		=> 'YES',
-	    'NOSECURE'		=> 'YES',
 	    'NO_BIND'		=> 'YES',
 	    'NO_FORTRAN'	=> 'YES',
-	    'NO_KERBEROS'	=> 'YES',
 	    'NO_SENDMAIL'	=> 'YES',
 	},
     },
@@ -113,9 +112,7 @@ my %CONFIGS	= (
 	'ENV'		=> {
 	    'NOCRYPT'		=> 'YES',
 	    'NOLIBC_R'		=> 'YES',
-	    'NOPERL'		=> 'YES',
 	    'NOPROFILE'		=> 'YES',
-	    'NOSECURE'		=> 'YES',
 	    'NO_BIND'		=> 'YES',
 	    'NO_FORTRAN'	=> 'YES',
 	    'NO_SENDMAIL'	=> 'YES',
@@ -177,6 +174,7 @@ sub tinderbox($$$) {
 
     # Fork and start the tinderbox
     my @args = @{$CONFIG{'OPTIONS'}};
+    push(@args, "--sandbox=$CONFIG{'SANDBOX'}");
     push(@args, "--branch=$branch");
     push(@args, "--arch=$arch");
     push(@args, "--machine=$machine");
@@ -255,7 +253,7 @@ sub tinderbox($$$) {
 	$recipient =~ s/\%\%arch\%\%/$arch/gi;
 	$recipient =~ s/\%\%machine\%\%/$machine/gi;
 	report(lc($recipient),
-	    "$branch tinderbox failure on $arch/$machine",
+	    "[$CONFIG{'COMMENT'}] failure on $arch/$machine",
 	    $summary);
     }
 
