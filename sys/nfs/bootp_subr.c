@@ -1,4 +1,4 @@
-/*	$Id: bootp_subr.c,v 1.12 1998/03/28 10:33:15 bde Exp $	*/
+/*	$Id: bootp_subr.c,v 1.13 1998/03/30 09:53:38 phk Exp $	*/
 
 /*
  * Copyright (c) 1995 Gordon Ross, Adam Glass
@@ -361,8 +361,8 @@ bootpc_call(call,reply,procp)
 		if (timo < MAX_RESEND_DELAY)
 			timo++;
 		else
-			printf("BOOTP timeout for server 0x%x\n",
-			       ntohl(sin->sin_addr.s_addr));
+			printf("BOOTP timeout for server 0x%lx\n",
+			       (u_long)ntohl(sin->sin_addr.s_addr));
 
 		/*
 		 * Wait for up to timo seconds for a reply.

@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pt.c,v 1.28 1998/06/17 14:13:14 bde Exp $
+ *      $Id: pt.c,v 1.29 1998/07/04 22:30:24 julian Exp $
  */
 
 #include "opt_bounce.h"
@@ -209,7 +209,7 @@ ptstart(unit, flags)
 			bp,
 			flags) == SUCCESSFULLY_QUEUED) {
 		} else {
-			printf("pt%ld: oops not queued\n", unit);
+			printf("pt%lu: oops not queued\n", (u_long)unit);
 			bp->b_flags |= B_ERROR;
 			bp->b_error = EIO;
 			biodone(bp);
