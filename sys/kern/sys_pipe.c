@@ -179,7 +179,7 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, pipekvawired, CTLFLAG_RD,
 static void pipeinit(void *dummy __unused);
 static void pipeclose(struct pipe *cpipe);
 static void pipe_free_kmem(struct pipe *cpipe);
-static int pipe_create(struct pipe **cpipep);
+static int pipe_create(struct pipe *pipe);
 static __inline int pipelock(struct pipe *cpipe, int catch);
 static __inline void pipeunlock(struct pipe *cpipe);
 static __inline void pipeselwakeup(struct pipe *cpipe);
@@ -191,6 +191,11 @@ static void pipe_clone_write_buffer(struct pipe *wpipe);
 #endif
 static int pipespace(struct pipe *cpipe, int size);
 
+static void	pipe_zone_ctor(void *mem, int size, void *arg);
+static void	pipe_zone_dtor(void *mem, int size, void *arg);
+static void	pipe_zone_init(void *mem, int size);
+static void	pipe_zone_fini(void *mem, int size);
+
 static uma_zone_t pipe_zone;
 
 SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_ANY, pipeinit, NULL);
@@ -199,13 +204,96 @@ static void
 pipeinit(void *dummy __unused)
 {
 
-	pipe_zone = uma_zcreate("PIPE", sizeof(struct pipe), NULL,
-	    NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	pipe_zone = uma_zcreate("PIPE", sizeof(struct pipepair),
+	    pipe_zone_ctor, pipe_zone_dtor, pipe_zone_init, pipe_zone_fini,
+	    UMA_ALIGN_PTR, 0);
 	KASSERT(pipe_zone != NULL, ("pipe_zone not initialized"));
 }
 
+static void
+pipe_zone_ctor(void *mem, int size, void *arg)
+{
+	struct pipepair *pp;
+	struct pipe *rpipe, *wpipe;
+
+	KASSERT(size == sizeof(*pp), ("pipe_zone_ctor: wrong size"));
+
+	pp = (struct pipepair *)mem;
+
+	/*
+	 * We zero both pipe endpoints to make sure all the kmem pointers
+	 * are NULL, flag fields are zero'd, etc.  We timestamp both
+	 * endpoints with the same time.
+	 */
+	rpipe = &pp->pp_rpipe;
+	bzero(rpipe, sizeof(*rpipe));
+	vfs_timestamp(&rpipe->pipe_ctime);
+	rpipe->pipe_atime = rpipe->pipe_mtime = rpipe->pipe_ctime;
+
+	wpipe = &pp->pp_wpipe;
+	bzero(wpipe, sizeof(*wpipe));
+	wpipe->pipe_ctime = rpipe->pipe_ctime;
+	wpipe->pipe_atime = wpipe->pipe_mtime = rpipe->pipe_ctime;
+
+	rpipe->pipe_peer = wpipe;
+	rpipe->pipe_pair = pp;
+	wpipe->pipe_peer = rpipe;
+	wpipe->pipe_pair = pp;
+
+	/*
+	 * Mark both endpoints as present; they will later get free'd
+	 * one at a time.  When both are free'd, then the whole pair
+	 * is released.
+	 */
+	rpipe->pipe_present = 1;
+	wpipe->pipe_present = 1;
+
+	/*
+	 * Eventually, the MAC Framework may initialize the label
+	 * in ctor or init, but for now we do it elswhere to avoid
+	 * blocking in ctor or init.
+	 */
+	pp->pp_label = NULL;
+
+}
+
+static void
+pipe_zone_dtor(void *mem, int size, void *arg)
+{
+	struct pipepair *pp;
+
+	KASSERT(size == sizeof(*pp), ("pipe_zone_dtor: wrong size"));
+
+	pp = (struct pipepair *)mem;
+}
+
+static void
+pipe_zone_init(void *mem, int size)
+{
+	struct pipepair *pp;
+
+	KASSERT(size == sizeof(*pp), ("pipe_zone_init: wrong size"));
+
+	pp = (struct pipepair *)mem;
+
+	mtx_init(&pp->pp_mtx, "pipe mutex", NULL, MTX_DEF | MTX_RECURSE);
+}
+
+static void
+pipe_zone_fini(void *mem, int size)
+{
+	struct pipepair *pp;
+
+	KASSERT(size == sizeof(*pp), ("pipe_zone_fini: wrong size"));
+
+	pp = (struct pipepair *)mem;
+
+	mtx_destroy(&pp->pp_mtx);
+}
+
 /*
- * The pipe system call for the DTYPE_PIPE type of pipes
+ * The pipe system call for the DTYPE_PIPE type of pipes.  If we fail,
+ * let the zone pick up the pieces via pipeclose().
  */
 
 /* ARGSUSED */
@@ -218,12 +306,25 @@ pipe(td, uap)
 {
 	struct filedesc *fdp = td->td_proc->p_fd;
 	struct file *rf, *wf;
+	struct pipepair *pp;
 	struct pipe *rpipe, *wpipe;
-	struct mtx *pmtx;
 	int fd, error;
 
-	rpipe = wpipe = NULL;
-	if (pipe_create(&rpipe) || pipe_create(&wpipe)) {
+	pp = uma_zalloc(pipe_zone, M_WAITOK);
+#ifdef MAC
+	/*
+	 * struct pipe represents a pipe endpoint.  The MAC label is shared
+	 * between the connected endpoints.  As a result mac_init_pipe() and
+	 * mac_create_pipe() should only be called on one of the endpoints
+	 * after they have been connected.
+	 */
+	mac_init_pipe(pp);
+	mac_create_pipe(td->td_ucred, pp);
+#endif
+	rpipe = &pp->pp_rpipe;
+	wpipe = &pp->pp_wpipe;
+
+	if (pipe_create(rpipe) || pipe_create(wpipe)) {
 		pipeclose(rpipe);
 		pipeclose(wpipe);
 		return (ENFILE);
@@ -278,21 +379,6 @@ pipe(td, uap)
 	FILE_UNLOCK(wf);
 	fdrop(wf, td);
 	td->td_retval[1] = fd;
-	rpipe->pipe_peer = wpipe;
-	wpipe->pipe_peer = rpipe;
-#ifdef MAC
-	/*
-	 * struct pipe represents a pipe endpoint.  The MAC label is shared
-	 * between the connected endpoints.  As a result mac_init_pipe() and
-	 * mac_create_pipe() should only be called on one of the endpoints
-	 * after they have been connected.
-	 */
-	mac_init_pipe(rpipe);
-	mac_create_pipe(td->td_ucred, rpipe);
-#endif
-	pmtx = malloc(sizeof(*pmtx), M_TEMP, M_WAITOK | M_ZERO);
-	mtx_init(pmtx, "pipe mutex", NULL, MTX_DEF | MTX_RECURSE);
-	rpipe->pipe_mtxp = wpipe->pipe_mtxp = pmtx;
 	fdrop(rf, td);
 
 	return (0);
@@ -314,8 +400,7 @@ pipespace(cpipe, size)
 	static int curfail = 0;
 	static struct timeval lastfail;
 
-	KASSERT(cpipe->pipe_mtxp == NULL || !mtx_owned(PIPE_MTX(cpipe)),
-	       ("pipespace: pipe mutex locked"));
+	KASSERT(!mtx_owned(PIPE_MTX(cpipe)), ("pipespace: pipe mutex locked"));
 
 	size = round_page(size);
 	/*
@@ -349,59 +434,27 @@ pipespace(cpipe, size)
 }
 
 /*
- * initialize and allocate VM and memory for pipe
+ * Initialize and allocate VM and memory for pipe.  The structure
+ * will start out zero'd from the ctor, so we just manage the kmem.
  */
 static int
-pipe_create(cpipep)
-	struct pipe **cpipep;
+pipe_create(pipe)
+	struct pipe *pipe;
 {
-	struct pipe *cpipe;
 	int error;
 
-	*cpipep = uma_zalloc(pipe_zone, M_WAITOK);
-	if (*cpipep == NULL)
-		return (ENOMEM);
-
-	cpipe = *cpipep;
-
-	/*
-	 * protect so pipeclose() doesn't follow a junk pointer
-	 * if pipespace() fails.
-	 */
-	bzero(&cpipe->pipe_sel, sizeof(cpipe->pipe_sel));
-	cpipe->pipe_state = 0;
-	cpipe->pipe_peer = NULL;
-	cpipe->pipe_busy = 0;
-
-#ifndef PIPE_NODIRECT
-	/*
-	 * pipe data structure initializations to support direct pipe I/O
-	 */
-	cpipe->pipe_map.cnt = 0;
-	cpipe->pipe_map.kva = 0;
-	cpipe->pipe_map.pos = 0;
-	cpipe->pipe_map.npages = 0;
-	/* cpipe->pipe_map.ms[] = invalid */
-#endif
-
-	cpipe->pipe_mtxp = NULL;	/* avoid pipespace assertion */
 	/*
 	 * Reduce to 1/4th pipe size if we're over our global max.
 	 */
 	if (amountpipekva > maxpipekva / 2)
-		error = pipespace(cpipe, SMALL_PIPE_SIZE);
+		error = pipespace(pipe, SMALL_PIPE_SIZE);
 	else
-		error = pipespace(cpipe, PIPE_SIZE);
+		error = pipespace(pipe, PIPE_SIZE);
 	if (error)
 		return (error);
 
-	vfs_timestamp(&cpipe->pipe_ctime);
-	cpipe->pipe_atime = cpipe->pipe_ctime;
-	cpipe->pipe_mtime = cpipe->pipe_ctime;
-
 	return (0);
 }
-
 
 /*
  * lock a pipe for I/O, blocking other access
@@ -477,7 +530,7 @@ pipe_read(fp, uio, active_cred, flags, td)
 		goto unlocked_error;
 
 #ifdef MAC
-	error = mac_check_pipe_read(active_cred, rpipe);
+	error = mac_check_pipe_read(active_cred, rpipe->pipe_pair);
 	if (error)
 		goto locked_error;
 #endif
@@ -890,7 +943,7 @@ pipe_write(fp, uio, active_cred, flags, td)
 		return (EPIPE);
 	}
 #ifdef MAC
-	error = mac_check_pipe_write(active_cred, wpipe);
+	error = mac_check_pipe_write(active_cred, wpipe->pipe_pair);
 	if (error) {
 		PIPE_UNLOCK(rpipe);
 		return (error);
@@ -1180,7 +1233,7 @@ pipe_ioctl(fp, cmd, data, active_cred, td)
 	PIPE_LOCK(mpipe);
 
 #ifdef MAC
-	error = mac_check_pipe_ioctl(active_cred, mpipe, cmd, data);
+	error = mac_check_pipe_ioctl(active_cred, mpipe->pipe_pair, cmd, data);
 	if (error) {
 		PIPE_UNLOCK(mpipe);
 		return (error);
@@ -1252,7 +1305,7 @@ pipe_poll(fp, events, active_cred, td)
 	wpipe = rpipe->pipe_peer;
 	PIPE_LOCK(rpipe);
 #ifdef MAC
-	error = mac_check_pipe_poll(active_cred, rpipe);
+	error = mac_check_pipe_poll(active_cred, rpipe->pipe_pair);
 	if (error)
 		goto locked_error;
 #endif
@@ -1308,7 +1361,7 @@ pipe_stat(fp, ub, active_cred, td)
 	int error;
 
 	PIPE_LOCK(pipe);
-	error = mac_check_pipe_stat(active_cred, pipe);
+	error = mac_check_pipe_stat(active_cred, pipe->pipe_pair);
 	PIPE_UNLOCK(pipe);
 	if (error)
 		return (error);
@@ -1350,8 +1403,8 @@ pipe_free_kmem(cpipe)
 	struct pipe *cpipe;
 {
 
-	KASSERT(cpipe->pipe_mtxp == NULL || !mtx_owned(PIPE_MTX(cpipe)),
-	       ("pipe_free_kmem: pipe mutex locked"));
+	KASSERT(!mtx_owned(PIPE_MTX(cpipe)),
+	    ("pipe_free_kmem: pipe mutex locked"));
 
 	if (cpipe->pipe_buffer.buffer != NULL) {
 		if (cpipe->pipe_buffer.size > PIPE_SIZE)
@@ -1385,17 +1438,15 @@ static void
 pipeclose(cpipe)
 	struct pipe *cpipe;
 {
+	struct pipepair *pp;
 	struct pipe *ppipe;
 	int hadpeer;
 
-	if (cpipe == NULL)
-		return;
+	KASSERT(cpipe != NULL, ("pipeclose: cpipe == NULL"));
 
 	hadpeer = 0;
-
-	/* partially created pipes won't have a valid mutex. */
-	if (PIPE_MTX(cpipe) != NULL)
-		PIPE_LOCK(cpipe);
+	PIPE_LOCK(cpipe);
+	pp = cpipe->pipe_pair;
 
 	pipeselwakeup(cpipe);
 
@@ -1409,35 +1460,43 @@ pipeclose(cpipe)
 		msleep(cpipe, PIPE_MTX(cpipe), PRIBIO, "pipecl", 0);
 	}
 
-#ifdef MAC
-	if (cpipe->pipe_label != NULL && cpipe->pipe_peer == NULL)
-		mac_destroy_pipe(cpipe);
-#endif
 
 	/*
-	 * Disconnect from peer
+	 * Disconnect from peer, if any.
 	 */
-	if ((ppipe = cpipe->pipe_peer) != NULL) {
+	ppipe = cpipe->pipe_peer;
+	if (ppipe->pipe_present != 0) {
 		hadpeer++;
 		pipeselwakeup(ppipe);
 
 		ppipe->pipe_state |= PIPE_EOF;
 		wakeup(ppipe);
 		KNOTE(&ppipe->pipe_sel.si_note, 0);
-		ppipe->pipe_peer = NULL;
 	}
+
 	/*
-	 * free resources
+	 * Mark this endpoint as free.  Release kmem resources.  We
+	 * don't mark this endpoint as unused until we've finished
+	 * doing that, or the pipe might disappear out from under
+	 * us.
 	 */
-	if (PIPE_MTX(cpipe) != NULL) {
-		PIPE_UNLOCK(cpipe);
-		if (!hadpeer) {
-			mtx_destroy(PIPE_MTX(cpipe));
-			free(PIPE_MTX(cpipe), M_TEMP);
-		}
-	}
+	PIPE_UNLOCK(cpipe);
 	pipe_free_kmem(cpipe);
-	uma_zfree(pipe_zone, cpipe);
+	PIPE_LOCK(cpipe);
+	cpipe->pipe_present = 0;
+
+	/*
+	 * If both endpoints are now closed, release the memory for the
+	 * pipe pair.  If not, unlock.
+	 */
+	if (ppipe->pipe_present == 0) {
+		PIPE_UNLOCK(cpipe);
+#ifdef MAC
+		mac_destroy_pipe(pp);
+#endif
+		uma_zfree(pipe_zone, cpipe->pipe_pair);
+	} else
+		PIPE_UNLOCK(cpipe);
 }
 
 /*ARGSUSED*/
