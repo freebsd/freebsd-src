@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.103.2.1 1999/01/31 12:42:38 yokota Exp $
+#	$Id: options.i386,v 1.103.2.2 1999/03/03 10:57:42 kato Exp $
 
 DISABLE_PSE
 IDE_DELAY
@@ -166,6 +166,11 @@ AVM_A1_PCMCIA		opt_i4b.h
 I4B_SMP_WORKAROUND      opt_i4b.h
 # enable VJ compression code for ipr i/f
 IPR_VJ			opt_i4b.h
+
+# Total number of ports controlled by the dgb(4) driver.
+# Defaults to NDGB*16.
+NDGBPORTS		opt_dgb.h
+
 # -------------------------------
 # EOF
 # -------------------------------
