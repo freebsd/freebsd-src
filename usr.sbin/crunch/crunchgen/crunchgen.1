@@ -64,7 +64,7 @@ hiding all unnecessary symbols.
 
 .Pp
 After
-.Nm crunchgen
+.Nm
 is run, the crunched binary can be built by running ``make -f
 <conf-name>.mk''.  The component programs' object files must already
 be built.  A ``objs'' target, included in the output makefile, will
@@ -107,7 +107,7 @@ top-level source directories in which their sources can be found.
 then calculates (via the source makefiles) and caches the
 list of object files and their locations.  For more specialized
 situations, the user can specify by hand all the parameters that 
-.Nm crunchgen
+.Nm
 needs.
 .Pp
 The
@@ -143,7 +143,7 @@ To handle specialized situations, such as when the source is not
 available or not built via a conventional Makefile, the following
 .Nm special
 commands can be used to set 
-.Nm crunchgen
+.Nm
 parameters for a component program.
 .Bl -tag -width indent
 .It Nm special Ar progname Nm srcdir Ar pathname
@@ -192,12 +192,12 @@ and
 which are in turn calculated from
 .Nm srcdir ,
 so is sometimes convenient to specify the earlier parameters and let 
-.Nm crunchgen
+.Nm
 calculate forward from there if it can.
 
 .Pp
 The makefile produced by
-.Nm crunchgen
+.Nm
 contains an optional
 .Ar objs
 target that will build the object files for each component program by
@@ -211,7 +211,7 @@ program is skipped in the
 target.
 .Sh EXAMPLE
 Here is an example
-.Nm crunchgen
+.Nm
 input conf file, named
 .Dq Pa kcopy.conf :
 .Pp
