@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: os.c,v 1.22 1997/06/09 03:27:31 brian Exp $
+ * $Id: os.c,v 1.7.2.10 1997/06/10 09:44:12 brian Exp $
  *
  */
 #include "fsm.h"
@@ -181,8 +181,6 @@ OsLinkup()
   char *s;
 
   if (linkup == 0) {
-    if (setuid(0) < 0)
-	LogPrintf(LogERROR, "setuid failed\n");
     reconnectState = RECON_UNKNOWN;
     if (mode & MODE_BACKGROUND && BGFiledes[1] != -1) {
         char c = EX_NORMAL;
@@ -200,12 +198,12 @@ OsLinkup()
     else
       LogPrintf(LogLCP, "OsLinkup: %s\n", s);
 
-    if (SelectSystem(inet_ntoa(IpcpInfo.want_ipaddr), LINKFILE) < 0) {
+    if (SelectSystem(inet_ntoa(IpcpInfo.want_ipaddr), LINKUPFILE) < 0) {
       if (dstsystem) {
-        if (SelectSystem(dstsystem, LINKFILE) < 0)
-          SelectSystem("MYADDR", LINKFILE);
+        if (SelectSystem(dstsystem, LINKUPFILE) < 0)
+          SelectSystem("MYADDR", LINKUPFILE);
       } else
-        SelectSystem("MYADDR", LINKFILE);
+        SelectSystem("MYADDR", LINKUPFILE);
     }
     linkup = 1;
   }
@@ -225,8 +223,14 @@ OsLinkdown()
 
     if (!(mode & MODE_AUTO))
       DeleteIfRoutes(0);
-
     linkup = 0;
+    if (SelectSystem(s, LINKDOWNFILE) < 0) {
+      if (dstsystem) {
+        if (SelectSystem(dstsystem, LINKDOWNFILE) < 0)
+          SelectSystem("MYADDR", LINKDOWNFILE);
+      } else
+        SelectSystem("MYADDR", LINKDOWNFILE);
+    }
   }
 }
 
