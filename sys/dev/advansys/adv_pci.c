@@ -110,22 +110,22 @@ adv_pci_probe(device_t dev)
 	switch (pci_get_devid(dev)) {
 	case PCI_DEVICE_ID_ADVANSYS_1200A:
 		device_set_desc(dev, "AdvanSys ASC1200A SCSI controller");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 	case PCI_DEVICE_ID_ADVANSYS_1200B:
 		device_set_desc(dev, "AdvanSys ASC1200B SCSI controller");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 	case PCI_DEVICE_ID_ADVANSYS_3000:
 		if (rev == PCI_DEVICE_REV_ADVANSYS_3150) {
 			device_set_desc(dev,
 					"AdvanSys ASC3150 SCSI controller");
-			return 0;
+			return BUS_PROBE_DEFAULT;
 		} else if (rev == PCI_DEVICE_REV_ADVANSYS_3050) {
 			device_set_desc(dev,
 					"AdvanSys ASC3030/50 SCSI controller");
-			return 0;
+			return BUS_PROBE_DEFAULT;
 		} else if (rev >= PCI_DEVICE_REV_ADVANSYS_3150) {
 			device_set_desc(dev, "Unknown AdvanSys controller");
-			return 0;
+			return BUS_PROBE_DEFAULT;
 		}
 		break;
 	default:

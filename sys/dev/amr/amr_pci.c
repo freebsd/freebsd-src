@@ -154,7 +154,7 @@ amr_pci_probe(device_t dev)
 		    continue;
 	    }
 	    device_set_desc(dev, LSI_DESC_PCI);
-	    return(-10);	/* allow room to be overridden */
+	    return(BUS_PROBE_DEFAULT);
 	}
     }
     return(ENXIO);
