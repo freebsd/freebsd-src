@@ -5,8 +5,9 @@
  *  The University of Calgary Department of Computer Science.
  *  All rights reserved.
  *
- *Modifications/enhancements:
- *  Copyright (c) 1994, 1995, 1996 Justin Gibbs. All rights reserved.
+ *FreeBSD, Twin, Wide, 2 command per target support, tagged queuing,
+ *SCB paging and other optimizations:
+ *Copyright (c) 1994, 1995, 1996 Justin Gibbs. All rights reserved.
  *
  *Redistribution and use in source and binary forms, with or without
  *modification, are permitted provided that the following conditions
@@ -36,12 +37,9 @@
  *OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  *SUCH DAMAGE.
  *
- *FreeBSD, Twin, Wide, 2 command per target support, tagged queuing and other 
- *optimizations provided by Justin T. Gibbs (gibbs@FreeBSD.org)
- *
  *-M************************************************************************/
 
-VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.32 1996/03/31 03:02:33 gibbs Exp $"
+VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.33 1996/04/20 21:20:29 gibbs Exp $"
 
 #include "../../dev/aic7xxx/aic7xxx_reg.h"
 
@@ -79,6 +77,7 @@ reset:
  * We jump to start after every bus free.
  */
 start:
+	and	FLAGS,0x0f		/* clear target specific flags */
 	mvi	SCSISEQ,ENRSELI		/* Always allow reselection */
 poll_for_work:
 	/*
@@ -152,7 +151,7 @@ test_a:
 	or	ACTIVE_A,A
 
 start_scb:
-	mov	SCB_NEXT_WAITING,WAITING_SCBH
+	mov	SCB_NEXT,WAITING_SCBH
 	mov	WAITING_SCBH, SCBPTR
 start_scb2:
 	and	SINDEX,0xf7,SBLKCTL	/* Clear the channel select bit */
@@ -199,16 +198,15 @@ mk_identify:
 
 	test	SCB_CONTROL,0xb0 jz  !message	/* WDTR, SDTR or TAG?? */
 /*
- * Tag Message if Tag enabled in SCB control block.  Use SCBPTR as the tag
- * value
+ * Send a tag message if TAG_ENB is set in the SCB control block.
+ * Use SCB_TAG (the position in the kernel's SCB array) as the tag value.
  */
 
 mk_tag:
 	mvi	DINDEX, MSG1
 	test	SCB_CONTROL,TAG_ENB jz mk_tag_done
-	and	A,0x23,SCB_CONTROL
-	mov	DINDIR,A
-	mov	DINDIR,SCBPTR
+	and	DINDIR,0x23,SCB_CONTROL
+	mov	DINDIR,SCB_TAG
 
 	add	MSG_LEN,COMP_MSG0,DINDEX	/* update message length */
 
@@ -230,7 +228,6 @@ wait_for_selection:
 reselect:
 	clr	MSG_LEN		/* Don't have anything in the mesg buffer */
 	mov	SELID		call initialize_scsiid
-	and	FLAGS,0x03	/* clear target specific flags */
 	or	FLAGS,RESELECTED
 	jmp	select2
 
@@ -241,8 +238,8 @@ reselect:
  * SCB is used, so don't bother with it now.
  */
 select:
-	and	FLAGS,0x03		/* Clear target flags */
-	mov	WAITING_SCBH,SCB_NEXT_WAITING
+	mov	WAITING_SCBH,SCB_NEXT
+	or	FLAGS,SELECTED
 select2:
 /*
  * Set CLRCHN here before the target has entered a data transfer mode -
@@ -343,7 +340,7 @@ sg_advance:
  * If the working value of the SG count is nonzero, then
  * we need to load a new set of values.
  *
- * This, like all DMA's, assumes a little-endian host data storage.
+ * This, like all DMA's, assumes little-endian host data storage.
  */
 sg_load:
 	clr	HCNT2
@@ -425,15 +422,13 @@ data_phase_finish:
 	jmp	ITloop
 
 /*
- * Command phase.  Set up the DMA registers and let 'er rip - the
- * two bytes after the SCB SCSI_cmd_length are zeroed by the driver,
- * so we can copy those three bytes directly into HCNT.
+ * Command phase.  Set up the DMA registers and let 'er rip.
  */
 p_command:
 	call	assert
 
 /*
- * Load HADDR and HCNT.  We can do this in one bcopy since they are neighbors
+ * Load HADDR and HCNT.
  */
 	mov	HADDR0, SCB_CMDPTR0
 	mov	HADDR1, SCB_CMDPTR1
@@ -460,7 +455,7 @@ p_status:
 	jmp	mesgin_done
 
 /*
- * Message out phase.  If there is no active message, but the target
+ * Message out phase.  If there is not an active message, but the target
  * took us into this phase anyway, build a no-op message and send it.
  */
 p_mesgout:
@@ -510,7 +505,7 @@ p_mesgout_snoop:
 	jmp	ITloop
 
 p_mesgout_phasemis:
-	mvi	CLRSINT1,CLRATNO	/* Be sure turn ATNO off */
+	mvi	CLRSINT1,CLRATNO	/* Be sure to turn ATNO off */
 p_mesgout_done:
 	clr	MSG_LEN			/* no active msg */
 	jmp	ITloop
@@ -551,20 +546,20 @@ mesgin_done:
 
 mesgin_complete:
 /*
- * We got a "command complete" message, so put the SCB pointer
- * into QUEUEOUT, and trigger a completion interrupt.
- * Check status for non zero return and interrupt driver if needed
- * This allows the driver to interpret errors only when they occur
- * instead of always uploading the scb.  If the status is SCSI_CHECK,
- * the driver will download a new scb requesting sense to replace
- * the old one, modify the "waiting for selection" SCB list and set 
- * RETURN_1 to 0x80.  If RETURN_1 is set to 0x80 the sequencer imediately
- * jumps to main loop where it will run down the waiting SCB list.
- * If the kernel driver does not wish to request sense, it need
- * only clear RETURN_1, and the command is allowed to complete.  We don't 
- * bother to post to the QOUTFIFO in the error case since it would require 
- * extra work in the kernel driver to ensure that the entry was removed 
- * before the command complete code tried processing it.
+ * We got a "command complete" message, so put the SCB_TAG into QUEUEOUT,
+ * and trigger a completion interrupt.  Check status for non zero return
+ * and interrupt driver if needed.  This allows the driver to interpret
+ * errors only when they occur instead of always uploading the scb.  If
+ * the status is SCSI_CHECK, the driver will download a new scb requesting
+ * sense to replace the old one, modify the "waiting for selection" SCB list
+ * and set RETURN_1 to SEND_SENSE.  If RETURN_1 is set to SEND_SENSE the
+ * sequencer imediately jumps to main loop where it will run down the waiting
+ * SCB list and process the sense request.  If the kernel driver does not
+ * wish to request sense, it need only clear RETURN_1, and the command is
+ * allowed to complete.  We don't bother to post to the QOUTFIFO in the
+ * error case since it would require extra work in the kernel driver to
+ * ensure that the entry was removed before the command complete code tried
+ * processing it.
  *
  * First check for residuals
  */
@@ -612,7 +607,7 @@ test_immediate:
 	mvi	INTSTAT,IMMEDDONE
 	jmp	start
 complete:
-	mov	QOUTFIFO,SCBPTR
+	mov	QOUTFIFO,SCB_TAG
 	mvi	INTSTAT,CMDCMPLT
 	jmp	mesgin_done
 
@@ -626,10 +621,10 @@ complete:
  */
 mesgin_extended:
 	mvi	ARG_1		call inb_next	/* extended message length */
-	mvi	A		call inb_next	/* extended message code */
+	mvi	REJBYTE_EXT	call inb_next	/* extended message code */
 
-	cmp	A,MSG_SDTR	je p_mesginSDTR
-	cmp	A,MSG_WDTR	je p_mesginWDTR
+	cmp	REJBYTE_EXT,MSG_SDTR	je p_mesginSDTR
+	cmp	REJBYTE_EXT,MSG_WDTR	je p_mesginWDTR
 	jmp	rej_mesgin
 
 p_mesginWDTR:
@@ -660,6 +655,7 @@ p_mesginSDTR:
 						 * Requested SDTR too small
 						 * Reject it.
 						 */
+	clr	ARG_1				/* Use the scratch ram rate */
 	mvi	DINDEX, MSG0
 	mvi     MSG0     call mk_sdtr
 	or	SCSISIGO,ATNO			/* turn on ATNO */
@@ -671,6 +667,22 @@ p_mesginSDTR:
  */
 mesgin_disconnect:
 	or	SCB_CONTROL,DISCONNECTED
+	test	FLAGS, PAGESCBS jz mesgin_done
+/*
+ * Link this SCB into the DISCONNECTED list.  This list holds the
+ * candidates for paging out an SCB if one is needed for a new command.
+ * Modifying the disconnected list is a critical(pause dissabled) section.
+ */
+	mvi	SCB_PREV, SCB_LIST_NULL
+	mvi	SEQCTL,0x50			/* PAUSEDIS|FASTMODE */
+	mov	SCB_NEXT, DISCONNECTED_SCBH
+	mov	DISCONNECTED_SCBH, SCBPTR
+	cmp	SCB_NEXT,SCB_LIST_NULL je linkdone
+	mov	SCBPTR,SCB_NEXT
+	mov	SCB_PREV,DISCONNECTED_SCBH
+	mov	SCBPTR,DISCONNECTED_SCBH
+linkdone:
+	mvi	SEQCTL,0x10			/* !PAUSEDIS|FASTMODE */
 	jmp	mesgin_done
 
 /*
@@ -688,7 +700,7 @@ mesgin_sdptrs:
  * code do the rest.
  */
 mesgin_rdptrs:
-	and	FLAGS,0xfb			/*
+	and	FLAGS,0xef			/*
 						 * !DPHASE we'll reload them
 						 * the next time through
 						 */
@@ -711,21 +723,19 @@ mesgin_identify:
 
 /*
  * Here we "snoop" the bus looking for a SIMPLE QUEUE TAG message.
- * If we get one, we use the tag returned to switch to the proper
- * SCB.  Otherwise, we just use the findSCB method.
+ * If we get one, we use the tag returned to switch to find the proper
+ * SCB.  With SCB paging, this requires using findSCB for both tagged
+ * and non-tagged transactions since the SCB may exist in any slot.
+ * If we're not using SCB paging, we can use the tag as the direct
+ * index to the SCB.
  */
+	mvi	ARG_1,SCB_LIST_NULL	/* Default to no-tag */
 snoop_tag_loop:
 	test	SSTAT1,BUSFREE	jnz use_findSCB
 	test	SSTAT1,REQINIT	jz snoop_tag_loop
 	test	SSTAT1,PHASEMIS	jnz use_findSCB
 	mvi	A		call inb_first
-	cmp	A,MSG_SIMPLE_TAG je get_tag
-use_findSCB:
-	mov	ALLZEROS	call findSCB	  /* Have to search */
-setup_SCB:
-	and	SCB_CONTROL,0xfb	  /* clear disconnect bit in SCB */
-	or	FLAGS,IDENTIFY_SEEN	  /* make note of IDENTIFY */
-	jmp	ITloop
+	cmp	A,MSG_SIMPLE_TAG jne use_findSCB
 get_tag:
 	mvi	ARG_1	call inb_next	/* tag value */
 /*
@@ -738,19 +748,29 @@ get_tag:
 	jc	abort_tag
 
 /*
- * Ensure that the SCB the tag points to is for a SCB transaction
+ * Ensure that the SCB the tag points to is for an SCB transaction
  * to the reconnecting target.
  */
+	test	FLAGS, PAGESCBS	jz index_by_tag
+	call	inb_last			/* Ack Tag */
+use_findSCB:
+	mov	ALLZEROS	call findSCB	  /* Have to search */
+setup_SCB:
+	and	SCB_CONTROL,0xfb	  /* clear disconnect bit in SCB */
+	or	FLAGS,IDENTIFY_SEEN	  /* make note of IDENTIFY */
+	jmp	ITloop
+index_by_tag:
 	mov	SCBPTR,ARG_1
 	mov	A,SAVED_TCL
 	cmp	SCB_TCL,A		jne abort_tag
 	test	SCB_CONTROL,TAG_ENB	jz  abort_tag
 	call	inb_last			/* Ack Successful tag */
 	jmp	setup_SCB
+
 abort_tag:
 	or	SCSISIGO,ATNO			/* turn on ATNO */
 	mvi	INTSTAT,ABORT_TAG 		/* let driver know */
-	mvi	0xd		call mk_mesg	/* ABORT TAG message */
+	mvi	MSG_ABORT_TAG	call mk_mesg	/* ABORT TAG message */
 	jmp	mesgin_done
 
 /*
@@ -899,27 +919,59 @@ assert:
 	mvi	INTSTAT,NO_IDENT 	ret	/* no - cause a kernel panic */
 
 /*
- * Locate the SCB matching the target ID/channel/lun in SAVED_TCL and switch 
- * the SCB to it.  Have the kernel print a warning message if it can't be 
- * found, and generate an ABORT message to the target.  SINDEX should be
+ * Locate the SCB matching the target ID/channel/lun in SAVED_TCL, and the tag
+ * value in ARG_1.  If ARG_1 == SCB_LIST_NULL, we're looking for a non-tagged
+ * SCB.  Have the kernel print a warning message if it can't be found, and
+ * generate an ABORT/ABORT_TAG message to the target.  SINDEX should be
  * cleared on call.
  */
 findSCB:
 	mov	A,SAVED_TCL
-	mov	SCBPTR,SINDEX			/* switch to new SCB */
+	mov	SCBPTR,SINDEX			/* switch to next SCB */
+	mvi	SEQCTL,0x50			/* PAUSEDIS|FASTMODE */
 	cmp	SCB_TCL,A	jne findSCB1 /* target ID/channel/lun match? */
 	test	SCB_CONTROL,DISCONNECTED jz findSCB1 /*should be disconnected*/
-	ret
+	test	SCB_CONTROL,TAG_ENB jnz findTaggedSCB
+	cmp	ARG_1,SCB_LIST_NULL je foundSCB
+	jmp	findSCB1
+findTaggedSCB:
+	mov	A, ARG_1			/* Tag passed in ARG_1 */
+	cmp	SCB_TAG,A	jne findSCB1	/* Found it? */
+foundSCB:
+	test	FLAGS,PAGESCBS	jz foundSCB_ret
+/* Remove this SCB from the disconnection list */
+	cmp	SCB_NEXT,SCB_LIST_NULL je unlink_prev
+	mov	SAVED_LINKPTR, SCB_PREV
+	mov	SCBPTR, SCB_NEXT
+	mov	SCB_PREV, SAVED_LINKPTR
+	mov	SCBPTR, SINDEX
+unlink_prev:
+	cmp	SCB_PREV,SCB_LIST_NULL	je rHead/* At the head of the list */
+	mov	SAVED_LINKPTR, SCB_NEXT
+	mov	SCBPTR, SCB_PREV
+	mov	SCB_NEXT, SAVED_LINKPTR
+	mov	SCBPTR, SINDEX
+	mvi	SEQCTL,0x10	ret		/* !PAUSEDIS|FASTMODE */
+rHead:
+	mov	DISCONNECTED_SCBH,SCB_NEXT
+foundSCB_ret:
+	mvi	SEQCTL,0x10	ret		/* !PAUSEDIS|FASTMODE */
 
 findSCB1:
+	mvi	SEQCTL,0x10			/* !PAUSEDIS|FASTMODE */
 	inc	SINDEX
 	mov	A,SCBCOUNT
 	cmp	SINDEX,A	jne findSCB
 
 	mvi	INTSTAT,NO_MATCH		/* not found - signal kernel */
-	mvi	MSG_ABORT	call mk_mesg	/* ABORT message */
-
-	or	SCSISIGO,ATNO	ret		/* assert ATNO */
+	cmp	RETURN_1,SCB_PAGEDIN je return
+	or	SCSISIGO,ATNO			/* assert ATNO */
+	cmp	ARG_1,SCB_LIST_NULL jne find_abort_tag
+	mvi	MSG_ABORT	call mk_mesg
+	jmp	ITloop
+find_abort_tag:
+	mvi	MSG_ABORT_TAG	call mk_mesg
+	jmp	ITloop
 
 /*
  * Make a working copy of the scatter-gather parameters from the SCB.
@@ -992,7 +1044,7 @@ ndx_dtr_2:
  */
 mk_dtr:
 	test	SCB_CONTROL,NEEDWDTR jnz  mk_wdtr_16bit
-	or	FLAGS, MAXOFFSET	/* Force an offset of 15 or 8 if WIDE */
+	mvi	ARG_1, MAXOFFSET	/* Force an offset of 15 or 8 if WIDE */
 
 mk_sdtr:
 	mvi	DINDIR,1		/* extended message */
@@ -1000,7 +1052,7 @@ mk_sdtr:
 	mvi	DINDIR,1		/* SDTR code */
 	call	sdtr_to_rate
 	mov	DINDIR,RETURN_1		/* REQ/ACK transfer period */
-	test	FLAGS, MAXOFFSET jnz mk_sdtr_max_offset
+	cmp	ARG_1, MAXOFFSET je mk_sdtr_max_offset
 	and	DINDIR,0x0f,SINDIR	/* Sync Offset */
 
 mk_sdtr_done:
@@ -1010,8 +1062,6 @@ mk_sdtr_max_offset:
 /*
  * We're initiating sync negotiation, so request the max offset we can (15 or 8)
  */
-	xor	FLAGS, MAXOFFSET
-
 	/* Talking to a WIDE device? */
 	test	SCSIRATE, WIDEXFER	jnz wmax_offset	
 	mvi	DINDIR, MAX_OFFSET_8BIT
