@@ -2764,7 +2764,7 @@ scinit(int unit, int flags)
 #endif
 
 #ifdef DEV_SPLASH
-	if (!(sc->flags & SC_SPLASH_SCRN) && (flags & SC_KERNEL_CONSOLE)) {
+	if (!(sc->flags & SC_SPLASH_SCRN)) {
 	    /* we are ready to put up the splash image! */
 	    splash_init(sc->adp, scsplash_callback, sc);
 	    sc->flags |= SC_SPLASH_SCRN;
