@@ -669,7 +669,7 @@ main(argc, argv)
 		if (n < 0)
 			continue;	/* Must be EINTR. */
 		if (n == 1) {
-			struct timeval *t = 0;
+			struct timeval *t = NULL;
 #ifdef SO_TIMESTAMP
 			struct cmsghdr *cmsg = (struct cmsghdr *)&ctrl;
 
@@ -687,11 +687,11 @@ main(argc, argv)
 			    cmsg->cmsg_type == SCM_TIMESTAMP &&
 			    cmsg->cmsg_len == CMSG_LEN(sizeof *t)) {
 				/* Copy to avoid alignment problems: */
-				memcpy(&now,CMSG_DATA(cmsg),sizeof(now));
+				memcpy(&now, CMSG_DATA(cmsg), sizeof(now));
 				t = &now;
 			}
 #endif
-			if (t == 0) {
+			if (t == NULL) {
 				(void)gettimeofday(&now, NULL);
 				t = &now;
 			}
@@ -808,11 +808,11 @@ pr_pack(buf, cc, from, tv)
 	struct sockaddr_in *from;
 	struct timeval *tv;
 {
+	struct in_addr ina;
+	u_char *cp, *dp;
 	struct icmp *icp;
 	struct ip *ip;
-	struct in_addr ina;
 	const void *tp;
-	u_char *cp, *dp;
 	double triptime;
 	int dupflag, hlen, i, j, seq;
 	static int old_rrlen;
