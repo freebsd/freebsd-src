@@ -74,7 +74,7 @@ static int	numtrec;
 static char	*tapebuf;
 static union	u_spcl endoftapemark;
 static long	blksread;		/* blocks read since last header */
-static long	tpblksread = 0;		/* TP_BSIZE blocks read */
+static long	tapeaddr = 0;		/* current TP_BSIZE tape record */
 static long	tapesread;
 static jmp_buf	restart;
 static int	gettingfile = 0;	/* restart has a valid frame */
@@ -211,7 +211,6 @@ setup()
 	if (gethead(&spcl) == FAIL) {
 		blkcnt--; /* push back this block */
 		blksread--;
-		tpblksread--;
 		cvtflag++;
 		if (gethead(&spcl) == FAIL) {
 			fprintf(stderr, "Tape is not a dump tape\n");
@@ -284,6 +283,9 @@ setup()
 	 */
 	if (oldinofmt == 0)
 		SETINO(WINO, dumpmap);
+	/* 'r' restores don't call getvol() for tape 1, so mark it as read. */
+	if (command == 'r')
+		tapesread = 1;
 }
 
 /*
@@ -297,7 +299,7 @@ void
 getvol(nextvol)
 	long nextvol;
 {
-	long newvol, savecnt, wantnext, i;
+	long newvol, prevtapea, savecnt, i;
 	union u_spcl tmpspcl;
 #	define tmpbuf tmpspcl.s_spcl
 	char buf[TP_BSIZE];
@@ -306,6 +308,8 @@ getvol(nextvol)
 		tapesread = 0;
 		gettingfile = 0;
 	}
+	prevtapea = tapeaddr;
+	savecnt = blksread;
 	if (pipein) {
 		if (nextvol != 1) {
 			panic("Changing volumes on pipe input?\n");
@@ -317,31 +321,29 @@ getvol(nextvol)
 			return;
 		goto gethdr;
 	}
-	savecnt = blksread;
 again:
 	if (pipein)
 		done(1); /* pipes do not get a second chance */
-	if (command == 'R' || command == 'r' || curfile.action != SKIP) {
+	if (command == 'R' || command == 'r' || curfile.action != SKIP)
 		newvol = nextvol;
-		wantnext = 1;
-	} else {
+	else
 		newvol = 0;
-		wantnext = 0;
-	}
 	while (newvol <= 0) {
 		if (tapesread == 0) {
-			fprintf(stderr, "%s%s%s%s%s",
+			fprintf(stderr, "%s%s%s%s%s%s%s",
 			    "You have not read any tapes yet.\n",
-			    "Unless you know which volume your",
-			    " file(s) are on you should start\n",
-			    "with the last volume and work",
-			    " towards the first.\n");
+			    "If you are extracting just a few files,",
+			    " start with the last volume\n",
+			    "and work towards the first; restore",
+			    " can quickly skip tapes that\n",
+			    "have no further files to extract.",
+			    " Otherwise, begin with volume 1.\n");
 		} else {
 			fprintf(stderr, "You have read volumes");
 			strcpy(buf, ": ");
-			for (i = 1; i < 32; i++)
+			for (i = 0; i < 32; i++)
 				if (tapesread & (1 << i)) {
-					fprintf(stderr, "%s%ld", buf, i);
+					fprintf(stderr, "%s%ld", buf, i + 1);
 					strcpy(buf, ", ");
 				}
 			fprintf(stderr, "\n");
@@ -359,7 +361,7 @@ again:
 		}
 	}
 	if (newvol == volno) {
-		tapesread |= 1 << volno;
+		tapesread |= 1 << (volno - 1);
 		return;
 	}
 	closemt();
@@ -411,7 +413,7 @@ gethdr:
 		volno = 0;
 		goto again;
 	}
-	tapesread |= 1 << volno;
+	tapesread |= 1 << (volno - 1);
 	blksread = savecnt;
  	/*
  	 * If continuing from the previous volume, skip over any
@@ -420,36 +422,40 @@ gethdr:
  	 * If coming to this volume at random, skip to the beginning
  	 * of the next record.
  	 */
-	dprintf(stdout, "read %ld recs, tape starts with %ld\n",
-		tpblksread, tmpbuf.c_firstrec);
+	dprintf(stdout, "last rec %ld, tape starts with %ld\n", prevtapea,
+	    tmpbuf.c_tapea);
  	if (tmpbuf.c_type == TS_TAPE && (tmpbuf.c_flags & DR_NEWHEADER)) {
- 		if (!wantnext) {
- 			tpblksread = tmpbuf.c_firstrec;
- 			for (i = tmpbuf.c_count; i > 0; i--)
- 				readtape(buf);
- 		} else if (tmpbuf.c_firstrec > 0 &&
-			   tmpbuf.c_firstrec < tpblksread - 1) {
+ 		if (curfile.action != USING) {
 			/*
-			 * -1 since we've read the volume header
+			 * XXX Dump incorrectly sets c_count to 1 in the
+			 * volume header of the first tape, so ignore
+			 * c_count when volno == 1.
 			 */
- 			i = tpblksread - tmpbuf.c_firstrec - 1;
+			if (volno != 1)
+				for (i = tmpbuf.c_count; i > 0; i--)
+					readtape(buf);
+ 		} else if (tmpbuf.c_tapea <= prevtapea) {
+			/*
+			 * Normally the value of c_tapea in the volume
+			 * header is the record number of the header itself.
+			 * However in the volume header following an EOT-
+			 * terminated tape, it is the record number of the
+			 * first continuation data block (dump bug?).
+			 *
+			 * The next record we want is `prevtapea + 1'.
+			 */
+ 			i = prevtapea + 1 - tmpbuf.c_tapea;
 			dprintf(stderr, "Skipping %ld duplicate record%s.\n",
 				i, i > 1 ? "s" : "");
  			while (--i >= 0)
  				readtape(buf);
  		}
  	}
-	if (curfile.action == USING  || curfile.action == SKIP) {
+	if (curfile.action == USING) {
 		if (volno == 1)
 			panic("active file into volume 1\n");
 		return;
 	}
-	/*
-	 * Skip up to the beginning of the next record
-	 */
-	if (tmpbuf.c_type == TS_TAPE && (tmpbuf.c_flags & DR_NEWHEADER))
-		for (i = tmpbuf.c_count; i > 0; i--)
-			readtape(buf);
 	(void) gethead(&spcl);
 	findinode(&spcl);
 	if (gettingfile) {
@@ -847,7 +853,7 @@ readtape(buf)
 	if (blkcnt < numtrec) {
 		memmove(buf, &tapebuf[(blkcnt++ * TP_BSIZE)], (long)TP_BSIZE);
 		blksread++;
-		tpblksread++;
+		tapeaddr++;
 		return;
 	}
 	for (i = 0; i < ntrec; i++)
@@ -953,7 +959,7 @@ getmore:
 	blkcnt = 0;
 	memmove(buf, &tapebuf[(blkcnt++ * TP_BSIZE)], (long)TP_BSIZE);
 	blksread++;
-	tpblksread++;
+	tapeaddr++;
 }
 
 static void
@@ -1145,6 +1151,7 @@ good:
 		buf->c_dinode.di_uid = buf->c_dinode.di_ouid;
 		buf->c_dinode.di_gid = buf->c_dinode.di_ogid;
 	}
+	tapeaddr = buf->c_tapea;
 	if (dflag)
 		accthdr(buf);
 	return(GOOD);
@@ -1209,7 +1216,7 @@ newcalc:
 
 /*
  * Find an inode header.
- * Complain if had to skip, and complain is set.
+ * Complain if had to skip.
  */
 static void
 findinode(header)
@@ -1218,6 +1225,7 @@ findinode(header)
 	static long skipcnt = 0;
 	long i;
 	char buf[TP_BSIZE];
+	int htype;
 
 	curfile.name = "<name unknown>";
 	curfile.action = UNKNOWN;
@@ -1230,7 +1238,8 @@ findinode(header)
 			    header->c_date != dumpdate)
 				skipcnt++;
 		}
-		switch (header->c_type) {
+		htype = header->c_type;
+		switch (htype) {
 
 		case TS_ADDR:
 			/*
@@ -1250,6 +1259,11 @@ findinode(header)
 			break;
 
 		case TS_END:
+			/* If we missed some tapes, get another volume. */
+			if (tapesread & (tapesread + 1)) {
+				getvol(0);
+				continue;
+			}
 			curfile.ino = maxino;
 			break;
 
@@ -1270,7 +1284,7 @@ findinode(header)
 			/* NOTREACHED */
 
 		}
-	} while (header->c_type == TS_ADDR);
+	} while (htype == TS_ADDR);
 	if (skipcnt > 0)
 		fprintf(stderr, "resync restore, skipped %ld blocks\n",
 		    skipcnt);

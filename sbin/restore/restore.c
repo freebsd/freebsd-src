@@ -695,6 +695,7 @@ createfiles()
 	first = lowerbnd(ROOTINO);
 	last = upperbnd(maxino - 1);
 	for (;;) {
+		curvol = volno;
 		first = lowerbnd(first);
 		last = upperbnd(last);
 		/*
@@ -703,34 +704,41 @@ createfiles()
 		if (first > last)
 			return;
 		/*
-		 * Reject any volumes with inodes greater
-		 * than the last one needed
+		 * Reject any volumes with inodes greater than the last
+		 * one needed, so that we can quickly skip backwards to
+		 * a volume containing useful inodes. We can't do this
+		 * if there are no further volumes available (curfile.ino
+		 * >= maxino) or if we are already at the first tape.
 		 */
-		while (curfile.ino > last) {
+		if (curfile.ino > last && curfile.ino < maxino && volno > 1) {
 			curfile.action = SKIP;
 			getvol((long)0);
 			skipmaps();
 			skipdirs();
+			continue;
 		}
 		/*
 		 * Decide on the next inode needed.
 		 * Skip across the inodes until it is found
-		 * or an out of order volume change is encountered
+		 * or a volume change is encountered
 		 */
-		next = lowerbnd(curfile.ino);
-		do	{
-			curvol = volno;
+		if (curfile.ino < maxino) {
+			next = lowerbnd(curfile.ino);
 			while (next > curfile.ino && volno == curvol)
 				skipfile();
-			skipmaps();
-			skipdirs();
-		} while (volno == curvol + 1);
-		/*
-		 * If volume change out of order occurred the
-		 * current state must be recalculated
-		 */
-		if (volno != curvol)
-			continue;
+			if (volno != curvol) {
+				skipmaps();
+				skipdirs();
+				continue;
+			}
+		} else {
+			/*
+			 * No further volumes or inodes available. Set
+			 * `next' to the first inode, so that a warning
+			 * is emitted below for each missing file.
+			 */
+			next = first;
+		}
 		/*
 		 * If the current inode is greater than the one we were
 		 * looking for then we missed the one we were looking for.
