@@ -75,7 +75,8 @@ main(int argc, char **argv)
 		case 'I':
 			p = NULL;
 			i = strtoul(optarg, &p, 0);
-			if (p == optarg) {
+			if (p == optarg || errno == EINVAL ||
+			    errno == ERANGE) {
 				errx(1, "Invalid argument to -I");
 			} else if (!strcmp(p, "s"))
 				i *= 1000000;
