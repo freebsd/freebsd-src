@@ -81,6 +81,230 @@ typedef	__uid_t_	uid_t;
 #define	F_TEST		3	/* test a section for locks by other procs */
 #endif
 
+/*
+ * POSIX options and option groups we unconditionally do or don't
+ * implement.  This list includes those options which are exclusively
+ * implemented (or not) in user mode.  Please keep this list in
+ * alphabetical order.
+ *
+ * Anything which is defined as zero below **must** have an
+ * implementation for the corresponding sysconf() which is able to
+ * determine conclusively whether or not the feature is supported.
+ * Anything which is defined as other than -1 below **must** have
+ * complete headers, types, and function declarations as specified by
+ * the POSIX standard; however, if the relevant sysconf() function
+ * returns -1, the functions may be stubbed out.
+ */
+#define	_POSIX_BARRIERS			-1
+#define	_POSIX_READER_WRITER_LOCKS	200112L
+#define	_POSIX_REGEXP			1
+#define	_POSIX_SHELL			1
+#define	_POSIX_SPAWN			-1
+#define	_POSIX_SPIN_LOCKS		-1
+#define	_POSIX_THREAD_ATTR_STACKADDR	200112L
+#define	_POSIX_THREAD_ATTR_STACKSIZE	200112L
+#define	_POSIX_THREAD_CPUTIME		-1
+#define	_POSIX_THREAD_PRIO_INHERIT	200112L
+#define	_POSIX_THREAD_PRIO_PROTECT	200112L
+#define	_POSIX_THREAD_PRIORITY_SCHEDULING 200112L
+#define	_POSIX_THREAD_PROCESS_SHARED	-1
+#define	_POSIX_THREAD_SAFE_FUNCTIONS	-1
+#define	_POSIX_THREAD_SPORADIC_SERVER	-1
+#define	_POSIX_THREADS			200112L
+#define	_POSIX_TRACE			-1
+#define	_POSIX_TRACE_EVENT_FILTER	-1
+#define	_POSIX_TRACE_INHERIT		-1
+#define	_POSIX_TRACE_LOG		-1
+#define	_POSIX2_C_BIND			200112L	/* mandatory */
+#define	_POSIX2_C_DEV			-1 /* need c99 utility */
+#define	_POSIX2_CHAR_TERM		1
+#define	_POSIX2_FORT_DEV		-1 /* need fort77 utility */
+#define	_POSIX2_FORT_RUN		200112L
+#define	_POSIX2_LOCALEDEF		-1
+#define	_POSIX2_PBS			-1
+#define	_POSIX2_PBS_ACCOUNTING		-1
+#define	_POSIX2_PBS_CHECKPOINT		-1
+#define	_POSIX2_PBS_LOCATE		-1
+#define	_POSIX2_PBS_MESSAGE		-1
+#define	_POSIX2_PBS_TRACK		-1
+#define	_POSIX2_SW_DEV			-1 /* XXX ??? */
+#define	_POSIX2_UPE			200112L
+#define	_V6_ILP32_OFF32			-1
+#define	_V6_ILP32_OFFBIG		0
+#define	_V6_LP64_OFF64			0
+#define	_V6_LPBIG_OFFBIG		-1
+
+#if __XSI_VISIBLE
+#define	_XOPEN_CRYPT			-1 /* XXX ??? */
+#define	_XOPEN_ENH_I18N			-1 /* mandatory in XSI */
+#define	_XOPEN_LEGACY			-1
+#define	_XOPEN_REALTIME			-1
+#define	_XOPEN_REALTIME_THREADS		-1
+#define	_XOPEN_UNIX			-1
+#endif
+
+/* Define the versions we target for compliance. */
+#define	_POSIX_VERSION		200112L
+#define	_POSIX2_VERSION		200112L
+
+/*
+ * POSIX-style system configuration variable accessors (for the
+ * sysconf function).  The kernel does not directly implement the
+ * sysconf() interface; rather, a C library stub translates references
+ * to sysconf() into calls to sysctl() using a giant switch statement.
+ * Those that are marked `user' are implemented entirely in the C
+ * library and never query the kernel.  pathconf() is implemented
+ * directly by the kernel so those are not defined here.
+ */
+#define	_SC_ARG_MAX		 1
+#define	_SC_CHILD_MAX		 2
+#define	_SC_CLK_TCK		 3
+#define	_SC_NGROUPS_MAX		 4
+#define	_SC_OPEN_MAX		 5
+#define	_SC_JOB_CONTROL		 6
+#define	_SC_SAVED_IDS		 7
+#define	_SC_VERSION		 8
+#define	_SC_BC_BASE_MAX		 9 /* user */
+#define	_SC_BC_DIM_MAX		10 /* user */
+#define	_SC_BC_SCALE_MAX	11 /* user */
+#define	_SC_BC_STRING_MAX	12 /* user */
+#define	_SC_COLL_WEIGHTS_MAX	13 /* user */
+#define	_SC_EXPR_NEST_MAX	14 /* user */
+#define	_SC_LINE_MAX		15 /* user */
+#define	_SC_RE_DUP_MAX		16 /* user */
+#define	_SC_2_VERSION		17 /* user */
+#define	_SC_2_C_BIND		18 /* user */
+#define	_SC_2_C_DEV		19 /* user */
+#define	_SC_2_CHAR_TERM		20 /* user */
+#define	_SC_2_FORT_DEV		21 /* user */
+#define	_SC_2_FORT_RUN		22 /* user */
+#define	_SC_2_LOCALEDEF		23 /* user */
+#define	_SC_2_SW_DEV		24 /* user */
+#define	_SC_2_UPE		25 /* user */
+#define	_SC_STREAM_MAX		26 /* user */
+#define	_SC_TZNAME_MAX		27 /* user */
+
+#if __POSIX_VISIBLE >= 199309
+#define	_SC_ASYNCHRONOUS_IO	28
+#define	_SC_MAPPED_FILES	29
+#define	_SC_MEMLOCK		30
+#define	_SC_MEMLOCK_RANGE	31
+#define	_SC_MEMORY_PROTECTION	32
+#define	_SC_MESSAGE_PASSING	33
+#define	_SC_PRIORITIZED_IO	34
+#define	_SC_PRIORITY_SCHEDULING	35
+#define	_SC_REALTIME_SIGNALS	36
+#define	_SC_SEMAPHORES		37
+#define	_SC_FSYNC		38
+#define	_SC_SHARED_MEMORY_OBJECTS 39
+#define	_SC_SYNCHRONIZED_IO	40
+#define	_SC_TIMERS		41
+#define	_SC_AIO_LISTIO_MAX	42
+#define	_SC_AIO_MAX		43
+#define	_SC_AIO_PRIO_DELTA_MAX	44
+#define	_SC_DELAYTIMER_MAX	45
+#define	_SC_MQ_OPEN_MAX		46
+#define	_SC_PAGESIZE		47
+#define	_SC_RTSIG_MAX		48
+#define	_SC_SEM_NSEMS_MAX	49
+#define	_SC_SEM_VALUE_MAX	50
+#define	_SC_SIGQUEUE_MAX	51
+#define	_SC_TIMER_MAX		52
+#endif
+
+#if __POSIX_VISIBLE >= 200112
+#define	_SC_2_PBS		59 /* user */
+#define	_SC_2_PBS_ACCOUNTING	60 /* user */
+#define	_SC_2_PBS_CHECKPOINT	61 /* user */
+#define	_SC_2_PBS_LOCATE	62 /* user */
+#define	_SC_2_PBS_MESSAGE	63 /* user */
+#define	_SC_2_PBS_TRACK		64 /* user */
+#define	_SC_ADVISORY_INFO	65
+#define	_SC_BARRIERS		66 /* user */
+#define	_SC_CLOCK_SELECTION	67
+#define	_SC_CPUTIME		68
+#define	_SC_FILE_LOCKING	69
+#define	_SC_GETGR_R_SIZE_MAX	70 /* user */
+#define	_SC_GETPW_R_SIZE_MAX	71 /* user */
+#define	_SC_HOST_NAME_MAX	72
+#define	_SC_LOGIN_NAME_MAX	73
+#define	_SC_MONOTONIC_CLOCK	74
+#define	_SC_MQ_PRIO_MAX		75
+#define	_SC_READER_WRITER_LOCKS	76 /* user */
+#define	_SC_REGEXP		77 /* user */
+#define	_SC_SHELL		78 /* user */
+#define	_SC_SPAWN		79 /* user */
+#define	_SC_SPIN_LOCKS		80 /* user */
+#define	_SC_SPORADIC_SERVER	81
+#define	_SC_THREAD_ATTR_STACKADDR 82 /* user */
+#define	_SC_THREAD_ATTR_STACKSIZE 83 /* user */
+#define	_SC_THREAD_CPUTIME	84 /* user */
+#define	_SC_THREAD_DESTRUCTOR_ITERATIONS 85 /* user */
+#define	_SC_THREAD_KEYS_MAX	86 /* user */
+#define	_SC_THREAD_PRIO_INHERIT	87 /* user */
+#define	_SC_THREAD_PRIO_PROTECT	88 /* user */
+#define	_SC_THREAD_PRIORITY_SCHEDULING 89 /* user */
+#define	_SC_THREAD_PROCESS_SHARED 90 /* user */
+#define	_SC_THREAD_SAFE_FUNCTIONS 91 /* user */
+#define	_SC_THREAD_SPORADIC_SERVER 92 /* user */
+#define	_SC_THREAD_STACK_MIN	93 /* user */
+#define	_SC_THREAD_THREADS_MAX	94 /* user */
+#define	_SC_TIMEOUTS		95 /* user */
+#define	_SC_THREADS		96 /* user */
+#define	_SC_TRACE		97 /* user */
+#define	_SC_TRACE_EVENT_FILTER	98 /* user */
+#define	_SC_TRACE_INHERIT	99 /* user */
+#define	_SC_TRACE_LOG		100 /* user */
+#define	_SC_TTY_NAME_MAX	101 /* user */
+#define	_SC_TYPED_MEMORY_OBJECTS 102
+#define	_SC_V6_ILP32_OFF32	103 /* user */
+#define	_SC_V6_ILP32_OFFBIG	104 /* user */
+#define	_SC_V6_LP64_OFF64	105 /* user */
+#define	_SC_V6_LPBIG_OFFBIG	106 /* user */
+#endif
+
+#if __XSI_VISIBLE
+#define	_SC_ATEXIT_MAX		107 /* user */
+#define	_SC_IOV_MAX		56
+#define	_SC_PAGE_SIZE		_SC_PAGESIZE
+#define	_SC_XOPEN_CRYPT		108 /* user */
+#define	_SC_XOPEN_ENH_I18N	109 /* user */
+#define	_SC_XOPEN_LEGACY	110 /* user */
+#define	_SC_XOPEN_REALTIME	111
+#define	_SC_XOPEN_REALTIME_THREADS 112
+#define	_SC_XOPEN_SHM		113
+#define	_SC_XOPEN_STREAMS	114
+#define	_SC_XOPEN_UNIX		115
+#define	_SC_XOPEN_VERSION	116
+#define	_SC_XOPEN_XCU_VERSION	117 /* user */
+#endif
+
+#if __BSD_VISIBLE
+#define	_SC_NPROCESSORS_CONF	57
+#define	_SC_NPROCESSORS_ONLN	58
+#endif
+
+/* Keys for the confstr(3) function. */
+#if __POSIX_VISIBLE >= 199209
+#define	_CS_PATH		1	/* default value of PATH */
+#endif
+
+#if __POSIX_VISIBLE >= 200112
+#define	_CS_POSIX_V6_ILP32_OFF32_CFLAGS		2
+#define	_CS_POSIX_V6_ILP32_OFF32_LDFLAGS	3
+#define	_CS_POSIX_V6_ILP32_OFF32_LIBS		4
+#define	_CS_POSIX_V6_ILP32_OFFBIG_CFLAGS	5
+#define	_CS_POSIX_V6_ILP32_OFFBIG_LDFLAGS	6
+#define	_CS_POSIX_V6_ILP32_OFFBIG_LIBS		7
+#define	_CS_POSIX_V6_LP64_OFF64_CFLAGS		8
+#define	_CS_POSIX_V6_LP64_OFF64_LDFLAGS		9
+#define	_CS_POSIX_V6_LP64_OFF64_LIBS		10
+#define	_CS_POSIX_V6_LPBIG_OFFBIG_CFLAGS	11
+#define	_CS_POSIX_V6_LPBIG_OFFBIG_LDFLAGS	12
+#define	_CS_POSIX_V6_LPBIG_OFFBIG_LIBS		13
+#define	_CS_POSIX_V6_WIDTH_RESTRICTED_ENVS	14
+#endif
+
 __BEGIN_DECLS
 /* 1003.1-1990 */
 void	 _exit(int) __dead2;
@@ -141,8 +365,6 @@ int	 getopt(int, char * const [], const char *);
 
 extern char *optarg;			/* getopt(3) external variables */
 extern int optind, opterr, optopt;
-
-#define	_CS_PATH		1	/* default value of PATH */
 #endif
 
 /* ISO/IEC 9945-1: 1996 */
@@ -167,27 +389,12 @@ int	 fchown(int, uid_t, gid_t);
 int	 gethostname(char *, int /* socklen_t */);
 int	 setegid(gid_t);
 int	 seteuid(uid_t);
-
-/* X/Open mistake copied by POSIX */
-#define	_CS_POSIX_V6_ILP32_OFF32_CFLAGS		2
-#define	_CS_POSIX_V6_ILP32_OFF32_LDFLAGS	3
-#define	_CS_POSIX_V6_ILP32_OFF32_LIBS		4
-#define	_CS_POSIX_V6_ILP32_OFFBIG_CFLAGS	5
-#define	_CS_POSIX_V6_ILP32_OFFBIG_LDFLAGS	6
-#define	_CS_POSIX_V6_ILP32_OFFBIG_LIBS		7
-#define	_CS_POSIX_V6_LP64_OFF64_CFLAGS		8
-#define	_CS_POSIX_V6_LP64_OFF64_LDFLAGS		9
-#define	_CS_POSIX_V6_LP64_OFF64_LIBS		10
-#define	_CS_POSIX_V6_LPBIG_OFFBIG_CFLAGS	11
-#define	_CS_POSIX_V6_LPBIG_OFFBIG_LDFLAGS	12
-#define	_CS_POSIX_V6_LPBIG_OFFBIG_LIBS		13
-#define	_CS_POSIX_V6_WIDTH_RESTRICTED_ENVS	14
 #endif
 
 /*
  * symlink() was originally in POSIX.1a, which was withdrawn after
  * being overtaken by events (1003.1-2001).  It was in XPG4.2, and of
- * course has been in BSD practically forever.
+ * course has been in BSD since 4.2.
  */
 #if __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE >= 402 || __BSD_VISIBLE
 int	 symlink(const char * __restrict, const char * __restrict);
@@ -254,9 +461,15 @@ int	 iruserok_sa(const void *, int, int, const char *, const char *);
 int	 issetugid(void);
 char	*mkdtemp(char *);
 int	 mknod(const char *, mode_t, dev_t);
+#ifndef _MKSTEMP_DECLARED
 int	 mkstemp(char *);
+#define	_MKSTEMP_DECLARED
+#endif
 int	 mkstemps(char *, int);
+#ifndef _MKTEMP_DECLARED
 char	*mktemp(char *);
+#define	_MKTEMP_DECLARED
+#endif
 int	 nfsclnt(int, void *);
 int	 nfssvc(int, void *);
 int	 profil(char *, size_t, vm_offset_t, int);
@@ -281,7 +494,10 @@ int	 setdomainname(const char *, int);
 int	 setgroups(int, const gid_t *);
 void	 sethostid(long);
 int	 sethostname(const char *, int);
+#ifndef _SETKEY_DECLARED
 int	 setkey(const char *);
+#define	_SETKEY_DECLARED
+#endif
 int	 setlogin(const char *);
 void	*setmode(const char *);
 int	 setresgid(gid_t, gid_t, gid_t);
@@ -299,7 +515,10 @@ int	 unwhiteout(const char *);
 void	*valloc(size_t);			/* obsoleted by malloc() */
 
 extern char *suboptarg;			/* getsubopt(3) external variable */
+#ifndef _GETSUBOPT_DECLARED
 int	 getsubopt(char **, char * const *, char **);
+#define	_GETSUBOPT_DECLARED
+#endif
 extern int optreset;			/* getopt(3) external variable */
 #endif /* __BSD_VISIBLE */
 __END_DECLS
