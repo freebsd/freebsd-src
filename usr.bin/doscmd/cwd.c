@@ -849,7 +849,7 @@ find_first(u_char *path, int attr, dosdir_t *dir, find_block_t *dta)
     int error;
     search_t *search = &dir_search;
 
-    debug(D_REDIR, "find_first(%s, %x, %x)\n", path, attr, dta);
+    debug(D_REDIR, "find_first(%s, %x, %x)\n", path, attr, (int)dta);
 
     error = dos_makepath(path, new_path);
     if (error)

@@ -197,7 +197,7 @@ int2f11_rdwr(regcontext_t *REGS)
     r_sft->offset += n;
     if (r_sft->offset > r_sft->size)
 	r_sft->size = r_sft->offset;
-    debug(D_REDIR, "offset now %d\n", r_sft->offset);
+    debug(D_REDIR, "offset now %ld\n", r_sft->offset);
     return(0);
 }
 

@@ -148,7 +148,7 @@ dump_regs(regcontext_t *REGS)
     debug (D_ALWAYS, "ax=%04x bx=%04x cx=%04x dx=%04x\n", R_AX, R_BX, R_CX, R_DX);
     debug (D_ALWAYS, "si=%04x di=%04x sp=%04x bp=%04x\n", R_SI, R_DI, R_SP, R_BP);
     debug (D_ALWAYS, "cs=%04x ss=%04x ds=%04x es=%04x\n", R_CS, R_SS, R_DS, R_ES);
-    debug (D_ALWAYS, "ip=%x eflags=%x\n", R_IP, R_EFLAGS);
+    debug (D_ALWAYS, "ip=%x eflags=%lx\n", R_IP, R_EFLAGS);
 
     addr = (u_char *)MAKEPTR(R_CS, R_IP);
 
