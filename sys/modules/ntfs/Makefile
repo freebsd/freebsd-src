@@ -2,10 +2,10 @@
 
 .PATH:	${.CURDIR}/../../ntfs
 KMOD=	ntfs
-SRCS=	ntfs_vfsops.c ntfs_vnops.c ntfs_subr.c ntfs_ihash.c \
+SRCS=	vnode_if.h \
+	ntfs_vfsops.c ntfs_vnops.c ntfs_subr.c ntfs_ihash.c \
 	ntfs_compr.c opt_vmpage.h
 NOMAN=
-VFS_KLD=
 CFLAGS+= -DNTFS
 
 .include <bsd.kmod.mk>
