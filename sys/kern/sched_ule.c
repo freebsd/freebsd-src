@@ -560,21 +560,20 @@ sched_sleep(struct thread *td, u_char prio)
 void
 sched_wakeup(struct thread *td)
 {
-	struct ksegrp *kg;
-
 	mtx_assert(&sched_lock, MA_OWNED);
 
 	/*
 	 * Let the kseg know how long we slept for.  This is because process
 	 * interactivity behavior is modeled in the kseg.
 	 */
-	kg = td->td_ksegrp;
-
 	if (td->td_slptime) {
+		struct ksegrp *kg;
+
+		kg = td->td_ksegrp;
 		kg->kg_slptime += (ticks - td->td_slptime) * 1024;
-		td->td_priority = sched_priority(kg);
+		sched_priority(kg);
+		td->td_slptime = 0;
 	}
-	td->td_slptime = 0;
 #ifdef SMP
 	if (td->td_priority < PZERO && td->td_schedflag & TD_SCHED_BLOAD) {
 		kseq_wakeup(KSEQ_CPU(td->td_kse->ke_cpu), td->td_kse);
