@@ -1,0 +1,450 @@
+Tue Jun  1 09:07:15 1993  Jean-loup Gailly  (jloup@chorus.fr)
+
+	* version 1.1.1
+	 Fix serious bug in vms.c (== instead of =).
+	 Added --ascii option.
+	 Add workaround in configure.in for Ultrix (quote eval argument)
+	 Do not use unset in znew (not supported on Ultrix)
+	 Use tar.gz instead of tar.z for the distribution of gzip.
+	 Add missing menu item in gzip.texi.
+	 Use size_t instead of unsigned, add AC_SIZE_T in configure.in.
+
+Fri May 28 11:40:01 1993  Jean-loup Gailly  (jloup@chorus.fr)
+
+	* version 1.1
+	 Use .gz suffix by default, add --suffix option.
+	 Let gunzip accept a "_z" suffix (used by one 'compress' on Vax/VMS).
+	 Quit when reading garbage from stdin instead of reporting an error.
+	 Added sub.c and add.c for compression of 8 bit images.
+	 Added makefile for VAX/MMS and support for wildcards on VMS.
+	 Added support for MSC under OS/2.
+	 Added support for Prime/PRIMOS.
+	 Display compression ratio also when decompressing.
+	 Quit after --version (GNU standard)
+	 Use --force to bypass isatty() check.
+	 Accept --silent as synonym for --quiet (see longopts.table)
+	 Accept --to-stdout as synonym for --stdout (see longopts.table)
+	 Accept -H and -? in addition to -h and --help.
+	 Added comparison of zip and gzip in the readme file.
+	 Return an error code in all main compression/decompression functions.
+	 Continue processing other files in case of recoverable error.
+	 Add description of -f in znew.1.
+	 Do not keep uncompressed version for znew -t if .gz already exists.
+	 On Unix, use only st_ino and st_dev in same_file().
+	 Use S_IRUSR and S_IWUSR if they exist.
+	 "test $1 = -d" -> "test x$1 = x-d" in gzexe.
+	 In match.S, use symbol sysV68 to detect the Motorola Delta.
+	 Do not include memory.h with gcc (conflicting declarations on Sun).
+	 Fix more typos.
+	 On VMS, define unlink as delete also for gcc.
+	 In "make check", unset LANG because "wc -c" fails on Kanji.
+	 Renamed shdir as scriptdir.
+	 Use the 68020 code instead of 68000 code on the NeXT.
+	 Documented --uncompress as synonym for --decompress.
+	 Include the standard header files before gzip.h (needed on Bull).
+	 Do not assume that _POSIX_VERSION implies dirent.h present.
+	 Removed gzip-tar.patch since tar 1.11.2 handles gzip directly.
+	 Use less memory when compiled with -DSMALL_MEM (for MSDOS).
+	 Optimized updcrc().
+	 Don't complain if cc -E does not work correctly.
+	 Do not attempt reading 64K bytes on 16 bit Unix systems.
+	 Do not use the variable name 'overhead' which is reserved on Lynx!
+	 One BULL compiler does not like *p++ in inflate.c => *p, p++.
+	 Use casts on free and memcmp to avoid warnings.
+         Remove the "off by more than one minute" time stamp kludge, but
+           document how to avoid saving the time stamp on pipes if desired.
+	 Include crypt.h in inflate.c (one system predefines the CRYPT symbol).
+	 Add links to gunzip and (g)zcat in the default make rule.
+         Create installation directories if they do not exist.
+	 Clarified --prefix option in INSTALL.
+	 Use symbol mc68k in match.S for the DIAB DS90.
+	 Guard against zero length _match.s in configure.in.
+	 In zmore, restore all tty options using stty -g.
+	 Added support for MacOS
+	 Simplified makecrc.c.
+	 Avoid warnings in getopt.c, util.c, unlzw.c.
+	 Use autoconf 1.4, in particular for INSTALL and AC_HAVE_POUNDBANG
+	 Use .so instead of hard links for zcat.1, gunzip.1 and zcmp.1.
+	 Fixed declration of sig_type.
+	 Make consistency check in fcfree.
+	 Added ztouch.
+	 Do not complain if utime fails on a directory (for OS/2).
+
+Thu Mar 18 18:56:43 1993  Jean-loup Gailly  (jloup@chorus.fr)
+
+	* version 1.0.7
+	  Allow zmore to read from standard input (like more).
+	  Support the 68000 (Atari ST) in match.S.
+	  Retry partial writes (required on Linux when gzip is suspended in
+	    a pipe).
+	  Allow full pathnames and renamings in gzexe.
+	  Don't let gzexe compress setuid executables or gzip itself.
+	  Added vms/Makefile.gcc for gcc on the Vax.
+	  Give a pointer to Solaris and VMS executables of gzip in README.
+	  Allow installation of binaries and shell scripts in different dirs.
+	  Do not use alloca on the Cray.
+	  Provide strspn and strcspn if string.h does not exist.
+	  Define O_CREAT and O_EXCL from FCREAT and FEXCL if necessary.
+	  Remove gzip.doc in make realclean.
+	  Fixed many typos. (Corrections to my English are welcome.)
+	  Put "make manext=l install" at the correct place in INSTALL.
+	  Fix incorrect examples in INSTALL and give more examples.
+	  Include zdiff.1 for install and uninstall.
+	  Allows complex PAGER variable in zmore (e.g.: PAGER="col -x | more")
+	  Avoid warning on unused indfound in getopt.c.
+	  Cast memset arg to void* (required by some buggy compilers).
+	  Include sys/types.h before dirent.h in acgeneral.m4.
+	  Fix acgeneral.m4 AC_COMPILE_CHECK to avoid warnings.
+	  Don't use alloca.c with gcc. (One NeXT user did not have alloca.h).
+	  Change all error messages according to GNU standards.
+	  Restore time stamp only if off by more than one minute.
+	  Allow installation of zcat as gzcat.
+	  Suppress help message  and send compressed data to the terminal when
+	    gzip is invoked without parameters and without redirection.
+	   (Explicit request from Noah Friedman.)
+	  Add compile option GNU_STANDARD to respect the GNU coding standards:
+	    with -DGNU_STANDARD, behave as gzip even if invoked under the
+	    name gunzip. (Complaints to /dev/null or the FSF, not to me!)
+
+Fri Mar 10 13:27:18 1993  Jean-loup Gailly  (jloup@chorus.fr)
+
+	* version 1.0.6
+	  Let gzexe detect executables that are already gzexe'd.
+	  Don't try restoring record format on VMS (the simple 1.0.5 code
+	    worked correctly only on fixed-512 files). Suppress text_mode.
+	  Added asm version for 68000 in amiga/match.a.
+	  Use asm version for Atari TT.
+	  Fix "make clean" in vms/Makefile.vms.
+	  For OS/2, assume HPFS by default, add flag OS2FAT if necessary.
+	  Fixed some bugs in zdiff and define zcmp as a link to zdiff.
+	  Added zdiff.1
+	  Remove configure hack for NeXT; add general fix to autoconf instead
+	  Do not strip a ".z" extension if this results in an empty name.
+	  Avoid array overflow in get_prefix() for extensions > 10 chars.
+	  Accept either q or e to quit zmore.
+	  In zmore, try restoring tty mode in all cases.
+	  Use Motorola style for match.S on the NeXT.
+	  configure.in: unsetenv *hangs* with the Siemens csh...
+	  Update vms/gzip.hlp.
+
+Thu Mar 4 14:13:34 1993  Jean-loup Gailly  (jloup@chorus.fr)
+
+	* version 1.0.5
+	  For VMS, restore the file type for variable record format, otherwise
+	    extract in fixed length format (not perfect, but better than
+            forcing all files to be in stream_LF format).
+	  Use "-z" suffix for VMS.
+	  Use only .z, .*-z, .tgz, .taz as valid gzip extensions; update
+	   zforce accordingly.
+	  Allow a version number in input file names for VMS.
+	  Added sample program zread.c.
+	  Fix "make check" for some implementations of /bin/sh.
+	  Don't rely on stat() for filenames with extension > 3 chars
+	    on MSDOS, OS2 and Atari.
+	  Garbage collect files in /tmp created by gzexe.
+	  Quote $opt in znew.
+	  Use TOUCH env variable in znew if it exists.
+	  Better error message for gunzip on empty or truncated file.
+	  Allow prototypes in getopt.h when __STDC__ defined but 0.
+	  Added "make clean" in vms/Makefile.vms.
+	  Removed -g from default CFLAGS (with Noah's permission!)
+	  Avoid too many HAVE_xxx_H for most systems; use common defaults.
+	  Moved default Atari flags into tailor.h for consistency.
+	  Use memzero() to clear the hash table.
+	  Update vms/gzip.hlp to reflect the VMS behavior.
+	  Fix OS_CODE (to fit in a byte).
+	  Add utime.h for the Amiga.
+	  Add gcc support for the Amiga.
+	  Work around incorrect dirent.h for NeXT 2.0.
+	  Added Makefile entry for Coherent.
+
+Fri Feb 22 11:20:49 1993  Jean-loup Gailly  (jloup@chorus.fr)
+
+	* version 1.0.4
+	  Added optimized asm version for 68020.
+	  Add support for DJGPP.
+	  Add support for the Atari ST.
+	  Added zforce to rename gzip'ed files with truncated names.
+	  Do not install with name uncompress (some systems rely on the
+	    absence of any check in the old uncompress).
+	  Added missing function (fcfree) in msdos/tailor.c
+	  Let gunzip handle .tgz files, and let gzip skip them.
+	  Added 'stty min 1' in zmore for SysV and fixed trap code.
+	  Suppress .PHONY in Makefile.in, which breaks old makes.
+	  Added documentation about pcat and unpack in INSTALL.
+	  Add cast to getenv for systems without stdlib.h.
+	  Use VAXC instead of VMS to avoid confusion for gcc.
+	  Add -K to znew.1.
+	  Add gzexe.1.
+	  Try preserving file permissions in gzexe.
+	  Added -d option for gzexe.
+	  Guard against spaces in file names in gzexe.
+	  Use CMP env. variable in zcmp.
+	  Return a warning exit status for gzip of file with .z suffix.
+	  Suppress usage of d_ino which is not portable to all systems.
+	  Use #ifdef instead of #if for consistency.
+	  For VMS, use "cc util.c" instead of "cc util" (pb with logical names)
+	  Added utime() for Amiga.
+	  Renamed gzcat.1 as zcat.1.
+	  Include fcntl.h for Amiga (for read and write).
+	  For VMS, add definition of symbols and links in the makefiles.
+	  Give a VMS look to vms/gzip.hlp.
+	  Save the original name only when necessary.
+	  Add a mode parameter for open in read mode (required by VMS).
+	  For VMS, remove the version suffix from the original name.
+	  Accept both / and \ as path separator for MSDOS.
+	  Let gunzip extract stored .zip files correctly.
+	  Added warning about VFC format in vms/gzip.hlp.
+	  In znew, skip a bad file but process the others.
+	  Cleanup tailor.h.
+	  Use GZIP_OPT for VMS to avoid conflict with program name.
+	  Added description of GZIP variable in gzip.texi.
+
+Thu Feb 11 17:21:32 1993  Jean-loup Gailly  (jloup@chorus.fr)
+
+	* version 1.0.3
+	  Add -K option for znew to keep old .Z files if smaller.
+	  Add -q option (quiet) to cancel -v in GZIP env variable.
+          For Turbo C, normalize pointers before freeing them.
+          Add more safety checks in add_envopt().
+          Add do_exit() for uniform exit path (always free memory).
+          Reduce MAX_PATH_LEN for MSDOS.
+	  Include sys/types.h before signal.h
+	  Avoid strdup, the NeXT does not have it.
+          Made gzexe safer on systems with filename limitation to 14 chars.
+
+Fri Feb  10 09:45:49 1993  Jean-loup Gailly  (jloup@chorus.fr)
+
+	* version 1.0.2
+	  Added env variable GZIP for default options.
+	  Added support for the Amiga.
+	  znew now keeps the old .Z if it is smaller than the .z file.
+	  Added gzexe to compress rarely used executables.
+	  Reduce memory usage when using static allocation (no DYN_ALLOC).
+	  Better separation of warning and error return codes.
+	  Fix unlzw.c to make DYN_ALLOC and MAXSEG_64K independent options.
+	  Allow INBUFSIZ to be >= 32K in unlzw (don't use sign of rsize)
+	  Generate tar file in old format to avoid problems with old systems.
+	  Preserve time stamp in znew -P if touch -r works.
+	  Use ${PAGER-more} instead of ${PAGER:-more} in zmore.
+	  Do not use unsigned instead of mode_t.
+	  Better error message for trailing garbage in .z file; ignore this
+	   garbage on VMS.
+	  In zmore, use icanon instead of -cbreak on SYSV.
+	  Add trap handler in zmore.
+	  Use char* instead of void* for non STDC compilers.
+	  Added makefile entry for Xenix on 286.
+	  Return an error code when existing file was not overwritten.
+	  Use prototype of lzw.h for lzw.c.
+	  Fix znew with -P option alone.
+	  Give warning for directories even without -v.
+	  Close output file before unlink() in case of error.
+	  Suppress all target dependent ifdef from the portable files.
+	  Free all dynamically allocated variables upon exit.
+
+Thu Feb 4 18:23:56 1993  Jean-loup Gailly  (jloup@chorus.fr)
+
+	* version 1.0.1
+	  Fixed some trivial errors in msdos/Makefile.bor
+
+Thu Feb 4 10:00:59 1993  Jean-loup Gailly  (jloup@chorus.fr)
+
+	* version 1.0
+	  gzip now runs on Vax/VMS (Amiga support will come in next version).
+	  Do not overwrite files without -f when using /bin/sh.
+          Support the test option -t for compressed (.Z) files.
+	  Flush output for bad compressed files. Add warning in README.
+	  Added makefiles for MSDOS.
+	  Don't rely on presence of csh in configure
+	  Added gunzip.1 and gzcat.1.
+	  Updated znew.1.
+	  Check reserved flags in unlzw().
+	  Return dummy value in main to avoid lint warning.
+	  Define OF in lzw.h for lint.
+	  Allow both "znew -v -t" and "znew -vt".
+	  Don't overwrite the output file name for multiple parts.
+	  Echo just a warning if configure is out of date.
+	  Use ; instead of , in trees.c (confuses the SAS Amiga compiler).
+	  In INSTALL, document "DEFS='-DM_XENIX' ./configure".
+	  Use OTHER_PATH_SEP for more portability (DOS, OS2, VMS, AMIGA).
+	  Make all directories world writable for broken versions of tar.
+	  Use gzip -cd instead of zcat in zmore, zcmp, zdiff.
+	  Don't use GNU tar for distributions, some systems can't untar.
+	  Do not exit() for gzip --version.
+
+Mon Jan 26 10:26:42 1993  Jean-loup Gailly  (jloup@chorus.fr)
+
+	* Beta version 0.8.2
+	  Avoid 'far' declarations for MSDOS.
+	  Use test -f instead of test -x in configure.in (for Ultrix)
+	  Add empty else part to if in Makefile.in for broken shells.
+	  Use NO_UNDERLINE instead of UNDERLINE (pb with Linux cpp)
+	  Accept continuation files with -ff (for damage recovery)
+	  Small patch to Makefile.os2
+	  Use memzero instead of bzero to avoid potential conflicts
+	  Document restriction on extraction of zip files.
+	  Fix quoting in ACL_HAVE_SHELL_HACK.
+          Do not check file size on MSDOS because of bug in DIET.
+	  Allow zcat on a file with multiple links.
+	  Add fix in inflate.c for compatibility with pkzip 2.04c.
+	  Release gzip in tar.z and tar format. (No tar.Z).
+
+Fri Jan 22 10:04:13 1993  Jean-loup Gailly  (jloup@chorus.fr)
+
+	* Beta version 0.8.1
+	  Fixed Makefile.os2
+	  Fixed #if directives that TurboC does not like.
+	  Don't rely on uncompress in znew, use gzip -d.
+	  Add the pipe option -P in znew.
+	  Add some more ideas in TODO.
+	  Support both NDIR and SYSNDIR.
+
+Sat Jan  21 15:46:38 1993  Jean-loup Gailly  (jloup@chorus.fr)
+
+	* Beta version 0.8
+	  Support unpack.
+	  Check for _match.o in configure.in in addition to return status.
+	  Include <sys/types.h> in zip.c
+	  Define local variables and functions as local.
+	  Accept more alternative names for the program (pcat, gzcat, ...).
+	  Accept .exe as well as .EXE.
+	  Uncompress files with multiple links only with -f.
+	  Better error message for gunzip of non-existent file.z.
+	  Fix the entry for /etc/magic in INSTALL.
+	  Use AC_HAVE_HEADERS uniformly instead of special macros.
+	  Install the man pages as .1 by default instead of .l.
+	  Document crypt++.el in README.
+	  Fix for unlzw() on 16-bit machines (bitmask must be unsigned).
+	  Complain if input and output files are identical.
+	  Create a correct output name for files of exactly 13 chars.
+	  Do not overwrite CPP if set
+	  Check for i386 before trying to assemble match.s
+	  Check for underline in external name before assembling
+	  Add patch for tar 1.11.1.
+
+Mon Jan  5 10:16:24 1993  Jean-loup Gailly  (jloup@chorus.fr)
+
+	* Beta version 0.7
+	  Use "make check" instead of "make test".
+	  Do not rely on dirname in znew.
+	  Keep time stamp and pass options to gzip in znew.
+	  Rename .l files back to .1 to avoid conflict with lex
+	  Do not create .z.z files with gzip -r.
+	  Use nice_match in match.asm
+	  Unroll loops in deflate.c
+	  Do not attempt matches beyond the window end
+	  Allow again gunzip .zip files (was working in 0.5)
+	  Allow again compilation with TurboC 2.0 (was working in 0.4)
+
+Tue Dec 30 20:00:19 1992  Jean-loup Gailly  (jloup@chorus.fr)
+
+	* Beta version 0.6
+	  The .z extension is used by pack, not compact (README, gzip.1)
+	  Accept gzcat in addition to zcat.
+	  Use PAGER in zmore if defined.
+	  Man pages for /usr/local/man/manl should have extension .l.
+	  Don't redefine bzero on the NeXT
+	  Allow incomplete Huffman table if there is only one code.
+	  Don't lookahead more than 7 bits (caused premature EOF).
+	  Added "make test" to check for compiler bugs.
+	  Don't rely on `i386`; try to assemble directly
+	  Change magic header to avoid conflict with freeze 1.x.
+	  Added entry for /etc/magic in INSTALL.
+	  Do not destroy an input .zip file with more than one member.
+	  Display "untested" instead of "OK" for gzip -t foo.Z
+	  With -t, skip stdin in .Z format
+	  Allow multiple compressed members in an input file.
+	  Ignore a zero time stamp.
+	  Made znew safer.
+
+Tue Dec 29 10:00:19 1992   Noah Friedman  (friedman@gnu.ai.mit.edu)
+
+	  Added test for #!/bin/sh in configure.in.
+	  Fix some references to $srcdir in Makefile.in
+
+Mon Dec 21 17:33:35 1992  Jean-Loup Gailly  (jloup@chorus.fr)
+
+	* Beta version 0.5
+	  Put RCS ids in all files.
+	  Added znew to recompress old .Z files with gzip.
+	  Avoid "already .z suffix" messages for -r and no -v.
+	  Put back check for d_ino in treat_dir().
+	  Use HAVE_STRING_H instead of USG.
+	  Added os2/Makefile.os2
+	  Use SYSUTIME on OS/2.
+	  Info dir is $(prefix)/info, not $(prefix)/lib/info.
+	  Support long options, added getopt and alloca
+	  Support -V and -t
+	  Reorder configure.in according to suggestions in autoconf.info
+	  Allow links when not removing original file
+	  Allow either .z or .Z in zdiff
+
+Wed Nov 25 11:40:04 1992  Jean-loup Gailly  (jloup@chorus.fr)
+
+	* Beta version 0.4.1
+	  Save only the original base name, don't include any directory prefix.
+	  Don't use HAVE_LONG_FILE_NAMES (support multiple file system types).
+	  Fix declaration of abort_gzip in gzip.h.
+	  Include unistd.h when it exists to avoid warnings with gcc -Wall.
+
+Mon Nov 23 12:39:01 1992    Jean-loup Gailly  (jloup@chorus.fr)
+
+	* Beta version 0.4
+          Lots of cleanup
+	  Use autoconf generated 'configure'
+          Fixed the NO_MULTIPLE_DOTS code
+          Fixed the save_orig_name code
+          Support for MSDOS (Turbo C)
+
+Thu Nov 19 15:18:22 1992    Jean-loup Gailly  (jloup@chorus.fr)
+
+	* Beta version 0.3
+	  Added auto configuration. Just type "make" now.
+	  Don't overwrite compress by default in "make install". Use
+	    "make install_compress" to overwrite.
+	  Add match.s for 386 boxes.
+	  Added documentation in texinfo format.
+	  Provide help for "gunzip" invoked without redirected input.
+	  Save original file name when necessary.
+	  Support OS/2 (Kai-Uwe Rommel).
+
+Tue Nov 17 14:32:53 1992  Jean-loup Gailly  (jloup@chorus.fr)
+
+	* Alpha version 0.2.4
+	  Return 0 in get_istat() when ok (caused error with zcat).
+	  Don't update crc on compressed data (caused crc errors on
+	    large files).
+
+Fri Nov 13 15:04:12 1992  Jean-loup Gailly  (jloup@chorus.fr)
+
+	* Alpha version 0.2.3
+	  Initialize rsize in unlzw.c
+	  Initialize ofd for zcat.
+	  Do not use volatile ifname as argument of treat_dir.
+	  Add -1 to -9 in gzip.1.
+
+Sat Oct 31 18:30:00 1992  Jean-loup Gailly  (jloup@chorus.fr)
+
+	* Alpha version 0.2.2.
+	  Fix error messages.
+	  Accept gunzip on zip files.
+
+Sat Oct 31 17:15:00 1992  Jean-loup Gailly  (jloup@chorus.fr)
+
+	* Alpha version 0.2.1
+	  Use ctype.h in util.c (problem on SysV).
+	  Create BINDIR if it does not exist.
+	  Use cc by default.
+	  Added zcmp, zmore, zdiff.
+	  Fixed the man page gzip.1.
+
+Sat Oct 31 17:00:00 1992  Jean-loup Gailly  (jloup@chorus.fr)
+
+	* Alpha version 0.2
+	  Fixed compilation problems with gcc
+
+Sat Oct 31 12:46:00 1992  Jean-loup Gailly  (jloup@chorus.fr)
+
+	* Alpha version 0.1 released (under time pressure), so it's not
+	  much tested, sorry.
+
