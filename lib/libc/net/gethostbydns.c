@@ -53,7 +53,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)gethostnamadr.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: gethostbydns.c,v 1.10 1996/08/29 20:07:50 peter Exp $";
+static char rcsid[] = "$Id: gethostbydns.c,v 1.11 1996/10/01 03:45:06 pst Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -113,6 +113,7 @@ typedef union {
 } align;
 
 extern int h_errno;
+int _dns_ttl_;
 
 #ifdef DEBUG
 static void
@@ -204,6 +205,7 @@ gethostanswer(answer, anslen, qname, qtype)
 	host.h_addr_list = h_addr_ptrs;
 	haveanswer = 0;
 	had_error = 0;
+	_dns_ttl_ = -1;
 	while (ancount-- > 0 && cp < eom && !had_error) {
 		n = dn_expand(answer->buf, eom, cp, bp, buflen);
 		if ((n < 0) || !(*name_ok)(bp)) {
@@ -214,7 +216,10 @@ gethostanswer(answer, anslen, qname, qtype)
 		type = _getshort(cp);
  		cp += INT16SZ;			/* type */
 		class = _getshort(cp);
- 		cp += INT16SZ + INT32SZ;	/* class, TTL */
+ 		cp += INT16SZ;			/* class */
+		if (qtype == T_A  && type == T_A)
+			_dns_ttl_ = _getlong(cp);
+		cp += INT32SZ;			/* TTL */
 		n = _getshort(cp);
 		cp += INT16SZ;			/* len */
 		if (class != C_IN) {
