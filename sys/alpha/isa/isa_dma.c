@@ -489,6 +489,19 @@ isa_dmastatus(int chan)
 }
 
 /*
+ * Reached terminal count yet ?
+ */
+int
+isa_dmatc(int chan)
+{
+
+	if (chan < 4)
+		return(inb(DMA1_STATUS) & (1 << chan));
+	else
+		return(inb(DMA2_STATUS) & (1 << (chan & 3)));
+}
+
+/*
  * Stop a DMA transfer currently in progress.
  */
 int

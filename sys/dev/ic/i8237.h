@@ -10,3 +10,7 @@
 #define	DMA37MD_WRITE	0x04	/* read the device, write memory operation */
 #define	DMA37MD_READ	0x08	/* write the device, read memory operation */
 
+#ifndef PC98
+#define	DMA1_STATUS	(IO_DMA1 + 1*8)	/* status register */
+#define	DMA2_STATUS	(IO_DMA2 + 2*8)	/* status register */
+#endif

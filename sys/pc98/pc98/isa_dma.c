@@ -75,6 +75,7 @@
 */
 #ifdef PC98
 #define	DMA1_CHN(c)	(IO_DMA + (4*(c)))	/* addr reg for channel c */
+#define	DMA1_STATUS	(IO_DMA + 0x10)		/* status register */
 #define	DMA1_SMSK	(IO_DMA + 0x14)		/* single mask register */
 #define	DMA1_MODE	(IO_DMA + 0x16)		/* mode register */
 #define	DMA1_FFC	(IO_DMA + 0x18)		/* clear first/last FF */
@@ -559,6 +560,16 @@ isa_dmastatus(int chan)
 	if (chan >= 4)			/* high channels move words */
 		cnt *= 2;
 	return(cnt);
+}
+
+/*
+ * Reached terminal count yet ?
+ */
+int
+isa_dmatc(int chan)
+{
+
+	return(inb(DMA1_STATUS) & (1 << chan));
 }
 
 /*
