@@ -3,8 +3,61 @@
 
     $FreeBSD$
 
-    Original revision: 1.149
+    Original revision: 1.155
 -->
+
+<articleinfo>
+  <title>&os; &release.current; &arch; Release Notes</title>
+
+  <corpauthor>FreeBSD プロジェクト</corpauthor>
+
+  <copyright>
+    <year>2000</year>
+    <year>2001</year>
+    <holder role="mailto:doc@FreeBSD.org">FreeBSD ドキュメンテーション
+    プロジェクト</holder>
+  </copyright>
+</articleinfo>
+
+<!--
+	Introduction to the release notes, adapted from the
+	introduction to the old RELNOTES.TXT.
+-->
+
+<sect1>
+  <title>はじめに</title>
+
+  <para>この文書は &arch; ハードウェアプラットフォームの
+    &os; &release.current; 向けのリリースノートです.
+    &release.prev; 以降に &os; に追加 (もしくは修正) された新しい機能
+    について解説しています.</para>
+
+<![ %release.type.snapshot [
+
+  <para>このリリースノートが対応する &release.type; 配布物は,
+    &release.branch; 開発ブランチの &release.prev; から
+    &release.next; の間に位置します.
+    このブランチのあらかじめコンパイルされたバイナリ &release.type;
+    配布物は <ulink url="&release.url;"></ulink> に公開されています.
+  </para>
+
+]]>
+
+<![ %release.type.release [
+
+  <para>この &os; &release.current; 配布物は &release.type; 配布物です.
+    この配布物はあらゆるミラーの <ulink url="&release.url;"></ulink>
+    で見つけることができます.
+    この (もしくは他の) &os; の &release.type; 配布物を取得する方法
+    は
+    <ulink url="http://www.FreeBSD.org/handbook/">FreeBSD ハンドブック</ulink>
+    の
+    <ulink url="http://www.FreeBSD.org/handbook/mirrors.html">
+      付録 <quote>FreeBSD を取得する</quote></ulink>
+    を参照してください.</para>
+
+]]>
+</sect1>
 
 <!--
 	The "What's New" section of the release notes.  Within
@@ -111,11 +164,6 @@
       &man.devfs.5; は標準で有効化されていますが, 
       <literal>NODEVFS</literal>
       カーネルオプションを使うことで無効化できます.</para>
-
-    <para arch="i386">NEWCARD が暫定的に Cardbus に対応しました.
-      このコードは TI113X, TI12XX, TI125X, Ricoh 5C46/5C47, Topic
-      95/97/100, Cirrus Logic PD683X ブリッジに対応しています.
-      16-bit PC Card には, まだ対応していません.</para>
 
     <para>クラッシュダンプに write combining 機能 (訳注:
       データをひとまとめにしてバス使用効率を向上させる機能)
@@ -300,6 +348,9 @@
       マシンが長時間ロックしなくなりました.
       &merged;</para>
 
+    <para>各 &man.jail.2; 環境は各々の securelevel で動作することがで
+      きるようになりました.</para>
+
     <sect3>
       <title>プロセッサ・マザーボードの対応状況</title>
 
@@ -389,7 +440,7 @@
 
       <para>&man.tap.4; ドライバが追加されました.
         これはブリッジ構成で使うための仮想イーサネットドライバです.
-        &merged;</para>
+	このデバイスはクローニング可能です. &merged;</para>
 
       <para>&man.ti.4; ドライバが Alteon AceNIC
         1000baseT ギガビットイーサネットカードおよび,
@@ -513,6 +564,13 @@
         ネットワークインターフェイスに対応しています.
         &merged;</para>
 
+      <para>&man.faith.4; デバイスがロード/アンロード/クローニングに
+	対応しました.</para>
+
+      <para>&man.stf.4; デバイスがクローニングに対応しました.</para>
+            
+      <para>&man.vlan.4; デバイスがロード/アンロード/クローニングに対応しました.</para>
+
       <para arch="i386">
         &man.bge.4; ドライバが追加されました.
         これは 3Com 3c996-T,
@@ -522,13 +580,25 @@
         ファミリのギガビットイーサネットコントローラ用ドライバで,
         TCP/IP チェックサムのオフロード,
         ジャンボフレーム, VLAN タグ挿入・削除機能に加え,
-        割り込み低減機能に対応しています.</para>
+        割り込み低減機能に対応しています. &merged;</para>
 
       <para>インターフェイス毎に用意される
         <varname>ifnet</varname> 構造体に,
         ネットワークインターフェイスが対応している機能,
         および, そのうち有効化されている機能を格納する部分が追加されました.
         また &man.ifconfig.8; が, その機能の検索に対応しています.</para>
+
+      <para>インターフェイス毎の <varname>if_inaddr</varname>
+	線形リストをハッシュテーブルで置き換えることにより,
+	IP エイリアスを多数持つホストでの性能が改善されました.</para>
+
+      <para>ネットワークデバイスは <filename>/dev</filename> 以下に
+	自動的に作成されるようになりました.
+	<!-- XXX: kuriyama: should be translated -->
+	Interface hardware ioctls (not protocol or routing) can be
+	 performed on these devices.
+	 <varname>SIOCGIFCONF</varname> ioctl は特殊な
+	 <filename>/dev/network</filename> ノードで動作します.</para>
     </sect3>
 
     <sect3>
@@ -680,14 +750,6 @@
 
       <para>IP マルチキャストが VLAN デバイス上で動作するようになりました.
         また, VLAN コードにあったいくつかのバグも修正されています.</para>
-
-      <para>&man.faith.4; デバイスがロード/アンロード/クローニングに対応しました.</para>
-
-      <para>&man.stf.4; デバイスがクローニングに対応しました.</para>
-            
-      <para>&man.tap.4; デバイスがクローニングに対応しました.</para>
-            
-      <para>&man.vlan.4; デバイスがロード/アンロード/クローニングに対応しました.</para>
     </sect3>
 
     <sect3>
@@ -947,6 +1009,11 @@ hw.pcic.irq="0"</programlisting>
 
       <screen><prompt>ok</prompt> <userinput>set hw.pcic.intr_path="1"</userinput>
 <prompt>ok</prompt> <userinput>set hw.pcic.irq="0"</userinput></screen>
+
+      <para arch="i386">NEWCARD が暫定的に Cardbus に対応しました.
+	このコードは TI113X, TI12XX, TI125X, Ricoh 5C46/5C47, Topic
+	95/97/100, Cirrus Logic PD683X ブリッジに対応しています.
+	16-bit PC Card には, まだ対応していません.</para>
     </sect3>
 
     <sect3>
@@ -963,7 +1030,7 @@ hw.pcic.irq="0"</programlisting>
         S3 SonicVibes チップセット用ドライバがそれぞれ新たに追加されています.
         &merged;</para>
 
-      <para arch="i386">Advance Logic ALS4000 用ドライバが新たに追加されました.
+      <para arch="i386">Avance Logic ALS4000 用ドライバが新たに追加されました.
         &merged;</para>
 
       <para arch="i386">ESS Maestro-3/Allegro 用ドライバが新たに追加されました.
@@ -2329,6 +2396,12 @@ hw.pcic.irq="0"</programlisting>
     <para><filename>libgmp</filename> が
       <filename>libmp</filename> で置き換えられました.</para>
 
+    <para>&man.cu.1; と &man.rmail.8; を除いて,
+      <application>UUCP</application> は
+      ベースシステムから削除されました.
+      <application>UUCP</application> の残りの部分は Ports Collection
+      の <port>net/freebsd-uucp</port> にあります.</para>
+
     <sect3>
       <title>寄贈ソフトウェア</title>
 
@@ -2561,39 +2634,27 @@ hw.pcic.irq="0"</programlisting>
         <title>OpenSSH</title>
 
 	<para><application>OpenSSH</application> がバージョン
-          2.1.0 に更新されました.
-          これは DSA 暗号鍵を含む SSH2 プロトコルに対応したものです.
+          2.9 に更新されました.
+	  これは SSH2 プロトコル (デフォルト) と, DSA 暗号鍵に対応した
+          ものです.
+	  &man.ssh-add.1; と &man.ssh-agent.1; は DSA 暗号鍵
+	  に対応しており, 認証 forwarding を使うことができます.
           そのため合衆国在住の <application>OpenSSH</application>
           ユーザは, RSA 暗号鍵を扱うために必要な, 制限されたライセンスを持つ
           RSAREF ツールキットに依存しなくても済むようになりました.
-          <application>OpenSSH</application> 2.1 は,
-          <filename>ssh2</filename> port 等のその他の SSH2
-          クライアント, SSH2 サーバと良好に協調動作可能です.
-          詳細については
-          <ulink url="http://www.openssh.com/">OpenSSH ウェブサイト</ulink>
-          をご覧ください.
-          &merged;</para>
+	  その他の新しい機能もいくつかあります:
+	  sftp のクライアントとサーバが追加されました.
+	  &man.scp.1; は 2GB 以上のファイルを扱えるようになりました.
+	  &man.sshd.8; に対して新たに,
+          未認証の ssh 接続数を制限する機能が追加されています.
+	  Rijndael 暗号アルゴリズムがサポートされました.
+	  &man.ssh.1; に既存セションの rekeying がサポートされ, 実験的な
+	  <application>SOCKS4</application> プロキシーも加えられました.
+	</para>
 
 	<para><application>OpenSSH</application>
           の SSH1 モードが OPIE パスワード認証に対応しました.
           SSH2 モードにはまだ対応していません.
-          &merged;</para>
-
-	<para><application>OpenSSH</application> がバージョン
-          2.2.0 に更新されました.
-          &man.ssh-add.1; および &man.ssh-agent.1; が DSA
-          暗号鍵に対応し,
-          ssh.com クライアントやその他のクライアントと協調動作可能な
-          sftp サーバが追加されました.
-          &man.scp.1; で 2GB を超えるファイルが操作可能になり,
-          その他の SSH2 クライアント/サーバとの協調動作に改良が加えられました.
-          また &man.sshd.8; に対して新たに,
-          未認証の ssh 接続数を制限する機能が追加されています.
-          &merged;</para>
-
-	<para><application>OpenSSH</application> がバージョン
-          2.3.0 に更新されました. 
-          このバージョンは Rijndael 暗号化アルゴリズムに対応しています.
           &merged;</para>
 
         <para><application>OpenSSH</application> が
@@ -2637,16 +2698,6 @@ hw.pcic.irq="0"</programlisting>
           <literal>VersionAddendum</literal> が追加されました.
           これは <application>OpenSSH</application>
           のメインバージョン番号の後ろに続く文字列を変更するためのものです.</para>
-
-	<para><application>OpenSSH</application> がバージョン 2.9 に更新され,
-          &man.sftp.1; および &man.ssh-keyscan.1;
-          という2 つのプログラムが新たに追加されました.
-          更新で加えられたさまざまな改良には,
-          プロトコルの標準が v2 になったこと,
-          既存の SSH セションに対する rekeying に対応したこと,
-          &man.ssh.1; に
-          <application>SOCKS4</application> proxy が追加されたことが含まれています.
-          &merged;</para>
       </sect4>
 
       <sect4>
@@ -2832,4 +2883,45 @@ hw.pcic.irq="0"</programlisting>
         というモジュール集が追加されました.</para>
     </sect3>
   </sect2>
+</sect1>
+
+<!--
+	Summary information on upgrading FreeBSD.  This comes from
+	the similarly-named section of RELNOTES.TXT.
+-->
+
+<sect1>
+  <title>前のリリースの &os; からのアップグレード</title>
+
+  <para>4.X のような &os; の以前のリリースからアップグレードする場合,
+    選んだアップグレード方法によってはいくらか影響を受けることが
+    あります.
+    &os; 配布物をアップグレードするには 2 つの方法がよく使われます:</para>
+
+  <para>
+    <itemizedlist>
+      <listitem>
+        <para><filename>/usr/src</filename> からソースを使う</para>
+      </listitem>
+      <listitem>
+        <para>&man.sysinstall.8; のオプションから
+	  バイナリアップグレードを選ぶ.</para>
+      </listitem>
+    </itemizedlist>
+  </para>
+
+  <para>できればアップグレードをはじめる <emphasis>前</emphasis> に,
+    <filename>INSTALL.TXT</filename> ファイルを読んでください.
+    ソースからアップグレードする際には,
+    <filename>/usr/src/UPDATING</filename> も読むようにしてください.
+  </para>
+
+  <para>そして, &os; の -STABLE もしくは -CURRENT ブランチを追う
+    いくつかの方法のうちの一つを使おうと思うのなら,
+    <ulink url="http://www.FreeBSD.org/handbook/">FreeBSD
+      ハンドブック</ulink> の
+    <ulink url="http://www.FreeBSD.org/handbook/current-stable.html">
+      <quote>-CURRENT と -STABLE</quote></ulink>
+    セクションを読んでください.</para>
+
 </sect1>
