@@ -251,7 +251,7 @@ static void *malloc_brk;
 static struct pgfree *px;
 
 /* compile-time options */
-char *malloc_options;
+char *_malloc_options;
 
 /* Name of the current public function */
 static char *malloc_func;
@@ -269,30 +269,36 @@ static void *imalloc(size_t size);
 static void ifree(void *ptr);
 static void *irealloc(void *ptr, size_t size);
 
+static void
+wrtmessage(char *p1, char *p2, char *p3, char *p4)
+{
+
+    _write(STDERR_FILENO, p1, strlen(p1));
+    _write(STDERR_FILENO, p2, strlen(p2));
+    _write(STDERR_FILENO, p3, strlen(p3));
+    _write(STDERR_FILENO, p4, strlen(p4));
+}
+
+void (*_malloc_message)(char *p1, char *p2, char *p3, char *p4) = wrtmessage;
+
 extern char *__progname;
 
 static void
 wrterror(char *p)
 {
-    char *q = " error: ";
-    _write(STDERR_FILENO, __progname, strlen(__progname));
-    _write(STDERR_FILENO, malloc_func, strlen(malloc_func));
-    _write(STDERR_FILENO, q, strlen(q));
-    _write(STDERR_FILENO, p, strlen(p));
+
     suicide = 1;
+    _malloc_message(__progname, malloc_func, " error: ", p);
     abort();
 }
 
 static void
 wrtwarning(char *p)
 {
-    char *q = " warning: ";
+
     if (malloc_abort)
 	wrterror(p);
-    _write(STDERR_FILENO, __progname, strlen(__progname));
-    _write(STDERR_FILENO, malloc_func, strlen(malloc_func));
-    _write(STDERR_FILENO, q, strlen(q));
-    _write(STDERR_FILENO, p, strlen(p));
+    _malloc_message(__progname, malloc_func, " warning: ", p);
 }
 
 /*
@@ -403,7 +409,7 @@ malloc_init ()
 	} else if (i == 1) {
 	    p = getenv("MALLOC_OPTIONS");
 	} else {
-	    p = malloc_options;
+	    p = _malloc_options;
 	}
 	for (; p && *p; p++) {
 	    switch (*p) {

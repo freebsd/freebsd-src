@@ -57,7 +57,9 @@
 .Ft void
 .Fn free "void *ptr"
 .Ft char *
-.Va malloc_options;
+.Va _malloc_options
+.Ft void
+.Va (*_malloc_message)(char *p1, char *p2, char *p3, char *p4)
 .Sh DESCRIPTION
 The
 .Fn malloc
@@ -146,7 +148,7 @@ The ``name'' of the file referenced by the symbolic link named
 the value of the environment variable
 .Ev MALLOC_OPTIONS ,
 and the string pointed to by the global variable
-.Va malloc_options 
+.Va _malloc_options 
 will be interpreted, in that order, character by character as flags.
 .Pp
 Most flags are single letters,
@@ -211,8 +213,7 @@ core (using
 This option should be set at compile time by including the following in
 the source code:
 .Bd -literal -offset indent
-extern char *malloc_options;
-malloc_options = "X";
+_malloc_options = "X";
 .Ed
 .It Z
 This option implicitly sets the
@@ -249,8 +250,7 @@ ln -s 'A<' /etc/malloc.conf
 To specify in the source that a program does no return value checking
 on calls to these functions:
 .Bd -literal -offset indent
-extern char *malloc_options;
-malloc_options = "X";
+_malloc_options = "X";
 .Ed
 .Sh ENVIRONMENT
 The following environment variables affect the execution of the allocation
@@ -363,6 +363,14 @@ Errors will result in the process dumping core.
 If the
 .Dq A
 option is set, all warnings are treated as errors.
+.Pp
+The
+.Va _malloc_message
+variable allows the programmer to override the function which emits
+the text strings forming the errors and warnings if for some reason
+the stderr filedescriptor is not suitable for this.
+Please note that doing anything which tries to allocate memory in
+this function will certain suicide for the process.
 .Pp
 The following is a brief description of possible error messages and
 their meanings:
