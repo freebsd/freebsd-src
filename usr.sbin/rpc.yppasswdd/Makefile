@@ -17,8 +17,8 @@ CFLAGS+= -I${.CURDIR}/../../usr.sbin/vipw -I${.CURDIR}/../../usr.sbin/ypserv \
 	 -I${.CURDIR}/../../libexec/ypxfr -I${.CURDIR}/../../usr.bin/chpass \
 	 -I${.CURDIR} -I.
 
-DPADD=	${LIBRPCSVC} ${LIBCRYPT} ${LIBMD}
-LDADD=	-lrpcsvc -lcrypt -lmd
+DPADD=	${LIBRPCSVC} ${LIBCRYPT}
+LDADD=	-lrpcsvc -lcrypt
 
 CLEANFILES= ${GENSRCS}
 

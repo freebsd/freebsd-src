@@ -3,7 +3,7 @@
 
 PROG=	lock
 BINMODE=4555
-DPADD=	${LIBCRYPT} ${LIBMD}
-LDADD=	-lcrypt -lmd
+DPADD=	${LIBCRYPT}
+LDADD=	-lcrypt
 
 .include <bsd.prog.mk>
