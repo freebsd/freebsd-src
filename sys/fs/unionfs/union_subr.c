@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_subr.c	8.20 (Berkeley) 5/20/95
- * $Id: union_subr.c,v 1.26 1998/02/04 22:32:52 eivind Exp $
+ * $Id: union_subr.c,v 1.27 1998/02/06 12:13:44 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -370,7 +370,7 @@ loop:
 				 */
 				if ((un->un_uppervp != NULLVP) &&
 					((un->un_flags & UN_KLOCK) == 0)) {
-					SETKLOCK(un);
+					SETGLOCK(un);
 					klocked = 1;
 				} else {
 					klocked = 0;
@@ -378,12 +378,12 @@ loop:
 				if (vget(UNIONTOV(un), 0,
 				    cnp ? cnp->cn_proc : NULL)) {
 					if (klocked)
-						CLEARKLOCK(un);
+						CLEARGLOCK(un);
 					union_list_unlock(hash);
 					goto loop;
 				}
 				if (klocked)
-					CLEARKLOCK(un);
+					CLEARGLOCK(un);
 				break;
 			}
 		}
