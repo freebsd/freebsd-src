@@ -95,7 +95,7 @@ struct cmdargs;
 
 extern int filter_Show(struct cmdargs const *);
 extern int filter_Set(struct cmdargs const *);
-extern const char * filter_Action2Nam(int);
-extern const char *filter_Op2Nam(int);
+extern const char * filter_Action2Nam(unsigned);
+extern const char *filter_Op2Nam(unsigned);
 extern void filter_AdjustAddr(struct filter *, struct ncpaddr *,
                               struct ncpaddr *, struct in_addr *);

@@ -118,7 +118,7 @@ link_DeleteQueue(struct link *l)
 size_t
 link_QueueLen(struct link *l)
 {
-  int i;
+  unsigned i;
   size_t len;
 
   for (i = 0, len = 0; i < LINK_QUEUES(l); i++)
@@ -130,7 +130,7 @@ link_QueueLen(struct link *l)
 size_t
 link_QueueBytes(struct link *l)
 {
-  int i;
+  unsigned i;
   size_t len, bytes;
   struct mbuf *m;
 
@@ -257,7 +257,7 @@ link_PushPacket(struct link *l, struct mbuf *bp, struct bundle *b, int pri,
    * packet (as we do with ``pull''s).
    */
 
-  if(pri < 0 || pri >= LINK_QUEUES(l))
+  if(pri < 0 || (unsigned)pri >= LINK_QUEUES(l))
     pri = 0;
 
   bp->priv = 0;		/* Adjusted by the async layer ! */
@@ -372,7 +372,7 @@ static const struct {
 static void
 Despatch(struct bundle *bundle, struct link *l, struct mbuf *bp, u_short proto)
 {
-  int f;
+  unsigned f;
 
   for (f = 0; f < DSIZE; f++)
     if (despatcher[f].proto == proto) {

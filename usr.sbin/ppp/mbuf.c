@@ -74,10 +74,10 @@ static struct memmap {
 
 static unsigned long long mbuf_Mallocs, mbuf_Frees;
 
-int
+size_t
 m_length(struct mbuf *bp)
 {
-  int len;
+  size_t len;
 
   for (len = 0; bp; bp = bp->m_next)
     len += bp->m_len;
@@ -240,7 +240,7 @@ mbuf_View(struct mbuf *bp, void *v, size_t len)
 }
 
 struct mbuf *
-m_prepend(struct mbuf *bp, const void *ptr, size_t len, size_t extra)
+m_prepend(struct mbuf *bp, const void *ptr, size_t len, u_short extra)
 {
   struct mbuf *head;
 
@@ -274,7 +274,7 @@ m_adj(struct mbuf *bp, ssize_t n)
 {
   if (n > 0) {
     while (bp) {
-      if (n < bp->m_len) {
+      if ((size_t)n < bp->m_len) {
         bp->m_len = n;
         bp->m_offset += n;
         return bp;
@@ -288,7 +288,7 @@ m_adj(struct mbuf *bp, ssize_t n)
       return NULL;
     }
     for (; bp; bp = bp->m_next, n -= bp->m_len)
-      if (n < bp->m_len) {
+      if ((size_t)n < bp->m_len) {
         bp->m_len = n;
         m_freem(bp->m_next);
         bp->m_next = NULL;
@@ -302,7 +302,7 @@ m_adj(struct mbuf *bp, ssize_t n)
 void
 mbuf_Write(struct mbuf *bp, const void *ptr, size_t m_len)
 {
-  int plen;
+  size_t plen;
   int nb;
 
   plen = m_length(bp);

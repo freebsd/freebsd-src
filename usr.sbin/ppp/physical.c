@@ -30,12 +30,16 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <paths.h>
+#ifdef NOSUID
+#include <signal.h>
+#endif
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/tty.h>	/* TIOCOUTQ */
 #include <sys/uio.h>
+#include <sysexits.h>
 #include <time.h>
 #include <unistd.h>
 #include <utmp.h>
@@ -85,6 +89,7 @@
 #include "prompt.h"
 #include "chat.h"
 #include "auth.h"
+#include "main.h"
 #include "chap.h"
 #include "cbcp.h"
 #include "datalink.h"
@@ -109,7 +114,7 @@
 static int physical_DescriptorWrite(struct fdescriptor *, struct bundle *,
                                     const fd_set *);
 
-static int
+static unsigned
 physical_DeviceSize(void)
 {
   return sizeof(struct device);
@@ -119,7 +124,7 @@ struct {
   struct device *(*create)(struct physical *);
   struct device *(*iov2device)(int, struct physical *, struct iovec *,
                                int *, int, int *, int *);
-  int (*DeviceSize)(void);
+  unsigned (*DeviceSize)(void);
 } devices[] = {
 #ifndef NOI4B
   /*
@@ -231,7 +236,7 @@ static const struct parity {
   { "even", "P_EVEN", CS7 | PARENB },
   { "odd", "P_ODD", CS7 | PARENB | PARODD },
   { "none", "P_ZERO", CS8 },
-  { NULL, 0 },
+  { NULL, NULL, 0 },
 };
 
 static int
@@ -269,7 +274,7 @@ physical_SetParity(struct physical *p, const char *str)
   return -1;
 }
 
-int
+unsigned
 physical_GetSpeed(struct physical *p)
 {
   if (p->handler && p->handler->speed)
@@ -279,9 +284,9 @@ physical_GetSpeed(struct physical *p)
 }
 
 int
-physical_SetSpeed(struct physical *p, int speed)
+physical_SetSpeed(struct physical *p, unsigned speed)
 {
-  if (IntToSpeed(speed) != B0) {
+  if (UnsignedToSpeed(speed) != B0) {
       p->cfg.speed = speed;
       return 1;
   }
@@ -402,8 +407,8 @@ physical_Destroy(struct physical *p)
 }
 
 static int
-physical_DescriptorWrite(struct fdescriptor *d, struct bundle *bundle,
-                         const fd_set *fdset)
+physical_DescriptorWrite(struct fdescriptor *d, struct bundle *bundle __unused,
+                         const fd_set *fdset __unused)
 {
   struct physical *p = descriptor2physical(d);
   int nw, result = 0;
@@ -425,7 +430,7 @@ physical_DescriptorWrite(struct fdescriptor *d, struct bundle *bundle,
       if (errno == EAGAIN)
         result = 1;
       else if (errno != ENOBUFS) {
-	log_Printf(LogPHASE, "%s: write (fd %d, len %d): %s\n", p->link.name,
+	log_Printf(LogPHASE, "%s: write (fd %d, len %zd): %s\n", p->link.name,
                    p->fd, p->out->m_len, strerror(errno));
         datalink_Down(p->dl, CLOSE_NORMAL);
       }
@@ -535,7 +540,7 @@ physical_ShowStatus(struct cmdargs const *arg)
 
 void
 physical_DescriptorRead(struct fdescriptor *d, struct bundle *bundle,
-                     const fd_set *fdset)
+                     const fd_set *fdset __unused)
 {
   struct physical *p = descriptor2physical(d);
   u_char *rbuff;
@@ -591,7 +596,8 @@ iov2physical(struct datalink *dl, struct iovec *iov, int *niov, int maxiov,
              int fd, int *auxfd, int *nauxfd)
 {
   struct physical *p;
-  int len, h, type;
+  int len, type;
+  unsigned h;
 
   p = (struct physical *)iov[(*niov)++].iov_base;
   p->link.name = dl->name;
@@ -662,13 +668,13 @@ iov2physical(struct datalink *dl, struct iovec *iov, int *niov, int maxiov,
   return p;
 }
 
-int
+unsigned
 physical_MaxDeviceSize()
 {
-  int biggest, sz, n;
+  unsigned biggest, sz, n;
 
   biggest = sizeof(struct device);
-  for (sz = n = 0; n < NDEVICES; n++)
+  for (n = 0; n < NDEVICES; n++)
     if (devices[n].DeviceSize) {
       sz = (*devices[n].DeviceSize)();
       if (biggest < sz)
@@ -732,7 +738,10 @@ physical2iov(struct physical *p, struct iovec *iov, int *niov, int maxiov,
     if (h && h->device2iov)
       (*h->device2iov)(h, iov, niov, maxiov, auxfd, nauxfd);
     else {
-      iov[*niov].iov_base = malloc(sz);
+      if ((iov[*niov].iov_base = malloc(sz)) == NULL) {
+	log_Printf(LogALERT, "physical2iov: Out of memory (%d bytes)\n", sz);
+	AbortProgram(EX_OSERR);
+      }
       if (h)
         memcpy(iov[*niov].iov_base, h, sizeof *h);
       iov[*niov].iov_len = sz;
@@ -787,7 +796,8 @@ const char *physical_GetDevice(struct physical *p)
 void
 physical_SetDeviceList(struct physical *p, int argc, const char *const *argv)
 {
-  int f, pos;
+  unsigned pos;
+  int f;
 
   p->cfg.devlist[sizeof p->cfg.devlist - 1] = '\0';
   for (f = 0, pos = 0; f < argc && pos < sizeof p->cfg.devlist - 1; f++) {
@@ -1003,10 +1013,11 @@ physical_Found(struct physical *p)
 }
 
 int
-physical_Open(struct physical *p, struct bundle *bundle)
+physical_Open(struct physical *p)
 {
-  int devno, h, wasfd, err;
   char *dev;
+  int devno, wasfd, err;
+  unsigned h;
 
   if (p->fd >= 0)
     log_Printf(LogDEBUG, "%s: Open: Modem is already open!\n", p->link.name);

@@ -375,12 +375,14 @@ ipv6cp_AddOutOctets(struct ipv6cp *ipv6cp, int n)
 }
 
 void
-ipv6cp_IfaceAddrAdded(struct ipv6cp *ipv6cp, const struct iface_addr *addr)
+ipv6cp_IfaceAddrAdded(struct ipv6cp *ipv6cp __unused,
+		      const struct iface_addr *addr __unused)
 {
 }
 
 void
-ipv6cp_IfaceAddrDeleted(struct ipv6cp *ipv6cp, const struct iface_addr *addr)
+ipv6cp_IfaceAddrDeleted(struct ipv6cp *ipv6cp __unused,
+			const struct iface_addr *addr __unused)
 {
 }
 
@@ -526,6 +528,7 @@ ipv6cp_LayerDown(struct fsm *fp)
     log_Printf(LogIPV6CP, "%s: LayerDown: %s\n", fp->link->name, addr);
 
 #ifndef NORADIUS
+    radius_Flush(&fp->bundle->radius);
     radius_Account(&fp->bundle->radius, &fp->bundle->radacct6,
 		   fp->bundle->links, RAD_STOP, &ipv6cp->throughput);
 
@@ -629,7 +632,7 @@ ipv6cp_SendConfigReq(struct fsm *fp)
 }
 
 static void
-ipv6cp_SentTerminateReq(struct fsm *fp)
+ipv6cp_SentTerminateReq(struct fsm *fp __unused)
 {
   /* Term REQ just sent by FSM */
 }
@@ -642,7 +645,7 @@ ipv6cp_SendTerminateAck(struct fsm *fp, u_char id)
 }
 
 static const char *
-protoname(int proto)
+protoname(unsigned proto)
 {
   static const char *cftypes[] = { "IFACEID", "COMPPROTO" };
 
@@ -687,7 +690,7 @@ ipv6cp_DecodeConfig(struct fsm *fp, u_char *cp, u_char *end, int mode_type,
 
   memset(zero, 0, IPV6CP_IFIDLEN);
 
-  while (end - cp >= sizeof(opt->hdr)) {
+  while (end - cp >= (int)sizeof(opt->hdr)) {
     if ((opt = fsm_readopt(&cp)) == NULL)
       break;
 

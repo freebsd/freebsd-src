@@ -100,14 +100,14 @@ async_Encode(struct async *async, u_char **cp, u_char c, int proto)
 }
 
 static struct mbuf *
-async_LayerPush(struct bundle *bundle, struct link *l, struct mbuf *bp,
-                int pri, u_short *proto)
+async_LayerPush(struct bundle *b __unused, struct link *l, struct mbuf *bp,
+                int pri __unused, u_short *proto)
 {
   struct physical *p = link2physical(l);
   u_char *cp, *sp, *ep;
   struct mbuf *wp;
   size_t oldcnt;
-  int cnt;
+  size_t cnt;
 
   if (!p || m_length(bp) > HDLCSIZE) {
     m_freem(bp);
@@ -187,8 +187,8 @@ async_Decode(struct async *async, u_char c)
 }
 
 static struct mbuf *
-async_LayerPull(struct bundle *b, struct link *l, struct mbuf *bp,
-                u_short *proto)
+async_LayerPull(struct bundle *b __unused, struct link *l, struct mbuf *bp,
+                u_short *proto __unused)
 {
   struct mbuf *nbp, **last;
   struct physical *p = link2physical(l);

@@ -129,7 +129,8 @@ prompt_Display(struct prompt *p)
 }
 
 static int
-prompt_UpdateSet(struct fdescriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
+prompt_UpdateSet(struct fdescriptor *d, fd_set *r, fd_set *w __unused,
+		 fd_set *e, int *n)
 {
   struct prompt *p = descriptor2prompt(d);
   int sets;
@@ -179,7 +180,8 @@ prompt_ShowHelp(struct prompt *p)
 }
 
 static void
-prompt_Read(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
+prompt_Read(struct fdescriptor *d, struct bundle *bundle,
+	    const fd_set *fdset __unused)
 {
   struct prompt *p = descriptor2prompt(d);
   struct prompt *op;
@@ -206,7 +208,7 @@ prompt_Read(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
     } else if (n <= 0) {
       log_Printf(LogPHASE, "%s: Client connection closed.\n", p->src.from);
       if (!p->owner)
-        Cleanup(EX_NORMAL);
+        Cleanup();
       prompt_Destroy(p, 0);
     }
     return;
@@ -300,7 +302,8 @@ prompt_Read(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
 }
 
 static int
-prompt_Write(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
+prompt_Write(struct fdescriptor *d __unused, struct bundle *bundle __unused,
+	     const fd_set *fdset __unused)
 {
   /* We never want to write here ! */
   log_Printf(LogALERT, "prompt_Write: Internal error: Bad call !\n");
@@ -394,7 +397,7 @@ prompt_vPrintf(struct prompt *p, const char *fmt, va_list ap)
 
     if (p->TermMode) {
       /* Stuff '\r' in front of '\n' 'cos we're in raw mode */
-      int len = strlen(fmt);
+      size_t len = strlen(fmt);
 
       if (len && len < sizeof nfmt - 1 && fmt[len-1] == '\n' &&
           (len == 1 || fmt[len-2] != '\r')) {

@@ -104,7 +104,7 @@ struct fsm {
   u_short min_code;
   u_short max_code;
   int open_mode;		/* Delay before config REQ (-1 forever) */
-  int state;			/* State of the machine */
+  unsigned state;		/* State of the machine */
   u_char reqid;			/* Next request id */
   int restart;			/* Restart counter value */
 
@@ -183,7 +183,7 @@ struct fsm_opt {
 extern void fsm_Init(struct fsm *, const char *, u_short, int, int, int,
                      struct bundle *, struct link *, const  struct fsm_parent *,
                      struct fsm_callbacks *, const char * const [3]);
-extern void fsm_Output(struct fsm *, u_int, u_int, u_char *, int, int);
+extern void fsm_Output(struct fsm *, u_int, u_int, u_char *, unsigned, int);
 extern void fsm_Open(struct fsm *);
 extern void fsm_Up(struct fsm *);
 extern void fsm_Down(struct fsm *);

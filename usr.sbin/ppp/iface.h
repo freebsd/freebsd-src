@@ -38,9 +38,9 @@ struct iface {
   char *name;			/* Interface name (malloc'd) */
   int index;			/* Interface index */
   int flags;			/* Interface flags (IFF_*) */
-  int mtu;			/* struct tuninfo MTU */
+  unsigned long mtu;		/* struct tuninfo MTU */
 
-  int addrs;			/* How many in_addr's */
+  unsigned addrs;		/* How many in_addr's */
   struct iface_addr *addr;	/* Array of addresses (malloc'd) */
 };
 

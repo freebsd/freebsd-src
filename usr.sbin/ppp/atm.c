@@ -68,7 +68,7 @@ struct atmdevice {
 
 #define device2atm(d) ((d)->type == ATM_DEVICE ? (struct atmdevice *)d : NULL)
 
-int
+unsigned
 atm_DeviceSize(void)
 {
   return sizeof(struct atmdevice);
@@ -106,7 +106,7 @@ atm_Free(struct physical *p)
 
 static void
 atm_device2iov(struct device *d, struct iovec *iov, int *niov,
-               int maxiov, int *auxfd, int *nauxfd)
+               int maxiov __unused, int *auxfd __unused, int *nauxfd __unused)
 {
   int sz = physical_MaxDeviceSize();
 
@@ -142,7 +142,7 @@ static const struct device baseatmdevice = {
 
 struct device *
 atm_iov2device(int type, struct physical *p, struct iovec *iov, int *niov,
-               int maxiov, int *auxfd, int *nauxfd)
+               int maxiov __unused, int *auxfd __unused, int *nauxfd __unused)
 {
   if (type == ATM_DEVICE) {
     struct atmdevice *dev = (struct atmdevice *)iov[(*niov)++].iov_base;

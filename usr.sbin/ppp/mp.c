@@ -161,13 +161,13 @@ mp_ReadHeader(struct mp *mp, struct mbuf *m, struct mp_header *header)
 }
 
 static void
-mp_LayerStart(void *v, struct fsm *fp)
+mp_LayerStart(void *v __unused, struct fsm *fp __unused)
 {
   /* The given FSM (ccp) is about to start up ! */
 }
 
 static void
-mp_LayerUp(void *v, struct fsm *fp)
+mp_LayerUp(void *v __unused, struct fsm *fp)
 {
   /* The given fsm (ccp) is now up */
 
@@ -175,13 +175,13 @@ mp_LayerUp(void *v, struct fsm *fp)
 }
 
 static void
-mp_LayerDown(void *v, struct fsm *fp)
+mp_LayerDown(void *v __unused, struct fsm *fp __unused)
 {
   /* The given FSM (ccp) has been told to come down */
 }
 
 static void
-mp_LayerFinish(void *v, struct fsm *fp)
+mp_LayerFinish(void *v __unused, struct fsm *fp)
 {
   /* The given fsm (ccp) is now down */
   if (fp->state == ST_CLOSED && fp->open_mode == OPEN_PASSIVE)
@@ -416,7 +416,7 @@ mp_Assemble(struct mp *mp, struct mbuf *m, struct physical *p)
 {
   struct mp_header mh, h;
   struct mbuf *q, *last;
-  int32_t seq;
+  u_int32_t seq;
 
   /*
    * When `m' and `p' are NULL, it means our oldest link has gone down.
@@ -445,7 +445,7 @@ mp_Assemble(struct mp *mp, struct mbuf *m, struct physical *p)
     mp->seq.min_in = (u_int32_t)-1;
     for (dl = mp->bundle->links; dl; dl = dl->next)
       if (dl->state == DATALINK_OPEN &&
-          (mp->seq.min_in == -1 ||
+          (mp->seq.min_in == (u_int32_t)-1 ||
            isbefore(mp->local_is12bit, dl->mp.seq, mp->seq.min_in)))
         mp->seq.min_in = dl->mp.seq;
   }
@@ -535,7 +535,7 @@ mp_Assemble(struct mp *mp, struct mbuf *m, struct physical *p)
       /* We've got something, reassemble */
       struct mbuf **frag = &q;
       int len;
-      u_long first = -1;
+      long long first = -1;
 
       do {
         *frag = mp->inbufs;
@@ -574,8 +574,8 @@ mp_Assemble(struct mp *mp, struct mbuf *m, struct physical *p)
 
       if (q) {
         q = m_pullup(q);
-        log_Printf(LogDEBUG, "MP: Reassembled frags %ld-%lu, length %d\n",
-                   first, (u_long)h.seq, m_length(q));
+        log_Printf(LogDEBUG, "MP: Reassembled frags %lu-%lu, length %zd\n",
+                   (u_long)first, (u_long)h.seq, m_length(q));
         link_PullPacket(&mp->link, MBUF_CTOP(q), q->m_len, mp->bundle);
         m_freem(q);
       }
@@ -650,7 +650,7 @@ mp_Output(struct mp *mp, struct bundle *bundle, struct link *l,
     m = m_prepend(m, prepend, 4, 0);
   }
   if (log_IsKept(LogDEBUG))
-    log_Printf(LogDEBUG, "MP[frag %d]: Send %d bytes on link `%s'\n",
+    log_Printf(LogDEBUG, "MP[frag %d]: Send %zd bytes on link `%s'\n",
                mp->out.seq, m_length(m), l->name);
   mp->out.seq = inc_seq(mp->peer_is12bit, mp->out.seq);
 
@@ -896,10 +896,10 @@ mp_ShowStatus(struct cmdargs const *arg)
 }
 
 const char *
-mp_Enddisc(u_char c, const char *address, int len)
+mp_Enddisc(u_char c, const char *address, size_t len)
 {
   static char result[100];	/* Used immediately after it's returned */
-  int f, header;
+  unsigned f, header;
 
   switch (c) {
     case ENDDISC_NULL:
@@ -907,7 +907,8 @@ mp_Enddisc(u_char c, const char *address, int len)
       break;
 
     case ENDDISC_LOCAL:
-      snprintf(result, sizeof result, "Local Addr: %.*s", len, address);
+	    snprintf(result, sizeof result, "Local Addr: %.*s", (int)len,
+		address);
       break;
 
     case ENDDISC_IP:
@@ -915,7 +916,7 @@ mp_Enddisc(u_char c, const char *address, int len)
         snprintf(result, sizeof result, "IP %s",
                  inet_ntoa(*(const struct in_addr *)address));
       else
-        sprintf(result, "IP[%d] ???", len);
+        sprintf(result, "IP[%zd] ???", len);
       break;
 
     case ENDDISC_MAC:
@@ -924,26 +925,26 @@ mp_Enddisc(u_char c, const char *address, int len)
         snprintf(result, sizeof result, "MAC %02x:%02x:%02x:%02x:%02x:%02x",
                  m[0], m[1], m[2], m[3], m[4], m[5]);
       } else
-        sprintf(result, "MAC[%d] ???", len);
+        sprintf(result, "MAC[%zd] ???", len);
       break;
 
     case ENDDISC_MAGIC:
       sprintf(result, "Magic: 0x");
       header = strlen(result);
-      if (len > sizeof result - header - 1)
+      if (len + header + 1 > sizeof result)
         len = sizeof result - header - 1;
       for (f = 0; f < len; f++)
         sprintf(result + header + 2 * f, "%02x", address[f]);
       break;
 
     case ENDDISC_PSN:
-      snprintf(result, sizeof result, "PSN: %.*s", len, address);
+	    snprintf(result, sizeof result, "PSN: %.*s", (int)len, address);
       break;
 
-     default:
+    default:
       sprintf(result, "%d: ", (int)c);
       header = strlen(result);
-      if (len > sizeof result - header - 1)
+      if (len + header + 1 > sizeof result)
         len = sizeof result - header - 1;
       for (f = 0; f < len; f++)
         sprintf(result + header + 2 * f, "%02x", address[f]);
@@ -993,19 +994,13 @@ mp_SetEnddisc(struct cmdargs const *arg)
       mp->cfg.enddisc.len = sizeof arg->bundle->ncp.ipcp.my_ip.s_addr;
     } else if (!strcasecmp(arg->argv[arg->argn], "mac")) {
       struct sockaddr_dl hwaddr;
-      int s;
 
       if (arg->bundle->ncp.ipcp.my_ip.s_addr == INADDR_ANY)
         ncprange_getip4addr(&arg->bundle->ncp.ipcp.cfg.my_range, &addr);
       else
         addr = arg->bundle->ncp.ipcp.my_ip;
 
-      s = ID0socket(PF_INET, SOCK_DGRAM, 0);
-      if (s < 0) {
-        log_Printf(LogERROR, "set enddisc: socket(): %s\n", strerror(errno));
-        return 2;
-      }
-      if (arp_EtherAddr(s, addr, &hwaddr, 1)) {
+      if (arp_EtherAddr(addr, &hwaddr, 1)) {
         mp->cfg.enddisc.class = ENDDISC_MAC;
         memcpy(mp->cfg.enddisc.address, hwaddr.sdl_data + hwaddr.sdl_nlen,
                hwaddr.sdl_alen);
@@ -1013,10 +1008,8 @@ mp_SetEnddisc(struct cmdargs const *arg)
       } else {
         log_Printf(LogWARN, "set enddisc: Can't locate MAC address for %s\n",
                   inet_ntoa(addr));
-        close(s);
         return 4;
       }
-      close(s);
     } else if (!strcasecmp(arg->argv[arg->argn], "magic")) {
       int f;
 
@@ -1082,7 +1075,8 @@ mpserver_IsSet(struct fdescriptor *d, const fd_set *fdset)
 }
 
 static void
-mpserver_Read(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
+mpserver_Read(struct fdescriptor *d, struct bundle *bundle,
+	      const fd_set *fdset __unused)
 {
   struct mpserver *s = descriptor2mpserver(d);
 
@@ -1090,8 +1084,8 @@ mpserver_Read(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
 }
 
 static int
-mpserver_Write(struct fdescriptor *d, struct bundle *bundle,
-               const fd_set *fdset)
+mpserver_Write(struct fdescriptor *d __unused, struct bundle *bundle __unused,
+               const fd_set *fdset __unused)
 {
   /* We never want to write here ! */
   log_Printf(LogALERT, "mpserver_Write: Internal error: Bad call !\n");
@@ -1129,7 +1123,9 @@ mpserver_Open(struct mpserver *s, struct peerid *peer)
     return MPSERVER_FAILED;
   }
 
-  for (f = 0; f < peer->enddisc.len && l < sizeof s->socket.sun_path - 2; f++) {
+  for (f = 0;
+       f < peer->enddisc.len && (size_t)l < sizeof s->socket.sun_path - 2;
+       f++) {
     snprintf(s->socket.sun_path + l, sizeof s->socket.sun_path - l,
              "%02x", *(u_char *)(peer->enddisc.address+f));
     l += 2;

@@ -148,7 +148,7 @@ protoname(int proto)
     { 131, "SECDNS" },		/* 131: Secondary DNS Server Address */
     { 132, "SECNBNS" }		/* 132: Secondary NBNS Server Address */
   };
-  int f;
+  unsigned f;
 
   for (f = 0; f < sizeof cftypes / sizeof *cftypes; f++)
     if (cftypes[f].id == proto)
@@ -192,6 +192,10 @@ ipcp_LoadDNS(struct ipcp *ipcp)
     if (fstat(fd, &st) == 0) {
       ssize_t got;
 
+      /*
+       * Note, ns.resolv and ns.resolv_nons are assumed to always point to
+       * buffers of the same size!  See the strcpy() below.
+       */
       if ((ipcp->ns.resolv_nons = (char *)malloc(st.st_size + 1)) == NULL)
         log_Printf(LogERROR, "Failed to malloc %lu for %s: %s\n",
                    (unsigned long)st.st_size, _PATH_RESCONF, strerror(errno));
@@ -252,6 +256,10 @@ ipcp_LoadDNS(struct ipcp *ipcp)
           else
             cp++;
         }
+        /*
+         * Note, cp_nons and cp always point to buffers of the same size, so
+         * strcpy is ok!
+         */
         strcpy(cp_nons, cp);	/* Copy the end - including the NUL */
         cp_nons += strlen(cp_nons) - 1;
         while (cp_nons >= ipcp->ns.resolv_nons && *cp_nons == '\n')
@@ -319,8 +327,7 @@ void
 ipcp_RestoreDNS(struct ipcp *ipcp)
 {
   if (ipcp->ns.resolver) {
-    ssize_t got;
-    size_t len;
+    ssize_t got, len;
     int fd;
 
     if ((fd = ID0open(_PATH_RESCONF, O_WRONLY|O_TRUNC, 0644)) != -1) {
@@ -330,8 +337,8 @@ ipcp_RestoreDNS(struct ipcp *ipcp)
           log_Printf(LogERROR, "Failed rewriting %s: write: %s\n",
                      _PATH_RESCONF, strerror(errno));
         else
-          log_Printf(LogERROR, "Failed rewriting %s: wrote %lu of %lu\n",
-                     _PATH_RESCONF, (unsigned long)got, (unsigned long)len);
+          log_Printf(LogERROR, "Failed rewriting %s: wrote %ld of %ld\n",
+                     _PATH_RESCONF, (long)got, (long)len);
       }
       close(fd);
     } else
@@ -511,7 +518,8 @@ ipcp_Setup(struct ipcp *ipcp, u_int32_t mask)
   struct iface *iface = ipcp->fsm.bundle->iface;
   struct ncpaddr ipaddr;
   struct in_addr peer;
-  int pos, n;
+  int pos;
+  unsigned n;
 
   ipcp->fsm.open_mode = 0;
   ipcp->ifmask.s_addr = mask == INADDR_NONE ? ipcp->cfg.netmask.s_addr : mask;
@@ -605,21 +613,15 @@ numaddresses(struct in_addr mask)
 
 static int
 ipcp_proxyarp(struct ipcp *ipcp,
-              int (*proxyfun)(struct bundle *, struct in_addr, int),
+              int (*proxyfun)(struct bundle *, struct in_addr),
               const struct iface_addr *addr)
 {
   struct bundle *bundle = ipcp->fsm.bundle;
   struct in_addr peer, mask, ip;
-  int n, ret, s;
+  int n, ret;
 
   if (!ncpaddr_getip4(&addr->peer, &peer)) {
     log_Printf(LogERROR, "Oops, ipcp_proxyarp() called with unexpected addr\n");
-    return 0;
-  }
-
-  if ((s = ID0socket(PF_INET, SOCK_DGRAM, 0)) == -1) {
-    log_Printf(LogERROR, "ipcp_proxyarp: socket: %s\n",
-               strerror(errno));
     return 0;
   }
 
@@ -639,7 +641,7 @@ ipcp_proxyarp(struct ipcp *ipcp,
     }
     while (n) {
       if (!((ip.s_addr ^ peer.s_addr) & mask.s_addr)) {
-        if (!(ret = (*proxyfun)(bundle, ip, s)))
+        if (!(ret = (*proxyfun)(bundle, ip)))
           break;
         n--;
       }
@@ -647,9 +649,7 @@ ipcp_proxyarp(struct ipcp *ipcp,
     }
     ret = !n;
   } else if (Enabled(bundle, OPT_PROXY))
-    ret = (*proxyfun)(bundle, peer, s);
-
-  close(s);
+    ret = (*proxyfun)(bundle, peer);
 
   return ret;
 }
@@ -754,7 +754,7 @@ IpcpSendConfigReq(struct fsm *fp)
   /* Send config REQ please */
   struct physical *p = link2physical(fp->link);
   struct ipcp *ipcp = fsm2ipcp(fp);
-  u_char buff[24];
+  u_char buff[MAX_FSM_OPT_LEN];
   struct fsm_opt *o;
 
   o = (struct fsm_opt *)buff;
@@ -798,7 +798,7 @@ IpcpSendConfigReq(struct fsm *fp)
 }
 
 static void
-IpcpSentTerminateReq(struct fsm *fp)
+IpcpSentTerminateReq(struct fsm *fp __unused)
 {
   /* Term REQ just sent by FSM */
 }
@@ -871,6 +871,7 @@ IpcpLayerDown(struct fsm *fp)
     log_Printf(LogIPCP, "%s: LayerDown: %s\n", fp->link->name, addr);
 
 #ifndef NORADIUS
+    radius_Flush(&fp->bundle->radius);
     radius_Account(&fp->bundle->radius, &fp->bundle->radacct,
                    fp->bundle->links, RAD_STOP, &ipcp->throughput);
 
@@ -974,7 +975,7 @@ ipcp_ValidateReq(struct ipcp *ipcp, struct in_addr ip, struct fsm_decode *dec)
   struct bundle *bundle = ipcp->fsm.bundle;
   struct iface *iface = bundle->iface;
   struct in_addr myaddr, peer;
-  int n;
+  unsigned n;
 
   if (iplist_isvalid(&ipcp->cfg.peer_list)) {
     ncprange_getip4addr(&ipcp->cfg.my_range, &myaddr);
@@ -1053,14 +1054,14 @@ IpcpDecodeConfig(struct fsm *fp, u_char *cp, u_char *end, int mode_type,
   struct ipcp *ipcp = fsm2ipcp(fp);
   int gotdnsnak;
   u_int32_t compproto;
-  struct compreq *pcomp;
+  struct compreq pcomp;
   struct in_addr ipaddr, dstipaddr, have_ip;
   char tbuff[100], tbuff2[100];
   struct fsm_opt *opt, nak;
 
   gotdnsnak = 0;
 
-  while (end - cp >= sizeof(opt->hdr)) {
+  while (end - cp >= (int)sizeof(opt->hdr)) {
     if ((opt = fsm_readopt(&cp)) == NULL)
       break;
 
@@ -1101,9 +1102,9 @@ IpcpDecodeConfig(struct fsm *fp, u_char *cp, u_char *end, int mode_type,
       break;
 
     case TY_COMPPROTO:
-      pcomp = (struct compreq *)opt->data;
-      compproto = (ntohs(pcomp->proto) << 16) + (pcomp->slots << 8) +
-                  pcomp->compcid;
+      memcpy(&pcomp, opt->data, sizeof pcomp);
+      compproto = (ntohs(pcomp.proto) << 16) + ((int)pcomp.slots << 8) +
+                  pcomp.compcid;
       log_Printf(LogIPCP, "%s %s\n", tbuff, vj2asc(compproto));
 
       switch (mode_type) {
@@ -1113,14 +1114,14 @@ IpcpDecodeConfig(struct fsm *fp, u_char *cp, u_char *end, int mode_type,
         else {
           switch (opt->hdr.len) {
           case 4:		/* RFC1172 */
-            if (ntohs(pcomp->proto) == PROTO_VJCOMP) {
+            if (ntohs(pcomp.proto) == PROTO_VJCOMP) {
               log_Printf(LogWARN, "Peer is speaking RFC1172 compression "
                          "protocol !\n");
               ipcp->heis1172 = 1;
               ipcp->peer_compproto = compproto;
               fsm_ack(dec, opt);
             } else {
-              pcomp->proto = htons(PROTO_VJCOMP);
+              pcomp.proto = htons(PROTO_VJCOMP);
               nak.hdr.id = TY_COMPPROTO;
               nak.hdr.len = 4;
               memcpy(nak.data, &pcomp, 2);
@@ -1128,9 +1129,9 @@ IpcpDecodeConfig(struct fsm *fp, u_char *cp, u_char *end, int mode_type,
             }
             break;
           case 6:		/* RFC1332 */
-            if (ntohs(pcomp->proto) == PROTO_VJCOMP) {
-              if (pcomp->slots <= MAX_VJ_STATES
-                  && pcomp->slots >= MIN_VJ_STATES) {
+            if (ntohs(pcomp.proto) == PROTO_VJCOMP) {
+	      /* We know pcomp.slots' max value == MAX_VJ_STATES */
+              if (pcomp.slots >= MIN_VJ_STATES) {
                 /* Ok, we can do that */
                 ipcp->peer_compproto = compproto;
                 ipcp->heis1172 = 0;
@@ -1138,8 +1139,7 @@ IpcpDecodeConfig(struct fsm *fp, u_char *cp, u_char *end, int mode_type,
               } else {
                 /* Get as close as we can to what he wants */
                 ipcp->heis1172 = 0;
-                pcomp->slots = pcomp->slots < MIN_VJ_STATES ?
-                               MIN_VJ_STATES : MAX_VJ_STATES;
+                pcomp.slots = MIN_VJ_STATES;
                 nak.hdr.id = TY_COMPPROTO;
                 nak.hdr.len = 4;
                 memcpy(nak.data, &pcomp, 2);
@@ -1147,9 +1147,9 @@ IpcpDecodeConfig(struct fsm *fp, u_char *cp, u_char *end, int mode_type,
               }
             } else {
               /* What we really want */
-              pcomp->proto = htons(PROTO_VJCOMP);
-              pcomp->slots = DEF_VJ_STATES;
-              pcomp->compcid = 1;
+              pcomp.proto = htons(PROTO_VJCOMP);
+              pcomp.slots = DEF_VJ_STATES;
+              pcomp.compcid = 1;
               nak.hdr.id = TY_COMPPROTO;
               nak.hdr.len = 6;
               memcpy(nak.data, &pcomp, sizeof pcomp);
@@ -1164,13 +1164,12 @@ IpcpDecodeConfig(struct fsm *fp, u_char *cp, u_char *end, int mode_type,
         break;
 
       case MODE_NAK:
-        if (ntohs(pcomp->proto) == PROTO_VJCOMP) {
-          if (pcomp->slots > MAX_VJ_STATES)
-            pcomp->slots = MAX_VJ_STATES;
-          else if (pcomp->slots < MIN_VJ_STATES)
-            pcomp->slots = MIN_VJ_STATES;
-          compproto = (ntohs(pcomp->proto) << 16) + (pcomp->slots << 8) +
-                      pcomp->compcid;
+        if (ntohs(pcomp.proto) == PROTO_VJCOMP) {
+	  /* We know pcomp.slots' max value == MAX_VJ_STATES */
+          if (pcomp.slots < MIN_VJ_STATES)
+            pcomp.slots = MIN_VJ_STATES;
+          compproto = (ntohs(pcomp.proto) << 16) + (pcomp.slots << 8) +
+                      pcomp.compcid;
         } else
           compproto = 0;
         log_Printf(LogIPCP, "%s changing compproto: %08x --> %08x\n",

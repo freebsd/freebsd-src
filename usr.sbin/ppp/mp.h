@@ -137,7 +137,7 @@ extern struct mbuf *mp_Input(struct bundle *, struct link *, struct mbuf *);
 extern int mp_FillPhysicalQueues(struct bundle *);
 extern int mp_SetDatalinkBandwidth(struct cmdargs const *);
 extern int mp_ShowStatus(struct cmdargs const *);
-extern const char *mp_Enddisc(u_char, const char *, int);
+extern const char *mp_Enddisc(u_char, const char *, size_t);
 extern int mp_SetEnddisc(struct cmdargs const *);
 extern void mp_LinkLost(struct mp *, struct datalink *);
 extern void mp_RestartAutoloadTimer(struct mp *);

@@ -30,6 +30,7 @@
 #include <stdint.h>
 #include <sys/param.h>
 
+#include <sys/select.h>
 #include <sys/socket.h>
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
@@ -212,8 +213,11 @@ demangle(struct radius *r, const void *mangled, size_t mlen,
     return;
   }
 
-  *buf = malloc(*len);
-  memcpy(*buf, P + 1, *len);
+  if ((*buf = malloc(*len)) == NULL) {
+    log_Printf(LogWARN, "demangle: Out of memory (%lu bytes)\n", (u_long)*len);
+    *len = 0;
+  } else
+    memcpy(*buf, P + 1, *len);
 }
 #endif
 
@@ -671,16 +675,37 @@ radius_Timeout(void *v)
  * Time to call rad_continue_send_request() - something to read.
  */
 static void
-radius_Read(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
+radius_Read(struct fdescriptor *d, struct bundle *bundle __unused,
+	    const fd_set *fdset __unused)
 {
   radius_Continue(descriptor2radius(d), 1);
+}
+
+/*
+ * Flush any pending transactions
+ */
+void
+radius_Flush(struct radius *r)
+{
+  struct timeval tv;
+  fd_set s;
+
+  while (r->cx.fd != -1) {
+    FD_ZERO(&s);
+    FD_SET(r->cx.fd, &s);
+    tv.tv_sec = 0;
+    tv.tv_usec = TICKUNIT;
+    select(r->cx.fd + 1, &s, NULL, NULL, &tv);
+    radius_Continue(r, 1);
+  }
 }
 
 /*
  * Behave as a struct fdescriptor (descriptor.h)
  */
 static int
-radius_UpdateSet(struct fdescriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
+radius_UpdateSet(struct fdescriptor *d, fd_set *r, fd_set *w __unused,
+		 fd_set *e __unused, int *n)
 {
   struct radius *rad = descriptor2radius(d);
 
@@ -710,7 +735,8 @@ radius_IsSet(struct fdescriptor *d, const fd_set *fdset)
  * Behave as a struct fdescriptor (descriptor.h)
  */
 static int
-radius_Write(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
+radius_Write(struct fdescriptor *d __unused, struct bundle *bundle __unused,
+	     const fd_set *fdset __unused)
 {
   /* We never want to write here ! */
   log_Printf(LogALERT, "radius_Write: Internal error: Bad call !\n");
@@ -845,14 +871,13 @@ radius_Authenticate(struct radius *r, struct authinfo *authp, const char *name,
                     const char *key, int klen, const char *nchallenge,
                     int nclen)
 {
-  struct timeval tv;
-  int got;
   char hostname[MAXHOSTNAMELEN];
-  char *mac_addr, *what;
-#if 0
+  struct timeval tv;
+  const char *what = "questionable";	/* silence warnings! */
+  char *mac_addr;
+  int got;
   struct hostent *hp;
   struct in_addr hostaddr;
-#endif
 #ifndef NODES
   struct mschap_response msresp;
   struct mschap2_response msresp2;
@@ -974,8 +999,8 @@ radius_Authenticate(struct radius *r, struct authinfo *authp, const char *name,
   if (gethostname(hostname, sizeof hostname) != 0)
     log_Printf(LogERROR, "rad_put: gethostname(): %s\n", strerror(errno));
   else {
-#if 0
-    if ((hp = gethostbyname(hostname)) != NULL) {
+    if (Enabled(authp->physical->dl->bundle, OPT_NAS_IP_ADDRESS) &&
+        (hp = gethostbyname(hostname)) != NULL) {
       hostaddr.s_addr = *(u_long *)hp->h_addr;
       if (rad_put_addr(r->cx.rad, RAD_NAS_IP_ADDRESS, hostaddr) != 0) {
         log_Printf(LogERROR, "rad_put: rad_put_string: %s\n",
@@ -984,8 +1009,8 @@ radius_Authenticate(struct radius *r, struct authinfo *authp, const char *name,
         return 0;
       }
     }
-#endif
-    if (rad_put_string(r->cx.rad, RAD_NAS_IDENTIFIER, hostname) != 0) {
+    if (Enabled(authp->physical->dl->bundle, OPT_NAS_IDENTIFIER) &&
+        rad_put_string(r->cx.rad, RAD_NAS_IDENTIFIER, hostname) != 0) {
       log_Printf(LogERROR, "rad_put: rad_put_string: %s\n",
                  rad_strerror(r->cx.rad));
       rad_close(r->cx.rad);
@@ -997,7 +1022,7 @@ radius_Authenticate(struct radius *r, struct authinfo *authp, const char *name,
       rad_put_string(r->cx.rad, RAD_CALLING_STATION_ID, mac_addr) != 0) {
     log_Printf(LogERROR, "rad_put: %s\n", rad_strerror(r->cx.rad));
     rad_close(r->cx.rad);
-    return;
+    return 0;
   }
 
   radius_put_physical_details(r->cx.rad, authp->physical);
@@ -1052,10 +1077,8 @@ radius_Account(struct radius *r, struct radacct *ac, struct datalink *dl,
   int got;
   char hostname[MAXHOSTNAMELEN];
   char *mac_addr;
-#if 0
   struct hostent *hp;
   struct in_addr hostaddr;
-#endif
 
   if (!*r->cfg.file)
     return;
@@ -1161,8 +1184,8 @@ radius_Account(struct radius *r, struct radacct *ac, struct datalink *dl,
   if (gethostname(hostname, sizeof hostname) != 0)
     log_Printf(LogERROR, "rad_put: gethostname(): %s\n", strerror(errno));
   else {
-#if 0
-    if ((hp = gethostbyname(hostname)) != NULL) {
+    if (Enabled(dl->bundle, OPT_NAS_IP_ADDRESS) &&
+        (hp = gethostbyname(hostname)) != NULL) {
       hostaddr.s_addr = *(u_long *)hp->h_addr;
       if (rad_put_addr(r->cx.rad, RAD_NAS_IP_ADDRESS, hostaddr) != 0) {
         log_Printf(LogERROR, "rad_put: rad_put_string: %s\n",
@@ -1171,8 +1194,8 @@ radius_Account(struct radius *r, struct radacct *ac, struct datalink *dl,
         return;
       }
     }
-#endif
-    if (rad_put_string(r->cx.rad, RAD_NAS_IDENTIFIER, hostname) != 0) {
+    if (Enabled(dl->bundle, OPT_NAS_IDENTIFIER) &&
+        rad_put_string(r->cx.rad, RAD_NAS_IDENTIFIER, hostname) != 0) {
       log_Printf(LogERROR, "rad_put: rad_put_string: %s\n",
                  rad_strerror(r->cx.rad));
       rad_close(r->cx.rad);
@@ -1210,7 +1233,7 @@ radius_Account(struct radius *r, struct radacct *ac, struct datalink *dl,
     }
 
   if (log_IsKept(LogPHASE) || log_IsKept(LogRADIUS)) {
-    char *what;
+    const char *what;
     int level;
 
     switch (acct_type) {

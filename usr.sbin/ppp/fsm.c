@@ -185,7 +185,7 @@ NewState(struct fsm *fp, int new)
 }
 
 void
-fsm_Output(struct fsm *fp, u_int code, u_int id, u_char *ptr, int count,
+fsm_Output(struct fsm *fp, u_int code, u_int id, u_char *ptr, unsigned count,
            int mtype)
 {
   int plen;
@@ -492,7 +492,7 @@ FsmRecvConfigReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
   dec.rejend = dec.rej;
   cp = MBUF_CTOP(bp);
   (*fp->fn->DecodeConfig)(fp, cp, cp + flen, MODE_REQ, &dec);
-  if (flen < sizeof(struct fsm_opt_hdr))
+  if (flen < (int)sizeof(struct fsm_opt_hdr))
     log_Printf(fp->LogLevel, "  [EMPTY]\n");
 
   if (dec.nakend == dec.nak && dec.rejend == dec.rej)
@@ -626,7 +626,7 @@ FsmRecvConfigAck(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
   dec.rejend = dec.rej;
   cp = MBUF_CTOP(bp);
   (*fp->fn->DecodeConfig)(fp, cp, cp + flen, MODE_ACK, &dec);
-  if (flen < sizeof(struct fsm_opt_hdr))
+  if (flen < (int)sizeof(struct fsm_opt_hdr))
     log_Printf(fp->LogLevel, "  [EMPTY]\n");
 
   switch (fp->state) {
@@ -710,7 +710,7 @@ FsmRecvConfigNak(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
   dec.rejend = dec.rej;
   cp = MBUF_CTOP(bp);
   (*fp->fn->DecodeConfig)(fp, cp, cp + flen, MODE_NAK, &dec);
-  if (flen < sizeof(struct fsm_opt_hdr))
+  if (flen < (int)sizeof(struct fsm_opt_hdr))
     log_Printf(fp->LogLevel, "  [EMPTY]\n");
 
   switch (fp->state) {
@@ -771,7 +771,7 @@ FsmRecvTermReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
 }
 
 static void
-FsmRecvTermAck(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
+FsmRecvTermAck(struct fsm *fp, struct fsmheader *lhp __unused, struct mbuf *bp)
 /* RTA */
 {
   switch (fp->state) {
@@ -803,12 +803,13 @@ FsmRecvConfigRej(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
 /* RCJ */
 {
   struct fsm_decode dec;
-  int plen, flen;
+  size_t plen;
+  int flen;
   u_char *cp;
 
   plen = m_length(bp);
   flen = ntohs(lhp->length) - sizeof *lhp;
-  if (plen < flen) {
+  if ((int)plen < flen) {
     m_freem(bp);
     return;
   }
@@ -842,7 +843,7 @@ FsmRecvConfigRej(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
   dec.rejend = dec.rej;
   cp = MBUF_CTOP(bp);
   (*fp->fn->DecodeConfig)(fp, cp, cp + flen, MODE_REJ, &dec);
-  if (flen < sizeof(struct fsm_opt_hdr))
+  if (flen < (int)sizeof(struct fsm_opt_hdr))
     log_Printf(fp->LogLevel, "  [EMPTY]\n");
 
   switch (fp->state) {
@@ -866,13 +867,14 @@ FsmRecvConfigRej(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
 }
 
 static void
-FsmRecvCodeRej(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
+FsmRecvCodeRej(struct fsm *fp __unused, struct fsmheader *lhp __unused,
+	       struct mbuf *bp)
 {
   m_freem(bp);
 }
 
 static void
-FsmRecvProtoRej(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
+FsmRecvProtoRej(struct fsm *fp, struct fsmheader *lhp __unused, struct mbuf *bp)
 {
   struct physical *p = link2physical(fp->link);
   u_short proto;
@@ -972,7 +974,7 @@ FsmRecvEchoReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
 }
 
 static void
-FsmRecvEchoRep(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
+FsmRecvEchoRep(struct fsm *fp, struct fsmheader *lhp __unused, struct mbuf *bp)
 {
   if (fsm2lcp(fp))
     bp = lqr_RecvEcho(fp, bp);
@@ -981,7 +983,8 @@ FsmRecvEchoRep(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
 }
 
 static void
-FsmRecvDiscReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
+FsmRecvDiscReq(struct fsm *fp __unused, struct fsmheader *lhp __unused,
+	       struct mbuf *bp)
 {
   m_freem(bp);
 }
@@ -1009,7 +1012,8 @@ FsmRecvIdent(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
 }
 
 static void
-FsmRecvTimeRemain(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
+FsmRecvTimeRemain(struct fsm *fp __unused, struct fsmheader *lhp __unused,
+		  struct mbuf *bp)
 {
   m_freem(bp);
 }
@@ -1039,7 +1043,7 @@ FsmRecvResetAck(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
 void
 fsm_Input(struct fsm *fp, struct mbuf *bp)
 {
-  int len;
+  size_t len;
   struct fsmheader lh;
   const struct fsmcodedesc *codep;
 
@@ -1051,7 +1055,7 @@ fsm_Input(struct fsm *fp, struct mbuf *bp)
   bp = mbuf_Read(bp, &lh, sizeof lh);
 
   if (ntohs(lh.length) > len) {
-    log_Printf(LogWARN, "%s: Oops: Got %d bytes but %d byte payload "
+    log_Printf(LogWARN, "%s: Oops: Got %zu bytes but %d byte payload "
                "- dropped\n", fp->link->name, len, (int)ntohs(lh.length));
     m_freem(bp);
     return;
@@ -1099,7 +1103,7 @@ fsm_NullRecvResetReq(struct fsm *fp)
 }
 
 void
-fsm_NullRecvResetAck(struct fsm *fp, u_char id)
+fsm_NullRecvResetAck(struct fsm *fp, u_char id __unused)
 {
   log_Printf(fp->LogLevel, "%s: Oops - received unexpected reset ack\n",
             fp->link->name);
@@ -1155,12 +1159,12 @@ fsm_readopt(u_char **cp)
 static int
 fsm_opt(u_char *opt, int optlen, const struct fsm_opt *o)
 {
-  int cplen = o->hdr.len;
+  unsigned cplen = o->hdr.len;
 
-  if (optlen < sizeof(struct fsm_opt_hdr))
+  if (optlen < (int)sizeof(struct fsm_opt_hdr))
     optlen = 0;
 
-  if (cplen > optlen) {
+  if ((int)cplen > optlen) {
     log_Printf(LogERROR, "Can't REJ length %d - trunating to %d\n",
       cplen, optlen);
     cplen = optlen;

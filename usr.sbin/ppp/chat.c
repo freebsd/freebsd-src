@@ -243,9 +243,10 @@ chat_UpdateSet(struct fdescriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
               break;
             }
           c->abort.string[i].len = len;
-          c->abort.string[i].data = (char *)malloc(len+1);
-          memcpy(c->abort.string[i].data, c->exp+2, len+1);
-          c->abort.num++;
+          if ((c->abort.string[i].data = (char *)malloc(len+1)) != NULL) {
+            memcpy(c->abort.string[i].data, c->exp+2, len+1);
+            c->abort.num++;
+	  }
         } else
           log_Printf(LogERROR, "chat_UpdateSet: too many abort strings\n");
         gotabort = 0;
@@ -370,7 +371,8 @@ chat_UpdateLog(struct chat *c, int in)
 }
 
 static void
-chat_Read(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
+chat_Read(struct fdescriptor *d, struct bundle *bundle __unused,
+	  const fd_set *fdset __unused)
 {
   struct chat *c = descriptor2chat(d);
 
@@ -384,7 +386,7 @@ chat_Read(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
      * swallow any ppp talk from the peer ?
      */
     in = BUFLEFT(c);
-    if (in > sizeof c->buf / 2)
+    if (in > (ssize_t)sizeof c->buf / 2)
       in = sizeof c->buf / 2;
 
     in = physical_Read(c->physical, c->bufend, in);
@@ -484,7 +486,8 @@ chat_Read(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
 }
 
 static int
-chat_Write(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
+chat_Write(struct fdescriptor *d, struct bundle *bundle __unused,
+	   const fd_set *fdset __unused)
 {
   struct chat *c = descriptor2chat(d);
   int result = 0;

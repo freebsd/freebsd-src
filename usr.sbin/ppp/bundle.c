@@ -164,7 +164,7 @@ bundle_NewPhase(struct bundle *bundle, u_int new)
 }
 
 static void
-bundle_LayerStart(void *v, struct fsm *fp)
+bundle_LayerStart(void *v __unused, struct fsm *fp __unused)
 {
   /* The given FSM is about to start up ! */
 }
@@ -529,7 +529,7 @@ bundle_IsSet(struct fdescriptor *d, const fd_set *fdset)
 }
 
 static void
-bundle_DescriptorRead(struct fdescriptor *d, struct bundle *bundle,
+bundle_DescriptorRead(struct fdescriptor *d __unused, struct bundle *bundle,
                       const fd_set *fdset)
 {
   struct datalink *dl;
@@ -641,7 +641,7 @@ bundle_DescriptorRead(struct fdescriptor *d, struct bundle *bundle,
 }
 
 static int
-bundle_DescriptorWrite(struct fdescriptor *d, struct bundle *bundle,
+bundle_DescriptorWrite(struct fdescriptor *d __unused, struct bundle *bundle,
                        const fd_set *fdset)
 {
   struct datalink *dl;
@@ -829,12 +829,15 @@ bundle_Create(const char *prefix, int type, int unit)
   bundle.cfg.idle.min_timeout = 0;
   *bundle.cfg.auth.name = '\0';
   *bundle.cfg.auth.key = '\0';
-  bundle.cfg.opt = OPT_IDCHECK | OPT_LOOPBACK | OPT_SROUTES | OPT_TCPMSSFIXUP |
-                   OPT_THROUGHPUT | OPT_UTMP;
+  bundle.cfg.optmask = (1ull << OPT_IDCHECK) | (1ull << OPT_LOOPBACK) |
+                       (1ull << OPT_SROUTES) | (1ull << OPT_TCPMSSFIXUP) |
+                       (1ull << OPT_THROUGHPUT) | (1ull << OPT_UTMP) |
+                       (1ull << OPT_NAS_IP_ADDRESS) |
+                       (1ull << OPT_NAS_IDENTIFIER);
 #ifndef NOINET6
-  bundle.cfg.opt |= OPT_IPCP;
+  opt_enable(&bundle, OPT_IPCP);
   if (probe.ipv6_available)
-    bundle.cfg.opt |= OPT_IPV6CP;
+    opt_enable(&bundle, OPT_IPV6CP);
 #endif
   *bundle.cfg.label = '\0';
   bundle.cfg.ifqueue = DEF_IFQUEUE;
@@ -870,7 +873,7 @@ bundle_Create(const char *prefix, int type, int unit)
   bundle.filter.alive.name = "ALIVE";
   bundle.filter.alive.logok = 1;
   {
-    int	i;
+    int i;
     for (i = 0; i < MAXFILTERS; i++) {
         bundle.filter.in.rule[i].f_action = A_NONE;
         bundle.filter.out.rule[i].f_action = A_NONE;
@@ -1050,9 +1053,9 @@ bundle_ShowLinks(struct cmdargs const *arg)
 }
 
 static const char *
-optval(struct bundle *bundle, int bit)
+optval(struct bundle *bundle, int opt)
 {
-  return (bundle->cfg.opt & bit) ? "enabled" : "disabled";
+  return Enabled(bundle, opt) ? "enabled" : "disabled";
 }
 
 int
@@ -1092,7 +1095,7 @@ bundle_ShowStatus(struct cmdargs const *arg)
   else
     prompt_Printf(arg->prompt, "none\n");
 
-  prompt_Printf(arg->prompt, " Choked Timer:      %ds\n",
+  prompt_Printf(arg->prompt, " Choked Timer:      %us\n",
                 arg->bundle->cfg.choked.timeout);
 
 #ifndef NORADIUS
@@ -1101,9 +1104,9 @@ bundle_ShowStatus(struct cmdargs const *arg)
 
   prompt_Printf(arg->prompt, " Idle Timer:        ");
   if (arg->bundle->cfg.idle.timeout) {
-    prompt_Printf(arg->prompt, "%ds", arg->bundle->cfg.idle.timeout);
+    prompt_Printf(arg->prompt, "%us", arg->bundle->cfg.idle.timeout);
     if (arg->bundle->cfg.idle.min_timeout)
-      prompt_Printf(arg->prompt, ", min %ds",
+      prompt_Printf(arg->prompt, ", min %us",
                     arg->bundle->cfg.idle.min_timeout);
     remaining = bundle_RemainingIdleTime(arg->bundle);
     if (remaining != -1)
@@ -1142,6 +1145,10 @@ bundle_ShowStatus(struct cmdargs const *arg)
                 optval(arg->bundle, OPT_THROUGHPUT));
   prompt_Printf(arg->prompt, " Utmp Logging:      %s\n",
                 optval(arg->bundle, OPT_UTMP));
+  prompt_Printf(arg->prompt, " NAS-IP-Address:    %-20.20s",
+                optval(arg->bundle, OPT_NAS_IP_ADDRESS));
+  prompt_Printf(arg->prompt, " NAS-Identifier:    %s\n",
+                optval(arg->bundle, OPT_NAS_IDENTIFIER));
 
   return 0;
 }
@@ -1173,9 +1180,10 @@ bundle_StartIdleTimer(struct bundle *bundle, unsigned secs)
 
     /* We want at least `secs' */
     if (bundle->cfg.idle.min_timeout > secs && bundle->upat) {
-      int up = now - bundle->upat;
+      unsigned up = now - bundle->upat;
 
-      if ((long long)bundle->cfg.idle.min_timeout - up > (long long)secs)
+      if (bundle->cfg.idle.min_timeout > up &&
+          bundle->cfg.idle.min_timeout - up > (long long)secs)
         /* Only increase from the current `remaining' value */
         secs = bundle->cfg.idle.min_timeout - up;
     }
@@ -1189,11 +1197,11 @@ bundle_StartIdleTimer(struct bundle *bundle, unsigned secs)
 }
 
 void
-bundle_SetIdleTimer(struct bundle *bundle, int timeout, int min_timeout)
+bundle_SetIdleTimer(struct bundle *bundle, unsigned timeout,
+		    unsigned min_timeout)
 {
   bundle->cfg.idle.timeout = timeout;
-  if (min_timeout >= 0)
-    bundle->cfg.idle.min_timeout = min_timeout;
+  bundle->cfg.idle.min_timeout = min_timeout;
   if (ncp_LayersOpen(&bundle->ncp))
     bundle_StartIdleTimer(bundle, 0);
 }
@@ -1370,7 +1378,8 @@ void
 bundle_ReceiveDatalink(struct bundle *bundle, int s)
 {
   char cmsgbuf[sizeof(struct cmsghdr) + sizeof(int) * SEND_MAXFD];
-  int niov, expect, f, *fd, nfd, onfd, got;
+  int niov, expect, f, *fd, nfd, onfd;
+  ssize_t got;
   struct iovec iov[SCATTER_SEGMENTS];
   struct cmsghdr *cmsg;
   struct msghdr msg;
@@ -1419,11 +1428,11 @@ bundle_ReceiveDatalink(struct bundle *bundle, int s)
   log_Printf(LogDEBUG, "Expecting %u scatter/gather bytes\n",
              (unsigned)iov[0].iov_len);
 
-  if ((got = recvmsg(s, &msg, MSG_WAITALL)) != iov[0].iov_len) {
+  if ((got = recvmsg(s, &msg, MSG_WAITALL)) != (ssize_t)iov[0].iov_len) {
     if (got == -1)
       log_Printf(LogERROR, "Failed recvmsg: %s\n", strerror(errno));
     else
-      log_Printf(LogERROR, "Failed recvmsg: Got %d, not %u\n",
+      log_Printf(LogERROR, "Failed recvmsg: Got %zd, not %u\n",
                  got, (unsigned)iov[0].iov_len);
     while (niov--)
       free(iov[niov].iov_base);
@@ -1476,7 +1485,7 @@ bundle_ReceiveDatalink(struct bundle *bundle, int s)
     if (got == -1)
       log_Printf(LogERROR, "Failed write: %s\n", strerror(errno));
     else
-      log_Printf(LogERROR, "Failed write: Got %d, not %d\n", got,
+      log_Printf(LogERROR, "Failed write: Got %zd, not %d\n", got,
                  (int)(sizeof pid));
     while (nfd--)
       close(fd[nfd]);
@@ -1489,7 +1498,7 @@ bundle_ReceiveDatalink(struct bundle *bundle, int s)
     if (got == -1)
       log_Printf(LogERROR, "Failed write: %s\n", strerror(errno));
     else
-      log_Printf(LogERROR, "Failed write: Got %d, not %d\n", got, expect);
+      log_Printf(LogERROR, "Failed write: Got %zd, not %d\n", got, expect);
     while (nfd--)
       close(fd[nfd]);
     while (niov--)
@@ -1536,7 +1545,8 @@ bundle_SendDatalink(struct datalink *dl, int s, struct sockaddr_un *sun)
   struct cmsghdr *cmsg;
   struct msghdr msg;
   struct iovec iov[SCATTER_SEGMENTS];
-  int niov, f, expect, newsid, fd[SEND_MAXFD], nfd, reply[2], got;
+  int niov, f, expect, newsid, fd[SEND_MAXFD], nfd, reply[2];
+  ssize_t got;
   pid_t newpid;
 
   log_Printf(LogPHASE, "Transmitting datalink %s\n", dl->name);
@@ -1608,8 +1618,8 @@ bundle_SendDatalink(struct datalink *dl, int s, struct sockaddr_un *sun)
     if ((got = sendmsg(s, &msg, 0)) == -1)
       log_Printf(LogERROR, "Failed sendmsg: %s: %s\n",
                  sun->sun_path, strerror(errno));
-    else if (got != iov[0].iov_len)
-      log_Printf(LogERROR, "%s: Failed initial sendmsg: Only sent %d of %u\n",
+    else if (got != (ssize_t)iov[0].iov_len)
+      log_Printf(LogERROR, "%s: Failed initial sendmsg: Only sent %zd of %u\n",
                  sun->sun_path, got, (unsigned)iov[0].iov_len);
     else {
       /* We must get the ACK before closing the descriptor ! */
@@ -1627,14 +1637,14 @@ bundle_SendDatalink(struct datalink *dl, int s, struct sockaddr_un *sun)
             log_Printf(LogERROR, "%s: Failed writev: %s\n",
                        sun->sun_path, strerror(errno));
           else
-            log_Printf(LogERROR, "%s: Failed writev: Wrote %d of %d\n",
+            log_Printf(LogERROR, "%s: Failed writev: Wrote %zd of %d\n",
                        sun->sun_path, got, expect);
         }
       } else if (got == -1)
         log_Printf(LogERROR, "%s: Failed socketpair read: %s\n",
                    sun->sun_path, strerror(errno));
       else
-        log_Printf(LogERROR, "%s: Failed socketpair read: Got %d of %d\n",
+        log_Printf(LogERROR, "%s: Failed socketpair read: Got %zd of %d\n",
                    sun->sun_path, got, (int)(sizeof newpid));
     }
 
@@ -1819,11 +1829,11 @@ bundle_setsid(struct bundle *bundle, int holdsession)
   }
 }
 
-int
+unsigned
 bundle_HighestState(struct bundle *bundle)
 {
   struct datalink *dl;
-  int result = DATALINK_CLOSED;
+  unsigned result = DATALINK_CLOSED;
 
   for (dl = bundle->links; dl; dl = dl->next)
     if (result < dl->state)
@@ -1916,7 +1926,7 @@ bundle_CalculateBandwidth(struct bundle *bundle)
 #endif
 
   if (maxoverhead) {
-    log_Printf(LogLCP, "Reducing MTU from %d to %d (CCP requirement)\n",
+    log_Printf(LogLCP, "Reducing MTU from %lu to %lu (CCP requirement)\n",
                bundle->iface->mtu, bundle->iface->mtu - maxoverhead);
     bundle->iface->mtu -= maxoverhead;
   }

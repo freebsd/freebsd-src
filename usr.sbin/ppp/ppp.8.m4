@@ -812,6 +812,26 @@ a colon
 .Pq Dq \&: .
 .It
 A command line must contain a space or tab in the first column.
+.It
+A string starting with the
+.Dq $
+character is substituted with the value of the environment variable by
+the same name.
+Likewise, a string starting with the
+.Dq ~
+character is substituted with the full path to the home directory of
+the user account by the same name, and the
+.Dq ~
+character by itself is substituted with the full path to the home directory
+of the current user.
+If you want to include a literal
+.Dq $
+or
+.Dq ~
+character in a command or argument, enclose them in double quotes, e.g.,
+.Bd -literal -offset indent
+set password "pa$ss~word"
+.Ed
 .El
 .Pp
 The
@@ -2807,14 +2827,21 @@ below) as part of the LCP request.
 If the peer agrees, both sides will
 exchange LQR packets at the agreed frequency, allowing detailed link
 quality monitoring by enabling LQM logging.
-If the peer doesn't agree,
+If the peer doesn't agree, and if the
+.Dq echo
+option is enabled,
 .Nm
-will send ECHO LQR requests instead.
+will send
+.Em LCP ECHO
+requests instead.
 These packets pass no information of interest, but they
 .Em MUST
 be replied to by the peer.
 .Pp
-Whether using LQR or ECHO LQR,
+Whether using
+.Em LQR
+or
+.Em LCP ECHO ,
 .Nm
 will abruptly drop the connection if 5 unacknowledged packets have been
 sent rather than sending a 6th.
@@ -2824,6 +2851,12 @@ level, and any appropriate
 .Dq reconnect
 values are honoured as if the peer were responsible for dropping the
 connection.
+.Pp
+Refer to the
+.Dq enable echo
+command description for differences in behaviour prior to
+.Nm
+version 3.4.2.
 .It mppe
 Default: Enabled and Accepted.
 This is Microsoft Point to Point Encryption scheme.
@@ -2927,6 +2960,33 @@ This option determines if Van Jacobson header compression will be used.
 The following options are not actually negotiated with the peer.
 Therefore, accepting or denying them makes no sense.
 .Bl -tag -width 2n
+.It echo
+Default: Disabled.
+When this option is enabled,
+.Nm
+will send
+.Em LCP ECHO
+requests to the peer at the frequency defined by
+.Dq echoperiod .
+Note,
+.Em LQR
+requests will supersede
+.Em LCP ECHO
+requests if enabled and negotiated.
+See
+.Dq set lqrperiod
+below for details.
+.Pp
+Prior to
+.Nm
+version 3.4.2,
+.Dq echo
+was considered enabled if lqr was enabled and negotiated, otherwise it was
+considered disabled.
+For the same behaviour, it is now necessary to
+.Dq enable lqr echo
+rather than just
+.Dq enable lqr .
 .It filter-decapsulation
 Default: Disabled.
 When this option is enabled,
@@ -3067,6 +3127,49 @@ the other end.
 It is convenient to have this option enabled when
 the interface is also the default route as it avoids the necessity
 of a loopback route.
+.It NAS-IP-Address
+Default: Enabled.
+This option controls whether
+.Nm
+sends the
+.Dq NAS-IP-Address
+attribute to the RADIUS server when RADIUS is in use
+.Pq see Dq set radius .
+.Pp
+Note, at least one of
+.Dq NAS-IP-Address
+and
+.Dq NAS-Identifier
+must be enabled.
+.Pp
+Versions of
+.Nm
+prior to version 3.4.1 did not send the
+.Dq NAS-IP-Address
+atribute as it was reported to break the Radiator RADIUS server.
+As the latest rfc (2865) no longer hints that only one of
+.Dq NAS-IP-Address
+and
+.Dq NAS-Identifier
+should be sent (as rfc 2138 did),
+.Nm
+now sends both and leaves it up to the administrator that chooses to use
+bad RADIUS implementations to
+.Dq disable NAS-IP-Address .
+.It NAS-Identifier
+Default: Enabled.
+This option controls whether
+.Nm
+sends the
+.Dq NAS-Identifier
+attribute to the RADIUS server when RADIUS is in use
+.Pq see Dq set radius .
+.Pp
+Note, at least one of
+.Dq NAS-IP-Address
+and
+.Dq NAS-Identifier
+must be enabled.
 .It passwdauth
 Default: Disabled.
 Enabling this option will tell the PAP authentication
@@ -5067,18 +5170,24 @@ Escape sequences available in the dial script are also available here.
 This specifies the chat script that will be used to logout
 before the hangup script is called.
 It should not normally be necessary.
-.It set lqrperiod Ar frequency
+.It set lqrperiod|echoperiod Ar frequency
 This command sets the
 .Ar frequency
 in seconds at which
 .Em LQR
 or
-.Em ECHO LQR
+.Em LCP ECHO
 packets are sent.
 The default is 30 seconds.
 You must also use the
 .Dq enable lqr
-command if you wish to send LQR requests to the peer.
+and/or
+.Dq enable echo
+commands if you wish to send
+.Em LQR
+or
+.Em LCP ECHO
+requests to the peer.
 .It set mode Ar interactive|auto|ddial|background
 This command allows you to change the
 .Sq mode
@@ -5983,7 +6092,7 @@ ifdef({LOCALRAD},{},{.Xr libradius 3 ,
 .Xr getty 8 ,
 .Xr inetd 8 ,
 .Xr init 8 ,
-.Xr isdn 8 ,
+.Xr isdnd 8 ,
 .Xr named 8 ,
 .Xr ping 8 ,
 .Xr pppctl 8 ,

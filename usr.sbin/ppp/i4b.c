@@ -91,7 +91,7 @@ struct i4bdevice {
 
 #define device2i4b(d) ((d)->type == I4B_DEVICE ? (struct i4bdevice *)d : NULL)
 
-int
+unsigned
 i4b_DeviceSize(void)
 {
   return sizeof(struct i4bdevice);
@@ -248,14 +248,14 @@ i4b_Free(struct physical *p)
   free(dev);
 }
 
-static int
+static unsigned
 i4b_Speed(struct physical *p)
 {
   struct termios ios;
-  int ret;
+  unsigned ret;
 
   if (tcgetattr(p->fd, &ios) == -1 ||
-      (ret = SpeedToInt(cfgetispeed(&ios))) == 0)
+      (ret = SpeedToUnsigned(cfgetispeed(&ios))) == 0)
     ret = 64000;
 
   return ret;
@@ -288,7 +288,7 @@ i4b_Slot(struct physical *p)
 
 static void
 i4b_device2iov(struct device *d, struct iovec *iov, int *niov,
-               int maxiov, int *auxfd, int *nauxfd)
+               int maxiov __unused, int *auxfd __unused, int *nauxfd __unused)
 {
   struct i4bdevice *dev = device2i4b(d);
   int sz = physical_MaxDeviceSize();
@@ -330,7 +330,7 @@ static struct device basei4bdevice = {
 
 struct device *
 i4b_iov2device(int type, struct physical *p, struct iovec *iov, int *niov,
-               int maxiov, int *auxfd, int *nauxfd)
+               int maxiov __unused, int *auxfd __unused, int *nauxfd __unused)
 {
   if (type == I4B_DEVICE) {
     struct i4bdevice *dev = (struct i4bdevice *)iov[(*niov)++].iov_base;

@@ -28,5 +28,5 @@
  * $FreeBSD$
  */
 
-extern void Cleanup(int);
+extern void Cleanup(void);
 extern void AbortProgram(int);

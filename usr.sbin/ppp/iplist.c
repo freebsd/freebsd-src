@@ -172,7 +172,7 @@ iplist_reset(struct iplist *list)
 struct in_addr
 iplist_setcurpos(struct iplist *list, long pos)
 {
-  if (pos < 0 || pos >= list->nItems) {
+  if (pos < 0 || (unsigned)pos >= list->nItems) {
     list->cur.pos = -1;
     list->cur.ip.s_addr = INADDR_ANY;
     return list->cur.ip;
@@ -182,7 +182,7 @@ iplist_setcurpos(struct iplist *list, long pos)
   list->cur.pos = 0;
   while (1) {
     iplist_nextrange(list);
-    if (pos < list->cur.nItems) {
+    if (pos < (int)list->cur.nItems) {
       if (pos) {
         list->cur.srcitem = pos;
         list->cur.pos += pos;

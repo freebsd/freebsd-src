@@ -33,27 +33,32 @@
 #define	PHASE_TERMINATE		4	/* Terminating link */
 
 /* cfg.opt bit settings */
-#define OPT_FILTERDECAP		0x0001
-#define OPT_FORCE_SCRIPTS	0x0002 /* force chat scripts */
-#define OPT_IDCHECK		0x0004
-#define OPT_IFACEALIAS		0x0008
+#define OPT_FILTERDECAP		1
+#define OPT_FORCE_SCRIPTS	2 /* force chat scripts */
+#define OPT_IDCHECK		3
+#define OPT_IFACEALIAS		4
 #ifndef NOINET6
-#define OPT_IPCP		0x0010
-#define OPT_IPV6CP		0x0020
+#define OPT_IPCP		5
+#define OPT_IPV6CP		6
 #endif
-#define OPT_KEEPSESSION		0x0040
-#define OPT_LOOPBACK		0x0080
-#define OPT_PASSWDAUTH		0x0100
-#define OPT_PROXY		0x0200
-#define OPT_PROXYALL		0x0400
-#define OPT_SROUTES		0x0800
-#define OPT_TCPMSSFIXUP		0x1000
-#define OPT_THROUGHPUT		0x2000
-#define OPT_UTMP		0x4000
+#define OPT_KEEPSESSION		7
+#define OPT_LOOPBACK		8
+#define OPT_NAS_IP_ADDRESS	9
+#define OPT_NAS_IDENTIFIER	10
+#define OPT_PASSWDAUTH		11
+#define OPT_PROXY		12
+#define OPT_PROXYALL		13
+#define OPT_SROUTES		14
+#define OPT_TCPMSSFIXUP		15
+#define OPT_THROUGHPUT		16
+#define OPT_UTMP		17
+#define OPT_MAX			17
 
 #define MAX_ENDDISC_CLASS 5
 
-#define Enabled(b, o) ((b)->cfg.opt & (o))
+#define Enabled(b, o)		((b)->cfg.optmask & (1ull << (o)))
+#define opt_enable(b, o)	((b)->cfg.optmask |= (1ull << (o)))
+#define opt_disable(b, o)	((b)->cfg.optmask &= ~(1ull << (o)))
 
 /* AutoAdjust() values */
 #define AUTO_UP		1
@@ -98,19 +103,19 @@ struct bundle {
 
   struct {
     struct {
-      int timeout;              /* NCP Idle timeout value */
-      int min_timeout;          /* Don't idle out before this */
+      unsigned timeout;          /* NCP Idle timeout value */
+      unsigned min_timeout;      /* Don't idle out before this */
     } idle;
     struct {
-      char name[AUTHLEN];     /* PAP/CHAP system name */
-      char key[AUTHLEN];      /* PAP/CHAP key */
+      char name[AUTHLEN];        /* PAP/CHAP system name */
+      char key[AUTHLEN];         /* PAP/CHAP key */
     } auth;
-    unsigned opt;             /* Uses OPT_ bits from above */
-    char label[50];           /* last thing `load'ed */
-    u_short ifqueue;          /* Interface queue size */
+    unsigned long long optmask;  /* Uses OPT_ bits from above */
+    char label[50];              /* last thing `load'ed */
+    u_short ifqueue;             /* Interface queue size */
 
     struct {
-      int timeout;            /* How long to leave the output queue choked */
+      unsigned timeout;          /* How long to leave the output queue choked */
     } choked;
   } cfg;
 
@@ -169,7 +174,7 @@ extern void bundle_LinkClosed(struct bundle *, struct datalink *);
 extern int bundle_ShowLinks(struct cmdargs const *);
 extern int bundle_ShowStatus(struct cmdargs const *);
 extern void bundle_StartIdleTimer(struct bundle *, unsigned secs);
-extern void bundle_SetIdleTimer(struct bundle *, int, int);
+extern void bundle_SetIdleTimer(struct bundle *, unsigned, unsigned);
 extern void bundle_StopIdleTimer(struct bundle *);
 extern int bundle_IsDead(struct bundle *);
 extern struct datalink *bundle2datalink(struct bundle *, const char *);
@@ -198,7 +203,7 @@ extern int bundle_RenameDatalink(struct bundle *, struct datalink *,
                                  const char *);
 extern void bundle_setsid(struct bundle *, int);
 extern void bundle_LockTun(struct bundle *);
-extern int bundle_HighestState(struct bundle *);
+extern unsigned bundle_HighestState(struct bundle *);
 extern int bundle_Exception(struct bundle *, int);
 extern void bundle_AdjustFilters(struct bundle *, struct ncpaddr *,
                                  struct ncpaddr *);

@@ -83,6 +83,8 @@ extern int ID0NgMkSockNode(const char *, int *, int *);
 	connect(s, (const struct sockaddr *)(n), sizeof *(n))
 #define ID0kill kill
 #if defined(__FreeBSD__) && !defined(NOKLDLOAD)
+#include <sys/param.h>
+#include <sys/linker.h>
 #define ID0kldload kldload
 #endif
 #ifndef NONETGRAPH

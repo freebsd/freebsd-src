@@ -98,6 +98,7 @@ struct lcp {
     unsigned chap81 : 2;	/* Microsoft CHAP v2 */
 #endif
     unsigned lqr : 2;		/* Link Quality Report */
+    unsigned echo : 1;		/* Send echo Requests */
     unsigned pap : 2;		/* Password Authentication protocol */
     unsigned protocomp : 2;	/* Protocol field compression */
     char ident[DEF_MRU - 7];	/* SendIdentification() data */

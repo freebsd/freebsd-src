@@ -32,4 +32,4 @@ struct device;
 extern struct device *atm_Create(struct physical *);
 extern struct device *atm_iov2device(int, struct physical *,
                                      struct iovec *, int *, int, int *, int *);
-extern int atm_DeviceSize(void);
+extern unsigned atm_DeviceSize(void);

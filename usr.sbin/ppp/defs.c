@@ -168,7 +168,7 @@ GetIpAddr(const char *cp)
 }
 
 static const struct speeds {
-  int nspeed;
+  unsigned nspeed;
   speed_t speed;
 } speeds[] = {
 #ifdef B50
@@ -254,8 +254,8 @@ static const struct speeds {
   { 0, 0 }
 };
 
-int
-SpeedToInt(speed_t speed)
+unsigned
+SpeedToUnsigned(speed_t speed)
 {
   const struct speeds *sp;
 
@@ -268,7 +268,7 @@ SpeedToInt(speed_t speed)
 }
 
 speed_t
-IntToSpeed(int nspeed)
+UnsignedToSpeed(unsigned nspeed)
 {
   const struct speeds *sp;
 
@@ -373,7 +373,7 @@ ex_desc(int ex)
     "redial", "reconnect"
   };
 
-  if (ex >= 0 && ex < sizeof desc / sizeof *desc)
+  if (ex >= 0 && ex < (int)(sizeof desc / sizeof *desc))
     return desc[ex];
   snprintf(num, sizeof num, "%d", ex);
   return num;
@@ -405,7 +405,8 @@ zerofdset(fd_set *s)
 void
 Concatinate(char *buf, size_t sz, int argc, const char *const *argv)
 {
-  int i, n, pos;
+  int i, n;
+  unsigned pos;
 
   *buf = '\0';
   for (pos = i = 0; i < argc; i++) {
@@ -419,11 +420,11 @@ Concatinate(char *buf, size_t sz, int argc, const char *const *argv)
   }
 }
 
+#if defined(__FreeBSD__) && !defined(NOKLDLOAD)
 int
 loadmodules(int how, const char *module, ...)
 {
   int loaded = 0;
-#if defined(__FreeBSD__) && !defined(NOKLDLOAD)
   va_list ap;
 
   va_start(ap, module);
@@ -438,6 +439,12 @@ loadmodules(int how, const char *module, ...)
     module = va_arg(ap, const char *);
   }
   va_end(ap);
-#endif
   return loaded;
 }
+#else
+int
+loadmodules(int how __unused, const char *module __unused, ...)
+{
+  return 0;
+}
+#endif

@@ -150,7 +150,7 @@ static const char * const cbcpname[] = {
 };
 
 static const char *
-cbcpstate(int s)
+cbcpstate(unsigned s)
 {
   if (s < sizeof cbcpname / sizeof cbcpname[0])
     return cbcpname[s];
@@ -210,7 +210,7 @@ cbcp_Output(struct cbcp *cbcp, u_char code, struct cbcp_data *data)
 }
 
 static const char *
-cbcp_data_Type(int type)
+cbcp_data_Type(unsigned type)
 {
   static const char * const types[] = {
     "No callback", "User-spec", "Server-spec", "list"
@@ -615,13 +615,13 @@ cbcp_SendAck(struct cbcp *cbcp)
 }
 
 extern struct mbuf *
-cbcp_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
+cbcp_Input(struct bundle *bundle __unused, struct link *l, struct mbuf *bp)
 {
   struct physical *p = link2physical(l);
   struct cbcp_header *head;
   struct cbcp_data *data;
   struct cbcp *cbcp = &p->dl->cbcp;
-  int len;
+  size_t len;
 
   if (p == NULL) {
     log_Printf(LogERROR, "cbcp_Input: Not a physical link - dropped\n");
@@ -637,7 +637,7 @@ cbcp_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
   }
   head = (struct cbcp_header *)MBUF_CTOP(bp);
   if (ntohs(head->length) != len) {
-    log_Printf(LogWARN, "Corrupt CBCP packet (code %d, length %d not %d)"
+    log_Printf(LogWARN, "Corrupt CBCP packet (code %d, length %u not %zu)"
                " - ignored\n", head->code, ntohs(head->length), len);
     m_freem(bp);
     return NULL;
@@ -729,7 +729,7 @@ cbcp_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
       break;
 
     default:
-      log_Printf(LogWARN, "Unrecognised CBCP packet (code %d, length %d)\n",
+      log_Printf(LogWARN, "Unrecognised CBCP packet (code %d, length %zd)\n",
                head->code, len);
       break;
   }

@@ -60,7 +60,7 @@ extern int ncp_fsmStart(struct ncp *, struct bundle *);
 extern void ncp_IfaceAddrAdded(struct ncp *, const struct iface_addr *);
 extern void ncp_IfaceAddrDeleted(struct ncp *, const struct iface_addr *);
 extern void ncp_SetLink(struct ncp *, struct link *);
-extern void ncp_Enqueue(struct ncp *, int, int, char *, int);
+extern void ncp_Enqueue(struct ncp *, int, unsigned, char *, int);
 extern void ncp_DeleteQueues(struct ncp *);
 extern size_t ncp_QueueLen(struct ncp *);
 extern size_t ncp_FillPhysicalQueues(struct ncp *, struct bundle *);

@@ -34,4 +34,4 @@ struct device;
 extern struct device *ng_Create(struct physical *);
 extern struct device *ng_iov2device(int, struct physical *, struct iovec *,
                                     int *, int, int *, int *);
-extern int ng_DeviceSize(void);
+extern unsigned ng_DeviceSize(void);

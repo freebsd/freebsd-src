@@ -137,15 +137,9 @@ HdlcFcsBuf(u_short fcs, struct mbuf *m)
   return (fcs);
 }
 
-int
-hdlc_WrapperOctets(struct lcp *lcp, u_short proto)
-{
-  return 2;
-}
-
 static struct mbuf *
-hdlc_LayerPush(struct bundle *bundle, struct link *l, struct mbuf *bp,
-               int pri, u_short *proto)
+hdlc_LayerPush(struct bundle *bundle __unused, struct link *l __unused,
+	       struct mbuf *bp, int pri __unused, u_short *proto __unused)
 {
   struct mbuf *last;
   u_char *cp;
@@ -293,7 +287,7 @@ static struct {
 const char *
 hdlc_Protocol2Nam(u_short proto)
 {
-  int f;
+  unsigned f;
 
   for (f = 0; f < NPROTOCOLS; f++)
     if (proto >= protocols[f].from && proto <= protocols[f].to)
@@ -304,8 +298,8 @@ hdlc_Protocol2Nam(u_short proto)
 }
 
 static struct mbuf *
-hdlc_LayerPull(struct bundle *b, struct link *l, struct mbuf *bp,
-               u_short *proto)
+hdlc_LayerPull(struct bundle *b __unused, struct link *l, struct mbuf *bp,
+               u_short *proto __unused)
 {
   struct physical *p = link2physical(l);
   u_short fcs;
@@ -364,7 +358,7 @@ static const struct frameheader {
 };
 
 int
-hdlc_Detect(u_char const **cp, int n, int issync)
+hdlc_Detect(u_char const **cp, unsigned n, int issync)
 {
   const struct frameheader *fh;
   const u_char *h;

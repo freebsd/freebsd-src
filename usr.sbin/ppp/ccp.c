@@ -133,7 +133,7 @@ protoname(int proto)
     "DEFLATE",		/* 26: Deflate (rfc1979) */
   };
 
-  if (proto < 0 || proto > sizeof cftypes / sizeof *cftypes ||
+  if (proto < 0 || (unsigned)proto > sizeof cftypes / sizeof *cftypes ||
       cftypes[proto] == NULL) {
     if (proto == -1)
       return "none";
@@ -297,7 +297,7 @@ ccp_Setup(struct ccp *ccp)
 int
 ccp_Required(struct ccp *ccp)
 {
-  int f;
+  unsigned f;
 
   for (f = 0; f < NALGORITHMS; f++)
     if (IsEnabled(ccp->cfg.neg[algorithm[f]->Neg]) &&
@@ -347,7 +347,8 @@ CcpSendConfigReq(struct fsm *fp)
   struct ccp *ccp = fsm2ccp(fp);
   struct ccp_opt **o;
   u_char *cp, buff[100];
-  int f, alloc;
+  unsigned f;
+  int alloc;
 
   cp = buff;
   o = &ccp->out.opt;
@@ -361,11 +362,15 @@ CcpSendConfigReq(struct fsm *fp)
 
       if (!alloc)
         for (o = &ccp->out.opt; *o != NULL; o = &(*o)->next)
-          if ((*o)->val.hdr.id == algorithm[f]->id && (*o)->algorithm == f)
+          if ((*o)->val.hdr.id == algorithm[f]->id && (*o)->algorithm == (int)f)
             break;
 
       if (alloc || *o == NULL) {
-        *o = (struct ccp_opt *)malloc(sizeof(struct ccp_opt));
+        if ((*o = (struct ccp_opt *)malloc(sizeof(struct ccp_opt))) == NULL) {
+	  log_Printf(LogERROR, "%s: Not enough memory for CCP REQ !\n",
+		     fp->link->name);
+	  break;
+	}
         (*o)->val.hdr.id = algorithm[f]->id;
         (*o)->val.hdr.len = 2;
         (*o)->next = NULL;
@@ -402,7 +407,7 @@ ccp_SendResetReq(struct fsm *fp)
 }
 
 static void
-CcpSentTerminateReq(struct fsm *fp)
+CcpSentTerminateReq(struct fsm *fp __unused)
 {
   /* Term REQ just sent by FSM */
 }
@@ -495,12 +500,12 @@ CcpLayerUp(struct fsm *fp)
   /* We're now up */
   struct ccp *ccp = fsm2ccp(fp);
   struct ccp_opt **o;
-  int f, fail;
+  unsigned f, fail;
 
   for (f = fail = 0; f < NALGORITHMS; f++)
     if (IsEnabled(ccp->cfg.neg[algorithm[f]->Neg]) &&
         (*algorithm[f]->Required)(&ccp->fsm) &&
-        (ccp->in.algorithm != f || ccp->out.algorithm != f)) {
+        (ccp->in.algorithm != (int)f || ccp->out.algorithm != (int)f)) {
       /* Blow it all away - we haven't negotiated a required algorithm */
       log_Printf(LogWARN, "%s: Failed to negotiate (required) %s\n",
                  fp->link->name, protoname(algorithm[f]->id));
@@ -517,7 +522,7 @@ CcpLayerUp(struct fsm *fp)
   log_Printf(LogCCP, "%s: LayerUp.\n", fp->link->name);
 
   if (ccp->in.state == NULL && ccp->in.algorithm >= 0 &&
-      ccp->in.algorithm < NALGORITHMS) {
+      ccp->in.algorithm < (int)NALGORITHMS) {
     ccp->in.state = (*algorithm[ccp->in.algorithm]->i.Init)
       (fp->bundle, &ccp->in.opt);
     if (ccp->in.state == NULL) {
@@ -530,12 +535,13 @@ CcpLayerUp(struct fsm *fp)
   }
 
   o = &ccp->out.opt;
-  for (f = 0; f < ccp->out.algorithm; f++)
-    if (IsEnabled(ccp->cfg.neg[algorithm[f]->Neg]))
-      o = &(*o)->next;
+  if (ccp->out.algorithm > 0)
+    for (f = 0; f < (unsigned)ccp->out.algorithm; f++)
+      if (IsEnabled(ccp->cfg.neg[algorithm[f]->Neg]))
+	o = &(*o)->next;
 
   if (ccp->out.state == NULL && ccp->out.algorithm >= 0 &&
-      ccp->out.algorithm < NALGORITHMS) {
+      ccp->out.algorithm < (int)NALGORITHMS) {
     ccp->out.state = (*algorithm[ccp->out.algorithm]->o.Init)
       (fp->bundle, &(*o)->val);
     if (ccp->out.state == NULL) {
@@ -569,7 +575,7 @@ CcpDecodeConfig(struct fsm *fp, u_char *cp, u_char *end, int mode_type,
   if (mode_type == MODE_REQ)
     ccp->in.algorithm = -1;	/* In case we've received two REQs in a row */
 
-  while (end - cp >= sizeof(opt->hdr)) {
+  while (end >= cp + sizeof(opt->hdr)) {
     if ((opt = fsm_readopt(&cp)) == NULL)
       break;
 
@@ -609,7 +615,7 @@ CcpDecodeConfig(struct fsm *fp, u_char *cp, u_char *end, int mode_type,
           case MODE_ACK:
             fsm_ack(dec, &ccp->in.opt);
             ccp->his_proto = opt->hdr.id;
-            ccp->in.algorithm = f;		/* This one'll do :-) */
+            ccp->in.algorithm = (int)f;		/* This one'll do :-) */
             break;
           }
         } else {
@@ -709,7 +715,7 @@ CcpRecvResetAck(struct fsm *fp, u_char id)
 }
 
 static struct mbuf *
-ccp_LayerPush(struct bundle *b, struct link *l, struct mbuf *bp,
+ccp_LayerPush(struct bundle *b __unused, struct link *l, struct mbuf *bp,
               int pri, u_short *proto)
 {
   if (PROTO_COMPRESSIBLE(*proto)) {
@@ -739,7 +745,8 @@ ccp_LayerPush(struct bundle *b, struct link *l, struct mbuf *bp,
 }
 
 static struct mbuf *
-ccp_LayerPull(struct bundle *b, struct link *l, struct mbuf *bp, u_short *proto)
+ccp_LayerPull(struct bundle *b __unused, struct link *l, struct mbuf *bp,
+	      u_short *proto)
 {
   /*
    * If proto isn't PROTO_[I]COMPD, we still want to pass it to the
@@ -805,13 +812,13 @@ ccp_SetOpenMode(struct ccp *ccp)
 }
 
 int
-ccp_DefaultUsable(struct fsm *fp)
+ccp_DefaultUsable(struct fsm *fp __unused)
 {
   return 1;
 }
 
 int
-ccp_DefaultRequired(struct fsm *fp)
+ccp_DefaultRequired(struct fsm *fp __unused)
 {
   return 0;
 }

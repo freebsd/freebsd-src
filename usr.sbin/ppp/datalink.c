@@ -79,7 +79,8 @@
 #include "datalink.h"
 
 static void datalink_LoginDone(struct datalink *);
-static void datalink_NewState(struct datalink *, int);
+static void datalink_NewState(struct datalink *, unsigned);
+static char *datalink_NextName(struct datalink *);
 
 static void
 datalink_OpenTimeout(void *v)
@@ -274,7 +275,7 @@ datalink_UpdateSet(struct fdescriptor *d, fd_set *r, fd_set *w, fd_set *e,
       if (dl->dial.timer.state != TIMER_RUNNING) {
         if (--dl->dial.tries < 0)
           dl->dial.tries = 0;
-        if (physical_Open(dl->physical, dl->bundle) >= 0) {
+        if (physical_Open(dl->physical) >= 0) {
           log_WritePrompts(dl, "%s: Entering terminal mode on %s\r\n"
                            "Type `~?' for help\r\n", dl->name,
                            dl->physical->name.full);
@@ -1269,16 +1270,16 @@ static const char * const states[] = {
 const char *
 datalink_State(struct datalink *dl)
 {
-  if (dl->state < 0 || dl->state >= sizeof states / sizeof states[0])
+  if (dl->state >= sizeof states / sizeof states[0])
     return "unknown";
   return states[dl->state];
 }
 
 static void
-datalink_NewState(struct datalink *dl, int state)
+datalink_NewState(struct datalink *dl, unsigned state)
 {
   if (state != dl->state) {
-    if (state >= 0 && state < sizeof states / sizeof states[0]) {
+    if (state < sizeof states / sizeof states[0]) {
       log_Printf(LogPHASE, "%s: %s -> %s\n", dl->name, datalink_State(dl),
                  states[state]);
       dl->state = state;
@@ -1293,7 +1294,7 @@ iov2datalink(struct bundle *bundle, struct iovec *iov, int *niov, int maxiov,
 {
   struct datalink *dl, *cdl;
   struct fsm_retry copy;
-  char *oname;
+  char *oname, *pname;
 
   dl = (struct datalink *)iov[(*niov)++].iov_base;
   dl->name = iov[*niov].iov_base;
@@ -1309,10 +1310,14 @@ iov2datalink(struct bundle *bundle, struct iovec *iov, int *niov, int maxiov,
   do {
     for (cdl = bundle->links; cdl; cdl = cdl->next)
       if (!strcasecmp(dl->name, cdl->name)) {
-        if (oname)
-          free(datalink_NextName(dl));
+        if ((pname = datalink_NextName(dl)) == NULL) {
+	  for ((*niov)--; *niov < maxiov; (*niov)++)
+	    free(iov[*niov].iov_base);
+	  return NULL;
+	} else if (oname)
+          free(pname);
         else
-          oname = datalink_NextName(dl);
+          oname = pname;
         break;	/* Keep renaming 'till we have no conflicts */
       }
   } while (cdl);
@@ -1424,14 +1429,17 @@ datalink_Rename(struct datalink *dl, const char *name)
   dl->physical->link.name = dl->name = strdup(name);
 }
 
-char *
+static char *
 datalink_NextName(struct datalink *dl)
 {
   int f, n;
   char *name, *oname;
 
   n = strlen(dl->name);
-  name = (char *)malloc(n+3);
+  if ((name = (char *)malloc(n+3)) == NULL) {
+    log_Printf(LogERROR, "datalink_NextName: Out of memory !\n");
+    return NULL;
+  }
   for (f = n - 1; f >= 0; f--)
     if (!isdigit(dl->name[f]))
       break;

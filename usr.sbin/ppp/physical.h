@@ -71,7 +71,7 @@ struct device {
   ssize_t (*read)(struct physical *, void *, size_t);
   ssize_t (*write)(struct physical *, const void *, size_t);
   void (*device2iov)(struct device *, struct iovec *, int *, int, int *, int *);
-  int (*speed)(struct physical *);
+  unsigned (*speed)(struct physical *);
   const char *(*openinfo)(struct physical *);
   int (*slot)(struct physical *);
 };
@@ -130,10 +130,10 @@ struct physical {
 #define PHYSICAL_FORCE_SYNCNOACF	4
 
 extern struct physical *physical_Create(struct datalink *, int);
-extern int physical_Open(struct physical *, struct bundle *);
+extern int physical_Open(struct physical *);
 extern int physical_Raw(struct physical *);
-extern int physical_GetSpeed(struct physical *);
-extern int physical_SetSpeed(struct physical *, int);
+extern unsigned physical_GetSpeed(struct physical *);
+extern int physical_SetSpeed(struct physical *, unsigned);
 extern int physical_SetParity(struct physical *, const char *);
 extern int physical_SetRtsCts(struct physical *, int);
 extern void physical_SetSync(struct physical *);
@@ -168,9 +168,9 @@ extern int physical_SetMode(struct physical *, int);
 extern void physical_DeleteQueue(struct physical *);
 extern void physical_SetupStack(struct physical *, const char *, int);
 extern void physical_StopDeviceTimer(struct physical *);
-extern int physical_MaxDeviceSize(void);
+extern unsigned physical_MaxDeviceSize(void);
 extern int physical_AwaitCarrier(struct physical *);
 extern void physical_SetDescriptor(struct physical *);
 extern void physical_SetAsyncParams(struct physical *, u_int32_t, u_int32_t);
 extern int physical_Slot(struct physical *);
-extern int physical_SetPPPoEnonstandatd(struct physical *, int);
+extern int physical_SetPPPoEnonstandard(struct physical *, int);

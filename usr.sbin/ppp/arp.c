@@ -97,7 +97,7 @@ static struct {
 } arpmsg;
 
 static int
-arp_ProxySub(struct bundle *bundle, struct in_addr addr, int add, int s)
+arp_ProxySub(struct bundle *bundle, struct in_addr addr, int add)
 {
   int routes;
 
@@ -107,7 +107,7 @@ arp_ProxySub(struct bundle *bundle, struct in_addr addr, int add, int s)
    */
 
   memset(&arpmsg, 0, sizeof arpmsg);
-  if (!arp_EtherAddr(s, addr, &arpmsg.hwa, 0)) {
+  if (!arp_EtherAddr(addr, &arpmsg.hwa, 0)) {
     log_Printf(LogWARN, "%s: Cannot determine ethernet address for proxy ARP\n",
 	       inet_ntoa(addr));
     return 0;
@@ -145,18 +145,18 @@ arp_ProxySub(struct bundle *bundle, struct in_addr addr, int add, int s)
 }
 
 int
-arp_SetProxy(struct bundle *bundle, struct in_addr addr, int s)
+arp_SetProxy(struct bundle *bundle, struct in_addr addr)
 {
-  return (arp_ProxySub(bundle, addr, 1, s));
+  return (arp_ProxySub(bundle, addr, 1));
 }
 
 /*
  * arp_ClearProxy - Delete the proxy ARP entry for the peer.
  */
 int
-arp_ClearProxy(struct bundle *bundle, struct in_addr addr, int s)
+arp_ClearProxy(struct bundle *bundle, struct in_addr addr)
 {
-  return (arp_ProxySub(bundle, addr, 0, s));
+  return (arp_ProxySub(bundle, addr, 0));
 }
 
 #else				/* RTM_VERSION */
@@ -179,7 +179,7 @@ arp_SetProxy(struct bundle *bundle, struct in_addr addr, int s)
    * Get the hardware address of an interface on the same subnet as our local
    * address.
    */
-  if (!arp_EtherAddr(s, addr, &dls.sdl, 1)) {
+  if (!arp_EtherAddr(addr, &dls.sdl, 1)) {
     log_Printf(LOG_PHASE_BIT, "Cannot determine ethernet address for "
                "proxy ARP\n");
     return 0;
@@ -226,7 +226,7 @@ arp_ClearProxy(struct bundle *bundle, struct in_addr addr, int s)
  */
 
 int
-arp_EtherAddr(int s, struct in_addr ipaddr, struct sockaddr_dl *hwaddr,
+arp_EtherAddr(struct in_addr ipaddr, struct sockaddr_dl *hwaddr,
               int verbose)
 {
   int mib[6], skip;

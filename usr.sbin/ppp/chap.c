@@ -35,6 +35,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 
+#include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
 #ifndef NODES
@@ -121,9 +122,10 @@ ChapOutput(struct physical *physical, u_int code, u_int id,
 }
 
 static char *
-chap_BuildAnswer(char *name, char *key, u_char id, char *challenge, u_char type
+chap_BuildAnswer(char *name, char *key, u_char id, char *challenge
 #ifndef NODES
-                 , char *peerchallenge, char *authresponse, int lanman
+		 , u_char type, char *peerchallenge, char *authresponse,
+		 int lanman
 #endif
                 )
 {
@@ -137,7 +139,7 @@ chap_BuildAnswer(char *name, char *key, u_char id, char *challenge, u_char type
   if (type == 0x80) {
     char expkey[AUTHLEN << 2];
     MD4_CTX MD4context;
-    int f;
+    size_t f;
 
     if ((result = malloc(1 + nlen + MS_CHAP_RESPONSE_LEN)) == NULL)
       return result;
@@ -184,7 +186,7 @@ chap_BuildAnswer(char *name, char *key, u_char id, char *challenge, u_char type
     char pwdhash[CHAP81_HASH_LEN];
     char pwdhashhash[CHAP81_HASH_LEN];
     char *ntresponse;
-    int f;
+    size_t f;
 
     if ((result = malloc(1 + nlen + CHAP81_RESPONSE_LEN)) == NULL)
       return result;
@@ -210,7 +212,7 @@ chap_BuildAnswer(char *name, char *key, u_char id, char *challenge, u_char type
     HashNtPasswordHash(pwdhash, pwdhashhash);
 
     /* Generate NTRESPONSE to respond on challenge call */
-    GenerateNTResponse(challenge + 1, peerchallenge + 1, name, nlen,
+    GenerateNTResponse(challenge + 1, peerchallenge + 1, name,
                        expkey, klen * 2, ntresponse);
 
     /* Generate MPPE MASTERKEY */
@@ -218,7 +220,7 @@ chap_BuildAnswer(char *name, char *key, u_char id, char *challenge, u_char type
 
     /* Generate AUTHRESPONSE to verify on auth success */
     GenerateAuthenticatorResponse(expkey, klen * 2, ntresponse,
-                                  peerchallenge + 1, challenge + 1, name, nlen,
+                                  peerchallenge + 1, challenge + 1, name,
                                   authresponse);
 
     authresponse[CHAP81_AUTHRESPONSE_LEN] = 0;
@@ -363,17 +365,17 @@ chap_Cleanup(struct chap *chap, int sig)
 }
 
 static void
-chap_Respond(struct chap *chap, char *name, char *key, u_char type
+chap_Respond(struct chap *chap, char *name, char *key
 #ifndef NODES
-             , int lm
+             , u_char type, int lm
 #endif
             )
 {
   u_char *ans;
 
-  ans = chap_BuildAnswer(name, key, chap->auth.id, chap->challenge.peer, type
+  ans = chap_BuildAnswer(name, key, chap->auth.id, chap->challenge.peer
 #ifndef NODES
-                         , chap->challenge.local, chap->authresponse, lm
+                         , type, chap->challenge.local, chap->authresponse, lm
 #endif
                         );
 
@@ -391,7 +393,8 @@ chap_Respond(struct chap *chap, char *name, char *key, u_char type
 }
 
 static int
-chap_UpdateSet(struct fdescriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
+chap_UpdateSet(struct fdescriptor *d, fd_set *r, fd_set *w __unused,
+	       fd_set *e __unused, int *n)
 {
   struct chap *chap = descriptor2chap(d);
 
@@ -415,7 +418,8 @@ chap_IsSet(struct fdescriptor *d, const fd_set *fdset)
 }
 
 static void
-chap_Read(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
+chap_Read(struct fdescriptor *d, struct bundle *bundle __unused,
+	  const fd_set *fdset __unused)
 {
   struct chap *chap = descriptor2chap(d);
   int got;
@@ -460,9 +464,9 @@ chap_Read(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
         *end-- = '\0';
       key += strspn(key, " \t");
 
-      chap_Respond(chap, name, key, chap->auth.physical->link.lcp.his_authtype
+      chap_Respond(chap, name, key
 #ifndef NODES
-                   , lanman
+                   , chap->auth.physical->link.lcp.his_authtype, lanman
 #endif
                   );
       chap_Cleanup(chap, 0);
@@ -471,7 +475,8 @@ chap_Read(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
 }
 
 static int
-chap_Write(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
+chap_Write(struct fdescriptor *d __unused, struct bundle *bundle __unused,
+	   const fd_set *fdset __unused)
 {
   /* We never want to write here ! */
   log_Printf(LogALERT, "chap_Write: Internal error: Bad call !\n");
@@ -618,9 +623,9 @@ chap_Failure(struct authinfo *authp)
 }
 
 static int
-chap_Cmp(u_char type, char *myans, int mylen, char *hisans, int hislen
+chap_Cmp(char *myans, int mylen, char *hisans, int hislen
 #ifndef NODES
-         , int lm
+         , u_char type, int lm
 #endif
         )
 {
@@ -690,7 +695,8 @@ chap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
   struct physical *p = link2physical(l);
   struct chap *chap = &p->dl->chap;
   char *name, *key, *ans;
-  int len, nlen;
+  int len;
+  size_t nlen;
   u_char alen;
 #ifndef NODES
   int lanman;
@@ -833,10 +839,10 @@ chap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
                           bundle->cfg.auth.name);
         else
           chap_Respond(chap, bundle->cfg.auth.name, bundle->cfg.auth.key +
-                       (*bundle->cfg.auth.key == '!' ? 1 : 0),
-                       p->link.lcp.his_authtype
+                       (*bundle->cfg.auth.key == '!' ? 1 : 0)
+                       
 #ifndef NODES
-                       , lanman
+                       , p->link.lcp.his_authtype, lanman
 #endif
                       );
         break;
@@ -872,7 +878,7 @@ chap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
                        "CHAP81 RESPONSE\n", l->name);
             resp->Flags = '\0';	/* rfc2759 says it *MUST* be zero */
           }
-          key = auth_GetSecret(bundle, name, nlen, p);
+          key = auth_GetSecret(name, nlen);
           if (key) {
 #ifndef NODES
             if (p->link.lcp.want_authtype == 0x80 &&
@@ -895,11 +901,11 @@ chap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
 #endif
             {
               char *myans = chap_BuildAnswer(name, key, chap->auth.id,
-                                             chap->challenge.local,
-                                       p->link.lcp.want_authtype
+                                             chap->challenge.local
 #ifndef NODES
-                                       , chap->challenge.peer,
-                                       chap->authresponse, lanman);
+					     , p->link.lcp.want_authtype,
+					     chap->challenge.peer,
+					     chap->authresponse, lanman);
               MPPE_IsServer = 1;		/* XXX Global ! */
 #else
                                       );
@@ -907,10 +913,9 @@ chap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
               if (myans == NULL)
                 key = NULL;
               else {
-                if (!chap_Cmp(p->link.lcp.want_authtype, myans + 1, *myans,
-                              ans + 1, alen
+                if (!chap_Cmp(myans + 1, *myans, ans + 1, alen
 #ifndef NODES
-                              , lanman
+                              , p->link.lcp.want_authtype, lanman
 #endif
                              ))
                   key = NULL;

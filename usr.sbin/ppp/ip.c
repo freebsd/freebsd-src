@@ -110,7 +110,7 @@ dns_Qclass2Txt(u_short qclass)
     /* rfc1035 */
     { 1, "IN" }, { 2, "CS" }, { 3, "CH" }, { 4, "HS" }, { 255, "*" }
   };
-  int f;
+  unsigned f;
 
   for (f = 0; f < sizeof qtxt / sizeof *qtxt; f++)
     if (qtxt[f].id == qclass)
@@ -137,7 +137,7 @@ dns_Qtype2Txt(u_short qtype)
     { 27, "GPOS" }, { 28, "AAAA" }, { 252, "AXFR" }, { 253, "MAILB" },
     { 254, "MAILA" }, { 255, "*" }
   };
-  int f;
+  unsigned f;
 
   for (f = 0; f < sizeof qtxt / sizeof *qtxt; f++)
     if (qtxt[f].id == qtype)
@@ -206,7 +206,12 @@ prototxt(int cproto)
  * One (and only one) of pip or pip6 must be set.
  */
 int
-FilterCheck(const unsigned char *packet, u_int32_t family,
+FilterCheck(const unsigned char *packet,
+#ifdef NOINET6
+	    u_int32_t family __unused,
+#else
+	    u_int32_t family,
+#endif
             const struct filter *filter, unsigned *psecs)
 {
   int gotinfo;			/* true if IP payload decoded */
@@ -494,7 +499,7 @@ ip_LogDNS(const struct udphdr *uh, const char *direction)
   const u_short *pktptr;
   const u_char *ptr;
   u_short *hptr, tmp;
-  int len;
+  unsigned len;
 
   ptr = (const char *)uh + sizeof *uh;
   len = ntohs(uh->uh_ulen) - sizeof *uh;
@@ -519,11 +524,11 @@ ip_LogDNS(const struct udphdr *uh, const char *direction)
 
     n = namewithdot;
     end = ptr + len - 4;
-    if (end - ptr >= sizeof namewithdot)
+    if (end - ptr >= (int)sizeof namewithdot)
       end = ptr + sizeof namewithdot - 1;
     while (ptr < end) {
       len = *ptr++;
-      if (len > end - ptr)
+      if ((int)len > end - ptr)
         len = end - ptr;
       if (n != namewithdot)
         *n++ = '.';
@@ -554,6 +559,7 @@ PacketCheck(struct bundle *bundle, u_int32_t family,
             const unsigned char *packet, int nb, struct filter *filter,
             const char *prefix, unsigned *psecs)
 {
+  char logbuf[200];
   static const char *const TcpFlags[] = {
     "FIN", "SYN", "RST", "PSH", "ACK", "URG"
   };
@@ -565,9 +571,8 @@ PacketCheck(struct bundle *bundle, u_int32_t family,
 #endif
   const unsigned char *payload;
   struct ncpaddr srcaddr, dstaddr;
-  int cproto, mask, len, n, pri, logit, loglen, result;
-  char logbuf[200];
-  int datalen, frag;
+  int cproto, mask, len, n, pri, logit, result, datalen, frag;
+  unsigned loglen;
   u_char tos;
 
   logit = (log_IsKept(LogTCPIP) || log_IsKept(LogDNS)) &&
@@ -764,6 +769,7 @@ PacketCheck(struct bundle *bundle, u_int32_t family,
       snprintf(logbuf + loglen, sizeof logbuf - loglen, " contains ");
       result = PacketCheck(bundle, AF_INET, payload, nb - (payload - packet),
                            filter, logbuf, psecs);
+      loglen += strlen(logbuf + loglen);
       if (result != -2)
         return result;
     }
@@ -896,17 +902,18 @@ PacketCheck(struct bundle *bundle, u_int32_t family,
   return result;
 }
 
-static int
+static size_t
 ip_Input(struct bundle *bundle, struct link *l, struct mbuf *bp, u_int32_t af)
 {
-  int nb, nw;
+  ssize_t nw;
+  size_t nb;
   struct tun_data tun;
   char *data;
   unsigned secs, alivesecs;
 
   nb = m_length(bp);
   if (nb > sizeof tun.data) {
-    log_Printf(LogWARN, "ip_Input: %s: Packet too large (got %d, max %d)\n",
+    log_Printf(LogWARN, "ip_Input: %s: Packet too large (got %zd, max %d)\n",
                l->name, nb, (int)(sizeof tun.data));
     m_freem(bp);
     return 0;
@@ -933,12 +940,13 @@ ip_Input(struct bundle *bundle, struct link *l, struct mbuf *bp, u_int32_t af)
     data = tun.data;
 
   nw = write(bundle->dev.fd, data, nb);
-  if (nw != nb) {
+  if (nw != (ssize_t)nb) {
     if (nw == -1)
-      log_Printf(LogERROR, "ip_Input: %s: wrote %d, got %s\n",
+      log_Printf(LogERROR, "ip_Input: %s: wrote %zd, got %s\n",
                  l->name, nb, strerror(errno));
     else
-      log_Printf(LogERROR, "ip_Input: %s: wrote %d, got %d\n", l->name, nb, nw);
+      log_Printf(LogERROR, "ip_Input: %s: wrote %zd, got %zd\n", l->name, nb,
+	  nw);
   }
 
   return nb;

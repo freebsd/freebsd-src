@@ -270,7 +270,7 @@ pap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
           pap_Failure(authp);
       } else
 #endif
-      if (auth_Validate(bundle, authp->in.name, key, p))
+      if (auth_Validate(bundle, authp->in.name, key))
         pap_Success(authp);
       else
         pap_Failure(authp);

@@ -70,7 +70,8 @@ InterpretArg(const char *from, char *to)
 {
   char *ptr, *startto, *endto;
   struct passwd *pwd;
-  int len, instring;
+  int instring;
+  size_t len;
   const char *env;
 
   instring = 0;
@@ -106,7 +107,7 @@ InterpretArg(const char *from, char *to)
           ptr = strchr(from+2, '}');
           if (ptr) {
             len = ptr - from - 2;
-            if (endto - to < len )
+            if (endto - to < (int)len )
               len = endto - to;
             if (len) {
               strncpy(to, from+2, len);
@@ -137,7 +138,7 @@ InterpretArg(const char *from, char *to)
 
       case '~':
         ptr = strchr(++from, '/');
-        len = ptr ? ptr - from : strlen(from);
+        len = ptr ? (size_t)(ptr - from) : strlen(from);
         if (len == 0)
           pwd = getpwuid(ID0realuid());
         else {

@@ -98,18 +98,19 @@ struct ngdevice {
 #define NG_MSGBUFSZ	4096
 #define NETGRAPH_PREFIX	"netgraph:"
 
-int
+unsigned
 ng_DeviceSize(void)
 {
   return sizeof(struct ngdevice);
 }
 
 static int
-ng_MessageOut(struct ngdevice *dev, struct physical *p, const char *data)
+ng_MessageOut(struct ngdevice *dev, const char *data)
 {
   char path[NG_PATHSIZ];
-  int len, pos, dpos;
   char *fmt;
+  size_t len;
+  int pos, dpos;
 
   /*
    * We expect a node path, one or more spaces, a command, one or more
@@ -141,7 +142,7 @@ ng_MessageOut(struct ngdevice *dev, struct physical *p, const char *data)
    * This is probably a waste of time, but we really don't want to end
    * up stuffing unexpected % escapes into the kernel....
    */
-  for (pos = dpos = 0; pos < len;) {
+  for (pos = dpos = 0; pos < (int)len;) {
     if (data[dpos] == '%')
       fmt[pos++] = '%';
     fmt[pos++] = data[dpos++];
@@ -169,7 +170,7 @@ ng_MessageIn(struct physical *p, char *buf, size_t sz)
   struct ngdevice *dev = device2ng(p->handler);
   struct ng_mesg *rep = (struct ng_mesg *)msgbuf;
   char path[NG_PATHSIZ];
-  int len;
+  size_t len;
 
 #ifdef BROKEN_SELECT
   struct timeval t;
@@ -224,9 +225,9 @@ ng_Write(struct physical *p, const void *v, size_t n)
   switch (p->dl->state) {
     case DATALINK_DIAL:
     case DATALINK_LOGIN:
-      return ng_MessageOut(dev, p, v) ? n : -1;
+      return ng_MessageOut(dev, v) ? (ssize_t)n : -1;
   }
-  return NgSendData(p->fd, dev->hook, v, n) == -1 ? -1 : n;
+  return NgSendData(p->fd, dev->hook, v, n) == -1 ? -1 : (ssize_t)n;
 }
 
 static ssize_t
@@ -279,7 +280,7 @@ ng_Free(struct physical *p)
 
 static void
 ng_device2iov(struct device *d, struct iovec *iov, int *niov,
-              int maxiov, int *auxfd, int *nauxfd)
+              int maxiov __unused, int *auxfd, int *nauxfd)
 {
   struct ngdevice *dev = device2ng(d);
   int sz = physical_MaxDeviceSize();
@@ -319,7 +320,7 @@ static const struct device basengdevice = {
 
 struct device *
 ng_iov2device(int type, struct physical *p, struct iovec *iov, int *niov,
-              int maxiov, int *auxfd, int *nauxfd)
+              int maxiov __unused, int *auxfd, int *nauxfd)
 {
   if (type == NG_DEVICE) {
     struct ngdevice *dev = (struct ngdevice *)iov[(*niov)++].iov_base;
@@ -427,7 +428,7 @@ static int
 getsegment(const char *what, char *word, size_t sz, const char *from,
            const char *sep, const char **endp)
 {
-  int len;
+  size_t len;
 
   if ((len = strcspn(from, sep)) == 0) {
     log_Printf(LogWARN, "%s name should not be empty !\n", what);
@@ -468,7 +469,8 @@ ng_Create(struct physical *p)
   char modname[NG_TYPESIZ + 3];
   char path[NG_PATHSIZ];
   char *nodename;
-  int len, sz, done, f;
+  int len, sz, done;
+  unsigned f;
 
   dev = NULL;
   if (p->fd < 0 && !strncasecmp(p->name.full, NETGRAPH_PREFIX,

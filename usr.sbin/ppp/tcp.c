@@ -119,7 +119,8 @@ static struct device tcpdevice = {
 
 struct device *
 tcp_iov2device(int type, struct physical *p, struct iovec *iov,
-               int *niov, int maxiov, int *auxfd, int *nauxfd)
+               int *niov, int maxiov __unused, int *auxfd __unused,
+	       int *nauxfd __unused)
 {
   if (type == TCP_DEVICE) {
     free(iov[(*niov)++].iov_base);

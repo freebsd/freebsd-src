@@ -159,11 +159,11 @@ mask62bits(const struct in6_addr *mask)
   return masklen;
 }
 
+#if 0
 static void
 adjust_linklocal(struct sockaddr_in6 *sin6)
 {
     /* XXX: ?????!?!?!!!!!  This is horrible ! */
-#if 0
     /*
      * The kernel does not understand sin6_scope_id for routing at this moment.
      * We should rather keep the embedded ID.
@@ -175,8 +175,8 @@ adjust_linklocal(struct sockaddr_in6 *sin6)
         ntohs(*(u_short *)&sin6->sin6_addr.s6_addr[2]);
       *(u_short *)&sin6->sin6_addr.s6_addr[2] = 0;
     }
-#endif
 }
+#endif
 #endif
 
 void
@@ -385,7 +385,9 @@ ncpaddr_ntowa(const struct ncpaddr *addr)
     sin6.sin6_len = sizeof(sin6);
     sin6.sin6_family = AF_INET6;
     sin6.sin6_addr = addr->ncpaddr_ip6addr;
+#if 0
     adjust_linklocal(&sin6);
+#endif
 #ifdef NI_WITHSCOPEID
     if (getnameinfo((struct sockaddr *)&sin6, sizeof sin6, res, sizeof(res),
                     NULL, 0, NI_WITHSCOPEID | NI_NUMERICHOST) != 0)

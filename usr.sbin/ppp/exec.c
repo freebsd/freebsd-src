@@ -88,7 +88,8 @@ static struct device execdevice = {
 
 struct device *
 exec_iov2device(int type, struct physical *p, struct iovec *iov,
-                int *niov, int maxiov, int *auxfd, int *nauxfd)
+                int *niov, int maxiov __unused, int *auxfd __unused,
+		int *nauxfd __unused)
 {
   if (type == EXEC_DEVICE) {
     free(iov[(*niov)++].iov_base);

@@ -150,9 +150,9 @@ HashNtPasswordHash(char *hash, char *hashhash)
   MD4Final(hashhash, &MD4context);
 }
 
-void
+static void
 ChallengeHash(char *PeerChallenge, char *AuthenticatorChallenge,
-              char *UserName, int UserNameLen, char *Challenge)
+              char *UserName, char *Challenge)
 {
   SHA_CTX Context;
   char Digest[SHA_DIGEST_LENGTH];
@@ -176,14 +176,13 @@ ChallengeHash(char *PeerChallenge, char *AuthenticatorChallenge,
 
 void
 GenerateNTResponse(char *AuthenticatorChallenge, char *PeerChallenge,
-                   char *UserName, int UserNameLen, char *Password,
+                   char *UserName, char *Password,
                    int PasswordLen, char *Response)
 {
   char Challenge[8];
   char PasswordHash[16];
 
-  ChallengeHash(PeerChallenge, AuthenticatorChallenge, UserName, UserNameLen,
-                Challenge);
+  ChallengeHash(PeerChallenge, AuthenticatorChallenge, UserName, Challenge);
   NtPasswordHash(Password, PasswordLen, PasswordHash);
   ChallengeResponse(Challenge, PasswordHash, Response);
 }
@@ -215,7 +214,7 @@ void
 GenerateAuthenticatorResponse(char *Password, int PasswordLen,
                               char *NTResponse, char *PeerChallenge,
                               char *AuthenticatorChallenge, char *UserName,
-                              int UserNameLen, char *AuthenticatorResponse)
+                              char *AuthenticatorResponse)
 {
   SHA_CTX Context;
   char PasswordHash[16];
@@ -254,8 +253,7 @@ GenerateAuthenticatorResponse(char *Password, int PasswordLen,
   SHA1_Update(&Context, NTResponse, 24);
   SHA1_Update(&Context, Magic1, 39);
   SHA1_Final(Digest, &Context);
-  ChallengeHash(PeerChallenge, AuthenticatorChallenge, UserName, UserNameLen,
-                Challenge);
+  ChallengeHash(PeerChallenge, AuthenticatorChallenge, UserName, Challenge);
   SHA1_Init(&Context);
   SHA1_Update(&Context, Digest, 20);
   SHA1_Update(&Context, Challenge, 8);

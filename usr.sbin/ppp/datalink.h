@@ -53,7 +53,7 @@ struct bundle;
 
 struct datalink {
   struct fdescriptor desc;	/* We play either a physical or a chat */
-  int state;			/* Our DATALINK_* state */
+  unsigned state;		/* Our DATALINK_* state */
   struct physical *physical;	/* Our link */
 
   struct chat chat;		/* For bringing the link up & down */
@@ -148,7 +148,6 @@ extern int datalink_SetRedial(struct cmdargs const *);
 extern int datalink_SetReconnect(struct cmdargs const *);
 extern const char *datalink_State(struct datalink *);
 extern void datalink_Rename(struct datalink *, const char *);
-extern char *datalink_NextName(struct datalink *);
 extern int datalink_RemoveFromSet(struct datalink *, fd_set *, fd_set *,
                                   fd_set *);
 extern int datalink_SetMode(struct datalink *, int);

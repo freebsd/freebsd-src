@@ -70,7 +70,7 @@
 #include "ncp.h"
 #include "bundle.h"
 
-static int filter_Nam2Op(const char *);
+static unsigned filter_Nam2Op(const char *);
 
 static int
 ParsePort(const char *service, const char *proto)
@@ -96,8 +96,7 @@ ParsePort(const char *service, const char *proto)
  *	ICMP Syntax:	src eq icmp_message_type
  */
 static int
-ParseIcmp(int argc, char const *const *argv, const struct protoent *pe,
-          struct filterent *tgt)
+ParseIcmp(int argc, char const *const *argv, struct filterent *tgt)
 {
   int type;
   char *cp;
@@ -189,8 +188,7 @@ ParseUdpOrTcp(int argc, char const *const *argv, const struct protoent *pe,
 }
 
 static int
-ParseGeneric(int argc, char const * const *argv, const struct protoent *pe,
-             struct filterent *tgt)
+ParseGeneric(int argc, struct filterent *tgt)
 {
   /*
    * Filter currently is a catch-all. Requests are either permitted or
@@ -382,10 +380,10 @@ filter_Parse(struct ncp *ncp, int argc, char const *const *argv,
 #ifndef NOINET6
   case IPPROTO_ICMPV6:
 #endif
-    val = ParseIcmp(argc, argv, pe, &fe);
+    val = ParseIcmp(argc, argv, &fe);
     break;
   default:
-    val = ParseGeneric(argc, argv, pe, &fe);
+    val = ParseGeneric(argc, &fe);
     break;
   }
 
@@ -435,12 +433,12 @@ filter_Set(struct cmdargs const *arg)
 }
 
 const char *
-filter_Action2Nam(int act)
+filter_Action2Nam(unsigned act)
 {
   static const char * const actname[] = { "  none ", "permit ", "  deny " };
-  static char	buf[8];
+  static char buf[8];
 
-  if (act >= 0 && act < MAXFILTERS) {
+  if (act < MAXFILTERS) {
     snprintf(buf, sizeof buf, "%6d ", act);
     return buf;
   } else if (act >= A_NONE && act < A_NONE + sizeof(actname)/sizeof(char *))
@@ -539,7 +537,7 @@ filter_Show(struct cmdargs const *arg)
 static const char * const opname[] = {"none", "eq", "gt", "lt"};
 
 const char *
-filter_Op2Nam(int op)
+filter_Op2Nam(unsigned op)
 {
   if (op >= sizeof opname / sizeof opname[0])
     return "unknown";
@@ -547,10 +545,10 @@ filter_Op2Nam(int op)
 
 }
 
-static int
+static unsigned
 filter_Nam2Op(const char *cp)
 {
-  int op;
+  unsigned op;
 
   for (op = sizeof opname / sizeof opname[0] - 1; op; op--)
     if (!strcasecmp(cp, opname[op]))

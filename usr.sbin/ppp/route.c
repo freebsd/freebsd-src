@@ -184,7 +184,7 @@ static struct bits {
 #endif
 
 static void
-p_flags(struct prompt *prompt, u_int32_t f, int max)
+p_flags(struct prompt *prompt, u_int32_t f, unsigned max)
 {
   char name[33], *flags;
   register struct bits *p = bits;
@@ -192,11 +192,11 @@ p_flags(struct prompt *prompt, u_int32_t f, int max)
   if (max > sizeof name - 1)
     max = sizeof name - 1;
 
-  for (flags = name; p->b_mask && flags - name < max; p++)
+  for (flags = name; p->b_mask && flags - name < (int)max; p++)
     if (p->b_mask & f)
       *flags++ = p->b_val;
   *flags = '\0';
-  prompt_Printf(prompt, "%-*.*s", max, max, name);
+  prompt_Printf(prompt, "%-*.*s", (int)max, (int)max, name);
 }
 
 static int route_nifs = -1;
@@ -278,10 +278,15 @@ Index2Nam(int idx)
         }
         if (ifs[ifm->ifm_index-1] == NULL) {
           ifs[ifm->ifm_index-1] = (char *)malloc(dl->sdl_nlen+1);
-          memcpy(ifs[ifm->ifm_index-1], dl->sdl_data, dl->sdl_nlen);
-          ifs[ifm->ifm_index-1][dl->sdl_nlen] = '\0';
-          if (route_nifs < ifm->ifm_index)
-            route_nifs = ifm->ifm_index;
+          if (ifs[ifm->ifm_index-1] == NULL)
+	    log_Printf(LogDEBUG, "Skipping interface %d: Out of memory\n",
+                  ifm->ifm_index);
+	  else {
+	    memcpy(ifs[ifm->ifm_index-1], dl->sdl_data, dl->sdl_nlen);
+	    ifs[ifm->ifm_index-1][dl->sdl_nlen] = '\0';
+	    if (route_nifs < ifm->ifm_index)
+	      route_nifs = ifm->ifm_index;
+	  }
         }
       } else if (log_IsKept(LogDEBUG))
         log_Printf(LogDEBUG, "Skipping out-of-range interface %d!\n",
@@ -516,7 +521,7 @@ route_UpdateMTU(struct bundle *bundle)
       if (log_IsKept(LogTCPIP)) {
         ncprange_setsa(&dst, sa[RTAX_DST], sa[RTAX_NETMASK]);
         log_Printf(LogTCPIP, "route_UpdateMTU: Netif: %d (%s), dst %s,"
-                   " mtu %d\n", rtm->rtm_index, Index2Nam(rtm->rtm_index),
+                   " mtu %lu\n", rtm->rtm_index, Index2Nam(rtm->rtm_index),
                    ncprange_ntoa(&dst), bundle->iface->mtu);
       }
       rt_Update(bundle, sa[RTAX_DST], sa[RTAX_GATEWAY], sa[RTAX_NETMASK]);
@@ -612,8 +617,13 @@ route_Add(struct sticky_route **rp, int type, const struct ncprange *dst,
       rp = &(*rp)->next;
   }
 
-  if (!r)
+  if (r == NULL) {
     r = (struct sticky_route *)malloc(sizeof(struct sticky_route));
+    if (r == NULL) {
+      log_Printf(LogERROR, "route_Add: Out of memory!\n");
+      return;
+    }
+  }
   r->type = type;
   r->next = NULL;
   ncprange_copy(&r->dst, dst);

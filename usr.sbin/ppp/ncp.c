@@ -89,12 +89,8 @@ static u_short default_urgent_tcp_ports[] = {
   544	/* kshell */
 };
 
-static u_short default_urgent_udp_ports[] = { };
-
 #define NDEFTCPPORTS \
   (sizeof default_urgent_tcp_ports / sizeof default_urgent_tcp_ports[0])
-#define NDEFUDPPORTS \
-  (sizeof default_urgent_udp_ports / sizeof default_urgent_udp_ports[0])
 
 void
 ncp_Init(struct ncp *ncp, struct bundle *bundle)
@@ -102,17 +98,19 @@ ncp_Init(struct ncp *ncp, struct bundle *bundle)
   ncp->afq = AF_INET;
   ncp->route = NULL;
 
-  ncp->cfg.urgent.tcp.nports = ncp->cfg.urgent.tcp.maxports = NDEFTCPPORTS;
   ncp->cfg.urgent.tcp.port = (u_short *)malloc(NDEFTCPPORTS * sizeof(u_short));
-  memcpy(ncp->cfg.urgent.tcp.port, default_urgent_tcp_ports,
-         NDEFTCPPORTS * sizeof(u_short));
+  if (ncp->cfg.urgent.tcp.port == NULL) {
+    log_Printf(LogERROR, "ncp_Init: Out of memory allocating urgent ports\n");
+    ncp->cfg.urgent.tcp.nports = ncp->cfg.urgent.tcp.maxports = 0;
+  } else {
+    ncp->cfg.urgent.tcp.nports = ncp->cfg.urgent.tcp.maxports = NDEFTCPPORTS;
+    memcpy(ncp->cfg.urgent.tcp.port, default_urgent_tcp_ports,
+	   NDEFTCPPORTS * sizeof(u_short));
+  }
   ncp->cfg.urgent.tos = 1;
 
-  ncp->cfg.urgent.udp.nports = ncp->cfg.urgent.udp.maxports = NDEFUDPPORTS;
-  ncp->cfg.urgent.udp.port = (u_short *)malloc(NDEFUDPPORTS * sizeof(u_short));
-  memcpy(ncp->cfg.urgent.udp.port, default_urgent_udp_ports,
-         NDEFUDPPORTS * sizeof(u_short));
-
+  ncp->cfg.urgent.udp.nports = ncp->cfg.urgent.udp.maxports = 0;
+  ncp->cfg.urgent.udp.port = NULL;
 
   mp_Init(&ncp->mp, bundle);
 
@@ -146,7 +144,13 @@ ncp_Destroy(struct ncp *ncp)
 }
 
 int
-ncp_fsmStart(struct ncp *ncp, struct bundle *bundle)
+ncp_fsmStart(struct ncp *ncp,
+#ifdef NOINET6
+	     struct bundle *bundle __unused
+#else
+	     struct bundle *bundle
+#endif
+	     )
 {
   int res = 0;
 
@@ -205,7 +209,7 @@ ncp_SetLink(struct ncp *ncp, struct link *l)
  * down to the physical link level 'till ncp_FillPhysicalQueues() is used.
  */
 void
-ncp_Enqueue(struct ncp *ncp, int af, int pri, char *ptr, int count)
+ncp_Enqueue(struct ncp *ncp, int af, unsigned pri, char *ptr, int count)
 {
 #ifndef NOINET6
   struct ipv6cp *ipv6cp = &ncp->ipv6cp;
@@ -222,8 +226,8 @@ ncp_Enqueue(struct ncp *ncp, int af, int pri, char *ptr, int count)
 
   switch (af) {
   case AF_INET:
-    if (pri < 0 || pri >= IPCP_QUEUES(ipcp)) {
-      log_Printf(LogERROR, "Can't store in ip queue %d\n", pri);
+    if (pri >= IPCP_QUEUES(ipcp)) {
+      log_Printf(LogERROR, "Can't store in ip queue %u\n", pri);
       break;
     }
 
@@ -236,8 +240,8 @@ ncp_Enqueue(struct ncp *ncp, int af, int pri, char *ptr, int count)
 
 #ifndef NOINET6
   case AF_INET6:
-    if (pri < 0 || pri >= IPV6CP_QUEUES(ipcp)) {
-      log_Printf(LogERROR, "Can't store in ipv6 queue %d\n", pri);
+    if (pri >= IPV6CP_QUEUES(ipcp)) {
+      log_Printf(LogERROR, "Can't store in ipv6 queue %u\n", pri);
       break;
     }
 
@@ -333,7 +337,13 @@ ncp_FillPhysicalQueues(struct ncp *ncp, struct bundle *bundle)
  * of what is to be pushed next, coming either from mp->out or ncp->afq.
  */
 int
-ncp_PushPacket(struct ncp *ncp, int *af, struct link *l)
+ncp_PushPacket(struct ncp *ncp __unused,
+#ifdef NOINET6
+	       int *af __unused,
+#else
+	       int *af,
+#endif
+	       struct link *l)
 {
   struct bundle *bundle = l->lcp.fsm.bundle;
   int res;
@@ -360,7 +370,7 @@ ncp_PushPacket(struct ncp *ncp, int *af, struct link *l)
 int
 ncp_IsUrgentPort(struct port_range *range, u_short src, u_short dst)
 {
-  int f;
+  unsigned f;
 
   for (f = 0; f < range->nports; f++)
     if (range->port[f] == src || range->port[f] == dst)
@@ -373,7 +383,7 @@ void
 ncp_AddUrgentPort(struct port_range *range, u_short port)
 {
   u_short *newport;
-  int p;
+  unsigned p;
 
   if (range->nports == range->maxports) {
     range->maxports += 10;
@@ -407,11 +417,11 @@ ncp_AddUrgentPort(struct port_range *range, u_short port)
 void
 ncp_RemoveUrgentPort(struct port_range *range, u_short port)
 {
-  int p;
+  unsigned p;
 
   for (p = 0; p < range->nports; p++)
     if (range->port[p] == port) {
-      if (p != range->nports - 1)
+      if (p + 1 != range->nports)
         memmove(range->port + p, range->port + p + 1,
                 (range->nports - p - 1) * sizeof(u_short));
       range->nports--;
@@ -432,7 +442,7 @@ int
 ncp_Show(struct cmdargs const *arg)
 {
   struct ncp *ncp = &arg->bundle->ncp;
-  int p;
+  unsigned p;
 
 #ifndef NOINET6
   prompt_Printf(arg->prompt, "Next queued AF: %s\n",
