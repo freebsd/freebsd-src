@@ -147,7 +147,7 @@ acpi_timer_identify(driver_t *driver, device_t parent)
     char	desc[40];
     int		rid, i, j;
 
-    ACPI_FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     if (acpi_disabled("timer"))
 	return_VOID;

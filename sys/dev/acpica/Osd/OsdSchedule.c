@@ -164,7 +164,7 @@ AcpiOsQueueForExecution(UINT32 Priority, OSD_EXECUTION_CALLBACK Function, void *
     struct acpi_task	*at;
     int pri;
 
-    ACPI_FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     if (Function == NULL)
 	return_ACPI_STATUS(AE_BAD_PARAMETER);
@@ -207,7 +207,7 @@ AcpiOsExecuteQueue(void *arg, int pending)
     OSD_EXECUTION_CALLBACK	Function;
     void			*Context;
 
-    ACPI_FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     at = (struct acpi_task *)arg;
     atq = NULL;
@@ -248,7 +248,7 @@ AcpiOsSleep (UINT32 Seconds, UINT32 Milliseconds)
     int		timo;
     static int	dummy;
 
-    ACPI_FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     timo = (Seconds * hz) + Milliseconds * hz / 1000;
     if (timo == 0)
@@ -260,7 +260,7 @@ AcpiOsSleep (UINT32 Seconds, UINT32 Milliseconds)
 void
 AcpiOsStall (UINT32 Microseconds)
 {
-    ACPI_FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     DELAY(Microseconds);
     return_VOID;

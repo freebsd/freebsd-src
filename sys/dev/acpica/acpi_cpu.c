@@ -144,7 +144,7 @@ acpi_cpu_attach(device_t dev)
     u_int32_t			duty_end;
     int				rid;
 
-    ACPI_FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     ACPI_ASSERTLOCK;
 
