@@ -11,7 +11,7 @@ TCSHDIR= ${.CURDIR}/../../contrib/tcsh
 
 PROG=	csh
 SUBDIR= nls
-DFLAGS=	-D_PATH_TCSHELL='"${DESTDIR}/bin/${PROG}"'  
+DFLAGS= -D_PATH_TCSHELL='"/bin/${PROG}"'
 CFLAGS+= -I${TCSHDIR} -I${.CURDIR} -I. ${DFLAGS}
 SRCS=	sh.c sh.dir.c sh.dol.c sh.err.c sh.exec.c sh.char.c \
 	sh.exp.c sh.file.c sh.func.c sh.glob.c sh.hist.c sh.init.c \
@@ -44,6 +44,8 @@ CLEANFILES= ${GENHDRS} gethost csh.1
 
 csh.1: tcsh.man
 	ln -sf ${.ALLSRC} ${.TARGET}
+
+build-tools: gethost
 
 gethost: gethost.c sh.err.h tc.const.h sh.h
 	@rm -f ${.TARGET}
