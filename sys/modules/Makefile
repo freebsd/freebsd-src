@@ -49,7 +49,8 @@ SUBDIR=	3dfx \
 	mii \
 	mlx \
 	msdosfs \
-	nfs \
+	nfsclient \
+	nfsserver \
 	nge \
 	nmdm \
 	ntfs \

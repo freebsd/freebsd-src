@@ -37,9 +37,8 @@
  * $FreeBSD$
  */
 
-
-#ifndef _NFS_NFSMOUNT_H_
-#define _NFS_NFSMOUNT_H_
+#ifndef _NFSCLIENT_NFSMOUNT_H_
+#define _NFSCLIENT_NFSMOUNT_H_
 
 /*
  * Mount structure.
@@ -70,24 +69,11 @@ struct	nfsmount {
 	int	nm_wsize;		/* Max size of write rpc */
 	int	nm_readdirsize;		/* Size of a readdir rpc */
 	int	nm_readahead;		/* Num. of blocks to readahead */
-	int	nm_leaseterm;		/* Term (sec) for NQNFS lease */
 	int	nm_acdirmin;		/* Directory attr cache min lifetime */
 	int	nm_acdirmax;		/* Directory attr cache max lifetime */
 	int	nm_acregmin;		/* Reg file attr cache min lifetime */
 	int	nm_acregmax;		/* Reg file attr cache max lifetime */
-	TAILQ_HEAD(timhd, nfsnode) nm_timerhead; /* Head of lease timer queue */
-	struct vnode *nm_inprog;	/* Vnode in prog by nqnfs_clientd() */
-	uid_t	nm_authuid;		/* Uid for authenticator */
-	int	nm_authtype;		/* Authenticator type */
-	int	nm_authlen;		/* and length */
-	char	*nm_authstr;		/* Authenticator string */
-	char	*nm_verfstr;		/* and the verifier */
-	int	nm_verflen;
 	u_char	nm_verf[NFSX_V3WRITEVERF]; /* V3 write verifier */
-	NFSKERBKEY_T nm_key;		/* and the session key */
-	int	nm_numuids;		/* Number of nfsuid mappings */
-	TAILQ_HEAD(, nfsuid) nm_uidlruhead; /* Lists of nfsuid mappings */
-	LIST_HEAD(, nfsuid) nm_uidhashtbl[NFS_MUIDHASHSIZ];
 	TAILQ_HEAD(, buf) nm_bufq;	/* async io buffer queue */
 	short	nm_bufqlen;		/* number of buffers in queue */
 	short	nm_bufqwant;		/* process wants to add to the queue */

@@ -34,8 +34,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_srvcache.c	8.3 (Berkeley) 3/30/95
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Reference: Chet Juszczak, "Improving the Performance and Correctness
@@ -53,12 +55,9 @@
 #include <netinet/in.h>
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
-#include <nfs/nfs.h>
-#include <nfs/nfsrvcache.h>
+#include <nfsserver/nfs.h>
+#include <nfsserver/nfsrvcache.h>
 
-#ifndef NFS_NOSERVER 
-extern struct nfsstats nfsstats;
-extern int nfsv2_procid[NFS_NPROCS];
 static long numnfsrvcache;
 static long desirednfsrvcache = NFSRVCACHESIZ;
 
@@ -101,9 +100,6 @@ static int nonidempotent[NFS_NPROCS] = {
 	FALSE,
 	FALSE,
 	FALSE,
-	FALSE,
-	FALSE,
-	FALSE,
 };
 
 /* True iff the rpc reply is an nfs status ONLY! */
@@ -132,7 +128,7 @@ static int nfsv2_repstat[NFS_NPROCS] = {
  * Initialize the server request cache list
  */
 void
-nfsrv_initcache()
+nfsrv_initcache(void)
 {
 
 	nfsrvhashtbl = hashinit(desirednfsrvcache, M_NFSD, &nfsrvhash);
@@ -154,12 +150,10 @@ nfsrv_initcache()
  * Update/add new request at end of lru list
  */
 int
-nfsrv_getcache(nd, slp, repp)
-	register struct nfsrv_descript *nd;
-	struct nfssvc_sock *slp;
-	struct mbuf **repp;
+nfsrv_getcache(struct nfsrv_descript *nd, struct nfssvc_sock *slp,
+    struct mbuf **repp)
 {
-	register struct nfsrvcache *rp;
+	struct nfsrvcache *rp;
 	struct mbuf *mb;
 	struct sockaddr_in *saddr;
 	caddr_t bpos;
@@ -172,8 +166,7 @@ nfsrv_getcache(nd, slp, repp)
 	if (!nd->nd_nam2)
 		return (RC_DOIT);
 loop:
-	for (rp = NFSRCHASH(nd->nd_retxid)->lh_first; rp != 0;
-	    rp = rp->rc_hash.le_next) {
+	LIST_FOREACH(rp, NFSRCHASH(nd->nd_retxid), rc_hash) {
 	    if (nd->nd_retxid == rp->rc_xid && nd->nd_procnum == rp->rc_proc &&
 		netaddr_match(NETFAMILY(rp), &rp->rc_haddr, nd->nd_nam)) {
 		        NFS_DPF(RC, ("H%03x", rp->rc_xid & 0xfff));
@@ -184,27 +177,27 @@ loop:
 			}
 			rp->rc_flag |= RC_LOCKED;
 			/* If not at end of LRU chain, move it there */
-			if (rp->rc_lru.tqe_next) {
+			if (TAILQ_NEXT(rp, rc_lru)) {
 				TAILQ_REMOVE(&nfsrvlruhead, rp, rc_lru);
 				TAILQ_INSERT_TAIL(&nfsrvlruhead, rp, rc_lru);
 			}
 			if (rp->rc_state == RC_UNUSED)
 				panic("nfsrv cache");
 			if (rp->rc_state == RC_INPROG) {
-				nfsstats.srvcache_inproghits++;
+				nfsrvstats.srvcache_inproghits++;
 				ret = RC_DROPIT;
 			} else if (rp->rc_flag & RC_REPSTATUS) {
-				nfsstats.srvcache_nonidemdonehits++;
+				nfsrvstats.srvcache_nonidemdonehits++;
 				nfs_rephead(0, nd, slp, rp->rc_status,
-				   0, (u_quad_t *)0, repp, &mb, &bpos);
+				   repp, &mb, &bpos);
 				ret = RC_REPLY;
 			} else if (rp->rc_flag & RC_REPMBUF) {
-				nfsstats.srvcache_nonidemdonehits++;
+				nfsrvstats.srvcache_nonidemdonehits++;
 				*repp = m_copym(rp->rc_reply, 0, M_COPYALL,
 						M_TRYWAIT);
 				ret = RC_REPLY;
 			} else {
-				nfsstats.srvcache_idemdonehits++;
+				nfsrvstats.srvcache_idemdonehits++;
 				rp->rc_state = RC_INPROG;
 				ret = RC_DOIT;
 			}
@@ -216,7 +209,7 @@ loop:
 			return (ret);
 		}
 	}
-	nfsstats.srvcache_misses++;
+	nfsrvstats.srvcache_misses++;
 	NFS_DPF(RC, ("M%03x", nd->nd_retxid & 0xfff));
 	if (numnfsrvcache < desirednfsrvcache) {
 		rp = (struct nfsrvcache *)malloc((u_long)sizeof *rp,
@@ -224,11 +217,11 @@ loop:
 		numnfsrvcache++;
 		rp->rc_flag = RC_LOCKED;
 	} else {
-		rp = nfsrvlruhead.tqh_first;
+		rp = TAILQ_FIRST(&nfsrvlruhead);
 		while ((rp->rc_flag & RC_LOCKED) != 0) {
 			rp->rc_flag |= RC_WANTED;
 			(void) tsleep((caddr_t)rp, PZERO-1, "nfsrc", 0);
-			rp = nfsrvlruhead.tqh_first;
+			rp = TAILQ_FIRST(&nfsrvlruhead);
 		}
 		rp->rc_flag |= RC_LOCKED;
 		LIST_REMOVE(rp, rc_hash);
@@ -268,18 +261,14 @@ loop:
  * Update a request cache entry after the rpc has been done
  */
 void
-nfsrv_updatecache(nd, repvalid, repmbuf)
-	register struct nfsrv_descript *nd;
-	int repvalid;
-	struct mbuf *repmbuf;
+nfsrv_updatecache(struct nfsrv_descript *nd, int repvalid, struct mbuf *repmbuf)
 {
-	register struct nfsrvcache *rp;
+	struct nfsrvcache *rp;
 
 	if (!nd->nd_nam2)
 		return;
 loop:
-	for (rp = NFSRCHASH(nd->nd_retxid)->lh_first; rp != 0;
-	    rp = rp->rc_hash.le_next) {
+	LIST_FOREACH(rp, NFSRCHASH(nd->nd_retxid), rc_hash) {
 	    if (nd->nd_retxid == rp->rc_xid && nd->nd_procnum == rp->rc_proc &&
 		netaddr_match(NETFAMILY(rp), &rp->rc_haddr, nd->nd_nam)) {
 			NFS_DPF(RC, ("U%03x", rp->rc_xid & 0xfff));
@@ -292,8 +281,8 @@ loop:
 			if (rp->rc_state == RC_DONE) {
 				/*
 				 * This can occur if the cache is too small.
-				 * Retransmits of the same request aren't 
-				 * dropped so we may see the operation 
+				 * Retransmits of the same request aren't
+				 * dropped so we may see the operation
 				 * complete more then once.
 				 */
 				if (rp->rc_flag & RC_REPMBUF) {
@@ -308,7 +297,8 @@ loop:
 			 */
 			if (repvalid && nonidempotent[nd->nd_procnum]) {
 				if ((nd->nd_flag & ND_NFSV3) == 0 &&
-				  nfsv2_repstat[nfsv2_procid[nd->nd_procnum]]) {
+				    nfsv2_repstat[
+				    nfsrvv2_procid[nd->nd_procnum]]) {
 					rp->rc_status = nd->nd_repstat;
 					rp->rc_flag |= RC_REPSTATUS;
 				} else {
@@ -332,12 +322,12 @@ loop:
  * Clean out the cache. Called when the last nfsd terminates.
  */
 void
-nfsrv_cleancache()
+nfsrv_cleancache(void)
 {
-	register struct nfsrvcache *rp, *nextrp;
+	struct nfsrvcache *rp, *nextrp;
 
-	for (rp = nfsrvlruhead.tqh_first; rp != 0; rp = nextrp) {
-		nextrp = rp->rc_lru.tqe_next;
+	for (rp = TAILQ_FIRST(&nfsrvlruhead); rp != 0; rp = nextrp) {
+		nextrp = TAILQ_NEXT(rp, rc_lru);
 		LIST_REMOVE(rp, rc_hash);
 		TAILQ_REMOVE(&nfsrvlruhead, rp, rc_lru);
 		if (rp->rc_flag & RC_REPMBUF)
@@ -348,5 +338,3 @@ nfsrv_cleancache()
 	}
 	numnfsrvcache = 0;
 }
-
-#endif /* NFS_NOSERVER */
