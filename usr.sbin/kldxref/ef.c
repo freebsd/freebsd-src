@@ -33,14 +33,14 @@
  */
 
 #include <sys/param.h>
-#include <sys/exec.h>
-#include <sys/queue.h>
-#include <sys/kernel.h>
-#include <sys/reboot.h>
 #include <sys/linker.h>
 #include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <machine/elf.h>
-#include <stand.h>
 #define FREEBSD_ELF
 #include <link.h>
 
