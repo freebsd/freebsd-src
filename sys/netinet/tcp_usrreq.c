@@ -141,12 +141,9 @@ tcp_usr_attach(struct socket *so, int proto, struct thread *td)
 		so->so_linger = TCP_LINGERTIME;
 
 	inp = sotoinpcb(so);
-	INP_LOCK(inp);
 	tp = intotcpcb(inp);
 out:
 	TCPDEBUG2(PRU_ATTACH);
-	if (tp)
-		INP_UNLOCK(inp);
 	INP_INFO_WUNLOCK(&tcbinfo);
 	splx(s);
 	return error;
