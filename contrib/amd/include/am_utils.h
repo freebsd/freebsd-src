@@ -580,7 +580,7 @@ extern char *haseq(char *);
 extern int is_network_member(const char *net);
 extern int islocalnet(u_long);
 extern int make_nfs_auth(void);
-extern int make_rpc_packet(char *, int, u_long, struct rpc_msg *, voidp, XDRPROC_T_TYPE, AUTH *);
+extern int make_rpc_packet(char *, int, u_int, struct rpc_msg *, voidp, XDRPROC_T_TYPE, AUTH *);
 extern int mapc_keyiter(mnt_map *, void(*)(char *, voidp), voidp);
 extern int mapc_search(mnt_map *, char *, char **);
 extern int mapc_type_exists(const char *type);
