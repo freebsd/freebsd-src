@@ -41,7 +41,7 @@ static char sccsid[] __attribute__((unused)) = "@(#)rdisc.c	8.1 (Berkeley) x/y/9
 #elif defined(__NetBSD__)
 __RCSID"$NetBSD$");
 #endif
-#ident "$Revision: 2.17 $"
+#ident "$Revision: 2.20 $"
 
 /* router advertisement ICMP packet */
 struct icmp_ad {
@@ -84,7 +84,7 @@ struct dr {				/* accumulated advertisements */
     struct interface *dr_ifp;
     naddr   dr_gate;			/* gateway */
     time_t  dr_ts;			/* when received */
-    time_t  dr_life;			/* lifetime */
+    time_t  dr_life;			/* lifetime in host byte order */
     n_long  dr_recv_pref;		/* received but biased preference */
     n_long  dr_pref;			/* preference adjusted by metric */
 } *cur_drp, drs[MAX_ADS];
@@ -565,7 +565,7 @@ static void
 parse_ad(naddr from,
 	 naddr gate,
 	 n_long pref,			/* signed and in network order */
-	 u_short life,
+	 u_short life,			/* in host byte order */
 	 struct interface *ifp)
 {
 	static struct msg_limit bad_gate;
@@ -647,7 +647,7 @@ parse_ad(naddr from,
 	new_drp->dr_ifp = ifp;
 	new_drp->dr_gate = gate;
 	new_drp->dr_ts = now.tv_sec;
-	new_drp->dr_life = ntohs(life);
+	new_drp->dr_life = life;
 	new_drp->dr_recv_pref = pref;
 	/* bias functional preference by metric of the interface */
 	new_drp->dr_pref = PREF(pref,ifp);

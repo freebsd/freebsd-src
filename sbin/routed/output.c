@@ -38,7 +38,7 @@ static char sccsid[] __attribute__((unused)) = "@(#)output.c	8.1 (Berkeley) 6/5/
 #elif defined(__NetBSD__)
 __RCSID("$NetBSD$");
 #endif
-#ident "$Revision: 2.17 $"
+#ident "$Revision: 2.21 $"
 
 
 u_int update_seqno;
@@ -461,7 +461,7 @@ walk_supply(struct radix_node *rn,
 	 */
 	if ((RT->rt_state & RS_IF)
 	    && RT->rt_ifp != 0
-	    && (RT->rt_ifp->int_if_flags & IS_PASSIVE)
+	    && (RT->rt_ifp->int_state & IS_PASSIVE)
 	    && !(RT->rt_state & RS_MHOME))
 		return 0;
 
@@ -816,7 +816,7 @@ void
 rip_bcast(int flash)
 {
 #ifdef _HAVE_SIN_LEN
-	static struct sockaddr_in dst = {sizeof(dst), AF_INET};
+	static struct sockaddr_in dst = {sizeof(dst), AF_INET, 0, {0}, {0}};
 #else
 	static struct sockaddr_in dst = {AF_INET};
 #endif
@@ -892,7 +892,7 @@ void
 rip_query(void)
 {
 #ifdef _HAVE_SIN_LEN
-	static struct sockaddr_in dst = {sizeof(dst), AF_INET};
+	static struct sockaddr_in dst = {sizeof(dst), AF_INET, 0, {0}, {0}};
 #else
 	static struct sockaddr_in dst = {AF_INET};
 #endif

@@ -40,7 +40,7 @@ static char sccsid[] __attribute__((unused)) = "@(#)if.c	8.1 (Berkeley) 6/5/93";
 #elif defined(__NetBSD__)
 __RCSID("$NetBSD$");
 #endif
-#ident "$Revision: 2.17 $"
+#ident "$Revision: 2.21 $"
 
 
 struct parm *parms;
@@ -755,7 +755,7 @@ parse_parms(char *line,
 
 		} else if (PARS("passive")) {
 			CKF((GROUP_IS_SOL_OUT|GROUP_IS_ADV_OUT), IS_NO_RDISC);
-			parm.parm_int_state |= IS_NO_RIP;
+			parm.parm_int_state |= IS_NO_RIP| IS_PASSIVE;
 
 		} else if (PARSEQ("rdisc_pref")) {
 			if (parm.parm_rdisc_pref != 0

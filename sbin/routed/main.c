@@ -50,7 +50,7 @@ __RCSID("$NetBSD$");
 __COPYRIGHT("@(#) Copyright (c) 1983, 1988, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n");
 #endif
-#ident "$Revision: 2.17 $"
+#ident "$Revision: 2.21 $"
 
 
 pid_t	mypid;
@@ -80,7 +80,9 @@ time_t	now_expire;
 time_t	now_garbage;
 
 struct timeval next_bcast;		/* next general broadcast */
-struct timeval no_flash = {EPOCH+SUPPLY_INTERVAL};  /* inhibit flash update */
+struct timeval no_flash = {		/* inhibit flash update */
+	EPOCH+SUPPLY_INTERVAL, 0
+};
 
 struct timeval flush_kern_timer;
 
@@ -219,7 +221,7 @@ main(int argc,
 		case 'v':
 			/* display version */
 			verbose++;
-			msglog("version 2.17");
+			msglog("version 2.21");
 			break;
 
 		default:

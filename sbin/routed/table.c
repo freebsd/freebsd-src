@@ -38,7 +38,7 @@ static char sccsid[] __attribute__((unused)) = "@(#)tables.c	8.1 (Berkeley) 6/5/
 #elif defined(__NetBSD__)
 __RCSID("$NetBSD$");
 #endif
-#ident "$Revision: 2.17 $"
+#ident "$Revision: 2.20 $"
 
 static struct rt_spare *rts_better(struct rt_entry *);
 static struct rt_spare rts_empty = {0,0,0,HOPCNT_INFINITY,0,0,0};
@@ -58,7 +58,7 @@ int	need_flash = 1;			/* flash update needed
 
 struct timeval age_timer;		/* next check of old routes */
 struct timeval need_kern = {		/* need to update kernel table */
-	EPOCH+MIN_WAITTIME-1
+	EPOCH+MIN_WAITTIME-1, 0
 };
 
 int	stopint;
@@ -350,7 +350,7 @@ ag_check(naddr	dst,
 			 * then mark the suppressor redundant.
 			 */
 			if (AG_IS_REDUN(ag->ag_state)
-			    && ag_cors->ag_mask==ag->ag_mask<<1) {
+			    && ag_cors->ag_mask == ag->ag_mask<<1) {
 				if (ag_cors->ag_dst_h == dst)
 					ag_cors->ag_state |= AGS_REDUN0;
 				else
@@ -1622,8 +1622,8 @@ rtinit(void)
 
 
 #ifdef _HAVE_SIN_LEN
-static struct sockaddr_in dst_sock = {sizeof(dst_sock), AF_INET};
-static struct sockaddr_in mask_sock = {sizeof(mask_sock), AF_INET};
+static struct sockaddr_in dst_sock = {sizeof(dst_sock), AF_INET, 0, {0}, {0}};
+static struct sockaddr_in mask_sock = {sizeof(mask_sock), AF_INET, 0, {0}, {0}};
 #else
 static struct sockaddr_in_new dst_sock = {_SIN_ADDR_SIZE, AF_INET};
 static struct sockaddr_in_new mask_sock = {_SIN_ADDR_SIZE, AF_INET};
@@ -1651,7 +1651,7 @@ rtget(naddr dst, naddr mask)
 	struct rt_entry *rt;
 
 	dst_sock.sin_addr.s_addr = dst;
-	mask_sock.sin_addr.s_addr = mask;
+	mask_sock.sin_addr.s_addr = htonl(mask);
 	masktrim(&mask_sock);
 	rt = (struct rt_entry *)rhead->rnh_lookup(&dst_sock,&mask_sock,rhead);
 	if (!rt
@@ -1702,7 +1702,7 @@ rtadd(naddr	dst,
 		if ((smask & ~mask) == 0 && mask > smask)
 			state |= RS_SUBNET;
 	}
-	mask_sock.sin_addr.s_addr = mask;
+	mask_sock.sin_addr.s_addr = htonl(mask);
 	masktrim(&mask_sock);
 	rt->rt_mask = mask;
 	rt->rt_state = state;
@@ -1723,6 +1723,7 @@ rtadd(naddr	dst,
 				    rhead, rt->rt_nodes)) {
 		msglog("rnh_addaddr() failed for %s mask=%#lx",
 		       naddr_ntoa(dst), (u_long)mask);
+		free(rt);
 	}
 }
 
@@ -1841,7 +1842,7 @@ rtdelete(struct rt_entry *rt)
 	}
 
 	dst_sock.sin_addr.s_addr = rt->rt_dst;
-	mask_sock.sin_addr.s_addr = rt->rt_mask;
+	mask_sock.sin_addr.s_addr = htonl(rt->rt_mask);
 	masktrim(&mask_sock);
 	if (rt != (struct rt_entry *)rhead->rnh_deladdr(&dst_sock, &mask_sock,
 							rhead)) {
