@@ -239,7 +239,7 @@ extern	struct timecounter loran_timecounter;
 
 /**********************************************************************/
 
-int
+static int
 loranprobe(struct isa_device *dvp)
 {
 	static int once;
@@ -275,7 +275,7 @@ init_tgc(void)
 	outb(TGC, TG_LOADARM+0x1f);    /* let the good times roll */
 }
 
-int
+static int
 loranattach(struct isa_device *isdp)
 {
 	int i;

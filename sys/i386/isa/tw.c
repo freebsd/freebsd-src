@@ -415,7 +415,8 @@ static int twattach(idp)
   return (1);
 }
 
-int twopen(dev, flag, mode, td)
+static int
+twopen(dev, flag, mode, td)
      dev_t dev;
      int flag;
      int mode;
@@ -435,7 +436,8 @@ int twopen(dev, flag, mode, td)
   return(0);
 }
 
-int twclose(dev, flag, mode, td)
+static int
+twclose(dev, flag, mode, td)
      dev_t dev;
      int flag;
      int mode;
@@ -451,7 +453,8 @@ int twclose(dev, flag, mode, td)
   return(0);
 }
 
-int twread(dev, uio, ioflag)
+static int
+twread(dev, uio, ioflag)
      dev_t dev;
      struct uio *uio;
      int ioflag;
@@ -469,7 +472,8 @@ int twread(dev, uio, ioflag)
   return(error);
 }
 
-int twwrite(dev, uio, ioflag)
+static int
+twwrite(dev, uio, ioflag)
      dev_t dev;
      struct uio *uio;
      int ioflag;
@@ -541,7 +545,8 @@ int twwrite(dev, uio, ioflag)
  * Determine if there is data available for reading
  */
 
-int twpoll(dev, events, td)
+static int
+twpoll(dev, events, td)
      dev_t dev;
      int events;
      struct thread *td;

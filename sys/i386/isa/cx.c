@@ -93,7 +93,8 @@ static void cxoproc (struct tty *tp);
 static void cxstop (struct tty *tp, int flag);
 static int cxparam (struct tty *tp, struct termios *t);
 
-int cxopen (dev_t dev, int flag, int mode, struct thread *td)
+static int
+cxopen (dev_t dev, int flag, int mode, struct thread *td)
 {
 	int unit = UNIT (dev);
 	cx_chan_t *c = cxchan[unit];
@@ -198,7 +199,8 @@ int cxopen (dev_t dev, int flag, int mode, struct thread *td)
 	return (error);
 }
 
-int cxclose (dev_t dev, int flag, int mode, struct thread *td)
+static int
+cxclose (dev_t dev, int flag, int mode, struct thread *td)
 {
 	int unit = UNIT (dev);
 	cx_chan_t *c = cxchan[unit];
@@ -234,7 +236,8 @@ int cxclose (dev_t dev, int flag, int mode, struct thread *td)
 	return (0);
 }
 
-int cxioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
+static int
+cxioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	int unit = UNIT (dev);
 	cx_chan_t *c, *m;
@@ -514,7 +517,8 @@ cxout (cx_chan_t *c, char b)
 	}
 }
 
-void cxoproc (struct tty *tp)
+static void
+cxoproc (struct tty *tp)
 {
 	int unit = UNIT (tp->t_dev);
 	cx_chan_t *c = cxchan[unit];
@@ -660,7 +664,8 @@ cxparam (struct tty *tp, struct termios *t)
 /*
  * Stop output on a line
  */
-void cxstop (struct tty *tp, int flag)
+static void
+cxstop (struct tty *tp, int flag)
 {
 	cx_chan_t *c = cxchan[UNIT(tp->t_dev)];
 	unsigned short port = c->chip->port;
