@@ -72,7 +72,12 @@ static void std_unload(struct gctl_req *req, unsigned flags);
 struct g_command std_commands[] = {
 	{ "help", 0, std_help, G_NULL_OPTS },
 	{ "list", 0, std_list, G_NULL_OPTS },
-	{ "status", 0, std_status, G_NULL_OPTS },
+	{ "status", 0, std_status,
+	    {
+		{ 's', "script", NULL, G_TYPE_NONE },
+		G_OPT_SENTINEL
+	    }
+	},
 	{ "load", G_FLAG_VERBOSE | G_FLAG_LOADKLD, std_load, G_NULL_OPTS },
 	{ "unload", G_FLAG_VERBOSE, std_unload, G_NULL_OPTS },
 	G_CMD_SENTINEL
@@ -781,55 +786,66 @@ status_update_len(struct ggeom *gp, int *name_len, int *status_len)
 	}
 }
 
-static int
+static char *
 status_one_consumer(struct gconsumer *cp)
 {
+	static char buf[256];
 	struct gprovider *pp;
 	struct gconfig *conf;
 
 	pp = cp->lg_provider;
 	if (pp == NULL)
-		return (0);
-	printf("  %s", pp->lg_name);
+		return (NULL);
 	LIST_FOREACH(conf, &cp->lg_config, lg_config) {
 		if (strcasecmp(conf->lg_name, "synchronized") == 0)
-			printf(" (%s)", conf->lg_val);
+			break;
 	}
-	printf("\n");
-	return (1);
+	if (conf == NULL)
+		snprintf(buf, sizeof(buf), "%s", pp->lg_name);
+	else {
+		snprintf(buf, sizeof(buf), "%s (%s)", pp->lg_name,
+		    conf->lg_val);
+	}
+	return (buf);
 }
 
 static void
-status_one_geom(struct ggeom *gp, int name_len, int status_len)
+status_one_geom(struct ggeom *gp, int script, int name_len, int status_len)
 {
 	struct gprovider *pp;
 	struct gconsumer *cp;
 	struct gconfig *conf;
-	const char *name;
-	int newline = 0;
+	const char *name, *status, *component;
+	int gotone;
 
 	pp = LIST_FIRST(&gp->lg_provider);
 	if (pp != NULL)
 		name = pp->lg_name;
 	else
 		name = gp->lg_name;
-	printf("%*s", name_len, name);
 	LIST_FOREACH(conf, &gp->lg_config, lg_config) {
-		if (strcasecmp(conf->lg_name, "state") == 0) {
-			printf("  %*s", status_len, conf->lg_val);
+		if (strcasecmp(conf->lg_name, "state") == 0)
 			break;
-		}
 	}
 	if (conf == NULL)
-		printf("  %*s", status_len, "N/A");
+		status = "N/A";
+	else
+		status = conf->lg_val;
+	gotone = 0;
 	LIST_FOREACH(cp, &gp->lg_consumer, lg_consumer) {
-		if (cp != LIST_FIRST(&gp->lg_consumer))
-			printf("%*s  %*s", name_len, "", status_len, "");
-		if (status_one_consumer(cp) && !newline)
-			newline = 1;
+		component = status_one_consumer(cp);
+		if (component == NULL)
+			continue;
+		gotone = 1;
+		printf("%*s  %*s  %s\n", name_len, name, status_len, status,
+		    component);
+		if (!script)
+			name = status = "";
 	}
-	if (!newline)
-		printf("\n");
+	if (!gotone) {
+		printf("%*s  %*s  %s\n", name_len, name, status_len, status,
+		    "N/A");
+	}
 }
 
 static void
@@ -839,7 +855,7 @@ std_status(struct gctl_req *req, unsigned flags __unused)
 	struct gclass *classp;
 	struct ggeom *gp;
 	int name_len, status_len;
-	int error, *nargs;
+	int error, *nargs, *script;
 
 	error = geom_gettree(&mesh);
 	if (error != 0) {
@@ -854,6 +870,11 @@ std_status(struct gctl_req *req, unsigned flags __unused)
 	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
 	if (nargs == NULL) {
 		gctl_error(req, "No '%s' argument.", "nargs");
+		goto end;
+	}
+	script = gctl_get_paraml(req, "script", sizeof(*script));
+	if (script == NULL) {
+		gctl_error(req, "No '%s' argument.", "script");
 		goto end;
 	}
 	name_len = strlen("Name");
@@ -890,8 +911,10 @@ std_status(struct gctl_req *req, unsigned flags __unused)
 		if (n == 0)
 			goto end;
 	}
-	printf("%*s  %*s  %s\n", name_len, "Name", status_len, "Status",
-	    "Components");
+	if (!*script) {
+		printf("%*s  %*s  %s\n", name_len, "Name", status_len, "Status",
+		    "Components");
+	}
 	if (*nargs > 0) {
 		int i;
 
@@ -904,14 +927,15 @@ std_status(struct gctl_req *req, unsigned flags __unused)
 			assert(name != NULL);
 			gp = find_geom(classp, name);
 			if (gp != NULL) {
-				status_one_geom(gp, name_len, status_len);
+				status_one_geom(gp, *script, name_len,
+				    status_len);
 			}
 		}
 	} else {
 		LIST_FOREACH(gp, &classp->lg_geom, lg_geom) {
 			if (LIST_EMPTY(&gp->lg_provider))
 				continue;
-			status_one_geom(gp, name_len, status_len);
+			status_one_geom(gp, *script, name_len, status_len);
 		}
 	}
 end:
