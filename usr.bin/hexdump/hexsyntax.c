@@ -56,9 +56,6 @@ newsyntax(argc, argvp)
 	int argc;
 	char ***argvp;
 {
-	extern enum _vflag vflag;
-	extern FS *fshead;
-	extern int length;
 	int ch;
 	char *p, **argv;
 
