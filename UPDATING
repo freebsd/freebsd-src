@@ -142,12 +142,6 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 
 COMMON ITEMS:
 
-	# NOTE: 5.x below applies to 6.0-current as well, for the
-	# moment.  4.any -> 5.any upgrade support will remain in
-	# place for 6.0 current, but after 5.3 RELEASE, the 4.any ->
-	# 6.0-current upgrade path will require moving through 5.3
-	# RELEASE or newer.
-
 	General Notes
 	-------------
 	Avoid using make -j when upgrading.  From time to time in the
@@ -229,28 +223,14 @@ COMMON ITEMS:
  	<reboot>
 
 
-	To upgrade in-place from 4.x-stable to current
+	To upgrade in-place from 5.x-stable to current
 	----------------------------------------------
-	# 5.x uses more space than 4.x.  Also, the location of kernel
-	# modules has changed.  If you are installing 5.x onto a 4.x
-	# system, you'll need about 30MB of free disk space on your /
-	# partition.  If you have less than this, you may encounter difficult
-	# to back out of problems with this procedure.  If /tmp is on
-	# the / partition, you may want to completely remove all its content
-	# before upgrading, as this can be a common source of shortage of
-	# space on /.
-
 	<make sure you have good level 0 dumps>
-	<maybe fix /etc/fstab>				[7]
 	make buildworld					[9]
-	cp sys/${MACHINE}/conf/GENERIC.hints /boot/device.hints [2]
 	make kernel KERNCONF=YOUR_KERNEL_HERE		[8]
-	cd sys/boot ; make STRIP="" install		[6]
 							[1]
 	<reboot in single user>				[3]
-	src/etc/rc.d/preseedrandom			[10]
 	mergemaster -p					[5]
-	rm -rf /usr/include/g++
 	make installworld
 	mergemaster -i					[4]
 	<reboot>
@@ -271,10 +251,6 @@ COMMON ITEMS:
 	should disable them at this point so they don't crash your
 	system on reboot.
 
-	[2] If you have legacy ISA devices, you may need to create
-	your own device.hints to reflect your unique hardware
-	configuration.
-
 	[3] From the bootblocks, boot -s, and then do
 		fsck -p
 		mount -u /
@@ -283,9 +259,6 @@ COMMON ITEMS:
 		adjkerntz -i		# if CMOS is wall time
 	Also, when doing a major release upgrade, it is required that
 	you boot into single user mode to do the installworld.
-	For the 4.x -> 5.x upgrade, you will also see many messages about
-	needing to recompile your userland.  These are harmless and can
-	be ignored while you proceed to the next step.
 
 	[4] Note: This step is non-optional.  Failure to do this step
 	can result in a significant reduction in the functionality of the
@@ -300,21 +273,6 @@ COMMON ITEMS:
 	install a new mergemaster (cd src/usr.sbin/mergemaster && make
 	install) after the buildworld before this step if you last updated
 	from current before 20020224 or from -stable before 20020408.
-
-	[6] 4.x boot loader can be used to boot a 5.x system, however
-	it is difficult to do that at best.  If you wish to try, then
-	you should interrupt the boot and at the ok prompt type:
-		ok unload
-		ok boot /boot/kernel/kernel
-	If this fails to work, you must install a new boot loader as
-	described here.
-
-	[7] Before you upgrade, please make sure that you are not using
-	compatibility slices.  These are device names of the form /dev/ad0a
-	without the actual slice name.  These will break with 5.x and newer.
-	You generally must update these entries to use the post FreeBSD
-	2.x form of /dev/ad0s1a. i386 and pc98 are affected, while alpha
-	is not.
 
 	[8] In order to have a kernel that can run the 4.x binaries
 	needed to do an installworld, you must include the COMPAT_FREEBSD4
@@ -334,26 +292,16 @@ COMMON ITEMS:
 	MAKEOBJDIRPREFIX must be defined in an environment variable, and
 	not on the command line, or in /etc/make.conf.  buildworld will
 	warn if it is improperly defined.
-
-	In case you would like to avoid installing new packages of everything,
-	you might want to uncomment the "COMPAT4X=	YES" entry, so that 4.x
-	compatibility libraries are built which should allow you to continue
-	using your existing software for a while.  Alternatively, you can
-	install the misc/compat4x port.
-
-	[10] In order to create temporary files, /dev/random must be
-	initialized by feeding data into it.  src/etc/rc.d/preseedrandom
-	takes care of this.
 FORMAT:
 
 This file contains a list, in reverse chronological order, of major
 breakages in tracking -current.  Not all things will be listed here,
-and it only starts on March 15, 2000.  Updating files can found in
+and it only starts on October 16, 2004.  Updating files can found in
 previous releases if your system is older than this.
 
 Copyright information:
 
-Copyright 1998-2004 M. Warner Losh.  All Rights Reserved.
+Copyright 1998-2005 M. Warner Losh.  All Rights Reserved.
 
 Redistribution, publication, translation and use, with or without
 modification, in full or in part, in any form or format of this
