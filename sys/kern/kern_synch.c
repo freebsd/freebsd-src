@@ -281,6 +281,7 @@ schedcpu(arg)
 	register int realstathz, s;
 
 	realstathz = stathz ? stathz : hz;
+	lockmgr(&allproc_lock, LK_SHARED, NULL, CURPROC);
 	LIST_FOREACH(p, &allproc, p_list) {
 		/*
 		 * Increment time in/out of memory and sleep time
@@ -340,6 +341,7 @@ schedcpu(arg)
 		mtx_exit(&sched_lock, MTX_SPIN);
 		splx(s);
 	}
+	lockmgr(&allproc_lock, LK_RELEASE, NULL, CURPROC);
 	vmmeter();
 	wakeup((caddr_t)&lbolt);
 	timeout(schedcpu, (void *)0, hz);
