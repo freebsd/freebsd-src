@@ -611,6 +611,11 @@ mtx_validate(struct mtx *m)
  * we can re-enable the kernacc() checks.
  */
 #ifndef __alpha__
+	/*
+	 * Can't call kernacc() from early init386(), especially when
+	 * initializing Giant mutex, because some stuff in kernacc()
+	 * requires Giant itself.
+	 */ 
 	if (!cold)
 		if (!kernacc((caddr_t)m, sizeof(m),
 		    VM_PROT_READ | VM_PROT_WRITE))
