@@ -549,12 +549,13 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 	struct thread *td2;
 	int i;
 
-	mtx_lock_spin(&sched_lock);
+	PROC_LOCK(p);
 	td2 = FIRST_THREAD_IN_PROC(p); /* XXXKSE pretend only one thread */
 
 	if (P_SHOULDSTOP(p)) {
 		state = "T (stopped)";
 	} else {
+		mtx_lock_spin(&sched_lock);
 		switch(p->p_state) {
 		case PRS_NEW:
 			state = "I (idle)";
@@ -584,10 +585,9 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 			state = "? (unknown)";
 			break;
 		}
+		mtx_unlock_spin(&sched_lock);
 	}
-	mtx_unlock_spin(&sched_lock);
 
-	PROC_LOCK(p);
 	fill_kinfo_proc(p, &kp);
 	sbuf_printf(sb, "Name:\t%s\n",		p->p_comm); /* XXX escape */
 	sbuf_printf(sb, "State:\t%s\n",		state);
