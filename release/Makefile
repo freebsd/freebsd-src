@@ -392,7 +392,7 @@ rerelease release:
 .endif
 	# Don't remove this, or the build will fall over!
 	echo "export RELEASEDIR=${_R}"		>> ${CHROOTDIR}/mk
-	echo "export PATH=$${PATH}:${LOCALDIR}"	>> ${CHROOTDIR}/mk
+	echo "export PATH=/bin:/usr/bin:/sbin:/usr/sbin:${LOCALDIR}"	>> ${CHROOTDIR}/mk
 	echo "export TMPDIR=/tmp"		>> ${CHROOTDIR}/mk
 	echo "export MAKEOBJDIRPREFIX=/usr/obj"	>> ${CHROOTDIR}/mk
 	echo "export MANBUILDCAT=YES"		>> ${CHROOTDIR}/mk
@@ -406,7 +406,7 @@ rerelease release:
 	echo "make \$${_RELTARGET}"		>> ${CHROOTDIR}/mk
 	echo "echo \">>> make ${.TARGET} for ${TARGET} finished on \`LC_ALL=C TZ=GMT date\`\"" >> ${CHROOTDIR}/mk
 	chmod 755 ${CHROOTDIR}/mk
-	chroot ${CHROOTDIR} /mk
+	env -i /usr/sbin/chroot ${CHROOTDIR} /mk
 
 clean:
 	rm -rf boot_crunch release.[0-9]
