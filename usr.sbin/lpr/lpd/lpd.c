@@ -614,12 +614,13 @@ chkhost(f)
 	(void) strncpy(fromb, hp->h_name, sizeof(fromb) - 1);
 	fromb[sizeof(fromb) - 1] = '\0';
 	from = fromb;
+	strncpy(from_ip, inet_ntoa(f->sin_addr), MAXIPSTRLEN);
+	from_ip[sizeof(from_ip) - 1] = '\0';
 
 	/* Check for spoof, ala rlogind */
 	hp = gethostbyname(fromb);
 	if (!hp)
-		fatal(0, "hostname for your address (%s) unknown",
-		    inet_ntoa(f->sin_addr));
+		fatal(0, "hostname for your address (%s) unknown", from_ip);
 	for (; good == 0 && hp->h_addr_list[0] != NULL; hp->h_addr_list++) {
 		if (!bcmp(hp->h_addr_list[0], (caddr_t)&f->sin_addr,
 		    sizeof(f->sin_addr)))
@@ -627,7 +628,7 @@ chkhost(f)
 	}
 	if (good == 0)
 		fatal(0, "address for your hostname (%s) not matched",
-		    inet_ntoa(f->sin_addr));
+		    from_ip);
 
 	hostf = fopen(_PATH_HOSTSEQUIV, "r");
 again:
