@@ -757,16 +757,10 @@ release.10:
 .endif
 .if defined(BOOTSIZE)
 	@echo "Making the regular boot floppy."
-	@sh -e ${DOFS_SH} ${RD}/floppies/mfsroot.flp \
-		${RD} ${MNT} ${BOOTSIZE} ${RD}/mfsroot/mfsroot.gz \
-		${BOOTINODE} ${BOOTLABEL}
 	@cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=kern
 .endif
 .if defined(SMALLBOOTSIZE)
 	@echo "Making the small boot floppy."
-	@sh -e ${DOFS_SH} ${RD}/floppies/mfsroot-small.flp \
-		${RD} ${MNT} ${SMALLBOOTSIZE} ${RD}/mfsroot/mfsroot-small.gz \
-		${BOOTINODE} ${SMALLBOOTLABEL}
 	@cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=kern-small FDSIZE=SMALL
 .endif
 .if defined(BIGBOOTSIZE)
@@ -1110,10 +1104,16 @@ doMFSKERN:
 		${RD} ${MNT} ${BIGBOOTSIZE} ${RD}/image.${FSIMAGE} \
 		${BOOTINODE} ${BIGBOOTLABEL}
 .elif defined(FDSIZE) && ${FDSIZE} == "SMALL"
+	sh -e ${DOFS_SH} ${RD}/floppies/mfsroot-small.flp \
+		${RD} ${MNT} ${SMALLBOOTSIZE} ${RD}/mfsroot/mfsroot-small.gz \
+		${BOOTINODE} ${SMALLBOOTLABEL}
 	sh -e ${DOFS_SH} ${RD}/floppies/${FSIMAGE}.flp \
 		${RD} ${MNT} ${SMALLBOOTSIZE} ${RD}/image.${FSIMAGE} \
 		${BOOTINODE} ${SMALLBOOTLABEL}
 .else
+	sh -e ${DOFS_SH} ${RD}/floppies/mfsroot.flp \
+		${RD} ${MNT} ${BOOTSIZE} ${RD}/mfsroot/mfsroot.gz \
+		${BOOTINODE} ${BOOTLABEL}
 	sh -e ${DOFS_SH} ${RD}/floppies/${FSIMAGE}.flp \
 		${RD} ${MNT} ${BOOTSIZE} ${RD}/image.${FSIMAGE} \
 		${BOOTINODE} ${BOOTLABEL}
