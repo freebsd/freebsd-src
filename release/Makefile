@@ -88,17 +88,17 @@ MFSSIZE=		2880
 BIGBOOTSIZE=		2880
 BOOTINODE=		80000
 MFSINODE=		8000
-FIXITINODE=		2000
+FIXITINODE=		4000
 BOOTLABEL=		fd1440
 FIXITLABEL=		fd1440
 BIGBOOTLABEL=		minimum2
 MFSLABEL=		minimum2
 
 # overrides.
-#.if ${MACHINE_ARCH} == "alpha"
+.if ${MACHINE_ARCH} == "alpha"
 FIXITSIZE=		2880
 FIXITLABEL=		minimum2
-#.endif
+.endif
 
 ZIPNSPLIT=		gzip --no-name -9 -c | split -b 240640 -
 
@@ -520,7 +520,7 @@ release.9:
 	@( cd ${RD}/fixitfd/dev && \
 		sed -e '/^PATH/s/^/#/' ${RD}/trees/bin/dev/MAKEDEV > MAKEDEV && \
 		chmod 755 MAKEDEV && \
-		sh MAKEDEV all )
+		sh MAKEDEV fixit )
 	@cp ${RD}/trees/bin/etc/spwd.db ${RD}/trees/bin/etc/group \
 		${RD}/trees/bin/etc/protocols ${RD}/fixitfd/etc
 	@cp ${RD}/trees/bin/usr/share/misc/scsi_modes \
