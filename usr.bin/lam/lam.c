@@ -32,13 +32,17 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)lam.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -46,6 +50,7 @@ static char sccsid[] = "@(#)lam.c	8.1 (Berkeley) 6/6/93";
  *	Author:  John Kunze, UCB
  */
 
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -67,10 +72,10 @@ int	nofinalnl;		/* normally append \n to each output line */
 char	line[BIGBUFSIZ];
 char	*linep;
 
-void	 error __P((char *, char *));
 char	*gatherline __P((struct openfile *));
 void	 getargs __P((char *[]));
 char	*pad __P((struct openfile *));
+static void usage __P((void));
 
 int
 main(argc, argv)
@@ -81,7 +86,7 @@ main(argc, argv)
 
 	getargs(argv);
 	if (!morefiles)
-		error("lam - laminate files", "");
+		usage();
 	for (;;) {
 		linep = line;
 		for (ip = input; ip->fp != NULL; ip++)
@@ -113,8 +118,7 @@ getargs(av)
 			if (*p == '-')
 				ip->fp = stdin;
 			else if ((ip->fp = fopen(p, "r")) == NULL) {
-				perror(p);
-				exit(1);
+				err(1, p);
 			}
 			ip->pad = P;
 			if (!ip->sepstring)
@@ -131,14 +135,14 @@ getargs(av)
 			if (*++p || (p = *++av))
 				ip->sepstring = p;
 			else
-				error("Need string after -%s", c);
+				errx(1, "need string after -%s", c);
 			S = (*c == 'S' ? 1 : 0);
 			break;
 		case 't':
 			if (*++p || (p = *++av))
 				ip->eol = *p;
 			else
-				error("Need character after -%s", c);
+				errx(1, "need character after -%s", c);
 			T = (*c == 'T' ? 1 : 0);
 			nofinalnl = 1;
 			break;
@@ -150,15 +154,15 @@ getargs(av)
 			if (*++p || (p = *++av)) {
 				fmtp += strlen(fmtp) + 1;
 				if (fmtp > fmtbuf + BUFSIZ)
-					error("No more format space", "");
+					errx(1, "no more format space");
 				sprintf(fmtp, "%%%ss", p);
 				ip->format = fmtp;
 			}
 			else
-				error("Need string after -%s", c);
+				errx(1, "need string after -%s", c);
 			break;
 		default:
-			error("What do you mean by -%s?", c);
+			errx(1, "what do you mean by -%s?", c);
 			break;
 		}
 	}
@@ -214,20 +218,11 @@ gatherline(ip)
 	return (lp);
 }
 
-void
-error(msg, s)
-	char *msg, *s;
+static void
+usage()
 {
-	fprintf(stderr, "lam: ");
-	fprintf(stderr, msg, s);
-	fprintf(stderr,
-"\nUsage:  lam [ -[fp] min.max ] [ -s sepstring ] [ -t c ] file ...\n");
-	if (strncmp("lam - ", msg, 6) == 0)
-		fprintf(stderr, "Options:\n\t%s\t%s\t%s\t%s\t%s",
-		    "-f min.max	field widths for file fragments\n",
-		    "-p min.max	like -f, but pad missing fragments\n",
-		    "-s sepstring	fragment separator\n",
-"-t c		input line terminator is c, no \\n after output lines\n",
-		    "Capitalized options affect more than one file.\n");
+	fprintf(stderr, "%s\n%s\n",
+"usage: lam [ -f min.max ] [ -s sepstring ] [ -t c ] file ...",
+"       lam [ -p min.max ] [ -s sepstring ] [ -t c ] file ...");
 	exit(1);
 }
