@@ -631,8 +631,8 @@ out:
 		/* XXX alloc buf */
 		xfer = fw_xfer_alloc(M_FWXFER);
 		if(xfer == NULL){
-			err = ENOMEM;
-			return err;
+			free(fwb, M_FW);
+			return (ENOMEM);
 		}
 		xfer->fc = sc->fc;
 
