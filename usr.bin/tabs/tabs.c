@@ -115,6 +115,9 @@ main(int argc __unused, char *argv[])
 					usage();
 				setenv("TERM", arg, 1);
 			}
+		} else if (arg[1] == '-') {
+			arg = *++argv;
+			break;
 		} else {
 			/* Predefined format */
 			for (i = 0; i < (int)NELEMS(formats); i++)
