@@ -128,7 +128,7 @@ A sample entry to rescan the SCSI bus on connection of a
 To start up moused for a newly attached mouse:
 .Bd -literal
    device "Mouse"
-      devname "ums[0-9]+
+      devname "ums[0-9]+"
       attach "/usr/sbin/moused -p /dev/${DEVNAME} -I /var/run/moused.${DEVNAME}.pid"
 .El
 .Sh FILES
