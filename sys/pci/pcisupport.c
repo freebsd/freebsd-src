@@ -1200,6 +1200,12 @@ chip_match(device_t dev)
 	case 0xac52104c:
 		return ("Texas Instruments PCI1451 CardBus controller");
 
+	/* NeoMagic -- vendor 0x10c8 */
+	case 0x800510c8:
+		return ("NeoMagic MagicMedia 256ZX Audio controller");
+	case 0x800610c8:
+		return ("NeoMagic MagicMedia 256ZX Audio controller");
+
 	/* NEC -- vendor 0x1033 */
 
 	/* PCI to C-bus bridge */
@@ -1291,8 +1297,10 @@ static const char* vga_match(device_t dev)
 	case 0x10c8:
 		vendor = "NeoMagic";
 		switch (id >> 16) {
+		case 0x0003:
+			chip = "MagicGraph 128ZV"; break;
 		case 0x0004:
-			chip = "NM2160 laptop";	break;
+			chip = "MagicGraph 128XD"; break;
 		case 0x0005:
 			chip = "MagicMedia 256AV"; break;
 		case 0x0006:
