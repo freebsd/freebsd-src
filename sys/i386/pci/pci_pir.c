@@ -140,17 +140,14 @@ pci_cfgintr(int bus, int device, int pin)
     struct PIR_entry	*pe;
     int			i;
     
-    if ((bus < 0) || (bus > 255) || (device < 0) || (device > 255) || (pin < 1) || (pin > 4)) {
-	printf("bus %d pin %d device %d, returning 255\n", bus, pin, device);
+    if ((bus < 0) || (bus > 255) || (device < 0) || (device > 255) ||
+      (pin < 1) || (pin > 4))
 	return(255);
-    }
 
     /*
      * Scan the entry table for a contender
      */
-    printf("bus %d device %d\n", bus, device);
     for (i = 0, pe = pci_route_table; i < pci_route_count; i++, pe++) {
-	printf("pe_bus %d pe_device %d\n", pe->pe_bus, pe->pe_device);
 	if ((bus != pe->pe_bus) || (device != pe->pe_device))
 	    continue;
 	if (!powerof2(pe->pe_intpin[pin - 1].irqs)) {
