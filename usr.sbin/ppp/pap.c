@@ -86,7 +86,7 @@ pap_Req(struct authinfo *authp)
   lh.code = PAP_REQUEST;
   lh.id = authp->id;
   lh.length = htons(plen + sizeof(struct fsmheader));
-  bp = mbuf_Alloc(plen + sizeof(struct fsmheader), MB_PAPOUT);
+  bp = m_get(plen + sizeof(struct fsmheader), MB_PAPOUT);
   memcpy(MBUF_CTOP(bp), &lh, sizeof(struct fsmheader));
   cp = MBUF_CTOP(bp) + sizeof(struct fsmheader);
   *cp++ = namelen;
@@ -111,7 +111,7 @@ SendPapCode(struct authinfo *authp, int code, const char *message)
   mlen = strlen(message);
   plen = mlen + 1;
   lh.length = htons(plen + sizeof(struct fsmheader));
-  bp = mbuf_Alloc(plen + sizeof(struct fsmheader), MB_PAPOUT);
+  bp = m_get(plen + sizeof(struct fsmheader), MB_PAPOUT);
   memcpy(MBUF_CTOP(bp), &lh, sizeof(struct fsmheader));
   cp = MBUF_CTOP(bp) + sizeof(struct fsmheader);
   /*
@@ -168,14 +168,14 @@ pap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
 
   if (p == NULL) {
     log_Printf(LogERROR, "pap_Input: Not a physical link - dropped\n");
-    mbuf_Free(bp);
+    m_freem(bp);
     return NULL;
   }
 
   if (bundle_Phase(bundle) != PHASE_NETWORK &&
       bundle_Phase(bundle) != PHASE_AUTHENTICATE) {
     log_Printf(LogPHASE, "Unexpected pap input - dropped !\n");
-    mbuf_Free(bp);
+    m_freem(bp);
     return NULL;
   }
 
@@ -187,7 +187,7 @@ pap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
 
   if (authp->in.hdr.code == 0 || authp->in.hdr.code > MAXPAPCODE) {
     log_Printf(LogPHASE, "Pap Input: %d: Bad PAP code !\n", authp->in.hdr.code);
-    mbuf_Free(bp);
+    m_freem(bp);
     return NULL;
   }
 
@@ -196,10 +196,10 @@ pap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
     /* Wrong conversation dude ! */
     log_Printf(LogPHASE, "Pap Input: %s dropped (got id %d, not %d)\n",
                papcodes[authp->in.hdr.code], authp->in.hdr.id, authp->id);
-    mbuf_Free(bp);
+    m_freem(bp);
     return NULL;
   }
-  mbuf_SetType(bp, MB_PAPIN);
+  m_settype(bp, MB_PAPIN);
   authp->id = authp->in.hdr.id;		/* We respond with this id */
 
   if (bp) {
@@ -210,9 +210,9 @@ pap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
        * nlen (a one-byte length).  Show the rest of the ack packet
        * instead.  This isn't really part of the protocol.....
        */
-      bp = mbuf_Contiguous(bp);
+      bp = m_pullup(bp);
       txt = MBUF_CTOP(bp);
-      txtlen = mbuf_Length(bp);
+      txtlen = m_length(bp);
     } else {
       bp = auth_ReadName(authp, bp, nlen);
       txt = authp->in.name;
@@ -233,7 +233,7 @@ pap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
         break;
       }
       bp = mbuf_Read(bp, &klen, 1);
-      if (mbuf_Length(bp) < klen) {
+      if (m_length(bp) < klen) {
         log_Printf(LogERROR, "Pap Input: Truncated key !\n");
         break;
       }
@@ -278,6 +278,6 @@ pap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
       break;
   }
 
-  mbuf_Free(bp);
+  m_freem(bp);
   return NULL;
 }

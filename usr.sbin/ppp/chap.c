@@ -94,7 +94,7 @@ ChapOutput(struct physical *physical, u_int code, u_int id,
   lh.code = code;
   lh.id = id;
   lh.length = htons(plen);
-  bp = mbuf_Alloc(plen, MB_CHAPOUT);
+  bp = m_get(plen, MB_CHAPOUT);
   memcpy(MBUF_CTOP(bp), &lh, sizeof(struct fsmheader));
   if (count)
     memcpy(MBUF_CTOP(bp) + sizeof(struct fsmheader), ptr, count);
@@ -546,18 +546,18 @@ chap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
 
   if (p == NULL) {
     log_Printf(LogERROR, "chap_Input: Not a physical link - dropped\n");
-    mbuf_Free(bp);
+    m_freem(bp);
     return NULL;
   }
 
   if (bundle_Phase(bundle) != PHASE_NETWORK &&
       bundle_Phase(bundle) != PHASE_AUTHENTICATE) {
     log_Printf(LogPHASE, "Unexpected chap input - dropped !\n");
-    mbuf_Free(bp);
+    m_freem(bp);
     return NULL;
   }
 
-  mbuf_SetType(bp, MB_CHAPIN);
+  m_settype(bp, MB_CHAPIN);
   if ((bp = auth_ReadHeader(&chap->auth, bp)) == NULL &&
       ntohs(chap->auth.in.hdr.length) == 0)
     log_Printf(LogWARN, "Chap Input: Truncated header !\n");
@@ -565,7 +565,7 @@ chap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
     log_Printf(LogPHASE, "Chap Input: %d: Bad CHAP code !\n",
                chap->auth.in.hdr.code);
   else {
-    len = mbuf_Length(bp);
+    len = m_length(bp);
     ans = NULL;
 
     if (chap->auth.in.hdr.code != CHAP_CHALLENGE &&
@@ -575,7 +575,7 @@ chap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
       log_Printf(LogPHASE, "Chap Input: %s dropped (got id %d, not %d)\n",
                  chapcodes[chap->auth.in.hdr.code], chap->auth.in.hdr.id,
                  chap->auth.id);
-      mbuf_Free(bp);
+      m_freem(bp);
       return NULL;
     }
     chap->auth.id = chap->auth.in.hdr.id;	/* We respond with this id */
@@ -589,7 +589,7 @@ chap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
         len -= alen + 1;
         if (len < 0) {
           log_Printf(LogERROR, "Chap Input: Truncated challenge !\n");
-          mbuf_Free(bp);
+          m_freem(bp);
           return NULL;
         }
         *chap->challenge.peer = alen;
@@ -608,12 +608,12 @@ chap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
         len -= alen + 1;
         if (len < 0) {
           log_Printf(LogERROR, "Chap Input: Truncated response !\n");
-          mbuf_Free(bp);
+          m_freem(bp);
           return NULL;
         }
         if ((ans = malloc(alen + 2)) == NULL) {
           log_Printf(LogERROR, "Chap Input: Out of memory !\n");
-          mbuf_Free(bp);
+          m_freem(bp);
           return NULL;
         }
         *ans = chap->auth.id;
@@ -630,7 +630,7 @@ chap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
         /* chap->auth.in.name is already set up at CHALLENGE time */
         if ((ans = malloc(len + 1)) == NULL) {
           log_Printf(LogERROR, "Chap Input: Out of memory !\n");
-          mbuf_Free(bp);
+          m_freem(bp);
           return NULL;
         }
         bp = mbuf_Read(bp, ans, len);
@@ -769,6 +769,6 @@ chap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
     free(ans);
   }
 
-  mbuf_Free(bp);
+  m_freem(bp);
   return NULL;
 }
