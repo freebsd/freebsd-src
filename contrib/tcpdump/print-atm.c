@@ -69,7 +69,18 @@ atm_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
 		printf("[|atm]");
 		goto out;
 	}
-	if (p[0] != 0xaa || p[1] != 0xaa || p[2] != 0x03) {
+
+	if (p[4] == 0xaa || p[5] == 0xaa || p[6] == 0x03) {
+		/* if first 4 bytes are cookie/vpci */
+		if (eflag) {
+			printf("%04x ",
+			       p[0] << 24 | p[1] << 16 | p[2] << 8 | p[3]);
+		}
+		p += 4;
+		length -= 4;
+		caplen -= 4;
+	} 
+	else if (p[0] != 0xaa || p[1] != 0xaa || p[2] != 0x03) {
 		/*XXX assume 802.6 MAC header from fore driver */
 		if (eflag)
 			printf("%04x%04x %04x%04x ",
@@ -132,14 +143,15 @@ atm_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
 		/* default_print for now */
 #endif
 	default:
-		/* ether_type not known, print raw packet */
+		/* ether_type not known, forward it to llc_print */
 		if (!eflag)
 			printf("%02x %02x %02x %02x-%02x-%02x %04x: ",
 			       p[0], p[1], p[2], /* dsap/ssap/ctrl */
 			       p[3], p[4], p[5], /* manufacturer's code */
 			       ethertype);
 		if (!xflag && !qflag)
-			default_print(p, caplen);
+		    /* default_print(p, caplen); */
+		    llc_print(p-8,length+8,caplen+8,"000000","000000");
 	}
 	if (xflag)
 		default_print(p, caplen);
