@@ -114,6 +114,8 @@ CFLAGS+=-DDEBUG -g
 CFLAGS+=-DDMALLOC -I/usr/local/include
 LDFLAGS+=-L/usr/local/lib -ldmalloc
 .endif
-WARNS?=	10
+
+# Should be WARNS=10, except that zlib.h is borked. <sigh>
+WARNS?=	3	
 
 .include <bsd.lib.mk>
