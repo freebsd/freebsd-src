@@ -32,6 +32,8 @@
 # REQUIRE: network2
 # KEYWORD: FreeBSD
 
+. /etc/rc.subr
+
 name="network_ipv6"
 rcvar=`set_rcvar ipv6`
 start_cmd="network_ipv6_start"
