@@ -57,6 +57,6 @@ int argcount __P((struct cmdtable *cmdp, int argc, char *argv[]));
 char **crack __P((char *line, int *argc));
 char **recrack __P((char *line, int *argc, int argc_max));
 void printstat __P((const char *cp, ino_t inum, struct dinode *dp));
-int printactive __P((void));
+int printactive __P((int doblocks));
 int checkactive __P((void));
 int checkactivedir __P((void));
