@@ -139,8 +139,10 @@ isp_attach(struct ispsoftc *isp)
 		isp->isp_sim2 = sim;
 		isp->isp_path2 = path;
 	}
-	isp->isp_state = ISP_RUNSTATE;
-	ENABLE_INTS(isp);
+	if (isp->isp_role != ISP_ROLE_NONE) {
+		isp->isp_state = ISP_RUNSTATE;
+		ENABLE_INTS(isp);
+	}
 	if (isplist == NULL) {
 		isplist = isp;
 	} else {
@@ -156,8 +158,10 @@ static void
 isp_intr_enable(void *arg)
 {
 	struct ispsoftc *isp = arg;
-	ENABLE_INTS(isp);
-	isp->isp_osinfo.intsok = 1;
+	if (isp->isp_role != ISP_ROLE_NONE) {
+		ENABLE_INTS(isp);
+		isp->isp_osinfo.intsok = 1;
+	}
 	/* Release our hook so that the boot can continue. */
 	config_intrhook_disestablish(&isp->isp_osinfo.ehook);
 }
@@ -404,20 +408,28 @@ isp_en_lun(struct ispsoftc *isp, union ccb *ccb)
 	 * Do some sanity checking first.
 	 */
 
-	if (lun < 0 || lun >= (lun_id_t) isp->isp_maxluns) {
+	if ((lun != CAM_LUN_WILDCARD) &&
+	    (lun < 0 || lun >= (lun_id_t) isp->isp_maxluns)) {
 		ccb->ccb_h.status = CAM_LUN_INVALID;
 		return;
 	}
 	if (IS_SCSI(isp)) {
 		if (tgt != CAM_TARGET_WILDCARD &&
-		    tgt != ((sdparam *) isp->isp_param)->isp_initiator_id) {
+		    tgt != SDPARAM(isp)->isp_initiator_id) {
 			ccb->ccb_h.status = CAM_TID_INVALID;
 			return;
 		}
 	} else {
 		if (tgt != CAM_TARGET_WILDCARD &&
-		    tgt != ((fcparam *) isp->isp_param)->isp_loopid) {
+		    tgt != FCPARAM(isp)->isp_iid) {
 			ccb->ccb_h.status = CAM_TID_INVALID;
+			return;
+		}
+	}
+
+	if (tgt == CAM_TARGET_WILDCARD) {
+		if (lun != CAM_LUN_WILDCARD) {
+			ccb->ccb_h.status = CAM_LUN_INVALID;
 			return;
 		}
 	}
@@ -425,17 +437,20 @@ isp_en_lun(struct ispsoftc *isp, union ccb *ccb)
 	/*
 	 * If Fibre Channel, stop and drain all activity to this bus.
 	 */
+#if	0
 	if (IS_FC(isp)) {
 		ISP_LOCK(isp);
 		frozen = 1;
 		xpt_freeze_simq(isp->isp_sim, 1);
 		isp->isp_osinfo.drain = 1;
-		/* ISP_UNLOCK(isp);  XXX NEED CV_WAIT HERE XXX */
 		while (isp->isp_osinfo.drain) {
-			tsleep(&isp->isp_osinfo.drain, PRIBIO, "ispdrain", 0);
+			 (void) msleep(&isp->isp_osinfo.drain,
+				    &isp->isp_osinfo.lock, PRIBIO,
+				    "ispdrain", 10 * hz);
 		}
 		ISP_UNLOCK(isp);
 	}
+#endif
 
 	/*
 	 * Check to see if we're enabling on fibre channel and
@@ -444,24 +459,14 @@ isp_en_lun(struct ispsoftc *isp, union ccb *ccb)
 	 */
 	if (IS_FC(isp) && cel->enable &&
 	    (isp->isp_osinfo.tmflags & TM_TMODE_ENABLED) == 0) {
-		int rv= 2 * 1000000;
 		fcparam *fcp = isp->isp_param;
+		int rv;
 
 		ISP_LOCK(isp);
-		rv = isp_control(isp, ISPCTL_FCLINK_TEST, &rv);
+		rv = isp_fc_runstate(isp, 2 * 1000000);
 		ISP_UNLOCK(isp);
-		if (rv || fcp->isp_fwstate != FW_READY) {
-			xpt_print_path(ccb->ccb_h.path);
-			printf("link status not good yet\n");
-			ccb->ccb_h.status = CAM_REQ_CMP_ERR;
-			if (frozen)
-				xpt_release_simq(isp->isp_sim, 1);
-			return;
-		}
-		ISP_LOCK(isp);
-		rv = isp_control(isp, ISPCTL_PDB_SYNC, NULL);
-		ISP_UNLOCK(isp);
-		if (rv || fcp->isp_fwstate != FW_READY) {
+		if (fcp->isp_fwstate != FW_READY ||
+		    fcp->isp_loopstate != LOOP_READY) {
 			xpt_print_path(ccb->ccb_h.path);
 			printf("could not get a good port database read\n");
 			ccb->ccb_h.status = CAM_REQ_CMP_ERR;
@@ -2087,25 +2092,20 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 		}
 		isp_prt(isp, ISP_LOGINFO, "Loop UP");
 		break;
-	case ISPASYNC_LOGGED_INOUT:
+	case ISPASYNC_PROMENADE:
 	{
 		const char *fmt = "Target %d (Loop 0x%x) Port ID 0x%x "
-		    "role %s %s\n Port WWN 0x%08x%08x\n Node WWN 0x%08x%08x";
-		const static char *roles[4] = {
+		    "(role %s) %s\n Port WWN 0x%08x%08x\n Node WWN 0x%08x%08x";
+		static const char *roles[4] = {
 		    "(none)", "Target", "Initiator", "Target/Initiator"
 		};
-		char *ptr;
 		fcparam *fcp = isp->isp_param;
 		int tgt = *((int *) arg);
 		struct lportdb *lp = &fcp->portdb[tgt]; 
 
-		if (lp->valid) {
-			ptr = "arrived";
-		} else {
-			ptr = "disappeared";
-		}
 		isp_prt(isp, ISP_LOGINFO, fmt, tgt, lp->loopid, lp->portid,
-		    roles[lp->roles & 0x3], ptr,
+		    roles[lp->roles & 0x3],
+		    (lp->valid)? "Arrived" : "Departed",
 		    (u_int32_t) (lp->port_wwn >> 32),
 		    (u_int32_t) (lp->port_wwn & 0xffffffffLL),
 		    (u_int32_t) (lp->node_wwn >> 32),
@@ -2121,7 +2121,6 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 			    "Name Server Database Changed");
 		}
 		break;
-#ifdef	ISP2100_FABRIC
 	case ISPASYNC_FABRIC_DEV:
 	{
 		int target, lrange;
@@ -2236,7 +2235,6 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 		lp->fabric_dev = 1;
 		break;
 	}
-#endif
 #ifdef	ISP_TARGET_MODE
 	case ISPASYNC_TARGET_MESSAGE:
 	{
