@@ -73,7 +73,6 @@ userret(td, frame, oticks)
 	u_int oticks;
 {
 	struct proc *p = td->td_proc;
-	struct kse *ke = td->td_kse; 
 
 	CTR3(KTR_SYSC, "userret: thread %p (pid %d, %s)", td, p->p_pid,
             p->p_comm);
@@ -83,7 +82,7 @@ userret(td, frame, oticks)
 	PROC_LOCK(p);
 	mtx_lock_spin(&sched_lock);
 	if (SIGPENDING(p) && ((p->p_sflag & PS_NEEDSIGCHK) == 0 ||
-	    (td->td_kse->ke_flags & KEF_ASTPENDING) == 0))
+	    (td->td_flags & TDF_ASTPENDING) == 0))
 		printf("failed to set signal flags properly for ast()\n");
 	mtx_unlock_spin(&sched_lock);
 	PROC_UNLOCK(p);
@@ -126,7 +125,7 @@ userret(td, frame, oticks)
 		mtx_lock_spin(&sched_lock);
 		ticks = td->td_sticks - oticks;
 		mtx_unlock_spin(&sched_lock);
-		addupc_task(ke, TRAPF_PC(frame), (u_int)ticks * psratio);
+		addupc_task(td, TRAPF_PC(frame), (u_int)ticks * psratio);
 	}
 }
 
@@ -176,16 +175,16 @@ ast(struct trapframe *framep)
 	mtx_lock_spin(&sched_lock);
 	ke = td->td_kse;
 	sticks = td->td_sticks;
-	flags = ke->ke_flags;
+	flags = td->td_flags;
 	sflag = p->p_sflag;
 	p->p_sflag &= ~(PS_ALRMPEND | PS_NEEDSIGCHK | PS_PROFPEND | PS_XCPU);
 #ifdef MAC
 	p->p_sflag &= ~PS_MACPEND;
 #endif
-	ke->ke_flags &= ~(KEF_ASTPENDING | KEF_NEEDRESCHED | KEF_OWEUPC);
+	td->td_flags &= ~(TDF_ASTPENDING | TDF_NEEDRESCHED | TDF_OWEUPC);
 	cnt.v_soft++;
 	prticks = 0;
-	if (flags & KEF_OWEUPC && sflag & PS_PROFIL) {
+	if (flags & TDF_OWEUPC && sflag & PS_PROFIL) {
 		prticks = p->p_stats->p_prof.pr_ticks;
 		p->p_stats->p_prof.pr_ticks = 0;
 	}
@@ -200,8 +199,8 @@ ast(struct trapframe *framep)
 
 	if (td->td_ucred != p->p_ucred) 
 		cred_update_thread(td);
-	if (flags & KEF_OWEUPC && sflag & PS_PROFIL)
-		addupc_task(ke, p->p_stats->p_prof.pr_addr, prticks);
+	if (flags & TDF_OWEUPC && sflag & PS_PROFIL)
+		addupc_task(td, p->p_stats->p_prof.pr_addr, prticks);
 	if (sflag & PS_ALRMPEND) {
 		PROC_LOCK(p);
 		psignal(p, SIGVTALRM);
@@ -240,7 +239,7 @@ ast(struct trapframe *framep)
 	if (sflag & PS_MACPEND)
 		mac_thread_userret(td);
 #endif
-	if (flags & KEF_NEEDRESCHED) {
+	if (flags & TDF_NEEDRESCHED) {
 		mtx_lock_spin(&sched_lock);
 		sched_prio(td, kg->kg_user_pri);
 		p->p_stats->p_ru.ru_nivcsw++;

@@ -2316,10 +2316,10 @@ ENTRY(tl0_ret)
 	 */
 	wrpr	%g0, PIL_TICK, %pil
 	ldx	[PCPU(CURTHREAD)], %l0
-	ldx	[%l0 + TD_KSE], %l1
-	lduw	[%l1 + KE_FLAGS], %l2
-	and	%l2, KEF_ASTPENDING | KEF_NEEDRESCHED, %l2
-	brz,a,pt %l2, 1f
+	lduw	[%l0 + TD_FLAGS], %l1
+	set	TDF_ASTPENDING | TDF_NEEDRESCHED, %l2
+	and	%l1, %l2, %l1
+	brz,a,pt %l1, 1f
 	 nop
 
 	/*

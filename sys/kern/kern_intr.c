@@ -400,7 +400,7 @@ ithread_schedule(struct ithd *ithread, int do_switch)
 				ctd->td_state = TDS_CAN_RUN; /* XXXKSE */
 			mi_switch();
 		} else {
-			curthread->td_kse->ke_flags |= KEF_NEEDRESCHED;
+			curthread->td_flags |= TDF_NEEDRESCHED;
 		}
 	} else {
 		CTR4(KTR_INTR, "%s: pid %d: it_need %d, state %d",

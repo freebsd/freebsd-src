@@ -652,8 +652,6 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 #endif
 			mtx_lock_spin(&sched_lock);
 			kse_link(newke, newkg);
-			if (p->p_sflag & PS_NEEDSIGCHK)
-				newke->ke_flags |= KEF_ASTPENDING;
 			/* Add engine */
 			kse_reassign(newke);
 			mtx_unlock_spin(&sched_lock);
@@ -1065,8 +1063,7 @@ thread_statclock(int user)
 		return (-1);
 	if (user) {
 		/* Current always do via ast() */
-		td->td_kse->ke_flags |= KEF_ASTPENDING;	/* XXX TDF_ASTPENDING */
-		td->td_flags |= TDF_USTATCLOCK;
+		td->td_flags |= (TDF_USTATCLOCK|TDF_ASTPENDING);
 		td->td_uuticks++;
 	} else {
 		if (td->td_mailbox != NULL)

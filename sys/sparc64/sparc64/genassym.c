@@ -220,8 +220,8 @@ ASSYM(IV_PRI, offsetof(struct intr_vector, iv_pri));
 
 ASSYM(IV_MAX, IV_MAX);
 
-ASSYM(KEF_ASTPENDING, KEF_ASTPENDING);
-ASSYM(KEF_NEEDRESCHED, KEF_NEEDRESCHED);
+ASSYM(TDF_ASTPENDING, TDF_ASTPENDING);
+ASSYM(TDF_NEEDRESCHED, TDF_NEEDRESCHED);
 
 ASSYM(MD_UTRAP, offsetof(struct mdproc, md_utrap));
 
@@ -235,10 +235,9 @@ ASSYM(P_VMSPACE, offsetof(struct proc, p_vmspace));
 
 ASSYM(RW_SHIFT, RW_SHIFT);
 
-ASSYM(KE_FLAGS, offsetof(struct kse, ke_flags));
+ASSYM(TD_FLAGS, offsetof(struct thread, td_flags));
 
 ASSYM(TD_FRAME, offsetof(struct thread, td_frame));
-ASSYM(TD_KSE, offsetof(struct thread, td_kse));
 ASSYM(TD_KSTACK, offsetof(struct thread, td_kstack));
 ASSYM(TD_PCB, offsetof(struct thread, td_pcb));
 ASSYM(TD_PROC, offsetof(struct thread, td_proc));

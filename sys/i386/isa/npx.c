@@ -260,7 +260,7 @@ npx_intr(dummy)
 	if (td != NULL) {
 		td->td_pcb->pcb_flags |= PCB_NPXTRAP;
 		mtx_lock_spin(&sched_lock);
-		td->td_kse->ke_flags |= KEF_ASTPENDING;
+		td->td_flags |= TDF_ASTPENDING;
 		mtx_unlock_spin(&sched_lock);
 	}
 }

@@ -831,26 +831,24 @@ ENTRY(exception_restore, 0)
 	add	r3=PC_CURTHREAD,r13	// &curthread
 	;;
 	ld8	r3=[r3]			// curthread
-	add	r2=(KEF_ASTPENDING|KEF_NEEDRESCHED),r0
+	add	r2=(TDF_ASTPENDING|TDF_NEEDRESCHED),r0
 	;;
 }
 {	.mmb
-	add	r3=TD_KSE,r3		// &curthread->td_kse
 	mov	r15=psr			// save interrupt enable status
 	nop	4
 	;;
 }
 {	.mmi
-	ld8	r3=[r3]			// curkse
 	;;
 	rsm	psr.i			// disable interrupts
-	add	r3=KE_FLAGS,r3		// &curkse->ke_flags
+	add	r3=TD_FLAGS,r3		// &curthread->td_flags
 	;;
 }
 {	.mmi
-	ld4	r14=[r3]		// fetch curkse->ke_flags
+	ld4	r14=[r3]		// fetch curthread->td_flags
 	;;
-	and	r14=r2,r14	    // flags & (KEF_ASTPENDING|KEF_NEEDRESCHED)
+	and	r14=r2,r14	    // flags & (TDF_ASTPENDING|TDF_NEEDRESCHED)
 	nop	5
 	;;
 }
