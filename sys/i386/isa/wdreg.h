@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wdreg.h	7.1 (Berkeley) 5/9/91
- *	$Id: wdreg.h,v 1.12.2.3 1997/01/14 17:32:07 bde Exp $
+ *	$Id: wdreg.h,v 1.12.2.4 1998/01/14 08:10:49 kato Exp $
  */
 
 /*
@@ -123,7 +123,6 @@
 #define WDCC_WRITE_MULTI	0xC5	/* write multiple */
 #define WDCC_SET_MULTI 0xC6		/* set multiple count */
 
-
 #define	WDCC_EXTDCMD	0xE0		/* send extended command */
 #define	WDCC_READP	0xEC		/* read parameters from controller */
 #define	WDCC_FEATURES	0xEF		/* features control */
@@ -140,10 +139,14 @@
  * read parameters command returns this:
  */
 struct wdparams {
+	/*
+	 * XXX partly based on DRAFT X3T13/1153D rev 14.  
+	 * by the time you read this it will have changed.
+	 */
 	/* drive info */
 	short	wdp_config;		/* general configuration bits */
 	u_short	wdp_cylinders;		/* number of cylinders */
-	short	wdp_reserved;
+	short	wdp_reserved2;
 	u_short	wdp_heads;		/* number of heads */
 	short	wdp_unfbytespertrk;	/* number of unformatted bytes/track */
 	short	wdp_unfbytes;		/* number of unformatted bytes/sector */
@@ -159,8 +162,58 @@ struct wdparams {
 	short	wdp_necc;		/* ecc bytes appended */
 	char	wdp_rev[8];		/* firmware revision */
 	char	wdp_model[40];		/* model name */
-	short	wdp_nsecperint;		/* sectors per interrupt */
+	char	wdp_nsecperint;		/* sectors per interrupt */
+	char	wdp_vendorunique1;
 	short	wdp_usedmovsd;		/* can use double word read/write? */
+	char	wdp_vendorunique2;
+	char	wdp_capability;		/* various capability bits */
+	short	wdp_cap_validate;	/* validation for above */
+	char	wdp_vendorunique3;
+	char	wdp_opiomode;		/* PIO modes 0-2 */
+	char	wdp_vendorunique4;
+	char	wdp_odmamode;		/* old DMA modes, not in ATA-3 */
+	short	wdp_atavalid;		/* validation for newer fields */
+	short	wdp_currcyls;
+	short	wdp_currheads;
+	short	wdp_currsectors;
+	short	wdp_currsize0;
+	short	wdp_currsize1;
+	char	wdp_currmultsect;
+	char	wdp_multsectvalid;
+	int	wdp_lbasize;
+	short	wdp_dmasword;		/* obsolete in ATA-3 */
+	short	wdp_dmamword;		/* multiword DMA modes */
+	short	wdp_eidepiomodes;	/* advanced PIO modes */
+	short	wdp_eidedmamin;		/* fastest possible DMA timing */
+	short	wdp_eidedmanorm;	/* recommended DMA timing */
+	short	wdp_eidepioblind;	/* fastest possible blind PIO */
+	short	wdp_eidepioacked;	/* fastest possible IORDY PIO */
+	short	wdp_reserved69;
+	short	wdp_reserved70;
+	short	wdp_reserved71;
+	short	wdp_reserved72;
+	short	wdp_reserved73;
+	short	wdp_reserved74;
+	short	wdp_queuelen;
+	short	wdp_reserved76;
+	short	wdp_reserved77;
+	short	wdp_reserved78;
+	short	wdp_reserved79;
+	short	wdp_versmaj;
+	short	wdp_versmin;
+	short	wdp_featsupp1;
+	short	wdp_featsupp2;
+	short	wdp_featsupp3;
+	short	wdp_featenab1;
+	short	wdp_featenab2;
+	short	wdp_featenab3;
+	short	wdp_udmamode;		/* UltraDMA modes */
+	short	wdp_erasetime;
+	short	wdp_enherasetime;
+	short	wdp_apmlevel;
+	short	wdp_reserved92[34];
+	short	wdp_rmvcap;
+	short	wdp_securelevel;
 };
 
 /*
