@@ -55,8 +55,8 @@
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>	/* for vnode_pager_setsize */
-#include <vm/vm_zone.h>
 #include <vm/vm_object.h>	/* for vm cache coherency */
+#include <vm/uma.h>
 
 #include <fs/unionfs/union.h>
 
@@ -856,7 +856,7 @@ union_relookup(um, dvp, vpp, cnp, cn, path, pathlen)
 	 * Conclusion: Horrible.
 	 */
 	cn->cn_namelen = pathlen;
-	cn->cn_pnbuf = zalloc(namei_zone);
+	cn->cn_pnbuf = uma_zalloc(namei_zone, M_WAITOK);
 	bcopy(path, cn->cn_pnbuf, cn->cn_namelen);
 	cn->cn_pnbuf[cn->cn_namelen] = '\0';
 
@@ -930,7 +930,7 @@ union_mkshadow(um, dvp, cnp, vpp)
 
 	if (*vpp) {
 		if (cn.cn_flags & HASBUF) {
-			zfree(namei_zone, cn.cn_pnbuf);
+			uma_zfree(namei_zone, cn.cn_pnbuf);
 			cn.cn_flags &= ~HASBUF;
 		}
 		if (dvp == *vpp)
@@ -959,7 +959,7 @@ union_mkshadow(um, dvp, cnp, vpp)
 
 	error = VOP_MKDIR(dvp, vpp, &cn, &va);
 	if (cn.cn_flags & HASBUF) {
-		zfree(namei_zone, cn.cn_pnbuf);
+		uma_zfree(namei_zone, cn.cn_pnbuf);
 		cn.cn_flags &= ~HASBUF;
 	}
 	/*vput(dvp);*/
@@ -999,7 +999,7 @@ union_mkwhiteout(um, dvp, cnp, path)
 
 	if (wvp) {
 		if (cn.cn_flags & HASBUF) {
-			zfree(namei_zone, cn.cn_pnbuf);
+			uma_zfree(namei_zone, cn.cn_pnbuf);
 			cn.cn_flags &= ~HASBUF;
 		}
 		if (wvp == dvp)
@@ -1015,7 +1015,7 @@ union_mkwhiteout(um, dvp, cnp, path)
 
 	error = VOP_WHITEOUT(dvp, &cn, CREATE);
 	if (cn.cn_flags & HASBUF) {
-		zfree(namei_zone, cn.cn_pnbuf);
+		uma_zfree(namei_zone, cn.cn_pnbuf);
 		cn.cn_flags &= ~HASBUF;
 	}
 	vn_finished_write(mp);
@@ -1066,7 +1066,7 @@ union_vn_create(vpp, un, td)
 	 * copied in the first place).
 	 */
 	cn.cn_namelen = strlen(un->un_path);
-	cn.cn_pnbuf = zalloc(namei_zone);
+	cn.cn_pnbuf = uma_zalloc(namei_zone, M_WAITOK);
 	bcopy(un->un_path, cn.cn_pnbuf, cn.cn_namelen+1);
 	cn.cn_nameiop = CREATE;
 	cn.cn_flags = (LOCKPARENT|LOCKLEAF|HASBUF|SAVENAME|ISLASTCN);
@@ -1092,7 +1092,7 @@ union_vn_create(vpp, un, td)
 	if (vp) {
 		vput(un->un_dirvp);
 		if (cn.cn_flags & HASBUF) {
-			zfree(namei_zone, cn.cn_pnbuf);
+			uma_zfree(namei_zone, cn.cn_pnbuf);
 			cn.cn_flags &= ~HASBUF;
 		}
 		if (vp == un->un_dirvp)
@@ -1118,7 +1118,7 @@ union_vn_create(vpp, un, td)
 	VOP_LEASE(un->un_dirvp, td, cred, LEASE_WRITE);
 	error = VOP_CREATE(un->un_dirvp, &vp, &cn, vap);
 	if (cn.cn_flags & HASBUF) {
-		zfree(namei_zone, cn.cn_pnbuf);
+		uma_zfree(namei_zone, cn.cn_pnbuf);
 		cn.cn_flags &= ~HASBUF;
 	}
 	vput(un->un_dirvp);
