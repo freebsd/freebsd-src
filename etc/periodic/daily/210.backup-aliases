@@ -15,7 +15,7 @@ if [ -f /etc/aliases ] ; then
 
     if cmp -s $bak/aliases.bak /etc/aliases; then :; else
 	echo "$host aliases diffs:"
-	diff $bak/aliases.bak /etc/aliases
+	diff -u $bak/aliases.bak /etc/aliases
 	mv $bak/aliases.bak $bak/aliases.bak2
 	cp -p /etc/aliases $bak/aliases.bak
     fi
