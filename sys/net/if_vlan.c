@@ -120,8 +120,10 @@ vlan_setmulti(struct ifnet *ifp)
 	sc = ifp->if_softc;
 	ifp_p = sc->ifv_p;
 
-	sdl.sdl_len = ETHER_ADDR_LEN;
+	bzero((char *)&sdl, sizeof sdl);
+	sdl.sdl_len = sizeof sdl;
 	sdl.sdl_family = AF_LINK;
+	sdl.sdl_alen = ETHER_ADDR_LEN;
 
 	/* First, remove any existing filter entries. */
 	while(SLIST_FIRST(&sc->vlan_mc_listhead) != NULL) {
@@ -138,7 +140,7 @@ vlan_setmulti(struct ifnet *ifp)
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
-		mc = malloc(sizeof(struct vlan_mc_entry), M_DEVBUF, M_NOWAIT);
+		mc = malloc(sizeof(struct vlan_mc_entry), M_DEVBUF, M_WAITOK);
 		bcopy(LLADDR((struct sockaddr_dl *)ifma->ifma_addr),
 		    (char *)&mc->mc_addr, ETHER_ADDR_LEN);
 		SLIST_INSERT_HEAD(&sc->vlan_mc_listhead, mc, mc_entries);
@@ -225,6 +227,17 @@ vlan_start(struct ifnet *ifp)
 			break;
 		if (ifp->if_bpf)
 			bpf_mtap(ifp, m);
+
+		/*
+		 * Do not run parent's if_start() if the parent is not up,
+		 * or parent's driver will cause a system crash.
+		 */
+		if ((p->if_flags & (IFF_UP | IFF_RUNNING)) !=
+					(IFF_UP | IFF_RUNNING)) {
+			m_freem(m);
+			ifp->if_data.ifi_collisions++;
+			continue;
+		}
 
 		/*
 		 * If the LINK0 flag is set, it means the underlying interface
@@ -376,9 +389,11 @@ vlan_config(struct ifvlan *ifv, struct ifnet *p)
 		ifv->ifv_if.if_mtu = p->if_data.ifi_mtu - EVL_ENCAPLEN;
 
 	/*
-	 * Preserve the state of the LINK0 flag for ourselves.
+	 * Copy only a selected subset of flags from the parent.
+	 * Other flags are none of our business.
 	 */
-	ifv->ifv_if.if_flags = (p->if_flags & ~(IFF_LINK0));
+	ifv->ifv_if.if_flags = (p->if_flags &
+	    (IFF_BROADCAST | IFF_MULTICAST | IFF_SIMPLEX | IFF_POINTOPOINT));
 
 	/*
 	 * Set up our ``Ethernet address'' to reflect the underlying
@@ -502,8 +517,12 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			break;
 		if (vlr.vlr_parent[0] == '\0') {
 			vlan_unconfig(ifp);
-			if_down(ifp);
-			ifp->if_flags &= ~(IFF_UP|IFF_RUNNING);
+			if (ifp->if_flags & IFF_UP) {
+				int s = splimp();
+				if_down(ifp);
+				splx(s);
+			}		
+			ifp->if_flags &= ~IFF_RUNNING;
 			break;
 		}
 		p = ifunit(vlr.vlr_parent);
