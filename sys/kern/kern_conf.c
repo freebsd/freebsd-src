@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.48 1999/07/17 18:43:45 phk Exp $
+ * $Id: kern_conf.c,v 1.49 1999/07/17 19:57:25 phk Exp $
  */
 
 #include <sys/param.h>
@@ -71,22 +71,7 @@ devsw(dev_t dev)
 struct cdevsw *
 bdevsw(dev_t dev)
 {
-        struct cdevsw *c;
-        int i = major(dev);
-
-        if (bmaj2cmaj[i] == 256)
-                return 0;
-
-        c = cdevsw[bmaj2cmaj[major(dev)]];
-        if (!c) {
-                printf("bogus bdev dev_t %p, no cdev\n", (void *)dev);
-                Debugger("Bummer");
-                return 0;
-        }
-        /* CMAJ zero is the console, which has no strategy so this works */
-        if (c->d_strategy)
-                return (c);
-        return (0);
+        return(cdevsw[major(dev)]);
 }
 
 /*
@@ -209,7 +194,10 @@ minor(dev_t x)
 dev_t
 makebdev(int x, int y)
 {
-	return (makedev(x, y));
+	if (bmaj2cmaj[x] == 256) {
+		return NODEV;
+	}
+	return (makedev(bmaj2cmaj[x], y));
 }
 
 dev_t
