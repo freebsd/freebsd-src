@@ -1,10 +1,11 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: apic_vector.s,v 1.15 1997/07/25 22:20:11 smp Exp smp $
+ *	$Id: apic_vector.s,v 1.17 1997/07/28 03:51:01 smp Exp smp $
  */
 
 
-#include <machine/smptests.h>		/** various counters */
+#include <machine/smp.h>
+#include <machine/smptests.h>		/** PEND_INTS, various counters */
 #include "i386/isa/intr_machdep.h"
 
 /* convert an absolute IRQ# into a bitmask */
@@ -18,6 +19,8 @@
  */
 
 #ifdef PEND_INTS
+
+#ifdef FIRST_TRY
 
 #define MAYBE_MASK_IRQ(irq_num)						\
 	lock ;					/* MP-safe */		\
@@ -45,6 +48,47 @@
 	call	_try_mplock ;						\
 	testl	%eax, %eax ;						\
 	jz	7b				/* can't enter kernel */
+
+#else /** FIRST_TRY */
+
+/*
+ * the 1st version fails because masked edge-triggered INTs are lost
+ * by the IO APIC.  This version tests to see whether we are handling
+ * an edge or level triggered INT.  Level-triggered INTs must still be
+ * masked as we don't clear the source, and the EOI cycle would allow
+ * recursive INTs to occur.
+ */
+#define MAYBE_MASK_IRQ(irq_num)						\
+	lock ;					/* MP-safe */		\
+	btsl	$(irq_num),iactive ;		/* lazy masking */	\
+	jc	6f ;				/* already active */	\
+	call	_try_mplock ;			/* try to get lock */	\
+	testl	%eax, %eax ;			/* did we get it? */	\
+	jnz	8f ;				/* yes, enter kernel */	\
+6: ;						/* active or locked */	\
+	IMASK_LOCK ;				/* into critical reg */	\
+	testl	$IRQ_BIT(irq_num),_apic_pin_trigger ;			\
+	jz	7f ;				/* edge, don't mask */	\
+	orl	$IRQ_BIT(irq_num),_apic_imen ;	/* set the mask bit */	\
+	movl	_ioapic,%ecx ;			/* ioapic[0] addr */	\
+	movl	$REDTBL_IDX(irq_num),(%ecx) ;	/* write the index */	\
+	movl	IOAPIC_WINDOW(%ecx),%eax ;	/* current value */	\
+	orl	$IOART_INTMASK,%eax ;		/* set the mask */	\
+	movl	%eax,IOAPIC_WINDOW(%ecx) ;	/* new value */		\
+7: ;									\
+	orl	$IRQ_BIT(irq_num), _ipending ;	/* set _ipending bit */	\
+	IMASK_UNLOCK ;				/* exit critical reg */	\
+	movl	$0, lapic_eoi ;			/* do the EOI */	\
+	popl	%es ;							\
+	popl	%ds ;							\
+	popal ;								\
+	addl	$4+4,%esp ;						\
+	iret ;								\
+;									\
+	ALIGN_TEXT ;							\
+8:
+
+#endif /** FIRST_TRY */
 
 #else /* PEND_INTS */
 
@@ -407,6 +451,12 @@ _started_cpus:
 _cshits:
 	.space	(NCPU * 4), 0
 #endif /* COUNT_CSHITS */
+
+#ifdef PEND_INTS
+	.globl	_apic_pin_trigger
+_apic_pin_trigger:
+	.space	(NAPIC * 4), 0
+#endif /* PEND_INTS */
 
 
 /*
