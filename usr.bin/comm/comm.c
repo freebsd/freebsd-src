@@ -59,10 +59,10 @@ static const char rcsid[] =
 
 #define	MAXLINELEN	(LINE_MAX + 1)
 
-char *tabs[] = { "", "\t", "\t\t" };
+const char *tabs[] = { "", "\t", "\t\t" };
 
 FILE   *file __P((char *));
-void	show __P((FILE *, char *, char *));
+void	show __P((FILE *, const char *, char *));
 int     stricoll __P((char *, char *));
 static void	usage __P((void));
 
@@ -74,8 +74,9 @@ main(argc, argv)
 	int comp, file1done = 0, file2done = 0, read1, read2;
 	int ch, flag1, flag2, flag3, iflag;
 	FILE *fp1, *fp2;
-	char *col1, *col2, *col3;
-	char **p, line1[MAXLINELEN], line2[MAXLINELEN];
+	const char *col1, *col2, *col3;
+	char line1[MAXLINELEN], line2[MAXLINELEN];
+	const char **p;
 
 	flag1 = flag2 = flag3 = 1;
 	iflag = 0;
@@ -173,7 +174,8 @@ done:	argc -= optind;
 void
 show(fp, offset, buf)
 	FILE *fp;
-	char *offset, *buf;
+	const char *offset;
+	char *buf;
 {
 
 	do {
