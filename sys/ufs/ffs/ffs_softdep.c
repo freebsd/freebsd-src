@@ -53,8 +53,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: @(#)ffs_softdep.c	9.28 (McKusick) 8/8/98
- *	$Id: ffs_softdep.c,v 1.20 1999/01/07 16:14:10 bde Exp $
+ *	from: @(#)ffs_softdep.c	9.32 (McKusick) 2/17/99
+ *	$Id: ffs_softdep.c,v 1.21 1999/01/22 09:07:32 dg Exp $
  */
 
 /*
@@ -2230,15 +2230,15 @@ softdep_change_directoryentry_offset(dp, base, oldloc, newloc, entrysize)
 		    dap, da_pdlist);
 		break;
 	}
-	if (dap == NULL) { 
-		for (dap = LIST_FIRST(&pagedep->pd_pendinghd); 
-		     dap; dap = LIST_NEXT(dap, da_pdlist)) { 
-			if (dap->da_offset == oldoffset) { 
-				dap->da_offset = newoffset; 
-				break; 
-			} 
-		} 
-	} 
+	if (dap == NULL) {
+		for (dap = LIST_FIRST(&pagedep->pd_pendinghd);
+		     dap; dap = LIST_NEXT(dap, da_pdlist)) {
+			if (dap->da_offset == oldoffset) {
+				dap->da_offset = newoffset;
+				break;
+			}
+		}
+	}
 done:
 	bcopy(oldloc, newloc, entrysize);
 	FREE_LOCK(&lk);
@@ -3000,8 +3000,9 @@ softdep_disk_write_complete(bp)
 			indirdep->ir_state &= ~UNDONE;
 			indirdep->ir_state |= ATTACHED;
 			while ((aip = LIST_FIRST(&indirdep->ir_donehd)) != 0) {
-				LIST_REMOVE(aip, ai_next);
 				handle_allocindir_partdone(aip);
+				if (aip == LIST_FIRST(&indirdep->ir_donehd))
+					panic("disk_write_complete: not gone");
 			}
 			WORKLIST_INSERT(&reattach, wk);
 			bdirty(bp);
