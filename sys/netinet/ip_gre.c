@@ -46,7 +46,6 @@
 #include "opt_inet.h"
 #include "opt_ns.h"
 #include "opt_atalk.h"
-#include "bpf.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -209,7 +208,6 @@ gre_input2(struct mbuf *m ,int hlen, u_char proto)
 	m->m_len -= hlen;
 	m->m_pkthdr.len -= hlen;
 
-#if NBPF > 0
 	if (sc->sc_if.if_bpf) {
 		struct mbuf m0;
 		u_int32_t af = AF_INET;
@@ -219,8 +217,7 @@ gre_input2(struct mbuf *m ,int hlen, u_char proto)
 		m0.m_data = (char *)&af;
 
 		bpf_mtap(&(sc->sc_if), &m0);
-		}
-#endif /*NBPF > 0*/
+	}
 
 	m->m_pkthdr.rcvif = &sc->sc_if;
 
@@ -306,7 +303,6 @@ gre_mobile_input(m, va_alist)
 	ip->ip_sum = 0;
 	ip->ip_sum = in_cksum(m, (ip->ip_hl << 2));
 
-#if NBPF > 0
 	if (sc->sc_if.if_bpf) {
 		struct mbuf m0;
 		u_int af = AF_INET;
@@ -316,8 +312,7 @@ gre_mobile_input(m, va_alist)
 		m0.m_data = (char *)&af;
 
 		bpf_mtap(&(sc->sc_if), &m0);
-		}
-#endif /*NBPFILTER > 0*/
+	}
 
 	m->m_pkthdr.rcvif = &sc->sc_if;
 
