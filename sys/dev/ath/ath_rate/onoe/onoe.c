@@ -131,7 +131,7 @@ ath_rate_node_cleanup(struct ath_softc *sc, struct ath_node *an)
 
 void
 ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
-	HAL_BOOL shortPreamble, size_t frameLen,
+	int shortPreamble, size_t frameLen,
 	u_int8_t *rix, int *try0, u_int8_t *txrate)
 {
 	struct onoe_node *on = ATH_NODE_ONOE(an);
@@ -146,7 +146,7 @@ ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
 
 void
 ath_rate_setupxtxdesc(struct ath_softc *sc, struct ath_node *an,
-	struct ath_desc *ds, HAL_BOOL shortPreamble, u_int8_t rix)
+	struct ath_desc *ds, int shortPreamble, u_int8_t rix)
 {
 	struct onoe_node *on = ATH_NODE_ONOE(an);
 
