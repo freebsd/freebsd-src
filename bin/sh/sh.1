@@ -52,7 +52,8 @@ The current version of
 is in the process of being changed to
 conform with the
 .St -p1003.2
-specification for the shell.  This version has many features which make
+specification for the shell.
+This version has many features which make
 it appear
 similar in some respects to the Korn shell, but it is not a Korn
 shell clone like pdksh.
@@ -73,10 +74,12 @@ The shell
 implements a language that has flow control constructs,
 a macro facility that provides a variety of features in
 addition to data storage, along with built-in history and line
-editing capabilities.  It incorporates many features to
+editing capabilities.
+It incorporates many features to
 aid interactive use and has the advantage that the interpretative
 language is common to both interactive and non-interactive
-use (shell scripts).  That is, commands can be typed directly
+use (shell scripts).
+That is, commands can be typed directly
 to the running shell or can be put into a file,
 which can be executed directly by the shell.
 .Ss Invocation
@@ -88,7 +91,8 @@ is connected to a terminal
 (or if the
 .Fl i
 option is set),
-the shell is considered an interactive shell.  An interactive shell
+the shell is considered an interactive shell.
+An interactive shell
 generally prompts before each command and handles programming
 and command errors differently (as described below).
 When first starting, the shell inspects argument 0, and
@@ -96,12 +100,14 @@ if it begins with a dash
 .Pq Li - ,
 the shell is also considered a login shell.
 This is normally done automatically by the system
-when the user first logs in.  A login shell first reads commands
+when the user first logs in.
+A login shell first reads commands
 from the files
 .Pa /etc/profile
 and then
 .Pa .profile
-if they exist.  If the environment variable
+if they exist.
+If the environment variable
 .Ev ENV
 is set on entry to a shell, or is set in the
 .Pa .profile
@@ -128,14 +134,16 @@ The first non-option argument specified on the command line
 will be treated as the
 name of a file from which to read commands (a shell script), and
 the remaining arguments are set as the positional parameters
-of the shell ($1, $2, etc).  Otherwise, the shell reads commands
+of the shell ($1, $2, etc).
+Otherwise, the shell reads commands
 from its standard input.
 .Pp
 Unlike older versions of
 .Nm
 the
 .Ev ENV
-script is only sourced on invocation of interactive shells.  This
+script is only sourced on invocation of interactive shells.
+This
 closes a well-known, and sometimes easily exploitable security
 hole related to poorly thought out
 .Ev ENV
@@ -218,7 +226,8 @@ Force the shell to behave interactively.
 Turn on job control (set automatically when interactive).
 .It Fl n Li noexec
 If not interactive, read commands but do not
-execute them.  This is useful for checking the
+execute them.
+This is useful for checking the
 syntax of shell scripts.
 .It Fl P Li physical
 Change the default for the
@@ -232,9 +241,11 @@ to
 .Fl P
 (physical directory layout).
 .It Fl p Li privileged
-Turn on privileged mode.  This mode is enabled on startup
+Turn on privileged mode.
+This mode is enabled on startup
 if either the effective user or group id is not equal to the
-real user or group id.  Turning this mode off sets the
+real user or group id.
+Turning this mode off sets the
 effective user and group ids to the real user and group ids.
 When this mode is enabled for interactive shells, the file
 .Pa /etc/suid_profile
@@ -247,9 +258,10 @@ is sourced, and the contents of the
 variable are ignored.
 .It Fl s Li stdin
 Read commands from standard input (set automatically
-if no file arguments are present).  This option has
+if no file arguments are present).
+This option has
 no effect when set after the shell has already started
-running (i.e. when set with the
+running (i.e., when set with the
 .Ic set
 command).
 .It Fl T Li trapsasync
@@ -259,7 +271,8 @@ traps are executed after the child exits,
 as specified in
 .St -p1003.2
 This nonstandard option is useful for putting guarding shells around
-children that block signals.  The surrounding shell may kill the child
+children that block signals.
+The surrounding shell may kill the child
 or it may just return control to the tty and leave the child alone,
 like this:
 .Bd -literal -offset indent
@@ -278,7 +291,8 @@ command line editor (disables
 if it has been set).
 .It Fl v Li verbose
 The shell writes its input to standard error
-as it is read.  Useful for debugging.
+as it is read.
+Useful for debugging.
 .It Fl x Li xtrace
 Write each command
 (preceded by
@@ -340,7 +354,8 @@ The following is a list of valid operators:
 .Ss Quoting
 Quoting is used to remove the special meaning of certain characters
 or words to the shell, such as operators, whitespace, or
-keywords.  There are three types of quoting: matched single quotes,
+keywords.
+There are three types of quoting: matched single quotes,
 matched double quotes, and backslash.
 .Bl -tag -width indent
 .It Single Quotes
@@ -370,7 +385,8 @@ A backslash preceding a newline is treated as a line continuation.
 .Ss Reserved Words
 Reserved words are words that have special meaning to the
 shell and are recognized at the beginning of a line and
-after a control operator.  The following are reserved words:
+after a control operator.
+The following are reserved words:
 .Bl -column "doneXX" "elifXX" "elseXX" "untilXX" "whileX" -offset center
 .It Li \&! Ta { Ta } Ta Ic case Ta Ic do
 .It Ic done Ta Ic elif Ta Ic else Ta Ic esac Ta Ic fi
@@ -379,7 +395,8 @@ after a control operator.  The following are reserved words:
 .Ss Aliases
 An alias is a name and corresponding value set using the
 .Ic alias
-built-in command.  Whenever a reserved word may occur (see above),
+built-in command.
+Whenever a reserved word may occur (see above),
 and after checking for reserved words, the shell
 checks the word to see if it matches an alias.
 If it does, it replaces it in the input stream with its value.
@@ -399,17 +416,21 @@ ls -F foobar
 .Pp
 Aliases provide a convenient way for naive users to
 create shorthands for commands without having to learn how
-to create functions with arguments.  They can also be
-used to create lexically obscure code.  This use is discouraged.
+to create functions with arguments.
+They can also be
+used to create lexically obscure code.
+This use is discouraged.
 .Ss Commands
 The shell interprets the words it reads according to a
 language, the specification of which is outside the scope
 of this man page (refer to the BNF in the
 .St -p1003.2
-document).  Essentially though, a line is read and if
+document).
+Essentially though, a line is read and if
 the first word of the line (or after a control operator)
 is not a reserved word, then the shell has recognized a
-simple command.  Otherwise, a complex command or some
+simple command.
+Otherwise, a complex command or some
 other special construct may have been recognized.
 .Ss Simple Commands
 If a simple command has been recognized, the shell performs
@@ -419,7 +440,8 @@ the following actions:
 Leading words of the form
 .Dq Li name=value
 are stripped off and assigned to the environment of
-the simple command.  Redirection operators and
+the simple command.
+Redirection operators and
 their arguments (as described below) are stripped
 off and saved for processing.
 .It
@@ -427,7 +449,8 @@ The remaining words are expanded as described in
 the section called
 .Sx Word Expansions ,
 and the first remaining word is considered the command
-name and the command is located.  The remaining
+name and the command is located.
+The remaining
 words are considered the arguments of the command.
 If no command name resulted, then the
 .Dq Li name=value
@@ -439,8 +462,10 @@ the next section.
 .El
 .Ss Redirections
 Redirections are used to change where a command reads its input
-or sends its output.  In general, redirections open, close, or
-duplicate an existing reference to a file.  The overall format
+or sends its output.
+In general, redirections open, close, or
+duplicate an existing reference to a file.
+The overall format
 used for redirection is:
 .Pp
 .Dl [n] redir-op file
@@ -448,7 +473,8 @@ used for redirection is:
 The
 .Ql redir-op
 is one of the redirection operators mentioned
-previously.  The following gives some examples of how these
+previously.
+The following gives some examples of how these
 operators can be used.
 Note that stdin and stdout are commonly used abbreviations
 for standard input and standard output respectively.
@@ -486,7 +512,8 @@ delimiter
 .Pp
 All the text on successive lines up to the delimiter is
 saved away and made available to the command on standard
-input, or file descriptor n if it is specified.  If the delimiter
+input, or file descriptor n if it is specified.
+If the delimiter
 as specified on the initial line is quoted, then the here-doc-text
 is treated literally, otherwise the text is subjected to
 parameter expansion, command substitution, and arithmetic
@@ -525,7 +552,7 @@ program in the file system (as described in the next section).
 When a normal program is executed, the shell runs the program,
 passing the arguments and the environment to the program.
 If the program is not a normal executable file
-(i.e. if it does not begin with the
+(i.e., if it does not begin with the
 .Qq magic number
 whose
 .Tn ASCII
@@ -549,8 +576,10 @@ as a
 .Qq shell procedure .
 .Ss Path Search
 When locating a command, the shell first looks to see if
-it has a shell function by that name.  Then it looks for a
-built-in command by that name.  If a built-in command is not found,
+it has a shell function by that name.
+Then it looks for a
+built-in command by that name.
+If a built-in command is not found,
 one of two things happen:
 .Bl -enum
 .It
@@ -559,10 +588,12 @@ performing any searches.
 .It
 The shell searches each entry in
 .Ev PATH
-in turn for the command.  The value of the
+in turn for the command.
+The value of the
 .Ev PATH
 variable should be a series of
-entries separated by colons.  Each entry consists of a
+entries separated by colons.
+Each entry consists of a
 directory name.
 The current directory
 may be indicated implicitly by an empty directory name,
@@ -570,20 +601,24 @@ or explicitly by a single period.
 .El
 .Ss Command Exit Status
 Each command has an exit status that can influence the behavior
-of other shell commands.  The paradigm is that a command exits
+of other shell commands.
+The paradigm is that a command exits
 with zero for normal or success, and non-zero for failure,
-error, or a false indication.  The man page for each command
+error, or a false indication.
+The man page for each command
 should indicate the various exit codes and what they mean.
 Additionally, the built-in commands return exit codes, as does
 an executed shell function.
 .Pp
 If a command is terminated by a signal, its exit status is 128 plus
-the signal number.  Signal numbers are defined in the header file
+the signal number.
+Signal numbers are defined in the header file
 .In sys/signal.h .
 .Ss Complex Commands
 Complex commands are combinations of simple commands
 with control operators or reserved words, together creating a larger complex
-command.  More generally, a command is one of the following:
+command.
+More generally, a command is one of the following:
 .Bl -item -offset indent
 .It
 simple command
@@ -601,9 +636,11 @@ Unless otherwise stated, the exit status of a command is
 that of the last simple command executed by the command.
 .Ss Pipelines
 A pipeline is a sequence of one or more commands separated
-by the control operator |.  The standard output of all but
+by the control operator |.
+The standard output of all but
 the last command is connected to the standard input
-of the next command.  The standard output of the last
+of the next command.
+The standard output of the last
 command is inherited from the shell, as usual.
 .Pp
 The format for a pipeline is:
@@ -611,7 +648,8 @@ The format for a pipeline is:
 .Dl [!] command1 [ | command2 ...]
 .Pp
 The standard output of command1 is connected to the standard
-input of command2.  The standard input, standard output, or
+input of command2.
+The standard input, standard output, or
 both of a command is considered to be assigned by the
 pipeline before any redirection specified by redirection
 operators that are part of the command.
@@ -619,17 +657,22 @@ operators that are part of the command.
 If the pipeline is not in the background (discussed later),
 the shell waits for all commands to complete.
 .Pp
-If the reserved word ! does not precede the pipeline, the
+If the reserved word
+.Ic !\&
+does not precede the pipeline, the
 exit status is the exit status of the last command specified
-in the pipeline.  Otherwise, the exit status is the logical
-NOT of the exit status of the last command.  That is, if
+in the pipeline.
+Otherwise, the exit status is the logical
+NOT of the exit status of the last command.
+That is, if
 the last command returns zero, the exit status is 1; if
 the last command returns greater than zero, the exit status
 is zero.
 .Pp
 Because pipeline assignment of standard input or standard
 output or both takes place before redirection, it can be
-modified by redirection.  For example:
+modified by redirection.
+For example:
 .Pp
 .Dl $ command1 2>&1 | command2
 .Pp
@@ -811,7 +854,8 @@ name ( ) command
 .Pp
 A function definition is an executable statement; when
 executed it installs a function named name and returns an
-exit status of zero.  The command is normally a list
+exit status of zero.
+The command is normally a list
 enclosed between
 .Dq Li {
 and
@@ -836,7 +880,9 @@ command is implemented as a built-in command.
 When a variable is made local, it inherits the initial
 value and exported and readonly flags from the variable
 with the same name in the surrounding scope, if there is
-one.  Otherwise, the variable is initially unset.  The shell
+one.
+Otherwise, the variable is initially unset.
+The shell
 uses dynamic scoping, so that if the variable
 .Em x
 is made local to function
@@ -877,10 +923,13 @@ The
 .Ic return
 command is implemented as a built-in command.
 .Ss Variables and Parameters
-The shell maintains a set of parameters.  A parameter
-denoted by a name is called a variable.  When starting up,
+The shell maintains a set of parameters.
+A parameter
+denoted by a name is called a variable.
+When starting up,
 the shell turns all the environment variables into shell
-variables.  New variables can be set using the form
+variables.
+New variables can be set using the form
 .Bd -literal -offset indent
 name=value
 .Ed
@@ -893,16 +942,19 @@ or a special character as explained below.
 .Ss Positional Parameters
 A positional parameter is a parameter denoted by a number greater than zero.
 The shell sets these initially to the values of its command line
-arguments that follow the name of the shell script.  The
+arguments that follow the name of the shell script.
+The
 .Ic set
 built-in command can also be used to set or reset them.
 .Ss Special Parameters
 A special parameter is a parameter denoted by one of the following
-special characters.  The value of the parameter is listed
+special characters.
+The value of the parameter is listed
 next to its character.
 .Bl -hang
 .It Li *
-Expands to the positional parameters, starting from one.  When
+Expands to the positional parameters, starting from one.
+When
 the expansion occurs within a double-quoted string
 it expands to a single field with the value of each parameter
 separated by the first character of the
@@ -914,7 +966,8 @@ if
 .Ev IFS
 is unset.
 .It Li @
-Expands to the positional parameters, starting from one.  When
+Expands to the positional parameters, starting from one.
+When
 the expansion occurs within double-quotes, each positional
 parameter expands as a separate argument.
 If there are no positional parameters, the
@@ -922,7 +975,8 @@ expansion of
 .Li @
 generates zero arguments, even when
 .Li @
-is double-quoted.  What this basically means, for example, is
+is double-quoted.
+What this basically means, for example, is
 if $1 is
 .Dq abc
 and $2 is
@@ -944,11 +998,13 @@ option names concatenated into a string) as specified on
 invocation, by the set built-in command, or implicitly
 by the shell.
 .It Li $
-Expands to the process ID of the invoked shell.  A subshell
+Expands to the process ID of the invoked shell.
+A subshell
 retains the same value of $ as its parent.
 .It Li \&!
 Expands to the process ID of the most recent background
-command executed from the current shell.  For a
+command executed from the current shell.
+For a
 pipeline, the process ID is that of the last command in the
 pipeline.
 .It Li 0
@@ -956,12 +1012,14 @@ pipeline.
 .El
 .Ss Word Expansions
 This clause describes the various expansions that are
-performed on words.  Not all expansions are performed on
+performed on words.
+Not all expansions are performed on
 every word, as explained later.
 .Pp
 Tilde expansions, parameter expansions, command substitutions,
 arithmetic expansions, and quote removals that occur within
-a single word expand to a single field.  It is only field
+a single word expand to a single field.
+It is only field
 splitting or pathname expansion that can create multiple
 fields from a single word.
 The single exception to this rule is
@@ -1000,7 +1058,8 @@ subjected to tilde expansion.
 All the characters up to a slash
 .Pq Li /
 or the end of the word are treated as a username
-and are replaced with the user's home directory.  If the
+and are replaced with the user's home directory.
+If the
 username is missing (as in ~/foobar), the tilde is replaced
 with the value of the HOME variable (the current user's
 home directory).
@@ -1045,30 +1104,37 @@ In addition, a parameter expansion can be modified by using one of the
 following formats.
 .Bl -tag -width indent
 .It Li ${parameter:-word}
-Use Default Values.  If parameter is unset or
+Use Default Values.
+If parameter is unset or
 null, the expansion of word is
 substituted; otherwise, the value of
 parameter is substituted.
 .It Li ${parameter:=word}
-Assign Default Values.  If parameter is unset
+Assign Default Values.
+If parameter is unset
 or null, the expansion of word is
-assigned to parameter.  In all cases, the
+assigned to parameter.
+In all cases, the
 final value of parameter is
-substituted.  Only variables, not positional
+substituted.
+Only variables, not positional
 parameters or special parameters, can be
 assigned in this way.
 .It Li ${parameter:?[word]}
-Indicate Error if Null or Unset.  If
+Indicate Error if Null or Unset.
+If
 parameter is unset or null, the expansion of
 word (or a message indicating it is unset if
 word is omitted) is written to standard
 error and the shell exits with a nonzero
 exit status.
 Otherwise, the value of
-parameter is substituted.  An
+parameter is substituted.
+An
 interactive shell need not exit.
 .It Li ${parameter:+word}
-Use Alternate Value.  If parameter is unset
+Use Alternate Value.
+If parameter is unset
 or null, null is substituted;
 otherwise, the expansion of word is
 substituted.
@@ -1079,7 +1145,8 @@ format results in a test for a parameter that is unset or null; omission
 of the colon results in a test for a parameter that is only unset.
 .Bl -tag -width indent
 .It Li ${#parameter}
-String Length.  The length in characters of
+String Length.
+The length in characters of
 the value of parameter.
 .El
 .Pp
@@ -1100,33 +1167,42 @@ cause the following four varieties of pattern characters to be quoted,
 whereas quoting characters within the braces has this effect.
 .Bl -tag -width indent
 .It Li ${parameter%word}
-Remove Smallest Suffix Pattern.  The word
-is expanded to produce a pattern.  The
+Remove Smallest Suffix Pattern.
+The word
+is expanded to produce a pattern.
+The
 parameter expansion then results in
 parameter, with the smallest portion of the
 suffix matched by the pattern deleted.
 .It Li ${parameter%%word}
-Remove Largest Suffix Pattern.  The word
-is expanded to produce a pattern.  The
+Remove Largest Suffix Pattern.
+The word
+is expanded to produce a pattern.
+The
 parameter expansion then results in
 parameter, with the largest portion of the
 suffix matched by the pattern deleted.
 .It Li ${parameter#word}
-Remove Smallest Prefix Pattern.  The word
-is expanded to produce a pattern.  The
+Remove Smallest Prefix Pattern.
+The word
+is expanded to produce a pattern.
+The
 parameter expansion then results in
 parameter, with the smallest portion of the
 prefix matched by the pattern deleted.
 .It Li ${parameter##word}
-Remove Largest Prefix Pattern.  The word
-is expanded to produce a pattern.  The
+Remove Largest Prefix Pattern.
+The word
+is expanded to produce a pattern.
+The
 parameter expansion then results in
 parameter, with the largest portion of the
 prefix matched by the pattern deleted.
 .El
 .Ss Command Substitution
 Command substitution allows the output of a command to be substituted in
-place of the command name itself.  Command substitution occurs when
+place of the command name itself.
+Command substitution occurs when
 the command is enclosed as follows:
 .Bd -literal -offset indent
 $(command)
@@ -1155,7 +1231,8 @@ $((expression))
 .Ed
 .Pp
 The expression is treated as if it were in double-quotes, except
-that a double-quote inside the expression is not treated specially.  The
+that a double-quote inside the expression is not treated specially.
+The
 shell expands all tokens in the expression for parameter expansion,
 command substitution, and quote removal.
 .Pp
@@ -1177,8 +1254,10 @@ Unless the
 .Fl f
 option is set,
 file name generation is performed
-after word splitting is complete.  Each word is
-viewed as a series of patterns, separated by slashes.  The
+after word splitting is complete.
+Each word is
+viewed as a series of patterns, separated by slashes.
+The
 process of expansion replaces the word with the names of
 all existing files whose names can be formed by replacing
 each pattern with a string that matches the specified pattern.
@@ -1241,7 +1320,8 @@ make it the first or last character listed.
 .Ss Built-in Commands
 This section lists the commands which
 are built-in because they need to perform some operation
-that cannot be performed by a separate process.  In addition to
+that cannot be performed by a separate process.
+In addition to
 these, a built-in version of the
 .Xr test 1
 command is provided for efficiency.
@@ -1259,9 +1339,11 @@ If
 .Ar file
 contains any
 .Dq /
-characters, it is used as is.  Otherwise, the shell searches the
+characters, it is used as is.
+Otherwise, the shell searches the
 .Ev PATH
-for the file.  If it is not found in the
+for the file.
+If it is not found in the
 .Ev PATH ,
 it is sought in the current working directory.
 .It Ic alias Op Ar name ...
@@ -1403,7 +1485,8 @@ Literal backslash
 If
 .Ar string
 is not enclosed in quotes then the backslash itself must be escaped
-with a backslash to protect it from the shell. For example
+with a backslash to protect it from the shell.
+For example
 .Bd -literal -offset indent
 $ echo -e "a\evb"
 a
@@ -1497,7 +1580,8 @@ is null or unset,
 is used as the editor.
 .It Fl l No (ell)
 List the commands rather than invoking
-an editor on them.  The commands are written in the
+an editor on them.
+The commands are written in the
 sequence indicated by the first and last operands, as
 affected by
 .Fl r ,
@@ -1575,7 +1659,8 @@ command deprecates the older
 command.
 The first argument should be a series of letters, each possibly
 followed by a colon which indicates that the option takes an argument.
-The specified variable is set to the parsed option.  The index of
+The specified variable is set to the parsed option.
+The index of
 the next argument is placed into the shell variable
 .Ev OPTIND .
 If an option takes an argument, it is placed into the shell variable
@@ -1629,11 +1714,14 @@ If the
 .Fl s
 option is specified, only the PIDs of the jobs are printed, one per line.
 .It Ic pwd Op Fl L | P
-Print the path of the current directory.  The built-in command may
+Print the path of the current directory.
+The built-in command may
 differ from the program of the same name because the
 built-in command remembers what the current directory
-is rather than recomputing it each time.  This makes
-it faster.  However, if the current directory is
+is rather than recomputing it each time.
+This makes
+it faster.
+However, if the current directory is
 renamed,
 the built-in version of
 .Xr pwd 1
@@ -1653,8 +1741,10 @@ The
 is printed if the
 .Fl p
 option is specified
-and the standard input is a terminal.  Then a line is
-read from the standard input.  The trailing newline
+and the standard input is a terminal.
+Then a line is
+read from the standard input.
+The trailing newline
 is deleted from the line and the line is split as
 described in the section on
 .Sx White Space Splitting (Field Splitting)
@@ -1671,9 +1761,11 @@ variables are assigned the null string.
 Backslashes are treated specially, unless the
 .Fl r
 option is
-specified.  If a backslash is followed by
+specified.
+If a backslash is followed by
 a newline, the backslash and the newline will be
-deleted.  If a backslash is followed by any other
+deleted.
+If a backslash is followed by any other
 character, the backslash will be deleted and the following
 character will be treated as though it were not in
 .Ev IFS ,
@@ -1833,7 +1925,8 @@ only the superuser can increase it.
 The
 .Fl S
 option
-specifies the soft limits instead.  When displaying limits,
+specifies the soft limits instead.
+When displaying limits,
 only one of
 .Fl S
 or
@@ -1930,7 +2023,8 @@ The command
 .Dq Li set -V )
 enables vi-mode editing and places
 .Nm
-into vi insert mode.  With vi-mode enabled,
+into vi insert mode.
+With vi-mode enabled,
 .Nm
 can be switched between insert mode and command mode by typing
 .Aq ESC .

@@ -144,13 +144,15 @@ to parse its arguments, which allows it to accept
 the
 .Sq Li --
 option which will cause it to stop processing flag options at that
-point.  This will allow the removal of file names that begin
+point.
+This will allow the removal of file names that begin
 with a dash
 .Pq Sq - .
 For example:
 .Dl rm -- -filename
 The same behavior can be obtained by using an absolute or relative
-path reference.  For example:
+path reference.
+For example:
 .Dl rm /home/user/-filename
 .Dl rm ./-filename
 .Sh SEE ALSO
