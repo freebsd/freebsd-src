@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.14 1995/02/14 23:33:38 se Exp $
+**  $Id: pci.c,v 1.15 1995/02/22 14:17:15 se Exp $
 **
 **  General subroutines for the PCI bus on 80*86 systems.
 **  pci_configure ()
@@ -36,7 +36,7 @@
 ***************************************************************************
 */
 
-#define PCI_PATCHLEVEL  "pl2 95/02/21"
+#define PCI_PATCHLEVEL  "pl3 95/02/25"
 
 #include <pci.h>
 #if NPCI > 0
@@ -166,6 +166,8 @@ static	u_long      pci_irq   = PCI_IRQ;
 **	May be called more than once.
 **	Any device is attached only once.
 **	(Attached devices are remembered in pci_seen.)
+**	Has to take care of mirrored devices, which are
+**	entailed by incomplete decoding of pci address lines.
 **
 **---------------------------------------------------------
 */
@@ -242,6 +244,24 @@ void pci_configure()
 			if ((name=(*dvp->pd_probe)(tag, type)))
 				break;
 			dvp = NULL;
+		};
+
+		/*
+		**	check for mirrored devices.
+		*/
+		if (device >= 8) {
+			pcici_t	tag0;
+			pcidi_t type0;
+			tag0  = pcibus.pb_tag (bus, device & 0x07, 0);
+			type0 = pcibus.pb_read (tag0, PCI_ID_REG);
+			if (type==type0) {
+#ifndef PCI_QUIET
+				if (dvp==NULL) continue;
+				printf ("%s? <%s> mirrored on pci%d:%d\n",
+					dvp->pd_name, name, bus, device);
+#endif
+				continue;
+			};
 		};
 
 		if (dvp==NULL) {
