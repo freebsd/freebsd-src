@@ -393,6 +393,7 @@ labpcinit(void)
 	if (labpcs)
 	{
 		bzero(labpcs, NLABPC * sizeof(struct cltr *));
+		return 1;
 	}
 	return 0;
 }
