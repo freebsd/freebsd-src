@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exprep - ACPI AML (p-code) execution - field prep utilities
- *              $Revision: 122 $
+ *              $Revision: 125 $
  *
  *****************************************************************************/
 
@@ -127,6 +127,139 @@
         ACPI_MODULE_NAME    ("exprep")
 
 
+#ifdef ACPI_UNDER_DEVELOPMENT
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiExGenerateAccess
+ *
+ * PARAMETERS:  FieldBitOffset      - Start of field within parent region/buffer
+ *              FieldBitLength      - Length of field in bits
+ *              RegionLength        - Length of parent in bytes
+ *
+ * RETURN:      Field granularity (8, 16, 32 or 64) and
+ *              ByteAlignment (1, 2, 3, or 4)
+ *
+ * DESCRIPTION: Generate an optimal access width for fields defined with the
+ *              AnyAcc keyword.
+ *
+ * NOTE: Need to have the RegionLength in order to check for boundary
+ *       conditions (end-of-region).  However, the RegionLength is a deferred
+ *       operation.  Therefore, to complete this implementation, the generation
+ *       of this access width must be deferred until the region length has
+ *       been evaluated.
+ *
+ ******************************************************************************/
+
+static UINT32
+AcpiExGenerateAccess (
+    UINT32                  FieldBitOffset,
+    UINT32                  FieldBitLength,
+    UINT32                  RegionLength)
+{
+    UINT32                  FieldByteLength;
+    UINT32                  FieldByteOffset;
+    UINT32                  FieldByteEndOffset;
+    UINT32                  AccessByteWidth;
+    UINT32                  FieldStartOffset;
+    UINT32                  FieldEndOffset;
+    UINT32                  MinimumAccessWidth = 0xFFFFFFFF;
+    UINT32                  MinimumAccesses = 0xFFFFFFFF;
+    UINT32                  Accesses;
+
+
+    ACPI_FUNCTION_TRACE ("ExGenerateAccess");
+
+
+    /* Round Field start offset and length to "minimal" byte boundaries */
+
+    FieldByteOffset    = ACPI_DIV_8 (ACPI_ROUND_DOWN (FieldBitOffset, 8));
+    FieldByteEndOffset = ACPI_DIV_8 (ACPI_ROUND_UP   (FieldBitLength + FieldBitOffset, 8));
+    FieldByteLength    = FieldByteEndOffset - FieldByteOffset;
+
+    ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
+            "Bit length %d, Bit offset %d\n",
+            FieldBitLength, FieldBitOffset));
+    ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
+            "Byte Length %d, Byte Offset %d, End Offset %d\n",
+            FieldByteLength, FieldByteOffset, FieldByteEndOffset));
+
+    /*
+     * Iterative search for the maximum access width that is both aligned
+     * and does not go beyond the end of the region
+     *
+     * Start at ByteAcc and work upwards to QwordAcc max. (1,2,4,8 bytes)
+     */
+    for (AccessByteWidth = 1; AccessByteWidth <= 8; AccessByteWidth <<= 1)
+    {
+        /*
+         * 1) Round end offset up to next access boundary and make sure that this
+         *    does not go beyond the end of the parent region.
+         * 2) When the Access width is greater than the FieldByteLength, we are done.
+         *    (This does not optimize for the perfectly aligned case yet).
+         */
+        if (ACPI_ROUND_UP (FieldByteEndOffset, AccessByteWidth) <= RegionLength)
+        {
+            FieldStartOffset = ACPI_ROUND_DOWN (FieldByteOffset, AccessByteWidth) /
+                                                    AccessByteWidth;
+            FieldEndOffset   = ACPI_ROUND_UP   ((FieldByteLength + FieldByteOffset),
+                                                    AccessByteWidth) / AccessByteWidth;
+            Accesses         = FieldEndOffset - FieldStartOffset;
+
+            ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
+                    "AccessWidth %d end is within region\n", AccessByteWidth));
+            ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
+                    "Field Start %d, Field End %d -- requires %d accesses\n",
+                    FieldStartOffset, FieldEndOffset, Accesses));
+
+            /* Single access is optimal */
+
+            if (Accesses <= 1)
+            {
+                ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
+                        "Entire field can be accessed with one operation of size %d\n",
+                        AccessByteWidth));
+                return_VALUE (AccessByteWidth);
+            }
+
+            /*
+             * Fits in the region, but requires more than one read/write.
+             * try the next wider access on next iteration
+             */
+            if (Accesses < MinimumAccesses)
+            {
+                MinimumAccesses    = Accesses;
+                MinimumAccessWidth = AccessByteWidth;
+            }
+        }
+        else
+        {
+            ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
+                    "AccessWidth %d end is NOT within region\n", AccessByteWidth));
+            if (AccessByteWidth == 1)
+            {
+                ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
+                        "Field goes beyond end-of-region!\n"));
+                return_VALUE (0);     /* Field does not fit in the region at all */
+            }
+
+            /* This width goes beyond the end-of-region, back off to previous access */
+
+            ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
+                    "Backing off to previous optimal access width of %d\n",
+                    MinimumAccessWidth));
+            return_VALUE (MinimumAccessWidth);
+        }
+    }
+
+    /* Could not read/write field with one operation, just use max access width */
+
+    ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
+            "Cannot access field in one operation, using width 8\n"));
+    return_VALUE (8);
+}
+#endif /* ACPI_UNDER_DEVELOPMENT */
+
+
 /*******************************************************************************
  *
  * FUNCTION:    AcpiExDecodeFieldAccess
@@ -148,12 +281,11 @@ AcpiExDecodeFieldAccess (
     UINT32                  *ReturnByteAlignment)
 {
     UINT32                  Access;
-    UINT8                   ByteAlignment;
-    UINT8                   BitLength;
-/*    UINT32                  Length; */
+    UINT32                  ByteAlignment;
+    UINT32                  BitLength;
 
 
-    ACPI_FUNCTION_NAME ("ExDecodeFieldAccess");
+    ACPI_FUNCTION_TRACE ("ExDecodeFieldAccess");
 
 
     Access = (FieldFlags & AML_FIELD_ACCESS_TYPE_MASK);
@@ -162,46 +294,15 @@ AcpiExDecodeFieldAccess (
     {
     case AML_FIELD_ACCESS_ANY:
 
+#ifdef ACPI_UNDER_DEVELOPMENT
+        ByteAlignment = AcpiExGenerateAccess (ObjDesc->CommonField.StartFieldBitOffset,
+                                ObjDesc->CommonField.BitLength,
+                                0xFFFFFFFF /* Temp until we pass RegionLength as param */);
+        BitLength = ByteAlignment * 8;
+#endif
+
         ByteAlignment = 1;
         BitLength = 8;
-
-#if 0
-        /*
-         * TBD: optimize
-         *
-         * Any attempt to optimize the access size to the size of the field
-         * must take into consideration the length of the region and take
-         * care that an access to the field will not attempt to access
-         * beyond the end of the region.
-         */
-
-        /* Use the length to set the access type */
-
-        Length = ObjDesc->CommonField.BitLength;
-
-        if (Length <= 8)
-        {
-            BitLength = 8;
-        }
-        else if (Length <= 16)
-        {
-            BitLength = 16;
-        }
-        else if (Length <= 32)
-        {
-            BitLength = 32;
-        }
-        else if (Length <= 64)
-        {
-            BitLength = 64;
-        }
-        else
-        {
-            /* Larger than Qword - just use byte-size chunks */
-
-            BitLength = 8;
-        }
-#endif
         break;
 
     case AML_FIELD_ACCESS_BYTE:
@@ -231,7 +332,7 @@ AcpiExDecodeFieldAccess (
         ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
             "Unknown field access type %X\n",
             Access));
-        return (0);
+        return_VALUE (0);
     }
 
     if (ACPI_GET_OBJECT_TYPE (ObjDesc) == ACPI_TYPE_BUFFER_FIELD)
@@ -245,7 +346,7 @@ AcpiExDecodeFieldAccess (
     }
 
     *ReturnByteAlignment = ByteAlignment;
-    return (BitLength);
+    return_VALUE (BitLength);
 }
 
 
@@ -333,7 +434,7 @@ AcpiExPrepCommonFieldObject (
      */
     NearestByteAddress =
             ACPI_ROUND_BITS_DOWN_TO_BYTES (FieldBitPosition);
-    ObjDesc->CommonField.BaseByteOffset =
+    ObjDesc->CommonField.BaseByteOffset = (UINT32)
             ACPI_ROUND_DOWN (NearestByteAddress, ByteAlignment);
 
     /*
@@ -422,7 +523,7 @@ AcpiExPrepFieldValue (
         if (Type != ACPI_TYPE_REGION)
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-                "Needed Region, found type %X %s\n",
+                "Needed Region, found type %X (%s)\n",
                 Type, AcpiUtGetTypeName (Type)));
 
             return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
@@ -461,7 +562,7 @@ AcpiExPrepFieldValue (
         AcpiUtAddReference (ObjDesc->Field.RegionObj);
 
         ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
-            "RegionField: Bitoff=%X Off=%X Gran=%X Region %p\n",
+            "RegionField: BitOff %X, Off %X, Gran %X, Region %p\n",
             ObjDesc->Field.StartFieldBitOffset, ObjDesc->Field.BaseByteOffset,
             ObjDesc->Field.AccessByteWidth, ObjDesc->Field.RegionObj));
         break;
@@ -479,7 +580,7 @@ AcpiExPrepFieldValue (
         AcpiUtAddReference (ObjDesc->BankField.BankObj);
 
         ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
-            "Bank Field: BitOff=%X Off=%X Gran=%X Region %p BankReg %p\n",
+            "Bank Field: BitOff %X, Off %X, Gran %X, Region %p, BankReg %p\n",
             ObjDesc->BankField.StartFieldBitOffset,
             ObjDesc->BankField.BaseByteOffset,
             ObjDesc->Field.AccessByteWidth,
@@ -507,9 +608,10 @@ AcpiExPrepFieldValue (
         AcpiUtAddReference (ObjDesc->IndexField.IndexObj);
 
         ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
-            "IndexField: bitoff=%X off=%X gran=%X Index %p Data %p\n",
+            "IndexField: BitOff %X, Off %X, Value %X, Gran %X, Index %p, Data %p\n",
             ObjDesc->IndexField.StartFieldBitOffset,
             ObjDesc->IndexField.BaseByteOffset,
+            ObjDesc->IndexField.Value,
             ObjDesc->Field.AccessByteWidth,
             ObjDesc->IndexField.IndexObj,
             ObjDesc->IndexField.DataObj));
@@ -527,8 +629,8 @@ AcpiExPrepFieldValue (
     Status = AcpiNsAttachObject (Info->FieldNode, ObjDesc,
                     AcpiNsGetType (Info->FieldNode));
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD, "set NamedObj %p (%4.4s) val = %p\n",
-            Info->FieldNode, Info->FieldNode->Name.Ascii, ObjDesc));
+    ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD, "Set NamedObj %p [%4.4s], ObjDesc %p\n",
+            Info->FieldNode, AcpiUtGetNodeName (Info->FieldNode), ObjDesc));
 
     /* Remove local reference to the object */
 

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utalloc - local cache and memory allocation routines
- *              $Revision: 131 $
+ *              $Revision: 134 $
  *
  *****************************************************************************/
 
@@ -908,7 +908,7 @@ AcpiUtRemoveAllocation (
 
     ACPI_MEMSET (&Allocation->UserSpace, 0xEA, Allocation->Size);
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS, "Freeing size %X\n", Allocation->Size));
+    ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS, "Freeing size 0%X\n", Allocation->Size));
 
     Status = AcpiUtReleaseMutex (ACPI_MTX_MEMORY);
     return_ACPI_STATUS (Status);
@@ -1019,72 +1019,31 @@ AcpiUtDumpAllocations (
             Descriptor = ACPI_CAST_PTR (ACPI_DESCRIPTOR, &Element->UserSpace);
             if (Descriptor->DescriptorId != ACPI_DESC_TYPE_CACHED)
             {
-                AcpiOsPrintf ("%p Len %04X %9.9s-%d ",
+                AcpiOsPrintf ("%p Len %04X %9.9s-%d [%s] ",
                             Descriptor, Element->Size, Element->Module,
-                            Element->Line);
+                            Element->Line, AcpiUtGetDescriptorName (Descriptor));
 
-                /* Most of the elements will be internal objects. */
+                /* Most of the elements will be Operand objects. */
 
                 switch (ACPI_GET_DESCRIPTOR_TYPE (Descriptor))
                 {
                 case ACPI_DESC_TYPE_OPERAND:
-                    AcpiOsPrintf ("ObjType %12.12s R%hd",
+                    AcpiOsPrintf ("%12.12s R%hd",
                             AcpiUtGetTypeName (Descriptor->Object.Common.Type),
                             Descriptor->Object.Common.ReferenceCount);
                     break;
 
                 case ACPI_DESC_TYPE_PARSER:
-                    AcpiOsPrintf ("ParseObj AmlOpcode %04hX",
+                    AcpiOsPrintf ("AmlOpcode %04hX",
                             Descriptor->Op.Asl.AmlOpcode);
                     break;
 
                 case ACPI_DESC_TYPE_NAMED:
-                    AcpiOsPrintf ("Node %4.4s",
-                            Descriptor->Node.Name.Ascii);
-                    break;
-
-                case ACPI_DESC_TYPE_STATE:
-                    AcpiOsPrintf ("Untyped StateObj");
-                    break;
-
-                case ACPI_DESC_TYPE_STATE_UPDATE:
-                    AcpiOsPrintf ("UPDATE StateObj");
-                    break;
-
-                case ACPI_DESC_TYPE_STATE_PACKAGE:
-                    AcpiOsPrintf ("PACKAGE StateObj");
-                    break;
-
-                case ACPI_DESC_TYPE_STATE_CONTROL:
-                    AcpiOsPrintf ("CONTROL StateObj");
-                    break;
-
-                case ACPI_DESC_TYPE_STATE_RPSCOPE:
-                    AcpiOsPrintf ("ROOT-PARSE-SCOPE StateObj");
-                    break;
-
-                case ACPI_DESC_TYPE_STATE_PSCOPE:
-                    AcpiOsPrintf ("PARSE-SCOPE StateObj");
-                    break;
-
-                case ACPI_DESC_TYPE_STATE_WSCOPE:
-                    AcpiOsPrintf ("WALK-SCOPE StateObj");
-                    break;
-
-                case ACPI_DESC_TYPE_STATE_RESULT:
-                    AcpiOsPrintf ("RESULT StateObj");
-                    break;
-
-                case ACPI_DESC_TYPE_STATE_NOTIFY:
-                    AcpiOsPrintf ("NOTIFY StateObj");
-                    break;
-
-                case ACPI_DESC_TYPE_STATE_THREAD:
-                    AcpiOsPrintf ("THREAD StateObj");
+                    AcpiOsPrintf ("%4.4s",
+                            AcpiUtGetNodeName (&Descriptor->Node));
                     break;
 
                 default:
-                    /* All types should appear above */
                     break;
                 }
 

@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exutils - interpreter/scanner utilities
- *              $Revision: 109 $
+ *              $Revision: 110 $
  *
  *****************************************************************************/
 
@@ -374,7 +374,7 @@ AcpiExDigitsNeeded (
      */
     if ((CurrentValue = Value) == 0)
     {
-	    return_VALUE (1);
+        return_VALUE (1);
     }
 
     NumDigits = 0;

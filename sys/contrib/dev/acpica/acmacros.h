@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acmacros.h - C macros for the entire subsystem.
- *       $Revision: 145 $
+ *       $Revision: 147 $
  *
  *****************************************************************************/
 
@@ -121,7 +121,6 @@
 /*
  * Data manipulation macros
  */
-
 #define ACPI_LOWORD(l)                  ((UINT16)(UINT32)(l))
 #define ACPI_HIWORD(l)                  ((UINT16)((((UINT32)(l)) >> 16) & 0xFFFF))
 #define ACPI_LOBYTE(l)                  ((UINT8)(UINT16)(l))
@@ -167,10 +166,18 @@
 #endif
 #endif
 
- /*
-  * Extract a byte of data using a pointer.  Any more than a byte and we
-  * get into potential aligment issues -- see the STORE macros below
-  */
+/*
+ * printf() format helpers
+ */
+
+/* Split 64-bit integer into two 32-bit values. Use with %8,8X%8.8X */
+
+#define ACPI_FORMAT_UINT64(i)           ACPI_HIDWORD(i),ACPI_LODWORD(i)
+
+/*
+ * Extract a byte of data using a pointer.  Any more than a byte and we
+ * get into potential aligment issues -- see the STORE macros below
+ */
 #define ACPI_GET8(addr)                 (*(UINT8*)(addr))
 
 /* Pointer arithmetic */
@@ -202,7 +209,6 @@
  * If the hardware supports the transfer of unaligned data, just do the store.
  * Otherwise, we have to move one byte at a time.
  */
-
 #ifdef ACPI_BIG_ENDIAN
 /*
  * Macros for big-endian machines
@@ -372,7 +378,6 @@
 /*
  * Fast power-of-two math macros for non-optimized compilers
  */
-
 #define _ACPI_DIV(value,PowerOf2)       ((UINT32) ((value) >> (PowerOf2)))
 #define _ACPI_MUL(value,PowerOf2)       ((UINT32) ((value) << (PowerOf2)))
 #define _ACPI_MOD(value,Divisor)        ((UINT32) ((value) & ((Divisor) -1)))
@@ -516,7 +521,6 @@
 /*
  * Reporting macros that are never compiled out
  */
-
 #define ACPI_PARAM_LIST(pl)                 pl
 
 /*
@@ -524,7 +528,6 @@
  * _THIS_MODULE gets compiled out when ACPI_DEBUG_OUTPUT isn't defined, only
  * use it in debug mode.
  */
-
 #ifdef ACPI_DEBUG_OUTPUT
 
 #define ACPI_REPORT_INFO(fp)                {AcpiUtReportInfo(_THIS_MODULE,__LINE__,_COMPONENT); \
@@ -563,7 +566,6 @@
 /*
  * Debug macros that are conditionally compiled
  */
-
 #ifdef ACPI_DEBUG_OUTPUT
 
 #define ACPI_MODULE_NAME(name)               static char ACPI_UNUSED_VAR *_THIS_MODULE = name;
@@ -573,7 +575,6 @@
  * The first parameter should be the procedure name as a quoted string.  This is declared
  * as a local string ("_ProcName) so that it can be also used by the function exit macros below.
  */
-
 #define ACPI_FUNCTION_NAME(a)               ACPI_DEBUG_PRINT_INFO _Dbg; \
                                                 _Dbg.ComponentId = _COMPONENT; \
                                                 _Dbg.ProcName    = a; \
@@ -635,7 +636,6 @@
 /*
  * Generate INT3 on ACPI_ERROR (Debug only!)
  */
-
 #define ACPI_ERROR_BREAK
 #ifdef  ACPI_ERROR_BREAK
 #define ACPI_BREAK_ON_ERROR(lvl)        if ((lvl)&ACPI_ERROR) \
@@ -650,7 +650,6 @@
  *    1) Debug print for the current component is enabled
  *    2) Debug error level or trace level for the print statement is enabled
  */
-
 #define ACPI_DEBUG_PRINT(pl)            AcpiUtDebugPrint ACPI_PARAM_LIST(pl)
 #define ACPI_DEBUG_PRINT_RAW(pl)        AcpiUtDebugPrintRaw ACPI_PARAM_LIST(pl)
 
@@ -660,7 +659,6 @@
  * This is the non-debug case -- make everything go away,
  * leaving no executable debug code!
  */
-
 #define ACPI_MODULE_NAME(name)
 #define _THIS_MODULE ""
 
@@ -735,7 +733,6 @@
 /*
  * Memory allocation tracking (DEBUG ONLY)
  */
-
 #ifndef ACPI_DBG_TRACK_ALLOCATIONS
 
 /* Memory allocation */

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: psargs - Parse AML opcode arguments
- *              $Revision: 73 $
+ *              $Revision: 74 $
  *
  *****************************************************************************/
 
@@ -579,7 +579,7 @@ ACPI_PARSE_OBJECT *
 AcpiPsGetNextField (
     ACPI_PARSE_STATE        *ParserState)
 {
-    UINT32                  AmlOffset = ACPI_PTR_DIFF (ParserState->Aml,
+    UINT32                  AmlOffset = (UINT32) ACPI_PTR_DIFF (ParserState->Aml,
                                                        ParserState->AmlStart);
     ACPI_PARSE_OBJECT       *Field;
     UINT16                  Opcode;
@@ -778,8 +778,8 @@ AcpiPsGetNextArg (
 
             /* Fill in bytelist data */
 
-            Arg->Common.Value.Size = ACPI_PTR_DIFF (ParserState->PkgEnd,
-                                                    ParserState->Aml);
+            Arg->Common.Value.Size = (UINT32) ACPI_PTR_DIFF (ParserState->PkgEnd,
+                                                             ParserState->Aml);
             Arg->Named.Data = ParserState->Aml;
 
             /* Skip to End of byte data */

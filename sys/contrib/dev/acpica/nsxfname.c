@@ -2,7 +2,7 @@
  *
  * Module Name: nsxfname - Public interfaces to the ACPI subsystem
  *                         ACPI Namespace oriented interfaces
- *              $Revision: 97 $
+ *              $Revision: 98 $
  *
  *****************************************************************************/
 
@@ -286,7 +286,7 @@ AcpiGetName (
 
     /* Just copy the ACPI name from the Node and zero terminate it */
 
-    ACPI_STRNCPY (Buffer->Pointer, Node->Name.Ascii,
+    ACPI_STRNCPY (Buffer->Pointer, AcpiUtGetNodeName (Node),
                 ACPI_NAME_SIZE);
     ((char *) Buffer->Pointer) [ACPI_NAME_SIZE] = 0;
     Status = AE_OK;
@@ -374,8 +374,8 @@ AcpiGetObjectInfo (
     {
         /*
          * Get extra info for ACPI Devices objects only:
-         * Run the Device _HID, _UID, _CID, _STA, and _ADR methods. 
-         * 
+         * Run the Device _HID, _UID, _CID, _STA, and _ADR methods.
+         *
          * Note: none of these methods are required, so they may or may
          * not be present for this device.  The Info.Valid bitfield is used
          * to indicate which methods were found and ran successfully.
@@ -402,7 +402,7 @@ AcpiGetObjectInfo (
         Status = AcpiUtExecute_CID (Node, &CidList);
         if (ACPI_SUCCESS (Status))
         {
-            Size += ((ACPI_SIZE) CidList->Count - 1) * 
+            Size += ((ACPI_SIZE) CidList->Count - 1) *
                                  sizeof (ACPI_COMPATIBLE_ID);
             Info.Valid |= ACPI_VALID_CID;
         }
@@ -417,7 +417,7 @@ AcpiGetObjectInfo (
 
         /* Execute the Device._ADR method */
 
-        Status = AcpiUtEvaluateNumericObject (METHOD_NAME__ADR, Node, 
+        Status = AcpiUtEvaluateNumericObject (METHOD_NAME__ADR, Node,
                         &Info.Address);
         if (ACPI_SUCCESS (Status))
         {

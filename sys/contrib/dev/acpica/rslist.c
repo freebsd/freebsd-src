@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rslist - Linked list utilities
- *              $Revision: 32 $
+ *              $Revision: 33 $
  *
  ******************************************************************************/
 
@@ -390,8 +390,8 @@ AcpiRsByteStreamToList (
          * Set the Buffer to the next structure
          */
         Resource = ACPI_CAST_PTR (ACPI_RESOURCE, Buffer);
-        Resource->Length = ACPI_ALIGN_RESOURCE_SIZE(Resource->Length);
-        Buffer += ACPI_ALIGN_RESOURCE_SIZE(StructureSize);
+        Resource->Length = (UINT32) ACPI_ALIGN_RESOURCE_SIZE (Resource->Length);
+        Buffer += ACPI_ALIGN_RESOURCE_SIZE (StructureSize);
 
     } /*  end while */
 

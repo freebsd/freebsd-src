@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acglobal.h - Declarations for global variables
- *       $Revision: 143 $
+ *       $Revision: 144 $
  *
  *****************************************************************************/
 
@@ -179,6 +179,9 @@ ACPI_EXTERN ACPI_COMMON_FACS            AcpiGbl_CommonFACS;
 ACPI_EXTERN UINT8                       AcpiGbl_IntegerBitWidth;
 ACPI_EXTERN UINT8                       AcpiGbl_IntegerByteWidth;
 ACPI_EXTERN UINT8                       AcpiGbl_IntegerNybbleWidth;
+
+/* Keep local copies of these FADT-based registers */
+
 ACPI_EXTERN ACPI_GENERIC_ADDRESS        AcpiGbl_XPm1aEnable;
 ACPI_EXTERN ACPI_GENERIC_ADDRESS        AcpiGbl_XPm1bEnable;
 

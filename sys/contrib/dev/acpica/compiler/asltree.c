@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: asltree - parse tree management
- *              $Revision: 53 $
+ *              $Revision: 54 $
  *
  *****************************************************************************/
 
@@ -488,7 +488,7 @@ TrCreateValuedLeafNode (
     DbgPrint (ASL_PARSE_OUTPUT,
         "\nCreateValuedLeafNode  Line %d NewNode %p  Op %s  Value %8.8X%8.8X  ",
         Op->Asl.LineNumber, Op, UtGetOpName(ParseOpcode),
-        ACPI_HIDWORD (Value), ACPI_LODWORD (Value));
+        ACPI_FORMAT_UINT64 (Value));
     Op->Asl.Value.Integer = Value;
 
     switch (ParseOpcode)

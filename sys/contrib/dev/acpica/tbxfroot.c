@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbxfroot - Find the root ACPI table (RSDT)
- *              $Revision: 68 $
+ *              $Revision: 70 $
  *
  *****************************************************************************/
 
@@ -260,7 +260,7 @@ AcpiGetFirmwareTable (
         if ((Flags & ACPI_MEMORY_MODE) == ACPI_LOGICAL_ADDRESSING)
         {
             Status = AcpiOsMapMemory (RsdpAddress.Pointer.Physical, sizeof (RSDP_DESCRIPTOR),
-                                        (void **) &AcpiGbl_RSDP);
+                                        (void *) &AcpiGbl_RSDP);
             if (ACPI_FAILURE (Status))
             {
                 return_ACPI_STATUS (Status);
@@ -296,8 +296,7 @@ AcpiGetFirmwareTable (
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
         "RSDP located at %p, RSDT physical=%8.8X%8.8X \n",
         AcpiGbl_RSDP,
-        ACPI_HIDWORD (Address.Pointer.Value),
-        ACPI_LODWORD (Address.Pointer.Value)));
+        ACPI_FORMAT_UINT64 (Address.Pointer.Value)));
 
     /* Insert ProcessorMode flags */
 
@@ -521,7 +520,7 @@ AcpiTbFindRsdp (
          * 1) Search EBDA (low memory) paragraphs
          */
         Status = AcpiOsMapMemory ((UINT64) ACPI_LO_RSDP_WINDOW_BASE, ACPI_LO_RSDP_WINDOW_SIZE,
-                                    (void **) &TablePtr);
+                                    (void *) &TablePtr);
         if (ACPI_FAILURE (Status))
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Could not map memory at %X for length %X\n",
@@ -547,7 +546,7 @@ AcpiTbFindRsdp (
          * 2) Search upper memory: 16-byte boundaries in E0000h-F0000h
          */
         Status = AcpiOsMapMemory ((UINT64) ACPI_HI_RSDP_WINDOW_BASE, ACPI_HI_RSDP_WINDOW_SIZE,
-                                    (void **) &TablePtr);
+                                    (void *) &TablePtr);
         if (ACPI_FAILURE (Status))
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Could not map memory at %X for length %X\n",

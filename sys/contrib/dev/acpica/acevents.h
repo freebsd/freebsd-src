@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acevents.h - Event subcomponent prototypes and defines
- *       $Revision: 91 $
+ *       $Revision: 92 $
  *
  *****************************************************************************/
 
@@ -255,6 +255,17 @@ AcpiEvDetachRegion (
     ACPI_OPERAND_OBJECT    *RegionObj,
     BOOLEAN                 AcpiNsIsLocked);
 
+ACPI_STATUS
+AcpiEvExecuteRegMethod (
+    ACPI_OPERAND_OBJECT    *RegionObj,
+    UINT32                  Function);
+
+ACPI_STATUS
+AcpiEvRegRun (
+    ACPI_HANDLE             ObjHandle,
+    UINT32                  Level,
+    void                    *Context,
+    void                    **ReturnValue);
 
 /*
  * Evregini - Region initialization and setup
