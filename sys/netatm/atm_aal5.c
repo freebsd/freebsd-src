@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm_aal5.c,v 1.2 1998/09/17 09:34:59 phk Exp $
+ *	@(#) $Id: atm_aal5.c,v 1.3 1998/10/31 20:06:54 phk Exp $
  *
  */
 
@@ -39,7 +39,7 @@
 #include <sys/stat.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: atm_aal5.c,v 1.2 1998/09/17 09:34:59 phk Exp $");
+__RCSID("@(#) $Id: atm_aal5.c,v 1.3 1998/10/31 20:06:54 phk Exp $");
 #endif
 
 
@@ -693,7 +693,7 @@ atm_aal5_incoming(tok, cop, ap, tokp)
 	Atm_attributes	*ap;
 	void		**tokp;
 {
-	Atm_pcb		*atp = tok;
+	Atm_pcb		*atp0 = tok, *atp;
 	struct socket	*so;
 	int		err = 0;
 
@@ -703,11 +703,11 @@ atm_aal5_incoming(tok, cop, ap, tokp)
 	 * Note that our attach function will be called via sonewconn
 	 * and it will allocate and setup most of the pcb.
 	 */
-	atm_sock_stat.as_inconn[atp->atp_type]++;
+	atm_sock_stat.as_inconn[atp0->atp_type]++;
 #if (defined(BSD) && (BSD >= 199103))
-	so = sonewconn(atp->atp_socket, 0);
+	so = sonewconn(atp0->atp_socket, 0);
 #else
-	so = sonewconn(atp->atp_socket);
+	so = sonewconn(atp0->atp_socket);
 #endif
 
 	if (so) {
@@ -716,10 +716,12 @@ atm_aal5_incoming(tok, cop, ap, tokp)
 		 */
 		atp = sotoatmpcb(so);
 		atp->atp_conn = cop;
+		atp->atp_attr = *atp0->atp_conn->co_lattr;
+		strncpy(atp->atp_name, atp0->atp_name, T_ATM_APP_NAME_LEN);
 		*tokp = atp;
 	} else {
 		err = ECONNABORTED;
-		atm_sock_stat.as_connfail[atp->atp_type]++;
+		atm_sock_stat.as_connfail[atp0->atp_type]++;
 	}
 
 	return (err);
@@ -824,6 +826,7 @@ atm_aal5_ctloutput(so, sopt)
 			break;
 
 		case T_ATM_CAUSE:
+		case T_ATM_APP_NAME:
 			break;
 
 		default:
