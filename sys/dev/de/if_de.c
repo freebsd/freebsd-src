@@ -1,5 +1,5 @@
 /*	$NetBSD: if_de.c,v 1.72 1998/07/05 06:49:14 jonathan Exp $	*/
-/*	$Id: if_de.c,v 1.83 1998/06/13 17:19:59 peter Exp $ */
+/*	$Id: if_de.c,v 1.84 1998/07/08 01:24:37 peter Exp $ */
 
 /*-
  * Copyright (c) 1994-1997 Matt Thomas (matt@3am-software.com)
@@ -4342,7 +4342,7 @@ tulip_txput(
     do {
 	int len = m0->m_len;
 	caddr_t addr = mtod(m0, caddr_t);
-	unsigned clsize = CLBYTES - (((u_long) addr) & (CLBYTES-1));
+	unsigned clsize = CLBYTES - (((uintptr_t) addr) & (CLBYTES-1));
 
 	while (len > 0) {
 	    unsigned slen = min(len, clsize);

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)slcompress.c	8.2 (Berkeley) 4/16/94
- * $Id: slcompress.c,v 1.10 1997/06/22 02:19:53 brian Exp $
+ * $Id: slcompress.c,v 1.11 1997/08/19 14:10:47 peter Exp $
  */
 
 /*
@@ -435,10 +435,10 @@ sl_uncompress_tcp(bufp, len, type, comp)
 	 * header (we assume the packet we were handed has enough space to
 	 * prepend 128 bytes of header).
 	 */
-	if ((long)cp & 3) {
+	if ((intptr_t)cp & 3) {
 		if (len > 0)
-			(void) ovbcopy(cp, (caddr_t)((long)cp &~ 3), len);
-		cp = (u_char *)((long)cp &~ 3);
+			(void) ovbcopy(cp, (caddr_t)((intptr_t)cp &~ 3), len);
+		cp = (u_char *)((intptr_t)cp &~ 3);
 	}
 	cp -= hlen;
 	len += hlen;

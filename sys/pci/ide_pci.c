@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ide_pci.c,v 1.12 1998/06/17 14:58:03 bde Exp $
+ *	$Id: ide_pci.c,v 1.13 1998/07/11 07:45:52 bde Exp $
  */
 
 #include "pci.h"
@@ -1283,7 +1283,7 @@ ide_pci_dmasetup(void *xcp, char *vaddr, u_long vcount, int dir)
 
 	/* Generate first PRD entry, which may be non-aligned. */
 
-	firstpage = PAGE_SIZE - ((u_long)vaddr & PAGE_MASK);
+	firstpage = PAGE_SIZE - ((uintptr_t)vaddr & PAGE_MASK);
 
 	prd_base = vtophys(vaddr);
 	prd_count = MIN(count,  firstpage);

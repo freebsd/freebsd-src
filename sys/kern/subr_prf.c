@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prf.c	8.3 (Berkeley) 1/21/94
- * $Id: subr_prf.c,v 1.46 1998/05/28 09:30:20 phk Exp $
+ * $Id: subr_prf.c,v 1.47 1998/07/08 10:41:32 bde Exp $
  */
 
 #include <sys/param.h>
@@ -495,7 +495,7 @@ reswitch:	switch (ch = (u_char)*fmt++) {
 			base = 8;
 			goto nosign;
 		case 'p':
-			ul = (u_long)va_arg(ap, void *);
+			ul = (uintptr_t)va_arg(ap, void *);
 			base = 16;
 			sharpflag = 1;
 			goto nosign;
