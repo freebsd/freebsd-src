@@ -189,7 +189,7 @@ clean_mtab(char *hostp, char *dirp, int verbose) {
 	/* Copy hostp in case it points to an entry that we are zeroing out. */
 	host = strdup(hostp);
 	for (mtabp = mtabhead; mtabp != NULL; mtabp = mtabp->mtab_next) {
-		if (strcmp(mtabp->mtab_host, hostp) != 0)
+		if (strcmp(mtabp->mtab_host, host) != 0)
 			continue;
 		if (dirp != NULL && strcmp(mtabp->mtab_dirp, dirp) != 0)
 			continue;
