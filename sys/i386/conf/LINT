@@ -1851,9 +1851,13 @@ options "AVM_A1"
 options "USR_STI"
 #device isic0 at isa? port 0x268 net irq 5 flags 7
 #
-# ITK ix1 Micro
-options "ITKIX1"
-#device isic0 at isa? port 0x398 net irq 10 flags 18
+# ITK ix1 Micro ( < V.3, non-PnP version )
+options ITKIX1
+#device isic0 at isa? port 0x398 irq 10 flags 18
+#
+# ELSA PCC-16
+options "ELSA_PCC16"
+#device isic0 at isa? port 0x360 irq 10 flags 19
 #
 # PnP-Cards:
 # ----------
@@ -1879,8 +1883,20 @@ options "DYNALINK"
 #device	isic0 at isa? port ? net irq ?
 #
 # ELSA QuickStep 1000pro ISA
-options "ELSA_QS1ISA"
-#device	isic0 at isa? port ? net irq ?
+options ELSA_QS1ISA
+#device	isic0 at isa? port ? irq ?
+#
+# ITK ix1 Micro ( V.3, PnP version )
+options "ITKIX1"
+#device isic0 at isa? port ? irq ?
+#
+# AVM Fritz!Card PnP
+options "AVM_PNP"  
+#device isic0 at isa? port ? irq ?
+#
+# Siemens I-Surf 2.0 
+options "SIEMENS_ISURF2"  
+#device isic0 at isa? port ? irq ?
 #
 # PCI-Cards:
 # ----------
