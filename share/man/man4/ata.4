@@ -1,6 +1,6 @@
 .\"
 .\" Copyright (c) 2000 Jeroen Ruigrok van der Werven
-.\" Copyright (c) 2000,2001 Søren Schmidt
+.\" Copyright (c) 2000,2001,2002 Søren Schmidt
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -59,12 +59,6 @@ such as the ZIP and LS120:
 To support ATAPI tape drives:
 .Cd device atapist
 .Pp
-To enable static controller and device numbering
-(see the
-.Sx NOTES
-section below):
-.Cd options ATA_STATIC_ID
-.Pp
 The following tunables are setable from the loader:
 .Bl -ohang
 .It Va hw.ata.ata_dma
@@ -76,7 +70,7 @@ set to 1 to enable Write Caching, 0 to disable (default is disabled).
 (WARNING: might cause data loss on power failures.)
 .It Va hw.ata.tags
 set to 1 to enable Tagged Queuing support, 0 to disable (default is disabled).
-(Only IBM DPTA, DTLA, ICxxxxxxAT, ICxxxxxxAV, and GXP drives support that.)
+(Only IBM DPTA, DTLA, ICxxxxxxAT, ICxxxxxxAV drives support that.)
 .El
 .Sh DESCRIPTION
 This driver provides access to disk drives, ATAPI CD-ROM and DVD drives,
@@ -86,7 +80,7 @@ These devices are also commonly known as IDE or EIDE devices.
 .Pp
 The currently supported controllers with their maximum speed include:
 .Pp
-.Bl -tag -width "Promise Ultra/Fasttrak-100 TX2/TX4" -compact
+.Bl -tag -width "Promise Ultra/Fasttrak-100 TX2/TX2000" -compact
 .It Acerlabs Aladdin
 Ultra DMA 100 (UDMA5), 100 MB/sec (depending on model, max stated at boot)
 .It AMD 756
@@ -109,6 +103,8 @@ Ultra DMA 66 (UDMA4), 66 MB/sec
 Ultra DMA 100 (UDMA5), 100 MB/sec
 .It HighPoint HPT372
 Ultra DMA 133 (UDMA6), 133 MB/sec
+.It HighPoint HPT374
+Ultra DMA 133 (UDMA6), 133 MB/sec
 .It Intel PIIX
 DMA 2 (WDMA2), 16 MB/sec
 .It Intel PIIX3
@@ -123,6 +119,8 @@ Ultra DMA 66 (UDMA4), 66 MB/sec
 Ultra DMA 100 (UDMA5), 100 MB/sec
 .It Intel ICH3
 Ultra DMA 100 (UDMA5), 100 MB/sec
+.It Intel ICH4
+Ultra DMA 100 (UDMA5), 100 MB/sec
 .It Promise Ultra/Fasttrak-33
 Ultra DMA 33 (UDMA2), 33 MB/sec
 .It Promise Ultra/Fasttrak-66
@@ -131,10 +129,16 @@ Ultra DMA 66 (UDMA4), 66 MB/sec
 Ultra DMA 100 (UDMA5), 100 MB/sec
 .It Promise Ultra/Fasttrak-100 TX2/TX4
 Ultra DMA 100 (UDMA5), 100 MB/sec
+.It Promise Ultra/Fasttrak-133 TX2/TX2000
+Ultra DMA 133 (UDMA6), 133 MB/sec
 .It ServerWorks ROSB4
 Ultra DMA 33 (UDMA2), 33 MB/sec
+.It ServerWorks CSB5
+Ultra DMA 100 (UDMA5), 100 MB/sec (depending on model, max stated at boot)
+.It Sil 0680
+Ultra DMA 133 (UDMA6), 133 MB/sec (depending on model, max stated at boot)
 .It SiS 5591
-Ultra DMA 33 (UDMA2), 33 MB/sec
+Ultra DMA 100 (UDMA5), 100 MB/sec (depending on model, max stated at boot)
 .It VIA 82C586
 Ultra DMA 33 (UDMA2), 33 MB/sec
 .It VIA 82C596
@@ -143,6 +147,8 @@ Ultra DMA 66 (UDMA4), 66 MB/sec (depending on model, max stated at boot)
 Ultra DMA 66 (UDMA4), 66 MB/sec
 .It VIA 82C686b
 Ultra DMA 100 (UDMA5), 100 MB/sec
+.It VIA 8233/8235
+Ultra DMA 133 (UDMA6), 133 MB/sec (depending on model, max stated at boot)
 .El
 .Pp
 All unknown chipsets are supported at the maximum speed of 16 MB/sec.
@@ -154,7 +160,12 @@ at a later time when the system is up and running, see
 .Xr atacontrol 8 .
 .Pp
 The driver attempts to set the maximum performance transfer mode on your disk
-drives by selecting the highest possible DMA mode.
+drives by selecting the highest possible DMA mode. However the 
+.Nm
+driver sometimes issue the message 
+"DMA limited to UDMA33, non-ATA66 cable or device",
+if the cable is ATA66 (or above) compliant, it is because the other device
+on this channel states it can only accept upto UDMA2/ATA33 signals.
 ATAPI devices are left in PIO mode because DMA problems are common despite the
 device specifications.
 You can always try to set DMA mode on an ATAPI device using
