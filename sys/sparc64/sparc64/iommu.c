@@ -725,10 +725,8 @@ iommu_dvmamap_unload(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
 	 * If the resource is already deallocated, just pass to the parent
 	 * tag.
 	 */
-	if (map->buflen == 0 || map->start == 0) {
-		panic("iommu_dvmamap_unload: map = %p, len = %d, addr = %lx\n",
-		    map, (int)map->buflen, (unsigned long)map->start);
-	}
+	if (map->buflen == 0 || map->start == 0)
+		return;
 
 	iommu_remove(is, map->start, map->buflen);
 	map->buflen = 0;
