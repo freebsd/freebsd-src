@@ -354,6 +354,8 @@
     <sect3 id="disks">
       <title>Disks and Storage</title>
 
+      <para>The &man.amr.4; driver now has system crashdump support.</para>
+
       <para>A major rework of the &man.ata.4; driver has been
 	committed.  One of the more notable changes is that the
 	&man.ata.4; driver has now out from under the Giant kernel
