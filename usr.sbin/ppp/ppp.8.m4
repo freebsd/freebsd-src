@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.190 1999/08/18 15:35:54 brian Exp $
+.\" $Id: ppp.8,v 1.191 1999/08/19 18:15:52 brian Exp $
 .Dd 20 September 1995
 .nr XX \w'\fC00'
 .Os FreeBSD
@@ -4723,12 +4723,20 @@ This socket is used to pass links between different instances of
 .Xr traceroute 8 ,
 .Xr vipw 8
 .Sh HISTORY
-This program was originally written by Toshiharu OHNO (tony-o@iij.ad.jp),
-and was submitted to FreeBSD-2.0.5 by Atsushi Murai (amurai@spec.co.jp).
+This program was originally written by
+.An Toshiharu OHNO Aq tony-o@iij.ad.jp ,
+and was submitted to
+.Fx 2.0.5
+by
+.An Atsushi Murai Aq amurai@spec.co.jp .
 .Pp
-It was substantially modified during 1997 by Brian Somers
-(brian@Awfulhak.org), and was ported to OpenBSD in November that year
+It was substantially modified during 1997 by
+.An Brian Somers Aq brian@Awfulhak.org ,
+and was ported to
+.Ox
+in November that year
 (just after the 2.2 release).
 .Pp
-Most of the code was rewritten by Brian Somers in early 1998 when
-multi-link ppp support was added.
+Most of the code was rewritten by
+.An Brian Somers
+in early 1998 when multi-link ppp support was added.
