@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: stage2.c,v 1.1 1994/10/20 04:59:58 phk Exp $
+ * $Id: stage2.c,v 1.2 1994/10/20 06:48:40 phk Exp $
  *
  */
 
@@ -18,7 +18,6 @@
 #include <unistd.h>
 
 #include <fcntl.h>
-#include <ncurses.h>
 #include <dialog.h>
 #include <errno.h>
 

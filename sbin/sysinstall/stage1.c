@@ -20,7 +20,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdarg.h>
-#include <ncurses.h>
 
 #include <sys/types.h>
 #include <sys/errno.h>
@@ -189,7 +188,7 @@ select_disk()
 			AskAbort(scratch);
 			valid = 0;
 		}
-		clear();
+		dialog_clear();
 	} while (!valid);
 	return(atoi(selection) - 1);
 }
@@ -220,12 +219,12 @@ select_partition(int disk)
 			AskAbort(scratch);
 			valid = 0;
 		}
-		clear();
+		dialog_clear();
 		choice = atoi(selection);
 		if (!choice)
 			if (dialog_yesno(TITLE, "Installing to the whole disk will erase all its present data.\n\nAre you sure you want to do this?", 10, 75))
 				valid = 0;
-		clear();
+		dialog_clear();
 	} while (!valid);
 	
 	return(atoi(selection) - 1);
@@ -238,7 +237,6 @@ stage1()
 	int ok = 0;
 	int ready = 0;
 
-	alloc_memory();
 	while (!ready) {
 		ready = 1;
 
@@ -257,7 +255,7 @@ stage1()
 				AskAbort(scratch);
 				if (!dialog_yesno(TITLE, "Are you sure you wish to proceed?",
 									  10, 75)) {
-					clear();
+					dialog_clear();
 					clear_mbr(mbr);
 					ok = 1;
 				}
@@ -267,7 +265,7 @@ stage1()
 		if (custom_install) 
 			if (!dialog_yesno(TITLE, "Do you wish to edit the DOS partition table?",
 								  10, 75)) {
-				clear();
+				dialog_clear();
 				edit_mbr(mbr, &avail_disklabels[inst_disk]);
 			}
 
@@ -281,7 +279,7 @@ stage1()
 				sprintf(scratch, "The DOS partition table is inconsistent.\n\n%s\n\nDo you wish to edit it by hand?", errmsg);
 				if (!dialog_yesno(TITLE, scratch, 10, 75)) {
 					edit_mbr(mbr, &avail_disklabels[inst_disk]);
-					clear();
+					dialog_clear();
 				} else {
 					AskAbort("");
 					ok = 1;
@@ -300,7 +298,7 @@ stage1()
 				AskAbort("");
 				ready = 0;
 			}
-			clear();
+			dialog_clear();
 		}
 	}
 
