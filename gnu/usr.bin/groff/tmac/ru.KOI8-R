@@ -95,7 +95,7 @@
 .ds doc-str-Lb-librpcsvc   Библиотека служб RPC (librpcsvc, \-lrpcsvc)
 .ds doc-str-Lb-libskey     S/Key Password Control Table Access Library (libskey, \-lskey)
 .ds doc-str-Lb-libtermcap  Библиотека доступа к termcap (libtermcap, \-ltermcap)
-.ds doc-str-Lb-libusb      Библиотека функций доступа к USB HID (libusb, \-lusb)
+.ds doc-str-Lb-libusbhid   Библиотека функций доступа к USB HID (libusbhid, \-lusbhid)
 .ds doc-str-Lb-libutil     Библиотека системных утилит (libutil, \-lutil)
 .ds doc-str-Lb-libvgl      Библиотека видео-графики (libvgl, \-lvgl)
 .ds doc-str-Lb-libz        Библиотека компрессии (libz, \-lz)
