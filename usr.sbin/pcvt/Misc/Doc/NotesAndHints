@@ -1,26 +1,86 @@
-Random Notes, Hints and Thoughts
+Random Notes and Hints                Last Edit-Date: [Wed Mar 29 21:38:17 1995]
 --------------------------------------------------------------------------------
-                                      Last Edit-Date: [Sun Feb 26 12:27:54 1995]
 
 
 First of all, please read the file BugList in this directory !
 
 
+Can't get pcvt working on a ThinkPad
+===============================================================================
+
+Anyway, back to the keyboard.  The problem is that by default the
+ThinkPad uses PS/2 scan code mode.
+
+You can fix this by using an option and building a kernel, as shown
+below.
+
+] Just for the record, in case someone else is asking for this: Al's
+] confirmation that pcvt w/ PCVT_SCANSET=2 works for the ThinkPad:
+] 
+] As Al Elia wrote:
+] | Date: Mon, 28 Nov 1994 18:24:42 GMT
+] | From: Al Elia <aelia%aelia.student.harvard.edu@sax.sax.de>
+] | Message-Id: <199411281824.SAA01554@aelia.student.harvard.edu>
+] | To: joerg_wunsch@bonnie.tcd-dresden.de
+] | Subject: Re: Anyone got FreeBSD 1.1.5.1 running on a ThinkPad?
+] | 
+] | PCVT_SCANSET=2 worked...I had put in PCVT_SCAN_SET=2 (Doh!)
+] | 
+] | --Al Elia
+] | <aelia@aelia.student.harvard,edu>
+
+                         (Terry Lambert quoting Joerg Wunsch quoting Al Elia)
+
+
+If one of the "lock" keys is pressed, LEDs do not get updated, keyboard hangs
+===============================================================================
+
+This entry used to be a long time in the BugList file, and i could never
+reproduce the problem. Today i got an explanation in german from someone
+owning such a keyboard, i'll try to translate:
+
+"This are old keyboards manufactured (~1985/1986) which manage their LED
+ setting only internally.
+ It is not possible to set the LEDs from the (main-) processor, if you
+ try, the keyboard processor hangs and the PC has to be reset by switching
+ power on and off, hard- and/or softreset does not work in this case.
+ Workaround: recompile pcvt with the LED update removed"
+
+In other words, define PCVT_NO_LED_UPDATE if you have such a beast!
+
+
+Cursor not visible anymore in 40 and 50 lines mode
+===============================================================================
+
+You have programmed an underline cursor in i.e. 28 line mode by doing
+"cursor -s 10 -e 12". Then you switch to 40 line mode using "scon -s 40".
+At this point the cursor is no longer visible because the 40 line font
+is only 10 pixels high and the cursor size is programmed with a value
+expressing its size from the top down and NOT from the bottom up!
+If anyone has a good idea how to solve this problem, please tell me!
+The only solution i see so far is having some sort of "generic" cursor
+sizes/descriptions (i.e. underline, rectangle, block) which are
+recalculated in case of a switch to another line size.
+
+
 386BSD port
-===========
+===============================================================================
 
 I don't have access to a 386BSD 0.1 machine anymore so the 386BSD pcvt is
 considered unsupported and will disappear in the future.
 
 
 Keyboard hangs after first update of keyboard LED's
-===================================================
+===============================================================================
 
-Define PCVT_NO_LED_UPDATE and recompile pcvt. 
+Define PCVT_NO_LED_UPDATE and recompile pcvt. (Or, get yourself a better
+keyboard. Some keyboards just don't work the documented way, this fact is
+"normally" masked by the manufacturers BIOS but unhides when one accesses
+the hardware directly.)
 
 
 Garbled screen when running vi
-==============================
+===============================================================================
 
 When the terminal speed in the tty structure is set to low speeds (i.e. 1200
 Baud), pcvt shows a strange behaviour in some environments due to the changed
@@ -29,9 +89,12 @@ screen update sequences from vi.
 Please check your shell startup files, /etc/ttys and /etc/gettytab and change
 the baudrate (i.e. by using stty(1)) to a higher value, i.e. 19200 Baud.
 
+Since i'm not a vi specialist, i never managed to find out wheter to blame
+vi or pcvt.
+
 
 Stty influences on the driver
-=============================
+===============================================================================
 
 There used to be an entry in the BugList:
 
@@ -49,7 +112,7 @@ This was solved some time ago:
 
 After running some graphics application, the cursor is stuck on the
 bottom line, though everything else appears well
-===================================================================
+===============================================================================
 
 Though this might initially appear to be a driver problem, it's rather
 an application program's bogosity. The cursor update is done asynchron-
@@ -78,7 +141,7 @@ be a workaround.
 
 
 Vttest shows strange results
-============================
+===============================================================================
 
 Verify your stty "oxtabs" settings, it has to be "oxtabs", NOT "-oxtabs".
 Get yourself an original DEC terminal to verify vttest's output, i have
@@ -86,14 +149,14 @@ until now not seen any (!) VTxxx clone, which does it right !!!
 
 
 VT220-like Keyboard Layout
-==========================
+===============================================================================
 
 I have to say, i don't use it and i don't like it, so it's mostly unsupported
 and untested. Patches welcome!
 
 
 132-column mode
-===============
+===============================================================================
 
 There are known difficulties running pcvt in 132 column mode in conjunction
 with X. Switching to 132 column mode does not only depend on a given chipset,
@@ -124,7 +187,7 @@ used, so an automatic clock switching seems to be a problem.
 
 
 NetBSD 0.9 and Xfree86 2.0
-==========================
+===============================================================================
 
 To get the X server up and running on 0.9, you have to compile pcvt with
 PCVT_USL_VT_COMPAT disabled, otherwise X (and SuperProbe) will hang the
@@ -134,7 +197,7 @@ This does not apply to NetBSD-current, 386BSD and FreeBSD.
 
 
 X server ioctl compatibility:
-=============================
+===============================================================================
 
 The compatibility X-Mode ioctl commands CONSOLE_X_MODE_ON and
 CONSOLE_X_MODE_OFF should not be used intermixed with the USL VT style
@@ -159,13 +222,13 @@ XFree86 2.1.)
 
 
 How to set the foreground intensity to high on VGA mono screens:
-===============================================================
+===============================================================================
 
 try to issue the command: "scon -p8,60,60,60", EXPERIMENT !!!
 
 
 How to change the color palette on VGA cards:
-=============================================
+===============================================================================
 	
 try out the following commands:
 
@@ -182,7 +245,7 @@ try out the following commands:
 
 
 I have the screensaver compiled in, but can't see any effect
-============================================================
+===============================================================================
 
 Don't forget to turn it on with the scon utility. E.g.,
 
@@ -191,9 +254,9 @@ Don't forget to turn it on with the scon utility. E.g.,
 sets the timeout to 2 minutes.
 
 
-Your Notebook uses the NumLock state to switch half of the keyboard
-into a numeric keypad
-===================================================================
+Your Notebook uses the NumLock state to switch half of the keyboard into a
+numeric keypad
+===============================================================================
 
 Sigh, each time you leave "vi", your NumLock LED is on again and you
 get a "6" instead of "o"? Try
@@ -205,7 +268,7 @@ Xserver - but you want this).
 
 
 Your notebook significantly loses contrast when using pcvt
-==========================================================
+===============================================================================
 
 Pcvt turns off the "high intensity" attribute bit internally (to enable
 the use of a 512-characters charset). Some notebooks hard-code the out-
@@ -236,7 +299,7 @@ like this wouldn't damage your screen/VGA!
 
 
 How to set the "LINES"-Environment variable for sh/csh:
-=======================================================
+===============================================================================
 
 (Note: this is mostly obsoleted now since the driver properly generates
 SIGWINCH'es to notify applications about a changed screen size.)

@@ -31,7 +31,6 @@ ChangeLog		Driver development history
 CharGen			Description of the character set files
 Charsets		VT220 and mda/cga/hcs/ega/vga charactersets
 EscapeSequences		List of supported control codes & escape sequences
-INSTALL.386BSD-0.1	Install instructions for 386BSD 0.1 + pk 0.2.4
 INSTALL.FreeBSD-1.1	Install instructions for FreeBSD Release 1.1 or 1.1.5.1
 INSTALL.FreeBSD-2.0	Install instructions for FreeBSD Release 2.0
 INSTALL.NetBSD-0.9	Install instructions for NetBSD Release 0.9
@@ -42,6 +41,7 @@ Makefile		Makefile for the pcvt.4 manualpage
 Manifest		This file
 NotesAndHints		Random notes and hints
 TestedHardware		A list of tested Hardware, this is just what we got ...
+ToDo			A list of things to do
 pcvt.4			Manual page for the driver and ioctl's
 
 

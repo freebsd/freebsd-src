@@ -38,7 +38,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * @(#)pcvt_kbd.c, 3.20, Last Edit-Date: [Sun Feb 26 13:28:00 1995]
+ * @(#)pcvt_kbd.c, 3.20, Last Edit-Date: [Fri Mar 24 18:38:16 1995]
  *
  */
 
@@ -61,6 +61,8 @@
  *	-hm	allow keyboard-less kernel boot for serial consoles and such ..
  *	-hm	patch from Lon Willett for led-update and showkey()
  *	-hm	patch from Lon Willett to fix mapping of Control-R scancode
+ *	-hm	delay patch from Martin Husemann after port-i386 ml-discussion
+ *	-hm	added PCVT_NONRESP_KEYB_TRY definition to doreset()
  *
  *---------------------------------------------------------------------------*/
 
@@ -189,7 +191,8 @@ static void
 check_for_lost_intr (void *arg)
 {
 	lost_intr_timeout_queued = 0;
-	if (inb(CONTROLLER_CTRL) & STATUS_OUTPBF) {
+	if (inb(CONTROLLER_CTRL) & STATUS_OUTPBF)
+	{
 		int opri = spltty ();
 		(void) pcrint ();
 		splx (opri);
@@ -347,6 +350,11 @@ kbd_emulate_pc(int do_emulation)
 
 #endif /* PCVT_SCANSET > 1 */
 
+
+#ifndef PCVT_NONRESP_KEYB_TRY
+#define PCVT_NONRESP_KEYB_TRY	25	/* no of times to try to detect	*/
+#endif					/* a nonresponding keyboard	*/
+
 /*---------------------------------------------------------------------------*
  *	try to force keyboard into a known state ..
  *---------------------------------------------------------------------------*/
@@ -354,8 +362,9 @@ static
 void doreset(void)
 {
 	int again = 0;
+	int once = 0;
 	int response, opri;
-
+					
 	/* Enable interrupts and keyboard, etc. */
 	if (kbc_8042cmd(CONTR_WRITE) != 0)
 		printf("pcvt: doreset() - timeout controller write command\n");
@@ -401,15 +410,16 @@ void doreset(void)
 	{
 		if (response < 0)
 		{
-			printf("pcvt: doreset() - response != ack and response < 0\n");
+			if(!again)	/* print message only once ! */
+				printf("pcvt: doreset() - response != ack and response < 0 [one time only msg]\n");
 			response = KEYB_R_RESEND;
 		}
 		if (response == KEYB_R_RESEND)
 		{
-			if(!again)
-				printf("pcvt: doreset() - got KEYB_R_RESEND response ...\n");
+			if(!again)	/* print message only once ! */
+				printf("pcvt: doreset() - got KEYB_R_RESEND response ... [one time only msg]\n");
 
-			if(++again > 100)
+			if(++again > PCVT_NONRESP_KEYB_TRY)
 			{
 				printf("pcvt: doreset() - Caution - no PC keyboard detected!\n");
 				keyboard_type = KB_UNKNOWN;
@@ -417,8 +427,11 @@ void doreset(void)
 				return;
 			}
 			
-			if (kbd_cmd(KEYB_C_RESET) != 0)
-				printf("pcvt: doreset() - timeout for loop keyboard reset command\n");
+			if((kbd_cmd(KEYB_C_RESET) != 0) && (once == 0))
+			{
+				once++;		/* print message only once ! */
+				printf("pcvt: doreset() - timeout for loop keyboard reset command [one time only msg]\n");
+			}
 		}
 	}
 
@@ -928,6 +941,13 @@ loop:
 	{
 		if (!noblock)		/* source = 8042 */
 		{
+
+#if PCVT_NETBSD > 9
+			delay(6);	/* Gateway 2000 fix - ziff */
+#elif PCVT_FREEBSD || (PCVT_NETBSD <= 9)
+			DELAY(6);	/* Gateway 2000 fix - ziff */
+#endif
+
 			dt = inb(CONTROLLER_DATA);	/* get from obuf */
 		}
 		else			/* source = keyboard fifo */
@@ -946,6 +966,13 @@ loop:
 	
 	if (inb(CONTROLLER_CTRL) & STATUS_OUTPBF)
 	{
+		
+#if PCVT_NETBSD > 9
+		delay(6);		/* Gateway 2000 fix - ziff */
+#elif PCVT_FREEBSD || (PCVT_NETBSD <= 9)
+		DELAY(6);		/* Gateway 2000 fix - ziff */
+#endif
+
 		dt = inb(CONTROLLER_DATA);		/* yes, get it ! */
 
 #endif /* !PCVT_KBD_FIFO */
@@ -1234,6 +1261,13 @@ no_mouse_event:
 	{
 		if (!noblock)		/* source = 8042 */
 		{
+			
+#if PCVT_NETBSD > 9
+			delay(6);	/* Gateway 2000 fix - ziff */
+#elif PCVT_FREEBSD || (PCVT_NETBSD <= 9)
+			DELAY(6);	/* Gateway 2000 fix - ziff */
+#endif
+
 			dt = inb(CONTROLLER_DATA);
 		}
 		else			/* source = keyboard fifo */
@@ -1253,6 +1287,13 @@ no_mouse_event:
 	
 	if(inb(CONTROLLER_CTRL) & STATUS_OUTPBF)
 	{
+		
+#if PCVT_NETBSD > 9
+		delay(6);		/* Gateway 2000 fix - ziff */
+#elif PCVT_FREEBSD || (PCVT_NETBSD <= 9)
+		DELAY(6);		/* Gateway 2000 fix - ziff */
+#endif
+
 		dt = inb(CONTROLLER_DATA);		/* yes, get it ! */
 	}
 
