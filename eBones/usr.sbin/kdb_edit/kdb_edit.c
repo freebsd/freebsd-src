@@ -8,7 +8,7 @@
  * i.e., users or services.
  *
  *	from: kdb_edit.c,v 4.2 90/01/09 16:05:09 raeburn Exp $
- *	$Id: kdb_edit.c,v 1.1.1.1 1994/09/30 14:49:56 csgr Exp $
+ *	$Id: kdb_edit.c,v 1.2 1995/05/30 06:40:41 rgrimes Exp $
  */
 
 /*
@@ -17,7 +17,7 @@
 
 #ifndef	lint
 static char rcsid[] =
-"$Id: kdb_edit.c,v 1.1.1.1 1994/09/30 14:49:56 csgr Exp $";
+"$Id: kdb_edit.c,v 1.2 1995/05/30 06:40:41 rgrimes Exp $";
 #endif	lint
 
 #include <stdio.h>
@@ -260,7 +260,7 @@ change_principal()
                 des_read_pw_string(pw_str, sizeof pw_str,
 			"\nNew Password: ", TRUE);
 #endif
-		if (!strcmp(pw_str, "RANDOM")) {
+		if (pw_str[0] == '\0' || !strcmp(pw_str, "RANDOM")) {
 		    printf("\nRandom password [y] ? ");
 		    s_gets(temp, sizeof(temp)-1);
 		    if (!strcmp("n", temp) || !strcmp("N", temp)) {
