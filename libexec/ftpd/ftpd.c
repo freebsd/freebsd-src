@@ -226,7 +226,7 @@ char	proctitle[LINE_MAX];	/* initial part of title */
 		*(file2) == '/' ? "" : curdir(), file2);
 #define LOGBYTES(cmd, file, cnt) \
 	if (logging > 1) { \
-		if (cnt == (off_t)-1) \
+		if (cnt == -1) \
 		    syslog(LOG_INFO,"%s %s%s", cmd, \
 			*(file) == '/' ? "" : curdir(), file); \
 		else \
@@ -1773,7 +1773,7 @@ store(char *name, char *mode, int unique)
 			 * because we are changing from reading to
 			 * writing.
 			 */
-			if (fseeko(fout, (off_t)0, SEEK_CUR) < 0) {
+			if (fseeko(fout, 0, SEEK_CUR) < 0) {
 				perror_reply(550, name);
 				goto done;
 			}
@@ -1782,7 +1782,7 @@ store(char *name, char *mode, int unique)
 			goto done;
 		}
 	}
-	din = dataconn(name, (off_t)-1, "r");
+	din = dataconn(name, -1, "r");
 	if (din == NULL)
 		goto done;
 	if (receive_data(din, fout) == 0) {
@@ -1883,7 +1883,7 @@ dataconn(char *name, off_t size, char *mode)
 
 	file_size = size;
 	byte_count = 0;
-	if (size != (off_t) -1)
+	if (size != -1)
 		(void) snprintf(sizebuf, sizeof(sizebuf),
 				" (%jd bytes)", (intmax_t)size);
 	else
@@ -2658,7 +2658,7 @@ myoob(void)
 	}
 	if (strcmp(cp, "STAT\r\n") == 0) {
 		tmpline[0] = '\0';
-		if (file_size != (off_t) -1)
+		if (file_size != -1)
 			reply(213, "Status: %jd of %jd bytes transferred",
 				   (intmax_t)byte_count, (intmax_t)file_size);
 		else
@@ -3023,7 +3023,7 @@ send_file_list(char *whichf)
 
 		if (S_ISREG(st.st_mode)) {
 			if (dout == NULL) {
-				dout = dataconn("file list", (off_t)-1, "w");
+				dout = dataconn("file list", -1, "w");
 				if (dout == NULL)
 					goto out;
 				transflag++;
@@ -3064,8 +3064,7 @@ send_file_list(char *whichf)
 			if (simple || (stat(nbuf, &st) == 0 &&
 			    S_ISREG(st.st_mode))) {
 				if (dout == NULL) {
-					dout = dataconn("file list", (off_t)-1,
-						"w");
+					dout = dataconn("file list", -1, "w");
 					if (dout == NULL)
 						goto out;
 					transflag++;
