@@ -2,7 +2,7 @@
  *  Device driver optimized for the Symbios/LSI 53C896/53C895A/53C1010 
  *  PCI-SCSI controllers.
  *
- *  Copyright (C) 1999  Gerard Roudier <groudier@club-internet.fr>
+ *  Copyright (C) 1999-2000  Gerard Roudier <groudier@club-internet.fr>
  *
  *  This driver also supports the following Symbios/LSI PCI-SCSI chips:
  *	53C810A, 53C825A, 53C860, 53C875, 53C876, 53C885, 53C895.
@@ -169,7 +169,7 @@
 /*
  *  Max SCSI offset.
  */
-#define SYM_SETUP_MAX_OFFS	(64)
+#define SYM_SETUP_MAX_OFFS	(63)
 
 /*
  *  Default number of tags.
