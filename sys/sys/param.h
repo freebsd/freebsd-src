@@ -236,6 +236,10 @@
  * things that included sys/systm.h just for panic().
  */
 #ifdef _KERNEL
+#ifdef RESTARTABLE_PANICS
+void	panic __P((const char *, ...)) __printflike(1, 2);
+#else
 void	panic __P((const char *, ...)) __dead2 __printflike(1, 2);
+#endif
 #endif
 #endif	/* _SYS_PARAM_H_ */
