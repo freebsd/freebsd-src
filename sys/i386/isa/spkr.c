@@ -602,12 +602,36 @@ static dev_t atspeaker_dev;
 static int
 atspeaker_probe(device_t dev)
 {
-	return(ISA_PNP_PROBE(device_get_parent(dev), dev, atspeaker_ids));
+	int	error;
+
+	error = ISA_PNP_PROBE(device_get_parent(dev), dev, atspeaker_ids);
+	
+	/* PnP match */
+	if (error == 0)
+		return (0);
+
+	/* No match */
+	if (error == ENXIO)
+		return (ENXIO);
+
+	/* Not configured by hints. */
+	if (strncmp(device_get_name(dev), "atspeaker", 9))
+		return (ENXIO);
+
+	device_set_desc(dev, "AT speaker");
+
+	return (0);
 }
 
 static int
 atspeaker_attach(device_t dev)
 {
+
+	if (atspeaker_dev) {
+		device_printf(dev, "Already attached!\n");
+		return (ENXIO);
+	}
+
 	atspeaker_dev = make_dev(&spkr_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
 	    "speaker");
 	return (0);
