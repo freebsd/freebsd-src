@@ -35,8 +35,15 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)exec.c	8.1 (Berkeley) 5/31/93";
+static char sccsid[] = "@(#)exec.c	8.4 (Berkeley) 6/8/95";
 #endif /* not lint */
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <stdlib.h>
 
 /*
  * When commands are first encountered, they are entered in a hash table.
@@ -64,11 +71,8 @@ static char sccsid[] = "@(#)exec.c	8.1 (Berkeley) 5/31/93";
 #include "error.h"
 #include "init.h"
 #include "mystring.h"
+#include "show.h"
 #include "jobs.h"
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <errno.h>
 
 
 #define CMDTABLESIZE 31		/* should be prime */
@@ -89,21 +93,12 @@ STATIC struct tblentry *cmdtable[CMDTABLESIZE];
 STATIC int builtinloc = -1;		/* index in path of %builtin, or -1 */
 
 
-#ifdef __STDC__
-STATIC void tryexec(char *, char **, char **);
-STATIC void execinterp(char **, char **);
-STATIC void printentry(struct tblentry *, int);
-STATIC void clearcmdentry(int);
-STATIC struct tblentry *cmdlookup(char *, int);
-STATIC void delete_cmd_entry(void);
-#else
-STATIC void tryexec();
-STATIC void execinterp();
-STATIC void printentry();
-STATIC void clearcmdentry();
-STATIC struct tblentry *cmdlookup();
-STATIC void delete_cmd_entry();
-#endif
+STATIC void tryexec __P((char *, char **, char **));
+STATIC void execinterp __P((char **, char **));
+STATIC void printentry __P((struct tblentry *, int));
+STATIC void clearcmdentry __P((int));
+STATIC struct tblentry *cmdlookup __P((char *, int));
+STATIC void delete_cmd_entry __P((void));
 
 
 
@@ -116,7 +111,8 @@ void
 shellexec(argv, envp, path, index)
 	char **argv, **envp;
 	char *path;
-	{
+	int index;
+{
 	char *cmdname;
 	int e;
 
@@ -145,7 +141,9 @@ tryexec(cmd, argv, envp)
 	char **envp;
 	{
 	int e;
+#ifndef BSD
 	char *p;
+#endif
 
 #ifdef SYSV
 	do {
@@ -284,7 +282,7 @@ padvance(path, name)
 		growstackblock();
 	q = stackblock();
 	if (p != start) {
-		bcopy(start, q, p - start);
+		memcpy(q, start, p - start);
 		q += p - start;
 		*q++ = '/';
 	}
@@ -306,7 +304,11 @@ padvance(path, name)
 /*** Command hashing code ***/
 
 
-hashcmd(argc, argv)  char **argv; {
+int
+hashcmd(argc, argv)
+	int argc;
+	char **argv; 
+{
 	struct tblentry **pp;
 	struct tblentry *cmdp;
 	int c;
@@ -333,9 +335,9 @@ hashcmd(argc, argv)  char **argv; {
 	while ((name = *argptr) != NULL) {
 		if ((cmdp = cmdlookup(name, 0)) != NULL
 		 && (cmdp->cmdtype == CMDNORMAL
-		     || cmdp->cmdtype == CMDBUILTIN && builtinloc >= 0))
+		     || (cmdp->cmdtype == CMDBUILTIN && builtinloc >= 0)))
 			delete_cmd_entry();
-		find_command(name, &entry, 1);
+		find_command(name, &entry, 1, pathval());
 		if (verbose) {
 			if (entry.cmdtype != CMDUNKNOWN) {	/* if no error msg */
 				cmdp = cmdlookup(name, 0);
@@ -396,14 +398,15 @@ printentry(cmdp, verbose)
  */
 
 void
-find_command(name, entry, printerr)
+find_command(name, entry, printerr, path)
 	char *name;
 	struct cmdentry *entry;
-	{
+	int printerr;
+	char *path;
+{
 	struct tblentry *cmdp;
 	int index;
 	int prev;
-	char *path;
 	char *fullname;
 	struct stat statb;
 	int e;
@@ -439,7 +442,6 @@ find_command(name, entry, printerr)
 			prev = cmdp->param.index;
 	}
 
-	path = pathval();
 	e = ENOENT;
 	index = -1;
 loop:
@@ -479,7 +481,7 @@ loop:
 			goto loop;
 		}
 		e = EACCES;	/* if we fail, this will be the error */
-		if ((statb.st_mode & S_IFMT) != S_IFREG)
+		if (!S_ISREG(statb.st_mode))
 			goto loop;
 		if (pathopt) {		/* this is a %func directory */
 			stalloc(strlen(fullname) + 1);
@@ -533,8 +535,8 @@ success:
 int
 find_builtin(name)
 	char *name;
-	{
-	const register struct builtincmd *bp;
+{
+	register const struct builtincmd *bp;
 
 	for (bp = builtincmd ; bp->name ; bp++) {
 		if (*bp->name == *name && equal(bp->name, name))
@@ -558,7 +560,7 @@ hashcd() {
 	for (pp = cmdtable ; pp < &cmdtable[CMDTABLESIZE] ; pp++) {
 		for (cmdp = *pp ; cmdp ; cmdp = cmdp->next) {
 			if (cmdp->cmdtype == CMDNORMAL
-			 || cmdp->cmdtype == CMDBUILTIN && builtinloc >= 0)
+			 || (cmdp->cmdtype == CMDBUILTIN && builtinloc >= 0))
 				cmdp->rehash = 1;
 		}
 	}
@@ -575,25 +577,22 @@ hashcd() {
 void
 changepath(newval)
 	char *newval;
-	{
+{
 	char *old, *new;
 	int index;
 	int firstchange;
 	int bltin;
-	int hasdot;
 
 	old = pathval();
 	new = newval;
 	firstchange = 9999;	/* assume no change */
-	index = hasdot = 0;
+	index = 0;
 	bltin = -1;
-	if (*new == ':')
-		hasdot++;
 	for (;;) {
 		if (*old != *new) {
 			firstchange = index;
-			if (*old == '\0' && *new == ':'
-			 || *old == ':' && *new == '\0')
+			if ((*old == '\0' && *new == ':')
+			 || (*old == ':' && *new == '\0'))
 				firstchange++;
 			old = new;	/* ignore subsequent differences */
 		}
@@ -602,17 +601,10 @@ changepath(newval)
 		if (*new == '%' && bltin < 0 && prefix("builtin", new + 1))
 			bltin = index;
 		if (*new == ':') {
-			char c = *(new+1);
-
 			index++;
-			if (c == ':' || c == '\0' || (c == '.' && 
-			   ((c = *(new+2)) == ':' || c == '\0')))
-				hasdot++;
 		}
 		new++, old++;
 	}
-	if (hasdot && geteuid() == 0)
-		out2str("sh: warning: running as root with dot in PATH\n");
 	if (builtinloc < 0 && bltin >= 0)
 		builtinloc = bltin;		/* zap builtins */
 	if (builtinloc >= 0 && bltin < 0)
@@ -628,7 +620,9 @@ changepath(newval)
  */
 
 STATIC void
-clearcmdentry(firstchange) {
+clearcmdentry(firstchange)
+	int firstchange;
+{
 	struct tblentry **tblp;
 	struct tblentry **pp;
 	struct tblentry *cmdp;
@@ -637,8 +631,10 @@ clearcmdentry(firstchange) {
 	for (tblp = cmdtable ; tblp < &cmdtable[CMDTABLESIZE] ; tblp++) {
 		pp = tblp;
 		while ((cmdp = *pp) != NULL) {
-			if (cmdp->cmdtype == CMDNORMAL && cmdp->param.index >= firstchange
-			 || cmdp->cmdtype == CMDBUILTIN && builtinloc >= firstchange) {
+			if ((cmdp->cmdtype == CMDNORMAL &&
+			     cmdp->param.index >= firstchange)
+			 || (cmdp->cmdtype == CMDBUILTIN &&
+			     builtinloc >= firstchange)) {
 				*pp = cmdp->next;
 				ckfree(cmdp);
 			} else {
@@ -700,7 +696,8 @@ struct tblentry **lastcmdentry;
 STATIC struct tblentry *
 cmdlookup(name, add)
 	char *name;
-	{
+	int add;
+{
 	int hashval;
 	register char *p;
 	struct tblentry *cmdp;

@@ -32,7 +32,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)sh.1	8.4 (Berkeley) 4/18/94
+.\"	@(#)sh.1	8.6 (Berkeley) 5/4/95
 .\"
 .na
 .TH SH 1
@@ -884,7 +884,6 @@ If parameter is * or @, the result of the expansion is unspecified.
 Enclosing the full parameter expansion string in double-quotes does not
 cause the following four varieties of pattern characters to be quoted,
 whereas quoting characters within the braces has this effect.
-(UNIMPLEMENTED IN 4.4alpha)
 .TP
 ${parameter%word}
 Remove Smallest Suffix Pattern.  The word
@@ -1029,6 +1028,12 @@ that can't be performed by a separate process. In addition to these, there are s
 be builtin for efficiency (e.g. printf(1), echo(1), test(1),
 etc).
 .TP
+:
+A null command that returns a 0 (true) exit value.
+.TP
+\&. file
+The commands in the specified file are read and executed by the shell.
+.TP
 alias  [ name[=string] ...  ]
 If name=string is specified, the shell defines the
 alias ``name'' with value ``string''.  If just ``name''
@@ -1056,9 +1061,6 @@ the directory that it actually switched to if this is
 different from the name that the user gave.  These
 may be different either because the CDPATH mechanism
 was used or because a symbolic link was crossed.
-.TP
-\&. file
-The commands in the specified file are read and executed by the shell.
 .TP
 eval string...
 Concatenate all the arguments with spaces.  Then

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)machdep.h	8.1 (Berkeley) 5/31/93
+ *	@(#)machdep.h	8.2 (Berkeley) 5/4/95
  */
 
 /*
@@ -47,5 +47,5 @@ union align {
 	char *cp;
 };
 
-#define ALIGN(nbytes)	((nbytes) + sizeof(union align) - 1 &~ (sizeof(union align) - 1))
+#define ALIGN(nbytes)	(((nbytes) + sizeof(union align) - 1) & ~(sizeof(union align) - 1))
 #endif

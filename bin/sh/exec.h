@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)exec.h	8.1 (Berkeley) 5/31/93
+ *	@(#)exec.h	8.3 (Berkeley) 6/8/95
  */
 
 /* values of cmdtype */
@@ -54,22 +54,15 @@ struct cmdentry {
 
 extern char *pathopt;		/* set by padvance */
 
-#ifdef __STDC__
-void shellexec(char **, char **, char *, int);
-char *padvance(char **, char *);
-void find_command(char *, struct cmdentry *, int);
-int find_builtin(char *);
-void hashcd(void);
-void changepath(char *);
-void defun(char *, union node *);
-int unsetfunc(char *);
-#else
-void shellexec();
-char *padvance();
-void find_command();
-int find_builtin();
-void hashcd();
-void changepath();
-void defun();
-int unsetfunc();
-#endif
+void shellexec __P((char **, char **, char *, int));
+char *padvance __P((char **, char *));
+int hashcmd __P((int, char **));
+void find_command __P((char *, struct cmdentry *, int, char *));
+int find_builtin __P((char *));
+void hashcd __P((void));
+void changepath __P((char *));
+void deletefuncs __P((void));
+void getcmdentry __P((char *, struct cmdentry *));
+void addcmdentry __P((char *, struct cmdentry *));
+void defun __P((char *, union node *));
+int unsetfunc __P((char *));

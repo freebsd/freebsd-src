@@ -35,8 +35,16 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)redir.c	8.1 (Berkeley) 5/31/93";
+static char sccsid[] = "@(#)redir.c	8.2 (Berkeley) 5/4/95";
 #endif /* not lint */
+
+#include <sys/types.h>
+#include <signal.h>
+#include <string.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <unistd.h>
+#include <stdlib.h>
 
 /*
  * Code for dealing with input/output redirection.
@@ -50,11 +58,6 @@ static char sccsid[] = "@(#)redir.c	8.1 (Berkeley) 5/31/93";
 #include "output.h"
 #include "memalloc.h"
 #include "error.h"
-#include <sys/types.h>
-#include <signal.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <unistd.h>
 
 
 #define EMPTY -2		/* marks an unused slot in redirtab */
@@ -77,14 +80,8 @@ MKINIT struct redirtab *redirlist;
 */
 int fd0_redirected = 0;
 
-#ifdef __STDC__
-STATIC void openredirect(union node *, char *);
-STATIC int openhere(union node *);
-#else
-STATIC void openredirect();
-STATIC int openhere();
-#endif
-
+STATIC void openredirect __P((union node *, char[10 ]));
+STATIC int openhere __P((union node *));
 
 
 /*
@@ -221,7 +218,7 @@ openhere(redir)
 	union node *redir;
 	{
 	int pip[2];
-	int len;
+	int len = 0;
 
 	if (pipe(pip) < 0)
 		error("Pipe call failed");
@@ -333,7 +330,10 @@ clearredir() {
  */
 
 int
-copyfd(from, to) {
+copyfd(from, to) 
+	int from;
+	int to;
+{
 	int newfd;
 
 	newfd = fcntl(from, F_DUPFD, to);

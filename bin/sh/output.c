@@ -35,7 +35,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)output.c	8.1 (Berkeley) 5/31/93";
+static char sccsid[] = "@(#)output.c	8.2 (Berkeley) 5/4/95";
 #endif /* not lint */
 
 /*
@@ -49,18 +49,24 @@ static char sccsid[] = "@(#)output.c	8.1 (Berkeley) 5/31/93";
  *	Our output routines may be smaller than the stdio routines.
  */
 
+#include <sys/ioctl.h>
+
 #include <stdio.h>	/* defines BUFSIZ */
+#include <string.h>
+#ifdef __STDC__
+#include <stdarg.h>
+#else
+#include <varargs.h>
+#endif
+#include <errno.h>
+#include <unistd.h>
+#include <stdlib.h>
+
 #include "shell.h"
 #include "syntax.h"
 #include "output.h"
 #include "memalloc.h"
 #include "error.h"
-#ifdef __STDC__
-#include "stdarg.h"
-#else
-#include <varargs.h>
-#endif
-#include <errno.h>
 
 
 #define OUTBUFSIZ BUFSIZ
@@ -115,7 +121,7 @@ open_mem(block, length, file)
 
 void
 out1str(p)
-	char *p;
+	const char *p;
 	{
 	outstr(p, out1);
 }
@@ -123,7 +129,7 @@ out1str(p)
 
 void
 out2str(p)
-	char *p;
+	const char *p;
 	{
 	outstr(p, out2);
 }
@@ -131,7 +137,7 @@ out2str(p)
 
 void
 outstr(p, file)
-	register char *p;
+	register const char *p;
 	register struct output *file;
 	{
 	while (*p)
@@ -543,10 +549,15 @@ xwrite(fd, buf, nbytes)
 
 /*
  * Version of ioctl that retries after a signal is caught.
+ * XXX unused function
  */
 
 int
-xioctl(fd, request, arg) {
+xioctl(fd, request, arg) 
+	int fd;
+	unsigned long request;
+	char * arg;
+{
 	int i;
 
 	while ((i = ioctl(fd, request, arg)) == -1 && errno == EINTR);

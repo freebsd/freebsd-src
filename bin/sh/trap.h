@@ -33,23 +33,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)trap.h	8.1 (Berkeley) 5/31/93
+ *	@(#)trap.h	8.3 (Berkeley) 6/5/95
  */
 
 extern int pendingsigs;
 
-#ifdef __STDC__
-void clear_traps(void);
-int setsignal(int);
-void ignoresig(int);
-void dotrap(void);
-void setinteractive(int);
-void exitshell(int);
-#else
-void clear_traps();
-int setsignal();
-void ignoresig();
-void dotrap();
-void setinteractive();
-void exitshell();
-#endif
+int trapcmd __P((int, char **));
+void clear_traps __P((void)); 
+long setsignal __P((int)); 
+void ignoresig __P((int));
+void onsig __P((int));
+void dotrap __P((void));
+void setinteractive __P((int));
+void exitshell __P((int)); 

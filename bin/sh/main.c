@@ -41,11 +41,16 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 5/31/93";
+static char sccsid[] = "@(#)main.c	8.6 (Berkeley) 5/28/95";
 #endif /* not lint */
 
+#include <stdio.h>
 #include <signal.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include <fcntl.h>
+
+
 #include "shell.h"
 #include "main.h"
 #include "mail.h"
@@ -53,15 +58,18 @@ static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 5/31/93";
 #include "output.h"
 #include "parser.h"
 #include "nodes.h"
+#include "expand.h"
 #include "eval.h"
 #include "jobs.h"
 #include "input.h"
 #include "trap.h"
 #include "var.h"
+#include "show.h"
 #include "memalloc.h"
 #include "error.h"
 #include "init.h"
 #include "mystring.h"
+#include "exec.h"
 
 #define PROFILE 0
 
@@ -75,14 +83,8 @@ short profile_buf[16384];
 extern int etext();
 #endif
 
-#ifdef __STDC__
-STATIC void read_profile(char *);
-char *getenv(char *);
-#else
-STATIC void read_profile();
-char *getenv();
-#endif
-
+STATIC void read_profile __P((char *));
+STATIC char *find_dot_file __P((char *));
 
 /*
  * Main routine.  We initialize things, parse the arguments, execute
@@ -92,7 +94,11 @@ char *getenv();
  * is used to figure out how far we had gotten.
  */
 
-main(argc, argv)  char **argv; {
+int
+main(argc, argv)
+	int argc;
+	char **argv; 
+{
 	struct jmploc jmploc;
 	struct stackmark smark;
 	volatile int state;
@@ -108,6 +114,8 @@ main(argc, argv)  char **argv; {
 		 * exception EXSHELLPROC to clean up before executing
 		 * the shell procedure.
 		 */
+		if (exception == EXERROR)
+			exitstatus = 2;
 		if (exception == EXSHELLPROC) {
 			rootpid = getpid();
 			rootshell = 1;
@@ -154,10 +162,11 @@ state1:
 	} 
 state2:
 	state = 3;
-	if ((shinit = lookupvar("ENV")) != NULL &&
-	     *shinit != '\0') {
-		state = 3;
-		read_profile(shinit);
+	if (getuid() == geteuid() && getgid() == getegid()) {
+		if ((shinit = lookupvar("ENV")) != NULL && *shinit != '\0') {
+			state = 3;
+			read_profile(shinit);
+		}
 	}
 state3:
 	state = 4;
@@ -172,6 +181,8 @@ state4:	/* XXX ??? - why isn't this before the "if" statement */
 	monitor(0);
 #endif
 	exitshell(exitstatus);
+	/*NOTREACHED*/
+	return 0;
 }
 
 
@@ -181,7 +192,9 @@ state4:	/* XXX ??? - why isn't this before the "if" statement */
  */
 
 void
-cmdloop(top) {
+cmdloop(top) 
+	int top;
+{
 	union node *n;
 	struct stackmark smark;
 	int inter;
@@ -251,7 +264,7 @@ read_profile(name)
 void
 readcmdfile(name)
 	char *name;
-	{
+{
 	int fd;
 
 	INTOFF;
@@ -268,14 +281,48 @@ readcmdfile(name)
 
 /*
  * Take commands from a file.  To be compatable we should do a path
- * search for the file, but a path search doesn't make any sense.
+ * search for the file, which is necessary to find sub-commands.
  */
 
-dotcmd(argc, argv)  char **argv; {
+
+STATIC char *
+find_dot_file(basename)
+	char *basename;
+{
+	static char localname[FILENAME_MAX+1];
+	char *fullname;
+	char *path = pathval();
+	struct stat statb;
+
+	/* don't try this for absolute or relative paths */
+	if( strchr(basename, '/'))
+		return basename;
+
+	while ((fullname = padvance(&path, basename)) != NULL) {
+		strcpy(localname, fullname);
+		stunalloc(fullname);
+		if ((stat(fullname, &statb) == 0) && S_ISREG(statb.st_mode))
+			return localname;
+	}
+	return basename;
+}
+
+int
+dotcmd(argc, argv)  
+	int argc;
+	char **argv; 
+{
+	struct strlist *sp;
 	exitstatus = 0;
+
+	for (sp = cmdenviron; sp ; sp = sp->next)
+		setvareq(savestr(sp->text), VSTRFIXED|VTEXTFIXED);
+
 	if (argc >= 2) {		/* That's what SVR2 does */
-		setinputfile(argv[1], 1);
-		commandname = argv[1];
+		char *fullname = find_dot_file(argv[1]);
+
+		setinputfile(fullname, 1);
+		commandname = fullname;
 		cmdloop(0);
 		popfile();
 	}
@@ -283,12 +330,18 @@ dotcmd(argc, argv)  char **argv; {
 }
 
 
-exitcmd(argc, argv)  char **argv; {
+int
+exitcmd(argc, argv)  
+	int argc;
+	char **argv; 
+{
 	if (stoppedjobs())
-		return;
+		return 0;
 	if (argc > 1)
 		exitstatus = number(argv[1]);
 	exitshell(exitstatus);
+	/*NOTREACHED*/
+	return 0;
 }
 
 

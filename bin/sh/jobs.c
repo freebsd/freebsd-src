@@ -35,37 +35,41 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)jobs.c	8.1 (Berkeley) 5/31/93";
+static char sccsid[] = "@(#)jobs.c	8.5 (Berkeley) 5/4/95";
 #endif /* not lint */
+
+#include <fcntl.h>
+#include <signal.h>
+#include <errno.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/param.h>
+#ifdef BSD
+#include <sys/wait.h>
+#include <sys/time.h>
+#include <sys/resource.h>
+#endif
 
 #include "shell.h"
 #if JOBS
 #include "sgtty.h"
 #undef CEOF			/* syntax.h redefines this */
 #endif
+#include "redir.h"
+#include "show.h"
 #include "main.h"
 #include "parser.h"
 #include "nodes.h"
 #include "jobs.h"
 #include "options.h"
 #include "trap.h"
-#include "signames.h"
 #include "syntax.h"
 #include "input.h"
 #include "output.h"
 #include "memalloc.h"
 #include "error.h"
 #include "mystring.h"
-#include <fcntl.h>
-#include <signal.h>
-#include <errno.h>
-#ifdef BSD
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <sys/time.h>
-#include <sys/resource.h>
-#endif
-
 
 
 struct job *jobtab;		/* array of jobs */
@@ -76,22 +80,14 @@ int initialpgrp;		/* pgrp of shell on invocation */
 short curjob;			/* current job */
 #endif
 
-#ifdef __STDC__
-STATIC void restartjob(struct job *);
-STATIC struct job *getjob(char *);
-STATIC void freejob(struct job *);
-STATIC int procrunning(int);
-STATIC int dowait(int, struct job *);
-STATIC int waitproc(int, int *);
-#else
-STATIC void restartjob();
-STATIC struct job *getjob();
-STATIC void freejob();
-STATIC int procrunning();
-STATIC int dowait();
-STATIC int waitproc();
-#endif
-
+STATIC void restartjob __P((struct job *));
+STATIC void freejob __P((struct job *));
+STATIC struct job *getjob __P((char *));
+STATIC int dowait __P((int, struct job *));
+STATIC int onsigchild __P((void));
+STATIC int waitproc __P((int, int *));
+STATIC void cmdtxt __P((union node *));
+STATIC void cmdputs __P((char *));
 
 
 /*
@@ -105,7 +101,9 @@ STATIC int waitproc();
 MKINIT int jobctl;
 
 void
-setjobctl(on) {
+setjobctl(on) 
+	int on;
+{
 #ifdef OLD_TTY_DRIVER
 	int ldisc;
 #endif
@@ -120,8 +118,8 @@ setjobctl(on) {
 				return;
 			}
 			if (initialpgrp == -1)
-				initialpgrp = getpgrp(0);
-			else if (initialpgrp != getpgrp(0)) {
+				initialpgrp = getpgrp();
+			else if (initialpgrp != getpgrp()) {
 				killpg(initialpgrp, SIGTTIN);
 				continue;
 			}
@@ -136,10 +134,10 @@ setjobctl(on) {
 		setsignal(SIGTSTP);
 		setsignal(SIGTTOU);
 		setsignal(SIGTTIN);
-		setpgrp(0, rootpid);
+		setpgid(0, rootpid);
 		ioctl(2, TIOCSPGRP, (char *)&rootpid);
 	} else { /* turning job control off */
-		setpgrp(0, initialpgrp);
+		setpgid(0, initialpgrp);
 		ioctl(2, TIOCSPGRP, (char *)&initialpgrp);
 		setsignal(SIGTSTP);
 		setsignal(SIGTTOU);
@@ -150,6 +148,7 @@ setjobctl(on) {
 
 
 #ifdef mkinit
+INCLUDE <stdlib.h>
 
 SHELLPROC {
 	backgndpid = -1;
@@ -163,7 +162,11 @@ SHELLPROC {
 
 
 #if JOBS
-fgcmd(argc, argv)  char **argv; {
+int
+fgcmd(argc, argv)
+	int argc;
+	char **argv; 
+{
 	struct job *jp;
 	int pgrp;
 	int status;
@@ -181,7 +184,11 @@ fgcmd(argc, argv)  char **argv; {
 }
 
 
-bgcmd(argc, argv)  char **argv; {
+int
+bgcmd(argc, argv)
+	int argc;
+	char **argv; 
+{
 	struct job *jp;
 
 	do {
@@ -197,7 +204,7 @@ bgcmd(argc, argv)  char **argv; {
 STATIC void
 restartjob(jp)
 	struct job *jp;
-	{
+{
 	struct procstat *ps;
 	int i;
 
@@ -217,7 +224,10 @@ restartjob(jp)
 
 
 int
-jobscmd(argc, argv)  char **argv; {
+jobscmd(argc, argv)
+	int argc;
+	char **argv; 
+{
 	showjobs(0);
 	return 0;
 }
@@ -233,7 +243,9 @@ jobscmd(argc, argv)  char **argv; {
  */
 
 void
-showjobs(change) {
+showjobs(change) 
+	int change;
+{
 	int jobno;
 	int procno;
 	int i;
@@ -272,8 +284,8 @@ showjobs(change) {
 				if ((i & 0xFF) == 0177)
 					i >>= 8;
 #endif
-				if ((i & 0x7F) <= MAXSIG && sigmesg[i & 0x7F])
-					scopy(sigmesg[i & 0x7F], s);
+				if ((i & 0x7F) < NSIG && sys_siglist[i & 0x7F])
+					scopy(sys_siglist[i & 0x7F], s);
 				else
 					fmtstr(s, 64, "Signal %d", i & 0x7F);
 				if (i & 0x80)
@@ -327,7 +339,10 @@ freejob(jp)
 
 
 int
-waitcmd(argc, argv)  char **argv; {
+waitcmd(argc, argv) 
+	int argc;
+	char **argv; 
+{
 	struct job *job;
 	int status;
 	struct job *jp;
@@ -368,7 +383,11 @@ waitcmd(argc, argv)  char **argv; {
 
 
 
-jobidcmd(argc, argv)  char **argv; {
+int
+jobidcmd(argc, argv)  
+	int argc;
+	char **argv; 
+{
 	struct job *jp;
 	int i;
 
@@ -436,6 +455,8 @@ currentjob:
 		}
 	}
 	error("No such job: %s", name);
+	/*NOTREACHED*/
+	return NULL;
 }
 
 
@@ -447,7 +468,8 @@ currentjob:
 struct job *
 makejob(node, nprocs)
 	union node *node;
-	{
+	int nprocs;
+{
 	int i;
 	struct job *jp;
 
@@ -458,7 +480,7 @@ makejob(node, nprocs)
 				jobtab = ckmalloc(4 * sizeof jobtab[0]);
 			} else {
 				jp = ckmalloc((njobs + 4) * sizeof jobtab[0]);
-				bcopy(jobtab, jp, njobs * sizeof jp[0]);
+				memcpy(jp, jobtab, njobs * sizeof jp[0]);
 				ckfree(jobtab);
 				jobtab = jp;
 			}
@@ -484,7 +506,8 @@ makejob(node, nprocs)
 		jp->ps = &jp->ps0;
 	}
 	INTON;
-	TRACE(("makejob(0x%x, %d) returns %%%d\n", (int)node, nprocs, jp - jobtab + 1));
+	TRACE(("makejob(0x%lx, %d) returns %%%d\n", (long)node, nprocs,
+	    jp - jobtab + 1));
 	return jp;
 }	
 
@@ -508,11 +531,13 @@ int
 forkshell(jp, n, mode)
 	union node *n;
 	struct job *jp;
-	{
+	int mode;
+{
 	int pid;
 	int pgrp;
 
-	TRACE(("forkshell(%%%d, 0x%x, %d) called\n", jp - jobtab, (int)n, mode));
+	TRACE(("forkshell(%%%d, 0x%lx, %d) called\n", jp - jobtab, (long)n,
+	    mode));
 	INTOFF;
 	pid = fork();
 	if (pid == -1) {
@@ -541,7 +566,7 @@ forkshell(jp, n, mode)
 				pgrp = getpid();
 			else
 				pgrp = jp->ps[0].pid;
-			setpgrp(0, pgrp);
+			setpgid(0, pgrp);
 			if (mode == FORK_FG) {
 				/*** this causes superfluous TIOCSPGRPS ***/
 				if (ioctl(2, TIOCSPGRP, (char *)&pgrp) < 0)
@@ -583,7 +608,7 @@ forkshell(jp, n, mode)
 			pgrp = pid;
 		else
 			pgrp = jp->ps[0].pid;
-		setpgrp(pid, pgrp);
+		setpgid(pid, pgrp);
 	}
 	if (mode == FORK_BG)
 		backgndpid = pid;		/* set $! */
@@ -626,7 +651,7 @@ waitforjob(jp)
 	register struct job *jp;
 	{
 #if JOBS
-	int mypgrp = getpgrp(0);
+	int mypgrp = getpgrp();
 #endif
 	int status;
 	int st;
@@ -671,8 +696,9 @@ waitforjob(jp)
 
 STATIC int
 dowait(block, job)
+	int block;
 	struct job *job;
-	{
+{
 	int pid;
 	int status;
 	struct procstat *sp;
@@ -736,8 +762,8 @@ dowait(block, job)
 			if (status == SIGTSTP && rootshell && iflag)
 				outfmt(out2, "%%%d ", job - jobtab + 1);
 #endif
-			if (status <= MAXSIG && sigmesg[status])
-				out2str(sigmesg[status]);
+			if (status < NSIG && sys_siglist[status])
+				out2str(sys_siglist[status]);
 			else
 				outfmt(out2, "Signal %d", status);
 			if (core)
@@ -797,8 +823,9 @@ STATIC int onsigchild() {
 
 STATIC int
 waitproc(block, status)
+	int block;
 	int *status;
-	{
+{
 #ifdef BSD
 	int flags;
 

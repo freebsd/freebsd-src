@@ -35,7 +35,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)memalloc.c	8.1 (Berkeley) 5/31/93";
+static char sccsid[] = "@(#)memalloc.c	8.3 (Berkeley) 5/4/95";
 #endif /* not lint */
 
 #include "shell.h"
@@ -44,15 +44,18 @@ static char sccsid[] = "@(#)memalloc.c	8.1 (Berkeley) 5/31/93";
 #include "error.h"
 #include "machdep.h"
 #include "mystring.h"
+#include <stdlib.h>
+#include <unistd.h>
 
 /*
  * Like malloc, but returns an error when out of space.
  */
 
 pointer
-ckmalloc(nbytes) {
+ckmalloc(nbytes) 
+	int nbytes;
+{
 	register pointer p;
-	pointer malloc();
 
 	if ((p = malloc(nbytes)) == NULL)
 		error("Out of space");
@@ -67,8 +70,8 @@ ckmalloc(nbytes) {
 pointer
 ckrealloc(p, nbytes)
 	register pointer p;
-	{
-	pointer realloc();
+	int nbytes;
+{
 
 	if ((p = realloc(p, nbytes)) == NULL)
 		error("Out of space");
@@ -119,7 +122,9 @@ int herefd = -1;
 
 
 pointer
-stalloc(nbytes) {
+stalloc(nbytes) 
+	int nbytes;
+{
 	register char *p;
 
 	nbytes = ALIGN(nbytes);
@@ -217,16 +222,18 @@ growstackblock() {
 		INTON;
 	} else {
 		p = stalloc(newlen);
-		bcopy(oldspace, p, oldlen);
+		memcpy(p, oldspace, oldlen);
 		stacknxt = p;			/* free the space */
-		stacknleft += newlen;		/* we just allocated */
+		stacknleft += ALIGN(newlen);	/* we just allocated */
 	}
 }
 
 
 
 void
-grabstackblock(len) {
+grabstackblock(len) 
+	int len;
+{
 	len = ALIGN(len);
 	stacknxt += len;
 	stacknleft -= len;
