@@ -88,7 +88,7 @@ sub getfile {
     }
     $fileroot = $file;
     $fileroot =~ s/.*\///;	# drop the path
-    $fileroot =~ s/\.sgml$//;	# drop the .sgml
+    $fileroot =~ s/\.[^\.]*$//;	# drop the extension
     $filepath = $file;
     $filepath =~ s/\/*[^\/]*$//;	
     if ($filepath ne "") {
