@@ -242,11 +242,11 @@ Print the active vnodes.  Each group of vnodes corresponding
 to a particular filesystem is preceded by a two line header.  The
 first line consists of the following:
 .Pp
-.Df I
+.Bd -filled -offset indent
 .No *** MOUNT Em fstype from 
 on
 .Em on fsflags
-.De
+.Ed
 .Pp
 where
 .Em fstype
@@ -261,7 +261,7 @@ the filesystem is mounted on; and
 is a list
 of optional flags applied to the mount (see
 .Xr mount 8 ) .
-.The second line is a header for the individual fields ,
+The second line is a header for the individual fields,
 the first part of which are fixed, and the second part are filesystem
 type specific.  The headers common to all vnodes are:
 .Bl -tag -width indent
@@ -379,8 +379,8 @@ default source of tables
 .Xr iostat 8 ,
 .Xr vmstat 8
 .Rs
-.Rt Tn UNIX Rt Implementation ,
-.Ra K. Thompson
+.%T UNIX Implementation
+.%A K. Thompson
 .Re
 .Sh BUGS
 Does not understand

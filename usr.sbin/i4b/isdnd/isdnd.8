@@ -330,23 +330,20 @@ by the kernel sending the
 .Em I4B_DISCONNECT_IND
 message and the CDID corresponding to the call is no longer valid.
 .Pp
-
 .Sh SIGNALS
-
 Sending a HUP signal to 
 .Nm
 causes all open connections to be terminated and the configuration file is
 reread.
 In case aliasfile handling was enabled, the aliasfile is also
 reread.
-
+.Pp
 Sending a USR1 signal to 
 .Nm
 causes the accounting file and the logfile (if logging to a file is used 
 instead of logging via the 
 .Xr syslog 3
 facility) to be closed and reopened to make logfile rotation possible.
-
 .Sh ENVIRONMENT
 The following environment variables affect the execution of
 .Nm :
@@ -357,39 +354,29 @@ See
 .Xr environ 7
 for more information.
 .El
-
 .Sh FILES
-.Bl -tag -width /etc/isdn/isdnd.rates -compact
+.Bl -tag -width /etc/isdn/isdnd.rates
 .It Pa /dev/i4b
 The device-file used to communicate with the kernel ISDN driver subsystem.
-
 .It Pa /var/log/messages
 A record of the actions in case of syslogd logging support.
-
 .It Pa /var/log/isdnd.acct
 The default accounting information filename (if accounting is configured).
-
 .It Pa /var/log/isdnd.log
 The default logging filename (if logging to a file is configured).
-
 .It Pa /var/run/isdnd.pid
 The process id of the isdn daemon (also known as "lockfile" to isdnd, preventing multiple invocations of it).
-
 .It Pa /usr/local/lib/isdn
 .It Pa /etc/isdn
 The directory where isdnd expects some supplementary data files and programs
 for telephone answering support.
-
 .It Pa /etc/isdn/isdnd.rc
 The default runtime configuration file.
-
 .It Pa /etc/isdn/isdnd.rates
 The default unit charging rates specification file.
-
 .It Pa /etc/isdn/isdntel.alias
 The default table (if aliasing is enabled) to convert phone number to caller's name.
 .El
-
 .Sh EXAMPLES
 For a first try, the following command should be used to start
 .Nm
@@ -413,11 +400,8 @@ will start
 with reasonable debugging messages enabled, full-screen mode of operation, 
 full-screen display redirected to /dev/ttyv03 and using a termcap entry
 for vt100 on this display.
-
 .Sh DIAGNOSTICS
 Exit status is 0 on success, 1 on error.
-.Pp
-
 .Sh SEE ALSO
 .Xr syslogd 8 ,
 .Xr isdntrace 8 ,
@@ -427,10 +411,8 @@ Exit status is 0 on success, 1 on error.
 .Xr i4bisppp 4 ,
 .Xr i4bipr 4
 .Xr i4bing 4
-
 .Sh BUGS
 Still one or more left.
-
 .Sh AUTHORS
 The
 .Nm

@@ -115,7 +115,7 @@ program (or shell script).  It will be invoked automatically when the
 package is later installed.
 It will be passed the package's name as the
 first argument.
-
+.Pp
 .Cm Note:
 if the
 .Cm Fl I
@@ -156,7 +156,7 @@ program (or shell script).  It will be invoked automatically when the
 package is later (if ever) de-installed.
 It will be passed the package's
 name as the first argument.
-
+.Pp
 .Cm Note:
 if the
 .Cm Fl K
@@ -175,7 +175,6 @@ executable program (or shell script).  It will be invoked automatically when
 the package is later de-installed.
 It will be passed the package's name as
 the first argument.
-
 .It Fl r Ar rscript
 Set
 .Ar rscript
@@ -298,12 +297,12 @@ and the last extracted file was
 .It Cm "%F"
 Expands to the last filename extracted (as specified), in the example case
 .Pa bin/emacs
-.It Cm "%D"
+.It Cm "\&%D"
 Expand to the current directory prefix, as set with
 .Cm @cwd ,
 in the example case
 .Pa /usr/local .
-.It Cm "%B"
+.It Cm "\&%B"
 Expand to the
 .Dq basename
 of the fully qualified filename, that
@@ -315,7 +314,7 @@ Expand to the
 filename
 part of the fully qualified name, or
 the converse of
-.Cm %B ,
+.Cm \&%B ,
 being in the example case,
 .Pa emacs .
 .El

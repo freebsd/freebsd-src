@@ -180,7 +180,7 @@ The
 .Em monitor 
 specification may either be:
 .Pp
-.Bl -tag -width Ds -compact -offset
+.Bl -tag -width Ds -compact
 .It Ar the name of a local (UNIX-domain) socket
 this MUST start with a "/", example: /var/run/isdn-monitor
 .It Ar a dotted-quad host specification
@@ -198,7 +198,7 @@ This keyword specifies the access rights for a previously used
 keyword.
 The supported access rights are:
 .Pp
-.Bl -tag -width Ds -compact -offset
+.Bl -tag -width Ds -compact
 .It Ar fullcmd
 .It Ar restrictedcmd
 .It Ar channelstate
@@ -288,7 +288,7 @@ controller is connected to.
 The following parameters are currently
 supported:
 .Pp
-.Bl -tag -width calledback -compact -offset
+.Bl -tag -width calledback -compact
 .It Ar dss1
 The DSS1 or so-called "Euro-ISDN" D-channel protocol according to
 ITU Recommendations Q.921 and Q.931.
@@ -328,7 +328,7 @@ The B channel layer 1 protocol used for this connection.
 The keyword is mandatory.
 The currently configurable values are:
 .Pp
-.Bl -tag -width Ds -compact -offset
+.Bl -tag -width Ds -compact
 .It Ar hdlc
 HDLC framing.
 .It Ar raw
@@ -402,7 +402,7 @@ Used to specify what to do when an incoming connection request is received.
 The keyword is mandatory.
 The currently supported parameters are:
 .Pp
-.Bl -tag -width calledback -compact -offset
+.Bl -tag -width calledback -compact
 .It Ar accept
 Accept an incoming call.
 .It Ar reject
@@ -419,7 +419,7 @@ This keyword is used to configure what type of dialout mode is used.
 The keyword is mandatory.
 The currently supported parameters are:
 .Pp
-.Bl -tag -width Ds -compact -offset
+.Bl -tag -width Ds -compact
 .It Ar normal
 Normal behavior, call the remote site which is supposed to accept the call.
 .It Ar calledback
@@ -446,7 +446,7 @@ The keyword is optional, the default is
 .Pp
 The currently supported parameters are:
 .Pp
-.Bl -tag -width Ds -compact -offset
+.Bl -tag -width Ds -compact
 .It Ar inout
 Normal behavior, connection establishment is possible from remote and local.
 .It Ar in
@@ -487,7 +487,7 @@ The algorithm used to determine when to hang up an outgoing call when the
 line becomes idle.
 The current algorithms are:
 .Pp
-.Bl -tag -width calledback -compact -offset
+.Bl -tag -width calledback -compact
 .It Ar fix-unit-size
 idle algorithm which assumes fixed sized changing units during the whole call.
 .It Ar var-unit-size
@@ -607,7 +607,7 @@ The local site expects the authentity of the remote site to be proved by
 the specified method. 
 The supported methods are:
 .Pp
-.Bl -tag -width Ds -compact -offset
+.Bl -tag -width Ds -compact
 .It Ar none
 Do not require the other side to authenticate.
 Typical uses are dial-out to an ISP 
@@ -655,7 +655,7 @@ PPP interface.
 The authentication method required by the remote site.
 The currently supported parameters are:
 .Pp
-.Bl -tag -width Ds -compact -offset
+.Bl -tag -width Ds -compact
 .It Ar none
 The remote site does not expect or support authentication.
 .It Ar chap
@@ -703,7 +703,7 @@ is used to specify the dialout behavior in case more than one outgoing
 number is specified.
 The currently supported parameters are:
 .Pp
-.Bl -tag -width Ds -compact -offset
+.Bl -tag -width Ds -compact
 .It Ar first
 For every new (non-retry) call setup, start with the first number.
 .It Ar last
@@ -748,7 +748,7 @@ This keyword is used to specify from which source
 takes the unitlength for short-hold mode.
 The currently configurable values are:
 .Pp
-.Bl -tag -width Ds -compact -offset
+.Bl -tag -width Ds -compact
 .It Ar none
 Then unitlength is not specified anywhere. 
 .It Ar cmdl
@@ -773,7 +773,7 @@ data to the user-land.
 The keyword is mandatory.
 This keyword accepts the following parameters:
 .Pp
-.Bl -tag -width Ds -compact -offset
+.Bl -tag -width Ds -compact
 .It Ar ipr
 This parameter configures a raw HDLC IP over ISDN interface.
 .It Ar isp
@@ -814,7 +814,7 @@ daytime range specification in the form hh:mm-hh:mm.
 The weekdays are specified as numbers from 0 to 6 and the number 7 for 
 holidays:
 .Pp
-.Bl -tag -width Ds -compact -offset
+.Bl -tag -width Ds -compact
 .It Ar 0
 Sunday
 .It Ar 1
@@ -834,7 +834,7 @@ a Holiday
 .El
 .Pp
 The following examples describe the "T-ISDN xxl" tariff of the german Telekom:
-.Bl -tag -width Ds -compact -offset
+.Bl -tag -width Ds -compact
 .It Ar 1,2,3,4,5,6,09:00-18:00
 Monday through Saturday, daytime 9:00 to 18:00
 .It Ar 1,2,3,4,5,6,18:00-9:00
@@ -847,7 +847,7 @@ The use of this keyword is optional.
 .El
 .El
 .Sh IDLETIME CALCULATION AND SHORT-HOLD MODE
-.Bl -tag -width incoming calls
+.Bl -tag -width "incoming calls
 .It Li incoming calls
 It is assumed that the calling side knows most about charging structures and
 such and as a consequence only the keyword
@@ -865,7 +865,7 @@ is used as a last resort and is therefore set much higher than a charging
 unit time: typical values are one to five minutes.
 .It Li outgoing calls
 Outgoing call disconnect time can be setup in one of three ways:
-.Bl -tag -width shorthold mode
+.Bl -tag -width "shorthold mode
 .It Li simple mode
 For simple mode, the 
 .Em idle-algorithm-outgoing
