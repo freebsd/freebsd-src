@@ -2694,6 +2694,20 @@ mac_check_system_swapon(struct ucred *cred, struct vnode *vp)
 }
 
 int
+mac_check_system_swapoff(struct ucred *cred, struct vnode *vp)
+{
+	int error;
+
+	ASSERT_VOP_LOCKED(vp, "mac_check_system_swapoff");
+
+	if (!mac_enforce_system)
+		return (0);
+
+	MAC_CHECK(check_system_swapoff, cred, vp, &vp->v_label);
+	return (error);
+}
+
+int
 mac_check_system_sysctl(struct ucred *cred, int *name, u_int namelen,
     void *old, size_t *oldlenp, int inkernel, void *new, size_t newlen)
 {
