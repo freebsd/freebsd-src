@@ -162,12 +162,15 @@ retry:
 	ke->ke_flags |= KEF_DIDRUN;
 
 	/*
-	 * Only allow non system threads to run in panic
-	 * if they are the one we are tracing.  (I think.. [JRE])
+	 * If we are in panic, only allow system threads,
+	 * plus the one we are running in, to be run.
 	 */
 	if (panicstr && ((td->td_proc->p_flag & P_SYSTEM) == 0 &&
-	    (td->td_flags & TDF_INPANIC) == 0))
+	    (td->td_flags & TDF_INPANIC) == 0)) {
+		/* note that it is no longer on the run queue */
+		TD_SET_CAN_RUN(td);
 		goto retry;
+	}
 
 	TD_SET_RUNNING(td);
 	return (td);
