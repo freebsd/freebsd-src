@@ -7,6 +7,6 @@ PATH=/bin:/usr/bin:/sbin:/usr/sbin
 host=`hostname -s`
 echo "Subject: $host monthly run output"
 
-# echo ""
-# echo "Doing login accounting:"
-# ac -p | sort -nr +1
+echo ""
+echo "Doing login accounting:"
+ac -p | sort -nr +1
