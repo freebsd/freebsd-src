@@ -1,7 +1,7 @@
 #
 # Makefile for the NIS databases
 #
-# $Id: Makefile.yp,v 1.4 1996/04/28 04:38:46 wpaul Exp $
+# $Id: Makefile.yp,v 1.5 1996/06/03 16:24:32 wpaul Exp $
 #
 # This Makefile should only be run on the NIS master server of a domain.
 # All updated maps will be pushed to all NIS slave servers listed in the
@@ -135,6 +135,20 @@ publickey: publickey.byname
 aliases:   mail.aliases
 
 master.passwd:	master.passwd.byname master.passwd.byuid
+
+#
+# This is a special target used only when doing in-place updates with
+# rpc.yppasswdd. In this case, the maps will be updated by the rpc.yppasswdd
+# server and won't need to be remade. They will have to be pushed to the
+# slaves however. Calling this target implicitly insures that this will
+# happen.
+#
+pushpw:
+	@$(DBLOAD) -c
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) master.passwd.byname ; fi
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) master.passwd.byuid ; fi
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) passwd.byname ; fi
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) passwd.byuid ; fi
 
 mail.aliases: $(ALIASES)
 	@echo "Updating $@..."
@@ -356,7 +370,8 @@ services.byname: $(SERVICES)
 	$(CAT) $(SERVICES) | \
 	$(AWK) \
 	   '$$1 !~ "#"  { if (index($$2,"udp")) { printf("%s/udp",$$1) } \
-			  else { printf("%s/tcp",$$1) }; print "\t"$$0 \
+			  else { printf("%s/tcp",$$1) }; print "\t"$$0 ; \
+			  print $$2"\t"$$0 ; \
 		}' $^ | $(DBLOAD) -i $(SERVICES) -o $(YPMAPDIR)/$@ - $(TMP)
 	@$(MV) $(TMP) $@
 	@$(DBLOAD) -c
