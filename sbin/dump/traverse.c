@@ -115,13 +115,8 @@ blockest(dp)
 }
 
 /* Auxiliary macro to pick up files changed since previous dump. */
-#ifdef FS_44INODEFMT
-#define	CHANGEDSINCE(dp, t) \
-	((dp)->di_mtime.tv_sec >= (t) || (dp)->di_ctime.tv_sec >= (t))
-#else
 #define	CHANGEDSINCE(dp, t) \
 	((dp)->di_mtime >= (t) || (dp)->di_ctime >= (t))
-#endif
 
 /* The WANTTODUMP macro decides whether a file should be dumped. */
 #ifdef UF_NODUMP
