@@ -1,5 +1,5 @@
 #ifndef lint
-static char *rcsid = "$Header: /home/ncvs/src/lib/libc/stdlib/strhash.c,v 1.4 1995/05/30 05:41:55 rgrimes Exp $";
+static char *rcsid = "$Header: /home/ncvs/src/lib/libc/stdlib/strhash.c,v 1.5 1995/10/22 14:53:17 phk Exp $";
 #endif
 
 /*
@@ -37,6 +37,9 @@ static char *rcsid = "$Header: /home/ncvs/src/lib/libc/stdlib/strhash.c,v 1.4 19
 
 /*
  * $Log: strhash.c,v $
+ * Revision 1.5  1995/10/22  14:53:17  phk
+ * Mino cleanup, #includes & unused vars.
+ *
  * Revision 1.4  1995/05/30  05:41:55  rgrimes
  * Remove trailing whitespace.
  *
@@ -278,6 +281,7 @@ hash_search(hash_table *table, caddr_t key, void *datum,
 	    new->data = datum;
 	    new->next = table->buckets[bucket];
 	    table->buckets[bucket] = new;
+	    return new;
 	}
     }
     return GENERIC_NULL;
