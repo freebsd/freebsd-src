@@ -13,7 +13,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: bininst.sh,v 1.3 1995/01/28 01:18:41 jkh Exp $
+# $Id: bininst.sh,v 1.4 1995/01/28 01:20:18 jkh Exp $
 
 if [ "${_BININST_LOADED_}" = "yes" ]; then
 	error "Error, $0 loaded more than once!"
@@ -39,7 +39,6 @@ set_defaults()
 {
 	network_set_defaults
 	media_set_defaults
-	INSTALLING="yes"
 	mkdir -p ${TMP}
 	cp /stand/etc/* /etc
 }
@@ -80,19 +79,17 @@ Enjoy FreeBSD 2.0!
 welcome
 set_defaults
 
-while [ "${INSTALLING}" = "yes" ]; do
-	if media_select_distribution; then
-		if media_chose; then
-			for xx in ${MEDIA_DISTRIBUTIONS}; do
-				MEDIA_DISTRIBUTION=`eval echo \`echo $xx\``
-				media_install_set
-			done
-		fi
-	else
-		do_last_config
-		INSTALLING="no"
+if media_select_distribution; then
+	if media_chose_method; then
+		for xx in ${MEDIA_DISTRIBUTIONS}; do
+			MEDIA_DISTRIBUTION=`eval echo \`echo $xx\``
+			media_install_set
+		done
 	fi
-done
+else
+	do_last_config
+fi
+
 echo; echo "Spawning shell.  Exit shell to continue with new bindist."
 echo "Progress <installation completed>" > /dev/ttyv1
 /stand/sh

@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.6 1995/01/29 01:35:24 jkh Exp $
+# $Id: instdist.sh,v 1.7 1995/01/30 22:52:50 jkh Exp $
 
 if [ "${_INSTINST_SH_LOADED_}" = "yes" ]; then
 	return 0
@@ -287,7 +287,7 @@ media_install_set()
 		if ! media_set_tmpdir; then return; fi
 		if ! media_cd_tmpdir; then return; fi
 		if ! echo ${MEDIA_DEVICE} | grep -q -v 'ftp://'; then
-			message "Fetching distribution using ncftp.\nUse ALT-F2 to see output, ALT-F1 to return."
+			message "Fetching ${MEDIA_DISTRIBUTION} distribution over ftp.\nUse ALT-F2 to see output, ALT-F1 to return."
 			mkdir -p ${MEDIA_DISTRIBUTION}
 			if ! ncftp ${MEDIA_DEVICE}/${MEDIA_DISTRIBUTION}/* < /dev/null > /dev/ttyv1 2>&1; then
 				error "Couldn't fetch ${MEDIA_DISTRIBUTION} distribution from\n${MEDIA_DEVICE}!"
@@ -314,22 +314,22 @@ media_select_distribution()
 	dialog --title "Please specify a distribution to load" \
 	--checklist \
 "FreeBSD is separated into a number of distributions for ease of\n\
-installation.  With repeated passes through this screen, you'll be\n\
-given the chance to load one or all of them.  Mandatory distributions\n\
-MUST be loaded!  Please also note that the secrdist is NOT FOR EXPORT\n\
-from the U.S.  Please don't endanger U.S. ftp sites by getting it\n\
-illegally, thanks!  When finished, select <Cancel>." \
+installation.  Please select the distributions you wish to load, any\n\
+distributions already marked being MANDATORY - please do not\n\
+unselect them!  Please also note that DES (encryption) code is NOT\n\
+FOR EXPORT from the U.S.  Please don't endanger U.S. ftp sites by\n\
+getting it illegally, thanks!  When finished, select <Cancel>." \
 -1 -1 10 \
   "bin" "Binary base files (mandatory - ${BINSIZE})" ON \
-  "games" "Games and other frivolities (optional - ${GAMESIZE})" OFF \
-  "info" "GNU info files (optional - ${INFOSIZE})" OFF \
-  "manpages" "Manual pages (optional - ${MANSIZE})" OFF \
-  "proflibs" "Profiled libraries (optional - ${PROFSIZE})" OFF \
-  "dict" "Spelling checker dictionary files (optional - ${DICTSIZE})" OFF \
-  "src" "Sources for everything but DES (optional - ${SRCSIZE})" OFF \
-  "secure" "DES encryption code (and sources) (optional - ${SECRSIZE})" OFF \
-  "compat1xdist" "FreeBSD 1.x binary compatability (optional - ${COMPATSIZE})" OFF \
-  "XFree86-3.1" "The XFree86 3.1 distribution (optional - ${X11SIZE})" OFF \
+  "games" "Games and other frivolities (${GAMESIZE})" OFF \
+  "info" "GNU info files (${INFOSIZE})" OFF \
+  "manpages" "Manual pages (${MANSIZE})" OFF \
+  "proflibs" "Profiled libraries (${PROFSIZE})" OFF \
+  "dict" "Spelling checker dictionary files (${DICTSIZE})" OFF \
+  "src" "Sources for all but DES (${SRCSIZE})" OFF \
+  "secure" "DES code (and sources) (${SECRSIZE})" OFF \
+  "compat1xdist" "FreeBSD 1.x binary compatability (${COMPATSIZE})" OFF \
+  "XFree86-3.1" "The XFree86 3.1 distribution (${X11SIZE})" OFF \
      2> ${TMP}/menu.tmp.$$
 	RETVAL=$?
 	MEDIA_DISTRIBUTIONS=`cat ${TMP}/menu.tmp.$$`
@@ -359,7 +359,7 @@ to the mount point).  The directory you enter should be the
 
 # Get values into $MEDIA_TYPE and $MEDIA_DEVICE.  Call network initialization
 # if necessary.
-media_chose()
+media_chose_method()
 {
 	while [ "${MEDIA_DEVICE}" = "" ]; do
 
