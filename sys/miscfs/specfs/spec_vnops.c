@@ -158,7 +158,7 @@ spec_open(ap)
 	struct proc *p = ap->a_p;
 	struct vnode *bvp, *vp = ap->a_vp;
 	dev_t bdev, dev = vp->v_rdev;
-	int error;
+	int error, maxio;
 	struct cdevsw *dsw;
 
 	/*
@@ -233,8 +233,14 @@ spec_open(ap)
 	if (vn_isdisk(vp)) {
 		if (!dev->si_bsize_phys)
 			dev->si_bsize_phys = DEV_BSIZE;
-		if (!dev->si_bsize_max)
-			dev->si_bsize_max = MAXBSIZE;
+		maxio = dev->si_iosize_max;
+		if (!maxio)
+			maxio = devsw(dev)->d_maxio;	/* XXX */
+		if (!maxio)
+			maxio = DFLTPHYS;
+		if (maxio > MAXPHYS)
+			maxio = MAXPHYS;
+		vp->v_maxio = maxio;
 	}
 
 	return (error);
