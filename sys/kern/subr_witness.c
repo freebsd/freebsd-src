@@ -360,6 +360,7 @@ witness_init(struct lock_object *lock)
 void
 witness_destroy(struct lock_object *lock)
 {
+	struct witness *w;
 
 	if (witness_cold)
 		panic("lock (%s) %s destroyed while witness_cold",
@@ -372,6 +373,18 @@ witness_destroy(struct lock_object *lock)
 	if (lock->lo_flags & LO_LOCKED)
 		panic("lock (%s) %s destroyed while held",
 		    lock->lo_class->lc_name, lock->lo_name);
+
+	w = lock->lo_witness;
+	if (w != NULL) {
+		mtx_lock_spin(&w_mtx);
+		w->w_refcount--;
+		if (w->w_refcount == 0) {
+			w->w_name = "(dead)";
+			w->w_file = "(dead)";
+			w->w_line = 0;
+		}
+		mtx_unlock_spin(&w_mtx);
+	}
 
 	mtx_lock(&all_mtx);
 	lock_cur_cnt--;
@@ -751,6 +764,7 @@ enroll(const char *description, struct lock_class *lock_class)
 	mtx_lock_spin(&w_mtx);
 	STAILQ_FOREACH(w, &w_all, w_list) {
 		if (strcmp(description, w->w_name) == 0) {
+			w->w_refcount++;
 			mtx_unlock_spin(&w_mtx);
 			if (lock_class != w->w_class)
 				panic(
@@ -770,6 +784,7 @@ enroll(const char *description, struct lock_class *lock_class)
 		return (NULL);
 	w->w_name = description;
 	w->w_class = lock_class;
+	w->w_refcount = 1;
 	STAILQ_INSERT_HEAD(&w_all, w, w_list);
 	if (lock_class->lc_flags & LC_SPINLOCK)
 		STAILQ_INSERT_HEAD(&w_spin, w, w_typelist);
