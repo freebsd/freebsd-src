@@ -1,19 +1,19 @@
-#	$Id: Makefile,v 1.246.2.39 1997/04/26 03:52:40 jkh Exp $
+#	$Id: Makefile,v 1.246.2.40 1997/05/04 01:29:08 jkh Exp $
 #
 # How to roll a release:
 #
-#	make release CHROOTDIR=<lots of disk> [ RELEASETAG=something ]
+# make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
-# As far as I know, this will roll everything nicely into the "stage"
-# directory.  I still need to write the two rules to move that into
-# the "cdrom" and "ftp" directories.
-# I also need to "make ports" and install those, but I'm not going to do
-# that on a 14.4 line just yet...
+# Where "/some/dir" is the pathname of a directory on a some
+# filesystem with at least 600MB of free space, "somename" is what
+# you want the release to call itself and, optionally, which CVS "tag"
+# name should be used when checking out the sources to build the release
+# (default is HEAD).
 #
-# please note: the vn driver has to be compiled into your kernel,
+# Please note: the vn driver must also be compiled into your kernel,
 # otherwise the target 'release.8' and possibly others will fail.
 #
-# SET THIS !!!
+# Set these, release builder!
 #BUILDNAME=2.2-RELEASE
 #CHROOTDIR=/junk/release
 # If this is a RELEASE, then set
@@ -32,7 +32,7 @@ KERNELS?=	GENERIC
 # (another "s" for "source" will be prepended).
 EXTRA_SRC+=	usr.sbin/sendmail/cf smailcf
 
-BOOT1=	etc/protocols etc/sysconfig
+BOOT1=	etc/protocols etc/rc.conf
 
 # mountpoint for filesystems.
 MNT=			/mnt
@@ -126,6 +126,9 @@ rerelease release:
 .if !defined(NOPORTS)
 	cd ${CHROOTDIR}/usr && rm -rf ports && cvs -d ${CVSROOT} co -P ports
 .endif
+.if !defined(NODOC)
+	cd ${CHROOTDIR}/usr && rm -rf doc && cvs -d ${CVSROOT} co -P doc
+.endif
 .endif
 .if make(rerelease)
 .if !defined(RELEASENOUPDATE)
@@ -136,6 +139,9 @@ rerelease release:
 .endif
 .if !defined(NOPORTS)
 	cd ${CHROOTDIR}/usr/ports && cvs -q update -P -d
+.endif
+.if !defined(NODOC)
+	cd ${CHROOTDIR}/usr/doc && cvs -q update -P -d
 .endif
 .endif
 .endif
@@ -176,6 +182,9 @@ rerelease release:
 .endif
 .if make(rerelease)
 	echo "make all install"			>> ${CHROOTDIR}/mk
+.endif
+.if !defined(NODOC)
+	echo "cd /usr/doc && make all install" >> ${CHROOTDIR}/mk
 .endif
 	echo "cd /usr/src/release/sysinstall"	>> ${CHROOTDIR}/mk
 	echo "make obj"				>> ${CHROOTDIR}/mk
