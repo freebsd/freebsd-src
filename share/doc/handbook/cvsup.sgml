@@ -1,4 +1,4 @@
-<!-- $Id: cvsup.sgml,v 1.11 1997/03/06 05:55:08 asami Exp $ -->
+<!-- $Id: cvsup.sgml,v 1.12 1997/03/18 01:38:47 jdp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>CVSup<label id="cvsup"></heading>
@@ -44,9 +44,9 @@ url="ftp://ftp.freebsd.org/pub/FreeBSD/packages-current/net/cvsup-14.1.1.tgz"
 name="binary package">, depending on whether you prefer to roll your
 own or not.
 
-<p>If you are running FreeBSD-2.1.6, you unfortunately cannot use the
+<p>If you are running FreeBSD-2.1.6 or 2.1.7, you unfortunately cannot use the
 binary package versions due to the fact that it requires a version of
-the C library that did not yet exist in FreeBSD-2.1.6.  You can easily
+the C library that does not yet exist in FreeBSD-2.1.{6,7}.  You can easily
 use <url url="ftp://ftp.freebsd.org/pub/FreeBSD/ports-current/net/cvsup.tar.gz"
 name="the port">, however, just as with FreeBSD 2.2.  Simply unpack
 the tar file, cd to the cvsup subdirectory and type "make install"
@@ -96,7 +96,7 @@ FreeBSD-2.1.0 to FreeBSD-current.
 
 <itemize>
   <item>FreeBSD-2.2 or later:		static binary, port, or package
-  <item>FreeBSD-2.1.6:			static binary or port
+  <item>FreeBSD-2.1.6, 2.1.7:		static binary or port
   <item>FreeBSD-2.1.5 or earlier:	static binary
 </itemize>
 
