@@ -2776,7 +2776,7 @@ loop:
 				panic("nfs_fsync: inconsistent lock");
 			if (error == ENOLCK)
 				goto loop;
-			if (nfs_sigintr(nmp, (struct nfsreq *)0, td->td_proc)) {
+			if (nfs_sigintr(nmp, (struct nfsreq *)0, td)) {
 				error = EINTR;
 				goto done;
 			}
@@ -2812,7 +2812,7 @@ loop:
 			error = tsleep((caddr_t)&vp->v_numoutput,
 				slpflag | (PRIBIO + 1), "nfsfsync", slptimeo);
 			if (error) {
-			    if (nfs_sigintr(nmp, (struct nfsreq *)0, td->td_proc)) {
+			    if (nfs_sigintr(nmp, (struct nfsreq *)0, td)) {
 				error = EINTR;
 				goto done;
 			    }
