@@ -63,7 +63,7 @@ struct ng_mesg {
 		u_int32_t	cmd;			/* command identifier */
 		u_char		cmdstr[NG_CMDSTRLEN+1];	/* cmd string + \0 */
 	} header;
-	char	data[0];		/* placeholder for actual data */
+	char	data[];			/* placeholder for actual data */
 };
 
 /* this command is guaranteed to not alter data or'd into the command */
@@ -236,7 +236,7 @@ struct linkinfo {
 
 struct hooklist {
 	struct nodeinfo nodeinfo;		/* node information */
-	struct linkinfo link[0];		/* info about each hook */
+	struct linkinfo link[];			/* info about each hook */
 };
 
 /* Keep this in sync with the above structure definition */
@@ -249,7 +249,7 @@ struct hooklist {
 /* Structure used for NGM_LISTNAMES/NGM_LISTNODES */
 struct namelist {
 	u_int32_t	numnames;
-	struct nodeinfo	nodeinfo[0];
+	struct nodeinfo	nodeinfo[];
 };
 
 /* Keep this in sync with the above structure definition */
@@ -274,7 +274,7 @@ struct typeinfo {
 
 struct typelist {
 	u_int32_t	numtypes;
-	struct typeinfo	typeinfo[0];
+	struct typeinfo	typeinfo[];
 };
 
 /* Keep this in sync with the above structure definition */
