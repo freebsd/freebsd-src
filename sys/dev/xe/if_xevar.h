@@ -49,11 +49,14 @@ struct xe_softc {
   int irq_rid;
   struct resource *port_res;
   int port_rid;
+  struct resource *ce2_port_res;
+  int ce2_port_rid;
   int srev;     	/* Silicon revision */
   int tx_queued;	/* Packets currently waiting to transmit */
   int tx_tpr;		/* Last value of TPR reg on card */
-  int tx_collisions;	/* Collisions since last successful send */
   int tx_timeouts;	/* Count of transmit timeouts */
+  u_int16_t tx_min;	/* Smallest packet we can send without padding */
+  u_int16_t tx_thres;	/* Threshold bytes for early transmit */
   int autoneg_status;	/* Autonegotiation progress state */
   int media;		/* Private media word */
   u_char version;	/* Bonding Version register from card */
