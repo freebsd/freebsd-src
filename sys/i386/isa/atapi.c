@@ -103,6 +103,7 @@
 #include "opt_atapi.h"
 
 #ifndef ATAPI_MODULE
+# include "acd.h"
 # include "wcd.h"
 # include "wfd.h"
 /* # include "wmt.h" -- add your driver here */
@@ -172,6 +173,7 @@ static int atapi_start_cmd (struct atapi *ata, struct atapicmd *ac);
 static int atapi_wait_cmd (struct atapi *ata, struct atapicmd *ac);
 
 extern int wdstart (int ctrlr);
+extern int acdattach(struct atapi*, int, struct atapi_params*, int);
 extern int wfdattach(struct atapi*, int, struct atapi_params*, int);
 extern int wcdattach(struct atapi*, int, struct atapi_params*, int);
 
@@ -295,16 +297,23 @@ int atapi_attach (int ctlr, int unit, int port)
 		}
 #endif
 	case AT_TYPE_CDROM:             /* CD-ROM device */
+#if NACD > 0
+		/* ATAPI CD-ROM & CD-R/RW drives */
+		if (acdattach (ata, unit, ap, ata->debug) < 0)
+			break;
+		ata->attached[unit] = 1;
+		return (1);
+#else
 #if NWCD > 0
-		/* ATAPI CD-ROM */
+		/* ATAPI CD-ROM drives */
 		if (wcdattach (ata, unit, ap, ata->debug) < 0)
 			break;
-		/* Device attached successfully. */
 		ata->attached[unit] = 1;
 		return (1);
 #else
 		printf ("wdc%d: ATAPI CD-ROMs not configured\n", ctlr);
 		break;
+#endif
 #endif
 
 	case AT_TYPE_TAPE:              /* streaming tape (QIC-121 model) */
@@ -335,21 +344,34 @@ static char *cmdname (u_char cmd)
 
 	switch (cmd) {
 	case 0x00: return ("TEST_UNIT_READY");
+	case 0x01: return ("REZERO_UNIT");
 	case 0x03: return ("REQUEST_SENSE");
+	case 0x04: return ("FORMAT_UNIT");
 	case 0x1b: return ("START_STOP");
 	case 0x1e: return ("PREVENT_ALLOW");
 	case 0x25: return ("READ_CAPACITY");
 	case 0x28: return ("READ_BIG");
 	case 0x2a: return ("WRITE_BIG");
-	case 0x43: return ("READ_TOC");
+	case 0x35: return ("SYNCHRONIZE_CACHE");
 	case 0x42: return ("READ_SUBCHANNEL");
+	case 0x43: return ("READ_TOC");
+	case 0x51: return ("READ_DISC_INFO");
+	case 0x52: return ("READ_TRACK_INFO");
+	case 0x53: return ("RESERVE_TRACK");
+	case 0x54: return ("SEND_OPC_INFO");
 	case 0x55: return ("MODE_SELECT_BIG");
 	case 0x5a: return ("MODE_SENSE");
-	case 0xb4: return ("PLAY_CD");
+	case 0x5b: return ("CLOSE_TRACK/SESSION");
+	case 0x5c: return ("READ_BUFFER_CAPACITY");
+	case 0x5d: return ("SEND_CUE_SHEET");
 	case 0x47: return ("PLAY_MSF");
 	case 0x4b: return ("PAUSE");
 	case 0x48: return ("PLAY_TRACK");
+	case 0xa1: return ("BLANK_CMD");
 	case 0xa5: return ("PLAY_BIG");
+	case 0xb4: return ("PLAY_CD");
+	case 0xbd: return ("ATAPI_MECH_STATUS");
+	case 0xbe: return ("READ_CD");
 	}
 	sprintf (buf, "[0x%x]", cmd);
 	return (buf);
@@ -697,6 +719,27 @@ int atapi_intr (int ctrlr)
 	return (0);
 }
 
+static void
+atapi_io_error(struct atapi *ata, struct atapicmd *ac)
+{
+    switch(ac->cmd[0]) {
+    default:
+	break ;
+
+    case ATAPI_READ_BIG:
+	printf(
+	"atapi%d.%d: %s res.code 0x%x st 0x%x err 0x%x LBA %d cnt %d\n",
+		ata->ctrlr, ac->unit,
+		cmdname(ac->cmd[0]),
+		ac->result.code, ac->result.status,
+		ac->result.error,
+		ntohl(*( (int *)&(ac->cmd[2]) )),
+		ntohs(*( (int *)&(ac->cmd[7]) ))
+		);
+	break;
+    }
+}
+
 /*
  * Process the i/o phase, transferring the command/data to/from the device.
  * Return 1 if op continues, and we are waiting for new interrupt.
@@ -781,27 +824,72 @@ int atapi_io (struct atapi *ata, struct atapicmd *ac)
 			print (("atapi%d.%d: recv data overrun, %d bytes left\n",
 				ata->ctrlr, ac->unit, ac->count));
 			ac->result.code = RES_OVERRUN;
+			if (ac->count != 0)
 			insw (ata->port + AR_DATA, ac->addr,
 				ac->count / sizeof(short));
 			for (i=ac->count; i<len; i+=sizeof(short))
 				inw (ata->port + AR_DATA);
+		        len = ac->count ; /* XXX or count would become negative */
 		} else
 			insw (ata->port + AR_DATA, ac->addr,
 				len / sizeof(short));
 		ac->addr += len;
 		ac->count -= len;
+#if 0
+                /*
+                 * some drives appear not to assert BSY after a
+                 * CDDA transfer, and then do not generate the intrq
+                 * to complete the transfer. Among these:
+                 *      Sony CDU331, Goldstar GCD580
+                 * Obviate by testing BSY and going on anyways.
+                 */
+                for (i = 0 ; i < 2 ; i++) {
+                    int j = inb (ata->port + AR_STATUS);
+                    if (  (j & (ARS_DRQ | ARS_BSY)) == ARS_BSY )
+                        break;
+                }
+                if (i == 2 ) {
+                if (atapi_wait (ata->port, 0) < 0) {
+                    ac->result.status = inb (ata->port + AR_STATUS);
+                    ac->result.error = inb (ata->port + AR_ERROR);
+                    ac->result.code = RES_NOTRDY;
+                    printf ("atapi%d.%d: controller not ready, status=%b, error=%b\n",
+                        ata->ctrlr, ac->unit, ac->result.status, ARS_BITS,
+                        ac->result.error, AER_BITS);
+                    return (0);
+                }
+ 
+                ac->result.status = inb (ata->port + AR_STATUS);
+                ac->result.error = inb (ata->port + AR_ERROR);
+                len = inb (ata->port + AR_CNTLO);
+                len |= inb (ata->port + AR_CNTHI) << 8;
+                ireason = inb (ata->port + AR_IREASON);
+ 
+                    goto complete;
+                /*
+                 * unfortunately, my Sony CDU-55E does assert BSY
+                 * but then forgets to generate the intrq at times...
+                 * Maybe I should check that len is a multiple of
+                 * the CDDA size (2352) and return anyways if
+                 * count == 0 ?
+                 */
+                 }
+#endif
+
 		return (1);
 
 	case PHASE_ABORTED:
 	case PHASE_COMPLETED:
-		if (ac->result.status & (ARS_CHECK | ARS_DF))
+complete:
+		if (ac->result.status & (ARS_CHECK | ARS_DF)) {
+			atapi_io_error(ata, ac);
 			ac->result.code = RES_ERR;
-		else if (ac->count < 0) {
-			print (("atapi%d.%d: send data overrun, %d bytes left\n",
+		} else if (ac->count < 0) {
+			print(("atapi%d.%d: send data overrun, %d bytes left\n",
 				ata->ctrlr, ac->unit, -ac->count));
 			ac->result.code = RES_OVERRUN;
 		} else if (ac->count > 0) {
-			print (("atapi%d.%d: recv data underrun, %d bytes left\n",
+			print(("atapi%d.%d: recv data underrun, %d bytes left\n",
 				ata->ctrlr, ac->unit, ac->count));
 			ac->result.code = RES_UNDERRUN;
 			bzero (ac->addr, ac->count);

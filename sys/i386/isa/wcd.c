@@ -225,6 +225,7 @@ struct wcd {
 	struct audiopage aumask;        /* Audio page mask */
 	struct subchan subchan;         /* Subchannel info */
 	char description[80];           /* Device description */
+	int starting_lba ;
 #ifdef	DEVFS
 	void	*ra_devfs_token;
 	void	*rc_devfs_token;
@@ -295,6 +296,7 @@ wcdattach (struct atapi *ata, int unit, struct atapi_params *ap, int debug)
 	lun = t->lun = wcdnlun++;
 	t->param = ap;
 	t->flags = F_MEDIA_CHANGED;
+	t->starting_lba = 0;
 	t->refcnt = 0;
 	if (debug) {
 		t->flags |= F_DEBUG;
@@ -409,6 +411,7 @@ static int
 wcd_open (dev_t dev, int rawflag)
 {
 	int lun = UNIT(dev);
+	int track = dkslice(dev); /* XXX */
 	struct wcd *t;
 
 	/* Check that the device number is legal
@@ -431,6 +434,11 @@ wcd_open (dev_t dev, int rawflag)
 		++t->refcnt;
 	else
 		t->flags |= F_BOPEN;
+	t->starting_lba = ntohl(t->toc.tab[track].addr.lba) ;
+	if (track != 0) { 
+		printf("Warning, opening track %d at %d\n",
+			track, t->starting_lba);
+	}
 	return (0);
 }
 
@@ -547,7 +555,7 @@ static void wcd_start (struct wcd *t)
 	 * First, translate the block to absolute and put it in terms of the
 	 * logical blocksize of the device.
 	 * What if something asks for 512 bytes not on a 2k boundary? */
-	blkno = bp->b_blkno / (SECSIZE / 512);
+	blkno = t->starting_lba + bp->b_blkno / (SECSIZE / 512);
 	nblk = (bp->b_bcount + (SECSIZE - 1)) / SECSIZE;
 
 	atapi_request_callback (t->ata, t->unit, ATAPI_READ_BIG, 0,

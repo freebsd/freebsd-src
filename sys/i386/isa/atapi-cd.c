@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-cd.c,v 1.3 1998/10/15 08:11:54 sos Exp $
+ *	$Id: atapi-cd.c,v 1.4 1998/10/30 10:57:09 luigi Exp $
  */
 
 #include "wdc.h"
@@ -62,13 +62,15 @@ static d_strategy_t	acdstrategy;
 
 #define CDEV_MAJOR 69
 #define BDEV_MAJOR 19
+extern struct cdevsw acd_cdevsw ;
+static struct bdevsw acd_bdevsw =
+	{ acdopen,	acdclose,	acdstrategy,	acdioctl,
+	  nodump,	nopsize,	0, "acd", &acd_cdevsw, -1 };
 static struct cdevsw acd_cdevsw = {
     acdopen,	acdclose,	acdread,	acdwrite,	
     acdioctl,	nostop,		nullreset,	nodevtotty,
     seltrue,	nommap,		acdstrategy,	"acd",
-    NULL,	-1,		nodump,		nopsize,
-    D_DISK,	0,		-1
-};
+    &acd_bdevsw, -1 };
 
 #define NUNIT	16		/* Max # of devices */
 
@@ -124,6 +126,7 @@ acd_init_lun(struct atapi *ata, int unit, struct atapi_params *ap, int lun)
     ptr->flags = F_MEDIA_CHANGED;
     ptr->flags &= ~(F_WRITTEN|F_TRACK_PREP|F_TRACK_PREPED);
     ptr->block_size = 2048;
+    ptr->starting_lba = 0 ;
     ptr->refcnt = 0;
     ptr->slot = -1;
     ptr->changer_info = NULL;
@@ -378,6 +381,7 @@ static int
 acdopen(dev_t dev, int flags, int fmt, struct proc *p)
 {
     int lun = dkunit(dev);
+    int track = dkslice(dev); /* XXX this is a hack... */
     struct acd *cdp;
 
     if (lun >= acdnlun || !atapi_request_immediate)
@@ -404,11 +408,16 @@ acdopen(dev_t dev, int flags, int fmt, struct proc *p)
             }
         } else {
             /* read only */
-            if (acd_read_toc(cdp) != 0) {
+            if (acd_read_toc(cdp) < 0) {
                 printf("acd%d: read_toc failed\n", lun);
                 /* return EIO; */
             }
         }
+    }
+    cdp->starting_lba = ntohl(cdp->toc.tab[track].addr.lba) ;
+    if (track != 0) {
+	printf("Warning, opening track %d at %d\n",
+		 track, cdp->starting_lba);
     }
     return 0;
 }
@@ -421,7 +430,7 @@ acdclose(dev_t dev, int flags, int fmt, struct proc *p)
     if (fmt == S_IFBLK)
     	cdp->flags &= ~F_BOPEN;
     else
-    	--cdp->refcnt;
+    	cdp->refcnt = 0; /* only one goes through, right ? */
 
     /* Are we the last open ?? */
     if (!(cdp->flags & F_BOPEN) && !cdp->refcnt) {
@@ -456,6 +465,53 @@ acdwrite(dev_t dev, struct uio *uio, int ioflag)
     return physio(acdstrategy, NULL, dev, 0, minphys, uio);
 }
 
+static void ar_done(struct acd *, struct buf *, int, struct atapires);
+
+static void
+ar_done(struct acd *t, struct buf *bp, int resid, struct atapires result)
+{              
+    struct atapireq *ar = bp->b_driver2;
+    if (result.code) {
+	atapi_error(t->ata, t->unit, result);
+	bp->b_error = EIO ;
+	bp->b_flags |= B_ERROR;
+    } else {
+	bp->b_resid = resid;
+	ar->datalen -= resid;
+	ar->result = result;
+	if ((bp->b_flags & B_READ) == B_WRITE)
+	    t->flags |= F_WRITTEN;
+    }
+    biodone(bp);
+}              
+
+static void
+acdr_strategy(struct buf *bp)
+{
+    int lun = dkunit(bp->b_dev);
+    struct acd *cdp = acdtab[lun];
+    struct atapireq *ar =  bp->b_driver2;
+    int count ;
+    if (cdp == NULL || ar == NULL) {
+	bp->b_error = EINVAL;
+	bp->b_flags |= B_ERROR;
+	biodone(bp);
+	return;
+    }
+    if (ar->cmd[0] == ATAPI_WRITE_BIG)
+	count = -bp->b_bcount ;
+    else
+	count = bp->b_bcount ;
+
+    atapi_request_callback(cdp->ata, cdp->unit,
+	    ar->cmd[0],  ar->cmd[1],  ar->cmd[2],  ar->cmd[3],
+	    ar->cmd[4],  ar->cmd[5],  ar->cmd[6],  ar->cmd[7],
+	    ar->cmd[8],  ar->cmd[9],  ar->cmd[10], ar->cmd[11],
+	    ar->cmd[12], ar->cmd[13], ar->cmd[14], ar->cmd[15],
+	    bp->b_un.b_addr, count,
+	    (atapi_callback_t *)ar_done, cdp, bp);
+}
+
 void 
 acdstrategy(struct buf *bp)
 {
@@ -479,7 +535,7 @@ acdstrategy(struct buf *bp)
         return;
     }
     
-    bp->b_pblkno = bp->b_blkno;
+    bp->b_pblkno = bp->b_blkno + cdp->starting_lba ;
     bp->b_resid = bp->b_bcount;
 
     x = splbio();
@@ -532,10 +588,15 @@ acd_start(struct acd *cdp)
 #ifdef NOTYET
     	lba = bp->b_offset / cdp->block_size;
 #else
-    	lba = bp->b_blkno / (cdp->block_size / DEV_BSIZE);
+    	lba = bp->b_blkno / (cdp->block_size / DEV_BSIZE) +
+		cdp->starting_lba ;
 #endif
     else 
+#if 1
+	lba = cdp->next_writeable_lba + (bp->b_blkno / cdp->block_size);
+#else
 	lba = cdp->next_writeable_lba + (bp->b_offset / cdp->block_size);
+#endif
     blocks = (bp->b_bcount + (cdp->block_size - 1)) / cdp->block_size;
 
     if ((bp->b_flags & B_READ) == B_WRITE) {
@@ -603,7 +664,7 @@ msf2lba(u_char m, u_char s, u_char f)
 }
 
 int 
-acdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
+acdioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 {
     int lun = dkunit(dev);
     struct acd *cdp = acdtab[lun];
@@ -910,6 +971,79 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
             return result;
         }
 
+#if 1
+    case CDRIOCATAPIREQ: {
+	    struct atapireq *ar, *oar = (struct atapireq *)addr;
+	    struct buf *bp;
+                
+	    if (oar->datalen < 0)
+		return (EINVAL);
+
+	    MALLOC(ar, struct atapireq *, sizeof *ar, M_TEMP, M_WAITOK);
+	    MALLOC(bp, struct buf *, sizeof *bp, M_TEMP, M_WAITOK);
+  
+	    bcopy(oar, ar, sizeof *ar);
+	    bzero(bp, sizeof *bp);
+ 
+	    bp->b_proc = p;
+	    bp->b_dev = dev;
+	    bp->b_driver1 = cdp;
+	    bp->b_driver2 = ar;
+   
+	    if (ar->datalen) {
+		struct uio auio;
+		struct iovec aiov;
+        
+		aiov.iov_base = ar->databuf;
+		aiov.iov_len = ar->datalen;
+		auio.uio_iov = &aiov;
+		auio.uio_iovcnt = 1;
+
+		auio.uio_offset = 0;
+		auio.uio_resid = ar->datalen;
+ 
+		if (ar->cmd[0] == ATAPI_WRITE_BIG ) {
+		    if ((cdp->flags & F_TRACK_PREPED) == 0) {
+			if ((cdp->flags & F_TRACK_PREP) == 0) {
+			    printf("acd%d: sequence error\n", cdp->lun);
+			    error = EIO;
+			    goto done;
+			} else {
+			    printf("opening track...\n");
+			    error= acd_open_track(cdp, &cdp->preptrack);
+			    if (error != 0) {
+				printf("open_track failed\n");
+				goto done;
+			    }
+			    cdp->flags |= F_TRACK_PREPED;
+			}
+		    }
+		    auio.uio_rw = UIO_WRITE;
+		    bp->b_bcount = - ar->datalen;
+		} else {
+		    auio.uio_rw = UIO_READ;
+		    bp->b_bcount = ar->datalen;
+		}
+		auio.uio_segflg = UIO_USERSPACE;
+		auio.uio_procp = p;
+ 
+		error = physio(acdr_strategy, bp, dev, 
+		    auio.uio_rw == UIO_READ ? 1 : 0, minphys, &auio);
+	    } else {
+		bp->b_flags = B_READ | B_BUSY;
+		acdr_strategy(bp);
+		error = bp->b_error;
+	    }
+ 
+done:
+	    bcopy(ar, oar, sizeof *ar);
+	    FREE(ar, M_TEMP);
+	    FREE(bp, M_TEMP);
+	    break;
+        }
+#endif
+
+
     case CDIOCGETVOL:
 	{
             struct ioc_vol *arg = (struct ioc_vol *)addr;
@@ -997,14 +1131,26 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 
     case CDRIOCNEXTWRITEABLEADDR:
 	{
-	    struct acd_track_info track_info;
+	    struct acd_track_info *track_info;
 
-	    if ((error = acd_read_track_info(cdp, 0xff, &track_info)))
+            track_info = malloc(sizeof(*track_info), M_TEMP, M_NOWAIT);
+            if (track_info == NULL)
+		return ENOMEM ;
+
+	    if ((error = acd_read_track_info(cdp, 0xff, track_info))) {
+		printf("acd_rd_trk_info returns error %d\n", error);
+		*(int*)addr = cdp->next_writeable_lba = 0 ; /* XXX */
 		break;
-	    if (!track_info.nwa_valid)
+	    }
+	    if (track_info->nwa_valid == 0) {
+		printf("acd_rd_trk_info returns invalid info (maybe blank)\n");
+		*(int*)addr = cdp->next_writeable_lba = 0 ; /* XXX */
+		free(track_info, M_TEMP);
 		return EINVAL;
-	    cdp->next_writeable_lba = track_info.next_writeable_addr;
-	    *(int*)addr = track_info.next_writeable_addr;
+	    }
+	    *(int *)addr = cdp->next_writeable_lba =
+		    track_info->next_writeable_addr;
+	    free(track_info, M_TEMP);
 	}
 	break;
  
@@ -1037,6 +1183,15 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
                 error = EINVAL;
                 printf("acd%d: sequence error (PREP_TRACK)\n", cdp->lun);
             } else {
+		/*
+		 * if something has changed, synchronize track.
+		 */
+		if (cdp->flags & F_TRACK_PREPED &&
+			(cdp->preptrack.audio != w->audio ||
+			 cdp->preptrack.preemp != w->preemp) ) {
+		    error = acd_close_track(cdp);
+		    cdp->flags &= ~(F_TRACK_PREPED | F_TRACK_PREP);
+		}
                 cdp->flags |= F_TRACK_PREP;
                 cdp->preptrack = *w;
             }
@@ -1287,18 +1442,26 @@ acd_close_disk(struct acd *cdp)
 static int
 acd_open_track(struct acd *cdp, struct wormio_prepare_track *ptp)
 {
-    struct write_param param;
+    struct write_param *param; /* cannot be in stack */
     struct atapires result;
     int error;
 
+    if (!(param = malloc(sizeof(struct write_param), M_TEMP, M_WAITOK)))
+	return ENOMEM ;
+    bzero(param, sizeof(*param));
+
+	/* XXX this was wait */
     result = atapi_request_wait(cdp->ata, cdp->unit, ATAPI_MODE_SENSE,
         			0, 0x05, 0, 0, 0, 0, 
-				sizeof(param)>>8, sizeof(param),
+				sizeof(*param)>>8, sizeof(*param),
         			0, 0, 0, 0, 0, 0, 0,
-        			(char *)&param, sizeof(param));
+        			(char *)param, sizeof(*param));
 
     if (cdp->flags & F_DEBUG)
-        atapi_dump(cdp->ata->ctrlr, cdp->lun, "0x05", &param, sizeof(param));
+        atapi_dump(cdp->ata->ctrlr, cdp->lun, "0x05", param, sizeof(*param));
+    if (result.code)
+	printf("result: code 0x%x status 0x%x err 0x%x\n",
+		result.code, result.status, result.error);
 
     if (result.code == RES_UNDERRUN)
         result.code = 0;
@@ -1307,73 +1470,75 @@ acd_open_track(struct acd *cdp, struct wormio_prepare_track *ptp)
         atapi_error(cdp->ata, cdp->unit, result);
         return EIO;
     }
-    param.page_code = 0x05;
-    param.page_length = 0x32;
-    param.test_write = cdp->dummy ? 1 : 0;
-    param.write_type = CDR_WTYPE_TRACK;
+    bzero(param, sizeof(*param)); /* XXX */
+    param->page_code = 0x05;
+    param->page_length = 0x32;
+    param->test_write = cdp->dummy ? 1 : 0;
+    param->write_type = CDR_WTYPE_TRACK; /* 01 */
 
     switch (ptp->audio) {
-/*    switch (data_type) { */
 
-    case 0:
-/*    case CDR_DATA: */
+    case 0: /* CDR_DATA */
 	cdp->block_size = 2048;
-    	param.track_mode = CDR_TMODE_DATA;
-    	param.data_block_type = CDR_DB_ROM_MODE1;
-    	param.session_format = CDR_SESS_CDROM;
+    	param->track_mode = CDR_TMODE_DATA;
+    	param->data_block_type = CDR_DB_ROM_MODE1;
+    	param->session_format = CDR_SESS_CDROM;
 	break;
 
-    default:
-/*    case CDR_AUDIO: */
+    default: /*  CDR_AUDIO */
 	cdp->block_size = 2352;
 	if (ptp->preemp)
-    	    param.track_mode = CDR_TMODE_AUDIO;
+    	    param->track_mode = CDR_TMODE_AUDIO;
 	else
-    	    param.track_mode = 0;
-    	param.data_block_type = CDR_DB_RAW;
-    	param.session_format = CDR_SESS_CDROM;
+    	    param->track_mode = CDR_TMODE_AUDIO /* XXX 0 */;
+    	param->data_block_type = CDR_DB_RAW;
+    	param->session_format = CDR_SESS_CDROM;
 	break;
 
-/*
+#if 0
     case CDR_MODE2:
-    	param.track_mode = CDR_TMODE_DATA;
-    	param.data_block_type = CDR_DB_ROM_MODE2;
-    	param.session_format = CDR_SESS_CDROM;
+    	param->track_mode = CDR_TMODE_DATA;
+    	param->data_block_type = CDR_DB_ROM_MODE2;
+    	param->session_format = CDR_SESS_CDROM;
 	break;
 
     case CDR_XA1:
-    	param.track_mode = CDR_TMODE_DATA;
-    	param.data_block_type = CDR_DB_XA_MODE1;
-    	param.session_format = CDR_SESS_CDROM_XA;
+    	param->track_mode = CDR_TMODE_DATA;
+    	param->data_block_type = CDR_DB_XA_MODE1;
+    	param->session_format = CDR_SESS_CDROM_XA;
 	break;
 
     case CDR_XA2:
-    	param.track_mode = CDR_TMODE_DATA;
-    	param.data_block_type = CDR_DB_XA_MODE2_F1;
-    	param.session_format = CDR_SESS_CDROM_XA;
+    	param->track_mode = CDR_TMODE_DATA;
+    	param->data_block_type = CDR_DB_XA_MODE2_F1;
+    	param->session_format = CDR_SESS_CDROM_XA;
 	break;
 
     case CDR_CDI:
-    	param.track_mode = CDR_TMODE_DATA;
-    	param.data_block_type = CDR_DB_XA_MODE2_F1;
-    	param.session_format = CDR_SESS_CDI;
+    	param->track_mode = CDR_TMODE_DATA;
+    	param->data_block_type = CDR_DB_XA_MODE2_F1;
+    	param->session_format = CDR_SESS_CDI;
 	break;
-*/
+#endif
     }
 
-    param.multi_session = CDR_MSES_NONE;
-    param.fp = 0;
-    param.packet_size = 0;
+    param->multi_session = CDR_MSES_NONE;
+    param->fp = 0;
+
+    param->packet_size = htonl(0);
+    param->audio_pause_length = htons(150); /* default value */
 
     if (cdp->flags & F_DEBUG)
-        atapi_dump(cdp->ata->ctrlr, cdp->lun, "0x05", &param, sizeof(param));
+        atapi_dump(cdp->ata->ctrlr, cdp->lun, "0x05", param, sizeof(*param));
 
+	/* XXX this was wait! */
     result = atapi_request_wait(cdp->ata, cdp->unit, ATAPI_MODE_SELECT,
         			0x10, 0, 0, 0, 0, 0, 
-				sizeof(param)>>8, sizeof(param),
+				sizeof(*param)>>8, sizeof(*param),
         			0, 0, 0, 0, 0, 0, 0,
-        			(char *)&param, -sizeof(param));
+        			(char *)param, -sizeof(*param));
 
+    free(param, M_TEMP);
     if (result.code == RES_UNDERRUN)
         result.code = 0;
 
@@ -1394,8 +1559,7 @@ acd_close_track(struct acd *cdp)
 static int
 acd_read_track_info(struct acd *cdp, int lba, struct acd_track_info *info)
 {
-    int error;
-
+    int error = 0;
     error = acd_request_wait(cdp, ATAPI_READ_TRACK_INFO, 0x01,
                              lba>>24, (lba>>16)&0xff,
                              (lba>>8)&0xff, lba&0xff,
@@ -1578,7 +1742,10 @@ acd_drvinit(void *unused)
     dev_t dev;
 
     if (!acd_devsw_installed) {
-        cdevsw_add_generic(BDEV_MAJOR, CDEV_MAJOR, &acd_cdevsw);
+	dev = makedev(CDEV_MAJOR, 0);
+	cdevsw_add(&dev,&acd_cdevsw, NULL);
+	dev = makedev(BDEV_MAJOR, 0);
+	bdevsw_add(&dev,&acd_bdevsw, NULL);
         acd_devsw_installed = 1;
     }
 }

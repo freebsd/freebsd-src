@@ -32,7 +32,7 @@
 .\" USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 .\" DAMAGE.
 .\"
-.\" $Id: wormcontrol.8,v 1.3.2.2 1997/03/06 08:00:45 mpp Exp $
+.\" $Id: wormcontrol.8,v 1.3.2.3 1997/11/18 07:28:14 charnier Exp $
 .\"
 .\" arrgh, hilit19 needs this" :-(
 .Dd Jan 27, 1996
@@ -42,6 +42,9 @@
 .Nm wormcontrol
 .Nd control the CD-R driver
 .Sh SYNOPSIS
+.Nm wormcontrol
+.Op Ar options
+.Ar file
 .Nm wormcontrol
 .Op Fl f Ar device
 .Ar command
@@ -53,6 +56,75 @@ utility is used to control the behaviour of the
 .Xr worm 4
 driver in order to adjust various parameters of a recordable CD
 .Pq CD-R .
+The command has two forms. The first one (compact form) is
+used to quickly peform the common task of dumping data or audio
+tracks to a disk, doing all the handling involved. The second form
+is the traditional form and allows the user to control the various
+phase of CD-R operation.
+.Sh USAGE (compact form)
+The following options are available:
+.Bl -tag -width argument
+.It Fl f Ar device
+Use
+.Ar device
+instead of the one specified by the environment variable
+.Pa WORMDEVICE ,
+or the default device
+.Pa /dev/rworm0 .
+.It Fl d , Fl a
+Write a data or audio track. One of
+.Fl d
+or
+.Fl a
+is compulsory.
+.It Fl p Ar arg
+Select preemphasis indication (only for audio tracks). Valid
+arguments are
+.Pa 1, on
+or
+.Pa 0, off
+.It Fl s Ar speed
+Select write speed (accepted values are
+.Pa 1 ,
+.Pa single ,
+.Pa 2 ,
+.Pa double ,
+.Pa 4 ,
+.Pa quad
+).
+.It Fl t
+Perform a test (or dummy) write, not activating the laser. This is
+useful for testing.
+.It Fl e
+Execute the fixate phase after writing this track, which is the
+.Pa  ending
+track. This is necessary for writing the TOC on the disk
+and make it readable on a regular reader.
+.It Fl n Ar 1|0
+Select or not opening of next partition for writing (multisession
+disks only).
+.El
+The typical command for writing a data track will then be
+.Bd -literal
+wormcontrol -f /dev/rwcd0a -d image.cd0
+.Ed
+which performs the quirk selection, prepdisk, preptrack, data write,
+and fixate phases.
+.Pp
+The typical command for writing audio tracks will be
+.Bd -literal
+wormcontrol -f /dev/rwcd0a -a track01.cda
+wormcontrol -f /dev/rwcd0a -a track01.cda
+...
+wormcontrol -f /dev/rwcd0a -a -e trackNN.cda
+.Ed
+where the
+.Fl e
+flags on the last command specifies that this is the ending track of
+the disk thus the fixate operation must be performed.
+
+
+.Sh USAGE (traditional form)
 .Pp
 Unlike many other devices, CD-R's require a very strict handling order.
 Prior to writing data, the speed of the drive must be selected, and
