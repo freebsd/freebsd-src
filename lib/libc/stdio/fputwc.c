@@ -47,7 +47,7 @@ __fputwc(wchar_t wc, FILE *fp)
 	mbstate_t mbs;
 	size_t i, len;
 
-	if (MB_LEN_MAX == 1 && wc > 0 && wc <= UCHAR_MAX) {
+	if (MB_CUR_MAX == 1 && wc > 0 && wc <= UCHAR_MAX) {
 		/*
 		 * Assume single-byte locale with no special encoding.
 		 * A more careful test would be to check
