@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_setcred.c#6 $
+ * $P4: //depot/projects/openpam/lib/pam_setcred.c#7 $
  */
 
 #include <sys/param.h>
@@ -71,7 +71,7 @@ pam_setcred(pam_handle_t *pamh,
  *		Establish the credentials of the target user.
  *	PAM_DELETE_CRED:
  *		Revoke all established credentials.
- *	PAM_REINITIALISE_CRED:
+ *	PAM_REINITIALIZE_CRED:
  *		Fully reinitialise credentials.
  *	PAM_REFRESH_CRED:
  *		Refresh credentials.
