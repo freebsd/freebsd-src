@@ -52,10 +52,13 @@ static char sccsid[] = "@(#)login.c	8.4 (Berkeley) 4/2/94";
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/file.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include <err.h>
 #include <errno.h>
 #include <grp.h>
+#include <netdb.h>
 #include <pwd.h>
 #include <setjmp.h>
 #include <signal.h>
@@ -109,6 +112,7 @@ int	authok;
 struct	passwd *pwd;
 int	failures;
 char	term[64], *envinit[1], *hostname, *username, *tty;
+char    full_hostname[MAXHOSTNAMELEN];
 
 int
 main(argc, argv)
@@ -126,7 +130,6 @@ main(argc, argv)
 	char *domain, *p, *ep, *salt, *ttyn;
 	char tbuf[MAXPATHLEN + 2], tname[sizeof(_PATH_TTY) + 10];
 	char localhost[MAXHOSTNAMELEN];
-	char full_hostname[MAXHOSTNAMELEN];
 #ifdef	SKEY
 	int permit_passwd = 0;
 #endif
@@ -167,6 +170,17 @@ main(argc, argv)
 			if (domain && (p = strchr(optarg, '.')) &&
 			    strcasecmp(p, domain) == 0)
 				*p = 0;
+			if (strlen(optarg) > UT_HOSTSIZE) {
+				struct hostent *hp = gethostbyname(optarg);
+
+				if (hp != NULL) {
+					struct in_addr in;
+
+					memmove(&in, hp->h_addr, sizeof(in));
+					optarg = strdup(inet_ntoa(in));
+				} else
+					optarg = "invalid hostname";
+			}
 			hostname = optarg;
 			break;
 		case 'p':
@@ -314,7 +328,7 @@ main(argc, argv)
 			if (hostname)
 				syslog(LOG_NOTICE,
 				    "LOGIN %s REFUSED FROM %s ON TTY %s",
-				    pwd->pw_name, hostname, tty);
+				    pwd->pw_name, full_hostname, tty);
 			else
 				syslog(LOG_NOTICE,
 				    "LOGIN %s REFUSED ON TTY %s",
@@ -427,7 +441,7 @@ main(argc, argv)
 	if (rootlogin && fflag == 0)
 		if (hostname)
 			syslog(LOG_NOTICE, "ROOT LOGIN (%s) ON %s FROM %s",
-			    username, tty, hostname);
+			    username, tty, full_hostname);
 		else
 			syslog(LOG_NOTICE, "ROOT LOGIN (%s) ON %s", username, tty);
 
@@ -442,7 +456,7 @@ main(argc, argv)
 	 * of wtmp or lastlogin files.
 	 */
 	if (hostname) {
-		syslog(LOG_INFO, "login from %s as %s", hostname, pwd->pw_name);
+		syslog(LOG_INFO, "login from %s as %s", full_hostname, pwd->pw_name);
 	} else {
 		syslog(LOG_INFO, "login on %s as %s", tty, pwd->pw_name);
 	}
@@ -466,7 +480,7 @@ main(argc, argv)
 		printf("Permission denied\n");
 		if (hostname)
 			syslog(LOG_NOTICE, "%s LOGIN REFUSED FROM %s",
-				pwd->pw_name, hostname);
+				pwd->pw_name, full_hostname);
 		else
 			syslog(LOG_NOTICE, "%s LOGIN REFUSED ON %s",
 				pwd->pw_name, tty);
@@ -641,10 +655,10 @@ badlogin(name)
 		return;
 	if (hostname) {
 		syslog(LOG_NOTICE, "%d LOGIN FAILURE%s FROM %s",
-		    failures, failures > 1 ? "S" : "", hostname);
+		    failures, failures > 1 ? "S" : "", full_hostname);
 		syslog(LOG_AUTHPRIV|LOG_NOTICE,
 		    "%d LOGIN FAILURE%s FROM %s, %s",
-		    failures, failures > 1 ? "S" : "", hostname, name);
+		    failures, failures > 1 ? "S" : "", full_hostname, name);
 	} else {
 		syslog(LOG_NOTICE, "%d LOGIN FAILURE%s ON %s",
 		    failures, failures > 1 ? "S" : "", tty);
