@@ -386,6 +386,12 @@ esac
 # Make shared lib searching a little faster.  Leave /usr/lib first if you
 # add your own entries or you may come to grief.
 #
+ldconfig="/sbin/ldconfig"
+case ${ldconfig_insecure} in
+[Yy][Ee][Ss])
+	ldconfig="${ldconfig} -i"
+	;;
+esac
 if [ -x /sbin/ldconfig ]; then
 	case `/usr/bin/objformat` in
 	elf)
@@ -396,7 +402,7 @@ if [ -x /sbin/ldconfig ]; then
 			fi
 		done
 		echo 'setting ELF ldconfig path:' ${_LDC}
-		ldconfig -elf ${_LDC}
+		${ldconfig} -elf ${_LDC}
 		;;
 	esac
 
@@ -412,7 +418,7 @@ if [ -x /sbin/ldconfig ]; then
 			fi
 		done
 		echo 'setting a.out ldconfig path:' ${_LDC}
-		ldconfig -aout ${_LDC}
+		${ldconfig} -aout ${_LDC}
 		;;
 	esac
 fi
