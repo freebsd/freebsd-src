@@ -73,17 +73,11 @@ ep_pccard_probe(device_t dev)
 {
 	struct ep_softc *	sc = device_get_softc(dev);
 	struct ep_board *	epb = &sc->epb;
-	u_int32_t		port_start;
-	u_int32_t		port_count;
+	u_long			port_start;
+	u_long			port_count;
 	const char *		desc;
-	const char *		name;
 	int			error;
 
-	name = pccard_get_name(dev);
-	printf("ep_pccard_probe: Does %s match?\n", name);
-	if (strcmp(name, "ep"))
-		return ENXIO;
-	  
 	error = bus_get_resource(dev, SYS_RES_IOPORT, 0,
 				 &port_start, &port_count);
 	if (error != 0)
@@ -162,7 +156,7 @@ ep_pccard_attach(device_t dev)
 	struct ep_softc *	sc = device_get_softc(dev);
 	int			error = 0;
 
-	if (error = ep_alloc(dev)) {
+	if ((error = ep_alloc(dev))) {
 		device_printf(dev, "ep_alloc() failed! (%d)\n", error);
 		goto bad;
 	}
@@ -210,15 +204,15 @@ ep_pccard_attach(device_t dev)
 		goto bad;
 	}
 
-	if (error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET, ep_intr,
-				   sc, &sc->ep_intrhand)) {
+	if ((error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET, ep_intr,
+				    sc, &sc->ep_intrhand))) {
 		device_printf(dev, "bus_setup_intr() failed! (%d)\n", error);
 		goto bad;
 	}
 
 	return (0);
 bad:
-	ep_free(sc);
+	ep_free(dev);
 	return (error);
 }
 
