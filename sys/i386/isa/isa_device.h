@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: isa_device.h,v 1.22 1995/05/11 02:15:55 jkh Exp $
+ *	$Id: isa_device.h,v 1.23 1995/05/11 07:41:52 jkh Exp $
  */
 
 #ifndef _I386_ISA_ISA_DEVICE_H_
@@ -134,14 +134,15 @@ inthand_t
 	IDTVEC(fastintr10), IDTVEC(fastintr11),
 	IDTVEC(fastintr12), IDTVEC(fastintr13),
 	IDTVEC(fastintr14), IDTVEC(fastintr15);
-struct isa_device *find_isadev __P((struct isa_device *table,
-				    struct isa_driver *driverp, int unit));
 inthand_t
 	IDTVEC(intr0), IDTVEC(intr1), IDTVEC(intr2), IDTVEC(intr3),
 	IDTVEC(intr4), IDTVEC(intr5), IDTVEC(intr6), IDTVEC(intr7),
 	IDTVEC(intr8), IDTVEC(intr9), IDTVEC(intr10), IDTVEC(intr11),
 	IDTVEC(intr12), IDTVEC(intr13), IDTVEC(intr14), IDTVEC(intr15);
 
+struct isa_device *find_display __P((void));
+struct isa_device *find_isadev __P((struct isa_device *table,
+				    struct isa_driver *driverp, int unit));
 void isa_configure __P((void));
 int haveseen_isadev __P((struct isa_device *dvp, u_int checkbits));
 void isa_defaultirq __P((void));

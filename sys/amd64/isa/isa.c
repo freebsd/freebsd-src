@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.49 1995/05/13 00:09:38 jkh Exp $
+ *	$Id: isa.c,v 1.50 1995/05/30 08:02:35 rgrimes Exp $
  */
 
 /*
@@ -907,6 +907,22 @@ isa_strayintr(d)
 	if (intrcnt[NR_DEVICES + d] == 5)
 		log(LOG_CRIT,
 		    "too many stray irq %d's; not logging any more\n", d);
+}
+
+/*
+ * Find the highest priority enabled display device.  Since we can't
+ * distinguish display devices from ttys, depend on display devices
+ * being before serial ttys in the table.
+ */
+struct isa_device *
+find_display()
+{
+	struct isa_device *dvp;
+
+	for (dvp = isa_devtab_tty; dvp->id_driver != NULL; dvp++)
+		if (dvp->id_enabled)
+			return (dvp);
+	return (NULL);
 }
 
 /*

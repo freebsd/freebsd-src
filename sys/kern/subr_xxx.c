@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_xxx.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: subr_xxx.c,v 1.3 1994/08/02 07:42:36 davidg Exp $
  */
 
 /*
@@ -42,6 +42,8 @@
 #include <sys/systm.h>
 
 #include <machine/cpu.h>
+
+extern int enosys __P((void));
 
 /*
  * Unsupported device function (e.g. writing to read-only device).
@@ -101,6 +103,82 @@ eopnotsupp()
  */
 int
 nullop()
+{
+
+	return (0);
+}
+
+/*
+ * Specific `no' and `null' operations.
+ * XXX the general ones are bogus.
+ * XXX device functions may belong elsewhere.
+ */
+
+#include <sys/conf.h>
+
+int
+noreset(dummy)
+	int dummy;
+{
+
+	return (ENODEV);
+}
+
+int
+nommap(dev, offset, nprot)
+	dev_t dev;
+	int offset;
+	int nprot;
+{
+
+	/* Don't return ENODEV.  That would allow mapping address ENODEV! */
+	return (-1);
+}
+
+void
+nostrategy(bp)
+	struct buf *bp;
+{
+
+}
+
+/*
+ * XXX this is probably bogus.  Any device that uses it isn't checking the
+ * minor number.
+ */
+int
+nullopen(dev, flag, mode, p)
+	dev_t dev;
+	int flag;
+	int mode;
+	struct proc *p;
+{
+
+	return (0);
+}
+
+int
+nullclose(dev, flag, mode, p)
+	dev_t dev;
+	int flag;
+	int mode;
+	struct proc *p;
+{
+
+	return (0);
+}
+
+void
+nullstop(tp, rw)
+	struct tty *tp;
+	int rw;
+{
+
+}
+
+int
+nullreset(foo)
+	int foo;
 {
 
 	return (0);
