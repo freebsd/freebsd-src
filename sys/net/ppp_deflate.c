@@ -39,8 +39,6 @@
 #define PACKETPTR	struct mbuf *
 #include <net/ppp_comp.h>
 
-#if DO_DEFLATE
-
 #define DEFLATE_DEBUG	1
 
 /*
@@ -676,5 +674,3 @@ z_incomp(arg, mi)
     state->stats.unc_bytes += rlen;
     state->stats.unc_packets++;
 }
-
-#endif /* DO_DEFLATE */
