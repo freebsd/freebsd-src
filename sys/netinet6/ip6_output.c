@@ -2651,8 +2651,8 @@ ip6_setmoptions(optname, im6op, m)
 		/*
 		 * If the interface is specified, validate it.
 		 */
-		if (mreq->ipv6mr_interface < 0
-		 || if_index < mreq->ipv6mr_interface) {
+		if (mreq->ipv6mr_interface < 0 ||
+		    if_index < mreq->ipv6mr_interface) {
 			error = ENXIO;	/* XXX EINVAL? */
 			break;
 		}
@@ -2701,8 +2701,8 @@ ip6_setmoptions(optname, im6op, m)
 		 * if the address has link-local scope.
 		 */
 		if (IN6_IS_ADDR_MC_LINKLOCAL(&mreq->ipv6mr_multiaddr)) {
-			mreq->ipv6mr_multiaddr.s6_addr16[1]
-				= htons(mreq->ipv6mr_interface);
+			mreq->ipv6mr_multiaddr.s6_addr16[1] =
+			    htons(ifp->if_index);
 		}
 		/*
 		 * See if the membership already exists.
