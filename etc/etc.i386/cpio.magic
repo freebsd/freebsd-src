@@ -1,5 +1,5 @@
 #!bin/sh
-#	$Id: cpio.magic,v 1.10 1994/06/15 21:02:36 jkh Exp $
+#	$Id: cpio.magic,v 1.11 1994/06/15 21:04:04 jkh Exp $
 #
 set_tmp_dir()
 {
@@ -219,14 +219,14 @@ load_qic_tape()
 	tmp_dir
 	echo -n "Insert tape into QIC tape drive and hit return to continue: "
 	read foo
-	tar xvf /dev/rwt0
+	tar --unlink -xvf /dev/rwt0
 }
 load_scsi_tape()
 {
 	tmp_dir
 	echo -n "Insert tape into SCSI tape drive and hit return to continue: "
 	read foo
-	tar xvf /dev/nrst0
+	tar --unlink -xvf /dev/nrst0
 }
 extract()
 {
@@ -242,28 +242,11 @@ extract()
 		tarverbose=
 		;;
 	esac
-	#XXX ugly hack to eliminate busy files, copy them to /tmp and use them
-	#from there... even uglier.. we CAN NOT LOAD libc.so.1.1 from the tar
-	#balls or it spams tar!!
-	cp -p /bin/cat /usr/bin/gunzip /usr/bin/tar /tmp
-
-	#XXX more ugly hacks to get around busy text files/symlink problems.
-	if [ X"$1" = X"bin" ]; then
-		rm -f /bin/sh.$$ /sbin/init.$$ /etc/termcap.$$
-		mv /bin/sh /bin/sh.$$
-		mv /sbin/init /sbin/init.$$
-		mv /etc/termcap /etc/termcap.$$
-	fi
-	if [ X"$1" = X"des" ]; then
-		rm -f /sbin/init.$$
-		mv /sbin/init /sbin/init.$$
-	fi
 	for i in $*; do
-		/tmp/cat "$i"* | 
-		/tmp/gunzip |
-		(cd / ; /tmp/tar --extract --file - --preserve-permissions ${tarverbose} )
+		cat "$i"* | 
+		gunzip |
+		(cd / ; tar --unlink --extract --file - --preserve-permissions ${tarverbose} )
 	done
-	rm -f /tmp/cat /tmp/gunzip /tmp/tar
 	sync
 	[ X"$1" = X"bin" ] && echo "Run \`configure' to complete installation." 
 	echo "(wd is now: `pwd`)"
