@@ -290,28 +290,32 @@ read_options()
 	char genopt[80];
 
 	otab = 0;
+	if (ident == NULL) {
+		printf("no ident line specified\n");
+		exit(1);
+	}
 	(void) snprintf(fname, sizeof fname, "../../conf/options");
 openit:
 	fp = fopen(fname, "r");
 	if (fp == 0) {
 		return;
 	}
-	if (ident == NULL) {
-		printf("no ident line specified\n");
-		exit(1);
-	}
 next:
 	wd = get_word(fp);
 	if (wd == (char *)EOF) {
 		(void) fclose(fp);
 		if (first == 1) {
-			(void) snprintf(fname, sizeof fname, "options.%s", machinename);
 			first++;
+			(void) snprintf(fname, sizeof fname, "../../conf/options.%s", machinename);
+			fp = fopen(fname, "r");
+			if (fp != 0)
+				goto next;
+			(void) snprintf(fname, sizeof fname, "options.%s", machinename);
 			goto openit;
 		}
 		if (first == 2) {
-			(void) snprintf(fname, sizeof fname, "options.%s", raisestr(ident));
 			first++;
+			(void) snprintf(fname, sizeof fname, "options.%s", raisestr(ident));
 			fp = fopen(fname, "r");
 			if (fp != 0)
 				goto next;
