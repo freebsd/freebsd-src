@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.63 1995/10/27 17:00:21 jkh Exp $
+ * $Id: install.c,v 1.71.2.64 1995/11/03 12:02:32 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -410,6 +410,9 @@ installCommit(char *str)
     if (installFixup(NULL) == RET_FAIL)
 	i = RET_FAIL;
 
+    if (i != RET_FAIL)
+	variable_set2(SYSTEM_STATE, "base-install");
+
     if (i != RET_FAIL && !strcmp(str, "novice")) {
 	dialog_clear();
 	msgConfirm("Since you're running the novice installation, a few post-configuration\n"
@@ -462,7 +465,7 @@ installCommit(char *str)
     configResolv();
     configSysconfig();
 
-    variable_set2(SYSTEM_STATE, i == RET_FAIL ? "installed+errors" : "installed");
+    variable_set2(SYSTEM_STATE, i == RET_FAIL ? "error-install" : "full-install");
 
     /* Don't print this if we're express or novice installing */
     if (strcmp(str, "express") && strcmp(str, "novice")) {
