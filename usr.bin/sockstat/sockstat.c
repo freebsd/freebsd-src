@@ -456,6 +456,30 @@ getprocname(pid_t pid)
 	return (proc.ki_ocomm);
 }
 
+static int
+check_ports(struct sock *s)
+{
+	int port;
+
+	if (ports == NULL)
+		return (1);
+	if ((s->family != AF_INET) && (s->family != AF_INET6))
+		return (1);
+	if (s->family == AF_INET)
+		port = ntohs(((struct sockaddr_in *)(&s->laddr))->sin_port);
+	else
+		port = ntohs(((struct sockaddr_in6 *)(&s->laddr))->sin6_port);
+	if (CHK_PORT(port))
+		return (1);
+	if (s->family == AF_INET)
+		port = ntohs(((struct sockaddr_in *)(&s->faddr))->sin_port);
+	else
+		port = ntohs(((struct sockaddr_in6 *)(&s->faddr))->sin6_port);
+	if (CHK_PORT(port))
+		return (1);
+	return (0);
+}
+
 static void
 display(void)
 {
@@ -475,6 +499,8 @@ display(void)
 			if ((void *)s->socket == xf->xf_data)
 				break;
 		if (s == NULL)
+			continue;
+		if (!check_ports(s))
 			continue;
 		pos = 0;
 		if ((pwd = getpwuid(xf->xf_uid)) == NULL)
