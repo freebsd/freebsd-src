@@ -10,7 +10,7 @@ SRCS+=	ldcref.c ldctor.c ldemul.c ldemul-list.h ldexp.c ldfile.c \
 	ldgram.y ldlang.c ldlex.l ldmain.c ldmisc.c \
 	ldver.c ldwrite.c lexsup.c mri.c
 
-WARNS=	1
+WARNS?=	1
 CFLAGS+= -DSCRIPTDIR=\"${TOOLS_PREFIX}/usr/libdata\"
 CFLAGS+= -DBFD_VERSION_STRING=\"${VERSION}\"
 CFLAGS+= -I${SRCDIR}/ld -I${SRCDIR}/bfd

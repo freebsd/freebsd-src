@@ -10,7 +10,7 @@ SRCS=	argv.c choose-temp.c concat.c cp-demangle.c cplus-dem.c \
 	hex.c floatformat.c hashtab.c lbasename.c make-temp-file.c \
 	objalloc.c obstack.c safe-ctype.c xatexit.c xexit.c xmalloc.c \
 	xstrdup.c xstrerror.c
-WARNS=	1
+WARNS?=	1
 CFLAGS+=	-DHAVE_CONFIG_H
 INTERNALLIB=	true
 
