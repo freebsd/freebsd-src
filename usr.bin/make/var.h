@@ -73,10 +73,8 @@ typedef struct Var {
 #define	VAR_MATCH_END	0x10	/* Match at end of word */
 
 typedef struct {
-	char	*lhs;		/* String to match */
-	size_t	leftLen;	/* Length of string */
-	char	*rhs;		/* Replacement string (w/ &'s removed) */
-	size_t	rightLen;	/* Length of replacement */
+	struct Buffer	*lhs;	/* String to match */
+	struct Buffer	*rhs;	/* Replacement string (w/ &'s removed) */
 
 	regex_t			re;
 	int			nsub;
