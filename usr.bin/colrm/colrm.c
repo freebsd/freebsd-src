@@ -54,6 +54,7 @@ static const char sccsid[] = "@(#)colrm.c	8.2 (Berkeley) 5/4/95";
 
 #define	TAB	8
 
+int main __P((int, char *[]));
 void check __P((FILE *));
 static void usage __P((void));
 
