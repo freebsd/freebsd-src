@@ -115,7 +115,11 @@ BINGRP?=	wheel
 BINMODE?=	555
 NOBINMODE?=	444
 
+.if defined(MODULES_WITH_WORLD)
+KMODDIR?=	/boot/modules
+.else
 KMODDIR?=	/boot/kernel
+.endif
 KMODOWN?=	${BINOWN}
 KMODGRP?=	${BINGRP}
 KMODMODE?=	${BINMODE}
