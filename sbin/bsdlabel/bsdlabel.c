@@ -69,9 +69,6 @@ __FBSDID("$FreeBSD$");
 #else
 #include <sys/diskmbr.h>
 #endif
-#ifdef __sparc64__
-#include <sys/sun_disklabel.h>
-#endif
 
 #include <unistd.h>
 #include <string.h>
@@ -109,7 +106,7 @@ __FBSDID("$FreeBSD$");
 
 #if defined(__i386__) || defined(__ia64__)
 #define	NUMBOOT	2
-#elif defined(__alpha__) || defined(__sparc64__) || defined(__powerpc__)
+#elif defined(__alpha__) || defined(__powerpc__)
 #define	NUMBOOT	1
 #else
 #error	I do not know about this architecture.
@@ -363,13 +360,6 @@ writelabel(int f, const char *boot, struct disklabel *lp)
 	u_long *p, sum;
 	int i;
 #endif
-#ifdef __sparc64__
-	struct sun_disklabel *sl;
-	u_short cksum, *sp1, *sp2;
-	struct partition *npp;
-	struct sun_dkpart *spp;
-	int i, secpercyl;
-#endif
 
 	if (disable_write) {
 		Warning("write to disk label supressed - label was as follows:");
@@ -412,45 +402,6 @@ writelabel(int f, const char *boot, struct disklabel *lp)
 	for (p = (u_long *)boot, i = 0, sum = 0; i < 63; i++)
 		sum += p[i];
 	p[63] = sum;
-#endif
-#ifdef __sparc64__
-	/*
-	 * Generate a Sun disklabel around the BSD label for
-	 * PROM compatability.
-	 */
-	sl = (struct sun_disklabel *)boot;
-	memcpy(sl->sl_text, lp->d_packname, sizeof(lp->d_packname));
-	sl->sl_rpm = lp->d_rpm;
-	sl->sl_pcylinders = lp->d_ncylinders +
-	    lp->d_acylinders; /* XXX */
-	sl->sl_sparespercyl = lp->d_sparespercyl;
-	sl->sl_interleave = lp->d_interleave;
-	sl->sl_ncylinders = lp->d_ncylinders;
-	sl->sl_acylinders = lp->d_acylinders;
-	sl->sl_ntracks = lp->d_ntracks;
-	sl->sl_nsectors = lp->d_nsectors;
-	sl->sl_magic = SUN_DKMAGIC;
-	secpercyl = sl->sl_nsectors * sl->sl_ntracks;
-	for (i = 0; i < 8; i++) {
-		spp = &sl->sl_part[i];
-		npp = &lp->d_partitions[i];
-		/*
-		 * SunOS partitions must start on a cylinder
-		 * boundary. Note this restriction is forced
-		 * upon FreeBSD/sparc64 labels too, since we
-		 * want to keep both labels synchronised.
-		 */
-		spp->sdkp_cyloffset = npp->p_offset / secpercyl;
-		spp->sdkp_nsectors = npp->p_size;
-	}
-
-	/* Compute the XOR checksum. */
-	sp1 = (u_short *)sl;
-	sp2 = (u_short *)(sl + 1);
-	sl->sl_cksum = cksum = 0;
-	while (sp1 < sp2)
-		cksum ^= *sp1++;
-	sl->sl_cksum = cksum;
 #endif
 	if (write(f, boot, lp->d_bbsize) != (int)lp->d_bbsize) {
 		warn("write");
@@ -603,7 +554,7 @@ makebootarea(char *boot, struct disklabel *dp, int f)
 	/*
 	 * Strange rules:
 	 * 1. One-piece bootstrap (hp300/hp800)
-	 * 1. One-piece bootstrap (alpha/sparc64)
+	 * 1. One-piece bootstrap (alpha)
 	 *	up to d_bbsize bytes of ``xxboot'' go in bootarea, the rest
 	 *	is remembered and written later following the bootarea.
 	 * 2. Two-piece bootstraps (i386/ia64)
@@ -1477,14 +1428,6 @@ checklabel(struct disklabel *lp)
 		if (pp->p_size == 0 && pp->p_offset != 0)
 			Warning("partition %c: size 0, but offset %lu",
 			    part, (u_long)pp->p_offset);
-#ifdef __sparc64__
-		/* See comment in writelabel(). */
-		if (pp->p_offset % lp->d_secpercyl != 0) {
-			fprintf(stderr, "partition %c: does not start on a "
-			    "cylinder boundary!\n", part);
-			errors++;
-		}
-#endif
 #ifdef notdef
 		if (pp->p_size % lp->d_secpercyl)
 			Warning("partition %c: size %% cylinder-size != 0",
