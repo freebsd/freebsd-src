@@ -1639,7 +1639,13 @@ tdsignal(struct thread *td, int sig)
 	}
 	SIGADDSET(*siglist, sig);
 	signotify(td);			/* uses schedlock */
-
+	/*
+	 * Defer further processing for signals which are held,
+	 * except that stopped processes must be continued by SIGCONT.
+	 */
+	if (action == SIG_HOLD &&
+	    !((prop & SA_CONT) && (p->p_flag & P_STOPPED_SIG)))
+                return;
 	/*
 	 * Some signals have a process-wide effect and a per-thread
 	 * component.  Most processing occurs when the process next
@@ -1816,14 +1822,6 @@ tdsigwakeup(struct thread *td, int sig, sig_t action)
 		if (td->td_priority > PUSER) {
 			td->td_priority = PUSER;
 		}
-	}
-
-	/*
-	 * Defer further processing for signals which are held,
-	 * except that stopped processes must be continued by SIGCONT.
-	 */
-	if (action == SIG_HOLD) {
-		return;
 	}
 	if (TD_IS_SLEEPING(td)) {
 		/*
