@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)route.4	8.6 (Berkeley) 4/19/94
-.\"	$Id: route.4,v 1.5 1997/02/22 13:24:40 peter Exp $
+.\"	$Id: route.4,v 1.6 1997/03/19 19:47:39 bde Exp $
 .\"
 .Dd October 8, 1996
 .Dt ROUTE 4
@@ -179,12 +179,7 @@ be reclaimed until all references to it are released.
 User processes can obtain information about the routing
 entry to a specific destination by using a
 .Dv RTM_GET
-message,
-or by reading the
-.Pa /dev/kmem
-device, or by issuing a
-.Xr getkerninfo 2
-system call.
+message.
 .Pp
 Messages include:
 .Bd -literal
