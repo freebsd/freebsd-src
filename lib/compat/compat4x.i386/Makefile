@@ -7,6 +7,7 @@ LIBS=	\
 	libc_r.so.4 \
 	libcrypto.so.1 \
 	libcrypto.so.2 \
+	libgmp.so.3 \
 	libedit.so.3 \
 	libfetch.so.2 \
 	libpam.so.1 \
