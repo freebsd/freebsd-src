@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.41 1995/11/29 10:47:43 julian Exp $
+ *	$Id: lpt.c,v 1.42 1995/11/29 14:39:44 julian Exp $
  */
 
 /*
@@ -62,8 +62,10 @@
  * This driver sends two bytes (0x08, 0x00) in front of each packet,
  * to allow us to distinguish another format later.
  *
+ * Now added an Linux/Crynwr compatibility mode which is enabled using
+ * IF_LINK0 - Tim Wilkinson.
+ *
  * TODO:
- *    Make Linux/Crynwr compatible mode, use IF_LLC0 to enable.
  *    Make HDLC/PPP mode, use IF_LLC1 to enable.
  *
  * Connect the two computers using a Laplink parallel cable to use this
@@ -96,7 +98,7 @@
  *	register int port asm("edx")
  * the code would be cleaner
  *
- * Poul-Henning Kamp <phk@login.dkuug.dk>
+ * Poul-Henning Kamp <phk@freebsd.org>
  */
 
 #include "lpt.h"
@@ -131,6 +133,7 @@
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
+#include <netinet/if_ether.h>
 #include "bpfilter.h"
 #if NBPFILTER > 0
 #include <net/bpf.h>
@@ -169,9 +172,17 @@
 #define	LPMAXERRS	100
 #endif
 
+#define CLPIPHDRLEN	14	/* We send dummy ethernet addresses (two) + packet type in front of packet */
+#define	CLPIP_SHAKE	0x80	/* This bit toggles between nibble reception */
+#define MLPIPHDRLEN	CLPIPHDRLEN
+
 #define LPIPHDRLEN	2	/* We send 0x08, 0x00 in front of packet */
-#define	LPIPTBLSIZE	256	/* Size of octet translation table */
 #define	LPIP_SHAKE	0x40	/* This bit toggles between nibble reception */
+#if !defined(MLPIPHDRLEN) || LPIPHDRLEN > MLPIPHDRLEN
+#define MLPIPHDRLEN	LPIPHDRLEN
+#endif
+
+#define	LPIPTBLSIZE	256	/* Size of octet translation table */
 
 #endif /* INET */
 
@@ -256,6 +267,11 @@ static u_char *txmith;
 #define txmitl (txmith+(1*LPIPTBLSIZE))
 #define trecvh (txmith+(2*LPIPTBLSIZE))
 #define trecvl (txmith+(3*LPIPTBLSIZE))
+
+static u_char *ctxmith;
+#define ctxmitl (ctxmith+(1*LPIPTBLSIZE))
+#define ctrecvh (ctxmith+(2*LPIPTBLSIZE))
+#define ctrecvl (ctxmith+(3*LPIPTBLSIZE))
 
 /* Functions for the lp# interface */
 static void lpattach(struct lpt_softc *,int);
@@ -868,6 +884,19 @@ lpinittables (void)
     if (!txmith)
 	return 1;
 
+    if (!ctxmith)
+	ctxmith = malloc(4*LPIPTBLSIZE, M_DEVBUF, M_NOWAIT);
+
+    if (!ctxmith)
+	return 1;
+
+    for (i=0; i < LPIPTBLSIZE; i++) {
+	ctxmith[i] = (i & 0xF0) >> 4;
+	ctxmitl[i] = 0x10 | (i & 0x0F);
+	ctrecvh[i] = (i & 0x78) << 1;
+	ctrecvl[i] = (i & 0x78) >> 3;
+    }
+
     for (i=0; i < LPIPTBLSIZE; i++) {
 	txmith[i] = ((i & 0x80) >> 3) | ((i & 0x70) >> 4) | 0x08;
 	txmitl[i] = ((i & 0x08) << 1) | (i & 0x07);
@@ -909,7 +938,7 @@ lpioctl (struct ifnet *ifp, int cmd, caddr_t data)
 	if (((ifp->if_flags & IFF_UP)) && (!(ifp->if_flags & IFF_RUNNING))) {
 	    if (lpinittables())
 		return ENOBUFS;
-	    sc->sc_ifbuf = malloc(sc->sc_if.if_mtu + LPIPHDRLEN,
+	    sc->sc_ifbuf = malloc(sc->sc_if.if_mtu + MLPIPHDRLEN,
 				  M_DEVBUF, M_WAITOK);
 	    if (!sc->sc_ifbuf)
 		return ENOBUFS;
@@ -921,7 +950,7 @@ lpioctl (struct ifnet *ifp, int cmd, caddr_t data)
 
     case SIOCSIFMTU:
 	ptr = sc->sc_ifbuf;
-	sc->sc_ifbuf = malloc(ifr->ifr_mtu+LPIPHDRLEN, M_DEVBUF, M_NOWAIT);
+	sc->sc_ifbuf = malloc(ifr->ifr_mtu+MLPIPHDRLEN, M_DEVBUF, M_NOWAIT);
 	if (!sc->sc_ifbuf) {
 	    sc->sc_ifbuf = ptr;
 	    return ENOBUFS;
@@ -959,6 +988,44 @@ lpioctl (struct ifnet *ifp, int cmd, caddr_t data)
     return 0;
 }
 
+static inline int
+clpoutbyte (u_char byte, int spin, int data_port, int status_port)
+{
+	outb(data_port, ctxmitl[byte]);
+	while (inb(status_port) & CLPIP_SHAKE)
+		if (--spin == 0) {
+			return 1;
+		}
+	outb(data_port, ctxmith[byte]);
+	while (!(inb(status_port) & CLPIP_SHAKE))
+		if (--spin == 0) {
+			return 1;
+		}
+	return 0;
+}
+
+static inline int
+clpinbyte (int spin, int data_port, int status_port)
+{
+	int c, cl;
+
+	while((inb(status_port) & CLPIP_SHAKE))
+	    if(!--spin) {
+		return -1;
+	    }
+	cl = inb(status_port);
+	outb(data_port, 0x10);
+
+	while(!(inb(status_port) & CLPIP_SHAKE))
+	    if(!--spin) {
+		return -1;
+	    }
+	c = inb(status_port);
+	outb(data_port, 0x00);
+
+	return (ctrecvl[cl] | ctrecvh[c]);
+}
+
 static void
 lpintr (int unit)
 {
@@ -973,6 +1040,57 @@ lpintr (int unit)
 
 	s = splhigh();
 
+	if (sc->sc_if.if_flags & IFF_LINK0) {
+
+	    /* Ack. the request */
+	    outb(lpt_data_port, 0x01);
+
+	    /* Get the packet length */
+	    j = clpinbyte(LPMAXSPIN2, lpt_data_port, lpt_stat_port);
+	    if (j == -1)
+		goto err;
+	    len = j;
+	    j = clpinbyte(LPMAXSPIN2, lpt_data_port, lpt_stat_port);
+	    if (j == -1)
+		goto err;
+	    len = len + (j << 8);
+
+	    bp  = sc->sc_ifbuf;
+	
+	    while (len--) {
+	        j = clpinbyte(LPMAXSPIN2, lpt_data_port, lpt_stat_port);
+	        if (j == -1) {
+		    goto err;
+	        }
+	        *bp++ = j;
+	    }
+	    /* Get and ignore checksum */
+	    j = clpinbyte(LPMAXSPIN2, lpt_data_port, lpt_stat_port);
+	    if (j == -1) {
+	        goto err;
+	    }
+
+	    len = bp - sc->sc_ifbuf;
+	    if (len <= CLPIPHDRLEN)
+	        goto err;
+
+	    sc->sc_iferrs = 0;
+
+	    if (IF_QFULL(&ipintrq)) {
+	        lprintf("DROP");
+	        IF_DROP(&ipintrq);
+		goto done;
+	    }
+	    len -= CLPIPHDRLEN;
+	    sc->sc_if.if_ipackets++;
+	    sc->sc_if.if_ibytes += len;
+	    top = m_devget(sc->sc_ifbuf + CLPIPHDRLEN, len, 0, &sc->sc_if, 0);
+	    if (top) {
+	        IF_ENQUEUE(&ipintrq, top);
+	        schednetisr(NETISR_IP);
+	    }
+	    goto done;
+	}
 	while ((inb(lpt_stat_port) & LPIP_SHAKE)) {
 	    len = sc->sc_if.if_mtu + LPIPHDRLEN;
 	    bp  = sc->sc_ifbuf;
@@ -1053,16 +1171,15 @@ lpintr (int unit)
 static inline int
 lpoutbyte (u_char byte, int spin, int data_port, int status_port)
 {
-	outb(data_port, txmith[byte]);
-	while (!(inb(status_port) & LPIP_SHAKE))
-		if (--spin == 0)
-			return 1;
-	outb(data_port, txmitl[byte]);
-	while (inb(status_port) & LPIP_SHAKE)
-		if (--spin == 0)
-			return 1;
-
-	return 0;
+    outb(data_port, txmith[byte]);
+    while (!(inb(status_port) & LPIP_SHAKE))
+	if (--spin == 0)
+		return 1;
+    outb(data_port, txmitl[byte]);
+    while (inb(status_port) & LPIP_SHAKE)
+	if (--spin == 0)
+		return 1;
+    return 0;
 }
 
 static int
@@ -1076,6 +1193,10 @@ lpoutput (struct ifnet *ifp, struct mbuf *m,
     int s, err;
     struct mbuf *mm;
     u_char *cp = "\0\0";
+    u_char chksum = 0;
+    int count = 0;
+    int i;
+    int spin;
 
     /* We need a sensible value if we abort */
     cp++;
@@ -1088,27 +1209,106 @@ lpoutput (struct ifnet *ifp, struct mbuf *m,
     /* Suspend (on laptops) or receive-errors might have taken us offline */
     outb(lpt_ctrl_port, LPC_ENA);
 
+    if (ifp->if_flags & IFF_LINK0) {
+
+	if (!(inb(lpt_stat_port) & CLPIP_SHAKE)) {
+	    lprintf("&");
+	    lptintr(ifp->if_unit);
+	}
+
+	/* Alert other end to pending packet */
+	spin = LPMAXSPIN1;
+	outb(lpt_data_port, 0x08);
+	while ((inb(lpt_stat_port) & 0x08) == 0)
+		if (--spin == 0) {
+			goto nend;
+		}
+
+	/* Calculate length of packet, then send that */
+
+	count += 14;		/* Ethernet header len */
+
+	mm = m;
+	for (mm = m; mm; mm = mm->m_next) {
+		count += mm->m_len;
+	}
+	if (clpoutbyte(count & 0xFF, LPMAXSPIN1, lpt_data_port, lpt_stat_port))
+		goto nend;
+	if (clpoutbyte((count >> 8) & 0xFF, LPMAXSPIN1, lpt_data_port, lpt_stat_port))
+		goto nend;
+
+	/* Send dummy ethernet header */
+	for (i = 0; i < 12; i++) {
+		if (clpoutbyte(i, LPMAXSPIN1, lpt_data_port, lpt_stat_port))
+			goto nend;
+		chksum += i;
+	}
+
+	if (clpoutbyte(0x08, LPMAXSPIN1, lpt_data_port, lpt_stat_port))
+		goto nend;
+	if (clpoutbyte(0x00, LPMAXSPIN1, lpt_data_port, lpt_stat_port))
+		goto nend;
+	chksum += 0x08 + 0x00;		/* Add into checksum */
+
+	mm = m;
+	do {
+		cp = mtod(mm, u_char *);
+		while (mm->m_len--) {
+			chksum += *cp;
+			if (clpoutbyte(*cp++, LPMAXSPIN2, lpt_data_port, lpt_stat_port))
+				goto nend;
+		}
+	} while ((mm = mm->m_next));
+
+	/* Send checksum */
+	if (clpoutbyte(chksum, LPMAXSPIN2, lpt_data_port, lpt_stat_port))
+		goto nend;
+
+	/* Go quiescent */
+	outb(lpt_data_port, 0);
+
+	err = 0;			/* No errors */
+
+	nend:
+	if (err)  {				/* if we didn't timeout... */
+		ifp->if_oerrors++;
+		lprintf("X");
+	} else {
+		ifp->if_opackets++;
+		ifp->if_obytes += m->m_pkthdr.len;
+	}
+
+	m_freem(m);
+
+	if (!(inb(lpt_stat_port) & CLPIP_SHAKE)) {
+		lprintf("^");
+		lptintr(ifp->if_unit);
+	}
+	(void) splx(s);
+	return 0;
+    }
+
     if (inb(lpt_stat_port) & LPIP_SHAKE) {
-	lprintf("&");
-	lptintr(ifp->if_unit);
+        lprintf("&");
+        lptintr(ifp->if_unit);
     }
 
     if (lpoutbyte(0x08, LPMAXSPIN1, lpt_data_port, lpt_stat_port))
-	goto end;
+        goto end;
     if (lpoutbyte(0x00, LPMAXSPIN2, lpt_data_port, lpt_stat_port))
-	goto end;
+        goto end;
 
     mm = m;
     do {
-	cp = mtod(mm,u_char *);
-	while (mm->m_len--)
+        cp = mtod(mm,u_char *);
+        while (mm->m_len--)
 	    if (lpoutbyte(*cp++, LPMAXSPIN2, lpt_data_port, lpt_stat_port))
-		goto end;
+	        goto end;
     } while ((mm = mm->m_next));
 
     err = 0;				/* no errors were encountered */
 
-end:
+    end:
     --cp;
     outb(lpt_data_port, txmitl[*cp] ^ 0x17);
 
@@ -1183,4 +1383,3 @@ static void 	lpt_drvinit(void *unused)
 SYSINIT(lptdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,lpt_drvinit,NULL)
 
 #endif /* JREMOD */
-
