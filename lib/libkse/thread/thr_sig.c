@@ -941,11 +941,6 @@ _thread_sig_wrapper(void)
 			psf->saved_state.psd_state = PS_RUNNING;
 			break;
 
-		case PS_FILE_WAIT:
-			_flockfile_backout(thread);
-			psf->saved_state.psd_state = PS_RUNNING;
-			break;
-
 		case PS_COND_WAIT:
 			_cond_wait_backout(thread);
 			psf->saved_state.psd_state = PS_RUNNING;
