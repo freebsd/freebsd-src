@@ -219,7 +219,7 @@ clockdiff(argc, argv)
 			printf("%s is down\n", hp->h_name);
 			continue;
 		case NONSTDTIME:
-			printf("%s transmitts a non-standard time format\n",
+			printf("%s transmits a non-standard time format\n",
 			       hp->h_name);
 			continue;
 		case UNREACHABLE:
