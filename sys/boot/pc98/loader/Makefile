@@ -6,9 +6,6 @@ STRIP=
 NEWVERSWHAT=	"bootstrap loader" pc98
 BINDIR?=	/boot
 INSTALLFLAGS=	-b
-.if !defined(LOADER_NO_AOUT_SUPPORT)
-LOADER_AOUT_SUPPORT=	yes
-.endif
 
 CFLAGS+=	-ffreestanding
 CFLAGS+=	-DPC98
