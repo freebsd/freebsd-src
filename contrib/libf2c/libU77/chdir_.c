@@ -32,24 +32,17 @@ Boston, MA 02111-1307, USA.  */
 #include "f2c.h"
 
 
-#ifdef KR_headers
-void g_char ();
+void g_char (const char *a, ftnlen alen, char *b);
 
-integer G77_chdir_0 (name, Lname)
-     char *name;
-     ftnlen Lname;
-#else
-void g_char(const char *a, ftnlen alen, char *b);
-
-integer G77_chdir_0 (const char *name, const ftnlen Lname)
-#endif
+integer
+G77_chdir_0 (const char *name, const ftnlen Lname)
 {
   char *buff;
-  char *bp, *blast;
   int i;
 
-  buff = malloc (Lname+1);
-  if (!buff) return -1;
+  buff = malloc (Lname + 1);
+  if (!buff)
+    return -1;
   g_char (name, Lname, buff);
   i = chdir (buff);
   free (buff);

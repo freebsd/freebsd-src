@@ -1,13 +1,9 @@
 #include "f2c.h"
 
-#ifdef KR_headers
-double pow();
-double pow_dd(ap, bp) doublereal *ap, *bp;
-#else
 #undef abs
 #include <math.h>
-double pow_dd(doublereal *ap, doublereal *bp)
-#endif
+double
+pow_dd (doublereal * ap, doublereal * bp)
 {
-return(pow(*ap, *bp) );
+  return (pow (*ap, *bp));
 }

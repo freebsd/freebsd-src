@@ -1,13 +1,9 @@
 #include "f2c.h"
 
-#ifdef KR_headers
-double cosh();
-double r_cosh(x) real *x;
-#else
 #undef abs
 #include <math.h>
-double r_cosh(real *x)
-#endif
+double
+r_cosh (real * x)
 {
-return( cosh(*x) );
+  return (cosh (*x));
 }

@@ -1,13 +1,9 @@
 #include "f2c.h"
 
-#ifdef KR_headers
-double sqrt();
-double d_sqrt(x) doublereal *x;
-#else
 #undef abs
 #include <math.h>
-double d_sqrt(doublereal *x)
-#endif
+double
+d_sqrt (doublereal * x)
 {
-return( sqrt(*x) );
+  return (sqrt (*x));
 }

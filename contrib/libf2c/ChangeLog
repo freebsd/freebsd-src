@@ -1,12 +1,43 @@
-2003-02-05  Release Manager
+2003-07-04  H.J. Lu <hongjiu.lu@intel.com>
 
-	* GCC 3.2.2 Released.
+	* Makefile.in: Replace PWD with PWD_COMMAND.
 
-2003-01-28  Christian Cornelssen  <ccorn@cs.tu-berlin.de>
+2003-05-13  Release Manager
 
-	* Makefile.in (FLAGS_TO_PASS): Also pass DESTDIR.
-	(install, uninstall): Prepend $(DESTDIR) to destination
-	paths in all (un)installation commands.
+	* GCC 3.3 Released.
+
+2003-05-13  Release Manager
+
+	* GCC 3.3 Released.
+
+2003-05-13  Release Manager
+
+	* GCC 3.3 Released.
+
+2003-04-23  Loren J. Rittle  <ljrittle@acm.org>
+
+	* libI77/configure.in (_XOPEN_SOURCE): Bump to 600.
+	* libI77/configure: Regenerate. 
+	* libU77/configure.in (_XOPEN_SOURCE): Bump to 600.
+	* libU77/configure: Regenerate. 
+
+2003-04-11  Bud Davis <bdavis9659@comcast.net>
+
+	PR Fortran/1832
+	* libf2c/libI77/iio.c (z_putc): Check for overflowing length
+	of output string.
+
+2003-03-24  Bud Davis  <bdavis9659@comcast.net>
+
+	PR fortran/10197
+	* libI77/open.c (f_open): A DIRECT ACCESS file is
+	UNFORMATTED by default.
+
+2003-02-20  Alexandre Oliva  <aoliva@redhat.com>
+
+	* configure.in: Propagate ORIGINAL_LD_FOR_MULTILIBS to
+	config.status.
+	* configure: Rebuilt.
 
 2003-01-27  Alexandre Oliva  <aoliva@redhat.com>
 
@@ -16,29 +47,59 @@
 	version_specific_libs is enabled.
 	* configure: Rebuilt.
 
-2002-11-19  Release Manager
+2003-01-26  Christian Cornelssen  <ccorn@cs.tu-berlin.de>
 
-	* GCC 3.2.1 Released.
+	* Makefile.in (FLAGS_TO_PASS): Also pass DESTDIR.
+	(install, uninstall): Prepend $(DESTDIR) to destination
+	paths in all (un)installation commands.
 
-2002-11-19  Release Manager
+2002-11-19  Toon Moene  <toon@moene.indiv.nluug.nl>
 
-	* GCC 3.2.1 Released.
+	PR fortran/8587
+	* libF77/pow_zz.c: Handle (0.0, 0.0) ** power.
 
-2002-11-18  Release Manager
+2002-10-18  Krister Walfridsson  <cato@df.lth.se>
 
-	* GCC 3.2.1 Released.
+	* libU77/configure.in (_XOPEN_SOURCE, _XOPEN_SOURCE_EXTENDED,
+	__EXTENSIONS__, _FILE_OFFSET_BITS): Check that _XOPEN_SOURCE 500L
+	may be defined before defining these.
+	* libU77/configure: Regenerate.
+	* libI77/configure.in (_XOPEN_SOURCE, _XOPEN_SOURCE_EXTENDED,
+	__EXTENSIONS__, _FILE_OFFSET_BITS): Check that _XOPEN_SOURCE 500L
+	may be defined before defining these.
+	* libI77/configure: Regenerate.
 
-Mon Oct  7 00:32:38 2002  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+2002-09-23  Zack Weinberg  <zack@codesourcery.com>
+
+	* libF77/Version.c: Rename junk to __LIBF77_VERSION__.  Add
+	external decls for __LIBI77_VERSION__ and __LIBU77_VERSION__.
+	Delete __G77_LIBF77_VERSION__
+	(g77__fvers__): Print all three __LIB*77_VERSION__ strings,
+	and __VERSION__ if we have it; nothing else.
+
+	* libI77/Version.c: Provide only __LIBI77_VERSION__ (formerly junk).
+	* libU77/Version.c: Provide only __LIBU77_VERSION__ (formerly junk).
+
+Sun Sep 22 23:43:37 2002  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
 
 	* Makefile.in (all): Fix multilib parallel build.
 
-2002-08-14  Release Manager
+2002-09-14  Tim Prince  <tprince@computer.org>
 
-	* GCC 3.2 Released.
+	PR libf2c/7384
+	* libU77/datetime_.c: Use GetLocalTime on MS-Windows.
 
-2002-07-25  Release Manager
+2002-08-31  Toon Moene  <toon@moene.indiv.nluug.nl>
 
-	* GCC 3.1.1 Released.
+	PR fortran/6367
+	* libI77/rsne.c (x_rsne): Use local variable no2 to count further
+	list elements to read.
+
+2002-07-10  Toon Moene  <toon@moene.indiv.nluug.nl>
+
+	* libI77/open.c (f_open): Do not indicate unformatted file
+	if record length is given without a FORMATTED/UNFORMATTED
+	specification.
 
 2002-06-25  DJ Delorie  <dj@redhat.com>
 
@@ -47,13 +108,170 @@ Mon Oct  7 00:32:38 2002  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
 	* configure.in: Call it before AC_CANONICAL_SYSTEM.
 	* configure: Regenerate.
 
-2002-05-14  Release Manager
+Wed Jun  5 15:05:41 2002  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
 
-	* GCC 3.1 Released.
+	* f2cext.c (alarm_): Mark parameter(s) with attribute `unused'.
+	* libF77/h_len.c (h_len): Likewise.
+	* libF77/i_len.c (i_len): Likewise.
+	* libI77/rsli.c (i_ungetc): Likewise.
+	* libU77/date_.c (G77_date_y2kbuggy_0): Likewise.
+	* libU77/fputc_.c (G77_fputc_0): Likewise.
+	* libU77/vxtidate_.c (G77_vxtidate_y2kbuggy_0): Likewise.
+	* libU77/vxttime_.c (G77_vxttime_0): Likewise.
 
-2002-05-14  Release Manager
+Mon Jun  3 22:24:48 2002  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
 
-	* GCC 3.1 Released.
+	* libF77/main.c (f_setarg, f_setsig): Prototype.
+	* libI77/lread.c (quad_read): Delete.
+	* libI77/uio.c: Include config.h.
+	* libI77/wref.c (wrt_E): Cast isdigit arg to unsigned char.
+	* libU77/dtime_.c (clk_tck): Move to the scope where it is used.
+	* libU77/etime_.c (clk_tck): Likewise.
+
+Mon Jun  3 22:23:03 2002  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* libF77/lbitbits.c (lbit_cshift): disambiguate expressions
+	with parentheses.
+	* libF77/qbitbits.c (qbit_cshift): Likewise.
+	* libI77/inquire.c (f_inqu): Likewise.
+	* libI77/rdfmt.c (rd_Z): Likewise.
+	* libI77/rsne.c (x_rsne): Likewise.
+
+Mon Jun  3 22:21:23 2002  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* Makefile.in (s-libe77): Add WARN_CFLAGS.
+
+Sun Jun  2 10:32:35 2002  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* libI77/dfe.c (s_rdfe, s_wdfe): Wrap parentheses around
+	assignment used as truth value.
+	* libI77/due.c (s_rdue, s_wdue): Likewise.
+	* libI77/endfile.c (f_end): Likewise.
+	* libI77/iio.c (s_rsfi, s_wsfi): Likewise.
+	* libI77/lread.c (ERR, l_C, nmL_getc, s_rsle): Likewise.
+	* libI77/lwrite.c (l_g, l_put): Likewise.
+	* libI77/open.c (f_open): Likewise.
+	* libI77/rdfmt.c (rd_Z): Likewise.
+	* libI77/rsfe.c (s_rsfe): Likewise.
+	* libI77/rsne.c (hash, mk_hashtab, nl_init, getname, getdimen,
+	x_rsne, s_rsne): Likewise.
+	* libI77/sue.c (s_rsue, s_wsue): Likewise.
+	* libI77/wref.c (wrt_E, wrt_F): Likewise.
+	* libI77/wsfe.c (s_wsfe): Likewise.
+	* libI77/wsle.c (s_wsle): Likewise.
+	* libI77/wsne.c (s_wsne): Likewise.
+
+Sun Jun  2 08:59:50 2002  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* libF77/main.c (main): Avoid implicit int.
+	* libI77/dfe.c (y_rsk, y_getc, c_dfe): Likewise.
+	* libI77/due.c (c_due): Likewise.
+	* libI77/err.c (f__canseek, f__nowreading, f__nowwriting):
+	Likewise.
+	* libI77/fmt.c (op_gen, ne_d, e_d, pars_f, type_f, en_fio):
+	Likewise.
+	* libI77/iio.c (z_getc, z_rnew, c_si, z_wnew): Likewise.
+	* libI77/lread.c (t_getc, c_le, l_read): Likewise.
+	* libI77/lwrite.c (l_write): Likewise.
+	* libI77/open.c (fk_open): Likewise.
+	* libI77/rdfmt.c (rd_ed, rd_ned): Likewise.
+	* libI77/rsfe.c (xrd_SL, x_getc, x_endp, x_rev): Likewise.
+	* libI77/rsne.c (t_getc, x_rsne): Likewise.
+	* libI77/sfe.c (c_sfe): Likewise.
+	* libI77/sue.c (c_sue): Likewise.
+	* libI77/uio.c (do_us): Likewise.
+	* libI77/wref.c (wrt_E, wrt_F): Likewise.
+	* libI77/wrtfmt.c (wrt_L, w_ed, w_ned): Likewise.
+
+Sun Jun  2 08:58:05 2002  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* libI77/rdfmt.c (rd_I): Delete unused variable(s).
+	* libU77/access_.c (G77_access_0): Likewise.
+	* libU77/chdir_.c (G77_chdir_0): Likewise.
+	* libU77/chmod_.c (G77_chmod_0): Likewise.
+	* libU77/ctime_.c (G77_ctime_0): Likewise.
+	* libU77/link_.c (G77_link_0): Likewise.
+	* libU77/lstat_.c (G77_lstat_0): Likewise.
+	* libU77/rename_.c (G77_rename_0): Likewise.
+	* libU77/stat_.c (G77_stat_0): Likewise.
+	* libU77/symlnk_.c (G77_symlnk_0): Likewise.
+	* libU77/unlink_.c (G77_unlink_0): Likewise.
+
+Sun Jun  2 08:55:20 2002  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* libI77/inquire.c (f_inqu): Avoid ambiguous else clauses.
+	* libI77/lread.c (l_C, l_L): Likewise.
+	* libI77/open.c (f_open): Likewise.
+	* libI77/rsne.c (x_rsne): Likewise.
+	* libI77/wref.c (wrt_F): Likewise.
+
+Sun Jun  2 08:53:15 2002  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* libF77/getenv_.c (G77_getenv_0): Avoid signed/unsigned warning.
+	* libF77/system_.c (G77_system_0): Likewise.
+	* libI77/open.c (f_open): Likewise.
+	* libI77/rdfmt.c (rd_Z): Likewise.
+	* libI77/uio.c (do_us, do_ud): Likewise.
+
+Sat Jun  1 08:33:14 2002  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* libF77/*: Fix formatting.
+	* libI77/*: Likewise.
+	* libU77/*: Likewise.
+
+Fri May 31 21:56:30 2002  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* g2c.hin, libF77/d_cnjg.c, libF77/main.c, libF77/r_cnjg.c,
+	libF77/s_cat.c, libF77/s_paus.c, libF77/s_rnge.c, libF77/setarg.c,
+	libF77/setsig.c, libF77/signal1.h0, libI77/dfe.c, libI77/due.c,
+	libI77/err.c, libI77/fio.h, libI77/fmt.c, libI77/iio.c,
+	libI77/ilnw.c, libI77/lread.c, libI77/lwrite.c, libI77/rsfe.c,
+	libI77/rsli.c, libI77/rsne.c, libI77/sfe.c, libI77/sue.c,
+	libI77/util.c, libI77/wrtfmt.c, libI77/wsfe.c, libI77/wsle.c,
+	libI77/xwsne.c, libU77/date_.c: Kill VOID, Void and Int.
+
+Fri May 31 21:54:37 2002  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* libF77/F77_aloc.c, libF77/exit_.c, libF77/main.c,
+	libF77/s_paus.c, libF77/s_stop.c, libF77/setarg.c,
+	libF77/setsig.c, libF77/sig_die.c, libF77/signal1.h0,
+	libI77/close.c, libI77/dolio.c, libI77/fio.h, libI77/fmt.h,
+	libI77/lio.h: Delete checks on __cplusplus.
+
+Fri May 31 21:50:01 2002  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* libF77/*: Delete KR_headers cruft.
+	* libI77/*: Likewise.
+	* libU77/*: Likewise.
+
+Thu May 30 23:04:52 2002  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* Makefile.in (WARN_CFLAGS): New.
+	(FLAGS_TO_PASS): Add WARN_CFLAGS.
+	* libF77/Makefile.in (ALL_CFLAGS): Likewise.
+	* libI77/Makefile.in (ALL_CFLAGS): Likewise.
+	* libU77/Makefile.in (ALL_CFLAGS): Likewise.
+
+2002-05-30  H.J. Lu  (hjl@gnu.org)
+
+	* libI77/open.c (_XOPEN_SOURCE): Removed.
+
+Mon May 20 13:03:54 2002  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* libF77/Makefile.in (SHELL): Set to @SHELL@.
+	* libI77/Makefile.in (SHELL): Likewise.
+	* libU77/Makefile.in (SHELL): Likewise.
+
+2002-05-20  Toon Moene  <toon@moene.indiv.nluug.nl>
+
+	* Makefile.in: Use @SHELL@, not /bin/sh for SHELL
+	definition.
+
+2002-05-16  Rainer Orth  <ro@TechFak.Uni-Bielefeld.DE>
+
+	* Makefile.in: Allow for PWDCMD to override hardcoded pwd.
+	* aclocal.m4: Likewise.
+	* configure: Regenerate.
 
 2002-05-08  Alexandre Oliva  <aoliva@redhat.com>
 
@@ -63,14 +281,18 @@ Mon Oct  7 00:32:38 2002  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
 
 2002-05-02  Alexandre Oliva  <aoliva@redhat.com>
 
-        * Makefile.in: Fix for multilibbed natives.
+	* Makefile.in: Fix for multilibbed natives.
 
 2002-04-15  Loren J. Rittle  <ljrittle@acm.org>
 
 	* aclocal.m4 (gcc_version_trigger): Use robust path construction.
 	* configure: Rebuilt.
 
-2002-04-01  Phil Edwards  <pme@gcc.gnu.org>
+2002-04-11  Toon Moene  <toon@moene.indiv.nluug.nl>
+
+	* libI77/lio.h: Treat INTEGER*1 as signed char.
+
+2002-03-06  Phil Edwards  <pme@gcc.gnu.org>
 
 	* libF77/Version.c:  Fix misplaced leading blanks on first line.
 	* libI77/Version.c:  Likewise.
@@ -213,7 +435,7 @@ Mon Oct  7 00:32:38 2002  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
 	of shared libf2c to 0:0:0.
 
 2001-09-29  Juergen Pfeifer  <juergen.pfeifer@gmx.net>
-            Toon Moene  <toon@moene.indiv.nluug.nl>
+	    Toon Moene  <toon@moene.indiv.nluug.nl>
 
 	Make libf2c a shared library.
 
@@ -287,7 +509,7 @@ Wed Jul 18 11:14:33 2001  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
 	* libI77/Makefile.in: Add necessary dependencies on config.h.
 
 2001-07-06  Toon Moene  <toon@moene.indiv.nluug.nl>
-            Pedro Vazquez  <vazquez@penelope.iqm.unicamp.br>
+	    Pedro Vazquez  <vazquez@penelope.iqm.unicamp.br>
 
 	* libI77/configure.in: Check for fseeko, ftello.
 	* libI77/configure: Rebuilt.
@@ -314,7 +536,7 @@ Wed Jul 18 11:14:33 2001  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
 	* libI77/fio.h: Include <sys/types.h> for off_t.
 
 2001-07-01  Toon Moene  <toon@moene.indiv.nluug.nl>
-            Pedro Vazquez  <vazquez@penelope.iqm.unicamp.br>
+	    Pedro Vazquez  <vazquez@penelope.iqm.unicamp.br>
 
 	* libI77/fio.h: Use off_t when appropriate.
 	* libI77/backspace.c (f_back): Ditto.
@@ -472,7 +694,7 @@ Wed Jul 18 11:14:33 2001  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
 	file atomically.
 
 2000-07-03  Donn Terry  (donnte@microsoft.com)
-        * libU77/aclocal.m4: check for 2 argument gettimeofday without
+	* libU77/aclocal.m4: check for 2 argument gettimeofday without
 	struct timezone
 
 2000-07-02  Toon Moene  <toon@moene.indiv.nluug.nl>
