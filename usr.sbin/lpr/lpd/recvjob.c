@@ -372,27 +372,13 @@ rcleanup(int signo __unused)
 	dfname[0] = '\0';
 }
 
-#ifdef __STDC__
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 
 static void
-#ifdef __STDC__
 frecverr(const char *msg, ...)
-#else
-frecverr(msg, va_alist)
-	char *msg;
-        va_dcl
-#endif
 {
 	va_list ap;
-#ifdef __STDC__
 	va_start(ap, msg);
-#else
-	va_start(ap);
-#endif
 	syslog(LOG_ERR, "Error receiving job from %s:", from_host);
 	vsyslog(LOG_ERR, msg, ap);
 	va_end(ap);
