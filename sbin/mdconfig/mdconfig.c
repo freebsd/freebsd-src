@@ -27,8 +27,9 @@ enum {UNSET, ATTACH, DETACH} action = UNSET;
 void
 usage()
 {
-	fprintf(stderr, "Usage:\n\t");
-	fprintf(stderr, "mdconfig {-a|-d} -t type [-o [no]option]... [ -f file] [-s size] [-u unit]\n");
+	fprintf(stderr, "Usage:\n");
+	fprintf(stderr, "\tmdconfig -a -t type [-o [no]option]... [ -f file] [-s size] [-u unit]\n");
+	fprintf(stderr, "\tmdconfig -d -u unit\n");
 	fprintf(stderr, "\t\ttype = {malloc, preload, vnode, swap}\n");
 	fprintf(stderr, "\t\toption = {cluster, compress, reserve, autounit}\n");
 	fprintf(stderr, "\t\tsize = %%d (512 byte blocks), %%dk (kB), %%dm (MB) or %%dg (GB)\n");
@@ -57,7 +58,8 @@ main(int argc, char **argv)
 			if (cmdline != 0)
 				usage();
 			action = DETACH;
-			cmdline = 1;
+			mdio.md_options = MD_AUTOUNIT;
+			cmdline = 3;
 			break;
 		case 't':
 			if (cmdline != 1)
@@ -122,7 +124,7 @@ main(int argc, char **argv)
 				errx(1, "Unknown suffix on -s argument");
 			break;
 		case 'u':
-			if (cmdline != 2)
+			if (cmdline != 2 && cmdline != 3)
 				usage();
 			mdio.md_unit = strtoul(optarg, NULL, 0);
 			mdio.md_options &= ~MD_AUTOUNIT;
@@ -135,12 +137,17 @@ main(int argc, char **argv)
 	fd = open("/dev/mdctl", O_RDWR, 0);
 	if (fd < 0)
 		err(1, "open(/dev/mdctl)");
-	if (action == ATTACH)
+	if (action == ATTACH) {
 		i = ioctl(fd, MDIOCATTACH, &mdio);
-	else 
+	} else {
+		if (mdio.md_options & MD_AUTOUNIT)
+			usage();
 		i = ioctl(fd, MDIOCDETACH, &mdio);
+	}
 	if (i < 0)
 		err(1, "ioctl(/dev/mdctl)");
+	if (mdio.md_options & MD_AUTOUNIT)
+		printf("md%d\n", mdio.md_unit);
 	return (0);
 }
 
