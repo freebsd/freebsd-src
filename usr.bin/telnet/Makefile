@@ -2,11 +2,13 @@
 
 PROG=		telnet
 
-CFLAGS+=	-DKLUDGELINEMODE -DUSE_TERMIO -DENV_HACK -DOPIE \
-		-I${.CURDIR}/../../lib
-
 SRCS=		commands.c main.c network.c ring.c sys_bsd.c \
-		telnet.c terminal.c tn3270.c utilities.c
+		telnet.c terminal.c utilities.c
+
+CFLAGS+=	-DKLUDGELINEMODE -DUSE_TERMIO -DENV_HACK -DOPIE \
+		-I${.CURDIR}/../../lib -I${.CURDIR}/../../lib/libtelnet/
+
+WARNS?=		2
 
 .if exists(${.OBJDIR}/../../lib/libtelnet)
 LIBTELNET=	${.OBJDIR}/../../lib/libtelnet/libtelnet.a
@@ -27,5 +29,14 @@ LDADD+=		-lipsec
 SRCS+=		genget.c getent.c misc.c
 CFLAGS+=	-DHAS_CGETENT
 .endif
+
+unifdef:
+	-cd ${.CURDIR} ; \
+	( for i in *.[ch] ; do \
+		unifdef -UAUTHENTICATION -UENCRYPTION \
+			${.CURDIR}/../../crypto/telnet/telnet/$$i \
+				> ${.CURDIR}/$$i ; \
+		echo $$i ; \
+	done )
 
 .include <bsd.prog.mk>
