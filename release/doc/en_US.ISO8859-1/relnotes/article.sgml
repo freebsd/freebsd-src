@@ -187,6 +187,11 @@
       have been rewritten to use it.  Note that <filename>/etc/remote</filename>
       and <filename>/etc/ttys</filename> have been updated as well.</para>
 
+    <para>The &man.vkbd.4; driver has been added.  This driver
+      provides a software loopback mechanism that can implement
+      a virtual AT keyboard similar to what the &man.pty.4; driver
+      does for terminals.</para>
+
     <!-- Above this line, sort kernel changes by manpage/keyword-->
 
     <para arch="i386,amd64,ia64">The default <varname>HZ</varname>
@@ -230,6 +235,10 @@
 
     <sect3 id="proc">
       <title>Hardware Support</title>
+
+      <para arch="i386,amd64">The acpi_snc driver,
+	which supports Sony Notebook Controller on various
+	Sony laptops has been added.</para>
 
       <para arch="sparc64">The &man.auxio.4; driver has been to drive
 	some auxiliary I/O functions found on various SBus/EBus
@@ -319,6 +328,10 @@
 	<para>Ethernet flow control is now disabled by default in the
 	  &man.fxp.4; driver, to prevent problems with a system panics
 	  or is left in the kernel debugger. &merged;</para>
+
+	<para>The gx(4) driver has been removed because
+	  it is no longer maintained actively and
+	  the &man.em.4; supports all of the supported hardware.</para>
 
 	<para>The &man.hme.4; driver is now MPSAFE. &merged;</para>
 
@@ -452,6 +465,9 @@
 	<filename>GENERIC</filename> kernel has been reduced from
 	fifteen seconds to five seconds.</para>
 
+      <para>The old vinum(4) subsystem has been removed
+	in favor of the new &man.geom.4;-based version.</para>
+
       <para arch="pc98">The &man.wd.4; driver has been removed.  The
 	&man.ata.4; driver has been found to work well enough on the
 	pc98 platform that there is no need for the older &man.wd.4;
@@ -511,7 +527,7 @@
       is detected.</para>
 
     <para>The on-disk format of <literal>LC_CTYPE</literal> files has
-      been changed to be machine-indepedent.</para>
+      been changed to be machine-independent.</para>
 
     <para>The <filename>libarchive</filename> library (as well as the
       &man.tar.1; command that uses it) now has support for reading ISO
@@ -532,6 +548,13 @@
       &man.lrint.3; and variants, and &man.lround.3; and
       variants. &merged;</para>
 
+    <para>The <filename>libxpg4</filename> library has been removed
+      because all of the functionality was merged into
+      <filename>libc</filename> for a long time.
+      All binaries linked with <filename>libxpg4</filename>
+      must be recompiled or use &man.libmap.conf.5;.
+      Note that the &os; base system has no such binaries.</para>
+
     <para>The &man.newfs.8; utility now supports a <option>-n</option>
       flag to suppress the creation of a <filename>.snap</filename>
       directory on new file systems.  This feature is intended for use
@@ -548,6 +571,12 @@
       compresses file system images for use with
       <literal>GEOM_UZIP</literal> &man.geom.4; module,
       has been added. &merged;</para>
+
+    <para>A separate directory has been added for &man.named.8;
+      dynamic zones which is owned by the bind user
+      (for creation of the zone journal file).
+      For more detail, see an example dynamic zone in the sample
+      &man.named.conf.5;.  &merged;</para>
 
     <para>The &man.newsyslog.8; utility now supports
 	a <option>-d</option> option to specify an alternate root for log files
@@ -598,6 +627,12 @@
       removing directories or if more than 3 files are listed in the
       command line. &merged;</para>
 
+    <para>The &man.rm.1; utility now suppresses diagnostic messages
+      when it attempts to remove a non-existent directory
+      with the <option>-r</option> and <option>-f</option> options
+      specified.  This behavior is required by
+      Version 3 of the Single UNIX Specification (SUSv3).</para>
+
     <para>An &man.rpmatch.3; library function has been added to check
       a string for being an affirmative or negative response in the
       current locale.</para>
@@ -609,6 +644,11 @@
 
     <para>The rune(3) non-standard multibyte and wide character support
       interface has been removed.</para>
+
+    <para>The &man.strftime.3; function now supports some GNU extensions
+      such as <literal>-</literal>(no padding),
+      <literal>_</literal>(use space as padding),
+      and <literal>0</literal>(zero padding).</para>
 
     <para>The &man.syslog.3; function is now thread-safe. &merged;</para>
 
@@ -672,6 +712,13 @@ ifconfig_net0="inet 10.0.0.1/16"</programlisting>
 	<programlisting>moused_ums0_enable=yes
 moused_ums0_flags="-z 4"
 moused_ums0_port="/dev/ums0"</programlisting>
+
+      <para>&man.rc.conf.5; now supports <varname>tmpmfs_flags</varname>
+	and <varname>varmfs_flags</varname> variables.
+	These can be used to pass extra options to the &man.mdmfs.8; utility,
+	to customize the finer details of the &man.md.4; file system creation,
+	such as to turn on/off softupdates, to specify a default owner
+	for the file system, and so on.</para>
 
     </sect3>
   </sect2>
