@@ -303,7 +303,7 @@ static void
 usage()
 {
 	(void)fprintf(stderr, "%s\n%s\n",
-	    "usage: date [-nu] [-d dst] [-r seconds] [-t west] "
+	    "usage: date [-jnu] [-d dst] [-r seconds] [-t west] "
 	    "[-v[+|-]val[ymwdHMS]] ... ",
 	    "            "
 	    "[-f fmt date | [[[[[cc]yy]mm]dd]HH]MM[.ss]] [+format]");
