@@ -205,18 +205,18 @@ SYSCTL_PROC(_kern_geom, OID_AUTO, confdot, CTLTYPE_STRING|CTLFLAG_RD,
 	0, 0, sysctl_kern_geom_confdot, "A",
 	"Dump the GEOM config");
 
-SYSCTL_INT(_kern_geom, OID_AUTO, debugflags, CTLTYPE_INT|CTLFLAG_RW,
+SYSCTL_INT(_kern_geom, OID_AUTO, debugflags, CTLFLAG_RW,
 	&g_debugflags, 0, "");
 
-SYSCTL_INT(_debug_sizeof, OID_AUTO, g_class, CTLTYPE_INT|CTLFLAG_RD,
+SYSCTL_INT(_debug_sizeof, OID_AUTO, g_class, CTLFLAG_RD,
 	0, sizeof(struct g_class), "");
-SYSCTL_INT(_debug_sizeof, OID_AUTO, g_geom, CTLTYPE_INT|CTLFLAG_RD,
+SYSCTL_INT(_debug_sizeof, OID_AUTO, g_geom, CTLFLAG_RD,
 	0, sizeof(struct g_geom), "");
-SYSCTL_INT(_debug_sizeof, OID_AUTO, g_provider, CTLTYPE_INT|CTLFLAG_RD,
+SYSCTL_INT(_debug_sizeof, OID_AUTO, g_provider, CTLFLAG_RD,
 	0, sizeof(struct g_provider), "");
-SYSCTL_INT(_debug_sizeof, OID_AUTO, g_consumer, CTLTYPE_INT|CTLFLAG_RD,
+SYSCTL_INT(_debug_sizeof, OID_AUTO, g_consumer, CTLFLAG_RD,
 	0, sizeof(struct g_consumer), "");
-SYSCTL_INT(_debug_sizeof, OID_AUTO, g_bioq, CTLTYPE_INT|CTLFLAG_RD,
+SYSCTL_INT(_debug_sizeof, OID_AUTO, g_bioq, CTLFLAG_RD,
 	0, sizeof(struct g_bioq), "");
-SYSCTL_INT(_debug_sizeof, OID_AUTO, g_event, CTLTYPE_INT|CTLFLAG_RD,
+SYSCTL_INT(_debug_sizeof, OID_AUTO, g_event, CTLFLAG_RD,
 	0, sizeof(struct g_event), "");
