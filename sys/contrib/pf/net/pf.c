@@ -2329,7 +2329,7 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off, int direction,
 					    saddr, pd->af);
 				break;
 			case PF_IN:
-				if (r->rpool.cur->addr.type == PF_ADDR_DYNIFTL){
+				if (r->src.addr.type == PF_ADDR_DYNIFTL) {
 					if (pd->af == AF_INET) {
 						if (r->src.addr.p.dyn->
 						    pfid_acnt4 < 1)
