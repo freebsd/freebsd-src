@@ -282,7 +282,8 @@ _umtx_unlock(struct thread *td, struct _umtx_unlock_args *uap)
 		    UMTX_UNOWNED);
 		if (old == -1)
 			return (EFAULT);
-		KASSERT(old != owner, ("improper umtx access"));
+		if (old != owner)
+			return (EINVAL);
 
 		/*
 		 * Recheck the umtx queue to make sure another thread
@@ -303,7 +304,8 @@ _umtx_unlock(struct thread *td, struct _umtx_unlock_args *uap)
 		UMTX_UNLOCK();
 		old = casuptr((intptr_t *)&umtx->u_owner,
 		    owner, UMTX_CONTESTED);
-		KASSERT(old != -1 && old != owner, ("improper umtx access"));
+		if (old != -1 && old != owner)
+			return (EINVAL);
 	}
 
 	if (old == -1)
