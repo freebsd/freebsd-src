@@ -8,7 +8,7 @@
 # IRQ == 0 means "allocate free IRQ from IRQ pool"
 # IRQ == 16 means "do not use IRQ (e.g. PIO mode)"
 #
-# $Id: pccard.conf.sample,v 1.13 1997/12/16 02:43:26 pst Exp $
+# $Id: pccard.conf.sample,v 1.14 1998/02/10 01:01:35 msmith Exp $
 
 # Generally available IO ports
 io	0x240-0x360
@@ -324,7 +324,7 @@ card "New Media" "SCSI"
 	remove	echo New Media Bus Toaster removed
 
 # REX5535AC, REX5535X SCSI
-card "PCMCIA SCSI MBH1040" "01"
-	config	0x3a "spc0" 11
-	insert	echo REX-5535 SCSI card inserted
-	remove	echo REX-5535 SCSI card removed
+#card "PCMCIA SCSI MBH1040" "01"
+#	config	0x3a "spc0" 11
+#	insert	echo REX-5535 SCSI card inserted
+#	remove	echo REX-5535 SCSI card removed
