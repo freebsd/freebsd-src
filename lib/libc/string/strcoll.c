@@ -36,15 +36,22 @@ strcoll(s, s2)
 	const char *s, *s2;
 {
 	int len, len2, prim, prim2, sec, sec2, ret, ret2;
-	char *tt, *t, *tt2, *t2;
+	const char *t, *t2;
+	char *tt, *tt2;
 
 	if (__collate_load_error)
 		return strcmp(s, s2);
 
 	len = len2 = 1;
 	ret = ret2 = 0;
-	tt = t = __collate_substitute(s);
-	tt2 = t2 = __collate_substitute(s2);
+	if (__collate_substitute_nontrivial) {
+		t = tt = __collate_substitute(s);
+		t2 = tt2 = __collate_substitute(s2);
+	} else {
+		tt = tt2 = NULL;
+		t = s;
+		t2 = s2;
+	}
 	while(*t && *t2) {
 		prim = prim2 = 0;
 		while(*t && !prim) {

@@ -47,6 +47,7 @@ struct __collate_st_chain_pri {
 };
 
 extern int __collate_load_error;
+extern int __collate_substitute_nontrivial;
 extern char __collate_version[STR_LEN];
 extern u_char __collate_substitute_table[UCHAR_MAX + 1][STR_LEN];
 extern struct __collate_st_char_pri __collate_char_pri_table[UCHAR_MAX + 1];
@@ -56,7 +57,7 @@ __BEGIN_DECLS
 u_char *__collate_strdup __P((u_char *));
 u_char *__collate_substitute __P((const u_char *));
 int __collate_load_tables __P((char *));
-void __collate_lookup __P((u_char *, int *, int *, int *));
+void __collate_lookup __P((const u_char *, int *, int *, int *));
 int  __collate_range_cmp __P((int, int));
 #ifdef COLLATE_DEBUG
 void __collate_print_tables __P((void));
