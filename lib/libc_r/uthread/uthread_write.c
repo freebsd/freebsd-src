@@ -29,6 +29,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $Id$
+ *
  */
 #include <sys/types.h>
 #include <sys/fcntl.h>
@@ -50,7 +52,7 @@ write(int fd, const void *buf, size_t nbytes)
 	    __FILE__, __LINE__)) == 0) {
 		/* Perform a non-blocking write syscall: */
 		while ((ret = _thread_sys_write(fd, buf, nbytes)) < 0) {
-			if (_thread_fd_table[fd]->flags & O_NONBLOCK == 0 &&
+			if ((_thread_fd_table[fd]->flags & O_NONBLOCK) == 0 &&
 			    (errno == EWOULDBLOCK || errno == EAGAIN)) {
 				_thread_kern_sig_block(&status);
 				_thread_run->data.fd.fd = fd;
