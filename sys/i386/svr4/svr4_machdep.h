@@ -32,6 +32,7 @@
 #define	_I386_SVR4_MACHDEP_H_
 
 #if !defined(SVR4_MACHDEP_JUST_REGS)
+#include <sys/signal.h>
 #include <svr4/svr4_types.h>
 #endif
 
