@@ -126,7 +126,7 @@ atapi_detach(struct atapi_softc *atp)
     struct atapi_request *request;
 
     atp->flags |= ATAPI_F_DETACHING;
-
+    printf("\n%s: being removed from configuration", atp->devname);
     switch (ATP_PARAM->device_type) {
 #ifdef DEV_ATAPICD
     case ATAPI_TYPE_CDROM:
