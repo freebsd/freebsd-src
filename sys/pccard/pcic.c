@@ -1104,14 +1104,7 @@ pcicintr(void *unused)
 #endif	/* PC98 */
 	s = splhigh();
 	for (slot = 0; slot < PCIC_MAX_SLOTS; slot++, sp++)
-		/*
-		 * don't process this interrupt if we are in suspend
-		 * state; we have different means to (re)initialize the
-		 * slot.
-		 * XXX we shouldn't even get here!?
-		 */
-		if (sp->slt && (sp->slt->state != suspend) &&
-		    (chg = sp->getb(sp, PCIC_STAT_CHG)) != 0)
+		if (sp->slt && (chg = sp->getb(sp, PCIC_STAT_CHG)) != 0)
 			if (chg & PCIC_CDTCH) {
 				if ((sp->getb(sp, PCIC_STATUS) & PCIC_CD) ==
 						PCIC_CD) {
