@@ -34,14 +34,9 @@ MKSCRNMAP=${.CURDIR}/../../share/syscons/scrnmaps/obj/koi8-r2cp866.mk
 MKSCRNMAP=${.CURDIR}/../../share/syscons/scrnmaps/koi8-r2cp866.mk
 .endif
 
-makedevs.c:	dev2c.sh Makefile rtermcap
+makedevs.c:	Makefile rtermcap
 	rm -f makedevs.tmp
-	mkdir -p dev
 	echo '#include <sys/types.h>' > makedevs.tmp
-	cp ${.CURDIR}/../../etc/etc.i386/MAKEDEV dev
-	( cd dev; sh ./MAKEDEV all )
-	sh ${.CURDIR}/dev2c.sh dev > makedevs.tmp
-	rm -rf dev
 	uudecode < ${.CURDIR}/bteasy17.uu
 	file2c 'const unsigned char boot0[] = {' '};' \
 		< bteasy17 >> makedevs.tmp
