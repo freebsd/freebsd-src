@@ -1106,7 +1106,7 @@ acd_done(struct atapi_request *request)
 	struct toc buf = cdp->toc;
 
 	acd_read_toc(cdp);
-	if (memcmp(&buf, &cdp->toc, sizeof(struct toc)))
+	if (bcmp(&buf, &cdp->toc, sizeof(struct toc)))
 	    cdp->atp->flags |= ATAPI_F_MEDIA_CHANGED;  
 	else {
 	    error = atapi_immed_cmd(cdp->atp, request->ccb, request->data,
