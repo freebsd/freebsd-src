@@ -4,7 +4,7 @@
 
      $Id: dev.sgml,v 1.3 2002/09/29 21:03:53 eagle Exp $
      $FreeBSD$
-     Original revision: 1.106
+     Original revision: 1.111
 -->
 <!--
 
@@ -827,7 +827,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">Cartes RAID ATA Promise SuperTrak (gestionnaire pst)
+    <para arch="i386">Cartes RAID ATA Promise SuperTrak (gestionnaire &man.pst.4;)
       <itemizedlist>
 	<listitem>
 	  <para>Carte RAID ATA Promise SuperTrak SX6000</para>
@@ -845,7 +845,19 @@
 	  <para>LSI 53c1020, 53c1030</para>
 	</listitem>
       </itemizedlist>
-    <para>
+    </para>
+
+    <para arch="i386">Cartes PCI SCSI utilisant les composants Tekram
+    TRM-S1040 (gestionnaire trm)
+    <itemizedlist>
+      <listitem>
+        <para>Tekram DC395U/UW/F</para>
+      </listitem>
+      <listitem>
+        <para>Tekram DC315U</para>
+      </listitem>
+    </itemizedlist>
+
 
     <para>Sur toutes les cartes SCSI support&eacute;es, le support total
     des p&eacute;riph&eacute;riques SCSI-I, SCSI-II et SCSI-III est fourni,
@@ -2553,6 +2565,9 @@
     <para arch="i386,alpha,ia64,sparc64">Ports <quote>PC
     standard</quote> 8250, 16450, et 16550 (gestionnaire &man.sio.4;)</para>
 
+    <para arch="sparc64">Cartes s&eacute;rie bas&eacute;es sur les composants
+    SAB82532 (gestionnaire sab)</para>
+
     <para arch="i386,alpha">Carte 4 ports s&eacute;ries AST utilisant le
     partage d'IRQ</para>
 
@@ -3025,6 +3040,9 @@
         <listitem>
 	  <para>Clavier Microsoft</para>
 	</listitem>
+        <listitem>
+          <para>Clavier USB Sun Microsystems Type 6</para>
+        </listitem>
       </itemizedlist>
     </para>
     <para arch="i386,pc98">Divers
@@ -3087,6 +3105,9 @@
 	  <para>Microsoft IntelliMouse (3 boutons)</para>
 	</listitem>
         <listitem>
+          <para>Souris USB Sun Microsystems Type 6</para>
+        </listitem>
+        <listitem>
 	  <para>Souris Trust Ami (3 boutons)</para>
 	</listitem>
       </itemizedlist>
@@ -3107,6 +3128,19 @@
     </para>
     <para arch="i386,pc98">P&eacute;riph&eacute;riques s&eacute;ries
       <itemizedlist>
+      <listitem>
+	  <para>Belkin F5U103 et F5U120 (gestionnaire ubsa)</para>
+        </listitem>
+        <listitem>
+	  <para>e-Tek Labs Kwik232 (gestionnaire ubsa)</para>
+        </listitem>
+        <listitem>
+	  <para>GoHubs GoCOM232 (gestionnaire ubsa)</para>
+        </listitem>
+        <listitem>
+	  <para>Carte simple port s&eacute;rie Peracom (gestionnaire
+          ubsa)</para>
+        </listitem>
         <listitem>
 	  <para>Adaptateur s&eacute;rie Prolific PL-2303 (gestionnaire
           &man.uplcom.4;)</para>
