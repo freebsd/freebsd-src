@@ -17,7 +17,7 @@
 
 /* config.h - configurables for Vixie Cron
  *
- * $Id: config.h,v 1.1.1.1 1994/08/27 13:43:04 jkh Exp $
+ * $Id: config.h,v 1.2 1995/04/12 19:28:30 ache Exp $
  */
 
 #if !defined(_PATH_SENDMAIL)
@@ -42,10 +42,11 @@
 			 */
 
 #define MAILCMD _PATH_SENDMAIL					/*-*/
-#define MAILARGS "%s -FCronDaemon -odi -oem %s"                 /*-*/
+#define MAILARGS "%s -FCronDaemon -odi -oem -t"                 /*-*/
 			/* -Fx	 = set full-name of sender
 			 * -odi	 = Option Deliverymode Interactive
 			 * -oem	 = Option Errors Mailedtosender
+			 * -t    = read recipients from header of message
 			 */
 
 /* #define MAILCMD "/bin/mail"			/*-*/
