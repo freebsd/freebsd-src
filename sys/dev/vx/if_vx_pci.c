@@ -96,7 +96,9 @@ vx_pci_attach(
        return;
     }
 
-    sc = vxalloc(unit);
+    if ((sc = vxalloc(unit)) == NULL) {
+	return;
+    }
 
     sc->vx_io_addr = pci_conf_read(config_id, 0x10) & 0xffffffe0;
 
