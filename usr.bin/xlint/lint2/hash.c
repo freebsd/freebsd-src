@@ -1,4 +1,4 @@
-/*	$NetBSD: hash.c,v 1.2 1995/07/03 21:24:47 cgd Exp $	*/
+/*	$NetBSD: hash.c,v 1.7 2002/01/21 19:49:52 tv Exp $	*/
 
 /*
  * Copyright (c) 1994, 1995 Jochen Pohl
@@ -31,36 +31,45 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef lint
-static char rcsid[] = "$NetBSD: hash.c,v 1.2 1995/07/03 21:24:47 cgd Exp $";
+#include <sys/cdefs.h>
+#if defined(__RCSID) && !defined(lint)
+__RCSID("$NetBSD: hash.c,v 1.7 2002/01/21 19:49:52 tv Exp $");
 #endif
 
-#include <stddef.h>
-#include <string.h>
+/*
+ * XXX Really need a generalized hash table package
+ */
+
 #include <limits.h>
+#include <stddef.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "lint2.h"
 
 /* pointer to hash table, initialized in inithash() */
 static	hte_t	**htab;
 
-static	int	hash __P((const char *));
+static	int	hash(const char *);
 
 /*
  * Initialize hash table.
  */
 void
-inithash()
+_inithash(hte_t ***tablep)
 {
-	htab = xcalloc(HSHSIZ2, sizeof (hte_t *));
+
+	if (tablep == NULL)
+		tablep = &htab;
+
+	*tablep = xcalloc(HSHSIZ2, sizeof (hte_t *));
 }
 
 /*
  * Compute hash value from a string.
  */
 static int
-hash(s)
-	const	char *s;
+hash(const char *s)
 {
 	u_int	v;
 	const	u_char *us;
@@ -78,15 +87,16 @@ hash(s)
  * given name exists and mknew is set, create a new one.
  */
 hte_t *
-hsearch(s, mknew)
-	const	char *s;
-	int	mknew;
+_hsearch(hte_t **table, const char *s, int mknew)
 {
 	int	h;
 	hte_t	*hte;
 
+	if (table == NULL)
+		table = htab;
+
 	h = hash(s);
-	for (hte = htab[h]; hte != NULL; hte = hte->h_link) {
+	for (hte = table[h]; hte != NULL; hte = hte->h_link) {
 		if (strcmp(hte->h_name, s) == 0)
 			break;
 	}
@@ -95,13 +105,20 @@ hsearch(s, mknew)
 		return (hte);
 
 	/* create a new hte */
-	hte = xalloc(sizeof (hte_t));
+	hte = xmalloc(sizeof (hte_t));
 	hte->h_name = xstrdup(s);
+	hte->h_used = 0;
+	hte->h_def = 0;
+	hte->h_static = 0;
+	hte->h_syms = NULL;
 	hte->h_lsym = &hte->h_syms;
+	hte->h_calls = NULL;
 	hte->h_lcall = &hte->h_calls;
+	hte->h_usyms = NULL;
 	hte->h_lusym = &hte->h_usyms;
-	hte->h_link = htab[h];
-	htab[h] = hte;
+	hte->h_link = table[h];
+	hte->h_hte = NULL;
+	table[h] = hte;
 
 	return (hte);
 }
@@ -110,14 +127,38 @@ hsearch(s, mknew)
  * Call function f for each name in the hash table.
  */
 void
-forall(f)
-	void	(*f) __P((hte_t *));
+_forall(hte_t **table, void (*f)(hte_t *))
 {
 	int	i;
 	hte_t	*hte;
 
+	if (table == NULL)
+		table = htab;
+
 	for (i = 0; i < HSHSIZ2; i++) {
-		for (hte = htab[i]; hte != NULL; hte = hte->h_link)
+		for (hte = table[i]; hte != NULL; hte = hte->h_link)
 			(*f)(hte);
 	}
+}
+
+/*
+ * Free all contents of the hash table that this module allocated.
+ */
+void
+_destroyhash(hte_t **table)
+{
+	int	i;
+	hte_t	*hte, *nexthte;
+
+	if (table == NULL)
+		err(1, "_destroyhash called on main hash table");
+
+	for (i = 0; i < HSHSIZ2; i++) {
+		for (hte = table[i]; hte != NULL; hte = nexthte) {
+			free((void *)hte->h_name);
+			nexthte = hte->h_link;
+			free(hte);
+		}
+	}
+	free(table);
 }
