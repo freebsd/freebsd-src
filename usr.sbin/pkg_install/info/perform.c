@@ -138,7 +138,7 @@ pkg_do(char *pkg)
 	    show_file("De-Install script:\n", DEINSTALL_FNAME);
 	if (Flags & SHOW_PREFIX)
 	    show_plist("Prefix(s):\n", &plist, PLIST_CWD);
-	putchar('\014');
+	puts(InfoPrefix);
     }
     free_plist(&plist);
     leave_playpen();
