@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_shutdown.c,v 1.5 1996/09/06 23:08:40 phk Exp $
+ * $Id: kern_shutdown.c,v 1.6 1996/09/07 19:13:09 sos Exp $
  */
 
 #include "opt_ddb.h"
@@ -159,7 +159,7 @@ static struct pcb dumppcb;
  * this used to be in machdep.c but I'll be dammned if I could see
  * anything machine dependant in it.
  */
-__dead void
+void
 boot(howto)
 	int howto;
 {
@@ -335,9 +335,6 @@ dumpsys(void)
  * and then reboots.  If we are called twice, then we avoid trying to sync
  * the disks as this often leads to recursive panics.
  */
-#ifdef __GNUC__
-__dead			/* panic() does not return */
-#endif
 void
 panic(const char *fmt, ...)
 {

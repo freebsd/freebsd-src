@@ -1,6 +1,6 @@
 #! /bin/sh -
 #	@(#)makesyscalls.sh	8.1 (Berkeley) 6/10/93
-# $Id: makesyscalls.sh,v 1.16 1995/10/07 23:56:18 swallace Exp $
+# $Id: makesyscalls.sh,v 1.17 1996/03/02 19:38:10 peter Exp $
 
 set -e
 
@@ -258,10 +258,11 @@ s/\$//g
 		}
 		if ($2 != "NOPROTO" && (!nosys || funcname != "nosys") && \
 		    (!lkmnosys || funcname != "lkmnosys")) {
-			if (funcname == "exit")
-				printf("__dead ") > sysdcl
-			printf("%s\t%s __P((struct proc *, struct %s *, int []));\n", \
+			printf("%s\t%s __P((struct proc *, struct %s *, int []))", \
 			    rettype, funcname, argalias) > sysdcl
+			if (funcname == "exit")
+				printf(" __dead2") > sysdcl
+			printf(";\n") > sysdcl
 		}
 		if (funcname == "nosys")
 			nosys = 1
