@@ -27,8 +27,6 @@
  */
 
 #include "opt_bootp.h"
-#include "opt_ffs.h"
-#include "opt_cd9660.h"
 #include "opt_isa.h"
 #include "opt_nfs.h"
 #include "opt_nfsroot.h"
@@ -112,10 +110,6 @@ cpu_rootconf()
 	if (nfs_diskless_valid)
 #endif
 		rootdevnames[order++] = "nfs:";
-#endif
-
-#if defined(FFS) && defined(FFS_ROOT)
-	rootdevnames[order++] = "ufs:da0a";
 #endif
 }
 SYSINIT(cpu_rootconf, SI_SUB_ROOT_CONF, SI_ORDER_FIRST, cpu_rootconf, NULL)
