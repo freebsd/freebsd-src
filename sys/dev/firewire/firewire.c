@@ -337,7 +337,7 @@ firewire_xfer_timeout(struct firewire_comm *fc)
 	struct timeval split_timeout;
 	int i;
 
-	split_timeout.tv_sec = 2;
+	split_timeout.tv_sec = 6;
 	split_timeout.tv_usec = 0;
 
 	microtime(&tv);
@@ -350,7 +350,7 @@ firewire_xfer_timeout(struct firewire_comm *fc)
 				/* the rests are newer than this */
 				break;
 			device_printf(fc->bdev,
-				"split transaction timeout dst=%d tl=%d\n",
+				"split transaction timeout dst=0x%x tl=0x%x\n",
 				xfer->dst, i);
 			xfer->resp = ETIMEDOUT;
 			STAILQ_REMOVE_HEAD(&fc->tlabels[i], link);
@@ -1721,7 +1721,7 @@ fw_rcv(struct firewire_comm* fc, caddr_t buf, u_int len, u_int sub, u_int off, u
 					fp->mode.hdr.tlrt >> 2);
 		if(xfer == NULL) {
 			printf("fw_rcv: unknown response "
-					"tcode=%d src=0x%x tl=%x rt=%d data=0x%x\n",
+					"tcode=%d src=0x%x tl=0x%x rt=%d data=0x%x\n",
 					fp->mode.common.tcode,
 					ntohs(fp->mode.hdr.src),
 					fp->mode.hdr.tlrt >> 2,
