@@ -861,7 +861,7 @@ put_fdisk_data
 echo
 echo -n "Labelling disk..."
 echo y | 
-/sbin/disklabel -w -r -B ${drivename} $name
+/sbin/disklabel -w -r -B ${drivename}d $name
 # >/dev/null 2>&1
 echo	" done."
 
