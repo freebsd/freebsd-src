@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bt_isa.c,v 1.10 1999/04/24 06:48:27 peter Exp $
+ *	$Id: bt_isa.c,v 1.11 1999/05/08 21:59:23 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -50,7 +50,7 @@ static	bus_dma_filter_t btvlbouncefilter;
 static	bus_dmamap_callback_t btmapsensebuffers;
 
 static int
-bt_isa_alloc_resources(device_t dev)
+bt_isa_alloc_resources(device_t dev, u_long portstart, u_long portend)
 {
 	int rid;
 	struct resource *port;
@@ -59,7 +59,7 @@ bt_isa_alloc_resources(device_t dev)
 
 	rid = 0;
 	port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-				  0, ~0, 1, RF_ACTIVE);
+				  portstart, portend, BT_NREGS, RF_ACTIVE);
 	if (!port)
 		return (ENOMEM);
 
@@ -143,8 +143,6 @@ bt_isa_probe(device_t dev)
 		u_int ioport;
 
 		ioport = bt_iop_from_bio(port_index);
-		isa_set_port(dev, ioport);
-		isa_set_portsize(dev, BT_NREGS);
 
 		/*
 		 * Ensure this port has not already been claimed already
@@ -154,7 +152,8 @@ bt_isa_probe(device_t dev)
 			continue;
 
 		/* Initialise the softc for use during probing */
-		if (bt_isa_alloc_resources(dev) != 0)
+		if (bt_isa_alloc_resources(dev, ioport,
+					   ioport + BT_NREGS -1) != 0)
 			continue;
 
 		/* We're going to attempt to probe it now, so mark it probed */
@@ -169,8 +168,10 @@ bt_isa_probe(device_t dev)
 
 		bt_isa_release_resources(dev);
 
-		isa_set_drq(dev, info.drq);
-		isa_set_irq(dev, info.irq);
+		ISA_SET_RESOURCE(device_get_parent(dev), dev,
+				 SYS_RES_DRQ, 0, info.drq, 1);
+		ISA_SET_RESOURCE(device_get_parent(dev), dev,
+				 SYS_RES_IRQ, 0, info.irq, 1);
 
 		return (0);
 	}
@@ -191,7 +192,7 @@ bt_isa_attach(device_t dev)
 	int		 error, drq;
 
 	/* Initialise softc */
-	error = bt_isa_alloc_resources(dev);
+	error = bt_isa_alloc_resources(dev, 0, ~0);
 	if (error) {
 		device_printf(dev, "can't allocate resources in bt_isa_attach\n");
 		return error;
