@@ -50,7 +50,7 @@ struct g_slicer {
 	g_slice_start_t	*start;
 };
 
-void g_slice_orphan(struct g_consumer *cp, struct thread *tp);
+g_orphan_t g_slice_orphan;
 struct g_slicer * g_slice_init(unsigned nslice, unsigned scsize);
 int g_slice_access(struct g_provider *pp, int dr, int dw, int de);
 void g_slice_start(struct bio *bp);

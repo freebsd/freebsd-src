@@ -247,7 +247,7 @@ g_slice_new(struct g_class *mp, int slices, struct g_provider *pp, struct g_cons
 }
 
 void
-g_slice_orphan(struct g_consumer *cp, struct thread *tp __unused)
+g_slice_orphan(struct g_consumer *cp)
 {
 	struct g_geom *gp;
 	struct g_provider *pp;

@@ -319,7 +319,7 @@ g_bsd_dumpconf(struct sbuf *sb, char *indent, struct g_geom *gp, struct g_consum
 }
 
 static struct g_geom *
-g_bsd_taste(struct g_class *mp, struct g_provider *pp, struct thread *tp, int flags)
+g_bsd_taste(struct g_class *mp, struct g_provider *pp, int flags)
 {
 	struct g_geom *gp;
 	struct g_consumer *cp;
@@ -345,18 +345,18 @@ g_bsd_taste(struct g_class *mp, struct g_provider *pp, struct thread *tp, int fl
 	npart = 0;
 	while (1) {	/* a trick to allow us to use break */
 		j = sizeof i;
-		error = g_io_getattr("MBR::type", cp, &j, &i, tp);
+		error = g_io_getattr("MBR::type", cp, &j, &i);
 		if (!error && i != 165 && flags == G_TF_NORMAL)
 			break;
 		j = sizeof secsize;
-		error = g_io_getattr("GEOM::sectorsize", cp, &j, &secsize, tp);
+		error = g_io_getattr("GEOM::sectorsize", cp, &j, &secsize);
 		if (error) {
 			secsize = 512;
 			printf("g_bsd_taste: error %d Sectors are %d bytes\n",
 			    error, secsize);
 		}
 		j = sizeof mediasize;
-		error = g_io_getattr("GEOM::mediasize", cp, &j, &mediasize, tp);
+		error = g_io_getattr("GEOM::mediasize", cp, &j, &mediasize);
 		if (error) {
 			mediasize = 0;
 			printf("g_error %d Mediasize is %lld bytes\n",
@@ -404,12 +404,12 @@ g_bsd_taste(struct g_class *mp, struct g_provider *pp, struct thread *tp, int fl
 		dl->d_secsize = secsize;
 		dl->d_rpm = 3600;
 		j = sizeof fwsectors;
-		error = g_io_getattr("GEOM::fwsectors", cp, &j, &fwsectors, tp);
+		error = g_io_getattr("GEOM::fwsectors", cp, &j, &fwsectors);
 		if (error)
 			dl->d_nsectors = 32;
 		else
 			dl->d_nsectors = fwsectors;
-		error = g_io_getattr("GEOM::fwheads", cp, &j, &fwheads, tp);
+		error = g_io_getattr("GEOM::fwheads", cp, &j, &fwheads);
 		if (error)
 			dl->d_ntracks = 64;
 		else

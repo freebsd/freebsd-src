@@ -50,6 +50,7 @@
 #include <machine/stdarg.h>
 
 #include <geom/geom.h>
+#include <geom/geom_int.h>
 
 
 static void

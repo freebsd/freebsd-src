@@ -164,7 +164,7 @@ g_mbr_print(int i __unused, struct dos_partition *dp __unused)
 }
 
 static struct g_geom *
-g_mbr_taste(struct g_class *mp, struct g_provider *pp, struct thread *tp, int insist)
+g_mbr_taste(struct g_class *mp, struct g_provider *pp, int insist)
 {
 	struct g_geom *gp;
 	struct g_consumer *cp;
@@ -192,7 +192,7 @@ g_mbr_taste(struct g_class *mp, struct g_provider *pp, struct thread *tp, int in
 			break;
 		j = sizeof i;
 		/* For now we only support 512 bytes sectors */
-		error = g_io_getattr("GEOM::sectorsize", cp, &j, &i, tp);
+		error = g_io_getattr("GEOM::sectorsize", cp, &j, &i);
 		if (!error && i != 512)
 			break;
 		buf = g_read_data(cp, 0, 512, &error);
@@ -304,7 +304,7 @@ g_mbrext_print(int i, struct dos_partition *dp)
 }
 
 static struct g_geom *
-g_mbrext_taste(struct g_class *mp, struct g_provider *pp, struct thread *tp __unused, int insist __unused)
+g_mbrext_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 {
 	struct g_geom *gp;
 	struct g_consumer *cp;
@@ -328,7 +328,7 @@ g_mbrext_taste(struct g_class *mp, struct g_provider *pp, struct thread *tp __un
 	slice = 0;
 	while (1) {	/* a trick to allow us to use break */
 		j = sizeof i;
-		error = g_io_getattr("MBR::type", cp, &j, &i, tp);
+		error = g_io_getattr("MBR::type", cp, &j, &i);
 		if (error || i != DOSPTYP_EXT)
 			break;
 		for (;;) {
