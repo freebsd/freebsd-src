@@ -166,8 +166,8 @@ static struct nlist namelist[] = {
 #define MEMROW		 2	/* uses 4 rows and 31 cols */
 #define MEMCOL		 0
 #define PAGEROW		 2	/* uses 4 rows and 26 cols */
-#define PAGECOL		36
-#define INTSROW		 2	/* uses all rows to bottom and 17 cols */
+#define PAGECOL		46
+#define INTSROW		 6	/* uses all rows to bottom and 17 cols */
 #define INTSCOL		61
 #define PROCSROW	 7	/* uses 2 rows and 20 cols */
 #define PROCSCOL	 0
@@ -275,12 +275,12 @@ labelkre()
 
 	clear();
 	mvprintw(STATROW, STATCOL + 4, "users    Load");
-	mvprintw(MEMROW, MEMCOL, "Mem:KB  REAL        VIRTUAL");
-	mvprintw(MEMROW + 1, MEMCOL, "      Tot Share    Tot  Share");
+	mvprintw(MEMROW, MEMCOL, "Mem:KB    REAL            VIRTUAL");
+	mvprintw(MEMROW + 1, MEMCOL, "        Tot   Share      Tot    Share");
 	mvprintw(MEMROW + 2, MEMCOL, "Act");
 	mvprintw(MEMROW + 3, MEMCOL, "All");
 
-	mvprintw(MEMROW + 1, MEMCOL + 31, "Free");
+	mvprintw(MEMROW + 1, MEMCOL + 41, "Free");
 
 	mvprintw(PAGEROW, PAGECOL,     "        VN PAGER  SWAP PAGER ");
 	mvprintw(PAGEROW + 1, PAGECOL, "        in  out     in  out ");
@@ -425,15 +425,15 @@ showkre()
 	putfloat(avenrun[2], STATROW, STATCOL + 29, 6, 2, 0);
 	mvaddstr(STATROW, STATCOL + 53, buf);
 #define pgtokb(pg)	((pg) * cnt.v_page_size / 1024)
-	putint(pgtokb(total.t_arm), MEMROW + 2, MEMCOL + 3, 6);
-	putint(pgtokb(total.t_armshr), MEMROW + 2, MEMCOL + 9, 6);
-	putint(pgtokb(total.t_avm), MEMROW + 2, MEMCOL + 15, 7);
-	putint(pgtokb(total.t_avmshr), MEMROW + 2, MEMCOL + 22, 7);
-	putint(pgtokb(total.t_rm), MEMROW + 3, MEMCOL + 3, 6);
-	putint(pgtokb(total.t_rmshr), MEMROW + 3, MEMCOL + 9, 6);
-	putint(pgtokb(total.t_vm), MEMROW + 3, MEMCOL + 15, 7);
-	putint(pgtokb(total.t_vmshr), MEMROW + 3, MEMCOL + 22, 7);
-	putint(pgtokb(total.t_free), MEMROW + 2, MEMCOL + 29, 6);
+	putint(pgtokb(total.t_arm), MEMROW + 2, MEMCOL + 3, 8);
+	putint(pgtokb(total.t_armshr), MEMROW + 2, MEMCOL + 11, 8);
+	putint(pgtokb(total.t_avm), MEMROW + 2, MEMCOL + 19, 9);
+	putint(pgtokb(total.t_avmshr), MEMROW + 2, MEMCOL + 28, 9);
+	putint(pgtokb(total.t_rm), MEMROW + 3, MEMCOL + 3, 8);
+	putint(pgtokb(total.t_rmshr), MEMROW + 3, MEMCOL + 11, 8);
+	putint(pgtokb(total.t_vm), MEMROW + 3, MEMCOL + 19, 9);
+	putint(pgtokb(total.t_vmshr), MEMROW + 3, MEMCOL + 28, 9);
+	putint(pgtokb(total.t_free), MEMROW + 2, MEMCOL + 37, 8);
 	putint(total.t_rq - 1, PROCSROW + 1, PROCSCOL + 3, 3);
 	putint(total.t_pw, PROCSROW + 1, PROCSCOL + 6, 3);
 	putint(total.t_dw, PROCSROW + 1, PROCSCOL + 9, 3);
