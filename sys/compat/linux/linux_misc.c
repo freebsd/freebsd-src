@@ -74,6 +74,8 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
 
+#include <compat/linux/linux_sysproto.h>
+
 #ifdef COMPAT_LINUX32
 #include <machine/../linux32/linux.h>
 #include <machine/../linux32/linux32_proto.h>
@@ -1391,4 +1393,11 @@ linux_getsid(struct thread *td, struct linux_getsid_args *args)
 	struct getsid_args bsd;
 	bsd.pid = args->pid;
 	return getsid(td, &bsd);
+}
+
+int
+linux_nosys(struct thread *td, struct nosys_args *ignore)
+{
+
+	return (ENOSYS);
 }
