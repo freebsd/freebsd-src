@@ -2,7 +2,7 @@
 
 # rcsfreeze - assign a symbolic revision number to a configuration of RCS files
 
-#	$Id: rcsfreeze.sh,v 4.4 1991/04/21 11:58:24 eggert Exp $
+#	$Id: rcsfreeze.sh,v 4.6 1993/11/03 17:42:27 eggert Exp $
 
 #       The idea is to run rcsfreeze each time a new version is checked
 #       in. A unique symbolic revision number (C_[number], where number
@@ -25,22 +25,22 @@
 #       {RCS/}.rcsfreeze.ver	version number
 #       {RCS/}.rscfreeze.log	log messages, most recent first
 
-PATH=/usr/gnu/bin:/usr/local/bin:/bin:/usr/bin:/usr/ucb:$PATH
+PATH=/usr/local/bin:/bin:/usr/bin:/usr/ucb:$PATH
 export PATH
 
 DATE=`date` || exit
 # Check whether we have an RCS subdirectory, so we can have the right
 # prefix for our paths.
-if [ -d RCS ]
-then RCSDIR=RCS/
-else RCSDIR=
+if test -d RCS
+then RCSDIR=RCS/ EXT=
+else RCSDIR= EXT=,v
 fi
 
 # Version number stuff, log message file
 VERSIONFILE=${RCSDIR}.rcsfreeze.ver
 LOGFILE=${RCSDIR}.rcsfreeze.log
 # Initialize, rcsfreeze never run before in the current directory
-[ -r $VERSIONFILE ] || { echo 0 >$VERSIONFILE && >>$LOGFILE; } || exit
+test -r $VERSIONFILE || { echo 0 >$VERSIONFILE && >>$LOGFILE; } || exit
 
 # Get Version number, increase it, write back to file.
 VERSIONNUMBER=`cat $VERSIONFILE` &&
@@ -79,22 +79,21 @@ trap 'rm -f $TMPLOG; exit 1' 1 2 13 15
 
 # combine old and new logfiles
 cp $TMPLOG $LOGFILE &&
-rm -f $TMPLOG || exit
-trap 1 2 13 15
+rm -f $TMPLOG &&
 
 # Now the real work begins by assigning a symbolic revision number
-# to each rcs file. Take the most recent version of the main trunk.
+# to each rcs file.  Take the most recent version on the default branch.
 
-status=
-
-for FILE in ${RCSDIR}*
+# If there are any .*,v files, throw them in too.
+# But ignore RCS/.* files that do not end in ,v.
+DOTFILES=
+for DOTFILE in ${RCSDIR}.*,v
 do
-#   get the revision number of the most recent revision
-    HEAD=`rlog -h $FILE` &&
-	REV=`echo "$HEAD" | sed -n 's/^head:[ 	]*//p'` &&
-#   assign symbolic name to it.
-    echo >&2 "rcsfreeze: $REV $FILE" &&
-    rcs -q -n$SYMREVNAME:$REV $FILE || status=$?
+	if test -f "$DOTFILE"
+	then
+		DOTFILES="${RCSDIR}.*,v"
+		break
+	fi
 done
 
-exit $status
+exec rcs -q -n$SYMREVNAME: ${RCSDIR}*$EXT $DOTFILES

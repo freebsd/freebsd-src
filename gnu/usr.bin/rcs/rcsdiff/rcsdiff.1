@@ -2,7 +2,7 @@
 .ds Rv \\$3
 .ds Dt \\$4
 ..
-.Id $Id: rcsdiff.1,v 5.3 1991/04/21 12:00:46 eggert Exp $
+.Id $Id: rcsdiff.1,v 5.5 1993/11/03 17:42:27 eggert Exp $
 .ds r \&\s-1RCS\s0
 .if n .ds - \%--
 .if t .ds - \(em
@@ -20,9 +20,13 @@ rcsdiff \- compare RCS revisions
 [
 .BI \-r rev2
 ] ] [
-.BI \-V n
+.B \-T
+] [
+.RI "\f3\-V\fP[" n ]
 ] [
 .BI \-x suffixes
+] [
+.BI \-z zone
 ] [
 .I "diff options"
 ]
@@ -68,9 +72,11 @@ See
 .BR co (1)
 for details
 about
-.B \-V
+.BR \-T ,
+.BR \-V ,
+.B \-x
 and
-.BR \-x .
+.BR \-z .
 Otherwise, all options of
 .BR diff (1)
 that apply to regular files are accepted, with the same meaning as for
@@ -136,11 +142,11 @@ Exit status is 0 for no differences during any comparison,
 .SH IDENTIFICATION
 Author: Walter F. Tichy.
 .br
-Revision Number: \*(Rv; Release Date: \*(Dt.
+Manual Page Revision: \*(Rv; Release Date: \*(Dt.
 .br
-Copyright \(co 1982, 1988, 1989 by Walter F. Tichy.
+Copyright \(co 1982, 1988, 1989 Walter F. Tichy.
 .br
-Copyright \(co 1990, 1991 by Paul Eggert.
+Copyright \(co 1990, 1991, 1992, 1993 Paul Eggert.
 .SH "SEE ALSO"
 ci(1), co(1), diff(1), ident(1), rcs(1), rcsintro(1), rcsmerge(1), rlog(1)
 .br
