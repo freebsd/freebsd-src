@@ -38,7 +38,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.3 1994/10/28 18:50:36 davidg Exp $
+ *      $Id: userconfig.c,v 1.4 1994/10/30 20:44:20 bde Exp $
  */
 
 #include <sys/param.h>
@@ -311,8 +311,15 @@ static void
 lsdevtab(struct isa_device *dt)
 {
     int i;
+    static int lineno = 0;
 
     for (i = 0; dt->id_id != 0; dt++) {
+	if (lineno > 22) {
+		lineno = 0;
+		printf("<hit any key> ");
+		(void)cngetc();
+		printf("\n");
+	}
 	printf("%s%d	0x%x	%d	%d	0x%x	0x%x	%s\n",
  	       dt->id_driver->name, dt->id_unit, dt->id_iobase,
 	       ffs(dt->id_irq) - 1, dt->id_drq, dt->id_maddr,
