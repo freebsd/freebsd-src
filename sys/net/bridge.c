@@ -841,7 +841,6 @@ bridge_modevent(module_t mod, int type, void *unused)
 		bdginit(NULL);
 		break;
 	case MOD_UNLOAD:
-		s = splimp();
 		do_bridge = 0;
 		bridge_in_ptr = NULL;
 		bdg_forward_ptr = NULL;
