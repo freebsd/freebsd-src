@@ -4,7 +4,7 @@
        ${.CURDIR}/../../pci \
        ${.CURDIR}/../../dev/acpica \
        ${.CURDIR}/../../dev/acpica/Osd \
-       ${.CURDIR}/../../${MACHINE}/acpica
+       ${.CURDIR}/../../${MACHINE_ARCH}/acpica
 
 KMOD=	acpi
 
@@ -52,7 +52,7 @@ SRCS+=	acpi_wakecode.h acpi_wakeup.c
 CLEANFILES+=	acpi_wakecode.h acpi_wakecode.o acpi_wakecode.bin
 
 acpi_wakecode.h: acpi_wakecode.S
-	${MAKE} -f ${.CURDIR}/../../${MACHINE}/acpica/Makefile \
-		MAKESRCPATH=${.CURDIR}/../../${MACHINE}/acpica
+	${MAKE} -f ${.CURDIR}/../../${MACHINE_ARCH}/acpica/Makefile \
+		MAKESRCPATH=${.CURDIR}/../../${MACHINE_ARCH}/acpica
 
 .include <bsd.kmod.mk>
