@@ -2,5 +2,6 @@
 # $FreeBSD$
 
 PROG=	ypwhich
+NO_WERROR=yes
 
 .include <bsd.prog.mk>

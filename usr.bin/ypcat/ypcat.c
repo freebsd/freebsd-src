@@ -27,14 +27,19 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+
+#include <rpc/rpc.h>
+#include <rpc/xdr.h>
+#include <rpcsvc/yp_prot.h>
+#include <rpcsvc/ypclnt.h>
+
 #include <ctype.h>
 #include <err.h>
 #include <stdio.h>
@@ -42,13 +47,8 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-#include <rpc/rpc.h>
-#include <rpc/xdr.h>
-#include <rpcsvc/yp_prot.h>
-#include <rpcsvc/ypclnt.h>
-
 struct ypalias {
-	char *alias, *name;
+	const char *alias, *name;
 } ypaliases[] = {
 	{ "passwd", "passwd.byname" },
 	{ "master.passwd", "master.passwd.byname" },
@@ -64,7 +64,7 @@ struct ypalias {
 int key;
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr, "%s\n%s\n",
 		"usage: ypcat [-k] [-d domainname] [-t] mapname",
@@ -72,14 +72,8 @@ usage()
 	exit(1);
 }
 
-int
-printit(instatus, inkey, inkeylen, inval, invallen, indata)
-int instatus;
-char *inkey;
-int inkeylen;
-char *inval;
-int invallen;
-char *indata;
+static int
+printit(unsigned long instatus, char *inkey, int inkeylen, char *inval, int invallen, void *dummy __unused)
 {
 	if(instatus != YP_TRUE)
 		return instatus;
@@ -90,14 +84,14 @@ char *indata;
 }
 
 int
-main(argc, argv)
-char **argv;
+main(int argc, char *argv[])
 {
 	char *domainname = NULL;
 	struct ypall_callback ypcb;
 	char *inmap;
 	int notrans;
-	int c, r, i;
+	int c, r;
+	u_int i;
 
 	notrans = key = 0;
 
