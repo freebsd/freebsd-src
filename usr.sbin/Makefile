@@ -24,7 +24,6 @@ SUBDIR=	IPXrouted \
 	dev_mkdb \
 	devinfo \
 	digictl \
-	diskcheckd \
 	diskpart \
 	edquota \
 	extattrctl \
