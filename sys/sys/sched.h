@@ -66,17 +66,17 @@ void	sched_wakeup(struct thread *td);
 /*
  * KSEs are moved on and off of run queues.
  */
-void	sched_add(struct kse *ke);
+void	sched_add(struct thread *td);
 struct kse *sched_choose(void);
-void	sched_clock(struct kse *ke);
+void	sched_clock(struct thread *td);
 void	sched_exit_kse(struct kse *ke, struct kse *child);
 void	sched_fork_kse(struct kse *ke, struct kse *child);
-void	sched_rem(struct kse *ke);
+void	sched_rem(struct thread *td);
 
 /*
  * and they use up cpu time.
  */
-fixpt_t	sched_pctcpu(struct kse *ke);
+fixpt_t	sched_pctcpu(struct thread *td);
 
 /*
  * These procedures tell the process data structure allocation code how

@@ -763,16 +763,13 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp)
 		kp->ki_tdflags = td->td_flags;
 		kp->ki_pcb = td->td_pcb;
 		kp->ki_kstack = (void *)td->td_kstack;
+		kp->ki_pctcpu = sched_pctcpu(td);
 
 		/* Things in the kse */
-
-		if (ke) {
+		if (ke)
 			kp->ki_rqindex = ke->ke_rqindex;
-			kp->ki_pctcpu = sched_pctcpu(ke);
-		} else {
+		else
 			kp->ki_rqindex = 0;
-			kp->ki_pctcpu = 0;
-		}
 
 	} else {
 		kp->ki_stat = SZOMB;
