@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.9.2.14 1998/01/31 11:38:43 kato Exp $
+ *	$Id: wd.c,v 1.9.2.15 1998/05/04 00:59:32 kato Exp $
  */
 
 /* TODO:
@@ -452,13 +452,13 @@ wdattach(struct isa_device *dvp)
 	if (eide_quirks & Q_CMD640B) {
 		if (dvp->id_unit == PRIMARY) {
 			printf("wdc0: CMD640B workaround enabled\n");
-			TAILQ_INIT( &wdtab[PRIMARY].controller_queue);
+			bufq_init(&wdtab[PRIMARY].controller_queue);
 		}
 	} else
-		TAILQ_INIT( &wdtab[dvp->id_unit].controller_queue);
+		bufq_init(&wdtab[dvp->id_unit].controller_queue);
 
 #else
-	TAILQ_INIT( &wdtab[dvp->id_unit].controller_queue);
+	bufq_init(&wdtab[dvp->id_unit].controller_queue);
 #endif
 
 	for (wdup = isa_biotab_wdc; wdup->id_driver != 0; wdup++) {
@@ -485,7 +485,7 @@ wdattach(struct isa_device *dvp)
 		if (wddrives[lunit] != NULL)
 			panic("drive attached twice");
 		wddrives[lunit] = du;
-		TAILQ_INIT( &drive_queue[lunit]);
+		bufq_init(&drive_queue[lunit]);
 		bzero(du, sizeof *du);
 		du->dk_ctrlr = dvp->id_unit;
 #ifdef CMD640
@@ -681,7 +681,7 @@ wdstrategy(register struct buf *bp)
 	/* queue transfer on drive, activate drive and controller if idle */
 	s = splbio();
 
-	tqdisksort(&drive_queue[lunit], bp);
+	bufqdisksort(&drive_queue[lunit], bp);
 
 	if (wdutab[lunit].b_active == 0)
 		wdustart(du);	/* start drive */
@@ -758,14 +758,14 @@ wdustart(register struct disk *du)
 		return;
 
 
-	bp = drive_queue[du->dk_lunit].tqh_first;
+	bp = bufq_first(&drive_queue[du->dk_lunit]);
 	if (bp == NULL) {	/* yes, an assign */
 		return;
 	}
-	TAILQ_REMOVE( &drive_queue[du->dk_lunit], bp, b_act);
+	bufq_remove(&drive_queue[du->dk_lunit], bp);
 
 	/* link onto controller queue */
-	TAILQ_INSERT_TAIL( &wdtab[ctrlr].controller_queue, bp, b_act);
+	bufq_insert_tail(&wdtab[ctrlr].controller_queue, bp);
 
 	/* mark the drive unit as busy */
 	wdutab[du->dk_lunit].b_active = 1;
@@ -807,7 +807,7 @@ wdstart(int ctrlr)
 		return;
 #endif
 	/* is there a drive for the controller to do a transfer with? */
-	bp = wdtab[ctrlr].controller_queue.tqh_first;
+	bp = bufq_first(&wdtab[ctrlr].controller_queue);
 	if (bp == NULL) {
 #ifdef ATAPI
 #ifdef CMD640
@@ -1097,7 +1097,7 @@ wdintr(int unit)
 		return;
 	}
 #endif
-	bp = wdtab[unit].controller_queue.tqh_first;
+	bp = bufq_first(&wdtab[unit].controller_queue);
 	du = wddrives[dkunit(bp->b_dev)];
 	du->dk_timeout = 0;
 
@@ -1259,7 +1259,7 @@ outt:
 done: ;
 		/* done with this transfer, with or without error */
 		du->dk_flags &= ~DKFL_SINGLE;
-		TAILQ_REMOVE(&wdtab[unit].controller_queue, bp, b_act);
+		bufq_remove(&wdtab[unit].controller_queue, bp);
 		wdtab[unit].b_errcnt = 0;
 		bp->b_resid = bp->b_bcount - du->dk_skip * DEV_BSIZE;
 		wdutab[du->dk_lunit].b_active = 0;
@@ -1280,7 +1280,7 @@ done: ;
 	/* anything more for controller to do? */
 #ifndef ATAPI
 	/* This is not valid in ATAPI mode. */
-	if (wdtab[unit].controller_queue.tqh_first)
+	if (bufq_first(&wdtab[unit].controller_queue) != NULL)
 #endif
 		wdstart(unit);
 }
