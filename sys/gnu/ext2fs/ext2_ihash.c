@@ -48,7 +48,7 @@ static MALLOC_DEFINE(M_EXT2IHASH, "EXT2 ihash", "EXT2 Inode hash tables");
  */
 static LIST_HEAD(ihashhead, inode) *ihashtbl;
 static u_long	ihash;		/* size of hash table - 1 */
-#define	INOHASH(device, inum)	(&ihashtbl[(minor(device) + (inum)) & ihash])
+#define	INOHASH(inum)	(&ihashtbl[(inum) & ihash])
 static struct mtx ext2_ihash_mtx;
 
 /*
@@ -86,7 +86,7 @@ ext2_ihashlookup(dev, inum)
 	struct inode *ip;
 
 	mtx_lock(&ext2_ihash_mtx);
-	LIST_FOREACH(ip, INOHASH(dev, inum), i_hash)
+	LIST_FOREACH(ip, INOHASH(inum), i_hash)
 		if (inum == ip->i_number && dev == ip->i_dev)
 			break;
 	mtx_unlock(&ext2_ihash_mtx);
@@ -115,7 +115,7 @@ ext2_ihashget(dev, inum, flags, vpp)
 	*vpp = NULL;
 loop:
 	mtx_lock(&ext2_ihash_mtx);
-	LIST_FOREACH(ip, INOHASH(dev, inum), i_hash) {
+	LIST_FOREACH(ip, INOHASH(inum), i_hash) {
 		if (inum == ip->i_number && dev == ip->i_dev) {
 			vp = ITOV(ip);
 			mtx_lock(&vp->v_interlock);
@@ -147,7 +147,7 @@ ext2_ihashins(ip)
 	vn_lock(ITOV(ip), LK_EXCLUSIVE | LK_RETRY, td);
 
 	mtx_lock(&ext2_ihash_mtx);
-	ipp = INOHASH(ip->i_dev, ip->i_number);
+	ipp = INOHASH(ip->i_number);
 	LIST_INSERT_HEAD(ipp, ip, i_hash);
 	ip->i_flag |= IN_HASHED;
 	mtx_unlock(&ext2_ihash_mtx);
