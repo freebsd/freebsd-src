@@ -1,4 +1,3 @@
-
 /*
  * main.c
  *
@@ -34,9 +33,11 @@
  * THIS SOFTWARE, EVEN IF WHISTLE COMMUNICATIONS IS ADVISED OF THE POSSIBILITY
  * OF SUCH DAMAGE.
  *
- * $FreeBSD$
  * $Whistle: main.c,v 1.9 1999/01/20 00:26:26 archie Exp $
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -80,7 +81,7 @@ main(int ac, char *av[])
 	int	ch;
 
 	/* Parse flags */
-	while ((ch = getopt(ac, av, "adlnsS")) != EOF) {
+	while ((ch = getopt(ac, av, "adlnsS")) != -1) {
 		switch (ch) {
 		case 'a':
 			asciiFlag = 1;
@@ -243,6 +244,6 @@ WriteAscii(u_char *buf, int len)
 static void
 Usage(void)
 {
-	errx(EX_USAGE, "usage: nghook [-adlnsS] path [hookname]");
+	fprintf(stderr, "usage: nghook [-adlnsS] path [hookname]\n");
+	exit(EX_USAGE);
 }
-
