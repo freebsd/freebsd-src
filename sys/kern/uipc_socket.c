@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket.c	8.3 (Berkeley) 4/15/94
- *	$Id: uipc_socket.c,v 1.54 1999/02/02 07:23:28 fenner Exp $
+ *	$Id: uipc_socket.c,v 1.55 1999/02/16 10:49:49 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -258,7 +258,7 @@ soclose(so)
 				goto drop;
 			while (so->so_state & SS_ISCONNECTED) {
 				error = tsleep((caddr_t)&so->so_timeo,
-				    PSOCK | PCATCH, "soclos", so->so_linger);
+				    PSOCK | PCATCH, "soclos", so->so_linger * hz);
 				if (error)
 					break;
 			}
@@ -1049,7 +1049,7 @@ sosetopt(so, sopt)
 			if (error)
 				goto bad;
 
-			if (tv.tv_sec > SHRT_MAX / hz - hz) {
+			if (tv.tv_sec * hz + tv.tv_usec / tick > SHRT_MAX) {
 				error = EDOM;
 				goto bad;
 			}
