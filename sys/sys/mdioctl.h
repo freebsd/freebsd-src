@@ -53,6 +53,7 @@ enum md_types {MD_MALLOC, MD_PRELOAD, MD_VNODE, MD_SWAP};
  * Ioctl definitions for memory disk pseudo-device.
  */
 
+#define MDNPAD		100
 struct md_ioctl {
 	unsigned	md_version;	/* Structure layout version */
 	unsigned	md_unit;	/* unit number */
@@ -61,7 +62,7 @@ struct md_ioctl {
 	unsigned	md_size;	/* size of disk in DEV_BSIZE units */
 	unsigned	md_options;	/* options */
 	u_int64_t	md_base;	/* base address */
-	int		pad[100];	/* padding for future ideas */
+	int		md_pad[MDNPAD];	/* padding for future ideas */
 };
 
 #define MD_NAME		"md"
@@ -78,6 +79,7 @@ struct md_ioctl {
 #define MDIOCATTACH	_IOWR('m', 0, struct md_ioctl)	/* attach disk */
 #define MDIOCDETACH	_IOWR('m', 1, struct md_ioctl)	/* detach disk */
 #define MDIOCQUERY	_IOWR('m', 2, struct md_ioctl)	/* query status */
+#define MDIOCLIST	_IOWR('m', 3, struct md_ioctl)	/* query status */
 
 #define MD_CLUSTER	0x01	/* Don't cluster */
 #define MD_RESERVE	0x02	/* Pre-reserve swap */
