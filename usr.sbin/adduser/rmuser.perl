@@ -120,7 +120,7 @@ if ($#ARGV == 0) {
 ($name, $password, $uid, $gid, $change, $class, $gecos, $home_dir, $shell) =
     (getpwnam("$login_name"));
 
-if ($?) {
+if (!defined $uid) {
     print STDERR "${whoami}: Error: User ${login_name} not in password database\n";
     &unlockpw;
     exit 1;
