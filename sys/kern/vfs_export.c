@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.179 1999/01/05 18:12:29 eivind Exp $
+ * $Id: vfs_subr.c,v 1.180 1999/01/05 18:49:53 eivind Exp $
  */
 
 /*
@@ -466,7 +466,7 @@ getnewvnode(tag, mp, vops, vpp)
 			simple_unlock(&vp->v_interlock);
 		}
 
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 		{
 			int s;
 
@@ -796,10 +796,7 @@ bgetvp(vp, bp)
 {
 	int s;
 
-#if defined(DIAGNOSTIC)
-	if (bp->b_vp)
-		panic("bgetvp: not free");
-#endif
+	KASSERT(bp->b_vp == NULL, ("bgetvp: not free"));
 	vhold(vp);
 	bp->b_vp = vp;
 	if (vp->v_type == VBLK || vp->v_type == VCHR)
@@ -827,10 +824,7 @@ brelvp(bp)
 	struct buflists *listheadp;
 	int s;
 
-#if defined(DIAGNOSTIC)
-	if (bp->b_vp == (struct vnode *) 0)
-		panic("brelvp: NULL");
-#endif
+	KASSERT(bp->b_vp != NULL, ("brelvp: NULL"));
 
 	/*
 	 * Delete from old vnode list, if on one.
@@ -996,10 +990,8 @@ pbgetvp(vp, bp)
 	register struct vnode *vp;
 	register struct buf *bp;
 {
-#if defined(DIAGNOSTIC)
-	if (bp->b_vp)
-		panic("pbgetvp: not free");
-#endif
+	KASSERT(bp->b_vp == NULL, ("pbgetvp: not free"));
+
 	bp->b_vp = vp;
 	if (vp->v_type == VBLK || vp->v_type == VCHR)
 		bp->b_dev = vp->v_rdev;
@@ -1015,10 +1007,7 @@ pbrelvp(bp)
 	register struct buf *bp;
 {
 
-#if defined(DIAGNOSTIC)
-	if (bp->b_vp == (struct vnode *) 0)
-		panic("pbrelvp: NULL");
-#endif
+	KASSERT(bp->b_vp != NULL, ("pbrelvp: NULL"));
 
 	bp->b_vp = (struct vnode *) 0;
 }
@@ -1313,10 +1302,8 @@ vrele(vp)
 {
 	struct proc *p = curproc;	/* XXX */
 
-#ifdef DIAGNOSTIC
-	if (vp == NULL)
-		panic("vrele: null vp");
-#endif
+	KASSERT(vp, ("vrele: null vp"));
+
 	simple_lock(&vp->v_interlock);
 
 	if (vp->v_usecount > 1) {
@@ -1356,10 +1343,7 @@ vput(vp)
 {
 	struct proc *p = curproc;	/* XXX */
 
-#ifdef DIAGNOSTIC
-	if (vp == NULL)
-		panic("vput: null vp");
-#endif
+	KASSERT(vp != NULL, ("vput: null vp"));
 
 	simple_lock(&vp->v_interlock);
 
@@ -1646,10 +1630,7 @@ vop_revoke(ap)
 	struct vnode *vp, *vq;
 	struct proc *p = curproc;	/* XXX */
 
-#ifdef DIAGNOSTIC
-	if ((ap->a_flags & REVOKEALL) == 0)
-		panic("vop_revoke");
-#endif
+	KASSERT((ap->a_flags & REVOKEALL) != 0, ("vop_revoke"));
 
 	vp = ap->a_vp;
 	simple_lock(&vp->v_interlock);

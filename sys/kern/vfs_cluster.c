@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.74 1998/11/17 00:31:12 mckusick Exp $
+ * $Id: vfs_cluster.c,v 1.75 1998/12/05 06:12:14 mckusick Exp $
  */
 
 #include "opt_debug_cluster.h"
@@ -168,10 +168,8 @@ cluster_read(vp, filesize, lblkno, size, cred, totread, seqcount, bpp)
 	} else {
 		off_t firstread;
 		firstread = bp->b_offset;
-#ifdef DIAGNOSTIC
-		if (bp->b_offset == NOOFFSET)
-			panic("cluster_read: no buffer offset");
-#endif
+		KASSERT(bp->b_offset != NOOFFSET,
+			("cluster_read: no buffer offset"));
 		if (firstread + totread > filesize)
 			totread = filesize - firstread;
 		if (totread > size) {
@@ -312,11 +310,9 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 	daddr_t bn;
 	int i, inc, j;
 
-#ifdef DIAGNOSTIC
-	if (size != vp->v_mount->mnt_stat.f_iosize)
-		panic("cluster_rbuild: size %ld != filesize %ld\n",
-		    size, vp->v_mount->mnt_stat.f_iosize);
-#endif
+	KASSERT(size == vp->v_mount->mnt_stat.f_iosize,
+		("cluster_rbuild: size %ld != filesize %ld\n",
+		    size, vp->v_mount->mnt_stat.f_iosize));
 	/*
 	 * avoid a division
 	 */
@@ -350,10 +346,8 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 	bp->b_blkno = blkno;
 	bp->b_lblkno = lbn;
 	bp->b_offset = tbp->b_offset;
-#ifdef DIAGNOSTIC
-	if (bp->b_offset == NOOFFSET)
-		panic("cluster_rbuild: no buffer offset");
-#endif
+	KASSERT(bp->b_offset != NOOFFSET,
+		("cluster_rbuild: no buffer offset"));
 	pbgetvp(vp, bp);
 
 	TAILQ_INIT(&bp->b_cluster.cluster_head);
@@ -517,10 +511,7 @@ cluster_write(bp, filesize)
 	}
 	lbn = bp->b_lblkno;
 
-#ifdef DIAGNOSTIC
-	if (bp->b_offset == NOOFFSET)
-		panic("cluster_write: no buffer offset");
-#endif
+	KASSERT(bp->b_offset != NOOFFSET, ("cluster_write: no buffer offset"));
 
 	/* Initialize vnode to beginning of file. */
 	if (lbn == 0)

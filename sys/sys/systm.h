@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.7 (Berkeley) 3/29/95
- * $Id: systm.h,v 1.79 1998/12/03 04:45:57 archie Exp $
+ * $Id: systm.h,v 1.80 1998/12/21 07:41:50 dillon Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -75,6 +75,12 @@ extern struct vnode *swapdev_vp;/* vnode for swap device */
 
 extern int boothowto;		/* reboot flags, from console subsystem */
 extern int bootverbose;		/* nonzero to print verbose messages */
+
+#ifdef INVARIANTS		/* The option is always available */
+#define KASSERT(exp,msg) do { if (!(exp)) panic msg; } while(0)
+#else
+#define KASSERT(exp,msg)
+#endif
 
 /*
  * General function declarations.

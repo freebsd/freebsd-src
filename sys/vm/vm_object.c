@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.135 1998/11/05 14:28:26 dg Exp $
+ * $Id: vm_object.c,v 1.136 1999/01/02 11:34:57 bde Exp $
  */
 
 /*
@@ -242,10 +242,8 @@ vm_object_reference(object)
 	if (object == NULL)
 		return;
 
-#if defined(DIAGNOSTIC)
-	if (object->flags & OBJ_DEAD)
-		panic("vm_object_reference: attempting to reference dead obj");
-#endif
+	KASSERT(!(object->flags & OBJ_DEAD),
+		("vm_object_reference: attempting to reference dead obj"));
 
 	object->ref_count++;
 	if (object->type == OBJT_VNODE) {
@@ -262,11 +260,10 @@ vm_object_vndeallocate(object)
 	vm_object_t object;
 {
 	struct vnode *vp = (struct vnode *) object->handle;
-#if defined(DIAGNOSTIC)
-	if (object->type != OBJT_VNODE)
-		panic("vm_object_vndeallocate: not a vnode object");
-	if (vp == NULL)
-		panic("vm_object_vndeallocate: missing vp");
+	KASSERT(object->type == OBJT_VNODE,
+		("vm_object_vndeallocate: not a vnode object"));
+	KASSERT(vp, ("vm_object_vndeallocate: missing vp"));
+#if defined(INVARIANTS)
 	if (object->ref_count == 0) {
 		vprint("vm_object_vndeallocate", vp);
 		panic("vm_object_vndeallocate: bad object reference count");
@@ -328,12 +325,11 @@ vm_object_deallocate(object)
 				vm_object_t robject;
 
 				robject = TAILQ_FIRST(&object->shadow_head);
-#if defined(DIAGNOSTIC)
-				if (robject == NULL)
-					panic("vm_object_deallocate: ref_count: %d,"
-						  " shadow_count: %d",
-						  object->ref_count, object->shadow_count);
-#endif
+				KASSERT(robject != NULL,
+					("vm_object_deallocate: ref_count: %d,"
+					 " shadow_count: %d",
+					 object->ref_count,
+					 object->shadow_count));
 				if ((robject->handle == NULL) &&
 				    (robject->type == OBJT_DEFAULT ||
 				     robject->type == OBJT_SWAP)) {
@@ -418,10 +414,8 @@ vm_object_terminate(object)
 	 */
 	vm_object_pip_wait(object, "objtrm");
 
-#if defined(DIAGNOSTIC)
-	if (object->paging_in_progress != 0)
-		panic("vm_object_terminate: pageout in progress");
-#endif
+	KASSERT(!object->paging_in_progress,
+		("vm_object_terminate: pageout in progress"));
 
 	/*
 	 * Clean and free the pages, as appropriate. All references to the

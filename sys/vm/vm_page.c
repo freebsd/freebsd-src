@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.113 1998/11/11 15:07:57 dg Exp $
+ *	$Id: vm_page.c,v 1.114 1998/12/23 01:52:47 dillon Exp $
  */
 
 /*
@@ -870,11 +870,8 @@ vm_page_alloc(object, pindex, page_req)
 	int queue, qtype;
 	int s;
 
-#ifdef DIAGNOSTIC
-	m = vm_page_lookup(object, pindex);
-	if (m)
-		panic("vm_page_alloc: page already allocated");
-#endif
+	KASSERT(!vm_page_lookup(object, pindex),
+		("vm_page_alloc: page already allocated"));
 
 	if ((curproc == pageproc) && (page_req != VM_ALLOC_INTERRUPT)) {
 		page_req = VM_ALLOC_SYSTEM;
@@ -887,10 +884,7 @@ vm_page_alloc(object, pindex, page_req)
 	case VM_ALLOC_NORMAL:
 		if (cnt.v_free_count >= cnt.v_free_reserved) {
 			m = vm_page_select_free(object, pindex, PQ_FREE);
-#if defined(DIAGNOSTIC)
-			if (m == NULL)
-				panic("vm_page_alloc(NORMAL): missing page on free queue\n");
-#endif
+			KASSERT(m, ("vm_page_alloc(NORMAL): missing page on free queue\n"));
 		} else {
 			m = vm_page_select_cache(object, pindex);
 			if (m == NULL) {
@@ -909,10 +903,7 @@ vm_page_alloc(object, pindex, page_req)
 	case VM_ALLOC_ZERO:
 		if (cnt.v_free_count >= cnt.v_free_reserved) {
 			m = vm_page_select_free(object, pindex, PQ_ZERO);
-#if defined(DIAGNOSTIC)
-			if (m == NULL)
-				panic("vm_page_alloc(ZERO): missing page on free queue\n");
-#endif
+			KASSERT(m, ("vm_page_alloc(ZERO): missing page on free queue\n"));
 		} else {
 			m = vm_page_select_cache(object, pindex);
 			if (m == NULL) {
@@ -933,10 +924,7 @@ vm_page_alloc(object, pindex, page_req)
 		    ((cnt.v_cache_count == 0) &&
 		    (cnt.v_free_count >= cnt.v_interrupt_free_min))) {
 			m = vm_page_select_free(object, pindex, PQ_FREE);
-#if defined(DIAGNOSTIC)
-			if (m == NULL)
-				panic("vm_page_alloc(SYSTEM): missing page on free queue\n");
-#endif
+			KASSERT(m, ("vm_page_alloc(SYSTEM): missing page on free queue\n"));
 		} else {
 			m = vm_page_select_cache(object, pindex);
 			if (m == NULL) {
@@ -955,10 +943,7 @@ vm_page_alloc(object, pindex, page_req)
 	case VM_ALLOC_INTERRUPT:
 		if (cnt.v_free_count > 0) {
 			m = vm_page_select_free(object, pindex, PQ_FREE);
-#if defined(DIAGNOSTIC)
-			if (m == NULL)
-				panic("vm_page_alloc(INTERRUPT): missing page on free queue\n");
-#endif
+			KASSERT(m, ("vm_page_alloc(INTERRUPT): missing page on free queue\n"));
 		} else {
 			splx(s);
 			vm_pageout_deficit++;

@@ -41,7 +41,7 @@
  *
  *	@(#)subr_autoconf.c	8.1 (Berkeley) 6/10/93
  *
- * $Id: subr_autoconf.c,v 1.6 1997/11/18 12:43:41 bde Exp $
+ * $Id: subr_autoconf.c,v 1.7 1998/12/04 22:54:51 archie Exp $
  */
 
 #include <sys/param.h>
@@ -334,10 +334,8 @@ evcnt_attach(dev, name, ev)
 {
 	static struct evcnt **nextp = &allevents;
 
-#ifdef DIAGNOSTIC
-	if (strlen(name) >= sizeof(ev->ev_name))
-		panic("evcnt_attach");
-#endif
+	KASSERT(strlen(name) < sizeof(ev->ev_name), ("evcnt_attach"));
+
 	/* ev->ev_next = NULL; */
 	ev->ev_dev = dev;
 	/* ev->ev_count = 0; */

@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.90 1998/10/28 13:37:02 dg Exp $
+ * $Id: vm_fault.c,v 1.91 1998/11/25 07:40:49 dg Exp $
  */
 
 /*
@@ -528,10 +528,8 @@ readrest:
 		}
 	}
 
-#if defined(DIAGNOSTIC)
-	if ((fs.m->flags & PG_BUSY) == 0)
-		panic("vm_fault: not busy after main loop");
-#endif
+	KASSERT((fs.m->flags & PG_BUSY) != 0,
+	    ("vm_fault: not busy after main loop"));
 
 	/*
 	 * PAGE HAS BEEN FOUND. [Loop invariant still holds -- the object lock
