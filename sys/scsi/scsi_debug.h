@@ -8,7 +8,7 @@
 /*
  * Written by Julian Elischer (julian@tfs.com)
  *
- *	$FreeBSD$
+ *	$Id$
  */
 #ifndef	_SCSI_SCSI_DEBUG_H
 #define _SCSI_SCSI_DEBUG_H 1

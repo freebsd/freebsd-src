@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spp_timer.h	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $Id$
  */
 
 #ifndef _NETNS_SPP_TIMER_H_

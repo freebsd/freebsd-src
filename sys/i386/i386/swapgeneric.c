@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)swapgeneric.c	5.5 (Berkeley) 5/9/91
- *	$FreeBSD$
+ *	$Id$
  */
 
 #include <sys/param.h>

@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$FreeBSD$
+ *	$Id$
  */
 
 #include "pci.h"

@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$FreeBSD$
+ *	$Id$
  */
 
 /*

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)uipc_usrreq.c	8.3 (Berkeley) 1/4/94
- *	$FreeBSD$
+ *	$Id$
  */
 
 #include <sys/param.h>

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_segment.c	8.5 (Berkeley) 1/4/94
- * $FreeBSD$
+ * $Id$
  */
 
 #include <sys/param.h>

@@ -110,4 +110,4 @@ the debugger, the debugger should fork and the child should stop itself
 "attach".  as before, the child will hit a breakpoint on the first
 instruction in any newly exec'd image.
 
-$FreeBSD$
+$Id$

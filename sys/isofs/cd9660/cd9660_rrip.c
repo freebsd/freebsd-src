@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_rrip.c	8.6 (Berkeley) 12/5/94
- * $FreeBSD$
+ * $Id$
  */
 
 #include <sys/param.h>

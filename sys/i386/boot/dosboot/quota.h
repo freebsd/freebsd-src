@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)quota.h	7.9 (Berkeley) 2/22/91
- *	$FreeBSD$
+ *	$Id$
  */
 
 #ifndef _QUOTA_

@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_tun.c
  *
- * $FreeBSD$
+ * $Id$
  */
 
 /*

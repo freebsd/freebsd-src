@@ -18,7 +18,7 @@ Author: Martin Renters.
 
 3c509 support added by Serge Babkin (babkin@hq.icb.chel.su)
 
-$FreeBSD$
+$Id$
 
 ***************************************************************************/
 

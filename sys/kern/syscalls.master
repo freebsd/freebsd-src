@@ -1,4 +1,4 @@
-	$FreeBSD$
+	$Id$
 ;	from: @(#)syscalls.master	8.2 (Berkeley) 1/13/94
 ;
 ; System call name/number master file.

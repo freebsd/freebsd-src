@@ -35,7 +35,7 @@
  *
  *	Van Jacobson (van@helios.ee.lbl.gov), Dec 31, 1989:
  *	- Initial distribution.
- * $FreeBSD$
+ * $Id$
  */
 
 #ifndef _NET_SLCOMPRESS_H_

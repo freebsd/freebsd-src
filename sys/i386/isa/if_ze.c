@@ -47,7 +47,7 @@
  */
 
 /*
- * $FreeBSD$
+ * $Id$
  */
 
 /* XXX - Don't mix different PCCARD support code */

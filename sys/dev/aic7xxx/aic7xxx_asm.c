@@ -43,7 +43,7 @@
  * are token separators.
  *
  *-M*************************************************************************/
-static char id[] = "$FreeBSD$";
+static char id[] = "$Id$";
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>

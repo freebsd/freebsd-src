@@ -37,7 +37,7 @@
  *	@(#)procfs_ctl.c	8.4 (Berkeley) 6/15/94
  *
  * From:
- *	$FreeBSD$
+ *	$Id$
  */
 
 #include <sys/param.h>

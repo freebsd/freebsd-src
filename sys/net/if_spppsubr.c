@@ -14,7 +14,7 @@
  *
  * Version 1.9, Wed Oct  4 18:58:15 MSK 1995
  *
- * $FreeBSD$
+ * $Id$
  */
 #undef DEBUG
 

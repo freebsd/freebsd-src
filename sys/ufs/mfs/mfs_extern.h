@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_extern.h	8.4 (Berkeley) 3/30/95
- * $FreeBSD$
+ * $Id$
  */
 
 #ifndef _UFS_MFS_MFS_EXTERN_H_

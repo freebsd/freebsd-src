@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_pcb.h
  *
- * $FreeBSD$
+ * $Id$
  */
 
 #ifndef _NETIPX_IPX_PCB_H_

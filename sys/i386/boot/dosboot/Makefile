@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 #
 
 MPROG=	fbsdboot.exe
