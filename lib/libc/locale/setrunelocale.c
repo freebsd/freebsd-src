@@ -53,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #include "setlocale.h"
 
 extern int		_none_init(_RuneLocale *);
-extern int		_UTF2_init(_RuneLocale *);
 extern int		_UTF8_init(_RuneLocale *);
 extern int		_EUC_init(_RuneLocale *);
 extern int		_GB18030_init(_RuneLocale *);
@@ -164,8 +163,6 @@ __setrunelocale(const char *encoding)
 	rl->__sgetrune = __emulated_sgetrune;
 	if (strcmp(rl->__encoding, "NONE") == 0)
 		ret = _none_init(rl);
-	else if (strcmp(rl->__encoding, "UTF2") == 0)
-		ret = _UTF2_init(rl);
 	else if (strcmp(rl->__encoding, "UTF-8") == 0)
 		ret = _UTF8_init(rl);
 	else if (strcmp(rl->__encoding, "EUC") == 0)
