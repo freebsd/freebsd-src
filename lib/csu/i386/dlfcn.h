@@ -38,8 +38,8 @@
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-void *dlopen __P((const char *, int));
-void *dlsym __P((void *, const char *));
+void *dlopen __P((char *, int));
+void *dlsym __P((void *, char *));
 char *dlerror __P((void));
 int dlclose __P((void *));
 __END_DECLS
