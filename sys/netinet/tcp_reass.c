@@ -85,8 +85,6 @@
 #ifdef TCPDEBUG
 #include <netinet/tcp_debug.h>
 
-u_char tcp_saveipgen[40]; /* the size must be of max ip header, now IPv6 */
-struct tcphdr tcp_savetcp;
 #endif /* TCPDEBUG */
 
 #ifdef IPSEC
@@ -352,6 +350,9 @@ tcp_input(m, off0)
 	int headlocked = 0;
 
 #ifdef TCPDEBUG
+	u_char tcp_saveipgen[40];
+		/* the size of the above must be of max ip header, now IPv6 */
+	struct tcphdr tcp_savetcp;
 	short ostate = 0;
 #endif
 #ifdef INET6
