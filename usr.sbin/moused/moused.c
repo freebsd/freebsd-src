@@ -76,6 +76,7 @@ __FBSDID("$FreeBSD$");
 #define MAX_BUTTON2TIMEOUT	2000	/* 2 seconds */
 #define DFLT_CLICKTHRESHOLD	 500	/* 0.5 second */
 #define DFLT_BUTTON2TIMEOUT	 100	/* 0.1 second */
+#define DFLT_SCROLLTHRESHOLD	   3	/* 3 pixels */
 
 /* Abort 3-button emulation delay after this many movement events. */
 #define BUTTON2_MAXMOVE	3
@@ -97,11 +98,12 @@ __FBSDID("$FreeBSD$");
 #define ClearDTR	0x0004
 #define ClearRTS	0x0008
 #define NoPnP		0x0010
+#define VirtualScroll	0x0020
 
 #define ID_NONE		0
 #define ID_PORT		1
 #define ID_IF		2
-#define ID_TYPE	4
+#define ID_TYPE		4
 #define ID_MODEL	8
 #define ID_ALL		(ID_PORT | ID_IF | ID_TYPE | ID_MODEL)
 
@@ -158,6 +160,13 @@ int	background = FALSE;
 int	identify = ID_NONE;
 int	extioctl = FALSE;
 char	*pidfile = "/var/run/moused.pid";
+
+#define SCROLL_NOTSCROLLING	0
+#define SCROLL_PREPARE		1
+#define SCROLL_SCROLLING	2
+
+static int	scroll_state;
+static int	scroll_movement;
 
 /* local variables */
 
@@ -380,6 +389,7 @@ static struct rodentparam {
     mousemode_t mode;		/* protocol information */
     float accelx;		/* Acceleration in the X axis */
     float accely;		/* Acceleration in the Y axis */
+    int scrollthreshold;	/* Movement distance before virtual scrolling */
 } rodent = {
     .flags = 0,
     .portname = NULL,
@@ -398,6 +408,7 @@ static struct rodentparam {
     .button2timeout = DFLT_BUTTON2TIMEOUT,
     .accelx = 1.0,
     .accely = 1.0,
+    .scrollthreshold = DFLT_SCROLLTHRESHOLD,
 };
 
 /* button status */
@@ -509,7 +520,7 @@ main(int argc, char *argv[])
     for (i = 0; i < MOUSE_MAXBUTTON; ++i)
 	mstate[i] = &bstate[i];
 
-    while ((c = getopt(argc, argv, "3C:DE:F:I:PRS:a:cdfhi:l:m:p:r:st:w:z:")) != -1)
+    while ((c = getopt(argc, argv, "3C:DE:F:I:PRS:VU:a:cdfhi:l:m:p:r:st:w:z:")) != -1)
 	switch(c) {
 
 	case '3':
@@ -713,6 +724,17 @@ main(int argc, char *argv[])
 		break;
 	    warnx("no such mouse type `%s'", optarg);
 	    usage();
+
+	case 'V':
+	    rodent.flags |= VirtualScroll;
+	    break;
+	case 'U':
+	    rodent.scrollthreshold = atoi(optarg);
+	    if (rodent.scrollthreshold < 0) {
+		warnx("invalid argument `%s'", optarg);
+		usage();
+	    }
+	    break;
 
 	case 'h':
 	case '?':
@@ -967,6 +989,50 @@ moused(void)
 	    }
 	    if ((flags = r_protocol(b, &action0)) == 0)
 		continue;
+
+	    if (rodent.flags & VirtualScroll) {
+		/* Allow middle button drags to scroll up and down */
+		if (action0.button == MOUSE_BUTTON2DOWN) {
+		    if (scroll_state == SCROLL_NOTSCROLLING) {
+			scroll_state = SCROLL_PREPARE;
+			debug("PREPARING TO SCROLL");
+		    }
+		    debug("[BUTTON2] flags:%08x buttons:%08x obuttons:%08x",
+			  action.flags, action.button, action.obutton);
+		} else {
+		    debug("[NOTBUTTON2] flags:%08x buttons:%08x obuttons:%08x",
+			  action.flags, action.button, action.obutton);
+
+		    /* This isn't a middle button down... move along... */
+		    if (scroll_state == SCROLL_SCROLLING) { 
+			/* 
+			 * We were scrolling, someone let go of button 2.
+			 * Now turn autoscroll off.
+			 */
+			scroll_state = SCROLL_NOTSCROLLING;
+			debug("DONE WITH SCROLLING / %d", scroll_state);
+		    } else if (scroll_state == SCROLL_PREPARE) {
+			mousestatus_t newaction = action0;
+
+			/* We were preparing to scroll, but we never moved... */
+			r_timestamp(&action0);
+			r_statetrans(&action0, &newaction,
+				     A(newaction.button & MOUSE_BUTTON1DOWN,
+				       action0.button & MOUSE_BUTTON3DOWN));
+
+			/* Send middle down */
+			newaction.button = MOUSE_BUTTON2DOWN;
+			r_click(&newaction);
+
+			/* Send middle up */
+			r_timestamp(&newaction);
+			newaction.obutton = newaction.button;
+			newaction.button = action0.button;
+			r_click(&newaction);
+		    } 
+		}
+	    }
+
 	    r_timestamp(&action0);
 	    r_statetrans(&action0, &action,
 			 A(action0.button & MOUSE_BUTTON1DOWN,
@@ -984,8 +1050,41 @@ moused(void)
 	    debug("activity : buttons 0x%08x  dx %d  dy %d  dz %d",
 		action2.button, action2.dx, action2.dy, action2.dz);
 
+	    if (rodent.flags & VirtualScroll) {
+		/* 
+		 * If *only* the middle button is pressed AND we are moving
+		 * the stick/trackpoint/nipple, scroll!
+		 */
+		if (scroll_state == SCROLL_PREPARE) {
+		    /* Ok, Set we're really scrolling now.... */
+		    if (action2.dy || action2.dx)
+			scroll_state = SCROLL_SCROLLING;
+		}
+		if (scroll_state == SCROLL_SCROLLING) {
+		    scroll_movement += action2.dy;
+		    debug("SCROLL: %d", scroll_movement);
+
+		    if (scroll_movement < -rodent.scrollthreshold) { 
+			/* Scroll down */
+			action2.dz = -1;
+			scroll_movement = 0;
+		    }
+		    else if (scroll_movement > rodent.scrollthreshold) { 
+			/* Scroll up */
+			action2.dz = 1;
+			scroll_movement = 0;
+		    }
+
+		    /* Don't move while scrolling */
+		    action2.dx = action2.dy = 0;
+		}
+	    }
+
 	    if (extioctl) {
-		r_click(&action2);
+		/* Defer clicks until we aren't VirtualScroll'ing. */
+		if (scroll_state == SCROLL_NOTSCROLLING) 
+		    r_click(&action2);
+
 		if (action2.flags & MOUSE_POSCHANGED) {
 		    mouse.operation = MOUSE_MOTION_EVENT;
 		    mouse.u.data.buttons = action2.button;
