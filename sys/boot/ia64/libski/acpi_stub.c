@@ -58,34 +58,30 @@ typedef struct  /* IO SAPIC */
  */
 
 struct {
-	APIC_TABLE		Header;
-	LOCAL_SAPIC		cpu0;
-	LOCAL_SAPIC		cpu1;
-	LOCAL_SAPIC		cpu2;
-	LOCAL_SAPIC		cpu3;
-	IO_SAPIC		sapic;
+	MULTIPLE_APIC_TABLE	Header;
+	MADT_LOCAL_SAPIC	cpu0;
+	MADT_LOCAL_SAPIC	cpu1;
+	MADT_LOCAL_SAPIC	cpu2;
+	MADT_LOCAL_SAPIC	cpu3;
+	MADT_IO_SAPIC		sapic;
 } apic = {
 	/* Header. */
 	{
-		{
-			APIC_SIG,		/* Signature. */
-			sizeof(apic),		/* Length of table. */
-			0,			/* ACPI minor revision. */
-			0,			/* XXX checksum. */
-			"FBSD",			/* OEM Id. */
-			"SKI",			/* OEM table Id. */
-			0,			/* OEM revision. */
-			"FBSD",			/* ASL compiler Id. */
-			0			/* ASL revision. */
-		},
+		APIC_SIG,			/* Signature. */
+		sizeof(apic),			/* Length of table. */
+		0,				/* ACPI minor revision. */
+		0,				/* XXX checksum. */
+		"FBSD",				/* OEM Id. */
+		"SKI",				/* OEM table Id. */
+		0,				/* OEM revision. */
+		"FBSD",				/* ASL compiler Id. */
+		0,				/* ASL revision. */
 		0xfee00000,
 	},
 	/* cpu0. */
 	{
-		{
-			APIC_LOCAL_SAPIC,	/* Type. */
-			sizeof(apic.cpu0)	/* Length. */
-		},
+		APIC_LOCAL_SAPIC,		/* Type. */
+		sizeof(apic.cpu0),		/* Length. */
 		0,				/* ACPI processor id */
 		0,				/* Processor local SAPIC id */
 		0,				/* Processor local SAPIC eid */
@@ -94,10 +90,8 @@ struct {
 	},
 	/* cpu1. */
 	{
-		{
-			APIC_LOCAL_SAPIC,	/* Type. */
-			sizeof(apic.cpu1)	/* Length. */
-		},
+		APIC_LOCAL_SAPIC,		/* Type. */
+		sizeof(apic.cpu1),		/* Length. */
 		1,				/* ACPI processor id */
 		0,				/* Processor local SAPIC id */
 		1,				/* Processor local SAPIC eid */
@@ -106,10 +100,8 @@ struct {
 	},
 	/* cpu2. */
 	{
-		{
-			APIC_LOCAL_SAPIC,	/* Type. */
-			sizeof(apic.cpu2)	/* Length. */
-		},
+		APIC_LOCAL_SAPIC,		/* Type. */
+		sizeof(apic.cpu2),		/* Length. */
 		2,				/* ACPI processor id */
 		1,				/* Processor local SAPIC id */
 		0,				/* Processor local SAPIC eid */
@@ -118,10 +110,8 @@ struct {
 	},
 	/* cpu3. */
 	{
-		{
-			APIC_LOCAL_SAPIC,	/* Type. */
-			sizeof(apic.cpu3)	/* Length. */
-		},
+		APIC_LOCAL_SAPIC,		/* Type. */
+		sizeof(apic.cpu3),		/* Length. */
 		3,				/* ACPI processor id */
 		1,				/* Processor local SAPIC id */
 		1,				/* Processor local SAPIC eid */
@@ -130,10 +120,8 @@ struct {
 	},
 	/* sapic. */
 	{
-		{
-			APIC_IO_SAPIC,		/* Type. */
-			sizeof(apic.sapic)	/* Length. */
-		},
+		APIC_IO_SAPIC,			/* Type. */
+		sizeof(apic.sapic),		/* Length. */
 		4,				/* IO SAPIC id. */
 		0,
 		16,				/* Interrupt base. */
