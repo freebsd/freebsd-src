@@ -72,14 +72,15 @@ such as file transfers and data streaming.
 The
 .Nm
 driver supports the following media types:
-.Bl -tag -width 1000baseSX
+.Bl -tag -xwidth ".Cm 1000baseSX"
 .It Cm autoselect
 Enable autoselection of the media type and options.
 The user can manually override
 the autoselected mode by adding media options to
 .Xr rc.conf 5 .
 .It Cm 1000baseSX
-Set 1000baseSX operation over fiber optic cable. Both
+Set 1000baseSX operation over fiber optic cable.
+Both
 .Cm full-duplex
 and
 .Cm half-duplex
@@ -89,7 +90,7 @@ modes are supported.
 The
 .Nm
 driver supports the following media options:
-.Bl -tag -width full-duplex
+.Bl -tag -xwidth ".Cm full-duplex"
 .It Cm full-duplex
 Force full duplex operation.
 .It Cm half-duplex
@@ -127,7 +128,7 @@ the network connection (cable).
 .Xr ifconfig 8
 .Rs
 .%T Level 1 LXT1001 Programming Manual
-.%O http://www.freebsd.org/~wpaul/Level1/LXT1001SRM.pdf
+.%O http://www.FreeBSD.org/~wpaul/Level1/LXT1001SRM.pdf
 .Re
 .Sh HISTORY
 The
