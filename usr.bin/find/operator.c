@@ -72,7 +72,7 @@ yanknode(planp)
  * yankexpr --
  *	Removes one expression from the plan.  This is used mainly by
  *	paren_squish.  In comments below, an expression is either a
- *	simple node or a N_EXPR node containing a list of simple nodes.
+ *	simple node or a f_expr node containing a list of simple nodes.
  */
 static PLAN *
 yankexpr(planp)
@@ -82,7 +82,6 @@ yankexpr(planp)
 	PLAN *node;		/* pointer to returned node or expression */
 	PLAN *tail;		/* pointer to tail of subplan */
 	PLAN *subplan;		/* pointer to head of ( ) expression */
-	int f_expr();
 
 	/* first pull the top node from the plan */
 	if ((node = yanknode(planp)) == NULL)
@@ -94,23 +93,22 @@ yankexpr(planp)
 	 * just return it and unwind our recursion; all other nodes are
 	 * complete expressions, so just return them.
 	 */
-	if (node->type == N_OPENPAREN)
+	if (node->execute == f_openparen)
 		for (tail = subplan = NULL;;) {
 			if ((next = yankexpr(planp)) == NULL)
 				err(1, "(: missing closing ')'");
 			/*
 			 * If we find a closing ')' we store the collected
 			 * subplan in our '(' node and convert the node to
-			 * a N_EXPR.  The ')' we found is ignored.  Otherwise,
+			 * a f_expr.  The ')' we found is ignored.  Otherwise,
 			 * we just continue to add whatever we get to our
 			 * subplan.
 			 */
-			if (next->type == N_CLOSEPAREN) {
+			if (next->execute == f_closeparen) {
 				if (subplan == NULL)
 					errx(1, "(): empty inner expression");
 				node->p_data[0] = subplan;
-				node->type = N_EXPR;
-				node->eval = f_expr;
+				node->execute = f_expr;
 				break;
 			} else {
 				if (subplan == NULL)
@@ -141,14 +139,14 @@ paren_squish(plan)
 
 	/*
 	 * the basic idea is to have yankexpr do all our work and just
-	 * collect it's results together.
+	 * collect its results together.
 	 */
 	while ((expr = yankexpr(&plan)) != NULL) {
 		/*
 		 * if we find an unclaimed ')' it means there is a missing
 		 * '(' someplace.
 		 */
-		if (expr->type == N_CLOSEPAREN)
+		if (expr->execute == f_closeparen)
 			errx(1, "): no beginning '('");
 
 		/* add the expression to our result plan */
@@ -172,18 +170,18 @@ not_squish(plan)
 	PLAN *plan;		/* plan to process */
 {
 	register PLAN *next;	/* next node being processed */
-	register PLAN *node;	/* temporary node used in N_NOT processing */
+	register PLAN *node;	/* temporary node used in f_not processing */
 	register PLAN *tail;	/* pointer to tail of result plan */
 	PLAN *result;		/* pointer to head of result plan */
 
-	tail = result = next = NULL;
+	tail = result = NULL;
 
-	while ((next = yanknode(&plan)) != NULL) {
+	while (next = yanknode(&plan)) {
 		/*
 		 * if we encounter a ( expression ) then look for nots in
 		 * the expr subplan.
 		 */
-		if (next->type == N_EXPR)
+		if (next->execute == f_expr)
 			next->p_data[0] = not_squish(next->p_data[0]);
 
 		/*
@@ -191,23 +189,23 @@ not_squish(plan)
 		 * it in the not's subplan.  As an optimization we compress
 		 * several not's to zero or one not.
 		 */
-		if (next->type == N_NOT) {
+		if (next->execute == f_not) {
 			int notlevel = 1;
 
 			node = yanknode(&plan);
-			while (node != NULL && node->type == N_NOT) {
+			while (node != NULL && node->execute == f_not) {
 				++notlevel;
 				node = yanknode(&plan);
 			}
 			if (node == NULL)
 				errx(1, "!: no following expression");
-			if (node->type == N_OR)
+			if (node->execute == f_or)
 				errx(1, "!: nothing between ! and -o");
 			/*
 			 * If we encounter ! ( expr ) then look for nots in
 			 * the expr subplan.
 			 */
-			if (node->type == N_EXPR)
+			if (node->execute == f_expr)
 				node->p_data[0] = not_squish(node->p_data[0]);
 			if (notlevel % 2 != 1)
 				next = node;
@@ -246,11 +244,11 @@ or_squish(plan)
 		 * if we encounter a ( expression ) then look for or's in
 		 * the expr subplan.
 		 */
-		if (next->type == N_EXPR)
+		if (next->execute == f_expr)
 			next->p_data[0] = or_squish(next->p_data[0]);
 
 		/* if we encounter a not then look for or's in the subplan */
-		if (next->type == N_NOT)
+		if (next->execute == f_not)
 			next->p_data[0] = or_squish(next->p_data[0]);
 
 		/*
@@ -258,7 +256,7 @@ or_squish(plan)
 		 * or's first subplan and then recursively collect the
 		 * remaining stuff into the second subplan and return the or.
 		 */
-		if (next->type == N_OR) {
+		if (next->execute == f_or) {
 			if (result == NULL)
 				errx(1, "-o: no expression before -o");
 			next->p_data[0] = result;
