@@ -38,30 +38,15 @@ then
     source_periodic_confs
 fi
 
-LOG="${daily_status_security_logdir}"
+. /etc/periodic/security/security.functions
+
 rc=0
 
 case "$daily_status_security_kernelmsg_enable" in
     [Yy][Ee][Ss])
-	TMP=`mktemp ${TMPDIR:-/tmp}/security.XXXXXXXXXX`
-	if dmesg 2>/dev/null > ${TMP}; then
-	    if [ ! -f ${LOG}/dmesg.today ]; then
-		rc=1
-		echo ""
-		echo "No ${LOG}/dmesg.today"
-		cp ${TMP} ${LOG}/dmesg.today || rc=3
-	    fi
-
-	    echo ""
-	    echo "${host} kernel log messages:"
-	    if ! cmp ${LOG}/dmesg.today ${TMP} >/dev/null 2>&1; then
-		[ $rc -lt 1 ] && rc=1
-		diff -b ${LOG}/dmesg.today ${TMP} | egrep "^>"
-		mv ${LOG}/dmesg.today ${LOG}/dmesg.yesterday || rc=3
-		mv ${TMP} ${LOG}/dmesg.today || rc=3
-	    fi
-	fi
-	rm -f ${TMP};;
+	dmesg 2>/dev/null > ${TMP} |
+	    check_diff new_only dmesg - "${host} kernel log messages:"
+	rc=$?;;
     *)	rc=0;;
 esac
 
