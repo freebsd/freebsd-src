@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.71 1997/02/25 19:33:23 bde Exp $
+ * $Id: vfs_subr.c,v 1.72 1997/02/26 15:35:42 bde Exp $
  */
 
 /*
@@ -78,6 +78,8 @@ extern void	printlockedvnodes __P((void));
 static void	vclean __P((struct vnode *vp, int flags, struct proc *p));
 extern void	vgonel __P((struct vnode *vp, struct proc *p));
 unsigned long	numvnodes;
+extern void	vfs_unmountroot __P((struct mount *rootfs));
+extern void	vputrele __P((struct vnode *vp, int put));
 
 enum vtype iftovt_tab[16] = {
 	VNON, VFIFO, VCHR, VNON, VDIR, VNON, VBLK, VNON,
@@ -627,9 +629,10 @@ pbgetvp(vp, bp)
 	register struct vnode *vp;
 	register struct buf *bp;
 {
+#if defined(DIAGNOSTIC)
 	if (bp->b_vp)
 		panic("pbgetvp: not free");
-	VHOLD(vp);
+#endif
 	bp->b_vp = vp;
 	if (vp->v_type == VBLK || vp->v_type == VCHR)
 		bp->b_dev = vp->v_rdev;
@@ -646,12 +649,12 @@ pbrelvp(bp)
 {
 	struct vnode *vp;
 
+#if defined(DIAGNOSTIC)
 	if (bp->b_vp == (struct vnode *) 0)
 		panic("brelvp: NULL");
+#endif
 
-	vp = bp->b_vp;
 	bp->b_vp = (struct vnode *) 0;
-	HOLDRELE(vp);
 }
 
 /*
@@ -1000,29 +1003,19 @@ vref(vp)
 }
 
 /*
- * vput(), just unlock and vrele()
- */
-void
-vput(vp)
-	struct vnode *vp;
-{
-	VOP_UNLOCK(vp, 0, curproc);
-	vrele(vp);
-}
-
-/*
- * Vnode release.
+ * Vnode put/release.
  * If count drops to zero, call inactive routine and return to freelist.
  */
 void
-vrele(vp)
+vputrele(vp, put)
 	struct vnode *vp;
+	int put;
 {
 	struct proc *p = curproc;	/* XXX */
 
 #ifdef DIAGNOSTIC
 	if (vp == NULL)
-		panic("vrele: null vp");
+		panic("vputrele: null vp");
 #endif
 	simple_lock(&vp->v_interlock);
 	vp->v_usecount--;
@@ -1032,37 +1025,66 @@ vrele(vp)
 		(vp->v_object->flags & OBJ_VFS_REF)) {
 		vp->v_object->flags &= ~OBJ_VFS_REF;
 		simple_unlock(&vp->v_interlock);
+		if (put) {
+			VOP_UNLOCK(vp, 0, p);
+		}
 		vm_object_deallocate(vp->v_object);
 		return;
 	}
 
 	if (vp->v_usecount > 0) {
 		simple_unlock(&vp->v_interlock);
+		if (put) {
+			VOP_UNLOCK(vp, 0, p);
+		}
 		return;
 	}
 
 	if (vp->v_usecount < 0) {
 #ifdef DIAGNOSTIC
-		vprint("vrele: negative ref count", vp);
+		vprint("vputrele: negative ref count", vp);
 #endif
-		panic("vrele: negative ref cnt");
+		panic("vputrele: negative ref cnt");
 	}
 	simple_lock(&vnode_free_list_slock);
 	if (vp->v_flag & VAGE) {
-		if(vp->v_tag != VT_TFS)
-			TAILQ_INSERT_HEAD(&vnode_free_list, vp, v_freelist);
 		vp->v_flag &= ~VAGE;
 		vp->v_usage = 0;
+		if(vp->v_tag != VT_TFS)
+			TAILQ_INSERT_HEAD(&vnode_free_list, vp, v_freelist);
 	} else {
 		if(vp->v_tag != VT_TFS)
 			TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
 	}
 	simple_unlock(&vnode_free_list_slock);
+	simple_unlock(&vp->v_interlock);
 
 	freevnodes++;
 
-	if (vn_lock(vp, LK_EXCLUSIVE | LK_INTERLOCK, p) == 0)
+	/*
+	 * If we are doing a vput, the node is already locked, and we must
+	 * call VOP_INACTIVE with the node locked.  So, in the case of
+	 * vrele, we explicitly lock the vnode before calling VOP_INACTIVE.
+	 */
+	if (put || (vn_lock(vp, LK_EXCLUSIVE | LK_INTERLOCK, p) == 0))
 		VOP_INACTIVE(vp, p);
+}
+
+/*
+ * vput(), just unlock and vrele()
+ */
+void
+vput(vp)
+	struct vnode *vp;
+{
+	vputrele(vp, 1);
+}
+
+void
+vrele(vp)
+	struct vnode *vp;
+{
+	vputrele(vp, 0);
 }
 
 #ifdef DIAGNOSTIC
