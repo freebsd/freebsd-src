@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)termios.4	8.4 (Berkeley) 4/19/94
-.\"	$Id: termios.4,v 1.6 1997/03/18 07:17:22 mpp Exp $
+.\"	$Id: termios.4,v 1.7 1998/06/08 06:12:02 jkoshy Exp $
 .\"
 .Dd April 19, 1994
 .Dt TERMIOS 4
@@ -142,7 +142,7 @@ The controlling terminal is inherited by a child process during a
 .Xr fork 2
 function call.  A process relinquishes its controlling terminal when it
 creates a new session with the
-.Xd setsid 2
+.Xr setsid 2
 function; other processes
 remaining in the old session that had this terminal as their controlling
 terminal continue to have it.
