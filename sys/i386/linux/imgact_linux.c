@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_linux.c,v 1.10 1996/03/10 08:42:49 sos Exp $
+ *	$Id: imgact_linux.c,v 1.11 1996/03/10 23:25:17 peter Exp $
  */
 
 #include <sys/param.h>
@@ -137,7 +137,7 @@ exec_linux_imgact(imgp)
 
 	error = vm_mmap(kernel_map, &buffer,
 			round_page(a_out->a_text + a_out->a_data + file_offset),
-			VM_PROT_READ, VM_PROT_READ, MAP_FILE,
+			VM_PROT_READ, VM_PROT_READ, 0,
 			(caddr_t) imgp->vp, trunc_page(file_offset));
 	if (error)
 	    return error;
