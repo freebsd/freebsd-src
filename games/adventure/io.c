@@ -526,7 +526,7 @@ pspeak(int m, int skip)
 	char *tbuf;
 
 	msg = &ptext[m];
-	if ((tbuf=(char *) malloc(msg->txtlen + 1)) == 0)
+	if ((tbuf = malloc((unsigned int)(msg->txtlen + 1))) == 0)
 		errx(1, "Out of memory!");
 	memcpy(tbuf, msg->seekadr, (size_t)msg->txtlen + 1);   /* Room to null */
 	s = tbuf;
