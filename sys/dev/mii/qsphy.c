@@ -180,26 +180,24 @@ qsphy_service(sc, mii, cmd)
 	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 	int reg;
 
+	/*
+	 * If we're not selected, then do nothing, just isolate, if
+	 * changing media.
+	 */
+	if (IFM_INST(ife->ifm_media) != sc->mii_inst) {
+		if (cmd == MII_MEDIACHG) {
+			reg = PHY_READ(sc, MII_BMCR);
+			PHY_WRITE(sc, MII_BMCR, reg | BMCR_ISO);
+		}
+
+		return (0);
+	}
+
 	switch (cmd) {
 	case MII_POLLSTAT:
-		/*
-		 * If we're not polling our PHY instance, just return.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
-			return (0);
 		break;
 
 	case MII_MEDIACHG:
-		/*
-		 * If the media indicates a different PHY instance,
-		 * isolate ourselves.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst) {
-			reg = PHY_READ(sc, MII_BMCR);
-			PHY_WRITE(sc, MII_BMCR, reg | BMCR_ISO);
-			return (0);
-		}
-
 		/*
 		 * If the interface is not up, don't do anything.
 		 */
@@ -229,12 +227,6 @@ qsphy_service(sc, mii, cmd)
 
 	case MII_TICK:
 		/*
-		 * If we're not currently selected, just return.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
-			return (0);
-
-		/*
 		 * Is the interface even up?
 		 */
 		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
@@ -247,23 +239,8 @@ qsphy_service(sc, mii, cmd)
 			break;
 
 		/*
-		 * check for link.
-		 * Read the status register twice; BMSR_LINK is latch-low.
+		 * This PHY's autonegotiation doesn't need to be kicked.
 		 */
-		reg = PHY_READ(sc, MII_BMSR) | PHY_READ(sc, MII_BMSR);
-		if (reg & BMSR_LINK)
-			break;
-
-		/*
-		 * Only retry autonegotiation every 5 seconds.
-		 */
-		if (++sc->mii_ticks != 5)
-			return (0);
-
-		sc->mii_ticks = 0;
-		qsphy_reset(sc);
-		if (mii_phy_auto(sc, 0) == EJUSTRETURN)
-			return (0);
 		break;
 	}
 
@@ -280,7 +257,6 @@ qsphy_status(sc)
 	struct mii_softc *sc;
 {
 	struct mii_data *mii = sc->mii_pdata;
-	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 	int bmsr, bmcr, pctl;
 
 	mii->mii_media_status = IFM_AVALID;
@@ -301,37 +277,31 @@ qsphy_status(sc)
 	if (bmcr & BMCR_LOOP)
 		mii->mii_media_active |= IFM_LOOP;
 
-	if (bmcr & BMCR_AUTOEN) {
-		if ((bmsr & BMSR_ACOMP) == 0) {
-			/* Erg, still trying, I guess... */
-			mii->mii_media_active |= IFM_NONE;
-			return;
-		}
-		pctl = PHY_READ(sc, MII_QSPHY_PCTL) |
-		    PHY_READ(sc, MII_QSPHY_PCTL);
-		switch (pctl & PCTL_OPMASK) {
-		case PCTL_10_T:
-			mii->mii_media_active |= IFM_10_T;
-			break;
-		case PCTL_10_T_FDX:
-			mii->mii_media_active |= IFM_10_T|IFM_FDX;
-			break;
-		case PCTL_100_TX:
-			mii->mii_media_active |= IFM_100_TX;
-			break;
-		case PCTL_100_TX_FDX:
-			mii->mii_media_active |= IFM_100_TX|IFM_FDX;
-			break;
-		case PCTL_100_T4:
-			mii->mii_media_active |= IFM_100_T4;
-			break;
-		default:
-			/* Erg... this shouldn't happen. */
-			mii->mii_media_active |= IFM_NONE;
-			break;
-		}
-	} else
-		mii->mii_media_active = ife->ifm_media;
+	pctl = PHY_READ(sc, MII_QSPHY_PCTL);
+	switch (pctl & PCTL_OPMASK) {
+	case PCTL_10_T:
+		mii->mii_media_active |= IFM_10_T;
+		break;
+	case PCTL_10_T_FDX:
+		mii->mii_media_active |= IFM_10_T|IFM_FDX;
+		break;
+	case PCTL_100_TX:
+		mii->mii_media_active |= IFM_100_TX;
+		break;
+	case PCTL_100_TX_FDX:
+		mii->mii_media_active |= IFM_100_TX|IFM_FDX;
+		break;
+	case PCTL_100_T4:
+		mii->mii_media_active |= IFM_100_T4;
+		break;
+	case PCTL_AN:
+		mii->mii_media_active |= IFM_NONE;
+		break;
+	default:
+		/* Erg... this shouldn't happen. */
+		mii->mii_media_active |= IFM_NONE;
+		break;
+	}
 }
 
 static void
