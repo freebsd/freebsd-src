@@ -113,6 +113,7 @@ void
 rmtgetconn()
 {
 	register char *cp;
+	register const char *rmt;
 	static struct servent *sp = NULL;
 	static struct passwd *pwd = NULL;
 #ifdef notdef
@@ -143,8 +144,10 @@ rmtgetconn()
 		rmtpeer = ++cp;
 	} else
 		tuser = pwd->pw_name;
+	if ((rmt = getenv("RMT")) == NULL)
+		rmt = _PATH_RMT;
 	rmtape = rcmd(&rmtpeer, (u_short)sp->s_port, pwd->pw_name, tuser,
-	    _PATH_RMT, (int *)0);
+	    rmt, (int *)0);
 	size = ntrec * TP_BSIZE;
 	if (size > 60 * 1024)		/* XXX */
 		size = 60 * 1024;
