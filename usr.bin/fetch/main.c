@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: main.c,v 1.11 1996/08/03 13:14:47 jkh Exp $ */
+/* $Id: main.c,v 1.12 1996/08/04 00:35:39 jmz Exp $ */
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -224,7 +224,7 @@ ftpget ()
 	    lp = "anonymous";
 	ftp = ftpLogin(host, lp, ftp_pw, 0, verbose);
 	if (!ftp) 
-	    err(1, "Couldn't open FTP connection or login to %s.", host);
+	    err(1, "couldn't open FTP connection or login to %s.", host);
 
 	ftpVerbose (ftp, 0);
 
@@ -235,7 +235,7 @@ ftpget ()
 	if (change_to_dir) {
 		status = ftpChdir (ftp, change_to_dir);
 		if (status)
-		    ftperr (ftp, "Couldn't cd to %s: ", change_to_dir);
+		    ftperr (ftp, "couldn't cd to %s: ", change_to_dir);
 	}
 	size = ftpGetSize (ftp, file_to_get);
 	modtime = ftpGetModtime (ftp, file_to_get);
@@ -274,7 +274,7 @@ ftpget ()
 	if (strcmp (outputfile, "-")) {
 		file = fopen (outputfile, size0 ? "a" : "w");
 		if (!file) 
-		    err (1, "Could not open output file %s\n", outputfile);
+		    err (1, "could not open output file %s.", outputfile);
 	} else 
 	    file = stdout;
 
@@ -479,7 +479,7 @@ httpget ()
 	sprintf (str, "GET /%s HTTP/1.0\n\n", file_to_get);
 	i = strlen (str);
 	if (i != write (s, str, i))
-	    err (1, "Could not send GET command to HTTP server\n");
+	    err (1, "could not send GET command to HTTP server.");
 
 	FD_ZERO (&fdset);
 	FD_SET (s, &fdset);
@@ -492,7 +492,7 @@ httpget ()
 	if (strcmp (outputfile, "-")) {
 		file = fopen (outputfile, "w");
 		if (!file)
-		    err (1, "Could not open output file %s\n", outputfile);
+		    err (1, "could not open output file %s.", outputfile);
 	} else {
 		file = stdout;
 		verbose = 0;
@@ -512,7 +512,7 @@ httpget ()
 			    exit (0);
 			break;
 		      default:
-			err (1, "Communication error with HTTP server\n");
+			err (1, "communication error with HTTP server.");
 		}
 	}
 }
@@ -623,7 +623,7 @@ http_open ()
 	} else {
 		h = gethostbyname (host);
 		if (!h) 
-		    err (1, "Could not lookup host %s\n", host);
+		    err (1, "could not lookup host %s.", host);
 		sin.sin_family = h->h_addrtype;
 		bcopy(h->h_addr, (char *)&sin.sin_addr, h->h_length);
 	}
@@ -635,10 +635,10 @@ http_open ()
 	sin2.sin_port = 0;
 	sin2.sin_addr.s_addr = htonl (INADDR_ANY);
 	if (bind (s, (struct sockaddr *)&sin2, sizeof (sin2)))
-	    err (1, "Could not bind to socket\n");
+	    err (1, "could not bind to socket.");
 
 	if (connect(s, (struct sockaddr *)&sin, sizeof(sin)) < 0)
-	    err (1, "Connection failed");
+	    err (1, "connection failed.");
 	return s;
 }
 
