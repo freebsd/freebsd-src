@@ -671,7 +671,6 @@ link_elf_load_file(linker_class_t cls, const char* filename, linker_file_t* resu
 #ifdef SPARSE_MAPPING
     ef->object = vm_object_allocate(OBJT_DEFAULT, mapsize >> PAGE_SHIFT);
     if (ef->object == NULL) {
-	free(ef, M_LINKER);
 	error = ENOMEM;
 	goto out;
     }
