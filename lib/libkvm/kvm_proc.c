@@ -123,7 +123,7 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 
 	kp = &kinfo_proc;
 	kp->ki_structsize = sizeof(kinfo_proc);
-	for (; cnt < maxcnt && p != NULL; p = proc.p_list.le_next) {
+	for (; cnt < maxcnt && p != NULL; p = LIST_NEXT(&proc, p_list)) {
 		if (KREAD(kd, (u_long)p, &proc)) {
 			_kvm_err(kd, kd->program, "can't read proc at %x", p);
 			return (-1);
