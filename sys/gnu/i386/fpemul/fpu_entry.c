@@ -55,7 +55,7 @@
  *
  * W. Metzenthen   June 1994.
  *
- *  $Id: fpu_entry.c,v 1.5 1994/08/30 20:18:52 davidg Exp $
+ *  $Id: fpu_entry.c,v 1.6 1995/05/30 07:57:45 rgrimes Exp $
  *
  */
 
@@ -71,11 +71,17 @@
  +---------------------------------------------------------------------------*/
 
 
-#include "param.h"
-#include "systm.h"
-#include "proc.h"
-#include "machine/cpu.h"
-#include "machine/pcb.h"
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/proc.h>
+#include <sys/kernel.h>
+
+#ifdef LKM
+#include <sys/lkm.h>
+#endif
+
+#include <machine/cpu.h>
+#include <machine/pcb.h>
 
 #include "fpu_emu.h"
 #include "fpu_system.h"
@@ -192,7 +198,7 @@ char    emulating = 0;
 #define math_abort(signo) \
     FPU_EIP = FPU_ORIG_EIP;REENTRANT_CHECK(OFF);return(signo);
 
-int
+static int
 math_emulate(struct trapframe * tframe)
 {
 
@@ -481,3 +487,47 @@ if (--lookahead_limit)
 	REENTRANT_CHECK(OFF);
 	return (0);		/* --pink-- */
 }
+
+#ifdef LKM
+MOD_MISC(gnufpu);
+static int
+gnufpu_load(struct lkm_table *lkmtp, int cmd)
+{
+	if (pmath_emulate) {
+		printf("Math emulator already present\n");
+		return EBUSY;
+	}
+	pmath_emulate = math_emulate;
+	return 0;
+}
+
+static int
+gnufpu_unload(struct lkm_table *lkmtp, int cmd)
+{
+	if (pmath_emulate != math_emulate) {
+		printf("Cannot unload another math emulator\n");
+		return EACCES;
+	}
+	pmath_emulate = 0;
+	return 0;
+}
+
+int
+gnufpu(struct lkm_table *lkmtp, int cmd, int ver)
+{
+	DISPATCH(lkmtp, cmd, ver, gnufpu_load, gnufpu_unload, lkm_nullcmd);
+}
+#else /* !LKM */
+
+static void
+gnufpu_init(void)
+{
+	if (pmath_emulate)
+		printf("Another Math emulator already present\n");
+	else
+		pmath_emulate = math_emulate;
+}
+
+SYSINIT(gnufpu, SI_SUB_CPU, SI_ORDER_ANY, gnufpu_init, NULL);
+
+#endif /* LKM */

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.63 1995/12/07 12:45:39 davidg Exp $
+ *	$Id: trap.c,v 1.64 1995/12/09 20:40:43 phk Exp $
  */
 
 /*
@@ -81,6 +81,8 @@
 
 #include "isa.h"
 #include "npx.h"
+
+int (*pmath_emulate) __P((struct trapframe *));
 
 extern void trap __P((struct trapframe frame));
 extern int trapwrite __P((unsigned addr));
@@ -286,8 +288,12 @@ trap(frame)
 				return;
 #endif	/* NNPX > 0 */
 
-#if defined(MATH_EMULATE) || defined(GPL_MATH_EMULATE)
-			i = math_emulate(&frame);
+			if (!pmath_emulate) {
+				i = SIGFPE;
+				ucode = FPE_FPU_NP_TRAP;
+				break;
+			}
+			i = (*pmath_emulate)(&frame);
 			if (i == 0) {
 				if (!(frame.tf_eflags & PSL_T))
 					return;
@@ -295,10 +301,6 @@ trap(frame)
 				i = SIGTRAP;
 			}
 			/* else ucode = emulator_only_knows() XXX */
-#else	/* MATH_EMULATE || GPL_MATH_EMULATE */
-			i = SIGFPE;
-			ucode = FPE_FPU_NP_TRAP;
-#endif	/* MATH_EMULATE || GPL_MATH_EMULATE */
 			break;
 
 		case T_FPOPFLT:		/* FPU operand fetch fault */
