@@ -44,3 +44,9 @@ extern void setmedia(const char *, int, int, const struct afswtch *rafp);
 extern void setmediaopt(const char *, int, int, const struct afswtch *rafp);
 extern void unsetmediaopt(const char *, int, int, const struct afswtch *rafp);
 extern void media_status(int s, struct rt_addrinfo *);
+
+extern void setvlantag(const char *, int, int, const struct afswtch *rafp);
+extern void setvlandev(const char *, int, int, const struct afswtch *rafp);
+extern void unsetvlandev(const char *, int, int, const struct afswtch *rafp);
+extern void vlan_status(int s, struct rt_addrinfo *);
+
