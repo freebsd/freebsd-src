@@ -170,6 +170,8 @@ FreeBSD 5.1           |   NetBSD -current  OpenBSD -current  |
  |          \         |      |                 |             v
  |           ----- Mac OS X  |                 |
  |                   10.3    |                 |
+FreeBSD 5.2           |      |                 |
+ |                    |      |                 |
 FreeBSD 5 -current    |      |                 |
  |                    |      |                 |
  v                    v      v                 v
@@ -387,6 +389,7 @@ FreeBSD 5.1		2003-06-09 [FBD]
 Mac OS X 10.3		2003-10-24 [APL]
 FreeBSD 4.9		2003-10-28 [FBD]
 OpenBSD 3.4		2003-11-01 [OBD]
+FreeBSD 5.2		2004-01-12 [FBD]
 
 Bibliography
 ------------------------
