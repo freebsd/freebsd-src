@@ -2925,7 +2925,8 @@ again:
 		n = m->m_next;
 		if (n == NULL)
 			break;
-		if (n->m_len < M_TRAILINGSPACE(m)) {
+		if ((m->m_flags & M_RDONLY) == 0 &&
+		    n->m_len < M_TRAILINGSPACE(m)) {
 			bcopy(mtod(n, void *), mtod(m, char *) + m->m_len,
 				n->m_len);
 			m->m_len += n->m_len;
