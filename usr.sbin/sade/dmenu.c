@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: dmenu.c,v 1.8 1995/05/16 02:53:07 jkh Exp $
+ * $Id: dmenu.c,v 1.9 1995/05/17 14:39:41 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -43,7 +43,7 @@
 
 #include "sysinstall.h"
 
-#define MAX_MENU		12
+#define MAX_MENU		10
 
 static DMenuItem shellAction = { NULL, NULL, DMENU_SHELL_ESCAPE, NULL, 0 };
 
