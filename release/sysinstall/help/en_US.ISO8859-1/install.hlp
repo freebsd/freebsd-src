@@ -153,7 +153,7 @@ sized so that 5 of them will fit on a conventional 1.44MB floppy.  Go
 through all your floppies, packing as many files as will fit on each
 one, until you've got all the distributions you want packed up in this
 fashion.  Each distribution should go into a subdirectory on the
-floppy, e.g.:	a:\bin\bin.aa,  .:\bin\bin.ab, ...
+floppy, e.g.:   a:\bin\bin.aa,  .:\bin\bin.ab, ...
 
 Once you come to the Media screen of the install, select
 "Floppy" and you'll be prompted for the rest.
