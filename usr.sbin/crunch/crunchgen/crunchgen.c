@@ -91,6 +91,7 @@ int goterror = 0;
 
 int verbose, readcache;	/* options */
 int reading_cache;
+int makeobj = 0;	/* add 'make obj' rules to the makefile */
 
 int list_mode;
 
@@ -118,9 +119,10 @@ int main(int argc, char **argv)
     readcache = 1;
     *outmkname = *outcfname = *execfname = '\0';
 
-    while((optc = getopt(argc, argv, "lh:m:c:e:fq")) != -1) {
+    while((optc = getopt(argc, argv, "lh:m:c:e:foq")) != -1) {
 	switch(optc) {
 	case 'f':	readcache = 0; break;
+	case 'o':	makeobj = 1; break;
 	case 'q':	verbose = 0; break;
 
 	case 'm':	strcpy(outmkname, optarg); break;
@@ -175,7 +177,7 @@ int main(int argc, char **argv)
 void usage(void)
 {
     fprintf(stderr, "%s\n%s\n",
-		"usage: crunchgen [-fq] [-m <makefile>] [-c <c file>]",
+		"usage: crunchgen [-foq] [-m <makefile>] [-c <c file>]",
 		"                 [-e <exec file>] <conffile>");
     exit(1);
 }
@@ -811,10 +813,13 @@ void prog_makefile_rules(FILE *outmk, prog_t *p)
 	fprintf(outmk, "%s_OBJS=", p->ident);
 	output_strlst(outmk, p->objs);
 	fprintf(outmk, "%s_make:\n", p->ident);
-	fprintf(outmk, "\t(cd $(%s_SRCDIR) && make obj && \\\n"
-		"\t\tmake $(OPTS) $(%s_OPTS) depend && \\\n"
+	fprintf(outmk, "\t(cd $(%s_SRCDIR) && ", p->ident);
+	if (makeobj)
+		fprintf(outmk, "make obj && ");
+	fprintf(outmk, "\\\n");
+	fprintf(outmk, "\t\tmake $(OPTS) $(%s_OPTS) depend && \\\n"
 		"\t\tmake $(OPTS) $(%s_OPTS) $(%s_OBJS))\n",
-		p->ident, p->ident, p->ident, p->ident);
+		p->ident, p->ident, p->ident);
 	fprintf(outmk, "%s_clean:\n", p->ident);
 	fprintf(outmk, "\t(cd $(%s_SRCDIR) && make clean)\n\n", p->ident);
     }
