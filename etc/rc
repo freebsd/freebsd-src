@@ -69,6 +69,31 @@ elif [ -r /etc/rc.conf ]; then
 	. /etc/rc.conf
 fi
 
+# Recover some entropy so the rebooting /dev/random can reseed
+#
+case ${entropy_file} in
+[Nn][Oo] | '')
+	;;
+*)
+	if [ -w /dev/random ]; then
+		if [ -f ${entropy_file} -a -r ${entropy_file} ]; then
+			echo "Reading entropy file"
+			cat ${entropy_file} > /dev/random 2> /dev/random
+			rm -f ${entropy_file}
+		else
+			echo "No entropy file, trying other sources"
+			# XXX temporary until we can get the entropy
+			# harvesting rate up
+			# Entropy below is not great, but better than nothing.
+			(ps -gauxwww; iostat; vmstat; dmesg) > /dev/random 2> /dev/random
+			( for i in /etc /var/run ; do
+				cd $i ; ls -al ; cat *
+			done ) > /dev/random 2> /dev/random
+		fi
+	fi
+	;;
+esac
+
 # Configure ccd devices.
 #
 if [ -r /etc/ccd.conf ]; then
@@ -157,20 +182,6 @@ esac
 if [ -n "${diskless_mount}" -a -r "${diskless_mount}" ]; then
 		sh ${diskless_mount}
 fi
-
-# Recover some entropy so the rebooting /dev/random can reseed
-#
-case ${entropy_file} in
-[Nn][Oo] | '')
-	;;
-*)
-	if [ -f ${entropy_file} -a -r ${entropy_file} -a -w /dev/random ]; then
-		echo "Reading entropy file"
-		cat ${entropy_file} > /dev/random
-		rm -f ${entropy_file}
-	fi
-	;;
-esac
 
 adjkerntz -i
 
