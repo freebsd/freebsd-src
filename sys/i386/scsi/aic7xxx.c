@@ -24,7 +24,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aic7xxx.c,v 1.29.2.7 1996/01/04 08:54:52 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.29.2.8 1996/01/05 16:19:51 gibbs Exp $
  */
 /*
  * TODO:
@@ -61,8 +61,6 @@
 
 #define MIN(a,b) ((a < b) ? a : b)
 #define ALL_TARGETS -1
-
-struct ahc_data *ahcdata[NAHC];
 
 u_long ahc_unit = 0;
 
@@ -248,9 +246,6 @@ static int ahc_num_syncrates =
  * ahc_reset should be called before now since we assume that the card
  * is paused.
  *
- * Sticking the ahc structure into the ahcdata array is an artifact of the
- * need to index by unit.  As soon as the upper level scsi code passes
- * pointers instead of units down to us, this will go away.
  */
 struct ahc_data *
 ahc_alloc(unit, iobase, type, flags)
@@ -266,26 +261,16 @@ ahc_alloc(unit, iobase, type, flags)
 
 	struct  ahc_data *ahc;
 
-	if (unit >= NAHC) {
-		printf("ahc: unit number (%d) too high\n", unit);
-		return 0;
-	}
-
 	/*
 	 * Allocate a storage area for us
 	 */
 
-	if (ahcdata[unit]) {
-		printf("ahc%d: memory already allocated\n", unit);
-		return NULL;
-	}
 	ahc = malloc(sizeof(struct ahc_data), M_TEMP, M_NOWAIT);
 	if (!ahc) {
 		printf("ahc%d: cannot malloc!\n", unit);
 		return NULL;
 	}
 	bzero(ahc, sizeof(struct ahc_data));
-        ahcdata[unit] = ahc;
         ahc->unit = unit;
         ahc->baseport = iobase;
 	ahc->type = type;
@@ -300,7 +285,6 @@ void
 ahc_free(ahc)
 	struct ahc_data *ahc;
 {
-	ahcdata[ahc->unit] = NULL;
 	free(ahc, M_DEVBUF);
 	return;
 }
@@ -405,6 +389,7 @@ ahc_attach(ahc)
 	 */
 	ahc->sc_link.adapter_unit = ahc->unit;
 	ahc->sc_link.adapter_targ = ahc->our_id;
+	ahc->sc_link.adapter_softc = ahc;
 	ahc->sc_link.adapter = &ahc_switch;
 	ahc->sc_link.opennings = 2;
 	ahc->sc_link.device = &ahc_dev;
@@ -1565,18 +1550,19 @@ static int32
 ahc_scsi_cmd(xs)
         struct scsi_xfer *xs;
 {
-        struct scb *scb = NULL;
-        struct ahc_dma_seg *sg;
+        struct	scb *scb;
+        struct	ahc_dma_seg *sg;
         int     seg;            /* scatter gather seg being worked on */
         int     thiskv;
         physaddr thisphys, nextphys;
-        int     unit = xs->sc_link->adapter_unit;
-	u_short	mask = (0x01 << (xs->sc_link->target
-				| ((u_long)xs->sc_link->fordriver & 0x08)));
         int     bytes_this_seg, bytes_this_page, datalen, flags;
-        struct ahc_data *ahc = ahcdata[unit];
+        struct	ahc_data *ahc;
+	u_short	mask;
         int     s;
 
+	ahc = (struct ahc_data *)xs->sc_link->adapter_softc;
+	mask  = (0x01 << (xs->sc_link->target
+				| ((u_long)xs->sc_link->fordriver & 0x08)));
         SC_DEBUG(xs->sc_link, SDEV_DB2, ("ahc_scsi_cmd\n"));
         /*
          * get an scb to use. If the transfer
@@ -1585,11 +1571,11 @@ ahc_scsi_cmd(xs)
          */
         flags = xs->flags;
         if (flags & ITSDONE) {
-                printf("ahc%d: Already done?", unit);
+                printf("ahc%d: Already done?", ahc->unit);
                 xs->flags &= ~ITSDONE;
         }
         if (!(flags & INUSE)) {
-                printf("ahc%d: Not in use?", unit);
+                printf("ahc%d: Not in use?", ahc->unit);
                 xs->flags |= INUSE;
         }
         if (!(scb = ahc_get_scb(ahc, flags))) {
@@ -1691,7 +1677,7 @@ ahc_scsi_cmd(xs)
                 if (datalen) { 
 			/* there's still data, must have run out of segs! */
                         printf("ahc_scsi_cmd%d: more than %d DMA segs\n",
-                            unit, AHC_NSEG);
+                            ahc->unit, AHC_NSEG);
                         xs->error = XS_DRIVER_STUFFUP;
                         ahc_free_scb(ahc, scb, flags);
                         return (HAD_ERROR);
@@ -1707,9 +1693,6 @@ ahc_scsi_cmd(xs)
 		scb->datalen = 0;
 	}
 
-        /*
-         * Usually return SUCCESSFULLY QUEUED
-         */
 #ifdef AHC_DEBUG
         if((ahc_debug & AHC_SHOWSCBS) && (xs->sc_link->target == DEBUGTARG))
 		ahc_print_scb(scb);
@@ -2024,7 +2007,6 @@ static void
 ahc_timeout(void *arg1)
 {
 	struct	scb *scb = (struct scb *)arg1;
-	int	unit;
 	struct	ahc_data *ahc;
 	int	s;
 
@@ -2036,9 +2018,8 @@ ahc_timeout(void *arg1)
 		return;
 	}
 
-	unit = scb->xs->sc_link->adapter_unit;
-	ahc = ahcdata[unit];
-	printf("ahc%d: target %d, lun %d (%s%d) timed out\n", unit
+	ahc = (struct ahc_data *)scb->xs->sc_link->adapter_softc;
+	printf("ahc%d: target %d, lun %d (%s%d) timed out\n", ahc->unit
 		,scb->xs->sc_link->target
 		,scb->xs->sc_link->lun
 		,scb->xs->sc_link->device->name
