@@ -98,13 +98,21 @@ typedef enum {
 	SA_STATE_NORMAL, SA_STATE_ABNORMAL
 } sa_state;
 
-typedef enum {
-	SA_CCB_BUFFER_IO,
-	SA_CCB_WAITING
-} sa_ccb_types;
+#define ccb_pflags	ppriv_field0
+#define ccb_bp	 	ppriv_ptr1
 
-#define ccb_type ppriv_field0
-#define ccb_bp	 ppriv_ptr1
+#define	SA_CCB_BUFFER_IO	0x0
+#define	SA_CCB_WAITING		0x1
+#define	SA_CCB_TYPEMASK		0x1
+#define	SA_POSITION_UPDATED	0x2
+
+#define	Set_CCB_Type(x, type)				\
+	x->ccb_h.ccb_pflags &= ~SA_CCB_TYPEMASK;	\
+	x->ccb_h.ccb_pflags |= type
+
+#define	CCB_Type(x)	(x->ccb_h.ccb_pflags & SA_CCB_TYPEMASK)
+
+
 
 typedef enum {
 	SA_FLAG_OPEN		= 0x0001,
@@ -151,7 +159,8 @@ typedef enum {
 	SA_QUIRK_2FM		= 0x08,	/* Needs Two File Marks at EOD */
 	SA_QUIRK_1FM		= 0x10,	/* No more than 1 File Mark at EOD */
 	SA_QUIRK_NODREAD	= 0x20,	/* Don't try and dummy read density */
-	SA_QUIRK_NO_MODESEL	= 0x40	/* Don't do mode select at all */
+	SA_QUIRK_NO_MODESEL	= 0x40,	/* Don't do mode select at all */
+	SA_QUIRK_NO_CPAGE	= 0x80	/* Don't use DEVICE COMPRESSION page */
 } sa_quirks;
 
 /* units are bits 4-7, 16-21 (1024 units) */
@@ -211,6 +220,7 @@ struct sa_softc {
 	int		buffer_mode;
 	int		filemarks;
 	union		ccb saved_ccb;
+	int		last_resid_was_io;
 
 	/*
 	 * Relative to BOT Location.
@@ -270,8 +280,19 @@ static struct sa_quirk_entry sa_quirk_table[] =
 	},
 	{
 		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "ARCHIVE",
+		  "VIPER 2525 25462", "-011"},
+		  SA_QUIRK_NOCOMP|SA_QUIRK_1FM|SA_QUIRK_NODREAD, 0
+	},
+	{
+		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "ARCHIVE",
 		  "VIPER 2525*", "*"}, SA_QUIRK_FIXED|SA_QUIRK_1FM, 1024
 	},
+#if	0
+	{
+		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "HP",
+		  "C15*", "*"}, SA_QUIRK_VARIABLE|SA_QUIRK_NO_CPAGE, 0,
+	},
+#endif
 	{
 		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "HP",
 		  "T20*", "*"}, SA_QUIRK_FIXED|SA_QUIRK_1FM, 512
@@ -345,6 +366,7 @@ static	void		sadone(struct cam_periph *periph,
 			       union ccb *start_ccb);
 static  int		saerror(union ccb *ccb, u_int32_t cam_flags,
 				u_int32_t sense_flags);
+static int		samarkswanted(struct cam_periph *);
 static int		sacheckeod(struct cam_periph *periph);
 static int		sagetparams(struct cam_periph *periph,
 				    sa_params params_to_get,
@@ -888,6 +910,24 @@ saioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
 		g->mt_fileno = softc->fileno;
 		g->mt_blkno = softc->blkno;
 		g->mt_dsreg = (short) softc->dsreg;
+		/*
+		 * Yes, we know that this is likely to overflow
+		 */
+		if (softc->last_resid_was_io) {
+			if ((g->mt_resid = (short) softc->last_io_resid) != 0) {
+				if (SA_IS_CTRL(dev) == 0 || didlockperiph) {
+					softc->last_io_resid = 0;
+				}
+			}
+		} else {
+			if ((g->mt_resid = (short)softc->last_ctl_resid) != 0) {
+				if (SA_IS_CTRL(dev) == 0 || didlockperiph) {
+					softc->last_ctl_resid = 0;
+				}
+			}
+		}
+		if (g->mt_resid) {
+		}
 		error = 0;
 		break;
 	}
@@ -931,7 +971,12 @@ saioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
 		count = mt->mt_count;
 		switch (mt->mt_op) {
 		case MTWEOF:	/* write an end-of-file marker */
-			/* XXXX: NEED TO CLEAR SA_TAPE_WRITTEN */
+			/*
+			 * We don't need to clear the SA_FLAG_TAPE_WRITTEN
+			 * flag because by keeping track of filemarks
+			 * we have last written we know ehether or not
+			 * we need to write more when we close the device.
+			 */
 			error = sawritefilemarks(periph, count, FALSE);
 			break;
 		case MTWSS:	/* write a setmark */
@@ -1172,6 +1217,26 @@ saioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
 	default:
 		error = cam_periph_ioctl(periph, cmd, arg, saerror);
 		break;
+	}
+
+	/*
+	 * Check to see if we cleared a frozen state
+	 */
+	if (error == 0 && (softc->flags & SA_FLAG_TAPE_FROZEN)) {
+		switch(cmd) {
+		case MTIOCRDSPOS:
+		case MTIOCRDHPOS:
+		case MTIOCSLOCATE:
+		case MTIOCHLOCATE:
+			softc->fileno = (daddr_t) -1;
+			softc->blkno = (daddr_t) -1;
+			softc->flags &= ~SA_FLAG_TAPE_FROZEN;
+			xpt_print_path(periph->path);
+			printf("tape state now unfrozen.\n");
+			break;
+		default:
+			break;
+		}
 	}
 	if (didlockperiph) {
 		cam_periph_unlock(periph);
@@ -1464,6 +1529,7 @@ sastart(struct cam_periph *periph, union ccb *start_ccb)
 	softc = (struct sa_softc *)periph->softc;
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_INFO, ("sastart"));
+
 	
 	switch (softc->state) {
 	case SA_STATE_NORMAL:
@@ -1480,7 +1546,7 @@ sastart(struct cam_periph *periph, union ccb *start_ccb)
 		if (periph->immediate_priority <= periph->pinfo.priority) {
 			CAM_DEBUG_PRINT(CAM_DEBUG_SUBTRACE,
 					("queuing for immediate ccb\n"));
-			start_ccb->ccb_h.ccb_type = SA_CCB_WAITING;
+			Set_CCB_Type(start_ccb, SA_CCB_WAITING);
 			SLIST_INSERT_HEAD(&periph->ccb_list, &start_ccb->ccb_h,
 					  periph_links.sle);
 			periph->immediate_priority = CAM_PRIORITY_NONE;
@@ -1580,7 +1646,8 @@ sastart(struct cam_periph *periph, union ccb *start_ccb)
 			    FALSE, (softc->flags & SA_FLAG_FIXED) != 0,
 			    length, bp->b_data, bp->b_bcount, SSD_FULL_SIZE,
 			    120 * 60 * 1000);
-			start_ccb->ccb_h.ccb_type = SA_CCB_BUFFER_IO;
+			start_ccb->ccb_h.ccb_pflags &= ~SA_POSITION_UPDATED;
+			Set_CCB_Type(start_ccb, SA_CCB_BUFFER_IO);
 			start_ccb->ccb_h.ccb_bp = bp;
 			bp = bufq_first(&softc->buf_queue);
 			splx(s);
@@ -1609,7 +1676,7 @@ sadone(struct cam_periph *periph, union ccb *done_ccb)
 
 	softc = (struct sa_softc *)periph->softc;
 	csio = &done_ccb->csio;
-	switch (csio->ccb_h.ccb_type) {
+	switch (CCB_Type(csio)) {
 	case SA_CCB_BUFFER_IO:
 	{
 		struct buf *bp;
@@ -1670,7 +1737,8 @@ sadone(struct cam_periph *periph, union ccb *done_ccb)
 				softc->flags |= SA_FLAG_TAPE_WRITTEN;
 				softc->filemarks = 0;
 			}
-			if (softc->blkno != (daddr_t) -1) {
+			if (!(csio->ccb_h.ccb_pflags & SA_POSITION_UPDATED) &&
+			    (softc->blkno != (daddr_t) -1)) {
 				if ((softc->flags & SA_FLAG_FIXED) != 0) {
 					u_int32_t l;
 					if (softc->blk_shift != 0) {
@@ -2172,6 +2240,28 @@ exit:
 	return (error);
 }
 
+/*
+ * How many filemarks do we need to write if we were to terminate the
+ * tape session right now? Note that this can be a negative number
+ */
+
+static int
+samarkswanted(struct cam_periph *periph)
+{
+	int	markswanted;
+	struct	sa_softc *softc;
+
+	softc = (struct sa_softc *)periph->softc;
+	markswanted = 0;
+	if ((softc->flags & SA_FLAG_TAPE_WRITTEN) != 0) {
+		markswanted++;
+		if (softc->quirks & SA_QUIRK_2FM)
+			markswanted++;
+	}
+	markswanted -= softc->filemarks;
+	return (markswanted);
+}
+
 static int
 sacheckeod(struct cam_periph *periph)
 {
@@ -2180,16 +2270,9 @@ sacheckeod(struct cam_periph *periph)
 	struct	sa_softc *softc;
 
 	softc = (struct sa_softc *)periph->softc;
-	markswanted = 0;
+	markswanted = samarkswanted(periph);
 
-	if ((softc->flags & SA_FLAG_TAPE_WRITTEN) != 0) {
-		markswanted++;
-		if (softc->quirks & SA_QUIRK_2FM)
-			markswanted++;
-	}
-
-	if (softc->filemarks < markswanted) {
-		markswanted -= softc->filemarks;
+	if (markswanted > 0) {
 		error = sawritefilemarks(periph, markswanted, FALSE);
 	} else {
 		error = 0;
@@ -2235,21 +2318,23 @@ saerror(union ccb *ccb, u_int32_t cflgs, u_int32_t sflgs)
 					info /= softc->media_blksize;
 			}
 		}
-		if (csio->ccb_h.ccb_type == SA_CCB_BUFFER_IO) {
+		if (CCB_Type(csio) == SA_CCB_BUFFER_IO) {
 			bcopy((caddr_t) sense, (caddr_t) &softc->last_io_sense,
 			    sizeof (struct scsi_sense_data));
 			bcopy(csio->cdb_io.cdb_bytes, softc->last_io_cdb,
 			    (int) csio->cdb_len);
 			softc->last_io_resid = resid;
+			softc->last_resid_was_io = 1;
 		} else {
 			bcopy((caddr_t) sense, (caddr_t) &softc->last_ctl_sense,
 			    sizeof (struct scsi_sense_data));
 			bcopy(csio->cdb_io.cdb_bytes, softc->last_ctl_cdb,
 			    (int) csio->cdb_len);
 			softc->last_ctl_resid = resid;
+			softc->last_resid_was_io = 0;
 		}
-		CAM_DEBUG(periph->path, CAM_DEBUG_INFO, ("Key 0x%x ASC/ASCQ
-		    0x%x 0x%x flags 0x%x resid %d dxfer_len %d\n", sense_key,
+		CAM_DEBUG(periph->path, CAM_DEBUG_INFO, ("Key 0x%x ASC/ASCQ "
+		    "0x%x 0x%x flags 0x%x resid %d dxfer_len %d\n", sense_key,
 		    asc, ascq, sense->flags & ~SSD_KEY_RESERVED, resid,
 		    csio->dxfer_len));
 	} else {
@@ -2262,7 +2347,7 @@ saerror(union ccb *ccb, u_int32_t cflgs, u_int32_t sflgs)
 	 * command, let the common code deal with it the error setting.
 	 */
 	if ((csio->ccb_h.status & CAM_STATUS_MASK) != CAM_SCSI_STATUS_ERROR ||
-	    (csio->ccb_h.ccb_type == SA_CCB_WAITING)) {
+	    (CCB_Type(csio) == SA_CCB_WAITING)) {
 		return (cam_periph_error(ccb, cflgs, sflgs, &softc->saved_ccb));
 	}
 
@@ -2290,6 +2375,7 @@ saerror(union ccb *ccb, u_int32_t cflgs, u_int32_t sflgs)
 			if (softc->fileno != (daddr_t) -1) {
 				softc->fileno++;
 				softc->blkno = 0;
+				csio->ccb_h.ccb_pflags |= SA_POSITION_UPDATED;
 			}
 		}
 		if (sense->flags & SSD_EOM) {
@@ -2324,6 +2410,7 @@ saerror(union ccb *ccb, u_int32_t cflgs, u_int32_t sflgs)
 			if (softc->fileno != (daddr_t) -1) {
 				softc->fileno++;
 				softc->blkno = 0;
+				csio->ccb_h.ccb_pflags |= SA_POSITION_UPDATED;
 			}
 		}
 	}
@@ -2351,6 +2438,8 @@ saerror(union ccb *ccb, u_int32_t cflgs, u_int32_t sflgs)
 			if ((sense->flags & SSD_FILEMARK) == 0) {
 				if (softc->blkno != (daddr_t) -1) {
 					softc->blkno++;
+					csio->ccb_h.ccb_pflags |=
+					   SA_POSITION_UPDATED;
 				}
 			}
 		}
@@ -2383,7 +2472,10 @@ sagetparams(struct cam_periph *periph, sa_params params_to_get,
 
 	softc = (struct sa_softc *)periph->softc;
 	ccb = cam_periph_getccb(periph, 1);
-	cpage = SA_DATA_COMPRESSION_PAGE;
+	if (softc->quirks & SA_QUIRK_NO_CPAGE)
+		cpage = SA_DEVICE_CONFIGURATION_PAGE;
+	else
+		cpage = SA_DATA_COMPRESSION_PAGE;
 
 retry:
 	mode_buffer_len = sizeof(*mode_hdr) + sizeof(*mode_blk);
@@ -2940,6 +3032,11 @@ saspace(struct cam_periph *periph, int count, scsi_space_code code)
 	scsi_space(&ccb->csio, 0, sadone, MSG_SIMPLE_Q_TAG, code, count,
 	    SSD_FULL_SIZE, SPACE_TIMEOUT);
 
+	/*
+	 * Clear residual because we will be using it.
+	 */
+	softc->last_ctl_resid = 0;
+
 	softc->dsreg = (count < 0)? MTIO_DSREG_REV : MTIO_DSREG_FWD;
 	error = cam_periph_runccb(ccb, saerror, 0, 0, &softc->device_stats);
 	softc->dsreg = MTIO_DSREG_REST;
@@ -2956,17 +3053,38 @@ saspace(struct cam_periph *periph, int count, scsi_space_code code)
 	 * If the spacing operation was setmarks or to end of recorded data,
 	 * we no longer know our relative position.
 	 *
-	 * We are not managing residuals here (really).
+	 * If the spacing operations was spacing files in reverse, we
+	 * take account of the residual, but still check against less
+	 * than zero- if we've gone negative, we must have hit BOT.
+	 *
+	 * If the spacing operations was spacing records in reverse and
+	 * we have a residual, we've either hit BOT or hit a filemark.
+	 * In the former case, we know our new record number (0). In
+	 * the latter case, we have absolutely no idea what the real
+	 * record number is- we've stopped between the end of the last
+	 * record in the previous file and the filemark that stopped
+	 * our spacing backwards.
 	 */
 	if (error) {
 		softc->fileno = softc->blkno = (daddr_t) -1;
 	} else if (code == SS_SETMARKS || code == SS_EOD) {
 		softc->fileno = softc->blkno = (daddr_t) -1;
 	} else if (code == SS_FILEMARKS && softc->fileno != (daddr_t) -1) {
-		softc->fileno += count;
+		softc->fileno += (count - softc->last_ctl_resid);
+		if (softc->fileno < 0)	/* we must of hit BOT */
+			softc->fileno = 0;
 		softc->blkno = 0;
 	} else if (code == SS_BLOCKS && softc->blkno != (daddr_t) -1) {
-		softc->blkno += count;
+		softc->blkno += (count - softc->last_ctl_resid);
+		if (count < 0) {
+			if (softc->last_ctl_resid || softc->blkno < 0) {
+				if (softc->fileno == 0) {
+					softc->blkno = 0;
+				} else {
+					softc->blkno = (daddr_t) -1;
+				}
+			}
+		}
 	}
 	return (error);
 }
@@ -2976,11 +3094,15 @@ sawritefilemarks(struct cam_periph *periph, int nmarks, int setmarks)
 {
 	union	ccb *ccb;
 	struct	sa_softc *softc;
-	int	error;
+	int	error, nwm = 0;
 
 	softc = (struct sa_softc *)periph->softc;
 
 	ccb = cam_periph_getccb(periph, 1);
+	/*
+	 * Clear residual because we will be using it.
+	 */
+	softc->last_ctl_resid = 0;
 
 	softc->dsreg = MTIO_DSREG_FMK;
 	/* this *must* not be retried */
@@ -2994,14 +3116,12 @@ sawritefilemarks(struct cam_periph *periph, int nmarks, int setmarks)
 	if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
 		cam_release_devq(ccb->ccb_h.path, 0, 0, 0, FALSE);
 
-	/*
-	 * XXXX: Get back the actual number of filemarks written
-	 * XXXX: (there can be a residual).
-	 */
 	if (error == 0 && nmarks) {
 		struct sa_softc *softc = (struct sa_softc *)periph->softc;
-		softc->filemarks += nmarks;
+		nwm = nmarks - softc->last_ctl_resid;
+		softc->filemarks += nwm;
 	}
+
 	xpt_release_ccb(ccb);
 
 	/*
@@ -3010,7 +3130,7 @@ sawritefilemarks(struct cam_periph *periph, int nmarks, int setmarks)
 	if (error) {
 		softc->fileno = softc->blkno = (daddr_t) -1;
 	} else if (softc->fileno != (daddr_t) -1) {
-		softc->fileno += nmarks;
+		softc->fileno += nwm;
 		softc->blkno = 0;
 	}
 	return (error);
@@ -3025,15 +3145,16 @@ sardpos(struct cam_periph *periph, int hard, u_int32_t *blkptr)
 	int error;
 
 	/*
-	 * We have to try and flush any buffered writes here if we were writing.
+	 * We try and flush any buffered writes here if we were writing
+	 * and we're trying to get hardware block position. It eats
+	 * up performance substantially, but I'm wary of drive firmware.
 	 *
-	 * The SCSI specification is vague enough about situations like
-	 * different sized blocks in a tape drive buffer as to make one
-	 * wary about trying to figure out the actual block location value
-	 * if data is in the tape drive buffer.
+	 * I think that *logical* block position is probably okay-
+	 * but hardware block position might have to wait for data
+	 * to hit media to be valid. Caveat Emptor.
 	 */
 
-	if (softc->flags & SA_FLAG_TAPE_WRITTEN) {
+	if (hard && (softc->flags & SA_FLAG_TAPE_WRITTEN)) {
 		error = sawritefilemarks(periph, 0, 0);
 		if (error && error != EACCES)
 			return (error);
@@ -3052,23 +3173,7 @@ sardpos(struct cam_periph *periph, int hard, u_int32_t *blkptr)
 		if (loc.flags & SA_RPOS_UNCERTAIN) {
 			error = EINVAL;		/* nothing is certain */
 		} else {
-#if	0
-			u_int32_t firstblk, lastblk, nbufblk, nbufbyte;
-
-			firstblk = scsi_4btoul(loc.firstblk);
-			lastblk = scsi_4btoul(loc.lastblk);
-			nbufblk = scsi_4btoul(loc.nbufblk);
-			nbufbyte = scsi_4btoul(loc.nbufbyte);
-			if (lastblk || nbufblk || nbufbyte) {
-				xpt_print_path(periph->path);
-				printf("rdpos firstblk 0x%x lastblk 0x%x bufblk"
-				    " 0x%x bufbyte 0x%x\n", firstblk, lastblk,
-				    nbufblk, nbufbyte);
-			}
-			*blkptr = firstblk;
-#else
 			*blkptr = scsi_4btoul(loc.firstblk);
-#endif
 		}
 	}
 
