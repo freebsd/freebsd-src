@@ -530,7 +530,7 @@ lptwrite(dev_t dev, struct uio * uio)
 	struct lpt_softc *sc = lpt_sc + LPTUNIT(minor(dev));
 
 	sc->sc_state &= ~INTERRUPTED;
-	while (n = MIN(BUFSIZE, uio->uio_resid)) {
+	while (n = min(BUFSIZE, uio->uio_resid)) {
 		sc->sc_cp = sc->sc_inbuf->b_un.b_addr ;
 		uiomove(sc->sc_cp, n, uio);
 		sc->sc_xfercnt = n ;

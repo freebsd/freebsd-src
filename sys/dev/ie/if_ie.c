@@ -1104,7 +1104,7 @@ iestart(ifp)
     }
 
     m_freem(m0);
-    len = MAX(len, ETHERMINLEN);
+    len = max(len, ETHERMINLEN);
 
 #if NBPFILTER > 0
     /*
