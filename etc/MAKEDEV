@@ -172,17 +172,18 @@ dkminor()
 {
 	echo $(($1 << 25 | ($2 / 32) << 21 | ($2 % 32) << 3 | $3 << 16 | $4))
 }
-# Convert tape (ctrl, unit, mode, access) to minor number
-saminor()
-{
-	echo $(($1 << 29 | ($2 / 16) << 16 | ($2 % 16) << 4 | $3 << 2 | $4))
-}
 
 # Override mknod(2) to add extra handling to it.
 mknod() {
 	rm -f "$1" || exit 1
 	/sbin/mknod "$@" || die 2 "/sbin/mknod $@ failed"
 	chown root:wheel "$1" || exit 1
+}
+
+# Convert tape (ctrl, unit, mode, access) to minor number
+saminor()
+{
+	echo $(($1 << 29 | ($2 / 16) << 16 | ($2 % 16) << 4 | $3 << 2 | $4))
 }
 
 # Convert the last character of a tty name to a minor number.
@@ -223,7 +224,7 @@ all)
 	sh MAKEDEV wfd0					# bdev, LS-120 floppy
 	sh MAKEDEV vn0					# bdev, virtual disk
 	sh MAKEDEV cd0 matcd0 mcd0 scd0 wcd0		# bdev, cdrom
-	sh MAKEDEV ft0 sa0 wt0 wst0			# bdev, tape
+	sh MAKEDEV ft0 sa0 wst0 wt0			# bdev, tape
 	sh MAKEDEV vty12				# cdev, virtual tty
 	sh MAKEDEV cuaa0 cuaa1 cuaa2 cuaa3		# cdev, serial tty
 	sh MAKEDEV pty0					# cdev, pseudo tty
@@ -310,22 +311,22 @@ wt*)
 	;;
 
 # Individual slices.
-ad*s*|od*s*|sd*s*|da*s*|vn*s*|wd*s*|afd*s*|wfd*s*|fla*s*|ida*s*)
+ad*s*|afd*s*|da*s*|fla*s*|ida*s*|od*s*|sd*s*|vn*s*|wd*s*|wfd*s*)
 	umask $disk_umask
 	case $i in
 	ad*s*) name=ad; blk=30; chr=116;;
 	afd*s*) name=afd; blk=32; chr=118;;
-	ida*s*) name=ida; blk=29; chr=109;;
+	da*s*) name=da; blk=4;  chr=13;;
 	fla*s*) name=fla; blk=28; chr=102;;
+	ida*s*) name=ida; blk=29; chr=109;;
 	od*s*) name=od; blk=4;  chr=13;;
 	sd*s*) name=sd; blk=4;  chr=13;;
-	da*s*) name=da; blk=4;  chr=13;;
 	vn*s*) name=vn; blk=15; chr=43;;
 	wd*s*) name=wd; blk=0;  chr=3;;
 	wfd*s*) name=wfd; blk=1; chr=87;;
 	esac
 	case $i in
-	afd*s*|ida*s*|fla*s*|wfd*s*)
+	afd*s*|fla*s*|ida*s*|wfd*s*)
 		unit=`expr $i : '...\([0-9]*\)s'`
 		slice=`expr $i : '...[0-9]*s\([0-9]*\)'`
 		part=`expr $i : '...[0-9]*s[0-9]*\(.*\)'`
@@ -484,22 +485,22 @@ ft*)
 	umask 77
 	;;
 
-ad*|sd*|od*|da*|vn*|wd*|afd*|wfd*|fla*|ida*)
+ad*|afd*|da*|fla*|ida*|od*|sd*|vn*|wd*|wfd*)
 	umask $disk_umask
 	case $i in
 	ad*) name=ad; blk=30; chr=116;;
 	afd*) name=afd; blk=32; chr=118;;
-	ida*) name=ida; blk=29; chr=109;;
-	fla*) name=fla; blk=28; chr=102;;
-	sd*) name=sd; blk=4; chr=13;;
-	od*) name=od; blk=4; chr=13;;
 	da*) name=da; blk=4;  chr=13;;
+	fla*) name=fla; blk=28; chr=102;;
+	ida*) name=ida; blk=29; chr=109;;
+	od*) name=od; blk=4; chr=13;;
+	sd*) name=sd; blk=4; chr=13;;
 	vn*) name=vn; blk=15; chr=43;;
 	wd*) name=wd; blk=0;  chr=3;;
 	wfd*) name=wfd; blk=1; chr=87;;
 	esac
 	case $i in
-	afd*|ida*|fla*|wfd*)
+	afd*|fla*|ida*|wfd*)
 		unit=`expr $i : '...\(.*\)'`
 		;;
 	*)
@@ -763,7 +764,7 @@ matcd*)
 	umask 77
 	;;
 
-wcd?)
+wcd*)
 	umask 2 ;
 	unit=`expr $i : '...\(.*\)'`
 	blk=19
