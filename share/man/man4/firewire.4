@@ -73,12 +73,18 @@ manager, are dynamically assigned, after bus reset is initiated.
 On
 .Nm
 bus, every device is identified with EUI 64 address.
+.Sh FILES
+.Bl -tag -width indent -compact
+.It Pa /dev/fw0
+.It Pa /dev/fwmem0
+.El
 .Sh SEE ALSO
 .Xr fwcontrol 8 ,
 .Xr fwe 4 ,
 .Xr fwohci 4 ,
 .Xr pci 4 ,
-.Xr sbp 4
+.Xr sbp 4 ,
+.Xr sysctl 8
 .Sh HISTORY
 The
 .Nm
