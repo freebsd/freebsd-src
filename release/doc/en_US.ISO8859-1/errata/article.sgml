@@ -203,6 +203,12 @@
       although not mentioned in the accompanying release
       documentation.</para>
 
+    <para>A bug in <filename>libkvm</filename> could result in some
+      applications leaking file descriptors with access to potentially
+      sensitive information.  More details, as well as a bugfix and a
+      workaround, can be found in security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:39.libkvm.asc">FreeBSD-SA-02:39</ulink>.</para>
+
 ]]>
   </sect1>
 
