@@ -138,7 +138,9 @@ int
 vop_panic(struct vop_generic_args *ap)
 {
 
-	panic("illegal vnode op called");
+	printf("vop_panic[%s]\n", ap->a_desc->vdesc_name);
+	panic("Filesystem goof");
+	return (0);
 }
 
 /*
