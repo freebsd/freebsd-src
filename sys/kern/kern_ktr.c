@@ -115,7 +115,7 @@ ktr_tracepoint(u_int mask, const char *filename, u_int line,
 #else
 void
 ktr_tracepoint(u_int mask, const char *format, u_long arg1, u_long arg2,
-	       u_long arg3, u_long arg4, u_long arg5)
+	       u_long arg3, u_long arg4, u_long arg5, u_long arg6)
 #endif
 {
 	struct ktr_entry *entry;
