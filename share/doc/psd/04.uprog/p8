@@ -1,0 +1,29 @@
+.\" This module is believed to contain source code proprietary to AT&T.
+.\" Use and redistribution is subject to the Berkeley Software License
+.\" Agreement and your Software Agreement with AT&T (Western Electric).
+.\"
+.\"	@(#)p8	8.1 (Berkeley) 6/8/93
+.\"
+.\" $FreeBSD$
+.SH
+References
+.LP
+.IP [1]
+K. L. Thompson and D. M. Ritchie,
+.ul
+The
+.ul
+.UC UNIX
+.ul
+Programmer's Manual,
+Bell Laboratories, 1978.
+.IP [2]
+B. W. Kernighan and D. M. Ritchie,
+.ul
+The C Programming Language,
+Prentice-Hall, Inc., 1978.
+.IP [3]
+B. W. Kernighan,
+.UC UNIX \& ``
+for Beginners \(em Second Edition.''
+Bell Laboratories, 1978.
