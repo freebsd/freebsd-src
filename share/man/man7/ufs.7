@@ -125,6 +125,36 @@ option, and it is recommended that
 is included as well,
 so that ACLs are enabled atomically upon mounting the file system.
 .El
+.Pp
+In order to enable support for ACLs,
+two extended attributes must be available in the
+.Dv EXTATTR_NAMESPACE_SYSTEM
+namespace:
+.Dq Li posix1e.acl_access ,
+which holds the access ACL,
+and
+.Dq Li posix1e.acl_default ,
+which holds the default ACL for directories.
+If you are using UFS extended attributes,
+the following commands may be used to
+allocate space for and create the necessary EA backing files
+for ACLs in the root of each file system.
+In these examples, the root file system is used;
+see
+.Sx "Extended Attributes"
+for more details.
+.Pp
+.Bd -literal -offset indent
+mkdir -p /.attribute/system
+cd /.attribute/system
+extattrctl initattr -p / 388 posix1e.acl_access
+extattrctl initattr -p / 388 posix1e.acl_default
+.Ed
+.Pp
+On the next mount of the root file system,
+the attributes will be automatically started
+(if UFS_EXTATTR_AUTOSTART is included in the kernel configuration),
+and ACLs will be enabled.
 .Ss Directory Hashing
 .Bl -tag -width 2n
 .It Cd options UFS_DIRHASH
