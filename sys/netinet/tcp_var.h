@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_var.h	8.4 (Berkeley) 5/24/95
- * 	$Id: tcp_var.h,v 1.38 1997/02/22 09:41:43 peter Exp $
+ * 	$Id: tcp_var.h,v 1.39 1997/04/27 20:01:15 wollman Exp $
  */
 
 #ifndef _NETINET_TCP_VAR_H_
@@ -42,18 +42,18 @@
 
 /*
  * Tcp control block, one per tcp; fields:
+ * Organized for 16 byte cacheline efficiency.
  */
 struct tcpcb {
 	struct	tcpiphdr *seg_next;	/* sequencing queue */
 	struct	tcpiphdr *seg_prev;
-	int	t_state;		/* state of this connection */
-	int	t_timer[TCPT_NTIMERS];	/* tcp timers */
-	int	t_rxtshift;		/* log(2) of rexmt exp. backoff */
-	int	t_rxtcur;		/* current retransmit value */
 	int	t_dupacks;		/* consecutive dup acks recd */
-	u_int	t_maxseg;		/* maximum segment size */
-	u_int	t_maxopd;		/* mss plus options */
-	int	t_force;		/* 1 if forcing out a byte */
+	struct	tcpiphdr *t_template;	/* skeletal packet for transmit */
+
+	int	t_timer[TCPT_NTIMERS];	/* tcp timers */
+
+	struct	inpcb *t_inpcb;		/* back pointer to internet pcb */
+	int	t_state;		/* state of this connection */
 	u_int	t_flags;
 #define	TF_ACKNOW	0x0001		/* ack peer immediately */
 #define	TF_DELACK	0x0002		/* ack, but try to delay it */
@@ -71,77 +71,69 @@ struct tcpcb {
 #define TF_REQ_CC	0x2000		/* have/will request CC */
 #define	TF_RCVD_CC	0x4000		/* a CC was received in SYN */
 #define TF_SENDCCNEW	0x8000		/* send CCnew instead of CC in SYN */
+	int	t_force;		/* 1 if forcing out a byte */
 
-	struct	tcpiphdr *t_template;	/* skeletal packet for transmit */
-	struct	inpcb *t_inpcb;		/* back pointer to internet pcb */
-/*
- * The following fields are used as in the protocol specification.
- * See RFC783, Dec. 1981, page 21.
- */
-/* send sequence variables */
 	tcp_seq	snd_una;		/* send unacknowledged */
-	tcp_seq	snd_nxt;		/* send next */
-	tcp_seq	snd_up;			/* send urgent pointer */
-	tcp_seq	snd_wl1;		/* window update seg seq number */
-	tcp_seq	snd_wl2;		/* window update seg ack number */
-	tcp_seq	iss;			/* initial send sequence number */
-	u_long	snd_wnd;		/* send window */
-/* receive sequence variables */
-	u_long	rcv_wnd;		/* receive window */
-	tcp_seq	rcv_nxt;		/* receive next */
-	tcp_seq	rcv_up;			/* receive urgent pointer */
-	tcp_seq	irs;			/* initial receive sequence number */
-/*
- * Additional variables for this implementation.
- */
-/* receive variables */
-	tcp_seq	rcv_adv;		/* advertised window */
-/* retransmit variables */
 	tcp_seq	snd_max;		/* highest sequence number sent;
 					 * used to recognize retransmits
 					 */
-/* congestion control (for slow start, source quench, retransmit after loss) */
+	tcp_seq	snd_nxt;		/* send next */
+	tcp_seq	snd_up;			/* send urgent pointer */
+
+	tcp_seq	snd_wl1;		/* window update seg seq number */
+	tcp_seq	snd_wl2;		/* window update seg ack number */
+	tcp_seq	iss;			/* initial send sequence number */
+	tcp_seq	irs;			/* initial receive sequence number */
+
+	tcp_seq	rcv_nxt;		/* receive next */
+	tcp_seq	rcv_adv;		/* advertised window */
+	u_long	rcv_wnd;		/* receive window */
+	tcp_seq	rcv_up;			/* receive urgent pointer */
+
+	u_long	snd_wnd;		/* send window */
 	u_long	snd_cwnd;		/* congestion-controlled window */
 	u_long	snd_ssthresh;		/* snd_cwnd size threshold for
 					 * for slow start exponential to
 					 * linear switch
 					 */
-/*
- * transmit timing stuff.  See below for scale of srtt and rttvar.
- * "Variance" is actually smoothed difference.
- */
+	u_int	t_maxopd;		/* mss plus options */
+
 	u_int	t_idle;			/* inactivity time */
+	u_long	t_duration;		/* connection duration */
 	int	t_rtt;			/* round trip time */
 	tcp_seq	t_rtseq;		/* sequence number being timed */
+
+	int	t_rxtcur;		/* current retransmit value */
+	u_int	t_maxseg;		/* maximum segment size */
 	int	t_srtt;			/* smoothed round-trip time */
 	int	t_rttvar;		/* variance in round-trip time */
+
+	int	t_rxtshift;		/* log(2) of rexmt exp. backoff */
 	u_int	t_rttmin;		/* minimum rtt allowed */
+	u_long	t_rttupdated;		/* number of times rtt sampled */
 	u_long	max_sndwnd;		/* largest window peer has offered */
 
+	int	t_softerror;		/* possible error not yet reported */
 /* out-of-band data */
 	char	t_oobflags;		/* have some */
 	char	t_iobc;			/* input character */
 #define	TCPOOB_HAVEDATA	0x01
 #define	TCPOOB_HADDATA	0x02
-	int	t_softerror;		/* possible error not yet reported */
-
 /* RFC 1323 variables */
 	u_char	snd_scale;		/* window scaling for send window */
 	u_char	rcv_scale;		/* window scaling for recv window */
 	u_char	request_r_scale;	/* pending window scaling */
 	u_char	requested_s_scale;
 	u_long	ts_recent;		/* timestamp echo data */
+
 	u_long	ts_recent_age;		/* when last updated */
 	tcp_seq	last_ack_sent;
 /* RFC 1644 variables */
 	tcp_cc	cc_send;		/* send connection count */
 	tcp_cc	cc_recv;		/* receive connection count */
-	u_long	t_duration;		/* connection duration */
 
 /* TUBA stuff */
 	caddr_t	t_tuba_pcb;		/* next level down pcb for TCP over z */
-/* More RTT stuff */
-	u_long	t_rttupdated;		/* number of times rtt sampled */
 };
 
 /*

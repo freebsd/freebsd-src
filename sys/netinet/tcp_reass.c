@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- *	$Id: tcp_input.c,v 1.67 1997/12/19 23:46:15 bde Exp $
+ *	$Id: tcp_input.c,v 1.68 1998/01/21 02:05:59 fenner Exp $
  */
 
 #include "opt_tcpdebug.h"
@@ -105,27 +105,6 @@ static void	 tcp_xmit_timer __P((struct tcpcb *, int));
  * Set DELACK for segments received in order, but ack immediately
  * when segments are out of order (so fast retransmit can work).
  */
-#ifdef TCP_ACK_HACK
-#define	TCP_REASS(tp, ti, m, so, flags) { \
-	if ((ti)->ti_seq == (tp)->rcv_nxt && \
-	    (tp)->seg_next == (struct tcpiphdr *)(tp) && \
-	    (tp)->t_state == TCPS_ESTABLISHED) { \
-		if (ti->ti_flags & TH_PUSH) \
-			tp->t_flags |= TF_ACKNOW; \
-		else \
-			tp->t_flags |= TF_DELACK; \
-		(tp)->rcv_nxt += (ti)->ti_len; \
-		flags = (ti)->ti_flags & TH_FIN; \
-		tcpstat.tcps_rcvpack++;\
-		tcpstat.tcps_rcvbyte += (ti)->ti_len;\
-		sbappend(&(so)->so_rcv, (m)); \
-		sorwakeup(so); \
-	} else { \
-		(flags) = tcp_reass((tp), (ti), (m)); \
-		tp->t_flags |= TF_ACKNOW; \
-	} \
-}
-#else
 #define	TCP_REASS(tp, ti, m, so, flags) { \
 	if ((ti)->ti_seq == (tp)->rcv_nxt && \
 	    (tp)->seg_next == (struct tcpiphdr *)(tp) && \
@@ -142,7 +121,6 @@ static void	 tcp_xmit_timer __P((struct tcpcb *, int));
 		tp->t_flags |= TF_ACKNOW; \
 	} \
 }
-#endif
 #ifndef TUBA_INCLUDE
 
 static int
@@ -358,7 +336,7 @@ tcp_input(m, iphlen)
 	 * Locate pcb for segment.
 	 */
 findpcb:
-	inp = in_pcblookuphash(&tcbinfo, ti->ti_src, ti->ti_sport,
+	inp = in_pcblookup_hash(&tcbinfo, ti->ti_src, ti->ti_sport,
 	    ti->ti_dst, ti->ti_dport, 1);
 
 	/*
@@ -440,10 +418,16 @@ findpcb:
 			inp = (struct inpcb *)so->so_pcb;
 			inp->inp_laddr = ti->ti_dst;
 			inp->inp_lport = ti->ti_dport;
-			in_pcbrehash(inp);
-#if BSD>=43
+			if (in_pcbinshash(inp) != 0) {
+				/*
+				 * Undo the assignments above if we failed to put
+				 * the PCB on the hash lists.
+				 */
+				inp->inp_laddr.s_addr = INADDR_ANY;
+				inp->inp_lport = 0;
+				goto drop;
+			}
 			inp->inp_options = ip_srcroute();
-#endif
 			tp = intotcpcb(inp);
 			tp->t_state = TCPS_LISTEN;
 			tp->t_flags |= tp0->t_flags & (TF_NOPUSH|TF_NOOPT);

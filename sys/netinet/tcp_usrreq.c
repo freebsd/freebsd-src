@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)tcp_usrreq.c	8.2 (Berkeley) 1/3/94
- *	$Id: tcp_usrreq.c,v 1.35 1997/09/16 18:36:06 joerg Exp $
+ *	$Id: tcp_usrreq.c,v 1.36 1997/12/18 09:50:38 davidg Exp $
  */
 
 #include "opt_tcpdebug.h"
@@ -483,9 +483,9 @@ tcp_connect(tp, nam, p)
 	struct tcpcb *otp;
 	struct sockaddr_in *sin = (struct sockaddr_in *)nam;
 	struct sockaddr_in *ifaddr;
-	int error;
 	struct rmxp_tao *taop;
 	struct rmxp_tao tao_noncached;
+	int error;
 
 	if (inp->inp_lport == 0) {
 		error = in_pcbbind(inp, (struct sockaddr *)0, p);
@@ -501,7 +501,7 @@ tcp_connect(tp, nam, p)
 	error = in_pcbladdr(inp, nam, &ifaddr);
 	if (error)
 		return error;
-	oinp = in_pcblookuphash(inp->inp_pcbinfo,
+	oinp = in_pcblookup_hash(inp->inp_pcbinfo,
 	    sin->sin_addr, sin->sin_port,
 	    inp->inp_laddr.s_addr != INADDR_ANY ? inp->inp_laddr
 						: ifaddr->sin_addr,
