@@ -33,6 +33,7 @@
 # were built.
 export BATCH=t
 export PACKAGE_BUILDING=t
+export PARALLEL_PACKAGE_BUILD=t
 
 # Don't pick up installed packages from the host
 export LOCALBASE=/nonexistentlocal
