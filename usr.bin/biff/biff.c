@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	$Id$
  */
 
 #ifndef lint
@@ -48,9 +50,9 @@ static char sccsid[] = "@(#)biff.c	8.1 (Berkeley) 6/6/93";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <err.h>
 
 static void usage __P((void));
-static void err __P((char *));
 
 main(argc, argv)
 	int argc;
@@ -70,13 +72,11 @@ main(argc, argv)
 	argc -= optind;
 	argv += optind;
 
-	if ((name = ttyname(STDERR_FILENO)) == NULL) {
-		(void)fprintf(stderr, "biff: unknown tty\n");
-		exit(2);
-	}
+	if ((name = ttyname(STDERR_FILENO)) == NULL)
+		err(2, "unknown tty");
 
 	if (stat(name, &sb))
-		err(name);
+		err(2, "stat");
 
 	if (*argv == NULL) {
 		(void)printf("is %s\n", sb.st_mode&0100 ? "y" : "n");
@@ -86,24 +86,16 @@ main(argc, argv)
 	switch(argv[0][0]) {
 	case 'n':
 		if (chmod(name, sb.st_mode & ~0100) < 0)
-			err(name);
+			err(2, name);
 		break;
 	case 'y':
 		if (chmod(name, sb.st_mode | 0100) < 0)
-			err(name);
+			err(2, name);
 		break;
 	default:
 		usage();
 	}
 	exit(sb.st_mode & 0100 ? 0 : 1);
-}
-
-static void
-err(name)
-	char *name;
-{
-	(void)fprintf(stderr, "biff: %s: %s\n", name, strerror(errno));
-	exit(2);
 }
 
 static void
