@@ -163,6 +163,10 @@ main(int argc, char **argv)
 			fixate = 1;
 			break;
 		}
+		if (!strcasecmp(argv[arg], "eject")) {
+			eject = 1;
+			break;
+		}
 		if (!strcasecmp(argv[arg], "msinfo")) {
 			struct ioc_read_toc_single_entry entry;
 			struct ioc_toc_header header;
