@@ -43,7 +43,6 @@ physio(dev_t dev, struct uio *uio, int ioflag)
 	int error;
 	int spl;
 	caddr_t sa;
-	off_t blockno;
 	u_int iolen;
 	struct buf *bp;
 
@@ -93,12 +92,7 @@ physio(dev_t dev, struct uio *uio, int ioflag)
 			}
 			bp->b_bufsize = bp->b_bcount;
 
-			blockno = bp->b_offset >> DEV_BSHIFT;
-			if ((daddr_t)blockno != blockno) {
-				error = EINVAL; /* blockno overflow */
-				goto doerror;
-			}
-			bp->b_blkno = blockno;
+			bp->b_blkno = btodb(bp->b_offset);
 
 			if (uio->uio_segflg == UIO_USERSPACE) {
 				if (!useracc(bp->b_data, bp->b_bufsize,
