@@ -41,17 +41,22 @@
  *
  *	@(#)subr_autoconf.c	8.1 (Berkeley) 6/10/93
  *
- * $Id$
+ * $Id: subr_autoconf.c,v 1.6 1997/11/18 12:43:41 bde Exp $
  */
 
 #include <sys/param.h>
+#include <sys/kernel.h>
+#include <sys/systm.h>
 #include <sys/device.h>
+#ifdef UNUSED
 #include <sys/malloc.h>
+#endif
 
 /*
  * Autoconfiguration subroutines.
  */
 
+#ifdef UNUSED
 /*
  * ioconf.c exports exactly two names: cfdata and cfroots.  All system
  * devices and drivers are found via these tables.
@@ -339,4 +344,79 @@ evcnt_attach(dev, name, ev)
 	strcpy(ev->ev_name, name);
 	*nextp = ev;
 	nextp = &ev->ev_next;
+}
+
+#endif
+
+/*
+ * "Interrupt driven config" functions.
+ */
+static TAILQ_HEAD(, intr_config_hook) intr_config_hook_list =
+	TAILQ_HEAD_INITIALIZER(intr_config_hook_list);
+
+
+/* ARGSUSED */
+static void run_interrupt_driven_config_hooks __P((void *dummy));
+static void
+run_interrupt_driven_config_hooks(dummy)
+	void *dummy;
+{
+	struct intr_config_hook *hook;
+
+	for (hook = intr_config_hook_list.tqh_first; hook != NULL;
+	     hook = hook->ich_links.tqe_next) {
+		(*hook->ich_func)(hook->ich_arg);
+	}
+
+	while (intr_config_hook_list.tqh_first != NULL) {
+		tsleep(&intr_config_hook_list, PCONFIG, "conifhk", 0);
+	}
+}
+SYSINIT(intr_config_hooks, SI_SUB_INT_CONFIG_HOOKS, SI_ORDER_FIRST,
+	run_interrupt_driven_config_hooks, NULL)
+
+/*
+ * Register a hook that will be called after "cold"
+ * autoconfiguration is complete and interrupts can
+ * be used to complete initialization.
+ */
+int
+config_intrhook_establish(hook)
+	struct intr_config_hook *hook;
+{
+	struct intr_config_hook *hook_entry;
+
+	for (hook_entry = intr_config_hook_list.tqh_first; hook_entry != NULL;
+	     hook_entry = hook_entry->ich_links.tqe_next)
+		if (hook_entry == hook)
+			break;
+	if (hook_entry != NULL) {
+		printf("config_intrhook_establish: establishing an "
+		       "already established hook.\n");
+		return (1);
+	}
+	TAILQ_INSERT_TAIL(&intr_config_hook_list, hook, ich_links);
+	if (cold == 0)
+		/* XXX Sufficient for LKMs loaded after initial config??? */
+		run_interrupt_driven_config_hooks(NULL);	
+	return (0);
+}
+
+void
+config_intrhook_disestablish(hook)
+	struct intr_config_hook *hook;
+{
+	struct intr_config_hook *hook_entry;
+
+	for (hook_entry = intr_config_hook_list.tqh_first; hook_entry != NULL;
+	     hook_entry = hook_entry->ich_links.tqe_next)
+		if (hook_entry == hook)
+			break;
+	if (hook_entry == NULL)
+		panic("config_intrhook_disestablish: disestablishing an "
+		      "unestablished hook");
+
+	TAILQ_REMOVE(&intr_config_hook_list, hook, ich_links);
+	/* Wakeup anyone watching the list */
+	wakeup(&intr_config_hook_list);
 }

@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.104.2.7 1997/09/01 23:23:08 tegge Exp $
+ * $Id: vfs_bio.c,v 1.104.2.8 1998/03/05 12:20:08 dg Exp $
  */
 
 /*
@@ -332,40 +332,6 @@ bwrite(struct buf * bp)
 	if (curproc != NULL)
 		curproc->p_stats->p_ru.ru_oublock++;
 	VOP_STRATEGY(bp);
-
-	/*
-	 * Handle ordered writes here.
-	 * If the write was originally flagged as ordered,
-	 * then we check to see if it was converted to async.
-	 * If it was converted to async, and is done now, then
-	 * we release the buffer.  Otherwise we clear the
-	 * ordered flag because it is not needed anymore.
-	 *
- 	 * Note that biodone has been modified so that it does
-	 * not release ordered buffers.  This allows us to have
-	 * a chance to determine whether or not the driver
-	 * has set the async flag in the strategy routine.  Otherwise
-	 * if biodone was not modified, then the buffer may have been
-	 * reused before we have had a chance to check the flag.
-	 */
-
-	if ((oldflags & B_ORDERED) == B_ORDERED) {
-		int s;
-		s = splbio();
-		if (bp->b_flags & B_ASYNC)  {
-			if ((bp->b_flags & B_DONE)) {
-				if ((bp->b_flags & (B_NOCACHE | B_INVAL | B_ERROR | B_RELBUF)) != 0)
-					brelse(bp);
-				else
-					bqrelse(bp);
-			}
-			splx(s);
-			return (0);
-		} else {
-			bp->b_flags &= ~B_ORDERED;
-		}
-		splx(s);
-	}
 
 	if ((oldflags & B_ASYNC) == 0) {
 		int rtval = biowait(bp);
@@ -1680,12 +1646,10 @@ biodone(register struct buf * bp)
 	 */
 
 	if (bp->b_flags & B_ASYNC) {
-		if ((bp->b_flags & B_ORDERED) == 0) {
-			if ((bp->b_flags & (B_NOCACHE | B_INVAL | B_ERROR | B_RELBUF)) != 0)
-				brelse(bp);
-			else
-				bqrelse(bp);
-		}
+		if ((bp->b_flags & (B_NOCACHE | B_INVAL | B_ERROR | B_RELBUF)) != 0)
+			brelse(bp);
+		else
+			bqrelse(bp);
 	} else {
 		bp->b_flags &= ~B_WANTED;
 		wakeup(bp);
