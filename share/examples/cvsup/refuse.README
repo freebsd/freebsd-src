@@ -16,11 +16,9 @@ CVSup's base directory to "/usr".  The sup directory is in the base
 directory; i.e., it is "/usr/sup".  If you have changed your base
 directory, your sup directory is /path/to/base/sup.
 
-Use the following pattern if you have modified
-/usr/src/etc/sendmail/freebsd.mc to reflect your local configuration,
-and you do not want CVSup to overwrite it:
-
-    src/etc/sendmail/freebsd.mc*
+This file used to contain /usr/src/etc/sendmail/freebsd.mc in case
+you modified that file.  However, this was removed as it can break
+buildworld.  Modify /etc/mail/`hostname`.mc instead.
 
 If you are an English speaker and don't wish to receive the
 foreign-language documentation or ports, use the following patterns:
