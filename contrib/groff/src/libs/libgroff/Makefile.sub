@@ -39,39 +39,39 @@ OBJS=\
   version.$(OBJEXT) \
   $(LIBOBJS)
 CCSRCS=\
-  $(srcdir)/assert.cc \
-  $(srcdir)/change_lf.cc \
-  $(srcdir)/cmap.cc \
-  $(srcdir)/color.cc \
-  $(srcdir)/cset.cc \
-  $(srcdir)/device.cc \
-  $(srcdir)/errarg.cc \
-  $(srcdir)/error.cc \
-  $(srcdir)/fatal.cc \
-  $(srcdir)/filename.cc \
-  $(srcdir)/font.cc \
-  $(srcdir)/fontfile.cc \
-  $(srcdir)/geometry.cc \
-  $(srcdir)/htmlhint.cc \
-  $(srcdir)/invalid.cc \
-  $(srcdir)/lf.cc \
-  $(srcdir)/lineno.cc \
-  $(srcdir)/macropath.cc \
-  $(srcdir)/maxfilename.cc \
-  $(srcdir)/mksdir.cc \
-  $(srcdir)/mkstemp.cc \
-  $(srcdir)/nametoindex.cc \
-  $(srcdir)/new.cc \
-  $(srcdir)/paper.cc \
-  $(srcdir)/prime.cc \
-  $(srcdir)/progname.cc \
-  $(srcdir)/ptable.cc \
-  $(srcdir)/searchpath.cc \
-  $(srcdir)/string.cc \
-  $(srcdir)/strsave.cc \
-  $(srcdir)/tmpfile.cc \
-  $(srcdir)/tmpname.cc \
-  version.cc
+  $(srcdir)/assert.cpp \
+  $(srcdir)/change_lf.cpp \
+  $(srcdir)/cmap.cpp \
+  $(srcdir)/color.cpp \
+  $(srcdir)/cset.cpp \
+  $(srcdir)/device.cpp \
+  $(srcdir)/errarg.cpp \
+  $(srcdir)/error.cpp \
+  $(srcdir)/fatal.cpp \
+  $(srcdir)/filename.cpp \
+  $(srcdir)/font.cpp \
+  $(srcdir)/fontfile.cpp \
+  $(srcdir)/geometry.cpp \
+  $(srcdir)/htmlhint.cpp \
+  $(srcdir)/invalid.cpp \
+  $(srcdir)/lf.cpp \
+  $(srcdir)/lineno.cpp \
+  $(srcdir)/macropath.cpp \
+  $(srcdir)/maxfilename.cpp \
+  $(srcdir)/mksdir.cpp \
+  $(srcdir)/mkstemp.cpp \
+  $(srcdir)/nametoindex.cpp \
+  $(srcdir)/new.cpp \
+  $(srcdir)/paper.cpp \
+  $(srcdir)/prime.cpp \
+  $(srcdir)/progname.cpp \
+  $(srcdir)/ptable.cpp \
+  $(srcdir)/searchpath.cpp \
+  $(srcdir)/string.cpp \
+  $(srcdir)/strsave.cpp \
+  $(srcdir)/tmpfile.cpp \
+  $(srcdir)/tmpname.cpp \
+  version.cpp
 CSRCS=\
   $(srcdir)/fmod.c \
   $(srcdir)/getcwd.c \
@@ -81,17 +81,19 @@ CSRCS=\
   $(srcdir)/itoa.c \
   $(srcdir)/matherr.c \
   $(srcdir)/putenv.c \
+  $(srcdir)/strcasecmp.c \
   $(srcdir)/strerror.c \
+  $(srcdir)/strncasecmp.c \
   $(srcdir)/strtol.c \
   $(srcdir)/../snprintf/snprintf.c
 GENSRCS=\
-  version.cc
+  version.cpp
 
 src_version=`cat $(top_srcdir)/VERSION`
 src_revision=`cat $(top_srcdir)/REVISION`
 
-version.cc: $(top_srcdir)/VERSION $(top_srcdir)/REVISION
-	@echo Making version.cc
+version.cpp: $(top_srcdir)/VERSION $(top_srcdir)/REVISION
+	@echo Making version.cpp
 	@echo const char \*version_string = \"$(src_version)\"\; >$@
 	@echo const char \*revision_string = \"$(src_revision)\"\; >>$@
 	@echo extern \"C\" const char \*Version_string = \"$(src_version).$(src_revision)\"\; | \

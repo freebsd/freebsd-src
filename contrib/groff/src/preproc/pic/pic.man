@@ -1,5 +1,5 @@
 .ig
-Copyright (C) 1989-2000, 2001, 2002 Free Software Foundation, Inc.
+Copyright (C) 1989-2000, 2001, 2002, 2003 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -25,8 +25,14 @@ the original English.
 .el .TP "\\$1"
 ..
 .
-.ie t .ds tx T\h'-.1667m'\v'.224m'E\v'-.224m'\h'-.125m'X
-.el   .ds tx TeX
+.ie t \{\
+.  ds tx T\h'-.1667m'\v'.224m'E\v'-.224m'\h'-.125m'X
+.  ds lx L\h'-0.36m'\v'-0.22v'\s-2A\s0\h'-0.15m'\v'0.22v'\*(tx
+.\}
+.el \{\
+.  ds tx TeX
+.  ds lx LaTeX
+.\}
 .
 .ie \n(.g .ds ic \/
 .el       .ds ic \^
@@ -95,7 +101,7 @@ When the macro package being used does not supply such definitions
 (for example, old versions of \-ms),
 appropriate definitions can be obtained with
 .BR \-mpic :
-these will center each picture.
+These will center each picture.
 .
 .
 .SH OPTIONS
@@ -233,6 +239,9 @@ In \*(tx mode,
 will define a vbox called
 .B \egraph
 for each picture.
+Use the
+.B figname
+command to change the name of the vbox.
 You must yourself print that vbox using, for example, the command
 .RS
 .LP
@@ -240,8 +249,9 @@ You must yourself print that vbox using, for example, the command
 \ecenterline{\ebox\egraph}
 .RE
 .LP
-Actually, since the vbox has a height of zero this will produce
-slightly more vertical space above the picture than below it;
+Actually, since the vbox has a height of zero (it is defined with
+\evtop) this will produce slightly more vertical space above the
+picture than below it;
 .RS
 .LP
 .B
@@ -249,6 +259,21 @@ slightly more vertical space above the picture than below it;
 .RE
 .LP
 would avoid this.
+.LP
+To make the vbox having a positive height and a depth of zero
+(as used e.g.\& by \*(lx's
+.BR \%graphics.sty ),
+define the following macro in your document:
+.RS
+.LP
+.B \edef\egpicbox#1{%
+.br
+.B "   \evbox{\eunvbox\ecsname #1\eendcsname\ekern 0pt}}"
+.RE
+.LP
+Now you can simply say
+.B \egpicbox{graph}
+instead of \ebox\egraph.
 .LP
 You must use a \*(tx driver that supports the
 .B tpic
@@ -798,6 +823,24 @@ additional colors can be defined with the
 request (see the manual page of
 .BR @g@troff (@MAN1EXT@)
 for more details).
+.LP
+To change the name of the vbox in \*(tx mode, set the pseudo-variable
+.B figname
+(which is actually a specially parsed command) within a picture.
+Example:
+.RS
+.LP
+.B .PS
+.br
+.B figname = foobar;
+.br
+.B ...
+.br
+.B .PE
+.RE
+.LP
+The picture is then available in the box
+.BR \efoobar .
 .LP
 .B pic
 assumes that at the beginning of a picture both glyph and fill color are

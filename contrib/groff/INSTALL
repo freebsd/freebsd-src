@@ -6,7 +6,7 @@ This file contains information that supplements those instructions.
 MS-Windows, see the file arch/djgpp/README.)
 
 groff is written in C++, so you will need a C++ compiler.  The C++
-source files use a suffix of `.cc', so your C++ compiler must be able
+source files use a suffix of `.cpp', so your C++ compiler must be able
 to handle this.  If you don't already have a C++ compiler, I suggest
 gcc 2.7.1 or later (gcc version 2 includes GNU C++ as well as GNU C).
 From gcc 2.5, it is no longer necessary to install libg++: the C++
@@ -44,7 +44,7 @@ subdirectory.
 To get a DVI, PDF, or HTML version of the groff texinfo manual, say `make
 groff.dvi', `make groff.pdf', or `make groff.html', respectively, in the
 `doc' subdirectory (after compiling the groff package).  Note that you
-need texinfo version 4.2 or newer as a prerequisite.
+need texinfo version 4.3 or newer as a prerequisite.
 
 If you have problems, read the PROBLEMS file.  If this doesn't help
 send a bug report using the form in the file BUG-REPORT.

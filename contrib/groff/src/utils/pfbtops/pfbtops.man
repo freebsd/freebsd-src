@@ -1,5 +1,5 @@
 .ig
-Copyright (C) 1989-1995, 2001 Free Software Foundation, Inc.
+Copyright (C) 1989-1995, 2001, 2003 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -28,7 +28,8 @@ pfbtops \- translate a PostScript font in .pfb format to ASCII
 .B pfbtops
 translates a PostScript font in
 .B .pfb
-format to ASCII.
+format to ASCII, splitting overlong lines in text packets into smaller
+chunks.
 If
 .I pfb_file
 is omitted the pfb file will be read from the standard input.

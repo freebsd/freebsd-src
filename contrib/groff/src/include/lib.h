@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989-2000, 2001, 2002 Free Software Foundation, Inc.
+/* Copyright (C) 1989-2000, 2001, 2002, 2003 Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -44,6 +44,12 @@ extern "C" {
 #include <getopt.h>
 #endif
 
+#ifdef HAVE_SETLOCALE
+#include <locale.h>
+#else
+#define setlocale(category, locale) do {} while(0)
+#endif
+
 char *strsave(const char *s);
 int is_prime(unsigned);
 
@@ -53,7 +59,8 @@ int is_prime(unsigned);
 #include <strings.h>
 #endif
 
-#ifndef HAVE_SNPRINTF
+/* HP-UX 10.20 doesn't declare snprintf() */
+#if !defined(HAVE_SNPRINTF) || defined(NEED_DECLARATION_SNPRINTF)
 #include <stdarg.h>
 extern "C" {
   int snprintf(char *, size_t, const char *, /*args*/ ...);
@@ -63,7 +70,7 @@ extern "C" {
 
 #ifndef HAVE_MKSTEMP
 /* since mkstemp() is defined as a real C++ function if taken from
-   groff's mkstemp.cc we need a declaration */
+   groff's mkstemp.cpp we need a declaration */
 int mkstemp(char *tmpl);
 #endif /* HAVE_MKSTEMP */
 
@@ -100,6 +107,10 @@ extern "C" {
   int strcasecmp(const char *, const char *);
 }
 #endif /* NEED_DECLARATION_STRCASECMP */
+#else /* not HAVE_STRCASECMP */
+extern "C" {
+  int strcasecmp(const char *, const char *);
+}
 #endif /* HAVE_STRCASECMP */
 
 #if !defined(_AIX) && !defined(sinix) && !defined(__sinix__)
@@ -110,16 +121,12 @@ extern "C" {
   int strncasecmp(const char *, const char *, int);
 }
 #endif /* NEED_DECLARATION_STRNCASECMP */
+#else /* not HAVE_STRNCASECMP */
+extern "C" {
+  int strncasecmp(const char *, const char *, size_t);
+}
 #endif /* HAVE_STRNCASECMP */
 #endif /* !_AIX && !sinix && !__sinix__ */
-
-#ifndef HAVE_STRCASECMP
-#define strcasecmp(a,b) strcmp((a),(b))
-#endif
-
-#ifndef HAVE_STRNCASECMP
-#define strncasecmp(a,b,c) strncmp((a),(b),(c))
-#endif
 
 #ifdef HAVE_CC_LIMITS_H
 #include <limits.h>

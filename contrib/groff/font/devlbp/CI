@@ -204,6 +204,7 @@ rs	2200	0	0x5c		--	0,92	#	backslash
 <=	2200	0	0xf3		--	6,2	#	lessequal
 ca	2200	0	0xef		--	6,16	#	intersection	"intersection,	cap"
 -h	2200	0	0xc4		--	3,8	#	hbar
+hbar	"
 CL	2200	0	0x5		--	5,168	#	club	"club	suit"
 SP	2200	0	0x6		--	5,171	#	spade	"spade	suit"
 HE	2200	0	0x3		--	5,170	#	heart	"heart	suit"

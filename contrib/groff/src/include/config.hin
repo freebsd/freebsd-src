@@ -1,4 +1,4 @@
-/* src/include/config.hin.  Generated automatically from configure.ac by autoheader.  */
+/* src/include/config.hin.  Generated from configure.ac by autoheader.  */
 
 /* Define if your C++ doesn't understand `delete []'. */
 #undef ARRAY_DELETE_NEEDS_SIZE
@@ -9,76 +9,88 @@
 /* Define if you have a C++ <osfcn.h>. */
 #undef HAVE_CC_OSFCN_H
 
-/* Define if you have the <dirent.h> header file. */
+/* Define if you have a C++ <stdint.h>. */
+#undef HAVE_CC_STDINT_H
+
+/* Define to 1 if you have the <dirent.h> header file. */
 #undef HAVE_DIRENT_H
 
-/* Define if you have the `fmod' function. */
+/* Define to 1 if you have the `fmod' function. */
 #undef HAVE_FMOD
 
-/* Define if you have the `getcwd' function. */
+/* Define to 1 if you have the `getcwd' function. */
 #undef HAVE_GETCWD
 
-/* Define if you have the `getpagesize' function. */
+/* Define to 1 if you have the `getpagesize' function. */
 #undef HAVE_GETPAGESIZE
 
-/* Define if you have the `gettimeofday' function. */
+/* Define to 1 if you have the `gettimeofday' function. */
 #undef HAVE_GETTIMEOFDAY
 
-/* Define if you have the <limits.h> header file. */
+/* Define to 1 if you have the <inttypes.h> header file. */
+#undef HAVE_INTTYPES_H
+
+/* Define to 1 if you have the `isatty' function. */
+#undef HAVE_ISATTY
+
+/* Define to 1 if you have the <limits.h> header file. */
 #undef HAVE_LIMITS_H
 
-/* Define if you have the <math.h> header file. */
+/* Define to 1 if you have the <math.h> header file. */
 #undef HAVE_MATH_H
+
+/* Define to 1 if you have the <memory.h> header file. */
+#undef HAVE_MEMORY_H
 
 /* Define if you have mkstemp(). */
 #undef HAVE_MKSTEMP
 
-/* Define if you have a working `mmap' system call. */
+/* Define to 1 if you have a working `mmap' system call. */
 #undef HAVE_MMAP
 
-/* Define if you have the `putenv' function. */
+/* Define to 1 if you have the `putenv' function. */
 #undef HAVE_PUTENV
 
-/* Define if you have the `rename' function. */
+/* Define to 1 if you have the `rename' function. */
 #undef HAVE_RENAME
 
-/* Define if you have the `snprintf' function. */
+/* Define to 1 if you have the `setlocale' function. */
+#undef HAVE_SETLOCALE
+
+/* Define to 1 if you have the `snprintf' function. */
 #undef HAVE_SNPRINTF
 
-/* Define if you have the `isatty' function. */
-#undef HAVE_ISATTY
-
-/* Define if you have the <stdint.h> header file. */
+/* Define to 1 if you have the <stdint.h> header file. */
 #undef HAVE_STDINT_H
 
-/* Define if you have the <stdlib.h> header file. */
+/* Define to 1 if you have the <stdlib.h> header file. */
 #undef HAVE_STDLIB_H
 
-/* Define if you have the `strcasecmp' function. */
+/* Define to 1 if you have the `strcasecmp' function. */
 #undef HAVE_STRCASECMP
 
-/* Define if you have the `strerror' function. */
+/* Define to 1 if you have the `strerror' function. */
 #undef HAVE_STRERROR
 
-/* Define if you have the <strings.h> header file. */
+/* Define to 1 if you have the <strings.h> header file. */
 #undef HAVE_STRINGS_H
 
-/* Define if you have the <string.h> header file. */
+/* Define to 1 if you have the <string.h> header file. */
 #undef HAVE_STRING_H
 
-/* Define if you have the `strncasecmp' function. */
+/* Define to 1 if you have the `strncasecmp' function. */
 #undef HAVE_STRNCASECMP
 
-/* Define if you have the `strsep' function. */
+/* Define to 1 if you have the `strsep' function. */
 #undef HAVE_STRSEP
 
-/* Define if you have the `strtol' function. */
+/* Define to 1 if you have the `strtol' function. */
 #undef HAVE_STRTOL
 
 /* Define if <math.h> defines struct exception. */
 #undef HAVE_STRUCT_EXCEPTION
 
-/* Define if you have the <sys/dir.h> header file. */
+/* Define to 1 if you have the <sys/dir.h> header file. */
 #undef HAVE_SYS_DIR_H
 
 /* Define if you have sys_errlist in <errno.h> or in <stdio.h>. */
@@ -87,10 +99,16 @@
 /* Define if you have sysnerr in <errno.h> or <stdio.h>. */
 #undef HAVE_SYS_NERR
 
-/* Define if you have the <sys/time.h> header file. */
+/* Define to 1 if you have the <sys/stat.h> header file. */
+#undef HAVE_SYS_STAT_H
+
+/* Define to 1 if you have the <sys/time.h> header file. */
 #undef HAVE_SYS_TIME_H
 
-/* Define if you have the <unistd.h> header file. */
+/* Define to 1 if you have the <sys/types.h> header file. */
+#undef HAVE_SYS_TYPES_H
+
+/* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
 
 /* Define if the host's encoding is EBCDIC. */
@@ -114,11 +132,35 @@
 /* Define if your C++ doesn't declare putenv(). */
 #undef NEED_DECLARATION_PUTENV
 
+/* Define if your C++ doesn't declare rand(). */
+#undef NEED_DECLARATION_RAND
+
+/* Define if your C++ doesn't declare snprintf(). */
+#undef NEED_DECLARATION_SNPRINTF
+
+/* Define if your C++ doesn't declare srand(). */
+#undef NEED_DECLARATION_SRAND
+
 /* Define if your C++ doesn't declare strcasecmp(). */
 #undef NEED_DECLARATION_STRCASECMP
 
 /* Define if your C++ doesn't declare strncasecmp(). */
 #undef NEED_DECLARATION_STRNCASECMP
+
+/* Define to the address where bug reports for this package should be sent. */
+#undef PACKAGE_BUGREPORT
+
+/* Define to the full name of this package. */
+#undef PACKAGE_NAME
+
+/* Define to the full name and version of this package. */
+#undef PACKAGE_STRING
+
+/* Define to the one symbol short name of this package. */
+#undef PACKAGE_TARNAME
+
+/* Define to the version of this package. */
+#undef PACKAGE_VERSION
 
 /* Define if the printer's page size is A4. */
 #undef PAGEA4
@@ -129,7 +171,10 @@
 /* Define if srand() returns void not int. */
 #undef RET_TYPE_SRAND_IS_VOID
 
-/* Define if `sys_siglist' is declared by <signal.h> or <unistd.h>. */
+/* Define to 1 if you have the ANSI C header files. */
+#undef STDC_HEADERS
+
+/* Define to 1 if `sys_siglist' is declared by <signal.h> or <unistd.h>. */
 #undef SYS_SIGLIST_DECLARED
 
 /* Define if your C++ compiler uses a traditional (Reiser) preprocessor. */

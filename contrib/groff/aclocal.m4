@@ -63,24 +63,81 @@ dnl
 AC_DEFUN(GROFF_HTML_PROGRAMS,
 [make_html=html
 make_install_html=install_html
+missing=
 AC_CHECK_PROG(pnmcut, pnmcut, found, missing)
+if test $pnmcut = missing; then
+	missing="$missing pnmcut"
+fi
 AC_CHECK_PROG(pnmcrop, pnmcrop, found, missing)
+if test $pnmcrop = missing; then
+	missing="$missing pnmcrop"
+fi
 AC_CHECK_PROG(pnmtopng, pnmtopng, found, missing)
+if test $pnmtopng = missing; then
+	missing="$missing pnmtopng"
+fi
 AC_CHECK_PROG(gs, gs gsos2, found, missing)
+if test $gs = missing; then
+	missing="$missing gs"
+fi
 AC_CHECK_PROG(psselect, psselect, found, missing)
-case "x$pnmcut$pnmcrop$pnmtopng$gs$psselect" in
-*missing*)
+if test $psselect = missing; then
+	missing="$missing psselect"
+fi
+AC_CHECK_PROG(pnmtops, pnmtops, found, missing)
+if test $pnmtops = missing; then
+	missing="$missing pnmtops"
+fi
+if test -n "$missing"; then
+	cnt=0
+	for i in $missing
+	do
+		cnt=`expr $cnt + 1`
+		eval "prog$cnt=$i"
+	done
+	plural="s"
+	case $cnt in
+	1)
+		plural=""
+		progs="\`$prog1'" ;;
+	2)
+		progs="\`$prog1' and \`$prog2'" ;;
+	3)
+		progs="\`$prog1', \`$prog2', and \`$prog3'" ;;
+	4)
+		progs="\`$prog1', \`$prog2', \`$prog3', and \`$prog4'" ;;
+	5)
+		progs="\`$prog1', \`$prog2', \`$prog3', \`$prog4', and \`$prog5'" ;;
+	6)
+		progs="\`$prog1', \`$prog2', \`$prog3', \`$prog4', \`$prog5', and \`$prog6'" ;;
+	esac
 	make_html=
 	make_install_html=
 	AC_MSG_WARN([
 
-  Since one or more of the above five programs can't be found in the path,
-  the HTML backend of groff (grohtml) won't work properly.  Consequently,
-  no documentation in HTML format is built and installed.
-]) ;;
-esac
+  The program$plural
+    $progs
+  can't be found in the path, thus the HTML backend of groff (grohtml)
+  won't work properly.  Consequently, no documentation in HTML format
+  is built and installed.
+])
+fi
 AC_SUBST(make_html)
 AC_SUBST(make_install_html)])dnl
+dnl
+dnl check to see whether pnmtops can handle the -nosetpage option
+dnl
+AC_DEFUN(GROFF_PNMTOPS_NOSETPAGE,
+[AC_MSG_CHECKING([whether pnmtops can handle the -nosetpage option])
+if echo P2 2 2 255 0 1 2 0 | pnmtops -nosetpage > /dev/null 2>&1 ; then
+	AC_MSG_RESULT(yes)
+	pnmtops_nosetpage="pnmtops -nosetpage"
+else
+	AC_MSG_RESULT(no)
+	pnmtops_nosetpage="pnmtops"
+fi
+AC_SUBST(pnmtops_nosetpage)
+])dnl
 dnl
 dnl
 dnl GROFF_CSH_HACK(if hack present, if not present)
@@ -184,6 +241,17 @@ AC_TRY_COMPILE([#include <limits.h>],
 [int x = INT_MIN; int y = INT_MAX; int z = UCHAR_MAX;],
 AC_MSG_RESULT(yes);AC_DEFINE(HAVE_CC_LIMITS_H, 1,
 			     [Define if you have a C++ <limits.h>.]),
+AC_MSG_RESULT(no))
+AC_LANG_POP(C++)])dnl
+dnl
+dnl
+AC_DEFUN(GROFF_STDINT_H,
+[AC_LANG_PUSH(C++)
+AC_MSG_CHECKING([C++ <stdint.h>])
+AC_TRY_COMPILE([#include <stdint.h>],
+[uint32_t x; int32_t y;],
+AC_MSG_RESULT(yes);AC_DEFINE(HAVE_CC_STDINT_H, 1,
+			     [Define if you have a C++ <stdint.h>.]),
 AC_MSG_RESULT(no))
 AC_LANG_POP(C++)])dnl
 dnl
@@ -545,12 +613,12 @@ fi
 AC_LANG_POP(C++)])dnl
 dnl
 dnl
-dnl If mkstemp() isn't available, use our own mkstemp.cc file.
+dnl If mkstemp() isn't available, use our own mkstemp.cpp file.
 dnl
 AC_DEFUN(GROFF_MKSTEMP,
 [AC_MSG_CHECKING([for mkstemp])
 AC_LANG_PUSH(C++)
-AC_LIBSOURCE(mkstemp.cc)
+AC_LIBSOURCE(mkstemp.cpp)
 AC_TRY_LINK([#include <stdlib.h>
 #include <unistd.h>
 int (*f) (char *);],

@@ -12,12 +12,12 @@ OBJS=\
   tex.$(OBJEXT)
   # fig.$(OBJEXT)
 CCSRCS=\
-  $(srcdir)/lex.cc \
-  $(srcdir)/main.cc \
-  $(srcdir)/object.cc \
-  $(srcdir)/common.cc \
-  $(srcdir)/troff.cc \
-  $(srcdir)/tex.cc
+  $(srcdir)/lex.cpp \
+  $(srcdir)/main.cpp \
+  $(srcdir)/object.cpp \
+  $(srcdir)/common.cpp \
+  $(srcdir)/troff.cpp \
+  $(srcdir)/tex.cpp
 HDRS=\
   $(srcdir)/common.h \
   $(srcdir)/object.h \
@@ -26,6 +26,6 @@ HDRS=\
   $(srcdir)/position.h \
   $(srcdir)/text.h
 GRAM=$(srcdir)/pic.y
-YTABC=pic.cc
+YTABC=pic.cpp
 YTABH=pic_tab.h
 NAMEPREFIX=$(g)

@@ -279,7 +279,6 @@ lq	273	2	0x125	 4,32	 # quotedblleft
 rq	273	2	0x4ba	 6,31	 # quotedblright
 oq	182	2	0x176	 4,29	 # quoteleft "single open quote"
 aq	157	2	0x27	 0,39	 # quotesingle "apostrophe quote"
-or	213	0	0x3f4	 0,124	 # bar
 at	832	2	0x40	 0,64	 # at
 .C1	479	0	0x2d	 0,45	 # - minus "minus sign from current font"
 sh	456	2	0x23	 0,35	 # numbersign
@@ -360,7 +359,7 @@ if	466	0	0x3a5	 8,19	 # infinity
 md	466	0	0x3b7	 8,32	 # dotmath
 mo	466	0	0x3ce	 8,15	 # element
 mu	466	0	0x3b4	 8,39	 # multiply
-nc	466	0	0x3cb	 8,197	 # notpropersuperset
+nc	466	0	0x3cb	 8,197	 # uni2285
 nm	466	0	0x3cf	 8,209	 # notelement
 pl	228	0	0x32b	 0,93	 # plusmath "plus sign in special font"
 eq	479	0	0x33d	 0,61	 # equalmath "equals sign in special font"
@@ -378,6 +377,7 @@ ca	645	0	0xef	 6,16	 # intersection "intersection, cap"
 cu	645	0	0x3c8	 6,66	 # union "union, cup"
 di	479	0	0x3b8	 6,8	 # divide "division sign"
 -h	820	0	0xc4	 3,8	 # hbar
+hbar	"
 gr	820	0	0x3d1	 6,33	 # gradient
 es	638	0	0x3c6	 0,79	 # emptyset
 CL	617	0	0x5	 5,168	 # club "club suit"
@@ -397,3 +397,4 @@ mc	456	0	0xe6	 8,25	 # mu
 t+-	479	0	0xf1	 6,1	 # plusminus
 tmu	466	0	0x3b4	 8,39	 # multiply
 tdi	479	0	0x3b8	 6,8	 # divide "division sign"
+tno	466	0	0x3d8	 8,20	 # logicalnot
