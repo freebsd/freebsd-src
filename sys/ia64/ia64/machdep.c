@@ -381,7 +381,7 @@ ia64_init(u_int64_t arg1, u_int64_t arg2)
 	vm_offset_t kernstartpfn, kernendpfn, pfn0, pfn1;
 	char *p;
 	EFI_MEMORY_DESCRIPTOR *md, *mdp;
-	int mdcount, i;
+	int mdcount, i, metadata_missing;
 
 	/* NO OUTPUT ALLOWED UNTIL FURTHER NOTICE */
 
@@ -446,6 +446,16 @@ ia64_init(u_int64_t arg1, u_int64_t arg2)
 			ia64_pal_base = mdp->PhysicalStart;
 	}
 
+	metadata_missing = 0;
+	if (bootinfo.bi_modulep)
+		preload_metadata = (caddr_t)bootinfo.bi_modulep;
+	else
+		metadata_missing = 1;
+	if (envmode == 1)
+		kern_envp = static_env;
+	else
+		kern_envp = (caddr_t)bootinfo.bi_envp;
+
 	KASSERT(ia64_port_base != 0,
 	    ("%s: no I/O memory region", __func__));
 
@@ -508,13 +518,10 @@ ia64_init(u_int64_t arg1, u_int64_t arg2)
 	/* But if the bootstrap tells us otherwise, believe it! */
 	if (bootinfo.bi_kernend)
 		kernend = round_page(bootinfo.bi_kernend);
-	preload_metadata = (caddr_t)bootinfo.bi_modulep;
-	if (envmode == 1)
-		kern_envp = static_env;
-	else
-		kern_envp = (caddr_t)bootinfo.bi_envp;
+	if (metadata_missing)
+		printf("WARNING: loader(8) metadata is missing!\n");
 
-	/* get fpswa interface */
+	/* Get FPSWA interface */
 	fpswa_interface = (FPSWA_INTERFACE*)IA64_PHYS_TO_RR7(bootinfo.bi_fpswa);
 
 	/* Init basic tunables, including hz */
