@@ -1,4 +1,4 @@
-<!-- $Id: kernelconfig.sgml,v 1.1 1995/10/07 04:31:31 jfieber Exp $ -->
+<!-- $Id: kernelconfig.sgml,v 1.2 1995/10/22 00:42:07 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 <!-- <!DOCTYPE linuxdoc PUBLIC '-//FreeBSD//DTD linuxdoc//EN'> -->
   <chapt><heading>Configuring the FreeBSD Kernel<label id="kernelconfig"></heading>
@@ -387,8 +387,6 @@
 	      is a pretend filesystem mounted on /proc which
 	      allows programs like <tt>ps(1)</tt> to give you
 	      more information on what processes are running.
-	      <-- XXX why? it's perfectly working as LKM. joerg -->
-	      Leave it in.
 
 	    <tag>options MFS</tag> 
 
@@ -495,11 +493,11 @@
 
 	    <tag>device npx0 at isa? port ``IO_NPX'' irq 13 vector npxintr</tag>
 
-	    <p><tt>npx0</tt> is the interface to the
-	      math coprocessor.  If you have one then make sure
-	      you've commented out <ref id="kernelconfig:mathemu"
-	      name="MATH_EMULATE"> above.  If you do not have a
-	      math coprocessor, you can comment this out.
+	    <p><tt>npx0</tt> is the interface to the math coprocessor.
+	      If you have a math coprocessor, either an external
+	      80387 or 80487, or a cpu one built in such as an 80486DX or 
+	      Pentium, then you do <em>not</em> need the <ref
+	      id="kernelconfig:mathemu" name="MATH_EMULATE"> option above.
 
 	    <tag>device wt0 at isa? port 0x300 bio irq 5 drq 1 vector wtintr</tag>
 
