@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.25 1994/11/18 10:21:31 phk Exp $
+ *	$Id: boot.c,v 1.26 1994/11/18 13:40:19 jkh Exp $
  */
 
 
@@ -80,7 +80,7 @@ int drive;
 	printf("\n>> FreeBSD BOOT @ 0x%x: %d/%d k of memory\n",
 		ouraddr, memsize(0), memsize(1));
 	printf("Use hd(1,a)/kernel to boot sd0 when wd0 is also installed.\n");
-	printf("Usage: [[[%s(0,a)]%s][-s][-r][-a][-c][-d][-b]]\n",
+	printf("Usage: [[[%s(0,a)]%s][-s][-r][-a][-c][-d][-b][-v]]\n",
 			devs[(drive & 0x80) ? 0 : 2], names[0]);
 	printf("Use ? for file list or simply press Return for defaults\n");
 	gateA20();
@@ -270,6 +270,8 @@ getbootdev(howto)
 						*howto |= RB_KDB; continue;
 					      case 'b':
 						*howto |= RB_HALT; continue;
+					      case 'v':
+						*howto |= RB_VERBOSE; continue;
 					}
 			else {
 				name = ptr;
