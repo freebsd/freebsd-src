@@ -218,7 +218,6 @@ SYSCTL_INT(_vm, OID_AUTO, swap_async_max,
 
 static struct mtx sw_alloc_mtx;	/* protect list manipulation */ 
 static struct pagerlst	swap_pager_object_list[NOBJLISTS];
-static struct pagerlst	swap_pager_un_object_list;
 static uma_zone_t	swap_zone;
 
 /*
@@ -357,7 +356,6 @@ swap_pager_init(void)
 
 	for (i = 0; i < NOBJLISTS; ++i)
 		TAILQ_INIT(&swap_pager_object_list[i]);
-	TAILQ_INIT(&swap_pager_un_object_list);
 	mtx_init(&sw_alloc_mtx, "swap_pager list", NULL, MTX_DEF);
 	mtx_init(&sw_dev_mtx, "swapdev", NULL, MTX_DEF);
 
@@ -531,13 +529,11 @@ swap_pager_dealloc(vm_object_t object)
 	 * Remove from list right away so lookups will fail if we block for
 	 * pageout completion.
 	 */
-	mtx_lock(&sw_alloc_mtx);
-	if (object->handle == NULL) {
-		TAILQ_REMOVE(&swap_pager_un_object_list, object, pager_object_list);
-	} else {
+	if (object->handle != NULL) {
+		mtx_lock(&sw_alloc_mtx);
 		TAILQ_REMOVE(NOBJLIST(object->handle), object, pager_object_list);
+		mtx_unlock(&sw_alloc_mtx);
 	}
-	mtx_unlock(&sw_alloc_mtx);
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	vm_object_pip_wait(object, "swpdea");
@@ -795,21 +791,15 @@ swap_pager_copy(vm_object_t srcobject, vm_object_t dstobject,
 	 * swap_pager internal queue now. 
 	 */
 	if (destroysource) {
-		mtx_lock(&sw_alloc_mtx);
-		if (srcobject->handle == NULL) {
-			TAILQ_REMOVE(
-			    &swap_pager_un_object_list, 
-			    srcobject, 
-			    pager_object_list
-			);
-		} else {
+		if (srcobject->handle != NULL) {
+			mtx_lock(&sw_alloc_mtx);
 			TAILQ_REMOVE(
 			    NOBJLIST(srcobject->handle),
 			    srcobject,
 			    pager_object_list
 			);
+			mtx_unlock(&sw_alloc_mtx);
 		}
-		mtx_unlock(&sw_alloc_mtx);
 	}
 
 	/*
@@ -1812,21 +1802,15 @@ swp_pager_meta_build(vm_object_t object, vm_pindex_t pindex, daddr_t swapblk)
 		object->type = OBJT_SWAP;
 		object->un_pager.swp.swp_bcount = 0;
 
-		mtx_lock(&sw_alloc_mtx);
 		if (object->handle != NULL) {
+			mtx_lock(&sw_alloc_mtx);
 			TAILQ_INSERT_TAIL(
 			    NOBJLIST(object->handle),
 			    object, 
 			    pager_object_list
 			);
-		} else {
-			TAILQ_INSERT_TAIL(
-			    &swap_pager_un_object_list,
-			    object, 
-			    pager_object_list
-			);
+			mtx_unlock(&sw_alloc_mtx);
 		}
-		mtx_unlock(&sw_alloc_mtx);
 	}
 	
 	/*
