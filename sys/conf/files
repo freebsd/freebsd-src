@@ -873,6 +873,7 @@ kern/kern_ktrace.c	standard
 kern/kern_linker.c	standard
 kern/kern_lock.c	standard
 kern/kern_lockf.c	standard
+kern/kern_mac.c		standard
 kern/kern_malloc.c	standard
 kern/kern_mib.c		standard
 kern/kern_module.c	standard
