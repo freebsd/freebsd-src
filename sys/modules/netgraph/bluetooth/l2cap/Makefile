@@ -3,8 +3,8 @@
 
 .PATH: ${.CURDIR}/../../../../netgraph/bluetooth/l2cap
 
-CFLAGS+=	-g -I../../../../netgraph/bluetooth/include \
-		-I../../../../netgraph/bluetooth/l2cap \
+CFLAGS+=	-g -I${.CURDIR}/../../../../netgraph/bluetooth/include \
+		-I${.CURDIR}/../../../../netgraph/bluetooth/l2cap \
 		-DINVARIANTS=1 -DINVARIANT_SUPPORT=1 \
 		-DWITNESS=1 -DWITNESS_SKIPSPIN=1
 
