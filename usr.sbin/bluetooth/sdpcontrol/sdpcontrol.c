@@ -41,7 +41,8 @@
 #include "sdpcontrol.h"
 
 /* Prototypes */
-static int                  do_sdp_command	(bdaddr_p, int, char **);
+static int                  do_sdp_command	(bdaddr_p, char const *, int,
+						 int, char **);
 static struct sdp_command * find_sdp_command	(char const *,
 						 struct sdp_command *); 
 static void                 print_sdp_command	(struct sdp_command *);
@@ -51,15 +52,16 @@ static void                 usage		(void);
 int
 main(int argc, char *argv[])
 {
-	int		n;
-	bdaddr_t	bdaddr;
+	char const	*control = SDP_LOCAL_PATH;
+	int		 n, local;
+	bdaddr_t	 bdaddr;
 
 	memset(&bdaddr, 0, sizeof(bdaddr));
 
 	/* Process command line arguments */
-	while ((n = getopt(argc, argv, "a:h")) != -1) {
+	while ((n = getopt(argc, argv, "a:c:lh")) != -1) {
 		switch (n) {
-		case 'a':
+		case 'a': /* bdaddr */
 			if (!bt_aton(optarg, &bdaddr)) {
 				struct hostent  *he = NULL;
 
@@ -68,6 +70,14 @@ main(int argc, char *argv[])
  
 				memcpy(&bdaddr, he->h_addr, sizeof(bdaddr));
 			}
+			break;
+
+		case 'c': /* control socket */
+			control = optarg;
+			break;
+
+		case 'l': /* local sdpd */
+			local = 1;
 			break;
 
 		case 'h':
@@ -83,12 +93,13 @@ main(int argc, char *argv[])
 	if (*argv == NULL)
 		usage();
 
-	return (do_sdp_command(&bdaddr, argc, argv));
+	return (do_sdp_command(&bdaddr, control, local, argc, argv));
 }
 
 /* Execute commands */
 static int
-do_sdp_command(bdaddr_p bdaddr, int argc, char **argv)
+do_sdp_command(bdaddr_p bdaddr, char const *control, int local,
+		int argc, char **argv)
 {
 	char			*cmd = argv[0];
 	struct sdp_command	*c = NULL;
@@ -120,12 +131,16 @@ do_sdp_command(bdaddr_p bdaddr, int argc, char **argv)
 	}
 
 	if (!help) {
-		if (memcmp(bdaddr, NG_HCI_BDADDR_ANY, sizeof(*bdaddr)) == 0)
-			usage();
+		if (!local) {
+			if (memcmp(bdaddr, NG_HCI_BDADDR_ANY, sizeof(*bdaddr)) == 0)
+				usage();
 
-		if ((xs = sdp_open(NG_HCI_BDADDR_ANY, bdaddr)) == NULL)
+			xs = sdp_open(NG_HCI_BDADDR_ANY, bdaddr);
+		} else
+			xs = sdp_open_local(control);
+
+		if (xs == NULL)
 			errx(1, "Could not create SDP session object");
-
 		if (sdp_error(xs) == 0)
 			e = (c->handler)(xs, -- argc, ++ argv);
 		else
@@ -190,8 +205,14 @@ print_sdp_command(struct sdp_command *category)
 static void
 usage(void)
 {
-	fprintf(stdout, "Usage: sdpcontrol -a BD_ADDR [-h] " \
-			"cmd [p1] [..]]\n");
+	fprintf(stderr,
+"Usage: sdpcontrol options command\n" \
+"Where options are:\n"
+"	-a bdaddr	specify bdaddr\n" \
+"	-c path		path to the control socket (default is %s)\n" \
+"	-h		display usage and quit\n" \
+"	-l		connect to the local SDP server via control socket\n" \
+"	command		one of the supported commands\n", SDP_LOCAL_PATH);
 	exit(255);
 } /* usage */
 

@@ -30,18 +30,25 @@
 .Os
 .Sh NAME
 .Nm spdcontrol
-.Nd SDP configuration utility
+.Nd SDP query utility
 .Sh SYNOPSIS
 .Nm
-.Op Fl h
+.Fl h
+.Nm
 .Fl a Ar BD_ADDR
+.Ar command
+.Op Ar parameters ...
+.Nm
+.Fl l
+.Op Fl c Ar path
 .Ar command
 .Op Ar parameters ...
 .Sh DESCRIPTION
 The
 .Nm
-utility connects to the remote device with the specified BD_ADDR and attempts
-to send query via Service Discovery Protocol (SDP).
+utility attempts to query specified Service Discovery Protocol (SDP) server.
+Remote SDP servers are identified by their BD_ADDRs.
+Connection to the local SDP server is made via control socket.
 The
 .Nm
 utility will use Service Search Attribute Request and will print results to 
@@ -53,8 +60,14 @@ The options are as follows:
 Connect to the remote device with the specified BD_ADDR.
 Example:
 .Fl a Li 00:01:02:03:04:05 .
+.It Fl c Ar path
+Specify path to the control socket.
+The default path is
+.Pa /var/run/sdp .
 .It Fl h
 Display usage message and exit.
+.It Fl l
+Query the local SDP server via the control socket.
 .It Ar command
 One of the supported commands (see below).
 Special command
@@ -75,13 +88,13 @@ are:
 .It Cm Search
 .El
 .Sh CAVEAT
-Currently, the
+The
 .Nm
 utility only implements client side functionality.
 .Pp
 The
 .Nm
-utility only request the following attributes from the remote SDP server:
+utility only requests the following attributes from the SDP server:
 .Bl -enum -offset indent -compact
 .It
 Service Record Handle

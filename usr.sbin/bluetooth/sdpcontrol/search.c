@@ -37,7 +37,7 @@
 #include "sdpcontrol.h"
 
 /* List of the attributes we are looking for */
-static u_int32_t	attrs[] =
+static uint32_t	attrs[] =
 {
 	SDP_ATTR_RANGE(	SDP_ATTR_SERVICE_RECORD_HANDLE,
 			SDP_ATTR_SERVICE_RECORD_HANDLE),
@@ -53,7 +53,7 @@ static u_int32_t	attrs[] =
 /* Buffer for the attributes */
 #define NRECS	25	/* request this much records from the SDP server */
 #define	BSIZE	256	/* one attribute buffer size */
-static u_int8_t		buffer[NRECS * attrs_len][BSIZE];
+static uint8_t		buffer[NRECS * attrs_len][BSIZE];
 
 /* SDP attributes */
 static sdp_attr_t	values[NRECS * attrs_len];
@@ -70,9 +70,9 @@ static sdp_attr_t	values[NRECS * attrs_len];
  */
 
 static void
-print_service_class_id_list(u_int8_t const *start, u_int8_t const *end)
+print_service_class_id_list(uint8_t const *start, uint8_t const *end)
 {
-	u_int32_t	type, len, value;
+	uint32_t	type, len, value;
 
 	if (end - start < 2) {
 		fprintf(stderr, "Invalid Service Class ID List. " \
@@ -120,12 +120,12 @@ print_service_class_id_list(u_int8_t const *start, u_int8_t const *end)
 
 			SDP_GET128(&uuid, start);
 			fprintf(stdout, "\t%#8.8x-%4.4x-%4.4x-%4.4x-%4.4x%8.8x\n",
-					*(u_int32_t *)&uuid.b[0],
-					*(u_int16_t *)&uuid.b[4],
-					*(u_int16_t *)&uuid.b[6],
-					*(u_int16_t *)&uuid.b[8],
-					*(u_int16_t *)&uuid.b[10],
-					*(u_int32_t *)&uuid.b[12]);
+					*(uint32_t *)&uuid.b[0],
+					*(uint16_t *)&uuid.b[4],
+					*(uint16_t *)&uuid.b[6],
+					*(uint16_t *)&uuid.b[8],
+					*(uint16_t *)&uuid.b[10],
+					*(uint32_t *)&uuid.b[12]);
 			} break;
 
 		default:
@@ -153,7 +153,7 @@ print_service_class_id_list(u_int8_t const *start, u_int8_t const *end)
  */
 
 static void
-print_protocol_descriptor(u_int8_t const *start, u_int8_t const *end)
+print_protocol_descriptor(uint8_t const *start, uint8_t const *end)
 {
 	union {
 		uint8_t		uint8;
@@ -162,7 +162,7 @@ print_protocol_descriptor(u_int8_t const *start, u_int8_t const *end)
 		uint64_t	uint64;
 		int128_t	int128;
 	}			value;
-	u_int32_t		type, len, param;
+	uint32_t		type, len, param;
 
 	/* Get Protocol UUID */
 	SDP_GET8(type, start);
@@ -181,12 +181,12 @@ print_protocol_descriptor(u_int8_t const *start, u_int8_t const *end)
 	case SDP_DATA_UUID128:
 		SDP_GET128(&value.int128, start);
 		fprintf(stdout, "\t%#8.8x-%4.4x-%4.4x-%4.4x-%4.4x%8.8x\n",
-				*(u_int32_t *)&value.int128.b[0],
-				*(u_int16_t *)&value.int128.b[4],
-				*(u_int16_t *)&value.int128.b[6],
-				*(u_int16_t *)&value.int128.b[8],
-				*(u_int16_t *)&value.int128.b[10],
-				*(u_int32_t *)&value.int128.b[12]);
+				*(uint32_t *)&value.int128.b[0],
+				*(uint16_t *)&value.int128.b[4],
+				*(uint16_t *)&value.int128.b[6],
+				*(uint16_t *)&value.int128.b[8],
+				*(uint16_t *)&value.int128.b[10],
+				*(uint32_t *)&value.int128.b[12]);
 		break;
 
 	default:
@@ -238,12 +238,12 @@ print_protocol_descriptor(u_int8_t const *start, u_int8_t const *end)
 		case SDP_DATA_UUID128:
 			SDP_GET128(&value.int128, start);
 			fprintf(stdout, "u/int/uuid128 %#8.8x-%4.4x-%4.4x-%4.4x-%4.4x%8.8x\n",
-				*(u_int32_t *)&value.int128.b[0],
-				*(u_int16_t *)&value.int128.b[4],
-				*(u_int16_t *)&value.int128.b[6],
-				*(u_int16_t *)&value.int128.b[8],
-				*(u_int16_t *)&value.int128.b[10],
-				*(u_int32_t *)&value.int128.b[12]);
+				*(uint32_t *)&value.int128.b[0],
+				*(uint16_t *)&value.int128.b[4],
+				*(uint16_t *)&value.int128.b[6],
+				*(uint16_t *)&value.int128.b[8],
+				*(uint16_t *)&value.int128.b[10],
+				*(uint32_t *)&value.int128.b[12]);
 			break;
 
 		case SDP_DATA_STR8:
@@ -301,9 +301,9 @@ print_protocol_descriptor(u_int8_t const *start, u_int8_t const *end)
 } /* print_protocol_descriptor */
 
 static void
-print_protocol_descriptor_list(u_int8_t const *start, u_int8_t const *end)
+print_protocol_descriptor_list(uint8_t const *start, uint8_t const *end)
 {
-	u_int32_t	type, len;
+	uint32_t	type, len;
 
 	if (end - start < 2) {
 		fprintf(stderr, "Invalid Protocol Descriptor List. " \
@@ -375,9 +375,9 @@ print_protocol_descriptor_list(u_int8_t const *start, u_int8_t const *end)
  */
 
 static void
-print_bluetooth_profile_descriptor_list(u_int8_t const *start, u_int8_t const *end)
+print_bluetooth_profile_descriptor_list(uint8_t const *start, uint8_t const *end)
 {
-	u_int32_t	type, len, value;
+	uint32_t	type, len, value;
 
 	if (end - start < 2) {
 		fprintf(stderr, "Invalid Bluetooth Profile Descriptor List. " \
@@ -448,12 +448,12 @@ print_bluetooth_profile_descriptor_list(u_int8_t const *start, u_int8_t const *e
 
 			SDP_GET128(&uuid, start);
 			fprintf(stdout, "\t%#8.8x-%4.4x-%4.4x-%4.4x-%4.4x%8.8x ",
-					*(u_int32_t *)&uuid.b[0],
-					*(u_int16_t *)&uuid.b[4],
-					*(u_int16_t *)&uuid.b[6],
-					*(u_int16_t *)&uuid.b[8],
-					*(u_int16_t *)&uuid.b[10],
-					*(u_int32_t *)&uuid.b[12]);
+					*(uint32_t *)&uuid.b[0],
+					*(uint16_t *)&uuid.b[4],
+					*(uint16_t *)&uuid.b[6],
+					*(uint16_t *)&uuid.b[8],
+					*(uint16_t *)&uuid.b[10],
+					*(uint32_t *)&uuid.b[12]);
 			} break;
 
 		default:
@@ -485,7 +485,7 @@ do_sdp_search(void *xs, int argc, char **argv)
 {
 	char		*ep = NULL;
 	int32_t		 n, type, value;
-	u_int16_t	 service;
+	uint16_t	 service;
 
 	/* Parse command line arguments */
 	switch (argc) {
@@ -570,7 +570,7 @@ do_sdp_search(void *xs, int argc, char **argv)
 				/* NOT REACHED */
 			}
 		} else
-			service = (u_int16_t) n;
+			service = (uint16_t) n;
 		break;
 
 	default:
