@@ -65,16 +65,13 @@ static const char rcsid[] =
 
 #include "fsck.h"
 
-static void usage __P((void));
-static int argtoi __P((int flag, char *req, char *str, int base));
-static int checkfilesys __P((char *filesys));
-static struct statfs *getmntpt __P((const char *));
-int main __P((int argc, char *argv[]));
+static void usage(void) __dead2;
+static int argtoi(int flag, char *req, char *str, int base);
+static int checkfilesys(char *filesys);
+static struct statfs *getmntpt(const char *);
 
 int
-main(argc, argv)
-	int	argc;
-	char	*argv[];
+main(int argc, char *argv[])
 {
 	int ch;
 	struct rlimit rlimit;
@@ -164,10 +161,7 @@ main(argc, argv)
 }
 
 static int
-argtoi(flag, req, str, base)
-	int flag;
-	char *req, *str;
-	int base;
+argtoi(int flag, char *req, char *str, int base)
 {
 	char *cp;
 	int ret;
@@ -183,8 +177,7 @@ argtoi(flag, req, str, base)
  */
 /* ARGSUSED */
 static int
-checkfilesys(filesys)
-	char *filesys;
+checkfilesys(char *filesys)
 {
 	ufs_daddr_t n_ffree, n_bfree;
 	struct ufs_args args;
@@ -464,8 +457,7 @@ checkfilesys(filesys)
  * Get the mount point information for name.
  */
 static struct statfs *
-getmntpt(name)
-	const char *name;
+getmntpt(const char *name)
 {
 	struct stat devstat, mntdevstat;
 	char device[sizeof(_PATH_DEV) - 1 + MNAMELEN];
@@ -502,7 +494,7 @@ getmntpt(name)
 }
 
 static void
-usage()
+usage(void)
 {
         extern char *__progname;
 

@@ -50,7 +50,7 @@ static const char rcsid[] =
 #include "fsck.h"
 
 void
-pass5()
+pass5(void)
 {
 	int c, blk, frags, basesize, sumsize, mapsize, savednrpos = 0;
 	int inomapsize, blkmapsize, astart, aend, ustart, uend;
