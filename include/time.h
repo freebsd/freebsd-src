@@ -126,12 +126,6 @@ time_t time(time_t *);
 
 #if __POSIX_VISIBLE
 void tzset(void);
-
-/* XXX - figure out which standard introduced these */
-char *asctime_r(const struct tm *, char *);
-char *ctime_r(const time_t *, char *);
-struct tm *gmtime_r(const time_t *, struct tm *);
-struct tm *localtime_r(const time_t *, struct tm *);
 #endif
 
 #if __POSIX_VISIBLE >= 199309
@@ -140,6 +134,13 @@ int clock_gettime(clockid_t, struct timespec *);
 int clock_settime(clockid_t, const struct timespec *);
 int nanosleep(const struct timespec *, struct timespec *);
 #endif /* __POSIX_VISIBLE >= 199309 */
+
+#if __POSIX_VISIBLE >= 199506
+char *asctime_r(const struct tm *, char *);
+char *ctime_r(const time_t *, char *);
+struct tm *gmtime_r(const time_t *, struct tm *);
+struct tm *localtime_r(const time_t *, struct tm *);
+#endif
 
 #if __XSI_VISIBLE
 char *strptime(const char *, const char *, struct tm *);
