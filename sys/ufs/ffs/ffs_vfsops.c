@@ -73,6 +73,7 @@ static void	ffs_oldfscompat_read(struct fs *, struct ufsmount *,
 		    ufs2_daddr_t);
 static void	ffs_oldfscompat_write(struct fs *, struct ufsmount *);
 static int	ffs_init(struct vfsconf *);
+static int	ffs_uninit(struct vfsconf *);
 
 static struct vfsops ufs_vfsops = {
 	ffs_mount,
@@ -87,7 +88,7 @@ static struct vfsops ufs_vfsops = {
 	vfs_stdcheckexp,
 	ffs_vptofh,
 	ffs_init,
-	vfs_stduninit,
+	ffs_uninit,
 #ifdef UFS_EXTATTR
 	ufs_extattrctl,
 #else
@@ -1375,7 +1376,7 @@ ffs_vptofh(vp, fhp)
 }
 
 /*
- * Initialize the filesystem; just use ufs_init.
+ * Initialize the filesystem.
  */
 static int
 ffs_init(vfsp)
@@ -1384,6 +1385,20 @@ ffs_init(vfsp)
 
 	softdep_initialize();
 	return (ufs_init(vfsp));
+}
+
+/*
+ * Undo the work of ffs_init().
+ */
+static int
+ffs_uninit(vfsp)
+	struct vfsconf *vfsp;
+{
+	int ret;
+
+	ret = ufs_uninit(vfsp);
+	softdep_uninitialize();
+	return (ret);
 }
 
 /*
