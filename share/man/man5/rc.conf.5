@@ -224,7 +224,9 @@ to disable the display of ipfw rules on the console during boot.
 Set to
 .Dq YES
 to enable ipfw event logging.
-This is equivalent to the IPFIREWALL_VERBOSE kernel option.
+This is equivalent to the
+.Dv IPFIREWALL_VERBOSE
+kernel option.
 .It Va natd_program
 .Pq Vt str
 Path to
@@ -310,8 +312,8 @@ ipfilter_enable="YES"
 ipfilter_flags=""
 ipnat_enable="YES"
 ipmon_enable="YES"
-
 .Ed
+.Pp
 into
 .Pa /etc/rc.conf
 and editing
@@ -327,8 +329,8 @@ Having
 options  IPFILTER
 options  IPFILTER_LOG
 options  IPFILTER_DEFAULT_BLOCK
-
 .Ed
+.Pp
 in the kernel configuration file is a good idea, too.
 .\" ----- ipfilter_program setting ------------------------------
 .It Va ipfilter_program
@@ -472,8 +474,8 @@ Make sure to adjust
 in such case like this:
 .Bd -literal
 /var/log/ipflog  640  10  100  *  Z  /var/run/ipmon.pid
-
 .Ed
+.Pp
 See
 .Va ipfilter_enable
 for a detailled discussion.
@@ -517,7 +519,9 @@ the SYN and FIN flags set.
 This prevents OS fingerprinting, but may
 break some legitimate applications.
 This option is only available if the
-kernel was built with the TCP_DROP_SYNFIN option.
+kernel was built with the
+.Dv TCP_DROP_SYNFIN
+option.
 .It Va icmp_drop_redirect
 .Pq Vt bool
 Set to
@@ -551,8 +555,9 @@ something like this:
 .Bd -literal
 ifconfig_ed0_alias0="inet 127.0.0.253 netmask 0xffffffff"
 ifconfig_ed0_alias1="inet 127.0.0.254 netmask 0xffffffff"
-
 .Ed
+.Pp
+.\" XXX horrible markup here:
 And so on.  For each ifconfig_<interface>_alias<n> entry that is
 found, its contents are passed to
 .Xr ifconfig 8 .
@@ -563,8 +568,8 @@ ifconfig_ed0_alias0="inet 127.0.0.251 netmask 0xffffffff"
 ifconfig_ed0_alias1="inet 127.0.0.252 netmask 0xffffffff"
 ifconfig_ed0_alias2="inet 127.0.0.253 netmask 0xffffffff"
 ifconfig_ed0_alias4="inet 127.0.0.254 netmask 0xffffffff"
-
 .Ed
+.Pp
 Then note that alias4 would
 .Em not
 be added since the search would
@@ -656,7 +661,9 @@ Path to
 .Pa /usr/sbin/syslogd ) .
 .It Va syslogd_flags
 .Pq Vt str
-If syslogd_enable is set to
+If
+.Va syslogd_enable
+is set to
 .Dq YES ,
 these are the flags to pass to
 .Xr syslogd 8 .
@@ -675,7 +682,9 @@ Path to
 .Pa /usr/sbin/inetd ) .
 .It Va inetd_flags
 .Pq Vt str
-If inetd_enable is set to
+If
+.Va inetd_enable
+is set to
 .Dq YES ,
 these are the flags to pass to
 .Xr inetd 8 .
@@ -1405,8 +1414,8 @@ ps/2             PS/2 mouse
 mmhittab         MM HitTablet (serial)
 x10mouseremote   X10 MouseRemote (serial)
 versapad         Interlink VersaPad (serial)
-
 .Ed
+.Pp
 Even if your mouse is not in the above list, it may be compatible
 with one in the list.
 Refer to the man page for
