@@ -72,6 +72,9 @@
 
 #include <ddb/ddb.h>
 
+/* Define this to check for blessed mutexes */
+#undef BLESSING
+
 #define WITNESS_COUNT 200
 #define WITNESS_CHILDCOUNT (WITNESS_COUNT * 4)
 /*
@@ -108,10 +111,12 @@ struct witness_child_list_entry {
 
 STAILQ_HEAD(witness_list, witness);
 
+#ifdef BLESSING
 struct witness_blessed {
 	const	char *b_lock1;
 	const	char *b_lock2;
 };
+#endif
 
 struct witness_order_list_entry {
 	const	char *w_name;
@@ -124,7 +129,9 @@ static int	itismychild(struct witness *parent, struct witness *child);
 static void	removechild(struct witness *parent, struct witness *child);
 static int	isitmychild(struct witness *parent, struct witness *child);
 static int	isitmydescendant(struct witness *parent, struct witness *child);
+#ifdef BLESSING
 static int	blessed(struct witness *, struct witness *);
+#endif
 static void	witness_displaydescendants(void(*)(const char *fmt, ...),
 					   struct witness *);
 static void	witness_leveldescendents(struct witness *parent, int level);
@@ -241,6 +248,7 @@ static struct witness_order_list_entry order_lists[] = {
 	{ NULL, NULL }
 };
 
+#ifdef BLESSING
 /*
  * Pairs of locks which have been blessed
  * Don't complain about order problems with blessed locks
@@ -249,6 +257,7 @@ static struct witness_blessed blessed_list[] = {
 };
 static int blessed_count =
 	sizeof(blessed_list) / sizeof(struct witness_blessed);
+#endif
 
 /*
  * List of all locks in the system.
@@ -626,8 +635,10 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 			 * is allowed or has already been yelled about.
 			 */
 			mtx_unlock_spin(&w_mtx);
+#ifdef BLESSING
 			if (blessed(w, w1))
 				goto out;
+#endif
 			if (lock1->li_lock == &Giant.mtx_object) {
 				if (w1->w_Giant_squawked)
 					goto out;
@@ -1193,6 +1204,7 @@ witness_displaydescendants(void(*prnt)(const char *fmt, ...),
 				wcl->wcl_children[i]);
 }
 
+#ifdef BLESSING
 static int
 blessed(struct witness *w1, struct witness *w2)
 {
@@ -1212,6 +1224,7 @@ blessed(struct witness *w1, struct witness *w2)
 	}
 	return (0);
 }
+#endif
 
 static struct witness *
 witness_get(void)
