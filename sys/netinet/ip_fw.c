@@ -182,42 +182,41 @@ struct ip_fw 	*chain;
 
 
     for (f=chain;f;f=f->fw_next) 
-		if ((src.s_addr&f->fw_smsk.s_addr)==f->fw_src.s_addr
-		&&  (dst.s_addr&f->fw_dmsk.s_addr)==f->fw_dst.s_addr) {
-       		if (f->fw_via.s_addr && rif) {
-                        for (ia_p=ia;ia_p;ia_p=ia_p->ifa_next) {
-                                if (!ia_p->ifa_addr ||
-                                     ia_p->ifa_addr->sa_family!=AF_INET)
-					/*
-					 * Next interface adress.
-					 * This is continue for 
-					 * local "for"
-					 */
-                                        continue; 
-                                ia_i.s_addr=(((struct sockaddr_in *)\
-                                            (ia_p->ifa_addr))->sin_addr.s_addr);
-                                if (ia_i.s_addr==f->fw_via.s_addr)
-                                        goto via_match;
-                        }
-			/*
-			 * Next interface adress.
-			 * This is continue for 
-			 * local "for"
-			 */
-                        continue; 
-                } else {
-			/*
-			 * No special "via" adress set
-			 * or interface from which packet
-			 * came unknown so match anyway
-			 */
-                        goto via_match; 
+	if ((src.s_addr&f->fw_smsk.s_addr)==f->fw_src.s_addr
+	&&  (dst.s_addr&f->fw_dmsk.s_addr)==f->fw_dst.s_addr) {
+
+	   if (!rif)
+		   goto via_match;
+
+	   if (f->fw_flg&IP_FW_F_IFNAME) {
+
+		if (!f->fw_via_name[0]) 
+			goto via_match; /* No name/unit set,match any */
+
+		if (rif->if_unit==f->fw_via_unit &&
+		    !strncmp(rif->if_name,f->fw_via_name,FW_IFNLEN))
+			goto via_match;
+	   } else {
+
+		if (!f->fw_via_ip.s_addr) 
+                        goto via_match; /* No via ip set,match any */
+			
+                for (ia_p=ia;ia_p;ia_p=ia_p->ifa_next) {
+	                if (!ia_p->ifa_addr||ia_p->ifa_addr->sa_family!=AF_INET)
+       	                	continue;
+
+                        ia_i.s_addr=(((struct sockaddr_in *)\
+                                     (ia_p->ifa_addr))->sin_addr.s_addr);
+                        if (ia_i.s_addr==f->fw_via_ip.s_addr)
+                        	goto via_match;
                 }
-		/*	
-		 * Skip to next firewall entry - via 
-		 * address did not matched.
-		 */
-                continue; 
+
+	   }
+	   /* 
+	    * If we got here,no "via"'s matched,so
+	    * we should continue to the next firewall entry.
+	    */
+           continue; 
 via_match:
 			f_prt=f->fw_flg&IP_FW_F_KIND;
 			if (f_prt==IP_FW_F_ALL) {
@@ -396,34 +395,58 @@ int nh_conv;
 	}
 
     for (f=chain;f;f=f->fw_next) {
-		if ((src.s_addr&f->fw_smsk.s_addr)==f->fw_src.s_addr
-		&&  (dst.s_addr&f->fw_dmsk.s_addr)==f->fw_dst.s_addr) {
-				rev=0;
-				goto addr_match;
-		}
-	 	if  ((f->fw_flg&IP_FW_F_BIDIR) &&
-		    ((src.s_addr&f->fw_smsk.s_addr)==f->fw_dst.s_addr
-		&&  (dst.s_addr&f->fw_dmsk.s_addr)==f->fw_src.s_addr)) { 
-				rev=1;
-				goto addr_match;
-		}
-		continue;
+	if ((src.s_addr&f->fw_smsk.s_addr)==f->fw_src.s_addr
+	&&  (dst.s_addr&f->fw_dmsk.s_addr)==f->fw_dst.s_addr) {
+			rev=0;
+			goto addr_match;
+	}
+ 	if  ((f->fw_flg&IP_FW_F_BIDIR) &&
+	    ((src.s_addr&f->fw_smsk.s_addr)==f->fw_dst.s_addr
+	&&  (dst.s_addr&f->fw_dmsk.s_addr)==f->fw_src.s_addr)) { 
+			rev=1;
+			goto addr_match;
+	}
+	continue;
 addr_match:
-       		if (f->fw_via.s_addr && rif) {
-                        for (ia_p=ia;ia_p;ia_p=ia_p->ifa_next) {
-                                if (!ia_p->ifa_addr ||
-                                     ia_p->ifa_addr->sa_family!=AF_INET)
-                                        continue; 
-                                ia_i.s_addr=(((struct sockaddr_in *)\
-                                            (ia_p->ifa_addr))->sin_addr.s_addr);
-                                if (ia_i.s_addr==f->fw_via.s_addr)
-                                        goto via_match;
-                        }
-                        continue; 
-                } else {
-                        goto via_match; 
+		/*
+		 * We use here same code for "via" matching
+		 * as in firewall.This is wrong and does not do 
+		 * much use,because in most cases instead of interface
+		 * passed NULL pointer.Need to be completely
+		 * rewritten.
+		 */
+	   if (!rif)
+		   goto via_match;
+
+	   if (f->fw_flg&IP_FW_F_IFNAME) {
+
+		if (!f->fw_via_name[0]) 
+			goto via_match; /* No name/unit set,match any */
+
+		if (rif->if_unit==f->fw_via_unit &&
+		    !strncmp(rif->if_name,f->fw_via_name,FW_IFNLEN))
+			goto via_match;
+	   } else {
+
+		if (!f->fw_via_ip.s_addr) 
+                        goto via_match; /* No via ip set,match any */
+			
+                for (ia_p=ia;ia_p;ia_p=ia_p->ifa_next) {
+	                if (!ia_p->ifa_addr||ia_p->ifa_addr->sa_family!=AF_INET)
+       	                	continue;
+
+                        ia_i.s_addr=(((struct sockaddr_in *)\
+                                     (ia_p->ifa_addr))->sin_addr.s_addr);
+                        if (ia_i.s_addr==f->fw_via_ip.s_addr)
+                        	goto via_match;
                 }
-                continue; 
+
+	   }
+	   /* 
+	    * If we got here,no "via"'s matched,so
+	    * we should continue to the next firewall entry.
+	    */
+           continue; 
 via_match:
 			f_prt=f->fw_flg&IP_FW_F_KIND;
 			if (f_prt==IP_FW_F_ALL) {
@@ -708,7 +731,7 @@ struct ip_fw *frwl;
      ||  ftmp->fw_dst.s_addr!=frwl->fw_dst.s_addr
      ||  ftmp->fw_smsk.s_addr!=frwl->fw_smsk.s_addr
      ||  ftmp->fw_dmsk.s_addr!=frwl->fw_dmsk.s_addr
-     ||  ftmp->fw_via.s_addr!=frwl->fw_via.s_addr
+     ||  ftmp->fw_via_ip.s_addr!=frwl->fw_via_ip.s_addr
      ||  ftmp->fw_flg!=frwl->fw_flg)
         matches=0;
      tport1=ftmp->fw_nsp+ftmp->fw_ndp;
@@ -776,7 +799,7 @@ struct ip_fw *frwl;
      ||  ftmp->fw_dst.s_addr!=frwl->fw_dst.s_addr
      ||  ftmp->fw_smsk.s_addr!=frwl->fw_smsk.s_addr
      ||  ftmp->fw_dmsk.s_addr!=frwl->fw_dmsk.s_addr
-     ||  ftmp->fw_via.s_addr!=frwl->fw_via.s_addr
+     ||  ftmp->fw_via_ip.s_addr!=frwl->fw_via_ip.s_addr
      ||  ftmp->fw_flg!=frwl->fw_flg)
         matches=0;
      tport1=ftmp->fw_nsp+ftmp->fw_ndp;
