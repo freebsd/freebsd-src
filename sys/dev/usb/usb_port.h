@@ -62,6 +62,8 @@
 
 #define Static static
 
+typedef struct proc *usb_proc_ptr;
+
 typedef struct device *device_ptr_t;
 #define USBBASEDEVICE struct device
 #define USBDEV(bdev) (&(bdev))
@@ -164,6 +166,8 @@ __CONCAT(dname,_detach)(self, flags) \
 #endif
 
 #define Static static
+
+typedef struct proc *usb_proc_ptr;
 
 #define	memcpy(d, s, l)		bcopy((s),(d),(l))
 #define	memset(d, v, l)		bzero((d),(l))
@@ -285,6 +289,8 @@ __CONCAT(dname,_detach)(self, flags) \
 #define USBDEVUNIT(bdev) device_get_unit(bdev)
 
 #define DECLARE_USB_DMA_T typedef char * usb_dma_t
+
+typedef struct proc *usb_proc_ptr;
 
 /* XXX Change this when FreeBSD has memset */
 #define	memcpy(d, s, l)		bcopy((s),(d),(l))
