@@ -56,7 +56,7 @@ linux_to_bsd_sigset(linux_sigset_t *lss, sigset_t *bss)
 	}
 }
 
-static void
+void
 bsd_to_linux_sigset(sigset_t *bss, linux_sigset_t *lss)
 {
 	int b, l;
