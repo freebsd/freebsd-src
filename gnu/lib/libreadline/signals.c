@@ -58,15 +58,9 @@ extern int errno;
 #include "readline.h"
 #include "history.h"
 
-static void cr ();
-
 extern int readline_echoing_p;
 extern int rl_pending_input;
-extern char *term_cr;
-
 extern int _rl_meta_flag;
-
-extern int _rl_output_character_function ();
 
 extern void free_undo_list ();
 
@@ -107,9 +101,7 @@ rl_handle_sigwinch (sig)
   if (readline_echoing_p)
     {
       _rl_set_screen_size (fileno (rl_instream), 1);
-
-      cr ();				/* was crlf () */
-      rl_forced_update_display ();
+      _rl_redisplay_after_sigwinch ();
     }
 
   if (old_sigwinch &&
@@ -276,28 +268,20 @@ rl_clear_signals ()
 #if !defined (SHELL)
 
 #if defined (SIGTSTP)
-  signal (SIGTSTP, old_tstp);
+  rl_set_sighandler (SIGTSTP, old_tstp);
 #endif
 
 #if defined (SIGTTOU)
-  signal (SIGTTOU, old_ttou);
-  signal (SIGTTIN, old_ttin);
+  rl_set_sighandler (SIGTTOU, old_ttou);
+  rl_set_sighandler (SIGTTIN, old_ttin);
 #endif /* SIGTTOU */
 
 #endif /* !SHELL */
 
 #if defined (SIGWINCH)
-  signal (SIGWINCH, old_sigwinch);
+  rl_set_sighandler (SIGWINCH, old_sigwinch);
 #endif
 
   return 0;
-}
-
-/* Move to the start of the current line. */
-static void
-cr ()
-{
-  if (term_cr)	
-    tputs (term_cr, 1, _rl_output_character_function);
 }
 #endif  /* HANDLE_SIGNALS */

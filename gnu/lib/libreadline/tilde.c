@@ -19,8 +19,6 @@
    along with Readline; see the file COPYING.  If not, write to the Free
    Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. */
 
-#include "memalloc.h"
-
 #if defined (HAVE_STRING_H)
 #  include <string.h>
 #else /* !HAVE_STRING_H */
@@ -34,6 +32,7 @@
 #endif /* HAVE_STDLIB_H */
 
 #include "tilde.h"
+#include <sys/types.h>
 #include <pwd.h>
 
 #if defined (USG) && !defined (HAVE_GETPW_DECLS)
