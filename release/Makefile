@@ -101,6 +101,20 @@ RELEASEPORTSMODULE?=	ports
 #NODOC=  YES
 #NOPORTS=  YES
 
+# When retrieving ports using the pkg_add -r method, set your proxies to these.
+# src/release/${arch}/mkisoimages.sh can use these.
+#HTTP_PROXY?=	www.example.com
+#FTP_PROXY?=	ftp.example.com
+
+# When creating ISO images, point ${CD_EXTRA_BITS} to a directory containing
+# extra packages or other files.  It will be appended to the disk 1 ISO.
+#CD_EXTRA_BITS=	/path/to/pkg
+
+# Extra source tarballs; each argument is a pair of source dir and
+# distribution name.  The dist name should not exceed 7 characters
+# (another "s" for "source" will be prepended).
+#EXTRA_SRC=	games/fortune fortune
+
 # Modify this definition if you want the release notes 
 # and other release documentation in a language other than English.
 RELNOTES_LANG?=	en_US.ISO8859-1
@@ -337,7 +351,7 @@ release rerelease:
 .if exists(${CHROOTDIR})
 # The first command will fail on a handful of files that have their schg
 # flags set.  But it greatly speeds up the next two commands.
-	# NB: clear any vestigal devfs mount, just in case
+	# NB: clear any vestigial devfs mount, just in case
 	-umount ${CHROOTDIR}/dev > /dev/null 2>&1
 	-rm -rf ${CHROOTDIR} 2>/dev/null
 	-chflags -R noschg ${CHROOTDIR}/.
@@ -438,7 +452,6 @@ release rerelease:
 	echo "_RELTARGET=\$${1:-doRELEASE}"	>> ${_MK}
 .for var in \
 	AUTO_KEYBOARD_DETECT \
-	BOOT_CONFIG \
 	BUILDNAME \
 	CD_EXTRA_BITS \
 	DISC1_LABEL \
@@ -573,7 +586,8 @@ release.1:
 # Install the system into the various distributions.
 release.2:
 	cd ${.CURDIR}/../etc && make distrib-dirs DESTDIR=${RD}/trees/base
-	cd ${.CURDIR}/.. && ${CROSSMAKE} distributeworld DISTDIR=${RD}/trees
+	cd ${.CURDIR}/.. && ${CROSSMAKE} ${WORLD_FLAGS} distributeworld \
+	    DISTDIR=${RD}/trees
 	touch ${.TARGET}
 
 # Make and install the generic kernel(s).
@@ -943,9 +957,10 @@ cdrom.1:
 	@echo 'mfsroot_load="YES"' > ${CD_DISC2}/boot/loader.conf
 	@echo 'mfsroot_type="mfs_root"' >> ${CD_DISC2}/boot/loader.conf
 	@echo 'mfsroot_name="/boot/mfsroot"' >> ${CD_DISC2}/boot/loader.conf
-.if exists(${HINTSFILE})
+.if exists(${RD}/trees/base/boot/device.hints)
 	# Break the link to device.hints so we can modify it
-	@cp -f ${HINTSFILE} ${CD_DISC2}/boot/device.hints
+	@rm -f ${CD_DISC2}/boot/device.hints
+	@cp ${RD}/trees/base/boot/device.hints ${CD_DISC2}/boot/device.hints
 .if ${TARGET} == "i386" || ${TARGET_ARCH} == "amd64"
 	@echo 'hint.atkbd.0.flags="0x1"' >> ${CD_DISC2}/boot/device.hints
 .endif
