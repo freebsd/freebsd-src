@@ -68,8 +68,10 @@ subsystem.
 can cause severe system crashes and loss of data if used improperly, please
 exercise caution when using this command!
 .Pp
-.Nm
-supports the following commands:
+The
+.Ar channel
+argument is the number of the ata channel on which to operate.
+The following commands are supported:
 .Bl -tag -width "attach"
 .It Ic attach
 Attach an ATA
@@ -122,7 +124,7 @@ Show info about all attached devices on all active controllers.
 The
 .Nm
 utility first appeared in
-.Fx 5.0 .
+.Fx 4.6 .
 .Sh AUTHORS
 .An -nosplit
 The
