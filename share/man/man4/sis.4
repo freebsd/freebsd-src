@@ -44,10 +44,27 @@ The
 .Nm
 driver provides support for PCI ethernet adapters and embedded
 controllers based on the Silicon Integrated Systems SiS 900
-and SiS 7016 fast ethernet controller chips, as well as support
-for adapters based on the National Semiconductor DP83815 (MacPhyter)
-PCI ethernet controller chip, including the Netgear FA311-TX and
-FA312-TX.
+and SiS 7016 fast ethernet controller chips, including:
+.Pp
+.Bl -bullet -compact -offset indent
+.It
+@Nifty FNECHARD IFC USUP-TX
+.It
+MELCO LGY-PCI-TXC
+.It
+SiS 630, 635, and 735 motherboard chipsets
+.El
+.Pp
+This driver also supports
+adapters based on the National Semiconductor DP83815 (MacPhyter)
+PCI ethernet controller chip, such as:
+.Pp
+.Bl -bullet -compact -offset indent
+.It
+Netgear FA311-TX
+.It
+Netgear FA312-TX
+.El
 .Pp
 The SiS 900 is a 100Mbps ethernet MAC and MII-compliant transceiver
 in a single package.
