@@ -255,6 +255,7 @@ acpi_cpu_attach(device_t dev)
 static void
 acpi_cpu_init_throttling(void *arg)
 {
+    int cpu_temp_speed;
 
     ACPI_LOCK;
 
@@ -267,6 +268,14 @@ acpi_cpu_init_throttling(void *arg)
     cpu_economy_state = cpu_performance_state / 2;
     if (cpu_economy_state == 0)		/* 0 is 'reserved' */
 	cpu_economy_state++;
+    if (TUNABLE_INT_FETCH("hw.acpi.cpu.performance_speed",
+	&cpu_temp_speed) && cpu_temp_speed > 0 &&
+	cpu_temp_speed <= cpu_max_state)
+	cpu_performance_state = cpu_temp_speed;
+    if (TUNABLE_INT_FETCH("hw.acpi.cpu.economy_speed",
+	&cpu_temp_speed) && cpu_temp_speed > 0 &&
+	cpu_temp_speed <= cpu_max_state)
+	cpu_economy_state = cpu_temp_speed;
 
     /* register performance profile change handler */
     EVENTHANDLER_REGISTER(powerprofile_change, acpi_cpu_powerprofile, NULL, 0);
