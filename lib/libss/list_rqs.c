@@ -40,7 +40,11 @@ ss_list_requests(argc, argv, sci_idx, info_ptr)
 #else
     int (*func)();
 #endif
+#ifdef POSIX
+    int waitb;
+#else
     union wait waitb;
+#endif
 
     DONT_USE(argc);
     DONT_USE(argv);
