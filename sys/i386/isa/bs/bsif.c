@@ -155,6 +155,7 @@ bsprobe(parent, self, aux)
 		return rv;
 	}
 	bzero(bsc, sizeof(struct bs_softc));
+	callout_handle_init(&bsc->timeout_ch);
 	bscdata[unit] = bsc;
 	bsc->unit = unit;
 #endif	/* __FreeBSD__ */
