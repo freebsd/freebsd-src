@@ -17,6 +17,8 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <fcntl.h>
+#include <limits.h>
 #include "error.h"
 #include "options.h"
 
@@ -30,7 +32,9 @@ int delete_after = 0;		/* Delete deltas after ctm applies them. */
 void apply_complete(void);
 int read_piece(char *input_file);
 int combine_if_complete(char *delta, int pce, int npieces);
+int combine(char *delta, int npieces, char *dname, char *pname, char *tname);
 int decode_line(char *line, char *out_buf);
+int lock_file(char *name);
 
 /*
  * If given a '-p' flag, read encoded delta pieces from stdin or file
@@ -51,11 +55,13 @@ main(int argc, char **argv)
     {
     char *log_file = NULL;
     int status = 0;
+    int fork_ctm = 0;
 
     err_prog_name(argv[0]);
 
-    OPTIONS("[-D] [-p piecedir] [-d deltadir] [-b basedir] [-l log] [file ...]")
+    OPTIONS("[-Df] [-p piecedir] [-d deltadir] [-b basedir] [-l log] [file ...]")
 	FLAG('D', delete_after)
+	FLAG('f', fork_ctm)
 	STRING('p', piece_dir)
 	STRING('d', delta_dir)
 	STRING('b', base_dir)
@@ -71,6 +77,9 @@ main(int argc, char **argv)
     if (log_file != NULL)
 	err_set_log(log_file);
 
+    /*
+     * Digest each file in turn, or just stdin if no files were given.
+     */
     if (argc <= 1)
 	{
 	if (piece_dir != NULL)
@@ -82,8 +91,20 @@ main(int argc, char **argv)
 	    status |= read_piece(*argv);
 	}
 
+    /*
+     * Maybe it's time to look for and apply completed deltas with ctm.
+     *
+     * Shall we report back to sendmail immediately, and let a child do
+     * the work?  Sendmail will be waiting for us to complete, delaying
+     * other mail, and possibly some intermediate process (like MH slocal)
+     * will terminate us if we take too long!
+     *
+     * If fork() fails, it's unlikely we'll be able to run ctm, so give up.
+     * Also, the child exit status is unimportant.
+     */
     if (base_dir != NULL)
-	apply_complete();
+	if (!fork_ctm || fork() == 0)
+	    apply_complete();
 
     return status;
     }
@@ -109,23 +130,42 @@ void
 apply_complete()
     {
     int i, dn;
+    int lfd;
     FILE *fp, *ctm;
     struct stat sb;
     char class[20];
     char delta[30];
-    char fname[1000];
-    char buf[2000];
     char junk[2];
-    char here[1000];
+    char fname[PATH_MAX];
+    char here[PATH_MAX];
+    char buf[PATH_MAX*2];
 
+    /*
+     * Grab a lock on the ctm mutex file so that we can be sure we are
+     * working alone, not fighting another ctm_rmail!
+     */
+    strcpy(fname, delta_dir);
+    strcat(fname, "/.mutex_apply");
+    if ((lfd = lock_file(fname)) < 0)
+	return;
+
+    /*
+     * Find out which delta ctm needs next.
+     */
     sprintf(fname, "%s/%s", base_dir, CTM_STATUS);
     if ((fp = fopen(fname, "r")) == NULL)
+	{
+	close(lfd);
 	return;
+	}
 
     i = fscanf(fp, "%s %d %c", class, &dn, junk);
     fclose(fp);
     if (i != 2)
+	{
+	close(lfd);
 	return;
+	}
 
     /*
      * We might need to convert the delta filename to an absolute pathname.
@@ -151,14 +191,13 @@ apply_complete()
 	mk_delta_name(fname, delta);
 
 	if (stat(fname, &sb) < 0)
-	    return;
+	    break;
 
-	sprintf(buf, "(cd %s && /usr/sbin/ctm %s%s) 2>&1", 
-	    base_dir, here, fname);
+	sprintf(buf, "(cd %s && ctm %s%s) 2>&1", base_dir, here, fname);
 	if ((ctm = popen(buf, "r")) == NULL)
 	    {
 	    err("ctm failed to apply %s", delta);
-	    return;
+	    break;
 	    }
 
 	while (fgets(buf, sizeof(buf), ctm) != NULL)
@@ -172,7 +211,7 @@ apply_complete()
 	if (pclose(ctm) != 0)
 	    {
 	    err("ctm failed to apply %s", delta);
-	    return;
+	    break;
 	    }
 
 	if (delete_after)
@@ -180,6 +219,11 @@ apply_complete()
 
 	err("%s applied%s", delta, delete_after ? " and deleted" : "");
 	}
+
+    /*
+     * Closing the lock file clears the lock.
+     */
+    close(lfd);
     }
 
 
@@ -204,6 +248,7 @@ read_piece(char *input_file)
     int status = 0;
     FILE *ifp, *ofp = 0;
     int decoding = 0;
+    int got_one = 0;
     int line_no = 0;
     int i, n;
     int pce, npieces;
@@ -212,8 +257,8 @@ read_piece(char *input_file)
     char out_buf[200];
     char line[200];
     char delta[30];
-    char pname[1000];
-    char tname[1000];
+    char pname[PATH_MAX];
+    char tname[PATH_MAX];
     char junk[2];
 
     ifp = stdin;
@@ -241,8 +286,15 @@ read_piece(char *input_file)
 	    while ((s = strchr(delta, '/')) != NULL)
 		*s = '_';
 
-	    mk_piece_name(pname, delta, pce, npieces);
-	    sprintf(tname,"%s.%d.tmp",pname,getpid());
+	    got_one++;
+	    strcpy(tname, piece_dir);
+	    strcat(tname, "/p.XXXXXX");
+	    if (mktemp(tname) == NULL)
+		{
+		err("*mktemp: '%s'", tname);
+		status++;
+		continue;
+		}
 	    if ((ofp = fopen(tname, "w")) == NULL)
 		{
 		err("cannot open '%s' for writing", tname);
@@ -282,9 +334,11 @@ read_piece(char *input_file)
 		continue;
 		}
 
+	    mk_piece_name(pname, delta, pce, npieces);
 	    if (rename(tname, pname) < 0)
 		{
-		err("error renaming %s to %s",tname,pname);
+		err("*rename: '%s' to '%s'", tname, pname);
+		err("%s %d/%d lost!", delta, pce, npieces);
 		unlink(tname);
 		status++;
 		continue;
@@ -301,13 +355,13 @@ read_piece(char *input_file)
 	 * Must be a line of encoded data.  Decode it, sum it, and save it.
 	 */
 	n = decode_line(line, out_buf);
-	if (n < 0)
+	if (n <= 0)
 	    {
 	    err("line %d: illegal character: '%c'", line_no, line[-n]);
 	    err("%s %d/%d discarded", delta, pce, npieces);
 
 	    fclose(ofp);
-	    unlink(pname);
+	    unlink(tname);
 
 	    status++;
 	    decoding = 0;
@@ -326,7 +380,7 @@ read_piece(char *input_file)
 	err("%s %d/%d discarded", delta, pce, npieces);
 
 	fclose(ofp);
-	unlink(pname);
+	unlink(tname);
 
 	status++;
 	}
@@ -340,6 +394,12 @@ read_piece(char *input_file)
     if (input_file != NULL)
 	fclose(ifp);
 
+    if (!got_one)
+	{
+	err("message contains no delta");
+	status++;
+	}
+
     return (status != 0);
     }
 
@@ -351,32 +411,19 @@ read_piece(char *input_file)
 int
 combine_if_complete(char *delta, int pce, int npieces)
     {
-    int i;
-    FILE *dfp, *pfp;
-    int c;
+    int i, e;
+    int lfd;
     struct stat sb;
-    char pname[1000];
-    char dname[1000];
+    char pname[PATH_MAX];
+    char dname[PATH_MAX];
+    char tname[PATH_MAX];
 
     /*
-     * All here?
-     */
-    for (i = 1; i <= npieces; i++)
-	{
-	if (i == pce)
-	    continue;
-	mk_piece_name(pname, delta, i, npieces);
-	if (stat(pname, &sb) < 0)
-	    return 1;
-	}
-
-    mk_delta_name(dname, delta);
-
-    /*
-     * We can probably just rename() it in to place if it is a small delta.
+     * We can probably just rename() it into place if it is a small delta.
      */
     if (npieces == 1)
 	{
+	mk_delta_name(dname, delta);
 	mk_piece_name(pname, delta, 1, 1);
 	if (rename(pname, dname) == 0)
 	    {
@@ -385,14 +432,70 @@ combine_if_complete(char *delta, int pce, int npieces)
 	    }
 	}
 
-    if ((dfp = fopen(dname, "w")) == NULL)
+    /*
+     * Grab a lock on the reassembly mutex file so that we can be sure we are
+     * working alone, not fighting another ctm_rmail!
+     */
+    strcpy(tname, delta_dir);
+    strcat(tname, "/.mutex_build");
+    if ((lfd = lock_file(tname)) < 0)
+	return 0;
+
+    /*
+     * Are all of the pieces present?  Of course the current one is,
+     * unless all pieces are missing because another ctm_rmail has
+     * processed them already.
+     */
+    for (i = 1; i <= npieces; i++)
 	{
-	err("cannot open '%s' for writing", dname);
+	if (i == pce)
+	    continue;
+	mk_piece_name(pname, delta, i, npieces);
+	if (stat(pname, &sb) < 0)
+	    {
+	    close(lfd);
+	    return 1;
+	    }
+	}
+
+    /*
+     * Stick them together.  Let combine() use our file name buffers, since
+     * we're such good buddies. :-)
+     */
+    e = combine(delta, npieces, dname, pname, tname);
+    close(lfd);
+    return e;
+    }
+
+
+/*
+ * Put the pieces together to form a delta.
+ * Returns 1 on success, and 0 on failure.
+ * Note: dname, pname, and tname are room for some file names that just
+ * happened to by lying around in the calling routine.  Waste not, want not!
+ */
+int
+combine(char *delta, int npieces, char *dname, char *pname, char *tname)
+    {
+    FILE *dfp, *pfp;
+    int i, n, e;
+    char buf[BUFSIZ];
+
+    strcpy(tname, delta_dir);
+    strcat(tname, "/d.XXXXXX");
+    if (mktemp(tname) == NULL)
+	{
+	err("*mktemp: '%s'", tname);
+	return 0;
+	}
+    if ((dfp = fopen(tname, "w")) == NULL)
+	{
+	err("cannot open '%s' for writing", tname);
 	return 0;
 	}
 
     /*
-     * Ok, the hard way.  Reconstruct the delta by reading each piece in order.
+     * Reconstruct the delta by reading each piece in order.
      */
     for (i = 1; i <= npieces; i++)
 	{
@@ -401,22 +504,38 @@ combine_if_complete(char *delta, int pce, int npieces)
 	    {
 	    err("cannot open '%s' for reading", pname);
 	    fclose(dfp);
-	    unlink(dname);
+	    unlink(tname);
 	    return 0;
 	    }
-	while ((c = getc(pfp)) != EOF)
-	    putc(c, dfp);
+	while ((n = fread(buf, sizeof(char), sizeof(buf), pfp)) != 0)
+	    fwrite(buf, sizeof(char), n, dfp);
+	e = ferror(pfp);
 	fclose(pfp);
+	if (e)
+	    {
+	    err("error reading '%s'", pname);
+	    fclose(dfp);
+	    unlink(tname);
+	    return 0;
+	    }
 	}
     fflush(dfp);
-    if (ferror(dfp))
+    e = ferror(dfp);
+    fclose(dfp);
+    if (e)
 	{
-	err("error writing '%s'", dname);
-	fclose(dfp);
-	unlink(dname);
+	err("error writing '%s'", tname);
+	unlink(tname);
 	return 0;
 	}
-    fclose(dfp);
+
+    mk_delta_name(dname, delta);
+    if (rename(tname, dname) < 0)
+	{
+	err("*rename: '%s' to '%s'", tname, dname);
+	unlink(tname);
+	return 0;
+	}
 
     /*
      * Throw the pieces away.
@@ -424,7 +543,8 @@ combine_if_complete(char *delta, int pce, int npieces)
     for (i = 1; i <= npieces; i++)
 	{
 	mk_piece_name(pname, delta, i, npieces);
-	unlink(pname);
+	if (unlink(pname) < 0)
+	    err("*unlink: '%s'", pname);
 	}
 
     err("%s complete", delta);
@@ -499,4 +619,29 @@ decode_line(char *line, char *out_buf)
 	return op - (unsigned char *)out_buf;
     else
 	return -(ip - (unsigned char *)line);
+    }
+
+
+/*
+ * Create and lock the given file.
+ *
+ * Clearing the lock is as simple as closing the file descriptor we return.
+ */
+int
+lock_file(char *name)
+    {
+    int lfd;
+
+    if ((lfd = open(name, O_WRONLY|O_CREAT, 0600)) < 0)
+	{
+	err("*open: '%s'", name);
+	return -1;
+	}
+    if (flock(lfd, LOCK_EX) < 0)
+	{
+	close(lfd);
+	err("*flock: '%s'", name);
+	return -1;
+	}
+    return lfd;
     }

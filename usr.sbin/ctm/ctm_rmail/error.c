@@ -1,7 +1,22 @@
+/*
+ * Routines for logging error messages or other informative messages.
+ *
+ * Log messages can easily contain the program name, a time stamp, system
+ * error messages, and arbitrary printf-style strings, and can be directed
+ * to stderr or a log file.
+ *
+ * Author: Stephen McKay
+ *
+ * NOTICE: This is free software.  I hope you get some use from this program.
+ * In return you should think about all the nice people who give away software.
+ * Maybe you should write some free software too.
+ */
+
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
 #include <time.h>
+#include <errno.h>
 #include "error.h"
 
 static FILE *error_fp = NULL;
@@ -38,6 +53,9 @@ err_prog_name(char *name)
 
 /*
  * Log an error.
+ *
+ * A leading '*' in the message format means we want the system errno
+ * decoded and appended.
  */
 void
 err(char *fmt, ...)
@@ -46,6 +64,8 @@ err(char *fmt, ...)
     time_t now;
     struct tm *tm;
     FILE *fp;
+    int x = errno;
+    int want_errno;
 
     if ((fp = error_fp) == NULL)
 	{
@@ -61,9 +81,16 @@ err(char *fmt, ...)
 	    tm->tm_mon+1, tm->tm_mday, tm->tm_hour, tm->tm_min);
 	}
 
+    want_errno = 0;
+    if (*fmt == '*')
+	want_errno++, fmt++;
+
     va_start(ap, fmt);
     vfprintf(fp, fmt, ap);
     va_end(ap);
+
+    if (want_errno)
+	fprintf(fp, ": %s", strerror(x));
 
     fprintf(fp, "\n");
     fflush(fp);
