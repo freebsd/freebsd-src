@@ -719,31 +719,8 @@ ia64_init(void)
 	/*
 	 * Initialize error message buffer (at end of core).
 	 */
-	{
-		size_t sz = round_page(MSGBUF_SIZE);
-		int i = phys_avail_cnt - 2;
-
-		/* shrink so that it'll fit in the last segment */
-		if (phys_avail[i+1] - phys_avail[i] < sz)
-			sz = phys_avail[i+1] - phys_avail[i];
-
-		phys_avail[i+1] -= sz;
-		msgbufp = (struct msgbuf*) IA64_PHYS_TO_RR7(phys_avail[i+1]);
-
-		msgbufinit(msgbufp, sz);
-
-		/* Remove the last segment if it now has no pages. */
-		if (phys_avail[i] == phys_avail[i+1]) {
-			phys_avail[i] = 0;
-			phys_avail[i+1] = 0;
-		}
-
-		/* warn if the message buffer had to be shrunk */
-		if (sz != round_page(MSGBUF_SIZE))
-			printf("WARNING: %ld bytes not available for msgbuf in last cluster (%ld used)\n",
-			    round_page(MSGBUF_SIZE), sz);
-
-	}
+	msgbufp = (struct msgbuf *)pmap_steal_memory(MSGBUF_SIZE);
+	msgbufinit(msgbufp, MSGBUF_SIZE);
 
 	proc_linkup(&proc0, &ksegrp0, &kse0, &thread0);
 	/*
