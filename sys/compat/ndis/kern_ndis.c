@@ -56,8 +56,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/rman.h>
 
-#include <vm/uma.h>
-
 #include <net/if.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
@@ -120,7 +118,6 @@ static int ndis_enlarge_thrqueue(int);
 static int ndis_shrink_thrqueue(int);
 static void ndis_runq(void *);
 
-static uma_zone_t ndis_buffer_zone;
 struct mtx ndis_thr_mtx;
 struct mtx ndis_req_mtx;
 static STAILQ_HEAD(ndisqhead, ndis_req) ndis_ttodo;
@@ -160,11 +157,6 @@ ndis_modevent(module_t mod, int cmd, void *arg)
 			patch++;
 		}
 
-		/* Initialize TX buffer UMA zone. */
-		ndis_buffer_zone = uma_zcreate("NDIS buffer",
-		    sizeof(struct mdl) + (sizeof(vm_offset_t *) * 16),
-		    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
-
 		ndis_create_kthreads();
 
 		TAILQ_INIT(&ndis_devhead);
@@ -186,9 +178,6 @@ ndis_modevent(module_t mod, int cmd, void *arg)
 				windrv_unwrap(patch->ipt_wrap);
 				patch++;
 			}
-
-			/* Remove zones */
-			uma_zdestroy(ndis_buffer_zone);
 		}
 		break;
 	case MOD_UNLOAD:
@@ -208,8 +197,6 @@ ndis_modevent(module_t mod, int cmd, void *arg)
 			patch++;
 		}
 
-		/* Remove zones */
-		uma_zdestroy(ndis_buffer_zone);
 		break;
 	default:
 		error = EINVAL;
@@ -878,7 +865,7 @@ ndis_free_bufs(b0)
 
 	while(b0 != NULL) {
 		next = b0->mdl_next;
-		uma_zfree (ndis_buffer_zone, b0);
+		IoFreeMdl(b0);
 		b0 = next;
 	}
 
@@ -1100,7 +1087,7 @@ ndis_mtop(m0, p)
 	for (m = m0; m != NULL; m = m->m_next) {
 		if (m->m_len == 0)
 			continue;
-		buf = uma_zalloc(ndis_buffer_zone, M_NOWAIT | M_ZERO);
+		buf = IoAllocateMdl(m->m_data, m->m_len, FALSE, FALSE, NULL);
 		if (buf == NULL) {
 			ndis_free_packet(*p);
 			*p = NULL;

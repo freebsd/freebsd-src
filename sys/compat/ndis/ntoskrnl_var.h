@@ -100,6 +100,10 @@ typedef struct mdl mdl, ndis_buffer;
 #define MDL_NETWORK_HEADER		0x1000
 #define MDL_MAPPING_CAN_FAIL		0x2000
 #define MDL_ALLOCATED_MUST_SUCCEED	0x4000
+#define MDL_ZONE_ALLOCED		0x8000	/* BSD private */
+
+#define MDL_ZONE_PAGES 16
+#define MDL_ZONE_SIZE (sizeof(mdl) + (sizeof(vm_offset_t) * MDL_ZONE_PAGES))
 
 /* Note: assumes x86 page size of 4K. */
 
