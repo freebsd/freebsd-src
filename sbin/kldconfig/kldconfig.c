@@ -142,7 +142,7 @@ setpath(struct pathhead *pathq)
 	if (sysctl(mib, miblen, NULL, NULL, newpath, strlen(newpath)+1) == -1)
 		err(1, "setting path: sysctl(%s)", pathctl);
 
-	if (modpath)
+	if (modpath != NULL)
 		free(modpath);
 	modpath = newpath;
 }

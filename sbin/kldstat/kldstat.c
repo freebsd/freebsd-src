@@ -92,7 +92,7 @@ main(int argc, char** argv)
     int c;
     int verbose = 0;
     int fileid = 0;
-    char* filename = 0;
+    char* filename = NULL;
 
     while ((c = getopt(argc, argv, "i:n:v")) != -1)
 	switch (c) {
@@ -114,13 +114,13 @@ main(int argc, char** argv)
     if (argc != 0)
 	usage();
 
-    if (filename) {
+    if (filename != NULL) {
 	if ((fileid = kldfind(filename)) < 0)
 	    err(1, "can't find file %s", filename);
     }
 
     printf("Id Refs Address%*c Size     Name\n", POINTER_WIDTH - 7, ' ');
-    if (fileid)
+    if (fileid != 0)
 	printfile(fileid, verbose);
     else
 	for (fileid = kldnext(0); fileid > 0; fileid = kldnext(fileid))
