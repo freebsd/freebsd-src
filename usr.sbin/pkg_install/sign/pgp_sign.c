@@ -235,8 +235,9 @@ return;
 		/* Retrieve the pgp passphrase */
 	p = getpass("Enter passphrase:");
 
-		/* somewhat kludgy code to get the passphrase to pgp, see 
-		   pgp documentation for the gore
+		/*
+		 * Somewhat kludgy code to get the passphrase to pgp, see 
+		 * pgp documentation for the gore
 		 */
 	if (pipe(fd) != 0)	{
 		perror("pkg_sign");
@@ -249,8 +250,9 @@ return;
 	case 0:
 		{
 			(void)close(fd[0]);
-				/* the child fills the pipe with copies of the passphrase.
-				   Expect violent death when father exits.
+				/*
+				 * The child fills the pipe with copies of the passphrase.
+				 * Expect violent death when father exits.
 				 */
 			printf("Child process %d stuffing passphrase in pipe:\n", getpid());
 			for(;;) {

@@ -50,11 +50,12 @@ struct sha1_checker {
 #define SHA1_TEMPLATE "SHA1 (%s) = "
 #define BUFSIZE	(MAXID+sizeof(SHA1_TEMPLATE)+2*SHA_DIGEST_LENGTH+1)
 
-/* Finalize SHA1 checksum for our sha1_context into result 
-	(size at least BUFSIZE).  Returns the length of the checksum
-   marker, e.g.,   SHA1 (id) = xxxxxxxxx
-                               ^here 
-	Return 0 for errors.
+/*
+ * Finalize SHA1 checksum for our sha1_context into result 
+ * (size at least BUFSIZE).  Returns the length of the checksum
+ * marker, e.g.,   SHA1 (id) = xxxxxxxxx
+ *                             ^here 
+ * Return 0 for errors.
  */
 size_t 
 sha1_build_checksum(result, n)
