@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.142 1997/11/04 09:28:54 phk Exp $
+ *	$Id: wd.c,v 1.143 1997/11/07 08:52:45 phk Exp $
  */
 
 /* TODO:
@@ -829,7 +829,7 @@ wdstart(int ctrlr)
 	/* if starting a multisector transfer, or doing single transfers */
 	if (du->dk_skip == 0 || (du->dk_flags & DKFL_SINGLE)) {
 		u_int	command;
-		u_int	count;
+		u_int	count1;
 		long	cylin, head, sector;
 
 		cylin = blknum / secpercyl;
@@ -843,14 +843,14 @@ wdstart(int ctrlr)
 		if (wdtab[ctrlr].b_errcnt && (bp->b_flags & B_READ) == 0)
 			du->dk_bc += DEV_BSIZE;
 
-		count = howmany( du->dk_bc, DEV_BSIZE);
+		count1 = howmany( du->dk_bc, DEV_BSIZE);
 
 		du->dk_flags &= ~DKFL_MULTI;
 
 #ifdef B_FORMAT
 		if (bp->b_flags & B_FORMAT) {
 			command = WDCC_FORMAT;
-			count = lp->d_nsectors;
+			count1 = lp->d_nsectors;
 			sector = lp->d_gap3 - 1;	/* + 1 later */
 		} else
 #endif
@@ -859,7 +859,7 @@ wdstart(int ctrlr)
 			if (du->dk_flags & DKFL_SINGLE) {
 				command = (bp->b_flags & B_READ)
 					  ? WDCC_READ : WDCC_WRITE;
-				count = 1;
+				count1 = 1;
 				du->dk_currentiosize = 1;
 			} else {
 				if((du->dk_flags & DKFL_USEDMA) &&
@@ -873,8 +873,8 @@ wdstart(int ctrlr)
 						command = WDCC_READ_DMA;
 					else
 						command = WDCC_WRITE_DMA;
-					du->dk_currentiosize = count;
-				} else if( (count > 1) && (du->dk_multi > 1)) {
+					du->dk_currentiosize = count1;
+				} else if( (count1 > 1) && (du->dk_multi > 1)) {
 					du->dk_flags |= DKFL_MULTI;
 					if( bp->b_flags & B_READ) {
 						command = WDCC_READ_MULTI;
@@ -882,8 +882,8 @@ wdstart(int ctrlr)
 						command = WDCC_WRITE_MULTI;
 					}
 					du->dk_currentiosize = du->dk_multi;
-					if( du->dk_currentiosize > count)
-						du->dk_currentiosize = count;
+					if( du->dk_currentiosize > count1)
+						du->dk_currentiosize = count1;
 				} else {
 					if( bp->b_flags & B_READ) {
 						command = WDCC_READ;
@@ -918,7 +918,7 @@ wdstart(int ctrlr)
 					   du->dk_bc,
 					   bp->b_flags & B_READ);
 		}
-		while (wdcommand(du, cylin, head, sector, count, command)
+		while (wdcommand(du, cylin, head, sector, count1, command)
 		       != 0) {
 			wderror(bp, du,
 				"wdstart: timeout waiting to give command");
