@@ -39,10 +39,6 @@
 
 #include <sys/queue.h>
 
-#ifdef _KERNEL
-#include <sys/_label.h>
-#endif
-
 /*
  * Overlay for ip header used by other protocols (tcp, udp).
  */
@@ -71,7 +67,7 @@ struct ipq {
 	u_char	ipq_nfrags;		/* # frags in this packet */
 	u_int32_t ipq_div_info;		/* ipfw divert port & flags */
 	u_int16_t ipq_div_cookie;	/* ipfw divert cookie */
-	struct label ipq_label;		/* MAC label */
+	struct label *ipq_label;		/* MAC label */
 };
 #endif /* _KERNEL */
 
