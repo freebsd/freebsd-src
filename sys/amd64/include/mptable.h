@@ -2431,8 +2431,6 @@ struct proc*	checkstate_curproc[NCPU];
 int		checkstate_cpustate[NCPU];
 u_long		checkstate_pc[NCPU];
 
-extern long	cp_time[CPUSTATES];
-
 #define PC_TO_INDEX(pc, prof)				\
         ((int)(((u_quad_t)((pc) - (prof)->pr_off) *	\
             (u_quad_t)((prof)->pr_scale)) >> 16) & ~1)
