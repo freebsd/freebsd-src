@@ -229,6 +229,10 @@ usbd_devinfo_vp(usbd_device_handle dev, char *v, char *p)
 
 	vendor = usbd_get_string(dev, udd->iManufacturer, v);
 	product = usbd_get_string(dev, udd->iProduct, p);
+	if (vendor && !*vendor)
+		vendor = NULL;
+	if (product && !*product)
+		product = NULL;
 #ifdef USBVERBOSE
 	if (vendor == NULL || product == NULL) {
 		for(kdp = usb_knowndevs;
