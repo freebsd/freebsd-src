@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.6 1993/09/06 16:17:37 rgrimes Exp $
+#	$Id: LINT,v 1.7 1993/09/13 03:15:26 rgrimes Exp $
 #
 
 machine		"i386"
@@ -33,7 +33,7 @@ options		XSERVER			#xserver
 #
 # options that are in sys/conf/files
 #
-pseudo-device	bpfilter		#berkeley packet filter
+pseudo-device	bpfilter	4	#berkeley packet filter
 options		CCITT
 device		cd0			#scsi cdrom driver
 device		cd1
