@@ -226,7 +226,8 @@ brk_string(char *str, int *store_argc, Boolean expand)
 		*t++ = (char)ch;
 	}
 done:	argv[argc] = NULL;
-	*store_argc = argc;
+	if (store_argc != NULL)
+		*store_argc = argc;
 	return (argv);
 }
 
