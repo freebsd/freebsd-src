@@ -43,10 +43,10 @@
   *
   **********************************************************************
   * PS.	The Hacker's Guide to VoxWare available from
-  *     nic.funet.fi:pub/OS/Linux/ALPHA/sound. The file is
+  *     nic.funet.fi:pub/Linux/ALPHA/sound. The file is
   *	snd-sdk-doc-0.1.ps.gz (gzipped postscript). It contains
   *	some useful information about programming with VoxWare.
-  *	(NOTE! The pub/OS/Linux/ALPHA/ directories are hidden. You have
+  *	(NOTE! The pub/Linux/ALPHA/ directories are hidden. You have
   *	to cd inside them before the files are accessible.)
   **********************************************************************
   */
