@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.9 1993/11/28 09:28:54 davidg Exp $
+ *	$Id: trap.c,v 1.10 1993/12/03 05:07:45 alm Exp $
  */
 
 /*
@@ -81,7 +81,6 @@ void	write_gs	__P((/* promoted u_short */ int gs));
 
 struct	sysent sysent[];
 int	nsysent;
-int dostacklimits;
 unsigned rcr2();
 extern short cpl;
 
@@ -117,6 +116,7 @@ char *trap_msg[] = {
 	"stack fault",				/* 27 T_STKFLT */
 };
 
+#define pde_v(v) (PTD[((v)>>PD_SHIFT)&1023].pd_v)
 
 /*
  * trap(frame):
@@ -287,10 +287,11 @@ copyfault:
 		register vm_offset_t va;
 		register struct vmspace *vm = p->p_vmspace;
 		register vm_map_t map;
-		int rv;
+		int rv = 0;
 		vm_prot_t ftype;
 		extern vm_map_t kernel_map;
-		unsigned nss,v;
+		unsigned nss;
+		char *v;
 
 		va = trunc_page((vm_offset_t)eva);
 		/*
@@ -323,21 +324,45 @@ copyfault:
 		nss = 0;
 		if ((caddr_t)va >= vm->vm_maxsaddr
 			&& (caddr_t)va < (caddr_t)USRSTACK
-			&& map != kernel_map
-			&& dostacklimits) {
-			nss = clrnd(btoc((unsigned)vm->vm_maxsaddr
-				+ MAXSSIZ - (unsigned)va));
-			if (nss > btoc(p->p_rlimit[RLIMIT_STACK].rlim_cur)) {
-/*pg("trap rlimit %d, maxsaddr %x va %x ", nss, vm->vm_maxsaddr, va);*/
+			&& map != kernel_map) {
+			nss = roundup(USRSTACK - (unsigned)va, PAGE_SIZE);
+			if (nss > p->p_rlimit[RLIMIT_STACK].rlim_cur) {
 				rv = KERN_FAILURE;
 				goto nogo;
+			}
+
+			if (vm->vm_ssize && roundup(vm->vm_ssize << PGSHIFT,
+			    DFLSSIZ) < nss) {
+				int grow_amount;
+				/*
+				 * If necessary, grow the VM that the stack occupies
+				 * to allow for the rlimit. This allows us to not have
+				 * to allocate all of the VM up-front in execve (which
+				 * is expensive).
+				 * Grow the VM by the amount requested rounded up to
+				 * the nearest DFLSSIZ to provide for some hysteresis.
+				 */
+				grow_amount = roundup(nss, DFLSSIZ);
+				v = (char *)USRSTACK - roundup(vm->vm_ssize << PGSHIFT,
+				    DFLSSIZ) - grow_amount;
+				/*
+				 * If there isn't enough room to extend by DFLSSIZ, then
+				 * just extend to the maximum size
+				 */
+				if (v < vm->vm_maxsaddr) {
+					v = vm->vm_maxsaddr;
+					grow_amount = MAXSSIZ - (vm->vm_ssize << PGSHIFT);
+				}
+				if (vm_allocate(&vm->vm_map, &v, grow_amount, FALSE) !=
+				    KERN_SUCCESS) {
+					goto nogo;
+				}
 			}
 		}
 
 		/* check if page table is mapped, if not, fault it first */
-#define pde_v(v) (PTD[((v)>>PD_SHIFT)&1023].pd_v)
 		if (!pde_v(va)) {
-			v = trunc_page(vtopte(va));
+			v = (char *)trunc_page(vtopte(va));
 			rv = vm_fault(map, v, ftype, FALSE);
 			if (rv != KERN_SUCCESS) goto nogo;
 			/* check if page table fault, increment wiring */
@@ -348,13 +373,23 @@ copyfault:
 			/*
 			 * XXX: continuation of rude stack hack
 			 */
+			nss = nss >> PGSHIFT;
 			if (nss > vm->vm_ssize)
 				vm->vm_ssize = nss;
+ 			/* 
+ 			 * va could be a page table address, if the fault
+ 			 * occurred from within copyout.  In that case,
+ 			 * we have to wire it. (EWS 12/11/93)
+ 			 */
+ 			if (ispt(va))
+ 				vm_map_pageable(map, va, round_page(va+1), FALSE);
 			va = trunc_page(vtopte(va));
-			/* for page table, increment wiring
-			   as long as not a page table fault as well */
+			/*
+			 * for page table, increment wiring
+			 * as long as not a page table fault as well
+			 */
 			if (!v && type != T_PAGEFLT)
-			  vm_map_pageable(map, va, round_page(va+1), FALSE);
+				vm_map_pageable(map, va, round_page(va+1), FALSE);
 			if (type == T_PAGEFLT)
 				return;
 			goto out;
@@ -370,9 +405,11 @@ nogo:
 			goto we_re_toast;
 		}
 		i = (rv == KERN_PROTECTION_FAILURE) ? SIGBUS : SIGSEGV;
+
+		/* kludge to pass faulting virtual address to sendsig */
 		ucode = type &~ T_USER;
 		frame.tf_err = eva;
-		     /* kludge to pass faulting virtual address to sendsig */
+
 		break;
 	    }
 
@@ -464,6 +501,7 @@ int trapwrite(addr)
 	struct proc *p;
 	vm_offset_t va;
 	struct vmspace *vm;
+	char *v;
 
 	va = trunc_page((vm_offset_t)addr);
 	/*
@@ -478,12 +516,38 @@ int trapwrite(addr)
 	p = curproc;
 	vm = p->p_vmspace;
 	if ((caddr_t)va >= vm->vm_maxsaddr
-	    && (caddr_t)va < (caddr_t)USRSTACK  /* EWS 11/27/93 */
-	    && dostacklimits) {
-		nss = clrnd(btoc((unsigned)vm->vm_maxsaddr + MAXSSIZ
-				 - (unsigned)va));
-		if (nss > btoc(p->p_rlimit[RLIMIT_STACK].rlim_cur))
+	    && (caddr_t)va < (caddr_t)USRSTACK) {
+		nss = roundup(USRSTACK - (unsigned)va, PAGE_SIZE);
+		if (nss > p->p_rlimit[RLIMIT_STACK].rlim_cur)
 			return (1);
+	
+		if (vm->vm_ssize && roundup(vm->vm_ssize << PGSHIFT,
+			DFLSSIZ) < nss) {
+			int grow_amount;
+			/*
+			 * If necessary, grow the VM that the stack occupies
+			 * to allow for the rlimit. This allows us to not have
+			 * to allocate all of the VM up-front in execve (which
+			 * is expensive).
+			 * Grow the VM by the amount requested rounded up to
+			 * the nearest DFLSSIZ to provide for some hysteresis.
+			 */
+			grow_amount = roundup(nss, DFLSSIZ);
+			v = (char *)USRSTACK - roundup(vm->vm_ssize << PGSHIFT, DFLSSIZ) -
+				grow_amount;
+			/*
+			 * If there isn't enough room to extend by DFLSSIZ, then
+			 * just extend to the maximum size
+			 */
+			if (v < vm->vm_maxsaddr) {
+				v = vm->vm_maxsaddr;
+				grow_amount = MAXSSIZ - (vm->vm_ssize << PGSHIFT);
+			}
+			if (vm_allocate(&vm->vm_map, &v, grow_amount, FALSE) !=
+			    KERN_SUCCESS) {
+				return(1);
+			}
+		}
 	}
 
 	if (vm_fault(&vm->vm_map, va, VM_PROT_READ | VM_PROT_WRITE, FALSE)
@@ -493,6 +557,7 @@ int trapwrite(addr)
 	/*
 	 * XXX: continuation of rude stack hack
 	 */
+	nss = nss >> PGSHIFT;
 	if (nss > vm->vm_ssize)
 		vm->vm_ssize = nss;
 
