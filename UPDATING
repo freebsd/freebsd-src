@@ -17,6 +17,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20040716:
+	The sound device drivers are renamed.  `sound' is always required,
+	while `snd_*' should be configured accordingly to your hardware.
+	Refer to NOTES for the detail of the drivers.
+
 20040710:
 	__FreeBSD_version bumped to 502122.
 
