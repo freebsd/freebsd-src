@@ -408,7 +408,7 @@ struct cluster_save {
 static __inline int
 buf_prewrite(struct vnode *vp, struct buf *bp)
 {
-	if (bioops.io_start)
+	if (bioops.io_prewrite)
 		return (*bioops.io_prewrite)(vp, bp);
 	else
 		return (0);
