@@ -35,7 +35,7 @@
  */
 #ifdef _THREAD_SAFE
 #include <pthread.h>
-#include "pthread_private.h"
+#include "thr_private.h"
 extern	int	errno;
 
 int * __error()

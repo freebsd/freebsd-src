@@ -38,7 +38,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
-#include "pthread_private.h"
+#include "thr_private.h"
 
 #define FLAGS_IN_SCHEDQ	\
 	(PTHREAD_FLAGS_IN_PRIOQ|PTHREAD_FLAGS_IN_WAITQ|PTHREAD_FLAGS_IN_WORKQ)

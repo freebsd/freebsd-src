@@ -33,7 +33,7 @@
  */
 #include <errno.h>
 #include <pthread.h>
-#include "pthread_private.h"
+#include "thr_private.h"
 
 static void	resume_common(struct pthread *);
 

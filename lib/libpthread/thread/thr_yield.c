@@ -32,7 +32,7 @@
  * $FreeBSD$
  */
 #include <pthread.h>
-#include "pthread_private.h"
+#include "thr_private.h"
 
 __weak_reference(_sched_yield, sched_yield);
 __weak_reference(_pthread_yield, pthread_yield);

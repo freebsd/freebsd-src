@@ -36,7 +36,7 @@
 #include <string.h>
 #include <errno.h>
 #include <pthread.h>
-#include "pthread_private.h"
+#include "thr_private.h"
 
 struct pthread_key {
 	spinlock_t	lock;

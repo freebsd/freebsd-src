@@ -33,7 +33,7 @@
  */
 #include <errno.h>
 #include <pthread.h>
-#include "pthread_private.h"
+#include "thr_private.h"
 
 __weak_reference(_pthread_mutexattr_setkind_np, pthread_mutexattr_setkind_np);
 __weak_reference(_pthread_mutexattr_getkind_np, pthread_mutexattr_getkind_np);

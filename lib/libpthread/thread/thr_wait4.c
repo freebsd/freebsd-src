@@ -36,7 +36,7 @@
 #include <errno.h>
 #include <sys/wait.h>
 #include <pthread.h>
-#include "pthread_private.h"
+#include "thr_private.h"
 
 __weak_reference(__wait4, wait4);
 

@@ -36,7 +36,7 @@
 #include <sys/signalvar.h>
 #include <errno.h>
 #include <pthread.h>
-#include "pthread_private.h"
+#include "thr_private.h"
 
 __weak_reference(_sigwait, sigwait);
 

@@ -35,7 +35,7 @@
 #include <sys/queue.h>
 #include <string.h>
 #include <pthread.h>
-#include "pthread_private.h"
+#include "thr_private.h"
 
 /* Prototypes: */
 static void pq_insert_prio_list(pq_queue_t *pq, int prio);

@@ -34,7 +34,7 @@
 #include <errno.h>
 #include <pthread.h>
 #include <pthread_np.h>
-#include "pthread_private.h"
+#include "thr_private.h"
 
 
 __weak_reference(_pthread_switch_add_np, pthread_switch_add_np);
