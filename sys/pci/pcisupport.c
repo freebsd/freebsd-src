@@ -1231,6 +1231,8 @@ static const char* vga_match(device_t dev)
 		switch (id >> 16) {
 		case 0x0004:
 			chip = "NM2160 laptop";	break;
+		case 0x0005:
+			chip = "MagicMedia 256AV"; break;
 		}
 		break;
 	case 0x121a:
