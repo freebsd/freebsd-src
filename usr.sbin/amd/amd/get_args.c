@@ -41,7 +41,7 @@
 static char sccsid[] = "@(#)get_args.c  8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: get_args.c,v 1.1.1.1.8.2 1997/09/03 06:27:03 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -116,7 +116,7 @@ char *v[];
 	char *logfile = 0;
 	char *sub_domain = 0;
 
-	while ((opt_ch = getopt(c, v, "mnprva:c:d:h:k:l:t:w:x:y:C:D:")) !=  -1)
+	while ((opt_ch = getopt(c, v, "mnprva:c:d:h:k:l:t:w:x:y:C:D:")) != -1)
 	switch (opt_ch) {
 	case 'a':
 		if (*optarg != '/')

@@ -53,7 +53,7 @@ char copyright[] = "\
 static char sccsid[] = "@(#)mk-amd-map.c	8.1 (Berkeley) 6/28/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mk-amd-map.c,v 1.1.1.1.8.2 1997/09/03 06:27:19 charnier Exp $";
 #endif /* not lint */
 
 #include "am.h"
@@ -250,7 +250,7 @@ char *argv[];
 	int usageflg = 0;
 	int ch;
 
-	while ((ch = getopt(argc, argv, "p")) !=  -1)
+	while ((ch = getopt(argc, argv, "p")) != -1)
 	switch (ch) {
 	case 'p':
 		printit = 1;

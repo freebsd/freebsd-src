@@ -47,7 +47,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)fsinfo.c    8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: fsinfo.c,v 1.1.1.1.8.2 1997/09/03 06:27:12 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -97,7 +97,7 @@ char *v[];
 	int usageflg = 0;
 	char *iptr = idvbuf;
 
-	while ((ch = getopt(c, v, "a:b:d:e:f:h:m:D:U:I:qv")) !=  -1)
+	while ((ch = getopt(c, v, "a:b:d:e:f:h:m:D:U:I:qv")) != -1)
 	switch (ch) {
 	case 'a':
 		autodir = optarg;
