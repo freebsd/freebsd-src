@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.48.2.20 1997/09/08 11:16:13 jkh Exp $
+ * $Id: tcpip.c,v 1.48.2.21 1997/09/17 13:33:36 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -211,7 +211,8 @@ tcpOpenDialog(Device *devp)
 
     save = savescr();
     /* If non-interactive, jump straight over the dialog crap and into config section */
-    if (variable_get(VAR_NONINTERACTIVE) && !variable_get("netInteractive")) {
+    if (variable_get(VAR_NONINTERACTIVE) &&
+	!variable_get(VAR_NETINTERACTIVE)) {
 	if (!hostname[0])
 	    msgConfirm("WARNING: hostname variable not set and is a non-optional\n"
 		       "parameter.  Please add this to your installation script\n"

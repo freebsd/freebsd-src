@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.70.2.17 1997/09/07 14:07:47 joerg Exp $
+ * $Id: disks.c,v 1.70.2.18 1997/09/11 17:21:12 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -87,8 +87,8 @@ print_chunks(Disk *d)
 		   "the Hardware Guide in the Documentation submenu or use the\n"
 		   "(G)eometry command to change it now.\n\n"
 		   "Remember: you need to enter whatever your BIOS thinks the\n"
-		   "geometry were!  For IDE, that's what you have told in the BIOS\n"
-		   "setup, for SCSI, it's the translation mode your controller is\n"
+		   "geometry is!  For IDE, it's what you were told in the BIOS\n"
+		   "setup. For SCSI, it's the translation mode your controller is\n"
 		   "using.  Do NOT use a ``physical geometry''.",
 	  d->bios_cyl, d->bios_hd, d->bios_sect, d->name);
 	Sanitize_Bios_Geom(d);

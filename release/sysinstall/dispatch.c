@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dispatch.c,v 1.5.2.16 1997/09/08 11:16:11 jkh Exp $
+ * $Id: dispatch.c,v 1.5.2.17 1997/09/16 18:58:53 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -173,7 +173,7 @@ dispatch_shutdown(dialogMenuItem *unused)
 static int
 dispatch_systemExecute(dialogMenuItem *unused)
 {
-    char *cmd = variable_get("command");
+    char *cmd = variable_get(VAR_COMMAND);
 
     if (cmd)
 	return systemExecute(cmd) ? DITEM_FAILURE : DITEM_SUCCESS;
