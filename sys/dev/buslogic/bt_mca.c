@@ -55,7 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/mca/mca_busreg.h>
 #include <dev/mca/mca_busvar.h>
 
-#include <i386/isa/isa_dma.h>
+#include <isa/isavar.h>
 
 #include <dev/buslogic/btreg.h>
 
