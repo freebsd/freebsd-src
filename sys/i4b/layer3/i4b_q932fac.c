@@ -26,12 +26,12 @@
  *
  *	i4b_q932fac.c - Q932 facility handling
  *	--------------------------------------
- *
- * $FreeBSD$
- *
  *      last edit-date: [Sat Mar  9 19:37:29 2002]
  *
  *---------------------------------------------------------------------------*/
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>

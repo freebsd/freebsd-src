@@ -26,12 +26,12 @@
  *
  *      i4b_l2.c - ISDN layer 2 (Q.921)
  *	-------------------------------
- *
- * $FreeBSD$
- *
  *      last edit-date: [Sat Mar  9 16:11:14 2002]
  *
  *---------------------------------------------------------------------------*/
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
