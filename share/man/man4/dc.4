@@ -244,7 +244,7 @@ the adapter back to the D0 (full power) state, but this may not be
 enough to return the driver to a fully operational condition.
 If
 you see this message at boot time and the driver fails to attach
-the device as a network interface, you will have to perform second
+the device as a network interface, you will have to perform a second
 warm boot to have the device properly configured.
 .Pp
 Note that this condition only occurs when warm booting from another
@@ -294,7 +294,7 @@ driver was written by
 .An Bill Paul Aq wpaul@ee.columbia.edu .
 .Sh BUGS
 The Macronix application notes claim that in order to put the
-chips in normal operation, the driver must write a certian magic
+chips in normal operation, the driver must write a certain magic
 number into the CSR16 register.
 The numbers are documented in
 the app notes, but the exact meaning of the bits is not.
