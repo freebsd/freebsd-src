@@ -717,70 +717,6 @@ pccard_function_disable(struct pccard_function *pf)
 	pf->sc->sc_enabled_count--;
 }
 
-#if 0
-/* XXX These functions are needed, but not like this XXX */
-int
-pccard_io_map(struct pccard_function *pf, int width, bus_addr_t offset,
-    bus_size_t size, struct pccard_io_handle *pcihp, int *windowp)
-{
-	int reg;
-
-	if (pccard_chip_io_map(pf->sc->pct, pf->sc->pch, width, offset, size,
-	    pcihp, windowp))
-		return (1);
-
-	/*
-	 * XXX in the multifunction multi-iospace-per-function case, this
-	 * needs to cooperate with io_alloc to make sure that the spaces
-	 * don't overlap, and that the ccr's are set correctly
-	 */
-
-	if (pccard_mfc(pf->sc)) {
-		long tmp, iosize;
-
-		if (pf->pf_mfc_iomax == 0) {
-			pf->pf_mfc_iobase = pcihp->addr + offset;
-			pf->pf_mfc_iomax = pf->pf_mfc_iobase + size;
-		} else {
-			/* this makes the assumption that nothing overlaps */
-			if (pf->pf_mfc_iobase > pcihp->addr + offset)
-				pf->pf_mfc_iobase = pcihp->addr + offset;
-			if (pf->pf_mfc_iomax < pcihp->addr + offset + size)
-				pf->pf_mfc_iomax = pcihp->addr + offset + size;
-		}
-
-		tmp = pf->pf_mfc_iomax - pf->pf_mfc_iobase;
-		/* round up to nearest (2^n)-1 */
-		for (iosize = 1; iosize >= tmp; iosize <<= 1)
-			;
-		iosize--;
-
-		pccard_ccr_write(pf, PCCARD_CCR_IOBASE0,
-		    pf->pf_mfc_iobase & 0xff);
-		pccard_ccr_write(pf, PCCARD_CCR_IOBASE1,
-		    (pf->pf_mfc_iobase >> 8) & 0xff);
-		pccard_ccr_write(pf, PCCARD_CCR_IOBASE2, 0);
-		pccard_ccr_write(pf, PCCARD_CCR_IOBASE3, 0);
-
-		pccard_ccr_write(pf, PCCARD_CCR_IOSIZE, iosize);
-
-		reg = pccard_ccr_read(pf, PCCARD_CCR_OPTION);
-		reg |= PCCARD_CCR_OPTION_ADDR_DECODE;
-		pccard_ccr_write(pf, PCCARD_CCR_OPTION, reg);
-	}
-	return (0);
-}
-
-void
-pccard_io_unmap(struct pccard_function *pf, int window)
-{
-
-	pccard_chip_io_unmap(pf->sc->pct, pf->sc->pch, window);
-
-	/* XXX Anything for multi-function cards? */
-}
-#endif
-
 /*
  * simulate the old "probe" routine.  In the new world order, the driver
  * needs to grab devices while in the old they were assigned to the device by
@@ -1174,27 +1110,31 @@ static void
 pccard_intr(void *arg)
 {
 	struct pccard_function *pf = (struct pccard_function*) arg;
-#ifdef COOKIE_FOR_WARNER
 	int reg;
-
-	if (pf->intr_handler == NULL)
-		return;
+	int doisr = 1;
 
 	/*
-	 * XXX The CCR_STATUS register bits used here are 
-	 * only valid for multi function cards.
+	 * MFC cards know if they interrupted, so we have to ack the
+	 * interrupt and call the ISR.  Non-MFC cards don't have these
+	 * bits, so they always get called.  Many non-MFC cards have
+	 * this bit set always upon read, but some do not.
+	 *
+	 * We always ack the interrupt, even if there's no ISR
+	 * for the card.  This is done on the theory that acking
+	 * the interrupt will pacify the card enough to keep an
+	 * interrupt storm from happening.  Of course this won't
+	 * help in the non-MFC case.
 	 */
-	reg = pccard_ccr_read(pf, PCCARD_CCR_STATUS);
-	if (reg & PCCARD_CCR_STATUS_INTR) {
-		pccard_ccr_write(pf, PCCARD_CCR_STATUS,
-				 reg & ~PCCARD_CCR_STATUS_INTR);
-		pf->intr_handler(pf->intr_handler_arg);
+	if (pccard_mfc(pf->sc)) {
+		reg = pccard_ccr_read(pf, PCCARD_CCR_STATUS);
+		if (reg & PCCARD_CCR_STATUS_INTR)
+			pccard_ccr_write(pf, PCCARD_CCR_STATUS,
+			    reg & ~PCCARD_CCR_STATUS_INTR);
+		else
+			doisr = 0;
 	}
-#else
-	if (pf->intr_handler == NULL)
-		return;
-	pf->intr_handler(pf->intr_handler_arg);
-#endif
+	if (pf->intr_handler != NULL && doisr)
+		pf->intr_handler(pf->intr_handler_arg);
 }
 
 static int
