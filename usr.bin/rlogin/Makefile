@@ -2,7 +2,7 @@
 
 PROG=	rlogin
 SRCS=	rlogin.c
-#krcmd.c kcmd.c des_rw.c
+#krcmd.c kcmd.c 
 #DPADD=	${LIBKRB} ${LIBDES}
 #CFLAGS+=-DKERBEROS -DCRYPT
 #LDADD=	-lkrb -ldes
