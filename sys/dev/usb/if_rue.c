@@ -776,14 +776,14 @@ rue_newbuf(struct rue_softc *sc, struct rue_chain *c, struct mbuf *m)
 	struct mbuf	*m_new = NULL;
 
 	if (m == NULL) {
-		MGETHDR(m_new, M_NOWAIT, MT_DATA);
+		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
 		if (m_new == NULL) {
 			printf("rue%d: no memory for rx list "
 				"-- packet dropped!\n", sc->rue_unit);
 			return (ENOBUFS);
 		}
 
-		MCLGET(m_new, M_NOWAIT);
+		MCLGET(m_new, M_DONTWAIT);
 		if (!(m_new->m_flags & M_EXT)) {
 			printf("rue%d: no memory for rx list "
 				"-- packet dropped!\n", sc->rue_unit);
