@@ -412,6 +412,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 #define	KERN_PROC_UID		5	/* by effective uid */
 #define	KERN_PROC_RUID		6	/* by real uid */
 #define	KERN_PROC_ARGS		7	/* get/set arguments/proctitle */
+#define	KERN_PROC_PROC		8	/* only return procs */
 
 /*
  * KERN_IPC identifiers
