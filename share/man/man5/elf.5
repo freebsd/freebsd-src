@@ -295,7 +295,7 @@ This member holds the ELF header's size in bytes.
 This member holds the size in bytes of one entry in the file's program header
 table; all entries are the same size.
 .It Dv e_phnum
-This member This member holds the number of entries in the program header
+This member holds the number of entries in the program header
 table. Thus the product of
 .Sy e_phentsize
 and
@@ -807,7 +807,7 @@ The attribute used is
 .Sy SHF_ALLOC .
 .It .fini
 This section holds executable instructions that contribute to the process
-termination code. When a program exists normally the system arranges to
+termination code. When a program exits normally the system arranges to
 execute the code in this section. This section is of type
 .Sy SHT_PROGBITS .
 The attributes used are
@@ -824,11 +824,6 @@ This section holds a symbol hash table. This section is of type
 The attribute used is
 .Sy SHF_ALLOC .
 .It .init
-This section holds executable instructions that contribute to the process
-initialization code. When a program starts to run the system arranges to
-execute the code in this section before calling the main program entry point.
-This section is of type
-.Sy SHT_PROGBITS .
 This section holds executable instructions that contribute to the process
 initialization code. When a program starts to run the system arranges to
 execute the code in this section before calling the main program entry point.
@@ -890,7 +885,7 @@ normally would have the name
 This section is of type
 .Sy SHT_RELA .
 .It .rodata
-This section hold read-only data that typically contributes to a
+This section holds read-only data that typically contributes to a
 non-writable segment in the process image. This section is of type
 .Sy SHT_PROGBITS .
 The attribute used is
@@ -1035,15 +1030,15 @@ There are macros for packing and unpacking the binding and type fields:
 .It Dv ELF32_ST_BIND(info)
 or
 .Sy ELF64_ST_BIND(info)
-convert a binding and a type into a st_info value.
+extract a binding from an st_info value.
 .It Dv ELF64_ST_TYPE(info)
 or
 .Sy ELF32_ST_TYPE(info)
-extract a binding from a st_info value.
+extract a type from an st_info value.
 .It Dv ELF32_ST_INFO(bind, type)
 or
 .Sy ELF64_ST_INFO(bind, type)
-extract a type from a st_info value.
+convert a binding and a type into an st_info value.
 .El
 .El
 .Pp
