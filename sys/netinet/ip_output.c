@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- * $Id: ip_output.c,v 1.18 1995/05/09 13:35:46 davidg Exp $
+ * $Id: ip_output.c,v 1.19 1995/05/30 08:09:49 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -549,7 +549,7 @@ ip_ctloutput(op, so, level, optname, mp)
 		case IP_RECVOPTS:
 		case IP_RECVRETOPTS:
 		case IP_RECVDSTADDR:
-			if (m->m_len != sizeof(int))
+			if (m == 0 || m->m_len != sizeof(int))
 				error = EINVAL;
 			else {
 				optval = *mtod(m, int *);
