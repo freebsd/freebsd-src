@@ -147,19 +147,9 @@ malloc(size, type, flags)
 		KASSERT(intr_nesting_level == 0,
 		   ("malloc(M_WAITOK) in interrupt context"));
 #endif
-	/*
-	 * Must be at splmem() prior to initializing segment to handle
-	 * potential initialization race.
-	 */
-
-	s = splmem();
-
-	if (type->ks_limit == 0)
-		malloc_init(type);
-
 	indx = BUCKETINDX(size);
 	kbp = &bucket[indx];
-
+	s = splmem();
 	while (ksp->ks_memuse >= ksp->ks_limit) {
 		if (flags & M_ASLEEP) {
 			if (ksp->ks_limblocks < 65535)
@@ -297,9 +287,6 @@ free(addr, type)
 	long *end, *lp, alloc, copysize;
 #endif
 	register struct malloc_type *ksp = type;
-
-	if (type->ks_limit == 0)
-		panic("freeing with unknown type (%s)", type->ks_shortdesc);
 
 	KASSERT(kmembase <= (char *)addr && (char *)addr < kmemlimit,
 	    ("free: address %p out of range", (void *)addr));
