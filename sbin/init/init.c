@@ -248,9 +248,8 @@ main(argc, argv)
 	if (optind != argc)
 		warning("ignoring excess arguments");
 
-	/* Mount devfs on /dev */
 	if (devfs) {
-		mount(MOUNT_DEVFS, "/dev", MNT_NOEXEC|MNT_RDONLY, 0);
+		mount("devfs", "/dev", MNT_NOEXEC|MNT_RDONLY, 0);
 	}
 
 	/*
