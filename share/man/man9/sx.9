@@ -150,9 +150,13 @@ attempting to do so will result in deadlock.
 .Xr sema 9
 .Sh BUGS
 Currently there is no way to assert that a lock is not held.
-This is not possible in the non-WITNESS case for asserting that this thread
+This is not possible in the
+.No non- Ns Dv WITNESS
+case for asserting that this thread
 does not hold a shared lock.
-In the non-WITNESS case, the
+In the
+.No non- Ns Dv WITNESS
+case, the
 .Dv SX_LOCKED
 and
 .Dv SX_SLOCKED
