@@ -119,16 +119,15 @@ ffs_snapshot(mp, snapfile)
 	struct mount *mp;
 	char *snapfile;
 {
-	ufs2_daddr_t numblks, blkno;
+	ufs2_daddr_t numblks, blkno, *blkp, *snapblklist;
 	int error, cg, snaploc;
 	int i, size, len, loc;
 	int flag = mp->mnt_flag;
 	struct timespec starttime = {0, 0}, endtime;
 	char saved_nice = 0;
-	long redo = 0, snaplistsize;
+	long redo = 0, snaplistsize = 0;
 	int32_t *lp;
 	void *space;
-	daddr_t *snapblklist;
 	struct fs *copy_fs = NULL, *fs = VFSTOUFS(mp)->um_fs;
 	struct snaphead *snaphead;
 	struct thread *td = curthread;
@@ -394,7 +393,11 @@ restart:
 	 * spec_strategy about writing on a suspended filesystem.
 	 * Note that we skip unlinked snapshot files as they will
 	 * be handled separately below.
+	 *
+	 * We also calculate the needed size for the snapshot list.
 	 */
+	snaplistsize = fs->fs_ncg + howmany(fs->fs_cssize, fs->fs_bsize) +
+	    FSMAXSNAP + 1 /* superblock */ + 1 /* last block */ + 1 /* size */;
 	mp->mnt_kern_flag &= ~MNTK_SUSPENDED;
 	mtx_lock(&mntvnode_mtx);
 loop:
@@ -438,6 +441,7 @@ loop:
 				DIP(xp, i_db[loc]) = 0;
 			}
 		}
+		snaplistsize += 1;
 		if (xp->i_ump->um_fstype == UFS1)
 			error = expunge_ufs1(vp, xp, copy_fs, fullacct_ufs1,
 			    BLK_NOCOPY);
@@ -487,6 +491,36 @@ loop:
 	transferlockers(&vp->v_lock, vp->v_vnlock);
 	lockmgr(&vp->v_lock, LK_RELEASE, NULL, td);
 	/*
+	 * If this is the first snapshot on this filesystem, then we need
+	 * to allocate the space for the list of preallocated snapshot blocks.
+	 * This list will be refined below, but this preliminary one will
+	 * keep us out of deadlock until the full one is ready.
+	 */
+	if (xp == NULL) {
+		MALLOC(snapblklist, daddr_t *, snaplistsize * sizeof(daddr_t),
+		    M_UFSMNT, M_WAITOK);
+		blkp = &snapblklist[1];
+		*blkp++ = lblkno(fs, fs->fs_sblockloc);
+		blkno = fragstoblks(fs, fs->fs_csaddr);
+		for (cg = 0; cg < fs->fs_ncg; cg++) {
+			if (fragstoblks(fs, cgtod(fs, cg) > blkno))
+				break;
+			*blkp++ = fragstoblks(fs, cgtod(fs, cg));
+		}
+		len = howmany(fs->fs_cssize, fs->fs_bsize);
+		for (loc = 0; loc < len; loc++)
+			*blkp++ = blkno + loc;
+		for (; cg < fs->fs_ncg; cg++)
+			*blkp++ = fragstoblks(fs, cgtod(fs, cg));
+		snapblklist[0] = blkp - snapblklist;
+		VI_LOCK(devvp);
+		if (devvp->v_rdev->si_snapblklist != NULL)
+			panic("ffs_snapshot: non-empty list");
+		devvp->v_rdev->si_snapblklist = snapblklist;
+		devvp->v_rdev->si_snaplistsize = blkp - snapblklist;
+		VI_UNLOCK(devvp);
+	}
+	/*
 	 * Record snapshot inode. Since this is the newest snapshot,
 	 * it must be placed at the end of the list.
 	 */
@@ -535,10 +569,8 @@ out1:
 		}
 	}
 	/*
-	 * Allocate the space for the list of preallocated snapshot blocks.
+	 * Allocate space for the full list of preallocated snapshot blocks.
 	 */
-	snaplistsize = fs->fs_ncg + howmany(fs->fs_cssize, fs->fs_bsize) +
-	    FSMAXSNAP + 1 /* superblock */ + 1 /* last block */ + 1 /* size */;
 	MALLOC(snapblklist, daddr_t *, snaplistsize * sizeof(daddr_t),
 	    M_UFSMNT, M_WAITOK);
 	ip->i_snapblklist = &snapblklist[1];
@@ -556,6 +588,8 @@ out1:
 		FREE(snapblklist, M_UFSMNT);
 		goto done;
 	}
+	if (snaplistsize < ip->i_snapblklist - snapblklist)
+		panic("ffs_snapshot: list too small");
 	snaplistsize = ip->i_snapblklist - snapblklist;
 	snapblklist[0] = snaplistsize;
 	ip->i_snapblklist = 0;
@@ -600,9 +634,11 @@ out1:
 	 * should replace the previous list.
 	 */
 	VI_LOCK(devvp);
-	FREE(devvp->v_rdev->si_snapblklist, M_UFSMNT);
+	space = devvp->v_rdev->si_snapblklist;
 	devvp->v_rdev->si_snapblklist = snapblklist;
 	devvp->v_rdev->si_snaplistsize = snaplistsize;
+	if (space != NULL)
+		FREE(space, M_UFSMNT);
 	VI_UNLOCK(devvp);
 done:
 	free(copy_fs->fs_csp, M_UFSMNT);
