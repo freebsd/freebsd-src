@@ -849,6 +849,7 @@ getnewvnode(tag, mp, vops, vpp)
 	vp->v_cachedid = -1;
 	VI_UNLOCK(vp);
 	if (pollinfo != NULL) {
+		knlist_destroy(&pollinfo->vpi_selinfo.si_note);
 		mtx_destroy(&pollinfo->vpi_lock);
 		uma_zfree(vnodepoll_zone, pollinfo);
 	}
@@ -3256,6 +3257,8 @@ v_addpollinfo(struct vnode *vp)
 	}
 	vp->v_pollinfo = vi;
 	mtx_init(&vp->v_pollinfo->vpi_lock, "vnode pollinfo", NULL, MTX_DEF);
+	knlist_init(&vp->v_pollinfo->vpi_selinfo.si_note,
+	    &vp->v_pollinfo->vpi_lock);
 }
 
 /*
@@ -3341,7 +3344,7 @@ vn_pollgone(vp)
 {
 
 	mtx_lock(&vp->v_pollinfo->vpi_lock);
-	VN_KNOTE(vp, NOTE_REVOKE);
+	VN_KNOTE_LOCKED(vp, NOTE_REVOKE);
 	if (vp->v_pollinfo->vpi_events) {
 		vp->v_pollinfo->vpi_events = 0;
 		selwakeuppri(&vp->v_pollinfo->vpi_selinfo, PRIBIO);
@@ -3981,13 +3984,21 @@ vop_unlock_post(void *ap, int rc)
 }
 #endif /* DEBUG_VFS_LOCKS */
 
-static struct klist fs_klist = SLIST_HEAD_INITIALIZER(&fs_klist);
+static struct knlist fs_knlist;
+
+static void
+vfs_event_init(void *arg)
+{
+	knlist_init(&fs_knlist, NULL);
+}
+/* XXX - correct order? */
+SYSINIT(vfs_knlist, SI_SUB_VFS, SI_ORDER_ANY, vfs_event_init, NULL);
 
 void
 vfs_event_signal(fsid_t *fsid, u_int32_t event, intptr_t data __unused)
 {
 
-	KNOTE(&fs_klist, event);
+	KNOTE_UNLOCKED(&fs_knlist, event);
 }
 
 static int	filt_fsattach(struct knote *kn);
@@ -4002,7 +4013,7 @@ filt_fsattach(struct knote *kn)
 {
 
 	kn->kn_flags |= EV_CLEAR;
-	SLIST_INSERT_HEAD(&fs_klist, kn, kn_selnext);
+	knlist_add(&fs_knlist, kn, 0);
 	return (0);
 }
 
@@ -4010,7 +4021,7 @@ static void
 filt_fsdetach(struct knote *kn)
 {
 
-	SLIST_REMOVE(&fs_klist, kn, knote, kn_selnext);
+	knlist_remove(&fs_knlist, kn, 0);
 }
 
 static int

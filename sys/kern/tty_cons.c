@@ -528,11 +528,11 @@ cnkqfilter(struct cdev *dev, struct knote *kn)
 
 	cnd = STAILQ_FIRST(&cn_devlist);
 	if (cn_mute || CND_INVALID(cnd, curthread))
-		return (1);
+		return (EINVAL);
 	dev = cnd->cnd_vp->v_rdev;
 	if (dev != NULL)
 		return ((*devsw(dev)->d_kqfilter)(dev, kn));
-	return (1);
+	return (ENXIO);
 }
 
 /*

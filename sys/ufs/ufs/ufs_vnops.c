@@ -198,7 +198,7 @@ ufs_create(ap)
 	    ap->a_dvp, ap->a_vpp, ap->a_cnp);
 	if (error)
 		return (error);
-	VN_KNOTE(ap->a_dvp, NOTE_WRITE);
+	VN_KNOTE_UNLOCKED(ap->a_dvp, NOTE_WRITE);
 	return (0);
 }
 
@@ -225,7 +225,7 @@ ufs_mknod(ap)
 	    ap->a_dvp, vpp, ap->a_cnp);
 	if (error)
 		return (error);
-	VN_KNOTE(ap->a_dvp, NOTE_WRITE);
+	VN_KNOTE_UNLOCKED(ap->a_dvp, NOTE_WRITE);
 	ip = VTOI(*vpp);
 	ip->i_flag |= IN_ACCESS | IN_CHANGE | IN_UPDATE;
 	if (vap->va_rdev != VNOVAL) {
@@ -615,7 +615,7 @@ ufs_setattr(ap)
 			return (EPERM);
 		error = ufs_chmod(vp, (int)vap->va_mode, cred, td);
 	}
-	VN_KNOTE(vp, NOTE_ATTRIB);
+	VN_KNOTE_UNLOCKED(vp, NOTE_ATTRIB);
 	return (error);
 }
 
@@ -799,8 +799,8 @@ ufs_remove(ap)
 	error = ufs_dirremove(dvp, ip, ap->a_cnp->cn_flags, 0);
 	if (ip->i_nlink <= 0)
 		vp->v_vflag |= VV_NOSYNC;
-	VN_KNOTE(vp, NOTE_DELETE);
-	VN_KNOTE(dvp, NOTE_WRITE);
+	VN_KNOTE_UNLOCKED(vp, NOTE_DELETE);
+	VN_KNOTE_UNLOCKED(dvp, NOTE_WRITE);
 out:
 	return (error);
 }
@@ -861,8 +861,8 @@ ufs_link(ap)
 			softdep_change_linkcnt(ip);
 	}
 out:
-	VN_KNOTE(vp, NOTE_LINK);
-	VN_KNOTE(tdvp, NOTE_WRITE);
+	VN_KNOTE_UNLOCKED(vp, NOTE_LINK);
+	VN_KNOTE_UNLOCKED(tdvp, NOTE_WRITE);
 	return (error);
 }
 
@@ -1037,7 +1037,7 @@ abortit:
 		oldparent = dp->i_number;
 		doingdirectory = 1;
 	}
-	VN_KNOTE(fdvp, NOTE_WRITE);		/* XXX right place? */
+	VN_KNOTE_UNLOCKED(fdvp, NOTE_WRITE);		/* XXX right place? */
 	vrele(fdvp);
 
 	/*
@@ -1146,7 +1146,7 @@ abortit:
 			}
 			goto bad;
 		}
-		VN_KNOTE(tdvp, NOTE_WRITE);
+		VN_KNOTE_UNLOCKED(tdvp, NOTE_WRITE);
 		vput(tdvp);
 	} else {
 		if (xp->i_dev != dp->i_dev || xp->i_dev != ip->i_dev)
@@ -1230,9 +1230,9 @@ abortit:
 			    tcnp->cn_cred, tcnp->cn_thread)) != 0)
 				goto bad;
 		}
-		VN_KNOTE(tdvp, NOTE_WRITE);
+		VN_KNOTE_UNLOCKED(tdvp, NOTE_WRITE);
 		vput(tdvp);
-		VN_KNOTE(tvp, NOTE_DELETE);
+		VN_KNOTE_UNLOCKED(tvp, NOTE_DELETE);
 		vput(tvp);
 		xp = NULL;
 	}
@@ -1302,7 +1302,7 @@ abortit:
 		error = ufs_dirremove(fdvp, xp, fcnp->cn_flags, 0);
 		xp->i_flag &= ~IN_RENAME;
 	}
-	VN_KNOTE(fvp, NOTE_RENAME);
+	VN_KNOTE_UNLOCKED(fvp, NOTE_RENAME);
 	if (dp)
 		vput(fdvp);
 	if (xp)
@@ -1620,7 +1620,7 @@ ufs_mkdir(ap)
 	
 bad:
 	if (error == 0) {
-		VN_KNOTE(dvp, NOTE_WRITE | NOTE_LINK);
+		VN_KNOTE_UNLOCKED(dvp, NOTE_WRITE | NOTE_LINK);
 		*ap->a_vpp = tvp;
 	} else {
 		dp->i_effnlink--;
@@ -1713,7 +1713,7 @@ ufs_rmdir(ap)
 		}
 		goto out;
 	}
-	VN_KNOTE(dvp, NOTE_WRITE | NOTE_LINK);
+	VN_KNOTE_UNLOCKED(dvp, NOTE_WRITE | NOTE_LINK);
 	cache_purge(dvp);
 	/*
 	 * Truncate inode. The only stuff left in the directory is "." and
@@ -1742,7 +1742,7 @@ ufs_rmdir(ap)
 		ufsdirhash_free(ip);
 #endif
 out:
-	VN_KNOTE(vp, NOTE_DELETE);
+	VN_KNOTE_UNLOCKED(vp, NOTE_DELETE);
 	return (error);
 }
 
@@ -1767,7 +1767,7 @@ ufs_symlink(ap)
 	    vpp, ap->a_cnp);
 	if (error)
 		return (error);
-	VN_KNOTE(ap->a_dvp, NOTE_WRITE);
+	VN_KNOTE_UNLOCKED(ap->a_dvp, NOTE_WRITE);
 	vp = *vpp;
 	len = strlen(ap->a_target);
 	if (len < vp->v_mount->mnt_maxsymlinklen) {
@@ -2620,9 +2620,9 @@ ufs_kqfilter(ap)
 
 	if (vp->v_pollinfo == NULL)
 		v_addpollinfo(vp);
-	mtx_lock(&vp->v_pollinfo->vpi_lock);
-	SLIST_INSERT_HEAD(&vp->v_pollinfo->vpi_selinfo.si_note, kn, kn_selnext);
-	mtx_unlock(&vp->v_pollinfo->vpi_lock);
+	if (vp->v_pollinfo == NULL)
+		return ENOMEM;
+	knlist_add(&vp->v_pollinfo->vpi_selinfo.si_note, kn, 0);
 
 	return (0);
 }
@@ -2633,10 +2633,7 @@ filt_ufsdetach(struct knote *kn)
 	struct vnode *vp = (struct vnode *)kn->kn_hook;
 
 	KASSERT(vp->v_pollinfo != NULL, ("Mising v_pollinfo"));
-	mtx_lock(&vp->v_pollinfo->vpi_lock);
-	SLIST_REMOVE(&vp->v_pollinfo->vpi_selinfo.si_note,
-	    kn, knote, kn_selnext);
-	mtx_unlock(&vp->v_pollinfo->vpi_lock);
+	knlist_remove(&vp->v_pollinfo->vpi_selinfo.si_note, kn, 0);
 }
 
 /*ARGSUSED*/

@@ -985,12 +985,12 @@ close(td, uap)
 	/*
 	 * we now hold the fp reference that used to be owned by the descriptor
 	 * array.
+	 * We have to unlock the FILEDESC *AFTER* knote_fdclose to prevent a
+	 * race of the fd getting opened, a knote added, and deleteing a knote
+	 * for the new fd.
 	 */
-	if (fd < fdp->fd_knlistsize) {
-		FILEDESC_UNLOCK(fdp);
-		knote_fdclose(td, fd);
-	} else
-		FILEDESC_UNLOCK(fdp);
+	knote_fdclose(td, fd);
+	FILEDESC_UNLOCK(fdp);
 
 	error = closef(fp, td);
 	mtx_unlock(&Giant);
@@ -1424,7 +1424,6 @@ fdinit(fdp)
 	newfdp->fd_fd.fd_ofiles = newfdp->fd_dfiles;
 	newfdp->fd_fd.fd_ofileflags = newfdp->fd_dfileflags;
 	newfdp->fd_fd.fd_nfiles = NDFILE;
-	newfdp->fd_fd.fd_knlistsize = -1;
 	newfdp->fd_fd.fd_map = newfdp->fd_dmap;
 	return (&newfdp->fd_fd);
 }
@@ -1624,10 +1623,6 @@ fdfree(td)
 		vrele(fdp->fd_rdir);
 	if (fdp->fd_jdir)
 		vrele(fdp->fd_jdir);
-	if (fdp->fd_knlist)
-		FREE(fdp->fd_knlist, M_KQUEUE);
-	if (fdp->fd_knhash)
-		FREE(fdp->fd_knhash, M_KQUEUE);
 	mtx_destroy(&fdp->fd_mtx);
 	FREE(fdp, M_FILEDESC);
 }
@@ -1681,11 +1676,7 @@ setugidsafety(td)
 		if (fdp->fd_ofiles[i] && is_unsafe(fdp->fd_ofiles[i])) {
 			struct file *fp;
 
-			if (i < fdp->fd_knlistsize) {
-				FILEDESC_UNLOCK(fdp);
-				knote_fdclose(td, i);
-				FILEDESC_LOCK(fdp);
-			}
+			knote_fdclose(td, i);
 			/*
 			 * NULL-out descriptor prior to close to avoid
 			 * a race while close blocks.
@@ -1728,11 +1719,7 @@ fdcloseexec(td)
 		    (fdp->fd_ofileflags[i] & UF_EXCLOSE)) {
 			struct file *fp;
 
-			if (i < fdp->fd_knlistsize) {
-				FILEDESC_UNLOCK(fdp);
-				knote_fdclose(td, i);
-				FILEDESC_LOCK(fdp);
-			}
+			knote_fdclose(td, i);
 			/*
 			 * NULL-out descriptor prior to close to avoid
 			 * a race while close blocks.

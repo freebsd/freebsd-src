@@ -1108,10 +1108,13 @@ vfs_write_resume(mp)
 static int
 vn_kqfilter(struct file *fp, struct knote *kn)
 {
+	int error;
 
-	GIANT_REQUIRED;
+	mtx_lock(&Giant);
+	error = VOP_KQFILTER(fp->f_vnode, kn);
+	mtx_unlock(&Giant);
 
-	return (VOP_KQFILTER(fp->f_vnode, kn));
+	return error;
 }
 
 /*

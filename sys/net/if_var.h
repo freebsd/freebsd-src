@@ -146,7 +146,7 @@ struct ifnet {
 		 * However, access to the AF_LINK address through this
 		 * field is deprecated. Use ifaddr_byindex() instead.
 		 */
-	struct	klist if_klist;		/* events attached to this if */
+	struct	knlist if_klist;	/* events attached to this if */
 	int	if_pcount;		/* number of promiscuous listeners */
 	void	*if_carp;		/* carp (tbd) interface pointer */
 	struct	bpf_if *if_bpf;		/* packet filter structure */

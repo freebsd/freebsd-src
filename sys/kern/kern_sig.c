@@ -1674,7 +1674,7 @@ do_tdsignal(struct thread *td, int sig, sigtarget_t target)
 	ps = p->p_sigacts;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	KNOTE(&p->p_klist, NOTE_SIGNAL | sig);
+	KNOTE_LOCKED(&p->p_klist, NOTE_SIGNAL | sig);
 
 	prop = sigprop(sig);
 
@@ -2720,9 +2720,7 @@ filt_sigattach(struct knote *kn)
 	kn->kn_ptr.p_proc = p;
 	kn->kn_flags |= EV_CLEAR;		/* automatically set */
 
-	PROC_LOCK(p);
-	SLIST_INSERT_HEAD(&p->p_klist, kn, kn_selnext);
-	PROC_UNLOCK(p);
+	knlist_add(&p->p_klist, kn, 0);
 
 	return (0);
 }
@@ -2732,9 +2730,7 @@ filt_sigdetach(struct knote *kn)
 {
 	struct proc *p = kn->kn_ptr.p_proc;
 
-	PROC_LOCK(p);
-	SLIST_REMOVE(&p->p_klist, kn, knote, kn_selnext);
-	PROC_UNLOCK(p);
+	knlist_remove(&p->p_klist, kn, 0);
 }
 
 /*
