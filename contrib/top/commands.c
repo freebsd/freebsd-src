@@ -81,7 +81,7 @@ n or #  - change number of processes to display\n", stdout);
 o       - specify sort order (pri, size, res, cpu, time)\n", stdout);
 	else
 		fputs("\
-o       - specify sort order (read, write, fault, total)\n", stdout);
+o       - specify sort order (vcsw, ivcsw, read, write, fault, total)\n", stdout);
 #endif
 	fputs("\
 r       - renice a process\n\
