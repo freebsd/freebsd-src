@@ -40,7 +40,7 @@
 .Nd remote shell server
 .Sh SYNOPSIS
 .Nm
-.Op Fl \&?DLaln
+.Op Fl aDLln
 .Sh DESCRIPTION
 The
 .Nm
@@ -147,8 +147,8 @@ by
 .Pp
 The options are as follows:
 .Bl -tag -width indent
-.It Fl \&?
-Display the usage message, and exit.
+.It Fl a
+This flag is ignored, and is present for compatability purposes.
 .It Fl D
 Sets the TCP_NODELAY socket option, which improves the performance
 of small back-to-back writes at the expense of additional network
@@ -159,8 +159,6 @@ Causes all successful accesses to be logged to
 as
 .Li auth.info
 messages.
-.It Fl a
-This flag is ignored, and is present for compatability purposes.
 .It Fl l
 Do not use the user's
 .Pa .rhosts
