@@ -2565,26 +2565,35 @@ ath_rate_ctl_reset(struct ath_softc *sc, enum ieee80211_state state)
 	struct ieee80211_node *ni;
 	struct ath_node *an;
 
-	an = (struct ath_node *) ic->ic_bss;
-	an->an_tx_ok = an->an_tx_err = an->an_tx_retr = an->an_tx_upper = 0;
-	if (ic->ic_opmode == IEEE80211_M_STA) {
-		ni = ic->ic_bss;
-		if (state == IEEE80211_S_RUN) {
-			/* start with highest negotiated rate */
-			KASSERT(ni->ni_rates.rs_nrates > 0,
-				("transition to RUN state w/ no rates!"));
-			ni->ni_txrate = ni->ni_rates.rs_nrates - 1;
-		} else {
-			/* use lowest rate */
-			ni->ni_txrate = 0;
-		}
-	} else {
+	if (ic->ic_opmode != IEEE80211_M_STA) {
+		/*
+		 * When operating as a station the node table holds
+		 * the AP's that were discovered during scanning.
+		 * For any other operating mode we want to reset the
+		 * tx rate state of each node.
+		 */
 		TAILQ_FOREACH(ni, &ic->ic_node, ni_list) {
 			ni->ni_txrate = 0;		/* use lowest rate */
 			an = (struct ath_node *) ni;
 			an->an_tx_ok = an->an_tx_err = an->an_tx_retr =
 			    an->an_tx_upper = 0;
 		}
+	}
+	/*
+	 * Reset local xmit state; this is really only meaningful
+	 * when operating in station or adhoc mode.
+	 */
+	ni = ic->ic_bss;
+	an = (struct ath_node *) ni;
+	an->an_tx_ok = an->an_tx_err = an->an_tx_retr = an->an_tx_upper = 0;
+	if (state == IEEE80211_S_RUN) {
+		/* start with highest negotiated rate */
+		KASSERT(ni->ni_rates.rs_nrates > 0,
+			("transition to RUN state w/ no rates!"));
+		ni->ni_txrate = ni->ni_rates.rs_nrates - 1;
+	} else {
+		/* use lowest rate */
+		ni->ni_txrate = 0;
 	}
 }
 
