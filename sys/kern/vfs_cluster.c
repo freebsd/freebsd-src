@@ -106,7 +106,7 @@ cluster_read(vp, filesize, lblkno, size, cred, totread, seqcount, bpp)
 	 * Try to limit the amount of read-ahead by a few
 	 * ad-hoc parameters.  This needs work!!!
 	 */
-	racluster = vp->v_maxio/size;
+	racluster = vp->v_mount->mnt_iosize_max / size;
 	maxra = 2 * racluster + (totread / size);
 	if (maxra > MAXRA)
 		maxra = MAXRA;
@@ -363,7 +363,7 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 	for (bn = blkno, i = 0; i < run; ++i, bn += inc) {
 		if (i != 0) {
 			if ((bp->b_npages * PAGE_SIZE) +
-				round_page(size) > vp->v_maxio)
+				round_page(size) > vp->v_mount->mnt_iosize_max)
 				break;
 
 			if ((tbp = incore(vp, lbn + i)) != NULL) {
@@ -556,7 +556,7 @@ cluster_write(bp, filesize)
 
 	if (vp->v_clen == 0 || lbn != vp->v_lastw + 1 ||
 	    (bp->b_blkno != vp->v_lasta + btodb(lblocksize))) {
-		maxclen = vp->v_maxio / lblocksize - 1;
+		maxclen = vp->v_mount->mnt_iosize_max / lblocksize - 1;
 		if (vp->v_clen != 0) {
 			/*
 			 * Next block is not sequential.
@@ -761,7 +761,7 @@ cluster_wbuild(vp, size, start_lbn, len)
 				  ((bp->b_blkno + (dbsize * i)) !=
 				    tbp->b_blkno) ||
 				  ((tbp->b_npages + bp->b_npages) >
-				    (vp->v_maxio / PAGE_SIZE))) {
+				    (vp->v_mount->mnt_iosize_max / PAGE_SIZE))) {
 					BUF_UNLOCK(tbp);
 					splx(s);
 					break;

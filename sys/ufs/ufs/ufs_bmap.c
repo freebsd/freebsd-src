@@ -133,8 +133,7 @@ ufs_bmaparray(vp, bn, bnp, ap, nump, runp, runb)
 		*runb = 0;
 	}
 
-	vp->v_maxio = devvp->v_maxio;
-	maxrun = vp->v_maxio / mp->mnt_stat.f_iosize - 1;
+	maxrun = mp->mnt_iosize_max / mp->mnt_stat.f_iosize - 1;
 
 	xap = ap == NULL ? a : ap;
 	if (!nump)
