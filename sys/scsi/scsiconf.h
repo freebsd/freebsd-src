@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsiconf.h,v 1.55 1997/06/25 19:07:43 tegge Exp $
+ *	$Id: scsiconf.h,v 1.56 1997/09/07 15:06:08 joerg Exp $
  */
 #ifndef	SCSI_SCSICONF_H
 #define SCSI_SCSICONF_H 1
@@ -22,6 +22,7 @@ typedef	int			boolean;
 typedef	int			errval;
 
 #include <scsi/scsi_all.h>
+#include <sys/callout.h>	/* XXX For ioconf.c */
 
 /*
  * The following documentation tries to describe the relationship between the
@@ -385,6 +386,11 @@ struct scsi_xfer
 /*84*/	int32_t req_sense_length;	/* Explicit request sense length */
 /*88*/	int32_t status;			/* SCSI status */
 /*100*/	struct	scsi_generic cmdstore;	/* stash the command in here */
+					/*
+					 * Handle for scheduling
+					 * command timeouts.
+					 */
+	struct	callout_handle timeout_ch;
 };
 
 /*
