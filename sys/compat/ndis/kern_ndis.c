@@ -113,6 +113,7 @@ static STAILQ_HEAD(ndisqhead, ndis_req) ndis_ttodo;
 struct ndisqhead ndis_itodo;
 struct ndisqhead ndis_free;
 static int ndis_jobs = 32;
+static int ndis_devs = 0;
 
 static struct ndisproc ndis_tproc;
 static struct ndisproc ndis_iproc;
@@ -145,8 +146,20 @@ ndis_modevent(module_t mod, int cmd, void *arg)
 		ndis_create_kthreads();
 
 		break;
-	case MOD_UNLOAD:
 	case MOD_SHUTDOWN:
+		/* stop kthreads */
+		ndis_destroy_kthreads();
+		if (ndis_devs == 0) {
+			/* Shut down subsystems */
+			ndis_libfini();
+			ntoskrnl_libfini();
+
+			/* Remove zones */
+			uma_zdestroy(ndis_packet_zone);
+			uma_zdestroy(ndis_buffer_zone);
+		}
+		break;
+	case MOD_UNLOAD:
 		/* stop kthreads */
 		ndis_destroy_kthreads();
 
@@ -1191,6 +1204,9 @@ ndis_shutdown_nic(arg)
 	else
 		shutdownfunc(sc->ndis_chars.nmc_rsvd0);
 
+	ndis_shrink_thrqueue(8);
+	ndis_devs--;
+
 	return(0);
 }
 
@@ -1384,6 +1400,7 @@ ndis_unload_driver(arg)
 	ndis_flush_sysctls(sc);
 
 	ndis_shrink_thrqueue(8);
+	ndis_devs--;
 
 	return(0);
 }
@@ -1492,6 +1509,8 @@ ndis_load_driver(img, arg)
 	block->nmb_img = img;
 
 	ndis_enlarge_thrqueue(8);
+
+	ndis_devs++;
 
 	return(0);
 }
