@@ -176,7 +176,7 @@ static int asn1_get_length(unsigned char **pp, int *inf, long *rl, int max)
 	}
 
 /* class 0 is constructed
- * constructed == 2 for indefinitle length constructed */
+ * constructed == 2 for indefinite length constructed */
 void ASN1_put_object(unsigned char **pp, int constructed, int length, int tag,
 	     int xclass)
 	{
@@ -349,7 +349,7 @@ int ASN1_STRING_set(ASN1_STRING *str, const void *_data, int len)
 	if (data != NULL)
 		{
 		memcpy(str->data,data,len);
-		/* an alowance for strings :-) */
+		/* an allowance for strings :-) */
 		str->data[len]='\0';
 		}
 	return(1);
@@ -381,8 +381,8 @@ ASN1_STRING *ASN1_STRING_type_new(int type)
 void ASN1_STRING_free(ASN1_STRING *a)
 	{
 	if (a == NULL) return;
-	if (a->data != NULL) Free((char *)a->data);
-	Free((char *)a);
+	if (a->data != NULL) Free(a->data);
+	Free(a);
 	}
 
 int ASN1_STRING_cmp(ASN1_STRING *a, ASN1_STRING *b)
@@ -411,3 +411,14 @@ void asn1_add_error(unsigned char *address, int offset)
 	ERR_add_error_data(4,"address=",buf1," offset=",buf2);
 	}
 
+int ASN1_STRING_length(ASN1_STRING *x)
+{ return M_ASN1_STRING_length(x); }
+
+void ASN1_STRING_length_set(ASN1_STRING *x, int len)
+{ M_ASN1_STRING_length_set(x, len); return; }
+
+int ASN1_STRING_type(ASN1_STRING *x)
+{ return M_ASN1_STRING_type(x); }
+
+unsigned char * ASN1_STRING_data(ASN1_STRING *x)
+{ return M_ASN1_STRING_data(x); }

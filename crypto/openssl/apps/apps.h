@@ -64,7 +64,17 @@
 #include <openssl/buffer.h>
 #include <openssl/bio.h>
 #include <openssl/crypto.h>
-#include "progs.h"
+#include <openssl/x509.h>
+
+int app_RAND_load_file(const char *file, BIO *bio_e, int dont_warn);
+int app_RAND_write_file(const char *file, BIO *bio_e);
+/* When `file' is NULL, use defaults.
+ * `bio_e' is for error messages. */
+void app_RAND_allow_write_file(void);
+long app_RAND_load_files(char *file); /* `file' is a list of files to read,
+                                       * separated by LIST_SEPARATOR_CHAR
+                                       * (see e_os.h).  The string is
+                                       * destroyed! */
 
 #ifdef NO_STDIO
 BIO_METHOD *BIO_s_file();
@@ -103,7 +113,7 @@ extern BIO *bio_err;
 #define do_pipe_sig()
 #endif
 
-#if defined(MONOLITH) && !defined(SSLEAY)
+#if defined(MONOLITH) && !defined(OPENSSL_C)
 #  define apps_startup()	do_pipe_sig()
 #else
 #  if defined(MSDOS) || defined(WIN16) || defined(WIN32)
@@ -132,10 +142,16 @@ int args_from_file(char *file, int *argc, char **argv[]);
 int str2fmt(char *s);
 void program_name(char *in,char *out,int size);
 int chopup_args(ARGS *arg,char *buf, int *argc, char **argv[]);
+#ifdef HEADER_X509_H
+int dump_cert_text(BIO *out, X509 *x);
+#endif
+int app_passwd(BIO *err, char *arg1, char *arg2, char **pass1, char **pass2);
 #define FORMAT_UNDEF    0
 #define FORMAT_ASN1     1
 #define FORMAT_TEXT     2
 #define FORMAT_PEM      3
 #define FORMAT_NETSCAPE 4
+
+#define APP_PASS_LEN	1024
 
 #endif

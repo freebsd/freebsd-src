@@ -84,7 +84,6 @@ NULL, NULL,
 (X509V3_EXT_I2V)i2v_GENERAL_NAMES,
 (X509V3_EXT_V2I)v2i_issuer_alt,
 NULL, NULL, NULL},
-EXT_END
 };
 
 STACK_OF(CONF_VALUE) *i2v_GENERAL_NAMES(X509V3_EXT_METHOD *method,
@@ -273,7 +272,7 @@ static int copy_email(X509V3_CTX *ctx, STACK_OF(GENERAL_NAME) *gens)
 	while((i = X509_NAME_get_index_by_NID(nm,
 					 NID_pkcs9_emailAddress, i)) > 0) {
 		ne = X509_NAME_get_entry(nm, i);
-		email = ASN1_IA5STRING_dup(X509_NAME_ENTRY_get_data(ne));
+		email = M_ASN1_IA5STRING_dup(X509_NAME_ENTRY_get_data(ne));
 		if(!email || !(gen = GENERAL_NAME_new())) {
 			X509V3err(X509V3_F_COPY_EMAIL,ERR_R_MALLOC_FAILURE);
 			goto err;
@@ -293,7 +292,7 @@ static int copy_email(X509V3_CTX *ctx, STACK_OF(GENERAL_NAME) *gens)
 		
 	err:
 	GENERAL_NAME_free(gen);
-	ASN1_IA5STRING_free(email);
+	M_ASN1_IA5STRING_free(email);
 	return 0;
 	
 }
@@ -371,7 +370,7 @@ if(!name_cmp(name, "email")) {
 		goto err;
 	}
 	ip[0] = i1; ip[1] = i2 ; ip[2] = i3 ; ip[3] = i4;
-	if(!(gen->d.ip = ASN1_OCTET_STRING_new()) ||
+	if(!(gen->d.ip = M_ASN1_OCTET_STRING_new()) ||
 		!ASN1_STRING_set(gen->d.ip, ip, 4)) {
 			X509V3err(X509V3_F_V2I_GENERAL_NAME,ERR_R_MALLOC_FAILURE);
 			goto err;
@@ -384,7 +383,7 @@ if(!name_cmp(name, "email")) {
 }
 
 if(is_string) {
-	if(!(gen->d.ia5 = ASN1_IA5STRING_new()) ||
+	if(!(gen->d.ia5 = M_ASN1_IA5STRING_new()) ||
 		      !ASN1_STRING_set(gen->d.ia5, (unsigned char*)value,
 				       strlen(value))) {
 		X509V3err(X509V3_F_V2I_GENERAL_NAME,ERR_R_MALLOC_FAILURE);

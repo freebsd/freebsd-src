@@ -75,8 +75,17 @@ const char *PEM_version="PEM" OPENSSL_VERSION_PTEXT;
 
 static int def_callback(char *buf, int num, int w, void *userdata);
 static int load_iv(unsigned char **fromp,unsigned char *to, int num);
+static int check_pem(const char *nm, const char *name);
+static int do_pk8pkey(BIO *bp, EVP_PKEY *x, int isder,
+				int nid, const EVP_CIPHER *enc,
+				char *kstr, int klen,
+				pem_password_cb *cb, void *u);
+static int do_pk8pkey_fp(FILE *bp, EVP_PKEY *x, int isder,
+				int nid, const EVP_CIPHER *enc,
+				char *kstr, int klen,
+				pem_password_cb *cb, void *u);
 
-static int def_callback(char *buf, int num, int w, void *userdata)
+static int def_callback(char *buf, int num, int w, void *key)
 	{
 #ifdef NO_FP_API
 	/* We should not ever call the default callback routine from
@@ -86,6 +95,12 @@ static int def_callback(char *buf, int num, int w, void *userdata)
 #else
 	int i,j;
 	const char *prompt;
+	if(key) {
+		i=strlen(key);
+		i=(i > num)?num:i;
+		memcpy(buf,key,i);
+		return(i);
+	}
 
 	prompt=EVP_get_pw_prompt();
 	if (prompt == NULL)
@@ -168,6 +183,47 @@ char *PEM_ASN1_read(char *(*d2i)(), const char *name, FILE *fp, char **x,
 	}
 #endif
 
+static int check_pem(const char *nm, const char *name)
+{
+	/* Normal matching nm and name */
+	if (!strcmp(nm,name)) return 1;
+
+	/* Make PEM_STRING_EVP_PKEY match any private key */
+
+	if(!strcmp(nm,PEM_STRING_PKCS8) &&
+		!strcmp(name,PEM_STRING_EVP_PKEY)) return 1;
+
+	if(!strcmp(nm,PEM_STRING_PKCS8INF) &&
+		 !strcmp(name,PEM_STRING_EVP_PKEY)) return 1;
+
+	if(!strcmp(nm,PEM_STRING_RSA) &&
+		!strcmp(name,PEM_STRING_EVP_PKEY)) return 1;
+
+	if(!strcmp(nm,PEM_STRING_DSA) &&
+		 !strcmp(name,PEM_STRING_EVP_PKEY)) return 1;
+
+	/* Permit older strings */
+
+	if(!strcmp(nm,PEM_STRING_X509_OLD) &&
+		!strcmp(name,PEM_STRING_X509)) return 1;
+
+	if(!strcmp(nm,PEM_STRING_X509_REQ_OLD) &&
+		!strcmp(name,PEM_STRING_X509_REQ)) return 1;
+
+	/* Allow normal certs to be read as trusted certs */
+	if(!strcmp(nm,PEM_STRING_X509) &&
+		!strcmp(name,PEM_STRING_X509_TRUSTED)) return 1;
+
+	if(!strcmp(nm,PEM_STRING_X509_OLD) &&
+		!strcmp(name,PEM_STRING_X509_TRUSTED)) return 1;
+
+	/* Some CAs use PKCS#7 with CERTIFICATE headers */
+	if(!strcmp(nm, PEM_STRING_X509) &&
+		!strcmp(name, PEM_STRING_PKCS7)) return 1;
+
+	return 0;
+}
+
 char *PEM_ASN1_read_bio(char *(*d2i)(), const char *name, BIO *bp, char **x,
 	     pem_password_cb *cb, void *u)
 	{
@@ -179,22 +235,13 @@ char *PEM_ASN1_read_bio(char *(*d2i)(), const char *name, BIO *bp, char **x,
 
 	for (;;)
 		{
-		if (!PEM_read_bio(bp,&nm,&header,&data,&len)) return(NULL);
-		if (	(strcmp(nm,name) == 0) ||
-			((strcmp(nm,PEM_STRING_RSA) == 0) &&
-			 (strcmp(name,PEM_STRING_EVP_PKEY) == 0)) ||
-			((strcmp(nm,PEM_STRING_DSA) == 0) &&
-			 (strcmp(name,PEM_STRING_EVP_PKEY) == 0)) ||
-			((strcmp(nm,PEM_STRING_PKCS8) == 0) &&
-			 (strcmp(name,PEM_STRING_EVP_PKEY) == 0)) ||
-			((strcmp(nm,PEM_STRING_PKCS8INF) == 0) &&
-			 (strcmp(name,PEM_STRING_EVP_PKEY) == 0)) ||
-			((strcmp(nm,PEM_STRING_X509_OLD) == 0) &&
-			 (strcmp(name,PEM_STRING_X509) == 0)) ||
-			((strcmp(nm,PEM_STRING_X509_REQ_OLD) == 0) &&
-			 (strcmp(name,PEM_STRING_X509_REQ) == 0)) 
-			)
-			break;
+		if (!PEM_read_bio(bp,&nm,&header,&data,&len)) {
+			if(ERR_GET_REASON(ERR_peek_error()) ==
+				PEM_R_NO_START_LINE)
+				ERR_add_error_data(2, "Expecting: ", name);
+			return(NULL);
+		}
+		if(check_pem(nm, name)) break;
 		Free(nm);
 		Free(header);
 		Free(data);
@@ -218,7 +265,7 @@ char *PEM_ASN1_read_bio(char *(*d2i)(), const char *name, BIO *bp, char **x,
 			X509_SIG *p8;
 			int klen;
 			char psbuf[PEM_BUFSIZE];
-			p8 = d2i_X509_SIG((X509_SIG **)x, &p, len);
+			p8 = d2i_X509_SIG(NULL, &p, len);
 			if(!p8) goto p8err;
 			if (cb) klen=cb(psbuf,PEM_BUFSIZE,0,u);
 			else klen=def_callback(psbuf,PEM_BUFSIZE,0,u);
@@ -231,6 +278,10 @@ char *PEM_ASN1_read_bio(char *(*d2i)(), const char *name, BIO *bp, char **x,
 			X509_SIG_free(p8);
 			if(!p8inf) goto p8err;
 			ret = (char *)EVP_PKCS82PKEY(p8inf);
+			if(x) {
+				if(*x) EVP_PKEY_free((EVP_PKEY *)*x);
+				*x = ret;
+			}
 			PKCS8_PRIV_KEY_INFO_free(p8inf);
 		}
 	} else	ret=d2i(x,&p,len);
@@ -321,8 +372,9 @@ int PEM_ASN1_write_bio(int (*i2d)(), const char *name, BIO *bp, char *x,
 #endif
 			kstr=(unsigned char *)buf;
 			}
-		RAND_seed(data,i);/* put in the RSA key. */
-		RAND_bytes(iv,8);	/* Generate a salt */
+		RAND_add(data,i,0);/* put in the RSA key. */
+		if (RAND_pseudo_bytes(iv,8) < 0)	/* Generate a salt */
+			goto err;
 		/* The 'iv' is used as the iv and as a salt.  It is
 		 * NOT taken from the BytesToKey function */
 		EVP_BytesToKey(enc,EVP_md5(),iv,kstr,klen,1,key,NULL);
@@ -743,13 +795,41 @@ err:
 	return(0);
 	}
 
-/* This function writes a private key in PKCS#8 format: it is a "drop in"
- * replacement for PEM_write_bio_PrivateKey(). As usual if 'enc' is NULL then
- * it uses the unencrypted private key form. It uses PKCS#5 v2.0 password based
- * encryption algorithms.
+/* These functions write a private key in PKCS#8 format: it is a "drop in"
+ * replacement for PEM_write_bio_PrivateKey() and friends. As usual if 'enc'
+ * is NULL then it uses the unencrypted private key form. The 'nid' versions
+ * uses PKCS#5 v1.5 PBE algorithms whereas the others use PKCS#5 v2.0.
  */
 
+int PEM_write_bio_PKCS8PrivateKey_nid(BIO *bp, EVP_PKEY *x, int nid,
+				  char *kstr, int klen,
+				  pem_password_cb *cb, void *u)
+{
+	return do_pk8pkey(bp, x, 0, nid, NULL, kstr, klen, cb, u);
+}
+
 int PEM_write_bio_PKCS8PrivateKey(BIO *bp, EVP_PKEY *x, const EVP_CIPHER *enc,
+				  char *kstr, int klen,
+				  pem_password_cb *cb, void *u)
+{
+	return do_pk8pkey(bp, x, 0, -1, enc, kstr, klen, cb, u);
+}
+
+int i2d_PKCS8PrivateKey_bio(BIO *bp, EVP_PKEY *x, const EVP_CIPHER *enc,
+				  char *kstr, int klen,
+				  pem_password_cb *cb, void *u)
+{
+	return do_pk8pkey(bp, x, 1, -1, enc, kstr, klen, cb, u);
+}
+
+int i2d_PKCS8PrivateKey_nid_bio(BIO *bp, EVP_PKEY *x, int nid,
+				  char *kstr, int klen,
+				  pem_password_cb *cb, void *u)
+{
+	return do_pk8pkey(bp, x, 1, nid, NULL, kstr, klen, cb, u);
+}
+
+static int do_pk8pkey(BIO *bp, EVP_PKEY *x, int isder, int nid, const EVP_CIPHER *enc,
 				  char *kstr, int klen,
 				  pem_password_cb *cb, void *u)
 {
@@ -762,7 +842,7 @@ int PEM_write_bio_PKCS8PrivateKey(BIO *bp, EVP_PKEY *x, const EVP_CIPHER *enc,
 					PEM_R_ERROR_CONVERTING_PRIVATE_KEY);
 		return 0;
 	}
-	if(enc) {
+	if(enc || (nid != -1)) {
 		if(!kstr) {
 			if(!cb) klen = def_callback(buf, PEM_BUFSIZE, 1, u);
 			else klen = cb(buf, PEM_BUFSIZE, 1, u);
@@ -775,29 +855,109 @@ int PEM_write_bio_PKCS8PrivateKey(BIO *bp, EVP_PKEY *x, const EVP_CIPHER *enc,
 				
 			kstr = buf;
 		}
-		p8 = PKCS8_encrypt(-1, enc, kstr, klen, NULL, 0, 0, p8inf);
+		p8 = PKCS8_encrypt(nid, enc, kstr, klen, NULL, 0, 0, p8inf);
 		if(kstr == buf) memset(buf, 0, klen);
 		PKCS8_PRIV_KEY_INFO_free(p8inf);
-		ret = PEM_write_bio_PKCS8(bp, p8);
+		if(isder) ret = i2d_PKCS8_bio(bp, p8);
+		else ret = PEM_write_bio_PKCS8(bp, p8);
 		X509_SIG_free(p8);
 		return ret;
 	} else {
-		ret = PEM_write_bio_PKCS8_PRIV_KEY_INFO(bp, p8inf);
+		if(isder) ret = i2d_PKCS8_PRIV_KEY_INFO_bio(bp, p8inf);
+		else ret = PEM_write_bio_PKCS8_PRIV_KEY_INFO(bp, p8inf);
 		PKCS8_PRIV_KEY_INFO_free(p8inf);
 		return ret;
 	}
 }
 
+/* Finally the DER version to read PKCS#8 encrypted private keys. It has to be
+ * here to access the default callback.
+ */
+
+EVP_PKEY *d2i_PKCS8PrivateKey_bio(BIO *bp, EVP_PKEY **x, pem_password_cb *cb, void *u)
+{
+	PKCS8_PRIV_KEY_INFO *p8inf = NULL;
+	X509_SIG *p8 = NULL;
+	int klen;
+	EVP_PKEY *ret;
+	char psbuf[PEM_BUFSIZE];
+	p8 = d2i_PKCS8_bio(bp, NULL);
+	if(!p8) return NULL;
+	if (cb) klen=cb(psbuf,PEM_BUFSIZE,0,u);
+	else klen=def_callback(psbuf,PEM_BUFSIZE,0,u);
+	if (klen <= 0) {
+		PEMerr(PEM_F_D2I_PKCS8PRIVATEKEY_BIO, PEM_R_BAD_PASSWORD_READ);
+		X509_SIG_free(p8);
+		return NULL;	
+	}
+	p8inf = M_PKCS8_decrypt(p8, psbuf, klen);
+	X509_SIG_free(p8);
+	if(!p8inf) return NULL;
+	ret = EVP_PKCS82PKEY(p8inf);
+	PKCS8_PRIV_KEY_INFO_free(p8inf);
+	if(!ret) return NULL;
+	if(x) {
+		if(*x) EVP_PKEY_free(*x);
+		*x = ret;
+	}
+	return ret;
+}
+
+#ifndef NO_FP_API
+
+int i2d_PKCS8PrivateKey_fp(FILE *fp, EVP_PKEY *x, const EVP_CIPHER *enc,
+				  char *kstr, int klen,
+				  pem_password_cb *cb, void *u)
+{
+	return do_pk8pkey_fp(fp, x, 1, -1, enc, kstr, klen, cb, u);
+}
+
+int i2d_PKCS8PrivateKey_nid_fp(FILE *fp, EVP_PKEY *x, int nid,
+				  char *kstr, int klen,
+				  pem_password_cb *cb, void *u)
+{
+	return do_pk8pkey_fp(fp, x, 1, nid, NULL, kstr, klen, cb, u);
+}
+
+int PEM_write_PKCS8PrivateKey_nid(FILE *fp, EVP_PKEY *x, int nid,
+				  char *kstr, int klen,
+				  pem_password_cb *cb, void *u)
+{
+	return do_pk8pkey_fp(fp, x, 0, nid, NULL, kstr, klen, cb, u);
+}
+
 int PEM_write_PKCS8PrivateKey(FILE *fp, EVP_PKEY *x, const EVP_CIPHER *enc,
 			      char *kstr, int klen, pem_password_cb *cb, void *u)
+{
+	return do_pk8pkey_fp(fp, x, 0, -1, enc, kstr, klen, cb, u);
+}
+
+static int do_pk8pkey_fp(FILE *fp, EVP_PKEY *x, int isder, int nid, const EVP_CIPHER *enc,
+				  char *kstr, int klen,
+				  pem_password_cb *cb, void *u)
 {
 	BIO *bp;
 	int ret;
 	if(!(bp = BIO_new_fp(fp, BIO_NOCLOSE))) {
-		PEMerr(PEM_F_PEM_F_PEM_WRITE_PKCS8PRIVATEKEY,ERR_R_BUF_LIB);
+		PEMerr(PEM_F_PEM_F_DO_PK8KEY_FP,ERR_R_BUF_LIB);
                 return(0);
 	}
-	ret = PEM_write_bio_PKCS8PrivateKey(bp, x, enc, kstr, klen, cb, u);
+	ret = do_pk8pkey(bp, x, isder, nid, enc, kstr, klen, cb, u);
 	BIO_free(bp);
 	return ret;
 }
+
+EVP_PKEY *d2i_PKCS8PrivateKey_fp(FILE *fp, EVP_PKEY **x, pem_password_cb *cb, void *u)
+{
+	BIO *bp;
+	EVP_PKEY *ret;
+	if(!(bp = BIO_new_fp(fp, BIO_NOCLOSE))) {
+		PEMerr(PEM_F_D2I_PKCS8PRIVATEKEY_FP,ERR_R_BUF_LIB);
+                return NULL;
+	}
+	ret = d2i_PKCS8PrivateKey_bio(bp, x, cb, u);
+	BIO_free(bp);
+	return ret;
+}
+
+#endif

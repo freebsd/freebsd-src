@@ -69,6 +69,8 @@
 
 #define NUM_BITS	(BN_BITS*2)
 
+static const char rnd_seed[] = "string to make the random number generator think it has entropy";
+
 int main(int argc, char *argv[])
 	{
 	BN_CTX *ctx;
@@ -76,6 +78,10 @@ int main(int argc, char *argv[])
 	int i,ret;
 	unsigned char c;
 	BIGNUM *r_mont,*r_recp,*r_simple,*a,*b,*m;
+
+	RAND_seed(rnd_seed, sizeof rnd_seed); /* or BN_rand may fail, and we don't
+	                                       * even check its return value
+	                                       * (which we should) */
 
 	ERR_load_BN_strings();
 
@@ -160,7 +166,16 @@ int main(int argc, char *argv[])
 			exit(1);
 			}
 		}
+	BN_free(r_mont);
+	BN_free(r_recp);
+	BN_free(r_simple);
+	BN_free(a);
+	BN_free(b);
+	BN_free(m);
+	BN_CTX_free(ctx);
+	ERR_remove_state(0);
 	CRYPTO_mem_leaks(out);
+	BIO_free(out);
 	printf(" done\n");
 	exit(0);
 err:

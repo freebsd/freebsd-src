@@ -234,7 +234,7 @@ static unsigned char cipher_ecb2[NUM_TESTS-1][8]={
 	{0x08,0xD7,0xB4,0xFB,0x62,0x9D,0x08,0x85}};
 
 static unsigned char cbc_key [8]={0x01,0x23,0x45,0x67,0x89,0xab,0xcd,0xef};
-static unsigned char cbc2_key[8]={0xf0,0xe1,0xd2,0xc3,0xb4,0xa5,0x96,0x87};
+static unsigned char cbc2_key[8]={0xf1,0xe0,0xd3,0xc2,0xb5,0xa4,0x97,0x86};
 static unsigned char cbc3_key[8]={0xfe,0xdc,0xba,0x98,0x76,0x54,0x32,0x10};
 static unsigned char cbc_iv  [8]={0xfe,0xdc,0xba,0x98,0x76,0x54,0x32,0x10};
 /* Changed the following text constant to binary so it will work on ebcdic
@@ -254,12 +254,24 @@ static unsigned char cbc_ok[32]={
 	0x46,0x8e,0x91,0x15,0x78,0x88,0xba,0x68,
 	0x1d,0x26,0x93,0x97,0xf7,0xfe,0x62,0xb4};
 
+#ifdef SCREW_THE_PARITY
+#error "SCREW_THE_PARITY is not ment to be defined."
+#error "Original vectors are preserved for reference only."
+static unsigned char cbc2_key[8]={0xf0,0xe1,0xd2,0xc3,0xb4,0xa5,0x96,0x87};
 static unsigned char xcbc_ok[32]={
 	0x86,0x74,0x81,0x0D,0x61,0xA4,0xA5,0x48,
 	0xB9,0x93,0x03,0xE1,0xB8,0xBB,0xBD,0xBD,
 	0x64,0x30,0x0B,0xB9,0x06,0x65,0x81,0x76,
 	0x04,0x1D,0x77,0x62,0x17,0xCA,0x2B,0xD2,
 	};
+#else
+static unsigned char xcbc_ok[32]={
+	0x84,0x6B,0x29,0x14,0x85,0x1E,0x9A,0x29,
+	0x54,0x73,0x2F,0x8A,0xA0,0xA6,0x11,0xC1,
+	0x15,0xCD,0xC2,0xD7,0x95,0x1B,0x10,0x53,
+	0xA6,0x3C,0x5E,0x03,0xB2,0x1A,0xA3,0xC4,
+	};
+#endif
 
 static unsigned char cbc3_ok[32]={
 	0x3F,0xE3,0x01,0xC9,0x62,0xAC,0x01,0xD0,
@@ -309,8 +321,8 @@ static unsigned char ofb_cipher[24]=
 	0x3d,0x6d,0x5b,0xe3,0x25,0x5a,0xf8,0xc3
 	};
 
-DES_LONG cbc_cksum_ret=0xB462FEF7L;
-unsigned char cbc_cksum_data[8]={0x1D,0x26,0x93,0x97,0xf7,0xfe,0x62,0xb4};
+static DES_LONG cbc_cksum_ret=0xB462FEF7L;
+static unsigned char cbc_cksum_data[8]={0x1D,0x26,0x93,0x97,0xf7,0xfe,0x62,0xb4};
 
 static char *pt(unsigned char *p);
 static int cfb_test(int bits, unsigned char *cfb_cipher);
@@ -324,24 +336,31 @@ int main(int argc, char *argv[])
 	unsigned char cbc_in[40];
 	unsigned char cbc_out[40];
 	DES_LONG cs;
-	unsigned char qret[4][4],cret[8];
-	DES_LONG lqret[4];
+	unsigned char cret[8];
+#ifdef _CRAY
+        struct {
+            int a:32;
+            int b:32;
+        } lqret[2];
+#else
+        DES_LONG lqret[4];
+#endif
 	int num;
 	char *str;
 
 #ifndef NO_DESCBCM
 	printf("Doing cbcm\n");
-	if ((j=des_key_sched(&cbc_key,ks)) != 0)
+	if ((j=des_set_key_checked(&cbc_key,ks)) != 0)
 		{
 		printf("Key error %d\n",j);
 		err=1;
 		}
-	if ((j=des_key_sched(&cbc2_key,ks2)) != 0)
+	if ((j=des_set_key_checked(&cbc2_key,ks2)) != 0)
 		{
 		printf("Key error %d\n",j);
 		err=1;
 		}
-	if ((j=des_key_sched(&cbc3_key,ks3)) != 0)
+	if ((j=des_set_key_checked(&cbc3_key,ks3)) != 0)
 		{
 		printf("Key error %d\n",j);
 		err=1;
@@ -385,11 +404,7 @@ int main(int argc, char *argv[])
 	printf("Doing ecb\n");
 	for (i=0; i<NUM_TESTS; i++)
 		{
-		if ((j=des_key_sched(&key_data[i],ks)) != 0)
-			{
-			printf("Key error %2d:%d\n",i+1,j);
-			err=1;
-			}
+		des_set_key_unchecked(&key_data[i],ks);
 		memcpy(in,plain_data[i],8);
 		memset(out,0,8);
 		memset(outin,0,8);
@@ -415,21 +430,9 @@ int main(int argc, char *argv[])
 	printf("Doing ede ecb\n");
 	for (i=0; i<(NUM_TESTS-1); i++)
 		{
-		if ((j=des_key_sched(&key_data[i],ks)) != 0)
-			{
-			err=1;
-			printf("Key error %2d:%d\n",i+1,j);
-			}
-		if ((j=des_key_sched(&key_data[i+1],ks2)) != 0)
-			{
-			printf("Key error %2d:%d\n",i+2,j);
-			err=1;
-			}
-		if ((j=des_key_sched(&key_data[i+2],ks3)) != 0)
-			{
-			printf("Key error %2d:%d\n",i+3,j);
-			err=1;
-			}
+		des_set_key_unchecked(&key_data[i],ks);
+		des_set_key_unchecked(&key_data[i+1],ks2);
+		des_set_key_unchecked(&key_data[i+2],ks3);
 		memcpy(in,plain_data[i],8);
 		memset(out,0,8);
 		memset(outin,0,8);
@@ -453,7 +456,7 @@ int main(int argc, char *argv[])
 #endif
 
 	printf("Doing cbc\n");
-	if ((j=des_key_sched(&cbc_key,ks)) != 0)
+	if ((j=des_set_key_checked(&cbc_key,ks)) != 0)
 		{
 		printf("Key error %d\n",j);
 		err=1;
@@ -464,7 +467,10 @@ int main(int argc, char *argv[])
 	des_ncbc_encrypt(cbc_data,cbc_out,strlen((char *)cbc_data)+1,ks,
 			 &iv3,DES_ENCRYPT);
 	if (memcmp(cbc_out,cbc_ok,32) != 0)
+		{
 		printf("cbc_encrypt encrypt error\n");
+		err=1;
+		}
 
 	memcpy(iv3,cbc_iv,sizeof(cbc_iv));
 	des_ncbc_encrypt(cbc_out,cbc_in,strlen((char *)cbc_data)+1,ks,
@@ -477,7 +483,7 @@ int main(int argc, char *argv[])
 
 #ifndef LIBDES_LIT
 	printf("Doing desx cbc\n");
-	if ((j=des_key_sched(&cbc_key,ks)) != 0)
+	if ((j=des_set_key_checked(&cbc_key,ks)) != 0)
 		{
 		printf("Key error %d\n",j);
 		err=1;
@@ -490,6 +496,7 @@ int main(int argc, char *argv[])
 	if (memcmp(cbc_out,xcbc_ok,32) != 0)
 		{
 		printf("des_xcbc_encrypt encrypt error\n");
+		err=1;
 		}
 	memcpy(iv3,cbc_iv,sizeof(cbc_iv));
 	des_xcbc_encrypt(cbc_out,cbc_in,strlen((char *)cbc_data)+1,ks,
@@ -502,17 +509,17 @@ int main(int argc, char *argv[])
 #endif
 
 	printf("Doing ede cbc\n");
-	if ((j=des_key_sched(&cbc_key,ks)) != 0)
+	if ((j=des_set_key_checked(&cbc_key,ks)) != 0)
 		{
 		printf("Key error %d\n",j);
 		err=1;
 		}
-	if ((j=des_key_sched(&cbc2_key,ks2)) != 0)
+	if ((j=des_set_key_checked(&cbc2_key,ks2)) != 0)
 		{
 		printf("Key error %d\n",j);
 		err=1;
 		}
-	if ((j=des_key_sched(&cbc3_key,ks3)) != 0)
+	if ((j=des_set_key_checked(&cbc3_key,ks3)) != 0)
 		{
 		printf("Key error %d\n",j);
 		err=1;
@@ -543,7 +550,7 @@ int main(int argc, char *argv[])
 
 #ifndef LIBDES_LIT
 	printf("Doing pcbc\n");
-	if ((j=des_key_sched(&cbc_key,ks)) != 0)
+	if ((j=des_set_key_checked(&cbc_key,ks)) != 0)
 		{
 		printf("Key error %d\n",j);
 		err=1;
@@ -606,7 +613,7 @@ int main(int argc, char *argv[])
 	printf("done\n");
 
 	printf("Doing ofb\n");
-	des_key_sched(&ofb_key,ks);
+	des_set_key_checked(&ofb_key,ks);
 	memcpy(ofb_tmp,ofb_iv,sizeof(ofb_iv));
 	des_ofb_encrypt(plain,ofb_buf1,64,sizeof(plain)/8,ks,&ofb_tmp);
 	if (memcmp(ofb_cipher,ofb_buf1,sizeof(ofb_buf1)) != 0)
@@ -635,7 +642,7 @@ plain[8+4], plain[8+5], plain[8+6], plain[8+7]);
 		}
 
 	printf("Doing ofb64\n");
-	des_key_sched(&ofb_key,ks);
+	des_set_key_checked(&ofb_key,ks);
 	memcpy(ofb_tmp,ofb_iv,sizeof(ofb_iv));
 	memset(ofb_buf1,0,sizeof(ofb_buf1));
 	memset(ofb_buf2,0,sizeof(ofb_buf1));
@@ -660,7 +667,7 @@ plain[8+4], plain[8+5], plain[8+6], plain[8+7]);
 		}
 
 	printf("Doing ede_ofb64\n");
-	des_key_sched(&ofb_key,ks);
+	des_set_key_checked(&ofb_key,ks);
 	memcpy(ofb_tmp,ofb_iv,sizeof(ofb_iv));
 	memset(ofb_buf1,0,sizeof(ofb_buf1));
 	memset(ofb_buf2,0,sizeof(ofb_buf1));
@@ -686,7 +693,7 @@ plain[8+4], plain[8+5], plain[8+6], plain[8+7]);
 		}
 
 	printf("Doing cbc_cksum\n");
-	des_key_sched(&cbc_key,ks);
+	des_set_key_checked(&cbc_key,ks);
 	cs=des_cbc_cksum(cbc_data,&cret,strlen((char *)cbc_data),ks,&cbc_iv);
 	if (cs != cbc_cksum_ret)
 		{
@@ -701,43 +708,40 @@ plain[8+4], plain[8+5], plain[8+6], plain[8+7]);
 		}
 
 	printf("Doing quad_cksum\n");
-	/* This is obviously done this way especially to puzzle me. Although
-	   quad_cksum returns up to 4 groups of 8 bytes, this test gets it to
-	   produce 2 groups then treats them as 4 groups of 4 bytes.
-	   Ben 13 Feb 1999 */
-	cs=quad_cksum(cbc_data,(des_cblock *)qret,strlen((char *)cbc_data),2,
-		      &cbc_iv);
-
-	{ /* Big-endian fix */
-	static DES_LONG l=1;
-	static unsigned char *c=(unsigned char *)&l;
-	DES_LONG ll;
-
-	j=sizeof(lqret[0])-4;
-	for (i=0; i<4; i++)
-		{
-		lqret[i]=0;
-		memcpy(&(lqret[i]),&(qret[i][0]),4);
-		if (!c[0] && (j > 0))
-			lqret[i]=lqret[i]>>(j*8); /* For Cray */
-		}
-
-	if (!c[0])
-		{
-		ll=lqret[0]^lqret[3];
-		lqret[0]^=ll;
-		lqret[3]^=ll;
-		ll=lqret[1]^lqret[2];
-		lqret[1]^=ll;
-		lqret[2]^=ll;
-		}
-	}
+	cs=quad_cksum(cbc_data,(des_cblock *)lqret,
+		(long)strlen((char *)cbc_data),2,(des_cblock *)cbc_iv);
 	if (cs != 0x70d7a63aL)
 		{
 		printf("quad_cksum error, ret %08lx should be 70d7a63a\n",
 			(unsigned long)cs);
 		err=1;
 		}
+#ifdef _CRAY
+	if (lqret[0].a != 0x327eba8dL)
+		{
+		printf("quad_cksum error, out[0] %08lx is not %08lx\n",
+			(unsigned long)lqret[0].a,0x327eba8dUL);
+		err=1;
+		}
+	if (lqret[0].b != 0x201a49ccL)
+		{
+		printf("quad_cksum error, out[1] %08lx is not %08lx\n",
+			(unsigned long)lqret[0].b,0x201a49ccUL);
+		err=1;
+		}
+	if (lqret[1].a != 0x70d7a63aL)
+		{
+		printf("quad_cksum error, out[2] %08lx is not %08lx\n",
+			(unsigned long)lqret[1].a,0x70d7a63aUL);
+		err=1;
+		}
+	if (lqret[1].b != 0x501c2c26L)
+		{
+		printf("quad_cksum error, out[3] %08lx is not %08lx\n",
+			(unsigned long)lqret[1].b,0x501c2c26UL);
+		err=1;
+		}
+#else
 	if (lqret[0] != 0x327eba8dL)
 		{
 		printf("quad_cksum error, out[0] %08lx is not %08lx\n",
@@ -762,6 +766,7 @@ plain[8+4], plain[8+5], plain[8+6], plain[8+7]);
 			(unsigned long)lqret[3],0x501c2c26UL);
 		err=1;
 		}
+#endif
 #endif
 
 	printf("input word alignment test");
@@ -795,8 +800,7 @@ plain[8+4], plain[8+5], plain[8+6], plain[8+7]);
 		err=1;
 		}
 	printf("\n");
-	exit(err);
-	return(0);
+	return(err);
 	}
 
 static char *pt(unsigned char *p)
@@ -825,7 +829,7 @@ static int cfb_test(int bits, unsigned char *cfb_cipher)
 	des_key_schedule ks;
 	int i,err=0;
 
-	des_key_sched(&cfb_key,ks);
+	des_set_key_checked(&cfb_key,ks);
 	memcpy(cfb_tmp,cfb_iv,sizeof(cfb_iv));
 	des_cfb_encrypt(plain,cfb_buf1,bits,sizeof(plain),ks,&cfb_tmp,
 			DES_ENCRYPT);
@@ -854,7 +858,7 @@ static int cfb64_test(unsigned char *cfb_cipher)
 	des_key_schedule ks;
 	int err=0,i,n;
 
-	des_key_sched(&cfb_key,ks);
+	des_set_key_checked(&cfb_key,ks);
 	memcpy(cfb_tmp,cfb_iv,sizeof(cfb_iv));
 	n=0;
 	des_cfb64_encrypt(plain,cfb_buf1,12,ks,&cfb_tmp,&n,DES_ENCRYPT);
@@ -887,7 +891,7 @@ static int ede_cfb64_test(unsigned char *cfb_cipher)
 	des_key_schedule ks;
 	int err=0,i,n;
 
-	des_key_sched(&cfb_key,ks);
+	des_set_key_checked(&cfb_key,ks);
 	memcpy(cfb_tmp,cfb_iv,sizeof(cfb_iv));
 	n=0;
 	des_ede3_cfb64_encrypt(plain,cfb_buf1,12,ks,ks,ks,&cfb_tmp,&n,

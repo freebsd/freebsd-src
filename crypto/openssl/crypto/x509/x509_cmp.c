@@ -57,12 +57,11 @@
  */
 
 #include <stdio.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include "cryptlib.h"
 #include <openssl/asn1.h>
 #include <openssl/objects.h>
 #include <openssl/x509.h>
+#include <openssl/x509v3.h>
 
 int X509_issuer_and_serial_cmp(X509 *a, X509 *b)
 	{
@@ -71,7 +70,7 @@ int X509_issuer_and_serial_cmp(X509 *a, X509 *b)
 
 	ai=a->cert_info;
 	bi=b->cert_info;
-	i=ASN1_INTEGER_cmp(ai->serialNumber,bi->serialNumber);
+	i=M_ASN1_INTEGER_cmp(ai->serialNumber,bi->serialNumber);
 	if (i) return(i);
 	return(X509_NAME_cmp(ai->issuer,bi->issuer));
 	}
@@ -138,6 +137,20 @@ unsigned long X509_subject_name_hash(X509 *x)
 	return(X509_NAME_hash(x->cert_info->subject));
 	}
 
+#ifndef NO_SHA
+/* Compare two certificates: they must be identical for
+ * this to work.
+ */
+int X509_cmp(X509 *a, X509 *b)
+{
+	/* ensure hash is valid */
+	X509_check_purpose(a, -1, 0);
+	X509_check_purpose(b, -1, 0);
+
+	return memcmp(a->sha1_hash, b->sha1_hash, SHA_DIGEST_LENGTH);
+}
+#endif
+
 int X509_NAME_cmp(X509_NAME *a, X509_NAME *b)
 	{
 	int i,j;
@@ -175,7 +188,7 @@ int X509_NAME_cmp(X509_NAME *a, X509_NAME *b)
 
 #ifndef NO_MD5
 /* I now DER encode the name and hash it.  Since I cache the DER encoding,
- * this is reasonably effiecent. */
+ * this is reasonably efficient. */
 unsigned long X509_NAME_hash(X509_NAME *x)
 	{
 	unsigned long ret=0;
@@ -208,6 +221,8 @@ X509 *X509_find_by_issuer_and_serial(STACK_OF(X509) *sk, X509_NAME *name,
 	int i;
 	X509_CINF cinf;
 	X509 x,*x509=NULL;
+
+	if(!sk) return NULL;
 
 	x.cert_info= &cinf;
 	cinf.serialNumber=serial;

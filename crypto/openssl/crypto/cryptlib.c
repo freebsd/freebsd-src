@@ -92,7 +92,9 @@ static const char* lock_names[CRYPTO_NUM_LOCKS] =
 	"getservbyname",
 	"readdir",
 	"RSA_blinding",
-#if CRYPTO_NUM_LOCKS != 24
+	"dh",
+	"debug_malloc2",
+#if CRYPTO_NUM_LOCKS != 26
 # error "Inconsistency between crypto.h and cryptlib.c"
 #endif
 	};
@@ -181,7 +183,7 @@ unsigned long CRYPTO_thread_id(void)
 		ret=(unsigned long)GetCurrentTask();
 #elif defined(WIN32)
 		ret=(unsigned long)GetCurrentThreadId();
-#elif defined(MSDOS)
+#elif defined(GETPID_IS_MEANINGLESS)
 		ret=1L;
 #else
 		ret=(unsigned long)getpid();

@@ -58,12 +58,11 @@
  * $FreeBSD$
  */
 
+#include "ssl_locl.h"
 #ifndef NO_SSL2
-
 #include <stdio.h>
 #include <errno.h>
 #define USE_SOCKETS
-#include "ssl_locl.h"
 
 static int read_n(SSL *s,unsigned int n,unsigned int max,unsigned int extend);
 static int do_ssl_write(SSL *s, const unsigned char *buf, unsigned int len);
@@ -642,5 +641,10 @@ static int ssl_mt_error(int n)
 		}
 	return(ret);
 	}
+#else /* !NO_SSL2 */
+
+# if PEDANTIC
+static void *dummy=&dummy;
+# endif
 
 #endif

@@ -88,7 +88,7 @@ PKCS8_PRIV_KEY_INFO *PKCS8_PRIV_KEY_INFO_new(void)
 	PKCS8_PRIV_KEY_INFO *ret=NULL;
 	ASN1_CTX c;
 	M_ASN1_New_Malloc(ret, PKCS8_PRIV_KEY_INFO);
-	M_ASN1_New (ret->version, ASN1_INTEGER_new);
+	M_ASN1_New (ret->version, M_ASN1_INTEGER_new);
 	M_ASN1_New (ret->pkeyalg, X509_ALGOR_new);
 	M_ASN1_New (ret->pkey, ASN1_TYPE_new);
 	ret->attributes = NULL;
@@ -109,15 +109,13 @@ PKCS8_PRIV_KEY_INFO *d2i_PKCS8_PRIV_KEY_INFO(PKCS8_PRIV_KEY_INFO **a,
 	M_ASN1_D2I_get_IMP_set_opt_type(X509_ATTRIBUTE, ret->attributes,
 					d2i_X509_ATTRIBUTE,
 					X509_ATTRIBUTE_free, 0);
-	if (ASN1_TYPE_get(ret->pkey) == V_ASN1_SEQUENCE) 
-						ret->broken = PKCS8_NO_OCTET;
 	M_ASN1_D2I_Finish(a, PKCS8_PRIV_KEY_INFO_free, ASN1_F_D2I_PKCS8_PRIV_KEY_INFO);
 }
 
 void PKCS8_PRIV_KEY_INFO_free (PKCS8_PRIV_KEY_INFO *a)
 {
 	if (a == NULL) return;
-	ASN1_INTEGER_free (a->version);
+	M_ASN1_INTEGER_free (a->version);
 	X509_ALGOR_free(a->pkeyalg);
 	/* Clear sensitive data */
 	if (a->pkey->value.octet_string)

@@ -280,7 +280,8 @@ int RSA_ref_public_encrypt(int len, unsigned char *from, unsigned char *to,
 	R_GetRandomBytesNeeded((unsigned int *)&i,&rnd);
 	while (i > 0)
 		{
-		RAND_bytes(buf,16);
+		if (RAND_bytes(buf,16) <= 0)
+			goto err;
 		R_RandomUpdate(&rnd,buf,(unsigned int)((i>16)?16:i));
 		i-=16;
 		}
@@ -299,4 +300,10 @@ err:
 	memset(&rnd,0,sizeof(rnd));
 	return(outlen);
 	}
+#else /* !NO_RSA */
+
+# if PEDANTIC
+static void *dummy=&dummy;
+# endif
+
 #endif

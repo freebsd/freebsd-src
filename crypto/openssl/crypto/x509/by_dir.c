@@ -59,10 +59,18 @@
 #include <stdio.h>
 #include <time.h>
 #include <errno.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 
 #include "cryptlib.h"
+
+#ifndef NO_SYS_TYPES_H
+# include <sys/types.h>
+#endif
+#ifdef MAC_OS_pre_X
+# include <stat.h>
+#else
+# include <sys/stat.h>
+#endif
+
 #include <openssl/lhash.h>
 #include <openssl/x509.h>
 
@@ -210,9 +218,9 @@ static int add_cert_dir(BY_DIR *ctx, const char *dir, int type)
 				memcpy(ip,ctx->dirs_type,(ctx->num_dirs_alloced-10)*
 					sizeof(int));
 				if (ctx->dirs != NULL)
-					Free((char *)ctx->dirs);
+					Free(ctx->dirs);
 				if (ctx->dirs_type != NULL)
-					Free((char *)ctx->dirs_type);
+					Free(ctx->dirs_type);
 				ctx->dirs=pp;
 				ctx->dirs_type=ip;
 				}
@@ -318,8 +326,7 @@ static int get_cert_by_subject(X509_LOOKUP *xl, int type, X509_NAME *name,
 		/* we have added it to the cache so now pull
 		 * it out again */
 		CRYPTO_r_lock(CRYPTO_LOCK_X509_STORE);
-		tmp=(X509_OBJECT *)lh_retrieve(xl->store_ctx->certs,
-			(char *)&stmp);
+		tmp=(X509_OBJECT *)lh_retrieve(xl->store_ctx->certs,&stmp);
 		CRYPTO_r_unlock(CRYPTO_LOCK_X509_STORE);
 
 		if (tmp != NULL)

@@ -202,6 +202,8 @@ struct x509_store_state_st      /* X509_STORE_CTX */
 	/* The following are set by the caller */
 	X509 *cert;		/* The cert to check */
 	STACK_OF(X509) *untrusted;	/* chain of X509s - untrusted - passed in */
+	int purpose;		/* purpose to check untrusted certificates */
+	int trust;		/* trust setting to check */
 
 	/* The following is built up */
 	int depth;		/* how far to go looking up certs */
@@ -234,6 +236,7 @@ struct x509_store_state_st      /* X509_STORE_CTX */
 		X509_LOOKUP_ctrl((x),X509_L_ADD_DIR,(name),(long)(type),NULL)
 
 #define		X509_V_OK					0
+/* illegal error (for uninitialized values, to avoid X509_V_OK): 1 */
 
 #define		X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT		2
 #define		X509_V_ERR_UNABLE_TO_GET_CRL			3
@@ -257,6 +260,11 @@ struct x509_store_state_st      /* X509_STORE_CTX */
 #define		X509_V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE	21
 #define		X509_V_ERR_CERT_CHAIN_TOO_LONG			22
 #define		X509_V_ERR_CERT_REVOKED				23
+#define		X509_V_ERR_INVALID_CA				24
+#define		X509_V_ERR_PATH_LENGTH_EXCEEDED			25
+#define		X509_V_ERR_INVALID_PURPOSE			26
+#define		X509_V_ERR_CERT_UNTRUSTED			27
+#define		X509_V_ERR_CERT_REJECTED			28
 
 /* The application is not happy */
 #define		X509_V_ERR_APPLICATION_VERIFICATION		50
@@ -284,6 +292,8 @@ void X509_OBJECT_free_contents(X509_OBJECT *a);
 X509_STORE *X509_STORE_new(void );
 void X509_STORE_free(X509_STORE *v);
 
+X509_STORE_CTX *X509_STORE_CTX_new(void);
+void X509_STORE_CTX_free(X509_STORE_CTX *ctx);
 void X509_STORE_CTX_init(X509_STORE_CTX *ctx, X509_STORE *store,
 			 X509 *x509, STACK_OF(X509) *chain);
 void X509_STORE_CTX_cleanup(X509_STORE_CTX *ctx);
@@ -305,6 +315,7 @@ int X509_LOOKUP_ctrl(X509_LOOKUP *ctx, int cmd, const char *argc,
 #ifndef NO_STDIO
 int X509_load_cert_file(X509_LOOKUP *ctx, const char *file, int type);
 int X509_load_crl_file(X509_LOOKUP *ctx, const char *file, int type);
+int X509_load_cert_crl_file(X509_LOOKUP *ctx, const char *file, int type);
 #endif
 
 
@@ -327,8 +338,8 @@ int	X509_STORE_load_locations (X509_STORE *ctx,
 int	X509_STORE_set_default_paths(X509_STORE *ctx);
 #endif
 
-int X509_STORE_CTX_get_ex_new_index(long argl, char *argp, int (*new_func)(),
-	int (*dup_func)(), void (*free_func)());
+int X509_STORE_CTX_get_ex_new_index(long argl, void *argp, CRYPTO_EX_new *new_func,
+	CRYPTO_EX_dup *dup_func, CRYPTO_EX_free *free_func);
 int	X509_STORE_CTX_set_ex_data(X509_STORE_CTX *ctx,int idx,void *data);
 void *	X509_STORE_CTX_get_ex_data(X509_STORE_CTX *ctx,int idx);
 int	X509_STORE_CTX_get_error(X509_STORE_CTX *ctx);
@@ -336,8 +347,13 @@ void	X509_STORE_CTX_set_error(X509_STORE_CTX *ctx,int s);
 int	X509_STORE_CTX_get_error_depth(X509_STORE_CTX *ctx);
 X509 *	X509_STORE_CTX_get_current_cert(X509_STORE_CTX *ctx);
 STACK_OF(X509) *X509_STORE_CTX_get_chain(X509_STORE_CTX *ctx);
+STACK_OF(X509) *X509_STORE_CTX_get1_chain(X509_STORE_CTX *ctx);
 void	X509_STORE_CTX_set_cert(X509_STORE_CTX *c,X509 *x);
 void	X509_STORE_CTX_set_chain(X509_STORE_CTX *c,STACK_OF(X509) *sk);
+int X509_STORE_CTX_set_purpose(X509_STORE_CTX *ctx, int purpose);
+int X509_STORE_CTX_set_trust(X509_STORE_CTX *ctx, int trust);
+int X509_STORE_CTX_purpose_inherit(X509_STORE_CTX *ctx, int def_purpose,
+				int purpose, int trust);
 
 #ifdef  __cplusplus
 }

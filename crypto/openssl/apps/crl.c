@@ -75,7 +75,7 @@
 static char *crl_usage[]={
 "usage: crl args\n",
 "\n",
-" -inform arg     - input format - default PEM (one of DER, TXT or PEM)\n",
+" -inform arg     - input format - default PEM (DER or PEM)\n",
 " -outform arg    - output format - default PEM\n",
 " -text           - print out a text format version\n",
 " -in arg         - input file - default stdin\n",
@@ -85,21 +85,32 @@ static char *crl_usage[]={
 " -lastupdate     - lastUpdate field\n",
 " -nextupdate     - nextUpdate field\n",
 " -noout          - no CRL output\n",
+" -CAfile  name   - verify CRL using certificates in file \"name\"\n",
+" -CApath  dir    - verify CRL using certificates in \"dir\"\n",
 NULL
 };
 
 static X509_CRL *load_crl(char *file, int format);
 static BIO *bio_out=NULL;
 
+int MAIN(int, char **);
+
 int MAIN(int argc, char **argv)
 	{
 	X509_CRL *x=NULL;
+	char *CAfile = NULL, *CApath = NULL;
 	int ret=1,i,num,badops=0;
 	BIO *out=NULL;
 	int informat,outformat;
 	char *infile=NULL,*outfile=NULL;
 	int hash=0,issuer=0,lastupdate=0,nextupdate=0,noout=0,text=0;
 	char **pp,buf[256];
+	X509_STORE *store = NULL;
+	X509_STORE_CTX ctx;
+	X509_LOOKUP *lookup = NULL;
+	X509_OBJECT xobj;
+	EVP_PKEY *pkey;
+	int do_ver = 0;
 
 	apps_startup();
 
@@ -146,6 +157,20 @@ int MAIN(int argc, char **argv)
 			if (--argc < 1) goto bad;
 			outfile= *(++argv);
 			}
+		else if (strcmp(*argv,"-CApath") == 0)
+			{
+			if (--argc < 1) goto bad;
+			CApath = *(++argv);
+			do_ver = 1;
+			}
+		else if (strcmp(*argv,"-CAfile") == 0)
+			{
+			if (--argc < 1) goto bad;
+			CAfile = *(++argv);
+			do_ver = 1;
+			}
+		else if (strcmp(*argv,"-verify") == 0)
+			do_ver = 1;
 		else if (strcmp(*argv,"-text") == 0)
 			text = 1;
 		else if (strcmp(*argv,"-hash") == 0)
@@ -177,9 +202,44 @@ bad:
 		}
 
 	ERR_load_crypto_strings();
-	X509V3_add_standard_extensions();
 	x=load_crl(infile,informat);
 	if (x == NULL) { goto end; }
+
+	if(do_ver) {
+		store = X509_STORE_new();
+		lookup=X509_STORE_add_lookup(store,X509_LOOKUP_file());
+		if (lookup == NULL) goto end;
+		if (!X509_LOOKUP_load_file(lookup,CAfile,X509_FILETYPE_PEM))
+			X509_LOOKUP_load_file(lookup,NULL,X509_FILETYPE_DEFAULT);
+			
+		lookup=X509_STORE_add_lookup(store,X509_LOOKUP_hash_dir());
+		if (lookup == NULL) goto end;
+		if (!X509_LOOKUP_add_dir(lookup,CApath,X509_FILETYPE_PEM))
+			X509_LOOKUP_add_dir(lookup,NULL,X509_FILETYPE_DEFAULT);
+		ERR_clear_error();
+
+		X509_STORE_CTX_init(&ctx, store, NULL, NULL);
+
+		i = X509_STORE_get_by_subject(&ctx, X509_LU_X509, 
+					X509_CRL_get_issuer(x), &xobj);
+		if(i <= 0) {
+			BIO_printf(bio_err,
+				"Error getting CRL issuer certificate\n");
+			goto end;
+		}
+		pkey = X509_get_pubkey(xobj.data.x509);
+		X509_OBJECT_free_contents(&xobj);
+		if(!pkey) {
+			BIO_printf(bio_err,
+				"Error getting CRL issuer public key\n");
+			goto end;
+		}
+		i = X509_CRL_verify(x, pkey);
+		EVP_PKEY_free(pkey);
+		if(i < 0) goto end;
+		if(i == 0) BIO_printf(bio_err, "verify failure\n");
+		else BIO_printf(bio_err, "verify OK\n");
+	}
 
 	if (num)
 		{
@@ -187,26 +247,29 @@ bad:
 			{
 			if (issuer == i)
 				{
-				X509_NAME_oneline(x->crl->issuer,buf,256);
+				X509_NAME_oneline(X509_CRL_get_issuer(x),
+								buf,256);
 				BIO_printf(bio_out,"issuer= %s\n",buf);
 				}
 
 			if (hash == i)
 				{
 				BIO_printf(bio_out,"%08lx\n",
-					X509_NAME_hash(x->crl->issuer));
+					X509_NAME_hash(X509_CRL_get_issuer(x)));
 				}
 			if (lastupdate == i)
 				{
 				BIO_printf(bio_out,"lastUpdate=");
-				ASN1_TIME_print(bio_out,x->crl->lastUpdate);
+				ASN1_TIME_print(bio_out,
+						X509_CRL_get_lastUpdate(x));
 				BIO_printf(bio_out,"\n");
 				}
 			if (nextupdate == i)
 				{
 				BIO_printf(bio_out,"nextUpdate=");
-				if (x->crl->nextUpdate != NULL)
-					ASN1_TIME_print(bio_out,x->crl->nextUpdate);
+				if (X509_CRL_get_nextUpdate(x)) 
+					ASN1_TIME_print(bio_out,
+						X509_CRL_get_nextUpdate(x));
 				else
 					BIO_printf(bio_out,"NONE");
 				BIO_printf(bio_out,"\n");
@@ -250,8 +313,12 @@ bad:
 end:
 	BIO_free(out);
 	BIO_free(bio_out);
+	bio_out=NULL;
 	X509_CRL_free(x);
-	X509V3_EXT_cleanup();
+	if(store) {
+		X509_STORE_CTX_cleanup(&ctx);
+		X509_STORE_free(store);
+	}
 	EXIT(ret);
 	}
 

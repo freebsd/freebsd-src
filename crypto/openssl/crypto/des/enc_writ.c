@@ -130,12 +130,12 @@ int des_enc_write(int fd, const void *_buf, int len,
 		{
 		cp=shortbuf;
 		memcpy(shortbuf,buf,len);
-		RAND_bytes(shortbuf+len, 8-len);
+		RAND_pseudo_bytes(shortbuf+len, 8-len);
 		rnum=8;
 		}
 	else
 		{
-		cp=(unsigned char*)buf;
+		cp=buf;
 		rnum=((len+7)/8*8); /* round up to nearest eight */
 		}
 
@@ -152,13 +152,16 @@ int des_enc_write(int fd, const void *_buf, int len,
 	for (j=0; j<outnum; j+=i)
 		{
 		/* eay 26/08/92 I was not doing writing from where we
-		 * got upto. */
-		i=write(fd,&(outbuf[j]),outnum-j);
+		 * got up to. */
+		i=write(fd,(void *)&(outbuf[j]),outnum-j);
 		if (i == -1)
 			{
+#ifdef EINTR
 			if (errno == EINTR)
 				i=0;
-			else 	/* This is really a bad error - very bad
+			else
+#endif
+			        /* This is really a bad error - very bad
 				 * It will stuff-up both ends. */
 				return(-1);
 			}

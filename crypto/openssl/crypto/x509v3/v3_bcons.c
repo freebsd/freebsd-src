@@ -122,8 +122,8 @@ BASIC_CONSTRAINTS *d2i_BASIC_CONSTRAINTS(BASIC_CONSTRAINTS **a,
 void BASIC_CONSTRAINTS_free(BASIC_CONSTRAINTS *a)
 {
 	if (a == NULL) return;
-	ASN1_INTEGER_free (a->pathlen);
-	Free ((char *)a);
+	M_ASN1_INTEGER_free (a->pathlen);
+	Free (a);
 }
 
 static STACK_OF(CONF_VALUE) *i2v_BASIC_CONSTRAINTS(X509V3_EXT_METHOD *method,

@@ -86,28 +86,25 @@ const char *CONF_version="CONF" OPENSSL_VERSION_PTEXT;
 LHASH *CONF_load(LHASH *h, const char *file, long *line)
 	{
 	LHASH *ltmp;
-	FILE *in=NULL;
+	BIO *in=NULL;
 
 #ifdef VMS
-	in=fopen(file,"r");
+	in=BIO_new_file(file, "r");
 #else
-	in=fopen(file,"rb");
+	in=BIO_new_file(file, "rb");
 #endif
 	if (in == NULL)
 		{
-		SYSerr(SYS_F_FOPEN,get_last_sys_error());
-		ERR_set_error_data(BUF_strdup(file),
-			ERR_TXT_MALLOCED|ERR_TXT_STRING);
 		CONFerr(CONF_F_CONF_LOAD,ERR_R_SYS_LIB);
 		return NULL;
 		}
 
-	ltmp = CONF_load_fp(h, in, line);
-	fclose(in);
+	ltmp = CONF_load_bio(h, in, line);
+	BIO_free(in);
 
 	return ltmp;
 }
-
+#ifndef NO_FP_API
 LHASH *CONF_load_fp(LHASH *h, FILE *in, long *line)
 {
 	BIO *btmp;
@@ -120,6 +117,7 @@ LHASH *CONF_load_fp(LHASH *h, FILE *in, long *line)
 	BIO_free(btmp);
 	return ltmp;
 }
+#endif
 
 LHASH *CONF_load_bio(LHASH *h, BIO *in, long *line)
 	{
@@ -338,7 +336,7 @@ again:
 							ERR_R_MALLOC_FAILURE);
 				goto err;
 				}
-			vv=(CONF_VALUE *)lh_insert(ret,(char *)v);
+			vv=(CONF_VALUE *)lh_insert(ret,v);
 			if (vv != NULL)
 				{
 				sk_CONF_VALUE_delete_ptr(ts,vv);
@@ -380,7 +378,7 @@ char *CONF_get_string(LHASH *conf, char *section, char *name)
 			{
 			vv.name=name;
 			vv.section=section;
-			v=(CONF_VALUE *)lh_retrieve(conf,(char *)&vv);
+			v=(CONF_VALUE *)lh_retrieve(conf,&vv);
 			if (v != NULL) return(v->value);
 			if (strcmp(section,"ENV") == 0)
 				{
@@ -390,7 +388,7 @@ char *CONF_get_string(LHASH *conf, char *section, char *name)
 			}
 		vv.section="default";
 		vv.name=name;
-		v=(CONF_VALUE *)lh_retrieve(conf,(char *)&vv);
+		v=(CONF_VALUE *)lh_retrieve(conf,&vv);
 		if (v != NULL)
 			return(v->value);
 		else
@@ -407,7 +405,7 @@ static CONF_VALUE *get_section(LHASH *conf, char *section)
 	if ((conf == NULL) || (section == NULL)) return(NULL);
 	vv.name=NULL;
 	vv.section=section;
-	v=(CONF_VALUE *)lh_retrieve(conf,(char *)&vv);
+	v=(CONF_VALUE *)lh_retrieve(conf,&vv);
 	return(v);
 	}
 
@@ -445,12 +443,12 @@ void CONF_free(LHASH *conf)
 
 	conf->down_load=0; 	/* evil thing to make sure the 'Free()'
 				 * works as expected */
-	lh_doall_arg(conf,(void (*)())value_free_hash,(char *)conf);
+	lh_doall_arg(conf,(void (*)())value_free_hash,conf);
 
 	/* We now have only 'section' entries in the hash table.
 	 * Due to problems with */
 
-	lh_doall_arg(conf,(void (*)())value_free_stack,(char *)conf);
+	lh_doall_arg(conf,(void (*)())value_free_stack,conf);
 	lh_free(conf);
 	}
 
@@ -458,7 +456,7 @@ static void value_free_hash(CONF_VALUE *a, LHASH *conf)
 	{
 	if (a->name != NULL)
 		{
-		a=(CONF_VALUE *)lh_delete(conf,(char *)a);
+		a=(CONF_VALUE *)lh_delete(conf,a);
 		}
 	}
 
@@ -710,7 +708,7 @@ static CONF_VALUE *new_section(LHASH *conf, char *section)
 	v->name=NULL;
 	v->value=(char *)sk;
 	
-	vv=(CONF_VALUE *)lh_insert(conf,(char *)v);
+	vv=(CONF_VALUE *)lh_insert(conf,v);
 	if (vv != NULL)
 		{
 #if !defined(NO_STDIO) && !defined(WIN16)

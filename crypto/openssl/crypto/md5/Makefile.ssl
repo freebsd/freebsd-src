@@ -19,6 +19,13 @@ AR=             ar r
 MD5_ASM_OBJ=
 
 CFLAGS= $(INCLUDES) $(CFLAG)
+
+# We let the C compiler driver to take care of .s files. This is done in
+# order to be excused from maintaining a separate set of architecture
+# dependent assembler flags. E.g. if you throw -mcpu=ultrasparc at SPARC
+# gcc, then the driver will automatically translate it to -xarch=v8plus
+# and pass it down to assembler.
+AS=$(CC) -c
 ASFLAGS=$(CFLAGS)
 
 GENERAL=Makefile
@@ -48,7 +55,7 @@ lib:    $(LIBOBJ)
 
 # elf
 asm/mx86-elf.o: asm/mx86unix.cpp
-	$(CPP) -DELF asm/mx86unix.cpp | as -o asm/mx86-elf.o
+	$(CPP) -DELF -x c asm/mx86unix.cpp | as -o asm/mx86-elf.o
 
 # solaris
 asm/mx86-sol.o: asm/mx86unix.cpp
@@ -64,7 +71,7 @@ asm/mx86-out.o: asm/mx86unix.cpp
 asm/mx86bsdi.o: asm/mx86unix.cpp
 	$(CPP) -DBSDI asm/mx86unix.cpp | sed 's/ :/:/' | as -o asm/mx86bsdi.o
 
-asm/mx86unix.cpp: asm/md5-586.pl
+asm/mx86unix.cpp: asm/md5-586.pl ../perlasm/x86asm.pl
 	(cd asm; $(PERL) md5-586.pl cpp >mx86unix.cpp)
 
 asm/md5-sparcv8plus.o: asm/md5-sparcv9.S
@@ -77,7 +84,7 @@ asm/md5-sparcv8plus.o: asm/md5-sparcv9.S
 # if they didn't bother to upgrade GNU assembler. Such users should
 # not choose this option, but be adviced to *remove* GNU assembler
 # or upgrade it.
-sm/md5-sparcv8plus-gcc27.o: asm/md5-sparcv9.S
+asm/md5-sparcv8plus-gcc27.o: asm/md5-sparcv9.S
 	$(CC) $(ASFLAGS) -DMD5_BLOCK_DATA_ORDER -E asm/md5-sparcv9.S | \
 		/usr/ccs/bin/as -xarch=v8plus - -o asm/md5-sparcv8plus-gcc27.o
 

@@ -71,14 +71,14 @@ const char *BN_version="Big Number" OPENSSL_VERSION_PTEXT;
  * 7 - 128 == 4096
  * 8 - 256 == 8192
  */
-OPENSSL_GLOBAL int bn_limit_bits=0;
-OPENSSL_GLOBAL int bn_limit_num=8;        /* (1<<bn_limit_bits) */
-OPENSSL_GLOBAL int bn_limit_bits_low=0;
-OPENSSL_GLOBAL int bn_limit_num_low=8;    /* (1<<bn_limit_bits_low) */
-OPENSSL_GLOBAL int bn_limit_bits_high=0;
-OPENSSL_GLOBAL int bn_limit_num_high=8;   /* (1<<bn_limit_bits_high) */
-OPENSSL_GLOBAL int bn_limit_bits_mont=0;
-OPENSSL_GLOBAL int bn_limit_num_mont=8;   /* (1<<bn_limit_bits_mont) */
+static int bn_limit_bits=0;
+static int bn_limit_num=8;        /* (1<<bn_limit_bits) */
+static int bn_limit_bits_low=0;
+static int bn_limit_num_low=8;    /* (1<<bn_limit_bits_low) */
+static int bn_limit_bits_high=0;
+static int bn_limit_num_high=8;   /* (1<<bn_limit_bits_high) */
+static int bn_limit_bits_mont=0;
+static int bn_limit_num_mont=8;   /* (1<<bn_limit_bits_mont) */
 
 void BN_set_params(int mult, int high, int low, int mont)
 	{
@@ -304,42 +304,10 @@ BIGNUM *BN_new(void)
 	return(ret);
 	}
 
-
-BN_CTX *BN_CTX_new(void)
-	{
-	BN_CTX *ret;
-
-	ret=(BN_CTX *)Malloc(sizeof(BN_CTX));
-	if (ret == NULL)
-		{
-		BNerr(BN_F_BN_CTX_NEW,ERR_R_MALLOC_FAILURE);
-		return(NULL);
-		}
-
-	BN_CTX_init(ret);
-	ret->flags=BN_FLG_MALLOCED;
-	return(ret);
-	}
-
-void BN_CTX_init(BN_CTX *ctx)
-	{
-	memset(ctx,0,sizeof(BN_CTX));
-	ctx->tos=0;
-	ctx->flags=0;
-	}
-
-void BN_CTX_free(BN_CTX *c)
-	{
-	int i;
-
-	if(c == NULL)
-	    return;
-
-	for (i=0; i<BN_CTX_NUM; i++)
-		BN_clear_free(&(c->bn[i]));
-	if (c->flags & BN_FLG_MALLOCED)
-		Free(c);
-	}
+/* This is an internal function that should not be used in applications.
+ * It ensures that 'b' has enough room for a 'words' word number number.
+ * It is mostly used by the various BIGNUM routines. If there is an error,
+ * NULL is returned. If not, 'b' is returned. */
 
 BIGNUM *bn_expand2(BIGNUM *b, int words)
 	{
@@ -389,7 +357,7 @@ BIGNUM *bn_expand2(BIGNUM *b, int words)
  * if A and B happen to share same cache line such code is going to
  * cause severe cache trashing. Both factors have severe impact on
  * performance of modern CPUs and this is the reason why this
- * particulare piece of code is #ifdefed away and replaced by more
+ * particular piece of code is #ifdefed away and replaced by more
  * "friendly" version found in #else section below. This comment
  * also applies to BN_copy function.
  *
@@ -420,7 +388,7 @@ BIGNUM *bn_expand2(BIGNUM *b, int words)
 				A[0]=B[0];
 			case 0:
 				/* I need the 'case 0' entry for utrix cc.
-				 * If the optimiser is turned on, it does the
+				 * If the optimizer is turned on, it does the
 				 * switch table by doing
 				 * a=top&7
 				 * a--;

@@ -67,7 +67,7 @@
 	and everything was OK. BUT if user types wrong password 
 	BIO_f_cipher outputs only garbage and my function crashes. Yes
 	I can and I should fix my function, but BIO_f_cipher is 
-	easy way to add encryption support to many exisiting applications
+	easy way to add encryption support to many existing applications
 	and it's hard to debug and fix them all. 
 
 	So I wanted another BIO which would catch the incorrect passwords and
@@ -80,10 +80,10 @@
 	1) you must somehow separate checksum from actual data. 
 	2) you need lot's of memory when reading the file, because you 
 	must read to the end of the file and verify the checksum before
-	leting the application to read the data. 
+	letting the application to read the data. 
 	
 	BIO_f_reliable tries to solve both problems, so that you can 
-	read and write arbitraly long streams using only fixed amount
+	read and write arbitrary long streams using only fixed amount
 	of memory.
 
 	BIO_f_reliable splits data stream into blocks. Each block is prefixed
@@ -91,7 +91,7 @@
 	several Kbytes of memory to buffer single block before verifying 
 	it's digest. 
 
-	BIO_f_reliable goes futher and adds several important capabilities:
+	BIO_f_reliable goes further and adds several important capabilities:
 
 	1) the digest of the block is computed over the whole stream 
 	-- so nobody can rearrange the blocks or remove or replace them.
@@ -110,7 +110,7 @@
 	and then compare the digest output.
 
 	Bad things: BIO_f_reliable knows what's going on in EVP_Digest. I 
-	initialy wrote and tested this code on x86 machine and wrote the
+	initially wrote and tested this code on x86 machine and wrote the
 	digests out in machine-dependent order :( There are people using
 	this code and I cannot change this easily without making existing
 	data files unreadable.
@@ -130,6 +130,8 @@ static int ok_read(BIO *h,char *buf,int size);
 static long ok_ctrl(BIO *h,int cmd,long arg1,char *arg2);
 static int ok_new(BIO *h);
 static int ok_free(BIO *data);
+static long ok_callback_ctrl(BIO *h,int cmd,void (*fp)());
+
 static void sig_out(BIO* b);
 static void sig_in(BIO* b);
 static void block_out(BIO* b);
@@ -173,6 +175,7 @@ static BIO_METHOD methods_ok=
 	ok_ctrl,
 	ok_new,
 	ok_free,
+	ok_callback_ctrl,
 	};
 
 BIO_METHOD *BIO_f_reliable(void)
@@ -428,6 +431,20 @@ static long ok_ctrl(BIO *b, int cmd, long num, char *ptr)
 	return(ret);
 	}
 
+static long ok_callback_ctrl(BIO *b, int cmd, void (*fp)())
+	{
+	long ret=1;
+
+	if (b->next_bio == NULL) return(0);
+	switch (cmd)
+		{
+	default:
+		ret=BIO_callback_ctrl(b->next_bio,cmd,fp);
+		break;
+		}
+	return(ret);
+	}
+
 static void longswap(void *_ptr, int len)
 {
 #ifndef L_ENDIAN
@@ -451,12 +468,12 @@ static void sig_out(BIO* b)
 	if(ctx->buf_len+ 2* md->digest->md_size > OK_BLOCK_SIZE) return;
 
 	EVP_DigestInit(md, md->digest);
-	RAND_bytes(&(md->md.base[0]), md->digest->md_size);
+	RAND_pseudo_bytes(&(md->md.base[0]), md->digest->md_size);
 	memcpy(&(ctx->buf[ctx->buf_len]), &(md->md.base[0]), md->digest->md_size);
 	longswap(&(ctx->buf[ctx->buf_len]), md->digest->md_size);
 	ctx->buf_len+= md->digest->md_size;
 
-	EVP_DigestUpdate(md, (unsigned char*)WELLKNOWN, strlen(WELLKNOWN));
+	EVP_DigestUpdate(md, WELLKNOWN, strlen(WELLKNOWN));
 	md->digest->final(&(ctx->buf[ctx->buf_len]), &(md->md.base[0]));
 	ctx->buf_len+= md->digest->md_size;
 	ctx->blockout= 1;
@@ -480,7 +497,7 @@ static void sig_in(BIO* b)
 	longswap(&(md->md.base[0]), md->digest->md_size);
 	ctx->buf_off+= md->digest->md_size;
 
-	EVP_DigestUpdate(md, (unsigned char*)WELLKNOWN, strlen(WELLKNOWN));
+	EVP_DigestUpdate(md, WELLKNOWN, strlen(WELLKNOWN));
 	md->digest->final(tmp, &(md->md.base[0]));
 	ret= memcmp(&(ctx->buf[ctx->buf_off]), tmp, md->digest->md_size) == 0;
 	ctx->buf_off+= md->digest->md_size;

@@ -72,7 +72,7 @@
 static char *sess_id_usage[]={
 "usage: sess_id args\n",
 "\n",
-" -inform arg     - input format - default PEM (one of DER, TXT or PEM)\n",
+" -inform arg     - input format - default PEM (DER or PEM)\n",
 " -outform arg    - output format - default PEM\n",
 " -in arg         - input file - default stdin\n",
 " -out arg        - output file - default stdout\n",
@@ -84,6 +84,9 @@ NULL
 };
 
 static SSL_SESSION *load_sess_id(char *file, int format);
+
+int MAIN(int, char **);
+
 int MAIN(int argc, char **argv)
 	{
 	SSL_SESSION *x=NULL;

@@ -60,6 +60,12 @@
 #include "cryptlib.h"
 #include <openssl/asn1.h>
 
+ASN1_IA5STRING *ASN1_IA5STRING_new(void)
+{ return M_ASN1_IA5STRING_new();}
+
+void ASN1_IA5STRING_free(ASN1_IA5STRING *x)
+{ M_ASN1_IA5STRING_free(x);}
+
 int i2d_ASN1_IA5STRING(ASN1_IA5STRING *a, unsigned char **pp)
 	{ return(M_i2d_ASN1_IA5STRING(a,pp)); }
 
@@ -67,14 +73,29 @@ ASN1_IA5STRING *d2i_ASN1_IA5STRING(ASN1_IA5STRING **a, unsigned char **pp,
 	     long l)
 	{ return(M_d2i_ASN1_IA5STRING(a,pp,l)); }
 
+ASN1_T61STRING *ASN1_T61STRING_new(void)
+{ return M_ASN1_T61STRING_new();}
+
+void ASN1_T61STRING_free(ASN1_T61STRING *x)
+{ M_ASN1_T61STRING_free(x);}
+
 ASN1_T61STRING *d2i_ASN1_T61STRING(ASN1_T61STRING **a, unsigned char **pp,
 	     long l)
 	{ return(M_d2i_ASN1_T61STRING(a,pp,l)); }
+
+ASN1_PRINTABLESTRING *ASN1_PRINTABLESTRING_new(void)
+{ return M_ASN1_PRINTABLESTRING_new();}
+
+void ASN1_PRINTABLESTRING_free(ASN1_PRINTABLESTRING *x)
+{ M_ASN1_PRINTABLESTRING_free(x);}
 
 ASN1_PRINTABLESTRING *d2i_ASN1_PRINTABLESTRING(ASN1_PRINTABLESTRING **a,
 	     unsigned char **pp, long l)
 	{ return(M_d2i_ASN1_PRINTABLESTRING(a,pp,
 	     l)); }
+
+int i2d_ASN1_PRINTABLESTRING(ASN1_PRINTABLESTRING *a, unsigned char **pp)
+	{ return(M_i2d_ASN1_PRINTABLESTRING(a,pp)); }
 
 int i2d_ASN1_PRINTABLE(ASN1_STRING *a, unsigned char **pp)
 	{ return(M_i2d_ASN1_PRINTABLE(a,pp)); }
@@ -149,6 +170,11 @@ int ASN1_UNIVERSALSTRING_to_string(ASN1_UNIVERSALSTRING *s)
 	return(1);
 	}
 
+ASN1_STRING *DIRECTORYSTRING_new(void)
+{ return M_DIRECTORYSTRING_new();}
+
+void DIRECTORYSTRING_free(ASN1_STRING *x)
+{ M_DIRECTORYSTRING_free(x);}
 
 int i2d_DIRECTORYSTRING(ASN1_STRING *a, unsigned char **pp)
 	{ return(M_i2d_DIRECTORYSTRING(a,pp)); }
@@ -156,6 +182,12 @@ int i2d_DIRECTORYSTRING(ASN1_STRING *a, unsigned char **pp)
 ASN1_STRING *d2i_DIRECTORYSTRING(ASN1_STRING **a, unsigned char **pp,
 	     long l)
 	{ return(M_d2i_DIRECTORYSTRING(a,pp,l)); }
+
+ASN1_STRING *DISPLAYTEXT_new(void)
+{ return M_DISPLAYTEXT_new();}
+
+void DISPLAYTEXT_free(ASN1_STRING *x)
+{ M_DISPLAYTEXT_free(x);}
 
 int i2d_DISPLAYTEXT(ASN1_STRING *a, unsigned char **pp)
 	{ return(M_i2d_DISPLAYTEXT(a,pp)); }

@@ -240,16 +240,19 @@ static double Time_F(int s)
 #endif
 	}
 
+int MAIN(int, char **);
+
 int MAIN(int argc, char **argv)
 	{
 	unsigned char *buf=NULL,*buf2=NULL;
-	int ret=1;
+	int mret=1;
 #define ALGOR_NUM	14
 #define SIZE_NUM	5
 #define RSA_NUM		4
 #define DSA_NUM		3
 	long count,rsa_count;
-	int i,j,k,rsa_num,rsa_num2;
+	int i,j,k;
+	unsigned rsa_num,rsa_num2;
 #ifndef NO_MD2
 	unsigned char md2[MD2_DIGEST_LENGTH];
 #endif
@@ -346,6 +349,7 @@ int MAIN(int argc, char **argv)
 	int pr_header=0;
 
 	apps_startup();
+	memset(results, 0, sizeof(results));
 #ifndef NO_DSA
 	memset(dsa_key,0,sizeof(dsa_key));
 #endif
@@ -423,18 +427,20 @@ int MAIN(int argc, char **argv)
 			if (strcmp(*argv,"rc4") == 0) doit[D_RC4]=1;
 		else 
 #endif
-#ifndef NO_DEF
+#ifndef NO_DES
 			if (strcmp(*argv,"des-cbc") == 0) doit[D_CBC_DES]=1;
 		else	if (strcmp(*argv,"des-ede3") == 0) doit[D_EDE3_DES]=1;
 		else
 #endif
 #ifndef NO_RSA
+#ifndef RSA_NULL
 			if (strcmp(*argv,"openssl") == 0) 
 			{
 			RSA_set_default_method(RSA_PKCS1());
 			j--;
 			}
 		else
+#endif
 #endif /* !NO_RSA */
 		     if (strcmp(*argv,"dsa512") == 0) dsa_doit[R_DSA_512]=2;
 		else if (strcmp(*argv,"dsa1024") == 0) dsa_doit[R_DSA_1024]=2;
@@ -580,9 +586,9 @@ int MAIN(int argc, char **argv)
 #endif
 
 #ifndef NO_DES
-	des_set_key(&key,sch);
-	des_set_key(&key2,sch2);
-	des_set_key(&key3,sch3);
+	des_set_key_unchecked(&key,sch);
+	des_set_key_unchecked(&key2,sch2);
+	des_set_key_unchecked(&key3,sch3);
 #endif
 #ifndef NO_IDEA
 	idea_set_encrypt_key(key16,&idea_ks);
@@ -606,6 +612,7 @@ int MAIN(int argc, char **argv)
 	memset(rsa_c,0,sizeof(rsa_c));
 #endif
 #ifndef SIGALRM
+#ifndef NO_DES
 	BIO_printf(bio_err,"First we calculate the approximate speed ...\n");
 	count=10;
 	do	{
@@ -697,10 +704,14 @@ int MAIN(int argc, char **argv)
 #define COND(d)	(count < (d))
 #define COUNT(d) (d)
 #else
+/* not worth fixing */
+# error "You cannot disable DES on systems without SIGALRM."
+#endif /* NO_DES */
+#else
 #define COND(c)	(run)
 #define COUNT(d) (count)
 	signal(SIGALRM,sig_done);
-#endif
+#endif /* SIGALRM */
 
 #ifndef NO_MD2
 	if (doit[D_MD2])
@@ -950,22 +961,22 @@ int MAIN(int argc, char **argv)
 		}
 #endif
 
-	RAND_bytes(buf,30);
+	RAND_pseudo_bytes(buf,36);
 #ifndef NO_RSA
 	for (j=0; j<RSA_NUM; j++)
 		{
+		int ret;
 		if (!rsa_doit[j]) continue;
-		rsa_num=RSA_private_encrypt(30,buf,buf2,rsa_key[j],
-			RSA_PKCS1_PADDING);
+		ret=RSA_sign(NID_md5_sha1, buf,36, buf2, &rsa_num, rsa_key[j]);
 		pkey_print_message("private","rsa",rsa_c[j][0],rsa_bits[j],
 			RSA_SECONDS);
 /*		RSA_blinding_on(rsa_key[j],NULL); */
 		Time_F(START);
 		for (count=0,run=1; COND(rsa_c[j][0]); count++)
 			{
-			rsa_num=RSA_private_encrypt(30,buf,buf2,rsa_key[j],
-				RSA_PKCS1_PADDING);
-			if (rsa_num <= 0)
+			ret=RSA_sign(NID_md5_sha1, buf,36, buf2, &rsa_num,
+								 rsa_key[j]);
+			if (ret <= 0)
 				{
 				BIO_printf(bio_err,"RSA private encrypt failure\n");
 				ERR_print_errors(bio_err);
@@ -980,18 +991,17 @@ int MAIN(int argc, char **argv)
 		rsa_count=count;
 
 #if 1
-		rsa_num2=RSA_public_decrypt(rsa_num,buf2,buf,rsa_key[j],
-			RSA_PKCS1_PADDING);
+		ret=RSA_verify(NID_md5_sha1, buf,36, buf2, rsa_num, rsa_key[j]);
 		pkey_print_message("public","rsa",rsa_c[j][1],rsa_bits[j],
 			RSA_SECONDS);
 		Time_F(START);
 		for (count=0,run=1; COND(rsa_c[j][1]); count++)
 			{
-			rsa_num2=RSA_public_decrypt(rsa_num,buf2,buf,rsa_key[j],
-				RSA_PKCS1_PADDING);
-			if (rsa_num2 <= 0)
+			ret=RSA_verify(NID_md5_sha1, buf,36, buf2, rsa_num,
+								rsa_key[j]);
+			if (ret <= 0)
 				{
-				BIO_printf(bio_err,"RSA public encrypt failure\n");
+				BIO_printf(bio_err,"RSA verify failure\n");
 				ERR_print_errors(bio_err);
 				count=1;
 				break;
@@ -1012,8 +1022,13 @@ int MAIN(int argc, char **argv)
 		}
 #endif
 
-	RAND_bytes(buf,20);
+	RAND_pseudo_bytes(buf,20);
 #ifndef NO_DSA
+	if (RAND_status() != 1)
+		{
+		RAND_seed(rnd_seed, sizeof rnd_seed);
+		rnd_fake = 1;
+		}
 	for (j=0; j<DSA_NUM; j++)
 		{
 		unsigned int kk;
@@ -1030,7 +1045,7 @@ int MAIN(int argc, char **argv)
 			{
 			rsa_num=DSA_sign(EVP_PKEY_DSA,buf,20,buf2,
 				&kk,dsa_key[j]);
-			if (rsa_num <= 0)
+			if (rsa_num == 0)
 				{
 				BIO_printf(bio_err,"DSA sign failure\n");
 				ERR_print_errors(bio_err);
@@ -1053,7 +1068,7 @@ int MAIN(int argc, char **argv)
 			{
 			rsa_num2=DSA_verify(EVP_PKEY_DSA,buf,20,buf2,
 				kk,dsa_key[j]);
-			if (rsa_num2 <= 0)
+			if (rsa_num2 == 0)
 				{
 				BIO_printf(bio_err,"DSA verify failure\n");
 				ERR_print_errors(bio_err);
@@ -1073,6 +1088,7 @@ int MAIN(int argc, char **argv)
 				dsa_doit[j]=0;
 			}
 		}
+	if (rnd_fake) RAND_cleanup();
 #endif
 
 	fprintf(stdout,"%s\n",SSLeay_version(SSLEAY_VERSION));
@@ -1149,7 +1165,7 @@ int MAIN(int argc, char **argv)
 		fprintf(stdout,"\n");
 		}
 #endif
-	ret=0;
+	mret=0;
 end:
 	if (buf != NULL) Free(buf);
 	if (buf2 != NULL) Free(buf2);
@@ -1163,7 +1179,7 @@ end:
 		if (dsa_key[i] != NULL)
 			DSA_free(dsa_key[i]);
 #endif
-	EXIT(ret);
+	EXIT(mret);
 	}
 
 static void print_message(char *s, long num, int length)

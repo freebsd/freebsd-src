@@ -62,6 +62,7 @@
 #include <openssl/bn.h>
 #include <openssl/objects.h>
 #include <openssl/x509.h>
+#include <openssl/x509v3.h>
 
 #ifndef NO_FP_API
 int X509_REQ_print_fp(FILE *fp, X509_REQ *x)
@@ -90,6 +91,7 @@ int X509_REQ_print(BIO *bp, X509_REQ *x)
 	X509_REQ_INFO *ri;
 	EVP_PKEY *pkey;
 	STACK_OF(X509_ATTRIBUTE) *sk;
+	STACK_OF(X509_EXTENSION) *exts;
 	char str[128];
 
 	ri=x->req_info;
@@ -117,7 +119,7 @@ int X509_REQ_print(BIO *bp, X509_REQ *x)
 
 	pkey=X509_REQ_get_pubkey(x);
 #ifndef NO_RSA
-	if (pkey->type == EVP_PKEY_RSA)
+	if (pkey != NULL && pkey->type == EVP_PKEY_RSA)
 		{
 		BIO_printf(bp,"%12sRSA Public Key: (%d bit)\n","",
 			BN_num_bits(pkey->pkey.rsa->n));
@@ -126,7 +128,7 @@ int X509_REQ_print(BIO *bp, X509_REQ *x)
 	else 
 #endif
 #ifndef NO_DSA
-		if (pkey->type == EVP_PKEY_DSA)
+		if (pkey != NULL && pkey->type == EVP_PKEY_DSA)
 		{
 		BIO_printf(bp,"%12sDSA Public Key:\n","");
 		DSA_print(bp,pkey->pkey.dsa,16);
@@ -135,7 +137,8 @@ int X509_REQ_print(BIO *bp, X509_REQ *x)
 #endif
 		BIO_printf(bp,"%12sUnknown Public Key:\n","");
 
-	EVP_PKEY_free(pkey);
+	if (pkey != NULL)
+	    EVP_PKEY_free(pkey);
 
 	/* may not be */
 	sprintf(str,"%8sAttributes:\n","");
@@ -161,6 +164,8 @@ int X509_REQ_print(BIO *bp, X509_REQ *x)
 			int j,type=0,count=1,ii=0;
 
 			a=sk_X509_ATTRIBUTE_value(sk,i);
+			if(X509_REQ_extension_nid(OBJ_obj2nid(a->object)))
+								continue;
 			sprintf(str,"%12s","");
 			if (BIO_puts(bp,str) <= 0) goto err;
 			if ((j=i2a_ASN1_OBJECT(bp,a->object)) > 0)
@@ -200,6 +205,29 @@ get_next:
 			if (++ii < count) goto get_next;
 			}
 		}
+
+	exts = X509_REQ_get_extensions(x);
+	if(exts) {
+		BIO_printf(bp,"%8sRequested Extensions:\n","");
+		for (i=0; i<sk_X509_EXTENSION_num(exts); i++) {
+			ASN1_OBJECT *obj;
+			X509_EXTENSION *ex;
+			int j;
+			ex=sk_X509_EXTENSION_value(exts, i);
+			if (BIO_printf(bp,"%12s","") <= 0) goto err;
+			obj=X509_EXTENSION_get_object(ex);
+			i2a_ASN1_OBJECT(bp,obj);
+			j=X509_EXTENSION_get_critical(ex);
+			if (BIO_printf(bp,": %s\n",j?"critical":"","") <= 0)
+				goto err;
+			if(!X509V3_EXT_print(bp, ex, 0, 16)) {
+				BIO_printf(bp, "%16s", "");
+				M_ASN1_OCTET_STRING_print(bp,ex->value);
+			}
+			if (BIO_write(bp,"\n",1) <= 0) goto err;
+		}
+		sk_X509_EXTENSION_pop_free(exts, X509_EXTENSION_free);
+	}
 
 	i=OBJ_obj2nid(x->sig_alg->algorithm);
 	sprintf(str,"%4sSignature Algorithm: %s","",

@@ -74,11 +74,13 @@
  * -i		- indent the details by depth
  * -offset	- where in the file to start
  * -length	- how many bytes to use
- * -oid file	- extra oid decription file
+ * -oid file	- extra oid description file
  */
 
 #undef PROG
 #define PROG	asn1parse_main
+
+int MAIN(int, char **);
 
 int MAIN(int argc, char **argv)
 	{
@@ -86,7 +88,7 @@ int MAIN(int argc, char **argv)
 	unsigned int length=0;
 	long num,tmplen;
 	BIO *in=NULL,*out=NULL,*b64=NULL, *derout = NULL;
-	int informat,indent=0;
+	int informat,indent=0, noout = 0;
 	char *infile=NULL,*str=NULL,*prog,*oidfile=NULL, *derfile=NULL;
 	unsigned char *tmpbuf;
 	BUF_MEM *buf=NULL;
@@ -130,6 +132,7 @@ int MAIN(int argc, char **argv)
 			{
 			indent=1;
 			}
+		else if (strcmp(*argv,"-noout") == 0) noout = 1;
 		else if (strcmp(*argv,"-oid") == 0)
 			{
 			if (--argc < 1) goto bad;
@@ -168,8 +171,10 @@ bad:
 		BIO_printf(bio_err,"where options are\n");
 		BIO_printf(bio_err," -inform arg   input format - one of DER TXT PEM\n");
 		BIO_printf(bio_err," -in arg       input file\n");
+		BIO_printf(bio_err," -out arg      output file\n");
+		BIO_printf(bio_err," -noout arg    don't produce any output\n");
 		BIO_printf(bio_err," -offset arg   offset into file\n");
-		BIO_printf(bio_err," -length arg   lenth of section in file\n");
+		BIO_printf(bio_err," -length arg   length of section in file\n");
 		BIO_printf(bio_err," -i            indent entries\n");
 		BIO_printf(bio_err," -oid file     file of extra oid definitions\n");
 		BIO_printf(bio_err," -strparse offset\n");
@@ -287,7 +292,8 @@ bad:
 			goto end;
 		}
 	}
-	if (!ASN1_parse(out,(unsigned char *)&(str[offset]),length,indent))
+	if (!noout &&
+	    !ASN1_parse(out,(unsigned char *)&(str[offset]),length,indent))
 		{
 		ERR_print_errors(bio_err);
 		goto end;

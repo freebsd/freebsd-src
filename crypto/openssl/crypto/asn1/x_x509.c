@@ -62,6 +62,9 @@
 #include <openssl/asn1_mac.h>
 #include <openssl/x509.h>
 
+static int x509_meth_num = 0;
+static STACK_OF(CRYPTO_EX_DATA_FUNCS) *x509_meth = NULL;
+
 static ASN1_METHOD meth={
 	(int (*)())  i2d_X509,
 	(char *(*)())d2i_X509,
@@ -113,10 +116,13 @@ X509 *X509_new(void)
 	M_ASN1_New_Malloc(ret,X509);
 	ret->references=1;
 	ret->valid=0;
+	ret->ex_flags = 0;
 	ret->name=NULL;
+	ret->aux=NULL;
 	M_ASN1_New(ret->cert_info,X509_CINF_new);
 	M_ASN1_New(ret->sig_alg,X509_ALGOR_new);
-	M_ASN1_New(ret->signature,ASN1_BIT_STRING_new);
+	M_ASN1_New(ret->signature,M_ASN1_BIT_STRING_new);
+	CRYPTO_new_ex_data(x509_meth, ret, &ret->ex_data);
 	return(ret);
 	M_ASN1_New_Error(ASN1_F_X509_NEW);
 	}
@@ -140,12 +146,65 @@ void X509_free(X509 *a)
 		}
 #endif
 
-	/* CRYPTO_free_ex_data(bio_meth,(char *)a,&a->ex_data); */
+	CRYPTO_free_ex_data(x509_meth,a,&a->ex_data);
 	X509_CINF_free(a->cert_info);
 	X509_ALGOR_free(a->sig_alg);
-	ASN1_BIT_STRING_free(a->signature);
+	M_ASN1_BIT_STRING_free(a->signature);
+	X509_CERT_AUX_free(a->aux);
 
 	if (a->name != NULL) Free(a->name);
-	Free((char *)a);
+	Free(a);
 	}
 
+int X509_get_ex_new_index(long argl, void *argp, CRYPTO_EX_new *new_func,
+	     CRYPTO_EX_dup *dup_func, CRYPTO_EX_free *free_func)
+        {
+	x509_meth_num++;
+	return(CRYPTO_get_ex_new_index(x509_meth_num-1,
+		&x509_meth,argl,argp,new_func,dup_func,free_func));
+        }
+
+int X509_set_ex_data(X509 *r, int idx, void *arg)
+	{
+	return(CRYPTO_set_ex_data(&r->ex_data,idx,arg));
+	}
+
+void *X509_get_ex_data(X509 *r, int idx)
+	{
+	return(CRYPTO_get_ex_data(&r->ex_data,idx));
+	}
+
+/* X509_AUX ASN1 routines. X509_AUX is the name given to
+ * a certificate with extra info tagged on the end. Since these
+ * functions set how a certificate is trusted they should only
+ * be used when the certificate comes from a reliable source
+ * such as local storage.
+ *
+ */
+
+X509 *d2i_X509_AUX(X509 **a, unsigned char **pp, long length)
+{
+	unsigned char *q;
+	X509 *ret;
+	/* Save start position */
+	q = *pp;
+	ret = d2i_X509(a, pp, length);
+	/* If certificate unreadable then forget it */
+	if(!ret) return NULL;
+	/* update length */
+	length -= *pp - q;
+	if(!length) return ret;
+	if(!d2i_X509_CERT_AUX(&ret->aux, pp, length)) goto err;
+	return ret;
+	err:
+	X509_free(ret);
+	return NULL;
+}
+
+int i2d_X509_AUX(X509 *a, unsigned char **pp)
+{
+	int length;
+	length = i2d_X509(a, pp);
+	if(a) length += i2d_X509_CERT_AUX(a->aux, pp);
+	return length;
+}
