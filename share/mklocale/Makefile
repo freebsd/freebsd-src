@@ -21,6 +21,8 @@ LOCALES=        el_GR.ISO8859-7 \
 
 LOCALEDIR=	${DESTDIR}/usr/share/locale
 
+ASCIILINKS = en_AU en_CA en_GB en_NZ en_US
+
 LATIN1LINKS = \
 	af_ZA da_DK de_AT de_CH de_DE en_AU en_CA en_GB en_NZ en_US \
 	es_ES fi_FI fr_BE fr_CA fr_CH fr_FR is_IS it_CH it_IT nl_BE \
@@ -60,7 +62,9 @@ afterinstall:
 	ln -fs ../la_LN.ISO8859-4/LC_CTYPE \
 		${LOCALEDIR}/${link}.ISO8859-4/LC_CTYPE
 .endfor
+.for link in ${ASCIILINKS}
 	ln -fs ../la_LN.US-ASCII/LC_CTYPE \
-		${LOCALEDIR}/en_US.US-ASCII/LC_CTYPE
+		${LOCALEDIR}/${link}.US-ASCII/LC_CTYPE
+.endfor
 
 .include <bsd.prog.mk>
