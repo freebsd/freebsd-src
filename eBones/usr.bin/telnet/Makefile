@@ -31,7 +31,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
-#	$Id$
+#	$Id: Makefile,v 1.13 1996/03/11 16:17:58 markm Exp $
 #
 
 PROG=	telnet
@@ -52,5 +52,12 @@ DPADD+= ${LIBDES} ${LIBKRB}
 
 # Used only in krb4encpwd.c and rsaencpwd.c (libtelnet), not yet active
 #LDADD+= -ldescrypt
+
+.if defined(SOCKS)
+CFLAGS+=-DSOCKS
+CFLAGS+=-Dconnect=Rconnect -Dgetsockname=Rgetsockname -Dlisten=Rlisten \
+	-Daccept=Raccept -Drcmd=Rrcmd -Dbind=Rbind -Dselect=Rselect
+LDADD+=	-lsocks
+.endif
 
 .include <bsd.prog.mk>
