@@ -11,14 +11,14 @@
 
 struct pccard_device;
 
-void	pccard_add_driver __P((struct pccard_device *));
+void	pccard_add_driver(struct pccard_device *);
 
 enum beepstate { BEEP_OFF, BEEP_ON };
 
-void	pccard_insert_beep __P((void));
-void	pccard_remove_beep __P((void));
-void	pccard_success_beep __P((void));
-void	pccard_failure_beep __P((void));
-int	pccard_beep_select __P((int));
+void	pccard_insert_beep(void);
+void	pccard_remove_beep(void);
+void	pccard_success_beep(void);
+void	pccard_failure_beep(void);
+int	pccard_beep_select(int);
 
 #endif /* !_PCCARD_DRIVER_H_ */

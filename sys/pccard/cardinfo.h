@@ -155,6 +155,7 @@ struct pccard_resource {
 #define MAXSLOT 16
 #define	NUM_MEM_WINDOWS	10
 #define	NUM_IO_WINDOWS	6
-#define	CARD_DEVICE	"/dev/card%d"		/* String for sprintf */
+#define	CARD_DEVICE	"/dev/card%d"		/* String for snprintf */
+#define	PCCARD_MEMSIZE	(4*1024)
 
 #endif /* !_PCCARD_CARDINFO_H_ */
