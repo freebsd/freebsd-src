@@ -224,12 +224,7 @@ sw1b:
 
 	btrl	%esi, _private_tss
 	jae	3f
-#ifdef SMP
-	movl	$GD_COMMON_TSSD, %edi
-	addl	%fs:0, %edi
-#else
-	movl	$PCPU(COMMON_TSSD), %edi
-#endif
+	PCPU_ADDR(COMMON_TSSD, %edi)
 2:
 	/* move correct tss descriptor into GDT slot, then reload tr */
 	movl	PCPU(TSS_GDT), %ebx		/* entry in GDT */
