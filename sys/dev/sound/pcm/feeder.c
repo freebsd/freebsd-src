@@ -108,24 +108,23 @@ static unsigned char u8_to_ulaw[] = {
 static int
 feed_root(pcm_feeder *feeder, pcm_channel *ch, u_int8_t *buffer, u_int32_t count, struct uio *stream)
 {
-	int ret, tmp = 0, c = 0;
-	if (!count) panic("feed_root: count == 0");
+	int ret, c = 0, s;
+	KASSERT(count, ("feed_root: count == 0"));
 	count &= ~((1 << ch->align) - 1);
-	if (!count) panic("feed_root: aligned count == 0");
+	KASSERT(count, ("feed_root: aligned count == 0"));
+	s = spltty();
 	if (ch->smegcnt > 0) {
 		c = min(ch->smegcnt, count);
 		bcopy(ch->smegbuf, buffer, c);
 		ch->smegcnt -= c;
 	}
-	while ((stream->uio_resid > 0) && (c < count)) {
-		tmp = stream->uio_resid;
-		ret = uiomove(buffer + c, count - c, stream);
-		if (ret) panic("feed_root: uiomove failed");
-		tmp -= stream->uio_resid;
-		c += tmp;
+	count = min(count, stream->uio_resid);
+	if (count) {
+		ret = uiomove(buffer, count, stream);
+		KASSERT(ret == 0, ("feed_root: uiomove failed"));
 	}
-	if (!c) panic("feed_root: uiomove didn't");
-	return c;
+	splx(s);
+	return c + count;
 }
 pcm_feeder feeder_root = { "root", 0, NULL, NULL, feed_root };
 
