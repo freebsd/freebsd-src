@@ -261,9 +261,9 @@ sbuf_setpos(struct sbuf *s, int pos)
  * Append a byte string to an sbuf.
  */
 int
-sbuf_bcat(struct sbuf *s, const void *data, size_t len)
+sbuf_bcat(struct sbuf *s, const void *buf, size_t len)
 {
-	const char *str = data;
+	const char *str = buf;
 
 	assert_sbuf_integrity(s);
 	assert_sbuf_state(s, 0);
@@ -314,13 +314,13 @@ sbuf_bcopyin(struct sbuf *s, const void *uaddr, size_t len)
  * Copy a byte string into an sbuf.
  */
 int
-sbuf_bcpy(struct sbuf *s, const void *data, size_t len)
+sbuf_bcpy(struct sbuf *s, const void *buf, size_t len)
 {
 	assert_sbuf_integrity(s);
 	assert_sbuf_state(s, 0);
 
 	sbuf_clear(s);
-	return (sbuf_bcat(s, data, len));
+	return (sbuf_bcat(s, buf, len));
 }
 
 /*
