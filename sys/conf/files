@@ -170,6 +170,7 @@ dev/hfa/fore_vcm.c	optional hfa
 dev/ie/if_ie.c		optional ie isa
 dev/ida/ida.c		optional ida
 dev/ida/ida_disk.c	optional id
+dev/ida/ida_pci.c	optional ida pci
 dev/isp/isp_freebsd.c	optional isp
 dev/isp/isp.c		optional isp
 dev/isp/isp_target.c	optional isp
@@ -804,7 +805,6 @@ dev/bktr/bktr_audio.c	optional bktr pci
 dev/bktr/bktr_os.c	optional bktr pci
 pci/pccbb.c		optional pccbb cardbus
 pci/cy_pci.c		optional cy pci
-pci/ida_pci.c		optional ida pci
 pci/if_ar_p.c		optional ar pci
 pci/if_dc.c		optional dc
 pci/if_de.c		optional de
