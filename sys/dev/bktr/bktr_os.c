@@ -58,6 +58,12 @@
 #define FIFO_RISC_DISABLED      0
 #define ALL_INTS_DISABLED       0
 
+
+/*******************/
+/* *** FreeBSD *** */
+/*******************/
+#ifdef __FreeBSD__
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
@@ -73,11 +79,6 @@
 #include <vm/vm_kern.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
-
-/*******************/
-/* *** FreeBSD *** */
-/*******************/
-#ifdef __FreeBSD__
 
 #if (__FreeBSD_version < 400000)
 #ifdef DEVFS
@@ -104,7 +105,78 @@
 #include <machine/clock.h>      /* for DELAY */
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
+
+#if (NSMBUS > 0)
+#include <dev/bktr/bktr_i2c.h>
 #endif
+
+#include <sys/sysctl.h>
+int bt848_card = -1; 
+int bt848_tuner = -1;
+int bt848_reverse_mute = -1; 
+int bt848_format = -1;
+int bt848_slow_msp_audio = -1;
+
+SYSCTL_NODE(_hw, OID_AUTO, bt848, CTLFLAG_RW, 0, "Bt848 Driver mgmt");
+SYSCTL_INT(_hw_bt848, OID_AUTO, card, CTLFLAG_RW, &bt848_card, -1, "");
+SYSCTL_INT(_hw_bt848, OID_AUTO, tuner, CTLFLAG_RW, &bt848_tuner, -1, "");
+SYSCTL_INT(_hw_bt848, OID_AUTO, reverse_mute, CTLFLAG_RW, &bt848_reverse_mute, -1, "");
+SYSCTL_INT(_hw_bt848, OID_AUTO, format, CTLFLAG_RW, &bt848_format, -1, "");
+SYSCTL_INT(_hw_bt848, OID_AUTO, slow_msp_audio, CTLFLAG_RW, &bt848_slow_msp_audio, -1, "");
+
+#if (__FreeBSD__ == 2)
+#define PCIR_REVID     PCI_CLASS_REG
+#endif
+
+#endif /* end freebsd section */
+
+
+
+/****************/
+/* *** BSDI *** */
+/****************/
+#ifdef __bsdi__
+#endif /* __bsdi__ */
+
+
+/**************************/
+/* *** OpenBSD/NetBSD *** */
+/**************************/
+#if defined(__NetBSD__) || defined(__OpenBSD__)
+
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/conf.h>
+#include <sys/uio.h>
+#include <sys/kernel.h>
+#include <sys/signalvar.h>
+#include <sys/mman.h>
+#include <sys/poll.h>
+#include <sys/select.h>
+#include <sys/vnode.h>
+
+#include <vm/vm.h>
+
+#ifndef __NetBSD__
+#include <vm/vm_kern.h>
+#include <vm/pmap.h>
+#include <vm/vm_extern.h>
+#endif
+
+#include <sys/device.h>
+#include <dev/pci/pcivar.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcidevs.h>
+
+#define BKTR_DEBUG
+#ifdef BKTR_DEBUG
+int bktr_debug = 0;
+#define DPR(x)	(bktr_debug ? printf x : 0)
+#else
+#define DPR(x)
+#endif
+#endif /* __NetBSD__ || __OpenBSD__ */
+
 
 #ifdef __NetBSD__
 #include <dev/ic/bt8xx.h>	/* NetBSD location for .h files */
@@ -124,56 +196,6 @@
 #include <dev/bktr/bktr_core.h>
 #include <dev/bktr/bktr_os.h>
 #endif
-
-#if defined(__FreeBSD__)
-#if (NSMBUS > 0)
-#include <dev/bktr/bktr_i2c.h>
-#endif
-
-#include <sys/sysctl.h>
-int bt848_card = -1; 
-int bt848_tuner = -1;
-int bt848_reverse_mute = -1; 
-int bt848_format = -1;
-int bt848_slow_msp_audio = -1;
-
-SYSCTL_NODE(_hw, OID_AUTO, bt848, CTLFLAG_RW, 0, "Bt848 Driver mgmt");
-SYSCTL_INT(_hw_bt848, OID_AUTO, card, CTLFLAG_RW, &bt848_card, -1, "");
-SYSCTL_INT(_hw_bt848, OID_AUTO, tuner, CTLFLAG_RW, &bt848_tuner, -1, "");
-SYSCTL_INT(_hw_bt848, OID_AUTO, reverse_mute, CTLFLAG_RW, &bt848_reverse_mute, -1, "");
-SYSCTL_INT(_hw_bt848, OID_AUTO, format, CTLFLAG_RW, &bt848_format, -1, "");
-SYSCTL_INT(_hw_bt848, OID_AUTO, slow_msp_audio, CTLFLAG_RW, &bt848_slow_msp_audio, -1, "");
-#endif
-
-#if (__FreeBSD__ == 2)
-#define PCIR_REVID     PCI_CLASS_REG
-#endif
-
-
-/****************/
-/* *** BSDI *** */
-/****************/
-#ifdef __bsdi__
-#endif /* __bsdi__ */
-
-
-/**************************/
-/* *** OpenBSD/NetBSD *** */
-/**************************/
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-#include <sys/device.h>
-#include <dev/pci/pcivar.h>
-#include <dev/pci/pcireg.h>
-#include <dev/pci/pcidevs.h>
-
-#define BKTR_DEBUG
-#ifdef BKTR_DEBUG
-int bktr_debug = 0;
-#define DPR(x)	(bktr_debug ? printf x : 0)
-#else
-#define DPR(x)
-#endif
-#endif /* __NetBSD__ || __OpenBSD__ */
 
 
 
@@ -1240,13 +1262,6 @@ static	int		bktr_intr(void *arg) { return common_bktr_intr(arg); }
 #define bktr_ioctl      bktrioctl
 #define bktr_mmap       bktrmmap
 
-int bktr_open __P((dev_t, int, int, struct proc *));
-int bktr_close __P((dev_t, int, int, struct proc *));
-int bktr_read __P((dev_t, struct uio *, int));
-int bktr_write __P((dev_t, struct uio *, int));
-int bktr_ioctl __P((dev_t, ioctl_cmd_t, caddr_t, int, struct proc*));
-int bktr_mmap __P((dev_t, int, int));
-
 vm_offset_t vm_page_alloc_contig(vm_offset_t, vm_offset_t,
                                  vm_offset_t, vm_offset_t);
 
@@ -1667,8 +1682,8 @@ bktr_ioctl(dev_t dev, ioctl_cmd_t cmd, caddr_t arg, int flag, struct proc* pr)
 /*
  * 
  */
-int
-bktr_mmap(dev_t dev, int offset, int nprot)
+paddr_t
+bktr_mmap(dev_t dev, off_t offset, int nprot)
 {
 	int		unit;
 	bktr_ptr_t	bktr;

@@ -108,6 +108,12 @@
     || (defined(__NetBSD__))                                     \
     )
 
+
+/*******************/
+/* *** FreeBSD *** */
+/*******************/
+#ifdef __FreeBSD__
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -118,11 +124,6 @@
 #include <vm/vm_kern.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
-
-/*******************/
-/* *** FreeBSD *** */
-/*******************/
-#ifdef __FreeBSD__
 
 #if (__FreeBSD_version >=400000) || (NSMBUS > 0)
 #include <sys/bus.h>		/* used by smbus and newbus */
@@ -178,6 +179,21 @@ typedef unsigned int uintptr_t;
 /* *** OpenBSD/NetBSD *** */
 /**************************/
 #if defined(__NetBSD__) || defined(__OpenBSD__)
+
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/signalvar.h>
+#include <sys/vnode.h>
+
+#ifdef __NetBSD__
+#include <uvm/uvm_extern.h>
+#else
+#include <vm/vm.h>
+#include <vm/vm_kern.h>
+#include <vm/pmap.h>
+#include <vm/vm_extern.h>
+#endif
 
 #include <sys/inttypes.h>		/* uintptr_t */
 #include <dev/ic/bt8xx.h>
