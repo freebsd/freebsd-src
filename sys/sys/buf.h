@@ -102,10 +102,7 @@ typedef unsigned char b_xflags_t;
  *		D - Protected by an dependency implementation specific lock
  */
 struct buf {
-	/* XXX: b_io must be the first element of struct buf for now /phk */
-	/* XXX: if you change this, fix BIOTOBUF macro below */
 	struct bio b_io;		/* "Builtin" I/O request. */
-#define	BIOTOBUF(biop)	((struct buf *)(biop))
 #define	b_bcount	b_io.bio_bcount
 #define	b_blkno		b_io.bio_blkno
 #define	b_caller1	b_io.bio_caller1
