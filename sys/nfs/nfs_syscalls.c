@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_syscalls.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_syscalls.c,v 1.14.2.2 1996/11/12 09:09:30 phk Exp $
+ * $Id: nfs_syscalls.c,v 1.14.2.3 1997/03/27 20:04:04 guido Exp $
  */
 
 #include <sys/param.h>
@@ -86,6 +86,7 @@ extern int nqsrv_writeslack;
 extern int nfsrtton;
 extern struct nfsstats nfsstats;
 extern int nfsrvw_procrastinate;
+extern int nfsrvw_procrastinate_v3;
 struct nfssvc_sock *nfs_udpsock, *nfs_cltpsock;
 static int nuidhash_max = NFS_MAXUIDHASH;
 
@@ -111,6 +112,8 @@ static int	nfssvc_nfsd __P((struct nfsd_srvargs *,caddr_t,struct proc *));
 
 static int nfs_privport = 0;
 SYSCTL_INT(_vfs_nfs, NFS_NFSPRIVPORT, nfs_privport, CTLFLAG_RW, &nfs_privport, 0, "");
+SYSCTL_INT(_vfs_nfs, OID_AUTO, gatherdelay, CTLFLAG_RW, &nfsrvw_procrastinate, 0, "");
+SYSCTL_INT(_vfs_nfs, OID_AUTO, gatherdelay_v3, CTLFLAG_RW, &nfsrvw_procrastinate_v3, 0, "");
 
 /*
  * NFS server system calls
@@ -455,6 +458,7 @@ nfssvc_nfsd(nsd, argp, p)
 	struct nfsrv_descript *nd = NULL;
 	struct mbuf *mreq;
 	int error = 0, cacherep, s, sotype, writes_todo;
+	int procrastinate;
 	u_quad_t cur_usec;
 
 #ifndef nolint
@@ -606,7 +610,8 @@ nfssvc_nfsd(nsd, argp, p)
 
 			sin = mtod(nam, struct sockaddr_in *);
 			port = ntohs(sin->sin_port);
-			if (port >= IPPORT_RESERVED) {
+			if (port >= IPPORT_RESERVED && 
+			    nd->nd_procnum != NFSPROC_NULL) {
 			    nd->nd_procnum = NFSPROC_NOOP;
 			    nd->nd_repstat = (NFSERR_AUTHERR | AUTH_TOOWEAK);
 			    cacherep = RC_DOIT;
@@ -624,8 +629,12 @@ nfssvc_nfsd(nsd, argp, p)
 		do {
 		    switch (cacherep) {
 		    case RC_DOIT:
+			if (nd && (nd->nd_flag & ND_NFSV3))
+			    procrastinate = nfsrvw_procrastinate_v3;
+			else
+			    procrastinate = nfsrvw_procrastinate;
 			if (writes_todo || (nd->nd_procnum == NFSPROC_WRITE &&
-			    nfsrvw_procrastinate > 0 && !notstarted))
+			    procrastinate > 0 && !notstarted))
 			    error = nfsrv_writegather(&nd, slp,
 				nfsd->nfsd_procp, &mreq);
 			else

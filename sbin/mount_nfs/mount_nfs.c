@@ -45,7 +45,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)mount_nfs.c	8.3 (Berkeley) 3/27/94";
 */
 static const char rcsid[] =
-	"$Id: mount_nfs.c,v 1.13 1996/05/13 17:43:06 wollman Exp $";
+	"$Id: mount_nfs.c,v 1.14 1996/09/14 02:58:13 bde Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -106,6 +106,7 @@ static const char rcsid[] =
 #define ALTF_SOFT	0x800
 #define ALTF_TCP	0x1000
 #define ALTF_PORT	0x2000
+#define ALTF_NFSV2	0x4000
 
 struct mntopt mopts[] = {
 	MOPT_STDOPTS,
@@ -129,6 +130,7 @@ struct mntopt mopts[] = {
 	{ "soft", 0, ALTF_SOFT, 1 },
 	{ "tcp", 0, ALTF_TCP, 1 },
 	{ "port=", 0, ALTF_PORT, 1 },
+	{ "nfsv2", 0, ALTF_NFSV2, 1 },
 	{ NULL }
 };
 #else
@@ -147,7 +149,7 @@ struct nfs_args nfsdefargs = {
 	0,
 	(u_char *)0,
 	0,
-	0,
+	NFSMNT_RESVPORT,
 	NFS_WSIZE,
 	NFS_RSIZE,
 	NFS_READDIRSIZE,
@@ -175,6 +177,11 @@ int opflags = 0;
 int nfsproto = IPPROTO_UDP;
 int mnttcp_ok = 1;
 u_short port_no = 0;
+enum {
+	ANY,
+	V2,
+	V3
+} mountmode = ANY;
 
 #ifdef NFSKERB
 char inst[INST_SZ];
@@ -199,6 +206,44 @@ void	set_rpc_maxgrouplist __P((int));
 void	usage __P((void)) __dead2;
 int	xdr_dir __P((XDR *, char *));
 int	xdr_fh __P((XDR *, struct nfhret *));
+
+/*
+ * Used to set mount flags with getmntopts.  Call with dir=TRUE to
+ * initialise altflags from the current mount flags.  Call with
+ * dir=FALSE to update mount flags with the new value of altflags after
+ * the call to getmntopts.
+ */
+static void
+setflags(int* altflags, int* nfsflags, int dir)
+{
+#define F2(af, nf)					\
+	if (dir) {					\
+		if (*nfsflags & NFSMNT_##nf)		\
+			*altflags |= ALTF_##af;		\
+		else					\
+			*altflags &= ~ALTF_##af;	\
+	} else {					\
+		if (*altflags & ALTF_##af)		\
+			*nfsflags |= NFSMNT_##nf;	\
+		else					\
+			*nfsflags &= ~NFSMNT_##nf;	\
+	}
+#define F(f)	F2(f,f)
+
+	F(NOCONN);
+	F(DUMBTIMR);
+	F2(INTR, INT);
+#ifdef NFSKERB
+	F(KERB);
+#endif
+	F(RDIRPLUS);
+	F(RESVPORT);
+	F(NQNFS);
+	F(SOFT);
+
+#undef F
+#undef F2
+}
 
 int
 main(argc, argv)
@@ -230,10 +275,13 @@ main(argc, argv)
 	nfsargs = nfsdefargs;
 	nfsargsp = &nfsargs;
 	while ((c = getopt(argc, argv,
-	    "3a:bcdD:g:I:iKL:lm:o:PpqR:r:sTt:w:x:U")) != EOF)
+	    "23a:bcdD:g:I:iKL:lm:o:PpqR:r:sTt:w:x:U")) != EOF)
 		switch (c) {
+		case '2':
+			mountmode = V2;
+			break;
 		case '3':
-			nfsargsp->flags |= NFSMNT_NFSV3;
+			mountmode = V3;
 			break;
 		case 'a':
 			num = strtol(optarg, &p, 10);
@@ -301,42 +349,37 @@ main(argc, argv)
 #endif
 		case 'o':
 #ifdef __FreeBSD__
+			altflags = 0;
+			setflags(&altflags, &nfsargsp->flags, TRUE);
+			if (mountmode == V2)
+				altflags |= ALTF_NFSV2;
+			else if (mountmode == V3)
+				altflags |= ALTF_NFSV3;
 			getmntopts(optarg, mopts, &mntflags, &altflags);
+			setflags(&altflags, &nfsargsp->flags, FALSE);
+			/*
+			 * Handle altflags which don't map directly to
+			 * mount flags.
+			 */
 			if(altflags & ALTF_BG)
 				opflags |= BGRND;
-			if(altflags & ALTF_NOCONN)
-				nfsargsp->flags |= NFSMNT_NOCONN;
-			if(altflags & ALTF_DUMBTIMR)
-				nfsargsp->flags |= NFSMNT_DUMBTIMR;
-			if(altflags & ALTF_INTR)
-				nfsargsp->flags |= NFSMNT_INT;
-#ifdef NFSKERB
-			if(altflags & ALTF_KERB)
-				nfsargsp->flags |= NFSMNT_KERB;
-#endif
-			if(altflags & ALTF_NFSV3)
-				nfsargsp->flags |= NFSMNT_NFSV3;
-			if(altflags & ALTF_RDIRPLUS)
-				nfsargsp->flags |= NFSMNT_RDIRPLUS;
 			if(altflags & ALTF_MNTUDP)
 				mnttcp_ok = 0;
-			if(altflags & ALTF_RESVPORT)
-				nfsargsp->flags |= NFSMNT_RESVPORT;
 #ifdef ISO
 			if(altflags & ALTF_SEQPACKET)
 				nfsargsp->sotype = SOCK_SEQPACKET;
 #endif
-			if(altflags & ALTF_NQNFS)
-				nfsargsp->flags |= (NFSMNT_NQNFS|NFSMNT_NFSV3);
-			if(altflags & ALTF_SOFT)
-				nfsargsp->flags |= NFSMNT_SOFT;
 			if(altflags & ALTF_TCP) {
 				nfsargsp->sotype = SOCK_STREAM;
 				nfsproto = IPPROTO_TCP;
 			}
 			if(altflags & ALTF_PORT)
 				port_no = atoi(strstr(optarg, "port=") + 5);
-			altflags = 0;
+			mountmode = ANY;
+			if(altflags & ALTF_NFSV2)
+				mountmode = V2;
+			if(altflags & ALTF_NFSV3)
+				mountmode = V3;
 #else
 			getmntopts(optarg, mopts, &mntflags);
 #endif
@@ -350,7 +393,8 @@ main(argc, argv)
 			break;
 #endif
 		case 'q':
-			nfsargsp->flags |= (NFSMNT_NQNFS | NFSMNT_NFSV3);
+			mountmode = V3;
+			nfsargsp->flags |= NFSMNT_NQNFS;
 			break;
 		case 'R':
 			num = strtol(optarg, &p, 10);
@@ -524,6 +568,52 @@ main(argc, argv)
 			    kverf.verf.t2 = kout.t2;
 			    kverf.verf.w2 = kout.w2;
 			    nfssvc_flag = NFSSVC_MNTD | NFSSVC_GOTAUTH;
+/*
+ * Return RPC_SUCCESS if server responds.
+ */
+enum clnt_stat
+pingnfsserver(addr, version, sotype)
+	struct sockaddr_in *addr;
+	int version;
+	int sotype;
+{
+	struct sockaddr_in sin;
+	int tport;
+	CLIENT *clp;
+	int so = RPC_ANYSOCK;
+	enum clnt_stat stat;
+	struct timeval pertry, try;
+
+	sin = *addr;
+
+	if ((tport = port_no ? port_no :
+	     pmap_getport(&sin, RPCPROG_NFS, version, nfsproto)) == 0) {
+		return rpc_createerr.cf_stat;
+	}
+
+	sin.sin_port = htons(tport);
+
+	pertry.tv_sec = 10;
+	pertry.tv_usec = 0;
+	if (sotype == SOCK_STREAM)
+		clp = clnttcp_create(&sin, RPCPROG_NFS, version,
+				     &so, 0, 0);
+	else
+		clp = clntudp_create(&sin, RPCPROG_NFS, version,
+				     pertry, &so);
+	if (clp == NULL)
+		return rpc_createerr.cf_stat;
+	
+	try.tv_sec = 10;
+	try.tv_usec = 0;
+	stat = clnt_call(clp, NFSPROC_NULL,
+			 xdr_void, NULL, xdr_void, NULL, try);
+
+	clnt_destroy(clp);
+
+	return stat;
+}
+
 			}
 			setreuid(0, 0);
 #endif /* NFSKERB */
@@ -547,7 +637,7 @@ getnfsargs(spec, nfsargsp)
 #endif
 	struct timeval pertry, try;
 	enum clnt_stat clnt_stat;
-	int so = RPC_ANYSOCK, i, nfsvers, mntvers;
+	int so = RPC_ANYSOCK, i, nfsvers, mntvers, orgcnt;
 	char *hostp, *delimp;
 #ifdef NFSKERB
 	char *cp;
@@ -629,14 +719,32 @@ getnfsargs(spec, nfsargsp)
 	}
 #endif /* NFSKERB */
 
-	if (nfsargsp->flags & NFSMNT_NFSV3) {
+	orgcnt = retrycnt;
+tryagain:
+	if (mountmode == ANY || mountmode == V3) {
 		nfsvers = 3;
 		mntvers = 3;
+		nfsargsp->flags |= NFSMNT_NFSV3;
 	} else {
 		nfsvers = 2;
 		mntvers = 1;
+		nfsargsp->flags &= ~NFSMNT_NFSV3;
 	}
 	nfhret.stat = EACCES;	/* Mark not yet successful */
+			/*
+			 * First ping the nfs server to see if it supports
+			 * the version of the protocol we want to use.
+			 */
+			clnt_stat = pingnfsserver(&saddr, nfsvers,
+						  nfsargsp->sotype);
+			if (clnt_stat == RPC_PROGVERSMISMATCH) {
+				if (mountmode == ANY) {
+					mountmode = V2;
+					goto tryagain;
+				} else {
+					errx(1, "Can't contact NFS server");
+				}
+			}
 	while (retrycnt > 0) {
 		saddr.sin_family = AF_INET;
 		saddr.sin_port = htons(PMAPPORT);
@@ -670,6 +778,15 @@ getnfsargs(spec, nfsargsp)
 				clnt_stat = clnt_call(clp, RPCMNT_MOUNT,
 				    xdr_dir, spec, xdr_fh, &nfhret, try);
 				if (clnt_stat != RPC_SUCCESS) {
+					if (clnt_stat == RPC_PROGVERSMISMATCH) {
+						if (mountmode == ANY) {
+							mountmode = V2;
+							goto tryagain;
+						} else {
+							errx(1, "%s",
+							     clnt_sperror(clp, "MNT RPC"));
+						}
+					}
 					if ((opflags & ISBGRND) == 0)
 						warnx("%s", clnt_sperror(clp,
 						    "bad MNT RPC"));
@@ -780,7 +897,7 @@ void
 usage()
 {
 	(void)fprintf(stderr, "\
-usage: mount_nfs [-3KPTUbcdilqs] [-D deadthresh] [-I readdirsize]\n\
+usage: mount_nfs [-23KPTUbcdilqs] [-D deadthresh] [-I readdirsize]\n\
        [-L leaseterm] [-R retrycnt] [-a maxreadahead] [-g maxgroups]\n\
        [-m realm] [-o options] [-r readsize] [-t timeout] [-w writesize]\n\
        [-x retrans] rhost:path node\n");

@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.38 1996/10/06 07:50:04 dyson Exp $
+ * $Id: vfs_cluster.c,v 1.38.2.1 1996/12/15 09:54:11 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -425,7 +425,8 @@ cluster_callback(bp)
 		if (error) {
 			tbp->b_flags |= B_ERROR;
 			tbp->b_error = error;
-		}
+		} else
+			tbp->b_dirtyoff = tbp->b_dirtyend = 0;
 		biodone(tbp);
 	}
 	relpbuf(bp);

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.5 (Berkeley) 2/13/94
- * $Id: nfs_vnops.c,v 1.36.2.2 1997/01/07 06:18:27 wpaul Exp $
+ * $Id: nfs_vnops.c,v 1.36.2.3 1997/03/04 17:59:42 dfr Exp $
  */
 
 /*
@@ -422,8 +422,49 @@ nfs_access(ap)
 		}
 		nfsm_reqdone;
 		return (error);
-	} else
-		return (nfsspec_access(ap));
+	} else {
+		if (error = nfsspec_access(ap))
+			return (error);
+
+		/*
+		 * Attempt to prevent a mapped root from accessing a file
+		 * which it shouldn't.  We try to read a byte from the file
+		 * if the user is root and the file is not zero length.
+		 * After calling nfsspec_access, we should have the correct
+		 * file size cached.
+		 */
+		if (ap->a_cred->cr_uid == 0 && (ap->a_mode & VREAD)
+		    && VTONFS(vp)->n_size > 0) {
+			struct iovec aiov;
+			struct uio auio;
+			char buf[1];
+
+			aiov.iov_base = buf;
+			aiov.iov_len = 1;
+			auio.uio_iov = &aiov;
+			auio.uio_iovcnt = 1;
+			auio.uio_offset = 0;
+			auio.uio_resid = 1;
+			auio.uio_segflg = UIO_SYSSPACE;
+			auio.uio_rw = UIO_READ;
+			auio.uio_procp = ap->a_p;
+
+			if (vp->v_type == VREG)
+				error = nfs_readrpc(vp, &auio, ap->a_cred);
+			else if (vp->v_type == VDIR) {
+				char* buf;
+				buf = malloc(NFS_DIRBLKSIZ, M_TEMP, M_WAITOK);
+				aiov.iov_base = buf;
+				aiov.iov_len = auio.uio_resid = NFS_DIRBLKSIZ;
+				error = nfs_readdirrpc(vp, &auio, ap->a_cred);
+				free(buf, M_TEMP);
+			} else if (vp->v_type = VLNK)
+				error = nfs_readlinkrpc(vp, &auio, ap->a_cred);
+			else
+				error = EACCES;
+		}
+		return (error);
+	}
 }
 
 /*
@@ -826,6 +867,7 @@ nfs_lookup(ap)
 	struct nfsnode *np;
 	int lockparent, wantparent, error = 0, attrflag, fhsize;
 	int v3 = NFS_ISV3(dvp);
+	struct proc *p = cnp->cn_proc;
 
 	if ((flags & ISLASTCN) && (dvp->v_mount->mnt_flag & MNT_RDONLY) &&
 	    (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME))
@@ -840,6 +882,9 @@ nfs_lookup(ap)
 	if ((error = cache_lookup(dvp, vpp, cnp)) && error != ENOENT) {
 		struct vattr vattr;
 		int vpid;
+
+		if (error = VOP_ACCESS(dvp, VEXEC, cnp->cn_cred, p))
+			return (error);
 
 		newvp = *vpp;
 		vpid = newvp->v_id;

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsmount.h	8.1 (Berkeley) 6/10/93
- * $Id: nfsmount.h,v 1.7 1995/12/17 21:12:36 phk Exp $
+ * $Id: nfsmount.h,v 1.7.4.1 1996/11/09 21:11:17 phk Exp $
  */
 
 #ifndef _NFS_NFSMOUNT_H_
@@ -93,22 +93,6 @@ struct	nfsmount {
  * Convert mount ptr to nfsmount ptr.
  */
 #define VFSTONFS(mp)	((struct nfsmount *)((mp)->mnt_data))
-
-#ifdef NFS_DEBUG
-
-extern int nfs_debug;
-#define NFS_DEBUG_ASYNCIO	1
-
-#define NFS_DPF(cat, args)					\
-	do {							\
-		if (nfs_debug & NFS_DEBUG_##cat) printf args;	\
-	} while (0)
-
-#else
-
-#define NFS_DPF(cat, args)
-
-#endif
 
 #endif /* KERNEL */
 
