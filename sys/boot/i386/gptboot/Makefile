@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.5 1998/10/14 01:53:56 rnordier Exp $
+#	$Id: Makefile,v 1.6 1998/10/15 20:04:21 rnordier Exp $
 
 PROG=		boot2
 NOMAN=
@@ -58,7 +58,7 @@ boot2.out: boot2.o sio.o
 		${BTX}/lib/crt0.o boot2.o sio.o
 
 sio.o: sio.s
-	${AS} ${AFLAGS} -o ${.TARGET} sio.s
+	${AS} ${AFLAGS} -o ${.TARGET} ${.IMPSRC}
 
 install:
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
