@@ -1159,24 +1159,21 @@ pccard_setup_intr(device_t dev, device_t child, struct resource *irq,
 {
 	struct pccard_ivar *ivar = PCCARD_IVAR(child);
 	struct pccard_function *func = ivar->fcn;
+	int err;
 
 	if (func->intr_handler != NULL)
 		panic("Only one interrupt handler per function allowed\n");
-
+	err = bus_generic_setup_intr(dev, child, irq, flags, pccard_intr,
+	    func, cookiep);
+	if (err != 0)
+		return (err);
 	func->intr_handler = intr;
 	func->intr_handler_arg = arg;
 	func->intr_handler_cookie = *cookiep;
+	/* XXX Not sure this is right to write to ccr */
 	pccard_ccr_write(func, PCCARD_CCR_OPTION,
 	    pccard_ccr_read(func, PCCARD_CCR_OPTION) |
 	    PCCARD_CCR_OPTION_IREQ_ENABLE);
-
-	/* 
-	 * XXX Don't use TTY type for our interrupt handler.  It makes
-	 * the spl masks wrong on -stable.  Instead, we should use the type
-	 * that was requested of us.
-	 */
-	bus_setup_intr(dev, irq, INTR_TYPE_TTY/* | INTR_FAST*/,
-	    pccard_intr, func, cookiep);
 	return (0);
 }
 
@@ -1188,11 +1185,11 @@ pccard_teardown_intr(device_t dev, device_t child, struct resource *r,
 	struct pccard_function *func = ivar->fcn;
 	int ret;
 
+	/* XXX Not sure this is right to write to ccr */
 	pccard_ccr_write(func, PCCARD_CCR_OPTION,
 	    pccard_ccr_read(func, PCCARD_CCR_OPTION) &
 	    ~PCCARD_CCR_OPTION_IREQ_ENABLE);
-
-	ret = bus_teardown_intr(dev, r, cookie);
+	ret = bus_generic_teardown_intr(dev, child, r, cookie);
 	if (ret == 0) {
 		func->intr_handler = NULL;
 		func->intr_handler_arg = NULL;
