@@ -55,7 +55,7 @@
 #include <sys/protosw.h>
 #include <sys/random.h>
 
-#include <vm/vm_zone.h>
+#include <vm/uma.h>
 
 #include <net/route.h>
 #include <net/if.h>
@@ -212,8 +212,9 @@ tcp_init()
 	tcbinfo.hashbase = hashinit(hashsize, M_PCB, &tcbinfo.hashmask);
 	tcbinfo.porthashbase = hashinit(hashsize, M_PCB,
 					&tcbinfo.porthashmask);
-	tcbinfo.ipi_zone = zinit("tcpcb", sizeof(struct inp_tp), maxsockets,
-				 ZONE_INTERRUPT, 0);
+	tcbinfo.ipi_zone = uma_zcreate("tcpcb", sizeof(struct inp_tp), 
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	uma_zone_set_max(tcbinfo.ipi_zone, maxsockets);
 #ifdef INET6
 #define TCP_MINPROTOHDR (sizeof(struct ip6_hdr) + sizeof(struct tcphdr))
 #else /* INET6 */
