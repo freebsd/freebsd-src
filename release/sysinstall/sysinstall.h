@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id$
+ * $Id: sysinstall.h,v 1.1.1.1 1995/04/27 12:50:34 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -54,28 +54,30 @@
 typedef unsigned int Boolean;
 
 typedef enum {
-    MENU_SHELL_ESCAPE,
-    MENU_DISPLAY_FILE,
-    MENU_SUBMENU,
-    MENU_SYSTEM_COMMAND,
-    MENU_SET_VARIABLE,
-    MENU_CALL
+    MENU_SHELL_ESCAPE,			/* Fork a shell */
+    MENU_DISPLAY_FILE,			/* Display a file's contents */
+    MENU_SUBMENU,			/* Recurse into another menu */
+    MENU_SYSTEM_COMMAND,		/* Run shell commmand */
+    MENU_SYSTEM_COMMAND_BOX,		/* Same as above, but in prgbox */
+    MENU_SET_VARIABLE,			/* Set an environment/system var */
+    MENU_CALL,				/* Call back a C function */
+    MENU_CANCEL,			/* Cancel out of this menu */
 } DMenuItemType;
 
 typedef struct _dmenuItem {
-    char *title;
-    char *prompt;
-    DMenuItemType type;
-    void *ptr;
-    int disabled;
+    char *title;			/* Our title */
+    char *prompt;			/* Our prompt */
+    DMenuItemType type;			/* What type of item we are */
+    void *ptr;				/* Generic data ptr */
+    int disabled;			/* Are we temporarily disabled? */
 } DMenuItem;
 
 typedef struct _dmenu {
-    char *title;
-    char *prompt;
-    char *helpline;
-    char *helpfile;
-    DMenuItem *items;
+    char *title;			/* Our title */
+    char *prompt;			/* Our prompt */
+    char *helpline;			/* Line of help at bottom */
+    char *helpfile;			/* Help file for "F1" */
+    DMenuItem *items;			/* Array of menu items */
 } DMenu;
 
 /* A sysconfig variable */
@@ -98,19 +100,25 @@ extern DMenu		MenuDocumenation, MenuInitial, MenuLanguage;
 
 
 /* Prototypes */
+
+/* globals.c */
 extern void	globalsInit(void);
 
-extern void	installExpress(void);
-extern void	installCustom(void);
+/* install.c */
+extern int	installCustom(void);
+extern int	installExpress(void);
 
+/* system.c */
 extern void	systemInitialize(int argc, char **argv);
 extern void	systemShutdown(void);
 extern void	systemWelcome(void);
 extern int	systemExecute(char *cmd);
 
+/* dmenu.c */
 extern void	dmenuOpen(DMenu *menu, int *choice, int *scroll,
 			  int *curr, int *max);
 
+/* misc.c */
 extern Boolean	file_readable(char *fname);
 extern Boolean	file_executable(char *fname);
 extern char	*string_concat(char *p1, char *p2);
@@ -120,12 +128,17 @@ extern void	safe_free(void *ptr);
 extern char	**item_add(char **list, char *item, int *curr, int *max);
 extern void	items_free(char **list, int *curr, int *max);
 
+/* termcap.c */
 extern int	set_termcap(void);
 
+/* msg.c */
 extern void	msgInfo(char *fmt, ...);
 extern void	msgWarn(char *fmt, ...);
 extern void	msgError(char *fmt, ...);
 extern void	msgFatal(char *fmt, ...);
+
+/* media.c */
+extern int	mediaSetCDROM(void);
 
 #endif
 /* _SYSINSTALL_H_INCLUDE */
