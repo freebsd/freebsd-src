@@ -1,12 +1,12 @@
 #	From: @(#)Makefile	8.3 (Berkeley) 1/7/94
-#	$Id: Makefile,v 1.87 1997/07/19 15:18:15 jfieber Exp $
+#	$Id: Makefile,v 1.88 1997/08/18 18:51:46 jlemon Exp $
 
 # XXX MISSING:		deroff diction graph learn plot
 #			spell spline struct units xsend
 # XXX Use GNU versions: apropos bc dc diff grep ld man patch ptx uucp whatis
 # Moved to secure: bdes
 #
-SUBDIR=	apply ar at banner basename biff brandelf cal calendar \
+SUBDIR=	apply ar at banner basename biff brandelf c89 cal calendar \
 	cap_mkdb chat checknr chflags chpass cksum col colcrt colldef colrm \
 	column comm compile_et compress chkey cpp ctags cut dig \
 	dirname dnsquery doscmd du ee env error expand \
