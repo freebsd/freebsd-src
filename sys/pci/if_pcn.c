@@ -111,6 +111,7 @@ static struct pcn_type pcn_devs[] = {
 
 static u_int32_t pcn_csr_read	__P((struct pcn_softc *, int));
 static u_int16_t pcn_csr_read16	__P((struct pcn_softc *, int));
+static u_int16_t pcn_bcr_read16	__P((struct pcn_softc *, int));
 static void pcn_csr_write	__P((struct pcn_softc *, int, int));
 static u_int32_t pcn_bcr_read	__P((struct pcn_softc *, int));
 static void pcn_bcr_write	__P((struct pcn_softc *, int, int));
@@ -227,6 +228,14 @@ static u_int32_t pcn_bcr_read(sc, reg)
 {
 	CSR_WRITE_4(sc, PCN_IO32_RAP, reg);
 	return(CSR_READ_4(sc, PCN_IO32_BDP));
+}
+
+static u_int16_t pcn_bcr_read16(sc, reg)
+	struct pcn_softc	*sc;
+	int			reg;
+{
+	CSR_WRITE_2(sc, PCN_IO16_RAP, reg);
+	return(CSR_READ_2(sc, PCN_IO16_BDP));
 }
 
 static void pcn_bcr_write(sc, reg, val)
@@ -420,10 +429,30 @@ static int pcn_probe(dev)
 			 * lnc driver's probe routine, the chip will
 			 * be locked into 32-bit operation and the lnc
 			 * driver will be unable to attach to it.
+			 * Note II: if the chip happens to already
+			 * be in 32-bit mode, we still need to check
+			 * the chip ID, but first we have to detect
+			 * 32-bit mode using only 16-bit operations.
+			 * The safest way to do this is to read the
+			 * PCI subsystem ID from BCR23/24 and compare
+			 * that with the value read from PCI config
+			 * space.
 			 */
-			chip_id = pcn_csr_read16(sc, PCN_CSR_CHIPID1);
+			chip_id = pcn_bcr_read16(sc, PCN_BCR_PCISUBSYSID);
 			chip_id <<= 16;
-			chip_id |= pcn_csr_read16(sc, PCN_CSR_CHIPID0);
+			chip_id |= pcn_bcr_read16(sc, PCN_BCR_PCISUBVENID);
+			if (chip_id == pci_read_config(dev,
+			    PCIR_SUBVEND_0, 4)) {
+				/* We're in 16-bit mode. */
+				chip_id = pcn_csr_read16(sc, PCN_CSR_CHIPID1);
+				chip_id <<= 16;
+				chip_id |= pcn_csr_read16(sc, PCN_CSR_CHIPID0);
+			} else {
+				/* We're in 32-bit mode. */
+				chip_id = pcn_csr_read(sc, PCN_CSR_CHIPID1);
+				chip_id <<= 16;
+				chip_id |= pcn_csr_read(sc, PCN_CSR_CHIPID0);
+			}
 			bus_release_resource(dev, PCN_RES,
 			    PCN_RID, sc->pcn_res);
 			PCN_UNLOCK(sc);
