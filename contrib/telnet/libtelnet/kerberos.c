@@ -207,8 +207,7 @@ kerberos4_send(Authenticator *ap)
 		register int i;
 
 		des_key_sched(&cred.session, sched);
-		des_init_random_number_generator(&cred.session);
-		des_new_random_key(&session_key);
+		des_random_key(&session_key);
 		des_ecb_encrypt(&session_key, &session_key, sched, 0);
 		des_ecb_encrypt(&session_key, &challenge, sched, 0);
 		/*
@@ -299,11 +298,6 @@ kerberos4_is(Authenticator *ap, unsigned char *data, int cnt)
 			break;
 		}
 
-		/*
-		 * Initialize the random number generator since it's
-		 * used later on by the encryption routine.
-		 */
-		des_init_random_number_generator(&session_key);
 		des_key_sched(&session_key, sched);
 		memmove((void *)datablock, (void *)data, sizeof(Block));
 		/*

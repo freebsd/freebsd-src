@@ -18,6 +18,7 @@ this software for any purpose.  It is provided "as is" without express
 or implied warranty.
 
   */
+/* $FreeBSD$ */
 
 /*
  * list and update contents of srvtab files
@@ -228,7 +229,7 @@ get_svc_new_key(des_cblock *new_key, char *sname, char *sinst,
 	memset(new_key, 0, sizeof(des_cblock));
 	(*new_key)[0] = (unsigned char) 1;
 #else /* NOENCRYPTION */
-	des_new_random_key(new_key);
+	des_random_key(*new_key);
 #endif /* NOENCRYPTION */
 	return(KADM_SUCCESS);
     }
@@ -494,17 +495,6 @@ main(int argc, char **argv)
 		    printf("Not changing this key.\n");
 		
 		if (change_this_key) {
-		    /*
-		     * This is not a good choice of seed when/if the
-		     * key has been compromised so we also use a
-		     * random sequence number!
-		     */
-		    des_init_random_number_generator(&old_key);
-		    {
-		        des_cblock seqnum;
-			des_generate_random_block(&seqnum);
-			des_set_sequence_number((unsigned char *)&seqnum);
-		    }
 		    /* 
 		     * Pick a new key and determine whether or not
 		     * it is safe to change

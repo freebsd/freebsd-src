@@ -30,6 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+/* $FreeBSD$ */
 
 #include "kadm_locl.h"
 #include "ksrvutil.h"
@@ -82,11 +83,6 @@ get_admin_password(char *myname, char *myinst, char *myrealm)
     status = krb_get_pw_in_tkt(myname, myinst, myrealm, PWSERV_NAME, 
 			       KADM_SINST, ticket_life, admin_passwd);
     memset(admin_passwd, 0, sizeof(admin_passwd));
-    
-    /* Initialize non shared random sequence from session key. */
-    memset(&c, 0, sizeof(c));
-    krb_get_cred(PWSERV_NAME, KADM_SINST, myrealm, &c);
-    des_init_random_number_generator(&c.session);
   } else
     status = KDC_PR_UNKNOWN;
   
@@ -190,7 +186,7 @@ get_srvtab_ent(int unique_filename, int fd, char *filename,
     memset(&values, 0, sizeof(values));
     strlcpy(values.name, name, sizeof(values.name));
     strlcpy(values.instance, inst, sizeof(values.instance));
-    des_new_random_key(&newkey);
+    des_random_key(newkey);
     values.key_low = (newkey[0] << 24) | (newkey[1] << 16)
 	| (newkey[2] << 8) | (newkey[3] << 0);
     values.key_high = (newkey[4] << 24) | (newkey[5] << 16)
@@ -295,9 +291,7 @@ ksrvutil_kadm(int unique_filename, int fd, char *filename, struct srv_ent *p)
   }
   
   ret = krb_get_cred (PWSERV_NAME, KADM_SINST, u_realm, &c);
-  if (ret == KSUCCESS)
-    des_init_random_number_generator (&c.session);
-  else {
+  if (ret != KSUCCESS) {
     umask(077);
        
     /*
