@@ -54,7 +54,8 @@
 /* use the equivalent procfs code */
 #if 0
 static int
-pread(struct proc *procp, unsigned int addr, unsigned int *retval) {
+pread(struct proc *procp, unsigned int addr, unsigned int *retval)
+{
 	int		rv;
 	vm_map_t	map, tmap;
 	vm_object_t	object;
@@ -75,7 +76,7 @@ pread(struct proc *procp, unsigned int addr, unsigned int *retval) {
 
 	tmap = map;
 	rv = vm_map_lookup(&tmap, pageno, VM_PROT_READ, &out_entry,
-		&object, &pindex, &out_prot, &wired);
+	    &object, &pindex, &out_prot, &wired);
 
 	if (rv != KERN_SUCCESS)
 		return (EINVAL);
@@ -93,7 +94,7 @@ pread(struct proc *procp, unsigned int addr, unsigned int *retval) {
 		if (!rv) {
 			*retval = 0;
 			bcopy((caddr_t)kva + page_offset,
-			       retval, sizeof *retval);
+			    retval, sizeof *retval);
 		}
 		vm_map_remove(kernel_map, kva, kva + PAGE_SIZE);
 	}
@@ -102,7 +103,8 @@ pread(struct proc *procp, unsigned int addr, unsigned int *retval) {
 }
 
 static int
-pwrite(struct proc *procp, unsigned int addr, unsigned int datum) {
+pwrite(struct proc *procp, unsigned int addr, unsigned int datum)
+{
 	int		rv;
 	vm_map_t	map, tmap;
 	vm_object_t	object;
@@ -422,7 +424,8 @@ ptrace(td, uap)
 	case PT_READ_I:
 	case PT_READ_D:
 		/* write = 0 set above */
-		iov.iov_base = write ? (caddr_t)&uap->data : (caddr_t)td->td_retval;
+		iov.iov_base = write ? (caddr_t)&uap->data :
+		    (caddr_t)td->td_retval;
 		iov.iov_len = sizeof(int);
 		uio.uio_iov = &iov;
 		uio.uio_iovcnt = 1;
