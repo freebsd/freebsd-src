@@ -282,7 +282,7 @@ usbd_transfer(xfer)
 	/* Copy data if going out. */
 	if (!(xfer->flags & USBD_NO_COPY) && size != 0 && 
 	    !usbd_xfer_isread(xfer))
-		memcpy(KERNADDR(dmap), xfer->buffer, size);
+		memcpy(KERNADDR(dmap, 0), xfer->buffer, size);
 
 	err = pipe->methods->transfer(xfer);
 
@@ -348,7 +348,7 @@ usbd_alloc_buffer(xfer, size)
 	if (err)
 		return (0);
 	xfer->rqflags |= URQ_DEV_DMABUF;
-	return (KERNADDR(&xfer->dmabuf));
+	return (KERNADDR(&xfer->dmabuf, 0));
 }
 
 void
@@ -371,7 +371,7 @@ usbd_get_buffer(xfer)
 {
 	if (!(xfer->rqflags & URQ_DEV_DMABUF))
 		return (0);
-	return (KERNADDR(&xfer->dmabuf));
+	return (KERNADDR(&xfer->dmabuf, 0));
 }
 
 usbd_xfer_handle 
@@ -800,7 +800,7 @@ usb_transfer_complete(xfer)
 			xfer->actlen = xfer->length;
 		}
 #endif
-		memcpy(xfer->buffer, KERNADDR(dmap), xfer->actlen);
+		memcpy(xfer->buffer, KERNADDR(dmap, 0), xfer->actlen);
 	}
 
 	/* if we allocated the buffer in usbd_transfer() we free it here. */

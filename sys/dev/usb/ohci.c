@@ -387,8 +387,8 @@ ohci_alloc_sed(sc)
 			return (0);
 		for(i = 0; i < OHCI_SED_CHUNK; i++) {
 			offs = i * OHCI_SED_SIZE;
-			sed = (ohci_soft_ed_t *)((char *)KERNADDR(&dma) +offs);
-			sed->physaddr = DMAADDR(&dma) + offs;
+			sed = (ohci_soft_ed_t *)((char *)KERNADDR(&dma, offs));
+			sed->physaddr = DMAADDR(&dma, offs);
 			sed->next = sc->sc_freeeds;
 			sc->sc_freeeds = sed;
 		}
@@ -426,8 +426,8 @@ ohci_alloc_std(sc)
 			return (0);
 		for(i = 0; i < OHCI_STD_CHUNK; i++) {
 			offs = i * OHCI_STD_SIZE;
-			std = (ohci_soft_td_t *)((char *)KERNADDR(&dma) +offs);
-			std->physaddr = DMAADDR(&dma) + offs;
+			std = (ohci_soft_td_t *)((char *)KERNADDR(&dma, offs));
+			std->physaddr = DMAADDR(&dma, offs);
 			std->nexttd = sc->sc_freetds;
 			sc->sc_freetds = std;
 		}
@@ -449,23 +449,25 @@ ohci_free_std(sc, std)
 }
 
 usbd_status
-ohci_alloc_std_chain(opipe, sc, len, rd, flags, dma, sp, ep)
+ohci_alloc_std_chain(opipe, sc, len, rd, flags, dma, std, rstd)
 	struct ohci_pipe *opipe;
 	ohci_softc_t *sc;
 	int len, rd;
 	u_int16_t flags;
 	usb_dma_t *dma;
-	ohci_soft_td_t *sp, **ep;
+	ohci_soft_td_t *std, **rstd;
 {
 	ohci_soft_td_t *next, *cur;
 	ohci_physaddr_t dataphys, dataphysend;
 	u_int32_t intr, tdflags;
+	int offset = 0;
 	int curlen;
 
 	DPRINTFN(len < 4096,("ohci_alloc_std_chain: start len=%d\n", len));
-	cur = sp;
-	dataphys = DMAADDR(dma);
-	dataphysend = OHCI_PAGE(dataphys + len - 1);
+
+	cur = std;
+
+	dataphysend = DMAADDR(dma, len - 1);
 	tdflags = 
 	    (rd ? OHCI_TD_IN : OHCI_TD_OUT) | 
 	    OHCI_TD_NOCC | OHCI_TD_TOGGLE_CARRY | 
@@ -476,15 +478,41 @@ ohci_alloc_std_chain(opipe, sc, len, rd, flags, dma, sp, ep)
 		if (next == 0)
 			goto nomem;
 
+		dataphys = DMAADDR(dma, offset);
+
 		/* The OHCI hardware can handle at most one page crossing. */
-		if (OHCI_PAGE(dataphys) == dataphysend ||
-		    OHCI_PAGE(dataphys) + OHCI_PAGE_SIZE == dataphysend) {
+#if defined(__NetBSD__) || defined(__OpenBSD__)
+		if (OHCI_PAGE(dataphys) == OHCI_PAGE(dataphysend) ||
+		    OHCI_PAGE(dataphys) + OHCI_PAGE_SIZE == OHCI_PAGE(dataphysend))
+#elif defined(__FreeBSD__)
+		/* XXX This is pretty broken: Because we do not allocate
+		 * a contiguous buffer (contiguous in physical pages) we
+		 * can only transfer one page in one go.
+		 * So check whether the start and end of the buffer are on
+		 * the same page.
+		 */
+		if (OHCI_PAGE(dataphys) == OHCI_PAGE(dataphysend))
+#endif
+		{
 			/* we can handle it in this TD */
 			curlen = len;
 		} else {
+			/* XXX The calculation below is wrong and could
+			 * result in a packet that is not a multiple of the
+			 * MaxPacketSize in the case where the buffer does not
+			 * start on an appropriate address (like for example in
+			 * the case of an mbuf cluster). You'll get an early
+			 * short packet.
+			 */
+#if defined(__NetBSD__) || defined(__OpenBSD__)
 			/* must use multiple TDs, fill as much as possible. */
 			curlen = 2 * OHCI_PAGE_SIZE - 
-				 (dataphys & (OHCI_PAGE_SIZE-1));
+				 OHCI_PAGE_MASK(dataphys);
+#elif defined(__FreeBSD__)
+			/* See comment above (XXX) */
+			curlen = OHCI_PAGE_SIZE - 
+				 OHCI_PAGE_MASK(dataphys);
+#endif
 		}
 		DPRINTFN(4,("ohci_alloc_std_chain: dataphys=0x%08x "
 			    "dataphysend=0x%08x len=%d curlen=%d\n",
@@ -505,7 +533,7 @@ ohci_alloc_std_chain(opipe, sc, len, rd, flags, dma, sp, ep)
 		if (len == 0)
 			break;
 		DPRINTFN(10,("ohci_alloc_std_chain: extend chain\n"));
-		dataphys += curlen;
+		offset += curlen;
 		cur = next;
 	}
 	if ((flags & USBD_FORCE_SHORT_XFER) &&
@@ -526,7 +554,7 @@ ohci_alloc_std_chain(opipe, sc, len, rd, flags, dma, sp, ep)
 		DPRINTFN(2,("ohci_alloc_std_chain: add 0 xfer\n"));
 	}
 	cur->flags = OHCI_CALL_DONE | OHCI_ADD_LEN;
-	*ep = next;
+	*rstd = next;
 
 	return (USBD_NORMAL_COMPLETION);
 
@@ -568,8 +596,8 @@ ohci_alloc_sitd(sc)
 			return (0);
 		for(i = 0; i < OHCI_STD_CHUNK; i++) {
 			offs = i * OHCI_STD_SIZE;
-			sitd = (ohci_soft_itd_t *)((char*)KERNADDR(&dma)+offs);
-			sitd->physaddr = DMAADDR(&dma) + offs;
+			sitd = (ohci_soft_itd_t *)((char*)KERNADDR(&dma, offs));
+			sitd->physaddr = DMAADDR(&dma, offs);
 			sitd->nextitd = sc->sc_freeitds;
 			sc->sc_freeitds = sitd;
 		}
@@ -627,7 +655,7 @@ ohci_init(sc)
 			 OHCI_HCCA_ALIGN, &sc->sc_hccadma);
 	if (err)
 		return (err);
-	sc->sc_hcca = (struct ohci_hcca *)KERNADDR(&sc->sc_hccadma);
+	sc->sc_hcca = (struct ohci_hcca *)KERNADDR(&sc->sc_hccadma, 0);
 	memset(sc->sc_hcca, 0, OHCI_HCCA_SIZE);
 
 	sc->sc_eintrs = OHCI_NORMAL_INTRS;
@@ -746,7 +774,7 @@ ohci_init(sc)
 	/* The controller is now in SUSPEND state, we have 2ms to finish. */
 
 	/* Set up HC registers. */
-	OWRITE4(sc, OHCI_HCCA, DMAADDR(&sc->sc_hccadma));
+	OWRITE4(sc, OHCI_HCCA, DMAADDR(&sc->sc_hccadma, 0));
 	OWRITE4(sc, OHCI_CONTROL_HEAD_ED, sc->sc_ctrl_head->physaddr);
 	OWRITE4(sc, OHCI_BULK_HEAD_ED, sc->sc_bulk_head->physaddr);
 	/* disable all interrupts and then switch on all desired interrupts */
@@ -1238,7 +1266,7 @@ ohci_device_intr_done(xfer)
 			OHCI_TD_SET_DI(1) | OHCI_TD_TOGGLE_CARRY);
 		if (xfer->flags & USBD_SHORT_XFER_OK)
 			data->td.td_flags |= LE(OHCI_TD_R);
-		data->td.td_cbp = LE(DMAADDR(&xfer->dmabuf));
+		data->td.td_cbp = LE(DMAADDR(&xfer->dmabuf, 0));
 		data->nexttd = tail;
 		data->td.td_nexttd = LE(tail->physaddr);
 		data->td.td_be = LE(LE(data->td.td_cbp) + xfer->length - 1);
@@ -1287,7 +1315,7 @@ ohci_rhsc(sc, xfer)
 	pipe = xfer->pipe;
 	opipe = (struct ohci_pipe *)pipe;
 
-	p = KERNADDR(&xfer->dmabuf);
+	p = KERNADDR(&xfer->dmabuf, 0);
 	m = min(sc->sc_noport, xfer->length * 8 - 1);
 	memset(p, 0, xfer->length);
 	for (i = 1; i <= m; i++) {
@@ -1414,7 +1442,7 @@ ohci_device_request(xfer)
 			(isread ? OHCI_TD_IN : OHCI_TD_OUT) | OHCI_TD_NOCC |
 			OHCI_TD_TOGGLE_1 | OHCI_TD_NOINTR |
 			(xfer->flags & USBD_SHORT_XFER_OK ? OHCI_TD_R : 0));
-		data->td.td_cbp = LE(DMAADDR(&xfer->dmabuf));
+		data->td.td_cbp = LE(DMAADDR(&xfer->dmabuf, 0));
 		data->nexttd = stat;
 		data->td.td_nexttd = LE(stat->physaddr);
 		data->td.td_be = LE(LE(data->td.td_cbp) + len - 1);
@@ -1430,11 +1458,11 @@ ohci_device_request(xfer)
 		stat->flags = OHCI_CALL_DONE | OHCI_ADD_LEN;
 	}
 
-	memcpy(KERNADDR(&opipe->u.ctl.reqdma), req, sizeof *req);
+	memcpy(KERNADDR(&opipe->u.ctl.reqdma, 0), req, sizeof *req);
 
 	setup->td.td_flags = LE(OHCI_TD_SETUP | OHCI_TD_NOCC |
 				OHCI_TD_TOGGLE_0 | OHCI_TD_NOINTR);
-	setup->td.td_cbp = LE(DMAADDR(&opipe->u.ctl.reqdma));
+	setup->td.td_cbp = LE(DMAADDR(&opipe->u.ctl.reqdma, 0));
 	setup->nexttd = next;
 	setup->td.td_nexttd = LE(next->physaddr);
 	setup->td.td_be = LE(LE(setup->td.td_cbp) + sizeof *req - 1);
@@ -2013,7 +2041,7 @@ ohci_root_ctrl_start(xfer)
 	index = UGETW(req->wIndex);
 
 	if (len != 0)
-		buf = KERNADDR(&xfer->dmabuf);
+		buf = KERNADDR(&xfer->dmabuf, 0);
 
 #define C(x,y) ((x) | ((y) << 8))
 	switch(C(req->bRequest, req->bmRequestType)) {
@@ -2616,7 +2644,7 @@ ohci_device_intr_start(xfer)
 		OHCI_TD_SET_DI(1) | OHCI_TD_TOGGLE_CARRY);
 	if (xfer->flags & USBD_SHORT_XFER_OK)
 		data->td.td_flags |= LE(OHCI_TD_R);
-	data->td.td_cbp = LE(DMAADDR(&xfer->dmabuf));
+	data->td.td_cbp = LE(DMAADDR(&xfer->dmabuf, 0));
 	data->nexttd = tail;
 	data->td.td_nexttd = LE(tail->physaddr);
 	data->td.td_be = LE(LE(data->td.td_cbp) + len - 1);
@@ -2826,7 +2854,7 @@ ohci_device_isoc_enter(xfer)
 
 	s = splusb();
 	sitd = opipe->tail.itd;
-	buf = DMAADDR(&xfer->dmabuf);
+	buf = DMAADDR(&xfer->dmabuf, 0);
 	sitd->itd.itd_bp0 = LE(buf & OHCI_ITD_PAGE_MASK);
 	nframes = xfer->nframes;
 	offs = buf & OHCI_ITD_OFFSET_MASK;
