@@ -40,11 +40,9 @@
 #define	_IBCS2_UTIL_H_
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <machine/vmparam.h>
 #include <sys/exec.h>
-#include <sys/cdefs.h>
 #include <sys/sysent.h>
 #include <sys/proc.h>
 

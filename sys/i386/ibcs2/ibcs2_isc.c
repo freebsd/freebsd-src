@@ -27,21 +27,17 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ibcs2_isc.c,v 1.8 1997/02/22 09:33:21 peter Exp $
+ *	$Id: ibcs2_isc.c,v 1.9 1997/05/07 20:05:44 peter Exp $
  */
 
 #include <sys/param.h>
-#include <sys/systm.h>
 #include <sys/sysent.h>
 #include <sys/proc.h>
 
 #include <machine/cpu.h>
-#include <machine/psl.h>
-#include <machine/reg.h>
 
 #include <i386/ibcs2/ibcs2_types.h>
 #include <i386/ibcs2/ibcs2_signal.h>
-#include <i386/ibcs2/ibcs2_util.h>
 #include <i386/ibcs2/ibcs2_proto.h>
 #include <i386/ibcs2/ibcs2_isc_syscall.h>
 
