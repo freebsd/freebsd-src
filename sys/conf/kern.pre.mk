@@ -28,7 +28,7 @@ COPTFLAGS?=-O2 -pipe
 . else
 COPTFLAGS?=-O -pipe
 . endif
-. if ${COPTFLAGS:M-O[23s]} != ""
+. if !empty(COPTFLAGS:M-O[23s]) && empty(COPTFLAGS:M-fno-strict-aliasing)
 COPTFLAGS+= -fno-strict-aliasing
 . endif
 .endif

@@ -73,6 +73,9 @@ OBJCOPY?=	objcopy
 .if ${CC} == "icc"
 CFLAGS:=	${CFLAGS:C/(-x[^M^K^W]+)[MKW]+|-x[MKW]+/\1/}
 .endif
+. if !empty(CFLAGS:M-O[23s]) && empty(CFLAGS:M-fno-strict-aliasing)
+CFLAGS+=	-fno-strict-aliasing
+. endif
 CFLAGS+=	-D_KERNEL
 CFLAGS+=	-DKLD_MODULE
 
