@@ -592,7 +592,7 @@ ahd_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->hba_misc = 0;
 		cpi->hba_eng_cnt = 0;
 		cpi->max_target = (ahd->features & AHD_WIDE) ? 15 : 7;
-		cpi->max_lun = AHD_NUM_LUNS - 1;
+		cpi->max_lun = AHD_NUM_LUNS_NONPKT - 1;
 		cpi->initiator_id = ahd->our_id;
 		if ((ahd->flags & AHD_RESET_BUS_A) == 0) {
 			cpi->hba_misc |= PIM_NOBUSRESET;
