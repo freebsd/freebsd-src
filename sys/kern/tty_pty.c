@@ -108,7 +108,7 @@ struct	pt_ioctl {
 	struct	selinfo pt_selr, pt_selw;
 	u_char	pt_send;
 	u_char	pt_ucntl;
-	struct tty pt_tty;
+	struct tty *pt_tty;
 	dev_t	devs, devc;
 	struct	prison *pt_prison;
 };
@@ -148,10 +148,10 @@ ptyinit(dev_t devc)
 	    UID_ROOT, GID_WHEEL, 0666, "tty%c%r", names[n / 32], n % 32);
 	pt->devc = devc;
 
+	pt->pt_tty = ttymalloc(pt->pt_tty);
 	devs->si_drv1 = devc->si_drv1 = pt;
-	devs->si_tty = devc->si_tty = &pt->pt_tty;
-	pt->pt_tty.t_dev = devs;
-	ttyregister(&pt->pt_tty);
+	devs->si_tty = devc->si_tty = pt->pt_tty;
+	pt->pt_tty->t_dev = devs;
 	return (devc);
 }
 
@@ -748,10 +748,8 @@ ptyioctl(dev, cmd, data, flag, td)
 		}
 		return(0);
 	}
-	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, td);
-	if (error == ENOIOCTL)
-		 error = ttioctl(tp, cmd, data, flag);
-	if (error == ENOIOCTL) {
+	error = ttyioctl(dev, cmd, data, flag, td);
+	if (error == ENOTTY) {
 		if (pti->pt_flags & PF_UCNTL &&
 		    (cmd & ~0xff) == UIOCCMD(0)) {
 			if (cmd & 0xff) {
