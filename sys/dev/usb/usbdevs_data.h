@@ -1354,6 +1354,24 @@ struct usb_knowndev usb_knowndevs[] = {
 	    "1200 UB scanner",
 	},
 	{
+	    USB_VENDOR_MUSTEK, USB_PRODUCT_MUSTEK_1200USBPLUS,
+	    0,
+	    "Mustek Systems, Inc.",
+	    "1200 USB Plus scanner",
+	},
+	{
+	    USB_VENDOR_MUSTEK, USB_PRODUCT_MUSTEK_BEARPAW1200F,
+	    0,
+	    "Mustek Systems, Inc.",
+	    "BearPaw 1200F scanner",
+	},
+	{
+	    USB_VENDOR_MUSTEK, USB_PRODUCT_MUSTEK_600USB,
+	    0,
+	    "Mustek Systems, Inc.",
+	    "600 USB scanner",
+	},
+	{
 	    USB_VENDOR_MUSTEK, USB_PRODUCT_MUSTEK_MDC800,
 	    0,
 	    "Mustek Systems, Inc.",
@@ -1366,10 +1384,16 @@ struct usb_knowndev usb_knowndevs[] = {
 	    "DiskOnKey",
 	},
 	{
-	    USB_VENDOR_NATIONAL, USB_PRODUCT_NATIONAL_BEARPAW,
+	    USB_VENDOR_NATIONAL, USB_PRODUCT_NATIONAL_BEARPAW1200,
 	    0,
 	    "National Semiconductor",
-	    "BearPaw 1200",
+	    "BearPaw 1200 scanner",
+	},
+	{
+	    USB_VENDOR_NATIONAL, USB_PRODUCT_NATIONAL_BEARPAW2400,
+	    0,
+	    "National Semiconductor",
+	    "BearPaw 2400 scanner",
 	},
 	{
 	    USB_VENDOR_NEC, USB_PRODUCT_NEC_HUB,
