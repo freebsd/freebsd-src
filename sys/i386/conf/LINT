@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.18 1993/10/23 10:49:00 jkh Exp $
+#	$Id: LINT,v 1.19 1993/10/23 21:21:52 jkh Exp $
 #
 
 machine		"i386"
@@ -24,7 +24,7 @@ config		"386bsd"	at 0xFE100000 root on wd0 swap on wd0 and sd0
 options		"COM_BIDIR"		#Bidirectional support in sys/isa/sio.c
 options		"COM_MULTIPORT"		#Multiport support in sys/isa/sio.c
 options		"COMPAT_43"		#compatible with BSD 4.3
-options		"SYMTAB_SPACE=89000"	#This kernel needs LOTS of symtable
+options		"SYMTAB_SPACE=102205"	#This kernel needs LOTS of symtable
 options		GATEWAY			#internetwork gateway
 options		KTRACE			#kernel tracing
 options		"NCONS=8"		#number of syscons virtual consoles
@@ -116,11 +116,11 @@ disk		wd0	at wd0 drive 0
 disk		wd1	at wd0 drive 1
 device		wt0	at isa? port 0x300 bio irq 5 drq 1 vector wtintr
 
-# Various sound card drivers.  This is set to SoundBlaster configuration.
+# Various sound card drivers.
 # See /sys/i386/doc/sound.doc for more information.
-#device snd5 at isa? port 0x330 irq 6 drq 0 vector mpuintr
-#device snd4 at isa? port 0x220 irq 15 drq 6 vector gusintr
-#device snd3 at isa? port 0x388 irq 12 drq 3 vector pasintr
+device snd5 at isa? port 0x330 irq 6 drq 0 vector mpuintr
+device snd4 at isa? port 0x220 irq 15 drq 6 vector gusintr
+device snd3 at isa? port 0x388 irq 12 drq 3 vector pasintr
 device snd2 at isa? port 0x220 irq 7 drq 1 vector sbintr
 device snd1 at isa? port 0x388 irq 0 drq 0 vector sbintr
 #
