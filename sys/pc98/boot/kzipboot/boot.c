@@ -158,7 +158,7 @@ void boot (int howto)
 		while ((inb(0x60) & 0x01) == 0) {}
 		/* read cursor address */
 		gdc_curaddr = inb(0x62);
-		gdc_curaddr = (inb(0x62) << 8);
+		gdc_curaddr += (inb(0x62) << 8);
 		/* ignore rest of data */
 		for (i = 0; i < 3; i++) {
 			(void)inb(0x62);
