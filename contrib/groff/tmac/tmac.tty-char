@@ -195,4 +195,4 @@
 .\"tty-char \(:y \ij
 .tty-char \[arrowvertex] |
 .cp \n(_C
-.do mso tmac.latin1
+.ie "\*[.T]"latin1" .do mso tmac.latin1
