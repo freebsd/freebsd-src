@@ -584,8 +584,10 @@ free_drive(struct drive *drive)
     if ((drive->state > drive_referenced)		    /* real drive */
     ||(drive->vp)) {					    /* how can it be open without a state? */
 	LOCKDRIVE(drive);
-	if (drive->vp)					    /* it's open, */
+	if (drive->vp) {				    /* it's open, */
 	    close_locked_drive(drive);			    /* close it */
+	    drive->state = drive_down;			    /* and note the fact */
+	}
 	if (drive->freelist)
 	    Free(drive->freelist);
 	bzero(drive, sizeof(struct drive));		    /* this also sets drive_unallocated */
