@@ -26,11 +26,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_prot.h,v 1.2 1995/05/30 04:55:47 rgrimes Exp $
+ *	$Id: yp_prot.h,v 1.3 1996/01/30 23:33:04 mpp Exp $
  */
 
-#ifndef _YP_PROT_H_
-#define _YP_PROT_H_
+#ifndef _RPCSVC_YP_PROT_H_
+#define _RPCSVC_YP_PROT_H_
 
 /*
  * YPSERV PROTOCOL:
@@ -71,25 +71,6 @@
 typedef u_int bool;
 #define BOOL_DEFINED
 #endif
-
-bool_t	xdr_datum();
-bool_t	xdr_ypdomain_wrap_string();
-bool_t	xdr_ypmap_wrap_string();
-bool_t	xdr_ypreq_key();
-bool_t	xdr_ypreq_nokey();
-bool_t	xdr_ypreq_xfr();
-bool_t	xdr_ypresp_val();
-bool_t	xdr_ypresp_key_val();
-bool_t	xdr_ypbind_resp();
-bool_t	xdr_ypbind_setdom();
-bool_t	xdr_yp_inaddr();
-bool_t	xdr_ypmap_parms();
-bool_t	xdr_ypowner_wrap_string();
-bool_t	xdr_yppushresp_xfr();
-bool_t	xdr_ypresp_order();
-bool_t	xdr_ypresp_master();
-bool_t	xdr_ypall();
-bool_t	xdr_ypresp_maplist();
 
 /* Program and version symbols, magic numbers */
 
@@ -327,4 +308,22 @@ struct yppushresp_xfr {
 #define YPPUSH_XFRERR	((long)-13)	/* ypxfr error */
 #define YPPUSH_REFUSED	((long)-14)	/* Transfer request refused by ypserv */
 
-#endif /* _YP_PROT_H_ */
+struct inaddr;
+__BEGIN_DECLS
+bool_t	xdr_datum __P((XDR *, datum *));
+bool_t	xdr_ypreq_key __P((XDR *, struct ypreq_key *));
+bool_t	xdr_ypreq_nokey __P((XDR *, struct ypreq_nokey *));
+bool_t	xdr_ypreq_xfr __P((XDR *, struct ypreq_xfr *));
+bool_t	xdr_ypresp_val __P((XDR *, struct ypresp_val *));
+bool_t	xdr_ypresp_key_val __P((XDR *, struct ypresp_key_val *));
+bool_t	xdr_ypbind_resp __P((XDR *, struct ypbind_resp *));
+bool_t	xdr_ypbind_setdom __P((XDR *, struct ypbind_setdom *));
+bool_t	xdr_yp_inaddr __P((XDR *, struct inaddr *));
+bool_t	xdr_ypmap_parms __P((XDR *, struct ypmap_parms *));
+bool_t	xdr_yppushresp_xfr __P((XDR *, struct yppushresp_xfr *));
+bool_t	xdr_ypresp_order __P((XDR *, struct ypresp_order *));
+bool_t	xdr_ypresp_master __P((XDR *, struct ypresp_master *));
+bool_t	xdr_ypresp_maplist __P((XDR *, struct ypresp_maplist *));
+__END_DECLS
+
+#endif /* _RPCSVC_YP_PROT_H_ */
