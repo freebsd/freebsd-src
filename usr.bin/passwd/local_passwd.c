@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: local_passwd.c,v 1.9.2.2 1997/05/10 21:32:33 davidn Exp $
+ * $Id: local_passwd.c,v 1.9.2.3 1998/03/07 21:44:00 ache Exp $
  */
 
 #ifndef lint
@@ -67,6 +67,7 @@ static const char sccsid[] = "@(#)local_passwd.c	8.3 (Berkeley) 4/2/94";
 #include "extern.h"
 
 static uid_t uid;
+int randinit;
 
 char   *tempname;
 
@@ -149,7 +150,10 @@ getnewpasswd(pw, nis)
 		(void)printf("Mismatch; try again, EOF to quit.\n");
 	}
 	/* grab a random printable character that isn't a colon */
-	(void)srandom((int)time((time_t *)NULL));
+	if (!randinit) {
+		randinit = 1;
+		srandomdev();
+	}
 #ifdef NEWSALT
 	salt[0] = _PASSWORD_EFMT1;
 	to64(&salt[1], (long)(29 * 25), 4);
