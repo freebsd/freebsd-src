@@ -434,8 +434,8 @@ different:
 				printf("install: %s -> %s\n",
 					from_name, old_to_name);
 			if (dopreserve && stat(from_name, &timestamp_sb) == 0) {
-				utb.actime = from_sb.st_atime;
-				utb.modtime = from_sb.st_mtime;
+				utb.actime = timestamp_sb.st_atime;
+				utb.modtime = timestamp_sb.st_mtime;
 				(void)utime(to_name, &utb);
 			}
 moveit:
