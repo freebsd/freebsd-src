@@ -53,3 +53,5 @@ extern long ia64_syscall_exit(struct trussinfo *, int);
 extern void sparc64_syscall_entry(struct trussinfo *, int);
 extern long sparc64_syscall_exit(struct trussinfo *, int);
 #endif
+
+extern int Procfd;

@@ -174,7 +174,6 @@ start_tracing(int pid, int eventflags, int flags) {
  */
 void
 restore_proc(int signo __unused) {
-  extern int Procfd;
 
   ioctl(Procfd, PIOCBIC, ~0);
   if (evflags)
