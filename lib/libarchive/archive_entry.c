@@ -35,6 +35,10 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <wchar.h>
 
+#ifdef LINUX
+#include <ext2fs/ext2_fs.h>	/* for Linux file flags */
+#endif
+
 #include "archive.h"
 #include "archive_entry.h"
 
