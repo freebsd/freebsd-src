@@ -1,7 +1,7 @@
 #
 # GENERIC -- Generic machine with WD/AHx/NCR/BTx family disks
 #
-#	$Id: GENERIC,v 1.30 1995/01/28 05:01:43 jkh Exp $
+#	$Id: GENERIC,v 1.31 1995/02/09 11:21:07 jkh Exp $
 #
 
 machine		"i386"
@@ -68,7 +68,12 @@ device		mcd1	at isa? port 0x340 bio irq 11 vector mcdintr
 
 device		scd0	at isa? port 0x230 bio
 
+# syscons is the default console driver, resembling an SCO console
 device		sc0	at isa? port "IO_KBD" tty irq 1 vector scintr
+# Enable this and PCVT_FREEBSD for pcvt vt220 compatible console driver
+#device		vt0	at isa? port "IO_KBD" tty irq 1 vector pcrint
+#options		"PCVT_FREEBSD=210"	# pcvt running on FreeBSD 2.1
+
 device		npx0	at isa? port "IO_NPX" irq 13 vector npxintr
 
 device		sio0	at isa? port "IO_COM1" tty irq 4 vector siointr
