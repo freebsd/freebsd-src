@@ -398,19 +398,6 @@ fail:
 	return (NULL);
 }
 
-/*
- * Free the disk.
- */
-static void
-g_mirror_free_disk(struct g_mirror_disk *disk)
-{
-
-	g_topology_assert();
-
-	g_mirror_disconnect_disk(disk);
-	free(disk, M_MIRROR);
-}
-
 static void
 g_mirror_destroy_disk(struct g_mirror_disk *disk)
 {
@@ -430,7 +417,8 @@ g_mirror_destroy_disk(struct g_mirror_disk *disk)
 	case G_MIRROR_DISK_STATE_NEW:
 	case G_MIRROR_DISK_STATE_STALE:
 	case G_MIRROR_DISK_STATE_ACTIVE:
-		g_mirror_free_disk(disk);
+		g_mirror_disconnect_disk(disk);
+		free(disk, M_MIRROR);
 		break;
 	default:
 		KASSERT(0 == 1, ("Wrong disk state (%s, %s).",
