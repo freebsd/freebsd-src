@@ -1,3 +1,4 @@
+/*	$FreeBSD$	*/
 /*	$KAME: timer.c,v 1.3 2000/05/22 22:23:07 itojun Exp $	*/
 
 /*
@@ -27,8 +28,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #include <sys/time.h>
