@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.42 1998/04/03 19:25:07 brian Exp $
+ * $Id: main.c,v 1.121.2.43 1998/04/03 19:25:42 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -153,26 +153,16 @@ KillChild(int signo)
 static void
 TerminalCont(int signo)
 {
-  pending_signal(SIGCONT, SIG_DFL);
-  pending_signal(SIGTSTP, TerminalStop);
-  if (getpgrp() == prompt_pgrp(SignalPrompt)) {
-    prompt_TtyCommandMode(SignalPrompt);
-    log_RegisterPrompt(SignalPrompt);
-    SignalPrompt->nonewline = 1;
-    prompt_Required(SignalPrompt);
-  }
+  signal(SIGCONT, SIG_DFL);
+  prompt_Continue(SignalPrompt);
 }
 
 static void
 TerminalStop(int signo)
 {
-  pending_signal(SIGCONT, TerminalCont);
-  if (getpgrp() == prompt_pgrp(SignalPrompt)) {
-    prompt_TtyOldMode(SignalPrompt);
-    log_UnRegisterPrompt(SignalPrompt);
-  }
-  pending_signal(SIGTSTP, SIG_DFL);
-  kill(getpid(), signo);
+  prompt_Suspend(SignalPrompt);
+  signal(SIGCONT, TerminalCont);
+  raise(SIGSTOP);
 }
 
 #if 0 /* What's our passwd :-O */
@@ -379,30 +369,14 @@ main(int argc, char **argv)
   pending_signal(SIGINT, CloseConnection);
   pending_signal(SIGQUIT, CloseSession);
   pending_signal(SIGALRM, SIG_IGN);
-#ifdef SIGPIPE
   signal(SIGPIPE, SIG_IGN);
-#endif
-  if (mode & MODE_INTER) {
-#ifdef SIGTSTP
+  if (mode & MODE_INTER)
     pending_signal(SIGTSTP, TerminalStop);
-#endif
-#ifdef SIGTTIN
-    pending_signal(SIGTTIN, TerminalStop);
-#endif
-#ifdef SIGTTOU
-    pending_signal(SIGTTOU, SIG_IGN);
-#endif
-  }
-  if (!(mode & MODE_INTER)) {
+
 #if 0 /* What's our passwd :-O */
-#ifdef SIGUSR1
-    pending_signal(SIGUSR1, SetUpServer);
+  pending_signal(SIGUSR1, SetUpServer);
 #endif
-#endif
-#ifdef SIGUSR2
-    pending_signal(SIGUSR2, BringDownServer);
-#endif
-  }
+  pending_signal(SIGUSR2, BringDownServer);
 
   if (label) {
     if (SelectSystem(bundle, label, CONFFILE, prompt) < 0) {

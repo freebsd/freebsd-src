@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prompt.h,v 1.1.2.3 1998/02/17 19:28:13 brian Exp $
+ *	$Id: prompt.h,v 1.1.2.4 1998/04/03 19:25:51 brian Exp $
  */
 
 #define LOCAL_AUTH	0x01
@@ -45,6 +45,7 @@ struct prompt {
   struct bundle *bundle;	/* who I'm controlling */
   unsigned nonewline : 1;	/* need a newline before our prompt ? */
   unsigned needprompt : 1;	/* Show a prompt at the next UpdateSet() */
+  unsigned active : 1;		/* Is the prompt active (^Z) */
 
   char who[40];			/* Where do I come from */
 
@@ -74,6 +75,8 @@ extern void prompt_TtyTermMode(struct prompt *, struct datalink *);
 extern void prompt_TtyOldMode(struct prompt *);
 extern pid_t prompt_pgrp(struct prompt *);
 extern int PasswdCommand(struct cmdargs const *);
+extern void prompt_Suspend(struct prompt *);
+extern void prompt_Continue(struct prompt *);
 #define prompt_IsTermMode(p, dl) ((p)->TermMode == (dl) ? 1 : 0)
 #define prompt_IsController(p) (!(p) || (p)->owner ? 0 : 1)
 #define prompt_Required(p) ((p)->needprompt = 1)

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prompt.c,v 1.1.2.19 1998/04/03 19:26:28 brian Exp $
+ *	$Id: prompt.c,v 1.1.2.20 1998/04/04 10:34:28 brian Exp $
  */
 
 #include <sys/param.h>
@@ -122,6 +122,10 @@ prompt_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
   int sets;
 
   sets = 0;
+
+  if (!p->active)
+    return sets;
+
   if (p->fd_in >= 0) {
     if (r) {
       FD_SET(p->fd_in, r);
@@ -304,6 +308,7 @@ prompt_Create(struct server *s, struct bundle *bundle, int fd)
     p->TermMode = NULL;
     p->nonewline = 1;
     p->needprompt = 1;
+    p->active = 1;
     p->bundle = bundle;
     if (p->bundle)
       bundle_RegisterDescriptor(p->bundle, &p->desc);
@@ -341,7 +346,7 @@ prompt_Destroy(struct prompt *p, int verbose)
 void
 prompt_Printf(struct prompt *p, const char *fmt,...)
 {
-  if (p) {
+  if (p && p->active) {
     va_list ap;
 
     va_start(ap, fmt);
@@ -354,7 +359,7 @@ prompt_Printf(struct prompt *p, const char *fmt,...)
 void
 prompt_vPrintf(struct prompt *p, const char *fmt, va_list ap)
 {
-  if (p) {
+  if (p && p->active) {
     vfprintf(p->Term, fmt, ap);
     fflush(p->Term);
   }
@@ -484,4 +489,40 @@ PasswdCommand(struct cmdargs const *arg)
     arg->prompt->auth = LOCAL_NO_AUTH;
 
   return 0;
+}
+
+static struct pppTimer bgtimer;
+
+static void
+prompt_TimedContinue(void *v)
+{
+  prompt_Continue((struct prompt *)v);
+}
+
+void
+prompt_Continue(struct prompt *p)
+{
+  StopTimer(&bgtimer);
+  if (getpgrp() == prompt_pgrp(p)) {
+    prompt_TtyCommandMode(p);
+    p->nonewline = 1;
+    prompt_Required(p);
+    p->active = 1;
+  } else if (!p->owner) {
+    bgtimer.func = prompt_TimedContinue;
+    bgtimer.name = "prompt bg";
+    bgtimer.load = SECTICKS;
+    bgtimer.state = TIMER_STOPPED;
+    bgtimer.arg = p;
+    StartTimer(&bgtimer);
+  }
+}
+
+void
+prompt_Suspend(struct prompt *p)
+{
+  if (getpgrp() == prompt_pgrp(p)) {
+    prompt_TtyOldMode(p);
+    p->active = 0;
+  }
 }

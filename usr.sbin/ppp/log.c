@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: log.c,v 1.25.2.2 1998/04/03 19:25:40 brian Exp $
+ *	$Id: log.c,v 1.25.2.3 1998/04/03 19:26:40 brian Exp $
  */
 
 #include <sys/param.h>
@@ -382,8 +382,14 @@ log_ShowWho(struct cmdargs const *arg)
 {
   struct prompt *p;
 
-  for (p = logprompt; p; p = p->lognext)
-    prompt_Printf(arg->prompt, "%s%s\n", p->who, p == arg->prompt ? " *" : "");
+  for (p = logprompt; p; p = p->lognext) {
+    prompt_Printf(arg->prompt, "%s", p->who);
+    if (p == arg->prompt)
+      prompt_Printf(arg->prompt, " *");
+    if (!p->active)
+      prompt_Printf(arg->prompt, " ^Z");
+    prompt_Printf(arg->prompt, "\n");
+  }
 
   return 0;
 }
