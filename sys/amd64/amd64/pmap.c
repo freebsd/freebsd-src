@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.204 1998/07/11 08:29:38 phk Exp $
+ *	$Id: pmap.c,v 1.205 1998/07/11 11:10:46 bde Exp $
  */
 
 /*
@@ -420,20 +420,21 @@ pmap_bootstrap(firstaddr, loadaddr)
 	/* 1 = page table page */
 	/* 2 = local apic */
 	/* 16-31 = io apics */
-	SMP_prvpt[2] = (pt_entry_t)(PG_V | PG_RW | pgeflag | ((u_long)cpu_apic_address & PG_FRAME));
+	SMP_prvpt[2] = (pt_entry_t)(PG_V | PG_RW | pgeflag |
+	    (cpu_apic_address & PG_FRAME));
 
 	for (i = 0; i < mp_napics; i++) {
 		for (j = 0; j < 16; j++) {
 			/* same page frame as a previous IO apic? */
-			if (((u_long)SMP_prvpt[j + 16] & PG_FRAME) ==
-			    ((u_long)io_apic_address[0] & PG_FRAME)) {
+			if (((vm_offset_t)SMP_prvpt[j + 16] & PG_FRAME) ==
+			    (io_apic_address[0] & PG_FRAME)) {
 				ioapic[i] = (ioapic_t *)&SMP_ioapic[j * PAGE_SIZE];
 				break;
 			}
 			/* use this slot if available */
-			if (((u_long)SMP_prvpt[j + 16] & PG_FRAME) == 0) {
-				SMP_prvpt[j + 16] = (pt_entry_t)(PG_V | PG_RW | pgeflag |
-				    ((u_long)io_apic_address[i] & PG_FRAME));
+			if (((vm_offset_t)SMP_prvpt[j + 16] & PG_FRAME) == 0) {
+				SMP_prvpt[j + 16] = (pt_entry_t)(PG_V | PG_RW |
+				    pgeflag | (io_apic_address[i] & PG_FRAME));
 				ioapic[i] = (ioapic_t *)&SMP_ioapic[j * PAGE_SIZE];
 				break;
 			}
