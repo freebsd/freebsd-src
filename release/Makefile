@@ -25,15 +25,6 @@ BUILDNAME?=${BASE}-${DATE}-SNAP
 # If this is a -stable snapshot, then set
 #RELEASETAG=RELENG_3
 
-PCCARD?=NO
-
-.if ${PCCARD} == "YES"
-CARDDEV=card0 card1 card2 card3
-.else
-CARDDEV=
-.endif
-
-# We now use GENERIC for the pccard kernel.
 KERNCONF=GENERIC
 
 # If you are using a local CVS repository with components stored in 
@@ -278,9 +269,6 @@ release.1:
 	rm -rf ${_R}/*
 	mkdir ${RD}
 	mkdir ${RD}/floppies
-.if ${MACHINE_ARCH} == "i386"
-	mkdir ${RD}/floppies/pccard
-.endif
 	mkdir ${RD}/trees
 	mkdir ${RD}/dists
 	mkdir ${RD}/kernels
@@ -330,11 +318,7 @@ release.3:
 # Tcl and Perl APIs.  See also /usr/src/usr.bin/vi/Makefile.
 release.4:
 	@mkdir -p /stand
-.if ${PCCARD} == "YES"
-	cp ${.CURDIR}/boot_crunch.conf.pccard ${.OBJDIR}/boot_crunch.conf
-.else
 	cp ${.CURDIR}/boot_crunch.conf.generic ${.OBJDIR}/boot_crunch.conf
-.endif
 	cd ${.CURDIR}/sysinstall && make obj depend all install
 	rm -rf ${RD}/crunch
 	mkdir -p ${RD}/crunch
@@ -464,14 +448,12 @@ release.8: write_mfs_in_kernel
 	@cd ${.CURDIR} && $(MAKE) installCRUNCH CRUNCH=boot \
 		DIR=${RD}/mfsfd/stand ZIP=false
 	( cd ${RD}/trees/bin/dev && \
-		ls console tty bpf0 ttyv0 ttyv1 ttyv2 ttyv3 null zero ${CARDDEV} | \
+		ls console tty bpf0 ttyv0 ttyv1 ttyv2 ttyv3 null zero card0 card1 card2 card3 | \
 	cpio -dump ${RD}/mfsfd/dev )
 	( cd ${RD}/mfsfd/dev && rm -f *[swo]d*[bdefgh] )
 	( cd ${RD}/mfsfd && mkdir -p bin sbin && ln -s /stand/sh bin/sh )
 	cp /sbin/dhclient-script ${RD}/mfsfd/sbin
-.if ${PCCARD} == "YES"
 	cp ${.CURDIR}/../etc/pccard.conf.sample ${RD}/mfsfd/etc/pccard.conf
-.endif
 	cd ${RD}/trees/bin && ls ${BOOT1} | cpio -dump ${RD}/mfsfd/stand
 	echo "nameserver      42/tcp name"	> ${RD}/mfsfd/stand/etc/services
 	echo "ftp             21/tcp"		>> ${RD}/mfsfd/stand/etc/services
@@ -535,10 +517,6 @@ release.9:
 # Do our last minute floppies directory setup in a convenient place.
 	@cp ${.CURDIR}/texts/FLOPPIES.TXT ${RD}/floppies/README.TXT
 	@(cd ${RD}/floppies; md5 README.TXT *.flp > CHECKSUM.MD5)
-.if ${MACHINE_ARCH} == "i386"
-	@cp ${.CURDIR}/texts/PCCARD.TXT ${RD}/floppies/pccard/README.TXT
-	@(cd ${RD}/floppies/pccard; md5 *.flp > CHECKSUM.MD5)
-.endif
 	touch release.9
 
 #
@@ -648,11 +626,6 @@ doRELEASE:  release.1 release.2 ${DOCREL} release.3 release.4 release.5 \
 	@echo "Release done"
 
 floppies:
-.if ${MACHINE_ARCH} == "i386"
-	@cd ${.CURDIR} && ${MAKE} PCCARD=YES boot.flp
-	mv ${RD}/floppies/boot.flp ${RD}/floppies/kern.flp \
-		${RD}/floppies/mfsroot.flp ${RD}/floppies/pccard
-.endif
 	@cd ${.CURDIR} && ${MAKE} boot.flp
 	@cd ${.CURDIR} && ${MAKE} fixit.flp
 	@cd ${RD} && find floppies -print | cpio -dumpl ${FD}

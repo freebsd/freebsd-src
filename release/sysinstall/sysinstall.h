@@ -691,6 +691,9 @@ extern int	package_add(char *name);
 extern int	package_extract(Device *dev, char *name, Boolean depended);
 extern Boolean	package_exists(char *name);
 
+/* pccard.c */
+extern void	pccardInitialize(void);
+
 /* system.c */
 extern void	systemInitialize(int argc, char **argv);
 extern void	systemShutdown(int status);

@@ -35,7 +35,6 @@
  */
 
 #include "sysinstall.h"
-#include "pccard_conf.h"
 #include <sys/signal.h>
 #include <sys/fcntl.h>
 
@@ -88,10 +87,8 @@ main(int argc, char **argv)
     if (DebugFD)
 	dup2(DebugFD, 2);
 
-#ifdef PCCARD
     /* Initialize PC-card */
     pccardInitialize();
-#endif
 
     /* Probe for all relevant devices on the system */
     deviceGetAll();

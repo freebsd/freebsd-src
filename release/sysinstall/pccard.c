@@ -15,12 +15,9 @@
  */
 
 #include "sysinstall.h"
-#include "pccard_conf.h"
 #include <sys/fcntl.h>
 #include <sys/time.h>
 #include <pccard/cardinfo.h>
-
-#ifdef	PCCARD
 
 int	pccard_mode = 0;
 
@@ -83,6 +80,19 @@ pccardInitialize(void)
 	return;
     }
 
+    sprintf(card_device, CARD_DEVICE, 0);
+
+    if ((fd = open(card_device, O_RDWR)) < 0) {
+	msgDebug("Can't open PC-card controller %s.\n", 
+		card_device);
+	return;
+    }
+    else if (msgYesNo("Found PC-card slot(s).\n"
+		"Use PC-card device as installation media?\n")) {
+	return;
+    }
+    close(fd);
+
     dmenuOpenSimple(&MenuPCICMem, FALSE);
     spcic_mem = variable_get("_pcicmem");
     dmenuOpenSimple(&MenuCardIRQ, FALSE);
@@ -121,8 +131,6 @@ pccardInitialize(void)
 	card_irq = "-i 11";
 	break;
     }
-
-    sprintf(card_device, CARD_DEVICE, 0);
 
     w = savescr();
     dialog_clear_norefresh();
@@ -163,7 +171,3 @@ pccardInitialize(void)
     vsystem(pccardd_cmd);
     restorescr(w);
 }
-
-#endif	/* PCCARD */
-
-
