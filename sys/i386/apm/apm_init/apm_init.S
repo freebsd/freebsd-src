@@ -12,7 +12,7 @@
  *
  * Sep., 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm_init.S,v 1.5 1996/03/11 21:54:22 nate Exp $
+ *	$Id: apm_init.S,v 1.6 1996/03/12 21:23:56 nate Exp $
  */
 
 /*
@@ -72,6 +72,7 @@ ENTRY(apm_init)
 	/* 
 	 * save old data segments: We assume that %ds == %es && %ds == %ss
 	 */
+	pushl	%fs
 	movw	%ds, %ax
 	movw	%ax, %fs
 	movw	$(APM_INIT_DS_SEL), %ax	/* initializer data segment */
@@ -186,9 +187,8 @@ finish:
 	movw	%ax, %ss
 	movw	%ax, %es
 	movw	%ax, %ds
-	xorl	%eax, %eax
-	movw	%ax, %fs
 	movl	%ebp, %eax
+	popl	%fs
 	popl	%ebp			/* restore old base pointer */
 	lret				/* restore old code segment */
 
