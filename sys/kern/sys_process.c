@@ -707,13 +707,6 @@ fail:
 	return (error);
 }
 
-int
-trace_req(struct proc *p)
-{
-
-	return (1);
-}
-
 /*
  * Stop a process because of a debugging event;
  * stay stopped until p->p_step is cleared
