@@ -167,7 +167,7 @@
 #define NEG_MPPE	54
 #define NEG_CHAP81	55
 
-const char Version[] = "3.4";
+const char Version[] = "3.4.1";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -2612,7 +2612,7 @@ NatEnable(struct cmdargs const *arg)
       return 0;
     } else if (strcasecmp(arg->argv[arg->argn], "no") == 0) {
       arg->bundle->NatEnabled = 0;
-      arg->bundle->cfg.opt &= ~OPT_IFACEALIAS;
+      opt_disable(arg->bundle, OPT_IFACEALIAS);
       /* Don't iface_Clear() - there may be manually configured addresses */
       return 0;
     }
@@ -2757,24 +2757,32 @@ ident_cmd(const char *cmd, unsigned *keep, unsigned *add)
 static int
 OptSet(struct cmdargs const *arg)
 {
-  int bit = (int)(long)arg->cmd->args;
-  unsigned keep;			/* Keep these bits */
-  unsigned add;				/* Add these bits */
+  int opt = (int)(long)arg->cmd->args;
+  unsigned keep;			/* Keep this opt */
+  unsigned add;				/* Add this opt */
 
   if (ident_cmd(arg->argv[arg->argn - 2], &keep, &add) == NULL)
     return 1;
 
 #ifndef NOINET6
-  if (add == NEG_ENABLED && bit == OPT_IPV6CP && !probe.ipv6_available) {
+  if (add == NEG_ENABLED && opt == OPT_IPV6CP && !probe.ipv6_available) {
     log_Printf(LogWARN, "IPv6 is not available on this machine\n");
     return 1;
   }
 #endif
+  if (!add && ((opt == OPT_NAS_IP_ADDRESS &&
+                !Enabled(arg->bundle, OPT_NAS_IDENTIFIER)) ||
+               (opt == OPT_NAS_IDENTIFIER &&
+                !Enabled(arg->bundle, OPT_NAS_IP_ADDRESS)))) {
+    log_Printf(LogWARN,
+               "Cannot disable both NAS-IP-Address and NAS-Identifier\n");
+    return 1;
+  }
 
   if (add)
-    arg->bundle->cfg.opt |= bit;
+    opt_enable(arg->bundle, opt);
   else
-    arg->bundle->cfg.opt &= ~bit;
+    opt_disable(arg->bundle, opt);
 
   return 0;
 }
@@ -2782,12 +2790,12 @@ OptSet(struct cmdargs const *arg)
 static int
 IfaceAliasOptSet(struct cmdargs const *arg)
 {
-  unsigned save = arg->bundle->cfg.opt;
+  unsigned long long save = arg->bundle->cfg.optmask;
   int result = OptSet(arg);
 
   if (result == 0)
     if (Enabled(arg->bundle, OPT_IFACEALIAS) && !arg->bundle->NatEnabled) {
-      arg->bundle->cfg.opt = save;
+      arg->bundle->cfg.optmask = save;
       log_Printf(LogWARN, "Cannot enable iface-alias without NAT\n");
       result = 2;
     }
@@ -2928,6 +2936,10 @@ static struct cmdtab const NegotiateCommands[] = {
   "disable|enable", (const void *)OPT_KEEPSESSION},
   {"loopback", NULL, OptSet, LOCAL_AUTH, "Loop packets for local iface",
   "disable|enable", (const void *)OPT_LOOPBACK},
+  {"nas-ip-address", NULL, OptSet, LOCAL_AUTH, "Send NAS-IP-Address to RADIUS",
+  "disable|enable", (const void *)OPT_NAS_IP_ADDRESS},
+  {"nas-identifier", NULL, OptSet, LOCAL_AUTH, "Send NAS-Identifier to RADIUS",
+  "disable|enable", (const void *)OPT_NAS_IDENTIFIER},
   {"passwdauth", NULL, OptSet, LOCAL_AUTH, "Use passwd file",
   "disable|enable", (const void *)OPT_PASSWDAUTH},
   {"proxy", NULL, OptSet, LOCAL_AUTH, "Create a proxy ARP entry",
@@ -2944,9 +2956,9 @@ static struct cmdtab const NegotiateCommands[] = {
   "disable|enable", (const void *)OPT_UTMP},
 
 #ifndef NOINET6
-#define OPT_MAX 14	/* accept/deny allowed below and not above */
+#define NEG_OPT_MAX 16	/* accept/deny allowed below and not above */
 #else
-#define OPT_MAX 12
+#define NEG_OPT_MAX 14
 #endif
 
   {"acfcomp", NULL, NegotiateSet, LOCAL_AUTH | LOCAL_CX,
@@ -3018,7 +3030,7 @@ NegotiateCommand(struct cmdargs const *arg)
     for (n = arg->argn; n < arg->argc; n++) {
       argv[1] = arg->argv[n];
       FindExec(arg->bundle, NegotiateCommands + (keep == NEG_HISMASK ?
-               0 : OPT_MAX), 2, 1, argv, arg->prompt, arg->cx);
+               0 : NEG_OPT_MAX), 2, 1, argv, arg->prompt, arg->cx);
     }
   } else if (arg->prompt)
     prompt_Printf(arg->prompt, "Use `%s ?' to get a list.\n",

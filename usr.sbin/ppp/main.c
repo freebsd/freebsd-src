@@ -393,7 +393,7 @@ main(int argc, char **argv)
   SignalBundle = bundle;
   bundle->NatEnabled = sw.nat;
   if (sw.nat)
-    bundle->cfg.opt |= OPT_IFACEALIAS;
+    opt_enable(bundle, OPT_IFACEALIAS);
 
   if (system_Select(bundle, "default", CONFFILE, prompt, NULL) < 0)
     prompt_Printf(prompt, "Warning: No default entry found in config file.\n");
