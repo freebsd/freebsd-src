@@ -411,7 +411,7 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin)
 	goto out;	/* this is fatal */
     }
     prsbuf.Length = ACPI_ALLOCATE_BUFFER;
-    if (ACPI_FAILURE(status = AcpiGetCurrentResources(lnkdev, &prsbuf))) {
+    if (ACPI_FAILURE(status = AcpiGetPossibleResources(lnkdev, &prsbuf))) {
 	device_printf(sc->ap_dev, "couldn't get PCI interrupt link device _PRS data - %s\n",
 		      AcpiFormatException(status));
 	/* this is not fatal, since it may be hardwired */
