@@ -115,9 +115,9 @@ getnetanswer(answer, anslen, net_i)
 	u_char *cp;
 	int n;
 	u_char *eom;
-	int type, class, buflen, ancount, qdcount, haveanswer, i, nchar;
+	int type, class, ancount, qdcount, haveanswer, i, nchar;
 	char aux1[MAXHOSTNAMELEN], aux2[MAXHOSTNAMELEN], ans[MAXHOSTNAMELEN];
-	char *in, *st, *pauxt, *bp, **ap;
+	char *in, *st, *pauxt, *bp, *ep, **ap;
 	char *paux1 = &aux1[0], *paux2 = &aux2[0], flag = 0;
 static	struct netent net_entry;
 static	char *net_aliases[MAXALIASES], netbuf[PACKETSZ];
@@ -141,7 +141,6 @@ static	char *net_aliases[MAXALIASES], netbuf[PACKETSZ];
 	ancount = ntohs(hp->ancount); /* #/records in the answer section */
 	qdcount = ntohs(hp->qdcount); /* #/entries in the question section */
 	bp = netbuf;
-	buflen = sizeof(netbuf);
 	cp = answer->buf + HFIXEDSZ;
 	if (!qdcount) {
 		if (hp->aa)
@@ -157,7 +156,7 @@ static	char *net_aliases[MAXALIASES], netbuf[PACKETSZ];
 	net_entry.n_aliases = net_aliases;
 	haveanswer = 0;
 	while (--ancount >= 0 && cp < eom) {
-		n = dn_expand(answer->buf, eom, cp, bp, buflen);
+		n = dn_expand(answer->buf, eom, cp, bp, ep - bp);
 		if ((n < 0) || !res_dnok(bp))
 			break;
 		cp += n;
@@ -169,7 +168,7 @@ static	char *net_aliases[MAXALIASES], netbuf[PACKETSZ];
 		cp += INT32SZ;		/* TTL */
 		GETSHORT(n, cp);
 		if (class == C_IN && type == T_PTR) {
-			n = dn_expand(answer->buf, eom, cp, bp, buflen);
+			n = dn_expand(answer->buf, eom, cp, bp, ep - bp);
 			if ((n < 0) || !res_hnok(bp)) {
 				cp += n;
 				return (NULL);
