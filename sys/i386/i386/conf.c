@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.22 1994/03/02 20:28:28 guido Exp $
+ *	$Id: conf.c,v 1.23 1994/04/19 23:45:43 wollman Exp $
  */
 
 #include "param.h"
@@ -421,6 +421,19 @@ d_ioctl_t spkrioctl;
 #define spkrioctl	(d_ioctl_t *)enxio
 #endif
 
+#include "pca.h"
+#if NPCA > 0
+d_open_t pcaopen;
+d_close_t pcaclose;
+d_rdwr_t pcawrite;
+d_ioctl_t pcaioctl;
+#else
+#define pcaopen		(d_open_t *)enxio
+#define pcaclose	(d_close_t *)enxio
+#define pcawrite	(d_rdwr_t *)enxio
+#define pcaioctl	(d_ioctl_t *)enxio
+#endif
+
 #include "mse.h"
 #if NMSE > 0
 d_open_t mseopen;
@@ -569,9 +582,9 @@ struct cdevsw	cdevsw[] =
  	{ bpfopen,	bpfclose,	bpfread,	bpfwrite,	/*23*/
  	  bpfioctl,	nostop,		nullreset,	NULL,	/* bpf */
  	  bpfselect,	nommap,		NULL },
-	{ noopen,	noclose,	noread,		nowrite,	/*24*/
-	  noioc,	nostop,		nullreset,	NULL,	/* FREE */
-	  noselect,	nommap,		NULL },
+ 	{ pcaopen,      pcaclose,       noread,         pcawrite,       /*24*/
+ 	  pcaioctl,     nostop,         nullreset,      NULL,	/* pcaudio */
+ 	  seltrue,	nommap,		NULL },
 	{ lpaopen,	lpaclose,	noread,		lpawrite,	/*25*/
 	  lpaioctl,	nullstop,	nullreset,	NULL,	/* lpa */
 	  seltrue,	nommap,		NULL },
