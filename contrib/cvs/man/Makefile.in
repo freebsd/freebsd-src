@@ -12,10 +12,6 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
 SHELL = /bin/sh
 
 srcdir     = @srcdir@
@@ -39,10 +35,9 @@ man8dir = $(mandir)/man8
 all:
 .PHONY: all
 
-# This used to depend on installdirs, but someone took it out (I think
-# maybe it is/was some kind of Cygnus convention to not depend on installdirs;
-# I'm not sure).  I don't know what the pro(s) and con(s) are.
-install: all
+# This needs to depend on installdirs so that (for example) the
+# install will not fail if $(prefix)/man/man5 does not yet exist.
+install: all installdirs
 	for f in $(MAN1FILES); do \
 		$(INSTALL_DATA) $(srcdir)/$$f $(man1dir)/$$f; \
 	done

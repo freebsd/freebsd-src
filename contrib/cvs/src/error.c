@@ -9,11 +9,7 @@
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
+   GNU General Public License for more details.  */
 
 /* David MacKenzie */
 /* Brian Berliner added support for CVS */
@@ -30,7 +26,7 @@ int error_use_protocol;
 
 #ifdef HAVE_VPRINTF
 
-#if __STDC__
+#ifdef __STDC__
 #include <stdarg.h>
 #define VA_START(args, lastarg) va_start(args, lastarg)
 #else /* ! __STDC__ */
@@ -54,38 +50,43 @@ int error_use_protocol;
 #include <stdlib.h>
 #include <string.h>
 #else /* ! STDC_HEADERS */
-#if __STDC__
+#ifdef __STDC__
 void exit(int status);
 #else /* ! __STDC__ */
 void exit ();
 #endif /* __STDC__ */
 #endif /* STDC_HEADERS */
 
+#ifndef strerror
 extern char *strerror ();
+#endif
 
 extern int vasprintf ();
 
-typedef void (*fn_returning_void) PROTO((void));
-
-/* Function to call before exiting.  */
-static fn_returning_void cleanup_fn;
-
-fn_returning_void
-error_set_cleanup (arg)
-     fn_returning_void arg;
+void
+error_exit PROTO ((void))
 {
-    fn_returning_void retval = cleanup_fn;
-    cleanup_fn = arg;
-    return retval;
+    Lock_Cleanup();
+#ifdef SERVER_SUPPORT
+    if (server_active)
+	server_cleanup (0);
+#endif
+#ifdef SYSTEM_CLEANUP
+    /* Hook for OS-specific behavior, for example socket subsystems on
+       NT and OS2 or dealing with windows and arguments on Mac.  */
+    SYSTEM_CLEANUP ();
+#endif
+    exit (EXIT_FAILURE);
 }
 
 /* Print the program name and error message MESSAGE, which is a printf-style
    format string with optional args.
    If ERRNUM is nonzero, print its corresponding system error message.
-   Exit with status EXIT_FAILURE if STATUS is nonzero.  */
+   Exit with status EXIT_FAILURE if STATUS is nonzero.  If MESSAGE is "",
+   no need to print a message.  */
 /* VARARGS */
 void
-#if defined (HAVE_VPRINTF) && __STDC__
+#if defined (HAVE_VPRINTF) && defined (__STDC__)
 error (int status, int errnum, const char *message, ...)
 #else
 error (status, errnum, message, va_alist)
@@ -95,19 +96,10 @@ error (status, errnum, message, va_alist)
     va_dcl
 #endif
 {
-    FILE *out = stderr;
 #ifdef HAVE_VPRINTF
-    va_list args;
-#endif
-
-    if (error_use_protocol)
+    if (message[0] != '\0')
     {
-	out = stdout;
-	printf ("E ");
-    }
-
-#ifdef HAVE_VPRINTF
-    {
+	va_list args;
 	char *mess = NULL;
 	char *entire;
 	size_t len;
@@ -157,10 +149,7 @@ error (status, errnum, message, va_alist)
 		free (mess);
 	    }
 	}
-	if (error_use_protocol)
-	    fputs (entire ? entire : "out of memory", out);
-	else
-	    cvs_outerr (entire ? entire : "out of memory", 0);
+	cvs_outerr (entire ? entire : "out of memory\n", 0);
 	if (entire != NULL)
 	    free (entire);
     }
@@ -169,45 +158,53 @@ error (status, errnum, message, va_alist)
     /* I think that all relevant systems have vprintf these days.  But
        just in case, I'm leaving this code here.  */
 
-    if (command_name && *command_name)
+    if (message[0] != '\0')
     {
-	if (status)
-	    fprintf (out, "%s [%s aborted]: ", program_name, command_name);
+	FILE *out = stderr;
+
+	if (error_use_protocol)
+	{
+	    out = stdout;
+	    printf ("E ");
+	}
+
+	if (command_name && *command_name)
+	{
+	    if (status)
+		fprintf (out, "%s [%s aborted]: ", program_name, command_name);
+	    else
+		fprintf (out, "%s %s: ", program_name, command_name);
+	}
 	else
-	    fprintf (out, "%s %s: ", program_name, command_name);
-    }
-    else
-	fprintf (out, "%s: ", program_name);
+	    fprintf (out, "%s: ", program_name);
 
 #ifdef HAVE_VPRINTF
-    VA_START (args, message);
-    vfprintf (out, message, args);
-    va_end (args);
+	VA_START (args, message);
+	vfprintf (out, message, args);
+	va_end (args);
 #else
 #ifdef HAVE_DOPRNT
-    _doprnt (message, &args, out);
+	_doprnt (message, &args, out);
 #else
-    fprintf (out, message, a1, a2, a3, a4, a5, a6, a7, a8);
+	fprintf (out, message, a1, a2, a3, a4, a5, a6, a7, a8);
 #endif
 #endif
-    if (errnum)
-	fprintf (out, ": %s", strerror (errnum));
-    putc ('\n', out);
+	if (errnum)
+	    fprintf (out, ": %s", strerror (errnum));
+	putc ('\n', out);
+
+	/* In the error_use_protocol case, this probably does
+	   something useful.  In most other cases, I suspect it is a
+	   noop (either stderr is line buffered or we haven't written
+	   anything to stderr) or unnecessary (if stderr is not line
+	   buffered, maybe there is a reason....).  */
+	fflush (out);
+    }
 
 #endif /* No HAVE_VPRINTF */
 
-    /* In the error_use_protocol case, this probably does something useful.
-       In most other cases, I suspect it is a noop (either stderr is line
-       buffered or we haven't written anything to stderr) or unnecessary
-       (if stderr is not line buffered, maybe there is a reason....).  */
-    fflush (out);
-
     if (status)
-    {
-	if (cleanup_fn)
-	    (*cleanup_fn) ();
-	exit (EXIT_FAILURE);
-    }
+	error_exit ();
 }
 
 /* Print the program name and error message MESSAGE, which is a printf-style
@@ -216,7 +213,7 @@ error (status, errnum, message, va_alist)
    Exit with status EXIT_FAILURE if STATUS is nonzero.  */
 /* VARARGS */
 void
-#if defined (HAVE_VPRINTF) && __STDC__
+#if defined (HAVE_VPRINTF) && defined (__STDC__)
 fperror (FILE *fp, int status, int errnum, char *message, ...)
 #else
 fperror (fp, status, errnum, message, va_alist)
@@ -248,9 +245,5 @@ fperror (fp, status, errnum, message, va_alist)
     putc ('\n', fp);
     fflush (fp);
     if (status)
-    {
-	if (cleanup_fn)
-	    (*cleanup_fn) ();
-	exit (EXIT_FAILURE);
-    }
+	error_exit ();
 }

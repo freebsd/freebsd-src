@@ -8,11 +8,7 @@
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
+   GNU General Public License for more details.  */
 
 #ifndef FILEATTR_H
 
@@ -26,6 +22,13 @@
 
    ENT-TYPE is 'D', and FILENAME empty, to specify default attributes
    to be used for newly added files.
+
+   Other ENT-TYPE are reserved for future expansion.  CVS 1.9 and older
+   will delete them any time it writes file attributes.  Current versions
+   of CVS will preserve them.
+
+   Note that the order of the line is not significant; CVS is free to
+   rearrange them at its convenience.
 
    There is currently no way of quoting tabs or linefeeds in the
    filename, '=' in ATTRNAME, ';' in ATTRVAL, etc.  I'm not sure
@@ -66,11 +69,12 @@ extern void fileattr_startdir PROTO ((char *repos));
    by '\0' or ';'.  Return NULL if said file lacks said attribute.
    If FILENAME is NULL, return default attributes (attributes for
    files created in the future).  */
-extern char *fileattr_get PROTO ((char *filename, char *attrname));
+extern char *fileattr_get PROTO ((const char *filename, const char *attrname));
 
 /* Like fileattr_get, but return a pointer to a newly malloc'd string
    terminated by '\0' (or NULL if said file lacks said attribute).  */
-extern char *fileattr_get0 PROTO ((char *filename, char *attrname));
+extern char *fileattr_get0 PROTO ((const char *filename,
+				   const char *attrname));
 
 /* This is just a string manipulation function; it does not manipulate
    file attributes as such.  
@@ -94,26 +98,26 @@ extern char *fileattr_get0 PROTO ((char *filename, char *attrname));
      => "abc=val;def=v2"
    fileattr_modify ("abc=v1;def=v2", "def", "val", '=', ';'))
      => "abc=v1;def=val"
-   fileattr_modify ("abc=v1;def=v2", "xxx", "val"))
+   fileattr_modify ("abc=v1;def=v2", "xxx", "val", '=', ';'))
      => "abc=v1;def=v2;xxx=val"
    fileattr_modify ("abc=v1;def=v2;ghi=v3", "def", "val", '=', ';'))
      => "abc=v1;def=val;ghi=v3"
 */
 
-extern char *fileattr_modify PROTO ((char *list, char *attrname,
-				     char *attrval, int namevalsep,
+extern char *fileattr_modify PROTO ((char *list, const char *attrname,
+				     const char *attrval, int namevalsep,
 				     int entsep));
 
 /* Set attribute ATTRNAME for file FILENAME to ATTRVAL.  If ATTRVAL is NULL,
    the attribute is removed.  Changes are not written to disk until the
    next call to fileattr_write.  If FILENAME is NULL, set attributes for
    files created in the future.  If ATTRVAL is NULL, remove that attribute.  */
-extern void fileattr_set PROTO ((char *filename, char *attrname,
-				 char *attrval));
+extern void fileattr_set PROTO ((const char *filename, const char *attrname,
+				 const char *attrval));
 
 /* Set the attributes for file FILENAME in whatever manner is appropriate
    for a newly created file.  */
-extern void fileattr_newfile PROTO ((char *filename));
+extern void fileattr_newfile PROTO ((const char *filename));
 
 /* Write out all modified attributes.  */
 extern void fileattr_write PROTO ((void));

@@ -21,10 +21,18 @@ extern int server_expanding;
 /* Run the server.  */
 extern int server PROTO((int argc, char **argv));
 
+/* See server.c for description.  */
+extern void server_pathname_check PROTO ((char *));
+
 /* We have a new Entries line for a file.  TAG or DATE can be NULL.  */
 extern void server_register
     PROTO((char *name, char *version, char *timestamp,
 	     char *options, char *tag, char *date, char *conflict));
+
+/* Set the modification time of the next file sent.  This must be
+   followed by a call to server_updated on the same file.  */
+extern void server_modtime PROTO ((struct file_info *finfo,
+				   Vers_TS *vers_ts));
 
 /*
  * We want to nuke the Entries line for a file, and (unless
@@ -49,19 +57,30 @@ extern void server_checked_in
 extern void server_copy_file
     PROTO((char *file, char *update_dir, char *repository, char *newfile));
 
-/*
- * We just successfully updated FILE (bare filename, no directory).
- * REPOSITORY is the directory for the repository.  This is called
- * after server_register or server_scratch, in the latter case the
- * file is to be removed.  UPDATED indicates whether the file is now
- * up to date (SERVER_UPDATED, yes, SERVER_MERGED, no, SERVER_PATCHED,
- * yes, but file is a diff from user version to repository version).
- */
-enum server_updated_arg4 {SERVER_UPDATED, SERVER_MERGED, SERVER_PATCHED};
+/* Send the appropriate responses for a file described by FILE,
+   UPDATE_DIR, REPOSITORY, and VERS.  FILE_INFO is the result of
+   statting the file, or NULL if it hasn't been statted yet.  This is
+   called after server_register or server_scratch.  In the latter case
+   the file is to be removed (and vers can be NULL).  In the former
+   case, vers must be non-NULL, and UPDATED indicates whether the file
+   is now up to date (SERVER_UPDATED, yes, SERVER_MERGED, no,
+   SERVER_PATCHED, yes, but file is a diff from user version to
+   repository version, SERVER_RCS_DIFF, yes, like SERVER_PATCHED but
+   with an RCS style diff).  */
+enum server_updated_arg4
+{
+    SERVER_UPDATED,
+    SERVER_MERGED,
+    SERVER_PATCHED,
+    SERVER_RCS_DIFF
+};
 extern void server_updated
-    PROTO((char *file, char *update_dir, char *repository,
-	     enum server_updated_arg4 updated, struct stat *,
-	     unsigned char *checksum));
+    PROTO((struct file_info *finfo, Vers_TS *vers,
+	   enum server_updated_arg4 updated, struct stat *,
+	   unsigned char *checksum));
+
+/* Whether we should send RCS format patches.  */
+extern int server_use_rcs_diff PROTO((void));
 
 /* Set the Entries.Static flag.  */
 extern void server_set_entstat PROTO((char *update_dir, char *repository));
@@ -70,14 +89,18 @@ extern void server_clear_entstat PROTO((char *update_dir, char *repository));
 
 /* Set or clear a per-directory sticky tag or date.  */
 extern void server_set_sticky PROTO((char *update_dir, char *repository,
-				       char *tag,
-				       char *date));
+				     char *tag, char *date, int nonbranch));
 /* Send Template response.  */
 extern void server_template PROTO ((char *, char *));
 
 extern void server_update_entries
     PROTO((char *file, char *update_dir, char *repository,
-	     enum server_updated_arg4 updated));
+	   enum server_updated_arg4 updated));
+
+/* Pointer to a malloc'd string which is the directory which
+   the server should prepend to the pathnames which it sends
+   to the client.  */
+extern char *server_dir;
 
 enum progs {PROG_CHECKIN, PROG_UPDATE};
 extern void server_prog PROTO((char *, char *, enum progs));
@@ -87,6 +110,10 @@ extern void server_cleanup PROTO((int sig));
 /* Pause if it's convenient to avoid memory blowout */
 extern void server_pause_check PROTO((void));
 #endif /* SERVER_FLOWCONTROL */
+
+#ifdef AUTH_SERVER_SUPPORT
+extern char *CVS_Username;
+#endif /* AUTH_SERVER_SUPPORT */
 
 #endif /* SERVER_SUPPORT */
 
@@ -134,5 +161,3 @@ struct request
 
 /* Table of requests ending with an entry with a NULL name.  */
 extern struct request requests[];
-
-extern int use_unchanged;

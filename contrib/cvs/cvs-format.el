@@ -1,11 +1,17 @@
 ;; -*- lisp-interaction -*-
 ;; -*- emacs-lisp -*-
 ;;
+;; Set emacs up for editing code using CVS indentation conventions.
+;; See HACKING for more on what those conventions are.
+;; To use, put in your .emacs:
+;;   (load "c-mode")
+;;   (load "cvs-format.el")
+;; You need to load c-mode first or else when c-mode autoloads it will
+;; clobber the settings from cvs-format.el.  Using c-mode-hook perhaps would
+;; be a cleaner way to handle that.  Or see below about (set-c-style "BSD").
 ;;
-;; originally from...
-;;	Rich's personal .emacs file.  feel free to copy.
-;;
-;; Last Mod Wed Feb 5 16:11:47 PST 1992, by rich@cygnus.com
+;; Credits: Originally from the personal .emacs file of Rich Pixley,
+;;      then rich@cygnus.com, circa 1992.  He sez "feel free to copy."
 ;;
 
 ;;
@@ -75,7 +81,13 @@
 
 ;;`c-label-offset'     
 ;;     Extra indentation for line that is a label, or case or default.
-
+;;  This doesn't quite do the right thing for CVS switches, which use the
+;;    switch (foo)
+;;    {
+;;        case 0:
+;;            break;
+;;  style.  But if one manually aligns the first case, then the rest
+;;  should work OK.
 (setq c-label-offset -4)
 
 ;;;; eof

@@ -12,12 +12,6 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
-# $CVSid: @(#)Makefile.in 1.6 94/10/22 $
-
 SHELL = /bin/sh
 
 srcdir     = @srcdir@
@@ -47,10 +41,11 @@ INSTALL_PROGRAM = @INSTALL_PROGRAM@
 
 DISTFILES = \
 	ChangeLog README .cvsignore intro.doc \
-	Makefile.in clmerge.pl cln_hist.pl commit_prep.pl cvs_acls.pl \
-	cvscheck.sh cvscheck.man cvshelp.man descend.sh descend.man \
-	dirfns.shar log.pl log_accum.pl mfpipe.pl rcs-to-cvs.sh rcs2log.sh \
-	rcslock.pl sccs2rcs.csh rcs2sccs.sh
+	Makefile.in clmerge.pl cln_hist.pl commit_prep.pl cvs2vendor.sh \
+	cvs_acls.pl cvscheck.sh cvscheck.man cvshelp.man descend.sh \
+	descend.man dirfns.shar log.pl log_accum.pl mfpipe.pl rcs-to-cvs.sh \
+	rcs2log.sh rcslock.pl sccs2rcs.csh rcs2sccs.sh \
+      listen2.c listen2.mak
 
 # files installed in $(libdir)/cvs/contrib
 #
@@ -59,8 +54,8 @@ CONTRIB_FILES = README intro.doc cvscheck.man
 # things we actually build and install....
 #
 PROGS = rcs2log
-CONTRIB_PROGS = clmerge cln_hist commit_prep cvs_acls cvscheck log log_accum \
-	mfpipe rcs-to-cvs rcs2log rcslock sccs2rcs
+CONTRIB_PROGS = clmerge cln_hist commit_prep cvs2vendor cvs_acls cvscheck \
+	log log_accum mfpipe rcs-to-cvs rcs2log rcslock sccs2rcs
 
 .SUFFIXES: .pl .sh .csh
 
@@ -84,7 +79,7 @@ CONTRIB_PROGS = clmerge cln_hist commit_prep cvs_acls cvscheck log log_accum \
 all: Makefile $(PROGS) $(CONTRIB_PROGS)
 .PHONY: all
 
-install: all $(libdir)/cvs/contrib
+install: all installdirs
 	for f in $(CONTRIB_FILES) ; do\
 		$(INSTALL_DATA) $(srcdir)/$$f $(libdir)/cvs/contrib/$$f; \
 	done
@@ -94,11 +89,11 @@ install: all $(libdir)/cvs/contrib
 	for f in $(PROGS) ; do\
 		$(INSTALL_PROGRAM) $$f $(bindir)/$$f; \
 	done
-	@echo "You might consider running 'cvsinit' to upgrade your repository(s)...."
 .PHONY: install
 
-$(libdir)/cvs/contrib:
+installdirs:
 	$(top_srcdir)/mkinstalldirs $(libdir)/cvs/contrib
+.PHONY: installdirs
 
 tags:
 .PHONY: tags

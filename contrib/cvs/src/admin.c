@@ -16,8 +16,10 @@
 #include <grp.h>
 #endif
 
-static Dtype admin_dirproc PROTO((char *dir, char *repos, char *update_dir));
-static int admin_fileproc PROTO((struct file_info *finfo));
+static Dtype admin_dirproc PROTO ((void *callerdat, char *dir,
+				   char *repos, char *update_dir,
+				   List *entries));
+static int admin_fileproc PROTO ((void *callerdat, struct file_info *finfo));
 
 static const char *const admin_usage[] =
 {
@@ -36,6 +38,7 @@ admin (argc, argv)
     int err;
 #ifdef CVS_ADMIN_GROUP
     struct group *grp;
+    struct group *getgrnam();
 #endif
     if (argc <= 1)
 	usage (admin_usage);
@@ -75,8 +78,6 @@ admin (argc, argv)
     av = argv + 1;
     argv += ac;
     ac--;
-    if (ac == 0 || argc == 0)
-	usage (admin_usage);
 
 #ifdef CLIENT_SUPPORT
     if (client_active)
@@ -88,14 +89,11 @@ admin (argc, argv)
 	
 	ign_setup ();
 
-	for (i = 0; i <= ac; ++i)	/* XXX send -ko too with i = 0 */
+	for (i = 0; i < ac; ++i)	/* XXX send -ko too with i = 0 */
 	    send_arg (av[i]);
 
 	send_file_names (argc, argv, SEND_EXPAND_WILD);
-	/* FIXME:  We shouldn't have to send current files, but I'm not sure
-	   whether it works.  So send the files --
-	   it's slower but it works.  */
-	send_files (argc, argv, 0, 0);
+	send_files (argc, argv, 0, 0, SEND_NO_CONTENTS);
 	send_to_server ("admin\012", 0);
         return get_responses_and_close ();
     }
@@ -103,8 +101,8 @@ admin (argc, argv)
 
     /* start the recursion processor */
     err = start_recursion (admin_fileproc, (FILESDONEPROC) NULL, admin_dirproc,
-			   (DIRLEAVEPROC) NULL, argc, argv, 0,
-			   W_LOCAL, 0, 1, (char *) NULL, 1, 0);
+			   (DIRLEAVEPROC) NULL, NULL, argc, argv, 0,
+			   W_LOCAL, 0, 1, (char *) NULL, 1);
     return (err);
 }
 
@@ -113,7 +111,8 @@ admin (argc, argv)
  */
 /* ARGSUSED */
 static int
-admin_fileproc (finfo)
+admin_fileproc (callerdat, finfo)
+    void *callerdat;
     struct file_info *finfo;
 {
     Vers_TS *vers;
@@ -123,8 +122,7 @@ admin_fileproc (finfo)
     int retcode = 0;
     int status = 0;
 
-    vers = Version_TS (finfo->repository, (char *) NULL, (char *) NULL, (char *) NULL,
-		       finfo->file, 0, 0, finfo->entries, finfo->rcs);
+    vers = Version_TS (finfo, NULL, NULL, NULL, 0, 0);
 
     version = vers->vn_user;
     if (version == NULL)
@@ -157,10 +155,12 @@ admin_fileproc (finfo)
  */
 /* ARGSUSED */
 static Dtype
-admin_dirproc (dir, repos, update_dir)
+admin_dirproc (callerdat, dir, repos, update_dir, entries)
+    void *callerdat;
     char *dir;
     char *repos;
     char *update_dir;
+    List *entries;
 {
     if (!quiet)
 	error (0, 0, "Administrating %s", update_dir);

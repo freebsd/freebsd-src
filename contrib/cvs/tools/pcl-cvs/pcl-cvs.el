@@ -1,7 +1,7 @@
 ;;;
 ;;;#ident "@(#)OrigId: pcl-cvs.el,v 1.93 1993/05/31 22:44:00 ceder Exp "
 ;;;
-;;;#ident "@(#)cvs/contrib/pcl-cvs:$Name:  $:$Id: pcl-cvs.el,v 1.2 1996/04/14 20:09:45 kfogel Exp $"
+;;;#ident "@(#)cvs/contrib/pcl-cvs:$Name:  $:$Id: pcl-cvs.el,v 1.6 1996/11/06 17:29:31 jimb Exp $"
 ;;;
 ;;; pcl-cvs.el -- A Front-end to CVS 1.3 or later.
 ;;; Release 1.05-CVS-$Name:  $.
@@ -48,30 +48,27 @@
 
 ;; also use $GNU here, since may folks might install CVS as a GNU package
 ;;
-(defvar local-path (cond
-		      ((getenv "LOCAL")
-		       (getenv "LOCAL"))
-		      ((getenv "GNU")
-		       (getenv "GNU"))
-		      (t
-		       "/usr/local"))
-  "*Path prefix for most locally installed things.")
+(defun cvs-find-program (program)
+  (let ((path (list (getenv "LOCAL")
+		    (getenv "GNU")
+		    "/usr/local/bin"
+		    "/usr/bin"
+		    "/bin")))
+    (while path
+      (if (stringp (car path))
+	  (let ((abs-program (expand-file-name program (car path))))
+	    (if (file-executable-p abs-program)
+		(setq path nil
+		      program abs-program))))
+      (setq path (cdr path)))
+    program))
 
-;; this isn't likely to be right all the time....
-;;
-(defvar local-gnu-path (cond
-		      ((getenv "GNU")
-		       (getenv "GNU"))
-		      (t
-		       "/usr/local"))	; or "/usr/gnu"?
-  "*Path prefix for locally installed GNU software.")
-
-(defvar cvs-program (concat local-path "/bin/cvs")
+(defvar cvs-program (cvs-find-program "cvs")
   "*Full path to the cvs executable.")
 
 ;; SunOS-4.1.1_U1 has "diff.c 1.12 88/08/04 SMI; from UCB 4.6 86/04/03"
 ;;
-(defvar cvs-diff-program (concat local-gnu-path "/bin/diff")
+(defvar cvs-diff-program (cvs-find-program "diff")
   "*Full path to the best diff program you've got.
 NOTE:  there are some nasty bugs in the context diff variants of some vendor
 versions, such as the one in SunOS-4.1.1_U1")
@@ -1017,7 +1014,7 @@ ERR-BUF should be 'STDOUT or 'STDERR."
     (insert "Pcl-cvs Version: "
 	    "@(#)OrigId: pcl-cvs.el,v 1.93 1993/05/31 22:44:00 ceder Exp\n")
     (insert "CVS Version: "
-	    "@(#)cvs/contrib/pcl-cvs:$Name:  $:$Id: pcl-cvs.el,v 1.2 1996/04/14 20:09:45 kfogel Exp $\n\n")
+	    "@(#)cvs/contrib/pcl-cvs:$Name:  $:$Id: pcl-cvs.el,v 1.6 1996/11/06 17:29:31 jimb Exp $\n\n")
     (insert (format "--- Contents of stdout buffer (%d chars) ---\n"
 		    (length stdout)))
     (insert stdout)
@@ -1179,6 +1176,11 @@ This function returns the last cons-cell in the list that is built."
 	   "^cvs \\(update\\|server\\): warning: .* was lost$")
 	  (forward-line 1))
 
+	 ;; Patch failed; CVS will refetch the file.  Ignored.
+	 ((looking-at
+	   "^[0-9]+ out of [0-9]+ hunks failed--saving rejects to .*$")
+	  (forward-line 1))
+
 	 ;; File unknown for some reason.
 	 ;; FIXME:  is it really a good idea to add this as unknown here?
 
@@ -1222,6 +1224,9 @@ This function returns the last cons-cell in the list that is built."
 
 	 ((looking-at
 	   "^cvs \\(update\\|server\\): \\[..:..:..\\] waiting for .*lock in ")
+	  (forward-line 1))
+	 ((looking-at
+	   "^cvs \\(update\\|server\\): \\[..:..:..\\] obtained lock in ")
 	  (forward-line 1))
 
 	 ;; File removed in repository, but edited by you.
@@ -1344,7 +1349,7 @@ This function returns the last cons-cell in the list that is built."
 
 	     ((looking-at
 	       ;; Allow both RCS 5.5 and 5.6.  (5.6 prints "rcs" and " warning").
-	       "^\\(rcs\\)?merge[:]*\\( warning\\)?: \\((overlaps\\|conflicts\\) during merge$")
+	       "^\\(rcs\\)?merge[:]*\\( warning\\)?: \\(overlaps\\|conflicts\\) during merge$")
 
 	      ;; Yes, this is a conflict.
 	      (cvs-skip-line stdout-buffer stderr-buffer

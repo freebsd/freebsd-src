@@ -7,6 +7,7 @@
  */
 
 #include "cvs.h"
+#include "getline.h"
 
 /*
  * Parse the INFOFILE file for the specified REPOSITORY.  Invoke CALLPROC for
@@ -24,15 +25,16 @@ Parse_Info (infofile, repository, callproc, all)
 {
     int err = 0;
     FILE *fp_info;
-    char infopath[PATH_MAX];
-    char line[MAXLINELEN];
+    char *infopath;
+    char *line = NULL;
+    size_t line_allocated = 0;
     char *default_value = NULL;
     char *expanded_value= NULL;
     int callback_done, line_number;
     char *cp, *exp, *value, *srepos;
     const char *regex_err;
 
-    if (CVSroot == NULL)
+    if (CVSroot_original == NULL)
     {
 	/* XXX - should be error maybe? */
 	error (0, 0, "CVSROOT variable not set");
@@ -40,10 +42,21 @@ Parse_Info (infofile, repository, callproc, all)
     }
 
     /* find the info file and open it */
-    (void) sprintf (infopath, "%s/%s/%s", CVSroot,
+    infopath = xmalloc (strlen (CVSroot_directory)
+			+ strlen (infofile)
+			+ sizeof (CVSROOTADM)
+			+ 10);
+    (void) sprintf (infopath, "%s/%s/%s", CVSroot_directory,
 		    CVSROOTADM, infofile);
-    if ((fp_info = fopen (infopath, "r")) == NULL)
-	return (0);			/* no file -> nothing special done */
+    fp_info = CVS_FOPEN (infopath, "r");
+    if (fp_info == NULL)
+    {
+	/* If no file, don't do anything special.  */
+	if (!existence_error (errno))
+	    error (0, errno, "cannot open %s", infopath);
+	free (infopath);
+	return 0;
+    }
 
     /* strip off the CVSROOT if repository was absolute */
     srepos = Short_Repository (repository);
@@ -54,7 +67,7 @@ Parse_Info (infofile, repository, callproc, all)
 
     /* search the info file for lines that match */
     callback_done = line_number = 0;
-    while (fgets (line, sizeof (line), fp_info) != NULL)
+    while (getline (&line, &line_allocated, fp_info) >= 0)
     {
 	line_number++;
 
@@ -93,6 +106,8 @@ Parse_Info (infofile, repository, callproc, all)
 	if ((cp = strrchr (value, '\n')) != NULL)
 	    *cp = '\0';
 
+	if (expanded_value != NULL)
+	    free (expanded_value);
 	expanded_value = expand_path (value, infofile, line_number);
 	if (!expanded_value)
 	{
@@ -109,6 +124,10 @@ Parse_Info (infofile, repository, callproc, all)
 	/* save the default value so we have it later if we need it */
 	if (strcmp (exp, "DEFAULT") == 0)
 	{
+	    /* Is it OK to silently ignore all but the last DEFAULT
+               expression?  */
+	    if (default_value != NULL)
+		free (default_value);
 	    default_value = xstrdup (expanded_value);
 	    continue;
 	}
@@ -146,7 +165,10 @@ Parse_Info (infofile, repository, callproc, all)
 	err += callproc (repository, expanded_value);
 	callback_done = 1;
     }
-    (void) fclose (fp_info);
+    if (ferror (fp_info))
+	error (0, errno, "cannot read %s", infopath);
+    if (fclose (fp_info) < 0)
+	error (0, errno, "cannot close %s", infopath);
 
     /* if we fell through and didn't callback at all, do the default */
     if (callback_done == 0 && default_value != NULL)
@@ -157,6 +179,9 @@ Parse_Info (infofile, repository, callproc, all)
 	free (default_value);
     if (expanded_value != NULL)
 	free (expanded_value);
+    free (infopath);
+    if (line != NULL)
+	free (line);
 
     return (err);
 }

@@ -10,11 +10,7 @@
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+   GNU General Public License for more details.  */
 
 #include "cvs.h"
 
@@ -32,9 +28,10 @@
 #endif
 
 static void run_add_arg PROTO((const char *s));
-static void run_init_prog PROTO((void));
 
 extern char *strtok ();
+
+extern int vasprintf ();
 
 /*
  * To exec a program under CVS, first call run_setup() to setup any initial
@@ -49,7 +46,6 @@ extern char *strtok ();
  * The execvp() syscall will be used, so that the PATH is searched correctly.
  * File redirections can be performed in the call to run_exec().
  */
-static char *run_prog;
 static char **run_argv;
 static int run_argc;
 static int run_argc_allocated;
@@ -70,8 +66,7 @@ run_setup (fmt, va_alist)
 #endif
     char *cp;
     int i;
-
-    run_init_prog ();
+    char *run_prog;
 
     /* clean out any malloc'ed values from run_argv */
     for (i = 0; i < run_argc; i++)
@@ -87,15 +82,18 @@ run_setup (fmt, va_alist)
     /* process the varargs into run_prog */
 #ifdef HAVE_VPRINTF
     VA_START (args, fmt);
-    (void) vsprintf (run_prog, fmt, args);
+    (void) vasprintf (&run_prog, fmt, args);
     va_end (args);
 #else
-    (void) sprintf (run_prog, fmt, a1, a2, a3, a4, a5, a6, a7, a8);
+    you lose
 #endif
+    if (run_prog == NULL)
+	error (1, 0, "out of memory");
 
     /* put each word into run_argv, allocating it as we go */
     for (cp = strtok (run_prog, " \t"); cp; cp = strtok ((char *) NULL, " \t"))
 	run_add_arg (cp);
+    free (run_prog);
 }
 
 void
@@ -119,20 +117,22 @@ run_args (fmt, va_alist)
 #ifdef HAVE_VPRINTF
     va_list args;
 #endif
-
-    run_init_prog ();
+    char *run_prog;
 
     /* process the varargs into run_prog */
 #ifdef HAVE_VPRINTF
     VA_START (args, fmt);
-    (void) vsprintf (run_prog, fmt, args);
+    (void) vasprintf (&run_prog, fmt, args);
     va_end (args);
 #else
-    (void) sprintf (run_prog, fmt, a1, a2, a3, a4, a5, a6, a7, a8);
+    you lose
 #endif
+    if (run_prog == NULL)
+	error (1, 0, "out of memory");
 
     /* and add the (single) argument to the run_argv list */
     run_add_arg (run_prog);
+    free (run_prog);
 }
 
 static void
@@ -151,14 +151,6 @@ run_add_arg (s)
 	run_argv[run_argc++] = xstrdup (s);
     else
 	run_argv[run_argc] = (char *) 0;	/* not post-incremented on purpose! */
-}
-
-static void
-run_init_prog ()
-{
-    /* make sure that run_prog is allocated once */
-    if (run_prog == (char *) 0)
-	run_prog = xmalloc (10 * 1024);	/* 10K of args for _setup and _arg */
 }
 
 int
@@ -192,12 +184,11 @@ run_exec (stin, stout, sterr, flags)
     if (trace)
     {
 #ifdef SERVER_SUPPORT
-	(void) fprintf (stderr, "%c-> system(", (server_active) ? 'S' : ' ');
-#else
-	(void) fprintf (stderr, "-> system(");
+	cvs_outerr (server_active ? "S" : " ", 1);
 #endif
+	cvs_outerr ("-> system(", 0);
 	run_print (stderr);
-	(void) fprintf (stderr, ")\n");
+	cvs_outerr (")\n", 0);
     }
     if (noexec && (flags & RUN_REALLY) == 0)
 	return (0);
@@ -244,7 +235,14 @@ run_exec (stin, stout, sterr, flags)
     fflush (stdout);
     fflush (stderr);
 
-    /* The output files, if any, are now created.  Do the fork and dups */
+    /* The output files, if any, are now created.  Do the fork and dups.
+
+       We use vfork not so much for the sake of unices without
+       copy-on-write (such systems are rare these days), but for the
+       sake of systems without an MMU, which therefore can't do
+       copy-on-write (e.g. Amiga).  The other solution is spawn (see
+       windows-NT/run.c).  */
+
 #ifdef HAVE_VFORK
     pid = vfork ();
 #else
@@ -393,12 +391,22 @@ run_print (fp)
     FILE *fp;
 {
     int i;
+    void (*outfn) PROTO ((const char *, size_t));
+
+    if (fp == stderr)
+	outfn = cvs_outerr;
+    else if (fp == stdout)
+	outfn = cvs_output;
+    else
+	error (1, 0, "internal error: bad argument to run_print");
 
     for (i = 0; i < run_argc; i++)
     {
-	(void) fprintf (fp, "'%s'", run_argv[i]);
+	(*outfn) ("'", 1);
+	(*outfn) (run_argv[i], 0);
+	(*outfn) ("'", 1);
 	if (i != run_argc - 1)
-	    (void) fprintf (fp, " ");
+	    (*outfn) (" ", 1);
     }
 }
 
@@ -437,7 +445,18 @@ piped_child (command, tofdp, fromfdp)
     if (pipe (from_child_pipe) < 0)
 	error (1, errno, "cannot create pipe");
 
+#ifdef USE_SETMODE_BINARY
+    setmode (to_child_pipe[0], O_BINARY);
+    setmode (to_child_pipe[1], O_BINARY);
+    setmode (from_child_pipe[0], O_BINARY);
+    setmode (from_child_pipe[1], O_BINARY);
+#endif
+
+#ifdef HAVE_VFORK
+    pid = vfork ();
+#else
     pid = fork ();
+#endif
     if (pid < 0)
 	error (1, errno, "cannot fork");
     if (pid == 0)
@@ -494,7 +513,16 @@ filter_stream_through_program (oldfd, dir, prog, pidp)
 
     if (pipe (p))
 	error (1, errno, "cannot create pipe");
+#ifdef USE_SETMODE_BINARY
+    setmode (p[0], O_BINARY);
+    setmode (p[1], O_BINARY);
+#endif
+
+#ifdef HAVE_VFORK
+    newpid = vfork ();
+#else
     newpid = fork ();
+#endif
     if (pidp)
 	*pidp = newpid;
     switch (newpid)

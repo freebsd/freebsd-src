@@ -16,32 +16,34 @@
 /* update_dir includes dir as its last component.  */
 
 void
-Create_Admin (dir, update_dir, repository, tag, date)
+Create_Admin (dir, update_dir, repository, tag, date, nonbranch)
     char *dir;
     char *update_dir;
     char *repository;
     char *tag;
     char *date;
+    int nonbranch;
 {
     FILE *fout;
     char *cp;
-    char tmp[PATH_MAX];
+    char *tmp;
 
 #ifdef SERVER_SUPPORT
     if (trace)
     {
-	char wd[PATH_MAX];
-	getwd (wd);
+	char *wd = xgetwd ();
 	fprintf (stderr, "%c-> Create_Admin (%s, %s, %s, %s, %s) in %s\n",
 		 (server_active) ? 'S' : ' ',
                 dir, update_dir, repository, tag ? tag : "",
                 date ? date : "", wd);
+	free (wd);
     }
 #endif
 
     if (noexec)
 	return;
 
+    tmp = xmalloc (strlen (dir) + 100);
     if (dir != NULL)
 	(void) sprintf (tmp, "%s/%s", dir, CVSADM);
     else
@@ -53,12 +55,12 @@ Create_Admin (dir, update_dir, repository, tag, date)
 
     /* record the current cvs root for later use */
 
-    Create_Root (dir, CVSroot);
+    Create_Root (dir, CVSroot_original);
     if (dir != NULL)
 	(void) sprintf (tmp, "%s/%s", dir, CVSADM_REP);
     else
 	(void) strcpy (tmp, CVSADM_REP);
-    fout = fopen (tmp, "w+");
+    fout = CVS_FOPEN (tmp, "w+");
     if (fout == NULL)
     {
 	if (update_dir[0] == '\0')
@@ -67,20 +69,21 @@ Create_Admin (dir, update_dir, repository, tag, date)
 	    error (1, errno, "cannot open %s/%s", update_dir, CVSADM_REP);
     }
     cp = repository;
-    strip_path (cp);
+    strip_trailing_slashes (cp);
 
 #ifdef RELATIVE_REPOS
     /*
      * If the Repository file is to hold a relative path, try to strip off
      * the leading CVSroot argument.
      */
-    if (CVSroot != NULL)
+    if (CVSroot_directory != NULL)
     {
-	char path[PATH_MAX];
+	char *path = xmalloc (strlen (CVSroot_directory) + 10);
 
-	(void) sprintf (path, "%s/", CVSroot);
+	(void) sprintf (path, "%s/", CVSroot_directory);
 	if (strncmp (repository, path, strlen (path)) == 0)
 	    cp = repository + strlen (path);
+	free (path);
     }
 #endif
 
@@ -104,7 +107,7 @@ Create_Admin (dir, update_dir, repository, tag, date)
 	(void) sprintf (tmp, "%s/%s", dir, CVSADM_ENT);
     else
 	(void) strcpy (tmp, CVSADM_ENT);
-    fout = fopen (tmp, "w+");
+    fout = CVS_FOPEN (tmp, "w+");
     if (fout == NULL)
     {
 	if (update_dir[0] == '\0')
@@ -121,12 +124,11 @@ Create_Admin (dir, update_dir, repository, tag, date)
     }
 
     /* Create a new CVS/Tag file */
-    WriteTag (dir, tag, date);
+    WriteTag (dir, tag, date, nonbranch, update_dir, repository);
 
 #ifdef SERVER_SUPPORT
     if (server_active)
     {
-	server_set_sticky (update_dir, repository, tag, date);
 	server_template (update_dir, repository);
     }
 
@@ -137,4 +139,5 @@ Create_Admin (dir, update_dir, repository, tag, date)
     }
 #endif
 
+    free (tmp);
 }

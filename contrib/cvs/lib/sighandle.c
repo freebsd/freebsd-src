@@ -9,11 +9,7 @@
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
+   GNU General Public License for more details.  */
 
 /* Written by Paul Sander, HaL Computer Systems, Inc. <paul@hal.com>
    Brian Berliner <berliner@Sun.COM> added POSIX support */
@@ -29,8 +25,6 @@
  *             in which they are registered.  Note that the signal handlers
  *             must not themselves make calls to the signal handling
  *             facilities.
- *
- * $CVSid: @(#)sighandle.c 1.13 94/10/07 $
  *
  *************************************************************************/
 

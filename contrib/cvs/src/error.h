@@ -9,14 +9,20 @@
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
+   GNU General Public License for more details.  */
 
 #ifndef _error_h_
 #define _error_h_
+
+/* Add prototype support.  Normally this is done in cvs.h, but that
+   doesn't get included from lib/savecwd.c.  */
+#ifndef PROTO
+#if defined (USE_PROTOTYPES) ? USE_PROTOTYPES : defined (__STDC__)
+#define PROTO(ARGS) ARGS
+#else
+#define PROTO(ARGS) ()
+#endif
+#endif
 
 #ifndef __attribute__
 /* This feature is available in gcc versions 2.5 and later.  */
@@ -31,12 +37,16 @@
 # endif
 #endif
 
-#if __STDC__
+#ifdef __STDC__
 void error (int, int, const char *, ...) \
   __attribute__ ((__format__ (__printf__, 3, 4)));
 #else
 void error ();
 #endif
+
+/* Exit due to an error.  Similar to error (1, 0, "message"), but call
+   it in the case where the message has already been printed.  */
+extern void error_exit PROTO ((void));
 
 /* If non-zero, error will use the CVS protocol to report error
    messages.  This will only be set in the CVS server parent process;

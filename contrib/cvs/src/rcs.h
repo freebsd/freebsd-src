@@ -1,5 +1,3 @@
-/* $CVSid: @(#)rcs.h 1.18 94/09/23 $	 */
-
 /*
  * Copyright (c) 1992, Brian Berliner and Jeff Polk
  * Copyright (c) 1989-1992, Brian Berliner
@@ -12,11 +10,12 @@
 
 #define	RCS		"rcs"
 #define	RCS_CI		"ci"
-#define	RCS_CO		"co"
-#define	RCS_RLOG	"rlog"
 #define	RCS_DIFF	"rcsdiff"
 #define	RCS_RCSMERGE	"rcsmerge"
-#define	RCS_MERGE_PAT	"^>>>>>>> "	/* runs "grep" with this pattern */
+
+/* String which indicates a conflict if it occurs at the start of a line.  */
+#define	RCS_MERGE_PAT ">>>>>>> "
+
 #define	RCSEXT		",v"
 #define RCSPAT		"*,v"
 #define	RCSHEAD		"head"
@@ -41,18 +40,27 @@
 #define VALID	0x1			/* flags field contains valid data */
 #define	INATTIC	0x2			/* RCS file is located in the Attic */
 #define PARTIAL 0x4			/* RCS file not completly parsed */
+#define NODELTA 0x8			/* delta_pos no longer valid */
 
 struct rcsnode
 {
     int refcount;
     int flags;
+
+    /* File name of the RCS file.  This is not necessarily the name
+       as specified by the user, but it is a name which can be passed to
+       system calls and a name which is OK to print in error messages
+       (the various names might differ in case).  */
     char *path;
+
     char *head;
     char *branch;
     char *symbols_data;
     char *expand;
     List *symbols;
     List *versions;
+    long delta_pos;
+    List *other;
 };
 
 typedef struct rcsnode RCSNode;
@@ -62,9 +70,11 @@ struct rcsversnode
     char *version;
     char *date;
     char *author;
+    char *state;
     char *next;
     int dead;
     List *branches;
+    List *other;
 };
 typedef struct rcsversnode RCSVers;
 
@@ -77,17 +87,21 @@ typedef struct rcsversnode RCSVers;
  */
 #define	RCS_MAGIC_BRANCH	0
 
+/* The type of a function passed to RCS_checkout.  */
+typedef void (*RCSCHECKOUTPROC) PROTO ((void *, const char *, size_t));
+
 /*
  * exported interfaces
  */
 RCSNode *RCS_parse PROTO((const char *file, const char *repos));
 RCSNode *RCS_parsercsfile PROTO((char *rcsfile));
+void RCS_fully_parse PROTO((RCSNode *));
 char *RCS_check_kflag PROTO((const char *arg));
 char *RCS_getdate PROTO((RCSNode * rcs, char *date, int force_tag_match));
 char *RCS_gettag PROTO((RCSNode * rcs, char *symtag, int force_tag_match,
-			int return_both));
+			int *simple_tag));
 char *RCS_getversion PROTO((RCSNode * rcs, char *tag, char *date,
-		      int force_tag_match, int return_both));
+		      int force_tag_match, int *simple_tag));
 char *RCS_magicrev PROTO((RCSNode *rcs, char *rev));
 int RCS_isbranch PROTO((RCSNode *rcs, const char *rev));
 int RCS_nodeisbranch PROTO((RCSNode *rcs, const char *tag));
@@ -102,3 +116,20 @@ char *RCS_getbranch PROTO((RCSNode * rcs, char *tag, int force_tag_match));
 
 int RCS_isdead PROTO((RCSNode *, const char *));
 char *RCS_getexpand PROTO ((RCSNode *));
+int RCS_checkout PROTO ((RCSNode *, char *, char *, char *, char *, char *,
+			 RCSCHECKOUTPROC, void *));
+int RCS_cmp_file PROTO ((RCSNode *, char *, char *, const char *));
+int RCS_settag PROTO ((RCSNode *, const char *, const char *));
+int RCS_deltag PROTO ((RCSNode *, const char *, int));
+int RCS_setbranch PROTO((RCSNode *, const char *));
+int RCS_lock PROTO ((RCSNode *, const char *, int));
+int RCS_unlock PROTO ((RCSNode *, const char *, int));
+int rcs_change_text PROTO ((const char *, char *, size_t, const char *,
+			    size_t, char **, size_t *));
+
+void RCS_setlocalid PROTO ((const char *arg));
+void RCS_setincexc PROTO ((const char *arg));
+
+/* From import.c.  */
+extern int add_rcs_file PROTO ((char *, char *, char *, char *,
+				char *, char *, int, char **, FILE *));

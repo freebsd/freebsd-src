@@ -1,16 +1,14 @@
+/* See md5.c for explanation and copyright information.  */
+
 #ifndef MD5_H
 #define MD5_H
 
-#if SIZEOF_LONG == 4
+/* Unlike previous versions of this code, uint32 need not be exactly
+   32 bits, merely 32 bits or more.  Choosing a data type which is 32
+   bits instead of 64 is not important; speed is considerably more
+   important.  ANSI guarantees that "unsigned long" will be big enough,
+   and always using it seems to have few disadvantages.  */
 typedef unsigned long uint32;
-#else
-#if SIZEOF_INT == 4
-typedef unsigned int uint32;
-#else
-Congratulations!  You get to rewrite this code so that it does not require
-a 32-bit integer type!  (Or maybe you just need to reconfigure.)
-#endif
-#endif
 
 struct MD5Context {
 	uint32 buf[4];
@@ -21,7 +19,7 @@ struct MD5Context {
 void MD5Init PROTO((struct MD5Context *context));
 void MD5Update PROTO((struct MD5Context *context, unsigned char const *buf, unsigned len));
 void MD5Final PROTO((unsigned char digest[16], struct MD5Context *context));
-void MD5Transform PROTO((uint32 buf[4], uint32 const in[16]));
+void MD5Transform PROTO((uint32 buf[4], const unsigned char in[64]));
 
 /*
  * This is needed to make RSAREF happy on some MS-DOS compilers.

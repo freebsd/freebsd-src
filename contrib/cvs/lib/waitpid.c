@@ -63,7 +63,11 @@ pid_t waitpid (pid, status, options)
 
   while (1)
     {
+#ifdef HAVE_WAIT3
       pid_t p = wait3 (status, options, (struct rusage *) 0);
+#else
+      pid_t p = wait (status);
+#endif
 
       if (p == 0 || p == -1 || p == pid)
 	return p;

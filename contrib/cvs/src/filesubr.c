@@ -11,25 +11,13 @@
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+   GNU General Public License for more details.  */
 
 /* These functions were moved out of subr.c because they need different
    definitions under operating systems (like, say, Windows NT) with different
    file system semantics.  */
 
 #include "cvs.h"
-
-/*
- * I don't know of a convenient way to test this at configure time, or else
- * I'd certainly do it there.
- */
-#if defined(NeXT)
-#define LOSING_TMPNAM_FUNCTION
-#endif
 
 static int deep_remove_dir PROTO((const char *path));
 
@@ -290,6 +278,22 @@ make_directories (name)
     (void) mkdir (name, 0777);
 }
 
+/* Create directory NAME if it does not already exist; fatal error for
+   other errors.  Returns 0 if directory was created; 1 if it already
+   existed.  */
+int
+mkdir_if_needed (name)
+    char *name;
+{
+    if (mkdir (name, 0777) < 0)
+    {
+	if (errno != EEXIST)
+	    error (1, errno, "cannot make directory %s", name);
+	return 1;
+    }
+    return 0;
+}
+
 /*
  * Change the mode of a file, either adding write permissions, or removing
  * all write permissions.  Either change honors the current umask setting.
@@ -451,47 +455,62 @@ deep_remove_dir (path)
 {
     DIR		  *dirp;
     struct dirent *dp;
-    char	   buf[PATH_MAX];
 
-    if (rmdir (path) != 0 && (errno == ENOTEMPTY || errno == EEXIST)) 
+    if (rmdir (path) != 0)
     {
-	if ((dirp = opendir (path)) == NULL)
-	    /* If unable to open the directory return
-	     * an error
-	     */
-	    return -1;
-
-	while ((dp = readdir (dirp)) != NULL)
+	if (errno == ENOTEMPTY
+	    || errno == EEXIST
+	    /* Ugly workaround for ugly AIX 4.1 (and 3.2) header bug
+	       (it defines ENOTEMPTY and EEXIST to 17 but actually
+	       returns 87).  */
+	    || (ENOTEMPTY == 17 && EEXIST == 17 && errno == 87))
 	{
-	    if (strcmp (dp->d_name, ".") == 0 ||
-			strcmp (dp->d_name, "..") == 0)
-		continue;
+	    if ((dirp = opendir (path)) == NULL)
+		/* If unable to open the directory return
+		 * an error
+		 */
+		return -1;
 
-	    sprintf (buf, "%s/%s", path, dp->d_name);
+	    while ((dp = readdir (dirp)) != NULL)
+	    {
+		char *buf;
 
-	    /* See comment in unlink_file_dir explanation of why we use
-	       isdir instead of just calling unlink and checking the
-	       status.  */
-	    if (isdir(buf)) 
-	    {
-		if (deep_remove_dir(buf))
+		if (strcmp (dp->d_name, ".") == 0 ||
+			    strcmp (dp->d_name, "..") == 0)
+		    continue;
+
+		buf = xmalloc (strlen (path) + strlen (dp->d_name) + 5);
+		sprintf (buf, "%s/%s", path, dp->d_name);
+
+		/* See comment in unlink_file_dir explanation of why we use
+		   isdir instead of just calling unlink and checking the
+		   status.  */
+		if (isdir(buf)) 
 		{
-		    closedir(dirp);
-		    return -1;
+		    if (deep_remove_dir(buf))
+		    {
+			closedir(dirp);
+			free (buf);
+			return -1;
+		    }
 		}
-	    }
-	    else
-	    {
-		if (unlink (buf) != 0)
+		else
 		{
-		    closedir(dirp);
-		    return -1;
+		    if (unlink (buf) != 0)
+		    {
+			closedir(dirp);
+			free (buf);
+			return -1;
+		    }
 		}
+		free (buf);
 	    }
+	    closedir (dirp);
+	    return rmdir (path);
 	}
-	closedir (dirp);
-	return rmdir (path);
-	}
+	else
+	    return -1;
+    }
 
     /* Was able to remove the directory return 0 */
     return 0;
@@ -596,24 +615,55 @@ xcmp (file1, file2)
     (void) close (fd2);
     return (ret);
 }
-
-#ifdef LOSING_TMPNAM_FUNCTION
-char *tmpnam(char *s)
+
+/* Generate a unique temporary filename.  Returns a pointer to a newly
+   malloc'd string containing the name.  Returns successfully or not at
+   all.  */
+/* There are at least three functions for generating temporary
+   filenames.  We use tempnam (SVID 3) if possible, else mktemp (BSD
+   4.3), and as last resort tmpnam (POSIX). Reason is that tempnam and
+   mktemp both allow to specify the directory in which the temporary
+   file will be created.  */
+#ifdef HAVE_TEMPNAM
+char *
+cvs_temp_name ()
 {
-    static char value[L_tmpnam+1];
+    char *retval;
 
-    if (s){
-       strcpy(s,"/tmp/cvsXXXXXX");
-       mktemp(s);
-       return s;
-    }else{
-       strcpy(value,"/tmp/cvsXXXXXX");
-       mktemp(s);
-       return value;
-    }
+    retval = tempnam (Tmpdir, "cvs");
+    if (retval == NULL)
+	error (1, errno, "cannot generate temporary filename");
+    /* tempnam returns a pointer to a newly malloc'd string, so there's
+       no need for a xstrdup  */
+    return retval;
+}
+#else
+char *
+cvs_temp_name ()
+{
+#  ifdef HAVE_MKTEMP
+    char *value;
+    char *retval;
+
+    value = xmalloc (strlen (Tmpdir) + 40);
+    sprintf (value, "%s/%s", Tmpdir, "cvsXXXXXX" );
+    retval = mktemp (value);
+
+    if (retval == NULL)
+	error (1, errno, "cannot generate temporary filename");
+    return value;
+#  else
+    char value[L_tmpnam + 1];
+    char *retval;
+
+    retval = tmpnam (value);
+    if (retval == NULL)
+	error (1, errno, "cannot generate temporary filename");
+    return xstrdup (value);
+#  endif
 }
 #endif
-
+
 /* Return non-zero iff FILENAME is absolute.
    Trivial under Unix, but more complicated under other systems.  */
 int
@@ -638,11 +688,28 @@ last_component (path)
 }
 
 /* Return the home directory.  Returns a pointer to storage
-   managed by this function or its callees (currently getenv).  */
+   managed by this function or its callees (currently getenv).
+   This function will return the same thing every time it is
+   called.  */
 char *
 get_homedir ()
 {
-    return getenv ("HOME");
+    static char *home = NULL;
+    char *env = getenv ("HOME");
+    struct passwd *pw;
+
+    if (home != NULL)
+	return home;
+
+    if (env)
+	home = env;
+    else if ((pw = (struct passwd *) getpwuid (getuid ()))
+	     && pw->pw_dir)
+	home = xstrdup (pw->pw_dir);
+    else
+	return 0;
+
+    return home;
 }
 
 /* See cvs.h for description.  On unix this does nothing, because the
@@ -660,3 +727,132 @@ expand_wild (argc, argv, pargc, pargv)
     for (i = 0; i < argc; ++i)
 	(*pargv)[i] = xstrdup (argv[i]);
 }
+
+#ifdef SERVER_SUPPORT
+/* Case-insensitive string compare.  I know that some systems
+   have such a routine, but I'm not sure I see any reasons for
+   dealing with the hair of figuring out whether they do (I haven't
+   looked into whether this is a performance bottleneck; I would guess
+   not).  */
+int
+cvs_casecmp (str1, str2)
+    char *str1;
+    char *str2;
+{
+    char *p;
+    char *q;
+    int pqdiff;
+
+    p = str1;
+    q = str2;
+    while ((pqdiff = tolower (*p) - tolower (*q)) == 0)
+    {
+	if (*p == '\0')
+	    return 0;
+	++p;
+	++q;
+    }
+    return pqdiff;
+}
+
+/* Case-insensitive file open.  As you can see, this is an expensive
+   call.  We don't regard it as our main strategy for dealing with
+   case-insensitivity.  Returns errno code or 0 for success.  Puts the
+   new file in *FP.  NAME and MODE are as for fopen.  If PATHP is not
+   NULL, then put a malloc'd string containing the pathname as found
+   into *PATHP.  *PATHP is only set if the return value is 0.
+
+   Might be cleaner to separate the file finding (which just gives
+   *PATHP) from the file opening (which the caller can do).  For one
+   thing, might make it easier to know whether to put NAME or *PATHP
+   into error messages.  */
+int
+fopen_case (name, mode, fp, pathp)
+    char *name;
+    char *mode;
+    FILE **fp;
+    char **pathp;
+{
+    struct dirent *dp;
+    DIR *dirp;
+    char *dir;
+    char *fname;
+    char *found_name;
+    int retval;
+
+    /* Separate NAME into directory DIR and filename within the directory
+       FNAME.  */
+    dir = xstrdup (name);
+    fname = strrchr (dir, '/');
+    if (fname == NULL)
+	error (1, 0, "internal error: relative pathname in fopen_case");
+    *fname++ = '\0';
+
+    found_name = NULL;
+    dirp = CVS_OPENDIR (dir);
+    if (dirp == NULL)
+    {
+	if (existence_error (errno))
+	{
+	    /* This can happen if we are looking in the Attic and the Attic
+	       directory does not exist.  Return the error to the caller;
+	       they know what to do with it.  */
+	    retval = errno;
+	    goto out;
+	}
+	else
+	{
+	    /* Give a fatal error; that way the error message can be
+	       more specific than if we returned the error to the caller.  */
+	    error (1, errno, "cannot read directory %s", dir);
+	}
+    }
+    errno = 0;
+    while ((dp = readdir (dirp)) != NULL)
+    {
+	if (cvs_casecmp (dp->d_name, fname) == 0)
+	{
+	    if (found_name != NULL)
+		error (1, 0, "%s is ambiguous; could mean %s or %s",
+		       fname, dp->d_name, found_name);
+	    found_name = xstrdup (dp->d_name);
+	}
+    }
+    if (errno != 0)
+	error (1, errno, "cannot read directory %s", dir);
+    closedir (dirp);
+
+    if (found_name == NULL)
+    {
+	*fp = NULL;
+	retval = ENOENT;
+    }
+    else
+    {
+	char *p;
+
+	/* Copy the found name back into DIR.  We are assuming that
+	   found_name is the same length as fname, which is true as
+	   long as the above code is just ignoring case and not other
+	   aspects of filename syntax.  */
+	p = dir + strlen (dir);
+	*p++ = '/';
+	strcpy (p, found_name);
+	*fp = fopen (dir, mode);
+	if (*fp == NULL)
+	    retval = errno;
+	else
+	    retval = 0;
+    }
+
+    if (pathp == NULL)
+	free (dir);
+    else if (retval != 0)
+	free (dir);
+    else
+	*pathp = dir;
+    free (found_name);
+ out:
+    return retval;
+}
+#endif /* SERVER_SUPPORT */

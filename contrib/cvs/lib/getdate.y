@@ -96,9 +96,18 @@ struct timeb {
 #include <stdlib.h>
 #endif
 
-#if defined (HAVE_ALLOCA_H)
-#include <alloca.h>
-#endif
+/* NOTES on rebuilding getdate.c (particularly for inclusion in CVS
+   releases):
+
+   We don't want to mess with all the portability hassles of alloca.
+   In particular, most (all?) versions of bison will use alloca in
+   their parser.  If bison works on your system (e.g. it should work
+   with gcc), then go ahead and use it, but the more general solution
+   is to use byacc instead of bison, which should generate a portable
+   parser.  I played with adding "#define alloca dont_use_alloca", to
+   give an error if the parser generator uses alloca (and thus detect
+   unportable getdate.c's), but that seems to cause as many problems
+   as it solves.  */
 
 extern struct tm	*gmtime();
 extern struct tm	*localtime();
@@ -106,10 +115,6 @@ extern struct tm	*localtime();
 #define yyparse getdate_yyparse
 #define yylex getdate_yylex
 #define yyerror getdate_yyerror
-
-#if	!defined(lint) && !defined(SABER)
-static char RCS[] = "$CVSid: @(#)getdate.y 1.11 94/09/21 $";
-#endif	/* !defined(lint) && !defined(SABER) */
 
 static int yylex ();
 static int yyerror ();
@@ -635,7 +640,9 @@ Convert(Month, Day, Year, Hours, Minutes, Seconds, Meridian, DSTmode)
 	Year += 1900;
     DaysInMonth[1] = Year % 4 == 0 && (Year % 100 != 0 || Year % 400 == 0)
 		    ? 29 : 28;
-    if (Year < EPOCH || Year > 1999
+    /* Checking for 2038 bogusly assumes that time_t is 32 bits.  But
+       I'm too lazy to try to check for time_t overflow in another way.  */
+    if (Year < EPOCH || Year > 2038
      || Month < 1 || Month > 12
      /* Lint fluff:  "conversion from long may lose accuracy" */
      || Day < 1 || Day > DaysInMonth[(int)--Month])
