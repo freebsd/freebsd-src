@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_usrreq.c	8.6 (Berkeley) 5/23/95
- *	$Id: udp_usrreq.c,v 1.28 1996/06/08 08:19:03 bde Exp $
+ *	$Id: udp_usrreq.c,v 1.29 1996/10/07 19:06:12 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -444,6 +444,11 @@ udp_output(inp, m, addr, control)
 
 	if (control)
 		m_freem(control);		/* XXX */
+
+	if (len + sizeof(struct udpiphdr) > IP_MAXPACKET) {
+		error = EMSGSIZE;
+		goto release;
+	}
 
 	if (addr) {
 		laddr = inp->inp_laddr;

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.48 1996/10/07 19:21:45 wollman Exp $
+ * $Id: ip_input.c,v 1.49 1996/10/22 22:25:58 sos Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -646,7 +646,17 @@ insert:
 		return (0);
 
 	/*
-	 * Reassembly is complete; concatenate fragments.
+	 * Reassembly is complete.  Make sure the packet is a sane size.
+	 */
+	if (next + (IP_VHL_HL(((struct ip *)fp->ipq_next)->ip_vhl) << 2)
+							> IP_MAXPACKET) {
+		ipstat.ips_toolong++;
+		ip_freef(fp);
+		return (0);
+	}
+
+	/*
+	 * Concatenate fragments.
 	 */
 	q = fp->ipq_next;
 	m = dtom(q);
