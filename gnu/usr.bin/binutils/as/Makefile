@@ -1,5 +1,5 @@
 #
-# $Id$
+# $Id: Makefile,v 1.1.1.1 1998/03/01 23:40:59 jdp Exp $
 #
 
 .include "../Makefile.inc0"
@@ -12,7 +12,7 @@ SRCS=		app.c as.c atof-generic.c atof-ieee.c bignum-copy.c \
 		cond.c ecoff.c expr.c flonum-copy.c flonum-konst.c \
 		flonum-mult.c frags.c hash.c input-file.c \
 		input-scrub.c listing.c literal.c macro.c messages.c \
-		obj-aout.c output-file.c read.c sb.c stabs.c \
+		obj-elf.c output-file.c read.c sb.c stabs.c \
 		subsegs.c symbols.c tc-i386.c write.c
 CFLAGS+=	-I${SRCDIR}/gas
 CFLAGS+=	-I${SRCDIR}/gas/config
