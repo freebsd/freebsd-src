@@ -40,10 +40,10 @@
 .Sh DESCRIPTION
 The
 .Nm
-exposes buffer address of
+exposes the buffer address of
 .Xr dcons 4
-through Configuration ROM of
-.Xr FireWire 4 .
+through the Configuration ROM of
+.Xr firewire 4 .
 This address is supposed to be used by
 .Xr dconschat 8 .
 .El
@@ -56,8 +56,8 @@ This address is supposed to be used by
 .Sh AUTHORS
 .An Hidetoshi Shimokawa Aq simokawa@FreeBSD.org
 .Sh BUGS
-If you load dcons_crom.ko manually after booted, you may have to initiate
-a bus reset by
+If you load dcons_crom.ko manually after the system is booted, you may
+have to initiate a bus reset using
 .Dq Nm fwcontrol -r
-to update Configuration ROM.
+to update the Configuration ROM.
 .Pp
