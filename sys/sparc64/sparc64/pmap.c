@@ -558,45 +558,6 @@ pmap_bootstrap_alloc(vm_size_t size)
 	panic("pmap_bootstrap_alloc");
 }
 
-void
-pmap_context_rollover(void)
-{
-	u_long data;
-	u_long tag;
-	int i;
-
-	mtx_assert(&sched_lock, MA_OWNED);
-	CTR0(KTR_PMAP, "pmap_context_rollover");
-	for (i = 0; i < tlb_dtlb_entries; i++) {
-		/* XXX - cheetah */
-		data = ldxa(TLB_DAR_SLOT(i), ASI_DTLB_DATA_ACCESS_REG);
-		tag = ldxa(TLB_DAR_SLOT(i), ASI_DTLB_TAG_READ_REG);
-		if ((data & TD_V) != 0 && (data & TD_L) == 0 &&
-		    TLB_TAR_CTX(tag) != TLB_CTX_KERNEL)
-			stxa_sync(TLB_DAR_SLOT(i), ASI_DTLB_DATA_ACCESS_REG, 0);
-		data = ldxa(TLB_DAR_SLOT(i), ASI_ITLB_DATA_ACCESS_REG);
-		tag = ldxa(TLB_DAR_SLOT(i), ASI_ITLB_TAG_READ_REG);
-		if ((data & TD_V) != 0 && (data & TD_L) == 0 &&
-		    TLB_TAR_CTX(tag) != TLB_CTX_KERNEL)
-			stxa_sync(TLB_DAR_SLOT(i), ASI_ITLB_DATA_ACCESS_REG, 0);
-	}
-	PCPU_SET(tlb_ctx, PCPU_GET(tlb_ctx_min));
-}
-
-static __inline u_int
-pmap_context_alloc(void)
-{
-	u_int context;
-
-	mtx_assert(&sched_lock, MA_OWNED);
-	context = PCPU_GET(tlb_ctx);
-	if (context + 1 == PCPU_GET(tlb_ctx_max))
-		pmap_context_rollover();
-	else
-		PCPU_SET(tlb_ctx, context + 1);
-	return (context);
-}
-
 /*
  * Initialize the pmap module.
  */
@@ -1973,28 +1934,30 @@ void
 pmap_activate(struct thread *td)
 {
 	struct vmspace *vm;
-	vm_offset_t tsb;
-	u_long context;
-	pmap_t pm;
+	struct pmap *pm;
+	int context;
 
 	vm = td->td_proc->p_vmspace;
-	pm = &vm->vm_pmap;
-	tsb = (vm_offset_t)pm->pm_tsb;
-
-	KASSERT(pm->pm_active == 0, ("pmap_activate: pmap already active?"));
-	KASSERT(pm->pm_context[PCPU_GET(cpuid)] != 0,
-	    ("pmap_activate: activating nucleus context?"));
+	pm = vmspace_pmap(vm);
 
 	mtx_lock_spin(&sched_lock);
-	stxa(AA_DMMU_TSB, ASI_DMMU, tsb);
-	stxa(AA_IMMU_TSB, ASI_IMMU, tsb);
-	membar(Sync);
-	context = pmap_context_alloc();
+
+	context = PCPU_GET(tlb_ctx);
+	if (context == PCPU_GET(tlb_ctx_max)) {
+		tlb_flush_user();
+		context = PCPU_GET(tlb_ctx_min);
+	}
+	PCPU_SET(tlb_ctx, context + 1);
+
 	pm->pm_context[PCPU_GET(cpuid)] = context;
 	pm->pm_active |= PCPU_GET(cpumask);
 	PCPU_SET(vmspace, vm);
+
+	stxa(AA_DMMU_TSB, ASI_DMMU, pm->pm_tsb);
+	stxa(AA_IMMU_TSB, ASI_IMMU, pm->pm_tsb);
 	stxa(AA_DMMU_PCXR, ASI_DMMU, context);
 	membar(Sync);
+
 	mtx_unlock_spin(&sched_lock);
 }
 
