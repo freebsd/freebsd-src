@@ -914,7 +914,7 @@ installFixupXFree(dialogMenuItem *self)
 int
 installFilesystems(dialogMenuItem *self)
 {
-    int i, mountfailed;
+    int i;
     Disk *disk;
     Chunk *c1, *c2, *rootdev, *swapdev;
     Device **devs;
@@ -1019,15 +1019,11 @@ installFilesystems(dialogMenuItem *self)
 	    iov[1].iov_len = strlen(iov[2].iov_base) + 1;
 	    iov[3].iov_base = "/mnt/dev";
 	    iov[1].iov_len = strlen(iov[3].iov_base) + 1;
-	    mountfailed = nmount(iov, 4, 0);
-	}
+	    i = nmount(iov, 4, 0);
 
-	if (mountfailed) {
-	    dialog_clear_norefresh();
-	    msgNotify("Copying initial device files..");
-	    /* Copy the boot floppy's dev files */
-	    if ((root->newfs || upgrade) && vsystem("find -x /dev | cpio %s -pdum /mnt", cpioVerbosity())) {
-		msgConfirm("Couldn't clone the /dev files!");
+	    if (i) {
+		dialog_clear_norefresh();
+		msgConfirm("Unable to mount DEVFS (error %d)", errno);
 		return DITEM_FAILURE | DITEM_RESTORE;
 	    }
 	}
@@ -1044,16 +1040,6 @@ installFilesystems(dialogMenuItem *self)
 	    msgConfirm("No chunk list found for %s!", disk->name);
 	    return DITEM_FAILURE | DITEM_RESTORE;
 	}
-	if (mountfailed) {
-	    if (RunningAsInit && root && (root->newfs || upgrade)) {
-		Mkdir("/mnt/dev");
-		if (!Fake)
-		    MakeDevDisk(disk, "/mnt/dev");
-	    }
-	    else if (!RunningAsInit && !Fake)
-		MakeDevDisk(disk, "/dev");
-	}
-
 	for (c1 = disk->chunks->part; c1; c1 = c1->next) {
 	    if (c1->type == freebsd) {
 		for (c2 = c1->part; c2; c2 = c2->next) {
