@@ -87,7 +87,7 @@
 
 /*
  * We keep a private variable for the simulation time, but we could
- * probably use an existing one ("softticks" in sys/kern/kern_timer.c)
+ * probably use an existing one ("softticks" in sys/kern/kern_timeout.c)
  */
 static dn_key curr_time = 0 ; /* current simulation time */
 
