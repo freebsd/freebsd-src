@@ -2,6 +2,8 @@
 
 REGRESSION_START($1)
 
+echo '1..9'
+
 REGRESSION_TEST(`G', `sed G < regress.in')
 REGRESSION_TEST(`P', `sed P < regress.in')
 REGRESSION_TEST(`psl', `sed \$!g\;P\;D < regress.in')

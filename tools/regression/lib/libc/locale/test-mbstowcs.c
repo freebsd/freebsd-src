@@ -54,6 +54,8 @@ main(int argc, char *argv[])
 	 * C/POSIX locale.
 	 */
 
+	printf("1..1\n");
+
 	/* Simple null terminated string. */
 	memset(srcbuf, 0xcc, sizeof(srcbuf));
 	strcpy(srcbuf, "hello");
@@ -104,7 +106,7 @@ main(int argc, char *argv[])
 	assert(dstbuf[0] == 0xA3C1 && dstbuf[1] == 0x20 && dstbuf[2] == 0x42 &&
 	    dstbuf[3] == 0x20 && dstbuf[4] == 0xA3C3 && dstbuf[5] == 0);
 
-	printf("PASS mbstowcs()\n");
+	printf("ok 1 - mbstowcs()\n");
 
 	return (0);
 }

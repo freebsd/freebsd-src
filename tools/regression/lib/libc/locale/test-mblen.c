@@ -52,6 +52,8 @@ main(int argc, char *argv[])
 	 * C/POSIX locale.
 	 */
 
+	printf("1..1\n");
+
 	assert(MB_CUR_MAX == 1);
 
 	/* No shift states in C locale. */
@@ -106,7 +108,7 @@ main(int argc, char *argv[])
 	buf[1] = 0xc1;
 	assert(mblen(buf, 2) == 2);
 
-	printf("PASS mblen()\n");
+	printf("ok 1 - mblen()\n");
 
 	return (0);
 }

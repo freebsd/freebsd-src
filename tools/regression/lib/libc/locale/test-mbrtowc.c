@@ -56,6 +56,8 @@ main(int argc, char *argv[])
 	 * C/POSIX locale.
 	 */
 
+	printf("1..1\n");
+
 	assert(MB_CUR_MAX == 1);
 
 	/* Null wide character, internal state. */
@@ -155,7 +157,7 @@ main(int argc, char *argv[])
 	assert(mbrtowc(&wc, buf, 1, &s) == 1);
 	assert(wc == 0xa3c1);
 
-	printf("PASS mbrtowc()\n");
+	printf("ok 1 - mbrtowc()\n");
 
 	return (0);
 }

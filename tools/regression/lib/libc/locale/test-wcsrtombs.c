@@ -56,6 +56,8 @@ main(int argc, char *argv[])
 	 * C/POSIX locale.
 	 */
 
+	printf("1..1\n");
+
 	/* Simple null terminated string. */
 	wmemset(srcbuf, 0xcc, sizeof(srcbuf) / sizeof(*srcbuf));
 	wcscpy(srcbuf, L"hello");
@@ -147,7 +149,7 @@ main(int argc, char *argv[])
 	assert((unsigned char)dstbuf[8] == 0xcc);
 	assert(src == NULL);
 
-	printf("PASS wcsrtombs()\n");
+	printf("ok 1 - wcsrtombs()\n");
 
 	return (0);
 }

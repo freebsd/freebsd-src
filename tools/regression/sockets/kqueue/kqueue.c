@@ -38,6 +38,8 @@
 #include <string.h>
 #include <unistd.h>
 
+static int	curtest = 1;
+
 /*-
  * This test uses UNIX domain socket pairs to perform some basic exercising
  * of kqueue functionality on sockets.  In particular, testing that for read
@@ -53,19 +55,22 @@
  *   closed.
  */
 
+#define OK(testname)	printf("ok %d - %s\n", curtest, testname); \
+			curtest++;
+
 static void
 fail(int error, const char *func, const char *socktype, const char *rest)
 {
 
-	fprintf(stderr, "FAIL\n");
+	printf("not ok %d\n", curtest);
 
 	if (socktype == NULL)
-		fprintf(stderr, "%s(): %s\n", func, strerror(error));
+		printf("# %s(): %s\n", func, strerror(error));
 	else if (rest == NULL)
-		fprintf(stderr, "%s(%s): %s\n", func, socktype,
+		printf("# %s(%s): %s\n", func, socktype,
 		    strerror(error));
 	else
-		fprintf(stderr, "%s(%s, %s): %s\n", func, socktype, rest,
+		printf("# %s(%s, %s): %s\n", func, socktype, rest,
 		    strerror(error));
 	exit(-1);
 }
@@ -75,16 +80,16 @@ fail_assertion(const char *func, const char *socktype, const char *rest,
     const char *assertion)
 {
 
-	fprintf(stderr, "FAIL\n");
+	printf("not ok %d - %s\n", curtest, assertion);
 
 	if (socktype == NULL)
-		fprintf(stderr, "%s(): assertion %s failed\n", func,
+		printf("# %s(): assertion %s failed\n", func,
 		    assertion);
 	else if (rest == NULL)
-		fprintf(stderr, "%s(%s): assertion %s failed\n", func,
+		printf("# %s(%s): assertion %s failed\n", func,
 		    socktype, assertion);
 	else
-		fprintf(stderr, "%s(%s, %s): assertion %s failed\n", func,
+		printf("# %s(%s, %s): assertion %s failed\n", func,
 		    socktype, rest, assertion);
 	exit(-1);
 }
@@ -107,6 +112,7 @@ test_evfilt_read(int kq, int fd[2], const char *socktype)
 	EV_SET(&ke, fd[0], EVFILT_READ, EV_ADD, 0, 0, NULL);
 	if (kevent(kq, &ke, 1, NULL, 0, NULL) == -1)
 		fail(errno, "kevent", socktype, "EVFILT_READ, EV_ADD");
+	OK("EVFILT_READ, EV_ADD");
 
 	/*
 	 * Confirm not readable to begin with, no I/O yet.
@@ -116,9 +122,11 @@ test_evfilt_read(int kq, int fd[2], const char *socktype)
 	i = kevent(kq, NULL, 0, &ke, 1, &ts);
 	if (i == -1)
 		fail(errno, "kevent", socktype, "EVFILT_READ");
+	OK("EVFILT_READ");
 	if (i != 0)
 		fail_assertion("kevent", socktype, "EVFILT_READ",
 		    "empty socket unreadable");
+	OK("empty socket unreadable");
 
 	/*
 	 * Write a byte to one end.
@@ -127,8 +135,10 @@ test_evfilt_read(int kq, int fd[2], const char *socktype)
 	len = write(fd[1], &ch, sizeof(ch));
 	if (len == -1)
 		fail(errno, "write", socktype, NULL);
+	OK("write one byte");
 	if (len != sizeof(ch))
 		fail_assertion("write", socktype, NULL, "write length");
+	OK("write one byte length");
 
 	/*
 	 * Other end should now be readable.
@@ -138,9 +148,11 @@ test_evfilt_read(int kq, int fd[2], const char *socktype)
 	i = kevent(kq, NULL, 0, &ke, 1, &ts);
 	if (i == -1)
 		fail(errno, "kevent", socktype, "EVFILT_READ");
+	OK("EVFILT_READ");
 	if (i != 1)
 		fail_assertion("kevent", socktype, "EVFILT_READ",
 		    "non-empty socket unreadable");
+	OK("non-empty socket unreadable");
 
 	/*
 	 * Read a byte to clear the readable state.
@@ -148,8 +160,10 @@ test_evfilt_read(int kq, int fd[2], const char *socktype)
 	len = read(fd[0], &ch, sizeof(ch));
 	if (len == -1)
 		fail(errno, "read", socktype, NULL);
+	OK("read one byte");
 	if (len != sizeof(ch))
 		fail_assertion("read", socktype, NULL, "read length");
+	OK("read one byte length");
 
 	/*
 	 * Now re-check for readability.
@@ -159,13 +173,16 @@ test_evfilt_read(int kq, int fd[2], const char *socktype)
 	i = kevent(kq, NULL, 0, &ke, 1, &ts);
 	if (i == -1)
 		fail(errno, "kevent", socktype, "EVFILT_READ");
+	OK("EVFILT_READ");
 	if (i != 0)
 		fail_assertion("kevent", socktype, "EVFILT_READ",
 		    "empty socket unreadable");
+	OK("empty socket unreadable");
 
 	EV_SET(&ke, fd[0], EVFILT_READ, EV_DELETE, 0, 0, NULL);
 	if (kevent(kq, &ke, 1, NULL, 0, NULL) == -1)
 		fail(errno, "kevent", socktype, "EVFILT_READ, EV_DELETE");
+	OK("EVFILT_READ, EV_DELETE");
 }
 
 static void
@@ -180,6 +197,7 @@ test_evfilt_write(int kq, int fd[2], const char *socktype)
 	EV_SET(&ke, fd[0], EVFILT_WRITE, EV_ADD, 0, 0, NULL);
 	if (kevent(kq, &ke, 1, NULL, 0, NULL) == -1)
 		fail(errno, "kevent", socktype, "EVFILT_WRITE, EV_ADD");
+	OK("EVFILE_WRITE, EV_ADD");
 
 	/*
 	 * Confirm writable to begin with, no I/O yet.
@@ -189,9 +207,11 @@ test_evfilt_write(int kq, int fd[2], const char *socktype)
 	i = kevent(kq, NULL, 0, &ke, 1, &ts);
 	if (i == -1)
 		fail(errno, "kevent", socktype, "EVFILT_WRITE");
+	OK("EVFILE_WRITE");
 	if (i != 1)
 		fail_assertion("kevent", socktype, "EVFILT_WRITE",
 		    "empty socket unwritable");
+	OK("empty socket unwritable");
 
 	/*
 	 * Write bytes into the socket until we can't write anymore.
@@ -200,8 +220,10 @@ test_evfilt_write(int kq, int fd[2], const char *socktype)
 	while ((len = write(fd[0], &ch, sizeof(ch))) == sizeof(ch)) {};
 	if (len == -1 && errno != EAGAIN && errno != ENOBUFS)
 		fail(errno, "write", socktype, NULL);
+	OK("write");
 	if (len != -1 && len != sizeof(ch))
 		fail_assertion("write", socktype, NULL, "write length");
+	OK("write length");
 
 	/*
 	 * Check to make sure the socket is no longer writable.
@@ -211,13 +233,16 @@ test_evfilt_write(int kq, int fd[2], const char *socktype)
 	i = kevent(kq, NULL, 0, &ke, 1, &ts);
 	if (i == -1)
 		fail(errno, "kevent", socktype, "EVFILT_WRITE");
+	OK("EVFILT_WRITE");
 	if (i != 0)
 		fail_assertion("kevent", socktype, "EVFILT_WRITE",
 		    "full socket writable");
+	OK("full socket writable");
 
 	EV_SET(&ke, fd[0], EVFILT_WRITE, EV_DELETE, 0, 0, NULL);
 	if (kevent(kq, &ke, 1, NULL, 0, NULL) == -1)
 		fail(errno, "kevent", socktype, "EVFILT_WRITE, EV_DELETE");
+	OK("EVFILT_WRITE, EV_DELETE");
 }
 
 /*
@@ -229,9 +254,12 @@ main(int argc, char *argv[])
 {
 	int i, kq, sv[2];
 
+	printf("1..49\n");
+
 	kq = kqueue();
 	if (kq == -1)
 		fail(errno, "kqueue", NULL, NULL);
+	OK("kqueue()");
 
 	/*
 	 * Create a UNIX domain datagram socket, and attach/test/detach a
@@ -239,18 +267,23 @@ main(int argc, char *argv[])
 	 */
 	if (socketpair(PF_UNIX, SOCK_DGRAM, 0, sv) == -1)
 		fail(errno, "socketpair", "PF_UNIX, SOCK_DGRAM", NULL);
+	OK("socketpair() 1");
 
 	if (fcntl(sv[0], F_SETFL, O_NONBLOCK) != 0)
 		fail(errno, "fcntl", "PF_UNIX, SOCK_DGRAM", "O_NONBLOCK");
+	OK("fcntl() 1");
 	if (fcntl(sv[1], F_SETFL, O_NONBLOCK) != 0)
 		fail(errno, "fcntl", "PF_UNIX, SOCK_DGRAM", "O_NONBLOCK");
+	OK("fnctl() 2");
 
 	test_evfilt_read(kq, sv, "PF_UNIX, SOCK_DGRAM");
 
 	if (close(sv[0]) == -1)
 		fail(errno, "close", "PF_UNIX/SOCK_DGRAM", "sv[0]");
+	OK("close() 1");
 	if (close(sv[1]) == -1)
 		fail(errno, "close", "PF_UNIX/SOCK_DGRAM", "sv[1]");
+	OK("close() 2");
 
 #if 0
 	/*
@@ -285,18 +318,23 @@ main(int argc, char *argv[])
 	 */
 	if (socketpair(PF_UNIX, SOCK_STREAM, 0, sv) == -1)
 		fail(errno, "socketpair", "PF_UNIX, SOCK_STREAM", NULL);
+	OK("socketpair() 2");
 
 	if (fcntl(sv[0], F_SETFL, O_NONBLOCK) != 0)
 		fail(errno, "fcntl", "PF_UNIX, SOCK_STREAM", "O_NONBLOCK");
+	OK("fcntl() 3");
 	if (fcntl(sv[1], F_SETFL, O_NONBLOCK) != 0)
 		fail(errno, "fcntl", "PF_UNIX, SOCK_STREAM", "O_NONBLOCK");
+	OK("fcntl() 4");
 
 	test_evfilt_read(kq, sv, "PF_UNIX, SOCK_STREAM");
 
 	if (close(sv[0]) == -1)
 		fail(errno, "close", "PF_UNIX/SOCK_STREAM", "sv[0]");
+	OK("close() 3");
 	if (close(sv[1]) == -1)
 		fail(errno, "close", "PF_UNIX/SOCK_STREAM", "sv[1]");
+	OK("close() 4");
 
 	/*
 	 * Create a UNIX domain stream socket, and attach/test/detach a
@@ -304,22 +342,27 @@ main(int argc, char *argv[])
 	 */
 	if (socketpair(PF_UNIX, SOCK_STREAM, 0, sv) == -1)
 		fail(errno, "socketpair", "PF_UNIX, SOCK_STREAM", NULL);
+	OK("socketpair() 3");
 
 	if (fcntl(sv[0], F_SETFL, O_NONBLOCK) != 0)
 		fail(errno, "fcntl", "PF_UNIX, SOCK_STREAM", "O_NONBLOCK");
+	OK("fcntl() 5");
 	if (fcntl(sv[1], F_SETFL, O_NONBLOCK) != 0)
 		fail(errno, "fcntl", "PF_UNIX, SOCK_STREAM", "O_NONBLOCK");
+	OK("fcntl() 6");
 
 	test_evfilt_write(kq, sv, "PF_UNIX, SOCK_STREAM");
 
 	if (close(sv[0]) == -1)
 		fail(errno, "close", "PF_UNIX/SOCK_STREAM", "sv[0]");
+	OK("close() 5");
 	if (close(sv[1]) == -1)
 		fail(errno, "close", "PF_UNIX/SOCK_STREAM", "sv[1]");
+	OK("close() 6");
 
 	if (close(kq) == -1)
 		fail(errno, "close", "kq", NULL);
+	OK("close() 7");
 
-	printf("PASS\n");
 	return (0);
 }

@@ -63,6 +63,8 @@ main(int argc, char *argv[])
 		{ "xdigit", iswxdigit }
 	};
 
+	printf("1..2\n");
+
 	/*
 	 * C/POSIX locale.
 	 */
@@ -92,8 +94,8 @@ main(int argc, char *argv[])
 	for (i = 0; i < 65536; i++)
 		assert(iswctype(i, t) == 0);
 
-	printf("PASS iswctype()\n");
-	printf("PASS wctype()\n");
+	printf("ok 1 - iswctype()\n");
+	printf("ok 2 - wctype()\n");
 
 	return (0);
 }

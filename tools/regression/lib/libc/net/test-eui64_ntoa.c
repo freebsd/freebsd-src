@@ -40,13 +40,15 @@ main(int argc, char **argv)
 {
 	char a[EUI64_SIZ];
 
+	printf("1..1\n");
+
 	if (eui64_ntoa(&test_eui64_id, a, sizeof(a)) == 0 &&
 	    strcmp(a, test_eui64_id_ascii) == 0) {
-		printf("PASS: eui64_ntoa\n");
+		printf("ok 1 - eui64_ntoa\n");
 		return (0);
 	}
-	printf("a = '%s'\n", a);
+	printf("# a = '%s'\n", a);
 
-	printf("FAIL: eui64_ntoa\n");
+	printf("not ok 1 - eui64_ntoa\n");
 	return (0);
 }
