@@ -1075,6 +1075,18 @@ pci_add_map(device_t dev, pcicfgregs* cfg, int reg)
 		base |= ((u_int64_t)cfg->hose << shift);
 	}
 #endif
+	if (bootverbose) {
+		printf("\tmap[%02x]: type %x, range %2d, base %08x, size %2d",
+		       reg, pci_maptype(base), ln2range,
+		       (unsigned int) base, ln2size);
+		if (type == SYS_RES_IOPORT && !pci_porten(cfg))
+			printf(", port disabled\n");
+		else if (type == SYS_RES_MEMORY && !pci_memen(cfg))
+			printf(", memory disabled\n");
+		else
+			printf(", enabled\n");
+	}
+
 	if (type == SYS_RES_IOPORT && !pci_porten(cfg))
 		return 1;
 	if (type == SYS_RES_MEMORY && !pci_memen(cfg))
@@ -1083,12 +1095,6 @@ pci_add_map(device_t dev, pcicfgregs* cfg, int reg)
 	resource_list_add(rl, type, reg,
 			  base, base + (1 << ln2size) - 1,
 			  (1 << ln2size));
-
-	if (bootverbose) {
-		printf("\tmap[%02x]: type %x, range %2d, base %08x, size %2d\n",
-		       reg, pci_maptype(base), ln2range,
-		       (unsigned int) base, ln2size);
-	}
 
 	return (ln2range == 64) ? 2 : 1;
 }
