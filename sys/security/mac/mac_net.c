@@ -2093,11 +2093,13 @@ mac_cred_mmapped_drop_perms_recurse(struct thread *td, struct ucred *cred,
 				 */
 				vm_object_reference(object);
 				vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+				VM_OBJECT_LOCK(object);
 				vm_object_page_clean(object,
 				    OFF_TO_IDX(offset),
 				    OFF_TO_IDX(offset + vme->end - vme->start +
 					PAGE_MASK),
 				    OBJPC_SYNC);
+				VM_OBJECT_UNLOCK(object);
 				VOP_UNLOCK(vp, 0, td);
 				vm_object_deallocate(object);
 				/*

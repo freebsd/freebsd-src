@@ -2739,7 +2739,9 @@ fsync(td, uap)
 	}
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	if (VOP_GETVOBJECT(vp, &obj) == 0) {
+		VM_OBJECT_LOCK(obj);
 		vm_object_page_clean(obj, 0, 0, 0);
+		VM_OBJECT_UNLOCK(obj);
 	}
 	error = VOP_FSYNC(vp, fp->f_cred, MNT_WAIT, td);
 	if (error == 0 && vp->v_mount && (vp->v_mount->mnt_flag & MNT_SOFTDEP)
