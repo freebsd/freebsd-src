@@ -33,11 +33,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: memalloc.c,v 1.3 1996/09/01 10:20:42 peter Exp $
+ *	$Id: memalloc.c,v 1.4 1996/09/03 14:15:53 peter Exp $
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)memalloc.c	8.3 (Berkeley) 5/4/95";
+static char const sccsid[] = "@(#)memalloc.c	8.3 (Berkeley) 5/4/95";
 #endif /* not lint */
 
 #include "shell.h"
@@ -54,7 +54,7 @@ static char sccsid[] = "@(#)memalloc.c	8.3 (Berkeley) 5/4/95";
  */
 
 pointer
-ckmalloc(nbytes) 
+ckmalloc(nbytes)
 	int nbytes;
 {
 	register pointer p;
@@ -124,7 +124,7 @@ int herefd = -1;
 
 
 pointer
-stalloc(nbytes) 
+stalloc(nbytes)
 	int nbytes;
 {
 	register char *p;
@@ -233,7 +233,7 @@ growstackblock() {
 
 
 void
-grabstackblock(len) 
+grabstackblock(len)
 	int len;
 {
 	len = ALIGN(len);

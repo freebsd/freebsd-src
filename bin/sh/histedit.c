@@ -33,11 +33,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: histedit.c,v 1.5 1996/09/01 10:20:12 peter Exp $
+ *	$Id: histedit.c,v 1.6 1996/09/03 13:35:09 peter Exp $
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)histedit.c	8.2 (Berkeley) 5/4/95";
+static char const sccsid[] = "@(#)histedit.c	8.2 (Berkeley) 5/4/95";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -77,7 +77,7 @@ STATIC char *fc_replace __P((const char *, char *, char *));
  * have changed (figures out what to do).
  */
 void
-histedit() 
+histedit()
 {
 
 #define editing (Eflag || Vflag)
@@ -92,7 +92,7 @@ histedit()
 			INTON;
 
 			if (hist != NULL)
-				sethistsize();
+				sethistsize(histsizeval());
 			else
 				out2str("sh: can't initialize history\n");
 		}
@@ -145,15 +145,14 @@ bad:
 
 
 void
-sethistsize()
+sethistsize(hs)
+	const char *hs;
 {
-	char *cp;
 	int histsize;
 
 	if (hist != NULL) {
-		cp = lookupvar("HISTSIZE");
-		if (cp == NULL || *cp == '\0' ||
-		   (histsize = atoi(cp)) < 0)
+		if (hs == NULL || *hs == '\0' ||
+		   (histsize = atoi(hs)) < 0)
 			histsize = 100;
 		history(hist, H_EVENT, histsize);
 	}
@@ -418,14 +417,12 @@ fc_replace(s, p, r)
 
 int
 not_fcnumber(s)
-        char *s;
+	char *s;
 {
-	if (s == NULL) {
-		/* NULL is not a fc_number */
+	if (s == NULL)
 		return (1);
-	}
-        if (*s == '-')
-                s++;
+	if (*s == '-')
+		s++;
 	return (!is_number(s));
 }
 

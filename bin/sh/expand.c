@@ -33,11 +33,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: expand.c,v 1.10 1996/09/10 02:42:30 peter Exp $
+ *	$Id: expand.c,v 1.11 1996/10/31 07:15:54 ache Exp $
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)expand.c	8.5 (Berkeley) 5/15/95";
+static char const sccsid[] = "@(#)expand.c	8.5 (Berkeley) 5/15/95";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -95,7 +95,7 @@ struct arglist exparg;		/* holds expanded arg list */
 STATIC void argstr __P((char *, int));
 STATIC char *exptilde __P((char *, int));
 STATIC void expbackq __P((union node *, int, int));
-STATIC int subevalvar __P((char *, char *, int, int, int));
+STATIC int subevalvar __P((char *, char *, int, int, int, int));
 STATIC char *evalvar __P((char *, int));
 STATIC int varisset __P((char *));
 STATIC void varvalue __P((char *, int, int));
@@ -439,30 +439,35 @@ expbackq(cmd, quoted, flag)
 
 
 STATIC int
-subevalvar(p, str, subtype, startloc, varflags)
+subevalvar(p, str, strloc, subtype, startloc, varflags)
 	char *p;
 	char *str;
+	int strloc;
 	int subtype;
 	int startloc;
 	int varflags;
 {
-
 	char *startp;
 	char *loc = NULL;
 	int c = 0;
 	int saveherefd = herefd;
 	struct nodelist *saveargbackq = argbackq;
+	int amount;
+
 	herefd = -1;
 	argstr(p, 0);
 	STACKSTRNUL(expdest);
 	herefd = saveherefd;
 	argbackq = saveargbackq;
 	startp = stackblock() + startloc;
+	if (str == NULL)
+	    str = stackblock() + strloc;
 
 	switch (subtype) {
 	case VSASSIGN:
 		setvar(str, startp, 0);
-		STADJUST(startp - expdest, expdest);
+		amount = startp - expdest;
+		STADJUST(amount, expdest);
 		varflags &= ~VSNUL;
 		if (c != 0)
 			*loc = c;
@@ -505,7 +510,8 @@ subevalvar(p, str, subtype, startloc, varflags)
 	case VSTRIMRIGHT:
 		for (loc = str - 1; loc >= startp; loc--) {
 			if (patmatch(str, loc)) {
-				expdest = loc;
+				amount = loc - expdest;
+				STADJUST(amount, expdest);
 				return 1;
 			}
 		}
@@ -514,7 +520,8 @@ subevalvar(p, str, subtype, startloc, varflags)
 	case VSTRIMRIGHTMAX:
 		for (loc = startp; loc < str - 1; loc++) {
 			if (patmatch(str, loc)) {
-				expdest = loc;
+				amount = loc - expdest;
+				STADJUST(amount, expdest);
 				return 1;
 			}
 		}
@@ -526,7 +533,8 @@ subevalvar(p, str, subtype, startloc, varflags)
 	}
 
 recordleft:
-	expdest = (str - 1) - (loc - startp);
+	amount = ((str - 1) - (loc - startp)) - expdest;
+	STADJUST(amount, expdest);
 	while (loc != str - 1)
 		*startp++ = *loc++;
 	return 1;
@@ -588,7 +596,7 @@ again: /* jump here after setting a variable with ${var=text} */
 				expdest = oexpdest;
 			}
 		} else {
-			char const *syntax = (varflags & VSQUOTE) ? DQSYNTAX 
+			char const *syntax = (varflags & VSQUOTE) ? DQSYNTAX
 								  : BASESYNTAX;
 
 			if (subtype == VSLENGTH) {
@@ -605,11 +613,11 @@ again: /* jump here after setting a variable with ${var=text} */
 			}
 		}
 	}
-		
+
 	if (subtype == VSPLUS)
 		set = ! set;
 
-	easy = ((varflags & VSQUOTE) == 0 || 
+	easy = ((varflags & VSQUOTE) == 0 ||
 		(*var == '@' && shellparam.nparam != 1));
 
 
@@ -622,7 +630,7 @@ again: /* jump here after setting a variable with ${var=text} */
 		if (!easy)
 			break;
 record:
-		recordregion(startloc, expdest - stackblock(), 
+		recordregion(startloc, expdest - stackblock(),
 			     varflags & VSQUOTE);
 		break;
 
@@ -648,15 +656,18 @@ record:
 		 */
 		STPUTC('\0', expdest);
 		pat = expdest;
-		if (subevalvar(p, pat, subtype, startloc, varflags))
+		if (subevalvar(p, NULL, expdest - stackblock(), subtype,
+			       startloc, varflags))
 			goto record;
 		break;
 
 	case VSASSIGN:
 	case VSQUESTION:
 		if (!set) {
-			if (subevalvar(p, var, subtype, startloc, varflags))
+			if (subevalvar(p, var, 0, subtype, startloc, varflags)) {
+				varflags &= ~VSNUL;
 				goto again;
+			}
 			break;
 		}
 		if (easy)
@@ -698,7 +709,6 @@ varisset(name)
 	char *name;
 	{
 	char **ap;
-	int num;
 
 	if (*name == '!') {
 		if (backgndpid == -1)
@@ -707,7 +717,7 @@ varisset(name)
 		if (*shellparam.p == NULL)
 			return 0;
 	} else if (is_digit(*name)) {
-		num = atoi(name);
+		int num = atoi(name);
 		ap = shellparam.p;
 		while (num-- > 0)
 			if (*ap++ == NULL)
@@ -811,7 +821,7 @@ allargs:
  */
 
 STATIC void
-recordregion(start, end, nulonly) 
+recordregion(start, end, nulonly)
 	int start;
 	int end;
 	int nulonly;

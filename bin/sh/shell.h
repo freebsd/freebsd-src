@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)shell.h	8.2 (Berkeley) 5/4/95
- *	$Id: shell.h,v 1.5 1996/09/01 10:27:44 peter Exp $
+ *	$Id: shell.h,v 1.6 1996/10/31 07:15:57 ache Exp $
  */
 
 /*
@@ -79,7 +79,7 @@ extern char nullstr[1];		/* null string */
 
 
 #ifdef DEBUG
-#define TRACE(param)	shtrace param
+#define TRACE(param)	trace param
 #else
 #define TRACE(param)
 #endif

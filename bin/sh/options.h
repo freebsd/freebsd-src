@@ -34,15 +34,16 @@
  * SUCH DAMAGE.
  *
  *	@(#)options.h	8.2 (Berkeley) 5/4/95
- *	$Id: options.h,v 1.3 1996/09/01 10:21:20 peter Exp $
+ *	$Id: options.h,v 1.4 1996/10/29 03:12:49 steve Exp $
  */
 
 struct shparam {
-	int nparam;	/* number of positional parameters (without $0) */
-	char malloc;	/* true if parameter list dynamicly allocated */
+	int nparam;		/* # of positional parameters (without $0) */
+	unsigned char malloc;	/* if parameter list dynamically allocated */
+	unsigned char reset;	/* if getopts has been reset */
 	char **p;		/* parameter list */
-	char **optnext;	/* next parameter to be processed by getopts */
-	char *optptr;	/* used by getopts */
+	char **optnext;		/* next parameter to be processed by getopts */
+	char *optptr;		/* used by getopts */
 };
 
 
@@ -103,11 +104,12 @@ extern char **argptr;		/* argument list for builtin commands */
 extern char *optarg;		/* set by nextopt */
 extern char *optptr;		/* used by nextopt */
 
-void procargs __P((int, char **)); 
+void procargs __P((int, char **));
 void optschanged __P((void));
 void setparam __P((char **));
-void freeparam __P((struct shparam *)); 
+void freeparam __P((struct shparam *));
 int shiftcmd __P((int, char **));
 int setcmd __P((int, char **));
 int getoptscmd __P((int, char **));
 int nextopt __P((char *));
+void getoptsreset __P((const char *));

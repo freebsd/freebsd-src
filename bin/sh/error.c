@@ -33,11 +33,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: error.c,v 1.4 1996/09/01 10:19:53 peter Exp $
+ *	$Id: error.c,v 1.5 1996/09/03 14:15:46 peter Exp $
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)error.c	8.2 (Berkeley) 5/4/95";
+static char const sccsid[] = "@(#)error.c	8.2 (Berkeley) 5/4/95";
 #endif /* not lint */
 
 /*
@@ -66,6 +66,8 @@ volatile int intpending;
 char *commandname;
 
 
+static void exverror __P((int, char *, va_list));
+
 /*
  * Called to raise an exception.  Since C doesn't include exceptions, we
  * just do a longjmp to the exception handler.  The type of exception is
@@ -73,7 +75,7 @@ char *commandname;
  */
 
 void
-exraise(e) 
+exraise(e)
 	int e;
 {
 	if (handler == NULL)
@@ -104,6 +106,7 @@ onint() {
 	intpending = 0;
 	sigemptyset(&sigset);
 	sigprocmask(SIG_SETMASK, &sigset, NULL);
+	out2str("\n");
 	if (rootshell && iflag)
 		exraise(EXINT);
 	else
@@ -111,12 +114,36 @@ onint() {
 }
 
 
-
 /*
- * Error is called to raise the error exception.  If the first argument
+ * Exverror is called to raise the error exception.  If the first argument
  * is not NULL then error prints an error message using printf style
  * formatting.  It then raises the error exception.
  */
+static void
+exverror(cond, msg, ap)
+	int cond;
+	char *msg;
+	va_list ap;
+{
+	CLEAR_PENDING_INT;
+	INTOFF;
+
+#ifdef DEBUG
+	if (msg)
+		TRACE(("exverror(%d, \"%s\") pid=%d\n", cond, msg, getpid()));
+	else
+		TRACE(("exverror(%d, NULL) pid=%d\n", cond, getpid()));
+#endif
+	if (msg) {
+		if (commandname)
+			outfmt(&errout, "%s: ", commandname);
+		doformat(&errout, msg, ap);
+		out2c('\n');
+	}
+	flushall();
+	exraise(cond);
+}
+
 
 #if __STDC__
 void
@@ -131,30 +158,40 @@ error(va_alist)
 	char *msg;
 #endif
 	va_list ap;
-	CLEAR_PENDING_INT;
-	INTOFF;
-
 #if __STDC__
 	va_start(ap, msg);
 #else
 	va_start(ap);
 	msg = va_arg(ap, char *);
 #endif
-#ifdef DEBUG
-	if (msg)
-		TRACE(("error(\"%s\") pid=%d\n", msg, getpid()));
-	else
-		TRACE(("error(NULL) pid=%d\n", getpid()));
-#endif
-	if (msg) {
-		if (commandname)
-			outfmt(&errout, "%s: ", commandname);
-		doformat(&errout, msg, ap);
-		out2c('\n');
-	}
+	exverror(EXERROR, msg, ap);
 	va_end(ap);
-	flushall();
-	exraise(EXERROR);
+}
+
+
+#if __STDC__
+void
+exerror(int cond, char *msg, ...)
+#else
+void
+exerror(va_alist)
+	va_dcl
+#endif
+{
+#if !__STDC__
+	int cond;
+	char *msg;
+#endif
+	va_list ap;
+#if __STDC__
+	va_start(ap, msg);
+#else
+	va_start(ap);
+	cond = va_arg(ap, int);
+	msg = va_arg(ap, char *);
+#endif
+	exverror(cond, msg, ap);
+	va_end(ap);
 }
 
 
@@ -234,7 +271,7 @@ STATIC const struct errname errormsg[] = {
  */
 
 char *
-errmsg(e, action) 
+errmsg(e, action)
 	int e;
 	int action;
 {
