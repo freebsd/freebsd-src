@@ -82,8 +82,7 @@ struct proc;	/* XXX */
  */
 struct mtx {
 	volatile u_int	mtx_lock;	/* lock owner/gate/flags */
-	volatile u_short mtx_recurse;	/* number of recursive holds */
-	u_short		mtx_f1;
+	volatile u_int	mtx_recurse;	/* number of recursive holds */
 	u_int		mtx_savefl;	/* saved flags (for spin locks) */
 	char		*mtx_description;
 	TAILQ_HEAD(, proc) mtx_blocked;
@@ -94,9 +93,9 @@ struct mtx {
 	/* If you add anything here, adjust the mtxf_t definition below */
 	struct witness	*mtx_witness;
 	LIST_ENTRY(mtx)	mtx_held;
-	char		*mtx_file;
+	const char	*mtx_file;
 	int		mtx_line;
-#endif /* SMP_DEBUG */
+#endif	/* SMP_DEBUG */
 };
 
 typedef struct mtx mtx_t;
@@ -125,11 +124,24 @@ void	mtx_enter_hard(mtx_t *, int type, int flags);
 void	mtx_exit_hard(mtx_t *, int type);
 void	mtx_destroy(mtx_t *m);
 
+/*
+ * Wrap the following functions with cpp macros so that filenames and line
+ * numbers are embedded in the code correctly.
+ */
 #if (defined(KLD_MODULE) || defined(_KERN_MUTEX_C_))
-void	mtx_enter(mtx_t *mtxp, int type);
-int	mtx_try_enter(mtx_t *mtxp, int type);
-void	mtx_exit(mtx_t *mtxp, int type);
+void	_mtx_enter(mtx_t *mtxp, int type, const char *file, int line);
+int	_mtx_try_enter(mtx_t *mtxp, int type, const char *file, int line);
+void	_mtx_exit(mtx_t *mtxp, int type, const char *file, int line);
 #endif
+
+#define	mtx_enter(mtxp, type)						\
+	_mtx_enter((mtxp), (type), __FILE__, __LINE__)
+
+#define	mtx_try_enter(mtxp, type)					\
+	_mtx_try_enter((mtxp), (type), __FILE__, __LINE__)
+
+#define	mtx_exit(mtxp, type)						\
+	_mtx_exit((mtxp), (type), __FILE__, __LINE__)
 
 /* Global locks */
 extern mtx_t	sched_lock;
@@ -179,7 +191,7 @@ do {									\
  */
 #ifndef SMP_DEBUG
 #define mtx_assert(m, what)
-#else /* SMP_DEBUG */
+#else	/* SMP_DEBUG */
 
 #define MA_OWNED	1
 #define MA_NOTOWNED	2
@@ -206,15 +218,15 @@ do {									\
 #ifdef MTX_STRS
 char STR_IEN[] = "fl & 0x200";
 char STR_IDIS[] = "!(fl & 0x200)";
-#else /* MTX_STRS */
+#else	/* MTX_STRS */
 extern char STR_IEN[];
 extern char STR_IDIS[];
-#endif /* MTX_STRS */
+#endif	/* MTX_STRS */
 #define	ASS_IEN		MPASS2(read_eflags() & 0x200, STR_IEN)
 #define	ASS_IDIS	MPASS2((read_eflags() & 0x200) == 0, STR_IDIS)
-#endif /* INVARIANTS */
+#endif	/* INVARIANTS */
 
-#endif /* SMP_DEBUG */
+#endif	/* SMP_DEBUG */
 
 #if !defined(SMP_DEBUG) || !defined(INVARIANTS)
 #define ASS(ex)
@@ -222,7 +234,7 @@ extern char STR_IDIS[];
 #define	MPASS2(ex, where)
 #define	ASS_IEN
 #define ASS_IDIS
-#endif /* !defined(SMP_DEBUG) || !defined(INVARIANTS) */
+#endif	/* !defined(SMP_DEBUG) || !defined(INVARIANTS) */
 
 #ifdef	WITNESS
 #ifndef	SMP_DEBUG
@@ -237,7 +249,7 @@ extern char STR_IDIS[];
 
 #define	WITNESS_SLEEP(check, m) witness_sleep(check, (m), __FILE__, __LINE__)
 #define	WITNESS_SAVE_DECL(n)						\
-	char * __CONCAT(n, __wf);					\
+	const char * __CONCAT(n, __wf);					\
 	int __CONCAT(n, __wl)
 
 #define	WITNESS_SAVE(m, n) 						\
@@ -255,14 +267,14 @@ do {									\
 void	witness_init(mtx_t *, int flag);
 void	witness_destroy(mtx_t *);
 void	witness_enter(mtx_t *, int, char *, int);
-void	witness_try_enter(mtx_t *, int, char *, int);
+void	witness_try_enter(mtx_t *, int, const char *, int);
 void	witness_exit(mtx_t *, int, char *, int);
 void	witness_display(void(*)(const char *fmt, ...));
 void	witness_list(struct proc *);
 int	witness_sleep(int, mtx_t *, char *, int);
-void	witness_save(mtx_t *, char **, int *);
-void	witness_restore(mtx_t *, char *, int);
-#else /* WITNESS */
+void	witness_save(mtx_t *, const char **, int *);
+void	witness_restore(mtx_t *, const char *, int);
+#else	/* WITNESS */
 #define WITNESS_ENTER(m, flag)
 #define WITNESS_EXIT(m, flag)
 #define	WITNESS_SLEEP(check, m)
@@ -279,7 +291,7 @@ void	witness_restore(mtx_t *, char *, int);
 #define witness_enter(m, flag,  f, l)
 #define witness_try_enter(m, flag, f, l )
 #define witness_exit(m, flag, f, l)
-#endif /* WITNESS */
+#endif	/* WITNESS */
 
 /*
  * Assembly macros (for internal use only)
@@ -312,7 +324,7 @@ void	witness_restore(mtx_t *, char *, int);
 "	addl	$8,%%esp;"						\
 "	jmp	1f;"							\
 "2:	lock; orl $" _V(MTX_RECURSE) ",%1;"				\
-"	incw	%2;"							\
+"	incl	%2;"							\
 "1:"									\
 "# getlock_sleep"							\
 	: "=&a" (_res),				/* 0 (dummy output) */	\
@@ -423,7 +435,7 @@ void	witness_restore(mtx_t *, char *, int);
 "	addl	$8,%%esp;"						\
 "	jmp	1f;"							\
 	/* lock recursed, lower recursion level */			\
-"3:	decw	%1;"				/* one less level */	\
+"3:	decl	%1;"				/* one less level */	\
 "	jnz	1f;"				/* still recursed, done */ \
 "	lock; andl $~" _V(MTX_RECURSE) ",%0;"	/* turn off recurse flag */ \
 "1:"									\
@@ -447,10 +459,10 @@ void	witness_restore(mtx_t *, char *, int);
 	int	_res;							\
 									\
 	__asm __volatile (						\
-"	movw	%1,%%ax;"						\
-"	decw	%%ax;"							\
+"	movl	%1,%%eax;"						\
+"	decl	%%eax;"							\
 "	js	1f;"							\
-"	movw	%%ax,%1;"						\
+"	movl	%%eax,%1;"						\
 "	jmp	2f;"							\
 "1:	movl	%0,%%eax;"						\
 "	movl	$ " _V(MTX_UNOWNED) ",%%ecx;"				\
@@ -571,16 +583,16 @@ char	STR_mtx_exit_fmt[] = "REL %s [%x] at %s:%d r=%d";
 char	STR_mtx_try_enter_fmt[] = "TRY_ENTER %s [%x] at %s:%d result=%d";
 #endif
 char	STR_mtx_bad_type[] = "((type) & (MTX_NORECURSE | MTX_NOSWITCH)) == 0";
-char	STR_mtx_owned[] = "mtx_owned(_mpp)";
-char	STR_mtx_recurse[] = "_mpp->mtx_recurse == 0";
-#else /* MTX_STRS */
+char	STR_mtx_owned[] = "mtx_owned(mpp)";
+char	STR_mtx_recurse[] = "mpp->mtx_recurse == 0";
+#else	/* MTX_STRS */
 extern	char STR_mtx_enter_fmt[];
 extern	char STR_mtx_bad_type[];
 extern	char STR_mtx_exit_fmt[];
 extern	char STR_mtx_owned[];
 extern	char STR_mtx_recurse[];
 extern	char STR_mtx_try_enter_fmt[];
-#endif /* MTX_STRS */
+#endif	/* MTX_STRS */
 
 #ifndef KLD_MODULE
 /*
@@ -590,9 +602,9 @@ extern	char STR_mtx_try_enter_fmt[];
  * Note: since type is usually a constant much of this code is optimized out.
  */
 _MTX_INLINE void
-mtx_enter(mtx_t *mtxp, int type)
+_mtx_enter(mtx_t *mtxp, int type, const char *file, int line)
 {
-	mtx_t	*_mpp = mtxp;
+	mtx_t	*mpp = mtxp;
 
 	/* bits only valid on mtx_exit() */
 	MPASS2(((type) & (MTX_NORECURSE | MTX_NOSWITCH)) == 0,
@@ -614,8 +626,8 @@ mtx_enter(mtx_t *mtxp, int type)
 				 * have this lock we just bump the
 				 * recursion count.
 				 */
-				if (_mpp->mtx_lock == CURTHD) {
-					_mpp->mtx_recurse++;
+				if (mpp->mtx_lock == CURTHD) {
+					mpp->mtx_recurse++;
 					break;	/* Done */
 				}
 			}
@@ -628,29 +640,29 @@ mtx_enter(mtx_t *mtxp, int type)
 				if ((type) & MTX_FIRST) {
 					ASS_IEN;
 					disable_intr();
-					_getlock_norecurse(_mpp, CURTHD,
+					_getlock_norecurse(mpp, CURTHD,
 					    (type) & MTX_HARDOPTS);
 				} else {
-					_getlock_spin_block(_mpp, CURTHD,
+					_getlock_spin_block(mpp, CURTHD,
 					    (type) & MTX_HARDOPTS);
 				}
 			} else
-				_getlock_norecurse(_mpp, CURTHD,
+				_getlock_norecurse(mpp, CURTHD,
 				    (type) & MTX_HARDOPTS);
 		} else {
 			/* Sleep locks */
 			if ((type) & MTX_RLIKELY)
-				_getlock_sleep(_mpp, CURTHD,
+				_getlock_sleep(mpp, CURTHD,
 				    (type) & MTX_HARDOPTS);
 			else
-				_getlock_norecurse(_mpp, CURTHD,
+				_getlock_norecurse(mpp, CURTHD,
 				    (type) & MTX_HARDOPTS);
 		}
 	} while (0);
-	WITNESS_ENTER(_mpp, type);
+	WITNESS_ENTER(mpp, type);
 	CTR5(KTR_LOCK, STR_mtx_enter_fmt,
-	    (_mpp)->mtx_description, (_mpp), __FILE__, __LINE__,
-	    (_mpp)->mtx_recurse);
+	    mpp->mtx_description, mpp, file, line,
+	    mpp->mtx_recurse);
 }
 
 /*
@@ -659,22 +671,22 @@ mtx_enter(mtx_t *mtxp, int type)
  * XXX DOES NOT HANDLE RECURSION
  */
 _MTX_INLINE int
-mtx_try_enter(mtx_t *mtxp, int type)
+_mtx_try_enter(mtx_t *mtxp, int type, const char *file, int line)
 {
-	mtx_t	*const _mpp = mtxp;
-	int	_rval;
+	mtx_t	*const mpp = mtxp;
+	int	rval;
 
-	_rval = atomic_cmpset_int(&_mpp->mtx_lock, MTX_UNOWNED, CURTHD);
+	rval = atomic_cmpset_int(&mpp->mtx_lock, MTX_UNOWNED, CURTHD);
 #ifdef SMP_DEBUG
-	if (_rval && (_mpp)->mtx_witness != NULL) {
-		ASS((_mpp)->mtx_recurse == 0);
-		witness_try_enter(_mpp, type,  __FILE__, __LINE__);
+	if (rval && mpp->mtx_witness != NULL) {
+		ASS(mpp->mtx_recurse == 0);
+		witness_try_enter(mpp, type, file, line);
 	}
 #endif
 	CTR5(KTR_LOCK, STR_mtx_try_enter_fmt,
-	    (_mpp)->mtx_description, (_mpp), __FILE__, __LINE__, _rval);
+	    mpp->mtx_description, mpp, file, line, rval);
 
-	return _rval;
+	return rval;
 }
 
 #define	mtx_legal2block()	(read_eflags() & 0x200)
@@ -683,36 +695,36 @@ mtx_try_enter(mtx_t *mtxp, int type)
  * Release lock m.
  */
 _MTX_INLINE void
-mtx_exit(mtx_t *mtxp, int type)
+_mtx_exit(mtx_t *mtxp, int type, const char *file, int line)
 {
-	mtx_t	*const _mpp = mtxp;
+	mtx_t	*const mpp = mtxp;
 
-	MPASS2(mtx_owned(_mpp), STR_mtx_owned);
-	WITNESS_EXIT(_mpp, type);
+	MPASS2(mtx_owned(mpp), STR_mtx_owned);
+	WITNESS_EXIT(mpp, type);
 	CTR5(KTR_LOCK, STR_mtx_exit_fmt,
-	    (_mpp)->mtx_description, (_mpp), __FILE__, __LINE__,
-	    (_mpp)->mtx_recurse);
+	    mpp->mtx_description, mpp, file, line,
+	    mpp->mtx_recurse);
 	if ((type) & MTX_SPIN) {
 		if ((type) & MTX_NORECURSE) {
-			MPASS2(_mpp->mtx_recurse == 0, STR_mtx_recurse);
-			atomic_cmpset_int(&_mpp->mtx_lock, _mpp->mtx_lock,
+			MPASS2(mpp->mtx_recurse == 0, STR_mtx_recurse);
+			atomic_cmpset_int(&mpp->mtx_lock, mpp->mtx_lock,
 			    MTX_UNOWNED);
 			if (((type) & MTX_TOPHALF) == 0) {
 				if ((type) & MTX_FIRST) {
 					ASS_IDIS;
 					enable_intr();
 				} else
-					write_eflags(_mpp->mtx_savefl);
+					write_eflags(mpp->mtx_savefl);
 			}
 		} else {
 			if ((type) & MTX_TOPHALF)
-				_exitlock_spin(_mpp,,);
+				_exitlock_spin(mpp,,);
 			else {
 				if ((type) & MTX_FIRST) {
 					ASS_IDIS;
-					_exitlock_spin(_mpp,, "sti");
+					_exitlock_spin(mpp,, "sti");
 				} else {
-					_exitlock_spin(_mpp,
+					_exitlock_spin(mpp,
 					    "pushl %3", "popfl");
 				}
 			}
@@ -720,16 +732,16 @@ mtx_exit(mtx_t *mtxp, int type)
 	} else {
 		/* Handle sleep locks */
 		if ((type) & MTX_RLIKELY)
-			_exitlock(_mpp, CURTHD, (type) & MTX_HARDOPTS);
+			_exitlock(mpp, CURTHD, (type) & MTX_HARDOPTS);
 		else {
-			_exitlock_norecurse(_mpp, CURTHD,
+			_exitlock_norecurse(mpp, CURTHD,
 			    (type) & MTX_HARDOPTS);
 		}
 	}
 }
 
 #endif	/* KLD_MODULE */
-#endif /* _KERNEL */
+#endif	/* _KERNEL */
 
 #else	/* !LOCORE */
 
@@ -742,7 +754,7 @@ mtx_exit(mtx_t *mtxp, int type)
 #define	MTX_EXIT(lck, reg)						\
 	movl	$ MTX_UNOWNED,lck+MTX_LOCK;
 
-#else /* I386_CPU */
+#else	/* I386_CPU */
 
 #define MTX_ENTER(reg, lck)						\
 9:	movl	$ MTX_UNOWNED,%eax;					\
@@ -781,6 +793,6 @@ mtx_exit(mtx_t *mtxp, int type)
 	cmpxchgl reg,lck+MTX_LOCK;					\
 8:
 
-#endif /* I386_CPU */
-#endif /* !LOCORE */
-#endif /* __MACHINE_MUTEX_H */
+#endif	/* I386_CPU */
+#endif	/* !LOCORE */
+#endif	/* __MACHINE_MUTEX_H */
