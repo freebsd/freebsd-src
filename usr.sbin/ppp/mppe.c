@@ -127,6 +127,7 @@ MPPEReduceSessionKey(struct mppe_state *mp)
   case 56:
     mp->sesskey[0] = 0xd1;
   case 128:
+    break;
   }
 }
 
