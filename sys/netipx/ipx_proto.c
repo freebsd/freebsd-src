@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_proto.c
  *
- * $Id: ipx_proto.c,v 1.3 1995/11/04 09:03:18 julian Exp $
+ * $Id: ipx_proto.c,v 1.4 1996/01/05 20:47:05 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -55,7 +55,7 @@
 
 struct protosw ipxsw[] = {
 { 0,		&ipxdomain,	0,		0,
-  0,		ipx_output,	0,		0,
+  0,		0,		0,		0,
   0,
   ipx_init,	0,		0,		0
 },
@@ -65,22 +65,22 @@ struct protosw ipxsw[] = {
   0,		0,		0,		0
 },
 { SOCK_STREAM,	&ipxdomain,	IPXPROTO_SPX,	PR_CONNREQUIRED|PR_WANTRCVD,
-  spx_input,	0,		spx_ctlinput,	spx_ctloutput,
+  0,		0,		spx_ctlinput,	spx_ctloutput,
   spx_usrreq,
   spx_init,	spx_fasttimo,	spx_slowtimo,	0
 },
 { SOCK_SEQPACKET,&ipxdomain,	IPXPROTO_SPX,	PR_CONNREQUIRED|PR_WANTRCVD|PR_ATOMIC,
-  spx_input,	0,		spx_ctlinput,	spx_ctloutput,
+  0,		0,		spx_ctlinput,	spx_ctloutput,
   spx_usrreq_sp,
   0,		0,		0,		0
 },
 { SOCK_RAW,	&ipxdomain,	IPXPROTO_RAW,	PR_ATOMIC|PR_ADDR,
-  ipx_input,	ipx_output,	0,		ipx_ctloutput,
+  0,		0,		0,		ipx_ctloutput,
   ipx_raw_usrreq,
   0,		0,		0,		0
 },
 { SOCK_RAW,	&ipxdomain,	IPXPROTO_ERROR,	PR_ATOMIC|PR_ADDR,
-  ipx_ctlinput,	ipx_output,	0,		ipx_ctloutput,
+  0,		0,		0,		ipx_ctloutput,
   ipx_raw_usrreq,
   0,		0,		0,		0
 },
