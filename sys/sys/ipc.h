@@ -50,8 +50,6 @@
 #ifndef _SYS_IPC_H_
 #define _SYS_IPC_H_
 
-typedef	long	key_t;	/* XXX should be in types.h */
-
 struct ipc_perm {
 	ushort	cuid;	/* creator user id */
 	ushort	cgid;	/* creator group id */
@@ -85,6 +83,18 @@ struct ipc_perm {
 #define	IXSEQ_TO_IPCID(ix,perm)	(((perm.seq) << 16) | (ix & 0xffff))
 
 int	ipcperm __P((struct ucred *,struct ipc_perm *,int));
+#else /* ! KERNEL */
+
+/* XXX doesn't really belong here, but has been historical practice in SysV. */
+
+#ifndef _POSIX_SOURCE
+#include <sys/cdefs.h>
+
+__BEGIN_DECLS
+key_t	ftok __P((const char *, int));
+__END_DECLS
+#endif /* ! POSIX */
+
 #endif /* KERNEL */
 
 #endif /* !_SYS_IPC_H_ */
