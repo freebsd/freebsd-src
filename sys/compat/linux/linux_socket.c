@@ -40,7 +40,9 @@
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/fcntl.h>
+#include <sys/file.h>
 #include <sys/socket.h>
+#include <sys/socketvar.h>
 #include <sys/uio.h>
 
 #include <netinet/in.h>
@@ -392,6 +394,8 @@ linux_connect(struct proc *p, struct linux_connect_args *args)
 		caddr_t name;
 		int namelen;
 	} */ bsd_args;
+	struct socket *so;
+	struct file *fp;
 	int error;
 
 #ifdef __alpha__
@@ -405,59 +409,25 @@ linux_connect(struct proc *p, struct linux_connect_args *args)
 	bsd_args.name = (caddr_t)linux_args.name;
 	bsd_args.namelen = linux_args.namelen;
 	error = connect(p, &bsd_args);
-	if (error == EISCONN) {
-		/*
-		 * Linux doesn't return EISCONN the first time it occurs,
-		 * when on a non-blocking socket. Instead it returns the
-		 * error getsockopt(SOL_SOCKET, SO_ERROR) would return on BSD.
-		 */
-		struct fcntl_args /* {
-			int fd;
-			int cmd;
-			int arg;
-		} */ bsd_fcntl_args;
-		struct getsockopt_args /* {
-			int s;
-			int level;
-			int name;
-			caddr_t val;
-			int *avalsize;
-		} */ bsd_getsockopt_args;
-		void *status, *statusl;
-		int stat, statl = sizeof stat;
-		caddr_t sg;
+	if (error != EISCONN)
+		return (error);
 
-		/* Check for non-blocking */
-		bsd_fcntl_args.fd = linux_args.s;
-		bsd_fcntl_args.cmd = F_GETFL;
-		bsd_fcntl_args.arg = 0;
-		error = fcntl(p, &bsd_fcntl_args);
-		if (error == 0 && (p->p_retval[0] & O_NONBLOCK)) {
-			sg = stackgap_init();
-			status = stackgap_alloc(&sg, sizeof stat);
-			statusl = stackgap_alloc(&sg, sizeof statusl);
-
-			if ((error = copyout(&statl, statusl, sizeof statl)))
-				return (error);
-
-			bsd_getsockopt_args.s = linux_args.s;
-			bsd_getsockopt_args.level = SOL_SOCKET;
-			bsd_getsockopt_args.name = SO_ERROR;
-			bsd_getsockopt_args.val = status;
-			bsd_getsockopt_args.avalsize = statusl;
-
-			error = getsockopt(p, &bsd_getsockopt_args);
-			if (error)
-				return (error);
-
-			if ((error = copyin(status, &stat, sizeof stat)))
-				return (error);
-
-			p->p_retval[0] = stat;
-			return (0);
-		}
+	/*
+	 * Linux doesn't return EISCONN the first time it occurs,
+	 * when on a non-blocking socket. Instead it returns the
+	 * error getsockopt(SOL_SOCKET, SO_ERROR) would return on BSD.
+	 */
+	error = holdsock(p->p_fd, linux_args.s, &fp);
+	if (error)
+		return (error);
+	error = EISCONN;
+	if (fp->f_flag & FNONBLOCK) {
+		so = (struct socket *)fp->f_data;
+		if ((u_int)so->so_emuldata != 0)
+			error = so->so_error;
+		so->so_emuldata = (void *)1;
 	}
-
+	fdrop(fp, p);
 	return (error);
 }
 
