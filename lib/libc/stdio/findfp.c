@@ -71,6 +71,9 @@ static struct glue uglue = { NULL, FOPEN_MAX - 3, usual };
 
 static struct __sFILEX __sFX[3];
 
+#if LIBC_MAJOR >= 6
+static
+#endif
 FILE __sF[3] = {
 	std(__SRD, STDIN_FILENO),
 	std(__SWR, STDOUT_FILENO),
@@ -84,18 +87,9 @@ FILE __sF[3] = {
  * symbols and expects libc to provide them.  We only have need to support
  * i386 and alpha because they are the only "old" systems we have deployed.
  */
-#if defined(__i386__)
-#define FILE_SIZE 88
-#elif defined(__alpha__)
-#define FILE_SIZE 152
-#endif
-#ifndef FILE_SIZE
-#error "You must define FILE_SIZE for this platform"
-#endif
-#define X(loc, sym)	__strong_reference(loc, sym)
-X(__sF + FILE_SIZE * 0, __stdin);
-X(__sF + FILE_SIZE * 1, __stdout);
-X(__sF + FILE_SIZE * 2, __stderr);
+FILE *__stdinp = &__sF[0];
+FILE *__stdoutp = &__sF[1];
+FILE *__stderrp = &__sF[2];
 
 struct glue __sglue = { &uglue, 3, __sF };
 static struct glue *lastglue = &uglue;
@@ -233,14 +227,11 @@ _cleanup()
 /*
  * __sinit() is called whenever stdio's internal variables must be set up.
  */
-#define SIZEMSG "WARNING: FILE_SIZE != sizeof(FILE)\n"
 void
 __sinit()
 {
 	int	i;
 
-	if (FILE_SIZE != sizeof(FILE))
-		write(2, SIZEMSG, sizeof(SIZEMSG) - 1);
 	THREAD_LOCK();
 	if (__sdidinit == 0) {
 		/* Set _extra for the usual suspects. */
