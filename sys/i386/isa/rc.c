@@ -39,6 +39,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/ipl.h>
 #include <sys/kernel.h>
 #include <sys/tty.h>
 #include <sys/proc.h>
@@ -184,7 +185,7 @@ static int  rc_modctl           __P((struct rc_chans *, int, int));
 static void rc_start            __P((struct tty *));
 static void rc_stop              __P((struct tty *, int rw));
 static int  rc_param            __P((struct tty *, struct termios *));
-static swihand_t rcpoll;
+static void rcpoll		__P((void *));
 static void rc_reinit           __P((struct rc_softc *));
 #ifdef RCDEBUG
 static void printrcflags();
@@ -559,7 +560,7 @@ out:
 }
 
 /* Handle delayed events. */
-void rcpoll()
+void rcpoll(void *arg)
 {
 	register struct rc_chans *rc;
 	register struct rc_softc *rcb;
@@ -1423,7 +1424,7 @@ rc_wakeup(chan)
 		int	s;
 
 		s = splsofttty();
-		rcpoll();
+		rcpoll(NULL);
 		splx(s);
 	}
 }
