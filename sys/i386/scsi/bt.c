@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id$
+ *      $Id: bt.c,v 1.1 1995/12/12 08:57:21 gibbs Exp $
  */
 
 /*
@@ -217,15 +217,34 @@ struct bt_sync_value {
 static int		bt_debug = 0;
 SYSCTL_INT(_debug, OID_AUTO, bt_debug, CTLFLAG_RW, &bt_debug, 0, "");
 
-static int32		bt_scsi_cmd();
-static int		bt_poll __P((struct bt_data *bt, struct scsi_xfer *xs, struct bt_ccb *ccb));
-static void		bt_timeout(void *);
-static void		bt_inquire_setup_information();
-static void		bt_done();
-static void		btminphys();
-static u_int32		bt_adapter_info();
-static struct bt_ccb	*bt_get_ccb();
-static struct bt_ccb	*bt_ccb_phys_kv();
+static u_int32	bt_adapter_info __P((int unit));
+static struct bt_ccb *
+		bt_ccb_phys_kv __P((struct bt_data *bt, physaddr ccb_phys));
+#ifdef notyet
+static int	bt_cmd __P((int unit, int icnt, int ocnt, int wait,
+			    u_char *retval, unsigned opcode, ...));
+#else
+static int	bt_cmd();
+#endif
+static void	bt_done __P((struct bt_data *bt, struct bt_ccb *ccb));
+static void	bt_free_ccb __P((struct bt_data *bt, struct bt_ccb *ccb,
+				 int flags));
+static struct bt_ccb *
+		bt_get_ccb __P((struct bt_data *bt, int flags));
+static void	bt_inquire_setup_information __P((struct bt_data *bt,
+						  struct bt_ext_info *info));
+static void	btminphys __P((struct buf *bp));
+static int	bt_poll __P((struct bt_data *bt, struct scsi_xfer *xs,
+			     struct bt_ccb *ccb));
+#ifdef UTEST
+static void	bt_print_active_ccbs __P((int unit));
+static void	bt_print_ccb __P((struct bt_ccb *ccb));
+#endif
+static int32	bt_scsi_cmd __P((struct scsi_xfer *xs));
+static BT_MBO *	bt_send_mbo __P((struct bt_data *bt, int flags, int cmd,
+				 struct bt_ccb *ccb));
+static timeout_t
+		bt_timeout;
 
 u_long bt_unit = 0;
 static int btprobing = 0;
@@ -1356,7 +1375,7 @@ bt_scsi_cmd(xs)
 			printf("bt%d: bt_scsi_cmd, more than %d DMA segs\n",
 			    unit, BT_NSEG);
 			xs->error = XS_DRIVER_STUFFUP;
-			bt_free_ccb(unit, ccb, flags);
+			bt_free_ccb(bt, ccb, flags);
 			return (HAD_ERROR);
 		}
 	} else {		/* No data xfer, use non S/G values */
@@ -1501,12 +1520,11 @@ bt_timeout(void *arg1)
 		printf("bt%d: Abort Operation has timed out\n", unit);
 		ccb->xfer->retries = 0;		/* I MEAN IT ! */
 		ccb->host_stat = BT_ABORTED;
-		bt_done(unit, ccb);
+		bt_done(bt, ccb);
 	} else {
 		/* abort the operation that has timed out */
 		printf("bt%d: Try to abort\n", unit);
-		bt_send_mbo(unit, ~SCSI_NOMASK,
-		    BT_MBO_ABORT, ccb);
+		bt_send_mbo(bt, ~SCSI_NOMASK, BT_MBO_ABORT, ccb);
 		/* 2 secs for the abort */
 		ccb->flags = CCB_ABORTED;
 		timeout(bt_timeout, (caddr_t)ccb, 2 * hz);
