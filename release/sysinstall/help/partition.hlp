@@ -97,31 +97,6 @@ parts.  Take a typical name like ``/dev/da0s1a'':
               da0s1b          <swap space>
               da0s1e          /usr
 
-      Because of historical convention, there is also a short-cut,
-      or "compatibility slice", that is maintained for easy access
-      to the *first* FreeBSD slice on a disk.  This gives some
-      backwards compatibility to utilities that still may not know
-      how to deal with the new slice scheme.
-
-      The compatibility slice names for our filesystem above would
-      also look like:
-
-              Name            Mountpoint
-              ----            ----------
-              da0a            /
-              da0b            <swap space>
-              da0e            /usr
-
-      Again, let it be noted: FreeBSD automatically maps the
-      compatibility slice to the first FreeBSD slice it finds
-      (in this case, da0s1).  You may have multiple FreeBSD slices on a
-      drive, but only the first one will be mapped to the compatibility
-      slice!
-
-      The compatibility slice has essentially been phased out, but
-      it's important to be aware of when looking at or upgrading
-      older systems.
-
 Once you understand all this, then the purpose of the label editor
 becomes fairly clear:  You're carving up the FreeBSD slices displayed
 at the top of the screen into smaller pieces, which are displayed in
@@ -141,4 +116,3 @@ Install menu or (W)rite directly from this one.  You're working with
 what is essentially a copy of the disk label(s), both here and in the
 FDISK Partition Editor, and the actual on-disk labels won't be
 affected by any changes you make until you explicitly say so.
-

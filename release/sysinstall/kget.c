@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kget.c,v 1.2 1999/02/15 07:07:37 jkh Exp $
+ * $Id: kget.c,v 1.3 1999/02/16 01:58:04 jkh Exp $
  */
 
 #include "sysinstall.h"
@@ -101,7 +101,8 @@ kget(char *out)
     /* Now, print the changes to PnP override table */
     i = sysctlbyname(mib2, NULL, &len, NULL, NULL);
     if (i) {
-	msgDebug("kget: error sizing buffer\n");
+	/* Possibly our kernel doesn't support PnP. Ignore the error. */
+	msgDebug("kget: can't get PnP data - skipping...\n");
 	goto bail;
     }
     buf = (char *)malloc(len * sizeof(char));
