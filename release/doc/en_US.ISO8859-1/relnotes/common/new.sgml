@@ -145,6 +145,13 @@
     the timing of samples, in order to avoid synchronization with
     processes that run periodically.</para>
 
+    <para>If a debugging kernel with modules is being built
+    (i.e. using <literal>makeoptions DEBUG=-g</literal>), the modules
+    will now be built with debugging support as well, for
+    completeness.  A side effect of this change is that modules built
+    and installed with debugging kernels will now occupy more space on
+    disk than they did previously.</para>
+
     <sect3>
       <title>Processor/Motherboard Support</title>
 
