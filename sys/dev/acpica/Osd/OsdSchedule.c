@@ -271,6 +271,6 @@ AcpiOsGetThreadId (void)
 {
     /* XXX do not add FUNCTION_TRACE here, results in recursive call */
 
-    KASSERT(curproc != NULL, (__func__ ": curproc is NULL!"));
+    KASSERT(curproc != NULL, ("%s: curproc is NULL!", __func__));
     return(curproc->p_pid + 1);	/* can't return 0 */
 }
