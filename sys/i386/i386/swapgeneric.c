@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)swapgeneric.c	5.5 (Berkeley) 5/9/91
- *	$Id: swapgeneric.c,v 1.9 1995/04/03 00:25:06 wpaul Exp $
+ *	$Id: swapgeneric.c,v 1.11 1995/08/19 15:59:35 joerg Exp $
  */
 
 #include <sys/param.h>
@@ -56,6 +56,7 @@
 #include "mcd.h"
 #include "scd.h"
 #include "matcd.h"
+#include "od.h"
 
 /*
  * Generic configuration;  all in one
@@ -106,6 +107,9 @@ struct	genericconf {
 #endif
 #if NMATCD > 0
 	{ "matcd",	makedev(17,0x00000000),	},
+#endif
+#if NOD > 0
+	{ "od",		makedev(19,0x00000000),	},
 #endif
 	{ 0 },
 };
