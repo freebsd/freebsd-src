@@ -215,7 +215,7 @@ static int si_debug = 0;	/* data, not bss, so it's patchable */
 
 SYSCTL_INT(_machdep, OID_AUTO, si_debug, CTLFLAG_RW, &si_debug, 0, "");
 
-static struct tty *si_tty;
+static struct tty *si__tty;
 
 /* where the firmware lives; defined in si2_z280.c and si3_t225.c */
 /* old: si2_z280.c */
@@ -1012,7 +1012,7 @@ mem_fail:
 	if (tp == 0)
 		goto mem_fail;
 	bzero(tp, sizeof(*tp) * nport);
-	si_tty = tp;
+	si__tty = tp;
 
 	/*
 	 * Scan round the ports again, this time initialising.
