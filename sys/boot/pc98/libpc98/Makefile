@@ -10,7 +10,6 @@ SRCS=	bioscd.c biosdisk.c biosmem.c biospnp.c biospci.c biossmap.c \
 	gatea20.c i386_copy.c i386_module.c nullconsole.c pxe.c pxetramp.s \
 	time.c vidconsole.c
 
-CFLAGS+=	-ffreestanding
 BOOT_COMCONSOLE_PORT?= 0x238
 CFLAGS+=	-DCOMPORT=${BOOT_COMCONSOLE_PORT}
 
