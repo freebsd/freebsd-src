@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: utils.c,v 1.8 1994/10/22 02:32:16 ache Exp $
+ * $Id: utils.c,v 1.9 1994/10/22 02:35:09 ache Exp $
  *
  */
 
@@ -50,10 +50,9 @@ Fatal(char *fmt, ...)
 	va_start(ap,fmt);
 	vsnprintf(p, 2048, fmt, ap);
 	va_end(ap);
-	if (dialog_active) {
+	if (dialog_active)
 		dialog_msgbox("Fatal", p, 12, 75, 1);
-		end_dialog();
-	} else
+	else
 		fprintf(stderr, "Fatal -- %s", p);
 	free(p);
 	ExitSysinstall();
