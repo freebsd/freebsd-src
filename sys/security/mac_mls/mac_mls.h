@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 1999-2002 Robert N. M. Watson
- * Copyright (c) 2001-2002 Networks Associates Technology, Inc.
+ * Copyright (c) 2001-2004 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed by Robert Watson for the TrustedBSD Project.
@@ -44,9 +44,9 @@
 
 #define	MAC_MLS_LABEL_NAME		"mls"
 
-#define	MAC_MLS_FLAG_SINGLE	0x00000001	/* mm_single initialized */
+#define	MAC_MLS_FLAG_EFFECTIVE	0x00000001	/* mm_effective initialized */
 #define	MAC_MLS_FLAG_RANGE	0x00000002	/* mm_range* initialized */
-#define	MAC_MLS_FLAGS_BOTH	(MAC_MLS_FLAG_SINGLE | MAC_MLS_FLAG_RANGE)
+#define	MAC_MLS_FLAGS_BOTH	(MAC_MLS_FLAG_EFFECTIVE | MAC_MLS_FLAG_RANGE)
 
 #define	MAC_MLS_TYPE_UNDEF	0	/* Undefined */
 #define	MAC_MLS_TYPE_LEVEL	1	/* Hierarchal level with mm_level. */
@@ -78,14 +78,14 @@ struct mac_mls_element {
 };
 
 /*
- * MLS labels consist of two components: a single label, and a label
+ * MLS labels consist of two components: an effective label, and a label
  * range.  Depending on the context, one or both may be used; the mb_flags
  * field permits the provider to indicate what fields are intended for
  * use.
  */
 struct mac_mls {
 	int			mm_flags;
-	struct mac_mls_element	mm_single;
+	struct mac_mls_element	mm_effective;
 	struct mac_mls_element	mm_rangelow, mm_rangehigh;
 };
 
