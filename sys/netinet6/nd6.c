@@ -2010,6 +2010,9 @@ nd6_need_cache(ifp)
 	case IFT_ETHER:
 	case IFT_FDDI:
 	case IFT_IEEE1394:
+#ifdef IFT_L2VLAN
+	case IFT_L2VLAN:
+#endif
 #ifdef IFT_IEEE80211
 	case IFT_IEEE80211:
 #endif
@@ -2035,6 +2038,9 @@ nd6_storelladdr(ifp, rt, m, dst, desten)
 		switch (ifp->if_type) {
 		case IFT_ETHER:
 		case IFT_FDDI:
+#ifdef IFT_L2VLAN
+	case IFT_L2VLAN:
+#endif
 #ifdef IFT_IEEE80211
 		case IFT_IEEE80211:
 #endif
