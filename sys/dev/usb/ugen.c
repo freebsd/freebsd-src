@@ -73,7 +73,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/poll.h>
 #include <sys/sysctl.h>
 #include <sys/uio.h>
-#include <sys/vnode.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -721,7 +720,7 @@ ugen_do_read(struct ugen_softc *sc, int endpt, struct uio *uio, int flag)
 		/* Block until activity occurred. */
 		s = splusb();
 		while (sce->q.c_cc == 0) {
-			if (flag & IO_NDELAY) {
+			if (flag & O_NONBLOCK) {
 				splx(s);
 				return (EWOULDBLOCK);
 			}
@@ -785,7 +784,7 @@ ugen_do_read(struct ugen_softc *sc, int endpt, struct uio *uio, int flag)
 	case UE_ISOCHRONOUS:
 		s = splusb();
 		while (sce->cur == sce->fill) {
-			if (flag & IO_NDELAY) {
+			if (flag & O_NONBLOCK) {
 				splx(s);
 				return (EWOULDBLOCK);
 			}
