@@ -40,11 +40,10 @@ __FBSDID("$FreeBSD$");
  * sparc64 yet, they may need this glue code too.
  */
 
-int
-isa_dma_init(int chan, u_int bouncebufsize, int flag)
+void
+isa_dmainit(int chan, u_int bouncebufsize)
 {
 
-	return (0);
 }
 
 int
