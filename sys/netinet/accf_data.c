@@ -29,6 +29,7 @@
 #define ACCEPT_FILTER_MOD
 
 #include <sys/param.h>
+#include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/kernel.h>
