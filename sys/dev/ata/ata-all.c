@@ -611,7 +611,9 @@ ata_boot_attach(void)
 	free(ata_delayed_attach, M_TEMP);
 	ata_delayed_attach = NULL;
     }
+#ifdef DEV_ATADISK
     ata_raid_attach();
+#endif
 }
 
 static void
