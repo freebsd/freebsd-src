@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.316 1999/08/09 10:34:36 phk Exp $
+ *	$Id: syscons.c,v 1.317 1999/08/13 16:17:54 dt Exp $
  */
 
 #include "sc.h"
@@ -1444,7 +1444,9 @@ sccnputc(dev_t dev, int c)
     u_char buf[1];
     scr_stat *scp = sc_console;
     term_stat save = scp->term;
+#ifndef SC_NO_HISTORY
     struct tty *tp;
+#endif /* !SC_NO_HISTORY */
     int s;
 
     /* assert(sc_console != NULL) */
@@ -3561,7 +3563,9 @@ static u_int
 scgetc(sc_softc_t *sc, u_int flags)
 {
     scr_stat *scp;
+#ifndef SC_NO_HISTORY
     struct tty *tp;
+#endif
     u_int c;
     int this_scr;
     int f;
