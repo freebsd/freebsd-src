@@ -54,6 +54,6 @@
 
 typedef struct __sigset {
 	__uint32_t __bits[_SIG_WORDS];
-} sigset_t;
+} __sigset_t;
 
 #endif /* !_SYS__SIGSET_H_ */
