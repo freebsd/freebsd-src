@@ -1630,7 +1630,7 @@ hw.pcic.irq="0"</programlisting>
 
     <para>&man.vidcontrol.1; now supports a <option>-C</option> option
     to clear the history buffer for a given tty, as well as a
-    <option>-h</option> to set the size of the history buffer. &merged;</para>
+    <option>-h</option> option to set the size of the history buffer. &merged;</para>
 
     <para>devinfo, a simple tool to print the device tree and resource usage by
     devices, has been added.</para>
