@@ -234,7 +234,7 @@ windrv_load(mod, img, len)
 	image_optional_header	opt_hdr;
 	driver_entry		entry;
 	struct drvdb_ent	*new;
-	struct driver_object	*dobj;
+	struct driver_object	*drv;
 	int			status;
 
 	/*
@@ -277,43 +277,43 @@ windrv_load(mod, img, len)
 	if (new == NULL)
 		return (ENOMEM);
 
-	dobj = malloc(sizeof(device_object), M_DEVBUF, M_NOWAIT|M_ZERO);
-	if (dobj == NULL) {
+	drv = malloc(sizeof(driver_object), M_DEVBUF, M_NOWAIT|M_ZERO);
+	if (drv == NULL) {
 		free (new, M_DEVBUF);
 		return (ENOMEM);
 	}
 
 	/* Allocate a driver extension structure too. */
 
-	dobj->dro_driverext = malloc(sizeof(driver_extension),
+	drv->dro_driverext = malloc(sizeof(driver_extension),
 	    M_DEVBUF, M_NOWAIT|M_ZERO);
 
-	if (dobj->dro_driverext == NULL) {
+	if (drv->dro_driverext == NULL) {
 		free(new, M_DEVBUF);
-		free(dobj, M_DEVBUF);
+		free(drv, M_DEVBUF);
 		return(ENOMEM);
 	}
 
-	INIT_LIST_HEAD((&dobj->dro_driverext->dre_usrext));
+	INIT_LIST_HEAD((&drv->dro_driverext->dre_usrext));
 
-	dobj->dro_driverstart = (void *)img;
-	dobj->dro_driversize = len;
+	drv->dro_driverstart = (void *)img;
+	drv->dro_driversize = len;
 
-	dobj->dro_drivername.us_len = strlen(DUMMY_REGISTRY_PATH) * 2;
-        dobj->dro_drivername.us_maxlen = strlen(DUMMY_REGISTRY_PATH) * 2;
-        dobj->dro_drivername.us_buf = NULL;
+	drv->dro_drivername.us_len = strlen(DUMMY_REGISTRY_PATH) * 2;
+        drv->dro_drivername.us_maxlen = strlen(DUMMY_REGISTRY_PATH) * 2;
+        drv->dro_drivername.us_buf = NULL;
         ndis_ascii_to_unicode(DUMMY_REGISTRY_PATH,
-	    &dobj->dro_drivername.us_buf);
+	    &drv->dro_drivername.us_buf);
 
-	new->windrv_object = dobj;
+	new->windrv_object = drv;
 
 	/* Now call the DriverEntry() function. */
 
-	status = MSCALL2(entry, dobj, &dobj->dro_drivername);
+	status = MSCALL2(entry, drv, &drv->dro_drivername);
 
 	if (status != STATUS_SUCCESS) {
-		free(dobj->dro_drivername.us_buf, M_DEVBUF);
-		free(dobj, M_DEVBUF);
+		free(drv->dro_drivername.us_buf, M_DEVBUF);
+		free(drv, M_DEVBUF);
 		free(new, M_DEVBUF);
 		return(ENODEV);
 	}
