@@ -65,6 +65,32 @@ struct g_class g_concat_class = {
 
 
 /*
+ * Greatest Common Divisor.
+ */
+static u_int
+gcd(u_int a, u_int b)
+{
+	u_int c;
+
+	while (b != 0) {
+		c = a;
+		a = b;
+		b = (c % b);
+	}
+	return (a);
+}
+
+/*
+ * Least Common Multiple.
+ */
+static u_int
+lcm(u_int a, u_int b)
+{
+
+	return ((a * b) / gcd(a, b));
+}
+
+/*
  * Return the number of valid disks.
  */
 static u_int
@@ -273,8 +299,8 @@ static void
 g_concat_check_and_run(struct g_concat_softc *sc)
 {
 	struct g_concat_disk *disk;
+	u_int no, sectorsize = 0;
 	off_t start;
-	u_int no;
 
 	if (g_concat_nvalid(sc) != sc->sc_ndisks)
 		return;
@@ -288,7 +314,14 @@ g_concat_check_and_run(struct g_concat_softc *sc)
 		if (sc->sc_type == G_CONCAT_TYPE_AUTOMATIC)
 			disk->d_end -= disk->d_consumer->provider->sectorsize;
 		start = disk->d_end;
+		if (no == 0)
+			sectorsize = disk->d_consumer->provider->sectorsize;
+		else {
+			sectorsize = lcm(sectorsize,
+			    disk->d_consumer->provider->sectorsize);
+		}
 	}
+	sc->sc_provider->sectorsize = sectorsize;
 	/* We have sc->sc_disks[sc->sc_ndisks - 1].d_end in 'start'. */
 	sc->sc_provider->mediasize = start;
 	g_error_provider(sc->sc_provider, 0);
@@ -366,6 +399,7 @@ g_concat_add_disk(struct g_concat_softc *sc, struct g_provider *pp, u_int no)
 	if (sc->sc_type == G_CONCAT_TYPE_AUTOMATIC) {
 		struct g_concat_metadata md;
 
+		/* Re-read metadata. */
 		error = g_concat_read_metadata(cp, &md);
 		if (error != 0)
 			goto fail;
@@ -399,7 +433,7 @@ fail:
 
 static struct g_geom *
 g_concat_create(struct g_class *mp, const struct g_concat_metadata *md,
-    u_int type, size_t sectorsize)
+    u_int type)
 {
 	struct g_provider *pp;
 	struct g_concat_softc *sc;
@@ -452,10 +486,9 @@ g_concat_create(struct g_class *mp, const struct g_concat_metadata *md,
 
 	pp = g_new_providerf(gp, "%s", gp->name);
 	sc->sc_provider = pp;
-	pp->sectorsize = sectorsize;
 	/*
 	 * Don't run provider yet (by setting its error to 0), because we're
-	 * not aware of its mediasize.
+	 * not aware of its media and sector size.
 	 */
 
 	G_CONCAT_DEBUG(0, "Device %s created (id=%u).", gp->name, sc->sc_id);
@@ -510,8 +543,8 @@ g_concat_destroy(struct g_concat_softc *sc, boolean_t force)
 }
 
 static int
-g_concat_destroy_geom(struct gctl_req *req, struct g_class *mp,
-    struct g_geom *gp)
+g_concat_destroy_geom(struct gctl_req *req __unused,
+    struct g_class *mp __unused, struct g_geom *gp)
 {
 	struct g_concat_softc *sc;
 
@@ -580,8 +613,7 @@ g_concat_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 			return (NULL);
 		}
 	} else {
-		gp = g_concat_create(mp, &md, G_CONCAT_TYPE_AUTOMATIC,
-		    pp->sectorsize);
+		gp = g_concat_create(mp, &md, G_CONCAT_TYPE_AUTOMATIC);
 		if (gp == NULL) {
 			G_CONCAT_DEBUG(0, "Cannot create device %s.concat.",
 			    md.md_name);
@@ -610,13 +642,12 @@ g_concat_ctl_create(struct gctl_req *req, struct g_class *mp)
 	struct g_concat_softc *sc;
 	struct g_geom *gp;
 	struct sbuf *sb;
-	uint32_t sectorsize = 0;
 	char buf[20];
 
 	g_topology_assert();
 	md = gctl_get_paraml(req, "metadata", sizeof(*md));
 	if (md == NULL) {
-		gctl_error(req, "No 'metadata' argument");
+		gctl_error(req, "No '%s' argument.", "metadata");
 		return;
 	}
 	if (md->md_all <= 1) {
@@ -630,17 +661,15 @@ g_concat_ctl_create(struct gctl_req *req, struct g_class *mp)
 		snprintf(buf, sizeof(buf), "disk%u", no);
 		pp = gctl_get_provider(req, buf);
 		if (pp == NULL) {
-			G_CONCAT_DEBUG(1, "Disk %u is invalid.", no);
-			gctl_error(req, "Disk %u is invalid", no);
+			G_CONCAT_DEBUG(1, "Disk %u is invalid.", no + 1);
+			gctl_error(req, "Disk %u is invalid.", no + 1);
 			return;
 		}
-		if (no == 0)
-			sectorsize = pp->sectorsize;
 	}
 
-	gp = g_concat_create(mp, md, G_CONCAT_TYPE_MANUAL, sectorsize);
+	gp = g_concat_create(mp, md, G_CONCAT_TYPE_MANUAL);
 	if (gp == NULL) {
-		gctl_error(req, "Can't configure %s.concat", md->md_name);
+		gctl_error(req, "Can't configure %s.concat.", md->md_name);
 		return;
 	}
 
@@ -673,9 +702,10 @@ g_concat_ctl_destroy(struct gctl_req *req, struct g_geom *gp)
 	int *force, error;
 
 	g_topology_assert();
+
 	force = gctl_get_paraml(req, "force", sizeof(*force));
 	if (force == NULL) {
-		gctl_error(req, "No 'force' argument");
+		gctl_error(req, "No '%s' argument.", "force");
 		return;
 	}
 	sc = gp->softc;
@@ -713,8 +743,7 @@ g_concat_config(struct gctl_req *req, struct g_class *mp, const char *verb)
 		g_concat_ctl_destroy(req, gp);
 		return;
 	}
-
-	gctl_error(req, "unknown verb");
+	gctl_error(req, "Unknown verb.");
 }
 
 static void
