@@ -85,7 +85,7 @@ static void	vclean(struct vnode *vp, int flags, struct thread *td);
 static void	vlruvp(struct vnode *vp);
 static int	flushbuflist(struct buf *blist, int flags, struct vnode *vp,
 		    int slpflag, int slptimeo, int *errorp);
-static int	vcanrecycle(struct vnode *vp, struct mount **vnmpp);
+static int	vtryrecycle(struct vnode *vp);
 static void	vx_lock(struct vnode *vp);
 static void	vx_unlock(struct vnode *vp);
 static void	vgonechrl(struct vnode *vp, struct thread *td);
@@ -808,14 +808,14 @@ SYSINIT(vnlru, SI_SUB_KTHREAD_UPDATE, SI_ORDER_FIRST, kproc_start, &vnlru_kp)
 
 /*
  * Check to see if a free vnode can be recycled. If it can,
- * return it locked with the vn lock, but not interlock. Also
- * get the vn_start_write lock. Otherwise indicate the error.
+ * recycle it and return it with the vnode interlock held.
  */
 static int
-vcanrecycle(struct vnode *vp, struct mount **vnmpp)
+vtryrecycle(struct vnode *vp)
 {
 	struct thread *td = curthread;
 	vm_object_t object;
+	struct mount *vnmp;
 	int error;
 
 	/* Don't recycle if we can't get the interlock */
@@ -830,7 +830,7 @@ vcanrecycle(struct vnode *vp, struct mount **vnmpp)
 	/*
 	 * Don't recycle if its filesystem is being suspended.
 	 */
-	if (vn_start_write(vp, vnmpp, V_NOWAIT) != 0) {
+	if (vn_start_write(vp, &vnmp, V_NOWAIT) != 0) {
 		error = EBUSY;
 		goto done;
 	}
@@ -877,6 +877,30 @@ vcanrecycle(struct vnode *vp, struct mount **vnmpp)
 			goto done;
 		}
 	}
+	/*
+	 * If we got this far, we need to acquire the interlock and see if
+	 * anyone picked up this vnode from another list.  If not, we will
+	 * mark it with XLOCK via vgonel() so that anyone who does find it
+	 * will skip over it.
+	 */
+	VI_LOCK(vp);
+	if (VSHOULDBUSY(vp) && (vp->v_iflag & VI_XLOCK) == 0) {
+		VI_UNLOCK(vp);
+		error = EBUSY;
+		goto done;
+	}
+	mtx_lock(&vnode_free_list_mtx);
+	TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
+	vp->v_iflag &= ~VI_FREE;
+	mtx_unlock(&vnode_free_list_mtx);
+	vp->v_iflag |= VI_DOOMED;
+	if (vp->v_type != VBAD) {
+		VOP_UNLOCK(vp, 0, td);
+		vgonel(vp, td);
+		VI_LOCK(vp);
+	} else
+		VOP_UNLOCK(vp, 0, td);
+	vn_finished_write(vnmp);
 	return (0);
 done:
 	VOP_UNLOCK(vp, 0, td);
@@ -893,10 +917,8 @@ getnewvnode(tag, mp, vops, vpp)
 	vop_t **vops;
 	struct vnode **vpp;
 {
-	struct thread *td = curthread;	/* XXX */
 	struct vnode *vp = NULL;
 	struct vpollinfo *pollinfo = NULL;
-	struct mount *vnmp;
 
 	mtx_lock(&vnode_free_list_mtx);
 
@@ -934,34 +956,18 @@ getnewvnode(tag, mp, vops, vpp)
 			    ("getnewvnode: free vnode isn't"));
 
 			TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
-			/*
-			 * We have to drop the free list mtx to avoid lock
-			 * order reversals with interlock.
-			 */
+			TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
 			mtx_unlock(&vnode_free_list_mtx);
-			error = vcanrecycle(vp, &vnmp);
+			error = vtryrecycle(vp);
 			mtx_lock(&vnode_free_list_mtx);
 			if (error == 0)
 				break;
-			TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
 			vp = NULL;
 		}
 	}
 	if (vp) {
 		freevnodes--;
 		mtx_unlock(&vnode_free_list_mtx);
-
-		VI_LOCK(vp);
-		vp->v_iflag |= VI_DOOMED;
-		vp->v_iflag &= ~VI_FREE;
-		if (vp->v_type != VBAD) {
-			VOP_UNLOCK(vp, 0, td);
-			vgonel(vp, td);
-			VI_LOCK(vp);
-		} else {
-			VOP_UNLOCK(vp, 0, td);
-		}
-		vn_finished_write(vnmp);
 
 #ifdef INVARIANTS
 		{
@@ -3215,7 +3221,7 @@ loop:
 		nvp = TAILQ_NEXT(vp, v_nmntvnodes);
 
 		VI_LOCK(vp);
-		if (vp->v_iflag & VI_XLOCK) {	/* XXX: what if MNT_WAIT? */
+		if (vp->v_iflag & VI_XLOCK) {
 			VI_UNLOCK(vp);
 			continue;
 		}
