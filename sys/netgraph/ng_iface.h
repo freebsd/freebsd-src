@@ -50,7 +50,6 @@
 
 /* Interface base name */
 #define NG_IFACE_IFACE_NAME		"ng"
-#define NG_IFACE_IFACE_NAME_MAX		15
 
 /* My hook names */
 #define NG_IFACE_HOOK_INET		"inet"
@@ -71,10 +70,6 @@ enum {
 	NGM_IFACE_POINT2POINT,
 	NGM_IFACE_BROADCAST,
 	NGM_IFACE_GET_IFINDEX,
-};
-
-struct ng_iface_ifname {
-	char    ngif_name[NG_IFACE_IFACE_NAME_MAX + 1];
 };
 
 #endif /* _NETGRAPH_NG_IFACE_H_ */

@@ -70,16 +70,6 @@ static ng_newhook_t	ng_sppp_newhook;
 static ng_rcvdata_t	ng_sppp_rcvdata;
 static ng_disconnect_t	ng_sppp_disconnect;
 
-/* Parse type for struct ng_sppp_ifname */
-static const struct ng_parse_fixedstring_info ng_sppp_ifname_info = {
-	NG_SPPP_IFACE_NAME_MAX + 1
-};
-
-static const struct ng_parse_type ng_sppp_ifname_type = {
-	&ng_parse_fixedstring_type,
-	&ng_sppp_ifname_info
-};
-
 /* List of commands and how to convert arguments to/from ASCII */
 static const struct ng_cmdlist ng_sppp_cmds[] = {
 	{
@@ -87,7 +77,7 @@ static const struct ng_cmdlist ng_sppp_cmds[] = {
 	  NGM_SPPP_GET_IFNAME,
 	  "getifname",
 	  NULL,
-	  &ng_sppp_ifname_type
+	  &ng_parse_string_type
 	},
 	{ 0 }
 };
@@ -252,7 +242,6 @@ ng_sppp_start (struct ifnet *ifp)
 static int
 ng_sppp_constructor (node_p node)
 {
-	char ifname[NG_SPPP_IFACE_NAME_MAX + 1];
 	struct sppp *pp;
 	priv_p priv;
 	int error = 0;
@@ -291,10 +280,9 @@ ng_sppp_constructor (node_p node)
 	pp->pp_if.if_flags = (IFF_POINTOPOINT|IFF_MULTICAST);
 
 	/* Give this node the same name as the interface (if possible) */
-	bzero (ifname, sizeof(ifname));
-	snprintf (ifname, sizeof(ifname), "%s%d", NG_SPPP_IFACE_NAME, priv->unit);
-	if (ng_name_node(node, ifname) != 0)
-		log (LOG_WARNING, "%s: can't acquire netgraph name\n", ifname);
+	if (ng_name_node(node, pp->pp_if.if_xname) != 0)
+		log (LOG_WARNING, "%s: can't acquire netgraph name\n",
+		    pp->pp_if.if_xname);
 
 	/* Attach the interface */
 	sppp_attach (&pp->pp_if);
@@ -342,19 +330,13 @@ ng_sppp_rcvmsg (node_p node, item_p item, hook_p lasthook)
 	case NGM_SPPP_COOKIE:
 		switch (msg->header.cmd) {
 		case NGM_SPPP_GET_IFNAME:
-		    {
-			struct ng_sppp_ifname *arg;
-
-			NG_MKRESPONSE (resp, msg, sizeof (*arg), M_NOWAIT);
+			NG_MKRESPONSE (resp, msg, IFNAMSIZ, M_NOWAIT);
 			if (!resp) {
 				error = ENOMEM;
 				break;
 			}
-			arg = (struct ng_sppp_ifname *)resp->data;
-			snprintf (arg->ngif_name, sizeof (arg->ngif_name),
-			    "%s", pp->pp_if.if_xname);
+			strlcpy(resp->data, pp->pp_if.if_xname, IFNAMSIZ);
 			break;
-		    }
 
 		default:
 			error = EINVAL;

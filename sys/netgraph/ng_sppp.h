@@ -27,7 +27,6 @@
 
 /* Interface base name */
 #define NG_SPPP_IFACE_NAME		"sppp"
-#define NG_SPPP_IFACE_NAME_MAX		15
 
 /* My hook names */
 #define NG_SPPP_HOOK_DOWNSTREAM		"downstream"
@@ -35,10 +34,6 @@
 /* Netgraph commands */
 enum {
 	NGM_SPPP_GET_IFNAME = 1,	/* returns struct ng_sppp_ifname */
-};
-
-struct ng_sppp_ifname {
-	char    ngif_name[NG_SPPP_IFACE_NAME_MAX + 1];
 };
 
 #endif /* _NETGRAPH_SPPP_H_ */
