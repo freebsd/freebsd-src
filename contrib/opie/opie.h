@@ -64,8 +64,11 @@ struct opie {
 /* Maximum length of a seed */
 #define OPIE_SEED_MAX 16
 
+/* Max length of hash algorithm name (md4/md5) */
+#define OPIE_HASHNAME_MAX 3
+
 /* Maximum length of a challenge (otp-md? 9999 seed) */
-#define OPIE_CHALLENGE_MAX (7+1+4+1+OPIE_SEED_MAX)
+#define OPIE_CHALLENGE_MAX (4+OPIE_HASHNAME_MAX+1+4+1+OPIE_SEED_MAX)
 
 /* Maximum length of a response that we allow */
 #define OPIE_RESPONSE_MAX (9+1+19+1+9+OPIE_SEED_MAX+1+19+1+19+1+19)
@@ -105,6 +108,10 @@ int  opieverify __P((struct opie *,char *));
 int opiepasswd __P((struct opie *, int, char *, int, char *, char *));
 char *opiereadpass __P((char *, int, int));
 int opielogin __P((char *line, char *name, char *host));
+const char *opie_get_algorithm __P((void));
+int  opie_haskey __P((char *username));
+char *opie_keyinfo __P((char *));
+int  opie_passverify __P((char *username, char *passwd));
 __END_DECLS
 
 #if _OPIE
