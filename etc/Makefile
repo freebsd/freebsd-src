@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.142 1996/08/18 11:05:05 wosch Exp $
+#	$Id: Makefile,v 1.143 1996/10/19 17:10:28 pst Exp $
 
 # -rw-r--r--
 BINOWN= root
@@ -60,7 +60,6 @@ distribution:
 	    master.passwd ${DESTDIR}/etc; \
 	( cd ${.CURDIR}/../gnu/usr.bin/send-pr; ${MAKE} etc-gnats-freefall );\
 	( cd ${.CURDIR}/../gnu/libexec/uucp/sample; ${MAKE} install ); \
-	( cd ${.CURDIR}/../usr.bin/file; ${MAKE} etc-magic ); \
 	( cd ${.CURDIR}/../share/termcap; ${MAKE} etc-termcap ); \
 	( cd ${.CURDIR}/../usr.sbin/rmt; ${MAKE} etc-rmt ); \
 	pwd_mkdb -p -d ${DESTDIR}/etc ${DESTDIR}/etc/master.passwd; \
