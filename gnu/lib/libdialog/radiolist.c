@@ -321,6 +321,10 @@ draw:
 
 			save = dupwin(newscr);
 			st = ditems[scroll + choice].fire(&ditems[scroll + choice]);
+			if (st & DITEM_RESTORE) {
+			    touchwin(save);
+			    wrefresh(save);
+			}
 			if (st & DITEM_REDRAW) {
 			    for (i = 0; i < item_no; i++)
 				status[i] = ditems[i].checked ? ditems[i].checked(&ditems[i]) : FALSE;
@@ -333,11 +337,6 @@ draw:
 			    wnoutrefresh(list);
 			    wmove(dialog, cur_y, cur_x);  /* Restore cursor to previous position */
 			    wrefresh(dialog);
-			}
-			else if (st & DITEM_RESTORE) {
-			    touchwin(save);
-			    wrefresh(save);
-			    wmove(dialog, cur_y, cur_x);
 			}
 			else if (st & DITEM_RECREATE) {
 			    delwin(save);
@@ -464,12 +463,6 @@ draw:
 		    if (st & DITEM_RESTORE) {
 			touchwin(save);
 			wrefresh(save);
-		    }
-		    else if (st & DITEM_RECREATE) {
-			delwin(save);
-			delwin(list);
-			delwin(dialog);
-			goto draw;
 		    }
 		    delwin(save);
 		}
