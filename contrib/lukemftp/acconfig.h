@@ -1,4 +1,4 @@
-/* $Id: acconfig.h,v 1.6 2000/09/17 23:29:12 lukem Exp $ */
+/* $Id: acconfig.h,v 1.9 2002/06/10 01:27:13 lukem Exp $ */
 
 @TOP@
 @BOTTOM@
@@ -6,8 +6,14 @@
 /* Define if your compiler supports `long long' */
 #undef HAVE_LONG_LONG
 
+/* Define if *printf() uses %qd to print `long long' (otherwise uses %lld) */
+#undef HAVE_PRINTF_QD
+
 /* Define if in_port_t exists */
 #undef HAVE_IN_PORT_T
+
+/* Define if sa_family_t exists in <sys/socket.h> */
+#undef HAVE_SA_FAMILY_T
 
 /* Define if struct sockaddr.sa_len exists (implies sockaddr_in.sin_len, etc) */
 #undef HAVE_SOCKADDR_SA_LEN
@@ -32,9 +38,6 @@
 
 /* Define if `struct direct' has a d_namlen element */
 #undef HAVE_D_NAMLEN
-
-/* Define if GLOB_BRACE exists in <glob.h> */
-#undef HAVE_GLOB_BRACE
 
 /* Define if h_errno exists in <netdb.h> */
 #undef HAVE_H_ERRNO_D

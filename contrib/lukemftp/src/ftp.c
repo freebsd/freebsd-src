@@ -1,7 +1,7 @@
-/*	$NetBSD: ftp.c,v 1.109 2000/09/28 12:29:24 lukem Exp $	*/
+/*	$NetBSD: ftp.c,v 1.120 2002/06/05 10:20:49 lukem Exp $	*/
 
 /*-
- * Copyright (c) 1996-2000 The NetBSD Foundation, Inc.
+ * Copyright (c) 1996-2002 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
@@ -192,8 +192,9 @@ hookup(char *host, char *port)
 		if (res0->ai_next)	/* if we have multiple possibilities */
 #endif
 		{
-			getnameinfo(res->ai_addr, res->ai_addrlen,
-			    hbuf, sizeof(hbuf), NULL, 0, NI_NUMERICHOST);
+			if (getnameinfo(res->ai_addr, res->ai_addrlen,
+			    hbuf, sizeof(hbuf), NULL, 0, NI_NUMERICHOST))
+				strlcpy(hbuf, "?", sizeof(hbuf));
 			fprintf(ttyout, "Trying %s...\n", hbuf);
 		}
 		((struct sockaddr_in *)res->ai_addr)->sin_port = htons(portnum);
@@ -209,9 +210,10 @@ hookup(char *host, char *port)
 		if (error) {
 			/* this "if" clause is to prevent print warning twice */
 			if (res->ai_next) {
-				getnameinfo(res->ai_addr, res->ai_addrlen,
+				if (getnameinfo(res->ai_addr, res->ai_addrlen,
 				    hbuf, sizeof(hbuf), NULL, 0,
-				    NI_NUMERICHOST);
+				    NI_NUMERICHOST))
+					strlcpy(hbuf, "?", sizeof(hbuf));
 				warn("connect to address %s", hbuf);
 			}
 			cause = "connect";
@@ -703,7 +705,7 @@ sendrequest(const char *cmd, const char *local, const char *remote,
 		}
 		if (command("REST " LLF, (LLT)restart_point) != CONTINUE)
 			goto cleanupsend;
-		lmode = "r+w";
+		lmode = "r+";
 	}
 	if (remote) {
 		if (command("%s %s", cmd, remote) != PRELIM)
@@ -1178,7 +1180,7 @@ recvrequest(const char *cmd, const char *local, const char *remote,
 			bytes++;
 	contin2:	;
 		}
-break2:
+ break2:
 		if (hash && (!progress || filesize < 0)) {
 			if (bytes < hashbytes)
 				(void)putc('#', ttyout);
@@ -1300,7 +1302,8 @@ initconn(void)
 		switch (data_addr.su_family) {
 		case AF_INET:
 			if (epsv4 && !epsv4bad) {
-				result = command(pasvcmd = "EPSV");
+			  	pasvcmd = "EPSV";
+				result = command("EPSV");
 				if (!connected)
 					return (1);
 				/*
@@ -1322,14 +1325,16 @@ initconn(void)
 				}
 			}
 			if (result != COMPLETE) {
-				result = command(pasvcmd = "PASV");
+			  	pasvcmd = "PASV";
+				result = command("PASV");
 				if (!connected)
 					return (1);
 			}
 			break;
 #ifdef INET6
 		case AF_INET6:
-			result = command(pasvcmd = "EPSV");
+		  	pasvcmd = "EPSV";
+			result = command("EPSV");
 			if (!connected)
 				return (1);
 			/* this code is to be friendly with broken BSDI ftpd */
@@ -1339,8 +1344,10 @@ initconn(void)
 					ttyout);
 				result = COMPLETE + 1;
 			}
-			if (result != COMPLETE)
-				result = command(pasvcmd = "LPSV");
+			if (result != COMPLETE) {
+				pasvcmd = "LPSV";
+				result = command("LPSV");
+			}
 			if (!connected)
 				return (1);
 			break;
@@ -1573,10 +1580,9 @@ initconn(void)
 		warn("listen");
 
 	if (sendport) {
-#ifdef INET6
-		char hname[INET6_ADDRSTRLEN];
+		char hname[NI_MAXHOST], sname[NI_MAXSERV];
 		int af;
-#endif
+		struct sockinet tmp;
 
 		switch (data_addr.su_family) {
 		case AF_INET:
@@ -1587,14 +1593,20 @@ initconn(void)
 			/* FALLTHROUGH */
 #ifdef INET6
 		case AF_INET6:
+#endif
 			af = (data_addr.su_family == AF_INET) ? 1 : 2;
-			if (getnameinfo((struct sockaddr *)&data_addr.si_su,
-			    data_addr.su_len, hname, sizeof(hname), NULL, 0,
-			    NI_NUMERICHOST)) {
+			tmp = data_addr;
+#ifdef INET6
+			if (tmp.su_family == AF_INET6)
+				tmp.si_su.su_sin6.sin6_scope_id = 0;
+#endif
+			if (getnameinfo((struct sockaddr *)&tmp.si_su,
+			    tmp.su_len, hname, sizeof(hname), sname,
+			    sizeof(sname), NI_NUMERICHOST | NI_NUMERICSERV)) {
 				result = ERROR;
 			} else {
-				result = command("EPRT |%d|%s|%d|", af, hname,
-						ntohs(data_addr.su_port));
+				result = command("EPRT |%d|%s|%s|", af, hname,
+				    sname);
 				if (!connected)
 					return (1);
 				if (result != COMPLETE) {
@@ -1606,7 +1618,6 @@ initconn(void)
 				}
 			}
 			break;
-#endif
 		default:
 			result = COMPLETE + 1;
 			break;
