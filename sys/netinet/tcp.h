@@ -216,7 +216,7 @@ struct tcp_info {
 	u_int32_t	__tcpi_reordering;
 
 	u_int32_t	__tcpi_rcv_rtt;
-	u_int32_t	__tcpi_rcv_space;
+	u_int32_t	tcpi_rcv_space;		/* Advertised recv window. */
 
 	/* FreeBSD extensions to tcp_info. */
 	u_int32_t	tcpi_snd_wnd;		/* Advertised send window. */
