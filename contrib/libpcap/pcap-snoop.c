@@ -19,8 +19,8 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 #ifndef lint
-static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/libpcap/pcap-snoop.c,v 1.33 2001/12/10 07:14:21 guy Exp $ (LBL)";
+static const char rcsid[] _U_ =
+    "@(#) $Header: /tcpdump/master/libpcap/pcap-snoop.c,v 1.45.2.5 2004/03/21 08:33:24 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -58,8 +58,8 @@ static const char rcsid[] =
 #include "os-proto.h"
 #endif
 
-int
-pcap_read(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
+static int
+pcap_read_snoop(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 {
 	int cc;
 	register struct snoopheader *sh;
@@ -68,13 +68,25 @@ pcap_read(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 	register u_char *cp;
 
 again:
+	/*
+	 * Has "pcap_breakloop()" been called?
+	 */
+	if (p->break_loop) {
+		/*
+		 * Yes - clear the flag that indicates that it
+		 * has, and return -2 to indicate that we were
+		 * told to break out of the loop.
+		 */
+		p->break_loop = 0;
+		return (-2);
+	}
 	cc = read(p->fd, (char *)p->buffer, p->bufsize);
 	if (cc < 0) {
 		/* Don't choke when we get ptraced */
 		switch (errno) {
 
 		case EINTR:
-				goto again;
+			goto again;
 
 		case EWOULDBLOCK:
 			return (0);			/* XXX */
@@ -88,11 +100,23 @@ again:
 	caplen = (datalen < p->snapshot) ? datalen : p->snapshot;
 	cp = (u_char *)(sh + 1) + p->offset;		/* XXX */
 
+	/* 
+	 * XXX unfortunately snoop loopback isn't exactly like
+	 * BSD's.  The address family is encoded in the first 2
+	 * bytes rather than the first 4 bytes!  Luckily the last
+	 * two snoop loopback bytes are zeroed.
+	 */
+	if (p->linktype == DLT_NULL && *((short *)(cp + 2)) == 0) {
+		u_int *uip = (u_int *)cp;
+		*uip >>= 16;
+	}
+
 	if (p->fcode.bf_insns == NULL ||
 	    bpf_filter(p->fcode.bf_insns, cp, datalen, caplen)) {
 		struct pcap_pkthdr h;
 		++p->md.stat.ps_recv;
-		h.ts = sh->snoop_timestamp;
+		h.ts.tv_sec = sh->snoop_timestamp.tv_sec;
+		h.ts.tv_usec = sh->snoop_timestamp.tv_usec;
 		h.len = datalen;
 		h.caplen = caplen;
 		(*callback)(user, &h, cp);
@@ -101,8 +125,8 @@ again:
 	return (0);
 }
 
-int
-pcap_stats(pcap_t *p, struct pcap_stat *ps)
+static int
+pcap_stats_snoop(pcap_t *p, struct pcap_stat *ps)
 {
 	register struct rawstats *rs;
 	struct rawstats rawstats;
@@ -141,9 +165,19 @@ pcap_stats(pcap_t *p, struct pcap_stat *ps)
 	return (0);
 }
 
+static void
+pcap_close_snoop(pcap_t *p)
+{
+	if (p->buffer != NULL)
+		free(p->buffer);
+	if (p->fd >= 0)
+		close(p->fd);
+}
+
 /* XXX can't disable promiscuous */
 pcap_t *
-pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
+pcap_open_live(const char *device, int snaplen, int promisc, int to_ms,
+    char *ebuf)
 {
 	int fd;
 	struct sockaddr_raw sr;
@@ -191,6 +225,7 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 	    strncmp("ec", device, 2) == 0 ||	/* Indigo/Indy 10 Mbit,
 						   O2 10/100 */
 	    strncmp("ef", device, 2) == 0 ||	/* O200/2000 10/100 Mbit */
+	    strncmp("eg", device, 2) == 0 ||	/* Octane/O2xxx/O3xxx Gigabit */
 	    strncmp("gfe", device, 3) == 0 ||	/* GIO 100 Mbit */
 	    strncmp("fxp", device, 3) == 0 ||	/* Challenge VME Enet */
 	    strncmp("ep", device, 2) == 0 ||	/* Challenge 8x10 Mbit EPLEX */
@@ -211,9 +246,15 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 	} else if (strncmp("ppp", device, 3) == 0) {
 		p->linktype = DLT_RAW;
 		ll_hdrlen = 0;	/* DLT_RAW meaning "no PPP header, just the IP packet"? */
+	} else if (strncmp("qfa", device, 3) == 0) {
+		p->linktype = DLT_IP_OVER_FC;
+		ll_hdrlen = 24;
+	} else if (strncmp("pl", device, 2) == 0) {
+		p->linktype = DLT_RAW;
+		ll_hdrlen = 0;	/* Cray UNICOS/mp pseudo link */
 	} else if (strncmp("lo", device, 2) == 0) {
 		p->linktype = DLT_NULL;
-		ll_hdrlen = 4;	/* is this just like BSD's loopback device? */
+		ll_hdrlen = 4;
 	} else {
 		snprintf(ebuf, PCAP_ERRBUF_SIZE,
 		    "snoop: unknown physical layer type");
@@ -249,8 +290,8 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 #ifndef ifr_mtu
 #define ifr_mtu	ifr_metric
 #endif
-	if (snaplen > ifr.ifr_mtu)
-		snaplen = ifr.ifr_mtu;
+	if (snaplen > ifr.ifr_mtu + ll_hdrlen)
+		snaplen = ifr.ifr_mtu + ll_hdrlen;
 #endif
 
 	/*
@@ -282,6 +323,19 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 		goto bad;
 	}
 
+	/*
+	 * "p->fd" is a socket, so "select()" should work on it.
+	 */
+	p->selectable_fd = p->fd;
+
+	p->read_op = pcap_read_snoop;
+	p->setfilter_op = install_bpf_program;	/* no kernel filtering */
+	p->set_datalink_op = NULL;	/* can't change data link type */
+	p->getnonblock_op = pcap_getnonblock_fd;
+	p->setnonblock_op = pcap_setnonblock_fd;
+	p->stats_op = pcap_stats_snoop;
+	p->close_op = pcap_close_snoop;
+
 	return (p);
  bad:
 	(void)close(fd);
@@ -290,10 +344,7 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 }
 
 int
-pcap_setfilter(pcap_t *p, struct bpf_program *fp)
+pcap_platform_finddevs(pcap_if_t **alldevsp, char *errbuf)
 {
-
-	if (install_bpf_program(p, fp) < 0)
-		return (-1);
 	return (0);
 }

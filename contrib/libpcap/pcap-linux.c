@@ -3,13 +3,13 @@
  *
  *  Copyright (c) 2000 Torsten Landschoff <torsten@debian.org>
  *  		       Sebastian Krahmer  <krahmer@cs.uni-potsdam.de>
- *  
+ *
  *  License: BSD
- *  
+ *
  *  Redistribution and use in source and binary forms, with or without
  *  modification, are permitted provided that the following conditions
  *  are met:
- *  
+ *
  *  1. Redistributions of source code must retain the above copyright
  *     notice, this list of conditions and the following disclaimer.
  *  2. Redistributions in binary form must reproduce the above copyright
@@ -19,14 +19,15 @@
  *  3. The names of the authors may not be used to endorse or promote
  *     products derived from this software without specific prior
  *     written permission.
- *  
+ *
  *  THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
  *  IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  *  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
+
 #ifndef lint
-static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/libpcap/pcap-linux.c,v 1.73 2001/12/10 07:14:16 guy Exp $ (LBL)";
+static const char rcsid[] _U_ =
+    "@(#) $Header: /tcpdump/master/libpcap/pcap-linux.c,v 1.98.2.4 2003/11/21 10:20:46 guy Exp $ (LBL)";
 #endif
 
 /*
@@ -79,6 +80,10 @@ static const char rcsid[] =
 #include "pcap-int.h"
 #include "sll.h"
 
+#ifdef HAVE_DAG_API
+#include "pcap-dag.h"
+#endif /* HAVE_DAG_API */
+	  
 #include <errno.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -117,7 +122,7 @@ static const char rcsid[] =
  * isn't defined?  It only defines one data structure in 2.0.x, so
  * it shouldn't cause any problems.
  */
-#ifdef PF_PACKET  
+#ifdef PF_PACKET
 # include <linux/if_packet.h>
 
  /*
@@ -156,10 +161,20 @@ typedef int		socklen_t;
 #define MSG_TRUNC	0x20
 #endif
 
+#ifndef SOL_PACKET
+/*
+ * This is being compiled on a system that lacks SOL_PACKET; define it
+ * with the value it has in the 2.2 and later kernels, so that we can
+ * set promiscuous mode in the good modern way rather than the old
+ * 2.0-kernel crappy way.
+ */
+#define SOL_PACKET	263
+#endif
+
 #define MAX_LINKHEADER_SIZE	256
 
-/* 
- * When capturing on all interfaces we use this as the buffer size. 
+/*
+ * When capturing on all interfaces we use this as the buffer size.
  * Should be bigger then all MTUs that occur in real life.
  * 64kB should be enough for now.
  */
@@ -168,10 +183,14 @@ typedef int		socklen_t;
 /*
  * Prototypes for internal functions
  */
-static void map_arphrd_to_dlt(pcap_t *, int);
-static int live_open_old(pcap_t *, char *, int, int, char *);
-static int live_open_new(pcap_t *, char *, int, int, char *);
+static void map_arphrd_to_dlt(pcap_t *, int, int);
+static int live_open_old(pcap_t *, const char *, int, int, char *);
+static int live_open_new(pcap_t *, const char *, int, int, char *);
+static int pcap_read_linux(pcap_t *, int, pcap_handler, u_char *);
 static int pcap_read_packet(pcap_t *, pcap_handler, u_char *);
+static int pcap_stats_linux(pcap_t *, struct pcap_stat *);
+static int pcap_setfilter_linux(pcap_t *, struct bpf_program *);
+static void pcap_close_linux(pcap_t *);
 
 /*
  * Wrap some ioctl calls
@@ -199,21 +218,30 @@ static struct sock_fprog	total_fcode
 #endif
 
 /*
- *  Get a handle for a live capture from the given device. You can 
- *  pass NULL as device to get all packages (without link level 
+ *  Get a handle for a live capture from the given device. You can
+ *  pass NULL as device to get all packages (without link level
  *  information of course). If you pass 1 as promisc the interface
- *  will be set to promiscous mode (XXX: I think this usage should 
+ *  will be set to promiscous mode (XXX: I think this usage should
  *  be deprecated and functions be added to select that later allow
  *  modification of that values -- Torsten).
- *  
+ *
  *  See also pcap(3).
  */
 pcap_t *
-pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
+pcap_open_live(const char *device, int snaplen, int promisc, int to_ms,
+    char *ebuf)
 {
 	pcap_t		*handle;
 	int		mtu;
+	int		err;
+	int		live_open_ok = 0;
 	struct utsname	utsname;
+
+#ifdef HAVE_DAG_API
+	if (strstr(device, "dag")) {
+		return dag_open_live(device, snaplen, promisc, to_ms, ebuf);
+	}
+#endif /* HAVE_DAG_API */
 
         /* Allocate a handle for this session. */
 
@@ -231,7 +259,7 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 	handle->md.timeout	= to_ms;
 
 	/*
-	 * NULL and "any" are special devices which give us the hint to 
+	 * NULL and "any" are special devices which give us the hint to
 	 * monitor all devices.
 	 */
 	if (!device || strcmp(device, "any") == 0) {
@@ -243,7 +271,7 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 			snprintf(ebuf, PCAP_ERRBUF_SIZE,
 			    "Promiscuous mode not supported on the \"any\" device");
 		}
-	
+
 	} else
 		handle->md.device	= strdup(device);
 
@@ -254,26 +282,32 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 		return NULL;
 	}
 
-	/* 
-	 * Current Linux kernels use the protocol family PF_PACKET to 
-	 * allow direct access to all packets on the network while 
-	 * older kernels had a special socket type SOCK_PACKET to 
+	/*
+	 * Current Linux kernels use the protocol family PF_PACKET to
+	 * allow direct access to all packets on the network while
+	 * older kernels had a special socket type SOCK_PACKET to
 	 * implement this feature.
 	 * While this old implementation is kind of obsolete we need
-	 * to be compatible with older kernels for a while so we are 
+	 * to be compatible with older kernels for a while so we are
 	 * trying both methods with the newer method preferred.
 	 */
 
-	if (! (live_open_new(handle, device, promisc, to_ms, ebuf) ||
-	       live_open_old(handle, device, promisc, to_ms, ebuf)) )
-	{
-		/* 
+	if ((err = live_open_new(handle, device, promisc, to_ms, ebuf)) == 1)
+		live_open_ok = 1;
+	else if (err == 0) {
+		/* Non-fatal error; try old way */
+		if (live_open_old(handle, device, promisc, to_ms, ebuf))
+			live_open_ok = 1;
+	}
+	if (!live_open_ok) {
+		/*
 		 * Both methods to open the packet socket failed. Tidy
 		 * up and report our failure (ebuf is expected to be
-		 * set by the functions above). 
+		 * set by the functions above).
 		 */
 
-		free(handle->md.device);
+		if (handle->md.device != NULL)
+			free(handle->md.device);
 		free(handle);
 		return NULL;
 	}
@@ -331,8 +365,7 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 		 */
 		mtu = iface_get_mtu(handle->fd, device, ebuf);
 		if (mtu == -1) {
-			close(handle->fd);
-			free(handle->md.device);
+			pcap_close_linux(handle);
 			free(handle);
 			return NULL;
 		}
@@ -359,11 +392,24 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 	if (!handle->buffer) {
 	        snprintf(ebuf, PCAP_ERRBUF_SIZE,
 			 "malloc: %s", pcap_strerror(errno));
-		close(handle->fd);
-		free(handle->md.device);
+		pcap_close_linux(handle);
 		free(handle);
 		return NULL;
 	}
+
+	/*
+	 * "handle->fd" is a socket, so "select()" and "poll()"
+	 * should work on it.
+	 */
+	handle->selectable_fd = handle->fd;
+
+	handle->read_op = pcap_read_linux;
+	handle->setfilter_op = pcap_setfilter_linux;
+	handle->set_datalink_op = NULL;	/* can't change data link type */
+	handle->getnonblock_op = pcap_getnonblock_fd;
+	handle->setnonblock_op = pcap_setnonblock_fd;
+	handle->stats_op = pcap_stats_linux;
+	handle->close_op = pcap_close_linux;
 
 	return handle;
 }
@@ -371,10 +417,10 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 /*
  *  Read at most max_packets from the capture stream and call the callback
  *  for each of them. Returns the number of packets handled or -1 if an
- *  error occured. 
+ *  error occured.
  */
-int
-pcap_read(pcap_t *handle, int max_packets, pcap_handler callback, u_char *user)
+static int
+pcap_read_linux(pcap_t *handle, int max_packets, pcap_handler callback, u_char *user)
 {
 	/*
 	 * Currently, on Linux only one packet is delivered per read,
@@ -384,7 +430,7 @@ pcap_read(pcap_t *handle, int max_packets, pcap_handler callback, u_char *user)
 }
 
 /*
- *  Read a packet from the socket calling the handler provided by 
+ *  Read a packet from the socket calling the handler provided by
  *  the user. Returns the number of packets received or -1 if an
  *  error occured.
  */
@@ -424,10 +470,22 @@ pcap_read_packet(pcap_t *handle, pcap_handler callback, u_char *userdata)
 
 	bp = handle->buffer + handle->offset;
 	do {
+		/*
+		 * Has "pcap_breakloop()" been called?
+		 */
+		if (handle->break_loop) {
+			/*
+			 * Yes - clear the flag that indicates that it
+			 * has, and return -2 as an indication that we
+			 * were told to break out of the loop.
+			 */
+			handle->break_loop = 0;
+			return -2;
+		}
 		fromlen = sizeof(from);
-		packet_len = recvfrom( 
+		packet_len = recvfrom(
 			handle->fd, bp + offset,
-			handle->bufsize - offset, MSG_TRUNC, 
+			handle->bufsize - offset, MSG_TRUNC,
 			(struct sockaddr *) &from, &fromlen);
 	} while (packet_len == -1 && errno == EINTR);
 
@@ -518,16 +576,16 @@ pcap_read_packet(pcap_t *handle, pcap_handler callback, u_char *userdata)
 #endif
 
 	/*
-	 * XXX: According to the kernel source we should get the real 
-	 * packet len if calling recvfrom with MSG_TRUNC set. It does 
+	 * XXX: According to the kernel source we should get the real
+	 * packet len if calling recvfrom with MSG_TRUNC set. It does
 	 * not seem to work here :(, but it is supported by this code
-	 * anyway. 
+	 * anyway.
 	 * To be honest the code RELIES on that feature so this is really
 	 * broken with 2.2.x kernels.
 	 * I spend a day to figure out what's going on and I found out
-	 * that the following is happening: 
+	 * that the following is happening:
 	 *
-	 * The packet comes from a random interface and the packet_rcv 
+	 * The packet comes from a random interface and the packet_rcv
 	 * hook is called with a clone of the packet. That code inserts
 	 * the packet into the receive queue of the packet socket.
 	 * If a filter is attached to that socket that filter is run
@@ -537,10 +595,10 @@ pcap_read_packet(pcap_t *handle, pcap_handler callback, u_char *userdata)
 	 * # tcpdump -d
 	 * (000) ret      #68
 	 *
-	 * So the packet filter cuts down the packet. The recvfrom call 
+	 * So the packet filter cuts down the packet. The recvfrom call
 	 * says "hey, it's only 68 bytes, it fits into the buffer" with
-	 * the result that we don't get the real packet length. This 
-	 * is valid at least until kernel 2.2.17pre6. 
+	 * the result that we don't get the real packet length. This
+	 * is valid at least until kernel 2.2.17pre6.
 	 *
 	 * We currently handle this by making a copy of the filter
 	 * program, fixing all "ret" instructions with non-zero
@@ -622,13 +680,15 @@ pcap_read_packet(pcap_t *handle, pcap_handler callback, u_char *userdata)
  *  patches); otherwise, that information isn't available, and we lie
  *  and report 0 as the count of dropped packets.
  */
-int
-pcap_stats(pcap_t *handle, struct pcap_stat *stats)
+static int
+pcap_stats_linux(pcap_t *handle, struct pcap_stat *stats)
 {
 #ifdef HAVE_TPACKET_STATS
 	struct tpacket_stats kstats;
 	socklen_t len = sizeof (struct tpacket_stats);
+#endif
 
+#ifdef HAVE_TPACKET_STATS
 	/*
 	 * Try to get the packet counts from the kernel.
 	 */
@@ -711,14 +771,34 @@ pcap_stats(pcap_t *handle, struct pcap_stat *stats)
 }
 
 /*
- *  Attach the given BPF code to the packet capture device. 
+ * Description string for the "any" device.
  */
+static const char any_descr[] = "Pseudo-device that captures on all interfaces";
+
 int
-pcap_setfilter(pcap_t *handle, struct bpf_program *filter)
+pcap_platform_finddevs(pcap_if_t **alldevsp, char *errbuf)
+{
+	if (pcap_add_if(alldevsp, "any", 0, any_descr, errbuf) < 0)
+		return (-1);
+
+#ifdef HAVE_DAG_API
+	if (dag_platform_finddevs(alldevsp, errbuf) < 0)
+		return (-1);
+#endif /* HAVE_DAG_API */
+
+	return (0);
+}
+
+/*
+ *  Attach the given BPF code to the packet capture device.
+ */
+static int
+pcap_setfilter_linux(pcap_t *handle, struct bpf_program *filter)
 {
 #ifdef SO_ATTACH_FILTER
 	struct sock_fprog	fcode;
 	int			can_filter_in_kernel;
+	int			err = 0;
 #endif
 
 	if (!handle)
@@ -731,24 +811,15 @@ pcap_setfilter(pcap_t *handle, struct bpf_program *filter)
 
 	/* Make our private copy of the filter */
 
-	if (install_bpf_program(handle, filter) < 0) {
-		snprintf(handle->errbuf, sizeof(handle->errbuf),
-			 "malloc: %s", pcap_strerror(errno));
+	if (install_bpf_program(handle, filter) < 0)
+		/* install_bpf_program() filled in errbuf */
 		return -1;
-	}
-
-	/* 
-	 * Run user level packet filter by default. Will be overriden if 
-	 * installing a kernel filter succeeds. 
-	 */
-	handle->md.use_bpf = 0;
 
 	/*
-	 * If we're reading from a savefile, don't try to install
-	 * a kernel filter.
+	 * Run user level packet filter by default. Will be overriden if
+	 * installing a kernel filter succeeds.
 	 */
-	if (handle->sf.rfile != NULL)
-		return 0;
+	handle->md.use_bpf = 0;
 
 	/* Install kernel level filter if possible */
 
@@ -756,7 +827,7 @@ pcap_setfilter(pcap_t *handle, struct bpf_program *filter)
 #ifdef USHRT_MAX
 	if (handle->fcode.bf_len > USHRT_MAX) {
 		/*
-		 * fcode.len is an unsigned short for current kernel. 
+		 * fcode.len is an unsigned short for current kernel.
 		 * I have yet to see BPF-Code with that much
 		 * instructions but still it is possible. So for the
 		 * sake of correctness I added this check.
@@ -809,21 +880,21 @@ pcap_setfilter(pcap_t *handle, struct bpf_program *filter)
 	}
 
 	if (can_filter_in_kernel) {
-		if (set_kernel_filter(handle, &fcode) == 0)
+		if ((err = set_kernel_filter(handle, &fcode)) == 0)
 		{
 			/* Installation succeded - using kernel filter. */
 			handle->md.use_bpf = 1;
 		}
-		else
+		else if (err == -1)	/* Non-fatal error */
 		{
-			/* 
+			/*
 			 * Print a warning if we weren't able to install
 			 * the filter for a reason other than "this kernel
 			 * isn't configured to support socket filters.
 			 */
 			if (errno != ENOPROTOOPT && errno != EOPNOTSUPP) {
 				fprintf(stderr,
-				    "Warning: Kernel filter failed: %s\n", 
+				    "Warning: Kernel filter failed: %s\n",
 					pcap_strerror(errno));
 			}
 		}
@@ -845,14 +916,18 @@ pcap_setfilter(pcap_t *handle, struct bpf_program *filter)
 	 */
 	if (fcode.filter != NULL)
 		free(fcode.filter);
+
+	if (err == -2)
+		/* Fatal error */
+		return -1;
 #endif /* SO_ATTACH_FILTER */
 
 	return 0;
 }
 
 /*
- *  Linux uses the ARP hardware type to identify the type of an 
- *  interface. pcap uses the DLT_xxx constants for this. This 
+ *  Linux uses the ARP hardware type to identify the type of an
+ *  interface. pcap uses the DLT_xxx constants for this. This
  *  function takes a pointer to a "pcap_t", and an ARPHRD_xxx
  *  constant, as arguments, and sets "handle->linktype" to the
  *  appropriate DLT_XXX constant and sets "handle->offset" to
@@ -861,10 +936,14 @@ pcap_setfilter(pcap_t *handle, struct bpf_program *filter)
  *  will be aligned on a 4-byte boundary when capturing packets).
  *  (If the offset isn't set here, it'll be 0; add code as appropriate
  *  for cases where it shouldn't be 0.)
- *  
+ *
+ *  If "cooked_ok" is non-zero, we can use DLT_LINUX_SLL and capture
+ *  in cooked mode; otherwise, we can't use cooked mode, so we have
+ *  to pick some type that works in raw mode, or fail.
+ *
  *  Sets the link type to -1 if unable to map the type.
  */
-static void map_arphrd_to_dlt(pcap_t *handle, int arptype)
+static void map_arphrd_to_dlt(pcap_t *handle, int arptype, int cooked_ok)
 {
 	switch (arptype) {
 
@@ -901,9 +980,12 @@ static void map_arphrd_to_dlt(pcap_t *handle, int arptype)
 		break;
 
 	case ARPHRD_ARCNET:
-		handle->linktype = DLT_ARCNET;
+		handle->linktype = DLT_ARCNET_LINUX;
 		break;
 
+#ifndef ARPHRD_FDDI	/* From Linux 2.2.13 */
+#define ARPHRD_FDDI	774
+#endif
 	case ARPHRD_FDDI:
 		handle->linktype = DLT_FDDI;
 		handle->offset = 3;
@@ -946,9 +1028,13 @@ static void map_arphrd_to_dlt(pcap_t *handle, int arptype)
 		 * Both of those are a nuisance - and, at least on systems
 		 * that support PF_PACKET sockets, we don't have to put
 		 * up with those nuisances; instead, we can just capture
-		 * in cooked mode.  That's what we'll do.
+		 * in cooked mode.  That's what we'll do, if we can.
+		 * Otherwise, we'll just fail.
 		 */
-		handle->linktype = DLT_LINUX_SLL;
+		if (cooked_ok)
+			handle->linktype = DLT_LINUX_SLL;
+		else
+			handle->linktype = -1;
 		break;
 
 #ifndef ARPHRD_IEEE80211  /* From Linux 2.4.6 */
@@ -956,6 +1042,13 @@ static void map_arphrd_to_dlt(pcap_t *handle, int arptype)
 #endif
 	case ARPHRD_IEEE80211:
 		handle->linktype = DLT_IEEE802_11;
+		break;
+
+#ifndef ARPHRD_IEEE80211_PRISM  /* From Linux 2.4.18 */
+#define ARPHRD_IEEE80211_PRISM 802
+#endif
+	case ARPHRD_IEEE80211_PRISM:
+		handle->linktype = DLT_PRISM_HEADER;
 		break;
 
 	case ARPHRD_PPP:
@@ -971,12 +1064,40 @@ static void map_arphrd_to_dlt(pcap_t *handle, int arptype)
 		 * oddball link-layer headers particular packets have).
 		 *
 		 * As such, we just punt, and run all PPP interfaces
-		 * in cooked mode.
+		 * in cooked mode, if we can; otherwise, we just treat
+		 * it as DLT_RAW, for now - if somebody needs to capture,
+		 * on a 2.0[.x] kernel, on PPP devices that supply a
+		 * link-layer header, they'll have to add code here to
+		 * map to the appropriate DLT_ type (possibly adding a
+		 * new DLT_ type, if necessary).
 		 */
-		handle->linktype = DLT_LINUX_SLL;
+		if (cooked_ok)
+			handle->linktype = DLT_LINUX_SLL;
+		else {
+			/*
+			 * XXX - handle ISDN types here?  We can't fall
+			 * back on cooked sockets, so we'd have to
+			 * figure out from the device name what type of
+			 * link-layer encapsulation it's using, and map
+			 * that to an appropriate DLT_ value, meaning
+			 * we'd map "isdnN" devices to DLT_RAW (they
+			 * supply raw IP packets with no link-layer
+			 * header) and "isdY" devices to a new DLT_I4L_IP
+			 * type that has only an Ethernet packet type as
+			 * a link-layer header.
+			 *
+			 * But sometimes we seem to get random crap
+			 * in the link-layer header when capturing on
+			 * ISDN devices....
+			 */
+			handle->linktype = DLT_RAW;
+		}
 		break;
 
-	case ARPHRD_HDLC:
+#ifndef ARPHRD_CISCO
+#define ARPHRD_CISCO 513 /* previously ARPHRD_HDLC */
+#endif
+	case ARPHRD_CISCO:
 		handle->linktype = DLT_C_HDLC;
 		break;
 
@@ -984,7 +1105,7 @@ static void map_arphrd_to_dlt(pcap_t *handle, int arptype)
 	 * works for CIPE */
 	case ARPHRD_TUNNEL:
 #ifndef ARPHRD_SIT
-#define ARPHRD_SIT 776	/* From Linux 2.2.14 */
+#define ARPHRD_SIT 776	/* From Linux 2.2.13 */
 #endif
 	case ARPHRD_SIT:
 	case ARPHRD_CSLIP:
@@ -992,6 +1113,14 @@ static void map_arphrd_to_dlt(pcap_t *handle, int arptype)
 	case ARPHRD_CSLIP6:
 	case ARPHRD_ADAPT:
 	case ARPHRD_SLIP:
+#ifndef ARPHRD_RAWHDLC
+#define ARPHRD_RAWHDLC 518
+#endif
+	case ARPHRD_RAWHDLC:
+#ifndef ARPHRD_DLCI
+#define ARPHRD_DLCI 15
+#endif
+	case ARPHRD_DLCI:
 		/*
 		 * XXX - should some of those be mapped to DLT_LINUX_SLL
 		 * instead?  Should we just map all of them to DLT_LINUX_SLL?
@@ -999,8 +1128,47 @@ static void map_arphrd_to_dlt(pcap_t *handle, int arptype)
 		handle->linktype = DLT_RAW;
 		break;
 
+#ifndef ARPHRD_FRAD
+#define ARPHRD_FRAD 770
+#endif
+	case ARPHRD_FRAD:
+		handle->linktype = DLT_FRELAY;
+		break;
+
 	case ARPHRD_LOCALTLK:
 		handle->linktype = DLT_LTALK;
+		break;
+
+#ifndef ARPHRD_FCPP
+#define ARPHRD_FCPP	784
+#endif
+	case ARPHRD_FCPP:
+#ifndef ARPHRD_FCAL
+#define ARPHRD_FCAL	785
+#endif
+	case ARPHRD_FCAL:
+#ifndef ARPHRD_FCPL
+#define ARPHRD_FCPL	786
+#endif
+	case ARPHRD_FCPL:
+#ifndef ARPHRD_FCFABRIC
+#define ARPHRD_FCFABRIC	787
+#endif
+	case ARPHRD_FCFABRIC:
+		/*
+		 * We assume that those all mean RFC 2625 IP-over-
+		 * Fibre Channel, with the RFC 2625 header at
+		 * the beginning of the packet.
+		 */
+		handle->linktype = DLT_IP_OVER_FC;
+		break;
+
+	case ARPHRD_IRDA:
+		/* Don't expect IP packet out of this interfaces... */
+		handle->linktype = DLT_LINUX_IRDA;
+		/* We need to save packet direction for IrDA decoding,
+		 * so let's use "Linux-cooked" mode. Jean II */
+		//handle->md.cooked = 1;
 		break;
 
 	default:
@@ -1017,11 +1185,13 @@ static void map_arphrd_to_dlt(pcap_t *handle, int arptype)
  *  FIXME: 0 uses to mean success (Sebastian)
  */
 static int
-live_open_new(pcap_t *handle, char *device, int promisc, 
+live_open_new(pcap_t *handle, const char *device, int promisc,
 	      int to_ms, char *ebuf)
 {
 #ifdef HAVE_PF_PACKET_SOCKETS
 	int			sock_fd = -1, device_id, arptype;
+	int			err;
+	int			fatal_err = 0;
 	struct packet_mreq	mr;
 
 	/* One shot loop used for error handling - bail out with break */
@@ -1029,10 +1199,10 @@ live_open_new(pcap_t *handle, char *device, int promisc,
 	do {
 		/*
 		 * Open a socket with protocol family packet. If a device is
-		 * given we try to open it in raw mode otherwise we use 
-		 * the cooked interface. 
+		 * given we try to open it in raw mode otherwise we use
+		 * the cooked interface.
 		 */
-		sock_fd = device ? 
+		sock_fd = device ?
 			socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL))
 		      : socket(PF_PACKET, SOCK_DGRAM, htons(ETH_P_ALL));
 
@@ -1065,8 +1235,8 @@ live_open_new(pcap_t *handle, char *device, int promisc,
 		handle->offset	 = 0;
 
 		/*
-		 * What kind of frames do we have to deal with? Fall back 
-		 * to cooked mode if we have an unknown interface type. 
+		 * What kind of frames do we have to deal with? Fall back
+		 * to cooked mode if we have an unknown interface type.
 		 */
 
 		if (device) {
@@ -1074,11 +1244,14 @@ live_open_new(pcap_t *handle, char *device, int promisc,
 			handle->md.cooked = 0;
 
 			arptype	= iface_get_arptype(sock_fd, device, ebuf);
-			if (arptype == -1) 
+			if (arptype == -1) {
+				fatal_err = 1;
 				break;
-			map_arphrd_to_dlt(handle, arptype);
+			}
+			map_arphrd_to_dlt(handle, arptype, 1);
 			if (handle->linktype == -1 ||
 			    handle->linktype == DLT_LINUX_SLL ||
+			    handle->linktype == DLT_LINUX_IRDA ||
 			    (handle->linktype == DLT_EN10MB &&
 			     (strncmp("isdn", device, 4) == 0 ||
 			      strncmp("isdY", device, 4) == 0))) {
@@ -1096,7 +1269,7 @@ live_open_new(pcap_t *handle, char *device, int promisc,
 						 "close: %s", pcap_strerror(errno));
 					break;
 				}
-				sock_fd = socket(PF_PACKET, SOCK_DGRAM, 
+				sock_fd = socket(PF_PACKET, SOCK_DGRAM,
 						 htons(ETH_P_ALL));
 				if (sock_fd == -1) {
 					snprintf(ebuf, PCAP_ERRBUF_SIZE,
@@ -1119,15 +1292,21 @@ live_open_new(pcap_t *handle, char *device, int promisc,
 						"socket",
 						arptype);
 				}
-				handle->linktype = DLT_LINUX_SLL;
+				/* IrDA capture is not a real "cooked" capture,
+				 * it's IrLAP frames, not IP packets. */
+				if(handle->linktype != DLT_LINUX_IRDA)
+					handle->linktype = DLT_LINUX_SLL;
 			}
 
 			device_id = iface_get_id(sock_fd, device, ebuf);
 			if (device_id == -1)
 				break;
 
-			if (iface_bind(sock_fd, device_id, ebuf) == -1)
+			if ((err = iface_bind(sock_fd, device_id, ebuf)) < 0) {
+				if (err == -2)
+					fatal_err = 1;
 				break;
+			}
 		} else {
 			/*
 			 * This is cooked mode.
@@ -1146,28 +1325,37 @@ live_open_new(pcap_t *handle, char *device, int promisc,
 			device_id = -1;
 		}
 
-		/* Select promiscuous mode on/off */
+		/*
+		 * Select promiscuous mode on if "promisc" is set.
+		 *
+		 * Do not turn allmulti mode on if we don't select
+		 * promiscuous mode - on some devices (e.g., Orinoco
+		 * wireless interfaces), allmulti mode isn't supported
+		 * and the driver implements it by turning promiscuous
+		 * mode on, and that screws up the operation of the
+		 * card as a normal networking interface, and on no
+		 * other platform I know of does starting a non-
+		 * promiscuous capture affect which multicast packets
+		 * are received by the interface.
+		 */
 
-#ifdef SOL_PACKET
-		/* 
+		/*
 		 * Hmm, how can we set promiscuous mode on all interfaces?
 		 * I am not sure if that is possible at all.
 		 */
 
-		if (device) {
+		if (device && promisc) {
 			memset(&mr, 0, sizeof(mr));
 			mr.mr_ifindex = device_id;
-			mr.mr_type    = promisc ? 
-				PACKET_MR_PROMISC : PACKET_MR_ALLMULTI;
-			if (setsockopt(sock_fd, SOL_PACKET, 
+			mr.mr_type    = PACKET_MR_PROMISC;
+			if (setsockopt(sock_fd, SOL_PACKET,
 				PACKET_ADD_MEMBERSHIP, &mr, sizeof(mr)) == -1)
 			{
-				snprintf(ebuf, PCAP_ERRBUF_SIZE, 
+				snprintf(ebuf, PCAP_ERRBUF_SIZE,
 					"setsockopt: %s", pcap_strerror(errno));
 				break;
 			}
 		}
-#endif
 
 		/* Save the socket FD in the pcap structure */
 
@@ -1179,10 +1367,14 @@ live_open_new(pcap_t *handle, char *device, int promisc,
 
 	if (sock_fd != -1)
 		close(sock_fd);
-	return 0;
+
+	if (fatal_err)
+		return -2;
+	else
+		return 0;
 #else
-	strncpy(ebuf, 
-		"New packet capturing interface not supported by build " 
+	strncpy(ebuf,
+		"New packet capturing interface not supported by build "
 		"environment", PCAP_ERRBUF_SIZE);
 	return 0;
 #endif
@@ -1190,7 +1382,7 @@ live_open_new(pcap_t *handle, char *device, int promisc,
 
 #ifdef HAVE_PF_PACKET_SOCKETS
 /*
- *  Return the index of the given device name. Fill ebuf and return 
+ *  Return the index of the given device name. Fill ebuf and return
  *  -1 on failure.
  */
 static int
@@ -1211,12 +1403,14 @@ iface_get_id(int fd, const char *device, char *ebuf)
 }
 
 /*
- *  Bind the socket associated with FD to the given device. 
+ *  Bind the socket associated with FD to the given device.
  */
 static int
 iface_bind(int fd, int ifindex, char *ebuf)
 {
 	struct sockaddr_ll	sll;
+	int			err;
+	socklen_t		errlen = sizeof(err);
 
 	memset(&sll, 0, sizeof(sll));
 	sll.sll_family		= AF_PACKET;
@@ -1227,6 +1421,20 @@ iface_bind(int fd, int ifindex, char *ebuf)
 		snprintf(ebuf, PCAP_ERRBUF_SIZE,
 			 "bind: %s", pcap_strerror(errno));
 		return -1;
+	}
+
+	/* Any pending errors, e.g., network is down? */
+
+	if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &err, &errlen) == -1) {
+		snprintf(ebuf, PCAP_ERRBUF_SIZE,
+			"getsockopt: %s", pcap_strerror(errno));
+		return -2;
+	}
+
+	if (err > 0) {
+		snprintf(ebuf, PCAP_ERRBUF_SIZE,
+			"bind: %s", pcap_strerror(err));
+		return -2;
 	}
 
 	return 0;
@@ -1240,7 +1448,7 @@ iface_bind(int fd, int ifindex, char *ebuf)
 /*
  * With older kernels promiscuous mode is kind of interesting because we
  * have to reset the interface before exiting. The problem can't really
- * be solved without some daemon taking care of managing usage counts. 
+ * be solved without some daemon taking care of managing usage counts.
  * If we put the interface into promiscuous mode, we set a flag indicating
  * that we must take it out of that mode when the interface is closed,
  * and, when closing the interface, if that flag is set we take it out
@@ -1269,7 +1477,7 @@ static void	pcap_close_all(void)
 		pcap_close(handle);
 }
 
-void	pcap_close_linux( pcap_t *handle )
+static void	pcap_close_linux( pcap_t *handle )
 {
 	struct pcap	*p, *prevp;
 	struct ifreq	ifr;
@@ -1287,7 +1495,7 @@ void	pcap_close_linux( pcap_t *handle )
 		memset(&ifr, 0, sizeof(ifr));
 		strncpy(ifr.ifr_name, handle->md.device, sizeof(ifr.ifr_name));
 		if (ioctl(handle->fd, SIOCGIFFLAGS, &ifr) == -1) {
-			fprintf(stderr, 
+			fprintf(stderr,
 			    "Can't restore interface flags (SIOCGIFFLAGS failed: %s).\n"
 			    "Please adjust manually.\n"
 			    "Hint: This can't happen with Linux >= 2.2.0.\n",
@@ -1300,7 +1508,7 @@ void	pcap_close_linux( pcap_t *handle )
 				 */
 				ifr.ifr_flags &= ~IFF_PROMISC;
 				if (ioctl(handle->fd, SIOCSIFFLAGS, &ifr) == -1) {
-					fprintf(stderr, 
+					fprintf(stderr,
 					    "Can't restore interface flags (SIOCSIFFLAGS failed: %s).\n"
 					    "Please adjust manually.\n"
 					    "Hint: This can't happen with Linux >= 2.2.0.\n",
@@ -1334,8 +1542,14 @@ void	pcap_close_linux( pcap_t *handle )
 			}
 		}
 	}
+
 	if (handle->md.device != NULL)
 		free(handle->md.device);
+	handle->md.device = NULL;
+	if (handle->buffer != NULL)
+		free(handle->buffer);
+	if (handle->fd >= 0)
+		close(handle->fd);
 }
 
 /*
@@ -1344,17 +1558,17 @@ void	pcap_close_linux( pcap_t *handle )
  *  FIXME: 0 uses to mean success (Sebastian)
  */
 static int
-live_open_old(pcap_t *handle, char *device, int promisc, 
+live_open_old(pcap_t *handle, const char *device, int promisc,
 	      int to_ms, char *ebuf)
 {
-	int		sock_fd = -1, arptype;
+	int		arptype;
 	struct ifreq	ifr;
 
 	do {
 		/* Open the socket */
 
-		sock_fd = socket(PF_INET, SOCK_PACKET, htons(ETH_P_ALL));
-		if (sock_fd == -1) {
+		handle->fd = socket(PF_INET, SOCK_PACKET, htons(ETH_P_ALL));
+		if (handle->fd == -1) {
 			snprintf(ebuf, PCAP_ERRBUF_SIZE,
 				 "socket: %s", pcap_strerror(errno));
 			break;
@@ -1373,14 +1587,33 @@ live_open_old(pcap_t *handle, char *device, int promisc,
 				PCAP_ERRBUF_SIZE);
 			break;
 		}
-		if (iface_bind_old(sock_fd, device, ebuf) == -1)
+		if (iface_bind_old(handle->fd, device, ebuf) == -1)
 			break;
 
-		/* Go to promisc mode */
+		/*
+		 * Try to get the link-layer type.
+		 */
+		arptype = iface_get_arptype(handle->fd, device, ebuf);
+		if (arptype == -1)
+			break;
+
+		/*
+		 * Try to find the DLT_ type corresponding to that
+		 * link-layer type.
+		 */
+		map_arphrd_to_dlt(handle, arptype, 0);
+		if (handle->linktype == -1) {
+			snprintf(ebuf, PCAP_ERRBUF_SIZE,
+				 "unknown arptype %d", arptype);
+			break;
+		}
+
+		/* Go to promisc mode if requested */
+
 		if (promisc) {
 			memset(&ifr, 0, sizeof(ifr));
 			strncpy(ifr.ifr_name, device, sizeof(ifr.ifr_name));
-			if (ioctl(sock_fd, SIOCGIFFLAGS, &ifr) == -1) {
+			if (ioctl(handle->fd, SIOCGIFFLAGS, &ifr) == -1) {
 				snprintf(ebuf, PCAP_ERRBUF_SIZE,
 					 "ioctl: %s", pcap_strerror(errno));
 				break;
@@ -1410,10 +1643,11 @@ live_open_old(pcap_t *handle, char *device, int promisc,
 							PCAP_ERRBUF_SIZE);
 						break;
 					}
+					did_atexit = 1;
 				}
 
 				ifr.ifr_flags |= IFF_PROMISC;
-				if (ioctl(sock_fd, SIOCSIFFLAGS, &ifr) == -1) {
+				if (ioctl(handle->fd, SIOCSIFFLAGS, &ifr) == -1) {
 				        snprintf(ebuf, PCAP_ERRBUF_SIZE,
 						 "ioctl: %s",
 						 pcap_strerror(errno));
@@ -1430,64 +1664,50 @@ live_open_old(pcap_t *handle, char *device, int promisc,
 			}
 		}
 
-		/* All done - fill in the pcap handle */
-
-		arptype = iface_get_arptype(sock_fd, device, ebuf);
-		if (arptype == -1)
-			break;
-
-		/* Save the socket FD in the pcap structure */
-
-		handle->fd 	 = sock_fd;
-
 		/*
 		 * Default value for offset to align link-layer payload
 		 * on a 4-byte boundary.
 		 */
 		handle->offset	 = 0;
 
-		/*
-		 * XXX - handle ISDN types here?  We can't fall back on
-		 * cooked sockets, so we'd have to figure out from the
-		 * device name what type of link-layer encapsulation
-		 * it's using, and map that to an appropriate DLT_
-		 * value, meaning we'd map "isdnN" devices to DLT_RAW
-		 * (they supply raw IP packets with no link-layer
-		 * header) and "isdY" devices to a new DLT_I4L_IP
-		 * type that has only an Ethernet packet type as
-		 * a link-layer header.
-		 */
-		map_arphrd_to_dlt(handle, arptype);
-		if (handle->linktype == -1 ||
-		    handle->linktype == DLT_LINUX_SLL) {
-			snprintf(ebuf, PCAP_ERRBUF_SIZE,
-				 "interface type of %s not supported", device);
-			break;
-		}
-
 		return 1;
 
 	} while (0);
 
-	if (sock_fd != -1)
-		close(sock_fd);
+	pcap_close_linux(handle);
 	return 0;
 }
 
 /*
- *  Bind the socket associated with FD to the given device using the 
+ *  Bind the socket associated with FD to the given device using the
  *  interface of the old kernels.
  */
 static int
 iface_bind_old(int fd, const char *device, char *ebuf)
 {
 	struct sockaddr	saddr;
+	int		err;
+	socklen_t	errlen = sizeof(err);
 
 	memset(&saddr, 0, sizeof(saddr));
 	strncpy(saddr.sa_data, device, sizeof(saddr.sa_data));
 	if (bind(fd, &saddr, sizeof(saddr)) == -1) {
 		snprintf(ebuf, PCAP_ERRBUF_SIZE,
 			 "bind: %s", pcap_strerror(errno));
+		return -1;
+	}
+
+	/* Any pending errors, e.g., network is down? */
+
+	if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &err, &errlen) == -1) {
+		snprintf(ebuf, PCAP_ERRBUF_SIZE,
+			"getsockopt: %s", pcap_strerror(errno));
+		return -1;
+	}
+
+	if (err > 0) {
+		snprintf(ebuf, PCAP_ERRBUF_SIZE,
+			"bind: %s", pcap_strerror(err));
 		return -1;
 	}
 
@@ -1498,7 +1718,7 @@ iface_bind_old(int fd, const char *device, char *ebuf)
 /* ===== System calls available on all supported kernels ============== */
 
 /*
- *  Query the kernel for the MTU of the given interface. 
+ *  Query the kernel for the MTU of the given interface.
  */
 static int
 iface_get_mtu(int fd, const char *device, char *ebuf)
@@ -1704,7 +1924,7 @@ set_kernel_filter(pcap_t *handle, struct sock_fprog *fcode)
 	 * the filtering done in userland even if it could have been
 	 * done in the kernel.
 	 */
-	if (setsockopt(handle->fd, SOL_SOCKET, SO_ATTACH_FILTER, 
+	if (setsockopt(handle->fd, SOL_SOCKET, SO_ATTACH_FILTER,
 		       &total_fcode, sizeof(total_fcode)) == 0) {
 		char drain[1];
 
@@ -1716,7 +1936,7 @@ set_kernel_filter(pcap_t *handle, struct sock_fprog *fcode)
 		/*
 		 * Save the socket's current mode, and put it in
 		 * non-blocking mode; we drain it by reading packets
-		 * until we get an error (which we assume is a
+		 * until we get an error (which is normally a
 		 * "nothing more to be read" error).
 		 */
 		save_mode = fcntl(handle->fd, F_GETFL, 0);
@@ -1725,14 +1945,22 @@ set_kernel_filter(pcap_t *handle, struct sock_fprog *fcode)
 			while (recv(handle->fd, &drain, sizeof drain,
 			       MSG_TRUNC) >= 0)
 				;
+			save_errno = errno;
 			fcntl(handle->fd, F_SETFL, save_mode);
+			if (save_errno != EAGAIN) {
+				/* Fatal error */
+				reset_kernel_filter(handle);
+				snprintf(handle->errbuf, sizeof(handle->errbuf),
+				 "recv: %s", pcap_strerror(save_errno));
+				return -2;
+			}
 		}
 	}
 
 	/*
 	 * Now attach the new filter.
 	 */
-	ret = setsockopt(handle->fd, SOL_SOCKET, SO_ATTACH_FILTER, 
+	ret = setsockopt(handle->fd, SOL_SOCKET, SO_ATTACH_FILTER,
 			 fcode, sizeof(*fcode));
 	if (ret == -1 && total_filter_on) {
 		/*
@@ -1756,7 +1984,7 @@ set_kernel_filter(pcap_t *handle, struct sock_fprog *fcode)
 
 		errno = save_errno;
 	}
-	return ret;	 
+	return ret;
 }
 
 static int

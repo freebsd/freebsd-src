@@ -23,7 +23,7 @@
  */
 
 /*
- * Packet capture routine for dlpi under SunOS 5
+ * Packet capture routine for DLPI under SunOS 5, HP-UX 9/10/11, and AIX.
  *
  * Notes:
  *
@@ -33,12 +33,12 @@
  *      length results in data being left of the front of the packet.
  *
  *    - It might be desirable to use pfmod(7) to filter packets in the
- *      kernel.
+ *      kernel when possible.
  */
 
 #ifndef lint
-static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/libpcap/pcap-dlpi.c,v 1.74 2001/12/10 07:14:15 guy Exp $ (LBL)";
+static const char rcsid[] _U_ =
+    "@(#) $Header: /tcpdump/master/libpcap/pcap-dlpi.c,v 1.91.2.3 2003/11/21 10:20:46 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -98,6 +98,33 @@ static const char rcsid[] =
 
 #define	MAXDLBUF	8192
 
+#ifdef HAVE_SYS_BUFMOD_H
+
+/*
+ * Size of a bufmod chunk to pass upstream; that appears to be the biggest
+ * value to which you can set it, and setting it to that value (which
+ * is bigger than what appears to be the Solaris default of 8192)
+ * reduces the number of packet drops.
+ */
+#define CHUNKSIZE	65536
+
+/*
+ * Size of the buffer to allocate for packet data we read; it must be
+ * large enough to hold a chunk.
+ */
+#define PKTBUFSIZE	CHUNKSIZE
+
+#else /* HAVE_SYS_BUFMOD_H */
+
+/*
+ * Size of the buffer to allocate for packet data we read; this is
+ * what the value used to be - there's no particular reason why it
+ * should be tied to MAXDLBUF, but we'll leave it as this for now.
+ */
+#define PKTBUFSIZE	(MAXDLBUF * sizeof(bpf_u_int32))
+
+#endif
+
 /* Forwards */
 static char *split_dname(char *, int *, char *);
 static int dlattachreq(int, bpf_u_int32, char *);
@@ -124,8 +151,8 @@ static int dlpi_kread(int, off_t, void *, u_int, char *);
 static int get_dlpi_ppa(int, const char *, int, char *);
 #endif
 
-int
-pcap_stats(pcap_t *p, struct pcap_stat *ps)
+static int
+pcap_stats_dlpi(pcap_t *p, struct pcap_stat *ps)
 {
 
 	/*
@@ -157,8 +184,8 @@ static struct strbuf ctl = {
 	(char *)ctlbuf
 };
 
-int
-pcap_read(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
+static int
+pcap_read_dlpi(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 {
 	register int cc, n, caplen, origlen;
 	register u_char *bp, *ep, *pk;
@@ -177,9 +204,22 @@ pcap_read(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 	cc = p->cc;
 	if (cc == 0) {
 		data.buf = (char *)p->buffer + p->offset;
-		data.maxlen = MAXDLBUF;
+		data.maxlen = p->bufsize;
 		data.len = 0;
 		do {
+			/*
+			 * Has "pcap_breakloop()" been called?
+			 */
+			if (p->break_loop) {
+				/*
+				 * Yes - clear the flag that indicates
+				 * that it has, and return -2 to
+				 * indicate that we were told to
+				 * break out of the loop.
+				 */
+				p->break_loop = 0;
+				return (-2);
+			}
 			if (getmsg(p->fd, &ctl, &data, &flags) < 0) {
 				/* Don't choke when we get ptraced */
 				if (errno == EINTR) {
@@ -202,6 +242,25 @@ pcap_read(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 	n = 0;
 #ifdef HAVE_SYS_BUFMOD_H
 	while (bp < ep) {
+		/*
+		 * Has "pcap_breakloop()" been called?
+		 * If so, return immediately - if we haven't read any
+		 * packets, clear the flag and return -2 to indicate
+		 * that we were told to break out of the loop, otherwise
+		 * leave the flag set, so that the *next* call will break
+		 * out of the loop without having read any packets, and
+		 * return the number of packets we've processed so far.
+		 */
+		if (p->break_loop) {
+			if (n == 0) {
+				p->break_loop = 0;
+				return (-2);
+			} else {
+				p->bp = bp;
+				p->cc = ep - bp;
+				return (n);
+			}
+		}
 #ifdef LBL_ALIGN
 		if ((long)bp & 3) {
 			sbp = &sbhdr;
@@ -209,7 +268,7 @@ pcap_read(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 		} else
 #endif
 			sbp = (struct sb_hdr *)bp;
-		p->md.stat.ps_drop += sbp->sbh_drops;
+		p->md.stat.ps_drop = sbp->sbh_drops;
 		pk = bp + sizeof(*sbp);
 		bp += sbp->sbh_totlen;
 		origlen = sbp->sbh_origlen;
@@ -223,7 +282,8 @@ pcap_read(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 		++p->md.stat.ps_recv;
 		if (bpf_filter(fcode, pk, origlen, caplen)) {
 #ifdef HAVE_SYS_BUFMOD_H
-			pkthdr.ts = sbp->sbh_timestamp;
+			pkthdr.ts.tv_sec = sbp->sbh_timestamp.tv_sec;
+			pkthdr.ts.tv_usec = sbp->sbh_timestamp.tv_usec;
 #else
 			(void)gettimeofday(&pkthdr.ts, NULL);
 #endif
@@ -246,15 +306,44 @@ pcap_read(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 	return (n);
 }
 
+#ifndef DL_IPATM
+#define DL_IPATM	0x12	/* ATM Classical IP interface */
+#endif
+
+#ifdef HAVE_SOLARIS
+/*
+ * For SunATM.
+ */
+#ifndef A_GET_UNITS
+#define A_GET_UNITS	(('A'<<8)|118)
+#endif /* A_GET_UNITS */
+#ifndef A_PROMISCON_REQ
+#define A_PROMISCON_REQ	(('A'<<8)|121)
+#endif /* A_PROMISCON_REQ */
+#endif /* HAVE_SOLARIS */
+
+static void
+pcap_close_dlpi(pcap_t *p)
+{
+	if (p->buffer != NULL)
+		free(p->buffer);
+	if (p->fd >= 0)
+		close(p->fd);
+}
+
 pcap_t *
-pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
+pcap_open_live(const char *device, int snaplen, int promisc, int to_ms,
+    char *ebuf)
 {
 	register char *cp;
 	register pcap_t *p;
 	int ppa;
+#ifdef HAVE_SOLARIS
+	int isatm = 0;
+#endif
 	register dl_info_ack_t *infop;
 #ifdef HAVE_SYS_BUFMOD_H
-	bpf_u_int32 ss, flag;
+	bpf_u_int32 ss, chunksize;
 #ifdef HAVE_SOLARIS
 	register char *release;
 	bpf_u_int32 osmajor, osminor, osmicro;
@@ -280,10 +369,9 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 	*/
 	cp = strrchr(device, '/');
 	if (cp == NULL)
-		cp = device;
+		strlcpy(dname, device, sizeof(dname));
 	else
-		cp++;
-	strlcpy(dname, cp, sizeof(dname));
+		strlcpy(dname, cp + 1, sizeof(dname));
 
 	/*
 	 * Split the device name into a device type name and a unit number;
@@ -321,14 +409,6 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 		goto bad;
 #else
 	/*
-	 * Get the unit number, and a pointer to the end of the device
-	 * type name.
-	 */
-	cp = split_dname(device, &ppa, ebuf);
-	if (cp == NULL)
-		goto bad;
-
-	/*
 	 * If the device name begins with "/", assume it begins with
 	 * the pathname of the directory containing the device to open;
 	 * otherwise, concatenate the device directory name and the
@@ -341,11 +421,19 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 		    device);
 
 	/*
+	 * Get the unit number, and a pointer to the end of the device
+	 * type name.
+	 */
+	cp = split_dname(dname, &ppa, ebuf);
+	if (cp == NULL)
+		goto bad;
+
+	/*
 	 * Make a copy of the device pathname, and then remove the unit
 	 * number from the device pathname.
 	 */
 	strlcpy(dname2, dname, sizeof(dname));
-	*(dname + strlen(dname) - strlen(cp)) = '\0';
+	*cp = '\0';
 
 	/* Try device without unit number */
 	if ((p->fd = open(dname, O_RDWR)) < 0) {
@@ -375,6 +463,10 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 	    dlinfoack(p->fd, (char *)buf, ebuf) < 0)
 		goto bad;
 	infop = &((union DL_primitives *)buf)->info_ack;
+#ifdef HAVE_SOLARIS
+	if (infop->dl_mac_type == DL_IPATM)
+		isatm = 1;
+#endif
 	if (infop->dl_provider_style == DL_STYLE2 &&
 	    (dlattachreq(p->fd, ppa, ebuf) < 0 ||
 	    dlokack(p->fd, "attach", (char *)buf, ebuf) < 0))
@@ -410,6 +502,21 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 		goto bad;
 #endif
 
+#ifdef HAVE_SOLARIS
+	if (isatm) {
+		/*
+		** Have to turn on some special ATM promiscuous mode
+		** for SunATM.
+		** Do *NOT* turn regular promiscuous mode on; it doesn't
+		** help, and may break things.
+		*/
+		if (strioctl(p->fd, A_PROMISCON_REQ, 0, NULL) < 0) {
+			snprintf(ebuf, PCAP_ERRBUF_SIZE, "A_PROMISCON_REQ: %s",
+			    pcap_strerror(errno));
+			goto bad;
+		}
+	} else
+#endif
 	if (promisc) {
 		/*
 		** Enable promiscuous
@@ -432,12 +539,16 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 	}
 	/*
 	** Try to enable sap (when not in promiscuous mode when using
-	** using HP-UX and never under SINIX)
+	** using HP-UX, when not doing SunATM on Solaris, and never
+	** under SINIX)
 	*/
 #ifndef sinix
 	if (
 #ifdef __hpux
 	    !promisc &&
+#endif
+#ifdef HAVE_SOLARIS
+	    !isatm &&
 #endif
 	    (dlpromisconreq(p->fd, DL_PROMISC_SAP, ebuf) < 0 ||
 	    dlokack(p->fd, "promisc_sap", (char *)buf, ebuf) < 0)) {
@@ -486,15 +597,23 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 		p->offset = 2;
 		break;
 
+#ifdef HAVE_SOLARIS
+	case DL_IPATM:
+		p->linktype = DLT_SUNATM;
+		p->offset = 0;	/* works for LANE and LLC encapsulation */
+		break;
+#endif
+
 	default:
 		snprintf(ebuf, PCAP_ERRBUF_SIZE, "unknown mac type %lu",
-		    infop->dl_mac_type);
+		    (unsigned long)infop->dl_mac_type);
 		goto bad;
 	}
 
 #ifdef	DLIOCRAW
 	/*
-	** This is a non standard SunOS hack to get the ethernet header.
+	** This is a non standard SunOS hack to get the full raw link-layer
+	** header.
 	*/
 	if (strioctl(p->fd, DLIOCRAW, 0, NULL) < 0) {
 		snprintf(ebuf, PCAP_ERRBUF_SIZE, "DLIOCRAW: %s",
@@ -542,20 +661,6 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 	}
 
 	/*
-	** Set up the bufmod flags
-	*/
-	if (strioctl(p->fd, SBIOCGFLAGS, sizeof(flag), (char *)&flag) < 0) {
-		snprintf(ebuf, PCAP_ERRBUF_SIZE, "SBIOCGFLAGS: %s",
-		    pcap_strerror(errno));
-		goto bad;
-	}
-	flag |= SB_NO_DROPS;
-	if (strioctl(p->fd, SBIOCSFLAGS, sizeof(flag), (char *)&flag) != 0) {
-		snprintf(ebuf, PCAP_ERRBUF_SIZE, "SBIOCSFLAGS: %s",
-		    pcap_strerror(errno));
-		goto bad;
-	}
-	/*
 	** Set up the bufmod timeout
 	*/
 	if (to_ms != 0) {
@@ -569,6 +674,17 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 			goto bad;
 		}
 	}
+
+	/*
+	** Set the chunk length.
+	*/
+	chunksize = CHUNKSIZE;
+	if (strioctl(p->fd, SBIOCSCHUNK, sizeof(chunksize), (char *)&chunksize)
+	    != 0) {
+		snprintf(ebuf, PCAP_ERRBUF_SIZE, "SBIOCSCHUNKP: %s",
+		    pcap_strerror(errno));
+		goto bad;
+	}
 #endif
 
 	/*
@@ -579,9 +695,28 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 		    pcap_strerror(errno));
 		goto bad;
 	}
+
 	/* Allocate data buffer */
-	p->bufsize = MAXDLBUF * sizeof(bpf_u_int32);
+	p->bufsize = PKTBUFSIZE;
 	p->buffer = (u_char *)malloc(p->bufsize + p->offset);
+	if (p->buffer == NULL) {
+		strlcpy(ebuf, pcap_strerror(errno), PCAP_ERRBUF_SIZE);
+		goto bad;
+	}
+
+	/*
+	 * "p->fd" is an FD for a STREAMS device, so "select()" and
+	 * "poll()" should work on it.
+	 */
+	p->selectable_fd = p->fd;
+
+	p->read_op = pcap_read_dlpi;
+	p->setfilter_op = install_bpf_program;	/* no kernel filtering */
+	p->set_datalink_op = NULL;	/* can't change data link type */
+	p->getnonblock_op = pcap_getnonblock_fd;
+	p->setnonblock_op = pcap_setnonblock_fd;
+	p->stats_op = pcap_stats_dlpi;
+	p->close_op = pcap_close_dlpi;
 
 	return (p);
 bad:
@@ -630,11 +765,45 @@ split_dname(char *device, int *unitp, char *ebuf)
 }
 
 int
-pcap_setfilter(pcap_t *p, struct bpf_program *fp)
+pcap_platform_finddevs(pcap_if_t **alldevsp, char *errbuf)
 {
+#ifdef HAVE_SOLARIS
+	int fd;
+	union {
+		u_int nunits;
+		char pad[516];	/* XXX - must be at least 513; is 516
+				   in "atmgetunits" */
+	} buf;
+	char baname[2+1+1];
+	u_int i;
 
-	if (install_bpf_program(p, fp) < 0)
+	/*
+	 * We may have to do special magic to get ATM devices.
+	 */
+	if ((fd = open("/dev/ba", O_RDWR)) < 0) {
+		/*
+		 * We couldn't open the "ba" device.
+		 * For now, just give up; perhaps we should
+		 * return an error if the problem is neither
+		 * a "that device doesn't exist" error (ENOENT,
+		 * ENXIO, etc.) or a "you're not allowed to do
+		 * that" error (EPERM, EACCES).
+		 */
+		return (0);
+	}
+
+	if (strioctl(fd, A_GET_UNITS, sizeof(buf), (char *)&buf) < 0) {
+		snprintf(errbuf, PCAP_ERRBUF_SIZE, "A_GET_UNITS: %s",
+		    pcap_strerror(errno));
 		return (-1);
+	}
+	for (i = 0; i < buf.nunits; i++) {
+		snprintf(baname, sizeof baname, "ba%u", i);
+		if (pcap_add_if(alldevsp, baname, 0, NULL, errbuf) < 0)
+			return (-1);
+	}
+#endif
+
 	return (0);
 }
 
@@ -1080,7 +1249,7 @@ get_release(bpf_u_int32 *majorp, bpf_u_int32 *minorp, bpf_u_int32 *microp)
  * says that, to see the machine's outgoing traffic, you'd need to
  * apply the right patches to your system, and also set that variable
  * with:
- 
+
 echo 'lanc_outbound_promisc_flag/W1' | /usr/bin/adb -w /stand/vmunix /dev/kmem
 
  * which could be put in, for example, "/sbin/init.d/lan".
@@ -1143,14 +1312,14 @@ get_dlpi_ppa(register int fd, register const char *device, register int unit,
 		    (bpf_u_int32)dlp->dl_primitive);
 		return (-1);
 	}
-	    
+
 	if (ctl.len < DL_HP_PPA_ACK_SIZE) {
 		snprintf(ebuf, PCAP_ERRBUF_SIZE,
-		    "get_dlpi_ppa: hpppa ack too small (%d < %d)",
-		     ctl.len, DL_HP_PPA_ACK_SIZE);
+		    "get_dlpi_ppa: hpppa ack too small (%d < %lu)",
+		     ctl.len, (unsigned long)DL_HP_PPA_ACK_SIZE);
 		return (-1);
 	}
-	    
+
 	/* allocate buffer */
 	if ((ppa_data_buf = (char *)malloc(dlp->dl_length)) == NULL) {
 		snprintf(ebuf, PCAP_ERRBUF_SIZE,
