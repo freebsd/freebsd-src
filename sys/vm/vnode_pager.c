@@ -213,7 +213,7 @@ vnode_pager_haspage(object, pindex, before, after)
 	 * not have the page.
 	 */
 	if ((vp->v_mount == NULL) ||
-		(IDX_TO_OFF(pindex) >= object->un_pager.vnp.vnp_size))
+	    (IDX_TO_OFF(pindex) >= object->un_pager.vnp.vnp_size))
 		return FALSE;
 
 	bsize = vp->v_mount->mnt_stat.f_iosize;
