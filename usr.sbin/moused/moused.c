@@ -44,10 +44,8 @@
  **
  **/
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/consio.h>
@@ -59,7 +57,6 @@ static const char rcsid[] =
 #include <sys/time.h>
 #include <sys/un.h>
 
-#include <ctype.h>
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
@@ -273,9 +270,9 @@ static symtab_t pnpprod[] = {
     { "PNP0F05",	MOUSE_PROTO_MSC,	MOUSE_MODEL_GENERIC },
 #if notyet
     /* Genius Mouse */
-    { "PNP0F06",	MOUSE_PROTO_???,	MOUSE_MODEL_GENERIC },
+    { "PNP0F06",	MOUSE_PROTO_XXX,	MOUSE_MODEL_GENERIC },
     /* Genius Mouse */
-    { "PNP0F07",	MOUSE_PROTO_???,	MOUSE_MODEL_GENERIC },
+    { "PNP0F07",	MOUSE_PROTO_XXX,	MOUSE_MODEL_GENERIC },
 #endif
     /* Logitech serial */
     { "PNP0F08",	MOUSE_PROTO_LOGIMOUSEMAN, MOUSE_MODEL_GENERIC },
@@ -295,7 +292,7 @@ static symtab_t pnpprod[] = {
     { "PNP0F0F",	MOUSE_PROTO_MS,		MOUSE_MODEL_GENERIC },
 #if notyet
     /* TI QuickPort */
-    { "PNP0F10",	MOUSE_PROTO_???,	MOUSE_MODEL_GENERIC },
+    { "PNP0F10",	MOUSE_PROTO_XXX,	MOUSE_MODEL_GENERIC },
 #endif
     /* MS bus comatible */
     { "PNP0F11",	MOUSE_PROTO_BUS,	MOUSE_MODEL_GENERIC },
@@ -305,13 +302,13 @@ static symtab_t pnpprod[] = {
     { "PNP0F13",	MOUSE_PROTO_PS2,	MOUSE_MODEL_GENERIC },
 #if notyet
     /* MS Kids Mouse */
-    { "PNP0F14",	MOUSE_PROTO_???,	MOUSE_MODEL_GENERIC },
+    { "PNP0F14",	MOUSE_PROTO_XXX,	MOUSE_MODEL_GENERIC },
 #endif
     /* Logitech bus */
     { "PNP0F15",	MOUSE_PROTO_BUS,	MOUSE_MODEL_GENERIC },
 #if notyet
     /* Logitech SWIFT */
-    { "PNP0F16",	MOUSE_PROTO_???,	MOUSE_MODEL_GENERIC },
+    { "PNP0F16",	MOUSE_PROTO_XXX,	MOUSE_MODEL_GENERIC },
 #endif
     /* Logitech serial compat */
     { "PNP0F17",	MOUSE_PROTO_LOGIMOUSEMAN, MOUSE_MODEL_GENERIC },
@@ -321,15 +318,15 @@ static symtab_t pnpprod[] = {
     { "PNP0F19",	MOUSE_PROTO_PS2,	MOUSE_MODEL_GENERIC },
 #if notyet
     /* Logitech SWIFT compatible */
-    { "PNP0F1A",	MOUSE_PROTO_???,	MOUSE_MODEL_GENERIC },
+    { "PNP0F1A",	MOUSE_PROTO_XXX,	MOUSE_MODEL_GENERIC },
     /* HP Omnibook */
-    { "PNP0F1B",	MOUSE_PROTO_???,	MOUSE_MODEL_GENERIC },
+    { "PNP0F1B",	MOUSE_PROTO_XXX,	MOUSE_MODEL_GENERIC },
     /* Compaq LTE TrackBall PS/2 */
-    { "PNP0F1C",	MOUSE_PROTO_???,	MOUSE_MODEL_GENERIC },
+    { "PNP0F1C",	MOUSE_PROTO_XXX,	MOUSE_MODEL_GENERIC },
     /* Compaq LTE TrackBall serial */
-    { "PNP0F1D",	MOUSE_PROTO_???,	MOUSE_MODEL_GENERIC },
+    { "PNP0F1D",	MOUSE_PROTO_XXX,	MOUSE_MODEL_GENERIC },
     /* MS Kidts Trackball */
-    { "PNP0F1E",	MOUSE_PROTO_???,	MOUSE_MODEL_GENERIC },
+    { "PNP0F1E",	MOUSE_PROTO_XXX,	MOUSE_MODEL_GENERIC },
 #endif
     /* Interlink VersaPad */
     { "LNK0001",	MOUSE_PROTO_VERSAPAD,	MOUSE_MODEL_VERSAPAD },
@@ -340,25 +337,25 @@ static symtab_t pnpprod[] = {
 /* the table must be ordered by MOUSE_PROTO_XXX in mouse.h */
 static unsigned short rodentcflags[] =
 {
-    (CS7	           | CREAD | CLOCAL | HUPCL ),	/* MicroSoft */
-    (CS8 | CSTOPB	   | CREAD | CLOCAL | HUPCL ),	/* MouseSystems */
-    (CS8 | CSTOPB	   | CREAD | CLOCAL | HUPCL ),	/* Logitech */
-    (CS8 | PARENB | PARODD | CREAD | CLOCAL | HUPCL ),	/* MMSeries */
-    (CS7		   | CREAD | CLOCAL | HUPCL ),	/* MouseMan */
+    (CS7	           | CREAD | CLOCAL | HUPCL),	/* MicroSoft */
+    (CS8 | CSTOPB	   | CREAD | CLOCAL | HUPCL),	/* MouseSystems */
+    (CS8 | CSTOPB	   | CREAD | CLOCAL | HUPCL),	/* Logitech */
+    (CS8 | PARENB | PARODD | CREAD | CLOCAL | HUPCL),	/* MMSeries */
+    (CS7		   | CREAD | CLOCAL | HUPCL),	/* MouseMan */
     0,							/* Bus */
     0,							/* InPort */
     0,							/* PS/2 */
-    (CS8		   | CREAD | CLOCAL | HUPCL ),	/* MM HitTablet */
-    (CS7	           | CREAD | CLOCAL | HUPCL ),	/* GlidePoint */
-    (CS7                   | CREAD | CLOCAL | HUPCL ),	/* IntelliMouse */
-    (CS7                   | CREAD | CLOCAL | HUPCL ),	/* Thinking Mouse */
-    (CS8 | CSTOPB	   | CREAD | CLOCAL | HUPCL ),	/* sysmouse */
-    (CS7	           | CREAD | CLOCAL | HUPCL ),	/* X10 MouseRemote */
-    (CS8 | PARENB | PARODD | CREAD | CLOCAL | HUPCL ),	/* kidspad etc. */
-    (CS8		   | CREAD | CLOCAL | HUPCL ),	/* VersaPad */
+    (CS8		   | CREAD | CLOCAL | HUPCL),	/* MM HitTablet */
+    (CS7	           | CREAD | CLOCAL | HUPCL),	/* GlidePoint */
+    (CS7                   | CREAD | CLOCAL | HUPCL),	/* IntelliMouse */
+    (CS7                   | CREAD | CLOCAL | HUPCL),	/* Thinking Mouse */
+    (CS8 | CSTOPB	   | CREAD | CLOCAL | HUPCL),	/* sysmouse */
+    (CS7	           | CREAD | CLOCAL | HUPCL),	/* X10 MouseRemote */
+    (CS8 | PARENB | PARODD | CREAD | CLOCAL | HUPCL),	/* kidspad etc. */
+    (CS8		   | CREAD | CLOCAL | HUPCL),	/* VersaPad */
     0,							/* JogDial */
 #if notyet
-    (CS8 | CSTOPB	   | CREAD | CLOCAL | HUPCL ),	/* Mariqua */
+    (CS8 | CSTOPB	   | CREAD | CLOCAL | HUPCL),	/* Mariqua */
 #endif
 };
 
@@ -496,9 +493,9 @@ static char	*gettokenname(symtab_t *tab, int val);
 static void	mremote_serversetup();
 static void	mremote_clientchg(int add);
 
-static int kidspad(u_char rxc, mousestatus_t *act);
+static int	kidspad(u_char rxc, mousestatus_t *act);
 
-static int usbmodule(void);
+static int	usbmodule(void);
 
 int
 main(int argc, char *argv[])
@@ -511,7 +508,7 @@ main(int argc, char *argv[])
     for (i = 0; i < MOUSE_MAXBUTTON; ++i)
 	mstate[i] = &bstate[i];
 
-    while((c = getopt(argc,argv,"3C:DE:F:I:PRS:a:cdfhi:l:m:p:r:st:w:z:")) != -1)
+    while ((c = getopt(argc, argv, "3C:DE:F:I:PRS:a:cdfhi:l:m:p:r:st:w:z:")) != -1)
 	switch(c) {
 
 	case '3':
@@ -1762,7 +1759,7 @@ r_protocol(u_char rBuf, mousestatus_t *act)
 	    if (rodent.mremcfd >= 0) {
 		unsigned char key = (signed char)(((pBuf[0] & 0x03) << 6) |
 						  (pBuf[1] & 0x3F));
-		write( rodent.mremcfd, &key, 1 );
+		write(rodent.mremcfd, &key, 1);
 	    }
 	    return 0;
 	}
@@ -2816,8 +2813,8 @@ pnpproto(pnpid_t *id)
     int i, j;
 
     if (id->nclass > 0)
-	if ( strncmp(id->class, "MOUSE", id->nclass) != 0 &&
-	     strncmp(id->class, "TABLET", id->nclass) != 0)
+	if (strncmp(id->class, "MOUSE", id->nclass) != 0 &&
+	    strncmp(id->class, "TABLET", id->nclass) != 0)
 	    /* this is not a mouse! */
 	    return NULL;
 
@@ -2910,11 +2907,11 @@ kidspad(u_char rxc, mousestatus_t *act)
 
     int x, y ;
 
-    if (buflen > 0 && (rxc & 0x80) ) {
+    if (buflen > 0 && (rxc & 0x80)) {
 	fprintf(stderr, "invalid code %d 0x%x\n", buflen, rxc);
 	buflen = 0 ;
     }
-    if (buflen == 0 && (rxc & 0xb8) != 0xb8 ) {
+    if (buflen == 0 && (rxc & 0xb8) != 0xb8) {
 	fprintf(stderr, "invalid code 0 0x%x\n", rxc);
 	return 0 ; /* invalid code, no action */
     }
@@ -2936,7 +2933,7 @@ kidspad(u_char rxc, mousestatus_t *act)
     act->obutton = act->button ;
     act->dx = act->dy = act->dz = 0 ;
     gettimeofday(&now, NULL);
-    if ( buf[0] & 0x40 ) /* pen went out of reach */
+    if (buf[0] & 0x40) /* pen went out of reach */
 	status = S_IDLE ;
     else if (status == S_IDLE) { /* pen is newly near the tablet */
 	act->flags |= MOUSE_POSCHANGED ; /* force update */
@@ -2953,9 +2950,9 @@ kidspad(u_char rxc, mousestatus_t *act)
     y_prev = y ;
     if (b_prev != 0 && b_prev != buf[0]) { /* possibly record button change */
 	act->button = 0 ;
-	if ( buf[0] & 0x01 ) /* tip pressed */
+	if (buf[0] & 0x01) /* tip pressed */
 	    act->button |= MOUSE_BUTTON1DOWN ;
-	if ( buf[0] & 0x02 ) /* button pressed */
+	if (buf[0] & 0x02) /* button pressed */
 	    act->button |= MOUSE_BUTTON2DOWN ;
 	act->flags |= MOUSE_BUTTONSCHANGED ;
     }
@@ -2971,7 +2968,7 @@ mremote_serversetup()
     /* Open a UNIX domain stream socket to listen for mouse remote clients */
     unlink(_PATH_MOUSEREMOTE);
 
-    if ( (rodent.mremsfd = socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
+    if ((rodent.mremsfd = socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
 	logerrx(1, "unable to create unix domain socket %s",_PATH_MOUSEREMOTE);
 
     umask(0111);
@@ -2980,8 +2977,8 @@ mremote_serversetup()
     ad.sun_family = AF_UNIX;
     strcpy(ad.sun_path, _PATH_MOUSEREMOTE);
 #ifndef SUN_LEN
-#define SUN_LEN(unp) ( ((char *)(unp)->sun_path - (char *)(unp)) + \
-		       strlen((unp)->path) )
+#define SUN_LEN(unp) (((char *)(unp)->sun_path - (char *)(unp)) + \
+		       strlen((unp)->path))
 #endif
     if (bind(rodent.mremsfd, (struct sockaddr *) &ad, SUN_LEN(&ad)) < 0)
 	logerrx(1, "unable to bind unix domain socket %s", _PATH_MOUSEREMOTE);
@@ -2998,14 +2995,14 @@ mremote_clientchg(int add)
     if (rodent.rtype != MOUSE_PROTO_X10MOUSEREM)
 	return;
 
-    if ( add ) {
+    if (add) {
 	/*  Accept client connection, if we don't already have one  */
 	ad_len = sizeof(ad);
 	fd = accept(rodent.mremsfd, (struct sockaddr *) &ad, &ad_len);
 	if (fd < 0)
 	    logwarnx("failed accept on mouse remote socket");
 
-	if ( rodent.mremcfd < 0 ) {
+	if (rodent.mremcfd < 0) {
 	    rodent.mremcfd = fd;
 	    debug("remote client connect...accepted");
 	}
@@ -3017,7 +3014,7 @@ mremote_clientchg(int add)
     else {
 	/* Client disconnected */
 	debug("remote client disconnected");
-	close( rodent.mremcfd );
+	close(rodent.mremcfd);
 	rodent.mremcfd = -1;
     }
 }
