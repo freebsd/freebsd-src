@@ -2124,9 +2124,7 @@ comhardclose(com)
 {
 	int		s;
 	struct tty	*tp;
-	int		unit;
 
-	unit = com->unit;
 	s = spltty();
 	com->poll = FALSE;
 	com->poll_output = FALSE;
