@@ -305,6 +305,10 @@ static struct scsidevs knowndevs[] =
 		T_SEQUENTIAL, T_SEQUENTIAL, T_REMOV, "Quantum", "DLT*", "*",
 		"st", SC_MORE_LUS, 0
 	},
+	{
+		T_SEQUENTIAL, T_SEQUENTIAL, T_REMOV, "HP", "C1553A", "*",
+		"st", SC_MORE_LUS, 0
+	},
 #endif	/* NST */
 #if NCD > 0
 #ifndef UKTEST	/* make cdroms unrecognised to test the uk driver */
@@ -1023,6 +1027,10 @@ scsi_probe_bus(int bus, int targ, int lun)
 		maxlun = minlun = lun;
 	}
 
+	printf("scbus%d at %s%d bus %d\n",
+		sc_link_proto->scsibus, sc_link_proto->adapter->name,
+		sc_link_proto->adapter_unit, sc_link_proto->adapter_bus);
+
 	for ( targ = mintarg;targ <= maxtarg; targ++) {
 		maybe_more = 0;	/* by default only check 1 lun */
 		if (targ == scsi_addr) {
@@ -1122,6 +1130,79 @@ make_readable(to, from, n)
 
 	to[i] = 0;
 }
+
+#ifndef SCSIDEBUG
+void scsi_print_info(sc_link)
+	struct scsi_link *sc_link;
+{
+	int    dtype = 0;
+	char   *desc;
+	char   *qtype;
+	struct scsi_inquiry_data *inqbuf;
+	u_int32_t len, qualifier, type;
+	boolean remov;
+	char    manu[8 + 1];
+	char    model[16 + 1];
+	char    version[4 + 1];
+
+ 	inqbuf = &sc_link->inqbuf;
+
+	type = inqbuf->device & SID_TYPE;
+	qualifier = inqbuf->device & SID_QUAL;
+	remov = inqbuf->dev_qual2 & SID_REMOVABLE;
+
+	switch ((int)qualifier) {
+	case SID_QUAL_LU_OK:
+		qtype = "";
+		break;
+
+	case SID_QUAL_LU_OFFLINE:
+		qtype = "Supported device currently not connected";
+		break;
+
+	default:
+		dtype = 1;
+		qtype = "Vendor specific peripheral qualifier";
+		break;
+	}
+
+	if ((inqbuf->version & SID_ANSII) > 0) {
+		if ((len = inqbuf->additional_length
+			+ ((char *) inqbuf->unused
+			    - (char *) inqbuf))
+		    > (sizeof(struct scsi_inquiry_data) - 1))
+			        len = sizeof(struct scsi_inquiry_data) - 1;
+		desc = inqbuf->vendor;
+		desc[len - (desc - (char *) inqbuf)] = 0;
+		make_readable(manu, inqbuf->vendor, sizeof(manu));
+		make_readable(model, inqbuf->product, sizeof(model));
+		make_readable(version, inqbuf->revision, sizeof(version));
+	} else {
+		/*
+		 * If not advanced enough, use default values
+		 */
+		desc = "early protocol device";
+		make_readable(manu, "unknown", sizeof(manu));
+		make_readable(model, "unknown", sizeof(model));
+		make_readable(version, "????", sizeof(version));
+	}
+
+	printf("%s%d: ", sc_link->device->name,
+			 sc_link->dev_unit);
+	printf("<%s %s %s> ", manu, model, version );
+	printf("type %ld %sSCSI %d"
+	    ,type
+	    ,remov ? "removable " : "fixed "
+	    ,inqbuf->version & SID_ANSII
+	    );
+	if (qtype[0]) {
+		sc_print_addr(sc_link);
+		printf(" qualifier %ld: %s" ,qualifier ,qtype);
+	}
+
+	printf("\n");
+}
+#endif
 
 /*
  * given a target and lu, ask the device what
@@ -1258,9 +1339,10 @@ scsi_probedev(sc_link, maybe_more, type_p)
 		make_readable(version, "????", sizeof(version));
 	}
 
+#ifdef SCSIDEBUG
 	sc_print_start(sc_link);
 
-	printf("\"%s %s %s\" ", manu, model, version );
+	printf("<%s %s %s> ", manu, model, version );
 	printf("type %ld %sSCSI %d"
 	    ,type
 	    ,remov ? "removable " : "fixed "
@@ -1273,7 +1355,7 @@ scsi_probedev(sc_link, maybe_more, type_p)
 
 	printf("\n");
 	sc_print_finish();
-
+#endif
 	/*
 	 * Try make as good a match as possible with
 	 * available sub drivers

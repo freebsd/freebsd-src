@@ -1249,19 +1249,16 @@ sc_print_addr(sc_link)
 	}
 	else if (strcmp(sc_link->device->name, "probe") != 0) {
 		printf("%s", sc_link->device->name);
-		id_put(sc_link->dev_unit, "");
+		id_put(sc_link->dev_unit, " at ");
 	}
 
-	if (sc_link->adapter == 0) {
-		printf("(noadapter:");
-	}
-	else {
-		printf("(%s", sc_link->adapter->name);
-		id_put(sc_link->adapter_unit, ":");
-	}
+	printf("scbus");
+	id_put(sc_link->scsibus, " ");
 
-	id_put(sc_link->target, ":");
-	id_put(sc_link->lun, "): ");
+	printf("target ");
+	id_put(sc_link->target, " ");
+	printf("lun ");
+	id_put(sc_link->lun, ": ");
 }
 
 #ifdef	SCSIDEBUG
