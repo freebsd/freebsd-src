@@ -32,6 +32,7 @@
 #include <machine/db_machdep.h>
 #include <machine/unwind.h>
 #include <machine/rse.h>
+#include <machine/vmparam.h>
 
 #include <ddb/ddb.h>
 #include <ddb/db_sym.h> 
