@@ -234,8 +234,6 @@ spec_open(ap)
 	if (vn_isdisk(vp)) {
 		if (!dev->si_bsize_phys)
 			dev->si_bsize_phys = DEV_BSIZE;
-		if (dev->si_bsize_best < dev->si_bsize_phys)
-			dev->si_bsize_best = BLKDEV_IOSIZE;
 		if (!dev->si_bsize_max)
 			dev->si_bsize_max = MAXBSIZE;
 	}
@@ -296,6 +294,10 @@ spec_read(ap)
 		 */
 
 		bsize = vp->v_rdev->si_bsize_best;
+		if (bsize < vp->v_rdev->si_bsize_phys)
+			bsize = vp->v_rdev->si_bsize_phys;
+		if (bsize < BLKDEV_IOSIZE)
+			bsize = BLKDEV_IOSIZE;
 
 		if ((ioctl = devsw(dev)->d_ioctl) != NULL &&
 		    (*ioctl)(dev, DIOCGPART, (caddr_t)&dpart, FREAD, p) == 0 &&
@@ -380,6 +382,10 @@ spec_write(ap)
 		 * be larger then the physical minimum.
 		 */
 		bsize = vp->v_rdev->si_bsize_best;
+		if (bsize < vp->v_rdev->si_bsize_phys)
+			bsize = vp->v_rdev->si_bsize_phys;
+		if (bsize < BLKDEV_IOSIZE)
+			bsize = BLKDEV_IOSIZE;
 
 		if ((*devsw(vp->v_rdev)->d_ioctl)(vp->v_rdev, DIOCGPART,
 		    (caddr_t)&dpart, FREAD, p) == 0) {

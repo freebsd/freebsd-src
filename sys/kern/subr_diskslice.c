@@ -718,8 +718,6 @@ dsopen(dev, mode, flags, sspp, lp)
 	int	unit;
 
 	dev->si_bsize_phys = lp->d_secsize;
-	dev->si_bsize_best = BLKDEV_IOSIZE;
-	dev->si_bsize_max = MAXBSIZE;
 
 	unit = dkunit(dev);
 	if (lp->d_secsize % DEV_BSIZE) {

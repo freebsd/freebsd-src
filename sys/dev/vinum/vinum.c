@@ -268,9 +268,6 @@ vinumopen(dev_t dev,
     int devminor;					    /* minor number */
 
     devminor = minor(dev);
-    dev->si_bsize_phys = DEV_BSIZE;
-    dev->si_bsize_best = VINUM_BSIZE_BEST;		    /* kludge until we track drive block sizes */
-    dev->si_bsize_max = MAXBSIZE;
     error = 0;
     /* First, decide what we're looking at */
     switch (DEVTYPE(dev)) {

@@ -296,8 +296,6 @@ int mcdopen(dev_t dev, int flags, int fmt, struct proc *p)
 	if (!(cd->flags & MCDVALID) && cd->openflags)
 		return ENXIO;
 
-	dev->si_bsize_phys = 2048;
-	dev->si_bsize_max = MAXBSIZE;
 	if (mcd_getstat(unit,1) == -1)
 		return EIO;
 
@@ -351,6 +349,8 @@ int mcdopen(dev_t dev, int flags, int fmt, struct proc *p)
 
 MCD_TRACE("open: partition=%d, disksize = %ld, blksize=%d\n",
 	part, cd->disksize, cd->blksize);
+
+	dev->si_bsize_phys = cd->blksize;
 
 	if (part == RAW_PART ||
 		(part < cd->dlabel.d_npartitions &&
