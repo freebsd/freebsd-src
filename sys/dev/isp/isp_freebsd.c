@@ -340,6 +340,7 @@ static __inline int isp_psema_sig_rqe(struct ispsoftc *, int);
 static __inline int isp_cv_wait_timed_rqe(struct ispsoftc *, int, int);
 static __inline void isp_cv_signal_rqe(struct ispsoftc *, int, int);
 static __inline void isp_vsema_rqe(struct ispsoftc *, int);
+static __inline atio_private_data_t *isp_get_atpd(struct ispsoftc *, int);
 static cam_status
 create_lun_state(struct ispsoftc *, int, struct cam_path *, tstate_t **);
 static void destroy_lun_state(struct ispsoftc *, tstate_t *);
@@ -459,6 +460,18 @@ isp_vsema_rqe(struct ispsoftc *isp, int bus)
 		cv_signal(&isp->isp_osinfo.tgtcv0[bus]);
 	}
 	isp->isp_osinfo.tmflags[bus] &= ~TM_BUSY;
+}
+
+static __inline atio_private_data_t *
+isp_get_atpd(struct ispsoftc *isp, int tag)
+{
+	atio_private_data_t *atp;
+	for (atp = isp->isp_osinfo.atpdp;
+	    atp < &isp->isp_osinfo.atpdp[ATPDPSIZE]; atp++) {
+		if (atp->tag == tag)
+			return (atp);
+	}
+	return (NULL);
 }
 
 static cam_status
@@ -931,7 +944,7 @@ isp_target_start_ctio(struct ispsoftc *isp, union ccb *ccb)
 	 */
 
 	if (IS_FC(isp)) {
-		int resid;
+		atio_private_data_t *atp;
 		ct2_entry_t *cto = qe;
 
 		cto->ct_header.rqs_entry_type = RQSTYPE_CTIO2;
@@ -940,16 +953,12 @@ isp_target_start_ctio(struct ispsoftc *isp, union ccb *ccb)
 		if ((FCPARAM(isp)->isp_fwattr & ISP_FW_ATTR_SCCLUN) == 0) {
 			cto->ct_lun = ccb->ccb_h.target_lun;
 		}
-		/*
-		 * Start with a residual based on what the original datalength
-		 * was supposed to be. Basically, we ignore what CAM has set
-		 * for residuals. The data transfer routines will knock off
-		 * the residual for each byte actually moved- and also will
-		 * be responsible for setting the underrun flag.
-		 */
-		/* HACK! HACK! */
-		resid = ccb->ccb_h.spriv_field0;
-		cto->ct_resid = 0;
+
+		atp = isp_get_atpd(isp, cso->tag_id);
+		if (atp == NULL) {
+			panic("cannot find private data adjunct for tag %x",
+			    cso->tag_id);
+		}
 
 		cto->ct_rxid = cso->tag_id;
 		if (cso->dxfer_len == 0) {
@@ -957,7 +966,8 @@ isp_target_start_ctio(struct ispsoftc *isp, union ccb *ccb)
 			if (ccb->ccb_h.flags & CAM_SEND_STATUS) {
 				cto->ct_flags |= CT2_SENDSTATUS;
 				cto->rsp.m1.ct_scsi_status = cso->scsi_status;
-				cto->ct_resid = resid;
+				cto->ct_resid =
+				    atp->orig_datalen - atp->bytes_xfered;
 			}
 			if ((ccb->ccb_h.flags & CAM_SEND_SENSE) != 0) {
 				int m = min(cso->sense_len, MAXRESPLEN);
@@ -975,7 +985,11 @@ isp_target_start_ctio(struct ispsoftc *isp, union ccb *ccb)
 			if ((ccb->ccb_h.flags & CAM_SEND_STATUS) != 0) {
 				cto->ct_flags |= CT2_SENDSTATUS;
 				cto->rsp.m0.ct_scsi_status = cso->scsi_status;
-				cto->ct_resid = resid;
+				cto->ct_resid =
+				    atp->orig_datalen -
+				    (atp->bytes_xfered + cso->dxfer_len);
+			} else {
+				atp->last_xframt = cso->dxfer_len;
 			}
 			/*
 			 * If we're sending data and status back together,
@@ -983,11 +997,12 @@ isp_target_start_ctio(struct ispsoftc *isp, union ccb *ccb)
 			 */
 			ccb->ccb_h.flags &= ~CAM_SEND_SENSE;
 		}
+
 		if (cto->ct_flags & CT2_SENDSTATUS) {
 			isp_prt(isp, ISP_LOGTDEBUG0,
-			    "CTIO2[%x] SCSI STATUS 0x%x curxf %u finalresid %u",
-			    cto->ct_rxid, cso->scsi_status, cso->dxfer_len,
-			    resid);
+			    "CTIO2[%x] STATUS %x origd %u curd %u resid %u",
+			    cto->ct_rxid, cso->scsi_status, atp->orig_datalen,
+			    cso->dxfer_len, cto->ct_resid);
 			cto->ct_flags |= CT2_CCINCR;
 		}
 		cto->ct_timeout = 10;
@@ -1017,16 +1032,13 @@ isp_target_start_ctio(struct ispsoftc *isp, union ccb *ccb)
 			cto->ct_flags |= CT_DATA_OUT;
 		}
 		if (ccb->ccb_h.flags & CAM_SEND_STATUS) {
-			cto->ct_flags |= CT_SENDSTATUS;
+			cto->ct_flags |= CT_SENDSTATUS|CT_CCINCR;
 			cto->ct_scsi_status = cso->scsi_status;
 			cto->ct_resid = cso->resid;
-		}
-		if (cto->ct_flags & CT_SENDSTATUS) {
 			isp_prt(isp, ISP_LOGTDEBUG0,
 			    "CTIO[%x] SCSI STATUS 0x%x resid %d tag_id %x",
 			    cto->ct_fwhandle, cso->scsi_status, cso->resid,
 			    cso->tag_id);
-			cto->ct_flags |= CT_CCINCR;
 		}
 		ccb->ccb_h.flags &= ~CAM_SEND_SENSE;
 		cto->ct_timeout = 10;
@@ -1280,6 +1292,7 @@ isp_handle_platform_atio2(struct ispsoftc *isp, at2_entry_t *aep)
 	lun_id_t lun;
 	tstate_t *tptr;
 	struct ccb_accept_tio *atiop;
+	atio_private_data_t *atp;
 
 	/*
 	 * The firmware status (except for the QLTM_SVALID bit)
@@ -1344,8 +1357,9 @@ isp_handle_platform_atio2(struct ispsoftc *isp, at2_entry_t *aep)
 		return (0);
 	}
 
+	atp = isp_get_atpd(isp, 0);
 	atiop = (struct ccb_accept_tio *) SLIST_FIRST(&tptr->atios);
-	if (atiop == NULL) {
+	if (atiop == NULL || atp == NULL) {
 		/*
 		 * Because we can't autofeed sense data back with
 		 * a command for parallel SCSI, we can't give back
@@ -1401,10 +1415,10 @@ isp_handle_platform_atio2(struct ispsoftc *isp, at2_entry_t *aep)
 		atiop->ccb_h.status |= CAM_TAG_ACTION_VALID;
 	}
 
-	/*
-	 * Preserve overall command datalength in private field.
-	 */
-	atiop->ccb_h.spriv_field0 = aep->at_datalen;
+	atp->tag = atiop->tag_id;
+	atp->orig_datalen = aep->at_datalen;
+	atp->last_xframt = 0;
+	atp->bytes_xfered = 0;
 
 	xpt_done((union ccb*)atiop);
 	isp_prt(isp, ISP_LOGTDEBUG0,
@@ -1439,7 +1453,17 @@ isp_handle_platform_ctio(struct ispsoftc *isp, void *arg)
 		}
 		notify_cam = ct->ct_header.rqs_seqno & 0x1;
 		if ((ct->ct_flags & CT2_DATAMASK) != CT2_NO_DATA) {
+			atio_private_data_t *atp =
+			    isp_get_atpd(isp, ct->ct_rxid);
+			if (atp == NULL) {
+				panic("cannot find adjunct after I/O");
+			}
 			resid = ct->ct_resid;
+			atp->bytes_xfered += (atp->last_xframt - resid);
+			atp->last_xframt = 0;
+			if (sentstatus) {
+				atp->tag = 0;
+			}
 		}
 		isp_prt(isp, ISP_LOGTDEBUG0,
 		    "CTIO2[%x] sts 0x%x flg 0x%x sns %d resid %d %s",
@@ -1496,8 +1520,8 @@ isp_handle_platform_ctio(struct ispsoftc *isp, void *arg)
 		return (0);
 	}
 
-	isp_prt(isp, ISP_LOGTDEBUG0, "%s CTIO[0x%x] done (resid %d)",
-	    (sentstatus)? "  FINAL " : "MIDTERM ", tval, ccb->csio.resid);
+	isp_prt(isp, ISP_LOGTDEBUG0, "%s CTIO[0x%x] done",
+	    (sentstatus)? "  FINAL " : "MIDTERM ", tval);
 
 	if (!ok) {
 		isp_target_putback_atio(ccb);
@@ -2118,7 +2142,10 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			cts->transport_version = 0;
 
 			fc->valid = CTS_FC_VALID_SPEED;
-			fc->bitrate = 100000;
+			if (fcp->isp_gbspeed == 2)
+				fc->bitrate = 200000;
+			else
+				fc->bitrate = 100000;
 			if (tgt > 0 && tgt < MAX_FC_TARG) {
 				struct lportdb *lp = &fcp->portdb[tgt];
 				fc->wwnn = lp->node_wwn;
@@ -2301,7 +2328,10 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			 * what media we're running on top of- but we'll
 			 * look good if we always say 100MB/s.
 			 */
-			cpi->base_transfer_speed = 100000;
+			if (FCPARAM(isp)->isp_gbspeed == 2)
+				cpi->base_transfer_speed = 200000;
+			else
+				cpi->base_transfer_speed = 100000;
 			cpi->hba_inquiry = PI_TAG_ABLE;
 #ifdef	CAM_NEW_TRAN_CODE
 			cpi->transport = XPORT_FC;

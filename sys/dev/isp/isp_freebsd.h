@@ -66,6 +66,14 @@
 typedef void ispfwfunc __P((int, int, int, const u_int16_t **));
 
 #ifdef	ISP_TARGET_MODE
+#define	ATPDPSIZE	256
+typedef struct {
+	u_int32_t	orig_datalen;
+	u_int32_t	bytes_xfered;
+	u_int32_t	last_xframt;
+	u_int32_t	tag;
+} atio_private_data_t;
+
 typedef struct tstate {
 	struct tstate *next;
 	struct cam_path *owner;
@@ -112,6 +120,7 @@ struct isposinfo {
 	u_int16_t		rollinfo;
 	tstate_t		tsdflt[2];	/* two busses */
 	tstate_t		*lun_hash[LUN_HASH_SIZE];
+	atio_private_data_t	atpdp[ATPDPSIZE];
 #endif
 };
 
