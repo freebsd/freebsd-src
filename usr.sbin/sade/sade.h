@@ -312,6 +312,7 @@ typedef enum {
     PART_SWAP,
     PART_FILESYSTEM,
     PART_FAT,
+    PART_EFI
 } PartType;
 
 #define	NEWFS_UFS_CMD		"newfs"

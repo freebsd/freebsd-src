@@ -236,8 +236,8 @@ check_conflict(char *name)
     int i;
 
     for (i = 0; label_chunk_info[i].c; i++)
-	if ((label_chunk_info[i].type == PART_FILESYSTEM || label_chunk_info[i].type == PART_FAT)
-	    && label_chunk_info[i].c->private_data
+	if ((label_chunk_info[i].type == PART_FILESYSTEM || label_chunk_info[i].type == PART_FAT
+	    || label_chunk_info[i].type == PART_EFI) && label_chunk_info[i].c->private_data
 	    && !strcmp(((PartInfo *)label_chunk_info[i].c->private_data)->mountpoint, name))
 	    return TRUE;
     return FALSE;
@@ -276,6 +276,12 @@ record_label_chunks(Device **devs, Device *dev)
 	if (!d->chunks)
 	    msgFatal("No chunk list found for %s!", d->name);
 
+#ifdef __ia64__
+	label_chunk_info[j].type = PART_SLICE;
+	label_chunk_info[j].c = d->chunks;
+	j++;
+#endif
+
 	/* Put the slice entries first */
 	for (c1 = d->chunks->part; c1; c1 = c1->next) {
 	    if (c1->type == freebsd) {
@@ -305,12 +311,17 @@ record_label_chunks(Device **devs, Device *dev)
 		    }
 		}
 	    }
-	    else if (c1->type == fat || c1->type == efi) {
+	    else if (c1->type == fat) {
 		label_chunk_info[j].type = PART_FAT;
 		label_chunk_info[j].c = c1;
 		++j;
 	    }
 #ifdef __ia64__
+	    else if (c1->type == efi) {
+		label_chunk_info[j].type = PART_EFI;
+		label_chunk_info[j].c = c1;
+		++j;
+	    }
 	    else if (c1->type == part) {
 		if (c1->subtype == FS_SWAP)
 		    label_chunk_info[j].type = PART_SWAP;
@@ -443,19 +454,30 @@ get_partition_type(void)
     char selection[20];
     int i;
     static unsigned char *fs_types[] = {
-	"FS",
-	"A file system",
-	"Swap",
-	"A swap partition.",
+#ifdef __ia64__
+	"EFI",	"An EFI system partition",
+#endif
+	"FS",	"A file system",
+	"Swap",	"A swap partition.",
     };
     WINDOW *w = savescr();
 
     i = dialog_menu("Please choose a partition type",
-		    "If you want to use this partition for swap space, select Swap.\n"
-		    "If you want to put a filesystem on it, choose FS.",
-		    -1, -1, 2, 2, fs_types, selection, NULL, NULL);
+	"If you want to use this partition for swap space, select Swap.\n"
+	"If you want to put a filesystem on it, choose FS.",
+	-1, -1,
+#ifdef __ia64__
+	3, 3,
+#else
+	2, 2,
+#endif
+	fs_types, selection, NULL, NULL);
     restorescr(w);
     if (!i) {
+#ifdef __ia64__
+	if (!strcmp(selection, "EFI"))
+	    return PART_EFI;
+#endif
 	if (!strcmp(selection, "FS"))
 	    return PART_FILESYSTEM;
 	else if (!strcmp(selection, "Swap"))
@@ -685,26 +707,27 @@ print_label_chunks(void)
 	    }
 	    memcpy(onestr + PART_PART_COL, label_chunk_info[i].c->name, strlen(label_chunk_info[i].c->name));
 	    /* If it's a filesystem, display the mountpoint */
-	    if (label_chunk_info[i].c->private_data
-		&& (label_chunk_info[i].type == PART_FILESYSTEM || label_chunk_info[i].type == PART_FAT))
-	        mountpoint = ((PartInfo *)label_chunk_info[i].c->private_data)->mountpoint;
+	    if (label_chunk_info[i].c->private_data && (label_chunk_info[i].type == PART_FILESYSTEM
+		|| label_chunk_info[i].type == PART_FAT || label_chunk_info[i].type == PART_EFI))
+		mountpoint = ((PartInfo *)label_chunk_info[i].c->private_data)->mountpoint;
 	    else if (label_chunk_info[i].type == PART_SWAP)
 		mountpoint = "swap";
 	    else
 	        mountpoint = "<none>";
 
 	    /* Now display the newfs field */
-	    if (label_chunk_info[i].type == PART_FAT) {
+	    if (label_chunk_info[i].type == PART_FAT)
 		strcpy(newfs, "DOS");
 #if defined(__ia64__)
-		if (label_chunk_info[i].c->private_data &&
-		    label_chunk_info[i].c->type == efi) {
-			strcat(newfs, "  ");
-			PartInfo *pi = (PartInfo *)label_chunk_info[i].c->private_data;
-			strcat(newfs, pi->do_newfs ? " Y" : " N");
+	    else if (label_chunk_info[i].type == PART_EFI) {
+		strcpy(newfs, "EFI");
+		if (label_chunk_info[i].c->private_data) {
+		    strcat(newfs, "  ");
+		    PartInfo *pi = (PartInfo *)label_chunk_info[i].c->private_data;
+		    strcat(newfs, pi->do_newfs ? " Y" : " N");
 		}
-#endif
 	    }
+#endif
 	    else if (label_chunk_info[i].c->private_data && label_chunk_info[i].type == PART_FILESYSTEM) {
 		PartInfo *pi = (PartInfo *)label_chunk_info[i].c->private_data;
 
@@ -989,8 +1012,10 @@ diskLabel(Device *dev)
 			size *= ONE_MEG;
 		    else if (toupper(*cp) == 'G')
 			size *= ONE_GIG;
+#ifndef __ia64__
 		    else if (toupper(*cp) == 'C')
 			size *= (label_chunk_info[here].c->disk->bios_hd * label_chunk_info[here].c->disk->bios_sect);
+#endif
 		}
 		if (size <= FS_MIN_SIZE) {
 		    msgConfirm("The minimum filesystem size is %dMB", FS_MIN_SIZE / ONE_MEG);
@@ -1110,15 +1135,18 @@ diskLabel(Device *dev)
 		break;
 
 	    case PART_FAT:
+	    case PART_EFI:
 	    case PART_FILESYSTEM:
 		oldp = label_chunk_info[here].c->private_data;
 		p = get_mountpoint(label_chunk_info[here].c);
 		if (p) {
 		    if (!oldp)
 		    	p->do_newfs = FALSE;
-		    if (label_chunk_info[here].type == PART_FAT
-			&& (!strcmp(p->mountpoint, "/") || !strcmp(p->mountpoint, "/usr")
-			    || !strcmp(p->mountpoint, "/var"))) {
+		    if ((label_chunk_info[here].type == PART_FAT ||
+			    label_chunk_info[here].type == PART_EFI) &&
+			(!strcmp(p->mountpoint, "/") ||
+			    !strcmp(p->mountpoint, "/usr") ||
+			    !strcmp(p->mountpoint, "/var"))) {
 			msgConfirm("%s is an invalid mount point for a DOS partition!", p->mountpoint);
 			strcpy(p->mountpoint, "/bogus");
 		    }
@@ -1183,8 +1211,7 @@ diskLabel(Device *dev)
 		    variable_set2(DISK_LABELLED, "yes", 0);
 	    }
 #if defined(__ia64__)
-	    else if (label_chunk_info[here].type == PART_FAT &&
-	      label_chunk_info[here].c->type == efi &&
+	    else if (label_chunk_info[here].type == PART_EFI &&
 	      label_chunk_info[here].c->private_data) {
 		PartInfo *pi =
 		    ((PartInfo *)label_chunk_info[here].c->private_data);
