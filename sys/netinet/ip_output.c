@@ -763,13 +763,13 @@ pass:
 skip_ipsec:
 #endif /*IPSEC*/
 
-	sw_csum = m->m_pkthdr.csum_flags | CSUM_IP;
-	m->m_pkthdr.csum_flags = sw_csum & ifp->if_hwassist;
-	sw_csum &= ~ifp->if_hwassist;
+	m->m_pkthdr.csum_flags |= CSUM_IP;
+	sw_csum = m->m_pkthdr.csum_flags & ~ifp->if_hwassist;
 	if (sw_csum & CSUM_DELAY_DATA) {
 		in_delayed_cksum(m);
 		sw_csum &= ~CSUM_DELAY_DATA;
 	}
+	m->m_pkthdr.csum_flags &= ifp->if_hwassist;
 
 	/*
 	 * If small enough for interface, or the interface will take
@@ -965,6 +965,8 @@ in_delayed_cksum(struct mbuf *m)
 	ip = mtod(m, struct ip *);
 	offset = IP_VHL_HL(ip->ip_vhl) << 2 ;
 	csum = in_cksum_skip(m, ip->ip_len, offset);
+	if (m->m_pkthdr.csum_flags & CSUM_UDP && csum == 0)
+		csum = 0xffff;
 	offset += m->m_pkthdr.csum_data;	/* checksum offset */
 
 	if (offset + sizeof(u_short) > m->m_len) {
