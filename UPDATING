@@ -6,6 +6,11 @@ chronology since 4.0 was released is included, followed by the common
 items quick how-tos, followed by entries for versions of -current
 prior to 4.0 Release.
 
+20010516:
+	Size changes in the cred structures introduced a binary
+	incompatibility for modules using the crhold() macro.  Modules
+	should be recompiled for kernel later than this date.
+
 20010510:
 	The fxp driver from current has been ported to -stable.  This
 	requires kernels that include fxp to also include mii bus devices.
