@@ -115,7 +115,7 @@ extern void inetprint (struct in_addr *, int, char *);
  *	Dump esis stats
  */
 void
-esis_stats(u_long off, char *name)
+esis_stats(u_long off, char *name, int af __unused)
 {
 	struct esis_stat esis_stat;
 
@@ -142,7 +142,7 @@ esis_stats(u_long off, char *name)
  * Dump clnp statistics structure.
  */
 void
-clnp_stats(u_long off, char *name)
+clnp_stats(u_long off, char *name, int af __unused)
 {
 	struct clnp_stat clnp_stat;
 
@@ -175,7 +175,7 @@ clnp_stats(u_long off, char *name)
  * Dump CLTP statistics structure.
  */
 void
-cltp_stats(u_long off, char *name)
+cltp_stats(u_long off, char *name, int af __unused)
 {
 	struct cltpstat cltpstat;
 
@@ -209,7 +209,7 @@ static	int first = 1;
  * -a (all) flag is specified.
  */
 void
-iso_protopr(u_long off, char *name)
+iso_protopr(u_long off, char *name, int af __unused)
 {
 	struct isopcb cb;
 	register struct isopcb *prev, *next;
@@ -293,7 +293,7 @@ iso_protopr1(u_long kern_addr, int istp)
 }
 
 void
-tp_protopr(u_long off, char *name)
+tp_protopr(u_long off, char *name, int af __unused)
 {
 	extern char *tp_sstring[];
 	struct tp_ref *tpr, *tpr_base;
@@ -444,7 +444,7 @@ isonetprint(struct iso_addr *iso, char *sufx, u_short sufxlen, int islocal)
 
 #ifdef notdef
 static void
-x25_protopr(u_long off, char *name)
+x25_protopr(u_long off, char *name, int af __unused)
 {
 	static char *xpcb_states[] = {
 		"CLOSED",

@@ -491,25 +491,6 @@ main(argc, argv)
 			mbpr(0, 0, 0, 0);
 		exit(0);
 	}
-	if (pflag) {
-		if (iflag && tp->pr_istats) {
-			kread(0, 0, 0);
-			intpr(interval, nl[N_IFNET].n_value, tp->pr_istats);
-			exit(0);
-		}
-		if (!tp->pr_stats) {
-			printf("%s: no stats routine\n", tp->pr_name);
-			exit(0);
-		}
-		if (tp->pr_usesysctl) {
-			(*tp->pr_stats)(tp->pr_usesysctl, tp->pr_name);
-		} else {
-			kread(0, 0, 0);
-			(*tp->pr_stats)(nl[tp->pr_sindex].n_value,
-					tp->pr_name);
-		}
-		exit(0);
-	}
 #if 0
 	/*
 	 * Keep file descriptors open to avoid overhead
@@ -613,7 +594,7 @@ printproto(tp, name)
 	register struct protox *tp;
 	char *name;
 {
-	void (*pr)();
+	void (*pr)(u_long, char *, int);
 	u_long off;
 
 	if (sflag) {
