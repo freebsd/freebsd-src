@@ -272,7 +272,7 @@ ep_attach(struct ep_softc *sc)
 
 	error = ep_get_macaddr(sc, (u_char *)&sc->arpcom.ac_enaddr);
 	if (error) {
-		device_printf(sc->dev, "Unable to retrieve Ethernet address!\n");
+		device_printf(sc->dev, "Unable to get Ethernet address!\n");
 		return (ENXIO);
 	}
 	/*
@@ -305,15 +305,20 @@ ep_attach(struct ep_softc *sc)
 		ifmedia_init(&sc->ifmedia, 0, ep_ifmedia_upd, ep_ifmedia_sts);
 
 		if (sc->ep_connectors & AUI)
-			ifmedia_add(&sc->ifmedia, IFM_ETHER | IFM_10_5, 0, NULL);
+			ifmedia_add(&sc->ifmedia,
+			    IFM_ETHER | IFM_10_5, 0, NULL);
 		if (sc->ep_connectors & UTP)
-			ifmedia_add(&sc->ifmedia, IFM_ETHER | IFM_10_T, 0, NULL);
+			ifmedia_add(&sc->ifmedia,
+			    IFM_ETHER | IFM_10_T, 0, NULL);
 		if (sc->ep_connectors & BNC)
-			ifmedia_add(&sc->ifmedia, IFM_ETHER | IFM_10_2, 0, NULL);
+			ifmedia_add(&sc->ifmedia,
+			    IFM_ETHER | IFM_10_2, 0, NULL);
 		if (!sc->ep_connectors)
-			ifmedia_add(&sc->ifmedia, IFM_ETHER | IFM_NONE, 0, NULL);
+			ifmedia_add(&sc->ifmedia,
+			    IFM_ETHER | IFM_NONE, 0, NULL);
 
-		ifmedia_set(&sc->ifmedia, IFM_ETHER | ep_media2if_media[sc->ep_connector]);
+		ifmedia_set(&sc->ifmedia,
+		    IFM_ETHER | ep_media2if_media[sc->ep_connector]);
 
 		ifm = &sc->ifmedia;
 		ifm->ifm_media = ifm->ifm_cur->ifm_media;
@@ -439,10 +444,10 @@ ep_if_init(void *xsc)
 	outw(BASE + EP_COMMAND, SET_TX_START_THRESH | 16);
 
 	/*
-         * Store up a bunch of mbuf's for use later. (MAX_MBS). First we free up
-         * any that we had in case we're being called from intr or somewhere
-         * else.
-         */
+	 * Store up a bunch of mbuf's for use later. (MAX_MBS).
+	 * First we free up any that we had in case we're being
+	 * called from intr or somewhere else.
+	 */
 
 	GO_WINDOW(1);
 	ep_if_start(ifp);
@@ -477,10 +482,10 @@ startagain:
 	pad = (4 - len) & 3;
 
 	/*
-         * The 3c509 automatically pads short packets to minimum ethernet length,
-         * but we drop packets that are too large. Perhaps we should truncate
-         * them instead?
-         */
+	 * The 3c509 automatically pads short packets to minimum
+	 * ethernet length, but we drop packets that are too large.
+	 * Perhaps we should truncate them instead?
+	 */
 	if (len + pad > ETHER_MAX_LEN) {
 		/* packet is obviously too large: toss it */
 		ifp->if_oerrors++;
@@ -497,12 +502,14 @@ startagain:
 			return;
 		}
 	} else
-		outw(BASE + EP_COMMAND, SET_TX_AVAIL_THRESH | EP_THRESH_DISABLE);
+		outw(BASE + EP_COMMAND,
+		    SET_TX_AVAIL_THRESH | EP_THRESH_DISABLE);
 
 	s = splhigh();
 
 	outw(BASE + EP_W1_TX_PIO_WR_1, len);
-	outw(BASE + EP_W1_TX_PIO_WR_1, 0x0);	/* Second dword meaningless */
+	/* Second dword meaningless */
+	outw(BASE + EP_W1_TX_PIO_WR_1, 0x0);
 
 	if (EP_FTST(sc, F_ACCESS_32_BITS)) {
 		for (m = m0; m != NULL; m = m->m_next) {
@@ -511,7 +518,8 @@ startagain:
 				    mtod(m, caddr_t), m->m_len / 4);
 			if (m->m_len & 3)
 				outsb(BASE + EP_W1_TX_PIO_WR_1,
-				    mtod(m, caddr_t)+(m->m_len & (~3)), m->m_len & 3);
+				    mtod(m, caddr_t)+(m->m_len & (~3)),
+				    m->m_len & 3);
 		}
 	} else {
 		for (m = m0; m != NULL; m = m->m_next) {
@@ -536,14 +544,14 @@ startagain:
 	m_freem(m0);
 
 	/*
-         * Is another packet coming in? We don't want to overflow the tiny RX
-         * fifo.
-         */
+	 * Is another packet coming in? We don't want to overflow
+	 * the tiny RX fifo.
+	 */
 readcheck:
 	if (inw(BASE + EP_W1_RX_STATUS) & RX_BYTES_MASK) {
 		/*
-		 * we check if we have packets left, in that case we prepare to come
-		 * back later
+		 * we check if we have packets left, in that case
+		 * we prepare to come back later
 		 */
 		if (ifp->if_snd.ifq_head)
 			outw(BASE + EP_COMMAND, SET_TX_AVAIL_THRESH | 8);
@@ -565,8 +573,8 @@ ep_intr(void *arg)
 	sc = (struct ep_softc *) arg;
 
 	/*
-         * quick fix: Try to detect an interrupt when the card goes away.
-         */
+	 * quick fix: Try to detect an interrupt when the card goes away.
+	 */
 	if (sc->gone || inw(BASE + EP_STATUS) == 0xffff) {
 		splx(x);
 		return;
@@ -597,7 +605,8 @@ rescan:
 #ifdef EP_LOCAL_STATS
 			printf("\nep%d:\n\tStatus: %x\n", sc->unit, status);
 			GO_WINDOW(4);
-			printf("\tFIFO Diagnostic: %x\n", inw(BASE + EP_W4_FIFO_DIAG));
+			printf("\tFIFO Diagnostic: %x\n",
+			    inw(BASE + EP_W4_FIFO_DIAG));
 			printf("\tStat: %x\n", sc->stat);
 			printf("\tIpackets=%d, Opackets=%d\n",
 			    ifp->if_ipackets, ifp->if_opackets);
@@ -607,7 +616,8 @@ rescan:
 #else
 
 #ifdef DIAGNOSTIC
-			printf("ep%d: Status: %x (input buffer overflow)\n", sc->unit, status);
+			printf("ep%d: Status: %x (input buffer overflow)\n",
+			    sc->unit, status);
 #else
 			++ifp->if_ierrors;
 #endif
@@ -619,14 +629,18 @@ rescan:
 		}
 		if (status & S_TX_COMPLETE) {
 			ifp->if_timer = 0;
-			/* we  need ACK. we do it at the end */
 			/*
-		         * We need to read TX_STATUS until we get a 0 status in order to
-		         * turn off the interrupt flag.
+			 * We need ACK. We do it at the end.
+			 *
+		         * We need to read TX_STATUS until we get a
+			 * 0 status in order to turn off the interrupt flag.
 		         */
-			while ((status = inb(BASE + EP_W1_TX_STATUS)) & TXS_COMPLETE) {
+			while ((status = inb(BASE + EP_W1_TX_STATUS)) &
+			    TXS_COMPLETE) {
 				if (status & TXS_SUCCES_INTR_REQ);
-				else if (status & (TXS_UNDERRUN | TXS_JABBER | TXS_MAX_COLLISION)) {
+				else if (status &
+				    (TXS_UNDERRUN | TXS_JABBER |
+				    TXS_MAX_COLLISION)) {
 					outw(BASE + EP_COMMAND, TX_RESET);
 					if (status & TXS_UNDERRUN) {
 #ifdef EP_LOCAL_STATS
@@ -634,27 +648,31 @@ rescan:
 #endif
 					} else {
 						if (status & TXS_JABBER);
-						else	/* TXS_MAX_COLLISION -
-							 * we shouldn't get here */
+						else
 							++ifp->if_collisions;
+							/* TXS_MAX_COLLISION
+							 * we shouldn't get
+							 * here
+							 */
 					}
 					++ifp->if_oerrors;
 					outw(BASE + EP_COMMAND, TX_ENABLE);
 					/*
-				         * To have a tx_avail_int but giving the chance to the
-				         * Reception
+				         * To have a tx_avail_int but giving
+					 * the chance to the Reception
 				         */
 					if (ifp->if_snd.ifq_head)
-						outw(BASE + EP_COMMAND, SET_TX_AVAIL_THRESH | 8);
+						outw(BASE + EP_COMMAND,
+						    SET_TX_AVAIL_THRESH | 8);
 				}
-				outb(BASE + EP_W1_TX_STATUS, 0x0);	/* pops up the next
-									 * status */
+				/* pops up the next status */
+				outb(BASE + EP_W1_TX_STATUS, 0x0);
 			}	/* while */
 			ifp->if_flags &= ~IFF_OACTIVE;
 			GO_WINDOW(1);
 			inw(BASE + EP_W1_FREE_TX);
 			ep_if_start(ifp);
-		}		/* end TX_COMPLETE */
+		}	/* end TX_COMPLETE */
 	}
 
 	outw(BASE + EP_COMMAND, C_INTR_LATCH);	/* ACK int Latch */
@@ -687,8 +705,8 @@ read_again:
 		++ifp->if_ierrors;
 		if (status & ERR_RX_OVERRUN) {
 			/*
-		         * we can think the rx latency is actually greather than we
-		         * expect
+		         * We can think the rx latency is actually
+			 * greather than we expect
 		         */
 #ifdef EP_LOCAL_STATS
 			if (EP_FTST(sc, F_RX_FIRST))
@@ -739,41 +757,45 @@ read_again:
 			mcur->m_next = m;
 			lenthisone = min(rx_fifo, M_TRAILINGSPACE(m));
 		}
-		if (EP_FTST(sc, F_ACCESS_32_BITS)) {	/* default for EISA
-							 * configured cards */
-			insl(BASE + EP_W1_RX_PIO_RD_1, mtod(m, caddr_t)+m->m_len,
+		if (EP_FTST(sc, F_ACCESS_32_BITS)) {
+			/* default for EISA configured cards */
+			insl(BASE + EP_W1_RX_PIO_RD_1,
+			    mtod(m, caddr_t)+m->m_len,
 			    lenthisone / 4);
 			m->m_len += (lenthisone & ~3);
 			if (lenthisone & 3)
 				insb(BASE + EP_W1_RX_PIO_RD_1,
-				    mtod(m, caddr_t)+m->m_len,
-				    lenthisone & 3);
+				    mtod(m, caddr_t)+m->m_len, lenthisone & 3);
 			m->m_len += (lenthisone & 3);
 		} else {
-			insw(BASE + EP_W1_RX_PIO_RD_1, mtod(m, caddr_t)+m->m_len,
-			    lenthisone / 2);
+			insw(BASE + EP_W1_RX_PIO_RD_1,
+			    mtod(m, caddr_t)+m->m_len, lenthisone / 2);
 			m->m_len += lenthisone;
 			if (lenthisone & 1)
-				*(mtod(m, caddr_t)+m->m_len - 1) = inb(BASE + EP_W1_RX_PIO_RD_1);
+				*(mtod(m, caddr_t)+m->m_len - 1) =
+				    inb(BASE + EP_W1_RX_PIO_RD_1);
 		}
 		rx_fifo -= lenthisone;
 	}
 
-	if (status & ERR_RX_INCOMPLETE) {	/* we haven't received the
-						 * complete packet */
+	if (status & ERR_RX_INCOMPLETE) {
+		/* we haven't received the complete packet */
 		sc->mcur = m;
 #ifdef EP_LOCAL_STATS
-		sc->rx_no_first++;	/* to know how often we come here */
+		/* to know how often we come here */
+		sc->rx_no_first++;
 #endif
 		EP_FRST(sc, F_RX_FIRST);
-		if (!((status = inw(BASE + EP_W1_RX_STATUS)) & ERR_RX_INCOMPLETE)) {
+		status = inw(BASE + EP_W1_RX_STATUS);
+		if (!status & ERR_RX_INCOMPLETE) {
 			/*
-			 * we see if by now, the packet has completly
+			 * We see if by now, the packet has completly
 			 * arrived
 			 */
 			goto read_again;
 		}
-		outw(BASE + EP_COMMAND, SET_RX_EARLY_THRESH | RX_NEXT_EARLY_THRESH);
+		outw(BASE + EP_COMMAND,
+		    SET_RX_EARLY_THRESH | RX_NEXT_EARLY_THRESH);
 		return;
 	}
 	outw(BASE + EP_COMMAND, RX_DISCARD_TOP_PACK);
@@ -913,7 +935,7 @@ ep_if_watchdog(struct ifnet *ifp)
 	struct ep_softc *sc = ifp->if_softc;
 
 /*
-        printf("ep: watchdog\n");
+	printf("ep: watchdog\n");
 
 	log(LOG_ERR, "ep%d: watchdog\n", ifp->if_unit);
 	ifp->if_oerrors++;
