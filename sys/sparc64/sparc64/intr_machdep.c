@@ -79,8 +79,8 @@
 
 #define	MAX_STRAY_LOG	5
 
-ASSERT_EQUAL(sizeof(struct intr_vector), 1 << IV_SHIFT);
-ASSERT_EQUAL(sizeof(struct iqe), 1 << IQE_SHIFT);
+CTASSERT((1 << IV_SHIFT) == sizeof(struct intr_vector));
+CTASSERT((1 << IQE_SHIFT) == sizeof(struct iqe));
 
 ih_func_t *intr_handlers[NPIL];
 struct	intr_vector intr_vectors[NIV];
@@ -90,19 +90,18 @@ u_long	intr_stray_count[NIV];
 /* protect the intr_vectors table */
 static struct	mtx intr_table_lock;
 
-static void intr_stray(void *cookie);
+static void intr_stray_level(struct trapframe *tf);
+static void intr_stray_vector(void *cookie);
 
 void
 intr_dequeue(struct trapframe *tf)
 {
 	struct intr_queue *iq;
 	struct iqe *iqe;
-	critical_t crit;
 	u_long head;
 	u_long next;
 	u_long tail;
 
-	crit = cpu_critical_enter();
 	iq = PCPU_PTR(iq);
 	for (head = iq->iq_head;; head = next) {
 		for (tail = iq->iq_tail; tail != head;) {
@@ -118,7 +117,6 @@ intr_dequeue(struct trapframe *tf)
 		if (head == next)
 			break;
 	}
-	cpu_critical_exit(crit);
 }
 
 void
@@ -140,13 +138,19 @@ intr_setup(int pri, ih_func_t *ihf, int vec, iv_func_t *ivf, void *iva)
 }
 
 static void
-intr_stray(void *cookie)
+intr_stray_level(struct trapframe *tf)
+{
+	printf("stray level interrupt %d\n", tf->tf_level);
+}
+
+static void
+intr_stray_vector(void *cookie)
 {
 	struct intr_vector *iv;
 
 	iv = cookie;
 	if (intr_stray_count[iv->iv_vec] < MAX_STRAY_LOG) {
-		printf("stray interrupt %d\n", iv->iv_vec);
+		printf("stray vector interrupt %d\n", iv->iv_vec);
 		atomic_add_long(&intr_stray_count[iv->iv_vec], 1);
 		if (intr_stray_count[iv->iv_vec] >= MAX_STRAY_LOG)
 			printf("got %d stray interrupt %d's: not logging "
@@ -161,10 +165,15 @@ intr_init()
 
 	mtx_init(&intr_table_lock, "ithread table lock", MTX_SPIN);
 	/* Mark all interrupts as being stray. */
+	for (i = 0; i < NPIL; i++)
+		intr_handlers[i] = intr_stray_level;
 	for (i = 0; i < NIV; i++) {
-		intr_setup(PIL_LOW, intr_dequeue, i, intr_stray,
-		    (void *)&intr_vectors[i]);
+		intr_vectors[i].iv_func = intr_stray_vector;
+		intr_vectors[i].iv_arg = &intr_vectors[i];
+		intr_vectors[i].iv_pri = PIL_LOW;
+		intr_vectors[i].iv_vec = i;
 	}
+	intr_handlers[PIL_LOW] = intr_dequeue;
 }
 
 /* Schedule a heavyweight interrupt process. */
@@ -181,7 +190,7 @@ sched_ithd(void *cookie)
 	error = ithread_schedule(iv->iv_ithd, 0);
 #endif
 	if (error == EINVAL)
-		intr_stray(iv);
+		intr_stray_vector(iv);
 }
 
 int
@@ -255,7 +264,8 @@ inthand_remove(int vec, void *cookie)
 		iv = &intr_vectors[vec];
 		mtx_lock_spin(&intr_table_lock);
 		if (iv->iv_ithd == NULL) {
-			intr_setup(PIL_ITHREAD, intr_dequeue, vec, intr_stray, iv);
+			intr_setup(PIL_ITHREAD, intr_dequeue, vec,
+			    intr_stray_vector, iv);
 		} else {
 			intr_setup(PIL_LOW, intr_dequeue, vec, sched_ithd, iv);
 		}
