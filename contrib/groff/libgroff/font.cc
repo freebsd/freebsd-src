@@ -18,6 +18,8 @@ You should have received a copy of the GNU General Public License along
 with groff; see the file COPYING.  If not, write to the Free Software
 Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 
+/* $FreeBSD$ */
+
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
@@ -734,9 +736,9 @@ int font::load_desc()
   while (t.next()) {
     char *p = strtok(t.buf, WS);
     int found = 0;
-    int i;
-    for (i = 0; !found && i < sizeof(table)/sizeof(table[0]); i++)
-      if (strcmp(table[i].command, p) == 0)
+    int idx;
+    for (idx = 0; !found && idx < sizeof(table)/sizeof(table[0]); idx++)
+      if (strcmp(table[idx].command, p) == 0)
 	found = 1;
     if (found) {
       char *q = strtok(0, WS);
@@ -744,8 +746,8 @@ int font::load_desc()
 	t.error("missing value for command `%1'", p);
 	return 0;
       }
-      //int *ptr = &(this->*(table[i-1].ptr));
-      int *ptr = table[i-1].ptr;
+      //int *ptr = &(this->*(table[idx-1].ptr));
+      int *ptr = table[idx-1].ptr;
       if (sscanf(q, "%d", ptr) != 1) {
 	t.error("bad number `%1'", q);
 	return 0;
