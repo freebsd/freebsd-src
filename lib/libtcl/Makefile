@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.14 1996/12/17 13:13:11 peter Exp $
+# $Id: Makefile,v 1.15 1996/12/30 01:11:26 max Exp $
 #
 # This file is generated automatically, do not edit it here!
 #
@@ -39,10 +39,11 @@ SRCS=	panic.c regexp.c tclAsync.c tclBasic.c tclCkalloc.c tclClock.c \
 	tclCmdAH.c tclCmdIL.c tclCmdMZ.c tclDate.c tclEnv.c tclEvent.c \
 	tclExpr.c tclFHandle.c tclFileName.c tclGet.c tclHash.c \
 	tclHistory.c tclInterp.c tclIO.c tclIOCmd.c tclIOSock.c \
-	tclIOUtil.c tclLink.c tclMain.c tclNotify.c tclParse.c \
+	tclIOUtil.c tclLink.c tclLoad.c tclMain.c tclNotify.c tclParse.c \
 	tclPkg.c tclPosixStr.c tclPreserve.c tclProc.c tclUtil.c \
 	tclVar.c tclMtherr.c tclUnixChan.c tclUnixFile.c tclUnixNotfy.c \
-	tclUnixPipe.c tclUnixSock.c tclUnixTime.c tclUnixInit.c
+	tclUnixPipe.c tclUnixSock.c tclUnixTime.c tclUnixInit.c \
+	tclLoadDl2.c
 
 HEADERS=generic/patchlevel.h generic/tclInt.h generic/tclPort.h \
 	generic/tclRegexp.h unix/tclUnixPort.h
