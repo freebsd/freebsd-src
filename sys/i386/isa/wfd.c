@@ -31,9 +31,6 @@
  */
 
 #include "wdc.h"
-#include "wfd.h"
-
-#if NWFD > 0 && NWDC > 0
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -728,5 +725,3 @@ static void 	wfd_drvinit(void *unused)
 }
 
 SYSINIT(wfddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,wfd_drvinit,NULL)
-
-#endif /* NWFD && NWDC */

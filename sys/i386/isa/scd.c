@@ -48,7 +48,6 @@
 #define	SCD_DEBUG	0
 
 #include "scd.h"
-#if NSCD > 0
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
@@ -1551,5 +1550,3 @@ scd_toc_entry (int unit, struct ioc_read_toc_single_entry *te)
 
 	return 0;
 }
-
-#endif /* NSCD > 0 */
