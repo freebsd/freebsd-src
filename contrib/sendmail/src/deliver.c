@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2003 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -14,7 +14,7 @@
 #include <sendmail.h>
 #include <sys/time.h>
 
-SM_RCSID("@(#)$Id: deliver.c,v 8.940.2.10 2002/12/12 22:46:34 ca Exp $")
+SM_RCSID("@(#)$Id: deliver.c,v 8.940.2.15 2003/02/07 17:57:43 ca Exp $")
 
 #if HASSETUSERCONTEXT
 # include <login_cap.h>
@@ -6124,8 +6124,8 @@ ssl_retry:
 		if (LogLevel > 5)
 		{
 			sm_syslog(LOG_ERR, e->e_id,
-				  "STARTTLS=client, error: connect failed=%d, SSL_error=%d, timedout=%d",
-				  result, i, (int) timedout);
+				  "STARTTLS=client, error: connect failed=%d, SSL_error=%d, timedout=%d, errno=%d",
+				  result, i, (int) timedout, errno);
 			if (LogLevel > 8)
 				tlslogerr("client");
 		}

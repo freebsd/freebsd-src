@@ -630,8 +630,8 @@ procmail	An interface to procmail (does not come with sendmail).
 			! -oi -f $1 person@other.host
 
 		This would arrange for (anything)@host.com to be sent
-		to person@other.host.  Within the procmail script, $1 is
-		the name of the sender and $2 is the name of the recipient.
+		to person@other.host.  In a procmail script, $1 is the
+		name of the sender and $2 is the name of the recipient.
 		If you use this with FEATURE(`local_procmail'), the FEATURE
 		should be listed first.
 
@@ -1256,7 +1256,13 @@ dnsbl		Turns on rejection of hosts found in an DNS based rejection
 			define(`DNSBL_MAP', `dns -R A')
 
 		before the first use of this feature.  Alternatively you
-		can use enhdnsbl instead (see below).
+		can use enhdnsbl instead (see below).  Moreover, this
+		statement can be used to reduce the number of DNS retries,
+		e.g.,
+
+			define(`DNSBL_MAP', `dns -R A -r2')
+
+		See below (EDNSBL_TO) for an explanation.
 
 		NOTE: The default DNS blacklist, blackholes.mail-abuse.org,
 		is a service offered by the Mail Abuse Prevention System
@@ -1285,7 +1291,13 @@ enhdnsbl	Enhanced version of dnsbl (see above).  Further arguments
 		has been compiled with the flag DNSMAP (see sendmail/README).
 
 		Set the EDNSBL_TO mc option to change the DNS retry count
-		from the default value of 5.
+		from the default value of 5, this can be very useful when
+		a DNS server is not responding, which in turn may cause
+		clients to time out (an entry stating
+
+			did not issue MAIL/EXPN/VRFY/ETRN
+
+		will be logged).
 
 lookupdotdomain	Look up also .domain in the access map.  This allows to
 		match only subdomains.  It does not work well with
@@ -2975,7 +2987,10 @@ by the ruleset authinfo or by the option DefaultAuthInfo.  The
 authinfo ruleset looks up {server_name} using the tag AuthInfo: in
 the access map.  If no entry is found, {server_addr} is looked up
 in the same way and finally just the tag AuthInfo: to provide
-default values.
+default values.  Note: searches for domain parts or IP nets are
+only performed if the access map is used; if the authinfo feature
+is used then only up to three lookups are performed (two exact
+matches, one default).
 
 Notice: the default configuration file causes the option DefaultAuthInfo
 to fail since the ruleset authinfo is in the .cf file. If you really
@@ -2997,9 +3012,9 @@ Valid values for the tag are:
 Example entries are:
 
 AuthInfo:other.dom "U:user" "I:user" "P:secret" "R:other.dom" "M:DIGEST-MD5"
-AuthInfo:more.dom "U:user" "P=c2VjcmV0"
+AuthInfo:host.more.dom "U:user" "P=c2VjcmV0"
 
-User or authentication id must exist as well as the password.  All
+User id or authentication id must exist as well as the password.  All
 other entries have default values.  If one of user or authentication
 id is missing, the existing value is used for the missing item.
 If "R:" is not specified, realm defaults to $j.  The list of mechanisms
@@ -4360,4 +4375,4 @@ M4 DIVERSIONS
    8	DNS based blacklists
    9	special local rulesets (1 and 2)
 
-$Revision: 8.623.2.18 $, Last updated $Date: 2002/12/29 04:16:51 $
+$Revision: 8.623.2.21 $, Last updated $Date: 2003/01/17 00:36:57 $
