@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.51 1995/12/09 20:42:38 phk Exp $
+ * $Id: st.c,v 1.52 1995/12/10 01:47:34 bde Exp $
  */
 
 /*
@@ -68,94 +68,6 @@
 
 #define SCSI_2_MAX_DENSITY_CODE	0x17	/* maximum density code specified
 					 * in SCSI II spec. */
-#ifndef NEW_SCSICONF
-/*
- * Define various devices that we know mis-behave in some way,
- * and note how they are bad, so we can correct for them
- */
-struct modes {
-	u_int32 blksiz;
-	u_int32 quirks;		/* same definitions as in rogues */
-	char    density;
-	char    spare[3];
-};
-
-struct rogues {
-	char   *name;
-	char   *manu;
-	char   *model;
-	char   *version;
-	u_int32 quirks;		/* valid for all modes */
-	struct modes modes[4];
-};
-
-/* define behaviour codes (quirks) */
-#define	ST_Q_NEEDS_PAGE_0	0x00001
-#define	ST_Q_FORCE_FIXED_MODE	0x00002
-#define	ST_Q_FORCE_VAR_MODE	0x00004
-#define	ST_Q_SNS_HLP		0x00008		/* must do READ for good MODE SENSE */
-#define	ST_Q_IGNORE_LOADS	0x00010
-#define	ST_Q_BLKSIZ		0x00020		/* variable-block media_blksiz > 0 */
-
-static struct rogues gallery[] =	/* ends with an all-null entry */
-{
-    {"Such an old device ", "pre-scsi", " unknown model  ", "????",
-	0,
-	{
-	    {512, ST_Q_FORCE_FIXED_MODE, 0},	/* minor  0,1,2,3 */
-	    {512, ST_Q_FORCE_FIXED_MODE, QIC_24},	/* minor  4,5,6,7 */
-	    {0, ST_Q_FORCE_VAR_MODE, HALFINCH_1600},	/* minor  8,9,10,11 */
-	    {0, ST_Q_FORCE_VAR_MODE, HALFINCH_6250}	/* minor  12,13,14,15 */
-	}
-    },
-    {"Tandberg tdc3600", "TANDBERG", " TDC 3600", "????",
-	ST_Q_NEEDS_PAGE_0,
-	{
-	    {0, 0, 0},		/* minor  0,1,2,3 */
-	    {0, ST_Q_FORCE_VAR_MODE, QIC_525},	/* minor  4,5,6,7 */
-	    {0, 0, QIC_150},	/* minor  8,9,10,11 */
-	    {0, 0, QIC_120}	/* minor  12,13,14,15 */
-	}
-    },
-    {"Rev 5 of the Archive 2525", "ARCHIVE ", "VIPER 2525 25462", "-005",
-	0,
-	{
-	    {0, ST_Q_SNS_HLP, 0},	/* minor  0,1,2,3 */
-	    {0, ST_Q_SNS_HLP, QIC_525},		/* minor  4,5,6,7 */
-	    {0, 0, QIC_150},	/* minor  8,9,10,11 */
-	    {0, 0, QIC_120}	/* minor  12,13,14,15 */
-	}
-    },
-    {"Archive  Viper 150", "ARCHIVE ", "VIPER 150", "????",
-	ST_Q_NEEDS_PAGE_0,
-	{
-	    {0, 0, 0},		/* minor  0,1,2,3 */
-	    {0, 0, QIC_150},	/* minor  4,5,6,7 */
-	    {0, 0, QIC_120},	/* minor  8,9,10,11 */
-	    {0, 0, QIC_24}	/* minor  12,13,14,15 */
-	}
-    },
-    {"Wangtek 5525ES", "WANGTEK ", "5525ES SCSI REV7", "????",
-	0,
-	{
-	    {0, 0, 0},		/* minor  0,1,2,3 */
-	    {0, ST_Q_BLKSIZ, QIC_525},	/* minor  4,5,6,7 */
-	    {0, 0, QIC_150},	/* minor  8,9,10,11 */
-	    {0, 0, QIC_120}	/* minor  12,13,14,15 */
-	}
-    },
-    {"WangDAT model 1300", "WangDAT ", "Model 1300", "????",
-	0,
-	{
-	    {0, 0, 0},					/* minor  0,1,2,3 */
-	    {512, ST_Q_FORCE_FIXED_MODE, 0x13},		/* minor  4,5,6,7 */
-	    {1024, ST_Q_FORCE_FIXED_MODE, 0x13},	/* minor  8,9,10,11 */
-	    {0, ST_Q_FORCE_VAR_MODE, 0x13}		/* minor  12,13,14,15 */
-	}
-    },
-    {(char *) 0}
-};
-#endif /* NEW_SCSICONF */
 
 static errval	st_space __P((u_int32 unit, int32 number, u_int32 what, u_int32 flags));
 static errval	st_rewind __P((u_int32 unit, boolean immed, u_int32 flags));
@@ -178,9 +90,6 @@ static void	ststart(u_int32	unit, u_int32 flags);
 static void	st_unmount __P((int unit, boolean eject));
 static errval	st_mount_tape __P((dev_t dev, u_int32 flags));
 static void	st_loadquirks __P((struct scsi_link *sc_link));
-#ifndef NEW_SCSICONF
-static void	st_identify_drive __P((u_int32 unit));
-#endif
 static errval	st_interpret_sense __P((struct scsi_xfer *xs));
 
 #define ESUCCESS 0
@@ -198,9 +107,6 @@ struct scsi_data {
 /*--------------------parameters reported by the device ----------------------*/
 	u_int32 blkmin;		/* min blk size                       */
 	u_int32 blkmax;		/* max blk size                       */
-#ifndef NEW_SCSICONF
-	struct rogues *rogues;	/* if we have a rogue entry           */
-#endif
 /*--------------------parameters reported by the device for this media--------*/
 	u_int32 numblks;	/* nominal blocks capacity            */
 	u_int32 media_blksiz;	/* 0 if not ST_FIXEDBLOCKS            */
@@ -208,11 +114,7 @@ struct scsi_data {
 /*--------------------quirks for the whole drive------------------------------*/
 	u_int32 drive_quirks;	/* quirks of this drive               */
 /*--------------------How we should set up when openning each minor device----*/
-#ifdef NEW_SCSICONF
 	st_modes modes; /* plus more for each mode            */
-#else
-	struct modes modes[4];	/* plus more for each mode            */
-#endif
 	u_int8  modeflags[4];	/* flags for the modes                */
 #define DENSITY_SET_BY_USER	0x01
 #define DENSITY_SET_BY_QUIRK	0x02
@@ -381,11 +283,7 @@ stattach(struct scsi_link *sc_link)
 	 * Check if the drive is a known criminal and take
 	 * Any steps needed to bring it into line
 	 */
-#ifdef NEW_SCSICONF
 	st_loadquirks(sc_link);
-#else
-	st_identify_drive(unit);
-#endif
 	/*
 	 * Use the subdriver to request information regarding
 	 * the drive. We cannot use interrupts yet, so the
@@ -491,83 +389,6 @@ stattach(struct scsi_link *sc_link)
 	return 0;
 }
 
-#ifndef NEW_SCSICONF
-/*
- * Use the inquiry routine in 'scsi_base' to get drive info so we can
- * Further tailor our behaviour.
- */
-static	void
-st_identify_drive(unit)
-	u_int32 unit;
-{
-	struct scsi_link *sc_link = SCSI_LINK(&st_switch, unit);
-	struct scsi_data *st = sc_link->sd;
-	struct rogues *finger;
-	char    manu[32];
-	char    model[32];
-	char    model2[32];
-	char    version[32];
-	u_int32 model_len;
- 	struct scsi_inquiry_data *inqbuf = &sc_link->inqbuf;
-
-	/*
-	 * Get the device type information
-	 */
-	if (scsi_inquire(sc_link, inqbuf,
-		SCSI_NOSLEEP | SCSI_NOMASK | SCSI_SILENT) != 0) {
-		printf("st%ld: couldn't get device type, using default\n", unit);
-		return;
-	}
-	if ((inqbuf->version & SID_ANSII) == 0) {
-		/*
-		 * If not advanced enough, use default values
-		 */
-		strncpy(manu, "pre-scsi", 8);
-		manu[8] = 0;
-		strncpy(model, " unknown model  ", 16);
-		model[16] = 0;
-		strncpy(version, "????", 4);
-		version[4] = 0;
-	} else {
-		strncpy(manu, inqbuf->vendor, 8);
-		manu[8] = 0;
-		strncpy(model, inqbuf->product, 16);
-		model[16] = 0;
-		strncpy(version, inqbuf->revision, 4);
-		version[4] = 0;
-	}
-
-	/*
-	 * Load the parameters for this kind of device, so we
-	 * treat it as appropriate for each operating mode.
-	 * Only check the number of characters in the array's
-	 * model entry, not the entire model string returned.
-	 */
-	finger = gallery;
-	while (finger->name) {
-		model_len = 0;
-		while (finger->model[model_len] && (model_len < 32)) {
-			model2[model_len] = model[model_len];
-			model_len++;
-		}
-		model2[model_len] = 0;
-		if ((strcmp(manu, finger->manu) == 0)
-		    && (strcmp(model2, finger->model) == 0 ||
-			strcmp("????????????????", finger->model) == 0)
-		    && (strcmp(version, finger->version) == 0 ||
-			strcmp("????", finger->version) == 0)) {
-			printf("st%ld: %s is a known rogue\n", unit, finger->name);
-			st->rogues = finger;
-			st->drive_quirks = finger->quirks;
-			st->quirks = finger->quirks;	/*start value */
-			st_loadquirks(sc_link);
-			break;
-		} else {
-			finger++;	/* go to next suspect */
-		}
-	}
-}
-#endif /* NEW_SCSICONF */
 
 /*
  * initialise the subdevices to the default (QUIRK) state.
@@ -580,7 +401,6 @@ st_loadquirks(sc_link)
 {
 	struct scsi_data *st = sc_link->sd;
 	int     i;
-#ifdef NEW_SCSICONF
 	struct	st_mode *mode;
 	struct	st_mode *mode2;
 
@@ -590,14 +410,6 @@ st_loadquirks(sc_link)
 
 	st->quirks = st->drive_quirks = sc_link->quirks;
 
-#else
-	struct	modes *mode;
-	struct	modes *mode2;
-
-	if (!st->rogues)
-		return;
-	mode = st->rogues->modes;
-#endif
 	mode2 = st->modes;
 
 	for (i = 0; i < 4; i++) {
