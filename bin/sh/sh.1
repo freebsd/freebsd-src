@@ -301,6 +301,14 @@ command line editor:
 set -E
 set -o emacs
 .Ed
+.Pp
+If used without an argument, the
+.Fl o
+option displays the current option settings in a human-readable format.
+If
+.Cm +o
+is used without an argument, the current option settings are output
+in a format suitable for re-input into the shell.
 .Ss Lexical Structure
 The shell reads input in terms of lines from a file and breaks
 it up into words at whitespace (blanks and tabs), and at
