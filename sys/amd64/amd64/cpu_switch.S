@@ -55,7 +55,7 @@
 
 	.globl	panic
 
-#if defined(SWTCH_OPTIM_STATS)
+#ifdef SWTCH_OPTIM_STATS
 	.globl	swtch_optim_stats, tlb_flush_count
 swtch_optim_stats:	.long	0		/* number of _swtch_optims */
 tlb_flush_count:	.long	0
@@ -173,7 +173,7 @@ sw1b:
 	movl	%eax,%ecx
 	movl	TD_PCB(%ecx),%edx
 
-#if defined(SWTCH_OPTIM_STATS)
+#ifdef SWTCH_OPTIM_STATS
 	incl	swtch_optim_stats
 #endif
 
@@ -181,7 +181,7 @@ sw1b:
 	movl	%cr3,%ebx			/* The same address space? */
 	cmpl	PCB_CR3(%edx),%ebx
 	je	4f				/* Yes, skip all that cruft */
-#if defined(SWTCH_OPTIM_STATS)
+#ifdef SWTCH_OPTIM_STATS
 	decl	swtch_optim_stats
 	incl	tlb_flush_count
 #endif

@@ -58,10 +58,6 @@ __BEGIN_DECLS
 
 #ifdef	__GNUC__
 
-#ifdef SWTCH_OPTIM_STATS
-extern	int	tlb_flush_count;	/* XXX */
-#endif
-
 static __inline void
 breakpoint(void)
 {
@@ -391,9 +387,6 @@ load_cr3(u_int data)
 {
 
 	__asm __volatile("movl %0,%%cr3" : : "r" (data) : "memory");
-#if defined(SWTCH_OPTIM_STATS)
-	++tlb_flush_count;
-#endif
 }
 
 static __inline u_int
