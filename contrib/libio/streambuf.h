@@ -130,7 +130,7 @@ class ios : public _ios_fields {
     typedef __fmtflags fmtflags;
     typedef int iostate;
     typedef int openmode;
-    typedef int streamsize;
+    typedef _IO_ssize_t streamsize;
     enum io_state {
 	goodbit = _IOS_GOOD,
 	eofbit = _IOS_EOF,
@@ -482,7 +482,9 @@ inline ios::~ios() {
 #ifndef _IO_NEW_STREAMS
     if (!(_flags & (unsigned int)ios::dont_close)) delete rdbuf();
 #endif
-    if (_arrays) delete [] _arrays;
+    // It is safe to use naked operator delete[] as we know elements have no
+    // dtor, and g++ does not add a new[] cookie for such cases.
+    operator delete[] (_arrays);
 }
 } // extern "C++"
 #endif /* _STREAMBUF_H */

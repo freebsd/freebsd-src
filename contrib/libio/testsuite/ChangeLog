@@ -1,11 +1,28 @@
-Sun Mar 14 02:38:07 PST 1999 Jeff Law  (law@cygnus.com)
+Mon Aug 16 01:29:24 PDT 1999 Jeff Law  (law@cygnus.com)
 
-	* egcs-1.1.2 Released.
+	* gcc-2.95.1 Released.
+
+Wed Jul 28 21:39:31 PDT 1999 Jeff Law  (law@cygnus.com)
+
+	* gcc-2.95 Released.
+
+Sun Jul 25 23:40:51 PDT 1999 Jeff Law  (law@cygnus.com)
+
+	* gcc-2.95 Released.
+
+Wed Nov 25 01:00:07 1998  Marc Espie <espie@quatramaran.ens.fr>
+
+	* Makefile.in (just-check): Ignore errors.
 
 Sat Jun 27 23:59:35 1998  Carlo Wood  <carlo@runaway.xs4all.nl>
 
 	* lib/libio.exp (test_libio): Reset ld_library_path before appending
 	the same path(s) again.
+
+Tue Jun  9 11:23:42 1998  Gavin Koch  <gavin@cygnus.com>
+
+	* Makefile.in (EXPECT) : Look for "expect" in the correct
+	place.
 
 Sat Sep  6 00:49:31 1997  Brendan Kehoe  <brendan@lisa.cygnus.com>
 
