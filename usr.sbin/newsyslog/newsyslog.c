@@ -1737,15 +1737,15 @@ parse8601(char *s)
 	char *t;
 	time_t tsecs;
 	struct tm tm, *tmp;
-	u_long ul;
+	long l;
 
 	tmp = localtime(&timenow);
 	tm = *tmp;
 
 	tm.tm_hour = tm.tm_min = tm.tm_sec = 0;
 
-	ul = strtoul(s, &t, 10);
-	if (*t != '\0' && *t != 'T')
+	l = strtol(s, &t, 10);
+	if (l < 0 || l >= INT_MAX || (*t != '\0' && *t != 'T'))
 		return (-1);
 
 	/*
@@ -1755,17 +1755,17 @@ parse8601(char *s)
 	 */
 	switch (t - s) {
 	case 8:
-		tm.tm_year = ((ul / 1000000) - 19) * 100;
-		ul = ul % 1000000;
+		tm.tm_year = ((l / 1000000) - 19) * 100;
+		l = l % 1000000;
 	case 6:
 		tm.tm_year -= tm.tm_year % 100;
-		tm.tm_year += ul / 10000;
-		ul = ul % 10000;
+		tm.tm_year += l / 10000;
+		l = l % 10000;
 	case 4:
-		tm.tm_mon = (ul / 100) - 1;
-		ul = ul % 100;
+		tm.tm_mon = (l / 100) - 1;
+		l = l % 100;
 	case 2:
-		tm.tm_mday = ul;
+		tm.tm_mday = l;
 	case 0:
 		break;
 	default:
@@ -1779,19 +1779,19 @@ parse8601(char *s)
 
 	if (*t != '\0') {
 		s = ++t;
-		ul = strtoul(s, &t, 10);
-		if (*t != '\0' && !isspace(*t))
+		l = strtol(s, &t, 10);
+		if (l < 0 || l >= INT_MAX || (*t != '\0' && !isspace(*t)))
 			return (-1);
 
 		switch (t - s) {
 		case 6:
-			tm.tm_sec = ul % 100;
-			ul /= 100;
+			tm.tm_sec = l % 100;
+			l /= 100;
 		case 4:
-			tm.tm_min = ul % 100;
-			ul /= 100;
+			tm.tm_min = l % 100;
+			l /= 100;
 		case 2:
-			tm.tm_hour = ul;
+			tm.tm_hour = l;
 		case 0:
 			break;
 		default:
