@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.14 1994/10/15 02:53:26 phk Exp $
+ * $Id: vfs_syscalls.c,v 1.15 1994/10/21 01:19:15 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -2153,6 +2153,7 @@ unionread:
 #endif
 
 	if ((uap->count == auio.uio_resid) &&
+	    vp &&
 	    (vp->v_flag & VROOT) &&
 	    (vp->v_mount->mnt_flag & MNT_UNION)) {
 		struct vnode *tvp = vp;
