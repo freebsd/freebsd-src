@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)csh.h	8.1 (Berkeley) 5/31/93
- *	$Id: csh.h,v 1.4 1997/02/22 14:01:41 peter Exp $
+ *	$Id: csh.h,v 1.5 1997/08/07 21:42:04 steve Exp $
  */
 
 /*
@@ -187,8 +187,8 @@ jmp_buf reslab;
 #define	setexit()	(setjmp(reslab))
 #define	reset()		longjmp(reslab, 1)
  /* Should use structure assignment here */
-#define	getexit(a)	memcpy(((char *)(a)), (char *)reslab, sizeof reslab)
-#define	resexit(a)	memcpy((char *)reslab, (char *)(a), sizeof reslab)
+#define	getexit(a)	memmove((char *)(a), (char *)reslab, sizeof reslab)
+#define	resexit(a)	memmove((char *)reslab, (char *)(a), sizeof reslab)
 
 Char   *gointr;			/* Label for an onintr transfer */
 
@@ -420,8 +420,6 @@ struct varent {
 #define v_left		v_link[0]
 #define v_right		v_link[1]
 #define v_parent	v_link[2]
-
-struct varent *adrof1();
 
 #define adrof(v)	adrof1(v, &shvhed)
 #define value(v)	value1(v, &shvhed)

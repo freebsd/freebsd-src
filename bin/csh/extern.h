@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.1 (Berkeley) 5/31/93
- *	$Id$
+ *	$Id: extern.h,v 1.4 1997/02/22 14:01:53 peter Exp $
  */
 
 #include <sys/cdefs.h>
@@ -161,7 +161,7 @@ Char	 *globone __P((Char *, int));
 int	  Gmatch __P((Char *, Char *));
 void	  ginit __P((void));
 Char	**globall __P((Char **));
-void	  rscan __P((Char **, void (*)()));
+void	  rscan __P((Char **, void (*)(int)));
 void	  tglob __P((Char **));
 void	  trim __P((Char **));
 #ifdef FILEC
