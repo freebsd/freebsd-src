@@ -148,6 +148,7 @@ Søren Schmidt <sos@login.dkuug.dk>
 Tatsumi Hosokawa <hosokawa@mt.cs.keio.ac.jp>
 Terry Lee <terry@uivlsi.csl.uiuc.edu>
 Theo Deraadt <deraadt@fsa.ca>
+Torsten Blum <torstenb@FreeBSD.ORG>
 Ugen J.S.Antsilevich <ugen@NetVision.net.il>
 Wolfgang Stanglmeier <wolf@kintaro.cologne.de>
 Wolfram Schneider <wosch@cs.tu-berlin.de>
@@ -250,4 +251,4 @@ Last, but not least, the release engineer would like to thank:
 	His Wife, for chocolate chip cookies, and some other things.
 	The DGB project @ TFS, for patience and tolerance.
 
-$Id: CONTRIB.FreeBSD,v 1.8 1995/05/17 09:53:03 adam Exp $
+$Id: CONTRIB.FreeBSD,v 1.9 1995/05/17 17:04:36 lars Exp $
