@@ -42,9 +42,8 @@ int
 _pthread_setschedparam(pthread_t pthread, int policy, 
 	const struct sched_param *param)
 {
-#if 0	/* XXXTHR */
+	pthread_t curthread;
 	int old_prio, in_readyq = 0, ret = 0;
-#endif
 
 	if ((param == NULL) || (policy < SCHED_FIFO) || (policy > SCHED_RR))
 		return (EINVAL);
@@ -53,11 +52,10 @@ _pthread_setschedparam(pthread_t pthread, int policy,
 	    (param->sched_priority > PTHREAD_MAX_PRIORITY))
 		return (ENOTSUP);
 
-	return (0);
-#if 0	/* XXXTHR */
+	curthread = _get_curthread();
 	/* Find the thread in the list of active threads: */
 	if ((ret = _find_thread(pthread)) == 0) {
-		GIANT_LOCK();
+		GIANT_LOCK(curthread);
 
 		if (param->sched_priority !=
 		    PTHREAD_BASE_PRIORITY(pthread->base_priority)) {
@@ -67,10 +65,12 @@ _pthread_setschedparam(pthread_t pthread, int policy,
 			 * active priority:
 			 */
 			old_prio = pthread->active_priority;
+#if 0	/* XXXTHR */
 			if ((pthread->flags & PTHREAD_FLAGS_IN_PRIOQ) != 0) {
 				in_readyq = 1;
 				PTHREAD_PRIOQ_REMOVE(pthread);
 			}
+#endif
 
 			/* Set the thread base priority: */
 			pthread->base_priority &=
@@ -80,7 +80,7 @@ _pthread_setschedparam(pthread_t pthread, int policy,
 			/* Recalculate the active priority: */
 			pthread->active_priority = MAX(pthread->base_priority,
 			    pthread->inherited_priority);
-
+#if 0
 			if (in_readyq) {
 				if ((pthread->priority_mutex_count > 0) &&
 				    (old_prio > pthread->active_priority)) {
@@ -96,6 +96,7 @@ _pthread_setschedparam(pthread_t pthread, int policy,
 				else
 					PTHREAD_PRIOQ_INSERT_TAIL(pthread);
 			}
+#endif
 
 			/*
 			 * Check for any mutex priority adjustments.  This
@@ -108,8 +109,7 @@ _pthread_setschedparam(pthread_t pthread, int policy,
 		/* Set the scheduling policy: */
 		pthread->attr.sched_policy = policy;
 
-		GIANT_UNLOCK();
+		GIANT_UNLOCK(curthread);
 	}
 	return(ret);
-#endif
 }
