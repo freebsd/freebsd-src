@@ -363,33 +363,3 @@ SYSCTL_INT(_vm_stats_misc, OID_AUTO,
 SYSCTL_INT(_vm_stats_misc, OID_AUTO,
 	vm_page_hash_mask, CTLFLAG_RD, &vm_page_hash_mask, 0, "");
 #endif
-
-/* 
- * Further sysctls used by systat: hw.nintr, hw.intrnames, hw.intrcnt.
- * This does probably not really fit in here, but it is somehow connected.
- * The definitions for this are machdep, but are currently defined for 
- * any architecture.
- */
-
-/* include the machdep stuff */
-#include <machine/intrcnt.h>
-
-int nintr = INTRCNT_COUNT;
-SYSCTL_INT(_hw, OID_AUTO, nintr, CTLFLAG_RD, &nintr, 0, "Number of Interrupts");
-
-SYSCTL_OPAQUE(_hw, OID_AUTO, intrcnt, CTLFLAG_RD, &intrcnt, 
-   sizeof(long) * INTRCNT_COUNT, "", "Interrupt Counts");
-
-/* 
- * We do not know the length in advance (in an MI fashion), so calculate things
- * at run-time.
- */
-static int
-sysctl_intrnames(SYSCTL_HANDLER_ARGS)
-{
-	return sysctl_handle_opaque(oidp, intrnames, eintrnames - intrnames, 
-	   req);
-}
-
-SYSCTL_PROC(_hw, OID_AUTO, intrnames, CTLTYPE_OPAQUE | CTLFLAG_RD, NULL, 0, 
-    sysctl_intrnames, "", "Interrupt Names");

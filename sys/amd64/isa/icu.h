@@ -126,4 +126,6 @@ extern	unsigned imen;		/* interrupt mask enable */
 
 #endif /* APIC_IO */
 
+#define	INTRCNT_COUNT	(1 + ICU_LEN + 2 * ICU_LEN)
+
 #endif /* !_I386_ISA_ICU_H_ */

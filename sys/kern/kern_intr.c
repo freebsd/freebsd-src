@@ -42,6 +42,7 @@
 #include <sys/proc.h>
 #include <sys/random.h>
 #include <sys/resourcevar.h>
+#include <sys/sysctl.h>
 #include <sys/unistd.h>
 #include <sys/vmmeter.h>
 #include <machine/atomic.h>
@@ -620,3 +621,32 @@ swi_net(void *dummy)
 		bits &= ~(1 << i);
 	}
 }
+
+/* 
+ * Sysctls used by systat and others: hw.intrnames and hw.intrcnt.
+ * The data for this machine dependent, and the declarations are in machine
+ * dependent code.  The layout of intrnames and intrcnt however is machine
+ * independent.
+ *
+ * We do not know the length of intrcnt and intrnames at compile time, so
+ * calculate things at run time.
+ */
+static int
+sysctl_intrnames(SYSCTL_HANDLER_ARGS)
+{
+	return (sysctl_handle_opaque(oidp, intrnames, eintrnames - intrnames, 
+	   req));
+}
+
+SYSCTL_PROC(_hw, OID_AUTO, intrnames, CTLTYPE_OPAQUE | CTLFLAG_RD,
+    NULL, 0, sysctl_intrnames, "", "Interrupt Names");
+
+static int
+sysctl_intrcnt(SYSCTL_HANDLER_ARGS)
+{
+	return (sysctl_handle_opaque(oidp, intrcnt, 
+	    (char *)eintrcnt - (char *)intrcnt, req));
+}
+
+SYSCTL_PROC(_hw, OID_AUTO, intrcnt, CTLTYPE_OPAQUE | CTLFLAG_RD,
+    NULL, 0, sysctl_intrcnt, "", "Interrupt Counts");
