@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncrcontrol.c,v 1.9 1995/09/14 18:14:28 se Exp $
+**  $Id: ncrcontrol.c,v 1.10 1995/12/28 14:40:59 se Exp $
 **
 **  Utility for NCR 53C810 device driver.
 **
@@ -191,6 +191,13 @@ void open_kvm(int flags)
 	}
 #endif
 #if defined(__NetBSD__) || (__FreeBSD__ >= 2)
+	/*
+	 * Discard setgid privileges if not the running kernel so that bad
+	 * guys can't print interesting stuff from kernel memory.
+	 */
+	if (vmunix != NULL || kmemf != NULL)
+		setgid(getgid());
+
 	kvm = kvm_openfiles(vmunix, kmemf, NULL, flags, errbuf);
 	if (kvm == NULL) {
 		fprintf(stderr, "%s: kvm_openfiles: %s\n", prog, errbuf);
