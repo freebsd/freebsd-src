@@ -302,6 +302,7 @@ struct thread {
 	TAILQ_ENTRY(thread) td_umtx;	/* (c?) Link for when we're blocked. */
 	volatile u_int	td_generation;	/* (k) Enable detection of preemption */
 	stack_t		td_sigstk;	/* (k) Stack ptr and on-stack flag. */
+	int		td_kflags;	/* (c) Flags for KSE threading. */
 
 #define	td_endzero td_base_pri
 
@@ -370,6 +371,10 @@ struct thread {
 #define	TDI_SWAPPED	0x0004	/* Stack not in mem.. bad juju if run. */
 #define	TDI_LOCK	0x0008	/* Stopped on a lock. */
 #define	TDI_IWAIT	0x0010	/* Awaiting interrupt. */
+
+#define	TDK_KSEREL	0x0001	/* Blocked in msleep on kg->kg_completed. */
+#define	TDK_KSERELSIG	0x0002	/* Blocked in msleep on p->p_siglist. */
+#define	TDK_WAKEUP	0x0004	/* Thread has been woken by kse_wakeup. */
 
 #define	TD_CAN_UNBIND(td)					\
     (((td)->td_flags & TDF_CAN_UNBIND) == TDF_CAN_UNBIND &&	\
@@ -913,6 +918,7 @@ void	thread_unlink(struct thread *td);
 void	thread_unsuspend(struct proc *p);
 void	thread_unsuspend_one(struct thread *td);
 int	thread_userret(struct thread *td, struct trapframe *frame);
+int	thread_upcall_check(struct thread *td);
 void	thread_user_enter(struct proc *p, struct thread *td);
 void	thread_wait(struct proc *p);
 int	thread_statclock(int user);
