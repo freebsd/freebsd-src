@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.66 2003/08/21 17:26:44 imp Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.67 2003/08/21 17:39:56 imp Exp 
  */
 /* $NetBSD: pcmciadevs,v 1.184 2003/07/26 10:39:32 martin Exp $ */
 /* $OpenBSD: pcmciadevs,v 1.93 2002/06/21 08:31:10 henning Exp $ */
@@ -100,7 +100,7 @@
 #define	PCMCIA_VENDOR_ARTEM	0x0268	/* ARtem */
 #define	PCMCIA_VENDOR_SYMBOL	0x026c	/* Symbol */
 #define	PCMCIA_VENDOR_BUFFALO	0x026f	/* BUFFALO (Melco Corporation) */
-#define	PCMCIA_VENDOR_LINKSYS2	0x0274	/* The Linksys Group */
+#define	PCMCIA_VENDOR_BROMAX	0x0274	/* Bromax communications, Inc */
 #define	PCMCIA_VENDOR_IODATA2	0x028a	/* I-O DATA */
 #define	PCMCIA_VENDOR_ASUS	0x02aa	/* ASUS */
 #define	PCMCIA_VENDOR_SIEMENS	0x02ac	/* Siemens */
@@ -242,6 +242,17 @@
 #define	PCMCIA_CIS_BREEZECOM_BREEZENET	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_BREEZECOM_BREEZENET	0x0102
 #define	PCMCIA_STR_BREEZECOM_BREEZENET	"BreezeCOM BreezeNET"
+
+/* Bromax Communications, Inc (Linksys OEM) */
+#define	PCMCIA_CIS_BROMAX_IWN	{ NULL, NULL, NULL, NULL }
+#define	PCMCIA_PRODUCT_BROMAX_IWN	0x1612
+#define	PCMCIA_STR_BROMAX_IWN	"Instant Wireless Network PC Card"
+#define	PCMCIA_CIS_BROMAX_IWN3	{ NULL, NULL, NULL, NULL }
+#define	PCMCIA_PRODUCT_BROMAX_IWN3	0x1613
+#define	PCMCIA_STR_BROMAX_IWN3	"Instant Wireless Network PC Card, Versin 3"
+#define	PCMCIA_CIS_BROMAX_WCF11	{ NULL, NULL, NULL, NULL }
+#define	PCMCIA_PRODUCT_BROMAX_WCF11	0x3301
+#define	PCMCIA_STR_BROMAX_WCF11	"Instant Wireless Network CF Card"
 
 /* BUFFALO */
 #define	PCMCIA_CIS_BUFFALO_LPC3_CLX	{ NULL, NULL, NULL, NULL }
@@ -458,15 +469,6 @@
 #define	PCMCIA_CIS_LINKSYS_COMBO_ECARD	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_LINKSYS_COMBO_ECARD	0xc1ab
 #define	PCMCIA_STR_LINKSYS_COMBO_ECARD	"Linksys Combo EthernetCard"
-#define	PCMCIA_CIS_LINKSYS2_IWN	{ NULL, NULL, NULL, NULL }
-#define	PCMCIA_PRODUCT_LINKSYS2_IWN	0x1612
-#define	PCMCIA_STR_LINKSYS2_IWN	"Instant Wireless Network PC Card"
-#define	PCMCIA_CIS_LINKSYS2_IWN3	{ NULL, NULL, NULL, NULL }
-#define	PCMCIA_PRODUCT_LINKSYS2_IWN3	0x1613
-#define	PCMCIA_STR_LINKSYS2_IWN3	"Instant Wireless Network PC Card, Versin 3"
-#define	PCMCIA_CIS_LINKSYS2_WCF11	{ NULL, NULL, NULL, NULL }
-#define	PCMCIA_PRODUCT_LINKSYS2_WCF11	0x3301
-#define	PCMCIA_STR_LINKSYS2_WCF11	"Instant Wireless Network CF Card"
 
 /* Lucent WaveLAN/IEEE */
 #define	PCMCIA_CIS_LUCENT_WAVELAN_IEEE	{ NULL, NULL, NULL, NULL }
