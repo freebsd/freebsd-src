@@ -57,6 +57,7 @@ static const char rcsid[] =
  */
 #include <sys/param.h>
 #include <sys/stat.h>
+#include <sys/disklabel.h>
 
 #include <ufs/ffs/fs.h>
 #include <ufs/ufs/dinode.h>
