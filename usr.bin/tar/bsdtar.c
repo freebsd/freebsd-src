@@ -184,11 +184,15 @@ main(int argc, char **argv)
 	if (bsdtar->user_uid == 0)
 		bsdtar->extract_flags |= ARCHIVE_EXTRACT_OWNER;
 
-	bsdtar->progname = strrchr(*argv, '/');
-	if (bsdtar->progname != NULL)
-		bsdtar->progname++;
-	else
-		bsdtar->progname = *argv;
+	if (*argv == NULL)
+		bsdtar->progname = "bsdtar";
+	else {
+		bsdtar->progname = strrchr(*argv, '/');
+		if (bsdtar->progname != NULL)
+			bsdtar->progname++;
+		else
+			bsdtar->progname = *argv;
+	}
 
 	/* Rewrite traditional-style tar arguments, if used. */
 	argv = rewrite_argv(bsdtar, &argc, argv, tar_opts);
@@ -500,7 +504,8 @@ rewrite_argv(struct bsdtar *bsdtar, int *argc, char ** src_argv,
 	const char *p;
 	char *src, *dest;
 
-	if (src_argv[1] == NULL || src_argv[1][0] == '-')
+	if (src_argv[0] == NULL ||
+	    src_argv[1] == NULL || src_argv[1][0] == '-')
 		return (src_argv);
 
 	*argc += strlen(src_argv[1]) - 1;
