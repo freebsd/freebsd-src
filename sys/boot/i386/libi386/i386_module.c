@@ -50,9 +50,6 @@ i386_autoload(void)
     /* XXX use PnP to locate stuff here */
 
     /* autoload ACPI support */
-    if (file_findfile(NULL, "elf64 kernel") != NULL)
-	return (0);	/* ACPI is mandatory */
-
     /* XXX should be in 4th keyed off acpi_load */
     disabled = 0;
     rv = getenv("hint.acpi.0.disabled");
