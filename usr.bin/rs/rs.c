@@ -257,9 +257,11 @@ prepfile()
 	}
 	else if (orows == 0 && ocols == 0) {	/* decide rows and cols */
 		ocols = owidth / colw;
-		if (ocols == 0)
+		if (ocols == 0) {
 			warnx("display width %d is less than column width %d",
 					owidth, colw);
+			ocols = 1;
+		}
 		if (ocols > nelem)
 			ocols = nelem;
 		orows = nelem / ocols + (nelem % ocols ? 1 : 0);
