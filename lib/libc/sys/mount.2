@@ -32,7 +32,7 @@
 .\"     @(#)mount.2	8.3 (Berkeley) 5/24/95
 .\" $FreeBSD$
 .\"
-.Dd July 1, 2003
+.Dd September 8, 2003
 .Dt MOUNT 2
 .Os
 .Sh NAME
@@ -294,15 +294,20 @@ system call may fail with one of the following errors:
 The caller is neither the super-user nor the user who issued the corresponding
 .Fn mount
 call.
-.It Bq Er ENOTDIR
-A component of the path is not a directory.
 .It Bq Er ENAMETOOLONG
-A component of a pathname exceeded 255 characters,
-or an entire path name exceeded 1023 characters.
-.It Bq Er ELOOP
-Too many symbolic links were encountered in translating the pathname.
+The length of the path name exceeded 1023 characters.
 .It Bq Er EINVAL
 The requested directory is not in the mount table.
+.It Bq Er ENOENT
+The file system ID specified using
+.Dv MNT_BYFSID
+was not found in the mount table.
+.It Bq Er EINVAL
+The file system ID specified using
+.Dv MNT_BYFSID
+could not be decoded.
+.It Bq Er EINVAL
+The specified file system is the root file system.
 .It Bq Er EBUSY
 A process is holding a reference to a file located
 on the file system.
