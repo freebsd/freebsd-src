@@ -45,12 +45,15 @@
  * an mbuf cluster is allocated and set up to receive a packet, and a dma map
  * is created. Therefore, this number should not be too high to not waste
  * memory.
- * TX descriptors have less static cost (a dma map is allocated which could
- * cause bounce buffers to be reserved; other that that, the only required
- * memory is sizeof(struct hme_txdesc)).
+ * TX descriptors have no static cost, except for the memory directly allocated
+ * for them. TX queue elements (the number of which is fixed by HME_NTXQ) hold
+ * the software state for a transmit job; each has a dmamap allocated for it.
+ * There may be multiple descriptors allocated to a single queue element.
+ * HME_NTXQ is completely arbitrary.
  */
 #define HME_NRXDESC	128
-#define HME_NTXDESC	64
+#define HME_NTXDESC	128
+#define	HME_NTXQ	(HME_NTXDESC / 2)
 
 /* Maximum size of a mapped RX buffer. */
 #define	HME_BUFSZ	1600
@@ -62,15 +65,20 @@
 struct hme_rxdesc {
 	struct mbuf	*hrx_m;
 	bus_dmamap_t	hrx_dmamap;
-	int		hrx_offs;
-	bus_size_t	hrx_len;
 };
+
+/* Lazily leave at least one burst size grace space. */
+#define	HME_DESC_RXLEN(sc, d)						\
+	ulmin(HME_BUFSZ, (d)->hrx_m->m_len - (sc)->sc_burst)
 
 struct hme_txdesc {
 	struct mbuf	*htx_m;
 	bus_dmamap_t	htx_dmamap;
-	int		htx_flags;
+	int		htx_lastdesc;
+	STAILQ_ENTRY(hme_txdesc) htx_q;
 };
+
+STAILQ_HEAD(hme_txdq, hme_txdesc);
 
 /* Value for htx_flags */
 #define	HTXF_MAPPED	1
@@ -85,13 +93,16 @@ struct hme_ring {
 	bus_addr_t	rb_rxddma;	/* DMA address of same */
 
 	/* Ring Descriptor state */
-	int	rb_tdhead, rb_tdtail;
-	int	rb_rdtail;
-	int	rb_td_nbusy;
+	int		rb_tdhead, rb_tdtail;
+	int		rb_rdtail;
+	int		rb_td_nbusy;
 
 	/* Descriptors */
-	struct hme_rxdesc rb_rxdesc[HME_NRXDESC];
-	struct hme_txdesc rb_txdesc[HME_NTXDESC];
+	struct hme_rxdesc	rb_rxdesc[HME_NRXDESC];
+	struct hme_txdesc	rb_txdesc[HME_NTXQ];
+
+	struct	hme_txdq	rb_txfreeq;
+	struct	hme_txdq	rb_txbusyq;
 
 	bus_dmamap_t	rb_spare_dmamap;
 };
@@ -134,10 +145,6 @@ struct hme_softc {
 	struct hme_ring		sc_rb;
 
 	int			sc_debug;
-
-	/* Special hardware hooks */
-	void	(*sc_hwreset)(struct hme_softc *);
-	void	(*sc_hwinit)(struct hme_softc *);
 };
 
 extern devclass_t hme_devclass;
