@@ -214,8 +214,7 @@ struct pccard_product {
 #define PCCARD_PRODUCT_ANY ((u_int32_t) -1)
 	u_int32_t	pp_product;
 	int		pp_expfunc;
-	const char	*pp_vendor_str;		/* NULL to not match */
-	const char	*pp_product_str;	/* NULL to not match */
+	const char	*pp_cis[4];
 };
 
 typedef int (*pccard_product_match_fn) (device_t dev,
