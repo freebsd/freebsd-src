@@ -1,4 +1,4 @@
-<!-- $Id: bibliography.sgml,v 1.21 1997/03/19 03:54:15 obrien Exp $ -->
+<!-- $Id: bibliography.sgml,v 1.22 1997/03/19 04:08:34 obrien Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
     <chapt>
@@ -264,6 +264,11 @@
 	<heading>UNIX history</heading>
 
 	<p><itemize>
+
+	    <item>Lion, John <em>Lion's Commentary on UNIX, 6th Ed.
+	      With Source Code</em>.
+	      ITP Media Group, 1996.
+	      <newline>ISBN 1573980137</item>
 
 	    <item>Salus, Peter H. <em>A quarter century of UNIX</em>.
 	      Addison-Wesley Publishing Company, Inc., 1994.
