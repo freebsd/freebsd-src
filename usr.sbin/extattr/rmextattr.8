@@ -56,7 +56,7 @@
 .Ar attrname
 .Ar filename ...
 .Nm setextattr
-.Op Fl fhq
+.Op Fl fhnq
 .Ar attrnamespace
 .Ar attrname
 .Ar attrvalue
@@ -80,17 +80,19 @@ a string to store in the attribute.
 .Pp
 The following options are available:
 .Bl -tag -width flag
-.It Fl -f
+.It Fl f
 (Force) Ignore errors on individual filenames and continue with
 the remaining arguments.
-.It Fl -h
+.It Fl h
 (No follow) If the file is a symbolic link, perform the operation on the
 link itself rather than the file that the link points to.
-.It Fl -q
+.It Fl n
+(Nul-terminate) Nul-terminate the extent content written out.
+.It Fl q
 (Quiet) Do not print out the pathname and suppress error messages.
-.It Fl -s
+.It Fl s
 (Stringify) Escape nonprinting characters and put quotes around the output.
-.It Fl -x
+.It Fl x
 (Hex) Print the output in hexadecimal.
 .El
 .Sh EXAMPLES
