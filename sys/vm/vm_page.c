@@ -1412,7 +1412,7 @@ vm_page_cache(vm_page_t m)
 {
 	int s;
 
-	GIANT_REQUIRED;
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	if ((m->flags & (PG_BUSY|PG_UNMANAGED)) || m->busy || m->wire_count) {
 		printf("vm_page_cache: attempting to cache busy page\n");
 		return;

@@ -444,6 +444,7 @@ readrest:
 				else
 					firstpindex = fs.first_pindex - 2 * VM_FAULT_READ;
 
+				vm_page_lock_queues();
 				/*
 				 * note: partially valid pages cannot be 
 				 * included in the lookahead - NFS piecemeal
@@ -471,7 +472,7 @@ readrest:
 						vm_page_cache(mt);
 					}
 				}
-
+				vm_page_unlock_queues();
 				ahead += behind;
 				behind = 0;
 			}
