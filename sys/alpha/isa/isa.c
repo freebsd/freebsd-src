@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isa.c,v 1.6 1998/11/15 18:25:16 dfr Exp $
+ *	$Id: isa.c,v 1.7 1998/11/18 23:53:11 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -37,6 +37,7 @@
 #include <isa/isareg.h>
 #include <isa/isavar.h>
 #include <machine/intr.h>
+#include <machine/intrcnt.h>
 #include <machine/resource.h>
 
 MALLOC_DEFINE(M_ISADEV, "isadev", "ISA device");
@@ -654,7 +655,8 @@ isa_setup_intr(device_t dev, device_t child,
 	ii->irq = irq->r_start;
 
 	error = alpha_setup_intr(0x800 + (irq->r_start << 4),
-				 isa_handle_intr, ii, &ii->ih);
+			 isa_handle_intr, ii, &ii->ih,
+			 &intrcnt[INTRCNT_ISA_IRQ + irq->r_start]);
 	if (error) {
 		free(ii, M_DEVBUF);
 		return error;
