@@ -1,5 +1,36 @@
-.\" Copyright (c) 2001 Kungliga Tekniska Högskolan
-.\" $Id: krb5_keytab.3,v 1.5 2002/08/28 15:30:54 joda Exp $
+.\" Copyright (c) 2001 - 2003 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden). 
+.\" All rights reserved. 
+.\"
+.\" Redistribution and use in source and binary forms, with or without 
+.\" modification, are permitted provided that the following conditions 
+.\" are met: 
+.\"
+.\" 1. Redistributions of source code must retain the above copyright 
+.\"    notice, this list of conditions and the following disclaimer. 
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright 
+.\"    notice, this list of conditions and the following disclaimer in the 
+.\"    documentation and/or other materials provided with the distribution. 
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors 
+.\"    may be used to endorse or promote products derived from this software 
+.\"    without specific prior written permission. 
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+.\" SUCH DAMAGE. 
+.\"
+.\" $Id: krb5_keytab.3,v 1.9 2003/04/16 13:58:16 lha Exp $
+.\"
 .Dd February 5, 2001
 .Dt KRB5_KEYTAB 3
 .Os HEIMDAL
@@ -17,6 +48,7 @@
 .Nm krb5_kt_free_entry ,
 .Nm krb5_kt_get_entry ,
 .Nm krb5_kt_get_name ,
+.Nm krb5_kt_get_type ,
 .Nm krb5_kt_next_entry ,
 .Nm krb5_kt_read_service_key ,
 .Nm krb5_kt_register ,
@@ -27,7 +59,7 @@
 .Sh LIBRARY
 Kerberos 5 Library (libkrb5, -lkrb5)
 .Sh SYNOPSIS
-.Fd #include <krb5.h>
+.In krb5.h
 .Pp
 .Ft krb5_error_code
 .Fo krb5_kt_add_entry
@@ -93,6 +125,13 @@ Kerberos 5 Library (libkrb5, -lkrb5)
 .Fa "size_t namesize"
 .Fc
 .Ft krb5_error_code
+.Fo krb5_kt_get_type
+.Fa "krb5_context context"
+.Fa "krb5_keytab keytab"
+.Fa "char *prefix"
+.Fa "size_t prefixsize"
+.Fc
+.Ft krb5_error_code
 .Fo krb5_kt_next_entry
 .Fa "krb5_context context"
 .Fa "krb5_keytab id"
@@ -138,7 +177,7 @@ The
 .Li residual
 part is specific to each keytab-type.
 .Pp
-When a keytab-name is resolved, the type is matched with an interal
+When a keytab-name is resolved, the type is matched with an internal
 list of keytab types. If there is no matching keytab type,
 the default keytab is used. The current default type is
 .Nm file .
@@ -195,7 +234,7 @@ structure is normally only used when doing a new keytab-type
 implementation.
 .Pp
 .Fn krb5_kt_resolve
-is the equvalent of an
+is the equivalent of an
 .Xr open 2
 on keytab. Resolve the keytab name in
 .Fa name
@@ -258,6 +297,18 @@ retrieves the name of the keytab
 into
 .Fa name ,
 .Fa namesize .
+Returns 0 or an error.
+.Pp
+.Fn krb5_kt_get_type
+retrieves the type of the keytab
+.Fa keytab
+and store the prefix/name for type of the keytab into
+.Fa prefix ,
+.Fa prefixsize .
+The prefix will have the maximum length of
+.Dv KRB5_KT_PREFIX_MAX_LEN 
+(including terminating
+.Dv NUL ) .
 Returns 0 or an error.
 .Pp
 .Fn krb5_kt_free_entry

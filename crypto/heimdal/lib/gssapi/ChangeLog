@@ -1,3 +1,260 @@
+2003-05-07  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* gssapi.h: 1.27->1.28:
+	if __cplusplus, wrap the extern variable (just to be safe) and
+	functions in extern "C" { }
+
+2003-04-30  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* gssapi.3: more about the des3 mic mess
+	
+	* verify_mic.c 1.19->1.20 : (verify_mic_des3): always check if the
+	mic is the correct mic or the mic that old heimdal would have
+	generated
+	
+2003-04-29  Jacques Vidrine  <nectar@kth.se>
+
+	* verify_mic.c: 1.18->1.19: verify_mic_des3: If MIC verification
+	fails, retry using the `old' MIC computation (with zero IV).
+	
+2003-04-28  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* compat.c (_gss_DES3_get_mic_compat): default to use compat
+	
+	* gssapi.3: 1.5->1.6: document [gssapi]correct_des3_mic and
+	[gssapi]broken_des3_mic
+
+	* compat.c: 1.2->1.4:
+	(gss_krb5_compat_des3_mci): return a value
+	(gss_krb5_compat_des3_mic): enable turning on/off des3 mic compat
+	(_gss_DES3_get_mic_compat): handle [gssapi]correct_des3_mic too
+
+	* gssapi.h: 1.26->1.27:
+	(gss_krb5_compat_des3_mic): new function, turn on/off des3 mic compat
+	(GSS_C_KRB5_COMPAT_DES3_MIC): cpp symbol that exists if
+	gss_krb5_compat_des3_mic exists
+	
+2003-04-23  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: 1.44->1.45: test_acquire_cred_LDADD: use
+	libgssapi.la not ./libgssapi.la (makes make -jN work)
+	
+2003-04-16  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* gssapi.3: spelling
+	
+	* gss_acquire_cred.3: Change .Fd #include <header.h> to .In
+	header.h, from Thomas Klausner <wiz@netbsd.org>
+
+	
+2003-04-06  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* gss_acquire_cred.3: spelling
+	
+	* Makefile.am: remove stuff that sneaked in with last commit
+	
+	* acquire_cred.c (acquire_initiator_cred): if the requested name
+	isn't in the ccache, also check keytab.  Extact the krbtgt for the
+	default realm to check how long the credentials will last.
+	
+	* add_cred.c (gss_add_cred): don't create a new ccache, just open
+	the old one; better check if output handle is compatible with new
+	(copied) handle
+
+	* test_acquire_cred.c: test gss_add_cred too
+	
+2003-04-03  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: build test_acquire_cred
+	
+	* test_acquire_cred.c: simple gss_acquire_cred test
+	
+2003-04-02  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* gss_acquire_cred.3: s/gssapi/GSS-API/
+	
+2003-03-19  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* gss_acquire_cred.3: document v1 interface (and that they are
+	obsolete)
+
+2003-03-18  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* gss_acquire_cred.3: list supported mechanism and nametypes
+	
+2003-03-16  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* gss_acquire_cred.3: text about gss_display_name
+
+	* Makefile.am (libgssapi_la_LDFLAGS): bump to 3:6:2
+	(libgssapi_la_SOURCES): add all new functions
+
+	* gssapi.3: now that we have a functions, uncomment the missing
+	ones
+
+	* gss_acquire_cred.3: now that we have a functions, uncomment the
+	missing ones
+
+	* process_context_token.c: implement gss_process_context_token
+	
+	* inquire_names_for_mech.c: implement gss_inquire_names_for_mech
+	
+	* inquire_mechs_for_name.c: implement gss_inquire_mechs_for_name
+	
+	* inquire_cred_by_mech.c: implement gss_inquire_cred_by_mech
+	
+	* add_cred.c: implement gss_add_cred
+	
+	* acquire_cred.c (gss_acquire_cred): more testing of input
+	argument, make sure output arguments are ok, since we don't know
+	the time_rec (for now), set it to time_req
+	
+	* export_sec_context.c: send lifetime, also set minor_status
+	
+	* get_mic.c: set minor_status
+	
+	* import_sec_context.c (gss_import_sec_context): add error
+	checking, pick up lifetime (if there is no lifetime, use
+	GSS_C_INDEFINITE)
+
+	* init_sec_context.c: take care to set export value to something
+	sane before we start so caller will have harmless values in them
+	if then function fails
+
+	* release_buffer.c (gss_release_buffer): set minor_status
+	
+	* wrap.c: make sure minor_status get set
+	
+	* verify_mic.c (gss_verify_mic_internal): rename verify_mic to
+	gss_verify_mic_internal and let it take the type as an argument,
+	(gss_verify_mic): call gss_verify_mic_internal
+	set minor_status
+	
+	* unwrap.c: set minor_status
+	
+	* test_oid_set_member.c (gss_test_oid_set_member): use
+	gss_oid_equal
+
+	* release_oid_set.c (gss_release_oid_set): set minor_status
+	
+	* release_name.c (gss_release_name): set minor_status
+	
+	* release_cred.c (gss_release_cred): set minor_status
+	
+	* add_oid_set_member.c (gss_add_oid_set_member): set minor_status
+	
+	* compare_name.c (gss_compare_name): set minor_status
+	
+	* compat.c (check_compat): make sure ret have a defined value
+	
+	* context_time.c (gss_context_time): set minor_status
+	
+	* copy_ccache.c (gss_krb5_copy_ccache): set minor_status
+	
+	* create_emtpy_oid_set.c (gss_create_empty_oid_set): set
+	minor_status
+
+	* delete_sec_context.c (gss_delete_sec_context): set minor_status
+	
+	* display_name.c (gss_display_name): set minor_status
+	
+	* display_status.c (gss_display_status): use gss_oid_equal, handle
+	supplementary errors
+
+	* duplicate_name.c (gss_duplicate_name): set minor_status
+	
+	* inquire_context.c (gss_inquire_context): set lifetime_rec now
+	when we know it, set minor_status
+
+	* inquire_cred.c (gss_inquire_cred): take care to set export value
+	to something sane before we start so caller will have harmless
+	values in them if the function fails
+	
+	* accept_sec_context.c (gss_accept_sec_context): take care to set
+	export value to something sane before we start so caller will have
+	harmless values in them if then function fails, set lifetime from
+	ticket expiration date
+
+	* indicate_mechs.c (gss_indicate_mechs): use
+	gss_create_empty_oid_set and gss_add_oid_set_member
+
+	* gssapi.h (gss_ctx_id_t_desc): store the lifetime in the cred,
+	since there is no ticket transfered in the exported context
+	
+	* export_name.c (gss_export_name): export name with
+	GSS_C_NT_EXPORT_NAME wrapping, not just the principal
+	
+	* import_name.c (import_export_name): new function, parses a
+	GSS_C_NT_EXPORT_NAME
+	(import_krb5_name): factor out common code of parsing krb5 name
+	(gss_oid_equal): rename from oid_equal
+
+	* gssapi_locl.h: add prototypes for gss_oid_equal and
+	gss_verify_mic_internal
+
+	* gssapi.h: comment out the argument names
+	
+2003-03-15  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* gssapi.3: add LIST OF FUNCTIONS and copyright/license
+
+	* Makefile.am: s/gss_aquire_cred.3/gss_acquire_cred.3/
+	
+	* Makefile.am: man_MANS += gss_aquire_cred.3
+	
+2003-03-14  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* gss_aquire_cred.3: the gssapi api manpage
+	
+2003-03-03  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* inquire_context.c: (gss_inquire_context): rename argument open
+	to open_context
+
+	* gssapi.h (gss_inquire_context): rename argument open to open_context
+
+2003-02-27  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* init_sec_context.c (do_delegation): remove unused variable
+	subkey
+
+	* gssapi.3: all 0.5.x version had broken token delegation
+	
+2003-02-21  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* (init_auth): only generate one subkey
+
+2003-01-27  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* verify_mic.c (verify_mic_des3): fix 3des verify_mic to conform
+	to rfc (and mit kerberos), provide backward compat hook
+	
+	* get_mic.c (mic_des3): fix 3des get_mic to conform to rfc (and
+	mit kerberos), provide backward compat hook
+	
+	* init_sec_context.c (init_auth): check if we need compat for
+	older get_mic/verify_mic
+
+	* gssapi_locl.h: add prototype for _gss_DES3_get_mic_compat
+	
+	* gssapi.h (more_flags): add COMPAT_OLD_DES3
+	
+	* Makefile.am: add gssapi.3 and compat.c
+	
+	* gssapi.3: add gssapi COMPATIBILITY documentation
+	
+	* accept_sec_context.c (gss_accept_sec_context): check if we need
+	compat for older get_mic/verify_mic
+
+	* compat.c: check for compatiblity with other heimdal's 3des
+	get_mic/verify_mic
+
+2002-10-31  Johan Danielsson  <joda@pdc.kth.se>
+
+	* check return value from gssapi_krb5_init
+	
+	* 8003.c (gssapi_krb5_verify_8003_checksum): check size of input
+
 2002-09-03  Johan Danielsson  <joda@pdc.kth.se>
 
 	* wrap.c (wrap_des3): use ETYPE_DES3_CBC_NONE

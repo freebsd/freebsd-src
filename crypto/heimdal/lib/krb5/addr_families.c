@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2002 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2003 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: addr_families.c,v 1.37 2002/08/19 13:51:37 joda Exp $");
+RCSID("$Id: addr_families.c,v 1.38 2003/03/25 12:37:02 joda Exp $");
 
 struct addr_operations {
     int af;
@@ -515,6 +515,36 @@ arange_order_addr(krb5_context context,
     }
 }
 
+static int
+addrport_print_addr (const krb5_address *addr, char *str, size_t len)
+{
+    krb5_address addr1, addr2;
+    uint16_t port = 0;
+    size_t ret_len = 0, l;
+    krb5_storage *sp = krb5_storage_from_data((krb5_data*)&addr->address);
+    /* for totally obscure reasons, these are not in network byteorder */
+    krb5_storage_set_byteorder(sp, KRB5_STORAGE_BYTEORDER_LE);
+
+    krb5_storage_seek(sp, 2, SEEK_CUR); /* skip first two bytes */
+    krb5_ret_address(sp, &addr1);
+
+    krb5_storage_seek(sp, 2, SEEK_CUR); /* skip two bytes */
+    krb5_ret_address(sp, &addr2);
+    krb5_storage_free(sp);
+    if(addr2.addr_type == KRB5_ADDRESS_IPPORT && addr2.address.length == 2) {
+	unsigned long value;
+	_krb5_get_int(addr2.address.data, &value, 2);
+	port = value;
+    }
+    l = strlcpy(str, "ADDRPORT:", len);
+    ret_len += l;
+    krb5_print_address(&addr1, str + ret_len, len - ret_len, &l);
+    ret_len += l;
+    l = snprintf(str + ret_len, len - ret_len, ",PORT=%u", port);
+    ret_len += l;
+    return ret_len;
+}
+
 static struct addr_operations at[] = {
     {AF_INET,	KRB5_ADDRESS_INET, sizeof(struct sockaddr_in),
      ipv4_sockaddr2addr, 
@@ -533,7 +563,8 @@ static struct addr_operations at[] = {
      ipv6_uninteresting, ipv6_anyaddr, ipv6_print_addr, ipv6_parse_addr} ,
 #endif
     {KRB5_ADDRESS_ADDRPORT, KRB5_ADDRESS_ADDRPORT, 0,
-     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
+     NULL, NULL, NULL, NULL, NULL, 
+     NULL, NULL, addrport_print_addr, NULL, NULL, NULL, NULL },
     /* fake address type */
     {KRB5_ADDRESS_ARANGE, KRB5_ADDRESS_ARANGE, sizeof(struct arange),
      NULL, NULL, NULL, NULL, NULL, NULL, NULL,
@@ -695,7 +726,7 @@ krb5_print_address (const krb5_address *addr,
     size_t ret;
     struct addr_operations *a = find_atype(addr->addr_type);
 
-    if (a == NULL) {
+    if (a == NULL || a->print_addr == NULL) {
 	char *s;
 	int l;
 	int i;

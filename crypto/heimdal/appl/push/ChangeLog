@@ -1,3 +1,12 @@
+2003-04-03  Assar Westerlund  <assar@kth.se>
+
+	* push.c: fixed one incorrect fprintf to stderr
+
+2003-03-18  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* push.c: add names of pop states, add some more debugging and use
+	fprintf(stderr) for all dbg stmts.
+	
 2001-09-04  Assar Westerlund  <assar@sics.se>
 
 	* push.c (doit): check return values from snprintf being negative

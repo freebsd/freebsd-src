@@ -1,5 +1,5 @@
 dnl
-dnl $Id: sunos.m4,v 1.1.4.1 2002/10/21 14:29:36 joda Exp $
+dnl $Id: sunos.m4,v 1.2 2002/10/16 14:42:13 joda Exp $
 dnl
 
 AC_DEFUN([rk_SUNOS],[

@@ -33,7 +33,7 @@
 
 #include "hprop.h"
 
-RCSID("$Id: hpropd.c,v 1.35 2002/04/18 10:18:50 joda Exp $");
+RCSID("$Id: hpropd.c,v 1.36 2003/04/16 15:46:32 lha Exp $");
 
 #ifdef KRB4
 static des_cblock mkey4;
@@ -87,11 +87,11 @@ dump_krb4(krb5_context context, hdb_entry *ent, int fd)
 
     if (ent->max_life) { 
 	asprintf(&p, "%d", krb_time_to_life(0, *ent->max_life));
-	strcat(buf, p);
+	strlcat(buf, p, sizeof(buf));
 	free(p);
     } else 
-	strcat(buf, "255"); 
-    strcat(buf, " ");
+	strlcat(buf, "255", sizeof(buf)); 
+    strlcat(buf, " ", sizeof(buf));
 
     i = 0;
     while (i < ent->keys.len &&
@@ -107,15 +107,15 @@ dump_krb4(krb5_context context, hdb_entry *ent, int fd)
 	asprintf(&p, "%d ", *ent->keys.val[i].mkvno);
     else
 	asprintf(&p, "%d ", 1);
-    strcat(buf, p);
+    strlcat(buf, p, sizeof(buf));
     free(p);
 
     asprintf(&p, "%d ", ent->kvno);
-    strcat(buf, p);
+    strlcat(buf, p, sizeof(buf));
     free(p);
 
     asprintf(&p, "%d ", 0); /* Attributes are always 0*/  
-    strcat(buf, p);
+    strlcat(buf, p, sizeof(buf));
     free(p);
 
     { 
@@ -123,15 +123,15 @@ dump_krb4(krb5_context context, hdb_entry *ent, int fd)
 	kdb_encrypt_key((des_cblock*)key, (des_cblock*)key,
 			&mkey4, msched4, DES_ENCRYPT);
 	asprintf(&p, "%x %x ", (int)htonl(*key), (int)htonl(*(key+1)));
-	strcat(buf, p);
+	strlcat(buf, p, sizeof(buf));
 	free(p);
     }
  
     if (ent->valid_end == NULL)
-	strcat(buf, time2str(60*60*24*365*50)); /* no expiration */
+	strlcat(buf, time2str(60*60*24*365*50), sizeof(buf)); /*no expiration*/
     else
-	strcat(buf, time2str(*ent->valid_end));
-    strcat(buf, " ");
+	strlcat(buf, time2str(*ent->valid_end), sizeof(buf));
+    strlcat(buf, " ", sizeof(buf));
 
     if (ent->modified_by == NULL) 
 	modifier = &ent->created_by;
@@ -149,7 +149,7 @@ dump_krb4(krb5_context context, hdb_entry *ent, int fd)
     asprintf(&p, "%s %s %s\n", time2str(modifier->time), 
 	     (strlen(name) != 0) ? name : "*", 
 	     (strlen(instance) != 0) ? instance : "*");
-    strcat(buf, p);
+    strlcat(buf, p, sizeof(buf));
     free(p);
 
     ret = write(fd, buf, strlen(buf));

@@ -1,6 +1,54 @@
-2002-10-21  Johan Danielsson  <joda@pdc.kth.se>
+2003-04-22  Love  <lha@stacken.kth.se>
 
-	* resolve.c: pull up 1.37; check length of txt records
+	* resolve.c: 1.38->1.39: copy NUL too, from janj@wenf.org via
+	openbsd
+
+2003-04-16  Love  <lha@stacken.kth.se>
+
+	* parse_units.h: remove typedef for units to avoid problems with
+	shadowing
+
+	* resolve.c: use strlcpy, from openbsd
+	
+	* getcap.c: use strlcpy, from openbsd
+	
+	* getarg.3: Change .Fd #include <header.h> to .In header.h
+	from Thomas Klausner <wiz@netbsd.org>
+
+2003-04-15  Love  <lha@stacken.kth.se>
+
+	* socket.c (socket_set_tos): if setsockopt failed with EINVAL
+	failed, just ignore it, sock was probably a just a non AF_INET
+	socket
+
+2003-04-14  Love  <lha@stacken.kth.se>
+
+	* strncasecmp.c: cast argument to toupper to unsigned char, from
+	Christian Biere <christianbiere@gmx.de> via NetBSD
+	
+	* strlwr.c: cast argument to tolower to unsigned char, from
+	Christian Biere <christianbiere@gmx.de> via NetBSD
+	
+	* strcasecmp.c: cast argument to toupper to unsigned char, from
+	Christian Biere <christianbiere@gmx.de> via NetBSD
+	
+2003-03-19  Love  <lha@stacken.kth.se>
+
+	* getarg.3: spelling, from <jmc@prioris.mini.pw.edu.pl>
+	
+2003-03-07  Love  <lha@stacken.kth.se>
+
+	* parse_bytes.c: use struct units instead of units
+	
+	* parse_time.c: use struct units instead of units
+	
+2003-03-04  Love  <lha@stacken.kth.se>
+
+	* roken.awk: use full prototype for main
+	
+2002-10-15  Johan Danielsson  <joda@pdc.kth.se>
+
+	* resolve.c: check length of txt records
 
 2002-09-10  Johan Danielsson  <joda@pdc.kth.se>
 

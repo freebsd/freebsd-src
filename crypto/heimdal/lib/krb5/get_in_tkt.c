@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: get_in_tkt.c,v 1.106 2002/09/04 16:26:04 joda Exp $");
+RCSID("$Id: get_in_tkt.c,v 1.107 2003/02/16 06:41:25 nectar Exp $");
 
 krb5_error_code
 krb5_init_etype (krb5_context context,
@@ -542,10 +542,12 @@ init_as_req (krb5_context context,
 			    sp = NULL;
 			else
 			    krb5_data_zero(&salt.saltvalue);
-		    add_padata(context, a->padata, creds->client, 
+		    ret = add_padata(context, a->padata, creds->client, 
 			       key_proc, keyseed, 
 			       &preauth->val[i].info.val[j].etype, 1,
 			       sp);
+		    if (ret == 0)
+			break;
 		}
 	    }
 	}

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: kafs_locl.h,v 1.15 1999/12/02 16:58:40 joda Exp $ */
+/* $Id: kafs_locl.h,v 1.17 2003/04/14 08:28:37 lha Exp $ */
 
 #ifndef __KAFS_LOCL_H__
 #define __KAFS_LOCL_H__
@@ -93,7 +93,13 @@
 #endif
 #ifdef KRB4
 #include <krb.h>
-#endif
+#else
+#ifdef KRB5
+#include "crypto-headers.h"
+#include <krb5-v4compat.h>
+typedef struct credentials CREDENTIALS;
+#endif /* KRB5 */
+#endif /* KRB4 */
 #include <kafs.h>
 
 #include <resolve.h>
@@ -101,31 +107,47 @@
 #include "afssysdefs.h"
 
 struct kafs_data;
+struct kafs_token;
 typedef int (*afslog_uid_func_t)(struct kafs_data *,
-				 const char *cell,
-				 const char *realm_hint,
+				 const char *,
+				 const char *,
 				 uid_t,
-				 const char *homedir);
+				 const char *);
 
 typedef int (*get_cred_func_t)(struct kafs_data*, const char*, const char*, 
-				    const char*, CREDENTIALS*);
+			       const char*, uid_t, struct kafs_token *);
 
 typedef char* (*get_realm_func_t)(struct kafs_data*, const char*);
 
 typedef struct kafs_data {
+    const char *name;
     afslog_uid_func_t afslog_uid;
     get_cred_func_t get_cred;
     get_realm_func_t get_realm;
     void *data;
 } kafs_data;
 
+struct kafs_token {
+    struct ClearToken ct;
+    void *ticket;
+    size_t ticket_len;
+};
+
+void _kafs_foldup(char *, const char *);
+
 int _kafs_afslog_all_local_cells(kafs_data*, uid_t, const char*);
 
 int _kafs_get_cred(kafs_data*, const char*, const char*, const char *, 
-		  CREDENTIALS*);
+		   uid_t, struct kafs_token *);
 
 int
-_kafs_realm_of_cell(kafs_data *data, const char *cell, char **realm);
+_kafs_realm_of_cell(kafs_data *, const char *, char **);
+
+int
+_kafs_v4_to_kt(CREDENTIALS *, uid_t, struct kafs_token *);
+
+void
+_kafs_fixup_viceid(struct ClearToken *, uid_t);
 
 #ifdef _AIX
 int aix_pioctl(char*, int, struct ViceIoctl*, int);

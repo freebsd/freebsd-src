@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -34,7 +34,7 @@
 #include "kadmin_locl.h"
 #include <kadm5/private.h>
 
-RCSID("$Id: init.c,v 1.27 2000/09/10 19:20:16 joda Exp $");
+RCSID("$Id: init.c,v 1.29 2002/12/03 14:08:17 joda Exp $");
 
 static kadm5_ret_t
 create_random_entry(krb5_principal princ,
@@ -90,6 +90,7 @@ static struct getargs args[] = {
       "realm max ticket lifetime" },
     { "realm-max-renewable-life",  0,	arg_string,	NULL,
       "realm max renewable lifetime" },
+    { "help", 'h', arg_flag, NULL },
 };
 
 static int num_args = sizeof(args) / sizeof(args[0]);
@@ -107,14 +108,16 @@ init(int argc, char **argv)
     int i;
     char *realm_max_life  = NULL;
     char *realm_max_rlife = NULL;
+    int help_flag = 0;
     HDB *db;
     int optind = 0;
     krb5_deltat max_life, max_rlife;
 
     args[0].value = &realm_max_life;
     args[1].value = &realm_max_rlife;
+    args[2].value = &help_flag;
 
-    if(getarg(args, num_args, argc, argv, &optind)) {
+    if(getarg(args, num_args, argc, argv, &optind) || help_flag) {
 	usage();
 	return 0;
     }
@@ -150,16 +153,24 @@ init(int argc, char **argv)
 	const char *realm = argv[i];
 
 	/* Create `krbtgt/REALM' */
-	krb5_make_principal(context, &princ, realm,
-			    KRB5_TGS_NAME, realm, NULL);
+	ret = krb5_make_principal(context, &princ, realm,
+				  KRB5_TGS_NAME, realm, NULL);
+	if(ret)
+	    return 0;
 	if (realm_max_life == NULL) {
 	    max_life = 0;
-	    edit_deltat ("Realm max ticket life", &max_life, NULL, 0);
+	    if(edit_deltat ("Realm max ticket life", &max_life, NULL, 0)) {
+		krb5_free_principal(context, princ);
+		return 0;
+	    }
 	}
 	if (realm_max_rlife == NULL) {
 	    max_rlife = 0;
-	    edit_deltat("Realm max renewable ticket life", &max_rlife,
-			NULL, 0);
+	    if(edit_deltat("Realm max renewable ticket life", &max_rlife,
+			   NULL, 0)) {
+		krb5_free_principal(context, princ);
+		return 0;
+	    }
 	}
 	create_random_entry(princ, max_life, max_rlife, 0);
 	krb5_free_principal(context, princ);

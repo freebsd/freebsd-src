@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995 - 200 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995 - 2000, 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -33,7 +33,7 @@
 
 #include "kafs_locl.h"
 
-RCSID("$Id: afssys.c,v 1.67 2000/07/08 12:06:03 assar Exp $");
+RCSID("$Id: afssys.c,v 1.69 2003/03/18 04:18:45 lha Exp $");
 
 int _kafs_debug; /* this should be done in a better way */
 
@@ -160,7 +160,7 @@ k_pioctl(char *a_path,
     
     errno = ENOSYS;
 #ifdef SIGSYS
-    kill(getpid(), SIGSYS);	/* You loose! */
+    kill(getpid(), SIGSYS);	/* You lose! */
 #endif
 #endif /* NO_AFS */
     return -1;
@@ -208,7 +208,7 @@ k_setpag(void)
     
     errno = ENOSYS;
 #ifdef SIGSYS
-    kill(getpid(), SIGSYS);	/* You loose! */
+    kill(getpid(), SIGSYS);	/* You lose! */
 #endif
 #endif /* NO_AFS */
     return -1;

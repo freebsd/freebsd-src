@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 - 2002 Kungliga Tekniska Högskolan
+ * Copyright (c) 1999 - 2003 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -35,7 +35,7 @@
 #include <getarg.h>
 #include <parse_bytes.h>
 #include <err.h>
-RCSID("$Id: verify_krb5_conf.c,v 1.14 2002/08/28 15:27:19 nectar Exp $");
+RCSID("$Id: verify_krb5_conf.c,v 1.17 2003/03/29 09:52:50 lha Exp $");
 
 /* verify krb5.conf */
 
@@ -119,6 +119,20 @@ check_boolean(krb5_context context, const char *path, char *data)
 }
 
 static int
+check_524(krb5_context context, const char *path, char *data)
+{
+    if(strcasecmp(data, "yes") == 0 ||
+       strcasecmp(data, "no") == 0 ||
+       strcasecmp(data, "2b") == 0 ||
+       strcasecmp(data, "local") == 0)
+	return 0;
+
+    krb5_warnx(context, "%s: didn't contain a valid option `%s'", 
+	       path, data);
+    return 1;
+}
+
+static int
 check_host(krb5_context context, const char *path, char *data)
 {
     int ret;
@@ -168,6 +182,7 @@ struct s2i {
 #define L(X) { #X, LOG_ ## X }
 
 static struct s2i syslogvals[] = {
+    /* severity */
     L(EMERG),
     L(ALERT),
     L(CRIT),
@@ -176,7 +191,7 @@ static struct s2i syslogvals[] = {
     L(NOTICE),
     L(INFO),
     L(DEBUG),
-
+    /* facility */
     L(AUTH),
 #ifdef LOG_AUTHPRIV
     L(AUTHPRIV),
@@ -263,12 +278,12 @@ check_log(krb5_context context, const char *path, char *data)
 	    strlcpy(severity, "ERR", sizeof(severity));
  	if(*facility == '\0')
 	    strlcpy(facility, "AUTH", sizeof(facility));
-	if(find_value(severity, syslogvals) == NULL) {
+	if(find_value(severity, syslogvals) == -1) {
 	    krb5_warnx(context, "%s: unknown syslog facility \"%s\"", 
 		       path, facility);
 	    ret++;
 	}
-	if(find_value(severity, syslogvals) == NULL) {
+	if(find_value(severity, syslogvals) == -1) {
 	    krb5_warnx(context, "%s: unknown syslog severity \"%s\"", 
 		       path, severity);
 	    ret++;
@@ -337,6 +352,8 @@ struct entry libdefaults_entries[] = {
 };
 
 struct entry appdefaults_entries[] = {
+    { "afslog", krb5_config_string, check_boolean },
+    { "afs-use-524", krb5_config_string, check_524 },
     { "forwardable", krb5_config_string, check_boolean },
     { "proxiable", krb5_config_string, check_boolean },
     { "ticket_lifetime", krb5_config_string, check_time },
@@ -481,8 +498,6 @@ check_section(krb5_context context, const char *path, krb5_config_section *cf,
 	}
 	if(e->name == NULL) {
 	    krb5_warnx(context, "%s: unknown entry", local);
-	    for(e = entries; e->name != NULL; e++)
-		krb5_warnx(context, "  %s", e->name);
 	    error |= 1;
 	}
 	free(local);

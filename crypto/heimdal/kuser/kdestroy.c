@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000, 2003 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,7 +32,7 @@
  */
 
 #include "kuser_locl.h"
-RCSID("$Id: kdestroy.c,v 1.13 2001/02/20 01:44:51 assar Exp $");
+RCSID("$Id: kdestroy.c,v 1.14.2.1 2003/05/08 18:59:17 lha Exp $");
 
 static const char *cache;
 static int help_flag;
@@ -91,8 +91,13 @@ main (int argc, char **argv)
     if (ret)
 	errx (1, "krb5_init_context failed: %d", ret);
   
-    if(cache == NULL)
+    if(cache == NULL) {
 	cache = krb5_cc_default_name(context);
+	if (cache == NULL) {
+	    warnx ("krb5_cc_default_name: %s", krb5_get_err_text(context, ret));
+	    exit(1);
+	}
+    }
 
     ret =  krb5_cc_resolve(context, 
 			   cache, 
@@ -115,11 +120,11 @@ main (int argc, char **argv)
 #if KRB4
     if(dest_tkt_flag && dest_tkt ())
 	exit_val = 1;
+#endif
     if (unlog_flag && k_hasafs ()) {
 	if (k_unlog ())
 	    exit_val = 1;
     }
-#endif
 
     return exit_val;
 }

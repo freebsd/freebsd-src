@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2003 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,30 +33,17 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: import_name.c,v 1.11 2002/06/20 20:05:42 nectar Exp $");
+RCSID("$Id: import_name.c,v 1.13 2003/03/16 17:33:31 lha Exp $");
 
 static OM_uint32
-import_krb5_name (OM_uint32 *minor_status,
-		  const gss_buffer_t input_name_buffer,
-		  gss_name_t *output_name)
+parse_krb5_name (OM_uint32 *minor_status,
+		 const char *name,
+		 gss_name_t *output_name)
 {
     krb5_error_code kerr;
-    char *tmp;
 
-    tmp = malloc (input_name_buffer->length + 1);
-    if (tmp == NULL) {
-	*minor_status = ENOMEM;
-	return GSS_S_FAILURE;
-    }
-    memcpy (tmp,
-	    input_name_buffer->value,
-	    input_name_buffer->length);
-    tmp[input_name_buffer->length] = '\0';
+    kerr = krb5_parse_name (gssapi_krb5_context, name, output_name);
 
-    kerr = krb5_parse_name (gssapi_krb5_context,
-			    tmp,
-			    output_name);
-    free (tmp);
     if (kerr == 0)
 	return GSS_S_COMPLETE;
     else if (kerr == KRB5_PARSE_ILLCHAR || kerr == KRB5_PARSE_MALFORMED) {
@@ -71,6 +58,30 @@ import_krb5_name (OM_uint32 *minor_status,
 }
 
 static OM_uint32
+import_krb5_name (OM_uint32 *minor_status,
+		  const gss_buffer_t input_name_buffer,
+		  gss_name_t *output_name)
+{
+    OM_uint32 ret;
+    char *tmp;
+
+    tmp = malloc (input_name_buffer->length + 1);
+    if (tmp == NULL) {
+	*minor_status = ENOMEM;
+	return GSS_S_FAILURE;
+    }
+    memcpy (tmp,
+	    input_name_buffer->value,
+	    input_name_buffer->length);
+    tmp[input_name_buffer->length] = '\0';
+
+    ret = parse_krb5_name(minor_status, tmp, output_name);
+    free(tmp);
+
+    return ret;
+}
+
+static OM_uint32
 import_hostbased_name (OM_uint32 *minor_status,
 		       const gss_buffer_t input_name_buffer,
 		       gss_name_t *output_name)
@@ -80,6 +91,8 @@ import_hostbased_name (OM_uint32 *minor_status,
     char *p;
     char *host;
     char local_hostname[MAXHOSTNAMELEN];
+
+    *output_name = NULL;
 
     tmp = malloc (input_name_buffer->length + 1);
     if (tmp == NULL) {
@@ -124,8 +137,55 @@ import_hostbased_name (OM_uint32 *minor_status,
     }
 }
 
-static int
-oid_equal(const gss_OID a, const gss_OID b)
+static OM_uint32
+import_export_name (OM_uint32 *minor_status,
+		    const gss_buffer_t input_name_buffer,
+		    gss_name_t *output_name)
+{
+    unsigned char *p;
+    uint32_t length;
+    OM_uint32 ret;
+    char *name;
+
+    if (input_name_buffer->length < 10 + GSS_KRB5_MECHANISM->length)
+	return GSS_S_BAD_NAME;
+
+    /* TOK, MECH_OID_LEN, DER(MECH_OID), NAME_LEN, NAME */
+
+    p = input_name_buffer->value;
+
+    if (memcmp(&p[0], "\x04\x01\x00", 3) != 0 ||
+	p[3] != GSS_KRB5_MECHANISM->length + 2 ||
+	p[4] != 0x06 ||
+	p[5] != GSS_KRB5_MECHANISM->length ||
+	memcmp(&p[6], GSS_KRB5_MECHANISM->elements, 
+	       GSS_KRB5_MECHANISM->length) != 0)
+	return GSS_S_BAD_NAME;
+
+    p += 6 + GSS_KRB5_MECHANISM->length;
+
+    length = p[0] << 24 | p[1] << 16 | p[2] << 8 | p[3];
+    p += 4;
+
+    if (length > input_name_buffer->length - 10 - GSS_KRB5_MECHANISM->length)
+	return GSS_S_BAD_NAME;
+
+    name = malloc(length + 1);
+    if (name == NULL) {
+	*minor_status = ENOMEM;
+	return GSS_S_FAILURE;
+    }
+    memcpy(name, p, length);
+    name[length] = '\0';
+
+    ret = parse_krb5_name(minor_status, name, output_name);
+    free(name);
+
+    return ret;
+}
+
+int
+gss_oid_equal(const gss_OID a, const gss_OID b)
 {
 	if (a == b)
 		return 1;
@@ -142,20 +202,27 @@ OM_uint32 gss_import_name
             gss_name_t * output_name
            )
 {
-    gssapi_krb5_init ();
+    GSSAPI_KRB5_INIT ();
 
-    if (oid_equal(input_name_type, GSS_C_NT_HOSTBASED_SERVICE))
+    *minor_status = 0;
+    *output_name = GSS_C_NO_NAME;
+    
+    if (gss_oid_equal(input_name_type, GSS_C_NT_HOSTBASED_SERVICE))
 	return import_hostbased_name (minor_status,
 				      input_name_buffer,
 				      output_name);
-    else if (input_name_type == GSS_C_NO_OID
-	     || oid_equal(input_name_type, GSS_C_NT_USER_NAME)
-	     || oid_equal(input_name_type, GSS_KRB5_NT_PRINCIPAL_NAME))
+    else if (gss_oid_equal(input_name_type, GSS_C_NO_OID)
+	     || gss_oid_equal(input_name_type, GSS_C_NT_USER_NAME)
+	     || gss_oid_equal(input_name_type, GSS_KRB5_NT_PRINCIPAL_NAME))
  	/* default printable syntax */
 	return import_krb5_name (minor_status,
 				 input_name_buffer,
 				 output_name);
-    else {
+    else if (gss_oid_equal(input_name_type, GSS_C_NT_EXPORT_NAME)) {
+	return import_export_name(minor_status,
+				  input_name_buffer, 
+				  output_name);
+    } else {
 	*minor_status = 0;
 	return GSS_S_BAD_NAMETYPE;
     }

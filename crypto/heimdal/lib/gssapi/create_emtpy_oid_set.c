@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001, 2003 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: create_emtpy_oid_set.c,v 1.4 2001/02/18 03:39:08 assar Exp $");
+RCSID("$Id: create_emtpy_oid_set.c,v 1.5 2003/03/16 17:47:07 lha Exp $");
 
 OM_uint32 gss_create_empty_oid_set (
             OM_uint32 * minor_status,
@@ -47,5 +47,6 @@ OM_uint32 gss_create_empty_oid_set (
   }
   (*oid_set)->count = 0;
   (*oid_set)->elements = NULL;
+  *minor_status = 0;
   return GSS_S_COMPLETE;
 }

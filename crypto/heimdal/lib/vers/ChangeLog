@@ -1,3 +1,10 @@
+2003-01-02  Johan Danielsson  <joda@pdc.kth.se>
+
+	* print_version.c: considerable clean up
+
+	* make-print-version.c: make VERSIONLIST a string instead of an
+	array of strings
+
 2002-08-28  Assar Westerlund  <assar@kth.se>
 
 	* Makefile.am (make_print_version_LDADD): do not hardcode -ldes,

@@ -33,7 +33,7 @@
 
 #include "kdc_locl.h"
 
-RCSID("$Id: connect.c,v 1.86.4.1 2002/10/21 16:05:17 joda Exp $");
+RCSID("$Id: connect.c,v 1.90 2003/02/18 15:39:10 lha Exp $");
 
 /*
  * a tuple describing on what to listen
@@ -131,14 +131,14 @@ add_standard_ports (int family)
     add_port_service(family, "kerberos-sec", 88, "tcp");
     if(enable_http)
 	add_port_service(family, "http", 80, "tcp");
+    if(enable_524) {
+	add_port_service(family, "krb524", 4444, "udp");
+	add_port_service(family, "krb524", 4444, "tcp");
+    }
 #ifdef KRB4
     if(enable_v4) {
 	add_port_service(family, "kerberos-iv", 750, "udp");
 	add_port_service(family, "kerberos-iv", 750, "tcp");
-    }
-    if(enable_524) {
-	add_port_service(family, "krb524", 4444, "udp");
-	add_port_service(family, "krb524", 4444, "tcp");
     }
     if (enable_kaserver)
 	add_port_service(family, "afs3-kaserver", 7004, "udp");
@@ -214,7 +214,7 @@ init_descr(struct descr *d)
 }
 
 /*
- * re-intialize all `n' ->sa in `d'.
+ * re-initialize all `n' ->sa in `d'.
  */
 
 static void
@@ -236,7 +236,7 @@ init_socket(struct descr *d, krb5_address *a, int family, int type, int port)
     krb5_error_code ret;
     struct sockaddr_storage __ss;
     struct sockaddr *sa = (struct sockaddr *)&__ss;
-    int sa_size;
+    int sa_size = sizeof(__ss);
 
     init_descr (d);
 
@@ -358,9 +358,7 @@ process_request(unsigned char *buf,
 		struct sockaddr *addr)
 {
     KDC_REQ req;
-#ifdef KRB4
     Ticket ticket;
-#endif
     krb5_error_code ret;
     size_t i;
 
@@ -373,21 +371,20 @@ process_request(unsigned char *buf,
 	ret = tgs_rep(&req, reply, from, addr);
 	free_TGS_REQ(&req);
 	return ret;
-    }
-#ifdef KRB4
-    else if(maybe_version4(buf, len)){
-	*sendlength = 0; /* elbitapmoc sdrawkcab XXX */
-	do_version4(buf, len, reply, from, (struct sockaddr_in*)addr);
-	return 0;
     }else if(decode_Ticket(buf, len, &ticket, &i) == 0){
 	ret = do_524(&ticket, reply, from, addr);
 	free_Ticket(&ticket);
 	return ret;
+#ifdef KRB4
+    } else if(maybe_version4(buf, len)){
+	*sendlength = 0; /* elbitapmoc sdrawkcab XXX */
+	do_version4(buf, len, reply, from, (struct sockaddr_in*)addr);
+	return 0;
     } else if (enable_kaserver) {
 	ret = do_kaserver (buf, len, reply, from, (struct sockaddr_in*)addr);
 	return ret;
-    }
 #endif
+    }
 			  
     return -1;
 }

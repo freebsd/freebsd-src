@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: kuserok.c,v 1.5.12.1 2002/10/21 14:37:55 joda Exp $");
+RCSID("$Id: kuserok.c,v 1.7 2003/03/13 19:53:43 lha Exp $");
 
 /*
  * Return TRUE iff `principal' is allowed to login as `luser'.
@@ -50,6 +50,10 @@ krb5_kuserok (krb5_context context,
     krb5_realm *realms, *r;
     krb5_error_code ret;
     krb5_boolean b;
+
+    pwd = getpwnam (luser);	/* XXX - Should use k_getpwnam? */
+    if (pwd == NULL)
+	return FALSE;
 
     ret = krb5_get_default_realms (context, &realms);
     if (ret)
@@ -78,9 +82,6 @@ krb5_kuserok (krb5_context context,
     }
     krb5_free_host_realm (context, realms);
 
-    pwd = getpwnam (luser);	/* XXX - Should use k_getpwnam? */
-    if (pwd == NULL)
-	return FALSE;
     snprintf (buf, sizeof(buf), "%s/.k5login", pwd->pw_dir);
     f = fopen (buf, "r");
     if (f == NULL)

@@ -1,6 +1,42 @@
+2003-04-14  Love Hörquist Åstrand  <lha@it.su.se>
+
+	* util.c: cast argument to tolower to unsigned char, from
+	Christian Biere <christianbiere@gmx.de> via NetBSD
+	
+2003-04-06  Love Hörquist Åstrand <lha@it.su.se>
+
+	* kadmind.8: s/kerberos/Kerberos/
+	
+2003-03-31  Love Hörquist Åstrand  <lha@it.su.se>
+
+	* kadmin.8: initialises -> initializes, from Perry E. Metzger"
+	<perry@piermont.com>
+
+	* kadmin.c: principal, not pricipal. From Thomas Klausner
+	<wiz@netbsd.org>
+
+2003-02-04  Love Hörquist Åstrand  <lha@it.su.se>
+
+	* kadmind.8: spelling, from jmc <jmc@prioris.mini.pw.edu.pl>
+	
+	* kadmin.8: spelling, from jmc <jmc@prioris.mini.pw.edu.pl>
+	
+2003-01-29  Love Hörquist Åstrand  <lha@it.su.se>
+
+	* server.c (kadmind_dispatch): kadm_chpass: require the password
+	to pass the password quality check in case the user changes the
+	user's own password kadm_chpass_with_key: disallow the user to
+	change it own password to a key, since that password might violate
+	the password quality check.
+
+2002-10-23  Assar Westerlund  <assar@kth.se>
+
+	* version4.c (decode_packet): check the length of the version
+	string and that rlen has a reasonable value
+
 2002-10-21  Johan Danielsson  <joda@pdc.kth.se>
 
-	* version4.c: pull up 1.27; check size of rlen
+	* version4.c: check size of rlen
 
 2002-09-10  Johan Danielsson  <joda@pdc.kth.se>
 
