@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.93 1999/02/18 18:48:01 n_hibma Exp $
+**  $Id: pcisupport.c,v 1.94 1999/02/21 11:39:37 dfr Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -1197,37 +1197,11 @@ static const char* vga_probe (pcici_t tag, pcidi_t typea)
 	if (vendor && chip) {
 		char *buf;
 		int len;
-#if 0
-		int i;
-		int reqmapmem;
-#endif
 
 		if (type == 0) {
 			type = "SVGA controller";
 		}
 
-#if 0
-		reqmapmem = PCI_MAPMEM;
-		for (i = 0; i < tag->nummaps; i++) {
-			pcimap *m = &tag->map[i];
-			if (m->type & PCI_MAPMEMP)
-				reqmapmem |= PCI_MAPMEMP;
-		}
-
-		for (i = 0; i < tag->nummaps; i++) {
-			unsigned mapaddr;
-			pcimap *m = &tag->map[i];
-			mapaddr = (m->base >> 12);
-			if (m->type == reqmapmem) {
-				pmap_setdevram(m->base, (1 << m->ln2size));
-			}
-		}
-#endif
-
-#ifdef __i386__
-		pmap_setvidram();
-#endif
-		
 		len = strlen(vendor) + strlen(chip) + strlen(type) + 4;
 		MALLOC(buf, char *, len, M_TEMP, M_NOWAIT);
 		if (buf)
