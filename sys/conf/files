@@ -16,6 +16,7 @@ aic7xxx_{seq,reg}.h		optional ahc				   \
 	dependency	"$S/dev/aic7xxx/aic7xxx.{reg,seq} $S/cam/scsi/scsi_message.h aicasm"
 kern/device_if.m		standard
 kern/bus_if.m			standard
+kern/clock_if.m			optional genclock
 kern/linker_if.m			standard
 cam/cam.c		optional scbus
 cam/cam_extend.c	optional scbus
@@ -838,6 +839,7 @@ kern/md5c.c		standard
 kern/subr_autoconf.c	standard
 kern/subr_blist.c	standard
 kern/subr_bus.c		standard
+kern/subr_clock.c	optional genclock
 kern/subr_devstat.c	standard
 kern/subr_disk.c	standard
 kern/subr_disklabel.c	standard
