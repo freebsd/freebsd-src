@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: vector.s,v 1.25 1997/02/22 09:37:23 peter Exp $
+ *	$Id: vector.s,v 1.26 1997/04/26 11:46:07 peter Exp $
  */
 
 /*
@@ -343,47 +343,23 @@ __CONCAT(Xresume,irq_num): ; \
 	addl	$4+4,%esp ; \
 	iret
 
-
-#if defined(APIC_IO) && defined(IPI_INTS)
-/*
- * A simple IPI_INTR() macro based on a heavily cut down FAST_INTR().
- *  call it's handler, EOI and return.
- */
-#define	IPI_INTR(irq_num, vec_name) \
-	.text ; \
-	SUPERALIGN_TEXT ; \
-IDTVEC(vec_name) ; \
-	pushl	%eax ;		/* save only call-used registers */ \
-	pushl	%ecx ; \
-	pushl	%edx ; \
-	pushl	%ds ; \
-	MAYBE_PUSHL_ES ; \
-	movl	$KDSEL,%eax ; \
-	movl	%ax,%ds ; \
-	MAYBE_MOVW_AX_ES ; \
-	pushl	_intr_unit + (irq_num) * 4 ; \
-	call	*_intr_handler + (irq_num) * 4 ; \
-	ENABLE_APIC ; \
-	addl	$4,%esp ; \
-	incl	_cnt+V_INTR ;	/* book-keeping can wait */ \
-	movl	_intr_countp + (irq_num) * 4,%eax ; \
-	incl	(%eax) ; \
-	MAYBE_POPL_ES ; \
-	popl	%ds ; \
-	popl	%edx ; \
-	popl	%ecx ; \
-	popl	%eax ; \
-	iret
-#endif /* APIC_IO && IPI_INTS */
-
-#if defined(XFAST_IPI32)
+#if defined(APIC_IO)
 	.text
 	SUPERALIGN_TEXT
-	.globl	_Xfastipi32
-_Xfastipi32:
+	.globl	_Xinvltlb
+_Xinvltlb:
 	pushl	%eax
 	movl	%cr3, %eax
 	movl	%eax, %cr3
+#if 0
+/** XXX FIXME: convert to Bruces suggested 'ss' style, eliminating %ds */
+	ss
+	incl	_ipihits
+	ss
+	movl	_apic_base, %eax
+	ss
+	movl	$0, APIC_EOI(%eax)
+#else
 	pushl	%ds
 	movl	$KDSEL,%eax
 	movl	%ax,%ds
@@ -391,9 +367,10 @@ _Xfastipi32:
 	movl	_apic_base, %eax
 	movl	$0, APIC_EOI(%eax)
 	popl	%ds
+#endif
 	popl	%eax
 	iret
-#endif /* XFAST_IPI32 */
+#endif /* APIC_IO */
 
 MCOUNT_LABEL(bintr)
 	FAST_INTR(0,fastintr0, ENABLE_ICU1)
@@ -447,12 +424,6 @@ MCOUNT_LABEL(bintr)
 	INTR(21,intr21, IO_ICU2, ENABLE_ICU1_AND_2, ah)
 	INTR(22,intr22, IO_ICU2, ENABLE_ICU1_AND_2, ah)
 	INTR(23,intr23, IO_ICU2, ENABLE_ICU1_AND_2, ah)
-#if defined(IPI_INTS)
-	IPI_INTR(24, ipi24)
-	IPI_INTR(25, ipi25)
-	IPI_INTR(26, ipi26)
-	IPI_INTR(27, ipi27)
-#endif /* IPI_INTS */
 #endif /* APIC_IO */
 MCOUNT_LABEL(eintr)
 
@@ -476,11 +447,7 @@ imasks:				/* masks for interrupt handlers */
 	.space	NHWI*4		/* padding; HWI masks are elsewhere */
 
 #if defined(APIC_IO)
-#if defined(IPI_INTS)
-	/* these 4 IPI slots are counted as HARDWARE INTs, ie NHWI, above */
-#else
 	.long	0, 0, 0, 0	/* padding */
-#endif /* IPI_INTS */
 	.long	SWI_TTY_MASK, SWI_NET_MASK, SWI_CLOCK_MASK, SWI_AST_MASK
 #else
 	.long	SWI_TTY_MASK, SWI_NET_MASK, 0, 0, 0, 0, 0, 0
@@ -502,19 +469,14 @@ _ivectors:
 	.long	_Xintr12, _Xintr13, _Xintr14, _Xintr15 
 	.long	_Xintr16, _Xintr17, _Xintr18, _Xintr19
 	.long	_Xintr20, _Xintr21, _Xintr22, _Xintr23
-#if defined(IPI_INTS)
-	.long	_Xipi24, _Xipi25, _Xipi26, _Xipi27
-#endif /* IPI_INTS */
 
 /* active flag for lazy masking */
 iactive:
 	.long	0
 
-#if defined(XFAST_IPI32)
 	.globl _ipihits
 _ipihits:
 	.long	0
-#endif /* XFAST_IPI32 */
 
 #if defined(TEST_CPUHITS)
 	.globl _cpuhits
@@ -571,12 +533,6 @@ _intrnames:
 	.asciz	"stray irq21"
 	.asciz	"stray irq22"
 	.asciz	"stray irq23"
-#if defined(IPI_INTS)
-	.asciz	"stray irq24"
-	.asciz	"stray irq25"
-	.asciz	"stray irq26"
-	.asciz	"stray irq27"
-#endif /* IPI_INTS */
 #endif /* APIC_IO */
 _eintrnames:
 

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.80 1997/03/28 01:02:17 ache Exp $
+ *	$Id: isa.c,v 1.81 1997/04/26 11:46:00 peter Exp $
  */
 
 /*
@@ -114,10 +114,6 @@ static inthand_t *fastintr[ICU_LEN] = {
 	&IDTVEC(fastintr18), &IDTVEC(fastintr19),
 	&IDTVEC(fastintr20), &IDTVEC(fastintr21),
 	&IDTVEC(fastintr22), &IDTVEC(fastintr23)
-#if defined(IPI_INTS)
-/* XXX probably NOT needed, we register_intr(slowintr[I]) */ 
-	, &IDTVEC(ipi24), &IDTVEC(ipi25), &IDTVEC(ipi26), &IDTVEC(ipi27)
-#endif /* IPI_INTS */
 #endif /* APIC_IO */
 };
 
@@ -129,9 +125,6 @@ static inthand_t *slowintr[ICU_LEN] = {
 #if defined(APIC_IO)
 	, &IDTVEC(intr16), &IDTVEC(intr17), &IDTVEC(intr18), &IDTVEC(intr19),
 	&IDTVEC(intr20), &IDTVEC(intr21), &IDTVEC(intr22), &IDTVEC(intr23)
-#if defined(IPI_INTS)
-	, &IDTVEC(ipi24), &IDTVEC(ipi25), &IDTVEC(ipi26), &IDTVEC(ipi27)
-#endif /* IPI_INTS */
 #endif /* APIC_IO */
 };
 
