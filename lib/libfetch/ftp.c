@@ -906,22 +906,26 @@ _ftp_get_proxy(void)
 }
 
 /*
- * Get and stat file
+ * Process an FTP request
  */
 FILE *
-fetchXGetFTP(struct url *url, struct url_stat *us, const char *flags)
+_ftp_request(struct url *url, const char *op, struct url_stat *us,
+	     struct url *purl, const char *flags)
 {
-    struct url *purl;
     int cd;
-
-    /* get the proxy URL, and check if we should use HTTP instead */
-    if (!CHECK_FLAG('d') && (purl = _ftp_get_proxy()) != NULL) {
-	if (strcasecmp(purl->scheme, SCHEME_HTTP) == 0)
-	    return _http_request(url, "GET", us, purl, flags);
-    } else {
-	purl = NULL;
-    }
     
+    /* check if we should use HTTP instead */
+    if (purl && strcasecmp(purl->scheme, SCHEME_HTTP) == 0) {
+	if (strcmp(op, "STAT") == 0)
+	    return _http_request(url, "HEAD", us, purl, flags);
+	else if (strcmp(op, "RETR") == 0)
+	    return _http_request(url, "GET", us, purl, flags);
+	/*
+	 * Our HTTP code doesn't support PUT requests yet, so try a
+	 * direct connection.
+	 */
+    }
+
     /* connect to server */
     cd = _ftp_cached_connect(url, purl, flags);
     if (purl)
@@ -938,9 +942,22 @@ fetchXGetFTP(struct url *url, struct url_stat *us, const char *flags)
 	&& fetchLastErrCode != FETCH_PROTO
 	&& fetchLastErrCode != FETCH_UNAVAIL)
 	return NULL;
+
+    /* just a stat */
+    if (strcmp(op, "STAT") == 0)
+	return (FILE *)1; /* bogus return value */
     
     /* initiate the transfer */
-    return _ftp_transfer(cd, "RETR", url->doc, O_RDONLY, url->offset, flags);
+    return _ftp_transfer(cd, op, url->doc, O_RDONLY, url->offset, flags);
+}
+
+/*
+ * Get and stat file
+ */
+FILE *
+fetchXGetFTP(struct url *url, struct url_stat *us, const char *flags)
+{
+    return _ftp_request(url, "RETR", us, _ftp_get_proxy(), flags);
 }
 
 /*
@@ -958,32 +975,9 @@ fetchGetFTP(struct url *url, const char *flags)
 FILE *
 fetchPutFTP(struct url *url, const char *flags)
 {
-    struct url *purl;
-    int cd;
 
-    /* get the proxy URL, and check if we should use HTTP instead */
-    if (!CHECK_FLAG('d') && (purl = _ftp_get_proxy()) != NULL) {
-	if (strcasecmp(purl->scheme, SCHEME_HTTP) == 0)
-	    /* XXX HTTP PUT is not implemented, so try without the proxy */
-	    purl = NULL;
-    } else {
-	purl = NULL;
-    }
-    
-    /* connect to server */
-    cd = _ftp_cached_connect(url, purl, flags);
-    if (purl)
-	fetchFreeURL(purl);
-    if (cd == NULL)
-	return NULL;
-    
-    /* change directory */
-    if (_ftp_cwd(cd, url->doc) == -1)
-	return NULL;
-    
-    /* initiate the transfer */
-    return _ftp_transfer(cd, CHECK_FLAG('a') ? "APPE" : "STOR",
-			 url->doc, O_WRONLY, url->offset, flags);
+    return _ftp_request(url, CHECK_FLAG('a') ? "APPE" : "STOR", NULL,
+			_ftp_get_proxy(), flags);
 }
 
 /*
@@ -992,36 +986,10 @@ fetchPutFTP(struct url *url, const char *flags)
 int
 fetchStatFTP(struct url *url, struct url_stat *us, const char *flags)
 {
-    struct url *purl;
-    int cd;
-
-    /* get the proxy URL, and check if we should use HTTP instead */
-    if (!CHECK_FLAG('d') && (purl = _ftp_get_proxy()) != NULL) {
-	if (strcasecmp(purl->scheme, SCHEME_HTTP) == 0) {
-	    FILE *f;
-
-	    if ((f = _http_request(url, "HEAD", us, purl, flags)) == NULL)
-		return -1;
-	    fclose(f);
-	    return 0;
-	}
-    } else {
-	purl = NULL;
-    }
     
-    /* connect to server */
-    cd = _ftp_cached_connect(url, purl, flags);
-    if (purl)
-	fetchFreeURL(purl);
-    if (cd == NULL)
-	return NULL;
-    
-    /* change directory */
-    if (_ftp_cwd(cd, url->doc) == -1)
+    if (_ftp_request(url, "STAT", us, _ftp_get_proxy(), flags) == NULL)
 	return -1;
-
-    /* stat file */
-    return _ftp_stat(cd, url->doc, us);
+    return 0;
 }
 
 /*
