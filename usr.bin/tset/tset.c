@@ -209,19 +209,6 @@ main(argc, argv)
 			tcsetattr(STDERR_FILENO, TCSADRAIN, &mode);
 	}
 
-	/* Get the terminal name from the entry. */
-	p = tcapbuf;
-	if (p != NULL && *p != ':') {
-		t = p;
-		if (p = strpbrk(p, "|:")) {
-			savech = *p;
-			*p = '\0';
-			if ((ttype = strdup(t)) == NULL)
-				err("%s", strerror(errno));
-			*p = savech;
-		}
-	}
-
 	if (noset)
 		(void)printf("%s\n", ttype);
 	else {
