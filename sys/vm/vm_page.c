@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.102 1998/06/21 18:02:48 bde Exp $
+ *	$Id: vm_page.c,v 1.103 1998/07/11 07:46:14 bde Exp $
  */
 
 /*
@@ -358,7 +358,7 @@ vm_page_hash(object, pindex)
 	vm_object_t object;
 	vm_pindex_t pindex;
 {
-	return ((((unsigned long) object) >> 5) + (pindex >> 1)) & vm_page_hash_mask;
+	return ((((uintptr_t) object) >> 5) + (pindex >> 1)) & vm_page_hash_mask;
 }
 
 /*
