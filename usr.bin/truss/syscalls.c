@@ -171,12 +171,14 @@ get_struct(int procfd, void *offset, void *buf, int len) {
 		err(1, "dup");
 	if ((p = fdopen(fd, "r")) == NULL)
 		err(1, "fdopen");
-	fseeko(p, (uintptr_t)offset, SEEK_SET);
-	for (pos = (char *)buf; len--; pos++) {
-		if ((c = fgetc(p)) == EOF)
-			return -1;
-		*pos = c;
-	}
+	if (fseeko(p, (uintptr_t)offset, SEEK_SET) == 0) {
+		for (pos = (char *)buf; len--; pos++) {
+			if ((c = fgetc(p)) == EOF)
+				return (-1);
+			*pos = c;
+		}
+	} else
+		bzero(buf, len);
 	fclose(p);
 	return 0;
 }
@@ -201,27 +203,27 @@ get_string(int procfd, void *offset, int max) {
 	buf = malloc( size = (max ? max : 64 ) );
 	len = 0;
 	buf[0] = 0;
-	fseeko(p, (uintptr_t)offset, SEEK_SET);
-	while ((c = fgetc(p)) != EOF) {
-		buf[len++] = c;
-		if (c == 0 || len == max) {
-			buf[len] = 0;
-			break;
-		}
-		if (len == size) {
-			char *tmp;
-			tmp = realloc(buf, size+64);
-			if (tmp == NULL) {
+	if (fseeko(p, (uintptr_t)offset, SEEK_SET) == 0) {
+		while ((c = fgetc(p)) != EOF) {
+			buf[len++] = c;
+			if (c == 0 || len == max) {
 				buf[len] = 0;
-				fclose(p);
-				return buf;
+				break;
 			}
-			size += 64;
-			buf = tmp;
+			if (len == size) {
+				char *tmp;
+				tmp = realloc(buf, size+64);
+				if (tmp == NULL) {
+					buf[len] = 0;
+					break;
+				}
+				size += 64;
+				buf = tmp;
+			}
 		}
 	}
 	fclose(p);
-	return buf;
+	return (buf);
 }
 
 
