@@ -27,6 +27,19 @@
 
 #include <i386/isa/intr_machdep.h>
 
+/*
+ * GLPROFILE showed that the lock was found to be free approx. 16 times
+ * more often that it was found to be already owned.  FREE_FIRST forces
+ * the code to look for a free lock before looking for an owned lock.
+
+               owned:	       free:	       fail:	
+_gethits:       118de           1c7dd3          3f106
+_tryhits:        9938            2196d           44cc
+
+ */
+#define FREE_FIRST
+#define GLPROFILE
+
 #define	MAYBE_PUSHL_EAX	pushl	%eax
 #define	MAYBE_POPL_EAX	popl	%eax
 
@@ -40,6 +53,47 @@
 
 NON_GPROF_ENTRY(MPgetlock)
 	movl	4(%esp), %edx		/* Get the address of the lock */
+
+#ifdef FREE_FIRST
+
+1:
+	movl	$FREE_LOCK, %eax	/* Assume it's free */
+	movl	_cpu_lockid, %ecx	/* - get pre-shifted logical cpu id */
+	incl	%ecx			/* - new count is one */
+	lock
+	cmpxchg	%ecx, (%edx)		/* - try it atomically */
+	jne	2f			/* ...do not collect $200 */
+#ifdef GLPROFILE
+	incl	_gethits2
+#endif /* GLPROFILE */
+	ret
+2:
+  	movl	(%edx), %eax		/* Try to see if we have it already */
+	andl	$COUNT_FIELD, %eax	/* - get count */
+	movl	_cpu_lockid, %ecx	/* - get pre-shifted logical cpu id */
+	orl	%ecx, %eax		/* - combine them */
+	movl	%eax, %ecx
+	incl	%ecx			/* - new count is one more */
+	lock
+	cmpxchg	%ecx, (%edx)		/* - try it atomically */
+#ifdef GLPROFILE
+	jne	4f			/* - miss */
+	incl	_gethits
+#else
+	jne	3f			/* - miss */
+#endif /* GLPROFILE */
+	ret
+#ifdef GLPROFILE
+4:
+	incl	_gethits3
+#endif /* GLPROFILE */
+3:
+	cmpl	$FREE_LOCK, (%edx)	/* Wait for it to become free */
+	jne	3b
+	jmp	1b			/* XXX 1b ? */
+
+#else /* FREE_FIRST */
+
 1:
   	movl	(%edx), %eax		/* Try to see if we have it already */
 	andl	$COUNT_FIELD, %eax	/* - get count */
@@ -50,6 +104,9 @@ NON_GPROF_ENTRY(MPgetlock)
 	lock
 	cmpxchg	%ecx, (%edx)		/* - try it atomically */
 	jne	2f			/* - miss */
+#ifdef GLPROFILE
+	incl	_gethits
+#endif /* GLPROFILE */
 	ret
 2:
 	movl	$FREE_LOCK, %eax	/* Assume it's free */
@@ -57,13 +114,24 @@ NON_GPROF_ENTRY(MPgetlock)
 	incl	%ecx			/* - new count is one */
 	lock
 	cmpxchg	%ecx, (%edx)		/* - try it atomically */
-	je	4f			/* ...do not collect $200 */
+#ifdef GLPROFILE
+	jne	4f			/* ...do not collect $200 */
+	incl	_gethits2
+#else
+	jne	3f			/* ...do not collect $200 */
+#endif /* GLPROFILE */
+	ret
+#ifdef GLPROFILE
+4:
+	incl	_gethits3
+#endif /* GLPROFILE */
 3:
 	cmpl	$FREE_LOCK, (%edx)	/* Wait for it to become free */
 	jne	3b
 	jmp	2b			/* XXX 1b ? */
-4:
-	ret
+
+#endif /* FREE_FIRST */
+
 
 /***********************************************************************
  *  int MPtrylock(unsigned int *lock)
@@ -74,6 +142,44 @@ NON_GPROF_ENTRY(MPgetlock)
 
 NON_GPROF_ENTRY(MPtrylock)
 	movl	4(%esp), %edx		/* Get the address of the lock */
+
+#ifdef FREE_FIRST
+
+	movl	$FREE_LOCK, %eax	/* Assume it's free */
+	movl	_cpu_lockid, %ecx	/* - get pre-shifted logical cpu id */
+	incl	%ecx			/* - new count is one */
+	lock
+	cmpxchg	%ecx, (%edx)		/* - try it atomically */
+	jne	1f			/* ...do not collect $200 */
+#ifdef GLPROFILE
+	incl	_tryhits2
+#endif /* GLPROFILE */
+	movl	$1, %eax
+	ret
+1:
+  	movl	(%edx), %eax		/* Try to see if we have it already */
+	andl	$COUNT_FIELD, %eax	/* - get count */
+	movl	_cpu_lockid, %ecx	/* - get pre-shifted logical cpu id */
+	orl	%ecx, %eax		/* - combine them */
+	movl	%eax, %ecx
+	incl	%ecx			/* - new count is one more */
+	lock
+	cmpxchg	%ecx, (%edx)		/* - try it atomically */
+	jne	2f			/* - miss */
+#ifdef GLPROFILE
+	incl	_tryhits
+#endif /* GLPROFILE */
+	movl	$1, %eax
+	ret
+2:
+#ifdef GLPROFILE
+	incl	_tryhits3
+#endif /* GLPROFILE */
+	movl	$0, %eax
+	ret
+
+#else /* FREE_FIRST */
+
   	movl	(%edx), %eax		/* Try to see if we have it already */
 	andl	$COUNT_FIELD, %eax	/* - get count */
 	movl	_cpu_lockid, %ecx	/* - get pre-shifted logical cpu id */
@@ -83,6 +189,9 @@ NON_GPROF_ENTRY(MPtrylock)
 	lock
 	cmpxchg	%ecx, (%edx)		/* - try it atomically */
 	jne	1f			/* - miss */
+#ifdef GLPROFILE
+	incl	_tryhits
+#endif /* GLPROFILE */
 	movl	$1, %eax
 	ret
 1:
@@ -92,11 +201,20 @@ NON_GPROF_ENTRY(MPtrylock)
 	lock
 	cmpxchg	%ecx, (%edx)		/* - try it atomically */
 	jne	2f			/* ...do not collect $200 */
+#ifdef GLPROFILE
+	incl	_tryhits2
+#endif /* GLPROFILE */
 	movl	$1, %eax
 	ret
 2:
+#ifdef GLPROFILE
+	incl	_tryhits3
+#endif /* GLPROFILE */
 	movl	$0, %eax
 	ret
+
+#endif /* FREE_FIRST */
+
 
 /***********************************************************************
  *  void MPrellock(unsigned int *lock)
@@ -264,3 +382,24 @@ NON_GPROF_ENTRY(rel_isrlock)
 	.globl _mp_lock
 	.align  4	/* mp_lock aligned on int boundary */
 _mp_lock:	.long	0		
+
+#ifdef GLPROFILE
+	.globl	_gethits
+_gethits:
+	.long	0
+_gethits2:
+	.long	0
+_gethits3:
+	.long	0
+
+	.globl	_tryhits
+_tryhits:
+	.long	0
+_tryhits2:
+	.long	0
+_tryhits3:
+	.long	0
+
+msg:
+	.asciz	"lock hits: 0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x\n"
+#endif /* GLPROFILE */
