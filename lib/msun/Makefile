@@ -18,9 +18,7 @@ ARCH_SUBDIR= i387
 ARCH_SUBDIR= ${MACHINE_ARCH}
 .endif
 
-.if exists(${ARCH_SUBDIR}/Makefile.inc)
 .include "${ARCH_SUBDIR}/Makefile.inc"
-.endif
 
 .PATH:	${.CURDIR}/bsdsrc
 .PATH:	${.CURDIR}/man
@@ -47,12 +45,12 @@ COMMON_SRCS= b_exp.c b_log.c b_tgamma.c \
 	s_floor.c s_floorf.c s_floorl.c s_fma.c s_fmaf.c \
 	s_fmax.c s_fmaxf.c s_fmaxl.c s_fmin.c \
 	s_fminf.c s_fminl.c s_frexp.c s_frexpf.c s_ilogb.c s_ilogbf.c \
-	s_ilogbl.c s_isfinite.c s_isnan.c s_isnormal.c s_ldexpf.c \
+	s_ilogbl.c s_isfinite.c s_isnan.c s_isnormal.c \
 	s_llrint.c s_llrintf.c s_llround.c s_llroundf.c \
 	s_log1p.c s_log1pf.c s_logb.c s_logbf.c s_lrint.c s_lrintf.c \
 	s_lround.c s_lroundf.c s_modff.c \
 	s_nearbyint.c s_nextafter.c s_nextafterf.c \
-	s_rint.c s_rintf.c s_round.c s_roundf.c \
+	s_nexttowardf.c s_rint.c s_rintf.c s_round.c s_roundf.c \
 	s_scalbln.c s_scalbn.c s_scalbnf.c s_signbit.c \
 	s_signgam.c s_significand.c s_significandf.c s_sin.c s_sinf.c s_tan.c \
 	s_tanf.c s_tanh.c s_tanhf.c s_trunc.c s_truncf.c \
@@ -64,6 +62,10 @@ CFLAGS+=	-I${LIBCDIR}/include -I${LIBCDIR}/${MACHINE_ARCH}
 
 # C99 long double functions
 COMMON_SRCS+=	s_copysignl.c s_fabsl.c
+.if ${LDBL_PREC} != 53
+# If long double != double use these; otherwise, we alias the double versions.
+COMMON_SRCS+=	s_fmal.c s_frexpl.c s_nextafterl.c s_nexttoward.c s_scalbnl.c
+.endif
 
 # C99 complex functions
 COMMON_SRCS+=	s_cimag.c s_cimagf.c s_cimagl.c s_conj.c s_conjf.c s_conjl.c \
@@ -118,7 +120,7 @@ MLINKS+=fegetenv.3 feholdexcept.3 fegetenv.3 fesetenv.3 \
 	fegetenv.3 feupdateenv.3
 MLINKS+=fegetround.3 fesetround.3
 MLINKS+=floor.3 floorf.3 floor.3 floorl.3
-MLINKS+=fma.3 fmaf.3
+MLINKS+=fma.3 fmaf.3 fma.3 fmal.3
 MLINKS+=fmax.3 fmaxf.3 fmax.3 fmaxl.3 \
 	fmax.3 fmin.3 fmax.3 fminf.3 fmax.3 fminl.3
 MLINKS+=fmod.3 fmodf.3
@@ -132,11 +134,14 @@ MLINKS+=j0.3 j0f.3 j0.3 j1f.3 j0.3 jnf.3 j0.3 y0f.3 j0.3 ynf.3
 MLINKS+=lgamma.3 gamma.3 lgamma.3 gammaf.3 lgamma.3 lgammaf.3 lgamma.3 tgamma.3
 MLINKS+=lrint.3 llrint.3 lrint.3 llrintf.3 lrint.3 lrintf.3
 MLINKS+=lround.3 llround.3 lround.3 llroundf.3 lround.3 lroundf.3
-MLINKS+=nextafter.3 nextafterf.3
+MLINKS+=nextafter.3 nextafterf.3 nextafter.3 nextafterl.3
+MLINKS+=nextafter.3 nexttoward.3 nextafter.3 nexttowardf.3
+MLINKS+=nextafter.3 nexttowardl.3
 MLINKS+=remainder.3 remainderf.3
 MLINKS+=rint.3 rintf.3 rint.3 nearbyint.3 rint.3 nearbyintf.3
 MLINKS+=round.3 roundf.3
-MLINKS+=scalbn.3 scalbln.3 scalbn.3 scalblnf.3 scalbn.3 scalbnf.3
+MLINKS+=scalbn.3 scalbln.3 scalbn.3 scalblnf.3 scalbn.3 scalblnl.3
+MLINKS+=scalbn.3 scalbnf.3 scalbn.3 scalbnl.3
 MLINKS+=sin.3 sinf.3
 MLINKS+=sinh.3 sinhf.3
 MLINKS+=sqrt.3 cbrt.3 sqrt.3 cbrtf.3 sqrt.3 sqrtf.3
