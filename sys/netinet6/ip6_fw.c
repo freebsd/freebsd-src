@@ -293,7 +293,7 @@ iface_match(struct ifnet *ifp, union ip6_fw_if *ifu, int byname)
 		    && ifp->if_unit != ifu->fu_via_if.unit)
 			return(0);
 		/* Check name */
-		if (strncmp(ifp->if_name, ifu->fu_via_if.name, FW_IFNLEN))
+		if (strncmp(ifp->if_name, ifu->fu_via_if.name, IP6FW_IFNLEN))
 			return(0);
 		return(1);
 	} else if (!IN6_IS_ADDR_UNSPECIFIED(&ifu->fu_via_ip6)) {	/* Zero == wildcard */
@@ -793,7 +793,7 @@ add_entry6(struct ip6_fw_head *chainptr, struct ip6_fw *frwl)
 	}
 
 	bcopy(frwl, ftmp, sizeof(struct ip6_fw));
-	ftmp->fw_in_if.fu_via_if.name[FW_IFNLEN - 1] = '\0';
+	ftmp->fw_in_if.fu_via_if.name[IP6FW_IFNLEN - 1] = '\0';
 	ftmp->fw_pcnt = 0L;
 	ftmp->fw_bcnt = 0L;
 	fwc->rule = ftmp;
