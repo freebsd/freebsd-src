@@ -100,13 +100,9 @@ beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${.CURDIR}/../../forth/loader.conf ${DESTDIR}/boot/defaults
 
-${PROG}: ${OBJS} ${LIBOFW} ${LIBSTAND} ${LIBFICL} start.o vers.o setdef0.o setdef1.o
-	${LD} ${LDFLAGS} -o ${.TARGET} setdef0.o start.o ${OBJS} setdef1.o \
+${PROG}: ${OBJS} ${LIBOFW} ${LIBSTAND} ${LIBFICL} start.o vers.o
+	${LD} ${LDFLAGS} -o ${.TARGET} start.o ${OBJS} \
 		vers.o ${LIBFICL} ${LIBOFW} ${LIBSTAND}
-
-setdef0.o:	setdefs.h
-
-setdef1.o:	setdefs.h
 
 machine:
 	ln -sf ${.CURDIR}/../../../powerpc/include machine
@@ -118,8 +114,3 @@ beforedepend ${OBJS}: machine
 
 CLEANFILES+=	machine setdefs.h setdef0.c setdef1.c setdef0.o setdef1.o \
 		start.o
-
-.ORDER: setdefs.h setdef0.c setdef1.c
-setdefs.h setdef0.c setdef1.c: ${OBJS}
-	@echo Generating linker sets
-	@gensetdefs ${OBJS}
