@@ -29,6 +29,8 @@ MALLOC_DEFINE(M_PRISON, "prison", "Prison structures");
 SYSCTL_NODE(, OID_AUTO, jail, CTLFLAG_RW, 0,
     "Jail rules");
 
+mp_fixme("these variables need a lock")
+
 int	jail_set_hostname_allowed = 1;
 SYSCTL_INT(_jail, OID_AUTO, set_hostname_allowed, CTLFLAG_RW,
     &jail_set_hostname_allowed, 0,
@@ -59,41 +61,45 @@ jail(td, uap)
 	struct prison *pr;
 	struct jail j;
 	struct chroot_args ca;
+	struct ucred *newcred = NULL, *oldcred;
 
-	mtx_lock(&Giant);
-
-	/* Implicitly fail if already in jail.  */
-	error = suser(p);
-	if (error)
-		goto done2;
 	error = copyin(uap->jail, &j, sizeof j);
 	if (error)
-		goto done2;
-	if (j.version != 0) {
-		error = EINVAL;
-		goto done2;
-	}
+		return (error);
+	if (j.version != 0)
+		return (EINVAL);
+
+	mtx_lock(&Giant);
 	MALLOC(pr, struct prison *, sizeof *pr , M_PRISON, M_WAITOK | M_ZERO);
 	pr->pr_securelevel = securelevel;
 	error = copyinstr(j.hostname, &pr->pr_host, sizeof pr->pr_host, 0);
-	if (error) 
+	if (error)
 		goto bail;
-	pr->pr_ip = j.ip_number;
-
 	ca.path = j.path;
 	error = chroot(td, &ca);
 	if (error)
 		goto bail;
-
-	p->p_ucred = crcopy(p->p_ucred);
+	newcred = crget();
+	pr->pr_ip = j.ip_number;
+	PROC_LOCK(p);
+	/* Implicitly fail if already in jail.  */
+	error = suser(p);
+	if (error)
+		goto badcred;
+	oldcred = p->p_ucred;
+	crcopy(newcred, oldcred);
+	p->p_ucred = newcred;
 	p->p_ucred->cr_prison = pr;
 	pr->pr_ref = 1;
+	PROC_UNLOCK(p);
+	crfree(oldcred);
 	mtx_unlock(&Giant);
 	return (0);
-
+badcred:
+	PROC_UNLOCK(p);
+	crfree(newcred);
 bail:
 	FREE(pr, M_PRISON);
-done2:
 	mtx_unlock(&Giant);
 	return (error);
 }
