@@ -1,3 +1,6 @@
+/*	$FreeBSD$	*/
+/*	$KAME: ip_ecn.c,v 1.7 2000/05/05 11:00:56 sumikawa Exp $	*/
+
 /*
  * Copyright (C) 1999 WIDE Project.
  * All rights reserved.
@@ -26,8 +29,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ip_ecn.c,v 1.2 1999/07/30 12:17:15 itojun Exp $
- * $FreeBSD$
  */
 /*
  * ECN consideration on tunnel ingress/egress operation.

@@ -1,3 +1,6 @@
+/*	$FreeBSD$	*/
+/*	$KAME: frag6.c,v 1.24 2000/03/25 07:23:41 sumikawa Exp $	*/
+
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
@@ -25,8 +28,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #include <sys/param.h>
@@ -46,9 +47,9 @@
 
 #include <netinet/in.h>
 #include <netinet/in_var.h>
-#include <netinet6/ip6.h>
+#include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
-#include <netinet6/icmp6.h>
+#include <netinet/icmp6.h>
 
 #include <net/net_osdep.h>
 
@@ -57,20 +58,23 @@
  * You will need to perform an extra routing table lookup, per fragment,
  * to do it.  This may, or may not be, a performance hit.
  */
-#define	IN6_IFSTAT_STRICT
+#define IN6_IFSTAT_STRICT
 
-static void	frag6_enq __P((struct ip6asfrag *, struct ip6asfrag *));
-static void	frag6_deq __P((struct ip6asfrag *));
-static void	frag6_insque __P((struct ip6q *, struct ip6q *));
-static void	frag6_remque __P((struct ip6q *));
-static void	frag6_freef __P((struct ip6q *));
+static void frag6_enq __P((struct ip6asfrag *, struct ip6asfrag *));
+static void frag6_deq __P((struct ip6asfrag *));
+static void frag6_insque __P((struct ip6q *, struct ip6q *));
+static void frag6_remque __P((struct ip6q *));
+static void frag6_freef __P((struct ip6q *));
 
-int	frag6_doing_reass;
-u_int	frag6_nfragpackets;
-struct	ip6q	ip6q;	/* ip6 reassemble queue */
+int frag6_doing_reass;
+u_int frag6_nfragpackets;
+struct	ip6q ip6q;	/* ip6 reassemble queue */
 
-#if !defined(M_FTABLE)
+/* FreeBSD tweak */
 MALLOC_DEFINE(M_FTABLE, "fragment", "fragment reassembly header");
+
+#ifndef offsetof		/* XXX */
+#define	offsetof(type, member)	((size_t)(&((type *)0)->member))
 #endif
 
 /*
@@ -86,10 +90,39 @@ frag6_init()
 	 * as initialization during bootstrap time occur in fixed order.
 	 */
 	microtime(&tv);
-	ip6q.ip6q_next = ip6q.ip6q_prev = &ip6q;
 	ip6_id = random() ^ tv.tv_usec;
+	ip6q.ip6q_next = ip6q.ip6q_prev = &ip6q;
 }
 
+/*
+ * In RFC2460, fragment and reassembly rule do not agree with each other,
+ * in terms of next header field handling in fragment header.
+ * While the sender will use the same value for all of the fragmented packets,
+ * receiver is suggested not to check the consistency.
+ *
+ * fragment rule (p20):
+ *	(2) A Fragment header containing:
+ *	The Next Header value that identifies the first header of
+ *	the Fragmentable Part of the original packet.
+ *		-> next header field is same for all fragments
+ *
+ * reassembly rule (p21):
+ *	The Next Header field of the last header of the Unfragmentable
+ *	Part is obtained from the Next Header field of the first
+ *	fragment's Fragment header.
+ *		-> should grab it from the first fragment only
+ *
+ * The following note also contradicts with fragment rule - noone is going to
+ * send different fragment with different next header field.
+ *
+ * additional note (p22):
+ *	The Next Header values in the Fragment headers of different
+ *	fragments of the same original packet may differ.  Only the value
+ *	from the Offset zero fragment packet is used for reassembly.
+ *		-> should grab it from the first fragment only
+ *
+ * There is no explicit reason given in the RFC.  Historical reason maybe?
+ */
 /*
  * Fragment input
  */
@@ -102,20 +135,25 @@ frag6_input(mp, offp, proto)
 	struct ip6_hdr *ip6;
 	struct ip6_frag *ip6f;
 	struct ip6q *q6;
-	struct ip6asfrag *af6, *ip6af;
+	struct ip6asfrag *af6, *ip6af, *af6dwn;
 	int offset = *offp, nxt, i, next;
 	int first_frag = 0;
-	u_short fragoff, frgpartlen;
+	int fragoff, frgpartlen;	/* must be larger than u_int16_t */
 	struct ifnet *dstifp;
 #ifdef IN6_IFSTAT_STRICT
 	static struct route_in6 ro;
 	struct sockaddr_in6 *dst;
 #endif
 
-	IP6_EXTHDR_CHECK(m, offset, sizeof(struct ip6_frag), IPPROTO_DONE);
-
 	ip6 = mtod(m, struct ip6_hdr *);
+#ifndef PULLDOWN_TEST
+	IP6_EXTHDR_CHECK(m, offset, sizeof(struct ip6_frag), IPPROTO_DONE);
 	ip6f = (struct ip6_frag *)((caddr_t)ip6 + offset);
+#else
+	IP6_EXTHDR_GET(ip6f, struct ip6_frag *, m, offset, sizeof(*ip6f));
+	if (ip6f == NULL)
+		return IPPROTO_DONE;
+#endif
 
 	dstifp = NULL;
 #ifdef IN6_IFSTAT_STRICT
@@ -159,7 +197,7 @@ frag6_input(mp, offp, proto)
 	    (((ntohs(ip6->ip6_plen) - offset) & 0x7) != 0)) {
 		icmp6_error(m, ICMP6_PARAM_PROB,
 			    ICMP6_PARAMPROB_HEADER,
-			    (caddr_t)&ip6->ip6_plen - (caddr_t)ip6);
+			    offsetof(struct ip6_hdr, ip6_plen));
 		in6_ifstat_inc(dstifp, ifs6_reass_fail);
 		return IPPROTO_DONE;
 	}
@@ -167,14 +205,8 @@ frag6_input(mp, offp, proto)
 	ip6stat.ip6s_fragments++;
 	in6_ifstat_inc(dstifp, ifs6_reass_reqd);
 	
-	/*
-	 * Presence of header sizes in mbufs
-	 * would confuse code below.
-	 */
-	
+	/* offset now points to data portion */
 	offset += sizeof(struct ip6_frag);
-	m->m_data += offset;
-	m->m_len -= offset;
 
 	for (q6 = ip6q.ip6q_next; q6 != &ip6q; q6 = q6->ip6q_next)
 		if (ip6f->ip6f_ident == q6->ip6q_ident &&
@@ -204,10 +236,15 @@ frag6_input(mp, offp, proto)
 			M_DONTWAIT);
 		if (q6 == NULL)
 			goto dropfrag;
+		bzero(q6, sizeof(*q6));
 
 		frag6_insque(q6, &ip6q);
 
+		/* ip6q_nxt will be filled afterwards, from 1st fragment */
 		q6->ip6q_down	= q6->ip6q_up = (struct ip6asfrag *)q6;
+#ifdef notyet
+		q6->ip6q_nxtp	= (u_char *)nxtp;
+#endif
 		q6->ip6q_ident	= ip6f->ip6f_ident;
 		q6->ip6q_arrive = 0; /* Is it used anywhere? */
 		q6->ip6q_ttl 	= IPV6_FRAGTTL;
@@ -232,22 +269,20 @@ frag6_input(mp, offp, proto)
 	 * in size.
 	 * If it would exceed, discard the fragment and return an ICMP error.
 	 */
-	frgpartlen =  sizeof(struct ip6_hdr) + ntohs(ip6->ip6_plen) - offset;
+	frgpartlen = sizeof(struct ip6_hdr) + ntohs(ip6->ip6_plen) - offset;
 	if (q6->ip6q_unfrglen >= 0) {
 		/* The 1st fragment has already arrived. */
 		if (q6->ip6q_unfrglen + fragoff + frgpartlen > IPV6_MAXPACKET) {
-			m->m_data -= offset;
-			m->m_len += offset;
 			icmp6_error(m, ICMP6_PARAM_PROB, ICMP6_PARAMPROB_HEADER,
-				    offset - sizeof(struct ip6_frag) + 2);
+				    offset - sizeof(struct ip6_frag) +
+					offsetof(struct ip6_frag, ip6f_offlg));
 			return(IPPROTO_DONE);
 		}
 	}
 	else if (fragoff + frgpartlen > IPV6_MAXPACKET) {
-		m->m_data -= offset;
-		m->m_len += offset;
 		icmp6_error(m, ICMP6_PARAM_PROB, ICMP6_PARAMPROB_HEADER,
-			    offset - sizeof(struct ip6_frag) + 2);
+			    offset - sizeof(struct ip6_frag) +
+				offsetof(struct ip6_frag, ip6f_offlg));
 		return(IPPROTO_DONE);
 	}
 	/*
@@ -255,8 +290,6 @@ frag6_input(mp, offp, proto)
 	 * fragment already stored in the reassembly queue.
 	 */
 	if (fragoff == 0) {
-		struct ip6asfrag *af6dwn;
-		
 		for (af6 = q6->ip6q_down; af6 != (struct ip6asfrag *)q6;
 		     af6 = af6dwn) {
 			af6dwn = af6->ip6af_down;
@@ -269,10 +302,9 @@ frag6_input(mp, offp, proto)
 
 				/* dequeue the fragment. */
 				frag6_deq(af6);
+				free(af6, M_FTABLE);
 
 				/* adjust pointer. */
-				merr->m_data -= af6->ip6af_offset;
-				merr->m_len += af6->ip6af_offset;
 				ip6err = mtod(merr, struct ip6_hdr *);
 
 				/*
@@ -284,13 +316,21 @@ frag6_input(mp, offp, proto)
 
 				icmp6_error(merr, ICMP6_PARAM_PROB,
 					    ICMP6_PARAMPROB_HEADER,
-					    erroff - sizeof(struct ip6_frag) + 2);
+					    erroff - sizeof(struct ip6_frag) +
+						offsetof(struct ip6_frag, ip6f_offlg));
 			}
 		}
 	}
 
-	/* Override the IPv6 header */
-	ip6af = (struct ip6asfrag *)ip6;
+	ip6af = (struct ip6asfrag *)malloc(sizeof(struct ip6asfrag), M_FTABLE,
+	    M_DONTWAIT);
+	if (ip6af == NULL)
+		goto dropfrag;
+	bzero(ip6af, sizeof(*ip6af));
+	ip6af->ip6af_head = ip6->ip6_flow;
+	ip6af->ip6af_len = ip6->ip6_plen;
+	ip6af->ip6af_nxt = ip6->ip6_nxt;
+	ip6af->ip6af_hlim = ip6->ip6_hlim;
 	ip6af->ip6af_mff = ip6f->ip6f_offlg & IP6F_MORE_FRAG;
 	ip6af->ip6af_off = fragoff;
 	ip6af->ip6af_frglen = frgpartlen;
@@ -310,6 +350,42 @@ frag6_input(mp, offp, proto)
 		if (af6->ip6af_off > ip6af->ip6af_off)
 			break;
 
+#if 0
+	/*
+	 * If there is a preceding segment, it may provide some of
+	 * our data already.  If so, drop the data from the incoming
+	 * segment.  If it provides all of our data, drop us.
+	 */
+	if (af6->ip6af_up != (struct ip6asfrag *)q6) {
+		i = af6->ip6af_up->ip6af_off + af6->ip6af_up->ip6af_frglen
+			- ip6af->ip6af_off;
+		if (i > 0) {
+			if (i >= ip6af->ip6af_frglen)
+				goto dropfrag;
+			m_adj(IP6_REASS_MBUF(ip6af), i);
+			ip6af->ip6af_off += i;
+			ip6af->ip6af_frglen -= i;
+		}
+	}
+
+	/*
+	 * While we overlap succeeding segments trim them or,
+	 * if they are completely covered, dequeue them.
+	 */
+	while (af6 != (struct ip6asfrag *)q6 &&
+	       ip6af->ip6af_off + ip6af->ip6af_frglen > af6->ip6af_off) {
+		i = (ip6af->ip6af_off + ip6af->ip6af_frglen) - af6->ip6af_off;
+		if (i < af6->ip6af_frglen) {
+			af6->ip6af_frglen -= i;
+			af6->ip6af_off += i;
+			m_adj(IP6_REASS_MBUF(af6), i);
+			break;
+		}
+		af6 = af6->ip6af_down;
+		m_freem(IP6_REASS_MBUF(af6->ip6af_up));
+		frag6_deq(af6->ip6af_up);
+	}
+#else
 	/*
 	 * If the incoming framgent overlaps some existing fragments in
 	 * the reassembly queue, drop it, since it is dangerous to override
@@ -334,6 +410,7 @@ frag6_input(mp, offp, proto)
 			goto dropfrag;
 		}
 	}
+#endif
 
 insert:
 
@@ -344,6 +421,12 @@ insert:
 	 * the most recently active fragmented packet.
 	 */
 	frag6_enq(ip6af, af6->ip6af_up);
+#if 0 /* xxx */
+	if (q6 != ip6q.ip6q_next) {
+		frag6_remque(q6);
+		frag6_insque(q6, &ip6q);
+	}
+#endif
 	next = 0;
 	for (af6 = q6->ip6q_down; af6 != (struct ip6asfrag *)q6;
 	     af6 = af6->ip6af_down) {
@@ -361,38 +444,52 @@ insert:
 	/*
 	 * Reassembly is complete; concatenate fragments.
 	 */
-
 	ip6af = q6->ip6q_down;
 	t = m = IP6_REASS_MBUF(ip6af);
 	af6 = ip6af->ip6af_down;
+	frag6_deq(ip6af);
 	while (af6 != (struct ip6asfrag *)q6) {
+		af6dwn = af6->ip6af_down;
+		frag6_deq(af6);
 		while (t->m_next)
 			t = t->m_next;
 		t->m_next = IP6_REASS_MBUF(af6);
-		af6 = af6->ip6af_down;
+		m_adj(t->m_next, af6->ip6af_offset);
+		free(af6, M_FTABLE);
+		af6 = af6dwn;
 	}
 
 	/* adjust offset to point where the original next header starts */
 	offset = ip6af->ip6af_offset - sizeof(struct ip6_frag);
-	ip6 = (struct ip6_hdr *)ip6af;
+	free(ip6af, M_FTABLE);
+	ip6 = mtod(m, struct ip6_hdr *);
 	ip6->ip6_plen = htons((u_short)next + offset - sizeof(struct ip6_hdr));
 	ip6->ip6_src = q6->ip6q_src;
 	ip6->ip6_dst = q6->ip6q_dst;
 	nxt = q6->ip6q_nxt;
+#ifdef notyet
+	*q6->ip6q_nxtp = (u_char)(nxt & 0xff);
+#endif
 
 	/*
 	 * Delete frag6 header with as a few cost as possible.
 	 */
-
-	if (offset < m->m_len)
+	if (offset < m->m_len) {
 		ovbcopy((caddr_t)ip6, (caddr_t)ip6 + sizeof(struct ip6_frag),
 			offset);
-	else {
-		ovbcopy(mtod(m, caddr_t), (caddr_t)ip6 + offset, m->m_len);
-		m->m_data -= sizeof(struct ip6_frag);
+		m->m_data += sizeof(struct ip6_frag);
+		m->m_len -= sizeof(struct ip6_frag);
+	} else {
+		/* this comes with no copy if the boundary is on cluster */
+		if ((t = m_split(m, offset, M_DONTWAIT)) == NULL) {
+			frag6_remque(q6);
+			free(q6, M_FTABLE);
+			frag6_nfragpackets--;
+			goto dropfrag;
+		}
+		m_adj(t, sizeof(struct ip6_frag));
+		m_cat(m, t);
 	}
-	m->m_data -= offset;
-	m->m_len += offset;
 
 	/*
 	 * Store NXT to the original.
@@ -458,8 +555,6 @@ frag6_freef(q6)
 			struct ip6_hdr *ip6;
 
 			/* adjust pointer */
-			m->m_data -= af6->ip6af_offset;
-			m->m_len += af6->ip6af_offset;
 			ip6 = mtod(m, struct ip6_hdr *);
 
 			/* restoure source and destination addresses */
@@ -468,9 +563,9 @@ frag6_freef(q6)
 
 			icmp6_error(m, ICMP6_TIME_EXCEEDED,
 				    ICMP6_TIME_EXCEED_REASSEMBLY, 0);
-		}
-		else
+		} else
 			m_freem(m);
+		free(af6, M_FTABLE);
 	}
 	frag6_remque(q6);
 	free(q6, M_FTABLE);
@@ -530,6 +625,9 @@ frag6_slowtimo()
 {
 	struct ip6q *q6;
 	int s = splnet();
+#if 0
+	extern struct	route_in6 ip6_forward_rt;
+#endif
 
 	frag6_doing_reass = 1;
 	q6 = ip6q.ip6q_next;
@@ -554,6 +652,23 @@ frag6_slowtimo()
 		frag6_freef(ip6q.ip6q_prev);
 	}
 	frag6_doing_reass = 0;
+
+#if 0
+	/*
+	 * Routing changes might produce a better route than we last used;
+	 * make sure we notice eventually, even if forwarding only for one
+	 * destination and the cache is never replaced.
+	 */
+	if (ip6_forward_rt.ro_rt) {
+		RTFREE(ip6_forward_rt.ro_rt);
+		ip6_forward_rt.ro_rt = 0;
+	}
+	if (ipsrcchk_rt.ro_rt) {
+		RTFREE(ipsrcchk_rt.ro_rt);
+		ipsrcchk_rt.ro_rt = 0;
+	}
+#endif
+
 	splx(s);
 }
 

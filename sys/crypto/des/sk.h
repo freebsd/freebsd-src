@@ -1,3 +1,6 @@
+/*	$FreeBSD$	*/
+/*	$KAME: sk.h,v 1.3 2000/03/27 04:36:34 sumikawa Exp $	*/
+
 /* crypto/des/sk.h */
 /* Copyright (C) 1995-1996 Eric Young (eay@mincom.oz.au)
  * All rights reserved.
@@ -43,8 +46,6 @@
  * derivative of this code cannot be changed.  i.e. this code cannot simply be
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
- *
- * $FreeBSD$
  */
 
 static const DES_LONG des_skb[8][64]={

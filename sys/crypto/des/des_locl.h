@@ -1,3 +1,6 @@
+/*	$FreeBSD$	*/
+/*	$KAME: des_locl.h,v 1.4 2000/03/27 04:43:46 sumikawa Exp $	*/
+
 /* lib/des/des_locl.h */
 /* Copyright (C) 1995-1996 Eric Young (eay@mincom.oz.au)
  * All rights reserved.
@@ -43,8 +46,6 @@
  * derivative of this code cannot be changed.  i.e. this code cannot simply be
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
- *
- * $FreeBSD$
  */
 /* WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING
  *
@@ -60,11 +61,11 @@
 #include <sys/systm.h>
 
 #ifndef HEADER_DES_LOCL_H
-#define	HEADER_DES_LOCL_H
+#define HEADER_DES_LOCL_H
 
 #if defined(WIN32) || defined(WIN16)
 #ifndef MSDOS
-#define	MSDOS
+#define MSDOS
 #endif
 #endif
 
@@ -89,7 +90,7 @@
 #include <time.h>
 #include <io.h>
 #ifndef RAND
-#define	RAND
+#define RAND
 #endif
 #undef NOPROTO
 #endif
@@ -105,7 +106,7 @@
 #endif
 
 #ifndef RAND
-#define	RAND
+#define RAND
 #endif
 
 #ifdef linux
@@ -113,13 +114,13 @@
 #endif
 
 #ifdef MSDOS
-#define	getpid() 2
-#define	RAND
+#define getpid() 2
+#define RAND
 #undef NOPROTO
 #endif
 
 #if defined(NOCONST)
-#define	const
+#define const
 #endif
 
 #ifdef __STDC__
@@ -127,24 +128,24 @@
 #endif
 
 #ifdef RAND
-#define	srandom(s) srand(s)
-#define	random rand
+#define srandom(s) srand(s)
+#define random rand
 #endif
 
-#define	ITERATIONS 16
-#define	HALF_ITERATIONS 8
+#define ITERATIONS 16
+#define HALF_ITERATIONS 8
 
 /* used in des_read and des_write */
-#define	MAXWRITE	(1024*16)
-#define	BSIZE		(MAXWRITE+4)
+#define MAXWRITE	(1024*16)
+#define BSIZE		(MAXWRITE+4)
 
-#define	c2l(c,l)	(l =((DES_LONG)(*((c)++)))    , \
+#define c2l(c,l)	(l =((DES_LONG)(*((c)++)))    , \
 			 l|=((DES_LONG)(*((c)++)))<< 8L, \
 			 l|=((DES_LONG)(*((c)++)))<<16L, \
 			 l|=((DES_LONG)(*((c)++)))<<24L)
 
 /* NOTE - c is not incremented as per c2l */
-#define	c2ln(c,l1,l2,n)	{ \
+#define c2ln(c,l1,l2,n)	{ \
 			c+=n; \
 			l1=l2=0; \
 			switch (n) { \
@@ -159,27 +160,27 @@
 				} \
 			}
 
-#define	l2c(l,c)	(*((c)++)=(unsigned char)(((l)     )&0xff), \
+#define l2c(l,c)	(*((c)++)=(unsigned char)(((l)     )&0xff), \
 			 *((c)++)=(unsigned char)(((l)>> 8L)&0xff), \
 			 *((c)++)=(unsigned char)(((l)>>16L)&0xff), \
 			 *((c)++)=(unsigned char)(((l)>>24L)&0xff))
 
 /* replacements for htonl and ntohl since I have no idea what to do
  * when faced with machines with 8 byte longs. */
-#define	HDRSIZE 4
+#define HDRSIZE 4
 
-#define	n2l(c,l)	(l =((DES_LONG)(*((c)++)))<<24L, \
+#define n2l(c,l)	(l =((DES_LONG)(*((c)++)))<<24L, \
 			 l|=((DES_LONG)(*((c)++)))<<16L, \
 			 l|=((DES_LONG)(*((c)++)))<< 8L, \
 			 l|=((DES_LONG)(*((c)++))))
 
-#define	l2n(l,c)	(*((c)++)=(unsigned char)(((l)>>24L)&0xff), \
+#define l2n(l,c)	(*((c)++)=(unsigned char)(((l)>>24L)&0xff), \
 			 *((c)++)=(unsigned char)(((l)>>16L)&0xff), \
 			 *((c)++)=(unsigned char)(((l)>> 8L)&0xff), \
 			 *((c)++)=(unsigned char)(((l)     )&0xff))
 
 /* NOTE - c is not incremented as per l2c */
-#define	l2cn(l1,l2,c,n)	{ \
+#define l2cn(l1,l2,c,n)	{ \
 			c+=n; \
 			switch (n) { \
 			case 8: *(--(c))=(unsigned char)(((l2)>>24L)&0xff); \
@@ -207,7 +208,7 @@
  * bytes, probably an issue of accessing non-word aligned objects :-( */
 #ifdef DES_PTR
 
-#define	D_ENCRYPT(L,R,S) { \
+#define D_ENCRYPT(L,R,S) { \
 	u=((R^s[S  ])<<2);	\
 	t= R^s[S+1]; \
 	t=ROTATE(t,2); \
@@ -222,7 +223,7 @@
 	*(DES_LONG *)((unsigned char *)des_SP+0x600+((u>>24)&0xfc))); }
 #else /* original version */
 #ifdef undef
-#define	D_ENCRYPT(L,R,S)	\
+#define D_ENCRYPT(L,R,S)	\
 	U.l=R^s[S+1]; \
 	T.s[0]=((U.s[0]>>4)|(U.s[1]<<12))&0x3f3f; \
 	T.s[1]=((U.s[1]>>4)|(U.s[0]<<12))&0x3f3f; \
@@ -236,7 +237,7 @@
 		des_SPtrans[4][(U.c[2])]| \
 		des_SPtrans[6][(U.c[3])];
 #else
-#define	D_ENCRYPT(Q,R,S) {\
+#define D_ENCRYPT(Q,R,S) {\
 	u=(R^s[S  ]); \
 	t=R^s[S+1]; \
 	t=ROTATE(t,4); \
@@ -288,11 +289,11 @@
 	I first got ~42 operations without xors.  When I remembered
 	how to use xors :-) I got it to its final state.
 	*/
-#define	PERM_OP(a,b,t,n,m) ((t)=((((a)>>(n))^(b))&(m)),\
+#define PERM_OP(a,b,t,n,m) ((t)=((((a)>>(n))^(b))&(m)),\
 	(b)^=(t),\
 	(a)^=((t)<<(n)))
 
-#define	IP(l,r) \
+#define IP(l,r) \
 	{ \
 	register DES_LONG tt; \
 	PERM_OP(r,l,tt, 4,0x0f0f0f0fL); \
@@ -302,7 +303,7 @@
 	PERM_OP(r,l,tt, 1,0x55555555L); \
 	}
 
-#define	FP(l,r) \
+#define FP(l,r) \
 	{ \
 	register DES_LONG tt; \
 	PERM_OP(l,r,tt, 1,0x55555555L); \
@@ -315,10 +316,10 @@
 
 
 /*
-#define	mbuf2char(i_mbuf, i_index, in) \
+#define mbuf2char(i_mbuf, i_index, in) \
 	{					\
-	register int	i;			\
-	struct	mbuf	*m;			\
+	register int	i;			\	
+	struct	mbuf	*m;			\	
 	char		*buf;			\
 	m = i_mbuf;				\
 	for (i = 0; i < 8; i ++){		\
@@ -330,10 +331,10 @@
 	}
 
 
-#define	char2mbuf(o_mbuf, o_index, out) \
+#define char2mbuf(o_mbuf, o_index, out) \
 	{					\
-	register int	i;			\
-	struct	mbuf	*m;			\
+	register int	i;			\	
+	struct	mbuf	*m;			\	
 	char		*buf;			\
 	m = o_mbuf;				\
 	for (i = 0; i < 8; i ++){		\

@@ -1,3 +1,6 @@
+/*	$FreeBSD$	*/
+/*	$KAME: bf_locl.h,v 1.3 2000/03/27 04:36:26 sumikawa Exp $	*/
+
 /* crypto/bf/bf_local.h */
 /* Copyright (C) 1995-1997 Eric Young (eay@mincom.oz.au)
  * All rights reserved.
@@ -54,8 +57,6 @@
  * derivative of this code cannot be changed.  i.e. this code cannot simply be
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
- *
- * $FreeBSD$
  */
 /* WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING
  *
@@ -66,14 +67,14 @@
  */
 
 #undef c2l
-#define	c2l(c,l)	(l =((unsigned long)(*((c)++)))    , \
+#define c2l(c,l)	(l =((unsigned long)(*((c)++)))    , \
 			 l|=((unsigned long)(*((c)++)))<< 8L, \
 			 l|=((unsigned long)(*((c)++)))<<16L, \
 			 l|=((unsigned long)(*((c)++)))<<24L)
 
 /* NOTE - c is not incremented as per c2l */
 #undef c2ln
-#define	c2ln(c,l1,l2,n)	{ \
+#define c2ln(c,l1,l2,n)	{ \
 			c+=n; \
 			l1=l2=0; \
 			switch (n) { \
@@ -89,14 +90,14 @@
 			}
 
 #undef l2c
-#define	l2c(l,c)	(*((c)++)=(unsigned char)(((l)     )&0xff), \
+#define l2c(l,c)	(*((c)++)=(unsigned char)(((l)     )&0xff), \
 			 *((c)++)=(unsigned char)(((l)>> 8L)&0xff), \
 			 *((c)++)=(unsigned char)(((l)>>16L)&0xff), \
 			 *((c)++)=(unsigned char)(((l)>>24L)&0xff))
 
 /* NOTE - c is not incremented as per l2c */
 #undef l2cn
-#define	l2cn(l1,l2,c,n)	{ \
+#define l2cn(l1,l2,c,n)	{ \
 			c+=n; \
 			switch (n) { \
 			case 8: *(--(c))=(unsigned char)(((l2)>>24L)&0xff); \
@@ -111,7 +112,7 @@
 			}
 
 /* NOTE - c is not incremented as per n2l */
-#define	n2ln(c,l1,l2,n)	{ \
+#define n2ln(c,l1,l2,n)	{ \
 			c+=n; \
 			l1=l2=0; \
 			switch (n) { \
@@ -127,7 +128,7 @@
 			}
 
 /* NOTE - c is not incremented as per l2n */
-#define	l2nn(l1,l2,c,n)	{ \
+#define l2nn(l1,l2,c,n)	{ \
 			c+=n; \
 			switch (n) { \
 			case 8: *(--(c))=(unsigned char)(((l2)    )&0xff); \
@@ -142,13 +143,13 @@
 			}
 
 #undef n2l
-#define	n2l(c,l)        (l =((unsigned long)(*((c)++)))<<24L, \
+#define n2l(c,l)        (l =((unsigned long)(*((c)++)))<<24L, \
                          l|=((unsigned long)(*((c)++)))<<16L, \
                          l|=((unsigned long)(*((c)++)))<< 8L, \
                          l|=((unsigned long)(*((c)++))))
 
 #undef l2n
-#define	l2n(l,c)        (*((c)++)=(unsigned char)(((l)>>24L)&0xff), \
+#define l2n(l,c)        (*((c)++)=(unsigned char)(((l)>>24L)&0xff), \
                          *((c)++)=(unsigned char)(((l)>>16L)&0xff), \
                          *((c)++)=(unsigned char)(((l)>> 8L)&0xff), \
                          *((c)++)=(unsigned char)(((l)     )&0xff))
@@ -164,16 +165,16 @@
 #undef BF_PTR
 #endif
 
-#define	BF_M	0x3fc
-#define	BF_0	22L
-#define	BF_1	14L
-#define	BF_2	 6L
-#define	BF_3	 2L /* left shift */
+#define BF_M	0x3fc
+#define BF_0	22L
+#define BF_1	14L
+#define BF_2	 6L
+#define BF_3	 2L /* left shift */
 
 #if defined(BF_PTR2)
 
 /* This is basically a special pentium verson */
-#define	BF_ENC(LL,R,S,P) \
+#define BF_ENC(LL,R,S,P) \
 	{ \
 	BF_LONG t,u,v; \
 	u=R>>BF_0; \
@@ -196,7 +197,7 @@
 
 /* This is normally very good */
 
-#define	BF_ENC(LL,R,S,P) \
+#define BF_ENC(LL,R,S,P) \
 	LL^=P; \
 	LL^= (((*(BF_LONG *)((unsigned char *)&(S[  0])+((R>>BF_0)&BF_M))+ \
 		*(BF_LONG *)((unsigned char *)&(S[256])+((R>>BF_1)&BF_M)))^ \
@@ -208,7 +209,7 @@
  * on the Alpha it is faster than the pointer versions (both 32 and 64
  * versions of BF_LONG) */
 
-#define	BF_ENC(LL,R,S,P) \
+#define BF_ENC(LL,R,S,P) \
 	LL^=P; \
 	LL^=(((	S[        (R>>24L)      ] + \
 		S[0x0100+((R>>16L)&0xff)])^ \

@@ -1,5 +1,8 @@
+/*	$FreeBSD$	*/
+/*	$KAME: if_stf.h,v 1.3 2000/03/25 07:23:33 sumikawa Exp $	*/
+
 /*
- * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
+ * Copyright (C) 2000 WIDE Project.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,74 +28,11 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-/*
- * Based on sample code appeared on RFC2104.
- */
+#ifndef _NET_IF_STF_H_
+#define _NET_IF_STF_H_
 
-#include <sys/types.h>
-#include <sys/cdefs.h>
-#include <sys/time.h>
-#include <sys/systm.h>
-#include <crypto/md5.h>
+void in_stf_input __P((struct mbuf *, ...));
 
-#include <crypto/hmac_md5.h>
-
-void
-hmac_md5(src0, srclen, key0, keylen, digest)
-	caddr_t src0;
-	size_t srclen;
-	caddr_t key0;
-	size_t keylen;
-	caddr_t digest;
-{
-	u_int8_t *src;
-	u_int8_t *key;
-	u_int8_t tk[16];
-	u_int8_t ipad[65];
-	u_int8_t opad[65];
-	size_t i;
-
-	src = (u_int8_t *)src0;
-	key = (u_int8_t *)key0;
-
-	/*
-	 * compress the key into 16bytes, if key is too long.
-	 */
-	if (64 < keylen) {
-		md5_init();
-		md5_loop(key, keylen);
-		md5_pad();
-		md5_result(&tk[0]);
-		key = &tk[0];
-		keylen = 16;
-	}
-
-	/*
-	 *
-	 */
-	bzero(&ipad[0], sizeof ipad);
-	bzero(&opad[0], sizeof opad);
-	bcopy(key, &ipad[0], keylen);
-	bcopy(key, &opad[0], keylen);
-
-	for (i = 0; i < 64; i++) {
-		ipad[i] ^= 0x36;
-		opad[i] ^= 0x5c;
-	}
-
-	md5_init();
-	md5_loop(&ipad[0], 64);
-	md5_loop(src, srclen);
-	md5_pad();
-	md5_result((u_int8_t *)digest);
-
-	md5_init();
-	md5_loop(&opad[0], 64);
-	md5_loop((u_int8_t *)digest, 16);
-	md5_pad();
-	md5_result((u_int8_t *)digest);
-}
+#endif /* _NET_IF_STF_H_ */

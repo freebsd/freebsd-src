@@ -1,3 +1,6 @@
+/*	$FreeBSD$	*/
+/*	$KAME: in6_ifattach.c,v 1.61 2000/06/13 08:15:27 itojun Exp $	*/
+
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
@@ -25,8 +28,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #include <sys/param.h>
@@ -46,267 +47,657 @@
 #include <netinet/in_var.h>
 #include <netinet/if_ether.h>
 
-#include <netinet6/in6.h>
-#include <netinet6/ip6.h>
+#include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
 #include <netinet6/in6_ifattach.h>
-#include <netinet6/ip6.h>
 #include <netinet6/ip6_var.h>
 #include <netinet6/nd6.h>
+#include <netinet6/scope6_var.h>
 
 #include <net/net_osdep.h>
 
-static struct	in6_addr llsol;
+struct in6_ifstat **in6_ifstat = NULL;
+struct icmp6_ifstat **icmp6_ifstat = NULL;
+size_t in6_ifstatmax = 0;
+size_t icmp6_ifstatmax = 0;
+unsigned long in6_maxmtu = 0;
 
-struct	in6_ifstat **in6_ifstat = NULL;
-struct	icmp6_ifstat **icmp6_ifstat = NULL;
-size_t	in6_ifstatmax = 0;
-size_t	icmp6_ifstatmax = 0;
-unsigned long	in6_maxmtu = 0;
+static int get_rand_ifid __P((struct ifnet *, struct in6_addr *));
+static int get_hw_ifid __P((struct ifnet *, struct in6_addr *));
+static int get_ifid __P((struct ifnet *, struct ifnet *, struct in6_addr *));
+static int in6_ifattach_addaddr __P((struct ifnet *, struct in6_ifaddr *));
+static int in6_ifattach_linklocal __P((struct ifnet *, struct ifnet *));
+static int in6_ifattach_loopback __P((struct ifnet *));
+static int nigroup __P((struct ifnet *, const char *, int, struct in6_addr *));
 
-int	found_first_ifid = 0;
-#define IFID_LEN 8
-static char	first_ifid[IFID_LEN];
+#define EUI64_GBIT	0x01
+#define EUI64_UBIT	0x02
+#define EUI64_TO_IFID(in6)	do {(in6)->s6_addr[8] ^= EUI64_UBIT; } while (0)
+#define EUI64_GROUP(in6)	((in6)->s6_addr[8] & EUI64_GBIT)
+#define EUI64_INDIVIDUAL(in6)	(!EUI64_GROUP(in6))
+#define EUI64_LOCAL(in6)	((in6)->s6_addr[8] & EUI64_UBIT)
+#define EUI64_UNIVERSAL(in6)	(!EUI64_LOCAL(in6))
 
-static int	laddr_to_eui64 __P((u_int8_t *, u_int8_t *, size_t));
-static int	gen_rand_eui64 __P((u_int8_t *));
-
-static int
-laddr_to_eui64(dst, src, len)
-	u_int8_t *dst;
-	u_int8_t *src;
-	size_t len;
-{
-	static u_int8_t zero[8];
-
-	bzero(zero, sizeof(zero));
-
-	switch (len) {
-	case 6:
-		if (bcmp(zero, src, 6) == 0)
-			return EINVAL;
-		dst[0] = src[0];
-		dst[1] = src[1];
-		dst[2] = src[2];
-		dst[3] = 0xff;
-		dst[4] = 0xfe;
-		dst[5] = src[3];
-		dst[6] = src[4];
-		dst[7] = src[5];
-		break;
-	case 8:
-		if (bcmp(zero, src, 8) == 0)
-			return EINVAL;
-		bcopy(src, dst, len);
-		break;
-	default:
-		return EINVAL;
-	}
-
-	return 0;
-}
+#define IFID_LOCAL(in6)		(!EUI64_LOCAL(in6))
+#define IFID_UNIVERSAL(in6)	(!EUI64_UNIVERSAL(in6))
 
 /*
  * Generate a last-resort interface identifier, when the machine has no
  * IEEE802/EUI64 address sources.
- * The address should be random, and should not change across reboot.
+ * The goal here is to get an interface identifier that is
+ * (1) random enough and (2) does not change across reboot.
+ * We currently use MD5(hostname) for it.
  */
 static int
-gen_rand_eui64(dst)
-	u_int8_t *dst;
+get_rand_ifid(ifp, in6)
+	struct ifnet *ifp;
+	struct in6_addr *in6;	/*upper 64bits are preserved */
 {
 	MD5_CTX ctxt;
 	u_int8_t digest[16];
 	int hostnamelen	= strlen(hostname);
 
-	/* generate 8bytes of pseudo-random value. */
+#if 0
+	/* we need at least several letters as seed for ifid */
+	if (hostnamelen < 3)
+		return -1;
+#endif
+
+	/* generate 8 bytes of pseudo-random value. */
 	bzero(&ctxt, sizeof(ctxt));
 	MD5Init(&ctxt);
 	MD5Update(&ctxt, hostname, hostnamelen);
 	MD5Final(digest, &ctxt);
 
-	/* assumes sizeof(digest) > sizeof(first_ifid) */
-	bcopy(digest, dst, 8);
+	/* assumes sizeof(digest) > sizeof(ifid) */
+	bcopy(digest, &in6->s6_addr[8], 8);
 
 	/* make sure to set "u" bit to local, and "g" bit to individual. */
-	dst[0] &= 0xfe;
-	dst[0] |= 0x02;		/* EUI64 "local" */
+	in6->s6_addr[8] &= ~EUI64_GBIT;	/* g bit to "individual" */
+	in6->s6_addr[8] |= EUI64_UBIT;	/* u bit to "local" */
+
+	/* convert EUI64 into IPv6 interface identifier */
+	EUI64_TO_IFID(in6);
 
 	return 0;
 }
 
 /*
- * Find first ifid on list of interfaces.
- * This is assumed that ifp0's interface token (for example, IEEE802 MAC)
- * is globally unique.  We may need to have a flag parameter in the future.
+ * Get interface identifier for the specified interface.
+ * XXX assumes single sockaddr_dl (AF_LINK address) per an interface
  */
-int
-in6_ifattach_getifid(ifp0)
-	struct ifnet *ifp0;
-{
+static int
+get_hw_ifid(ifp, in6)
 	struct ifnet *ifp;
+	struct in6_addr *in6;	/*upper 64bits are preserved */
+{
 	struct ifaddr *ifa;
-	u_int8_t *addr = NULL;
-	int addrlen = 0;
 	struct sockaddr_dl *sdl;
+	u_int8_t *addr;
+	size_t addrlen;
+	static u_int8_t allzero[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+	static u_int8_t allone[8] =
+		{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
-	if (found_first_ifid)
-		return 0;
-
-	TAILQ_FOREACH(ifp, &ifnet, if_list)
+	for (ifa = ifp->if_addrlist.tqh_first;
+	     ifa;
+	     ifa = ifa->ifa_list.tqe_next)
 	{
-		if (ifp0 != NULL && ifp0 != ifp)
+		if (ifa->ifa_addr->sa_family != AF_LINK)
 			continue;
-		TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list)
-		{
-			if (ifa->ifa_addr->sa_family != AF_LINK)
-				continue;
-			sdl = (struct sockaddr_dl *)ifa->ifa_addr;
-			if (sdl == NULL)
-				continue;
-			if (sdl->sdl_alen == 0)
-				continue;
-			switch (ifp->if_type) {
-			case IFT_ETHER:
-			case IFT_FDDI:
-			case IFT_ATM:
-				/* IEEE802/EUI64 cases - what others? */
-				addr = LLADDR(sdl);
-				addrlen = sdl->sdl_alen;
-				/*
-				 * to copy ifid from IEEE802/EUI64 interface,
-				 * u bit of the source needs to be 0.
-				 */
-				if ((addr[0] & 0x02) != 0)
-					break;
-				goto found;
-			case IFT_ARCNET:
-				/*
-				 * ARCnet interface token cannot be used as
-				 * globally unique identifier due to its
-				 * small bitwidth.
-				 */
-				break;
-			default:
-				break;
-			}
-		}
+		sdl = (struct sockaddr_dl *)ifa->ifa_addr;
+		if (sdl == NULL)
+			continue;
+		if (sdl->sdl_alen == 0)
+			continue;
+
+		goto found;
 	}
-#ifdef DEBUG
-	printf("in6_ifattach_getifid: failed to get EUI64");
-#endif
-	return EADDRNOTAVAIL;
+
+	return -1;
 
 found:
-	if (laddr_to_eui64(first_ifid, addr, addrlen) == 0)
-		found_first_ifid = 1;
+	addr = LLADDR(sdl);
+	addrlen = sdl->sdl_alen;
 
-	if (found_first_ifid) {
-		printf("%s: supplying EUI64: "
-			"%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x\n",
-			if_name(ifp),
-			first_ifid[0] & 0xff, first_ifid[1] & 0xff,
-			first_ifid[2] & 0xff, first_ifid[3] & 0xff,
-			first_ifid[4] & 0xff, first_ifid[5] & 0xff,
-			first_ifid[6] & 0xff, first_ifid[7] & 0xff);
+	/* get EUI64 */
+	switch (ifp->if_type) {
+	case IFT_ETHER:
+	case IFT_FDDI:
+	case IFT_ATM:
+		/* IEEE802/EUI64 cases - what others? */
 
-		/* invert u bit to convert EUI64 to RFC2373 interface ID. */
-		first_ifid[0] ^= 0x02;
+		/* look at IEEE802/EUI64 only */
+		if (addrlen != 8 && addrlen != 6)
+			return -1;
 
-		return 0;
-	} else {
-#ifdef DEBUG
-		printf("in6_ifattach_getifid: failed to get EUI64");
+		/*
+		 * check for invalid MAC address - on bsdi, we see it a lot
+		 * since wildboar configures all-zero MAC on pccard before
+		 * card insertion.
+		 */
+		if (bcmp(addr, allzero, addrlen) == 0)
+			return -1;
+		if (bcmp(addr, allone, addrlen) == 0)
+			return -1;
+
+		/* make EUI64 address */
+		if (addrlen == 8)
+			bcopy(addr, &in6->s6_addr[8], 8);
+		else if (addrlen == 6) {
+			in6->s6_addr[8] = addr[0];
+			in6->s6_addr[9] = addr[1];
+			in6->s6_addr[10] = addr[2];
+			in6->s6_addr[11] = 0xff;
+			in6->s6_addr[12] = 0xfe;
+			in6->s6_addr[13] = addr[3];
+			in6->s6_addr[14] = addr[4];
+			in6->s6_addr[15] = addr[5];
+		}
+		break;
+
+	case IFT_ARCNET:
+		if (addrlen != 1)
+			return -1;
+		if (!addr[0])
+			return -1;
+
+		bzero(&in6->s6_addr[8], 8);
+		in6->s6_addr[15] = addr[0];
+
+		/*
+		 * due to insufficient bitwidth, we mark it local.
+		 */
+		in6->s6_addr[8] &= ~EUI64_GBIT;	/* g bit to "individual" */
+		in6->s6_addr[8] |= EUI64_UBIT;	/* u bit to "local" */
+		break;
+
+	case IFT_GIF:
+#ifdef IFT_STF
+	case IFT_STF:
 #endif
-		return EADDRNOTAVAIL;
+		/*
+		 * mech-06 says: "SHOULD use IPv4 address as ifid source".
+		 * however, IPv4 address is not very suitable as unique
+		 * identifier source (can be renumbered).
+		 * we don't do this.
+		 */
+		return -1;
+
+	default:
+		return -1;
+	}
+
+	/* sanity check: g bit must not indicate "group" */
+	if (EUI64_GROUP(in6))
+		return -1;
+
+	/* convert EUI64 into IPv6 interface identifier */
+	EUI64_TO_IFID(in6);
+
+	/*
+	 * sanity check: ifid must not be all zero, avoid conflict with
+	 * subnet router anycast
+	 */
+	if ((in6->s6_addr[8] & ~(EUI64_GBIT | EUI64_UBIT)) == 0x00 &&
+	    bcmp(&in6->s6_addr[9], allzero, 7) == 0) {
+		return -1;
+	}
+
+	return 0;
+}
+
+/*
+ * Get interface identifier for the specified interface.  If it is not
+ * available on ifp0, borrow interface identifier from other information
+ * sources.
+ */
+static int
+get_ifid(ifp0, altifp, in6)
+	struct ifnet *ifp0;
+	struct ifnet *altifp;	/*secondary EUI64 source*/
+	struct in6_addr *in6;
+{
+	struct ifnet *ifp;
+
+	/* first, try to get it from the interface itself */
+	if (get_hw_ifid(ifp0, in6) == 0) {
+#ifdef ND6_DEBUG
+		printf("%s: got interface identifier from itself\n",
+		    if_name(ifp0));
+#endif
+		goto success;
+	}
+
+	/* try secondary EUI64 source. this basically is for ATM PVC */
+	if (altifp && get_hw_ifid(altifp, in6) == 0) {
+#ifdef ND6_DEBUG
+		printf("%s: got interface identifier from %s\n",
+		    if_name(ifp0), if_name(altifp));
+#endif
+		goto success;
+	}
+
+	/* next, try to get it from some other hardware interface */
+	for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_list.tqe_next)
+	{
+		if (ifp == ifp0)
+			continue;
+		if (get_hw_ifid(ifp, in6) != 0)
+			continue;
+
+		/*
+		 * to borrow ifid from other interface, ifid needs to be
+		 * globally unique
+		 */
+		if (IFID_UNIVERSAL(in6)) {
+
+#ifdef ND6_DEBUG
+			printf("%s: borrow interface identifier from %s\n",
+			    if_name(ifp0), if_name(ifp));
+#endif
+			goto success;
+		}
+	}
+
+	/* last resort: get from random number source */
+	if (get_rand_ifid(ifp, in6) == 0) {
+#ifdef ND6_DEBUG
+		printf("%s: interface identifier generated by random number\n",
+		    if_name(ifp0));
+#endif
+		goto success;
+	}
+
+	printf("%s: failed to get interface identifier", if_name(ifp0));
+	return -1;
+
+success:
+#ifdef ND6_DEBUG
+	printf("%s: ifid: "
+		"%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x\n",
+		if_name(ifp0),
+		in6->s6_addr[8], in6->s6_addr[9],
+		in6->s6_addr[10], in6->s6_addr[11],
+		in6->s6_addr[12], in6->s6_addr[13],
+		in6->s6_addr[14], in6->s6_addr[15]);
+#endif
+	return 0;
+}
+
+/*
+ * configure IPv6 interface address.  XXX code duplicated with in.c
+ */
+static int
+in6_ifattach_addaddr(ifp, ia)
+	struct ifnet *ifp;
+	struct in6_ifaddr *ia;
+{
+	struct in6_ifaddr *oia;
+	struct ifaddr *ifa;
+	int error;
+	int rtflag;
+	struct in6_addr llsol;
+
+	/*
+	 * initialize if_addrlist, if we are the very first one
+	 */
+	ifa = TAILQ_FIRST(&ifp->if_addrlist);
+	if (ifa == NULL) {
+		TAILQ_INIT(&ifp->if_addrlist);
+	}
+
+	/*
+	 * link the interface address to global list
+	 */
+	TAILQ_INSERT_TAIL(&ifp->if_addrlist, (struct ifaddr *)ia, ifa_list);
+	/* gain a refcnt for the link from if_addrlist */
+	ia->ia_ifa.ifa_refcnt++;
+
+	/*
+	 * Also link into the IPv6 address chain beginning with in6_ifaddr.
+	 * kazu opposed it, but itojun & jinmei wanted.
+	 */
+	if ((oia = in6_ifaddr) != NULL) {
+		for (; oia->ia_next; oia = oia->ia_next)
+			continue;
+		oia->ia_next = ia;
+	} else
+		in6_ifaddr = ia;
+	/* gain another refcnt for the link from in6_ifaddr */
+	ia->ia_ifa.ifa_refcnt++;
+
+	/*
+	 * give the interface a chance to initialize, in case this
+	 * is the first address to be added.
+	 */
+	if (ifp->if_ioctl != NULL) {
+		int s;
+		s = splimp();
+		error = (*ifp->if_ioctl)(ifp, SIOCSIFADDR, (caddr_t)ia);
+		splx(s);
+	} else
+		error = 0;
+	if (error) {
+		switch (error) {
+		case EAFNOSUPPORT:
+			printf("%s: IPv6 not supported\n", if_name(ifp));
+			break;
+		default:
+			printf("%s: SIOCSIFADDR error %d\n", if_name(ifp),
+			    error);
+			break;
+		}
+
+		/* undo changes */
+		TAILQ_REMOVE(&ifp->if_addrlist, (struct ifaddr *)ia, ifa_list);
+		IFAFREE(&ia->ia_ifa);
+		if (oia)
+			oia->ia_next = ia->ia_next;
+		else
+			in6_ifaddr = ia->ia_next;
+		IFAFREE(&ia->ia_ifa);
+		return -1;
+	}
+
+	/* configure link-layer address resolution */
+	rtflag = 0;
+	if (IN6_ARE_ADDR_EQUAL(&ia->ia_prefixmask.sin6_addr, &in6mask128))
+		rtflag = RTF_HOST;
+	else {
+		switch (ifp->if_type) {
+		case IFT_LOOP:
+#ifdef IFT_STF
+		case IFT_STF:
+#endif
+			rtflag = 0;
+			break;
+		default:
+			ia->ia_ifa.ifa_rtrequest = nd6_rtrequest;
+			ia->ia_ifa.ifa_flags |= RTF_CLONING;
+			rtflag = RTF_CLONING;
+			break;
+		}
+	}
+
+	/* add route to the interface. */
+	{
+		int e;
+
+		e = rtrequest(RTM_ADD,
+			      (struct sockaddr *)&ia->ia_addr,
+			      (struct sockaddr *)&ia->ia_addr,
+			      (struct sockaddr *)&ia->ia_prefixmask,
+			      RTF_UP | rtflag,
+			      (struct rtentry **)0);
+		if (e) {
+			printf("in6_ifattach_addaddr: rtrequest failed. errno = %d\n", e);
+		}
+	}
+	ia->ia_flags |= IFA_ROUTE;
+
+	if ((rtflag & RTF_CLONING) != 0 &&
+	    (ifp->if_flags & IFF_MULTICAST) != 0) {
+		/*
+		 * join solicited multicast address
+		 */
+		bzero(&llsol, sizeof(llsol));
+		llsol.s6_addr16[0] = htons(0xff02);
+		llsol.s6_addr16[1] = htons(ifp->if_index);
+		llsol.s6_addr32[1] = 0;
+		llsol.s6_addr32[2] = htonl(1);
+		llsol.s6_addr32[3] = ia->ia_addr.sin6_addr.s6_addr32[3];
+		llsol.s6_addr8[12] = 0xff;
+		(void)in6_addmulti(&llsol, ifp, &error);
+
+		/* XXX should we run DAD on other interface types? */
+		switch (ifp->if_type) {
+#if 1
+		case IFT_ARCNET:
+		case IFT_ETHER:
+		case IFT_FDDI:
+#else
+		default:
+#endif
+			/* mark the address TENTATIVE, if needed. */
+			ia->ia6_flags |= IN6_IFF_TENTATIVE;
+			/* nd6_dad_start() will be called in in6_if_up */
+		}
+	}
+
+	return 0;
+}
+
+static int
+in6_ifattach_linklocal(ifp, altifp)
+	struct ifnet *ifp;
+	struct ifnet *altifp;	/*secondary EUI64 source*/
+{
+	struct in6_ifaddr *ia;
+
+	/*
+	 * configure link-local address
+	 */
+	ia = (struct in6_ifaddr *)malloc(sizeof(*ia), M_IFADDR, M_WAITOK);
+	bzero((caddr_t)ia, sizeof(*ia));
+	ia->ia_ifa.ifa_addr = (struct sockaddr *)&ia->ia_addr;
+	if (ifp->if_flags & IFF_POINTOPOINT)
+		ia->ia_ifa.ifa_dstaddr = (struct sockaddr *)&ia->ia_dstaddr;
+	else
+		ia->ia_ifa.ifa_dstaddr = NULL;
+	ia->ia_ifa.ifa_netmask = (struct sockaddr *)&ia->ia_prefixmask;
+	ia->ia_ifp = ifp;
+
+	bzero(&ia->ia_prefixmask, sizeof(ia->ia_prefixmask));
+	ia->ia_prefixmask.sin6_len = sizeof(struct sockaddr_in6);
+	ia->ia_prefixmask.sin6_family = AF_INET6;
+#ifdef SCOPEDROUTING
+	/* take into accound the sin6_scope_id field for routing */
+	ia->ia_prefixmask.sin6_scope_id = 0xffffffff;
+#endif
+	ia->ia_prefixmask.sin6_addr = in6mask64;
+
+	/* just in case */
+	bzero(&ia->ia_dstaddr, sizeof(ia->ia_dstaddr));
+	ia->ia_dstaddr.sin6_len = sizeof(struct sockaddr_in6);
+	ia->ia_dstaddr.sin6_family = AF_INET6;
+
+	bzero(&ia->ia_addr, sizeof(ia->ia_addr));
+	ia->ia_addr.sin6_len = sizeof(struct sockaddr_in6);
+	ia->ia_addr.sin6_family = AF_INET6;
+	ia->ia_addr.sin6_addr.s6_addr16[0] = htons(0xfe80);
+	ia->ia_addr.sin6_addr.s6_addr16[1] = htons(ifp->if_index);
+	ia->ia_addr.sin6_addr.s6_addr32[1] = 0;
+	if (ifp->if_flags & IFF_LOOPBACK) {
+		ia->ia_addr.sin6_addr.s6_addr32[2] = 0;
+		ia->ia_addr.sin6_addr.s6_addr32[3] = htonl(1);
+	} else {
+		if (get_ifid(ifp, altifp, &ia->ia_addr.sin6_addr) != 0) {
+#ifdef ND6_DEBUG
+			printf("%s: no ifid available\n", if_name(ifp));
+#endif
+			free(ia, M_IFADDR);
+			return -1;
+		}
+	}
+#ifdef SCOPEDROUTING
+	ia->ia_addr.sin6_scope_id = in6_addr2scopeid(ifp,
+						     &ia->ia_addr.sin6_addr);
+#endif
+
+	ia->ia_ifa.ifa_metric = ifp->if_metric;
+
+	if (in6_ifattach_addaddr(ifp, ia) != 0) {
+		/* ia will be freed on failure */
+		return -1;
+	}
+
+	return 0;
+}
+
+static int
+in6_ifattach_loopback(ifp)
+	struct ifnet *ifp;	/* must be IFT_LOOP */
+{
+	struct in6_ifaddr *ia;
+
+	/*
+	 * configure link-local address
+	 */
+	ia = (struct in6_ifaddr *)malloc(sizeof(*ia), M_IFADDR, M_WAITOK);
+	bzero((caddr_t)ia, sizeof(*ia));
+	ia->ia_ifa.ifa_addr = (struct sockaddr *)&ia->ia_addr;
+	ia->ia_ifa.ifa_dstaddr = (struct sockaddr *)&ia->ia_dstaddr;
+	ia->ia_ifa.ifa_netmask = (struct sockaddr *)&ia->ia_prefixmask;
+	ia->ia_ifp = ifp;
+
+	bzero(&ia->ia_prefixmask, sizeof(ia->ia_prefixmask));
+	ia->ia_prefixmask.sin6_len = sizeof(struct sockaddr_in6);
+	ia->ia_prefixmask.sin6_family = AF_INET6;
+	ia->ia_prefixmask.sin6_addr = in6mask128;
+
+	/*
+	 * Always initialize ia_dstaddr (= broadcast address) to loopback
+	 * address, to make getifaddr happier.
+	 *
+	 * For BSDI, it is mandatory.  The BSDI version of
+	 * ifa_ifwithroute() rejects to add a route to the loopback
+	 * interface.  Even for other systems, loopback looks somewhat
+	 * special.
+	 */
+	bzero(&ia->ia_dstaddr, sizeof(ia->ia_dstaddr));
+	ia->ia_dstaddr.sin6_len = sizeof(struct sockaddr_in6);
+	ia->ia_dstaddr.sin6_family = AF_INET6;
+	ia->ia_dstaddr.sin6_addr = in6addr_loopback;
+
+	bzero(&ia->ia_addr, sizeof(ia->ia_addr));
+	ia->ia_addr.sin6_len = sizeof(struct sockaddr_in6);
+	ia->ia_addr.sin6_family = AF_INET6;
+	ia->ia_addr.sin6_addr = in6addr_loopback;
+
+	ia->ia_ifa.ifa_metric = ifp->if_metric;
+
+	if (in6_ifattach_addaddr(ifp, ia) != 0) {
+		/* ia will be freed on failure */
+		return -1;
+	}
+
+	return 0;
+}
+
+/*
+ * compute NI group address, based on the current hostname setting.
+ * see draft-ietf-ipngwg-icmp-name-lookup-* (04 and later).
+ *
+ * when ifp == NULL, the caller is responsible for filling scopeid.
+ */
+static int
+nigroup(ifp, name, namelen, in6)
+	struct ifnet *ifp;
+	const char *name;
+	int namelen;
+	struct in6_addr *in6;
+{
+	const char *p;
+	MD5_CTX ctxt;
+	u_int8_t digest[16];
+	char l;
+
+	if (!namelen || !name)
+		return -1;
+
+	p = name;
+	while (p && *p && *p != '.' && p - name < namelen)
+		p++;
+	if (p - name > 63)
+		return -1;	/*label too long*/
+	l = p - name;
+
+	/* generate 8 bytes of pseudo-random value. */
+	bzero(&ctxt, sizeof(ctxt));
+	MD5Init(&ctxt);
+	MD5Update(&ctxt, &l, sizeof(l));
+	/* LINTED const cast */
+	MD5Update(&ctxt, (void *)name, p - name);
+	MD5Final(digest, &ctxt);
+
+	bzero(in6, sizeof(*in6));
+	in6->s6_addr16[0] = htons(0xff02);
+	if (ifp)
+		in6->s6_addr16[1] = htons(ifp->if_index);
+	in6->s6_addr8[11] = 2;
+	bcopy(digest, &in6->s6_addr32[3], sizeof(in6->s6_addr32[3]));
+
+	return 0;
+}
+
+void
+in6_nigroup_attach(name, namelen)
+	const char *name;
+	int namelen;
+{
+	struct ifnet *ifp;
+	struct sockaddr_in6 mltaddr;
+	struct in6_multi *in6m;
+	int error;
+
+	bzero(&mltaddr, sizeof(mltaddr));
+	mltaddr.sin6_family = AF_INET6;
+	mltaddr.sin6_len = sizeof(struct sockaddr_in6);
+	if (nigroup(NULL, name, namelen, &mltaddr.sin6_addr) != 0)
+		return;
+
+	for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_list.tqe_next)
+	{
+		mltaddr.sin6_addr.s6_addr16[1] = htons(ifp->if_index);
+		IN6_LOOKUP_MULTI(mltaddr.sin6_addr, ifp, in6m);
+		if (!in6m)
+			(void)in6_addmulti(&mltaddr.sin6_addr, ifp, &error);
+	}
+}
+
+void
+in6_nigroup_detach(name, namelen)
+	const char *name;
+	int namelen;
+{
+	struct ifnet *ifp;
+	struct sockaddr_in6 mltaddr;
+	struct in6_multi *in6m;
+
+	bzero(&mltaddr, sizeof(mltaddr));
+	mltaddr.sin6_family = AF_INET6;
+	mltaddr.sin6_len = sizeof(struct sockaddr_in6);
+	if (nigroup(NULL, name, namelen, &mltaddr.sin6_addr) != 0)
+		return;
+
+	for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_list.tqe_next)
+	{
+		mltaddr.sin6_addr.s6_addr16[1] = htons(ifp->if_index);
+		IN6_LOOKUP_MULTI(mltaddr.sin6_addr, ifp, in6m);
+		if (in6m)
+			in6_delmulti(in6m);
 	}
 }
 
 /*
- * add link-local address to *pseudo* p2p interfaces.
- * get called when the first MAC address is made available in in6_ifattach().
- *
- * XXX I start considering this loop as a bad idea. (itojun)
+ * XXX multiple loopback interface needs more care.  for instance,
+ * nodelocal address needs to be configured onto only one of them.
+ * XXX multiple link-local address case
  */
 void
-in6_ifattach_p2p()
-{
+in6_ifattach(ifp, altifp)
 	struct ifnet *ifp;
-
-	/* prevent infinite loop. just in case. */
-	if (found_first_ifid == 0)
-		return;
-
-	TAILQ_FOREACH(ifp, &ifnet, if_list)
-	{
-		switch (ifp->if_type) {
-		case IFT_GIF:
-			/* pseudo interfaces - safe to initialize here */
-			in6_ifattach(ifp, IN6_IFT_P2P, 0, 0);
-			break;
-#ifdef IFT_DUMMY
-		case IFT_DUMMY:
-#endif
-		case IFT_FAITH:
-			/* this mistakingly becomes IFF_UP */
-			break;
-		case IFT_SLIP:
-			/* IPv6 is not supported */
-			break;
-		case IFT_PPP:
-			/* this is not a pseudo interface, skip it */
-			break;
-		default:
-			break;
-		}
-	}
-}
-
-void
-in6_ifattach(ifp, type, laddr, noloop)
-	struct ifnet *ifp;
-	u_int type;
-	caddr_t laddr;
-	/* size_t laddrlen; */
-	int noloop;
+	struct ifnet *altifp;	/* secondary EUI64 source */
 {
 	static size_t if_indexlim = 8;
 	struct sockaddr_in6 mltaddr;
 	struct sockaddr_in6 mltmask;
 	struct sockaddr_in6 gate;
 	struct sockaddr_in6 mask;
-
-	struct in6_ifaddr *ia, *ib, *oia;
-	struct ifaddr *ifa;
-	int rtflag = 0;
-
-	if (type == IN6_IFT_P2P && found_first_ifid == 0) {
-		printf("%s: no ifid available for IPv6 link-local address\n",
-			if_name(ifp));
-		/* last resort */
-		if (gen_rand_eui64(first_ifid) == 0) {
-			printf("%s: using random value as EUI64: "
-				"%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x\n",
-				if_name(ifp),
-				first_ifid[0] & 0xff, first_ifid[1] & 0xff,
-				first_ifid[2] & 0xff, first_ifid[3] & 0xff,
-				first_ifid[4] & 0xff, first_ifid[5] & 0xff,
-				first_ifid[6] & 0xff, first_ifid[7] & 0xff);
-			/*
-			 * invert u bit to convert EUI64 to RFC2373 interface
-			 * ID.
-			 */
-			first_ifid[0] ^= 0x02;
-
-			found_first_ifid = 1;
-		}
-	}
-
-	if ((ifp->if_flags & IFF_MULTICAST) == 0) {
-		printf("%s: not multicast capable, IPv6 not enabled\n",
-			if_name(ifp));
-		return;
-	}
+	struct in6_ifaddr *ia;
+	struct in6_addr in6;
+	int hostnamelen	= strlen(hostname);
 
 	/*
 	 * We have some arrays that should be indexed by if_index.
@@ -314,8 +705,8 @@ in6_ifattach(ifp, type, laddr, noloop)
 	 *	struct in6_ifstat **in6_ifstat
 	 *	struct icmp6_ifstat **icmp6_ifstat
 	 */
-	if (in6_ifstat == NULL || icmp6_ifstat == NULL
-	 || if_index >= if_indexlim) {
+	if (in6_ifstat == NULL || icmp6_ifstat == NULL ||
+	    if_index >= if_indexlim) {
 		size_t n;
 		caddr_t q;
 		size_t olim;
@@ -349,144 +740,53 @@ in6_ifattach(ifp, type, laddr, noloop)
 		icmp6_ifstatmax = if_indexlim;
 	}
 
-	/*
-	 * To prevent to assign link-local address to PnP network
-	 * cards multiple times.
-	 * This is lengthy for P2P and LOOP but works.
-	 */
-	ifa = TAILQ_FIRST(&ifp->if_addrlist);
-	if (ifa != NULL) {
-		for ( ; ifa; ifa = TAILQ_NEXT(ifa, ifa_list)) {
-			if (ifa->ifa_addr->sa_family != AF_INET6)
-				continue;
-			if (IN6_IS_ADDR_LINKLOCAL(&satosin6(ifa->ifa_addr)->sin6_addr))
-				return;
-		}
-	} else {
-		TAILQ_INIT(&ifp->if_addrlist);
-	}
+	/* initialize scope identifiers */
+	scope6_ifattach(ifp);
 
 	/*
-	 * link-local address
+	 * quirks based on interface type
 	 */
-	ia = (struct in6_ifaddr *)malloc(sizeof(*ia), M_IFADDR, M_WAITOK);
-	bzero((caddr_t)ia, sizeof(*ia));
-	ia->ia_ifa.ifa_addr =    (struct sockaddr *)&ia->ia_addr;
-	ia->ia_ifa.ifa_dstaddr = (struct sockaddr *)&ia->ia_dstaddr;
-	ia->ia_ifa.ifa_netmask = (struct sockaddr *)&ia->ia_prefixmask;
-	ia->ia_ifp = ifp;
-	TAILQ_INSERT_TAIL(&ifp->if_addrlist, (struct ifaddr *)ia, ifa_list);
-	/*
-	 * Also link into the IPv6 address chain beginning with in6_ifaddr.
-	 * kazu opposed it, but itojun & jinmei wanted.
-	 */
-	if ((oia = in6_ifaddr) != NULL) {
-		for (; oia->ia_next; oia = oia->ia_next)
-			continue;
-		oia->ia_next = ia;
-	} else
-		in6_ifaddr = ia;
-
-	ia->ia_prefixmask.sin6_len = sizeof(struct sockaddr_in6);
-	ia->ia_prefixmask.sin6_family = AF_INET6;
-	ia->ia_prefixmask.sin6_addr = in6mask64;
-
-	bzero(&ia->ia_addr, sizeof(struct sockaddr_in6));
-	ia->ia_addr.sin6_len = sizeof(struct sockaddr_in6);
-	ia->ia_addr.sin6_family = AF_INET6;
-	ia->ia_addr.sin6_addr.s6_addr16[0] = htons(0xfe80);
-	ia->ia_addr.sin6_addr.s6_addr16[1] = htons(ifp->if_index);
-	ia->ia_addr.sin6_addr.s6_addr32[1] = 0;
-
-	switch (type) {
-	case IN6_IFT_LOOP:
-		ia->ia_addr.sin6_addr.s6_addr32[2] = 0;
-		ia->ia_addr.sin6_addr.s6_addr32[3] = htonl(1);
-		break;
-	case IN6_IFT_802:
-		ia->ia_ifa.ifa_rtrequest = nd6_rtrequest;
-		ia->ia_ifa.ifa_flags |= RTF_CLONING;
-		rtflag = RTF_CLONING;
-		/* fall through */
-	case IN6_IFT_P2P802:
-		if (laddr == NULL)
-			break;
-		/* XXX use laddrlen */
-		if (laddr_to_eui64(&ia->ia_addr.sin6_addr.s6_addr8[8],
-				laddr, 6) != 0) {
-			break;
-		}
-		/* invert u bit to convert EUI64 to RFC2373 interface ID. */
-		ia->ia_addr.sin6_addr.s6_addr8[8] ^= 0x02;
-		if (found_first_ifid == 0) {
-			if (in6_ifattach_getifid(ifp) == 0)
-				in6_ifattach_p2p();
-		}
-		break;
-	case IN6_IFT_P2P:
-		bcopy((caddr_t)first_ifid,
-		      (caddr_t)&ia->ia_addr.sin6_addr.s6_addr8[8],
-		      IFID_LEN);
-		break;
-	case IN6_IFT_ARCNET:
-		ia->ia_ifa.ifa_rtrequest = nd6_rtrequest;
-		ia->ia_ifa.ifa_flags |= RTF_CLONING;
-		rtflag = RTF_CLONING;
-		if (laddr == NULL)
-			break;
-
-		/* make non-global IF id out of link-level address */
-		bzero(&ia->ia_addr.sin6_addr.s6_addr8[8], 7);
-		ia->ia_addr.sin6_addr.s6_addr8[15] = *laddr;
-	}
-
-	ia->ia_ifa.ifa_metric = ifp->if_metric;
-
-	if (ifp->if_ioctl != NULL) {
-		int s;
-		int error;
-
+	switch (ifp->if_type) {
+#ifdef IFT_STF
+	case IFT_STF:
 		/*
-		 * give the interface a chance to initialize, in case this
-		 * is the first address to be added.
+		 * 6to4 interface is a very speical kind of beast.
+		 * no multicast, no linklocal (based on 03 draft).
 		 */
-		s = splimp();
-		error = (*ifp->if_ioctl)(ifp, SIOCSIFADDR, (caddr_t)ia);
-		splx(s);
+		goto statinit;
+#endif
+	default:
+		break;
+	}
 
-		if (error) {
-			switch (error) {
-			case EAFNOSUPPORT:
-				printf("%s: IPv6 not supported\n",
-					if_name(ifp));
-				break;
-			default:
-				printf("%s: SIOCSIFADDR error %d\n",
-					if_name(ifp), error);
-				break;
-			}
+	/*
+	 * usually, we require multicast capability to the interface
+	 */
+	if ((ifp->if_flags & IFF_MULTICAST) == 0) {
+		printf("%s: not multicast capable, IPv6 not enabled\n",
+		    if_name(ifp));
+		return;
+	}
 
-			/* undo changes */
-			TAILQ_REMOVE(&ifp->if_addrlist, (struct ifaddr *)ia, ifa_list);
-			if (oia)
-				oia->ia_next = ia->ia_next;
-			else
-				in6_ifaddr = ia->ia_next;
-			free(ia, M_IFADDR);
+	/*
+	 * assign link-local address, if there's none 
+	 */
+	ia = in6ifa_ifpforlinklocal(ifp, 0);
+	if (ia == NULL) {
+		if (in6_ifattach_linklocal(ifp, altifp) != 0)
 			return;
+		ia = in6ifa_ifpforlinklocal(ifp, 0);
+
+		if (ia == NULL) {
+			printf("%s: failed to add link-local address",
+			    if_name(ifp));
+
+			/* we can't initialize multicasts without link-local */
+			goto statinit;
 		}
 	}
 
-	/* add route to the interface. */
-	rtrequest(RTM_ADD,
-		  (struct sockaddr *)&ia->ia_addr,
-		  (struct sockaddr *)&ia->ia_addr,
-		  (struct sockaddr *)&ia->ia_prefixmask,
-		  RTF_UP|rtflag,
-		  (struct rtentry **)0);
-	ia->ia_flags |= IFA_ROUTE;
-
-	if (type == IN6_IFT_P2P || type == IN6_IFT_P2P802) {
+	if (ifp->if_flags & IFF_POINTOPOINT) {
 		/*
 		 * route local address to loopback
 		 */
@@ -507,45 +807,30 @@ in6_ifattach(ifp, type, laddr, noloop)
 	}
 
 	/*
-	 * loopback address
+	 * assign loopback address for loopback interface
+	 * XXX multiple loopback interface case
 	 */
-	ib = (struct in6_ifaddr *)NULL;
-	if (type == IN6_IFT_LOOP) {
-		ib = (struct in6_ifaddr *)
-			malloc(sizeof(*ib), M_IFADDR, M_WAITOK);
-		bzero((caddr_t)ib, sizeof(*ib));
-		ib->ia_ifa.ifa_addr = (struct sockaddr *)&ib->ia_addr;
-		ib->ia_ifa.ifa_dstaddr = (struct sockaddr *)&ib->ia_dstaddr;
-		ib->ia_ifa.ifa_netmask = (struct sockaddr *)&ib->ia_prefixmask;
-		ib->ia_ifp = ifp;
-
-		ia->ia_next = ib;
-		TAILQ_INSERT_TAIL(&ifp->if_addrlist, (struct ifaddr *)ib,
-			ifa_list);
-
-		ib->ia_prefixmask.sin6_len = sizeof(struct sockaddr_in6);
-		ib->ia_prefixmask.sin6_family = AF_INET6;
-		ib->ia_prefixmask.sin6_addr = in6mask128;
-		ib->ia_addr.sin6_len = sizeof(struct sockaddr_in6);
-		ib->ia_addr.sin6_family = AF_INET6;
-		ib->ia_addr.sin6_addr = in6addr_loopback;
-		ib->ia_ifa.ifa_metric = ifp->if_metric;
-
-		rtrequest(RTM_ADD,
-			  (struct sockaddr *)&ib->ia_addr,
-			  (struct sockaddr *)&ib->ia_addr,
-			  (struct sockaddr *)&ib->ia_prefixmask,
-			  RTF_UP|RTF_HOST,
-			  (struct rtentry **)0);
-
-		ib->ia_flags |= IFA_ROUTE;
+	in6 = in6addr_loopback;
+	if (ifp->if_flags & IFF_LOOPBACK) {
+		if (in6ifa_ifpwithaddr(ifp, &in6) == NULL) {
+			if (in6_ifattach_loopback(ifp) != 0)
+				return;
+		}
 	}
+
+#ifdef DIAGNOSTIC
+	if (!ia) {
+		panic("ia == NULL in in6_ifattach");
+		/*NOTREACHED*/
+	}
+#endif
 
 	/*
 	 * join multicast
 	 */
 	if (ifp->if_flags & IFF_MULTICAST) {
 		int error;	/* not used */
+		struct in6_multi *in6m;
 
 		bzero(&mltmask, sizeof(mltmask));
 		mltmask.sin6_len = sizeof(struct sockaddr_in6);
@@ -560,40 +845,52 @@ in6_ifattach(ifp, type, laddr, noloop)
 		mltaddr.sin6_family = AF_INET6;
 		mltaddr.sin6_addr = in6addr_linklocal_allnodes;
 		mltaddr.sin6_addr.s6_addr16[1] = htons(ifp->if_index);
-		rtrequest(RTM_ADD,
-			  (struct sockaddr *)&mltaddr,
-			  (struct sockaddr *)&ia->ia_addr,
-			  (struct sockaddr *)&mltmask,
-			  RTF_UP|RTF_CLONING,  /* xxx */
-			  (struct rtentry **)0);
-		(void)in6_addmulti(&mltaddr.sin6_addr, ifp, &error);
 
-		if (type == IN6_IFT_LOOP) {
-			/*
-			 * join node-local all-nodes address
-			 */
-			mltaddr.sin6_addr = in6addr_nodelocal_allnodes;
+		IN6_LOOKUP_MULTI(mltaddr.sin6_addr, ifp, in6m);
+		if (in6m == NULL) {
 			rtrequest(RTM_ADD,
 				  (struct sockaddr *)&mltaddr,
-				  (struct sockaddr *)&ib->ia_addr,
+				  (struct sockaddr *)&ia->ia_addr,
 				  (struct sockaddr *)&mltmask,
-				  RTF_UP,
+				  RTF_UP|RTF_CLONING,  /* xxx */
 				  (struct rtentry **)0);
 			(void)in6_addmulti(&mltaddr.sin6_addr, ifp, &error);
-		} else {
+		}
+
+		/*
+		 * join node information group address
+		 */
+		if (nigroup(ifp, hostname, hostnamelen, &mltaddr.sin6_addr)
+		    == 0) {
+			IN6_LOOKUP_MULTI(mltaddr.sin6_addr, ifp, in6m);
+			if (in6m == NULL && ia != NULL) {
+				(void)in6_addmulti(&mltaddr.sin6_addr,
+				    ifp, &error);
+			}
+		}
+
+		if (ifp->if_flags & IFF_LOOPBACK) {
+			in6 = in6addr_loopback;
+			ia = in6ifa_ifpwithaddr(ifp, &in6);
 			/*
-			 * join solicited multicast address
+			 * join node-local all-nodes address, on loopback
 			 */
-			bzero(&llsol, sizeof(llsol));
-			llsol.s6_addr16[0] = htons(0xff02);
-			llsol.s6_addr16[1] = htons(ifp->if_index);
-			llsol.s6_addr32[1] = 0;
-			llsol.s6_addr32[2] = htonl(1);
-			llsol.s6_addr32[3] = ia->ia_addr.sin6_addr.s6_addr32[3];
-			llsol.s6_addr8[12] = 0xff;
-			(void)in6_addmulti(&llsol, ifp, &error);
+			mltaddr.sin6_addr = in6addr_nodelocal_allnodes;
+
+			IN6_LOOKUP_MULTI(mltaddr.sin6_addr, ifp, in6m);
+			if (in6m == NULL && ia != NULL) {
+				rtrequest(RTM_ADD,
+					  (struct sockaddr *)&mltaddr,
+					  (struct sockaddr *)&ia->ia_addr,
+					  (struct sockaddr *)&mltmask,
+					  RTF_UP,
+					  (struct rtentry **)0);
+				(void)in6_addmulti(&mltaddr.sin6_addr, ifp, &error);
+			}
 		}
 	}
+
+statinit:;
 
 	/* update dynamically. */
 	if (in6_maxmtu < ifp->if_mtu)
@@ -612,39 +909,44 @@ in6_ifattach(ifp, type, laddr, noloop)
 
 	/* initialize NDP variables */
 	nd6_ifattach(ifp);
-
-	/* mark the address TENTATIVE, if needed. */
-	switch (ifp->if_type) {
-	case IFT_ARCNET:
-	case IFT_ETHER:
-	case IFT_FDDI:
-		ia->ia6_flags |= IN6_IFF_TENTATIVE;
-		/* nd6_dad_start() will be called in in6_if_up */
-		break;
-#ifdef IFT_DUMMY
-	case IFT_DUMMY:
-#endif
-	case IFT_GIF:	/*XXX*/
-	case IFT_LOOP:
-	case IFT_FAITH:
-	default:
-		break;
-	}
-
-	return;
 }
 
+/*
+ * NOTE: in6_ifdetach() does not support loopback if at this moment.
+ */
 void
 in6_ifdetach(ifp)
 	struct ifnet *ifp;
 {
 	struct in6_ifaddr *ia, *oia;
-	struct ifaddr *ifa;
+	struct ifaddr *ifa, *next;
 	struct rtentry *rt;
 	short rtflags;
+	struct sockaddr_in6 sin6;
+	struct in6_multi *in6m;
+	struct in6_multi *in6m_next;
 
-	TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list)
+	/* nuke prefix list.  this may try to remove some of ifaddrs as well */
+	in6_purgeprefix(ifp);
+
+	/* remove neighbor management table */
+	nd6_purge(ifp);
+
+	/* nuke any of IPv6 addresses we have */
+	for (ifa = ifp->if_addrlist.tqh_first; ifa; ifa = next)
 	{
+		next = ifa->ifa_list.tqe_next;
+		if (ifa->ifa_addr->sa_family != AF_INET6)
+			continue;
+		in6_purgeaddr(ifa, ifp);
+	}
+
+	/* undo everything done by in6_ifattach(), just in case */
+	for (ifa = ifp->if_addrlist.tqh_first; ifa; ifa = next)
+	{
+		next = ifa->ifa_list.tqe_next;
+
+
 		if (ifa->ifa_addr->sa_family != AF_INET6
 		 || !IN6_IS_ADDR_LINKLOCAL(&satosin6(&ifa->ifa_addr)->sin6_addr)) {
 			continue;
@@ -666,6 +968,7 @@ in6_ifdetach(ifp)
 
 		/* remove from the linked list */
 		TAILQ_REMOVE(&ifp->if_addrlist, (struct ifaddr *)ia, ifa_list);
+		IFAFREE(&ia->ia_ifa);
 
 		/* also remove from the IPv6 address chain(itojun&jinmei) */
 		oia = ia;
@@ -676,13 +979,38 @@ in6_ifdetach(ifp)
 				ia = ia->ia_next;
 			if (ia->ia_next)
 				ia->ia_next = oia->ia_next;
-#ifdef DEBUG
+#ifdef ND6_DEBUG
 			else
 				printf("%s: didn't unlink in6ifaddr from "
 				    "list\n", if_name(ifp));
 #endif
 		}
 
-		free(ia, M_IFADDR);
+		IFAFREE(&oia->ia_ifa);
+	}
+
+	/* leave from all multicast groups joined */
+	for (in6m = LIST_FIRST(&in6_multihead); in6m; in6m = in6m_next) {
+		in6m_next = LIST_NEXT(in6m, in6m_entry);
+		if (in6m->in6m_ifp != ifp)
+			continue;
+		in6_delmulti(in6m);
+		in6m = NULL;
+	}
+
+	/* remove neighbor management table */
+	nd6_purge(ifp);
+
+	/* remove route to link-local allnodes multicast (ff02::1) */
+	bzero(&sin6, sizeof(sin6));
+	sin6.sin6_len = sizeof(struct sockaddr_in6);
+	sin6.sin6_family = AF_INET6;
+	sin6.sin6_addr = in6addr_linklocal_allnodes;
+	sin6.sin6_addr.s6_addr16[1] = htons(ifp->if_index);
+	if ((rt = rtalloc1((struct sockaddr *)&sin6, 0, 0UL)) != NULL)
+	{
+		rtrequest(RTM_DELETE, (struct sockaddr *)rt_key(rt),
+			rt->rt_gateway, rt_mask(rt), rt->rt_flags, 0);
+		rtfree(rt);
 	}
 }

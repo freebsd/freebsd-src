@@ -228,11 +228,10 @@ rip_output(m, so, dst)
 	}
 
 #ifdef IPSEC
-	m->m_pkthdr.rcvif = (struct ifnet *)so;	/*XXX*/
+	ipsec_setsocket(m, so);
 #endif /*IPSEC*/
 
-	return (ip_output(m, inp->inp_options, &inp->inp_route,
-			  flags | IP_SOCKINMRCVIF,
+	return (ip_output(m, inp->inp_options, &inp->inp_route, flags,
 			  inp->inp_moptions));
 }
 

@@ -1,3 +1,6 @@
+/*	$FreeBSD$	*/
+/*	$KAME: bf_cbc.c,v 1.3 2000/03/27 04:36:25 sumikawa Exp $	*/
+
 /* crypto/bf/bf_cbc.c */
 /* Copyright (C) 1995-1997 Eric Young (eay@mincom.oz.au)
  * All rights reserved.
@@ -54,8 +57,6 @@
  * derivative of this code cannot be changed.  i.e. this code cannot simply be
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
- *
- * $FreeBSD$
  */
 
 #include <crypto/blowfish/blowfish.h>
