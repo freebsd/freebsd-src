@@ -1,4 +1,4 @@
-<!-- $Id: handbook.sgml,v 1.15 1997/05/09 22:52:15 max Exp $ -->
+<!-- $Id: handbook.sgml,v 1.16 1997/05/10 03:48:03 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
 <!-- Original revision: 1.75 -->
 
@@ -25,7 +25,7 @@
 %sections;
 
 <!-- The currently released version of FreeBSD -->
-<!ENTITY rel.current CDATA "2.2.1">
+<!ENTITY rel.current CDATA "2.2.2">
 
 ]>
 
