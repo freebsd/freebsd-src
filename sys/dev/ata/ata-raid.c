@@ -272,6 +272,7 @@ arstrategy(struct bio *bp)
 	biodone(bp);
 	return;
     }
+
     bp->bio_resid = bp->bio_bcount;
     blkno = bp->bio_pblkno;
     data = bp->bio_data;
@@ -622,6 +623,7 @@ ar_rebuild(struct ar_softc *rdp)
 	rdp->lock_end = rdp->lock_start + size;
 	wakeup(rdp);
     }
+    rdp->lock_start = 0xffffffff;
     free(buffer, M_AR);
     for (disk = 0; disk < rdp->total_disks; disk++) {
 	if ((rdp->disks[disk].flags&(AR_DF_PRESENT|AR_DF_ONLINE|AR_DF_SPARE))==
@@ -684,59 +686,16 @@ ar_highpoint_read_conf(struct ad_softc *adp, struct ar_softc **raidp)
 
 	switch (info->type) {
 	case HPT_T_RAID0:
-	case HPT_T_RAID01_RAID0:
-	    /* check the order byte to determine what this really is */
-	    switch (info->order) {
-	    case HPT_O_DOWN:
-		if (raid->magic_0 && raid->magic_0 != info->magic_0)
-		    continue;
-		raid->magic_0 = info->magic_0;
-		raid->magic_1 = info->magic_1;
-		raid->flags |= AR_F_RAID0;
-		raid->interleave = 1 << info->stripe_shift;
-		disk_number = info->disk_number;
+	    if (info->order & (HPT_O_OK | HPT_O_RAID1))
+		goto highpoint_raid01;
+	    if (raid->magic_0 && raid->magic_0 != info->magic_0)
+		continue;
+	    raid->magic_0 = info->magic_0;
+	    raid->flags |= AR_F_RAID0;
+	    raid->interleave = 1 << info->stripe_shift;
+	    disk_number = info->disk_number;
+	    if (!(info->order & HPT_O_RAID0))
 		info->magic = 0;	/* mark bad */
-		break;
-
-	    case HPT_O_RAID01DEGRADED:
-		if (raid->magic_0 && raid->magic_0 != info->magic_0)
-		    continue;
-		raid->magic_0 = info->magic_0;
-		raid->magic_1 = info->magic_1;
-		raid->flags |= AR_F_RAID0;
-		raid->interleave = 1 << info->stripe_shift;
-		disk_number = info->disk_number;
-		break;
-
-	    case HPT_O_RAID01SRC:
-		if ((raid->magic_0 && raid->magic_0 != info->magic_0) ||
-		    (raid->magic_1 && raid->magic_1 != info->magic_1))
-		    continue;
-		raid->magic_0 = info->magic_0;
-		raid->magic_1 = info->magic_1;
-		raid->flags |= (AR_F_RAID0 | AR_F_RAID1);
-		raid->interleave = 1 << info->stripe_shift;
-		disk_number = info->disk_number;
-		break;
-
-	    case HPT_O_RAID01DST:
-		if (raid->magic_1 && raid->magic_1 != info->magic_1)
-		    continue;
-		raid->magic_1 = info->magic_1;
-		raid->flags |= (AR_F_RAID0 | AR_F_RAID1);
-		raid->interleave = 1 << info->stripe_shift;
-		disk_number = info->disk_number + info->array_width;
-		break;
-
-	    case HPT_O_READY:
-		if (raid->magic_0 && raid->magic_0 != info->magic_0)
-		    continue;
-		raid->magic_0 = info->magic_0;
-		raid->flags |= AR_F_RAID0;
-		raid->interleave = 1 << info->stripe_shift;
-		disk_number = info->disk_number;
-		break;
-	    }
 	    break;
 
 	case HPT_T_RAID1:
@@ -745,6 +704,30 @@ ar_highpoint_read_conf(struct ad_softc *adp, struct ar_softc **raidp)
 	    raid->magic_0 = info->magic_0;
 	    raid->flags |= AR_F_RAID1;
 	    disk_number = (info->disk_number > 0);
+	    break;
+
+	case HPT_T_RAID01_RAID0:
+highpoint_raid01:
+	    if (info->order & HPT_O_OK) {
+		if ((raid->magic_0 && raid->magic_0 != info->magic_0) ||
+		    (raid->magic_1 && raid->magic_1 != info->magic_1))
+		    continue;
+		raid->magic_0 = info->magic_0;
+		raid->magic_1 = info->magic_1;
+		raid->flags |= (AR_F_RAID0 | AR_F_RAID1);
+		raid->interleave = 1 << info->stripe_shift;
+		disk_number = info->disk_number;
+	    }
+	    else {
+		if (raid->magic_1 && raid->magic_1 != info->magic_1)
+		    continue;
+		raid->magic_1 = info->magic_1;
+		raid->flags |= (AR_F_RAID0 | AR_F_RAID1);
+		raid->interleave = 1 << info->stripe_shift;
+		disk_number = info->disk_number + info->array_width;
+		if (!(info->order & HPT_O_RAID1))
+		    info->magic = 0;	/* mark bad */
+	    }
 	    break;
 
 	case HPT_T_SPAN:
@@ -764,10 +747,10 @@ ar_highpoint_read_conf(struct ad_softc *adp, struct ar_softc **raidp)
 	raid->flags |= AR_F_HIGHPOINT_RAID;
 	raid->disks[disk_number].device = adp->device;
 	raid->disks[disk_number].flags = (AR_DF_PRESENT | AR_DF_ASSIGNED);
+	raid->lun = array;
 	if (info->magic == HPT_MAGIC_OK) {
 	    raid->disks[disk_number].flags |= AR_DF_ONLINE;
 	    raid->flags |= AR_F_READY;
-	    raid->lun = array;
 	    raid->width = info->array_width;
 	    raid->heads = 255;
 	    raid->sectors = 63;
@@ -775,6 +758,7 @@ ar_highpoint_read_conf(struct ad_softc *adp, struct ar_softc **raidp)
 	    raid->total_sectors = info->total_sectors;
 	    raid->offset = HPT_LBA + 1;
 	    raid->reserved = HPT_LBA + 1;
+	    raid->lock_start = raid->lock_end = info->rebuild_lba;
 	    raid->disks[disk_number].disk_sectors =
 		info->total_sectors / info->array_width;
 	}
@@ -801,7 +785,7 @@ ar_highpoint_write_conf(struct ar_softc *rdp)
     int disk;
 
     microtime(&timestamp);
-    rdp->magic_0 = timestamp.tv_sec + 1;
+    rdp->magic_0 = timestamp.tv_sec + 2;
     rdp->magic_1 = timestamp.tv_sec;
    
     for (disk = 0; disk < rdp->total_disks; disk++) {
@@ -816,43 +800,40 @@ ar_highpoint_write_conf(struct ar_softc *rdp)
 	    config->magic = HPT_MAGIC_OK;
 	if (rdp->disks[disk].flags & AR_DF_ASSIGNED) {
 	    config->magic_0 = rdp->magic_0;
-	    config->magic_2 = HPT_MAGIC_2;
-	    strcpy(config->name_1, "FreeBSD ATARAID");
+	    strcpy(config->name_1, "FreeBSD");
 	}
 	config->disk_number = disk;
 
 	switch (rdp->flags & (AR_F_RAID0 | AR_F_RAID1 | AR_F_SPAN)) {
 	case AR_F_RAID0:
 	    config->type = HPT_T_RAID0;
+	    strcpy(config->name_2, "RAID 0");
 	    if (rdp->disks[disk].flags & AR_DF_ONLINE)
-		config->order = HPT_O_READY;
-	    else
-		config->order = HPT_O_DOWN;
-		strcpy(config->name_2, "RAID 0");
+		config->order = HPT_O_RAID0;
 	    break;
 
 	case AR_F_RAID1:
 	    config->type = HPT_T_RAID1;
-	    config->disk_number = (disk < rdp->width) ? disk : disk + 10;
 	    strcpy(config->name_2, "RAID 1");
+	    config->disk_number = (disk < rdp->width) ? disk : disk + 10;
 	    break;
 
 	case AR_F_RAID0 | AR_F_RAID1:
-	    config->magic_1 = rdp->magic_1;
 	    config->type = HPT_T_RAID01_RAID0;
-	    if (rdp->disks[disk].flags & AR_DF_ONLINE)
+	    strcpy(config->name_2, "RAID 0+1");
+	    if (rdp->disks[disk].flags & AR_DF_ONLINE) {
 		if (disk < rdp->width) {
-		    config->order = HPT_O_RAID01SRC;
+		    config->order = (HPT_O_OK | HPT_O_RAID1);
 		    config->magic_0 = rdp->magic_0 - 1;
-		    strcpy(config->name_2, "RAID 0+1 SRC");
 		}
 		else {
-		    config->order = HPT_O_RAID01DST;
+		    config->order = HPT_O_RAID1;
 		    config->disk_number -= rdp->width;
-		    strcpy(config->name_2, "RAID 0+1 DST");
 		}
-	    else 
-		config->order = HPT_O_DOWN;
+	    }
+	    else
+		config->magic_0 = rdp->magic_0 - 1;
+	    config->magic_1 = rdp->magic_1;
 	    break;
 
 	case AR_F_SPAN:
@@ -864,6 +845,7 @@ ar_highpoint_write_conf(struct ar_softc *rdp)
 	config->array_width = rdp->width;
 	config->stripe_shift = (rdp->width > 1) ? (ffs(rdp->interleave)-1) : 0;
 	config->total_sectors = rdp->total_sectors;
+	config->rebuild_lba = rdp->lock_start;
 
 	if ((rdp->disks[disk].flags & AR_DF_PRESENT) &&
 	    rdp->disks[disk].device && rdp->disks[disk].device->driver &&
@@ -986,6 +968,7 @@ ar_promise_read_conf(struct ad_softc *adp, struct ar_softc **raidp)
 	    raid->total_sectors = info->raid.total_sectors;
 	    raid->offset = 0;
 	    raid->reserved = 63;
+	    raid->lock_start = raid->lock_end = info->raid.rebuild_lba;
 
 	    /* convert disk flags to our internal types */
 	    for (disk = 0; disk < info->raid.total_disks; disk++) {
@@ -1062,7 +1045,7 @@ ar_promise_write_conf(struct ar_softc *rdp)
 	    /*config->raid.disk_offset*/
 	}
 	config->raid.magic_0 = config->magic_0;
-	config->raid.rebuild_lba = 0xffffffff;
+	config->raid.rebuild_lba = rdp->lock_start;
 	config->raid.generation = rdp->generation;
 
 	if (rdp->flags & AR_F_READY) {
