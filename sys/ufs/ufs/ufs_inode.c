@@ -53,6 +53,10 @@
 #include <ufs/ufs/inode.h>
 #include <ufs/ufs/ufsmount.h>
 #include <ufs/ufs/ufs_extern.h>
+#ifdef UFS_DIRHASH
+#include <ufs/ufs/dir.h>
+#include <ufs/ufs/dirhash.h>
+#endif
 
 /*
  * Last reference to an inode.  If necessary, write or delete it.
@@ -167,6 +171,10 @@ ufs_reclaim(ap)
 	}
 #endif
 	lockdestroy(&vp->v_lock);
+#ifdef UFS_DIRHASH
+	if (ip->i_dirhash != NULL)
+		ufsdirhash_free(ip);
+#endif
 	FREE(vp->v_data, VFSTOUFS(vp->v_mount)->um_malloctype);
 	vp->v_data = 0;
 	return (0);

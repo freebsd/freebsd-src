@@ -156,6 +156,9 @@ UFS_ACL		opt_ufs.h
 UFS_EXTATTR	opt_ufs.h
 UFS_EXTATTR_AUTOSTART	opt_ufs.h
 
+# Enable fast hash lookups for large directories on UFS-based filesystems.
+UFS_DIRHASH	opt_ufs.h
+
 # The above static dependencies are planned removed, with a
 # <filesystem>_ROOT option to control if it usable as root.  This list
 # allows these options to be present in config files already (though
