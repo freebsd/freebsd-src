@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.219 1995/12/10 10:50:32 julian Exp $
+#	$Id: LINT,v 1.220 1995/12/10 22:09:14 bde Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -466,7 +466,7 @@ device		npx0	at isa? port "IO_NPX" irq 13 vector npxintr
 # probed correctly.
 #
 
-controller	bt0	at isa? port "IO_BT0" bio irq ? vector btintr
+controller	bt0	at isa? port "IO_BT0" bio irq ? vector bt_isa_intr
 controller	aha0	at isa? port "IO_AHA0" bio irq ? drq 5 vector ahaintr
 controller	uha0	at isa? port "IO_UHA0" bio irq ? drq 5 vector uhaintr
 
