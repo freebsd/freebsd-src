@@ -71,11 +71,14 @@
 #include "if.h"
 #include "config.h"
 
+static time_t prefix_timo = (60 * 120);	/* 2 hours.
+					 * XXX: should be configurable. */
+extern struct rainfo *ralist;
+
+static struct rtadvd_timer *prefix_timeout __P((void *));
 static void makeentry __P((char *, size_t, int, char *, int));
 static void get_prefix __P((struct rainfo *));
 static int getinet6sysctl __P((int));
-
-extern struct rainfo *ralist;
 
 void
 getconfig(intface)
@@ -309,6 +312,7 @@ getconfig(intface)
 
 			/* link into chain */
 			insque(pfx, &tmp->prefix);
+			pfx->rainfo = tmp;
 
 			pfx->origin = PREFIX_FROM_CONFIG;
 
@@ -681,6 +685,7 @@ add_prefix(struct rainfo *rai, struct in6_prefixreq *ipr)
 	prefix->origin = PREFIX_FROM_DYNAMIC;
 
 	insque(prefix, &rai->prefix);
+	prefix->rainfo = rai;
 
 	syslog(LOG_DEBUG, "<%s> new prefix %s/%d was added on %s",
 	       __FUNCTION__, inet_ntop(AF_INET6, &ipr->ipr_prefix.sin6_addr,
@@ -709,18 +714,82 @@ add_prefix(struct rainfo *rai, struct in6_prefixreq *ipr)
  * The prefix must be in the list.
  */
 void
-delete_prefix(struct rainfo *rai, struct prefix *prefix)
+delete_prefix(struct prefix *prefix)
 {
 	u_char ntopbuf[INET6_ADDRSTRLEN];
+	struct rainfo *rai = prefix->rainfo;
 
 	remque(prefix);
 	syslog(LOG_DEBUG, "<%s> prefix %s/%d was deleted on %s",
 	       __FUNCTION__, inet_ntop(AF_INET6, &prefix->prefix,
 				       ntopbuf, INET6_ADDRSTRLEN),
 	       prefix->prefixlen, rai->ifname);
+	if (prefix->timer)
+		rtadvd_remove_timer(&prefix->timer);
 	free(prefix);
 	rai->pfxs--;
-	make_packet(rai);
+}
+
+void
+invalidate_prefix(struct prefix *prefix)
+{
+	u_char ntopbuf[INET6_ADDRSTRLEN];
+	struct timeval timo;
+	struct rainfo *rai = prefix->rainfo;
+
+	if (prefix->timer) {	/* sanity check */
+		syslog(LOG_ERR,
+		    "<%s> assumption failure: timer already exists",
+		    __FUNCTION__);
+		exit(1);
+	}
+
+	syslog(LOG_DEBUG, "<%s> prefix %s/%d was invalidated on %s, "
+	    "will expire in %ld seconds", __FUNCTION__,
+	    inet_ntop(AF_INET6, &prefix->prefix, ntopbuf, INET6_ADDRSTRLEN),
+	    prefix->prefixlen, rai->ifname, (long)prefix_timo);
+
+	/* set the expiration timer */
+	prefix->timer = rtadvd_add_timer(prefix_timeout, NULL, prefix, NULL);
+	if (prefix->timer == NULL) {
+		syslog(LOG_ERR, "<%s> failed to add a timer for a prefix. "
+		    "remove the prefix", __FUNCTION__);
+		delete_prefix(prefix);
+	}
+	timo.tv_sec = prefix_timo;
+	timo.tv_usec = 0;
+	rtadvd_set_timer(&timo, prefix->timer);
+}
+
+static struct rtadvd_timer *
+prefix_timeout(void *arg)
+{
+	struct prefix *prefix = (struct prefix *)arg;
+	
+	delete_prefix(prefix);
+
+	return(NULL);
+}
+
+void
+update_prefix(struct prefix * prefix)
+{
+	u_char ntopbuf[INET6_ADDRSTRLEN];
+	struct rainfo *rai = prefix->rainfo;
+
+	if (prefix->timer == NULL) { /* sanity check */
+		syslog(LOG_ERR,
+		    "<%s> assumption failure: timer does not exist",
+		    __FUNCTION__);
+		exit(1);
+	}
+
+	syslog(LOG_DEBUG, "<%s> prefix %s/%d was re-enabled on %s",
+	    __FUNCTION__, inet_ntop(AF_INET6, &prefix->prefix, ntopbuf,
+	    INET6_ADDRSTRLEN), prefix->prefixlen, rai->ifname);
+
+	/* stop the expiration timer */
+	rtadvd_remove_timer(&prefix->timer);
 }
 
 /*
@@ -934,18 +1003,26 @@ make_packet(struct rainfo *rainfo)
 			ndopt_pi->nd_opt_pi_flags_reserved |=
 				ND_OPT_PI_FLAG_ROUTER;
 #endif
-		if (pfx->vltimeexpire || pfx->pltimeexpire)
-			gettimeofday(&now, NULL);
-		if (pfx->vltimeexpire == 0)
-			vltime = pfx->validlifetime;
-		else
-			vltime = (pfx->vltimeexpire > now.tv_sec) ?
-				pfx->vltimeexpire - now.tv_sec : 0;
-		if (pfx->pltimeexpire == 0)
-			pltime = pfx->preflifetime;
-		else
-			pltime = (pfx->pltimeexpire > now.tv_sec) ? 
-				pfx->pltimeexpire - now.tv_sec : 0;
+		if (pfx->timer)
+			vltime = 0;
+		else {
+			if (pfx->vltimeexpire || pfx->pltimeexpire)
+				gettimeofday(&now, NULL);
+			if (pfx->vltimeexpire == 0)
+				vltime = pfx->validlifetime;
+			else
+				vltime = (pfx->vltimeexpire > now.tv_sec) ?
+				    pfx->vltimeexpire - now.tv_sec : 0;
+		}
+		if (pfx->timer)
+			pltime = 0;
+		else {
+			if (pfx->pltimeexpire == 0)
+				pltime = pfx->preflifetime;
+			else
+				pltime = (pfx->pltimeexpire > now.tv_sec) ? 
+				    pfx->pltimeexpire - now.tv_sec : 0;
+		}
 		if (vltime < pltime) {
 			/*
 			 * this can happen if vltime is decrement but pltime
