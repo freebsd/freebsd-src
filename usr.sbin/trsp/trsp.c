@@ -95,7 +95,7 @@ main(argc, argv)
 	int i, mask = 0, npcbs = 0;
 	char *system, *core;
 
-	system = _PATH_UNIX;
+	system = (char *)getbootfile();
 	core = _PATH_KMEM;
 
 	argc--, argv++;

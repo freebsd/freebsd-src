@@ -134,7 +134,7 @@ main(int argc, char **argv)
 	}
 #endif
 	if (system == NULL)
-		system = _PATH_UNIX;
+		system = (char *)getbootfile();
 	accessmode = openfiles(system, kmemf, &kvmvars);
 	mode = getprof(&kvmvars);
 	if (hflag)
