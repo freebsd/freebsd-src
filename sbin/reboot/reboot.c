@@ -63,7 +63,7 @@ main(argc, argv)
 {
 	register int i;
 	struct passwd *pw;
-	int ch, howto, lflag, nflag, qflag, sverrno;
+	int ch, howto, lflag, nflag, qflag, pflag, sverrno;
 	char *p, *user;
 
 	if (strstr((p = rindex(*argv, '/')) ? p + 1 : *argv, "halt")) {
@@ -72,7 +72,7 @@ main(argc, argv)
 	} else
 		howto = 0;
 	lflag = nflag = qflag = 0;
-	while ((ch = getopt(argc, argv, "lnq")) != EOF)
+	while ((ch = getopt(argc, argv, "lnpq")) != EOF)
 		switch(ch) {
 		case 'l':		/* Undocumented; used by shutdown. */
 			lflag = 1;
@@ -80,6 +80,10 @@ main(argc, argv)
 		case 'n':
 			nflag = 1;
 			howto |= RB_NOSYNC;
+			break;
+		case 'p':
+			pflag = 1;
+			howto |= (RB_POWEROFF | RB_HALT);
 			break;
 		case 'q':
 			qflag = 1;
