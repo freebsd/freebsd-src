@@ -8,8 +8,9 @@
 #define _calendar_australia_
 
 /* Australia */
-Jan 28	Australia Day Holiday (Australia, except NSW, Vic)
-Jun 10	Queen's Birthday Holiday (Australia, except WA)
+Jan 26	Australia Day
+Apr 25	Anzac Day
+Jun/MonSecond	Queen's Birthday Holiday (Australia, except WA)
 
 /* ACT, NSW, common */
 Mar 18	Canberra Day (ACT)
@@ -29,7 +30,7 @@ Oct 24	Hobart Show Day (Tas)
 Nov 04	Recreation Day (N Tas)
 
 /* South Australia */
-May 20	Adelaide Cup (SA)
+May/MonThird	Adelaide Cup (SA)
 Dec 26	Proclamation Day holiday (SA)
 
 /* Western Australia */
