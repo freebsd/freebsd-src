@@ -139,125 +139,103 @@ rip_init()
 }
 
 static struct	sockaddr_in ripsrc = { sizeof(ripsrc), AF_INET };
+
+static int
+raw_append(struct inpcb *last, struct ip *ip, struct mbuf *n)
+{
+	int policyfail = 0;
+
+#ifdef IPSEC
+	/* check AH/ESP integrity. */
+	if (ipsec4_in_reject_so(n, last->inp_socket)) {
+		policyfail = 1;
+		ipsecstat.in_polvio++;
+		/* do not inject data to pcb */
+	}
+#endif /*IPSEC*/
+#ifdef FAST_IPSEC
+	/* check AH/ESP integrity. */
+	if (ipsec4_in_reject(n, last)) {
+		policyfail = 1;
+		/* do not inject data to pcb */
+	}
+#endif /*FAST_IPSEC*/
+#ifdef MAC
+	if (!policyfail && mac_check_socket_deliver(last->inp_socket, n) != 0)
+		policyfail = 1;
+#endif
+	if (!policyfail) {
+		struct mbuf *opts = NULL;
+
+		if ((last->inp_flags & INP_CONTROLOPTS) ||
+		    (last->inp_socket->so_options & SO_TIMESTAMP))
+			ip_savecontrol(last, &opts, ip, n);
+		if (sbappendaddr(&last->inp_socket->so_rcv,
+		    (struct sockaddr *)&ripsrc, n, opts) == 0) {
+			/* should notify about lost packet */
+			m_freem(n);
+			if (opts)
+				m_freem(opts);
+		} else
+			sorwakeup(last->inp_socket);
+	} else
+		m_freem(n);
+	return policyfail;
+}
+
 /*
  * Setup generic address and protocol structures
  * for raw_input routine, then pass them along with
  * mbuf chain.
  */
 void
-rip_input(m, off)
-	struct mbuf *m;
-	int off;
+rip_input(struct mbuf *m, int off)
 {
-	register struct ip *ip = mtod(m, struct ip *);
-	register struct inpcb *inp;
-	struct inpcb *last = 0;
-	struct mbuf *opts = 0;
+	struct ip *ip = mtod(m, struct ip *);
 	int proto = ip->ip_p;
+	struct inpcb *inp, *last;
 
+	INP_INFO_RLOCK(&ripcbinfo);
 	ripsrc.sin_addr = ip->ip_src;
+	last = NULL;
 	LIST_FOREACH(inp, &ripcb, inp_list) {
+		INP_LOCK(inp);
+		if (inp->inp_ip_p && inp->inp_ip_p != proto) {
+	docontinue:
+			INP_UNLOCK(inp);
+			continue;
+		}
 #ifdef INET6
 		if ((inp->inp_vflag & INP_IPV4) == 0)
-			continue;
+			goto docontinue;
 #endif
-		if (inp->inp_ip_p && inp->inp_ip_p != proto)
-			continue;
 		if (inp->inp_laddr.s_addr &&
-                  inp->inp_laddr.s_addr != ip->ip_dst.s_addr)
-			continue;
+                    inp->inp_laddr.s_addr != ip->ip_dst.s_addr)
+			goto docontinue;
 		if (inp->inp_faddr.s_addr &&
-                  inp->inp_faddr.s_addr != ip->ip_src.s_addr)
-			continue;
+                    inp->inp_faddr.s_addr != ip->ip_src.s_addr)
+			goto docontinue;
 		if (last) {
-			struct mbuf *n = m_copy(m, 0, (int)M_COPYALL);
-			int policyfail = 0;
+			struct mbuf *n;
 
-			if (n != NULL) {
-#ifdef IPSEC
-				/* check AH/ESP integrity. */
-				if (ipsec4_in_reject_so(n, last->inp_socket)) {
-					policyfail = 1;
-					ipsecstat.in_polvio++;
-					/* do not inject data to pcb */
-				}
-#endif /*IPSEC*/
-#ifdef FAST_IPSEC
-				/* check AH/ESP integrity. */
-				if (ipsec4_in_reject(n, last)) {
-					policyfail = 1;
-					/* do not inject data to pcb */
-				}
-#endif /*FAST_IPSEC*/
-#ifdef MAC
-				if (policyfail == 0 &&
-				    mac_check_socket_deliver(last->inp_socket,
-				    n) != 0)
-					policyfail = 1;
-#endif
-			}
-			if (policyfail)
-				m_freem(n);
-			else if (n) {
-				if (last->inp_flags & INP_CONTROLOPTS ||
-				    last->inp_socket->so_options & SO_TIMESTAMP)
-				    ip_savecontrol(last, &opts, ip, n);
-				if (sbappendaddr(&last->inp_socket->so_rcv,
-				    (struct sockaddr *)&ripsrc, n,
-				    opts) == 0) {
-					/* should notify about lost packet */
-					m_freem(n);
-					if (opts)
-					    m_freem(opts);
-				} else
-					sorwakeup(last->inp_socket);
-				opts = 0;
-			}
+			n = m_copy(m, 0, (int)M_COPYALL);
+			if (n != NULL)
+				(void) raw_append(last, ip, n);
+			/* XXX count dropped packet */
+			INP_UNLOCK(last);
 		}
 		last = inp;
 	}
-	if (last) {
-#ifdef IPSEC
-		/* check AH/ESP integrity. */
-		if (ipsec4_in_reject_so(m, last->inp_socket)) {
-			m_freem(m);
-			ipsecstat.in_polvio++;
+	if (last != NULL) {
+		if (raw_append(last, ip, m) != 0)
 			ipstat.ips_delivered--;
-			/* do not inject data to pcb */
-			return;
-		}
-#endif /*IPSEC*/
-#ifdef FAST_IPSEC
-		/* check AH/ESP integrity. */
-		if (ipsec4_in_reject(m, last)) {
-			m_freem(m);
-			ipstat.ips_delivered--;
-			/* do not inject data to pcb */
-			return;
-		}
-#endif /*FAST_IPSEC*/
-#ifdef MAC
-		if (mac_check_socket_deliver(last->inp_socket, m) != 0) {
-			m_freem(m);
-			ipstat.ips_delivered--;
-			return;
-		}
-#endif
-		if (last->inp_flags & INP_CONTROLOPTS ||
-		    last->inp_socket->so_options & SO_TIMESTAMP)
-			ip_savecontrol(last, &opts, ip, m);
-		if (sbappendaddr(&last->inp_socket->so_rcv,
-		    (struct sockaddr *)&ripsrc, m, opts) == 0) {
-			m_freem(m);
-			if (opts)
-			    m_freem(opts);
-		} else
-			sorwakeup(last->inp_socket);
+		INP_UNLOCK(last);
 	} else {
 		m_freem(m);
 		ipstat.ips_noproto++;
 		ipstat.ips_delivered--;
 	}
+	INP_INFO_RUNLOCK(&ripcbinfo);
 }
 
 /*
@@ -265,13 +243,10 @@ rip_input(m, off)
  * Tack on options user may have setup with control call.
  */
 int
-rip_output(m, so, dst)
-	struct mbuf *m;
-	struct socket *so;
-	u_long dst;
+rip_output(struct mbuf *m, struct socket *so, u_long dst)
 {
-	register struct ip *ip;
-	register struct inpcb *inp = sotoinpcb(so);
+	struct ip *ip;
+	struct inpcb *inp = sotoinpcb(so);
 	int flags = (so->so_options & SO_DONTROUTE) | IP_ALLOWBROADCAST;
 
 #ifdef MAC
@@ -345,9 +320,7 @@ rip_output(m, so, dst)
  * present.
  */
 int
-rip_ctloutput(so, sopt)
-	struct socket *so;
-	struct sockopt *sopt;
+rip_ctloutput(struct socket *so, struct sockopt *sopt)
 {
 	struct	inpcb *inp = sotoinpcb(so);
 	int	error, optval;
@@ -483,10 +456,7 @@ rip_ctloutput(so, sopt)
  * interface routes.
  */
 void
-rip_ctlinput(cmd, sa, vip)
-	int cmd;
-	struct sockaddr *sa;
-	void *vip;
+rip_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 {
 	struct in_ifaddr *ia;
 	struct ifnet *ifp;
@@ -550,35 +520,48 @@ static int
 rip_attach(struct socket *so, int proto, struct thread *td)
 {
 	struct inpcb *inp;
-	int error, s;
+	int error;
 
+	/* XXX why not lower? */
+	INP_INFO_WLOCK(&ripcbinfo);
 	inp = sotoinpcb(so);
-	if (inp)
-		panic("rip_attach");
-	if (td && (error = suser(td)) != 0)
+	if (inp) {
+		/* XXX counter, printf */
+		INP_INFO_WUNLOCK(&ripcbinfo);
+		return EINVAL;
+	}
+	if (td && (error = suser(td)) != 0) {
+		INP_INFO_WUNLOCK(&ripcbinfo);
 		return error;
-
-	if (proto >= IPPROTO_MAX || proto < 0)
+	}
+	if (proto >= IPPROTO_MAX || proto < 0) {
+		INP_INFO_WUNLOCK(&ripcbinfo);
 		return EPROTONOSUPPORT;
-
+	}
 	/* To be removed before 5.2 */
 	if (rip_olddiverterror && proto == IPPROTO_OLD_DIVERT) {
+		INP_INFO_WUNLOCK(&ripcbinfo);
 		printf("Old IPDIVERT program needs to be recompiled, or new IP proto 254 user needs sysctl net.inet.raw.olddiverterror=0\n");
 		return EPROTONOSUPPORT;
 	}
 
 	error = soreserve(so, rip_sendspace, rip_recvspace);
-	if (error)
+	if (error) {
+		INP_INFO_WUNLOCK(&ripcbinfo);
 		return error;
-	s = splnet();
+	}
 	error = in_pcballoc(so, &ripcbinfo, td);
-	splx(s);
-	if (error)
+	if (error) {
+		INP_INFO_WUNLOCK(&ripcbinfo);
 		return error;
+	}
 	inp = (struct inpcb *)so->so_pcb;
+	INP_LOCK(inp);
+	INP_INFO_WUNLOCK(&ripcbinfo);
 	inp->inp_vflag |= INP_IPV4;
 	inp->inp_ip_p = proto;
 	inp->inp_ip_ttl = ip_defttl;
+	INP_UNLOCK(inp);
 	return 0;
 }
 
@@ -587,9 +570,14 @@ rip_detach(struct socket *so)
 {
 	struct inpcb *inp;
 
+	INP_INFO_WLOCK(&ripcbinfo);
 	inp = sotoinpcb(so);
-	if (inp == 0)
-		panic("rip_detach");
+	if (inp == 0) {
+		/* XXX counter, printf */
+		INP_INFO_WUNLOCK(&ripcbinfo);
+		return EINVAL;
+	}
+	INP_LOCK(inp);
 	if (so == ip_mrouter && ip_mrouter_done)
 		ip_mrouter_done();
 	if (ip_rsvp_force_done)
@@ -597,6 +585,7 @@ rip_detach(struct socket *so)
 	if (so == ip_rsvpd)
 		ip_rsvp_done();
 	in_pcbdetach(inp);
+	INP_INFO_WUNLOCK(&ripcbinfo);
 	return 0;
 }
 
@@ -686,7 +675,7 @@ rip_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 static int
 rip_pcblist(SYSCTL_HANDLER_ARGS)
 {
-	int error, i, n, s;
+	int error, i, n;
 	struct inpcb *inp, **inp_list;
 	inp_gen_t gencnt;
 	struct xinpgen xig;
@@ -708,10 +697,10 @@ rip_pcblist(SYSCTL_HANDLER_ARGS)
 	/*
 	 * OK, now we're committed to doing something.
 	 */
-	s = splnet();
+	INP_INFO_RLOCK(&ripcbinfo);
 	gencnt = ripcbinfo.ipi_gencnt;
 	n = ripcbinfo.ipi_count;
-	splx(s);
+	INP_INFO_RUNLOCK(&ripcbinfo);
 
 	xig.xig_len = sizeof xig;
 	xig.xig_count = n;
@@ -725,17 +714,20 @@ rip_pcblist(SYSCTL_HANDLER_ARGS)
 	if (inp_list == 0)
 		return ENOMEM;
 	
-	s = splnet();
+	INP_INFO_RLOCK(&ripcbinfo);
 	for (inp = LIST_FIRST(ripcbinfo.listhead), i = 0; inp && i < n;
 	     inp = LIST_NEXT(inp, inp_list)) {
+		INP_LOCK(inp);
 		if (inp->inp_gencnt <= gencnt) {
 			if (cr_canseesocket(req->td->td_ucred,
 			    inp->inp_socket))
 				continue;
+			/* XXX held references? */
 			inp_list[i++] = inp;
 		}
+		INP_UNLOCK(inp);
 	}
-	splx(s);
+	INP_INFO_RUNLOCK(&ripcbinfo);
 	n = i;
 
 	error = 0;
@@ -759,11 +751,11 @@ rip_pcblist(SYSCTL_HANDLER_ARGS)
 		 * while we were processing this request, and it
 		 * might be necessary to retry.
 		 */
-		s = splnet();
+		INP_INFO_RLOCK(&ripcbinfo);
 		xig.xig_gen = ripcbinfo.ipi_gencnt;
 		xig.xig_sogen = so_gencnt;
 		xig.xig_count = ripcbinfo.ipi_count;
-		splx(s);
+		INP_INFO_RUNLOCK(&ripcbinfo);
 		error = SYSCTL_OUT(req, &xig, sizeof xig);
 	}
 	free(inp_list, M_TEMP);
