@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
-.\"	$Id: sh.1,v 1.22 1998/12/02 23:20:11 billf Exp $
+.\"	$Id: sh.1,v 1.23 1998/12/18 03:51:18 jkoshy Exp $
 .\"
 .Dd May 5, 1995
 .Dt SH 1
@@ -244,7 +244,7 @@ The following is a list of valid operators:
 &  &&  (  )  ;  ;; | ||
 .No \en
 .It No Redirection operators:
-<  >  >|  <<  >>  <&  >&  <<-  <>
+<  >  >|  <<  >>  <&  >&  <<-
 .El
 .Ss Quoting
 Quoting is used to remove the special meaning of certain characters
@@ -366,8 +366,6 @@ close stdin (or n)
 duplicate stdout (or n1) to n2.
 .It [n]>&-
 close stdout (or n)
-.It [n]<> file
-open file for reading and writing on stdin (or n)
 .El
 .Pp
 The following redirection is often called a ``here-document''.
