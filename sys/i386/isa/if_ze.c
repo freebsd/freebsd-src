@@ -41,6 +41,10 @@
  * laptop machines' PCIC (especially, on my Chaplet ILFA 350 ^^;). 
  *                        HOSOKAWA, Tatsumi <hosokawa@mt.cs.keio.ac.jp>
  */ 
+/*
+ * Very small patch for IBM Ethernet PCMCIA Card II and IBM ThinkPad230Cs.
+ *			ETO, Toshihisa <eto@osl.fujitsu.co.jp>
+ */
 
 #include "ze.h"
 #if	NZE > 0
@@ -458,6 +462,11 @@ static unsigned char card_info[256];
 #define CARD_INFO  "IBM Corp.~Ethernet~0933495"
 
 /*
+ * IBM Ethernet PCMCIA Card II returns following info.
+ */
+#define CARD2_INFO  "IBM Corp.~Ethernet~0934214"
+
+/*
  * scan the card information structure looking for the version/product info
  * tuple.  when we find it, compare it to the string we are looking for.
  * return 1 if we find it, 0 otherwise.
@@ -488,7 +497,15 @@ ze_check_cis (unsigned char *scratch)
 	    for (j = i+8; scratch[j] != 0xff; j += 2)
 		card_info[k++] = scratch[j] == '\0' ? '~' : scratch[j];
 	    card_info[k++] = '\0';
+#if 0
 	    return (memcmp (card_info, CARD_INFO, sizeof(CARD_INFO)-1) == 0);
+#else
+	    if ((memcmp (card_info, CARD_INFO, sizeof(CARD_INFO)-1) == 0) ||
+		(memcmp (card_info, CARD2_INFO, sizeof(CARD2_INFO)-1) == 0)) {
+		return 1;
+	    }
+	    return 0;
+#endif
 	}
 	i += 4 + 2 * link;
     }
@@ -519,9 +536,13 @@ ze_find_adapter (unsigned char *scratch, int reconfig)
 	 * Intel PCMCIA controllers use 0x82 and 0x83
 	 * IBM clone chips use 0x88 and 0x89, apparently
 	 */
+	/*
+	 * IBM ThinkPad230Cs use 0x84.
+	 */
 	unsigned char idbyte = pcic_getb (slot, PCIC_ID_REV);
 
 	if (idbyte != 0x82 && idbyte != 0x83 &&
+	    idbyte != 0x84 &&			/* for IBM ThinkPad 230Cs */
 	    idbyte != 0x88 && idbyte != 0x89) {
 #if 0
 	    printf ("ibmccae: pcic slot %d: wierd id/rev code 0x%02x\n",
