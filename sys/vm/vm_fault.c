@@ -796,6 +796,7 @@ readrest:
 		 * any swap backing since the page is now dirty.
 		 */
 		if (fault_flags & VM_FAULT_DIRTY) {
+			int s;
 			if (fs.entry->eflags & MAP_ENTRY_NOSYNC) {
 				if (fs.m->dirty == 0)
 					vm_page_flag_set(fs.m, PG_NOSYNC);
@@ -803,7 +804,9 @@ readrest:
 				vm_page_flag_clear(fs.m, PG_NOSYNC);
 			}
 			vm_page_dirty(fs.m);
+			s = splvm();
 			vm_pager_page_unswapped(fs.m);
+			splx(s);
 		}
 	}
 
