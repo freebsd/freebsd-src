@@ -36,7 +36,10 @@ This file specifies the preferred style for kernel source files in the
 source tree.  It is also a guide for preferred userland code style.
 .Bd -literal
 /*
- * Style guide for the FreeBSD.  Based on KNF (Kernel Normal Form).
+ * Style guide for FreeBSD.  Based on the CSRG's KNF (Kernel Normal Form).
+ *
+ *	@(#)style	1.14 (Berkeley) 4/28/95
+ * $FreeBSD$
  */
 
 /*
@@ -50,6 +53,29 @@ source tree.  It is also a guide for preferred userland code style.
  * them so they look like real paragraphs.
  */
 .Ed
+.Pp
+After any copyright header, there is a blank line, and the
+.Va rcsid
+for source files.
+Version control system ID tags should only exist once in a file
+(unlike this one).
+Non-C/C++ source files follow the above example, while C/C++ source files
+follow the below one.
+All VCS revision identification from files obtained from elsewhere should be
+maintained, including if there are multiple IDs showing a file's history.
+In general, keep the IDs in tact, including any `$'s.
+Most non-FreeBSD VCS IDs should be indented by a tab if in a comment.
+.Bd -literal
+#ifndef lint
+#if 0
+static char sccsid[] = "@(#)style	1.14 (Berkeley) 4/28/95";
+#endif
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif /* not lint */
+.Ed
+.Pp
+Followed by another blank line.
 .Pp
 Kernel include files (i.e. sys/*.h) come first; normally, you'll need
 <sys/types.h>
