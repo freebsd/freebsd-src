@@ -1406,12 +1406,12 @@ skip:
 			syslog(LOG_INFO|LOG_AUTH,
 			    "FTP LOGIN FAILED (HOST) as %s: permission denied.",
 			    pw->pw_name);
-			reply(530, "Permission denied.\n");
+			reply(530, "Permission denied.");
 			pw = NULL;
 			return;
 		}
 		if (!auth_timeok(lc, time(NULL))) {
-			reply(530, "Login not available right now.\n");
+			reply(530, "Login not available right now.");
 			pw = NULL;
 			return;
 		}
@@ -2383,7 +2383,7 @@ void
 fatalerror(char *s)
 {
 
-	reply(451, "Error in server: %s\n", s);
+	reply(451, "Error in server: %s", s);
 	reply(221, "Closing connection due to server error.");
 	dologout(0);
 	/* NOTREACHED */
