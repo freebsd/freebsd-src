@@ -483,7 +483,8 @@ nfsrv_rcv(struct socket *so, void *arg, int waitflag)
 			if (mp) {
 				struct nfsrv_rec *rec;
 				rec = malloc(sizeof(struct nfsrv_rec),
-					     M_NFSRVDESC, waitflag);
+			            M_NFSRVDESC, 
+				    waitflag == M_DONTWAIT ? M_NOWAIT : M_WAITOK);
 				if (!rec) {
 					if (nam)
 						FREE(nam, M_SONAME);
@@ -631,7 +632,8 @@ nfsrv_getstream(struct nfssvc_sock *slp, int waitflag)
 	    *mpp = recm;
 	    if (slp->ns_flag & SLP_LASTFRAG) {
 		struct nfsrv_rec *rec;
-		rec = malloc(sizeof(struct nfsrv_rec), M_NFSRVDESC, waitflag);
+		rec = malloc(sizeof(struct nfsrv_rec), M_NFSRVDESC,
+	            waitflag == M_DONTWAIT ? M_NOWAIT : M_WAITOK);
 		if (!rec) {
 		    m_freem(slp->ns_frag);
 		} else {
