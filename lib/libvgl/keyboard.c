@@ -51,14 +51,14 @@ VGLKeyboardInit(int mode)
   term = VGLKeyboardTty;
   cfmakeraw(&term);
   term.c_iflag = IGNPAR | IGNBRK;
-  term.c_oflag = 0;
+  term.c_oflag = OPOST | ONLCR;
   term.c_cflag = CREAD | CS8;
   term.c_lflag &= ~(ICANON | ECHO | ISIG);
   term.c_cc[VTIME] = 0;
   term.c_cc[VMIN] = 0;
   cfsetispeed(&term, 9600);
   cfsetospeed(&term, 9600);
-  tcsetattr(0, TCSANOW, &term);
+  tcsetattr(0, TCSANOW | TCSAFLUSH, &term);
 
   switch (mode) {
   case VGL_RAWKEYS:
@@ -79,7 +79,7 @@ VGLKeyboardEnd()
 {
   if (VGLKeyboardMode != -1) {
     ioctl(0, KDSKBMODE, VGLKeyboardMode);
-    tcsetattr(0, TCSANOW, &VGLKeyboardTty);
+    tcsetattr(0, TCSANOW | TCSAFLUSH, &VGLKeyboardTty);
   }
 }
 
