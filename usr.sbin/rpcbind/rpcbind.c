@@ -86,6 +86,10 @@ int insecure = 0;
 int oldstyle_local = 0;
 int verboselog = 0;
 
+char **hosts = NULL;
+int nhosts = 0;
+int on = 1;
+
 #ifdef WARMSTART
 /* Local Variable */
 static int warmstart = 0;	/* Grab a old copy of registrations */
@@ -220,7 +224,10 @@ init_transport(struct netconfig *nconf)
 	int status;	/* bound checking ? */
 	int aicode;
 	int addrlen;
+	int nhostsbak;
+	int checkbind;
 	struct sockaddr *sa;
+	u_int32_t host_addr[4];  /* IPv4 or IPv6 */
 	struct sockaddr_un sun;
 	mode_t oldmask;
 
@@ -242,11 +249,14 @@ init_transport(struct netconfig *nconf)
 #endif
 
 	/*
-	 * XXX - using RPC library internal functions.
+	 * XXX - using RPC library internal functions. For NC_TPI_CLTS
+	 * we call this later, for each socket we like to bind.
 	 */
-	if ((fd = __rpc_nconf2fd(nconf)) < 0) {
-		syslog(LOG_ERR, "cannot create socket for %s", nconf->nc_netid);
-		return (1);
+	if (nconf->nc_semantics != NC_TPI_CLTS) {
+		if ((fd = __rpc_nconf2fd(nconf)) < 0) {
+			syslog(LOG_ERR, "cannot create socket for %s", nconf->nc_netid);
+			return (1);
+		}
 	}
 
 	if (!__rpc_nconf2sockinfo(nconf, &si)) {
@@ -271,59 +281,189 @@ init_transport(struct netconfig *nconf)
 		hints.ai_family = si.si_af;
 		hints.ai_socktype = si.si_socktype;
 		hints.ai_protocol = si.si_proto;
-		if ((aicode = getaddrinfo(NULL, servname, &hints, &res)) != 0) {
-			syslog(LOG_ERR, "cannot get local address for %s: %s",
-			    nconf->nc_netid, gai_strerror(aicode));
-			return 1;
+	}
+	if (nconf->nc_semantics == NC_TPI_CLTS) {
+		/*
+		 * If no hosts were specified, just bind to INADDR_ANY.  Otherwise
+		 * make sure 127.0.0.1 is added to the list.
+		 */
+		nhostsbak = nhosts;
+		nhostsbak++;
+		hosts = realloc(hosts, nhostsbak * sizeof(char *));
+		if (nhostsbak == 1)
+			hosts[0] = "*";
+		else {
+			if (hints.ai_family == AF_INET) {
+				hosts[nhostsbak - 1] = "127.0.0.1";
+			} else if (hints.ai_family == AF_INET6) {
+				hosts[nhostsbak - 1] = "::1";
+			} else
+				return 1;
 		}
-		addrlen = res->ai_addrlen;
-		sa = (struct sockaddr *)res->ai_addr;
-	}
-	oldmask = umask(S_IXUSR|S_IXGRP|S_IXOTH);
-	if (bind(fd, sa, addrlen) < 0) {
-		syslog(LOG_ERR, "cannot bind %s: %m", nconf->nc_netid);
-		if (res != NULL)
-			freeaddrinfo(res);
-		return 1;
-	}
-	(void) umask(oldmask);
 
-	/* Copy the address */
-	taddr.addr.len = taddr.addr.maxlen = addrlen;
-	taddr.addr.buf = malloc(addrlen);
-	if (taddr.addr.buf == NULL) {
-		syslog(LOG_ERR, "cannot allocate memory for %s address",
-		    nconf->nc_netid);
-		if (res != NULL)
-			freeaddrinfo(res);
-		return 1;
-	}
-	memcpy(taddr.addr.buf, sa, addrlen);
+	       /*
+		* Bind to specific IPs if asked to
+		*/
+		checkbind = 1;
+		while (nhostsbak > 0) {
+			--nhostsbak;
+			/*
+			 * XXX - using RPC library internal functions.
+			 */
+			if ((fd = __rpc_nconf2fd(nconf)) < 0) {
+				syslog(LOG_ERR, "cannot create socket for %s", nconf->nc_netid);
+				return (1);
+			}
+			switch (hints.ai_family) {
+			case AF_INET:
+				if (inet_pton(AF_INET, hosts[nhostsbak], host_addr) == 1) {
+					hints.ai_flags &= AI_NUMERICHOST;
+				} else {
+					/*
+					 * Skip if we have a AF_INET6 adress
+					 */
+					if (inet_pton(AF_INET6, hosts[nhostsbak],
+					    host_addr) == 1)
+						continue;
+				}
+				break;
+			case AF_INET6:
+				if (inet_pton(AF_INET6, hosts[nhostsbak], host_addr) == 1) {
+					hints.ai_flags &= AI_NUMERICHOST;
+				} else {
+					/*
+					 * Skip if we have a AF_INET adress
+					 */
+					if (inet_pton(AF_INET, hosts[nhostsbak],
+					    host_addr) == 1)
+						continue;
+				}
+				if (setsockopt(fd, IPPROTO_IPV6,
+                                    IPV6_BINDV6ONLY, &on, sizeof on) < 0) {
+                                        syslog(LOG_ERR, "can't set v6-only binding for "
+                                            "udp6 socket: %m");
+					continue;
+				}
+				break;
+			default:
+				break;
+			}
+
+			/*
+			 * If no hosts were specified, just bind to INADDR_ANY
+			 */
+			if (strcmp("*", hosts[nhostsbak]) == 0)
+				hosts[nhostsbak] = NULL;
+
+			if ((aicode = getaddrinfo(hosts[nhostsbak],
+			    servname, &hints, &res)) != 0) {
+				syslog(LOG_ERR, "cannot get local address for %s: %s",
+				    nconf->nc_netid, gai_strerror(aicode));
+				continue;
+			}
+			addrlen = res->ai_addrlen;
+			sa = (struct sockaddr *)res->ai_addr;
+			oldmask = umask(S_IXUSR|S_IXGRP|S_IXOTH);
+			if (bind(fd, sa, addrlen) != 0) {
+				syslog(LOG_ERR, "cannot bind %s on %s: %m",
+					hosts[nhostsbak], nconf->nc_netid);
+				if (res != NULL)
+					freeaddrinfo(res);
+				continue;
+			} else
+				checkbind++;
+			(void) umask(oldmask);
+
+			/* Copy the address */
+			taddr.addr.len = taddr.addr.maxlen = addrlen;
+			taddr.addr.buf = malloc(addrlen);
+			if (taddr.addr.buf == NULL) {
+				syslog(LOG_ERR, "cannot allocate memory for %s address",
+				    nconf->nc_netid);
+				if (res != NULL)
+					freeaddrinfo(res);
+				return 1;
+			}
+			memcpy(taddr.addr.buf, sa, addrlen);
 #ifdef ND_DEBUG
-	if (debugging) {
-		/* for debugging print out our universal address */
-		char *uaddr;
-		struct netbuf nb;
+			if (debugging) {
+				/* for debugging print out our universal address */
+				char *uaddr;
+				struct netbuf nb;
 
-		nb.buf = sa;
-		nb.len = nb.maxlen = sa->sa_len;
-		uaddr = taddr2uaddr(nconf, &nb);
-		(void) fprintf(stderr, "rpcbind : my address is %s\n", uaddr);
-		(void) free(uaddr);
-	}
+				nb.buf = sa;
+				nb.len = nb.maxlen = sa->sa_len;
+				uaddr = taddr2uaddr(nconf, &nb);
+				(void) fprintf(stderr, "rpcbind : my address is %s\n", uaddr);
+				(void) free(uaddr);
+			}
 #endif
 
-	if (res != NULL)
-		freeaddrinfo(res);
+			if (nconf->nc_semantics != NC_TPI_CLTS)
+				listen(fd, SOMAXCONN);
 
-	if (nconf->nc_semantics != NC_TPI_CLTS)
-		listen(fd, SOMAXCONN);
+			my_xprt = (SVCXPRT *)svc_tli_create(fd, nconf, &taddr, 0, 0);
+			if (my_xprt == (SVCXPRT *)NULL) {
+				syslog(LOG_ERR, "%s: could not create service",
+					nconf->nc_netid);
+				goto error;
+			}
+		}
+		if (!checkbind)
+			return 1;
+	} else {
+		if (strcmp(nconf->nc_netid, "unix") != 0) {
+			if ((aicode = getaddrinfo(NULL, servname, &hints, &res)) != 0) {
+				syslog(LOG_ERR, "cannot get local address for %s: %s",
+				    nconf->nc_netid, gai_strerror(aicode));
+				return 1;
+			}
+			addrlen = res->ai_addrlen;
+			sa = (struct sockaddr *)res->ai_addr;
+		}
+		oldmask = umask(S_IXUSR|S_IXGRP|S_IXOTH);
+		if (bind(fd, sa, addrlen) < 0) {
+			syslog(LOG_ERR, "cannot bind %s: %m", nconf->nc_netid);
+			if (res != NULL)
+				freeaddrinfo(res);
+			return 1;
+		}
+		(void) umask(oldmask);
 
-	my_xprt = (SVCXPRT *)svc_tli_create(fd, nconf, &taddr, 0, 0);
-	if (my_xprt == (SVCXPRT *)NULL) {
-		syslog(LOG_ERR, "%s: could not create service",
-				nconf->nc_netid);
-		goto error;
+		/* Copy the address */
+		taddr.addr.len = taddr.addr.maxlen = addrlen;
+		taddr.addr.buf = malloc(addrlen);
+		if (taddr.addr.buf == NULL) {
+			syslog(LOG_ERR, "cannot allocate memory for %s address",
+			    nconf->nc_netid);
+			if (res != NULL)
+				freeaddrinfo(res);
+			return 1;
+		}
+		memcpy(taddr.addr.buf, sa, addrlen);
+#ifdef ND_DEBUG
+		if (debugging) {
+			/* for debugging print out our universal address */
+			char *uaddr;
+			struct netbuf nb;
+
+			nb.buf = sa;
+			nb.len = nb.maxlen = sa->sa_len;
+			uaddr = taddr2uaddr(nconf, &nb);
+			(void) fprintf(stderr, "rpcbind : my address is %s\n", uaddr);
+			(void) free(uaddr);
+		}
+#endif
+
+		if (nconf->nc_semantics != NC_TPI_CLTS)
+			listen(fd, SOMAXCONN);
+
+		my_xprt = (SVCXPRT *)svc_tli_create(fd, nconf, &taddr, 0, 0);
+		if (my_xprt == (SVCXPRT *)NULL) {
+			syslog(LOG_ERR, "%s: could not create service",
+					nconf->nc_netid);
+			goto error;
+		}
 	}
 
 #ifdef PORTMAP
@@ -513,7 +653,7 @@ parseargs(int argc, char *argv[])
 {
 	int c;
 
-	while ((c = getopt(argc, argv, "dwailLs")) != -1) {
+	while ((c = getopt(argc, argv, "dwah:ilLs")) != -1) {
 		switch (c) {
 		case 'a':
 			doabort = 1;	/* when debugging, do an abort on */
@@ -521,6 +661,15 @@ parseargs(int argc, char *argv[])
 					/* only! */
 		case 'd':
 			debugging = 1;
+			break;
+		case 'h':
+			++nhosts;
+			hosts = realloc(hosts, nhosts * sizeof(char *));
+			if (hosts == NULL)
+				errx(1, "Out of memory");
+			hosts[nhosts - 1] = strdup(optarg);
+			if (hosts[nhosts - 1] == NULL)
+				errx(1, "Out of memory");
 			break;
 		case 'i':
 			insecure = 1;

@@ -72,6 +72,29 @@ will not fork when it starts, will print additional information
 during operation, and will abort on certain errors.
 With this option, the name-to-address translation consistency
 checks are shown in detail.
+.It Fl h
+Specify specific IP addresses to bind to for UDP requests.
+This option
+may be specified multiple times and is typically necessary when running
+on a multi-homed host.
+If no
+.Fl h
+option is specified,
+.Nm
+will bind to
+.Dv INADDR_ANY ,
+which could lead to problems on a multi-homed host due to
+.Nm
+returning a UDP packet from a different IP address than it was
+sent to.
+Note that when specifying IP addresses with
+.Fl h ,
+.Nm
+will automatically add
+.Li 127.0.0.1
+and if IPv6 is enabled,
+.Li ::1
+to the list.
 .It Fl i
 .Dq Insecure
 mode.
