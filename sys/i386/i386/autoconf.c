@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.130 1999/08/06 20:29:46 phk Exp $
+ *	$Id: autoconf.c,v 1.131 1999/08/09 10:34:40 phk Exp $
  */
 
 /*
@@ -158,7 +158,7 @@ find_cdrom_root()
 			if (try_cdrom[j].major >= NUMCDEVSW)
 				continue;
 			rootdev = makebdev(try_cdrom[j].major, i * 8);
-			bd = bdevsw(rootdev);
+			bd = devsw(rootdev);
 			if (bd == NULL || bd->d_open == NULL)
 				continue;
 			if (bootverbose)
@@ -396,7 +396,7 @@ setroot()
 	}
 	majdev = B_TYPE(bootdev);
 	dev = makebdev(majdev, 0);
-	if (bdevsw(dev) == NULL) {
+	if (devsw(dev) == NULL) {
 		printf("No bdevsw (majdev=%d bootdev=%p)\n", majdev,
 		    (void *)bootdev);
 		setconf();
@@ -427,7 +427,7 @@ setroot()
 
 	newrootdev = makebdev(majdev, mindev);
 	rootdevs[0] = newrootdev;
-	sname = dsname(bdevsw(newrootdev)->d_name, unit, slice, part, partname);
+	sname = dsname(devsw(newrootdev)->d_name, unit, slice, part, partname);
 	rootdevnames[0] = malloc(strlen(sname) + 2, M_DEVBUF, M_NOWAIT);
 	sprintf(rootdevnames[0], "%s%s", sname, partname);
 
@@ -444,7 +444,7 @@ setroot()
 		return;
 	slice = COMPATIBILITY_SLICE;
 	rootdevs[1] = dkmodslice(newrootdev, slice);
-	sname = dsname(bdevsw(newrootdev)->d_name, unit, slice, part, partname);
+	sname = dsname(devsw(newrootdev)->d_name, unit, slice, part, partname);
 	rootdevnames[1] = malloc(strlen(sname) + 2, M_DEVBUF, M_NOWAIT);
 	sprintf(rootdevnames[1], "%s%s", sname, partname);
 }
@@ -477,8 +477,8 @@ setrootbyname(char *name)
 	*cp++ = '\0';
 	for (bd = 0; bd < NUMCDEVSW; bd++) {
 		dev = makebdev(bd, 0);
-		if (bdevsw(dev) != NULL &&
-		    strcmp(bdevsw(dev)->d_name, name) == 0)
+		if (devsw(dev) != NULL &&
+		    strcmp(devsw(dev)->d_name, name) == 0)
 			goto gotit;
 	}
 	return (2);
@@ -520,8 +520,8 @@ setconf()
 		printf("use one of:\n");
 		for (i = 0; i < NUMCDEVSW; i++) {
 			dev = makebdev(i, 0);
-			if (bdevsw(dev) != NULL)
-			    printf(" \"%s\"", bdevsw(dev)->d_name);
+			if (devsw(dev) != NULL)
+			    printf(" \"%s\"", devsw(dev)->d_name);
 		}
 		printf("\nfollowed by a unit number...\n");
 	}

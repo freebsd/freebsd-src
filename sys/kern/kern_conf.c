@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.54 1999/08/08 00:34:00 grog Exp $
+ * $Id: kern_conf.c,v 1.55 1999/08/08 18:42:47 phk Exp $
  */
 
 #include <sys/param.h>
@@ -78,12 +78,8 @@ chrtoblk(dev_t dev)
 struct cdevsw *
 devsw(dev_t dev)
 {       
-        return(cdevsw[major(dev)]);
-}
-
-struct cdevsw *
-bdevsw(dev_t dev)
-{
+	if (dev->si_devsw)
+		return (dev->si_devsw);
         return(cdevsw[major(dev)]);
 }
 
