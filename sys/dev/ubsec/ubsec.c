@@ -41,6 +41,7 @@
  */
 
 #define UBSEC_DEBUG
+#define UBSEC_NO_RNG
 
 /*
  * uBsec 5[56]01, 58xx hardware crypto accelerator
@@ -53,9 +54,6 @@
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/mbuf.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/stdint.h>
 #include <sys/sysctl.h>
 #include <sys/endian.h>
 
@@ -136,7 +134,7 @@ static	int ubsec_feed(struct ubsec_softc *);
 static	void ubsec_mcopy(struct mbuf *, struct mbuf *, int, int);
 static	void ubsec_callback2(struct ubsec_softc *, struct ubsec_q2 *);
 static	int ubsec_feed2(struct ubsec_softc *);
-static	void ubsec_rng(void *);
+/*static	void ubsec_rng(void *);*/
 static	int ubsec_dma_malloc(struct ubsec_softc *, bus_size_t,
 			     struct ubsec_dma_alloc *, int);
 static	void ubsec_dma_free(struct ubsec_softc *, struct ubsec_dma_alloc *);
@@ -234,8 +232,6 @@ ubsec_attach(device_t dev)
 	KASSERT(sc != NULL, ("ubsec_attach: null software carrier!"));
 	bzero(sc, sizeof (*sc));
 	sc->sc_dev = dev;
-
-	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), "crypto driver", MTX_DEF);
 
 	SIMPLEQ_INIT(&sc->sc_queue);
 	SIMPLEQ_INIT(&sc->sc_qchip);
@@ -428,8 +424,7 @@ ubsec_attach(device_t dev)
 			sc->sc_rnghz = hz / 100;
 		else
 			sc->sc_rnghz = 1;
-		/* NB: 1 means the callout runs w/o Giant locked */
-		callout_init(&sc->sc_rngto, 1);
+		callout_init(&sc->sc_rngto);
 		callout_reset(&sc->sc_rngto, sc->sc_rnghz, ubsec_rng, sc);
 skip_rng:
 	;
@@ -448,7 +443,6 @@ skip_rng:
 	}
 	return (0);
 bad:
-	mtx_destroy(&sc->sc_mtx);
 	return (ENXIO);
 }
 
@@ -459,10 +453,11 @@ static int
 ubsec_detach(device_t dev)
 {
 	struct ubsec_softc *sc = device_get_softc(dev);
+	int s;
 
 	KASSERT(sc != NULL, ("ubsec_detach: null software carrier"));
 
-	UBSEC_LOCK(sc);
+	s = splimp();
 
 	callout_stop(&sc->sc_rngto);
 
@@ -475,9 +470,7 @@ ubsec_detach(device_t dev)
 	bus_dma_tag_destroy(sc->sc_dmat);
 	bus_release_resource(dev, SYS_RES_MEMORY, BS_BAR, sc->sc_sr);
 
-	UBSEC_UNLOCK(sc);
-
-	mtx_destroy(&sc->sc_mtx);
+	splx(s);
 
 	return (0);
 }
@@ -536,12 +529,9 @@ ubsec_intr(void *arg)
 	struct ubsec_dma *dmap;
 	int npkts = 0, i;
 
-	UBSEC_LOCK(sc);
-
 	stat = READ_REG(sc, BS_STAT);
 	stat &= sc->sc_statmask;
 	if (stat == 0) {
-		UBSEC_UNLOCK(sc);
 		return;
 	}
 
@@ -645,8 +635,6 @@ ubsec_intr(void *arg)
 		sc->sc_needwakeup &= ~wakeup;
 		crypto_unblock(sc->sc_cid, wakeup);
 	}
-
-	UBSEC_UNLOCK(sc);
 }
 
 /*
@@ -935,7 +923,7 @@ static int
 ubsec_process(void *arg, struct cryptop *crp, int hint)
 {
 	struct ubsec_q *q = NULL;
-	int err = 0, i, j, nicealign;
+	int err = 0, i, j, s, nicealign;
 	struct ubsec_softc *sc = arg;
 	struct cryptodesc *crd1, *crd2, *maccrd, *enccrd;
 	int encoffset = 0, macoffset = 0, cpskip, cpoffset;
@@ -954,17 +942,17 @@ ubsec_process(void *arg, struct cryptop *crp, int hint)
 		return (EINVAL);
 	}
 
-	UBSEC_LOCK(sc);
+	s = splimp();
 
 	if (SIMPLEQ_EMPTY(&sc->sc_freequeue)) {
 		ubsecstats.hst_queuefull++;
 		sc->sc_needwakeup |= CRYPTO_SYMQ;
-		UBSEC_UNLOCK(sc);
+		splx(s);
 		return (ERESTART);
 	}
 	q = SIMPLEQ_FIRST(&sc->sc_freequeue);
 	SIMPLEQ_REMOVE_HEAD(&sc->sc_freequeue, q, q_next);
-	UBSEC_UNLOCK(sc);
+	splx(s);
 
 	dmap = q->q_dma; /* Save dma pointer */
 	bzero(q, sizeof(struct ubsec_q));
@@ -1429,14 +1417,14 @@ ubsec_process(void *arg, struct cryptop *crp, int hint)
 		    offsetof(struct ubsec_dmachunk, d_ctx),
 		    sizeof(struct ubsec_pktctx));
 
-	UBSEC_LOCK(sc);
+	s = splimp();
 	SIMPLEQ_INSERT_TAIL(&sc->sc_queue, q, q_next);
 	sc->sc_nqueue++;
 	ubsecstats.hst_ipackets++;
 	ubsecstats.hst_ibytes += dmap->d_alloc.dma_size;
 	if ((hint & CRYPTO_HINT_MORE) == 0 || sc->sc_nqueue >= ubsec_maxbatch)
 		ubsec_feed(sc);
-	UBSEC_UNLOCK(sc);
+	splx(s);
 	return (0);
 
 errout:
@@ -1453,9 +1441,9 @@ errout:
 			bus_dmamap_destroy(sc->sc_dmat, q->q_src_map);
 		}
 
-		UBSEC_LOCK(sc);
+		s = splimp();
 		SIMPLEQ_INSERT_TAIL(&sc->sc_freequeue, q, q_next);
-		UBSEC_UNLOCK(sc);
+		splx(s);
 	}
 	if (err != ERESTART) {
 		crp->crp_etype = err;
@@ -1703,10 +1691,11 @@ ubsec_rng(void *vsc)
 	struct ubsec_q2_rng *rng = &sc->sc_rng;
 	struct ubsec_mcr *mcr;
 	struct ubsec_ctx_rngbypass *ctx;
+	int s;
 
-	UBSEC_LOCK(sc);
+	s = splimp();
 	if (rng->rng_used) {
-		UBSEC_UNLOCK(sc);
+		splx(s);
 		return;
 	}
 	sc->sc_nqueue2++;
@@ -1737,7 +1726,7 @@ ubsec_rng(void *vsc)
 	rng->rng_used = 1;
 	ubsec_feed2(sc);
 	ubsecstats.hst_rng++;
-	UBSEC_UNLOCK(sc);
+	splx(s);
 
 	return;
 
@@ -1746,7 +1735,7 @@ out:
 	 * Something weird happened, generate our own call back.
 	 */
 	sc->sc_nqueue2--;
-	UBSEC_UNLOCK(sc);
+	splx(s);
 	callout_reset(&sc->sc_rngto, sc->sc_rnghz, ubsec_rng, sc);
 }
 #endif /* UBSEC_NO_RNG */
@@ -2041,7 +2030,7 @@ ubsec_kprocess_modexp_sw(struct ubsec_softc *sc, struct cryptkop *krp, int hint)
 	struct ubsec_mcr *mcr;
 	struct ubsec_ctx_modexp *ctx;
 	struct ubsec_pktbuf *epb;
-	int err = 0;
+	int s, err = 0;
 	u_int nbits, normbits, mbits, shiftbits, ebits;
 
 	me = (struct ubsec_q2_modexp *)malloc(sizeof *me, M_DEVBUF, M_NOWAIT);
@@ -2196,11 +2185,11 @@ ubsec_kprocess_modexp_sw(struct ubsec_softc *sc, struct cryptkop *krp, int hint)
 	bus_dmamap_sync(sc->sc_dmat, me->me_epb.dma_map, BUS_DMASYNC_PREWRITE);
 
 	/* Enqueue and we're done... */
-	UBSEC_LOCK(sc);
+	s = splimp();
 	SIMPLEQ_INSERT_TAIL(&sc->sc_queue2, &me->me_q, q_next);
 	ubsec_feed2(sc);
 	ubsecstats.hst_modexp++;
-	UBSEC_UNLOCK(sc);
+	splx(s);
 
 	return (0);
 
@@ -2243,7 +2232,7 @@ ubsec_kprocess_modexp_hw(struct ubsec_softc *sc, struct cryptkop *krp, int hint)
 	struct ubsec_mcr *mcr;
 	struct ubsec_ctx_modexp *ctx;
 	struct ubsec_pktbuf *epb;
-	int err = 0;
+	int s, err = 0;
 	u_int nbits, normbits, mbits, shiftbits, ebits;
 
 	me = (struct ubsec_q2_modexp *)malloc(sizeof *me, M_DEVBUF, M_NOWAIT);
@@ -2396,10 +2385,10 @@ ubsec_kprocess_modexp_hw(struct ubsec_softc *sc, struct cryptkop *krp, int hint)
 	bus_dmamap_sync(sc->sc_dmat, me->me_epb.dma_map, BUS_DMASYNC_PREWRITE);
 
 	/* Enqueue and we're done... */
-	UBSEC_LOCK(sc);
+	s = splimp();
 	SIMPLEQ_INSERT_TAIL(&sc->sc_queue2, &me->me_q, q_next);
 	ubsec_feed2(sc);
-	UBSEC_UNLOCK(sc);
+	splx(s);
 
 	return (0);
 
@@ -2438,7 +2427,7 @@ ubsec_kprocess_rsapriv(struct ubsec_softc *sc, struct cryptkop *krp, int hint)
 	struct ubsec_q2_rsapriv *rp = NULL;
 	struct ubsec_mcr *mcr;
 	struct ubsec_ctx_rsapriv *ctx;
-	int err = 0;
+	int s, err = 0;
 	u_int padlen, msglen;
 
 	msglen = ubsec_ksigbits(&krp->krp_param[UBS_RSAPRIV_PAR_P]);
@@ -2566,14 +2555,14 @@ ubsec_kprocess_rsapriv(struct ubsec_softc *sc, struct cryptkop *krp, int hint)
 
 #ifdef DIAGNOSTIC
 	if (rp->rpr_msgin.dma_paddr & 3 || rp->rpr_msgin.dma_size & 3) {
-		panic("%s: rsapriv: invalid msgin %x(0x%jx)",
+		panic("%s: rsapriv: invalid msgin %x(0x%x)",
 		    device_get_nameunit(sc->sc_dev),
-		    rp->rpr_msgin.dma_paddr, (uintmax_t)rp->rpr_msgin.dma_size);
+		    rp->rpr_msgin.dma_paddr, rp->rpr_msgin.dma_size);
 	}
 	if (rp->rpr_msgout.dma_paddr & 3 || rp->rpr_msgout.dma_size & 3) {
-		panic("%s: rsapriv: invalid msgout %x(0x%jx)",
+		panic("%s: rsapriv: invalid msgout %x(0x%x)",
 		    device_get_nameunit(sc->sc_dev),
-		    rp->rpr_msgout.dma_paddr, (uintmax_t)rp->rpr_msgout.dma_size);
+		    rp->rpr_msgout.dma_paddr, rp->rpr_msgout.dma_size);
 	}
 #endif
 
@@ -2592,11 +2581,11 @@ ubsec_kprocess_rsapriv(struct ubsec_softc *sc, struct cryptkop *krp, int hint)
 	    BUS_DMASYNC_PREREAD);
 
 	/* Enqueue and we're done... */
-	UBSEC_LOCK(sc);
+	s = splimp();
 	SIMPLEQ_INSERT_TAIL(&sc->sc_queue2, &rp->rpr_q, q_next);
 	ubsec_feed2(sc);
 	ubsecstats.hst_modexpcrt++;
-	UBSEC_UNLOCK(sc);
+	splx(s);
 	return (0);
 
 errout:
