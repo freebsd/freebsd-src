@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 2/3/94
-#	$Id: Makefile,v 1.19 1997/05/23 08:23:53 asami Exp $
+#	$Id: Makefile,v 1.16.2.3 1997/06/23 23:12:42 julian Exp $
 #
 # All library objects contain rcsid strings by default; they may be
 # excluded as a space-saving measure.  To produce a library that does
@@ -8,7 +8,7 @@
 # stubs, remove just -DSYSLIBC_RCS from CFLAGS.
 LIB=c
 SHLIB_MAJOR= 3
-SHLIB_MINOR= 0
+SHLIB_MINOR= 1
 CFLAGS+=-DLIBC_RCS -DSYSLIBC_RCS
 AINC=	-I${.CURDIR}/${MACHINE}
 CLEANFILES+=tags
