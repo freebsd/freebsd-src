@@ -134,6 +134,7 @@ ithread_update(struct ithd *ithd)
 
 	entropy = 0;
 	p->p_pri.pri_level = ih->ih_pri;
+	p->p_pri.pri_native = ih->ih_pri;
 	TAILQ_FOREACH(ih, &ithd->it_handlers, ih_next) {
 		if (strlen(p->p_comm) + strlen(ih->ih_name) + 1 <
 		    sizeof(p->p_comm)) {

@@ -426,8 +426,6 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 		p->p_blocked = m;
 		p->p_mtxname = m->mtx_description;
 		p->p_stat = SMTX;
-		if (p->p_pri.pri_native == PRI_MAX)
-			p->p_pri.pri_native = p->p_pri.pri_level;
 		propagate_priority(p);
 
 		if ((opts & MTX_QUIET) == 0)

@@ -306,7 +306,7 @@ proc0_init(void *dummy __unused)
 	p->p_nice = NZERO;
 	p->p_pri.pri_class = PRI_TIMESHARE;
 	p->p_pri.pri_level = PVM;
-	p->p_pri.pri_native = PRI_MAX;
+	p->p_pri.pri_native = PUSER;
 	p->p_pri.pri_user = PUSER;
 
 	p->p_peers = 0;
