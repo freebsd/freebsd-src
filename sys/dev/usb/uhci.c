@@ -161,7 +161,9 @@ struct uhci_pipe {
 Static LIST_HEAD(, uhci_intr_info) uhci_ii_free;
 
 Static void		uhci_busreset(uhci_softc_t *);
+#if 0
 Static void		uhci_reset(uhci_softc_t *);
+#endif
 Static usbd_status	uhci_run(uhci_softc_t *, int run);
 Static uhci_soft_td_t  *uhci_alloc_std(uhci_softc_t *);
 Static void		uhci_free_std(uhci_softc_t *, uhci_soft_td_t *);
@@ -1475,6 +1477,7 @@ uhci_poll(struct usbd_bus *bus)
 		uhci_intr(sc);
 }
 
+#if 0
 void
 uhci_reset(uhci_softc_t *sc)
 {
@@ -1489,6 +1492,7 @@ uhci_reset(uhci_softc_t *sc)
 		printf("%s: controller did not reset\n",
 		       USBDEVNAME(sc->sc_bus.bdev));
 }
+#endif
 
 usbd_status
 uhci_run(uhci_softc_t *sc, int run)
