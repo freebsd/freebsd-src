@@ -18,7 +18,7 @@ beforeinstall:
 	    ${.CURDIR}/vgrind.sh ${DESTDIR}/usr/bin/vgrind
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/vgrindefs.src \
 	    ${DESTDIR}/usr/share/misc/vgrindefs
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    vgrindefs.src.db ${DESTDIR}/usr/share/misc/vgrindefs.db
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/tmac.vgrind \
 	    ${DESTDIR}/usr/share/tmac

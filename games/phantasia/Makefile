@@ -16,14 +16,14 @@ setup: phantglobs.o setup.o monsters.asc ${LIBM}
 
 beforeinstall:
 	./setup -m ${.CURDIR}/monsters.asc
-	${INSTALL} -c -m 660 -o games -g bin gold ${DESTDIR}/var/games/phantasia
-	${INSTALL} -c -m 660 -o games -g bin lastdead ${DESTDIR}/var/games/phantasia
-	${INSTALL} -c -m 660 -o games -g bin mess ${DESTDIR}/var/games/phantasia
-	${INSTALL} -c -m 660 -o games -g bin monsters ${DESTDIR}/var/games/phantasia
-	${INSTALL} -c -m 660 -o games -g bin motd ${DESTDIR}/var/games/phantasia
-	${INSTALL} -c -m 660 -o games -g bin characs ${DESTDIR}/var/games/phantasia
-	${INSTALL} -c -m 660 -o games -g bin scoreboard ${DESTDIR}/var/games/phantasia
-	${INSTALL} -c -m 660 -o games -g bin void ${DESTDIR}/var/games/phantasia
+	${INSTALL} ${COPY} -m 660 -o games -g bin gold ${DESTDIR}/var/games/phantasia
+	${INSTALL} ${COPY} -m 660 -o games -g bin lastdead ${DESTDIR}/var/games/phantasia
+	${INSTALL} ${COPY} -m 660 -o games -g bin mess ${DESTDIR}/var/games/phantasia
+	${INSTALL} ${COPY} -m 660 -o games -g bin monsters ${DESTDIR}/var/games/phantasia
+	${INSTALL} ${COPY} -m 660 -o games -g bin motd ${DESTDIR}/var/games/phantasia
+	${INSTALL} ${COPY} -m 660 -o games -g bin characs ${DESTDIR}/var/games/phantasia
+	${INSTALL} ${COPY} -m 660 -o games -g bin scoreboard ${DESTDIR}/var/games/phantasia
+	${INSTALL} ${COPY} -m 660 -o games -g bin void ${DESTDIR}/var/games/phantasia
 
 # Make Phantasia map.  Change the map commands reflect your ${INSTALL}ation.
 # PLOTDEVICE is used for plotting the map.  Change as appropriate.

@@ -15,7 +15,7 @@ neqn:
 	sed -e 's/@g@/${g}/g' ${DIST_DIR}/neqn.sh > neqn
 
 afterinstall:	neqn
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} neqn \
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} neqn \
 		${DESTDIR}${BINDIR}
 
 beforedepend: eqn.cc
