@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_prot.c	8.6 (Berkeley) 1/21/94
- * $Id$
+ * $Id: kern_prot.c,v 1.23 1997/02/22 09:39:09 peter Exp $
  */
 
 /*
@@ -683,7 +683,7 @@ setlogin(p, uap, retval)
 	int *retval;
 {
 	int error;
-	char logintmp[sizeof(p->p_pgrp->pg_session->s_login)];
+	char logintmp[MAXLOGNAME];
 
 	if ((error = suser(p->p_ucred, &p->p_acflag)))
 		return (error);
@@ -693,6 +693,6 @@ setlogin(p, uap, retval)
 		error = EINVAL;
 	else if (!error)
 		(void) memcpy(p->p_pgrp->pg_session->s_login, logintmp,
-		    sizeof(p->p_pgrp->pg_session->s_login));
+		    sizeof(logintmp));
 	return (error);
 }
