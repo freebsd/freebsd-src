@@ -45,7 +45,7 @@
  *	pcvt_kbd.c	VT220 Driver Keyboard Interface Code
  *	----------------------------------------------------
  *
- *	Last Edit-Date: [Sun Mar 26 10:54:07 2000]
+ *	Last Edit-Date: [Wed Apr  5 18:16:52 2000]
  *
  * $FreeBSD$
  *
@@ -178,7 +178,7 @@ check_for_lost_intr(void *arg)
 		opri = spltty ();
 		(*kbdsw[kbd->kb_index]->lock)(kbd, FALSE);
 		if ((*kbdsw[kbd->kb_index]->check)(kbd))
-			pcrint (0);
+			pcvt_rint(0);
 		splx (opri);
 	}
 

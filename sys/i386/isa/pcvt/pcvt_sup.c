@@ -44,7 +44,7 @@
  *	pcvt_sup.c	VT220 Driver Support Routines
  *	---------------------------------------------
  *
- *	Last Edit-Date: [Fri Mar 31 10:23:04 2000]
+ *	Last Edit-Date: [Wed Apr  5 17:24:20 2000]
  *
  * $FreeBSD$
  *
@@ -1491,7 +1491,7 @@ vgapage(int n)
 
 	current_video_screen = n;	/* current screen no */
 
-	pcconsp = &pccons[n];		/* current tty */
+	pcvt_ttyp = &pcvt_tty[n];		/* current tty */
 
 	vsp = &vs[n];			/* current video state ptr */
 
@@ -1795,9 +1795,9 @@ pcvt_set_scrnsv_tmo(int timeout)
 }
 
 #if PCVT_GREENSAVER
-#define TSIDX		IO_VGA+0x04		/* timing sequencer idx */
-#define TSREG		IO_VGA+0x05		/* timing sequencer data */
-
+/*---------------------------------------------------------------------------*
+ *	switch monitor on/off
+ *---------------------------------------------------------------------------*/
 static void
 green_saver(int blank)
 {
@@ -1805,20 +1805,20 @@ green_saver(int blank)
 
 	if (blank)
 	{
-		outb(TSIDX, 0x01);
-		val = inb(TSREG);
-		outb(TSIDX, 0x01);
-		outb(TSREG, val | 0x20);
+		outb(TS_INDEX, 0x01);
+		val = inb(TS_DATA);
+		outb(TS_INDEX, 0x01);
+		outb(TS_DATA, val | 0x20);
 		outb(addr_6845, 0x17);
 		val = inb(addr_6845 + 1);
 		outb(addr_6845 + 1, val & ~0x80);
 	}
 	else
 	{
-		outb(TSIDX, 0x01);
-		val = inb(TSREG);
-		outb(TSIDX, 0x01);
-		outb(TSREG, val & 0xDF);
+		outb(TS_INDEX, 0x01);
+		val = inb(TS_DATA);
+		outb(TS_INDEX, 0x01);
+		outb(TS_DATA, val & 0xDF);
 		outb(addr_6845, 0x17);
 		val = inb(addr_6845 + 1);
 		outb(addr_6845 + 1, val | 0x80);
