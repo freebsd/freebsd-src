@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.182.2.12 1997/02/28 08:47:34 yokota Exp $
+ *  $Id: syscons.c,v 1.182.2.13 1997/02/28 14:28:53 bde Exp $
  */
 
 #include "sc.h"
@@ -167,6 +167,7 @@ static const int	nsccons = MAXCONS+2;
 #define WRAPHIST(scp, pointer, offset)\
     ((scp->history) + ((((pointer) - (scp->history)) + (scp->history_size)\
     + (offset)) % (scp->history_size)))
+#define ISSIGVALID(sig)	((sig) > 0 && (sig) < NSIG)
 
 /* prototypes */
 static int scattach(struct isa_device *dev);
@@ -758,7 +759,7 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	
 	switch (mouse->operation) {
 	case MOUSE_MODE:
-	    if (mouse->u.mode.signal > 0 && mouse->u.mode.signal < NSIG) {
+	    if (ISSIGVALID(mouse->u.mode.signal)) {
 		scp->mouse_signal = mouse->u.mode.signal;
 		scp->mouse_proc = p;
 		scp->mouse_pid = p->p_pid;
@@ -990,12 +991,21 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	return 0;
 
     case VT_SETMODE:    	/* set screen switcher mode */
-	bcopy(data, &scp->smode, sizeof(struct vt_mode));
-	if (scp->smode.mode == VT_PROCESS) {
-	    scp->proc = p;
-	    scp->pid = scp->proc->p_pid;
-	}
-	return 0;
+    {
+	struct vt_mode *mode;
+
+	mode = (struct vt_mode *)data;
+	if (ISSIGVALID(mode->relsig) && ISSIGVALID(mode->acqsig) &&
+	    ISSIGVALID(mode->frsig)) {
+	    bcopy(data, &scp->smode, sizeof(struct vt_mode));
+	    if (scp->smode.mode == VT_PROCESS) {
+		scp->proc = p;
+		scp->pid = scp->proc->p_pid;
+	    }
+	    return 0;
+	} else
+	    return EINVAL;
+    }
 
     case VT_GETMODE:    	/* get screen switcher mode */
 	bcopy(&scp->smode, data, sizeof(struct vt_mode));
