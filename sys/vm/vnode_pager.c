@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.4 1994/08/06 09:15:42 davidg Exp $
+ *	$Id: vnode_pager.c,v 1.5 1994/08/06 10:25:50 davidg Exp $
  */
 
 /*
@@ -520,7 +520,6 @@ void
 vnode_pager_iodone(bp)
 	struct buf *bp;
 {
-	int s = splbio();
 	bp->b_flags |= B_DONE;
 	wakeup((caddr_t) bp);
 	if( bp->b_flags & B_ASYNC) {
@@ -536,6 +535,10 @@ vnode_pager_iodone(bp)
 				bp->b_bufsize - bp->b_bcount);
 
 		npages = (bp->b_bufsize + PAGE_SIZE - 1) / PAGE_SIZE;
+/*
+		printf("bcount: %d, bufsize: %d, npages: %d\n",
+			bp->b_bcount, bp->b_bufsize, npages);
+*/
 		for( i = 0; i < npages; i++) {
 			m = PHYS_TO_VM_PAGE(pmap_kextract(paddr + i * PAGE_SIZE));
 			obj = m->object;
@@ -547,6 +550,7 @@ vnode_pager_iodone(bp)
 				panic("vnode_pager_iodone: page is gone!!!");
 			}
 		}
+		pmap_qremove( paddr, npages);
 		if( obj) {
 			--obj->paging_in_progress;
 			if( obj->paging_in_progress == 0)
@@ -555,11 +559,8 @@ vnode_pager_iodone(bp)
 			panic("vnode_pager_iodone: object is gone???");
 		}
 		HOLDRELE(bp->b_vp);
-		splx(s);
 		relpbuf(bp);
-		return;
 	}
-	splx(s);
 }
 
 /*
@@ -575,7 +576,6 @@ vnode_pager_input_smlfs(vnp, m)
 	vm_offset_t paging_offset;
 	struct vnode *dp, *vp;
 	struct buf *bp;
-	vm_offset_t mapsize;
 	vm_offset_t foff;
 	vm_offset_t kva;
 	int     fileaddr;
@@ -768,7 +768,6 @@ vnode_pager_input(vnp, m, count, reqpage)
 	vm_object_t object;
 	vm_offset_t paging_offset;
 	struct vnode *dp, *vp;
-	vm_offset_t mapsize;
 	int     bsize;
 
 	int     first, last;
@@ -797,7 +796,6 @@ vnode_pager_input(vnp, m, count, reqpage)
 	 * originally, we did not check for an error return value -- assuming
 	 * an fs always has a bmap entry point -- that assumption is wrong!!!
 	 */
-	mapsize = 0;
 	foff = m[reqpage]->offset + paging_offset;
 
 	/*
@@ -890,7 +888,7 @@ vnode_pager_input(vnp, m, count, reqpage)
 			 * unmap the page and free the kva
 			 */
 			pmap_qremove( kva, 1);
-			kmem_free_wakeup(pager_map, kva, mapsize);
+			kmem_free_wakeup(pager_map, kva, PAGE_SIZE);
 
 			/*
 			 * release the buffer back to the block subsystem
@@ -1087,7 +1085,6 @@ vnode_pager_input(vnp, m, count, reqpage)
 
 finishup:
 	for (i = 0; i < count; i++) {
-		pmap_clear_modify(VM_PAGE_TO_PHYS(m[i]));
 		m[i]->flags |= PG_CLEAN;
 		m[i]->flags &= ~PG_LAUNDRY;
 		if (i != reqpage) {
@@ -1189,7 +1186,6 @@ vnode_pager_output_smlfs(vnp, m)
 	vm_offset_t paging_offset;
 	struct vnode *dp, *vp;
 	struct buf *bp;
-	vm_offset_t mapsize;
 	vm_offset_t foff;
 	vm_offset_t kva;
 	int     fileaddr;
@@ -1286,7 +1282,6 @@ vnode_pager_output(vnp, m, count, rtvals)
 	vm_offset_t paging_offset;
 	struct vnode *dp, *vp;
 	struct buf *bp;
-	vm_offset_t mapsize;
 	vm_offset_t reqaddr;
 	int     bsize;
 	int     s;
