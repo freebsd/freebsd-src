@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)types.h	8.3 (Berkeley) 1/5/94
- * $Id: types.h,v 1.14 1998/07/10 02:27:15 bde Exp $
+ * $Id: types.h,v 1.15 1998/07/14 05:09:43 bde Exp $
  */
 
 #ifndef _MACHINE_TYPES_H_
@@ -52,33 +52,16 @@ typedef	__int64_t	vm_ooffset_t;
 typedef	unsigned int	vm_pindex_t;
 typedef	unsigned int	vm_size_t;
 
-/*
- * Basic integral types.  Omit the typedef if
- * not possible for a machine/compiler combination.
- */
-typedef	__signed char		   int8_t;
-typedef	unsigned char		 u_int8_t;
-typedef	short			  int16_t;
-typedef	unsigned short		u_int16_t;
-typedef	int			  int32_t;
-typedef	unsigned int		u_int32_t;
-typedef	__int64_t		  int64_t;
-typedef	__uint64_t		u_int64_t;
+typedef	__int32_t	register_t;
 
-typedef	int32_t			register_t;
-
-typedef int32_t			ufs_daddr_t;
 
 #ifdef KERNEL
 typedef	int		intfptr_t;
 typedef	unsigned int	uintfptr_t;
-typedef	int		intptr_t;
-typedef	unsigned int	uintptr_t;
-typedef	__uint64_t	uoff_t;
 #endif
 
 /* Interrupt mask (spl, xxx_imask, etc) */
-typedef u_int32_t		intrmask_t;
+typedef __uint32_t		intrmask_t;
 
 /* Interrupt handler function type. */
 typedef	void			inthand2_t __P((void *_cookie));

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)types.h	8.6 (Berkeley) 2/19/95
- * $Id: types.h,v 1.24 1998/02/24 02:11:39 bde Exp $
+ * $Id: types.h,v 1.25 1998/06/07 17:13:05 dfr Exp $
  */
 
 #ifndef _SYS_TYPES_H_
@@ -45,7 +45,7 @@
 #include <sys/cdefs.h>
 
 /* Machine type dependent parameters. */
-#include <machine/ansi.h>
+#include <sys/inttypes.h>		/* includes <machine/ansi.h> */
 #include <machine/types.h>
 
 #ifndef _POSIX_SOURCE
@@ -56,6 +56,11 @@ typedef	unsigned long	u_long;
 typedef	unsigned short	ushort;		/* Sys V compatibility */
 typedef	unsigned int	uint;		/* Sys V compatibility */
 #endif
+
+typedef __uint8_t	u_int8_t;
+typedef __uint16_t	u_int16_t;
+typedef __uint32_t	u_int32_t;
+typedef __uint64_t	u_int64_t;
 
 typedef	u_int64_t	u_quad_t;	/* quads */
 typedef	int64_t		quad_t;
@@ -79,10 +84,12 @@ typedef	int64_t		segsz_t;	/* segment size */
 typedef	int32_t		segsz_t;	/* segment size */
 #endif
 typedef	int32_t		swblk_t;	/* swap offset */
+typedef	int32_t		ufs_daddr_t;
 typedef	u_int32_t	uid_t;		/* user id */
 
 #ifdef KERNEL
 typedef	int		boolean_t;
+typedef	u_int64_t	uoff_t;
 typedef	struct vm_page	*vm_page_t;
 #endif
 
@@ -127,21 +134,6 @@ typedef	_BSD_TIME_T_	time_t;
 #ifdef	_BSD_TIMER_T_
 typedef	_BSD_TIMER_T_	timer_t;
 #undef	_BSD_TIMER_T_
-#endif
-
-#ifdef	_BSD_UINT8_T_
-typedef	_BSD_UINT8_T_	uint8_t;
-#undef	_BSD_UINT8_T_
-#endif
-
-#ifdef	_BSD_UINT16_T_
-typedef	_BSD_UINT16_T_	uint16_t;
-#undef	_BSD_UINT16_T_
-#endif
-
-#ifdef	_BSD_UINT32_T_
-typedef	_BSD_UINT32_T_	uint32_t;
-#undef	_BSD_UINT32_T_
 #endif
 
 #ifndef _POSIX_SOURCE
