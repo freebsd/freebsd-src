@@ -31,8 +31,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)pathnames.h	8.1 (Berkeley) 6/4/93
+ * $FreeBSD$
  */
 
 #include <paths.h>
 
 #define	_PATH_LOGIN	"/usr/bin/login"
+#define	_PATH_RLOGIN	"/usr/bin/rlogin"

@@ -17,13 +17,11 @@ LSDIR=	../../bin/ls
 SRCS+=	ls.c cmp.c print.c stat_flags.c util.c
 CFLAGS+=-DINTERNAL_LS -Dmain=ls_main -I${.CURDIR}/${LSDIR}
 
-.if exists(${DESTDIR}/usr/lib/libkrb.a) && defined(MAKE_KERBEROS4)
-.PATH:  ${.CURDIR}/../../lib/libpam/modules/pam_kerberosIV
-SRCS+=	klogin.c
-LDADD+=	-lkrb -ldes -lcom_err
-DPADD+= ${LIBKRB} ${LIBDES} ${LIBCOM_ERR}
-CFLAGS+=-DKERBEROS
-DISTRIBUTION=	krb
+.if defined(NOPAM)
+CFLAGS+=-DNOPAM
+.else
+DPADD+= ${LIBPAM}
+LDADD+= ${MINUSLPAM}
 .endif
 
 .include <bsd.prog.mk>

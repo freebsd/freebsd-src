@@ -80,26 +80,16 @@ static const char rcsid[] =
 #include <unistd.h>
 #include "pathnames.h"
 
+#ifndef NO_PAM
+#include <security/pam_appl.h>
+#include <security/pam_misc.h>
+#endif
+
 #ifndef TIOCPKT_WINDOW
 #define TIOCPKT_WINDOW 0x80
 #endif
 
-#ifdef	KERBEROS
-#include <des.h>
-#include <krb.h>
-#define	SECURE_MESSAGE "This rlogin session is using DES encryption for all transmissions.\r\n"
-
-AUTH_DAT	*kdata;
-KTEXT		ticket;
-u_char		auth_buf[sizeof(AUTH_DAT)];
-u_char		tick_buf[sizeof(KTEXT_ST)];
-Key_schedule	schedule;
-int		doencrypt, retval, use_kerberos, vacuous;
-
-#define		ARGSTR			"Dalnkvx"
-#else
-#define		ARGSTR			"Daln"
-#endif	/* KERBEROS */
+#define		ARGSTR			"Dalnx"
 
 char	*env[2];
 #define	NMAX 30
@@ -122,6 +112,10 @@ void	getstr __P((char *, int, char *));
 void	setup_term __P((int));
 int	do_krb_login __P((struct sockaddr_in *));
 void	usage __P((void));
+
+#ifndef NO_PAM
+extern int auth_pam __P((char *));
+#endif
 
 int
 main(argc, argv)
@@ -149,18 +143,10 @@ main(argc, argv)
 		case 'n':
 			keepalive = 0;
 			break;
-#ifdef KERBEROS
-		case 'k':
-			use_kerberos = 1;
-			break;
-		case 'v':
-			vacuous = 1;
-			break;
 #ifdef CRYPT
 		case 'x':
 			doencrypt = 1;
 			break;
-#endif
 #endif
 		case '?':
 		default:
@@ -170,12 +156,6 @@ main(argc, argv)
 	argc -= optind;
 	argv += optind;
 
-#ifdef	KERBEROS
-	if (use_kerberos && vacuous) {
-		usage();
-		fatal(STDERR_FILENO, "only one of -k and -v allowed", 0);
-	}
-#endif
 	fromlen = sizeof (from);
 	if (getpeername(0, (struct sockaddr *)&from, &fromlen) < 0) {
 		syslog(LOG_ERR,"Can't get peer name of remote host: %m");
@@ -219,27 +199,12 @@ doit(f, fromp)
 
 	if (c != 0)
 		exit(1);
-#ifdef	KERBEROS
-	if (vacuous)
-		fatal(f, "Remote host requires Kerberos authentication", 0);
-#endif
 
 	alarm(0);
 	fromp->sin_port = ntohs((u_short)fromp->sin_port);
 	realhostname(hostname, sizeof(hostname) - 1, &fromp->sin_addr);
 	hostname[sizeof(hostname) - 1] = '\0';
 
-#ifdef	KERBEROS
-	if (use_kerberos) {
-		retval = do_krb_login(fromp);
-		if (retval == 0)
-			authenticated++;
-		else if (retval > 0)
-			fatal(f, krb_err_txt[retval], 0);
-		write(f, &c, 1);
-		confirmed = 1;		/* we sent the null! */
-	} else
-#endif
 	{
 		if (fromp->sin_family != AF_INET ||
 		    fromp->sin_port >= IPPORT_RESERVED ||
@@ -283,14 +248,12 @@ doit(f, fromp)
 		write(f, "", 1);
 		confirmed = 1;		/* we sent the null! */
 	}
-#ifdef	KERBEROS
 #ifdef	CRYPT
 	if (doencrypt)
 		(void) des_enc_write(f,
 				     SECURE_MESSAGE,
 				     strlen(SECURE_MESSAGE),
 				     schedule, &kdata->session);
-#endif
 #endif
 	netf = f;
 
@@ -311,14 +274,6 @@ doit(f, fromp)
 			fatal(STDERR_FILENO, "invalid user", 0);
 		}
 		if (authenticated) {
-#ifdef	KERBEROS
-			if (use_kerberos && (pwd->pw_uid == 0))
-				syslog(LOG_INFO|LOG_AUTH,
-				    "ROOT Kerberos login from %s.%s@%s on %s\n",
-				    kdata->pname, kdata->pinst, kdata->prealm,
-				    hostname);
-#endif
-
 			execl(_PATH_LOGIN, "login", "-p",
 			    "-h", hostname, "-f", lusername, (char *)NULL);
 		} else
@@ -328,14 +283,12 @@ doit(f, fromp)
 		/*NOTREACHED*/
 	}
 #ifdef	CRYPT
-#ifdef	KERBEROS
 	/*
 	 * If encrypted, don't turn on NBIO or the des read/write
 	 * routines will croak.
 	 */
 
 	if (!doencrypt)
-#endif
 #endif
 		ioctl(f, FIONBIO, &on);
 	ioctl(master, FIONBIO, &on);
@@ -445,12 +398,10 @@ protocol(f, p)
 		}
 		if (FD_ISSET(f, &ibits)) {
 #ifdef	CRYPT
-#ifdef	KERBEROS
 			if (doencrypt)
 				fcc = des_enc_read(f, fibuf, sizeof(fibuf),
 					schedule, &kdata->session);
 			else
-#endif
 #endif
 				fcc = read(f, fibuf, sizeof(fibuf));
 			if (fcc < 0 && errno == EWOULDBLOCK)
@@ -499,9 +450,7 @@ protocol(f, p)
 			else if (pibuf[0] == 0) {
 				pbp++, pcc--;
 #ifdef	CRYPT
-#ifdef	KERBEROS
 				if (!doencrypt)
-#endif
 #endif
 					FD_SET(f, &obits);	/* try write */
 			} else {
@@ -514,12 +463,10 @@ protocol(f, p)
 		}
 		if ((FD_ISSET(f, &obits)) && pcc > 0) {
 #ifdef	CRYPT
-#ifdef	KERBEROS
 			if (doencrypt)
 				cc = des_enc_write(f, pbp, pcc,
 					schedule, &kdata->session);
 			else
-#endif
 #endif
 				cc = write(f, pbp, pcc);
 			if (cc < 0 && errno == EWOULDBLOCK) {
@@ -588,10 +535,26 @@ int
 do_rlogin(dest)
 	struct sockaddr_in *dest;
 {
+	int retval;
+
 	getstr(rusername, sizeof(rusername), "remuser too long");
 	getstr(lusername, sizeof(lusername), "locuser too long");
 	getstr(term+ENVSIZE, sizeof(term)-ENVSIZE, "Terminal type too long");
 
+#ifndef  NO_PAM
+	retval = auth_pam(lusername);
+ 
+	if (retval) {
+		if (retval == -1) {
+			syslog(LOG_ERR, "PAM authentication failed");
+		}  
+		else {
+			syslog(LOG_ERR,
+				"User %s failed PAM authentication", lusername);
+			exit(1);
+		}
+	}
+#endif
 	pwd = getpwnam(lusername);
 	if (pwd == NULL)
 		return (-1);
@@ -660,79 +623,8 @@ setup_term(fd)
 	environ = env;
 }
 
-#ifdef	KERBEROS
-#define	VERSION_SIZE	9
-
-/*
- * Do the remote kerberos login to the named host with the
- * given inet address
- *
- * Return 0 on valid authorization
- * Return -1 on valid authentication, no authorization
- * Return >0 for error conditions
- */
-int
-do_krb_login(dest)
-	struct sockaddr_in *dest;
-{
-	int rc;
-	char instance[INST_SZ], version[VERSION_SIZE];
-	long authopts = 0L;	/* !mutual */
-	struct sockaddr_in faddr;
-
-	kdata = (AUTH_DAT *) auth_buf;
-	ticket = (KTEXT) tick_buf;
-
-	instance[0] = '*';
-	instance[1] = '\0';
-
-#ifdef	CRYPT
-	if (doencrypt) {
-		rc = sizeof(faddr);
-		if (getsockname(0, (struct sockaddr *)&faddr, &rc))
-			return (-1);
-		authopts = KOPT_DO_MUTUAL;
-		rc = krb_recvauth(
-			authopts, 0,
-			ticket, "rcmd",
-			instance, dest, &faddr,
-			kdata, "", schedule, version);
-		 des_set_key(&kdata->session, schedule);
-
-	} else
-#endif
-		rc = krb_recvauth(
-			authopts, 0,
-			ticket, "rcmd",
-			instance, dest, (struct sockaddr_in *) 0,
-			kdata, "", NULL, version);
-
-	if (rc != KSUCCESS)
-		return (rc);
-
-	getstr(lusername, sizeof(lusername), "locuser");
-	/* get the "cmd" in the rcmd protocol */
-	getstr(term+ENVSIZE, sizeof(term)-ENVSIZE, "Terminal type");
-
-	pwd = getpwnam(lusername);
-	if (pwd == NULL)
-		return (-1);
-
-	/* returns nonzero for no access */
-	if (kuserok(kdata, lusername) != 0)
-		return (-1);
-
-	return (0);
-
-}
-#endif /* KERBEROS */
-
 void
 usage()
 {
-#ifdef KERBEROS
-	syslog(LOG_ERR, "usage: rlogind [-Daln] [-k | -v]");
-#else
-	syslog(LOG_ERR, "usage: rlogind [-Daln]");
-#endif
+	syslog(LOG_ERR, "usage: rlogind [-" ARGSTR "]");
 }
