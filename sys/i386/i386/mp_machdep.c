@@ -248,12 +248,17 @@ cpu_add(u_int apic_id, char boot_cpu)
 		cpu_info[apic_id].cpu_bsp = 1;
 	}
 	mp_ncpus++;
-	if (apic_id > mp_maxid)
-		mp_maxid = apic_id;
 	if (bootverbose)
 		printf("SMP: Added CPU %d (%s)\n", apic_id, boot_cpu ? "BSP" :
 		    "AP");
 	
+}
+
+void
+cpu_mp_setmaxid(void)
+{
+
+	mp_maxid = MAXCPU;
 }
 
 int
@@ -271,8 +276,6 @@ cpu_mp_probe(void)
 		 * the variables to represent a system with a single CPU
 		 * with an id of 0.
 		 */
-		KASSERT(mp_maxid == 0,
-		    ("%s: mp_ncpus is zero, but mp_maxid is not", __func__));
 		mp_ncpus = 1;
 		return (0);
 	}
@@ -283,14 +286,10 @@ cpu_mp_probe(void)
 		 * One CPU was found, so this must be a UP system with
 		 * an I/O APIC.
 		 */
-		mp_maxid = 0;
 		return (0);
 	}
 
 	/* At least two CPUs were found. */
-	KASSERT(mp_maxid >= mp_ncpus - 1,
-	    ("%s: counters out of sync: max %d, count %d", __func__, mp_maxid,
-	    mp_ncpus));
 	return (1);
 }
 

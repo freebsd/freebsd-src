@@ -132,9 +132,10 @@ ia64_ap_startup(void)
 	/* NOTREACHED */
 }
 
-int
-cpu_mp_probe()
+void
+cpu_mp_setmaxid(void)
 {
+
 	/*
 	 * Count the number of processors in the system by walking the ACPI
 	 * tables. Note that we record the actual number of processors, even
@@ -147,6 +148,11 @@ cpu_mp_probe()
 	 * VM initialization.
 	 */
 	mp_maxid = min(mp_ncpus, MAXCPU) - 1;
+}
+
+int
+cpu_mp_probe(void)
+{
 
 	/*
 	 * If there's only 1 processor, or we don't have a wake-up vector,
