@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_input.c,v 1.23 1997/12/05 05:36:58 dyson Exp $
+ *	$Id: db_input.c,v 1.24 1999/07/14 10:53:41 yokota Exp $
  */
 
 /*
@@ -33,8 +33,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-
-#include <machine/cons.h>
+#include <sys/cons.h>
 
 #include <ddb/ddb.h>
 #include <ddb/db_output.h>

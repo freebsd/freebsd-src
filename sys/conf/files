@@ -324,6 +324,7 @@ kern/sysv_shm.c		optional sysvshm
 kern/tty.c		standard
 kern/tty_compat.c	standard
 kern/tty_conf.c		standard
+kern/tty_cons.c		standard
 kern/tty_pty.c		optional pty
 kern/tty_snoop.c	optional snp
 kern/tty_subr.c		standard

@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_output.c,v 1.23 1998/06/07 17:09:37 dfr Exp $
+ *	$Id: db_output.c,v 1.24 1998/07/08 09:11:36 bde Exp $
  */
 
 /*
@@ -37,8 +37,8 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/cons.h>
 
-#include <machine/cons.h>
 #include <machine/stdarg.h>
 
 #include <ddb/ddb.h>

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.129 1999/07/17 20:47:49 phk Exp $
+ *	$Id: autoconf.c,v 1.130 1999/08/06 20:29:46 phk Exp $
  */
 
 /*
@@ -63,9 +63,9 @@
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/sysctl.h>
+#include <sys/cons.h>
 
 #include <machine/bootinfo.h>
-#include <machine/cons.h>
 #include <machine/ipl.h>
 #include <machine/md_var.h>
 #ifdef APIC_IO

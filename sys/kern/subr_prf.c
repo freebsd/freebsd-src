@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prf.c	8.3 (Berkeley) 1/21/94
- * $Id: subr_prf.c,v 1.58 1999/07/24 09:34:12 dfr Exp $
+ * $Id: subr_prf.c,v 1.59 1999/08/07 20:13:32 green Exp $
  */
 
 #include <sys/param.h>
@@ -48,7 +48,7 @@
 #include <sys/tty.h>
 #include <sys/tprintf.h>
 #include <sys/syslog.h>
-#include <machine/cons.h>
+#include <sys/cons.h>
 
 /*
  * Note that stdarg.h and the ANSI style va_start macro is used for both
