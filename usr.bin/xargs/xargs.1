@@ -52,7 +52,7 @@
 .Op Ar utility Op Ar arguments ...
 .Sh DESCRIPTION
 The
-.Nm xargs
+.Nm
 utility reads space, tab, newline and end-of-file delimited arguments
 from the standard input and executes the specified
 .Ar utility
@@ -82,7 +82,7 @@ The options are as follows:
 .Bl -tag -width indent
 .It Fl 0
 Changes
-.Nm xargs
+.Nm
 to expect NUL
 (``\\0'')
 characters as seperators, instead of spaces and newlines.
@@ -126,7 +126,7 @@ Echo the command to be executed to standard error immediately before it
 is executed.
 .It Fl x
 Force
-.Nm xargs
+.Nm
 to terminate immediately if a command line containing
 .Ar number
 arguments will not fit in the specified (or default) command line length.
@@ -143,7 +143,7 @@ Undefined behavior may occur if
 reads from the standard input.
 .Pp
 The
-.Nm xargs
+.Nm
 utility exits immediately (without processing any further input) if a
 command line cannot be assembled,
 .Ar utility
@@ -151,22 +151,22 @@ cannot be invoked, an invocation of the utility is terminated by a signal
 or an invocation of the utility exits with a value of 255.
 .Pp
 The
-.Nm xargs
+.Nm
 utility exits with a value of 0 if no error occurs.
 If
 .Ar utility
 cannot be invoked,
-.Nm xargs
+.Nm
 exits with a value of 127.
 If any other error occurs,
-.Nm xargs
+.Nm
 exits with a value of 1.
 .Sh SEE ALSO
 .Xr echo 1 ,
 .Xr find 1
 .Sh STANDARDS
 The
-.Nm xargs
+.Nm
 utility is expected to be
 .St -p1003.2
 compliant.
