@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kget.c,v 1.3 1999/02/12 20:36:09 abial Exp $
+ * $Id: kget.c,v 1.1 1999/02/27 02:24:18 jkh Exp $
  */
 
 #include <stdio.h>
@@ -115,8 +115,8 @@ main(int argc, char *argv[])
 	/* get the buffer size */
 	i=sysctlbyname(mib2,NULL,&len,NULL,NULL);
 	if(i) {
-		perror("buffer sizing");
-		exit(-1);
+		/* Hmm.. No PnP support? */
+		goto finish;
 	}
 	buf=(char *)malloc(len*sizeof(char));
 	i=sysctlbyname(mib2,buf,&len,NULL,NULL);
@@ -157,8 +157,9 @@ main(int argc, char *argv[])
     		}
 
 	} while ((i+=sizeof(struct pnp_cinfo))<len);
+	free(buf);
+finish:
 	fprintf(fout,"q\n");
 	fclose(fout);
-	free(buf);
 	exit(0);
 }
