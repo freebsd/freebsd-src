@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cp.c,v 1.2 1994/09/24 02:53:41 davidg Exp $
+ *	$Id: cp.c,v 1.3 1994/12/30 13:12:12 bde Exp $
  */
 
 #ifndef lint
@@ -370,7 +370,7 @@ copy(argv, type, fts_options)
 					err(1, "%s", to.p_path);
 			} else if (!S_ISDIR(to_stat.st_mode)) {
 				errno = ENOTDIR;
-				err(1, "%s: %s", to.p_path);
+				err(1, "%s", to.p_path);
 			}
 			/*
 			 * If not -p and directory didn't exist, set it to be
