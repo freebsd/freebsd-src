@@ -91,6 +91,7 @@
 #include <net/netisr.h>
 
 #include <machine/cpu.h>
+#include <machine/cputypes.h>
 #include <machine/reg.h>
 #include <machine/clock.h>
 #include <machine/specialreg.h>
