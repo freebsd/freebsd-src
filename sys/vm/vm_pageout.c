@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.144 1999/07/04 00:25:37 mckusick Exp $
+ * $Id: vm_pageout.c,v 1.145 1999/08/17 00:07:35 alc Exp $
  */
 
 /*
@@ -132,12 +132,10 @@ int vm_pages_needed=0;		/* Event on which pageout daemon sleeps */
 int vm_pageout_deficit=0;	/* Estimated number of pages deficit */
 int vm_pageout_pages_needed=0;	/* flag saying that the pageout daemon needs pages */
 
-extern int npendingio;
 #if !defined(NO_SWAPPING)
 static int vm_pageout_req_swapout;	/* XXX */
 static int vm_daemon_needed;
 #endif
-extern int nswiodone;
 extern int vm_swap_size;
 static int vm_pageout_stats_max=0, vm_pageout_stats_interval = 0;
 static int vm_pageout_full_stats_interval = 0;
