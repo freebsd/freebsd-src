@@ -1,7 +1,50 @@
 #       bsd.sgml.mk - 8 Sep 1995 John Fieber
 #       This file is in the public domain.
 #
-#	$Id: bsd.sgml.mk,v 1.3.2.1 1995/10/15 08:33:48 jkh Exp $
+#	$Id: bsd.sgml.mk,v 1.5 1996/05/27 23:12:15 wosch Exp $
+#
+# The include file <bsd.sgml.mk> handles installing sgml documents.
+# <bsd.prog.mk> includes the file named "../Makefile.inc" if it exists,
+# as well as the include file <bsd.obj.mk>.
+#
+#
+# +++ variables +++
+#
+# DISTRIBUTION	Name of distribution. [doc]
+#
+# FORMATS 	Indicates which output formats will be generated
+#		(ascii, html, latex, nroff). [ascii html]
+#
+# LPR		Printer command. [lpr]
+#
+# SGMLFLAGS	Flags to sgmlfmt. [${SGMLOPTS}]
+#
+# SGMLFMT	Format sgml files command. [sgmlfmt]
+#
+# Variables DOCOWN, DOCGRP, DOCMODE, DOCDIR, DESTDIR, DISTDIR are
+# set by other Makefiles (e.g. bsd.own.mk)
+#
+#
+# +++ targets +++
+#
+#	all:
+#		Converts sgml files to the specified output format
+#		(see ${FORMATS}).
+#
+#	distribute:
+# 		This is a variant of install, which will
+# 		put the stuff into the right "distribution".
+#
+#	install:
+#		Install formated output.
+#
+#	print:
+#		Print formated output.
+#
+#
+# bsd.obj.mk: clean, cleandir, obj
+#
+
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -17,9 +60,8 @@ SGMLFLAGS+=	${SGMLOPTS}
 
 VOLUME?=	${.CURDIR:T}
 DOC?=		${.CURDIR:T}
-BINDIR?=	/usr/share/doc
 SRCDIR?=	${.CURDIR}
-DISTRIBUTION?=	bin
+DISTRIBUTION?=	doc
 SGMLFMT?=	sgmlfmt
 LPR?=		lpr
 
@@ -33,42 +75,7 @@ all:	${DOCS}
 ${DOC}. install- print- clean-:
 .endif
 
-.if !target(obj)
-.if defined(NOOBJ)
-obj:
-.else
-obj:
-	@cd ${.CURDIR}; rm -f obj; \
-	here=`pwd`; dest=/usr/obj`echo $$here | sed 's,^/usr/src,,'`; \
-	${ECHO} "$$here -> $$dest"; ln -s $$dest obj; \
-	if test -d /usr/obj -a ! -d $$dest; then \
-		mkdir -p $$dest; \
-	else \
-		true; \
-	fi;
-.endif
-.endif
-
-clean: ${FORMATS:S/^/clean-/g}
-	rm -f [eE]rrs mklog
-
-cleandir: clean
-	cd ${.CURDIR}; rm -rf obj
-
 install:	beforeinstall realinstall afterinstall
-
-.if !target(beforeinstall)
-beforeinstall:
-
-.endif
-.if !target(afterinstall)
-afterinstall:
-
-.endif
-.if !target(maninstall)
-maninstall:
-
-.endif
 
 realinstall: ${FORMATS:S/^/install-/g}
 
@@ -85,12 +92,6 @@ spell: ${SRCS}
 distribute:
 	cd ${.CURDIR} ; $(MAKE) install DESTDIR=${DISTDIR}/${DISTRIBUTION} SHARED=copies
 .endif
-
-.if !target(depend)
-depend:
-
-.endif
-
 
 # For each FORMATS type, define a build, install, clean and print target.
 # Note that there is special case handling for html targets
@@ -118,34 +119,37 @@ print-${_FORMAT}: ${DOC}.${_FORMAT}
 
 .if !target(install-${_FORMAT})
 .if ${_FORMAT} == "html"
-install-${_FORMAT}: ${DOC}.${_FORMAT}
-	${INSTALL} ${COPY} -o ${MANOWN} -g ${MANGRP} -m ${MANMODE} \
-		*.${.TARGET:S/install-//} ${DESTDIR}${BINDIR}/${VOLUME}
+install-${_FORMAT}:
+	${INSTALL} ${COPY} -o ${DOCOWN} -g ${DOCGRP} -m ${DOCMODE} \
+		*.${.TARGET:S/install-//} ${DESTDIR}${DOCDIR}/${VOLUME}
 
 .else
-install-${_FORMAT}: ${DOC}.${_FORMAT}
-	${INSTALL} ${COPY} -o ${MANOWN} -g ${MANGRP} -m ${MANMODE} \
-		${DOC}.${.TARGET:S/install-//} ${DESTDIR}${BINDIR}/${VOLUME}
+install-${_FORMAT}:
+	${INSTALL} ${COPY} -o ${DOCOWN} -g ${DOCGRP} -m ${DOCMODE} \
+		${DOC}.${.TARGET:S/install-//} ${DESTDIR}${DOCDIR}/${VOLUME}
 
 .endif
 .endif
 
 .if !target(${DOC}.${_FORMAT})
-${DOC}.${_FORMAT}:	${SRCS}
+${DOC}.${_FORMAT}: ${SRCS}
 	${SGMLFMT} -f ${.TARGET:S/${DOC}.//} ${SGMLFLAGS} ${.CURDIR}/${DOC}.sgml
 
 .endif
 
-.if !target(clean-${_FORMAT})
 .if ${_FORMAT} == "html"
-clean-${_FORMAT}:
-	rm -f *.${.TARGET:S/clean-//}
-
+CLEANFILES+= *.html
 .else
-clean-${_FORMAT}: 
-	rm -f ${DOC}.${.TARGET:S/clean-//}
-
-.endif
+CLEANFILES+= ${DOC}.${_FORMAT}
 .endif
 
 .endfor
+
+
+.for __target in beforeinstall afterinstall maninstall depend _SUBDIRUSE
+.if !target(__target)
+${__target}:
+.endif
+.endfor
+
+.include <bsd.obj.mk>
