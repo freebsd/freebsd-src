@@ -29,22 +29,6 @@
 #define COPYRIGHT_FILE	"/COPYRIGHT"
 #define README_FILE	"/README"
 
-#define STATUSFILE "sysinstall.stat"
-#define NOT_INSTALLED 0
-#define DISK_READY 1
-#define INSTALLED_BASE 2
-
-struct sysinstall
-{
-	char media[90];
-	int status;
-	char seq_name[64];
-	int seq_size;
-	int seq_no;
-	char archive[64];
-	char root_dev[90];
-};
-
 #ifndef EXTERN
 #  define EXTERN extern
 #endif
@@ -62,12 +46,14 @@ extern struct disklabel *avail_disklabels;
 extern u_short dkcksum(struct disklabel *);
 
 /* utils.c */
+void Abort __P((void));
+void ExitSysinstall __P((void));
 void	TellEm __P((char *fmt, ...));
 void	stage0	__P((void));
 void	*Malloc __P((size_t size));
 char	*StrAlloc __P((char *str));
 void	Fatal __P((char *fmt, ...));
-int	AskAbort __P((char *fmt, ...));
+void	AskAbort __P((char *fmt, ...));
 void	MountUfs __P((char *device, char *prefix, char *mountpoint, int do_mkdir));
 void	Mkdir __P((char *path));
 

@@ -26,10 +26,7 @@
 #include <sys/disklabel.h>
 #include <sys/ioctl.h>
 #include <sys/param.h>
-#include <sys/mount.h>
-#include <sys/reboot.h>
 #include <sys/stat.h>
-#include <sys/wait.h>
 #include <ufs/ffs/fs.h>
 #include <machine/console.h>
 
@@ -49,7 +46,8 @@ struct mbr *mbr;
 int no_disks = 0;
 int inst_disk = 0;
 int inst_part = 0;
-int custom_install;
+int whole_disk = 0;
+int custom_install = 0;
 int dialog_active = 0;
 
 void exit_sysinstall();
@@ -57,8 +55,9 @@ void exit_prompt();
 extern char *part_type(int);
 extern int disk_size(int);
 
-/* To make the binary as small as possible these should be malloc'd */
 char selection[30];
+char boot1[] = BOOT1;
+char boot2[] = BOOT2;
 
 int
 alloc_memory()
@@ -184,7 +183,8 @@ select_disk()
 		}
 
 		if (dialog_menu("FreeBSD Installation", scratch, 10, 75, 5, no_disks, options, selection)) {
-			sprintf(scratch,"You did not select a valid disk");
+			dialog_clear();
+			sprintf(scratch,"\n\n\nYou did not select a valid disk.\n\n");
 			AskAbort(scratch);
 			valid = 0;
 		}
@@ -216,18 +216,24 @@ select_partition(int disk)
 		if (dialog_menu(TITLE,
 			 scratch, 10, 75, 5, 5, options, selection)) {
 			sprintf(scratch,"You did not select a valid partition");
+			dialog_clear();
 			AskAbort(scratch);
 			valid = 0;
 		}
 		dialog_clear();
-		choice = atoi(selection);
-		if (!choice)
-			if (dialog_yesno(TITLE, "Installing to the whole disk will erase all its present data.\n\nAre you sure you want to do this?", 10, 75))
+		choice = atoi(selection) - 1;
+		if (choice == -1) {
+			whole_disk = 1;
+			choice = 0;
+			if (dialog_yesno(TITLE, "\n\nInstalling to the whole disk will erase all its current data.\n\nAre you sure you want to do this?", 10, 75)) {
 				valid = 0;
+				whole_disk = 0;
+			}
+		}
 		dialog_clear();
 	} while (!valid);
 	
-	return(atoi(selection) - 1);
+	return(choice);
 }
 
 void
@@ -237,31 +243,31 @@ stage1()
 	int ok = 0;
 	int ready = 0;
 
+	query_disks();
+
 	while (!ready) {
 		ready = 1;
 
-		query_disks();
 		inst_disk = select_disk();
 
-#ifdef DEBUG
-		read_mbr(avail_fds[inst_disk], mbr);
-		show_mbr(mbr);
-#endif
-
 		if (read_mbr(avail_fds[inst_disk], mbr) == -1) {
-			sprintf(scratch, "The following error occured will trying to read the master boot record:\n\n%s\n\nIn order to install FreeBSD a new master boot record will have to be written which will mean all current data on the hard disk will be lost.", errmsg);
+			sprintf(scratch, "The following error occured will trying\nto read the master boot record:\n\n%s\nIn order to install FreeBSD a new master boot record\nwill have to be written which will mean all current\ndata on the hard disk will be lost.", errmsg);
 			ok = 0;
 			while (!ok) {	
 				AskAbort(scratch);
 				if (!dialog_yesno(TITLE, "Are you sure you wish to proceed?",
 									  10, 75)) {
 					dialog_clear();
-					clear_mbr(mbr);
+					if (clear_mbr(mbr, boot1) == -1) {
+						sprintf(scratch, "\n\nCouldn't create new master boot record.\n\n%s", errmsg);
+						Fatal(scratch);;
+					}
 					ok = 1;
 				}
+				dialog_clear();
 			}
 		}
-	
+
 		if (custom_install) 
 			if (!dialog_yesno(TITLE, "Do you wish to edit the DOS partition table?",
 								  10, 75)) {
@@ -269,33 +275,42 @@ stage1()
 				edit_mbr(mbr, &avail_disklabels[inst_disk]);
 			}
 
+		dialog_clear();
 		inst_part = select_partition(inst_disk);
 
 		ok = 0;
 		while (!ok) {
-			if (build_mbr(mbr, &avail_disklabels[inst_disk]))
+			if (build_mbr(mbr, boot1, &avail_disklabels[inst_disk]) != -1) {
+				ready = 1;
 				ok = 1;
-			else {
-				sprintf(scratch, "The DOS partition table is inconsistent.\n\n%s\n\nDo you wish to edit it by hand?", errmsg);
+			} else {
+				sprintf(scratch, "The DOS partition table is inconsistent.\n\n%s\nDo you wish to edit it by hand?", errmsg);
 				if (!dialog_yesno(TITLE, scratch, 10, 75)) {
-					edit_mbr(mbr, &avail_disklabels[inst_disk]);
 					dialog_clear();
+					edit_mbr(mbr, &avail_disklabels[inst_disk]);
 				} else {
-					AskAbort("");
+					dialog_clear();
+					AskAbort("Installation cannot proceed without\na valid master boot record\n");
 					ok = 1;
 					ready = 0;
 				}
 			}
+			dialog_clear();
 		}
 
-		default_disklabel(&avail_disklabels[inst_disk],
+		if (ready) {
+			default_disklabel(&avail_disklabels[inst_disk],
 								mbr->dospart[inst_part].dp_size,
 								mbr->dospart[inst_part].dp_start);
-		build_bootblocks(&avail_disklabels[inst_disk]);
+			if (build_bootblocks(&avail_disklabels[inst_disk]) == -1)
+				Fatal(errmsg);
+		}
 
+		/* ready could have been reset above */
 		if (ready) {
 			if (dialog_yesno(TITLE, "We are now ready to format the hard disk for FreeBSD.\n\nSome or all of the disk will be overwritten during this process.\n\nAre you sure you wish to proceed ?", 10, 75)) {
-				AskAbort("");
+				dialog_clear();
+				AskAbort("Do you want to quit?");
 				ready = 0;
 			}
 			dialog_clear();
@@ -303,15 +318,12 @@ stage1()
 	}
 
 	/* Write master boot record and bootblocks */
-	write_mbr(avail_fds[inst_disk], mbr);
-	write_bootblocks(avail_fds[inst_disk],
+	if (write_mbr(avail_fds[inst_disk], mbr) == -1)
+		Fatal(errmsg);
+	if (write_bootblocks(avail_fds[inst_disk],
 						  mbr->dospart[inst_part].dp_start,
-						  avail_disklabels[inst_disk].d_bbsize);
-
-#ifdef DEBUG
-	read_mbr(avail_fds[inst_disk], mbr);
-	show_mbr(mbr);
-#endif
+						  avail_disklabels[inst_disk].d_bbsize) == -1)
+		Fatal(errmsg);
 
 	/* close all the open disks */
 	for (i=0; i < no_disks; i++)
@@ -320,6 +332,4 @@ stage1()
 					  strerror(errno));
 			Fatal(errmsg);
 		}
-
 }
-
