@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)net.c	8.4 (Berkeley) 4/28/95";
 #else
 static const char rcsid[] =
-	"$Id$";
+	"$Id: net.c,v 1.8 1997/07/02 06:34:50 charnier Exp $";
 #endif
 #endif /* not lint */
 
@@ -112,7 +112,7 @@ netfinger(name)
 	msg.msg_iovlen = 0;
 	msg.msg_control = 0;
 	msg.msg_controllen = 0;
-	msg.msg_flags = MSG_EOF;
+	msg.msg_flags = 0;
 
 	/* -l flag for remote fingerd  */
 	if (lflag) {
@@ -131,7 +131,7 @@ netfinger(name)
 		return;
 	}
 
-	if (sendmsg(s, &msg, MSG_EOF) < 0) {
+	if (sendmsg(s, &msg, 0) < 0) {
 		perror("finger: sendmsg");
 		close(s);
 		return;
