@@ -85,8 +85,8 @@ returns
 .Dv -1 ,
 sets iocbp to
 .Dv NULL
-and
-.Dv errno
+and sets
+.Va errno
 to indicate the error condition.
 .Sh ERRORS
 The
@@ -117,7 +117,7 @@ completed.
 .Xr aio_write 2 ,
 .Xr fsync 2 ,
 .Xr read 2 ,
-.Xr write 2 .
+.Xr write 2
 .Sh STANDARDS
 The
 .Fn aio_waitcomplete
