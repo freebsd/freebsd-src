@@ -158,6 +158,7 @@ dev/ata/atapi-fd.c		optional	atapifd
 dev/ata/atapi-tape.c		optional	atapist
 dev/dec/mcclock.c		optional	mcclock
 dev/dec/mcclock_if.m		optional	mcclock
+dev/ed/if_ed_isa.c		optional	ed isa
 dev/fb/fb.c			optional	fb
 dev/fb/fb.c			optional	vga
 dev/fb/splash.c			count		splash

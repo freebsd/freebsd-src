@@ -95,9 +95,7 @@ dev/ata/atapi-all.c		count		atapist
 dev/ata/atapi-cd.c		optional	atapicd
 dev/ata/atapi-fd.c		optional	atapifd
 dev/ata/atapi-tape.c		optional	atapist
-dev/ed/if_ed.c			optional	ed
 dev/ed/if_ed_cbus.c		optional	ed isa
-dev/ed/if_ed_pccard.c		optional	ed card
 dev/eisa/eisaconf.c		count		eisa
 dev/fb/fb.c			optional	fb
 dev/fb/fb.c			optional	gdc
