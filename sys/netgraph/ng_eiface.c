@@ -419,10 +419,9 @@ ng_eiface_constructor(node_p node)
 	int error = 0;
 
 	/* Allocate node and interface private structures */
-	MALLOC(priv, priv_p, sizeof(*priv), M_NETGRAPH, M_WAITOK);
+	MALLOC(priv, priv_p, sizeof(*priv), M_NETGRAPH, M_NOWAIT | M_ZERO);
 	if (priv == NULL)
 		return (ENOMEM);
-	bzero(priv, sizeof(*priv));
 
 	ifp = &(priv->arpcom.ac_if);
 
