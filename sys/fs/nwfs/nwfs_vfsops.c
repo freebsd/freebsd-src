@@ -169,7 +169,7 @@ static int nwfs_mount(struct mount *mp, char *path, caddr_t data,
 		nwfs_printf("mount version mismatch: kernel=%d, mount=%d\n",NWFS_VERSION,args.version);
 		return (1);
 	}
-	error = ncp_conn_getbyref(args.connRef, td , td->td_proc->p_ucred,NCPM_EXECUTE,&conn);
+	error = ncp_conn_getbyref(args.connRef, td , td->td_ucred,NCPM_EXECUTE,&conn);
 	if (error) {
 		nwfs_printf("invalid connection refernce %d\n",args.connRef);
 		return (error);
@@ -249,7 +249,7 @@ nwfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 		return (error);
 	conn = NWFSTOCONN(nmp);
 	ncp_conn_puthandle(nmp->connh,NULL,0);
-	if (ncp_conn_lock(conn, td, td->td_proc->p_ucred,NCPM_WRITE | NCPM_EXECUTE) == 0) {
+	if (ncp_conn_lock(conn, td, td->td_ucred,NCPM_WRITE | NCPM_EXECUTE) == 0) {
 		if(ncp_conn_free(conn))
 			ncp_conn_unlock(conn, td);
 	}
@@ -270,7 +270,7 @@ nwfs_root(struct mount *mp, struct vnode **vpp) {
 	struct ncp_conn *conn;
 	struct nw_entry_info fattr;
 	struct thread *td = curthread;
-	struct ucred *cred =  td->td_proc->p_ucred;
+	struct ucred *cred =  td->td_ucred;
 	int error, nsf, opt;
 	u_char vol;
 
@@ -431,7 +431,7 @@ nwfs_statfs(mp, sbp, td)
 
 	if (np == NULL) return EINVAL;
 	error = ncp_get_volume_info_with_number(NWFSTOCONN(nmp),
-	    nmp->n_volume, &vi, td, td->td_proc->p_ucred);
+	    nmp->n_volume, &vi, td, td->td_ucred);
 	if (error) return error;
 	secsize = 512;			/* XXX how to get real value ??? */
 	sbp->f_spare2=0;		/* placeholder */

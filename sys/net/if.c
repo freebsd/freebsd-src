@@ -1532,8 +1532,8 @@ ifconf(cmd, data)
 
 			if (space < sizeof(ifr))
 				break;
-			if (jailed(curproc->p_ucred) &&
-			    prison_if(curproc->p_ucred, sa))
+			if (jailed(curthread->td_ucred) &&
+			    prison_if(curthread->td_ucred, sa))
 				continue;
 			addrs++;
 #ifdef COMPAT_43

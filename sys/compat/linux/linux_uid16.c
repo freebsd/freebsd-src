@@ -152,7 +152,7 @@ linux_getgroups16(struct thread *td, struct linux_getgroups16_args *args)
 		printf(ARGS(getgroups16, "%d, *"), args->gidsetsize);
 #endif
 
-	cred = td->td_proc->p_ucred;
+	cred = td->td_ucred;
 	bsd_gidset = cred->cr_groups;
 	bsd_gidsetsz = cred->cr_ngroups - 1;
 
@@ -200,7 +200,7 @@ int
 linux_getgid16(struct thread *td, struct linux_getgid16_args *args)
 {
 
-	td->td_retval[0] = td->td_proc->p_ucred->cr_rgid;
+	td->td_retval[0] = td->td_ucred->cr_rgid;
 	return (0);
 }
 
@@ -208,7 +208,7 @@ int
 linux_getuid16(struct thread *td, struct linux_getuid16_args *args)
 {
 
-	td->td_retval[0] = td->td_proc->p_ucred->cr_ruid;
+	td->td_retval[0] = td->td_ucred->cr_ruid;
 	return (0);
 }
 

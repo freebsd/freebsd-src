@@ -476,7 +476,7 @@ __semctl(td, uap)
 	int cmd = uap->cmd;
 	union semun *arg = uap->arg;
 	union semun real_arg;
-	struct ucred *cred = td->td_proc->p_ucred;
+	struct ucred *cred = td->td_ucred;
 	int i, rval, error;
 	struct semid_ds sbuf;
 	register struct semid_ds *semaptr;

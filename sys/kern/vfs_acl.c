@@ -579,9 +579,9 @@ vacl_set_acl(struct thread *td, struct vnode *vp, acl_type_t type,
 	error = vn_start_write(vp, &mp, V_WAIT | PCATCH);
 	if (error != 0)
 		return (error);
-	VOP_LEASE(vp, td, td->td_proc->p_ucred, LEASE_WRITE);
+	VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-	error = VOP_SETACL(vp, type, &inkernacl, td->td_proc->p_ucred, td);
+	error = VOP_SETACL(vp, type, &inkernacl, td->td_ucred, td);
 	VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(mp);
 	return(error);
@@ -597,9 +597,9 @@ vacl_get_acl(struct thread *td, struct vnode *vp, acl_type_t type,
 	struct acl inkernelacl;
 	int error;
 
-	VOP_LEASE(vp, td, td->td_proc->p_ucred, LEASE_WRITE);
+	VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-	error = VOP_GETACL(vp, type, &inkernelacl, td->td_proc->p_ucred, td);
+	error = VOP_GETACL(vp, type, &inkernelacl, td->td_ucred, td);
 	VOP_UNLOCK(vp, 0, td);
 	if (error == 0)
 		error = copyout(&inkernelacl, aclp, sizeof(struct acl));
@@ -618,10 +618,9 @@ vacl_delete(struct thread *td, struct vnode *vp, acl_type_t type)
 	error = vn_start_write(vp, &mp, V_WAIT | PCATCH);
 	if (error)
 		return (error);
-	VOP_LEASE(vp, td, td->td_proc->p_ucred, LEASE_WRITE);
+	VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-	error = VOP_SETACL(vp, ACL_TYPE_DEFAULT, 0, td->td_proc->p_ucred,
-	    td);
+	error = VOP_SETACL(vp, ACL_TYPE_DEFAULT, 0, td->td_ucred, td);
 	VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(mp);
 	return (error);
@@ -640,8 +639,7 @@ vacl_aclcheck(struct thread *td, struct vnode *vp, acl_type_t type,
 	error = copyin(aclp, &inkernelacl, sizeof(struct acl));
 	if (error)
 		return(error);
-	error = VOP_ACLCHECK(vp, type, &inkernelacl, td->td_proc->p_ucred,
-	    td);
+	error = VOP_ACLCHECK(vp, type, &inkernelacl, td->td_ucred, td);
 	return (error);
 }
 

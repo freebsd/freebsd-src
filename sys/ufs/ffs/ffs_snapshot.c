@@ -207,7 +207,7 @@ restart:
 	 */
 	for (blkno = NDADDR; blkno < numblks; blkno += NINDIR(fs)) {
 		error = UFS_BALLOC(vp, lblktosize(fs, (off_t)blkno),
-		    fs->fs_bsize, td->td_proc->p_ucred, B_METAONLY, &ibp);
+		    fs->fs_bsize, td->td_ucred, B_METAONLY, &ibp);
 		if (error)
 			goto out;
 		bdwrite(ibp);

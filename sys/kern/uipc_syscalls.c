@@ -133,7 +133,7 @@ socket(td, uap)
 		goto done2;
 	fhold(fp);
 	error = socreate(uap->domain, &so, uap->type, uap->protocol,
-	    td->td_proc->p_ucred, td);
+	    td->td_ucred, td);
 	FILEDESC_LOCK(fdp);
 	if (error) {
 		if (fdp->fd_ofiles[fd] == fp) {
@@ -490,11 +490,11 @@ socketpair(td, uap)
 
 	mtx_lock(&Giant);
 	error = socreate(uap->domain, &so1, uap->type, uap->protocol,
-	    td->td_proc->p_ucred, td);
+	    td->td_ucred, td);
 	if (error)
 		goto done2;
 	error = socreate(uap->domain, &so2, uap->type, uap->protocol,
-	    td->td_proc->p_ucred, td);
+	    td->td_ucred, td);
 	if (error)
 		goto free1;
 	error = falloc(td, &fp1, &fd);
@@ -1804,7 +1804,7 @@ retry_lookup:
 			auio.uio_td = td;
 			vn_lock(vp, LK_SHARED | LK_NOPAUSE | LK_RETRY, td);
 			error = VOP_READ(vp, &auio, IO_VMIO | ((MAXBSIZE / bsize) << 16),
-			        td->td_proc->p_ucred);
+			        td->td_ucred);
 			VOP_UNLOCK(vp, 0, td);
 			vm_page_flag_clear(pg, PG_ZERO);
 			vm_page_io_finish(pg);

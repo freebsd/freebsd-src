@@ -407,8 +407,8 @@ nwfs_getpages(ap)
 	vm_page_t *pages;
 
 	vp = ap->a_vp;
-	td = curthread;				/* XXX */
-	cred = curproc->p_ucred;		/* XXX */
+	td = curthread;			/* XXX */
+	cred = td->td_ucred;		/* XXX */
 	np = VTONW(vp);
 	nmp = VFSTONWFS(vp->v_mount);
 	pages = ap->a_m;
@@ -517,7 +517,7 @@ nwfs_putpages(ap)
 
 #ifndef NWFS_RWCACHE
 	td = curthread;			/* XXX */
-	cred = td->td_proc->p_ucred;		/* XXX */
+	cred = td->td_ucred;		/* XXX */
 	VOP_OPEN(vp, FWRITE, cred, td);
 	error = vop_stdputpages(ap);
 	VOP_CLOSE(vp, FWRITE, cred, td);
@@ -534,7 +534,7 @@ nwfs_putpages(ap)
 	vm_page_t *pages;
 
 	td = curthread;			/* XXX */
-	cred = td->td_proc->p_ucred;		/* XXX */
+	cred = td->td_ucred;		/* XXX */
 /*	VOP_OPEN(vp, FWRITE, cred, td);*/
 	np = VTONW(vp);
 	nmp = VFSTONWFS(vp->v_mount);

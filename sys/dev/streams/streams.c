@@ -265,7 +265,7 @@ streamsopen(dev_t dev, int oflags, int devtype, struct thread *td)
 	  return error;
 
 	if ((error = socreate(family, &so, type, protocol,
-	    td->td_proc->p_ucred, td)) != 0) {
+	    td->td_ucred, td)) != 0) {
 	  FILEDESC_LOCK(p->p_fd);
 	  p->p_fd->fd_ofiles[fd] = 0;
 	  FILEDESC_UNLOCK(p->p_fd);

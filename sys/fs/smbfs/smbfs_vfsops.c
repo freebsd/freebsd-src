@@ -166,7 +166,7 @@ smbfs_mount(struct mount *mp, char *path, caddr_t data,
 		    SMBFS_VERSION, args.version);
 		return EINVAL;
 	}
-	smb_makescred(&scred, td, td->td_proc->p_ucred);
+	smb_makescred(&scred, td, td->td_ucred);
 	error = smb_dev2share(args.dev, SMBM_EXEC, &scred, &ssp);
 	if (error) {
 		printf("invalid device handle %d (%d)\n", args.dev, error);
@@ -267,7 +267,7 @@ smbfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 	error = vflush(mp, 1, flags);
 	if (error)
 		return error;
-	smb_makescred(&scred, td, td->td_proc->p_ucred);
+	smb_makescred(&scred, td, td->td_ucred);
 	smb_share_put(smp->sm_share, &scred);
 	mp->mnt_data = (qaddr_t)0;
 
@@ -294,7 +294,7 @@ smbfs_root(struct mount *mp, struct vnode **vpp)
 	struct smbnode *np;
 	struct smbfattr fattr;
 	struct thread *td = curthread;
-	struct ucred *cred = td->td_proc->p_ucred;
+	struct ucred *cred = td->td_ucred;
 	struct smb_cred scred;
 	int error;
 
@@ -399,7 +399,7 @@ smbfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
 	
 	sbp->f_iosize = SSTOVC(ssp)->vc_txmax;		/* optimal transfer block size */
 	sbp->f_spare2 = 0;			/* placeholder */
-	smb_makescred(&scred, td, td->td_proc->p_ucred);
+	smb_makescred(&scred, td, td->td_ucred);
 
 	if (SMB_DIALECT(SSTOVC(ssp)) >= SMB_DIALECT_LANMAN2_0)
 		error = smbfs_smb_statfs2(ssp, sbp, &scred);

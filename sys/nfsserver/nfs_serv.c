@@ -1966,7 +1966,7 @@ nfsrv_mknod(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		nd.ni_cnd.cn_nameiop = LOOKUP;
 		nd.ni_cnd.cn_flags &= ~(LOCKPARENT);
 		nd.ni_cnd.cn_thread = td;
-		nd.ni_cnd.cn_cred = td->td_proc->p_ucred;
+		nd.ni_cnd.cn_cred = td->td_ucred;
 
 		error = lookup(&nd);
 		nd.ni_dvp = NULL;

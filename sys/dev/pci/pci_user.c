@@ -91,7 +91,7 @@ pci_open(dev_t dev, int oflags, int devtype, struct thread *td)
 	int error;
 
 	if (oflags & FWRITE) {
-		error = securelevel_gt(td->td_proc->p_ucred, 0);
+		error = securelevel_gt(td->td_ucred, 0);
 		if (error)
 			return (error);
 	}

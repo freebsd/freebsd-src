@@ -60,7 +60,7 @@ smb_makescred(struct smb_cred *scred, struct thread *td, struct ucred *cred)
 {
 	if (td) {
 		scred->scr_td = td;
-		scred->scr_cred = cred ? cred : td->td_proc->p_ucred;
+		scred->scr_cred = cred ? cred : td->td_ucred;
 	} else {
 		scred->scr_td = NULL;
 		scred->scr_cred = cred ? cred : NULL;

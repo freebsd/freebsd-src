@@ -253,13 +253,13 @@ nfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
 		return (error);
 	vp = NFSTOV(np);
 	if (v3 && (nmp->nm_state & NFSSTA_GOTFSINFO) == 0)
-		(void)nfs_fsinfo(nmp, vp, td->td_proc->p_ucred, td);
+		(void)nfs_fsinfo(nmp, vp, td->td_ucred, td);
 	nfsstats.rpccnt[NFSPROC_FSSTAT]++;
 	mreq = nfsm_reqhead(vp, NFSPROC_FSSTAT, NFSX_FH(v3));
 	mb = mreq;
 	bpos = mtod(mb, caddr_t);
 	nfsm_fhtom(vp, v3);
-	nfsm_request(vp, NFSPROC_FSSTAT, td, td->td_proc->p_ucred);
+	nfsm_request(vp, NFSPROC_FSSTAT, td, td->td_ucred);
 	if (v3)
 		nfsm_postop_attr(vp, retattr);
 	if (error) {
@@ -420,7 +420,7 @@ nfs_mountroot(struct mount *mp, struct thread *td)
 	 * talk to the server.
 	 */
 	error = socreate(nd->myif.ifra_addr.sa_family, &so, SOCK_DGRAM, 0,
-	    td->td_proc->p_ucred, td);
+	    td->td_ucred, td);
 	if (error)
 		panic("nfs_mountroot: socreate(%04x): %d",
 			nd->myif.ifra_addr.sa_family, error);
@@ -559,7 +559,7 @@ nfs_mountdiskless(char *path, char *which, int mountflag,
 	mp->mnt_flag = mountflag;
 	nam = dup_sockaddr((struct sockaddr *)sin, 1);
 	if ((error = mountnfs(args, mp, nam, which, path, vpp,
-	    td->td_proc->p_ucred)) != 0) {
+	    td->td_ucred)) != 0) {
 		printf("nfs_mountroot: mount %s on %s: %d", path, which, error);
 		mp->mnt_vfc->vfc_refcount--;
 		vfs_unbusy(mp, td);
@@ -787,7 +787,7 @@ nfs_mount(struct mount *mp, char *path, caddr_t data, struct nameidata *ndp,
 	if (error)
 		return (error);
 	args.fh = nfh;
-	error = mountnfs(&args, mp, nam, path, hst, &vp, td->td_proc->p_ucred);
+	error = mountnfs(&args, mp, nam, path, hst, &vp, td->td_ucred);
 	return (error);
 }
 
@@ -884,7 +884,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	 * Get file attributes for the mountpoint.  This has the side
 	 * effect of filling in (*vpp)->v_type with the correct value.
 	 */
-	VOP_GETATTR(*vpp, &attrs, curthread->td_proc->p_ucred, curthread);
+	VOP_GETATTR(*vpp, &attrs, curthread->td_ucred, curthread);
 
 	/*
 	 * Lose the lock but keep the ref.

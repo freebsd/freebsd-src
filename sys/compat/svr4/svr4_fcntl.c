@@ -260,10 +260,10 @@ fd_revoke(td, fd)
 		goto out;
 	}
 
-	if ((error = VOP_GETATTR(vp, &vattr, td->td_proc->p_ucred, td)) != 0)
+	if ((error = VOP_GETATTR(vp, &vattr, td->td_ucred, td)) != 0)
 		goto out;
 
-	if (td->td_proc->p_ucred->cr_uid != vattr.va_uid &&
+	if (td->td_ucred->cr_uid != vattr.va_uid &&
 	    (error = suser_td(td)) != 0)
 		goto out;
 
@@ -306,7 +306,7 @@ fd_truncate(td, fd, flp)
 		return ESPIPE;
 	}
 
-	if ((error = VOP_GETATTR(vp, &vattr, td->td_proc->p_ucred, td)) != 0) {
+	if ((error = VOP_GETATTR(vp, &vattr, td->td_ucred, td)) != 0) {
 		fdrop(fp, td);
 		return error;
 	}

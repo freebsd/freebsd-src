@@ -833,7 +833,7 @@ smb_sysctl_treedump(SYSCTL_HANDLER_ARGS)
 	struct smb_share_info ssi;
 	int error, itype;
 
-	smb_makescred(&scred, td, td->td_proc->p_ucred);
+	smb_makescred(&scred, td, td->td_ucred);
 	error = smb_sm_lockvclist(LK_SHARED, td);
 	if (error)
 		return error;

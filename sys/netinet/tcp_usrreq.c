@@ -330,8 +330,8 @@ tcp_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		goto out;
 	}
 
-	if (td && jailed(td->td_proc->p_ucred))
-		prison_remote_ip(td->td_proc->p_ucred, 0, &sinp->sin_addr.s_addr);
+	if (td && jailed(td->td_ucred))
+		prison_remote_ip(td->td_ucred, 0, &sinp->sin_addr.s_addr);
 
 	if ((error = tcp_connect(tp, nam, td)) != 0)
 		goto out;

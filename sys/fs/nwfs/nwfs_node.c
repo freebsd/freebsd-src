@@ -287,7 +287,7 @@ nwfs_inactive(ap)
 	} */ *ap;
 {
 	struct thread *td = ap->a_td;
-	struct ucred *cred = td->td_proc->p_ucred;
+	struct ucred *cred = td->td_ucred;
 	struct vnode *vp = ap->a_vp;
 	struct nwnode *np = VTONW(vp);
 	int error;

@@ -1940,7 +1940,7 @@ ip_fw_ctl(struct sockopt *sopt)
 	 */
 	if (sopt->sopt_name == IP_FW_ADD ||
 	    (sopt->sopt_dir == SOPT_SET && sopt->sopt_name != IP_FW_RESETLOG)) {
-		error = securelevel_ge(sopt->sopt_td->td_proc->p_ucred, 3);
+		error = securelevel_ge(sopt->sopt_td->td_ucred, 3);
 		if (error)
 			return (error);
 	}

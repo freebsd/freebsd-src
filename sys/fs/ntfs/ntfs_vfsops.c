@@ -294,7 +294,7 @@ ntfs_mountfs(devvp, mp, argsp, td)
 	if (ncount > 1 && devvp != rootvp)
 		return (EBUSY);
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
-	error = vinvalbuf(devvp, V_SAVE, td->td_proc->p_ucred, td, 0, 0);
+	error = vinvalbuf(devvp, V_SAVE, td->td_ucred, td, 0, 0);
 	VOP_UNLOCK(devvp, 0, td);
 	if (error)
 		return (error);

@@ -210,7 +210,7 @@ cttypoll(dev, events, td)
 	if (ttyvp == NULL)
 		/* try operation to get EOF/failure */
 		return (seltrue(dev, events, td));
-	return (VOP_POLL(ttyvp, events, td->td_proc->p_ucred, td));
+	return (VOP_POLL(ttyvp, events, td->td_ucred, td));
 }
 
 static void ctty_clone __P((void *arg, char *name, int namelen, dev_t *dev));

@@ -177,7 +177,7 @@ spec_open(ap)
 		 * When running in secure mode, do not allow opens
 		 * for writing if the disk is mounted.
 		 */
-		error = securelevel_ge(td->td_proc->p_ucred, 1);
+		error = securelevel_ge(td->td_ucred, 1);
 		if (error && vfs_mountedon(vp))
 			return (error);
 
@@ -185,7 +185,7 @@ spec_open(ap)
 		 * When running in very secure mode, do not allow
 		 * opens for writing of any disks.
 		 */
-		error = securelevel_ge(td->td_proc->p_ucred, 2);
+		error = securelevel_ge(td->td_ucred, 2);
 		if (error)
 			return (error);
 	}
@@ -729,8 +729,8 @@ spec_getpages(ap)
 	/* B_PHYS is not set, but it is nice to fill this in. */
 	KASSERT(bp->b_rcred == NOCRED, ("leaking read ucred"));
 	KASSERT(bp->b_wcred == NOCRED, ("leaking write ucred"));
-	bp->b_rcred = crhold(curthread->td_proc->p_ucred);
-	bp->b_wcred = crhold(curthread->td_proc->p_ucred);
+	bp->b_rcred = crhold(curthread->td_ucred);
+	bp->b_wcred = crhold(curthread->td_ucred);
 	bp->b_blkno = blkno;
 	bp->b_lblkno = blkno;
 	pbgetvp(ap->a_vp, bp);

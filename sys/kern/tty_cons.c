@@ -360,7 +360,7 @@ cn_devopen(struct cn_device *cnd, struct thread *td, int forceopen)
 			return ((*devsw(dev)->d_open)(dev, openflag, 0, td));
 		}
 		cnd->cnd_vp = NULL;
-		vn_close(vp, openflag, td->td_proc->p_ucred, td);
+		vn_close(vp, openflag, td->td_ucred, td);
 	}
 	if (cnd->cnd_name[0] == '\0')
 		strncpy(cnd->cnd_name, devtoname(cnd->cnd_cn->cn_dev),
@@ -374,7 +374,7 @@ cn_devopen(struct cn_device *cnd, struct thread *td, int forceopen)
 		if (nd.ni_vp->v_type == VCHR)
 			cnd->cnd_vp = nd.ni_vp;
 		else
-			vn_close(nd.ni_vp, openflag, td->td_proc->p_ucred, td);
+			vn_close(nd.ni_vp, openflag, td->td_ucred, td);
 	}
 	return (cnd->cnd_vp != NULL);
 }
@@ -403,7 +403,7 @@ cnclose(dev_t dev, int flag, int mode, struct thread *td)
 		if ((vp = cnd->cnd_vp) == NULL)
 			continue; 
 		cnd->cnd_vp = NULL;
-		vn_close(vp, openflag, td->td_proc->p_ucred, td);
+		vn_close(vp, openflag, td->td_ucred, td);
 	}
 	cn_is_open = 0;
 	return (0);

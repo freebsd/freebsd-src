@@ -371,7 +371,7 @@ passopen(dev_t dev, int flags, int fmt, struct thread *td)
 	/*
 	 * Don't allow access when we're running at a high securelevel.
 	 */
-	error = securelevel_gt(td->td_proc->p_ucred, 1);
+	error = securelevel_gt(td->td_ucred, 1);
 	if (error) {
 		splx(s);
 		return(error);

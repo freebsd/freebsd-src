@@ -256,7 +256,7 @@ aout_coredump(td, vp, limit)
 	off_t limit;
 {
 	struct proc *p = td->td_proc;
-	register struct ucred *cred = p->p_ucred;
+	register struct ucred *cred = td->td_ucred;
 	register struct vmspace *vm = p->p_vmspace;
 	int error;
 

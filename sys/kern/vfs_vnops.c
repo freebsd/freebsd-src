@@ -83,7 +83,7 @@ vn_open(ndp, flagp, cmode)
 {
 	struct thread *td = ndp->ni_cnd.cn_thread;
 
-	return (vn_open_cred(ndp, flagp, cmode, td->td_proc->p_ucred));
+	return (vn_open_cred(ndp, flagp, cmode, td->td_ucred));
 }
 
 /*
@@ -511,7 +511,7 @@ vn_stat(vp, sb, td)
 	u_short mode;
 
 	vap = &vattr;
-	error = VOP_GETATTR(vp, vap, td->td_proc->p_ucred, td);
+	error = VOP_GETATTR(vp, vap, td->td_ucred, td);
 	if (error)
 		return (error);
 
@@ -594,7 +594,7 @@ vn_stat(vp, sb, td)
 	}
 	
 	sb->st_flags = vap->va_flags;
-	if (suser_xxx(td->td_proc->p_ucred, 0, 0))
+	if (suser_xxx(td->td_ucred, 0, 0))
 		sb->st_gen = 0;
 	else
 		sb->st_gen = vap->va_gen;
@@ -629,7 +629,7 @@ vn_ioctl(fp, com, data, td)
 	case VDIR:
 		if (com == FIONREAD) {
 			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-			error = VOP_GETATTR(vp, &vattr, td->td_proc->p_ucred, td);
+			error = VOP_GETATTR(vp, &vattr, td->td_ucred, td);
 			VOP_UNLOCK(vp, 0, td);
 			if (error)
 				return (error);
@@ -653,7 +653,7 @@ vn_ioctl(fp, com, data, td)
 			*(int *)data = devsw(vp->v_rdev)->d_flags & D_TYPEMASK;
 			return (0);
 		}
-		error = VOP_IOCTL(vp, com, data, fp->f_flag, td->td_proc->p_ucred, td);
+		error = VOP_IOCTL(vp, com, data, fp->f_flag, td->td_ucred, td);
 		if (error == 0 && com == TIOCSCTTY) {
 
 			/* Do nothing if reassigning same control tty */
@@ -872,7 +872,7 @@ vfs_write_suspend(mp)
 	mp->mnt_kern_flag |= MNTK_SUSPEND;
 	if (mp->mnt_writeopcount > 0)
 		(void) tsleep(&mp->mnt_writeopcount, PUSER - 1, "suspwt", 0);
-	VFS_SYNC(mp, MNT_WAIT, td->td_proc->p_ucred, td);
+	VFS_SYNC(mp, MNT_WAIT, td->td_ucred, td);
 	mp->mnt_kern_flag |= MNTK_SUSPENDED;
 }
 
