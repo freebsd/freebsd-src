@@ -401,3 +401,6 @@ netsmb/smb_smb.c		optional	netsmb
 netsmb/smb_subr.c		optional	netsmb
 netsmb/smb_trantcp.c		optional	netsmb
 netsmb/smb_usr.c		optional	netsmb
+dev/em/if_em.c			optional	em
+dev/em/if_em_fxhw.c		optional	em
+dev/em/if_em_phy.c		optional	em
