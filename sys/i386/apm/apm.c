@@ -1373,4 +1373,4 @@ static driver_t apm_driver = {
 
 static devclass_t apm_devclass;
 
-DEV_DRIVER_MODULE(apm, nexus, apm_driver, apm_devclass, apm_cdevsw, 0, 0);
+DRIVER_MODULE(apm, nexus, apm_driver, apm_devclass, 0, 0);
