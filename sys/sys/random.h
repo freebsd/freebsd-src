@@ -31,6 +31,8 @@
 
 #ifdef _KERNEL
 
+struct proc;
+
 u_int read_random(struct proc *, void *, u_int);
 
 enum esource { RANDOM_WRITE, RANDOM_KEYBOARD, RANDOM_MOUSE, RANDOM_NET, \
