@@ -168,9 +168,10 @@ __END_DECLS
 #define	ECANCELED	85		/* Operation canceled */
 #define	EILSEQ		86		/* Illegal byte sequence */
 #define	ENOATTR		87		/* Attribute not found */
-#define	ELAST		87		/* Must be equal largest errno */
 
 #define EDOFUS		88		/* Programming error */
+
+#define	ELAST		88		/* Must be equal largest errno */
 
 #endif /* _POSIX_SOURCE */
 
