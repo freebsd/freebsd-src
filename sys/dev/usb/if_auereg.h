@@ -237,6 +237,7 @@ struct aue_softc {
 	device_t		aue_miibus;
 	usbd_device_handle	aue_udev;
 	usbd_interface_handle	aue_iface;
+	struct aue_type		*aue_info;
 	int			aue_ed[AUE_ENDPT_MAX];
 	usbd_pipe_handle	aue_ep[AUE_ENDPT_MAX];
 	int			aue_unit;
