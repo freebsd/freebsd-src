@@ -75,7 +75,9 @@
 #define	CBBR_IOBASE1				0x34	/* len=4 */
 #define	CBBR_IOLIMIT1				0x38	/* len=4 */
 #define	CBB_MEMALIGN				4096
+#define CBB_MEMALIGN_BITS			12
 #define	CBB_IOALIGN				4
+#define CBB_IOALIGN_BITS			2
 
 #define	CBBR_INTRLINE				0x3c	/* len=1 */
 #define	CBBR_INTRPIN				0x3d	/* len=1 */
