@@ -149,9 +149,11 @@ SYSCTL_INT(_hw_ath, OID_AUTO, calibrate, CTLFLAG_RW, &ath_calinterval,
 static	int ath_outdoor = AH_TRUE;		/* outdoor operation */
 SYSCTL_INT(_hw_ath, OID_AUTO, outdoor, CTLFLAG_RD, &ath_outdoor,
 	    0, "enable/disable outdoor operation");
+TUNABLE_INT("hw.ath.outdoor", &ath_outdoor);
 static	int ath_countrycode = CTRY_DEFAULT;	/* country code */
 SYSCTL_INT(_hw_ath, OID_AUTO, countrycode, CTLFLAG_RD, &ath_countrycode,
 	    0, "country code");
+TUNABLE_INT("hw.ath.countrycode", &ath_countrycode);
 static	int ath_regdomain = 0;			/* regulatory domain */
 SYSCTL_INT(_hw_ath, OID_AUTO, regdomain, CTLFLAG_RD, &ath_regdomain,
 	    0, "regulatory domain");
