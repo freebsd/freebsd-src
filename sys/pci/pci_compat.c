@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci_compat.c,v 1.1 1997/05/26 15:08:35 se Exp $
+ * $Id: pci_compat.c,v 1.2 1997/05/28 10:10:02 se Exp $
  *
  */
 
@@ -172,7 +172,7 @@ pci_map_int(pcici_t cfg, pci_inthand_t *func, void *arg, unsigned *maskptr)
 	if (cfg->intpin != 0) {
 		int irq = cfg->intline;
 		void *dev_instance = (void *)-1; /* XXX use cfg->devdata  */
-		intrec *idesc;
+		void *idesc;
 
 		idesc = intr_create(dev_instance, irq, func, arg, maskptr, 0);
 		return (intr_connect(idesc) == 0);
@@ -211,8 +211,10 @@ typedef struct {
 
 static pciwirecfg pci_wireddevs[] = {
 	/* driver,	unit,	bus,	slot,	func,	BIOS bus */
+#ifdef PCI_DEBUG
 	{ "ncr",	2,	1,	4,	0,	0	},
 	{ "ed",		2,	1,	5,	0,	0	},
+#endif /* PCI_DEBUG */
 	/* do not delete the end marker that follows this comment !!! */
 	{ NULL }
 };
