@@ -125,20 +125,25 @@ bracket(s)
 
 	switch (s->str[1]) {
 	case ':':				/* "[:class:]" */
-		if ((p = strstr(s->str + 2, ":]")) == NULL)
+		if ((p = strchr(s->str + 2, ']')) == NULL)
 			return (0);
-		*p = '\0';
+		if (*(p - 1) != ':' || p - s->str < 4)
+			goto repeat;
+		*(p - 1) = '\0';
 		s->str += 2;
 		genclass(s);
-		s->str = p + 2;
+		s->str = p + 1;
 		return (1);
 	case '=':				/* "[=equiv=]" */
-		if ((p = strstr(s->str + 2, "=]")) == NULL)
+		if ((p = strchr(s->str + 2, ']')) == NULL)
 			return (0);
+		if (*(p - 1) != '=' || p - s->str < 4)
+			goto repeat;
 		s->str += 2;
 		genequiv(s);
 		return (1);
 	default:				/* "[\###*n]" or "[#*n]" */
+	repeat:
 		if ((p = strpbrk(s->str + 2, "*]")) == NULL)
 			return (0);
 		if (p[0] != '*' || index(p, ']') == NULL)
