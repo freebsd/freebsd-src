@@ -1,4 +1,4 @@
-<!-- $Id: mirrors.sgml,v 1.50 1997/02/25 06:41:08 jdp Exp $ -->
+<!-- $Id: mirrors.sgml,v 1.51 1997/02/26 10:58:49 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -32,10 +32,12 @@ name="ftp://ftp.FreeBSD.ORG/pub/FreeBSD">.
       following mirror sites. If you choose to obtain FreeBSD via
       anonymous FTP, please try to use a site near you.
 
+<ref id="mirrors-ar" name="Argentina">, 
 <ref id="mirrors-au" name="Australia">, 
 <ref id="mirrors-br" name="Brazil">, 
 <ref id="mirrors-ca" name="Canada">,
 <ref id="mirrors-cz" name="Czech Republic">,
+<ref id="mirrors-dk" name="Denmark">,
 <ref id="mirrors-ee" name="Estonia">,
 <ref id="mirrors-fi" name="Finland">,
 <ref id="mirrors-fr" name="France">,
@@ -56,8 +58,21 @@ name="ftp://ftp.FreeBSD.ORG/pub/FreeBSD">.
 <ref id="mirrors-us" name="USA">,
 <ref id="mirrors-uk" name="UK">.
 
-
 <descrip>
+<tag><label id="mirrors-ar">Argentina</tag>
+
+In case of problems, please contact the
+<url url="mailto:hostmaster@ar.FreeBSD.ORG" name="hostmaster">
+for this domain.
+
+<itemize>
+
+<item>
+<url url="ftp://ftp.ar.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp.ar.FreeBSD.ORG/pub/FreeBSD"><newline>
+
+</itemize>
+
 <tag><label id="mirrors-au">Australia</tag>
 
 In case of problems, please contact the
@@ -134,6 +149,21 @@ for this domain.
 	name="ftp://sunsite.mff.cuni.cz/OS/FreeBSD"><newline>
 	Contact: <url url="jj@sunsite.mff.cuni.cz"
 	name="jj@sunsite.mff.cuni.cz">.
+
+</itemize>
+
+
+<tag><label id="mirrors-dk">Denmark</tag>
+
+In case of problems, please contact the
+<url url="mailto:hostmaster@dk.FreeBSD.ORG" name="hostmaster">
+for this domain.
+
+<itemize>
+
+<item>
+<url url="ftp://ftp.dk.freeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp.dk.freeBSD.ORG/pub/FreeBSD"><newline>
 
 </itemize>
 
