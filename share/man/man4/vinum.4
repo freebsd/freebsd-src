@@ -786,6 +786,12 @@ You will need some additional steps to get symbolic information for the
 kernel loadable module:
 .Bl -enum
 .It
+If possible, make a copy of or a link to the debug kernel at
+.Pa /var/crash/kernel.gdb,
+since the 
+.Cm gdb
+initialization file looks for it in this location.
+.It
 Make sure that you build the
 .Nm 
 module with debugging information.  This is the normal situation with the
@@ -825,7 +831,11 @@ If you have built the module elsewhere than
 .Pa /usr/src/sys/modules/vinum,
 you will need to modify
 .Pa .gdbinit 
-accordingly.
+accordingly.  If you have not named your debug kernel
+.Pa /var/crash/kernel.gdb,
+change
+.Pa .gdbinit
+to indicate the correct location.
 .It
 Either take a dump or use remote
 .Cm gdb
