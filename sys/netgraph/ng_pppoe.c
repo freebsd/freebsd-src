@@ -291,6 +291,7 @@ AAA
 		neg->tags[i] = tp;
 	} else {
 		printf("pppoe: asked to add too many tags to packet\n");
+		neg->numtags--;
 	}
 }
 
@@ -1181,6 +1182,7 @@ AAA
 			uniqtag.data.pointer = sp;
 			init_tags(sp);
 			insert_tag(sp, &neg->ac_name.hdr); /* AC_NAME */
+			tag = get_tag(ph, PTT_HOST_UNIQ);
 			insert_tag(sp, tag);	      /* returned hostunique */
 			insert_tag(sp, &uniqtag.hdr);      /* AC cookie */
 			tag = get_tag(ph, PTT_SRV_NAME);

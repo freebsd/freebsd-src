@@ -424,7 +424,7 @@ ng_decodeidname(const char *name)
 	/* Decode number */
 	val = strtoul(name + 1, &eptr, 16);
 	if (eptr - name != len - 1 || val == ULONG_MAX || val == 0)
-		return (0);
+		return ((ng_ID_t)0);
 	return (ng_ID_t)val;
 }
 
