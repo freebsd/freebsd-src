@@ -567,7 +567,7 @@ pcic_pci_attach(device_t dev)
 		sp->putb = pcic_pci_putb2;
 		sp->offset = CB_EXCA_OFFSET;
 		sc->bst = sp->bst = rman_get_bustag(sc->memres);
-		sc->bst = sp->bsh = rman_get_bushandle(sc->memres);
+		sc->bsh = sp->bsh = rman_get_bushandle(sc->memres);
 		itm = pcic_pci_lookup(device_id, &pcic_pci_devs[0]);
 		if (itm != NULL) {
 			sp->controller = itm->type;
