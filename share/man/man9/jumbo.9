@@ -40,38 +40,26 @@
 .Sh SYNOPSIS
 .In sys/jumbo.h
 .Ft int
-.Fo jumbo_vm_init
-.Fa "void"
-.Fc
+.Fn jumbo_vm_init void
 .Ft vm_page_t
-.Fo jumbo_pg_alloc
-.Fa "void"
-.Fc
+.Fn jumbo_pg_alloc void
 .Ft void
-.Fo jumbo_pg_free
-.Fa "vm_offset_t addr"
-.Fc
+.Fn jumbo_pg_free "vm_offset_t addr"
 .Ft void
-.Fo jumbo_freem
-.Fa "caddr_t addr"
-.Fa "void *args"
-.Fc
+.Fn jumbo_freem "caddr_t addr" "void *args"
 .Ft void
-.Fo jumbo_pg_steal
-.Fa "vm_page_t pg"
-.Fc
+.Fn jumbo_pg_steal "vm_page_t pg"
 .Ft caddr_t
-.Fo jumbo_phys_to_kva
-.Fa "vm_offset_t pa"
-.Fc
+.Fn jumbo_phys_to_kva "vm_offset_t pa"
 .Sh DESCRIPTION
 The
 .Nm
 buffer facility is designed for allocating disposable page-sized
-buffers.  Buffers allocated via this facility can either be returned or
-not.  This facility is primarily intended for use with network adapters
-that have MTUs of a page or greater size.  The buffers will normally be
-disposed of by the
+buffers.
+Buffers allocated via this facility can either be returned or not.
+This facility is primarily intended for use with network adapters
+that have MTUs of a page or greater size.
+The buffers will normally be disposed of by the
 .Xr zero_copy 9
 receive code.
 .Pp
@@ -79,39 +67,47 @@ receive code.
 initializes the pool of KVA the
 .Nm
 code needs to operate and does some
-other initialization to prepare the subsystem for operation.  This routine
-only needs to be called once.  Calling it multiple times will have no
-effect.  It is recommended that this initialization routine be called in a
+other initialization to prepare the subsystem for operation.
+This routine only needs to be called once.
+Calling it multiple times will have no effect.
+It is recommended that this initialization routine be called in a
 device driver attach routine, so that resources are not allocated if the
 .Nm
-subsystem won't end up being used.
+subsystem will not end up being used.
 .Fn jumbo_vm_init
 returns 1 upon successful completion, and 0 upon failure.
 .Pp
 .Fn jumbo_pg_alloc
 allocates a physical page and assigns a piece of KVA from the
 .Nm
-KVA pool.  It returns the allocated page if successful, and NULL in the case of
-failure.
+KVA pool.
+It returns the allocated page if successful, and
+.Dv NULL
+in the case of failure.
 .Pp
 .Fn jumbo_pg_free
 frees a page allocated by
 .Fn jumbo_pg_alloc .
-It takes the address of the memory in question as an argument.  This
-routine will normally be used in cases where the allocated
-.Nm jumbo
-page cannot be used for some reason.  The normal free path is via
+It takes the address of the memory in question as an argument.
+This routine will normally be used in cases where the allocated
+.Nm
+page cannot be used for some reason.
+The normal free path is via
 .Fn jumbo_freem .
 .Pp
 .Fn jumbo_freem
 is the routine that should be given as the external free routine when an
-external mbuf is allocated using pages from the 
+external
+.Vt mbuf
+is allocated using pages from the
 .Nm
-allocator.  It takes the virtual address of the page in question, and
+allocator.
+It takes the virtual address of the page in question, and
 ignores the second argument.
 .Pp
 .Fn jumbo_pg_steal
-"steals" a page and recycles its KVA space.
+.Dq steals
+a page and recycles its KVA space.
 .Pp
 .Fn jumbo_phys_to_kva
 translates the physical address of a
@@ -128,9 +124,12 @@ by
 .An Andrew Gallatin Aq gallatin@FreeBSD.org
 as part of a set of zero copy patches for the
 .Xr ti 4
-driver.  The allocator was taken out of the
+driver.
+The allocator was taken out of the
 .Xr ti 4
-driver, cleaned up and ported to the new mutex interface by
+driver, cleaned up and ported to the new
+.Xr mutex 9
+interface by
 .An Kenneth Merry Aq ken@FreeBSD.org .
 .Pp
 The
@@ -140,8 +139,7 @@ allocator first appeared in
 and has existed in patch form since at least 1999.
 .Sh AUTHORS
 .An Andrew Gallatin Aq gallatin@FreeBSD.org
-and
-.An Kenneth Merry Aq ken@FreeBSD.org .
+.An Kenneth Merry Aq ken@FreeBSD.org
 .Sh BUGS
 There is currently a static number of KVA pages allocated by the
 .Nm
@@ -150,4 +148,4 @@ allocated should demand exceed supply.
 .Pp
 The
 .Fn jumbo_pg_steal
-function isn't currently used anywhere.
+function is not currently used anywhere.
