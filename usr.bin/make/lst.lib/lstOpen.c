@@ -46,8 +46,7 @@ __FBSDID("$FreeBSD$");
  *	Open a list for sequential access. The sequential functions access the
  *	list in a slightly different way. CurPtr points to their idea of the
  *	current node in the list and they access the list based on it.
- *	If the list is circular, Lst_Next and Lst_Prev will go around
- *	the list forever. Lst_IsAtEnd must be used to determine when to stop.
+ *	Lst_IsAtEnd must be used to determine when to stop.
  */
 
 #include "make.h"

@@ -79,8 +79,6 @@ typedef enum {
 struct Lst {
 	LstNode  	firstPtr; /* first node in list */
 	LstNode  	lastPtr;  /* last node in list */
-	Boolean	  	isCirc;	  /* true if the list should be considered
-				   * circular */
 	/*
 	 * fields for sequential access
 	 */
@@ -113,7 +111,7 @@ typedef	void FreeProc(void *);
  * Creation/destruction functions
  */
 /* Create a new list */
-Lst		Lst_Init(Boolean);
+Lst		Lst_Init(void);
 /* Duplicate an existing list */
 Lst		Lst_Duplicate(Lst, DuplicateProc *);
 /* Destroy an old one */
