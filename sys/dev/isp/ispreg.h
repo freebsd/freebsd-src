@@ -699,26 +699,26 @@
 
 /* Offset 5 */
 /*
-	uint8_t bios_configuration_mode     :2;
-	uint8_t bios_disable                :1;
-	uint8_t selectable_scsi_boot_enable :1;
-	uint8_t cd_rom_boot_enable          :1;
-	uint8_t disable_loading_risc_code   :1;
-	uint8_t enable_64bit_addressing     :1;
-	uint8_t unused_7                    :1;
+	u_int8_t bios_configuration_mode     :2;
+	u_int8_t bios_disable                :1;
+	u_int8_t selectable_scsi_boot_enable :1;
+	u_int8_t cd_rom_boot_enable          :1;
+	u_int8_t disable_loading_risc_code   :1;
+	u_int8_t enable_64bit_addressing     :1;
+	u_int8_t unused_7                    :1;
  */
 
 /* Offsets 6, 7 */
 /*
-        uint8_t boot_lun_number    :5;
-        uint8_t scsi_bus_number    :1;
-        uint8_t unused_6           :1;
-        uint8_t unused_7           :1;
-        uint8_t boot_target_number :4;
-        uint8_t unused_12          :1;
-        uint8_t unused_13          :1;
-        uint8_t unused_14          :1;
-        uint8_t unused_15          :1;
+        u_int8_t boot_lun_number    :5;
+        u_int8_t scsi_bus_number    :1;
+        u_int8_t unused_6           :1;
+        u_int8_t unused_7           :1;
+        u_int8_t boot_target_number :4;
+        u_int8_t unused_12          :1;
+        u_int8_t unused_13          :1;
+        u_int8_t unused_14          :1;
+        u_int8_t unused_15          :1;
  */
 
 #define	ISP1080_NVRAM_HBA_ENABLE(c)			ISPBSMX(c, 16, 3, 0x01)
