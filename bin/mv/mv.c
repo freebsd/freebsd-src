@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mv.c,v 1.15 1997/10/04 13:02:06 wosch Exp $
+ *	$Id: mv.c,v 1.16 1997/10/26 10:33:02 helbig Exp $
  */
 
 #ifndef lint
@@ -50,6 +50,7 @@ static char const sccsid[] = "@(#)mv.c	8.2 (Berkeley) 4/2/94";
 #include <sys/time.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
+#include <sys/mount.h>
 
 #include <err.h>
 #include <errno.h>
@@ -184,7 +185,20 @@ do_move(from, to)
 	if (!rename(from, to))
 		return (0);
 
-	if (errno != EXDEV) {
+	if (errno == EXDEV) {
+		struct statfs sfs;
+		char path[MAXPATHLEN];
+
+		/* Can't mv(1) a mount point. */
+		if (realpath(from, path) == NULL) {
+			warnx("cannot resolve %s: %s", from, path);
+			return (1);
+		}
+		if (!statfs(path, &sfs) && !strcmp(path, sfs.f_mntonname)) {
+			warnx("cannot rename a mount point");
+			return (1);
+		}
+	} else {
 		warn("rename %s to %s", from, to);
 		return (1);
 	}
