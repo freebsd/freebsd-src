@@ -89,6 +89,17 @@ getcwd(pt, size)
 			return (NULL);
 		ept = pt + ptsize;
 	}
+	if (!__getcwd(pt,ptsize)) {
+		char c;
+		bpt = pt;
+		ept = pt + strlen(pt) - 1;
+		while (bpt < ept) {
+			c = *bpt;
+			*bpt++ = *ept;
+			*ept-- = c;
+		}
+		return (pt);
+	}
 	bpt = ept - 1;
 	*bpt = '\0';
 
