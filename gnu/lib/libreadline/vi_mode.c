@@ -796,7 +796,7 @@ rl_vi_delete_to (count, key)
 
   /* These are the motion commands that do not require adjusting the
      mark. */
-  if ((strchr (" l|h^0%bB", c) == 0) && (rl_mark < rl_end))
+  if ((strchr (" l|h^0bB", c) == 0) && (rl_mark < rl_end))
     rl_mark++;
 
   rl_kill_text (rl_point, rl_mark);
@@ -824,7 +824,7 @@ rl_vi_change_to (count, key)
   /* These are the motion commands that do not require adjusting the
      mark.  c[wW] are handled by special-case code in rl_vi_domove(),
      and already leave the mark at the correct location. */
-  if ((strchr (" l|hwW^0%bB", c) == 0) && (rl_mark < rl_end))
+  if ((strchr (" l|hwW^0bB", c) == 0) && (rl_mark < rl_end))
     rl_mark++;
 
   /* The cursor never moves with c[wW]. */
@@ -905,7 +905,7 @@ rl_vi_comment (count, key)
     rl_insert_text (VI_COMMENT_BEGIN_DEFAULT);	/* Default. */
 
   rl_redisplay ();
-  rl_newline (1, '\010');
+  rl_newline (1, '\n');
   return (0);
 }
 
@@ -1149,7 +1149,7 @@ rl_vi_subst (count, key)
       rl_kill_line (1);
     }
   else
-    rl_delete (count, key);
+    rl_delete_text (rl_point, rl_point+count);
 
   rl_end_undo_group ();
 
@@ -1232,7 +1232,7 @@ rl_vi_replace (count, key)
     {
       vi_replace_map = rl_make_bare_keymap ();
 
-      for (i = ' '; i < 127; i++)
+      for (i = ' '; i < KEYMAP_SIZE; i++)
 	vi_replace_map[i].function = rl_vi_overstrike;
 
       vi_replace_map[RUBOUT].function = rl_vi_overstrike_delete;

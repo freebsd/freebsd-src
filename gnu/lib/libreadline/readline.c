@@ -284,7 +284,7 @@ readline (prompt)
       return ((char *)NULL);
     }
 
-  rl_visible_prompt_length = rl_expand_prompt (rl_prompt);
+  rl_visible_prompt_length = (rl_prompt && *rl_prompt) ?  rl_expand_prompt (rl_prompt) : 0;
 
   rl_initialize ();
   rl_prep_terminal (_rl_meta_flag);
@@ -624,13 +624,12 @@ _rl_dispatch (key, map)
 {
   int r = 0;
 
-  if (defining_kbd_macro)
-    add_macro_char (key);
-
   if (META_CHAR (key) && _rl_convert_meta_chars_to_ascii)
     {
       if (map[ESC].type == ISKMAP)
 	{
+	  if (defining_kbd_macro)
+	    add_macro_char (ESC);
 	  map = FUNCTION_TO_KEYMAP (map, ESC);
 	  key = UNMETA (key);
 	  rl_key_sequence_length += 2;
@@ -640,6 +639,9 @@ _rl_dispatch (key, map)
 	ding ();
       return 0;
     }
+
+  if (defining_kbd_macro)
+    add_macro_char (key);
 
   switch (map[key].type)
     {
@@ -921,8 +923,6 @@ _rl_kill_kbd_macro ()
 /* Initliaze readline (and terminal if not already). */
 rl_initialize ()
 {
-  char *t, *t1;
-
   /* If we have never been called before, initialize the
      terminal and data structures. */
   if (!rl_initialized)
@@ -939,20 +939,6 @@ rl_initialize ()
   /* We aren't done yet.  We haven't even gotten started yet! */
   rl_done = 0;
 
-  /* Check for LC_CTYPE and use its value to decide the defaults for
-     8-bit character input and output. */
-  t = getenv ("LC_CTYPE");
-  t1 = getenv ("LANG");
-  if (t && (strstr (t, "8859-1") != NULL || strstr (t, "8859_1") != NULL ||
-	    strstr (t, "KOI8-R") != NULL || strstr (t, "koi8-r") != NULL) ||
-      t1 && (strstr (t1, "8859-1") != NULL || strstr (t1, "8859_1") != NULL ||
-	     strstr (t1, "KOI8-R") != NULL || strstr (t1, "koi8-r") != NULL))
-    {
-      _rl_meta_flag = 1;
-      _rl_convert_meta_chars_to_ascii = 0;
-      _rl_output_meta_chars = 1;
-    }
-      
   /* Tell the history routines what is going on. */
   start_using_history ();
 
@@ -972,6 +958,8 @@ rl_initialize ()
 static void
 readline_initialize_everything ()
 {
+  char *t, *t1;
+
   /* Find out if we are running in Emacs. */
   running_in_emacs = getenv ("EMACS") != (char *)0;
 
@@ -1002,6 +990,20 @@ readline_initialize_everything ()
   /* Initialize the function names. */
   rl_initialize_funmap ();
 
+  /* Check for LC_CTYPE and use its value to decide the defaults for
+     8-bit character input and output. */
+  t = getenv ("LC_CTYPE");
+  t1 = getenv ("LANG");
+  if (t && (strstr (t, "8859-1") != NULL || strstr (t, "8859_1") != NULL ||
+	    strstr (t, "KOI8-R") != NULL || strstr (t, "koi8-r") != NULL) ||
+      t1 && (strstr (t1, "8859-1") != NULL || strstr (t1, "8859_1") != NULL ||
+	     strstr (t1, "KOI8-R") != NULL || strstr (t1, "koi8-r") != NULL))
+    {
+      _rl_meta_flag = 1;
+      _rl_convert_meta_chars_to_ascii = 0;
+      _rl_output_meta_chars = 1;
+    }
+      
   /* Read in the init file. */
   rl_read_init_file ((char *)NULL);
 
@@ -1181,8 +1183,8 @@ int dumb_term = 0;
 #undef PC
 
 #if !defined (__linux__)
-/* If this causes problems, remove the `extern'. */
-extern char PC, *BC, *UP;
+/* If this causes problems, add back the `extern'. */
+/*extern*/ char PC, *BC, *UP;
 #endif /* __linux__ */
 
 /* Some strings to control terminal actions.  These are output by tputs (). */
@@ -1713,6 +1715,10 @@ rl_delete_text (from, to)
       from = to;
       to = t;
     }
+
+  if (to > rl_end)
+    to = rl_end;
+
   text = rl_copy_text (from, to);
 
   /* Some versions of strncpy() can't handle overlapping arguments. */
@@ -2264,12 +2270,17 @@ rl_unix_word_rubout (count, key)
   else
     {
       int orig_point = rl_point;
+      if (count <= 0)
+	count = 1;
 
-      while (rl_point && whitespace (the_line[rl_point - 1]))
-	rl_point--;
+      while (count--)
+	{
+	  while (rl_point && whitespace (the_line[rl_point - 1]))
+	    rl_point--;
 
-      while (rl_point && !whitespace (the_line[rl_point - 1]))
-	rl_point--;
+	  while (rl_point && !whitespace (the_line[rl_point - 1]))
+	    rl_point--;
+	}
 
       rl_kill_text (orig_point, rl_point);
     }
@@ -2390,7 +2401,7 @@ rl_change_case (count, op)
 	  break;
 
 	default:
-	  abort ();
+	  ding ();
 	  return -1;
 	}
     }

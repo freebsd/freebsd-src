@@ -29,7 +29,6 @@
 #  include <unistd.h>
 #endif
 
-#include "memalloc.h"
 #include "rldefs.h"
 #include "readline.h"
 #include "history.h"
@@ -44,6 +43,7 @@ extern char *xmalloc (), *xrealloc ();
 /* Variables imported from readline.c */
 extern int rl_point, rl_end, rl_line_buffer_len;
 extern Keymap _rl_keymap;
+extern int rl_editing_mode;
 extern char *rl_prompt;
 extern char *rl_line_buffer;
 extern HIST_ENTRY *saved_line_for_history;
@@ -94,7 +94,7 @@ noninc_dosearch (string, dir)
   int oldpos, pos;
   HIST_ENTRY *entry;
 
-  if (string == 0 || *string == 0 || noninc_history_pos < 0)
+  if (string == 0 || *string == '\0' || noninc_history_pos < 0)
     {
       ding ();
       return;
@@ -116,6 +116,9 @@ noninc_dosearch (string, dir)
   oldpos = where_history ();
   history_set_pos (noninc_history_pos);
   entry = current_history ();
+#if defined (VI_MODE)
+  if (rl_editing_mode != vi_mode)
+#endif
   history_set_pos (oldpos);
 
   {
