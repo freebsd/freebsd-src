@@ -105,8 +105,9 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 	krb5_get_init_creds_opt opts;
 	struct passwd *pwd;
 	int retval;
+	void *ccache_data;
 	const char *user, *pass;
-	const void *sourceuser, *service, *item;
+	const void *sourceuser, *service;
 	char *principal, *princ_name, *ccache_name, luser[32], *srvdup;
 
 	retval = pam_get_user(pamh, &user, USER_PROMPT);
@@ -209,10 +210,6 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 		if (retval != PAM_SUCCESS)
 			goto cleanup2;
 
-		retval = pam_get_item(pamh, PAM_USER, &item);
-		if (retval != PAM_SUCCESS)
-			goto cleanup2;
-
 		PAM_LOG("PAM_USER Redone");
 	}
 
@@ -284,7 +281,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 
 	PAM_LOG("Credentials stash verified");
 
-	retval = pam_get_data(pamh, "ccache", &item);
+	retval = pam_get_data(pamh, "ccache", &ccache_data);
 	if (retval == PAM_SUCCESS) {
 		krb5_cc_destroy(pam_context, ccache);
 		PAM_VERBOSE_ERROR("Kerberos 5 error");
@@ -345,7 +342,8 @@ pam_sm_setcred(pam_handle_t *pamh, int flags,
 	struct passwd *pwd = NULL;
 	int retval;
 	const char *cache_name, *q;
-	const void *user, *cache_data;
+	const void *user;
+	void *cache_data;
 	char *cache_name_buf = NULL, *p;
 
 	uid_t euid;
@@ -581,7 +579,8 @@ pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused,
 	krb5_ccache ccache;
 	krb5_principal princ;
 	int retval;
-	const void *user, *ccache_name;
+	const void *user;
+	void *ccache_name;
 
 	retval = pam_get_item(pamh, PAM_USER, &user);
 	if (retval != PAM_SUCCESS)
@@ -711,7 +710,7 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 	krbret = krb5_get_init_creds_password(pam_context, &creds, princ,
 	    pass, NULL, pamh, 0, "kadmin/changepw", &opts);
 	if (krbret != 0) {
-		PAM_LOG("Error krb5_get_init_creds_password()",
+		PAM_LOG("Error krb5_get_init_creds_password(): %s",
 		    krb5_get_err_text(pam_context, krbret));
 		retval = PAM_AUTH_ERR;
 		goto cleanup2;

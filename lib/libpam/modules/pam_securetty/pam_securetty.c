@@ -77,7 +77,7 @@ pam_sm_acct_mgmt(pam_handle_t *pamh __unused, int flags __unused,
 	if (pam_err != PAM_SUCCESS)
 		return (pam_err);
 
-	PAM_LOG("Got TTY: %s", tty);
+	PAM_LOG("Got TTY: %s", (const char *)tty);
 
 	/* Ignore any "/dev/" on the PAM_TTY item */
 	if (tty != NULL && strncmp(TTY_PREFIX, tty, sizeof(TTY_PREFIX)) == 0) {
