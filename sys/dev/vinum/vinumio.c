@@ -20,7 +20,7 @@
  * 4. Neither the name of the Company nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * This software is provided ``as is'', and any express or implied
  * warranties, including, but not limited to, the implied warranties of
  * merchantability and fitness for a particular purpose are disclaimed.
@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumio.c,v 1.37 1999/08/14 06:26:32 grog Exp $
+ * $Id: vinumio.c,v 1.25 1999/06/28 02:37:48 grog Exp grog $
  */
 
 #include <dev/vinum/vinumhdr.h>
@@ -94,7 +94,7 @@ open_drive(struct drive *drive, struct proc *p, int verbose)
  * Set some variables in the drive struct
  * in more convenient form.  Return error indication
  */
-int 
+int
 set_drive_parms(struct drive *drive)
 {
     drive->blocksize = BLKDEV_IOSIZE;			    /* do we need this? */
@@ -142,7 +142,7 @@ set_drive_parms(struct drive *drive)
  * Initialize a drive: open the device and add device
  * information
  */
-int 
+int
 init_drive(struct drive *drive, int verbose)
 {
     int error;
@@ -185,7 +185,7 @@ init_drive(struct drive *drive, int verbose)
 }
 
 /* Close a drive if it's open. */
-void 
+void
 close_drive(struct drive *drive)
 {
     LOCKDRIVE(drive);					    /* keep the daemon out */
@@ -199,7 +199,7 @@ close_drive(struct drive *drive)
  * Real drive close code, called with drive already locked.
  * We have also checked that the drive is open.  No errors.
  */
-void 
+void
 close_locked_drive(struct drive *drive)
 {
     /*
@@ -228,7 +228,7 @@ close_locked_drive(struct drive *drive)
  * Remove drive from the configuration.
  * Caller must ensure that it isn't active
  */
-void 
+void
 remove_drive(int driveno)
 {
     struct drive *drive = &vinum_conf.drive[driveno];
@@ -312,7 +312,7 @@ read_drive(struct drive *drive, void *buf, size_t length, off_t offset)
  *
  * Return error number
  */
-int 
+int
 write_drive(struct drive *drive, void *buf, size_t length, off_t offset)
 {
     int error;
@@ -390,7 +390,7 @@ write_drive(struct drive *drive, void *buf, size_t length, off_t offset)
 }
 
 /* Wake up on completion */
-void 
+void
 drive_io_done(struct buf *bp)
 {
     wakeup((caddr_t) bp);				    /* Wachet auf! */
@@ -412,7 +412,7 @@ drive_io_done(struct buf *bp)
  * print error messages (verbose==0), in the second
  * we do (verbose==1).
  */
-enum drive_label_info 
+enum drive_label_info
 read_drive_label(struct drive *drive, int verbose)
 {
     int error;
@@ -511,7 +511,7 @@ sappend(char *txt, char *s)
     return s - 1;
 }
 
-void 
+void
 format_config(char *config, int len)
 {
     int i;
@@ -628,7 +628,7 @@ format_config(char *config, int len)
  * issue a save config request to the dæmon.  The actual work
  * is done in process context by daemon_save_config
  */
-void 
+void
 save_config(void)
 {
     queue_daemon_request(daemonrq_saveconfig, (union daemoninfo) NULL);
@@ -638,7 +638,7 @@ save_config(void)
  * Write the configuration to all vinum slices.  This
  * is performed by the dæmon only
  */
-void 
+void
 daemon_save_config(void)
 {
     int error;
@@ -750,7 +750,7 @@ daemon_save_config(void)
  * get_volume_label returns a label structure to lp, which
  * is allocated by the caller
  */
-void 
+void
 get_volume_label(char *name, int plexes, u_int64_t size, struct disklabel *lp)
 {
     bzero(lp, sizeof(struct disklabel));
@@ -798,7 +798,7 @@ get_volume_label(char *name, int plexes, u_int64_t size, struct disklabel *lp)
 }
 
 /* Write a volume label.  This implements the VINUM_LABEL ioctl. */
-int 
+int
 write_volume_label(int volno)
 {
     struct disklabel *lp;
@@ -836,7 +836,15 @@ write_volume_label(int volno)
     *dlp = *lp;
     bp->b_flags &= ~B_INVAL;
     bp->b_flags |= B_WRITE;
-    BUF_STRATEGY(bp, 0);				    /* write it out */
+
+    /*
+     * This should read:
+     *
+     *       vinumstrategy (bp);
+     *
+     * Negotiate with phk to get it fixed.
+     */
+    BUF_STRATEGY(bp, 0);
     error = biowait(bp);
     bp->b_flags |= B_INVAL | B_AGE;
     brelse(bp);
@@ -844,14 +852,14 @@ write_volume_label(int volno)
 }
 
 /* Initialize a subdisk */
-int 
+int
 initsd(int sdno)
 {
     return 0;
 }
 
 /* Look at all disks on the system for vinum slices */
-int 
+int
 vinum_scandisk(char *devicename[], int drives)
 {
     struct drive *volatile drive;
@@ -1026,7 +1034,7 @@ vinum_scandisk(char *devicename[], int drives)
  * Return 1 if a < b, 0 if a == b, 01 if a > b: in other
  * words, sort backwards.
  */
-int 
+int
 drivecmp(const void *va, const void *vb)
 {
     const struct drive *a = &DRIVE[*(const int *) va];

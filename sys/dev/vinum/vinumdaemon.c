@@ -21,7 +21,7 @@
  * 4. Neither the name of the Company nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- *  
+ *
  * This software is provided ``as is'', and any express or implied
  * warranties, including, but not limited to, the implied warranties of
  * merchantability and fitness for a particular purpose are disclaimed.
@@ -34,7 +34,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumdaemon.c,v 1.11 1999/08/07 08:06:05 grog Exp $
+ * $Id: vinumdaemon.c,v 1.5 1999/06/23 03:22:01 grog Exp grog $
  */
 
 #include <dev/vinum/vinumhdr.h>
@@ -52,7 +52,7 @@ struct daemonq *dqend;					    /* and the end of the queue */
 int daemon_options = 0;					    /* options */
 int daemonpid;						    /* PID of daemon */
 
-void 
+void
 vinum_daemon(void)
 {
     struct daemonq *request;
@@ -85,7 +85,7 @@ vinum_daemon(void)
 	    switch (request->type) {
 		/*
 		 * We had an I/O error on a request.  Go through the
-		 * request and try to salvage it 
+		 * request and try to salvage it
 		 */
 	    case daemonrq_ioerror:
 		if (daemon_options & daemon_verbose) {
@@ -106,7 +106,7 @@ vinum_daemon(void)
 		/*
 		 * Write the config to disk.  We could end up with
 		 * quite a few of these in a row.  Only honour the
-		 * last one 
+		 * last one
 		 */
 	    case daemonrq_saveconfig:
 		if ((daemonq == NULL)			    /* no more requests */
@@ -180,16 +180,23 @@ vinum_daemon(void)
  * taken.
  *
  */
-void 
+void
 recover_io(struct request *rq)
 {
+    /*
+     * This should read:
+     *
+     *     vinumstrategy(rq->bp);
+     *
+     * Negotiate with phk to get it fixed.
+     */
     BUF_STRATEGY(rq->bp, 0);				    /* reissue the command */
 }
 
 /* Functions called to interface with the daemon */
 
 /* queue a request for the daemon */
-void 
+void
 queue_daemon_request(enum daemonrq type, union daemoninfo info)
 {
     int s;
@@ -212,9 +219,9 @@ queue_daemon_request(enum daemonrq type, union daemoninfo info)
 
 /*
  * see if the daemon is running.  Return 0 (no error)
- * if it is, ESRCH otherwise 
+ * if it is, ESRCH otherwise
  */
-int 
+int
 vinum_finddaemon()
 {
     int result;
@@ -230,7 +237,7 @@ vinum_finddaemon()
     return 0;
 }
 
-int 
+int
 vinum_setdaemonopts(int options)
 {
     daemon_options = options;
