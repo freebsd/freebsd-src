@@ -39,6 +39,10 @@
 #ifndef	_IBCS2_UTIL_H_
 #define	_IBCS2_UTIL_H_
 
+/*
+ * XXX the inlines have obnoxious prerequisites, only some of which are
+ * included here.
+ */
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <machine/vmparam.h>
@@ -59,7 +63,6 @@ stackgap_init()
 #define szsigcode (*(curproc->p_sysent->sv_szsigcode))
         return (caddr_t)(((caddr_t)PS_STRINGS) - szsigcode - SPARE_USRSPACE);
 }
-
 
 static __inline void *
 stackgap_alloc(sgp, sz)
