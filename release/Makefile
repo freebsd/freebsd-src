@@ -249,9 +249,7 @@ CD_DISC2=		${CD}/disc2
 # Where the bootstrap ports (see DOCPORTS) get installed.
 LOCALDIR=		/usr/local/bin
 
-.if exists(${.CURDIR}/${TARGET_ARCH}/doFS.sh)
-DOFS_SH=	${.CURDIR}/${TARGET_ARCH}/doFS.sh
-.elif ${TARGET} != ${MACHINE}
+.if ${TARGET} != ${MACHINE}
 DOFS_SH=	${.CURDIR}/scripts/doFS.sh ${DISKLABEL} ${TARGET}
 .else
 DOFS_SH=	${.CURDIR}/scripts/doFS.sh ${DISKLABEL} ""
@@ -1075,8 +1073,6 @@ doMFSKERN:
 .if ${TARGET} == "i386"
 	@${WMAKEENV} kgzip -v -l ${RD}/trees/base/usr/lib/kgzldr.o \
 	    -o ${RD}/image.${FSIMAGE}/boot/loader ${RD}/trees/base/boot/loader
-.elif ${TARGET_ARCH} == "ia64"
-	@cp ${RD}/trees/base/boot/loader.efi ${RD}/image.${FSIMAGE}/boot
 .else
 	@cp ${RD}/trees/base/boot/loader ${RD}/image.${FSIMAGE}/boot
 .endif
@@ -1092,9 +1088,7 @@ doMFSKERN:
 	@echo "read" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 .endif
 	@echo "load -t mfs_root /mfsroot" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
-.if ${TARGET_ARCH} != "ia64"
 	@echo "set hint.acpi.0.disabled=1" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
-.endif
 	@if [ -r ${RD}/floppies/drivers.flp ]; then \
 	    echo "set driver_floppy=YES" >> ${RD}/image.${FSIMAGE}/boot/loader.rc; \
 	fi
