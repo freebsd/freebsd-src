@@ -680,6 +680,14 @@
     <para>&man.sysinstall.8; now has the ability to load KLDs as a
     part of the installation.</para>
 
+    <para>When run from the installation media, &man.sysinstall.8;
+    will automatically load any device drivers found in the
+    <filename>/stand/modules</filename> directory of the
+    <literal>mfsroot</literal> floppy or filesystem image.  Note that
+    any drivers so loaded will not appear in the kernel's boot
+    messages; the &man.sysinstall.8; debugging screen will provide
+    additional information.</para>
+
     <para>&man.sysinstall.8; now enables Soft Updates by default on
     all filesystems it creates, except for the root
     filesystem.</para>
