@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.10 1995/02/02 12:36:18 davidg Exp $
+**  $Id: pci.c,v 1.9 1994/11/02 23:47:13 se Exp $
 **
 **  General subroutines for the PCI bus on 80*86 systems.
 **  pci_configure ()
@@ -511,6 +511,7 @@ int pci_map_mem (pcici_t tag, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 	u_long data;
 	vm_size_t vsize;
 	vm_offset_t vaddr;
+	int i;
 
 	/*
 	**	sanity check
@@ -573,6 +574,21 @@ int pci_map_mem (pcici_t tag, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 	printf ("\treg%d: virtual=0x%lx physical=0x%lx\n",
 		(unsigned) reg, (u_long)vaddr, (u_long)pci_paddr);
 #endif
+
+	/*
+	**	probe for already mapped device.
+	*/
+
+	for (i=0; i<vsize; i+=4) {
+		u_long* addr = (u_long*) (vaddr+i);
+		data = *addr;
+		if (data != 0xffffffff) {
+			printf ("WARNING: possible address conflict "
+				"at 0x%08x (read: 0x%08x).\n",
+				(unsigned) pci_paddr+i, (unsigned) data);
+			break;
+		};
+	};
 
 	/*
 	**	return them to the driver
