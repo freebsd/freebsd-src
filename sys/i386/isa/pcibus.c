@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcibus.c,v 1.9 1995/06/28 15:54:57 se Exp $
+**  $Id: pcibus.c,v 1.10 1995/06/30 16:11:42 se Exp $
 **
 **  pci bus subroutines for i386 architecture.
 **
@@ -139,7 +139,9 @@ DATA_SET (pcibus_set, i386pci);
 
 
 #define CONF1_ENABLE       0x80000000ul
-#define CONF1_ENABLE_CHK   0xF0000000ul
+#define CONF1_ENABLE_CHK1  0xF0000000ul
+#define CONF1_ENABLE_CHK2  0xfffffffful
+#define CONF1_ENABLE_RES2  0x80fffffcul
 #define CONF1_ADDR_PORT    0x0cf8
 #define CONF1_DATA_PORT    0x0cfc
 
@@ -159,7 +161,7 @@ pcibus_setup (void)
 	*/
 
 	oldval = inl (CONF1_ADDR_PORT);
-	outl (CONF1_ADDR_PORT, CONF1_ENABLE_CHK);
+	outl (CONF1_ADDR_PORT, CONF1_ENABLE_CHK1);
 	outb (CONF1_ADDR_PORT +3, 0);
 	result = inl (CONF1_ADDR_PORT);
 	outl (CONF1_ADDR_PORT, oldval);
@@ -167,7 +169,8 @@ pcibus_setup (void)
 	if (result & CONF1_ENABLE) {
 		pci_mechanism = 1;
 		pci_maxdevice = 32;
-		return;
+		if (pcibus_read (pcibus_tag (0,0,0), 0) != 0xfffffffful)
+			return;
 	};
 
 	/*---------------------------------------
@@ -180,13 +183,39 @@ pcibus_setup (void)
 	if (!inb (CONF2_ENABLE_PORT) && !inb (CONF2_FORWARD_PORT)) {
 		pci_mechanism = 2;
 		pci_maxdevice = 16;
-		return;
+		if (pcibus_read (pcibus_tag (0,0,0), 0) != 0xfffffffful)
+			return;
 	};
 
+
+	/*-----------------------------------------------------
+	**      Well, is it Configuration mode 1, after all ?
+	**-----------------------------------------------------
+	*/
+
+	oldval = inl (CONF1_ADDR_PORT);
+	outl (CONF1_ADDR_PORT, CONF1_ENABLE_CHK2);
+	result = inl (CONF1_ADDR_PORT);
+	outl (CONF1_ADDR_PORT, oldval);
+
+	if (result == CONF1_ENABLE_RES2) {
+		pci_mechanism = 1;
+		pci_maxdevice = 32;
+		if (pcibus_read (pcibus_tag (0,0,0), 0) != 0xfffffffful)
+			return;
+	}
+	if (result != 0xfffffffful)
+		printf ("pcibus_setup: "
+			"wrote 0x%08x, read back 0x%08x, expected 0x%08x\n", 
+			CONF1_ENABLE_CHK2, result, CONF1_ENABLE_RES2);
+
 	/*---------------------------------------
-	**      No PCI bus available.
+	**      No PCI bus host bridge found
 	**---------------------------------------
 	*/
+
+	pci_mechanism = 0;
+	pci_maxdevice = 0;
 }
 
 /*--------------------------------------------------------------------
