@@ -33,6 +33,7 @@ static const char rcsid[] =
 
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -54,27 +55,41 @@ main(int argc, char *argv[])
 {
 	int	fd;
 	int     res = 0;
+	int     print_dtrwait = 1, print_drainwait = 1;
 	int     dtrwait = -1, drainwait = -1;
 
 	if (argc < 2)
 		usage();
 
-	fd = open(argv[1], O_RDONLY|O_NONBLOCK, 0);
-	if (fd < 0) {
-		warn("couldn't open file %s", argv[1]);
-		return 1;
+	if (strcmp(argv[1], "-") == 0)
+		fd = STDIN_FILENO;
+	else {
+		fd = open(argv[1], O_RDONLY|O_NONBLOCK, 0);
+		if (fd < 0) {
+			warn("couldn't open file %s", argv[1]);
+			return 1;
+		}
 	}
-
 	if (argc == 2) {
 		if (ioctl(fd, TIOCMGDTRWAIT, &dtrwait) < 0) {
-			res = 1;
-			warn("TIOCMGDTRWAIT");
+			print_dtrwait = 0;
+			if (errno != ENOTTY) {
+				res = 1;
+				warn("TIOCMGDTRWAIT");
+			}
 		}
 		if (ioctl(fd, TIOCGDRAINWAIT, &drainwait) < 0) {
-			res = 1;
-			warn("TIOCGDRAINWAIT");
+			print_drainwait = 0;
+			if (errno != ENOTTY) {
+				res = 1;
+				warn("TIOCGDRAINWAIT");
+			}
 		}
-		printf("dtrwait %d drainwait %d\n", dtrwait, drainwait);
+		if (print_dtrwait)
+			printf("dtrwait %d ", dtrwait);
+		if (print_drainwait)
+			printf("drainwait %d ", drainwait);
+		printf("\n");
 	} else {
 		while (argv[2] != NULL) {
 			if (!strcmp(argv[2],"dtrwait")) {
