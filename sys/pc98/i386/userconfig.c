@@ -421,7 +421,6 @@ static DEV_INFO device_info[] = {
 {"asc",         "AmiScan scanner",			0,		CLS_MMEDIA},
 
 {"apm",         "Advanced Power Management",		FLG_FIXED,	CLS_MISC},
-{"labpc",       "National Instruments Lab-PC/Lab-PC+",	0,		CLS_MISC},
 {"pcic",        "PC-card controller",			0,		CLS_MISC},
 {"npx",	        "Math coprocessor",			FLG_IMMUTABLE,	CLS_MISC},
 #ifdef PC98
