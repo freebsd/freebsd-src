@@ -363,10 +363,12 @@ globtilde(pattern, patbuf, patbuf_len, pglob)
 		 * the password file
 		 */
 		if (issetugid() != 0 || (h = getenv("HOME")) == NULL) {
-			if ((pwd = getpwuid(getuid())) == NULL)
-				return pattern;
-			else
+			if (((h = getlogin()) != NULL &&
+			     (pwd = getpwnam(h)) != NULL) ||
+			    (pwd = getpwuid(getuid())) != NULL)
 				h = pwd->pw_dir;
+			else
+				return pattern;
 		}
 	}
 	else {
