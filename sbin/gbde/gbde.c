@@ -672,9 +672,9 @@ main(int argc, char **argv)
 	if (argc < 3)
 		usage("Too few arguments\n");
 
-       if ((i = kldfind(GBDEMOD)) < 0) {
+       if ((i = modfind("g_bde")) < 0) {
                /* need to load the gbde module */
-               if (kldload(GBDEMOD) < 0 || kldfind(GBDEMOD) < 0) {
+               if (kldload(GBDEMOD) < 0 || modfind("g_bde") < 0) {
                        usage(GBDEMOD ": Kernel module not available");
                }
        }
