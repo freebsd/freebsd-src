@@ -14,9 +14,11 @@ SRCS+=	call.c class.c cvt.c decl.c decl2.c errfn.c error.c except.c expr.c \
 BINDIR=	/usr/libexec
 NOMAN=	1
 NOSHARED=yes
+
+CFLAGS+= -I${GCCDIR}/cp -I.
+
 DPADD+=	${LIBCC_INT} 
 LDADD+=	${LIBCC_INT}
-CFLAGS+= -I${GCCDIR}/cp -I.
 
 .ORDER: parse.c parse.h
 parse.c parse.h: parse.y

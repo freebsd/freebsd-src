@@ -11,10 +11,11 @@ SRCS=	bad.c bit.c bld.c com.c data.c equiv.c expr.c global.c implic.c info.c \
 	stw.c symbol.c target.c top.c type.c version.c where.c
 BINDIR=	/usr/libexec
 NOMAN=
-DPADD=	${LIBCC_INT} 
-LDADD=	${LIBCC_INT}
 
 CFLAGS+= -I${GCCDIR}/f -I.
+
+DPADD=	${LIBCC_INT} 
+LDADD=	${LIBCC_INT}
 
 build-tools: fini
 
