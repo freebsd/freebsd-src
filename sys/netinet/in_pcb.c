@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.c	8.4 (Berkeley) 5/24/95
- *	$Id: in_pcb.c,v 1.21 1996/08/23 18:59:05 phk Exp $
+ *	$Id: in_pcb.c,v 1.22 1996/10/07 19:06:07 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -140,7 +140,7 @@ in_pcbbind(inp, nam)
 	struct mbuf *nam;
 {
 	register struct socket *so = inp->inp_socket;
-	unsigned short *lastport = &inp->inp_pcbinfo->lastport;
+	unsigned short *lastport;
 	struct sockaddr_in *sin;
 	struct proc *p = curproc;		/* XXX */
 	u_short lport = 0;
@@ -206,14 +206,17 @@ in_pcbbind(inp, nam)
 		if (inp->inp_flags & INP_HIGHPORT) {
 			first = ipport_hifirstauto;	/* sysctl */
 			last  = ipport_hilastauto;
+			lastport = &inp->inp_pcbinfo->lasthi;
 		} else if (inp->inp_flags & INP_LOWPORT) {
 			if (error = suser(p->p_ucred, &p->p_acflag))
 				return (EACCES);
 			first = ipport_lowfirstauto;	/* 1023 */
 			last  = ipport_lowlastauto;	/* 600 */
+			lastport = &inp->inp_pcbinfo->lastlow;
 		} else {
 			first = ipport_firstauto;	/* sysctl */
 			last  = ipport_lastauto;
+			lastport = &inp->inp_pcbinfo->lastport;
 		}
 		/*
 		 * Simple check to ensure all ports are not used up causing
