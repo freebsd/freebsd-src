@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 static void
 errmsg(const char *m)
 {
-	write(2, m, strlen(m));
+	write(STDERR_FILENO, m, strlen(m));
 }
 
 static void
