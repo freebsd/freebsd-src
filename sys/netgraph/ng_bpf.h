@@ -84,12 +84,12 @@ struct ng_bpf_hookstat {
 /* Keep this in sync with the above structure definition */
 #define NG_BPF_HOOKSTAT_TYPE_INFO	{			\
 	{							\
-	  { "recvFrames",	&ng_parse_int64_type	},	\
-	  { "recvOctets",	&ng_parse_int64_type	},	\
-	  { "recvMatchFrames",	&ng_parse_int64_type	},	\
-	  { "recvMatchOctets",	&ng_parse_int64_type	},	\
-	  { "xmitFrames",	&ng_parse_int64_type	},	\
-	  { "xmitOctets",	&ng_parse_int64_type	},	\
+	  { "recvFrames",	&ng_parse_uint64_type	},	\
+	  { "recvOctets",	&ng_parse_uint64_type	},	\
+	  { "recvMatchFrames",	&ng_parse_uint64_type	},	\
+	  { "recvMatchOctets",	&ng_parse_uint64_type	},	\
+	  { "xmitFrames",	&ng_parse_uint64_type	},	\
+	  { "xmitOctets",	&ng_parse_uint64_type	},	\
 	  { NULL },						\
 	}							\
 }
