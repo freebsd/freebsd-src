@@ -32,11 +32,12 @@
 .\"
 .Dd January 3, 1994
 .Dt MCON 1
+.Os
 .Sh NAME
 .Nm mcon
 .Nd controls pcvt mouse emulator
 .Sh SYNOPSIS
-.Nm mcon
+.Nm
 .Op Fl l Ar left-button-key
 .Op Fl m Ar mid-button-key
 .Op Fl r Ar right-button-key
@@ -46,16 +47,16 @@
 .Ar device
 .Sh DESCRIPTION
 The
-.Nm mcon
+.Nm
 utility controls the configurable parameters for the mouse emulator of
 .Xr pcvt 4 .
-.br
+.Pp
 .Em NB :
 The mouse emulator is not configured in by default; the system's config
 file needs to specify an option line
-
-.Em options Dq PCVT_EMU_MOUSE
-
+.Pp
+.Cd options PCVT_EMU_MOUSE
+.Pp
 in order to get its functionality.
 .Pp
 Either way, the
@@ -76,12 +77,12 @@ through
 .Pa /dev/ttyv7 ,
 the mouse emulator would allocate
 .Pa /dev/ttyv8 .
-
+.Pp
 If
 .Nm
 is called without any option, it will print the actual values of the
 configurable parameters.
-
+.Pp
 If called with an option, the program attempts to set up the new value.
 .Pp
 The options are as follows:
@@ -107,7 +108,6 @@ are
 .Em extended
 keys that cannot be mapped to be used with the mouse emulator since
 it only allows basic PC-scancode keys to be used.
-
 .It Fl a Ar accel-time
 Set the time limit for the internal accelerator to
 .Ar accel-time
@@ -121,7 +121,6 @@ despite of
 being the unit of choice here, the time resolution is restricted by the
 timer tick distance of the underlying operating system, usually to a
 granularity of 10 milliseconds.
-
 .It Fl s Ar 0 | false | \&no
 .It Fl s Ar 1 | true | yes
 The first form disables, the second form enables the
@@ -132,7 +131,7 @@ toggle-buttons: on first press, they become active, on second press,
 they're deactivated.
 Pressing another button will deactivate any
 other sticky button anyway.
-
+.Pp
 Sticky buttons might be more convenient since you don't need 20 fingers
 at all; on the other hand, they make it virtually impossible to initiate
 double or triple mouse clicks.
@@ -140,8 +139,8 @@ double or triple mouse clicks.
 .Sh EXAMPLES
 The following example would install the default behaviour of the
 mouse emulator:
-
-.Nm mcon
+.Pp
+.Nm
 .Fl l Ar f1
 .Fl m Ar f2
 .Fl r Ar f3
@@ -171,5 +170,4 @@ utility appeared in
 release 3.00.
 .Sh AUTHORS
 The mouse emulator has been contributed by
-.if n Joerg Wunsch.
-.if t J\(:org Wunsch.
+.An "J\(:org Wunsch" .

@@ -98,7 +98,7 @@ Nodes may be assigned a globally unique
 name which can be
 used to refer to the node.
 The name must not contain the characters
-.Dq \&.
+.Dq .\&
 or
 .Dq \&:
 and is limited to
@@ -127,7 +127,7 @@ A hook has an
 name which is unique among all hooks
 on that node (other hooks on other nodes may have the same name).
 The name must not contain a
-.Dq \&.
+.Dq .\&
 or a
 .Dq \&:
 and is
@@ -244,7 +244,7 @@ which is both a netgraph node and a
 BSD socket in the protocol family
 .Dv PF_NETGRAPH .
 Socket nodes allow user processes to participate in
-.Nm Ns .
+.Nm .
 Other nodes communicate with socket nodes using the usual methods, and the
 node hides the fact that it is also passing information to and from a
 cooperating user process.
@@ -392,7 +392,7 @@ starting hook traversal at the local node.
 .Pp
 There are a couple of special possibilities for the node name.
 The name
-.Dq \&.
+.Dq .\&
 (referred to as
 .Dq \&.: )
 always refers to the local node.
@@ -798,19 +798,15 @@ code may either be statically compiled
 into the kernel or else loaded dynamically as a KLD via
 .Xr kldload 8 .
 In the former case, include
-.Bd -literal -offset 4n -compact
-
-   options NETGRAPH
-
-.Ed
+.Pp
+.Dl options NETGRAPH
+.Pp
 in your kernel configuration file. You may also include selected
 node types in the kernel compilation, for example:
-.Bd -literal -offset 4n -compact
-
-   options NETGRAPH
-   options NETGRAPH_SOCKET
-   options NETGRAPH_ECHO
-
+.Bd -literal -offset indent
+options NETGRAPH
+options NETGRAPH_SOCKET
+options NETGRAPH_ECHO
 .Ed
 .Pp
 Once the
@@ -1054,6 +1050,7 @@ customized for the Whistle InterJet.
 It first made its debut in the main tree in
 .Fx 3.4 .
 .Sh AUTHORS
+.An -nosplit
 .An Julian Elischer Aq julian@freebsd.org ,
 with contributions by
 .An Archie Cobbs Aq archie@freebsd.org .

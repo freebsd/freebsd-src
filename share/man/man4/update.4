@@ -41,10 +41,10 @@
 .Nm update
 .Nd flush internal filesystem caches to disk periodically
 .Sh SYNOPSIS
-.Nm update
+.Nm
 .Sh DESCRIPTION
 The
-.Nm update
+.Nm
 kernel process helps protect the integrity of disk volumes
 by flushing
 volatile cached filesystem data
@@ -55,7 +55,7 @@ to modify the
 .Va kern.update
 variable.
 The 
-.Nm update
+.Nm
 process does the equivalent of the 
 .Xr sync 2
 function call to do the task.
@@ -74,13 +74,13 @@ file system damage.  See
 .Xr fsck 8 .
 .Sh HISTORY
 An
-.Nm update
+.Nm
 command appeared in
 .At v6 ,
 and was usually started by
 .Pa /etc/rc
 when the system went multi-user.
 A kernel initiated
-.Nm update
+.Nm
 process first appeared in
 .Fx 2.0 .
