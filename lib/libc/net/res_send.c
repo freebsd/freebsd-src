@@ -596,7 +596,8 @@ read_len:
 			 * Use datagrams.
 			 */
 			struct kevent kv;
-			struct timespec timeout;
+			struct timespec ts;
+			struct timeval timeout, ctv;
 			struct sockaddr_storage from;
 			int fromlen;
 
@@ -705,7 +706,10 @@ read_len:
 				timeout.tv_sec /= _res.nscount;
 			if ((long) timeout.tv_sec <= 0)
 				timeout.tv_sec = 1;
-			timeout.tv_nsec = 0;
+			timeout.tv_usec = 0;
+			TIMEVAL_TO_TIMESPEC(&timeout, &ts);
+			(void) gettimeofday(&ctv, NULL);
+			timeradd(&timeout, &ctv, &timeout);
     wait:
 			if (s < 0) {
 				Perror(stderr, "s out-of-bounds", EMFILE);
@@ -715,13 +719,20 @@ read_len:
 
 			EV_SET(&kv, s, EVFILT_READ, EV_ADD | EV_ONESHOT, 0,0,0);
 
-			n = kevent(kq, &kv, 1, &kv, 1, &timeout);
+			n = kevent(kq, &kv, 1, &kv, 1, &ts);
 			if (n < 0) {
-				if (errno == EINTR)
-					goto wait;
-				Perror(stderr, "kevent", errno);
-				res_close();
-				goto next_ns;
+				if (errno == EINTR) {
+					(void) gettimeofday(&ctv, NULL);
+					if (timercmp(&ctv, &timeout, <)) {
+						timersub(&timeout, &ctv, &ctv);
+						TIMEVAL_TO_TIMESPEC(&ctv, &ts);
+						goto wait;
+					}
+				} else {
+					Perror(stderr, "kevent", errno);
+					res_close();
+					goto next_ns;
+				}
 			}
 
 			if (n == 0) {
