@@ -176,33 +176,31 @@ acphy_service(sc, mii, cmd)
 	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 	int reg;
 
+	/*
+	 * If we're not selected, then do nothing, just isolate and power
+	 * down, if changing media.
+	 */
+	if (IFM_INST(ife->ifm_media) != sc->mii_inst) {
+		if (cmd == MII_MEDIACHG) {
+			reg = PHY_READ(sc, MII_BMCR);
+			PHY_WRITE(sc, MII_BMCR, reg | BMCR_ISO | BMCR_PDOWN);
+		}
+
+		return (0);
+	}
+
 	switch (cmd) {
 	case MII_POLLSTAT:
-		/*
-		 * If we're not polling our PHY instance, just return.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
-			return (0);
 		break;
 
 	case MII_MEDIACHG:
-		/*
-		 * If the media indicates a different PHY instance,
-		 * isolate ourselves.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst) {
-			reg = PHY_READ(sc, MII_BMCR);
-			PHY_WRITE(sc, MII_BMCR, reg | BMCR_ISO | BMCR_PDOWN);
-			return (0);
-		}
-
 		/*
 		 * If the interface is not up, don't do anything.
 		 */
 		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
 			break;
 
-		/* Wake & deisolate up is needed */
+		/* Wake & deisolate up if necessary */
 		reg = PHY_READ(sc, MII_BMCR);
 		if (reg & (BMCR_ISO | BMCR_PDOWN)) 
 			PHY_WRITE(sc, MII_BMCR, reg & ~(BMCR_ISO | BMCR_PDOWN));
@@ -230,12 +228,6 @@ acphy_service(sc, mii, cmd)
 
 	case MII_TICK:
 		/*
-		 * If we're not currently selected, just return.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
-			return (0);
-
-		/*
 		 * Is the interface even up?
 		 */
 		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
@@ -248,23 +240,8 @@ acphy_service(sc, mii, cmd)
 			break;
 
 		/*
-		 * check for link.
-		 * Read the status register twice; BMSR_LINK is latch-low.
+		 * This PHY's autonegotiation doesn't need to be kicked.
 		 */
-		reg = PHY_READ(sc, MII_BMSR) | PHY_READ(sc, MII_BMSR);
-		if (reg & BMSR_LINK)
-			break;
-
-		/*
-		 * Only retry autonegotiation every 5 seconds.
-		 */
-		if (++sc->mii_ticks != 5)
-			return (0);
-
-		sc->mii_ticks = 0;
-		acphy_reset(sc);
-		if (mii_phy_auto(sc, 0) == EJUSTRETURN)
-			return (0);
 		break;
 	}
 
@@ -308,8 +285,7 @@ acphy_status(sc)
 			mii->mii_media_active |= IFM_NONE;
 			return;
 		}
-		diag = PHY_READ(sc, MII_ACPHY_DIAG) |
-		    PHY_READ(sc, MII_ACPHY_DIAG);
+		diag = PHY_READ(sc, MII_ACPHY_DIAG);
 		if (diag & AC_DIAG_SPEED)
 			mii->mii_media_active |= IFM_100_TX;
 		else
