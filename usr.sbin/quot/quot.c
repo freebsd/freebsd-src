@@ -31,7 +31,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: quot.c,v 1.6 1997/08/13 12:09:48 jkh Exp $";
+	"$Id: quot.c,v 1.7 1997/10/10 06:31:07 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -522,7 +522,6 @@ main(argc,argv)
 {
 	char all = 0;
 	struct statfs *mp;
-	struct vfsconf *vfsp;
 	char dev[MNAMELEN + 1];
 	char *nm;
 	int cnt;
@@ -564,11 +563,8 @@ main(argc,argv)
 	}
 	if (all) {
 		cnt = getmntinfo(&mp,MNT_NOWAIT);
-		vfsp = getvfsbyname("ufs");
-		if (vfsp == NULL)
-			errx(1, "cannot find ufs/ffs filesystem type!");
 		for (; --cnt >= 0; mp++) {
-			if (mp->f_type == vfsp->vfc_index) {
+			if (!strncmp(mp->f_fstypename, "ufs", MFSNAMELEN)) {
 				if ((nm = strrchr(mp->f_mntfromname,'/'))) {
 					sprintf(dev,"/dev/r%s",nm + 1);
 					nm = dev;
