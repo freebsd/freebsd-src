@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.22 1995/12/06 13:27:37 phk Exp $
+ * $Id: kern_clock.c,v 1.23 1995/12/07 12:46:37 davidg Exp $
  */
 
 /* Portions of this software are covered by the following: */
@@ -83,13 +83,14 @@
 static void initclocks __P((void *dummy));
 SYSINIT(clocks, SI_SUB_CLOCKS, SI_ORDER_FIRST, initclocks, NULL)
 
-/* Does anybody else really care about these? */
-struct callout *callfree, *callout, calltodo;
+/* Does anybody else really care about these? (yes, machdep.c) */
+static struct callout calltodo;
+struct callout *callfree, *callout;
 
 /* Some of these don't belong here, but it's easiest to concentrate them. */
-long cp_time[CPUSTATES];
+static long cp_time[CPUSTATES];
 long dk_seek[DK_NDRIVE];
-long dk_time[DK_NDRIVE];
+static long dk_time[DK_NDRIVE];
 long dk_wds[DK_NDRIVE];
 long dk_wpms[DK_NDRIVE];
 long dk_xfer[DK_NDRIVE];
@@ -151,7 +152,7 @@ int	profhz;
 int	profprocs;
 int	ticks;
 static int psdiv, pscnt;	/* prof => stat divider */
-int	psratio;		/* ratio: prof / stat */
+static int psratio;		/* ratio: prof / stat */
 
 volatile struct	timeval time;
 volatile struct	timeval mono_time;
@@ -221,10 +222,10 @@ long time_esterror = MAXPHASE;	/* estimated error (us) */
  * and to increase the time_maxerror as the time since last update
  * increases.
  */
-long time_phase = 0;		/* phase offset (scaled us) */
+static long time_phase = 0;		/* phase offset (scaled us) */
 long time_freq = 0;		/* frequency offset (scaled ppm) */
-long time_adj = 0;		/* tick adjust (scaled 1 / hz) */
-long time_reftime = 0;		/* time at last adjustment (s) */
+static long time_adj = 0;		/* tick adjust (scaled 1 / hz) */
+static long time_reftime = 0;		/* time at last adjustment (s) */
 
 #ifdef PPS_SYNC
 /*

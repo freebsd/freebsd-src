@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_init.c	8.3 (Berkeley) 1/4/94
- * $Id: vfs_init.c,v 1.17 1995/12/03 18:00:35 bde Exp $
+ * $Id: vfs_init.c,v 1.18 1995/12/04 16:48:34 phk Exp $
  */
 
 
@@ -56,7 +56,7 @@
 #include <vm/vm.h>
 #include <sys/sysctl.h>
 
-extern void	vfs_op_init __P((void));
+static void	vfs_op_init __P((void));
 
 static void vfsinit __P((void *));
 SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_FIRST, vfsinit, NULL)
@@ -87,7 +87,7 @@ extern struct vnodeop_desc *vfs_op_descs[];
  * extra level of indirection for arrays.  It's an interesting
  * "feature" of C.
  */
-int vfs_opv_numops;
+static int vfs_opv_numops;
 
 /*
  * A miscellaneous routine.
@@ -202,7 +202,7 @@ vfs_opv_init(struct vnodeopv_desc **them)
 /*
  * Initialize known vnode operations vectors.
  */
-void
+static void
 vfs_op_init()
 {
 	int i;

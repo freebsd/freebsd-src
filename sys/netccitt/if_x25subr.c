@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_x25subr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_x25subr.c,v 1.7 1995/07/29 11:41:21 bde Exp $
+ * $Id: if_x25subr.c,v 1.8 1995/10/26 20:30:34 julian Exp $
  */
 
 #include <sys/param.h>
@@ -132,7 +132,7 @@ register struct rtentry *rt;
 	return lx;
 }
 
-void
+static void
 x25_lxfree(lx)
 register struct llinfo_x25 *lx;
 {
@@ -155,7 +155,7 @@ register struct llinfo_x25 *lx;
 /*
  * Process a x25 packet as datagram;
  */
-void
+static void
 x25_ifinput(lcp, m)
 struct pklcd *lcp;
 register struct mbuf *m;
@@ -226,7 +226,7 @@ register struct mbuf *m;
 	splx(s);
 }
 
-void
+static void
 x25_connect_callback(lcp, m)
 register struct pklcd *lcp;
 register struct mbuf *m;
@@ -258,7 +258,7 @@ register struct mbuf *m;
 #define SA(p) ((struct sockaddr *)(p))
 #define RT(p) ((struct rtentry *)(p))
 
-void
+static void
 x25_dgram_incoming(lcp, m0)
 register struct pklcd *lcp;
 struct mbuf *m0;
@@ -293,7 +293,7 @@ refuse: 	lcp->lcd_upper = 0;
 /*
  * X.25 output routine.
  */
-int
+static int
 x25_ifoutput(ifp, m0, dst, rt)
 struct	ifnet *ifp;
 struct	mbuf *m0;
@@ -408,7 +408,7 @@ next_circuit:
 /*
  * Simpleminded timer routine.
  */
-void
+static void
 x25_iftimeout(ifp)
 struct ifnet *ifp;
 {
@@ -433,7 +433,7 @@ struct ifnet *ifp;
  * or deletions of old ones.
  */
 
-void
+static void
 x25_rtrequest(cmd, rt, dst)
 int cmd;
 register struct rtentry *rt;
@@ -485,7 +485,7 @@ struct sockaddr *dst;
 
 int x25_dont_rtinvert = 0;
 
-void
+static void
 x25_rtinvert(cmd, sa, rt)
 register struct sockaddr *sa;
 register struct rtentry *rt;
@@ -539,6 +539,7 @@ union imp_addr {
  * The following is totally bogus and here only to preserve
  * the IP to X.25 translation.
  */
+static int
 x25_ddnip_to_ccitt(src, rt)
 struct sockaddr_in *src;
 register struct rtentry *rt;
@@ -591,6 +592,7 @@ register struct rtentry *rt;
  * This is a utility routine to be called by x25 devices when a
  * call request is honored with the intent of starting datagram forwarding.
  */
+static int
 x25_dg_rtinit(dst, ia, af)
 struct sockaddr_x25 *dst;
 register struct x25_ifaddr *ia;
@@ -799,6 +801,7 @@ struct mbuf *m0;
 	}
 	return 0;
 }
+static int
 x25_rtattach(lcp0, rt)
 register struct pklcd *lcp0;
 struct rtentry *rt;
