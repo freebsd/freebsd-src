@@ -1332,7 +1332,7 @@ _aio_aqueue(struct thread *td, struct aiocb *job, struct aio_liojob *lj, int typ
 		 */
 		struct kevent *kevp;
 
-		kevp = (struct kevent *)job->aio_lio_opcode;
+		kevp = (struct kevent *)(uintptr_t)job->aio_lio_opcode;
 		if (kevp == NULL)
 			goto no_kqueue;
 
@@ -2221,7 +2221,7 @@ aio_waitcomplete(struct thread *td, struct aio_waitcomplete_args *uap)
 
 	for (;;) {
 		if ((cb = TAILQ_FIRST(&ki->kaio_jobdone)) != 0) {
-			suword(uap->aiocbp, (int)cb->uuaiocb);
+			suword(uap->aiocbp, (uintptr_t)cb->uuaiocb);
 			td->td_retval[0] = cb->uaiocb._aiocb_private.status;
 			if (cb->uaiocb.aio_lio_opcode == LIO_WRITE) {
 				curproc->p_stats->p_ru.ru_oublock +=
@@ -2239,7 +2239,7 @@ aio_waitcomplete(struct thread *td, struct aio_waitcomplete_args *uap)
 		s = splbio();
  		if ((cb = TAILQ_FIRST(&ki->kaio_bufdone)) != 0 ) {
 			splx(s);
-			suword(uap->aiocbp, (int)cb->uuaiocb);
+			suword(uap->aiocbp, (uintptr_t)cb->uuaiocb);
 			td->td_retval[0] = cb->uaiocb._aiocb_private.status;
 			aio_free_entry(cb);
 			return cb->uaiocb._aiocb_private.error;
