@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.168 1998/08/04 15:54:27 peter Exp $
+#	$Id: Makefile,v 1.169 1998/08/07 08:24:07 jb Exp $
 
 SUBDIR=	sendmail
 
@@ -11,9 +11,9 @@ BIN1=   aliases amd.map crontab csh.cshrc csh.login csh.logout dm.conf \
 	inetd.conf login.conf login.access motd modems networks \
 	newsyslog.conf phones pccard.conf.sample printcap profile protocols \
 	rc rc.conf rc.firewall rc.local rc.network rc.pccard rc.serial \
-	rc.shutdown etc.${MACHINE}/rc.${MACHINE} \
-	remote security services shells \
-	syslog.conf etc.${MACHINE}/ttys etc.${MACHINE}/disktab rpc make.conf \
+	rc.shutdown etc.${MACHINE_ARCH}/rc.${MACHINE_ARCH} \
+	remote security services shells syslog.conf \
+	etc.${MACHINE_ARCH}/ttys etc.${MACHINE_ARCH}/disktab rpc make.conf \
 	${.CURDIR}/../gnu/usr.bin/man/manpath/manpath.config \
 	${.CURDIR}/../usr.bin/mail/misc/mail.rc \
 	${.CURDIR}/../usr.bin/locate/locate/locate.rc
@@ -62,7 +62,7 @@ distribution:
 	( cd ${.CURDIR}/../sys/i386/boot/biosboot; ${MAKE} install-boothelp ); \
 	pwd_mkdb -p -d ${DESTDIR}/etc ${DESTDIR}/etc/master.passwd; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 555 \
-	     MAKEDEV.local etc.${MACHINE}/MAKEDEV ${DESTDIR}/dev )
+	     MAKEDEV.local etc.${MACHINE_ARCH}/MAKEDEV ${DESTDIR}/dev )
 	(cd ${DESTDIR}/dev; sh MAKEDEV all) ;
 	(cd ${.CURDIR}/root; \
 		${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 dot.cshrc \

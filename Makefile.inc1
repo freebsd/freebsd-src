@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.209 1998/08/04 17:13:38 bde Exp $
+#	$Id: Makefile.inc1,v 1.1 1998/08/31 01:08:08 jb Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -557,8 +557,8 @@ includes:
 .else
 	cd ${.CURDIR}/lib/libtelnet;		${MAKE} beforeinstall
 .endif
-.if exists(${.CURDIR}/lib/csu/${MACHINE})
-	cd ${.CURDIR}/lib/csu/${MACHINE};	${MAKE} beforeinstall
+.if exists(${.CURDIR}/lib/csu/${MACHINE_ARCH})
+	cd ${.CURDIR}/lib/csu/${MACHINE_ARCH};	${MAKE} beforeinstall
 .endif
 	cd ${.CURDIR}/lib/libalias;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libc;			${MAKE} beforeinstall
@@ -651,12 +651,12 @@ lib-tools:
 # Some libraries are built conditionally and/or are in inconsistently
 # named directories:
 #
-.if exists(lib/csu/${MACHINE}.pcc)
-_csu=lib/csu/${MACHINE}.pcc
-.elif ${MACHINE} == "i386" && ${OBJFORMAT} == "elf"
+.if exists(lib/csu/${MACHINE_ARCH}.pcc)
+_csu=lib/csu/${MACHINE_ARCH}.pcc
+.elif ${MACHINE_ARCH} == "i386" && ${OBJFORMAT} == "elf"
 _csu=lib/csu/i386-elf
 .else
-_csu=lib/csu/${MACHINE}
+_csu=lib/csu/${MACHINE_ARCH}
 .endif
 
 .if !defined(NOSECURE) && !defined(NOCRYPT)
@@ -944,9 +944,9 @@ legacy-install:
 .for __target in clean cleandepend cleandir depend obj
 .for entry in ${SUBDIR}
 ${entry}.${__target}__D: .PHONY
-	@if test -d ${.CURDIR}/${entry}.${MACHINE}; then \
-		${ECHODIR} "===> ${DIRPRFX}${entry}.${MACHINE}"; \
-		edir=${entry}.${MACHINE}; \
+	@if test -d ${.CURDIR}/${entry}.${MACHINE_ARCH}; then \
+		${ECHODIR} "===> ${DIRPRFX}${entry}.${MACHINE_ARCH}"; \
+		edir=${entry}.${MACHINE_ARCH}; \
 		cd ${.CURDIR}/$${edir}; \
 	else \
 		${ECHODIR} "===> ${DIRPRFX}${entry}"; \
