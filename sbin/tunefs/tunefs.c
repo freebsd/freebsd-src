@@ -61,6 +61,7 @@ static const char rcsid[] =
 #include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 /* the optimization warning string template */
@@ -75,9 +76,10 @@ union {
 int fi;
 long dev_bsize = 1;
 
-void bwrite(daddr_t, char *, int);
-int bread(daddr_t, char *, int);
-void getsb(struct fs *, char *);
+void bwrite __P((daddr_t, char *, int));
+int bread __P((daddr_t, char *, int));
+void getsb __P((struct fs *, char *));
+void putsb __P((struct fs *, char *, int));
 void usage __P((void));
 void printfs __P((void));
 
@@ -103,9 +105,6 @@ main(argc, argv)
 	if (fs) {
 		if (statfs(special, &stfs) == 0 &&
 		    strcmp(special, stfs.f_mntonname) == 0) {
-		    	if ((stfs.f_flags & MNT_RDONLY) == 0) {
-				errx(1, "cannot work on read-write mounted file system");
-			}
 			active = 1;
 		}
 		special = fs->fs_spec;
@@ -251,12 +250,7 @@ again:
 	}
 	if (argc != 1)
 		usage();
-	bwrite((daddr_t)SBOFF / dev_bsize, (char *)&sblock, SBSIZE);
-	if (Aflag)
-		for (i = 0; i < sblock.fs_ncg; i++)
-			bwrite(fsbtodb(&sblock, cgsblock(&sblock, i)),
-			    (char *)&sblock, SBSIZE);
-	close(fi);
+	putsb(&sblock, special, Aflag);
 	if (active) {
 		bzero(&args, sizeof(args));
 		if (mount("ufs", fs->fs_file,
@@ -283,7 +277,7 @@ getsb(fs, file)
 	char *file;
 {
 
-	fi = open(file, 2);
+	fi = open(file, O_RDONLY);
 	if (fi < 0)
 		err(3, "cannot open %s", file);
 	if (bread((daddr_t)SBOFF, (char *)fs, SBSIZE))
@@ -291,6 +285,32 @@ getsb(fs, file)
 	if (fs->fs_magic != FS_MAGIC)
 		err(5, "%s: bad magic number", file);
 	dev_bsize = fs->fs_fsize / fsbtodb(fs, 1);
+}
+
+void
+putsb(fs, file, all)
+	register struct fs *fs;
+	char *file;
+	int all;
+{
+	int i;
+
+	/*
+	 * Re-open the device read-write. Use the read-only file
+	 * descriptor as an interlock to prevent the device from
+	 * being mounted while we are switching mode.
+	 */
+	i = fi;
+	fi = open(file, O_RDWR);
+	close(i);
+	if (fi < 0)
+		err(3, "cannot open %s", file);
+	bwrite((daddr_t)SBOFF / dev_bsize, (char *)fs, SBSIZE);
+	if (all)
+		for (i = 0; i < fs->fs_ncg; i++)
+			bwrite(fsbtodb(fs, cgsblock(fs, i)),
+			    (char *)fs, SBSIZE);
+	close(fi);
 }
 
 void
