@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.51 1998/08/03 10:49:18 kato Exp $
+ **      $Id: userconfig.c,v 1.52 1998/09/08 09:47:09 kato Exp $
  **/
 
 /**
@@ -2400,12 +2400,10 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.51 1998/08/03 10:49:18 kato Exp $
+ *      $Id: userconfig.c,v 1.52 1998/09/08 09:47:09 kato Exp $
  */
 
 #include "scbus.h"
-
-#include <scsi/scsiconf.h>
 
 #define PARM_DEVSPEC	0x1
 #define PARM_INT	0x2
@@ -2430,7 +2428,7 @@ typedef struct _cmd {
 } Cmd;
 
 
-#if NSCBUS > 0
+#if 0
 static void lsscsi(void);
 static int list_scsi(CmdParm *);
 #endif
@@ -2529,7 +2527,7 @@ static Cmd CmdList[] = {
     { "po",	set_device_ioaddr,	int_parms },	/* port dev addr */
     { "res",	(CmdFunc)cpu_reset,	NULL },		/* reset CPU	*/
     { "q", 	quitfunc, 		NULL },		/* quit		*/
-#if NSCBUS > 0
+#if 0
     { "s",	list_scsi,		NULL },		/* scsi */
 #endif
 #ifdef VISUAL_USERCONFIG
@@ -3300,7 +3298,7 @@ strtoul(nptr, endptr, base)
 	return (acc);
 }
 
-#if NSCBUS > 0
+#if 0
 /* scsi: Support for displaying configured SCSI devices.
  * There is no way to edit them, and this is inconsistent
  * with the ISA method.  This is here as a basis for further work.
@@ -3317,7 +3315,6 @@ type_text(char *name)	/* XXX: This is bogus */
 	return "device";
 }
 
-static void
 id_put(char *desc, int id)
 {
     if (id != SCCONF_UNSPEC)
