@@ -419,6 +419,8 @@ char **argv;
 			yp_restricted_mode(argv[i+1]);
 		else if (strcmp("-m", argv[i]) == 0)
 			yp_manycast++;
+		else
+			errx(1, "unknown option: %s", argv[i]);
 	}
 
 	/* blow away everything in BINDINGDIR (if it exists) */
