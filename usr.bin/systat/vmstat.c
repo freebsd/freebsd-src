@@ -170,7 +170,7 @@ static struct nlist namelist[] = {
 #define PAGEROW		 2	/* uses 4 rows and 26 cols */
 #define PAGECOL		36
 #define INTSROW		 2	/* uses all rows to bottom and 17 cols */
-#define INTSCOL		63
+#define INTSCOL		61
 #define PROCSROW	 7	/* uses 2 rows and 20 cols */
 #define PROCSCOL	 0
 #define GENSTATROW	 7	/* uses 2 rows and 30 cols */
@@ -333,7 +333,7 @@ labelkre()
 	for (i = 0; i < nintr; i++) {
 		if (intrloc[i] == 0)
 			continue;
-		mvprintw(intrloc[i], INTSCOL + 9, "%-8.8s", intrname[i]);
+		mvprintw(intrloc[i], INTSCOL + 9, "%-10.10s", intrname[i]);
 	}
 }
 
@@ -389,15 +389,15 @@ showkre()
 			if (nextintsrow == LINES)
 				continue;
 			intrloc[i] = nextintsrow++;
-			mvprintw(intrloc[i], INTSCOL + 9, "%-8.8s",
+			mvprintw(intrloc[i], INTSCOL + 9, "%-10.10s",
 				intrname[i]);
 		}
 		X(intrcnt);
 		l = (int)((float)s.intrcnt[i]/etime + 0.5);
 		inttotal += l;
-		putint(l, intrloc[i], INTSCOL, 8);
+		putint(l, intrloc[i], INTSCOL + 2, 6);
 	}
-	putint(inttotal, INTSROW + 1, INTSCOL, 8);
+	putint(inttotal, INTSROW + 1, INTSCOL + 2, 6);
 	Z(ncs_goodhits); Z(ncs_badhits); Z(ncs_miss);
 	Z(ncs_long); Z(ncs_pass2); Z(ncs_2passes); Z(ncs_neghits);
 	s.nchcount = nchtotal.ncs_goodhits + nchtotal.ncs_badhits +
