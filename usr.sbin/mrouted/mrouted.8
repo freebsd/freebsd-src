@@ -1,5 +1,5 @@
 '\"COPYRIGHT 1989 by The Board of Trustees of Leland Stanford Junior University.
-'\"$Id: mrouted.8,v 3.8 1995/11/29 22:37:21 fenner Rel $
+'\"$Id: mrouted.8,v 3.8.1.1 1996/11/10 22:16:52 fenner Exp $
 .TH MROUTED 8
 .UC 5
 .SH NAME
@@ -112,18 +112,16 @@ configuration commands may be placed in
 There are four types of configuration commands:
 .nf
 
-    phyint <local-addr>   [disable]   [metric <m>]
+    phyint <local-addr>   [disable]   [metric <m>] [advert_metric <m>]
 		 [threshold <t>] [rate_limit <b>]
 		   [boundary (<boundary-name>|<scoped-addr>/<mask-len>)]
 		   [altnet <network>/<mask-len>]
 
-    tunnel <local-addr> <remote-addr> [metric <m>]
+    tunnel <local-addr> <remote-addr> [metric <m>] [advert_metric <m>]
 		 [threshold <t>] [rate_limit <b>]
 		   [boundary (<boundary-name>|<scoped-addr>/<mask-len>)]
 
     cache_lifetime <ct>
-
-    pruning <off/on>
 
     name <boundary-name> <scoped-addr>/<mask-len>
 
@@ -155,22 +153,10 @@ be replaced by a host name, if and only if the host name has a single
 IP address associated with it.
 The tunnel must be set
 up in the mrouted.conf files of both routers before it can be used.
-'\"For backwards compatibility with older
-'\".IR mrouted s,
-'\"the srcrt keyword specifies 
-'\"encapsulation using IP source routing.
 .PP
 The cache_lifetime is a value that determines the amount of time that a
 cached multicast route stays in kernel before timing out. The value of this
 entry should lie between 300 (5 min) and 86400 (1 day). It defaults to 300.
-.PP
-The pruning <off/on> option is provided for
-.IR mrouted
-to act as a non-pruning router. It is also possible to start 
-.IR mrouted
-in a non-pruning mode using the "-p" option on the command line. It is 
-expected that a router would be configured in this manner for test
-purposes only. The default mode is pruning enabled.
 .PP
 You may assign names to boundaries to make configuration easier with
 the name keyword.  The boundary option on phyint or tunnel commands
@@ -183,6 +169,11 @@ because
 .I mrouted
 cannot route along paths with a sum of metrics greater
 than 31.
+.PP
+The advert_metric is the "cost" associated with receiving a datagram
+on the given interface or tunnel; it may be used to influence the choice
+of routes.  The advert_metric defaults to 0.  Note that the effective
+metric of a link is one end's metric plus the other end's advert_metric.
 .LP
 The threshold is the minimum IP time-to-live required for a multicast datagram
 to be forwarded to the given interface or tunnel.  It is used to control the
