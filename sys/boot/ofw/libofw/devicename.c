@@ -27,12 +27,10 @@
  */
 
 #include <stand.h>
-#include <string.h>
 #include <sys/disklabel.h>
-#include "bootstrap.h"
-#include "libalpha.h"
+#include "libofw.h"
 
-static int	alpha_parsedev(struct alpha_devdesc **dev, const char *devspec, const char **path);
+static int	ofw_parsedev(struct ofw_devdesc **, const char *, const char **);
 
 /* 
  * Point (dev) at an allocated device specifier for the device matching the
@@ -40,9 +38,9 @@ static int	alpha_parsedev(struct alpha_devdesc **dev, const char *devspec, const
  * use that.  If not, use the default device.
  */
 int
-alpha_getdev(void **vdev, const char *devspec, const char **path)
+ofw_getdev(void **vdev, const char *devspec, const char **path)
 {
-    struct alpha_devdesc **dev = (struct alpha_devdesc **)vdev;
+    struct ofw_devdesc **dev = (struct ofw_devdesc **)vdev;
     int				rv;
     
     /*
@@ -53,7 +51,7 @@ alpha_getdev(void **vdev, const char *devspec, const char **path)
 	(devspec[0] == '/') || 
 	(strchr(devspec, ':') == NULL)) {
 
-	if (((rv = alpha_parsedev(dev, getenv("currdev"), NULL)) == 0) &&
+	if (((rv = ofw_parsedev(dev, getenv("currdev"), NULL)) == 0) &&
 	    (path != NULL))
 		*path = devspec;
 	return(rv);
@@ -62,7 +60,7 @@ alpha_getdev(void **vdev, const char *devspec, const char **path)
     /*
      * Try to parse the device name off the beginning of the devspec
      */
-    return(alpha_parsedev(dev, devspec, path));
+    return(ofw_parsedev(dev, devspec, path));
 }
 
 /*
@@ -80,9 +78,9 @@ alpha_getdev(void **vdev, const char *devspec, const char **path)
  * 
  */
 static int
-alpha_parsedev(struct alpha_devdesc **dev, const char *devspec, const char **path)
+ofw_parsedev(struct ofw_devdesc **dev, const char *devspec, const char **path)
 {
-    struct alpha_devdesc *idev;
+    struct ofw_devdesc *idev;
     struct devsw	*dv;
     int			i, unit, slice, partition, err;
     char		*cp;
@@ -102,7 +100,7 @@ alpha_parsedev(struct alpha_devdesc **dev, const char *devspec, const char **pat
 
     if (dv == NULL)
 	return(ENOENT);
-    idev = malloc(sizeof(struct alpha_devdesc));
+    idev = malloc(sizeof(struct ofw_devdesc));
     err = 0;
     np = (devspec + strlen(dv->dv_name));
         
@@ -142,9 +140,9 @@ alpha_parsedev(struct alpha_devdesc **dev, const char *devspec, const char **pat
 	    goto fail;
 	}
 
-	idev->d_kind.srmdisk.unit = unit;
-	idev->d_kind.srmdisk.slice = slice;
-	idev->d_kind.srmdisk.partition = partition;
+	idev->d_kind.ofwdisk.unit = unit;
+	idev->d_kind.ofwdisk.slice = slice;
+	idev->d_kind.ofwdisk.partition = partition;
 	if (path != NULL)
 	    *path = (*cp == 0) ? cp : cp + 1;
 	break;
@@ -186,51 +184,3 @@ alpha_parsedev(struct alpha_devdesc **dev, const char *devspec, const char **pat
     free(idev);
     return(err);
 }
-
-
-char *
-alpha_fmtdev(void *vdev)
-{
-    struct alpha_devdesc	*dev = (struct alpha_devdesc *)vdev;
-    static char		buf[128];	/* XXX device length constant? */
-    char		*cp;
-    
-    switch(dev->d_type) {
-    case DEVT_NONE:
-	strcpy(buf, "(no device)");
-	break;
-
-    case DEVT_DISK:
-	cp = buf;
-	cp += sprintf(cp, "%s%d", dev->d_dev->dv_name, dev->d_kind.srmdisk.unit);
-	if (dev->d_kind.srmdisk.slice > 0)
-	    cp += sprintf(cp, "s%d", dev->d_kind.srmdisk.slice);
-	if (dev->d_kind.srmdisk.partition >= 0)
-	    cp += sprintf(cp, "%c", dev->d_kind.srmdisk.partition + 'a');
-	strcat(cp, ":");
-	break;
-
-    case DEVT_NET:
-	sprintf(buf, "%s%d:", dev->d_dev->dv_name, dev->d_kind.netif.unit);
-	break;
-    }
-    return(buf);
-}
-
-
-/*
- * Set currdev to suit the value being supplied in (value)
- */
-int
-alpha_setcurrdev(struct env_var *ev, int flags, void *value)
-{
-    struct alpha_devdesc	*ncurr;
-    int			rv;
-    
-    if ((rv = alpha_parsedev(&ncurr, value, NULL)) != 0)
-	return(rv);
-    free(ncurr);
-    env_setenv(ev->ev_name, flags | EV_NOHOOK, value, NULL, NULL);
-    return(0);
-}
-
