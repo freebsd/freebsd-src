@@ -17,6 +17,7 @@ MAN9=	CONDSPLASSERT.9 KASSERT.9 MD5.9 SPLASSERT.9 \
 	devfs_add_devswf.9 devfs_link.9 devfs_remove_dev.9 devstat.9 \
 	devtoname.9 \
 	fetch.9 \
+	get_cyclecounter.9 \
 	ifnet.9 inittodr.9 intro.9 \
 	kernacc.9 kthread.9 \
 	malloc.9 make_dev.9 mbuf.9 microseq.9 microtime.9 microuptime.9 \
