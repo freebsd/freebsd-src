@@ -70,6 +70,7 @@ void	bcopyb __P((const void *from, void *to, size_t len));
 void	busdma_swi __P((void));
 void	cpu_halt __P((void));
 void	cpu_reset __P((void));
+void	cpu_setregs __P((void));
 void	cpu_switch_load_gs __P((void)) __asm(__STRING(cpu_switch_load_gs));
 void	doreti_iret __P((void)) __asm(__STRING(doreti_iret));
 void	doreti_iret_fault __P((void)) __asm(__STRING(doreti_iret_fault));
