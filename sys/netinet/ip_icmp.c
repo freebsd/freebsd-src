@@ -648,6 +648,9 @@ icmp_reflect(m)
 		goto done;
 	}
 match:
+#ifdef MAC
+	mac_reflect_mbuf_icmp(m);
+#endif
 	t = IA_SIN(ia)->sin_addr;
 	ip->ip_src = t;
 	ip->ip_ttl = ip_defttl;
