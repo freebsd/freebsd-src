@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.7.4.2 1996/04/01 00:26:17 gibbs Exp $
+ *      $Id: worm.c,v 1.7.4.3 1996/06/23 14:48:39 joerg Exp $
  */
 
 /* XXX This is PRELIMINARY.
@@ -56,6 +56,20 @@
  *     When it is finished I hope to hoist the partition code up into
  *     "scsi_driver" and use common code for all devices.
  */
+
+/*
+ * This driver does not support HP or Philips drives in FreeBSD 2.1.X.
+ * There is a patch required that affects the entire SCSI subsystem,
+ * and has therefore been left out in the 2.1-stable branch.
+ *
+ * Write to joerg@freebsd.org if you really think you need this patch.
+ * Using FreeBSD 2.2R is almost always the better idea though.
+ *
+ * The #error below is merely a reminder for this.  Delete the line if you
+ * think you wanna use the driver.  The Plasmon drives should work fine, btw.
+ */
+
+#error "This driver does not support many popular CD-R drives in FreeBSD 2.1.X"
 
 #include <sys/param.h>
 #include <sys/systm.h>
