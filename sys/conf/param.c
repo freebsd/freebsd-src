@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)param.c	8.2 (Berkeley) 1/21/94
- * $Id: param.c,v 1.7 1995/02/16 11:29:19 joerg Exp $
+ * $Id: param.c,v 1.8 1995/02/20 19:42:19 guido Exp $
  */
 
 #include <sys/param.h>
@@ -84,9 +84,20 @@ struct	timezone tz = { TIMEZONE, DST };
 int	maxproc = NPROC;			/* maximum # of processes */
 int	maxprocperuid = NPROC-1;		/* maximum # of processes per user */
 int	maxfiles = NPROC*2;			/* system wide open files limit */
-int	maxfilesperproc = NPROC*2;			/* system wide open files limit */
+int	maxfilesperproc = NPROC*2;		/* per-process open files limit */
 int	ncallout = 16 + NPROC;			/* maximum # of timer events */
+
+/* maximum # of mbuf clusters */
+#ifndef NMBCLUSTERS
+#ifdef GATEWAY
+int	nmbclusters = 512 + MAXUSERS * 16;
+#else
+int	nmbclusters = 256 + MAXUSERS * 16;
+#endif /* GATEWAY */
+#else
 int	nmbclusters = NMBCLUSTERS;
+#endif
+
 int	fscale = FSCALE;	/* kernel uses `FSCALE', user uses `fscale' */
 
 /*
