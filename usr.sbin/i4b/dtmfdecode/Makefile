@@ -16,6 +16,6 @@ CFLAGS          +=      -Wall -g -DDEBUG
 MAN1		=	dtmfdecode.1
 
 test:   ${PROG}
-        uudecode -p < dtmfsounds.al.uu | ./${PROG}
+	uudecode -p < dtmfsounds.al.uu | ./${PROG}
 
 .include <bsd.prog.mk>
