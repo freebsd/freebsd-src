@@ -1,8 +1,3 @@
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
-
 /*
  *
  * FreeBSD install - a package for the installation and maintainance
@@ -21,8 +16,12 @@ static const char rcsid[] =
  * 18 July 1993
  *
  * This is the add module.
- *
  */
+
+#ifndef lint
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif
 
 #include <err.h>
 #include <sys/param.h>
