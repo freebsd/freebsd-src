@@ -128,6 +128,6 @@ strtoq(const char *nptr, char **endptr, int base)
 	} else if (neg)
 		acc = -acc;
 	if (endptr != 0)
-		*endptr = (char *)(any ? s - 1 : nptr);
+		*((const char **)endptr) = any ? s - 1 : nptr;
 	return (acc);
 }
