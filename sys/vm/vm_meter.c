@@ -119,6 +119,8 @@ SYSCTL_INT(_vm, VM_V_CACHE_MAX, v_cache_max,
 	CTLFLAG_RW, &cnt.v_cache_max, 0, "");
 SYSCTL_INT(_vm, VM_V_PAGEOUT_FREE_MIN, v_pageout_free_min,
 	CTLFLAG_RW, &cnt.v_pageout_free_min, 0, "");
+SYSCTL_INT(_vm, OID_AUTO, v_free_severe,
+	CTLFLAG_RW, &cnt.v_free_severe, 0, "");
 
 SYSCTL_STRUCT(_vm, VM_LOADAVG, loadavg, CTLFLAG_RD, 
     &averunnable, loadavg, "Machine loadaverage history");

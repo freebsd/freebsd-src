@@ -136,7 +136,8 @@ struct vm_page {
 };
 
 /*
- * note SWAPBLK_NONE is a flag, basically the high bit.
+ * note: currently use SWAPBLK_NONE as an absolute value rather then 
+ * a flag bit.
  */
 
 #define SWAPBLK_MASK	((daddr_t)((u_daddr_t)-1 >> 1))		/* mask */
@@ -391,6 +392,7 @@ void vm_page_activate __P((vm_page_t));
 vm_page_t vm_page_alloc __P((vm_object_t, vm_pindex_t, int));
 vm_page_t vm_page_grab __P((vm_object_t, vm_pindex_t, int));
 void vm_page_cache __P((register vm_page_t));
+void vm_page_dontneed __P((register vm_page_t));
 static __inline void vm_page_copy __P((vm_page_t, vm_page_t));
 static __inline void vm_page_free __P((vm_page_t));
 static __inline void vm_page_free_zero __P((vm_page_t));

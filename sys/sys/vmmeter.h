@@ -91,9 +91,95 @@ struct vmmeter {
 	u_int v_cache_max;	/* max number of pages in cached obj */
 	u_int v_pageout_free_min;   /* min number pages reserved for kernel */
 	u_int v_interrupt_free_min; /* reserved number of pages for int code */
+	u_int v_free_severe;	/* severe depletion of pages below this pt */
 };
 #ifdef KERNEL
+
 extern struct vmmeter cnt;
+
+/*
+ * Return TRUE if we are under our reserved low-free-pages threshold
+ */
+
+static __inline 
+int
+vm_page_count_reserved(void)
+{
+    return (cnt.v_free_reserved > (cnt.v_free_count + cnt.v_cache_count));
+}
+
+/*
+ * Return TRUE if we are under our severe low-free-pages threshold
+ *
+ * This routine is typically used at the user<->system interface to determine
+ * whether we need to block in order to avoid a low memory deadlock.
+ */
+
+static __inline 
+int
+vm_page_count_severe(void)
+{
+    return (cnt.v_free_severe > (cnt.v_free_count + cnt.v_cache_count));
+}
+
+/*
+ * Return TRUE if we are under our minimum low-free-pages threshold.
+ *
+ * This routine is typically used within the system to determine whether
+ * we can execute potentially very expensive code in terms of memory.  It
+ * is also used by the pageout daemon to calculate when to sleep, when
+ * to wake waiters up, and when (after making a pass) to become more
+ * desparate.
+ */
+
+static __inline 
+int
+vm_page_count_min(void)
+{
+    return (cnt.v_free_min > (cnt.v_free_count + cnt.v_cache_count));
+}
+
+/*
+ * Return TRUE if we have not reached our free page target during
+ * free page recovery operations.
+ */
+
+static __inline 
+int
+vm_page_count_target(void)
+{
+    return (cnt.v_free_target > (cnt.v_free_count + cnt.v_cache_count));
+}
+
+/*
+ * Return the number of pages we need to free-up or cache
+ * A positive number indicates that we do not have enough free pages.
+ */
+
+static __inline 
+int
+vm_paging_target(void)
+{
+    return (
+	(cnt.v_free_target + cnt.v_cache_min) - 
+	(cnt.v_free_count + cnt.v_cache_count)
+    );
+}
+
+/*
+ * Return a positive number if the pagedaemon needs to be woken up.
+ */
+
+static __inline 
+int
+vm_paging_needed(void)
+{
+    return (
+	(cnt.v_free_reserved + cnt.v_cache_min) >
+	(cnt.v_free_count + cnt.v_cache_count)
+    );
+}
+
 #endif
 
 /* systemwide totals computed every five seconds */
