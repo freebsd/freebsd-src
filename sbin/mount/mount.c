@@ -522,12 +522,14 @@ prmount(sfp)
 		else
 			(void)printf("%d", sfp->f_owner);
 	}
-	if (sfp->f_syncwrites != 0 || sfp->f_asyncwrites != 0)
-		(void)printf(", writes: sync %ld async %ld",
-		    sfp->f_syncwrites, sfp->f_asyncwrites);
-	if (sfp->f_syncreads != 0 || sfp->f_asyncreads != 0)
-		(void)printf(", reads: sync %ld async %ld",
-		    sfp->f_syncreads, sfp->f_asyncreads);
+	if (verbose) {
+		if (sfp->f_syncwrites != 0 || sfp->f_asyncwrites != 0)
+			(void)printf(", writes: sync %ld async %ld",
+			    sfp->f_syncwrites, sfp->f_asyncwrites);
+		if (sfp->f_syncreads != 0 || sfp->f_asyncreads != 0)
+			(void)printf(", reads: sync %ld async %ld",
+			    sfp->f_syncreads, sfp->f_asyncreads);
+	}
 	(void)printf(")\n");
 }
 
