@@ -1,0 +1,770 @@
+.\" 	$NetBSD: rc.subr.8,v 1.9 2002/07/08 16:14:55 atatat Exp $
+.\"	$FreeBSD$
+.\"
+.\" Copyright (c) 2002 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Luke Mewburn.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the NetBSD
+.\"	Foundation, Inc. and its contributors.
+.\" 4. Neither the name of The NetBSD Foundation nor the names of its
+.\"    contributors may be used to endorse or promote products derived
+.\"    from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd April 18, 2002
+.Dt RC.SUBR 8
+.Os
+.Sh NAME
+.Nm rc.subr
+.Nd functions used by system shell scripts
+.Sh SYNOPSIS
+.Bl -item
+.It
+.Li . /etc/rc.subr
+.It
+.Ic backup_file Ar action Ar file Ar current Ar backup
+.It
+.Ic checkyesno Ar var
+.It
+.Ic check_pidfile Ar pidfile Ar procname Op Ar interpreter
+.It
+.Ic check_process Ar procname Op Ar interpreter
+.It
+.Ic debug Ar message
+.It
+.Ic err Ar exitval Ar message
+.It
+.Ic force_depend Ar name
+.It
+.Ic info Ar message
+.It
+.Ic load_rc_config Ar command
+.It
+.Ic mount_critical_filesystems Ar type
+.It
+.Ic rc_usage Ar command Op Ar ...
+.It
+.Ic reverse_list Ar item Op Ar ...
+.It
+.Ic run_rc_command Ar argument
+.It
+.Ic run_rc_script Ar file Ar argument
+.It
+.Ic set_rcvar Op Ar base
+.It
+.Ic wait_for_pids Op Ar pid Op Ar ...
+.It
+.Ic warn Ar message
+.El
+.Sh DESCRIPTION
+.Nm
+contains commonly used shell script functions and variable
+definitions which are used by various scripts such as
+.Xr rc 8 .
+Scripts required by ports in
+.Pa /usr/local/etc/rc.d
+will also eventually
+be rewritten to make use of it.
+.Pp
+The
+.Nm
+functions were mostly imported from
+.Nx 
+and it is intended that they remain synced between the
+two projects. With that in mind there are several variable
+defenitions that can help in this regard. They are:
+.Bl -tag -width 4n
+.It Ic OSTYPE
+Its value will be either
+.Fx
+or
+.Nx ,
+depending on which OS it is running on.
+.It Ic SYSCTL
+The path to the
+.Xr sysctl 8
+command.
+.It Ic SYSCTL_N
+The path and argument list to display only the
+.Xr sysctl 8
+values instead of a name=value pair.
+.It Ic SYSCTL_W
+The path and argument to write or modify
+.Xr sysctl 8
+values.
+.El
+.Pp
+The
+.Nm
+functions are accessed by sourcing
+.Pa /etc/rc.subr
+into the current shell.
+.Pp
+The following shell functions are available:
+.Bl -tag -width 4n
+.It Xo
+.Ic backup_file Ar action Ar file Ar current Ar backup
+.Xc
+Make a backup copy of
+.Ar file
+into
+.Ar current .
+If the
+.Xr rc.conf 5
+variable
+.Sy backup_uses_rcs
+is
+.Sq YES ,
+use
+.Xr rcs 1
+to archive the previous version of
+.Ar current ,
+otherwise save the previous version of
+.Ar current
+as
+.Ar backup .
+.Pp
+.Ar action
+may be one of the following:
+.Bl -tag -width remove
+.It Sy add
+.Ar file
+is now being backed up by or possibly re-entered into this backup mechanism.
+.Ar current
+is created, and if necessary, the
+.Xr rcs 1
+files are created as well.
+.It Sy update
+.Ar file
+has changed and needs to be backed up.
+If
+.Ar current
+exists, it is copied to
+.Ar backup
+or checked into
+.Xr rcs 1
+(if the repository file is old),
+and then
+.Ar file
+is copied to
+.Ar current .
+.It Sy remove
+.Ar file
+is no longer being tracked by this backup mechanism.
+If
+.Xr rcs 1
+is being used, an empty file is checked in and
+.Ar current
+is removed,
+otherwise
+.Ar current
+is moved to
+.Ar backup .
+.El
+.It Ic checkyesno Ar var
+Return 0 if
+.Ar var
+is defined to
+.Sq YES ,
+.Sq TRUE ,
+.Sq ON ,
+or
+.Sq 1 .
+Return 1 if
+.Ar var
+is defined to
+.Sq NO ,
+.Sq FALSE ,
+.Sq OFF ,
+or
+.Sq 0 .
+Otherwise, warn that
+.Ar var
+is not set correctly.
+The values are case insensitive.
+.It Xo
+.Ic check_pidfile
+.Ar pidfile
+.Ar procname
+.Op Ar interpreter
+.Xc
+Parses the first word of the first line of
+.Ar pidfile
+for a PID, and ensures that the process with that PID
+is running and its first argument matches
+.Ar procname .
+Prints the matching PID if successfull, otherwise nothing.
+If
+.Ar interpreter
+is provided, parse the first line of
+.Ar procname ,
+ensure that the line is of the form
+.Dl #! interpreter [...]
+and use
+.Ar interpreter
+with its optional arguments and
+.Ar procname
+appended as the process string to search for.
+.It Ic check_process Ar procname Op Ar interpreter
+Prints the PIDs of any processes that are running with a first
+argument that matches
+.Ar procname .
+.Ar interpreter
+is handled as per
+.Ic check_pidfile .
+.It Ic debug Ar message
+Display a debugging message to
+.Em stderr ,
+log it to the system log using
+.Xr logger 1 ,
+and
+return to the caller.
+The error message consists of the sript name
+(from
+.Sy $0 ) ,
+followed by
+.Dq ": DEBUG: " ,
+and then
+.Ar message .
+This function is intended to be used by developers
+as an aid to debuging scripts. It can be turned on or off
+by the
+.Xr rc.conf 5
+variable
+.Em rc_debug .
+.It Ic err Ar exitval Ar message
+Display an error message to
+.Em stderr ,
+log it to the system log
+using
+.Xr logger 1 ,
+and
+.Cm exit
+with an exit value of
+.Ar exitval .
+The error message consists of the script name
+(from
+.Sy $0 ) ,
+followed by
+.Dq ": ERROR: " ,
+and then
+.Ar message .
+.It Ic force_depend name
+Output an advisory message and force the
+.Ar name
+service to start. The
+.Ar name
+argument is the
+.Xr basename 1 ,
+component of the path to the script, usually
+.Em /etc/rc.d/name .
+If the script fails for any reason it will output a warning
+and return with a return value of 1. If it was successful
+it will return 0.
+.It Ic info Ar message
+Display an informational message to
+.Em stdout ,
+and log it to the system log using
+.Xr logger 1 .
+The message consists of the script name
+(from
+.Sy $0 ) ,
+followed by
+.Dq ": INFO: " ,
+and then
+.Ar mesage .
+The display of this informational output can be
+turned on or off by the
+.Xr rc.conf 5
+variable
+.Em rc_info .
+.It Ic load_rc_config Ar command
+Source in the configuration files for
+.Ar command .
+First,
+.Pa /etc/rc.conf
+is sourced if it has not yet been read in.
+Then,
+.Pa /etc/rc.conf.d/ Ns Ar command
+is sourced if it is an existing file.
+The latter may also contain other variable assignments to override
+.Ic run_rc_command
+arguments defined by the calling script, to provide an easy
+mechanism for an administrator to override the behaviour of a given
+.Xr rc.d 8
+script without requiring the editing of that script.
+.It Ic mount_critical_filesystems Ar type
+Go through a list of critical file systems,
+as found in the
+.Xr rc.conf 5
+variable
+.Sy critical_filesystems_ Ns Ar type ,
+mounting each one that
+is not currently mounted.
+.It Ic rc_usage Ar command Op Ar ...
+Print a usage message for
+.Sy $0 ,
+with
+.Ar commands
+being the list of valid arguments
+prefixed by
+.Dq "[fast|force]" .
+.It Ic reverse_list Ar item Op Ar ...
+Print the list of
+.Ar items
+in reverse order.
+.It Ic run_rc_command Ar argument
+Run the
+.Ar argument
+method for the current
+.Xr rc.d 8
+script, based on the settings of various shell variables.
+.Ic run_rc_command
+is extremely flexible, and allows fully functional
+.Xr rc.d 8
+scripts to be implemented in a small amount of shell code.
+.Pp
+.Ar argument
+is searched for in the list of supported commands, which may be one
+of:
+.Dl start stop restart rcvar
+as well as any word listed in the optional variable
+.Sy extra_commands .
+If
+.Sy pidfile
+or
+.Sy procname
+is set, also allow:
+.Dl status poll
+.Pp
+.Ar argument
+may have one of the following prefixes which alters its operation:
+.Bl -tag -width "Prefix" -offset indent -compact
+.It Sy Prefix
+.Sy Operation
+.It Li fast
+Skip the check for an existing running process,
+and sets
+.Sy rc_fast=YES .
+.It Li force
+Skip the checks for
+.Sy rcvar
+being set to yes,
+and sets
+.Sy rc_force=YES .
+This ignores
+.Ar argument Ns Sy _precmd
+returning non-zero, and ignores any of the
+.Sy required_*
+tests failing .
+.El
+.Pp
+.Ic run_rc_command
+uses the following shell variables to control its behaviour.
+Unless otherwise stated, these are optional.
+.Bl -tag -width procname -offset indent
+.It Sy name
+The name of this script.
+This is not optional.
+.It Sy rcvar
+The value of
+.Sy rcvar
+is checked with
+.Ic checkyesno
+to determine if this method should be run.
+.It Sy command
+Full path to the command.
+Not required if
+.Ar argument Ns Sy _cmd
+is defined for each supported keyword.
+.It Sy command_args
+Optional arguments and/or shell directives for
+.Sy command .
+.It Sy command_interpreter
+.Sy command
+is started with
+.Dl #! command_interpreter [...]
+which results in its
+.Xr ps 1
+command being
+.Dl command_interpreter [...] command
+so use that string to find the PID(s) of the running command
+rather than
+.Ql command .
+.It Sy extra_commands
+Extra commands/keywords/arguments supported.
+.It Sy pidfile
+Path to pid file.
+Used to determine the PID(s) of the running command.
+If
+.Sy pidfile
+is set, use
+.Dl check_pidfile $pidfile $procname
+to find the PID.
+Otherwise, if
+.Sy command
+is set, use
+.Dl check_process $procname
+to find the PID.
+.It Sy procname
+Process name to check for.
+Defaults to the value of
+.Sy command .
+.It Sy required_dirs
+Check for the existence of the listed directories
+before running the default start method.
+.It Sy required_files
+Check for the readability of the listed files
+before running the default start method.
+.It Sy required_vars
+Perform
+.Ic checkyesno
+on each of the list variables
+before running the default start method.
+.It Sy ${name}_chdir
+Directory to
+.Ic cd
+to before running
+.Sy command ,
+if
+.Sy ${name}_chroot
+is not provided.
+.It Sy ${name}_chroot
+Directory to
+.Xr chroot 8
+to before running
+.Sy command .
+Only supported after
+.Pa /usr
+is mounted.
+.It Sy ${name}_flags
+Arguments to call
+.Sy command
+with.
+This is usually set in
+.Xr rc.conf 5 ,
+and not in the
+.Xr rc.d 8
+script.
+The environment variable
+.Sq Ev flags
+can be used to override this.
+.It Sy ${name}_nice
+.Xr nice 1
+level to run
+.Sy command
+as.
+Only supported after
+.Pa /usr
+is mounted.
+.It Sy ${name}_user
+User to run
+.Sy command
+as, using
+.Xr chroot 8 .
+if
+.Sy ${name}_chroot
+is set, otherwise
+uses
+.Xr su 1 .
+Only supported after
+.Pa /usr
+is mounted.
+.It Sy ${name}_group
+Group to run the chrooted
+.Sy command
+as.
+.It Sy ${name}_groups
+Comma separated list of supplementary groups to run the chrooted
+.Sy command
+with.
+.It Sy ${name}_systrace
+Flags passed to
+.Xr systrace 1 ,
+if it is used.
+Setting this variable enables systracing
+of the given program.  The use of
+.Sq -a
+is
+recommended so that the boot process is not
+stalled.  In order to pass no flags to
+systrace, set this variable to
+.Sq -- .
+.It Ar argument Ns Sy _cmd
+Shell commands which override the default method for
+.Ar argument .
+.It Ar argument Ns Sy _precmd
+Shell commands to run just before running
+.Ar argument Ns Sy _cmd
+or the default method for
+.Ar argument .
+If this returns a non-zero exit code, the main method is not performed.
+If the default method is being executed, this check is performed after
+the
+.Sy required_*
+checks and process (non-)existence checks.
+.It Ar argument Ns Sy _postcmd
+Shell commands to run if running
+.Ar argument Ns Sy _cmd
+or the default method for
+.Ar argument 
+returned a zero exit code.
+.It Sy sig_stop
+Signal to send the processes to stop in the default
+.Sy stop
+method.
+Defaults to
+.Dv SIGTERM .
+.It Sy sig_reload
+Signal to send the processes to reload in the default
+.Sy reload
+method.
+Defaults to
+.Dv SIGHUP .
+.El
+.Pp
+For a given method
+.Ar argument ,
+if
+.Ar argument Ns Sy _cmd
+is not defined, then a default method is provided by
+.Sy run_rc_command :
+.Bl -tag -width "argument" -offset indent
+.It Sy Argument
+.Sy Default method
+.It Sy start
+If
+.Sy command
+is not running and
+.Ic checkyesno Sy rcvar
+succeeds, start
+.Sy command .
+.It Sy stop
+Determine the PIDs of
+.Sy command
+with
+.Ic check_pidfile
+or
+.Ic check_process
+(as appropriate),
+.Ic kill Sy sig_stop
+those PIDs, and run
+.Ic wait_for_pids
+on those PIDs.
+.It Sy reload
+Similar to
+.Sy stop ,
+except that it uses
+.Sy sig_reload
+instead, and doesn't run
+.Ic wait_for_pids .
+.It Sy restart
+Runs the
+.Sy stop
+method, then the
+.Sy start
+method.
+.It Sy status
+Show the PID of
+.Sy command ,
+or some other script specific status operation.
+.It Sy poll
+Wait for
+.Sy command
+to exit.
+.It Sy rcvar
+Display which
+.Xr rc.conf 5
+variable is used (if any).
+This method always works, even if the appropriate
+.Xr rc.conf 5
+variable is set to
+.Sq NO .
+.El
+.Pp
+The following variables are available to the methods
+(such as
+.Ar argument Ns Sy _cmd )
+as well as after
+.Ic run_rc_command
+has completed:
+.Bl -tag -width "rc_flags" -offset indent
+.It Sy rc_arg
+Argument provided to
+.Sy run_rc_command ,
+after fast and force processing has been performed.
+.It Sy rc_flags
+Flasg to start the default command with.
+Defaults to
+.Sy ${name}_flags ,
+unless overridden by the environment variable
+.Sq Ev flags .
+This variable may be changed by the
+.Ar argument Ns Sy _precmd
+method.
+.It Sy rc_pid
+PID of
+.Sy command
+(if appropriate).
+.It Sy rc_fast
+Not empty if
+.Dq fast
+prefix was used.
+.It Sy rc_force
+Not empty if
+.Dq force
+prefix was used.
+.El
+.It Ic run_rc_script Ar file Ar argument
+Start the script
+.Ar file
+with an argument of
+.Ar argument ,
+and handle the return value from the script.
+.Pp
+Various shell variables are unset before
+.Ar file
+is started:
+.Bd -ragged -offset indent
+.Sy name ,
+.Sy command ,
+.Sy command_args ,
+.Sy command_interpreter ,
+.Sy extra_commands ,
+.Sy pidfile ,
+.Sy rcvar ,
+.Sy required_dirs ,
+.Sy required_files ,
+.Sy required_vars ,
+.Ar argument Ns Sy _cmd ,
+.Ar argument Ns Sy _precmd .
+.Ar argument Ns Sy _postcmd .
+.Ed
+.Pp
+The startup behaviour of
+.Ar file
+depends upon the following checks:
+.Bl -enum
+.It
+If
+.Ar file
+ends in
+.Pa .sh ,
+it is sourced into the current shell.
+.It
+If
+.Ar file
+appears to be a backup or scratch file
+(e.g., with a suffix of
+.Sq ~ ,
+.Sq # ,
+.Sq .OLD ,
+or
+.Sq .orig ) ,
+ignore it.
+.It
+If
+.Ar file
+is not executable, ignore it.
+.It
+If the
+.Xr rc.conf 5
+variable
+.Sy rc_fast_and_loose
+is empty,
+source
+.Ar file
+in a sub shell,
+otherwise source
+.Ar file
+into the current shell.
+.El
+.It Ic set_rcvar Op Ar base
+Set the variable name required to start a service. In
+.Fx
+a daemon is usually controlled by an
+.Xr rc.conf 5
+variable consisting of a daemon's name postfixed by the string
+.Sy "_enable" .
+This is not the case in
+.Nx .
+When the following line is included in a script
+.Pp
+.Dl rcvar=`set_rcvar`
+.Pp
+This function will use the value of the
+.Sy $name
+variable, which should be defined by the calling script, to construct the appropriate
+.Xr rc.conf 5
+knob. If the
+.Ar base
+argument is set it will use
+.Ar base
+instead of
+.Sy $name .
+.It Ic wait_for_pids Op Ar pid Op Ar ...
+Wait until all of the provided
+.Ar pids
+don't exist any more, printing the list of outstanding
+.Ar pids
+every two seconds.
+.It Ic warn Ar message
+Display a warning message to
+.Em stderr
+and log it to the system log
+using
+.Xr logger 1 .
+The warning message consists of the script name
+(from
+.Sy $0 ) ,
+followed by
+.Dq ": WARNING: " ,
+and then
+.Ar message .
+.El
+.Sh FILES
+.Bl -tag -width /etc/rc.subr -compact
+.It Pa /etc/rc.subr
+The
+.Nm
+file resides in
+.Pa /etc .
+.El
+.Sh SEE ALSO
+.Xr rc.conf 5 ,
+.Xr rc 8
+.Sh HISTORY
+.Nm
+appeared in
+.Nx 1.3 .
+The
+.Xr rc.d 8
+support functions appeared in
+.Nx 1.5 .
+.Nm
+first appeared in
+.Fx 5.0 .
