@@ -370,23 +370,36 @@ ngd_connect(struct socket *so, struct sockaddr *nam, struct proc *p)
 static int
 ng_setsockaddr(struct socket *so, struct sockaddr **addr)
 {
-	struct ngpcb *const pcbp = sotongpcb(so);
-	struct sockaddr *sa;
-	int namelen;
+	struct ngpcb *pcbp;
+	struct sockaddr_ng *sg;
+	int sg_len, namelen, s;
 
-	if (pcbp == 0)
+	/* Why isn't sg_data a `char[1]' ? :-( */
+	sg_len = sizeof(struct sockaddr_ng) - sizeof(sg->sg_data) + 1;
+
+	s = splnet();
+	pcbp = sotongpcb(so);
+	if (pcbp == 0) {
+		splx(s);
 		return (EINVAL);
-	if (pcbp->sockdata->node->name != NULL) {
-		namelen = strlen(pcbp->sockdata->node->name) + 3;
-		MALLOC(sa, struct sockaddr *, namelen, M_SONAME, M_WAITOK);
-		if (sa == NULL)
-			return (ENOMEM);
-		sa->sa_family = AF_NETGRAPH;
-		sa->sa_len = namelen;
-		strcpy(sa->sa_data, pcbp->sockdata->node->name);
-		*addr = sa;
-	} else
-		*addr = NULL;		/* XXX check this makes sense */
+	}
+
+	namelen = 0;		/* silence compiler ! */
+
+	if (pcbp->sockdata->node->name != NULL)
+		sg_len += namelen = strlen(pcbp->sockdata->node->name);
+
+	MALLOC(sg, struct sockaddr_ng *, sg_len, M_SONAME, M_WAITOK);
+	bzero(sg, sg_len);
+
+	if (pcbp->sockdata->node->name != NULL)
+		bcopy(pcbp->sockdata->node->name, sg->sg_data, namelen);
+	splx(s);
+
+	sg->sg_len = sg_len;
+	sg->sg_family = AF_NETGRAPH;
+	*addr = (struct sockaddr *)sg;
+
 	return (0);
 }
 
