@@ -225,7 +225,7 @@ main(int argc, char *argv[])
 		errx(1, "pam_start: %s", pam_strerror(pamh, retcode));
 	}
 
-	PAM_SET_ITEM(PAM_RUSER, getlogin());
+	PAM_SET_ITEM(PAM_RUSER, username);
 
 	mytty = ttyname(STDERR_FILENO);
 	if (!mytty)
