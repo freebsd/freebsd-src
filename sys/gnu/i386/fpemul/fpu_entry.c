@@ -230,8 +230,10 @@ math_emulate(struct trapframe * tframe)
 #endif
 
 	FPU_lookahead = FPU_LOOKAHEAD;
+	PROC_LOCK(curproc);
 	if (curproc->p_flag & P_TRACED)
 		FPU_lookahead = 0;
+	PROC_UNLOCK(curproc);
 
 do_another_FPU_instruction:
 
