@@ -711,8 +711,9 @@ ng_ID2noderef(ng_ID_t ID)
 	node_p node;
 	mtx_enter(&ng_idhash_mtx, MTX_DEF);
 	LIST_FOREACH(node, &ng_ID_hash[ID % ID_HASH_SIZE], nd_idnodes) {
-		if (node->nd_ID == ID)
+		if (NG_NODE_IS_VALID(node) && (NG_NODE_ID(node) == ID)) {
 			break;
+		}
 	}
 	if(node)
 		NG_NODE_REF(node);
@@ -723,7 +724,7 @@ ng_ID2noderef(ng_ID_t ID)
 ng_ID_t
 ng_node2ID(node_p node)
 {
-	return (node?node->nd_ID:0);
+	return (node ? NG_NODE_ID(node) : 0);
 }
 
 /************************************************************************
@@ -795,9 +796,11 @@ ng_name2noderef(node_p here, const char *name)
 	/* Find node by name */
 	mtx_enter(&ng_nodelist_mtx, MTX_DEF);
 	LIST_FOREACH(node, &ng_nodelist, nd_nodes) {
-		if (NG_NODE_HAS_NAME(node)
-		&& (strcmp(NG_NODE_NAME(node), name) == 0))
+		if (NG_NODE_IS_VALID(node)
+		&& NG_NODE_HAS_NAME(node)
+		&& (strcmp(NG_NODE_NAME(node), name) == 0)) {
 			break;
+		}
 	}
 	if (node)
 		NG_NODE_REF(node);
@@ -817,14 +820,20 @@ ng_decodeidname(const char *name)
 	u_long val;
 
 	/* Check for proper length, brackets, no leading junk */
-	if (len < 3 || name[0] != '[' || name[len - 1] != ']'
-	    || !isxdigit(name[1]))
-		return (0);
+	if ((len < 3)
+	|| (name[0] != '[')
+	|| (name[len - 1] != ']')
+	|| (!isxdigit(name[1]))) {
+		return ((ng_ID_t)0);
+	}
 
 	/* Decode number */
 	val = strtoul(name + 1, &eptr, 16);
-	if (eptr - name != len - 1 || val == ULONG_MAX || val == 0)
+	if ((eptr - name != len - 1)
+	|| (val == ULONG_MAX)
+	|| (val == 0)) {
 		return ((ng_ID_t)0);
+	}
 	return (ng_ID_t)val;
 }
 
@@ -959,7 +968,8 @@ ng_findhook(node_p node, const char *name)
 	if (node->nd_type->findhook != NULL)
 		return (*node->nd_type->findhook)(node, name);
 	LIST_FOREACH(hook, &node->nd_hooks, hk_hooks) {
-		if (strcmp(NG_HOOK_NAME(hook), name) == 0)
+		if (NG_HOOK_IS_VALID(hook)
+		&& (strcmp(NG_HOOK_NAME(hook), name) == 0)) {
 			return (hook);
 	}
 	return (NULL);
@@ -2301,8 +2311,10 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 		mtx_enter(&ng_nodelist_mtx, MTX_DEF);
 		/* Count number of nodes */
 		LIST_FOREACH(node, &ng_nodelist, nd_nodes) {
-			if (unnamed || NG_NODE_HAS_NAME(node))
+			if (NG_NODE_IS_VALID(node)
+			&& (unnamed || NG_NODE_HAS_NAME(node))) {
 				num++;
+			}
 		}
 		mtx_exit(&ng_nodelist_mtx, MTX_DEF);
 
@@ -2349,8 +2361,9 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 
 		mtx_enter(&ng_typelist_mtx, MTX_DEF);
 		/* Count number of types */
-		LIST_FOREACH(type, &ng_typelist, types)
+		LIST_FOREACH(type, &ng_typelist, types) {
 			num++;
+		}
 		mtx_exit(&ng_typelist_mtx, MTX_DEF);
 
 		/* Get response struct */
@@ -2391,8 +2404,8 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 		/* Data area must contain a valid netgraph message */
 		binary = (struct ng_mesg *)msg->data;
 		if (msg->header.arglen < sizeof(struct ng_mesg)
-		    || msg->header.arglen - sizeof(struct ng_mesg)
-		      < binary->header.arglen) {
+		    || (msg->header.arglen - sizeof(struct ng_mesg)
+		      < binary->header.arglen)) {
 			TRAP_ERROR
 			error = EINVAL;
 			break;
@@ -2436,9 +2449,9 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 		/* Convert command arguments to ASCII */
 		argstype = (binary->header.flags & NGF_RESP) ?
 		    c->respType : c->mesgType;
-		if (argstype == NULL)
+		if (argstype == NULL) {
 			*ascii->data = '\0';
-		else {
+		} else {
 			if ((error = ng_unparse(argstype,
 			    (u_char *)binary->data,
 			    ascii->data, bufSize)) != 0) {
@@ -2464,10 +2477,10 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 
 		/* Data area must contain at least a struct ng_mesg + '\0' */
 		ascii = (struct ng_mesg *)msg->data;
-		if (msg->header.arglen < sizeof(*ascii) + 1
-		    || ascii->header.arglen < 1
-		    || msg->header.arglen
-		      < sizeof(*ascii) + ascii->header.arglen) {
+		if ((msg->header.arglen < sizeof(*ascii) + 1)
+		    || (ascii->header.arglen < 1)
+		    || (msg->header.arglen
+		      < sizeof(*ascii) + ascii->header.arglen)) {
 			TRAP_ERROR
 			error = EINVAL;
 			break;
@@ -2510,9 +2523,9 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 		/* Convert command arguments to binary */
 		argstype = (binary->header.flags & NGF_RESP) ?
 		    c->respType : c->mesgType;
-		if (argstype == NULL)
+		if (argstype == NULL) {
 			bufSize = 0;
-		else {
+		} else {
 			if ((error = ng_parse(argstype, ascii->data,
 			    &off, (u_char *)binary->data, &bufSize)) != 0) {
 				NG_FREE_MSG(resp);
