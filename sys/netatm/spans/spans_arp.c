@@ -663,11 +663,7 @@ spansarp_input(clp, m)
 	 * If source IP address is from unspecified or broadcast addresses,
 	 * don't bother updating arp table, but answer possible requests
 	 */
-#if (defined(BSD) && (BSD >= 199306))
 	if (in_broadcast(in_src, &inp->inf_nif->nif_if))
-#else
-	if (in_broadcast(in_src))
-#endif
 		goto chkop;
 
 	/*
