@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: asmacros.h,v 1.4 1994/08/19 11:20:11 jkh Exp $
+ *	$Id: asmacros.h,v 1.5 1994/09/08 12:25:18 bde Exp $
  */
 
 #ifndef _MACHINE_ASMACROS_H_
@@ -38,47 +38,83 @@
 
 #ifdef KERNEL
 
+/* XXX too much duplication in various asm*.h's and gprof.h's */
+
 #define ALIGN_DATA	.align	2	/* 4 byte alignment, zero filled */
 #define ALIGN_TEXT	.align	2,0x90	/* 4-byte alignment, nop filled */
 #define SUPERALIGN_TEXT	.align	4,0x90	/* 16-byte alignment (better for 486), nop filled */
 
-#define GEN_ENTRY(name)		ALIGN_TEXT;	.globl name; name:
-#define NON_GPROF_ENTRY(name)	GEN_ENTRY(_/**/name)
-
-/* These three are place holders for future changes to the profiling code */
-#define MCOUNT_LABEL(name)
-#define MEXITCOUNT
-#define FAKE_MCOUNT(caller)
+#define GEN_ENTRY(name)		ALIGN_TEXT; .globl _/**/name; _/**/name:
+#define NON_GPROF_ENTRY(name)	GEN_ENTRY(name)
 
 #ifdef GPROF
 /*
- * ALTENTRY() must be before a corresponding ENTRY() so that it can jump
- * over the mcounting.
+ * __mcount is like mcount except that doesn't require its caller to set
+ * up a frame pointer.  It must be called before pushing anything onto the
+ * stack.  gcc should eventually generate code to call __mcount in most
+ * cases.  This would make -pg in combination with -fomit-frame-pointer
+ * useful.  gcc has a configuration variable PROFILE_BEFORE_PROLOGUE to
+ * allow profiling before setting up the frame pointer, but this is
+ * inadequate for good handling of special cases, e.g., -fpic works best
+ * with profiling after the prologue.
+ *
+ * Neither __mcount nor mcount requires %eax to point to 4 bytes of data,
+ * so don't waste space allocating the data or time setting it up.  Changes
+ * to avoid the wastage in gcc-2.4.5-compiled code are available.
+ * 
+ * mexitcount is a new profiling feature to allow accurate timing of all
+ * functions if an accurate clock is available.  Changes to gcc-2.4.5 to
+ * support it are are available.  The changes currently don't allow not
+ * generating mexitcounts for non-kernel code.  It is best to call
+ * mexitcount right at the end of a function like the MEXITCOUNT macro
+ * does, but the changes to gcc only implement calling it as the first
+ * thing in the epilogue to avoid problems with -fpic.
+ *
+ * mcount and __mexitcount may clobber the call-used registers and %ef.
+ * mexitcount may clobber %ecx and %ef.
+ *
+ * Cross-jumping makes accurate timing more difficult.  It is handled in
+ * many cases by calling mexitcount before jumping.  It is not handled
+ * for some conditional jumps (e.g., in bcopyx) or for some fault-handling
+ * jumps.  It is handled for some fault-handling jumps by not sharing the
+ * exit routine.
+ *
+ * ALTENTRY() must be before a corresponding ENTRY() so that it can jump to
+ * the main entry point.  Note that alt entries are counted twice.  They
+ * have to be counted as ordinary entries for gprof to get the call times
+ * right for the ordinary entries.
+ *
+ * High local labels are used in macros to avoid clashes with local labels
+ * in functions.
+ *
+ * "ret" is used instead of "RET" because there are a lot of "ret"s.
+ * 0xc3 is the opcode for "ret" (#define ret ... ret fails because this
+ * file is preprocessed in traditional mode).  "ret" clobbers eflags
+ * but this doesn't matter.
  */
-#define ALTENTRY(name)	GEN_ENTRY(_/**/name); MCOUNT; jmp 2f
-#define ENTRY(name)	GEN_ENTRY(_/**/name); MCOUNT; 2:
-/*
- * The call to mcount supports the usual (bad) conventions.  We allocate
- * some data and pass a pointer to it although the FreeBSD doesn't use
- * the data.  We set up a frame before calling mcount because that is
- * the standard convention although it makes work for both mcount and
- * callers.
- */
-#define MCOUNT		.data; ALIGN_DATA; 1:; .long 0; .text; \
-			pushl %ebp; movl %esp,%ebp; \
-			movl $1b,%eax; call mcount; popl %ebp
-#else
+#define ALTENTRY(name)		GEN_ENTRY(name) ; MCOUNT ; MEXITCOUNT ; jmp 9f
+#define ENTRY(name)		GEN_ENTRY(name) ; 9: ; MCOUNT
+#define FAKE_MCOUNT(caller)	pushl caller ; call __mcount ; popl %ecx
+#define MCOUNT			call __mcount
+#define MCOUNT_LABEL(name)	GEN_ENTRY(name) ; nop ; ALIGN_TEXT
+#define MEXITCOUNT		call mexitcount
+#define ret			MEXITCOUNT ; .byte 0xc3
+#else /* not GPROF */
 /*
  * ALTENTRY() has to align because it is before a corresponding ENTRY().
  * ENTRY() has to align to because there may be no ALTENTRY() before it.
- * If there is a previous ALTENTRY() then the alignment code is empty.
+ * If there is a previous ALTENTRY() then the alignment code for ENTRY()
+ * is empty.
  */
-#define ALTENTRY(name)	GEN_ENTRY(_/**/name)
-#define ENTRY(name)	GEN_ENTRY(_/**/name)
+#define ALTENTRY(name)		GEN_ENTRY(name)
+#define ENTRY(name)		GEN_ENTRY(name)
+#define FAKE_MCOUNT(caller)
 #define MCOUNT
+#define MCOUNT_LABEL(name)
+#define MEXITCOUNT
+#endif /* GPROF */
 
-#endif
-
+/* XXX NOP and FASTER_NOP are misleadingly named */
 #ifdef DUMMY_NOPS			/* this will break some older machines */
 #define FASTER_NOP
 #define NOP

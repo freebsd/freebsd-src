@@ -157,8 +157,10 @@ makefile()
 	}
 	fprintf(ofp, "KERN_IDENT=%s\n", raise(ident));
 	fprintf(ofp, "IDENT=");
-	if (profiling)
+	if (profiling >= 1)
 		fprintf(ofp, " -DGPROF");
+	if (profiling >= 2)
+		fprintf(ofp, " -DGPROF4 -DGUPROF");
 
 	if (cputype == 0) {
 		printf("cpu type must be specified\n");
@@ -202,8 +204,10 @@ makefile()
 		fprintf(ofp, "%s=%s\n", op->op_name, op->op_value);
 	if (debugging)
 		fprintf(ofp, "DEBUG=-g\n");
-	if (profiling)
+	if (profiling >= 1)
 		fprintf(ofp, "PROF=-pg\n");
+	if (profiling >= 2)
+		fprintf(ofp, "PROF+=-mprofiler-epilogue\n");
 	while (fgets(line, BUFSIZ, ifp) != 0) {
 		if (*line != '%') {
 			fprintf(ofp, "%s", line);

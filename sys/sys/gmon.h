@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)gmon.h	8.2 (Berkeley) 1/4/94
- * $Id: gmon.h,v 1.6 1995/05/30 08:14:22 rgrimes Exp $
+ * $Id: gmon.h,v 1.7 1995/08/29 03:09:14 bde Exp $
  */
 
 #ifndef _SYS_GMON_H_
@@ -49,18 +49,33 @@ struct gmonhdr {
 	int	version;	/* version number */
 	int	profrate;	/* profiling clock rate */
 	int	spare[3];	/* reserved */
+	/* XXX should record counter size and density */
 };
 #define GMONVERSION	0x00051879
 
 /*
- * histogram counters are unsigned shorts (according to the kernel).
+ * Type of histogram counters used in the kernel.
  */
+#ifdef GPROF4
+#define	HISTCOUNTER	unsigned
+#else
 #define	HISTCOUNTER	unsigned short
+#endif
 
 /*
- * fraction of text space to allocate for histogram counters here, 1/2
+ * Fraction of text space to allocate for histogram counters.
+ * We allocate counters at the same or higher density as function
+ * addresses, so that each counter belongs to a unique function.
+ * A lower density of counters would give less resolution but a
+ * higher density would be wasted.
+ *
+ * Assume that function addresses are at least 4-byte-aligned.
+ * It would be better to get the linker to align functions more
+ * strictly so that we could use smaller tables.
  */
-#define	HISTFRACTION	2
+#define	FUNCTION_ALIGNMENT	4
+#define	HISTFRACTION	(FUNCTION_ALIGNMENT / sizeof(HISTCOUNTER) == 0 \
+			 ? 1 : FUNCTION_ALIGNMENT / sizeof(HISTCOUNTER))
 
 /*
  * Fraction of text space to allocate for from hash buckets.
@@ -90,7 +105,23 @@ struct gmonhdr {
  * profiling data structures without (in practice) sacrificing
  * any granularity.
  */
-#define	HASHFRACTION	2
+/*
+ * XXX I think the above analysis completely misses the point.  I think
+ * the point is that addresses in different functions must hash to
+ * different values.  Since the hash is essentially division by
+ * sizeof(unsigned short), the correct formula is:
+ *
+ * 	HASHFRACTION = MIN_FUNCTION_ALIGNMENT / sizeof(unsigned short)
+ *
+ * Note that he unsigned short here has nothing to do with the one for
+ * HISTFRACTION.
+ *
+ * Hash collisions from a two call sequence don't matter.  They get
+ * handled like collisions for calls to different addresses from the
+ * same address through a function pointer.
+ */
+#define	HASHFRACTION	(FUNCTION_ALIGNMENT / sizeof(unsigned short) == 0 \
+			 ? 1 : FUNCTION_ALIGNMENT / sizeof(unsigned short))
 
 /*
  * percent of text space to allocate for tostructs with a minimum.
@@ -132,17 +163,33 @@ struct rawarc {
  */
 struct gmonparam {
 	int		state;
-	u_short		*kcount;
+	HISTCOUNTER	*kcount;
 	u_long		kcountsize;
 	u_short		*froms;
 	u_long		fromssize;
 	struct tostruct	*tos;
 	u_long		tossize;
 	long		tolimit;
-	u_long		lowpc;
-	u_long		highpc;
+	fptrint_t	lowpc;
+	fptrint_t	highpc;
 	u_long		textsize;
 	u_long		hashfraction;
+	u_long		profrate;
+	HISTCOUNTER	*cputime_count;
+	u_int		cputime_overhead;
+	u_int		cputime_overhead_frac;
+	u_int		cputime_overhead_resid;
+	u_int		cputime_overhead_sub;
+	HISTCOUNTER	*mcount_count;
+	u_int		mcount_overhead;
+	u_int		mcount_overhead_frac;
+	u_int		mcount_overhead_resid;
+	u_int		mcount_overhead_sub;
+	HISTCOUNTER	*mexitcount_count;
+	u_int		mexitcount_overhead;
+	u_int		mexitcount_overhead_frac;
+	u_int		mexitcount_overhead_resid;
+	u_int		mexitcount_overhead_sub;
 };
 extern struct gmonparam _gmonparam;
 
@@ -153,6 +200,7 @@ extern struct gmonparam _gmonparam;
 #define	GMON_PROF_BUSY	1
 #define	GMON_PROF_ERROR	2
 #define	GMON_PROF_OFF	3
+#define	GMON_PROF_HIRES	4
 
 /*
  * Sysctl definitions for extracting profiling information from the kernel.
