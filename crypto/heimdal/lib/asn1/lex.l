@@ -32,7 +32,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: lex.l,v 1.16 2001/04/18 13:08:47 joda Exp $ */
+/* $Id: lex.l,v 1.19 2001/09/25 23:28:03 assar Exp $ */
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -44,6 +44,7 @@
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
+#undef ECHO
 #include "symbol.h"
 #include "parse.h"
 #include "lex.h"
@@ -74,17 +75,27 @@ OPTIONAL		{ return OPTIONAL; }
 BEGIN			{ return TBEGIN; }
 END			{ return END; }
 DEFINITIONS		{ return DEFINITIONS; }
+ENUMERATED		{ return ENUMERATED; }
 EXTERNAL		{ return EXTERNAL; }
+OBJECT			{ return OBJECT; }
+IDENTIFIER		{ return IDENTIFIER; }
 [,;{}()|]		{ return *yytext; }
 "["			{ return *yytext; }
 "]"			{ return *yytext; }
 ::=			{ return EEQUAL; }
 --[^\n]*\n		{ ++lineno; }
--?(0x)?[0-9]+		{ char *e; yylval.constant = strtol(yytext, &e, 0); 
-			  if(e == yytext) 
+-?(0x)?[0-9]+		{ char *e, *y = yytext;
+			  yylval.constant = strtol((const char *)yytext,
+						   &e, 0);
+			  if(e == y) 
 			    error_message("malformed constant (%s)", yytext); 
-			  else return CONSTANT; }
-[A-Za-z][-A-Za-z0-9_]*	{ yylval.name =  strdup (yytext); return IDENTIFIER; }
+			  else
+			    return CONSTANT;
+			}
+[A-Za-z][-A-Za-z0-9_]*	{
+			  yylval.name =  strdup ((const char *)yytext);
+			  return IDENT;
+			}
 [ \t]			;
 \n			{ ++lineno; }
 \.\.			{ return DOTDOT; }

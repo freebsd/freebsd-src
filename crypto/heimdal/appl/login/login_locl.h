@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: login_locl.h,v 1.20 2000/08/22 14:05:35 joda Exp $ */
+/* $Id: login_locl.h,v 1.22 2001/09/22 11:47:37 assar Exp $ */
 
 #ifndef __LOGIN_LOCL_H__
 #define __LOGIN_LOCL_H__
@@ -88,6 +88,12 @@
 
 #ifdef OTP
 #include <otp.h>
+#endif
+
+#ifdef HAVE_OSFC2
+#define getargs OSFgetargs
+#include "/usr/include/prot.h"
+#undef getargs
 #endif
 
 #ifndef _PATH_BSHELL

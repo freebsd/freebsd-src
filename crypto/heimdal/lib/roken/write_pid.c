@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1999 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: write_pid.c,v 1.5 2001/02/20 01:44:55 assar Exp $");
+RCSID("$Id: write_pid.c,v 1.6 2001/09/02 23:58:15 assar Exp $");
 #endif
 
 #include <stdio.h>
@@ -90,6 +90,10 @@ pidfile(const char *basename)
     if(basename == NULL)
 	basename = getprogname();
     pidfile_path = pid_file_write(basename);
+#if defined(HAVE_ATEXIT)
     atexit(pidfile_cleanup);
+#elif defined(HAVE_ON_EXIT)
+    on_exit(pidfile_cleanup);
+#endif
 }
 #endif

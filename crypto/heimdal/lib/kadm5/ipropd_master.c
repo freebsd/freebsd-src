@@ -33,7 +33,7 @@
 
 #include "iprop.h"
 
-RCSID("$Id: ipropd_master.c,v 1.22 2001/02/14 23:00:16 assar Exp $");
+RCSID("$Id: ipropd_master.c,v 1.24 2001/09/03 05:54:18 assar Exp $");
 
 static krb5_log_facility *log_facility;
 
@@ -65,7 +65,7 @@ make_listen_socket (krb5_context context)
     fd = socket (AF_INET, SOCK_STREAM, 0);
     if (fd < 0)
 	krb5_err (context, 1, errno, "socket AF_INET");
-    setsockopt (fd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
+    setsockopt (fd, SOL_SOCKET, SO_REUSEADDR, (void *)&one, sizeof(one));
     memset (&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
     addr.sin_port   = krb5_getportbyname (context,
@@ -380,6 +380,7 @@ main(int argc, char **argv)
 	exit(0);
     }
 
+    pidfile (NULL);
     krb5_openlog (context, "ipropd-master", &log_facility);
     krb5_set_warn_dest(context, log_facility);
 
@@ -460,7 +461,7 @@ main(int argc, char **argv)
 	    struct sockaddr_un peer_addr;
 	    socklen_t peer_len = sizeof(peer_addr);
 
-	    if(recvfrom(signal_fd, &vers, sizeof(vers), 0,
+	    if(recvfrom(signal_fd, (void *)&vers, sizeof(vers), 0,
 			(struct sockaddr *)&peer_addr, &peer_len) < 0) {
 		krb5_warn (context, errno, "recvfrom");
 		continue;

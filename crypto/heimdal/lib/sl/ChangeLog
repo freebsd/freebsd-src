@@ -1,3 +1,8 @@
+2001-07-09  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: add getprogname.c libss.la:add libcom_err.la noted
+	by Leif Johansson <leifj@it.su.se>
+
 2001-05-17  Assar Westerlund  <assar@sics.se>
 
 	* Makefile.am: bump versions to 1:2:1 and 1:4:1

@@ -1,4 +1,4 @@
-.\" $Id: rxterm.1,v 1.4 1997/06/03 00:58:23 assar Exp $
+.\" $Id: rxterm.1,v 1.7 2001/07/12 09:35:26 assar Exp $
 .\"
 .Dd September 27, 1996
 .Dt RXTERM 1
@@ -13,7 +13,9 @@ start a secure remote xterm
 .Op Fl k
 .Op Fl r Ar rsh_args
 .Op Fl x Ar xterm_args
+.Op Fl K Ar kx_args
 .Op Fl w Ar term_emulator
+.Op Fl b Ar rsh_program
 .Ar host
 .Op Ar port
 .Sh DESCRIPTION
@@ -45,10 +47,21 @@ Send
 .Ar xterm_args
 as arguments to
 .Nm xterm
+.It Fl X
+Send
+.Ar kx_args
+as arguments to
+.Nm kx
 .It Fl w
 Use
 .Ar term_emulator
 instead of xterm.
+.It Fl b
+Use
+.Ar rsh_program
+instead of rsh.
+.It Fl v
+Be verbose.
 .El
 .Sh EXAMPLE
 To login from host
@@ -70,8 +83,8 @@ on host
 In this window you will be able to start X clients.
 .El
 .Sh SEE ALSO
+.Xr kx 1 ,
+.Xr rsh 1 ,
 .Xr rxtelnet 1 ,
 .Xr tenletxr 1 ,
-.Xr kx 1 ,
-.Xr kxd 8 ,
-.Xr rsh 1
+.Xr kxd 8

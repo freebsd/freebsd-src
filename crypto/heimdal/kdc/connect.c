@@ -33,7 +33,7 @@
 
 #include "kdc_locl.h"
 
-RCSID("$Id: connect.c,v 1.82 2001/05/14 06:18:11 assar Exp $");
+RCSID("$Id: connect.c,v 1.84 2001/08/21 10:10:25 assar Exp $");
 
 /*
  * a tuple describing on what to listen
@@ -140,8 +140,6 @@ add_standard_ports (int family)
 	add_port_service(family, "krb524", 4444, "udp");
 	add_port_service(family, "krb524", 4444, "tcp");
     }
-#endif
-#ifdef KASERVER
     if (enable_kaserver)
 	add_port_service(family, "afs3-kaserver", 7004, "udp");
 #endif
@@ -385,10 +383,7 @@ process_request(unsigned char *buf,
 	ret = do_524(&ticket, reply, from, addr);
 	free_Ticket(&ticket);
 	return ret;
-    }
-#endif
-#ifdef KASERVER
-    else if (enable_kaserver) {
+    } else if (enable_kaserver) {
 	ret = do_kaserver (buf, len, reply, from, (struct sockaddr_in*)addr);
 	return ret;
     }
@@ -425,7 +420,8 @@ do_request(void *buf, size_t len, int sendlength,
     ret = process_request(buf, len, &reply, &sendlength,
 			  d->addr_string, d->sa);
     if(reply.length){
-	kdc_log(5, "sending %d bytes to %s", reply.length, d->addr_string);
+	kdc_log(5, "sending %lu bytes to %s", (unsigned long)reply.length,
+		d->addr_string);
 	if(sendlength){
 	    unsigned char len[4];
 	    len[0] = (reply.length >> 24) & 0xff;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995 - 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -34,7 +34,7 @@
 /* Tiny program to help debug popper */
 
 #include "popper.h"
-RCSID("$Id: pop_debug.c,v 1.21 2001/02/20 01:44:47 assar Exp $");
+RCSID("$Id: pop_debug.c,v 1.22 2002/02/07 17:27:12 joda Exp $");
 
 static void
 loop(int s)
@@ -108,7 +108,7 @@ doit_v4 (char *host, int port)
     ret = krb_sendauth(0,
 		       s,
 		       &ticket, 
-		       "pop",
+		       POP_TICKET_NAME,
 		       host,
 		       krb_realmofhost(host),
 		       getpid(),
@@ -143,7 +143,7 @@ doit_v5 (char *host, int port)
     
     ret = krb5_sname_to_principal (context,
 				   host,
-				   "pop",
+				   POP_TICKET_NAME,
 				   KRB5_NT_SRV_HST,
 				   &server);
     if (ret) {
@@ -178,7 +178,9 @@ doit_v5 (char *host, int port)
 #ifdef KRB4
 static int use_v4 = -1;
 #endif
+#ifdef KRB5
 static int use_v5 = -1;
+#endif
 static char *port_str;
 static int do_version;
 static int do_help;
@@ -188,8 +190,10 @@ struct getargs args[] = {
     { "krb4",	'4', arg_flag,		&use_v4,	"Use Kerberos V4",
       NULL },
 #endif
+#ifdef KRB5
     { "krb5",	'5', arg_flag,		&use_v5,	"Use Kerberos V5",
       NULL },
+#endif
     { "port",	'p', arg_string,	&port_str,	"Use this port",
       "number-or-service" },
     { "version", 0,  arg_flag,		&do_version,	"Print version",

@@ -33,7 +33,7 @@
 
 #include "kx.h"
 
-RCSID("$Id: common.c,v 1.62 2001/02/15 04:20:51 assar Exp $");
+RCSID("$Id: common.c,v 1.65 2001/08/26 01:40:38 assar Exp $");
 
 char x_socket[MaxPathLen];
 
@@ -347,7 +347,7 @@ chown_xsockets (int n, struct x_socket *sockets, uid_t uid, gid_t gid)
 }
 
 /*
- * Connect to local display `dnr' with local transport.
+ * Connect to local display `dnr' with local transport or TCP.
  * Return a file descriptor.
  */
 
@@ -355,18 +355,34 @@ int
 connect_local_xsocket (unsigned dnr)
 {
      int fd;
-     struct sockaddr_un addr;
      char **path;
 
      for (path = x_sockets; *path; ++path) {
+	 struct sockaddr_un addr;
+
 	 fd = socket (AF_UNIX, SOCK_STREAM, 0);
 	 if (fd < 0)
-	     err (1, "socket AF_UNIX");
+	     break;
 	 memset (&addr, 0, sizeof(addr));
 	 addr.sun_family = AF_UNIX;
 	 snprintf (addr.sun_path, sizeof(addr.sun_path), *path, dnr);
 	 if (connect (fd, (struct sockaddr *)&addr, sizeof(addr)) == 0)
 	     return fd;
+	 close(fd);
+     }
+     {
+	 struct sockaddr_in addr;
+
+	 fd = socket(AF_INET, SOCK_STREAM, 0);
+	 if (fd < 0)
+	     err (1, "socket AF_INET");
+	 memset (&addr, 0, sizeof(addr));
+	 addr.sin_family = AF_INET;
+	 addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+	 addr.sin_port = htons(6000 + dnr);
+	 if (connect(fd, (struct sockaddr *)&addr, sizeof(addr)) == 0)
+	     return fd;
+	 close(fd);
      }
      err (1, "connecting to local display %u", dnr);
 }
@@ -405,10 +421,10 @@ create_and_write_cookie (char *xauthfile,
      auth.name_length = strlen(auth.name);
      auth.data_length = cookie_sz;
      auth.data = (char*)cookie;
-#ifdef HAVE_OPENSSL_DES_H
+#ifdef KRB5
      krb5_generate_random_block (cookie, cookie_sz);
 #else
-     des_rand_data (cookie, cookie_sz);
+     krb_generate_random_block (cookie, cookie_sz);
 #endif
 
      strlcpy(xauthfile, "/tmp/AXXXXXX", xauthfile_size);

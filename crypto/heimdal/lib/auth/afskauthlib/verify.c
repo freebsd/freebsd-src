@@ -33,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: verify.c,v 1.24 2000/12/31 07:57:08 assar Exp $");
+RCSID("$Id: verify.c,v 1.25 2001/06/18 13:11:33 assar Exp $");
 #endif
 #include <unistd.h>
 #include <sys/types.h>
@@ -179,7 +179,7 @@ verify_krb5(struct passwd *pwd,
 	free (realm);
 	ret = krb5_cc_retrieve_cred(context, ccache, 0, &mcred, &cred);
 	if(ret == 0) {
-	    ret = krb524_convert_creds_kdc(context, ccache, &cred, &c);
+	    ret = krb524_convert_creds_kdc_ccache(context, ccache, &cred, &c);
 	    if(ret)
 		krb5_warn(context, ret, "converting creds");
 	    else {

@@ -33,23 +33,31 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: accept_sec_context.c,v 1.24 2001/05/11 09:16:45 assar Exp $");
+RCSID("$Id: accept_sec_context.c,v 1.30 2001/08/29 02:21:09 assar Exp $");
 
-static krb5_keytab gss_keytab;
+krb5_keytab gssapi_krb5_keytab;
 
 OM_uint32
 gsskrb5_register_acceptor_identity (char *identity)
 {
+    krb5_error_code ret;
     char *p;
-    if(gss_keytab != NULL) {
-	krb5_kt_close(gssapi_krb5_context, gss_keytab);
-	gss_keytab = NULL;
+
+    ret = gssapi_krb5_init();
+    if(ret)
+	return GSS_S_FAILURE;
+    
+    if(gssapi_krb5_keytab != NULL) {
+	krb5_kt_close(gssapi_krb5_context, gssapi_krb5_keytab);
+	gssapi_krb5_keytab = NULL;
     }
     asprintf(&p, "FILE:%s", identity);
     if(p == NULL)
 	return GSS_S_FAILURE;
-    krb5_kt_resolve(gssapi_krb5_context, p, &gss_keytab);
+    ret = krb5_kt_resolve(gssapi_krb5_context, p, &gssapi_krb5_keytab);
     free(p);
+    if(ret)
+	return GSS_S_FAILURE;
     return GSS_S_COMPLETE;
 }
 
@@ -78,6 +86,7 @@ gss_accept_sec_context
   krb5_data fwd_data;
   OM_uint32 minor;
 
+  ret = 0;
   gssapi_krb5_init ();
 
   krb5_data_zero (&fwd_data);
@@ -136,9 +145,9 @@ gss_accept_sec_context
                                (*context_handle)->auth_context->local_port,
                                &acceptor_addr); 
      if (kret) {
-        *minor_status = kret;
 	gssapi_krb5_set_error_string ();
         ret = GSS_S_BAD_BINDINGS;
+	*minor_status = kret;
         goto failure;
      }
                              
@@ -148,9 +157,9 @@ gss_accept_sec_context
                                &initiator_addr); 
      if (kret) {
         krb5_free_address (gssapi_krb5_context, &acceptor_addr);
-        *minor_status = kret;
 	gssapi_krb5_set_error_string ();
         ret = GSS_S_BAD_BINDINGS;
+	*minor_status = kret;
         goto failure;
      }
      
@@ -169,9 +178,9 @@ gss_accept_sec_context
 #endif
      
      if (kret) {
-        *minor_status = kret;
 	gssapi_krb5_set_error_string ();
         ret = GSS_S_BAD_BINDINGS;
+	*minor_status = kret;
         goto failure;
      }
   }
@@ -190,17 +199,16 @@ gss_accept_sec_context
 			   tmp);
   }
 
-  ret = gssapi_krb5_decapsulate (input_token_buffer,
+  ret = gssapi_krb5_decapsulate (minor_status,
+				 input_token_buffer,
 				 &indata,
 				 "\x01\x00");
-  if (ret) {
-      kret = 0;
-      goto failure;
-  }
+  if (ret)
+    goto failure;
 
   if (acceptor_cred_handle == GSS_C_NO_CREDENTIAL) {
-      if (gss_keytab != NULL) {
-	  keytab = gss_keytab;
+      if (gssapi_krb5_keytab != NULL) {
+	  keytab = gssapi_krb5_keytab;
      }
   } else if (acceptor_cred_handle->keytab != NULL) {
      keytab = acceptor_cred_handle->keytab;
@@ -256,7 +264,7 @@ gss_accept_sec_context
   {
       krb5_authenticator authenticator;
       
-      kret = krb5_auth_getauthenticator(gssapi_krb5_context,
+      kret = krb5_auth_con_getauthenticator(gssapi_krb5_context,
 					(*context_handle)->auth_context,
 					&authenticator);
       if(kret) {
@@ -266,35 +274,59 @@ gss_accept_sec_context
 	  goto failure;
       }
 
-      kret = gssapi_krb5_verify_8003_checksum(input_chan_bindings,
-					      authenticator->cksum,
-					      &flags,
-					      &fwd_data);
+      ret = gssapi_krb5_verify_8003_checksum(minor_status,
+					     input_chan_bindings,
+					     authenticator->cksum,
+					     &flags,
+					     &fwd_data);
       krb5_free_authenticator(gssapi_krb5_context, &authenticator);
-      if (kret) {
-	  ret = GSS_S_FAILURE;
-	  *minor_status = kret;
-	  gssapi_krb5_set_error_string ();
-	  goto failure;
-      }
+      if (ret)
+	goto failure;
   }
 
   if (fwd_data.length > 0 && (flags & GSS_C_DELEG_FLAG)) {
       
       krb5_ccache ccache;
       
-      if (delegated_cred_handle == NULL || *delegated_cred_handle == NULL)
+      if (delegated_cred_handle == NULL)
          /* XXX Create a new delegated_cred_handle? */
          kret = krb5_cc_default (gssapi_krb5_context, &ccache);
-      
-      else {
-         if ((*delegated_cred_handle)->ccache == NULL)
+      else if (*delegated_cred_handle == NULL) {
+	 if ((*delegated_cred_handle =
+	      calloc(1, sizeof(**delegated_cred_handle))) == NULL) {
+	    ret = GSS_S_FAILURE;
+	    *minor_status = ENOMEM;
+	    krb5_set_error_string(gssapi_krb5_context, "out of memory");
+	    gssapi_krb5_set_error_string();
+	    goto failure;
+	 }
+	 if ((ret = gss_duplicate_name(minor_status, ticket->client,
+				&(*delegated_cred_handle)->principal)) != 0) {
+	    flags &= ~GSS_C_DELEG_FLAG;
+	    free(*delegated_cred_handle);
+	    *delegated_cred_handle = NULL;
+	    goto end_fwd;
+	 }
+      }
+      if (delegated_cred_handle != NULL &&
+	  (*delegated_cred_handle)->ccache == NULL) {
             kret = krb5_cc_gen_new (gssapi_krb5_context,
                                     &krb5_mcc_ops,
                                     &(*delegated_cred_handle)->ccache);
          ccache = (*delegated_cred_handle)->ccache;
       }
-      
+      if (delegated_cred_handle != NULL &&
+	  (*delegated_cred_handle)->mechanisms == NULL) {
+	    ret = gss_create_empty_oid_set(minor_status, 
+			&(*delegated_cred_handle)->mechanisms);
+            if (ret)
+              goto failure;
+	    ret = gss_add_oid_set_member(minor_status, GSS_KRB5_MECHANISM,
+			&(*delegated_cred_handle)->mechanisms);
+	    if (ret)
+	      goto failure;
+      }
+
       if (kret) {
          flags &= ~GSS_C_DELEG_FLAG;
          goto end_fwd;
@@ -347,14 +379,13 @@ end_fwd:
       gssapi_krb5_set_error_string ();
       goto failure;
     }
-    ret = gssapi_krb5_encapsulate (&outbuf,
+    ret = gssapi_krb5_encapsulate (minor_status,
+				   &outbuf,
 				   output_token,
 				   "\x02\x00");
     krb5_data_free (&outbuf);
-    if (ret) {
-	kret = 0;
+    if (ret)
       goto failure;
-    }
   } else {
     output_token->length = 0;
   }
@@ -387,6 +418,5 @@ failure:
       *src_name = NULL;
   }
   *context_handle = GSS_C_NO_CONTEXT;
-  *minor_status = kret;
-  return GSS_S_FAILURE;
+  return ret;
 }

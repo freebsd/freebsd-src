@@ -1,4 +1,4 @@
-/* $Id: asn1-common.h,v 1.1 2000/04/14 15:41:31 joda Exp $ */
+/* $Id: asn1-common.h,v 1.2 2001/09/25 13:39:25 assar Exp $ */
 
 #include <stddef.h>
 #include <time.h>
@@ -12,5 +12,10 @@ typedef struct octet_string {
 } octet_string;
 
 typedef char *general_string;
+
+typedef struct oid {
+    size_t length;
+    unsigned *components;
+} oid;
 
 #endif

@@ -1,7 +1,8 @@
 #!/bin/sh
-# $Id: rxtelnet.in,v 1.26 1999/02/04 21:19:50 assar Exp $
+# $Id: rxtelnet.in,v 1.28 2001/07/12 09:28:11 assar Exp $
 #
-usage="Usage: $0 [-l username] [-k] [-t args_to_telnet] [-x args_to_xterm] [-w term_emulator] [-n] [-v] [-h | --help] [--version] host [port]"
+usage="Usage: $0 [-l username] [-k] [-t args_to_telnet] [-x args_to_xterm] [-K args_to_kx] [-w term_emulator] [-b telnet_binary] [-n] [-v] [-h | --help] [--version] host [port]"
+binary=telnet
 term=
 kx_args=-P
 while true
@@ -11,8 +12,10 @@ do
   -t) telnet_args="${telnet_args} $2 "; shift 2;;
   -x) xterm_args="${xterm_args} $2 "; shift 2;;
   -k) kx_args="${kx_args} -k"; shift;;
+  -K) kx_args="${kx_args} $2 "; shift 2;;
   -n) term=none; shift;;
   -w) term=$2; shift 2;;
+  -b) binary=$2; shift 2;;
   --version) echo "$0: %PACKAGE% %VERSION%"; exit 0;;
   -h) echo $usage; exit 0;;
   --help) echo $usage; exit 0;;
@@ -54,10 +57,10 @@ if test -z "$term"; then
     done
   done
 fi
-test "$verb" && echo "Telnet command used is `type telnet`."
+test "$verb" && echo "Telnet command used is `type $binary`."
 if test -n "$term" -a "$term" != "none"; then
-  ($term -title $title -n $title $xterm_args -e env DISPLAY=$disp XAUTHORITY=$auth telnet -D $telnet_args $host $port; kill -USR2 $pid) &
+  ($term -title $title -n $title $xterm_args -e env DISPLAY=$disp XAUTHORITY=$auth $binary -D $telnet_args $host $port; kill -USR2 $pid) &
 else
-  env DISPLAY=$disp XAUTHORITY=$auth telnet -D $telnet_args $host $port
+  env DISPLAY=$disp XAUTHORITY=$auth $binary -D $telnet_args $host $port
   kill -USR2 $pid
 fi

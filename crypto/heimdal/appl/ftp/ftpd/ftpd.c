@@ -38,7 +38,7 @@
 #endif
 #include "getarg.h"
 
-RCSID("$Id: ftpd.c,v 1.157 2001/04/19 14:41:29 joda Exp $");
+RCSID("$Id: ftpd.c,v 1.160 2001/09/13 09:17:14 joda Exp $");
 
 static char version[] = "Version 6.00";
 
@@ -68,6 +68,7 @@ struct	passwd *pw;
 int	debug = 0;
 int	ftpd_timeout = 900;    /* timeout after 15 minutes of inactivity */
 int	maxtimeout = 7200;/* don't allow idle time to be set beyond 2 hours */
+int	restricted_data_ports = 1;
 int	logging;
 int	guest;
 int	dochroot;
@@ -217,6 +218,7 @@ struct getargs args[] = {
     { NULL, 't', arg_integer, &ftpd_timeout, "initial timeout" },
     { NULL, 'T', arg_integer, &maxtimeout, "max timeout" },
     { NULL, 'u', arg_string, &umask_string, "umask for user logins" },
+    { NULL, 'U', arg_negative_flag, &restricted_data_ports, "don't use high data ports" },
     { NULL, 'd', arg_flag, &debug, "enable debugging" },
     { NULL, 'v', arg_flag, &debug, "enable debugging" },
     { "builtin-ls", 'B', arg_flag, &use_builtin_ls, "use built-in ls to list files" },
@@ -1244,6 +1246,26 @@ bad:
 	return (NULL);
 }
 
+static int
+accept_with_timeout(int socket, 
+		    struct sockaddr *address,
+		    size_t *address_len,
+		    struct timeval *timeout)
+{
+    int ret;
+    fd_set rfd;
+    FD_ZERO(&rfd);
+    FD_SET(socket, &rfd);
+    ret = select(socket + 1, &rfd, NULL, NULL, timeout);
+    if(ret < 0)
+	return ret;
+    if(ret == 0) {
+	errno = ETIMEDOUT;
+	return -1;
+    }
+    return accept(socket, address, address_len);
+}
+
 static FILE *
 dataconn(const char *name, off_t size, const char *mode)
 {
@@ -1260,10 +1282,13 @@ dataconn(const char *name, off_t size, const char *mode)
 	if (pdata >= 0) {
 		struct sockaddr_storage from_ss;
 		struct sockaddr *from = (struct sockaddr *)&from_ss;
+		struct timeval timeout;
 		int s;
 		socklen_t fromlen = sizeof(from_ss);
 
-		s = accept(pdata, from, &fromlen);
+		timeout.tv_sec = 15;
+		timeout.tv_usec = 0;
+		s = accept_with_timeout(pdata, from, &fromlen, &timeout);
 		if (s < 0) {
 			reply(425, "Can't open data connection.");
 			close(pdata);
@@ -1951,6 +1976,8 @@ pasv(void)
 	socket_set_address_and_port (pasv_addr,
 				     socket_get_address (ctrl_addr),
 				     0);
+	socket_set_portrange(pdata, restricted_data_ports, 
+	    pasv_addr->sa_family); 
 	seteuid(0);
 	if (bind(pdata, pasv_addr, socket_sockaddr_size (pasv_addr)) < 0) {
 		seteuid(pw->pw_uid);
@@ -1993,6 +2020,8 @@ epsv(char *proto)
 	socket_set_address_and_port (pasv_addr,
 				     socket_get_address (ctrl_addr),
 				     0);
+	socket_set_portrange(pdata, restricted_data_ports, 
+	    pasv_addr->sa_family); 
 	seteuid(0);
 	if (bind(pdata, pasv_addr, socket_sockaddr_size (pasv_addr)) < 0) {
 		seteuid(pw->pw_uid);
@@ -2165,7 +2194,13 @@ send_file_list(char *whichf)
   char buf[MaxPathLen];
 
   if (strpbrk(whichf, "~{[*?") != NULL) {
-    int flags = GLOB_BRACE|GLOB_NOCHECK|GLOB_QUOTE|GLOB_TILDE|GLOB_LIMIT;
+    int flags = GLOB_BRACE|GLOB_NOCHECK|GLOB_QUOTE|GLOB_TILDE|
+#ifdef GLOB_MAXPATH
+	GLOB_MAXPATH
+#else
+	GLOB_LIMIT
+#endif
+	;
 
     memset(&gl, 0, sizeof(gl));
     freeglob = 1;

@@ -1,16 +1,14 @@
-# $Id: Makefile.am.common,v 1.26 2001/05/21 13:27:48 joda Exp $
+# $Id: Makefile.am.common,v 1.31 2001/09/01 11:12:18 assar Exp $
 
-AUTOMAKE_OPTIONS = foreign no-dependencies
+AUTOMAKE_OPTIONS = foreign no-dependencies 1.4b
 
 SUFFIXES = .et .h
 
 INCLUDES = -I$(top_builddir)/include $(INCLUDES_roken)
 
-AM_CFLAGS += $(WFLAGS)
+AM_CFLAGS = $(WFLAGS)
 
 CP	= cp
-
-COMPILE_ET = $(top_builddir)/lib/com_err/compile_et
 
 ## set build_HEADERZ to headers that should just be installed in build tree
 
@@ -32,8 +30,8 @@ LIB_getsockopt		= @LIB_getsockopt@
 LIB_logout		= @LIB_logout@
 LIB_logwtmp		= @LIB_logwtmp@
 LIB_odm_initialize	= @LIB_odm_initialize@
+LIB_openpty		= @LIB_openpty@
 LIB_pidfile		= @LIB_pidfile@
-LIB_readline		= @LIB_readline@
 LIB_res_search		= @LIB_res_search@
 LIB_setpcred		= @LIB_setpcred@
 LIB_setsockopt		= @LIB_setsockopt@

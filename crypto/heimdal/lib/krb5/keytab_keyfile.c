@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: keytab_keyfile.c,v 1.11 2001/05/14 06:14:49 assar Exp $");
+RCSID("$Id: keytab_keyfile.c,v 1.12 2002/02/15 14:32:52 joda Exp $");
 
 /* afs keyfile operations --------------------------------------- */
 
@@ -286,6 +286,13 @@ akf_add_entry(krb5_context context,
     struct akf_data *d = id->data;
     int fd, created = 0;
     krb5_error_code ret;
+    int32_t len;
+    krb5_storage *sp;
+
+
+    if (entry->keyblock.keyvalue.length != 8 
+	|| entry->keyblock.keytype != ETYPE_DES_CBC_MD5)
+	return 0;
 
     fd = open (d->filename, O_RDWR | O_BINARY);
     if (fd < 0) {
@@ -300,38 +307,15 @@ akf_add_entry(krb5_context context,
 	created = 1;
     }
 
-    if (entry->keyblock.keyvalue.length == 8
-	&& entry->keyblock.keytype == ETYPE_DES_CBC_MD5) {
-
-	int32_t len;
-	krb5_storage *sp;
-
-	sp = krb5_storage_from_fd(fd);
-	if(sp == NULL) {
-	    close(fd);
-	    krb5_set_error_string (context, "malloc: out of memory");
-	    return ENOMEM;
-	}
-	if (created)
-	    len = 0;
-	else {
-	    if((*sp->seek)(sp, 0, SEEK_SET) < 0) {
-		ret = errno;
-		krb5_storage_free(sp);
-		close(fd);
-		krb5_set_error_string (context, "seek: %s", strerror(ret));
-		return ret;
-	    }
-	    
-	    ret = krb5_ret_int32(sp, &len);
-	    if(ret) {
-		krb5_storage_free(sp);
-		close(fd);
-		return ret;
-	    }
-	}
-	len++;
-	
+    sp = krb5_storage_from_fd(fd);
+    if(sp == NULL) {
+	close(fd);
+	krb5_set_error_string (context, "malloc: out of memory");
+	return ENOMEM;
+    }
+    if (created)
+	len = 0;
+    else {
 	if((*sp->seek)(sp, 0, SEEK_SET) < 0) {
 	    ret = errno;
 	    krb5_storage_free(sp);
@@ -339,40 +323,56 @@ akf_add_entry(krb5_context context,
 	    krb5_set_error_string (context, "seek: %s", strerror(ret));
 	    return ret;
 	}
-	
-	ret = krb5_store_int32(sp, len);
+	    
+	ret = krb5_ret_int32(sp, &len);
 	if(ret) {
 	    krb5_storage_free(sp);
 	    close(fd);
 	    return ret;
 	}
+    }
+    len++;
+	
+    if((*sp->seek)(sp, 0, SEEK_SET) < 0) {
+	ret = errno;
+	krb5_storage_free(sp);
+	close(fd);
+	krb5_set_error_string (context, "seek: %s", strerror(ret));
+	return ret;
+    }
+	
+    ret = krb5_store_int32(sp, len);
+    if(ret) {
+	krb5_storage_free(sp);
+	close(fd);
+	return ret;
+    }
 		
 
-	if((*sp->seek)(sp, (len - 1) * (8 + 4), SEEK_CUR) < 0) {
-	    ret = errno;
-	    krb5_storage_free(sp);
-	    close(fd);
-	    krb5_set_error_string (context, "seek: %s", strerror(ret));
-	    return ret;
-	}
-	
-	ret = krb5_store_int32(sp, entry->vno);
-	if(ret) {
-	    krb5_storage_free(sp);
-	    close(fd);
-	    return ret;
-	}
-	ret = sp->store(sp, entry->keyblock.keyvalue.data, 
-			entry->keyblock.keyvalue.length);
-	if(ret != entry->keyblock.keyvalue.length) {
-	    krb5_storage_free(sp);
-	    close(fd);
-	    if(ret < 0)
-		return errno;
-	    return ENOTTY;
-	}
+    if((*sp->seek)(sp, (len - 1) * (8 + 4), SEEK_CUR) < 0) {
+	ret = errno;
 	krb5_storage_free(sp);
+	close(fd);
+	krb5_set_error_string (context, "seek: %s", strerror(ret));
+	return ret;
     }
+	
+    ret = krb5_store_int32(sp, entry->vno);
+    if(ret) {
+	krb5_storage_free(sp);
+	close(fd);
+	return ret;
+    }
+    ret = sp->store(sp, entry->keyblock.keyvalue.data, 
+		    entry->keyblock.keyvalue.length);
+    if(ret != entry->keyblock.keyvalue.length) {
+	krb5_storage_free(sp);
+	close(fd);
+	if(ret < 0)
+	    return errno;
+	return ENOTTY;
+    }
+    krb5_storage_free(sp);
     close (fd);
     return 0;
 }

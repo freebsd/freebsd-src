@@ -34,7 +34,7 @@
 #include "krb5_locl.h"
 #include <vis.h>
 
-RCSID("$Id: replay.c,v 1.8 2001/05/14 06:14:51 assar Exp $");
+RCSID("$Id: replay.c,v 1.9 2001/07/03 19:33:13 assar Exp $");
 
 struct krb5_rcache_data {
     char *name;
@@ -285,7 +285,7 @@ krb5_get_server_rcache(krb5_context context,
     }
     strvisx(tmp, piece->data, piece->length, VIS_WHITE | VIS_OCTAL);
 #ifdef HAVE_GETEUID
-    asprintf(&name, "FILE:rc_%s_%u", tmp, geteuid());
+    asprintf(&name, "FILE:rc_%s_%u", tmp, (unsigned)geteuid());
 #else
     asprintf(&name, "FILE:rc_%s", tmp);
 #endif

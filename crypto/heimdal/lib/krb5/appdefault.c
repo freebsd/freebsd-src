@@ -33,16 +33,23 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: appdefault.c,v 1.5 2001/05/14 06:14:44 assar Exp $");
+RCSID("$Id: appdefault.c,v 1.7 2001/09/16 04:48:55 assar Exp $");
 
 void
 krb5_appdefault_boolean(krb5_context context, const char *appname, 
-			krb5_realm realm, const char *option,
+			krb5_const_realm realm, const char *option,
 			krb5_boolean def_val, krb5_boolean *ret_val)
 {
     
     if(appname == NULL)
 	appname = getprogname();
+
+    def_val = krb5_config_get_bool_default(context, NULL, def_val, 
+					   "libdefaults", option, NULL);
+    if(realm != NULL)
+	def_val = krb5_config_get_bool_default(context, NULL, def_val, 
+					       "realms", realm, option, NULL);
+	
     def_val = krb5_config_get_bool_default(context, NULL, def_val, 
 					   "appdefaults", 
 					   option, 
@@ -72,11 +79,18 @@ krb5_appdefault_boolean(krb5_context context, const char *appname,
 
 void
 krb5_appdefault_string(krb5_context context, const char *appname, 
-		       krb5_realm realm, const char *option,
+		       krb5_const_realm realm, const char *option,
 		       const char *def_val, char **ret_val)
 {
     if(appname == NULL)
 	appname = getprogname();
+
+    def_val = krb5_config_get_string_default(context, NULL, def_val, 
+					     "libdefaults", option, NULL);
+    if(realm != NULL)
+	def_val = krb5_config_get_string_default(context, NULL, def_val, 
+						 "realms", realm, option, NULL);
+
     def_val = krb5_config_get_string_default(context, NULL, def_val, 
 					     "appdefaults", 
 					     option, 
@@ -109,7 +123,7 @@ krb5_appdefault_string(krb5_context context, const char *appname,
 
 void
 krb5_appdefault_time(krb5_context context, const char *appname,
-		     krb5_realm realm, const char *option,
+		     krb5_const_realm realm, const char *option,
 		     time_t def_val, time_t *ret_val)
 {
     time_t t;

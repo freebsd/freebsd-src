@@ -1,8 +1,24 @@
+/************************************************************************
+* Copyright 1995 by Wietse Venema.  All rights reserved.  Some individual
+* files may be covered by other copyrights.
+*
+* This material was originally written and compiled by Wietse Venema at
+* Eindhoven University of Technology, The Netherlands, in 1990, 1991,
+* 1992, 1993, 1994 and 1995.
+*
+* Redistribution and use in source and binary forms, with or without
+* modification, are permitted provided that this entire copyright notice
+* is duplicated in all such copies.
+*
+* This software is provided "as is" and without any expressed or implied
+* warranties, including, without limitation, the implied warranties of
+* merchantibility and fitness for any particular purpose.
+************************************************************************/
 /* Author: Wietse Venema <wietse@wzv.win.tue.nl> */
 
 #include "login_locl.h"
 
-RCSID("$Id: utmpx_login.c,v 1.25 2001/02/08 16:08:47 assar Exp $");
+RCSID("$Id: utmpx_login.c,v 1.26 2001/06/04 14:10:19 assar Exp $");
 
 /* utmpx_login - update utmp and wtmp after login */
 

@@ -35,7 +35,7 @@
 #include <gssapi.h>
 #include <krb5.h>
 
-RCSID("$Id: gss_userok.c,v 1.7 2001/01/30 00:36:58 assar Exp $");
+RCSID("$Id: gss_userok.c,v 1.8 2001/08/05 06:38:57 assar Exp $");
 
 /* XXX a bit too much of krb5 dependency here... 
    What is the correct way to do this? 
@@ -88,7 +88,8 @@ gss_userok(void *app_data, char *username)
 	       goto fail;
 	   }
 
-           asprintf (&ticketfile, "%s%u", KRB5_DEFAULT_CCROOT, pw->pw_uid);
+           asprintf (&ticketfile, "%s%u", KRB5_DEFAULT_CCROOT,
+		     (unsigned)pw->pw_uid);
         
            ret = krb5_cc_resolve(gssapi_krb5_context, ticketfile, &ccache);
            if (ret)

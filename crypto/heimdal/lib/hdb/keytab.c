@@ -35,7 +35,7 @@
 
 /* keytab backend for HDB databases */
 
-RCSID("$Id: keytab.c,v 1.3 2000/08/27 04:31:42 assar Exp $");
+RCSID("$Id: keytab.c,v 1.4 2001/07/13 06:30:41 assar Exp $");
 
 struct hdb_data {
     char *dbname;
@@ -54,8 +54,10 @@ hdb_resolve(krb5_context context, const char *name, krb5_keytab id)
     const char *db, *mkey;
 
     d = malloc(sizeof(*d));
-    if(d == NULL)
+    if(d == NULL) {
+	krb5_set_error_string(context, "malloc: out of memory");
 	return ENOMEM;
+    }
     db = name;
     mkey = strchr(name, ':');
     if(mkey == NULL || mkey[1] == '\0') {
@@ -65,6 +67,7 @@ hdb_resolve(krb5_context context, const char *name, krb5_keytab id)
 	    d->dbname = strdup(name);
 	    if(d->dbname == NULL) {
 		free(d);
+		krb5_set_error_string(context, "malloc: out of memory");
 		return ENOMEM;
 	    }
 	}
@@ -76,6 +79,7 @@ hdb_resolve(krb5_context context, const char *name, krb5_keytab id)
 	    d->dbname = malloc(mkey - db);
 	    if(d->dbname == NULL) {
 		free(d);
+		krb5_set_error_string(context, "malloc: out of memory");
 		return ENOMEM;
 	    }
 	    memmove(d->dbname, db, mkey - db);
@@ -85,6 +89,7 @@ hdb_resolve(krb5_context context, const char *name, krb5_keytab id)
 	if(d->mkey == NULL) {
 	    free(d->dbname);
 	    free(d);
+	    krb5_set_error_string(context, "malloc: out of memory");
 	    return ENOMEM;
 	}
     }

@@ -1,6 +1,6 @@
-# Makefile.in generated automatically by automake 1.4b from Makefile.am
+# Makefile.in generated automatically by automake 1.5 from Makefile.am.
 
-# Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000
+# Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
 # Free Software Foundation, Inc.
 # This Makefile.in is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
@@ -10,6 +10,16 @@
 # but WITHOUT ANY WARRANTY, to the extent permitted by law; without
 # even the implied warranty of MERCHANTABILITY or FITNESS FOR A
 # PARTICULAR PURPOSE.
+
+@SET_MAKE@
+
+# $Id: Makefile.am,v 1.117 2001/10/27 17:47:53 assar Exp $
+
+
+# $Id: Makefile.am.common,v 1.3 1999/04/01 14:58:43 joda Exp $
+
+
+# $Id: Makefile.am.common,v 1.31 2001/09/01 11:12:18 assar Exp $
 
 SHELL = @SHELL@
 
@@ -31,11 +41,9 @@ infodir = @infodir@
 mandir = @mandir@
 includedir = @includedir@
 oldincludedir = /usr/include
-
 pkgdatadir = $(datadir)/@PACKAGE@
 pkglibdir = $(libdir)/@PACKAGE@
 pkgincludedir = $(includedir)/@PACKAGE@
-
 top_builddir = ../..
 
 ACLOCAL = @ACLOCAL@
@@ -47,21 +55,17 @@ INSTALL = @INSTALL@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_DATA = @INSTALL_DATA@
 INSTALL_SCRIPT = @INSTALL_SCRIPT@
-INSTALL_STRIP_FLAG =
+INSTALL_HEADER = $(INSTALL_DATA)
 transform = @program_transform_name@
-
 NORMAL_INSTALL = :
 PRE_INSTALL = :
 POST_INSTALL = :
 NORMAL_UNINSTALL = :
 PRE_UNINSTALL = :
 POST_UNINSTALL = :
-
-@SET_MAKE@
 host_alias = @host_alias@
 host_triplet = @host@
 AIX_EXTRA_KAFS = @AIX_EXTRA_KAFS@
-AMDEP = @AMDEP@
 AMTAR = @AMTAR@
 AS = @AS@
 AWK = @AWK@
@@ -69,11 +73,11 @@ CANONICAL_HOST = @CANONICAL_HOST@
 CATMAN = @CATMAN@
 CATMANEXT = @CATMANEXT@
 CC = @CC@
+COMPILE_ET = @COMPILE_ET@
 CPP = @CPP@
-CXX = @CXX@
-CXXCPP = @CXXCPP@
 DBLIB = @DBLIB@
 DEPDIR = @DEPDIR@
+DIR_com_err = @DIR_com_err@
 DIR_des = @DIR_des@
 DIR_roken = @DIR_roken@
 DLLTOOL = @DLLTOOL@
@@ -82,20 +86,27 @@ EXTRA_LIB45 = @EXTRA_LIB45@
 GROFF = @GROFF@
 INCLUDES_roken = @INCLUDES_roken@
 INCLUDE_ = @INCLUDE_@
+INCLUDE_des = @INCLUDE_des@
+INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
 LEX = @LEX@
 LIBOBJS = @LIBOBJS@
 LIBTOOL = @LIBTOOL@
 LIB_ = @LIB_@
 LIB_AUTH_SUBDIRS = @LIB_AUTH_SUBDIRS@
+LIB_NDBM = @LIB_NDBM@
+LIB_com_err = @LIB_com_err@
+LIB_com_err_a = @LIB_com_err_a@
+LIB_com_err_so = @LIB_com_err_so@
 LIB_des = @LIB_des@
+LIB_des_a = @LIB_des_a@
 LIB_des_appl = @LIB_des_appl@
+LIB_des_so = @LIB_des_so@
 LIB_kdb = @LIB_kdb@
 LIB_otp = @LIB_otp@
 LIB_roken = @LIB_roken@
 LIB_security = @LIB_security@
 LN_S = @LN_S@
 LTLIBOBJS = @LTLIBOBJS@
-MAKEINFO = @MAKEINFO@
 NEED_WRITEAUTH_FALSE = @NEED_WRITEAUTH_FALSE@
 NEED_WRITEAUTH_TRUE = @NEED_WRITEAUTH_TRUE@
 NROFF = @NROFF@
@@ -103,66 +114,134 @@ OBJDUMP = @OBJDUMP@
 OBJEXT = @OBJEXT@
 PACKAGE = @PACKAGE@
 RANLIB = @RANLIB@
-STRIP = @STRIP@
 VERSION = @VERSION@
 VOID_RETSIGTYPE = @VOID_RETSIGTYPE@
 WFLAGS = @WFLAGS@
 WFLAGS_NOIMPLICITINT = @WFLAGS_NOIMPLICITINT@
 WFLAGS_NOUNUSED = @WFLAGS_NOUNUSED@
+X_CFLAGS = @X_CFLAGS@
+X_EXTRA_LIBS = @X_EXTRA_LIBS@
+X_LIBS = @X_LIBS@
+X_PRE_LIBS = @X_PRE_LIBS@
 YACC = @YACC@
+am__include = @am__include@
+am__quote = @am__quote@
 dpagaix_CFLAGS = @dpagaix_CFLAGS@
 dpagaix_LDADD = @dpagaix_LDADD@
 install_sh = @install_sh@
 
-# $Id: Makefile.am,v 1.96 2001/05/16 23:57:10 assar Exp $
+AUTOMAKE_OPTIONS = foreign no-dependencies 1.4b
 
+SUFFIXES = .hin
 
-AUTOMAKE_OPTIONS = foreign no-dependencies
+INCLUDES = -I$(top_builddir)/include $(INCLUDES_roken)
 
-AM_CFLAGS =  $(WFLAGS)
+AM_CFLAGS = $(WFLAGS)
+
+CP = cp
+
+buildinclude = $(top_builddir)/include
+
+LIB_XauReadAuth = @LIB_XauReadAuth@
+
+LIB_crypt = @LIB_crypt@
+LIB_dbm_firstkey = @LIB_dbm_firstkey@
+LIB_dbopen = @LIB_dbopen@
+LIB_dlopen = @LIB_dlopen@
+LIB_dn_expand = @LIB_dn_expand@
+LIB_el_init = @LIB_el_init@
+LIB_getattr = @LIB_getattr@
+LIB_gethostbyname = @LIB_gethostbyname@
+LIB_getpwent_r = @LIB_getpwent_r@
+LIB_getpwnam_r = @LIB_getpwnam_r@
+LIB_getsockopt = @LIB_getsockopt@
+LIB_logout = @LIB_logout@
+LIB_logwtmp = @LIB_logwtmp@
+LIB_odm_initialize = @LIB_odm_initialize@
+LIB_openpty = @LIB_openpty@
+LIB_pidfile = @LIB_pidfile@
+LIB_res_search = @LIB_res_search@
+LIB_setpcred = @LIB_setpcred@
+LIB_setsockopt = @LIB_setsockopt@
+LIB_socket = @LIB_socket@
+LIB_syslog = @LIB_syslog@
+LIB_tgetent = @LIB_tgetent@
+
+LIBS = @LIBS@
+
+HESIODLIB = @HESIODLIB@
+HESIODINCLUDE = @HESIODINCLUDE@
+INCLUDE_hesiod = @INCLUDE_hesiod@
+LIB_hesiod = @LIB_hesiod@
+
+INCLUDE_krb4 = @INCLUDE_krb4@
+LIB_krb4 = @LIB_krb4@
+
+INCLUDE_openldap = @INCLUDE_openldap@
+LIB_openldap = @LIB_openldap@
+
+INCLUDE_readline = @INCLUDE_readline@
+LIB_readline = @LIB_readline@
+
+LEXLIB = @LEXLIB@
+
+NROFF_MAN = groff -mandoc -Tascii
+
+@KRB4_TRUE@LIB_kafs = $(top_builddir)/lib/kafs/libkafs.la $(AIX_EXTRA_KAFS)
+
+@KRB5_TRUE@LIB_krb5 = $(top_builddir)/lib/krb5/libkrb5.la \
+@KRB5_TRUE@	$(top_builddir)/lib/asn1/libasn1.la
+
+@KRB5_TRUE@LIB_gssapi = $(top_builddir)/lib/gssapi/libgssapi.la
+
+@DCE_TRUE@LIB_kdfs = $(top_builddir)/lib/kdfs/libkdfs.la
+
+CHECK_LOCAL = $(PROGRAMS)
 
 ACLOCAL_AMFLAGS = -I ../../cf
 
 CLEANFILES = roken.h make-roken.c $(XHEADERS)
 
 lib_LTLIBRARIES = libroken.la
-libroken_la_LDFLAGS = -version-info 12:0:3
+libroken_la_LDFLAGS = -version-info 15:0:6
 
-noinst_PROGRAMS = make-roken
+noinst_PROGRAMS = make-roken snprintf-test
 
 nodist_make_roken_SOURCES = make-roken.c
 
-check_PROGRAMS = parse_bytes-test \
-		strpftime-test \
-		getaddrinfo-test
+check_PROGRAMS = \
+		base64-test			\
+		getaddrinfo-test		\
+		parse_bytes-test		\
+		snprintf-test			\
+		strpftime-test
 
 
 TESTS = $(check_PROGRAMS)
 
-LIB_crypt = @LIB_crypt@
-
-common_LDADD = libroken.la $(LIB_crypt)
+LDADD = libroken.la $(LIB_crypt)
+make_roken_LDADD = 
 
 strpftime_test_SOURCES = strpftime-test.c strftime.c strptime.c snprintf.c
-getaddrinfo_test_LDADD = $(common_LDADD)
-parse_bytes_test_LDADD = $(common_LDADD)
+snprintf_test_SOURCES = snprintf-test.c snprintf.c
+snprintf_test_CFLAGS = -DTEST_SNPRINTF
 
 libroken_la_SOURCES = \
 	base64.c		\
 	bswap.c			\
 	concat.c		\
-	emalloc.c		\
 	environment.c		\
 	eread.c			\
-	erealloc.c		\
 	esetenv.c		\
-	estrdup.c		\
 	ewrite.c		\
 	getaddrinfo_hostspec.c	\
 	get_default_username.c	\
 	get_window_size.c	\
 	getarg.c		\
 	getnameinfo_verified.c	\
+	getprogname.c		\
+	h_errno.c		\
+	hostent_find_fqdn.c	\
 	issuid.c		\
 	k_getpwnam.c		\
 	k_getpwuid.c		\
@@ -176,6 +255,7 @@ libroken_la_SOURCES = \
 	roken_gethostby.c	\
 	rtbl.c			\
 	rtbl.h			\
+	setprogname.c		\
 	signal.c		\
 	simple_exec.c		\
 	snprintf.c		\
@@ -196,6 +276,10 @@ EXTRA_libroken_la_SOURCES = \
 	chown.c			\
 	copyhostent.c		\
 	daemon.c		\
+	ecalloc.c		\
+	emalloc.c		\
+	erealloc.c		\
+	estrdup.c		\
 	err.c			\
 	err.hin			\
 	errx.c			\
@@ -206,7 +290,6 @@ EXTRA_libroken_la_SOURCES = \
 	freeaddrinfo.c		\
 	freehostent.c		\
 	gai_strerror.c		\
-	getaddrinfo.c		\
 	getdtablesize.c		\
 	getegid.c		\
 	geteuid.c		\
@@ -258,6 +341,7 @@ EXTRA_libroken_la_SOURCES = \
 	unsetenv.c		\
 	verr.c			\
 	verrx.c			\
+	vis.hin			\
 	vsyslog.c		\
 	vwarn.c			\
 	vwarnx.c		\
@@ -268,19 +352,24 @@ EXTRA_libroken_la_SOURCES = \
 
 EXTRA_DIST = roken.awk roken.h.in
 
-libroken_la_LIBADD = @LTLIBOBJS@
+libroken_la_LIBADD = @LTLIBOBJS@ $(DBLIB)
 
 BUILT_SOURCES = make-roken.c roken.h
+
 @have_err_h_TRUE@err_h = 
-@have_err_h_FALSE@err_h = @have_err_h_FALSE@err.h
+@have_err_h_FALSE@err_h = err.h
+
 @have_fnmatch_h_TRUE@fnmatch_h = 
-@have_fnmatch_h_FALSE@fnmatch_h = @have_fnmatch_h_FALSE@fnmatch.h
+@have_fnmatch_h_FALSE@fnmatch_h = fnmatch.h
+
 @have_glob_h_TRUE@glob_h = 
-@have_glob_h_FALSE@glob_h = @have_glob_h_FALSE@glob.h
+@have_glob_h_FALSE@glob_h = glob.h
+
 @have_ifaddrs_h_TRUE@ifaddrs_h = 
-@have_ifaddrs_h_FALSE@ifaddrs_h = @have_ifaddrs_h_FALSE@ifaddrs.h
+@have_ifaddrs_h_FALSE@ifaddrs_h = ifaddrs.h
+
 @have_vis_h_TRUE@vis_h = 
-@have_vis_h_FALSE@vis_h = @have_vis_h_FALSE@vis.h
+@have_vis_h_FALSE@vis_h = vis.h
 
 XHEADERS = $(err_h) $(fnmatch_h) $(glob_h) $(ifaddrs_h) $(vis_h)
 
@@ -299,124 +388,94 @@ include_HEADERS = \
 
 nodist_include_HEADERS = roken.h
 
-SUFFIXES =  .hin
+man_MANS = getarg.3
 subdir = lib/roken
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
-CONFIG_HEADER = ../../include/config.h
-CONFIG_CLEAN_FILES = 
-LTLIBRARIES =  $(lib_LTLIBRARIES)
+CONFIG_HEADER = $(top_builddir)/include/config.h
+CONFIG_CLEAN_FILES =
+LTLIBRARIES = $(lib_LTLIBRARIES)
 
+libroken_la_DEPENDENCIES = @LTLIBOBJS@
+am_libroken_la_OBJECTS = base64.lo bswap.lo concat.lo environment.lo \
+	eread.lo esetenv.lo ewrite.lo getaddrinfo_hostspec.lo \
+	get_default_username.lo get_window_size.lo getarg.lo \
+	getnameinfo_verified.lo getprogname.lo h_errno.lo \
+	hostent_find_fqdn.lo issuid.lo k_getpwnam.lo k_getpwuid.lo \
+	mini_inetd.lo net_read.lo net_write.lo parse_bytes.lo \
+	parse_time.lo parse_units.lo resolve.lo roken_gethostby.lo \
+	rtbl.lo setprogname.lo signal.lo simple_exec.lo snprintf.lo \
+	socket.lo strcollect.lo timeval.lo tm2time.lo unvis.lo \
+	verify.lo vis.lo warnerr.lo write_pid.lo
+libroken_la_OBJECTS = $(am_libroken_la_OBJECTS)
+check_PROGRAMS = base64-test$(EXEEXT) getaddrinfo-test$(EXEEXT) \
+	parse_bytes-test$(EXEEXT) snprintf-test$(EXEEXT) \
+	strpftime-test$(EXEEXT)
+noinst_PROGRAMS = make-roken$(EXEEXT) snprintf-test$(EXEEXT)
+PROGRAMS = $(noinst_PROGRAMS)
 
-DEFS = @DEFS@ -I. -I$(srcdir) -I../../include
+base64_test_SOURCES = base64-test.c
+base64_test_OBJECTS = base64-test.$(OBJEXT)
+base64_test_LDADD = $(LDADD)
+base64_test_DEPENDENCIES = libroken.la
+base64_test_LDFLAGS =
+getaddrinfo_test_SOURCES = getaddrinfo-test.c
+getaddrinfo_test_OBJECTS = getaddrinfo-test.$(OBJEXT)
+getaddrinfo_test_LDADD = $(LDADD)
+getaddrinfo_test_DEPENDENCIES = libroken.la
+getaddrinfo_test_LDFLAGS =
+nodist_make_roken_OBJECTS = make-roken.$(OBJEXT)
+make_roken_OBJECTS = $(nodist_make_roken_OBJECTS)
+make_roken_DEPENDENCIES =
+make_roken_LDFLAGS =
+parse_bytes_test_SOURCES = parse_bytes-test.c
+parse_bytes_test_OBJECTS = parse_bytes-test.$(OBJEXT)
+parse_bytes_test_LDADD = $(LDADD)
+parse_bytes_test_DEPENDENCIES = libroken.la
+parse_bytes_test_LDFLAGS =
+am_snprintf_test_OBJECTS = snprintf_test-snprintf-test.$(OBJEXT) \
+	snprintf_test-snprintf.$(OBJEXT)
+snprintf_test_OBJECTS = $(am_snprintf_test_OBJECTS)
+snprintf_test_LDADD = $(LDADD)
+snprintf_test_DEPENDENCIES = libroken.la
+snprintf_test_LDFLAGS =
+am_strpftime_test_OBJECTS = strpftime-test.$(OBJEXT) strftime.$(OBJEXT) \
+	strptime.$(OBJEXT) snprintf.$(OBJEXT)
+strpftime_test_OBJECTS = $(am_strpftime_test_OBJECTS)
+strpftime_test_LDADD = $(LDADD)
+strpftime_test_DEPENDENCIES = libroken.la
+strpftime_test_LDFLAGS =
+
+DEFS = @DEFS@
+DEFAULT_INCLUDES =  -I. -I$(srcdir) -I$(top_builddir)/include
 CPPFLAGS = @CPPFLAGS@
 LDFLAGS = @LDFLAGS@
-LIBS = @LIBS@
-X_CFLAGS = @X_CFLAGS@
-X_LIBS = @X_LIBS@
-X_EXTRA_LIBS = @X_EXTRA_LIBS@
-X_PRE_LIBS = @X_PRE_LIBS@
-libroken_la_DEPENDENCIES =  @LTLIBOBJS@
-am_libroken_la_OBJECTS =  base64.lo bswap.lo concat.lo emalloc.lo \
-environment.lo eread.lo erealloc.lo esetenv.lo estrdup.lo ewrite.lo \
-getaddrinfo_hostspec.lo get_default_username.lo get_window_size.lo \
-getarg.lo getnameinfo_verified.lo issuid.lo k_getpwnam.lo k_getpwuid.lo \
-mini_inetd.lo net_read.lo net_write.lo parse_bytes.lo parse_time.lo \
-parse_units.lo resolve.lo roken_gethostby.lo rtbl.lo signal.lo \
-simple_exec.lo snprintf.lo socket.lo strcollect.lo timeval.lo \
-tm2time.lo unvis.lo verify.lo vis.lo warnerr.lo write_pid.lo
-libroken_la_OBJECTS =  $(am_libroken_la_OBJECTS)
-check_PROGRAMS =  parse_bytes-test$(EXEEXT) strpftime-test$(EXEEXT) \
-getaddrinfo-test$(EXEEXT)
-noinst_PROGRAMS =  make-roken$(EXEEXT)
-PROGRAMS =  $(noinst_PROGRAMS)
-
-getaddrinfo_test_SOURCES = getaddrinfo-test.c
-getaddrinfo_test_OBJECTS =  getaddrinfo-test.$(OBJEXT)
-getaddrinfo_test_DEPENDENCIES =  libroken.la
-getaddrinfo_test_LDFLAGS = 
-nodist_make_roken_OBJECTS =  make-roken.$(OBJEXT)
-make_roken_OBJECTS =  $(nodist_make_roken_OBJECTS)
-make_roken_LDADD = $(LDADD)
-make_roken_DEPENDENCIES = 
-make_roken_LDFLAGS = 
-parse_bytes_test_SOURCES = parse_bytes-test.c
-parse_bytes_test_OBJECTS =  parse_bytes-test.$(OBJEXT)
-parse_bytes_test_DEPENDENCIES =  libroken.la
-parse_bytes_test_LDFLAGS = 
-am_strpftime_test_OBJECTS =  strpftime-test.$(OBJEXT) strftime.$(OBJEXT) \
-strptime.$(OBJEXT) snprintf.$(OBJEXT)
-strpftime_test_OBJECTS =  $(am_strpftime_test_OBJECTS)
-strpftime_test_LDADD = $(LDADD)
-strpftime_test_DEPENDENCIES = 
-strpftime_test_LDFLAGS = 
-COMPILE = $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
-LTCOMPILE = $(LIBTOOL) --mode=compile $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
-CFLAGS = @CFLAGS@
+depcomp =
+COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
+	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
+LTCOMPILE = $(LIBTOOL) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) \
+	$(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 CCLD = $(CC)
-LINK = $(LIBTOOL) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
-DIST_SOURCES =  $(libroken_la_SOURCES) $(EXTRA_libroken_la_SOURCES) \
-getaddrinfo-test.c parse_bytes-test.c $(strpftime_test_SOURCES)
-HEADERS =  $(include_HEADERS) $(nodist_include_HEADERS)
+LINK = $(LIBTOOL) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
+	$(AM_LDFLAGS) $(LDFLAGS) -o $@
+CFLAGS = @CFLAGS@
+DIST_SOURCES = $(libroken_la_SOURCES) $(EXTRA_libroken_la_SOURCES) \
+	base64-test.c getaddrinfo-test.c parse_bytes-test.c \
+	$(snprintf_test_SOURCES) $(strpftime_test_SOURCES)
 
-depcomp = 
-DIST_COMMON =  $(include_HEADERS) ChangeLog Makefile.am Makefile.in \
-acinclude.m4 getcap.c getnameinfo.c glob.c install-sh \
-make-print-version.c missing mkinstalldirs
+NROFF = nroff
+MANS = $(man_MANS)
+HEADERS = $(include_HEADERS) $(nodist_include_HEADERS)
 
+DIST_COMMON = $(include_HEADERS) ChangeLog Makefile.am Makefile.in \
+	acinclude.m4 freeaddrinfo.c getaddrinfo.c getcap.c \
+	getnameinfo.c glob.c install-sh missing mkinstalldirs
+SOURCES = $(libroken_la_SOURCES) $(EXTRA_libroken_la_SOURCES) base64-test.c getaddrinfo-test.c $(nodist_make_roken_SOURCES) parse_bytes-test.c $(snprintf_test_SOURCES) $(strpftime_test_SOURCES)
 
-DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
+all: $(BUILT_SOURCES)
+	$(MAKE) $(AM_MAKEFLAGS) all-am
 
-GZIP_ENV = --best
-SOURCES = $(libroken_la_SOURCES) $(EXTRA_libroken_la_SOURCES) getaddrinfo-test.c $(nodist_make_roken_SOURCES) parse_bytes-test.c $(strpftime_test_SOURCES)
-OBJECTS = $(am_libroken_la_OBJECTS) getaddrinfo-test.$(OBJEXT) $(nodist_make_roken_OBJECTS) parse_bytes-test.$(OBJEXT) $(am_strpftime_test_OBJECTS)
-
-all: all-redirect
 .SUFFIXES:
-.SUFFIXES: .hin .c .h .lo .o .obj
-$(srcdir)/Makefile.in: Makefile.am $(top_srcdir)/configure.in $(ACLOCAL_M4) 
-	cd $(top_srcdir) && $(AUTOMAKE) --foreign lib/roken/Makefile
-
-Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status
-	cd $(top_builddir) \
-	  && CONFIG_FILES=$(subdir)/$@ CONFIG_HEADERS= $(SHELL) ./config.status
-
-
-mostlyclean-libLTLIBRARIES:
-
-clean-libLTLIBRARIES:
-	-test -z "$(lib_LTLIBRARIES)" || rm -f $(lib_LTLIBRARIES)
-
-distclean-libLTLIBRARIES:
-
-maintainer-clean-libLTLIBRARIES:
-
-install-libLTLIBRARIES: $(lib_LTLIBRARIES)
-	@$(NORMAL_INSTALL)
-	$(mkinstalldirs) $(DESTDIR)$(libdir)
-	@list='$(lib_LTLIBRARIES)'; for p in $$list; do \
-	  if test -f $$p; then \
-	    echo " $(LIBTOOL)  --mode=install $(INSTALL) $(INSTALL_STRIP_FLAG) $$p $(DESTDIR)$(libdir)/$$p"; \
-	    $(LIBTOOL)  --mode=install $(INSTALL) $(INSTALL_STRIP_FLAG) $$p $(DESTDIR)$(libdir)/$$p; \
-	  else :; fi; \
-	done
-
-uninstall-libLTLIBRARIES:
-	@$(NORMAL_UNINSTALL)
-	@list='$(lib_LTLIBRARIES)'; for p in $$list; do \
-	  echo " $(LIBTOOL)  --mode=uninstall rm -f $(DESTDIR)$(libdir)/$$p"; \
-	  $(LIBTOOL)  --mode=uninstall rm -f $(DESTDIR)$(libdir)/$$p; \
-	done
-
-mostlyclean-compile:
-	-rm -f *.o core *.core
-	-rm -f *.$(OBJEXT)
-
-clean-compile:
-
-distclean-compile:
-	-rm -f *.tab.c
-
-maintainer-clean-compile:
+.SUFFIXES: .hin .1 .3 .5 .8 .c .cat1 .cat3 .cat5 .cat8 .et .h .lo .o .obj .x
 
 mostlyclean-libtool:
 	-rm -f *.lo
@@ -425,60 +484,142 @@ clean-libtool:
 	-rm -rf .libs _libs
 
 distclean-libtool:
+	-rm -f libtool
+$(srcdir)/Makefile.in:  Makefile.am $(top_srcdir)/Makefile.am.common $(top_srcdir)/cf/Makefile.am.common $(top_srcdir)/configure.in $(ACLOCAL_M4)
+	cd $(top_srcdir) && \
+	  $(AUTOMAKE) --foreign  lib/roken/Makefile
+Makefile:  $(srcdir)/Makefile.in  $(top_builddir)/config.status
+	cd $(top_builddir) && \
+	  CONFIG_HEADERS= CONFIG_LINKS= \
+	  CONFIG_FILES=$(subdir)/$@ $(SHELL) ./config.status
+install-libLTLIBRARIES: $(lib_LTLIBRARIES)
+	@$(NORMAL_INSTALL)
+	$(mkinstalldirs) $(DESTDIR)$(libdir)
+	@list='$(lib_LTLIBRARIES)'; for p in $$list; do \
+	  if test -f $$p; then \
+	    echo " $(LIBTOOL) --mode=install $(INSTALL) $(INSTALL_STRIP_FLAG) $$p $(DESTDIR)$(libdir)/$$p"; \
+	    $(LIBTOOL) --mode=install $(INSTALL) $(INSTALL_STRIP_FLAG) $$p $(DESTDIR)$(libdir)/$$p; \
+	  else :; fi; \
+	done
 
-maintainer-clean-libtool:
+uninstall-libLTLIBRARIES:
+	@$(NORMAL_UNINSTALL)
+	@list='$(lib_LTLIBRARIES)'; for p in $$list; do \
+	  echo " $(LIBTOOL) --mode=uninstall rm -f $(DESTDIR)$(libdir)/$$p"; \
+	  $(LIBTOOL) --mode=uninstall rm -f $(DESTDIR)$(libdir)/$$p; \
+	done
 
-libroken.la: $(libroken_la_OBJECTS) $(libroken_la_DEPENDENCIES)
+clean-libLTLIBRARIES:
+	-test -z "$(lib_LTLIBRARIES)" || rm -f $(lib_LTLIBRARIES)
+libroken.la: $(libroken_la_OBJECTS) $(libroken_la_DEPENDENCIES) 
 	$(LINK) -rpath $(libdir) $(libroken_la_LDFLAGS) $(libroken_la_OBJECTS) $(libroken_la_LIBADD) $(LIBS)
-
-mostlyclean-checkPROGRAMS:
 
 clean-checkPROGRAMS:
 	-test -z "$(check_PROGRAMS)" || rm -f $(check_PROGRAMS)
 
-distclean-checkPROGRAMS:
-
-maintainer-clean-checkPROGRAMS:
-
-mostlyclean-noinstPROGRAMS:
-
 clean-noinstPROGRAMS:
 	-test -z "$(noinst_PROGRAMS)" || rm -f $(noinst_PROGRAMS)
-
-distclean-noinstPROGRAMS:
-
-maintainer-clean-noinstPROGRAMS:
-
-getaddrinfo-test$(EXEEXT): $(getaddrinfo_test_OBJECTS) $(getaddrinfo_test_DEPENDENCIES)
+base64-test$(EXEEXT): $(base64_test_OBJECTS) $(base64_test_DEPENDENCIES) 
+	@rm -f base64-test$(EXEEXT)
+	$(LINK) $(base64_test_LDFLAGS) $(base64_test_OBJECTS) $(base64_test_LDADD) $(LIBS)
+getaddrinfo-test$(EXEEXT): $(getaddrinfo_test_OBJECTS) $(getaddrinfo_test_DEPENDENCIES) 
 	@rm -f getaddrinfo-test$(EXEEXT)
 	$(LINK) $(getaddrinfo_test_LDFLAGS) $(getaddrinfo_test_OBJECTS) $(getaddrinfo_test_LDADD) $(LIBS)
-
-make-roken$(EXEEXT): $(make_roken_OBJECTS) $(make_roken_DEPENDENCIES)
+make-roken$(EXEEXT): $(make_roken_OBJECTS) $(make_roken_DEPENDENCIES) 
 	@rm -f make-roken$(EXEEXT)
 	$(LINK) $(make_roken_LDFLAGS) $(make_roken_OBJECTS) $(make_roken_LDADD) $(LIBS)
-
-parse_bytes-test$(EXEEXT): $(parse_bytes_test_OBJECTS) $(parse_bytes_test_DEPENDENCIES)
+parse_bytes-test$(EXEEXT): $(parse_bytes_test_OBJECTS) $(parse_bytes_test_DEPENDENCIES) 
 	@rm -f parse_bytes-test$(EXEEXT)
 	$(LINK) $(parse_bytes_test_LDFLAGS) $(parse_bytes_test_OBJECTS) $(parse_bytes_test_LDADD) $(LIBS)
-
-strpftime-test$(EXEEXT): $(strpftime_test_OBJECTS) $(strpftime_test_DEPENDENCIES)
+snprintf_test-snprintf-test.$(OBJEXT): snprintf-test.c
+snprintf_test-snprintf.$(OBJEXT): snprintf.c
+snprintf-test$(EXEEXT): $(snprintf_test_OBJECTS) $(snprintf_test_DEPENDENCIES) 
+	@rm -f snprintf-test$(EXEEXT)
+	$(LINK) $(snprintf_test_LDFLAGS) $(snprintf_test_OBJECTS) $(snprintf_test_LDADD) $(LIBS)
+strpftime-test$(EXEEXT): $(strpftime_test_OBJECTS) $(strpftime_test_DEPENDENCIES) 
 	@rm -f strpftime-test$(EXEEXT)
 	$(LINK) $(strpftime_test_LDFLAGS) $(strpftime_test_OBJECTS) $(strpftime_test_LDADD) $(LIBS)
+
+mostlyclean-compile:
+	-rm -f *.$(OBJEXT) core *.core
+
+distclean-compile:
+	-rm -f *.tab.c
+
 .c.o:
-	$(COMPILE) -c $<
+	$(COMPILE) -c `test -f $< || echo '$(srcdir)/'`$<
+
 .c.obj:
 	$(COMPILE) -c `cygpath -w $<`
-.c.lo:
-	$(LTCOMPILE) -c -o $@ $<
 
+.c.lo:
+	$(LTCOMPILE) -c -o $@ `test -f $< || echo '$(srcdir)/'`$<
+
+snprintf_test-snprintf-test.o: snprintf-test.c
+	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(snprintf_test_CFLAGS) $(CFLAGS) -c -o snprintf_test-snprintf-test.o `test -f snprintf-test.c || echo '$(srcdir)/'`snprintf-test.c
+
+snprintf_test-snprintf-test.obj: snprintf-test.c
+	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(snprintf_test_CFLAGS) $(CFLAGS) -c -o snprintf_test-snprintf-test.obj `cygpath -w snprintf-test.c`
+
+snprintf_test-snprintf-test.lo: snprintf-test.c
+	$(LIBTOOL) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(snprintf_test_CFLAGS) $(CFLAGS) -c -o snprintf_test-snprintf-test.lo `test -f snprintf-test.c || echo '$(srcdir)/'`snprintf-test.c
+
+snprintf_test-snprintf.o: snprintf.c
+	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(snprintf_test_CFLAGS) $(CFLAGS) -c -o snprintf_test-snprintf.o `test -f snprintf.c || echo '$(srcdir)/'`snprintf.c
+
+snprintf_test-snprintf.obj: snprintf.c
+	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(snprintf_test_CFLAGS) $(CFLAGS) -c -o snprintf_test-snprintf.obj `cygpath -w snprintf.c`
+
+snprintf_test-snprintf.lo: snprintf.c
+	$(LIBTOOL) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(snprintf_test_CFLAGS) $(CFLAGS) -c -o snprintf_test-snprintf.lo `test -f snprintf.c || echo '$(srcdir)/'`snprintf.c
+uninstall-info-am:
+
+man3dir = $(mandir)/man3
+install-man3: $(man3_MANS) $(man_MANS)
+	@$(NORMAL_INSTALL)
+	$(mkinstalldirs) $(DESTDIR)$(man3dir)
+	@list='$(man3_MANS) $(dist_man3_MANS) $(nodist_man3_MANS)'; \
+	l2='$(man_MANS) $(dist_man_MANS) $(nodist_man_MANS)'; \
+	for i in $$l2; do \
+	  case "$$i" in \
+	    *.3*) list="$$list $$i" ;; \
+	  esac; \
+	done; \
+	for i in $$list; do \
+	  if test -f $(srcdir)/$$i; then file=$(srcdir)/$$i; \
+	  else file=$$i; fi; \
+	  ext=`echo $$i | sed -e 's/^.*\\.//'`; \
+	  inst=`echo $$i | sed -e 's/\\.[0-9a-z]*$$//'`; \
+	  inst=`echo $$inst | sed -e 's/^.*\///'`; \
+	  inst=`echo $$inst | sed '$(transform)'`.$$ext; \
+	  echo " $(INSTALL_DATA) $$file $(DESTDIR)$(man3dir)/$$inst"; \
+	  $(INSTALL_DATA) $$file $(DESTDIR)$(man3dir)/$$inst; \
+	done
+uninstall-man3:
+	@$(NORMAL_UNINSTALL)
+	@list='$(man3_MANS) $(dist_man3_MANS) $(nodist_man3_MANS)'; \
+	l2='$(man_MANS) $(dist_man_MANS) $(nodist_man_MANS)'; \
+	for i in $$l2; do \
+	  case "$$i" in \
+	    *.3*) list="$$list $$i" ;; \
+	  esac; \
+	done; \
+	for i in $$list; do \
+	  ext=`echo $$i | sed -e 's/^.*\\.//'`; \
+	  inst=`echo $$i | sed -e 's/\\.[0-9a-z]*$$//'`; \
+	  inst=`echo $$inst | sed -e 's/^.*\///'`; \
+	  inst=`echo $$inst | sed '$(transform)'`.$$ext; \
+	  echo " rm -f $(DESTDIR)$(man3dir)/$$inst"; \
+	  rm -f $(DESTDIR)$(man3dir)/$$inst; \
+	done
 install-includeHEADERS: $(include_HEADERS)
 	@$(NORMAL_INSTALL)
 	$(mkinstalldirs) $(DESTDIR)$(includedir)
 	@list='$(include_HEADERS)'; for p in $$list; do \
-	  if test -f "$$p"; then d= ; else d="$(srcdir)/"; fi; \
+	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
 	  f="`echo $$p | sed -e 's|^.*/||'`"; \
-	  echo " $(INSTALL_DATA) $$d$$p $(DESTDIR)$(includedir)/$$f"; \
-	  $(INSTALL_DATA) $$d$$p $(DESTDIR)$(includedir)/$$f; \
+	  echo " $(INSTALL_HEADER) $$d$$p $(DESTDIR)$(includedir)/$$f"; \
+	  $(INSTALL_HEADER) $$d$$p $(DESTDIR)$(includedir)/$$f; \
 	done
 
 uninstall-includeHEADERS:
@@ -488,15 +629,14 @@ uninstall-includeHEADERS:
 	  echo " rm -f $(DESTDIR)$(includedir)/$$f"; \
 	  rm -f $(DESTDIR)$(includedir)/$$f; \
 	done
-
 install-nodist_includeHEADERS: $(nodist_include_HEADERS)
 	@$(NORMAL_INSTALL)
 	$(mkinstalldirs) $(DESTDIR)$(includedir)
 	@list='$(nodist_include_HEADERS)'; for p in $$list; do \
-	  if test -f "$$p"; then d= ; else d="$(srcdir)/"; fi; \
+	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
 	  f="`echo $$p | sed -e 's|^.*/||'`"; \
-	  echo " $(INSTALL_DATA) $$d$$p $(DESTDIR)$(includedir)/$$f"; \
-	  $(INSTALL_DATA) $$d$$p $(DESTDIR)$(includedir)/$$f; \
+	  echo " $(INSTALL_HEADER) $$d$$p $(DESTDIR)$(includedir)/$$f"; \
+	  $(INSTALL_HEADER) $$d$$p $(DESTDIR)$(includedir)/$$f; \
 	done
 
 uninstall-nodist_includeHEADERS:
@@ -534,16 +674,11 @@ TAGS:  $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) \
 GTAGS:
 	here=`CDPATH=: && cd $(top_builddir) && pwd` \
 	  && cd $(top_srcdir) \
-	  && gtags -i $$here
-
-mostlyclean-tags:
-
-clean-tags:
+	  && gtags -i $(GTAGS_ARGS) $$here
 
 distclean-tags:
-	-rm -f TAGS ID
+	-rm -f TAGS ID GTAGS GRTAGS GSYMS GPATH
 
-maintainer-clean-tags:
 check-TESTS: $(TESTS)
 	@failed=0; all=0; xfail=0; xpass=0; \
 	srcdir=$(srcdir); export srcdir; \
@@ -599,11 +734,18 @@ check-TESTS: $(TESTS)
 	  test "$$failed" -eq 0; \
 	fi
 
-distdir = $(top_builddir)/$(PACKAGE)-$(VERSION)/$(subdir)
+DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
+
+top_distdir = ../..
+distdir = $(top_distdir)/$(PACKAGE)-$(VERSION)
 
 distdir: $(DISTFILES)
 	@for file in $(DISTFILES); do \
-	  d=$(srcdir); \
+	  if test -f $$file; then d=.; else d=$(srcdir); fi; \
+	  dir=`echo "$$file" | sed -e 's,/[^/]*$$,,'`; \
+	  if test "$$dir" != "$$file" && test "$$dir" != "."; then \
+	    $(mkinstalldirs) "$(distdir)/$$dir"; \
+	  fi; \
 	  if test -d $$d/$$file; then \
 	    cp -pR $$d/$$file $(distdir) \
 	    || exit 1; \
@@ -613,104 +755,235 @@ distdir: $(DISTFILES)
 	    || exit 1; \
 	  fi; \
 	done
-info-am:
-info: info-am
-dvi-am:
-dvi: dvi-am
+	$(MAKE) $(AM_MAKEFLAGS) \
+	  top_distdir="${top_distdir}" distdir="$(distdir)" \
+	  dist-hook
 check-am: all-am
 	$(MAKE) $(AM_MAKEFLAGS) $(check_PROGRAMS)
-	$(MAKE) $(AM_MAKEFLAGS) check-TESTS
+	$(MAKE) $(AM_MAKEFLAGS) check-TESTS check-local
 check: check-am
-installcheck-am:
-installcheck: installcheck-am
-all-recursive-am: $(BUILT_SOURCES)
-	$(MAKE) $(AM_MAKEFLAGS) all-recursive
+all-am: Makefile $(LTLIBRARIES) $(PROGRAMS) $(MANS) $(HEADERS) all-local
 
-install-exec-am: install-libLTLIBRARIES
+installdirs:
+	$(mkinstalldirs) $(DESTDIR)$(libdir) $(DESTDIR)$(man3dir) $(DESTDIR)$(includedir) $(DESTDIR)$(includedir)
+
+install: install-am
 install-exec: install-exec-am
-
-install-data-am: install-includeHEADERS install-nodist_includeHEADERS
 install-data: install-data-am
+uninstall: uninstall-am
 
 install-am: all-am
 	@$(MAKE) $(AM_MAKEFLAGS) install-exec-am install-data-am
-install: install-am
-uninstall-am: uninstall-libLTLIBRARIES uninstall-includeHEADERS \
-		uninstall-nodist_includeHEADERS
-uninstall: uninstall-am
-all-am: Makefile $(LTLIBRARIES) $(PROGRAMS) $(HEADERS)
-all-redirect: all-am
+
+installcheck: installcheck-am
 install-strip:
-	$(MAKE) $(AM_MAKEFLAGS) INSTALL_STRIP_FLAG=-s install
-installdirs:
-	$(mkinstalldirs)  $(DESTDIR)$(libdir) $(DESTDIR)$(includedir) \
-		$(DESTDIR)$(nodist_includedir)
-
-
+	$(MAKE) $(AM_MAKEFLAGS) INSTALL_PROGRAM="$(INSTALL_STRIP_PROGRAM)" \
+	  `test -z '$(STRIP)' || \
+	    echo "INSTALL_PROGRAM_ENV=STRIPPROG='$(STRIP)'"` install
 mostlyclean-generic:
 
 clean-generic:
 	-test -z "$(CLEANFILES)" || rm -f $(CLEANFILES)
 
 distclean-generic:
-	-rm -f Makefile $(CONFIG_CLEAN_FILES)
-	-rm -f config.cache config.log stamp-h stamp-h[0-9]*
+	-rm -f Makefile $(CONFIG_CLEAN_FILES) stamp-h stamp-h[0-9]*
 
 maintainer-clean-generic:
-	-rm -f Makefile.in
+	@echo "This command is intended for maintainers to use"
+	@echo "it deletes files that may require special tools to rebuild."
 	-test -z "$(BUILT_SOURCES)" || rm -f $(BUILT_SOURCES)
-mostlyclean-am:  mostlyclean-libLTLIBRARIES mostlyclean-compile \
-		mostlyclean-libtool mostlyclean-checkPROGRAMS \
-		mostlyclean-noinstPROGRAMS mostlyclean-tags \
-		mostlyclean-generic
-
-mostlyclean: mostlyclean-am
-
-clean-am:  clean-libLTLIBRARIES clean-compile clean-libtool \
-		clean-checkPROGRAMS clean-noinstPROGRAMS clean-tags \
-		clean-generic mostlyclean-am
-
 clean: clean-am
 
-distclean-am:  distclean-libLTLIBRARIES distclean-compile \
-		distclean-libtool distclean-checkPROGRAMS \
-		distclean-noinstPROGRAMS distclean-tags \
-		distclean-generic clean-am
-	-rm -f libtool
+clean-am: clean-checkPROGRAMS clean-generic clean-libLTLIBRARIES \
+	clean-libtool clean-noinstPROGRAMS mostlyclean-am
 
 distclean: distclean-am
 
-maintainer-clean-am:  maintainer-clean-libLTLIBRARIES \
-		maintainer-clean-compile maintainer-clean-libtool \
-		maintainer-clean-checkPROGRAMS \
-		maintainer-clean-noinstPROGRAMS maintainer-clean-tags \
-		maintainer-clean-generic distclean-am
-	@echo "This command is intended for maintainers to use;"
-	@echo "it deletes files that may require special tools to rebuild."
+distclean-am: clean-am distclean-compile distclean-generic \
+	distclean-libtool distclean-tags
+
+dvi: dvi-am
+
+dvi-am:
+
+info: info-am
+
+info-am:
+
+install-data-am: install-data-local install-includeHEADERS install-man \
+	install-nodist_includeHEADERS
+
+install-exec-am: install-libLTLIBRARIES
+	@$(NORMAL_INSTALL)
+	$(MAKE) $(AM_MAKEFLAGS) install-exec-hook
+
+install-info: install-info-am
+
+install-man: install-man3
+
+installcheck-am:
 
 maintainer-clean: maintainer-clean-am
 
-.PHONY: mostlyclean-libLTLIBRARIES distclean-libLTLIBRARIES \
-clean-libLTLIBRARIES maintainer-clean-libLTLIBRARIES \
-uninstall-libLTLIBRARIES install-libLTLIBRARIES mostlyclean-compile \
-distclean-compile clean-compile maintainer-clean-compile \
-mostlyclean-libtool distclean-libtool clean-libtool \
-maintainer-clean-libtool mostlyclean-checkPROGRAMS \
-distclean-checkPROGRAMS clean-checkPROGRAMS \
-maintainer-clean-checkPROGRAMS mostlyclean-noinstPROGRAMS \
-distclean-noinstPROGRAMS clean-noinstPROGRAMS \
-maintainer-clean-noinstPROGRAMS uninstall-includeHEADERS \
-install-includeHEADERS uninstall-nodist_includeHEADERS \
-install-nodist_includeHEADERS tags mostlyclean-tags distclean-tags \
-clean-tags maintainer-clean-tags check-TESTS distdir info-am info \
-dvi-am dvi check check-am installcheck-am installcheck all-recursive-am \
-install-exec-am install-exec install-data-am install-data install-am \
-install uninstall-am uninstall all-redirect all-am all install-strip \
-installdirs mostlyclean-generic distclean-generic clean-generic \
-maintainer-clean-generic clean mostlyclean distclean maintainer-clean
+maintainer-clean-am: distclean-am maintainer-clean-generic
+
+mostlyclean: mostlyclean-am
+
+mostlyclean-am: mostlyclean-compile mostlyclean-generic \
+	mostlyclean-libtool
+
+uninstall-am: uninstall-includeHEADERS uninstall-info-am \
+	uninstall-libLTLIBRARIES uninstall-man \
+	uninstall-nodist_includeHEADERS
+
+uninstall-man: uninstall-man3
+
+.PHONY: GTAGS all all-am all-local check check-TESTS check-am \
+	check-local clean clean-checkPROGRAMS clean-generic \
+	clean-libLTLIBRARIES clean-libtool clean-noinstPROGRAMS \
+	distclean distclean-compile distclean-generic distclean-libtool \
+	distclean-tags distdir dvi dvi-am info info-am install \
+	install-am install-data install-data-am install-data-local \
+	install-exec install-exec-am install-includeHEADERS \
+	install-info install-info-am install-libLTLIBRARIES install-man \
+	install-man3 install-nodist_includeHEADERS install-strip \
+	installcheck installcheck-am installdirs maintainer-clean \
+	maintainer-clean-generic mostlyclean mostlyclean-compile \
+	mostlyclean-generic mostlyclean-libtool tags uninstall \
+	uninstall-am uninstall-includeHEADERS uninstall-info-am \
+	uninstall-libLTLIBRARIES uninstall-man uninstall-man3 \
+	uninstall-nodist_includeHEADERS
 
 
-$(LTLIBOBJS) $(libroken_la_OBJECTS): $(include_HEADERS) roken.h
+install-suid-programs:
+	@foo='$(bin_SUIDS)'; \
+	for file in $$foo; do \
+	x=$(DESTDIR)$(bindir)/$$file; \
+	if chown 0:0 $$x && chmod u+s $$x; then :; else \
+	echo "*"; \
+	echo "* Failed to install $$x setuid root"; \
+	echo "*"; \
+	fi; done
+
+install-exec-hook: install-suid-programs
+
+install-build-headers:: $(include_HEADERS) $(build_HEADERZ)
+	@foo='$(include_HEADERS) $(build_HEADERZ)'; \
+	for f in $$foo; do \
+		f=`basename $$f`; \
+		if test -f "$(srcdir)/$$f"; then file="$(srcdir)/$$f"; \
+		else file="$$f"; fi; \
+		if cmp -s  $$file $(buildinclude)/$$f 2> /dev/null ; then \
+		: ; else \
+			echo " $(CP) $$file $(buildinclude)/$$f"; \
+			$(CP) $$file $(buildinclude)/$$f; \
+		fi ; \
+	done
+
+all-local: install-build-headers
+#NROFF_MAN = nroff -man
+.1.cat1:
+	$(NROFF_MAN) $< > $@
+.3.cat3:
+	$(NROFF_MAN) $< > $@
+.5.cat5:
+	$(NROFF_MAN) $< > $@
+.8.cat8:
+	$(NROFF_MAN) $< > $@
+
+dist-cat1-mans:
+	@foo='$(man1_MANS)'; \
+	bar='$(man_MANS)'; \
+	for i in $$bar; do \
+	case $$i in \
+	*.1) foo="$$foo $$i";; \
+	esac; done ;\
+	for i in $$foo; do \
+		x=`echo $$i | sed 's/\.[^.]*$$/.cat1/'`; \
+		echo "$(NROFF_MAN) $(srcdir)/$$i > $(distdir)/$$x"; \
+		$(NROFF_MAN) $(srcdir)/$$i > $(distdir)/$$x; \
+	done
+
+dist-cat3-mans:
+	@foo='$(man3_MANS)'; \
+	bar='$(man_MANS)'; \
+	for i in $$bar; do \
+	case $$i in \
+	*.3) foo="$$foo $$i";; \
+	esac; done ;\
+	for i in $$foo; do \
+		x=`echo $$i | sed 's/\.[^.]*$$/.cat3/'`; \
+		echo "$(NROFF_MAN) $(srcdir)/$$i > $(distdir)/$$x"; \
+		$(NROFF_MAN) $(srcdir)/$$i > $(distdir)/$$x; \
+	done
+
+dist-cat5-mans:
+	@foo='$(man5_MANS)'; \
+	bar='$(man_MANS)'; \
+	for i in $$bar; do \
+	case $$i in \
+	*.5) foo="$$foo $$i";; \
+	esac; done ;\
+	for i in $$foo; do \
+		x=`echo $$i | sed 's/\.[^.]*$$/.cat5/'`; \
+		echo "$(NROFF_MAN) $(srcdir)/$$i > $(distdir)/$$x"; \
+		$(NROFF_MAN) $(srcdir)/$$i > $(distdir)/$$x; \
+	done
+
+dist-cat8-mans:
+	@foo='$(man8_MANS)'; \
+	bar='$(man_MANS)'; \
+	for i in $$bar; do \
+	case $$i in \
+	*.8) foo="$$foo $$i";; \
+	esac; done ;\
+	for i in $$foo; do \
+		x=`echo $$i | sed 's/\.[^.]*$$/.cat8/'`; \
+		echo "$(NROFF_MAN) $(srcdir)/$$i > $(distdir)/$$x"; \
+		$(NROFF_MAN) $(srcdir)/$$i > $(distdir)/$$x; \
+	done
+
+dist-hook: dist-cat1-mans dist-cat3-mans dist-cat5-mans dist-cat8-mans
+
+install-cat-mans:
+	$(SHELL) $(top_srcdir)/cf/install-catman.sh "$(INSTALL_DATA)" "$(mkinstalldirs)" "$(srcdir)" "$(DESTDIR)$(mandir)" '$(CATMANEXT)' $(man_MANS) $(man1_MANS) $(man3_MANS) $(man5_MANS) $(man8_MANS)
+
+install-data-local: install-cat-mans
+
+.et.h:
+	$(COMPILE_ET) $<
+.et.c:
+	$(COMPILE_ET) $<
+
+.x.c:
+	@cmp -s $< $@ 2> /dev/null || cp $< $@
+
+check-local::
+	@foo='$(CHECK_LOCAL)'; \
+	  if test "$$foo"; then \
+	  failed=0; all=0; \
+	  for i in $$foo; do \
+	    all=`expr $$all + 1`; \
+	    if ./$$i --version > /dev/null 2>&1; then \
+	      echo "PASS: $$i"; \
+	    else \
+	      echo "FAIL: $$i"; \
+	      failed=`expr $$failed + 1`; \
+	    fi; \
+	  done; \
+	  if test "$$failed" -eq 0; then \
+	    banner="All $$all tests passed"; \
+	  else \
+	    banner="$$failed of $$all tests failed"; \
+	  fi; \
+	  dashes=`echo "$$banner" | sed s/./=/g`; \
+	  echo "$$dashes"; \
+	  echo "$$banner"; \
+	  echo "$$dashes"; \
+	  test "$$failed" -eq 0; \
+	fi
+
+$(LTLIBOBJS) $(libroken_la_OBJECTS): $(include_HEADERS) roken.h $(XHEADERS)
 .hin.h:
 	cp $< $@
 
@@ -721,7 +994,6 @@ roken.h: make-roken$(EXEEXT)
 
 make-roken.c: roken.h.in roken.awk
 	$(AWK) -f $(srcdir)/roken.awk $(srcdir)/roken.h.in > make-roken.c
-
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:

@@ -32,7 +32,7 @@
  */
 
 #include "kpasswd_locl.h"
-RCSID("$Id: kpasswdd.c,v 1.51 2001/05/14 06:18:56 assar Exp $");
+RCSID("$Id: kpasswdd.c,v 1.52 2001/07/02 16:27:09 assar Exp $");
 
 #include <kadm5/admin.h>
 
@@ -442,7 +442,7 @@ doit (krb5_keytab keytab, int port)
     sockets = malloc (n * sizeof(*sockets));
     if (sockets == NULL)
 	krb5_errx (context, 1, "out of memory");
-    maxfd = 0;
+    maxfd = -1;
     FD_ZERO(&real_fdset);
     for (i = 0; i < n; ++i) {
 	int sa_size;
@@ -455,14 +455,21 @@ doit (krb5_keytab keytab, int port)
 	if (bind (sockets[i], sa, sa_size) < 0) {
 	    char str[128];
 	    size_t len;
+	    int save_errno = errno;
+
 	    ret = krb5_print_address (&addrs.val[i], str, sizeof(str), &len);
-	    krb5_err (context, 1, errno, "bind(%s)", str);
+	    if (ret)
+		strlcpy(str, "unknown address", sizeof(str));
+	    krb5_warn (context, save_errno, "bind(%s)", str);
+	    continue;
 	}
 	maxfd = max (maxfd, sockets[i]);
 	if (maxfd >= FD_SETSIZE)
 	    krb5_errx (context, 1, "fd too large");
 	FD_SET(sockets[i], &real_fdset);
     }
+    if (maxfd == -1)
+	krb5_errx (context, 1, "No sockets!");
 
     while(exit_flag == 0) {
 	int ret;
