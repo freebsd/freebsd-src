@@ -526,7 +526,7 @@ ASR_resetIOP(i2oRegs_t *virt, U8 *fvirt)
 		 *	Re-enable the interrupts.
 		 */
 		virt->Mask = Old;
-		KASSERT(*Reply_Ptr != NULL, ("Reply_Ptr == NULL"));
+		KASSERT(*Reply_Ptr != 0, ("*Reply_Ptr == 0"));
 		return(*Reply_Ptr);
 	}
 	KASSERT(Old != -1L, ("Old == -1"));
