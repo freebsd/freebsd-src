@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 static void asa(FILE *);
 static void usage(void);
