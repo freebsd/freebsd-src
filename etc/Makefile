@@ -99,7 +99,7 @@ distribution:
 	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 		dot.cshrc ${DESTDIR}/root/.cshrc; \
 	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
-		dot.klogin ${DESTDIR}/root/.klogin; \
+		dot.k5login ${DESTDIR}/root/.k5login; \
 	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 		dot.login ${DESTDIR}/root/.login; \
 	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
