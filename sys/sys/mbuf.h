@@ -153,6 +153,7 @@ struct mbuf {
 #define	M_PROTO3	0x0040	/* protocol-specific */
 #define	M_PROTO4	0x0080	/* protocol-specific */
 #define	M_PROTO5	0x0100	/* protocol-specific */
+#define	M_FREELIST	0x4000	/* mbuf is on the free list */
 
 /*
  * mbuf pkthdr flags (also stored in m_flags).
