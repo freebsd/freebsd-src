@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: ruptime.c,v 1.5 1995/08/07 19:17:40 wollman Exp $ */
+/* $Id: ruptime.c,v 1.6 1995/09/08 20:33:21 jkh Exp $ */
 
 #ifndef lint
 static char copyright[] =
@@ -62,7 +62,7 @@ struct hs {
 	int	hs_nusers;
 } *hs;
 struct	whod awhod;
-
+#define LEFTEARTH(h)		(now - (h)->hs_wd->wd_recvtime > 4*24*60*60)
 #define	ISDOWN(h)		(now - (h)->hs_wd->wd_recvtime > 11 * 60)
 #define	WHDRSIZE	(sizeof (awhod) - sizeof (awhod.wd_we))
 
@@ -167,6 +167,8 @@ main(argc, argv)
 	qsort(hs, nhosts, sizeof(hs[0]), cmp);
 	for (i = 0; i < nhosts; i++) {
 		hsp = &hs[i];
+		if (LEFTEARTH(hsp))
+			continue;
 		if (ISDOWN(hsp)) {
 			(void)printf("%-12.12s%s\n", hsp->hs_wd->wd_hostname,
 			    interval(now - hsp->hs_wd->wd_recvtime, "down"));
