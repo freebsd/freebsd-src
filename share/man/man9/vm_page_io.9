@@ -31,7 +31,7 @@
 .Os
 .Sh NAME
 .Nm vm_page_io_start ,
-.Nm vm_page_io_finished
+.Nm vm_page_io_finish
 .Nd "ready or unready a page for I/O"
 .Sh SYNOPSIS
 .In sys/param.h
@@ -40,14 +40,14 @@
 .Ft void
 .Fn vm_page_io_start "vm_page_t m"
 .Ft void
-.Fn vm_page_io_finished "vm_page_t m"
+.Fn vm_page_io_finish "vm_page_t m"
 .Sh DESCRIPTION
 The
 .Fn vm_page_io_start
 function prepares the page for I/O by incrementing its busy flag by 1.
 .Pp
 The
-.Fn vm_page_io_finished
+.Fn vm_page_io_finish
 function lowers the busy count on the page by one, if the resulting busy
 count is zero, a wakeup will be issued if the page has been marked
 .Dv PG_WANTED .
