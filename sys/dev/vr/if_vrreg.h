@@ -445,6 +445,7 @@ struct vr_softc {
  */
 #define	VIA_DEVICEID_RHINE		0x3043
 #define VIA_DEVICEID_RHINE_II		0x6100
+#define VIA_DEVICEID_RHINE_II_2		0x3065
 
 /*
  * Delta Electronics device ID.
