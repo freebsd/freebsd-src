@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 	.globl	.rtld_start
 	.type	.rtld_start,%function
 .rtld_start:
-	mov	r6, sp
 	sub	sp, sp, #8		/* make room for obj_main & exit proc */
 	mov	r4, r0			/* save ps_strings */
 	ldr	sl, .L2
@@ -60,7 +59,7 @@ __FBSDID("$FreeBSD$");
 	bl	_rtld_relocate_nonplt_self
 	mov	r1, sp
 	add	r2, sp, #4
-	mov	r0, r6			/* sp */
+	add	r0, sp, #8
 	bl	_rtld			/* call the shared loader */
 	mov	r3, r0			/* save entry point */
 
