@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: modload.c,v 1.7 1995/03/16 17:11:21 wollman Exp $
+ *	$Id: modload.c,v 1.8 1995/05/30 06:09:20 rgrimes Exp $
  */
 
 #include <stdio.h>
@@ -50,10 +50,6 @@
 #include <sys/wait.h>
 #include <sys/signal.h>
 #include "pathnames.h"
-
-#ifndef DFLT_ENTRY
-#define	DFLT_ENTRY	"xxxinit"
-#endif	/* !DFLT_ENTRY */
 
 #define	min(a, b)	((a) < (b) ? (a) : (b))
 
@@ -164,7 +160,7 @@ main(argc, argv)
 {
 	int c;
 	char *kname = (char *)getbootfile();
-	char *entry = DFLT_ENTRY;
+	char *entry = NULL;
 	char *post = NULL;
 	char *out = NULL;
 	char *modobj;
@@ -217,6 +213,16 @@ main(argc, argv)
 		usage();
 
 	modobj = argv[0];
+
+	if (!entry) {	/* calculate default entry point */
+		entry = strrchr(modobj, '/');
+		if (entry)
+			entry++;		/* skip over '/' */
+		else
+			entry = modobj;
+		entry = strdup(entry);		/* so we can modify it */
+		entry[strlen(entry) - 2] = '\0'; /* chop off .o */
+	}
 
 	atexit(cleanup);
 
