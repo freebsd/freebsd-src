@@ -84,7 +84,7 @@ server for the directory containing
 which defaults to
 .Pa /hlfs/home .
 Lookups within that directory are handled by
-.Nm ,
+.Nm hlfsd ,
 which uses the password map to determine how to resolve the lookup.  The
 directory will be created if it doesn't already exist.  The symbolic link will
 be to the accessing user's home directory, with
@@ -156,7 +156,7 @@ If no group is provided, and there is no group
 this feature is disabled.
 .It Fl h
 Help.  Print a brief help message, and exit.
-.It i Ar reload-interval
+.It Fl i Ar reload-interval
 Map-reloading interval.  Each
 .Ar reload-interval
 seconds,
