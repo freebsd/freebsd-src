@@ -193,11 +193,8 @@ struct gem_softc {
 #define	GEM_CDTXADDR(sc, x)	((sc)->sc_cddma + GEM_CDTXOFF((x)))
 #define	GEM_CDRXADDR(sc, x)	((sc)->sc_cddma + GEM_CDRXOFF((x)))
 
-#define	GEM_CDTXSYNC(sc, x, n, ops)					\
+#define	GEM_CDSYNC(sc, ops)						\
 	bus_dmamap_sync((sc)->sc_cdmatag, (sc)->sc_cddmamap, (ops));	\
-
-#define	GEM_CDRXSYNC(sc, x, ops)					\
-	bus_dmamap_sync((sc)->sc_cdmatag, (sc)->sc_cddmamap, (ops))
 
 #define	GEM_INIT_RXDESC(sc, x)						\
 do {									\
@@ -212,7 +209,6 @@ do {									\
 	    GEM_DMA_WRITE((sc),						\
 			(((__m->m_ext.ext_size)<<GEM_RD_BUFSHIFT)	\
 				& GEM_RD_BUFSIZE) | GEM_RD_OWN);	\
-	GEM_CDRXSYNC((sc), (x), BUS_DMASYNC_PREREAD|BUS_DMASYNC_PREWRITE); \
 } while (0)
 
 #ifdef _KERNEL

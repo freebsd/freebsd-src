@@ -371,6 +371,8 @@ gem_detach(sc)
 			bus_dmamap_destroy(sc->sc_tdmatag,
 			    sc->sc_txsoft[i].txs_dmamap);
 	}
+	GEM_CDSYNC(sc, BUS_DMASYNC_POSTREAD);
+	GEM_CDSYNC(sc, BUS_DMASYNC_POSTWRITE);
 	bus_dmamap_unload(sc->sc_cdmatag, sc->sc_cddmamap);
 	bus_dmamem_free(sc->sc_cdmatag, sc->sc_control_data,
 	    sc->sc_cddmamap);
@@ -570,6 +572,8 @@ gem_rxdrain(sc)
 	for (i = 0; i < GEM_NRXDESC; i++) {
 		rxs = &sc->sc_rxsoft[i];
 		if (rxs->rxs_mbuf != NULL) {
+			bus_dmamap_sync(sc->sc_rdmatag, rxs->rxs_dmamap,
+			    BUS_DMASYNC_POSTREAD);
 			bus_dmamap_unload(sc->sc_rdmatag, rxs->rxs_dmamap);
 			m_freem(rxs->rxs_mbuf);
 			rxs->rxs_mbuf = NULL;
@@ -602,6 +606,8 @@ gem_stop(ifp, disable)
 	while ((txs = STAILQ_FIRST(&sc->sc_txdirtyq)) != NULL) {
 		STAILQ_REMOVE_HEAD(&sc->sc_txdirtyq, txs_q);
 		if (txs->txs_ndescs != 0) {
+			bus_dmamap_sync(sc->sc_tdmatag, txs->txs_dmamap,
+			    BUS_DMASYNC_POSTWRITE);
 			bus_dmamap_unload(sc->sc_tdmatag, txs->txs_dmamap);
 			if (txs->txs_mbuf != NULL) {
 				m_freem(txs->txs_mbuf);
@@ -750,8 +756,6 @@ gem_meminit(sc)
 		sc->sc_txdescs[i].gd_flags = 0;
 		sc->sc_txdescs[i].gd_addr = 0;
 	}
-	GEM_CDTXSYNC(sc, 0, GEM_NTXDESC,
-	    BUS_DMASYNC_PREREAD|BUS_DMASYNC_PREWRITE);
 	sc->sc_txfree = GEM_MAXTXFREE;
 	sc->sc_txnext = 0;
 	sc->sc_txwin = 0;
@@ -778,6 +782,8 @@ gem_meminit(sc)
 			GEM_INIT_RXDESC(sc, i);
 	}
 	sc->sc_rxptr = 0;
+	GEM_CDSYNC(sc, BUS_DMASYNC_PREWRITE);
+	GEM_CDSYNC(sc, BUS_DMASYNC_PREREAD);
 
 	return (0);
 }
@@ -978,10 +984,6 @@ gem_load_txmbuf(sc, m0)
 	STAILQ_REMOVE_HEAD(&sc->sc_txfreeq, txs_q);
 	STAILQ_INSERT_TAIL(&sc->sc_txdirtyq, txs, txs_q);
 
-	/* Sync the descriptors we're using. */
-	GEM_CDTXSYNC(sc, sc->sc_txnext, txs->txs_ndescs,
-	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
-
 	sc->sc_txnext = GEM_NEXTTX(txs->txs_lastdesc);
 	sc->sc_txfree -= txs->txs_ndescs;
 	return (0);
@@ -1149,6 +1151,8 @@ gem_start(ifp)
 	}
 
 	if (ntx > 0) {
+		GEM_CDSYNC(sc, BUS_DMASYNC_PREWRITE);
+
 		CTR2(KTR_GEM, "%s: packets enqueued, OWN on %d",
 		    device_get_name(sc->sc_dev), firsttx);
 
@@ -1197,10 +1201,8 @@ gem_tint(sc)
 	 * Go through our Tx list and free mbufs for those
 	 * frames that have been transmitted.
 	 */
+	GEM_CDSYNC(sc, BUS_DMASYNC_POSTREAD);
 	while ((txs = STAILQ_FIRST(&sc->sc_txdirtyq)) != NULL) {
-		GEM_CDTXSYNC(sc, txs->txs_lastdesc,
-		    txs->txs_ndescs,
-		    BUS_DMASYNC_POSTREAD|BUS_DMASYNC_POSTWRITE);
 
 #ifdef GEM_DEBUG
 		if (ifp->if_flags & IFF_DEBUG) {
@@ -1322,12 +1324,10 @@ gem_rint(sc)
 
 	CTR2(KTR_GEM, "gem_rint: sc->rxptr %d, complete %d",
 	    sc->sc_rxptr, rxcomp);
+	GEM_CDSYNC(sc, BUS_DMASYNC_POSTREAD);
 	for (i = sc->sc_rxptr; i != rxcomp;
 	     i = GEM_NEXTRX(i)) {
 		rxs = &sc->sc_rxsoft[i];
-
-		GEM_CDRXSYNC(sc, i,
-		    BUS_DMASYNC_POSTREAD|BUS_DMASYNC_POSTWRITE);
 
 		rxstat = GEM_DMA_READ(sc, sc->sc_rxdescs[i].gd_flags);
 
@@ -1357,8 +1357,6 @@ gem_rint(sc)
 			continue;
 		}
 
-		bus_dmamap_sync(sc->sc_rdmatag, rxs->rxs_dmamap,
-		    BUS_DMASYNC_POSTREAD);
 #ifdef GEM_DEBUG
 		if (ifp->if_flags & IFF_DEBUG) {
 			printf("    rxsoft %p descriptor %d: ", rxs, i);
@@ -1384,8 +1382,6 @@ gem_rint(sc)
 		if (gem_add_rxbuf(sc, i) != 0) {
 			ifp->if_ierrors++;
 			GEM_INIT_RXDESC(sc, i);
-			bus_dmamap_sync(sc->sc_rdmatag, rxs->rxs_dmamap,
-			    BUS_DMASYNC_PREREAD);
 			continue;
 		}
 		m->m_data += 2; /* We're already off by two */
@@ -1398,6 +1394,7 @@ gem_rint(sc)
 	}
 
 	if (progress) {
+		GEM_CDSYNC(sc, BUS_DMASYNC_PREWRITE);
 		/* Update the receive pointer. */
 		if (i == sc->sc_rxptr) {
 			device_printf(sc->sc_dev, "rint: ring wrap\n");
@@ -1435,8 +1432,11 @@ gem_add_rxbuf(sc, idx)
 	memset(m->m_ext.ext_buf, 0, m->m_ext.ext_size);
 #endif
 
-	if (rxs->rxs_mbuf != NULL)
+	if (rxs->rxs_mbuf != NULL) {
+		bus_dmamap_sync(sc->sc_rdmatag, rxs->rxs_dmamap,
+		    BUS_DMASYNC_POSTREAD);
 		bus_dmamap_unload(sc->sc_rdmatag, rxs->rxs_dmamap);
+	}
 
 	rxs->rxs_mbuf = m;
 
