@@ -87,8 +87,7 @@ idle_proc(void *dummy)
 
 		mtx_lock_spin(&sched_lock);
 		td->td_state = TDS_CAN_RUN;
-		p->p_stats->p_ru.ru_nvcsw++;
-		mi_switch();
+		mi_switch(SW_VOL);
 		mtx_unlock_spin(&sched_lock);
 	}
 }
