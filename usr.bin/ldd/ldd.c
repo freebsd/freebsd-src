@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ldd.c,v 1.14 1997/09/02 21:54:39 jdp Exp $
+ *	$Id: ldd.c,v 1.15 1998/05/01 08:40:11 dfr Exp $
  */
 
 #include <sys/types.h>
@@ -108,39 +108,40 @@ char	*argv[];
 		setenv("LD_TRACE_LOADED_OBJECTS_FMT2", fmt2, 1);
 
 	rval = 0;
-	while (argc--) {
+	for ( ;  argc > 0;  argc--, argv++) {
 		int	fd;
-		struct exec hdr;
+		union {
+			struct exec aout;
+			Elf32_Ehdr elf;
+		} hdr;
+		int	n;
 		int	status;
+		int	file_ok;
 
 		if ((fd = open(*argv, O_RDONLY, 0)) < 0) {
 			warn("%s", *argv);
 			rval |= 1;
-			argv++;
 			continue;
 		}
-		if (read(fd, &hdr, sizeof hdr) != sizeof hdr) {
-			warnx("%s: can't read program header", *argv);
+		if ((n = read(fd, &hdr, sizeof hdr)) == -1) {
+			warn("%s: can't read program header", *argv);
 			(void)close(fd);
 			rval |= 1;
-			argv++;
 			continue;
 		}
 
-		if (!N_BADMAG(hdr)) {
+		file_ok = 1;
+		if (n >= sizeof hdr.aout && !N_BADMAG(hdr.aout)) {
 			/* a.out file */
-			if ((N_GETFLAG(hdr) & EX_DPMASK) != EX_DYNAMIC
+			if ((N_GETFLAG(hdr.aout) & EX_DPMASK) != EX_DYNAMIC
 #if 1 /* Compatibility */
-			    || hdr.a_entry < __LDPGSZ
+			    || hdr.aout.a_entry < __LDPGSZ
 #endif
 				) {
 				warnx("%s: not a dynamic executable", *argv);
-				(void)close(fd);
-				rval |= 1;
-				argv++;
-				continue;
+				file_ok = 0;
 			}
-		} else if (IS_ELF(*(Elf32_Ehdr*)&hdr)) {
+		} else if (n >= sizeof hdr.elf && IS_ELF(hdr.elf)) {
 			Elf32_Ehdr ehdr;
 			Elf32_Phdr phdr;
 			int dynamic = 0, i;
@@ -148,33 +149,32 @@ char	*argv[];
 			lseek(fd, 0, SEEK_SET);
 			if (read(fd, &ehdr, sizeof ehdr) != sizeof ehdr) {
 				warnx("%s: can't read program header", *argv);
-				(void)close(fd);
-				rval |= 1;
-				argv++;
-				continue;
+				file_ok = 0;
 			}
 			lseek(fd, 0, ehdr.e_phoff);
 			for (i = 0; i < ehdr.e_phnum; i++) {
 				if (read(fd, &phdr, ehdr.e_phentsize)
 				   != sizeof phdr) {
-					warnx("%s: can't read program header", *argv);
-					(void)close(fd);
-					rval |= 1;
-					argv++;
-					continue;
+					warnx("%s: can't read program header",
+					    *argv);
+					file_ok = 0;
 				}
 				if (phdr.p_type == PT_DYNAMIC)
 					dynamic = 1;
 			}
 			if (!dynamic) {
 				warnx("%s: not a dynamic executable", *argv);
-				(void)close(fd);
-				rval |= 1;
-				argv++;
-				continue;
+				file_ok = 0;
 			}
+		} else {
+			warnx("%s: not a dynamic executable", *argv);
+			file_ok = 0;
 		}
 		(void)close(fd);
+		if (!file_ok) {
+			rval |= 1;
+			continue;
+		}
 
 		setenv("LD_TRACE_LOADED_OBJECTS_PROGNAME", *argv, 1);
 		if (fmt1 == NULL && fmt2 == NULL)
@@ -206,7 +206,6 @@ char	*argv[];
 			perror(*argv);
 			_exit(1);
 		}
-		argv++;
 	}
 
 	return rval;
