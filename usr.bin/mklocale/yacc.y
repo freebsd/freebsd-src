@@ -479,7 +479,7 @@ add_map(map, list, flag)
 	    for (i = r->max+1; i <= list->max; ++i)
 		r->types[i - r->min] = flag;
 	}
-	r->max = r->max;
+	r->max = list->max;
 	free(list);
     }
 
@@ -661,7 +661,7 @@ dump_tables()
 	    list->types[x] = htonl(list->types[x]);
 
 	if (!list->map) {
-	    if (fwrite((char *)&list->types,
+	    if (fwrite((char *)list->types,
 		       (list->max - list->min + 1) * sizeof(unsigned long),
 		       1, fp) != 1) {
 		perror(locale_file);
