@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.5 1994/11/10 02:56:48 davidg Exp $
+ * $Id: if_de.c,v 1.6 1994/11/13 12:39:38 davidg Exp $
  *
  */
 
@@ -35,30 +35,28 @@
  *   board which support DC21040.
  */
 
-#include <de.h>
+#include "de.h"
 #if NDE > 0
 
-#include <param.h>
-#include <systm.h>
-#include <mbuf.h>
-#include <protosw.h>
-#include <socket.h>
-#include <ioctl.h>
-#include <errno.h>
-#include <malloc.h>
-#include <syslog.h>
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/mbuf.h>
+#include <sys/protosw.h>
+#include <sys/socket.h>
+#include <sys/ioctl.h>
+#include <sys/errno.h>
+#include <sys/malloc.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
 #include <net/if_dl.h>
 #include <net/route.h>
 
-#include <bpfilter.h>
+#include "bpfilter.h"
 #if NBPFILTER > 0
 #include <net/bpf.h>
 #include <net/bpfdesc.h>
 #endif
-
 
 #ifdef INET
 #include <netinet/in.h>
@@ -127,18 +125,18 @@ typedef struct {
  * buffers must be longword aligned.  But since Ethernet
  * headers are not a multiple of longwords in size this forces
  * the data to non-longword aligned.  Since IP requires the
- * data to be longword aligned, we can to copy it after it has
+ * data to be longword aligned, we need to copy it after it has
  * been DMA'ed in our memory.
  *
  * Since we have to copy it anyways, we might as well as allocate
  * dedicated receive space for the input.  This allows to use a
  * small receive buffer size and more ring entries to be able to
- * better keep with a foold of tiny Ethernet packets.
+ * better keep with a flood of tiny Ethernet packets.
  *
  * The receive space MUST ALWAYS be a multiple of the page size.
  * And the number of receive descriptors multiplied by the size
  * of the receive buffers must equal the recevive space.  This
- * is that we can manipulate the page tables so that even if a
+ * is so that we can manipulate the page tables so that even if a
  * packet wraps around the end of the receive space, we can 
  * treat it as virtually contiguous.
  */
@@ -189,16 +187,16 @@ tulip_chipid_t tulip_chipids[NDE];
 
 #define	TULIP_CRC32_POLY	0xEDB88320UL	/* CRC-32 Poly -- Little Endian */
 #define	TULIP_CHECK_RXCRC	0
-#define	TULIP_MAX_TXSEG		32
+#define	TULIP_MAX_TXSEG		30
 
 #define	TULIP_ADDREQUAL(a1, a2) \
 	(((u_short *)a1)[0] == ((u_short *)a2)[0] \
-	 || ((u_short *)a1)[1] == ((u_short *)a2)[1] \
-	 || ((u_short *)a1)[2] == ((u_short *)a2)[2])
+	 && ((u_short *)a1)[1] == ((u_short *)a2)[1] \
+	 && ((u_short *)a1)[2] == ((u_short *)a2)[2])
 #define	TULIP_ADDRBRDCST(a1) \
 	(((u_short *)a1)[0] == 0xFFFFU \
-	 || ((u_short *)a1)[1] == 0xFFFFU \
-	 || ((u_short *)a1)[2] == 0xFFFFU)
+	 && ((u_short *)a1)[1] == 0xFFFFU \
+	 && ((u_short *)a1)[2] == 0xFFFFU)
 
 static void tulip_start(struct ifnet *ifp);
 static void tulip_addr_filter(tulip_softc_t *sc);
@@ -459,11 +457,14 @@ tulip_tx_intr(
 		 * We've just finished processing a setup packet.
 		 * Mark that we can finished it.  If there's not
 		 * another pending, startup the TULIP receiver.
+		 * Make sure we ack the RXSTOPPED so we won't get
+		 * an abormal interrupt indication.
 		 */
 		sc->tulip_flags &= ~TULIP_DOINGSETUP;
 		if ((sc->tulip_flags & TULIP_WANTSETUP) == 0) {
 		    sc->tulip_cmdmode |= TULIP_CMD_RXRUN;
 		    sc->tulip_intrmask |= TULIP_STS_RXSTOPPED;
+		    *sc->tulip_csrs.csr_status = TULIP_STS_RXSTOPPED;
 		    *sc->tulip_csrs.csr_command = sc->tulip_cmdmode;
 		    *sc->tulip_csrs.csr_intr = sc->tulip_intrmask;
 		}
@@ -516,7 +517,7 @@ tulip_txsegment(
 	}
     }
     if (segcnt >= maxseg) {
-	printf("%s%d: tulip_txsegment: extremely fragmented packet dropped (%d segments)\n",
+	printf("%s%d: tulip_txsegment: extremely fragmented packet encountered (%d segments)\n",
 	       sc->tulip_name, sc->tulip_unit, segcnt);
 	return -1;
     }
@@ -583,7 +584,6 @@ tulip_start(
 	segcnt = tulip_txsegment(sc, m, addrvec,
 				 min(ri->ri_max - 1, TULIP_MAX_TXSEG));
 	if (segcnt < 0) {
-#if 0
 	    struct mbuf *m0;
 	    MGETHDR(m0, M_DONTWAIT, MT_DATA);
 	    if (m0 != NULL) {
@@ -594,18 +594,15 @@ tulip_start(
 			continue;
 		    }
 		}
-		m_copydata(m, 0, mtod(m0, caddr_t), m->m_pkthdr.len);
+		m_copydata(m, 0, m0->m_pkthdr.len, mtod(m0, caddr_t));
 		m0->m_pkthdr.len = m0->m_len = m->m_pkthdr.len;
 		m_freem(m);
 		IF_PREPEND(ifq, m0);
 		continue;
 	    } else {
-#endif
 		m_freem(m);
 		continue;
-#if 0
 	    }
-#endif
 	}
 	if (ri->ri_free - 2 <= (segcnt + 1) >> 1)
 	    break;
@@ -635,18 +632,18 @@ tulip_start(
 	    if (++ri->ri_nextout == ri->ri_last)
 		ri->ri_nextout = ri->ri_first;
 	} while ((segcnt -= 2) > 0);
-
+#if NBPFILTER > 0
+	    if (sc->tulip_bpf != NULL)
+		bpf_mtap(sc->tulip_bpf, m);
+#endif
 	/*
 	 * The descriptors have been filled in.  Mark the first
 	 * and last segments, indicate we want a transmit complete
 	 * interrupt, give the descriptors to the TULIP, and tell
 	 * it to transmit!
 	 */
+
 	IF_ENQUEUE(&sc->tulip_txq, m);
-#if NBPFILTER > 0
-	if (sc->tulip_bpf)
-		bpf_mtap(sc->tulip_bpf, m);
-#endif
 	eop->d_flag |= TULIP_DFLAG_TxLASTSEG|TULIP_DFLAG_TxWANTINTR;
 	sop->d_flag |= TULIP_DFLAG_TxFIRSTSEG;
 	sop->d_status = TULIP_DSTS_OWNER;
@@ -675,16 +672,16 @@ tulip_intr(
 		return 1;
 	    }
 	}
+	if (csr & TULIP_STS_ABNRMLINTR) {
+	    printf("%s%d: abnormal interrupt: 0x%05x [0x%05x]\n",
+		   sc->tulip_name, sc->tulip_unit, csr, csr & sc->tulip_intrmask);
+	    *sc->tulip_csrs.csr_command = sc->tulip_cmdmode;
+	}
 	if (csr & TULIP_STS_RXINTR)
 	    tulip_rx_intr(sc);
 	if (sc->tulip_txinfo.ri_free < sc->tulip_txinfo.ri_max) {
 	    tulip_tx_intr(sc);
 	    tulip_start(&sc->tulip_if);
-	}
-	if (csr & TULIP_STS_ABNRMLINTR) {
-	    printf("%s%d: abnormal interrupt: 0x%05x [0x%05x]\n",
-		   sc->tulip_name, sc->tulip_unit, csr, csr & sc->tulip_intrmask);
-	    *sc->tulip_csrs.csr_command = sc->tulip_cmdmode;
 	}
     }
     return 1;
@@ -710,8 +707,29 @@ tulip_read_macaddr(
 	sc->tulip_rombuf[idx] = csr & 0xFF;
     }
 
-    if (bcmp(&sc->tulip_rombuf[0], &sc->tulip_rombuf[16], 8) != 0)
-	return -4;
+    if (bcmp(&sc->tulip_rombuf[0], &sc->tulip_rombuf[16], 8) != 0) {
+	/*
+	 * Some folks don't use the standard ethernet rom format
+	 * but instead just put the address in the first 6 bytes
+	 * of the rom and let the rest be all 0xffs.  (Can we say
+	 * ZNYX???)
+	 */
+	for (idx = 6; idx < 32; idx++) {
+	    if (sc->tulip_rombuf[idx] != 0xFF)
+		return -4;
+	}
+	/*
+	 * Make sure the address is not multicast or locally assigned
+	 * that the OUI is not 00-00-00.
+	 */
+	if ((sc->tulip_rombuf[0] & 3) != 0)
+	    return -4;
+	if (sc->tulip_rombuf[0] == 0 && sc->tulip_rombuf[1] == 0
+		&& sc->tulip_rombuf[2] == 0)
+	    return -4;
+	bcopy(sc->tulip_rombuf, sc->tulip_hwaddr, 6);
+	return 0;
+    }
     if (bcmp(&sc->tulip_rombuf[24], testpat, 8) != 0)
 	return -3;
 
@@ -846,6 +864,7 @@ tulip_ioctl(
 #ifdef INET
 		case AF_INET: {
 		    ((struct arpcom *)ifp)->ac_ipaddr = IA_SIN(ifa)->sin_addr;
+		    tulip_addr_filter(sc);	/* reset multicast filtering */
 		    (*ifp->if_init)(ifp->if_unit);
 		    arpwhohas((struct arpcom *)ifp, &IA_SIN(ifa)->sin_addr);
 		    break;
@@ -939,7 +958,6 @@ tulip_attach(
     tulip_softc_t *sc)
 {
     struct ifnet *ifp = &sc->tulip_if;
-    struct ifaddr *ifa = ifp->if_addrlist;
     int cnt;
 
     ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_NOTRAILERS | IFF_MULTICAST;
@@ -1052,11 +1070,11 @@ tulip_pci_probe(
 	if (tulips[idx] == NULL) {
 	    if (device_id == 0x00021011ul) {
 		tulip_chipids[idx] = TULIP_DC21040;
-		return "digital dc21040 ethernet";
+		return "Digital DC21040 Ethernet";
 	    }
 	    if (device_id == 0x00091011ul) {
 		tulip_chipids[idx] = TULIP_DC21140;
-		return "digital dc21140 fast ethernet";
+		return "Digital DC21140 Fast Ethernet";
 	    }
 	    return NULL;
 	}
@@ -1125,7 +1143,7 @@ tulip_pci_attach(
 	for (idx = 0; idx < 32; idx++)
 	    printf("%02x", sc->tulip_rombuf[idx]);
 	printf("\n");
-	printf("%s%d: %s %d.%d ethernet address %s\n",
+	printf("%s%d: %s pass %d.%d ethernet address %s\n",
 	       sc->tulip_name, sc->tulip_unit,
 	       tulip_chipdescs[tulip_chipids[sc->tulip_unit]],
 	       (sc->tulip_revinfo & 0xF0) >> 4, sc->tulip_revinfo & 0x0F,
