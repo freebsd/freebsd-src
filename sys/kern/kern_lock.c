@@ -278,8 +278,10 @@ debuglockmgr(lkp, flags, interlkp, p, name, file, line)
 		/* fall into downgrade */
 
 	case LK_DOWNGRADE:
-		if (lkp->lk_lockholder != pid || lkp->lk_exclusivecount == 0)
-			panic("lockmgr: not holding exclusive lock");
+		KASSERT(lkp->lk_lockholder == pid && lkp->lk_exclusivecount != 0,
+			("lockmgr: not holding exclusive lock "
+			"(owner pid (%d) != pid (%d), exlcnt (%d) != 0",
+			lkp->lk_lockholder, pid, lkp->lk_exclusivecount));
 		sharelock(lkp, lkp->lk_exclusivecount);
 		lkp->lk_exclusivecount = 0;
 		lkp->lk_flags &= ~LK_HAVE_EXCL;
