@@ -35,7 +35,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)builtins	8.1 (Berkeley) 5/31/93
-#	$Id$
+#	$Id: builtins,v 1.2 1994/09/24 02:57:23 davidg Exp $
 
 #
 # This file lists all the builtin commands.  The first column is the name
@@ -83,6 +83,7 @@ setvarcmd	setvar
 shiftcmd	shift
 trapcmd		trap
 truecmd		: true
+ulimitcmd	ulimit
 umaskcmd	umask
 unaliascmd	unalias
 unsetcmd	unset
