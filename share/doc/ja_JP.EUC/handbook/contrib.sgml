@@ -1,6 +1,6 @@
-<!-- $Id: contrib.sgml,v 1.43 1997/03/31 02:40:10 hanai Exp $ -->
+<!-- $Id: contrib.sgml,v 1.44 1997/04/01 02:32:28 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.229 -->
+<!-- Original revision: 1.230 -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
      in sync with the list of FreeBSD Developers -->
@@ -146,6 +146,7 @@
         <tag/ネットワーク/ &a.wollman 
         <tag/ポストマスタ/ &a.jmb; 
         <tag/リリースコーディネータ/ &a.jkh 
+        <tag/広報および渉外担当/ &a.jkh
 	<tag/セキュリティ担当/ &a.guido
         <tag/CVS ツリー管理者/ &a.peter 
         <tag/ports コレクション担当/ &a.asami 
