@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_malloc.c	8.3 (Berkeley) 1/4/94
- * $Id: kern_malloc.c,v 1.51 1999/01/10 01:58:24 eivind Exp $
+ * $Id: kern_malloc.c,v 1.52 1999/01/21 08:29:04 dillon Exp $
  */
 
 #include "opt_vm.h"
@@ -395,6 +395,7 @@ kmeminit(dummy)
 	register long indx;
 	int npg;
 	int mem_size;
+	int xvm_kmem_size;
 
 #if	((MAXALLOCSAVE & (MAXALLOCSAVE - 1)) != 0)
 #error "kmeminit: MAXALLOCSAVE not power of 2"
@@ -430,6 +431,10 @@ kmeminit(dummy)
 	if (vm_kmem_size >= VM_KMEM_SIZE_MAX)
 		vm_kmem_size = VM_KMEM_SIZE_MAX;
 #endif
+
+	/* Allow final override from the kernel environment */
+	if (getenv_int("kern.vm.kmem.size", &xvm_kmem_size))
+	    vm_kmem_size = xvm_kmem_size;
 
 	if (vm_kmem_size > 2 * (cnt.v_page_count * PAGE_SIZE))
 		vm_kmem_size = 2 * (cnt.v_page_count * PAGE_SIZE);
