@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: main.c,v 1.11.2.1 1997/08/29 05:15:38 imp Exp $";
+	"$Id: main.c,v 1.11.2.2 1997/10/09 07:07:47 charnier Exp $";
 #endif
 
 /*
@@ -133,11 +133,16 @@ main(int argc, char **argv)
 	}
     }
     /* If no packages, yelp */
-    else if (!ch)
-	warnx("missing package name(s)"), usage();
-    else if (ch > 1 && AddMode == MASTER)
-	warnx("only one package name may be specified with master mode"),
+    else if (!ch) {
+	warnx("missing package name(s)");
 	usage();
+    }
+    else if (ch > 1 && AddMode == MASTER) {
+	warnx("only one package name may be specified with master mode");
+	usage();
+    }
+    /* Make sure the sub-execs we invoke get found */
+    setenv("PATH", "/sbin:/usr/sbin:/bin:/usr/bin", 1);
     if ((err = pkg_perform(pkgs)) != 0) {
 	if (Verbose)
 	    warnx("%d package addition(s) failed", err);
