@@ -1,5 +1,5 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.kmod.mk,v 1.52 1998/09/02 14:29:09 bde Exp $
+#	$Id: bsd.kmod.mk,v 1.53 1998/10/02 04:51:10 msmith Exp $
 #
 # The include file <bsd.kmod.mk> handles installing Loadable Kernel Modules.
 #
@@ -93,6 +93,9 @@ __initialized__:
 .SUFFIXES: .out .o .c .cc .cxx .C .y .l .s .S
 
 CFLAGS+=	${COPTS} -DKERNEL -DACTUALLY_LKM_NOT_KERNEL ${CWARNFLAGS}
+.if defined(KLDMOD)
+CFLAGS+=	-DKLD_MODULE
+.endif
 
 # Don't use any standard or source-relative include directories.
 # Since -nostdinc will annull any previous -I paths, we repeat all
