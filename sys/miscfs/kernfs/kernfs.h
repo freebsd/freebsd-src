@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs.h	8.6 (Berkeley) 3/29/95
- * $Id: kernfs.h,v 1.6 1997/02/22 09:40:18 peter Exp $
+ * $Id: kernfs.h,v 1.7 1997/08/16 19:15:14 wollman Exp $
  */
 
 #define	_PATH_KERNFS	"/kern"		/* Default mountpoint */
@@ -63,6 +63,5 @@ struct kernfs_node {
 	    eopnotsupp)
 #define kernfs_vptofh ((int (*) __P((struct vnode *, struct fid *)))eopnotsupp)
 extern vop_t **kernfs_vnodeop_p;
-extern struct vfsops kernfs_vfsops;
 extern dev_t rrootdev;
 #endif /* KERNEL */

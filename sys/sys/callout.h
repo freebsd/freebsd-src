@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)callout.h	8.2 (Berkeley) 1/21/94
- * $Id$
+ * $Id: callout.h,v 1.6 1997/02/22 09:44:50 peter Exp $
  */
 
 #ifndef _SYS_CALLOUT_H_
@@ -50,7 +50,7 @@ struct callout {
 };
 
 #ifdef KERNEL
-extern struct	callout *callfree, *callout, calltodo;
+extern struct	callout *callfree, *callout;
 extern int	ncallout;
 #endif
 

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lockf.h	8.1 (Berkeley) 6/11/93
- * $Id$
+ * $Id: lockf.h,v 1.7 1997/02/22 09:45:31 peter Exp $
  */
 
 #ifndef _SYS_LOCKF_H_
@@ -67,8 +67,6 @@ struct lockf {
 int	 lf_advlock __P((struct vop_advlock_args *, struct lockf **, u_quad_t));
 
 #ifdef LOCKF_DEBUG
-extern int lockf_debug;
-
 void	lf_print __P((char *, struct lockf *));
 void	lf_printlist __P((char *, struct lockf *));
 #endif

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)icmp_var.h	8.1 (Berkeley) 6/10/93
- * $Id: icmp_var.h,v 1.7 1997/08/25 01:25:29 wollman Exp $
+ * $Id: icmp_var.h,v 1.8 1997/08/25 16:29:25 wollman Exp $
  */
 
 #ifndef _NETINET_ICMP_VAR_H_
@@ -70,9 +70,5 @@ struct	icmpstat {
 	{ "maskrepl", CTLTYPE_INT }, \
 	{ "stats", CTLTYPE_STRUCT }, \
 }
-
-#ifdef KERNEL
-extern struct	icmpstat icmpstat;
-#endif
 
 #endif

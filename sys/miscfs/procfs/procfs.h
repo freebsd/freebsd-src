@@ -37,7 +37,7 @@
  *	@(#)procfs.h	8.9 (Berkeley) 5/14/95
  *
  * From:
- *	$Id: procfs.h,v 1.15 1997/02/22 09:40:26 peter Exp $
+ *	$Id: procfs.h,v 1.16 1997/08/12 04:34:27 sef Exp $
  */
 
 /*
@@ -164,7 +164,6 @@ int procfs_validtype __P((struct proc *));
 #define PROCFS_WANT	0x02
 
 extern vop_t **procfs_vnodeop_p;
-extern struct vfsops procfs_vfsops;
 
 int	procfs_root __P((struct mount *, struct vnode **));
 int	procfs_rw __P((struct vop_read_args *));
