@@ -141,7 +141,7 @@ distribution: distrib-dirs
 	(cd ../sys/i386/boot; \
 	    make depend all install cleandir)
 	(cd /; \
-	    ls ${MDEC} | cpio -pdalmuv ${DESTDIR}/)
+	    ls ${MDEC} | cpio -pdamuv ${DESTDIR}/)
 	(cd ../usr.sbin/sendmail/src; \
 	    make install; \
 	 cd ../cf/cf; \
@@ -156,11 +156,6 @@ distribution: distrib-dirs
 	ln -s ${TZDIR}/${LOCALTIME} ${DESTDIR}/etc/localtime
 	/bin/rm -f ${DESTDIR}/etc/termcap
 	ln -s /usr/share/misc/termcap ${DESTDIR}/etc/termcap
-	(cd ../sys/compile; rm -rf GENERICISA)
-	(cd ../sys/i386/conf; config GENERICISA)
-	(cd ../sys/compile/GENERICISA; make depend; make all; \
-	    install -c -o root -g wheel -m 755 386bsd \
-	        ${DESTDIR}/386bsd.GENERICISA)
 	(cd ../include; make copies)
 .endif
 
@@ -168,21 +163,40 @@ hcx9-distribution:
 	(cd etc.tahoe; install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${WCS2} \
 	    ${DESTDIR}/)
 
-kc-ah-floppy:
+kc-kernels: ../sys/i386/conf/GENERICAH ../sys/i386/conf/GENERICBT
+	(cd ../sys/compile; rm -rf GENERICAH GENERICBT)
+	(cd ../sys/i386/conf; config GENERICAH; config GENERICBT)
+	(cd ../sys/compile/GENERICAH; make depend; make all; \
+	    install -c -o root -g wheel -m 755 386bsd \
+	        ${DESTDIR}/386bsd.GENERICAH)
+	(cd ../sys/compile/GENERICBT; make depend; make all; \
+	    install -c -o root -g wheel -m 755 386bsd \
+	        ${DESTDIR}/386bsd.GENERICBT)
+
+kc-floppy:
 	disklabel -w -r ${FLOPPY} floppy5 /usr/mdec/fdboot /usr/mdec/bootfd
 	newfs -b 4096 -c 80 -f 512 -i 16384 -m 0 -o space r${FLOPPY}a floppy5
 	mount /dev/${FLOPPY}a ${MOUNT}
 	(cd ${DESTDIR}/; \
-	    ls -d ${KC_DIRS} | cpio -pdalmuv ${MOUNT})
+	    ls -d ${KC_DIRS} | cpio -pdamuv ${MOUNT})
 	(cd ${MOUNT}/dev; \
 	    sh ${DESTDIR}/dev/MAKEDEV std; \
 	    rm -rf fd; \
 	    sh ${DESTDIR}/dev/MAKEDEV fd0 wd0 sd0)
 	(cd ${DESTDIR}/; \
-	    ls ${KC_FILES} | cpio -pdalmuv ${MOUNT})
+	    ls ${KC_FILES} | cpio -pdamuv ${MOUNT})
 	install -c -o root -g wheel -m 755 etc.i386/kc.profile \
 	    ${MOUNT}/.profile
-	(cd ../sys/compile/GENERICISA; \
+
+kc-ah-floppy: kc-floppy
+	(cd ../sys/compile/GENERICAH; \
+	    install -c -o root -g wheel -m 755 386bsd ${MOUNT}/)
+	df -ik ${MOUNT}
+	umount /dev/${FLOPPY}a
+	fsck /dev/r${FLOPPY}a
+
+kc-bt-floppy: kc-floppy
+	(cd ../sys/compile/GENERICBT; \
 	    install -c -o root -g wheel -m 755 386bsd ${MOUNT}/)
 	df -ik ${MOUNT}
 	umount /dev/${FLOPPY}a
@@ -193,13 +207,13 @@ inst1-floppy:
 	newfs -b 4096 -c 80 -f 512 -i 10240 -m 0 -o space r${FLOPPY}a floppy5
 	mount /dev/${FLOPPY}a ${MOUNT}
 	(cd ${DESTDIR}/; \
-	    ls -d ${INST1_DIRS} | cpio -pdalmuv ${MOUNT})
+	    ls -d ${INST1_DIRS} | cpio -pdamuv ${MOUNT})
 	(cd ${MOUNT}/dev; \
 	    sh ${DESTDIR}/dev/MAKEDEV std; \
 	    rm -rf fd; \
 	    sh ${DESTDIR}/dev/MAKEDEV fd0 wd0 sd0)
 	(cd ${DESTDIR}/; \
-	    ls ${INST1_FILES} | cpio -pdalmuv ${MOUNT})
+	    ls ${INST1_FILES} | cpio -pdamuv ${MOUNT})
 	install -c -o root -g wheel -m 755 etc.i386/inst1.profile \
 	    ${MOUNT}/.profile
 	install -c -o root -g wheel -m 755 etc.i386/inst1.install \
@@ -217,7 +231,7 @@ inst2-floppy:
 	newfs -b 4096 -c 80 -f 512 -i 65536 -m 0 -o space r${FLOPPY}a floppy5
 	mount /dev/${FLOPPY}a ${MOUNT}
 	(cd ${DESTDIR}/; \
-	    ls ${INST2_FILES} | cpio -pdalmuv ${MOUNT})
+	    ls ${INST2_FILES} | cpio -pdamuv ${MOUNT})
 	(cd ${DESTDIR}/; \
 	    find ${INST2_CPIO} | cpio -odalmuv | gzip -9 >${MOUNT}/inst2.cpio.gz)
 	install -c -o root -g wheel -m 755 etc.i386/inst2.profile \
