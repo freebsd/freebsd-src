@@ -324,9 +324,9 @@ main(int argc, char **argv)
 
 	for (track = 0; track < fdt.tracks * fdt.heads; track++) {
 		if (!verify_only) {
-			format_track(fd, track / 2, fdt.sectrac, track & 1,
-				fdt.trans, fdt.f_gap, fdt.secsize, fill,
-				fdt.f_inter);
+			format_track(fd, track / fdt.heads, fdt.sectrac,
+				track % fdt.heads, fdt.trans, fdt.f_gap,
+				fdt.secsize, fill, fdt.f_inter);
 			if(!quiet && !((track + 1) % tracks_per_dot)) {
 				putchar('F');
 				fflush(stdout);
