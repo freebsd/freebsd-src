@@ -1,14 +1,9 @@
 #include "f2c.h"
 
-#ifdef KR_headers
-extern double f__cabs();
+extern double f__cabs (double, double);
 
-double c_abs(z) complex *z;
-#else
-extern double f__cabs(double, double);
-
-double c_abs(complex *z)
-#endif
+double
+c_abs (complex * z)
 {
-return( f__cabs( z->r, z->i ) );
+  return (f__cabs (z->r, z->i));
 }

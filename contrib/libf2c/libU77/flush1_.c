@@ -25,22 +25,16 @@ Boston, MA 02111-1307, USA.  */
 
 /* This flushes a single unit, c.f. libI77 version. */
 
-#ifdef KR_headers
-extern integer G77_fnum_0 ();
-
-/* Subroutine */ int G77_flush1_0 (lunit)
-     integer *lunit;
-#else
 extern integer G77_fnum_0 (integer *);
 
-/* Subroutine */ int G77_flush1_0 (const integer *lunit)
-#endif
+/* Subroutine */ int
+G77_flush1_0 (const integer * lunit)
 {
-  if (*lunit>=MXUNIT || *lunit<0)
-    err(1,101,"flush");
+  if (*lunit >= MXUNIT || *lunit < 0)
+    err (1, 101, "flush");
   /* f__units is a table of descriptions for the unit numbers (defined
      in io.h) with file descriptors rather than streams */
   if (f__units[*lunit].ufd != NULL && f__units[*lunit].uwrt)
-    fflush(f__units[*lunit].ufd);
+    fflush (f__units[*lunit].ufd);
   return 0;
 }

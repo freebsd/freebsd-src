@@ -39,17 +39,13 @@ Boston, MA 02111-1307, USA.  */
 #include "f2c.h"
 
 /* Subroutine */
-#ifdef KR_headers
-void G77_vxttime_0 (chtime, Lchtime)
-     char chtime[8];
-     ftnlen Lchtime;
-#else
-void G77_vxttime_0 (char chtime[8], const ftnlen Lchtime)
-#endif
+void
+G77_vxttime_0 (char chtime[8],
+	       const ftnlen Lchtime __attribute__ ((__unused__)))
 {
   time_t tim;
   char *ctim;
-  tim = time(NULL);
+  tim = time (NULL);
   ctim = ctime (&tim);
-  strncpy (chtime, ctim+11, 8);
+  strncpy (chtime, ctim + 11, 8);
 }

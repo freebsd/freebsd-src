@@ -12,26 +12,14 @@
 #undef abs
 #undef min
 #undef max
-#ifndef KR_headers
 #include <stdlib.h>
-#ifdef __cplusplus
-extern "C" {
-#endif
-extern void f_exit(void);
-#endif
+extern void f_exit (void);
 
- void
-#ifdef KR_headers
-G77_exit_0 (rc) integer *rc;
-#else
-G77_exit_0 (integer *rc)
-#endif
+void
+G77_exit_0 (integer * rc)
 {
 #ifdef NO_ONEXIT
-	f_exit();
+  f_exit ();
 #endif
-	exit(*rc);
-	}
-#ifdef __cplusplus
+  exit (*rc);
 }
-#endif
