@@ -1,7 +1,12 @@
-/*
- * Copyright (c) 1988, 1993
- *	The Regents of the University of California.  All rights reserved.
- * Portions Copyright (c) 1994, 1995, Jason Downs.  All rights reserved.
+/*-
+ * Copyright (c) 2003 Networks Associates Technology, Inc.
+ * All rights reserved.
+ *
+ * This software was developed for the FreeBSD Project by
+ * Jacques A. Vidrine, Safeport Network Services, and Network
+ * Associates Laboratories, the Security Research Division of Network
+ * Associates, Inc. under DARPA/SPAWAR contract N66001-01-C-8035
+ * ("CBOSS"), as part of the DARPA CHATS research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -11,18 +16,11 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -30,1152 +28,1629 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
  */
-
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)getpwent.c	8.2 (Berkeley) 4/27/95";
-#endif /* LIBC_SCCS and not lint */
-/*	$NetBSD: getpwent.c,v 1.40.2.2 1999/04/27 22:09:45 perry Exp $	*/
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "un-namespace.h"
+#include "namespace.h"
 #include <sys/param.h>
-#include <fcntl.h>
-#include <db.h>
-#include <syslog.h>
-#include <pwd.h>
-#include <utmp.h>
-#include <errno.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <string.h>
-#include <limits.h>
-#include <nsswitch.h>
-#include <netdb.h>
-#ifdef HESIOD
-#include <hesiod.h>
-#endif
 #ifdef YP
-#include <machine/param.h>
-#include <stdio.h>
 #include <rpc/rpc.h>
 #include <rpcsvc/yp_prot.h>
 #include <rpcsvc/ypclnt.h>
 #endif
+#include <arpa/inet.h>
+#include <errno.h>
+#include <fcntl.h>
+#ifdef HESIOD
+#include <hesiod.h>
+#endif
+#include <netdb.h>
+#include <nsswitch.h>
+#include <pthread.h>
+#include <pthread_np.h>
+#include <pwd.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <syslog.h>
+#include <unistd.h>
 #include "un-namespace.h"
+#include <db.h>
 #include "libc_private.h"
-
 #include "pw_scan.h"
+#include "nss_tls.h"
 
-#if defined(YP) || defined(HESIOD)
-#define _PASSWD_COMPAT
+#ifndef CTASSERT
+#define CTASSERT(x)		_CTASSERT(x, __LINE__)
+#define _CTASSERT(x, y)		__CTASSERT(x, y)
+#define __CTASSERT(x, y)	typedef char __assert_ ## y [(x) ? 1 : -1]
 #endif
 
-/*
- * The lookup techniques and data extraction code here must be kept
- * in sync with that in `pwd_mkdb'.
- */
+/* Counter as stored in /etc/pwd.db */
+typedef	int		pwkeynum;
 
-static struct passwd _pw_passwd = { "", "", 0, 0, 0, "", "", "", "", 0, 0 };
-static DB *_pw_db;			/* password database */
-static int _pw_keynum;			/* key counter. no more records if -1 */
-static int _pw_stayopen;		/* keep fd's open */
+CTASSERT(MAXLOGNAME > sizeof(uid_t));
+CTASSERT(MAXLOGNAME > sizeof(pwkeynum));
 
-static int __hashpw(DBT *);
-static int __initdb(void);
-
-static const ns_src compatsrc[] = {
-	{ NSSRC_COMPAT, NS_SUCCESS },
-	{ 0 }
+enum constants {
+	PWD_STORAGE_INITIAL	= 1 << 10, /* 1 KByte */
+	PWD_STORAGE_MAX		= 1 << 20, /* 1 MByte */
+	SETPWENT		= 1,
+	ENDPWENT		= 2,
+	HESIOD_NAME_MAX		= 256
 };
 
-#ifdef YP
-static char     *__ypcurrent, *__ypdomain;
-static int      __ypcurrentlen;
-static int	_pw_ypdone;		/* non-zero if no more yp records */
-#endif
+static const ns_src defaultsrc[] = {
+	{ NSSRC_FILES, NS_SUCCESS },
+	{ NULL, 0 }
+};
+
+int	__pw_match_entry(const char *, size_t, enum nss_lookup_type,
+	    const char *, uid_t);
+int	__pw_parse_entry(char *, size_t, struct passwd *, int, int *errnop);
+
+union key {
+	const char	*name;
+	uid_t		 uid;
+};
+
+static	struct passwd *getpw(int (*fn)(union key, struct passwd *, char *,
+		    size_t, struct passwd **), union key);
+static	int	 wrap_getpwnam_r(union key, struct passwd *, char *,
+		    size_t, struct passwd **);
+static	int	 wrap_getpwuid_r(union key, struct passwd *, char *, size_t,
+		    struct passwd **);
+static	int	 wrap_getpwent_r(union key, struct passwd *, char *, size_t,
+		    struct passwd **);
+
+static	int	 pwdb_match_entry_v3(char *, size_t, enum nss_lookup_type,
+		    const char *, uid_t);
+static	int	 pwdb_parse_entry_v3(char *, size_t, struct passwd *, int *);
+static	int	 pwdb_match_entry_v4(char *, size_t, enum nss_lookup_type,
+		    const char *, uid_t);
+static	int	 pwdb_parse_entry_v4(char *, size_t, struct passwd *, int *);
+
+
+struct {
+	int	(*match)(char *, size_t, enum nss_lookup_type, const char *,
+		    uid_t);
+	int	(*parse)(char *, size_t, struct passwd *, int *);
+} pwdb_versions[] = {
+	{ NULL, NULL },					/* version 0 */
+	{ NULL, NULL },					/* version 1 */
+	{ NULL, NULL },					/* version 2 */
+	{ pwdb_match_entry_v3, pwdb_parse_entry_v3 },	/* version 3 */
+	{ pwdb_match_entry_v4, pwdb_parse_entry_v4 },	/* version 4 */
+};
+
+
+struct files_state {
+	DB		*db;
+	pwkeynum	 keynum;
+	int		 stayopen;
+	int		 version;
+};
+static	void	files_endstate(void *);
+NSS_TLS_HANDLING(files);
+static	DB	*pwdbopen(int *);
+static	void	 files_endstate(void *);
+static	int	 files_setpwent(void *, void *, va_list);
+static	int	 files_passwd(void *, void *, va_list);
+
 
 #ifdef HESIOD
-static int	_pw_hesnum;		/* hes counter. no more records if -1 */
+struct dns_state {
+	long	counter;
+};
+static	void	dns_endstate(void *);
+NSS_TLS_HANDLING(dns);
+static	int	 dns_setpwent(void *, void *, va_list);
+static	int	 dns_passwd(void *, void *, va_list);
 #endif
 
-#ifdef _PASSWD_COMPAT
-enum _pwmode { PWMODE_NONE, PWMODE_FULL, PWMODE_USER, PWMODE_NETGRP };
-static enum _pwmode __pwmode;
-
-enum _ypmap { YPMAP_NONE, YPMAP_ADJUNCT, YPMAP_MASTER };
-
-static struct passwd	*__pwproto = (struct passwd *)NULL;
-static int		 __pwproto_flags;
-static char		 line[1024];
-static long		 prbuf[1024 / sizeof(long)];
-static DB		*__pwexclude = (DB *)NULL;
- 
-static int	__pwexclude_add(const char *);
-static int	__pwexclude_is(const char *);
-static void	__pwproto_set(void);
-static int	__ypmaptype(void);
-static int	__pwparse(struct passwd *, char *);
-
-	/* macros for deciding which YP maps to use. */
-#define PASSWD_BYNAME	(__ypmaptype() == YPMAP_MASTER \
-			    ? "master.passwd.byname" : "passwd.byname")
-#define PASSWD_BYUID	(__ypmaptype() == YPMAP_MASTER \
-			    ? "master.passwd.byuid" : "passwd.byuid")
-
-/*
- * add a name to the compat mode exclude list
- */
-static int
-__pwexclude_add(name)
-	const char *name;
-{
-	DBT key;
-	DBT data;
-
-	/* initialize the exclusion table if needed. */
-	if(__pwexclude == (DB *)NULL) {
-		__pwexclude = dbopen(NULL, O_RDWR, 600, DB_HASH, NULL);
-		if(__pwexclude == (DB *)NULL)
-			return 1;
-	}
-
-	/* set up the key */
-	key.size = strlen(name);
-	/* LINTED key does not get modified */
-	key.data = (char *)name;
-
-	/* data is nothing. */
-	data.data = NULL;
-	data.size = 0;
-
-	/* store it */
-	if((__pwexclude->put)(__pwexclude, &key, &data, 0) == -1)
-		return 1;
-	
-	return 0;
-}
-
-/*
- * test if a name is on the compat mode exclude list
- */
-static int
-__pwexclude_is(name)
-	const char *name;
-{
-	DBT key;
-	DBT data;
-
-	if(__pwexclude == (DB *)NULL)
-		return 0;	/* nothing excluded */
-
-	/* set up the key */
-	key.size = strlen(name);
-	/* LINTED key does not get modified */
-	key.data = (char *)name;
-
-	if((__pwexclude->get)(__pwexclude, &key, &data, 0) == 0)
-		return 1;	/* excluded */
-	
-	return 0;
-}
-
-/*
- * Setup the compat mode prototype template that may be used in
- * __pwparse.  Only pw_passwd, pw_uid, pw_gid, pw_gecos, pw_dir, and
- * pw_shell are used.  The other fields are zero'd.
- */
-static void
-__pwproto_set()
-{
-	char *ptr;
-	struct passwd *pw = &_pw_passwd;
-
-	/* make this the new prototype */
-	ptr = (char *)(void *)prbuf;
-
-	/* first allocate the struct. */
-	__pwproto = (struct passwd *)(void *)ptr;
-	ptr += sizeof(struct passwd);
-	memset(__pwproto, 0, sizeof(*__pwproto));
-
-	__pwproto_flags = 0;
-
-	/* password */
-	if(pw->pw_passwd && (pw->pw_passwd)[0]) {
-		ptr = (char *)ALIGN((u_long)ptr);
-		memmove(ptr, pw->pw_passwd, strlen(pw->pw_passwd) + 1);
-		__pwproto->pw_passwd = ptr;
-		ptr += (strlen(pw->pw_passwd) + 1);
-		__pwproto_flags |= _PWF_PASSWD;
-	} 
-
-	/* uid, gid */
-	if (pw->pw_fields & _PWF_UID) {
-		__pwproto->pw_uid = pw->pw_uid;
-		__pwproto_flags |= _PWF_UID;
-	}
-	if (pw->pw_fields & _PWF_GID) {
-		__pwproto->pw_gid = pw->pw_gid;
-		__pwproto_flags |= _PWF_GID;
-	}
-
-	/* gecos */
-	if(pw->pw_gecos && (pw->pw_gecos)[0]) {
-		ptr = (char *)ALIGN((u_long)ptr);
-		memmove(ptr, pw->pw_gecos, strlen(pw->pw_gecos) + 1);
-		__pwproto->pw_gecos = ptr;
-		ptr += (strlen(pw->pw_gecos) + 1);
-		__pwproto_flags |= _PWF_GECOS;
-	}
-	
-	/* dir */
-	if(pw->pw_dir && (pw->pw_dir)[0]) {
-		ptr = (char *)ALIGN((u_long)ptr);
-		memmove(ptr, pw->pw_dir, strlen(pw->pw_dir) + 1);
-		__pwproto->pw_dir = ptr;
-		ptr += (strlen(pw->pw_dir) + 1);
-		__pwproto_flags |= _PWF_DIR;
-	}
-
-	/* shell */
-	if(pw->pw_shell && (pw->pw_shell)[0]) {
-		ptr = (char *)ALIGN((u_long)ptr);
-		memmove(ptr, pw->pw_shell, strlen(pw->pw_shell) + 1);
-		__pwproto->pw_shell = ptr;
-		ptr += (strlen(pw->pw_shell) + 1);
-		__pwproto_flags |= _PWF_SHELL;
-	}
-}
-
-static int
-__ypmaptype()
-{
-	static int maptype = -1;
-	int order, r;
-
-	if (maptype != -1)
-		return (maptype);
-
-	maptype = YPMAP_NONE;
-	if (geteuid() != 0)
-		return (maptype);
-
-	if (!__ypdomain) {
-		if( _yp_check(&__ypdomain) == 0)
-			return (maptype);
-	}
-
-	r = yp_order(__ypdomain, "master.passwd.byname", &order);
-	if (r == 0) {
-		maptype = YPMAP_MASTER;
-		return (maptype);
-	}
-
-	/*
-	 * NIS+ in YP compat mode doesn't support
-	 * YPPROC_ORDER -- no point in continuing.
-	 */
-	if (r == YPERR_YPERR)
-		return (maptype);
-
-	/* master.passwd doesn't exist -- try passwd.adjunct */
-	if (r == YPERR_MAP) {
-		r = yp_order(__ypdomain, "passwd.adjunct.byname", &order);
-		if (r == 0)
-			maptype = YPMAP_ADJUNCT;
-		return (maptype);
-	}
-
-	return (maptype);
-}
-
-/*
- * parse a passwd file line (from NIS or HESIOD).
- * assumed to be `old-style' if maptype != YPMAP_MASTER.
- */
-static int
-__pwparse(pw, s)
-	struct passwd *pw;
-	char *s;
-{
-	static char adjunctpw[YPMAXRECORD + 2];
-	int flags, maptype;
-
-	maptype = __ypmaptype();
-	flags = 0;
-	if (maptype == YPMAP_MASTER)
-		flags |= _PWSCAN_MASTER;
-	if (! __pw_scan(s, pw, flags))
-		return 1;
-
-	/* now let the prototype override, if set. */
-	if(__pwproto != (struct passwd *)NULL) {
-#ifdef PW_OVERRIDE_PASSWD
-		if(__pwproto_flags & _PWF_PASSWD)
-			pw->pw_passwd = __pwproto->pw_passwd;
-#endif
-		if(__pwproto_flags & _PWF_UID)
-			pw->pw_uid = __pwproto->pw_uid;
-		if(__pwproto_flags & _PWF_GID)
-			pw->pw_gid = __pwproto->pw_gid;
-		if(__pwproto_flags & _PWF_GECOS)
-			pw->pw_gecos = __pwproto->pw_gecos;
-		if(__pwproto_flags & _PWF_DIR)
-			pw->pw_dir = __pwproto->pw_dir;
-		if(__pwproto_flags & _PWF_SHELL)
-			pw->pw_shell = __pwproto->pw_shell;
-	}
-	if ((maptype == YPMAP_ADJUNCT) &&
-	    (strstr(pw->pw_passwd, "##") != NULL)) {
-		char *data, *bp;
-		int datalen;
-
-		if (yp_match(__ypdomain, "passwd.adjunct.byname", pw->pw_name,
-		    (int)strlen(pw->pw_name), &data, &datalen) == 0) {
-			if (datalen > sizeof(adjunctpw) - 1)
-				datalen = sizeof(adjunctpw) - 1;
-			strncpy(adjunctpw, data, (size_t)datalen);
-
-				/* skip name to get password */
-			if ((bp = strsep(&data, ":")) != NULL &&
-			    (bp = strsep(&data, ":")) != NULL)
-				pw->pw_passwd = bp;
-		}
-	}
-	return 0;
-}
-#endif /* _PASSWD_COMPAT */
-
-/*
- * local files implementation of getpw*()
- * varargs: type, [ uid (type == _PW_KEYBYUID) | name (type == _PW_KEYBYNAME) ]
- */
-static int	_local_getpw(void *, void *, va_list);
-
-/*ARGSUSED*/
-static int
-_local_getpw(rv, cb_data, ap)
-	void	*rv;
-	void	*cb_data;
-	va_list	 ap;
-{
-	DBT		 key;
-	char		 bf[/*CONSTCOND*/ MAX(MAXLOGNAME, sizeof(_pw_keynum)) + 1];
-	uid_t		 uid;
-	int		 search, len, rval;
-	const char	*name;
-
-	if (!_pw_db && !__initdb())
-		return NS_UNAVAIL;
-
-	search = va_arg(ap, int);
-	bf[0] = search;
-	switch (search) {
-	case _PW_KEYBYNUM:
-		if (_pw_keynum == -1)
-			return NS_NOTFOUND;	/* no more local records */
-		++_pw_keynum;
-		memmove(bf + 1, &_pw_keynum, sizeof(_pw_keynum));
-		key.size = sizeof(_pw_keynum) + 1;
-		break;
-	case _PW_KEYBYNAME:
-		name = va_arg(ap, const char *);
-		len = strlen(name);
-		if (len > sizeof(bf) - 1)
-			return NS_NOTFOUND;
-		memmove(bf + 1, name, len);
-		key.size = len + 1;
-		break;
-	case _PW_KEYBYUID:
-		uid = va_arg(ap, uid_t);
-		memmove(bf + 1, &uid, sizeof(len));
-		key.size = sizeof(uid) + 1;
-		break;
-	default:
-		abort();
-	}
-
-	key.data = (u_char *)bf;
-	rval = __hashpw(&key);
-	if (rval == NS_NOTFOUND && search == _PW_KEYBYNUM)
-		_pw_keynum = -1;	/* flag `no more local records' */
-
-	if (!_pw_stayopen && (search != _PW_KEYBYNUM)) {
-		(void)(_pw_db->close)(_pw_db);
-		_pw_db = (DB *)NULL;
-	}
-	if (rval == NS_SUCCESS) {
-		_pw_passwd.pw_fields &= ~_PWF_SOURCE;
-		_pw_passwd.pw_fields |= _PWF_FILES;
-	}
-	return (rval);
-}
-
-#ifdef HESIOD
-/*
- * hesiod implementation of getpw*()
- * varargs: type, [ uid (type == _PW_KEYBYUID) | name (type == _PW_KEYBYNAME) ]
- */
-static int	_dns_getpw(void *, void *, va_list);
-
-/*ARGSUSED*/
-static int
-_dns_getpw(rv, cb_data, ap)
-	void	*rv;
-	void	*cb_data;
-	va_list	 ap;
-{
-	const char	 *name;
-	uid_t		  uid;
-	int		  search;
-
-	const char	 *map;
-	char		**hp;
-	void		 *context;
-	int		  r;
-
-	search = va_arg(ap, int);
- nextdnsbynum:
-	switch (search) {
-	case _PW_KEYBYNUM:
-		if (_pw_hesnum == -1)
-			return NS_NOTFOUND;	/* no more hesiod records */
-		snprintf(line, sizeof(line) - 1, "passwd-%u", _pw_hesnum);
-		_pw_hesnum++;
-		map = "passwd";
-		break;
-	case _PW_KEYBYNAME:
-		name = va_arg(ap, const char *);
-		strncpy(line, name, sizeof(line));
-		map = "passwd";
-		break;
-	case _PW_KEYBYUID:
-		uid = va_arg(ap, uid_t);
-		snprintf(line, sizeof(line), "%u", (unsigned int)uid);
-		map = "uid";		/* XXX this is `passwd' on ultrix */
-		break;
-	default:
-		abort();
-	}
-	line[sizeof(line) - 1] = '\0';
-
-	r = NS_UNAVAIL;
-	if (hesiod_init(&context) == -1)
-		return (r);
-
-	hp = hesiod_resolve(context, line, map);
-	if (hp == NULL) {
-		if (errno == ENOENT) {
-					/* flag `no more hesiod records' */
-			if (search == _PW_KEYBYNUM)
-				_pw_hesnum = -1;
-			r = NS_NOTFOUND;
-		}
-		goto cleanup_dns_getpw;
-	}
-
-	strncpy(line, hp[0], sizeof(line));	/* only check first elem */
-	line[sizeof(line) - 1] = '\0';
-	hesiod_free_list(context, hp);
-	if (__pwparse(&_pw_passwd, line)) {
-		if (search == _PW_KEYBYNUM)
-			goto nextdnsbynum;	/* skip dogdy entries */
-		r = NS_UNAVAIL;
-	} else {
-		_pw_passwd.pw_fields &= ~_PWF_SOURCE;
-		_pw_passwd.pw_fields |= _PWF_HESIOD;
-		r = NS_SUCCESS;
-	}
- cleanup_dns_getpw:
-	hesiod_end(context);
-	return (r);
-}
-#endif
 
 #ifdef YP
-/*
- * nis implementation of getpw*()
- * varargs: type, [ uid (type == _PW_KEYBYUID) | name (type == _PW_KEYBYNAME) ]
- */
-static int	_nis_getpw(void *, void *, va_list);
-
-/*ARGSUSED*/
-static int
-_nis_getpw(rv, cb_data, ap)
-	void	*rv;
-	void	*cb_data;
-	va_list	 ap;
-{
-	const char	*name;
-	uid_t		 uid;
-	int		 search;
-	char		*key, *data;
-	char		*map;
-	int		 keylen, datalen, r, rval;
-
-	if(__ypdomain == NULL) {
-		if(_yp_check(&__ypdomain) == 0)
-			return NS_UNAVAIL;
-	}
-
-	map = PASSWD_BYNAME;
-	search = va_arg(ap, int);
-	switch (search) {
-	case _PW_KEYBYNUM:
-		break;
-	case _PW_KEYBYNAME:
-		name = va_arg(ap, const char *);
-		strncpy(line, name, sizeof(line));
-		break;
-	case _PW_KEYBYUID:
-		uid = va_arg(ap, uid_t);
-		snprintf(line, sizeof(line), "%u", (unsigned int)uid);
-		map = PASSWD_BYUID;
-		break;
-	default:
-		abort();
-	}
-	line[sizeof(line) - 1] = '\0';
-	rval = NS_UNAVAIL;
-	if (search != _PW_KEYBYNUM) {
-		data = NULL;
-		r = yp_match(__ypdomain, map, line, (int)strlen(line),
-				&data, &datalen);
-		if (r == YPERR_KEY)
-			rval = NS_NOTFOUND;
-		if (r != 0) {
-			if (data)
-				free(data);
-			return (rval);
-		}
-		data[datalen] = '\0';		/* clear trailing \n */
-		strncpy(line, data, sizeof(line));
-		line[sizeof(line) - 1] = '\0';
-		free(data);
-		if (__pwparse(&_pw_passwd, line))
-			return NS_UNAVAIL;
-		_pw_passwd.pw_fields &= ~_PWF_SOURCE;
-		_pw_passwd.pw_fields |= _PWF_NIS;
-		return NS_SUCCESS;
-	}
-
-	if (_pw_ypdone)
-		return NS_NOTFOUND;
-	for (;;) {
-		data = key = NULL;
-		if (__ypcurrent) {
-			r = yp_next(__ypdomain, map,
-					__ypcurrent, __ypcurrentlen,
-					&key, &keylen, &data, &datalen);
-			free(__ypcurrent);
-			switch (r) {
-			case 0:
-				__ypcurrent = key;
-				__ypcurrentlen = keylen;
-				break;
-			case YPERR_NOMORE:
-				__ypcurrent = NULL;
-					/* flag `no more yp records' */
-				_pw_ypdone = 1;
-				rval = NS_NOTFOUND;
-			}
-		} else {
-			r = yp_first(__ypdomain, map, &__ypcurrent,
-					&__ypcurrentlen, &data, &datalen);
-		}
-		if (r != 0) {
-			if (key)
-				free(key);
-			if (data)
-				free(data);
-			return (rval);
-		}
-		data[datalen] = '\0';		/* clear trailing \n */
-		strncpy(line, data, sizeof(line));
-		line[sizeof(line) - 1] = '\0';
-				free(data);
-		if (! __pwparse(&_pw_passwd, line)) {
-			_pw_passwd.pw_fields &= ~_PWF_SOURCE;
-			_pw_passwd.pw_fields |= _PWF_NIS;
-			return NS_SUCCESS;
-		}
-	}
-	/* NOTREACHED */
-} /* _nis_getpw */
+struct nis_state {
+	char	 domain[MAXHOSTNAMELEN];
+	int	 done;
+	char	*key;
+	int	 keylen;
+};
+static	void	 nis_endstate(void *);
+NSS_TLS_HANDLING(nis);
+static	int	 nis_setpwent(void *, void *, va_list);
+static	int	 nis_passwd(void *, void *, va_list);
+static	int	 nis_map(char *, enum nss_lookup_type, char *, size_t, int *);
+static	int	 nis_adjunct(char *, const char *, char *, size_t);
 #endif
 
-#ifdef _PASSWD_COMPAT
-/*
- * See if the compat token is in the database.  Only works if pwd_mkdb knows
- * about the token.
- */
-static int	__has_compatpw(void);
 
-static int
-__has_compatpw()
-{
-	DBT key, data;
-	DBT pkey, pdata;
-	char bf[MAXLOGNAME];
-	u_char cyp[] = { _PW_KEYYPENABLED };
-
-	/*LINTED*/
-	key.data = cyp;
-	key.size = 1;
-
-	/* Pre-token database support. */
-	bf[0] = _PW_KEYBYNAME;
-	bf[1] = '+';
-	pkey.data = (u_char *)bf;
-	pkey.size = 2;
-
-	if ((_pw_db->get)(_pw_db, &key, &data, 0)
-	    && (_pw_db->get)(_pw_db, &pkey, &pdata, 0))
-		return 0;		/* No compat token */
-	return 1;
-}
-
-/*
- * log an error if "files" or "compat" is specified in passwd_compat database
- */
-static int	_bad_getpw(void *, void *, va_list);
-
-/*ARGSUSED*/
-static int
-_bad_getpw(rv, cb_data, ap)
-	void	*rv;
-	void	*cb_data;
-	va_list	 ap;
-{
-	static int warned;
-	if (!warned) {
-		syslog(LOG_ERR,
-			"nsswitch.conf passwd_compat database can't use '%s'",
-			(char *)cb_data);
-	}
-	warned = 1;
-	return NS_UNAVAIL;
-}
-
-/*
- * when a name lookup in compat mode is required (e.g., '+name', or a name in
- * '+@netgroup'), look it up in the 'passwd_compat' nsswitch database.
- * only Hesiod and NIS is supported - it doesn't make sense to lookup
- * compat names from 'files' or 'compat'.
- */
-static int	__getpwcompat(int, uid_t, const char *);
-
-static int
-__getpwcompat(type, uid, name)
-	int		 type;
-	uid_t		 uid;
-	const char	*name;
+struct compat_state {
+	DB		*db;
+	pwkeynum	 keynum;
+	int		 stayopen;
+	int		 version;
+	DB		*exclude;
+	struct passwd	 template;
+	char		*name;
+	enum _compat {
+		COMPAT_MODE_OFF = 0,
+		COMPAT_MODE_ALL,
+		COMPAT_MODE_NAME,
+		COMPAT_MODE_NETGROUP
+	}		 compat;
+};
+static	void	 compat_endstate(void *);
+NSS_TLS_HANDLING(compat);
+static	int	 compat_setpwent(void *, void *, va_list);
+static	int	 compat_passwd(void *, void *, va_list);
+static	void	 compat_clear_template(struct passwd *);
+static	int	 compat_set_template(struct passwd *, struct passwd *);
+static	int	 compat_use_template(struct passwd *, struct passwd *, char *,
+		    size_t);
+static	int	 compat_redispatch(struct compat_state *, enum nss_lookup_type,
+		    enum nss_lookup_type, const char *, const char *, uid_t,
+		    struct passwd *, char *, size_t, int *);
+void
+setpwent(void)
 {
 	static const ns_dtab dtab[] = {
-		NS_FILES_CB(_bad_getpw, "files")
-		NS_DNS_CB(_dns_getpw, NULL)
-		NS_NIS_CB(_nis_getpw, NULL)
-		NS_COMPAT_CB(_bad_getpw, "compat")
-		{ 0 }
+		{ NSSRC_FILES, files_setpwent, (void *)SETPWENT },
+#ifdef HESIOD
+		{ NSSRC_DNS, dns_setpwent, (void *)SETPWENT },
+#endif
+#ifdef YP
+		{ NSSRC_NIS, nis_setpwent, (void *)SETPWENT },
+#endif
+		{ NSSRC_COMPAT, compat_setpwent, (void *)SETPWENT },
+		{ NULL, NULL, NULL }
 	};
-	static const ns_src defaultnis[] = {
-		{ NSSRC_NIS, 	NS_SUCCESS },
-		{ 0 }
-	};
-
-	switch (type) {
-	case _PW_KEYBYNUM:
-		return nsdispatch(NULL, dtab, NSDB_PASSWD_COMPAT, "getpwcompat",
-		    defaultnis, type);
-	case _PW_KEYBYNAME:
-		return nsdispatch(NULL, dtab, NSDB_PASSWD_COMPAT, "getpwcompat",
-		    defaultnis, type, name);
-	case _PW_KEYBYUID:
-		return nsdispatch(NULL, dtab, NSDB_PASSWD_COMPAT, "getpwcompat",
-		    defaultnis, type, uid);
-	default:
-		abort();
-		/*NOTREACHED*/
-	}
-}
-#endif /* _PASSWD_COMPAT */
-
-/*
- * compat implementation of getpwent()
- * varargs (ignored):
- *	type, [ uid (type == _PW_KEYBYUID) | name (type == _PW_KEYBYNAME) ]
- */
-static int	_compat_getpwent(void *, void *, va_list);
-
-/*ARGSUSED*/
-static int
-_compat_getpwent(rv, cb_data, ap)
-	void	*rv;
-	void	*cb_data;
-	va_list	 ap;
-{
-	DBT		 key;
-	int		 rval;
-	char		 bf[sizeof(_pw_keynum) + 1];
-#ifdef _PASSWD_COMPAT
-	static char	*name = NULL;
-	char		*user, *host, *dom;
-	int		 has_compatpw;
-#endif
-
-	if (!_pw_db && !__initdb())
-		return NS_UNAVAIL;
-
-#ifdef _PASSWD_COMPAT
-	has_compatpw = __has_compatpw();
-
-again:
-	if (has_compatpw && (__pwmode != PWMODE_NONE)) {
-		int r;
-
-		switch (__pwmode) {
-		case PWMODE_FULL:
-			r = __getpwcompat(_PW_KEYBYNUM, 0, NULL);
-			if (r == NS_SUCCESS)
-				return r;
-			__pwmode = PWMODE_NONE;
-			break;
-
-		case PWMODE_NETGRP:
-			r = getnetgrent(&host, &user, &dom);
-			if (r == 0) {	/* end of group */
-				endnetgrent();
-				__pwmode = PWMODE_NONE;
-				break;
-			}
-			if (!user || !*user)
-				break;
-			r = __getpwcompat(_PW_KEYBYNAME, 0, user);
-			if (r == NS_SUCCESS)
-				return r;
-			break;
-
-		case PWMODE_USER:
-			if (name == NULL) {
-				__pwmode = PWMODE_NONE;
-				break;
-			}
-			r = __getpwcompat(_PW_KEYBYNAME, 0, name);
-			free(name);
-			name = NULL;
-			if (r == NS_SUCCESS)
-				return r;
-			break;
-
-		case PWMODE_NONE:
-			abort();
-		}
-		goto again;
-	}
-#endif
-
-	if (_pw_keynum == -1)
-		return NS_NOTFOUND;	/* no more local records */
-	++_pw_keynum;
-	bf[0] = _PW_KEYBYNUM;
-	memmove(bf + 1, &_pw_keynum, sizeof(_pw_keynum));
-	key.data = (u_char *)bf;
-	key.size = sizeof(_pw_keynum) + 1;
-	rval = __hashpw(&key);
-	if (rval == NS_NOTFOUND)
-		_pw_keynum = -1;	/* flag `no more local records' */
-	else if (rval == NS_SUCCESS) {
-#ifdef _PASSWD_COMPAT
-		/* if we don't have YP at all, don't bother. */
-		if (has_compatpw) {
-			if(_pw_passwd.pw_name[0] == '+') {
-				/* set the mode */
-				switch(_pw_passwd.pw_name[1]) {
-				case '\0':
-					__pwmode = PWMODE_FULL;
-					break;
-				case '@':
-					__pwmode = PWMODE_NETGRP;
-					setnetgrent(_pw_passwd.pw_name + 2);
-					break;
-				default:
-					__pwmode = PWMODE_USER;
-					name = strdup(_pw_passwd.pw_name + 1);
-					break;
-				}
-
-				/* save the prototype */
-				__pwproto_set();
-				goto again;
-			} else if(_pw_passwd.pw_name[0] == '-') {
-				/* an attempted exclusion */
-				switch(_pw_passwd.pw_name[1]) {
-				case '\0':
-					break;
-				case '@':
-					setnetgrent(_pw_passwd.pw_name + 2);
-					while(getnetgrent(&host, &user, &dom)) {
-						if(user && *user)
-							__pwexclude_add(user);
-					}
-					endnetgrent();
-					break;
-				default:
-					__pwexclude_add(_pw_passwd.pw_name + 1);
-					break;
-				}
-				goto again;
-			}
-		}
-#endif
-	}
-	return (rval);
+	(void)_nsdispatch(NULL, dtab, NSDB_PASSWD, "setpwent", defaultsrc, 0);
 }
 
-/*
- * compat implementation of getpwnam() and getpwuid()
- * varargs: type, [ uid (type == _PW_KEYBYUID) | name (type == _PW_KEYBYNAME) ]
- */
-static int	_compat_getpw(void *, void *, va_list);
+
+int
+setpassent(int stayopen)
+{
+	static const ns_dtab dtab[] = {
+		{ NSSRC_FILES, files_setpwent, (void *)SETPWENT },
+#ifdef HESIOD
+		{ NSSRC_DNS, dns_setpwent, (void *)SETPWENT },
+#endif
+#ifdef YP
+		{ NSSRC_NIS, nis_setpwent, (void *)SETPWENT },
+#endif
+		{ NSSRC_COMPAT, compat_setpwent, (void *)SETPWENT },
+		{ NULL, NULL, NULL }
+	};
+	(void)_nsdispatch(NULL, dtab, NSDB_PASSWD, "setpwent", defaultsrc,
+	    stayopen);
+	return (1);
+}
+
+
+void
+endpwent(void)
+{
+	static const ns_dtab dtab[] = {
+		{ NSSRC_FILES, files_setpwent, (void *)ENDPWENT },
+#ifdef HESIOD
+		{ NSSRC_DNS, dns_setpwent, (void *)ENDPWENT },
+#endif
+#ifdef YP
+		{ NSSRC_NIS, nis_setpwent, (void *)ENDPWENT },
+#endif
+		{ NSSRC_COMPAT, compat_setpwent, (void *)ENDPWENT },
+		{ NULL, NULL, NULL }
+	};
+	(void)_nsdispatch(NULL, dtab, NSDB_PASSWD, "endpwent", defaultsrc);
+}
+
+
+int
+getpwent_r(struct passwd *pwd, char *buffer, size_t bufsize,
+    struct passwd **result)
+{
+	static const ns_dtab dtab[] = {
+		{ NSSRC_FILES, files_passwd, (void *)nss_lt_all },
+#ifdef HESIOD
+		{ NSSRC_DNS, dns_passwd, (void *)nss_lt_all },
+#endif
+#ifdef YP
+		{ NSSRC_NIS, nis_passwd, (void *)nss_lt_all },
+#endif
+		{ NSSRC_COMPAT, compat_passwd, (void *)nss_lt_all },
+		{ NULL, NULL, NULL }
+	};
+	int	rv, ret_errno;
+
+	ret_errno = 0;
+	*result = NULL;
+	rv = _nsdispatch(result, dtab, NSDB_PASSWD, "getpwent_r", defaultsrc,
+	    pwd, buffer, bufsize, &ret_errno);
+	if (rv == NS_SUCCESS)
+		return (0);
+	else
+		return (ret_errno);
+}
+
+
+int
+getpwnam_r(const char *name, struct passwd *pwd, char *buffer, size_t bufsize,
+    struct passwd **result)
+{
+	static const ns_dtab dtab[] = {
+		{ NSSRC_FILES, files_passwd, (void *)nss_lt_name },
+#ifdef HESIOD
+		{ NSSRC_DNS, dns_passwd, (void *)nss_lt_name },
+#endif
+#ifdef YP
+		{ NSSRC_NIS, nis_passwd, (void *)nss_lt_name },
+#endif
+		{ NSSRC_COMPAT, compat_passwd, (void *)nss_lt_name },
+		{ NULL, NULL, NULL }
+	};
+	int	rv, ret_errno;
+
+	ret_errno = 0;
+	*result = NULL;
+	rv = _nsdispatch(result, dtab, NSDB_PASSWD, "getpwnam_r", defaultsrc,
+	    name, pwd, buffer, bufsize, &ret_errno);
+	if (rv == NS_SUCCESS)
+		return (0);
+	else
+		return (ret_errno);
+}
+
+
+int
+getpwuid_r(uid_t uid, struct passwd *pwd, char *buffer, size_t bufsize,
+    struct passwd **result)
+{
+	static const ns_dtab dtab[] = {
+		{ NSSRC_FILES, files_passwd, (void *)nss_lt_id },
+#ifdef HESIOD
+		{ NSSRC_DNS, dns_passwd, (void *)nss_lt_id },
+#endif
+#ifdef YP
+		{ NSSRC_NIS, nis_passwd, (void *)nss_lt_id },
+#endif
+		{ NSSRC_COMPAT, compat_passwd, (void *)nss_lt_id },
+		{ NULL, NULL, NULL }
+	};
+	int	rv, ret_errno;
+
+	ret_errno = 0;
+	*result = NULL;
+	rv = _nsdispatch(result, dtab, NSDB_PASSWD, "getpwuid_r", defaultsrc,
+	    uid, pwd, buffer, bufsize, &ret_errno);
+	if (rv == NS_SUCCESS)
+		return (0);
+	else
+		return (ret_errno);
+}
+
+
+static struct passwd	 pwd;
+static char		*pwd_storage;
+static size_t		 pwd_storage_size;
+
+
+static struct passwd *
+getpw(int (*fn)(union key, struct passwd *, char *, size_t, struct passwd **),
+    union key key)
+{
+	int		 rv;
+	struct passwd	*res;
+
+	if (pwd_storage == NULL) {
+		pwd_storage = malloc(PWD_STORAGE_INITIAL);
+		if (pwd_storage == NULL)
+			return (NULL);
+		pwd_storage_size = PWD_STORAGE_INITIAL;
+	}
+	do {
+		rv = fn(key, &pwd, pwd_storage, pwd_storage_size, &res);
+		if (res == NULL && rv == ERANGE) {
+			free(pwd_storage);
+			if ((pwd_storage_size << 1) > PWD_STORAGE_MAX) {
+				pwd_storage = NULL;
+				return (NULL);
+			}
+			pwd_storage_size <<= 1;
+			pwd_storage = malloc(pwd_storage_size);
+			if (pwd_storage == NULL)
+				return (NULL);
+		}
+	} while (res == NULL && rv == ERANGE);
+	return (res);
+}
+
 
 static int
-_compat_getpw(rv, cb_data, ap)
-	void	*rv;
-	void	*cb_data;
-	va_list	 ap;
+wrap_getpwnam_r(union key key, struct passwd *pwd, char *buffer,
+    size_t bufsize, struct passwd **res)
 {
-#ifdef _PASSWD_COMPAT
-	DBT		key;
-	int		search, rval, r, s, keynum;
-	uid_t		uid;
-	char		bf[sizeof(keynum) + 1];
-	char		*name, *host, *user, *dom;
-#endif
+	return (getpwnam_r(key.name, pwd, buffer, bufsize, res));
+}
 
-	if (!_pw_db && !__initdb())
-		return NS_UNAVAIL;
 
-		/*
-		 * If there isn't a compat token in the database, use files.
-		 */
-#ifdef _PASSWD_COMPAT
-	if (! __has_compatpw())
-#endif
-		return (_local_getpw(rv, cb_data, ap));
+static int
+wrap_getpwuid_r(union key key, struct passwd *pwd, char *buffer,
+    size_t bufsize, struct passwd **res)
+{
+	return (getpwuid_r(key.uid, pwd, buffer, bufsize, res));
+}
 
-#ifdef _PASSWD_COMPAT
-	search = va_arg(ap, int);
-	uid = 0;
-	name = NULL;
-	rval = NS_NOTFOUND;
-	switch (search) {
-	case _PW_KEYBYNAME:
-		name = va_arg(ap, char *);
+
+static int
+wrap_getpwent_r(union key key __unused, struct passwd *pwd, char *buffer,
+    size_t bufsize, struct passwd **res)
+{
+	return (getpwent_r(pwd, buffer, bufsize, res));
+}
+
+
+struct passwd *
+getpwnam(const char *name)
+{
+	union key key;
+
+	key.name = name;
+	return (getpw(wrap_getpwnam_r, key));
+}
+
+
+struct passwd *
+getpwuid(uid_t uid)
+{
+	union key key;
+
+	key.uid = uid;
+	return (getpw(wrap_getpwuid_r, key));
+}
+
+
+struct passwd *
+getpwent(void)
+{
+	union key key;
+
+	key.uid = 0; /* not used */
+	return (getpw(wrap_getpwent_r, key));
+}
+
+
+/*
+ * files backend
+ */
+static DB *
+pwdbopen(int *version)
+{
+	DB	*res;
+	DBT	 key, entry;
+	int	 rv;
+
+	if (geteuid() != 0 ||
+	    (res = dbopen(_PATH_SMP_DB, O_RDONLY, 0, DB_HASH, NULL)) == NULL)
+		res = dbopen(_PATH_MP_DB, O_RDONLY, 0, DB_HASH, NULL);
+	if (res == NULL)
+		return (NULL);
+	key.data = _PWD_VERSION_KEY;
+	key.size = strlen(_PWD_VERSION_KEY);
+	rv = res->get(res, &key, &entry, 0);
+	if (rv == 0)
+		*version = *(unsigned char *)entry.data;
+	else
+		*version = 3;
+	if (*version < 3 ||
+	    *version >= sizeof(pwdb_versions)/sizeof(pwdb_versions[0])) {
+		syslog(LOG_CRIT, "Unsupported password database version %d",
+		    *version);
+		res->close(res);
+		res = NULL;
+	}
+	return (res);
+}
+
+
+static void
+files_endstate(void *p)
+{
+	DB	*db;
+
+	if (p == NULL)
+		return;
+	db = ((struct files_state *)p)->db;
+	if (db != NULL)
+		db->close(db);
+	free(p);
+}
+
+
+static int
+files_setpwent(void *retval, void *mdata, va_list ap)
+{
+	struct files_state	*st;
+	int			 rv, stayopen;
+
+	rv = files_getstate(&st);
+	if (rv != 0)
+		return (NS_UNAVAIL);
+	switch ((enum constants)mdata) {
+	case SETPWENT:
+		stayopen = va_arg(ap, int);
+		st->keynum = 0;
+		if (stayopen)
+			st->db = pwdbopen(&st->version);
+		st->stayopen = stayopen;
 		break;
-	case _PW_KEYBYUID:
+	case ENDPWENT:
+		if (st->db != NULL) {
+			(void)st->db->close(st->db);
+			st->db = NULL;
+		}
+		break;
+	default:
+		break;
+	}
+	return (NS_UNAVAIL);
+}
+
+
+static int
+files_passwd(void *retval, void *mdata, va_list ap)
+{
+	char			 keybuf[MAXLOGNAME + 1];
+	DBT			 key, entry;
+	struct files_state	*st;
+	enum nss_lookup_type	 how;
+	const char		*name;
+	struct passwd		*pwd;
+	char			*buffer;
+	size_t			 bufsize, namesize;
+	uid_t			 uid;
+	uint32_t		 store;
+	int			 rv, stayopen, *errnop;
+
+	name = NULL;
+	uid = (uid_t)-1;
+	how = (enum nss_lookup_type)mdata;
+	switch (how) {
+	case nss_lt_name:
+		name = va_arg(ap, const char *);
+		keybuf[0] = _PW_KEYBYNAME;
+		break;
+	case nss_lt_id:
+		uid = va_arg(ap, uid_t);
+		keybuf[0] = _PW_KEYBYUID;
+		break;
+	case nss_lt_all:
+		keybuf[0] = _PW_KEYBYNUM;
+		break;
+	default:
+		rv = NS_NOTFOUND;
+		goto fin;
+	}
+	pwd = va_arg(ap, struct passwd *);
+	buffer = va_arg(ap, char *);
+	bufsize = va_arg(ap, size_t);
+	errnop = va_arg(ap, int *);
+	*errnop = files_getstate(&st);
+	if (*errnop != 0)
+		return (NS_UNAVAIL);
+	if (how == nss_lt_all && st->keynum < 0) {
+		rv = NS_NOTFOUND;
+		goto fin;
+	}
+	if (st->db == NULL &&
+	    (st->db = pwdbopen(&st->version)) == NULL) {
+		*errnop = errno;
+		rv = NS_UNAVAIL;
+		goto fin;
+	}
+	if (how == nss_lt_all)
+		stayopen = 1;
+	else
+		stayopen = st->stayopen;
+	key.data = keybuf;
+	do {
+		switch (how) {
+		case nss_lt_name:
+			/* MAXLOGNAME includes NUL byte, but we do not
+			 * include the NUL byte in the key.
+			 */
+			namesize = strlcpy(&keybuf[1], name, sizeof(keybuf)-1);
+			if (namesize >= sizeof(keybuf)-1) {
+				*errnop = EINVAL;
+				rv = NS_NOTFOUND;
+				goto fin;
+			}
+			key.size = namesize + 1;
+			break;
+		case nss_lt_id:
+			if (st->version < _PWD_CURRENT_VERSION) {
+				memcpy(&keybuf[1], &uid, sizeof(uid));
+				key.size = sizeof(uid) + 1;
+			} else {
+				store = htonl(uid);
+				memcpy(&keybuf[1], &store, sizeof(store));
+				key.size = sizeof(store) + 1;
+			}
+			break;
+		case nss_lt_all:
+			st->keynum++;
+			if (st->version < _PWD_CURRENT_VERSION) {
+				memcpy(&keybuf[1], &st->keynum,
+				    sizeof(st->keynum));
+				key.size = sizeof(st->keynum) + 1;
+			} else {
+				store = htonl(st->keynum);
+				memcpy(&keybuf[1], &store, sizeof(store));
+				key.size = sizeof(store) + 1;
+			}
+			break;
+		}
+		keybuf[0] |= _PW_VERSION(st->version);
+		rv = st->db->get(st->db, &key, &entry, 0);
+		if (rv < 0 || rv > 1) { /* should never return > 1 */
+			*errnop = errno;
+			rv = NS_UNAVAIL;
+			goto fin;
+		} else if (rv == 1) {
+			if (how == nss_lt_all)
+				st->keynum = -1;
+			rv = NS_NOTFOUND;
+			goto fin;
+		}
+		rv = pwdb_versions[st->version].match(entry.data, entry.size,
+		    how, name, uid);
+		if (rv != NS_SUCCESS)
+			continue;
+		if (entry.size > bufsize) {
+			*errnop = ERANGE;
+			rv = NS_RETURN;
+			break;
+		}
+		memcpy(buffer, entry.data, entry.size);
+		rv = pwdb_versions[st->version].parse(buffer, entry.size, pwd,
+		    errnop);
+	} while (how == nss_lt_all && !(rv & NS_TERMINATE));
+fin:
+	if (!stayopen && st->db != NULL) {
+		(void)st->db->close(st->db);
+		st->db = NULL;
+	}
+	if (rv == NS_SUCCESS && retval != NULL)
+		*(struct passwd **)retval = pwd;
+	return (rv);
+}
+
+
+static int
+pwdb_match_entry_v3(char *entry, size_t entrysize, enum nss_lookup_type how, 
+    const char *name, uid_t uid)
+{
+	const char	*p, *eom;
+	uid_t		 uid2;
+
+	eom = &entry[entrysize];
+	for (p = entry; p < eom; p++)
+		if (*p == '\0')
+			break;
+	if (*p != '\0')
+		return (NS_NOTFOUND);
+	if (how == nss_lt_all)
+		return (NS_SUCCESS);
+	if (how == nss_lt_name) 
+		return (strcmp(name, entry) == 0 ? NS_SUCCESS : NS_NOTFOUND);
+	for (p++; p < eom; p++)
+		if (*p == '\0')
+			break;
+	if (*p != '\0' || (++p) + sizeof(uid) >= eom)
+		return (NS_NOTFOUND);
+	memcpy(&uid2, p, sizeof(uid2));
+	return (uid == uid2 ? NS_SUCCESS : NS_NOTFOUND);
+}
+
+
+static int
+pwdb_parse_entry_v3(char *buffer, size_t bufsize, struct passwd *pwd,
+    int *errnop)
+{
+	char		*p, *eom;
+	int32_t		 pw_change, pw_expire;
+
+	memset(pwd, 0, sizeof(*pwd));
+	/* THIS CODE MUST MATCH THAT IN pwd_mkdb. */
+	p = buffer;
+	eom = &buffer[bufsize];
+#define STRING(field)	do {			\
+		(field) = p;			\
+		while (p < eom && *p != '\0')	\
+			p++;			\
+		if (p >= eom)			\
+			return (NS_NOTFOUND);	\
+		p++;				\
+	} while (0)
+#define SCALAR(field)	do {				\
+		if (p + sizeof(field) > eom)		\
+			return (NS_NOTFOUND);		\
+		memcpy(&(field), p, sizeof(field));	\
+		p += sizeof(field);			\
+	} while (0)
+	STRING(pwd->pw_name);
+	STRING(pwd->pw_passwd);
+	SCALAR(pwd->pw_uid);
+	SCALAR(pwd->pw_gid);
+	SCALAR(pw_change);
+	STRING(pwd->pw_class);
+	STRING(pwd->pw_gecos);
+	STRING(pwd->pw_dir);
+	STRING(pwd->pw_shell);
+	SCALAR(pw_expire);
+	SCALAR(pwd->pw_fields);
+#undef STRING
+#undef SCALAR
+	pwd->pw_change = pw_change;
+	pwd->pw_expire = pw_expire;
+	return (NS_SUCCESS);
+}
+
+
+static int
+pwdb_match_entry_v4(char *entry, size_t entrysize, enum nss_lookup_type how, 
+    const char *name, uid_t uid)
+{
+	const char	*p, *eom;
+	uint32_t	 uid2;
+
+	eom = &entry[entrysize];
+	for (p = entry; p < eom; p++)
+		if (*p == '\0')
+			break;
+	if (*p != '\0')
+		return (NS_NOTFOUND);
+	if (how == nss_lt_all)
+		return (NS_SUCCESS);
+	if (how == nss_lt_name) 
+		return (strcmp(name, entry) == 0 ? NS_SUCCESS : NS_NOTFOUND);
+	for (p++; p < eom; p++)
+		if (*p == '\0')
+			break;
+	if (*p != '\0' || (++p) + sizeof(uid) >= eom)
+		return (NS_NOTFOUND);
+	memcpy(&uid2, p, sizeof(uid2));
+	uid2 = ntohl(uid2);
+	return (uid == (uid_t)uid2 ? NS_SUCCESS : NS_NOTFOUND);
+}
+
+
+static int
+pwdb_parse_entry_v4(char *buffer, size_t bufsize, struct passwd *pwd,
+    int *errnop)
+{
+	char		*p, *eom;
+	uint32_t	 n;
+
+	memset(pwd, 0, sizeof(*pwd));
+	/* THIS CODE MUST MATCH THAT IN pwd_mkdb. */
+	p = buffer;
+	eom = &buffer[bufsize];
+#define STRING(field)	do {			\
+		(field) = p;			\
+		while (p < eom && *p != '\0')	\
+			p++;			\
+		if (p >= eom)			\
+			return (NS_NOTFOUND);	\
+		p++;				\
+	} while (0)
+#define SCALAR(field)	do {				\
+		if (p + sizeof(n) > eom)		\
+			return (NS_NOTFOUND);		\
+		memcpy(&n, p, sizeof(n));		\
+		(field) = ntohl(n);			\
+		p += sizeof(n);				\
+	} while (0)
+	STRING(pwd->pw_name);
+	STRING(pwd->pw_passwd);
+	SCALAR(pwd->pw_uid);
+	SCALAR(pwd->pw_gid);
+	SCALAR(pwd->pw_change);
+	STRING(pwd->pw_class);
+	STRING(pwd->pw_gecos);
+	STRING(pwd->pw_dir);
+	STRING(pwd->pw_shell);
+	SCALAR(pwd->pw_expire);
+	SCALAR(pwd->pw_fields);
+#undef STRING
+#undef SCALAR
+	return (NS_SUCCESS);
+}
+
+
+#ifdef HESIOD
+/*
+ * dns backend
+ */
+static void
+dns_endstate(void *p)
+{
+	free(p);
+}
+
+
+static int
+dns_setpwent(void *retval, void *mdata, va_list ap)
+{
+	struct dns_state	*st;
+	int			 rv;
+
+	rv = dns_getstate(&st);
+	if (rv != 0)
+		return (NS_UNAVAIL);
+	st->counter = 0;
+	return (NS_UNAVAIL);
+}
+
+
+static int
+dns_passwd(void *retval, void *mdata, va_list ap)
+{
+	char			 buf[HESIOD_NAME_MAX];
+	struct dns_state	*st;
+	struct passwd		*pwd;
+	const char		*name, *label;
+	void			*ctx;
+	char			*buffer, **hes;
+	size_t			 bufsize, linesize;
+	uid_t			 uid;
+	enum nss_lookup_type	 how;
+	int			 rv, *errnop;
+
+	ctx = NULL;
+	hes = NULL;
+	name = NULL;
+	uid = (uid_t)-1;
+	how = (enum nss_lookup_type)mdata;
+	switch (how) {
+	case nss_lt_name:
+		name = va_arg(ap, const char *);
+		break;
+	case nss_lt_id:
 		uid = va_arg(ap, uid_t);
 		break;
-	default:
-		abort();
+	case nss_lt_all:
+		break;
 	}
-
-	for (s = -1, keynum = 1 ; ; keynum++) {
-		bf[0] = _PW_KEYBYNUM;
-		memmove(bf + 1, &keynum, sizeof(keynum));
-		key.data = (u_char *)bf;
-		key.size = sizeof(keynum) + 1;
-		if(__hashpw(&key) != NS_SUCCESS)
+	pwd     = va_arg(ap, struct passwd *);
+	buffer  = va_arg(ap, char *);
+	bufsize = va_arg(ap, size_t);
+	errnop  = va_arg(ap, int *);
+	*errnop = dns_getstate(&st);
+	if (*errnop != 0)
+		return (NS_UNAVAIL);
+	if (hesiod_init(&ctx) != 0) {
+		*errnop = errno;
+		rv = NS_UNAVAIL;
+		goto fin;
+	}
+	do {
+		rv = NS_NOTFOUND;
+		switch (how) {
+		case nss_lt_name:
+			label = name;
 			break;
-		switch(_pw_passwd.pw_name[0]) {
-		case '+':
-			/* save the prototype */
-			__pwproto_set();
+		case nss_lt_id:
+			if (snprintf(buf, sizeof(buf), "%lu",
+			    (unsigned long)uid) >= sizeof(buf))
+				goto fin;
+			label = buf;
+			break;
+		case nss_lt_all:
+			if (st->counter < 0)
+				goto fin;
+			if (snprintf(buf, sizeof(buf), "passwd-%ld",
+			    st->counter++) >= sizeof(buf))
+				goto fin;
+			label = buf;
+			break;
+		}
+		hes = hesiod_resolve(ctx, label,
+		    how == nss_lt_id ? "uid" : "passwd");
+		if (hes == NULL) {
+			if (how == nss_lt_all)
+				st->counter = -1;
+			if (errno != ENOENT)
+				*errnop = errno;
+			goto fin;
+		}
+		rv = __pw_match_entry(hes[0], strlen(hes[0]), how, name, uid);
+		if (rv != NS_SUCCESS) {
+			hesiod_free_list(ctx, hes);
+			hes = NULL;
+			continue;
+		}
+		linesize = strlcpy(buffer, hes[0], bufsize);
+		if (linesize >= bufsize) {
+			*errnop = ERANGE;
+			rv = NS_RETURN;
+			continue;
+		}
+		hesiod_free_list(ctx, hes);
+		hes = NULL;
+		rv = __pw_parse_entry(buffer, bufsize, pwd, 0, errnop);
+	} while (how == nss_lt_all && !(rv & NS_TERMINATE));
+fin:
+	if (hes != NULL)
+		hesiod_free_list(ctx, hes);
+	if (ctx != NULL)
+		hesiod_end(ctx);
+	if (rv == NS_SUCCESS) {
+		pwd->pw_fields &= ~_PWF_SOURCE;
+		pwd->pw_fields |= _PWF_HESIOD;
+		if (retval != NULL)
+			*(struct passwd **)retval = pwd;
+	}
+	return (rv);
+}
+#endif /* HESIOD */
 
-			switch(_pw_passwd.pw_name[1]) {
+
+#ifdef YP
+/*
+ * nis backend
+ */
+static void
+nis_endstate(void *p)
+{
+	free(((struct nis_state *)p)->key);
+	free(p);
+}
+
+static int
+nis_map(char *domain, enum nss_lookup_type how, char *buffer, size_t bufsize,
+    int *master)
+{
+	int	rv, order;
+
+	*master = 0;
+	if (snprintf(buffer, bufsize, "master.passwd.by%s",
+	    (how == nss_lt_id) ? "uid" : "name") >= bufsize)
+		return (NS_UNAVAIL);
+	rv = yp_order(domain, buffer, &order);
+	if (rv == 0) {
+		*master = 1;
+		return (NS_SUCCESS);
+	}
+	if (snprintf(buffer, bufsize, "passwd.by%s",
+	    (how == nss_lt_id) ? "uid" : "name") >= bufsize)
+		return (NS_UNAVAIL);
+	rv = yp_order(domain, buffer, &order);
+	if (rv == 0)
+		return (NS_SUCCESS);
+	return (NS_UNAVAIL);
+}
+
+
+static int
+nis_adjunct(char *domain, const char *name, char *buffer, size_t bufsize)
+{
+	int	 rv;
+	char	*result, *p, *q, *eor;
+	int	 resultlen;
+
+	result = NULL;
+	rv = yp_match(domain, "passwd.adjunct.byname", name, strlen(name),
+	    &result, &resultlen);
+	if (rv != 0)
+		rv = 1;
+	else {
+		eor = &result[resultlen];
+		p = memchr(result, ':', eor - result);
+		if (p != NULL && ++p < eor &&
+		    (q = memchr(p, ':', eor - p)) != NULL) {
+			if (q - p >= bufsize)
+				rv = -1;
+			else {
+				memcpy(buffer, p, q - p);
+				buffer[q - p] ='\0';
+			}
+		} else
+			rv = 1;
+	} 
+	free(result);
+	return (rv);
+}
+
+
+static int
+nis_setpwent(void *retval, void *mdata, va_list ap)
+{
+	struct nis_state	*st;
+	int			 rv;
+
+	rv = nis_getstate(&st);
+	if (rv != 0)
+		return (NS_UNAVAIL);
+	st->done = 0;
+	free(st->key);
+	st->key = NULL;
+	return (NS_UNAVAIL);
+}
+
+
+static int
+nis_passwd(void *retval, void *mdata, va_list ap)
+{
+	char		 map[YPMAXMAP];
+	struct nis_state *st;
+	struct passwd	*pwd;
+	const char	*name;
+	char		*buffer, *key, *result;
+	size_t		 bufsize;
+	uid_t		 uid;
+	enum nss_lookup_type how;
+	int		*errnop, keylen, resultlen, rv, master;
+	  
+	name = NULL;
+	uid = (uid_t)-1;
+	how = (enum nss_lookup_type)mdata;
+	switch (how) {
+	case nss_lt_name:
+		name = va_arg(ap, const char *);
+		break;
+	case nss_lt_id:
+		uid = va_arg(ap, uid_t);
+		break;
+	case nss_lt_all:
+		break;
+	}
+	pwd     = va_arg(ap, struct passwd *);
+	buffer  = va_arg(ap, char *);
+	bufsize = va_arg(ap, size_t);
+	errnop  = va_arg(ap, int *);
+	*errnop = nis_getstate(&st);
+	if (*errnop != 0)
+		return (NS_UNAVAIL);
+	if (st->domain[0] == '\0') {
+		if (getdomainname(st->domain, sizeof(st->domain)) != 0) {
+			*errnop = errno;
+			return (NS_UNAVAIL);
+		}
+	}
+	rv = nis_map(st->domain, how, map, sizeof(map), &master);
+	if (rv != NS_SUCCESS)
+		return (rv);
+	result = NULL;
+	do {
+		rv = NS_NOTFOUND;
+		switch (how) {
+		case nss_lt_name:
+			if (strlcpy(buffer, name, bufsize) >= bufsize)
+				goto erange;
+			break;
+		case nss_lt_id:
+			if (snprintf(buffer, bufsize, "%lu",
+			    (unsigned long)uid) >= bufsize)
+				goto erange;
+			break;
+		case nss_lt_all:
+			if (st->done)
+				goto fin;
+			break;
+		}
+		result = NULL;
+		if (how == nss_lt_all) {
+			if (st->key == NULL)
+				rv = yp_first(st->domain, map, &st->key,
+				    &st->keylen, &result, &resultlen);
+			else {
+				key = st->key;
+				keylen = st->keylen;
+				st->key = NULL;
+				rv = yp_next(st->domain, map, key, keylen,
+				    &st->key, &st->keylen, &result,
+				    &resultlen);
+				free(key);
+			}
+			if (rv != 0) {
+				free(result);
+				free(st->key);
+				st->key = NULL;
+				if (rv == YPERR_NOMORE)
+					st->done = 1;
+				else
+					rv = NS_UNAVAIL;
+				goto fin;
+			}
+		} else {
+			rv = yp_match(st->domain, map, buffer, strlen(buffer),
+			    &result, &resultlen);
+			if (rv == YPERR_KEY) {
+				rv = NS_NOTFOUND;
+				continue;
+			} else if (rv != 0) {
+				free(result);
+				rv = NS_UNAVAIL;
+				continue;
+			}
+		}
+		if (resultlen >= bufsize)
+			goto erange;
+		memcpy(buffer, result, resultlen);
+		buffer[resultlen] = '\0';
+		free(result);
+		rv = __pw_match_entry(buffer, resultlen, how, name, uid);
+		if (rv == NS_SUCCESS)
+			rv = __pw_parse_entry(buffer, resultlen, pwd, master,
+			    errnop);
+	} while (how == nss_lt_all && !(rv & NS_TERMINATE));
+fin:	
+	if (rv == NS_SUCCESS) {
+		if (strstr(pwd->pw_passwd, "##") != NULL) {
+			rv = nis_adjunct(st->domain, name,
+			    &buffer[resultlen+1], bufsize-resultlen-1);
+			if (rv < 0)
+				goto erange;
+			else if (rv == 0)
+				pwd->pw_passwd = &buffer[resultlen+1];
+		}
+		pwd->pw_fields &= ~_PWF_SOURCE;
+		pwd->pw_fields |= _PWF_NIS;
+		if (retval != NULL)
+			*(struct passwd **)retval = pwd;
+	}
+	return (rv);	
+erange:
+	*errnop = ERANGE;
+	return (NS_RETURN);
+}
+#endif /* YP */
+
+
+/*
+ * compat backend
+ */
+static void
+compat_clear_template(struct passwd *template)
+{
+
+	free(template->pw_passwd);
+	free(template->pw_gecos);
+	free(template->pw_dir);
+	free(template->pw_shell);
+	memset(template, 0, sizeof(*template));
+}
+
+
+static int
+compat_set_template(struct passwd *src, struct passwd *template)
+{
+
+	compat_clear_template(template);
+#ifdef PW_OVERRIDE_PASSWD
+	if ((src->pw_fields & _PWF_PASSWD) &&
+	    (template->pw_passwd = strdup(src->pw_passwd)) == NULL)
+		goto enomem;
+#endif
+	if (src->pw_fields & _PWF_UID)
+		template->pw_uid = src->pw_uid;
+	if (src->pw_fields & _PWF_GID)
+		template->pw_gid = src->pw_gid;
+	if ((src->pw_fields & _PWF_GECOS) &&
+	    (template->pw_gecos = strdup(src->pw_gecos)) == NULL)
+		goto enomem;
+	if ((src->pw_fields & _PWF_DIR) &&
+	    (template->pw_dir = strdup(src->pw_dir)) == NULL)
+		goto enomem;
+	if ((src->pw_fields & _PWF_SHELL) &&
+	    (template->pw_shell = strdup(src->pw_shell)) == NULL)
+		goto enomem;
+	template->pw_fields = src->pw_fields;
+	return (0);
+enomem:
+	syslog(LOG_ERR, "getpwent memory allocation failure");
+	return (-1);
+}
+
+
+static int
+compat_use_template(struct passwd *pwd, struct passwd *template, char *buffer,
+    size_t bufsize)
+{
+	struct passwd hold;
+	char	*copy, *p, *q, *eob;
+	size_t	 n;
+
+	/* We cannot know the layout of the password fields in `buffer',
+	 * so we have to copy everything.
+	 */
+	if (template->pw_fields == 0) /* nothing to fill-in */
+		return (0);
+	n = 0;
+	n += pwd->pw_name != NULL ? strlen(pwd->pw_name) + 1 : 0;
+	n += pwd->pw_passwd != NULL ? strlen(pwd->pw_passwd) + 1 : 0;
+	n += pwd->pw_class != NULL ? strlen(pwd->pw_class) + 1 : 0;
+	n += pwd->pw_gecos != NULL ? strlen(pwd->pw_gecos) + 1 : 0;
+	n += pwd->pw_dir != NULL ? strlen(pwd->pw_dir) + 1 : 0;
+	n += pwd->pw_shell != NULL ? strlen(pwd->pw_shell) + 1 : 0;
+	copy = malloc(n);
+	if (copy == NULL) {
+		syslog(LOG_ERR, "getpwent memory allocation failure");
+		return (ENOMEM);
+	}
+	p = copy;
+	eob = &copy[n];
+#define COPY(field) do {				\
+	if (pwd->field == NULL)				\
+		hold.field = NULL;			\
+	else {						\
+		hold.field = p;				\
+		p += strlcpy(p, pwd->field, eob-p) + 1;	\
+	}						\
+} while (0)
+	COPY(pw_name);
+	COPY(pw_passwd);
+	COPY(pw_class);
+	COPY(pw_gecos);
+	COPY(pw_dir);
+	COPY(pw_shell);
+#undef COPY
+	p = buffer;
+	eob = &buffer[bufsize];
+#define COPY(field, flag) do {						 \
+	q = (template->pw_fields & flag) ? template->field : hold.field; \
+	if (q == NULL)							 \
+		pwd->field = NULL;					 \
+	else {								 \
+		pwd->field = p;						 \
+		if ((n = strlcpy(p, q, eob-p)) >= eob-p) {		 \
+			free(copy);					 \
+			return (ERANGE);				 \
+		}							 \
+		p += n + 1;						 \
+	}								 \
+} while (0)
+	COPY(pw_name, 0);
+#ifdef PW_OVERRIDE_PASSWD
+	COPY(pw_passwd, _PWF_PASSWD);
+#else
+	COPY(pw_passwd, 0);
+#endif
+	COPY(pw_class, 0);
+	COPY(pw_gecos, _PWF_GECOS);
+	COPY(pw_dir, _PWF_DIR);
+	COPY(pw_shell, _PWF_SHELL);
+#undef COPY
+#define COPY(field, flag) do {			\
+	if (template->pw_fields & flag)		\
+		pwd->field = template->field;	\
+} while (0)
+	COPY(pw_uid, _PWF_UID);
+	COPY(pw_gid, _PWF_GID);
+#undef COPY
+	free(copy);
+	return (0);
+}
+
+
+static int
+compat_exclude(const char *name, DB **db)
+{
+	DBT	key, data;
+
+	if (*db == NULL &&
+	    (*db = dbopen(NULL, O_RDWR, 600, DB_HASH, 0)) == NULL)
+		return (errno);
+	key.size = strlen(name);
+	key.data = (char *)name;
+	data.size = 0;
+	data.data = NULL;
+
+	if ((*db)->put(*db, &key, &data, 0) == -1)
+		return (errno);
+	return (0);
+}
+
+
+static int
+compat_is_excluded(const char *name, DB *db)
+{
+	DBT	key, data;
+
+	if (db == NULL)
+		return (0);
+	key.size = strlen(name);
+	key.data = (char *)name;
+	return (db->get(db, &key, &data, 0) == 0);
+}
+
+
+static int
+compat_redispatch(struct compat_state *st, enum nss_lookup_type how,
+    enum nss_lookup_type lookup_how, const char *name, const char *lookup_name,
+    uid_t uid, struct passwd *pwd, char *buffer, size_t bufsize, int *errnop)
+{
+	static const ns_src compatsrc[] = {
+#ifdef YP
+		{ NSSRC_NIS, NS_SUCCESS },
+#endif
+		{ NULL, 0 }
+	};
+	ns_dtab dtab[] = {
+#ifdef YP
+		{ NSSRC_NIS, nis_passwd, NULL },
+#endif
+#ifdef HESIOD
+		{ NSSRC_DNS, dns_passwd, NULL },
+#endif
+		{ NULL, NULL, NULL }
+	};
+	void		*discard;
+	int		 rv, e, i;
+
+	for (i = 0; i < sizeof(dtab)/sizeof(dtab[0]) - 1; i++)
+		dtab[i].mdata = (void *)lookup_how;
+more:
+	switch (lookup_how) {
+	case nss_lt_all:
+		rv = _nsdispatch(&discard, dtab, NSDB_PASSWD_COMPAT,
+		    "getpwent_r", compatsrc, pwd, buffer, bufsize,
+		    errnop);
+		break;
+	case nss_lt_id:
+		rv = _nsdispatch(&discard, dtab, NSDB_PASSWD_COMPAT,
+		    "getpwuid_r", compatsrc, uid, pwd, buffer,
+		    bufsize, errnop);
+		break;
+	case nss_lt_name:
+		rv = _nsdispatch(&discard, dtab, NSDB_PASSWD_COMPAT,
+		    "getpwnam_r", compatsrc, lookup_name, pwd, buffer,
+		    bufsize, errnop);
+		break;
+	default:
+		return (NS_UNAVAIL);
+	}
+	if (rv != NS_SUCCESS)
+		return (rv);
+	if (compat_is_excluded(pwd->pw_name, st->exclude)) {
+		if (how == nss_lt_all)
+			goto more;
+		return (NS_NOTFOUND);
+	}
+	e = compat_use_template(pwd, &st->template, buffer, bufsize);
+	if (e != 0) {
+		*errnop = e;
+		if (e == ERANGE)
+			return (NS_RETURN);
+		else
+			return (NS_UNAVAIL);
+	}
+	switch (how) {
+	case nss_lt_name:
+		if (strcmp(name, pwd->pw_name) != 0)
+			return (NS_NOTFOUND);
+		break;
+	case nss_lt_id:
+		if (uid != pwd->pw_uid)
+			return (NS_NOTFOUND);
+		break;
+	default:
+		break;
+	}
+	return (NS_SUCCESS);
+}
+
+
+static void
+compat_endstate(void *p)
+{
+	struct compat_state *st;
+
+	if (p == NULL)
+		return;
+	st = (struct compat_state *)p;
+	if (st->db != NULL)
+		st->db->close(st->db);
+	if (st->exclude != NULL)
+		st->exclude->close(st->exclude);
+	compat_clear_template(&st->template);
+	free(p);
+}
+
+
+static int
+compat_setpwent(void *retval, void *mdata, va_list ap)
+{
+	struct compat_state	*st;
+	int			 rv, stayopen;
+
+	rv = compat_getstate(&st);
+	if (rv != 0)
+		return (NS_UNAVAIL);
+	switch ((enum constants)mdata) {
+	case SETPWENT:
+		stayopen = va_arg(ap, int);
+		st->keynum = 0;
+		if (stayopen)
+			st->db = pwdbopen(&st->version);
+		st->stayopen = stayopen;
+		break;
+	case ENDPWENT:
+		if (st->db != NULL) {
+			(void)st->db->close(st->db);
+			st->db = NULL;
+		}
+		break;
+	default:
+		break;
+	}
+	return (NS_UNAVAIL);
+}
+
+
+static int
+compat_passwd(void *retval, void *mdata, va_list ap)
+{
+	char			 keybuf[MAXLOGNAME + 1];
+	DBT			 key, entry;
+	struct compat_state	*st;
+	enum nss_lookup_type	 how;
+	const char		*name;
+	struct passwd		*pwd;
+	char			*buffer, *pw_name;
+	char			*host, *user, *domain;
+	size_t			 bufsize;
+	uid_t			 uid;
+	uint32_t		 store;
+	int			 rv, stayopen, *errnop;
+
+	name = NULL;
+	uid = (uid_t)-1;
+	how = (enum nss_lookup_type)mdata;
+	switch (how) {
+	case nss_lt_name:
+		name = va_arg(ap, const char *);
+		break;
+	case nss_lt_id:
+		uid = va_arg(ap, uid_t);
+		break;
+	case nss_lt_all:
+		break;
+	default:
+		rv = NS_NOTFOUND;
+		goto fin;
+	}
+	pwd = va_arg(ap, struct passwd *);
+	buffer = va_arg(ap, char *);
+	bufsize = va_arg(ap, size_t);
+	errnop = va_arg(ap, int *);
+	*errnop = compat_getstate(&st);
+	if (*errnop != 0)
+		return (NS_UNAVAIL);
+	if (how == nss_lt_all && st->keynum < 0) {
+		rv = NS_NOTFOUND;
+		goto fin;
+	}
+	if (st->db == NULL &&
+	    (st->db = pwdbopen(&st->version)) == NULL) {
+		*errnop = errno;
+		rv = NS_UNAVAIL;
+		goto fin;
+	}
+	if (how == nss_lt_all) {
+		if (st->keynum < 0) {
+			rv = NS_NOTFOUND;
+			goto fin;
+		}
+		stayopen = 1;
+	} else {
+		st->keynum = 0;
+		stayopen = st->stayopen;
+	}
+docompat:
+	rv = NS_NOTFOUND;
+	switch (st->compat) {
+	case COMPAT_MODE_ALL:
+		rv = compat_redispatch(st, how, how, name, name, uid, pwd,
+		    buffer, bufsize, errnop);
+		if (rv != NS_SUCCESS)
+			st->compat = COMPAT_MODE_OFF;
+		break;
+	case COMPAT_MODE_NETGROUP:
+		/* XXX getnetgrent is not thread-safe. */
+		do {
+			rv = getnetgrent(&host, &user, &domain);
+			if (rv == 0) {
+				endnetgrent();
+				st->compat = COMPAT_MODE_OFF;
+				rv = NS_NOTFOUND;
+				continue;
+			} else if (user == NULL || user[0] == '\0')
+				continue;
+			rv = compat_redispatch(st, how, nss_lt_name, name,
+			    user, uid, pwd, buffer, bufsize, errnop);
+		} while (st->compat == COMPAT_MODE_NETGROUP &&
+		    !(rv & NS_TERMINATE));
+		break;
+	case COMPAT_MODE_NAME:
+		rv = compat_redispatch(st, how, nss_lt_name, name, st->name,
+		    uid, pwd, buffer, bufsize, errnop);
+		free(st->name);
+		st->name = NULL;
+		st->compat = COMPAT_MODE_OFF;
+		break;
+	default:
+		break;
+	}
+	if (rv & NS_TERMINATE)
+		goto fin;
+	key.data = keybuf;
+	rv = NS_NOTFOUND;
+	while (st->keynum >= 0) {
+		st->keynum++;
+		if (st->version < _PWD_CURRENT_VERSION) {
+			memcpy(&keybuf[1], &st->keynum, sizeof(st->keynum));
+			key.size = sizeof(st->keynum) + 1;
+		} else {
+			store = htonl(st->keynum);
+			memcpy(&keybuf[1], &store, sizeof(store));
+			key.size = sizeof(store) + 1;
+		}
+		keybuf[0] = _PW_KEYBYNUM | _PW_VERSION(st->version);
+		rv = st->db->get(st->db, &key, &entry, 0);
+		if (rv < 0 || rv > 1) { /* should never return > 1 */
+			*errnop = errno;
+			rv = NS_UNAVAIL;
+			goto fin;
+		} else if (rv == 1) {
+			st->keynum = -1;
+			rv = NS_NOTFOUND;
+			goto fin;
+		}
+		pw_name = (char *)entry.data;
+		switch (pw_name[0]) {
+		case '+':
+			switch (pw_name[1]) {
 			case '\0':
-				r = __getpwcompat(search, uid, name);
-				if (r != NS_SUCCESS)
-					continue;
+				st->compat = COMPAT_MODE_ALL;
 				break;
 			case '@':
-pwnam_netgrp:
-#if 0			/* XXX: is this a hangover from pre-nsswitch?  */
-				if(__ypcurrent) {
-					free(__ypcurrent);
-					__ypcurrent = NULL;
-				}
-#endif
-				if (s == -1)		/* first time */
-					setnetgrent(_pw_passwd.pw_name + 2);
-				s = getnetgrent(&host, &user, &dom);
-				if (s == 0) {		/* end of group */
-					endnetgrent();
-					s = -1;
-					continue;
-				}
-				if (!user || !*user)
-					goto pwnam_netgrp;
-
-				r = __getpwcompat(_PW_KEYBYNAME, 0, user);
-
-				if (r == NS_UNAVAIL)
-					return r;
-				if (r == NS_NOTFOUND) {
-					/*
-					 * just because this user is bad
-					 * it doesn't mean they all are.
-					 */
-					goto pwnam_netgrp;
-				}
+				setnetgrent(&pw_name[2]);
+				st->compat = COMPAT_MODE_NETGROUP;
 				break;
 			default:
-				user = _pw_passwd.pw_name + 1;
-				r = __getpwcompat(_PW_KEYBYNAME, 0, user);
-
-				if (r == NS_UNAVAIL)
-					return r;
-				if (r == NS_NOTFOUND)
-					continue;
-				break;
+				st->name = strdup(&pw_name[1]);
+				if (st->name == NULL) {
+					syslog(LOG_ERR,
+					 "getpwent memory allocation failure");
+					*errnop = ENOMEM;
+					rv = NS_UNAVAIL;
+					break;
+				}
+				st->compat = COMPAT_MODE_NAME;
 			}
-			if(__pwexclude_is(_pw_passwd.pw_name)) {
-				if(s == 1)		/* inside netgroup */
-					goto pwnam_netgrp;
+			if (entry.size > bufsize) {
+				*errnop = ERANGE;
+				rv = NS_RETURN;
+				goto fin;
+			}
+			memcpy(buffer, entry.data, entry.size);
+			rv = pwdb_versions[st->version].parse(buffer,
+			    entry.size, pwd, errnop);
+			if (rv != NS_SUCCESS)
+				;
+			else if (compat_set_template(pwd, &st->template) < 0) {
+				*errnop = ENOMEM;
+				rv = NS_UNAVAIL;
+				goto fin;
+			}
+			goto docompat;
+		case '-':
+			switch (pw_name[1]) {
+			case '\0':
+				/* XXX Maybe syslog warning */
+				continue;
+			case '@':
+				setnetgrent(&pw_name[2]);
+				while (getnetgrent(&host, &user, &domain) !=
+				    NULL) {
+					if (user != NULL && user[0] != '\0')
+						compat_exclude(user,
+						    &st->exclude);
+				}
+				endnetgrent();
+				continue;
+			default:
+				compat_exclude(&pw_name[1], &st->exclude);
 				continue;
 			}
 			break;
-		case '-':
-			/* attempted exclusion */
-			switch(_pw_passwd.pw_name[1]) {
-			case '\0':
-				break;
-			case '@':
-				setnetgrent(_pw_passwd.pw_name + 2);
-				while(getnetgrent(&host, &user, &dom)) {
-					if(user && *user)
-						__pwexclude_add(user);
-				}
-				endnetgrent();
-				break;
-			default:
-				__pwexclude_add(_pw_passwd.pw_name + 1);
-				break;
-			}
-			break;
 		default:
-			_pw_passwd.pw_fields &= ~_PWF_SOURCE;
-			_pw_passwd.pw_fields |= _PWF_FILES;
-		}
-		if ((search == _PW_KEYBYNAME &&
-			    strcmp(_pw_passwd.pw_name, name) == 0)
-		 || (search == _PW_KEYBYUID && _pw_passwd.pw_uid == uid)) {
-			rval = NS_SUCCESS;
 			break;
 		}
-		if(s == 1)				/* inside netgroup */
-			goto pwnam_netgrp;
-		continue;
+		if (compat_is_excluded((char *)entry.data, st->exclude))
+			continue;
+		rv = pwdb_versions[st->version].match(entry.data, entry.size,
+		    how, name, uid);
+		if (rv == NS_RETURN)
+			break;
+		else if (rv != NS_SUCCESS)
+			continue;
+		if (entry.size > bufsize) {
+			*errnop = ERANGE;
+			rv = NS_RETURN;
+			break;
+		}
+		memcpy(buffer, entry.data, entry.size);
+		rv = pwdb_versions[st->version].parse(buffer, entry.size, pwd,
+		    errnop);
+		if (rv & NS_TERMINATE)
+			break;
 	}
-	__pwproto = (struct passwd *)NULL;
-
-	if (!_pw_stayopen) {
-		(void)(_pw_db->close)(_pw_db);
-		_pw_db = (DB *)NULL;
+fin:
+	if (!stayopen && st->db != NULL) {
+		(void)st->db->close(st->db);
+		st->db = NULL;
 	}
-	if(__pwexclude != (DB *)NULL) {
-		(void)(__pwexclude->close)(__pwexclude);
-			__pwexclude = (DB *)NULL;
-	}
-	return rval;
-#endif /* _PASSWD_COMPAT */
+	if (rv == NS_SUCCESS && retval != NULL)
+		*(struct passwd **)retval = pwd;
+	return (rv);
 }
 
-struct passwd *
-getpwent()
-{
-	int		r;
-	static const ns_dtab dtab[] = {
-		NS_FILES_CB(_local_getpw, NULL)
-		NS_DNS_CB(_dns_getpw, NULL)
-		NS_NIS_CB(_nis_getpw, NULL)
-		NS_COMPAT_CB(_compat_getpwent, NULL)
-		{ 0 }
-	};
 
-	r = nsdispatch(NULL, dtab, NSDB_PASSWD, "getpwent", compatsrc,
-	    _PW_KEYBYNUM);
-	if (r != NS_SUCCESS)
-		return (struct passwd *)NULL;
-	return &_pw_passwd;
-}
-
-struct passwd *
-getpwnam(name)
-	const char *name;
-{
-	int		r;
-	static const ns_dtab dtab[] = {
-		NS_FILES_CB(_local_getpw, NULL)
-		NS_DNS_CB(_dns_getpw, NULL)
-		NS_NIS_CB(_nis_getpw, NULL)
-		NS_COMPAT_CB(_compat_getpw, NULL)
-		{ 0 }
-	};
-
-	if (name == NULL || name[0] == '\0')
-		return (struct passwd *)NULL;
-
-	r = nsdispatch(NULL, dtab, NSDB_PASSWD, "getpwnam", compatsrc,
-	    _PW_KEYBYNAME, name);
-	return (r == NS_SUCCESS ? &_pw_passwd : (struct passwd *)NULL);
-}
-
-struct passwd *
-getpwuid(uid)
-	uid_t uid;
-{
-	int		r;
-	static const ns_dtab dtab[] = {
-		NS_FILES_CB(_local_getpw, NULL)
-		NS_DNS_CB(_dns_getpw, NULL)
-		NS_NIS_CB(_nis_getpw, NULL)
-		NS_COMPAT_CB(_compat_getpw, NULL)
-		{ 0 }
-	};
-
-	r = nsdispatch(NULL, dtab, NSDB_PASSWD, "getpwuid", compatsrc,
-	    _PW_KEYBYUID, uid);
-	return (r == NS_SUCCESS ? &_pw_passwd : (struct passwd *)NULL);
-}
-
+/*
+ * common passwd line matching and parsing
+ */
 int
-setpassent(stayopen)
-	int stayopen;
+__pw_match_entry(const char *entry, size_t entrysize, enum nss_lookup_type how,
+    const char *name, uid_t uid)
 {
-	_pw_keynum = 0;
-	_pw_stayopen = stayopen;
-#ifdef YP
-	__pwmode = PWMODE_NONE;
-	if(__ypcurrent)
-		free(__ypcurrent);
-	__ypcurrent = NULL;
-	_pw_ypdone = 0;
-#endif
-#ifdef HESIOD
-	_pw_hesnum = 0;
-#endif
-#ifdef _PASSWD_COMPAT
-	if(__pwexclude != (DB *)NULL) {
-		(void)(__pwexclude->close)(__pwexclude);
-		__pwexclude = (DB *)NULL;
+	const char	*p, *eom;
+	char		*q;
+	size_t		 len;
+	unsigned long	 m;
+
+	eom = entry + entrysize;
+	for (p = entry; p < eom; p++)
+		if (*p == ':')
+			break;
+	if (*p != ':')
+		return (NS_NOTFOUND);
+	if (how == nss_lt_all)
+		return (NS_SUCCESS);
+	if (how == nss_lt_name) {
+		len = strlen(name);
+		if (len == (p - entry) && memcmp(name, entry, len) == 0)
+			return (NS_SUCCESS);
+		else
+			return (NS_NOTFOUND);
 	}
-	__pwproto = (struct passwd *)NULL;
-#endif
-	return 1;
+	for (p++; p < eom; p++)
+		if (*p == ':')
+			break;
+	if (*p != ':')
+		return (NS_NOTFOUND);
+	m = strtoul(++p, &q, 10);
+	if (q[0] != ':' || (uid_t)m != uid)
+		return (NS_NOTFOUND);
+	else
+		return (NS_SUCCESS);
 }
 
-void
-setpwent()
+
+/* XXX buffer must be NUL-terminated.  errnop is not set correctly. */
+int
+__pw_parse_entry(char *buffer, size_t bufsize __unused, struct passwd *pwd,
+    int master, int *errnop __unused)
 {
-	(void) setpassent(0);
-}
 
-void
-endpwent()
-{
-	_pw_keynum = 0;
-	if (_pw_db) {
-		(void)(_pw_db->close)(_pw_db);
-		_pw_db = (DB *)NULL;
-	}
-#ifdef _PASSWD_COMPAT
-	__pwmode = PWMODE_NONE;
-#endif
-#ifdef YP
-	if(__ypcurrent)
-		free(__ypcurrent);
-	__ypcurrent = NULL;
-	_pw_ypdone = 0;
-#endif
-#ifdef HESIOD
-	_pw_hesnum = 0;
-#endif
-#ifdef _PASSWD_COMPAT
-	if(__pwexclude != (DB *)NULL) {
-		(void)(__pwexclude->close)(__pwexclude);
-		__pwexclude = (DB *)NULL;
-	}
-	__pwproto = (struct passwd *)NULL;
-#endif
-}
-
-static int
-__initdb()
-{
-	static int warned;
-	char *p;
-
-#ifdef _PASSWD_COMPAT
-	__pwmode = PWMODE_NONE;
-#endif
-	if (geteuid() == 0) {
-		_pw_db = dbopen((p = _PATH_SMP_DB), O_RDONLY, 0, DB_HASH, NULL);
-		if (_pw_db)
-			return(1);
-	}
-	_pw_db = dbopen((p = _PATH_MP_DB), O_RDONLY, 0, DB_HASH, NULL);
-	if (_pw_db)
-		return 1;
-	if (!warned)
-		syslog(LOG_ERR, "%s: %m", p);
-	warned = 1;
-	return 0;
-}
-
-static int
-__hashpw(key)
-	DBT *key;
-{
-	char *p, *t;
-	static u_int max;
-	static char *buf;
-	int32_t pw_change, pw_expire;
-	DBT data;
-
-	switch ((_pw_db->get)(_pw_db, key, &data, 0)) {
-	case 0:
-		break;			/* found */
-	case 1:
-		return NS_NOTFOUND;
-	case -1:			
-		return NS_UNAVAIL;	/* error in db routines */
-	default:
-		abort();
-	}
-
-	p = (char *)data.data;
-	if (data.size > max && !(buf = realloc(buf, (max += 1024))))
-		return NS_UNAVAIL;
-
-	/* THIS CODE MUST MATCH THAT IN pwd_mkdb. */
-	t = buf;
-#define	EXPAND(e)	e = t; while ((*t++ = *p++));
-#define	SCALAR(v)	memmove(&(v), p, sizeof v); p += sizeof v
-	EXPAND(_pw_passwd.pw_name);
-	EXPAND(_pw_passwd.pw_passwd);
-	SCALAR(_pw_passwd.pw_uid);
-	SCALAR(_pw_passwd.pw_gid);
-	SCALAR(pw_change);
-	EXPAND(_pw_passwd.pw_class);
-	EXPAND(_pw_passwd.pw_gecos);
-	EXPAND(_pw_passwd.pw_dir);
-	EXPAND(_pw_passwd.pw_shell);
-	SCALAR(pw_expire);
-	SCALAR(_pw_passwd.pw_fields);
-	_pw_passwd.pw_change = pw_change;
-	_pw_passwd.pw_expire = pw_expire;
-
-	return NS_SUCCESS;
+	memset(pwd, 0, sizeof(*pwd));
+	if (__pw_scan(buffer, pwd, master ? _PWSCAN_MASTER : 0) == 0)
+		return (NS_NOTFOUND);
+	else
+		return (NS_SUCCESS);
 }

@@ -32,15 +32,17 @@
 .\"     From: @(#)getgrent.3	8.2 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd September 29, 1994
+.Dd April 16, 2003
 .Dt GETGRENT 3
 .Os
 .Sh NAME
 .Nm getgrent ,
+.Nm getgrent_r ,
 .Nm getgrnam ,
+.Nm getgrnam_r ,
 .Nm getgrgid ,
+.Nm getgrgid_r ,
 .Nm setgroupent ,
-.\" .Nm setgrfile ,
 .Nm setgrent ,
 .Nm endgrent
 .Nd group database operations
@@ -50,14 +52,18 @@
 .In grp.h
 .Ft struct group *
 .Fn getgrent void
+.Ft int
+.Fn getgrent_r "struct group *grp" "char *buffer" "size_t bufsize" "struct group **result"
 .Ft struct group *
 .Fn getgrnam "const char *name"
+.Ft int
+.Fn getgrnam_r "const char *name" "struct group *grp" "char *buffer" "size_t bufsize" "struct group **result"
 .Ft struct group *
 .Fn getgrgid "gid_t gid"
 .Ft int
+.Fn getgrgid_r "gid_t gid" "struct group *grp" "char *buffer" "size_t bufsize" "struct group **result"
+.Ft int
 .Fn setgroupent "int stayopen"
-.\" .Ft void
-.\" .Fn setgrfile "const char *name"
 .Ft int
 .Fn setgrent void
 .Ft void
@@ -99,7 +105,36 @@ function
 sequentially reads the group database and is intended for programs
 that wish to step through the complete list of groups.
 .Pp
-All three routines will open the group file for reading, if necessary.
+The functions
+.Fn getgrent_r ,
+.Fn getgrnam_r ,
+and
+.Fn getgrgid_r
+are thread-safe versions of
+.Fn getgrent ,
+.Fn getgrnam ,
+and
+.Fn getgrgid ,
+respectively.
+The caller must provide storage for the results of the search in
+the
+.Fa grp ,
+.Fa buffer ,
+.Fa bufsize ,
+and
+.Fa result
+arguments.
+When these functions are successful, the
+.Fa grp
+argument will be filled-in, and a pointer to that argument will be
+stored in
+.Fa result .
+If an entry is not found or an error occurs,
+.Fa result
+will be set to
+.Dv NULL .
+.Pp
+These functions will open the group file for reading, if necessary.
 .Pp
 The
 .Fn setgroupent
@@ -130,8 +165,25 @@ The functions
 .Fn getgrnam ,
 and
 .Fn getgrgid ,
-return a pointer to the group entry if successful; if end-of-file
-is reached or an error occurs a null pointer is returned.
+return a pointer to a group structure on success or
+.Dv NULL
+if the entry is not found or if an error occurs.
+In the latter case,
+.Va errno
+will be set.
+The functions
+.Fn getgrent_r ,
+.Fn getgrnam_r ,
+and
+.Fn getgrgid_r
+return 0 if no error occurred, or an error number to indicate failure.
+It is not an error if a matching entry is not found.
+(Thus, if
+.Fa result
+is set to
+.Dv NULL
+and the return value is 0, no matching entry exists.)
+.Pp
 The functions
 .Fn setgroupent
 and
@@ -169,6 +221,30 @@ and
 .Fn setgroupent
 appeared in
 .Bx 4.3 Reno .
+The functions
+.Fn getgrent_r ,
+.Fn getgrnam_r ,
+and
+.Fn getgrgid_r
+appeared in
+.Fx 5.1 .
+.Sh STANDARDS
+The
+.Fn getgrent ,
+.Fn getgrnam ,
+.Fn getgrnam_r ,
+.Fn getgrgid ,
+.Fn getgrgid_r
+and
+.Fn endgrent
+functions conform to
+.St -p1003.1-96 .
+The
+.Fn setgrent
+function differs from that standard in that its return type is
+.Vt int
+rather than
+.Vt void .
 .Sh COMPATIBILITY
 The historic function
 .Fn setgrfile ,
@@ -190,6 +266,7 @@ will modify the same object.
 .Pp
 The functions
 .Fn getgrent ,
+.Fn getgrent_r ,
 .Fn endgrent ,
 .Fn setgroupent ,
 and
@@ -198,7 +275,9 @@ are fairly useless in a networked environment and should be
 avoided, if possible.
 The
 .Fn getgrent
-function
-makes no attempt to suppress duplicate information if multiple
+and
+.Fn getgrent_r
+functions
+make no attempt to suppress duplicate information if multiple
 sources are specified in
 .Xr nsswitch.conf 5 .
