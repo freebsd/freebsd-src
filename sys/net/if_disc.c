@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)if_loop.c	8.1 (Berkeley) 6/10/93
- *	$Id: if_disc.c,v 1.12 1996/04/07 17:39:03 bde Exp $
+ *	$Id: if_disc.c,v 1.13 1996/06/10 23:07:29 gpalmer Exp $
  */
 
 /*
@@ -147,11 +147,6 @@ dsoutput(ifp, m, dst, rt)
 #endif
 	m->m_pkthdr.rcvif = ifp;
 
-	if (rt && rt->rt_flags & (RTF_REJECT|RTF_BLACKHOLE)) {
-		m_freem(m);
-		return (rt->rt_flags & RTF_BLACKHOLE ? 0 :
-		        rt->rt_flags & RTF_HOST ? EHOSTUNREACH : ENETUNREACH);
-	}
 	ifp->if_opackets++;
 	ifp->if_obytes += m->m_pkthdr.len;
 
