@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.47.2.7 1997/04/18 02:37:08 davidg Exp $
+ *	$Id: kern_exec.c,v 1.47.2.8 1997/08/04 05:40:37 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -293,7 +293,8 @@ interpret:
 	 * Don't honor setuid/setgid if the filesystem prohibits it or if
 	 * the process is being traced.
 	 */
-	if ((attr.va_mode & (VSUID | VSGID)) &&
+	if ((attr.va_mode & VSUID && p->p_ucred->cr_uid != attr.va_uid ||
+	     attr.va_mode & VSGID && p->p_ucred->cr_gid != attr.va_gid) &&
 	    (imgp->vp->v_mount->mnt_flag & MNT_NOSUID) == 0 &&
 	    (p->p_flag & P_TRACED) == 0) {
 		/*
@@ -312,7 +313,7 @@ interpret:
 		if (attr.va_mode & VSUID)
 			p->p_ucred->cr_uid = attr.va_uid;
 		if (attr.va_mode & VSGID)
-			p->p_ucred->cr_groups[0] = attr.va_gid;
+			p->p_ucred->cr_gid = attr.va_gid;
 		p->p_flag |= P_SUGID;
 	} else {
 	        if (p->p_ucred->cr_uid == p->p_cred->p_ruid &&
