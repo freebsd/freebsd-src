@@ -14,7 +14,7 @@ static const char copyright[] =
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: kvm_getswapinfo.c,v 1.1 1999/01/22 10:36:04 dillon Exp $";
+	"$Id: kvm_getswapinfo.c,v 1.2 1999/01/22 10:57:03 dillon Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -355,9 +355,6 @@ scanradix(
 		int i;
 		int next_skip;
 
-		radix >>= BLIST_META_RADIX_SHIFT;
-		next_skip = skip >> BLIST_META_RADIX_SHIFT;
-
 		if (flags & SWIF_DUMP_TREE) {
 			printf("%*.*s(0x%06x,%d) Submap avail=%d big=%d {\n", 
 			    TABME,
@@ -367,6 +364,9 @@ scanradix(
 			    meta.bm_bighint
 			);
 		}
+
+		radix >>= BLIST_META_RADIX_SHIFT;
+		next_skip = skip >> BLIST_META_RADIX_SHIFT;
 
 		for (i = 1; i <= skip; i += next_skip) {
 			int r;
