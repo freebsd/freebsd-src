@@ -34,6 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)string.h	8.1 (Berkeley) 6/6/93
+ * $FreeBSD$
  */
 
 #define STR_DEBUG
@@ -46,16 +47,16 @@ char *str_itoa();
 #define str_cmp(a, b)	strcmp(a, b)
 
 #ifdef STR_DEBUG
-struct string {
-	struct string *s_forw;
-	struct string *s_back;
+struct mystring {
+	struct mystring *s_forw;
+	struct mystring *s_back;
 	char s_data[1];
 };
 
-struct string str_head;
+struct mystring str_head;
 
 #define str_offset ((unsigned)str_head.s_data - (unsigned)&str_head)
-#define str_stos(s) ((struct string *)((unsigned)(s) - str_offset))
+#define str_stos(s) ((struct mystring *)((unsigned)(s) - str_offset))
 
 char *str_alloc();
 int str_free();

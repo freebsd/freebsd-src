@@ -34,12 +34,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)parser.h	8.1 (Berkeley) 6/6/93
+ * $FreeBSD$
  */
 
 #include "value.h"
 #include "context.h"
 #include "token.h"
-#include "string.h"
+#include "mystring.h"
 
 #define p_erred()	(cx.x_erred)
 #define p_synerred()	(cx.x_synerred)
