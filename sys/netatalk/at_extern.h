@@ -24,8 +24,7 @@ extern int	ddp_usrreq	__P(( struct socket *so, int req,
 					struct mbuf  *addr,
 					struct mbuf *rights));
 extern void	ddp_init	__P((void ));
-extern struct ifaddr *at_ifawithnet	__P((struct sockaddr_at *,
-						struct ifaddr *));
+extern struct at_ifaddr *at_ifawithnet	__P((struct sockaddr_at *));
 #ifdef	_NETATALK_DDP_VAR_H_
 extern int	ddp_output	__P(( struct ddpcb *ddp, struct mbuf *m));
 #endif

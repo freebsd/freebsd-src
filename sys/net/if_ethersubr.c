@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.26.2.2 1997/06/28 09:22:07 jhay Exp $
+ * $Id: if_ethersubr.c,v 1.26.2.3 1997/09/30 12:29:00 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -194,21 +194,46 @@ ether_output(ifp, m0, dst, rt0)
 #endif
 #ifdef NETATALK
 	case AF_APPLETALK:
-            if (!aarpresolve(ac, m, (struct sockaddr_at *)dst, edst)) {
+	    {
+		struct sockaddr_at *sat = (struct sockaddr_at *)dst;
+
+		/*
+		 * super hack..
+		 * Most of this loopback code should move into the appletalk
+		 * code, but it's here for now.. remember to move it! [JRE]
+		 * This may not get the same interface we started with
+		 * fix asap. XXX
+		 */
+		aa = at_ifawithnet( sat );
+		if (aa == NULL) {
+			goto bad;
+		}
+		if( aa->aa_ifa.ifa_ifp != ifp ) {
+			(*aa->aa_ifa.ifa_ifp->if_output)(aa->aa_ifa.ifa_ifp,
+							m,dst,rt);
+		}
+		if (((sat->sat_addr.s_net == ATADDR_ANYNET)
+		  && (sat->sat_addr.s_node == ATADDR_ANYNODE))
+		|| ((sat->sat_addr.s_net == aa->aa_addr.sat_addr.s_net )
+		  && (sat->sat_addr.s_node == aa->aa_addr.sat_addr.s_node))) {
+			(void) looutput(ifp, m, dst, rt);
+			return(0);
+		}
+
+        	if (!aarpresolve(ac, m, (struct sockaddr_at *)dst, edst)) {
 #ifdef NETATALKDEBUG
-                extern char *prsockaddr(struct sockaddr *);
-                printf("aarpresolv: failed for %s\n", prsockaddr(dst));
+                	extern char *prsockaddr(struct sockaddr *);
+                	printf("aarpresolv: failed for %s\n", prsockaddr(dst));
 #endif NETATALKDEBUG
-                return (0);
-            }
-	    /*
-	     * ifaddr is the first thing in at_ifaddr
-	     */
-	    if ((aa = (struct at_ifaddr *)at_ifawithnet(
-			(struct sockaddr_at *)dst, ifp->if_addrlist))
-		== 0)
-		goto bad;
-	    
+                	return (0);
+        	}
+
+		/*
+		 * If broadcasting on a simplex interface, loopback a copy
+		 */
+		if ((m->m_flags & M_BCAST) && (ifp->if_flags & IFF_SIMPLEX))
+			mcopy = m_copy(m, 0, (int)M_COPYALL);
+	    }
 	    /*
 	     * In the phase 2 case, we need to prepend an mbuf for the llc header.
 	     * Since we must preserve the value of m, which is passed to us by

@@ -94,30 +94,24 @@ aarptimer(void *ignored)
  * the given network.. remember to take netranges into
  * consideration.
  */
-struct ifaddr *
-at_ifawithnet( sat, ifa )
-    struct sockaddr_at	*sat;
-    struct ifaddr	*ifa;
+struct at_ifaddr *
+at_ifawithnet(struct sockaddr_at  *sat )
 {
+    struct at_ifaddr	*aa;
     struct sockaddr_at	*sat2;
-    struct netrange	*nr;
 
-    for (; ifa; ifa = ifa->ifa_next ) {
-	if ( ifa->ifa_addr->sa_family != AF_APPLETALK ) {
-	    continue;
+	for ( aa = at_ifaddr; aa; aa = aa->aa_next ) {
+		sat2 = &(aa->aa_addr);
+		if ( sat2->sat_addr.s_net == sat->sat_addr.s_net ) {
+	    		break;
+		}
+		if( (aa->aa_flags & AFA_PHASE2 )
+	 	&& (ntohs(aa->aa_firstnet) <= ntohs(sat->sat_addr.s_net))
+	 	&& (ntohs(aa->aa_lastnet) >= ntohs(sat->sat_addr.s_net))) {
+			break;
+		}
 	}
-	sat2 = satosat( ifa->ifa_addr );
-	if ( sat2->sat_addr.s_net == sat->sat_addr.s_net ) {
-	    break;
-	}
-	nr = (struct netrange *)(sat2->sat_zero);
-	if( (nr->nr_phase == 2 )
-	 && (nr->nr_firstnet <= sat->sat_addr.s_net)
-	 && (nr->nr_lastnet >= sat->sat_addr.s_net)) {
-		break;
-	}
-    }
-    return( ifa );
+	return( aa );
 }
 
 static void
@@ -155,8 +149,7 @@ aarpwhohas( struct arpcom *ac, struct sockaddr_at *sat )
      * interface with the same address as we're looking for. If the
      * net is phase 2, generate an 802.2 and SNAP header.
      */
-    if (( aa = (struct at_ifaddr *)at_ifawithnet( sat, ac->ac_if.if_addrlist ))
-	    == NULL ) {
+    if (( aa = at_ifawithnet( sat )) == NULL ) {
 	m_freem( m );
 	return;
     }
@@ -213,8 +206,8 @@ aarpresolve( ac, m, destsat, desten )
     int			s;
 
     if ( at_broadcast( destsat )) {
-	if (( aa = (struct at_ifaddr *)at_ifawithnet( destsat,
-		((struct ifnet *)ac)->if_addrlist )) == NULL ) {
+	m->m_flags |= M_BCAST;
+	if (( aa = at_ifawithnet( destsat )) == NULL ) {
 	    m_freem( m );
 	    return( 0 );
 	}
@@ -325,8 +318,7 @@ at_aarpinput( struct arpcom *ac, struct mbuf *m)
 	sat.sat_len = sizeof(struct sockaddr_at);
 	sat.sat_family = AF_APPLETALK;
 	sat.sat_addr.s_net = net;
-	if (( aa = (struct at_ifaddr *)at_ifawithnet( &sat,
-		ac->ac_if.if_addrlist )) == NULL ) {
+	if (( aa = at_ifawithnet( &sat )) == NULL ) {
 	    m_freem( m );
 	    return;
 	}

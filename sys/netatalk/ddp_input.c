@@ -41,6 +41,9 @@ atintr( void )
     struct at_ifaddr	*aa;
     int			s;
 
+    /*
+     * First pull off all the phase 2 packets.
+     */
     for (;;) {
 	s = splimp();
 
@@ -53,19 +56,12 @@ atintr( void )
 	}
 
 	ifp = m->m_pkthdr.rcvif;
-	for ( aa = at_ifaddr; aa; aa = aa->aa_next ) {
-	    if ( aa->aa_ifp == ifp && ( aa->aa_flags & AFA_PHASE2 )) {
-		break;
-	    }
-	}
-	if ( aa == NULL ) {		/* ifp not an appletalk interface */
-	    m_freem( m );
-	    continue;
-	}
-
 	ddp_input( m, ifp, (struct elaphdr *)NULL, 2 );
     }
 
+    /*
+     * Then pull off all the phase 1 packets.
+     */
     for (;;) {
 	s = splimp();
 
@@ -78,15 +74,6 @@ atintr( void )
 	}
 
 	ifp = m->m_pkthdr.rcvif;
-	for ( aa = at_ifaddr; aa; aa = aa->aa_next ) {
-	    if ( aa->aa_ifp == ifp && ( aa->aa_flags & AFA_PHASE2 ) == 0 ) {
-		break;
-	    }
-	}
-	if ( aa == NULL ) {		/* ifp not an appletalk interface */
-	    m_freem( m );
-	    continue;
-	}
 
 	if ( m->m_len < SZ_ELAPHDR &&
 		(( m = m_pullup( m, SZ_ELAPHDR )) == 0 )) {
@@ -94,6 +81,9 @@ atintr( void )
 	    continue;
 	}
 
+	/*
+	 * this seems a little dubios, but I don't know phase 1 so leave it.
+	 */
 	elhp = mtod( m, struct elaphdr *);
 	m_adj( m, SZ_ELAPHDR );
 
@@ -127,7 +117,14 @@ ddp_input( m, ifp, elh, phase )
     u_short		cksum = 0;
 
     bzero( (caddr_t)&from, sizeof( struct sockaddr_at ));
+    bzero( (caddr_t)&to, sizeof( struct sockaddr_at ));
     if ( elh ) {
+	/*
+	 * Extract the information in the short header.
+	 * netowrk information is defaulted to ATADDR_ANYNET
+	 * and node information comes from the elh info.
+	 * We must be phase 1.
+	 */
 	ddpstat.ddps_short++;
 
 	if ( m->m_len < sizeof( struct ddpshdr ) &&
@@ -148,18 +145,32 @@ ddp_input( m, ifp, elh, phase )
 	from.sat_addr.s_node = elh->el_snode;
 	from.sat_port = ddps.dsh_sport;
 
+	/* 
+	 * Make sure that we point to the phase1 ifaddr info 
+	 * and that it's valid for this packet.
+	 */
 	for ( aa = at_ifaddr; aa; aa = aa->aa_next ) {
-	    if ( aa->aa_ifp == ifp && ( aa->aa_flags & AFA_PHASE2 ) == 0 &&
-		    ( AA_SAT( aa )->sat_addr.s_node == to.sat_addr.s_node ||
-		    to.sat_addr.s_node == ATADDR_BCAST )) {
+	    if ( (aa->aa_ifp == ifp)
+	    && ( (aa->aa_flags & AFA_PHASE2) == 0)
+	    && ( (to.sat_addr.s_node == AA_SAT( aa )->sat_addr.s_node)
+	      || (to.sat_addr.s_node == ATADDR_BCAST))) {
 		break;
 	    }
 	}
+	/* 
+	 * maybe we got a broadcast not meant for us.. ditch it.
+	 */
 	if ( aa == NULL ) {
 	    m_freem( m );
 	    return;
 	}
     } else {
+	/*
+	 * There was no 'elh' passed on. This could still be
+	 * either phase1 or phase2.
+	 * We have a long header, but we may be running on a pahse 1 net.
+	 * Extract out all the info regarding this packet's src & dst.
+	 */
 	ddpstat.ddps_long++;
 
 	if ( m->m_len < sizeof( struct ddpehdr ) &&
@@ -185,6 +196,18 @@ ddp_input( m, ifp, elh, phase )
 	to.sat_port = ddpe.deh_dport;
 
 	if ( to.sat_addr.s_net == ATADDR_ANYNET ) {
+	    /*
+	     * The TO address doesn't specify a net,
+	     * So by definition it's for this net.
+	     * Try find ifaddr info with the right phase, 
+	     * the right interface, and either to our node, a bradcast,
+	     * or looped back (though that SHOULD be covered in the other
+	     * cases).
+	     *
+	     * XXX If we have multiple interfaces, then the first with
+	     * this node number will match (which may NOT be what we want,
+	     * but it's probably safe in 99.999% of cases.
+	     */
 	    for ( aa = at_ifaddr; aa; aa = aa->aa_next ) {
 		if ( phase == 1 && ( aa->aa_flags & AFA_PHASE2 )) {
 		    continue;
@@ -192,27 +215,47 @@ ddp_input( m, ifp, elh, phase )
 		if ( phase == 2 && ( aa->aa_flags & AFA_PHASE2 ) == 0 ) {
 		    continue;
 		}
-		if ( aa->aa_ifp == ifp &&
-			( AA_SAT( aa )->sat_addr.s_node == to.sat_addr.s_node ||
-			to.sat_addr.s_node == ATADDR_BCAST ||
-			( ifp->if_flags & IFF_LOOPBACK ))) {
+		if ( (aa->aa_ifp == ifp)
+		&& ( (to.sat_addr.s_node == AA_SAT( aa )->sat_addr.s_node)
+		  || (to.sat_addr.s_node == ATADDR_BCAST)
+		  || (ifp->if_flags & IFF_LOOPBACK))) {
 		    break;
 		}
 	    }
 	} else {
+	    /* 
+	     * A destination network was given. We just try to find 
+	     * which ifaddr info matches it.
+	     */
 	    for ( aa = at_ifaddr; aa; aa = aa->aa_next ) {
+		/*
+		 * This is a kludge. Accept packets that are
+		 * for any router on a local netrange.
+		 */
 		if ( to.sat_addr.s_net == aa->aa_firstnet &&
 			to.sat_addr.s_node == 0 ) {
 		    break;
 		}
-		if (( ntohs( to.sat_addr.s_net ) < ntohs( aa->aa_firstnet ) ||
-			ntohs( to.sat_addr.s_net ) > ntohs( aa->aa_lastnet )) &&
-			( ntohs( to.sat_addr.s_net ) < ntohs( 0xff00 ) ||
-			ntohs( to.sat_addr.s_net ) > ntohs( 0xfffe ))) {
+		/*
+		 * Don't use ifaddr info for which we are totally outside the
+		 * netrange, and it's not a startup packet.
+		 * Startup packets are always implicitly allowed on to
+		 * the next test.
+		 */
+		if ((( ntohs( to.sat_addr.s_net ) < ntohs( aa->aa_firstnet ))
+		    || (ntohs( to.sat_addr.s_net ) > ntohs( aa->aa_lastnet )))
+		 && (( ntohs( to.sat_addr.s_net ) < ntohs( 0xff00 ))
+		    || (ntohs( to.sat_addr.s_net ) > ntohs( 0xfffe )))) {
 		    continue;
 		}
-		if ( to.sat_addr.s_node != AA_SAT( aa )->sat_addr.s_node &&
-			to.sat_addr.s_node != ATADDR_BCAST ) {
+
+		/*
+		 * Don't record a match either if we just don't have a match
+		 * in the node address. This can have if the interface
+		 * is in promiscuous mode for example.
+		 */
+		if (( to.sat_addr.s_node != AA_SAT( aa )->sat_addr.s_node)
+		&& (to.sat_addr.s_node != ATADDR_BCAST) ) {
 		    continue;
 		}
 		break;
@@ -236,43 +279,75 @@ ddp_input( m, ifp, elh, phase )
     }
 
     /*
-     * XXX Should we deliver broadcasts locally, also, or rely on the
-     * link layer to give us a copy?  For the moment, the latter.
+     * If it aint for a net on any of our interfaces,
+     * or it IS for a net on a different interface than it came in on,
+     * (and it is not looped back) then consider if we shoulf forward it.
+     * As we a re not really a router this is a bit cheaky, but it may be
+     * useful some day.
      */
-    if ( aa == NULL || ( to.sat_addr.s_node == ATADDR_BCAST &&
-	    aa->aa_ifp != ifp && ( ifp->if_flags & IFF_LOOPBACK ) == 0 )) {
+    if ( (aa == NULL)
+    || ( (to.sat_addr.s_node == ATADDR_BCAST)
+      && (aa->aa_ifp != ifp)
+      && (( ifp->if_flags & IFF_LOOPBACK ) == 0 ))) {
+	/* 
+	 * If we've explicitly disabled it, don't route anything
+	 */
 	if ( ddp_forward == 0 ) {
 	    m_freem( m );
 	    return;
 	}
-	if ( forwro.ro_rt && ( satosat( &forwro.ro_dst )->sat_addr.s_net !=
-		to.sat_addr.s_net ||
-		satosat( &forwro.ro_dst )->sat_addr.s_node !=
-		to.sat_addr.s_node )) {
+	/* 
+	 * If the cached forwarding route is still valid, use it.
+	 */
+	if ( forwro.ro_rt
+	&& ( satosat(&forwro.ro_dst)->sat_addr.s_net != to.sat_addr.s_net
+	  || satosat(&forwro.ro_dst)->sat_addr.s_node != to.sat_addr.s_node )) {
 	    RTFREE( forwro.ro_rt );
 	    forwro.ro_rt = (struct rtentry *)0;
 	}
-	if ( forwro.ro_rt == (struct rtentry *)0 ||
-	     forwro.ro_rt->rt_ifp == (struct ifnet *)0 ) {
+
+	/*
+	 * If we don't have a cached one (any more) or it's useless,
+	 * Then get a new route.
+	 * XXX this could cause a 'route leak'. check this!
+	 */
+	if ( forwro.ro_rt == (struct rtentry *)0
+	|| forwro.ro_rt->rt_ifp == (struct ifnet *)0 ) {
 	    forwro.ro_dst.sa_len = sizeof( struct sockaddr_at );
 	    forwro.ro_dst.sa_family = AF_APPLETALK;
-	    satosat( &forwro.ro_dst )->sat_addr.s_net = to.sat_addr.s_net;
-	    satosat( &forwro.ro_dst )->sat_addr.s_node = to.sat_addr.s_node;
-	    rtalloc( &forwro );
+	    satosat(&forwro.ro_dst)->sat_addr.s_net = to.sat_addr.s_net;
+	    satosat(&forwro.ro_dst)->sat_addr.s_node = to.sat_addr.s_node;
+	    rtalloc(&forwro);
 	}
 
-	if ( to.sat_addr.s_net != satosat( &forwro.ro_dst )->sat_addr.s_net &&
-		ddpe.deh_hops == DDP_MAXHOPS ) {
+	/* 
+	 * If it's not going to get there on this hop, and it's
+	 * already done too many hops, then throw it away.
+	 */
+	if ( (to.sat_addr.s_net != satosat( &forwro.ro_dst )->sat_addr.s_net)
+	&& (ddpe.deh_hops == DDP_MAXHOPS) ) {
 	    m_freem( m );
 	    return;
 	}
 
-	if ( ddp_firewall &&
-		( forwro.ro_rt == NULL || forwro.ro_rt->rt_ifp != ifp )) {
+	/*
+	 * A ddp router might use the same interface
+	 * to forward the packet, which this would not effect.
+	 * Don't allow packets to cross from one interface to another however.
+	 */
+	if ( ddp_firewall
+	&& ( (forwro.ro_rt == NULL)
+	  || (forwro.ro_rt->rt_ifp != ifp))) {
 	    m_freem( m );
 	    return;
 	}
 
+	/*
+	 * Adjust the header.
+	 * If it was a short header then it would have not gotten here,
+	 * so we can assume there is room to drop the header in.
+	 * XXX what about promiscuous mode, etc...
+	 */
 	ddpe.deh_hops++;
 	ddpe.deh_bytes = htonl( ddpe.deh_bytes );
 	bcopy( (caddr_t)&ddpe, (caddr_t)deh, sizeof( u_short )); /* XXX deh? */
@@ -284,9 +359,16 @@ ddp_input( m, ifp, elh, phase )
 	return;
     }
 
+    /*
+     * It was for us, and we have an ifaddr to use with it.
+     */
     from.sat_len = sizeof( struct sockaddr_at );
     from.sat_family = AF_APPLETALK;
 
+    /* 
+     * We are no longer interested in the link layer.
+     * so cut it off.
+     */
     if ( elh ) {
 	m_adj( m, sizeof( struct ddpshdr ));
     } else {
@@ -298,21 +380,36 @@ ddp_input( m, ifp, elh, phase )
 	m_adj( m, sizeof( struct ddpehdr ));
     }
 
+    /* 
+     * Search for ddp protocol control blocks that match these
+     * addresses. 
+     */
     if (( ddp = ddp_search( &from, &to, aa )) == NULL ) {
 	m_freem( m );
 	return;
     }
 
+    /* 
+     * If we found one, deliver th epacket to the socket
+     */
     if ( sbappendaddr( &ddp->ddp_socket->so_rcv, (struct sockaddr *)&from,
 	    m, (struct mbuf *)0 ) == 0 ) {
+	/* 
+	 * If the socket is full (or similar error) dump the packet.
+	 */
 	ddpstat.ddps_nosockspace++;
 	m_freem( m );
 	return;
     }
+    /*
+     * And wake up whatever might be waiting for it
+     */
     sorwakeup( ddp->ddp_socket );
 }
 
 #if 0
+/* As if we haven't got enough of this sort of think floating
+around the kernel :) */
 
 #define BPXLEN	48
 #define BPALEN	16
