@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 PROG=	scp
+CFLAGS+=-I${SSHDIR}
 
 DPADD=	${LIBSSH}
 LDADD=	-lssh
