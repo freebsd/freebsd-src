@@ -4,6 +4,7 @@
  * Copyright (c) 1994 UKAI, Fumitoshi.
  * Copyright (c) 1994-1995 by HOSOKAWA, Tatsumi <hosokawa@jp.FreeBSD.org>
  * Copyright (c) 1996 Nate Williams <nate@FreeBSD.org>
+ * Copyright (c) 1997 Poul-Henning Kamp <phk@FreeBSD.org>
  *
  * This software may be used, modified, copied, and distributed, in
  * both source and binary form provided that the above copyright and
@@ -14,7 +15,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.53 1997/02/22 09:29:49 peter Exp $
+ *	$Id: apm.c,v 1.54 1997/03/28 18:38:19 phk Exp $
  */
 
 #include <sys/param.h>
@@ -98,32 +99,26 @@ setup_apm_gdt(u_int code32_base, u_int code16_base, u_int data_base, u_int code_
 }
 
 /* 48bit far pointer */
-static struct addr48 {
+struct addr48 {
 	u_long		offset;
 	u_short		segment;
 } apm_addr;
 
 static int apm_errno;
 
-inline
 int
 apm_int(u_long *eax, u_long *ebx, u_long *ecx)
 {
-	u_long cf;
-	__asm __volatile("
-		pushfl
-		cli
-		lcall	_apm_addr
-		movl	$0, %3
-		jnc	1f
-		incl	%3
-	1:
-		popfl
-		"
-		: "=a" (*eax), "=b" (*ebx), "=c" (*ecx), "=D" (cf)
-		: "0" (*eax),  "1" (*ebx),  "2" (*ecx)
-		: "dx", "si", "memory"
-		);
+	struct apm_bios_arg apa;
+	int cf;
+
+	apa.eax = *eax;
+	apa.ebx = *ebx;
+	apa.ecx = *ecx;
+	cf = apm_bios_call(&apa);
+	*eax = apa.eax;
+	*ebx = apa.ebx;
+	*ecx = apa.ecx;
 	apm_errno = ((*eax) >> 8) & 0xff;
 	return cf;
 }
@@ -147,21 +142,16 @@ apm_enable_disable_pm(int enable)
 	return apm_int(&eax, &ebx, &ecx);
 }
 
-/* Tell APM-BIOS that WE will do 1.2 and see what they say... */
 static void
-apm_driver_version(void)
+apm_driver_version(int version)
 {
 	u_long eax, ebx, ecx;
 
+	/* First try APM 1.2 */
 	eax = (APM_BIOS << 8) | APM_DRVVERSION;
 	ebx  = 0x0;
-	/* First try APM 1.2 */
-	ecx  = 0x0102;
-	if(!apm_int(&eax, &ebx, &ecx))
-		apm_version = eax & 0xffff;
-	/* Then try APM 1.1 */
-	ecx  = 0x0101;
-	if(!apm_int(&eax, &ebx, &ecx))
+	ecx  = version;
+	if(!apm_int(&eax, &ebx, &ecx)) 
 		apm_version = eax & 0xffff;
 }
 
@@ -583,9 +573,8 @@ apmprobe(struct isa_device *dvp)
 		printf("apm: 32-bit connection error.\n");
 		return 0;
 	}
-#ifdef APM_BROKEN_STATCLOCK
-	statclock_disable = 1;
-#endif
+	if (dvp->id_flags & 0x20)
+		statclock_disable = 1;
 	return -1;
 }
 
@@ -635,7 +624,7 @@ apm_processevent(void)
 		    OPMEV_DEBUGMESSAGE(PMEV_UPDATETIME);
 			inittodr(0);	/* adjust time to RTC */
 			break;
-		    OPMEV_DEBUGMESSAGE(PMEV_NOEVENT);
+		    case PMEV_NOEVENT:
 			break;
 		    default:
 			printf("Unknown Original APM Event 0x%x\n", apm_event);
@@ -702,15 +691,21 @@ apmattach(struct isa_device *dvp)
 	apm_addr.segment = GSEL(GAPMCODE32_SEL, SEL_KPL);
 	apm_addr.offset  = sc->cs_entry;
 
-#ifdef FORCE_APM10
-	apm_version = 0x100;
-	sc->majorversion = 1;
-	sc->minorversion = 0;
-	sc->intversion = INTVERSION(sc->majorversion, sc->minorversion);
-	printf("apm: running in APM 1.0 compatible mode\n");
-#else
-	/* Try to kick bios into 1.1 or greater mode */
-	apm_driver_version();
+	if ((dvp->id_flags & 0x10)) {
+		if ((dvp->id_flags & 0xf) => 0x2) {
+			apm_driver_version(0x102);
+		} 
+		if (!apm_version && (dvp->id_flags & 0xf) => 0x1) {
+			apm_driver_version(0x101);
+		}
+	} else {
+		apm_driver_version(0x102);
+		if (!apm_version)
+			apm_driver_version(0x101);
+	} 
+	if (!apm_version)
+		apm_version = 0x100;
+
 	sc->minorversion = ((apm_version & 0x00f0) >>  4) * 10 +
 			((apm_version & 0x000f) >> 0);
 	sc->majorversion = ((apm_version & 0xf000) >> 12) * 10 +
@@ -725,7 +720,6 @@ apmattach(struct isa_device *dvp)
 
 	printf("apm: found APM BIOS version %d.%d\n",
 		sc->majorversion, sc->minorversion);
-#endif /* FORCE_APM10 */
 
 #ifdef APM_DEBUG
 	printf("apm: Slow Idling CPU %s\n", is_enabled(sc->slow_idle_cpu));
@@ -834,6 +828,10 @@ apmioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 		newstate = *(int *)addr;
 		if (apm_display(newstate))
 			error = ENXIO;
+		break;
+	case APMIO_BIOS:
+		if (apm_bios_call((struct apm_bios_arg*)addr))
+			error = EIO;
 		break;
 	default:
 		error = EINVAL;

@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.323 1997/03/26 17:20:24 ache Exp $
+#	$Id: LINT,v 1.324 1997/03/26 17:46:03 ache Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -881,14 +881,11 @@ device pca0 at isa? port IO_TIMER1 tty
 
 #
 # Notes on APM
-#  Some APM implementations will not work with the `statistics clock'
-#  enabled, so it's disabled by default if the APM driver is enabled.
-#  However, this is not true for all laptops.  Try removing the option
-#  APM_BROKEN_STATCLOCK and see if suspend/resume work
+#  The flags takes the following meaning for apm0:
+#    0x0020  Statclock is broken.
+#    0x0011  Limit APM protocol to 1.1 or 1.0
+#    0x0010  Limit APM protocol to 1.0
 #
-
-options	APM_IDLE_CPU	# Tell APM to idle rather than halt'ing the cpu
-
 #
 # Notes on the spigot:
 #  The video spigot is at 0xad6.  This port address can not be changed.
@@ -939,8 +936,7 @@ device		wt0	at isa? port 0x300 bio irq 5 drq 1 vector wtintr
 device		ctx0	at isa? port 0x230 iomem 0xd0000
 device		spigot0 at isa? port 0xad6 irq 15 iomem 0xee000 vector spigintr
 device		qcam0	at isa? port "IO_LPT3" tty
-device		apm0	at isa?
-options		APM_BROKEN_STATCLOCK
+device		apm0	at isa? 
 device		gp0	at isa? port 0x2c0 tty
 device		gsc0	at isa? port "IO_GSC1" tty drq 3
 device		joy0	at isa? port "IO_GAME"
