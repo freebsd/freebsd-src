@@ -1,5 +1,3 @@
-/*	$Id: units.c,v 1.1.1.1 1996/06/08 03:43:43 alex Exp $	*/
-
 /*
  * units.c   Copyright (c) 1993 by Adrian Mariano (adrian@cam.cornell.edu)
  *
@@ -17,10 +15,17 @@
  * improvements you might make to this program.
  */
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
 #include <ctype.h>
+#include <err.h>
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "pathnames.h"
 
@@ -68,10 +73,8 @@ dupstr(char *str)
 	char *ret;
 
 	ret = malloc(strlen(str) + 1);
-	if (!ret) {
-		fprintf(stderr, "Memory allocation error\n");
-		exit(3);
-	}
+	if (!ret)
+		errx(3, "memory allocation error");
 	strcpy(ret, str);
 	return (ret);
 }
@@ -80,8 +83,7 @@ dupstr(char *str)
 void 
 readerror(int linenum)
 {
-	fprintf(stderr, "Error in units file '%s' line %d\n", UNITSFILE,
-	    linenum);
+	warnx("error in units file '%s' line %d", UNITSFILE, linenum);
 }
 
 
@@ -97,11 +99,8 @@ readunits(char *userfile)
 
 	if (userfile) {
 		unitfile = fopen(userfile, "rt");
-		if (!unitfile) {
-			fprintf(stderr, "Unable to open units file '%s'\n",
-			    userfile);
-			exit(1);
-		}
+		if (!unitfile)
+			errx(1, "unable to open units file '%s'", userfile);
 	}
 	else {
 		unitfile = fopen(UNITSFILE, "rt");
@@ -130,11 +129,8 @@ readunits(char *userfile)
 					direc = strtok(NULL, separator);
 				}
 			}
-			if (!unitfile) {
-				fprintf(stderr, "Can't find units file '%s'\n",
-				    UNITSFILE);
-				exit(1);
-			}
+			if (!unitfile)
+				errx(1, "can't find units file '%s'", UNITSFILE);
 		}
 	}
 	while (!feof(unitfile)) {
@@ -151,15 +147,14 @@ readunits(char *userfile)
 			continue;
 		if (lineptr[strlen(lineptr) - 1] == '-') { /* it's a prefix */
 			if (prefixcount == MAXPREFIXES) {
-				fprintf(stderr, "Memory for prefixes exceeded in line %d\n",
-				    linenum);
+				warnx("memory for prefixes exceeded in line %d", linenum);
 				continue;
 			}
 			lineptr[strlen(lineptr) - 1] = 0;
 			prefixtable[prefixcount].prefixname = dupstr(lineptr);
 			for (i = 0; i < prefixcount; i++)
 				if (!strcmp(prefixtable[i].prefixname, lineptr)) {
-					fprintf(stderr, "Redefinition of prefix '%s' on line %d ignored\n",
+					warnx("redefinition of prefix '%s' on line %d ignored",
 					    lineptr, linenum);
 					continue;
 				}
@@ -175,14 +170,13 @@ readunits(char *userfile)
 		}
 		else {		/* it's not a prefix */
 			if (unitcount == MAXUNITS) {
-				fprintf(stderr, "Memory for units exceeded in line %d\n",
-				    linenum);
+				warnx("memory for units exceeded in line %d", linenum);
 				continue;
 			}
 			unittable[unitcount].uname = dupstr(lineptr);
 			for (i = 0; i < unitcount; i++)
 				if (!strcmp(unittable[i].uname, lineptr)) {
-					fprintf(stderr, "Redefinition of unit '%s' on line %d ignored\n",
+					warnx("redefinition of unit '%s' on line %d ignored",
 					    lineptr, linenum);
 					continue;
 				}
@@ -215,7 +209,7 @@ addsubunit(char *product[], char *toadd)
 
 	for (ptr = product; *ptr && *ptr != NULLUNIT; ptr++);
 	if (ptr >= product + MAXSUBUNITS) {
-		fprintf(stderr, "Memory overflow in unit reduction\n");
+		warnx("memory overflow in unit reduction");
 		return 1;
 	}
 	if (!*ptr)
@@ -274,7 +268,7 @@ showunit(struct unittype * theunit)
 void 
 zeroerror()
 {
-	fprintf(stderr, "Unit reduces to zero\n");
+	warnx("unit reduces to zero");
 }
 
 /*
@@ -617,10 +611,8 @@ showanswer(struct unittype * have, struct unittype * want)
 void 
 usage()
 {
-	fprintf(stderr, "\nunits [-f unitsfile] [-q] [-v] [from-unit to-unit]\n");
-	fprintf(stderr, "\n    -f specify units file\n");
-	fprintf(stderr, "    -q supress prompting (quiet)\n");
-	fprintf(stderr, "    -v print version number\n");
+	fprintf(stderr,
+		"usage: units [-f unitsfile] [-q] [-v] [from-unit to-unit]\n");
 	exit(3);
 }
 
@@ -634,9 +626,6 @@ main(int argc, char **argv)
 	int optchar;
 	char *userfile = 0;
 	int quiet = 0;
-
-	extern char *optarg;
-	extern int optind;
 
 	while ((optchar = getopt(argc, argv, "vqf:")) != -1) {
 		switch (optchar) {
@@ -675,7 +664,7 @@ main(int argc, char **argv)
 	}
 	else {
 		if (!quiet)
-			printf("%d units, %d prefixes\n\n", unitcount,
+			printf("%d units, %d prefixes\n", unitcount,
 			    prefixcount);
 		for (;;) {
 			do {
