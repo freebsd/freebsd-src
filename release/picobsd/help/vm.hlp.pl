@@ -4,9 +4,9 @@
 	wyswietlajac nastepujace wartosci:
 
 	* procs: liczba procesow: r - running (dzialajace),
-				  d - czekajace na I/O,
-				  p - paging,
-				  s - sleeping,
+				  w - czekajace na I/O,
+				  l - sleeping,
+				  s - swapping,
 	* virt mem: ilosc pamieci witrualnej (total i active), w kB
 	* real mem: ilosc pamieci rzeczywistej (total i active) w kB
 	* shared vm: ilosc dzielonej pamieci wirtualnej, w kB
