@@ -99,8 +99,6 @@ PSM_HOOKRESUME		opt_psm.h
 PSM_RESETAFTERSUSPEND	opt_psm.h
 PSM_DEBUG		opt_psm.h
 
-PCI_ENABLE_IO_MODES	opt_pci.h
-
 PCIC_RESUME_RESET	opt_pcic.h
 
 KBD_DISABLE_KEYMAP_LOAD	opt_kbd.h
