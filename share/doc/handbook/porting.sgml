@@ -1,4 +1,4 @@
-<!-- $Id: porting.sgml,v 1.66 1997/02/22 18:35:18 obrien Exp $ -->
+<!-- $Id: porting.sgml,v 1.67 1997/02/25 07:51:19 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect1><heading>Porting an existing piece of free software<label id="porting"></heading>
@@ -922,10 +922,7 @@ FETCH_DEPENDS=   ncftp2:${PORTSDIR}/net/ncftp2
 	to us (i.e., if your modified ports directory is called
 	`<tt>superedit</tt>' and the original as in our tree is
 	`<tt>superedit.bak</tt>', then send us the result of `<tt>diff
-	-ru superedit.bak superedit</tt>'.)  If the port has changed
-	so much that the diff is larger than the new port itself, you
-	can <ref id="porting:submitting" name="upload"> the port
-	following the procedure described above.  Either way, don't
+	-ru superedit.bak superedit</tt>'.)  Please don't
 	forget to send us a message using <tt>send-pr(1)</tt>!
 
     <sect2>
