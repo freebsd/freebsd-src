@@ -4,7 +4,7 @@
 # WARNING: empty lines are essential too
 #
 # int_curr_symbol
-DEM 
+DEM
 # currency_symbol
 DM
 # mon_decimal_point
