@@ -147,7 +147,7 @@ kernel thread the mutex is locked and the
 function is called with this mutex locked.
 This will result in the driver's
 .Fn readregs 
-function beeing called with the mutex locked.
+function being called with the mutex locked.
 .It
 In the sysctl handlers the mutex will be locked before calling into the driver's
 .Fn readreg
@@ -220,7 +220,7 @@ Diagnostic path loopback.
 .El
 .It Va chip
 This points the a function vector for chip specific functions. Two fields
-in this vector a publically available:
+in this vector are publicly available:
 .Bl -tag -width XXX
 .It Va type
 This is the type of the detected PHY chip.
