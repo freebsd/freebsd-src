@@ -124,7 +124,6 @@ nfs4_vfsop_statfs(struct nfsv4_fattr *fap, struct statfs *sbp, struct mount *mp)
 {
 	struct nfsmount *nmp = VFSTONFS(mp);
 
-	sbp->f_flags = nmp->nm_flag;
 	sbp->f_iosize = nfs_iosize(nmp);
 	sbp->f_bsize = NFS_FABLKSIZE;
 
