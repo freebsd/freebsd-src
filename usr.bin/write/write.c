@@ -303,20 +303,18 @@ done()
 wr_fputs(s)
 	register char *s;
 {
-	register char c;
 
 #define	PUTC(c)	if (putchar(c) == EOF) goto err;
 
 	for (; *s != '\0'; ++s) {
-		c = *s;
-		if (c == '\n') {
+		if (*s == '\n') {
 			PUTC('\r');
 			PUTC('\n');
-		} else if (!isprint(c) && !isspace(c) && c != '\007') {
+		} else if (!isprint(*s) && !isspace(*s) && *s != '\007') {
 			PUTC('^');
-			PUTC(c^0x40);	/* DEL to ?, others to alpha */
+			PUTC((*s^0x40)&~0x80);   /* DEL to ?, others to alpha */
 		} else
-			PUTC(c);
+			PUTC(*s);
 	}
 	return;
 
