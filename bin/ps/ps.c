@@ -42,7 +42,7 @@ static char const copyright[] =
 static char sccsid[] = "@(#)ps.c	8.4 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: ps.c,v 1.24 1998/05/15 06:29:17 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -121,7 +121,7 @@ main(argc, argv)
 	dev_t ttydev;
 	pid_t pid;
 	uid_t uid;
-	int all, ch, flag, i, fmt, lineno, nentries;
+	int all, ch, flag, i, fmt, lineno, nentries, dropgid;
 	int prtheader, wflag, what, xflg;
 	char *nlistf, *memf, *swapf, errbuf[_POSIX2_LINE_MAX];
 
@@ -142,7 +142,8 @@ main(argc, argv)
 	pid = -1;
 	uid = (uid_t) -1;
 	ttydev = NODEV;
-	memf = nlistf = swapf = NULL;
+	dropgid = 0;
+	memf = nlistf = swapf = _PATH_DEVNULL;
 	while ((ch = getopt(argc, argv,
 #if defined(LAZY_PS)
 	    "aCcefghjLlM:mN:O:o:p:rSTt:U:uvW:wx")) != -1)
@@ -182,12 +183,14 @@ main(argc, argv)
 			break;
 		case 'M':
 			memf = optarg;
+			dropgid = 1;
 			break;
 		case 'm':
 			sortby = SORTMEM;
 			break;
 		case 'N':
 			nlistf = optarg;
+			dropgid = 1;
 			break;
 		case 'O':
 			parsefmt(o1);
@@ -260,6 +263,7 @@ main(argc, argv)
 			break;
 		case 'W':
 			swapf = optarg;
+			dropgid = 1;
 			break;
 		case 'w':
 			if (wflag)
@@ -293,8 +297,10 @@ main(argc, argv)
 	 * Discard setgid privileges if not the running kernel so that bad
 	 * guys can't print interesting stuff from kernel memory.
 	 */
-	if (nlistf != NULL || memf != NULL || swapf != NULL)
+	if (dropgid) {
 		setgid(getgid());
+		setuid(getuid());
+	}
 
 	kd = kvm_openfiles(nlistf, memf, swapf, O_RDONLY, errbuf);
 	if (kd == 0)
