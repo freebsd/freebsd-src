@@ -99,8 +99,13 @@ main(int argc, char **argv)
 			cmdline=2;
 			break;
 		case 'f':
-			if (cmdline != 2)
+			if (cmdline != 1 && cmdline != 2)
 				usage();
+			if (cmdline == 1) {
+				/* Imply ``-t vnode'' */
+				mdio.md_type = MD_VNODE;
+				mdio.md_options = MD_CLUSTER | MD_AUTOUNIT | MD_COMPRESS;
+			}
 			mdio.md_file = optarg;
 			break;
 		case 'o':
