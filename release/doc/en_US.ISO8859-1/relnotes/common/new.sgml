@@ -231,7 +231,10 @@
   <sect2 id="security">
     <title>Security-Related Changes</title>
 
-    <para></para>
+    <para>Per-user <filename>~/.login.conf</filename> files were disabled
+    in &os; &release.prev; to avoid a security hole caused by a bug.
+    The bug was fixed and this feature has been re-enabled.</para>
+
   </sect2>
   <sect2 id="userland">
     <title>Userland Changes</title>
