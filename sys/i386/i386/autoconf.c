@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.78 1997/10/26 04:36:11 nate Exp $
+ *	$Id: autoconf.c,v 1.79 1997/11/20 17:07:21 bde Exp $
  */
 
 /*
@@ -50,6 +50,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
+#include <sys/disklabel.h>
 #include <sys/reboot.h>
 #include <sys/kernel.h>
 #include <sys/mount.h>
