@@ -40,7 +40,7 @@ static char copyright[] =
 #ifndef lint
 static char sccsid[] = "From: @(#)passwd.c	8.3 (Berkeley) 4/2/94";
 static const char rcsid[] =
-	"$Id$";
+	"$Id: passwd.c,v 1.2 1995/01/20 22:03:36 wollman Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -48,6 +48,17 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+
+#ifdef YP
+#include <pwd.h>
+#include <limits.h>
+#include <db.h>
+#include <fcntl.h>
+#include <utmp.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/param.h>
+#endif
 
 #ifdef KERBEROS
 #include "krb.h"
@@ -59,6 +70,20 @@ void	usage __P((void));
 
 int use_local_passwd = 0;
 
+#ifdef YP
+#define PERM_SECURE (S_IRUSR|S_IWUSR)
+int use_yp_passwd = 0, opt_shell = 0, opt_fullname = 0;
+char *prog_name;
+HASHINFO openinfo = {
+        4096,           /* bsize */
+        32,             /* ffactor */
+        256,            /* nelem */
+        2048 * 1024,    /* cachesize */
+        NULL,           /* hash */
+        0,              /* lorder */
+};
+#endif
+
 int
 main(argc, argv)
 	int argc;
@@ -68,12 +93,34 @@ main(argc, argv)
 	char *uname;
 	char *iflag = 0, *rflag = 0, *uflag = 0;
 
+#ifdef YP
+#ifdef KERBEROS
+	char realm[REALM_SZ];
+#define OPTIONS "lysfi:r:u:"
+#else
+#define OPTIONS "lysf"
+#endif
+#else
 #ifdef KERBEROS
 	char realm[REALM_SZ];
 #define OPTIONS "li:r:u:"
 #else
 #define OPTIONS "l"
 #endif
+#endif
+
+#ifdef YP
+	DB *dbp;
+	DBT key,data;
+	char bf[UT_NAMESIZE + 2];
+
+	if (strstr(argv[0], (prog_name = "ypchpass")))
+		use_yp_passwd = opt_shell = opt_fullname = 1;
+	if (strstr(argv[0], (prog_name = "ypchsh"))) opt_shell = 1;
+	if (strstr(argv[0], (prog_name = "ypchfn"))) opt_fullname = 1;
+	if (strstr(argv[0], (prog_name = "yppasswd"))) use_yp_passwd = 1;
+#endif
+
 	while ((ch = getopt(argc, argv, OPTIONS)) != EOF) {
 		switch (ch) {
 		case 'l':		/* change local password file */
@@ -90,7 +137,17 @@ main(argc, argv)
 			uflag = optarg;
 			break;
 #endif /* KERBEROS */
-
+#ifdef	YP
+		case 'y':			/* Change NIS password */
+			use_yp_passwd = 1;
+			break;
+		case 's':			/* Change NIS shell field */
+			opt_shell = 1;
+			break;
+		case 'f':			/* Change NIS GECOS field */
+			opt_fullname = 1;
+			break;
+#endif
 		default:
 		case '?':
 			usage();
@@ -113,6 +170,34 @@ main(argc, argv)
 		usage();
 	}
 
+#ifdef YP
+	/*
+	 * If the user isn't in the local database file, he must
+	 * be in the NIS database.
+	 */
+#ifdef KERBEROS
+	if (!use_yp_passwd && !opt_shell && !opt_fullname &&
+		iflag == NULL && rflag == NULL && uflag == NULL) {
+#else
+	if (!use_yp_passwd && !opt_shell && !opt_fullname) {
+#endif
+		if ((dbp = dbopen(_PATH_MP_DB, O_RDONLY, PERM_SECURE,
+				DB_HASH, &openinfo)) == NULL)
+			errx(1, "error opening database: %s.", _PATH_MP_DB);
+
+		bf[0] = _PW_KEYBYNAME;
+		bcopy(uname, bf + 1, MIN(strlen(uname), UT_NAMESIZE));
+		key.data = (u_char *)bf;
+		key.size = strlen(uname) + 1;
+		if ((dbp->get)(dbp,&key,&data,0))
+			use_yp_passwd = 1;
+		(dbp->close)(dbp);
+	}
+
+	if (!use_local_passwd && (use_yp_passwd || opt_shell || opt_fullname))
+		exit(yp_passwd(uname));
+#endif
+
 	if (!use_local_passwd) {
 #ifdef	KERBEROS
 		if(krb_get_lrealm(realm, 0) == KSUCCESS) {
@@ -121,6 +206,10 @@ main(argc, argv)
 		}
 #endif
 	}
+#ifdef YP
+	if (use_local_passwd && use_yp_passwd)
+		errx(1,"unknown local user: %s.",uname);
+#endif
 	exit(local_passwd(uname));
 }
 
@@ -128,11 +217,22 @@ void
 usage()
 {
 
+#ifdef	YP
+#ifdef	KERBEROS
+	fprintf(stderr,
+	 "usage: passwd [-l] [-i instance] [-r realm] [-u fullname]\n");
+	fprintf(stderr,
+	"        [-l] [-y] [-f] [-s] [user]\n");
+#else
+	(void)fprintf(stderr, "usage: passwd [-y] [-f] [-s] [user] \n");
+#endif
+#else
 #ifdef	KERBEROS
 	fprintf(stderr,
 	 "usage: passwd [-l] [-i instance] [-r realm] [-u fullname] [user]\n");
 #else
 	(void)fprintf(stderr, "usage: passwd user\n");
+#endif
 #endif
 	exit(1);
 }
