@@ -46,9 +46,8 @@ __FBSDID("$FreeBSD$");
  *	Tell if the current node is at the end of the list.
  *	The sequential functions access the list in a slightly different way.
  *	CurPtr points to their idea of the current node in the list and they
- *	access the list based on it. Because the list is circular, Lst_Next
- *	and Lst_Prev will go around the list forever. Lst_IsAtEnd must be
- *	used to determine when to stop.
+ *	access the list based on it. Lst_IsAtEnd must be used to determine
+ *	when to stop.
  */
 
 #include "make.h"

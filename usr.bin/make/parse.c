@@ -685,8 +685,8 @@ ParseDoDependency (char *line)
     waiting = 0;
     paths = NULL;
 
-    curTargs = Lst_Init(FALSE);
-    curSrcs = Lst_Init(FALSE);
+    curTargs = Lst_Init();
+    curSrcs = Lst_Init();
 
     do {
 	for (cp = line;
@@ -828,7 +828,7 @@ ParseDoDependency (char *line)
 		switch (specType) {
 		    case ExPath:
 			if (paths == NULL) {
-			    paths = Lst_Init(FALSE);
+			    paths = Lst_Init();
 			}
 			Lst_AtEnd(paths, dirSearchPath);
 			break;
@@ -881,7 +881,7 @@ ParseDoDependency (char *line)
 		    return;
 		} else {
 		    if (paths == (Lst)NULL) {
-			paths = Lst_Init(FALSE);
+			paths = Lst_Init();
 		    }
 		    Lst_AtEnd(paths, path);
 		}
@@ -900,7 +900,7 @@ ParseDoDependency (char *line)
 		 * use Dir_Destroy in the destruction of the path as the
 		 * Dir module could have added a directory to the path...
 		 */
-		Lst	    emptyPath = Lst_Init(FALSE);
+		Lst	    emptyPath = Lst_Init();
 
 		Dir_Expand(line, emptyPath, curTargs);
 
@@ -1152,7 +1152,7 @@ ParseDoDependency (char *line)
 	    if (*cp == '(') {
 		GNode	  *gnp;
 
-		sources = Lst_Init(FALSE);
+		sources = Lst_Init();
 		if (Arch_ParseArchive(&line, sources, VAR_CMD) != SUCCESS) {
 		    Parse_Error(PARSE_FATAL,
 				 "Error in source archive spec \"%s\"", line);
@@ -2499,7 +2499,7 @@ Parse_File(char *name, FILE *stream)
 		if (targets)
 		    Lst_Destroy(targets, NOFREE);
 
-		targets = Lst_Init(FALSE);
+		targets = Lst_Init();
 		inLine = TRUE;
 
 		ParseDoDependency (line);
@@ -2540,10 +2540,10 @@ Parse_Init(void)
 {
 
     mainNode = NULL;
-    parseIncPath = Lst_Init(FALSE);
-    sysIncPath = Lst_Init(FALSE);
-    includes = Lst_Init(FALSE);
-    targCmds = Lst_Init(FALSE);
+    parseIncPath = Lst_Init();
+    sysIncPath = Lst_Init();
+    includes = Lst_Init();
+    targCmds = Lst_Init();
 }
 
 void
@@ -2578,7 +2578,7 @@ Parse_MainName(void)
 {
     Lst           listmain;	/* result list */
 
-    listmain = Lst_Init(FALSE);
+    listmain = Lst_Init();
 
     if (mainNode == NULL) {
 	Punt("no target to make.");
