@@ -395,8 +395,8 @@
 	<para arch="i386">Booting from these controllers is supported.  EISA
 	adapters are not supported.</para>
 
-	<para arch="alpha">Booting from these controllers is not supported due to SRM
-	limitations.</para>
+	<para arch="alpha">Booting from these controllers is not
+	supported due to SRM limitations.</para>
       </note>
     </para>
 
@@ -592,7 +592,7 @@
 	  controllers</para>
 	</listitem>
 	<listitem>
-	  <para>QLogic 2300 and QLogic 2312 2-Gigabit Fibre Channel SCSI
+	  <para>Qlogic 2300 and Qlogic 2312 2-Gigabit Fibre Channel SCSI
 	  controllers</para>
 	</listitem>
 	<listitem>
@@ -2012,9 +2012,8 @@
 	  <para>Maestro-3/Allegro</para>
 	  <note>
 	    <para>The Maestro-3/Allegro cannot be compiled into the
-	    &os; kernel due to licensing restrictions.
-	    To use this driver, add
-	    the following line to
+	    &os; kernel due to licensing restrictions.  To use this
+	    driver, add the following line to
 	    <filename>/boot/loader.conf</filename>:</para>
 
             <screen><userinput>snd_maestro3_load="YES"</userinput></screen>
