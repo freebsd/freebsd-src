@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.286.2.57 1998/08/10 09:00:09 yokota Exp $
+#	$Id: LINT,v 1.286.2.58 1998/08/24 18:17:50 wpaul Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -648,8 +648,10 @@ options		MAXCONS=16		# number of virtual consoles
 options		SLOW_VGA		# do byte-wide i/o's to TS and GDC regs
 options		SC_HISTORY_SIZE=200	# number of history buffer lines
 options		SC_DISABLE_REBOOT	# disable reboot key sequence
-# If the screen flickers badly when the mouse pointer is moved, try this.
-options         SC_BAD_FLICKER
+# Try the following option, if the mouse pointer is not drawn correctly 
+# or font does not seem to be loaded properly.  May case flicker on 
+# some systems.
+#options	SC_ALT_SEQACCESS
 
 #
 # `flags' for sc0:
