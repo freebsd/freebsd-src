@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.60 1996/07/05 08:36:02 jkh Exp $
+ * $Id: system.c,v 1.61 1996/07/08 08:54:34 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -47,7 +47,7 @@ expand(char *fname)
 {
     Mkdir(DOC_TMP_DIR);
     unlink(DOC_TMP_FILE);
-    if (vsystem("gzip -c -d %s > %s", fname, DOC_TMP_FILE))
+    if (!file_readable(fname) || vsystem("gzip -c -d %s > %s", fname, DOC_TMP_FILE))
 	return NULL;
     return DOC_TMP_FILE;
 }
@@ -249,8 +249,6 @@ vsystem(char *fmt, ...)
     else if (!pid) {	/* Junior */
 	(void)sigsetmask(omask);
 	if (DebugFD != -1) {
-	    if (OnVTY && isDebug() && RunningAsInit)
-		msgInfo("Command output is on VTY2 - type ALT-F2 to see it");
 	    dup2(DebugFD, 0);
 	    dup2(DebugFD, 1);
 	    dup2(DebugFD, 2);
