@@ -89,6 +89,7 @@
 0	string		RIFF		audio/unknown	
 #					- WAVE format
 >8	string		WAVE		audio/x-wav	
+>8	string		AVI		video/x-msvideo
 #
 0	belong		0x2e7261fd	application/x-realaudio
 
@@ -103,6 +104,9 @@
 # XPM icons (Greg Roelofs, newt@uchicago.edu)
 # ideally should go into "images", but entries below would tag XPM as C source
 0	string		/*\ XPM		image/x-xpm	7bit
+
+# 3DS (3d Studio files)
+16	beshort		0x3d3d		image/x-3ds
 
 # this first will upset you if you're a PL/1 shop... (are there any left?)
 # in which case rm it; ascmagic will catch real C programs
@@ -463,7 +467,8 @@
 #
 # animation formats, originally from vax@ccwf.cc.utexas.edu (VaX#n8)
 #						MPEG file
-0	string		\000\000\001\263	video/mpeg
+0	belong		0x000001b3			video/mpeg
+0	belong		0x000001ba			video/mpeg
 # FLI animation format
 0	leshort		0xAF11				video/fli
 # FLC animation format

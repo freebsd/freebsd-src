@@ -35,10 +35,10 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$Id: softmagic.c,v 1.42 2000/08/05 17:36:49 christos Exp $")
+FILE_RCSID("@(#)$Id: softmagic.c,v 1.43 2001/03/11 20:29:16 christos Exp $")
 #endif	/* lint */
 
-static int match	__P((unsigned char *, int));
+static int match	__P((struct magic *, uint32, unsigned char *, int));
 static int mget		__P((union VALUETYPE *,
 			     unsigned char *, struct magic *, int));
 static int mcheck	__P((union VALUETYPE *, struct magic *));
@@ -57,8 +57,11 @@ softmagic(buf, nbytes)
 	unsigned char *buf;
 	int nbytes;
 {
-	if (match(buf, nbytes))
-		return 1;
+	struct mlist *ml;
+
+	for (ml = mlist.next; ml != &mlist; ml = ml->next)
+		if (match(ml->magic, ml->nmagic, buf, nbytes))
+			return 1;
 
 	return 0;
 }
@@ -91,7 +94,9 @@ softmagic(buf, nbytes)
  *	so that higher-level continuations are processed.
  */
 static int
-match(s, nbytes)
+match(magic, nmagic, s, nbytes)
+	struct magic *magic;
+	uint32 nmagic;
 	unsigned char	*s;
 	int nbytes;
 {
@@ -105,6 +110,7 @@ match(s, nbytes)
 	int returnval = 0; /* if a match is found it is set to 1*/
 	extern int kflag;
 	int firstline = 1; /* a flag to print X\n  X\n- X */
+	struct mlist *ml;
 
 	if (tmpoff == NULL)
 		if ((tmpoff = (int32 *) malloc(tmplen = 20)) == NULL)
@@ -153,7 +159,8 @@ match(s, nbytes)
 				}
 				if (magic[magindex].flag & ADD) {
 					oldoff=magic[magindex].offset;
-					magic[magindex].offset += tmpoff[cont_level-1];
+					magic[magindex].offset +=
+					    tmpoff[cont_level-1];
 				}
 				if (mget(&p, s, &magic[magindex], nbytes) &&
 				    mcheck(&p, &magic[magindex])) {
@@ -172,7 +179,8 @@ match(s, nbytes)
 						(void) putchar(' ');
 						need_separator = 0;
 					}
-					tmpoff[cont_level] = mprint(&p, &magic[magindex]);
+					tmpoff[cont_level] =
+					    mprint(&p, &magic[magindex]);
 					if (magic[magindex].desc[0])
 						need_separator = 1;
 
@@ -361,33 +369,33 @@ mget(p, s, m, nbytes)
 
 	if (m->flag & INDIR) {
 
-		switch (m->in.type) {
+		switch (m->in_type) {
 		case BYTE:
-			offset = p->b + m->in.offset;
+			offset = p->b + m->in_offset;
 			break;
 		case BESHORT:
 		        offset = (short)((p->hs[0]<<8)|(p->hs[1]))+
-			          m->in.offset;
+			          m->in_offset;
 			break;
 		case LESHORT:
 		        offset = (short)((p->hs[1]<<8)|(p->hs[0]))+
-			         m->in.offset;
+			         m->in_offset;
 			break;
 		case SHORT:
-			offset = p->h + m->in.offset;
+			offset = p->h + m->in_offset;
 			break;
 		case BELONG:
 		        offset = (int32)((p->hl[0]<<24)|(p->hl[1]<<16)|
 					 (p->hl[2]<<8)|(p->hl[3]))+
-			         m->in.offset;
+			         m->in_offset;
 			break;
 		case LELONG:
 		        offset = (int32)((p->hl[3]<<24)|(p->hl[2]<<16)|
 					 (p->hl[1]<<8)|(p->hl[0]))+
-			         m->in.offset;
+			         m->in_offset;
 			break;
 		case LONG:
-			offset = p->l + m->in.offset;
+			offset = p->l + m->in_offset;
 			break;
 		}
 
