@@ -19,7 +19,7 @@ MAN=	BUF_LOCK.9 BUF_LOCKFREE.9 BUF_LOCKINIT.9 BUF_REFCNT.9 \
 	VOP_OPENCLOSE.9 VOP_PATHCONF.9 VOP_PRINT.9 VOP_RDWR.9 VOP_READDIR.9 \
 	VOP_READLINK.9 VOP_REALLOCBLKS.9 VOP_REMOVE.9 VOP_RENAME.9 \
 	VOP_REVOKE.9 VOP_SETACL.9 VOP_SETEXTATTR.9 VOP_STRATEGY.9 \
-	accept_filter.9 accf_data.9 accf_http.9 acl.9 atomic.9 \
+	accept_filter.9 accf_data.9 accf_http.9 acl.9 alq.9 atomic.9 \
 	bios.9 boot.9 buf.9 bus_activate_resource.9 \
 	bus_alloc_resource.9 bus_child_present.9 bus_generic_attach.9 \
 	bus_dma.9 \
@@ -119,6 +119,13 @@ MLINKS+=VOP_OPENCLOSE.9 VOP_OPEN.9
 MLINKS+=VOP_RDWR.9 VOP_READ.9
 MLINKS+=VOP_RDWR.9 VOP_WRITE.9
 MLINKS+=VOP_REMOVE.9 VOP_RMDIR.9
+MLINKS+=alq.9 ALQ.9
+MLINKS+=alq.9 alq_close.9
+MLINKS+=alq.9 alq_flush.9
+MLINKS+=alq.9 alq_get.9
+MLINKS+=alq.9 alq_open.9
+MLINKS+=alq.9 alq_post.9
+MLINKS+=alq.9 alq_write.9
 MLINKS+=atomic.9 atomic_add.9
 MLINKS+=atomic.9 atomic_clear.9
 MLINKS+=atomic.9 atomic_cmpset.9
