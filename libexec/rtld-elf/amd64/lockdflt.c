@@ -55,7 +55,7 @@
 #include "debug.h"
 #include "rtld.h"
 
-#define CACHE_LINE_SIZE		32
+#define CACHE_LINE_SIZE		64
 
 #define WAFLAG		0x1	/* A writer holds the lock */
 #define RC_INCR		0x2	/* Adjusts count of readers desiring lock */
