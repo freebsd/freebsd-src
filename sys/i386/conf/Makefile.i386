@@ -1,6 +1,6 @@
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.79 1996/04/27 07:30:49 joerg Exp $
+#	$Id: Makefile.i386,v 1.80 1996/05/02 14:19:35 phk Exp $
 #
 # Makefile for FreeBSD
 #
@@ -155,7 +155,11 @@ links:
 tags:
 	@echo "see $S/kern/Makefile for tags"
 
-install: kernel
+install:
+	@if [ ! -f kernel ] ; then \
+		echo "You must first build your kernel before trying to install." ; \
+		exit 1 ; \
+	fi
 	chflags noschg /kernel
 	mv /kernel /kernel.old
 	if [ `sysctl -n kern.bootfile` = /kernel ] ; then \
