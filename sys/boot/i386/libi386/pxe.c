@@ -361,14 +361,20 @@ pxe_cleanup(void)
 		return;
 
 	pxe_call(PXENV_UNDI_SHUTDOWN);
-	if (undi_shutdown_p->Status != 0)
+
+#ifdef PXE_DEBUG
+	if (debug && undi_shutdown_p->Status != 0)
 		printf("pxe_cleanup: UNDI_SHUTDOWN failed %x\n",
-		    undi_shutdown_p->Status);
+		       undi_shutdown_p->Status);
+#endif
 
 	pxe_call(PXENV_UNLOAD_STACK);
-	if (unload_stack_p->Status != 0)
+
+#ifdef PXE_DEBUG	
+	if (debug && unload_stack_p->Status != 0)
 		printf("pxe_cleanup: UNLOAD_STACK failed %x\n",
 		    unload_stack_p->Status);
+#endif
 }
 
 void
