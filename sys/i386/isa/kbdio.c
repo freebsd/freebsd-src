@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kbdio.c,v 1.1.2.3 1997/01/15 12:03:38 sos Exp $
+ * $Id: kbdio.c,v 1.1.2.4 1997/01/30 11:42:01 yokota Exp $
  */
 
 #include "sc.h"
@@ -424,30 +424,39 @@ reset_aux_dev(int port)
         empty_both_buffers(port, 10);
         if (!write_aux_command(port, PSMC_RESET_DEV))
 	    continue;
-        c = read_controller_data(port);
+	/* 
+         * NOTE: Compaq Armada laptops appear to require extra
+         * delay here. XXX
+         */
+        for (again = KBD_MAXWAIT; again > 0; --again) {
+            DELAY(KBD_RESETDELAY*1000);
+            c = read_controller_data(port);
+            if (c != -1)
+                break;
+        }
         if (verbose)
-        log(LOG_DEBUG,"kbdio: RESET_AUX return code:%04x\n",c);
+            log(LOG_DEBUG,"kbdio: RESET_AUX return code:%04x\n",c);
         if (c == PSM_ACK)	/* aux dev is about to reset... */
-    	break;
+    	    break;
     }
     if (retry < 0)
         return FALSE;
 
-    while (again-- > 0) {
+    for (again = KBD_MAXWAIT; again > 0; --again) {
         /* wait awhile, well, quite looooooooooooong */
         DELAY(KBD_RESETDELAY*1000);
         c = read_aux_data(port);	/* RESET_DONE/RESET_FAIL */
         if (c != -1) 	/* wait again if the controller is not ready */
-    	break;
+    	    break;
     }
     if (verbose)
-    log(LOG_DEBUG,"kbdio: RESET_AUX status:%04x\n",c);
+        log(LOG_DEBUG,"kbdio: RESET_AUX status:%04x\n",c);
     if (c != PSM_RESET_DONE)	/* reset status */
         return FALSE;
 
     c = read_aux_data(port);	/* device ID */
     if (verbose)
-    log(LOG_DEBUG,"kbdio: RESET_AUX ID:%04x\n",c);
+        log(LOG_DEBUG,"kbdio: RESET_AUX ID:%04x\n",c);
 	/* NOTE: we could check the device ID now, but leave it later... */
     return TRUE;
 }
