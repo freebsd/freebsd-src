@@ -107,16 +107,14 @@ restart:
 	for (pstp = pvh_get_first(pvh); pstp != 0; pstp = pv_get_next(pstp)) {
 		tte = pv_get_tte(pstp);
 		KASSERT(TD_PA(tte.tte_data) == pa,
-		    ("pmap_bit_clear: corrupt alias chain"));
+		    ("pv_bit_clear: corrupt alias chain"));
 		if ((tte.tte_data & bits) == 0)
 			continue;
 		va = tte_get_va(tte);
-		if (bits == TD_W && !pmap_track_modified(va))
+		if (bits & (TD_W | TD_SW) && !pmap_track_modified(va))
 			continue;	
-		if (bits == TD_W && tte.tte_data & TD_MOD) {
+		if (bits & (TD_W | TD_SW) && tte.tte_data & TD_W)
 			vm_page_dirty(m);
-			bits |= TD_MOD;
-		}
 		pv_atomic_bit_clear(pstp, bits);
 #ifdef notyet
 		generation = pv_generation;
@@ -131,6 +129,44 @@ restart:
 #endif
 	}
 	PV_UNLOCK();
+}
+
+int
+pv_bit_count(vm_page_t m, u_long bits)
+{
+	vm_offset_t pstp;
+	vm_offset_t pa;
+	vm_offset_t pvh;
+	struct tte tte;
+	int count;
+
+	count = 0;
+	pa = VM_PAGE_TO_PHYS(m);
+	pvh = pv_lookup(pa);
+	PV_LOCK();
+#ifdef notyet
+restart:
+#endif
+	for (pstp = pvh_get_first(pvh); pstp != 0; pstp = pv_get_next(pstp)) {
+		tte = pv_get_tte(pstp);
+		KASSERT(TD_PA(tte.tte_data) == pa,
+		    ("pv_bit_count: corrupt alias chain"));
+		if (tte.tte_data & bits)
+			count++;
+		pv_atomic_bit_clear(pstp, bits);
+#ifdef notyet
+		generation = pv_generation;
+		PV_UNLOCK();
+		ipi_all(IPI_TLB_PAGE_DEMAP);
+		PV_LOCK();
+		if (generation != pv_generation)
+			goto restart;
+#else
+		tlb_page_demap(TLB_DTLB, tte_get_ctx(tte), tte_get_va(tte));
+#endif
+	}
+	PV_UNLOCK();
+	return (count);
 }
 
 void
@@ -150,7 +186,7 @@ restart:
 	for (pstp = pvh_get_first(pvh); pstp != 0; pstp = pv_get_next(pstp)) {
 		tte = pv_get_tte(pstp);
 		KASSERT(TD_PA(tte.tte_data) == pa,
-		    ("pmap_bit_set: corrupt alias chain"));
+		    ("pv_bit_set: corrupt alias chain"));
 		if (tte.tte_data & bits)
 			continue;
 		pv_atomic_bit_set(pstp, bits);
@@ -221,16 +257,4 @@ pv_local_remove_all(vm_offset_t pvh)
 		tsb_tte_local_remove(&tte);
 	}
 	PV_UNLOCK();
-}
-
-void
-pv_dump(vm_offset_t pvh)
-{
-	vm_offset_t pstp;
-
-	printf("pv_dump: pvh=%#lx first=%#lx\n", pvh, pvh_get_first(pvh));
-	for (pstp = pvh_get_first(pvh); pstp != 0; pstp = pv_get_next(pstp))
-		printf("\tpstp=%#lx next=%#lx prev=%#lx\n", pstp,
-		    pv_get_next(pstp), pv_get_prev(pstp));
-	printf("pv_dump: done\n");
 }

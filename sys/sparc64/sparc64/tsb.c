@@ -91,47 +91,6 @@ tsb_get_bucket(pmap_t pm, u_int level, vm_offset_t va, int allocate)
 	return (bucket);
 }
 
-int
-tsb_miss(pmap_t pm, u_int type, struct mmuframe *mf)
-{
-	struct stte *stp;
-	struct tte tte;
-	vm_offset_t va;
-	u_long ctx;
-
-	va = TLB_TAR_VA(mf->mf_tar);
-	ctx = TLB_TAR_CTX(mf->mf_tar);
-	if ((stp = tsb_stte_lookup(pm, va)) == NULL)
-		return (EFAULT);
-	switch (type) {
-	case T_IMMU_MISS:
-		if ((stp->st_tte.tte_data & TD_EXEC) == 0)
-			return (EFAULT);
-		stp->st_tte.tte_data |= TD_REF;
-		tlb_store(TLB_DTLB | TLB_ITLB, va, ctx, stp->st_tte);
-		break;
-	case T_DMMU_MISS:
-	case T_DMMU_MISS | T_KERNEL:
-		stp->st_tte.tte_data |= TD_REF;
-		tte = stp->st_tte;
-		if ((tte.tte_data & TD_MOD) == 0)
-			tte.tte_data &= ~TD_W;
-		tlb_store(TLB_DTLB, va, ctx, tte);
-		break;
-	case T_DMMU_PROT:
-	case T_DMMU_PROT | T_KERNEL:
-		if ((stp->st_tte.tte_data & TD_W) == 0)
-			return (EFAULT);
-		tlb_page_demap(TLB_DTLB, ctx, va);
-		stp->st_tte.tte_data |= TD_MOD;
-		tlb_store(TLB_DTLB, va, ctx, stp->st_tte);
-		break;
-	default:
-		return (EFAULT);
-	}
-	return (0);
-}
-
 struct tte
 tsb_page_alloc(pmap_t pm, vm_offset_t va)
 {
@@ -145,7 +104,7 @@ tsb_page_alloc(pmap_t pm, vm_offset_t va)
 	pa = VM_PAGE_TO_PHYS(m);
 	tte.tte_tag = TT_CTX(TLB_CTX_KERNEL) | TT_VA(va);
 	tte.tte_data = TD_V | TD_8K | TD_VA_LOW(va) | TD_PA(pa) | TD_L |
-	    TD_MOD | TD_REF | TD_CP | TD_P | TD_W;
+	    TD_CP | TD_P | TD_W;
 	return (tte);
 }
 
@@ -178,7 +137,7 @@ tsb_page_init(void *va, int level)
 	for (i = 0; i < PAGE_SIZE; i += inc) {
 		p = (caddr_t)va + i;
 		stp = (struct stte *)p + bsize - 1;
-		stp->st_tte.tte_data = TD_TSB;
+		stp->st_tte.tte_data = TD_L;
 	}
 }
 
@@ -186,22 +145,48 @@ struct stte *
 tsb_stte_lookup(pmap_t pm, vm_offset_t va)
 {
 	struct stte *bucket;
+	struct stte *stp;
 	u_int level;
 	u_int i;
 
-	if (pm == kernel_pmap)
-		return tsb_kvtostte(va);
+	CTR5(KTR_CT1,
+	    "tsb_stte_lookup: ws=%#lx ow=%#lx cr=%#lx cs=%#lx cwp=%#lx",
+	    rdpr(wstate), rdpr(otherwin), rdpr(canrestore), rdpr(cansave),
+	    rdpr(cwp));
+
+	if (pm == kernel_pmap) {
+		stp = tsb_kvtostte(va);
+		CTR3(KTR_CT1,
+		    "tsb_stte_lookup: kernel va=%#lx stp=%#lx data=%#lx",
+		    va, stp, stp->st_tte.tte_data);
+		if (tte_match(stp->st_tte, va)) {
+			CTR1(KTR_CT1, "tsb_stte_lookup: match va=%#lx", va);
+			return (stp);
+		}
+		goto out;
+	}
+
+	CTR2(KTR_CT1, "tsb_stte_lookup: ctx=%#lx va=%#lx", pm->pm_context, va);
 
 	va = trunc_page(va);
 	for (level = 0; level < TSB_DEPTH; level++) {
 		bucket = tsb_get_bucket(pm, level, va, 0);
+		CTR2(KTR_CT1, "tsb_stte_lookup: lvl=%d b=%p", level, bucket);
 		if (bucket == NULL)
 			break;
 		for (i = 0; i < tsb_bucket_size(level); i++) {
-			if (tte_match(bucket[i].st_tte, va))
-				return (&bucket[i]);
+			if (tte_match(bucket[i].st_tte, va)) {
+				stp = &bucket[i];
+				CTR2(KTR_CT1,
+				    "tsb_stte_lookup: match va=%#lx stp=%p",
+				    va, stp);
+				return (stp);
+			}
 		}
 	}
+out:
+	CTR2(KTR_CT1, "tsb_stte_lookup: miss ctx=%#lx va=%#lx",
+	    pm->pm_context, va);
 	return (NULL);
 }
 
@@ -222,8 +207,9 @@ tsb_stte_promote(pmap_t pm, vm_offset_t va, struct stte *stp)
 		if ((bucket[i].st_tte.tte_data & TD_V) == 0 ||
 		    (bucket[i].st_tte.tte_data & (TD_L | TD_REF)) == 0) {
 			tte = stp->st_tte;
+			if (tte.tte_data & TD_MNG)
+				pv_remove_virt(stp);
 			stp->st_tte.tte_data = 0;
-			pv_remove_virt(stp);
 			return (tsb_tte_enter(pm, va, tte));
 		}
 	} while ((i = (i + 1) & bmask) != b0);
@@ -236,8 +222,10 @@ tsb_stte_remove(struct stte *stp)
 	struct tte tte;
 
 	tte = stp->st_tte;
-	tte_invalidate(&stp->st_tte);
-	tsb_tte_local_remove(&tte);
+	if (tte.tte_data & TD_V) {
+		tte_invalidate(&stp->st_tte);
+		tsb_tte_local_remove(&tte);
+	}
 }
 
 void
@@ -264,9 +252,24 @@ tsb_tte_enter(pmap_t pm, vm_offset_t va, struct tte tte)
 	int b0;
 	int i;
 
+	CTR3(KTR_CT1, "tsb_tte_enter: ctx=%#lx va=%#lx data=%#lx",
+	    pm->pm_context, va, tte.tte_data);
+
+	if (pm == kernel_pmap) {
+		stp = tsb_kvtostte(va);
+		if (stp->st_tte.tte_data & TD_MNG)
+			pv_remove_virt(stp);
+		stp->st_tte = tte;
+		if (tte.tte_data & TD_MNG)
+			pv_insert(pm, TD_PA(tte.tte_data), va, stp);
+		return (stp);
+	}
+
 	nstp = NULL;
 	for (level = 0; level < TSB_DEPTH; level++) {
 		bucket = tsb_get_bucket(pm, level, va, 1);
+		CTR3(KTR_CT1, "tsb_tte_enter: va=%#lx bucket=%p level=%d",
+		    va, bucket, level);
 
 		stp = NULL;
 		rstp = NULL;
@@ -274,7 +277,7 @@ tsb_tte_enter(pmap_t pm, vm_offset_t va, struct tte tte)
 		b0 = rd(tick) & bmask;
 		i = b0;
 		do {
-			if ((bucket[i].st_tte.tte_data & (TD_TSB | TD_L)) != 0)
+			if ((bucket[i].st_tte.tte_data & TD_L) != 0)
 				continue;
 			if ((bucket[i].st_tte.tte_data & TD_V) == 0) {
 				stp = &bucket[i];
@@ -296,15 +299,17 @@ tsb_tte_enter(pmap_t pm, vm_offset_t va, struct tte tte)
 			nstp = stp;
 
 		otte = stp->st_tte;
-		if (otte.tte_data & TD_V)
+		if (otte.tte_data & TD_V && otte.tte_data & TD_MNG)
 			pv_remove_virt(stp);
 		stp->st_tte = tte;
-		pv_insert(pm, TD_PA(tte.tte_data), va, stp);
+		if (tte.tte_data & TD_MNG)
+			pv_insert(pm, TD_PA(tte.tte_data), va, stp);
 		if ((otte.tte_data & TD_V) == 0)
 			break;
 		tte = otte;
 		va = tte_get_va(tte);
 	}
+	CTR1(KTR_CT1, "tsb_tte_enter: return stp=%p", nstp);
 	if (level >= TSB_DEPTH)
 		panic("tsb_enter_tte: TSB full");
 	return (nstp);
