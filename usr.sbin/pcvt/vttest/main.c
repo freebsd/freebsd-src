@@ -1909,7 +1909,7 @@ bye () {
 #ifdef UNIX
   stty(0,&sgttyOrg);
 #endif
-  exit();
+  exit(0);
 }
 
 #ifdef UNIX
