@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.29 1995/03/01 23:29:53 davidg Exp $
+ * $Id: swap_pager.c,v 1.30 1995/03/11 22:25:02 davidg Exp $
  */
 
 /*
@@ -732,7 +732,7 @@ swap_pager_getmulti(pager, m, count, reqpage, sync)
 	boolean_t sync;
 {
 	if (reqpage >= count)
-		panic("swap_pager_getmulti: reqpage >= count\n");
+		panic("swap_pager_getmulti: reqpage >= count");
 	return swap_pager_input((sw_pager_t) pager->pg_data, m, count, reqpage);
 }
 

@@ -1,6 +1,6 @@
-static char     nic38_id[] = "@(#)$Id: nic3008.c,v 1.1 1995/02/14 15:00:10 jkh Exp $";
+static char     nic38_id[] = "@(#)$Id: nic3008.c,v 1.2 1995/02/15 11:59:40 jkh Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.1 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.2 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,9 @@ static char     nic38_id[] = "@(#)$Id: nic3008.c,v 1.1 1995/02/14 15:00:10 jkh E
  *
  *******************************************************************************
  * $Log: nic3008.c,v $
+ * Revision 1.2  1995/02/15  11:59:40  jkh
+ * Fix a few more nits.  Should compile better now! :_)
+ *
  * Revision 1.1  1995/02/14  15:00:10  jkh
  * An ISDN driver that supports the EDSS1 and the 1TR6 ISDN interfaces.
  * EDSS1 is the "Euro-ISDN", 1TR6 is the soon obsolete german ISDN Interface.
@@ -748,7 +751,7 @@ b_intr(int mb, int c, struct nic_softc * sc)
 	isdn_ctrl_t    *ctrl = &isdn_ctrl[chan->ctrl];
 
 	if(((unsigned)(mbx->type >> 8) > 3) || ((pl & 0xff00) == 0xff00))
-		panic("3008 conflict with 16 bit card\nReconfig your system\n");
+		panic("3008 conflict with 16 bit card\nReconfig your system");
 
 	if (dpr->msg_flg[mb+1])
 		return;		/* can happen. Should make no problems */

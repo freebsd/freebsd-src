@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: in_rmx.c,v 1.10 1995/02/14 23:11:26 wollman Exp $
+ * $Id: in_rmx.c,v 1.11 1995/02/20 15:48:44 davidg Exp $
  */
 
 /*
@@ -168,7 +168,7 @@ in_rtqkill(struct radix_node *rn, void *rock)
 
 		if(ap->draining || rt->rt_rmx.rmx_expire <= time.tv_sec) {
 			if(rt->rt_refcnt > 0)
-				panic("rtqkill route really not free\n");
+				panic("rtqkill route really not free");
 
 			err = rtrequest(RTM_DELETE,
 					(struct sockaddr *)rt_key(rt),

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.24 1995/03/16 18:17:26 bde Exp $
+ *	$Id: vm_page.c,v 1.25 1995/03/18 01:04:36 davidg Exp $
  */
 
 /*
@@ -783,7 +783,7 @@ vm_page_free(mem)
 			panic("vm_page_free: freeing free page");
 		printf("vm_page_free: offset(%d), bmapped(%d), busy(%d), PG_BUSY(%d)\n",
 		    mem->offset, mem->bmapped, mem->busy, (flags & PG_BUSY) ? 1 : 0);
-		panic("vm_page_free: freeing busy page\n");
+		panic("vm_page_free: freeing busy page");
 	}
 
 	if ((flags & PG_WANTED) != 0)

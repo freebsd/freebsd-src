@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_command.c,v 1.10 1995/03/05 22:56:21 joerg Exp $
+ *	$Id: db_command.c,v 1.11 1995/03/16 18:10:59 bde Exp $
  */
 
 /*
@@ -390,7 +390,7 @@ db_help_cmd()
 void
 db_panic()
 {
-	panic("from debugger\n");
+	panic("from debugger");
 }
 
 void

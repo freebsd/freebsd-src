@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.19 1994/11/24 14:29:20 davidg Exp $
+ *	$Id: if_ie.c,v 1.20 1994/12/22 21:56:09 wollman Exp $
  */
 
 /*
@@ -1517,7 +1517,7 @@ iereset(unit)
 
 #ifdef notdef
   if(!check_ie_present(unit, ie_softc[unit].iomembot, ie_softc[unit].iosize))
-    panic("ie disappeared!\n");
+    panic("ie disappeared!");
 #endif
 
   ie_softc[unit].arpcom.ac_if.if_flags |= IFF_UP;

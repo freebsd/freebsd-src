@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_balloc.c	8.4 (Berkeley) 9/23/93
- * $Id: ffs_balloc.c,v 1.4 1994/10/10 01:04:36 phk Exp $
+ * $Id: ffs_balloc.c,v 1.5 1995/03/03 22:13:16 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -166,7 +166,7 @@ ffs_balloc(ip, bn, size, cred, bpp, flags)
 		return(error);
 #ifdef DIAGNOSTIC
 	if (num < 1)
-		panic ("ffs_balloc: ufs_bmaparray returned indirect block\n");
+		panic ("ffs_balloc: ufs_bmaparray returned indirect block");
 #endif
 	/*
 	 * Fetch the first indirect block allocating if necessary.

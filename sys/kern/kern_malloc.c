@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_malloc.c	8.3 (Berkeley) 1/4/94
- * $Id: kern_malloc.c,v 1.8 1995/02/02 08:49:07 davidg Exp $
+ * $Id: kern_malloc.c,v 1.9 1995/03/11 22:28:16 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -265,12 +265,10 @@ free(addr, type)
 
 #ifdef DIAGNOSTIC
 	if ((char *)addr < kmembase || (char *)addr >= kmemlimit) {
-		printf("free: address 0x%x out of range\n", addr);
-		panic("free: bogus address");
+		panic("free: address 0x%x out of range", addr);
 	}
 	if ((u_long)type > M_LAST) {
-		printf("free: type %d out of range\n", type);
-		panic("free: bogus type");
+		panic("free: type %d out of range", type);
 	}
 #endif
 	kup = btokup(addr);
@@ -287,7 +285,7 @@ free(addr, type)
 	else
 		alloc = addrmask[kup->ku_indx];
 	if (((u_long)addr & alloc) != 0)
-		panic("free: unaligned addr 0x%x, size %d, type %s, mask %d\n",
+		panic("free: unaligned addr 0x%x, size %d, type %s, mask %d",
 			addr, size, memname[type], alloc);
 #endif /* DIAGNOSTIC */
 	if (size > MAXALLOCSAVE) {
