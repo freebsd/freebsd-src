@@ -29,18 +29,20 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *		$Id$
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1980, 1991, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)main.c	8.6 (Berkeley) 5/1/95";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -59,7 +61,6 @@ static char sccsid[] = "@(#)main.c	8.6 (Berkeley) 5/1/95";
 
 #include <ctype.h>
 #include <err.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <fstab.h>
 #include <signal.h>
@@ -423,7 +424,8 @@ main(argc, argv)
 	 * Allocate tape buffer.
 	 */
 	if (!alloctape())
-		quit("can't allocate tape buffers - try a smaller blocking factor.\n");
+		quit(
+	"can't allocate tape buffers - try a smaller blocking factor.\n");
 
 	startnewtape(1);
 	(void)time((time_t *)&(tstart_writing));
@@ -640,7 +642,7 @@ obsolete(argcp, argvp)
 	}
 
 	/* Copy remaining arguments. */
-	while (*nargv++ = *argv++);
+	while ((*nargv++ = *argv++));
 
 	/* Update argument count. */
 	*argcp = nargv - *argvp - 1;
