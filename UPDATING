@@ -23,6 +23,9 @@ NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
 	integrity.  Re-enabling write caching can substantially improve
 	performance.
 
+20020315:
+	FreeBSD 5.0 DP-1 was basically branched today.
+
 20020225:
 	Warnings are now errors in the kernel.  Unless you are a developer,
 	you should add -DNO_WERROR to your make line.
