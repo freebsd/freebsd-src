@@ -1,13 +1,13 @@
 #	@(#)Makefile	5.20 (Berkeley) 6/12/93
 
-# XXX MISSING:		cron mkproto sa
+# XXX MISSING:		cron mkproto
 # XXX MISSING SOURCES:	ac quot
 # XXX TEMP. BROKEN:	iostat
 SUBDIR=	accton amd arp bootpd bootpef bootpgw bootptest chown chroot \
 	cron crunch dbsym dev_mkdb diskpart edquota fdformat fdwrite \
 	inetd kbdcontrol kgmon kvm_mkdb lpr lptcontrol \
 	manctl mtree mrouted pkg_install portmap pstat \
-	pwd_mkdb quotaon repquota routed rmt rtprio rwhod sendmail \
+	pwd_mkdb quotaon repquota routed rmt rtprio rwhod sa sendmail \
 	sliplogin sysctl syslogd tcpdump traceroute trpt tzsetup vidcontrol \
 	vipw xntpd ypbind yppoll ypset zic
 
