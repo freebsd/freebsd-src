@@ -36,7 +36,7 @@
 .\"     @(#)fseek.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd October 12, 2002
+.Dd March 19, 2004
 .Dt FSEEK 3
 .Os
 .Sh NAME
@@ -149,21 +149,29 @@ The
 and
 .Fn fsetpos
 functions
-are alternate interfaces equivalent to
+are alternate interfaces for retrieving and setting the current position in
+the file, similar to
 .Fn ftell
 and
-.Fn fseek
-(with whence set to
-.Dv SEEK_SET ) ,
-setting and storing the current value of
-the file offset into or from the object referenced by
+.Fn fseek ,
+except that the current position is stored in an opaque object of
+type
+.Vt fpos_t
+pointed to by
 .Fa pos .
-On some
-.Pq non- Ns Tn UNIX
-systems an
-.Dq Fa fpos_t
-object may be a complex object
-and these routines may be the only way to portably reposition a text stream.
+These functions provide a portable way to seek to offsets larger than
+those that can be represented by a
+.Vt long int .
+They may also store additional state information in the
+.Vt fpos_t
+object to facilitate seeking within files containing multibyte
+characters with state-dependent encodings.
+Although
+.Vt fpos_t
+has traditionally been an integral type,
+applications cannot assume that it is;
+in particular, they must not perform arithmetic on objects
+of this type.
 .Pp
 If the stream is a wide character stream (see
 .Xr fwide 3 ) ,
