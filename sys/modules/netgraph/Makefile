@@ -1,8 +1,7 @@
 # $Whistle: Makefile,v 1.5 1999/01/24 06:48:37 archie Exp $
 # $FreeBSD$
 
-SUBDIR=	UI \
-	async \
+SUBDIR=	async \
 	atm \
 	${_bluetooth} \
 	bpf \
@@ -38,6 +37,7 @@ SUBDIR=	UI \
 	sync_sr \
 	tee \
 	tty \
+	UI \
 	vjc \
 	vlan
 
