@@ -103,7 +103,8 @@ extern void vm_waitpfault(void);
 
 /* XXX This is probably misplaced. */
 #ifndef NO_SWAPPING
-void vm_proc_swapin_all(int);
+struct swdevt;
+void vm_proc_swapin_all(struct swdevt *);
 #endif	/* !NO_SWAPPING */
 
 #ifdef _KERNEL
