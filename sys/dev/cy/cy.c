@@ -77,6 +77,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/serial.h>
 #include <sys/syslog.h>
 #include <sys/tty.h>
 
@@ -89,51 +90,7 @@ __FBSDID("$FreeBSD$");
 
 #define	NCY 10			/* KLUDGE */
 
-/*
- * Dictionary so that I can name everything *sio* or *com* to compare with
- * sio.c.  There is also lots of ugly formatting and unnecessary ifdefs to
- * simplify the comparision.  These will go away.
- */
-#define	LSR_BI		CD1400_RDSR_BREAK
-#define	LSR_FE		CD1400_RDSR_FE
-#define	LSR_OE		CD1400_RDSR_OE
-#define	LSR_PE		CD1400_RDSR_PE
-#define	MCR_DTR		CD1400_MSVR2_DTR
-#define	MCR_RTS		CD1400_MSVR1_RTS
-#define	MSR_CTS		CD1400_MSVR2_CTS
-#define	MSR_DCD		CD1400_MSVR2_CD
-#define	MSR_DSR		CD1400_MSVR2_DSR
-#define	MSR_RI		CD1400_MSVR2_RI
-#define	NSIO		(NCY * CY_MAX_PORTS)
-#define	comconsole	cyconsole
-#define	comdefaultrate	cydefaultrate
-#define	com_events	cy_events
-#define	comhardclose	cyhardclose
-#define	commctl		cymctl
-#define	comparam	cyparam
-#define	comspeed	cyspeed
-#define	comstart	cystart
-#define	comwakeup	cywakeup
-#define	p_com_addr	p_cy_addr
-#define	sioclose	cyclose
-#define	siodriver	cydriver
-#define	sioinput	cyinput
-#define	siointr1	cyintr
-#define	sioioctl	cyioctl
-#define	sioopen		cyopen
-#define	siopoll		cypoll
-#define	siosettimeout	cysettimeout
-#define	siosetwater	cysetwater
-#define	comstop		cystop
-#define	siowrite	cywrite
-#define	sio_fast_ih	cy_fast_ih
-#define	sio_inited	cy_inited
-#define	sio_irec	cy_irec
-#define	sio_lock	cy_lock
-#define	sio_slow_ih	cy_slow_ih
-#define	sio_timeout	cy_timeout
-#define	sio_timeout_handle cy_timeout_handle
-#define	sio_timeouts_until_log	cy_timeouts_until_log
+#define	NPORTS		(NCY * CY_MAX_PORTS)
 
 #define	CY_MAX_PORTS		(CD1400_NO_OF_CHANNELS * CY_MAX_CD1400s)
 
@@ -153,22 +110,6 @@ __FBSDID("$FreeBSD$");
 
 #define	LOTS_OF_EVENTS	64	/* helps separate urgent events from input */
 
-#define	CALLOUT_MASK		0x80
-#define	CONTROL_MASK		0x60
-#define	CONTROL_INIT_STATE	0x20
-#define	CONTROL_LOCK_STATE	0x40
-#define	DEV_TO_UNIT(dev)	(MINOR_TO_UNIT(minor(dev)))
-#define	MINOR_MAGIC_MASK	(CALLOUT_MASK | CONTROL_MASK)
-/*
- * Not all of the magic is parametrized in the following macros.  16 and
- * 0xff are related to the bitfields in a dev_t.  CY_MAX_PORTS must be
- * ((0xff & ~MINOR_MAGIC_MASK) + 1) for things to work.
- */
-#define	MINOR_TO_UNIT(mynor)	(((mynor) >> 16) * CY_MAX_PORTS \
-				 | (((mynor) & 0xff) & ~MINOR_MAGIC_MASK))
-#define	UNIT_TO_MINOR(unit)	(((unit) / CY_MAX_PORTS) << 16 \
-				 | (((unit) & 0xff) & ~MINOR_MAGIC_MASK))
-
 /*
  * com state bits.
  * (CS_BUSY | CS_TTGO) and (CS_BUSY | CS_TTGO | CS_ODEVREADY) must be higher
@@ -176,11 +117,11 @@ __FBSDID("$FreeBSD$");
  * off the low bits.
  *
  * The following com and tty flags correspond closely:
- *	CS_BUSY		= TS_BUSY (maintained by comstart(), siopoll() and
+ *	CS_BUSY		= TS_BUSY (maintained by cystart(), cypoll() and
  *				   comstop())
- *	CS_TTGO		= ~TS_TTSTOP (maintained by comparam() and comstart())
- *	CS_CTS_OFLOW	= CCTS_OFLOW (maintained by comparam())
- *	CS_RTS_IFLOW	= CRTS_IFLOW (maintained by comparam())
+ *	CS_TTGO		= ~TS_TTSTOP (maintained by cyparam() and cystart())
+ *	CS_CTS_OFLOW	= CCTS_OFLOW (maintained by cyparam())
+ *	CS_RTS_IFLOW	= CRTS_IFLOW (maintained by cyparam())
  * TS_FLUSH is not used.
  * XXX I think TIOCSETA doesn't clear TS_TTSTOP when it clears IXON.
  * XXX CS_*FLOW should be CF_*FLOW in com->flags (control flags not state).
@@ -207,8 +148,8 @@ static	char const * const	error_desc[] = {
 #define	CE_RECORD(com, errnum)		(++(com)->delta_error_counts[errnum])
 
 #ifdef SMP
-#define	COM_LOCK()	mtx_lock_spin(&sio_lock)
-#define	COM_UNLOCK()	mtx_unlock_spin(&sio_lock)
+#define	COM_LOCK()	mtx_lock_spin(&cy_lock)
+#define	COM_UNLOCK()	mtx_unlock_spin(&cy_lock)
 #else
 #define	COM_LOCK()
 #define	COM_UNLOCK()
@@ -228,36 +169,13 @@ struct lbq {
 /* com device structure */
 struct com_s {
 	u_char	state;		/* miscellaneous flag bits */
-	bool_t  active_out;	/* nonzero if the callout device is open */
-#if 0
-	u_char	cfcr_image;	/* copy of value written to CFCR */
-#endif
 	u_char	etc;		/* pending Embedded Transmit Command */
 	u_char	extra_state;	/* more flag bits, separate for order trick */
-#if 0
-	u_char	fifo_image;	/* copy of value written to FIFO */
-#endif
 	u_char	gfrcr_image;	/* copy of value read from GFRCR */
-#if 0
-	bool_t	hasfifo;	/* nonzero for 16550 UARTs */
-	bool_t	loses_outints;	/* nonzero if device loses output interrupts */
-#endif
 	u_char	mcr_dtr;	/* MCR bit that is wired to DTR */
 	u_char	mcr_image;	/* copy of value written to MCR */
 	u_char	mcr_rts;	/* MCR bit that is wired to RTS */
-#if 0
-#ifdef COM_MULTIPORT
-	bool_t	multiport;	/* is this unit part of a multiport device? */
-#endif /* COM_MULTIPORT */
-	bool_t	no_irq;		/* nonzero if irq is not attached */
-	bool_t	poll;		/* nonzero if polling is required */
-	bool_t	poll_output;	/* nonzero if polling for output is required */
-#endif
 	int	unit;		/* unit	number */
-#if 0
-	u_int	tx_fifo_size;
-#endif
-	u_int	wopeners;	/* # processes waiting for DCD in open() */
 
 	/*
 	 * The high level of the driver never reads status registers directly
@@ -286,17 +204,6 @@ struct com_s {
 
 	struct tty	*tp;	/* cross reference */
 
-	/* Initial state. */
-	struct termios	it_in;	/* should be in struct tty */
-	struct termios	it_out;
-
-	/* Lock state. */
-	struct termios	lt_in;	/* should be in struct tty */
-	struct termios	lt_out;
-
-	bool_t	do_timestamp;
-	struct timeval	timestamp;
-
 	u_long	bytes_in;	/* statistics */
 	u_long	bytes_out;
 	u_int	delta_error_counts[CE_NTYPES];
@@ -305,7 +212,7 @@ struct com_s {
 	u_int	recv_exception;	/* exception chars received */
 	u_int	mdm;		/* modem signal changes */
 #ifdef CyDebug
-	u_int	start_count;	/* no. of calls to comstart() */
+	u_int	start_count;	/* no. of calls to cystart() */
 	u_int	start_real;	/* no. of calls that did something */
 #endif
 	u_char	car;		/* CD1400 CAR shadow (if first unit in cd) */
@@ -329,55 +236,41 @@ static	void	cd1400_channel_cmd_wait(struct com_s *com);
 static	void	cd_etc(struct com_s *com, int etc);
 static	int	cd_getreg(struct com_s *com, int reg);
 static	void	cd_setreg(struct com_s *com, int reg, int val);
-static	void	comhardclose(struct com_s *com);
-static	void	sioinput(struct com_s *com);
-static	int	commctl(struct com_s *com, int bits, int how);
-static	int	comparam(struct tty *tp, struct termios *t);
-static	void	siopoll(void *arg);
-static	void	siosettimeout(void);
-static	int	siosetwater(struct com_s *com, speed_t speed);
-static	int	comspeed(speed_t speed, u_long cy_clock, int *prescaler_io);
-static	void	comstart(struct tty *tp);
+static	void	cyinput(struct com_s *com);
+static	int	cyparam(struct tty *tp, struct termios *t);
+static	void	cypoll(void *arg);
+static	void	cysettimeout(void);
+static	int	cysetwater(struct com_s *com, speed_t speed);
+static	int	cyspeed(speed_t speed, u_long cy_clock, int *prescaler_io);
+static	void	cystart(struct tty *tp);
 static	void	comstop(struct tty *tp, int rw);
-static	timeout_t comwakeup;
+static	timeout_t cywakeup;
 static	void	disc_optim(struct tty *tp, struct termios *t,
 		    struct com_s *com);
+
+static t_break_t	cybreak;
+static t_modem_t	cymodem;
+static t_open_t		cyopen;
+static t_close_t	cyclose;
 
 #ifdef CyDebug
 void	cystatus(int unit);
 #endif
 
-static struct	mtx sio_lock;
-static int	sio_inited;
+static struct	mtx cy_lock;
+static int	cy_inited;
 
 /* table and macro for fast conversion from a unit number to its com struct */
-static	struct com_s	*p_com_addr[NSIO];
-#define	com_addr(unit)	(p_com_addr[unit])
+static	struct com_s	*p_cy_addr[NPORTS];
+#define	cy_addr(unit)	(p_cy_addr[unit])
 
-static	d_open_t	sioopen;
-static	d_close_t	sioclose;
-static	d_write_t	siowrite;
-static	d_ioctl_t	sioioctl;
-
-static struct cdevsw sio_cdevsw = {
-	.d_version =	D_VERSION,
-	.d_open =	sioopen,
-	.d_close =	sioclose,
-	.d_write =	siowrite,
-	.d_ioctl =	sioioctl,
-	.d_name =	cy_driver_name,
-	.d_flags =	D_TTY | D_NEEDGIANT,
-};
-
-static	int	comconsole = -1;
-static	speed_t	comdefaultrate = TTYDEF_SPEED;
-static	u_int	com_events;	/* input chars + weighted output completions */
-static	void	*sio_fast_ih;
-static	void	*sio_slow_ih;
-static	int	sio_timeout;
-static	int	sio_timeouts_until_log;
-static	struct	callout_handle sio_timeout_handle
-    = CALLOUT_HANDLE_INITIALIZER(&sio_timeout_handle);
+static	u_int	cy_events;	/* input chars + weighted output completions */
+static	void	*cy_fast_ih;
+static	void	*cy_slow_ih;
+static	int	cy_timeout;
+static	int	cy_timeouts_until_log;
+static	struct	callout_handle cy_timeout_handle
+    = CALLOUT_HANDLE_INITIALIZER(&cy_timeout_handle);
 
 #ifdef CyDebug
 static	u_int	cd_inbs;
@@ -397,9 +290,7 @@ static	int	cy_total_devices;
 static	int	volatile RxFifoThreshold = (CD1400_RX_FIFO_SIZE / 2);
 
 int
-cy_units(cy_iobase, cy_align)
-	cy_addr	cy_iobase;
-	int	cy_align;
+cy_units(cy_addr cy_iobase, int cy_align)
 {
 	int	cyu;
 	u_char	firmware_version;
@@ -449,22 +340,20 @@ cy_units(cy_iobase, cy_align)
 }
 
 void *
-cyattach_common(cy_iobase, cy_align)
-	cy_addr	cy_iobase;
-	int	cy_align;
+cyattach_common(cy_addr cy_iobase, int cy_align)
 {
 	int	adapter;
 	int	cyu;
 	u_char	firmware_version;
 	cy_addr	iobase;
-	int	minorbase;
 	int	ncyu;
 	int	unit;
+	struct tty *tp;
 
-	while (sio_inited != 2)
-		if (atomic_cmpset_int(&sio_inited, 0, 1)) {
-			mtx_init(&sio_lock, cy_driver_name, NULL, MTX_SPIN);
-			atomic_store_rel_int(&sio_inited, 2);
+	while (cy_inited != 2)
+		if (atomic_cmpset_int(&cy_inited, 0, 1)) {
+			mtx_init(&cy_lock, cy_driver_name, NULL, MTX_SPIN);
+			atomic_store_rel_int(&cy_inited, 2);
 		}
 
 	adapter = cy_total_devices;
@@ -497,325 +386,116 @@ cyattach_common(cy_iobase, cy_align)
 			struct com_s	*com;
 			int		s;
 
-	com = malloc(sizeof *com, M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (com == NULL)
-		break;
-	com->unit = unit;
+			com = malloc(sizeof *com, M_DEVBUF, M_NOWAIT | M_ZERO);
+			if (com == NULL)
+				break;
+			com->unit = unit;
 			com->gfrcr_image = firmware_version;
 			if (CY_RTS_DTR_SWAPPED(firmware_version)) {
-				com->mcr_dtr = MCR_RTS;
-				com->mcr_rts = MCR_DTR;
+				com->mcr_dtr = CD1400_MSVR1_RTS;
+				com->mcr_rts = CD1400_MSVR2_DTR;
 				com->mcr_rts_reg = CD1400_MSVR2;
 			} else {
-				com->mcr_dtr = MCR_DTR;
-				com->mcr_rts = MCR_RTS;
+				com->mcr_dtr = CD1400_MSVR2_DTR;
+				com->mcr_rts = CD1400_MSVR1_RTS;
 				com->mcr_rts_reg = CD1400_MSVR1;
 			}
-	com->obufs[0].l_head = com->obuf1;
-	com->obufs[1].l_head = com->obuf2;
+			com->obufs[0].l_head = com->obuf1;
+			com->obufs[1].l_head = com->obuf2;
 
 			com->cy_align = cy_align;
 			com->cy_iobase = cy_iobase;
-	com->iobase = iobase;
+			com->iobase = iobase;
 			com->car = ~CD1400_CAR_CHAN;
 
-	/*
-	 * We don't use all the flags from <sys/ttydefaults.h> since they
-	 * are only relevant for logins.  It's important to have echo off
-	 * initially so that the line doesn't start blathering before the
-	 * echo flag can be turned off.
-	 */
-	com->it_in.c_iflag = 0;
-	com->it_in.c_oflag = 0;
-	com->it_in.c_cflag = TTYDEF_CFLAG;
-	com->it_in.c_lflag = 0;
-	if (unit == comconsole) {
-		com->it_in.c_iflag = TTYDEF_IFLAG;
-		com->it_in.c_oflag = TTYDEF_OFLAG;
-		com->it_in.c_cflag = TTYDEF_CFLAG | CLOCAL;
-		com->it_in.c_lflag = TTYDEF_LFLAG;
-		com->lt_out.c_cflag = com->lt_in.c_cflag = CLOCAL;
-	}
-	if (siosetwater(com, com->it_in.c_ispeed) != 0) {
-		free(com, M_DEVBUF);
-		return (NULL);
-	}
-	termioschars(&com->it_in);
-	com->it_in.c_ispeed = com->it_in.c_ospeed = comdefaultrate;
-	com->it_out = com->it_in;
+			tp = com->tp = ttyalloc();
+			tp->t_open = cyopen;
+			tp->t_close = cyclose;
+			tp->t_oproc = cystart;
+			tp->t_stop = comstop;
+			tp->t_param = cyparam;
+			tp->t_break = cybreak;
+			tp->t_modem = cymodem;
+			tp->t_sc = com;
 
-	s = spltty();
-	com_addr(unit) = com;
-	splx(s);
+			if (cysetwater(com, tp->t_init_in.c_ispeed) != 0) {
+				free(com, M_DEVBUF);
+				return (NULL);
+			}
 
-	if (sio_fast_ih == NULL) {
-		swi_add(&tty_ithd, "cy", siopoll, NULL, SWI_TTY, 0,
-			&sio_fast_ih);
-		swi_add(&clk_ithd, "cy", siopoll, NULL, SWI_CLOCK, 0,
-			&sio_slow_ih);
-	}
-	minorbase = UNIT_TO_MINOR(unit);
-	make_dev(&sio_cdevsw, minorbase,
-		UID_ROOT, GID_WHEEL, 0600, "ttyc%r%r", adapter,
-		unit % CY_MAX_PORTS);
-	make_dev(&sio_cdevsw, minorbase | CONTROL_INIT_STATE,
-		UID_ROOT, GID_WHEEL, 0600, "ttyic%r%r", adapter,
-		unit % CY_MAX_PORTS);
-	make_dev(&sio_cdevsw, minorbase | CONTROL_LOCK_STATE,
-		UID_ROOT, GID_WHEEL, 0600, "ttylc%r%r", adapter,
-		unit % CY_MAX_PORTS);
-	make_dev(&sio_cdevsw, minorbase | CALLOUT_MASK,
-		UID_UUCP, GID_DIALER, 0660, "cuac%r%r", adapter,
-		unit % CY_MAX_PORTS);
-	make_dev(&sio_cdevsw, minorbase | CALLOUT_MASK | CONTROL_INIT_STATE,
-		UID_UUCP, GID_DIALER, 0660, "cuaic%r%r", adapter,
-		unit % CY_MAX_PORTS);
-	make_dev(&sio_cdevsw, minorbase | CALLOUT_MASK | CONTROL_LOCK_STATE,
-		UID_UUCP, GID_DIALER, 0660, "cualc%r%r", adapter,
-		unit % CY_MAX_PORTS);
+			s = spltty();
+			cy_addr(unit) = com;
+			splx(s);
+
+			if (cy_fast_ih == NULL) {
+				swi_add(&tty_ithd, "cy", cypoll, NULL, SWI_TTY, 0,
+					&cy_fast_ih);
+				swi_add(&clk_ithd, "cy", cypoll, NULL, SWI_CLOCK, 0,
+					&cy_slow_ih);
+			}
+			ttycreate(tp, NULL, 0, MINOR_CALLOUT, "c%r%r",
+			    adapter, unit % CY_MAX_PORTS);
 		}
 	}
 
 	/* ensure an edge for the next interrupt */
 	cy_outb(cy_iobase, CY_CLEAR_INTR, cy_align, 0);
 
-	return (com_addr(adapter * CY_MAX_PORTS));
+	return (cy_addr(adapter * CY_MAX_PORTS));
 }
 
 static int
-sioopen(dev, flag, mode, td)
-	struct cdev *dev;
-	int		flag;
-	int		mode;
-	struct thread	*td;
+cyopen(struct tty *tp, struct cdev *dev)
 {
 	struct com_s	*com;
-	int		error;
-	int		mynor;
 	int		s;
-	struct tty	*tp;
-	int		unit;
 
-	mynor = minor(dev);
-	unit = MINOR_TO_UNIT(mynor);
-	if ((u_int) unit >= NSIO || (com = com_addr(unit)) == NULL)
-		return (ENXIO);
-	if (mynor & CONTROL_MASK)
-		return (0);
-	tp = dev->si_tty = com->tp = ttymalloc(com->tp);
+	com = tp->t_sc;
 	s = spltty();
 	/*
 	 * We jump to this label after all non-interrupted sleeps to pick
 	 * up any changes of the device state.
 	 */
-open_top:
-	error = ttydtrwaitsleep(tp);
-	if (error != 0)
-		goto out;
-	if (tp->t_state & TS_ISOPEN) {
-		/*
-		 * The device is open, so everything has been initialized.
-		 * Handle conflicts.
-		 */
-		if (mynor & CALLOUT_MASK) {
-			if (!com->active_out) {
-				error = EBUSY;
-				goto out;
-			}
-		} else {
-			if (com->active_out) {
-				if (flag & O_NONBLOCK) {
-					error = EBUSY;
-					goto out;
-				}
-				error =	tsleep(&com->active_out,
-					       TTIPRI | PCATCH, "cybi", 0);
-				if (error != 0)
-					goto out;
-				goto open_top;
-			}
-		}
-		if (tp->t_state & TS_XCLUDE &&
-		    suser(td)) {
-			error = EBUSY;
-			goto out;
-		}
-	} else {
-		/*
-		 * The device isn't open, so there are no conflicts.
-		 * Initialize it.  Initialization is done twice in many
-		 * cases: to preempt sleeping callin opens if we are
-		 * callout, and to complete a callin open after DCD rises.
-		 */
-		tp->t_oproc = comstart;
-		tp->t_stop = comstop;
-		tp->t_param = comparam;
-		tp->t_dev = dev;
-		tp->t_termios = mynor & CALLOUT_MASK
-				? com->it_out : com->it_in;
 
-		/* Encode per-board unit in LIVR for access in intr routines. */
-		cd_setreg(com, CD1400_LIVR,
-			  (unit & CD1400_xIVR_CHAN) << CD1400_xIVR_CHAN_SHIFT);
+	/* Encode per-board unit in LIVR for access in intr routines. */
+	cd_setreg(com, CD1400_LIVR,
+		  (com->unit & CD1400_xIVR_CHAN) << CD1400_xIVR_CHAN_SHIFT);
 
-		(void)commctl(com, TIOCM_DTR | TIOCM_RTS, DMSET);
-#if 0
-		com->poll = com->no_irq;
-		com->poll_output = com->loses_outints;
-#endif
-		++com->wopeners;
-		error = comparam(tp, &tp->t_termios);
-		--com->wopeners;
-		if (error != 0)
-			goto out;
-#if 0
-		if (com->hasfifo) {
-			/*
-			 * (Re)enable and flush fifos.
-			 *
-			 * Certain SMC chips cause problems if the fifos
-			 * are enabled while input is ready.  Turn off the
-			 * fifo if necessary to clear the input.  We test
-			 * the input ready bit after enabling the fifos
-			 * since we've already enabled them in comparam()
-			 * and to handle races between enabling and fresh
-			 * input.
-			 */
-			while (TRUE) {
-				outb(iobase + com_fifo,
-				     FIFO_RCV_RST | FIFO_XMT_RST
-				     | com->fifo_image);
-				DELAY(100);
-				if (!(inb(com->line_status_port) & LSR_RXRDY))
-					break;
-				outb(iobase + com_fifo, 0);
-				DELAY(100);
-				(void) inb(com->data_port);
-			}
-		}
-
-		critical_enter();
-		COM_LOCK();
-		(void) inb(com->line_status_port);
-		(void) inb(com->data_port);
-		com->prev_modem_status = com->last_modem_status
-		    = inb(com->modem_status_port);
-		outb(iobase + com_ier, IER_ERXRDY | IER_ETXRDY | IER_ERLS
-				       | IER_EMSC);
-		COM_UNLOCK();
-		critical_exit();
-#else /* !0 */
-		/*
-		 * Flush fifos.  This requires a full channel reset which
-		 * also disables the transmitter and receiver.  Recover
-		 * from this.
-		 */
-		cd1400_channel_cmd(com,
-				   CD1400_CCR_CMDRESET | CD1400_CCR_CHANRESET);
-		cd1400_channel_cmd(com, com->channel_control);
-
-		critical_enter();
-		COM_LOCK();
-		com->prev_modem_status = com->last_modem_status
-		    = cd_getreg(com, CD1400_MSVR2);
-		cd_setreg(com, CD1400_SRER,
-			  com->intr_enable
-			  = CD1400_SRER_MDMCH | CD1400_SRER_RXDATA);
-		COM_UNLOCK();
-		critical_exit();
-#endif /* 0 */
-		/*
-		 * Handle initial DCD.  Callout devices get a fake initial
-		 * DCD (trapdoor DCD).  If we are callout, then any sleeping
-		 * callin opens get woken up and resume sleeping on "cybi"
-		 * instead of "cydcd".
-		 */
-		/*
-		 * XXX `mynor & CALLOUT_MASK' should be
-		 * `tp->t_cflag & (SOFT_CARRIER | TRAPDOOR_CARRIER) where
-		 * TRAPDOOR_CARRIER is the default initial state for callout
-		 * devices and SOFT_CARRIER is like CLOCAL except it hides
-		 * the true carrier.
-		 */
-		if (com->prev_modem_status & MSR_DCD || mynor & CALLOUT_MASK)
-			ttyld_modem(tp, 1);
-	}
 	/*
-	 * Wait for DCD if necessary.
+	 * Flush fifos.  This requires a full channel reset which
+	 * also disables the transmitter and receiver.  Recover
+	 * from this.
 	 */
-	if (!(tp->t_state & TS_CARR_ON) && !(mynor & CALLOUT_MASK)
-	    && !(tp->t_cflag & CLOCAL) && !(flag & O_NONBLOCK)) {
-		++com->wopeners;
-		error = tsleep(TSA_CARR_ON(tp), TTIPRI | PCATCH, "cydcd", 0);
-		--com->wopeners;
-		if (error != 0)
-			goto out;
-		goto open_top;
-	}
-	error =	ttyld_open(tp, dev);
-	disc_optim(tp, &tp->t_termios, com);
-	if (tp->t_state & TS_ISOPEN && mynor & CALLOUT_MASK)
-		com->active_out = TRUE;
-	siosettimeout();
-out:
-	splx(s);
-	if (!(tp->t_state & TS_ISOPEN) && com->wopeners == 0)
-		comhardclose(com);
-	return (error);
-}
+	cd1400_channel_cmd(com,
+			   CD1400_CCR_CMDRESET | CD1400_CCR_CHANRESET);
+	cd1400_channel_cmd(com, com->channel_control);
 
-static int
-sioclose(dev, flag, mode, td)
-	struct cdev *dev;
-	int		flag;
-	int		mode;
-	struct thread	*td;
-{
-	struct com_s	*com;
-	int		mynor;
-	int		s;
-	struct tty	*tp;
-
-	mynor = minor(dev);
-	if (mynor & CONTROL_MASK)
-		return (0);
-	com = com_addr(MINOR_TO_UNIT(mynor));
-	tp = com->tp;
-	s = spltty();
-	cd_etc(com, CD1400_ETC_STOPBREAK);
-	ttyld_close(tp, flag);
-	disc_optim(tp, &tp->t_termios, com);
-	comhardclose(com);
-	tty_close(tp);
-	siosettimeout();
-	splx(s);
-#ifdef broken /* session holds a ref to the tty; can't deallocate */
-	ttyfree(tp);
-	com->tp = NULL;
-#endif
+	critical_enter();
+	COM_LOCK();
+	com->prev_modem_status = com->last_modem_status
+	    = cd_getreg(com, CD1400_MSVR2);
+	cd_setreg(com, CD1400_SRER,
+		  com->intr_enable
+		  = CD1400_SRER_MDMCH | CD1400_SRER_RXDATA);
+	COM_UNLOCK();
+	critical_exit();
+	cysettimeout();
 	return (0);
 }
 
+
 static void
-comhardclose(com)
-	struct com_s	*com;
+cyclose(struct tty *tp)
 {
 	cy_addr		iobase;
+	struct com_s	*com;
 	int		s;
-	struct tty	*tp;
 	int		unit;
 
+	com = tp->t_sc;
 	unit = com->unit;
 	iobase = com->iobase;
 	s = spltty();
-#if 0
-	com->poll = FALSE;
-	com->poll_output = FALSE;
-#endif
-	com->do_timestamp = 0;
-#if 0
-	outb(iobase + com_cfcr, com->cfcr_image &= ~CFCR_SBREAK);
-#else
 	/* XXX */
 	critical_enter();
 	COM_LOCK();
@@ -823,19 +503,15 @@ comhardclose(com)
 	cd_setreg(com, CD1400_COR2, com->cor[1] &= ~CD1400_COR2_ETC);
 	COM_UNLOCK();
 	critical_exit();
+	cd_etc(com, CD1400_ETC_STOPBREAK);
 	cd1400_channel_cmd(com, CD1400_CCR_CMDRESET | CD1400_CCR_FTF);
-#endif
 
 	{
-#if 0
-		outb(iobase + com_ier, 0);
-#else
 		critical_enter();
 		COM_LOCK();
 		cd_setreg(com, CD1400_SRER, com->intr_enable = 0);
 		COM_UNLOCK();
 		critical_exit();
-#endif
 		tp = com->tp;
 		if ((tp->t_cflag & HUPCL)
 		    /*
@@ -845,11 +521,11 @@ comhardclose(com)
 		     * the next open because it might go up and down while
 		     * we're not watching.
 		     */
-		    || (!com->active_out
-		       && !(com->prev_modem_status & MSR_DCD)
-		       && !(com->it_in.c_cflag & CLOCAL))
+		    || (!tp->t_actout
+		       && !(com->prev_modem_status & CD1400_MSVR2_CD)
+		       && !(tp->t_init_in.c_cflag & CLOCAL))
 		    || !(tp->t_state & TS_ISOPEN)) {
-			(void)commctl(com, TIOCM_DTR, DMBIC);
+			(void)cymodem(tp, 0, SER_DTR);
 
 			/* Disable receiver (leave transmitter enabled). */
 			com->channel_control = CD1400_CCR_CMDCHANCTL
@@ -860,54 +536,10 @@ comhardclose(com)
 			ttydtrwaitstart(tp);
 		}
 	}
-#if 0
-	if (com->hasfifo) {
-		/*
-		 * Disable fifos so that they are off after controlled
-		 * reboots.  Some BIOSes fail to detect 16550s when the
-		 * fifos are enabled.
-		 */
-		outb(iobase + com_fifo, 0);
-	}
-#endif
-	com->active_out = FALSE;
-	wakeup(&com->active_out);
+	tp->t_actout = FALSE;
+	wakeup(&tp->t_actout);
 	wakeup(TSA_CARR_ON(tp));	/* restart any wopeners */
 	splx(s);
-}
-
-static int
-siowrite(dev, uio, flag)
-	struct cdev *dev;
-	struct uio	*uio;
-	int		flag;
-{
-	int		mynor;
-	struct tty	*tp;
-	int		unit;
-
-	mynor = minor(dev);
-	if (mynor & CONTROL_MASK)
-		return (ENODEV);
-
-	unit = MINOR_TO_UNIT(mynor);
-	tp = com_addr(unit)->tp;
-	/*
-	 * (XXX) We disallow virtual consoles if the physical console is
-	 * a serial port.  This is in case there is a display attached that
-	 * is not the console.  In that situation we don't need/want the X
-	 * server taking over the console.
-	 */
-	if (constty != NULL && unit == comconsole)
-		constty = NULL;
-#ifdef Smarts
-	/* XXX duplicate ttwrite(), but without so much output processing on
-	 * CR & LF chars.  Hardly worth the effort, given that high-throughput
-	 * sessions are raw anyhow.
-	 */
-#else
-	return (ttyld_write(tp, uio, flag));
-#endif
 }
 
 /*
@@ -916,8 +548,7 @@ siowrite(dev, uio, flag)
  *  b) needs to return with COM_LOCK() held.
  */
 static void
-sioinput(com)
-	struct com_s	*com;
+cyinput(struct com_s *com)
 {
 	u_char		*buf;
 	int		incc;
@@ -928,7 +559,7 @@ sioinput(com)
 	buf = com->ibuf;
 	tp = com->tp;
 	if (!(tp->t_state & TS_ISOPEN)) {
-		com_events -= (com->iptr - com->ibuf);
+		cy_events -= (com->iptr - com->ibuf);
 		com->iptr = com->ibuf;
 		return;
 	}
@@ -967,7 +598,7 @@ sioinput(com)
 				|| tp->t_cc[VSTART] == tp->t_cc[VSTOP])) {
 				tp->t_state &= ~TS_TTSTOP;
 				tp->t_lflag &= ~FLUSHO;
-				comstart(tp);
+				cystart(tp);
 			}
 			critical_enter();
 			COM_LOCK();
@@ -984,14 +615,14 @@ sioinput(com)
 			line_status = buf[com->ierroff];
 			recv_data = *buf++;
 			if (line_status
-			    & (LSR_BI | LSR_FE | LSR_OE | LSR_PE)) {
-				if (line_status & LSR_BI)
+			    & (CD1400_RDSR_BREAK | CD1400_RDSR_FE | CD1400_RDSR_OE | CD1400_RDSR_PE)) {
+				if (line_status & CD1400_RDSR_BREAK)
 					recv_data |= TTY_BI;
-				if (line_status & LSR_FE)
+				if (line_status & CD1400_RDSR_FE)
 					recv_data |= TTY_FE;
-				if (line_status & LSR_OE)
+				if (line_status & CD1400_RDSR_OE)
 					recv_data |= TTY_OE;
-				if (line_status & LSR_PE)
+				if (line_status & CD1400_RDSR_PE)
 					recv_data |= TTY_PE;
 			}
 			ttyld_rint(tp, recv_data);
@@ -999,7 +630,7 @@ sioinput(com)
 			COM_LOCK();
 		} while (buf < com->iptr);
 	}
-	com_events -= (com->iptr - com->ibuf);
+	cy_events -= (com->iptr - com->ibuf);
 	com->iptr = com->ibuf;
 
 	/*
@@ -1009,17 +640,12 @@ sioinput(com)
 	 */
 	if ((com->state & CS_RTS_IFLOW) && !(com->mcr_image & com->mcr_rts) &&
 	    !(tp->t_state & TS_TBLOCK))
-#if 0
-		outb(com->modem_ctl_port, com->mcr_image |= MCR_RTS);
-#else
 		cd_setreg(com, com->mcr_rts_reg,
 			  com->mcr_image |= com->mcr_rts);
-#endif
 }
 
 void
-siointr1(vcom)
-	void	*vcom;
+cyintr(void *vcom)
 {
 	struct com_s	*basecom;
 	int	baseu;
@@ -1066,18 +692,18 @@ siointr1(vcom)
 
 			/* enter rx service */
 			cd_outb(iobase, CD1400_CAR, cy_align, save_rir);
-			com_addr(baseu + cyu * CD1400_NO_OF_CHANNELS)->car
+			cy_addr(baseu + cyu * CD1400_NO_OF_CHANNELS)->car
 			= save_rir & CD1400_CAR_CHAN;
 
 			serv_type = cd_inb(iobase, CD1400_RIVR, cy_align);
-			com = com_addr(baseu
+			com = cy_addr(baseu
 				       + ((serv_type >> CD1400_xIVR_CHAN_SHIFT)
 					  & CD1400_xIVR_CHAN));
 #else
 			/* ack receive service */
 			serv_type = cy_inb(iobase, CY8_SVCACKR, cy_align);
 
-			com = com_addr(baseu +
+			com = cy_addr(baseu +
 				       + ((serv_type >> CD1400_xIVR_CHAN_SHIFT)
 					  & CD1400_xIVR_CHAN));
 #endif
@@ -1090,11 +716,11 @@ siointr1(vcom)
 #ifndef SOFT_HOTCHAR
 			if (line_status & CD1400_RDSR_SPECIAL
 			    && com->tp->t_hotchar != 0)
-				swi_sched(sio_fast_ih, 0);
+				swi_sched(cy_fast_ih, 0);
 
 #endif
 #if 1 /* XXX "intelligent" PFO error handling would break O error handling */
-			if (line_status & (LSR_PE|LSR_FE|LSR_BI)) {
+			if (line_status & (CD1400_RDSR_PE|CD1400_RDSR_FE|CD1400_RDSR_BREAK)) {
 				/*
 				  Don't store PE if IGNPAR and BI if IGNBRK,
 				  this hack allows "raw" tty optimization
@@ -1102,15 +728,15 @@ siointr1(vcom)
 				*/
 				if (   com->tp == NULL
 				    || !(com->tp->t_state & TS_ISOPEN)
-				    || ((line_status & (LSR_PE|LSR_FE))
+				    || ((line_status & (CD1400_RDSR_PE|CD1400_RDSR_FE))
 				    &&  (com->tp->t_iflag & IGNPAR))
-				    || ((line_status & LSR_BI)
+				    || ((line_status & CD1400_RDSR_BREAK)
 				    &&  (com->tp->t_iflag & IGNBRK)))
 					goto cont;
-				if (   (line_status & (LSR_PE|LSR_FE))
+				if (   (line_status & (CD1400_RDSR_PE|CD1400_RDSR_FE))
 				    && (com->tp->t_state & TS_CAN_BYPASS_L_RINT)
-				    && ((line_status & LSR_FE)
-				    ||  ((line_status & LSR_PE)
+				    && ((line_status & CD1400_RDSR_FE)
+				    ||  ((line_status & CD1400_RDSR_PE)
 				    &&  (com->tp->t_iflag & INPCK))))
 					recv_data = 0;
 			}
@@ -1118,30 +744,25 @@ siointr1(vcom)
 			++com->bytes_in;
 #ifdef SOFT_HOTCHAR
 			if (com->tp->t_hotchar != 0 && recv_data == com->tp->t_hotchar)
-				swi_sched(sio_fast_ih, 0);
+				swi_sched(cy_fast_ih, 0);
 #endif
 			ioptr = com->iptr;
 			if (ioptr >= com->ibufend)
 				CE_RECORD(com, CE_INTERRUPT_BUF_OVERFLOW);
 			else {
-				if (com->do_timestamp)
-					microtime(&com->timestamp);
-				++com_events;
+				if (com->tp != NULL && com->tp->t_do_timestamp)
+					microtime(&com->tp->t_timestamp);
+				++cy_events;
 				ioptr[0] = recv_data;
 				ioptr[com->ierroff] = line_status;
 				com->iptr = ++ioptr;
 				if (ioptr == com->ihighwater
 				    && com->state & CS_RTS_IFLOW)
-#if 0
-					outb(com->modem_ctl_port,
-					     com->mcr_image &= ~MCR_RTS);
-#else
 					cd_outb(iobase, com->mcr_rts_reg,
 						cy_align,
 						com->mcr_image &=
 						~com->mcr_rts);
-#endif
-				if (line_status & LSR_OE)
+				if (line_status & CD1400_RDSR_OE)
 					CE_RECORD(com, CE_OVERRUN);
 			}
 			goto cont;
@@ -1156,10 +777,10 @@ siointr1(vcom)
 			ifree = com->ibufend - ioptr;
 			if (count > ifree) {
 				count -= ifree;
-				com_events += ifree;
+				cy_events += ifree;
 				if (ifree != 0) {
-					if (com->do_timestamp)
-						microtime(&com->timestamp);
+					if (com->tp != NULL && com->tp->t_do_timestamp)
+						microtime(&com->tp->t_timestamp);
 					do {
 						recv_data = cd_inb(iobase,
 								   CD1400_RDSR,
@@ -1168,7 +789,7 @@ siointr1(vcom)
 						if (com->tp->t_hotchar != 0
 						    && recv_data
 						       == com->tp->t_hotchar)
-							swi_sched(sio_fast_ih,
+							swi_sched(cy_fast_ih,
 								  0);
 #endif
 						ioptr[0] = recv_data;
@@ -1184,32 +805,27 @@ siointr1(vcom)
 #ifdef SOFT_HOTCHAR
 					if (com->tp->t_hotchar != 0
 					    && recv_data == com->tp->t_hotchar)
-						swi_sched(sio_fast_ih, 0);
+						swi_sched(cy_fast_ih, 0);
 #endif
 				} while (--count != 0);
 			} else {
-				if (com->do_timestamp)
-					microtime(&com->timestamp);
+				if (com->tp != NULL && com->tp->t_do_timestamp)
+					microtime(&com->tp->t_timestamp);
 				if (ioptr <= com->ihighwater
 				    && ioptr + count > com->ihighwater
 				    && com->state & CS_RTS_IFLOW)
-#if 0
-					outb(com->modem_ctl_port,
-					     com->mcr_image &= ~MCR_RTS);
-#else
 					cd_outb(iobase, com->mcr_rts_reg,
 						cy_align,
 						com->mcr_image
 						&= ~com->mcr_rts);
-#endif
-				com_events += count;
+				cy_events += count;
 				do {
 					recv_data = cd_inb(iobase, CD1400_RDSR,
 							   cy_align);
 #ifdef SOFT_HOTCHAR
 					if (com->tp->t_hotchar != 0
 					    && recv_data == com->tp->t_hotchar)
-						swi_sched(sio_fast_ih, 0);
+						swi_sched(cy_fast_ih, 0);
 #endif
 					ioptr[0] = recv_data;
 					ioptr[com->ierroff] = 0;
@@ -1243,16 +859,16 @@ cont:
 
 			/* enter modem service */
 			cd_outb(iobase, CD1400_CAR, cy_align, save_mir);
-			com_addr(baseu + cyu * CD1400_NO_OF_CHANNELS)->car
+			cy_addr(baseu + cyu * CD1400_NO_OF_CHANNELS)->car
 			= save_mir & CD1400_CAR_CHAN;
 
-			com = com_addr(baseu + cyu * CD1400_NO_OF_CHANNELS
+			com = cy_addr(baseu + cyu * CD1400_NO_OF_CHANNELS
 				       + (save_mir & CD1400_MIR_CHAN));
 #else
 			/* ack modem service */
 			vector = cy_inb(iobase, CY8_SVCACKM, cy_align);
 
-			com = com_addr(baseu
+			com = cy_addr(baseu
 				       + ((vector >> CD1400_xIVR_CHAN_SHIFT)
 					  & CD1400_xIVR_CHAN));
 #endif
@@ -1267,15 +883,15 @@ cont:
 			 */
 			com->last_modem_status = modem_status;
 			if (!(com->state & CS_CHECKMSR)) {
-				com_events += LOTS_OF_EVENTS;
+				cy_events += LOTS_OF_EVENTS;
 				com->state |= CS_CHECKMSR;
-				swi_sched(sio_fast_ih, 0);
+				swi_sched(cy_fast_ih, 0);
 			}
 
 #ifdef SOFT_CTS_OFLOW
 			/* handle CTS change immediately for crisp flow ctl */
 			if (com->state & CS_CTS_OFLOW) {
-				if (modem_status & MSR_CTS) {
+				if (modem_status & CD1400_MSVR2_CTS) {
 					com->state |= CS_ODEVREADY;
 					if (com->state >= (CS_BUSY | CS_TTGO
 							   | CS_ODEVREADY)
@@ -1324,17 +940,17 @@ cont:
 
 			/* enter tx service */
 			cd_outb(iobase, CD1400_CAR, cy_align, save_tir);
-			com_addr(baseu + cyu * CD1400_NO_OF_CHANNELS)->car
+			cy_addr(baseu + cyu * CD1400_NO_OF_CHANNELS)->car
 			= save_tir & CD1400_CAR_CHAN;
 
-			com = com_addr(baseu
+			com = cy_addr(baseu
 				       + cyu * CD1400_NO_OF_CHANNELS
 				       + (save_tir & CD1400_TIR_CHAN));
 #else
 			/* ack transmit service */
 			vector = cy_inb(iobase, CY8_SVCACKT, cy_align);
 
-			com = com_addr(baseu
+			com = cy_addr(baseu
 				       + ((vector >> CD1400_xIVR_CHAN_SHIFT)
 					  & CD1400_xIVR_CHAN));
 #endif
@@ -1398,9 +1014,9 @@ cont:
 						&= ~CD1400_COR2_ETC);
 					com->etc = ETC_BREAK_ENDED;
 					if (!(com->state & CS_ODONE)) {
-						com_events += LOTS_OF_EVENTS;
+						cy_events += LOTS_OF_EVENTS;
 						com->state |= CS_ODONE;
-						swi_sched(sio_fast_ih, 0);
+						swi_sched(cy_fast_ih, 0);
 					}
 					break;
 				case ETC_BREAK_ENDED:
@@ -1412,9 +1028,9 @@ cont:
 			}
 			if (com->intr_enable & CD1400_SRER_TXMPTY) {
 				if (!(com->extra_state & CSE_ODONE)) {
-					com_events += LOTS_OF_EVENTS;
+					cy_events += LOTS_OF_EVENTS;
 					com->extra_state |= CSE_ODONE;
-					swi_sched(sio_fast_ih, 0);
+					swi_sched(cy_fast_ih, 0);
 				}
 				cd_outb(iobase, CD1400_SRER, cy_align,
 					com->intr_enable
@@ -1457,7 +1073,7 @@ cont:
 					 * is easiest.
 					 */
 					if (com->extra_state & CSE_ODONE) {
-						com_events -= LOTS_OF_EVENTS;
+						cy_events -= LOTS_OF_EVENTS;
 						com->extra_state &= ~CSE_ODONE;
 					}
 
@@ -1468,11 +1084,11 @@ cont:
 						  | CD1400_SRER_TXMPTY);
 				}
 				if (!(com->state & CS_ODONE)) {
-					com_events += LOTS_OF_EVENTS;
+					cy_events += LOTS_OF_EVENTS;
 					com->state |= CS_ODONE;
 
 					/* handle at high level ASAP */
-					swi_sched(sio_fast_ih, 0);
+					swi_sched(cy_fast_ih, 0);
 				}
 			}
 		}
@@ -1492,171 +1108,40 @@ terminate_tx_service:
 	/* ensure an edge for the next interrupt */
 	cy_outb(cy_iobase, CY_CLEAR_INTR, cy_align, 0);
 
-	swi_sched(sio_slow_ih, SWI_DELAY);
+	swi_sched(cy_slow_ih, SWI_DELAY);
 
 	COM_UNLOCK();
 }
 
-static int
-sioioctl(dev, cmd, data, flag, td)
-	struct cdev *dev;
-	u_long		cmd;
-	caddr_t		data;
-	int		flag;
-	struct thread	*td;
+static void
+cybreak(struct tty *tp, int sig)
 {
 	struct com_s	*com;
-	int		error;
-	int		mynor;
-	int		s;
-	struct tty	*tp;
-#ifndef BURN_BRIDGES
-#if defined(COMPAT_43)
-	int		oldcmd;
-	struct termios	term;
-#endif
-#endif
 
-	mynor = minor(dev);
-	com = com_addr(MINOR_TO_UNIT(mynor));
-	if (mynor & CONTROL_MASK) {
-		struct termios	*ct;
-
-		switch (mynor & CONTROL_MASK) {
-		case CONTROL_INIT_STATE:
-			ct = mynor & CALLOUT_MASK ? &com->it_out : &com->it_in;
-			break;
-		case CONTROL_LOCK_STATE:
-			ct = mynor & CALLOUT_MASK ? &com->lt_out : &com->lt_in;
-			break;
-		default:
-			return (ENODEV);	/* /dev/nodev */
-		}
-		switch (cmd) {
-		case TIOCSETA:
-			error = suser(td);
-			if (error != 0)
-				return (error);
-			*ct = *(struct termios *)data;
-			return (0);
-		case TIOCGETA:
-			*(struct termios *)data = *ct;
-			return (0);
-		case TIOCGETD:
-			*(int *)data = TTYDISC;
-			return (0);
-		case TIOCGWINSZ:
-			bzero(data, sizeof(struct winsize));
-			return (0);
-		default:
-			return (ENOTTY);
-		}
-	}
-	tp = com->tp;
-#ifndef BURN_BRIDGES
-#if defined(COMPAT_43)
-	term = tp->t_termios;
-	oldcmd = cmd;
-	error = ttsetcompat(tp, &cmd, data, &term);
-	if (error != 0)
-		return (error);
-	if (cmd != oldcmd)
-		data = (caddr_t)&term;
-#endif
-#endif
-	if (cmd == TIOCSETA || cmd == TIOCSETAW || cmd == TIOCSETAF) {
-		int	cc;
-		struct termios *dt = (struct termios *)data;
-		struct termios *lt = mynor & CALLOUT_MASK
-				     ? &com->lt_out : &com->lt_in;
-
-		dt->c_iflag = (tp->t_iflag & lt->c_iflag)
-			      | (dt->c_iflag & ~lt->c_iflag);
-		dt->c_oflag = (tp->t_oflag & lt->c_oflag)
-			      | (dt->c_oflag & ~lt->c_oflag);
-		dt->c_cflag = (tp->t_cflag & lt->c_cflag)
-			      | (dt->c_cflag & ~lt->c_cflag);
-		dt->c_lflag = (tp->t_lflag & lt->c_lflag)
-			      | (dt->c_lflag & ~lt->c_lflag);
-		for (cc = 0; cc < NCCS; ++cc)
-			if (lt->c_cc[cc] != 0)
-				dt->c_cc[cc] = tp->t_cc[cc];
-		if (lt->c_ispeed != 0)
-			dt->c_ispeed = tp->t_ispeed;
-		if (lt->c_ospeed != 0)
-			dt->c_ospeed = tp->t_ospeed;
-	}
-	error = ttyioctl(dev, cmd, data, flag, td);
-	disc_optim(tp, &tp->t_termios, com);
-	if (error != ENOTTY)
-		return (error);
-	s = spltty();
-	switch (cmd) {
-	case TIOCSBRK:
-#if 0
-		outb(iobase + com_cfcr, com->cfcr_image |= CFCR_SBREAK);
-#else
+	com = tp->t_sc;
+	if (sig)
 		cd_etc(com, CD1400_ETC_SENDBREAK);
-#endif
-		break;
-	case TIOCCBRK:
-#if 0
-		outb(iobase + com_cfcr, com->cfcr_image &= ~CFCR_SBREAK);
-#else
+	else
 		cd_etc(com, CD1400_ETC_STOPBREAK);
-#endif
-		break;
-	case TIOCSDTR:
-		(void)commctl(com, TIOCM_DTR, DMBIS);
-		break;
-	case TIOCCDTR:
-		(void)commctl(com, TIOCM_DTR, DMBIC);
-		break;
-	/*
-	 * XXX should disallow changing MCR_RTS if CS_RTS_IFLOW is set.  The
-	 * changes get undone on the next call to comparam().
-	 */
-	case TIOCMSET:
-		(void)commctl(com, *(int *)data, DMSET);
-		break;
-	case TIOCMBIS:
-		(void)commctl(com, *(int *)data, DMBIS);
-		break;
-	case TIOCMBIC:
-		(void)commctl(com, *(int *)data, DMBIC);
-		break;
-	case TIOCMGET:
-		*(int *)data = commctl(com, 0, DMGET);
-		break;
-	case TIOCTIMESTAMP:
-		com->do_timestamp = TRUE;
-		*(struct timeval *)data = com->timestamp;
-		break;
-	default:
-		splx(s);
-		return (ENOTTY);
-	}
-	splx(s);
-	return (0);
 }
 
 static void
-siopoll(void *arg)
+cypoll(void *arg)
 {
 	int		unit;
 
 #ifdef CyDebug
 	++cy_timeouts;
 #endif
-	if (com_events == 0)
+	if (cy_events == 0)
 		return;
 repeat:
-	for (unit = 0; unit < NSIO; ++unit) {
+	for (unit = 0; unit < NPORTS; ++unit) {
 		struct com_s	*com;
 		int		incc;
 		struct tty	*tp;
 
-		com = com_addr(unit);
+		com = cy_addr(unit);
 		if (com == NULL)
 			continue;
 		tp = com->tp;
@@ -1674,19 +1159,19 @@ repeat:
 				incc += LOTS_OF_EVENTS;
 				com->state &= ~CS_CHECKMSR;
 			}
-			com_events -= incc;
+			cy_events -= incc;
 			COM_UNLOCK();
 			critical_exit();
 			if (incc != 0)
 				log(LOG_DEBUG,
-				    "sio%d: %d events for device with no tp\n",
+				    "cy%d: %d events for device with no tp\n",
 				    unit, incc);
 			continue;
 		}
 		if (com->iptr != com->ibuf) {
 			critical_enter();
 			COM_LOCK();
-			sioinput(com);
+			cyinput(com);
 			COM_UNLOCK();
 			critical_exit();
 		}
@@ -1695,22 +1180,22 @@ repeat:
 
 			critical_enter();
 			COM_LOCK();
-			sioinput(com);
+			cyinput(com);
 			delta_modem_status = com->last_modem_status
 					     ^ com->prev_modem_status;
 			com->prev_modem_status = com->last_modem_status;
-			com_events -= LOTS_OF_EVENTS;
+			cy_events -= LOTS_OF_EVENTS;
 			com->state &= ~CS_CHECKMSR;
 			COM_UNLOCK();
 			critical_exit();
-			if (delta_modem_status & MSR_DCD)
+			if (delta_modem_status & CD1400_MSVR2_CD)
 				ttyld_modem(tp,
-				    com->prev_modem_status & MSR_DCD);
+				    com->prev_modem_status & CD1400_MSVR2_CD);
 		}
 		if (com->extra_state & CSE_ODONE) {
 			critical_enter();
 			COM_LOCK();
-			com_events -= LOTS_OF_EVENTS;
+			cy_events -= LOTS_OF_EVENTS;
 			com->extra_state &= ~CSE_ODONE;
 			COM_UNLOCK();
 			critical_exit();
@@ -1727,23 +1212,21 @@ repeat:
 		if (com->state & CS_ODONE) {
 			critical_enter();
 			COM_LOCK();
-			com_events -= LOTS_OF_EVENTS;
+			cy_events -= LOTS_OF_EVENTS;
 			com->state &= ~CS_ODONE;
 			COM_UNLOCK();
 			critical_exit();
 			ttyld_start(tp);
 		}
-		if (com_events == 0)
+		if (cy_events == 0)
 			break;
 	}
-	if (com_events >= LOTS_OF_EVENTS)
+	if (cy_events >= LOTS_OF_EVENTS)
 		goto repeat;
 }
 
 static int
-comparam(tp, t)
-	struct tty	*tp;
-	struct termios	*t;
+cyparam(struct tty *tp, struct termios *t)
 {
 	int		bits;
 	int		cflag;
@@ -1758,17 +1241,15 @@ comparam(tp, t)
 	int		oprescaler;
 	u_char		opt;
 	int		s;
-	int		unit;
 
-	unit = DEV_TO_UNIT(tp->t_dev);
-	com = com_addr(unit);
+	com = tp->t_sc;
 
 	/* check requested parameters */
 	cy_clock = CY_CLOCK(com->gfrcr_image);
-	idivisor = comspeed(t->c_ispeed, cy_clock, &iprescaler);
+	idivisor = cyspeed(t->c_ispeed, cy_clock, &iprescaler);
 	if (idivisor <= 0)
 		return (EINVAL);
-	odivisor = comspeed(t->c_ospeed != 0 ? t->c_ospeed : tp->t_ospeed,
+	odivisor = cyspeed(t->c_ospeed != 0 ? t->c_ospeed : tp->t_ospeed,
 			    cy_clock, &oprescaler);
 	if (odivisor <= 0)
 		return (EINVAL);
@@ -1776,11 +1257,11 @@ comparam(tp, t)
 	/* parameters are OK, convert them to the com struct and the device */
 	s = spltty();
 	if (t->c_ospeed == 0)
-		(void)commctl(com, TIOCM_DTR, DMBIC);	/* hang up line */
+		(void)cymodem(tp, 0, SER_DTR);
 	else
-		(void)commctl(com, TIOCM_DTR, DMBIS);
+		(void)cymodem(tp, SER_DTR, 0);
 
-	(void) siosetwater(com, t->c_ispeed);
+	(void) cysetwater(com, t->c_ispeed);
 
 	/* XXX we don't actually change the speed atomically. */
 
@@ -2033,22 +1514,18 @@ comparam(tp, t)
 		com->state |= CS_RTS_IFLOW;
 		/*
 		 * If CS_RTS_IFLOW just changed from off to on, the change
-		 * needs to be propagated to MCR_RTS.  This isn't urgent,
-		 * so do it later by calling comstart() instead of repeating
-		 * a lot of code from comstart() here.
+		 * needs to be propagated to CD1400_MSVR1_RTS.  This isn't urgent,
+		 * so do it later by calling cystart() instead of repeating
+		 * a lot of code from cystart() here.
 		 */
 	} else if (com->state & CS_RTS_IFLOW) {
 		com->state &= ~CS_RTS_IFLOW;
 		/*
-		 * CS_RTS_IFLOW just changed from on to off.  Force MCR_RTS
-		 * on here, since comstart() won't do it later.
+		 * CS_RTS_IFLOW just changed from on to off.  Force CD1400_MSVR1_RTS
+		 * on here, since cystart() won't do it later.
 		 */
-#if 0
-		outb(com->modem_ctl_port, com->mcr_image |= MCR_RTS);
-#else
 		cd_setreg(com, com->mcr_rts_reg,
 			  com->mcr_image |= com->mcr_rts);
-#endif
 	}
 
 	/*
@@ -2061,7 +1538,7 @@ comparam(tp, t)
 	com->state &= ~CS_CTS_OFLOW;
 	if (cflag & CCTS_OFLOW) {
 		com->state |= CS_CTS_OFLOW;
-		if (!(com->last_modem_status & MSR_CTS))
+		if (!(com->last_modem_status & CD1400_MSVR2_CTS))
 			com->state &= ~CS_ODEVREADY;
 	}
 #endif
@@ -2069,12 +1546,12 @@ comparam(tp, t)
 	disc_optim(tp, t, com);
 #if 0
 	/*
-	 * Recover from fiddling with CS_TTGO.  We used to call siointr1()
+	 * Recover from fiddling with CS_TTGO.  We used to call cyintr1()
 	 * unconditionally, but that defeated the careful discarding of
-	 * stale input in sioopen().
+	 * stale input in cyopen().
 	 */
 	if (com->state >= (CS_BUSY | CS_TTGO))
-		siointr1(com);
+		cyintr1(com);
 #endif
 	if (com->state >= (CS_BUSY | CS_TTGO | CS_ODEVREADY)) {
 		if (!(com->intr_enable & CD1400_SRER_TXRDY))
@@ -2093,7 +1570,7 @@ comparam(tp, t)
 	COM_UNLOCK();
 	critical_exit();
 	splx(s);
-	comstart(tp);
+	cystart(tp);
 	if (com->ibufold != NULL) {
 		free(com->ibufold, M_DEVBUF);
 		com->ibufold = NULL;
@@ -2102,9 +1579,7 @@ comparam(tp, t)
 }
 
 static int
-siosetwater(com, speed)
-	struct com_s	*com;
-	speed_t		speed;
+cysetwater(struct com_s *com, speed_t speed)
 {
 	int		cp4ticks;
 	u_char		*ibuf;
@@ -2150,7 +1625,7 @@ siosetwater(com, speed)
 	critical_enter();
 	COM_LOCK();
 	if (com->iptr != com->ibuf)
-		sioinput(com);
+		cyinput(com);
 
 	/*-
 	 * Initialize critical variables, including input buffer watermarks.
@@ -2174,18 +1649,15 @@ siosetwater(com, speed)
 }
 
 static void
-comstart(tp)
-	struct tty	*tp;
+cystart(struct tty *tp)
 {
 	struct com_s	*com;
 	int		s;
 #ifdef CyDebug
 	bool_t		started;
 #endif
-	int		unit;
 
-	unit = DEV_TO_UNIT(tp->t_dev);
-	com = com_addr(unit);
+	com = tp->t_sc;
 	s = spltty();
 
 #ifdef CyDebug
@@ -2214,7 +1686,7 @@ comstart(tp)
 	if (tp->t_state & TS_TBLOCK) {
 		if (com->mcr_image & com->mcr_rts && com->state & CS_RTS_IFLOW)
 #if 0
-			outb(com->modem_ctl_port, com->mcr_image &= ~MCR_RTS);
+			outb(com->modem_ctl_port, com->mcr_image &= ~CD1400_MSVR1_RTS);
 #else
 			cd_setreg(com, com->mcr_rts_reg,
 				  com->mcr_image &= ~com->mcr_rts);
@@ -2224,7 +1696,7 @@ comstart(tp)
 		    && com->iptr < com->ihighwater
 		    && com->state & CS_RTS_IFLOW)
 #if 0
-			outb(com->modem_ctl_port, com->mcr_image |= MCR_RTS);
+			outb(com->modem_ctl_port, com->mcr_image |= CD1400_MSVR1_RTS);
 #else
 			cd_setreg(com, com->mcr_rts_reg,
 				  com->mcr_image |= com->mcr_rts);
@@ -2315,7 +1787,7 @@ comstart(tp)
 	critical_enter();
 	COM_LOCK();
 	if (com->state >= (CS_BUSY | CS_TTGO))
-		siointr1(com);	/* fake interrupt to start output */
+		cyintr1(com);	/* fake interrupt to start output */
 	COM_UNLOCK();
 	critical_exit();
 #endif
@@ -2324,14 +1796,12 @@ comstart(tp)
 }
 
 static void
-comstop(tp, rw)
-	struct tty	*tp;
-	int		rw;
+comstop(struct tty *tp, int rw)
 {
 	struct com_s	*com;
 	bool_t		wakeup_etc;
 
-	com = com_addr(DEV_TO_UNIT(tp->t_dev));
+	com = tp->t_sc;
 	wakeup_etc = FALSE;
 	critical_enter();
 	COM_LOCK();
@@ -2339,7 +1809,7 @@ comstop(tp, rw)
 		com->obufs[0].l_queued = FALSE;
 		com->obufs[1].l_queued = FALSE;
 		if (com->extra_state & CSE_ODONE) {
-			com_events -= LOTS_OF_EVENTS;
+			cy_events -= LOTS_OF_EVENTS;
 			com->extra_state &= ~CSE_ODONE;
 			if (com->etc != ETC_NONE) {
 				if (com->etc == ETC_BREAK_ENDED)
@@ -2349,12 +1819,12 @@ comstop(tp, rw)
 		}
 		com->tp->t_state &= ~TS_BUSY;
 		if (com->state & CS_ODONE)
-			com_events -= LOTS_OF_EVENTS;
+			cy_events -= LOTS_OF_EVENTS;
 		com->state &= ~(CS_ODONE | CS_BUSY);
 	}
 	if (rw & FREAD) {
 		/* XXX no way to reset only input fifo. */
-		com_events -= (com->iptr - com->ibuf);
+		cy_events -= (com->iptr - com->ibuf);
 		com->iptr = com->ibuf;
 	}
 	COM_UNLOCK();
@@ -2363,27 +1833,25 @@ comstop(tp, rw)
 		wakeup(&com->etc);
 	if (rw & FWRITE && com->etc == ETC_NONE)
 		cd1400_channel_cmd(com, CD1400_CCR_CMDRESET | CD1400_CCR_FTF);
-	comstart(tp);
+	cystart(tp);
 }
 
 static int
-commctl(com, bits, how)
-	struct com_s	*com;
-	int		bits;
-	int		how;
+cymodem(struct tty *tp, int sigon, int sigoff)
 {
+	struct com_s	*com;
 	int	mcr;
 	int	msr;
 
-	if (how == DMGET) {
-		if (com->channel_control & CD1400_CCR_RCVEN)
-			bits |= TIOCM_LE;
+	com = tp->t_sc;
+	if (sigon == 0 && sigoff == 0) {
+		sigon = 0;
 		mcr = com->mcr_image;
 		if (mcr & com->mcr_dtr)
-			bits |= TIOCM_DTR;
+			sigon |= SER_DTR;
 		if (mcr & com->mcr_rts)
 			/* XXX wired on for Cyclom-8Ys */
-			bits |= TIOCM_RTS;
+			sigon |= SER_RTS;
 
 		/*
 		 * We must read the modem status from the hardware because
@@ -2395,48 +1863,38 @@ commctl(com, bits, how)
 		 */
 		msr = cd_getreg(com, CD1400_MSVR2);
 
-		if (msr & MSR_CTS)
-			bits |= TIOCM_CTS;
-		if (msr & MSR_DCD)
-			bits |= TIOCM_CD;
-		if (msr & MSR_DSR)
-			bits |= TIOCM_DSR;
-		if (msr & MSR_RI)
+		if (msr & CD1400_MSVR2_CTS)
+			sigon |= SER_CTS;
+		if (msr & CD1400_MSVR2_CD)
+			sigon |= SER_DCD;
+		if (msr & CD1400_MSVR2_DSR)
+			sigon |= SER_DSR;
+		if (msr & CD1400_MSVR2_RI)
 			/* XXX not connected except for Cyclom-16Y? */
-			bits |= TIOCM_RI;
-		return (bits);
+			sigon |= SER_RI;
+		return (sigon);
 	}
-	mcr = 0;
-	if (bits & TIOCM_DTR)
+	mcr = com->mcr_image;
+	if (sigon & SER_DTR)
 		mcr |= com->mcr_dtr;
-	if (bits & TIOCM_RTS)
+	if (sigoff & SER_DTR)
+		mcr &= ~com->mcr_dtr;
+	if (sigon & SER_RTS)
 		mcr |= com->mcr_rts;
+	if (sigoff & SER_RTS)
+		mcr &= ~com->mcr_rts;
 	critical_enter();
 	COM_LOCK();
-	switch (how) {
-	case DMSET:
-		com->mcr_image = mcr;
-		cd_setreg(com, CD1400_MSVR1, mcr);
-		cd_setreg(com, CD1400_MSVR2, mcr);
-		break;
-	case DMBIS:
-		com->mcr_image = mcr = com->mcr_image | mcr;
-		cd_setreg(com, CD1400_MSVR1, mcr);
-		cd_setreg(com, CD1400_MSVR2, mcr);
-		break;
-	case DMBIC:
-		com->mcr_image = mcr = com->mcr_image & ~mcr;
-		cd_setreg(com, CD1400_MSVR1, mcr);
-		cd_setreg(com, CD1400_MSVR2, mcr);
-		break;
-	}
+	com->mcr_image = mcr;
+	cd_setreg(com, CD1400_MSVR1, mcr);
+	cd_setreg(com, CD1400_MSVR2, mcr);
 	COM_UNLOCK();
 	critical_exit();
 	return (0);
 }
 
 static void
-siosettimeout()
+cysettimeout()
 {
 	struct com_s	*com;
 	bool_t		someopen;
@@ -2447,71 +1905,46 @@ siosettimeout()
 	 * Otherwise set it to max(1/200, 1/hz).
 	 * Enable timeouts iff some device is open.
 	 */
-	untimeout(comwakeup, (void *)NULL, sio_timeout_handle);
-	sio_timeout = hz;
+	untimeout(cywakeup, (void *)NULL, cy_timeout_handle);
+	cy_timeout = hz;
 	someopen = FALSE;
-	for (unit = 0; unit < NSIO; ++unit) {
-		com = com_addr(unit);
+	for (unit = 0; unit < NPORTS; ++unit) {
+		com = cy_addr(unit);
 		if (com != NULL && com->tp != NULL
 		    && com->tp->t_state & TS_ISOPEN) {
 			someopen = TRUE;
-#if 0
-			if (com->poll || com->poll_output) {
-				sio_timeout = hz > 200 ? hz / 200 : 1;
-				break;
-			}
-#endif
 		}
 	}
 	if (someopen) {
-		sio_timeouts_until_log = hz / sio_timeout;
-		sio_timeout_handle = timeout(comwakeup, (void *)NULL,
-					     sio_timeout);
+		cy_timeouts_until_log = hz / cy_timeout;
+		cy_timeout_handle = timeout(cywakeup, (void *)NULL,
+					     cy_timeout);
 	} else {
 		/* Flush error messages, if any. */
-		sio_timeouts_until_log = 1;
-		comwakeup((void *)NULL);
-		untimeout(comwakeup, (void *)NULL, sio_timeout_handle);
+		cy_timeouts_until_log = 1;
+		cywakeup((void *)NULL);
+		untimeout(cywakeup, (void *)NULL, cy_timeout_handle);
 	}
 }
 
 static void
-comwakeup(chan)
-	void	*chan;
+cywakeup(void *chan)
 {
 	struct com_s	*com;
 	int		unit;
 
-	sio_timeout_handle = timeout(comwakeup, (void *)NULL, sio_timeout);
-
-#if 0
-	/*
-	 * Recover from lost output interrupts.
-	 * Poll any lines that don't use interrupts.
-	 */
-	for (unit = 0; unit < NSIO; ++unit) {
-		com = com_addr(unit);
-		if (com != NULL
-		    && (com->state >= (CS_BUSY | CS_TTGO) || com->poll)) {
-			critical_enter();
-			COM_LOCK();
-			siointr1(com);
-			COM_UNLOCK();
-			critical_exit();
-		}
-	}
-#endif
+	cy_timeout_handle = timeout(cywakeup, (void *)NULL, cy_timeout);
 
 	/*
 	 * Check for and log errors, but not too often.
 	 */
-	if (--sio_timeouts_until_log > 0)
+	if (--cy_timeouts_until_log > 0)
 		return;
-	sio_timeouts_until_log = hz / sio_timeout;
-	for (unit = 0; unit < NSIO; ++unit) {
+	cy_timeouts_until_log = hz / cy_timeout;
+	for (unit = 0; unit < NPORTS; ++unit) {
 		int	errnum;
 
-		com = com_addr(unit);
+		com = cy_addr(unit);
 		if (com == NULL)
 			continue;
 		for (errnum = 0; errnum < CE_NTYPES; ++errnum) {
@@ -2535,10 +1968,7 @@ comwakeup(chan)
 }
 
 static void
-disc_optim(tp, t, com)
-	struct tty	*tp;
-	struct termios	*t;
-	struct com_s	*com;
+disc_optim(struct tty *tp, struct termios *t, struct com_s *com)
 {
 #ifndef SOFT_HOTCHAR
 	u_char	opt;
@@ -2562,22 +1992,17 @@ disc_optim(tp, t, com)
 #ifdef Smarts
 /* standard line discipline input routine */
 int
-cyinput(c, tp)
-	int		c;
-	struct tty	*tp;
+cyinput(int c, struct tty *tp)
 {
 	/* XXX duplicate ttyinput(), but without the IXOFF/IXON/ISTRIP/IPARMRK
 	 * bits, as they are done by the CD1400.  Hardly worth the effort,
-	 * given that high-throughput sessions are raw anyhow.
+	 * given that high-throughput session are raw anyhow.
 	 */
 }
 #endif /* Smarts */
 
 static int
-comspeed(speed, cy_clock, prescaler_io)
-	speed_t	speed;
-	u_long	cy_clock;
-	int	*prescaler_io;
+cyspeed(speed_t speed, u_long cy_clock, int *prescaler_io)
 {
 	int	actual;
 	int	error;
@@ -2609,21 +2034,12 @@ comspeed(speed, cy_clock, prescaler_io)
 	if (error < -30 || error > 30)
 		return (-1);
 
-#if 0
-	printf("prescaler = %d (%d)\n", prescaler, prescaler_unit);
-	printf("divider = %d (%x)\n", divider, divider);
-	printf("actual = %d\n", actual);
-	printf("error = %d\n", error);
-#endif
-
 	*prescaler_io = prescaler_unit;
 	return (divider);
 }
 
 static void
-cd1400_channel_cmd(com, cmd)
-	struct com_s	*com;
-	int		cmd;
+cd1400_channel_cmd(struct com_s *com, int cmd)
 {
 	cd1400_channel_cmd_wait(com);
 	cd_setreg(com, CD1400_CCR, cmd);
@@ -2631,8 +2047,7 @@ cd1400_channel_cmd(com, cmd)
 }
 
 static void
-cd1400_channel_cmd_wait(com)
-	struct com_s	*com;
+cd1400_channel_cmd_wait(struct com_s *com)
 {
 	struct timeval	start;
 	struct timeval	tv;
@@ -2657,9 +2072,7 @@ cd1400_channel_cmd_wait(com)
 }
 
 static void
-cd_etc(com, etc)
-	struct com_s	*com;
-	int		etc;
+cd_etc(struct com_s *com, int etc)
 {
 
 	/*
@@ -2700,9 +2113,7 @@ wait:
 }
 
 static int
-cd_getreg(com, reg)
-	struct com_s	*com;
-	int		reg;
+cd_getreg(struct com_s *com, int reg)
 {
 	struct com_s	*basecom;
 	u_char	car;
@@ -2713,14 +2124,14 @@ cd_getreg(com, reg)
 #endif
 	int	val;
 
-	basecom = com_addr(com->unit & ~(CD1400_NO_OF_CHANNELS - 1));
+	basecom = cy_addr(com->unit & ~(CD1400_NO_OF_CHANNELS - 1));
 	car = com->unit & CD1400_CAR_CHAN;
 	cy_align = com->cy_align;
 	iobase = com->iobase;
 	critical_enter();
 #ifdef SMP
 	need_unlock = 0;
-	if (!mtx_owned(&sio_lock)) {
+	if (!mtx_owned(&cy_lock)) {
 		COM_LOCK();
 		need_unlock = 1;
 	}
@@ -2737,10 +2148,7 @@ cd_getreg(com, reg)
 }
 
 static void
-cd_setreg(com, reg, val)
-	struct com_s	*com;
-	int		reg;
-	int		val;
+cd_setreg(struct com_s *com, int reg, int val)
 {
 	struct com_s	*basecom;
 	u_char	car;
@@ -2750,14 +2158,14 @@ cd_setreg(com, reg, val)
 	int	need_unlock;
 #endif
 
-	basecom = com_addr(com->unit & ~(CD1400_NO_OF_CHANNELS - 1));
+	basecom = cy_addr(com->unit & ~(CD1400_NO_OF_CHANNELS - 1));
 	car = com->unit & CD1400_CAR_CHAN;
 	cy_align = com->cy_align;
 	iobase = com->iobase;
 	critical_enter();
 #ifdef SMP
 	need_unlock = 0;
-	if (!mtx_owned(&sio_lock)) {
+	if (!mtx_owned(&cy_lock)) {
 		COM_LOCK();
 		need_unlock = 1;
 	}
@@ -2775,15 +2183,14 @@ cd_setreg(com, reg, val)
 #ifdef CyDebug
 /* useful in ddb */
 void
-cystatus(unit)
-	int	unit;
+cystatus(int unit)
 {
 	struct com_s	*com;
 	cy_addr		iobase;
 	u_int		ocount;
 	struct tty	*tp;
 
-	com = com_addr(unit);
+	com = cy_addr(unit);
 	printf("info for channel %d\n", unit);
 	printf("------------------\n");
 	printf("total cyclom service probes:\t%d\n", cy_svrr_probes);
@@ -2808,7 +2215,7 @@ cystatus(unit)
 	       cd_inb(iobase, CD1400_MIR, com->cy_align));
 	printf("\n");
 	printf("com state:\t\t\t0x%02x\n", com->state);
-	printf("calls to comstart():\t\t%d (%d useful)\n",
+	printf("calls to cystart():\t\t%d (%d useful)\n",
 	       com->start_count, com->start_real);
 	printf("rx buffer chars free:\t\t%d\n", com->iptr - com->ibuf);
 	ocount = 0;
