@@ -61,13 +61,13 @@ main(argc, argv)
 	}
 	/*
 	 * Construct name, with no wildcards, of the socket to send to.
-	 * Getnostbyname() returns a structure including the network address
+	 * Gethostbyname() returns a structure including the network address
 	 * of the specified host.  The port number is taken from the command
 	 * line.
 	 */
 	hp = gethostbyname(argv[1]);
 	if (hp == 0) {
-		fprintf(stderr, "%s: unknown host\n", argv[1]);
+		fprintf(stderr, "%s: unknown host\\n", argv[1]);
 		exit(2);
 	}
 	bcopy(hp->h_addr, &name.sin_addr, hp->h_length);
