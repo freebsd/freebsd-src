@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: radius.c,v 1.2 1999/01/29 22:46:31 brian Exp $
+ *	$Id: radius.c,v 1.3 1999/02/06 02:54:47 brian Exp $
  *
  */
 
@@ -183,7 +183,7 @@ radius_Process(struct radius *r, int got)
         else {
           if (dest.width == 32 && strchr(argv[0], '/') == NULL)
             /* No mask specified - use the natural mask */
-            dest.mask.s_addr = addr2mask(dest.ipaddr.s_addr);
+            dest.mask = addr2mask(dest.ipaddr);
           addrs = 0;
 
           if (!strncasecmp(argv[0], "HISADDR", 7))
