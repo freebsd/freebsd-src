@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.213 1999/06/16 03:19:04 tegge Exp $
+ * $Id: vfs_bio.c,v 1.214 1999/06/16 23:27:31 mckusick Exp $
  */
 
 /*
@@ -1164,8 +1164,7 @@ vfs_bio_awrite(struct buf * bp)
  *	getnewbuf:
  *
  *	Find and initialize a new buffer header, freeing up existing buffers 
- *	in the bufqueues as necessary.  The new buffer is returned with
- *	flags set to B_BUSY.
+ *	in the bufqueues as necessary.  The new buffer is returned locked.
  *
  *	Important:  B_INVAL is not set.  If the caller wishes to throw the
  *	buffer away, the caller must set B_INVAL prior to calling brelse().
@@ -1191,6 +1190,8 @@ getnewbuf(struct vnode *vp, daddr_t blkno,
 	int outofspace;
 	int nqindex;
 	int defrag = 0;
+	static int newbufcnt = 0;
+	int lastnewbuf = newbufcnt;
 	
 restart:
 	/*
@@ -1230,15 +1231,13 @@ restart:
 	 */
 
 	if ((curproc->p_flag & P_FLSINPROG) == 0 &&
-	    numfreebuffers < lofreebuffers
-	) {
+	    numfreebuffers < lofreebuffers) {
 		nqindex = QUEUE_LRU;
 		nbp = NULL;
 	} else {
 		nqindex = QUEUE_EMPTY;
 		if (outofspace || 
-		    (nbp = TAILQ_FIRST(&bufqueues[QUEUE_EMPTY])) == NULL
-		) {
+		    (nbp = TAILQ_FIRST(&bufqueues[QUEUE_EMPTY])) == NULL) {
 			nqindex = QUEUE_AGE;
 			nbp = TAILQ_FIRST(&bufqueues[QUEUE_AGE]);
 			if (nbp == NULL) {
@@ -1342,8 +1341,7 @@ restart:
 			 * getnewbuf() calls.
 			 */
 			if ((curproc->p_flag & P_FLSINPROG) || 
-			    numdirtybuffers < hidirtybuffers
-			) {
+			    numdirtybuffers < hidirtybuffers) {
 				if (qindex == QUEUE_LRU) {
 					/*
 					 * dbp prevents us from looping forever
@@ -1526,9 +1524,40 @@ dosleep:
 	}
 
 	/*
-	 * The bp, if valid, is set to B_BUSY.
+	 * If we have slept at some point in this process and another
+	 * process has managed to allocate a new buffer while we slept,
+	 * we have to return NULL so that our caller can recheck to
+	 * ensure that the other process did not create an identically
+	 * identified buffer to the one we were requesting. We make this
+	 * check by incrementing the static int newbufcnt each time we
+	 * successfully allocate a new buffer. By saving the value of
+	 * newbufcnt in our local lastnewbuf, we can compare newbufcnt
+	 * with lastnewbuf to see if any other process managed to
+	 * allocate a buffer while we were doing so ourselves.
+	 *
+	 * Note that bp, if valid, is locked.
 	 */
-	return (bp);
+	if (lastnewbuf == newbufcnt) {
+		/*
+		 * No buffers allocated, so we can return one if we were
+		 * successful, or continue trying if we were not successful.
+		 */
+		if (bp != NULL) {
+			newbufcnt += 1;
+			return (bp);
+		}
+		goto restart;
+	}
+	/*
+	 * Another process allocated a buffer since we were called, so
+	 * we have to free the one we allocated and return NULL to let
+	 * our caller recheck to see if a new buffer is still needed.
+	 */
+	if (bp != NULL) {
+		bp->b_flags |= B_INVAL;
+		brelse(bp);
+	}
+	return (NULL);
 }
 
 /*
