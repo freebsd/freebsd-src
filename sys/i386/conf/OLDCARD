@@ -5,7 +5,7 @@
 # For more information on this file, please read the handbook section on
 # Kernel Configuration Files:
 #
-#    http://www.FreeBSD.org/handbook/kernelconfig-config.html
+#    http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig-config.html
 #
 # The handbook is also available locally in /usr/share/doc/handbook
 # if you've installed the doc distribution, otherwise always see the
@@ -13,8 +13,9 @@
 # latest information.
 #
 # An exhaustive list of options and more detailed explanations of the
-# device lines is also present in the NOTES configuration file. If you are
-# in doubt as to the purpose or necessity of a line, check first in NOTES.
+# device lines is also present in the ../../conf/NOTES and NOTES files. 
+# If you are in doubt as to the purpose or necessity of a line, check first 
+# in NOTES.
 #
 # $FreeBSD$
 
@@ -44,6 +45,7 @@ options 	CD9660			#ISO 9660 Filesystem
 options 	PROCFS			#Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		#Pseudo-filesystem framework
 options 	COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
+options 	COMPAT_FREEBSD4		#Compatible with FreeBSD4
 options 	SCSI_DELAY=15000	#Delay (in ms) before probing SCSI
 options 	KTRACE			#ktrace(1) support
 options 	SYSVSHM			#SYSV-style shared memory
@@ -85,6 +87,7 @@ device		ahc		# AHA2940 and onboard AIC7xxx devices
 device		ahd		# AHA39320 and onboard AIC79xx devices
 device		amd		# AMD 53C974 (Tekram DC-390(T))
 device		isp		# Qlogic family
+device		mpt		# LSI-Logic MPT-Fusion
 #device		ncr		# NCR/Symbios Logic
 device		sym		# NCR/Symbios Logic (newer chipsets + those of `ncr')
 
@@ -123,14 +126,13 @@ device		mlx		# Mylex DAC960 family
 device		twe		# 3ware ATA RAID
 
 # atkbdc0 controls both the keyboard and the PS/2 mouse
-device		atkbdc		# At keyboard controller
-device		atkbd		# at keyboard
-device		psm		# psm mouse
+device		atkbdc		# AT keyboard controller
+device		atkbd		# AT keyboard
+device		psm		# PS/2 mouse
 
-device		vga		# VGA screen
+device		vga		# VGA video card driver
 
-# splash screen/screen saver
-device		splash
+device		splash		# Splash screen and screen saver support
 
 # syscons is the default console driver, resembling an SCO console
 device		sc
@@ -139,6 +141,8 @@ device		sc
 #device		vt
 #options 	XSERVER			# support for X server on a vt console
 #options 	FAT_CURSOR		# start with block cursor
+
+device		agp		# support several AGP chipsets
 
 # Floating point support - do not disable.
 device		npx
@@ -203,7 +207,7 @@ device		xe		# Xircom pccard ethernet
 # Wireless NIC cards
 device		an		# Aironet 4500/4800 802.11 wireless NICs. 
 device		awi		# BayStack 660 and others
-device		wi		# WaveLAN/Intersil/Symbol 802.11 wireless NICs 
+device		wi		# WaveLAN/Intersil/Symbol 802.11 wireless NICs.
 #device		wl		# Older non 802.11 Wavelan wireless NIC.
 
 # Pseudo devices - the number indicates how many units to allocate.
