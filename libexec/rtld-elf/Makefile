@@ -48,7 +48,7 @@ dyn_hack.so:
 # Since moving rtld-elf to /libexec, we need to create a symlink.
 # Fixup the existing binary that's there so we can symlink over it.
 beforeinstall:
-	-chflags noschg ${DESTDIR}/usr/libexec/${PROG}
+	-chflags noschg ${DESTDIR}/${BINDIR}/${PROG}
 
 .PATH: ${.CURDIR}/${MACHINE_ARCH}
 
