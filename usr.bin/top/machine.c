@@ -546,43 +546,57 @@ get_process_info(si, sel, compare)
     {
 	/*
 	 *  Place pointers to each valid proc structure in pref[].
-	 *  Process slots that are actually in use have a non-zero
-	 *  status field.  Processes with P_SYSTEM set are system
-	 *  processes---these get ignored unless show_sysprocs is set.
 	 */
-	
-	if (pp->ki_stat != 0 &&
-	    (show_self != pp->ki_pid) &&
-	    (show_system || ((pp->ki_flag & P_SYSTEM) == 0)))
+
+	if (pp->ki_stat == 0)
+	    /* not in use */
+	    continue;
+
+	if (!show_self && pp->ki_pid == sel->self)
+	    /* skip self */
+	    continue;
+
+	if (!show_system && (pp->ki_flag & P_SYSTEM))
+	    /* skip system process */
+	    continue;
+
+	p_io = get_io_stats(pp, &p_inblock, &p_oublock, &p_majflt);
+	total_inblock += p_inblock;
+	total_oublock += p_oublock;
+	total_majflt += p_majflt;
+	total_procs++;
+	process_states[(unsigned char) pp->ki_stat]++;
+
+	if (pp->ki_stat == SZOMB)
+	    /* skip zombies */
+	    continue;
+
+	if (displaymode == DISP_CPU && !show_idle &&
+	    (pp->ki_pctcpu == 0 || pp->ki_stat != SRUN))
+	    /* skip idle or non-running processes */
+	    continue;
+
+	if (displaymode == DISP_IO && !show_idle && p_io == 0)
+	    /* skip processes that aren't doing I/O */
+	    continue;
+
+	if (show_uid && pp->ki_ruid != (uid_t)sel->uid)
+	    /* skip processes which don't belong to the selected UID */
+	    continue;
+
+	/*
+	 * When not showing threads, take the first thread
+	 * for output and add the fields that we can from
+	 * the rest of the process's threads rather than
+	 * using the system's mostly-broken KERN_PROC_PROC.
+	 */
+	if (sel->thread || prev_pp == NULL || prev_pp->ki_pid != pp->ki_pid)
 	{
-	    p_io = get_io_stats(pp, &p_inblock, &p_oublock, &p_majflt);
-	    total_inblock += p_inblock;
-	    total_oublock += p_oublock;
-	    total_majflt += p_majflt;
-	    total_procs++;
-	    process_states[(unsigned char) pp->ki_stat]++;
-	    if ((pp->ki_stat != SZOMB) &&
-		(displaymode == DISP_CPU &&
-		 (show_idle || (pp->ki_pctcpu != 0) || pp->ki_stat == SRUN)) &&
-		(show_idle || (displaymode == DISP_IO && p_io != 0)) &&
-		(!show_uid || pp->ki_ruid == (uid_t)sel->uid))
-	    {
-		/*
-		 * When not showing threads, take the first thread
-		 * for output and add the fields that we can from
-		 * the rest of the process's threads rather than
-		 * using the system's mostly-broken KERN_PROC_PROC.
-		 */
-		if (sel->thread || prev_pp == NULL ||
-		    prev_pp->ki_pid != pp->ki_pid)
-		{
-		    *prefp++ = pp;
-		    active_procs++;
-		    prev_pp = pp;
-		} else {
-		    prev_pp->ki_pctcpu += pp->ki_pctcpu;
-		}
-	    }
+	    *prefp++ = pp;
+	    active_procs++;
+	    prev_pp = pp;
+	} else {
+	    prev_pp->ki_pctcpu += pp->ki_pctcpu;
 	}
     }
 
