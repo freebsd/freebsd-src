@@ -245,6 +245,7 @@ dev/acpica/acpi_cpu.c		optional acpi
 dev/acpica/acpi_ec.c		optional acpi
 dev/acpica/acpi_isab.c		optional acpi isa
 dev/acpica/acpi_lid.c		optional acpi
+dev/acpica/acpi_package.c	optional acpi
 dev/acpica/acpi_pci.c		optional acpi pci
 dev/acpica/acpi_pci_link.c	optional acpi pci
 dev/acpica/acpi_pcib.c		optional acpi pci
