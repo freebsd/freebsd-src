@@ -522,6 +522,10 @@ spec_specstrategy(ap)
 	} */ *ap;
 {
 
+	KASSERT(ap->a_vp->v_rdev == ap->a_bp->b_dev,
+	    ("%s, dev %s != %s", __func__,
+	    devtoname(ap->a_vp->v_rdev),
+	    devtoname(ap->a_bp->b_dev)));
 	return spec_xstrategy(ap->a_vp, ap->a_bp);
 }
 
