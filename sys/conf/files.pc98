@@ -59,24 +59,24 @@ contrib/dev/oltr/trlldhm.c	optional	oltr
 contrib/dev/oltr/trlldmac.c	optional	oltr
 #dev/advansys/adv_isa.c		optional	adv isa
 dev/aic/aic_cbus.c		optional	aic isa
-dev/ata/ata-all.c		optional	ata 
-dev/ata/ata-disk.c		optional	atadisk
+dev/ata/ata-all.c		count		ata 
+dev/ata/ata-disk.c		count		atadisk
 dev/ata/ata-dma.c		optional	ata 
-dev/ata/atapi-all.c		optional	atapicd 
-dev/ata/atapi-all.c		optional	atapifd 
-dev/ata/atapi-all.c		optional	atapist
+dev/ata/atapi-all.c		count		atapicd 
+dev/ata/atapi-all.c		count		atapifd 
+dev/ata/atapi-all.c		count		atapist
 dev/ata/atapi-cd.c		optional	atapicd
 dev/ata/atapi-fd.c		optional	atapifd
 dev/ata/atapi-tape.c		optional	atapist
-dev/eisa/eisaconf.c		optional	eisa
+dev/eisa/eisaconf.c		count		eisa
 dev/fb/fb.c			optional	fb
 dev/fb/fb.c			optional	gdc
-dev/fb/splash.c			optional	splash
+dev/fb/splash.c			count		splash
 dev/kbd/kbd.c			optional	kbd
 dev/kbd/kbd.c			optional	sc
 dev/kbd/kbd.c			optional	ukbd
 dev/kbd/kbd.c			optional	pckbd
-dev/syscons/schistory.c		optional	sc
+dev/syscons/schistory.c		count		sc
 dev/syscons/scmouse.c		optional	sc
 dev/syscons/scterm.c		optional	sc
 dev/syscons/scterm-dumb.c	optional	sc
@@ -113,10 +113,10 @@ gnu/i386/fpemul/reg_u_mul.s	optional	gpl_math_emulate
 gnu/i386/fpemul/reg_u_sub.s	optional	gpl_math_emulate
 gnu/i386/fpemul/wm_shrx.s	optional	gpl_math_emulate
 gnu/i386/fpemul/wm_sqrt.s	optional	gpl_math_emulate
-gnu/i386/isa/dgb.c		optional	dgb
-gnu/i386/isa/dgm.c		optional	dgm
+gnu/i386/isa/dgb.c		count		dgb
+gnu/i386/isa/dgm.c		count		dgm
 gnu/i386/isa/sound/awe_wave.c	optional	awe
-i386/apm/apm.c			optional	apm
+i386/apm/apm.c			count		apm
 i386/i386/atomic.c		standard				\
 	compile-with	"${CC} -c ${CFLAGS} ${DEFINED_PROF:S/^$/-fomit-frame-pointer/} ${.IMPSRC}"
 i386/i386/autoconf.c		standard
@@ -180,24 +180,24 @@ i386/isa/bs/bs.c		optional	bs
 i386/isa/bs/bsfunc.c		optional	bs
 i386/isa/bs/bshw.c		optional	bs
 i386/isa/bs/bsif.c		optional	bs
-i386/isa/asc.c			optional	asc
+i386/isa/asc.c			count		asc
 i386/isa/cronyx.c		optional	cx
-i386/isa/ctx.c			optional	ctx
-i386/isa/cx.c			optional	cx
-i386/isa/cy.c			optional	cy
+i386/isa/ctx.c			count		ctx
+i386/isa/cx.c			count		cx
+i386/isa/cy.c			count		cy
 i386/isa/elink.c		optional	ep
 i386/isa/elink.c		optional	ie
 i386/isa/gpib.c			optional	gp
-i386/isa/gsc.c			optional	gsc
+i386/isa/gsc.c			count		gsc
 i386/isa/if_ar.c		optional	ar
 i386/isa/if_cx.c		optional	cx
-i386/isa/if_el.c		optional	el
-i386/isa/if_fe.c		optional	fe
-i386/isa/if_le.c		optional	le
-i386/isa/if_rdp.c		optional	rdp
-i386/isa/if_sr.c		optional	sr
+i386/isa/if_el.c		count		el
+i386/isa/if_fe.c		count		fe
+i386/isa/if_le.c		count		le
+i386/isa/if_rdp.c		count		rdp
+i386/isa/if_sr.c		count		sr
 i386/isa/if_wi.c		optional	wi card
-i386/isa/if_wl.c		optional	wl
+i386/isa/if_wl.c		count		wl
 i386/isa/intr_machdep.c		standard
 i386/isa/ipl_funcs.c		standard				   \
 	compile-with	"${CC} -c ${CFLAGS} ${DEFINED_PROF:S/^$/-fomit-frame-pointer/} ${.IMPSRC}"
@@ -205,11 +205,11 @@ i386/isa/isa.c			optional	isa
 i386/isa/isa_compat.c		optional	isa compat_oldisa \
 	warning "Old ISA driver compatability shims present."
 i386/isa/istallion.c		optional	stli
-i386/isa/labpc.c		optional	labpc
+i386/isa/labpc.c		count		labpc
 i386/isa/loran.c		optional	loran
-i386/isa/matcd/matcd.c		optional	matcd
-i386/isa/mca_machdep.c		optional	mca
-i386/isa/mcd.c			optional	mcd
+i386/isa/matcd/matcd.c		count		matcd
+i386/isa/mca_machdep.c		count		mca
+i386/isa/mcd.c			count		mcd
 i386/isa/pcf.c			optional	pcf
 i386/isa/pcibus.c		optional	pci
 i386/isa/pcvt/pcvt_drv.c	optional	vt
@@ -219,9 +219,9 @@ i386/isa/pcvt/pcvt_out.c	optional	vt
 i386/isa/pcvt/pcvt_sup.c	optional	vt
 i386/isa/pcvt/pcvt_vtf.c	optional	vt
 i386/isa/prof_machdep.c		optional	profiling-routine
-i386/isa/rc.c			optional	rc
+i386/isa/rc.c			count		rc
 i386/isa/rp.c			optional	rp
-i386/isa/scd.c			optional	scd
+i386/isa/scd.c			count		scd
 i386/isa/sound/ad1848.c		optional	css
 i386/isa/sound/ad1848.c		optional	gus
 i386/isa/sound/ad1848.c		optional	gusxvi
@@ -286,10 +286,10 @@ i386/isa/sound/sscape.c		optional	sscape
 i386/isa/sound/sys_timer.c	optional	snd
 i386/isa/sound/trix.c		optional	trix
 i386/isa/sound/uart6850.c	optional	uart
-i386/isa/spigot.c		optional	spigot
+i386/isa/spigot.c		count		spigot
 i386/isa/stallion.c		optional	stl
-i386/isa/tw.c			optional	tw
-i386/isa/wt.c			optional	wt
+i386/isa/tw.c			count		tw
+i386/isa/wt.c			count		wt
 i386/linux/imgact_linux.c	optional	compat_linux
 i386/linux/linux_dummy.c	optional	compat_linux
 i386/linux/linux_file.c		optional	compat_linux
@@ -322,7 +322,7 @@ i4b/layer1/i4b_elsa_qs1i.c	optional	isic
 i4b/layer1/i4b_elsa_qs1p.c	optional	isic
 i4b/layer1/i4b_hscx.c		optional	isic
 i4b/layer1/i4b_isac.c		optional	isic
-i4b/layer1/i4b_isic.c		optional	isic
+i4b/layer1/i4b_isic.c		count		isic
 i4b/layer1/i4b_isic_isa.c	optional	isic
 #i4b/layer1/i4b_isic_pcmcia.c	optional	isic
 i4b/layer1/i4b_isic_pnp.c	optional	isic
@@ -348,6 +348,7 @@ pc98/pc98/atapi.c		optional	wdc
 pc98/pc98/clock.c		standard
 pc98/pc98/diskslice_machdep.c	standard
 pc98/pc98/fd.c			optional	fd
+pc98/pc98/fd.c			optional	fdc
 pc98/pc98/if_ed.c		optional	ed
 pc98/pc98/isa_dma.c		optional	isa
 pc98/pc98/mse.c			optional	mse
@@ -361,12 +362,12 @@ pc98/pc98/ppc.c			optional	ppc
 pc98/pc98/scgdcrndr.c		optional	sc gdc
 pc98/pc98/scterm-sck.c		optional	sc
 pc98/pc98/scvtbpc98.c		optional	sc
-pc98/pc98/sio.c			optional	sio
+pc98/pc98/sio.c			count		sio
 pc98/pc98/spkr.c		optional	speaker
 pc98/pc98/syscons.c		optional	sc
 pc98/pc98/syscons_pc98.c	optional	sc
-pc98/pc98/wd.c			optional	wdc
-pc98/pc98/wd.c			optional	wd
+pc98/pc98/wd.c			count		wdc
+pc98/pc98/wd.c			count		wd
 pc98/pc98/wd_cd.c		optional	wcd wdc
 pc98/pc98/wfd.c			optional	wfd wdc
 pc98/pc98/wst.c			optional	wst wdc
@@ -387,4 +388,4 @@ svr4/svr4_sysent.c		optional	compat_svr4
 svr4/svr4_sysvec.c		optional	compat_svr4
 svr4/svr4_termios.c		optional	compat_svr4
 svr4/svr4_ttold.c		optional	compat_svr4
-#pci/ide_pci.c			optional	wd
+#pci/ide_pci.c			optional	wdc pci

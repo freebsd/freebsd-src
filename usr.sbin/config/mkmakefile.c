@@ -140,7 +140,6 @@ makefile()
 	FILE *ifp, *ofp;
 	char line[BUFSIZ];
 	struct opt *op;
-	int warn_make_clean = 0;
 	int versreq;
 
 	read_files();
@@ -163,17 +162,6 @@ makefile()
 	if (cputype == 0) {
 		printf("cpu type must be specified\n");
 		exit(1);
-	}
-	for (op = opt; op; op = op->op_next) {
-		if (!op->op_ownfile) {
-			warn_make_clean++;
-			if (op->op_value)
-				fprintf(ofp, " -D%s=%s", op->op_name, op->op_value);
-			else
-				fprintf(ofp, " -D%s", op->op_name);
-			printf("%s:%d: unknown option \"%s\"\n",
-				   PREFIX, op->op_line, op->op_name);
-		}
 	}
 	fprintf(ofp, "\n");
 	for (op = mkopt; op; op = op->op_next)
@@ -228,14 +216,7 @@ makefile()
 	(void) fclose(ofp);
 	moveifchanged(path("Makefile.new"), path("Makefile"));
 
-	if (warn_make_clean != 0 && old_config_present) {
-		printf(
-		"Unknown option%s used - it is VERY important that you do\n",
-			(warn_make_clean > 1 ? "s" : ""));
-		printf("         make clean && make depend\n");
-		printf("before recompiling\n");
-	} else
-		printf("Don't forget to do a ``make depend''\n");
+	printf("Don't forget to do a ``make depend''\n");
 }
 
 /*
@@ -254,7 +235,7 @@ read_files()
 	char fname[80];
 	int ddwarned = 0;
 	int nreqs, first = 1, configdep, isdup, std, filetype,
-	    imp_rule, no_obj, before_depend, mandatory;
+	    imp_rule, no_obj, needcount, before_depend, mandatory;
 
 	ftab = 0;
 	save_dp = NULL;
@@ -269,7 +250,8 @@ openit:
 		err(1, "%s", fname);
 next:
 	/*
-	 * filename    [ standard | mandatory | optional ] [ config-dependent ]
+	 * filename    [ standard | mandatory | optional | count]
+	 *	[ config-dependent ]
 	 *	[ dev* | profiling-routine ] [ no-obj ]
 	 *	[ compile-with "compile rule" [no-implicit-rule] ]
 	 *      [ dependency "dependency-list"] [ before-depend ]
@@ -312,7 +294,7 @@ next:
 		exit(1);
 	}
 	if ((pf = fl_lookup(this)) && (pf->f_type != INVISIBLE || pf->f_flags))
-		isdup = 1;
+		isdup = ISDUP;
 	else
 		isdup = 0;
 	tp = 0;
@@ -335,19 +317,23 @@ next:
 	std = mandatory = 0;
 	imp_rule = 0;
 	no_obj = 0;
+	needcount = 0;
 	before_depend = 0;
 	filetype = NORMAL;
-	if (eq(wd, "standard"))
+	if (eq(wd, "standard")) {
 		std = 1;
 	/*
 	 * If an entry is marked "mandatory", config will abort if it's
 	 * not called by a configuration line in the config file.  Apart
 	 * from this, the device is handled like one marked "optional".
 	 */
-	else if (eq(wd, "mandatory"))
+	} else if (eq(wd, "mandatory")) {
 		mandatory = 1;
-	else if (!eq(wd, "optional")) {
-		printf("%s: %s must be optional, mandatory or standard\n",
+		needcount = 1;
+	} else if (eq(wd, "count")) {
+		needcount = 1;
+	} else if (!eq(wd, "optional")) {
+		printf("%s: %s must be count, optional, mandatory or standard\n",
 		       fname, this);
 		exit(1);
 	}
@@ -478,7 +464,9 @@ invis:
 	tp->f_fn = this;
 	tp->f_type = INVISIBLE;
 	tp->f_needs = needs;
-	tp->f_flags = isdup;
+	tp->f_flags |= isdup;
+	if (needcount)
+		tp->f_flags |= NEED_COUNT;
 	tp->f_special = special;
 	tp->f_depends = depends;
 	tp->f_clean = clean;
@@ -503,7 +491,7 @@ doneparam:
 		tp = new_fent();
 	tp->f_fn = this;
 	tp->f_type = filetype;
-	tp->f_flags = 0;
+	tp->f_flags &= ~ISDUP;
 	if (configdep)
 		tp->f_flags |= CONFIGDEP;
 	if (imp_rule)
@@ -516,13 +504,15 @@ doneparam:
 		tp->f_flags |= NO_IMPLCT_RULE;
 	if (no_obj)
 		tp->f_flags |= NO_OBJ;
+	if (needcount)
+		tp->f_flags |= NEED_COUNT;
 	tp->f_needs = needs;
 	tp->f_special = special;
 	tp->f_depends = depends;
 	tp->f_clean = clean;
 	tp->f_warn = warn;
 	if (pf && pf->f_type == INVISIBLE)
-		pf->f_flags = 1;		/* mark as duplicate */
+		pf->f_flags |= ISDUP;		/* mark as duplicate */
 	goto next;
 }
 
