@@ -430,6 +430,9 @@ if_attach(ifp)
 		TAILQ_INSERT_HEAD(&ifp->if_addrhead, ifa, ifa_link);
 	}
 	ifp->if_broadcastaddr = 0; /* reliably crash if used uninitialized */
+
+	/* Announce the interface. */
+	rt_ifannouncemsg(ifp, IFAN_ARRIVAL);
 }
 
 /*
@@ -510,6 +513,9 @@ if_detach(ifp)
 			continue;
 		(void) rnh->rnh_walktree(rnh, if_rtdel, ifp);
 	}
+
+	/* Announce that the interface is gone. */
+	rt_ifannouncemsg(ifp, IFAN_DEPARTURE);
 
 	KNOTE(&ifp->if_klist, NOTE_EXIT);
 	TAILQ_REMOVE(&ifnet, ifp, if_link);
