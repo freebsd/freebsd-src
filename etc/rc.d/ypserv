@@ -15,35 +15,21 @@ command="/usr/sbin/${name}"
 start_precmd="ypserv_precmd"
 
 load_rc_config $name
-case ${OSTYPE} in
-FreeBSD)
-	rcvar="nis_server_enable"
-	command_args="${nis_server_flags}"
-	;;
-NetBSD)
-	rcvar=${name}
-	required_vars="rpcbind"
-	;;
-esac
+rcvar="nis_server_enable"
+command_args="${nis_server_flags}"
 
 ypserv_precmd()
 {
-	case ${OSTYPE} in
-	FreeBSD)
-		if ! checkyesno rpcbind_enable  && \
-		    ! /etc/rc.d/rpcbind forcestatus 1>/dev/null 2>&1
-		then
-			force_depend rpcbind || return 1
-		fi
-		;;
-	esac
-
+	if ! checkyesno rpcbind_enable  && \
+	    ! /etc/rc.d/rpcbind forcestatus 1>/dev/null 2>&1
+	then
+		force_depend rpcbind || return 1
+	fi
 	_domain=`domainname`
 	if [ -z "$_domain" ]; then
 		warn "NIS domainname(1) is not set."
 		return 1
 	fi
-
 	if [ ! -d /var/yp/$_domain/. ]; then
 		warn "/var/yp/$_domain is not a directory."
 		return 1

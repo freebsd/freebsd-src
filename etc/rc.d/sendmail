@@ -18,29 +18,17 @@
 name="sendmail"
 rcvar=`set_rcvar`
 required_files="/etc/mail/${name}.cf"
+command=${sendmail_program:-/usr/sbin/sendmail}
+pidfile=${sendmail_pidfile:-/var/run/sendmail.pid}
 
-case ${OSTYPE} in
-FreeBSD)
-	command=${sendmail_program:-/usr/sbin/sendmail}
-	pidfile=${sendmail_pidfile:-/var/run/sendmail.pid}
+load_rc_config $name
 
-	load_rc_config $name
-
-	case ${sendmail_enable} in
-	[Nn][Oo][Nn][Ee])
-		sendmail_enable="NO"
-		sendmail_submit_enable="NO"
-		sendmail_outbound_enable="NO"
-		sendmail_msp_queue_enable="NO"
-		;;
-	esac
-	;;
-NetBSD)
-	command="/usr/sbin/${name}"
-	pidfile="/var/run/${name}.pid"
-	start_precmd="sendmail_precmd"
-
-	load_rc_config $name
+case ${sendmail_enable} in
+[Nn][Oo][Nn][Ee])
+	sendmail_enable="NO"
+	sendmail_submit_enable="NO"
+	sendmail_outbound_enable="NO"
+	sendmail_msp_queue_enable="NO"
 	;;
 esac
 
@@ -83,29 +71,25 @@ sendmail_precmd()
 
 run_rc_command "$1"
 
-case ${OSTYPE} in
-FreeBSD)
-	required_files=
+required_files=
 
-	if ! checkyesno sendmail_enable; then
-		name="sendmail_submit"
-		rcvar=`set_rcvar`
-		start_cmd="${command} ${sendmail_submit_flags}"
-		run_rc_command "$1"
-	fi
-
-	if ! checkyesno sendmail_outbound_enable; then
-		name="sendmail_outbound"
-		rcvar=`set_rcvar`
-		start_cmd="${command} ${sendmail_outbound_flags}"
-		run_rc_command "$1"
-	fi
-
-	name="sendmail_clientmqueue"
-	rcvar="sendmail_msp_queue_enable"
-	start_cmd="${command} ${sendmail_msp_queue_flags}"
-	pidfile="${sendmail_mspq_pidfile:-/var/spool/clientmqueue/sm-client.pid}"
-	required_files="/etc/mail/submit.cf"
+if ! checkyesno sendmail_enable; then
+	name="sendmail_submit"
+	rcvar=`set_rcvar`
+	start_cmd="${command} ${sendmail_submit_flags}"
 	run_rc_command "$1"
-	;;
-esac
+fi
+
+if ! checkyesno sendmail_outbound_enable; then
+	name="sendmail_outbound"
+	rcvar=`set_rcvar`
+	start_cmd="${command} ${sendmail_outbound_flags}"
+	run_rc_command "$1"
+fi
+
+name="sendmail_clientmqueue"
+rcvar="sendmail_msp_queue_enable"
+start_cmd="${command} ${sendmail_msp_queue_flags}"
+pidfile="${sendmail_mspq_pidfile:-/var/spool/clientmqueue/sm-client.pid}"
+required_files="/etc/mail/submit.cf"
+run_rc_command "$1"
