@@ -58,7 +58,12 @@ is a single dash
 .Pq Sq \&-
 or absent,
 .Nm
-reads from the standard input.
+reads from the standard input.  If
+.Ar file
+is a unix domain socket,
+.Nm
+connects to it and then reads it until EOF.  This complements the unix-domain
+binding capability available in inetd.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
