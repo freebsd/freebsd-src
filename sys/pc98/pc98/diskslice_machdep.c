@@ -35,7 +35,7 @@
  *
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: diskslice_machdep.c,v 1.3 1996/10/09 21:46:15 asami Exp $
+ *	$Id: diskslice_machdep.c,v 1.4 1996/11/09 00:39:48 asami Exp $
  */
 
 /*
@@ -300,7 +300,6 @@ reread_mbr:
 		sp->ds_offset = 0;
 		sp->ds_size = lp->d_secperunit;
 		sp->ds_type = DOSPTYP_386BSD;
-		sp->ds_subtype = 0xc4;
 		error = 0;
 		ssp->dss_nslices = BASE_SLICE + 1;
 		goto done;
@@ -330,7 +329,6 @@ reread_mbr:
 		sp->ds_offset = 0;
 		sp->ds_size = lp->d_secperunit;
 		sp->ds_type = 0xa0;  /* XXX */
-		sp->ds_subtype = 0x81;  /* XXX */
 		error = 0;
 		ssp->dss_nslices = BASE_SLICE + 1;
 		goto done;
@@ -493,8 +491,6 @@ reread_mbr:
 		sp->ds_offset = pc98_start;
 		sp->ds_size = pc98_size;
 		sp->ds_type = dp->dp_mid;
-		sp->ds_subtype = dp->dp_sid;
-		strncpy(sp->ds_name, dp->dp_name, 16);
 #else
 		sp->ds_offset = mbr_offset + dp->dp_start;
 		sp->ds_size = dp->dp_size;
@@ -631,8 +627,6 @@ extended(dname, dev, strat, lp, ssp, ext_offset, ext_size, base_ext_offset,
 			sp->ds_offset = ext_offset + pc98_start;
 			sp->ds_size = pc98_size;
 			sp->ds_type = dp->dp_mid;
-			sp->ds_subtype = dp->dp_sid;
-			strncpy(sp->ds_name, dp->dp_name, 16);
 #else
 			sp->ds_offset = ext_offset + dp->dp_start;
 			sp->ds_size = dp->dp_size;

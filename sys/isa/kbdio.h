@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kbdio.h,v 1.1 1996/11/14 22:19:09 sos Exp $
+ * $Id: kbdio.h,v 1.2 1996/12/01 19:05:45 sos Exp $
  */
 
 #ifndef _I386_ISA_KBDIO_H_
@@ -35,11 +35,19 @@
 /* constants */
 
 /* I/O ports */
+#ifdef PC98
+#define KBD_STATUS_PORT 	2	/* status port, read */
+#define KBD_COMMAND_PORT	2	/* controller command port, write */
+#define KBD_DATA_PORT		0	/* data port, read/write 
+					   also used as keyboard command
+					   and mouse command port */
+#else
 #define KBD_STATUS_PORT 	4	/* status port, read */
 #define KBD_COMMAND_PORT	4	/* controller command port, write */
 #define KBD_DATA_PORT		0	/* data port, read/write 
 					   also used as keyboard command
 					   and mouse command port */
+#endif	/* PC98 */
 /* FIXME: `IO_PSMSIZE' should really be in `isa.h'. */
 #define IO_PSMSIZE		(KBD_COMMAND_PORT - KBD_DATA_PORT + 1) /* 5 */
 
@@ -110,10 +118,17 @@
 #define PSMD_MAX_RATE		255	/* FIXME: not sure if it's possible */
 
 /* status bits (KBD_STATUS_PORT) */
+#ifdef PC98
+#define KBDS_BUFFER_FULL	0x0002
+#define KBDS_ANY_BUFFER_FULL	0x0002
+#define KBDS_KBD_BUFFER_FULL	0x0002
+#define KBDS_AUX_BUFFER_FULL	0x0002
+#else
 #define KBDS_BUFFER_FULL	0x0021
 #define KBDS_ANY_BUFFER_FULL	0x0001
 #define KBDS_KBD_BUFFER_FULL	0x0001
 #define KBDS_AUX_BUFFER_FULL	0x0021
+#endif
 #define KBDS_INPUT_BUFFER_FULL	0x0002
 
 /* return code */
@@ -150,6 +165,15 @@
 #endif
 #ifndef KBD_MAXWAIT
 #define KBD_MAXWAIT		5 	/* wait 5 times at most after reset */
+#endif
+
+/* I/O recovery time */
+#ifdef PC98
+#define KBDC_DELAYTIME		37
+#define KBDD_DELAYTIME		37
+#else
+#define KBDC_DELAYTIME		20
+#define KBDD_DELAYTIME		7
 #endif
 
 /* debugging */

@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.5 1996/09/10 09:38:13 asami Exp $
+ *	$Id: lpt.c,v 1.6 1996/11/02 10:39:30 asami Exp $
  */
 
 /*
@@ -207,7 +207,7 @@ static int volatile lptflag = 1;
 #define	LPTFLAGS(s)	((s)&0xfc)
 
 static struct lpt_softc {
-	short	sc_port;
+	int	sc_port;
 	short	sc_state;
 	/* default case: negative prime, negative ack, handshake strobe,
 	   prime once */
@@ -320,7 +320,7 @@ static struct cdevsw lpt_cdevsw =
  * Internal routine to lptprobe to do port tests of one byte value
  */
 static int
-lpt_port_test (short port, u_char data, u_char mask)
+lpt_port_test (int port, u_char data, u_char mask)
 {
 	int	temp, timeout;
 
@@ -388,7 +388,7 @@ lptprobe(struct isa_device *dvp)
 #ifdef PC98
 	return 8;
 #else
-	short		port;
+	int		port;
 	static short	next_bios_lpt = 0;
 	int		status;
 	u_char		data;

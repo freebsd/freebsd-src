@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.11 1996/11/02 10:39:03 asami Exp $
+ **      $Id: userconfig.c,v 1.12 1996/11/09 00:39:38 asami Exp $
  **/
 
 /**
@@ -153,18 +153,14 @@ getchar(void)
 
 #define putchar(x)	cnputc(x)
 
-#ifdef VISUAL_USERCONFIG
-static struct isa_device *devtabs[] = { isa_devtab_bio, isa_devtab_tty, isa_devtab_net,
-				     isa_devtab_null, NULL };
-
-
-
-
 #ifndef FALSE
 #define FALSE	(0)
 #define TRUE	(!FALSE)
 #endif
 
+#ifdef VISUAL_USERCONFIG
+static struct isa_device *devtabs[] = { isa_devtab_bio, isa_devtab_tty, isa_devtab_net,
+				     isa_devtab_null, NULL };
 
 typedef struct
 {
@@ -281,6 +277,11 @@ static DEV_INFO device_info[] = {
 {"cx",          "Cronyx/Sigma multiport sync/async adapter",0,		CLS_COMMS},
 {"rc",          "RISCom/8 multiport async adapter",	0,		CLS_COMMS},
 {"cy",          "Cyclades multiport async adapter",	0,		CLS_COMMS},
+{"cyy",         "Cyclades Ye/PCI multiport async adapter",FLG_INVISIBLE,CLS_COMMS},
+{"dgb",         "Digiboard PC/Xe, PC/Xi async adapter",	0,		CLS_COMMS},
+{"si",          "Specialix SI/XIO async adapter",	0,		CLS_COMMS},
+{"stl",         "Stallion EasyIO/Easy Connection 8/32 async adapter",0,	CLS_COMMS},
+{"stli",        "Stallion intelligent async adapter"	,0,		CLS_COMMS},
 #endif
 {"lpt",         "Parallel printer port",		0,		CLS_COMMS},
 #ifndef PC98
@@ -314,7 +315,9 @@ static DEV_INFO device_info[] = {
 {"pca",         "PC speaker PCM audio driver",		FLG_FIXED,	CLS_MMEDIA},
 {"ctx",         "Coretex-I frame grabber",		0,		CLS_MMEDIA},
 {"spigot",      "Creative Labs Video Spigot video capture",	0,	CLS_MMEDIA},
+{"scc",         "IBM Smart Capture Card",		0,		CLS_MMEDIA},
 {"gsc",         "Genius GS-4500 hand scanner",		0,		CLS_MMEDIA},
+{"asc",         "AmiScan scanner",			0,		CLS_MMEDIA},
 {"qcam",	"QuickCam parallel port camera",	0,		CLS_MMEDIA},
 
 {"apm",         "Advanced Power Management",		FLG_FIXED,	CLS_MISC},
@@ -705,11 +708,10 @@ savelist(DEV_LIST *list, int active)
 
     while (list)
     {
-	if ((list->comment == DEV_DEVICE) && list->changed)
-	{
-	    if ((list->iobase == -2) ||			/* is a PCI device; can't save */
-		(list->device == NULL))			/* no isa_device associated at all?! */
-		continue;		
+	if ((list->comment == DEV_DEVICE) &&		/* is a device */
+	    (list->changed) &&				/* has been changed */
+	    (list->iobase != -2) &&			/* is not a PCI device */
+	    (list->device != NULL)) {			/* has an isa_device structure */
 
 	    setdev(list,active);			/* set the device itself */
 
@@ -1510,7 +1512,7 @@ static int
 editval(int x, int y, int width, int hex, int min, int max, int *val, int ro)
 {
     int		i = *val;			/* work with copy of the value */
-    char	buf[10],tc[8];			/* display buffer, text copy */
+    char	buf[2+11+1],tc[11+1];		/* display buffer, text copy */
     int		xp = 0;				/* cursor offset into text copy */
     int		delta = 1;			/* force redraw first time in */
     int		c;
@@ -1599,7 +1601,7 @@ editval(int x, int y, int width, int hex, int min, int max, int *val, int ro)
 	    }
 	    if (xp)				/* still something left to delete */
 	    {
-		i = i / (hex?0x10:10);		/* strip last digit */
+		i = (hex ? i/0x10u : i/10);	/* strip last digit */
 		delta = 1;			/* force update */
 	    }
 	    break;
@@ -1751,7 +1753,7 @@ editparams(DEV_LIST *dev)
 	}
     ep_flags:
 	puthelp("  Device-specific flag values.");
-	ret = editval(18,20,5,1,0x0,0xffff,&(dev->flags),0);
+	ret = editval(18,20,8,1,INT_MIN,INT_MAX,&(dev->flags),0);
 	switch(ret)
 	{
 	case KEY_EXIT:
@@ -2254,7 +2256,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.11 1996/11/02 10:39:03 asami Exp $
+ *      $Id: userconfig.c,v 1.12 1996/11/09 00:39:38 asami Exp $
  */
 
 #include "scbus.h"
@@ -2308,7 +2310,7 @@ static int set_device_enable(CmdParm *);
 static int set_device_disable(CmdParm *);
 static int quitfunc(CmdParm *);
 static int helpfunc(CmdParm *);
-#if defined(USERCONFIG_BOOT) && defined(VISUAL_USERCONFIG)
+#if defined(USERCONFIG_BOOT)
 static int introfunc(CmdParm *);
 #endif
 
@@ -2339,7 +2341,7 @@ static Cmd CmdList[] = {
     { "ex", 	quitfunc, 		NULL },		/* exit (quit)	*/
     { "f",	set_device_flags,	int_parms },	/* flags dev mask */
     { "h", 	helpfunc, 		NULL },		/* help		*/
-#if defined(USERCONFIG_BOOT) && defined(VISUAL_USERCONFIG)
+#if defined(USERCONFIG_BOOT)
     { "intro", 	introfunc, 		NULL },		/* intro screen	*/
 #endif
     { "iom",	set_device_mem,		addr_parms },	/* iomem dev addr */
@@ -2604,17 +2606,20 @@ helpfunc(CmdParm *parms)
     return 0;
 }
 
-#if defined(USERCONFIG_BOOT) && defined(VISUAL_USERCONFIG)
+#if defined(USERCONFIG_BOOT) 
 
+#if defined (VISUAL_USERCONFIG)
 static void
 center(int y, char *str)
 {
     putxy((80 - strlen(str)) / 2, y, str);
 }
+#endif
 
 static int
 introfunc(CmdParm *parms)
 {
+#if defined (VISUAL_USERCONFIG)
     int curr_item, first_time;
     static char *choices[] = {
 	" Skip kernel configuration and continue with installation ",
@@ -2708,6 +2713,7 @@ introfunc(CmdParm *parms)
 	    }
 	}
     }
+#endif
 }
 #endif
 
