@@ -24,9 +24,12 @@
 
  	-hm	minor modifications for pcvt 2.0 release
 
+$FreeBSD$
 */
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <ctype.h>
 
 /*
@@ -81,9 +84,8 @@ main(argc,argv)
         int initf = 0;          /* read initialization file              */
         int lockf = 0;          /* lock keys after loading strings       */
         int clearf = 0;         /* clear all keys before loading strings */
-	char *strcpy();
 
-        (void) strcpy(prog, *argv);  /* store program name               */
+        strlcpy(prog, *argv, sizeof(prog));  /* store program name       */
 
         if(argc == 1) usage();  /* program requires options              */
 
@@ -232,18 +234,9 @@ getinit()
         struct stat statbuf;    /* stat of the init file                */
         FILE *fp;               /* file pointer to init file            */
 
-        /* system calls and subroutines */
-        FILE *fopen();
-        char *strcpy();
-        char *strcat();
-        char *fgets();
-        char *getenv();
-
         /* construct full path name for init file */
         home = getenv("HOME");
-        (void) strcpy(path, home);
-        (void) strcat(path,"/");
-        (void) strcat(path,INITFILE);
+	snprintf(path, sizeof(path), "%s/%s", home, INITFILE);
 
         /* check status if init file    */
         if (stat(path, &statbuf) != -1)
