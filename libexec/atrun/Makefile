@@ -1,19 +1,17 @@
 # $FreeBSD$
 
-MAINSRC= ${.CURDIR}/../../usr.bin/at
+MAINSRC=${.CURDIR}/../../usr.bin/at
 
-.include "$(MAINSRC)/Makefile.inc"
+.include "${MAINSRC}/Makefile.inc"
 
 PROG=	atrun
 MAN8=	atrun.8
-SRCS=   atrun.c gloadavg.c
+SRCS=	atrun.c gloadavg.c
 
-BINDIR= $(ATLIB_DIR)
-MANSRC= .
-CLEANFILES += ${MAN8}
-MANDEPEND = ${MAN8}
+BINDIR=	${ATLIB_DIR}
+CLEANFILES= ${MAN8}
 
-CFLAGS+= -I$(MAINSRC) -I${.CURDIR}
+CFLAGS+=-I${MAINSRC} -I${.CURDIR}
 
 ${MAN8}: atrun.man
 	sed -e \
@@ -21,6 +19,6 @@ ${MAN8}: atrun.man
 		s@_ATJOB_DIR@$(ATJOB_DIR)@g; \
 		s@_ATLIB_DIR@$(ATLIB_DIR)@g; \
 		s@_LOADAVG_MX@$(LOADAVG_MX)@g;" \
-		< $? > $@
+		< ${.ALLSRC} > ${.TARGET}
 
 .include <bsd.prog.mk>
