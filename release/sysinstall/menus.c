@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.89.2.75 1998/07/21 04:03:06 jkh Exp $
+ * $Id: menus.c,v 1.89.2.76 1998/07/21 05:42:34 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -1203,7 +1203,7 @@ DMenu MenuNetworking = {
 	dmenuVarCheck, dmenuToggleVariable, NULL, "amd_enable=YES" },
       { "AMD Flags",	"Set flags to AMD service (if enabled)",
 	dmenuVarCheck, dmenuISetVariable, NULL, "amd_flags" },
-      { "TCP Extentions",       "Allow RFC1323 and RFC1644 TCP extentions?",
+      { "TCP Extensions",       "Allow RFC1323 and RFC1644 TCP extensions?",
 	dmenuVarCheck, dmenuToggleVariable, NULL, "tcp_extentions=YES" },
       { "Gateway",	"This machine will route packets between interfaces",
 	dmenuVarCheck,	dmenuToggleVariable, NULL, "gateway_enable=YES" },
@@ -1211,7 +1211,7 @@ DMenu MenuNetworking = {
       { "Netcon",	"Install the Novell client/server demo package",
 	dmenuVarCheck, configNovell, NULL, "novell" },
 #endif
-      { "Ntpdate",	"Select a clock-syncronization server",
+      { "Ntpdate",	"Select a clock-synchronization server",
 	dmenuVarCheck,	dmenuSubmenu, NULL, &MenuNTP, '[', 'X', ']', (int)"ntpdate_enable=YES" },
       { "router",	"Select routing daemon (default: routed)",
 	dmenuVarCheck, configRouter, NULL, "router" },
@@ -1229,9 +1229,9 @@ DMenu MenuNetworking = {
 DMenu MenuNTP = {
     DMENU_RADIO_TYPE | DMENU_SELECTION_RETURNS,
     "NTPDATE Server Selection",
-    "There are a number of time syncronization servers available\n"
+    "There are a number of time synchronization servers available\n"
     "for public use around the Internet.  Please select one reasonably\n"
-    "close to you to have your system time syncronized accordingly.",
+    "close to you to have your system time synchronized accordingly.",
     "These are the primary open-access NTP servers",
     NULL,
     { { "None",		        "No ntp server",
