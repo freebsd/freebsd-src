@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.539.2.12 1999/04/21 04:53:35 jkoshy Exp $
+#	$Id: LINT,v 1.539.2.13 1999/04/23 06:27:54 peter Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1092,10 +1092,10 @@ disk		fd0	at fdc0 drive 0
 disk		fd1	at fdc0 drive 1
 
 #
-# Other standard PC hardware: `lpt', `mse', `sio', etc.
+# Other standard PC hardware: `olpt', `mse', `sio', etc.
 #
-# lpt: printer port (deprecated, use ppbus instead)
-#	lpt specials:
+# olpt: printer port (deprecated, use ppbus instead)
+#	olpt specials:
 #		The port may be specified as ?.  This will cause the
 #		driver to scan the BIOS port list.
 #		The irq clause may be omitted.  This will force the port
@@ -1103,8 +1103,8 @@ disk		fd1	at fdc0 drive 1
 # mse: Logitech and ATI InPort bus mouse ports
 # sio: serial ports (see sio(4))
 
-device		lpt0	at isa? port? tty irq 7
-device		lpt1	at isa? port "IO_LPT3" tty irq 5
+device		olpt0	at isa? port? tty irq 7
+device		olpt1	at isa? port "IO_LPT3" tty irq 5
 device		mse0	at isa? port 0x23c tty irq 5
 
 device		sio0	at isa? port "IO_COM1" tty flags 0x10 irq 4
@@ -1792,7 +1792,7 @@ pseudo-device	"i4bisppp"	4
 # vpo	Iomega Zip Drive
 #	Requires SCSI disk support ('scbus' and 'da'), best
 #	performance is achieved with ports in EPP 1.9 mode.
-# nlpt	Parallel Printer, use _instead_ of lpt0
+# lpt	Parallel Printer, use _instead_ of olpt0
 # plip	Parallel network interface
 # ppi	General-purpose I/O ("Geek Port")
 # pps	Pulse per second Timing Interface
@@ -1803,7 +1803,7 @@ pseudo-device	"i4bisppp"	4
 #
 controller	ppbus0
 controller	vpo0	at ppbus?
-device		nlpt0	at ppbus?
+device		lpt0	at ppbus?
 device		plip0	at ppbus?
 device		ppi0	at ppbus?
 device		pps0	at ppbus?
