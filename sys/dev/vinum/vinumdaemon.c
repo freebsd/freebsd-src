@@ -34,7 +34,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumdaemon.c,v 1.7 1999/10/12 09:39:48 grog Exp grog $
+ * $Id: vinumdaemon.c,v 1.8 2000/01/03 05:22:03 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -69,6 +69,7 @@ vinum_daemon(void)
     int s;
     struct daemonq *request;
 
+    curproc->p_flag |= P_INMEM | P_SYSTEM;		    /* we're a system process */
     daemon_save_config();				    /* start by saving the configuration */
     daemonpid = curproc->p_pid;				    /* mark our territory */
     while (1) {
@@ -82,7 +83,7 @@ vinum_daemon(void)
 	 */
 	if (curproc->p_pid != daemonpid) {		    /* we've been ousted in our sleep */
 	    if (daemon_options & daemon_verbose)
-		log(LOG_INFO, "vinumd: abdicating\n");
+		log(LOG_INFO, "vinum: abdicating\n");
 	    return;
 	}
 	while (daemonq != NULL) {			    /* we have work to do, */
@@ -103,8 +104,8 @@ vinum_daemon(void)
 		    struct request *rq = request->info.rq;
 
 		    log(LOG_WARNING,
-			"vinumd: recovering I/O request: %x\n%s dev %d.%d, offset 0x%x, length %ld\n",
-			(u_int) rq,
+			"vinum: recovering I/O request: %p\n%s dev %d.%d, offset 0x%x, length %ld\n",
+			rq,
 			rq->bp->b_flags & B_READ ? "Read" : "Write",
 			major(rq->bp->b_dev),
 			minor(rq->bp->b_dev),
@@ -133,7 +134,7 @@ vinum_daemon(void)
 			   * the end.
 			 */
 			if (daemon_options & daemon_verbose)
-			    log(LOG_INFO, "vinumd: saving config\n");
+			    log(LOG_INFO, "vinum: saving config\n");
 			daemon_save_config();		    /* save it */
 		    }
 		}
@@ -141,7 +142,7 @@ vinum_daemon(void)
 
 	    case daemonrq_return:			    /* been told to stop */
 		if (daemon_options & daemon_verbose)
-		    log(LOG_INFO, "vinumd: stopping\n");
+		    log(LOG_INFO, "vinum: stopping\n");
 		daemon_options |= daemon_stopped;	    /* note that we've stopped */
 		Free(request);
 		while (daemonq != NULL) {		    /* backed up requests, */
@@ -154,7 +155,7 @@ vinum_daemon(void)
 
 	    case daemonrq_ping:				    /* tell the caller we're here */
 		if (daemon_options & daemon_verbose)
-		    log(LOG_INFO, "vinumd: ping reply\n");
+		    log(LOG_INFO, "vinum: ping reply\n");
 		wakeup(&vinum_finddaemon);		    /* wake up the caller */
 		break;
 
