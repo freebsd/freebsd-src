@@ -31,7 +31,6 @@
 #define	__RIJNDAEL_H
 
 #include <crypto/rijndael/rijndael-alg-fst.h>
-#include <crypto/rijndael/rijndael-api-fst.h>
 
 /* XXX: avoid conflicts with opencrypto */
 #define	rijndael_set_key	_rijndael_set_key

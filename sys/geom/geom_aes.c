@@ -57,9 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/errno.h>
 #include <geom/geom.h>
 
-#include <crypto/rijndael/rijndael.h>
-
-#include <crypto/rijndael/rijndael.h>
+#include <crypto/rijndael/rijndael-api-fst.h>
 
 #define AES_CLASS_NAME "AES"
 
