@@ -25,7 +25,7 @@
  * advised of the possibility of such damages.
  */
 
-/* XXX ignores the domain of recieved names. */
+/* XXX ignores the domain of received names. */
 
 #include <sys/types.h>
 #include <sys/ioctl.h>
@@ -52,7 +52,7 @@
 
 #define DEV_PATH "/dev/nfs4"
 
-#define DOMAIN "@citi.umich.edu"
+#define DOMAIN "@FreeBSD.org"
 #define BADUSER "nobody"
 #define BADGROUP "nogroup"
 #define BADUID (-2)
