@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)unifdef.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: unifdef.c,v 1.2 1997/08/20 11:07:53 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -108,7 +108,7 @@ void pfile __P((void));
 int doif __P((int, int, Reject_level, int));
 int findsym __P((char *));
 
-void
+int
 main (argc, argv)
 int argc;
 char **argv;

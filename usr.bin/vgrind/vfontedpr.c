@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)vfontedpr.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: vfontedpr.c,v 1.8 1997/08/25 06:36:03 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -131,7 +131,7 @@ char	*language = "c";	/* the language indicator */
 
 #define	ps(x)	printf("%s", x)
 
-void
+int
 main(argc, argv)
     int argc;
     char *argv[];
