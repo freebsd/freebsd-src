@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id$
+ *	$Id: machdep.c,v 1.228 1997/02/22 09:32:26 peter Exp $
  */
 
 #include "npx.h"
@@ -632,9 +632,9 @@ sigreturn(p, uap, retval)
 }
 
 /*
- * Machine depdnetnt boot() routine
+ * Machine dependent boot() routine
  *
- * I haven't seen anything too put here yet
+ * I haven't seen anything to put here yet
  * Possibly some stuff might be grafted back here from boot()
  */
 void
