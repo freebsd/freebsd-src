@@ -94,6 +94,7 @@ int main(int argc, char *argv[])
 				case 'a': howto |= RB_ASKNAME; break;
 				case 'c': howto |= RB_CONFIG; break;
 				case 'd': howto |= RB_KDB; break;
+				case 'g': howto |= RB_GDB; break;
 				case 'v': howto |= RB_VERBOSE; break;
 				case 'C': howto |= RB_CDROM; break;
 				case 'D': dos = 1; kernel = "c:\\kernel"; break;

@@ -299,6 +299,7 @@ cmd_flags(buf)
 	case 'b':	flags |= RB_HALT; break;
 	case 'c':	flags |= RB_CONFIG; break;
 	case 'd':	flags |= RB_KDB; break;
+	case 'g':	flags |= RB_GDB; break;
 	case 'h':	flags ^= RB_SERIAL; break;
 	case 's':	flags |= RB_SINGLE; break;
 	case 'v':	flags |= RB_VERBOSE; break;
