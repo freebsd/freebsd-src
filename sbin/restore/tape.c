@@ -1088,6 +1088,8 @@ gethead(struct s_spcl *buf)
 		if (buf->c_magic == NFS_MAGIC) {
 			buf->c_date = _time32_to_time(buf->c_old_date);
 			buf->c_ddate = _time32_to_time(buf->c_old_ddate);
+			buf->c_tapea = buf->c_old_tapea;
+			buf->c_firstrec = buf->c_old_firstrec;
 		}
 	case TS_END:
 		buf->c_inumber = 0;
