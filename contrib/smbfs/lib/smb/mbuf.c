@@ -32,8 +32,12 @@
  * $Id: mbuf.c,v 1.6 2001/02/24 15:56:04 bp Exp $
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/types.h>
 #include <sys/mchain.h>
+#include <arpa/inet.h>
 #include <ctype.h>
 #include <errno.h>
 #include <stdio.h>
