@@ -6,6 +6,6 @@ PROG=	fdformat
 SRCS=	fdformat.c fdutil.c
 CFLAGS=	-I${.CURDIR}/../fdread
 
-WARNS?=	1
+WARNS?=	2
 
 .include <bsd.prog.mk>
