@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.1 1998/06/10 10:53:40 dfr Exp $
+ *	$Id: vm_machdep.c,v 1.2 1998/06/10 19:59:41 dfr Exp $
  */
 /*
  * Copyright (c) 1994, 1995, 1996 Carnegie-Mellon University.
@@ -127,16 +127,6 @@ cpu_fork(p1, p2)
 	 * swap to it easily.
 	 */
 	p2->p_md.md_pcbpaddr = (void*) vtophys((vm_offset_t) &up->u_pcb);
-
-	/*
-	 * Simulate a write to the process's U-area pages,
-	 * so that the system doesn't lose badly.
-	 * (If this isn't done, the kernel can't read or
-	 * write the kernel stack.  "Ouch!")
-	 */
-	for (i = 0; i < UPAGES; i++)
-		pmap_emulate_reference(p2, (vm_offset_t)up + i * PAGE_SIZE,
-		    0, 1);
 
 	/*
 	 * Copy floating point state from the FP chip to the PCB
