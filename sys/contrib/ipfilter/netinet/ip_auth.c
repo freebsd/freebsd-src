@@ -442,10 +442,8 @@ fr_authioctlloop:
 # if SOLARIS
 			error = (fr_qin(fra->fra_q, m) == 0) ? EINVAL : 0;
 # else /* SOLARIS */
-			if (! IF_HANDOFF(&ipintrq, m, NULL))
+			if (! netisr_queue(NETISR_IP, m))
 				error = ENOBUFS;
-			else
-				schednetisr(NETISR_IP);
 # endif /* SOLARIS */
 			if (error)
 				fr_authstats.fas_quefail++;

@@ -520,11 +520,7 @@ lp_intr (void *arg)
 	    if (top) {
 		if (sc->sc_if.if_bpf)
 		    lptap(&sc->sc_if, top);
-                if (! IF_HANDOFF(&ipintrq, top, NULL)) {
-	            lprintf("DROP");
-                } else {
-	            schednetisr(NETISR_IP);
-	        }
+		netisr_queue(NETISR_IP, top);
 	    }
 	    goto done;
 	}
@@ -569,11 +565,7 @@ lp_intr (void *arg)
 	    if (top) {
 		if (sc->sc_if.if_bpf)
 		    lptap(&sc->sc_if, top);
-                if (! IF_HANDOFF(&ipintrq, top, NULL))  {
-		    lprintf("DROP");
-                } else {
-		    schednetisr(NETISR_IP);
-	        }
+		netisr_queue(NETISR_IP, top);
 	    }
 	}
 	goto done;

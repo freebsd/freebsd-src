@@ -90,7 +90,6 @@
 #include <net/if_dl.h>
 #include <net/route.h>
 #include <net/netisr.h>
-#include <net/intrq.h>
 #ifdef PFIL_HOOKS
 #include <net/pfil.h>
 #endif
@@ -132,6 +131,7 @@
 extern struct domain inet6domain;
 
 u_char ip6_protox[IPPROTO_MAX];
+static struct ifqueue ip6intrq;
 static int ip6qmaxlen = IFQ_MAXLEN;
 struct in6_ifaddr *in6_ifaddr;
 
@@ -186,8 +186,7 @@ ip6_init()
 			ip6_protox[pr->pr_protocol] = pr - inet6sw;
 	ip6intrq.ifq_maxlen = ip6qmaxlen;
 	mtx_init(&ip6intrq.ifq_mtx, "ip6_inq", NULL, MTX_DEF);
-	ip6intrq_present = 1;
-	register_netisr(NETISR_IPV6, ip6intr);
+	netisr_register(NETISR_IPV6, ip6_input, &ip6intrq);
 	nd6_init();
 	frag6_init();
 	/*
@@ -229,25 +228,6 @@ ip6_init2(dummy)
 /* cheat */
 /* This must be after route_init(), which is now SI_ORDER_THIRD */
 SYSINIT(netinet6init2, SI_SUB_PROTO_DOMAIN, SI_ORDER_MIDDLE, ip6_init2, NULL);
-
-/*
- * IP6 input interrupt handling. Just pass the packet to ip6_input.
- */
-void
-ip6intr()
-{
-	int s;
-	struct mbuf *m;
-
-	for (;;) {
-		s = splimp();
-		IF_DEQUEUE(&ip6intrq, m);
-		splx(s);
-		if (m == 0)
-			return;
-		ip6_input(m);
-	}
-}
 
 extern struct	route_in6 ip6_forward_rt;
 

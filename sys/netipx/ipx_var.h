@@ -95,7 +95,6 @@ int	ipx_ctloutput(struct socket *so, struct sockopt *sopt);
 void	ipx_drop(struct ipxpcb *ipxp, int errno);
 void	ipx_init(void);
 void	ipx_input(struct mbuf *m, struct ipxpcb *ipxp);
-void	ipxintr(void);
 int	ipx_outputfl(struct mbuf *m0, struct route *ro, int flags);
 int	ipx_output_type20(struct mbuf *);
 int	ipx_peeraddr(struct socket *so, struct sockaddr **nam);

@@ -388,13 +388,12 @@ noreplaycheck:
 			goto bad;
 		}
 
-		if (! IF_HANDOFF(&ipintrq, m, NULL)) {
+		if (! netisr_queue(NETISR_IP, m)) {
 			ipsecstat.in_inval++;
 			m = NULL;
 			goto bad;
 		}
 		m = NULL;
-		schednetisr(NETISR_IP); /* can be skipped but to make sure */
 		nxt = IPPROTO_DONE;
 	} else {
 		/*
@@ -750,13 +749,12 @@ noreplaycheck:
 			goto bad;
 		}
 
-		if (! IF_HANDOFF(&ip6intrq, m, NULL)) {
+		if (! netisr_queue(NETISR_IPV6, m)) {
 			ipsec6stat.in_inval++;
 			m = NULL;
 			goto bad;
 		}
 		m = NULL;
-		schednetisr(NETISR_IPV6); /* can be skipped but to make sure */
 		nxt = IPPROTO_DONE;
 	} else {
 		/*

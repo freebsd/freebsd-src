@@ -345,7 +345,7 @@ fddi_input(ifp, m)
 	struct ifnet *ifp;
 	struct mbuf *m;
 {
-	struct ifqueue *inq;
+	int isr;
 	struct llc *l;
 	struct fddi_header *fh;
 
@@ -418,20 +418,19 @@ fddi_input(ifp, m)
 		}
 #ifdef NETATALK
 		if (Bcmp(&(l->llc_snap.org_code)[0], at_org_code,
-			 sizeof(at_org_code)) == 0 &&
-		 	ntohs(l->llc_snap.ether_type) == ETHERTYPE_AT) {
-		    inq = &atintrq2;
-		    m_adj(m, LLC_SNAPFRAMELEN);
-		    schednetisr(NETISR_ATALK);
-		    break;
+		    sizeof(at_org_code)) == 0 &&
+		    ntohs(l->llc_snap.ether_type) == ETHERTYPE_AT) {
+			isr = NETISR_ATALK2;
+			m_adj(m, LLC_SNAPFRAMELEN);
+			break;
 		}
 
 		if (Bcmp(&(l->llc_snap.org_code)[0], aarp_org_code,
-			 sizeof(aarp_org_code)) == 0 &&
-			ntohs(l->llc_snap.ether_type) == ETHERTYPE_AARP) {
-		    m_adj(m, LLC_SNAPFRAMELEN);
-		    aarpinput(IFP2AC(ifp), m); /* XXX */
-		    return;
+		    sizeof(aarp_org_code)) == 0 &&
+		    ntohs(l->llc_snap.ether_type) == ETHERTYPE_AARP) {
+			m_adj(m, LLC_SNAPFRAMELEN);
+			isr = NETISR_AARP;
+			break;
 		}
 #endif /* NETATALK */
 		if (l->llc_snap.org_code[0] != 0 ||
@@ -449,50 +448,42 @@ fddi_input(ifp, m)
 		case ETHERTYPE_IP:
 			if (ipflow_fastforward(m))
 				return;
-			schednetisr(NETISR_IP);
-			inq = &ipintrq;
+			isr = NETISR_IP;
 			break;
 
 		case ETHERTYPE_ARP:
 			if (ifp->if_flags & IFF_NOARP)
 				goto dropanyway;
-			schednetisr(NETISR_ARP);
-			inq = &arpintrq;
+			isr = NETISR_ARP;
 			break;
 #endif
 #ifdef INET6
 		case ETHERTYPE_IPV6:
-			schednetisr(NETISR_IPV6);
-			inq = &ip6intrq;
+			isr = NETISR_IPV6;
 			break;
 #endif
 #ifdef IPX      
 		case ETHERTYPE_IPX: 
-			schednetisr(NETISR_IPX);
-			inq = &ipxintrq;
+			isr = NETISR_IPX;
 			break;  
 #endif   
 #ifdef NS
 		case ETHERTYPE_NS:
-			schednetisr(NETISR_NS);
-			inq = &nsintrq;
+			isr = NETISR_NS;
 			break;
 #endif
 #ifdef DECNET
 		case ETHERTYPE_DECNET:
-			schednetisr(NETISR_DECNET);
-			inq = &decnetintrq;
+			isr = NETISR_DECNET;
 			break;
 #endif
 #ifdef NETATALK 
 		case ETHERTYPE_AT:
-	                schednetisr(NETISR_ATALK);
-			inq = &atintrq1;
+	                isr = NETISR_ATALK1;
 			break;
 	        case ETHERTYPE_AARP:
-			/* probably this should be done with a NETISR as well */
-			aarpinput(IFP2AC(ifp), m); /* XXX */
-			return;
+			isr = NETISR_AARP;
+			break;
 #endif /* NETATALK */
 		default:
 			/* printf("fddi_input: unknown protocol 0x%x\n", type); */
@@ -507,8 +498,7 @@ fddi_input(ifp, m)
 		ifp->if_noproto++;
 		goto dropanyway;
 	}
-
-	(void) IF_HANDOFF(inq, m, NULL);
+	netisr_dispatch(isr, m);
 	return;
 
 dropanyway:

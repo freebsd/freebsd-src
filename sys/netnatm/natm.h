@@ -111,7 +111,6 @@ LIST_HEAD(npcblist, natmpcb);
 /* global data structures */
 
 extern struct npcblist natm_pcbs;	/* global list of pcbs */
-extern	struct ifqueue natmintrq;	/* natm packet input queue */
 #define	NATM_STAT
 #ifdef NATM_STAT
 extern	u_int natm_sodropcnt,
@@ -153,6 +152,6 @@ int	natm_usrreq(struct socket *, int, struct mbuf *,
 #endif
 int	natm0_sysctl(int *, u_int, void *, size_t *, void *, size_t);
 int	natm5_sysctl(int *, u_int, void *, size_t *, void *, size_t);
-void	natmintr(void);
+void	natmintr(struct mbuf *);
 
 #endif

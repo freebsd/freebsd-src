@@ -259,9 +259,7 @@ ether_output(ifp, m, dst, rt0)
 		 */
 		if (!bcmp((caddr_t)edst, (caddr_t)&ns_thishost, sizeof(edst))){
 			m->m_pkthdr.rcvif = ifp;
-			inq = &nsintrq;
-			if (IF_HANDOFF(inq, m, NULL))
-				schednetisr(NETISR_NS);
+			netisr_queue(NETISR_NS, m);
 			return (error);
 		}
 		if (!bcmp((caddr_t)edst, (caddr_t)&ns_broadhost, sizeof(edst))){
@@ -645,7 +643,7 @@ void
 ether_demux(struct ifnet *ifp, struct mbuf *m)
 {
 	struct ether_header *eh;
-	struct ifqueue *inq;
+	int isr;
 	u_short ether_type;
 #if defined(NETATALK)
 	struct llc *l;
@@ -755,8 +753,7 @@ post_stats:
 	case ETHERTYPE_IP:
 		if (ipflow_fastforward(m))
 			return;
-		schednetisr(NETISR_IP);
-		inq = &ipintrq;
+		isr = NETISR_IP;
 		break;
 
 	case ETHERTYPE_ARP:
@@ -765,40 +762,34 @@ post_stats:
 			m_freem(m);
 			return;
 		}
-		schednetisr(NETISR_ARP);
-		inq = &arpintrq;
+		isr = NETISR_ARP;
 		break;
 #endif
 #ifdef IPX
 	case ETHERTYPE_IPX:
 		if (ef_inputp && ef_inputp(ifp, eh, m) == 0)
 			return;
-		schednetisr(NETISR_IPX);
-		inq = &ipxintrq;
+		isr = NETISR_IPX;
 		break;
 #endif
 #ifdef INET6
 	case ETHERTYPE_IPV6:
-		schednetisr(NETISR_IPV6);
-		inq = &ip6intrq;
+		isr = NETISR_IPV6;
 		break;
 #endif
 #ifdef NS
 	case 0x8137: /* Novell Ethernet_II Ethernet TYPE II */
-		schednetisr(NETISR_NS);
-		inq = &nsintrq;
+		isr = NETISR_NS;
 		break;
 
 #endif /* NS */
 #ifdef NETATALK
-        case ETHERTYPE_AT:
-                schednetisr(NETISR_ATALK);
-                inq = &atintrq1;
-                break;
-        case ETHERTYPE_AARP:
-		/* probably this should be done with a NETISR as well */
-                aarpinput(IFP2AC(ifp), m); /* XXX */
-                return;
+	case ETHERTYPE_AT:
+		isr = NETISR_ATALK1;
+		break;
+	case ETHERTYPE_AARP:
+		isr = NETISR_AARP;
+		break;
 #endif /* NETATALK */
 	default:
 #ifdef IPX
@@ -809,59 +800,44 @@ post_stats:
 		checksum = mtod(m, ushort *);
 		/* Novell 802.3 */
 		if ((ether_type <= ETHERMTU) &&
-			((*checksum == 0xffff) || (*checksum == 0xE0E0))){
-			if(*checksum == 0xE0E0) {
+		    ((*checksum == 0xffff) || (*checksum == 0xE0E0))) {
+			if (*checksum == 0xE0E0) {
 				m->m_pkthdr.len -= 3;
 				m->m_len -= 3;
 				m->m_data += 3;
 			}
-				schednetisr(NETISR_NS);
-				inq = &nsintrq;
-				break;
+			isr = NETISR_NS;
+			break;
 		}
 #endif /* NS */
 #if defined(NETATALK)
 		if (ether_type > ETHERMTU)
 			goto discard;
 		l = mtod(m, struct llc *);
-		switch (l->llc_dsap) {
-		case LLC_SNAP_LSAP:
-		    switch (l->llc_control) {
-		    case LLC_UI:
-			if (l->llc_ssap != LLC_SNAP_LSAP)
-			    goto discard;
-	
+		if (l->llc_dsap == LLC_SNAP_LSAP &&
+		    l->llc_ssap == LLC_SNAP_LSAP &&
+		    l->llc_control == LLC_UI) {
 			if (Bcmp(&(l->llc_snap_org_code)[0], at_org_code,
-				   sizeof(at_org_code)) == 0 &&
-			     ntohs(l->llc_snap_ether_type) == ETHERTYPE_AT) {
-			    inq = &atintrq2;
-			    m_adj( m, LLC_SNAPFRAMELEN);
-			    schednetisr(NETISR_ATALK);
-			    break;
+			    sizeof(at_org_code)) == 0 &&
+			    ntohs(l->llc_snap_ether_type) == ETHERTYPE_AT) {
+			    	m_adj(m, LLC_SNAPFRAMELEN);
+				isr = NETISR_ATALK2;
+			    	break;
 			}
-
 			if (Bcmp(&(l->llc_snap_org_code)[0], aarp_org_code,
-				   sizeof(aarp_org_code)) == 0 &&
-			     ntohs(l->llc_snap_ether_type) == ETHERTYPE_AARP) {
-			    m_adj( m, LLC_SNAPFRAMELEN);
-			    aarpinput(IFP2AC(ifp), m); /* XXX */
-			    return;
+			    sizeof(aarp_org_code)) == 0 &&
+			    ntohs(l->llc_snap_ether_type) == ETHERTYPE_AARP) {
+				m_adj(m, LLC_SNAPFRAMELEN);
+				isr = NETISR_AARP;
+				break;
 			}
-		
-		    default:
-			goto discard;
-		    }
-		    break;
-		default:
-			goto discard;
 		}
-#else /* NETATALK */
-		goto discard;
 #endif /* NETATALK */
+		goto discard;
 	}
-
-	(void) IF_HANDOFF(inq, m, NULL);
+	netisr_dispatch(isr, m);
 	return;
+
 discard:
 	/*
 	 * Packet is to be discarded.  If netgraph is present,

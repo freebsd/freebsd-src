@@ -55,15 +55,18 @@
 #define	NETISR_POLL	0		/* polling callback, must be first */
 #define	NETISR_IP	2		/* same as AF_INET */
 #define	NETISR_NS	6		/* same as AF_NS */
-#define	NETISR_ATALK	16		/* same as AF_APPLETALK */
+#define	NETISR_AARP	15		/* Appletalk ARP */
+#define	NETISR_ATALK2	16		/* Appletalk phase 2 */
+#define	NETISR_ATALK1	17		/* Appletalk phase 1 */
 #define	NETISR_ARP	18		/* same as AF_LINK */
 #define	NETISR_IPX	23		/* same as AF_IPX */
 #define	NETISR_USB	25		/* USB soft interrupt */
-#define	NETISR_PPP	27		/* PPP soft interrupt */
-#define	NETISR_IPV6	28		/* same as AF_INET6 */
-#define	NETISR_NATM	29		/* same as AF_NATM */
-#define	NETISR_ATM	30		/* same as AF_ATM */
-#define	NETISR_NETGRAPH	31		/* same as AF_NETGRAPH */
+#define	NETISR_PPP	26		/* PPP soft interrupt */
+#define	NETISR_IPV6	27
+#define	NETISR_NATM	28
+#define	NETISR_ATM	29
+#define	NETISR_NETGRAPH	30
+#define	NETISR_POLLMORE	31		/* polling callback, must be last */
 
 
 #ifndef LOCORE
@@ -72,16 +75,25 @@
 void legacy_setsoftnet(void);
 
 extern volatile unsigned int	netisr;	/* scheduling bits for network */
-extern	void	(*netisrs[32])(void);
 #define	schednetisr(anisr) do {						\
 	atomic_set_rel_int(&netisr, 1 << (anisr));			\
 	legacy_setsoftnet();						\
 } while (0)
+/* used to atomically schedule multiple netisrs */
+#define	schednetisrbits(isrbits) do {					\
+	atomic_set_rel_int(&netisr, isrbits);				\
+	legacy_setsoftnet();						\
+} while (0)
 
-typedef void netisr_t(void);
+struct ifqueue;
+struct mbuf;
 
-int register_netisr(int, netisr_t *);
-int unregister_netisr(int);
+typedef void netisr_t (struct mbuf *);
+  
+void	netisr_dispatch(int, struct mbuf *);
+int	netisr_queue(int, struct mbuf *);
+void	netisr_register(int, netisr_t *, struct ifqueue *);
+void	netisr_unregister(int);
 
 #endif
 #endif

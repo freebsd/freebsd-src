@@ -35,10 +35,6 @@
 #ifndef _USB_ETHERSUBR_H_
 #define _USB_ETHERSUBR_H_
 
-#ifndef NETISR_USB
-#define NETISR_USB	25
-#endif
-
 struct usb_qdat {
 	struct ifnet		*ifp;
 	void (*if_rxstart)	(struct ifnet *);

@@ -125,8 +125,7 @@ ngipi_rcvdata(hook_p hook, item_p item)
 
 	NGI_GET_M(item, m);
 	NG_FREE_ITEM(item);
-	schednetisr(NETISR_IP);
-	(void) IF_HANDOFF(&ipintrq, m, NULL);
+	netisr_dispatch(NETISR_IP, m);
 	return 0;
 }
 

@@ -10,7 +10,6 @@ extern int	aarpresolve	(struct arpcom *,
 					struct mbuf *,
 					struct sockaddr_at *,
 					u_char *);
-extern void	aarpinput	(struct arpcom *, struct mbuf *);
 extern int	at_broadcast	(struct sockaddr_at  *);
 #endif
 
@@ -22,6 +21,9 @@ struct ifnet;
 struct thread;
 struct socket;
 
+extern void	aarpintr	(struct mbuf *);
+extern void	at1intr		(struct mbuf *);
+extern void	at2intr		(struct mbuf *);
 extern void	aarp_clean	(void);
 extern int	at_control	(struct socket *so,
 					u_long cmd,
