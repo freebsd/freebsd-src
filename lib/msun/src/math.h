@@ -136,12 +136,7 @@ struct exception {
 #define	HUGE		MAXFLOAT
 #endif
 
-/*
- * set X_TLOSS = pi*2**52, which is possibly defined in <values.h>
- * (one may replace the following line by "#include <values.h>")
- */
-
-#define X_TLOSS		1.41484755040568800000e+16
+#define X_TLOSS		1.41484755040568800000e+16	/* pi*2**52 */
 
 #define	DOMAIN		1
 #define	SING		2
