@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: nfs_prot_freebsd3.h,v 1.2 1998/08/27 07:33:23 obrien Exp $
+ * $Id: nfs_prot_freebsd3.h,v 1.3 1998/09/09 16:11:01 obrien Exp $
  *
  */
 
@@ -153,13 +153,14 @@ typedef writeargs nfswriteargs;
 
 /*
  *
- * FreeBSD 3.0 has NFS V3, but you need to regenrate the rpcsc header files
- * as follows:
+ * FreeBSD 3.0 pre-release has NFS V3, but you need to regenrate the rpcsc
+ * header files as follows:
  *	cd /usr/local/rpcsvc
  *	rpcgen -DWANT_NFS3 mount.x
  *	rpcgen -DWANT_NFS3 nfs_prot.x
  * But that's not expected of everyone, plus there are additional things
- * needed so I define everything that's neede for NFS V3 here.
+ * needed so I define everything that's needed for NFS V3 here.
+ * The problem is fixed in FreeBSD-3.0-RELEASE hence this code is off.
  */
 #ifdef NFSMNT_NFSV3
 

@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: fixmount.c,v 1.1.1.1 1998/08/23 22:07:20 obrien Exp $
+ * $Id: fixmount.c,v 1.2 1998/08/23 22:52:08 obrien Exp $
  *
  */
 
@@ -354,7 +354,7 @@ main(int argc, char *argv[])
       perror("gethostname");
       exit(1);
     }
-	thishost[sizeof(thishost) - 1] = '\0';
+    thishost[sizeof(thishost) - 1] = '\0';
 
     /*
      * We need the hostname as it appears to the other side's
