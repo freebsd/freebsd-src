@@ -2537,6 +2537,14 @@ loop:
 		 * buffer is also considered valid (not marked B_INVAL).
 		 */
 		VI_UNLOCK(vp);
+		/*
+		 * If the user does not want us to create the buffer, bail out
+		 * here.
+		 */
+		if (flags & GB_NOCREAT) {
+			splx(s);
+			return NULL;
+		}
 		if (vn_isdisk(vp, NULL))
 			bsize = DEV_BSIZE;
 		else if (vp->v_mountedhere)
