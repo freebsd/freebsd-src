@@ -225,8 +225,8 @@ _fseeko(fp, offset, whence, ltest)
 		goto dumb;
 
 	/*
-	 * If the buffer was modified or the file position was changed,
-	 * we have to skip this; see fgetln.c, stdio.c.
+	 * (If the buffer was modified, we have to
+	 * skip this; see fgetln.c.)
 	 */
 	if (fp->_flags & __SMOD)
 		goto abspos;
