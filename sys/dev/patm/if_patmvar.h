@@ -196,6 +196,7 @@ struct patm_vcc {
 	uint32_t	opackets;	/* packets sent */
 	uint64_t	ibytes;		/* bytes received */
 	uint64_t	obytes;		/* bytes sent */
+
 	struct mbuf	*chain;		/* currently received chain */
 	struct mbuf	*last;		/* end of chain */
 	u_int		cid;		/* index */
@@ -381,6 +382,9 @@ void patm_intr(void *);
 
 /* check RSQ */
 void patm_intr_rsq(struct patm_softc *sc);
+
+/* enable the vcc */
+void patm_load_vc(struct patm_softc *sc, struct patm_vcc *vcc, int reload);
 
 /* close the given vcc for transmission */
 void patm_tx_vcc_close(struct patm_softc *, struct patm_vcc *);
