@@ -50,6 +50,14 @@ __FBSDID("$FreeBSD$");
 
 #define MAX_BPAGES 512
 
+struct bounce_page {
+	vm_offset_t	vaddr;		/* kva of bounce buffer */
+	bus_addr_t	busaddr;	/* Physical address */
+	vm_offset_t	datavaddr;	/* kva of client data */
+	bus_size_t	datacount;	/* client data count */
+	STAILQ_ENTRY(bounce_page) links;
+};
+
 struct bus_dma_tag {
 	bus_dma_tag_t	  parent;
 	bus_size_t	  alignment;
@@ -67,20 +75,16 @@ struct bus_dma_tag {
 	bus_dma_lock_t	 *lockfunc;
 	void		 *lockfuncarg;
 	bus_dma_segment_t *segments;
-};
-
-struct bounce_page {
-	vm_offset_t	vaddr;		/* kva of bounce buffer */
-	bus_addr_t	busaddr;	/* Physical address */
-	vm_offset_t	datavaddr;	/* kva of client data */
-	bus_size_t	datacount;	/* client data count */
-	STAILQ_ENTRY(bounce_page) links;
+	STAILQ_HEAD(bp_list, bounce_page) bounce_page_list;
 };
 
 int busdma_swi_pending;
 
+/*
+ * In order to reduce extra lock/unlock sequences in the main bounce path,
+ * this lock covers the global bounce lists and the dmat bounce lists.
+ */
 static struct mtx bounce_lock;
-static STAILQ_HEAD(bp_list, bounce_page) bounce_page_list;
 static int free_bpages;
 static int reserved_bpages;
 static int active_bpages;
@@ -127,7 +131,7 @@ static bus_addr_t add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map,
 				   vm_offset_t vaddr, bus_size_t size);
 static void free_bounce_page(bus_dma_tag_t dmat, struct bounce_page *bpage);
 static __inline int run_filter(bus_dma_tag_t dmat, bus_addr_t paddr,
-			       bus_size_t len);
+			       bus_size_t len, struct bus_dmamap *map);
 
 /*
  * Return true if a match is made.
@@ -138,21 +142,30 @@ static __inline int run_filter(bus_dma_tag_t dmat, bus_addr_t paddr,
  * to check for a match, if there is no filter callback then assume a match.
  */
 static __inline int
-run_filter(bus_dma_tag_t dmat, bus_addr_t paddr, bus_size_t len)
+run_filter(bus_dma_tag_t dmat, bus_addr_t paddr, bus_size_t len, struct bus_dmamap *map)
 {
+	bus_addr_t endaddr;
 	bus_size_t bndy;
 	int retval;
 
 	retval = 0;
 	bndy = dmat->boundary;
+	endaddr = paddr + len - 1;
 
 	do {
 		if (((paddr > dmat->lowaddr && paddr <= dmat->highaddr)
 		 || ((paddr & (dmat->alignment - 1)) != 0)
-		 || ((paddr & bndy) != ((paddr + len) & bndy)))
+		 || ((paddr & bndy) != (endaddr & bndy)))
 		 && (dmat->filter == NULL
-		  || (*dmat->filter)(dmat->filterarg, paddr) != 0))
+		  || (*dmat->filter)(dmat->filterarg, paddr) != 0)) {
+			if ((paddr & (dmat->alignment - 1)) != 0)
+				printf("bouncing due alignment, paddr= 0x%lx, map= %p\n", (u_long)paddr, map);
+			if ((paddr & bndy) != (endaddr & bndy)) {
+				printf("bouncing due to boundary, paddr= 0x%lx, endaddr= 0x%lx, map= %p\n", (u_long)paddr, (u_long)endaddr, map);
+				printf("paddr & bndy = 0x%lx, paddr + len & bndy = 0x%lx\n", (u_long)(paddr & bndy), (u_long)(endaddr & bndy));
+			}
 			retval = 1;
+		}
 
 		dmat = dmat->parent;		
 	} while (retval == 0 && dmat != NULL);
@@ -221,6 +234,7 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	if (newtag == NULL)
 		return (ENOMEM);
 
+	STAILQ_INIT(&newtag->bounce_page_list);
 	newtag->parent = parent;
 	newtag->alignment = alignment;
 	newtag->boundary = boundary;
@@ -526,7 +540,7 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 
 	if ((dmat->lowaddr < ptoa((vm_paddr_t)Maxmem)
 	 || dmat->boundary > 0 || dmat->alignment > 1)
-	 && map->pagesneeded == 0) {
+	 && map != &nobounce_dmamap && map->pagesneeded == 0) {
 		vm_offset_t	vendaddr;
 
 		/*
@@ -538,7 +552,7 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 
 		while (vaddr < vendaddr) {
 			paddr = pmap_kextract(vaddr);
-			if (run_filter(dmat, paddr, 0) != 0) {
+			if (run_filter(dmat, paddr, PAGE_SIZE, map) != 0) {
 				needbounce = 1;
 				map->pagesneeded++;
 			}
@@ -558,7 +572,11 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 			}
 		} else {
 			if (reserve_bounce_pages(dmat, map, 1) != 0) {
-				/* Queue us for resources */
+				/*
+				 * Queue us for resources.  A future
+				 * optimization might be to search other bounce
+				 * lists for extra pages.
+				 */
 				map->dmat = dmat;
 				map->buf = buf;
 				map->buflen = buflen;
@@ -599,7 +617,7 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 				sgsize = (baddr - curaddr);
 		}
 
-		if (map->pagesneeded != 0 && run_filter(dmat, curaddr, sgsize))
+		if (map->pagesneeded != 0 && run_filter(dmat, curaddr, sgsize, map))
 			curaddr = add_bounce_page(dmat, map, vaddr, sgsize);
 
 		/*
@@ -826,7 +844,6 @@ init_bounce_pages(void *dummy __unused)
 	reserved_bpages = 0;
 	active_bpages = 0;
 	total_bpages = 0;
-	STAILQ_INIT(&bounce_page_list);
 	STAILQ_INIT(&bounce_map_waitinglist);
 	STAILQ_INIT(&bounce_map_callbacklist);
 	mtx_init(&bounce_lock, "bounce pages lock", NULL, MTX_DEF);
@@ -850,7 +867,8 @@ alloc_bounce_pages(bus_dma_tag_t dmat, u_int numpages)
 		bpage->vaddr = (vm_offset_t)contigmalloc(PAGE_SIZE, M_DEVBUF,
 							 M_NOWAIT, 0ul,
 							 dmat->lowaddr,
-							 PAGE_SIZE,
+							 dmat->alignment?
+							 dmat->alignment : 1ul,
 							 dmat->boundary);
 		if (bpage->vaddr == 0) {
 			free(bpage, M_DEVBUF);
@@ -858,7 +876,7 @@ alloc_bounce_pages(bus_dma_tag_t dmat, u_int numpages)
 		}
 		bpage->busaddr = pmap_kextract(bpage->vaddr);
 		mtx_lock(&bounce_lock);
-		STAILQ_INSERT_TAIL(&bounce_page_list, bpage, links);
+		STAILQ_INSERT_TAIL(&dmat->bounce_page_list, bpage, links);
 		total_bpages++;
 		free_bpages++;
 		mtx_unlock(&bounce_lock);
@@ -903,11 +921,11 @@ add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map, vm_offset_t vaddr,
 	map->pagesreserved--;
 
 	mtx_lock(&bounce_lock);
-	bpage = STAILQ_FIRST(&bounce_page_list);
+	bpage = STAILQ_FIRST(&dmat->bounce_page_list);
 	if (bpage == NULL)
 		panic("add_bounce_page: free page list is empty");
 
-	STAILQ_REMOVE_HEAD(&bounce_page_list, links);
+	STAILQ_REMOVE_HEAD(&dmat->bounce_page_list, links);
 	reserved_bpages--;
 	active_bpages++;
 	mtx_unlock(&bounce_lock);
@@ -927,7 +945,7 @@ free_bounce_page(bus_dma_tag_t dmat, struct bounce_page *bpage)
 	bpage->datacount = 0;
 
 	mtx_lock(&bounce_lock);
-	STAILQ_INSERT_HEAD(&bounce_page_list, bpage, links);
+	STAILQ_INSERT_HEAD(&dmat->bounce_page_list, bpage, links);
 	free_bpages++;
 	active_bpages--;
 	if ((map = STAILQ_FIRST(&bounce_map_waitinglist)) != NULL) {
