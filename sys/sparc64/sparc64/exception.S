@@ -726,7 +726,7 @@ ENTRY(tl0_immu_miss_trap)
 	clr	%o1
 	set	trap, %o2
 	mov	%g2, %o3
-	b	%xcc, tl0_trap
+	ba	%xcc, tl0_utrap
 	 mov	T_INSTRUCTION_MISS, %o0
 END(tl0_immu_miss_trap)
 
@@ -891,7 +891,7 @@ ENTRY(tl0_dmmu_miss_trap)
 	clr	%o1
 	set	trap, %o2
 	mov	%g2, %o3
-	b	%xcc, tl0_trap
+	ba	%xcc, tl0_utrap
 	 mov	T_DATA_MISS, %o0
 
 	/*

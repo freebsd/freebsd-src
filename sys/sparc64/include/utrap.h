@@ -62,7 +62,9 @@
 #define	UT_TRAP_INSTRUCTION_29		31
 #define	UT_TRAP_INSTRUCTION_30		32
 #define	UT_TRAP_INSTRUCTION_31		33
-#define	UT_MAX				34
+#define	UT_INSTRUCTION_MISS		34
+#define	UT_DATA_MISS			35
+#define	UT_MAX				36
 
 #define	ST_SUNOS_SYSCALL		0
 #define	ST_BREAKPOINT			1
