@@ -98,6 +98,8 @@ ahc_pci_attach(device_t dev)
 	if (ahc == NULL)
 		return (ENOMEM);
 
+	ahc_set_unit(ahc, device_get_unit(dev));
+
 	/* Allocate a dmatag for our SCB DMA maps */
 	/* XXX Should be a child of the PCI bus dma tag */
 	error = bus_dma_tag_create(/*parent*/NULL, /*alignment*/1,
