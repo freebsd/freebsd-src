@@ -110,9 +110,6 @@ static int ext2fifo_close(struct vop_close_args *);
 static int ext2fifo_kqfilter(struct vop_kqfilter_args *);
 static int ext2fifo_read(struct vop_read_args *);
 static int ext2fifo_write(struct vop_write_args *);
-static int ext2spec_close(struct vop_close_args *);
-static int ext2spec_read(struct vop_read_args *);
-static int ext2spec_write(struct vop_write_args *);
 static int filt_ext2read(struct knote *kn, long hint);
 static int filt_ext2write(struct knote *kn, long hint);
 static int filt_ext2vnode(struct knote *kn, long hint);
@@ -158,24 +155,6 @@ static struct vnodeopv_entry_desc ext2_vnodeop_entries[] = {
 static struct vnodeopv_desc ext2fs_vnodeop_opv_desc =
 	{ &ext2_vnodeop_p, ext2_vnodeop_entries };
 
-vop_t **ext2_specop_p;
-static struct vnodeopv_entry_desc ext2_specop_entries[] = {
-	{ &vop_default_desc,		(vop_t *) spec_vnoperate },
-	{ &vop_access_desc,		(vop_t *) ext2_access },
-	{ &vop_close_desc,		(vop_t *) ext2spec_close },
-	{ &vop_fsync_desc,		(vop_t *) ext2_fsync },
-	{ &vop_getattr_desc,		(vop_t *) ext2_getattr },
-	{ &vop_inactive_desc,		(vop_t *) ext2_inactive },
-	{ &vop_print_desc,		(vop_t *) ext2_print },
-	{ &vop_read_desc,		(vop_t *) ext2spec_read },
-	{ &vop_reclaim_desc,		(vop_t *) ext2_reclaim },
-	{ &vop_setattr_desc,		(vop_t *) ext2_setattr },
-	{ &vop_write_desc,		(vop_t *) ext2spec_write },
-	{ NULL, NULL }
-};
-static struct vnodeopv_desc ext2fs_specop_opv_desc =
-	{ &ext2_specop_p, ext2_specop_entries };
-
 vop_t **ext2_fifoop_p;
 static struct vnodeopv_entry_desc ext2_fifoop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) fifo_vnoperate },
@@ -196,7 +175,6 @@ static struct vnodeopv_desc ext2fs_fifoop_opv_desc =
 	{ &ext2_fifoop_p, ext2_fifoop_entries };
 
 	VNODEOP_SET(ext2fs_vnodeop_opv_desc);
-	VNODEOP_SET(ext2fs_specop_opv_desc);
 	VNODEOP_SET(ext2fs_fifoop_opv_desc);
 
 #include <gnu/ext2fs/ext2_readwrite.c>
@@ -286,6 +264,9 @@ ext2_open(ap)
 	} */ *ap;
 {
 
+	if (ap->a_vp->v_type == VBLK || ap->a_vp->v_type == VCHR)
+		return (EOPNOTSUPP);
+
 	/*
 	 * Files marked append-only must be opened for appending.
 	 */
@@ -351,6 +332,9 @@ ext2_access(ap)
 	struct inode *ip = VTOI(vp);
 	mode_t mode = ap->a_mode;
 	int error;
+
+	if (vp->v_type == VBLK || vp->v_type == VCHR)
+		return (EOPNOTSUPP);
 
 	/*
 	 * Disallow write attempts on read-only file systems;
@@ -1489,83 +1473,6 @@ ext2_print(ap)
 }
 
 /*
- * Read wrapper for special devices.
- */
-static int
-ext2spec_read(ap)
-	struct vop_read_args /* {
-		struct vnode *a_vp;
-		struct uio *a_uio;
-		int  a_ioflag;
-		struct ucred *a_cred;
-	} */ *ap;
-{
-	int error, resid;
-	struct inode *ip;
-	struct uio *uio;
-
-	uio = ap->a_uio;
-	resid = uio->uio_resid;
-	error = VOCALL(spec_vnodeop_p, VOFFSET(vop_read), ap);
-	/*
-	 * The inode may have been revoked during the call, so it must not
-	 * be accessed blindly here or in the other wrapper functions.
-	 */
-	ip = VTOI(ap->a_vp);
-	if (ip != NULL && (uio->uio_resid != resid || (error == 0 && resid != 0)))
-		ip->i_flag |= IN_ACCESS;
-	return (error);
-}
-
-/*
- * Write wrapper for special devices.
- */
-static int
-ext2spec_write(ap)
-	struct vop_write_args /* {
-		struct vnode *a_vp;
-		struct uio *a_uio;
-		int  a_ioflag;
-		struct ucred *a_cred;
-	} */ *ap;
-{
-	int error, resid;
-	struct inode *ip;
-	struct uio *uio;
-
-	uio = ap->a_uio;
-	resid = uio->uio_resid;
-	error = VOCALL(spec_vnodeop_p, VOFFSET(vop_write), ap);
-	ip = VTOI(ap->a_vp);
-	if (ip != NULL && (uio->uio_resid != resid || (error == 0 && resid != 0)))
-		VTOI(ap->a_vp)->i_flag |= IN_CHANGE | IN_UPDATE;
-	return (error);
-}
-
-/*
- * Close wrapper for special devices.
- *
- * Update the times on the inode then do device close.
- */
-static int
-ext2spec_close(ap)
-	struct vop_close_args /* {
-		struct vnode *a_vp;
-		int  a_fflag;
-		struct ucred *a_cred;
-		struct thread *a_td;
-	} */ *ap;
-{
-	struct vnode *vp = ap->a_vp;
-
-	VI_LOCK(vp);
-	if (vp->v_usecount > 1)
-		ext2_itimes(vp);
-	VI_UNLOCK(vp);
-	return (VOCALL(spec_vnodeop_p, VOFFSET(vop_close), ap));
-}
-
-/*
  * Read wrapper for fifos.
  */
 static int
@@ -1716,9 +1623,8 @@ ext2_advlock(ap)
  * vnodes.
  */
 int
-ext2_vinit(mntp, specops, fifoops, vpp)
+ext2_vinit(mntp, fifoops, vpp)
 	struct mount *mntp;
-	vop_t **specops;
 	vop_t **fifoops;
 	struct vnode **vpp;
 {
@@ -1727,22 +1633,10 @@ ext2_vinit(mntp, specops, fifoops, vpp)
 
 	vp = *vpp;
 	ip = VTOI(vp);
-	switch(vp->v_type = IFTOVT(ip->i_mode)) {
-	case VBLK:
-		vp->v_op = specops;
-		break;
-	case VCHR:
-		vp->v_op = specops;
-		vp = addaliasu(vp, ip->i_rdev);
-		ip->i_vnode = vp;
-		break;
-	case VFIFO:
+	vp->v_type = IFTOVT(ip->i_mode);
+	if (vp->v_type == VFIFO)
 		vp->v_op = fifoops;
-		break;
-	default:
-		break;
-
-	}
+	
 	if (ip->i_number == ROOTINO)
 		vp->v_vflag |= VV_ROOT;
 	ip->i_modrev = init_va_filerev();
