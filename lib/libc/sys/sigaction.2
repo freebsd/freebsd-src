@@ -448,10 +448,7 @@ This protects against the side effect of
 .Va errno
 being set by functions called from inside the signal handler.
 .Sh RETURN VALUES
-A 0 value indicated that the call succeeded.  A \-1 return value
-indicates an error occurred and
-.Va errno
-is set to indicated the reason.
+.Rv -std sigaction
 .Sh EXAMPLES
 There are three possible prototypes the handler may match:
 .Bl -tag -offset indent -width short

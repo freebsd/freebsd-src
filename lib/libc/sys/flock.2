@@ -134,10 +134,7 @@ Before returning,
 unlocks
 .Fa fd .
 .Sh RETURN VALUES
-Zero is returned if the operation was successful;
-on an error a -1 is returned and an error code is left in
-the global location
-.Va errno .
+.Rv -std flock
 .Sh ERRORS
 The
 .Fn flock
