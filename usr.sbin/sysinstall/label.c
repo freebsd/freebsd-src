@@ -947,20 +947,10 @@ diskLabel(Device *dev)
 		else
 		    p = NULL;
 
-		if ((flags & CHUNK_IS_ROOT)) {
-		    if (!(label_chunk_info[here].c->flags & CHUNK_BSD_COMPAT)) {
-			msgConfirm("This region cannot be used for your root partition as the\n"
-				   "FreeBSD boot code cannot deal with a root partition created\n"
-				   "in that location.  Please choose another location or smaller\n"
-				   "size for your root partition and try again!");
-			clear_wins();
-			break;
-		    }
-		    if (size < (ROOT_MIN_SIZE * ONE_MEG)) {
-			msgConfirm("Warning: This is smaller than the recommended size for a\n"
-				   "root partition.  For a variety of reasons, root\n"
-				   "partitions should usually be at least %dMB in size", ROOT_MIN_SIZE);
-		    }
+		if ((flags & CHUNK_IS_ROOT) && (size < (ROOT_MIN_SIZE * ONE_MEG))) {
+		    msgConfirm("Warning: This is smaller than the recommended size for a\n"
+			       "root partition.  For a variety of reasons, root\n"
+			       "partitions should usually be at least %dMB in size", ROOT_MIN_SIZE);
 		}
 		tmp = Create_Chunk_DWIM(label_chunk_info[here].c->disk,
 					label_chunk_info[here].c,
