@@ -463,6 +463,7 @@ sendsig(catcher, sig, mask, code)
 	    ? ((oonstack) ? SS_ONSTACK : 0) : SS_DISABLE;
 	sf.sf_uc.uc_mcontext.mc_onstack = (oonstack) ? 1 : 0;
 	sf.sf_uc.uc_mcontext.mc_gs = rgs();
+	sf.sf_uc.uc_mcontext.mc_flags = __UC_MC_VALID;	/* no FP regs */
 	bcopy(regs, &sf.sf_uc.uc_mcontext.mc_fs, sizeof(*regs));
 
 	/* Allocate and validate space for the signal handler context. */
