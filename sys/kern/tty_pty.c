@@ -234,25 +234,27 @@ ptsread(dev, uio, flag)
 	struct proc *p = td->td_proc;
 	register struct tty *tp = dev->si_tty;
 	register struct pt_ioctl *pti = dev->si_drv1;
+	struct pgrp *pg;
 	int error = 0;
 
 again:
 	if (pti->pt_flags & PF_REMOTE) {
 		while (isbackground(p, tp)) {
-			PGRPSESS_SLOCK();
+			sx_slock(&proctree_lock);
 			PROC_LOCK(p);
 			if (SIGISMEMBER(p->p_sigignore, SIGTTIN) ||
 			    SIGISMEMBER(p->p_sigmask, SIGTTIN) ||
 			    p->p_pgrp->pg_jobc == 0 || p->p_flag & P_PPWAIT) {
 				PROC_UNLOCK(p);
-				PGRPSESS_SUNLOCK();
+				sx_sunlock(&proctree_lock);
 				return (EIO);
 			}
+			pg = p->p_pgrp;
 			PROC_UNLOCK(p);
-			PGRP_LOCK(p->p_pgrp);
-			PGRPSESS_SUNLOCK();
-			pgsignal(p->p_pgrp, SIGTTIN, 1);
-			PGRP_UNLOCK(p->p_pgrp);
+			PGRP_LOCK(pg);
+			sx_sunlock(&proctree_lock);
+			pgsignal(pg, SIGTTIN, 1);
+			PGRP_UNLOCK(pg);
 			error = ttysleep(tp, &lbolt, TTIPRI | PCATCH, "ptsbg",
 					 0);
 			if (error)
