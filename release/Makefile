@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.338 1998/01/27 21:28:32 jkh Exp $
+#	$Id: Makefile,v 1.339 1998/01/28 04:05:10 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -130,17 +130,9 @@ rerelease release:
 .if !defined(RELEASETAG)
 	cd ${CHROOTDIR}/usr && rm -rf src && \
 		cvs -d ${CVSROOT} co -P src
-.if defined(INTCVSROOT)
-	cd ${CHROOTDIR}/usr && \
-	    cvs -d ${INTCVSROOT} co -P src/secure src/crypto
-.endif
 .else
 	cd ${CHROOTDIR}/usr && rm -rf src && \
 		cvs -d ${CVSROOT} co -P -r ${RELEASETAG} src
-.if defined(INTCVSROOT)
-	cd ${CHROOTDIR}/usr && \
-	    cvs -d ${INTCVSROOT} co -P -r ${RELEASETAG} src/secure src/crypto
-.endif
 .endif
 .if defined(LOCAL_PATCHES) && exists(${LOCAL_PATCHES})
 	cd ${CHROOTDIR}/usr/src && patch --silent < ${LOCAL_PATCHES}
