@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.47 1996/04/30 05:23:45 jkh Exp $
+ * $Id: disks.c,v 1.48 1996/05/09 09:42:03 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -101,7 +101,7 @@ print_chunks(Disk *d)
 	     "Subtype", "Flags");
     for (i = 0, row = CHUNK_START_ROW; chunk_info[i]; i++, row++) {
 	if (i == current_chunk)
-	    attrset(item_selected_attr);
+	    attrset(tag_attr);
 	mvprintw(row, 2, "%10ld %10lu %10lu %8s %8d %8s %8d\t%-6s",
 		 chunk_info[i]->offset, chunk_info[i]->size,
 		 chunk_info[i]->end, chunk_info[i]->name,
@@ -271,18 +271,36 @@ diskPartition(Device *dev, Disk *d)
 		msg = "Partition in use, delete it first or move to an unused one.";
 	    else {
 		char *val, tmp[20], *cp;
-		int size;
+		int size, subtype;
+		chunk_e partitiontype;
 
 		snprintf(tmp, 20, "%d", chunk_info[current_chunk]->size);
-		val = msgGetInput(tmp, "Please specify the size for new FreeBSD partition in blocks, or append\n"
-				  "a trailing `M' for megabytes (e.g. 20M).");
+		val = msgGetInput(tmp, "Please specify the size for new FreeBSD partition in blocks\n"
+				       "or append a trailing `M' for megabytes (e.g. 20M).");
 		if (val && (size = strtol(val, &cp, 0)) > 0) {
 		    if (*cp && toupper(*cp) == 'M')
 			size *= ONE_MEG;
-		    Create_Chunk(d, chunk_info[current_chunk]->offset, size, freebsd, 3,
+		    strcpy(tmp, "165");
+		    val = msgGetInput(tmp, "Enter type of partition to create:\n\n"
+				      "Pressing Enter will choose the default, a native FreeBSD\n"
+				      "partition (type 165).  You can choose other types, 6 for a\n"
+				      "DOS partition or 131 for a Linux partition, for example.\n\n"
+				      "Note:  If you choose a non-FreeBSD partition type, it will not\n"
+				      "be formatted or otherwise prepared, it will simply reserve space\n"
+				      "for you to use another tool, such as DOS FORMAT, to later format\n"
+				      "and use the partition.");
+		    if (val && (subtype = strtol(val, NULL, 0)) > 0) {
+			if (subtype==165)
+				partitiontype=freebsd;
+			else if (subtype==6)
+				partitiontype=fat;
+			else
+				partitiontype=unknown;
+		    Create_Chunk(d, chunk_info[current_chunk]->offset, size, partitiontype, subtype,
 				 (chunk_info[current_chunk]->flags & CHUNK_ALIGN));
 		    variable_set2(DISK_PARTITIONED, "yes");
 		    record_chunks(d);
+		    }
 		}
 	    }
 	    break;
