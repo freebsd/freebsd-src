@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include "error.h"
 #include "trap.h"
 #include "mystring.h"
+#include "myhistedit.h"
 
 
 /*
@@ -246,6 +247,12 @@ setsignal(int signo)
 				action = S_IGN;
 			break;
 #endif
+#ifndef NO_HISTORY
+		case SIGWINCH:
+			if (rootshell && iflag && el != NULL)
+				action = S_CATCH;
+			break;
+#endif
 		}
 	}
 
@@ -359,6 +366,11 @@ onsig(int signo)
 	    ! trap[signo][0] == '\0' &&
 	    ! (trap[signo][0] == ':' && trap[signo][1] == '\0'))
 		breakwaitcmd = 1;
+
+#ifndef NO_HISTORY
+	if (signo == SIGWINCH)
+		el_resize(el);
+#endif
 }
 
 
@@ -414,6 +426,9 @@ setinteractive(int on)
 	setsignal(SIGINT);
 	setsignal(SIGQUIT);
 	setsignal(SIGTERM);
+#ifndef NO_HISTORY
+	setsignal(SIGWINCH);
+#endif
 	is_interactive = on;
 }
 
