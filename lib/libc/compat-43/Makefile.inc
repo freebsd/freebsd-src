@@ -13,4 +13,4 @@ MAN2+=	compat-43/creat.2 compat-43/killpg.2 \
 MAN3+=  compat-43/gethostid.3 compat-43/setruid.3
 
 MLINKS+=setruid.3 setrgid.3
-MLINKS+=gethostid.2 sethostid.2
+MLINKS+=gethostid.3 sethostid.3
