@@ -68,46 +68,37 @@ bigloop:cmpl	%eax,(%edi)
 	decl	%ecx
 	jnz	bigloop
 	jmp	small
-.p2align 2,0x90
 found:	movl	%edi,%eax
 	popl	%ebx
 	popl	%edi
 	ret
-.p2align 2,0x90
 found4:	leal	4(%edi),%edi
 	jmp	found
-.p2align 2,0x90
 found8:	leal	8(%edi),%edi
 	jmp	found
-.p2align 2,0x90
 found12:leal	12(%edi),%edi
 	jmp	found
-.p2align 2,0x90
 found16:leal	16(%edi),%edi
 	jmp	found
-.p2align 2,0x90
 found20:leal	20(%edi),%edi
 	jmp	found
-.p2align 2,0x90
 found24:leal	24(%edi),%edi
 	jmp	found
-.p2align 2,0x90
 found28:leal	28(%edi),%edi
 	jmp	found
 
 	/*
 	 * Search remaining part of string.
 	 */
-.p2align 2,0x90
 small:	movl	%ebx,%ecx
 	andl	$7,%ecx
 	jz	no
+.p2align 2,0x90
 smltop:	cmpl	%eax,(%edi)
 	je	found
 	leal	4(%edi),%edi
 	decl	%ecx
 	jnz	smltop
-.p2align 2,0x90
 no:	xorl	%eax,%eax
 	popl	%ebx
 	popl	%edi
