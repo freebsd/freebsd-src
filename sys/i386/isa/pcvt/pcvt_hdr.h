@@ -39,13 +39,13 @@
  *	pcvt_hdr.h	VT220 Driver Global Include File
  *	------------------------------------------------
  *
- *	Last Edit-Date: [Sun Mar 26 10:50:27 2000]
+ *	Last Edit-Date: [Mon Mar 27 16:10:50 2000]
  *
  * $FreeBSD$
  *
  *---------------------------------------------------------------------------*/
 
-#define	PCVT_REL "3.20-b24"	/* driver attach announcement	*/
+#define	PCVT_REL "3.60"		/* driver attach announcement	*/
 				/* see also: pcvt_ioctl.h	*/
 
 #include "opt_pcvt.h"
