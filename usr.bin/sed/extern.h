@@ -47,6 +47,7 @@ extern int appendnum;
 extern int lastline;
 extern int aflag, eflag, nflag;
 extern char *fname;
+extern int rflags; /* regex flags to add */
 
 void	 cfclose __P((struct s_command *, struct s_command *));
 void	 compile __P((void));
