@@ -35,7 +35,7 @@
 #define AR_READ		0x01
 #define AR_WRITE	0x02
 #define AR_WAIT		0x04
-#define AR_STRATEGY(x)  (x)->bio_dev->si_disk->d_devsw->d_strategy((x))
+#define AR_STRATEGY(x)	(x)->bio_dev->si_disk->d_devsw->d_strategy((x))
 #define AD_SOFTC(x)	((struct ad_softc *)(x.device->driver))
 
 struct ar_disk {
@@ -137,7 +137,14 @@ struct highpoint_raid_conf {
 	u_int8_t	sectors;
 	u_int32_t	lba;
     } errorlog[32];
-    int8_t		filler2[60];
+    int8_t		filler2[16];
+    u_int32_t		magic_2; 
+#define HPT_MAGIC_2		0x7fffffff
+    u_int8_t		dummy_1;
+    u_int8_t		name_1[15];
+    u_int8_t		dummy_2;
+    u_int8_t		name_2[15];
+    int8_t		filler3[8];
 } __attribute__((packed));
 
 
