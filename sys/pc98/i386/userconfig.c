@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.29 1997/03/15 15:44:05 kato Exp $
+ **      $Id: userconfig.c,v 1.30 1997/06/23 09:31:58 kato Exp $
  **/
 
 /**
@@ -2372,7 +2372,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.29 1997/03/15 15:44:05 kato Exp $
+ *      $Id: userconfig.c,v 1.30 1997/06/23 09:31:58 kato Exp $
  */
 
 #include "scbus.h"
@@ -2777,8 +2777,8 @@ introfunc(CmdParm *parms)
     int curr_item, first_time, extended = 0;
     static char *choices[] = {
 	" Skip kernel configuration and continue with installation ",
-	" Start kernel configuration in Visual mode                ",
-	" Start kernel configuration in CLI mode (experts only)    ",
+	" Start kernel configuration in full-screen visual mode    ",
+	" Start kernel configuration in CLI mode                   ",
     };
 
     clear();
