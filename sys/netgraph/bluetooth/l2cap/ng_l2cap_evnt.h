@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ng_l2cap_evnt.h,v 1.2 2002/04/16 00:43:56 max Exp $
+ * $Id: ng_l2cap_evnt.h,v 1.1 2002/11/24 19:47:06 max Exp $
  * $FreeBSD$
  */
 

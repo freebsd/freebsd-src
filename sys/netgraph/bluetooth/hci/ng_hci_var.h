@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ng_hci_var.h,v 1.14 2002/11/12 22:35:40 max Exp $
+ * $Id: ng_hci_var.h,v 1.3 2003/04/26 22:35:21 max Exp $
  * $FreeBSD$
  */
 
@@ -133,6 +133,7 @@ typedef struct ng_hci_unit {
 
 	ng_hci_node_link_policy_mask_ep	link_policy_mask; /* link policy mask */
 	ng_hci_node_packet_mask_ep	packet_mask;	/* packet mask */
+	ng_hci_node_role_switch_ep	role_switch;	/* role switch */
 
 	ng_hci_node_stat_ep		stat;           /* statistic */
 #define NG_HCI_STAT_CMD_SENT(s)		(s).cmd_sent ++
@@ -171,9 +172,8 @@ typedef struct ng_hci_unit_con {
 	u_int16_t			state;           /* con. state */
 	u_int16_t			flags;           /* con. flags */
 #define NG_HCI_CON_TIMEOUT_PENDING		(1 << 0)
-#define NG_HCI_CON_WATCHDOG_TIMEOUT_PENDING	(1 << 1)
-#define NG_HCI_CON_NOTIFY_ACL			(1 << 2)
-#define NG_HCI_CON_NOTIFY_SCO			(1 << 3)
+#define NG_HCI_CON_NOTIFY_ACL			(1 << 1)
+#define NG_HCI_CON_NOTIFY_SCO			(1 << 2)
 
 	bdaddr_t			bdaddr;          /* remote address */
 	u_int16_t			con_handle;      /* con. handle */
@@ -184,7 +184,6 @@ typedef struct ng_hci_unit_con {
 	u_int8_t			role;            /* MASTER/SLAVE */
 
 	struct callout_handle		con_timo;        /* con. timeout */
-	struct callout_handle		watchdog_timo;   /* watch dog */
 
 	int				pending;         /* # of data pkts */
 	ng_bt_itemq_t			conq;            /* con. queue */

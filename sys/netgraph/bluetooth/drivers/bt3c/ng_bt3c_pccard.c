@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ng_bt3c_pccard.c,v 1.2 2002/11/12 00:51:45 max Exp $
+ * $Id: ng_bt3c_pccard.c,v 1.5 2003/04/01 18:15:21 max Exp $
  * $FreeBSD$
  *
  * XXX XXX XX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX 
@@ -86,7 +86,6 @@ static int	bt3c_pccard_detach	(device_t);
 
 static void	bt3c_intr		(void *);
 static void	bt3c_receive		(bt3c_softc_p);
-static int	bt3c_append		(struct mbuf *, int);
 
 static void	bt3c_swi_intr		(void *);
 static void	bt3c_forward		(node_p, hook_p, void *, int);
@@ -241,8 +240,6 @@ static struct ng_type	typestruct = {
 	ng_bt3c_disconnect,	/* disconnect hook */
         ng_bt3c_cmdlist		/* node command list */
 };
-NETGRAPH_INIT(bt3c, &typestruct);
-MODULE_VERSION(ng_bt3c, NG_BLUETOOTH_VERSION);
 
 /*
  * Netgraph node constructor. Do not allow to create node of this type.
@@ -840,18 +837,33 @@ bt3c_receive(bt3c_softc_p sc)
 				break; /* XXX lost of sync */
 			}
 
+			MCLGET(sc->m, M_DONTWAIT);
+			if (!(sc->m->m_flags & M_EXT)) {
+				NG_FREE_M(sc->m);
+
+				NG_BT3C_ERR(sc->dev, "Could not get cluster\n");
+				NG_BT3C_STAT_IERROR(sc->stat);
+
+				break; /* XXX lost of sync */
+			}
+
 			sc->m->m_len = sc->m->m_pkthdr.len = 0;
 		}
 
 		/* Read and append character to mbuf */
 		bt3c_read_data(sc, c);
-		if (bt3c_append(sc->m, c) != 0) {
+		if (sc->m->m_pkthdr.len >= MCLBYTES) {
+			NG_BT3C_ERR(sc->dev, "Oversized frame\n");
+	
 			NG_FREE_M(sc->m);
 			sc->state = NG_BT3C_W4_PKT_IND;
 			sc->want = 1;
 
 			break; /* XXX lost of sync */
 		}
+
+		mtod(sc->m, u_int8_t *)[sc->m->m_len ++] = (u_int8_t) c;
+		sc->m->m_pkthdr.len ++;
 
 		NG_BT3C_INFO(sc->dev,
 "Got char %#x, want=%d, got=%d\n", c, sc->want, sc->m->m_pkthdr.len);
@@ -972,43 +984,6 @@ bt3c_receive(bt3c_softc_p sc)
 
 	bt3c_write(sc, 0x7006, 0x0000);
 } /* bt3c_receive */
-
-/*
- * Append character to the mbuf.
- * XXX assumes mbuf has header
- * XXX does not handle external mbuf's
- * XXX always appends char to the end of chain
- */
-
-static int
-bt3c_append(struct mbuf *m0, int c)
-{
-	struct mbuf	*m = m0;
-	int		 len;
-
-	if (m0->m_next == NULL)
-		len = MHLEN;
-	else {
-		len = MLEN;
-
-		while (m->m_next != NULL)
-			m = m->m_next;
-	}
-
-	if (m->m_len >= len) {
-		MGET(m->m_next, M_DONTWAIT, m0->m_type);
-		if (m->m_next == NULL)
-			return (ENOBUFS);
- 
-		m = m->m_next;
-		m->m_len = 0;
-	}
-
-	m->m_data[m->m_len ++] = (char) c;
-	m0->m_pkthdr.len ++;
-
-	return (0);
-} /* bt3c_append */
 
 /*
  * SWI interrupt handler
@@ -1243,5 +1218,37 @@ static driver_t		bt3c_pccard_driver = {
 
 static devclass_t	bt3c_devclass;
 
-DRIVER_MODULE(bt3c, pccard, bt3c_pccard_driver, bt3c_devclass, 0, 0);
+ 
+/*
+ * Load/Unload the driver module
+ */
+ 
+static int
+bt3c_modevent(module_t mod, int event, void *data)
+{
+	int	error;
+ 
+	switch (event) {
+	case MOD_LOAD:
+		error = ng_newtype(&typestruct);
+		if (error != 0)
+			printf("%s: Could not register Netgraph node type, " \
+				"error=%d\n", NG_BT3C_NODE_TYPE, error);
+		break;
+
+	case MOD_UNLOAD:
+		error = ng_rmtype(&typestruct);
+		break;
+
+	default:
+		error = EOPNOTSUPP;
+		break;
+	}
+
+	return (error);
+} /* bt3c_modevent */
+
+DRIVER_MODULE(bt3c, pccard, bt3c_pccard_driver, bt3c_devclass, bt3c_modevent,0);
+MODULE_VERSION(ng_bt3c, NG_BLUETOOTH_VERSION);
+MODULE_DEPEND(ng_bt3c, netgraph, NG_ABI_VERSION, NG_ABI_VERSION,NG_ABI_VERSION);
 

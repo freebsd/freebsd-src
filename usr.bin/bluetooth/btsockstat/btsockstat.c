@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: btsockstat.c,v 1.2 2002/09/16 19:40:14 max Exp $
+ * $Id: btsockstat.c,v 1.4 2003/03/29 22:28:18 max Exp $
  * $FreeBSD$
  */
 
@@ -45,11 +45,13 @@
 #include <kvm.h>
 #include <limits.h>
 
+#include <ng_bluetooth.h>
 #include <ng_hci.h>
 #include <ng_l2cap.h>
 #include <ng_btsocket.h>
 #include <ng_btsocket_hci_raw.h>
 #include <ng_btsocket_l2cap.h>
+#include <ng_btsocket_rfcomm.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -60,6 +62,8 @@ static void	hcirawpr   (kvm_t *kvmd, u_long addr);
 static void	l2caprawpr (kvm_t *kvmd, u_long addr);
 static void	l2cappr    (kvm_t *kvmd, u_long addr);
 static void	l2caprtpr  (kvm_t *kvmd, u_long addr);
+static void	rfcommpr   (kvm_t *kvmd, u_long addr);
+static void	rfcommpr_s (kvm_t *kvmd, u_long addr);
 
 static kvm_t *	kopen      (char const *memf);
 static int	kread      (kvm_t *kvmd, u_long addr, char *buffer, int size);
@@ -81,8 +85,15 @@ static struct nlist	nl[] = {
 	{ "_ng_btsocket_l2cap_raw_rt" },
 #define N_L2CAP_RT	4
 	{ "_ng_btsocket_l2cap_rt" },
+#define N_RFCOMM	5
+	{ "_ng_btsocket_rfcomm_sockets" },
+#define N_RFCOMM_S	6
+	{ "_ng_btsocket_rfcomm_sessions" },
 	{ "" },
 };
+
+#define state2str(x) \
+	(((x) >= sizeof(states)/sizeof(states[0]))? "UNKNOWN" : states[(x)])
 
 /*
  * Main
@@ -108,6 +119,10 @@ main(int argc, char *argv[])
 				proto = N_L2CAP_RAW;
 			else if (strcasecmp(optarg, "l2cap") == 0)
 				proto = N_L2CAP;
+			else if (strcasecmp(optarg, "rfcomm") == 0)
+				proto = N_RFCOMM;
+			else if (strcasecmp(optarg, "rfcomm_s") == 0)
+				proto = N_RFCOMM_S; 
 			else
 				usage();
 				/* NOT REACHED */
@@ -124,9 +139,17 @@ main(int argc, char *argv[])
 		}
 	}
 
-	if (proto == N_HCI_RAW && route)
+	if ((proto == N_HCI_RAW || proto == N_RFCOMM || proto == N_RFCOMM_S) && route)
 		usage();
 		/* NOT REACHED */
+
+	/*
+	 * Discard setgid privileges if not the running kernel so that
+	 * bad guys can't print interesting stuff from kernel memory.
+	 */
+
+	if (memf != NULL)
+		setgid(getgid());
 
 	kvmd = kopen(memf);
 	if (kvmd == NULL)
@@ -151,6 +174,14 @@ main(int argc, char *argv[])
 			l2cappr(kvmd, nl[N_L2CAP].n_value);
 		break;
 
+	case N_RFCOMM:
+		rfcommpr(kvmd, nl[N_RFCOMM].n_value);
+		break;
+
+	case N_RFCOMM_S:
+		rfcommpr_s(kvmd, nl[N_RFCOMM_S].n_value);
+		break;
+
 	default:
 		if (route) {
 			l2caprtpr(kvmd, nl[N_L2CAP_RAW_RT].n_value);
@@ -159,6 +190,8 @@ main(int argc, char *argv[])
 			hcirawpr(kvmd, nl[N_HCI_RAW].n_value);
 			l2caprawpr(kvmd, nl[N_L2CAP_RAW].n_value);
 			l2cappr(kvmd, nl[N_L2CAP].n_value);
+			rfcommpr_s(kvmd, nl[N_RFCOMM_S].n_value);
+			rfcommpr(kvmd, nl[N_RFCOMM].n_value);
 		}
 		break;
 	}
@@ -252,7 +285,7 @@ l2caprawpr(kvm_t *kvmd, u_long addr)
 			first = 0;
 			fprintf(stdout, 
 "Active raw L2CAP sockets\n" \
-"%-8.8s %-8.8s %-6.6s %-6.6s %-18.18s\n",
+"%-8.8s %-8.8s %-6.6s %-6.6s %-17.17s\n",
 				"Socket",
 				"PCB",
 				"Recv-Q",
@@ -270,7 +303,7 @@ l2caprawpr(kvm_t *kvmd, u_long addr)
 				pcb.src.b[2], pcb.src.b[1], pcb.src.b[0]);
 
 		fprintf(stdout,
-"%-8.8x %-8.8x %6d %6d %-18.18s\n",
+"%-8.8x %-8.8x %6d %6d %-17.17s\n",
 			(int) pcb.so,
 			(int) this,
 			so.so_rcv.sb_cc,
@@ -293,15 +326,12 @@ l2cappr(kvm_t *kvmd, u_long addr)
 	/* NG_BTSOCKET_L2CAP_OPEN */		"OPEN",
 	/* NG_BTSOCKET_L2CAP_DISCONNECTING */	"DISCON"
 	};
-#define state2str(x) \
-	(((x) >= sizeof(states)/sizeof(states[0]))? "UNKNOWN" : states[(x)])
 
 	ng_btsocket_l2cap_pcb_p	this = NULL, next = NULL;
 	ng_btsocket_l2cap_pcb_t	pcb;
 	struct socket		so;
 	int			first = 1;
 	char			local[32], remote[32];
-
 
 	if (addr == 0)
 		return;
@@ -321,7 +351,7 @@ l2cappr(kvm_t *kvmd, u_long addr)
 			first = 0;
 			fprintf(stdout,
 "Active L2CAP sockets\n" \
-"%-8.8s %-6.6s %-6.6s %-24.24s %-18.18s %-5.5s %s\n",
+"%-8.8s %-6.6s %-6.6s %-23.23s %-17.17s %-5.5s %s\n",
 				"PCB",
 				"Recv-Q",
 				"Send-Q",
@@ -350,7 +380,7 @@ l2cappr(kvm_t *kvmd, u_long addr)
 				pcb.dst.b[2], pcb.dst.b[1], pcb.dst.b[0]);
 
 		fprintf(stdout,
-"%-8.8x %6d %6d %-24.24s %-18.18s %-5d %s\n",
+"%-8.8x %6d %6d %-23.23s %-17.17s %-5d %s\n",
 			(int) this,
 			so.so_rcv.sb_cc,
 			so.so_snd.sb_cc,
@@ -391,7 +421,7 @@ l2caprtpr(kvm_t *kvmd, u_long addr)
 			fprintf(stdout,
 "Known %sL2CAP routes\n", (addr == nl[N_L2CAP_RAW_RT].n_value)?  "raw " : "");
 			fprintf(stdout,
-"%-8.8s %-8.8s %-18.18s\n",	"RTentry",
+"%-8.8s %-8.8s %-17.17s\n",	"RTentry",
 				"Hook",
 				"BD_ADDR");
 		}
@@ -405,12 +435,156 @@ l2caprtpr(kvm_t *kvmd, u_long addr)
 				 rt.src.b[2], rt.src.b[1], rt.src.b[0]);
 
 		fprintf(stdout,
-"%-8.8x %-8.8x %-18.18s\n",
+"%-8.8x %-8.8x %-17.17s\n",
 			(int) this,
 			(int) rt.hook,
 			bdaddr);
 	}
 } /* l2caprtpr */
+
+/*
+ * Print RFCOMM sockets
+ */
+
+static void
+rfcommpr(kvm_t *kvmd, u_long addr)
+{
+	static char const * const	states[] = {
+	/* NG_BTSOCKET_RFCOMM_DLC_CLOSED */	   "CLOSED",
+	/* NG_BTSOCKET_RFCOMM_DLC_W4_CONNECT */	   "W4CON",
+	/* NG_BTSOCKET_RFCOMM_DLC_CONFIGURING */   "CONFIG",
+	/* NG_BTSOCKET_RFCOMM_DLC_CONNECTING */    "CONN",
+	/* NG_BTSOCKET_RFCOMM_DLC_CONNECTED */     "OPEN",
+	/* NG_BTSOCKET_RFCOMM_DLC_DISCONNECTING */ "DISCON"
+	};
+
+	ng_btsocket_rfcomm_pcb_p	this = NULL, next = NULL;
+	ng_btsocket_rfcomm_pcb_t	pcb;
+	struct socket			so;
+	int				first = 1;
+	char				local[32], remote[32];
+
+	if (addr == 0)
+		return;
+
+        if (kread(kvmd, addr, (char *) &this, sizeof(this)) < 0)
+		return;
+
+	for ( ; this != NULL; this = next) {
+		if (kread(kvmd, (u_long) this, (char *) &pcb, sizeof(pcb)) < 0)
+			return;
+		if (kread(kvmd, (u_long) pcb.so, (char *) &so, sizeof(so)) < 0)
+			return;
+
+		next = LIST_NEXT(&pcb, next);
+
+		if (first) {
+			first = 0;
+			fprintf(stdout,
+"Active RFCOMM sockets\n" \
+"%-8.8s %-6.6s %-6.6s %-17.17s %-17.17s %-4.4s %-4.4s %s\n",
+				"PCB",
+				"Recv-Q",
+				"Send-Q",
+				"Local address",
+				"Foreign address",
+				"Chan",
+				"DLCI",
+				"State");
+		}
+
+		if (memcmp(&pcb.src, NG_HCI_BDADDR_ANY, sizeof(pcb.src)) == 0) {
+			local[0] = '*';
+			local[1] = 0;
+		} else
+			snprintf(local, sizeof(local),
+"%02x:%02x:%02x:%02x:%02x:%02x",
+				pcb.src.b[5], pcb.src.b[4], pcb.src.b[3],
+				pcb.src.b[2], pcb.src.b[1], pcb.src.b[0]);
+
+		if (memcmp(&pcb.dst, NG_HCI_BDADDR_ANY, sizeof(pcb.dst)) == 0) {
+			remote[0] = '*';
+			remote[1] = 0;
+		} else
+			snprintf(remote, sizeof(remote),
+"%02x:%02x:%02x:%02x:%02x:%02x",
+				pcb.dst.b[5], pcb.dst.b[4], pcb.dst.b[3],
+				pcb.dst.b[2], pcb.dst.b[1], pcb.dst.b[0]);
+
+		fprintf(stdout,
+"%-8.8x %6d %6d %-17.17s %-17.17s %-4d %-4d %s\n",
+			(int) this,
+			so.so_rcv.sb_cc,
+			so.so_snd.sb_cc,
+			local,
+			remote,
+			pcb.channel,
+			pcb.dlci,
+			(so.so_options & SO_ACCEPTCONN)?
+				"LISTEN" : state2str(pcb.state));
+	}
+} /* rfcommpr */
+
+/*
+ * Print RFCOMM sessions
+ */
+
+static void
+rfcommpr_s(kvm_t *kvmd, u_long addr)
+{
+	static char const * const	states[] = {
+	/* NG_BTSOCKET_RFCOMM_SESSION_CLOSED */	       "CLOSED",
+	/* NG_BTSOCKET_RFCOMM_SESSION_LISTENING */     "LISTEN",
+	/* NG_BTSOCKET_RFCOMM_SESSION_CONNECTING */    "CONNECTING",
+	/* NG_BTSOCKET_RFCOMM_SESSION_CONNECTED */     "CONNECTED",
+	/* NG_BTSOCKET_RFCOMM_SESSION_OPEN */          "OPEN",
+	/* NG_BTSOCKET_RFCOMM_SESSION_DISCONNECTING */ "DISCONNECTING"
+	};
+
+	ng_btsocket_rfcomm_session_p	this = NULL, next = NULL;
+	ng_btsocket_rfcomm_session_t	s;
+	struct socket			so;
+	int				first = 1;
+
+	if (addr == 0)
+		return;
+
+        if (kread(kvmd, addr, (char *) &this, sizeof(this)) < 0)
+		return;
+
+	for ( ; this != NULL; this = next) {
+		if (kread(kvmd, (u_long) this, (char *) &s, sizeof(s)) < 0)
+			return;
+		if (kread(kvmd, (u_long) s.l2so, (char *) &so, sizeof(so)) < 0)
+			return;
+
+		next = LIST_NEXT(&s, next);
+
+		if (first) {
+			first = 0;
+			fprintf(stdout,
+"Active RFCOMM sessions\n" \
+"%-8.8s %-8.8s %-4.4s %-5.5s %-5.5s %-4.4s %s\n",
+				"L2PCB",
+				"PCB",
+				"Flags",
+				"MTU",
+				"Out-Q",
+				"DLCs",
+				"State");
+		}
+
+		fprintf(stdout,
+"%-8.8x %-8.8x %-4x %-5d %-5d %-4s %s\n",
+			(int) so.so_pcb,
+			(int) this,
+			s.flags,
+			s.mtu,
+			s.outq.len,
+			LIST_EMPTY(&s.dlcs)? "No" : "Yes",
+			state2str(s.state));
+	}
+} /* rfcommpr_s */
 
 /*
  * Open kvm

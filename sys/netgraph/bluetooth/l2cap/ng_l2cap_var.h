@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ng_l2cap_var.h,v 1.13 2002/09/04 21:38:38 max Exp $
+ * $Id: ng_l2cap_var.h,v 1.2 2003/04/28 21:44:59 max Exp $
  * $FreeBSD$
  */
 
@@ -78,10 +78,11 @@ typedef struct ng_l2cap {
 
 	ng_l2cap_node_debug_ep		debug;        /* debug level */
 	ng_l2cap_node_flags_ep		flags;        /* L2CAP node flags */
+	ng_l2cap_node_auto_discon_ep	discon_timo;  /* auto discon. timeout */
 
-	bdaddr_t			bdaddr;       /* unit BDADDR */
 	u_int16_t			pkt_size;     /* max. ACL packet size */
 	u_int16_t			num_pkts;     /* out queue size */
+	bdaddr_t			bdaddr;       /* unit BDADDR */
 
 	hook_p				hci;          /* HCI downstream hook */
 	hook_p				l2c;          /* L2CAP upstream hook */
@@ -104,6 +105,9 @@ typedef struct ng_l2cap_con {
 	ng_l2cap_p			 l2cap;      /* pointer to L2CAP */
 
 	u_int16_t			 state;      /* ACL connection state */
+	u_int16_t			 flags;      /* ACL connection flags */
+
+	int32_t				 refcnt;     /* reference count */
 
 	bdaddr_t			 remote;     /* remote unit address */
 	u_int16_t			 con_handle; /* ACL connection handle */

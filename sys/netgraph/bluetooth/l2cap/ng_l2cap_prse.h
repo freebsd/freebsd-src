@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ng_l2cap_prse.h,v 1.2 2002/09/04 21:38:38 max Exp $
+ * $Id: ng_l2cap_prse.h,v 1.2 2003/04/28 21:44:59 max Exp $
  * $FreeBSD$
  */
 
@@ -61,6 +61,20 @@ static const struct ng_cmdlist	ng_l2cap_cmdlist[] = {
 		NGM_L2CAP_COOKIE,
 		NGM_L2CAP_NODE_SET_DEBUG,
 		"set_debug",
+		&ng_parse_uint16_type,
+		NULL
+	},
+	{
+		NGM_L2CAP_COOKIE,
+		NGM_L2CAP_NODE_GET_AUTO_DISCON_TIMO,
+		"get_disc_timo",
+		NULL,
+		&ng_parse_uint16_type
+	},
+	{
+		NGM_L2CAP_COOKIE,
+		NGM_L2CAP_NODE_SET_AUTO_DISCON_TIMO,
+		"set_disc_timo",
 		&ng_parse_uint16_type,
 		NULL
 	},

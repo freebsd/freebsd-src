@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ng_btsocket_l2cap.h,v 1.3 2002/09/22 18:23:31 max Exp $
+ * $Id: ng_btsocket_l2cap.h,v 1.4 2003/03/25 23:53:33 max Exp $
  * $FreeBSD$
  */
 
@@ -42,7 +42,7 @@ struct ng_message;
 struct ng_btsocket_l2cap_rtentry {
 	bdaddr_t				 src;  /* source BD_ADDR */
 	struct ng_hook				*hook; /* downstream hook */
-	LIST_ENTRY(ng_btsocket_l2cap_rtentry)	 next; /* linkt to next */
+	LIST_ENTRY(ng_btsocket_l2cap_rtentry)	 next; /* link to next */
 };
 typedef struct ng_btsocket_l2cap_rtentry	ng_btsocket_l2cap_rtentry_t;
 typedef struct ng_btsocket_l2cap_rtentry *	ng_btsocket_l2cap_rtentry_p;
@@ -63,11 +63,17 @@ typedef struct ng_btsocket_l2cap_rtentry *	ng_btsocket_l2cap_rtentry_p;
 struct ng_btsocket_l2cap_raw_pcb {
 	struct socket				*so;	/* socket */
 
+	u_int32_t				 flags; /* flags */
+#define NG_BTSOCKET_L2CAP_RAW_PRIVILEGED	(1 << 0)
+
 	bdaddr_t				 src;	/* source address */
+	bdaddr_t				 dst;	/* dest address */
 	ng_btsocket_l2cap_rtentry_p		 rt;    /* routing info */
 
 	u_int32_t				 token;	/* message token */
 	struct ng_mesg				*msg;   /* message */
+
+	struct mtx				 pcb_mtx; /* pcb mutex */
 
 	LIST_ENTRY(ng_btsocket_l2cap_raw_pcb)	 next;  /* link to next PCB */
 };
