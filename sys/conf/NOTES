@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id$
+#	$Id: LINT,v 1.381 1997/11/25 19:30:22 markm Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -167,6 +167,11 @@ cpu		"I686_CPU"		# aka Pentium Pro(tm)
 # without cache flush at hold state, and (2) write-back CPU cache on
 # Cyrix 6x86 whose revision < 2.7 (NOTE 2).
 #
+# NO_F00F_HACK disables the hack that prevents Pentiums (and ONLY
+# Pentiums) from locking up when a LOCK CMPXCHG8B instruction is
+# executed.  This should be included for ALL kernels that won't run
+# on a Pentium.
+#
 # NOTE 1: The options, CPU_BTB_EN, CPU_LOOP_EN, CPU_IORT,
 # CPU_LOOP_ENand CPU_RSTK_EN should no be used becasue of CPU bugs.
 # These options may crash your system. 
@@ -191,6 +196,7 @@ options		"CPU_RSTK_EN"
 options		"CPU_SUSP_HLT"
 options		"CYRIX_CACHE_WORKS"
 options		"CYRIX_CACHE_REALLY_WORKS"
+#options	"NO_F00F_HACK"
 
 #
 # A math emulator is mandatory if you wish to run on hardware which
