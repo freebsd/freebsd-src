@@ -345,18 +345,16 @@ __wcsconv(wchar_t *wcsarg, int prec)
 	wchar_t *p;
 	char *convbuf, *mbp;
 	size_t clen, nbytes;
-	mbstate_t mbs;
 
 	/*
 	 * Determine the number of bytes to output and allocate space for
 	 * the output.
 	 */
-	memset(&mbs, 0, sizeof(mbs));
 	if (prec >= 0) {
 		nbytes = 0;
 		p = wcsarg;
 		for (;;) {
-			clen = wcrtomb(buf, *p++, &mbs);
+			clen = wcrtomb(buf, *p++, NULL);
 			if (clen == 0 || clen == (size_t)-1 ||
 			    nbytes + clen > prec)
 				break;
@@ -364,7 +362,7 @@ __wcsconv(wchar_t *wcsarg, int prec)
 		}
 	} else {
 		p = wcsarg;
-		nbytes = wcsrtombs(NULL, (const wchar_t **)&p, 0, &mbs);
+		nbytes = wcsrtombs(NULL, (const wchar_t **)&p, 0, NULL);
 		if (nbytes == (size_t)-1)
 			return (NULL);
 	}
@@ -377,9 +375,8 @@ __wcsconv(wchar_t *wcsarg, int prec)
 	 */
 	mbp = convbuf;
 	p = wcsarg;
-	memset(&mbs, 0, sizeof(mbs));
 	while (mbp - convbuf < nbytes) {
-		clen = wcrtomb(mbp, *p++, &mbs);
+		clen = wcrtomb(mbp, *p++, NULL);
 		if (clen == 0 || clen == (size_t)-1)
 			break;
 		mbp += clen;
@@ -795,12 +792,10 @@ reswitch:	switch (ch) {
 			/*FALLTHROUGH*/
 		case 'c':
 			if (flags & LONGINT) {
-				mbstate_t mbs;
 				size_t mbseqlen;
 
-				memset(&mbs, 0, sizeof(mbs));
 				mbseqlen = wcrtomb(cp = buf,
-				    (wchar_t)GETARG(wint_t), &mbs);
+				    (wchar_t)GETARG(wint_t), NULL);
 				if (mbseqlen == (size_t)-1) {
 					fp->_flags |= __SERR;
 					goto error;

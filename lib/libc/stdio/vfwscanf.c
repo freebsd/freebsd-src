@@ -146,7 +146,6 @@ __vfwscanf(FILE * __restrict fp, const wchar_t * __restrict fmt, va_list ap)
 	wint_t wi;		/* handy wint_t */
 	char *mbp;		/* multibyte string pointer for %c %s %[ */
 	size_t nconv;		/* number of bytes in mb. conversion */
-	mbstate_t mbs;		/* multibyte state */
 	char mbbuf[MB_LEN_MAX];	/* temporary mb. character buffer */
 
 	/* `basefix' is used to avoid `if' tests in the integer scanner */
@@ -379,17 +378,16 @@ literal:
 				if (!(flags & SUPPRESS))
 					mbp = va_arg(ap, char *);
 				n = 0;
-				memset(&mbs, 0, sizeof(mbs));
 				while (width != 0 &&
 				    (wi = __fgetwc(fp)) != WEOF) {
 					if (width >= MB_CUR_MAX &&
 					    !(flags & SUPPRESS)) {
-						nconv = wcrtomb(mbp, wi, &mbs);
+						nconv = wcrtomb(mbp, wi, NULL);
 						if (nconv == (size_t)-1)
 							goto input_failure;
 					} else {
 						nconv = wcrtomb(mbbuf, wi,
-						    &mbs);
+						    NULL);
 						if (nconv == (size_t)-1)
 							goto input_failure;
 						if (nconv > width) {
@@ -444,17 +442,16 @@ literal:
 				if (!(flags & SUPPRESS))
 					mbp = va_arg(ap, char *);
 				n = 0;
-				memset(&mbs, 0, sizeof(mbs));
 				while ((wi = __fgetwc(fp)) != WEOF &&
 				    width != 0 && INCCL(wi)) {
 					if (width >= MB_CUR_MAX &&
 					   !(flags & SUPPRESS)) {
-						nconv = wcrtomb(mbp, wi, &mbs);
+						nconv = wcrtomb(mbp, wi, NULL);
 						if (nconv == (size_t)-1)
 							goto input_failure;
 					} else {
 						nconv = wcrtomb(mbbuf, wi,
-						    &mbs);
+						    NULL);
 						if (nconv == (size_t)-1)
 							goto input_failure;
 						if (nconv > width)
@@ -505,18 +502,17 @@ literal:
 			} else {
 				if (!(flags & SUPPRESS))
 					mbp = va_arg(ap, char *);
-				memset(&mbs, 0, sizeof(mbs));
 				while ((wi = __fgetwc(fp)) != WEOF &&
 				    width != 0 &&
 				    !iswspace(wi)) {
 					if (width >= MB_CUR_MAX &&
 					    !(flags & SUPPRESS)) {
-						nconv = wcrtomb(mbp, wi, &mbs);
+						nconv = wcrtomb(mbp, wi, NULL);
 						if (nconv == (size_t)-1)
 							goto input_failure;
 					} else {
 						nconv = wcrtomb(mbbuf, wi,
-						    &mbs);
+						    NULL);
 						if (nconv == (size_t)-1)
 							goto input_failure;
 						if (nconv > width)
