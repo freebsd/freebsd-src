@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.15 1995/01/10 07:32:45 davidg Exp $
+ * $Id: vm_fault.c,v 1.16 1995/01/24 10:12:29 davidg Exp $
  */
 
 /*
@@ -295,9 +295,7 @@ RetryFault:;
 			 */
 			m->flags |= PG_BUSY;
 			if (m->object != kernel_object && m->object != kmem_object &&
-			    m->valid &&
-			    ((m->valid & vm_page_bits(0, PAGE_SIZE))
-				!= vm_page_bits(0, PAGE_SIZE))) {
+			    m->valid && ((m->valid & VM_PAGE_BITS_ALL) != VM_PAGE_BITS_ALL)) {
 				goto readrest;
 			}
 			break;
@@ -839,8 +837,10 @@ RetryCopy:
 	 */
 
 	pmap_enter(map->pmap, vaddr, VM_PAGE_TO_PHYS(m), prot, wired);
+#if 0
 	if( ((prot & VM_PROT_WRITE) == 0) && change_wiring == 0 && wired == 0)
 		pmap_prefault(map->pmap, vaddr, entry, first_object);
+#endif
 
 	/*
 	 * If the page is not wired down, then put it where the pageout daemon
