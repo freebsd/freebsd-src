@@ -144,27 +144,10 @@ fwohci_dummy_intr(void *arg)
 #endif
 
 static int
-fwohci_pci_attach(device_t self)
+fwohci_pci_init(device_t self)
 {
-	fwohci_softc_t *sc = device_get_softc(self);
-	int err;
-	int rid;
 	int latency, cache_line;
 	u_int16_t cmd;
-#if __FreeBSD_version < 500000
-	int intr;
-	/* For the moment, put in a message stating what is wrong */
-	intr = pci_read_config(self, PCIR_INTLINE, 1);
-	if (intr == 0 || intr == 255) {
-		device_printf(self, "Invalid irq %d\n", intr);
-#ifdef __i386__
-		device_printf(self, "Please switch PNP-OS to 'No' in BIOS\n");
-#endif
-#if 0
-		return ENXIO;
-#endif
-	}
-#endif
 
 	cmd = pci_read_config(self, PCIR_COMMAND, 2);
 	cmd |= PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN | PCIM_CMD_MWRICEN;
@@ -189,7 +172,33 @@ fwohci_pci_attach(device_t self)
 #endif
 	if (bootverbose)
 		device_printf(self, "cache size %d.\n", (int) cache_line);
-/**/
+
+	return 0;
+}
+
+static int
+fwohci_pci_attach(device_t self)
+{
+	fwohci_softc_t *sc = device_get_softc(self);
+	int err;
+	int rid;
+#if __FreeBSD_version < 500000
+	int intr;
+	/* For the moment, put in a message stating what is wrong */
+	intr = pci_read_config(self, PCIR_INTLINE, 1);
+	if (intr == 0 || intr == 255) {
+		device_printf(self, "Invalid irq %d\n", intr);
+#ifdef __i386__
+		device_printf(self, "Please switch PNP-OS to 'No' in BIOS\n");
+#endif
+#if 0
+		return ENXIO;
+#endif
+	}
+#endif
+
+	fwohci_pci_init(self);
+
 	rid = PCI_CBMEM;
 	sc->bsr = bus_alloc_resource(self, SYS_RES_MEMORY, &rid,
 					0, ~0, 1, RF_ACTIVE);
@@ -254,7 +263,7 @@ fwohci_pci_detach(device_t self)
 
 	s = splfw();
 
-	fwohci_shutdown(self);
+	fwohci_shutdown(sc, self);
 	bus_generic_detach(self);
 
 	/* disable interrupts that might have been switched on */
@@ -300,7 +309,12 @@ fwohci_pci_detach(device_t self)
 static int
 fwohci_pci_suspend(device_t dev)
 {
-	device_printf(dev, "fwoch_pci_suspend\n");
+	device_printf(dev, "fwohci_pci_suspend\n");
+	int err;
+	err = bus_generic_suspend(dev);
+	if (err)
+		return err;
+	/* fwohci_shutdown(dev); */
 	return 0;
 }
 
@@ -309,8 +323,19 @@ fwohci_pci_resume(device_t dev)
 {
 	fwohci_softc_t *sc = device_get_softc(dev);
 
-	device_printf(dev, "fwoch_pci_resume\n");
-	fwohci_reset(sc, dev);
+	device_printf(dev, "fwohci_pci_resume: power_state = 0x%08x\n",
+					pci_get_powerstate(dev));
+	fwohci_pci_init(dev);
+	fwohci_resume(sc, dev);
+	return 0;
+}
+
+static int
+fwohci_pci_shutdown(device_t dev)
+{
+	fwohci_softc_t *sc = device_get_softc(dev);
+
+	fwohci_shutdown(sc, dev);
 	return 0;
 }
 
@@ -319,9 +344,9 @@ static device_method_t fwohci_methods[] = {
 	DEVMETHOD(device_probe,		fwohci_pci_probe),
 	DEVMETHOD(device_attach,	fwohci_pci_attach),
 	DEVMETHOD(device_detach,	fwohci_pci_detach),
-	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	fwohci_pci_suspend),
 	DEVMETHOD(device_resume,	fwohci_pci_resume),
+	DEVMETHOD(device_shutdown,	fwohci_pci_shutdown),
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
