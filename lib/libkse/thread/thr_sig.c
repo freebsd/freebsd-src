@@ -175,7 +175,7 @@ _thr_sig_dispatch(struct kse *curkse, int sig, siginfo_t *info)
 void
 _thr_sig_handler(int sig, siginfo_t *info, ucontext_t *ucp)
 {
-	void (*sigfunc)(int, siginfo_t *, void *);
+	__siginfohandler_t *sigfunc;
 	struct kse *curkse;
 
 	curkse = _get_curkse();
@@ -184,7 +184,8 @@ _thr_sig_handler(int sig, siginfo_t *info, ucontext_t *ucp)
 		sigfunc = _thread_sigact[sig - 1].sa_sigaction;
 		ucp->uc_sigmask = _thr_proc_sigmask;
 		if (((__sighandler_t *)sigfunc != SIG_DFL) &&
-		    ((__sighandler_t *)sigfunc != SIG_IGN)) {
+		    ((__sighandler_t *)sigfunc != SIG_IGN) &&
+		    (sigfunc != (__siginfohandler_t *)_thr_sig_handler)) {
 			if (((_thread_sigact[sig - 1].sa_flags & SA_SIGINFO)
 			    != 0) || (info == NULL))
 				(*(sigfunc))(sig, info, ucp);

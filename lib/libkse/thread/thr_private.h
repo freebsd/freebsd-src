@@ -1114,6 +1114,7 @@ void    _thr_sched_frame(struct pthread_sigframe *);
 void	_thr_sched_switch(struct pthread *);
 void	_thr_sched_switch_unlocked(struct pthread *);
 void    _thr_set_timeout(const struct timespec *);
+void	_thr_seterrno(struct pthread *, int);
 void    _thr_sig_handler(int, siginfo_t *, ucontext_t *);
 void    _thr_sig_check_pending(struct pthread *);
 void	_thr_sig_rundown(struct pthread *, ucontext_t *,
@@ -1121,7 +1122,7 @@ void	_thr_sig_rundown(struct pthread *, ucontext_t *,
 void	_thr_sig_send(struct pthread *pthread, int sig);
 void	_thr_sig_wrapper(void);
 void	_thr_sigframe_restore(struct pthread *thread, struct pthread_sigframe *psf);
-void	_thr_seterrno(struct pthread *, int);
+void	_thr_spinlock_init(void);
 void	_thr_enter_cancellation_point(struct pthread *);
 void	_thr_leave_cancellation_point(struct pthread *);
 int	_thr_setconcurrency(int new_level);
