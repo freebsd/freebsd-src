@@ -61,4 +61,18 @@ pthread_mutexattr_getkind_np(pthread_mutexattr_t attr)
 	}
 	return(ret);
 }
+
+int
+pthread_mutexattr_settype(pthread_mutexattr_t *attr, int type)
+{
+	int	ret;
+	if (attr == NULL || *attr == NULL || type >= MUTEX_TYPE_MAX) {
+		errno = EINVAL;
+		ret = -1;
+	} else {
+		(*attr)->m_type = type;
+		ret = 0;
+	}
+	return(ret);
+}
 #endif
