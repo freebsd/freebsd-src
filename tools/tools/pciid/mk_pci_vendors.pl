@@ -31,7 +31,7 @@
 # currently available at:
 #
 # Boemler:	http://www.pcidatabase.com/reports.php?type=tab-delimeted
-# Hart:		http://members.datafast.net.au/dft0802/downloads.htm
+# Hart:		http://members.datafast.net.au/dft0802/downloads/pcidevs.txt
 #
 # -l	Where an entry is found in both input lists, use the entry with
 #	the longest description.  The default is for the Boemler file to
@@ -161,7 +161,7 @@ print <<HEADER_END;
 ; ($optlused the -l option), using the following source lists:
 ;
 ;	http://www.pcidatabase.com/reports.php?type=tab-delimeted
-;	http://members.hyperlink.com.au/~chart/download/pcidevs.txt
+;	http://members.datafast.net.au/dft0802/downloads/pcidevs.txt
 ;
 ; Manual edits on this file will be lost!
 ;
