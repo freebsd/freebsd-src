@@ -51,8 +51,8 @@ static int compress_buffer_input PROTO((void *, char *, int, int, int *));
 static int compress_buffer_output PROTO((void *, const char *, int, int *));
 static int compress_buffer_flush PROTO((void *));
 static int compress_buffer_block PROTO((void *, int));
-static int compress_buffer_shutdown_input PROTO((void *));
-static int compress_buffer_shutdown_output PROTO((void *));
+static int compress_buffer_shutdown_input PROTO((struct buffer *));
+static int compress_buffer_shutdown_output PROTO((struct buffer *));
 
 /* Report an error from one of the zlib functions.  */
 
@@ -355,10 +355,10 @@ compress_buffer_block (closure, block)
 /* Shut down an input buffer.  */
 
 static int
-compress_buffer_shutdown_input (closure)
-     void *closure;
+compress_buffer_shutdown_input (buf)
+     struct buffer *buf;
 {
-    struct compress_buffer *cb = (struct compress_buffer *) closure;
+    struct compress_buffer *cb = (struct compress_buffer *) buf->closure;
     int zstatus;
 
     /* Pick up any trailing data, such as the checksum.  */
@@ -387,10 +387,10 @@ compress_buffer_shutdown_input (closure)
 /* Shut down an output buffer.  */
 
 static int
-compress_buffer_shutdown_output (closure)
-     void *closure;
+compress_buffer_shutdown_output (buf)
+     struct buffer *buf;
 {
-    struct compress_buffer *cb = (struct compress_buffer *) closure;
+    struct compress_buffer *cb = (struct compress_buffer *) buf->closure;
     int zstatus, status;
 
     do

@@ -218,10 +218,14 @@ import (argc, argv)
 
     if (use_editor)
     {
-	do_editor ((char *) NULL, &message, repository,
+	do_editor ((char *) NULL, &message,
+#ifdef CLIENT_SUPPORT
+		   current_parsed_root->isremote ? (char *) NULL :
+#endif
+			repository,
 		   (List *) NULL);
     }
-    do_verify (message, repository);
+    do_verify (&message, repository);
     msglen = message == NULL ? 0 : strlen (message);
     if (msglen == 0 || message[msglen - 1] != '\n')
     {
@@ -278,7 +282,7 @@ import (argc, argv)
     }
 #endif
 
-    if (!safe_location ())
+    if (!safe_location ( NULL ))
     {
 	error (1, 0, "attempt to import the repository");
     }
@@ -311,7 +315,6 @@ import (argc, argv)
 	if (!really_quiet)
 	{
 	    char buf[20];
-	    char *buf2;
 
 	    cvs_output_tagged ("+importmergecmd", NULL);
 	    cvs_output_tagged ("newline", NULL);
@@ -331,12 +334,9 @@ import (argc, argv)
 		cvs_output_tagged ("text", CVSroot_cmdline);
 	    }
 	    cvs_output_tagged ("text", " checkout -j");
-	    buf2 = xmalloc (strlen (argv[1]) + 20);
-	    sprintf (buf2, "%s:yesterday", argv[1]);
-	    cvs_output_tagged ("mergetag1", buf2);
-	    free (buf2);
+	    cvs_output_tagged ("mergetag1", "<prev_rel_tag>");
 	    cvs_output_tagged ("text", " -j");
-	    cvs_output_tagged ("mergetag2", argv[1]);
+	    cvs_output_tagged ("mergetag2", argv[2]);
 	    cvs_output_tagged ("text", " ");
 	    cvs_output_tagged ("repository", argv[0]);
 	    cvs_output_tagged ("newline", NULL);
@@ -618,6 +618,7 @@ update_rcs_file (message, vfile, vtag, targc, targv, inattic)
     Vers_TS *vers;
     int letter;
     char *tocvsPath;
+    char *expand;
     struct file_info finfo;
 
     memset (&finfo, 0, sizeof finfo);
@@ -647,7 +648,9 @@ update_rcs_file (message, vfile, vtag, targc, targv, inattic)
 	tocvsPath = wrap_tocvs_process_file (vfile);
 	/* FIXME: Why don't we pass tocvsPath to RCS_cmp_file if it is
            not NULL?  */
-	different = RCS_cmp_file (vers->srcfile, vers->vn_rcs, "-ko", vfile);
+	expand = vers->srcfile->expand != NULL &&
+			vers->srcfile->expand[0] == 'b' ? "-kb" : "-ko";
+	different = RCS_cmp_file (vers->srcfile, vers->vn_rcs, expand, vfile);
 	if (tocvsPath)
 	    if (unlink_file_dir (tocvsPath) < 0)
 		error (0, errno, "cannot remove %s", tocvsPath);
@@ -1151,7 +1154,7 @@ add_rcs_file (message, rcs, user, add_vhead, key_opt,
 	goto write_error;
     }
 
-    if (local_opt != NULL)
+    if (local_opt != NULL && strcmp (local_opt, "kv") != 0)
     {
 	if (fprintf (fprcs, "expand   @%s@;\012", local_opt) < 0)
 	{

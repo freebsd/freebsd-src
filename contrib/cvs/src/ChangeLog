@@ -1,3 +1,807 @@
+2002-04-17  Derek Price  <oberon@umich.edu>
+
+	* version.h: Regenerated for 1.11.2.
+
+2002-04-03  Derek Price  <oberon@umich.edu>
+
+	* stamp-h2.in: Regenerate with recent version of Autoconf.
+
+2002-04-03  Derek Price  <oberon@umich.edu>
+
+	* sanity.sh (TR): Send the stderr of one of the tool setup (tr) tests
+	to /dev/null to avoid spurious output on some operating systems
+	(notably Mac OS X).
+
+2002-03-22  Larry Jones  <larry.jones@sdrc.com>
+
+	* sanity.sh (rcslib): Correct new tests to use ${testcvs} instead
+	of cvs.
+
+2002-03-21  Derek Price  <oberon@umich.edu>
+
+	* vers_ts.c (time_stamp): Return the timestamp for the newer of the
+	link and the link's source when the file is a link.
+	(Patch from RedHat cvs-1.11.1p1-7 SRPM.)
+
+	* sanity.sh (rcslib): Test for same.
+
+2002-03-17  Larry Jones  <larry.jones@sdrc.com>
+
+	* log.c (cvslog, log_fileproc): Add -S option to suppress head or
+	file name if no revisions selected.
+	* sanity.sh (log): New tests for above.
+
+2002-03-13  Derek Price  <oberon@umich.edu>
+
+	* main.c (usg): Correct a spelling mistake in a comment.
+	(Thanks to Matt Kraai <kraai@alumni.cmu.edu>.)
+
+2002-03-09  Larry Jones  <larry.jones@sdrc.com>
+
+	* import.c (import): Change the suggested merge message to use
+	rev tags instead of the branch tag with a date.
+	* sanity.sh (import, importb): Change to match.
+
+	* remove.c (remove_fileproc): Disallow removing files with sticky
+	dates for the same reason we already disallow sticky numeric tags.
+	* sanity.sh (sticky): New test for above.
+
+2002-02-27  Larry Jones  <larry.jones@sdrc.com>
+
+	* diff.c (diff_fileproc): Treat dead revisions as nonexistent.
+
+2002-02-26  Larry Jones  <larry.jones@sdrc.com>
+
+	* diff.c (diff): Remove -V and --paginate options: they aren't valid.
+	(diff_usage): Document all the diff options.
+
+2002-02-13  Larry Jones  <larry.jones@sdrc.com>
+
+	* rcs.c (RCS_gettag): Do not interpret an empty tag as HEAD (nothing
+	else does and I don't see any documentation that says it should).
+	(translate_symtag): Break out of loop at end of symbols to prevent
+	looping forever when tag is "".
+	(Reported by Alain ENOUT <aln00@udcast.com>
+	via Eric Gillespie <epg@pretzelnet.org>.)
+
+2002-02-11  Larry Jones  <larry.jones@sdrc.com>
+
+	* server.c (server_cleanup): Set buf_to_net back to blocking mode
+	and flush it (in case there are any error messages pending) before
+	shutting down buf_from_net and again right before shutting it down.
+
+2002-02-08  Larry Jones  <larry.jones@sdrc.com>
+
+	* main.c (lookup_command_attribute): Throw a fatal error if the
+	command is not found.
+	* server.c (server_tag): Use the correct command name.
+
+2002-01-30  Larry Jones  <larry.jones@sdrc.com>
+
+	* error.h (error_exit): Remove unintended prototype.
+
+	* server.c (serve_root): Remove check for impossible condition.
+	(serve_init): Save and restore current_parsed_root.
+
+2002-01-29  Larry Jones  <larry.jones@sdrc.com>
+
+	* error.h (error_exit): Declare __noreturn__ to avoid spurious
+	warnings.
+
+	* server.c (serve_root): If the specified root doesn't match the
+	pserver root, return before changing current_parsed_root to prevent
+	subsequent commands from accessing an unchecked root directory.
+	(server_init): Check specified root against the pserver root and
+	complain if they don't match.  Also, if there are pending errors,
+	print them and return before changing current_parsed_root to prevent
+	subsequent commands from accessing an unchecked root directory.
+	* sanity.sh (pserver): New tests for above.
+
+2002-01-10  Larry Jones  <larry.jones@sdrc.com>
+
+	* log.c (log_version_requested): Change :: in revision spec to be
+	exclusive just on the low end (so -r tag1::tag2 gives revisions
+	after tag1 but up to and including tag2), which is much more useful
+	than the previous (exclusive at both ends) behavior.
+	(log_usage): Update to match.
+	* sanity.sh (log): Update to match.
+
+2002-01-02  Larry Jones  <larry.jones@sdrc.com>
+
+	* server.c (LOG_DAEMON): Define if needed.
+	(Patch from John David Anglin <dave@hiauly1.hia.nrc.ca>.)
+
+	* server.c (pserver_authenticate_connection): Add a specific error
+	message for EOF at protocol start and syslog if available.
+	* sanity.sh (pserver-bufinit): Update to match.
+
+2001-12-10  Larry Jones  <larry.jones@sdrc.com>
+
+	* log.c (log_usage): Note that -r and -d take lists, not just a
+	single specification.
+	(log_expand_revlist): Don't dereference null pointers when one end
+	of a revision range is a non-existent tag.
+
+2001-12-03  Larry Jones  <larry.jones@sdrc.com>
+
+	* annotate.c (annotate, annotate_fileproc): Don't annotate binary
+	files unless new -F option given.
+	* sanity.sh (basica, ann, ann-id, rcs, keywordlog, tagdate): Update
+	to match.
+
+2001-11-30  Larry Jones  <larry.jones@sdrc.com>
+
+	* admin.c (admin): Allow unrestricted usage of -q in addition to -k.
+
+2001-10-25  Larry Jones  <larry.jones@sdrc.com>
+
+	* log.c (log_expand_revlist): Make erroneous or inconsistent revision
+	specs select no revisions rather than all revisions.
+
+2001-10-23  Larry Jones  <larry.jones@sdrc.com>
+
+	* import.c (add_rcs_file): Don't put an expand entry into the file
+	for the default expansion mode (kv).
+	* wrapper.c (wrap_send, wrap_unparse_rcs_options): Process entries
+	with default expansion mode since they may be needed to avoid matching
+	a more general entry later.
+	(wrap_add): Set rcsOption to NULL for default (kv).
+	(wrap_add_entry): Use structure assignment to copy entries rather
+	that copying members by hand.
+	* sanity.sh (binwrap3): Revise to test wrapper entries that don't
+	specify any non-default options but just prevent matching later,
+	more general entries.
+
+2001-10-02  Larry Jones  <larry.jones@sdrc.com>
+
+	* rcs.c (RCS_fully_parse): Add revision number to more error messages.
+
+2001-09-27  Larry Jones  <larry.jones@sdrc.com>
+
+	* rcs.c (RCS_fully_parse, RCS_getdeltatext): Add the missing revision
+	number to the "mismatch" error message.
+
+	* sanity.sh (multiroot2-9a): Update to match changes to lock.c.
+
+2001-09-26  Larry Jones  <larry.jones@sdrc.com>
+
+	* lock.c (Lock_Cleanup, Reader_Lock, write_lock): Add trace messages.
+
+2001-09-24  Derek Price  <dprice@collab.net>
+
+        * find_names.c (add_entries_proc): Leave closure specified as such in the
+	function definition for clarity.
+
+        * find_names.c (Find_Names): Use 'closure' feature of walklist()
+        to eliminate the static variable.
+	(add_entries_proc): Expect closure to be the file list.
+	(Patch from Alexey Mahotkin  <alexm@hsys.msk.ru>.)
+
+2001-09-19  Derek Price  <dprice@collab.net>
+
+	* rcs.c (rcsbuf_valpolish_internal): Restore one of the
+	"if ( ... ) abort();" sequences since it seems to check the validity of
+	the RCS file rather than for a programming error.  Also added a FIXME
+	comment to the effect that we should explain the RCS file error to the
+	user as such if it is such.
+	(Thanks to Larry Jones  <scjones@sdrc.com>.)
+
+2001-09-19  Derek Price  <dprice@collab.net>
+
+	* rcs.c (rcsbuf_getkey, rcsbuf_valpolish_internal): Replace some code
+	of the form "if ( ... ) abort();" with equivalent calls to assert().
+
+2001-09-17  Derek Price  <dprice@collab.net>
+
+	* myndbm.c (mydbm_load_file): Fix buffer overflow error and make error
+	messages more informative.
+	* sanity.sh (modules6): New test.
+	(Original report from Taska <taska@collab.net> and others.)
+
+2001-09-14  Derek Price  <dprice@collab.net>
+
+	* logmsg.c (do_verify): Dispose memory when finished with it.
+
+2001-09-07  Larry Jones  <larry.jones@sdrc.com>
+
+	* mkmodules.c (notify_contents): In the example, move the %s to
+	the end since many, if not most, versions of mail insist on
+	options coming before addresses.
+
+2001-09-06  Derek Price  <dprice@collab.net>
+
+	* login.c (login): Deal with NULL return value from getpass.
+
+2001-09-04  Derek Price  <dprice@collab.net>
+
+	* Makefile.in: Regenerated with automake 1.5.
+	* stamp-h2.in: Ditto.
+
+2001-09-04  Derek Price  <dprice@collab.net>
+
+	* main.c (main): Fix empty CVSROOT message to specify `valid' instead
+	of `legal'.
+
+2001-09-04  Derek Price  <dprice@collab.net>
+
+	* server.c (pserver_authenticate_connection): Back out changes from the
+	30th and...
+	* getline.c (getstr): init the buffer instead.
+
+2001-08-31  Derek Price  <dprice@collab.net>
+
+	* Makefile.in: Backed out accidental commit from yesterday.
+
+2001-08-30  Derek Price  <dprice@collab.net>
+
+	* server.c (pserver_authenticate_connection): Don't print from the
+	NULL pointer in the error message string in the case where the client
+	didn't send any data.
+	* sanity.sh (pserver): Test for this case.
+	(Report from Mark Welch <mark@collab.net>).
+
+2001-08-24  Derek Price  <dprice@collab.net>
+
+	* logmsg.c (do_editor): Add comment and assertion.
+	* import.c (import): Don't call do_editor with a repository argument
+	in client mode.
+	(Report and original patch from darkness <darkness@invado.com>.)
+
+2001-08-24  Larry Jones  <larry.jones@sdrc.com>
+
+	* log.c (log_expand_revlist): Arrange for nil revision specs to
+	select nothing instead of everything.
+	* sanity.sh (log): New tests for above.
+
+2001-08-24  Derek Price  <dprice@collab.net>
+
+	* parseinfo.c (Parse_Info): Change the function name in the trace
+	and add the client/server string.
+
+2001-08-24  Derek Price  <dprice@collab.net>
+
+	* Implement RereadLogAfterVerify CVSROOT/config option to control
+	FreeBSD read-write of log messages in the verification script.
+	* logmsg.c: RereadLogAfterVerify defaults to LOGMSG_REREAD_NEVER
+	to preserve the status quo.
+	* parseinfo.c (parse_config): Add parsing for RereadLogAfterVerify
+	option. Possible values are: no | never | yes | always | stat
+	* cvs.h: Add extern for RereadLogAfterVerify and new value macros
+	LOGMSG_REREAD_NEVER, LOGMSG_REREAD_ALWAYS, LOGMSG_REREAD_STAT for
+	its values.
+	(Patch from Mark D. Baushke  <mdb@cvshome.org>.)
+
+	* Apply changes from FreeBSD cvs sources to implement a read-write
+	user-defined verification script.
+	* logmsg.c (do_verify): Update do_verify to expect a pointer
+	to the saved message. The log file passed to the verifymsg_script
+	should be re-read after the user-defined verification script has
+	been run. The user-defined verification script is allowed to
+	modify the message.  This allows the script to add extra
+	information to the log message or to remove template lines that
+	are not needed.
+	* cvs.h: Update prototype for do_verify prototype to expect a
+	pointer to the saved_message.
+	* commit.c (commit, commit_fileproc, commit_direntproc): Update
+	calls to do_verify as the saved_message arg is now read-write.
+	* import.c (import):  Update calls to do_verify as the
+	saved_message arg is now read-write.
+	* sanity.sh (info-v4-[12]): Rename the old info-v4 test to info-v5
+	and add a new info-v4 test case have the verification script
+	modify the log message to test the above changes.
+	(Patch from Mark D. Baushke  <mdb@cvshome.org>.)
+
+	* logmsg.c: Change RereadLogAfterVerify default to always.
+	(do_verify): Reformat and make minor fixes to Mark's patch.
+	* mkmodules.c (config_constants): Add comment about
+	RereadLogAfterVerify.
+	* sanity.sh (info-rereadlog): Rename the tests from Mark's patch and
+	reformat them a bit.
+
+2001-08-23  Derek Price  <dprice@collab.net>
+
+	* sanity.sh (info): Demonstrate that the verifymsg scripts can
+	sometimes, but not always, retreive information on which directory is
+	being committed to.
+
+2001-08-22  Derek Price  <dprice@collab.net>
+
+	* logmsg.c: Back out the last change - the repository which is passed
+	in is actually the directory and changes with each call to do_verify.
+	If a verifymsg script is using `pwd`, this could change the operation.
+	* cvs.h: Ditto.
+	* commit.c: Ditto.
+	* import.c: Ditto.
+
+2001-08-22  Derek Price  <dprice@collab.net>
+
+	* logmsg.c (do_editor): Return reused_message.
+	(do_verify): Don't verify the same log message more than once.
+	* cvs.h: Update prototypes for do_verify and do_editor.
+	* commit.c (commit_fileproc, commit_direntproc): Use the new functionality.
+	* import.c (import): Ditto.
+
+2001-08-22  Derek Price  <dprice@collab.net>
+
+	* logmsg.c (do_verify): Remove an unecessary "else" clause following an
+	exit and unindent the former contents.
+
+2001-08-22  Derek Price  <dprice@collab.net>
+
+	* commit.c (commit): Don't call do_verify in client mode since we know
+	do_verify will just return anyhow.
+
+2001-08-20  Derek Price  <dprice@collab.net>
+
+	* Makefile.am (cvs_SOURCES): Add version.c and version.h.
+	(BUILT_SOURCES): Add version.h.
+	(Maintainer Targets): Remove version.h.
+	* version.c: Remove @VERSION@ dependant bits.
+	* version.c.in: Removed.
+	* version.h.in: New file.
+	(Original patch from Alexey Mahotkin <alexm@hsys.msk.ru>.)
+
+	* Makefile.am: Various modifications to make Automake, make dist, and
+	windows targets work like they are supposed to.
+	* version.h: New (generated) file.
+	
+	* Makefile.in: Regenerated.
+
+2001-08-09  Derek Price  <dprice@collab.net>
+
+	* client.c (socket_buffer_shutdown): Use recv instead of read and
+	return 0 on success.
+	(Patch from "Manfred Klug" <manklu@web.de>.)
+
+2001-08-09  Derek Price  <dprice@collab.net>
+
+	* buffer.c (stdio_buffer_shutdown): Assume the buffer is not a socket
+	when NO_SOCKET_TO_FD is defined.
+	* client.c (make_bufs_from_fds): Add is_sock argument and remove fstat
+	call and reference to S_ISSOCK since these functions aren't available
+	under Windows.
+	(connect_to_forked_server, connect_to_pserver, start_tcp_server,
+	start_server, start_rsh_server): Use new argument.
+	(Patch from "Manfred Klug" <manklu@web.de>.)
+
+	* buffer.c (stdio_buffer_shutdown): Various reformattings, fix bug
+	where rsh pipes weren't being closed.
+
+2001-08-09  Derek Price  <dprice@collab.net>
+
+	* sanity.sh (rmadd, rm-update-message, join-two-branch,
+	ignore-on-branch): Change a few references to `cvs' to `$PROG'.
+
+2001-08-07  Derek Price  <dprice@collab.net>
+
+	* build_src.com: Add annotate.c/annotate.obj,verify, correct zlib name.
+	* patch.c: VMS time_t appears to be unsigned.   Add a cast when testing
+	for (time_t)-1.
+	* subr.c: #else,#endif for no symlinks should be moved.
+	(Patch from Mike Marciniszyn <Mike.Marciniszyn@sanchez.com>.)
+
+2001-08-06  Derek Price  <dprice@collab.net>
+
+	* Makefile.in: Regenerated.
+
+2001-08-01  Derek Price  <dprice@collab.net>
+
+	* diff.c (diff): Send long option for side-by-side diffs to the server
+	rather than '-y', for backwards compatibility with old servers.
+	(Original patch from Peter Mathiasson <peter@mathiasson.nu>.)
+
+2001-07-19  Larry Jones  <larry.jones@sdrc.com>
+
+	* mkmodules.c (cvswrappers_contents): Remove -t/-f since they're
+	disabled in wrapper.c.
+
+	* checkout.c (checkout): Don't complain about checking out into the
+	repository when piping output.
+	(Reported by der Mouse <mouse@Rodents.Montreal.QC.CA>.)
+	* sanity.sh (checkout_repository): New tests for above.
+
+2001-07-10  Larry Jones  <larry.jones@sdrc.com>
+
+	* sanity.sh (importc-7): Now works correctly in local mode.
+
+	* commit.c (commit_dirleaveproc): We're still in the directory when
+	this is called, so the first argument to Name_Repository needs to
+	be NULL, not dir.
+	* sanity.sh (rmadd): New tests for above.
+
+	* commit.c (commit): Reword error messages for committing as root.
+
+2001-07-08  Larry Jones  <larry.jones@sdrc.com>
+
+	* rcs.c (RCS_checkout): Correct scanf format to allow for trailing
+	NUL terminator.
+	* update.c (special_file_mismatch): Ditto.
+	(Reported by Pekka Savola <pekkas@netcore.fi>.)
+
+2001-07-05  Larry Jones  <larry.jones@sdrc.com>
+
+	* client.c, root.c: Fix -Wall warnings.
+
+	* buffer.c: #include socket header to declare shutdown().
+
+	* rcs.c (rcsbuf_open): Use getpagesize() instead of sysconf() for
+	portability.
+	(RCS_copydeltas, rcsbuf_fill): Fix -Wall warnings.
+
+2001-07-04  Derek Price  <dprice@collab.net>
+
+	* Makefile.in: Regenerated with new Automake release candidate 1.4h.
+
+2001-07-03  Derek Price  <dprice@collab.net>
+
+	* rcs.c (rcsbuf_open): Reduce memory consumption still further by not
+	mmapping the entire file when pos is specified.
+	(rcsbuf_cache_open): Add FIXME comment wrt read-only mmaps and rcsbuf
+	caching.
+
+2001-07-03  Derek Price  <dprice@collab.net>
+
+	* rcs.c (rcsbuf_open): Use mmap when possible to reduce memory
+	consumption, especially with large (e.g. binary) files.
+	(rcsbuf_close): Call munmap.
+	(rcsbuf_getkey): Remove the buffer fill code when using mmap.
+	(rcsbuf_getrevnum): Ditto.
+	(rcsbuf_fill): Remove this function when using mmap.
+	(rcsbuf_cache_open): Mostly don't use this function with mmap.
+	(RCS_copydeltas): Don't depend on the file pointer with mmap.
+
+	* stamp-h2.in: Regenerated.
+
+2001-07-03  Derek Price  <dprice@collab.net>
+
+	* update.c: Indent compiler directives.
+
+2001-07-02  Larry Jones  <larry.jones@sdrc.com>
+
+	* import.c (update_rcs_file): Use -kb instead of -ko when comparing
+	binary files.
+	(Reported by Gyula Faller <gfaller@graphisoft.hu>.)
+
+2001-06-28  Larry Jones  <larry.jones@sdrc.com>
+
+	* checkout.c (checkout): Explicitly initialize all the static options
+	so that multiple calls work right.  Also fix potential memory leaks.
+	(Reported by Dr. Dieter Maurer <dieter@sz-sb.de>.)
+
+2001-06-28  Derek Price  <dprice@collab.net>
+
+	* Makefile.in: Regenerated with new version of Automake.
+
+2001-06-28  Larry Jones  <larry.jones@sdrc.com>
+
+	* checkout.c (checkout): Set history_name for export as well as
+	checkout.
+	(checkout_proc): Use it.
+
+	* checkout.c (safe_location): Add missing argument in error message.
+
+2001-06-26  Larry Jones  <larry.jones@sdrc.com>
+
+	* recurse.c (start_recursion): Use strip_trailing_slashes instead
+	of doing it by hand.
+
+	* server.c (pserver_authenticate_connection): Don't clear out
+	descrambled_password until *after* it's (potentially) logged.
+	(Reported by Eric Hanchrow <offby1@blarg.net>.)
+
+2001-06-25  Larry Jones  <larry.jones@sdrc.com>
+
+	* recurse.c (start_recursion): Deal with at least some of the cases
+	where trailing slashes cause confusion.
+	(Reported by Malcolm Fernandes <fernande@redback.com>.)
+	* sanity.sh (basica, basicb): Tweak existing tests to check this.
+
+2001-06-22  Larry Jones  <larry.jones@sdrc.com>
+
+	* sanity.sh (modules5): New tests with -d on command line.
+
+2001-06-21  Larry Jones  <larry.jones@sdrc.com>
+
+	* modules.c (do_module): Use run_module_prog and server_active to
+	determine when to call server_prog instead of using server_expanding
+	so that we get the right paths in the replies as long as we take
+	mwhere into account in addition to where.
+	(Reported by Pascal Bourguignon <pjb@informatimago.com>.)
+	* server.c (server_prog): Use protocol pipe instead of buf_to_net.
+	* sanity.sh (modules5): Remove FIXCVS comment and update to match.
+	* server.c, server.h: Remove server_expanding since now unused.
+
+2001-06-21  Larry Jones  <larry.jones@sdrc.com>
+        for Stephen Rasku  <stephen@tgivan.com>
+
+	* admin.c: Corrected spelling mistakes in help.
+
+2001-06-20  Derek Price  <dprice@collab.net>
+
+	* client.c (socket_buffer_shutdown): Fix untested typos.
+	(Reported by "Jerzy Kaczorowski" <jerzyk@wndtabs.com>.)
+
+	* buffer.c (stdio_buffer_shutdown): Put the call to SHUTDOWN_SERVER in
+	the correct place.
+
+2001-06-20  Derek Price  <dprice@collab.net>
+
+	* logmsg.c (do_editor): Abort in the case that the file has only
+	comment lines.
+	(Original patch from Mark Valentine <mark@thuvia.demon.co.uk>.)
+
+	* logmsg.c (do_editor): Fix rare memory leak.
+	* sanity.sh (editor): Add tests for aborted log messages.
+
+2001-06-20  Larry Jones  <larry.jones@sdrc.com>
+
+	* server.c (switch_to_user): Only set $CVS_USER if
+	AUTH_SERVER_SUPPORT is defined.
+	(Reported by Nalin Dahyabhai <nalin@blade.devel.redhat.com>.)
+
+2001-06-13  Derek Price  <dprice@collab.net>
+
+        * client.c: Fix incorrect fixed-size buffer usage in
+        connect_to_gserver().
+	(Minor changes to a patch from Alexey Mahotkin  <alexm@hsys.msk.ru>.)
+
+2001-06-11  Derek Price  <dprice@collab.net>
+
+	* main.c (main): Always print $CVSROOT when parse_cvsroot fails.
+	* root.c (parse_cvsroot): Tidy error messages and provide more
+	consistent behavior.
+	* sanity.sh (crerepos): Adapt to new error messages.
+	(Suggested by  Alexey Mahotkin <alexm@hsys.msk.ru>.)
+
+2001-06-08  Derek Price  <dprice@collab.net>
+
+	* sanity.sh (tagf-28): Use $CVSROOT_DIRNAME.
+
+2001-06-07  Larry Jones  <larry.jones@sdrc.com>
+
+	* rcs.c (RCS_unlock): Reverse kj's change of 1999-10-18: a bare -u
+	should never break locks, you have to specify a specific revision
+	to do that.  Also add an informative message for a bare -u when
+	the user doesn't hold any locks.
+	* commit.c (unlockrcs): Make RCS_unlock quiet, like RCS_lock.
+	* sanity.sh (rmadd-24): Update to match.
+
+	* sanity.sh (crerepos-6a): Set CVS_RSH for ${testcvs}, not for
+	dotest_fail.  Allow for "broken pipe" rather than "end of file".
+
+2001-06-07  Derek Price  <dprice@collab.net>
+
+	* sanity.sh (tagf): Use $CVSROOT_DIRNAME rather than
+	/tmp/cvs-sanity/cvsroot.
+
+2001-06-06  Derek Price  <dprice@collab.net>
+
+	(Reformatting, bug fixes, tests, and comments to a
+	patch from Stephen Cameron <steve.cameron@compaq.com>.)
+
+	* tag.c: (rtag_fileproc, rtag_delete, tag_fileproc)
+	  Changed behavior of "cvs tag -F", "cvs tag -d", "cvs rtag -F"
+	  and "cvs rtag -d" so that they will not disturb existing 
+	  branch tags unless a new "-B" option is given.
+	* sanity.sh (tagf-16 - tagf-33): Added tests for new -B option
+	  to "cvs tag" and "cvs rtag"
+
+2001-06-06  Derek Price  <dprice@collab.net>
+
+	* sanity.sh (crerepos-6a): Set CVS_RSH=false and only for the actual
+	test call at Larry's suggestion.  Also, test the error message since
+	it's fixed now.
+
+2001-06-05  Larry Jones  <larry.jones@sdrc.com>
+
+	* rcs.c (RCS_unlock): Note when breaking someone else's lock.
+	(Reported by MURVAI-BUZOGANY Laszlo
+	<Laszlo.MURVAI-BUZOGANY@gt-systems.hu>.)
+	* sanity.sh (reserved-14): Update to match.
+
+2001-06-05  Derek Price  <dprice@collab.net>
+
+	* sanity.sh (crerepos-6a): Set CVS_RSH=/bin/false...  this is a local
+	mode only test anyhow.
+	(Thanks to Larry Jones and Morgan Burke <morgan@sitka.triumf.ca>.)
+
+2001-05-31  Derek Price  <dprice@collab.net>
+
+	* sanity.sh (rcs2-7): Add today to the list of failure dates for rcs2-7
+	in the hopes that the data will eventually prove useful to someone
+	motivated enough to fix the problem.
+
+2001-05-30  Derek Price  <dprice@collab.net>
+
+	* stamp-h2.in: Regenerated.
+
+2001-05-30  Derek Price  <dprice@collab.net>
+
+	* *: Various bug fixes and comments for the following
+	patch from Donald Sharp <sharpd@cisco.com>:
+
+	* checkout.c (safe_location): cvs co -d <directory> still had
+	failure modes from the way the -d option works.
+	* sanity.sh: Misc error message resynching.
+
+2001-05-29  Derek Price  <dprice@collab.net>
+
+	* Makefile.am (cvs_SOURCES): Add root.h.
+
+	* Makefile.in: Regenerated.
+	* stamp-h2.in: Regenerated.
+
+2001-05-29  Derek Price  <dprice@collab.net>
+
+	* checkout.c (safe_location): Correct formatting.
+
+2001-05-29  Derek Price  <dprice@collab.net>
+
+	* root.c (parse_cvsroot): Fix a comment.
+
+2001-05-26  Larry Jones  <larry.jones@sdrc.com>
+
+	* checkout.c (safe_location): Use old-style definition to keep
+	non-ANSI compilers happy.
+
+	* sanity.sh (check_respository): Use ${CVSROOT_DIRNAME} instead
+	of /tmp/cvs-sanity/cvsroot.
+
+2001-05-25  Larry Jones  <larry.jones@sdrc.com>
+
+	* sanity.sh (modules5): Add sleep to script to help avoid out of
+	order messages.
+
+	* filesubr.c (mkdir_if_needed): Return 1 if the directory exists
+	reguardless of what errno is set to.
+	(Reported by "Robinson, Greg" <greg.robinson@dsto.defence.gov.au>.)
+
+2001-05-25  Derek Price  <dprice@collab.net>
+	for Donald Sharp  <sharpd@cisco.com>
+
+	* checkout.c:  Modified safe_location() to refuse checkout if
+	the -d option to co specifies inside of the repository.
+	* import.c:  New parameter to safe_location needed to be added.
+	* cvs.h:  New parameter to safe_location needed to be added.
+	* sanity.sh:  Test case to test for failure mode.
+
+2001-05-23  Larry Jones  <larry.jones@sdrc.com>
+
+	* checkout.c (checkout_proc): Don't build top_level_admin directory
+	when exporting.
+	(Reported by Tony Byrne <tonyb@directski.com>.)
+
+2001-05-21  Derek Price  <dprice@collab.net>
+
+	* client.c: Fix a mispelling in a comment.
+	(Patch from Alexey Mahotkin <alexm@hsys.msk.ru>).
+
+2001-05-05  Larry Jones  <larry.jones@sdrc.com>
+
+	* login.c (password_entry_operation): Only warn if unable to open
+	.cvspass for reading: may be initial login and it doesn't exist yet.
+
+2001-05-15  Derek Price  <dprice@collab.net>
+
+	* client.c (start_tcp_server): Use the struct sockaddr_in declared in
+	the function.
+	(Reported by Emil Isberg <isberg@dynarc.se>.)
+
+2001-05-05  Larry Jones  <larry.jones@sdrc.com>
+
+	* annotate.c (annotate): Pass local to do_module and rannotate_proc
+	so that -l actually works.
+	* log.c (cvslog): Ditto.
+	* patch.c (patch): Ditto; make local local instead of global.
+	(patch_proc): Use local_specified parameter instead of global.
+	* tag.c (cvstag, rtag_proc): Ditto.
+
+2001-05-05  Larry Jones  <larry.jones@sdrc.com>
+
+	* client.h: Declare "struct buffer" outside prototype for __STDC__
+	compilers.
+
+2001-05-04  Derek Price  <dprice@collab.net>
+
+	* client.c:  General refactoring.  Removed several global variables in
+	favor of passing locals and/or dynamic evaluation.
+	(recv_line): Removed this function.
+	(make_bufs_from_fds): New function with factored code.
+	(connect_to_forked_server): New prototype.  Use new functions.
+	(connect_to_pserver): New prototype.  Use new functions.
+	(connect_to_gserver): New prototype.  Use new API.
+	(auth_server): Factored this portion of the pserver code so it can be
+	shared.  Rewrote to use buffers rather than depending on a socket.
+	(start_rsh_server): New prototype.  Use new API.
+	(start_tcp_server): New prototype.  Use new API.
+	(start_server): Factor some code.  Use new API.
+	* client.h: New prototypes.
+	* cvs.h: Gratuitous reformatting.  Use new root.h.
+	* login.c (login): Use new connect_to_pserver API.
+	* root.h: New file.  Contains some code that used to be in cvs.h.
+
+2001-05-04  Derek Price  <dprice@collab.net>
+
+	* client.c: Gratuitous reformatting.
+	* client.h: Ditto.
+
+2001-05-04  Derek Price  <dprice@collab.net>
+
+	* zlib.c (compress_buffer_shutdown_input): Use new buffer shutdown
+	prototype.
+	(compress_buffer_shutdown_output): Ditto.
+	(Thanks to Pavel Roskin <proski@gnu.org>.)
+
+2001-05-03  Derek Price  <dprice@collab.net>
+
+	* buffer.c (struct stdio_buffer_closure): New structure to hold a
+	FILE * and the child's PID when necessary.
+	(stdio_buffer_initialize): Change proto to accept PID.  Set up new
+	closure.  Pass new stdio_buffer_shutdown to buf_initialize.
+	(stdio_buffer_input): Use new closure.
+	(stdio_buffer_output): Ditto.
+	(stdio_buffer_flush): Ditto.
+	(stdio_buffer_shutdown): New function.  Teach buffer to close itself.
+	(packetizing_buffer_shutdown): Use new buffer shutdown proto.
+	* buffer.h (struct buffer): New buffer shutdown proto.
+	(stdio_buffer_initialize): New proto.
+	* client.c (log_buffer_shutdown): Use new proto.
+	(socket_buffer_initialize): Pass shutdown func.
+	(socket_buffer_shutdown): New function.
+	* server.c (get_responses_and_close): Remove most of the guts.  Rely
+	on the buffer shutdown function from now on.
+	(start_rsh_server): Return child PID.
+
+2001-05-03  Larry Jones  <larry.jones@sdrc.com>
+
+	* history.c (history_write): Handle the case where the user's home
+	directory doesn't exist gracefully instead of erroring out.
+	(Reported by David Hoover <dhoover@cadence.com>.)
+
+2001-05-03  Derek Price  <dprice@collab.net>
+
+	* cvs.h: s/allocate_and_strcat/xrealloc_and_strcat/ since that is what
+	I wrote in the ChangeLog, oh, so long ago.
+	* diff.c (diff): Ditto.
+	* subr.c (allocate_and_strcat, xrealloc_and_strcat): Ditto.
+
+2001-05-02  Larry Jones  <larry.jones@sdrc.com>
+
+	* rcs.c (RCS_getdate): Handle the (unusual!) case where we
+	can't find any revisions at all.
+	(Reported by Ryan Grow <rgrow@Dbdoctor.net>.)
+
+2001-04-30  Larry Jones  <larry.jones@sdrc.com>
+
+	* sanity.sh (multiroot2-9a): Rename (from multiroot2-9) to avoid
+	duplicate names; fix to work without SERVER_SUPPORT defined.
+	(Reported by Pavel Roskin <proski@gnu.org>.)
+
+2001-04-29  Derek Price  <dprice@collab.net>
+
+	* Makefile.am (check-local): Make dependent on localcheck and
+	remotecheck and move old check target...
+	(localcheck): here.
+
+	* Makefile.in: Regenerated.
+
+2001-04-27  Larry Jones  <larry.jones@sdrc.com>
+
+	* sanity.sh (pserver): Add tests for readers and writers.
+
+2001-04-27  Derek Price  <dprice@collab.net>
+
+	* sanity.sh (version-2r): Update to handle patch releases in version
+	numbers.
+
+2001-04-27  Derek Price  <dprice@collab.net>
+
+	* version.c: Regenerated.
+
+2001-04-27  Derek Price  <dprice@collab.net>
+
+	* version.c: Regenerated.
+
 2001-04-27  Larry Jones  <larry.jones@sdrc.com>
 
 	* main.c (lookup_command_attribute): Lookup specified command, not

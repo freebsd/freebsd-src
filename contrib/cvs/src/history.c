@@ -770,11 +770,8 @@ history_write (type, update_dir, revs, name, repository)
 		if (save_cwd (&cwd))
 		    error_exit ();
 
-		if ( CVS_CHDIR (pwdir) < 0)
-		    error (1, errno, "can't chdir(%s)", pwdir);
-		homedir = xgetwd ();
-		if (homedir == NULL)
-		    error (1, errno, "can't getwd in %s", pwdir);
+		if ( CVS_CHDIR (pwdir) < 0 || (homedir = xgetwd ()) == NULL)
+		    homedir = pwdir;
 
 		if (restore_cwd (&cwd, NULL))
 		    error_exit ();
@@ -786,7 +783,9 @@ history_write (type, update_dir, revs, name, repository)
 		    PrCurDir += i;	/* Point to '/' separator */
 		    tilde = "~";
 		}
-		free (homedir);
+
+		if (homedir != pwdir)
+		    free (homedir);
 	    }
 	}
     }

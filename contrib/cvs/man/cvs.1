@@ -26,8 +26,12 @@ cvs \- Concurrent Versions System
 .SH "NOTE"
 This manpage is a summary of some of the features of
 .B cvs
-but for more in-depth documentation, consult the Cederqvist manual (as
-described in the SEE ALSO section of this manpage).
+but it may no longer be kept up-to-date.  
+For more current and in-depth documentation, please consult the
+Cederqvist manual (via the
+.B info cvs
+command or otherwise,
+as described in the SEE ALSO section of this manpage).
 .SH "DESCRIPTION"
 .IX "revision control system" "\fLcvs\fR"
 .IX  cvs  ""  "\fLcvs\fP \- concurrent versions system"
@@ -909,7 +913,7 @@ the
 .B \-s
 option within the modules file. 
 .TP
-\fBcommit\fP [\fB\-lnR\fP] [\fB\-m\fP '\fIlog_message\fP' | \fB\-f\fP \fIfile\fP] [\fB\-r\fP \fIrevision\fP] [\fIfiles.\|.\|.\fP]
+\fBcommit\fP [\fB\-lnR\fP] [\fB\-m\fP '\fIlog_message\fP' | \fB\-F\fP \fIfile\fP] [\fB\-r\fP \fIrevision\fP] [\fIfiles.\|.\|.\fP]
 .I Requires:
 working directory, repository.
 .br
@@ -1440,7 +1444,7 @@ Working directory.
 Working directory, history log.
 .br
 This command is meant to safely cancel the effect of
-.` "cvs checkout'.
+.` "cvs checkout".
 Since
 .B cvs
 doesn't lock files, it isn't strictly necessary to use this command.
@@ -1623,6 +1627,13 @@ Use this command to assign symbolic tags to the nearest repository
 versions to your working sources.  The tags are applied immediately to
 the repository, as with \fBrtag\fP.
 .SP
+One potentially surprising aspect of the fact that \fBcvs tag\fP
+operates on the repository is that you are tagging the checked-in
+revisions, which may differ from locally modified files in your working
+directory.  If you want to avoid doing this by mistake, specify the
+\fB-c\fP option to \fBcvs tag\fP.  If there are any locally modified files, CVS
+will abort with an error before it tags any files.
+.SP
 One use for tags is to record a ``snapshot'' of the current sources
 when the software freeze date of a project arrives.  As bugs are fixed
 after the freeze date, only those changed sources that are to be part
@@ -1708,7 +1719,7 @@ or
 .B update
 keeps you informed of its progress by printing a line for each file,
 prefaced with one of the characters
-.` "U A R M C ?"
+.` "U P A R M C ?"
 to indicate the status of the file:
 .TP 1i
 \fBU\fP \fIfile\fP
@@ -1716,6 +1727,10 @@ The file was brought \fIup to date\fP with respect to the repository.
 This is done for any file that exists in the repository but not in
 your source, and for files that you haven't changed but are not the most
 recent versions available in the repository.
+.TP 1i
+\fBP\fP \fIfile\fP
+Like \fBU\fP, but the CVS server sends a patch instead of an entire file.
+This accomplishes the same thing as \fBU\fP using less bandwidth.
 .TP 1i
 \fBA\fP \fIfile\fP
 The file has been \fIadded\fP to your private copy of the sources, and
@@ -2115,7 +2130,7 @@ command or it may be available as cvs.ps (postscript), cvs.texinfo
 For CVS updates, more information on documentation, software related
 to CVS, development of CVS, and more, see:
 .in +1i
-.B http://www.cyclic.com
+.B http://cvshome.org
 .B http://www.loria.fr/~molli/cvs-index.html
 .in -1i
 .SP

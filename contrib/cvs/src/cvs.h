@@ -81,8 +81,11 @@ extern int errno;
 #include "system.h"
 
 #include "hash.h"
+
+#include "root.h"
+
 #if defined(SERVER_SUPPORT) || defined(CLIENT_SUPPORT)
-#include "client.h"
+# include "client.h"
 #endif
 
 #ifdef MY_NDBM
@@ -364,26 +367,7 @@ extern int use_editor;
 extern int cvswrite;
 extern mode_t cvsumask;
 
-/* Access method specified in CVSroot. */
-typedef enum {
-  null_method, local_method, server_method, pserver_method, kserver_method, gserver_method,
-  ext_method, fork_method
-} CVSmethod;
-extern char *method_names[];	/* change this in root.c if you change
-				   the enum above */
 
-typedef struct cvsroot_s {
-    char *original;		/* the complete source CVSroot string */
-    CVSmethod method;		/* one of the enum values above */
-    char *username;		/* the username or NULL if method == local */
-    char *password;		/* the username or NULL if method == local */
-    char *hostname;		/* the hostname or NULL if method == local */
-    int port;			/* the port or zero if method == local */
-    char *directory;		/* the directory name */
-#ifdef CLIENT_SUPPORT
-    unsigned char isremote;	/* nonzero if we are doing remote access */
-#endif /* CLIENT_SUPPORT */
-} cvsroot_t;
 
 /* This global variable holds the global -d option.  It is NULL if -d
    was not used, which means that we must get the CVSroot information
@@ -396,13 +380,19 @@ extern List *root_directories;
 extern cvsroot_t *current_parsed_root;
 
 extern char *emptydir_name PROTO ((void));
-extern int safe_location PROTO ((void));
+extern int safe_location PROTO ((char *));
 
 extern int trace;		/* Show all commands */
 extern int noexec;		/* Don't modify disk anywhere */
 extern int logoff;		/* Don't write history entry */
 
 extern int top_level_admin;
+
+
+#define LOGMSG_REREAD_NEVER 0	/* do_verify - never  reread message */
+#define LOGMSG_REREAD_ALWAYS 1	/* do_verify - always reread message */
+#define LOGMSG_REREAD_STAT 2	/* do_verify - reread message if changed */
+extern int RereadLogAfterVerify;
 
 #ifdef CLIENT_SUPPORT
 extern List *dirs_sent_to_server; /* used to decide which "Argument
@@ -475,7 +465,7 @@ char *time_stamp PROTO((char *file));
 void *xmalloc PROTO((size_t bytes));
 void *xrealloc PROTO((void *ptr, size_t bytes));
 void expand_string PROTO ((char **, size_t *, size_t));
-void allocate_and_strcat PROTO ((char **, size_t *, const char *));
+void xrealloc_and_strcat PROTO ((char **, size_t *, const char *));
 char *xstrdup PROTO((const char *str));
 void strip_trailing_newlines PROTO((char *str));
 int pathname_levels PROTO ((char *path));
@@ -589,7 +579,7 @@ void Update_Logfile PROTO((char *repository, char *xmessage, FILE * xlogfp,
 void do_editor PROTO((char *dir, char **messagep,
 		      char *repository, List * changes));
 
-void do_verify PROTO((char *message, char *repository));
+void do_verify PROTO((char **messagep, char *repository));
 
 typedef	int (*CALLBACKPROC)	PROTO((int argc, char *argv[], char *where,
 	char *mwhere, char *mfile, int shorten, int local_specified,

@@ -801,15 +801,35 @@ but most unlinks should probably be using unlink_file and not CVS_UNLINK.
 199.  Add test for login & logout functionality, including support for
 backwards compatibility with old CVSROOTs.
 
-200.  Make a 'cvs add' without write access a non-fatal error so that the
-user's Entries file is updated and future 'cvs diffs' will work properly.  This
-should ease patch submission.
+200.  Make a 'cvs add' without write access a non-fatal error so that
+the user's Entries file is updated and future 'cvs diffs' will work
+properly.  This should ease patch submission.
 
 201.  cvs_temp_file should be creating temporary files in a privately owned
 subdirectory of of temp due to security issues on some systems.
 
-**
-202.  Merge most of the diff & rdiff code.  Enable rdiff to accept most diff
-options.  Make rdiff output look like diff's.  Make diff garbage go to stderr
-and only standard diff output go to stdout.
-**  In progress - DRP
+202.  Merge most of the diff & rdiff code.  Enable rdiff to accept most
+diff options.  Make rdiff output look like diff's.  Make CVS diff
+garbage go to stderr and only standard diff output go to stdout.
+
+203.  Add val-tags additions to the tagging code.  Don't remove the
+update additions since val-tags could still be used as a cache when the
+repository was imported from elsewhere (the tags weren't applied with a
+version which wrote val-tags).
+
+204.  Add test case for compression.  A buf_shutdown error using compression
+wasn't caught by the test suite.
+
+205.  There are lots of cases where trailing slashes on directory names
+and other non-canonical paths confuse CVS.  Most of the cases that do
+work are handled on an ad-hoc basis.  We need to come up with a coherent
+strategy to address path canonicalization and apply it consistently.
+
+206.  Restore directory-at-a-time locking for tag operations instead of
+locking the entire tree.
+
+207.  Fix the branch following logic in log to work with CVS branching. 
+Right now the code assumes RCS branching where all revisions on the
+branch have the same number of components in their revision numbers and
+that isn't true for CVS (revisions 1.2 and 2.4.6.8 can be on the same
+branch in CVS).
