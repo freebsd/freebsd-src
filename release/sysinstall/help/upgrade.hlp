@@ -1,38 +1,167 @@
-Welcome to the 2.2.5 upgrade procedure!
++=====================  Upgrading  FreeBSD  ==========================+
+|                                                                     |
+| 0.0        Preface                                                  |
+|            0.1    DISCLAIMER                                        |
+|            0.2    IMPORTANT NOTE                                    |
+|                                                                     |
+| 1.0        Introduction                                             |
+|            1.1    Upgrade Overview                                  |
+|                                                                     |
+| 2.0        Procedure                                                |
+|            2.1    Backup                                            |
+|            2.2    Mount Filesystems                                 |
+|            2.3    Select Distributions                              |
+|            2.4    After Installation                                |
+|                                                                     |
+| 3.0        Alternative Upgrade Techniques                           |
+|                                                                     |
++=====================================================================+
 
-It must first be said that this upgrade DOES NOT take a particularly
-sophisticated approach to the upgrade problem, it being more a
-question of providing what seemed "good enough" at the time.  A truly
-polished upgrade that deals properly with the broad spectrum of
-installed 2.x systems would be nice to have, but until that gets
-written what you get is this - the brute-force approach!
+0.1    DISCLAIMER
+---    ----------
 
-What this upgrade will attempt to do is best summarized thusly:
+While the FreeBSD upgrade procedure does its best to safeguard against
+accidental loss of data, it is still more than possible to WIPE OUT YOUR
+ENTIRE DISK with this installation!  Please do not accept the final
+confirmation request unless you have adequately backed up any important
+data files.
 
-  1.  fsck and mount all file systems chosen in the label editor.
-  2.  Ask for a location to preserve your /etc directory into.
-  3.  Extract all selected distributions on top of your existing system.
-  4.  Copy certain obvious files back from the preserved /etc, leaving the
-      rest of the /etc file merge up to the user.
-  5.  Drop user in a shell so that they may perform that merge before
-      rebooting into the new system.
+0.2    IMPORTANT NOTE
+---    --------------
 
-And that's it!  This "upgrade" is not going to hold your hand to any
-major degree, it's simply provided to make one PART of the upgrade
-easier.
+See section 2.4 for important details regarding changes to the
+/etc/fstab file required during the upgrade procedure.
 
-IMPORTANT NOTE: What this upgrade procedure may also do, in fact, is
-completely destroy your system (though much more quickly than you
-would have been able to destroy it yourself). It is simply impossible
-to guarantee that this procedure's crude form of upgrade automation
-will work in all cases and if you do this upgrade without proper
-BACKUPS for any important data then you really must like living life
-close to the edge, that's all we can say!
+1.0    Introduction
+---    ------------
 
-NOTE to 2.0 users: We're sorry, but the "slice" changes that were
-added in FreeBSD 2.0.5 made automated upgrades pretty difficult due to
-the fact that a complete reinstall is pretty much called for.  Things
-may still *work* after an upgrade, but you will also no doubt receive
-many warnings at boot time about non-aligned slices and such; we
-really do recommend a fresh installation for 2.0 systems!  (But back
-up your user data first :-).
+The upgrade procedure replaces distributions selected by the user
+with those corresponding to the new FreeBSD release.  It preserves
+standard system configuration data, as well as user data, installed
+packages and other software.
+
+Administrators contemplating an upgrade are encouraged to study this
+document in its entirety before commencing an upgrade.  Failure to do so 
+may result in a failed upgrade or loss of data.
+
+1.1    Upgrade Overview
+---    ----------------
+Upgrading of a distribution is performed by extracting the new version of
+the component over the top of the previous version.  Files belonging to
+the old distribution are not deleted.
+
+System configuration is preserved by retaining and restoring the
+previous version of the following files:
+
+   Xaccel.ini, adduser.conf, aliases, aliases.db, amd.map, crontab,
+   csh.cshrc, csh.login, csh.logout, daily, disktab, dm.conf, exports, 
+   fbtab, fstab, ftpusers, gettytab, gnats, group, host.conf, hosts, 
+   hosts.equiv, hosts.lpd, inetd.conf, kerberosIV, localtime, login.access,
+   mail.rc, make.conf, manpath.config, master.passwd, mib.txt, modems,
+   monthly, motd, namedb, networks, passwd, phones, ppp, printcap, 
+   profile, protocols, pwd.db, rc, rc.firewall, rc.i386, rc.local, 
+   rc.network, rc.conf, remote, resolv.conf, rmt, security, sendmail.cf, 
+   services, shells, skeykeys, spwd.db, supfile, syslog.conf, termcap, 
+   ttys, uucp, weekly
+
+The versions of these files which correspond to the new version are
+moved to /etc/upgrade/.  The system administrator may peruse these new
+versions and merge components as desired.  Note that many of these files 
+are interdependent, and the best merge procedure is to copy all
+site-specific data from the current files into the new.
+
+During the upgrade procedure, the administrator is prompted for a
+location into which all files from /etc/ are saved.  In the event that
+local modifications have been made to other files, they may be
+subsequently retrieved from this location.
+
+2.0    Procedure
+---    ---------
+
+This section details the upgrade procedure.  Particular attention is
+given to items which substantially differ from a normal installation.
+
+2.1    Backup
+---    ------
+
+User data and system configuration should be backed up before
+upgrading.  While the upgrade procedure does its best to prevent
+accidental mistakes, it is possible to partially or completely destroy
+data and configuration information.
+
+2.2    Mount Filesystems
+---    -----------------
+
+The disklabel editor is entered with the nominated disk's filesystem
+devices listed.  Prior to commencing the upgrade, the administrator
+should make a note of the device names and corresponding mountpoints.
+These mountpoints should be entered here.  DO NOT set the 'newfs flag'
+for any filesystems, as this will cause data loss.
+
+2.3    Select Distributions
+---    --------------------
+
+When selecting distributions, there are no constraints on which must be
+selected.  As a general rule, the 'bin' distribution should be selected
+for an update, and the 'man' distribution if manpages are already
+installed.  Other distributions may be selected beyond those originally
+installed if the administrator wishes to add additional functionality.
+
+2.4    After Installation
+---    ------------------
+
+Once the installation procedure has completed, the administrator is
+prompted to examine the new configuration files.  At this point, checks
+should be made to ensure that the system configuration is valid.  In
+particular, the /etc/rc.conf and /etc/fstab files should be checked.
+
+Read the following, but DO NOT update /etc/fstab as described below
+until the new system has booted correctly.  The upgrade procedure
+replaces the previous FreeBSD kernel with a GENERIC kernel, and a custom
+kernel may need to be generated to suit the local system configuration.
+
+IMPORTANT NOTE:
+==============
+FreeBSD 2.2.6 introduces a change in the naming of the device from 
+which the root filesystem is mounted.  This change affects all systems, 
+however user intervention is only required for systems undergoing an 
+upgrade installation.
+
+Previously, the root filesystem was always mounted from the
+compatibility slice, while other partitions on the same disk were
+mounted from their true slice.  This might, for example, have resulted 
+in an /etc/fstab file like:
+
+# Device      Mountpoint      FStype  Options         Dump    Pass#
+/dev/wd0s2b   none            swap    sw              0       0
+/dev/wd0a     /               ufs     rw              1       1
+/dev/wd0s2f   /local0         ufs     rw              1       1
+/dev/wd0s2e   /usr            ufs     rw              1       1
+
+For FreeBSD 2.2.6 and later, this format changes so that the device for 
+'/' is consistent with others, ie.
+
+# Device      Mountpoint      FStype  Options         Dump    Pass#
+/dev/wd0s2b   none            swap    sw              0       0
+/dev/wd0s2a   /               ufs     rw              1       1
+/dev/wd0s2f   /local0         ufs     rw              1       1
+/dev/wd0s2e   /usr            ufs     rw              1       1
+
+
+If /etc/fstab is not updated manually in this case, the system will
+issue a warning message whenever / is mounted (normally at startup)
+indicating the change that must be made.  In addition, trouble may be
+experienced if the root filesystem is not correctly unmounted, whereby
+the root filesystem will not be marked clean at the next reboot.
+
+This change should be made as soon as the upgraded system has been
+successfully rebooted.
+
+3.0    Alternative Upgrade Techniques
+---    ------------------------------
+
+Those interested in an upgrade method that allows more flexibility and
+sophistication should take a look at the "Upgrading FreeBSD from source"
+tutorial found at http://www.freebsd.org/docs.html.  This method
+requires reliable network connectivity, extra disk space and spare time,
+but has advantages for networks and other more complex installations.

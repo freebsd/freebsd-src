@@ -244,7 +244,7 @@ A: With Compaq being always a little different from other systems, they
    do not announce their floppy drive in the CMOS RAM of an Aero notebook.
    Therefore, the floppy disk driver assumes there is no drive configured.
    Go to the UserConfig screen, and set the Flags value of the fdc0 device
-   to 0x1.  This pretends the existance of the first floppy drive (as a
+   to 0x1.  This pretends the existence of the first floppy drive (as a
    1.44 MB drive) to the driver without asking the CMOS at all.
 
 
