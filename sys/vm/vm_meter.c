@@ -85,6 +85,9 @@ loadav(struct loadavg *avg)
 				continue;
 			/* FALLTHROUGH */
 		case SRUN:
+			if ((p->p_flag & P_NOLOAD) != 0)
+				continue;
+			/* FALLTHROUGH */
 		case SIDL:
 			nrun++;
 		}

@@ -299,6 +299,7 @@ start_softintr(void *dummy)
 	p->p_rtprio.type = RTP_PRIO_ITHREAD;
 	p->p_rtprio.prio = PI_SOFT;	/* soft interrupt */
 	p->p_stat = SWAIT;		/* we're idle */
+	p->p_flag |= P_NOLOAD;
 
 	/* Put in linkages. */
 	softintr->it_proc = p;
