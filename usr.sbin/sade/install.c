@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.123 1996/10/02 10:44:31 jkh Exp $
+ * $Id: install.c,v 1.124 1996/10/03 06:01:35 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -915,13 +915,13 @@ save_userconfig_to_kernel(char *kern)
     int i, d;
 
     core = uc_open("-incore");
-    if (!core) {
+    if (core < 0) {
 	msgDebug("Can't read in-core information for kernel.\n");
 	return;
     }
 
     boot = uc_open(kern);
-    if (!boot) {
+    if (boot < 0) {
 	msgDebug("Can't read device information for kernel image %s\n", kern);
 	return;
     }
