@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.17.2.1 1995/08/25 01:54:39 davidg Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.17.2.2 1995/09/12 08:57:53 davidg Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.20 1994/08/21 18:44:13 ws Exp $	*/
 
 /*-
@@ -1030,7 +1030,8 @@ msdosfs_rename(ap)
 		if ((ap->a_fcnp->cn_namelen == 1
 		     && ap->a_fcnp->cn_nameptr[0] == '.')
 		    || fddep == fdep
-		    || (ap->a_fcnp->cn_flags & ISDOTDOT)) {
+		    || (ap->a_fcnp->cn_flags | ap->a_tcnp->cn_flags)
+		       & ISDOTDOT) {
 			VOP_ABORTOP(ap->a_tdvp, ap->a_tcnp);
 			vput(ap->a_tdvp);
 			if (tvp)
