@@ -1,5 +1,4 @@
 .\" $NetBSD: umodem.4,v 1.6 2001/09/11 23:18:55 wiz Exp $
-.\" $FreeBSD$
 .\"
 .\" Copyright (c) 1999 The NetBSD Foundation, Inc.
 .\" All rights reserved.
@@ -35,6 +34,8 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
+.\" $FreeBSD$
+.\"
 .Dd August 16, 1999
 .Dt UMODEM 4
 .Os
@@ -50,9 +51,11 @@ The
 driver provides support for USB modems in the Communication
 Device Class using the Abstract Control Model.
 These modems are basically standard serial line modems, but they are
-accessed via USB instead.  They support a regular AT command set.
+accessed via USB instead.
+They support a regular AT command set.
 The commands can either be multiplexed with the data stream
-or handled through separate pipes.  In the latter case the AT
+or handled through separate pipes.
+In the latter case the AT
 commands have to be given on device separate from the data device.
 .Pp
 The device is accessed through the
@@ -71,7 +74,8 @@ appeared in
 .Nx 1.5 .
 This manual page was adopted from
 .Nx
-by Tom Rhodes <trhodes@FreeBSD.org>
+by
+.An Tom Rhodes Aq trhodes@FreeBSD.org
 in April 2002.
 .Sh BUGS
 Only modems with multiplexed commands and data are supported
