@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.225 1999/03/20 20:10:19 jkh Exp $
+#	$Id: Makefile,v 1.226 1999/03/29 10:59:52 obrien Exp $
 #
 # The user-driven targets are:
 #
@@ -38,7 +38,7 @@
 # 3.  `make world'
 #
 # Be warned, this will update your installed system, except for configuration
-# files in the /etc directory. You have to do those manually.
+# files in the /etc directory and for the kernel. You have to do those manually.
 #
 # If at first you're a little nervous about having a `make world' update
 # your system, a `make buildworld' will build everything in the /usr/obj
