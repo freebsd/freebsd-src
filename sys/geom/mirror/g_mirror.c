@@ -722,6 +722,8 @@ g_mirror_bump_syncid(struct g_mirror_softc *sc)
 	    sc->sc_name));
 
 	sc->sc_syncid++;
+	G_MIRROR_DEBUG(1, "Device %s: syncid bumped to %u.", sc->sc_name,
+	    sc->sc_syncid);
 	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
 		if (disk->d_state == G_MIRROR_DISK_STATE_ACTIVE ||
 		    disk->d_state == G_MIRROR_DISK_STATE_SYNCHRONIZING) {
@@ -1870,7 +1872,8 @@ g_mirror_update_device(struct g_mirror_softc *sc, boolean_t force)
 			if (sc->sc_provider != NULL)
 				g_mirror_destroy_provider(sc);
 		} else if (g_mirror_ndisks(sc,
-		    G_MIRROR_DISK_STATE_ACTIVE) > 0) {
+		    G_MIRROR_DISK_STATE_ACTIVE) > 0 &&
+		    g_mirror_ndisks(sc, G_MIRROR_DISK_STATE_NEW) == 0) {
 			/*
 			 * We have active disks, launch provider if it doesn't
 			 * exist.
