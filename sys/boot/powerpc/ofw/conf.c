@@ -46,7 +46,7 @@
 
 /* Exported for libstand */
 struct devsw *devsw[] = {
-#if defined(LOADER_DISK_SUPPORT) || defined(LOADER_CDROM_SUPPORT)
+#if defined(LOADER_DISK_SUPPORT) || defined(LOADER_CD9660_SUPPORT)
     &ofwdisk,
 #endif
 #if defined(LOADER_NET_SUPPORT)
@@ -56,24 +56,32 @@ struct devsw *devsw[] = {
 };
 
 struct fs_ops *file_system[] = {
-#ifdef LOADER_UFS_SUPPORT
+#if defined(LOADER_UFS_SUPPORT)
     &ufs_fsops,
 #endif
-#ifdef LOADER_CDROM_SUPPORT
+#if defined(LOADER_CD9660_SUPPORT)
     &cd9660_fsops,
 #endif
-#ifdef LOADER_EXT2FS_SUPPORT
+#if defined(LOADER_EXT2FS_SUPPORT)
     &ext2fs_fsops,
 #endif
-#ifdef LOADER_NET_SUPPORT
+#if defined(LOADER_NET_SUPPORT)
     &nfs_fsops,
 #endif
+#if defined(LOADER_TFTP_SUPPORT)
+    &tftp_fsops,
+#endif
+#if defined(LOADER_GZIP_SUPPORT)
     &gzipfs_fsops,
+#endif
+#if defined(LOADER_BZIP2_SUPPORT)
+    &bzipfs_fsops,
+#endif
     NULL
 };
 
 struct netif_driver *netif_drivers[] = {
-#ifdef LOADER_NET_SUPPORT
+#if defined(LOADER_NET_SUPPORT)
 	&ofwnet,
 #endif
 	NULL,
