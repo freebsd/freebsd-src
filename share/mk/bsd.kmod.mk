@@ -1,5 +1,5 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.kmod.mk,v 1.16 1995/11/04 17:06:42 bde Exp $
+#	$Id: bsd.kmod.mk,v 1.17 1995/12/16 01:57:25 bde Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -74,12 +74,12 @@ all: ${PROG} all-man _PROGSUBDIR
 
 .if !target(clean)
 clean: _PROGSUBDIR
-	rm -f a.out [Ee]rrs mklog ${PROG} ${OBJS} ${CLEANFILES} 
+	rm -f a.out Errs errs mklog ${PROG} ${OBJS} ${CLEANFILES} 
 .endif
 
 .if !target(cleandir)
 cleandir: _PROGSUBDIR
-	rm -f a.out [Ee]rrs mklog ${PROG} ${OBJS} ${CLEANFILES}
+	rm -f a.out Errs errs mklog ${PROG} ${OBJS} ${CLEANFILES}
 	rm -f ${.CURDIR}/tags .depend
 	cd ${.CURDIR}; rm -rf obj;
 .endif
