@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.88 1995/01/27 07:49:38 jkh Exp $
+#	$Id: Makefile,v 1.89 1995/01/27 08:06:43 jkh Exp $
 #
 
 FLOPPY=		fd0
@@ -95,7 +95,7 @@ boot.flp:
 		rsd[0123][a-h] rwd[0123][a-h] rfd[01] \
 	| cpio -dumpv ${MNT}/dev \
 	)
-	gzip -9 < boot_flp > ${MNT}/stand/sysinstall
+	gzip -9 -c < boot_flp > ${MNT}/stand/sysinstall
 	chmod 755 ${MNT}/stand/sysinstall
 	ln ${MNT}/stand/sysinstall ${MNT}/stand/newfs
 	ln ${MNT}/stand/sysinstall ${MNT}/stand/gzip
@@ -124,9 +124,9 @@ cpio.flp:
 	( cd ${.CURDIR} ; ls ${CPIO3} | cpio -H newc -oa ) | cpio -ivd
 	cp ${CPIO4} .
 	ls ${CPIO1} ${CPIO2} ${CPIO3} ${CPIO4B} | \
-		cpio -H newc -oa | gzip -9 | \
+		cpio -H newc -oa | gzip -9 -c | \
 		dd conv=osync > cpio.flp
-	gzip -9 -v < cpio.flp > cpio.flp.gz &
+	gzip -1 -c < cpio.flp > cpio.flp.gz
 
 floppies: boot_144.flp boot_12.flp cpio.flp
 	mkdir -p ${RELEASEDIR}/floppies
