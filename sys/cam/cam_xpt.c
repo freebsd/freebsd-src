@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.42.2.15 1999/06/20 18:45:55 mjacob Exp $
+ *      $Id: cam_xpt.c,v 1.42.2.16 1999/07/11 06:20:46 jmg Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -237,11 +237,11 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 		{ T_DIRECT, SIP_MEDIA_FIXED, quantum, "XP32275*", "*" },
 		/*quirks*/0, /*mintags*/24, /*maxtags*/32
 	},
+	{
+		/* Broken tagged queuing drive */
 		{ T_DIRECT, SIP_MEDIA_FIXED, microp, "4421-07*", "*" },
 		/*quirks*/0, /*mintags*/0, /*maxtags*/0
 	},
-	{
-		/* Broken tagged queuing drive */
 	{
 		/* Broken tagged queuing drive */
 		{ T_DIRECT, SIP_MEDIA_FIXED, "HP", "C372*", "*" },
