@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_linker.c,v 1.11 1998/10/24 18:35:09 msmith Exp $
+ *	$Id: kern_linker.c,v 1.12 1998/11/03 13:09:31 peter Exp $
  */
 
 #include "opt_ddb.h"
@@ -178,6 +178,7 @@ linker_load_file(const char* filename, linker_file_t* result)
     linker_class_t lc;
     linker_file_t lf;
     int error = 0;
+    char *koname = NULL;
 
     lf = linker_find_file_by_name(filename);
     if (lf) {
@@ -187,22 +188,36 @@ linker_load_file(const char* filename, linker_file_t* result)
 	goto out;
     }
 
+    koname = malloc(strlen(filename) + 4, M_LINKER, M_WAITOK);
+    if (koname == NULL) {
+	error = ENOMEM;
+	goto out;
+    }
+    sprintf(koname, "%s.ko", filename);
     lf = NULL;
     for (lc = TAILQ_FIRST(&classes); lc; lc = TAILQ_NEXT(lc, link)) {
 	KLD_DPF(FILE, ("linker_load_file: trying to load %s as %s\n",
 		       filename, lc->desc));
-	if (error = lc->ops->load_file(filename, &lf))
+	error = lc->ops->load_file(koname, &lf);
+	if (lf == NULL && error && error != ENOENT)
+	    goto out;
+	if (lf == NULL)
+	    error = lc->ops->load_file(filename, &lf);
+	if (lf == NULL && error && error != ENOENT)
 	    goto out;
 	if (lf) {
 	    linker_file_sysinit(lf);
 
 	    *result = lf;
+	    error = 0;
 	    goto out;
 	}
     }
     error = ENOEXEC;		/* format not recognised */
 
 out:
+    if (koname)
+	free(koname, M_LINKER);
     return error;
 }
 
@@ -210,13 +225,25 @@ linker_file_t
 linker_find_file_by_name(const char* filename)
 {
     linker_file_t lf = 0;
+    char *koname;
+
+    koname = malloc(strlen(filename) + 4, M_LINKER, M_WAITOK);
+    if (koname == NULL)
+	goto out;
+    sprintf(koname, "%s.ko", filename);
 
     lockmgr(&lock, LK_SHARED, 0, curproc);
-    for (lf = TAILQ_FIRST(&files); lf; lf = TAILQ_NEXT(lf, link))
+    for (lf = TAILQ_FIRST(&files); lf; lf = TAILQ_NEXT(lf, link)) {
+	if (!strcmp(lf->filename, koname))
+	    break;
 	if (!strcmp(lf->filename, filename))
 	    break;
+    }
     lockmgr(&lock, LK_RELEASE, 0, curproc);
 
+out:
+    if (koname)
+	free(koname, M_LINKER);
     return lf;
 }
 
