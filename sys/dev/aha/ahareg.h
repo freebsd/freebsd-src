@@ -140,17 +140,17 @@ typedef enum {
 
 struct	aha_extbios
 {
-	u_int8_t flags;			/* Bit 3 == 1 extended bios enabled */
-	u_int8_t mailboxlock;		/* mail box lock code to unlock it */
+	uint8_t flags;			/* Bit 3 == 1 extended bios enabled */
+	uint8_t mailboxlock;		/* mail box lock code to unlock it */
 };
 
 typedef struct {
-	u_int8_t num_mboxes;
-	u_int8_t base_addr[3];
+	uint8_t num_mboxes;
+	uint8_t base_addr[3];
 } init_24b_mbox_params_t;
 
 typedef struct {
-	u_int8_t board_type;
+	uint8_t board_type;
 /* These values are mostly from the aha-1540CP technical reference, but */
 /* with other values from the old aha1542.c driver. The values from the */
 /* aha-1540CP technical manual are used where conflicts arise */
@@ -162,59 +162,59 @@ typedef struct {
 #define		BOARD_1542C		0x44	/* aha-1542C */
 #define		BOARD_1542CF		0x45	/* aha-1542CF */
 #define		BOARD_1542CP		0x46	/* aha-1542CP, plug and play */
-	u_int8_t cust_features;
+	uint8_t cust_features;
 #define		FEATURES_STANDARD	0x30
-	u_int8_t firmware_rev_major;
-	u_int8_t firmware_rev_minor;
+	uint8_t firmware_rev_major;
+	uint8_t firmware_rev_minor;
 } board_id_data_t;
 
 typedef struct {
-	u_int8_t dma_chan;
+	uint8_t dma_chan;
 #define		DMA_CHAN_5	0x20
 #define		DMA_CHAN_6	0x40
 #define		DMA_CHAN_7	0x80
-	u_int8_t irq;
+	uint8_t irq;
 #define		IRQ_9		0x01
 #define		IRQ_10		0x02
 #define		IRQ_11		0x04
 #define		IRQ_12		0x08
 #define		IRQ_14		0x20
 #define		IRQ_15		0x40
-	u_int8_t scsi_id;
+	uint8_t scsi_id;
 } config_data_t;
 
 typedef struct {
-	u_int8_t enable;
+	uint8_t enable;
 } target_mode_params_t;
 
 typedef struct {
-	u_int8_t offset : 4,
+	uint8_t offset : 4,
 		 period : 3,
 		 sync	: 1;
 } targ_syncinfo_t;
 
 typedef struct {
-	u_int8_t	initiate_sync	: 1,
+	uint8_t	initiate_sync	: 1,
 		 	parity_enable	: 1,
 					: 6;
 
-	u_int8_t	bus_transfer_rate;
-	u_int8_t	time_on_bus;
-	u_int8_t	time_off_bus;
-	u_int8_t	num_mboxes;
-	u_int8_t	mbox_base_addr[3];
+	uint8_t	bus_transfer_rate;
+	uint8_t	time_on_bus;
+	uint8_t	time_off_bus;
+	uint8_t	num_mboxes;
+	uint8_t	mbox_base_addr[3];
 	targ_syncinfo_t	syncinfo[8];
-	u_int8_t	discinfo;
-	u_int8_t	customer_sig[20];
-	u_int8_t	auto_retry;
-	u_int8_t	board_switches;
-	u_int8_t	firmware_cksum[2];
-	u_int8_t	bios_mbox_addr[3];
+	uint8_t	discinfo;
+	uint8_t	customer_sig[20];
+	uint8_t	auto_retry;
+	uint8_t	board_switches;
+	uint8_t	firmware_cksum[2];
+	uint8_t	bios_mbox_addr[3];
 } setup_data_t;
 
 struct aha_isa_port {
-	u_int16_t addr;
-	u_int8_t  bio;	/* board IO offset */
+	uint16_t addr;
+	uint8_t  bio;	/* board IO offset */
 };
 
 #define AHA_NUM_ISAPORTS 6
@@ -231,12 +231,12 @@ typedef enum {
 } isa_compat_io_t;
 
 typedef struct {
-	u_int8_t sync_rate[16];		/* Sync in 10ns units */
+	uint8_t sync_rate[16];		/* Sync in 10ns units */
 } target_sync_info_data_t;
 
 typedef struct {
-	u_int8_t len[3];
-	u_int8_t addr[3];
+	uint8_t len[3];
+	uint8_t addr[3];
 } aha_sg_t;
 
 /********************** Mail Box definitions *******************************/
@@ -248,8 +248,8 @@ typedef enum {
 } aha_mbo_action_code_t; 
 
 typedef struct aha_mbox_out {
-	u_int8_t  action_code;
-	u_int8_t  ccb_addr[3];
+	uint8_t  action_code;
+	uint8_t  ccb_addr[3];
 } aha_mbox_out_t;
 
 typedef enum {
@@ -261,8 +261,8 @@ typedef enum {
 } aha_mbi_comp_code_t; 
 
 typedef struct aha_mbox_in {      
-	u_int8_t  comp_code;
-	u_int8_t  ccb_addr[3];
+	uint8_t  comp_code;
+	uint8_t  ccb_addr[3];
 } aha_mbox_in_t;
 
 /****************** Hardware CCB definition *********************************/
@@ -289,23 +289,23 @@ typedef enum {
 } ahastat_t;
 
 struct aha_hccb {
-	u_int8_t  opcode;			/* 0 */
-	u_int8_t  lun		: 3,		/* 1 */
+	uint8_t  opcode;			/* 0 */
+	uint8_t  lun		: 3,		/* 1 */
 		  datain	: 1,
 		  dataout	: 1,
 		  target	: 3;
-	u_int8_t  cmd_len;			/* 2 */
-	u_int8_t  sense_len;			/* 3 */
-	u_int8_t  data_len[3];			/* 4 */
-	u_int8_t  data_addr[3];			/* 7 */
-	u_int8_t  link_ptr[3];			/* 10 */
-	u_int8_t  link_id;			/* 13 */
-	u_int8_t  ahastat;			/* 14 */
-	u_int8_t  sdstat;			/* 15 */
-	u_int8_t  reserved1;			/* 16 */
-	u_int8_t  reserved2;			/* 17 */
-	u_int8_t  scsi_cdb[16];			/* 18 */
-	u_int8_t  sense_data[SSD_FULL_SIZE];
+	uint8_t  cmd_len;			/* 2 */
+	uint8_t  sense_len;			/* 3 */
+	uint8_t  data_len[3];			/* 4 */
+	uint8_t  data_addr[3];			/* 7 */
+	uint8_t  link_ptr[3];			/* 10 */
+	uint8_t  link_id;			/* 13 */
+	uint8_t  ahastat;			/* 14 */
+	uint8_t  sdstat;			/* 15 */
+	uint8_t  reserved1;			/* 16 */
+	uint8_t  reserved2;			/* 17 */
+	uint8_t  scsi_cdb[16];			/* 18 */
+	uint8_t  sense_data[SSD_FULL_SIZE];
 };
 
 typedef enum {
@@ -318,11 +318,11 @@ typedef enum {
 struct aha_ccb {
 	struct	aha_hccb	 hccb;		/* hccb assumed to be at 0 */
 	SLIST_ENTRY(aha_ccb)	 links;
-	u_int32_t		 flags;
+	uint32_t		 flags;
 	union ccb		*ccb;
 	bus_dmamap_t		 dmamap;
 	aha_sg_t		*sg_list;
-	u_int32_t		 sg_list_phys;
+	uint32_t		 sg_list_phys;
 };
 
 struct sg_map_node {
@@ -345,13 +345,13 @@ struct aha_softc {
 	SLIST_HEAD(,aha_ccb)	 free_aha_ccbs;
 	LIST_HEAD(,ccb_hdr)	 pending_ccbs;
 	u_int			 active_ccbs;
-	u_int32_t		 aha_ccb_physbase;
+	uint32_t		 aha_ccb_physbase;
 	aha_ccb_opcode_t	 ccb_sg_opcode;
 	aha_ccb_opcode_t	 ccb_ccb_opcode;
 	aha_mbox_in_t		*in_boxes;
 	aha_mbox_out_t		*out_boxes;
 	struct scsi_sense_data	*sense_buffers;
-	u_int32_t		 sense_buffers_physbase;
+	uint32_t		 sense_buffers_physbase;
 	struct	aha_ccb		*recovery_accb;
 	u_int			 num_boxes;
 	bus_dma_tag_t		 parent_dmat;	/*
@@ -372,23 +372,23 @@ struct aha_softc {
 	u_int			 max_sg;
 	u_int			 unit;
 	u_int			 scsi_id;
-	u_int32_t		 extended_trans	  :1,
+	uint32_t		 extended_trans	  :1,
 				 diff_bus	  :1,
 				 extended_lun	  :1,
 				 strict_rr	  :1,
 				 tag_capable	  :1,
 				 resource_shortage:1,
 						  :26;
-	u_int16_t		 disc_permitted;
-	u_int16_t		 sync_permitted;
-	u_int8_t		 init_level;
-	volatile u_int8_t	 command_cmp;
-	volatile u_int8_t	 latched_status;
-	u_int32_t		 bios_addr;
-	u_int8_t		 fw_major;
-	u_int8_t		 fw_minor;
+	uint16_t		 disc_permitted;
+	uint16_t		 sync_permitted;
+	uint8_t			 init_level;
+	volatile uint8_t	 command_cmp;
+	volatile uint8_t	 latched_status;
+	uint32_t		 bios_addr;
+	uint8_t			 fw_major;
+	uint8_t			 fw_minor;
 	char			 model[32];
-	u_int8_t		 boardid;
+	uint8_t			 boardid;
 	struct resource		*irq;
 	int			 irqrid;
 	struct resource		*port;
@@ -404,8 +404,8 @@ extern u_long aha_unit;
 #define AHA_TEMP_UNIT 0xFF		/* Unit for probes */
 struct aha_softc*	aha_alloc(int, bus_space_tag_t, bus_space_handle_t);
 int			aha_attach(struct aha_softc *);
-int			aha_cmd(struct aha_softc *, aha_op_t, u_int8_t *,
-			    u_int, u_int8_t *, u_int, u_int);
+int			aha_cmd(struct aha_softc *, aha_op_t, uint8_t *,
+			    u_int, uint8_t *, u_int, u_int);
 int			aha_detach(struct aha_softc *);
 int			aha_fetch_adapter_info(struct aha_softc *);
 void			aha_find_probe_range(int, int *, int *);
