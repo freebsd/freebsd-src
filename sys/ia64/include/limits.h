@@ -44,10 +44,10 @@
  * #if preprocessing directives.  Additionally, the expression must have the
  * same type as would an expression that is an object of the corresponding
  * type converted according to the integral promotions.  The subtraction for
- * INT_MIN and LONG_MIN is so the value is not unsigned; 2147483648 is an
+ * INT_MIN, etc., is so the value is not unsigned; e.g., 0x80000000 is an
  * unsigned int for 32-bit two's complement ANSI compilers (section 3.1.3.2).
- * These numbers work for pcc as well.  The UINT_MAX and ULONG_MAX values
- * are written as hex so that GCC will be quiet about large integer constants.
+ * These numbers are for the default configuration of gcc.  They work for
+ * some other compilers as well, but this should not be depended on.
  */
 #define	SCHAR_MAX	0x7f		/* max value for a signed char */
 #define	SCHAR_MIN	(-0x7f-1)	/* min value for a signed char */
@@ -68,13 +68,19 @@
 #define	LONG_MAX	0x7fffffffffffffffL	/* max for a long */
 #define	LONG_MIN	(-0x7fffffffffffffffL-1) /* min for a long */
 
+/* Long longs and longs are the same size on the IA-64. */
+					/* max for an unsigned long long */
+#define	ULLONG_MAX	0xffffffffffffffffULL
+#define	LLONG_MAX	0x7fffffffffffffffLL	/* max for a long long */
+#define	LLONG_MIN	(-0x7fffffffffffffffLL-1) /* min for a long long */
+
 #if !defined(_ANSI_SOURCE)
 #define	SSIZE_MAX	LONG_MAX	/* max value for a ssize_t */
 
 #if !defined(_POSIX_SOURCE) && !defined(_XOPEN_SOURCE)
 #define	SIZE_T_MAX	ULONG_MAX	/* max value for a size_t */
 
-/* Quads and longs are the same on the alpha */
+/* Quads and longs are the same.  Ensure they stay in sync. */
 #define	UQUAD_MAX	(ULONG_MAX)	/* max value for a uquad_t */
 #define	QUAD_MAX	(LONG_MAX)	/* max value for a quad_t */
 #define	QUAD_MIN	(LONG_MIN)	/* min value for a quad_t */
