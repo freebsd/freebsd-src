@@ -516,7 +516,10 @@ exca_wait_ready(struct exca_softc *sc)
  * such cards are broken, or that the bridge that allows this sort
  * of interrupt through isn't quite what you'd want (and may be a standards
  * violation).  However, such arguing would leave a huge class of pc cards
- * and bridges out of reach for 
+ * and bridges out of reach for use in the system.
+ *
+ * Maybe I should reevaluate the above based on the power bug I fixed
+ * in OLDCARD.
  */
 void
 exca_reset(struct exca_softc *sc, device_t child)
