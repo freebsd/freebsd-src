@@ -201,7 +201,7 @@ void
 skipdirs()
 {
 
-	while ((curfile.dip->di_mode & IFMT) == IFDIR) {
+	while (curfile.dip && (curfile.dip->di_mode & IFMT) == IFDIR) {
 		skipfile();
 	}
 }
