@@ -230,7 +230,6 @@ trap(frame)
 		ftype = VM_PROT_READ | VM_PROT_EXECUTE;
 		rv = vm_fault(&p->p_vmspace->vm_map, trunc_page(frame->srr0),
 		    ftype, VM_FAULT_NORMAL);
-		printf("vm_fault said %d\n", rv);
 		if (rv == 0) {
 			PROC_UNLOCK(p);
 			break;
