@@ -62,6 +62,7 @@
 #define	PG_AVAIL1	0x200	/*    /	Available for system	*/
 #define	PG_AVAIL2	0x400	/*   <	programmers use		*/
 #define	PG_AVAIL3	0x800	/*    \				*/
+#define	PG_NX		(1ul<<63) /* No-execute */
 
 
 /* Our various interpretations of the above */
@@ -201,6 +202,8 @@ pte_load_store(pt_entry_t *ptep, pt_entry_t pte)
 #define	pte_store(ptep, pte)	pte_load_store((ptep), (pt_entry_t)pte)
 
 #define	pde_store(pdep, pde)	pte_store((pdep), (pde))
+
+extern pt_entry_t pg_nx;
 
 #endif /* _KERNEL */
 
