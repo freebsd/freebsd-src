@@ -246,11 +246,13 @@ static int
 i4b_Speed(struct physical *p)
 {
   struct termios ios;
+  int ret;
 
-  if (tcgetattr(p->fd, &ios) == -1)
-    return 0;
+  if (tcgetattr(p->fd, &ios) == -1 ||
+      (ret = SpeedToInt(cfgetispeed(&ios))) == 0)
+    ret = 65536;
 
-  return SpeedToInt(cfgetispeed(&ios));
+  return ret;
 }
 
 static const char *
