@@ -36,7 +36,7 @@ static char sccsid[] = "@(#)if.c	8.1 (Berkeley) 6/5/93";
 #elif defined(__NetBSD__)
 static char rcsid[] = "$NetBSD$";
 #endif
-#ident "$Revision: 1.9 $"
+#ident "$Revision: 1.10 $"
 
 #include "defs.h"
 #include "pathnames.h"
@@ -44,6 +44,7 @@ static char rcsid[] = "$NetBSD$";
 
 struct parm *parms;
 struct intnet *intnets;
+struct tgate *tgates;
 
 
 /* use configured parameters
@@ -51,49 +52,49 @@ struct intnet *intnets;
 void
 get_parms(struct interface *ifp)
 {
+	static warned_auth_in, warned_auth_out;
 	struct parm *parmp;
 
 	/* get all relevant parameters
 	 */
 	for (parmp = parms; parmp != 0; parmp = parmp->parm_next) {
-		if ((parmp->parm_name[0] == '\0'
-		     && on_net(ifp->int_addr,
-			       parmp->parm_addr_h, parmp->parm_mask))
-		    || (parmp->parm_name[0] != '\0'
-			&& !strcmp(ifp->int_name, parmp->parm_name))) {
-			/* this group of parameters is relevant,
+		if (parmp->parm_name[0] == '\0'
+		    || !strcmp(ifp->int_name, parmp->parm_name)
+		    || (parmp->parm_name[0] == '\n'
+			&& on_net(ifp->int_addr,
+				  parmp->parm_net, parmp->parm_mask))) {
+
+			/* This group of parameters is relevant,
 			 * so get its settings
 			 */
 			ifp->int_state |= parmp->parm_int_state;
-			if (parmp->parm_passwd[0] != '\0')
-				bcopy(parmp->parm_passwd, ifp->int_passwd,
-				      sizeof(ifp->int_passwd));
+			if (parmp->parm_auth.type != RIP_AUTH_NONE)
+				bcopy(&parmp->parm_auth, &ifp->int_auth,
+				      sizeof(ifp->int_auth));
 			if (parmp->parm_rdisc_pref != 0)
 				ifp->int_rdisc_pref = parmp->parm_rdisc_pref;
 			if (parmp->parm_rdisc_int != 0)
 				ifp->int_rdisc_int = parmp->parm_rdisc_int;
 			if (parmp->parm_d_metric != 0)
 				ifp->int_d_metric = parmp->parm_d_metric;
-			}
+		}
 	}
-	/* default poor-man's router discovery to a metric that will
-	 * be heard by old versions of routed.
+
+	/* Set general defaults.
+	 *
+	 * Default poor-man's router discovery to a metric that will
+	 * be heard by old versions of `routed`.  They ignored received
+	 * routes with metric 15.
 	 */
 	if ((ifp->int_state & IS_PM_RDISC)
 	    && ifp->int_d_metric == 0)
-		ifp->int_d_metric = HOPCNT_INFINITY-2;
-
-	if (IS_RIP_IN_OFF(ifp->int_state))
-		ifp->int_state |= IS_NO_RIP_OUT;
+		ifp->int_d_metric = FAKE_METRIC;
 
 	if (ifp->int_rdisc_int == 0)
 		ifp->int_rdisc_int = DefMaxAdvertiseInterval;
 
 	if (!(ifp->int_if_flags & IFF_MULTICAST)
-	    && !(ifp->int_if_flags & IFF_POINTOPOINT))
-		ifp->int_state |= IS_NO_RIPV2_OUT;
-
-	if (!(ifp->int_if_flags & IFF_MULTICAST))
+	    && !(ifp->int_state & IS_REMOTE))
 		ifp->int_state |= IS_BCAST_RDISC;
 
 	if (ifp->int_if_flags & IFF_POINTOPOINT) {
@@ -110,10 +111,27 @@ get_parms(struct interface *ifp)
 	if (0 != (ifp->int_state & (IS_PASSIVE | IS_REMOTE)))
 		ifp->int_state |= IS_NO_RDISC;
 	if (ifp->int_state & IS_PASSIVE)
-		ifp->int_state |= (IS_NO_RIP | IS_NO_RDISC);
-	if ((ifp->int_state & (IS_NO_RIP | IS_NO_RDISC))
-	    == (IS_NO_RIP|IS_NO_RDISC))
-		ifp->int_state |= IS_PASSIVE;
+		ifp->int_state |= IS_NO_RIP;
+
+	if (!IS_RIP_IN_OFF(ifp->int_state)
+	    && ifp->int_auth.type != RIP_AUTH_NONE
+	    && !(ifp->int_state & IS_NO_RIPV1_IN)
+	    && !warned_auth_in) {
+		msglog("Warning: RIPv1 input via %s"
+		       " will be accepted without authentication",
+		       ifp->int_name);
+		warned_auth_in = 1;
+	}
+	if (!IS_RIP_OUT_OFF(ifp->int_state)
+	    && ifp->int_auth.type != RIP_AUTH_NONE
+	    && !(ifp->int_state & IS_NO_RIPV1_OUT)
+	    && !warned_auth_out) {
+		msglog("Warning: RIPv1 output via %s"
+		       " will be sent without authentication",
+		       ifp->int_name);
+		warned_auth_out = 1;
+		ifp->int_auth.type = RIP_AUTH_NONE;
+	}
 }
 
 
@@ -144,7 +162,6 @@ gwkludge(void)
 	int metric, n;
 	u_int state;
 	char *type;
-	struct parm *parmp;
 
 
 	fp = fopen(_PATH_GATEWAYS, "r");
@@ -161,8 +178,7 @@ gwkludge(void)
 		    || *lptr == '#')
 			continue;
 		p = lptr+strlen(lptr)-1;
-		while (*p == '\n'
-		       || *p == ' ')
+		while (*p == '\n' || *p == ' ')
 			*p-- = '\0';
 
 		/* notice newfangled parameter lines
@@ -171,9 +187,9 @@ gwkludge(void)
 		    && strncasecmp("host", lptr, 4)) {
 			p = parse_parms(lptr);
 			if (p != 0) {
-				if (strcmp(p,lptr))
-					msglog("bad \"%s\" in "_PATH_GATEWAYS
-					       " entry \"%s\"", lptr, p);
+				if (strcasecmp(p,lptr))
+					msglog("bad %s in "_PATH_GATEWAYS
+					       " entry \"%s\"", p, lptr);
 				else
 					msglog("bad \"%s\" in "_PATH_GATEWAYS,
 					       lptr);
@@ -182,26 +198,28 @@ gwkludge(void)
 		}
 
 /*  {net | host} XX[/M] XX gateway XX metric DD [passive | external]\n */
+		qual[0] = '\0';
 		n = sscanf(lptr, "%4s %129[^ \t] gateway"
-			   " %64[^ / \t] metric %d %8s\n",
+			   " %64[^ / \t] metric %u %8s\n",
 			   net_host, dname, gname, &metric, qual);
-		if (n != 5) {
-			msglog("bad "_PATH_GATEWAYS" entry \"%s\"", lptr);
+		if (n != 4 && n != 5) {
+			msglog("bad "_PATH_GATEWAYS" entry \"%s\"; %d values",
+			       lptr, n);
 			continue;
 		}
-		if (metric < 0 || metric >= HOPCNT_INFINITY) {
+		if (metric >= HOPCNT_INFINITY) {
 			msglog("bad metric in "_PATH_GATEWAYS" entry \"%s\"",
 			       lptr);
 			continue;
 		}
-		if (!strcmp(net_host, "host")) {
+		if (!strcasecmp(net_host, "host")) {
 			if (!gethost(dname, &dst)) {
 				msglog("bad host \"%s\" in "_PATH_GATEWAYS
 				       " entry \"%s\"", dname, lptr);
 				continue;
 			}
 			netmask = HOST_MASK;
-		} else if (!strcmp(net_host, "net")) {
+		} else if (!strcasecmp(net_host, "net")) {
 			if (!getnet(dname, &dst, &netmask)) {
 				msglog("bad net \"%s\" in "_PATH_GATEWAYS
 				       " entry \"%s\"", dname, lptr);
@@ -219,7 +237,7 @@ gwkludge(void)
 			continue;
 		}
 
-		if (strcmp(qual, type = "passive") == 0) {
+		if (!strcasecmp(qual, type = "passive")) {
 			/* Passive entries are not placed in our tables,
 			 * only the kernel's, so we don't copy all of the
 			 * external routing information within a net.
@@ -230,17 +248,19 @@ gwkludge(void)
 			if (metric == 0)
 				metric = 1;
 
-		} else if (strcmp(qual, type = "external") == 0) {
+		} else if (!strcasecmp(qual, type = "external")) {
 			/* External entries are handled by other means
 			 * such as EGP, and are placed only in the daemon
 			 * tables to prevent overriding them with something
 			 * else.
 			 */
+			strcpy(qual,"external");
 			state = IS_REMOTE | IS_PASSIVE | IS_EXTERNAL;
 			if (metric == 0)
 				metric = 1;
 
-		} else if (qual[0] == '\0') {
+		} else if (!strcasecmp(qual, "active")
+			   || qual[0] == '\0') {
 			if (metric != 0) {
 				/* Entries that are neither "passive" nor
 				 * "external" are "remote" and must behave
@@ -253,110 +273,274 @@ gwkludge(void)
 				/* "remote" entries with a metric of 0
 				 * are aliases for our own interfaces
 				 */
-				state = IS_REMOTE | IS_PASSIVE;
+				state = IS_REMOTE | IS_PASSIVE | IS_ALIAS;
 				type = "alias";
 			}
 
 		} else {
-			msglog("bad "_PATH_GATEWAYS" entry \"%s\"", lptr);
+			msglog("bad "_PATH_GATEWAYS" entry \"%s\";"
+			       " unknown type %s", lptr, qual);
 			continue;
 		}
-
-		/* Remember to advertise the corresponding logical network.
-		 */
-		if (!(state & IS_EXTERNAL)
-		    && netmask != std_mask(dst))
-			state |= IS_SUBNET;
 
 		if (0 != (state & (IS_PASSIVE | IS_REMOTE)))
 			state |= IS_NO_RDISC;
 		if (state & IS_PASSIVE)
-			state |= (IS_NO_RIP | IS_NO_RDISC);
-		if ((state & (IS_NO_RIP | IS_NO_RDISC))
-		    == (IS_NO_RIP|IS_NO_RDISC))
-			state |= IS_PASSIVE;
+			state |= IS_NO_RIP;
 
-		parmp = (struct parm*)malloc(sizeof(*parmp));
-		bzero(parmp, sizeof(*parmp));
-		parmp->parm_next = parms;
-		parms = parmp;
-		parmp->parm_addr_h = ntohl(dst);
-		parmp->parm_mask = -1;
-		parmp->parm_d_metric = 0;
-		parmp->parm_int_state = state;
-
-		/* See if this new interface duplicates an existing
-		 * interface.
-		 */
-		for (ifp = ifnet; 0 != ifp; ifp = ifp->int_next) {
-			if (ifp->int_mask == netmask
-			    && ((ifp->int_addr == dst
-				 && netmask != HOST_MASK)
-				|| (ifp->int_dstaddr == dst
-				    && netmask == HOST_MASK)))
-				break;
-		}
+		ifp = check_dup(gate,dst,netmask,0);
 		if (ifp != 0) {
-			/* Let one of our real interfaces be marked passive.
-			 */
-			if ((state & IS_PASSIVE) && !(state & IS_EXTERNAL)) {
-				ifp->int_state |= state;
-			} else {
-				msglog("%s is duplicated in "_PATH_GATEWAYS
-				       " by %s",
-				       ifp->int_name, lptr);
-			}
+			msglog("duplicate "_PATH_GATEWAYS" entry \"%s\"",lptr);
 			continue;
 		}
 
-		tot_interfaces++;
-
 		ifp = (struct interface *)malloc(sizeof(*ifp));
 		bzero(ifp, sizeof(*ifp));
-		if (ifnet != 0) {
-			ifp->int_next = ifnet;
-			ifnet->int_prev = ifp;
-		}
-		ifnet = ifp;
 
 		ifp->int_state = state;
-		ifp->int_net = ntohl(dst) & netmask;
-		ifp->int_mask = netmask;
 		if (netmask == HOST_MASK)
-			ifp->int_if_flags |= IFF_POINTOPOINT;
-		ifp->int_dstaddr = dst;
+			ifp->int_if_flags = IFF_POINTOPOINT | IFF_UP_RUNNING;
+		else
+			ifp->int_if_flags = IFF_UP_RUNNING;
+		ifp->int_act_time = NEVER;
 		ifp->int_addr = gate;
+		ifp->int_dstaddr = dst;
+		ifp->int_mask = netmask;
+		ifp->int_ripv1_mask = netmask;
+		ifp->int_std_mask = std_mask(gate);
+		ifp->int_net = ntohl(dst);
+		ifp->int_std_net = ifp->int_net & ifp->int_std_mask;
+		ifp->int_std_addr = htonl(ifp->int_std_net);
 		ifp->int_metric = metric;
-		(void)sprintf(ifp->int_name, "%s-%s", type, naddr_ntoa(dst));
+		if (!(state & IS_EXTERNAL)
+		    && ifp->int_mask != ifp->int_std_mask)
+			ifp->int_state |= IS_SUBNET;
+		(void)sprintf(ifp->int_name, "%s(%s)", type, gname);
 		ifp->int_index = -1;
 
+		if_link(ifp);
+	}
+
+	/* After all of the parameter lines have been read,
+	 * apply them to any remote interfaces.
+	 */
+	for (ifp = ifnet; 0 != ifp; ifp = ifp->int_next) {
 		get_parms(ifp);
+
+		tot_interfaces++;
+		if (!IS_RIP_OFF(ifp->int_state))
+			rip_interfaces++;
 
 		trace_if("Add", ifp);
 	}
 }
 
 
-/* parse a set of parameters for an interface
+/* strtok(), but honoring backslash
+ */
+static int				/* -1=bad */
+parse_quote(char **linep,
+	    char *delims,
+	    char *delimp,
+	    char *buf,
+	    int	lim)
+{
+	char c, *pc, *p;
+
+
+	pc = *linep;
+	if (*pc == '\0')
+		return -1;
+
+	for (;;) {
+		if (lim == 0)
+			return -1;
+		c = *pc++;
+		if (c == '\0')
+			break;
+
+		if (c == '\\' && pc != '\0') {
+			if ((c = *pc++) == 'n') {
+				c = '\n';
+			} else if (c == 'r') {
+				c = '\r';
+			} else if (c == 't') {
+				c = '\t';
+			} else if (c == 'b') {
+				c = '\b';
+			} else if (c >= '0' && c <= '7') {
+				c -= '0';
+				if (*pc >= '0' && *pc <= '7') {
+					c = (c<<3)+(*pc++ - '0');
+					if (*pc >= '0' && *pc <= '7')
+					    c = (c<<3)+(*pc++ - '0');
+				}
+			}
+
+		} else {
+			for (p = delims; *p != '\0'; ++p) {
+				if (*p == c)
+					goto exit;
+			}
+		}
+
+		*buf++ = c;
+		--lim;
+	}
+exit:
+	if (delimp != 0)
+		*delimp = c;
+	*linep = pc-1;
+	if (lim != 0)
+		*buf = '\0';
+	return 0;
+}
+
+
+/* Parse password timestamp
+ */
+static char *
+parse_ts(time_t *tp,
+	 char **valp,
+	 char *val0,
+	 char *delimp,
+	 char *buf,
+	 u_int bufsize)
+{
+	struct tm tm;
+
+	if (0 > parse_quote(valp, "| ,\n\r", delimp,
+			    buf,bufsize)
+	    || buf[bufsize-1] != '\0'
+	    || buf[bufsize-2] != '\0') {
+		sprintf(buf,"timestamp %.25s", val0);
+		return buf;
+	}
+	strcat(buf,"\n");
+	bzero(&tm, sizeof(tm));
+	if (5 != sscanf(buf, "%u/%u/%u@%u:%u\n",
+			&tm.tm_year, &tm.tm_mon, &tm.tm_mday,
+			&tm.tm_hour, &tm.tm_min)) {
+		sprintf(buf,"timestamp %.25s", val0);
+		return buf;
+	}
+	if (tm.tm_year <= 37)
+		tm.tm_year += 100;
+
+	if ((*tp = mktime(&tm)) == -1) {
+		sprintf(buf,"timestamp %.25s", val0);
+		return buf;
+	}
+
+	return 0;
+}
+
+
+/* Get one or more password, key ID's, and expiration dates in
+ * the format
+ *	passwd|keyID|year/mon/day@hour:min|year/mon/day@hour:min|passwd|...
+ */
+static char *				/* 0 or error message */
+get_passwds(char *tgt,
+	    char *val,
+	    struct parm *parmp,
+	    u_char type)
+{
+	static char buf[80];
+	char *val0, *p, delim;
+	struct auth_key *akp, *akp2;
+	int i;
+	u_long l;
+
+
+	if (parmp->parm_auth.type != RIP_AUTH_NONE)
+		return "duplicate authentication";
+	parmp->parm_auth.type = type;
+
+	bzero(buf, sizeof(buf));
+
+	akp = parmp->parm_auth.keys;
+	for (i = 0; i < MAX_AUTH_KEYS; i++, val++, akp++) {
+		if ((delim = *val) == '\0')
+			break;
+		val0 = val;
+		if (0 > parse_quote(&val, "| ,\n\r", &delim,
+				    (char *)akp->key, sizeof(akp->key)))
+			return tgt;
+
+		akp->end = -1;
+
+		if (delim != '|') {
+			if (type == RIP_AUTH_MD5)
+				return "missing Keyid";
+			break;
+		}
+		val0 = ++val;
+		if (0 > parse_quote(&val, "| ,\n\r", &delim, buf,sizeof(buf))
+		    || buf[sizeof(buf)-1] != '\0'
+		    || (l = strtoul(buf,&p,0)) > 255
+		    || *p != '\0') {
+			sprintf(buf,"KeyID \"%.20s\"", val0);
+			return buf;
+		}
+		for (akp2 = parmp->parm_auth.keys; akp2 < akp; akp2++) {
+			if (akp2->keyid == l) {
+				*val = '\0';
+				sprintf(buf,"duplicate KeyID \"%.20s\"", val0);
+				return buf;
+			}
+		}
+		akp->keyid = (int)l;
+
+		if (delim != '|')
+			break;
+
+		val0 = ++val;
+		if (0 != (p = parse_ts(&akp->start,&val,val0,&delim,
+				       buf,sizeof(buf))))
+			return p;
+		if (delim != '|')
+			return "missing second timestamp";
+		val0 = ++val;
+		if (0 != (p = parse_ts(&akp->end,&val,val0,&delim,
+				       buf,sizeof(buf))))
+			return p;
+		if ((u_long)akp->start > (u_long)akp->end) {
+			sprintf(buf,"out of order timestamp %.30s",val0);
+			return buf;
+		}
+
+		if (delim != '|')
+			break;
+	}
+
+	return (delim != '\0') ? tgt : 0;
+}
+
+
+/* Parse a set of parameters for an interface.
  */
 char *					/* 0 or error message */
 parse_parms(char *line)
 {
-#define PARS(str) (0 == (tgt = str, strcasecmp(tok, tgt)))
-#define PARSE(str) (0 == (tgt = str, strncasecmp(tok, str "=", sizeof(str))))
+#define PARS(str) (!strcasecmp(tgt, str))
+#define PARSEQ(str) (!strncasecmp(tgt, str"=", sizeof(str)))
 #define CKF(g,b) {if (0 != (parm.parm_int_state & ((g) & ~(b)))) break;	\
 	parm.parm_int_state |= (b);}
-#define DELIMS " ,\t\n"
 	struct parm parm;
 	struct intnet *intnetp;
-	char *tok, *tgt, *p;
+	struct tgate *tg;
+	naddr addr, mask;
+	char delim, *val0, *tgt, *val, *p;
+	char buf[64];
 
 
-	/* "subnet=x.y.z.u/mask" must be alone on the line */
-	if (!strncasecmp("subnet=",line,7)) {
+	/* "subnet=x.y.z.u/mask,metric" must be alone on the line */
+	if (!strncasecmp(line, "subnet=", sizeof("subnet=")-1)
+	    && *(val = &line[sizeof("subnet=")]) != '\0') {
 		intnetp = (struct intnet*)malloc(sizeof(*intnetp));
 		intnetp->intnet_metric = 1;
-		if ((p = strrchr(line,','))) {
+		if ((p = strrchr(val,','))) {
 			*p++ = '\0';
 			intnetp->intnet_metric = (int)strtol(p,&p,0);
 			if (*p != '\0'
@@ -364,8 +548,7 @@ parse_parms(char *line)
 			    || intnetp->intnet_metric >= HOPCNT_INFINITY)
 				return line;
 		}
-		if (!getnet(&line[7], &intnetp->intnet_addr,
-			    &intnetp->intnet_mask)
+		if (!getnet(val, &intnetp->intnet_addr, &intnetp->intnet_mask)
 		    || intnetp->intnet_mask == HOST_MASK
 		    || intnetp->intnet_addr == RIP_DEFAULT) {
 			free(intnetp);
@@ -379,21 +562,51 @@ parse_parms(char *line)
 	bzero(&parm, sizeof(parm));
 
 	tgt = "null";
-	for (tok = strtok(line, DELIMS);
-	     tok != 0 && tok[0] != '\0';
-	     tgt = 0, tok = strtok(0,DELIMS)) {
-		if (PARSE("if")) {
-			if (parm.parm_name[0] != '\0'
-			    || tok[3] == '\0'
-			    || strlen(tok) > IFNAMSIZ+3)
-				break;
-			strcpy(parm.parm_name, tok+3);
+	for (;;) {
+		tgt = line + strspn(line, " ,\n\r");
+		if (*tgt == '\0')
+			break;
 
-		} else if (PARSE("passwd")) {
-			if (tok[7] == '\0'
-			    || strlen(tok) > RIP_AUTH_PW_LEN+7)
-				break;
-			strcpy(parm.parm_passwd, tok+7);
+		line += strcspn(tgt, "= ,\n\r");
+		delim = *line;
+		if (delim == '=') {
+			val0 = ++line;
+			if (0 > parse_quote(&line," ,\n\r",&delim,
+					    buf,sizeof(buf)))
+				return tgt;
+		}
+		if (delim != '\0')
+			*line++ = '\0';
+
+		if (PARSEQ("if")) {
+			if (parm.parm_name[0] != '\0'
+			    || strlen(buf) > IFNAMSIZ)
+				return tgt;
+			strcpy(parm.parm_name, buf);
+
+		} else if (PARSEQ("addr")) {
+			/* This is a bad idea, because the address based
+			 * sets of parameters cannot be checked for
+			 * consistency with the interface name parameters.
+			 * The parm_net stuff is needed to allow several
+			 * -F settings.
+			 */
+			if (!getnet(val, &addr, &mask)
+			    || parm.parm_name[0] != '\0')
+				return tgt;
+			parm.parm_net = addr;
+			parm.parm_mask = mask;
+			parm.parm_name[0] = '\n';
+
+		} else if (PARSEQ("passwd")) {
+			tgt = get_passwds(tgt, val0, &parm, RIP_AUTH_PW);
+			if (tgt)
+				return tgt;
+
+		} else if (PARSEQ("md5_passwd")) {
+			tgt = get_passwds(tgt, val0, &parm, RIP_AUTH_MD5);
+			if (tgt)
+				return tgt;
 
 		} else if (PARS("no_ag")) {
 			parm.parm_int_state |= (IS_NO_AG | IS_NO_SUPER_AG);
@@ -409,11 +622,18 @@ parse_parms(char *line)
 
 		} else if (PARS("ripv2_out")) {
 			if (parm.parm_int_state & IS_NO_RIPV2_OUT)
-				break;
+				return tgt;
 			parm.parm_int_state |= IS_NO_RIPV1_OUT;
 
+		} else if (PARS("ripv2")) {
+			if ((parm.parm_int_state & IS_NO_RIPV2_OUT)
+			    || (parm.parm_int_state & IS_NO_RIPV2_IN))
+				return tgt;
+			parm.parm_int_state |= (IS_NO_RIPV1_IN
+						| IS_NO_RIPV1_OUT);
+
 		} else if (PARS("no_rip")) {
-			parm.parm_int_state |= IS_NO_RIP;
+			CKF(IS_PM_RDISC, IS_NO_RIP);
 
 		} else if (PARS("no_rdisc")) {
 			CKF((GROUP_IS_SOL|GROUP_IS_ADV), IS_NO_RDISC);
@@ -437,47 +657,50 @@ parse_parms(char *line)
 			CKF((GROUP_IS_SOL|GROUP_IS_ADV), IS_NO_RDISC);
 			parm.parm_int_state |= IS_NO_RIP;
 
-		} else if (PARSE("rdisc_pref")) {
+		} else if (PARSEQ("rdisc_pref")) {
 			if (parm.parm_rdisc_pref != 0
-			    || tok[11] == '\0'
-			    || (parm.parm_rdisc_pref = (int)strtol(&tok[11],
-								   &p,0),
+			    || (parm.parm_rdisc_pref = (int)strtoul(buf, &p,0),
 				*p != '\0'))
-				break;
+				return tgt;
 
 		} else if (PARS("pm_rdisc")) {
+			if (IS_RIP_OUT_OFF(parm.parm_int_state))
+				return tgt;
 			parm.parm_int_state |= IS_PM_RDISC;
 
-		} else if (PARSE("rdisc_interval")) {
+		} else if (PARSEQ("rdisc_interval")) {
 			if (parm.parm_rdisc_int != 0
-			    || tok[15] == '\0'
-			    || (parm.parm_rdisc_int = (int)strtol(&tok[15],
-								  &p,0),
+			    || (parm.parm_rdisc_int = (int)strtoul(buf,&p,0),
 				*p != '\0')
 			    || parm.parm_rdisc_int < MinMaxAdvertiseInterval
 			    || parm.parm_rdisc_int > MaxMaxAdvertiseInterval)
-				break;
+				return tgt;
 
-		} else if (PARSE("fake_default")) {
+		} else if (PARSEQ("fake_default")) {
 			if (parm.parm_d_metric != 0
-			    || tok[13] == '\0'
-			    || (parm.parm_d_metric=(int)strtol(&tok[13],&p,0),
+			    || IS_RIP_OUT_OFF(parm.parm_int_state)
+			    || (parm.parm_d_metric = (int)strtoul(buf,&p,0),
 				*p != '\0')
 			    || parm.parm_d_metric > HOPCNT_INFINITY-1)
-				break;
+				return tgt;
+
+		} else if (PARSEQ("trust_gateway")) {
+			if (!gethost(buf,&addr))
+				return tgt;
+			tg = (struct tgate *)malloc(sizeof(*tg));
+			tg->tgate_next = tgates;
+			tg->tgate_addr = addr;
+			tgates = tg;
+			parm.parm_int_state |= IS_DISTRUST;
 
 		} else {
-			tgt = tok;
-			break;
+			return tgt;	/* error */
 		}
 	}
-	if (tgt != 0)
-		return tgt;
 
 	return check_parms(&parm);
-#undef DELIMS
 #undef PARS
-#undef PARSE
+#undef PARSEQ
 }
 
 
@@ -487,36 +710,33 @@ check_parms(struct parm *new)
 {
 	struct parm *parmp;
 
-
 	/* set implicit values
 	 */
-	if (!supplier && supplier_set)
-		new->parm_int_state |= (IS_NO_RIPV1_OUT
-					| IS_NO_RIPV2_OUT
-					| IS_NO_ADV_OUT);
 	if (new->parm_int_state & IS_NO_ADV_IN)
 		new->parm_int_state |= IS_NO_SOL_OUT;
-
-	if ((new->parm_int_state & (IS_NO_RIP | IS_NO_RDISC))
-	    == (IS_NO_RIP | IS_NO_RDISC))
-		new->parm_int_state |= IS_PASSIVE;
 
 	/* compare with existing sets of parameters
 	 */
 	for (parmp = parms; parmp != 0; parmp = parmp->parm_next) {
 		if (strcmp(new->parm_name, parmp->parm_name))
 			continue;
-		if (!on_net(htonl(parmp->parm_addr_h),
-			    new->parm_addr_h, new->parm_mask)
-		    && !on_net(htonl(new->parm_addr_h),
-			       parmp->parm_addr_h, parmp->parm_mask))
+		if (!on_net(htonl(parmp->parm_net),
+			    new->parm_net, new->parm_mask)
+		    && !on_net(htonl(new->parm_net),
+			       parmp->parm_net, parmp->parm_mask))
 			continue;
 
-		if (strcmp(parmp->parm_passwd, new->parm_passwd)
-		    || (0 != (new->parm_int_state & GROUP_IS_SOL)
-			&& 0 != (parmp->parm_int_state & GROUP_IS_SOL)
-			&& 0 != ((new->parm_int_state ^ parmp->parm_int_state)
-				 && GROUP_IS_SOL))
+		if (parmp->parm_auth.type != RIP_AUTH_NONE
+		    && new->parm_auth.type != RIP_AUTH_NONE
+		    && bcmp(&parmp->parm_auth, &new->parm_auth,
+			    sizeof(parmp->parm_auth))) {
+			return "conflicting, duplicate authentication";
+		}
+
+		if ((0 != (new->parm_int_state & GROUP_IS_SOL)
+		     && 0 != (parmp->parm_int_state & GROUP_IS_SOL)
+		     && 0 != ((new->parm_int_state ^ parmp->parm_int_state)
+			      && GROUP_IS_SOL))
 		    || (0 != (new->parm_int_state & GROUP_IS_ADV)
 			&& 0 != (parmp->parm_int_state & GROUP_IS_ADV)
 			&& 0 != ((new->parm_int_state ^ parmp->parm_int_state)
@@ -526,11 +746,18 @@ check_parms(struct parm *new)
 			&& new->parm_rdisc_pref != parmp->parm_rdisc_pref)
 		    || (new->parm_rdisc_int != 0
 			&& parmp->parm_rdisc_int != 0
-			&& new->parm_rdisc_int != parmp->parm_rdisc_int)
-		    || (new->parm_d_metric != 0
-			&& parmp->parm_d_metric != 0
-			&& new->parm_d_metric != parmp->parm_d_metric))
-			return "duplicate";
+			&& new->parm_rdisc_int != parmp->parm_rdisc_int)) {
+			return ("conflicting, duplicate router discovery"
+				" parameters");
+
+		}
+
+		if (new->parm_d_metric != 0
+		     && parmp->parm_d_metric != 0
+		     && new->parm_d_metric != parmp->parm_d_metric) {
+			return ("conflicting, duplicate poor man's router"
+				" discovery or fake default metric");
+		}
 	}
 
 	parmp = (struct parm*)malloc(sizeof(*parmp));
@@ -547,7 +774,7 @@ check_parms(struct parm *new)
  */
 int					/* 0=bad */
 getnet(char *name,
-       naddr *addrp,			/* host byte order */
+       naddr *netp,			/* host byte order */
        naddr *maskp)
 {
 	int i;
@@ -574,17 +801,19 @@ getnet(char *name,
 	if (np != 0) {
 		in.s_addr = (naddr)np->n_net;
 	} else if (inet_aton(name, &in) == 1) {
-		HTONL(in.s_addr);
+		NTOHL(in.s_addr);
+	} else if (!mname && !strcasecmp(name,"default")) {
+		in.s_addr = RIP_DEFAULT;
 	} else {
 		return 0;
 	}
 
-	if (mname == 0) {
+	if (!mname) {
 		/* we cannot use the interfaces here because we have not
 		 * looked at them yet.
 		 */
 		mask = std_mask(in.s_addr);
-		if ((~mask & ntohl(in.s_addr)) != 0)
+		if ((~mask & in.s_addr) != 0)
 			mask = HOST_MASK;
 	} else {
 		mask = (naddr)strtoul(mname, &p, 0);
@@ -592,12 +821,22 @@ getnet(char *name,
 			return 0;
 		mask = HOST_MASK << (32-mask);
 	}
+
+	/* must have mask of 0 with default */
 	if (mask != 0 && in.s_addr == RIP_DEFAULT)
 		return 0;
-	if ((~mask & ntohl(in.s_addr)) != 0)
+	/* no host bits allowed in a network number */
+	if ((~mask & in.s_addr) != 0)
+		return 0;
+	/* require non-zero network number */
+	if ((mask & in.s_addr) == 0 && in.s_addr != RIP_DEFAULT)
+		return 0;
+	if (in.s_addr>>24 == 0 && in.s_addr != RIP_DEFAULT)
+		return 0;
+	if (in.s_addr>>24 == 0xff)
 		return 0;
 
-	*addrp = in.s_addr;
+	*netp = in.s_addr;
 	*maskp = mask;
 	return 1;
 }
@@ -616,6 +855,12 @@ gethost(char *name,
 	 * might be sick because routing is.
 	 */
 	if (inet_aton(name, &in) == 1) {
+		/* get a good number, but check that it it makes some
+		 * sense.
+		 */
+		if (ntohl(in.s_addr)>>24 == 0
+		    || ntohl(in.s_addr)>>24 == 0xff)
+			return 0;
 		*addrp = in.s_addr;
 		return 1;
 	}
