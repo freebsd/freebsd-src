@@ -17,6 +17,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20040125:
+	ULE has entered into its probationary period as the default scheduler
+	in GENERIC.  For the average user, interactivity is reported to be
+	better in many cases.  On SMP machines ULE will be able to make more
+	efficient use of the available parallel resources.  If you are not
+	running it now, please switch over, replacing the kernel option
+	SCHED_4BSD with SCHED_ULE.
+
 20031213:
 	src/lib/libc/gen/initgroups.c:1.8 now causes logins to fail
 	if the login process is unable to successfully set the
