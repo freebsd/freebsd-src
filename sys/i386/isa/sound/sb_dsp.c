@@ -56,7 +56,7 @@ int             sbc_base = 0;
 static int      sbc_irq = 0;
 static int      open_mode = 0;	/* Read, write or both */
 int             Jazz16_detected = 0;
-static int      sb_no_recording = 0;
+int             sb_no_recording = 0;
 static int      dsp_count = 0;
 static int      trigger_bits;
 
@@ -102,7 +102,7 @@ volatile int    sb_intr_active = 0;
 static int      dsp_speed(int);
 static int      dsp_set_stereo(int mode);
 static void     sb_dsp_reset(int dev);
-static sound_os_info  *sb_osp = NULL;
+sound_os_info  *sb_osp = NULL;
 
 #if defined(CONFIG_MIDI) || defined(CONFIG_AUDIO)
 static void dsp_speaker(char state);
