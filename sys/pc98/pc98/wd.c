@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.49 1998/04/22 10:25:23 julian Exp $
+ *	$Id: wd.c,v 1.50 1998/04/25 04:27:54 kato Exp $
  */
 
 /* TODO:
@@ -755,7 +755,7 @@ wds_init(void *arg)
 	int err = 0;
 	struct ide_geom geom;
 
-	if ((err = wdsopen(du, 0, 0, curproc))) {
+	if ((err = wdsopen(du, FREAD, 0, curproc))) {
 		printf("wd open failed with %d", err);
 		return;
 	}
@@ -2979,7 +2979,9 @@ wdsopen(void *private, int flags, int mode, struct proc *p)
 		du->dk_state = OPEN;
 		du->dk_flags &= ~DKFL_BADSCAN;
 	} else {
-		du->dk_state = CLOSED;
+		/* <luoqi@watermarkgroup.com> suggests I remove this */
+		/* du->dk_state = CLOSED;*/ 
+		/* du->dk_state = WANTOPEN; */ /* maybe this? */
 	}
 	return (error);
 }
@@ -3038,5 +3040,5 @@ wdsioctl( void *private, int cmd, caddr_t addr, int flag, struct proc *p)
 	}
 }
 
-#endif /* NWDC > 0 */
+#endif /* SLICE */
 #endif /* NWDC > 0 */
