@@ -51,7 +51,7 @@
 .Sh DESCRIPTION
 The basic elements of some written natural languages, such as Chinese,
 cannot be represented uniquely with single C
-.Va char Ns s .
+.Vt char Ns s .
 The C standard supports two different ways of dealing with
 extended natural language encodings:
 wide characters and
@@ -59,10 +59,10 @@ multibyte characters.
 Wide characters are an internal representation
 which allows each basic element to map
 to a single object of type
-.Va wchar_t .
+.Vt wchar_t .
 Multibyte characters are used for input and output
 and code each basic element as a sequence of C
-.Va char Ns s .
+.Vt char Ns s .
 Individual basic elements may map into one or more
 (up to
 .Dv MB_LEN_MAX )
@@ -75,7 +75,7 @@ The locale category
 .Dv LC_CTYPE
 specifically controls this interpretation.
 The
-.Va wchar_t
+.Vt wchar_t
 type is wide enough to hold the largest value
 in the wide character representations for all locales.
 .Pp
@@ -89,17 +89,17 @@ but are lumped with a neighboring character.
 There is always a distinguished
 .Sq initial
 shift state.
-Some functions (e.g.
-.Fn mblen ,
-.Fn mbtowc
+Some functions (e.g.,
+.Xr mblen 3 ,
+.Xr mbtowc 3
 and
-.Fn wctomb )
+.Xr wctomb 3 )
 maintain static shift state internally, whereas
-others store in an
+others store it in an
 .Vt mbstate_t
 object passed by the caller.
 Shift states are undefined after a call to
-.Fn setlocale
+.Xr setlocale 3
 with the
 .Dv LC_CTYPE
 or
@@ -118,22 +118,22 @@ Null bytes are not permitted within multibyte characters.
 The C library provides the following functions for dealing with
 multibyte characters:
 .Bl -column "Description"
-.It Sy "Function       Description"
-.It "mblen	get number of bytes in a character"
-.It "mbrlen	get number of bytes in a character (restartable)"
-.It "mbrtowc	convert a character to a wide-character code (restartable)"
-.It "mbsrtowcs	convert a character string to a wide-character string (restartable)"
-.It "mbstowcs	convert a character string to a wide-character string"
-.It "mbtowc	convert a character to a wide-character code"
-.It "wcrtomb	convert a wide-character code to a character (restartable)"
-.It "wcstombs	convert a wide-character string to a character string"
-.It "wcsrtombs	convert a wide-character string to a character string (restartable)"
-.It "wctomb	convert a wide-character code to a character"
+.It Sy "Function	Description"
+.It Xr mblen 3 Ta "get number of bytes in a character"
+.It Xr mbrlen 3 Ta "get number of bytes in a character (restartable)"
+.It Xr mbrtowc 3 Ta "convert a character to a wide-character code (restartable)"
+.It Xr mbsrtowcs 3 Ta "convert a character string to a wide-character string (restartable)"
+.It Xr mbstowcs 3 Ta "convert a character string to a wide-character string"
+.It Xr mbtowc 3 Ta "convert a character to a wide-character code"
+.It Xr wcrtomb 3 Ta "convert a wide-character code to a character (restartable)"
+.It Xr wcstombs 3 Ta "convert a wide-character string to a character string"
+.It Xr wcsrtombs 3 Ta "convert a wide-character string to a character string (restartable)"
+.It Xr wctomb 3 Ta "convert a wide-character code to a character"
 .El
 .Sh SEE ALSO
 .Xr mklocale 1 ,
-.Xr stdio 3 ,
 .Xr setlocale 3 ,
+.Xr stdio 3 ,
 .Xr big5 5 ,
 .Xr euc 5 ,
 .Xr gb18030 5 ,

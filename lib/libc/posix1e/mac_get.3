@@ -37,6 +37,8 @@
 .Nm mac_get_file ,
 .Nm mac_get_link ,
 .Nm mac_get_fd ,
+.Nm mac_get_peer ,
+.Nm mac_get_pid ,
 .Nm mac_get_proc
 .Nd get the label of a file, socket, socket peer or process
 .Sh LIBRARY
@@ -61,7 +63,7 @@ The
 system call returns the label associated with a file specified by
 pathname.
 The
-.Fn mac_get_link 
+.Fn mac_get_link
 function is the same as
 .Fn mac_get_file ,
 except that it does not follow symlinks.
@@ -86,7 +88,7 @@ The
 and
 .Fn mac_get_proc
 system calls return the process label associated with an arbitrary
-process id, or the current process.
+process ID, or the current process.
 .Pp
 Label storage for use with these calls must first be allocated and
 prepared using the

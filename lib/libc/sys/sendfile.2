@@ -89,9 +89,13 @@ variable pointed to by
 The
 .Fa flags
 argument has one possible value:
-.Fa SF_NODISKIO .
-This flag causes any sendfile call which would block on disk I/O to instead
-return EBUSY.  Busy servers may benefit by transferring requests that would
+.Dv SF_NODISKIO .
+This flag causes any
+.Fn sendfile
+call which would block on disk I/O to instead
+return
+.Er EBUSY .
+Busy servers may benefit by transferring requests that would
 block to a separate I/O worker thread.
 .Pp
 When using a socket marked for non-blocking I/O,
@@ -112,27 +116,30 @@ implementation of
 is "zero-copy", meaning that it has been optimized so that copying of the file data is avoided.
 .Sh TUNING
 Internally, this system call uses a special
-.Xr sendfile 2
+.Fn sendfile
 buffer
 .Pq Vt "struct sf_buf"
 to handle sending file data to the client.
 If the sending socket is
-blocking, and there are not enough sendfile buffers available,
-.Xr sendfile 2
+blocking, and there are not enough
+.Fn sendfile
+buffers available,
+.Fn sendfile
 will block and report a state of
 .Dq Li sfbufa .
 If the sending socket is non-blocking and there are not enough
-sendfile buffers available, the call will block and wait for the
+.Fn sendfile
+buffers available, the call will block and wait for the
 necessary buffers to become available before finishing the call.
 .Pp
 The number of
 .Vt sf_buf Ns 's
 allocated should be proportional to the number of nmbclusters used to
 send data to a client via
-.Xr sendfile 2 .
+.Fn sendfile .
 Tune accordingly to avoid blocking!
 Busy installations that make extensive use of
-.Xr sendfile 2
+.Fn sendfile
 may want to increase these values to be inline with their
 .Va kern.ipc.nmbclusters
 (see
@@ -140,20 +147,25 @@ may want to increase these values to be inline with their
 for details).
 .Pp
 The number of
-.Xr sendfile 2
+.Fn sendfile
 buffers available is determined at boot time by either the
 .Va kern.ipc.nsfbufs
 .Xr loader.conf 5
 variable or the
 .Dv NSFBUFS
 kernel configuration tunable.
-The number of sendfile buffers scales with
+The number of
+.Fn sendfile
+buffers scales with
 .Va kern.maxusers .
+The
 .Va kern.ipc.nsfbufsused
 and
 .Va kern.ipc.nsfbufspeak
-read-only sysctl variables show current and peak
-.Xr sendfile 2
+read-only
+.Xr sysctl 8
+variables show current and peak
+.Fn sendfile
 buffers usage respectively.
 These values may also be viewed through
 .Nm netstat Fl m .
@@ -173,8 +185,11 @@ argument
 is not a valid socket descriptor.
 .It Bq Er EBUSY
 Completing the entire transfer would have required disk I/O, so
-it was aborted.  Partial data may have been sent.
-(This error can only occur when SF_NODISKIO is specified.)
+it was aborted.
+Partial data may have been sent.
+(This error can only occur when
+.Dv SF_NODISKIO
+is specified.)
 .It Bq Er ENOTSOCK
 The
 .Fa s
@@ -208,7 +223,10 @@ An error occurred while reading from
 .It Bq Er EFAULT
 An invalid address was specified for an argument.
 .It Bq Er EINTR
-A signal interrupted sendfile before it could be completed. If specified, the number
+A signal interrupted
+.Fn sendfile
+before it could be completed.
+If specified, the number
 of bytes successfully sent will be returned in
 .Fa *sbytes .
 .It Bq Er EAGAIN

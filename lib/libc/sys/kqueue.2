@@ -120,7 +120,7 @@ is zero,
 will return immediately even if there is a
 .Fa timeout
 specified unlike
-.Xr select  2 .
+.Xr select 2 .
 If
 .Fa timeout
 is a non-NULL pointer, it specifies a maximum interval to wait
@@ -345,7 +345,7 @@ The file referenced by the descriptor was renamed.
 .It NOTE_REVOKE
 Access to the file was revoked via
 .Xr revoke 2
-or the underlying filesystem was unmounted.
+or the underlying file system was unmounted.
 .El
 .Pp
 On return,
@@ -530,7 +530,7 @@ It is currently not possible to watch a
 that resides on anything but
 a UFS file system.
 .Pp
-The 
+The
 .Dv EVFILT_NETDEV
 filter is currently only implemented for devices that use the
 .Xr miibus 4

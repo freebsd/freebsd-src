@@ -190,12 +190,16 @@ The remote host was down.
 .It Bq Er ENETDOWN
 The remote network was down.
 .It Bq Er EPERM
-The process using a SOCK_RAW socket was jailed and the source
-address specified in the IP header did not match the IP 
+The process using a
+.Dv SOCK_RAW
+socket was jailed and the source
+address specified in the IP header did not match the IP
 address bound to the prison.
 .It Bq Er EPIPE
-The socket is unable to send anymore data (SBS_CANTSENDMORE has
-been set on the socket). This typically means that the socket
+The socket is unable to send anymore data
+.Dv ( SBS_CANTSENDMORE
+has been set on the socket).
+This typically means that the socket
 is not connected.
 .El
 .Sh BUGS
