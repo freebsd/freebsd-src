@@ -132,7 +132,7 @@ main(int argc, char *argv[])
 	umask(0);		/* We wish to handle this manually */
 	LIST_INIT(&arglist);
 
-	(void)setlocale(LC_TIME, "");
+	(void)setlocale(LC_ALL, "");
 
 	/*
 	 * Break off the first couple of words to determine what exactly
