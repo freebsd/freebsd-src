@@ -132,12 +132,26 @@ _fseeko(fp, offset, whence)
 		} else if (fp->_flags & __SWR && fp->_p != NULL)
 			curoff += fp->_p - fp->_bf._base;
 
+		if (offset > 0 && offset + (off_t)curoff < 0) {
+			errno = EOVERFLOW;
+			return (EOF);
+		}
 		offset += curoff;
+		/* Disallow negative seeks per POSIX */
+		if (offset < 0) {
+			errno = EINVAL;
+			return (EOF);
+		}
 		whence = SEEK_SET;
 		havepos = 1;
 		break;
 
 	case SEEK_SET:
+		/* Disallow negative seeks per POSIX */
+		if (offset < 0) {
+			errno = EINVAL;
+			return (EOF);
+		}
 	case SEEK_END:
 		curoff = 0;		/* XXX just to keep gcc quiet */
 		havepos = 0;
@@ -180,7 +194,16 @@ _fseeko(fp, offset, whence)
 	else {
 		if (_fstat(fp->_file, &st))
 			goto dumb;
+		if (offset > 0 && st.st_size + offset < 0) {
+			errno = EOVERFLOW;
+			return (EOF);
+		}
 		target = st.st_size + offset;
+		/* Disallow negative seeks per POSIX */
+		if ((off_t)target < 0) {
+			errno = EINVAL;
+			return (EOF);
+		}
 	}
 
 	if (!havepos) {
