@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media_strategy.c,v 1.24 1995/05/26 10:20:47 jkh Exp $
+ * $Id: media_strategy.c,v 1.25 1995/05/26 10:58:51 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -711,8 +711,10 @@ mediaGetFTP(char *dist, char *path)
     const char *tmp;
     struct attribs	*dist_attr;
 
+    if (!path)
+	path = "";
     msgNotify("Attempting to retreive `%s' over FTP", dist);
-    snprintf(buf, PATH_MAX, "/stand/info/%s%s.inf", path ? path : "", dist);
+    snprintf(buf, PATH_MAX, "/stand/info/%s%s.inf", path, dist);
     if (!access(buf, R_OK)) {
 	msgDebug("Parsing attributes file for %s\n", dist);
 	dist_attr = safe_malloc(sizeof(struct attribs) * MAX_ATTRIBS);
@@ -731,11 +733,11 @@ mediaGetFTP(char *dist, char *path)
 
     /* Take the lack of an info file to mean we're a fully qualified name */
     if (!numchunks) {
-	sprintf(buf, "%s%s", path ? path : "", dist);
+	sprintf(buf, "%s%s", path, dist);
 	return(FtpGet(ftp, buf));
     }
     else if (numchunks == 1) {
-	snprintf(buf, 512, "%s.aa", dist);
+	snprintf(buf, 512, "%s%s.aa", path, dist);
 	return(FtpGet(ftp, buf));
     }
 
@@ -764,7 +766,7 @@ mediaGetFTP(char *dist, char *path)
 	    char buffer[10240];
 	    int n;
 	    
-	    snprintf(buf, 512, "%s.%c%c", dist, (chunk / 26) + 'a', (chunk % 26) + 'a');
+	    snprintf(buf, 512, "%s%s.%c%c", path, dist, (chunk / 26) + 'a', (chunk % 26) + 'a');
 	    fd = FtpGet(ftp, buf);
 
 	    if (fd < 0)

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.30 1995/05/25 18:48:29 jkh Exp $
+ * $Id: menus.c,v 1.31 1995/05/26 08:41:46 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -590,16 +590,14 @@ your disk until you select the \"Install\" menu item (and even then, only\n\
 after a final confirmation).  Select Cancel to leave this menu.",
     "Press F1 to read the installation guide",
     "install.hlp",
-    { { "Distributions", "Choose the type of installation you want", /* T */
-	DMENU_SUBMENU,	&MenuInstallType, 0, 0		},
-      { "Media", "Choose the installation media type",		/* M */
-	DMENU_SUBMENU,	&MenuMedia, 0, 0		},
-      { "Partition", "Allocate disk space for FreeBSD",		/* P */
+    { { "Partition", "Allocate disk space for FreeBSD",		/* P */
 	DMENU_CALL,	diskPartitionEditor, 0, 0	},
       { "Label", "Label allocated disk partitions",		/* L */
 	DMENU_CALL,	diskLabelEditor, 0, 0		},
-      { "Networking", "Configure this host on a network",	/* N */
-	DMENU_CALL,	tcpDeviceSelect, 0, 0		},
+      { "Distributions", "Choose the type of installation you want", /* T */
+	DMENU_SUBMENU,	&MenuInstallType, 0, 0		},
+      { "Media", "Choose the installation media type",		/* M */
+	DMENU_SUBMENU,	&MenuMedia, 0, 0		},
       { "Install", "Install FreeBSD onto your hard disk(s)",	/* I */
 	DMENU_CALL,	installCommit, 0, 0		},
       { "Configure", "Do post-install configuration of FreeBSD", /* C */
@@ -643,7 +641,7 @@ When you're done, select Cancel",
     "configure.hlp",
     { { "Add User",	"Add users to the system",
 	DMENU_SYSTEM_COMMAND, "adduser", 0, 0		},
-      { "Networking",	"Configure network",
+      { "Networking",	"Configure additional network devices",
 	DMENU_CALL, 	tcpDeviceSelect, 0, 0		},
       { "Time Zone",	"Set which time zone you're in",
 	DMENU_SYSTEM_COMMAND, "tzsetup", 0, 0		},
