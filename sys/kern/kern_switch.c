@@ -359,6 +359,7 @@ setrunqueue(struct thread *td)
 		KASSERT((td->td_kse != NULL),
 		    ("queueing BAD thread to run queue"));
 		ke = td->td_kse;
+		ke->ke_bound = NULL;
 		if (ke->ke_flags & KEF_ONLOANQ) {
 			ke->ke_flags &= ~KEF_ONLOANQ;
 			TAILQ_REMOVE(&kg->kg_lq, ke, ke_kgrlist);
