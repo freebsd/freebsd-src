@@ -1,4 +1,4 @@
-# $Id: Makefile.in,v 1.217 2002/06/25 23:45:42 tim Exp $
+# $Id: Makefile.in,v 1.222 2002/07/14 17:02:21 tim Exp $
 
 # uncomment if you run a non bourne compatable shell. Ie. csh
 #SHELL = @SH@
@@ -129,7 +129,7 @@ ssh-keygen$(EXEEXT): $(LIBCOMPAT) libssh.a ssh-keygen.o
 	$(LD) -o $@ ssh-keygen.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS) 
 
 ssh-keysign$(EXEEXT): $(LIBCOMPAT) libssh.a ssh-keysign.o
-	$(LD) -o $@ ssh-keysign.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS) 
+	$(LD) -o $@ ssh-keysign.o readconf.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS) 
 
 ssh-keyscan$(EXEEXT): $(LIBCOMPAT) libssh.a ssh-keyscan.o
 	$(LD) -o $@ ssh-keyscan.o $(LDFLAGS) -lssh -lopenbsd-compat -lssh $(LIBS) 
@@ -198,12 +198,11 @@ distprep: catman-do
 	$(AUTORECONF)
 	(cd scard && $(MAKE) -f Makefile.in distprep)
 
-install: $(CONFIGFILES) $(MANPAGES) $(TARGETS) install-files host-key check-user
+install: $(CONFIGFILES) $(MANPAGES) $(TARGETS) install-files host-key check-config
 install-nokeys: $(CONFIGFILES) $(MANPAGES) $(TARGETS) install-files
 
-check-user:
-	id $(SSH_PRIVSEP_USER) || \
-		echo "WARNING: Privilege separation user \"$(SSH_PRIVSEP_USER)\" does not exist"
+check-config:
+	-$(DESTDIR)$(sbindir)/sshd -t -f $(DESTDIR)$(sysconfdir)/sshd_config
 
 scard-install:
 	(cd scard && $(MAKE) DESTDIR=$(DESTDIR) install)
@@ -217,8 +216,7 @@ install-files: scard-install
 	$(srcdir)/mkinstalldirs $(DESTDIR)$(mandir)/$(mansubdir)5
 	$(srcdir)/mkinstalldirs $(DESTDIR)$(mandir)/$(mansubdir)8
 	$(srcdir)/mkinstalldirs $(DESTDIR)$(libexecdir)
-	$(srcdir)/mkinstalldirs $(DESTDIR)$(PRIVSEP_PATH)
-	chmod 0700 $(DESTDIR)$(PRIVSEP_PATH)
+	(umask 022 ; $(srcdir)/mkinstalldirs $(DESTDIR)$(PRIVSEP_PATH))
 	$(INSTALL) -m 0755 -s ssh $(DESTDIR)$(bindir)/ssh
 	$(INSTALL) -m 0755 -s scp $(DESTDIR)$(bindir)/scp
 	$(INSTALL) -m 0755 -s ssh-add $(DESTDIR)$(bindir)/ssh-add
@@ -248,23 +246,23 @@ install-files: scard-install
 	@NO_SFTP@$(INSTALL) -m 644 sftp-server.8.out $(DESTDIR)$(mandir)/$(mansubdir)8/sftp-server.8
 	$(INSTALL) -m 644 ssh-keysign.8.out $(DESTDIR)$(mandir)/$(mansubdir)8/ssh-keysign.8
 	-rm -f $(DESTDIR)$(bindir)/slogin
-	ln -s ssh$(EXEEXT) $(DESTDIR)$(bindir)/slogin
+	ln -s ./ssh$(EXEEXT) $(DESTDIR)$(bindir)/slogin
 	-rm -f $(DESTDIR)$(mandir)/$(mansubdir)1/slogin.1
-	ln -s ssh.1 $(DESTDIR)$(mandir)/$(mansubdir)1/slogin.1
+	ln -s ./ssh.1 $(DESTDIR)$(mandir)/$(mansubdir)1/slogin.1
 	if [ ! -d $(DESTDIR)$(sysconfdir) ]; then \
 		$(srcdir)/mkinstalldirs $(DESTDIR)$(sysconfdir); \
 	fi
-	if [ ! -f $(DESTDIR)$(sysconfdir)/ssh_config ]; then \
+	@if [ ! -f $(DESTDIR)$(sysconfdir)/ssh_config ]; then \
 		$(INSTALL) -m 644 ssh_config.out $(DESTDIR)$(sysconfdir)/ssh_config; \
 	else \
 		echo "$(DESTDIR)$(sysconfdir)/ssh_config already exists, install will not overwrite"; \
 	fi
-	if [ ! -f $(DESTDIR)$(sysconfdir)/sshd_config ]; then \
+	@if [ ! -f $(DESTDIR)$(sysconfdir)/sshd_config ]; then \
 		$(INSTALL) -m 644 sshd_config.out $(DESTDIR)$(sysconfdir)/sshd_config; \
 	else \
 		echo "$(DESTDIR)$(sysconfdir)/sshd_config already exists, install will not overwrite"; \
 	fi
-	if [ -f ssh_prng_cmds -a ! -z "$(INSTALL_SSH_PRNG_CMDS)" ]; then \
+	@if [ -f ssh_prng_cmds -a ! -z "$(INSTALL_SSH_PRNG_CMDS)" ]; then \
 		$(PERL) $(srcdir)/fixprogs ssh_prng_cmds $(ENT); \
 		if [ ! -f $(DESTDIR)$(sysconfdir)/ssh_prng_cmds ] ; then \
 			$(INSTALL) -m 644 ssh_prng_cmds.out $(DESTDIR)$(sysconfdir)/ssh_prng_cmds; \
@@ -272,7 +270,7 @@ install-files: scard-install
 			echo "$(DESTDIR)$(sysconfdir)/ssh_prng_cmds already exists, install will not overwrite"; \
 		fi ; \
 	fi
-	if [ ! -f $(DESTDIR)$(sysconfdir)/moduli ]; then \
+	@if [ ! -f $(DESTDIR)$(sysconfdir)/moduli ]; then \
 		if [ -f $(DESTDIR)$(sysconfdir)/primes ]; then \
 			echo "moving $(DESTDIR)$(sysconfdir)/primes to $(DESTDIR)$(sysconfdir)/moduli"; \
 			mv "$(DESTDIR)$(sysconfdir)/primes" "$(DESTDIR)$(sysconfdir)/moduli"; \
@@ -284,7 +282,7 @@ install-files: scard-install
 	fi
 
 host-key: ssh-keygen$(EXEEXT)
-	if [ -z "$(DESTDIR)" ] ; then \
+	@if [ -z "$(DESTDIR)" ] ; then \
 		if [ -f "$(DESTDIR)$(sysconfdir)/ssh_host_key" ] ; then \
 			echo "$(DESTDIR)$(sysconfdir)/ssh_host_key already exists, skipping." ; \
 		else \

@@ -1,7 +1,5 @@
-/*	$OpenBSD: scard.h,v 1.11 2002/06/30 21:59:45 deraadt Exp $	*/
-
 /*
- * Copyright (c) 2001 Markus Friedl.  All rights reserved.
+ * Copyright (c) 2002 Damien Miller.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,17 +22,35 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef SCARD_H
-#define SCARD_H
+#include "includes.h"
 
-#include "key.h"
+RCSID("$Id: bsd-getpeereid.c,v 1.1 2002/09/12 00:33:02 djm Exp $");
 
-#define SCARD_ERROR_FAIL	-1
-#define SCARD_ERROR_NOCARD	-2
-#define SCARD_ERROR_APPLET	-3
+#if !defined(HAVE_GETPEEREID)
 
-Key	**sc_get_keys(const char *, const char *);
-void	 sc_close(void);
-int	 sc_put_key(Key *, const char *);
+#if defined(SO_PEERCRED)
+int
+getpeereid(int s, uid_t *euid, gid_t *gid)
+{
+	struct ucred cred;
+	size_t len = sizeof(cred);
 
-#endif
+	if (getsockopt(s, SOL_SOCKET, SO_PEERCRED, &cred, &len) < 0)
+		return (-1);
+	*euid = cred.uid;
+	*gid = cred.gid;
+
+	return (0);
+}
+#else
+int
+getpeereid(int s, uid_t *euid, gid_t *gid)
+{
+	*euid = geteuid();
+	*gid = getgid();
+
+	return (0);
+}
+#endif /* defined(SO_PEERCRED) */
+
+#endif /* !defined(HAVE_GETPEEREID) */
