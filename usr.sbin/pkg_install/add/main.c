@@ -75,7 +75,7 @@ main(int argc, char **argv)
 {
     int ch, error;
     char **start;
-    char *cp, *packagesite, *remotepkg = NULL, *ptr;
+    char *cp, *packagesite = NULL, *remotepkg = NULL, *ptr;
     static char temppackageroot[MAXPATHLEN];
 
     start = argv;
@@ -189,7 +189,8 @@ main(int argc, char **argv)
 		    }
 		}
 	    }
-	    packagesite[0] = '\0';
+	    if (packagesite != NULL)
+		packagesite[0] = '\0';
 	}
     }
     /* If no packages, yelp */
