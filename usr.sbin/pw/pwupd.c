@@ -43,6 +43,7 @@ static const char rcsid[] =
 #include "pwupd.h"
 
 #define HAVE_PWDB_C	1
+#define	HAVE_PWDB_U	1
 
 static char pathpwd[] = _PATH_PWD;
 static char * pwpath = pathpwd;
@@ -92,14 +93,14 @@ pwdb(char *arg,...)
 	args[i] = NULL;
 
 	if ((pid = fork()) == -1)	/* Error (errno set) */
-		i = -1;
+		i = errno;
 	else if (pid == 0) {	/* Child */
 		execv(args[0], args);
 		_exit(1);
 	} else {		/* Parent */
 		waitpid(pid, &i, 0);
-		if ((i = WEXITSTATUS(i)) != 0)
-			errno = EIO;	/* set SOMETHING */
+		if (WEXITSTATUS(i))
+			i = EIO;
 	}
 	return i;
 }
@@ -150,9 +151,12 @@ pw_update(struct passwd * pwd, char const * user, int mode)
 #else
 	{				/* No -C */
 #endif
-		char            pfx[32];
+		char            pfx[PWBUFSZ];
 		char            pwbuf[PWBUFSZ];
-		int             l = sprintf(pfx, "%s:", user);
+		int             l = snprintf(pfx, PWBUFSZ, "%s:", user);
+#ifdef HAVE_PWDB_U
+		int		isrename = strcmp(user, pwd->pw_name);
+#endif
 
 		/*
 		 * Update the passwd file first
@@ -161,18 +165,25 @@ pw_update(struct passwd * pwd, char const * user, int mode)
 			*pwbuf = '\0';
 		else
 			fmtpwentry(pwbuf, pwd, PWF_PASSWD);
-		if ((rc = fileupdate(getpwpath(_PASSWD), 0644, pwbuf, pfx, l, mode)) != 0) {
+
+		rc = fileupdate(getpwpath(_PASSWD), 0644, pwbuf, pfx, l, mode);
+		if (rc == 0) {
 
 			/*
 			 * Then the master.passwd file
 			 */
 			if (pwd != NULL)
 				fmtpwentry(pwbuf, pwd, PWF_MASTER);
-			if ((rc = fileupdate(getpwpath(_MASTERPASSWD), 0644, pwbuf, pfx, l, mode)) != 0) {
-				if (mode == UPD_DELETE)
-					rc = pwdb(NULL) == 0;
+			rc = fileupdate(getpwpath(_MASTERPASSWD), 0644, pwbuf, pfx, l, mode);
+			if (rc == 0) {
+#ifdef HAVE_PWDB_U
+				if (mode == UPD_DELETE || isrename)
+#endif
+					rc = pwdb(NULL);
+#ifdef HAVE_PWDB_U
 				else
-					rc = pwdb("-u", user, NULL) == 0;
+					rc = pwdb("-u", user, NULL);
+#endif
 			}
 		}
 	}

@@ -142,8 +142,9 @@ gr_update(struct group * grp, char const * group, int mode)
 	if (grp != NULL && fmtgrentry(&grbuf, &grbuflen, grp, PWF_PASSWD) == -1)
 		l = -1;
 	else {
-		if ((l = fileupdate(getgrpath(_GROUP), 0644, grbuf, pfx, l, mode)) != 0)
-			l = grdb(NULL) == 0;
+		l = fileupdate(getgrpath(_GROUP), 0644, grbuf, pfx, l, mode);
+		if (l == 0)
+			l = grdb(NULL);
 	}
 	if (grbuf != NULL)
 		free(grbuf);

@@ -44,12 +44,13 @@ static gid_t    gr_gidpolicy(struct userconf * cnf, struct cargs * args);
 int
 pw_group(struct userconf * cnf, int mode, struct cargs * args)
 {
+	int		rc;
 	struct carg    *a_name = getarg(args, 'n');
 	struct carg    *a_gid = getarg(args, 'g');
 	struct carg    *arg;
 	struct group   *grp = NULL;
 	int	        grmembers = 0;
-	char          **members = NULL;
+	char           **members = NULL;
 
 	static struct group fakegroup =
 	{
@@ -59,12 +60,14 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 		NULL
 	};
 
+	if (mode == M_LOCK || mode == M_UNLOCK)
+		errx(EX_USAGE, "'lock' command is not available for groups");
+
 	/*
 	 * With M_NEXT, we only need to return the
 	 * next gid to stdout
 	 */
-	if (mode == M_NEXT)
-	{
+	if (mode == M_NEXT) {
 		gid_t next = gr_gidpolicy(cnf, args);
 		if (getarg(args, 'q'))
 			return next;
@@ -116,8 +119,13 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 		if (mode == M_DELETE) {
 			gid_t           gid = grp->gr_gid;
 
-			if (delgrent(grp) == -1)
-				err(EX_IOERR, "error updating group file");
+			rc = delgrent(grp);
+			if (rc == -1)
+				err(EX_IOERR, "group '%s' not available (NIS?)", grp->gr_name);
+			else if (rc != 0) {
+				warn("group update");
+				return EX_IOERR;
+			}
 			pw_log(cnf, mode, W_GROUP, "%s(%ld) removed", a_name->val, (long) gid);
 			return EXIT_SUCCESS;
 		} else if (mode == M_PRINT)
@@ -231,8 +239,17 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 	if (getarg(args, 'N') != NULL)
 		return print_group(grp, getarg(args, 'P') != NULL);
 
-	if ((mode == M_ADD && !addgrent(grp)) || (mode == M_UPDATE && !chggrent(a_name->val, grp))) {
-		warn("group update");
+	if (mode == M_ADD && (rc = addgrent(grp)) != 0) {
+		if (rc == -1)
+			warnx("group '%s' already exists", grp->gr_name);
+		else
+			warn("group update");
+		return EX_IOERR;
+	} else if (mode == M_UPDATE && (rc = chggrent(a_name->val, grp)) != 0) {
+		if (rc == -1)
+			warnx("group '%s' not available (NIS?)", grp->gr_name);
+		else
+			warn("group update");
 		return EX_IOERR;
 	}
 	/* grp may have been invalidated */
@@ -282,7 +299,8 @@ gr_gidpolicy(struct userconf * cnf, struct cargs * args)
 		 */
 		SETGRENT();
 		while ((grp = GETGRENT()) != NULL)
-			if (grp->gr_gid >= (int) cnf->min_gid && grp->gr_gid <= (int) cnf->max_gid)
+			if ((gid_t)grp->gr_gid >= (gid_t)cnf->min_gid &&
+                            (gid_t)grp->gr_gid <= (gid_t)cnf->max_gid)
 				bm_setbit(&bm, grp->gr_gid - cnf->min_gid);
 		ENDGRENT();
 

@@ -50,6 +50,8 @@ enum _mode
         M_UPDATE,
         M_PRINT,
 	M_NEXT,
+	M_LOCK,
+	M_UNLOCK,
         M_NUM
 };
 

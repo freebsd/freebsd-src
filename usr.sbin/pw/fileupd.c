@@ -71,38 +71,44 @@ extendarray(char ***buf, int * buflen, int needed)
 int
 fileupdate(char const * filename, mode_t fmode, char const * newline, char const * prefix, int pfxlen, int updmode)
 {
-	int             rc = 0;
+	int     rc = 0;
 
 	if (pfxlen <= 1)
-		errno = EINVAL;
+		rc = EINVAL;
 	else {
-		int             infd = open(filename, O_RDWR | O_CREAT, fmode);
+		int    infd = open(filename, O_RDWR | O_CREAT, fmode);
 
-		if (infd != -1) {
-			FILE           *infp = fdopen(infd, "r+");
+		if (infd == -1)
+			rc = errno;
+		else {
+			FILE   *infp = fdopen(infd, "r+");
 
-			if (infp == NULL)
+			if (infp == NULL) {
+				rc = errno;		/* Assumes fopen(3) sets errno from open(2) */
 				close(infd);
-			else {
-				int             outfd;
-				char            file[MAXPATHLEN];
+			} else {
+				int       outfd;
+				char      file[MAXPATHLEN];
 
 				strcpy(file, filename);
 				strcat(file, ".new");
 				outfd = open(file, O_RDWR | O_CREAT | O_TRUNC | O_EXLOCK, fmode);
-				if (outfd != -1) {
-					FILE           *outfp = fdopen(outfd, "w+");
+				if (outfd == -1)
+					rc = errno;
+				else {
+					FILE    *outfp = fdopen(outfd, "w+");
 
-					if (outfp == NULL)
+					if (outfp == NULL) {
+						rc = errno;
 						close(outfd);
-					else {
-						int             updated = UPD_CREATE;
+					} else {
+						int   updated = UPD_CREATE;
 						int		linesize = PWBUFSZ;
-						char           *line = malloc(linesize);
+						char  *line = malloc(linesize);
 
 					nextline:
 						while (fgets(line, linesize, infp) != NULL) {
-							char           *p = strchr(line, '\n');
+							char  *p = strchr(line, '\n');
 
 							while ((p = strchr(line, '\n')) == NULL) {
 								int	l;
@@ -143,7 +149,11 @@ fileupdate(char const * filename, mode_t fmode, char const * newline, char const
 						 * then error
 						 */
 						if (updmode != updated)
-							errno = (updmode == UPD_CREATE) ? EEXIST : ENOENT;
+							/* -1 return means:
+							 * update,delete=no user entry
+							 * create=entry exists
+							 */
+							rc = -1;
 						else {
 
 							/*
@@ -155,9 +165,9 @@ fileupdate(char const * filename, mode_t fmode, char const * newline, char const
 							/*
 							 * Flush the file and check for the result
 							 */
-							rc = fflush(outfp) != EOF;
-							if (rc) {
-
+							if (fflush(outfp) == EOF)
+								rc = errno;	/* Failed to update */
+							else {
 								/*
 								 * Copy data back into the
 								 * original file and truncate
@@ -168,18 +178,16 @@ fileupdate(char const * filename, mode_t fmode, char const * newline, char const
 									fputs(line, infp);
 
 								/*
-                                                                 * If there was a problem with copying
-                                                                 * we will just rename 'file.new' 
-                                                                 * to 'file'.
+								 * If there was a problem with copying
+								 * we will just rename 'file.new' 
+								 * to 'file'.
 								 * This is a gross hack, but we may have
 								 * corrupted the original file
 								 * Unfortunately, it will lose the inode
-                                                                 * and hence the lock.
+								 * and hence the lock.
 								 */
-								if (fflush(infp) == EOF || ferror(infp)) {
-									rc = errno;	/* Preserve errno for return */
+								if (fflush(infp) == EOF || ferror(infp))
 									rename(file, filename);
-								}
 								else
 									ftruncate(infd, ftell(infp));
 							}

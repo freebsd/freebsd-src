@@ -35,16 +35,23 @@ static const char rcsid[] =
 #include <sys/wait.h>
 #include "pw.h"
 
-const char     *Modes[] = {"add", "del", "mod", "show", "next", NULL};
+#if !defined(_PATH_YP)
+#define	_PATH_YP	"/var/yp/"
+#endif
+const char     *Modes[] = {
+  "add", "del", "mod", "show", "next",
+  NULL};
 const char     *Which[] = {"user", "group", NULL};
 static const char *Combo1[] = {
   "useradd", "userdel", "usermod", "usershow", "usernext",
+  "lock", "unlock",
   "groupadd", "groupdel", "groupmod", "groupshow", "groupnext",
   NULL};
 static const char *Combo2[] = {
   "adduser", "deluser", "moduser", "showuser", "nextuser",
+  "lock", "unlock",
   "addgroup", "delgroup", "modgroup", "showgroup", "nextgroup",
-NULL};
+  NULL};
 
 struct pwf PWF =
 {
@@ -102,6 +109,8 @@ main(int argc, char *argv[])
 			"V:C:qn:u:rY",
 			"V:C:qn:u:c:d:e:p:g:G:ml:k:s:w:L:h:FNPY",
 			"V:C:qn:u:FPa7",
+			"V:C:q",
+			"V:C:q",
 			"V:C:q"
 		},
 		{ /* grp  */
@@ -144,14 +153,16 @@ main(int argc, char *argv[])
 			} else
 				break;
 		}
-		else if ((tmp = getindex(Modes, argv[1])) != -1)
+		else if (mode == -1 && (tmp = getindex(Modes, argv[1])) != -1)
 			mode = tmp;
-		else if ((tmp = getindex(Which, argv[1])) != -1)
+		else if (which == -1 && (tmp = getindex(Which, argv[1])) != -1)
 			which = tmp;
-		else if ((tmp = getindex(Combo1, argv[1])) != -1 || (tmp = getindex(Combo2, argv[1])) != -1) {
+		else if ((mode == -1 && which == -1) &&
+			 ((tmp = getindex(Combo1, argv[1])) != -1 ||
+			  (tmp = getindex(Combo2, argv[1])) != -1)) {
 			which = tmp / M_NUM;
 			mode = tmp % M_NUM;
-		} else if (strcmp(argv[1], "help") == 0)
+		} else if (strcmp(argv[1], "help") == 0 && argv[2] == NULL)
 			cmdhelp(mode, which);
 		else if (which != -1 && mode != -1)
 			addarg(&arglist, 'n', argv[1]);
@@ -175,7 +186,7 @@ main(int argc, char *argv[])
 
 	while ((ch = getopt(argc, argv, opts[which][mode])) != -1) {
 		if (ch == '?')
-			errx(EX_USAGE, NULL);
+			errx(EX_USAGE, "unknown switch");
 		else
 			addarg(&arglist, ch, optarg);
 		optarg = NULL;
@@ -272,9 +283,9 @@ static void
 cmdhelp(int mode, int which)
 {
 	if (which == -1)
-		fprintf(stderr, "usage: pw [user|group] [add|del|mod|show|next] [ help | switches/values ]\n");
+		fprintf(stderr, "usage:\n  pw [user|group|lock|unlock] [add|del|mod|show|next] [help|switches/values]\n");
 	else if (mode == -1)
-		fprintf(stderr, "usage: pw %s [add|del|mod|show|next] [ help | switches/values ]\n", Which[which]);
+		fprintf(stderr, "usage:\n  pw %s [add|del|mod|show|next] [help|switches/values]\n", Which[which]);
 	else {
 
 		/*
