@@ -58,7 +58,7 @@
  * to a possibly-modified form that will be invisible to C programs.
  */
 #define CNAME(csym)		csym
-#define HIDENAME(asmsym)	__CONCAT(.,asmsym)
+#define HIDENAME(asmsym)	.asmsym
 
 /* XXX should use .p2align 4,0x90 for -m486. */
 #define _START_ENTRY	.text; .p2align 2,0x90
