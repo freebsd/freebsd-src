@@ -70,6 +70,7 @@
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <sys/param.h>
+#include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/ioccom.h>
 #include <sys/systm.h>
@@ -99,8 +100,10 @@ static char buf[512+1];
 static int len;
 
 int
-mydev_open(dev_t dev, int flag, int otyp, struct proc *procp)
+mydev_open(dev_t dev, int flag, int otyp, struct thread *td)
 {
+    struct proc *procp = td->td_proc;
+
     printf("mydev_open: dev_t=%d, flag=%x, otyp=%x, procp=%p\n",
 	   dev2udev(dev), flag, otyp, procp);
     memset(&buf, '\0', 513);
@@ -109,17 +112,20 @@ mydev_open(dev_t dev, int flag, int otyp, struct proc *procp)
 }
 
 int
-mydev_close(dev_t dev, int flag, int otyp, struct proc *procp)
+mydev_close(dev_t dev, int flag, int otyp, struct thread *td)
 {
+    struct proc *procp = td->td_proc;
+
     printf("mydev_close: dev_t=%d, flag=%x, otyp=%x, procp=%p\n",
 	      dev2udev(dev), flag, otyp, procp);
     return (0);
 }
 
 int
-mydev_ioctl(dev_t dev, u_long cmd, caddr_t arg, int mode, struct proc *procp)
+mydev_ioctl(dev_t dev, u_long cmd, caddr_t arg, int mode, struct thread *td)
 {
     int error = 0;
+    struct proc *procp = td->td_proc;
 
     printf("mydev_ioctl: dev_t=%d, cmd=%lx, arg=%p, mode=%x procp=%p\n",
 	   dev2udev(dev), cmd, arg, mode, procp);
