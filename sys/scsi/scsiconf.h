@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsiconf.h,v 1.35 1995/12/14 19:38:38 bde Exp $
+ *	$Id: scsiconf.h,v 1.36 1995/12/17 21:23:37 phk Exp $
  */
 #ifndef	SCSI_SCSICONF_H
 #define SCSI_SCSICONF_H 1
@@ -300,6 +300,7 @@ struct scsi_link
 	dev_t	dev;			/* Device major number (character) */
 	struct	scsi_data *sd;	/* Device data structure */
 	struct	scsi_inquiry_data inqbuf;	/* Inquiry data */
+	void	*adapter_softc;		/* needed for call to foo_scsi_cmd */
 };
 
 /* XXX-HA: dufault@hda.com: SDEV_BOUNCE is set down in the adapter drivers
