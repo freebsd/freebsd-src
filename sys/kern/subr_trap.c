@@ -90,10 +90,6 @@ userret(td, frame, oticks)
 	mtx_unlock(&Giant);
 #endif
 
-#ifdef MAC
-	mac_thread_userret(td);
-#endif
-
 	/*
 	 * Let the scheduler adjust our priority etc.
 	 */
@@ -184,6 +180,9 @@ ast(struct trapframe *framep)
 	flags = ke->ke_flags;
 	sflag = p->p_sflag;
 	p->p_sflag &= ~(PS_ALRMPEND | PS_NEEDSIGCHK | PS_PROFPEND | PS_XCPU);
+#ifdef MAC
+	p->p_sflag &= ~PS_MACPEND;
+#endif
 	ke->ke_flags &= ~(KEF_ASTPENDING | KEF_NEEDRESCHED | KEF_OWEUPC);
 	cnt.v_soft++;
 	prticks = 0;
@@ -238,6 +237,10 @@ ast(struct trapframe *framep)
 		}
 		PROC_UNLOCK(p);
 	}
+#ifdef MAC
+	if (sflag & PS_MACPEND)
+		mac_thread_userret(td);
+#endif
 	if (flags & KEF_NEEDRESCHED) {
 		mtx_lock_spin(&sched_lock);
 		sched_prio(td, kg->kg_user_pri);
