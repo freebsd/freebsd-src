@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ping.c	8.1 (Berkeley) 6/5/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: ping.c,v 1.39 1998/07/15 06:45:02 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -125,6 +125,9 @@ int options;
 #define	F_MIF		0x1000
 #define	F_AUDIBLE	0x2000
 
+#define NPACKETS	16
+#define MAXUSRPACKETS	100
+
 /*
  * MAX_DUP_CHK is the number of bits in received table, i.e. the maximum
  * number of received sequence numbers we can keep track of.  Change 128
@@ -149,7 +152,7 @@ long npackets;			/* max packets to transmit */
 long nreceived;			/* # of packets we got back */
 long nrepeats;			/* number of duplicates */
 long ntransmitted;		/* sequence # for outbound packets = #sent */
-int interval = 1;		/* interval between packets */
+int interval = 1000;		/* interval between packets, ms */
 
 /* timing */
 int timing;			/* flag to do timing */
@@ -229,12 +232,15 @@ main(argc, argv)
 				    "invalid count of packets to transmit: `%s'",
 				    optarg);
 			npackets = ultmp;
+			if (uid && npackets > MAXUSRPACKETS)
+				errx(EX_USAGE,
+"you cannot send more than %d packets.", MAXUSRPACKETS);
 			break;
 		case 'd':
 			options |= F_SO_DEBUG;
 			break;
 		case 'f':
-			if (getuid()) {
+			if (uid) {
 				errno = EPERM;
 				err(EX_NOPERM, "-f flag");
 			}
@@ -242,12 +248,23 @@ main(argc, argv)
 			setbuf(stdout, (char *)NULL);
 			break;
 		case 'i':		/* wait between sending packets */
-			ultmp = strtoul(optarg, &ep, 0);
-			if (*ep || ep == optarg || ultmp > INT_MAX)
-				errx(EX_USAGE,
-				     "invalid timing interval: `%s'", optarg);
-			options |= F_INTERVAL;
-			interval = ultmp;
+			{
+			    double t = strtod(optarg, &ep) * 1000.0;
+
+			    if (*ep || ep == optarg || t > (double)INT_MAX) {
+				    errx(
+					    EX_USAGE,
+					     "invalid timing interval: `%s'",
+					     optarg
+				    );
+			    }
+			    options |= F_INTERVAL;
+			    interval = (int)t;
+			    if (uid && interval < 1000) {
+				    errno = EPERM;
+				    err(EX_NOPERM, "-i interval too short");
+			    }
+			}
 			break;
 		case 'I':		/* multicast interface */
 			if (inet_aton(optarg, &ifaddr) == 0)
@@ -292,6 +309,10 @@ main(argc, argv)
 			options |= F_SO_DONTROUTE;
 			break;
 		case 's':		/* size of packet to send */
+			if (uid) {
+				errno = EPERM;
+				err(EX_NOPERM, "-s flag");
+			}
 			ultmp = strtoul(optarg, &ep, 0);
 			if (ultmp > MAXPACKET)
 				errx(EX_USAGE, "packet size too large: %lu",
@@ -320,6 +341,12 @@ main(argc, argv)
 	if (argc - optind != 1)
 		usage();
 	target = argv[optind];
+
+	/*
+	 * If not root, infinite packets not allowed.  Limit to NPACKETS.
+	 */
+	if (uid && !npackets)
+		npackets = NPACKETS;
 
 	bzero((char *)&whereto, sizeof(struct sockaddr));
 	to = (struct sockaddr_in *)&whereto;
@@ -477,8 +504,8 @@ main(argc, argv)
 		intvl.tv_sec = 0;
 		intvl.tv_usec = 10000;
 	} else {
-		intvl.tv_sec = interval;
-		intvl.tv_usec = 0;
+		intvl.tv_sec = interval / 1000;
+		intvl.tv_usec = interval % 1000 * 1000;
 	}
 
 	pinger();			/* send the first ping */
