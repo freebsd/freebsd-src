@@ -6,7 +6,7 @@ MAN=	aic.4 alpm.4 amdpm.4 apm.4 ar.4 asc.4 asr.4 \
 	ie.4 io.4 le.4 linux.4 lnc.4 longrun.4 mcd.4 \
 	meteor.4 mse.4 npx.4 \
 	pcf.4 perfmon.4 pnp.4 pnpbios.4 \
-	ray.4 rdp.4 scd.4 \
+	ray.4 rdp.4 smapi.4 scd.4 \
 	spkr.4 sr.4 streams.4 svr4.4 tw.4 \
 	tx.4 viapm.4 vpd.4 vx.4 \
 	wd.4 wl.4 wt.4
