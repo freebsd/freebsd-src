@@ -1,7 +1,7 @@
 /* options.h - specify the conditionally-compiled features
  * vix 28mar92 [moved out of the Makefile because they were getting too big]
  *
- * $Id: options.h,v 1.1.1.1 1995/10/23 09:26:10 peter Exp $
+ * $Id: options.h,v 8.7 1995/12/29 21:08:13 vixie Exp $
  */
 
 /*
@@ -95,7 +95,7 @@
 #define DOTTED_SERIAL	/* if you want to be able to specify dotted serial#s */
 /*#define SENSIBLE_DOTS	/* if you want dotted serial#s to make numeric sense */
 #define NCACHE		/* negative caching (anant@isi.edu) */
-/*#define VALIDATE	/* validation procedure (anant@isi.edu) (DO NOT USE!)*/
+/*#define VALIDATE	/* validation procedure (anant@isi.edu) (BUGGY!) */
 /*#define SHORT_FNAMES	/* file names used in named-xfer need to be short */
 #define RESOLVSORT	/* allow sorting of addresses in gethostbyname (mpa) */
 #define STUBS		/* allow transfers of NS only for a zone (mpa) */
@@ -119,6 +119,7 @@
 #define XSTATS		/* extended statistics, syslogged periodically (bg) */
 /*#define BIND_NOTIFY	/* experimental - do not enable in customer products */
 /*#define LOC_RR	/* support for (draft) LOC record parsing (ckd) */
+#define SORT_RESPONSE	/* should we try to sort responses optimally? (vix) */
 
 /*--------------------------------------------*
  * no user-servicable parts beyond this point *

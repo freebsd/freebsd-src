@@ -1,6 +1,6 @@
 /*
  *	from ns.h	4.33 (Berkeley) 8/23/90
- *	$Id: ns_glob.h,v 1.1.1.3 1995/10/23 09:26:16 peter Exp $
+ *	$Id: ns_glob.h,v 8.6 1995/12/22 10:20:30 vixie Exp $
  */
 
 /*
@@ -108,6 +108,9 @@ DECL	int			cache_interval	INIT(60*60);
 DECL	int			stats_interval	INIT(60*60);
 #endif
 
+	/* need to process finished zone transfers */
+DECL	int			needendxfer	INIT(0);
+
 	/* need to reload secondary zone(s) */
 DECL	int			needzoneload	INIT(0);
 
@@ -142,8 +145,11 @@ DECL	int			needToExit	INIT(0);
 DECL	int			qrylog		INIT(0);
 #endif /*QRYLOG*/
 
-	/* is this a root server that should therefore not recurse? */
+	/* should this server not recurse? */
 DECL	int			NoRecurse	INIT(0);
+
+	/* should this server never fetch glue? */
+DECL	int			NoFetchGlue	INIT(0);
 
 /*
  * We keep a list of favored networks headed by nettab.

@@ -9,17 +9,19 @@ USAGE='echo \
 PATH=%DESTSBIN%:/bin:/usr/bin:/usr/ucb:$PATH
 PIDFILE=%PIDDIR%/named.pid
 
-[ -f $PIDFILE ] || {
-	echo "$0: $PIDFILE does not exist"
-	exit 1
-}
-PID=`cat $PIDFILE`
-PS=`%PS% $PID | tail -1 | grep $PID`
-RUNNING=1
-[ `echo $PS | wc -w` -ne 0 ] || {
-	PS="named (pid $PID?) not running"
+if [ -f $PIDFILE ]
+then
+	PID=`cat $PIDFILE`
+	PS=`%PS% $PID | tail -1 | grep $PID`
+	RUNNING=1
+	[ `echo $PS | wc -w` -ne 0 ] || {
+		PS="named (pid $PID?) not running"
+		RUNNING=0
+	}
+else
+	PS="named (no pid file) not running"
 	RUNNING=0
-}
+fi
 
 for ARG
 do
@@ -46,7 +48,11 @@ do
 			echo "$0: start: named (pid $PID) already running"
 			continue
 		}
-		%INDOT%named && echo Name Server Started
+		rm -f $PIDFILE
+		%INDOT%named && {
+			sleep 5
+			echo Name Server Started
+		}
 		;;
 	stop)
 		[ $RUNNING -eq 0 ] && {
@@ -55,6 +61,7 @@ do
 		}
 		kill $PID && {
 			sleep 5
+			rm -f $PIDFILE
 			echo Name Server Stopped
 		}
 		;;
@@ -62,7 +69,11 @@ do
 		[ $RUNNING -eq 1 ] && {
 			kill $PID && sleep 5
 		}
-		%INDOT%named && echo Name Server Restarted
+		rm -f $PIDFILE
+		%INDOT%named && {
+			sleep 5
+			echo Name Server Restarted
+		}
 		;;
 	*)	eval "$USAGE";;
 	esac

@@ -1,6 +1,6 @@
 /*
  *	from ns.h	4.33 (Berkeley) 8/23/90
- *	$Id: ns_defs.h,v 8.2 1995/06/19 20:55:40 vixie Exp $
+ *	$Id: ns_defs.h,v 8.4 1995/12/22 10:20:30 vixie Exp $
  */
 
 /*
@@ -102,8 +102,16 @@
 #define	BETA	 1.2	/* How much to penalize response time on failure */
 #define	GAMMA	 0.98	/* How much to decay unused response times */
 
+#define	USE_MINIMUM	0xffffffff
+
 	/* sequence-space arithmetic */
 #define SEQ_GT(a,b)	((int32_t)((a)-(b)) > 0)
+
+	/* wildcard predicate */
+#define WILDCARD_P(str) (str[0] == '*' && str[1] == '\0')
+
+	/* cheap garbage collection */
+#define	FREE_ONCE(p) { if (p) { free(p); p = NULL; } }
 
 /* these fields are ordered to maintain word-alignment;
  * be careful about changing them.
@@ -167,6 +175,8 @@ struct notify {
 #define	Z_DYNADDONLY	0x0800		/* dynamic mode: add new data only */
 #define	Z_CHANGED	0x1000		/* zone has changed */
 #endif /* ALLOW_UPDATES */
+#define	Z_XFER_ABORTED	0x2000		/* zone transfer has been aborted */
+#define	Z_XFER_GONE	0x4000		/* zone transfer process is gone */
 
 	/* named_xfer exit codes */
 #define	XFER_UPTODATE	0		/* zone is up-to-date */
@@ -217,7 +227,7 @@ struct qinfo {
 	int16_t		q_nqueries;	/* # of queries required */
 	struct qstream	*q_stream;	/* TCP stream, null if UDP */
 	struct zoneinfo	*q_zquery;	/* Zone query is about (Q_ZSERIAL) */
-#ifdef LAME_DELEGATION
+#if defined(LAME_DELEGATION) || defined(VALIDATE)
 	char    q_domain[MAXDNAME];	/* domain for servers we are querying */
 #endif
 #ifdef BIND_NOTIFY

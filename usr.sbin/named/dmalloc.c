@@ -3,7 +3,7 @@
  * vix 24mar92 [added size calcs, improved printout]
  * vix 22mar92 [original work]
  *
- * $Id: dmalloc.c,v 8.1 1994/12/15 06:24:14 vixie Exp $
+ * $Id: dmalloc.c,v 8.2 1995/12/06 20:34:38 vixie Exp $
  */
 
 /*
@@ -198,6 +198,8 @@ dmalloc(file, line, size)
 
 	c = findCaller(&Callers, file, line, TRUE);
 	d = (datum *) malloc(sizeof(datum) + size);
+	if (!d)
+		return (NULL);
 	d->size = size;
 	d->caller = ((char *)c) - memory;
 	c->calls++;

@@ -55,7 +55,7 @@
 
 #ifndef lint
 static char sccsid[] = "@(#)getinfo.c	5.26 (Berkeley) 3/21/91";
-static char rcsid[] = "$Id: getinfo.c,v 8.1 1994/12/15 06:24:31 vixie Exp $";
+static char rcsid[] = "$Id: getinfo.c,v 8.3 1995/12/29 07:16:27 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -573,6 +573,7 @@ GetHostInfoByName(nsAddrPtr, queryClass, queryType, name, hostPtr, isServer)
     register char	*cp, **domain;
     Boolean		got_nodata = FALSE;
     struct in_addr	ina;
+    Boolean		tried_as_is = FALSE;
 
     /* Catch explicit addresses */
     if ((queryType == T_A) && IsAddr(name, &ina)) {
@@ -598,6 +599,21 @@ GetHostInfoByName(nsAddrPtr, queryClass, queryType, name, hostPtr, isServer)
 	    return (GetHostDomain(nsAddrPtr, queryClass, queryType,
 		    cp, (char *)NULL, hostPtr, isServer));
     }
+
+    /*
+     * If there are dots in the name already, let's just give it a try
+     * 'as is'.  The threshold can be set with the "ndots" option.
+     */
+    if (n >= (int)_res.ndots) {
+	    result = GetHostDomain(nsAddrPtr, queryClass, queryType,
+				   name, (char *)NULL, hostPtr, isServer);
+            if (result == SUCCESS)
+	        return (result);
+	    if (result == NO_INFO)
+		got_nodata++;
+            tried_as_is++;
+    }
+
     /*
      * We do at least one level of search if
      *	- there is no dot and RES_DEFNAME is set, or
@@ -628,17 +644,16 @@ GetHostInfoByName(nsAddrPtr, queryClass, queryType, name, hostPtr, isServer)
 	    if ((result != NXDOMAIN && result != NO_INFO) ||
 		(_res.options & RES_DNSRCH) == 0)
 		    break;
-    }
-    /*
-     * If the search/default failed, try the name as fully-qualified,
-     * but only if it contained at least one dot (even trailing).
-     * This is purely a heuristic; we assume that any reasonable query
-     * about a top-level domain (for servers, SOA, etc) will not use
-     * res_search.
+	}
+    /* if we have not already tried the name "as is", do that now.
+     * note that we do this regardless of how many dots were in the
+     * name or whether it ends with a dot.
      */
-    if (n && (result = GetHostDomain(nsAddrPtr, queryClass, queryType,
-		    name, (char *)NULL, hostPtr, isServer)) == SUCCESS)
-	    return result;
+    if (!tried_as_is &&
+	(result = GetHostDomain(nsAddrPtr, queryClass, queryType,
+				name, (char *)NULL, hostPtr, isServer)
+	 ) == SUCCESS)
+	    return (result);
     if (got_nodata)
 	result = NO_INFO;
     return (result);

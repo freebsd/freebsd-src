@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)ns_init.c	4.38 (Berkeley) 3/21/91";
-static char rcsid[] = "$Id: ns_init.c,v 1.1.1.3 1995/10/23 09:26:17 peter Exp $";
+static char rcsid[] = "$Id: ns_init.c,v 8.12 1995/12/29 07:16:18 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -69,7 +69,6 @@ static char rcsid[] = "$Id: ns_init.c,v 1.1.1.3 1995/10/23 09:26:17 peter Exp $"
 #include <stdio.h>
 #include <errno.h>
 #include <ctype.h>
-#include <assert.h>
 
 #include "named.h"
 
@@ -101,7 +100,8 @@ ns_refreshtime(zp, timebase)
 	struct zoneinfo	*zp;
 	time_t		timebase;
 {
-	register time_t	half = ((zp->z_refresh + 1) / 2);
+	u_long refresh = (zp->z_refresh > 0) ? zp->z_refresh : INIT_REFRESH;
+	time_t half = (refresh + 1) / 2;
 
 	zp->z_time = timebase + half + (rand() % half);
 }
@@ -238,6 +238,8 @@ boot_read(filename, includefile)
 
 	if ((fp = fopen(filename, "r")) == NULL) {
 		syslog(LOG_ERR, "%s: %m", filename);
+		if (includefile)
+			return;
 		exit(1);
 	}
 
@@ -246,7 +248,7 @@ boot_read(filename, includefile)
 
 	while (!feof(fp) && !ferror(fp)) {
 		/* read named.boot keyword and process args */
-		if (!getword(buf, sizeof(buf), fp)) {
+		if (!getword(buf, sizeof(buf), fp, 0)) {
 			/*
 			 * This is a blank line, a commented line, or the
 			 * '\n' of the previous line.
@@ -254,7 +256,7 @@ boot_read(filename, includefile)
 			continue;
 		}
 		if (strcasecmp(buf, "directory") == 0) {
-			(void) getword(buf, sizeof(buf), fp);
+			(void) getword(buf, sizeof(buf), fp, 0);
 			if (chdir(buf) < 0) {
 				syslog(LOG_CRIT, "directory %s: %m\n",
 					buf);
@@ -268,11 +270,11 @@ boot_read(filename, includefile)
 			max_xfers_running = getnum(fp, filename, GETNUM_NONE);
 			continue;
 		} else if (strcasecmp(buf, "limit") == 0) {
-			(void) getword(buf, sizeof(buf), fp);
+			(void) getword(buf, sizeof(buf), fp, 0);
 			ns_limit(buf, getnum(fp, filename, GETNUM_SCALED));
 			continue;
 		} else if (strcasecmp(buf, "options") == 0) {
-			while (getword(buf, sizeof(buf), fp))
+			while (getword(buf, sizeof(buf), fp, 0))
 				ns_option(buf);
 			continue;
 		} else if (strcasecmp(buf, "forwarders") == 0) {
@@ -294,12 +296,12 @@ boot_read(filename, includefile)
 #endif
 #ifdef LOCALDOM
 		} else if (strcasecmp(buf, "domain") == 0) {
-			if (getword(buf, sizeof(buf), fp))
+			if (getword(buf, sizeof(buf), fp, 1))
 				localdomain = savestr(buf);
 			continue;
 #endif
 		} else if (strcasecmp(buf, "include") == 0) {
-			if (getword(buf, sizeof(buf), fp))
+			if (getword(buf, sizeof(buf), fp, 0))
 				boot_read(buf, 1);
 			continue;
 		} else if (strncasecmp(buf, "cache", 5) == 0) {
@@ -351,7 +353,7 @@ boot_read(filename, includefile)
 		/*
 		 * read zone origin
 		 */
-		if (!getword(obuf, sizeof(obuf), fp)) {
+		if (!getword(obuf, sizeof(obuf), fp, 1)) {
 			syslog(LOG_NOTICE, "%s: line %d: missing origin\n",
 			    filename, lineno);
 			continue;
@@ -367,7 +369,7 @@ boot_read(filename, includefile)
 		/*
 		 * Read source file or host address.
 		 */
-		if (!getword(buf, sizeof(buf), fp)) {
+		if (!getword(buf, sizeof(buf), fp, 0)) {
 			syslog(LOG_NOTICE, "%s: line %d: missing %s\n",
 				filename, lineno, 
 #ifdef STUBS
@@ -404,7 +406,7 @@ boot_read(filename, includefile)
 			    zp = (struct zoneinfo *)
 				malloc((64 + nzones)
 				       * sizeof(struct zoneinfo));
-			    if (zp == (struct zoneinfo *)0) {
+			    if (!zp) {
 				    syslog(LOG_NOTICE,
 					   "no memory for more zones");
 				    endline(fp);
@@ -431,7 +433,7 @@ boot_read(filename, includefile)
 			source = savestr(buf);
 			dprintf(1, (ddt, ", source = %s\n", source));
 			zp->z_refresh = 0;	/* by default, no dumping */
-			if (getword(buf, sizeof(buf), fp)) {
+			if (getword(buf, sizeof(buf), fp, 0)) {
 #ifdef notyet
 				zp->z_refresh = atoi(buf);
 				if (zp->z_refresh <= 0) {
@@ -481,7 +483,7 @@ boot_read(filename, includefile)
 		case Z_PRIMARY:
 			source = savestr(buf);
 #ifdef ALLOW_UPDATES
-			if (getword(buf, sizeof(buf), fp)) {
+			if (getword(buf, sizeof(buf), fp, 0)) {
 				endline(fp);
 				flag = buf;
 				while (flag) {
@@ -564,7 +566,7 @@ boot_read(filename, includefile)
 					dprintf(1, (ddt,
 						    "\nns.h NSMAX reached\n"));
 				}
-			} while (getword(buf, sizeof(buf), fp));
+			} while (getword(buf, sizeof(buf), fp, 0));
 			dprintf(1, (ddt, "addrcnt = %d\n", zp->z_addrcnt));
 			if (!source) {
 				/*
@@ -610,7 +612,8 @@ boot_read(filename, includefile)
 				** Force secondary to try transfer right away 
 				** after SIGHUP.
 				*/
-				if (reloading) {
+				if (!(zp->z_flags & (Z_QSERIAL|Z_XFER_RUNNING))
+				    && reloading) {
 					zp->z_time = tt.tv_sec;
 					needmaint = 1;
 				}
@@ -666,8 +669,10 @@ zoneinit(zp)
 		 */
 		zp->z_refresh = INIT_REFRESH;
 		zp->z_retry = INIT_REFRESH;
-		zp->z_time = tt.tv_sec;
-		needmaint = 1;
+		if (!(zp->z_flags & (Z_QSERIAL|Z_XFER_RUNNING))) {
+			zp->z_time = tt.tv_sec;
+			needmaint = 1;
+		}
 	} else {
 		zp->z_flags |= Z_AUTH;
 	}
@@ -706,6 +711,8 @@ findzone(dname, class)
 				   string as the zone name */
 	dZoneNameLen = strlen(dZoneName);
 	for (zoneNum = 1; zoneNum < nzones; zoneNum++) {
+		if (zones[zoneNum].z_type == Z_NIL)
+			continue;
 		zoneName = (zones[zoneNum]).z_origin;
 		zoneNameLen = strlen(zoneName);
 		/* The zone name may or may not end with a '.' */
@@ -764,12 +771,15 @@ get_forwarders(fp)
 	}
 #endif /* SLAVE_FORWARD */
 
-	while (getword(buf, sizeof(buf), fp)) {
+	while (getword(buf, sizeof(buf), fp, 0)) {
 		if (strlen(buf) == 0)
 			break;
 		dprintf(1, (ddt," %s",buf));
-		if (ftp == NULL)
+		if (!ftp) {
 			ftp = (struct fwdinfo *)malloc(sizeof(struct fwdinfo));
+			if (!ftp)
+				panic(errno, "malloc(fwdinfo)");
+		}
 		if (inet_aton(buf, &ftp->fwdaddr.sin_addr)) {
 			ftp->fwdaddr.sin_port = ns_port;
 			ftp->fwdaddr.sin_family = AF_INET;
@@ -930,6 +940,8 @@ ns_option(name)
 {
 	if (!strcasecmp(name, "no-recursion")) {
 		NoRecurse = 1;
+	} else if (!strcasecmp(name, "no-fetch-glue")) {
+		NoFetchGlue = 1;
 #ifdef QRYLOG
 	} else if (!strcasecmp(name, "query-log")) {
 		qrylog = 1;

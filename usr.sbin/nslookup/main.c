@@ -61,7 +61,7 @@ char copyright[] =
 
 #ifndef lint
 static char sccsid[] = "@(#)main.c	5.42 (Berkeley) 3/3/91";
-static char rcsid[] = "$Id: main.c,v 8.1 1994/12/15 06:24:31 vixie Exp $";
+static char rcsid[] = "$Id: main.c,v 8.2 1995/12/22 10:20:42 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -103,7 +103,7 @@ static char rcsid[] = "$Id: main.c,v 8.1 1994/12/15 06:24:31 vixie Exp $";
  */
 
 #ifndef ROOT_SERVER
-#define		ROOT_SERVER "ns.internic.net."
+#define		ROOT_SERVER "a.root-servers.net."
 #endif
 char		rootServerName[NAME_LEN] = ROOT_SERVER;
 

@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)ns_resp.c	4.65 (Berkeley) 3/3/91";
-static char rcsid[] = "$Id: ns_resp.c,v 1.1.1.3 1995/10/23 09:26:24 peter Exp $";
+static char rcsid[] = "$Id: ns_resp.c,v 8.18 1995/12/29 21:08:13 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -77,6 +77,7 @@ static void		check_root __P((void)),
 static u_int8_t		norootlogged[MAXCLASS];	/* XXX- should be a bitmap */
 
 static const char	skipnameFailedAnswer[] = "skipname failed in answer",
+			skipnameFailedAuth[] =	"skipname failed in authority",
 			skipnameFailedQuery[] =	"skipname failed in query",
 			outofDataQuery[] =	"ran out of data in query",
 			outofDataAnswer[] =	"ran out of data in answer",
@@ -86,6 +87,7 @@ static const char	skipnameFailedAnswer[] = "skipname failed in answer",
 			expandFailedAuth[] =	"dn_expand failed in authority",
 			outofDataAuth[] =	"ran out of data in authority",
 			dlenOverrunAnswer[] =	"dlen overrun in answer",
+			dlenOverrunAuth[] =	"dlen overrun in authority",
 			dlenUnderrunAnswer[] =	"dlen underrun in answer",
 			outofDataFinal[] =	"out of data in final pass",
 			outofDataAFinal[] =	"out of data after final pass",
@@ -155,14 +157,14 @@ learntFrom(qp, server)
 #else
 # define LEARNTFROM " '%s'"
 #endif
-	if (buf = malloc(strlen(a = (*a ? a : "\".\"")) +
-			 strlen(ns = (*ns ? ns : "\".\"")) +
-			 strlen(na = (*na ? na : "\".\"")) +
-			 sizeof(LEARNTFROM))) {
-		sprintf(buf, LEARNTFROM, na, a, ns);
-		return (buf);
-	}
-	return("");
+	buf = malloc(strlen(a = (*a ? a : "\".\"")) +
+		     strlen(ns = (*ns ? ns : "\".\"")) +
+		     strlen(na = (*na ? na : "\".\"")) +
+		     sizeof(LEARNTFROM));
+	if (!buf)
+		return ("");
+	sprintf(buf, LEARNTFROM, na, a, ns);
+	return (buf);
 }
 
 void
@@ -176,17 +178,19 @@ ns_resp(msg, msglen)
 	register struct databuf *ns, *ns2;
 	register u_char *cp;
 	u_char *eom = msg + msglen;
-#ifdef VALIDATE
 	register u_char *tempcp;
+#ifdef VALIDATE
 	struct sockaddr_in *server = &from_addr;
-	int *validatelist;
-	int lesscount, old_ancount;
+	struct { char *name; int type, class; u_int cred; } defer_rm[99];
+	int defer_rm_count;
 #endif
 	struct sockaddr_in *nsa;
-	struct databuf *nsp[NSMAX], **nspp;
+	struct databuf *nsp[NSMAX];
 	int i, c, n, qdcount, ancount, aucount, nscount, arcount;
 	int qtype, qclass, dbflags;
-	int cname = 0; /* flag for processing cname response */
+	int restart;	/* flag for processing cname response */
+	int validanswer;
+	int cname;
 	int count, founddata, foundname;
 	int buflen;
 	int newmsglen;
@@ -194,7 +198,7 @@ ns_resp(msg, msglen)
 	char *dname;
 	const char *fname;
 	const char *formerrmsg = "brain damage";
-	u_char newmsg[BUFSIZ];
+	u_char newmsg[PACKETSZ];
 	u_char **dpp, *tp;
 	time_t rtrip;
 	struct hashbuf *htp;
@@ -264,7 +268,7 @@ ns_resp(msg, msglen)
 		qclass = 0;
 	}
 
-	/* cp now points after the query section (if there was one). */
+	/* cp now points after the query section. */
 
 	/*
 	 *  Here we handle bad responses from servers.
@@ -276,11 +280,6 @@ ns_resp(msg, msglen)
 	 *  this server and immediately force a retry.
 	 */
 	if ((hp->rcode != NOERROR && hp->rcode != NXDOMAIN)
-#ifndef NCACHE
-	    || (hp->rcode == NXDOMAIN && !hp->aa) /* must accept this one if
-						   * we allow negative caching
-						   */
-#endif
 	    || (hp->opcode != QUERY
 #ifdef BIND_NOTIFY
 		&& hp->opcode != NS_NOTIFY_OP
@@ -301,12 +300,13 @@ ns_resp(msg, msglen)
 		}
 		/* mark server as bad */
 		if (!qp->q_fwd)
-		    for (i = 0; i < (int)qp->q_naddr; i++)
-			if (qp->q_addr[i].ns_addr.sin_addr.s_addr
-			    == from_addr.sin_addr.s_addr)
-				qp->q_addr[i].nretry = MAXRETRY;
-		/* XXX - doesn't handle responses sent from the wrong
-		 * interface on a multihomed server
+			for (i = 0; i < (int)qp->q_naddr; i++)
+				if (qp->q_addr[i].ns_addr.sin_addr.s_addr
+				    == from_addr.sin_addr.s_addr)
+					qp->q_addr[i].nretry = MAXRETRY;
+		/*
+		 * XXX:	doesn't handle responses sent from the wrong
+		 *	interface on a multihomed server.
 		 */
 		if (qp->q_fwd ||
 		    qp->q_addr[qp->q_curaddr].ns_addr.sin_addr.s_addr
@@ -320,6 +320,188 @@ ns_resp(msg, msglen)
 		formerrmsg = notSingleQuery;
 		goto formerr;
 	}
+
+#ifdef ALLOW_UPDATES
+	if ( (hp->rcode == NOERROR) &&
+	     (hp->opcode == UPDATEA || hp->opcode == UPDATED ||
+	      hp->opcode == UPDATEDA || hp->opcode == UPDATEM ||
+	      hp->opcode == UPDATEMA) ) {
+		/*
+		 * Update the secondary's copy, now that the primary
+		 * successfully completed the update.  Zone doesn't matter
+		 * for dyn. update -- doupdate calls findzone to find it
+		 */
+		/* XXX - DB_C_AUTH may be wrong */
+		(void) doupdate(qp->q_msg, qp->q_msglen, qp->q_msg + HFIXEDSZ,
+				0, (struct databuf *)0, 0, DB_C_AUTH);
+		dprintf(3, (ddt, "resp: leaving, UPDATE*\n"));
+		/* return code filled in by doupdate */
+		goto return_msg;
+	}
+#endif /* ALLOW_UPDATES */
+
+	/*
+	 * Determine if the response came from a forwarder.  Packets from
+	 * anyplace not listed as a forwarder or as a server to whom we
+	 * might have forwarded the query will be dropped.
+	 */
+	for (fwd = fwdtab;  fwd != (struct fwdinfo *)NULL;  fwd = fwd->next) {
+		if (fwd->fwdaddr.sin_addr.s_addr ==
+		    from_addr.sin_addr.s_addr) {
+			/* XXX - should put this in STATS somewhere. */
+			break;
+		}
+	}
+	/*
+	 * XXX:	note bad ambiguity here.  if one of our forwarders is also
+	 *	a delegated server for some domain, then we will not update
+	 *	the RTT information on any replies we get from those servers.
+	 *	Workaround: disable recursion on authoritative servers so that
+	 *	the ambiguity does not arise.
+	 */
+	/*
+	 * If we weren't using a forwarder, find the qinfo pointer and update
+	 * the rtt and fact that we have called on this server before.
+	 */
+	if (fwd == (struct fwdinfo *)NULL) {
+		struct timeval *stp;
+
+		for (n = 0, qs = qp->q_addr; (u_int)n < qp->q_naddr; n++, qs++)
+			if (qs->ns_addr.sin_addr.s_addr ==
+			    from_addr.sin_addr.s_addr)
+				break;
+		if ((u_int)n >= qp->q_naddr) {
+			if (!haveComplained((char*)from_addr.sin_addr.s_addr,
+					    "unexpected source")) {
+				syslog(LOG_INFO,
+				       "Response from unexpected source (%s)",
+				       sin_ntoa(&from_addr));
+			}
+			/* 
+			 * We don't know who this response came from so it
+			 * gets dropped on the floor.
+			 */
+			return;
+		}
+		stp = &qs->stime;
+
+		/* Handle response from different (untried) interface */
+		if ((qs->ns != NULL) && (stp->tv_sec == 0)) {
+			ns = qs->ns;
+			while (qs > qp->q_addr
+			       && (qs->stime.tv_sec == 0 || qs->ns != ns))
+				qs--;
+			*stp = qs->stime;
+			/* XXX - sometimes stp still ends up pointing to
+			 * a zero timeval, in spite of the above attempt.
+			 * Why?  What should we do about it?
+			 */
+			dprintf(1, (ddt,
+			      "Response from unused address %s, assuming %s\n",
+				    sin_ntoa(&from_addr),
+				    sin_ntoa(&qs->ns_addr)));
+			/* XXX - catch aliases here */
+		}
+
+		/* compute query round trip time */
+		/* XXX - avoid integer overflow, which is quite likely if stp
+		 * points to a zero timeval (see above).
+		 * rtrip is of type time_t, which we assume is at least
+		 * as big as an int.
+		 */
+		if ((tt.tv_sec - stp->tv_sec) > (INT_MAX-999)/1000) {
+			rtrip = INT_MAX;
+		} else {
+			rtrip = ((tt.tv_sec - stp->tv_sec) * 1000 +
+				 (tt.tv_usec - stp->tv_usec) / 1000);
+		}
+		
+		dprintf(3, (ddt, "stime %lu/%lu  now %lu/%lu rtt %ld\n",
+			    (u_long)stp->tv_sec, (u_long)stp->tv_usec,
+			    (u_long)tt.tv_sec, (u_long)tt.tv_usec,
+			    (long)rtrip));
+
+		/* prevent floating point overflow, limit to 1000 sec */
+		if (rtrip > 1000000) {
+			rtrip = 1000000;
+		}
+		ns = qs->nsdata;
+		/*
+		 * Don't update nstime if this doesn't look
+		 * like an address databuf now.			XXX
+		 */
+		if (ns && (ns->d_type==T_A) && (ns->d_class==qs->ns->d_class)){
+			if (ns->d_nstime == 0)
+				ns->d_nstime = (u_int32_t)rtrip;
+			else
+				ns->d_nstime = (u_int32_t)
+						(ns->d_nstime * ALPHA 
+						 +
+						 (1-ALPHA) * (u_int32_t)rtrip);
+			/* prevent floating point overflow,
+			 * limit to 1000 sec
+			 */
+			if (ns->d_nstime > 1000000)
+				ns->d_nstime = 1000000;
+		}
+
+		/*
+		 * Record the source so that we do not use this NS again.
+		 */
+		if (ns && qs->ns && (qp->q_nusedns < NSMAX)) {
+			qp->q_usedns[qp->q_nusedns++] = qs->ns;
+			dprintf(2, (ddt, "NS #%d addr %s used, rtt %d\n",
+				    n, sin_ntoa(&qs->ns_addr),
+				    ns->d_nstime));
+		}
+
+		/*
+		 * Penalize those who had earlier chances but failed
+		 * by multiplying round-trip times by BETA (>1).
+		 * Improve nstime for unused addresses by applying GAMMA.
+		 * The GAMMA factor makes unused entries slowly
+		 * improve, so they eventually get tried again.
+		 * GAMMA should be slightly less than 1.
+		 * Watch out for records that may have timed out
+		 * and are no longer the correct type.			XXX
+		 */
+		
+		for (n = 0, qs = qp->q_addr;
+		     (u_int)n < qp->q_naddr;
+		     n++, qs++) {
+			ns2 = qs->nsdata;
+			if ((!ns2) || (ns2 == ns))
+				continue;
+			if (ns2->d_type != T_A ||
+			    ns2->d_class != qs->ns->d_class)	/* XXX */
+				continue;
+			if (qs->stime.tv_sec) {
+			    if (ns2->d_nstime == 0)
+				ns2->d_nstime = (u_int32_t)(rtrip * BETA);
+			    else
+				ns2->d_nstime = (u_int32_t)(
+				    ns2->d_nstime * BETA + (1-ALPHA) * rtrip
+				);
+			    if (ns2->d_nstime > 1000000)
+				ns2->d_nstime = 1000000;
+			} else
+			    ns2->d_nstime = (u_int32_t)(ns2->d_nstime * GAMMA);
+			dprintf(2, (ddt, "NS #%d %s rtt now %d\n", n,
+				    sin_ntoa(&qs->ns_addr),
+				    ns2->d_nstime));
+		}
+	}
+
+#ifdef BIND_NOTIFY
+	/* for now, NOTIFY isn't defined for ANCOUNT!=0, AUCOUNT!=0,
+	 * or ADCOUNT!=0.  therefore the only real work to be done for
+	 * a NOTIFY-QR is to remove it from the query queue.
+	 */
+	if (hp->opcode == NS_NOTIFY_OP) {
+		qremove(qp);
+		return;
+	}
+#endif
 
 #ifdef LAME_DELEGATION
 	/*
@@ -378,14 +560,13 @@ ns_resp(msg, msglen)
 					qp->q_addr[i].nretry = MAXRETRY;
 #ifdef LAME_LOGGING
 			if (class == C_IN &&
-			    !haveComplained((char*)nhash(inet_etoa(&from_addr)),
+			    !haveComplained((char*)nhash(sin_ntoa(&from_addr)),
 					    (char*)nhash(qp->q_domain)))
 				syslog(LAME_LOGGING,
-				"Lame server on '%s' (in '%s'?): %s%s\n",
+				      "Lame server on '%s' (in '%s'?): %s%s\n",
 				       qname, qp->q_domain, 
-				       inet_etoa(&from_addr),
-				       learntFrom(qp, &from_addr)
-					);
+				       sin_ntoa(&from_addr),
+				       learntFrom(qp, &from_addr));
 
 #endif /* LAME_LOGGING */
 			/* XXX - doesn't handle responses sent from the wrong
@@ -399,248 +580,6 @@ ns_resp(msg, msglen)
 		}
 	}
 #endif /* LAME_DELEGATION */
-
-#ifdef ALLOW_UPDATES
-	if ( (hp->rcode == NOERROR) &&
-	     (hp->opcode == UPDATEA || hp->opcode == UPDATED ||
-	      hp->opcode == UPDATEDA || hp->opcode == UPDATEM ||
-	      hp->opcode == UPDATEMA) ) {
-		/*
-		 * Update the secondary's copy, now that the primary
-		 * successfully completed the update.  Zone doesn't matter
-		 * for dyn. update -- doupdate calls findzone to find it
-		 */
-		/* XXX - DB_C_AUTH may be wrong */
-		(void) doupdate(qp->q_msg, qp->q_msglen, qp->q_msg + HFIXEDSZ,
-				0, (struct databuf *)0, 0, DB_C_AUTH);
-		dprintf(3, (ddt, "resp: leaving, UPDATE*\n"));
-		/* return code filled in by doupdate */
-		goto return_msg;
-	}
-#endif /* ALLOW_UPDATES */
-
-	/*
-	 * Determine if the response came from a forwarder.  Packets from
-	 * anyplace not listed as a forwarder or as a server to whom we
-	 * might have forwarded the query will be dropped.
-	 */
-	for (fwd = fwdtab;  fwd != (struct fwdinfo *)NULL;  fwd = fwd->next) {
-		if (fwd->fwdaddr.sin_addr.s_addr ==
-		    from_addr.sin_addr.s_addr) {
-			/* XXX - should put this in STATS somewhere */
-			break;
-		}
-	}
-	/* XXX:	note bad ambiguity here.  if one of our forwarders is also
-	 *	a delegated server for some domain, then we will not update
-	 *	the RTT information on any replies we get from those servers.
-	 *	Workaround: disable recursion on authoritative servers so that
-	 *	the ambiguity does not arise.
-	 */
-	/*
-	 * If we weren't using a forwarder, find the qinfo pointer and update
-	 * the rtt and fact that we have called on this server before.
-	 */
-	if (fwd == (struct fwdinfo *)NULL) {
-		struct timeval *stp;
-
-		for (n = 0, qs = qp->q_addr; (u_int)n < qp->q_naddr; n++, qs++)
-			if (qs->ns_addr.sin_addr.s_addr ==
-			    from_addr.sin_addr.s_addr)
-				break;
-		if ((u_int)n >= qp->q_naddr) {
-			if (!haveComplained((char*)from_addr.sin_addr.s_addr,
-					    "unexpected source")) {
-				syslog(LOG_INFO,
-				       "Response from unexpected source (%s)",
-				       inet_etoa(&from_addr));
-			}
-			/* 
-			 * We don't know who this response came from so it
-			 * gets dropped on the floor.
-			 */
-			return;
-		}
-		stp = &qs->stime;
-
-		/* Handle response from different (untried) interface */
-		if ((qs->ns != NULL) && (stp->tv_sec == 0)) {
-			ns = qs->ns;
-			while (qs > qp->q_addr &&
-			    (qs->stime.tv_sec == 0 || qs->ns != ns))
-				qs--;
-			*stp = qs->stime;
-			/* XXX - sometimes stp still ends up pointing to
-			 * a zero timeval, in spite of the above attempt.
-			 * Why?  What should we do about it?
-			 */
-			dprintf(1, (ddt,
-			    "Response from unused address %s, assuming %s\n",
-				    inet_etoa(&from_addr),
-				    inet_etoa(&qs->ns_addr)));
-			/* XXX - catch aliases here */
-		}
-
-		/* compute query round trip time */
-		/* XXX - avoid integer overflow, which is quite likely if stp
-		 * points to a zero timeval (see above).
-		 * rtrip is of type time_t, which we assume is at least
-		 * as big as an int.
-		 */
-		if ((tt.tv_sec - stp->tv_sec) > (INT_MAX-999)/1000) {
-		    rtrip = INT_MAX;
-		} else {
-		    rtrip = ((tt.tv_sec - stp->tv_sec) * 1000 +
-			(tt.tv_usec - stp->tv_usec) / 1000);
-		}
-		
-		dprintf(3, (ddt, "stime %lu/%lu  now %lu/%lu rtt %ld\n",
-			    (u_long)stp->tv_sec, (u_long)stp->tv_usec,
-			    (u_long)tt.tv_sec, (u_long)tt.tv_usec,
-			    (long)rtrip));
-
-		/* prevent floating point overflow, limit to 1000 sec */
-		if (rtrip > 1000000) {
-			rtrip = 1000000;
-		}
-		ns = qs->nsdata;
-		/*
-		 * Don't update nstime if this doesn't look
-		 * like an address databuf now.			XXX
-		 */
-		if (ns && (ns->d_type==T_A) && (ns->d_class==qs->ns->d_class)){
-			if (ns->d_nstime == 0)
-				ns->d_nstime = (u_int32_t)rtrip;
-			else
-				ns->d_nstime = (u_int32_t)
-						(ns->d_nstime * ALPHA 
-						 +
-						 (1-ALPHA) * (u_int32_t)rtrip);
-			/* prevent floating point overflow,
-			 * limit to 1000 sec
-			 */
-			if (ns->d_nstime > 1000000)
-				ns->d_nstime = 1000000;
-		}
-
-		/*
-		 * Record the source so that we do not use this NS again.
-		 */
-		if (ns && qs->ns && (qp->q_nusedns < NSMAX)) {
-			qp->q_usedns[qp->q_nusedns++] = qs->ns;
-			dprintf(2, (ddt, "NS #%d addr %s used, rtt %d\n",
-				    n, inet_etoa(&qs->ns_addr),
-				    ns->d_nstime));
-		}
-
-		/*
-		 * Penalize those who had earlier chances but failed
-		 * by multiplying round-trip times by BETA (>1).
-		 * Improve nstime for unused addresses by applying GAMMA.
-		 * The GAMMA factor makes unused entries slowly
-		 * improve, so they eventually get tried again.
-		 * GAMMA should be slightly less than 1.
-		 * Watch out for records that may have timed out
-		 * and are no longer the correct type.			XXX
-		 */
-		
-		for (n = 0, qs = qp->q_addr; (u_int)n < qp->q_naddr; n++, qs++) {
-			ns2 = qs->nsdata;
-			if ((!ns2) || (ns2 == ns))
-				continue;
-			if (ns2->d_type != T_A ||
-			    ns2->d_class != qs->ns->d_class)	/* XXX */
-				continue;
-			if (qs->stime.tv_sec) {
-			    if (ns2->d_nstime == 0)
-				ns2->d_nstime = (u_int32_t)(rtrip * BETA);
-			    else
-				ns2->d_nstime = (u_int32_t)(
-				    ns2->d_nstime * BETA + (1-ALPHA) * rtrip
-				);
-			    if (ns2->d_nstime > 1000000)
-				ns2->d_nstime = 1000000;
-			} else
-			    ns2->d_nstime = (u_int32_t)(ns2->d_nstime * GAMMA);
-			dprintf(2, (ddt, "NS #%d %s rtt now %d\n", n,
-				    inet_etoa(&qs->ns_addr),
-				    ns2->d_nstime));
-		}
-	}
-
-#ifdef BIND_NOTIFY
-	/* for now, NOTIFY isn't defined for ANCOUNT!=0, AUCOUNT!=0,
-	 * or ADCOUNT!=0.  therefore the only real work to be done for
-	 * a NOTIFY-QR is to remove it from the query queue.
-	 */
-	if (hp->opcode == NS_NOTIFY_OP) {
-		qremove(qp);
-		return;
-	}
-#endif
-
-	/*************************************************************/
-
-	/*
-	 * Save answers, authority, and additional records for future use.
-	 */
-	nscount = 0;
-	tp = cp;
-	dprintf(3, (ddt, "resp: ancount %d, aucount %d, arcount %d\n",
-		    ancount, aucount, arcount));
-
-	/*
-	 *  If there's an answer, check if it's a CNAME response;
-	 *  if no answer but aucount > 0, see if there is an NS
-	 *  or just an SOA.  (NOTE: ancount might be 1 with a CNAME,
-	 *  and NS records may still be in the authority section;
-	 *  we don't bother counting them, as we only use nscount
-	 *  if ancount == 0.)
-	 */
-	if (ancount == 1 || (ancount == 0 && aucount > 0)) {
-		c = aucount;
-		do {
-			if (tp >= eom) {
-				formerrmsg = outofDataAnswer;
-				goto formerr;
-			}
-			n = dn_skipname(tp, eom);
-			if (n <= 0) {
-				formerrmsg = skipnameFailedAnswer;
-				goto formerr;
-			}
-			tp += n;  		/* name */
-			GETSHORT(i, tp);	/* type */
-			tp += INT16SZ;		/* class */
-			tp += INT32SZ;		/* ttl */
-			GETSHORT(count, tp); 	/* dlen */
-			if (tp + count > eom) {
-				formerrmsg = dlenOverrunAnswer;
-				goto formerr;
-			}
-			tp += count;
-			if (ancount && i == T_CNAME) {
-				cname++;
-				dprintf(1,
-					(ddt,
-					 "CNAME - needs more processing\n"
-					 )
-					);
-				if (!qp->q_cmsglen) {
-					qp->q_cmsg = qp->q_msg;
-					qp->q_cmsglen = qp->q_msglen;
-					qp->q_msg = NULL;
-					qp->q_msglen = 0;
-				}
-			}
-			/*
-			 * See if authority record is a nameserver.
-			 */
-			if (ancount == 0 && i == T_NS)
-				nscount++;
-		} while (--c > 0);
-		tp = cp;
-	}
 
 	if (qp->q_flags & Q_ZSERIAL) {
 		if (hp->aa && ancount > 0 && hp->rcode == NOERROR &&
@@ -702,14 +641,13 @@ ns_resp(msg, msglen)
 	 * Add the info received in the response to the data base.
 	 */
 	c = ancount + aucount + arcount;
-#ifdef NCACHE
+
 	/* -ve $ing non-existence of record, must handle non-authoritative
 	 * NOERRORs with c == 0.
 	 */
-	if (!hp->aa && hp->rcode == NOERROR && c == 0) {
+	if (!hp->aa && hp->rcode == NOERROR && c == 0)
 		goto return_msg;
-	} /*should ideally validate message before returning it*/
-#endif /*NCACHE*/
+
 #ifdef notdef
 	/*
 	 * If the request was for a CNAME that doesn't exist,
@@ -729,7 +667,6 @@ ns_resp(msg, msglen)
 	}
 #endif /* notdef */
 
-	nspp = nsp;
 	if (qp->q_flags & Q_SYSTEM)
 		dbflags = DB_NOTAUTH | DB_NODATA;
 	else
@@ -747,87 +684,174 @@ ns_resp(msg, msglen)
 		}
 		/* XXX - should retry this query with TCP */
 	}
+
+	tp = cp;
+
+	restart = 0;
+	validanswer = 0;
+	nscount = 0;
+	cname = 0;
 #ifdef VALIDATE
-	tempcp = cp;
-	validatelist = (int *)malloc(count * sizeof(int));
-	lesscount = 0; /*initialize*/
-	old_ancount = ancount;
-	for (i = 0; i < count; i++) {
-		int VCode;
-		if (tempcp >= eom) {
-			free((char *)validatelist);
-			formerrmsg = outofDataFinal;
-			goto formerr;
-		}
-		if ((n = dovalidate(msg, msglen, tempcp, 0,
-				    dbflags, server, &VCode)) < 0) {
-			dprintf(1, (ddt,
-				    "resp: leaving, dovalidate failed\n"));
-			free((char *)validatelist);
-
-			/* return code filled in by dovalidate */
-			goto return_msg;
-		}
-		validatelist[i] = VCode;
-		if (VCode == INVALID) lesscount++;
-		tempcp += n;
-	}
-
-	/* need to delete INVALID records from the message
-	 * and change fields appropriately
-	 */
-	n = update_msg(msg, &msglen, validatelist, count);
-	free((char *)validatelist);
-	if (n < 0) {
-		formerrmsg = editFailed;
-		goto formerr;
-	}
-	count -= lesscount;
-
-	ancount = ntohs(hp->ancount);
-	if (old_ancount && !ancount) {
-		/* We lost all the answers */
-		dprintf(1, (ddt, "validate count -> 0"));
-		return;
-	}
+	defer_rm_count = 0;
 #endif
 
-	for (i = 0;  i < count;  i++) {
-		struct databuf *ns3;
+	for (i = 0; i < count; i++) {
+		struct databuf *ns3 = NULL;
 		u_char cred;
+		int VCode;
+		u_int16_t type, class;
 
 		if (cp >= eom) {
 			formerrmsg = outofDataFinal;
 			goto formerr;
 		}
+
+		/* Get the DNAME. */
+		tempcp = cp;
+		n = dn_expand(msg, eom, tempcp, name, sizeof name);
+		if (n <= 0) {
+			formerrmsg = outofDataFinal;
+			goto formerr;
+		}
+		tempcp += n;
+		GETSHORT(type, tempcp);
+		GETSHORT(class, tempcp);
+
+		/*
+		 * See if there are any NS RRs in the authority section
+		 * for the negative caching logic below.  We'll count
+		 * these before validation.
+		 */
+		if (type == T_NS && i >= ancount && i < ancount + aucount)
+			nscount++;
+
+		/* Decide what credibility this ought to have in the cache. */
 		if (i < ancount)
-			cred = hp->aa ? DB_C_AUTH : DB_C_ANSWER;
+			cred = (hp->aa && !strcasecmp(name, qname))
+				? DB_C_AUTH
+				: DB_C_ANSWER;
 		else
 			cred = (qp->q_flags & Q_PRIMING)
 				? DB_C_ANSWER
 				: DB_C_ADDITIONAL;
-		ns3 = 0;
+#ifdef VALIDATE
+		if ((n = dovalidate(msg, msglen, cp, 0,
+				    dbflags, qp->q_domain, server,
+				    &VCode)) < 0) {
+			formerrmsg = outofDataFinal;
+			goto formerr;
+		}
+		if (VCode == INVALID && !(qp->q_flags & Q_SYSTEM)) {
+			/*
+			 * If anything in the answer section fails
+			 * validation this means that it definitely did
+			 * not reside below the domain owning the NS RRs
+			 * that we sent the query to.  This means either
+			 * that it was the target of a CNAME early in the
+			 * response, in which case we will treat this the
+			 * same as if the answer was incomplete and restart
+			 * the query on the CNAME target, or that someone
+			 * was trying to spoof us.
+			 */
+			if (i < ancount)
+				restart = 1;
+			/*
+			 * Restart or no, if we're here it means we are not
+			 * going to cache this RR.  That being the case, we
+			 * must burn down whatever partial RRset we've got
+			 * in the cache now, lest we inadvertently answer
+			 * with a truncated RRset in some future section.
+			 */
+			for (c = 0; c < defer_rm_count; c++)
+				if (!strcasecmp(defer_rm[c].name, name) &&
+				    defer_rm[c].class == class &&
+				    defer_rm[c].type == type)
+					break;
+			if (c < defer_rm_count) {
+				if (defer_rm[c].cred < cred)
+					defer_rm[c].cred = cred;
+			} else {
+				if (defer_rm_count+1 >=
+				    (sizeof defer_rm / sizeof defer_rm[0])) {
+					formerrmsg = "too many RRs in ns_resp";
+					goto formerr;
+				}
+				defer_rm[defer_rm_count].name = savestr(name);
+				defer_rm[defer_rm_count].type = type;
+				defer_rm[defer_rm_count].class = class;
+				defer_rm[defer_rm_count].cred = cred;
+				defer_rm_count++;
+			}
+		} else {
+#endif
+		if (i < ancount) {
+			/*
+			 * If there are any non-CNAME RRs (or
+			 * CNAME RRs if they are an acceptable)
+			 * then the query is complete unless an
+			 * intermediate CNAME didn't pass validation,
+			 * but that's OK.
+			 */
+			if (type != T_CNAME || qtype == T_CNAME ||
+			    qtype == T_ANY)
+				validanswer = 1;
+			else
+				cname = 1;
+		}
 		n = doupdate(msg, msglen, cp, 0, &ns3, dbflags, cred);
+#ifdef VALIDATE
+		}
+#endif
 		if (n < 0) {
 			dprintf(1, (ddt, "resp: leaving, doupdate failed\n"));
-
-			/* return code filled in by doupdate */
-			goto return_msg;
-		}
-		/*
-		 * Remember nameservers from the authority section
-		 * for referrals.
-		 * (This is usually overwritten by findns below(?). XXX
-		 */
-		if (ns3 && i >= ancount && i < ancount + aucount &&
-		    nspp < &nsp[NSMAX-1]) {
-			*nspp++ = ns3;
-#ifdef DATUMREFCNT
-			ns3->d_rcnt++;
-			*nspp = NULL;
-#endif
+			formerrmsg = outofDataFinal;
+			goto formerr;
 		}
 		cp += n;
+	}
+#ifdef VALIDATE
+	if (defer_rm_count > 0) {
+		for (i = 0; i < defer_rm_count; i++) {
+			register struct databuf *db = NULL;
+
+			fname = "";
+			htp = hashtab;		/* lookup relative to root */
+			np = nlookup(defer_rm[i].name, &htp, &fname, 0);
+			if (np && fname == defer_rm[i].name &&
+			    defer_rm[i].class != C_ANY &&
+			    defer_rm[i].type != T_ANY) {
+				/*
+				 * If doupdate() wouldn't have cached this
+				 * RR anyway, there's no need to delete it.
+				 */
+				for (db = np->n_data;
+				     db != NULL;
+				     db = db->d_next) {
+					if (!db->d_zone &&
+					    match(db, defer_rm[i].class,
+						  defer_rm[i].type) &&
+					    db->d_cred >= defer_rm[i].cred) {
+						break;
+					}
+				}
+				if (db == NULL)
+					delete_all(np, defer_rm[i].class,
+						   defer_rm[i].type);
+				/* XXX: should delete name node if empty? */
+			}
+			syslog(LOG_DEBUG, "defer_rm [%s %s %s] (np%#x, db%#x)",
+			       defer_rm[i].name,
+			       p_class(defer_rm[i].class),
+			       p_type(defer_rm[i].type),
+			       np, db);
+			free(defer_rm[i].name);
+		}
+	}
+#endif
+
+	if (cp > eom) {
+		formerrmsg = outofDataAFinal;
+		goto formerr;
 	}
 
 	if ((qp->q_flags & Q_SYSTEM) && ancount) {
@@ -847,30 +871,31 @@ ns_resp(msg, msglen)
 		}
 #endif
 		qremove(qp);
-#ifdef DATUMREFCNT
-		free_nsp(nsp);
-#endif
 		return;
 	}
 
-	if (cp > eom) {
-		formerrmsg = outofDataAFinal;
-		goto formerr;
-	}
+	if (ancount && !validanswer)
+		/*
+		 * Everything passed validation but we didn't get the
+		 * final answer.  The response must have contained
+		 * a dangling CNAME.  Force a restart of the query.
+		 */
+		restart = 1;
 
 	/*
 	 *  If there are addresses and this is a local query,
 	 *  sort them appropriately for the local context.
 	 */
-	if (ancount > 1 && (lp = local(&qp->q_from)) != NULL) 
+#ifdef SORT_RESPONSE
+	if (!restart && ancount > 1 && (lp = local(&qp->q_from)) != NULL) 
 		sort_response(tp, ancount, lp, eom);
+#endif
 
 	/*
 	 * An answer to a T_ANY query or a successful answer to a
 	 * regular query with no indirection, then just return answer.
 	 */
-	if ((qtype == T_ANY && ancount) ||
-	    (!cname && !qp->q_cmsglen && ancount)) {
+	if (!restart && ancount && (qtype == T_ANY || !qp->q_cmsglen)) {
 		dprintf(3, (ddt, "resp: got as much answer as there is\n"));
 		goto return_msg;
 	}
@@ -884,6 +909,7 @@ ns_resp(msg, msglen)
 		/* we have an authoritative NO */
 		dprintf(3, (ddt, "resp: leaving auth NO\n"));
 		if (qp->q_cmsglen) {
+			/* XXX - what about additional CNAMEs in the chain? */
 			msg = qp->q_cmsg;
 			msglen = qp->q_cmsglen;
 			hp = (HEADER *)msg;
@@ -906,7 +932,17 @@ ns_resp(msg, msglen)
 	founddata = 0;
 	foundname = 0;
 	dname = name;
-	if (!cname && qp->q_cmsglen && ancount) {
+	/*
+	 * Even with VALIDATE, if restart==0 and ancount > 0, we should
+	 * have some valid data because because the data in the answer
+	 * section is owned by the query name and that passes the
+	 * validation test by definition
+	 *
+	 * XXX - the restart stuff doesn't work if any of the answer RRs
+	 * is not cacheable (TTL==0 or unknown RR type), since all of the
+	 * answer must pass through the cache and be re-assembled.
+	 */
+	if ((!restart || !cname) && qp->q_cmsglen && ancount) {
 		dprintf(1, (ddt, "Cname second pass\n"));
 		newmsglen = qp->q_cmsglen;
 		bcopy(qp->q_cmsg, newmsg, newmsglen);
@@ -915,23 +951,32 @@ ns_resp(msg, msglen)
 		bcopy(msg, newmsg, newmsglen);
 	}
 	hp = (HEADER *) newmsg;
-	hp->ancount = 0;
-	hp->nscount = 0;
-	hp->arcount = 0;
+	hp->ancount = htons(0);
+	hp->nscount = htons(0);
+	hp->arcount = htons(0);
 	dnptrs[0] = newmsg;
 	dnptrs[1] = NULL;
 	cp = newmsg + HFIXEDSZ;
-	if (cname)
-		cp += dn_skipname(cp, newmsg + newmsglen) + QFIXEDSZ;
-	n = dn_expand(newmsg, newmsg + newmsglen, cp, dname, sizeof name);
+	/*
+	 * Keep in mind that none of this code works when QDCOUNT>1.
+	 * cp ends up pointed just past the query section in both cases.
+	 */
+	/*
+	 * Arrange for dname to contain the query name. The query
+	 * name can be either the original query name if restart==0
+	 * or the target of the last CNAME if we are following a
+	 * CNAME chain and were referred.
+	 */
+	n = dn_expand(newmsg, newmsg + newmsglen, cp, dname,
+		      sizeof name);
 	if (n < 0) {
 		dprintf(1, (ddt, "dn_expand failed\n"));
 		goto servfail;
 	}
-	if (!cname)
-		cp += n + QFIXEDSZ;
+	cp += n + QFIXEDSZ;
 	buflen = sizeof(newmsg) - (cp - newmsg);
 
+	cname = 0;
  try_again:
 	dprintf(1, (ddt, "resp: nlookup(%s) qtype=%d\n", dname, qtype));
 	fname = "";
@@ -949,7 +994,7 @@ ns_resp(msg, msglen)
 		goto fetch_ns;		/* NO data available */
 	cp += n;
 	buflen -= n;
-	hp->ancount += count;
+	hp->ancount = htons(ntohs(hp->ancount) + (u_int16_t)count);
 	if (fname != dname && qtype != T_CNAME && qtype != T_ANY) {
 		cname++;
 		goto try_again;
@@ -961,7 +1006,10 @@ ns_resp(msg, msglen)
 		    foundname, count, founddata, cname));
 
  fetch_ns:
-	hp->ancount = htons(hp->ancount);
+
+	if (hp->tc)
+		goto return_newmsg;
+
 	/*
  	 * Look for name servers to refer to and fill in the authority
  	 * section or record the address for forwarding the query
@@ -983,9 +1031,9 @@ ns_resp(msg, msglen)
 			 *	in the auth. section if there's no error.
 			 */
 			if (foundname == 0 && np) {
-			    n = doaddauth(hp, cp, buflen, np, nsp[0]);
-			    cp += n;
-			    buflen -= n;
+				n = doaddauth(hp, cp, buflen, np, nsp[0]);
+				cp += n;
+				buflen -= n;
 			}
 		}
 		goto return_newmsg;
@@ -996,7 +1044,7 @@ ns_resp(msg, msglen)
 
 	if (founddata) {
 		hp = (HEADER *)newmsg;
-		n = add_data(np, nsp, cp, buflen);
+		n = add_data(np, nsp, cp, buflen, &count);
 		if (n < 0) {
 			hp->tc = 1;
 			n = (-n);
@@ -1028,36 +1076,36 @@ ns_resp(msg, msglen)
 		const char *result;
 
 		if (qp->q_addr[i].ns != NULL) {
+			if ((--(qp->q_addr[i].ns->d_rcnt)))
+				result = busy;
+			else
+				result = freed;
 			dprintf(1, (ddt, "ns_resp: ns %s rcnt %d (%s)\n",
 				    qp->q_addr[i].ns->d_data,
 				    qp->q_addr[i].ns->d_rcnt,
 				    result));
-			if ((--(qp->q_addr[i].ns->d_rcnt)))
-				result = busy;
-			else {
+			if (result == freed)
 				free((char*)qp->q_addr[i].ns);
-				result = freed;
-			}
 		}
 		if (qp->q_addr[i].nsdata != NULL) {
 			if ((--(qp->q_addr[i].nsdata->d_rcnt)))
 				result = busy;
-			else {
-				free((char*)qp->q_addr[i].nsdata);
+			else
 				result = freed;
-			}
 			dprintf(1, (ddt,
 				    "ns_resp: nsdata %08.8X rcnt %d (%s)\n",
 				    *(int32_t *)(qp->q_addr[i].nsdata->d_data),
 				    qp->q_addr[i].nsdata->d_rcnt,
 				    result));
+			if (result == freed)
+				free((char*)qp->q_addr[i].nsdata);
 		}
 	}
 #endif
 	qp->q_naddr = 0;
 	qp->q_curaddr = 0;
 	qp->q_fwd = fwdtab;
-#ifdef LAME_DELEGATION
+#if defined(LAME_DELEGATION) || defined(VALIDATE)
 	getname(np, qp->q_domain, sizeof(qp->q_domain));
 #endif /* LAME_DELEGATION */
 	if ((n = nslookup(nsp, qp, dname, "ns_resp")) <= 0) {
@@ -1080,10 +1128,13 @@ ns_resp(msg, msglen)
 				    "resp: leaving, MAXCNAMES exceeded\n"));
 			goto servfail;
 	 	}
-		dprintf(1, (ddt, "q_cname = %d\n",qp->q_cname));
+		dprintf(1, (ddt, "q_cname = %d\n", qp->q_cname));
 		dprintf(3, (ddt,
 			    "resp: building recursive query; nslookup\n"));
-		if (qp->q_msg)
+		if (!qp->q_cmsg) {
+			qp->q_cmsg = qp->q_msg;
+			qp->q_cmsglen = qp->q_msglen;
+		} else if (qp->q_msg)
 			(void) free(qp->q_msg);
 		if ((qp->q_msg = (u_char *)malloc(BUFSIZ)) == NULL) {
 			syslog(LOG_NOTICE, "resp: malloc error\n");
@@ -1098,7 +1149,7 @@ ns_resp(msg, msglen)
 		}
 		qp->q_msglen = n;
 		hp = (HEADER *) qp->q_msg;
-	    	hp->rd = 0;
+		hp->rd = 0;
 	} else
 		hp = (HEADER *) qp->q_msg;
 	hp->id = qp->q_nsid = htons(nsid_next());
@@ -1108,7 +1159,7 @@ ns_resp(msg, msglen)
 	schedretry(qp, retrytime(qp));
 	nsa = Q_NEXTADDR(qp, 0);
 	dprintf(1, (ddt, "resp: forw -> %s ds=%d nsid=%d id=%d %dms\n",
-		    inet_etoa(nsa), ds,
+		    sin_ntoa(nsa), ds,
 		    ntohs(qp->q_nsid), ntohs(qp->q_id),
 		    (qp->q_addr[0].nsdata != NULL)
 			? qp->q_addr[0].nsdata->d_nstime
@@ -1122,7 +1173,7 @@ ns_resp(msg, msglen)
 		   sizeof(struct sockaddr_in)) < 0) {
 		if (!haveComplained((char*)nsa->sin_addr.s_addr, sendtoStr))
 			syslog(LOG_INFO, "ns_resp: sendto(%s): %m",
-			       inet_etoa(nsa));
+			       sin_ntoa(nsa));
 		nameserIncr(nsa->sin_addr, nssSendtoErr);
 	}
 	hp->rd = 0;	/* leave set to 0 for dup detection */
@@ -1138,7 +1189,7 @@ ns_resp(msg, msglen)
 	if (!haveComplained((char*)from_addr.sin_addr.s_addr,
 			    (char*)nhash(formerrmsg)))
 		syslog(LOG_INFO, "Malformed response from %s (%s)\n",
-		       inet_etoa(&from_addr), formerrmsg);
+		       sin_ntoa(&from_addr), formerrmsg);
 	nameserIncr(from_addr.sin_addr, nssSentFErr);
 #ifdef	DATUMREFCNT
 	free_nsp(nsp);
@@ -1408,13 +1459,11 @@ doupdate(msg, msglen, rrp, zone, savens, flags, cred)
 		 */
 		if ( (hp->opcode == UPDATED) || (hp->opcode == UPDATEDA) ) {
 			if (cp != (u_char *)(msg + msglen)) {
-			    dprintf(1,
-				    (ddt, 
-				     "FORMERR UPDATE message length off\n"
-				     )
-				    );
-			    hp->rcode = FORMERR;
-			    return (-1);
+				dprintf(1, (ddt, 
+					  "FORMERR UPDATE message length off\n"
+					    ));
+				hp->rcode = FORMERR;
+				return (-1);
 			}
 		}
 		if ((zonenum = findzone(dname, class)) == 0) { 
@@ -1533,7 +1582,7 @@ doupdate(msg, msglen, rrp, zone, savens, flags, cred)
 		ttl += tt.tv_sec;
 #if defined(TRACEROOT) || defined(BOGUSNS)
 	if ((type == T_NS) && (savens != NULL)) {
-		char qname[MAXDNAME], *temp;
+		char *temp, qname[MAXDNAME];
 		register int bogus = 0;
 		int bogusns = 0;
 #ifdef BOGUSNS
@@ -1558,7 +1607,7 @@ doupdate(msg, msglen, rrp, zone, savens, flags, cred)
 					    "bogus root NS"))
 				syslog(LOG_NOTICE,
 			 "bogus root NS %s rcvd from %s on query for \"%s\"",
-				       data, inet_etoa(&from_addr), qname);
+				       data, sin_ntoa(&from_addr), qname);
 			return (cp - rrp);
 		}
 #ifdef BOGUSNS
@@ -1566,8 +1615,8 @@ doupdate(msg, msglen, rrp, zone, savens, flags, cred)
 			if (!haveComplained((char*)from_addr.sin_addr.s_addr,
 					    "bogus nonroot NS"))
 				syslog(LOG_INFO,
-		      "bogus nonroot NS %s rcvd from %s on query for \"%s\"",
-				       data, inet_etoa(&from_addr), qname);
+			"bogus nonroot NS %s rcvd from %s on query for \"%s\"",
+				       data, sin_ntoa(&from_addr), qname);
 			return (cp - rrp);
 		}
 #endif
@@ -1602,13 +1651,13 @@ send_msg(msg, msglen, qp)
 #ifdef DEBUG
 	if (debug) {
 		fprintf(ddt,"send_msg -> %s (%s %d) id=%d\n",
-			inet_etoa(&qp->q_from), 
+			sin_ntoa(&qp->q_from), 
 			qp->q_stream == QSTREAM_NULL ? "UDP" : "TCP",
 			qp->q_stream == QSTREAM_NULL ? qp->q_dfd
 						     : qp->q_stream->s_rfd,
 			ntohs(qp->q_id));
 	}
-	if (debug>4) {
+	if (debug > 4) {
 		struct qinfo *tqp;
 
 		for (tqp = nsqhead; tqp!=QINFO_NULL; tqp = tqp->q_link) {
@@ -1623,7 +1672,7 @@ send_msg(msg, msglen, qp)
 				(u_long)qp->q_next, (u_long)qp->q_link);
 		}
 	}
-	if (debug >= 10)
+	if (debug > 5)
 		fp_nquery(msg, msglen, ddt);
 #endif /* DEBUG */
 	if (qp->q_stream == QSTREAM_NULL) {
@@ -1637,7 +1686,7 @@ send_msg(msg, msglen, qp)
 #endif
 				syslog(LOG_INFO,
 				       "send_msg: sendto(%s): %m",
-				       inet_etoa(&qp->q_from));
+				       sin_ntoa(&qp->q_from));
 			nameserIncr(qp->q_from.sin_addr, nssSendtoErr);
 			return (1);
 		}
@@ -1889,7 +1938,7 @@ sysquery(dname, class, type, nss, nsc, opcode)
 		qp->q_fwd = fwdtab;
 	qp->q_expire = tt.tv_sec + RETRY_TIMEOUT*2;
 	qp->q_flags |= Q_SYSTEM;
-#ifdef LAME_DELEGATION
+#if defined(LAME_DELEGATION) || defined(VALIDATE)
 	getname(np, qp->q_domain, sizeof(qp->q_domain));
 #endif /* LAME_DELEGATION */
 
@@ -1910,7 +1959,7 @@ sysquery(dname, class, type, nss, nsc, opcode)
 	hp->rd = (qp->q_fwd ? 1 : 0);
 
 	/* First check for an already pending query for this data */
-	for (oqp = nsqhead;  oqp != QINFO_NULL;  oqp = oqp->q_link) {
+	for (oqp = nsqhead; oqp != QINFO_NULL; oqp = oqp->q_link) {
 		if ((oqp != qp)
 		    && (oqp->q_msglen == qp->q_msglen)
 		    && bcmp((char *)oqp->q_msg+2,
@@ -1968,8 +2017,8 @@ sysquery(dname, class, type, nss, nsc, opcode)
 	nsa = Q_NEXTADDR(qp, 0);
 
 	dprintf(1, (ddt,
-		  "sysquery: send -> %s dfd=%d nsid=%d id=%d retry=%ld\n",
-		    inet_etoa(nsa), qp->q_dfd, 
+		    "sysquery: send -> %s dfd=%d nsid=%d id=%d retry=%ld\n",
+		    sin_ntoa(nsa), qp->q_dfd, 
 		    ntohs(qp->q_nsid), ntohs(qp->q_id),
 		    qp->q_time));
 #ifdef DEBUG
@@ -1981,7 +2030,7 @@ sysquery(dname, class, type, nss, nsc, opcode)
 		   sizeof(struct sockaddr_in)) < 0) {
 		if (!haveComplained((char*)nsa->sin_addr.s_addr, sendtoStr))
 			syslog(LOG_INFO, "sysquery: sendto(%s): %m",
-			       inet_etoa(nsa));
+			       sin_ntoa(nsa));
 		nameserIncr(nsa->sin_addr, nssSendtoErr);
 	}
 	nameserIncr(nsa->sin_addr, nssSentSysQ);
@@ -2057,9 +2106,9 @@ check_ns()
 	for (np = hashtab->h_tab[0]; np != NULL; np = np->n_next) {
 		if (np->n_dname[0] != 0)
 			continue;
-	        for (dp = np->n_data; dp != NULL; dp = dp->d_next) {
-	        	if (dp->d_type != T_NS)
-	        	    continue;
+		for (dp = np->n_data; dp != NULL; dp = dp->d_next) {
+			if (dp->d_type != T_NS)
+				continue;
 
 	        	/* look for A records */
 			dname = (caddr_t) dp->d_data;
@@ -2069,29 +2118,31 @@ check_ns()
 				dprintf(3, (ddt,
 					    "check_ns: %s: not found %s %#lx\n",
 					    dname, fname, (u_long)tnp));
-			    sysquery(dname, dp->d_class, T_A, NULL, 0, QUERY);
-			    continue;
+				sysquery(dname, dp->d_class, T_A, NULL,
+					 0, QUERY);
+				continue;
 			}
 			/* look for name server addresses */
 			found_arr = 0;
-			for (tdp=tnp->n_data; tdp!=NULL; tdp=tdp->d_next) {
-			    if (tdp->d_type != T_A ||
-			       tdp->d_class != dp->d_class)
-				continue;
-			    if ((tdp->d_zone == 0) &&
-				(tdp->d_ttl < curtime)) {
-				dprintf(3, (ddt,
-					    "check_ns: stale entry '%s'\n",
-					    tnp->n_dname));
-				/* Cache invalidate the address RR's */
-				delete_all(tnp, dp->d_class, T_A);
-				found_arr = 0;
-			        break;
-			    }
-			    found_arr++;
+			for (tdp=tnp->n_data; tdp != NULL; tdp=tdp->d_next) {
+				if (tdp->d_type != T_A ||
+				    tdp->d_class != dp->d_class)
+					continue;
+				if ((tdp->d_zone == 0) &&
+				    (tdp->d_ttl < curtime)) {
+					dprintf(3, (ddt,
+						"check_ns: stale entry '%s'\n",
+						    tnp->n_dname));
+					/* Cache invalidate the address RR's */
+					delete_all(tnp, dp->d_class, T_A);
+					found_arr = 0;
+					break;
+				}
+				found_arr++;
 			}
 			if (!found_arr)
-			    sysquery(dname, dp->d_class, T_A, NULL, 0, QUERY);
+				sysquery(dname, dp->d_class, T_A, NULL,
+					 0, QUERY);
 	        }
 	}
 }
@@ -2240,9 +2291,9 @@ try_parent:
 }
 
 /*
- *  Extract RR's from the given node that match class and type.
- *  Return number of bytes added to response.
- *  If no matching data is found, then 0 is returned.
+ * Extract RR's from the given node that match class and type.
+ * Return number of bytes added to response.
+ * If no matching data is found, then 0 is returned.
  */
 int
 finddata(np, class, type, hp, dnamep, lenp, countp)
@@ -2262,7 +2313,7 @@ finddata(np, class, type, hp, dnamep, lenp, countp)
 
 		register struct databuf **dpp;
  
-		for (dpp = &np->n_data;  dp = *dpp;  dpp = &dp->d_next) {
+		for (dpp = &np->n_data; dp = *dpp; dpp = &dp->d_next) {
 			if (dp->d_next && wanted(dp, class, type)) {
 				register struct databuf *lp;
 
@@ -2279,7 +2330,7 @@ finddata(np, class, type, hp, dnamep, lenp, countp)
 		}
 	}
 #endif /*ROUND_ROBIN*/
-  
+
 	buflen = *lenp;
 #ifdef DEBUG
 	if (buflen > PACKETSZ)
@@ -2336,7 +2387,7 @@ finddata(np, class, type, hp, dnamep, lenp, countp)
 				 * This should not happen, yet it does...
 				 */
 				syslog(LOG_INFO,
-				  "NODATA & data for \"%s\" type %d class %d",
+				   "NODATA & data for \"%s\" type %d class %d",
 				       *dnamep, type, class);
 				continue;
 			}
@@ -2444,12 +2495,12 @@ wanted(dp, class, type)
 		return (1);
 	case T_CNAME:
 #ifdef NCACHE
-              if (dp->d_rcode != NOERROR_NODATA)
+		if (dp->d_rcode != NOERROR_NODATA)
 #endif
-                      return (1);
+			return (1);
 #ifdef NCACHE
-              else
-                      break;
+		else
+			break;
 #endif
 	}
 	switch (type) {
@@ -2479,20 +2530,21 @@ wanted(dp, class, type)
 /*
  *  Add RR entries from dpp array to a query/response.
  *  Return the number of bytes added or negative the amount
- *  added if truncation was required.  Typically you are
+ *  added if truncation occured.  Typically you are
  *  adding NS records to a response.
  */
 int
-add_data(np, dpp, cp, buflen)
+add_data(np, dpp, cp, buflen, countp)
 	struct namebuf *np;
 	struct databuf **dpp;
 	register u_char *cp;
-	int buflen;
+	int buflen, *countp;
 {
 	register struct databuf *dp;
 	char dname[MAXDNAME];
-	register int n, count = 0;
+	register int n, bytes;
 
+	bytes = *countp = 0;
 	getname(np, dname, sizeof(dname));
 	for (dp = *dpp++; dp != NULL; dp = *dpp++) {
 		if (stale(dp))
@@ -2502,18 +2554,20 @@ add_data(np, dpp, cp, buflen)
 			continue;
 #endif
 		if ((n = make_rr(dname, dp, cp, buflen, 1)) < 0)
-			return (-count);	/* Truncation */
+			return (-bytes);	/* Truncation */
 		cp += n;
 		buflen -= n;
-		count += n;
+		bytes += n;
+		(*countp)++;
 	}
-	return (count);
+	return (bytes);
 }
 
 /*
  *  This is best thought of as a "cache invalidate" function.
  *  It is called whenever a piece of data is determined to have
- *  timed out.  It is better to have no information, than to
+ *  become invalid either through a timeout or a validation
+ *  failure.  It is better to have no information, than to
  *  have partial information you pass off as complete.
  */
 void
