@@ -752,6 +752,7 @@ void	userret(struct thread *, struct trapframe *, u_int);
 void	maybe_resched(struct thread *);
 
 void	cpu_exit(struct thread *);
+void	cpu_sched_exit(struct thread *);
 void	exit1(struct thread *, int) __dead2;
 void	cpu_fork(struct thread *, struct proc *, struct thread *, int);
 void	cpu_set_fork_handler(struct thread *, void (*)(void *), void *);
