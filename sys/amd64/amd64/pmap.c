@@ -858,7 +858,7 @@ pmap_kextract(vm_offset_t va)
 	if (va >= DMAP_MIN_ADDRESS && va < DMAP_MAX_ADDRESS) {
 		pa = DMAP_TO_PHYS(va);
 	} else {
-		pde = pmap_pde(kernel_pmap, va);
+		pde = vtopde(va);
 		if (*pde & PG_PS) {
 			pa = (*pde & ~(NBPDR - 1)) | (va & (NBPDR - 1));
 		} else {
