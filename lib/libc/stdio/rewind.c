@@ -40,12 +40,22 @@ static char sccsid[] = "@(#)rewind.c	8.1 (Berkeley) 6/4/93";
 
 #include <errno.h>
 #include <stdio.h>
+#ifdef _THREAD_SAFE
+#include <pthread.h>
+#include "pthread_private.h"
+#endif
 
 void
 rewind(fp)
 	register FILE *fp;
 {
+#ifdef _THREAD_SAFE
+	_thread_flockfile(fp,__FILE__,__LINE__);
+#endif
 	(void) fseek(fp, 0L, SEEK_SET);
 	clearerr(fp);
+#ifdef _THREAD_SAFE
+	_thread_funlockfile(fp);
+#endif
 	errno = 0;      /* not required, but seems reasonable */
 }

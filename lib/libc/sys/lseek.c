@@ -37,6 +37,11 @@ static char sccsid[] = "@(#)lseek.c	8.1 (Berkeley) 6/17/93";
 
 #include <sys/types.h>
 #include <sys/syscall.h>
+#include <unistd.h>
+#ifdef _THREAD_SAFE
+#include <pthread.h>
+#include "pthread_private.h"
+#endif
 
 /*
  * This function provides 64-bit offset padding that
@@ -48,7 +53,17 @@ lseek(fd, offset, whence)
 	off_t	offset;
 	int	whence;
 {
-	extern off_t __syscall();
+#ifdef _THREAD_SAFE
+	off_t	offs;
+	if (_thread_fd_lock(fd, FD_RDWR, NULL,__FILE__,__LINE__) != 0) {
+		offs = -1;
+	} else {
+		offs = __syscall((quad_t) SYS_lseek,fd, 0, offset, whence);
+		_thread_fd_unlock(fd, FD_RDWR);
+	}
+	return(offs);
 
+#else
 	return(__syscall((quad_t)SYS_lseek, fd, 0, offset, whence));
+#endif
 }

@@ -33,17 +33,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pipe.S,v 1.1 1994/08/05 01:18:46 wollman Exp $
+ *	$Id: pipe.S,v 1.2 1995/01/23 01:29:57 davidg Exp $
  */
 
 #if defined(SYSLIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$Id$"
+	.asciz "$Id: pipe.S,v 1.2 1995/01/23 01:29:57 davidg Exp $"
 #endif /* SYSLIBC_RCS and not lint */
 
 #include "SYS.h"
 
-SYSCALL(pipe)
+PSYSCALL(pipe)
 	movl	4(%esp),%ecx
 	movl	%eax,(%ecx)
 	movl	%edx,4(%ecx)

@@ -41,13 +41,19 @@ static char sccsid[] = "@(#)puts.c	8.1 (Berkeley) 6/4/93";
 #include <stdio.h>
 #include <string.h>
 #include "fvwrite.h"
+#ifdef _THREAD_SAFE
+#include <pthread.h>
+#include "pthread_private.h"
+#endif
 
 /*
  * Write the given string to stdout, appending a newline.
  */
+int
 puts(s)
 	char const *s;
 {
+	int retval;
 	size_t c = strlen(s);
 	struct __suio uio;
 	struct __siov iov[2];
@@ -59,5 +65,12 @@ puts(s)
 	uio.uio_resid = c + 1;
 	uio.uio_iov = &iov[0];
 	uio.uio_iovcnt = 2;
-	return (__sfvwrite(stdout, &uio) ? EOF : '\n');
+#ifdef _THREAD_SAFE
+	_thread_flockfile(stdout,__FILE__,__LINE__);
+#endif
+	retval = __sfvwrite(stdout, &uio) ? EOF : '\n';
+#ifdef _THREAD_SAFE
+	_thread_funlockfile(stdout);
+#endif
+	return (retval);
 }

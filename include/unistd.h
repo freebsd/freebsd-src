@@ -165,6 +165,7 @@ int	 swapon __P((const char *));
 int	 symlink __P((const char *, const char *));
 void	 sync __P((void));
 int	 syscall __P((int, ...));
+off_t	 __syscall __P((quad_t, ...));
 int	 truncate __P((const char *, off_t));
 int	 ttyslot __P((void));
 unsigned int	 ualarm __P((unsigned int, unsigned int));
