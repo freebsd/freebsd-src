@@ -1610,11 +1610,15 @@ gem_intr(v)
 		int txstat = bus_space_read_4(t, seb, GEM_MAC_TX_STATUS);
 		if (txstat & ~GEM_MAC_TX_XMIT_DONE)
 			printf("MAC tx fault, status %x\n", txstat);
+		if (txstat & (GEM_MAC_TX_UNDERRUN | GEM_MAC_TX_PKT_TOO_LONG))
+			gem_init(sc);
 	}
 	if (status & GEM_INTR_RX_MAC) {
 		int rxstat = bus_space_read_4(t, seb, GEM_MAC_RX_STATUS);
 		if (rxstat & ~(GEM_MAC_RX_DONE | GEM_MAC_RX_FRAME_CNT))
 			printf("MAC rx fault, status %x\n", rxstat);
+		if ((rxstat & GEM_MAC_RX_OVERFLOW) != 0)
+			gem_init(sc);
 	}
 }
 
