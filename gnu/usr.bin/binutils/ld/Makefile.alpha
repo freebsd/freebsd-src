@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-TARGET_TUPLE=	alpha-unknown-freebsd
+TARGET_TUPLE?=	alpha-unknown-freebsd
 
 .if ${TARGET_ARCH} == "alpha"
 HOST=	${TARGET_TUPLE}
