@@ -1,4 +1,4 @@
-/*	$NetBSD: popen.c,v 1.26 2001/04/25 01:46:26 lukem Exp $	*/
+/*	$NetBSD: popen.c,v 1.27 2001/12/01 10:25:30 lukem Exp $	*/
 
 /*-
  * Copyright (c) 1999-2001 The NetBSD Foundation, Inc.
@@ -91,7 +91,7 @@ static int fds;
 extern int ls_main(int, char *[]);
 
 FILE *
-ftpd_popen(char *argv[], const char *type, int stderrfd)
+ftpd_popen(char *argv[], const char *ptype, int stderrfd)
 {
 	FILE *iop;
 	int argc, pdes[2], pid, isls;
@@ -100,7 +100,7 @@ ftpd_popen(char *argv[], const char *type, int stderrfd)
 
 	iop = NULL;
 	isls = 0;
-	if ((*type != 'r' && *type != 'w') || type[1])
+	if ((*ptype != 'r' && *ptype != 'w') || ptype[1])
 		return (NULL);
 
 	if (!pids) {
@@ -158,7 +158,7 @@ ftpd_popen(char *argv[], const char *type, int stderrfd)
 		goto pfree;
 		/* NOTREACHED */
 	case 0:				/* child */
-		if (*type == 'r') {
+		if (*ptype == 'r') {
 			if (pdes[1] != STDOUT_FILENO) {
 				dup2(pdes[1], STDOUT_FILENO);
 				(void)close(pdes[1]);
@@ -190,11 +190,11 @@ ftpd_popen(char *argv[], const char *type, int stderrfd)
 		_exit(1);
 	}
 	/* parent; assume fdopen can't fail...  */
-	if (*type == 'r') {
-		iop = fdopen(pdes[0], type);
+	if (*ptype == 'r') {
+		iop = fdopen(pdes[0], ptype);
 		(void)close(pdes[1]);
 	} else {
-		iop = fdopen(pdes[1], type);
+		iop = fdopen(pdes[1], ptype);
 		(void)close(pdes[0]);
 	}
 	pids[fileno(iop)] = pid;
