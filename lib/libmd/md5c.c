@@ -37,6 +37,8 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #endif
 
+#include <machine/endian.h>
+#include <sys/endian.h>
 #include <sys/md5.h>
 
 static void MD5Transform(u_int32_t [4], const unsigned char [64]);
@@ -46,10 +48,10 @@ static void MD5Transform(u_int32_t [4], const unsigned char [64]);
 #define memcpy(x,y,z)	bcopy(y, x, z)
 #endif
 
-#ifdef i386
+#if (BYTE_ORDER == LITTLE_ENDIAN)
 #define Encode memcpy
 #define Decode memcpy
-#else /* i386 */
+#else 
 
 /*
  * Encodes input (u_int32_t) into output (unsigned char). Assumes len is
@@ -57,19 +59,13 @@ static void MD5Transform(u_int32_t [4], const unsigned char [64]);
  */
 
 static void
-Encode (output, input, len)
-	unsigned char *output;
-	u_int32_t *input;
-	unsigned int len;
+Encode (unsigned char *output, u_int32_t *input, unsigned int len)
 {
-	unsigned int i, j;
+	unsigned int i;
+	u_int32_t *op = (u_int32_t *)output;
 
-	for (i = 0, j = 0; j < len; i++, j += 4) {
-		output[j] = (unsigned char)(input[i] & 0xff);
-		output[j+1] = (unsigned char)((input[i] >> 8) & 0xff);
-		output[j+2] = (unsigned char)((input[i] >> 16) & 0xff);
-		output[j+3] = (unsigned char)((input[i] >> 24) & 0xff);
-	}
+	for (i = 0; i < len / 4; i++)
+		op[i] = htole32(input[i]);
 }
 
 /*
@@ -78,18 +74,15 @@ Encode (output, input, len)
  */
 
 static void
-Decode (output, input, len)
-	u_int32_t *output;
-	const unsigned char *input;
-	unsigned int len;
+Decode (u_int32_t *output, const unsigned char *input, unsigned int len)
 {
-	unsigned int i, j;
+	unsigned int i;
+	u_int32_t *ip = (u_int32_t *)input;
 
-	for (i = 0, j = 0; j < len; i++, j += 4)
-		output[i] = ((u_int32_t)input[j]) | (((u_int32_t)input[j+1]) << 8) |
-		    (((u_int32_t)input[j+2]) << 16) | (((u_int32_t)input[j+3]) << 24);
+	for (i = 0; i < len / 4; i++)
+		output[i] = le32toh(ip[i]);
 }
-#endif /* i386 */
+#endif
 
 static unsigned char PADDING[64] = {
   0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
