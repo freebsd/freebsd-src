@@ -296,7 +296,7 @@ static int fp_emulate(union alpha_instruction ins, struct thread *td)
 		td->td_pcb->pcb_fp_control = control;
 
 		/* Regenerate the control register */
-		fpcr = fpregs->fpr_cr & FPCR_DYN_MASK;
+		fpcr = fpregs->fpr_cr & (FPCR_DYN_MASK | FPCR_STATUS_MASK);
 		fpcr |= ((control & IEEE_STATUS_MASK)
 			 << IEEE_STATUS_TO_FPCR_SHIFT);
 		if (!(control & IEEE_TRAP_ENABLE_INV))
