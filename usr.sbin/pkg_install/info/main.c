@@ -151,11 +151,13 @@ main(int argc, char **argv)
             while( !isalpha(*(pkgs_split+1)) )
             {
                 *pkgs_split = '\0';
-                pkgs_split = rindex(*argv, (int) '/');
+                if ( (pkgs_split = rindex(*argv, (int) '/')) == NULL)
+                    pkgs_split = *argv;
             }
             if(pkgs_split != NULL)
             {
-                pkgs_split++;
+                if (*pkgs_split == '/')
+                    pkgs_split++;
                 *pkgs = pkgs_split;
                 pkgs++;
             }
