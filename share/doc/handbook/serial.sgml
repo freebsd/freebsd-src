@@ -1,0 +1,64 @@
+<!-- This is an SGML document in the linuxdoc DTD of the Tutorial for
+     Configuring a FreeBSD for Dialup Services by Guy Helmer.
+     $Id: dialup.sgml,v 1.13 1996/08/15 20:52:18 mpp Exp $
+
+     The FreeBSD Documentation Project
+
+<!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
+
+<linuxdoc>
+  <article>
+      <title> Serial Basics
+      <author>  FAQ
+      <date> 24 Nov 1996, (c) 1996
+
+      <abstract> This section outlines some of the basics to get your serial ports working.  This is really just a stepping stone into the section on PPP or Dialout if you are interested in modems.
+      </abstract>
+	
+    <toc>
+-->
+
+<sect><heading>Serial Basics<label id="serial"></heading>
+
+<p><em>Assembled from FAQ.</em>
+
+This section should give you some general information about serial ports.  If you do not find what you want here, check into the Terminal and Dialup sections of the handbook.
+
+
+        <p>
+          The <tt/ttydX/ (or <tt/cuaaX/) device is the regular device
+          you will want to open for your applications.  When a process opens
+          the device, it will have a default set of terminal I/O settings.
+          You can see these settings with the command
+          <verb>
+            stty -a -f /dev/ttyd1
+          </verb>
+
+          When you change the settings to this device, the settings are in
+          effect until the device is closed.  When it is reopened, it goes
+          back to the default set.  To make changes to the default set, you
+          can open and adjust the settings of the ``initial state'' device.
+          For example, to turn on <tt/CLOCAL/ mode, 8 bits, and
+          <tt>XON/XOFF</tt> flow control by default for ttyd5, do:
+          <verb>
+            stty -f /dev/ttyid5 clocal cs8 ixon ixoff
+          </verb>
+
+          A good place to do this is in <tt>/etc/rc.serial</tt>. Now, an
+          application will have these settings by default when it opens
+          <tt/ttyd5/.  It can still change these settings to its liking,
+          though.
+
+          You can also prevent certain settings from being changed by an
+          application by making adjustments to the ``lock state'' device.
+          For example, to lock the speed of <tt/ttyd5/ to 57600 bps, do
+          <verb>
+            stty -f /dev/ttyld5 57600
+          </verb>
+
+          Now, an application that opens <tt/ttyd5/ and tries to change the
+          speed of the port will be stuck with 57600 bps.
+
+          Naturally, you should make the initial state and lock state
+          devices writable only by <tt/root/. The <tt/MAKEDEV/ script does
+          <bf/NOT/ do this when it creates the device entries.
