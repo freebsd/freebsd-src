@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)makemap.c	8.18 (Berkeley) 11/13/96";
+static char sccsid[] = "@(#)makemap.c	8.19 (Berkeley) 11/18/96";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -237,6 +237,7 @@ main(argc, argv)
 		break;
 
 	  case T_HASH:
+		bzero(&hinfo, sizeof hinfo);
 		if (allowreplace)
 			putflags = 0;
 		else

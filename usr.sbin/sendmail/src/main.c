@@ -39,7 +39,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)main.c	8.215 (Berkeley) 11/16/96";
+static char sccsid[] = "@(#)main.c	8.223 (Berkeley) 12/1/96";
 #endif /* not lint */
 
 #define	_DEFINE
@@ -103,11 +103,12 @@ static void	obsolete();
 extern void	printmailer __P((MAILER *));
 extern void	tTflag __P((char *));
 
-#ifdef DAEMON
-#ifndef SMTP
-ERROR %%%%   Cannot have daemon mode without SMTP   %%%% ERROR
-#endif /* SMTP */
-#endif /* DAEMON */
+#if DAEMON && !SMTP
+ERROR %%%%   Cannot have DAEMON mode without SMTP   %%%% ERROR
+#endif /* DAEMON && !SMTP */
+#if SMTP && !QUEUE
+ERROR %%%%   Cannot have SMTP mode without QUEUE   %%%% ERROR
+#endif /* DAEMON && !SMTP */
 
 #define MAXCONFIGLEVEL	7	/* highest config version level known */
 
@@ -134,7 +135,7 @@ main(argc, argv, envp)
 	struct passwd *pw;
 	struct stat stb;
 	struct hostent *hp;
-	bool nullserver;
+	bool nullserver = FALSE;
 	char jbuf[MAXHOSTNAMELEN];	/* holds MyHostName */
 	static char rnamebuf[MAXNAME];	/* holds RealUserName */
 	char *emptyenviron[1];
@@ -519,13 +520,13 @@ main(argc, argv, envp)
 			{
 			  case MD_DAEMON:
 			  case MD_FGDAEMON:
-# ifndef DAEMON
+# if !DAEMON
 				usrerr("Daemon mode not implemented");
 				ExitStat = EX_USAGE;
 				break;
 # endif /* DAEMON */
 			  case MD_SMTP:
-# ifndef SMTP
+# if !SMTP
 				usrerr("I don't speak SMTP");
 				ExitStat = EX_USAGE;
 				break;
@@ -653,7 +654,7 @@ main(argc, argv, envp)
 			break;
 
 		  case 'q':	/* run queue files at intervals */
-# ifdef QUEUE
+# if QUEUE
 			FullName = NULL;
 			queuemode = TRUE;
 			switch (optarg[0])
@@ -949,7 +950,8 @@ main(argc, argv, envp)
 
 	  default:
 		/* arrange to exit cleanly on hangup signal */
-		setsignal(SIGHUP, intsig);
+		if (setsignal(SIGHUP, SIG_IGN) == (sigfunc_t) SIG_DFL)
+			setsignal(SIGHUP, intsig);
 		break;
 	}
 
@@ -1046,10 +1048,6 @@ main(argc, argv, envp)
 			setbitn(M_RUNASRCPT, ProgMailer->m_flags);
 		if (FileMailer != NULL)
 			setbitn(M_RUNASRCPT, FileMailer->m_flags);
-
-		/* propogate some envariables into children */
-		setuserenv("ISP", NULL);
-		setuserenv("SYSTYPE", NULL);
 	}
 	if (ConfigLevel < 7)
 	{
@@ -1104,7 +1102,7 @@ main(argc, argv, envp)
 		HostStatDir = NULL;
 	}
 
-# ifdef QUEUE
+# if QUEUE
 	if (queuemode && RealUid != 0 && bitset(PRIV_RESTRICTQRUN, PrivacyFlags))
 	{
 		struct stat stbuf;
@@ -1141,7 +1139,7 @@ main(argc, argv, envp)
 	{
 	  case MD_PRINT:
 		/* print the queue */
-#ifdef QUEUE
+#if QUEUE
 		dropenvelope(CurEnv, TRUE);
 		printqueue();
 		endpwent();
@@ -1247,7 +1245,7 @@ main(argc, argv, envp)
 		}
 	}
 
-# ifdef QUEUE
+# if QUEUE
 	/*
 	**  If collecting stuff from the queue, go start doing that.
 	*/
@@ -1255,7 +1253,7 @@ main(argc, argv, envp)
 	if (queuemode && OpMode != MD_DAEMON && QueueIntvl == 0)
 	{
 		(void) unsetenv("HOSTALIASES");
-		runqueue(FALSE);
+		(void) runqueue(FALSE, Verbose);
 		finis();
 	}
 # endif /* QUEUE */
@@ -1305,10 +1303,10 @@ main(argc, argv, envp)
 		xla_create_file();
 #endif
 
-# ifdef QUEUE
+# if QUEUE
 		if (queuemode)
 		{
-			runqueue(TRUE);
+			(void) runqueue(TRUE, FALSE);
 			if (OpMode != MD_DAEMON)
 				for (;;)
 					pause();
@@ -1316,7 +1314,7 @@ main(argc, argv, envp)
 # endif /* QUEUE */
 		dropenvelope(CurEnv, TRUE);
 
-#ifdef DAEMON
+#if DAEMON
 		nullserver = getrequests(CurEnv);
 
 		/* drop privileges */
@@ -1337,7 +1335,7 @@ main(argc, argv, envp)
 #endif /* DAEMON */
 	}
 
-# ifdef SMTP
+# if SMTP
 	/*
 	**  If running SMTP protocol, start collecting and executing
 	**  commands.  This will never return.
@@ -1651,8 +1649,8 @@ disconnect(droplev, e)
 	int fd;
 
 	if (tTd(52, 1))
-		printf("disconnect: In %d Out %d, e=%x\n",
-			fileno(InChannel), fileno(OutChannel), e);
+		printf("disconnect: In %d Out %d, e=%lx\n",
+			fileno(InChannel), fileno(OutChannel), (u_long) e);
 	if (tTd(52, 100))
 	{
 		printf("don't\n");
@@ -1956,6 +1954,14 @@ sigusr1()
 void
 sighup()
 {
+	if (SaveArgv[0][0] != '/')
+	{
+#ifdef LOG
+		if (LogLevel > 3)
+			syslog(LOG_INFO, "could not restart: need full path");
+#endif
+		exit(EX_OSFILE);
+	}
 #ifdef LOG
 	if (LogLevel > 3)
 		syslog(LOG_INFO, "restarting %s on signal", SaveArgv[0]);
