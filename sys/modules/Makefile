@@ -19,6 +19,7 @@ SUBDIR=	accf_data \
 	cue \
 	dc \
 	dummynet \
+	ed \
 	fdesc \
 	fxp \
 	gx \

@@ -4,6 +4,7 @@
 
 KMOD=	if_ed
 SRCS=	if_ed.c if_ed_pccard.c if_ed_pci.c
+KMODDEPS=miibus
 
 .if ${MACHINE} == "pc98"
 SRCS+=	if_ed_cbus.c
