@@ -265,10 +265,19 @@ set80211wep(const char *val, int d, int s, const struct afswtch *rafp)
 	set80211(s, IEEE80211_IOC_WEP, d, 0, NULL);
 }
 
+static int
+isundefarg(const char *arg)
+{
+	return (strcmp(arg, "-") == 0 || strncasecmp(arg, "undef", 5) == 0);
+}
+
 static void
 set80211weptxkey(const char *val, int d, int s, const struct afswtch *rafp)
 {
-	set80211(s, IEEE80211_IOC_WEPTXKEY, atoi(val)-1, 0, NULL);
+	if (isundefarg(val))
+		set80211(s, IEEE80211_IOC_WEPTXKEY, IEEE80211_KEYIX_NONE, 0, NULL);
+	else
+		set80211(s, IEEE80211_IOC_WEPTXKEY, atoi(val)-1, 0, NULL);
 }
 
 static void
@@ -1735,6 +1744,7 @@ static struct cmd ieee80211_cmds[] = {
 	DEF_CMD_ARG("wepmode",		set80211wepmode),
 	DEF_CMD("wep",		1,	set80211wep),
 	DEF_CMD("-wep",		0,	set80211wep),
+	DEF_CMD_ARG("deftxkey",		set80211weptxkey),
 	DEF_CMD_ARG("weptxkey",		set80211weptxkey),
 	DEF_CMD_ARG("wepkey",		set80211wepkey),
 	DEF_CMD_ARG("nwkey",		set80211nwkey),		/* NetBSD */
