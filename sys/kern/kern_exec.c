@@ -65,6 +65,19 @@
 
 MALLOC_DEFINE(M_PARGS, "proc-args", "Process arguments");
 
+static MALLOC_DEFINE(M_ATEXEC, "atexec", "atexec callback");
+
+/*
+ * callout list for things to do at exec time
+ */
+struct execlist {
+	execlist_fn function;
+	TAILQ_ENTRY(execlist) next;
+};
+
+TAILQ_HEAD(exec_list_head, execlist);
+static struct exec_list_head exec_list = TAILQ_HEAD_INITIALIZER(exec_list);
+
 static register_t *exec_copyout_strings __P((struct image_params *));
 
 /* XXX This should be vm_size_t. */
@@ -115,6 +128,7 @@ execve(td, uap)
 	struct vattr attr;
 	int (*img_first) __P((struct image_params *));
 	struct pargs *pa;
+	struct execlist *ep;
 
 	imgp = &image_params;
 
@@ -243,6 +257,9 @@ interpret:
 		    UIO_SYSSPACE, imgp->interpreter_name, td);
 		goto interpret;
 	}
+
+	TAILQ_FOREACH(ep, &exec_list, next)
+		(*ep->function)(p);
 
 	/*
 	 * Copy out strings (args and env) and initialize stack base
@@ -926,3 +943,44 @@ exec_unregister(execsw_arg)
 	execsw = newexecsw;
 	return 0;
 }
+
+int
+at_exec(function)
+	execlist_fn function;
+{
+	struct execlist *ep;
+
+#ifdef INVARIANTS
+	/* Be noisy if the programmer has lost track of things */
+	if (rm_at_exec(function)) 
+		printf("WARNING: exec callout entry (%p) already present\n",
+		    function);
+#endif
+	ep = malloc(sizeof(*ep), M_ATEXEC, M_NOWAIT);
+	if (ep == NULL)
+		return (ENOMEM);
+	ep->function = function;
+	TAILQ_INSERT_TAIL(&exec_list, ep, next);
+	return (0);
+}
+
+/*
+ * Scan the exec callout list for the given item and remove it.
+ * Returns the number of items removed (0 or 1)
+ */
+int
+rm_at_exec(function)
+	execlist_fn function;
+{
+	struct execlist *ep;
+
+	TAILQ_FOREACH(ep, &exec_list, next) {
+		if (ep->function == function) {
+			TAILQ_REMOVE(&exec_list, ep, next);
+			free(ep, M_ATEXEC);
+			return(1);
+		}
+	}	
+	return (0);
+}
+

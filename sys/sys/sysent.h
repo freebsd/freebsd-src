@@ -112,10 +112,12 @@ static moduledata_t name##_mod = {                             \
 };                                                             \
 DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE)
 
-#define SYSCALL_MODULE_HELPER(syscallname, argcount)    \
+#define SYSCALL_MODULE_HELPER(syscallname)              \
 static int syscallname##_syscall = SYS_##syscallname;   \
 static struct sysent syscallname##_sysent = {           \
-    argcount, (sy_call_t *)& syscallname                \
+    (sizeof(struct syscallname ## _args )               \
+     / sizeof(register_t)),                             \
+    (sy_call_t *)& syscallname                          \
 };                                                      \
 SYSCALL_MODULE(syscallname,                             \
     & syscallname##_syscall, & syscallname##_sysent,    \
