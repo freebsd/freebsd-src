@@ -434,7 +434,7 @@ wi_generic_attach(device_t dev)
 	 */
 	mac.wi_type = WI_RID_MAC_NODE;
 	mac.wi_len = 4;
-	wi_read_record(sc, (struct wi_ltv_gen *)&mac));
+	wi_read_record(sc, (struct wi_ltv_gen *)&mac);
 	if ((error = wi_read_record(sc, (struct wi_ltv_gen *)&mac)) != 0) {
 		device_printf(dev, "mac read failed %d\n", error);
 		wi_free(dev);
