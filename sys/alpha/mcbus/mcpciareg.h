@@ -165,8 +165,8 @@
 #define	_MCPCIA_INT_MASK0	0x000000640	/* PCI Int Mask 0 */
 #define	_MCPCIA_INT_MASK1	0x000000680	/* PCI Int Mask 1 */
 
-#define	_MCPCIA_INT_ACK0	0x100003F00	/* PCI Int Ack 0 */
-#define	_MCPCIA_INT_ACK1	0x100003F40	/* PCI Int Ack 1 */
+#define	_MCPCIA_INT_ACK0	0x010003F00	/* PCI Int Ack 0 */
+#define	_MCPCIA_INT_ACK1	0x010003F40	/* PCI Int Ack 1 */
 
 #define	_MCPCIA_PERF_MON	0x000000300	/* PCI Perf Monitor */
 #define	_MCPCIA_PERF_CONT	0x000000340	/* PCI Perf Monitor Control */
@@ -226,8 +226,6 @@
 #define	MCPCIA_INT_ADR_EXT(ccp)	(_SYBRIDGE(ccp) | _MCPCIA_INT_ADR_EXT)
 #define	MCPCIA_INT_MASK0(ccp)	(_SYBRIDGE(ccp) | _MCPCIA_INT_MASK0)
 #define	MCPCIA_INT_MASK1(ccp)	(_SYBRIDGE(ccp) | _MCPCIA_INT_MASK1)
-#define	MCPCIA_INT_ACK0(ccp)	(_SYBRIDGE(ccp) | _MCPCIA_INT_ACK0)
-#define	MCPCIA_INT_ACK1(ccp)	(_SYBRIDGE(ccp) | _MCPCIA_INT_ACK1)
 #define	MCPCIA_PERF_MON(ccp)	(_SYBRIDGE(ccp) | _MCPCIA_PERF_MON)
 #define	MCPCIA_PERF_CONT(ccp)	(_SYBRIDGE(ccp) | _MCPCIA_PERF_CONT)
 #define	MCPCIA_CAP_DIAG(ccp)	(_SYBRIDGE(ccp) | _MCPCIA_CAP_DIAG)
@@ -259,6 +257,11 @@
 #define	MCPCIA_W3_MASK(ccp)	(_SYBRIDGE(ccp) | _MCPCIA_W3_MASK)
 #define	MCPCIA_T3_BASE(ccp)	(_SYBRIDGE(ccp) | _MCPCIA_T3_BASE)
 #define	MCPCIA_W_DAC(ccp)	(_SYBRIDGE(ccp) | _MCPCIA_W_DAC)
+
+#define MCPCIA_INT_ACK0(ccp)	\
+	((ccp)->sysbase | MCPCIA_PCI_IACK | _MCPCIA_INT_ACK0)
+#define MCPCIA_INT_ACK1(ccp)	\
+	((ccp)->sysbase | MCPCIA_PCI_IACK | _MCPCIA_INT_ACK1)
 
 /*
  * This is here for what error handling will get as a collected subpacket.
@@ -385,8 +388,14 @@ struct mcpcia_iodsnap {
  * in imask0 if we want to have them vectored to PALcode for appropriate
  * dispatch.
  */
+/*
+ * Bits for INT_CTL register
+ */
+#define	MCPCIA_INTCTL_EN_INT		0x1	/* enable interrupts */
+#define	MCPCIA_INTCTL_EN_INT_NUM	0x2	/* enable INT_ADR/ADR_EXT */
 
 /*
+ * Bits for MASK0 registers.
  * bits 0-15 correspond to 4 slots (time 4 buspins) for each PCI bus.
  * bit 16 is the NCR810 onboard SCSI interrupt.
  * bits 19-20 are reserved.
