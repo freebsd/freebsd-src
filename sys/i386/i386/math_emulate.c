@@ -78,10 +78,6 @@ put_fs_long(unsigned long val, unsigned long *adr) { (void)suword(adr,val); }
 
 math_emulate(struct trapframe * info)
 {
-#if defined(i486) || defined(i387)
-	panic("math_emulate(), shouldn't happen with -Di486 or -Di387");
-}
-#else
 	unsigned short code;
 	temp_real tmp;
 	char * address;
@@ -964,8 +960,6 @@ void fmul(const temp_real * src1, const temp_real * src2, temp_real * result)
  * temporary real division routine.
  */
 
-#include "i386/i386/math_emu.h"
-
 static void shift_left(int * c)
 {
 	__asm__ __volatile__("movl (%0),%%eax ; addl %%eax,(%0)\n\t"
@@ -1484,4 +1478,3 @@ void int_to_real(const temp_int * a, temp_real * b)
 			:"0" (b->a),"1" (b->b));
 	}
 }
-#endif /* defined(i486) || defined(i387) */
