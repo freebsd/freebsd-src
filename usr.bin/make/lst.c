@@ -475,6 +475,7 @@ Lst_Remove(Lst *list, LstNode *ln)
     if (ln->useCount == 0) {
 	free(ln);
     } else {
+printf("USE COUNT %d\n", ln->useCount);
 	ln->flags |= LN_DELETED;
     }
 }
