@@ -211,6 +211,7 @@ psignals()
 		 * Reset the terminal and arrange to repaint the
 		 * screen when we get back to the main command loop.
 		 */
+		if (sigs & S_STOP) sigs &= ~(S_STOP);
 		(void)signal(SIGTSTP, stop);
 		raw_mode(1);
 		init();
