@@ -100,6 +100,7 @@ __FBSDID("$FreeBSD$");
 static void	atpic_init(void *dummy);
 
 unsigned int imen;	/* XXX */
+static int using_elcr;
 
 inthand_t
 	IDTVEC(atpic_intr0), IDTVEC(atpic_intr1), IDTVEC(atpic_intr2),
@@ -111,14 +112,14 @@ inthand_t
 
 #define	IRQ(ap, ai)	((ap)->at_irqbase + (ai)->at_irq)
 
-#define	ATPIC(io, base, eoi, imenptr)				\
+#define	ATPIC(io, base, eoi, imenptr)					\
      	{ { atpic_enable_source, atpic_disable_source, (eoi),		\
 	    atpic_enable_intr, atpic_vector, atpic_source_pending, NULL, \
 	    atpic_resume }, (io), (base), IDT_IO_INTS + (base), (imenptr) }
 
 #define	INTSRC(irq)							\
-	{ { &atpics[(irq) / 8].at_pic }, (irq) % 8,			\
-	    IDTVEC(atpic_intr ## irq ) }
+	{ { &atpics[(irq) / 8].at_pic }, IDTVEC(atpic_intr ## irq ),	\
+	    (irq) % 8 }
 
 struct atpic {
 	struct pic at_pic;
@@ -130,8 +131,9 @@ struct atpic {
 
 struct atpic_intsrc {
 	struct intsrc at_intsrc;
-	int	at_irq;		/* Relative to PIC base. */
 	inthand_t *at_intr;
+	int	at_irq;			/* Relative to PIC base. */
+	enum intr_trigger at_trigger;
 	u_long	at_count;
 	u_long	at_straycount;
 };
@@ -192,6 +194,8 @@ atpic_disable_source(struct intsrc *isrc)
 	struct atpic_intsrc *ai = (struct atpic_intsrc *)isrc;
 	struct atpic *ap = (struct atpic *)isrc->is_pic;
 
+	if (ai->at_trigger == INTR_TRIGGER_EDGE)
+		return;
 	mtx_lock_spin(&icu_lock);
 	*ap->at_imen |= IMEN_MASK(ai);
 	outb(ap->at_ioaddr + ICU_IMR_OFFSET, *ap->at_imen);
@@ -260,8 +264,11 @@ atpic_resume(struct intsrc *isrc)
 	struct atpic_intsrc *ai = (struct atpic_intsrc *)isrc;
 	struct atpic *ap = (struct atpic *)isrc->is_pic;
 
-	if (ai->at_irq == 0)
+	if (ai->at_irq == 0) {
 		i8259_init(ap, ap == &atpics[SLAVE]);
+		if (ap == &atpics[SLAVE] && using_elcr)
+			elcr_resume();
+	}
 }
 
 static void
@@ -334,6 +341,45 @@ atpic_startup(void)
 		setidt(((struct atpic *)ai->at_intsrc.is_pic)->at_intbase +
 		    ai->at_irq, ai->at_intr, SDT_SYS386IGT, SEL_KPL,
 		    GSEL(GCODE_SEL, SEL_KPL));
+	}
+
+#ifdef DEV_MCA
+	/* For MCA systems, all interrupts are level triggered. */
+	if (MCA_system)
+		for (i = 0, ai = atintrs; i < NUM_ISA_IRQS; i++, ai++)
+			ai->at_trigger = INTR_TRIGGER_LEVEL;
+	else
+#endif
+
+	/*
+	 * Look for an ELCR.  If we find one, update the trigger modes.
+	 * If we don't find one, assume that IRQs 0, 1, 2, and 13 are
+	 * edge triggered and that everything else is level triggered.
+	 * We only use the trigger information to reprogram the ELCR if
+	 * we have one and as an optimization to avoid masking edge
+	 * triggered interrupts.  For the case that we don't have an ELCR,
+	 * it doesn't hurt to mask an edge triggered interrupt, so we
+	 * that is why we assume level trigger for any interrupt that we
+	 * aren't sure is edge triggered.
+	 */
+	if (elcr_probe() == 0) {
+		using_elcr = 1;
+		for (i = 0, ai = atintrs; i < NUM_ISA_IRQS; i++, ai++)
+			ai->at_trigger = elcr_read_trigger(i);
+	} else {
+		for (i = 0, ai = atintrs; i < NUM_ISA_IRQS; i++, ai++)
+			switch (i) {
+			case 0:
+			case 1:
+			case 2:
+			case 8:
+			case 13:
+				ai->at_trigger = INTR_TRIGGER_EDGE;
+				break;
+			default:
+				ai->at_trigger = INTR_TRIGGER_LEVEL;
+				break;
+			}
 	}
 }
 
