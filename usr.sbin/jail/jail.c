@@ -83,6 +83,7 @@ main(int argc, char **argv)
 		if (setusercontext(lcap, pwd, pwd->pw_uid,
 		    LOGIN_SETALL & ~LOGIN_SETGROUP) != 0)
 			err(1, "setusercontext");
+		login_close(lcap);
 	}
 	if (execv(argv[3], argv + 3) != 0)
 		err(1, "execv: %s", argv[3]);
