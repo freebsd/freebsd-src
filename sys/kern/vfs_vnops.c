@@ -429,21 +429,31 @@ vn_stat(vp, sb, p)
 	sb->st_atimespec = vap->va_atime;
 	sb->st_mtimespec = vap->va_mtime;
 	sb->st_ctimespec = vap->va_ctime;
+
 	/*
-	 * For block and char device nodes we don't really care
-	 * about what the filesystem told us, we want to know
-	 * what the device told us
+	 * According to www.opengroup.org, the meaning of st_blksize is 
+	 *   "a filesystem-specific preferred I/O block size for this 
+	 *    object.  In some filesystem types, this may vary from file
+	 *    to file"
+	 * Default to zero to catch bogus uses of this field.
 	 */
-	switch (vap->va_type) {
-	case VBLK:
-	case VCHR:
-		sb->st_blksize = vp->v_rdev->si_bsize_max;
-		break;
-	default:
+	sb->st_blksize = 0;
+
+	if (vp->v_type == VREG)
 		sb->st_blksize = vap->va_blocksize;
-		break;
-	}
+
+	/*
+	 * For disks we can say something sensible.  We report the max
+	 * size because we prefer few big transfers than many small.
+	 * XXX: Only reliable if the disk is opened.
+	 * XXX: Use vn_isdisk when it allows VCHR too 
+	 */
+	if ((vp->v_type == VBLK || vp->v_type == VCHR) &&
+	    devsw(vp->v_rdev) && (devsw(vp->v_rdev)->d_flags & D_DISK))
+		sb->st_blksize = vp->v_rdev->si_bsize_max;
+
 	sb->st_flags = vap->va_flags;
+
 	if (suser_xxx(p->p_ucred, 0, 0))
 		sb->st_gen = 0;
 	else
