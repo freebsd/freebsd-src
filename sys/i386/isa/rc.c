@@ -269,7 +269,7 @@ rcattach(dvp)
 		    rcb->rcb_unit);
 		make_dev(&rc_cdevsw, chan + CD180_NCHAN * rcb->rcb_unit + 128,
 		    UID_UUCP, GID_DIALER, 0660, "cuam%d", chan + CD180_NCHAN *
-		    rcb->rcb_unit + 128);
+		    rcb->rcb_unit);
 	}
 	rcb->rcb_probed = RC_ATTACHED;
 	if (!rc_started) {
