@@ -1,0 +1,40 @@
+# database declarations
+Kdenyip hash -o -a.REJECT /etc/mail/denyip.db
+Kspamsites hash -o -a.REJECT /etc/mail/spamsites.db
+
+# called with host.tld and IP address of connecting host.
+# ip address must NOT be in the "denyip" database
+Scheck_relay
+R$* $| [$+		$1 $| $2			should not be needed
+R$* $| $+]		$1 $| $2			same (bat 2nd ed p510)
+R$* $| $*		$: $1 $| $(denyip $2 $)
+R$* $| $*.REJECT	$#error $: 521 blocked. contact postmaster@FreeBSD.ORG ($2)
+# host must *not* be in the "spamsites" database
+R$+.$+.$+ $| $*		$2.$3 $| $4
+R$+.$+ $| $*		$: $(spamsites $1.$2 $) $| $3
+R$*.REJECT $| $*	$#error $: 521 blocked. contact postmaster@FreeBSD.ORG ($1)
+# Host must be resolvable, currently not used at hub.freebsd.org
+#R$* $| $*		$: <?> <$1 $| $2> $>3 foo@$1
+#R<?> <$*> $*<@$*.>	$: $1
+#R<?> <$*> $*<@$*>	$#error $: 451 Domain does not resolve ($1)
+
+# called with envelope sender, "Mail From: xxx", of SMTP conversation
+#
+Scheck_mail
+R$*			$: <?> $>3 $1
+R<?> $* < @ $+ . >	$: $2 
+# R<?> $* < @ $+ >	$#error $: "451 Domain does not resolve"
+R<?> $* < @ $+ >	$: $2
+R$+.$+.$+		$2.$3  
+R$*			$: $(spamsites $1 $: OK $)
+ROK			$@ OK 
+R$+.REJECT		$#error $: 521 $1 
+
+# for testing check_relay and check_mail
+# if we type "$|", sendmail will split this into two tokens "$" and "|"
+# this rule glues prevent sendmail from splitting "$|"
+# to use:  /usr/sbin/sendmail -bt
+#          host.domain.tld $| 111.222.333.444
+Sxlat
+R$* $$| $*		$: $1 $| $2
+R$* $| $*		$@ $>check_relay $1 $| $2
