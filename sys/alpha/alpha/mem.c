@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.2 1998/07/29 18:36:29 dfr Exp $
+ *	$Id: mem.c,v 1.3 1998/11/08 12:39:01 dfr Exp $
  */
 
 /*
@@ -400,16 +400,22 @@ iskmemdev(dev)
 	dev_t dev;
 {
 
-	return ((major(dev) == mem_cdevsw.d_maj)
-	      && (minor(dev) == 0 || minor(dev) == 1));
+	return (((major(dev) == mem_cdevsw.d_maj)
+		 && (minor(dev) == 0 || minor(dev) == 1))
+/* or the osf/1 mem device */
+		||((major(dev) == 0) 
+		   && (minor(dev) == 0x00200002)));
 }
 
 int
 iszerodev(dev)
 	dev_t dev;
 {
-	return ((major(dev) == mem_cdevsw.d_maj)
-	  && minor(dev) == 12);
+	return (((major(dev) == mem_cdevsw.d_maj)
+		 && minor(dev) == 12)
+/* or the osf/1 zero device */
+		||((major(dev) == 0) 
+		   && (minor(dev) == 0x02600000)));
 }
 
 
