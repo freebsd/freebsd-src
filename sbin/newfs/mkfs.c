@@ -32,12 +32,21 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)mkfs.c	8.11 (Berkeley) 5/3/95";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
+#include <err.h>
+#include <signal.h>
+#include <string.h>
+#include <stdio.h>
 #include <unistd.h>
 #include <sys/param.h>
 #include <sys/time.h>
+#include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/resource.h>
 #include <ufs/ufs/dinode.h>
@@ -49,9 +58,15 @@ static char sccsid[] = "@(#)mkfs.c	8.11 (Berkeley) 5/3/95";
 #include <sys/ioctl.h>
 
 #ifndef STANDALONE
-#include <a.out.h>
-#include <stdio.h>
 #include <stdlib.h>
+#else
+extern int atoi __P((char *));
+extern char * getenv __P((char *));
+#endif
+
+#ifdef FSIRAND
+extern long random __P((void));
+extern void srandomdev __P((void));
 #endif
 
 /*
@@ -102,9 +117,6 @@ extern int	bbsize;		/* boot block size */
 extern int	sbsize;		/* superblock size */
 extern u_long	memleft;	/* virtual memory available */
 extern caddr_t	membase;	/* start address of memory based filesystem */
-#ifdef STANDALONE
-extern caddr_t	malloc(), calloc();
-#endif
 extern char *	filename;
 
 union {
@@ -129,7 +141,27 @@ int     randinit;
 daddr_t	alloc();
 long	calcipg();
 static int charsperline();
+void clrblock __P((struct fs *, unsigned char *, int));
+void fsinit __P((time_t));
+void initcg __P((int, time_t));
+int isblock __P((struct fs *, unsigned char *, int));
+void iput __P((struct dinode *, ino_t));
+int makedir __P((struct direct *, int));
+void rdfs __P((daddr_t, int, char *));
+void setblock __P((struct fs *, unsigned char *, int));
+void wtfs __P((daddr_t, int, char *));
 
+#ifndef STANDALONE
+void get_memleft __P((void));
+void raise_data_limit __P((void));
+#else
+void free __P((char *));
+char * calloc __P((u_long, u_long));
+caddr_t malloc __P((u_long));
+caddr_t realloc __P((char *, u_long));
+#endif
+
+void
 mkfs(pp, fsys, fi, fo)
 	struct partition *pp;
 	char *fsys;
@@ -141,7 +173,7 @@ mkfs(pp, fsys, fi, fo)
 	off_t usedb;
 	long mapcramped, inodecramped;
 	long postblsize, rotblsize, totalsbsize;
-	int ppid, status, fd;
+	int ppid = 0, status, fd;
 	time_t utime;
 	quad_t sizepb;
 	void started();
@@ -160,11 +192,9 @@ mkfs(pp, fsys, fi, fo)
 	if (mfs) {
 		ppid = getpid();
 		(void) signal(SIGUSR1, started);
-		if (i = fork()) {
-			if (i == -1) {
-				perror("mfs");
-				exit(10);
-			}
+		if ((i = fork())) {
+			if (i == -1)
+				err(10, "mfs");
 			if (waitpid(i, &status, 0) != -1 && WIFEXITED(status))
 				exit(WEXITSTATUS(status));
 			exit(11);
@@ -179,18 +209,14 @@ mkfs(pp, fsys, fi, fo)
 			unsigned char buf[BUFSIZ];
 			unsigned long l,l1;
 			fd = open(filename,O_RDWR|O_TRUNC|O_CREAT,0644);
-			if(fd < 0) {
-				perror(filename);
-				exit(12);
-			}
+			if(fd < 0)
+				err(12, "%s", filename);
 			for(l=0;l< fssize * sectorsize;l += l1) {
 				l1 = fssize * sectorsize;
 				if (BUFSIZ < l1)
 					l1 = BUFSIZ;
-				if (l1 != write(fd,buf,l1)) {
-					perror(filename);
-					exit(12);
-				}
+				if (l1 != write(fd,buf,l1))
+					err(12, "%s", filename);
 			}
 			membase = mmap(
 				0,
@@ -199,10 +225,8 @@ mkfs(pp, fsys, fi, fo)
 				MAP_SHARED,
 				fd,
 				0);
-			if(membase == MAP_FAILED) {
-				perror("mmap");
-				exit(12);
-			}
+			if(membase == MAP_FAILED)
+				err(12, "mmap");
 			close(fd);
 		} else {
 #ifndef STANDALONE
@@ -210,10 +234,8 @@ mkfs(pp, fsys, fi, fo)
 #endif
 			if (fssize * sectorsize > (memleft - 131072))
 				fssize = (memleft - 131072) / sectorsize;
-			if ((membase = malloc(fssize * sectorsize)) == NULL) {
-				perror("malloc");
-				exit(13);
-			}
+			if ((membase = malloc(fssize * sectorsize)) == NULL)
+				errx(13, "malloc failed");
 		}
 	}
 	fsi = fi;
@@ -610,10 +632,8 @@ next:
 	for (sblock.fs_csshift = 0; i > 1; i >>= 1)
 		sblock.fs_csshift++;
 	fscs = (struct csum *)calloc(1, sblock.fs_cssize);
-	if (fscs == NULL) {
-		perror("calloc");
-		exit(31);
-	}
+	if (fscs == NULL)
+		errx(31, "calloc failed");
 	sblock.fs_magic = FS_MAGIC;
 	sblock.fs_rotdelay = rotdelay;
 	sblock.fs_minfree = minfree;
@@ -718,13 +738,17 @@ next:
 /*
  * Initialize a cylinder group.
  */
+void
 initcg(cylno, utime)
 	int cylno;
 	time_t utime;
 {
 	daddr_t cbase, d, dlower, dupper, dmax, blkno;
-	long i, j, s;
+	long i;
 	register struct csum *cs;
+#ifdef FSIRAND
+	long j;
+#endif
 
 	/*
 	 * Determine block bounds for cylinder group.
@@ -807,7 +831,7 @@ initcg(cylno, utime)
 		sblock.fs_dsize += dlower;
 	}
 	sblock.fs_dsize += acg.cg_ndblk - dupper;
-	if (i = dupper % sblock.fs_frag) {
+	if ((i = dupper % sblock.fs_frag)) {
 		acg.cg_frsum[sblock.fs_frag - i]++;
 		for (d = dupper + sblock.fs_frag - i; dupper < d; dupper++) {
 			setbit(cg_blksfree(&acg), dupper);
@@ -914,10 +938,13 @@ struct odirect olost_found_dir[] = {
 #endif
 char buf[MAXBSIZE];
 
+void
 fsinit(utime)
 	time_t utime;
 {
+#ifdef LOSTDIR
 	int i;
+#endif
 
 	/*
 	 * initialize the node
@@ -970,6 +997,7 @@ fsinit(utime)
  * construct a set of directory entries in "buf".
  * return size of directory.
  */
+int
 makedir(protodir, entries)
 	register struct direct *protodir;
 	int entries;
@@ -1084,6 +1112,7 @@ calcipg(cpg, bpcg, usedbp)
 /*
  * Allocate an inode on the disk
  */
+void
 iput(ip, ino)
 	register struct dinode *ip;
 	register ino_t ino;
@@ -1113,9 +1142,9 @@ iput(ip, ino)
 		exit(32);
 	}
 	d = fsbtodb(&sblock, ino_to_fsba(&sblock, ino));
-	rdfs(d, sblock.fs_bsize, buf);
+	rdfs(d, sblock.fs_bsize, (char *)buf);
 	buf[ino_to_fsbo(&sblock, ino)] = *ip;
-	wtfs(d, sblock.fs_bsize, buf);
+	wtfs(d, sblock.fs_bsize, (char *)buf);
 }
 
 /*
@@ -1146,10 +1175,10 @@ malloc(size)
 		i = (char *)((u_long)(base + pgsz) &~ pgsz);
 		base = sbrk(i - base);
 		if (getrlimit(RLIMIT_DATA, &rlp) < 0)
-			perror("getrlimit");
+			warn("getrlimit");
 		rlp.rlim_cur = rlp.rlim_max;
 		if (setrlimit(RLIMIT_DATA, &rlp) < 0)
-			perror("setrlimit");
+			warn("setrlimit");
 		memleft = rlp.rlim_max - (u_long)base;
 	}
 	size = (size + pgsz) &~ pgsz;
@@ -1188,7 +1217,8 @@ calloc(size, numelm)
 	caddr_t base;
 
 	size *= numelm;
-	base = malloc(size);
+	if ((base = malloc(size)) == NULL);
+		return (NULL);
 	memset(base, 0, size);
 	return (base);
 }
@@ -1196,6 +1226,7 @@ calloc(size, numelm)
 /*
  * Replace libc function with one suited to our needs.
  */
+void
 free(ptr)
 	char *ptr;
 {
@@ -1205,15 +1236,16 @@ free(ptr)
 
 #else   /* !STANDALONE */
 
+void
 raise_data_limit()
 {
 	struct rlimit rlp;
 
 	if (getrlimit(RLIMIT_DATA, &rlp) < 0)
-		perror("getrlimit");
+		warn("getrlimit");
 	rlp.rlim_cur = rlp.rlim_max;
 	if (setrlimit(RLIMIT_DATA, &rlp) < 0)
-		perror("setrlimit");
+		warn("setrlimit");
 }
 
 #ifdef __ELF__
@@ -1223,6 +1255,7 @@ extern char *_etext;
 extern char *etext;
 #endif
 
+void
 get_memleft()
 {
 	static u_long pgsz;
@@ -1235,7 +1268,7 @@ get_memleft()
 	dstart = ((u_long)&etext) &~ pgsz;
 	freestart = ((u_long)(sbrk(0) + pgsz) &~ pgsz);
 	if (getrlimit(RLIMIT_DATA, &rlp) < 0)
-		perror("getrlimit");
+		warn("getrlimit");
 	memused = freestart - dstart;
 	memleft = rlp.rlim_cur - memused;
 }
@@ -1244,6 +1277,7 @@ get_memleft()
 /*
  * read a block from the file system
  */
+void
 rdfs(bno, size, bf)
 	daddr_t bno;
 	int size;
@@ -1257,20 +1291,19 @@ rdfs(bno, size, bf)
 	}
 	if (lseek(fsi, (off_t)bno * sectorsize, 0) < 0) {
 		printf("seek error: %ld\n", (long)bno);
-		perror("rdfs");
-		exit(33);
+		err(33, "rdfs");
 	}
 	n = read(fsi, bf, size);
 	if (n != size) {
 		printf("read error: %ld\n", (long)bno);
-		perror("rdfs");
-		exit(34);
+		err(34, "rdfs");
 	}
 }
 
 /*
  * write a block to the file system
  */
+void
 wtfs(bno, size, bf)
 	daddr_t bno;
 	int size;
@@ -1286,20 +1319,19 @@ wtfs(bno, size, bf)
 		return;
 	if (lseek(fso, (off_t)bno * sectorsize, SEEK_SET) < 0) {
 		printf("seek error: %ld\n", (long)bno);
-		perror("wtfs");
-		exit(35);
+		err(35, "wtfs");
 	}
 	n = write(fso, bf, size);
 	if (n != size) {
 		printf("write error: %ld\n", (long)bno);
-		perror("wtfs");
-		exit(36);
+		err(36, "wtfs");
 	}
 }
 
 /*
  * check if a block is available
  */
+int
 isblock(fs, cp, h)
 	struct fs *fs;
 	unsigned char *cp;
@@ -1332,6 +1364,7 @@ isblock(fs, cp, h)
 /*
  * take a block out of the map
  */
+void
 clrblock(fs, cp, h)
 	struct fs *fs;
 	unsigned char *cp;
@@ -1363,6 +1396,7 @@ clrblock(fs, cp, h)
 /*
  * put a block into the map
  */
+void
 setblock(fs, cp, h)
 	struct fs *fs;
 	unsigned char *cp;
@@ -1402,7 +1436,6 @@ charsperline()
 	int columns;
 	char *cp;
 	struct winsize ws;
-	extern char *getenv();
 
 	columns = 0;
 	if (ioctl(0, TIOCGWINSZ, &ws) != -1)
