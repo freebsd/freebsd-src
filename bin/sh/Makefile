@@ -26,24 +26,24 @@ init.c: mkinit ${SRCS}
 	./mkinit '${CC} -c ${CFLAGS} init.c' ${.ALLSRC}
 
 mkinit: ${.CURDIR}/mkinit.c
-	${CC} ${CFLAGS} ${.CURDIR}/mkinit.c -o $@
+	${CC} ${CFLAGS} ${LDFLAGS} ${.CURDIR}/mkinit.c -o $@
 
 nodes.c nodes.h: mknodes ${.CURDIR}/nodetypes ${.CURDIR}/nodes.c.pat
 	./mknodes ${.CURDIR}/nodetypes ${.CURDIR}/nodes.c.pat
 
 mknodes: ${.CURDIR}/mknodes.c
-	${CC} ${CFLAGS} ${.CURDIR}/mknodes.c -o $@
+	${CC} ${CFLAGS} ${LDFLAGS} ${.CURDIR}/mknodes.c -o $@
 
 signames.c signames.h: mksignames
 	./mksignames
 
 mksignames: ${.CURDIR}/mksignames.c
-	${CC} ${CFLAGS} ${.CURDIR}/mksignames.c -o $@
+	${CC} ${CFLAGS} ${LDFLAGS} ${.CURDIR}/mksignames.c -o $@
 
 syntax.c syntax.h: mksyntax
 	./mksyntax
 
 mksyntax: ${.CURDIR}/mksyntax.c ${.CURDIR}/parser.h
-	${CC} ${CFLAGS} ${.CURDIR}/mksyntax.c -o $@
+	${CC} ${CFLAGS} ${LDFLAGS} ${.CURDIR}/mksyntax.c -o $@
 
 .include <bsd.prog.mk>
