@@ -30,11 +30,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: print.c,v 1.4 1995/04/29 15:17:16 bde Exp $
+ *	$Id: print.c,v 1.5 1995/05/30 00:07:27 rgrimes Exp $
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)print.c	8.6 (Berkeley) 4/16/94";
+static char const sccsid[] = "@(#)print.c	8.6 (Berkeley) 4/16/94";
 #endif /* not lint */
 
 #include <sys/types.h>

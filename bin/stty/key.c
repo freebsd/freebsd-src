@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: key.c,v 1.4 1995/04/28 19:29:29 ache Exp $
+ *	$Id: key.c,v 1.4.6.1 1996/12/10 16:40:37 joerg Exp $
  */
 
 #ifndef lint
@@ -122,11 +122,11 @@ ksearch(argvp, ip)
 	    sizeof(keys)/sizeof(struct key), sizeof(struct key), c_key)))
 		return (0);
 	if (!(kp->flags & F_OFFOK) && ip->off) {
-		errx(1, "illegal option -- %s", name);
+		warnx("illegal option -- -%s", name);
 		usage();
 	}
 	if (kp->flags & F_NEEDARG && !(ip->arg = *++*argvp)) {
-		errx(1, "option requires an argument -- %s", name);
+		warnx("option requires an argument -- %s", name);
 		usage();
 	}
 	kp->f(ip);
@@ -192,11 +192,11 @@ f_extproc(ip)
 	struct info *ip;
 {
 
-	if (!ip->off) {
-		int tmp = 1;
+	if (ip->off) {
+		int tmp = 0;
 		(void)ioctl(ip->fd, TIOCEXT, &tmp);
 	} else {
-		int tmp = 0;
+		int tmp = 1;
 		(void)ioctl(ip->fd, TIOCEXT, &tmp);
 	}
 }
