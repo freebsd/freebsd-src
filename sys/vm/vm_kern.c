@@ -429,7 +429,7 @@ retry:
 		 * Because this is kernel_pmap, this call will not block.
 		 */
 		pmap_enter(kernel_pmap, addr + i, m, VM_PROT_ALL, 1);
-		vm_page_flag_set(m, PG_MAPPED | PG_WRITEABLE | PG_REFERENCED);
+		vm_page_flag_set(m, PG_WRITEABLE | PG_REFERENCED);
 	}
 	vm_map_unlock(map);
 
