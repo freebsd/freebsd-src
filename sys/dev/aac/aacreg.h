@@ -551,7 +551,7 @@ struct aac_adapter_info {
  *  state of the adapter.
  */
 #define AAC_SELF_TEST_FAILED	0x00000004
-#define	AAC_MONITOR_PANIC	0x00000020
+#define AAC_MONITOR_PANIC	0x00000020
 #define AAC_UP_AND_RUNNING	0x00000080
 #define AAC_KERNEL_PANIC	0x00000100
 
