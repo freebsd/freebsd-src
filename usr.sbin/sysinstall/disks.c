@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.98 1998/03/23 08:36:26 jkh Exp $
+ * $Id: disks.c,v 1.99 1998/09/14 19:14:11 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -291,6 +291,7 @@ diskPartition(Device *dev)
 	    if (chunk_info[current_chunk]->type != freebsd)
 		msg = "Can only scan for bad blocks in FreeBSD slice.";
 	    else if (strncmp(d->name, "sd", 2) ||
+		     strncmp(d->name, "da", 2) ||
 		     !msgYesNo("This typically makes sense only for ESDI, IDE or MFM drives.\n"
 			       "Are you sure you want to do this on a SCSI disk?")) {
 		if (chunk_info[current_chunk]->flags & CHUNK_BAD144)
