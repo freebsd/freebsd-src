@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr_reg.h,v 2.0.0.5 94/08/25 22:51:04 wolf Exp $
+**  $Id: ncr_reg.h,v 2.0.0.8 94/09/11 22:04:58 wolf Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -42,24 +42,6 @@
 ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 **
 **-------------------------------------------------------------------------
-**
-**  $Log:	ncr_reg.h,v $
-**  Revision 2.0.0.5  94/08/25  22:51:04  wolf
-**  New SCR_REG_OFS() macro.
-**  
-**  Revision 2.0.0.4  94/08/09  23:10:10  wolf
-**  new message.
-**  
-**  Revision 2.0.0.3  94/07/24  08:59:19  wolf
-**  bits of sstat0 defined.
-**  
-**  Revision 2.0  94/07/10  15:53:27  wolf
-**  FreeBSD release.
-**  
-**  Revision 1.0  94/06/07  20:02:21  wolf
-**  Beta release.
-**
-***************************************************************************
 */
 
 #ifndef __NCR_REG_H__
@@ -75,18 +57,32 @@
 
 struct ncr_reg {
 /*00*/  u_char    nc_scntl0;    /* full arb., ena parity, par->ATN  */
+
 /*01*/  u_char    nc_scntl1;    /* no reset                         */
         #define   ISCON   0x10  /* connected to scsi		    */
         #define   CRST    0x08  /* force reset                      */
+
 /*02*/  u_char    nc_scntl2;    /* no disconnect expected           */
+	#define   SDU     0x80  /* cmd: disconnect will raise error */
+	#define   CHM     0x40  /* sta: chained mode                */
+	#define   WSS     0x08  /* sta: wide scsi send           [W]*/
+	#define   WSR     0x01  /* sta: wide scsi received       [W]*/
+
 /*03*/  u_char    nc_scntl3;    /* cnf system clock dependent       */
-/*04*/  u_char    nc_scid;      /* cnf host adapter scsi address    */
+	#define   EWS     0x08  /* cmd: enable wide scsi         [W]*/
+
+/*04*/  u_char    nc_scid;	/* cnf host adapter scsi address    */
 	#define   RRE     0x40  /* r/w:e enable response to resel.  */
 	#define   SRE     0x20  /* r/w:e enable response to select  */
-/*05*/  u_char    nc_sxfer;     /* ### Sync speed and count         */
-/*06*/  u_char    nc_sdid;      /* ### Destination-ID               */
-/*07*/  u_char    nc_gpreg;     /* ??? IO-Pins                      */
-/*08*/  u_char    nc_sfbr;      /* ### First byte in phase          */
+
+/*05*/  u_char    nc_sxfer;	/* ### Sync speed and count         */
+
+/*06*/  u_char    nc_sdid;	/* ### Destination-ID               */
+
+/*07*/  u_char    nc_gpreg;	/* ??? IO-Pins                      */
+
+/*08*/  u_char    nc_sfbr;	/* ### First byte in phase          */
+
 /*09*/  u_char    nc_socl;
 	#define   CREQ	  0x80	/* r/w: SCSI-REQ                    */
 	#define   CACK	  0x40	/* r/w: SCSI-ACK                    */
@@ -96,8 +92,11 @@ struct ncr_reg {
 	#define   CMSG	  0x04	/* r/w: SCSI-MSG                    */
 	#define   CC_D	  0x02	/* r/w: SCSI-C_D                    */
 	#define   CI_O	  0x01	/* r/w: SCSI-I_O                    */
+
 /*0a*/  u_char    nc_ssid;
+
 /*0b*/  u_char    nc_sbcl;
+
 /*0c*/  u_char    nc_dstat;
         #define   DFE     0x80  /* sta: dma fifo empty              */
         #define   MDPE    0x40  /* int: master data parity error    */
@@ -106,20 +105,28 @@ struct ncr_reg {
         #define   SSI     0x08  /* int: script: single step         */
         #define   SIR     0x04  /* int: script: interrupt instruct. */
         #define   IID     0x01  /* int: script: illegal instruct.   */
+
 /*0d*/  u_char    nc_sstat0;
-        #define   ILF     0x80  /* sta: data in SIDL register       */
-        #define   ORF     0x40  /* sta: data in SODR register       */
-        #define   OLF     0x20  /* sta: data in SODL register       */
+        #define   ILF     0x80  /* sta: data in SIDL register lsb   */
+        #define   ORF     0x40  /* sta: data in SODR register lsb   */
+        #define   OLF     0x20  /* sta: data in SODL register lsb   */
         #define   AIP     0x10  /* sta: arbitration in progress     */
         #define   LOA     0x08  /* sta: arbitration lost            */
         #define   WOA     0x04  /* sta: arbitration won             */
         #define   IRST    0x02  /* sta: scsi reset signal           */
         #define   SDP     0x01  /* sta: scsi parity signal          */
+
 /*0e*/  u_char    nc_sstat1;
+	#define   FF3210  0xf0	/* sta: bytes in the scsi fifo      */
+
 /*0f*/  u_char    nc_sstat2;
-
-/*10*/  u_long    nc_dsa;       /* --> Base page                    */
-/*14*/  u_char    nc_istat;     /* --> Main Command and status      */
+        #define   ILF1    0x80  /* sta: data in SIDL register msb[W]*/
+        #define   ORF1    0x40  /* sta: data in SODR register msb[W]*/
+        #define   OLF1    0x20  /* sta: data in SODL register msb[W]*/
+
+/*10*/  u_long    nc_dsa;	/* --> Base page                    */
+
+/*14*/  u_char    nc_istat;	/* --> Main Command and status      */
         #define   CABRT   0x80  /* cmd: abort current operation     */
         #define   SRST    0x40  /* mod: reset chip                  */
         #define   SIGP    0x20  /* r/w: message from host to ncr    */
@@ -128,36 +135,46 @@ struct ncr_reg {
         #define   INTF    0x04  /* sta: int on the fly (reset by wr)*/
         #define   SIP     0x02  /* sta: scsi-interupt               */
         #define   DIP     0x01  /* sta: host/script interupt        */
+
 /*15*/  u_char    nc_15_;
 /*16*/	u_char	  nc_16_;
 /*17*/  u_char    nc_17_;
+
 /*18*/	u_char	  nc_ctest0;
 /*19*/  u_char    nc_ctest1;
+
 /*1a*/  u_char    nc_ctest2;
 	#define   CSIGP   0x40
+
 /*1b*/  u_char    nc_ctest3;
 	#define   CLF	  0x04	/* clear scsi fifo		    */
-/*1c*/  u_long    nc_temp;      /* ### Temporary stack              */
+
+/*1c*/  u_long    nc_temp;	/* ### Temporary stack              */
+
 /*20*/	u_char	  nc_dfifo;
 /*21*/  u_char    nc_ctest4;
 /*22*/  u_char    nc_ctest5;
 /*23*/  u_char    nc_ctest6;
-/*24*/  u_long    nc_dbc;       /* ### Byte count and command       */
-/*28*/  u_long    nc_dnad;      /* ### Next command register        */
-/*2c*/  u_long    nc_dsp;       /* --> Script Pointer               */
-/*30*/  u_long    nc_dsps;      /* --> Script pointer save/opcode#2 */
+
+/*24*/  u_long    nc_dbc;	/* ### Byte count and command       */
+/*28*/  u_long    nc_dnad;	/* ### Next command register        */
+/*2c*/  u_long    nc_dsp;	/* --> Script Pointer               */
+/*30*/  u_long    nc_dsps;	/* --> Script pointer save/opcode#2 */
 /*34*/  u_long    nc_scratcha;  /* ??? Temporary register a         */
+
 /*38*/  u_char    nc_dmode;
 /*39*/  u_char    nc_dien;
 /*3a*/  u_char    nc_dwt;
-/*3b*/  u_char    nc_dcntl;     /* --> Script execution control     */
+
+/*3b*/  u_char    nc_dcntl;	/* --> Script execution control     */
         #define   SSM     0x10  /* mod: single step mode            */
         #define   STD     0x04  /* cmd: start dma mode              */
 	#define	  NOCOM   0x01	/* cmd: protect sfbr while reselect */
+
 /*3c*/  u_long    nc_adder;
-
-/*40*/  u_short   nc_sien;      /* -->: interupt enable             */
-/*42*/  u_short   nc_sist;      /* <--: interupt status             */
+
+/*40*/  u_short   nc_sien;	/* -->: interupt enable             */
+/*42*/  u_short   nc_sist;	/* <--: interupt status             */
         #define   STO     0x0400/* sta: timeout (select)            */
         #define   GEN     0x0200/* sta: timeout (general)           */
         #define   HTH     0x0100/* sta: timeout (handshake)         */
@@ -169,34 +186,33 @@ struct ncr_reg {
         #define   UDC     0x04  /* sta: unexpected disconnect       */
         #define   RST     0x02  /* sta: scsi bus reset detected     */
         #define   PAR     0x01  /* sta: scsi parity error           */
+
 /*44*/  u_char    nc_slpar;
-/*45*/  u_char    nc_45_;
+/*45*/  u_char    nc_swide;
 /*46*/  u_char    nc_macntl;
 /*47*/  u_char    nc_gpcntl;
 /*48*/  u_char    nc_stime0;    /* cmd: timeout for select&handshake*/
 /*49*/  u_char    nc_stime1;    /* cmd: timeout user defined        */
-/*4a*/  u_char    nc_respid;    /* sta: Reselect-IDs                */
-/*4b*/  u_char    nc_4b_;
+/*4a*/  u_short   nc_respid;    /* sta: Reselect-IDs                */
+
 /*4c*/  u_char    nc_stest0;
+
 /*4d*/  u_char    nc_stest1;
+
 /*4e*/  u_char    nc_stest2;
 	#define   ROF     0x40	/* reset scsi offset (after gross error!) */
 	#define   EXT     0x02  /* extended filtering                     */
+
 /*4f*/  u_char    nc_stest3;
 	#define   TE     0x80	/* c: tolerAnt enable */
 	#define   CSF    0x02	/* c: clear scsi fifo */
-/*50*/  u_char    nc_sidl;      /* Lowlevel: latched from scsi data */
-/*51*/  u_char    nc_51_;
-/*52*/  u_char    nc_52_;
-/*53*/  u_char    nc_53_;
-/*54*/  u_char    nc_sodl;      /* Lowlevel: data out to scsi data  */
-/*55*/  u_char    nc_55_;
-/*56*/  u_char    nc_56_;
-/*57*/  u_char    nc_57_;
-/*58*/  u_char    nc_sbdl;      /* Lowlevel: data from scsi data    */
-/*59*/  u_char    nc_59_;
-/*5a*/  u_char    nc_5a_;
-/*5b*/  u_char    nc_5b_;
+
+/*50*/  u_short   nc_sidl;	/* Lowlevel: latched from scsi data */
+/*52*/  u_short   nc_52_;
+/*54*/  u_short   nc_sodl;	/* Lowlevel: data out to scsi data  */
+/*56*/  u_short   nc_56_;
+/*58*/  u_short   nc_sbdl;	/* Lowlevel: data from scsi data    */
+/*5a*/  u_short   nc_5a_;
 /*5c*/  u_char    nc_scr0;	/* Working register B               */
 /*5d*/  u_char    nc_scr1;	/*                                  */
 /*5e*/  u_char    nc_scr2;	/*                                  */
@@ -505,9 +521,12 @@ struct scr_tblsel {
 #define	M_SIMPLE_TAG	(0x20)
 #define	M_HEAD_TAG	(0x21)
 #define	M_ORDERED_TAG	(0x22)
+#define	M_IGN_RESIDUE	(0x23)
 #define	M_IDENTIFY   	(0x80)
 
-#define	M_X_SDTR	(0x01)
+#define	M_X_MODIFY_DP	(0x00)
+#define	M_X_SYNC_REQ	(0x01)
+#define	M_X_WIDE_REQ	(0x03)
 
 /*
 **	Status
@@ -523,5 +542,6 @@ struct scr_tblsel {
 #define	S_TERMINATED	(0x20)
 #define	S_QUEUE_FULL	(0x28)
 #define	S_ILLEGAL	(0xff)
+#define	S_SENSE		(0x80)
 
 #endif /*__NCR_REG_H__*/
