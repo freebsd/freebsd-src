@@ -1,11 +1,11 @@
                                  RELEASE NOTES
-                          FreeBSD snapshot of 4.0-STABLE
+                          FreeBSD snapshot of 4.1-RC
 
 Any installation failures or crashes should be reported by using the
 send-pr command (those preferring a Web-based interface can also see
 http://www.freebsd.org/send-pr.html).
 
-For information about FreeBSD and the layout of the 4.0-STABLE
+For information about FreeBSD and the layout of the 4.1
 directory (especially if you're installing from floppies!), see
 ABOUT.TXT.  For installation instructions, see the INSTALL.TXT and
 HARDWARE.TXT files.
@@ -52,7 +52,7 @@ to report many different types of events.  Support for monitoring
 changes in sockets, pipes, fifos, and files are present, as well as
 for signals and processes. 
 
-FreeBSD/alpha now a loader with FICL (Forth support) builtin. 
+FreeBSD/alpha now posseses a loader with FICL (Forth support) builtin. 
 
 1.2. SECURITY FIXES
 -------------------
@@ -83,7 +83,8 @@ format SCSI disks.
 Support for USB devices was added to the GENERIC kernel and to the
 installation programs to support USB devices out of the box.  Note that
 SRM does not support USB devices at the moment, so you must still use
-an AT keyboard if you are not using a serial console.
+an AT keyboard if you are not using a serial console. Note that the
+bootfloppy kernel does not have USB due to lack of space.
 
 libfetch has been greatly improved.  fetch(1) and the pkg tools now use
 libfetch instead of libftpio, which means that the pkg tools have gained
@@ -93,7 +94,8 @@ HTTP support, and both have gained IPv6 support.
 ---------------------------
 
 For an extensive overview of supported Alpha machines/mainboards please refer
-to the HARDWARE.TXT file.
+to the HARDWARE.TXT file. Information in that file reflects the latest
+state of affairs for Alpha (more that this one).
 
 2.1. Disk Controllers
 ---------------------
@@ -163,7 +165,7 @@ This list includes controllers sold by Digital/Compaq in Alpha systems
 in the StorageWorks family, eg. KZPSC, KZPAC.  Booting from these 
 controllers is supported when recognised by SRM (typically Digital/
 Compaq models only, and only in systems where they are supported).
-EISA adapters are not supported.
+EISA adapters like the StorageWorks KZESC are not supported.
 
 SymBios (formerly NCR) 53C810, 53C810a, 53C815, 53C820, 53C825a,
 53C860, 53C875, 53C875j, 53C885, 53C895 and 53C896 PCI SCSI controllers:
@@ -567,7 +569,13 @@ enhancements than we'll ever be able to manage by ourselves!  To
 contact us on technical matters, or with offers of help, please send
 mail to:
 
-                freebsd-hackers@FreeBSD.org
+                freebsd-alpha@FreeBSD.org
+
+
+If it is not strictly Alpha related but applies to both the Intel and
+the Alpha port of FreeBSD please send your mail to:
+
+		freebsd-hackers@FreeBSD.org
 
 
 Please note that these mailing lists can experience *significant*
