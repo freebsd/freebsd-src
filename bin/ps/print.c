@@ -180,7 +180,10 @@ ucomm(KINFO *k, VARENT *ve)
 	VAR *v;
 
 	v = ve->var;
-	(void)printf("%-*s", v->width, k->ki_p->ki_comm);
+	if (ve->next == NULL)		/* last field, don't pad */
+		(void)printf("%s", k->ki_p->ki_comm);
+	else
+		(void)printf("%-*s", v->width, k->ki_p->ki_comm);
 }
 
 void
