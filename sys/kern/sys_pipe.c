@@ -95,9 +95,9 @@
  * interfaces to the outside world
  */
 static int pipe_read(struct file *fp, struct uio *uio, 
-		struct ucred *cred, int flags, struct thread *td);
+		struct ucred *active_cred, int flags, struct thread *td);
 static int pipe_write(struct file *fp, struct uio *uio, 
-		struct ucred *cred, int flags, struct thread *td);
+		struct ucred *active_cred, int flags, struct thread *td);
 static int pipe_close(struct file *fp, struct thread *td);
 static int pipe_poll(struct file *fp, int events, struct ucred *cred,
 		struct thread *td);
@@ -449,10 +449,10 @@ pipeselwakeup(cpipe)
 
 /* ARGSUSED */
 static int
-pipe_read(fp, uio, cred, flags, td)
+pipe_read(fp, uio, active_cred, flags, td)
 	struct file *fp;
 	struct uio *uio;
-	struct ucred *cred;
+	struct ucred *active_cred;
 	struct thread *td;
 	int flags;
 {
@@ -468,7 +468,7 @@ pipe_read(fp, uio, cred, flags, td)
 		goto unlocked_error;
 
 #ifdef MAC
-	error = mac_check_pipe_op(td->td_ucred, rpipe, MAC_OP_PIPE_READ);
+	error = mac_check_pipe_op(active_cred, rpipe, MAC_OP_PIPE_READ);
 	if (error)
 		goto locked_error;
 #endif
@@ -861,10 +861,10 @@ error1:
 #endif
 	
 static int
-pipe_write(fp, uio, cred, flags, td)
+pipe_write(fp, uio, active_cred, flags, td)
 	struct file *fp;
 	struct uio *uio;
-	struct ucred *cred;
+	struct ucred *active_cred;
 	struct thread *td;
 	int flags;
 {
@@ -884,7 +884,7 @@ pipe_write(fp, uio, cred, flags, td)
 		return (EPIPE);
 	}
 #ifdef MAC
-	error = mac_check_pipe_op(td->td_ucred, wpipe, MAC_OP_PIPE_WRITE);
+	error = mac_check_pipe_op(active_cred, wpipe, MAC_OP_PIPE_WRITE);
 	if (error) {
 		PIPE_UNLOCK(rpipe);
 		return (error);

@@ -57,9 +57,9 @@ static int	kqueue_scan(struct file *fp, int maxevents,
 		    struct kevent *ulistp, const struct timespec *timeout,
 		    struct thread *td);
 static int 	kqueue_read(struct file *fp, struct uio *uio,
-		    struct ucred *cred, int flags, struct thread *td);
+		    struct ucred *active_cred, int flags, struct thread *td);
 static int	kqueue_write(struct file *fp, struct uio *uio,
-		    struct ucred *cred, int flags, struct thread *td);
+		    struct ucred *active_cred, int flags, struct thread *td);
 static int	kqueue_ioctl(struct file *fp, u_long com, void *data,
 		    struct thread *td);
 static int 	kqueue_poll(struct file *fp, int events, struct ucred *cred,
@@ -777,7 +777,7 @@ done:
  */
 /*ARGSUSED*/
 static int
-kqueue_read(struct file *fp, struct uio *uio, struct ucred *cred,
+kqueue_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
 	int flags, struct thread *td)
 {
 	return (ENXIO);
@@ -785,7 +785,7 @@ kqueue_read(struct file *fp, struct uio *uio, struct ucred *cred,
 
 /*ARGSUSED*/
 static int
-kqueue_write(struct file *fp, struct uio *uio, struct ucred *cred,
+kqueue_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 	 int flags, struct thread *td)
 {
 	return (ENXIO);

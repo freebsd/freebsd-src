@@ -1822,7 +1822,7 @@ ufs_symlink(ap)
 	} else
 		error = vn_rdwr(UIO_WRITE, vp, ap->a_target, len, (off_t)0,
 		    UIO_SYSSPACE, IO_NODELOCKED | IO_NOMACCHECK,
-		    ap->a_cnp->cn_cred, (int *)0, (struct thread *)0);
+		    ap->a_cnp->cn_cred, NOCRED, (int *)0, (struct thread *)0);
 	if (error)
 		vput(vp);
 	return (error);
