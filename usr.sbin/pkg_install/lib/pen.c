@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: pen.c,v 1.2 1993/09/04 05:06:51 jkh Exp $";
+static const char *rcsid = "$Id: pen.c,v 1.3 1993/09/05 04:54:23 jkh Exp $";
 #endif
 
 /*
@@ -23,28 +23,42 @@ static const char *rcsid = "$Id: pen.c,v 1.2 1993/09/04 05:06:51 jkh Exp $";
  */
 
 #include "lib.h"
+#include <sys/param.h>
+#include <sys/mount.h>
 
 /* For keeping track of where we are */
 static char Cwd[FILENAME_MAX];
 static char Pen[FILENAME_MAX];
 
+static long min_free(char *);
 
 /*
  * Make a temporary directory to play in and chdir() to it, returning
  * pathname of previous working directory.
  */
 char *
-make_playpen(char *pen)
+make_playpen(char *pen, size_t sz)
 {
-    if (!pen)
-	pen = "/tmp/instmp.XXXXXX";
+    if (!pen) {
+	char *cp;
+
+	if ((cp = getenv("TMPDIR")) != NULL)
+	    sprintf(Pen, "%s/instmp.XXXXXX", cp);
+	else
+	    strcpy(Pen, "/tmp/instmp.XXXXXX");
+    }
+    else
+	strcpy(Pen, pen);
     if (!getcwd(Cwd, FILENAME_MAX))
 	upchuck("getcwd");
-    strcpy(Pen, pen);
     if (!mktemp(Pen))
 	barf("Can't mktemp '%s'.", Pen);
     if (mkdir(Pen, 0755) == FAIL)
 	barf("Can't mkdir '%s'.", Pen);
+    if (min_free(Pen) < sz) {
+	rmdir(Pen);
+	barf("%s doesn't have enough free space.  Please set your TMPDIR\nenvironment variable to a location with more space and\ntry the command again.", Pen);
+    }
     if (chdir(Pen) == FAIL)
 	barf("Can't chdir to '%s'.", Pen);
     return Cwd;
@@ -71,4 +85,15 @@ where_playpen(void)
 	return Pen;
     else
 	return NULL;
+}
+
+static long min_free(char *tmpdir)
+{
+    struct statfs buf;
+
+    if (statfs(tmpdir, &buf) != 0) {
+	perror("Error in statfs");
+	return -1;
+    }
+    return buf.f_bavail * buf.f_bsize;
 }
