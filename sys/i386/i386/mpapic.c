@@ -758,3 +758,26 @@ u_sleep(int count)
 	while (read_apic_timer())
 		 /* spin */ ;
 }
+
+/*
+ * IOAPIC access helper functions.
+ */
+u_int
+io_apic_read(int idx, int reg)
+{
+	volatile ioapic_t *apic;
+
+	apic = ioapic[idx];
+	apic->ioregsel = reg;
+	return apic->iowin;
+}
+
+void
+io_apic_write(int idx, int reg, u_int value)
+{
+	volatile ioapic_t *apic;
+
+	apic = ioapic[idx];
+	apic->ioregsel = reg;
+	apic->iowin = value;
+}
