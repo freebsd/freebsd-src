@@ -43,6 +43,7 @@
 
 #include <alpha/mcbus/mcbusreg.h>
 #include <alpha/mcbus/mcbusvar.h>
+#include <alpha/mcbus/mcpciavar.h>
 
 struct mcbus_device *mcbus_primary_cpu = NULL;
 
@@ -104,6 +105,34 @@ static driver_t mcbus_driver = {
  * dka500.  We probe them in the same order, for consistency.
  */
 static const int mcbus_mcpcia_probe_order[] = { 5, 4, 7, 6 };
+
+/*
+ * Early console support requires us to partially probe the bus to
+ * find the ISA bus resources.
+ */
+void
+mcbus_init(void)
+{
+	static int initted = 0;
+	int i, mid, gid;
+
+	if (initted) return;
+	initted = 1;
+
+	/*
+	 * We only look at the first two mids because at this point,
+	 * badaddr() doesn't work so we can't call NO_MCPCIA_AT().
+	 */
+	gid = MCBUS_GID_FROM_INSTANCE(0);
+	for (i = 0; i < 2; ++i) {
+		mid = mcbus_mcpcia_probe_order[i];
+
+		if (NO_MCPCIA_AT(mid, gid)) {
+			continue;
+		}
+		mcpcia_init(gid, mid);
+	}
+}
 
 /*
  * At 'probe' time, we add all the devices which we know about to the

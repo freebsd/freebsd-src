@@ -92,6 +92,7 @@ dec_kn300_init()
 	}
 
 	platform.iobus = "mcbus";
+	platform.cons_init = dec_kn300_cons_init;
 }
 
 extern int comconsole;
@@ -101,6 +102,7 @@ dec_kn300_cons_init()
 {
 	struct ctb *ctb;
 
+	mcbus_init();
 #ifdef	DDB
 	siogdbattach(0x2f8, 57600);
 #endif
