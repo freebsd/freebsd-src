@@ -35,7 +35,7 @@
 /* Everyone has to have these options. It is not an error to
  * specify them and then not use them.
  */
-static struct opttab std_options[PAM_MAX_OPTIONS] = {
+struct opttab std_options[PAM_MAX_OPTIONS] = {
 	{ "debug",		PAM_OPT_DEBUG },
 	{ "no_warn",		PAM_OPT_NO_WARN },
 	{ "echo_pass",		PAM_OPT_ECHO_PASS },
@@ -56,20 +56,29 @@ pam_std_option(struct options *options, struct opttab other_options[],
 
 	j = 0;
 	for (i = 0; i < PAM_MAX_OPTIONS; i++) {
-		options->opt[i].bool = 0;
-		options->opt[i].arg = NULL;
-		if (j == 0 && std_options[i].name == NULL)
+		if (std_options[i].name == NULL) {
 			j = i;
+			break;
+		}
 		/* XXX Bad juju happens if loop exits with j == 0 */
 	}
 	if (other_options)
 		for (oo = other_options; oo->name != NULL; oo++) {
-			if (oo == NULL || oo->name == NULL)
-				break;
-			std_options[j].name = oo->name;
-			std_options[j].value = oo->value;
-			j++;
+			found = 0;
+			for (i = 0; std_options[i].name; i++)
+				if (strcmp((char *)oo->name,
+				    std_options[i].name) == 0)
+					found = 1;
+			if (!found) {
+				std_options[j].name = oo->name;
+				std_options[j].value = oo->value;
+				j++;
+			}
 		}
+	for (i = 0; i < PAM_MAX_OPTIONS; i++) {
+		options->opt[i].bool = 0;
+		options->opt[i].arg = NULL;
+	}
 	if (j < PAM_MAX_OPTIONS) {
 		std_options[j].name = NULL;
 		std_options[j].value = 0;
