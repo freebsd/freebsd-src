@@ -130,13 +130,19 @@ ed_pccard_probe(device_t dev)
 		u_char rdbuf[4];
 		int iobase;
 		int attr_ioport;
+
+		/* XXX Allocate the port resource during setup. */
+		error = ed_alloc_port(dev, 0, ED_NOVELL_IO_PORTS);
+		if (error != 0)
+			return (error);
+
 		sc->chip_type = ED_CHIP_TYPE_AX88190;
 		/*
 		 * Check & Set Attribute Memory IOBASE Register
 		 */
 		ed_pccard_memread(dev,ED_AX88190_IOBASE0,rdbuf,4);
 		attr_ioport = rdbuf[2] << 8 | rdbuf[0];
-		iobase = bus_get_resource_start(dev, SYS_RES_IOPORT, 0);
+		iobase = rman_get_start(sc->port_res);
 		if (attr_ioport != iobase) {
 #if notdef
 			printf("AX88190 IOBASE MISMATCH %04x -> %04x Setting\n",attr_ioport,iobase);
@@ -144,7 +150,9 @@ ed_pccard_probe(device_t dev)
 			ed_pccard_memwrite(dev,ED_AX88190_IOBASE0,iobase & 0xff);
 			ed_pccard_memwrite(dev,ED_AX88190_IOBASE1,(iobase >> 8) & 0xff);
 		}
-		ax88190_geteprom(dev);
+		ed_ax88190_geteprom(sc);
+
+		ed_release_resources(dev);
 	}
 
 	error = ed_probe_Novell(dev);
@@ -200,73 +208,6 @@ ed_pccard_attach(device_t dev)
 	error = ed_attach(sc, device_get_unit(dev), flags);
 	return (error);
 } 
-
-static void
-ax88190_geteprom(device_t dev)
-{
-	int prom[16],i;
-	u_char tmp;
-	struct ed_softc *sc;
-	struct pccard_devinfo *devi;
-	int iobase;
-	struct {
-		unsigned char offset,value;
-	} pg_seq[]={
-		{ED_P0_CR ,ED_CR_RD2|ED_CR_STP}, /* Select Page0 */
-		{ED_P0_DCR,0x01},
-		{ED_P0_RBCR0, 0x00}, /* Clear the count regs. */
-		{ED_P0_RBCR1, 0x00},
-		{ED_P0_IMR, 0x00},   /* Mask completion irq. */
-		{ED_P0_ISR, 0xff},
-		{ED_P0_RCR, ED_RCR_MON|ED_RCR_INTT}, /* Set To Monitor */
-		{ED_P0_TCR, ED_TCR_LB0},             /* loopback mode. */
-		{ED_P0_RBCR0,32},
-		{ED_P0_RBCR1,0x00},
-		{ED_P0_RSAR0,0x00},
-		{ED_P0_RSAR1,0x04},
-		{ED_P0_CR ,ED_CR_RD0|ED_CR_STA},
-	};
-
-	sc = device_get_softc(dev);
-	devi = device_get_ivars(dev);
-	iobase = bus_get_resource_start(dev, SYS_RES_IOPORT, 0);
-
-	/* XXX: no bus_space_*()? */
-
-	/* Default Set */
-	sc->asic_addr = iobase + ED_NOVELL_ASIC_OFFSET;
-	sc->nic_addr = iobase + ED_NOVELL_NIC_OFFSET;
-	/* Reset Card */
-	tmp = inb(sc->asic_addr + ED_NOVELL_RESET);
-	outb(sc->asic_addr + ED_NOVELL_RESET, tmp);
-	DELAY(5000);
-	outb(sc->nic_addr + ED_P0_CR, ED_CR_RD2 | ED_CR_STP);
-	DELAY(5000);
-
-	/* Card Settings */
-	for(i=0;i<sizeof(pg_seq)/sizeof(pg_seq[0]);i++) {
-		outb(sc->nic_addr + pg_seq[i].offset , pg_seq[i].value);
-	}
-
-	/* Get Data */
-	for(i=0;i<16;i++) {
-		prom[i] = inw(sc->asic_addr);
-	}
-/*
-	for(i=0;i<16;i++) {
-		printf("ax88190 eprom [%02d] %02x %02x\n",
-			i,prom[i] & 0xff,prom[i] >> 8);
-	}
-*/
-	sc->arpcom.ac_enaddr[0] = prom[0] & 0xff;
-	sc->arpcom.ac_enaddr[1] = prom[0] >> 8;
-	sc->arpcom.ac_enaddr[2] = prom[1] & 0xff;
-	sc->arpcom.ac_enaddr[3] = prom[1] >> 8;
-	sc->arpcom.ac_enaddr[4] = prom[2] & 0xff;
-	sc->arpcom.ac_enaddr[5] = prom[2] >> 8;
-
-	return;
-}
 
 /* XXX: Warner-san, any plan to provide access to the attribute memory? */
 static int
