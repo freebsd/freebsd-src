@@ -1,4 +1,4 @@
-#define HERE() printf("<%d>\n",__LINE__)
+#define DEBUG 1
 /*
  *	pcmciad
  */
@@ -15,7 +15,7 @@
 #include "cardd.h"
 
 
-char	*config_file = "/etc/card.conf";
+char	*config_file = "/etc/pccard.conf";
 
 struct card_config *assign_driver(struct card *);
 int	setup_slot(struct slot *);
@@ -186,27 +186,22 @@ printf("opened %s\n",name);
 			{
 			unsigned long mem = 0;
 
-HERE();
 			if (ioctl(fd, PIOCRWMEM, &mem))
 				perror("ioctl (PIOCRWMEM)");
+printf("mem=%x\n",mem);
 			if (mem == 0)
 				{
-HERE();
 				mem = alloc_memory(4*1024);
-HERE();
 				if (mem == 0)
 		die("Can't allocate memory for controller access");
 				if (ioctl(fd, PIOCRWMEM, &mem))
 					perror("ioctl (PIOCRWMEM)");
 				}
 			}
+printf("%p %p\n",sp,&sp->next);
 		sp->next = slots;
 		slots = sp;
-HERE();
-#if 0
 		slot_change(sp);
-#endif
-HERE();
 		}
 }
 /*
@@ -216,33 +211,26 @@ HERE();
 void
 slot_change(struct slot *sp)
 {
-int state;
+	struct slotstate state;
 
 	current_slot = sp;
-HERE();
 	if (ioctl(sp->fd, PIOCGSTATE, &state))
 		{
 		perror("ioctl (PIOCGSTATE)");
 		return;
 		}
-HERE();
-	if (state == sp->state)
+	printf("%p %p %d %d\n",sp,&sp->state,state.state,sp->state);
+	if (state.state == sp->state)
 		return;
-HERE();
-	sp->state = state;
-HERE();
+	sp->state = state.state;
 	switch (sp->state)
 		{
 	case empty:
 	case noslot:
-HERE();
 		card_removed(sp);
-HERE();
 		break;
 	case filled:
-HERE();
 		card_inserted(sp);
-HERE();
 		break;
 		}
 }
@@ -258,7 +246,6 @@ card_removed(struct slot *sp)
 {
 struct card *cp;
 
-HERE();
 	if (sp->cis)
 		freecis(sp->cis);
 	if (sp->config)
@@ -266,13 +253,10 @@ HERE();
 		sp->config->inuse = 0;
 		sp->config->driver->inuse = 0;
 		}
-HERE();
 	if ((cp = sp->card) != 0)
 		execute(cp->remove);
-HERE();
 	sp->cis = 0;
 	sp->config = 0;
-HERE();
 }
 /*
  * card_inserted - Card has been inserted;
@@ -604,8 +588,8 @@ int	rw_flags;
 	c = sp->config->index;
 	write(sp->fd, &c, sizeof(c));
 #ifdef	DEBUG
-	printf("Setting config reg at offs 0x%x to 0x%x\n",
-		sp->cis->reg_addr, c);
+	printf("Setting config reg at offs 0x%x (=) 0x%x to 0x%x\n",
+		offs, sp->cis->reg_addr, c);
 	printf("Reset time = %d ms\n", sp->card->reset_time);
 #endif
 	usleep(sp->card->reset_time*1000);
