@@ -54,7 +54,11 @@
 #include "rtld.h"
 #include "libmap.h"
 
+#ifndef COMPAT_32BIT
 #define PATH_RTLD	"/libexec/ld-elf.so.1"
+#else
+#define PATH_RTLD	"/libexec/ld-elf32.so.1"
+#endif
 
 /* Types. */
 typedef void (*func_ptr_type)();
@@ -261,14 +265,14 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 
     trust = !issetugid();
 
-    ld_bind_now = getenv("LD_BIND_NOW");
+    ld_bind_now = getenv(LD_ "BIND_NOW");
     if (trust) {
-	ld_debug = getenv("LD_DEBUG");
-	libmap_disable = getenv("LD_LIBMAP_DISABLE") != NULL;
-	ld_library_path = getenv("LD_LIBRARY_PATH");
-	ld_preload = getenv("LD_PRELOAD");
+	ld_debug = getenv(LD_ "DEBUG");
+	libmap_disable = getenv(LD_ "LIBMAP_DISABLE") != NULL;
+	ld_library_path = getenv(LD_ "LIBRARY_PATH");
+	ld_preload = getenv(LD_ "PRELOAD");
     }
-    ld_tracing = getenv("LD_TRACE_LOADED_OBJECTS");
+    ld_tracing = getenv(LD_ "TRACE_LOADED_OBJECTS");
 
     if (ld_debug != NULL && *ld_debug != '\0')
 	debug = 1;
@@ -360,7 +364,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 	exit(0);
     }
 
-    if (getenv("LD_DUMP_REL_PRE") != NULL) {
+    if (getenv(LD_ "DUMP_REL_PRE") != NULL) {
        dump_relocations(obj_main);
        exit (0);
     }
@@ -373,7 +377,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     if (do_copy_relocations(obj_main) == -1)
 	die();
 
-    if (getenv("LD_DUMP_REL_POST") != NULL) {
+    if (getenv(LD_ "DUMP_REL_POST") != NULL) {
        dump_relocations(obj_main);
        exit (0);
     }
@@ -1460,6 +1464,9 @@ rtld_exit(void)
 static void *
 path_enumerate(const char *path, path_enum_proc callback, void *arg)
 {
+#ifdef COMPAT_32BIT
+    const char *trans;
+#endif
     if (path == NULL)
 	return (NULL);
 
@@ -1469,6 +1476,12 @@ path_enumerate(const char *path, path_enum_proc callback, void *arg)
 	char  *res;
 
 	len = strcspn(path, ":;");
+#ifdef COMPAT_32BIT
+	trans = lm_findn(NULL, path, len);
+	if (trans)
+	    res = callback(trans, strlen(trans), arg);
+	else
+#endif
 	res = callback(path, len, arg);
 
 	if (res != NULL)
@@ -2259,16 +2272,16 @@ trace_loaded_objects(Obj_Entry *obj)
     char	*fmt1, *fmt2, *fmt, *main_local, *list_containers;
     int		c;
 
-    if ((main_local = getenv("LD_TRACE_LOADED_OBJECTS_PROGNAME")) == NULL)
+    if ((main_local = getenv(LD_ "TRACE_LOADED_OBJECTS_PROGNAME")) == NULL)
 	main_local = "";
 
-    if ((fmt1 = getenv("LD_TRACE_LOADED_OBJECTS_FMT1")) == NULL)
+    if ((fmt1 = getenv(LD_ "TRACE_LOADED_OBJECTS_FMT1")) == NULL)
 	fmt1 = "\t%o => %p (%x)\n";
 
-    if ((fmt2 = getenv("LD_TRACE_LOADED_OBJECTS_FMT2")) == NULL)
+    if ((fmt2 = getenv(LD_ "TRACE_LOADED_OBJECTS_FMT2")) == NULL)
 	fmt2 = "\t%o (%x)\n";
 
-    list_containers = getenv("LD_TRACE_LOADED_OBJECTS_ALL");
+    list_containers = getenv(LD_ "TRACE_LOADED_OBJECTS_ALL");
 
     for (; obj; obj = obj->next) {
 	Needed_Entry		*needed;
