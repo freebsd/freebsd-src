@@ -40,26 +40,32 @@
 #include <sys/ioccom.h>
 #include <geom/geom_ctl.h>
 
-struct geom_ctl_req_arg {
+struct gctl_req_arg {
 	u_int				nlen;
 	char				*name;
 	off_t				offset;
+	int				flag;
 	int				len;
 	void				*value;
 };
 
-struct geom_ctl_req {
+#define GCTL_PARAM_RD		1	/* Must match VM_PROT_READ */
+#define GCTL_PARAM_WR		2	/* Must match VM_PROT_WRITE */
+#define GCTL_PARAM_RW		(GCTL_PARAM_RD | GCTL_PARAM_WR)
+#define GCTL_PARAM_ASCII	4
+
+struct gctl_req {
 	u_int				version;
 	u_int				serial;
-	enum geom_ctl_request		request;
+	enum gctl_request		request;
 	u_int				narg;
-	struct geom_ctl_req_arg		*arg;
+	struct gctl_req_arg		*arg;
 	u_int				lerror;
 	char				*error;
-	struct geom_ctl_req_table	*reqt;
+	struct gctl_req_table		*reqt;
 };
 
-#define GEOM_CTL	_IOW('G', GEOM_CTL_VERSION, struct geom_ctl_req)
+#define GEOM_CTL	_IOW('G', GCTL_VERSION, struct gctl_req)
 
 #define PATH_GEOM_CTL	"geom.ctl"
 
