@@ -35,31 +35,11 @@
  *
  *	from: @(#)SYS.h	5.5 (Berkeley) 5/7/91
  *
- *	$Id: SYS.h,v 1.6 1996/08/22 04:25:00 julian Exp $
+ *	$Id: SYS.h,v 1.7 1996/10/31 17:50:45 dyson Exp $
  */
 
 #include <sys/syscall.h>
 #include "DEFS.h"
-
-#ifdef PIC
-#define PIC_PROLOGUE    \
-        pushl   %ebx;   \
-        call    1f;     \
-1:                      \
-        popl    %ebx;   \
-        addl    $_GLOBAL_OFFSET_TABLE_+[.-1b], %ebx
-#define PIC_EPILOGUE    \
-        popl    %ebx
-#define PIC_PLT(x)      x@PLT
-#define PIC_GOT(x)      x@GOT(%ebx)
-#define PIC_GOTOFF(x)   x@GOTOFF(%ebx)
-#else
-#define PIC_PROLOGUE
-#define PIC_EPILOGUE
-#define PIC_PLT(x)      x
-#define PIC_GOT(x)      x
-#define PIC_GOTOFF(x)   x
-#endif
 
 #define	SYSCALL(x)	2: PIC_PROLOGUE; jmp PIC_PLT(HIDENAME(cerror)); ENTRY(x); lea __CONCAT(SYS_,x),%eax; KERNCALL; jb 2b
 #define	RSYSCALL(x)	SYSCALL(x); ret

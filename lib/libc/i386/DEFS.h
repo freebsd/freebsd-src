@@ -35,10 +35,30 @@
  *
  *	from: @(#)DEFS.h	5.1 (Berkeley) 4/23/90
  *
- *	$Id: DEFS.h,v 1.2 1994/08/05 01:17:56 wollman Exp $
+ *	$Id: DEFS.h,v 1.3 1996/05/05 07:56:02 peter Exp $
  */
 
 #include <sys/cdefs.h>
+
+#ifdef PIC
+#define	PIC_PROLOGUE	\
+	pushl	%ebx;	\
+	call	1f;	\
+1:			\
+	popl	%ebx;	\
+	addl	$_GLOBAL_OFFSET_TABLE_+[.-1b],%ebx
+#define	PIC_EPILOGUE	\
+	popl	%ebx
+#define	PIC_PLT(x)	x@PLT
+#define	PIC_GOT(x)	x@GOT(%ebx)
+#define	PIC_GOTOFF(x)	x@GOTOFF(%ebx)
+#else
+#define	PIC_PROLOGUE
+#define	PIC_EPILOGUE
+#define	PIC_PLT(x)	x
+#define	PIC_GOT(x)	x
+#define	PIC_GOTOFF(x)	x
+#endif
 
 /*
  * CNAME and HIDENAME manage the relationship between symbol names in C
@@ -57,7 +77,7 @@
 
 
 /* XXX should use align 4,0x90 for -m486. */
-#define _START_ENTRY	.align 2,0x90;
+#define _START_ENTRY	.text; .align 2,0x90;
 #if 0
 /* Data is not used, except perhaps by non-g prof, which we don't support. */
 #define _MID_ENTRY	.data; .align 2; 8:; .long 0;		\
