@@ -111,11 +111,6 @@ mmclose(dev, flags, fmt, p)
 	struct proc *p;
 {
 	switch (minor(dev)) {
-	case 0:
-	case 1:
-		if (securelevel >= 1)
-			return (EPERM);
-		break;
 	case 14:
 		curproc->p_md.md_regs->tf_eflags &= ~PSL_IOPL;
 		break;
@@ -135,6 +130,11 @@ mmopen(dev, flags, fmt, p)
 	int error;
 
 	switch (minor(dev)) {
+	case 0:
+	case 1:
+		if (securelevel >= 1)
+			return (EPERM);
+		break;
 	case 14:
 		error = suser(p);
 		if (error != 0)
