@@ -30,6 +30,7 @@
  * rights to redistribute these changes.
  */
 
+#include <string.h>
 #include <sys/param.h>
 
 #include <machine/prom.h>
