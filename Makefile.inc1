@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.59.2.3 1999/04/11 21:52:42 des Exp $
+#	$Id: Makefile.inc1,v 1.59.2.4 1999/05/05 13:22:35 markm Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -569,6 +569,7 @@ includes:
 	cd ${.CURDIR}/lib/libss;		${MAKE} -B hdrs beforeinstall
 	cd ${.CURDIR}/lib/libutil;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libvgl;		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libwrap;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libz;			${MAKE} beforeinstall
 	cd ${.CURDIR}/usr.bin/f2c;		${MAKE} beforeinstall
 	cd ${.CURDIR}/usr.bin/lex;		${MAKE} beforeinstall
