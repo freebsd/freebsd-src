@@ -1137,7 +1137,7 @@ c_perm(option, argvp)
 /*
  * -print functions --
  *
- *	Always true, causes the current pathame to be written to
+ *	Always true, causes the current pathname to be written to
  *	standard output.
  */
 int
@@ -1162,7 +1162,7 @@ c_print(option, argvp)
 /*
  * -print0 functions --
  *
- *	Always true, causes the current pathame to be written to
+ *	Always true, causes the current pathname to be written to
  *	standard output followed by a NUL character
  */
 int
@@ -1427,7 +1427,7 @@ c_user(option, argvp)
 /*
  * -xdev functions --
  *
- *	Always true, causes find not to decend past directories that have a
+ *	Always true, causes find not to descend past directories that have a
  *	different device ID (st_dev, see stat() S5.6.2 [POSIX.1])
  */
 PLAN *
