@@ -6,6 +6,7 @@ BASE= 		loader
 PROG= 		${BASE}.efi
 NOMAN=
 NEWVERSWHAT=	"EFI boot" ${MACHINE_ARCH}
+BINDIR?=	/boot
 
 SRCS+=		main.c conf.c dev_net.c
 
