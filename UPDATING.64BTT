@@ -120,7 +120,7 @@ Step Pre-4:  For sparc64 machines which need DHCP:
     ifconfig -a                   #-  NFS 8a.       See note below.
     shutdown now                  #-  NFS 8b.  NOT 'shutdown -r now'
     cd /usr/src                   #-  NFS 8c.
-    ./installworld_oldk           #-  NFS 8d.       See note below.
+    sh installworld_oldk           #-  NFS 8d.       See note below.
         # - -        End of this section for NFS-mounts        - - #
 
     reboot                        #-  9.  MUST go into single-user mode
@@ -150,7 +150,7 @@ other shell instead of /bin/sh.
       mount_nfs host:objdir /usr/obj     #- NFS 15c.
          # - -        End of this section for NFS-mounts        - - #
       cd /usr/src                        #- 16.
-      ./installworld_newk                #- 17.  Might want to add -S
+      sh installworld_newk               #- 17.  Might want to add -S
       mergemaster                        #- 18.
       rm -f /var/db/dhclient.leases      #- 19.  If this host uses DHCP
       reboot                             #- 20.
@@ -213,7 +213,7 @@ Notes on step NFS 8b:     shutdown now
   This will drop you into single-user mode, without rebooting.  It
   will ask if you want to use /bin/sh for your shell.  You do.
 
-Notes on step NFS 8d:     installworld_oldk
+Notes on step NFS 8d:     sh installworld_oldk
 
   Note that this script only installs *part* of the new world.  You will
   still have to reboot into single-user mode and do the full installworld.
@@ -247,7 +247,7 @@ Notes on step NFS 15b:    mount_nfs
   If you use the 'mount' command for NFS mounts, it will turn around and
   directly execute /sbin/mount_nfs, and that is not desirable in this case.
 
-Notes on step 17:         ./installworld_newk 
+Notes on step 17:         sh installworld_newk 
 
   This script will do some setup work, and then ask you if want it to run
   'make installworld'.  Most people should just answer "y" (yes) to that
