@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mv.c,v 1.12 1997/03/08 16:05:44 guido Exp $
+ *	$Id: mv.c,v 1.13 1997/03/28 15:24:26 imp Exp $
  */
 
 #ifndef lint
@@ -142,7 +142,7 @@ do_move(from, to)
 	char *from, *to;
 {
 	struct stat sb;
-	int ask, ch;
+	int ask, ch, first;
 	char modep[15];
 
 	/*
@@ -171,9 +171,10 @@ do_move(from, to)
 			ask = 1;
 		}
 		if (ask) {
-			if ((ch = getchar()) != EOF && ch != '\n')
-				while (getchar() != '\n');
-			if (ch != 'y' && ch != 'Y')
+			first = ch = getchar();
+			while (ch != '\n' && ch != EOF)
+				ch = getchar();
+			if (first != 'y' && first != 'Y')
 				return (0);
 		}
 	}
