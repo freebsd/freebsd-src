@@ -1,18 +1,84 @@
-# the following are for 386BSD/FreeBSD
+# the following are for BSD/i386 (FreeBSD, NetBSD, etc.)
 
-0	lelong			0410		pure executable
-0	lelong			0413		demand paged executable
-0	lelong&077777777	041400314	FreeBSD/i386 demand paged
->3	byte			&0x80
->>20	lelong			<4096		shared library
->>20	lelong			=4096		dynamically linked executable
->>20	lelong			>4096		dynamically linked executable
->3	byte			^0x80		executable
+0	lelong&0377777777	041400407	BSD/i386
+>20	lelong			<4096
+>>3	byte&0xC0		&0x80		shared library
+>>3	byte&0xC0		0x40		PIC object
+>>3	byte&0xC0		0x00		object
+>20	lelong			>4095
+>>3	byte&0x80		0x80		dynamically linked executable
+>>3	byte&0x80		0x00		executable
 >16	lelong			>0		not stripped
 
-# This covers object files, and is better than "PDP-11 executable"
-0	lelong			000000407	impure format
+0	lelong&0377777777	041400410	BSD/i386 pure
+>20	lelong			<4096
+>>3	byte&0xC0		&0x80		shared library
+>>3	byte&0xC0		0x40		PIC object
+>>3	byte&0xC0		0x00		object
+>20	lelong			>4095
+>>3	byte&0x80		0x80		dynamically linked executable
+>>3	byte&0x80		0x00		executable
 >16	lelong			>0		not stripped
+
+0	lelong&0377777777	041400413	BSD/i386 demand paged
+>20	lelong			<4096
+>>3	byte&0xC0		&0x80		shared library
+>>3	byte&0xC0		0x40		PIC object
+>>3	byte&0xC0		0x00		object
+>20	lelong			>4095
+>>3	byte&0x80		0x80		dynamically linked executable
+>>3	byte&0x80		0x00		executable
+>16	lelong			>0		not stripped
+
+0	lelong&0377777777	041400314	BSD/i386 compact demand paged
+>20	lelong			<4096
+>>3	byte&0xC0		&0x80		shared library
+>>3	byte&0xC0		0x40		PIC object
+>>3	byte&0xC0		0x00		object
+>20	lelong			>4095
+>>3	byte&0x80		0x80		dynamically linked executable
+>>3	byte&0x80		0x00		executable
+>16	lelong			>0		not stripped
+
+0	belong&0377777777	041400407	BSD/i386
+>20	belong			<4096
+>>0	byte&0xC0		&0x80		shared library
+>>0	byte&0xC0		0x40		PIC object
+>>0	byte&0xC0		0x00		object
+>20	belong			>4095
+>>0	byte&0x80		0x80		dynamically linked executable
+>>0	byte&0x80		0x00		executable
+>16	belong			>0		not stripped
+
+0	belong&0377777777	041400410	BSD/i386 pure
+>20	belong			<4096
+>>0	byte&0xC0		&0x80		shared library
+>>0	byte&0xC0		0x40		PIC object
+>>0	byte&0xC0		0x00		object
+>20	belong			>4095
+>>0	byte&0x80		0x80		dynamically linked executable
+>>0	byte&0x80		0x00		executable
+>16	belong			>0		not stripped
+
+0	belong&0377777777	041400413	BSD/i386 demand paged
+>20	belong			<4096
+>>0	byte&0xC0		&0x80		shared library
+>>0	byte&0xC0		0x40		PIC object
+>>0	byte&0xC0		0x00		object
+>20	belong			>4095
+>>0	byte&0x80		0x80		dynamically linked executable
+>>0	byte&0x80		0x00		executable
+>16	belong			>0		not stripped
+
+0	belong&0377777777	041400314	BSD/i386 compact demand paged
+>20	belong			<4096
+>>0	byte&0xC0		&0x80		shared library
+>>0	byte&0xC0		0x40		PIC object
+>>0	byte&0xC0		0x00		object
+>20	belong			>4095
+>>0	byte&0x80		0x80		dynamically linked executable
+>>0	byte&0x80		0x00		executable
+>16	belong			>0		not stripped
 
 # XXX gross hack to identify core files
 # cores start with a struct tss; we take advantage of the following:
