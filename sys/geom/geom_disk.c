@@ -58,21 +58,30 @@
 static struct mtx g_disk_done_mtx;
 
 static g_access_t g_disk_access;
+static g_init_t g_disk_init;
+static g_fini_t g_disk_fini;
 
 struct g_class g_disk_class = {
 	.name = "DISK",
+	.init = g_disk_init,
+	.fini = g_disk_fini,
 };
 
 static void
-g_disk_init(void)
+g_disk_init(struct g_class *mp __unused)
 {
-	mtx_unlock(&Giant);
-	g_add_class(&g_disk_class);
+
 	mtx_init(&g_disk_done_mtx, "g_disk_done", MTX_DEF, 0);
-	mtx_lock(&Giant);
 }
 
-DECLARE_GEOM_CLASS_INIT(g_disk_class, g_disk, g_disk_init);
+static void
+g_disk_fini(struct g_class *mp __unused)
+{
+
+	mtx_destroy(&g_disk_done_mtx);
+}
+
+DECLARE_GEOM_CLASS(g_disk_class, g_disk);
 
 static void __inline
 g_disk_lock_giant(struct disk *dp)
