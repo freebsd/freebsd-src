@@ -105,24 +105,24 @@ mediaInitFloppy(Device *dev)
 
 #ifdef PC98
     sprintf(fddev, "%s.1200", dev->devname);
-    if (mount("msdos", mp, MNT_RDONLY, (caddr_t)&dosargs) != -1)
+    if (mount("msdosfs", mp, MNT_RDONLY, (caddr_t)&dosargs) != -1)
 	goto success;
     if (mount("ufs", mp, MNT_RDONLY, (caddr_t)&u_args) != -1)
 	goto success;
 
     sprintf(fddev, "%s.1232", dev->devname);
-    if (mount("msdos", mp, MNT_RDONLY, (caddr_t)&dosargs) != -1)
+    if (mount("msdosfs", mp, MNT_RDONLY, (caddr_t)&dosargs) != -1)
 	goto success;
     if (mount("ufs", mp, MNT_RDONLY, (caddr_t)&u_args) != -1)
 	goto success;
 
     sprintf(fddev, "%s.1440", dev->devname);
-    if (mount("msdos", mp, MNT_RDONLY, (caddr_t)&dosargs) != -1)
+    if (mount("msdosfs", mp, MNT_RDONLY, (caddr_t)&dosargs) != -1)
 	goto success;
     if (mount("ufs", mp, MNT_RDONLY, (caddr_t)&u_args) != -1)
 	goto success;
 #else
-    if (mount("msdos", mp, MNT_RDONLY, (caddr_t)&dosargs) != -1)
+    if (mount("msdosfs", mp, MNT_RDONLY, (caddr_t)&dosargs) != -1)
 	goto success;
     if (mount("ufs", mp, MNT_RDONLY, (caddr_t)&u_args) != -1)
 	goto success;

@@ -66,7 +66,7 @@ mediaInitDOS(Device *dev)
     args.uid = args.gid = 0;
     args.mask = 0777;
 
-    if (mount("msdos", mountpoint, MNT_RDONLY, (caddr_t)&args) == -1) {
+    if (mount("msdosfs", mountpoint, MNT_RDONLY, (caddr_t)&args) == -1) {
 	msgConfirm("Error mounting %s on %s: %s (%u)", args.fspec, mountpoint, strerror(errno), errno);
 	return FALSE;
     }
