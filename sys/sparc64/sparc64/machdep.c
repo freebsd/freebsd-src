@@ -403,7 +403,9 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	oonstack = 0;
 	td = curthread;
 	p = td->td_proc;
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 	psp = p->p_sigacts;
+	mtx_assert(&psp->ps_mtx, MA_OWNED);
 	tf = td->td_frame;
 	sp = tf->tf_sp + SPOFF;
 	oonstack = sigonstack(sp);
@@ -437,6 +439,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		    p->p_sigstk.ss_size - sizeof(struct sigframe));
 	} else
 		sfp = (struct sigframe *)sp - 1;
+	mtx_unlock(&psp->ps_mtx);
 	PROC_UNLOCK(p);
 
 	fp = (struct frame *)sfp - 1;
@@ -476,6 +479,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	    tf->tf_sp);
 
 	PROC_LOCK(p);
+	mtx_lock(&psp->ps_mtx);
 }
 
 #ifndef	_SYS_SYSPROTO_H_

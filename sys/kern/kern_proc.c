@@ -623,6 +623,7 @@ fill_kinfo_proc(p, kp)
 	struct tty *tp;
 	struct session *sp;
 	struct timeval tv;
+	struct sigacts *ps;
 
 	td = FIRST_THREAD_IN_PROC(p);
 
@@ -653,9 +654,12 @@ fill_kinfo_proc(p, kp)
 		kp->ki_rgid = p->p_ucred->cr_rgid;
 		kp->ki_svgid = p->p_ucred->cr_svgid;
 	}
-	if (p->p_procsig) {
-		kp->ki_sigignore = p->p_procsig->ps_sigignore;
-		kp->ki_sigcatch = p->p_procsig->ps_sigcatch;
+	if (p->p_sigacts) {
+		ps = p->p_sigacts;
+		mtx_lock(&ps->ps_mtx);
+		kp->ki_sigignore = ps->ps_sigignore;
+		kp->ki_sigcatch = ps->ps_sigcatch;
+		mtx_unlock(&ps->ps_mtx);
 	}
 	mtx_lock_spin(&sched_lock);
 	if (p->p_state != PRS_NEW &&

@@ -37,6 +37,8 @@
 #ifndef _SYS_SIGNALVAR_H_
 #define	_SYS_SIGNALVAR_H_
 
+#include <sys/_lock.h>
+#include <sys/_mutex.h>
 #include <sys/signal.h>
 
 /*
@@ -45,8 +47,11 @@
  */
 
 /*
- * Process signal actions and state, needed only within the process
- * (not necessarily resident).
+ * Logical process signal actions and state, needed only within the process
+ * The mapping between sigacts and proc structures is 1:1 except for rfork()
+ * processes masquerading as threads which use one structure for the whole
+ * group.  All members are locked by the included mutex.  The reference count
+ * and mutex must be last for the bcopy in sigacts_copy() to work.
  */
 struct sigacts {
 	sig_t	ps_sigact[_SIG_MAXSIG];	/* Disposition of signals. */
@@ -56,10 +61,19 @@ struct sigacts {
 	sigset_t ps_sigreset;		/* Signals that reset when caught. */
 	sigset_t ps_signodefer;		/* Signals not masked while handled. */
 	sigset_t ps_siginfo;		/* Signals that want SA_SIGINFO args. */
-	sigset_t ps_freebsd4;		/* Signals using freebsd4 ucontext. */
+	sigset_t ps_sigignore;		/* Signals being ignored. */
+	sigset_t ps_sigcatch;		/* Signals being caught by user. */
+	sigset_t ps_freebsd4;		/* signals using freebsd4 ucontext. */
 	sigset_t ps_osigset;		/* Signals using <= 3.x osigset_t. */
-	sigset_t ps_usertramp;		/* SunOS compat; libc sigtramp XXX. */
+	sigset_t ps_usertramp;		/* SunOS compat; libc sigtramp. XXX */
+	int	ps_flag;
+	int	ps_refcnt;
+	struct mtx ps_mtx;
 };
+
+#define	PS_NOCLDWAIT	0x0001	/* No zombies if child dies */
+#define	PS_NOCLDSTOP	0x0002	/* No SIGCHLD when children stop. */
+#define	PS_CLDSIGIGN	0x0004	/* The SIGCHLD handler is SIG_IGN. */
 
 #if defined(_KERNEL) && defined(COMPAT_43)
 /*
@@ -243,6 +257,11 @@ void	pgsigio(struct sigio **, int signum, int checkctty);
 void	pgsignal(struct pgrp *pgrp, int sig, int checkctty);
 void	postsig(int sig);
 void	psignal(struct proc *p, int sig);
+struct sigacts *sigacts_alloc(void);
+void	sigacts_copy(struct sigacts *dest, struct sigacts *src);
+void	sigacts_free(struct sigacts *ps);
+struct sigacts *sigacts_hold(struct sigacts *ps);
+int	sigacts_shared(struct sigacts *ps);
 void	sigexit(struct thread *td, int signum) __dead2;
 int	sig_ffs(sigset_t *set);
 void	siginit(struct proc *p);

@@ -132,10 +132,21 @@ svr4_sys_read(td, uap)
      DPRINTF(("svr4_read(%d, 0x%0x, %d) = %d\n", 
 	     uap->fd, uap->buf, uap->nbyte, rv));
      if (rv == EAGAIN) {
+#ifdef DEBUG_SVR4
+       struct sigacts *ps;
+
+       PROC_LOCK(td->td_proc);
+       ps = td->td_proc->p_sigacts;
+       mtx_lock(&ps->ps_mtx);
+#endif
        DPRINTF(("sigmask = 0x%x\n", td->td_sigmask));
-       DPRINTF(("sigignore = 0x%x\n", td->td_proc->p_sigignore));
-       DPRINTF(("sigcaught = 0x%x\n", td->td_proc->p_sigcatch));
+       DPRINTF(("sigignore = 0x%x\n", ps->ps_sigignore));
+       DPRINTF(("sigcaught = 0x%x\n", ps->ps_sigcatch));
        DPRINTF(("siglist = 0x%x\n", td->td_siglist));
+#ifdef DEBUG_SVR4
+       mtx_unlock(&ps->ps_mtx);
+       PROC_UNLOCK(td->td_proc);
+#endif
      }
 
 #if defined(GROTTY_READ_HACK)

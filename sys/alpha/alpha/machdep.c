@@ -1133,11 +1133,13 @@ osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	td = curthread;
 	p = td->td_proc;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
+	psp = p->p_sigacts;
+	mtx_assert(&psp->ps_mtx, MA_OWNED);
+
 	frame = td->td_frame;
-	oonstack = sigonstack(alpha_pal_rdusp());
 	fsize = sizeof ksi;
 	rndfsize = ((fsize + 15) / 16) * 16;
-	psp = p->p_sigacts;
+	oonstack = sigonstack(alpha_pal_rdusp());
 
 	/*
 	 * Allocate and validate space for the signal handler
@@ -1155,6 +1157,7 @@ osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 #endif
 	} else
 		sip = (osiginfo_t *)(alpha_pal_rdusp() - rndfsize);
+	mtx_unlock(&psp->ps_mtx);
 	PROC_UNLOCK(p);
 
 	/*
@@ -1210,7 +1213,8 @@ osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	frame->tf_regs[FRAME_A0] = sig;
 	frame->tf_regs[FRAME_FLAGS] = 0; /* full restore */
 	PROC_LOCK(p);
-	if (SIGISMEMBER(p->p_sigacts->ps_siginfo, sig))
+	mtx_lock(&psp->ps_mtx);
+	if (SIGISMEMBER(psp->ps_siginfo, sig))
 		frame->tf_regs[FRAME_A1] = (u_int64_t)sip;
 	else
 		frame->tf_regs[FRAME_A1] = code;
@@ -1235,6 +1239,7 @@ freebsd4_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	p = td->td_proc;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	psp = p->p_sigacts;
+	mtx_assert(&psp->ps_mtx, MA_OWNED);
 
 	frame = td->td_frame;
 	oonstack = sigonstack(alpha_pal_rdusp());
@@ -1276,6 +1281,7 @@ freebsd4_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 #endif
 	} else
 		sfp = (struct sigframe4 *)(alpha_pal_rdusp() - rndfsize);
+	mtx_unlock(&psp->ps_mtx);
 	PROC_UNLOCK(p);
 
 	/* save the floating-point state, if necessary, then copy it. */
@@ -1311,7 +1317,8 @@ freebsd4_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	frame->tf_regs[FRAME_PC] = PS_STRINGS - szfreebsd4_sigcode;
 	frame->tf_regs[FRAME_A0] = sig;
 	PROC_LOCK(p);
-	if (SIGISMEMBER(p->p_sigacts->ps_siginfo, sig)) {
+	mtx_lock(&psp->ps_mtx);
+	if (SIGISMEMBER(psp->ps_siginfo, sig)) {
 		frame->tf_regs[FRAME_A1] = (u_int64_t)&(sfp->sf_si);
 
 		/* Fill in POSIX parts */
@@ -1343,6 +1350,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	p = td->td_proc;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	psp = p->p_sigacts;
+	mtx_assert(&psp->ps_mtx, MA_OWNED);
 #ifdef COMPAT_FREEBSD4
 	if (SIGISMEMBER(psp->ps_freebsd4, sig)) {
 		freebsd4_sendsig(catcher, sig, mask, code);
@@ -1397,6 +1405,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 #endif
 	} else
 		sfp = (struct sigframe *)(alpha_pal_rdusp() - rndfsize);
+	mtx_unlock(&psp->ps_mtx);
 	PROC_UNLOCK(p);
 
 	/* save the floating-point state, if necessary, then copy it. */
@@ -1432,7 +1441,8 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	frame->tf_regs[FRAME_PC] = PS_STRINGS - szsigcode;
 	frame->tf_regs[FRAME_A0] = sig;
 	PROC_LOCK(p);
-	if (SIGISMEMBER(p->p_sigacts->ps_siginfo, sig)) {
+	mtx_lock(&psp->ps_mtx);
+	if (SIGISMEMBER(psp->ps_siginfo, sig)) {
 		frame->tf_regs[FRAME_A1] = (u_int64_t)&(sfp->sf_si);
 
 		/* Fill in POSIX parts */

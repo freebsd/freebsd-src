@@ -163,7 +163,7 @@ kern_execve(td, fname, argv, envv, mac_p)
 	struct vattr attr;
 	int (*img_first)(struct image_params *);
 	struct pargs *oldargs = NULL, *newargs = NULL;
-	struct procsig *oldprocsig, *newprocsig;
+	struct sigacts *oldsigacts, *newsigacts;
 #ifdef KTRACE
 	struct vnode *tracevp = NULL;
 	struct ucred *tracecred = NULL;
@@ -409,23 +409,16 @@ interpret:
 	 * reset.
 	 */
 	PROC_LOCK(p);
-	mp_fixme("procsig needs a lock");
-	if (p->p_procsig->ps_refcnt > 1) {
-		oldprocsig = p->p_procsig;
+	if (sigacts_shared(p->p_sigacts)) {
+		oldsigacts = p->p_sigacts;
 		PROC_UNLOCK(p);
-		MALLOC(newprocsig, struct procsig *, sizeof(struct procsig),
-		    M_SUBPROC, M_WAITOK);
-		bcopy(oldprocsig, newprocsig, sizeof(*newprocsig));
-		newprocsig->ps_refcnt = 1;
-		oldprocsig->ps_refcnt--;
+		newsigacts = sigacts_alloc();
+		sigacts_copy(newsigacts, oldsigacts);
 		PROC_LOCK(p);
-		p->p_procsig = newprocsig;
-		if (p->p_sigacts == &p->p_uarea->u_sigacts)
-			panic("shared procsig but private sigacts?");
+		p->p_sigacts = newsigacts;
+	} else
+		oldsigacts = NULL;
 
-		p->p_uarea->u_sigacts = *p->p_sigacts;
-		p->p_sigacts = &p->p_uarea->u_sigacts;
-	}
 	/* Stop profiling */
 	stopprofclock(p);
 
@@ -624,6 +617,8 @@ done1:
 		pargs_drop(oldargs);
 	if (newargs != NULL)
 		pargs_drop(newargs);
+	if (oldsigacts != NULL)
+		sigacts_free(oldsigacts);
 
 exec_fail_dealloc:
 
