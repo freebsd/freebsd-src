@@ -14,7 +14,7 @@
  */
 
 /*
- *	$Id: boot2.c,v 1.16 1998/11/08 18:37:28 rnordier Exp $
+ *	$Id: boot2.c,v 1.17 1999/01/10 13:29:52 peter Exp $
  */
 
 #include <sys/param.h>
@@ -53,7 +53,6 @@
 #define PATH_CONFIG	"/boot.config"
 #define PATH_BOOT3	"/boot/loader"
 #define PATH_KERNEL	"/kernel"
-#define PATH_HELP	"boot.help"
 
 #define ARGS		0x900
 #define NOPT		11
@@ -103,7 +102,6 @@ static struct dsk {
 } dsk;
 static char cmd[512];
 static char kname[1024];
-static char help[2048];
 static uint32_t opts;
 static struct bootinfo bootinfo;
 static int ls;
@@ -138,7 +136,7 @@ static int getc(int);
 int
 main(void)
 {
-    int autoboot, helpon, i;
+    int autoboot, i;
 
     v86.ctl = V86_FLAGS;
     dsk.drive = *(uint8_t *)PTOV(ARGS);
@@ -153,8 +151,6 @@ main(void)
     for (i = 0; i < N_BIOS_GEOM; i++)
 	bootinfo.bi_bios_geom[i] = drvinfo(i);
     autoboot = 2;
-    helpon = 1;
-    readfile(PATH_HELP, help, sizeof(help));
     readfile(PATH_CONFIG, cmd, sizeof(cmd));
     if (*cmd) {
 	printf("%s: %s", PATH_CONFIG, cmd);
@@ -176,19 +172,18 @@ main(void)
     for (;;) {
 	printf(" \n>> FreeBSD/i386 BOOT\n"
 	       "Default: %u:%s(%u,%c)%s\n"
-	       "%s"
 	       "boot: ",
 	       dsk.drive & DRV_MASK, dev_nm[dsk.type], dsk.unit,
-	       'a' + dsk.part, kname, helpon ? help : "");
+	       'a' + dsk.part, kname);
 	if (ioctrl & 0x2)
 	    sio_flush();
 	if (!autoboot || keyhit(0x5a))
 	    getstr(cmd, sizeof(cmd));
 	else
 	    putchar('\n');
-	autoboot = helpon = 0;
+	autoboot = 0;
 	if (parse(cmd))
-	    helpon = 1;
+	    putchar('\a'); 
 	else
 	    load(kname);
     }
