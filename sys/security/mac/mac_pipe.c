@@ -185,7 +185,7 @@ SYSCTL_NODE(_security_mac_debug, OID_AUTO, counters, CTLFLAG_RW, 0,
 
 static unsigned int nmacmbufs, nmaccreds, nmacifnets, nmacbpfdescs,
     nmacsockets, nmacmounts, nmactemp, nmacvnodes, nmacdevfsdirents,
-    nmacipqs, nmacpipes;
+    nmacipqs, nmacpipes, nmacprocs;
 
 SYSCTL_UINT(_security_mac_debug_counters, OID_AUTO, mbufs, CTLFLAG_RD,
     &nmacmbufs, 0, "number of mbufs in use");
@@ -201,6 +201,8 @@ SYSCTL_UINT(_security_mac_debug_counters, OID_AUTO, sockets, CTLFLAG_RD,
     &nmacsockets, 0, "number of sockets in use");
 SYSCTL_UINT(_security_mac_debug_counters, OID_AUTO, pipes, CTLFLAG_RD,
     &nmacpipes, 0, "number of pipes in use");
+SYSCTL_UINT(_security_mac_debug_counters, OID_AUTO, procs, CTLFLAG_RD,
+    &nmacprocs, 0, "number of procs in use");
 SYSCTL_UINT(_security_mac_debug_counters, OID_AUTO, mounts, CTLFLAG_RD,
     &nmacmounts, 0, "number of mounts in use");
 SYSCTL_UINT(_security_mac_debug_counters, OID_AUTO, temp, CTLFLAG_RD,
@@ -762,6 +764,17 @@ mac_init_pipe(struct pipe *pipe)
 	mac_init_pipe_label(label);
 }
 
+void
+mac_init_proc(struct proc *p)
+{
+
+	mac_init_label(&p->p_label);
+	MAC_PERFORM(init_proc_label, &p->p_label);
+#ifdef MAC_DEBUG
+	atomic_add_int(&nmacprocs, 1);
+#endif
+}
+
 static int
 mac_init_socket_label(struct label *label, int flag)
 {
@@ -943,6 +956,17 @@ mac_destroy_pipe(struct pipe *pipe)
 
 	mac_destroy_pipe_label(pipe->pipe_label);
 	free(pipe->pipe_label, M_MACPIPELABEL);
+}
+
+void
+mac_destroy_proc(struct proc *p)
+{
+
+	MAC_PERFORM(destroy_proc_label, &p->p_label);
+	mac_destroy_label(&p->p_label);
+#ifdef MAC_DEBUG
+	atomic_subtract_int(&nmacprocs, 1);
+#endif
 }
 
 static void

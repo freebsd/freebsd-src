@@ -41,6 +41,7 @@
 
 #include "opt_compat.h"
 #include "opt_ktrace.h"
+#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -62,6 +63,7 @@
 #include <sys/ptrace.h>
 #include <sys/acct.h>		/* for acct_process() function prototype */
 #include <sys/filedesc.h>
+#include <sys/mac.h>
 #include <sys/shm.h>
 #include <sys/sem.h>
 #include <sys/jail.h>
@@ -739,6 +741,9 @@ loop:
 			 */
 			vm_waitproc(p);
 			mtx_destroy(&p->p_mtx);
+#ifdef MAC
+			mac_destroy_proc(p);
+#endif
 			KASSERT(FIRST_THREAD_IN_PROC(p),
 			    ("wait1: no residual thread!"));
 			uma_zfree(proc_zone, p);
