@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: psparse - Parser top level AML parse routines
- *              $Revision: 143 $
+ *              $Revision: 144 $
  *
  *****************************************************************************/
 
@@ -522,7 +522,7 @@ AcpiPsParseLoop (
     ACPI_STATUS             Status = AE_OK;
     ACPI_PARSE_OBJECT       *Op = NULL;     /* current op */
     ACPI_PARSE_OBJECT       *Arg = NULL;
-    ACPI_PARSE_OBJECT       PreOp;
+    ACPI_PARSE_OBJECT       *PreOp = NULL;
     ACPI_PARSE_STATE        *ParserState;
     UINT8                   *AmlOpStart = NULL;
 
@@ -654,8 +654,19 @@ AcpiPsParseLoop (
 
             if (WalkState->OpInfo->Flags & AML_NAMED)
             {
-                PreOp.Common.Value.Arg = NULL;
-                PreOp.Common.AmlOpcode = WalkState->Opcode;
+                /* Allocate a new PreOp if necessary */
+
+                if (!PreOp)
+                {
+                    PreOp = AcpiPsAllocOp (WalkState->Opcode);
+                    if (!PreOp)
+                    {
+                        return_ACPI_STATUS (AE_NO_MEMORY);
+                    }
+                }
+
+                PreOp->Common.Value.Arg = NULL;
+                PreOp->Common.AmlOpcode = WalkState->Opcode;
 
                 /*
                  * Get and append arguments until we find the node that contains
@@ -671,7 +682,7 @@ AcpiPsParseLoop (
                         goto CloseThisOp;
                     }
 
-                    AcpiPsAppendArg (&PreOp, Arg);
+                    AcpiPsAppendArg (PreOp, Arg);
                     INCREMENT_ARG_LIST (WalkState->ArgTypes);
                 }
 
@@ -717,7 +728,7 @@ AcpiPsParseLoop (
                     goto CloseThisOp;
                 }
 
-                AcpiPsAppendArg (Op, PreOp.Common.Value.Arg);
+                AcpiPsAppendArg (Op, PreOp->Common.Value.Arg);
                 AcpiGbl_Depth++;
 
                 if (Op->Common.AmlOpcode == AML_REGION_OP)
@@ -993,6 +1004,11 @@ CloseThisOp:
 
         AcpiPsCompleteThisOp (WalkState, Op);
         Op = NULL;
+        if (PreOp)
+        {
+            AcpiPsFreeOp (PreOp);
+            PreOp = NULL;
+        }
 
         switch (Status)
         {
@@ -1285,6 +1301,30 @@ AcpiPsParseAml (
         {
             ACPI_REPORT_METHOD_ERROR ("Method execution failed",
                 WalkState->MethodNode, NULL, Status);
+
+            /* Check for possible multi-thread reentrancy problem */
+
+            if ((Status == AE_ALREADY_EXISTS) &&
+                (!WalkState->MethodDesc->Method.Semaphore))
+            {
+                /*
+                 * This method is marked NotSerialized, but it tried to create a named
+                 * object, causing the second thread entrance to fail.  We will workaround
+                 * this by marking the method permanently as Serialized.
+                 */
+                WalkState->MethodDesc->Method.MethodFlags |= AML_METHOD_SERIALIZED;
+                WalkState->MethodDesc->Method.Concurrency = 1;
+            }
+        }
+
+        if (WalkState->MethodDesc)
+        {
+            /* Decrement the thread count on the method parse tree */
+
+            if (WalkState->MethodDesc->Method.ThreadCount)
+            {
+                WalkState->MethodDesc->Method.ThreadCount--;
+            }
         }
 
         /* We are done with this walk, move on to the parent if any */

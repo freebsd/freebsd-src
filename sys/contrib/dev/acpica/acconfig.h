@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acconfig.h - Global configuration constants
- *       $Revision: 149 $
+ *       $Revision: 150 $
  *
  *****************************************************************************/
 
@@ -137,7 +137,7 @@
 
 /* Version string */
 
-#define ACPI_CA_VERSION                 0x20040220
+#define ACPI_CA_VERSION                 0x20040311
 
 /* Maximum objects in the various object caches */
 
@@ -257,6 +257,10 @@
 /* SMBus bidirectional buffer size */
 
 #define ACPI_SMBUS_BUFFER_SIZE          34
+
+/* Number of strings associated with the _OSI reserved method */
+
+#define ACPI_NUM_OSI_STRINGS            4
 
 
 /******************************************************************************
