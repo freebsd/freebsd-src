@@ -388,10 +388,6 @@ configRC_conf(void)
 	fprintf(rcSite, "# This file now contains just the overrides from /etc/defaults/rc.conf\n");
 	fprintf(rcSite, "# please make all changes to this file.\n\n");
 	fprintf(rcSite, "# Enable network daemons for user convenience.\n");
-	fprintf(rcSite, "inetd_enable=\"YES\"\n");
-	fprintf(rcSite, "portmap_enable=\"YES\"\n");
-	fprintf(rcSite, "sendmail_enable=\"YES\"\n");
-	fprintf(rcSite, "sshd_enable=\"YES\"\n");
     }
 
     /* Now do variable substitutions */
@@ -468,6 +464,98 @@ configLinux(dialogMenuItem *self)
     i = package_add("linux_base");
     restorescr(w);
     return i;
+}
+
+int
+configSecurityProfile(dialogMenuItem *self)
+{
+    WINDOW *w = savescr();
+
+    dialog_clear_norefresh();
+    dmenuOpenSimple(&MenuSecurityProfile, FALSE); 
+    restorescr(w);
+    return DITEM_SUCCESS;
+}
+
+/* Use the most fascist security settings */
+int
+configSecurityFascist(dialogMenuItem *self)
+{
+    WINDOW *w = savescr();
+
+    variable_set2("inetd_enable", "NO", 1);
+    variable_set2("portmap_enable", "NO", 1);
+    variable_set2("sendmail_enable", "NO", 1);
+    variable_set2("sshd_enable", "NO", 1);
+    variable_set2("nfs_server_enable", "NO", 1);
+    variable_set2("kern_securelevel_enable", "YES", 1);
+    variable_set2("kern_securelevel", "2", 1);
+    /* More fascist stuff should go here */
+
+    if (self)
+	msgConfirm("High security settings have been selected.\n\n"
+	    "This means that most \"popular\" network services and\n"
+	    "mechanisms like inetd(8) have been DISABLED by default.\n\n"
+	    "PLEASE NOTE that this still does not save you from having\n"
+	    "to properly secure your system in other ways or exercise\n"
+	    "due diligence in your administration, this simply picks\n"
+	    "a more secure set of out-of-box defaults to start with.\n\n"
+	    "To change any of these settings later, edit /etc/rc.conf");
+
+    restorescr(w);
+    return DITEM_SUCCESS;
+}
+
+int
+configSecurityModerate(dialogMenuItem *self)
+{
+    WINDOW *w = savescr();
+
+    variable_set2("inetd_enable", "YES", 1);
+    if (!variable_cmp("nfs_client_enable", "YES") ||
+	!variable_cmp("nfs_server_enable", "YES"))
+    	variable_set2("portmap_enable", "YES", 1);
+    if (!variable_cmp("nfs_server_enable", "YES"))
+	variable_set2("nfs_reserved_port_only", "YES", 1);
+    variable_set2("sendmail_enable", "YES", 1);
+    variable_set2("sshd_enable", "YES", 1);
+
+    if (self)
+	msgConfirm("Moderate security settings have been selected.\n\n"
+	    "This means that most \"popular\" network services and\n"
+	    "mechanisms like inetd(8) have been enabled by default\n"
+	    "for a comfortable user experience but with possible\n"
+	    "trade-offs in system security.  If this bothers you and\n"
+	    "you know exactly what you are doing, select the high\n"
+	    "high security profile instead.\n\n"
+	    "To change any of these settings later, edit /etc/rc.conf");
+
+    restorescr(w);
+    return DITEM_SUCCESS;
+}
+
+int
+configSecurityLiberal(dialogMenuItem *self)
+{
+    WINDOW *w = savescr();
+
+    variable_set2("inetd_enable", "YES", 1);
+    variable_set2("portmap_enable", "YES", 1);
+    variable_set2("sendmail_enable", "YES", 1);
+    variable_set2("sshd_enable", "YES", 1);
+
+    if (self)
+	msgConfirm("Liberal security settings have been selected.\n\n"
+	    "This means that most \"popular\" network services and\n"
+	    "mechanisms like inetd(8) have been enabled by default\n"
+	    "for the most comfortable user experience but with possible\n"
+	    "trade-offs in system security.  If this bothers you, select\n"
+	    "the medium security profile or, if you know exactly what you\n"
+	    "are doing, the high security profile instead.\n\n"
+	    "To change any of these settings later, edit /etc/rc.conf");
+
+    restorescr(w);
+    return DITEM_SUCCESS;
 }
 
 static void

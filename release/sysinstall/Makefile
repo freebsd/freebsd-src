@@ -18,13 +18,12 @@ SRCS=	anonFTP.c cdrom.c command.c config.c devices.c dhcp.c kget.c \
 	wizard.c keymap.h
 
 CFLAGS+= -Wall -I${.CURDIR}/../../gnu/lib/libdialog -I${.OBJDIR}
-CFLAGS+= -I${.CURDIR}/../../sys
 .if ${MACHINE} == "pc98"
 CFLAGS+= -DPC98
 .endif
 
-DPADD=	${LIBDIALOG} ${LIBNCURSES} ${LIBMYTINFO} ${LIBUTIL} ${LIBDISK} ${LIBFTPIO}
-LDADD=	-ldialog -lncurses -lmytinfo -lutil -ldisk -lftpio
+DPADD=	${LIBDIALOG} ${LIBNCURSES} ${LIBUTIL} ${LIBDISK} ${LIBFTPIO}
+LDADD=	-ldialog -lncurses -lutil -ldisk -lftpio
 
 makedevs.c:	Makefile rtermcap keymap.h
 	rm -f makedevs.tmp
