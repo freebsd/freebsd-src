@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.20 1995/03/19 11:16:58 davidg Exp $
+ * $Id: vfs_syscalls.c,v 1.21 1995/03/29 11:54:02 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -322,8 +322,7 @@ sync(p, uap, retval)
 	register struct mount *mp, *nmp;
 	int asyncflag;
 
-	for (mp = mountlist.tqh_first; mp != NULL; mp = nmp) {
-		nmp = mp->mnt_list.tqe_next;
+	for (mp = mountlist.tqh_first; mp != NULL; mp = mp->mnt_list.tqe_next) {
 		/*
 		 * The lock check below is to avoid races with mount
 		 * and unmount.
