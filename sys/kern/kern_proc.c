@@ -403,7 +403,7 @@ fill_eproc(p, ep)
 	}
 }
 
-static struct proc *
+struct proc *
 zpfind(pid_t pid)
 {
 	struct proc *p;

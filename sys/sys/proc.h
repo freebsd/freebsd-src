@@ -418,6 +418,7 @@ extern	int ps_argsopen;
 
 struct proc *pfind __P((pid_t));	/* Find process by id. */
 struct pgrp *pgfind __P((pid_t));	/* Find process group by id. */
+struct proc *zpfind __P((pid_t));	/* Find zombie process by id. */
 
 struct vm_zone;
 extern struct vm_zone *proc_zone;
