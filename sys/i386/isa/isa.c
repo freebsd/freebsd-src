@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.102 1997/08/25 22:52:59 bde Exp $
+ *	$Id: isa.c,v 1.103 1997/08/28 03:36:40 msmith Exp $
  */
 
 /*
@@ -65,6 +65,11 @@
 #include <i386/isa/ic/i8237.h>
 
 #include <sys/interrupt.h>
+
+#include "pnp.h"
+#if NPNP > 0
+#include <i386/isa/pnp.h>
+#endif
 
 /*
 **  Register definitions for DMA controller 1 (channels 0..3):
@@ -293,6 +298,9 @@ haveseen_isadev(dvp, checkbits)
 	struct isa_device *dvp;
 	u_int	checkbits;
 {
+#if NPNP > 0
+	struct pnp_dlist_node *nod;
+#endif
 	struct isa_device *tmpdvp;
 	int	status = 0;
 
@@ -316,6 +324,11 @@ haveseen_isadev(dvp, checkbits)
 		if (status)
 			return status;
 	}
+#if NPNP > 0
+	for (nod = pnp_device_list; nod != NULL; nod = nod->next)
+		if (status |= haveseen(dvp, &(nod->dev), checkbits))
+			return status;
+#endif
 #ifdef RESOURCE_CHECK
 	if (!dvp->id_conflicts) {
 		status = check_pciconflict(dvp, checkbits);
@@ -551,8 +564,7 @@ config_isadev_c(isdp, mp, reconfig)
 					printf(" at 0x%x", isdp->id_iobase);
 				printf("\n");
 			}
-		}
-		else {
+		} else {
 #if 0
 			/* This code has not been tested.... */
 			if (isdp->id_irq) {
@@ -913,7 +925,6 @@ isa_dmastatus(int chan)
 	u_long	cnt = 0;
 	int	ffport, waport;
 	u_long	low1, high1, low2, high2;
-	u_long	ef;
 
 	/* channel active? */
 	if ((dma_inuse & (1 << chan)) == 0) {
