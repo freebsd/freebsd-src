@@ -85,7 +85,6 @@ static int	hpfs_readdir __P((struct vop_readdir_args *ap));
 static int	hpfs_lookup __P((struct vop_lookup_args *ap));
 static int	hpfs_create __P((struct vop_create_args *));
 static int	hpfs_remove __P((struct vop_remove_args *));
-static int	hpfs_abortop __P((struct vop_abortop_args *));
 static int	hpfs_bmap __P((struct vop_bmap_args *ap));
 #if defined(__FreeBSD__)
 static int	hpfs_getpages __P((struct vop_getpages_args *ap));
@@ -1378,7 +1377,6 @@ struct vnodeopv_entry_desc hpfs_vnodeop_entries[] = {
 	{ &vop_print_desc, (vop_t *)hpfs_print },
 	{ &vop_create_desc, (vop_t *)hpfs_create },
 	{ &vop_remove_desc, (vop_t *)hpfs_remove },
-	{ &vop_abortop_desc, (vop_t *)hpfs_abortop },
 	{ &vop_islocked_desc, (vop_t *)vop_stdislocked },
 	{ &vop_unlock_desc, (vop_t *)vop_stdunlock },
 	{ &vop_lock_desc, (vop_t *)vop_stdlock },
