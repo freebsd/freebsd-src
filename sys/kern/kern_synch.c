@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.9 (Berkeley) 5/19/95
- * $Id: kern_synch.c,v 1.26.2.2 1997/08/08 23:42:56 julian Exp $
+ * $Id: kern_synch.c,v 1.26.2.3 1997/08/13 19:35:33 julian Exp $
  */
 
 #include "opt_ktrace.h"
@@ -83,8 +83,12 @@ sysctl_kern_quantum SYSCTL_HANDLER_ARGS
 
 	new_val = quantum;
 	error = sysctl_handle_int(oidp, &new_val, 0, req);
-	if ((error == 0) && (new_val > 0) && (new_val < MAXIMUM_SCHEDULE_QUANTUM)) {
-		quantum = new_val;
+	if (error == 0) {
+		if ((new_val > 0) && (new_val < MAXIMUM_SCHEDULE_QUANTUM)) {
+			quantum = new_val;
+		} else {
+			error = EINVAL;
+		}
 	}
 	return (error);
 }
@@ -344,15 +348,13 @@ tsleep(ident, priority, wmesg, timo)
 		return (0);
 	}
 #ifdef DIAGNOSTIC
-	if( p == NULL ) 
+	if(p == NULL) 
 		panic("tsleep1");
 	if (ident == NULL || p->p_stat != SRUN)
 		panic("tsleep");
 	/* XXX This is not exhaustive, just the most common case */
-	if ((p->p_procq.tqe_next != NULL)
-	&&  (p->p_procq.tqe_next == p->p_procq.tqe_prev)
-	&&  (*p->p_procq.tqe_prev == p))
-		panic("sleeping process on run queue");
+	if ((p->p_procq.tqe_prev != NULL) && (*p->p_procq.tqe_prev == p))
+		panic("sleeping process already on another queue");
 #endif
 	p->p_wchan = ident;
 	p->p_wmesg = wmesg;
