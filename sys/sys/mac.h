@@ -142,11 +142,6 @@ struct mac_mls {
 	struct mac_mls_element	mm_rangelow, mm_rangehigh;
 };
 
-#define	MAC_TE_TYPE_MAXLEN	32
-struct mac_te {
-	char	mt_type[MAC_TE_TYPE_MAXLEN];
-};
-
 struct mac_sebsd {
 	uint32_t	ms_psid;
 };
@@ -155,7 +150,6 @@ struct oldmac {
 	int			m_macflags;
 	struct mac_biba		m_biba;
 	struct mac_mls		m_mls;
-	struct mac_te		m_te;
 	struct mac_sebsd	m_sebsd;
 };
 
