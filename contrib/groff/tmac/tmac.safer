@@ -1,0 +1,10 @@
+.\" remove unsafe requests
+.rm open opena pso sy pi
+.de unsafe
+.tm \\n(.F:\\n(.c: unsafe to execute request `\\$1'
+..
+.als open unsafe
+.als opena unsafe
+.als pso unsafe
+.als sy unsafe
+.als pi unsafe

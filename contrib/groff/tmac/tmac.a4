@@ -1,0 +1,3 @@
+.\" Set up groff for A4 paper.
+.pl 29.7c
+.ll 21c-2i

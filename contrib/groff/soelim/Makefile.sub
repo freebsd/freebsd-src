@@ -1,0 +1,6 @@
+PROG=soelim
+MAN1=soelim.n
+XLIBS=$(LIBGROFF)
+OBJS=soelim.o
+CCSRCS=soelim.cc
+NAMEPREFIX=$(g)

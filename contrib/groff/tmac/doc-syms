@@ -1,0 +1,234 @@
+.\" Copyright (c) 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)doc-syms	5.6 (Berkeley) 8/5/91
+.\"
+.\"     %beginstrip%
+.\" NS Ux macro - UNIX
+.de Ux
+.nr cF \\n(.f
+.nr cZ \\n(.s
+.ds aa \&\f\\n(cF\s\\n(cZ
+.as b1 \&\\*(tNUNIX\\*(aa
+.rm aa
+.if \\n(aC==0 \{\
+.       if \\n(.$>0 .aV \\$1 \\$2 \\$3 \\$4 \\$5 \\$6 \\$7 \\$8 \\$9
+.\}
+.ie \\n(aC>\\n(aP \{\
+.       nr aP \\n(aP+1
+.       ie \\n(C\\n(aP==1 \{\
+.               \\*(A\\n(aP
+.       \}
+.       el .nR
+.\}
+.el .aZ
+..
+.\" NS Bx macro -BSD UNIX (fix smaller nroff version)
+.de Bx
+.nr cF \\n(.f
+.nr cZ \\n(.s
+.ds aa \&\f\\n(cF\s\\n(cZ
+.if \\n(aC==0 \{\
+.       ie \\n(.$==0 \&\\*(tNBSD\\*(aa \\*(tNUNIX\\*(aa
+.       el .aV \\$1 \\$2 \\$3 \\$4 \\$5 \\$6 \\$7 \\$8 \\$9
+.\}
+.if "\\$1"-alpha" \{\
+\&currently in alpha test.
+.	aY
+.\}
+.if "\\$1"-beta" \{\
+\&currently in beta test.
+.	aY
+.\}
+.if "\\$1"-devel" \{\
+\&currently under development.
+.	aY
+.\}
+.if \\n(aC>\\n(aP \{\
+.       nr aP \\n(aP+1
+.	ie \\n(C\\n(aP==2 \{\
+.		as b1 \&\\*(A\\n(aP\&\\*(tNBSD\\*(aa
+.		ie \\n(aC>\\n(aP \{\
+.			nr jj \\n(aP+1
+.			ie \\n(C\\n(jj==2 \{\
+.				if "\\*(A\\n(jj"Reno" \{\
+.					nr aP \\n(aP+1
+.					as b1 \&\-\\*(A\\n(jj
+.				\}
+.				if "\\*(A\\n(jj"reno" \{\
+.					nr aP \\n(aP+1
+.					as b1 \&\-Reno
+.				\}
+.				if "\\*(A\\n(jj"Tahoe" \{\
+.					nr aP \\n(aP+1
+.					as b1 \&\-\\*(A\\n(jj
+.				\}
+.				if "\\*(A\\n(jj"tahoe" \{\
+.					nr aP \\n(aP+1
+.					as b1 \&\-Tahoe
+.				\}
+.				ie \\n(aC>\\n(aP \{\
+.					nr aP \\n(aP+1
+.					nR
+.				\}
+.				el .aZ
+.			\}
+.			el \{\
+.				nr aP \\n(aP+1
+.				nR
+.			\}
+.			rr jj
+.		\}
+.		el .aZ
+.	\}
+.	el \{\
+.	       as b1 \&\\*(tNBSD\\*(aa U\\*(tNNIX\\*(aa
+.	       nR
+.	\}
+.\}
+..
+.\" Ns Ud macro - prints "currently under development" (HISTORY section)
+.de Ud
+\&currently under development.
+..
+.\" Ns At macro - AT&T UNIX
+.de At
+.nr cF \\n(.f
+.nr cZ \\n(.s
+.ds aa \&\f\\n(cF\s\\n(cZ
+.if \\n(.$==2 \{\
+.	if "\\$1"32v" \&Version 32V \\*(tNAT&T UNIX\\*(aa\\$2
+.	if "\\$1"v6"  \&Version 6 \\*(tNAT&T UNIX\\*(aa\\$2
+.	if "\\$1"v7"  \&Version 7 \\*(tNAT&T UNIX\\*(aa\\$2
+.	if "\\$1"V"  \&\\*(tNAT&T\\*(aa System V \\*(tNUNIX\\*(aa\\$2
+.	if "\\$1"V.1"  \&\\*(tNAT&T\\*(aa System V.1 \\*(tNUNIX\\*(aa\\$2
+.	if "\\$1"V.4"  \&\\*(tNAT&T\\*(aa System V.4 \\*(tNUNIX\\*(aa\\$2
+.\}
+.if \\n(.$==1 \{\
+.	if "\\$1"32v" \&Version 32V \\*(tNAT&T UNIX\\*(aa
+.	if "\\$1"v6"  \&Version 6 \\*(tNAT&T UNIX\\*(aa
+.	if "\\$1"v7"  \&Version 7 \\*(tNAT&T UNIX\\*(aa
+.	if "\\$1"V"  \&\\*(tNAT&T\\*(aa System V \\*(tNUNIX\\*(aa
+.	if "\\$1"V.1"  \&\\*(tNAT&T\\*(aa System V.1 \\*(tNUNIX\\*(aa
+.	if "\\$1"V.4"  \&\\*(tNAT&T\\*(aa System V.4 \\*(tNUNIX\\*(aa
+.\}
+..
+.\" The Bt macro should go away now
+.\" Ns Bt macro - prints "is currently in beta test." (HISTORY section)
+.de Bt
+\&is currently in beta test.
+..
+.\" NS St macro - standards (posix, ansi - formal standard names)
+.ds Px \\*(tNPOSIX
+.ds Ai \\*(tNANSI
+.de St
+.if \\n(aC==0 \{\
+.	ie \\n(.$==0 \{\
+.tm Usage: .St [-p1003.1-88 | -p1003.2 | -ansiC-89 | -iso ] \\*(Pu ... (#\\n(.c)
+.	\}
+.	el \{\
+.		ds mN St
+.		nr aP 0
+.		ds A1 \\$1
+.		ds A2 \\$2
+.		ds A3 \\$3
+.		ds A4 \\$4
+.		ds A5 \\$5
+.		ds A6 \\$6
+.		ds A7 \\$7
+.		ds A8 \\$8
+.		ds A9 \\$9
+.		nr fV \\n(.$
+.		fV
+.	\}
+.\}
+.if \\n(aC>\\n(aP \{\
+.	nr cF \\n(.f
+.	nr cZ \\n(.s
+.	ds aa \&\f\\n(cF\s\\n(cZ
+.	nr aP \\n(aP+1
+.       if "\\*(A\\n(aP"-p1003.1-88" \{\
+.		ie \\n(sT==1 \{\
+.			ds b1 \&\\*(tNIEEE Std\\*(aa1003.1-1988\\*(sV
+.			as b1 (``\\*(tN\\*(Px\\*(aa'')
+.		\}
+.		el \{\
+.			ds b1 \&\\*(tNIEEE Std\\*(aa1003.1-1988\\*(sV
+.			as b1 (``\\*(tN\\*(Px\\*(aa'')
+.		\}
+.       \}
+.       if "\\*(A\\n(aP"-p1003.2" \{\
+.		ie \\n(sT==1 \{\
+.			ds b1 \&\\*(tNIEEE Std\\*(aa1003.2
+.			as b1 (``\\*(tN\\*(Px\\*(aa'')
+.		\}
+.		el \{\
+.			ds b1 \&\\*(tNIEEE Std\\*(aa1003.2\\*(sV
+.			as b1 (``\\*(tN\\*(Px\\*(aa'')
+.		\}
+.       \}
+.       if "\\*(A\\n(aP"-ansiC" \{\
+.		ie \\n(sT==1 \{\
+.			ds b1 \&\\*(tNANSI C\\*(aa3.159-1989\\*(sV
+.			as b1 (``\\*(tNANSI C\\*(aa'')
+.		\}
+.		el \{\
+.			ds b1 \&\\*(tNANSI C\\*(aa3.159-1989\\*(sV
+.			as b1 (``\\*(tNANSI C\\*(aa'')
+.		\}
+.       \}
+.       if "\\*(A\\n(aP"-ansiC-89" \{\
+.		ie \\n(sT==1 \{\
+.			ds b1 \&\\*(tNANSI C\\*(aa3.159-1989\\*(sV
+.			as b1 (``\\*(tNANSI C\\*(aa'')
+.		\}
+.		el \{\
+.			ds b1 \&\\*(tNANSI C\\*(aa3.159-1989\\*(sV
+.			as b1 (``\\*(tNANSI C\\*(aa'')
+.		\}
+.       \}
+.       if "\\*(A\\n(aP"-iso8802-3" \{\
+.		ie \\n(sT==1 \{\
+.			ds b1 \&\\*(tNISO \\*(aa8802-3: 1989\\*(sV
+.\" .			as b1 (``\\*(tNANSI C\\*(aa'')
+.		\}
+.		el \{\
+.			ds b1 \&\\*(tNISO \\*(aa8802-3: 1989\\*(sV
+.\" .			as b1 (``\\*(tNANSI C\\*(aa'')
+.		\}
+.       \}
+.	ie \\n(aC>\\n(aP \{\
+.		nr aP \\n(aP+1
+.		nR
+.	\}
+.	el .aZ
+.\}
+..

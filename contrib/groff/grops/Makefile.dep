@@ -1,0 +1,6 @@
+ps.o: ps.cc ../include/driver.h ../include/errarg.h ../include/error.h \
+ ../include/font.h ../include/printer.h ../include/lib.h \
+ ../include/stringclass.h ../include/cset.h ps.h
+psrm.o: psrm.cc ../include/driver.h ../include/errarg.h \
+ ../include/error.h ../include/font.h ../include/printer.h \
+ ../include/lib.h ../include/stringclass.h ../include/cset.h ps.h
