@@ -27,6 +27,7 @@ MAN=	aac.4 \
 	ccd.4 \
 	cd.4 \
 	ch.4 \
+	ciss.4 \
 	crypto.4 \
 	csa.4 \
 	cue.4 \
