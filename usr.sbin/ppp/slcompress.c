@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: slcompress.c,v 1.15.2.6 1998/04/06 09:12:36 brian Exp $
+ * $Id: slcompress.c,v 1.15.2.7 1998/04/07 00:54:19 brian Exp $
  *
  *	Van Jacobson (van@helios.ee.lbl.gov), Dec 31, 1989:
  *	- Initial distribution.
@@ -518,7 +518,7 @@ sl_uncompress_tcp(u_char ** bufp, int len, u_int type,
   } else
     cs->cs_ip.ip_id = htons(ntohs(cs->cs_ip.ip_id) + 1);
 
-  LogPrintf(LogDEBUG, "Uncompress: id = %04x, seq = %08x\n",
+  LogPrintf(LogDEBUG, "Uncompress: id = %04x, seq = %08lx\n",
 	    cs->cs_ip.ip_id, ntohl(th->th_seq));
 
   /*

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.50.2.38 1998/04/17 22:05:25 brian Exp $
+ * $Id: ipcp.c,v 1.50.2.39 1998/04/19 03:40:59 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -722,11 +722,12 @@ static int
 AcceptableAddr(struct in_range *prange, struct in_addr ipaddr)
 {
   /* Is the given IP in the given range ? */
-  LogPrintf(LogDEBUG, "requested = %x\n", htonl(ipaddr.s_addr));
-  LogPrintf(LogDEBUG, "range = %x\n", htonl(prange->ipaddr.s_addr));
-  LogPrintf(LogDEBUG, "/%x\n", htonl(prange->mask.s_addr));
-  LogPrintf(LogDEBUG, "%x, %x\n", htonl(prange->ipaddr.s_addr & prange->
-		  mask.s_addr), htonl(ipaddr.s_addr & prange->mask.s_addr));
+  LogPrintf(LogDEBUG, "requested = %x\n", (unsigned)htonl(ipaddr.s_addr));
+  LogPrintf(LogDEBUG, "range = %x\n", (unsigned)htonl(prange->ipaddr.s_addr));
+  LogPrintf(LogDEBUG, "/%x\n", (unsigned)htonl(prange->mask.s_addr));
+  LogPrintf(LogDEBUG, "%x, %x\n",
+            (unsigned)htonl(prange->ipaddr.s_addr & prange->mask.s_addr),
+            (unsigned)htonl(ipaddr.s_addr & prange->mask.s_addr));
   return (prange->ipaddr.s_addr & prange->mask.s_addr) ==
     (ipaddr.s_addr & prange->mask.s_addr) && ipaddr.s_addr;
 }
@@ -738,7 +739,7 @@ IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type,
   /* Deal with incoming PROTO_IPCP */
   struct ipcp *ipcp = fsm2ipcp(fp);
   int type, length;
-  u_long *lp, compproto;
+  u_int32_t compproto;
   struct compreq *pcomp;
   struct in_addr ipaddr, dstipaddr, have_ip, dns[2], dnsnak[2];
   char tbuff[100], tbuff2[100];
@@ -760,8 +761,7 @@ IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type,
 
     switch (type) {
     case TY_IPADDR:		/* RFC1332 */
-      lp = (u_long *) (cp + 2);
-      ipaddr.s_addr = *lp;
+      ipaddr.s_addr = *(u_int32_t *)(cp + 2);
       LogPrintf(LogIPCP, "%s %s\n", tbuff, inet_ntoa(ipaddr));
 
       switch (mode_type) {
@@ -834,8 +834,7 @@ IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type,
       }
       break;
     case TY_COMPPROTO:
-      lp = (u_long *) (cp + 2);
-      compproto = htonl(*lp);
+      compproto = htonl(*(u_int32_t *)(cp + 2));
       LogPrintf(LogIPCP, "%s %s\n", tbuff, vj2asc(compproto));
 
       switch (mode_type) {
@@ -895,10 +894,8 @@ IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type,
       }
       break;
     case TY_IPADDRS:		/* RFC1172 */
-      lp = (u_long *) (cp + 2);
-      ipaddr.s_addr = *lp;
-      lp = (u_long *) (cp + 6);
-      dstipaddr.s_addr = *lp;
+      ipaddr.s_addr = *(u_int32_t *)(cp + 2);
+      dstipaddr.s_addr = *(u_int32_t *)(cp + 6);
       snprintf(tbuff2, sizeof tbuff2, "%s %s,", tbuff, inet_ntoa(ipaddr));
       LogPrintf(LogIPCP, "%s %s\n", tbuff2, inet_ntoa(dstipaddr));
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: id.c,v 1.6.4.4 1998/04/07 00:53:45 brian Exp $
+ *	$Id: id.c,v 1.6.4.5 1998/04/17 22:05:16 brian Exp $
  */
 
 #include <sys/types.h>
@@ -87,7 +87,7 @@ ID0ioctl(int fd, unsigned long req, void *arg)
 
   ID0set0();
   ret = ioctl(fd, req, arg);
-  LogPrintf(LogID0, "%d = ioctl(%d, %d, %p)\n", ret, fd, req, arg);
+  LogPrintf(LogID0, "%d = ioctl(%d, %lu, %p)\n", ret, fd, req, arg);
   ID0setuser();
   return ret;
 }
@@ -190,7 +190,7 @@ ID0login(struct utmp *ut)
   }
   login(ut);
   LogPrintf(LogID0, "login(\"%s\", \"%.*s\")\n",
-            ut->ut_line, sizeof ut->ut_name, ut->ut_name);
+            ut->ut_line, (int)(sizeof ut->ut_name), ut->ut_name);
   ID0setuser();
 }
 

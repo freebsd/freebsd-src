@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.53 1998/04/18 23:17:23 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.54 1998/04/19 15:24:36 brian Exp $
  */
 
 #include <sys/types.h>
@@ -744,7 +744,7 @@ failed:
 		cmdstr, inet_ntoa(dst), strerror(rtmes.m_rtm.rtm_errno));
   }
   LogPrintf(LogDEBUG, "wrote %d: cmd = %s, dst = %x, gateway = %x\n",
-            wb, cmdstr, dst.s_addr, gateway.s_addr);
+            wb, cmdstr, (unsigned)dst.s_addr, (unsigned)gateway.s_addr);
   close(s);
 }
 

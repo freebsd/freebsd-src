@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prompt.h,v 1.1.2.6 1998/04/07 00:54:16 brian Exp $
+ *	$Id: prompt.h,v 1.1.2.7 1998/04/10 13:19:19 brian Exp $
  */
 
 #define LOCAL_AUTH	0x01
@@ -69,7 +69,12 @@ struct prompt {
 extern struct prompt *prompt_Create(struct server *, struct bundle *, int);
 extern void prompt_Destroy(struct prompt *, int);
 extern void prompt_Required(struct prompt *);
+#ifdef __GNUC__
+extern void prompt_Printf(struct prompt *, const char *, ...)
+                          __attribute__ ((format (printf, 2, 3)));
+#else
 extern void prompt_Printf(struct prompt *, const char *, ...);
+#endif
 extern void prompt_vPrintf(struct prompt *, const char *, _BSD_VA_LIST_);
 #define PROMPT_DONT_WANT_INT 1
 #define PROMPT_WANT_INT 0

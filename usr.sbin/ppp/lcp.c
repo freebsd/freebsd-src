@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.55.2.41 1998/04/07 00:53:55 brian Exp $
+ * $Id: lcp.c,v 1.55.2.42 1998/04/16 00:26:05 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
@@ -371,7 +371,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
   /* Deal with incoming PROTO_LCP */
   struct lcp *lcp = fsm2lcp(fp);
   int type, length, sz, pos;
-  u_int32_t *lp, magic, accmap;
+  u_int32_t magic, accmap;
   u_short mtu, mru, *sp, proto;
   struct lqrreq *req;
   char request[20], desc[22];
@@ -421,8 +421,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
       break;
 
     case TY_ACCMAP:
-      lp = (u_int32_t *) (cp + 2);
-      accmap = htonl(*lp);
+      accmap = htonl(*(u_int32_t *)(cp + 2));
       LogPrintf(LogLCP, "%s 0x%08lx\n", request, (u_long)accmap);
 
       switch (mode_type) {
@@ -543,7 +542,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
 
     case TY_QUALPROTO:
       req = (struct lqrreq *)cp;
-      LogPrintf(LogLCP, "%s proto %x, interval %dms\n",
+      LogPrintf(LogLCP, "%s proto %x, interval %ldms\n",
                 request, ntohs(req->proto), ntohl(req->period) * 10);
       switch (mode_type) {
       case MODE_REQ:
@@ -567,8 +566,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
       break;
 
     case TY_MAGICNUM:
-      lp = (u_int32_t *) (cp + 2);
-      magic = ntohl(*lp);
+      magic = ntohl(*(u_int32_t *)(cp + 2));
       LogPrintf(LogLCP, "%s 0x%08lx\n", request, (u_long)magic);
 
       switch (mode_type) {

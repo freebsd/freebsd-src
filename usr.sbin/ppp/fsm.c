@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.27.2.28 1998/04/16 00:25:58 brian Exp $
+ * $Id: fsm.c,v 1.27.2.29 1998/04/19 15:24:41 brian Exp $
  *
  *  TODO:
  */
@@ -782,18 +782,17 @@ FsmRecvEchoReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
 {
   struct lcp *lcp = fsm2lcp(fp);
   u_char *cp;
-  u_long *lp, magic;
+  u_int32_t magic;
 
   if (lcp) {
     cp = MBUF_CTOP(bp);
-    lp = (u_long *) cp;
-    magic = ntohl(*lp);
+    magic = ntohl(*(u_int32_t *)cp);
     if (magic != lcp->his_magic) {
       LogPrintf(LogERROR, "RecvEchoReq: his magic is bad!!\n");
       /* XXX: We should send terminate request */
     }
     if (fp->state == ST_OPENED) {
-      *lp = htonl(lcp->want_magic);	/* Insert local magic number */
+      *(u_int32_t *)cp = htonl(lcp->want_magic); /* local magic */
       FsmOutput(fp, CODE_ECHOREP, lhp->id, cp, plength(bp));
     }
   }
@@ -804,19 +803,18 @@ static void
 FsmRecvEchoRep(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
 {
   struct lcp *lcp = fsm2lcp(fp);
-  u_long *lp, magic;
+  u_int32_t magic;
 
   if (lcp) {
-    lp = (u_long *) MBUF_CTOP(bp);
-    magic = ntohl(*lp);
+    magic = ntohl(*(u_int32_t *)MBUF_CTOP(bp));
     /* Tolerate echo replies with either magic number */
     if (magic != 0 && magic != lcp->his_magic && magic != lcp->want_magic) {
       LogPrintf(LogWARN,
                 "RecvEchoRep: Bad magic: expected 0x%08x,  got: 0x%08x\n",
 	        lcp->his_magic, magic);
       /*
-       * XXX: We should send terminate request. But poor implementation may die
-       * as a result.
+       * XXX: We should send terminate request. But poor implementations may
+       * die as a result.
        */
     }
     RecvEchoLqr(fp, bp);

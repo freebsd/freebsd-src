@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sig.c,v 1.11.2.2 1998/04/06 09:12:36 brian Exp $
+ *	$Id: sig.c,v 1.11.2.3 1998/04/07 00:54:18 brian Exp $
  */
 
 #include <sys/types.h>
@@ -58,7 +58,7 @@ pending_signal(int sig, sig_type fn)
 
   if (sig <= 0 || sig > NSIG) {
     /* Oops - we must be a bit out of date (too many sigs ?) */
-    LogPrintf(LogALERT, "Eeek! %s:%s: I must be out of date!\n",
+    LogPrintf(LogALERT, "Eeek! %s:%d: I must be out of date!\n",
 	      __FILE__, __LINE__);
     return signal(sig, fn);
   }

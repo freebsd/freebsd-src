@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.c,v 1.22.2.24 1998/04/18 01:01:24 brian Exp $
+ * $Id: lqr.c,v 1.22.2.25 1998/04/19 15:24:44 brian Exp $
  *
  *	o LQR based on RFC1333
  *
@@ -92,7 +92,7 @@ RecvEchoLqr(struct fsm *fp, struct mbuf * bp)
         hdlc->lqm.echo.seq_recv = seq;
     } else
       LogPrintf(LogERROR, "RecvEchoLqr: Got sig 0x%08x, expecting 0x%08x !\n",
-                ntohl(lqr->signature), SIGNATURE);
+                (unsigned)ntohl(lqr->signature), (unsigned)SIGNATURE);
   } else
     LogPrintf(LogERROR, "RecvEchoLqr: Got packet size %d, expecting %d !\n",
               plength(bp), sizeof(struct echolqr));
@@ -177,7 +177,8 @@ LqrInput(struct physical *physical, struct mbuf *bp)
     lcp = physical->hdlc.lqm.owner;
     if (ntohl(lqr->MagicNumber) != physical->hdlc.lqm.owner->his_magic)
       LogPrintf(LogERROR, "LqrInput: magic %x != expecting %x\n",
-		ntohl(lqr->MagicNumber), physical->hdlc.lqm.owner->his_magic);
+		(unsigned)ntohl(lqr->MagicNumber),
+                physical->hdlc.lqm.owner->his_magic);
     else {
       /*
        * Remember our PeerInLQRs, then convert byte order and save

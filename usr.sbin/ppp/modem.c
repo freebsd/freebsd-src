@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.51 1998/04/17 22:04:32 brian Exp $
+ * $Id: modem.c,v 1.77.2.52 1998/04/19 15:24:46 brian Exp $
  *
  *  TODO:
  */
@@ -582,8 +582,8 @@ modem_Open(struct physical *modem, struct bundle *bundle)
   if (modem->dev_is_modem && !Physical_IsSync(modem)) {
     tcgetattr(modem->fd, &rstio);
     modem->ios = rstio;
-    LogPrintf(LogDEBUG, "modem_Open: modem (get): fd = %d, iflag = %x, "
-              "oflag = %x, cflag = %x\n", modem->fd, rstio.c_iflag,
+    LogPrintf(LogDEBUG, "modem_Open: modem (get): fd = %d, iflag = %lx, "
+              "oflag = %lx, cflag = %lx\n", modem->fd, rstio.c_iflag,
               rstio.c_oflag, rstio.c_cflag);
     cfmakeraw(&rstio);
     if (modem->cfg.rts_cts)
@@ -605,7 +605,7 @@ modem_Open(struct physical *modem, struct bundle *bundle)
 		  modem->fd, modem->cfg.speed);
     }
     tcsetattr(modem->fd, TCSADRAIN, &rstio);
-    LogPrintf(LogDEBUG, "modem (put): iflag = %x, oflag = %x, cflag = %x\n",
+    LogPrintf(LogDEBUG, "modem (put): iflag = %lx, oflag = %lx, cflag = %lx\n",
 	      rstio.c_iflag, rstio.c_oflag, rstio.c_cflag);
 
     if (ioctl(modem->fd, TIOCMGET, &modem->mbits) == -1)

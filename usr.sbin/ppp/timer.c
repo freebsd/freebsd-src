@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: timer.c,v 1.27.2.5 1998/04/17 22:04:36 brian Exp $
+ * $Id: timer.c,v 1.27.2.6 1998/04/18 23:17:26 brian Exp $
  *
  *  TODO:
  */
@@ -90,7 +90,7 @@ StartTimer(struct pppTimer * tp)
 
   if (t)
     LogPrintf(LogDEBUG, "StartTimer: Inserting %s timer[%p] before %s "
-              "timer[%p], delta = %d\n", tp->name, tp, t->name, t, tp->rest);
+              "timer[%p], delta = %ld\n", tp->name, tp, t->name, t, tp->rest);
   else
     LogPrintf(LogDEBUG, "StartTimer: Inserting %s timer[%p]\n", tp->name, tp);
 
@@ -206,7 +206,7 @@ ShowTimers(int LogLevel, struct prompt *prompt)
 #define SECS(val)	((val) / SECTICKS)
 #define HSECS(val)	(((val) % SECTICKS) * 100 / SECTICKS)
 #define DISP								\
-  "%s timer[%p]: freq = %d.%02ds, next = %d.%02ds, state = %s\n",	\
+  "%s timer[%p]: freq = %ld.%02lds, next = %d.%02ds, state = %s\n",	\
   pt->name, pt, SECS(pt->load), HSECS(pt->load), SECS(rest),		\
   HSECS(rest), tState2Nam(pt->state)
 
@@ -245,7 +245,7 @@ nointr_dosleep(u_int sec, u_int usec)
           (to.tv_sec == et.tv_sec + 1 && to.tv_usec > et.tv_usec) ||
           to.tv_sec < st.tv_sec ||
           (to.tv_sec == st.tv_sec && to.tv_usec < st.tv_usec)) {
-        LogPrintf(LogWARN, "Clock adjusted between %d and %d seconds "
+        LogPrintf(LogWARN, "Clock adjusted between %ld and %ld seconds "
                   "during sleep !\n",
                   to.tv_sec - st.tv_sec, sec + to.tv_sec - st.tv_sec);
         st.tv_sec = to.tv_sec;

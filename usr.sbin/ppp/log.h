@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: log.h,v 1.18.2.2 1998/04/03 19:25:41 brian Exp $
+ *	$Id: log.h,v 1.18.2.3 1998/04/07 00:54:01 brian Exp $
  */
 
 #define LogMIN		(1)
@@ -68,7 +68,12 @@ extern int LogIsKeptLocal(int, u_long);
 extern void LogOpen(const char *);
 extern void LogSetTun(int);
 extern void LogClose(void);
+#ifdef __GNUC__
+extern void LogPrintf(int, const char *,...)
+            __attribute__ ((format (printf, 2, 3)));
+#else
 extern void LogPrintf(int, const char *,...);
+#endif
 extern void LogDumpBp(int, const char *, const struct mbuf *);
 extern void LogDumpBuff(int, const char *, const u_char *, int);
 extern void log_RegisterPrompt(struct prompt *);
