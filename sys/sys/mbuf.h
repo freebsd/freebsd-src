@@ -595,6 +595,7 @@ struct	mbuf	*m_devget(char *, int, int, struct ifnet *,
 struct	mbuf	*m_dup(struct mbuf *, int);
 int		 m_dup_pkthdr(struct mbuf *, struct mbuf *, int);
 u_int		 m_fixhdr(struct mbuf *);
+struct	mbuf	*m_fragment(struct mbuf *, int, int);
 struct	mbuf	*m_free(struct mbuf *);
 void		 m_freem(struct mbuf *);
 struct	mbuf	*m_get(int, int);

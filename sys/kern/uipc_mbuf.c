@@ -1598,6 +1598,90 @@ nospace:
 	return (NULL);
 }
 
+#ifdef MBUF_STRESS_TEST
+
+/*
+ * Fragment an mbuf chain.  There's no reason you'd ever want to do
+ * this in normal usage, but it's great for stress testing various
+ * mbuf consumers.
+ *
+ * If fragmentation is not possible, the original chain will be
+ * returned.
+ *
+ * Possible length values:
+ * 0	 no fragmentation will occur
+ * > 0	each fragment will be of the specified length
+ * -1	each fragment will be the same random value in length
+ * -2	each fragment's length will be entirely random
+ * (Random values range from 1 to 256)
+ */
+struct mbuf *
+m_fragment(struct mbuf *m0, int how, int length)
+{
+	struct mbuf	*m_new = NULL, *m_final = NULL;
+	int		progress = 0;
+
+	if (!(m0->m_flags & M_PKTHDR))
+		return (m0);
+	
+	if ((length == 0) || (length < -2))
+		return (m0);
+
+	m_fixhdr(m0); /* Needed sanity check */
+
+	m_final = m_getcl(how, MT_DATA, M_PKTHDR);
+
+	if (m_final == NULL)
+		goto nospace;
+
+	if (m_dup_pkthdr(m_final, m0, how) == NULL)
+		goto nospace;
+
+	m_new = m_final;
+
+	if (length == -1)
+		length = 1 + (arc4random() & 255);
+
+	while (progress < m0->m_pkthdr.len) {
+		int fraglen;
+
+		if (length > 0)
+			fraglen = length;
+		else
+			fraglen = 1 + (arc4random() & 255);
+		if (fraglen > m0->m_pkthdr.len - progress)
+			fraglen = m0->m_pkthdr.len - progress;
+
+		if (fraglen > MCLBYTES)
+			fraglen = MCLBYTES;
+
+		if (m_new == NULL) {
+			m_new = m_getcl(how, MT_DATA, 0);
+			if (m_new == NULL)
+				goto nospace;
+		}
+
+		m_copydata(m0, progress, fraglen, mtod(m_new, caddr_t));
+		progress += fraglen;
+		m_new->m_len = fraglen;
+		if (m_new != m_final)
+			m_cat(m_final, m_new);
+		m_new = NULL;
+	}
+	m_freem(m0);
+	m0 = m_final;
+	return (m0);
+nospace:
+	if (m_new)
+		m_free(m_new);
+	if (m_final)
+		m_freem(m_final);
+	/* Return the original chain on failure */
+	return (m0);
+}
+
+#endif
+
 #define MAX_CLREFCOUNT	32
 
 /*

@@ -1009,24 +1009,8 @@ pass:
 #endif
 
 #ifdef MBUF_STRESS_TEST
-		if (mbuf_frag_size && m->m_pkthdr.len > mbuf_frag_size) {
-			struct mbuf *m1, *m2;
-			int length, tmp;
-
-			tmp = length = m->m_pkthdr.len;
-
-			while ((length -= mbuf_frag_size) >= 1) {
-				m1 = m_split(m, length, M_DONTWAIT);
-				if (m1 == NULL)
-					break;
-				m1->m_flags &= ~M_PKTHDR;
-				m2 = m;
-				while (m2->m_next != NULL)
-					m2 = m2->m_next;
-				m2->m_next = m1;
-				m->m_pkthdr.len = tmp;
-			}
-		}
+		if (mbuf_frag_size && m->m_pkthdr.len > mbuf_frag_size)
+			m = m_fragment(m, M_DONTWAIT, mbuf_frag_size);
 #endif
 		error = (*ifp->if_output)(ifp, m,
 				(struct sockaddr *)dst, ro->ro_rt);
