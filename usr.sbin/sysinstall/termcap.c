@@ -26,35 +26,44 @@ int
 set_termcap(void)
 {
     char           *term;
+    int		   stat;
 
     OnVTY = OnSerial = FALSE;
+    if (getpid() != 1)
+	DebugFD = open("sysinstall.debug", O_WRONLY|O_CREAT|O_TRUNC, 0644);
     term = getenv("TERM");
-    if (term == NULL) {
-	if (ioctl(STDERR_FILENO, GIO_COLOR, &ColorDisplay) < 0) {
+    stat = ioctl(STDERR_FILENO, GIO_COLOR, &ColorDisplay);
+    if (stat < 0) {
+	if (!term) {
 	    if (setenv("TERM", "vt100", 1) < 0)
 		return -1;
 	    if (setenv("TERMCAP", termcap_vt100, 1) < 0)
 		return -1;
-	    DebugFD = dup(1);
-	    OnSerial = TRUE;
-	} else if (ColorDisplay) {
-	    if (setenv("TERM", "cons25", 1) < 0)
-		return -1;
-	    if (setenv("TERMCAP", termcap_cons25, 1) < 0)
-		return -1;
-	    DebugFD = open("/dev/ttyv1", O_WRONLY);
-	    OnVTY = TRUE;
-	} else {
-	    if (setenv("TERM", "cons25-m", 1) < 0)
-		return -1;
-	    if (setenv("TERMCAP", termcap_cons25_m, 1) < 0)
-		return -1;
-	    DebugFD = open("/dev/ttyv1", O_WRONLY);
-	    OnVTY = TRUE;
 	}
+	if (DebugFD == -1)
+	    DebugFD = dup(1);
+	OnSerial = TRUE;
     }
     else {
-	DebugFD = open("sysinstall.debug", O_WRONLY|O_CREAT|O_TRUNC, 0644);
+	if (ColorDisplay) {
+	    if (!term) {
+		if (setenv("TERM", "cons25", 1) < 0)
+		    return -1;
+		if (setenv("TERMCAP", termcap_cons25, 1) < 0)
+		    return -1;
+	    }
+	}
+	else {
+	    if (!term) {
+		if (setenv("TERM", "cons25-m", 1) < 0)
+		    return -1;
+		if (setenv("TERMCAP", termcap_cons25_m, 1) < 0)
+		    return -1;
+	    }
+	}
+	if (DebugFD == -1)
+	    DebugFD = open("/dev/ttyv1", O_WRONLY);
+	OnVTY = TRUE;
     }
     return 0;
 }
