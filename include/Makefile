@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.60 1997/07/31 11:32:25 asami Exp $
+#	$Id: Makefile,v 1.61 1997/08/18 06:28:47 peter Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -66,7 +66,7 @@ all:
 
 beforeinstall: installhdrs ${SHARED}
 
-installhdrs:
+installhdrs: _SUBDIR
 	cd ${.CURDIR}; \
 		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${FILES} ${DESTDIR}/usr/include
