@@ -40,7 +40,7 @@ static char copyright[] =
 #ifndef lint
 static char sccsid[] = "From: @(#)chpass.c	8.4 (Berkeley) 4/2/94";
 static char rcsid[] =
-	"$Id: chpass.c,v 1.4 1995/08/13 16:12:24 wpaul Exp $";
+	"$Id: chpass.c,v 1.5 1995/09/02 03:56:17 wpaul Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -85,9 +85,17 @@ main(argc, argv)
 	struct passwd *pw, lpw;
 	int ch, pfd, tfd;
 	char *arg;
+#ifdef YP
+	int force_local = 0;
+	int force_yp = 0;
+#endif
 
 	op = EDITENTRY;
+#ifdef YP
+	while ((ch = getopt(argc, argv, "a:p:s:ly")) != EOF)
+#else
 	while ((ch = getopt(argc, argv, "a:p:s:")) != EOF)
+#endif
 		switch(ch) {
 		case 'a':
 			op = LOADENTRY;
@@ -101,6 +109,14 @@ main(argc, argv)
 			op = NEWPW;
 			arg = optarg;
 			break;
+#ifdef YP
+		case 'l':
+			force_local = 1;
+			break;
+		case 'y':
+			force_yp = 1;
+			break;
+#endif
 		case '?':
 		default:
 			usage();
@@ -152,20 +168,29 @@ main(argc, argv)
 	}
 
 #ifdef YP
-	/*
-	 * XXX The man page says the data returned by getpwent()
-	 * and friends is stored in static buffers that may be
-	 * overwritten after successive invokations. Unfortunately,
-	 * we need to call getpwent() more than once with NIS
-	 * enabled.
-	 */
 	pw->pw_name = strdup(pw->pw_name);
-	pw->pw_passwd = strdup(pw->pw_passwd);
-	pw->pw_class = strdup(pw->pw_class);
-	pw->pw_gecos = strdup(pw->pw_gecos);
-	pw->pw_shell = strdup(pw->pw_shell);
-	pw->pw_dir = strdup(pw->pw_dir);
 	_use_yp = use_yp(pw->pw_name);
+	if (_use_yp == USER_YP_ONLY) {
+		if (!force_local) {
+			_use_yp = 1;
+			pw = (struct passwd *)&yp_password;
+		} else
+			errx(1, "unknown local user: %s.", pw->pw_name);
+	} else if (_use_yp == USER_LOCAL_ONLY) {
+		if (!force_yp) {
+			_use_yp = 0;
+			pw = (struct passwd *)&local_password;
+		} else
+			errx(1, "unknown NIS user: %s.", pw->pw_name);
+	} else if (_use_yp == USER_YP_AND_LOCAL) {
+		if (!force_local) {
+			_use_yp = 1;
+			pw = (struct passwd *)&yp_password;
+		} else {
+			_use_yp = 0;
+			pw = (struct passwd *)&local_password;
+		}
+	}
 #endif /* YP */
 
 	/*
@@ -231,6 +256,10 @@ usage()
 {
 
 	(void)fprintf(stderr,
+#ifdef YP
+		"usage: chpass [-l] [-y] [-a list] [-p encpass] [-s shell] [user]\n");
+#else
 		"usage: chpass [-a list] [-p encpass] [-s shell] [user]\n");
+#endif
 	exit(1);
 }

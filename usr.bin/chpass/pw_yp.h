@@ -35,11 +35,18 @@
  * Center for Telecommunications Research
  * Columbia University, New York City
  *
- *	$Id$
+ *	$Id: pw_yp.h,v 1.2 1995/09/02 03:56:21 wpaul Exp $
  */
 
 #ifdef YP
+/* Four possible return codes from use_yp() */
+#define USER_UNKNOWN 0
+#define USER_YP_ONLY 1
+#define USER_LOCAL_ONLY 2
+#define USER_YP_AND_LOCAL 3
 extern	int		_use_yp;
+extern	struct passwd	local_password;
+extern	struct passwd	yp_password;
 void	yp_submit	__P(( struct passwd * ));
 int	use_yp		__P(( char * ));
 #endif /* YP */
