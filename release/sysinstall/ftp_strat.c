@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.7.2.8 1995/10/15 04:37:02 jkh Exp $
+ * $Id: ftp_strat.c,v 1.7.2.9 1995/10/16 09:25:10 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -82,8 +82,6 @@ get_new_host(Device *dev)
     return i;
 }
 
-static Boolean HasDistsDir;
-
 Boolean
 mediaInitFTP(Device *dev)
 {
@@ -149,17 +147,17 @@ mediaInitFTP(Device *dev)
     }
     retries = i = 0;
 retry:
-    if (i && ++retries > max_retries) {
-	if (optionIsSet(OPT_FTP_ABORT) || !get_new_host(NULL))
-	    return FALSE;
-	retries = 0;
-    }
     msgNotify("Logging in as %s..", login_name);
     if ((i = FtpOpen(ftp, hostname, login_name, password)) != 0) {
 	if (optionIsSet(OPT_NO_CONFIRM))
 	    msgNotify("Couldn't open FTP connection to %s\n", hostname);
 	else
 	    msgConfirm("Couldn't open FTP connection to %s\n", hostname);
+	if (++retries > max_retries) {
+	    if (optionIsSet(OPT_FTP_ABORT) || !get_new_host(dev))
+		return FALSE;
+	    retries = 0;
+	}
 	goto retry;
     }
 
@@ -167,30 +165,22 @@ retry:
     FtpBinary(ftp, 1);
     if (dir && *dir != '\0') {
 	msgNotify("CD to distribution in ~ftp/%s", dir);
-	if ((i = FtpChdir(ftp, dir)) == -2) {
-	    msgNotify("Unable to CD to distribution in %s, retrying..", dir);
-	    FtpClose(ftp);
-	    ftp = NULL;
+	if ((i = FtpChdir(ftp, dir)) != 0) {
+	    if (++retries > max_retries) {
+		if (optionIsSet(OPT_FTP_ABORT)) {
+		    FtpClose(ftp);
+		    ftp = NULL;
+		    return FALSE;
+		}
+		else if (!get_new_host(dev))
+		    return FALSE;
+		else
+		    retries = 0;
+	    }
 	    goto retry;
 	}
     }
 
-    if (FtpChdir(ftp, variable_get(RELNAME))) {
-	msgConfirm("Unable to CD to release directory: %s.\n"
-		   "Perhaps a different FTP site is needed for this release?",
-		   variable_get(RELNAME));
-	FtpClose(ftp);
-	ftp = NULL;
-	goto retry;
-
-    }
-
-    if (!FtpChdir(ftp, "dists")) {
-	HasDistsDir = TRUE;
-	FtpChdir(ftp, ".."); /* Hope this works! :-( */
-    }
-    else
-	HasDistsDir = FALSE;
     if (isDebug())
 	msgDebug("leaving mediaInitFTP!\n");
     ftpInitted = TRUE;
@@ -208,34 +198,38 @@ mediaGetFTP(Device *dev, char *file, Attribs *dist_attrs)
 {
     int fd;
     int nretries = 0, max_retries = MAX_FTP_RETRIES;
-    Boolean inDists = FALSE;
+    char *fp;
+    char buf[PATH_MAX];
 
     if (dev->flags & OPT_EXPLORATORY_GET)
-	max_retries = 1;
+	max_retries = 0;
 
-    while ((fd = FtpGet(ftp, file)) < 0) {
+    fp = file;
+    while ((fd = FtpGet(ftp, fp)) < 0) {
 	/* If a hard fail, try to "bounce" the ftp server to clear it */
-	if (fd == -2 || ++nretries > max_retries) {
-	    if (optionIsSet(OPT_FTP_ABORT) || max_retries == 1)
+	if (fd == -2)
+	    return -2;
+	else if (++nretries > max_retries) {
+	    if (optionIsSet(OPT_FTP_ABORT) || !max_retries)
 		return -1;
 	    else if (!get_new_host(dev))
 		return -2;
 	    nretries = 0;
-	    continue;
+	    fp = file;
 	}
-	if (HasDistsDir) {
-	    if (!inDists) {
-		FtpChdir(ftp, "dists");
-		inDists = TRUE;
-	    }
-	    else {
-		FtpChdir(ftp, "..");
-		inDists = FALSE;
-	    }
+	else {
+	    /* Try some bogus alternatives */
+	    if (nretries == 1)
+		sprintf(buf, "dists/%s", file);
+	    else if (nretries == 2)
+		sprintf(buf, "%s/%s", variable_get(RELNAME), file);
+	    else if (nretries == 3)
+		sprintf(buf, "%s/dists/%s", variable_get(RELNAME), file);
+	    else
+		sprintf(buf, file);
+	    fp = buf;
 	}
     }
-    if (inDists)
-	FtpChdir(ftp, "..");
     return fd;
 }
 

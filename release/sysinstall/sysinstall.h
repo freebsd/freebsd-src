@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.42.2.18 1995/10/16 09:25:22 jkh Exp $
+ * $Id: sysinstall.h,v 1.42.2.19 1995/10/16 10:33:45 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -88,9 +88,10 @@
  */
 #define MAX_CHUNKS	40
 
-/* Internal environment variables */
+/* Internal environment variable names */
 #define DISK_PARTITIONED	"_diskPartitioned"
 #define DISK_LABELLED		"_diskLabelled"
+#define SYSTEM_INSTALLED	"_systemInstalled"
 #define RUNNING_ON_ROOT		"_runningOnRoot"
 #define TCP_CONFIGURED		"_tcpConfigured"
 #define TAPE_BLOCKSIZE		"_tapeBlocksize"
@@ -98,6 +99,8 @@
 #define FTP_PASS		"_ftpPass"
 #define RELNAME			"_releaseName"
 #define CPIO_VERBOSITY_LEVEL	"_cpioVerboseLevel"
+#define BROWSER_PACKAGE		"_browserPackage"
+#define BROWSER_BINARY		"_browserBinary"
 
 #define DEFAULT_TAPE_BLOCKSIZE	"20"
 
@@ -231,8 +234,8 @@ typedef struct _opt {
     char *desc;
     enum { OPT_IS_STRING, OPT_IS_INT, OPT_IS_FLAG, OPT_IS_FUNC } type;
     void *data;
-    int aux;
-    char * (*check)();
+    void *aux;
+    char *(*check)();
 } Option;
 
 /* Weird index nodey things we use for keeping track of package information */
@@ -328,6 +331,7 @@ extern DMenu		MenuXF86SelectCore;	/* XFree86 core distribution menu		*/
 extern DMenu		MenuXF86SelectServer;	/* XFree86 server distribution menu		*/
 extern DMenu		MenuXF86SelectFonts;	/* XFree86 font selection menu			*/
 extern DMenu		MenuDiskDevices;	/* Disk devices menu				*/
+extern DMenu		MenuHTMLDoc;		/* HTML Documentation menu			*/
 
 
 /*** Prototypes ***/
@@ -551,11 +555,13 @@ extern int	systemDisplayFile(char *file);
 extern char	*systemHelpFile(char *file, char *buf);
 extern void	systemChangeFont(const u_char font[]);
 extern void	systemChangeLang(char *lang);
-extern void	systemChangeTerminal(char *color, const u_char c_termcap[],
-				     char *mono, const u_char m_termcap[]);
+extern void	systemChangeTerminal(char *color, const u_char c_termcap[], char *mono, const u_char m_termcap[]);
 extern void	systemChangeScreenmap(const u_char newmap[]);
 extern int	vsystem(char *fmt, ...);
 extern int	docBrowser(char *junk);
+extern int	docSelectBrowserPkg(char *str);
+extern int	docSelectBrowserBin(char *str);
+extern int	docShowDocument(char *str);
 
 /* tape.c */
 extern char	*mediaTapeBlocksize(void);
@@ -581,6 +587,7 @@ extern void	variable_set(char *var);
 extern void	variable_set2(char *name, char *value);
 extern char 	*variable_get(char *var);
 extern void	variable_unset(char *var);
+extern int	variable_get_value(char *var, char *prompt);
 
 /* wizard.c */
 extern void	slice_wizard(Disk *d);

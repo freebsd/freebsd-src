@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.32 1995/10/15 12:41:01 jkh Exp $
+ * $Id: install.c,v 1.71.2.33 1995/10/16 07:31:01 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -155,10 +155,6 @@ installInitial(void)
     if (alreadyDone)
 	return TRUE;
 
-    if (!variable_get(DISK_PARTITIONED)) {
-	msgConfirm("You need to partition your disk before you can proceed with\nthe installation.");
-	return FALSE;
-    }
     if (!variable_get(DISK_LABELLED)) {
 	msgConfirm("You need to assign disk labels before you can proceed with\nthe installation.");
 	return FALSE;
@@ -177,7 +173,7 @@ installInitial(void)
 	return FALSE;
     }
 
-    if (installFilesystems() != RET_SUCCESS) {
+    if (diskLabelCommit(NULL) != RET_SUCCESS) {
 	msgConfirm("Couldn't make filesystems properly.  Aborting.");
 	return FALSE;
     }
@@ -328,31 +324,29 @@ int
 installExpress(char *str)
 {
     msgConfirm("In the next menu, you will need to set up a DOS-style (\"fdisk\")\n"
-	       "partitioning scheme for your hard disk.    If you simply wish to\n"
-	       "devote all disk space to FreeBSD (overwritting anything else that might\n"
-	       "be on the disk(s) selected, use the (A)ll command to select the default\n"
-	       "partitioning scheme and then (Q)uit.  If you wish to allocate only free\n"
-	       "space to FreeBSD, move to a partition marked \"unused\" and use the\n"
-	       "(C)reate command.");
+	       "partitioning scheme for your hard disk.  If you simply wish to devote all\n"
+	       "disk space to FreeBSD (overwritting anything else that might be on the disk(s)\n"
+	       "selected), use the (A)ll command to select the default partitioning scheme and\n"
+	       "then (Q)uit.  If you wish to allocate only free space to FreeBSD, move to a\n"
+	       "partition marked \"unused\" and use the (C)reate command.");
 
     if (diskPartitionEditor("express") == RET_FAIL)
 	return RET_FAIL;
     
-    msgConfirm("Next, you need to create BSD partitions inside of the fdisk\n"
-	       "partition(s) just created.  If you have a reasonable amount of disk\n"
-	       "space (200MB or more) and don't have any special requirements,\n"
-	       "simply use the (A)uto command to allocate space automatically."
-	       "If you have more specific needs, or don't care for the layout\n"
-	       "chosen by (A)uto, press F1 for more information on manual layout.");
+    msgConfirm("Next, you need to create BSD partitions inside of the fdisk partition(s)\n"
+	       "just created.  If you have a reasonable amount of disk space (200MB or more)\n"
+	       "and don't have any special requirements, simply use the (A)uto command to\n"
+	       "allocate space automatically.  If you have more specific needs, or don't\n"
+	       "care for the layout chosen by (A)uto, press F1 for more information on\n"
+	       "manual layout.");
+
     if (diskLabelEditor("express") == RET_FAIL)
 	return RET_FAIL;
     
-    msgConfirm("Now it is time to select an installation subset.  There\n"
-	       "are many different configurations, ranging from minimal\n"
-	       "installation sets to full X developer oriented configs.\n"
-	       "You can also select a custom software set if none of the\n"
-	       "provided configurations are suitable.");
-    
+    msgConfirm("Now it is time to select an installation subset.  There are a number of canned\n"
+	       "distributions, ranging from minimal installation sets to full X developer\n"
+	       "oriented configurations.  You can also select a custom software set if none\n"
+	       "of the provided configurations are suitable.");
     while (1) {
 	if (!dmenuOpenSimple(&MenuInstallType))
 	    return RET_FAIL;
@@ -360,7 +354,7 @@ installExpress(char *str)
 	if (Dists || !msgYesNo("No distributions selected.  Are you sure you wish to continue?"))
 	    break;
     }
-
+    
     msgConfirm("Finally, you must specify an installation medium.");
     if (!dmenuOpenSimple(&MenuMedia))
 	return RET_FAIL;
@@ -368,26 +362,21 @@ installExpress(char *str)
     if (installCommit("express") == RET_FAIL)
 	return RET_FAIL;
 
-    if (!msgYesNo("Since you're running the express installation, a few\n"
-		  "post-configuration questions will be asked at this point.\n\n"
-		  "The FreeBSD package collection is a collection of over 300\n"
-		  "ready-to-run applications, from text editors to WEB servers,\n"
-		  "and is definitely worth at least looking at.\n\n"
-		  "Would you like to browse the selection of packaged software"
-		  "now?\n\n"
-		  "You can also reach this utility from the Configure menu later\n"
-		  "if you wish."))
+    if (!msgYesNo("Since you're running the express installation, a few post-configuration\n"
+		  "questions will be asked at this point.\n\n"
+		  "The FreeBSD package collection is a collection of over 300 ready-to-run\n"
+		  "applications, from text editors to games to WEB servers.  If you've never\n"
+		  "done so, it's definitely worth browsing through.  Would you like to do so now?"))
 	configPackages(NULL);
 
-    if (!msgYesNo("Would you like to configure any additional network devices or\n"
-		  "services?"))
+    if (!msgYesNo("Would you like to configure any additional network devices or services?"))
 	dmenuOpenSimple(&MenuNetworking);
 
     /* XXX Put whatever other nice configuration questions you'd like to ask the user here XXX */
 
     /* Final menu of last resort */
-    if (!msgYesNo("Would you like to go to the general configuration menu for\n"
-		  "any last additional configuration options?"))
+    if (!msgYesNo("Would you like to go to the general configuration menu for any last\n"
+		  "additional configuration options?"))
 	dmenuOpenSimple(&MenuConfigure);
     return 0;
 }
@@ -430,6 +419,7 @@ installCommit(char *str)
     if (i != RET_FAIL && installFinal() == RET_FAIL)
 	i = RET_FAIL;
 
+    variable_set2(SYSTEM_INSTALLED, i == RET_FAIL ? "errors" : "yes");
     dialog_clear();
     /* Don't print this if we're express installing */
     if (strcmp(str, "express")) {
@@ -565,6 +555,7 @@ installFilesystems(void)
 
     if (!checkLabels(&rootdev, &swapdev, &usrdev))
 	return RET_FAIL;
+
     root = (PartInfo *)rootdev->private;
     command_clear();
 
@@ -780,17 +771,6 @@ create_termcap(void)
 int
 installSelectRelease(char *str)
 {
-    char *cp;
-    int i;
-
-    dialog_clear();
-    if ((cp = msgGetInput(variable_get(RELNAME), "Please specify the release you wish to load")) != NULL) {
-	variable_set2(RELNAME, cp);
-	i = RET_SUCCESS;
-    }
-    else
-	i = RET_FAIL;
-    dialog_clear();
-    return i;
+    return variable_get_value(RELNAME, "Please specify the release you wish to load");
 }
 

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.44.2.5 1995/10/15 12:41:09 jkh Exp $
+ * $Id: system.c,v 1.44.2.6 1995/10/16 10:33:46 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -270,11 +270,78 @@ vsystem(char *fmt, ...)
 int
 docBrowser(char *junk)
 {
+    char *browser = variable_get(BROWSER_PACKAGE);
+ 
     /* Make sure we were started at a reasonable time */
-    
-    /* First, make sure we have Lynx */
-    /* We don't have lynx, try to add it */
-    /* Now try to figure out if there is doc here - if so, offer choice between local and net else just net */
-    /* Run lynx on the appropriate doc */
+    if (!variable_get(SYSTEM_INSTALLED)) {
+	msgConfirm("Sorry, it's not possible to invoke the browser until the system\n"
+		   "is installed completely enough to support a copy of %s.", browser);
+	return RET_FAIL;
+    }
+
+    if (!mediaVerify())
+	return RET_FAIL;
+
+    /* First, make sure we have whatever browser we've chosen is here */
+    if (package_extract(mediaDevice, browser) != RET_SUCCESS) {
+	msgConfirm("Unable to install the %s HTML browser package.  You may\n"
+		   "wish to verify that your media is configured correctly and\n"
+		   "try again.", browser);
+	return RET_FAIL;
+    }
+    if (!file_executable(variable_get(BROWSER_BINARY))) {
+	if (!msgYesNo("Hmmm.  The %s package claims to have installed, but I can't\n"
+		      "find its binary in %s!  You may wish to try a different\n"
+		      "location to load the package from (go to Media menu) and see if that\n"
+		      "makes a difference.\n\n"
+		      "I suggest that we remove the version that was extracted since it does\n"
+		      "not appear to be correct.   Would you like me to do that now?"))
+	    vsystem("pkg_delete %s %s", !strcmp(variable_get(CPIO_VERBOSITY_LEVEL), "high") ? "-v" : "", browser);
+	return RET_FAIL;
+    }
+
+    /* Run browser on the appropriate doc */
+    dmenuOpenSimple(&MenuHTMLDoc);
     return RET_SUCCESS;
 }
+
+/* Specify which package to load for a browser */
+int
+docSelectBrowserPkg(char *str)
+{
+    return variable_get_value(BROWSER_PACKAGE, "Please specify the name of the browser package");
+}
+
+/* Specify which binary to load for a browser */
+int
+docSelectBrowserBin(char *str)
+{
+    return variable_get_value(BROWSER_BINARY, "Please specify the full pathname of the browser binary");
+}
+
+/* Try to show one of the documents requested from the HTML doc menu */
+int
+docShowDocument(char *str)
+{
+    char *browser = variable_get(BROWSER_BINARY);
+
+    if (!file_executable(browser)) {
+	msgConfirm("Can't find the browser in %s!  Please ensure that it's\n"
+		   "properly set in the Options editor.", browser);
+	return RET_FAIL;
+    }
+    if (!strcmp(str, "Home"))
+	vsystem("%s http://www.freebsd.org", browser);
+    else if (!strcmp(str, "Other")) {
+    }
+    else {
+	char target[512];
+
+	sprintf(target, "/usr/share/doc/%s/%s.html", str, str);
+	if (file_readable(target))
+	    vsystem("%s file:%s", browser, target);
+	else
+	    vsystem("%s http://www.freebsd.org/%s");
+    }
+}
+

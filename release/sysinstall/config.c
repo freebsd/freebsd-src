@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.16.2.13 1995/10/15 15:45:13 jkh Exp $
+ * $Id: config.c,v 1.16.2.14 1995/10/16 09:25:07 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -300,23 +300,13 @@ configSysconfig(void)
 int
 configSaverTimeout(char *str)
 {
-    char *val;
-
-    val = msgGetInput("60", "Enter time-out period in seconds for screen saver");
-    if (val)
-	variable_set2("blanktime", val);
-    return RET_SUCCESS;
+    return variable_get_value("blanktime", "Enter time-out period in seconds for screen saver");
 }
 
 int
 configNTP(char *str)
 {
-    char *val;
-
-    val = msgGetInput(NULL, "Enter the name of an NTP server");
-    if (val)
-	variable_set2("ntpdate", val);
-    return RET_SUCCESS;
+    return variable_get_value("ntpdate", "Enter the name of an NTP server");
 }
 
 void
@@ -366,14 +356,9 @@ skip:
 int
 configRoutedFlags(char *str)
 {
-    char *val;
-
-    val = msgGetInput("-q",
-		      "Specify the flags for routed; -q is the default, -s is\n"
-		      "a good choice for gateway machines.");
-    if (val)
-	variable_set2("routedflags", val);
-    return RET_SUCCESS;
+    return variable_get_value("routedflags", 
+			      "Specify the flags for routed; -q is the default, -s is\n"
+			      "a good choice for gateway machines.");
 }
 
 int
