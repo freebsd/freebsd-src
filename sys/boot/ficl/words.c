@@ -2755,26 +2755,22 @@ static void type(FICL_VM *pVM)
 {
     UNS32 count = stackPopUNS32(pVM->pStack);
     char *cp    = stackPopPtr(pVM->pStack);
+    char *pDest = (char *)ficlMalloc(count);
 
     /* 
     ** Since we don't have an output primitive for a counted string
     ** (oops), make sure the string is null terminated. If not, copy
     ** and terminate it.
     */
-    /* XXX Uses free space on top of dictionary. Is it guaranteed
-     * XXX to always fit? (abial)
-     */
-    if (cp[count] != '\0')
-    {
-        char *pDest = (char *)ficlGetDict()->here;
-        if (cp != pDest)
-            strncpy(pDest, cp, count);
+    if (!pDest)
+	vmThrowErr(pVM, "Error: out of memory");
 
-        pDest[count] = '\0';
-        cp = pDest;
-    }
+    strncpy(pDest, cp, count);
+    pDest[count] = '\0';
 
     vmTextOut(pVM, cp, 0);
+
+    ficlFree(pDest);
     return;
 }
 
