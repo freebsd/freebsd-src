@@ -305,7 +305,7 @@ tcp_timer_keep(xtp)
 		 * correspondent TCP to respond.
 		 */
 		tcpstat.tcps_keepprobe++;
-		t_template = tcp_maketemplate(tp);
+		t_template = tcpip_maketemplate(inp);
 		if (t_template) {
 			tcp_respond(tp, t_template->tt_ipgen,
 				    &t_template->tt_t, (struct mbuf *)NULL,
