@@ -316,7 +316,7 @@ ata_timeout(struct ata_request *request)
 {
     /* clear timeout etc */
     request->timeout_handle.callout = NULL;
-
+#if 0
     /* call interrupt to try finish up the command */
     request->device->channel->hw.interrupt(request->device->channel);
 
@@ -327,6 +327,7 @@ ata_timeout(struct ata_request *request)
 		       ata_cmd2str(request));
 	return;
     }
+#endif
 
     /* if this was a DMA request stop the engine to be on the safe side */
     if (request->flags & ATA_R_DMA) {
@@ -334,22 +335,37 @@ ata_timeout(struct ata_request *request)
 	    request->device->channel->dma->stop(request->device->channel);
     }
 
+    /* report that we timed out */
+    if (request->retries > 0 && !(request->flags & ATA_R_QUIET))
+	ata_prtdev(request->device,
+		   "TIMEOUT - %s retrying (%d retr%s left)\n",
+		   ata_cmd2str(request), request->retries,
+		   request->retries == 1 ? "y" : "ies");
+
     /* try to adjust HW's attitude towards work */
     ata_reinit(request->device->channel);
 
-    /* if retries still permit, reinject this request */
-    if (request->retries-- > 0) {
+    /* if device disappeared nothing more to do here */
+    if (!request->device->softc) {
 	if (!(request->flags & ATA_R_QUIET))
 	    ata_prtdev(request->device,
-		       "TIMEOUT - %s retrying (%d retr%s left)\n",
-		       ata_cmd2str(request), request->retries,
-		       request->retries == 1 ? "y" : "ies");
+		       "FAILURE - %s device lockup/removed\n",
+		       ata_cmd2str(request));
+	return;
+    }
+
+    /* if retries still permit, reinject this request */
+    if (request->retries-- > 0) {
 	request->flags |= (ATA_R_AT_HEAD | ATA_R_REQUEUE);
 	request->flags &= ~ATA_R_SKIPSTART;
 	ata_queue_request(request);
     }
     /* otherwise just schedule finish with error */
     else {
+	if (!(request->flags & ATA_R_QUIET))
+	    ata_prtdev(request->device,
+		       "FAILURE - %s timed out\n",
+		       ata_cmd2str(request));
 	request->status = ATA_S_ERROR;
 	TASK_INIT(&request->task, 0, ata_completed, request);
 	taskqueue_enqueue(taskqueue_swi, &request->task);
