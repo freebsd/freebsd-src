@@ -209,7 +209,7 @@ taskqueue_run(struct taskqueue *queue)
 static void
 taskqueue_swi_enqueue(void *context)
 {
-	swi_sched(taskqueue_ih, SWI_NOSWITCH);
+	swi_sched(taskqueue_ih, 0);
 }
 
 static void

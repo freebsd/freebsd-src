@@ -402,7 +402,7 @@ exit1(td, rv)
 	PROC_LOCK(p);
 	mtx_lock_spin(&sched_lock);
 	while (mtx_owned(&Giant))
-		mtx_unlock_flags(&Giant, MTX_NOSWITCH);
+		mtx_unlock(&Giant);
 
 	/*
 	 * We have to wait until after releasing all locks before
@@ -413,7 +413,7 @@ exit1(td, rv)
 	p->p_stat = SZOMB;
 
 	wakeup(p->p_pptr);
-	PROC_UNLOCK_NOSWITCH(p);
+	PROC_UNLOCK(p);
 
 	cnt.v_swtch++;
 	cpu_throw();

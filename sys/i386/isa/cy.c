@@ -1181,7 +1181,7 @@ siointr(unit)
 #ifndef SOFT_HOTCHAR
 			if (line_status & CD1400_RDSR_SPECIAL
 			    && com->hotchar != 0)
-				swi_sched(sio_ih, SWI_NOSWITCH);
+				swi_sched(sio_ih, 0);
 
 #endif
 #if 1 /* XXX "intelligent" PFO error handling would break O error handling */
@@ -1209,7 +1209,7 @@ siointr(unit)
 			++com->bytes_in;
 #ifdef SOFT_HOTCHAR
 			if (com->hotchar != 0 && recv_data == com->hotchar)
-				swi_sched(sio_ih, SWI_NOSWITCH);
+				swi_sched(sio_ih, 0);
 #endif
 			ioptr = com->iptr;
 			if (ioptr >= com->ibufend)
@@ -1259,7 +1259,7 @@ siointr(unit)
 						if (com->hotchar != 0
 						    && recv_data
 						       == com->hotchar)
-							swi_sched(sio_ih, SWI_NOSWITCH);
+							swi_sched(sio_ih, 0);
 #endif
 						ioptr[0] = recv_data;
 						ioptr[com->ierroff] = 0;
@@ -1274,7 +1274,7 @@ siointr(unit)
 #ifdef SOFT_HOTCHAR
 					if (com->hotchar != 0
 					    && recv_data == com->hotchar)
-						swi_sched(sio_ih, SWI_NOSWITCH);
+						swi_sched(sio_ih, 0);
 #endif
 				} while (--count != 0);
 			} else {
@@ -1299,7 +1299,7 @@ siointr(unit)
 #ifdef SOFT_HOTCHAR
 					if (com->hotchar != 0
 					    && recv_data == com->hotchar)
-						swi_sched(sio_ih, SWI_NOSWITCH);
+						swi_sched(sio_ih, 0);
 #endif
 					ioptr[0] = recv_data;
 					ioptr[com->ierroff] = 0;
@@ -1364,7 +1364,7 @@ cont:
 			if (!(com->state & CS_CHECKMSR)) {
 				com_events += LOTS_OF_EVENTS;
 				com->state |= CS_CHECKMSR;
-				swi_sched(sio_ih, SWI_NOSWITCH);
+				swi_sched(sio_ih, 0);
 			}
 
 #ifdef SOFT_CTS_OFLOW
@@ -1495,7 +1495,7 @@ cont:
 					if (!(com->state & CS_ODONE)) {
 						com_events += LOTS_OF_EVENTS;
 						com->state |= CS_ODONE;
-						swi_sched(sio_ih, SWI_NOSWITCH);
+						swi_sched(sio_ih, 0);
 					}
 					break;
 				case ETC_BREAK_ENDED:
@@ -1509,7 +1509,7 @@ cont:
 				if (!(com->extra_state & CSE_ODONE)) {
 					com_events += LOTS_OF_EVENTS;
 					com->extra_state |= CSE_ODONE;
-					swi_sched(sio_ih, SWI_NOSWITCH);
+					swi_sched(sio_ih, 0);
 				}
 				cd_outb(iobase, CD1400_SRER, cy_align,
 					com->intr_enable
@@ -1567,7 +1567,7 @@ cont:
 					com->state |= CS_ODONE;
 
 					/* handle at high level ASAP */
-					swi_sched(sio_ih, SWI_NOSWITCH);
+					swi_sched(sio_ih, 0);
 				}
 			}
 		}
@@ -1587,7 +1587,7 @@ terminate_tx_service:
 	/* ensure an edge for the next interrupt */
 	cy_outb(cy_iobase, CY_CLEAR_INTR, cy_align, 0);
 
-	swi_sched(sio_ih, SWI_NOSWITCH);
+	swi_sched(sio_ih, 0);
 
 	COM_UNLOCK();
 }

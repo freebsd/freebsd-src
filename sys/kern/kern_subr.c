@@ -386,7 +386,7 @@ uio_yield()
 
 	td = curthread;
 	mtx_lock_spin(&sched_lock);
-	DROP_GIANT_NOSWITCH();
+	DROP_GIANT();
 	td->td_ksegrp->kg_pri.pri_level = td->td_ksegrp->kg_pri.pri_user;
 	setrunqueue(td);
 	td->td_proc->p_stats->p_ru.ru_nivcsw++;

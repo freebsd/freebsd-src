@@ -437,17 +437,17 @@ msleep(ident, mtx, priority, wmesg, timo)
 		 * in case this is the idle process and already asleep.
 		 */
 		if (mtx != NULL && priority & PDROP)
-			mtx_unlock_flags(mtx, MTX_NOSWITCH);
+			mtx_unlock(mtx);
 		mtx_unlock_spin(&sched_lock);
 		return (0);
 	}
 
-	DROP_GIANT_NOSWITCH();
+	DROP_GIANT();
 
 	if (mtx != NULL) {
 		mtx_assert(mtx, MA_OWNED | MA_NOTRECURSED);
 		WITNESS_SAVE(&mtx->mtx_object, mtx);
-		mtx_unlock_flags(mtx, MTX_NOSWITCH);
+		mtx_unlock(mtx);
 		if (priority & PDROP)
 			mtx = NULL;
 	}
@@ -482,7 +482,7 @@ msleep(ident, mtx, priority, wmesg, timo)
 		PROC_LOCK(p);
 		sig = CURSIG(p);
 		mtx_lock_spin(&sched_lock);
-		PROC_UNLOCK_NOSWITCH(p);
+		PROC_UNLOCK(p);
 		if (sig != 0) {
 			if (td->td_wchan != NULL)
 				unsleep(td);
@@ -750,13 +750,13 @@ mi_switch()
 			PROC_LOCK(p);
 			killproc(p, "exceeded maximum CPU limit");
 			mtx_lock_spin(&sched_lock);
-			PROC_UNLOCK_NOSWITCH(p);
+			PROC_UNLOCK(p);
 		} else {
 			mtx_unlock_spin(&sched_lock);
 			PROC_LOCK(p);
 			psignal(p, SIGXCPU);
 			mtx_lock_spin(&sched_lock);
-			PROC_UNLOCK_NOSWITCH(p);
+			PROC_UNLOCK(p);
 			if (rlim->rlim_cur < rlim->rlim_max) {
 				/* XXX: we should make a private copy */
 				rlim->rlim_cur += 5;

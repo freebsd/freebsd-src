@@ -362,7 +362,7 @@ rcintr(unit)
 						optr++;
 						rc_scheduled_event++;
 						if (val != 0 && val == rc->rc_hotchar)
-							swi_sched(rc_ih, SWI_NOSWITCH);
+							swi_sched(rc_ih, 0);
 					}
 				} else {
 					/* Store also status data */
@@ -393,7 +393,7 @@ rcintr(unit)
 							    &&  (rc->rc_tp->t_iflag & INPCK))))
 								val = 0;
 							else if (val != 0 && val == rc->rc_hotchar)
-								swi_sched(rc_ih, SWI_NOSWITCH);
+								swi_sched(rc_ih, 0);
 							optr[0] = val;
 							optr[INPUT_FLAGS_SHIFT] = iack;
 							optr++;
@@ -440,7 +440,7 @@ rcintr(unit)
 			if ((iack & MCR_CDchg) && !(rc->rc_flags & RC_MODCHG)) {
 				rc_scheduled_event += LOTS_OF_EVENTS;
 				rc->rc_flags |= RC_MODCHG;
-				swi_sched(rc_ih, SWI_NOSWITCH);
+				swi_sched(rc_ih, 0);
 			}
 			goto more_intrs;
 		}
@@ -481,7 +481,7 @@ rcintr(unit)
 				if (!(rc->rc_flags & RC_DOXXFER)) {
 					rc_scheduled_event += LOTS_OF_EVENTS;
 					rc->rc_flags |= RC_DOXXFER;
-					swi_sched(rc_ih, SWI_NOSWITCH);
+					swi_sched(rc_ih, 0);
 				}
 			}
 		}

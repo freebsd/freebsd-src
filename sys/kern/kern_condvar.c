@@ -145,7 +145,7 @@ cv_switch_catch(struct thread *td)
 	PROC_LOCK(p);
 	sig = CURSIG(p);	/* XXXKSE */
 	mtx_lock_spin(&sched_lock);
-	PROC_UNLOCK_NOSWITCH(p);
+	PROC_UNLOCK(p);
 	if (sig != 0) {
 		if (td->td_wchan != NULL)
 			cv_waitq_remove(td);
@@ -218,8 +218,8 @@ cv_wait(struct cv *cvp, struct mtx *mp)
 	}
 	CV_WAIT_VALIDATE(cvp, mp);
 
-	DROP_GIANT_NOSWITCH();
-	mtx_unlock_flags(mp, MTX_NOSWITCH);
+	DROP_GIANT();
+	mtx_unlock(mp);
 
 	cv_waitq_add(cvp, td);
 	cv_switch(td);
@@ -273,8 +273,8 @@ cv_wait_sig(struct cv *cvp, struct mtx *mp)
 	}
 	CV_WAIT_VALIDATE(cvp, mp);
 
-	DROP_GIANT_NOSWITCH();
-	mtx_unlock_flags(mp, MTX_NOSWITCH);
+	DROP_GIANT();
+	mtx_unlock(mp);
 
 	cv_waitq_add(cvp, td);
 	sig = cv_switch_catch(td);
@@ -339,8 +339,8 @@ cv_timedwait(struct cv *cvp, struct mtx *mp, int timo)
 	}
 	CV_WAIT_VALIDATE(cvp, mp);
 
-	DROP_GIANT_NOSWITCH();
-	mtx_unlock_flags(mp, MTX_NOSWITCH);
+	DROP_GIANT();
+	mtx_unlock(mp);
 
 	cv_waitq_add(cvp, td);
 	callout_reset(&td->td_slpcallout, timo, cv_timedwait_end, td);
@@ -412,8 +412,8 @@ cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 	}
 	CV_WAIT_VALIDATE(cvp, mp);
 
-	DROP_GIANT_NOSWITCH();
-	mtx_unlock_flags(mp, MTX_NOSWITCH);
+	DROP_GIANT();
+	mtx_unlock(mp);
 
 	cv_waitq_add(cvp, td);
 	callout_reset(&td->td_slpcallout, timo, cv_timedwait_end, td);

@@ -4762,13 +4762,13 @@ xpt_done(union ccb *done_ccb)
 			TAILQ_INSERT_TAIL(&cam_bioq, &done_ccb->ccb_h,
 					  sim_links.tqe);
 			done_ccb->ccb_h.pinfo.index = CAM_DONEQ_INDEX;
-			swi_sched(cambio_ih, SWI_NOSWITCH);
+			swi_sched(cambio_ih, 0);
 			break;
 		case CAM_PERIPH_NET:
 			TAILQ_INSERT_TAIL(&cam_netq, &done_ccb->ccb_h,
 					  sim_links.tqe);
 			done_ccb->ccb_h.pinfo.index = CAM_DONEQ_INDEX;
-			swi_sched(camnet_ih, SWI_NOSWITCH);
+			swi_sched(camnet_ih, 0);
 			break;
 		}
 	}

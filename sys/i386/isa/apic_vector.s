@@ -46,6 +46,7 @@ IDTVEC(vec_name) ;							\
 	movl	$KPSEL,%eax ;						\
 	mov	%ax,%fs ;						\
 	FAKE_MCOUNT(13*4(%esp)) ;					\
+	call	critical_enter ;					\
 	movl	PCPU(CURTHREAD),%ebx ;					\
 	incl	TD_INTR_NESTING_LEVEL(%ebx) ;				\
 	pushl	intr_unit + (irq_num) * 4 ;				\
@@ -58,6 +59,7 @@ IDTVEC(vec_name) ;							\
 	lock ; 								\
 	incl	(%eax) ;						\
 	decl	TD_INTR_NESTING_LEVEL(%ebx) ;				\
+	call	critical_exit ;						\
 	MEXITCOUNT ;							\
 	jmp	doreti
 
