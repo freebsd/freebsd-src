@@ -133,7 +133,7 @@ main(argc, argv)
 			fts_options |= FTS_LOGICAL;
 		}
 	} else
-		fts_options = FTS_LOGICAL;
+		fts_options = hflag ? FTS_PHYSICAL : FTS_LOGICAL;
 
 	uid = gid = -1;
 	if (ischown) {
