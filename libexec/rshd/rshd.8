@@ -196,8 +196,25 @@ and is not preceded by a flag byte.
 .El
 .Sh SEE ALSO
 .Xr rsh 1 ,
+.Xr rlogin 1 ,
 .Xr rcmd 3 ,
-.Xr ruserok 3
+.Xr ruserok 3 ,
+.Xr gethostbyaddr 3 ,
+.Xr services 5 ,
+.Xr hosts 5 ,
+.Xr nologin 5 ,
+.Xr named 8 ,
+.Xr rlogind 8 ,
+.Xr syslogd 8 .
+
+.Sh FILES
+.Bl -tag -width /etc/hosts -compact
+.It Pa /etc/hosts
+.It Pa /etc/hosts.equiv
+.It Pa $HOME/.rhosts
+.It Pa /etc/nologin
+.El
+
 .Sh BUGS
 The authentication procedure used here assumes the integrity
 of each client machine and the connecting medium.  This is
