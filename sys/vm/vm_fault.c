@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.27 1995/09/03 20:40:41 dyson Exp $
+ * $Id: vm_fault.c,v 1.28 1995/09/04 04:44:26 dyson Exp $
  */
 
 /*
@@ -639,6 +639,7 @@ readrest:
 	}
 
 	m->flags |= PG_MAPPED|PG_REFERENCED;
+	m->flags &= ~PG_ZERO;
 
 	pmap_enter(map->pmap, vaddr, VM_PAGE_TO_PHYS(m), prot, wired);
 #if 0
@@ -845,8 +846,7 @@ vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
 		 * Enter it in the pmap...
 		 */
 
-		dst_m->flags |= PG_WRITEABLE;
-		dst_m->flags |= PG_MAPPED;
+		dst_m->flags |= PG_WRITEABLE|PG_MAPPED;
 		pmap_enter(dst_map->pmap, vaddr, VM_PAGE_TO_PHYS(dst_m),
 		    prot, FALSE);
 
@@ -878,7 +878,8 @@ vm_fault_page_lookup(object, offset, rtobject, rtoffset, rtm)
 	*rtoffset = 0;
 
 	while (!(m = vm_page_lookup(object, offset))) {
-		if (vm_pager_has_page(object, object->paging_offset + offset, NULL, NULL)) {
+		if (vm_pager_has_page(object,
+			object->paging_offset + offset, NULL, NULL)) {
 			*rtobject = object;
 			*rtoffset = offset;
 			return 1;
