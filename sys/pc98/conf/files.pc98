@@ -3,7 +3,7 @@
 #
 # modified for PC-9801
 #
-#	$Id: files.pc98,v 1.44 1997/12/10 09:28:57 kato Exp $
+#	$Id: files.pc98,v 1.45 1997/12/14 12:30:54 kato Exp $
 #
 #
 # The long compile-with and dependency lines are required because of
@@ -287,6 +287,7 @@ libkern/strncmp.c		standard
 libkern/strncpy.c		standard
 libkern/udivdi3.c		standard
 libkern/umoddi3.c		standard
+libkern/cmpdi2.c		standard
 gnu/i386/fpemul/div_small.s	optional	gpl_math_emulate
 gnu/i386/fpemul/errors.c	optional	gpl_math_emulate
 gnu/i386/fpemul/fpu_arith.c	optional	gpl_math_emulate
