@@ -36,7 +36,7 @@
 .Fd #include <sys/vnode.h>
 .Fd #include <sys/extattr.h>
 .Ft int
-.Fn VOP_SETEXTATTR "struct vnode *vp" "int namespace" "const char *name" "struct uio *uio" "struct ucred *cred" "struct proc *p"
+.Fn VOP_SETEXTATTR "struct vnode *vp" "int attrnamespace" "const char *name" "struct uio *uio" "struct ucred *cred" "struct proc *p"
 .Sh DESCRIPTION
 This vnode call may be used to set specific named extended attribute for a
 file or directory.
@@ -45,7 +45,7 @@ Its arguments are:
 .Bl -tag -width type
 .It Fa vp
 the vnode of the file or directory
-.It Fa namespace
+.It Fa attrnamespace
 integer constant indicating which extended attribute namespace the attribute
 name is present in
 .It Fa name
