@@ -139,7 +139,7 @@ zinitna(vm_zone_t z, vm_object_t obj, char *name, int size,
 	if (z->zflags & ZONE_INTERRUPT) {
 
 		totsize = round_page(z->zsize * nentries);
-		zone_kmem_kvaspace += totsize;
+		atomic_add_int(zone_kmem_kvaspace, totsize);
 		z->zkva = kmem_alloc_pageable(kernel_map, totsize);
 		if (z->zkva == 0)
 			return 0;
@@ -279,7 +279,7 @@ _zget(vm_zone_t z)
 			pmap_kenter(zkva, VM_PAGE_TO_PHYS(m));
 			bzero((caddr_t) zkva, PAGE_SIZE);
 			z->zpagecount++;
-			zone_kmem_pages++;
+			atomic_add_int(zone_kmem_pages, 1);
 			cnt.v_wire_count++;
 		}
 		nitems = (i * PAGE_SIZE) / z->zsize;
@@ -304,13 +304,13 @@ _zget(vm_zone_t z)
 			item = (void *) kmem_malloc(kmem_map, nbytes, M_WAITOK);
 			mtx_enter(&z->zmtx, MTX_DEF);
 			if (item != NULL)
-				zone_kmem_pages += z->zalloc;
+				atomic_add_int(zone_kmem_pages, z->zalloc);
 		} else {
 			mtx_exit(&z->zmtx, MTX_DEF);
 			item = (void *) kmem_alloc(kernel_map, nbytes);
 			mtx_enter(&z->zmtx, MTX_DEF);
 			if (item != NULL)
-				zone_kern_pages += z->zalloc;
+				atomic_add_int(zone_kern_pages, z->zalloc);
 		}
 		if (item != NULL) {
 			bzero(item, nbytes);
