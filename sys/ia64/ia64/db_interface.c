@@ -90,7 +90,7 @@ struct db_variable db_regs[] = {
 	{"cr.ifs",	(db_expr_t*) &ddb_regs.tf_cr_ifs,	FCN_NULL},
 	{"ar.bspstore",	(db_expr_t*) &ddb_regs.tf_ar_bspstore,	FCN_NULL},
 	{"ar.rnat",	(db_expr_t*) &ddb_regs.tf_ar_rnat,	FCN_NULL},
-	{"ar.bsp",	(db_expr_t*) &ddb_regs.tf_ar_bsp,	FCN_NULL},
+	{"ndirty",	(db_expr_t*) &ddb_regs.tf_ndirty,	FCN_NULL},
 	{"ar.unat",	(db_expr_t*) &ddb_regs.tf_ar_unat,	FCN_NULL},
 	{"ar.ccv",	(db_expr_t*) &ddb_regs.tf_ar_ccv,	FCN_NULL},
 	{"ar.fpsr",	(db_expr_t*) &ddb_regs.tf_ar_fpsr,	FCN_NULL},
@@ -268,7 +268,7 @@ db_get_rse_reg(struct db_variable *vp, db_expr_t *valuep, int op)
 {
 	int sof = ddb_regs.tf_cr_ifs & 0xff;
 	int regno = (db_expr_t) vp->valuep;
-	u_int64_t *bsp = (u_int64_t *) ddb_regs.tf_ar_bsp;
+	u_int64_t *bsp = (u_int64_t *) (ddb_regs.tf_ar_bspstore + ddb_regs.tf_ndirty);
 	u_int64_t *reg;
 
 	if (regno - 32 >= sof) {
@@ -445,7 +445,7 @@ db_register_value(regs, regno)
 		return (regs->tf_r[regno - 1]);
 	} else {
 		int sof = ddb_regs.tf_cr_ifs & 0xff;
-		u_int64_t *bsp = (u_int64_t *) ddb_regs.tf_ar_bsp;
+		u_int64_t *bsp = (u_int64_t *) (ddb_regs.tf_ar_bspstore + ddb_regs.tf_ndirty);
 		u_int64_t *reg;
 
 		if (regno - 32 >= sof) {
