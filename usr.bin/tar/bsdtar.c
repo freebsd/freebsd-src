@@ -330,8 +330,11 @@ main(int argc, char **argv)
 			bsdtar->create_compression = opt;
 			break;
 		case 'Z': /* GNU tar */
-			bsdtar_warnc(bsdtar, 0, ".Z compression not supported");
-			usage(bsdtar);
+			if (bsdtar->create_compression != '\0')
+				bsdtar_errc(bsdtar, 1, 0,
+				    "Can't specify both -%c and -%c", opt,
+				    bsdtar->create_compression);
+			bsdtar->create_compression = opt;
 			break;
 		case 'z': /* GNU tar, star */
 			if (bsdtar->create_compression != '\0')
@@ -369,6 +372,10 @@ main(int argc, char **argv)
 		only_mode(bsdtar, mode, "-l", "cr");
 
 	/* Check other parameters only permitted in certain modes. */
+	if (bsdtar->create_compression == 'Z' && mode == 'c') {
+		bsdtar_warnc(bsdtar, 0, ".Z compression not supported");
+		usage(bsdtar);
+	}
 	if (bsdtar->create_compression != '\0') {
 		strcpy(buff, "-?");
 		buff[1] = bsdtar->create_compression;
