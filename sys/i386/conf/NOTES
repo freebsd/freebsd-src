@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.518 1998/12/27 13:55:47 sos Exp $
+#	$Id: LINT,v 1.519 1998/12/27 14:21:08 sos Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1643,16 +1643,6 @@ options		NETATALKDEBUG
 options		NMBCLUSTERS=1024
 options		NPX_DEBUG
 options		PANIC_REBOOT_WAIT_TIME=16
-options		"PCVT_24LINESDEF"
-options		PCVT_CTRL_ALT_DEL
-options		PCVT_EMU_MOUSE
-options		PCVT_FREEBSD=211
-options		PCVT_META_ESC
-options		PCVT_NSCREENS=9
-options		PCVT_PRETTYSCRNS
-options		PCVT_SCREENSAVER
-options		PCVT_USEKBDSEC
-options		"PCVT_VT220KEYB"
 options		PSM_DEBUG=1
 options		SCSI_NCR_DEBUG
 options		SCSI_NCR_DFLT_TAGS=4
