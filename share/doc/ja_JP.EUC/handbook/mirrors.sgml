@@ -1,6 +1,6 @@
-<!-- $Id: mirrors.sgml,v 1.2 1996/12/25 04:19:52 max Exp $ -->
+<!-- $Id: mirrors.sgml,v 1.3 1996/12/27 14:39:00 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.43 -->
+<!-- Original revision: 1.44 -->
 
 <!--
 <!doctype linuxdoc public "-//FreeBSD//DTD linuxdoc//EN">
@@ -465,8 +465,8 @@ name="ftp://ftp.FreeBSD.ORG/pub/FreeBSD">
 <url url="ftp://ftp2.uk.FreeBSD.ORG/pub/walnut.creek/FreeBSD"
 	name="ftp://ftp2.uk.FreeBSD.ORG/pub/walnut.creek/FreeBSD"><newline>
 <item>
-<url url="ftp://ftp3.uk.FreeBSD.ORG/pub/BSD/FreeBSD"
-	name="ftp://ftp3.uk.FreeBSD.ORG/pub/BSD/FreeBSD"><newline>
+<url url="ftp://ftp3.uk.FreeBSD.ORG/pub/unix/FreeBSD"
+	name="ftp://ftp3.uk.FreeBSD.ORG/pub/unix/FreeBSD"><newline>
 
 </itemize>
 
