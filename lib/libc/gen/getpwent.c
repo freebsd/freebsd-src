@@ -32,7 +32,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)getpwent.c	8.1 (Berkeley) 6/4/93";
+static char sccsid[] = "@(#)getpwent.c	8.2 (Berkeley) 4/27/95";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stdio.h>
@@ -52,6 +52,11 @@ static char sccsid[] = "@(#)getpwent.c	8.1 (Berkeley) 6/4/93";
 extern void setnetgrent __P(( char * ));
 extern int getnetgrent __P(( char **, char **, char ** ));
 extern int innetgr __P(( const char *, const char *, const char *, const char * ));
+
+/*
+ * The lookup techniques and data extraction code here must be kept
+ * in sync with that in `pwd_mkdb'.
+ */
 
 static struct passwd _pw_passwd;	/* password structure */
 static DB *_pw_db;			/* password database */
@@ -162,12 +167,8 @@ getpwnam(name)
 }
 
 struct passwd *
-#ifdef __STDC__
-getpwuid(uid_t uid)
-#else
 getpwuid(uid)
-	int uid;
-#endif
+	uid_t uid;
 {
 	DBT key;
 	int keyuid, rval;
@@ -295,22 +296,20 @@ __hashpw(key)
 	if (data.size > max && !(line = realloc(line, max += 1024)))
 		return(0);
 
+	/* THIS CODE MUST MATCH THAT IN pwd_mkdb. */
 	t = line;
 #define	EXPAND(e)	e = t; while ( (*t++ = *p++) );
+#define	SCALAR(v)	memmove(&(v), p, sizeof v); p += sizeof v
 	EXPAND(_pw_passwd.pw_name);
 	EXPAND(_pw_passwd.pw_passwd);
-	bcopy(p, (char *)&_pw_passwd.pw_uid, sizeof(int));
-	p += sizeof(int);
-	bcopy(p, (char *)&_pw_passwd.pw_gid, sizeof(int));
-	p += sizeof(int);
-	bcopy(p, (char *)&_pw_passwd.pw_change, sizeof(time_t));
-	p += sizeof(time_t);
+	SCALAR(_pw_passwd.pw_uid);
+	SCALAR(_pw_passwd.pw_gid);
+	SCALAR(_pw_passwd.pw_change);
 	EXPAND(_pw_passwd.pw_class);
 	EXPAND(_pw_passwd.pw_gecos);
 	EXPAND(_pw_passwd.pw_dir);
 	EXPAND(_pw_passwd.pw_shell);
-	bcopy(p, (char *)&_pw_passwd.pw_expire, sizeof(time_t));
-	p += sizeof(time_t);
+	SCALAR(_pw_passwd.pw_expire);
 	bcopy(p, (char *)&_pw_passwd.pw_fields, sizeof _pw_passwd.pw_fields);
 	p += sizeof _pw_passwd.pw_fields;
 	return(1);

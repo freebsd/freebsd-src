@@ -35,11 +35,12 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)popen.c	8.1 (Berkeley) 6/4/93";
+static char sccsid[] = "@(#)popen.c	8.3 (Berkeley) 5/3/95";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
 #include <sys/wait.h>
+#include <sys/socket.h>
 
 #include <signal.h>
 #include <errno.h>
@@ -56,24 +57,30 @@ static struct pid {
 } *pidlist;
 
 FILE *
-popen(program, type)
-	const char *program;
-	const char *type;
+popen(command, type)
+	const char *command, *type;
 {
 	struct pid *cur;
 	FILE *iop;
-	int pdes[2], pid;
+	int pdes[2], pid, twoway;
 
-	if ( (*type != 'r' && *type != 'w') || type[1])
+	/*
+	 * Lite2 introduced two-way popen() pipes using socketpair().
+	 * FreeBSD's pipe() is bidirectional, so we use that.
+	 */
+	if (strchr(type, '+')) {
+		twoway = 1;
+		type = "r+";
+	} else  {
+		twoway = 0;
+		if (*type != 'r' && *type != 'w' || type[1])
+			return (NULL);
+	}
+	if (pipe(pdes) < 0)
 		return (NULL);
 
 	if ((cur = malloc(sizeof(struct pid))) == NULL)
 		return (NULL);
-
-	if (pipe(pdes) < 0) {
-		free(cur);
-		return (NULL);
-	}
 
 	switch (pid = vfork()) {
 	case -1:			/* Error. */
@@ -87,8 +94,11 @@ popen(program, type)
 			if (pdes[1] != STDOUT_FILENO) {
 				(void)dup2(pdes[1], STDOUT_FILENO);
 				(void)close(pdes[1]);
+				pdes[1] = STDOUT_FILENO;
 			}
 			(void) close(pdes[0]);
+			if (twoway && (pdes[1] != STDIN_FILENO))
+				(void)dup2(pdes[1], STDIN_FILENO);
 		} else {
 			if (pdes[0] != STDIN_FILENO) {
 				(void)dup2(pdes[0], STDIN_FILENO);
@@ -96,7 +106,7 @@ popen(program, type)
 			}
 			(void)close(pdes[1]);
 		}
-		execl(_PATH_BSHELL, "sh", "-c", program, NULL);
+		execl(_PATH_BSHELL, "sh", "-c", command, NULL);
 		_exit(127);
 		/* NOTREACHED */
 	}
@@ -130,10 +140,8 @@ pclose(iop)
 {
 	register struct pid *cur, *last;
 	int omask;
-	union wait pstat;
+	int pstat;
 	pid_t pid;
-
-	(void)fclose(iop);
 
 	/* Find the appropriate file pointer. */
 	for (last = NULL, cur = pidlist; cur; last = cur, cur = cur->next)
@@ -142,12 +150,11 @@ pclose(iop)
 	if (cur == NULL)
 		return (-1);
 
-	/* Get the status of the process. */
-	omask = sigblock(sigmask(SIGINT)|sigmask(SIGQUIT)|sigmask(SIGHUP));
+	(void)fclose(iop);
+
 	do {
-		pid = waitpid(cur->pid, (int *) &pstat, 0);
+		pid = waitpid(cur->pid, &pstat, 0);
 	} while (pid == -1 && errno == EINTR);
-	(void)sigsetmask(omask);
 
 	/* Remove the entry from the linked list. */
 	if (last == NULL)
@@ -156,5 +163,5 @@ pclose(iop)
 		last->next = cur->next;
 	free(cur);
 
-	return (pid == -1 ? -1 : pstat.w_status);
+	return (pid == -1 ? -1 : pstat);
 }

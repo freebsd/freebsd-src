@@ -36,12 +36,13 @@
 static char sccsid[] = "@(#)disklabel.c	8.2 (Berkeley) 5/3/95";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: disklabel.c,v 1.5 1997/02/22 14:58:01 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
 #define DKTYPENAMES
 #include <sys/disklabel.h>
+#include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
 
 #include <errno.h>
