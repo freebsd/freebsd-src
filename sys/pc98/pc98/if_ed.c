@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.13 1996/12/07 13:04:21 kato Exp $
+ *	$Id: if_ed.c,v 1.14 1996/12/11 16:55:27 kato Exp $
  */
 
 /*
@@ -2553,7 +2553,7 @@ ed_init(xsc)
 		return;
 
 	/* address not known */
-	if (ifp->if_addrlist == (struct ifaddr *) 0)
+	if (TAILQ_EMPTY(&ifp->if_addrhead)) /* unlikely? XXX */
 		return;
 
 	/*
