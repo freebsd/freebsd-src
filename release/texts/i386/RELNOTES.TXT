@@ -84,6 +84,8 @@ Adaptec 152x series ISA SCSI controllers
 Adaptec AIC-6260 and AIC-6360 based boards, which includes the AHA-152x
 and SoundBlaster SCSI cards.
 
+Adaptec 1400, 2100S, 3200S, and 3400S SCSI RAID controllers.
+
 AdvanSys SCSI controllers (all models).
 
 BusLogic MultiMaster controllers:
@@ -108,8 +110,10 @@ The Buslogic/Bustek BT-640 and Storage Dimensions SDC3211B and SDC3211F
 Microchannel (MCA) bus adapters are also supported.
 
 DPT SmartCACHE Plus, SmartCACHE III, SmartRAID III, SmartCACHE IV and
-SmartRAID IV SCSI/RAID controllers are supported.  The DPT SmartRAID/CACHE V
-is not yet supported.
+SmartRAID IV SCSI/RAID controllers are supported.
+
+DPT SmartRAID V and VI SCSI RAID controllers:
+    PM1554, PM2554, PM2654, PM2865, PM2754, PM3755, PM3757
 
 AMI MegaRAID Express and Enterprise family RAID controllers:
     MegaRAID 418
