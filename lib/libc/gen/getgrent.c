@@ -290,9 +290,11 @@ grscan(search, gid, name)
 			break;
 #endif
 		if (!(cp = strsep(&bp, ":\n")))
+#ifdef YP
 			if (_ypfound)
 				return(1);
 			else
+#endif
 				continue;
 #ifdef YP
 		/*
