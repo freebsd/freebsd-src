@@ -774,6 +774,7 @@ for this_target in $target $canon_targets ; do
       a29k-*-vxworks*)      fmt=coff ;;
 
       alpha-*-*vms*)	    fmt=evax ;;
+      alpha-*-freebsd*)     fmt=elf em=freebsd ;;
       alpha-*-netware*)     fmt=ecoff ;;
       alpha-*-openbsd*)     fmt=ecoff ;;
       alpha-*-osf*)         fmt=ecoff ;;
