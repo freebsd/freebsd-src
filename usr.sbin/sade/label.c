@@ -385,7 +385,7 @@ get_mountpoint(struct chunk *old)
     else if (old)
 	old->flags &= ~CHUNK_IS_ROOT;
 
-    newfs = FALSE;
+    newfs = TRUE;
     if (tmp) {
 	newfs = tmp->newfs;
     	safe_free(tmp);
