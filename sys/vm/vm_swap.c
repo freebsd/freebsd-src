@@ -53,6 +53,7 @@
 #include <sys/stat.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_zone.h>
 #include <vm/swap_pager.h>
 
 /*
@@ -193,6 +194,13 @@ swapon(p, uap)
 	error = suser(p);
 	if (error)
 		return (error);
+
+	/*
+	 * Swap metadata may not fit in the KVM if we have physical
+	 * memory of >1GB.
+	 */
+	if (swap_zone == NULL)
+		return (ENOMEM);
 
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->name, p);
 	error = namei(&nd);
