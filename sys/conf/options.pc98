@@ -32,8 +32,6 @@ DEBUG_SVR4		opt_svr4.h
 
 # i386 SMP options
 APIC_IO			opt_global.h
-NAPIC			opt_smp.h
-NINTR			opt_smp.h
 
 CLK_CALIBRATION_LOOP		opt_clock.h
 CLK_USE_I8254_CALIBRATION	opt_clock.h
