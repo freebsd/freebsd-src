@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: $
+ * $Id: vga.c,v 1.1 1999/06/22 14:13:24 yokota Exp $
  */
 
 #include "vga.h"
@@ -230,7 +230,9 @@ static int		biosadapters = 0;
 /* video driver declarations */
 static int			vga_configure(int flags);
        int			(*vga_sub_configure)(int flags);
+#if 0
 static int			vga_nop(void);
+#endif
 static int			vga_error(void);
 static vi_probe_t		vga_probe;
 static vi_init_t		vga_init;
@@ -1330,11 +1332,13 @@ filll_io(int val, vm_offset_t d, size_t size)
 
 /* entry points */
 
+#if 0
 static int
 vga_nop(void)
 {
     return 0;
 }
+#endif
 
 static int
 vga_error(void)
