@@ -227,15 +227,6 @@ Normal packet aliasing is not performed.
 See
 .Fn PacketAliasProxyRule
 below for details.
-.It Dv PKT_ALIAS_DENY_PPTP
-If this mode bit is set, all PPTP packets will be marked for being ignored
-(both
-.Fn PacketAliasIn
-and
-.Fn PacketAliasOut
-return
-.Dv PKT_ALIAS_IGNORED
-code).
 .El
 .Ed
 .Pp
@@ -647,25 +638,17 @@ access, or to restrict access to certain external machines.
 .Ed
 .Pp
 .Ft struct alias_link *
-.Fo PacketAliasRedirectPptp
+.Fo PacketAliasRedirectProto
 .Fa "struct in_addr local_addr"
 .Fa "struct in_addr remote_addr"
 .Fa "struct in_addr alias_addr"
+.Fa "u_char proto"
 .Fc
 .Bd -ragged -offset indent
-This function specifies that any Point to Point Tunneling Protocol
-(PPTP) traffic from a given remote address to an alias address be
+This function specifies that any IP packet with protocol number of
+.Fa proto
+from a given remote address to an alias address be
 redirected to a specified local address.
-Currently supported PPTP protocols include:
-.Pp
-.Bl -tag -width "IPPROTO_GRE" -compact
-.It IPPROTO_GRE
-Generic Routing Encapsulation (RFC 1702)
-.It IPPROTO_ESP
-IP Encapsulating Security Payload (RFC 1827)
-.It IPPROTO_AH
-IP Authentication Header (RFC 1826)
-.El
 .Pp
 If
 .Fa local_addr
@@ -678,16 +661,16 @@ is to be used.
 Even if
 .Fn PacketAliasSetAddress
 is called to change the address after
-.Fn PacketAliasRedirectPptp
+.Fn PacketAliasRedirectProto
 is called, a zero reference will track this change.
 .Pp
 If
 .Fa remote_addr
-is zero, this indicates to redirect PPTP packets from any remote address.
+is zero, this indicates to redirect packets from any remote address.
 Non-zero remote addresses can sometimes be useful for firewalling.
 .Pp
 If two calls to
-.Fn PacketAliasRedirectPptp
+.Fn PacketAliasRedirectProto
 overlap in their address specifications, then the most recent call
 will have precedence.
 .Pp
@@ -713,10 +696,8 @@ then PPTP aliasing is disabled.
 .Pp
 .Bf -symbolic
 This function is made obsolete by
-.Fn PacketAliasRedirectPptp
-and
-.Dv PKT_ALIAS_DENY_PPTP
-mode bit, and is provided only for backward compatibility.
+.Fn PacketAliasRedirectProto ,
+and is provided only for backward compatibility.
 .Ef
 .Ed
 .Sh FRAGMENT HANDLING
