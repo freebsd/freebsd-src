@@ -120,8 +120,6 @@ CONS_DRIVER(pc, pccnprobe, pccninit, pccnterm, pccngetc, pccncheckc, pccnputc);
 
 static	d_open_t	pcopen;
 static	d_close_t	pcclose;
-static	d_read_t	pcread;
-static	d_write_t	pcwrite;
 static	d_ioctl_t	pcioctl;
 static	d_mmap_t	pcmmap;
 
@@ -129,8 +127,8 @@ static	d_mmap_t	pcmmap;
 static struct cdevsw pc_cdevsw = {
 	/* open */	pcopen,
 	/* close */	pcclose,
-	/* read */	pcread,
-	/* write */	pcwrite,
+	/* read */	ttyread,
+	/* write */	ttywrite,
 	/* ioctl */	pcioctl,
 	/* poll */	ttypoll,
 	/* mmap */	pcmmap,
@@ -568,28 +566,6 @@ pcclose(Dev_t dev, int flag, int mode, struct proc *p)
 #endif /* PCVT_USL_VT_COMPAT */
 
 	return(0);
-}
-
-int
-pcread(Dev_t dev, struct uio *uio, int flag)
-{
-	register struct tty *tp;
-
-	if((tp = get_pccons(dev)) == NULL)
-		return ENXIO;
-
-	return ((*linesw[tp->t_line].l_read)(tp, uio, flag));
-}
-
-int
-pcwrite(Dev_t dev, struct uio *uio, int flag)
-{
-	register struct tty *tp;
-
-	if((tp = get_pccons(dev)) == NULL)
-		return ENXIO;
-
-	return ((*linesw[tp->t_line].l_write)(tp, uio, flag));
 }
 
 int

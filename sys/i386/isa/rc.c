@@ -87,16 +87,14 @@ struct isa_driver rcdriver = {
 
 static	d_open_t	rcopen;
 static	d_close_t	rcclose;
-static	d_read_t	rcread;
-static	d_write_t	rcwrite;
 static	d_ioctl_t	rcioctl;
 
 #define	CDEV_MAJOR	63
 static struct cdevsw rc_cdevsw = {
 	/* open */	rcopen,
 	/* close */	rcclose,
-	/* read */	rcread,
-	/* write */	rcwrite,
+	/* read */	ttyread,
+	/* write */	ttywrite,
 	/* ioctl */	rcioctl,
 	/* poll */	ttypoll,
 	/* mmap */	nommap,
@@ -863,30 +861,6 @@ register struct rc_chans *rc;
 	wakeup((caddr_t) &rc->rc_rcb);  /* wake bi */
 	wakeup(TSA_CARR_ON(tp));
 	(void) splx(s);
-}
-
-/* Read from line */
-static	int
-rcread(dev, uio, flag)
-	dev_t           dev;
-	struct uio      *uio;
-	int             flag;
-{
-	struct tty *tp = rc_chans[GET_UNIT(dev)].rc_tp;
-
-	return ((*linesw[tp->t_line].l_read)(tp, uio, flag));
-}
-
-/* Write to line */
-static	int
-rcwrite(dev, uio, flag)
-	dev_t           dev;
-	struct uio      *uio;
-	int             flag;
-{
-	struct tty *tp = rc_chans[GET_UNIT(dev)].rc_tp;
-
-	return ((*linesw[tp->t_line].l_write)(tp, uio, flag));
 }
 
 /* Reset the bastard */

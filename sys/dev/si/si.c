@@ -169,7 +169,6 @@ DATA_SET(eisadriver_set, si_eisa_driver);
 
 static	d_open_t	siopen;
 static	d_close_t	siclose;
-static	d_read_t	siread;
 static	d_write_t	siwrite;
 static	d_ioctl_t	siioctl;
 
@@ -177,7 +176,7 @@ static	d_ioctl_t	siioctl;
 static struct cdevsw si_cdevsw = {
 	/* open */	siopen,
 	/* close */	siclose,
-	/* read */	siread,
+	/* read */	ttyread,
 	/* write */	siwrite,
 	/* ioctl */	siioctl,
 	/* poll */	ttypoll,
@@ -1388,29 +1387,6 @@ sidtrwakeup(chan)
 
 	splx(oldspl);
 }
-
-/*
- * User level stuff - read and write
- */
-static	int
-siread(dev, uio, flag)
-	register dev_t dev;
-	struct uio *uio;
-	int flag;
-{
-	register struct tty *tp;
-	int mynor = minor(dev);
-
-	if (IS_SPECIAL(mynor)) {
-		DPRINT((0, DBG_ENTRY|DBG_FAIL|DBG_READ, "siread(CONTROLDEV!!)\n"));
-		return(ENODEV);
-	}
-	tp = MINOR2TP(mynor);
-	DPRINT((TP2PP(tp), DBG_ENTRY|DBG_READ,
-		"siread(%s,%x,%x)\n", devtoname(dev), uio, flag));
-	return ((*linesw[tp->t_line].l_read)(tp, uio, flag));
-}
-
 
 static	int
 siwrite(dev, uio, flag)

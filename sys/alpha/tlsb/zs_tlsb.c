@@ -64,16 +64,14 @@ struct zs_softc {
 
 static	d_open_t	zsopen;
 static	d_close_t	zsclose;
-static	d_read_t	zsread;
-static	d_write_t	zswrite;
 static	d_ioctl_t	zsioctl;
 
 #define CDEV_MAJOR 98
 static struct cdevsw zs_cdevsw = {
 	/* open */	zsopen,
 	/* close */	zsclose,
-	/* read */	zsread,
-	/* write */	zswrite,
+	/* read */	ttyread,
+	/* write */	ttywrite,
 	/* ioctl */	zsioctl,
 	/* poll */	ttypoll,
 	/* mmap */	nommap,
@@ -300,20 +298,6 @@ zsclose(dev_t dev, int flag, int mode, struct proc *p)
 	(*linesw[tp->t_line].l_close)(tp, flag);
 	ttyclose(tp);
 	return 0;
-}
- 
-static int
-zsread(dev_t dev, struct uio *uio, int flag)
-{
-	struct tty *tp = &ZS_SOFTC(minor(dev))->tty;
-	return ((*linesw[tp->t_line].l_read)(tp, uio, flag));
-}
- 
-static int
-zswrite(dev_t dev, struct uio *uio, int flag)
-{
-	struct tty *tp = &ZS_SOFTC(minor(dev))->tty;
-	return ((*linesw[tp->t_line].l_write)(tp, uio, flag));
 }
  
 static int

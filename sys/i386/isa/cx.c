@@ -85,8 +85,6 @@ static struct tty cx_tty [NCX*NCHAN];          /* tty data */
 
 static	d_open_t	cxopen;
 static	d_close_t	cxclose;
-static	d_read_t	cxread;
-static	d_write_t	cxwrite;
 static	d_ioctl_t	cxioctl;
 
 #define	CDEV_MAJOR	42
@@ -94,8 +92,8 @@ static	d_ioctl_t	cxioctl;
 struct cdevsw cx_cdevsw = {
 	/* open */	cxopen,
 	/* close */	cxclose,
-	/* read */	cxread,
-	/* write */	cxwrite,
+	/* read */	ttyread,
+	/* write */	ttywrite,
 	/* ioctl */	cxioctl,
 	/* poll */	ttypoll,
 	/* mmap */	nommap,
@@ -285,28 +283,6 @@ int cxclose (dev_t dev, int flag, int mode, struct proc *p)
 	splx (s);
 	ttyclose (tp);
 	return (0);
-}
-
-int cxread (dev_t dev, struct uio *uio, int flag)
-{
-	int unit = UNIT (dev);
-	struct tty *tp;
-
-	if (unit == UNIT_CTL)
-		return (EIO);
-	tp = cxchan[unit]->ttyp;
-	return ((*linesw[tp->t_line].l_read) (tp, uio, flag));
-}
-
-int cxwrite (dev_t dev, struct uio *uio, int flag)
-{
-	int unit = UNIT (dev);
-	struct tty *tp;
-
-	if (unit == UNIT_CTL)
-		return (EIO);
-	tp = cxchan[unit]->ttyp;
-	return ((*linesw[tp->t_line].l_write) (tp, uio, flag));
 }
 
 int cxioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)

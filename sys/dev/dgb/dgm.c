@@ -208,16 +208,14 @@ struct isa_driver	dgmdriver = {
 
 static	d_open_t	dgmopen;
 static	d_close_t	dgmclose;
-static	d_read_t	dgmread;
-static	d_write_t	dgmwrite;
 static	d_ioctl_t	dgmioctl;
 
 #define	CDEV_MAJOR	101
 static struct cdevsw dgm_cdevsw = {
 	/* open */	dgmopen,
 	/* close */	dgmclose,
-	/* read */	dgmread,
-	/* write */	dgmwrite,
+	/* read */	ttyread,
+	/* write */	ttywrite,
 	/* ioctl */	dgmioctl,
 	/* poll */	ttypoll,
 	/* mmap */	nommap,
@@ -1004,52 +1002,6 @@ dgm_pause(chan)
 wakeup((caddr_t)chan);
 }
 
-
-static	int
-dgmread(dev, uio, flag)
-	dev_t		dev;
-	struct uio	*uio;
-	int		flag;
-{
-	int		mynor;
-	struct tty	*tp;
-	int error, unit, pnum;
-
-	mynor=minor(dev);
-	if (mynor & CONTROL_MASK)
-		return (ENODEV);
-	unit=MINOR_TO_UNIT(mynor);
-	pnum=MINOR_TO_PORT(mynor);
-
-	tp=&dgm_softc[unit].ttys[pnum];
-	error=linesw[tp->t_line].l_read(tp, uio, flag);
-	DPRINT4(DB_RD,"dgm%d: port%d: read() returns %d\n",unit,pnum,error);
-	return error;
-}
-
-static	int
-dgmwrite(dev, uio, flag)
-	dev_t		dev;
-	struct uio	*uio;
-	int		flag;
-{
-	int		mynor;
-	struct tty	*tp;
-	int error, unit, pnum;
-
-	mynor=minor(dev);
-	if (mynor & CONTROL_MASK)
-		return (ENODEV);
-
-	unit=MINOR_TO_UNIT(mynor);
-	pnum=MINOR_TO_PORT(mynor);
-
-	tp=&dgm_softc[unit].ttys[pnum];
-
-	error=linesw[tp->t_line].l_write(tp, uio, flag);
-	DPRINT4(DB_WR,"dgm%d: port%d: write() returns %d\n",unit,pnum,error);
-	return error;
-}
 
 static void
 dgmpoll(unit_c)

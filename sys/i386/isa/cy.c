@@ -132,7 +132,6 @@
 #define	sioopen		cyopen
 #define	siopoll		cypoll
 #define	sioprobe	cyprobe
-#define	sioread		cyread
 #define	siosettimeout	cysettimeout
 #define	siosetwater	cysetwater
 #define	comstop		cystop
@@ -367,7 +366,6 @@ struct isa_driver	siodriver = {
 
 static	d_open_t	sioopen;
 static	d_close_t	sioclose;
-static	d_read_t	sioread;
 static	d_write_t	siowrite;
 static	d_ioctl_t	sioioctl;
 
@@ -375,7 +373,7 @@ static	d_ioctl_t	sioioctl;
 static struct cdevsw sio_cdevsw = {
 	/* open */	sioopen,
 	/* close */	sioclose,
-	/* read */	sioread,
+	/* read */	ttyread,
 	/* write */	siowrite,
 	/* ioctl */	sioioctl,
 	/* poll */	ttypoll,
@@ -937,22 +935,6 @@ comhardclose(com)
 	wakeup(&com->active_out);
 	wakeup(TSA_CARR_ON(tp));	/* restart any wopeners */
 	splx(s);
-}
-
-static int
-sioread(dev, uio, flag)
-	dev_t		dev;
-	struct uio	*uio;
-	int		flag;
-{
-	int		mynor;
-	struct tty	*tp;
-
-	mynor = minor(dev);
-	if (mynor & CONTROL_MASK)
-		return (ENODEV);
-	tp = com_addr(MINOR_TO_UNIT(mynor))->tp;
-	return ((*linesw[tp->t_line].l_read)(tp, uio, flag));
 }
 
 static int
