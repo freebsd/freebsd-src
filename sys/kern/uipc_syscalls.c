@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_syscalls.c	8.4 (Berkeley) 2/21/94
- * $Id: uipc_syscalls.c,v 1.18 1996/07/11 16:32:02 wollman Exp $
+ * $Id: uipc_syscalls.c,v 1.19 1996/08/24 03:35:13 peter Exp $
  */
 
 #include "opt_ktrace.h"
@@ -168,6 +168,7 @@ accept1(p, uap, retval, compat)
 	struct mbuf *nam;
 	int namelen, error, s;
 	struct socket *head, *so;
+	short fflag;		/* type must match fp->f_flag */
 
 	if (uap->name) {
 		error = copyin((caddr_t)uap->anamelen, (caddr_t)&namelen,
@@ -206,6 +207,7 @@ accept1(p, uap, retval, compat)
 		splx(s);
 		return (error);
 	}
+	fflag = fp->f_flag;
 	error = falloc(p, &fp, retval);
 	if (error) {
 		splx(s);
@@ -221,7 +223,7 @@ accept1(p, uap, retval, compat)
 	head->so_qlen--;
 
 	fp->f_type = DTYPE_SOCKET;
-	fp->f_flag = FREAD|FWRITE;
+	fp->f_flag = fflag;
 	fp->f_ops = &socketops;
 	fp->f_data = (caddr_t)so;
 	nam = m_get(M_WAIT, MT_SONAME);
