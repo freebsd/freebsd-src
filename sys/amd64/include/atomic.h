@@ -227,7 +227,6 @@ ATOMIC_ASM(subtract, long,  "subl %1,%0",  v)
 static __inline void					\
 atomic_##NAME##_acq_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 {							\
-	__asm __volatile("lock; addl $0,0(%esp)" : : : "memory");\
 	atomic_##NAME##_##TYPE(p, v);			\
 }							\
 							\
@@ -263,7 +262,6 @@ ATOMIC_ACQ_REL(subtract,	long)
 static __inline u_##TYPE				\
 atomic_load_acq_##TYPE(volatile u_##TYPE *p)		\
 {							\
-	__asm __volatile("lock; addl $0,0(%esp)" : : : "memory");\
 	return (*p);					\
 }							\
 							\
