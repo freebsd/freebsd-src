@@ -49,7 +49,7 @@ atm3_start()
 	atm_nif=`atm sh netif | { read junk ; \
 	    while read dev junk ; do
 		echo "${dev} "
-	    done 
+	    done
 	}`
 
 	for net in ${atm_nif} ; do
