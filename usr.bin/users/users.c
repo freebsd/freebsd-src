@@ -32,57 +32,69 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1980, 1987, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)users.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
-#include <utmp.h>
+#include <err.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <utmp.h>
 
-#define	MAXUSERS	200
+typedef char   namebuf[UT_NAMESIZE];
 
+int scmp __P((const void *, const void *));
+static void usage __P((void));
+
+void
 main(argc, argv)
 	int argc;
 	char **argv;
 {
-	extern int optind;
-	register int cnt, ncnt;
+	namebuf *names = NULL;
+	int ncnt = 0;
+	int nmax = 0;
+	int cnt;
 	struct utmp utmp;
-	char names[MAXUSERS][UT_NAMESIZE];
-	int ch, scmp();
+	int ch;
 
 	while ((ch = getopt(argc, argv, "")) != -1)
 		switch(ch) {
 		case '?':
 		default:
-			(void)fprintf(stderr, "usage: users\n");
-			exit(1);
+			usage();
 		}
 	argc -= optind;
 	argv += optind;
 
-	if (!freopen(_PATH_UTMP, "r", stdin)) {
-		(void)fprintf(stderr, "users: can't open %s.\n", _PATH_UTMP);
-		exit(1);
-	}
-	for (ncnt = 0;
-	    fread((char *)&utmp, sizeof(utmp), 1, stdin) == 1;)
+	if (!freopen(_PATH_UTMP, "r", stdin))
+		errx(1, "can't open %s", _PATH_UTMP);
+	while (fread((char *)&utmp, sizeof(utmp), 1, stdin) == 1) {
 		if (*utmp.ut_name) {
-			if (ncnt == MAXUSERS) {
-				(void)fprintf(stderr,
-				    "users: too many users.\n");
-				break;
+			if (ncnt >= nmax) {
+				nmax += 32;
+				names = realloc(names, sizeof (*names) * nmax);
+				if (!names) {
+					errx(1, "realloc");
+					/* NOTREACHED */
+				}
 			}
 			(void)strncpy(names[ncnt], utmp.ut_name, UT_NAMESIZE);
 			++ncnt;
 		}
-
+	}
 	if (ncnt) {
 		qsort(names, ncnt, UT_NAMESIZE, scmp);
 		(void)printf("%.*s", UT_NAMESIZE, names[0]);
@@ -94,8 +106,16 @@ main(argc, argv)
 	exit(0);
 }
 
-scmp(p, q)
-	char *p, *q;
+static void
+usage()
 {
-	return(strncmp(p, q, UT_NAMESIZE));
+	(void)fprintf(stderr, "usage: users\n");
+	exit(1);
+}
+	
+int
+scmp(p, q)
+	const void *p, *q;
+{
+	return(strncmp((char *)p, (char *)q, UT_NAMESIZE));
 }
