@@ -7,6 +7,8 @@
  *
  *  Copyright (c) 1984, 1989, William LeFebvre, Rice University
  *  Copyright (c) 1989, 1990, 1992, William LeFebvre, Northwestern University
+ *
+ * $FreeBSD$
  */
 
 /*
@@ -154,7 +156,7 @@ int  *intp;
 
 struct errs		/* structure for a system-call error */
 {
-    int  error;		/* value of errno (that is, the actual error) */
+    int  errnum;	/* value of errno (that is, the actual error) */
     char *arg;		/* argument that caused the error */
 };
 
@@ -173,7 +175,7 @@ static char *err_listem =
 		    else \
 		    { \
 			errs[errcnt].arg = (p); \
-			errs[errcnt++].error = (e); \
+			errs[errcnt++].errnum = (e); \
 		    }
 
 /*
@@ -213,7 +215,7 @@ char *err_string()
     while (cnt < errcnt)
     {
 	errp = &(errs[cnt++]);
-	if (errp->error != currerr)
+	if (errp->errnum != currerr)
 	{
 	    if (currerr != -1)
 	    {
@@ -223,7 +225,7 @@ char *err_string()
 		}
 		(void) strcat(string, "; ");	  /* we know there's more */
 	    }
-	    currerr = errp->error;
+	    currerr = errp->errnum;
 	    first = Yes;
 	}
 	if ((stringlen = str_addarg(string, stringlen, errp->arg, first)) ==0)
@@ -311,7 +313,7 @@ register struct errs *p1, *p2;
 {
     register int result;
 
-    if ((result = p1->error - p2->error) == 0)
+    if ((result = p1->errnum - p2->errnum) == 0)
     {
 	return(strcmp(p1->arg, p2->arg));
     }
@@ -342,7 +344,7 @@ show_errors()
     while (cnt++ < errcnt)
     {
 	printf("%5s: %s\n", errp->arg,
-	    errp->error == 0 ? "Not a number" : errmsg(errp->error));
+	    errp->errnum == 0 ? "Not a number" : errmsg(errp->errnum));
 	errp++;
     }
 }

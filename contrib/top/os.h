@@ -27,3 +27,12 @@ caddr_t malloc();
 # define memzero(a, b)		memset((a), 0, (b))
   typedef void sigret_t;
 #endif
+
+/* some systems declare sys_errlist in stdio.h! */
+#if defined(__NetBSD__) || defined(__FreeBSD__)
+#if !defined(__m68k__)
+#  if !defined(__NetBSD132__)
+#define SYS_ERRLIST_DECLARED
+#  endif	/* __NetBSD132__ */
+#endif
+#endif

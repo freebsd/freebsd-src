@@ -1,8 +1,9 @@
                              TOP
-                         Version 3.4
+                          Version 3.5
+		        Beta Release 11
 
                        William LeFebvre
-		     and a cast of dozens
+		  with much help from others
 
 
 FREQUENTLY ASKED QUESTIONS AND THEIR ANSWERS
@@ -14,40 +15,57 @@ GENERAL
 
  1.  "Where do I get the latest version of top?"
 
-The latest version of top is now available at the site "ftp.groupsys.com" in 
-the directory "/pub/top". It is also available at "eecs.nwu.edu" in the 
-directory "/pub/top".
-
+The official site for top is "ftp.groupsys.com" in the directory
+"/pub/top".  It is also available from the following mirror sites:
+"pharos.dgim.doc.ca" in /packages/top, "uiarchive.uiuc.edu" in
+/pub/packages/top, "sunsite.auc.dk" in /pub/unix/top.  European
+users should consider using the Denmark (dk) site.
+ 
  2.  "Is there a web page for top?"
 
-Not at this time, but I am planning one.  When it is finally available, you 
-will be able to find it at "www.groupsys.com."
+Yes.  Point your browser at http://www.groupsys.com/top.  It includes
+all documentation, a nice interactive display which describes the
+various components of the output of top, web-based retrieval of the
+package, year 2000 information, and pointers to the mailing list.
 
  3.  "Is there a mailing list for top?"
 
-Currently there is a top developers mailing list that is used by beta 
-testers and other people who help me port the program to various machines.  
-I am planning a general mailing list for announcements and such, but it is 
-not yet available.
+The official list for announcements is "top-announce@groupsys.com".
+This list is managed by "majordomo@groupsys.com".  Announcements of
+importance to all top users will be sent to this list, including new
+releases, availability of beta test versions, emergency revisions and
+patches, etc.  Anyone is welcome to join top-announce.  This is a
+read-only list.  The list of subscribers will not (intentionally) be
+made available, and postings to the list are limited.
 
- 4.  "How can I find out when all these things become available?"
+In addition, there is a top developers mailing list that is used by
+beta testers and other people who help me port the program to various
+machines.  Membership to this list is solely at my discretion.  If you
+feel qualified to act as a beta tester, or if you are doing development
+work on top (such as porting to a new platform), you may submit a
+request by sending a message to "top-spinners-request@groupsys.com"
+containing the word "subscribe".  I will contact you within a few days,
+as my schedule permits.
 
-Information about the web site and the mailing list will be made available 
-in future distributions of top.  New distributions will be announced on the 
-appropriate Usenet newsgroups (including comp.sources.unix).
+ 4.  "What about Year 2000 compliance"?
+
+Top should not experience any problems with the transition to the year
+2000.  A full statement concerning top and the year 2000 can be found
+in the file "Y2K" included with the distribution.
+
 
  5.  "Why does it take so long for a new version of top to go through the
       beta test process?"
 
-This is completely my fault.  I have just not had the time recently to give 
-top the attention it deserves.  I thank everyone for their patience, and I 
-hope that with the recent changes in the direction of my career that I can 
-spend more time on this.
+This is completely my fault.  I have just not had the time to give top
+the attention it deserves.  I thank everyone for their patience, and I
+hope that with the recent changes in the direction of my career that I
+can spend more time on this.
 
  6.  "Top is not written in ANSI C.  Do you ever plan to change that?"
 
 Top predates ANSI C by about 5 years.  Yeah, it'll get "fixed" eventually.  
-Probably in 3.5.
+Probably in 3.6.
 
 
 CONFIGURING
@@ -70,7 +88,7 @@ the next release.
       evil?"
 
 They are.  :-)  I'll probably be rewriting the Configure script for the
-next release.
+next release, or switching to something like Gnu configure.
 
 
 COMPILING
@@ -122,14 +140,15 @@ make your window bigger.
       What's wrong?"
 
 Gnu CC likes very much to use its own include files.  Not being a gcc
-expert, I can't explain why it does this.  But I can tell you that if you
-upgrade your operating system (say from Solaris 2.4 to Solaris 2.5) after
-installing gcc, then the include files that gcc uses will be incorrect,
-especially those found in the "sys" directory.  Your choices are: (1)
-rebuild and reinstall the "standard" include files for gcc (look for a
-script in the distribution called "fixincludes"), (2) compile machine.c
-with "CFLAGS=-I/usr/include" then make the rest of the object files
-normally, or (3) use "cc".
+expert, I can't explain why it does this.  But I can tell you that if
+you upgrade your operating system (say from Solaris 2.4 to Solaris
+2.5) after installing gcc, then the include files that gcc uses will
+be incorrect, especially those found in the "sys" directory.  Your
+choices are: (1) rebuild and reinstall the "standard" include files
+for gcc (look for scripts in the distribution called "fixincludes" and
+"fixinc.svr4"), (2) compile machine.c with "CFLAGS=-I/usr/include"
+then make the rest of the object files normally, or (3) use "cc".
+Solaris 2.6 users should also consult FAQ #20.
 
 14.  "The cpu state percentages are all wrong, indicating that my machine is 
       using 95% system time when it is clearly idle.  What's wrong?"
@@ -187,24 +206,36 @@ top again.
       there when top runs.  I figured this was just an oversight.  Was I
       right?"
 
-No, you were not right.  As distributed, top requires NO alterations for 
-successful compilation and operations under Solaris 2.0, 2.1, 2.2, 2.3, 2.4, 
-and 2.5.  You probably compiled top with /usr/ucb/cc instead of the real C 
+No, you were not right.  As distributed, top requires NO alterations
+for successful compilation and operations under any release of Solaris
+2.  You probably compiled top with /usr/ucb/cc instead of the real C
 compiler.  See FAQ #10 for more details.
+
+20.  "When I try to compile top under Solaris 2.6 using gcc I get compile
+      time errors.  There appear to be problems with the include files,
+      such as 'u_rlimit has incomplete type' and/or 'u_saved_rlimit has
+      incomplete type'.  I've already run fixinc.svr4 as per FAQ #13.
+      Why didn't that fix it?"
+
+Only top versions 3.5 and later are compatible with Solaris 2.6.  Make
+sure you are using the most up-to-date version.  Earlier beta release
+copies of version 3.5 had additional problems when compiled with gcc.
+Retrieve the official version 3.5 (non-beta) release from one of the
+sites listed in FAQ #1 or FAQ #2.
 
 
 SCO PROBLEMS
 
-20.  "When I try to run Configure, it complains about a syntax error."
+21.  "When I try to run Configure, it complains about a syntax error."
 
-Some versions of SCO's csh do not understand the syntax "$<".  This breaks 
-Configure.  You'll just have to hack around it for now: the Configure script 
-is going to be completely redone in the near future anyway.
+Some versions of SCO's csh do not understand the syntax "$<".  Earlier
+releases of top depended on this syntax to read input from the installer's
+terminal during the installation process.  Version 3.5 fixes this.
 
 
 SVR42 PROBLEMS
 
-21.  "The load average and memory displays don't work right.  Why?"
+22.  "The memory display doesn't work right.  Why?"
 
 This is a known bug with the svr42 module. The problem has been traced down 
 to a potential bug in the "mem" driver.  The author of the svr42 module is 
@@ -213,7 +244,7 @@ working on a fix.
 
 STILL STUCK
 
-22.  I'm still stuck.  To whom do I report problems with top?"
+23.  I'm still stuck.  To whom do I report problems with top?"
 
 The most common problems are caused by top's sensitivity to internal kernel 
 data structures.  So make sure that you are using the right include files, 

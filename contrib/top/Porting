@@ -3,7 +3,7 @@ Instructions for porting top to other architectures.
 This is still a preliminary document.  Suggestions for improvement are
 most welcome.
 
-My address is now "lefebvre@dis.anl.gov".
+My address is now "wnl@groupsys.com".
 
 Before you embark on a port, please send me a mail message telling me
 what platform you are porting top to.  There are three reasons for
