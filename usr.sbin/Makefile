@@ -188,7 +188,7 @@ SUBDIR=	ac \
 _sysinstall=	sysinstall
 .endif
 
-.if !defined(NOATM)
+.if !defined(NO_ATM)
 _atm=		atm
 .endif
 

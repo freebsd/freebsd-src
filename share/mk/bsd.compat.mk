@@ -2,6 +2,7 @@
 
 .if !defined(BURN_BRIDGES)
 .for oldnew in \
+	NOATM:NO_ATM \
 	NOLIBC_R:NO_LIBC_R \
 	NOLIBPTHREAD:NO_LIBPTHREAD \
 	NOLIBTHR:NO_LIBTHR \

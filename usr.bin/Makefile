@@ -230,7 +230,7 @@ SUBDIR=	alias \
 _truss=		truss
 .endif
 
-.if !defined(NOATM)
+.if !defined(NO_ATM)
 _atm=		atm
 .endif
 
