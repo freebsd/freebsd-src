@@ -245,14 +245,14 @@ viachan_setdir(kobj_t obj, void *data, int dir)
 		ado += SEGS_PER_CHAN;
 	}
 
-DEB(printf("SGD table located at va %p\n", ado));
+	DEB(printf("SGD table located at va %p\n", ado));
 	phys_addr = vtophys(sndbuf_getbuf(ch->buffer));
 	for (i = 0; i < SEGS_PER_CHAN; i++) {
 		ado->ptr = phys_addr;
 		flag = (i == SEGS_PER_CHAN-1) ?
 			VIA_DMAOP_EOL : VIA_DMAOP_FLAG;
 		ado->flags = flag | chunk_size;
-DEB(printf("ado->ptr/flags = %x/%x\n", phys_addr, flag));
+		DEB(printf("ado->ptr/flags = %x/%x\n", phys_addr, flag));
 		phys_addr += chunk_size;
 		ado++;
 	}
@@ -274,14 +274,14 @@ viachan_setformat(kobj_t obj, void *data, u_int32_t format)
 
 	/* Set up for output format */
 	if (ch->dir == PCMDIR_PLAY) {
-DEB(printf("set play format: %x\n", format));
+		DEB(printf("set play format: %x\n", format));
 		mode = via_rd(via, VIA_PLAY_MODE, 1);
 		mode &= ~(VIA_RPMODE_16BIT | VIA_RPMODE_STEREO);
 		mode |= mode_set;
 		via_wr(via, VIA_PLAY_MODE, mode, 1);
 	}
 	else {
-DEB(printf("set record format: %x\n", format));
+		DEB(printf("set record format: %x\n", format));
 		mode = via_rd(via, VIA_RECORD_MODE, 1);
 		mode &= ~(VIA_RPMODE_16BIT | VIA_RPMODE_STEREO);
 		mode |= mode_set;
@@ -307,28 +307,28 @@ viachan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 	 *  return 48 kHz cuz that's all you got.
 	 */
 	if (ch->dir == PCMDIR_PLAY) {
-DEB(printf("requested play speed: %d\n", speed));
+		DEB(printf("requested play speed: %d\n", speed));
 		if (via->codec_caps & AC97_CODEC_DOES_VRA) {
 			via_write_codec(NULL, via, AC97_REG_EXT_DAC_RATE, speed);
 			speed = via_read_codec(NULL, via, AC97_REG_EXT_DAC_RATE);
 		}
 		else {
-DEB(printf("VRA not supported!\n"));
+			DEB(printf("VRA not supported!\n"));
 			speed = 48000;
 		}
-DEB(printf("obtained play speed: %d\n", speed));
+		DEB(printf("obtained play speed: %d\n", speed));
 	}
 	else {
-DEB(printf("requested record speed: %d\n", speed));
+		DEB(printf("requested record speed: %d\n", speed));
 		if (via->codec_caps & AC97_CODEC_DOES_VRA) {
 			via_write_codec(NULL, via, AC97_REG_EXT_ADC_RATE, speed);
 			speed = via_read_codec(NULL, via, AC97_REG_EXT_ADC_RATE);
 		}
 		else {
-DEB(printf("VRA not supported!\n"));
+			DEB(printf("VRA not supported!\n"));
 			speed = 48000;
 		}
-DEB(printf("obtained record speed: %d\n", speed));
+		DEB(printf("obtained record speed: %d\n", speed));
 	}
 	return speed;
 }
@@ -352,7 +352,7 @@ viachan_trigger(kobj_t obj, void *data, int go)
 	if (ch->dir == PCMDIR_PLAY) {
 		if (go == PCMTRIG_START) {
 			ado = &via->sgd_table[0];
-DEB(printf("ado located at va=%p pa=%x\n", ado, vtophys(ado)));
+			DEB(printf("ado located at va=%p pa=%x\n", ado, vtophys(ado)));
 			via_wr(via, VIA_PLAY_DMAOPS_BASE, vtophys(ado),4);
 			via_wr(via, VIA_PLAY_CONTROL,
 				VIA_RPCTRL_START, 1);
@@ -365,7 +365,7 @@ DEB(printf("ado located at va=%p pa=%x\n", ado, vtophys(ado)));
 	} else {
 		if (go == PCMTRIG_START) {
 			ado = &via->sgd_table[SEGS_PER_CHAN];
-DEB(printf("ado located at va=%p pa=%x\n", ado, vtophys(ado)));
+			DEB(printf("ado located at va=%p pa=%x\n", ado, vtophys(ado)));
 			via_wr(via, VIA_RECORD_DMAOPS_BASE,
 				vtophys(ado),4);
 			via_wr(via, VIA_RECORD_CONTROL,
@@ -399,7 +399,7 @@ viachan_getptr(kobj_t obj, void *data)
 		if (base != base1) {	/* Avoid race hazzard	*/
 			len = via_rd(via, VIA_PLAY_DMAOPS_COUNT, 4);
 		}
-DEB(printf("viachan_getptr: len / base = %x / %x\n", len, base));
+		DEB(printf("viachan_getptr: len / base = %x / %x\n", len, base));
 
 		/* Base points to SGD segment to do, one past current */
 
@@ -409,7 +409,7 @@ DEB(printf("viachan_getptr: len / base = %x / %x\n", len, base));
 
 		/* Now work out offset: seg less count */
 		ptr = seg * sndbuf_getsize(ch->buffer) / SEGS_PER_CHAN - len;
-DEB(printf("return ptr=%d\n", ptr));
+		DEB(printf("return ptr=%d\n", ptr));
 		return ptr;
 	}
 	else {
@@ -420,7 +420,7 @@ DEB(printf("return ptr=%d\n", ptr));
 		if (base != base1) {	/* Avoid race hazzard	*/
 			len = via_rd(via, VIA_RECORD_DMAOPS_COUNT, 4);
 		}
-DEB(printf("viachan_getptr: len / base = %x / %x\n", len, base));
+		DEB(printf("viachan_getptr: len / base = %x / %x\n", len, base));
 
 		/* Base points to next block to do, one past current */
 
@@ -434,7 +434,7 @@ DEB(printf("viachan_getptr: len / base = %x / %x\n", len, base));
 		/* DMA appears to operate on memory 'lines' of 32 bytes	*/
 		/* so don't return any part line - it isn't in RAM yet	*/
 		ptr = ptr & ~0x1f;
-DEB(printf("return ptr=%d\n", ptr));
+		DEB(printf("return ptr=%d\n", ptr));
 		return ptr;
 	}
 	return 0;
@@ -468,7 +468,7 @@ via_intr(void *p)
 	struct via_info *via = p;
 	int		st;
 
-DEB(printf("viachan_intr\n"));
+	/* DEB(printf("viachan_intr\n")); */
 	/* Read channel */
 	st = via_rd(via, VIA_PLAY_STAT, 1);
 	if (st & VIA_RPSTAT_INTR) {
@@ -491,7 +491,7 @@ static int
 via_probe(device_t dev)
 {
 	if (pci_get_devid(dev) == VIA_PCI_ID) {
-	    device_set_desc(dev, "VIA VT82C686A AC'97 Audio");
+	    device_set_desc(dev, "VIA VT82C686A");
 	    return 0;
 	}
 	return ENXIO;
@@ -535,7 +535,7 @@ via_attach(device_t dev)
 	via->reg = bus_alloc_resource(dev, SYS_RES_IOPORT, &via->regid,
 		0, ~0, 1, RF_ACTIVE);
 	if (!via->reg) {
-		device_printf(dev, "via: Cannot allocate bus resource.");
+		device_printf(dev, "cannot allocate bus resource.");
 		goto bad;
 	}
 	via->st = rman_get_bustag(via->reg);
