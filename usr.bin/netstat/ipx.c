@@ -83,7 +83,7 @@ static	int first = 1;
  */
 
 void
-ipxprotopr(u_long off, char *name)
+ipxprotopr(u_long off, char *name, int af __unused)
 {
 	struct ipxpcb cb;
 	register struct ipxpcb *prev, *next;
@@ -159,7 +159,7 @@ ipxprotopr(u_long off, char *name)
  * Dump SPX statistics structure.
  */
 void
-spx_stats(u_long off, char *name)
+spx_stats(u_long off, char *name, int af __unused)
 {
 	struct spx_istat spx_istat;
 #define spxstat spx_istat.newstats
@@ -235,7 +235,7 @@ spx_stats(u_long off, char *name)
  * Dump IPX statistics structure.
  */
 void
-ipx_stats(u_long off, char *name)
+ipx_stats(u_long off, char *name, int af __unused)
 {
 	struct ipxstat ipxstat;
 
@@ -278,7 +278,7 @@ static	struct {
  */
 /*ARGSUSED*/
 void
-ipxerr_stats(u_long off, char *name)
+ipxerr_stats(u_long off, char *name, int af __unused)
 {
 	struct ipx_errstat ipx_errstat;
 	register int j;
