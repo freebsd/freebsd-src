@@ -1031,8 +1031,8 @@ osf1_setuid(p, uap)
 	pc->pc_ucred = crcopy(pc->pc_ucred);
 	pc->pc_ucred->cr_uid = uid;
 	if (error == 0) {
-		(void)chgproccnt(pc->p_ruid, -1);
-		(void)chgproccnt(uid, 1);
+		(void)chgproccnt(pc->p_ruid, -1, 0);
+		(void)chgproccnt(uid, 1, 0);
 		pc->p_ruid = uid;
 		pc->p_svuid = uid;
 	}
