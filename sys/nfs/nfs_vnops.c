@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.5 (Berkeley) 2/13/94
- * $Id: nfs_vnops.c,v 1.36.2.3 1997/03/04 17:59:42 dfr Exp $
+ * $Id: nfs_vnops.c,v 1.36.2.4 1997/05/14 08:19:30 dfr Exp $
  */
 
 /*
@@ -188,6 +188,7 @@ static struct vnodeopv_entry_desc nfsv2_vnodeop_entries[] = {
 	{ &vop_truncate_desc, (vop_t *)nfs_truncate },	/* truncate */
 	{ &vop_update_desc, (vop_t *)nfs_update },	/* update */
 	{ &vop_bwrite_desc, (vop_t *)nfs_bwrite },	/* bwrite */
+	{ &vop_getpages_desc, (vop_t *)nfs_getpages },	/* getpages */
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc nfsv2_vnodeop_opv_desc =
@@ -1043,7 +1044,7 @@ nfs_read(ap)
 
 	if (vp->v_type != VREG)
 		return (EPERM);
-	return (nfs_bioread(vp, ap->a_uio, ap->a_ioflag, ap->a_cred));
+	return (nfs_bioread(vp, ap->a_uio, ap->a_ioflag, ap->a_cred, 0));
 }
 
 /*
@@ -1061,7 +1062,7 @@ nfs_readlink(ap)
 
 	if (vp->v_type != VLNK)
 		return (EPERM);
-	return (nfs_bioread(vp, ap->a_uio, 0, ap->a_cred));
+	return (nfs_bioread(vp, ap->a_uio, 0, ap->a_cred, 0));
 }
 
 /*
@@ -1775,7 +1776,7 @@ nfs_link(ap)
 	int v3 = NFS_ISV3(vp);
 
 	if (vp->v_mount != tdvp->v_mount) {
-		/*VOP_ABORTOP(vp, cnp);*/
+		VOP_ABORTOP(vp, cnp);
 		if (tdvp == vp)
 			vrele(tdvp);
 		else
@@ -2069,7 +2070,7 @@ nfs_readdir(ap)
 	 * Call nfs_bioread() to do the real work.
 	 */
 	tresid = uio->uio_resid;
-	error = nfs_bioread(vp, uio, 0, ap->a_cred);
+	error = nfs_bioread(vp, uio, 0, ap->a_cred, 0);
 
 	if (!error && uio->uio_resid == tresid)
 		nfsstats.direofcache_misses++;
