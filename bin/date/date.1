@@ -49,15 +49,25 @@
 .Op Fl t Ar minutes_west
 .Oo
 .Fl v
-.Op +|- Ns
-.No val Ns Op ymwdHMS
-.Oc Ns ...
-.Oo Fl f No " "
-.Ar fmt date No |
-.Oo Oo Oo Oo Oo "\&cc" Ns
-.Oc "\&yy" Oc "\&mm" Oc "\&dd" Oc "\&HH" Ns
+.Sm off
+.Op Cm + | - Xo
+.Ar val Op Ar ymwdHMS
+.Xc
+.Sm on
 .Oc
-.No "\&MM" Ns Op "\&.ss"
+.Ar ...
+.Oo
+.Fl f
+.Ar fmt date |
+.Sm off
+.Oo Oo Oo Oo Oo
+.Ar cc Oc
+.Ar yy Oc
+.Ar mm Oc
+.Ar dd Oc
+.Ar HH Oc
+.Ar MM Op Ar .ss
+.Sm on
 .Oc
 .Op Cm + Ns Ar format
 .Sh DESCRIPTION
@@ -84,14 +94,18 @@ will return a non-zero for
 .It Fl f
 Use
 .Ar fmt
-as the format string to parse the date provided rather than using
-the default
-.\" .Ar [[[[[cc]yy]mm]dd]HH]MM[.ss]
-.Xo
-.Oo Oo Oo Oo Oo "\&cc" Ns
-.Oc "\&yy" Oc "\&mm" Oc "\&dd" Oc "\&HH" Ns
-.Oc
-.No "\&MM" Ns Op "\&.ss" Xc
+as the format string to parse the
+.Ar date
+provided rather than using the default
+.Sm off
+.Oo Oo Oo Oo Oo
+.Ar cc Oc
+.Ar yy Oc
+.Ar mm Oc
+.Ar dd Oc
+.Ar HH
+.Oc Ar MM Op Ar .ss
+.Sm on
 format.
 Parsing is done using
 .Xr strptime 3 .
