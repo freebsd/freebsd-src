@@ -55,10 +55,10 @@ RELOCADDR=0x90000
 	${CC} ${CFLAGS} -DBOOTROM -o ${.TARGET} -c ${.IMPSRC}
 
 ns8390.o:	ns8390.c
-	${CC} $(CFLAGS) $(NS8390) -o ${.TARGET} -c $<
+	${CC} ${CFLAGS} $(NS8390) -o ${.TARGET} -c $<
 
 makerom: makerom.c
-	${CC} -o ${.TARGET} -DROMSIZE=${ROMSIZE} ${.CURDIR}/makerom.c
+	${CC} ${CFLAGS} -o ${.TARGET} -DROMSIZE=${ROMSIZE} ${.CURDIR}/makerom.c
 
 nb8390.rom:	makerom start2.ro ${SRCS:N*.h:R:S/$/.o/g} ns8390.o
 	${LD} ${LDFLAGS} -o ${.TARGET} ${OBJS:S/start2.o/start2.ro/} ns8390.o
