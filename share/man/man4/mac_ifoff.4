@@ -29,50 +29,76 @@
 .\" SUCH DAMAGE.
 .\" 
 .\" $FreeBSD$
-.Dd DECEMBER 1, 2002
+.Dd DECEMBER 10, 2002
 .Os
-.Dt MAC_TEST 4
+.Dt MAC_IFOFF 4
 .Sh NAME
-.Nm mac_test
-.Nd MAC framework testing policy
+.Nm mac_ifoff
+.Nd interface silencing policy
 .Sh SYNOPSIS
-To compile the testing policy
-into your kernel, place the following lines in your kernel
+To compile the interface silencing policy into your kernel,
+place the following lines in your kernel
 configuration file:
 .Cd "options MAC"
-.Cd "options MAC_TEST"
+.Cd "options MAC_IFOFF"
 .Pp
-Alternately, to load the testing module at boot time, place the following line
-in your kernel configuration file:
+Alternately, to load the interface silencing policy module at boot time,
+place the following line in your kernel configuration file:
 .Cd "options MAC"
 .Pp
 and in
-.Xr loader.conf.5 :
-.Cd mac_test_load= Ns \&"YES"
+.Xr loader.conf 5 :
+.Cd mac_ifoff_load= Ns \&"YES"
 .Sh DESCRIPTION
 The
 .Nm
-policy module implements a testing facility for the MAC framework.
-Among other things,
-.Nm
-will try to catch corrupt labels the system is attempting to destroy and
-drop to the debugger.
-Additionally, a set of statistics regarding the number of times various
-MAC framework entry points have been called is stored in the
-.Va security.mac.test
+interface silencing module allows administrators to enable and disable
+incoming and outgoing data flow on system network interfaces
+via the
 .Xr sysctl 8
-tree.
+interface.
+.Pp
+To disable network traffic over the loopback
+.Xr ( lo 4 )
+interface, set the
+.Xr sysctl 8
+OID
+.Va security.mac.ifoff.lo_enabled
+to
+.Li 0
+(default
+.Li 1 ) .
+.Pp
+To enable network traffic over other interfaces,
+set the
+.Xr sysctl 8
+OID
+.Va security.mac.ifoff.other_enabled
+to
+.Li 1
+(default
+.Li 0 ) .
+.Pp
+To allow BPF traffic to be received,
+even while other traffic is disabled,
+set the
+.Xr sysctl 8
+OID
+.Va security.mac.ifoff.bpfrecv_enabled
+to
+.Li 1
+(default
+.Li 0 ) .
 .Ss Label Format
-No labels are defined for
-.Nm .
+No labels are defined.
 .Sh SEE ALSO
-.Xr mac_biba 4 ,
+.Xr lomac 4 ,
 .Xr mac_bsdextended 4 ,
-.Xr mac_ifoff 4 ,
 .Xr mac_mls 4 ,
 .Xr mac_none 4 ,
 .Xr mac_partition 4 ,
 .Xr mac_seeotheruids 4 ,
+.Xr mac_test 4 ,
 .Xr mac 9
 .Sh HISTORY
 The
@@ -94,7 +120,7 @@ concerning appropriateness for production use.
 The TrustedBSD MAC Framework is considered experimental in
 .Fx .
 .Pp
-While the MAC Framework design is intended to support the containment of
+While the MAC Framework design is intended to support the containment of  
 the root user, not all attack channels are currently protected by entry
 point checks.
 As such, MAC Framework policies should not be relied on, in isolation,
