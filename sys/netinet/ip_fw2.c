@@ -768,8 +768,10 @@ next_pass:
 				    !TIME_LEQ( q->expire, time_second ))
 					goto next;
 			}
-			UNLINK_DYN_RULE(prev, ipfw_dyn_v[i], q);
-			continue;
+             if (q->dyn_type != O_LIMIT_PARENT || !q->count) {
+                     UNLINK_DYN_RULE(prev, ipfw_dyn_v[i], q);
+                     continue;
+             }
 next:
 			prev=q;
 			q=q->next;
@@ -804,13 +806,14 @@ lookup_dyn_rule_locked(struct ipfw_flow_id *pkt, int *match_direction,
 		goto done;	/* not found */
 	i = hash_packet( pkt );
 	for (prev=NULL, q = ipfw_dyn_v[i] ; q != NULL ; ) {
-		if (q->dyn_type == O_LIMIT_PARENT)
+		if (q->dyn_type == O_LIMIT_PARENT && q->count)
 			goto next;
 		if (TIME_LEQ( q->expire, time_second)) { /* expire entry */
 			UNLINK_DYN_RULE(prev, ipfw_dyn_v[i], q);
 			continue;
 		}
-		if ( pkt->proto == q->id.proto) {
+		if (pkt->proto == q->id.proto &&
+		    q->dyn_type != O_LIMIT_PARENT) {
 			if (pkt->src_ip == q->id.src_ip &&
 			    pkt->dst_ip == q->id.dst_ip &&
 			    pkt->src_port == q->id.src_port &&
