@@ -57,9 +57,7 @@ _sigsuspend(const sigset_t *set)
 		THR_SET_STATE(curthread, PS_SIGSUSPEND);
 
 		/* Wait for a signal: */
-		_thr_sched_switch(curthread);
-
-		THR_UNLOCK_SWITCH(curthread);
+		_thr_sched_switch_unlocked(curthread);
 
 		/* Always return an interrupted error: */
 		errno = EINTR;

@@ -45,7 +45,7 @@
 
 /* Prototypes: */
 static void	build_siginfo(siginfo_t *info, int signo);
-static void	thr_sig_add(struct pthread *pthread, int sig, siginfo_t *info);
+/* static void	thr_sig_add(struct pthread *pthread, int sig, siginfo_t *info); */
 static void	thr_sig_check_state(struct pthread *pthread, int sig);
 static struct pthread *thr_sig_find(struct kse *curkse, int sig,
 		    siginfo_t *info);
@@ -158,7 +158,7 @@ _thr_sig_dispatch(struct kse *curkse, int sig, siginfo_t *info)
 		 */
 		DBG_MSG("Got signal %d, selecting thread %p\n", sig, thread);
 		KSE_SCHED_LOCK(curkse, thread->kseg);
-		thr_sig_add(thread, sig, info);
+		_thr_sig_add(thread, sig, info);
 		KSE_SCHED_UNLOCK(curkse, thread->kseg);
 	}
 }
@@ -571,146 +571,138 @@ handle_special_signals(struct kse *curkse, int sig)
  *
  * This must be called with the thread's scheduling lock held.
  */
-static void
-thr_sig_add(struct pthread *pthread, int sig, siginfo_t *info)
+void
+_thr_sig_add(struct pthread *pthread, int sig, siginfo_t *info)
 {
 	int	restart;
 	int	suppress_handler = 0;
 
-	restart = _thread_sigact[sig - 1].sa_flags & SA_RESTART;
-
-	/* Make sure this signal isn't still in the pending set: */
-	sigdelset(&pthread->sigpend, sig);
-
-	/*
-	 * Process according to thread state:
-	 */
-	switch (pthread->state) {
-	/*
-	 * States which do not change when a signal is trapped:
-	 */
-	case PS_DEAD:
-	case PS_DEADLOCK:
-	case PS_LOCKWAIT:
-	case PS_SUSPENDED:
-	case PS_STATE_MAX:
+	if (pthread->curframe == NULL) {
 		/*
-		 * You can't call a signal handler for threads in these
-		 * states.
+		 * This thread is active.  Just add it to the
+		 * thread's pending set.
 		 */
-		suppress_handler = 1;
-		break;
+		sigaddset(&pthread->sigpend, sig);
+		pthread->check_pending = 1;
+		if (info == NULL)
+			build_siginfo(&pthread->siginfo[sig], sig);
+		else if (info != &pthread->siginfo[sig])
+			memcpy(&pthread->siginfo[sig], info,
+			    sizeof(*info));
+		if ((pthread->blocked != 0) && !THR_IN_CRITICAL(pthread))
+			kse_thr_interrupt(&pthread->tmbx /* XXX - restart?!?! */);
+	}
+	else {
+		restart = _thread_sigact[sig - 1].sa_flags & SA_RESTART;
 
-	/*
-	 * States which do not need any cleanup handling when signals
-	 * occur:
-	 */
-	case PS_RUNNING:
+		/* Make sure this signal isn't still in the pending set: */
+		sigdelset(&pthread->sigpend, sig);
+
 		/*
-		 * Remove the thread from the queue before changing its
-		 * priority:
+		 * Process according to thread state:
 		 */
-		if ((pthread->flags & THR_FLAGS_IN_RUNQ) != 0)
-			THR_RUNQ_REMOVE(pthread);
-		else {
+		switch (pthread->state) {
+		/*
+		 * States which do not change when a signal is trapped:
+		 */
+		case PS_DEAD:
+		case PS_DEADLOCK:
+		case PS_LOCKWAIT:
+		case PS_SUSPENDED:
+		case PS_STATE_MAX:
 			/*
-			 * This thread is active; add the signal to the
-			 * pending set and mark it as having pending
-			 * signals.
+			 * You can't call a signal handler for threads in these
+			 * states.
 			 */
 			suppress_handler = 1;
-			sigaddset(&pthread->sigpend, sig);
-			build_siginfo(&pthread->siginfo[sig], sig);
-			pthread->check_pending = 1;
-			if ((pthread->blocked != 0) &&
-			    !THR_IN_CRITICAL(pthread))
-				kse_thr_interrupt(&pthread->tmbx /* XXX - restart?!?! */);
-		}
-		break;
+			break;
 
-	/*
-	 * States which cannot be interrupted but still require the
-	 * signal handler to run:
-	 */
-	case PS_COND_WAIT:
-	case PS_MUTEX_WAIT:
 		/*
-		 * Remove the thread from the wait queue.  It will
-		 * be added back to the wait queue once all signal
-		 * handlers have been invoked.
+		 * States which do not need any cleanup handling when signals
+		 * occur:
 		 */
-		KSE_WAITQ_REMOVE(pthread->kse, pthread);
-		break;
-
-	case PS_SLEEP_WAIT:
-		/*
-		 * Unmasked signals always cause sleep to terminate early,
-		 * regardless of SA_RESTART:
-		 */
-		pthread->interrupted = 1;
-		KSE_WAITQ_REMOVE(pthread->kse, pthread);
-		THR_SET_STATE(pthread, PS_RUNNING);
-		break;
-
-	case PS_JOIN:
-	case PS_SIGSUSPEND:
-		KSE_WAITQ_REMOVE(pthread->kse, pthread);
-		THR_SET_STATE(pthread, PS_RUNNING);
-		break;
-
-	case PS_SIGWAIT:
-		/* The signal handler is not called for threads in SIGWAIT. */
-		suppress_handler = 1;
-		/* Wake up the thread if the signal is blocked. */
-		if (sigismember(pthread->data.sigwait, sig)) {
-			/* Return the signal number: */
-			pthread->signo = sig;
-
-			/* Make the thread runnable: */
-			_thr_setrunnable_unlocked(pthread);
-		} else
-			/* Increment the pending signal count. */
-			sigaddset(&pthread->sigpend, sig);
-		break;
-	}
-
-	if (suppress_handler == 0) {
-		if (pthread->curframe == NULL) {
+		case PS_RUNNING:
 			/*
-			 * This thread is active.  Just add it to the
-			 * thread's pending set.
+			 * Remove the thread from the queue before changing its
+			 * priority:
 			 */
-			sigaddset(&pthread->sigpend, sig);
-			pthread->check_pending = 1;
-			if (info == NULL)
-				build_siginfo(&pthread->siginfo[sig], sig);
-			else
-				memcpy(&pthread->siginfo[sig], info,
-				    sizeof(*info));
-		} else {
+			if ((pthread->flags & THR_FLAGS_IN_RUNQ) != 0)
+				THR_RUNQ_REMOVE(pthread);
+			break;
+
+		/*
+		 * States which cannot be interrupted but still require the
+		 * signal handler to run:
+		 */
+		case PS_COND_WAIT:
+		case PS_MUTEX_WAIT:
+			/*
+			 * Remove the thread from the wait queue.  It will
+			 * be added back to the wait queue once all signal
+			 * handlers have been invoked.
+			 */
+			KSE_WAITQ_REMOVE(pthread->kse, pthread);
+			break;
+
+		case PS_SLEEP_WAIT:
+			/*
+			 * Unmasked signals always cause sleep to terminate
+			 * early regardless of SA_RESTART:
+			 */
+			pthread->interrupted = 1;
+			KSE_WAITQ_REMOVE(pthread->kse, pthread);
+			THR_SET_STATE(pthread, PS_RUNNING);
+			break;
+
+		case PS_JOIN:
+		case PS_SIGSUSPEND:
+			KSE_WAITQ_REMOVE(pthread->kse, pthread);
+			THR_SET_STATE(pthread, PS_RUNNING);
+			break;
+
+		case PS_SIGWAIT:
+			/*
+			 * The signal handler is not called for threads in
+			 * SIGWAIT.
+			 */
+			suppress_handler = 1;
+			/* Wake up the thread if the signal is blocked. */
+			if (sigismember(pthread->data.sigwait, sig)) {
+				/* Return the signal number: */
+				pthread->signo = sig;
+
+				/* Make the thread runnable: */
+				_thr_setrunnable_unlocked(pthread);
+			} else
+				/* Increment the pending signal count. */
+				sigaddset(&pthread->sigpend, sig);
+			break;
+		}
+
+		if (suppress_handler == 0) {
 			/*
 			 * Setup a signal frame and save the current threads
 			 * state:
 			 */
 			thr_sigframe_add(pthread, sig, info);
+
+			if (pthread->state != PS_RUNNING)
+				THR_SET_STATE(pthread, PS_RUNNING);
+
+			/*
+			 * The thread should be removed from all scheduling
+			 * queues at this point.  Raise the priority and
+			 * place the thread in the run queue.  It is also
+			 * possible for a signal to be sent to a suspended
+			 * thread, mostly via pthread_kill().  If a thread
+			 * is suspended, don't insert it into the priority
+			 * queue; just set its state to suspended and it
+			 * will run the signal handler when it is resumed.
+			 */
+			pthread->active_priority |= THR_SIGNAL_PRIORITY;
+			if ((pthread->flags & THR_FLAGS_IN_RUNQ) == 0)
+				THR_RUNQ_INSERT_TAIL(pthread);
 		}
-
-		if (pthread->state != PS_RUNNING)
-			THR_SET_STATE(pthread, PS_RUNNING);
-
-		/*
-		 * The thread should be removed from all scheduling
-		 * queues at this point.  Raise the priority and
-		 * place the thread in the run queue.  It is also
-		 * possible for a signal to be sent to a suspended
-		 * thread, mostly via pthread_kill().  If a thread
-		 * is suspended, don't insert it into the priority
-		 * queue; just set its state to suspended and it
-		 * will run the signal handler when it is resumed.
-		 */
-		pthread->active_priority |= THR_SIGNAL_PRIORITY;
-		if ((pthread->flags & THR_FLAGS_IN_RUNQ) == 0)
-			THR_RUNQ_INSERT_TAIL(pthread);
 	}
 }
 
@@ -834,7 +826,7 @@ _thr_sig_send(struct pthread *pthread, int sig)
 			 * Perform any state changes due to signal
 			 * arrival:
 			 */
-			thr_sig_add(pthread, sig, NULL);
+			_thr_sig_add(pthread, sig, NULL);
 			THR_SCHED_UNLOCK(curthread, pthread);
 		}
 	}
@@ -846,20 +838,20 @@ thr_sigframe_add(struct pthread *thread, int sig, siginfo_t *info)
 	if (thread->curframe == NULL)
 		PANIC("Thread doesn't have signal frame ");
 
-	if (thread->check_pending == 0) {
+	if (thread->have_signals == 0) {
 		/*
 		 * Multiple signals can be added to the same signal
 		 * frame.  Only save the thread's state the first time.
 		 */
 		thr_sigframe_save(thread, thread->curframe);
-		thread->check_pending = 1;
+		thread->have_signals = 1;
 		thread->flags &= THR_FLAGS_PRIVATE;
 	}
 	sigaddset(&thread->curframe->psf_sigset, sig);
-	if (info != NULL)
-		memcpy(&thread->siginfo[sig], info, sizeof(*info));
-	else
+	if (info == NULL)
 		build_siginfo(&thread->siginfo[sig], sig);
+	else if (info != &thread->siginfo[sig])
+		memcpy(&thread->siginfo[sig], info, sizeof(*info));
 
 	/* Setup the new signal mask. */
 	SIGSETOR(thread->tmbx.tm_context.uc_sigmask,
