@@ -6,13 +6,11 @@ extensions and possible deviations from POSIX 1003.2.
 
 OMISSIONS
 ---------
-1) Locale(3) is not supported yet.
-
-2) For backwards compatibility, the POSIX rule that says a range of
+1) For backwards compatibility, the POSIX rule that says a range of
    addresses cannot be used where only a single address is expected has
    been relaxed.
 
-3) To support the BSD `s' command (see extension [1] below),
+2) To support the BSD `s' command (see extension [1] below),
    substitution patterns cannot be delimited by numbers or the characters
    `r', `g' and `p'.  In contrast, POSIX specifies any character expect
    space or newline can used as a delimiter.
