@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 16, 1998
+.Dd April 3, 2005
 .Dt DEVCLASS_GET_MAXUNIT 9
 .Os
 .Sh NAME
@@ -40,12 +40,14 @@
 .Ft int
 .Fn devclass_get_maxunit "devclass_t dc"
 .Sh DESCRIPTION
-Returns the maximum unit number allocated to device instances in the
-specified
+Returns the next unit number to be allocated to device instances in the
 .Dv devclass .
+This is one greater than the highest currently allocated unit.
 .Sh SEE ALSO
 .Xr devclass 9 ,
 .Xr device 9
 .Sh AUTHORS
 This man page was written by
 .An Doug Rabson .
+.Sh BUGS
+The name is confusing since it is one greater than the maximum unit.
