@@ -339,7 +339,7 @@ vnode_if.${_ext}: @/tools/vnode_if.awk @/kern/vnode_if.src
 regress:
 
 lint: ${SRCS}
-	${LINT} ${LINTKERNFLAGS} ${CFLAGS:M-[DILU]*} ${.ALLSRC:M*.c} | more 2>&1
+	${LINT} ${LINTKERNFLAGS} ${CFLAGS:M-[DILU]*} ${.ALLSRC:M*.c}
 
 .include <bsd.dep.mk>
 
