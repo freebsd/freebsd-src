@@ -342,8 +342,8 @@ mouse_cut(scr_stat *scp)
 	    blank = i;		/* the first space after the last non-space */
 	/* trim trailing blank when crossing lines */
 	if ((p % scp->xsize) == (scp->xsize - 1)) {
-	    cut_buffer[blank] = '\r';
-	    i = blank + 1;
+	    cut_buffer[blank++] = '\r';
+	    i = blank;
 	}
     }
     cut_buffer[i] = '\0';
