@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.22 1997/06/25 19:30:00 brian Exp $
+ * $Id: ipcp.c,v 1.23 1997/07/29 22:37:04 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -42,7 +42,9 @@ extern void Prompt();
 extern struct in_addr ifnetmask;
 
 struct ipcpstate IpcpInfo;
-struct in_range DefMyAddress, DefHisAddress, DefTriggerAddress;
+struct in_range DefMyAddress, DefHisAddress;
+struct in_addr TriggerAddress;
+int HaveTriggerAddress;
 
 #ifndef NOMSEXT
 struct in_addr ns_entries[2], nbns_entries[2];
@@ -137,8 +139,10 @@ ReportIpcpStatus()
      inet_ntoa(DefMyAddress.ipaddr), DefMyAddress.width);
   fprintf(VarTerm, " His Address: %s/%d\n",
      inet_ntoa(DefHisAddress.ipaddr), DefHisAddress.width);
-  fprintf(VarTerm, " Negotiation: %s/%d\n",
-     inet_ntoa(DefTriggerAddress.ipaddr), DefTriggerAddress.width);
+  if (HaveTriggerAddress)
+     fprintf(VarTerm, " Negotiation(trigger): %s\n", inet_ntoa(TriggerAddress));
+  else
+     fprintf(VarTerm, " Negotiation(trigger): MYADDR\n");
 
   return 0;
 }
@@ -151,7 +155,8 @@ IpcpDefAddress()
 
   bzero(&DefMyAddress, sizeof(DefMyAddress));
   bzero(&DefHisAddress, sizeof(DefHisAddress));
-  bzero(&DefTriggerAddress, sizeof(DefTriggerAddress));
+  TriggerAddress.s_addr = 0;
+  HaveTriggerAddress = 0;
   if (gethostname(name, sizeof(name)) == 0) {
       hp = gethostbyname(name);
       if (hp && hp->h_addrtype == AF_INET) {
@@ -180,8 +185,9 @@ IpcpInit()
    *  even though standard of PPP is defined full negotiation based.
    *  (e.g. "0.0.0.0" or Not "0.0.0.0")
    */
-  if ( icp->want_ipaddr.s_addr == 0 ) {
-    icp->want_ipaddr.s_addr = DefTriggerAddress.ipaddr.s_addr;
+  if (HaveTriggerAddress) {
+    icp->want_ipaddr.s_addr = TriggerAddress.s_addr;
+    LogPrintf(LogLCP, "Using trigger address %s\n", inet_ntoa(TriggerAddress));
   }
 
   if (Enabled(ConfVjcomp))
