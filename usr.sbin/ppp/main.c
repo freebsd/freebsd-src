@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.82 1997/10/07 00:56:57 brian Exp $
+ * $Id: main.c,v 1.83 1997/10/16 23:55:18 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -166,7 +166,7 @@ Cleanup(int excode)
 {
   OsLinkdown();
   OsCloseLink(1);
-  sleep(1);
+  nointr_sleep(1);
   if (mode & MODE_AUTO)
     DeleteIfRoutes(1);
   (void) unlink(pid_filename);
@@ -708,7 +708,7 @@ DoLoop()
   } else if (mode & MODE_DEDICATED) {
     if (modem < 0)
       while (OpenModem(mode) < 0)
-	sleep(VarReconnectTimer);
+	nointr_sleep(VarReconnectTimer);
   }
   fflush(VarTerm);
 
@@ -787,7 +787,7 @@ DoLoop()
 	  LogPrintf(LogCHAT, "Dial attempt %u\n", tries);
 
 	if ((res = DialModem()) == EX_DONE) {
-	  sleep(1);		/* little pause to allow peer starts */
+	  nointr_sleep(1);		/* little pause to allow peer starts */
 	  ModemTimeout();
 	  PacketMode();
 	  dial_up = FALSE;
@@ -848,7 +848,7 @@ DoLoop()
      * ppp process eats many CPU time.
      */
 #ifndef SIGALRM
-    usleep(TICKUNIT);
+    nointr_usleep(TICKUNIT);
     TimerService();
 #else
     handle_signals();
@@ -931,7 +931,7 @@ DoLoop()
       }
       if (FD_ISSET(modem, &rfds)) {	/* something to read from modem */
 	if (LcpFsm.state <= ST_CLOSED)
-	  usleep(10000);
+	  nointr_usleep(10000);
 	n = read(modem, rbuff, sizeof(rbuff));
 	if ((mode & MODE_DIRECT) && n <= 0) {
 	  DownConnection();
