@@ -11,7 +11,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.14.4.9 1996/06/25 03:16:41 alex Exp $
+ *	$Id: ip_fw.c,v 1.14.4.10 1996/11/12 17:31:31 jkh Exp $
  */
 
 /*
@@ -716,6 +716,7 @@ ip_fw_init(void)
 	bzero(&deny, sizeof deny);
 	deny.fw_flg = IP_FW_F_ALL;
 	deny.fw_number = (u_short)-1;
+	deny.fw_flg = IP_FW_F_IN | IP_FW_F_OUT;
 	add_entry(&ip_fw_chain, &deny);
 	
 	printf("IP firewall initialized, ");
