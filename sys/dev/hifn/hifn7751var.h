@@ -111,8 +111,7 @@ struct hifn_dma {
 };
 
 struct hifn_session {
-	int hs_state;
-	int hs_prev_op; /* XXX collapse into hs_flags? */
+	int hs_used;
 	u_int8_t hs_iv[HIFN_MAX_IV_LENGTH];
 };
 
@@ -129,11 +128,6 @@ struct hifn_session {
 
 #define	HIFN_RES_SYNC(sc, i, f)						\
 	bus_dmamap_sync((sc)->sc_dmat, (sc)->sc_dmamap, (f))
-
-/* We use a state machine to on sessions */
-#define	HS_STATE_FREE	0		/* unused session entry */
-#define	HS_STATE_USED	1		/* allocated, but key not on card */
-#define	HS_STATE_KEY	2		/* allocated and key is on card */
 
 /*
  * Holds data specific to a single HIFN board.
@@ -163,6 +157,8 @@ struct hifn_softc {
 	int			sc_dmansegs;
 	int32_t			sc_cid;
 	int			sc_maxses;
+	int			sc_nsessions;
+	struct hifn_session	*sc_sessions;
 	int			sc_ramsize;
 	int			sc_flags;
 #define	HIFN_HAS_RNG		0x1	/* includes random number generator */
@@ -185,7 +181,6 @@ struct hifn_softc {
 	int			sc_needwakeup;	/* ops q'd wating on resources */
 	int			sc_curbatch;	/* # ops submitted w/o int */
 	int			sc_suspended;
-	struct hifn_session	sc_sessions[2048];
 };
 
 /*
