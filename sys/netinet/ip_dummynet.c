@@ -27,6 +27,10 @@
  * $FreeBSD$
  */
 
+#if !defined(KLD_MODULE)
+#include "opt_ipfw.h"	/* for IPFW2 definition */
+#endif
+
 #define DEB(x)
 #define DDB(x)	x
 
