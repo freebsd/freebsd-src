@@ -35,6 +35,6 @@ run_rc_command "$1"
 # Remove X lock files, since they will prevent you from
 # restarting X
 #
-rm -f /tmp/.X*-lock
+rm -f /tmp/.X[0-9]-lock
 rm -fr /tmp/.X11-unix
 mkdir -m 1777 /tmp/.X11-unix
