@@ -58,7 +58,7 @@ static const char rcsid[] =
 #include <unistd.h>
 
 #define	NICHOST		"whois.crsnic.net"
-#define	INICHOST	"whois.internic.net"
+#define	INICHOST	"whois.networksolutions.com"
 #define	DNICHOST	"whois.nic.mil"
 #define	GNICHOST	"whois.nic.gov"
 #define	ANICHOST	"whois.arin.net"
