@@ -741,6 +741,8 @@ pci/isp_pci.c		optional isp
 pci/intpm.c		optional intpm
 pci/meteor.c		optional meteor pci
 pci/ncr.c		optional ncr
+dev/sym/sym_hipd.c	optional sym					\
+	dependency	"$S/dev/sym/sym_{conf,defs}.h"
 pci/pci.c		optional pci
 pci/pci_compat.c	optional pci
 pci/pcisupport.c	optional pci

@@ -79,6 +79,7 @@ device		atapist0	# ATAPI tape drives
 # A single entry for any of these controllers (ncr, ahb, ahc, amd) is
 # sufficient for any number of installed devices.
 controller	ncr0		# NCR/Symbios Logic
+#controller	sym0		# NCR/Symbios Logic (do not mix with ncr, it conflicts)
 controller	isp0		# Qlogic family
 controller	ahc0		# AHA2940 and onboard AIC7xxx devices
 #controller	esp0
