@@ -681,10 +681,8 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 	ip->i_number = ino;
 
 	error = vfs_hash_insert(vp, ino, flags, curthread, vpp);
-	if (error || *vpp != NULL) {
-		vput(vp);
+	if (error || *vpp != NULL)
 		return (error);
-	}
 
 	if (isodir == 0) {
 		int lbn, off;

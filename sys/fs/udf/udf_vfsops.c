@@ -604,10 +604,8 @@ udf_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 	vp->v_data = unode;
 
 	error = vfs_hash_insert(vp, ino, flags, curthread, vpp);
-	if (error || *vpp != NULL) {
-		vput(vp);
+	if (error || *vpp != NULL)
 		return (error);
-	}
 
 	/*
 	 * Copy in the file entry.  Per the spec, the size can only be 1 block.
