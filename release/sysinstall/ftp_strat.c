@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.7.2.35 1995/10/26 08:55:42 jkh Exp $
+ * $Id: ftp_strat.c,v 1.7.2.36 1995/11/03 12:02:30 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -184,10 +184,10 @@ retry:
     msgNotify("Logging in as %s..", login_name);
     if (FtpOpen(ftp, hostname, login_name, password) != 0) {
 	if (variable_get(VAR_NO_CONFIRM))
-	    msgNotify("Couldn't open FTP connection to %s\n", hostname);
+	    msgNotify("Couldn't open FTP connection to %s", hostname);
 	else {
 	    dialog_clear();
-	    msgConfirm("Couldn't open FTP connection to %s\n", hostname);
+	    msgConfirm("Couldn't open FTP connection to %s", hostname);
 	}
 	if (ftpShouldAbort(dev, ++retries) || !get_new_host(dev, FALSE))
 	    return FALSE;

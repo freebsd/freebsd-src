@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: nfs.c,v 1.5.2.12 1995/10/22 17:39:27 jkh Exp $
+ * $Id: nfs.c,v 1.5.2.14 1995/10/26 08:56:04 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -69,7 +69,7 @@ mediaInitNFS(Device *dev)
 		variable_get(VAR_SLOW_ETHER) ? "-r 1024 -w 1024" : "",
 		variable_get(VAR_NFS_SECURE) ? "-P" : "", dev->name)) {
 	dialog_clear();
-	msgConfirm("Error mounting %s on /dist: %s (%u)\n", dev->name, strerror(errno), errno);
+	msgConfirm("Error mounting %s on /dist: %s (%u)", dev->name, strerror(errno), errno);
 	netDevice->shutdown(netDevice);
 	return FALSE;
     }
@@ -104,10 +104,10 @@ mediaShutdownNFS(Device *dev)
 
     if (!NFSMounted)
 	return;
-    msgNotify("Unmounting NFS partition on /dist\n");
+    msgNotify("Unmounting NFS partition on /dist");
     if (unmount("/dist", MNT_FORCE) != 0) {
 	dialog_clear();
-	msgConfirm("Could not unmount the NFS partition: %s\n", strerror(errno));
+	msgConfirm("Could not unmount the NFS partition: %s", strerror(errno));
     }
     msgDebug("Unmount of NFS partition successful\n");
     /* (*netdev->shutdown)(netdev); */

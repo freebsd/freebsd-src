@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.64 1995/11/03 12:02:32 jkh Exp $
+ * $Id: install.c,v 1.71.2.65 1995/11/04 08:47:27 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -610,16 +610,18 @@ installFilesystems(char *str)
 	if (!upgrade) {
 	    dialog_clear();
 	    msgConfirm("Warning:  Root device is selected read-only.  It will be assumed\n"
-		       "that you have the appropriate device entries already in /dev.\n");
+		       "that you have the appropriate device entries already in /dev.");
 	}
 	msgNotify("Checking integrity of existing %s filesystem.", dname);
-	i = vsystem("fsck -y %s", dname);
+	i = vsystem("fsck -y /dev/%sa", dname);
 	if (i) {
 	    dialog_clear();
 	    msgConfirm("Warning: fsck returned status of %d for %s.\n"
 		       "This partition may be unsafe to use.", i, dname);
 	}
     }
+    /* Switch to block device */
+    sprintf(dname, "/dev/%sa", rootdev->disk->name);
     if (Mount("/mnt", dname)) {
 	dialog_clear();
 	msgConfirm("Unable to mount the root file system on %s!  Giving up.", dname);

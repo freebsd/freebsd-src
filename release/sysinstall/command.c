@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: command.c,v 1.11.4.1 1995/07/21 11:45:35 rgrimes Exp $
+ * $Id: command.c,v 1.11.4.2 1995/09/18 17:00:14 peter Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -125,15 +125,27 @@ command_func_add(char *key, commandFunc func, void *data)
 
 /* arg to sort */
 static int
-sort_compare(const void *p1, const void *p2)
+sort_compare(Command *p1, Command *p2)
 {
-    return strcmp(((Command *)p1)->key, ((Command *)p2)->key);
+    return strcmp(p1->key, p2->key);
 }
 
 void
 command_sort(void)
 {
-    qsort(commandStack, numCommands, sizeof(Command *), sort_compare);
+    int i, j;
+
+    /* Just do a crude bubble sort since the list is small */
+    for (i = 0; i < numCommands; i++) {
+	for (j = 0; j < numCommands; j++) {
+	    if (sort_compare(commandStack[j], commandStack[j + 1]) > 0) {
+		Command *tmp = commandStack[j];
+
+		commandStack[j] = commandStack[j + 1];
+		commandStack[j + 1] = tmp;
+	    }
+	}
+    }
 }
 
 /* Run all accumulated commands in sorted order */
