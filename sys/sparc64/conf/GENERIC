@@ -12,8 +12,12 @@
 # latest information.
 #
 # An exhaustive list of options and more detailed explanations of the
-# device lines is also present in the NOTES configuration file. If you are
-# in doubt as to the purpose or necessity of a line, check first in NOTES.
+# device lines is also present in the ../../i386/conf/NOTES file. 
+# If you are in doubt as to the purpose or necessity of a line, check first 
+# in NOTES. Please note that this is the i386 NOTES, but it still contains
+# valuable info for sparc64 too.
+#
+# For hardware specific information check HARDWARE.TXT
 #
 # $FreeBSD$
 
@@ -29,10 +33,13 @@ makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 
 options 	FFS			#Berkeley Fast Filesystem
 options 	MD_ROOT			#MD is a potential root device
-options		MD_ROOT_SIZE=64
+options 	MD_ROOT_SIZE=64
 
 # Debugging for use in -current
-options		DDB
+options 	DDB
 
 # Pseudo devices - the number indicates how many units to allocate.
 device		md
+
+# Tempary things until things are farther along.
+makeoptions	NO_MODULES=does_not_compile_yet
