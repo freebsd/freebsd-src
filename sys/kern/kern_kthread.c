@@ -122,7 +122,7 @@ kthread_exit(int ecode)
  * Participation is voluntary.
  */
 int
-suspend_kproc(struct proc *p, int timo)
+kthread_suspend(struct proc *p, int timo)
 {
 	/*
 	 * Make sure this is indeed a system process and we can safely
@@ -131,11 +131,11 @@ suspend_kproc(struct proc *p, int timo)
 	if ((p->p_flag & P_SYSTEM) == 0)
 		return (EINVAL);
 	SIGADDSET(p->p_siglist, SIGSTOP);
-	return tsleep((caddr_t)&p->p_siglist, PPAUSE, "suspkp", timo);
+	return tsleep((caddr_t)&p->p_siglist, PPAUSE, "suspkt", timo);
 }
 
 int
-resume_kproc(struct proc *p)
+kthread_resume(struct proc *p)
 {
 	/*
 	 * Make sure this is indeed a system process and we can safely
@@ -149,10 +149,10 @@ resume_kproc(struct proc *p)
 }
 
 void
-kproc_suspend_loop(struct proc *p)
+kthread_suspend_check(struct proc *p)
 {
 	while (SIGISMEMBER(p->p_siglist, SIGSTOP)) {
 		wakeup((caddr_t)&p->p_siglist);
-		tsleep((caddr_t)&p->p_siglist, PPAUSE, "kpsusp", 0);
+		tsleep((caddr_t)&p->p_siglist, PPAUSE, "ktsusp", 0);
 	}
 }
