@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.41 1996/05/18 03:37:01 dyson Exp $
+ *	$Id: kern_exec.c,v 1.42 1996/06/03 04:07:35 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -123,7 +123,7 @@ execve(p, uap, retval)
 	 * Allocate temporary demand zeroed space for argument and
 	 *	environment strings
 	 */
-	imgp->stringbase = (char *)kmem_alloc_pageable(exec_map, ARG_MAX);
+	imgp->stringbase = (char *)kmem_alloc_wait(exec_map, ARG_MAX);
 	if (imgp->stringbase == NULL) {
 		error = ENOMEM;
 		goto exec_fail;
@@ -143,7 +143,7 @@ interpret:
 
 	error = namei(ndp);
 	if (error) {
-		kmem_free(exec_map, (vm_offset_t)imgp->stringbase, ARG_MAX);
+		kmem_free_wakeup(exec_map, (vm_offset_t)imgp->stringbase, ARG_MAX);
 		goto exec_fail;
 	}
 
@@ -318,7 +318,7 @@ interpret:
 	/*
 	 * free various allocated resources
 	 */
-	kmem_free(exec_map, (vm_offset_t)imgp->stringbase, ARG_MAX);
+	kmem_free_wakeup(exec_map, (vm_offset_t)imgp->stringbase, ARG_MAX);
 	if (vm_map_remove(exech_map, (vm_offset_t)imgp->image_header,
 	    (vm_offset_t)imgp->image_header + PAGE_SIZE))
 		panic("execve: header dealloc failed (2)");
@@ -329,7 +329,7 @@ interpret:
 
 exec_fail_dealloc:
 	if (imgp->stringbase != NULL)
-		kmem_free(exec_map, (vm_offset_t)imgp->stringbase, ARG_MAX);
+		kmem_free_wakeup(exec_map, (vm_offset_t)imgp->stringbase, ARG_MAX);
 	if (imgp->image_header && imgp->image_header != (char *)-1)
 		if (vm_map_remove(exech_map, (vm_offset_t)imgp->image_header,
 		    (vm_offset_t)imgp->image_header + PAGE_SIZE))
