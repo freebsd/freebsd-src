@@ -1,8 +1,8 @@
 <!--
   The FreeBSD German Documentation Project
   The FreeBSD Documentation Project
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/readme/article.sgml,v 1.5 2002/03/17 14:55:09 ue Exp $
-  basiert auf: 1.15
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/readme/article.sgml,v 1.7 2002/04/01 12:31:55 ue Exp $
+  basiert auf: 1.17
 -->
 
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -65,9 +65,9 @@
 
       <para>&os; ist ein auf 4.4 BSD Lite basierendes Betriebssystem
         f&uuml;r Intel, AMD, Cyrix oder NexGen
-        <quote>x86</quote>-basierte PCs und Compaq (ehemals DEC) Alpha
-        Systeme.  Versionen f&uuml;r die Plattformen IA64, PowerPC,
-        und Sparc64 sind ebenfalls in der Entwicklung.  &os;
+        <quote>x86</quote>-basierte PCs, Compaq (ehemals DEC) Alpha
+        und UltraSPARC Systeme.  Versionen f&uuml;r die Plattformen IA64 und PowerPC
+        sind ebenfalls in der Entwicklung.  &os;
         unterst&uuml;tzt viele verschiedene Ger&auml;te und Umgebungen
         und f&uuml;r alle Anwendungen von der Software-Enwicklung bis
         zur Anbietung von Diensten im Internet genutzt werden.</para>
@@ -110,19 +110,19 @@
         funktioniert wie versprochen, aber &release.branch; ist nun
         einmal der Entwicklungszweig.</para>
 
-      <para>Wenn Sie einen &release.type; benutzen wollen,
-        m&uuml;ssen Sie sich mit der Technik von &os; und den
-        aktuellen Vorg&auml;ngen bei der Entwicklung von &os;
-        &release.branch; (wie sie in der Mailingliste &a.current; diskutiert werden)
-        auskennen.</para>
+      <para>Wenn Sie einen &release.type; benutzen wollen, m&uuml;ssen
+	Sie sich mit der Technik von &os; und den aktuellen
+	Vorg&auml;ngen bei der Entwicklung von &os;  &release.branch;
+	(wie sie in der Mailingliste &a.current; diskutiert werden)
+	auskennen.</para>
 
-      <para>[Anmerkung des &Uuml;bersetzers:  Auf der Mailingliste &a.current; wird
-        Englisch gesprochen und die meisten Dokumente sind ebenfalls
-        in dieser Sprache verfa&szlig;t worden.  Ohne gute
-        Englischkenntnisse kommt man also nicht weit.  Allerdings
+      <para>[Anmerkung des &Uuml;bersetzers:  Auf der Mailingliste
+	&a.current; wird Englisch gesprochen und die meisten Dokumente
+	sind ebenfalls in dieser Sprache verfa&szlig;t worden.  Ohne
+	gute Englischkenntnisse kommt man also nicht weit.  Allerdings
 	ist die Beteiligung an der Entwicklung der FreeBSD eine der
-	interessanteren Varianten, die eigenen Englisch-Kenntnisse
-	zu erweitern.]</para>
+	interessanteren Varianten, die eigenen Englisch-Kenntnisse zu
+	erweitern.]</para>
 
       <para>Wenn Sie mehr an einem st&ouml;rungsfreien Betrieb von
         &os; als an den neuesten Features von &os; interessiert sind,
@@ -370,11 +370,13 @@
           geh&ouml;rt, steht immer am Anfang des Textes.</para>
       </note>
 
-      <para>Diese Dokumente finden Sie w&auml;hrend der Installation
-        normalerweise unter dem Men&uuml;punkt Dokumentation.  Um nach
-        der Installation des Systems dieses Men&uuml;  zugreifen zu
-        k&ouml;nnen, m&uuml;ssen Sie das Programm &man.sysinstall.8;
-        aufrufen.</para>
+      <para>Auf den Plattformen, auf denen &man.sysinstall.8; zur
+	Verf&uuml;gung steht (zur Zeit i386 und alpha) finden Sie
+	diese Dokumente w&auml;hrend der Installation normalerweise
+	unter dem Men&uuml;punkt Dokumentation.  Um nach der
+	Installation des Systems dieses Men&uuml;  zugreifen zu
+	k&ouml;nnen, m&uuml;ssen Sie das Programm &man.sysinstall.8;
+	erneut aufrufen.</para>
 
       <note>
         <para>Sie sollten auf jeden Fall die Errata zur jeweiligen
