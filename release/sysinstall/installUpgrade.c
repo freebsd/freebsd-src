@@ -231,12 +231,14 @@ installUpgrade(char *str)
     if (diskLabelCommit(NULL) == RET_FAIL) {
 	msgConfirm("Not all file systems were properly mounted.  Upgrade operation\n"
 		   "aborted.");
+	variable_unset(DISK_PARTITIONED);
 	return RET_FAIL;
     }
 
     if (chroot("/mnt") == RET_FAIL) {
 	msgConfirm("Unable to chroot to /mnt - something is wrong with the\n"
 		   "root partition or the way it's mounted if this doesn't work.");
+	variable_unset(DISK_PARTITIONED);
 	return RET_FAIL;
     }
     chdir("/");
@@ -253,11 +255,8 @@ installUpgrade(char *str)
 
 	if (saved_etc) {
 	    msgNotify("Preserving /etc directory..");
-	    if (vsystem("cp -pr /etc/* %s", saved_etc)) {
-		msgConfirm("Unable to back up /etc directory to %s!  Upgrade operation\n"
-			   "aborted.", saved_etc);
-		return RET_FAIL;
-	    }
+	    /* cp returns a bogus status, so we can't check the status meaningfully.  Bleah. */
+	    (void)vsystem("cp -pr /etc/* %s", saved_etc)) {
 	}
 
 	if (file_readable("/kernel")) {
