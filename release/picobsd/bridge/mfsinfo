@@ -1,0 +1,17 @@
+# Information about mfs parameters
+# Size of mfs in kilobytes
+MFS_SIZE	=	2400
+
+# Name of init program
+INIT		=	init
+
+# Number of bytes per inode in mfs
+MFS_INODES	=	4096
+
+# Number of bytes per inode in floppy image
+FLOPPY_INODES	=	32768
+
+# Suffix to tack on somewhere
+suffix		=	-bridge
+
+PASSWD		=	YES
