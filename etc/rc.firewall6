@@ -1,3 +1,4 @@
+#!/bin/sh -
 ############
 # Setup system for IPv6 firewall service.
 # $FreeBSD$
