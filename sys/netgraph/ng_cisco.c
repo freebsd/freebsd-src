@@ -471,7 +471,7 @@ cisco_input(sc_p sc, item_p item)
 			switch (ntohl(p->type)) {
 			default:
 				log(LOG_WARNING,
-				    "cisco: unknown cisco packet type: 0x%x\n",
+				    "cisco: unknown cisco packet type: 0x%lx\n",
 				       ntohl(p->type));
 				break;
 			case CISCO_ADDR_REPLY:
