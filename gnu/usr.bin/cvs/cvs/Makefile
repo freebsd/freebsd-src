@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.20 1998/01/26 04:21:52 peter Exp $
+#	$Id: Makefile,v 1.21 1998/03/10 14:00:59 peter Exp $
 
 .include "${.CURDIR}/../Makefile.inc"
 
@@ -35,5 +35,26 @@ DISTRIBUTION=	krb
 # feature anyway, the -x switch is needed to activate it.
 CFLAGS+= -DENCRYPTION
 .endif
+
+#
+# Regression test support
+#
+CLEANDIRS+=cvs-sanity
+USERID!=id -u
+regress:
+	mkdir -p ${.OBJDIR}/cvs-sanity/tmp ${.OBJDIR}/cvs-sanity/work
+.if ${USERID} == "0"
+	chown -R nobody ${.OBJDIR}/cvs-sanity
+	(TESTDIR=`sh -c 'cd ${.OBJDIR}/cvs-sanity/tmp && /bin/pwd'`;\
+	        export TESTDIR;\
+		cd ${.OBJDIR}/cvs-sanity/work;\
+		su -m nobody -c "sh ${CVSDIR}/src/sanity.sh ${.OBJDIR}/cvs")
+.else
+	(TESTDIR=`sh -c 'cd ${.OBJDIR}/cvs-sanity/tmp && /bin/pwd'`;\
+		export TESTDIR;\
+		cd ${.OBJDIR}/cvs-sanity/work;\
+		sh ${CVSDIR}/src/sanity.sh ${.OBJDIR}/cvs)
+.endif
+
 
 .include <bsd.prog.mk>
