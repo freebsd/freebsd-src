@@ -725,6 +725,12 @@ readrest:
 			vput(fs.vp);
 			fs.vp = NULL;
 		}
+		
+		if (fs.map->infork) {
+			release_page(&fs);
+			unlock_and_deallocate(&fs);
+			goto RetryFault;
+		}
 
 		/*
 		 * To avoid trying to write_lock the map while another process
