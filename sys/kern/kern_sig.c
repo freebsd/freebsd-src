@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id: kern_sig.c,v 1.30 1997/02/22 09:39:11 peter Exp $
+ * $Id: kern_sig.c,v 1.31 1997/03/23 03:36:21 bde Exp $
  */
 
 #include "opt_ktrace.h"
@@ -64,16 +64,18 @@
 
 #include <machine/cpu.h>
 
+/* All these for coredump() only. */
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_prot.h>
 #include <sys/lock.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
-#include <sys/user.h>		/* for coredump */
+#include <sys/user.h>
 
 static int coredump     __P((struct proc *p));
 static int killpg1	__P((struct proc *cp, int signum, int pgid, int all));
+static void setsigvec	__P((struct proc *p, int signum, struct sigaction *sa));
 static void stop	__P((struct proc *));
 
 /*
@@ -142,7 +144,7 @@ sigaction(p, uap, retval)
 	return (0);
 }
 
-void
+static void
 setsigvec(p, signum, sa)
 	register struct proc *p;
 	int signum;
