@@ -431,6 +431,8 @@ dosetrlimit(p, which, limp)
 	register struct rlimit *alimp;
 	int error;
 
+	GIANT_REQUIRED;
+
 	if (which >= RLIM_NLIMITS)
 		return (EINVAL);
 	alimp = &p->p_rlimit[which];
@@ -498,10 +500,8 @@ dosetrlimit(p, which, limp)
 			}
 			addr = trunc_page(addr);
 			size = round_page(size);
-			mtx_lock(&vm_mtx);
 			(void) vm_map_protect(&p->p_vmspace->vm_map,
 					      addr, addr+size, prot, FALSE);
-			mtx_unlock(&vm_mtx);
 		}
 		break;
 

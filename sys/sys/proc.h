@@ -276,6 +276,7 @@ struct	proc {
 	struct	pasleep p_asleep;	/* (k) Used by asleep()/await(). */
 	void	*p_emuldata;	/* (c) Emulator state data. */
 	struct trapframe *p_frame; /* (k) */
+	int	p_giant_optional;	/* (i) Giant Lock Sanity */
 };
 
 #define	p_session	p_pgrp->pg_session

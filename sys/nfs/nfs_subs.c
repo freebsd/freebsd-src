@@ -2138,9 +2138,9 @@ nfs_clearcommit(mp)
 	register struct buf *bp, *nbp;
 	int s;
 
+	GIANT_REQUIRED;
+
 	s = splbio();
-	mtx_assert(&Giant, MA_OWNED);
-	mtx_assert(&vm_mtx, MA_NOTOWNED);
 	mtx_lock(&mntvnode_mtx);
 loop:
 	for (vp = LIST_FIRST(&mp->mnt_vnodelist); vp; vp = nvp) {

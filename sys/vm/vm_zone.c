@@ -19,6 +19,7 @@
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/proc.h>
 #include <sys/mutex.h>
 #include <sys/queue.h>
 #include <sys/sysctl.h>
@@ -119,6 +120,8 @@ zinitna(vm_zone_t z, vm_object_t obj, char *name, int size,
 {
 	int totsize, oldzflags;
 
+	GIANT_REQUIRED;
+
 	oldzflags = z->zflags;
 	if ((z->zflags & ZONE_BOOT) == 0) {
 		z->zsize = (size + ZONE_ROUNDING - 1) & ~(ZONE_ROUNDING - 1);
@@ -137,8 +140,6 @@ zinitna(vm_zone_t z, vm_object_t obj, char *name, int size,
 	 * in pages as needed.
 	 */
 	if (z->zflags & ZONE_INTERRUPT) {
-		int hadvmlock;
-
 		totsize = round_page(z->zsize * nentries);
 		atomic_add_int(&zone_kmem_kvaspace, totsize);
 		z->zkva = kmem_alloc_pageable(kernel_map, totsize);
@@ -146,17 +147,12 @@ zinitna(vm_zone_t z, vm_object_t obj, char *name, int size,
 			return 0;
 
 		z->zpagemax = totsize / PAGE_SIZE;
-		hadvmlock = mtx_owned(&vm_mtx);
-		if (!hadvmlock)
-			mtx_lock(&vm_mtx);
 		if (obj == NULL) {
 			z->zobj = vm_object_allocate(OBJT_DEFAULT, z->zpagemax);
 		} else {
 			z->zobj = obj;
 			_vm_object_allocate(OBJT_DEFAULT, z->zpagemax, obj);
 		}
-		if (!hadvmlock)
-			mtx_unlock(&vm_mtx);
 		z->zallocflag = VM_ALLOC_INTERRUPT;
 		z->zmax += nentries;
 	} else {
@@ -364,12 +360,8 @@ void *
 zalloc(vm_zone_t z)
 {
 	void *item;
-	int hadvmlock;
 
 	KASSERT(z != NULL, ("invalid zone"));
-	hadvmlock = mtx_owned(&vm_mtx);
-	if (!hadvmlock)
-		mtx_lock(&vm_mtx);
 	mtx_lock(&z->zmtx);
 	
 	if (z->zfreecnt <= z->zfreemin) {
@@ -390,8 +382,6 @@ zalloc(vm_zone_t z)
 
 out:	
 	mtx_unlock(&z->zmtx);
-	if (!hadvmlock)
-		mtx_unlock(&vm_mtx);
 	return item;
 }
 
@@ -401,13 +391,8 @@ out:
 void
 zfree(vm_zone_t z, void *item)
 {
-	int hadvmlock;
-
 	KASSERT(z != NULL, ("invalid zone"));
 	KASSERT(item != NULL, ("invalid item"));
-	hadvmlock = mtx_owned(&vm_mtx);
-	if (!hadvmlock)
-		mtx_lock(&vm_mtx);
 	mtx_lock(&z->zmtx);
 	
 	((void **) item)[0] = z->zitems;
@@ -419,8 +404,6 @@ zfree(vm_zone_t z, void *item)
 	z->zitems = item;
 	z->zfreecnt++;
 
-	if (!hadvmlock)
-		mtx_unlock(&vm_mtx);
 	mtx_unlock(&z->zmtx);
 }
 

@@ -147,7 +147,8 @@ _vm_object_allocate(type, size, object)
 {
 	int incr;
 
-	mtx_assert(&vm_mtx, MA_OWNED);
+	GIANT_REQUIRED;
+
 	TAILQ_INIT(&object->memq);
 	TAILQ_INIT(&object->shadow_head);
 
@@ -192,8 +193,8 @@ _vm_object_allocate(type, size, object)
 void
 vm_object_init()
 {
+	GIANT_REQUIRED;
 
-	mtx_assert(&vm_mtx, MA_OWNED);
 	TAILQ_INIT(&vm_object_list);
 	mtx_init(&vm_object_list_mtx, "vm object_list", MTX_DEF);
 	vm_object_count = 0;
@@ -230,7 +231,8 @@ vm_object_allocate(type, size)
 {
 	vm_object_t result;
 
-	mtx_assert(&vm_mtx, MA_OWNED);
+	GIANT_REQUIRED;
+
 	result = (vm_object_t) zalloc(obj_zone);
 	_vm_object_allocate(type, size, result);
 
@@ -247,8 +249,8 @@ void
 vm_object_reference(object)
 	vm_object_t object;
 {
+	GIANT_REQUIRED;
 
-	mtx_assert(VM_OBJECT_MTX(object), MA_OWNED);
 	if (object == NULL)
 		return;
 
@@ -257,20 +259,14 @@ vm_object_reference(object)
 
 	object->ref_count++;
 	if (object->type == OBJT_VNODE) {
-		mtx_unlock(VM_OBJECT_MTX(object));
-		mtx_assert(&Giant, MA_OWNED);
 		while (vget((struct vnode *) object->handle, LK_RETRY|LK_NOOBJ, curproc)) {
 			printf("vm_object_reference: delay in getting object\n");
 		}
-		mtx_lock(VM_OBJECT_MTX(object));
 	}
 }
 
 /*
  * handle deallocating a object of type OBJT_VNODE
- *
- * requires vm_mtx
- * may block
  */
 void
 vm_object_vndeallocate(object)
@@ -278,7 +274,7 @@ vm_object_vndeallocate(object)
 {
 	struct vnode *vp = (struct vnode *) object->handle;
 
-	mtx_assert(VM_OBJECT_MTX(object), MA_OWNED);
+	GIANT_REQUIRED;
 	KASSERT(object->type == OBJT_VNODE,
 	    ("vm_object_vndeallocate: not a vnode object"));
 	KASSERT(vp != NULL, ("vm_object_vndeallocate: missing vp"));
@@ -297,10 +293,7 @@ vm_object_vndeallocate(object)
 	/*
 	 * vrele may need a vop lock
 	 */
-	mtx_unlock(VM_OBJECT_MTX(object));
-	mtx_assert(&Giant, MA_OWNED);
 	vrele(vp);
-	mtx_lock(VM_OBJECT_MTX(object));
 }
 
 /*
@@ -313,7 +306,6 @@ vm_object_vndeallocate(object)
  *	may be relinquished.
  *
  *	No object may be locked.
- *	vm_mtx must be held
  */
 void
 vm_object_deallocate(object)
@@ -321,7 +313,8 @@ vm_object_deallocate(object)
 {
 	vm_object_t temp;
 
-	mtx_assert(VM_OBJECT_MTX(object), MA_OWNED);
+	GIANT_REQUIRED;
+
 	while (object != NULL) {
 
 		if (object->type == OBJT_VNODE) {
@@ -355,9 +348,6 @@ vm_object_deallocate(object)
 				    ("vm_object_deallocate: ref_count: %d, shadow_count: %d",
 					 object->ref_count,
 					 object->shadow_count));
-#ifdef objlocks
-				mtx_lock(VM_OBJECT_MTX(robject));
-#endif
 				if ((robject->handle == NULL) &&
 				    (robject->type == OBJT_DEFAULT ||
 				     robject->type == OBJT_SWAP)) {
@@ -368,32 +358,16 @@ vm_object_deallocate(object)
 						robject->paging_in_progress ||
 						object->paging_in_progress
 					) {
-#ifdef objlocks
-						mtx_unlock(VM_OBJECT_MTX(object));
-#endif
 						vm_object_pip_sleep(robject, "objde1");
-#ifdef objlocks
-						mtx_unlock(VM_OBJECT_MTX(robject));
-						mtx_lock(VM_OBJECT_MTX(object));
-#endif
 						vm_object_pip_sleep(object, "objde2");
-#ifdef objlocks
-						mtx_lock(VM_OBJECT_MTX(robject));
-#endif
 					}
 
 					if (robject->ref_count == 1) {
 						robject->ref_count--;
-#ifdef objlocks
-						mtx_unlock(VM_OBJECT_MTX(object));
-#endif
 						object = robject;
 						goto doterm;
 					}
 
-#ifdef objlocks
-					mtx_unlock(VM_OBJECT_MTX(object));
-#endif
 					object = robject;
 					vm_object_collapse(object);
 					continue;
@@ -435,8 +409,8 @@ vm_object_terminate(object)
 	vm_page_t p;
 	int s;
 
-	mtx_assert(&Giant, MA_OWNED);
-	mtx_assert(VM_OBJECT_MTX(object), MA_OWNED);
+	GIANT_REQUIRED;
+
 	/*
 	 * Make sure no one uses us.
 	 */
@@ -468,9 +442,7 @@ vm_object_terminate(object)
 		vm_object_page_clean(object, 0, 0, OBJPC_SYNC);
 
 		vp = (struct vnode *) object->handle;
-		mtx_unlock(VM_OBJECT_MTX(object));
 		vinvalbuf(vp, V_SAVE, NOCRED, NULL, 0, 0);
-		mtx_lock(VM_OBJECT_MTX(object));
 	}
 
 	KASSERT(object->ref_count == 0, 
@@ -555,7 +527,8 @@ vm_object_page_clean(object, start, end, flags)
 	vm_page_t ma[vm_pageout_page_count];
 	int curgeneration;
 
-	mtx_assert(VM_OBJECT_MTX(object), MA_OWNED);
+	GIANT_REQUIRED;
+
 	if (object->type != OBJT_VNODE ||
 		(object->flags & OBJ_MIGHTBEDIRTY) == 0)
 		return;
@@ -763,7 +736,8 @@ vm_object_pmap_copy_1(object, start, end)
 	vm_pindex_t idx;
 	vm_page_t p;
 
-	mtx_assert(&vm_mtx, MA_OWNED);
+	GIANT_REQUIRED;
+
 	if (object == NULL || (object->flags & OBJ_WRITEABLE) == 0)
 		return;
 
@@ -791,7 +765,7 @@ vm_object_pmap_remove(object, start, end)
 {
 	vm_page_t p;
 
-	mtx_assert(&vm_mtx, MA_OWNED);
+	GIANT_REQUIRED;
 	if (object == NULL)
 		return;
 	TAILQ_FOREACH(p, &object->memq, listq) {
@@ -834,7 +808,7 @@ vm_object_madvise(object, pindex, count, advise)
 	vm_object_t tobject;
 	vm_page_t m;
 
-	mtx_assert(&vm_mtx, MA_OWNED);
+	GIANT_REQUIRED;
 	if (object == NULL)
 		return;
 
@@ -948,7 +922,7 @@ vm_object_shadow(object, offset, length)
 	vm_object_t source;
 	vm_object_t result;
 
-	mtx_assert(&vm_mtx, MA_OWNED);
+	GIANT_REQUIRED;
 	source = *object;
 
 	/*
@@ -1015,7 +989,7 @@ vm_object_backing_scan(vm_object_t object, int op)
 	vm_pindex_t backing_offset_index;
 
 	s = splvm();
-	mtx_assert(&vm_mtx, MA_OWNED);
+	GIANT_REQUIRED;
 
 	backing_object = object->backing_object;
 	backing_offset_index = OFF_TO_IDX(object->backing_object_offset);
@@ -1229,8 +1203,7 @@ void
 vm_object_collapse(object)
 	vm_object_t object;
 {
-
-	mtx_assert(&vm_mtx, MA_OWNED);
+	GIANT_REQUIRED;
 	
 	while (TRUE) {
 		vm_object_t backing_object;
@@ -1443,7 +1416,7 @@ vm_object_page_remove(object, start, end, clean_only)
 	unsigned int size;
 	int all;
 
-	mtx_assert(&vm_mtx, MA_OWNED);
+	GIANT_REQUIRED;
 	
 	if (object == NULL ||
 	    object->resident_page_count == 0)
@@ -1561,7 +1534,7 @@ vm_object_coalesce(prev_object, prev_pindex, prev_size, next_size)
 {
 	vm_pindex_t next_pindex;
 
-	mtx_assert(&vm_mtx, MA_OWNED);
+	GIANT_REQUIRED;
 
 	if (prev_object == NULL) {
 		return (TRUE);

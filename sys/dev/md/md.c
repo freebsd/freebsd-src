@@ -692,6 +692,8 @@ mddestroy(struct md_s *sc, struct md_ioctl *mdio, struct proc *p)
 {
 	unsigned u;
 
+	GIANT_REQUIRED;
+
 	if (sc->dev != NULL) {
 		devstat_remove_entry(&sc->stats);
 		disk_destroy(sc->dev);
@@ -701,9 +703,7 @@ mddestroy(struct md_s *sc, struct md_ioctl *mdio, struct proc *p)
 	if (sc->cred != NULL)
 		crfree(sc->cred);
 	if (sc->object != NULL) {
-		mtx_lock(&vm_mtx);
 		vm_pager_deallocate(sc->object);
-		mtx_unlock(&vm_mtx);
 	}
 	if (sc->secp != NULL) {
 		for (u = 0; u < sc->nsect; u++) 
@@ -724,6 +724,8 @@ mdcreate_swap(struct md_ioctl *mdio, struct proc *p)
 {
 	int error;
 	struct md_s *sc;
+
+	GIANT_REQUIRED;
 
 	if (mdio->md_options & MD_AUTOUNIT) {
 		sc = mdnew(-1);
@@ -757,18 +759,15 @@ mdcreate_swap(struct md_ioctl *mdio, struct proc *p)
 
 	sc->secsize = PAGE_SIZE;
 	sc->nsect = mdio->md_size / (PAGE_SIZE / DEV_BSIZE);
-	mtx_lock(&vm_mtx);
 	sc->object = vm_pager_allocate(OBJT_SWAP, NULL, sc->secsize * (vm_offset_t)sc->nsect, VM_PROT_DEFAULT, 0);
 	if (mdio->md_options & MD_RESERVE) {
 		if (swap_pager_reserve(sc->object, 0, sc->nsect) < 0) {
 			vm_pager_deallocate(sc->object);
-			mtx_unlock(&vm_mtx);
 			sc->object = NULL;
 			mddestroy(sc, mdio, p);
 			return(EDOM);
 		}
 	}
-	mtx_unlock(&vm_mtx);
 	error = mdsetcred(sc, p->p_ucred);
 	if (error)
 		mddestroy(sc, mdio, p);

@@ -145,6 +145,8 @@ useracc(addr, len, rw)
 	vm_map_t map;
 	vm_map_entry_t save_hint;
 
+	GIANT_REQUIRED;
+
 	KASSERT((rw & (~VM_PROT_ALL)) == 0,
 	    ("illegal ``rw'' argument to useracc (%x)\n", rw));
 	prot = rw;
@@ -161,7 +163,6 @@ useracc(addr, len, rw)
 	    || (vm_offset_t) addr + len < (vm_offset_t) addr) {
 		return (FALSE);
 	}
-	mtx_lock(&vm_mtx);
 	map = &curproc->p_vmspace->vm_map;
 	vm_map_lock_read(map);
 	/*
@@ -173,7 +174,6 @@ useracc(addr, len, rw)
 	    trunc_page((vm_offset_t)addr), round_page((vm_offset_t)addr + len), prot);
 	map->hint = save_hint;
 	vm_map_unlock_read(map);
-	mtx_unlock(&vm_mtx);
 	
 	return (rv == TRUE);
 }
@@ -183,12 +183,10 @@ vslock(addr, len)
 	caddr_t addr;
 	u_int len;
 {
-
-	mtx_lock(&vm_mtx);
+	GIANT_REQUIRED;
 	vm_map_pageable(&curproc->p_vmspace->vm_map,
 	    trunc_page((vm_offset_t)addr),
 	    round_page((vm_offset_t)addr + len), FALSE);
-	mtx_unlock(&vm_mtx);
 }
 
 void
@@ -196,12 +194,10 @@ vsunlock(addr, len)
 	caddr_t addr;
 	u_int len;
 {
-
-	mtx_lock(&vm_mtx);
+	GIANT_REQUIRED;
 	vm_map_pageable(&curproc->p_vmspace->vm_map,
 	    trunc_page((vm_offset_t)addr),
 	    round_page((vm_offset_t)addr + len), TRUE);
-	mtx_unlock(&vm_mtx);
 }
 
 /*
@@ -211,8 +207,6 @@ vsunlock(addr, len)
  * machine-dependent layer to fill those in and make the new process
  * ready to run.  The new process is set up so that it returns directly
  * to user mode to avoid stack copying and relocation problems.
- *
- * Called without vm_mtx.
  */
 void
 vm_fork(p1, p2, flags)
@@ -221,7 +215,8 @@ vm_fork(p1, p2, flags)
 {
 	register struct user *up;
 
-	mtx_lock(&vm_mtx);
+	GIANT_REQUIRED;
+
 	if ((flags & RFPROC) == 0) {
 		/*
 		 * Divorce the memory, if it is shared, essentially
@@ -234,7 +229,6 @@ vm_fork(p1, p2, flags)
 			}
 		}
 		cpu_fork(p1, p2, flags);
-		mtx_unlock(&vm_mtx);
 		return;
 	}
 
@@ -289,7 +283,6 @@ vm_fork(p1, p2, flags)
 	 * and make the child ready to run.
 	 */
 	cpu_fork(p1, p2, flags);
-	mtx_unlock(&vm_mtx);
 }
 
 /*
@@ -329,18 +322,16 @@ void
 faultin(p)
 	struct proc *p;
 {
+	GIANT_REQUIRED;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	mtx_lock_spin(&sched_lock);
 	if ((p->p_sflag & PS_INMEM) == 0) {
-
 		++p->p_lock;
 		mtx_unlock_spin(&sched_lock);
 		PROC_UNLOCK(p);
 
-		mtx_lock(&vm_mtx);
 		pmap_swapin_proc(p);
-		mtx_unlock(&vm_mtx);
 
 		PROC_LOCK(p);
 		mtx_lock_spin(&sched_lock);
@@ -374,15 +365,13 @@ scheduler(dummy)
 	int ppri;
 
 	mtx_assert(&Giant, MA_OWNED | MA_NOTRECURSED);
+	/* GIANT_REQUIRED */
 
 loop:
-	mtx_lock(&vm_mtx);
 	if (vm_page_count_min()) {
 		VM_WAIT;
-		mtx_unlock(&vm_mtx);
 		goto loop;
 	}
-	mtx_unlock(&vm_mtx);
 
 	pp = NULL;
 	ppri = INT_MIN;
@@ -458,9 +447,6 @@ SYSCTL_INT(_vm, OID_AUTO, swap_idle_threshold2,
  * If any procs have been sleeping/stopped for at least maxslp seconds,
  * they are swapped.  Else, we swap the longest-sleeping or stopped process,
  * if any, otherwise the longest-resident process.
- *
- * Can block
- * must be called with vm_mtx
  */
 void
 swapout_procs(action)
@@ -471,8 +457,8 @@ int action;
 	int outpri, outpri2;
 	int didswap = 0;
 
-	mtx_assert(&vm_mtx, MA_OWNED);
-	mtx_unlock(&vm_mtx);
+	GIANT_REQUIRED;
+
 	outp = outp2 = NULL;
 	outpri = outpri2 = INT_MIN;
 retry:
@@ -480,12 +466,10 @@ retry:
 	LIST_FOREACH(p, &allproc, p_list) {
 		struct vmspace *vm;
 		
-		mtx_lock(&vm_mtx);
 		PROC_LOCK(p);
 		if (p->p_lock != 0 ||
 		    (p->p_flag & (P_TRACED|P_SYSTEM|P_WEXIT)) != 0) {
 			PROC_UNLOCK(p);
-			mtx_unlock(&vm_mtx);
 			continue;
 		}
 		/*
@@ -498,7 +482,6 @@ retry:
 		if ((p->p_sflag & (PS_INMEM|PS_SWAPPING)) != PS_INMEM) {
 			mtx_unlock_spin(&sched_lock);
 			PROC_UNLOCK(p);
-			mtx_unlock(&vm_mtx);
 			continue;
 		}
 
@@ -506,7 +489,6 @@ retry:
 		default:
 			mtx_unlock_spin(&sched_lock);
 			PROC_UNLOCK(p);
-			mtx_unlock(&vm_mtx);
 			continue;
 
 		case SSLEEP:
@@ -517,7 +499,6 @@ retry:
 			if (PRI_IS_REALTIME(p->p_pri.pri_class)) {
 				mtx_unlock_spin(&sched_lock);
 				PROC_UNLOCK(p);
-				mtx_unlock(&vm_mtx);
 				continue;
 			}
 
@@ -530,7 +511,6 @@ retry:
 				(p->p_slptime < swap_idle_threshold1)) {
 				mtx_unlock_spin(&sched_lock);
 				PROC_UNLOCK(p);
-				mtx_unlock(&vm_mtx);
 				continue;
 			}
 
@@ -544,7 +524,6 @@ retry:
 				  (p->p_slptime < swap_idle_threshold2))) {
 				mtx_unlock_spin(&sched_lock);
 				PROC_UNLOCK(p);
-				mtx_unlock(&vm_mtx);
 				continue;
 			}
 			mtx_unlock_spin(&sched_lock);
@@ -559,7 +538,6 @@ retry:
 					NULL, curproc)) {
 				vmspace_free(vm);
 				PROC_UNLOCK(p);
-				mtx_unlock(&vm_mtx);
 				continue;
 			}
 			vm_map_unlock(&vm->vm_map);
@@ -574,12 +552,10 @@ retry:
 				swapout(p);
 				vmspace_free(vm);
 				didswap++;
-				mtx_unlock(&vm_mtx);
 				goto retry;
 			}
 			PROC_UNLOCK(p);
 			vmspace_free(vm);
-			mtx_unlock(&vm_mtx);
 		}
 	}
 	sx_sunlock(&allproc_lock);
@@ -587,7 +563,6 @@ retry:
 	 * If we swapped something out, and another process needed memory,
 	 * then wakeup the sched process.
 	 */
-	mtx_lock(&vm_mtx);
 	if (didswap)
 		wakeup(&proc0);
 }

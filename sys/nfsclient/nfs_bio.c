@@ -111,6 +111,8 @@ nfs_getpages(ap)
 	struct nfsmount *nmp;
 	vm_page_t *pages;
 
+	GIANT_REQUIRED;
+
 	vp = ap->a_vp;
 	p = curproc;				/* XXX */
 	cred = curproc->p_ucred;		/* XXX */
@@ -118,7 +120,6 @@ nfs_getpages(ap)
 	pages = ap->a_m;
 	count = ap->a_count;
 
-	mtx_assert(&Giant, MA_OWNED);
 	if (vp->v_object == NULL) {
 		printf("nfs_getpages: called with non-merged cache vnode??\n");
 		return VM_PAGER_ERROR;
@@ -126,9 +127,7 @@ nfs_getpages(ap)
 
 	if ((nmp->nm_flag & NFSMNT_NFSV3) != 0 &&
 	    (nmp->nm_state & NFSSTA_GOTFSINFO) == 0) {
-		mtx_unlock(&vm_mtx);
 		(void)nfs_fsinfo(nmp, vp, cred, p);
-		mtx_lock(&vm_mtx);
 	}
 
 	npages = btoc(count);
@@ -172,9 +171,7 @@ nfs_getpages(ap)
 	uio.uio_rw = UIO_READ;
 	uio.uio_procp = p;
 
-	mtx_unlock(&vm_mtx);
 	error = nfs_readrpc(vp, &uio, cred);
-	mtx_lock(&vm_mtx);
 	pmap_qremove(kva, npages);
 
 	relpbuf(bp, &nfs_pbuf_freecnt);
@@ -274,6 +271,8 @@ nfs_putpages(ap)
 	struct nfsnode *np;
 	vm_page_t *pages;
 
+	GIANT_REQUIRED;
+
 	vp = ap->a_vp;
 	np = VTONFS(vp);
 	p = curproc;				/* XXX */
@@ -285,12 +284,11 @@ nfs_putpages(ap)
 	npages = btoc(count);
 	offset = IDX_TO_OFF(pages[0]->pindex);
 
-	mtx_assert(&Giant, MA_OWNED);
+	GIANT_REQUIRED;
+
 	if ((nmp->nm_flag & NFSMNT_NFSV3) != 0 &&
 	    (nmp->nm_state & NFSSTA_GOTFSINFO) == 0) {
-		mtx_unlock(&vm_mtx);
 		(void)nfs_fsinfo(nmp, vp, cred, p);
-		mtx_lock(&vm_mtx);
 	}
 
 	for (i = 0; i < npages; i++) {
@@ -331,9 +329,7 @@ nfs_putpages(ap)
 	else
 	    iomode = NFSV3WRITE_FILESYNC;
 
-	mtx_unlock(&vm_mtx);
 	error = nfs_writerpc(vp, &uio, cred, &iomode, &must_commit);
-	mtx_lock(&vm_mtx);
 
 	pmap_qremove(kva, npages);
 	relpbuf(bp, &nfs_pbuf_freecnt);
@@ -345,9 +341,7 @@ nfs_putpages(ap)
 			vm_page_undirty(pages[i]);
 		}
 		if (must_commit) {
-			mtx_unlock(&vm_mtx);
 			nfs_clearcommit(vp->v_mount);
-			mtx_lock(&vm_mtx);
 		}
 	}
 	return rtvals[0];
@@ -770,6 +764,8 @@ nfs_write(ap)
 	int n, on, error = 0, iomode, must_commit;
 	int haverslock = 0;
 
+	GIANT_REQUIRED;
+
 #ifdef DIAGNOSTIC
 	if (uio->uio_rw != UIO_WRITE)
 		panic("nfs_write mode");
@@ -1091,9 +1087,7 @@ again:
 				bp->b_dirtyoff = on;
 				bp->b_dirtyend = on + n;
 			}
-			mtx_lock(&vm_mtx);
 			vfs_bio_set_validclean(bp, on, n);
-			mtx_unlock(&vm_mtx);
 		}
 
 		/*
