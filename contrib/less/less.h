@@ -360,6 +360,20 @@ struct textlist
 #define	LSIGNAL(sig,func)	signal(sig,func)
 #endif
 
+#if HAVE_SIGPROCMASK
+#if HAVE_SIGSET_T
+#else
+#undef HAVE_SIGPROCMASK
+#endif
+#endif
+#if HAVE_SIGPROCMASK
+#if HAVE_SIGEMPTYSET
+#else
+#undef  sigemptyset
+#define sigemptyset(mp) *(mp) = 0
+#endif
+#endif
+
 #define	S_INTERRUPT	01
 #define	S_STOP		02
 #define S_WINCH		04
