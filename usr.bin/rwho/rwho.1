@@ -45,7 +45,7 @@
 The
 .Nm
 command produces output similar to
-.Xr who ,
+.Xr who 1 ,
 but for all machines on the local network.
 If no report has been
 received from a machine for 5 minutes then
@@ -53,15 +53,17 @@ received from a machine for 5 minutes then
 assumes the machine is down, and does not report users last known
 to be logged into that machine.
 .Pp
-If a user hasn't typed to the system for a minute or more, then
+If a user has not typed to the system for a minute or more, then
 .Nm
-reports this idle time.  If a user hasn't typed to the system for
-an hour or more, then
-the user will be omitted from the output of
-.Nm
-unless the
-.Fl a
-flag is given.
+reports this idle time.
+.Pp
+The following option is available:
+.Bl -tag -width indent
+.It Fl a
+Include all users.
+By default, if a user hasn't typed to the system for
+an hour or more, then the user will be omitted from the output.
+.El
 .Sh FILES
 .Bl -tag -width /var/rwho/whod.* -compact
 .It Pa /var/rwho/whod.*

@@ -40,7 +40,7 @@
 .Nm mt
 .Nd magnetic tape manipulating program
 .Sh SYNOPSIS
-.Nm
+.Nm mt
 .Op Fl f Ar tapename
 .Ar command
 .Op Ar count
@@ -192,15 +192,15 @@ There are currently several possible values for the compression mode:
 .Pp
 .Bl -tag -width 123456789 -compact
 .It off
-Turn compression off
+Turn compression off.
 .It on
-Turn compression on
+Turn compression on.
 .It none
 Same as
-.Ar off
+.Ar off .
 .It enable
 Same as
-.Ar on
+.Ar on .
 .It IDRC
 IBM Improved Data Recording Capability compression (0x10).
 .It DCLZ
@@ -224,7 +224,7 @@ If a tape name is not specified, and the environment variable
 does not exist;
 .Nm
 uses the device
-.Pa /dev/nrsa0 .
+.Pa /dev/nsa0 .
 .Pp
 .Nm Mt
 returns a 0 exit status when the operation(s) were successful,
