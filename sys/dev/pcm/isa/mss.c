@@ -1356,6 +1356,8 @@ cs423x_probe(u_long csn, u_long vend_id)
 	s = "CS4237" ;
     else if ( id == 0x3600630e )
 	s = "CS4236" ;
+    else if ( id == 0x3500630e )
+	s = "CS4236B" ;
     else if ( id == 0x3200630e)
 	s = "CS4232" ;
     else if ( id == 0x2000a865)
@@ -1435,6 +1437,7 @@ cs423x_attach(u_long csn, u_long vend_id, char *name,
 	    break;
 
 	case 0x3600630e:        /* CS4236 */
+	case 0x3500630e:	/* CS4236B */
 	    tmp_d.bd_id = MD_CS4236 ;
 	    break;
 
