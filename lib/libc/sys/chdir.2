@@ -73,11 +73,7 @@ a slash,
 In order for a directory to become the current directory,
 a process must have execute (search) access to the directory.
 .Sh RETURN VALUES
-Upon successful completion, a value of 0 is returned.
-Otherwise, a value of -1 is returned and
-.Va errno
-is set to indicate
-the error.
+.Rv -std
 .Sh ERRORS
 .Fn Chdir
 will fail and the current working directory will be unchanged if

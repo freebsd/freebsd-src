@@ -139,13 +139,7 @@ if the name has not been set.
 .Fn getlogin_r
 returns zero if successful, or the error number upon failure.
 .Pp
-If a call to
-.Fn setlogin
-succeeds, a value of 0 is returned.  If
-.Fn setlogin
-fails, a value of -1 is returned and an error code is
-placed in the global location
-.Va errno .
+.Rv -std setlogin
 .Sh ERRORS
 The following errors may be returned by these calls:
 .Bl -tag -width Er
