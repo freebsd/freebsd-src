@@ -139,9 +139,16 @@ __FBSDID("$FreeBSD$");
 static __inline int
 twowords(void *p)
 {
-	u_short *s = p;
+	uint8_t *c = p;
 
-	return (s[0] + s[1]);
+#if BYTE_ORDER == LITTLE_ENDIAN
+	uint16_t s1 = ((uint16_t)c[1] << 8) + (uint16_t)c[0];
+	uint16_t s2 = ((uint16_t)c[3] << 8) + (uint16_t)c[2];
+#else
+	uint16_t s1 = ((uint16_t)c[0] << 8) + (uint16_t)c[1];
+	uint16_t s2 = ((uint16_t)c[2] << 8) + (uint16_t)c[3];
+#endif
+	return (s1 + s2);
 }
 
 /* TCP Handling Routines
