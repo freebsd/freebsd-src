@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.42 1997/02/22 09:39:31 peter Exp $
+ * $Id: vfs_cluster.c,v 1.43 1997/03/07 14:40:54 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -56,20 +56,8 @@
 #include <sys/sysctl.h>
 #include <sys/kernel.h>
 static int	rcluster= 0;
-SYSCTL_INT(_debug, 14, rcluster, CTLFLAG_RW, &rcluster, 0, "");
+SYSCTL_INT(_debug, OID_AUTO, rcluster, CTLFLAG_RW, &rcluster, 0, "");
 #endif
-
-#ifdef notyet_block_reallocation_enabled
-#ifdef DEBUG
-#include <sys/sysctl.h>
-#include <sys/kernel.h>
-
-static int	doreallocblks = 0;
-SYSCTL_INT(_debug, 13, doreallocblks, CTLFLAG_RW, &doreallocblks, 0, "");
-#else
-#define	doreallocblks 0
-#endif
-#endif /* notyet_block_reallocation_enabled */
 
 #ifdef notyet_block_reallocation_enabled
 static struct cluster_save *
@@ -538,8 +526,7 @@ cluster_write(bp, filesize)
 						vp->v_cstart, cursize);
 			}
 #else
-			if (!doreallocblks ||
-			    (lbn + 1) * lblocksize != filesize ||
+			if ((lbn + 1) * lblocksize != filesize ||
 			    lbn != vp->v_lastw + 1 || vp->v_clen <= cursize) {
 				if (!async)
 					cluster_wbuild(vp, lblocksize,
