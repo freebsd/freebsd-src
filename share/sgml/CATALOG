@@ -1,4 +1,4 @@
--- $Id: CATALOG,v 1.2 1996/09/08 20:36:56 jfieber Exp $ --
+-- $Id: CATALOG,v 1.4 1997/01/11 21:54:40 jfieber Exp $ --
 
 -- ISO general entities --
 
@@ -61,7 +61,7 @@ PUBLIC "ISO 8879:1986//ENTITIES General Technical//EN"
 
 -- Linuxdoc, as customized for FreeBSD --
 
-DTDDECL "-//FreeBSD//DTD linuxdoc//EN"
+DOCTYPE "linuxdoc"
 "FreeBSD/linuxdoc.dcl"
 
 PUBLIC "-//FreeBSD//DTD linuxdoc//EN"
