@@ -39,10 +39,7 @@
  *  + scheduler and dummynet functions;
  *  + configuration and initialization.
  *
- * NOTA BENE: critical sections are protected by splimp()/splx()
- *    pairs. One would think that splnet() is enough as for most of
- *    the netinet code, but it is not so because when used with
- *    bridging, dummynet is invoked at splimp().
+ * NOTA BENE: critical sections are protected by the "dummynet lock".
  *
  * Most important Changes:
  *
@@ -152,7 +149,6 @@ SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, red_max_pkt_size,
 	CTLFLAG_RD, &red_max_pkt_size, 0, "RED Max packet size");
 #endif
 
-#define DUMMYNET_DEBUG
 #ifdef DUMMYNET_DEBUG
 int	dummynet_debug = 0;
 #ifdef SYSCTL_NODE
@@ -180,7 +176,7 @@ static struct mtx dummynet_mtx;
 static int config_pipe(struct dn_pipe *p);
 static int ip_dn_ctl(struct sockopt *sopt);
 
-static void rt_unref(struct rtentry *);
+static void rt_unref(struct rtentry *, const char *);
 static void dummynet(void *);
 static void dummynet_flush(void);
 void dummynet_drain(void);
@@ -190,14 +186,16 @@ static void dn_rule_delete(void *);
 int if_tx_rdy(struct ifnet *ifp);
 
 static void
-rt_unref(struct rtentry *rt)
+rt_unref(struct rtentry *rt, const char *where)
 {
     if (rt == NULL)
 	return ;
-    if (rt->rt_refcnt <= 0)
-	printf("dummynet: warning, refcnt now %ld, decreasing\n",
-	    rt->rt_refcnt);
-    RTFREE(rt);
+    RT_LOCK(rt);
+    if (rt->rt_refcnt <= 0) {
+	printf("dummynet: warning, refcnt now %ld, decreasing (%s)\n",
+	    rt->rt_refcnt, where);
+    }
+    RTFREE_LOCKED(rt);
 }
 
 /*
@@ -452,7 +450,7 @@ transmit_event(struct dn_pipe *pipe)
 	switch (pkt->dn_dir) {
 	case DN_TO_IP_OUT:
 	    (void)ip_output((struct mbuf *)pkt, NULL, NULL, 0, NULL, NULL);
-	    rt_unref (pkt->ro.ro_rt) ;
+	    rt_unref (pkt->ro.ro_rt, __func__) ;
 	    break ;
 
 	case DN_TO_IP_IN :
@@ -1198,11 +1196,15 @@ dummynet_io(struct mbuf *m, int pipe_nr, int dir, struct ip_fw_args *fwa)
 	 * a pointer into *ro so it needs to be updated.
 	 */
 	pkt->ro = *(fwa->ro);
-	if (fwa->ro->ro_rt)
-	    fwa->ro->ro_rt->rt_refcnt++ ;
+	if (pkt->ro.ro_rt) {
+	    RT_LOCK(pkt->ro.ro_rt);
+	    pkt->ro.ro_rt->rt_refcnt++ ;
+	    KASSERT(pkt->ro.ro_rt->rt_refcnt > 0,
+		("bogus refcnt %ld", pkt->ro.ro_rt->rt_refcnt));
+	    RT_UNLOCK(pkt->ro.ro_rt);
+	}
 	if (fwa->dst == (struct sockaddr_in *)&fwa->ro->ro_dst) /* dst points into ro */
 	    fwa->dst = (struct sockaddr_in *)&(pkt->ro.ro_dst) ;
-
 	pkt->dn_dst = fwa->dst;
 	pkt->flags = fwa->flags;
     }
@@ -1303,7 +1305,7 @@ dropit:
  */
 #define DN_FREE_PKT(pkt)	{		\
 	struct dn_pkt *n = pkt ;		\
-	rt_unref ( n->ro.ro_rt ) ;		\
+	rt_unref ( n->ro.ro_rt, __func__ ) ;	\
 	m_freem(n->dn_m);			\
 	pkt = DN_NEXT(n) ;			\
 	free(n, M_DUMMYNET) ;	}
