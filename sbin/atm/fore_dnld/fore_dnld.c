@@ -108,8 +108,8 @@ delay(int cnt)
 	usleep(cnt);
 }
 
-static unsigned long
-CP_READ(unsigned long val)
+static uint32_t
+CP_READ(uint32_t val)
 {
 	if ( endian )
 		return ( ntohl ( val ) );
@@ -117,8 +117,8 @@ CP_READ(unsigned long val)
 		return ( val );
 }
 
-static unsigned long
-CP_WRITE(unsigned long val)
+static uint32_t
+CP_WRITE(uint32_t val)
 {
 	if ( endian )
 		return ( htonl ( val ) );
@@ -151,12 +151,12 @@ error(const char *msg)
 static char
 getbyte(void)
 {
-	int	c;
+	char c;
 
 	while ( ! ( CP_READ(Uart->mon_xmithost) & UART_VALID ) )
 		delay(10);
 
-	c = ( CP_READ(Uart->mon_xmithost) & UART_DATAMASK );
+	c = CP_READ(Uart->mon_xmithost) & UART_DATAMASK;
 	Uart->mon_xmithost = CP_WRITE(UART_READY);
 
 	/*
@@ -176,7 +176,7 @@ getbyte(void)
 		if (isprint(c) || (c == '\n') || (c == '\r'))
 			putc(c, stdout);
 	}
-	return ( c & 0xff );
+	return (c);
 }
 
 /*
@@ -234,7 +234,7 @@ xmit_byte(u_char c, int dn)
 			getbyte();
 		if ( !dn ) delay ( 10000 );
 	}
-	val = ( c | UART_VALID );
+	val = (int)c | UART_VALID;
 	Uart->mon_xmitmon = CP_WRITE( val );
 	if ( !dn ) delay ( 10000 );
 	if ( CP_READ(Uart->mon_xmithost) & UART_VALID )
@@ -656,20 +656,20 @@ static int
 loadmicrocode(u_char *ucode, int size, u_char *ram)
 {
 	struct {
-		u_long	Id;
-		u_long	fver;
-		u_long	start;
-		u_long	entry;
+		uint32_t	Id;
+		uint32_t	fver;
+		uint32_t	start;
+		uint32_t	entry;
 	} binhdr;
 #ifdef sun
 	union {
-		u_long	w;
+		uint32_t	w;
 		char	c[4];
 	} w1, w2;
 	int	n;
 #endif
 	u_char	*bufp;
-	u_long *lp;
+	uint32_t *lp;
 
 
 	/*
@@ -691,11 +691,11 @@ loadmicrocode(u_char *ucode, int size, u_char *ram)
 	 * We need to swap the header start/entry words...
 	 */
 	w1.w = binhdr.start;
-	for ( n = 0; n < sizeof(u_long); n++ )
+	for ( n = 0; n < sizeof(uint32_t); n++ )
 		w2.c[3-n] = w1.c[n];
 	binhdr.start = w2.w;
 	w1.w = binhdr.entry;
-	for ( n = 0; n < sizeof(u_long); n++ )
+	for ( n = 0; n < sizeof(uint32_t); n++ )
 		w2.c[3-n] = w1.c[n];
 	binhdr.entry = w2.w;
 #endif	/* sun */
@@ -711,9 +711,9 @@ loadmicrocode(u_char *ucode, int size, u_char *ram)
 	if ( endian ) {
 		u_int	i;
 
-		lp = (u_long *)(void *)ucode;
+		lp = (uint32_t *)(void *)ucode;
 		/* Swap buffer */
-		for ( i = 0; i < size / sizeof(long); i++ )
+		for ( i = 0; i < size / sizeof(uint32_t); i++ )
 #ifndef	sun
 			lp[i] = CP_WRITE(lp[i]);
 #else
@@ -736,7 +736,7 @@ loadmicrocode(u_char *ucode, int size, u_char *ram)
 	{
 		char	cmd[80];
 
-		sprintf ( cmd, "go %lx\r\n", binhdr.entry );
+		sprintf ( cmd, "go %x\r\n", binhdr.entry );
 
 		xmit_to_i960 ( cmd, strlen ( cmd ), 0 );
 
@@ -753,14 +753,14 @@ static int
 sendbinfile(const char *fname, u_char *ram)
 {
 	struct {
-		u_long	Id;
-		u_long	fver;
-		u_long	start;
-		u_long	entry;
+		uint32_t	Id;
+		uint32_t	fver;
+		uint32_t	start;
+		uint32_t	entry;
 	} binhdr;
 #ifdef sun
 	union {
-		u_long	w;
+		uint32_t	w;
 		char	c[4];
 	} w1, w2;
 #endif
@@ -768,7 +768,7 @@ sendbinfile(const char *fname, u_char *ram)
 	int	n;
 	int	cnt = 0;
 	u_char	*bufp;
-	long	buffer[1024];
+	uint32_t buffer[1024];
 
 	/*
 	 * Try opening file
@@ -804,11 +804,11 @@ sendbinfile(const char *fname, u_char *ram)
 	 * We need to swap the header start/entry words...
 	 */
 	w1.w = binhdr.start;
-	for ( n = 0; n < sizeof(u_long); n++ )
+	for ( n = 0; n < sizeof(uint32_t); n++ )
 		w2.c[3-n] = w1.c[n];
 	binhdr.start = w2.w;
 	w1.w = binhdr.entry;
-	for ( n = 0; n < sizeof(u_long); n++ )
+	for ( n = 0; n < sizeof(uint32_t); n++ )
 		w2.c[3-n] = w1.c[n];
 	binhdr.entry = w2.w;
 #endif	/* sun */
@@ -835,7 +835,7 @@ sendbinfile(const char *fname, u_char *ram)
 			u_int i;
 
 			/* Swap buffer */
-			for ( i = 0; i < sizeof(buffer) / sizeof(long); i++ )
+			for (i = 0; i < sizeof(buffer) / sizeof(uint32_t); i++)
 #ifndef	sun
 				buffer[i] = CP_WRITE(buffer[i]);
 #else
@@ -875,7 +875,7 @@ sendbinfile(const char *fname, u_char *ram)
 	{
 		char	cmd[80];
 
-		sprintf ( cmd, "go %lx\r\n", binhdr.entry );
+		sprintf ( cmd, "go %x\r\n", binhdr.entry );
 
 		xmit_to_i960 ( cmd, strlen ( cmd ), 0 );
 
@@ -1309,12 +1309,12 @@ main(int argc, char *argv[])
 			     */
 			     aap = (Aali *)(void *)(ram + CP_READ(Mon->mon_appl));
 			     for (i = 0; i < MAX_CHECK; i++, sleep(1)) {
-				u_long	hb1, hb2, hb3;
+				uint32_t hb1, hb2, hb3;
 
 				hb3 = CP_READ(Mon->mon_bstat);
 				if (hb3 != BOOT_RUNNING) {
 					if (verbose)
-						printf("bstat %lx\n", hb3);
+						printf("bstat %x\n", hb3);
 					continue;
 				}
 
@@ -1322,7 +1322,7 @@ main(int argc, char *argv[])
 				delay(1);
 				hb2 = CP_READ(aap->aali_heartbeat);
 				if (verbose)
-					printf("hb %lx %lx\n", hb1, hb2);
+					printf("hb %x %x\n", hb1, hb2);
 				if (hb1 < hb2)
 					break;
 			     }
