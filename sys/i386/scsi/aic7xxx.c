@@ -24,7 +24,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aic7xxx.c,v 1.29.2.8 1996/01/05 16:19:51 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.29.2.9 1996/01/08 02:53:16 gibbs Exp $
  */
 /*
  * TODO:
@@ -1012,7 +1012,7 @@ ahcintr(arg)
 				outb(MSG_LEN + iobase, 1);
 			}
 			else
-				panic("ahcintr: AWAITING_MSG for an SCB that"
+				panic("ahcintr: AWAITING_MSG for an SCB that "
 					"does not have a waiting message");
 			break;
 		  }
