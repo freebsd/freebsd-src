@@ -49,7 +49,7 @@
 extern int vm86pa;
 extern struct pcb *vm86pcb;
 
-static struct mtx vm86pcb_lock;
+static struct mtx vm86_lock;
 
 extern int vm86_bioscall(struct vm86frame *);
 extern void vm86_biosret(struct vm86frame *);
@@ -425,7 +425,7 @@ vm86_initialize(void)
 	pcb = &vml->vml_pcb;
 	ext = &vml->vml_ext;
 
-	mtx_init(&vm86pcb_lock, "vm86pcb lock", MTX_DEF);
+	mtx_init(&vm86_lock, "vm86 lock", MTX_DEF);
 
 	bzero(pcb, sizeof(struct pcb));
 	pcb->new_ptd = vm86pa | PG_V | PG_RW | PG_U;
@@ -575,9 +575,9 @@ vm86_intcall(int intnum, struct vm86frame *vmf)
 		return (EINVAL);
 
 	vmf->vmf_trapno = intnum;
-	mtx_lock(&vm86pcb_lock);
+	mtx_lock(&vm86_lock);
 	retval = vm86_bioscall(vmf);
-	mtx_unlock(&vm86pcb_lock);
+	mtx_unlock(&vm86_lock);
 	return (retval);
 }
 
@@ -597,7 +597,7 @@ vm86_datacall(intnum, vmf, vmc)
 	u_int page;
 	int i, entry, retval;
 
-	mtx_lock(&vm86pcb_lock);
+	mtx_lock(&vm86_lock);
 	for (i = 0; i < vmc->npages; i++) {
 		page = vtophys(vmc->pmap[i].kva & PG_FRAME);
 		entry = vmc->pmap[i].pte_num; 
@@ -612,7 +612,7 @@ vm86_datacall(intnum, vmf, vmc)
 		entry = vmc->pmap[i].pte_num;
 		pte[entry] = vmc->pmap[i].old_pte;
 	}
-	mtx_unlock(&vm86pcb_lock);
+	mtx_unlock(&vm86_lock);
 
 	return (retval);
 }
