@@ -575,13 +575,12 @@ present:
 			m = dtom(q);
 			if (SI(q)->si_cc & SPX_OB) {
 				cb->s_oobflags &= ~SF_IOOB;
+				SOCKBUF_LOCK(&so->so_rcv);
 				if (so->so_rcv.sb_cc)
 					so->so_oobmark = so->so_rcv.sb_cc;
-				else {
-					SOCKBUF_LOCK(&so->so_rcv);
+				else
 					so->so_rcv.sb_state |= SBS_RCVATMARK;
-					SOCKBUF_UNLOCK(&so->so_rcv);
-				}
+				SOCKBUF_UNLOCK(&so->so_rcv);
 			}
 			q = q->si_prev;
 			remque(q->si_next);
@@ -610,8 +609,8 @@ present:
 				if (sp->spx_cc & SPX_OB) {
 					MCHTYPE(m, MT_OOBDATA);
 					spx_newchecks[1]++;
-					so->so_oobmark = 0;
 					SOCKBUF_LOCK(&so->so_rcv);
+					so->so_oobmark = 0;
 					so->so_rcv.sb_state &= ~SBS_RCVATMARK;
 					SOCKBUF_UNLOCK(&so->so_rcv);
 				}
