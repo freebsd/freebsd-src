@@ -25,59 +25,66 @@
 .\"
 .\"       $FreeBSD$
 .\"
-.Dd January 17, 2000
-.Dt POSIX1E 3
+.Dd January 28, 2000
+.Dt ACL_INIT 3
 .Os FreeBSD 4.0
 .Sh NAME
-.Nm posix1e \- introduction to the POSIX.1e security API
+.Nm acl_init
+.Nd Initialize ACL working storage
 .Sh SYNOPSIS
+.Fd #include <sys/types.h>
 .Fd #include <sys/acl.h>
-.Fd #include <sys/audit.h>
-.Fd #include <sys/capability.h>
-.Fd #include <sys/mac.h>
+.Ft acl_t
+.Fn acl_init "int count"
 .Sh DESCRIPTION
-The IEEE POSIX.1e specification never left draft form, but the interfaces
-it describes are now widely used despite inherrent limitations.  Currently,
-only a few of the interfaces and features are implemented in FreeBSD,
-although efforts are underway to complete the integration at this time.
+The
+.Fn acl_init
+function allocates and initializes the working storage for an ACL of at
+least
+.Va count
+ACL entries.  A pointer to the working storage is returned.  The working
+storage allocated to contain the ACL is freed by a call to
+.Xr acl_free 3 .
+When the area is first allocated, it shall contain an an ACL that contains
+no ACL entries.
 
-POSIX.1e describes five security extensions to the base POSIX.1 API:
-Access Control Lists (ACLs), Auditing, Capabilities, Mandatory Access
-Control, and Information Flow Labels.  Of these, the ACL interfaces are
-currently included with FreeBSD, Auditing, Capabilities, and Mandatory
-Access Control are in the wings, and Information Flow Labels are not on
-the calendar.
-
-POSIX.1e defines both syntax and semantics for these features, but fairly
-substantial changes are required to implement these features in the 
-operating system.  As shipped, FreeBSD 4.0 permits file systems to export
-Access Control Lists via the VFS, and provides a library for userland
-access to and manipulation of these ACLs, but support for ACLs is not
-provided by any file systems shipped in the base operating system.
-Available API calls relating to ACLs are described in detail in
-.Xr acl 3 .
-
-The patches supporting other POSIX.1e features are not available in the
-base operating system at this time--however, more information on them
-may be found on the FreeBSD POSIX.1e implementation web page:
-
-http://www.watson.org/fbsd-hardening/posix1e/
+This function may cause memory to be allocated.  Teh caller should free any
+releaseable memory, when the new ACL is no longer required, by calling
+.Xr acl_free 3
+with the
+.Va (void*)acl_t
+as an argument.
 .Sh IMPLEMENTATION NOTES
 FreeBSD's support for POSIX.1e interfaces and features is still under
 development at this time.
-.Sh ENVIRONMENT
-POSIX.1e assigns security labels to all objects, extending the security
-functionality described in POSIX.1.  These additional labels provide
-fine-grained discretionary access control, fine-grained capabilities,
-and labels necessary for mandatory access control.  POSIX.2c describes
-a set of userland utilities for manipulating these labels.  These userland
-utilities are not bundled with FreeBSD 4.0 so as to discourage their
-use in the short term.
-.Sh FILES
+.Sh RETURN VALUES
+Upon successful completion, this function shall return a pointer to the
+working storage.  Otherwise, a value of
+.Va (acl_t)NULL
+shall be returned, and
+.Va errno
+shall be set to indicate the error.
+.Sh ERRORS
+If any of the following conditions occur, the
+.Fn acl_init
+function shall return a value of
+.Va (acl_t)NULL
+and set
+.Va errno
+to the corresponding value:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The value of count is less than zero.
+.It Bq Er ENOMEM
+The
+.Va acl_t
+to be returned requires more memory than is allowed by the hardware or
+system-imposed memory management constraints.
+.El
 .Sh SEE ALSO
 .Xr acl 3 ,
-.Xr acl 9 ,
-.Xr extattr 9
+.Xr acl_free 3 ,
+.Xr posix1e 3
 .Sh STANDARDS
 POSIX.1e is described in IEEE POSIX.1e draft 17.  Discussion
 of the draft continues on the cross-platform POSIX.1e implementation
@@ -86,7 +93,7 @@ page for more information.
 .Sh HISTORY
 POSIX.1e support was introduced in FreeBSD 4.0, and development continues.
 .Sh AUTHORS
-Robert N M Watson, Ilmar S Habibulin
+Robert N M Watson
 .Sh BUGS
 These features are not yet fully implemented.  In particular, the shipped
 version of UFS/FFS does not support storage of additional security labels,
