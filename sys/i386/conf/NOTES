@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.561 1999/03/01 21:19:18 sos Exp $
+#	$Id: LINT,v 1.562 1999/03/04 09:53:19 sos Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1585,7 +1585,7 @@ options	"EISA_SLOTS=12"
 #   options METEOR_DEALLOC_ABOVE=xxx	remove all allocated pages above the
 #	specified amount. If this value is below the allocated amount no action
 #	taken
-#   option METEOR_SYSTEM_DEFAULT={METEOR_PAL|METEOR_NTSC|METEOR_SECAM}, used
+#   options METEOR_SYSTEM_DEFAULT={METEOR_PAL|METEOR_NTSC|METEOR_SECAM}, used
 #	for initialization of fps routine when a signal is not present.
 #
 # The 'bktr' device is a PCI video capture device using the Brooktree 
@@ -1599,13 +1599,13 @@ options	"EISA_SLOTS=12"
 #   options OVERRIDE_DBX=1
 # The current values are found in /usr/src/sys/pci/brooktree848.c
 #
-#   option BROOKTREE_SYSTEM_DEFAULT=BROOKTREE_PAL
+#   options BROOKTREE_SYSTEM_DEFAULT=BROOKTREE_PAL
 # This is required for Dual Crystal (28&35Mhz) boards where PAL is used
 # to prevent hangs during initialisation.  eg VideoLogic Captivator PCI.
 #
 # PAL or SECAM users who have a 28Mhz crystal (and no 35Mhz crystal)
 # must enable PLL mode with this option. eg some new Hauppauge cards.
-#   option BKTR_USE_PLL
+#   options BKTR_USE_PLL
 #
 # Using sysctl(8) run-time overrides on a per-card basis can be made
 #
