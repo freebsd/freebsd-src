@@ -187,8 +187,6 @@ void forceup(int plexno);
 void update_plex_state(int plexno);
 void update_volume_state(int volno);
 void invalidate_subdisks(struct plex *, enum sdstate);
-void get_volume_label(char *name, int plexes, u_int64_t size, struct disklabel *lp);
-int write_volume_label(int);
 void start_object(struct vinum_ioctl_msg *);
 void stop_object(struct vinum_ioctl_msg *);
 void setstate(struct vinum_ioctl_msg *msg);
