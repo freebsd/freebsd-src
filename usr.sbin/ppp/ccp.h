@@ -135,6 +135,7 @@ struct ccp_algorithm {
     void (*DictSetup)(void *, struct ccp *, u_short, struct mbuf *);
   } i;
   struct {
+    int MTUOverhead;
     void (*OptInit)(struct lcp_opt *, const struct ccp_config *);
     int (*Set)(struct lcp_opt *, const struct ccp_config *);
     void *(*Init)(struct lcp_opt *);
@@ -149,6 +150,7 @@ extern void ccp_Init(struct ccp *, struct bundle *, struct link *,
                      const struct fsm_parent *);
 extern void ccp_Setup(struct ccp *);
 extern int ccp_Required(struct ccp *);
+extern int ccp_MTUOverhead(struct ccp *);
 
 extern void ccp_SendResetReq(struct fsm *);
 extern struct mbuf *ccp_Input(struct bundle *, struct link *, struct mbuf *);

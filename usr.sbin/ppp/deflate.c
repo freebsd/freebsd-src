@@ -567,6 +567,7 @@ const struct ccp_algorithm PppdDeflateAlgorithm = {
     DeflateDictSetup
   },
   {
+    0,
     DeflateInitOptsOutput,
     DeflateSetOptsOutput,
     DeflateInitOutput,
@@ -591,6 +592,7 @@ const struct ccp_algorithm DeflateAlgorithm = {
     DeflateDictSetup
   },
   {
+    0,
     DeflateInitOptsOutput,
     DeflateSetOptsOutput,
     DeflateInitOutput,
