@@ -303,7 +303,7 @@ ac97_initmixer(struct ac97_info *codec)
 		codec->init(codec->devinfo);
 	wrcd(codec, AC97_REG_POWER, 0);
 	wrcd(codec, AC97_REG_RESET, 0);
-	DELAY(10000);
+	DELAY(100000);
 
 	i = rdcd(codec, AC97_REG_RESET);
 	codec->caps = i & 0x03ff;
@@ -311,6 +311,10 @@ ac97_initmixer(struct ac97_info *codec)
 
 	id = (rdcd(codec, AC97_REG_ID1) << 16) | rdcd(codec, AC97_REG_ID2);
 	codec->rev = id & 0x000000ff;
+	if (id == 0 || id == 0xffffffff) {
+		device_printf(codec->dev, "ac97 codec invalid or not present (id == %x)\n", id);
+		return ENODEV;
+	}
 
 	for (i = 0; ac97codecid[i].id; i++)
 		if (ac97codecid[i].id == id)
@@ -333,7 +337,7 @@ ac97_initmixer(struct ac97_info *codec)
 	wrcd(codec, AC97_MIX_MASTER, 0x00);
 
 	if (bootverbose) {
-		device_printf(codec->dev, "ac97 codec id 0x%8x", id);
+		device_printf(codec->dev, "ac97 codec id 0x%08x", id);
 		for (i = 0; ac97codecid[i].id; i++)
 			if (ac97codecid[i].id == id)
 				printf(" (%s)", ac97codecid[i].name);
@@ -384,7 +388,8 @@ ac97mix_init(snd_mixer *m)
 	struct ac97_info *codec = mix_getdevinfo(m);
 	if (codec == NULL)
 		return -1;
-	ac97_initmixer(codec);
+	if (ac97_initmixer(codec))
+		return -1;
 	mix_setdevs(m, ac97mixdevs | ((codec->caps & 4)? SOUND_MASK_BASS | SOUND_MASK_TREBLE : 0));
 	mix_setrecdevs(m, ac97recdevs);
 	return 0;
