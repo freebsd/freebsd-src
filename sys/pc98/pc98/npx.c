@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.39 1998/10/22 05:58:45 bde Exp $
+ *	$Id: npx.c,v 1.40 1998/12/08 08:18:59 kato Exp $
  */
 
 #include "npx.h"
@@ -154,13 +154,13 @@ SYSCTL_INT(_hw,HW_FLOATINGPT, floatingpoint,
 #ifndef SMP
 static	u_int			npx0_imask = SWI_CLOCK_MASK;
 static	struct gate_descriptor	npx_idt_probeintr;
+static	int			npx_intrno;
 static	volatile u_int		npx_intrs_while_probing;
 static	volatile u_int		npx_traps_while_probing;
 #endif
 
 static	bool_t			npx_ex16;
 static	bool_t			npx_exists;
-static	int			npx_intrno;
 static	bool_t			npx_irq13;
 
 #ifndef SMP
