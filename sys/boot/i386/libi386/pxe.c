@@ -241,17 +241,6 @@ pxe_init(void)
 	}
 	bcopy(PTOV((gci_p->Buffer.segment << 4) + gci_p->Buffer.offset),
 	      &bootplayer, gci_p->BufferSize);
-
-	/*
-	 * XXX - This is a major cop out.  We should request this
-	 * from DHCP, but we can't do that until we have full UNDI
-	 * support.
-	 *
-	 * Also set the nfs server's IP.
-	 */
-	strcpy(rootpath, PXENFSROOTPATH);
-	rootip.s_addr = bootplayer.sip;
-
 	return (1);
 }
 
@@ -268,8 +257,10 @@ pxe_open(struct open_file *f, ...)
 {
     va_list args;
     char *devname;		/* Device part of file name (or NULL). */
+    char temp[FNAME_SIZE];
     int error = 0;
-
+    int i;
+	
     va_start(args, f);
     devname = va_arg(args, char*);
     va_end(args);
@@ -285,6 +276,31 @@ pxe_open(struct open_file *f, ...)
 	    }
 	    if (debug)
 		printf("pxe_open: netif_open() succeeded\n");
+	}
+	if (rootip.s_addr == 0) {
+		/*
+		 * Do a bootp/dhcp request to find out where our
+		 * NFS/TFTP server is.  Even if we dont get back
+		 * the proper information, fall back to the server
+		 * which brought us to life and a default rootpath.
+		 */
+		bootp(pxe_sock);
+		if (rootip.s_addr == 0) {
+			rootip.s_addr = bootplayer.sip;
+			strcpy(rootpath, PXENFSROOTPATH);
+		}
+
+		for(i=0; i<FNAME_SIZE; i++)
+			if(rootpath[i] == ':')
+				break;
+		if(i && i != FNAME_SIZE) {
+			i++;
+			bcopy(&rootpath[i], &temp[0], strlen(&rootpath[i])+1);
+			bcopy(&temp[0], &rootpath[0], strlen(&rootpath[i])+1);
+		}
+		printf("pxe_open: server addr: %s\n", inet_ntoa(rootip));
+		printf("pxe_open: server path: %s\n", rootpath);
+		printf("pxe_open: gateway ip:  %s\n", inet_ntoa(gateip));
 	}
     }
     pxe_opens++;
@@ -310,7 +326,7 @@ pxe_close(struct open_file *f)
     /* Not last close? */
     if (pxe_opens > 0)
 	return(0);
-    rootip.s_addr = 0;
+
     if (pxe_sock >= 0) {
 #ifdef PXE_DEBUG
 	if (debug)
@@ -462,6 +478,10 @@ pxe_netif_end(struct netif *nif)
 static void
 pxe_netif_init(struct iodesc *desc, void *machdep_hint)
 {
+	int i;
+	for (i = 0; i < 6; ++i)
+		desc->myea[i] = bootplayer.CAddr[i];
+	desc->xid = bootplayer.ident;
 }
 
 static int
@@ -482,9 +502,10 @@ sendudp(struct iodesc *h, void *pkt, size_t len)
 	t_PXENV_UDP_WRITE *udpwrite_p = (t_PXENV_UDP_WRITE *)scratch_buffer;
 	bzero(udpwrite_p, sizeof(*udpwrite_p));
 	
-	udpwrite_p->ip             = bootplayer.sip;
+	udpwrite_p->ip             = h->destip.s_addr;
 	udpwrite_p->dst_port       = h->destport;
 	udpwrite_p->src_port       = h->myport;
+	udpwrite_p->gw             = gateip.s_addr;
 	udpwrite_p->buffer_size    = len;
 	udpwrite_p->buffer.segment = VTOPSEG(pkt);
 	udpwrite_p->buffer.offset  = VTOPOFF(pkt);
@@ -513,7 +534,7 @@ readudp(struct iodesc *h, void *pkt, size_t len, time_t timeout)
 	uh = (struct udphdr *) pkt - 1;
 	bzero(udpread_p, sizeof(*udpread_p));
 	
-	udpread_p->dest_ip        = bootplayer.yip;
+	udpread_p->dest_ip        = h->myip.s_addr;
 	udpread_p->d_port         = h->myport;
 	udpread_p->buffer_size    = len;
 	udpread_p->buffer.segment = VTOPSEG(data_buffer);
