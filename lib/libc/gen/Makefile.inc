@@ -1,12 +1,12 @@
 #	@(#)Makefile.inc	8.6 (Berkeley) 5/4/95
-#	$Id: Makefile.inc,v 1.37 1997/07/12 11:16:17 peter Exp $
+#	$Id: Makefile.inc,v 1.38 1997/08/31 00:08:35 peter Exp $
 
 # machine-independent gen sources
 .PATH: ${.CURDIR}/../libc/${MACHINE}/gen ${.CURDIR}/../libc/gen
 
 SRCS+=  alarm.c arc4random.c assert.c clock.c closedir.c config.c confstr.c \
 	crypt.c ctermid.c daemon.c devname.c disklabel.c err.c errlst.c \
-	exec.c fnmatch.c frexp.c fstab.c fts.c getbootfile.c getbsize.c \
+	exec.c fnmatch.c fstab.c fts.c getbootfile.c getbsize.c \
 	getcap.c getcwd.c getdomainname.c getgrent.c getgrouplist.c \
 	gethostname.c getloadavg.c getlogin.c getmntinfo.c getnetgrent.c \
 	getosreldate.c getpagesize.c getpass.c getpwent.c getttyent.c \
