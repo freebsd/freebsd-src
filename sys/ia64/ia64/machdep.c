@@ -571,6 +571,21 @@ ia64_init(u_int64_t arg1, u_int64_t arg2)
 			continue;
 
 		/*
+		 * Wimp out for now since we do not DTRT here with
+		 * pci bus mastering (no bounce buffering, for example).
+		 */
+		if (pfn0 >= ia64_btop(0x100000000UL)) {
+			printf("Skipping memory chunk start 0x%lx\n",
+			    mdp->PhysicalStart);
+			continue;
+		}
+		if (pfn1 >= ia64_btop(0x100000000UL)) {
+			printf("Skipping memory chunk end 0x%lx\n",
+			    mdp->PhysicalStart + mdp->NumberOfPages * 4096);
+			continue;
+		}
+
+		/*
 		 * We have a memory descriptor that describes conventional
 		 * memory that is for general use. We must determine if the
 		 * loader has put the kernel in this region.
