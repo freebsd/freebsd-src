@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: ncal.c,v 1.5 1998/01/07 07:46:33 charnier Exp $";
 #endif /* not lint */
 
 #include <calendar.h>
@@ -340,7 +340,7 @@ usage(void)
 {
 
 	fprintf(stderr, "%s\n%s\n%s\n",
-	    "usage: cal [-jy] [month[year]]",
+	    "usage: cal [-jy] [[month] year]",
 	    "       ncal [-Jjpwy] [-s country_code] [[month] year]",
 	    "       ncal [-Jeo] [year]");
 	exit(EX_USAGE);
@@ -595,7 +595,7 @@ mkmonth(int y, int m, int jd_flag, struct monthlines *mlines)
 		last = firstday(y, m + 2);
 
 	if (jd_flag)
-		jan1 = firstday(m, 1);
+		jan1 = firstday(y, 1);
 
 	/*
 	 * Set firstm to the day number of monday of the first week of
