@@ -40,11 +40,12 @@
 /* <machine/sysarch.h> should define this, but doesn't. */
 extern int sysarch(int, void *);
 
+#define	KSE_STACKSIZE		16384
+
 #define	THR_GETCONTEXT(ucp)	\
 	(void)_amd64_save_context(&(ucp)->uc_mcontext)
 #define	THR_SETCONTEXT(ucp)	\
 	(void)_amd64_restore_context(&(ucp)->uc_mcontext, 0, NULL)
-
 
 #define	PER_KSE
 #undef	PER_THREAD
