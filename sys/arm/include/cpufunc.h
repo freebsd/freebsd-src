@@ -55,28 +55,6 @@ breakpoint(void)
 {
 }
 
-static __inline register_t
-intr_disable(void)
-{
-	int s = 0, tmp;
-
-	__asm __volatile("mrs %0, cpsr; \
-	    		orr %1, %0, %2;\
-			msr cpsr_all, %1;"
-			: "=r" (s), "=r" (tmp)
-			: "I" (I32_bit)
-			: "cc");
-	return (s);
-}
-
-static __inline void
-intr_restore(int s)
-{
-	__asm __volatile("msr cpsr_all, %0 "
-	    : /* no output */
-	    : "r" (s)
-	    : "cc");
-}
 struct cpu_functions {
 
 	/* CPU functions */
@@ -469,7 +447,7 @@ __set_cpsr_c(u_int bic, u_int eor)
 		"eor	 %1, %1, %3\n"	/* XOR bits */
 		"msr     cpsr_c, %1\n"	/* Set the control field of CPSR */
 	: "=&r" (ret), "=&r" (tmp)
-	: "r" (bic), "r" (eor));
+	: "r" (bic), "r" (eor) : "memory");
 
 	return ret;
 }
@@ -479,11 +457,15 @@ __set_cpsr_c(u_int bic, u_int eor)
 		      (mask) & (I32_bit | F32_bit)))
 
 #define enable_interrupts(mask)						\
-	(__set_cpsr_c((mask) & (I32_bit | F32_bit), 0))
+	(__set_cpsr_c((mask | F32_bit) & (I32_bit | F32_bit), 0))
 
 #define restore_interrupts(old_cpsr)					\
 	(__set_cpsr_c((I32_bit | F32_bit), (old_cpsr) & (I32_bit | F32_bit)))
 
+#define intr_disable()	\
+    disable_interrupts(I32_bit | F32_bit)
+#define intr_restore(s)	\
+    restore_interrupts(s)
 /* Functions to manipulate the CPSR. */
 u_int	SetCPSR(u_int bic, u_int eor);
 u_int	GetCPSR(void);
