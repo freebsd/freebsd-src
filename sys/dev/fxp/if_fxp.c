@@ -1120,8 +1120,18 @@ fxp_intr(arg)
 
 		/*
 		 * Free any finished transmit mbuf chains.
+		 *
+		 * Handle the CNA event likt a CXTNO event. It used to
+		 * be that this event (control unit not ready) was not
+		 * encountered, but it is now with the SMPng modifications.
+		 * The exact sequence of events that occur when the interface
+		 * is brought up are different now, and if this event
+		 * goes unhandled, the configuration/rxfilter setup sequence
+		 * can stall for several seconds. The result is that no
+		 * packets go out onto the wire for about 5 to 10 seconds
+		 * after the interface is ifconfig'ed for the first time.
 		 */
-		if (statack & FXP_SCB_STATACK_CXTNO) {
+		if (statack & (FXP_SCB_STATACK_CXTNO | FXP_SCB_STATACK_CNA)) {
 			struct fxp_cb_tx *txp;
 
 			for (txp = sc->cbl_first; sc->tx_queued &&
