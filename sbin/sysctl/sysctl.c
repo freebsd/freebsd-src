@@ -169,7 +169,7 @@ parse(char *string)
 			case CTLTYPE_INT:
 				intval = (int) strtol(newval, NULL, 0);
 				newval = &intval;
-				newsize = sizeof intval;
+				newsize = sizeof(intval);
 				break;
 				break;
 			case CTLTYPE_STRING:
@@ -178,7 +178,7 @@ parse(char *string)
 				break;
 				sscanf(newval, "%qd", &quadval);
 				newval = &quadval;
-				newsize = sizeof quadval;
+				newsize = sizeof(quadval);
 				break;
 			default:
 				errx(1, "oid '%s' is type %d,"
@@ -222,8 +222,8 @@ static int
 S_clockinfo(int l2, void *p)
 {
 	struct clockinfo *ci = (struct clockinfo*)p;
-	if (l2 != sizeof *ci)
-		err(1, "S_clockinfo %d != %d", l2, sizeof *ci);
+	if (l2 != sizeof(*ci))
+		err(1, "S_clockinfo %d != %d", l2, sizeof(*ci));
 	printf("{ hz = %d, tick = %d, tickadj = %d, profhz = %d, stathz = %d }",
 		ci->hz, ci->tick, ci->tickadj, ci->profhz, ci->stathz);
 	return (0);
@@ -234,8 +234,8 @@ S_loadavg(int l2, void *p)
 {
 	struct loadavg *tv = (struct loadavg*)p;
 
-	if (l2 != sizeof *tv)
-		err(1, "S_loadavg %d != %d", l2, sizeof *tv);
+	if (l2 != sizeof(*tv))
+		err(1, "S_loadavg %d != %d", l2, sizeof(*tv));
 
 	printf("{ %.2f %.2f %.2f }",
 		(double)tv->ldavg[0]/(double)tv->fscale,
@@ -251,8 +251,8 @@ S_timeval(int l2, void *p)
 	time_t tv_sec;
 	char *p1, *p2;
 
-	if (l2 != sizeof *tv)
-		err(1, "S_timeval %d != %d", l2, sizeof *tv);
+	if (l2 != sizeof(*tv))
+		err(1, "S_timeval %d != %d", l2, sizeof(*tv));
 	printf("{ sec = %ld, usec = %ld } ",
 		tv->tv_sec, tv->tv_usec);
 	tv_sec = tv->tv_sec;
@@ -268,8 +268,8 @@ static int
 T_dev_t(int l2, void *p)
 {
 	dev_t *d = (dev_t *)p;
-	if (l2 != sizeof *d)
-		err(1, "T_dev_T %d != %d", l2, sizeof *d);
+	if (l2 != sizeof(*d))
+		err(1, "T_dev_T %d != %d", l2, sizeof(*d));
 	if ((int)(*d) != -1) {
 		if (minor(*d) > 255 || minor(*d) < 0)
 			printf("{ major = %d, minor = 0x%x }",
@@ -300,11 +300,11 @@ name2oid(char *name, int *oidp)
 	oid[0] = 0;
 	oid[1] = 3;
 
-	j = CTL_MAXNAME * sizeof (int);
+	j = CTL_MAXNAME * sizeof(int);
 	i = sysctl(oid, 2, oidp, &j, name, strlen(name));
 	if (i < 0) 
 		return i;
-	j /= sizeof (int);
+	j /= sizeof(int);
 	return (j);
 }
 
@@ -320,7 +320,7 @@ oidfmt(int *oid, int len, char *fmt, u_int *kind)
 	qoid[1] = 4;
 	memcpy(qoid + 2, oid, len * sizeof(int));
 
-	j = sizeof buf;
+	j = sizeof(buf);
 	i = sysctl(qoid, len + 2, buf, &j, 0, 0);
 	if (i)
 		err(1, "sysctl fmt %d %d %d", i, j, errno);
@@ -345,7 +345,7 @@ static int
 show_var(int *oid, int nlen)
 {
 	u_char buf[BUFSIZ], *val, *p;
-	char name[BUFSIZ], descr[BUFSIZ], *fmt;
+	char name[BUFSIZ], *fmt;
 	int qoid[CTL_MAXNAME+2];
 	int i;
 	size_t j, len;
@@ -356,7 +356,7 @@ show_var(int *oid, int nlen)
 	memcpy(qoid + 2, oid, nlen * sizeof(int));
 
 	qoid[1] = 1;
-	j = sizeof name;
+	j = sizeof(name);
 	i = sysctl(qoid, nlen + 2, name, &j, 0, 0);
 	if (i || !j)
 		err(1, "sysctl name %d %d %d", i, j, errno);
@@ -378,7 +378,7 @@ show_var(int *oid, int nlen)
 	}
 
 	qoid[1] = 4;
-	j = sizeof buf;
+	j = sizeof(buf);
 	i = sysctl(qoid, nlen + 2, buf, &j, 0, 0);
 	if (i || !j)
 		err(1, "sysctl fmt %d %d %d", i, j, errno);
@@ -475,14 +475,14 @@ sysctl_all (int *oid, int len)
 	name1[1] = 2;
 	l1 = 2;
 	if (len) {
-		memcpy(name1+2, oid, len*sizeof (int));
+		memcpy(name1+2, oid, len * sizeof(int));
 		l1 += len;
 	} else {
 		name1[2] = 1;
 		l1++;
 	}
 	while (1) {
-		l2 = sizeof name2;
+		l2 = sizeof(name2);
 		j = sysctl(name1, l1, name2, &l2, 0, 0);
 		if (j < 0) {
 			if (errno == ENOENT)
@@ -491,7 +491,7 @@ sysctl_all (int *oid, int len)
 				err(1, "sysctl(getnext) %d %d", j, l2);
 		}
 
-		l2 /= sizeof (int);
+		l2 /= sizeof(int);
 
 		if (l2 < len)
 			return 0;
@@ -504,7 +504,7 @@ sysctl_all (int *oid, int len)
 		if (!i && !bflag)
 			putchar('\n');
 
-		memcpy(name1+2, name2, l2*sizeof (int));
+		memcpy(name1+2, name2, l2 * sizeof(int));
 		l1 = 2 + l2;
 	}
 }
