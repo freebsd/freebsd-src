@@ -139,11 +139,20 @@ character introducing a conversion
 there may be a number of
 .Em flag
 characters, as follows:
-.Bl -tag -width indent
+.Bl -tag -width ".Cm l No (ell)"
 .It Cm *
 Suppresses assignment.
 The conversion that follows occurs as usual, but no pointer is used;
 the result of the conversion is simply discarded.
+.It Cm hh
+Indicates that the conversion will be one of
+.Cm dioux
+or
+.Cm n
+and the next pointer is a pointer to a
+.Em char
+(rather than
+.Em int ) .
 .It Cm h
 Indicates that the conversion will be one of
 .Cm dioux
@@ -153,8 +162,8 @@ and the next pointer is a pointer to a
 .Em short  int
 (rather than
 .Em int ) .
-.It Cm l
-Indicates either that the conversion will be one of
+.It Cm l No (ell)
+Indicates that the conversion will be one of
 .Cm dioux
 or
 .Cm n
@@ -162,29 +171,77 @@ and the next pointer is a pointer to a
 .Em long  int
 (rather than
 .Em int ) ,
-or that the conversion will be one of
-.Cm efg
+that the conversion will be one of
+.Cm aefg
 and the next pointer is a pointer to
 .Em double
 (rather than
-.Em float ) .
-.It Cm L
-Indicates that the conversion will be
-.Cm efg
-and the next pointer is a pointer to
-.Em long double .
-(This type is not implemented; the
-.Cm L
-flag is currently ignored.)
-.It Cm q
-Indicates either that the conversion will be one of
+.Em float ) ,
+or that the conversion will be one of
+.Cm c
+or
+.Cm s
+and the next pointer is a pointer to an array of
+.Em wchar_t
+(rather than
+.Em char ) .
+.It Cm ll No (ell ell)
+Indicates that the conversion will be one of
 .Cm dioux
 or
 .Cm n
 and the next pointer is a pointer to a
 .Em long long int
 (rather than
-.Em int ) ,
+.Em int ) .
+.It Cm L
+Indicates that the conversion will be one of
+.Cm aef
+or
+.Cm g
+and the next pointer is a pointer to
+.Em long double .
+(This type is not implemented; although the argument is
+required to be a pointer to
+.Em long double ,
+no additional precision is used in the conversion.)
+.It Cm j
+Indicates that the conversion will be one of
+.Cm dioux
+or
+.Cm n
+and the next pointer is a pointer to a
+.Em intmax_t
+(rather than
+.Em int ) .
+.It Cm t
+Indicates that the conversion will be one of
+.Cm dioux
+or
+.Cm n
+and the next pointer is a pointer to a
+.Em ptrdiff_t
+(rather than
+.Em int ) .
+.It Cm z
+Indicates that the conversion will be one of
+.Cm dioux
+or
+.Cm n
+and the next pointer is a pointer to a
+.Em size_t
+(rather than
+.Em int ) .
+.It Cm q
+(deprecated.)
+Indicates that the conversion will be one of
+.Cm dioux
+or
+.Cm n
+and the next pointer is a pointer to a
+.Em long long int
+(rather than
+.Em int ) .
 .El
 .Pp
 In addition to these flags,
@@ -212,10 +269,6 @@ No conversion is done, and assignment does not occur.
 Matches an optionally signed decimal integer;
 the next pointer must be a pointer to
 .Em int .
-.It Cm D
-Equivalent to
-.Cm ld ;
-this exists only for backwards compatibility.
 .It Cm i
 Matches an optionally signed integer;
 the next pointer must be a pointer to
@@ -233,48 +286,37 @@ Only characters that correspond to the base are used.
 Matches an octal integer;
 the next pointer must be a pointer to
 .Em unsigned int .
-.It Cm O
-Equivalent to
-.Cm lo ;
-this exists for backwards compatibility.
 .It Cm u
 Matches an optionally signed decimal integer;
 the next pointer must be a pointer to
 .Em unsigned int .
-.It Cm x
+.It Cm x , X
 Matches an optionally signed hexadecimal integer;
 the next pointer must be a pointer to
 .Em unsigned int .
-.It Cm X
-Equivalent to
-.Cm lx ;
-this violates the
-.St -isoC ,
-but is backwards compatible with previous
-.Ux
-systems.
-.It Cm f
+.It Cm e , E , f , F , g , G
 Matches an optionally signed floating-point number;
 the next pointer must be a pointer to
 .Em float .
-.It Cm e
-Equivalent to
-.Cm f .
-.It Cm g
-Equivalent to
-.Cm f .
-.It Cm E
-Equivalent to
-.Cm lf ;
-this violates the
-.St -isoC ,
-but is backwards compatible with previous
-.Ux
-systems.
-.It Cm F
-Equivalent to
-.Cm lf ;
-this exists only for backwards compatibility.
+.It Cm a , A
+Matches a hexadecimal number represented in the style
+.Sm off
+.Oo \- Oc Li 0x Ar h Li \&. Ar hhh Cm p Oo \\*[Pm] Oc Ar d .
+.Sm on
+This is an exact conversion of the sign, exponent, mantissa internal
+floating point representation; the
+.Sm off
+.Oo \- Oc Li 0x Ar h Li \&. Ar hhh
+.Sm on
+portion represents exactly the mantissa; only denormalized
+mantissas have a zero value to the left of the hexadecimal
+point.
+The
+.Cm p
+is a literal character
+.Ql p ;
+the exponent is preceded by a positive or negative sign
+and is represented in decimal.
 .It Cm s
 Matches a sequence of non-white-space characters;
 the next pointer must be a pointer to
@@ -285,6 +327,9 @@ terminating
 character.
 The input string stops at white space
 or at the maximum field width, whichever occurs first.
+.It Cm S
+The same as
+.Cm ls .
 .It Cm c
 Matches a sequence of
 .Em width
@@ -298,6 +343,9 @@ and there must be enough room for all the characters
 is added).
 The usual skip of leading white space is suppressed.
 To skip white space first, use an explicit space in the format.
+.It Cm C
+The same as
+.Cm lc .
 .It Cm \&[
 Matches a nonempty sequence of characters from the specified set
 of accepted characters;
@@ -365,29 +413,10 @@ character is defined in the program's locale (category
 .Dv LC_NUMERIC ) .
 .Pp
 For backwards compatibility,
-other conversion characters (except
-.Ql \e0 )
-are taken as if they were
-.Ql %d
-or, if uppercase,
-.Ql %ld ,
-and a `conversion' of
+a `conversion' of
 .Ql %\e0
 causes an immediate return of
 .Dv EOF .
-The
-.Cm F
-and
-.Cm X
-conversions will be changed in the future
-to conform to the
-.Tn ANSI
-C standard,
-after which they will act like
-.Cm f
-and
-.Cm x
-respectively.
 .Sh RETURN VALUES
 These
 functions
@@ -421,15 +450,23 @@ The functions
 and
 .Fn sscanf
 conform to
-.St -isoC .
+.St -isoC-99 .
 .Sh BUGS
-The current situation with
-.Cm %F
+Earlier implementations of
+.Nm
+treated
+.Cm \&%D , \&%E , \&%F , \&%O
 and
-.Cm %X
-conversions is unfortunate.
-.Pp
-All of the backwards compatibility formats will be removed in the future.
+.Cm \&%X
+as their lowercase equivalents with an
+.Cm l
+modifier.  In addition,
+.Nm
+treated an unknown conversion character as
+.Cm \&%d
+or
+.Cm \&%D ,
+depending on its case.  This functionality has been removed.
 .Pp
 Numerical strings are truncated to 512 characters; for example,
 .Cm %f
@@ -439,3 +476,25 @@ are implicitly
 .Cm %512f
 and
 .Cm %512d .
+.Pp
+The
+.Cm %n$
+modifiers for positional arguments are not implemented.
+.Pp
+The
+.Cm l
+modifier for
+.Cm %c
+and
+.Cm %s
+(and
+.Cm %C
+and
+.Cm %S )
+to specify wide characters and strings is not implemented.
+.Pp
+The
+.Cm \&%a
+and
+.Cm \&%A
+floating-point formats are not implemented.
