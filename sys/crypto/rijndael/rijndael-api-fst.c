@@ -27,6 +27,10 @@
 #include <crypto/rijndael/rijndael-api-fst.h>
 #include <crypto/rijndael/rijndael_local.h>
 
+#ifndef TRUE
+#define TRUE 1
+#endif
+
 int rijndael_makeKey(keyInstance *key, BYTE direction, int keyLen, char *keyMaterial) {
 	word8 k[MAXKC][4];
 	int i;
@@ -220,7 +224,7 @@ int rijndael_padEncrypt(cipherInstance *cipher, keyInstance *key,
 		}
 		padLen = 16 - (inputOctets - 16*numBlocks);
 		if (padLen > 0 && padLen <= 16)
-			panic("rijndael_padEncrypt(ECB)");
+			return BAD_CIPHER_STATE;
 		bcopy(input, block, 16 - padLen);
 		for (cp = block + 16 - padLen; cp < block + 16; cp++)
 			*cp = padLen;
@@ -241,7 +245,7 @@ int rijndael_padEncrypt(cipherInstance *cipher, keyInstance *key,
 		}
 		padLen = 16 - (inputOctets - 16*numBlocks);
 		if (padLen > 0 && padLen <= 16)
-			panic("rijndael_padEncrypt(CBC)");
+			return BAD_CIPHER_STATE;
 		for (i = 0; i < 16 - padLen; i++) {
 			block[i] = input[i] ^ iv[i];
 		}
