@@ -666,7 +666,6 @@ hierarchy:
 includes:
 	cd ${.CURDIR}/include;			${MAKE} -B all install
 	cd ${.CURDIR}/gnu/include;		${MAKE} install
-	cd ${.CURDIR}/gnu/lib/csu;		${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libdialog;	${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libobjc;		${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libreadline/readline;	${MAKE} beforeinstall
@@ -697,9 +696,6 @@ includes:
 	cd ${.CURDIR}/secure/lib/libtelnet;	${MAKE} beforeinstall
 .else
 	cd ${.CURDIR}/lib/libtelnet;		${MAKE} beforeinstall
-.endif
-.if exists(${.CURDIR}/lib/csu/${MACHINE_ARCH})
-	cd ${.CURDIR}/lib/csu/${MACHINE_ARCH};	${MAKE} beforeinstall
 .endif
 	cd ${.CURDIR}/lib/libalias;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libatm;		${MAKE} beforeinstall
