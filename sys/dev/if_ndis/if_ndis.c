@@ -247,26 +247,14 @@ ndis_attach(dev)
 				}
 				break;
 			case SYS_RES_MEMORY:
-				if (sc->ndis_res_altmem != NULL) {
+				if (sc->ndis_res_altmem != NULL &&
+				    sc->ndis_res_mem != NULL) {
 					printf ("ndis%d: too many memory "
 					    "resources", sc->ndis_unit);
 					error = ENXIO;
 					goto fail;
 				}
-				if (sc->ndis_res_mem == NULL) {
-					sc->ndis_mem_rid = rle->rid;
-					sc->ndis_res_mem =
-					    bus_alloc_resource(dev,
-					        SYS_RES_MEMORY,
-						&sc->ndis_mem_rid,
-						0, ~0, 1, RF_ACTIVE);
-					if (sc->ndis_res_mem == NULL) {
-						printf("ndis%d: couldn't map "
-						    "memory\n", unit);
-						error = ENXIO;
-						goto fail;
-					}
-				} else {
+				if (rle->rid == PCIR_BAR(2)) {
 					sc->ndis_altmem_rid = rle->rid;
 					sc->ndis_res_altmem =
 					    bus_alloc_resource(dev,
@@ -276,6 +264,19 @@ ndis_attach(dev)
 					if (sc->ndis_res_altmem == NULL) {
 						printf("ndis%d: couldn't map "
 						    "alt memory\n", unit);
+						error = ENXIO;
+						goto fail;
+					}
+				} else {
+					sc->ndis_mem_rid = rle->rid;
+					sc->ndis_res_mem =
+					    bus_alloc_resource(dev,
+					        SYS_RES_MEMORY,
+						&sc->ndis_mem_rid,
+						0, ~0, 1, RF_ACTIVE);
+					if (sc->ndis_res_mem == NULL) {
+						printf("ndis%d: couldn't map "
+						    "memory\n", unit);
 						error = ENXIO;
 						goto fail;
 					}
@@ -841,11 +842,12 @@ ndis_tick(xsc)
 	int			error, len;
 
 	sc = xsc;
-	NDIS_LOCK(sc);
 
 	len = sizeof(linkstate);
 	error = ndis_get_info(sc, OID_GEN_MEDIA_CONNECT_STATUS,
 	    (void *)&linkstate, &len);
+
+	NDIS_LOCK(sc);
 
 	if (linkstate == nmc_connected)
 		sc->ndis_link = 1;
@@ -944,14 +946,15 @@ ndis_start(ifp)
 		 * so we can free it later.
 		 */
 
-		(sc->ndis_txarray[sc->ndis_txidx])->np_txidx = sc->ndis_txidx;
-		(sc->ndis_txarray[sc->ndis_txidx])->np_m0 = m;
+		p = sc->ndis_txarray[sc->ndis_txidx];
+		p->np_txidx = sc->ndis_txidx;
+		p->np_m0 = m;
+		p->np_oob.npo_status = NDIS_STATUS_PENDING;
 
 		/*
 		 * Do scatter/gather processing, if driver requested it.
 		 */
 		if (sc->ndis_sc) {
-			p = sc->ndis_txarray[sc->ndis_txidx];
 			bus_dmamap_load_mbuf(sc->ndis_ttag,
 			    sc->ndis_tmaps[sc->ndis_txidx], m,
 			    ndis_map_sclist, &p->np_sclist, BUS_DMA_NOWAIT);

@@ -489,8 +489,7 @@ ntoskrnl_push_slist(/*head, entry*/ void)
 	slist_entry		*entry;
 	slist_entry		*oldhead;
 
-	__asm__("movl %%ecx, %%ecx" : "=c" (head));
-	__asm__("movl %%edx, %%edx" : "=d" (entry));
+	__asm__ __volatile__ ("" : "=c" (head), "=d" (entry));
 
 	mtx_lock(&ntoskrnl_interlock);
 	oldhead = head->slh_list.slh_next;
@@ -506,7 +505,7 @@ ntoskrnl_pop_slist(/*head*/ void)
 	slist_header		*head;
 	slist_entry		*first;
 
-	__asm__("movl %%ecx, %%ecx" : "=c" (head));
+	__asm__ __volatile__ ("" : "=c" (head));
 
 	mtx_lock(&ntoskrnl_interlock);
 	first = head->slh_list.slh_next;
@@ -524,8 +523,7 @@ ntoskrnl_push_slist_ex(/*head, entry,*/ lock)
 	slist_entry		*entry;
 	slist_entry		*oldhead;
 
-	__asm__("movl %%ecx, %%ecx" : "=c" (head));
-	__asm__("movl %%edx, %%edx" : "=d" (entry));
+	__asm__ __volatile__ ("" : "=c" (head), "=d" (entry));
 
 	mtx_lock((struct mtx *)*lock);
 	oldhead = head->slh_list.slh_next;
@@ -542,8 +540,7 @@ ntoskrnl_pop_slist_ex(/*head, lock*/ void)
 	kspin_lock		*lock;
 	slist_entry		*first;
 
-	__asm__("movl %%ecx, %%ecx" : "=c" (head));
-	__asm__("movl %%edx, %%edx" : "=d" (lock));
+	__asm__ __volatile__ ("" : "=c" (head), "=d" (lock));
 
 	mtx_lock((struct mtx *)*lock);
 	first = head->slh_list.slh_next;
