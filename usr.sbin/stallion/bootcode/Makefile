@@ -1,6 +1,8 @@
-# $Id$
+# $Id: Makefile,v 1.5 1997/02/22 16:13:44 peter Exp $
 
 FILES	= 	2681.sys cdk.sys
+
+MAN4	=	stl.4 stli.4
 
 LIBMODE	=	444
 LIBOWN	=	bin
@@ -9,7 +11,7 @@ CLEANFILES= 	${FILES}
 
 all: $(FILES)
 
-install:
+install: maninstall
 	@if [ ! -d ${DESTDIR}${BOOTDIR} ]; then mkdir ${DESTDIR}${BOOTDIR};fi
 	@for i in ${FILES}; do \
 		${ECHO} "installing $$i into ${DESTDIR}${BOOTDIR}"; \

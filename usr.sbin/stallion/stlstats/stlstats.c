@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: stlstats.c,v 1.4 1997/02/22 16:13:50 peter Exp $
  */
 
 /*****************************************************************************/
@@ -53,7 +53,7 @@
 
 /*****************************************************************************/
 
-char	*version = "0.0.5";
+char	*version = "1.0.0";
 char	*defdevice = "/dev/staliomem0";
 
 char	*progname;
