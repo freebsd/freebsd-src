@@ -1690,7 +1690,9 @@ swp_pager_force_pagein(struct swblock *swap, int idx)
 	object = swap->swb_object;
 	pindex = swap->swb_index;
 
+	VM_OBJECT_LOCK(object);
 	vm_object_pip_add(object, 1);
+	VM_OBJECT_UNLOCK(object);
 	m = vm_page_grab(object, pindex + idx, VM_ALLOC_NORMAL|VM_ALLOC_RETRY);
 	if (m->valid == VM_PAGE_BITS_ALL) {
 		VM_OBJECT_LOCK(object);
