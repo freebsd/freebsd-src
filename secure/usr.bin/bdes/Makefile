@@ -2,7 +2,10 @@
 # $FreeBSD$
 
 PROG=	bdes
-DPADD=	${LIBCIPHER}
-LDADD=	-lcipher
+
+WARNS=	2
+
+DPADD=	${LIBCRYPTO}
+LDADD=	-lcrypto
 
 .include <bsd.prog.mk>

@@ -39,7 +39,7 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1991, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
@@ -47,9 +47,6 @@ static char copyright[] =
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)bdes.c	8.1 (Berkeley) 6/6/93";
-#else
-static const char rcsid[] =
- "$FreeBSD$";
 #endif
 #endif /* not lint */
 
@@ -83,12 +80,20 @@ static const char rcsid[] =
  * or the technical report for a complete reference).
  */
 
-#include <errno.h>
-#include <unistd.h>
-#include <stdio.h>
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
+#include <sys/types.h>
+
 #include <ctype.h>
+#include <err.h>
+#include <errno.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+
+#include <openssl/des.h>
 
 /*
  * BSD and System V systems offer special library calls that do
@@ -97,30 +102,9 @@ static const char rcsid[] =
 #define	MEMCPY(dest,src,len)	bcopy((src),(dest),(len))
 #define	MEMZERO(dest,len)	bzero((dest),(len))
 
-/* Hide the calls to the primitive encryption routines. */
-#define	FASTWAY
-#ifdef	FASTWAY
-#define	DES_KEY(buf) \
-	if (des_setkey(buf)) \
-		err(0, "des_setkey");
-#define	DES_XFORM(buf) \
-	if (des_cipher(buf, buf, 0L, (inverse ? -1 : 1))) \
-		err(0, "des_cipher");
-#else
-#define	DES_KEY(buf)	{						\
-				char bits1[64];	/* bits of key */	\
-				expand(buf, bits1);			\
-				if (setkey(bits1))			\
-					err(0, "setkey");		\
-			}
-#define	DES_XFORM(buf)	{						\
-				char bits1[64];	/* bits of message */	\
-				expand(buf, bits1);			\
-				if (encrypt(bits1, inverse))		\
-					err(0, "encrypt");		\
-				compress(bits1, buf);			\
-			}
-#endif
+#define	DES_XFORM(buf)							\
+		DES_ecb_encrypt(buf, buf, &schedule, 			\
+		    mode == MODE_ENCRYPT ? DES_ENCRYPT : DES_DECRYPT);
 
 /*
  * this does an error-checking write
@@ -128,16 +112,7 @@ static const char rcsid[] =
 #define	READ(buf, n)	fread(buf, sizeof(char), n, stdin)
 #define WRITE(buf,n)						\
 		if (fwrite(buf, sizeof(char), n, stdout) != n)	\
-			err(bn, NULL);
-
-/*
- * some things to make references easier
- */
-typedef char Desbuf[8];
-#define	CHAR(x,i)	(x[i])
-#define	UCHAR(x,i)	(x[i])
-#define	BUFFER(x)	(x)
-#define	UBUFFER(x)	(x)
+			warnx("fwrite error at %d", n);
 
 /*
  * global variables and related macros
@@ -149,28 +124,52 @@ int keybase = KEY_DEFAULT;		/* how to interpret the key */
 enum { 					/* encrypt, decrypt, authenticate */
 	MODE_ENCRYPT, MODE_DECRYPT, MODE_AUTHENTICATE
 } mode = MODE_ENCRYPT;
+
 enum {					/* ecb, cbc, cfb, cfba, ofb? */
 	ALG_ECB, ALG_CBC, ALG_CFB, ALG_OFB, ALG_CFBA
 } alg = ALG_CBC;
 
-Desbuf ivec;				/* initialization vector */
+DES_cblock ivec;				/* initialization vector */
+
 char bits[] = {				/* used to extract bits from a char */
 	'\200', '\100', '\040', '\020', '\010', '\004', '\002', '\001'
 };
+
 int inverse;				/* 0 to encrypt, 1 to decrypt */
 int macbits = -1;			/* number of bits in authentication */
 int fbbits = -1;			/* number of feedback bits */
 int pflag;				/* 1 to preserve parity bits */
 
-main(ac, av)
-	int ac;				/* arg count */
-	char **av;			/* arg vector */
+DES_key_schedule schedule;		/* expanded DES key */
+
+static void ecbenc(void);
+static void ecbdec(void);
+static void cbcenc(void);
+static void cbcdec(void);
+static void cfbenc(void);
+static void cfbdec(void);
+static void cfbaenc(void);
+static void cfbadec(void);
+static void ofbenc(void);
+static void ofbdec(void);
+
+static void cbcauth(void);
+static void cfbauth(void);
+
+static void cvtkey(DES_cblock, char *);
+static int setbits(char *, int);
+static void makekey(DES_cblock *);
+static int tobinhex(char, int);
+
+static void usage(void);
+
+int
+main(int ac, char *av[])
 {
-	extern int optind;		/* option (argument) number */
 	extern char *optarg;		/* argument to option if any */
-	register int i;			/* counter in a for loop */
-	register char *p;		/* used to obtain the key */
-	Desbuf msgbuf;			/* I/O buffer */
+	int i;				/* counter in a for loop */
+	char *p;			/* used to obtain the key */
+	DES_cblock msgbuf;		/* I/O buffer */
 	int kflag;			/* command-line encryptiooon key */
 	int argc;			/* the real arg count */
 	char **argv;			/* the real argument vector */
@@ -207,38 +206,38 @@ main(ac, av)
 		case 'F':		/* use alternative CFB mode */
 			alg = ALG_CFBA;
 			if ((fbbits = setbits(optarg, 7)) > 56 || fbbits == 0)
-				err(-1, "-F: number must be 1-56 inclusive");
+				errx(1, "-F: number must be 1-56 inclusive");
 			else if (fbbits == -1)
-				err(-1, "-F: number must be a multiple of 7");
+				errx(1, "-F: number must be a multiple of 7");
 			break;
 		case 'f':		/* use CFB mode */
 			alg = ALG_CFB;
 			if ((fbbits = setbits(optarg, 8)) > 64 || fbbits == 0)
-				err(-1, "-f: number must be 1-64 inclusive");
+				errx(1, "-f: number must be 1-64 inclusive");
 			else if (fbbits == -1)
-				err(-1, "-f: number must be a multiple of 8");
+				errx(1, "-f: number must be a multiple of 8");
 			break;
 		case 'k':		/* encryption key */
 			kflag = 1;
-			cvtkey(BUFFER(msgbuf), optarg);
+			cvtkey(msgbuf, optarg);
 			break;
 		case 'm':		/* number of bits for MACing */
 			mode = MODE_AUTHENTICATE;
 			if ((macbits = setbits(optarg, 1)) > 64)
-				err(-1, "-m: number must be 0-64 inclusive");
+				errx(1, "-m: number must be 0-64 inclusive");
 			break;
 		case 'o':		/* use OFB mode */
 			alg = ALG_OFB;
 			if ((fbbits = setbits(optarg, 8)) > 64 || fbbits == 0)
-				err(-1, "-o: number must be 1-64 inclusive");
+				errx(1, "-o: number must be 1-64 inclusive");
 			else if (fbbits == -1)
-				err(-1, "-o: number must be a multiple of 8");
+				errx(1, "-o: number must be a multiple of 8");
 			break;
 		case 'p':		/* preserve parity bits */
 			pflag = 1;
 			break;
 		case 'v':		/* set initialization vector */
-			cvtkey(BUFFER(ivec), optarg);
+			cvtkey(ivec, optarg);
 			break;
 		default:		/* error */
 			usage();
@@ -256,10 +255,10 @@ main(ac, av)
 		/*
 		 * copy it, nul-padded, into the key area
 		 */
-		cvtkey(BUFFER(msgbuf), p);
+		cvtkey(msgbuf, p);
 	}
 
-	makekey(msgbuf);
+	makekey(&msgbuf);
 	inverse = (alg == ALG_CBC || alg == ALG_ECB) && mode == MODE_DECRYPT;
 
 	switch(alg) {
@@ -292,7 +291,7 @@ main(ac, av)
 	case ALG_CFBA:
 		switch(mode) {
 		case MODE_AUTHENTICATE:	/* authenticate using CFBA mode */
-			err(-1, "can't authenticate with CFBA mode");
+			errx(1, "can't authenticate with CFBA mode");
 			break;
 		case MODE_DECRYPT:	/* decrypt using CFBA mode */
 			cfbadec();
@@ -305,7 +304,7 @@ main(ac, av)
 	case ALG_ECB:
 		switch(mode) {
 		case MODE_AUTHENTICATE:	/* authenticate using ECB mode */
-			err(-1, "can't authenticate with ECB mode");
+			errx(1, "can't authenticate with ECB mode");
 			break;
 		case MODE_DECRYPT:	/* decrypt using ECB mode */
 			ecbdec();
@@ -318,7 +317,7 @@ main(ac, av)
 	case ALG_OFB:
 		switch(mode) {
 		case MODE_AUTHENTICATE:	/* authenticate using OFB mode */
-			err(-1, "can't authenticate with OFB mode");
+			errx(1, "can't authenticate with OFB mode");
 			break;
 		case MODE_DECRYPT:	/* decrypt using OFB mode */
 			ofbdec();
@@ -329,30 +328,14 @@ main(ac, av)
 		}
 		break;
 	}
-	exit(0);
-}
-
-/*
- * print a warning message and, possibly, terminate
- */
-err(n, s)
-	int n;			/* offending block number */
-	char *s;		/* the message */
-{
-	if (n > 0)
-		(void)fprintf(stderr, "bdes (block %d): ", n);
-	else
-		(void)fprintf(stderr, "bdes: ");
-	(void)fprintf(stderr, "%s\n", s ? s : strerror(errno));
-	exit(1);
+	return (0);
 }
 
 /*
  * map a hex character to an integer
  */
-tobinhex(c, radix)
-	char c;			/* char to be converted */
-	int radix;		/* base (2 to 16) */
+static int
+tobinhex(char c, int radix)
 {
 	switch(c) {
 	case '0':		return(0x0);
@@ -381,11 +364,10 @@ tobinhex(c, radix)
 /*
  * convert the key to a bit pattern
  */
-cvtkey(obuf, ibuf)
-	char *obuf;			/* bit pattern */
-	char *ibuf;			/* the key itself */
+static void
+cvtkey(DES_cblock obuf, char *ibuf)
 {
-	register int i, j;		/* counter in a for loop */
+	int i, j;			/* counter in a for loop */
 	int nbuf[64];			/* used for hex/key translation */
 
 	/*
@@ -406,7 +388,7 @@ cvtkey(obuf, ibuf)
 			 */
 			for (i = 0; ibuf[i] && i < 16; i++)
 				if ((nbuf[i] = tobinhex(ibuf[i], 16)) == -1)
-					err(-1, "bad hex digit in key");
+					warnx("bad hex digit in key");
 			while (i < 16)
 				nbuf[i++] = 0;
 			for (i = 0; i < 8; i++)
@@ -426,7 +408,7 @@ cvtkey(obuf, ibuf)
 			 */
 			for (i = 0; ibuf[i] && i < 16; i++)
 				if ((nbuf[i] = tobinhex(ibuf[i], 2)) == -1)
-					err(-1, "bad binary digit in key");
+					warnx("bad binary digit in key");
 			while (i < 64)
 				nbuf[i++] = 0;
 			for (i = 0; i < 8; i++)
@@ -449,12 +431,11 @@ cvtkey(obuf, ibuf)
  * 2. must be a valid decimal number
  * 3. must be a multiple of mult
  */
-setbits(s, mult)
-	char *s;			/* the ASCII string */
-	int mult;			/* what it must be a multiple of */
+static int
+setbits(char *s, int mult)
 {
-	register char *p;		/* pointer in a for loop */
-	register int n = 0;		/* the integer collected */
+	char *p;			/* pointer in a for loop */
+	int n = 0;			/* the integer collected */
 
 	/*
 	 * skip white space
@@ -468,7 +449,7 @@ setbits(s, mult)
 		if (isdigit(*p))
 			n = n * 10 + *p - '0';
 		else {
-			err(-1, "bad decimal digit in MAC length");
+			warnx("bad decimal digit in MAC length");
 		}
 	}
 	/*
@@ -491,11 +472,11 @@ setbits(s, mult)
  * systems set the parity (high) bit of each character to 0, and the
  * DES ignores the low order bit of each character.
  */
-makekey(buf)
-	Desbuf buf;				/* key block */
+static void
+makekey(DES_cblock *buf)
 {
-	register int i, j;			/* counter in a for loop */
-	register int par;			/* parity counter */
+	int i, j;				/* counter in a for loop */
+	int par;				/* parity counter */
 
 	/*
 	 * if the parity is not preserved, flip it
@@ -504,174 +485,182 @@ makekey(buf)
 		for (i = 0; i < 8; i++) {
 			par = 0;
 			for (j = 1; j < 8; j++)
-				if ((bits[j]&UCHAR(buf, i)) != 0)
+				if ((bits[j] & (*buf)[i]) != 0)
 					par++;
-			if ((par&01) == 01)
-				UCHAR(buf, i) = UCHAR(buf, i)&0177;
+			if ((par & 0x01) == 0x01)
+				(*buf)[i] &= 0x7f;
 			else
-				UCHAR(buf, i) = (UCHAR(buf, i)&0177)|0200;
+				(*buf)[i] = ((*buf)[i] & 0x7f) | 0x80;
 		}
 	}
 
-	DES_KEY(UBUFFER(buf));
+	DES_set_odd_parity(buf);
+	DES_set_key(buf, &schedule);
 }
 
 /*
  * This encrypts using the Electronic Code Book mode of DES
  */
-ecbenc()
+static void
+ecbenc(void)
 {
-	register int n;		/* number of bytes actually read */
-	register int bn;	/* block number */
-	Desbuf msgbuf;		/* I/O buffer */
+	int n;				/* number of bytes actually read */
+	int bn;				/* block number */
+	DES_cblock msgbuf;		/* I/O buffer */
 
-	for (bn = 0; (n = READ(BUFFER(msgbuf),  8)) == 8; bn++) {
+	for (bn = 0; (n = READ(msgbuf,  8)) == 8; bn++) {
 		/*
 		 * do the transformation
 		 */
-		DES_XFORM(UBUFFER(msgbuf));
-		WRITE(BUFFER(msgbuf), 8);
+		DES_XFORM(&msgbuf);
+		WRITE(&msgbuf, 8);
 	}
 	/*
 	 * at EOF or last block -- in either case, the last byte contains
 	 * the character representation of the number of bytes in it
 	 */
 	bn++;
-	MEMZERO(&CHAR(msgbuf, n), 8 - n);
-	CHAR(msgbuf, 7) = n;
-	DES_XFORM(UBUFFER(msgbuf));
-	WRITE(BUFFER(msgbuf), 8);
+	MEMZERO(&msgbuf[n], 8 - n);
+	msgbuf[7] = n;
+	DES_XFORM(&msgbuf);
+	WRITE(&msgbuf, 8);
 
 }
 
 /*
  * This decrypts using the Electronic Code Book mode of DES
  */
-ecbdec()
+static void
+ecbdec(void)
 {
-	register int n;		/* number of bytes actually read */
-	register int c;		/* used to test for EOF */
-	register int bn;	/* block number */
-	Desbuf msgbuf;		/* I/O buffer */
+	int n;			/* number of bytes actually read */
+	int c;			/* used to test for EOF */
+	int bn;			/* block number */
+	DES_cblock msgbuf;		/* I/O buffer */
 
-	for (bn = 1; (n = READ(BUFFER(msgbuf), 8)) == 8; bn++) {
+	for (bn = 1; (n = READ(msgbuf, 8)) == 8; bn++) {
 		/*
 		 * do the transformation
 		 */
-		DES_XFORM(UBUFFER(msgbuf));
+		DES_XFORM(&msgbuf);
 		/*
 		 * if the last one, handle it specially
 		 */
 		if ((c = getchar()) == EOF) {
-			n = CHAR(msgbuf, 7);
+			n = msgbuf[7];
 			if (n < 0 || n > 7)
-				err(bn, "decryption failed (block corrupted)");
+				warnx("decryption failed (block corrupt) at %d",
+				    bn);
 		}
 		else
 			(void)ungetc(c, stdin);
-		WRITE(BUFFER(msgbuf), n);
+		WRITE(msgbuf, n);
 	}
 	if (n > 0)
-		err(bn, "decryption failed (incomplete block)");
+		warnx("decryption failed (incomplete block) at %d", bn);
 }
 
 /*
  * This encrypts using the Cipher Block Chaining mode of DES
  */
-cbcenc()
+static void
+cbcenc(void)
 {
-	register int n;		/* number of bytes actually read */
-	register int bn;	/* block number */
-	Desbuf msgbuf;		/* I/O buffer */
+	int n;			/* number of bytes actually read */
+	int bn;			/* block number */
+	DES_cblock msgbuf;	/* I/O buffer */
 
 	/*
 	 * do the transformation
 	 */
-	for (bn = 1; (n = READ(BUFFER(msgbuf), 8)) == 8; bn++) {
+	for (bn = 1; (n = READ(msgbuf, 8)) == 8; bn++) {
 		for (n = 0; n < 8; n++)
-			CHAR(msgbuf, n) ^= CHAR(ivec, n);
-		DES_XFORM(UBUFFER(msgbuf));
-		MEMCPY(BUFFER(ivec), BUFFER(msgbuf), 8);
-		WRITE(BUFFER(msgbuf), 8);
+			msgbuf[n] ^= ivec[n];
+		DES_XFORM(&msgbuf);
+		MEMCPY(ivec, msgbuf, 8);
+		WRITE(msgbuf, 8);
 	}
 	/*
 	 * at EOF or last block -- in either case, the last byte contains
 	 * the character representation of the number of bytes in it
 	 */
 	bn++;
-	MEMZERO(&CHAR(msgbuf, n), 8 - n);
-	CHAR(msgbuf, 7) = n;
+	MEMZERO(&msgbuf[n], 8 - n);
+	msgbuf[7] = n;
 	for (n = 0; n < 8; n++)
-		CHAR(msgbuf, n) ^= CHAR(ivec, n);
-	DES_XFORM(UBUFFER(msgbuf));
-	WRITE(BUFFER(msgbuf), 8);
+		msgbuf[n] ^= ivec[n];
+	DES_XFORM(&msgbuf);
+	WRITE(msgbuf, 8);
 
 }
 
 /*
  * This decrypts using the Cipher Block Chaining mode of DES
  */
-cbcdec()
+static void
+cbcdec(void)
 {
-	register int n;		/* number of bytes actually read */
-	Desbuf msgbuf;		/* I/O buffer */
-	Desbuf ibuf;		/* temp buffer for initialization vector */
-	register int c;		/* used to test for EOF */
-	register int bn;	/* block number */
+	int n;			/* number of bytes actually read */
+	DES_cblock msgbuf;	/* I/O buffer */
+	DES_cblock ibuf;	/* temp buffer for initialization vector */
+	int c;			/* used to test for EOF */
+	int bn;			/* block number */
 
-	for (bn = 0; (n = READ(BUFFER(msgbuf), 8)) == 8; bn++) {
+	for (bn = 0; (n = READ(msgbuf, 8)) == 8; bn++) {
 		/*
 		 * do the transformation
 		 */
-		MEMCPY(BUFFER(ibuf), BUFFER(msgbuf), 8);
-		DES_XFORM(UBUFFER(msgbuf));
+		MEMCPY(ibuf, msgbuf, 8);
+		DES_XFORM(&msgbuf);
 		for (c = 0; c < 8; c++)
-			UCHAR(msgbuf, c) ^= UCHAR(ivec, c);
-		MEMCPY(BUFFER(ivec), BUFFER(ibuf), 8);
+			msgbuf[c] ^= ivec[c];
+		MEMCPY(ivec, ibuf, 8);
 		/*
 		 * if the last one, handle it specially
 		 */
 		if ((c = getchar()) == EOF) {
-			n = CHAR(msgbuf, 7);
+			n = msgbuf[7];
 			if (n < 0 || n > 7)
-				err(bn, "decryption failed (block corrupted)");
+				warnx("decryption failed (block corrupt) at %d",
+				    bn);
 		}
 		else
 			(void)ungetc(c, stdin);
-		WRITE(BUFFER(msgbuf), n);
+		WRITE(msgbuf, n);
 	}
 	if (n > 0)
-		err(bn, "decryption failed (incomplete block)");
+		warnx("decryption failed (incomplete block) at %d", bn);
 }
 
 /*
  * This authenticates using the Cipher Block Chaining mode of DES
  */
-cbcauth()
+static void
+cbcauth(void)
 {
-	register int n, j;		/* number of bytes actually read */
-	Desbuf msgbuf;		/* I/O buffer */
-	Desbuf encbuf;		/* encryption buffer */
+	int n, j;		/* number of bytes actually read */
+	DES_cblock msgbuf;		/* I/O buffer */
+	DES_cblock encbuf;		/* encryption buffer */
 
 	/*
 	 * do the transformation
 	 * note we DISCARD the encrypted block;
 	 * we only care about the last one
 	 */
-	while ((n = READ(BUFFER(msgbuf), 8)) == 8) {
+	while ((n = READ(msgbuf, 8)) == 8) {
 		for (n = 0; n < 8; n++)
-			CHAR(encbuf, n) = CHAR(msgbuf, n) ^ CHAR(ivec, n);
-		DES_XFORM(UBUFFER(encbuf));
-		MEMCPY(BUFFER(ivec), BUFFER(encbuf), 8);
+			encbuf[n] = msgbuf[n] ^ ivec[n];
+		DES_XFORM(&encbuf);
+		MEMCPY(ivec, encbuf, 8);
 	}
 	/*
 	 * now compute the last one, right padding with '\0' if need be
 	 */
 	if (n > 0) {
-		MEMZERO(&CHAR(msgbuf, n), 8 - n);
+		MEMZERO(&msgbuf[n], 8 - n);
 		for (n = 0; n < 8; n++)
-			CHAR(encbuf, n) = CHAR(msgbuf, n) ^ CHAR(ivec, n);
-		DES_XFORM(UBUFFER(encbuf));
+			encbuf[n] = msgbuf[n] ^ ivec[n];
+		DES_XFORM(&encbuf);
 	}
 	/*
 	 * drop the bits
@@ -679,25 +668,26 @@ cbcauth()
 	 * and then pad the last one with 0 bits
 	 */
 	for (n = 0; macbits > 7; n++, macbits -= 8)
-		(void)putchar(CHAR(encbuf, n));
+		(void)putchar(encbuf[n]);
 	if (macbits > 0) {
-		CHAR(msgbuf, 0) = 0x00;
+		msgbuf[0] = 0x00;
 		for (j = 0; j < macbits; j++)
-			CHAR(msgbuf, 0) |= (CHAR(encbuf, n)&bits[j]);
-		(void)putchar(CHAR(msgbuf, 0));
+			msgbuf[0] |= encbuf[n] & bits[j];
+		(void)putchar(msgbuf[0]);
 	}
 }
 
 /*
  * This encrypts using the Cipher FeedBack mode of DES
  */
-cfbenc()
+static void
+cfbenc(void)
 {
-	register int n;		/* number of bytes actually read */
-	register int nbytes;	/* number of bytes to read */
-	register int bn;	/* block number */
+	int n;			/* number of bytes actually read */
+	int nbytes;		/* number of bytes to read */
+	int bn;			/* block number */
 	char ibuf[8];		/* input buffer */
-	Desbuf msgbuf;		/* encryption buffer */
+	DES_cblock msgbuf;		/* encryption buffer */
 
 	/*
 	 * do things in bytes, not bits
@@ -707,13 +697,13 @@ cfbenc()
 	 * do the transformation
 	 */
 	for (bn = 1; (n = READ(ibuf, nbytes)) == nbytes; bn++) {
-		MEMCPY(BUFFER(msgbuf), BUFFER(ivec), 8);
-		DES_XFORM(UBUFFER(msgbuf));
+		MEMCPY(msgbuf, ivec, 8);
+		DES_XFORM(&msgbuf);
 		for (n = 0; n < 8 - nbytes; n++)
-			UCHAR(ivec, n) = UCHAR(ivec, n+nbytes);
+			ivec[n] = ivec[n+nbytes];
 		for (n = 0; n < nbytes; n++)
-			UCHAR(ivec, 8-nbytes+n) = ibuf[n] ^ UCHAR(msgbuf, n);
-		WRITE(&CHAR(ivec, 8-nbytes), nbytes);
+			ivec[8 - nbytes + n] = ibuf[n] ^ msgbuf[n];
+		WRITE(&ivec[8 - nbytes], nbytes);
 	}
 	/*
 	 * at EOF or last block -- in either case, the last byte contains
@@ -722,25 +712,26 @@ cfbenc()
 	bn++;
 	MEMZERO(&ibuf[n], nbytes - n);
 	ibuf[nbytes - 1] = n;
-	MEMCPY(BUFFER(msgbuf), BUFFER(ivec), 8);
-	DES_XFORM(UBUFFER(msgbuf));
+	MEMCPY(msgbuf, ivec, 8);
+	DES_XFORM(&msgbuf);
 	for (n = 0; n < nbytes; n++)
-		ibuf[n] ^= UCHAR(msgbuf, n);
+		ibuf[n] ^= msgbuf[n];
 	WRITE(ibuf, nbytes);
 }
 
 /*
  * This decrypts using the Cipher Block Chaining mode of DES
  */
-cfbdec()
+static void
+cfbdec(void)
 {
-	register int n;		/* number of bytes actually read */
-	register int c;		/* used to test for EOF */
-	register int nbytes;	/* number of bytes to read */
-	register int bn;	/* block number */
+	int n;			/* number of bytes actually read */
+	int c;			/* used to test for EOF */
+	int nbytes;		/* number of bytes to read */
+	int bn;			/* block number */
 	char ibuf[8];		/* input buffer */
 	char obuf[8];		/* output buffer */
-	Desbuf msgbuf;		/* encryption buffer */
+	DES_cblock msgbuf;		/* encryption buffer */
 
 	/*
 	 * do things in bytes, not bits
@@ -750,13 +741,13 @@ cfbdec()
 	 * do the transformation
 	 */
 	for (bn = 1; (n = READ(ibuf, nbytes)) == nbytes; bn++) {
-		MEMCPY(BUFFER(msgbuf), BUFFER(ivec), 8);
-		DES_XFORM(UBUFFER(msgbuf));
+		MEMCPY(msgbuf, ivec, 8);
+		DES_XFORM(&msgbuf);
 		for (c = 0; c < 8 - nbytes; c++)
-			CHAR(ivec, c) = CHAR(ivec, c+nbytes);
+			ivec[c] = ivec[c + nbytes];
 		for (c = 0; c < nbytes; c++) {
-			CHAR(ivec, 8-nbytes+c) = ibuf[c];
-			obuf[c] = ibuf[c] ^ UCHAR(msgbuf, c);
+			ivec[8 - nbytes + c] = ibuf[c];
+			obuf[c] = ibuf[c] ^ msgbuf[c];
 		}
 		/*
 		 * if the last one, handle it specially
@@ -764,27 +755,29 @@ cfbdec()
 		if ((c = getchar()) == EOF) {
 			n = obuf[nbytes-1];
 			if (n < 0 || n > nbytes-1)
-				err(bn, "decryption failed (block corrupted)");
+				warnx("decryption failed (block corrupt) at %d",
+				    bn);
 		}
 		else
 			(void)ungetc(c, stdin);
 		WRITE(obuf, n);
 	}
 	if (n > 0)
-		err(bn, "decryption failed (incomplete block)");
+		warnx("decryption failed (incomplete block) at %d", bn);
 }
 
 /*
  * This encrypts using the alternative Cipher FeedBack mode of DES
  */
-cfbaenc()
+static void
+cfbaenc(void)
 {
-	register int n;		/* number of bytes actually read */
-	register int nbytes;	/* number of bytes to read */
-	register int bn;	/* block number */
+	int n;			/* number of bytes actually read */
+	int nbytes;		/* number of bytes to read */
+	int bn;			/* block number */
 	char ibuf[8];		/* input buffer */
 	char obuf[8];		/* output buffer */
-	Desbuf msgbuf;		/* encryption buffer */
+	DES_cblock msgbuf;		/* encryption buffer */
 
 	/*
 	 * do things in bytes, not bits
@@ -794,15 +787,14 @@ cfbaenc()
 	 * do the transformation
 	 */
 	for (bn = 1; (n = READ(ibuf, nbytes)) == nbytes; bn++) {
-		MEMCPY(BUFFER(msgbuf), BUFFER(ivec), 8);
-		DES_XFORM(UBUFFER(msgbuf));
+		MEMCPY(msgbuf, ivec, 8);
+		DES_XFORM(&msgbuf);
 		for (n = 0; n < 8 - nbytes; n++)
-			UCHAR(ivec, n) = UCHAR(ivec, n+nbytes);
+			ivec[n] = ivec[n + nbytes];
 		for (n = 0; n < nbytes; n++)
-			UCHAR(ivec, 8-nbytes+n) = (ibuf[n] ^ UCHAR(msgbuf, n))
-							|0200;
+			ivec[8 - nbytes + n] = (ibuf[n] ^ msgbuf[n]) | 0x80;
 		for (n = 0; n < nbytes; n++)
-			obuf[n] = CHAR(ivec, 8-nbytes+n)&0177;
+			obuf[n] = ivec[8 - nbytes + n] & 0x7f;
 		WRITE(obuf, nbytes);
 	}
 	/*
@@ -812,25 +804,26 @@ cfbaenc()
 	bn++;
 	MEMZERO(&ibuf[n], nbytes - n);
 	ibuf[nbytes - 1] = ('0' + n)|0200;
-	MEMCPY(BUFFER(msgbuf), BUFFER(ivec), 8);
-	DES_XFORM(UBUFFER(msgbuf));
+	MEMCPY(msgbuf, ivec, 8);
+	DES_XFORM(&msgbuf);
 	for (n = 0; n < nbytes; n++)
-		ibuf[n] ^= UCHAR(msgbuf, n);
+		ibuf[n] ^= msgbuf[n];
 	WRITE(ibuf, nbytes);
 }
 
 /*
  * This decrypts using the alternative Cipher Block Chaining mode of DES
  */
-cfbadec()
+static void
+cfbadec(void)
 {
-	register int n;		/* number of bytes actually read */
-	register int c;		/* used to test for EOF */
-	register int nbytes;	/* number of bytes to read */
-	register int bn;	/* block number */
+	int n;			/* number of bytes actually read */
+	int c;			/* used to test for EOF */
+	int nbytes;		/* number of bytes to read */
+	int bn;			/* block number */
 	char ibuf[8];		/* input buffer */
 	char obuf[8];		/* output buffer */
-	Desbuf msgbuf;		/* encryption buffer */
+	DES_cblock msgbuf;		/* encryption buffer */
 
 	/*
 	 * do things in bytes, not bits
@@ -840,13 +833,13 @@ cfbadec()
 	 * do the transformation
 	 */
 	for (bn = 1; (n = READ(ibuf, nbytes)) == nbytes; bn++) {
-		MEMCPY(BUFFER(msgbuf), BUFFER(ivec), 8);
-		DES_XFORM(UBUFFER(msgbuf));
+		MEMCPY(msgbuf, ivec, 8);
+		DES_XFORM(&msgbuf);
 		for (c = 0; c < 8 - nbytes; c++)
-			CHAR(ivec, c) = CHAR(ivec, c+nbytes);
+			ivec[c] = ivec[c + nbytes];
 		for (c = 0; c < nbytes; c++) {
-			CHAR(ivec, 8-nbytes+c) = ibuf[c]|0200;
-			obuf[c] = (ibuf[c] ^ UCHAR(msgbuf, c))&0177;
+			ivec[8 - nbytes + c] = ibuf[c] | 0x80;
+			obuf[c] = (ibuf[c] ^ msgbuf[c]) & 0x7f;
 		}
 		/*
 		 * if the last one, handle it specially
@@ -854,29 +847,31 @@ cfbadec()
 		if ((c = getchar()) == EOF) {
 			if ((n = (obuf[nbytes-1] - '0')) < 0
 						|| n > nbytes-1)
-				err(bn, "decryption failed (block corrupted)");
+				warnx("decryption failed (block corrupt) at %d",
+				    bn);
 		}
 		else
 			(void)ungetc(c, stdin);
 		WRITE(obuf, n);
 	}
 	if (n > 0)
-		err(bn, "decryption failed (incomplete block)");
+		warnx("decryption failed (incomplete block) at %d", bn);
 }
 
 
 /*
  * This encrypts using the Output FeedBack mode of DES
  */
-ofbenc()
+static void
+ofbenc(void)
 {
-	register int n;		/* number of bytes actually read */
-	register int c;		/* used to test for EOF */
-	register int nbytes;	/* number of bytes to read */
-	register int bn;	/* block number */
+	int n;			/* number of bytes actually read */
+	int c;			/* used to test for EOF */
+	int nbytes;		/* number of bytes to read */
+	int bn;			/* block number */
 	char ibuf[8];		/* input buffer */
 	char obuf[8];		/* output buffer */
-	Desbuf msgbuf;		/* encryption buffer */
+	DES_cblock msgbuf;		/* encryption buffer */
 
 	/*
 	 * do things in bytes, not bits
@@ -886,13 +881,13 @@ ofbenc()
 	 * do the transformation
 	 */
 	for (bn = 1; (n = READ(ibuf, nbytes)) == nbytes; bn++) {
-		MEMCPY(BUFFER(msgbuf), BUFFER(ivec), 8);
-		DES_XFORM(UBUFFER(msgbuf));
+		MEMCPY(msgbuf, ivec, 8);
+		DES_XFORM(&msgbuf);
 		for (n = 0; n < 8 - nbytes; n++)
-			UCHAR(ivec, n) = UCHAR(ivec, n+nbytes);
+			ivec[n] = ivec[n + nbytes];
 		for (n = 0; n < nbytes; n++) {
-			UCHAR(ivec, 8-nbytes+n) = UCHAR(msgbuf, n);
-			obuf[n] = ibuf[n] ^ UCHAR(msgbuf, n);
+			ivec[8 - nbytes + n] = msgbuf[n];
+			obuf[n] = ibuf[n] ^ msgbuf[n];
 		}
 		WRITE(obuf, nbytes);
 	}
@@ -903,25 +898,26 @@ ofbenc()
 	bn++;
 	MEMZERO(&ibuf[n], nbytes - n);
 	ibuf[nbytes - 1] = n;
-	MEMCPY(BUFFER(msgbuf), BUFFER(ivec), 8);
-	DES_XFORM(UBUFFER(msgbuf));
+	MEMCPY(msgbuf, ivec, 8);
+	DES_XFORM(&msgbuf);
 	for (c = 0; c < nbytes; c++)
-		ibuf[c] ^= UCHAR(msgbuf, c);
+		ibuf[c] ^= msgbuf[c];
 	WRITE(ibuf, nbytes);
 }
 
 /*
  * This decrypts using the Output Block Chaining mode of DES
  */
-ofbdec()
+static void
+ofbdec(void)
 {
-	register int n;		/* number of bytes actually read */
-	register int c;		/* used to test for EOF */
-	register int nbytes;	/* number of bytes to read */
-	register int bn;	/* block number */
+	int n;			/* number of bytes actually read */
+	int c;			/* used to test for EOF */
+	int nbytes;		/* number of bytes to read */
+	int bn;			/* block number */
 	char ibuf[8];		/* input buffer */
 	char obuf[8];		/* output buffer */
-	Desbuf msgbuf;		/* encryption buffer */
+	DES_cblock msgbuf;		/* encryption buffer */
 
 	/*
 	 * do things in bytes, not bits
@@ -931,13 +927,13 @@ ofbdec()
 	 * do the transformation
 	 */
 	for (bn = 1; (n = READ(ibuf, nbytes)) == nbytes; bn++) {
-		MEMCPY(BUFFER(msgbuf), BUFFER(ivec), 8);
-		DES_XFORM(UBUFFER(msgbuf));
+		MEMCPY(msgbuf, ivec, 8);
+		DES_XFORM(&msgbuf);
 		for (c = 0; c < 8 - nbytes; c++)
-			CHAR(ivec, c) = CHAR(ivec, c+nbytes);
+			ivec[c] = ivec[c + nbytes];
 		for (c = 0; c < nbytes; c++) {
-			CHAR(ivec, 8-nbytes+c) = UCHAR(msgbuf, c);
-			obuf[c] = ibuf[c] ^ UCHAR(msgbuf, c);
+			ivec[8 - nbytes + c] = msgbuf[c];
+			obuf[c] = ibuf[c] ^ msgbuf[c];
 		}
 		/*
 		 * if the last one, handle it specially
@@ -945,7 +941,8 @@ ofbdec()
 		if ((c = getchar()) == EOF) {
 			n = obuf[nbytes-1];
 			if (n < 0 || n > nbytes-1)
-				err(bn, "decryption failed (block corrupted)");
+				warnx("decryption failed (block corrupt) at %d",
+				    bn);
 		}
 		else
 			(void)ungetc(c, stdin);
@@ -955,18 +952,19 @@ ofbdec()
 		WRITE(obuf, n);
 	}
 	if (n > 0)
-		err(bn, "decryption failed (incomplete block)");
+		warnx("decryption failed (incomplete block) at %d", bn);
 }
 
 /*
  * This authenticates using the Cipher FeedBack mode of DES
  */
-cfbauth()
+static void
+cfbauth(void)
 {
-	register int n, j;	/* number of bytes actually read */
-	register int nbytes;	/* number of bytes to read */
+	int n, j;		/* number of bytes actually read */
+	int nbytes;		/* number of bytes to read */
 	char ibuf[8];		/* input buffer */
-	Desbuf msgbuf;		/* encryption buffer */
+	DES_cblock msgbuf;	/* encryption buffer */
 
 	/*
 	 * do things in bytes, not bits
@@ -976,12 +974,12 @@ cfbauth()
 	 * do the transformation
 	 */
 	while ((n = READ(ibuf, nbytes)) == nbytes) {
-		MEMCPY(BUFFER(msgbuf), BUFFER(ivec), 8);
-		DES_XFORM(UBUFFER(msgbuf));
+		MEMCPY(msgbuf, ivec, 8);
+		DES_XFORM(&msgbuf);
 		for (n = 0; n < 8 - nbytes; n++)
-			UCHAR(ivec, n) = UCHAR(ivec, n+nbytes);
+			ivec[n] = ivec[n + nbytes];
 		for (n = 0; n < nbytes; n++)
-			UCHAR(ivec, 8-nbytes+n) = ibuf[n] ^ UCHAR(msgbuf, n);
+			ivec[8 - nbytes + n] = ibuf[n] ^ msgbuf[n];
 	}
 	/*
 	 * at EOF or last block -- in either case, the last byte contains
@@ -989,61 +987,30 @@ cfbauth()
 	 */
 	MEMZERO(&ibuf[n], nbytes - n);
 	ibuf[nbytes - 1] = '0' + n;
-	MEMCPY(BUFFER(msgbuf), BUFFER(ivec), 8);
-	DES_XFORM(UBUFFER(msgbuf));
+	MEMCPY(msgbuf, ivec, 8);
+	DES_XFORM(&msgbuf);
 	for (n = 0; n < nbytes; n++)
-		ibuf[n] ^= UCHAR(msgbuf, n);
+		ibuf[n] ^= msgbuf[n];
 	/*
 	 * drop the bits
 	 * we write chars until fewer than 7 bits,
 	 * and then pad the last one with 0 bits
 	 */
 	for (n = 0; macbits > 7; n++, macbits -= 8)
-		(void)putchar(CHAR(msgbuf, n));
+		(void)putchar(msgbuf[n]);
 	if (macbits > 0) {
-		CHAR(msgbuf, 0) = 0x00;
+		msgbuf[0] = 0x00;
 		for (j = 0; j < macbits; j++)
-			CHAR(msgbuf, 0) |= (CHAR(msgbuf, n)&bits[j]);
-		(void)putchar(CHAR(msgbuf, 0));
+			msgbuf[0] |= msgbuf[n] & bits[j];
+		(void)putchar(msgbuf[0]);
 	}
 }
-
-#ifndef FASTWAY
-/*
- * change from 8 bits/Uchar to 1 bit/Uchar
- */
-expand(from, to)
-	Desbuf from;			/* 8bit/unsigned char string */
-	char *to;			/* 1bit/char string */
-{
-	register int i, j;		/* counters in for loop */
-
-	for (i = 0; i < 8; i++)
-		for (j = 0; j < 8; j++)
-			*to++ = (CHAR(from, i)>>(7-j))&01;
-}
-
-/*
- * change from 1 bit/char to 8 bits/Uchar
- */
-compress(from, to)
-	char *from;			/* 1bit/char string */
-	Desbuf to;			/* 8bit/unsigned char string */
-{
-	register int i, j;		/* counters in for loop */
-
-	for (i = 0; i < 8; i++) {
-	 	CHAR(to, i) = 0;
-		for (j = 0; j < 8; j++)
-			CHAR(to, i) = ((*from++)<<(7-j))|CHAR(to, i);
-	}
-}
-#endif
 
 /*
  * message about usage
  */
-usage()
+static void
+usage(void)
 {
 	(void)fprintf(stderr, "%s\n",
 "usage: bdes [-abdp] [-F bit] [-f bit] [-k key] [-m bit] [-o bit] [-v vector]");
