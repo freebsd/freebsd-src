@@ -234,17 +234,18 @@ options 	SYSVMSG
 options 	DDB
 
 #
-# print the actual numerical value of symbols in addition to the
-# symbolic representation
-options		DDB_NUMSYM
-
-#
 # Use direct symbol lookup routines for ddb instead of the kernel linker
 # ones, so that symbols (mostly) work before the kernel linker has been
 # initialized.  This is not the default because it breaks ddb's lookup of
 # symbols in loaded modules.
 #
 #!options 	DDB_NOKLDSYM
+
+#
+# Print the numerical value of symbols in addition to the symbolic
+# representation.
+#
+options 	DDB_NUMSYM
 
 #
 # Print a stack trace of the current thread out on the console for a panic.
