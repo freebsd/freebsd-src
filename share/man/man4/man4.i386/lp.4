@@ -31,7 +31,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id$
+.\"	$Id: lp.4,v 1.5 1997/03/07 02:49:48 jmg Exp $
 .\"
 .Dd March 4, 1996
 .Os
@@ -219,7 +219,8 @@ End of packet is deduced from the packet length and is not signalled
 specially (although the data lines are restored to the zero, idle
 state to avoid spuriously indicating the start of the next packet).
 .Sh SEE ALSO
-.Xr lpt 4
+.Xr lpt 4 ,
+.Xr ifconfig 8 .
 .Sh BUGS
 Busy-waiting loops are used while handshaking bytes, (and worse still when
 waiting for the receiving system to respond to an interrupt for the start
