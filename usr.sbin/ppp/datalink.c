@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.38 1999/05/08 11:06:24 brian Exp $
+ *	$Id: datalink.c,v 1.39 1999/05/12 09:48:47 brian Exp $
  */
 
 #include <sys/param.h>
@@ -245,7 +245,7 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
     case DATALINK_CLOSED:
       if ((dl->physical->type &
            (PHYS_DIRECT|PHYS_DEDICATED|PHYS_BACKGROUND|PHYS_DDIAL)) &&
-          !bundle_IsDead(dl->bundle))
+          !dl->bundle->CleaningUp)
         /*
          * Our first time in - DEDICATED & DDIAL never come down, and
          * DIRECT & BACKGROUND get deleted when they enter DATALINK_CLOSED.
