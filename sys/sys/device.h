@@ -40,11 +40,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)device.h	8.2 (Berkeley) 2/17/94
- * $Id$
+ * $Id: device.h,v 1.6 1997/02/22 09:45:00 peter Exp $
  */
 
 #ifndef _SYS_DEVICE_H_
 #define	_SYS_DEVICE_H_
+
+#include <sys/queue.h>
 
 /*
  * Minimal device structures.
@@ -114,6 +116,12 @@ struct cfdriver {
 	int	cd_ndevs;		/* size of cd_devs array */
 };
 
+struct intr_config_hook {
+	TAILQ_ENTRY(intr_config_hook) ich_links;
+	void	(*ich_func) __P((void *arg));
+	void	*ich_arg;
+};
+
 /*
  * Configuration printing functions, and their return codes.  The second
  * argument is NULL if the device was configured; otherwise it is the name
@@ -142,4 +150,7 @@ int config_found __P((struct device *, void *, cfprint_t));
 int config_rootfound __P((char *, void *));
 void config_attach __P((struct device *, struct cfdata *, void *, cfprint_t));
 void evcnt_attach __P((struct device *, const char *, struct evcnt *));
+int	config_intrhook_establish __P((struct intr_config_hook *hook));
+void	config_intrhook_disestablish __P((struct intr_config_hook *hook));
+
 #endif /* !_SYS_DEVICE_H_ */

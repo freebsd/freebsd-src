@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)param.h	8.3 (Berkeley) 4/4/95
- * $Id: param.h,v 1.25 1997/03/03 08:34:08 ache Exp $
+ * $Id: param.h,v 1.26 1997/03/03 09:51:10 ache Exp $
  */
 
 #ifndef _SYS_PARAM_H_
@@ -106,6 +106,7 @@
 #define	PZERO	22		/* No longer magic, shouldn't be here.  XXX */
 #define	PSOCK	24
 #define	PWAIT	32
+#define	PCONFIG	32
 #define	PLOCK	36
 #define	PPAUSE	40
 #define	PUSER	50
