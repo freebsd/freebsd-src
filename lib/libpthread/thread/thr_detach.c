@@ -36,18 +36,17 @@
 #include "pthread_private.h"
 
 int
-pthread_detach(pthread_t * p_pthread)
+pthread_detach(pthread_t pthread)
 {
 	int             rval = 0;
 	int             status;
 	pthread_t       next_thread;
-	pthread_t       pthread;
 
 	/* Block signals: */
 	_thread_kern_sig_block(&status);
 
 	/* Check for invalid calling parameters: */
-	if (p_pthread == NULL || (pthread = *p_pthread) == NULL) {
+	if (pthread == NULL) {
 		/* Return an invalid argument error: */
 		rval = EINVAL;
 	}
@@ -61,15 +60,9 @@ pthread_detach(pthread_t * p_pthread)
 			/* Make the thread run: */
 			PTHREAD_NEW_STATE(next_thread,PS_RUNNING);
 		}
-
-		/*
-		 * NULL the thread pointer now that the thread has been
-		 * detached: 
-		 */
-		*p_pthread = NULL;
 	} else {
 		/* Return an error: */
-		rval = ESRCH;
+		rval = EINVAL;
 	}
 
 	/* Unblock signals: */
