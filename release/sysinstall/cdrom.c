@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: cdrom.c,v 1.41 1998/07/21 06:44:38 jkh Exp $
+ * $Id: cdrom.c,v 1.42 1998/08/27 00:50:14 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -46,6 +46,7 @@
 #include <unistd.h>
 #include <grp.h>
 #include <fcntl.h>
+#include <libutil.h>
 
 #define CD9660
 #include <sys/mount.h>
@@ -54,27 +55,37 @@
 
 static Boolean cdromMounted;
 
+static properties
+read_props(char *name)
+{
+	int fd;
+	properties n;
+
+	fd = open(name, O_RDONLY);
+	if (fd == -1)
+	    return NULL;
+	n = properties_read(fd);
+	close(fd);
+	return n;
+}
+
 Boolean
 mediaInitCDROM(Device *dev)
 {
     struct iso_args	args;
-    Attribs *cd_attr;
-    char *cp, *mountpoint = "/dist";
+    properties cd_attr = NULL;
+    char *cp = NULL, *mountpoint = "/dist";
     Boolean readInfo = TRUE;
     static Boolean bogusCDOK = FALSE;
 
     if (cdromMounted)
 	return TRUE;
 
+    Mkdir(mountpoint);
+
     bzero(&args, sizeof(args));
     args.fspec = dev->devname;
     args.flags = 0;
-
-    cd_attr = alloca(sizeof(Attribs) * MAX_ATTRIBS);
-    cp = NULL;
-
-    Mkdir(mountpoint);
-
     if (mount("cd9660", mountpoint, MNT_RDONLY, (caddr_t) &args) == -1) {
 	if (errno == EINVAL) {
 	    msgConfirm("The CD in your drive looks more like an Audio CD than a FreeBSD release.");
@@ -104,8 +115,8 @@ mediaInitCDROM(Device *dev)
     }
 
     if (readInfo &&
-	(DITEM_STATUS(attr_parse_file(cd_attr, string_concat(mountpoint, "/cdrom.inf"))) == DITEM_FAILURE ||
-		      !(cp = attr_match(cd_attr, "CD_VERSION")) || (strcmp(cp, variable_get(VAR_RELNAME)) && strcmp("none", variable_get(VAR_RELNAME))))) {
+	(!(cd_attr = read_props(string_concat(mountpoint, "/cdrom.inf"))) ||
+	!(cp = property_find(cd_attr, "CD_VERSION")) || (strcmp(cp, variable_get(VAR_RELNAME)) && strcmp("none", variable_get(VAR_RELNAME))))) {
 	if (!cp) {
 	    msgConfirm("Unable to find a %s/cdrom.inf file.\n"
 		       "Either this is not a FreeBSD CDROM, there is a problem with\n"
@@ -125,6 +136,7 @@ mediaInitCDROM(Device *dev)
 	    if (msgYesNo("Would you like to try and use this CDROM anyway?") != 0) {
 		unmount(mountpoint, MNT_FORCE);
 		cdromMounted = FALSE;
+		properties_free(cd_attr);
 		return FALSE;
 	    }
 	    else
@@ -132,6 +144,7 @@ mediaInitCDROM(Device *dev)
 	}
     }
     msgDebug("Mounted FreeBSD CDROM from device %s\n", dev->devname);
+    properties_free(cd_attr);
     return TRUE;
 }
 
