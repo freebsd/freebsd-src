@@ -1,4 +1,4 @@
-.\" $Id: nsupdate.8,v 8.4 1999/10/17 06:26:18 cyarnell Exp $
+.\" $Id: nsupdate.8,v 8.6 2000/10/30 23:06:57 cyarnell Exp $
 .\"
 .\"Copyright (c) 1999 by Internet Software Consortium
 .\"
@@ -47,6 +47,7 @@ Debug mode.
 .It Fl v
 Virtual circuit - use TCP to communication with server.
 Default is UDP.
+.El
 .Sh INPUT FORMAT
 .Ic Nsupdate
 reads input records, one per line,
@@ -54,6 +55,8 @@ each line contributing a resource record to an
 update request.
 All domain names used in a single update request
 must belong to the same DNS zone.
+Updates are sent to the master server as defined in the SOA
+MNAME field.
 A blank line causes the accumulated
 records to be formated into a single update request
 and transmitted to the zone's authoritative name servers.
@@ -79,7 +82,7 @@ will be performed.
 understands the following input record formats:
 .Pp
 
-.Bl -ohang
+.Bl -hang
 
 .It Ic prereq nxdomain Va domain-name
 Requires that no RR of any type exists with name
@@ -178,7 +181,7 @@ $ nsupdate -k /var/named/keys:mykey
 .Ed
 
 .Sh DIAGNOSTICS
-.Bl -ohang
+.Bl -hang
 
 .It Qq send error
 Typically indicates that the authoritative nameservers could not be reached
@@ -196,9 +199,11 @@ being performed.  The only way to determine if the update was performed
 is to use debug mode
 .Fl ( d )
 and examine the status field in the nameserver's reply.
-
+.El
 .Sh FILES
+.Bl -hang
 .It Pa /etc/resolv.conf
+.El
 initial domain name and name server addresses
 .Sh SEE ALSO
 .Xr @INDOT@named @SYS_OPS_EXT@ ,

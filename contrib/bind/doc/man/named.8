@@ -332,7 +332,7 @@ An example SOA record is as follows:
 				86400 )	; minimum
 .Ed
 .Pp
-The SOA specifies a serial number, which should be changed each time the
+The SOA specifies a serial number, which should be incremented each time the
 master file is changed.  Note that the serial number can be given as a
 dotted number, but this is a 
 .Em very 
@@ -416,6 +416,7 @@ Toggles logging of all incoming queries via
 (requires server to have been built with the 
 .Li QRYLOG 
 option).
+.El
 .Sh FILES
 .Bl -tag -width "/var/tmp/named_dump.db (_PATH_DUMPFILE)   " -compact
 .It Pa /etc/named.conf
