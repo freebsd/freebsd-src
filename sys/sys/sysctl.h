@@ -249,7 +249,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 	sysctl_add_oid(ctx, parent, nbr, name, CTLTYPE_LONG|(access),	    \
 	ptr, 0, sysctl_handle_long, "L", descr)
 
-/* Oid for a long.  The pointer must be non NULL. */
+/* Oid for an unsigned long.  The pointer must be non NULL. */
 #define SYSCTL_ULONG(parent, nbr, name, access, ptr, val, descr) \
 	SYSCTL_OID(parent, nbr, name, CTLTYPE_ULONG|(access), \
 		ptr, val, sysctl_handle_long, "LU", descr)
