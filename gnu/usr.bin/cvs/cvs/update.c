@@ -1022,8 +1022,9 @@ join_file (file, srcfiles, vers, update_dir, entries)
 	}
     }
 
-    /* skip joining identical revs */
-    if (strcmp (rev2, vers->vn_user) == 0) /* no merge necessary */
+    /* skip joining identical revs or if the file is not present */
+    if (vers->vn_user == NULL ||
+	strcmp (rev2, vers->vn_user) == 0) /* no merge necessary */
     {
 	free (rev2);
 	return;
