@@ -90,10 +90,11 @@ n	No case conversion is performed.
 	case name in the DOS name space can lead to an
 	unpredictable results. This is default when mounting
 	volume with OS2 name space.
-u	All existing file names converted to upper case. Newly
-	created	file gets an upper case under OS2 name space.
-U	Same as 'u' but file system tries to be case insensitive.
-	May not	work well.
+u	All existing file names converted to upper case.
+	Newly created file gets an upper case under OS2 name
+	space.
+U	Same as 'u' but file system tries to be case
+	insensitive. May not work well.
 .Ed
 .It Fl f Ar mode, Fl d Ar mode
 specifies permissions that should be assigned to files and directories.
@@ -139,8 +140,8 @@ option.
 .Sh FILES
 .Bl -tag -width /var/log/wtmp -compact
 .It Pa ~/.nwfsrc
-keeps description for each connection. See
-.Xr nwfsrc 8
+keeps static parameters for connections and other information. See
+.Pa /usr/share/examples/nwclient/dot.nwfsrc
 for details.
 
 .Sh NOTES
