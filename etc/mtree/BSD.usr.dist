@@ -529,11 +529,11 @@
             ..
             it_IT.ISO8859-15
             ..
-            ja_JP.eucJP
+            ja_JP.EUC
             ..
             ja_JP.SJIS
             ..
-            ko_KR.eucKR
+            ko_KR.EUC
             ..
             la_LN.US-ASCII
             ..
@@ -581,7 +581,7 @@
             ..
             uk_UA.KOI8-U
             ..
-            zh_CN.eucCN
+            zh_CN.EUC
             ..
             zh_TW.Big5
             ..
@@ -889,11 +889,11 @@
             ..
             it_IT.ISO8859-15
             ..
-            ja_JP.eucJP
+            ja_JP.EUC
             ..
             ja_JP.SJIS
             ..
-            ko_KR.eucKR
+            ko_KR.EUC
             ..
             la_LN.US-ASCII
             ..
@@ -941,7 +941,7 @@
             ..
             uk_UA.KOI8-U
             ..
-            zh_CN.eucCN
+            zh_CN.EUC
             ..
         ..
         pcvt
