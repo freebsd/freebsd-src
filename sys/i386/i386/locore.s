@@ -433,13 +433,17 @@ NON_GPROF_ENTRY(prepare_usermode)
  */
 NON_GPROF_ENTRY(sigcode)
 	call	SIGF_HANDLER(%esp)
-	lea	SIGF_SC(%esp),%eax		/* scp (the call may have clobbered the */
-						/* copy at 8(%esp)) */
-	pushl	%eax
-	pushl	%eax				/* junk to fake return address */
+	lea	SIGF_SC(%esp),%eax		/* scp (the copy at 8(%esp) */
+	pushl	%eax				/* may have been clobbered) */
+	testl	$PSL_VM,SC_PS(%eax)
+	jne	9f
+	movl	SC_FS(%eax),%fs			/* restore %fs */
+	movl	SC_GS(%eax),%gs			/* restore %gs */
+9:
+	pushl	%eax				/* junk to fake return addr */
 	movl	$SYS_sigreturn,%eax		/* sigreturn() */
-	LCALL(0x7,0)				/* enter kernel with args on stack */
-	hlt					/* never gets here */
+	LCALL(0x7,0)				/* enter kernel with args */
+0:	jmp	0b
 	ALIGN_TEXT
 _esigcode:
 
