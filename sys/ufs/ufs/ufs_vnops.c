@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.101 1998/12/09 02:06:27 eivind Exp $
+ * $Id: ufs_vnops.c,v 1.102 1998/12/20 12:36:01 dfr Exp $
  */
 
 #include "opt_quota.h"
@@ -1810,13 +1810,19 @@ ufsspec_read(ap)
 	} */ *ap;
 {
 	int error, resid;
+	struct inode *ip;
 	struct uio *uio;
 
 	uio = ap->a_uio;
 	resid = uio->uio_resid;
 	error = VOCALL(spec_vnodeop_p, VOFFSET(vop_read), ap);
-	if (uio->uio_resid != resid)
-		VTOI(ap->a_vp)->i_flag |= IN_ACCESS;
+	/*
+	 * The inode may have been revoked during the call, so it must not
+	 * be accessed blindly here or in the other wrapper functions.
+	 */
+	ip = VTOI(ap->a_vp);
+	if (ip != NULL && (uio->uio_resid != resid || error == 0 && resid != 0))
+		ip->i_flag |= IN_ACCESS;
 	return (error);
 }
 
@@ -1833,12 +1839,14 @@ ufsspec_write(ap)
 	} */ *ap;
 {
 	int error, resid;
+	struct inode *ip;
 	struct uio *uio;
 
 	uio = ap->a_uio;
 	resid = uio->uio_resid;
 	error = VOCALL(spec_vnodeop_p, VOFFSET(vop_write), ap);
-	if (uio->uio_resid != resid)
+	ip = VTOI(ap->a_vp);
+	if (ip != NULL && (uio->uio_resid != resid || error == 0 && resid != 0))
 		VTOI(ap->a_vp)->i_flag |= IN_CHANGE | IN_UPDATE;
 	return (error);
 }
@@ -1879,13 +1887,15 @@ ufsfifo_read(ap)
 	} */ *ap;
 {
 	int error, resid;
+	struct inode *ip;
 	struct uio *uio;
 
 	uio = ap->a_uio;
 	resid = uio->uio_resid;
 	error = VOCALL(fifo_vnodeop_p, VOFFSET(vop_read), ap);
-	if (uio->uio_resid != resid &&
-	    (ap->a_vp->v_mount->mnt_flag & MNT_NOATIME) == 0)
+	ip = VTOI(ap->a_vp);
+	if ((ap->a_vp->v_mount->mnt_flag & MNT_NOATIME) == 0 && ip != NULL &&
+	    (uio->uio_resid != resid || error == 0 && resid != 0))
 		VTOI(ap->a_vp)->i_flag |= IN_ACCESS;
 	return (error);
 }
@@ -1903,12 +1913,14 @@ ufsfifo_write(ap)
 	} */ *ap;
 {
 	int error, resid;
+	struct inode *ip;
 	struct uio *uio;
 
 	uio = ap->a_uio;
 	resid = uio->uio_resid;
 	error = VOCALL(fifo_vnodeop_p, VOFFSET(vop_write), ap);
-	if (uio->uio_resid != resid)
+	ip = VTOI(ap->a_vp);
+	if (ip != NULL && (uio->uio_resid != resid || error == 0 && resid != 0))
 		VTOI(ap->a_vp)->i_flag |= IN_CHANGE | IN_UPDATE;
 	return (error);
 }
