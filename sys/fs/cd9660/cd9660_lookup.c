@@ -129,6 +129,7 @@ cd9660_lookup(ap)
 	imp = dp->i_mnt;
 	lockparent = flags & LOCKPARENT;
 	wantparent = flags & (LOCKPARENT|WANTPARENT);
+	cnp->cn_flags &= ~PDIRUNLOCK;
 
 	/*
 	 * We now have a segment name to search for, and a directory to search.
@@ -358,11 +359,14 @@ found:
 			vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY, p);
 			return (error);
 		}
-		if (lockparent && (flags & ISLASTCN) &&
-		    (error = vn_lock(pdp, LK_EXCLUSIVE, p))) {
-			vput(tdp);
-			return (error);
-		}
+		if (lockparent && (flags & ISLASTCN)) {
+			if ((error = vn_lock(pdp, LK_EXCLUSIVE, p)) != 0) {
+				cnp->cn_flags |= PDIRUNLOCK;
+				vput(tdp);
+				return (error);
+			}
+		} else
+			cnp->cn_flags |= PDIRUNLOCK;
 		*vpp = tdp;
 	} else if (dp->i_number == dp->i_ino) {
 		brelse(bp);
@@ -374,8 +378,10 @@ found:
 		brelse(bp);
 		if (error)
 			return (error);
-		if (!lockparent || !(flags & ISLASTCN))
+		if (!lockparent || !(flags & ISLASTCN)) {
+			cnp->cn_flags |= PDIRUNLOCK;
 			VOP_UNLOCK(pdp, 0, p);
+		}
 		*vpp = tdp;
 	}
 
