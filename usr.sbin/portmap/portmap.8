@@ -48,6 +48,7 @@ port mapper
 .Nm
 .Op Fl d
 .Op Fl v
+.Op Fl h Ar bindip
 .Sh DESCRIPTION
 .Nm Portmap
 is a server that converts
@@ -105,6 +106,14 @@ and causes errors and debugging information
 to be printed to the standard error output.
 .It Fl v
 Enable verbose logging of access control checks.
+.It Fl h
+Specify specific ip addresses to bind to for UDP requests.  This option
+may be specified multiple times and is typically necessary when running
+portmap on a multi-homed host.  If no -h option is specified, portmap will
+bind to INADDR_ANY, which could lead to problems on a multi-homed host due
+to portmap returning a udp packet from a different IP address then it was
+sent to.  Note that when specifying ip addresses with -h, 
+portmap will automatically add 127.0.0.1 to the list so you don't have to.
 .El
 .Sh SEE ALSO
 .Xr hosts_access 5 ,
