@@ -65,7 +65,7 @@ __FBSDID("$FreeBSD$");
 #define	TM_YEAR_BASE	1900
 #endif
 
-time_t tval;
+static time_t tval;
 int retval;
 
 static void setthetime(const char *, const char *, int, int);
@@ -179,7 +179,7 @@ main(int argc, char *argv[])
 
 #define	ATOI2(s)	((s) += 2, ((s)[-2] - '0') * 10 + ((s)[-1] - '0'))
 
-void
+static void
 setthetime(const char *fmt, const char *p, int jflag, int nflag)
 {
 	struct tm *lt;
