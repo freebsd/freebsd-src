@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.3 (Berkeley) 1/7/94
-#	$Id: Makefile,v 1.73 1996/10/19 09:08:41 sos Exp $
+#	$Id: Makefile,v 1.74 1996/11/03 17:01:25 markm Exp $
 
 # XXX MISSING:		deroff diction graph learn plot
 #			spell spline struct units xsend
@@ -27,7 +27,7 @@ SUBDIR=	apply ar at banner basename biff brandelf cal calendar \
 	write xargs xinstall xlint xstr yacc yes ypcat ypmatch ypwhich
 SUBDIR+=gprof4
 
-.if !exists(../eBones) || defined(NOSECURE)
+.if !exists(../eBones) || defined(NOSECURE) || !defined(MAKE_EBONES)
 SUBDIR+=telnet
 .else
 .if defined(RELEASEDIR)
