@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.85 1996/03/02 03:45:04 dyson Exp $
+ * $Id: vfs_bio.c,v 1.86 1996/03/02 04:40:55 dyson Exp $
  */
 
 /*
@@ -782,11 +782,7 @@ trytofreespace:
 				TAILQ_INSERT_TAIL(&bufqueues[QUEUE_LRU], bp, b_freelist);
 				goto start;
 			}
-			/*
-			 * Make sure that the buffer is flagged as not being on a
-			 * queue.
-			 */
-			bp->b_qindex = QUEUE_NONE;
+			TAILQ_INSERT_TAIL(&bufqueues[QUEUE_LRU], bp, b_freelist);
 		}
 	}
 
