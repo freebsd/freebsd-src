@@ -41,8 +41,8 @@ LIBSMUTILDIR!=	cd ${.CURDIR}/../../lib/libsmutil; make -V .OBJDIR
 .endif
 LIBSMUTIL:=	${LIBSMUTILDIR}/libsmutil.a
 
-DPADD=	${LIBSMUTIL}
-LDADD=	${LIBSMUTIL}
+DPADD+=	${LIBSMUTIL}
+LDADD+=	${LIBSMUTIL}
 
 .if !defined(NOCRYPT) && !defined(NO_OPENSSL)
 # STARTTLS support
