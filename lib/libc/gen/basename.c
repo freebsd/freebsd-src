@@ -1,6 +1,3 @@
-/*	$OpenBSD: basename.c,v 1.4 1999/05/30 17:10:30 espie Exp $	*/
-/*	$FreeBSD$	*/
-
 /*
  * Copyright (c) 1997 Todd C. Miller <Todd.Miller@courtesan.com>
  * All rights reserved.
@@ -29,8 +26,11 @@
  */
 
 #ifndef lint
+#if 0
 static char rcsid[] = "$OpenBSD: basename.c,v 1.4 1999/05/30 17:10:30 espie Exp $";
+#endif
 #endif /* not lint */
+__FBSDID("$FreeBSD$");
 
 #include <errno.h>
 #include <libgen.h>
