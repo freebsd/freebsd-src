@@ -56,7 +56,15 @@ mountcritremote_start()
 		echo '.'
 
 		# Mount other network filesystems if present in /etc/fstab.
-		for i in ${networkfs_types}; do
+		case ${extra_netfs_types} in
+		[Nn][Oo])
+			;;
+		*)
+			netfs_types="${netfs_types} ${extra_netfs_types}"
+			;;
+		esac
+
+		for i in ${netfs_types}; do
 			fstype=${i%:*}
 			fsdecr=${i#*:}
 
