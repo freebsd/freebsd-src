@@ -379,7 +379,7 @@ lpt_attach(device_t dev)
 	struct lpt_data *sc = DEVTOSOFTC(dev);
 	int zero = 0, unit = device_get_unit(dev);
 	int error;
-	u_long irq;
+	uintptr_t irq;
 
 	sc->sc_primed = 0;	/* not primed yet */
 
