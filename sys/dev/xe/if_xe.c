@@ -287,7 +287,6 @@ xe_cem56fix(struct xe_softc *scp)
 #endif
 #if 0
   scp->dev->id_iobase = ioport;
-  scp->dev->id_alive  = 0x10;
 #endif
 
   /* magic to set up the ethernet */
