@@ -1785,6 +1785,9 @@ mac_biba_check_socket_visible(struct ucred *cred, struct socket *socket,
 {
 	struct mac_biba *subj, *obj;
 
+	if (!mac_biba_enabled)
+		return (0);
+
 	subj = SLOT(&cred->cr_label);
 	obj = SLOT(socketlabel);
 
