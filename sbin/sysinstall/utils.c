@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: utils.c,v 1.19 1994/11/02 22:06:24 phk Exp $
+ * $Id: utils.c,v 1.20 1994/11/03 00:28:05 ache Exp $
  *
  */
 
@@ -92,7 +92,9 @@ TellEm(char *fmt, ...)
 	write(debug_fd,"Progress <",10);
 	write(debug_fd,p,strlen(p));
 	write(debug_fd,">\n\r",3);
+/* XXX This is broken just now, on second or third call it will hang
 	dialog_msgbox("Progress", p, strheight(p)+2, strwidth(p)+4, 0);
+*/
 	free(p);
 }
 
