@@ -1,7 +1,7 @@
 /* cmds.c -- Texinfo commands.
-   $Id: cmds.c,v 1.69 2002/02/09 00:54:51 karl Exp $
+   $Id: cmds.c,v 1.79 2002/03/28 16:35:29 karl Exp $
 
-   Copyright (C) 1998, 99, 2000, 01 Free Software Foundation, Inc.
+   Copyright (C) 1998, 99, 2000, 01, 02 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -47,7 +47,8 @@ void
   cm_image (), cm_kbd (), cm_key (), cm_no_op (), 
   cm_novalidate (), cm_not_fixed_width (), cm_r (),
   cm_strong (), cm_var (), cm_sc (), cm_w (), cm_email (), cm_url (),
-  cm_verb (), cm_documentdescription ();
+  cm_verb (), cm_copying (), cm_insert_copying (),
+  cm_documentdescription ();
 
 void
   cm_anchor (), cm_node (), cm_menu (), cm_xref (), cm_ftable (),
@@ -64,7 +65,7 @@ void
   cm_print (), cm_error (), cm_point (), cm_today (), cm_flushleft (),
   cm_flushright (), cm_finalout (), cm_cartouche (), cm_detailmenu (),
   cm_multitable (), cm_settitle (), cm_titlefont (), cm_tt (),
-  cm_verbatim (), cm_verbatiminclude (), cm_titlepage ();
+  cm_verbatim (), cm_verbatiminclude ();
 
 /* Conditionals. */
 void cm_set (), cm_clear (), cm_ifset (), cm_ifclear ();
@@ -95,6 +96,7 @@ COMMAND command_table[] = {
   { "=", cm_accent, MAYBE_BRACE_ARGS },
   { "?", insert_self, NO_BRACE_ARGS },
   { "@", insert_self, NO_BRACE_ARGS },
+  { "\\", insert_self, NO_BRACE_ARGS },
   { "^", cm_accent_hat, MAYBE_BRACE_ARGS },
   { "`", cm_accent_grave, MAYBE_BRACE_ARGS },
   { "{", insert_self, NO_BRACE_ARGS },
@@ -139,6 +141,7 @@ COMMAND command_table[] = {
   { "command", cm_code, BRACE_ARGS },
   { "comment", cm_ignore_line, NO_BRACE_ARGS },
   { "contents", cm_contents, NO_BRACE_ARGS },
+  { "copying", cm_copying, NO_BRACE_ARGS },
   { "copyright", cm_copyright, BRACE_ARGS },
   { "ctrl", cm_obsolete, BRACE_ARGS },
   { "defcodeindex", cm_defcodeindex, NO_BRACE_ARGS },
@@ -202,6 +205,10 @@ COMMAND command_table[] = {
   { "env", cm_code, BRACE_ARGS },
   { "equiv", cm_equiv, BRACE_ARGS },
   { "error", cm_error, BRACE_ARGS },
+  { "evenfooting", cm_ignore_line, NO_BRACE_ARGS },
+  { "evenheading", cm_ignore_line, NO_BRACE_ARGS },
+  { "everyfooting", cm_ignore_line, NO_BRACE_ARGS },
+  { "everyheading", cm_ignore_line, NO_BRACE_ARGS },
   { "example", cm_example, NO_BRACE_ARGS },
   { "exampleindent", cm_exampleindent, NO_BRACE_ARGS },
   { "exclamdown", cm_special_char, BRACE_ARGS },
@@ -228,13 +235,16 @@ COMMAND command_table[] = {
   { "ifinfo", cm_ifinfo, NO_BRACE_ARGS },
   { "ifnothtml", cm_ifnothtml, NO_BRACE_ARGS },
   { "ifnotinfo", cm_ifnotinfo, NO_BRACE_ARGS },
+  { "ifnotplaintext", cm_ifnotplaintext, NO_BRACE_ARGS },
   { "ifnottex", cm_ifnottex, NO_BRACE_ARGS },
+  { "ifplaintext", cm_ifplaintext, NO_BRACE_ARGS },
   { "ifset", cm_ifset, NO_BRACE_ARGS },
   { "iftex", cm_iftex, NO_BRACE_ARGS },
   { "ignore", command_name_condition, NO_BRACE_ARGS },
   { "image", cm_image, BRACE_ARGS },
   { "include", cm_include, NO_BRACE_ARGS },
   { "inforef", cm_inforef, BRACE_ARGS },
+  { "insertcopying", cm_insert_copying, NO_BRACE_ARGS },
   { "item", cm_item, NO_BRACE_ARGS },
   { "itemize", cm_itemize, NO_BRACE_ARGS },
   { "itemx", cm_itemx, NO_BRACE_ARGS },
@@ -257,6 +267,8 @@ COMMAND command_table[] = {
   { "noindent", cm_novalidate, NO_BRACE_ARGS },
   { "nwnode", cm_node, NO_BRACE_ARGS },
   { "o", cm_special_char, BRACE_ARGS },
+  { "oddfooting", cm_ignore_line, NO_BRACE_ARGS },
+  { "oddheading", cm_ignore_line, NO_BRACE_ARGS },
   { "oe", cm_special_char, BRACE_ARGS },
   { "option", cm_code, BRACE_ARGS },
   { "page", cm_no_op, NO_BRACE_ARGS },
@@ -962,7 +974,7 @@ cm_settitle ()
 {
   if (xml)
     {
-      xml_begin_document ();
+      xml_begin_document (current_output_filename);
       xml_insert_element (SETTITLE, START);
       get_rest_of_line (0, &title);
       execute_string ("%s", title);
@@ -1016,7 +1028,8 @@ cm_sp ()
       int save_filling_enabled = filling_enabled;
       filling_enabled = 0;
       
-      close_paragraph ();
+      /* close_paragraph generates an extra blank line.  */
+      close_single_paragraph ();
 
       if (lines && html && !executing_string)
 	html_output_head ();

@@ -1,5 +1,5 @@
 /* search.c -- searching large bodies of text.
-   $Id: search.c,v 1.5 1999/03/05 19:56:59 karl Exp $
+   $Id: search.c,v 1.6 2002/03/23 20:45:24 karl Exp $
 
    Copyright (C) 1993, 97, 98 Free Software Foundation, Inc.
 
@@ -301,7 +301,7 @@ skip_non_whitespace (string)
 {
   register int i;
 
-  for (i = 0; string && !whitespace (string[i]); i++);
+  for (i = 0; string && string[i] && !whitespace (string[i]); i++);
   return (i);
 }
 

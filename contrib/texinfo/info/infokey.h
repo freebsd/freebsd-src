@@ -1,7 +1,7 @@
 /* infokey.h -- Custom keystroke definition support.
-   $Id: $
+   $Id: infokey.h,v 1.1 2002/03/20 16:03:22 karl Exp $
 
-   Copyright (C) 1999 Free Software Foundation, Inc.
+   Copyright (C) 1999, 2002 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by

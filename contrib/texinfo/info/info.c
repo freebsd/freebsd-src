@@ -1,5 +1,5 @@
 /* info.c -- Display nodes of Info files in multiple windows.
-   $Id: info.c,v 1.53 2002/03/02 15:18:58 karl Exp $
+   $Id: info.c,v 1.60 2002/03/11 19:54:29 karl Exp $
 
    Copyright (C) 1993, 96, 97, 98, 99, 2000, 01, 02
    Free Software Foundation, Inc.
@@ -99,22 +99,22 @@ int speech_friendly = 0;
 static struct option long_options[] = {
   { "apropos", 1, 0, APROPOS_OPTION },
   { "directory", 1, 0, 'd' },
-  { "node", 1, 0, 'n' },
+  { "dribble", 1, 0, DRIBBLE_OPTION },
   { "file", 1, 0, 'f' },
-  { "subnodes", 0, &dump_subnodes, 1 },
+  { "help", 0, &print_help_p, 1 },
+  { "index-search", 1, 0, IDXSRCH_OPTION },
+  { "node", 1, 0, 'n' },
   { "output", 1, 0, 'o' },
   { "raw-escapes", 0, &raw_escapes_p, 1 },
-  { "show-options", 0, 0, 'O' },
-  { "usage", 0, 0, 'O' },
-  { "vi-keys", 0, &vi_keys_p, 1 },
-  { "help", 0, &print_help_p, 1 },
-  { "version", 0, &print_version_p, 1 },
-  { "dribble", 1, 0, DRIBBLE_OPTION },
   { "restore", 1, 0, RESTORE_OPTION },
+  { "show-options", 0, 0, 'O' },
+  { "subnodes", 0, &dump_subnodes, 1 },
+  { "usage", 0, 0, 'O' },
+  { "version", 0, &print_version_p, 1 },
+  { "vi-keys", 0, &vi_keys_p, 1 },
 #ifdef __MSDOS__
   { "speech-friendly", 0, &speech_friendly, 1 },
 #endif
-  { "index-search", 1, 0, IDXSRCH_OPTION },
   {NULL, 0, NULL, 0}
 };
 
@@ -553,7 +553,7 @@ info_short_help ()
 {
 #ifdef __MSDOS__
   static const char speech_friendly_string[] = N_("\
- --speech-friendly        be friendly to speech synthesizers.\n");
+  -b, --speech-friendly        be friendly to speech synthesizers.\n");
 #else
   static const char speech_friendly_string[] = "";
 #endif
@@ -565,20 +565,20 @@ Usage: %s [OPTION]... [MENU-ITEM...]\n\
 Read documentation in Info format.\n\
 \n\
 Options:\n\
- --apropos=SUBJECT        look up SUBJECT in all indices of all manuals.\n\
- --directory=DIR          add DIR to INFOPATH.\n\
- --dribble=FILENAME       remember user keystrokes in FILENAME.\n\
- --file=FILENAME          specify Info file to visit.\n\
- --help                   display this help and exit.\n\
- --index-search=STRING    go to node pointed by index entry STRING.\n\
- --node=NODENAME          specify nodes in first visited Info file.\n\
- --output=FILENAME        output selected nodes to FILENAME.\n\
- --raw-escapes            don't remove ANSI escapes from man pages.\n\
- --restore=FILENAME       read initial keystrokes from FILENAME.\n\
- --show-options, --usage  go to command-line options node.\n%s\
- --subnodes               recursively output menu items.\n\
- --vi-keys                use vi-like and less-like key bindings.\n\
- --version                display version information and exit.\n\
+      --apropos=STRING         look up STRING in all indices of all manuals.\n\
+  -d, --directory=DIR          add DIR to INFOPATH.\n\
+      --dribble=FILENAME       remember user keystrokes in FILENAME.\n\
+  -f, --file=FILENAME          specify Info file to visit.\n\
+  -h, --help                   display this help and exit.\n\
+      --index-search=STRING    go to node pointed by index entry STRING.\n\
+  -n, --node=NODENAME          specify nodes in first visited Info file.\n\
+  -o, --output=FILENAME        output selected nodes to FILENAME.\n\
+  -R, --raw-escapes            don't remove ANSI escapes from man pages.\n\
+      --restore=FILENAME       read initial keystrokes from FILENAME.\n\
+  -O, --show-options, --usage  go to command-line options node.\n%s\
+      --subnodes               recursively output menu items.\n\
+      --vi-keys                use vi-like and less-like key bindings.\n\
+      --version                display version information and exit.\n\
 \n\
 The first non-option argument, if present, is the menu entry to start from;\n\
 it is searched for in all `dir' files along INFOPATH.\n\
@@ -592,11 +592,13 @@ Examples:\n\
   info emacs buffers         start at buffers node within emacs manual\n\
   info --show-options emacs  start at node with emacs' command line options\n\
   info -f ./foo.info         show file ./foo.info, not searching dir\n\
-\n\
-Email bug reports to bug-texinfo@gnu.org,\n\
-general questions and discussion to help-texinfo@gnu.org.\n\
 "),
   program_name, speech_friendly_string);
+
+  puts (_("\n\
+Email bug reports to bug-texinfo@gnu.org,\n\
+general questions and discussion to help-texinfo@gnu.org.\n\
+Texinfo home page: http://www.gnu.org/software/texinfo/"));
 
   xexit (0);
 }
