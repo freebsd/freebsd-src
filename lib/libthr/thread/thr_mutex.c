@@ -37,6 +37,7 @@
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <pthread.h>
+#include <time.h>
 #include "thr_private.h"
 
 #if defined(_PTHREADS_INVARIANTS)
@@ -63,9 +64,11 @@
  * Prototypes
  */
 static int		get_muncontested(pthread_mutex_t, int);
-static void		get_mcontested(pthread_mutex_t);
+static int		get_mcontested(pthread_mutex_t,
+			    const struct timespec *);
 static int		mutex_init(pthread_mutex_t *, int);
-static int		mutex_lock_common(pthread_mutex_t *, int);
+static int		mutex_lock_common(pthread_mutex_t *, int,
+			    const struct timespec *);
 static inline int	mutex_self_trylock(pthread_mutex_t);
 static inline int	mutex_self_lock(pthread_mutex_t);
 static inline int	mutex_unlock_common(pthread_mutex_t *, int);
@@ -296,7 +299,7 @@ __pthread_mutex_trylock(pthread_mutex_t *mutex)
 	 */
 	else if ((*mutex != PTHREAD_MUTEX_INITIALIZER) ||
 	    (ret = mutex_init(mutex, 0)) == 0)
-		ret = mutex_lock_common(mutex, 1);
+		ret = mutex_lock_common(mutex, 1, NULL);
 
 	return (ret);
 }
@@ -320,7 +323,7 @@ _pthread_mutex_trylock(pthread_mutex_t *mutex)
 	 */
 	else if ((*mutex != PTHREAD_MUTEX_INITIALIZER) ||
 	    (ret = mutex_init(mutex, 1)) == 0)
-		ret = mutex_lock_common(mutex, 1);
+		ret = mutex_lock_common(mutex, 1, NULL);
 
 	if (ret != 0)
 		_thread_sigunblock();
@@ -329,7 +332,8 @@ _pthread_mutex_trylock(pthread_mutex_t *mutex)
 }
 
 static int
-mutex_lock_common(pthread_mutex_t * mutex, int nonblock)
+mutex_lock_common(pthread_mutex_t * mutex, int nonblock,
+    const struct timespec *abstime)
 {
 	int ret, error, inCancel;
 
@@ -375,7 +379,8 @@ mutex_lock_common(pthread_mutex_t * mutex, int nonblock)
 					ret = EBUSY;
 					break;
 				} else {
-					get_mcontested(*mutex);
+					error = get_mcontested(*mutex, abstime);
+					ret = (error != EINTR) ? error : ret;
 				}
 			else
 				ret = error;
@@ -401,13 +406,17 @@ mutex_lock_common(pthread_mutex_t * mutex, int nonblock)
 					ret = EBUSY;
 					break;
 				} else {
-					get_mcontested(*mutex);
+					error = get_mcontested(*mutex, abstime);
+					ret = (error != EINTR) ? error : ret;
 				}
-
-				if (curthread->active_priority >
-				    (*mutex)->m_prio)
-					/* Adjust priorities: */
-					mutex_priority_adjust(*mutex);
+				if (error == 0) {
+					if (curthread->active_priority >
+					    (*mutex)->m_prio)
+						/* Adjust priorities: */
+						mutex_priority_adjust(*mutex);
+				} else if (error == ETIMEDOUT) {
+					/* XXX - mutex priorities don't work */
+				}
 			} else {
 				ret = error;
 			}
@@ -442,15 +451,18 @@ mutex_lock_common(pthread_mutex_t * mutex, int nonblock)
 				/* Clear any previous error: */
 				curthread->error = 0;
 
-				get_mcontested(*mutex);
+				error = get_mcontested(*mutex, abstime);
+				ret = (error != EINTR) ? error : ret;
 
 				/*
 				 * The threads priority may have changed while
 				 * waiting for the mutex causing a ceiling
 				 * violation.
 				 */
-				ret = curthread->error;
-				curthread->error = 0;
+				if (error == 0) {
+					ret = curthread->error;
+					curthread->error = 0;
+				}
 			} else {
 				ret = error;
 			}
@@ -508,7 +520,7 @@ __pthread_mutex_lock(pthread_mutex_t *mutex)
 	 */
 	else if ((*mutex != PTHREAD_MUTEX_INITIALIZER) ||
 	    ((ret = mutex_init(mutex, 0)) == 0))
-		ret = mutex_lock_common(mutex, 0);
+		ret = mutex_lock_common(mutex, 0, NULL);
 
 	return (ret);
 }
@@ -535,7 +547,7 @@ _pthread_mutex_lock(pthread_mutex_t *mutex)
 	 */
 	else if ((*mutex != PTHREAD_MUTEX_INITIALIZER) ||
 	    ((ret = mutex_init(mutex, 1)) == 0))
-		ret = mutex_lock_common(mutex, 0);
+		ret = mutex_lock_common(mutex, 0, NULL);
 
 	if (ret != 0)
 		_thread_sigunblock();
@@ -1400,8 +1412,8 @@ get_muncontested(pthread_mutex_t mutexp, int nonblock)
  * the mutex is currently owned by another thread it will sleep
  * until it is available.
  */
-static void
-get_mcontested(pthread_mutex_t mutexp)
+static int
+get_mcontested(pthread_mutex_t mutexp, const struct timespec *abstime)
 {
 	int error;
 
@@ -1418,11 +1430,26 @@ get_mcontested(pthread_mutex_t mutexp)
 		curthread->data.mutex = mutexp;
 		_thread_critical_exit(curthread);
 		_SPINUNLOCK(&mutexp->lock);
-		error = _thread_suspend(curthread, NULL);
+		error = _thread_suspend(curthread, abstime);
 		if (error != 0 && error != EAGAIN && error != EINTR)
 			PANIC("Cannot suspend on mutex.");
 		_SPINLOCK(&mutexp->lock);
 		_thread_critical_enter(curthread);
+		if (error == EAGAIN) {
+			/*
+			 * Between the timeout and when the mutex was
+			 * locked the previous owner may have released
+			 * the mutex to this thread. Or not.
+			 */
+			if (mutexp->m_owner == curthread) {
+				error = 0;
+			} else {
+				_mutex_lock_backout(curthread);
+				curthread->state = PS_RUNNING;
+				error = ETIMEDOUT;
+			}
+		}
 	} while ((curthread->flags & PTHREAD_FLAGS_IN_MUTEXQ) != 0);
 	_thread_critical_exit(curthread);
+	return (error);
 }
