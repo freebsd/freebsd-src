@@ -5,10 +5,8 @@
  *	Geoffrey M. Rehmet, All rights reserved.
  *
  * This code is derived from software which forms part of the 4.4-Lite
- * Berkeley software distribution.
- *
- * This code is derived from software contributed to Berkeley by
- * Sun Microsystems, Inc.
+ * Berkeley software distribution, which was in derived from software
+ * contributed to Berkeley by Sun Microsystems, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -44,16 +42,7 @@
  * $Id$
  */
 
-/*
- * XXX TODO:
- *	Tidy up
- *	Remove dead code
- *	ansify
- *	do syslogging
- */
-
 #include <sys/param.h>
-
 /*
  * Verify that we are at least 4.4 BSD
  */
