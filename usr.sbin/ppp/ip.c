@@ -104,8 +104,7 @@ dns_Qclass2Txt(u_short qclass)
     if (qtxt[f].id == qclass)
       return qtxt[f].txt;
 
-  snprintf(failure, sizeof failure, "<0x%02x>", qclass);
-  return failure;
+  return HexStr(qclass, failure, sizeof failure);
 }
 
 static const char *
@@ -132,8 +131,7 @@ dns_Qtype2Txt(u_short qtype)
     if (qtxt[f].id == qtype)
       return qtxt[f].txt;
 
-  snprintf(failure, sizeof failure, "<0x%02x>", qtype);
-  return failure;
+  return HexStr(qtype, failure, sizeof failure);
 }
 
 static __inline int
