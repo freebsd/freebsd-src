@@ -167,6 +167,7 @@ msleep(ident, mtx, priority, wmesg, timo)
 	 * the thread (recursion here might be bad).
 	 * Hence the TDF_INMSLEEP flag.
 	 */
+	mtx_lock_spin(&sched_lock);
 	if (p->p_flag & P_THREADED || p->p_numthreads > 1) {
 		/*
 		 * Just don't bother if we are exiting
@@ -177,10 +178,10 @@ msleep(ident, mtx, priority, wmesg, timo)
 		    (((p->p_flag & P_WEXIT) && (p->p_singlethread != td)) ||
 		     (td->td_flags & TDF_INTERRUPT))) {
 			td->td_flags &= ~TDF_INTERRUPT;
+			mtx_unlock_spin(&sched_lock);
 			return (EINTR);
 		}
 	}
-	mtx_lock_spin(&sched_lock);
 	if (cold ) {
 		/*
 		 * During autoconfiguration, just give interrupts

@@ -1299,7 +1299,8 @@ thread_unlink(struct thread *td)
 {      
 	struct proc *p = td->td_proc;
 	struct ksegrp *kg = td->td_ksegrp;
-   
+
+	mtx_assert(&sched_lock, MA_OWNED);
 	TAILQ_REMOVE(&p->p_threads, td, td_plist);
 	p->p_numthreads--;
 	TAILQ_REMOVE(&kg->kg_threads, td, td_kglist);
@@ -1683,11 +1684,11 @@ thread_userret(struct thread *td, struct trapframe *frame)
 	if (p->p_numthreads > max_threads_per_proc) {
 		max_threads_hits++;
 		PROC_LOCK(p);
+		mtx_lock_spin(&sched_lock);
 		while (p->p_numthreads > max_threads_per_proc) {
 			if (P_SHOULDSTOP(p))
 				break;
 			upcalls = 0;
-			mtx_lock_spin(&sched_lock);
 			FOREACH_KSEGRP_IN_PROC(p, kg2) {
 				if (kg2->kg_numupcalls == 0)
 					upcalls++;
@@ -1701,7 +1702,9 @@ thread_userret(struct thread *td, struct trapframe *frame)
 			msleep(&p->p_numthreads, &p->p_mtx, PPAUSE|PCATCH,
 			    "maxthreads", NULL);
 			p->p_maxthrwaits--;
+			mtx_lock_spin(&sched_lock);
 		}
+		mtx_unlock_spin(&sched_lock);
 		PROC_UNLOCK(p);
 	}
 
@@ -1818,10 +1821,9 @@ thread_single(int force_exit)
 	} else
 		p->p_flag &= ~P_SINGLE_EXIT;
 	p->p_flag |= P_STOPPED_SINGLE;
+	mtx_lock_spin(&sched_lock);
 	p->p_singlethread = td;
-	/* XXXKSE Which lock protects the below values? */
 	while ((p->p_numthreads - p->p_suspcount) != 1) {
-		mtx_lock_spin(&sched_lock);
 		FOREACH_THREAD_IN_PROC(p, td2) {
 			if (td2 == td)
 				continue;
@@ -1855,10 +1857,8 @@ thread_single(int force_exit)
 		/* 
 		 * Maybe we suspended some threads.. was it enough? 
 		 */
-		if ((p->p_numthreads - p->p_suspcount) == 1) {
-			mtx_unlock_spin(&sched_lock);
+		if ((p->p_numthreads - p->p_suspcount) == 1)
 			break;
-		}
 
 		/*
 		 * Wake us up when everyone else has suspended.
@@ -1872,15 +1872,14 @@ thread_single(int force_exit)
 		mtx_unlock_spin(&sched_lock);
 		PICKUP_GIANT();
 		PROC_LOCK(p);
+		mtx_lock_spin(&sched_lock);
 	}
 	if (force_exit == SINGLE_EXIT) { 
-		if (td->td_upcall) {
-			mtx_lock_spin(&sched_lock);
+		if (td->td_upcall)
 			upcall_remove(td);
-			mtx_unlock_spin(&sched_lock);
-		}
 		kse_purge(p, td);
 	}
+	mtx_unlock_spin(&sched_lock);
 	return (0);
 }
 
@@ -1987,6 +1986,7 @@ thread_suspend_one(struct thread *td)
 	struct proc *p = td->td_proc;
 
 	mtx_assert(&sched_lock, MA_OWNED);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 	KASSERT(!TD_IS_SUSPENDED(td), ("already suspended"));
 	p->p_suspcount++;
 	TD_SET_SUSPENDED(td);
@@ -2007,6 +2007,7 @@ thread_unsuspend_one(struct thread *td)
 	struct proc *p = td->td_proc;
 
 	mtx_assert(&sched_lock, MA_OWNED);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 	TAILQ_REMOVE(&p->p_suspended, td, td_runq);
 	TD_CLR_SUSPENDED(td);
 	p->p_suspcount--;
@@ -2048,6 +2049,7 @@ thread_single_end(void)
 	p = td->td_proc;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	p->p_flag &= ~P_STOPPED_SINGLE;
+	mtx_lock_spin(&sched_lock);
 	p->p_singlethread = NULL;
 	/*
 	 * If there are other threads they mey now run,
@@ -2056,12 +2058,11 @@ thread_single_end(void)
 	 * to continue however as this is a bad place to stop.
 	 */
 	if ((p->p_numthreads != 1) && (!P_SHOULDSTOP(p))) {
-		mtx_lock_spin(&sched_lock);
 		while (( td = TAILQ_FIRST(&p->p_suspended))) {
 			thread_unsuspend_one(td);
 		}
-		mtx_unlock_spin(&sched_lock);
 	}
+	mtx_unlock_spin(&sched_lock);
 }
 
 
