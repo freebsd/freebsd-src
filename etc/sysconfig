@@ -4,7 +4,7 @@
 # This is sysconfig - a file full of useful variables that you can set 
 # to change the default startup behavior of your system.
 #
-#	$Id: sysconfig,v 1.14.4.4 1995/09/19 10:23:43 jkh Exp $
+#	$Id: sysconfig,v 1.14.4.5 1995/09/19 12:09:03 jkh Exp $
 
 ######################### Start Of Syscons Section #######################
 
@@ -96,6 +96,10 @@ defaultrouter=NO
 # These are the flags you'd like to start the routing daemon with
 routedflags=-q
 
+# mrouted flags, or NO if you don't want to start mrouted. Needs kernel
+# options enabled before it will work.
+mrouted=NO
+
 # timed flags, or NO if you don't want to start the time daemon
 timedflags=NO
 
@@ -123,6 +127,9 @@ amdflags="NO"
 nfs_client=NO
 
 # Set to YES if this machine will be an NFS server
+
+# Set to NO if don't want to run lpd
+lpd=YES
 nfs_server=NO
 
 # Set to appropriate flags if you want to start NIS for a client
@@ -187,3 +194,6 @@ accounting=NO
 
 # Set to YES if you want ibcs2 (SCO) emulation loaded at startup
 ibcs2=NO
+
+# Set to YES if you want Linux a.out emulation loaded at startup
+linux=NO
