@@ -1,4 +1,4 @@
-#	$Id: options,v 1.118 1999/01/14 03:30:48 kjc Exp $
+#	$Id: options,v 1.119 1999/01/15 10:00:10 bde Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -329,3 +329,6 @@ USBVERBOSE		opt_usb.h
 
 # Vinum options
 VINUMDEBUG		opt_vinum.h
+
+# Include LKM compatability module
+LKM
