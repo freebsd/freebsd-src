@@ -40,7 +40,7 @@
 .Nd user information lookup program
 .Sh SYNOPSIS
 .Nm
-.Op Fl 46glmpshoT
+.Op Fl 46gklmpshoT
 .Op Ar user ...\&
 .Op Ar user@host ...\&
 .Sh DESCRIPTION
@@ -98,6 +98,9 @@ name. It also has the side-effect of restricting the output
 of the remote host when used in conjunction with the
 .Fl h
 option.
+.It Fl k
+Disable all use of
+.Xr utmp 5 .
 .It Fl l
 Produce a multi-line format displaying all of the information
 described for the

@@ -91,7 +91,7 @@ __FBSDID("$FreeBSD$");
 
 DB *db;
 time_t now;
-int entries, gflag, lflag, mflag, pplan, sflag, oflag, Tflag;
+int entries, gflag, kflag, lflag, mflag, pplan, sflag, oflag, Tflag;
 sa_family_t family = PF_UNSPEC;
 int d_first = -1;
 char tbuf[1024];
@@ -108,7 +108,7 @@ option(int argc, char **argv)
 
 	optind = 1;		/* reset getopt */
 
-	while ((ch = getopt(argc, argv, "46glmpshoT")) != -1)
+	while ((ch = getopt(argc, argv, "46gklmpshoT")) != -1)
 		switch(ch) {
 		case '4':
 			family = AF_INET;
@@ -118,6 +118,9 @@ option(int argc, char **argv)
 			break;
 		case 'g':
 			gflag = 1;
+			break;
+		case 'k':
+			kflag = 1;		/* keep going without utmp */
 			break;
 		case 'l':
 			lflag = 1;		/* long format */
@@ -151,7 +154,7 @@ option(int argc, char **argv)
 static void
 usage(void)
 {
-	(void)fprintf(stderr, "usage: finger [-46lmpshoT] [login ...]\n");
+	(void)fprintf(stderr, "usage: finger [-46klmpshoT] [login ...]\n");
 	exit(1);
 }
 
@@ -233,6 +236,9 @@ loginlist(void)
 	struct utmp user;
 	int r, sflag1;
 	char name[UT_NAMESIZE + 1];
+
+	if (kflag)
+		errx(1, "can't list logins without reading utmp");
 
 	if (!freopen(_PATH_UTMP, "r", stdin))
 		err(1, "%s", _PATH_UTMP);
@@ -368,6 +374,9 @@ net:	for (p = nargv; *p;) {
 	}
 
 	if (entries == 0)
+		return;
+
+	if (kflag)
 		return;
 
 	/*
