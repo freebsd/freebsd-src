@@ -442,6 +442,7 @@ MUTEX_PROFILING		opt_global.h
 NPX_DEBUG		opt_debug_npx.h
 NETATALKDEBUG		opt_atalk.h
 SI_DEBUG		opt_debug_si.h
+WATCHDOG		opt_watchdog.h
 
 # Fb options
 FB_DEBUG		opt_fb.h
