@@ -32,7 +32,7 @@
 .\"	@(#)vmstat.8	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd June 6, 1996
+.Dd April 14, 2003
 .Dt VMSTAT 8
 .Os
 .Sh NAME
@@ -41,7 +41,7 @@
 .Sh SYNOPSIS
 .Nm
 .\" .Op Fl fimst
-.Op Fl imsz
+.Op Fl fimsz
 .Op Fl c Ar count
 .Op Fl M Ar core
 .Op Fl N Ar system
@@ -73,13 +73,14 @@ If no repeat
 is specified, and
 .Fl w
 is specified, the default is infinity, otherwise the default is one.
-.\" .It Fl f
-.\" Report on the number
-.\" .Xr fork 2
-.\" and
-.\" .Xr vfork 2
-.\" system calls since system startup, and the number of pages of virtual memory
-.\" involved in each.
+.It Fl f
+Report on the number
+.Xr fork 2 ,
+.Xr vfork 2
+and
+.Xr rfork 2
+system calls since system startup, and the number of pages of virtual memory
+involved in each.
 .It Fl i
 Report on the number of interrupts taken by each device since system
 startup.
