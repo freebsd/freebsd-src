@@ -30,9 +30,8 @@
 #include <sys/select.h>
 #include <sys/file.h>
 #include <sys/signalvar.h>
-#ifdef __FreeBSD__
 #include <sys/kernel.h>
-#endif
+#include <sys/sysctl.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
@@ -72,13 +71,14 @@ PSEUDO_SET(tunattach, if_tun);
 
 
 #define TUNDEBUG	if (tundebug) printf
-int	tundebug = 0;
+static int tundebug = 0;
+SYSCTL_INT(_debug, OID_AUTO, if_tun_debug, CTLFLAG_RD, &tundebug, 0, "");
 
-struct tun_softc tunctl[NTUN];
+static struct tun_softc tunctl[NTUN];
 
-int	tunoutput __P((struct ifnet *, struct mbuf *, struct sockaddr *,
+static int tunoutput __P((struct ifnet *, struct mbuf *, struct sockaddr *,
 	    struct rtentry *rt));
-int	tunifioctl __P((struct ifnet *, int, caddr_t));
+static int tunifioctl __P((struct ifnet *, int, caddr_t));
 static int tuninit __P((int));
 
 static	d_open_t	tunopen;
@@ -108,7 +108,6 @@ tunattach(dummy)
 	register int i;
 	struct ifnet *ifp;
 	dev_t dev;
-	char	name[32];
 
 	if( tun_devsw_installed ) return;
 	dev = makedev(CDEV_MAJOR, 0);
@@ -157,7 +156,8 @@ tunopen(dev, flag, mode, p)
 	struct tun_softc *tp;
 	register int	unit, error;
 
-	if (error = suser(p->p_ucred, &p->p_acflag))
+	error = suser(p->p_ucred, &p->p_acflag);
+	if (error)
 		return (error);
 
 	if ((unit = minor(dev)) >= NTUN)
@@ -376,7 +376,7 @@ tunoutput(ifp, m0, dst, rt)
 	if (tp->tun_flags & TUN_ASYNC && tp->tun_pgrp) {
 		if (tp->tun_pgrp > 0)
 			gsignal(tp->tun_pgrp, SIGIO);
-		else if (p = pfind(-tp->tun_pgrp))
+		else if ((p = pfind(-tp->tun_pgrp)) != 0) 
 			psignal(p, SIGIO);
 	}
 	selwakeup(&tp->tun_rsel);

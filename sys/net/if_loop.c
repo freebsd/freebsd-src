@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_loop.c	8.1 (Berkeley) 6/10/93
- * $Id: if_loop.c,v 1.14 1995/10/26 20:30:13 julian Exp $
+ * $Id: if_loop.c,v 1.15 1995/12/02 17:11:11 bde Exp $
  */
 
 /*
@@ -79,6 +79,9 @@
 #endif
 
 #include "bpfilter.h"
+
+static int loioctl __P((struct ifnet *, int, caddr_t));
+static void lortrequest __P((int, struct rtentry *, struct sockaddr *));
 
 static void loopattach __P((void *));
 PSEUDO_SET(loopattach, if_loop);
@@ -214,7 +217,7 @@ looutput(ifp, m, dst, rt)
 }
 
 /* ARGSUSED */
-void
+static void
 lortrequest(cmd, rt, sa)
 	int cmd;
 	struct rtentry *rt;
@@ -229,7 +232,7 @@ lortrequest(cmd, rt, sa)
  * Process an ioctl request.
  */
 /* ARGSUSED */
-int
+static int
 loioctl(ifp, cmd, data)
 	register struct ifnet *ifp;
 	int cmd;
