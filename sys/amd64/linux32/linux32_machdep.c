@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/imgact.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mman.h>
@@ -49,6 +50,8 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
 #include <vm/vm_map.h>
 
 #include <amd64/linux32/linux.h>
@@ -89,72 +92,120 @@ bsd_to_linux_sigaltstack(int bsa)
 	return (lsa);
 }
 
+/*
+ * Custom version of exec_copyin_args() so that we can translate
+ * the pointers.
+ */
+static int
+linux_exec_copyin_args(struct image_args *args, char *fname,
+    enum uio_seg segflg, char **argv, char **envv)
+{
+	char *argp, *envp;
+	u_int32_t *p32, arg;
+	size_t length;
+	int error;
+
+	bzero(args, sizeof(*args));
+	if (argv == NULL)
+		return (EFAULT);
+
+	/*
+	 * Allocate temporary demand zeroed space for argument and
+	 *	environment strings
+	 */
+	args->buf = (char *) kmem_alloc_wait(exec_map, PATH_MAX + ARG_MAX);
+	if (args->buf == NULL)
+		return (ENOMEM);
+	args->begin_argv = args->buf;
+	args->endp = args->begin_argv;
+	args->stringspace = ARG_MAX;
+
+	args->fname = args->buf + ARG_MAX;
+
+	/*
+	 * Copy the file name.
+	 */
+	error = (segflg == UIO_SYSSPACE) ?
+	    copystr(fname, args->fname, PATH_MAX, &length) :
+	    copyinstr(fname, args->fname, PATH_MAX, &length);
+	if (error != 0)
+		return (error);
+
+	/*
+	 * extract arguments first
+	 */
+	p32 = (u_int32_t *)argv;
+	for (;;) {
+		error = copyin(p32++, &arg, sizeof(arg));
+		if (error)
+			return (error);
+		if (arg == 0)
+			break;
+		argp = PTRIN(arg);
+		error = copyinstr(argp, args->endp, args->stringspace, &length);
+		if (error) {
+			if (error == ENAMETOOLONG)
+				return (E2BIG);
+			else
+				return (error);
+		}
+		args->stringspace -= length;
+		args->endp += length;
+		args->argc++;
+	}
+			
+	args->begin_envv = args->endp;
+
+	/*
+	 * extract environment strings
+	 */
+	if (envv) {
+		p32 = (u_int32_t *)envv;
+		for (;;) {
+			error = copyin(p32++, &arg, sizeof(arg));
+			if (error)
+				return (error);
+			if (arg == 0)
+				break;
+			envp = PTRIN(arg);
+			error = copyinstr(envp, args->endp, args->stringspace,
+			    &length);
+			if (error) {
+				if (error == ENAMETOOLONG)
+					return (E2BIG);
+				else
+					return (error);
+			}
+			args->stringspace -= length;
+			args->endp += length;
+			args->envc++;
+		}
+	}
+
+	return (0);
+}
+
 int
 linux_execve(struct thread *td, struct linux_execve_args *args)
 {
-	struct execve_args ap;
-	caddr_t sg;
+	struct image_args eargs;
+	char *path;
 	int error;
-	u_int32_t *p32, arg;
-	char **p, *p64;
-	int count;
 
-	sg = stackgap_init();
-	CHECKALTEXIST(td, &sg, args->path);
+	LCONVPATHEXIST(td, args->path, &path);
 
 #ifdef DEBUG
 	if (ldebug(execve))
-		printf(ARGS(execve, "%s"), args->path);
+		printf(ARGS(execve, "%s"), path);
 #endif
 
-	ap.fname = args->path;
-
-	if (args->argp != NULL) {
-		count = 0;
-		p32 = (u_int32_t *)args->argp;
-		do {
-			error = copyin(p32++, &arg, sizeof(arg));
-			if (error)
-				return error;
-			count++;
-		} while (arg != 0);
-		p = stackgap_alloc(&sg, count * sizeof(char *));
-		ap.argv = p;
-		p32 = (u_int32_t *)args->argp;
-		do {
-			error = copyin(p32++, &arg, sizeof(arg));
-			if (error)
-				return error;
-			p64 = PTRIN(arg);
-			error = copyout(&p64, p++, sizeof(p64));
-			if (error)
-				return error;
-		} while (arg != 0);
-	}
-	if (args->envp != NULL) {
-		count = 0;
-		p32 = (u_int32_t *)args->envp;
-		do {
-			error = copyin(p32++, &arg, sizeof(arg));
-			if (error)
-				return error;
-			count++;
-		} while (arg != 0);
-		p = stackgap_alloc(&sg, count * sizeof(char *));
-		ap.envv = p;
-		p32 = (u_int32_t *)args->envp;
-		do {
-			error = copyin(p32++, &arg, sizeof(arg));
-			if (error)
-				return error;
-			p64 = PTRIN(arg);
-			error = copyout(&p64, p++, sizeof(p64));
-			if (error)
-				return error;
-		} while (arg != 0);
-	}
-
-	return (execve(td, &ap));
+	error = linux_exec_copyin_args(&eargs, path, UIO_SYSSPACE, args->argp,
+	    args->envp);
+	free(path, M_TEMP);
+	if (error == 0)
+		error = kern_execve(td, &eargs, NULL);
+	exec_free_args(&eargs);
+	return (error);
 }
 
 struct iovec32 {
@@ -903,36 +954,20 @@ linux_gettimeofday(struct thread *td, struct linux_gettimeofday_args *uap)
 int
 linux_nanosleep(struct thread *td, struct linux_nanosleep_args *uap)
 {
-	struct timespec ats;
+	struct timespec rqt, rmt;
 	struct l_timespec ats32;
-	struct nanosleep_args bsd_args;
 	int error;
-	caddr_t sg;
-	caddr_t sarqts, sarmts;
 
-	sg = stackgap_init();
 	error = copyin(uap->rqtp, &ats32, sizeof(ats32));
 	if (error != 0)
 		return (error);
-	ats.tv_sec = ats32.tv_sec;
-	ats.tv_nsec = ats32.tv_nsec;
-	sarqts = stackgap_alloc(&sg, sizeof(ats));
-	error = copyout(&ats, sarqts, sizeof(ats));
-	if (error != 0)
-		return (error);
-	sarmts = stackgap_alloc(&sg, sizeof(ats));
-	bsd_args.rqtp = (void *)sarqts;
-	bsd_args.rmtp = (void *)sarmts;
-	error = nanosleep(td, &bsd_args);
+	rqt.tv_sec = ats32.tv_sec;
+	rqt.tv_nsec = ats32.tv_nsec;
+	error = kern_nanosleep(td, &rqt, &rmt);
 	if (uap->rmtp != NULL) {
-		error = copyin(sarmts, &ats, sizeof(ats));
-		if (error != 0)
-			return (error);
-		ats32.tv_sec = ats.tv_sec;
-		ats32.tv_nsec = ats.tv_nsec;
+		ats32.tv_sec = rmt.tv_sec;
+		ats32.tv_nsec = rmt.tv_nsec;
 		error = copyout(&ats32, uap->rmtp, sizeof(ats32));
-		if (error != 0)
-			return (error);
 	}
 	return (error);
 }
