@@ -43,8 +43,8 @@ options 	PROCFS			#Process filesystem
 options 	COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
 options 	SCSI_DELAY=15000	#Delay (in ms) before probing SCSI
 options 	UCONSOLE		#Allow users to grab the console
-options 	USERCONFIG		#boot -c editor
-options 	VISUAL_USERCONFIG	#visual boot -c editor
+#options 	USERCONFIG		#boot -c editor
+#options 	VISUAL_USERCONFIG	#visual boot -c editor
 options 	KTRACE			#ktrace(1) support
 options 	SYSVSHM			#SYSV-style shared memory
 options 	SYSVMSG			#SYSV-style message queues

@@ -49,7 +49,7 @@ ia64/ia64/sscdisk.c		standard
 ia64/ia64/swtch.s		standard
 ia64/ia64/sys_machdep.c		standard
 ia64/ia64/trap.c		standard
-ia64/ia64/userconfig.c		optional	userconfig
+#ia64/ia64/userconfig.c		optional	userconfig
 ia64/ia64/vm_machdep.c		standard
 ia64/isa/isa.c			optional	isa
 ia64/isa/isa_dma.c		optional	isa
