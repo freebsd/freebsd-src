@@ -480,7 +480,6 @@ startagain:
 	/* make sure */
 	if (inw(BASE + EP_W1_FREE_TX) < len + pad + 4) {
 	    ifp->if_flags |= IFF_OACTIVE;
-	    splx(s);
 	    return;
 	}
     } else {
