@@ -1,4 +1,4 @@
-<!-- $Id: submitters.sgml,v 1.19 1996/02/04 08:58:21 jkh Exp $ -->
+<!-- $Id: submitters.sgml,v 1.20 1996/02/06 03:35:16 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Contributing to FreeBSD<label id="submitters"></heading>
@@ -70,7 +70,7 @@ url="mailto:dyson@freebsd.org" name="John Dyson"></tt>
 <item>Fix the LFS file system.  Coordinator: <tt><htmlurl
 url="mailto:dyson@freebsd.org" name="John Dyson"></tt>
 </itemize>
-<item>Implement kernel & user vm86 support.  Coordinator: <tt><htmlurl
+<item>Implement kernel and user vm86 support.  Coordinator: <tt><htmlurl
 url="mailto:hackers@freebsd.org" name="Hackers"></tt>.
 <item>Implement Int13 vm86 disk driver.  Coordinator: <tt><htmlurl
 url="mailto:hackers@freebsd.org" name="Hackers"></tt>.
@@ -128,10 +128,10 @@ your hardware, etc.
 url="mailto:phk@freebsd.org" name="Poul-Henning Kamp"></tt>
 <itemize>
 <item>Reliable operation of the pcic driver.
-<item>Recognizer & handler for sio.c
-<item>Recognizer & handler for ed.c
-<item>Recognizer & handler for ep.c
-<item>User-mode recognizer & handler.
+<item>Recognizer and handler for sio.c
+<item>Recognizer and handler for ed.c
+<item>Recognizer and handler for ep.c
+<item>User-mode recognizer and handler.
 </itemize>
 <item>Advanced Power Management.  Coordinator: <tt><htmlurl
 url="mailto:phk@freebsd.org" name="Poul-Henning Kamp"></tt>
@@ -418,7 +418,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-	$Id: submitters.sgml,v 1.19 1996/02/04 08:58:21 jkh Exp $
+	$Id: submitters.sgml,v 1.20 1996/02/06 03:35:16 jkh Exp $
 </verb></tscreen>
 For your convenience, a copy of this text can be found in
 <tt>/usr/share/examples/etc/bsd-style-copyright</tt>.

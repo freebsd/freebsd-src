@@ -1,4 +1,4 @@
-<!-- $Id: install.sgml,v 1.22 1996/01/31 14:26:09 mpp Exp $ -->
+<!-- $Id: install.sgml,v 1.23 1996/01/31 19:02:58 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -657,9 +657,9 @@ ftp://192.216.222.4/pub/FreeBSD/2.1.0-RELEASE
 
 	    </descrip>
 
-	    <quote><bf>Note:</bf> ACTIVE AND PASSIVE MODES ARE
-	      NOT THE SAME AS A `PROXY' CONNECTION, WHERE A PROXY
-	      FTP SERVER IS LISTENING ON A DIFFERENT PORT!</quote>
+	    <quote><bf>Note:</bf> Active and passive modes are
+	      not the same as a `proxy' connection, where a proxy
+	      ftp server is listening on a different port!</quote>
 
 	    In such instances, you should specify the URL as something like:
 <tscreen><verb>
