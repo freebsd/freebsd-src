@@ -315,31 +315,31 @@ struct xsocket {
  * still explicitly close the socket, but the last ref count will free
  * the structure.
  */
-#define soref(so)	do {			\
-				++(so)->so_count; \
-			} while (0)
+#define	soref(so) do {							\
+	++(so)->so_count;						\
+} while (0)
 
-#define sorele(so)	do {				\
-				if ((so)->so_count <= 0)	\
-					panic("sorele");\
-				if (--(so)->so_count == 0)\
-					sofree(so);	\
-			} while (0)
+#define	sorele(so) do {							\
+	if ((so)->so_count <= 0)					\
+		panic("sorele");					\
+	if (--(so)->so_count == 0)					\
+		sofree(so);						\
+} while (0)
 
-#define sotryfree(so)	do {				\
-				if ((so)->so_count == 0)	\
-					sofree(so);	\
-			} while(0)
+#define	sotryfree(so) do {						\
+	if ((so)->so_count == 0)					\
+		sofree(so);						\
+} while(0)
 
-#define	sorwakeup(so)	do {					\
-				if (sb_notify(&(so)->so_rcv))	\
-					sowakeup((so), &(so)->so_rcv); \
-			} while (0)
+#define	sorwakeup(so) do {						\
+	if (sb_notify(&(so)->so_rcv))					\
+		sowakeup((so), &(so)->so_rcv); 				\
+} while (0)
 
-#define	sowwakeup(so)	do {					\
-				if (sb_notify(&(so)->so_snd))	\
-					sowakeup((so), &(so)->so_snd); \
-			} while (0)
+#define	sowwakeup(so) do {						\
+	if (sb_notify(&(so)->so_snd))					\
+		sowakeup((so), &(so)->so_snd); 				\
+} while (0)
 
 #ifdef _KERNEL
 
