@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $Id$
+ * $Id: kern_descrip.c,v 1.37 1997/02/22 09:39:03 peter Exp $
  */
 
 #include <sys/param.h>
@@ -429,11 +429,9 @@ ofstat(p, uap, retval)
 		error = soo_stat((struct socket *)fp->f_data, &ub);
 		break;
 
-#ifndef OLD_PIPE
 	case DTYPE_PIPE:
 		error = pipe_stat((struct pipe *)fp->f_data, &ub);
 		break;
-#endif
 
 	default:
 		panic("ofstat");
@@ -481,11 +479,9 @@ fstat(p, uap, retval)
 		error = soo_stat((struct socket *)fp->f_data, &ub);
 		break;
 
-#ifndef OLD_PIPE
 	case DTYPE_PIPE:
 		error = pipe_stat((struct pipe *)fp->f_data, &ub);
 		break;
-#endif
 
 	default:
 		panic("fstat");
@@ -521,9 +517,7 @@ fpathconf(p, uap, retval)
 		return (EBADF);
 	switch (fp->f_type) {
 
-#ifndef OLD_PIPE
 	case DTYPE_PIPE:
-#endif
 	case DTYPE_SOCKET:
 		if (uap->name != _PC_PIPE_BUF)
 			return (EINVAL);
