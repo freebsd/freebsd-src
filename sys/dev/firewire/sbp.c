@@ -131,7 +131,7 @@ static char *orb_fun_name[] = {
 #define ORB_RES_ILLE 2
 #define ORB_RES_VEND 3
 
-static int debug = 1;
+static int debug = 0;
 static int auto_login = 1;
 static int max_speed = 2;
 static int sbp_cold = 1;
