@@ -1641,12 +1641,12 @@ sis_intr(void *arg)
 
 	SIS_LOCK(sc);
 #ifdef DEVICE_POLLING
-	if (ifp->if_flags & IFF_POLLING)
-		goto done;
-	if ((ifp->if_capenable & IFCAP_POLLING) &&
-	    ether_poll_register(sis_poll, ifp)) { /* ok, disable interrupts */
+	if ((ifp->if_flags & IFF_POLLING) ||
+	   ((ifp->if_capenable & IFCAP_POLLING) &&
+	    ether_poll_register(sis_poll, ifp))) { /* ok, disable interrupts */
 		CSR_WRITE_4(sc, SIS_IER, 0);
-		goto done;
+		SIS_UNLOCK(sc);
+		return;
 	}
 #endif /* DEVICE_POLLING */
 
