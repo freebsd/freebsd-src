@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 # Quad support, if needed
-.PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/quad ${.CURDIR}/../libc/quad
+.PATH: ${.CURDIR}/${MACHINE_ARCH}/quad ${.CURDIR}/quad
 
 .if ${MACHINE_ARCH} == "i386"
 

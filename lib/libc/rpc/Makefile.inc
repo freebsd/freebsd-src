@@ -1,7 +1,7 @@
 #	@(#)Makefile    5.11 (Berkeley) 9/6/90
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../libc/rpc ${.CURDIR}/.
+.PATH: ${.CURDIR}/rpc ${.CURDIR}/.
 SRCS+=	auth_none.c auth_unix.c authunix_prot.c bindresvport.c clnt_bcast.c \
 	clnt_dg.c clnt_generic.c clnt_perror.c clnt_raw.c clnt_simple.c \
 	clnt_vc.c rpc_dtablesize.c getnetconfig.c getnetpath.c getrpcent.c \
