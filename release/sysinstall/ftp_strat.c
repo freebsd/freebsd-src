@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.6.2.11 1995/06/03 07:38:22 jkh Exp $
+ * $Id: ftp_strat.c,v 1.6.2.12 1995/06/03 09:49:43 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -79,7 +79,7 @@ get_new_host(void)
     char *oldTitle = MenuMediaFTP.title;
 
     MenuMediaFTP.title = "Open timed out - please select another ftp site";
-    i = dmenuOpenSimple(&MenuMediaFTP);
+    i = mediaSetFTP(NULL);
     MenuMediaFTP.title = oldTitle;
     if (i) {
 	mediaShutdownFTP(mediaDevice);
