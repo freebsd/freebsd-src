@@ -31,6 +31,7 @@
 #define WX_PRODUCT_82452	0x1000
 #define	WX_MMBA			0x10
 #define	MWI			0x10	/* Memory Write Invalidate */
+#define	WX_CACHELINE_SIZE	0x20
 
 /*
  * Information about this chipset gathered from a released Intel Linux driver,
