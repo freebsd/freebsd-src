@@ -175,6 +175,7 @@ acpi_button_suspend(device_t dev)
 static int
 acpi_button_resume(device_t dev)
 {
+    acpi_wake_run_prep(dev);
     return (0);
 }
 
