@@ -78,7 +78,7 @@ objwarn:
 
 .if !defined(NOOBJ)
 .if !target(obj)
-obj:
+obj: .PHONY
 	@if ! test -d ${CANONICALOBJDIR}/; then \
 		mkdir -p ${CANONICALOBJDIR}; \
 		if ! test -d ${CANONICALOBJDIR}/; then \
