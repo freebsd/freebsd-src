@@ -113,4 +113,21 @@ struct vm_page;
 typedef struct vm_page *vm_page_t;
 #endif
 
+/*
+ * Information passed from the machine-independant VM initialization code
+ * for use by machine-dependant code (mainly for MMU support)
+ */
+struct kva_md_info {
+	vm_offset_t	buffer_sva;
+	vm_offset_t	buffer_eva;
+	vm_offset_t	clean_sva;
+	vm_offset_t	clean_eva;
+	vm_offset_t	pager_sva;
+	vm_offset_t	pager_eva;
+};
+
+extern struct kva_md_info	kmi;
+extern void vm_ksubmap_init(struct kva_md_info *kmi);
+
 #endif				/* VM_H */
+

@@ -228,9 +228,7 @@ void osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code);
 
 static void identifycpu __P((void));
 
-static vm_offset_t buffer_sva, buffer_eva;
-vm_offset_t clean_sva, clean_eva;
-static vm_offset_t pager_sva, pager_eva;
+struct kva_md_info kmi;
 
 /*
  * Hooked into the shutdown chain; if the system is to be halted,
@@ -248,13 +246,6 @@ static void
 cpu_startup(dummy)
 	void *dummy;
 {
-	register unsigned i;
-	register caddr_t v;
-	vm_offset_t maxaddr;
-	vm_size_t size = 0;
-	vm_offset_t firstaddr;
-	vm_offset_t minaddr;
-
 	/*
 	 * Good {morning,afternoon,evening,night}.
 	 */
@@ -281,6 +272,9 @@ cpu_startup(dummy)
 		}
 	}
 
+	vm_ksubmap_init(&kmi);
+
+#if 0
 	/*
 	 * Calculate callout wheel size
 	 */
@@ -387,6 +381,7 @@ again:
 	}
 
 	mtx_init(&callout_lock, "callout", MTX_SPIN | MTX_RECURSE);
+#endif
 
 #if defined(USERCONFIG)
 #if defined(USERCONFIG_BOOT)
