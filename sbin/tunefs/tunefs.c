@@ -32,13 +32,17 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1983, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)tunefs.c	8.2 (Berkeley) 4/19/94";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -49,12 +53,11 @@ static char sccsid[] = "@(#)tunefs.c	8.2 (Berkeley) 4/19/94";
 
 #include <ufs/ffs/fs.h>
 
-#include <errno.h>
 #include <err.h>
 #include <fcntl.h>
 #include <fstab.h>
-#include <stdio.h>
 #include <paths.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 
@@ -248,16 +251,10 @@ again:
 void
 usage()
 {
-
-	fprintf(stderr, "usage: tunefs tuneup-options special-device\n");
-	fprintf(stderr, "where tuneup-options are:\n");
-	fprintf(stderr, "\t-a maximum contiguous blocks\n");
-	fprintf(stderr, "\t-d rotational delay between contiguous blocks\n");
-	fprintf(stderr, "\t-e maximum blocks per file in a cylinder group\n");
-	fprintf(stderr, "\t-m minimum percentage of free space\n");
-	fprintf(stderr, "\t-n soft updates (`enable' or `disable')\n");
-	fprintf(stderr, "\t-o optimization preference (`space' or `time')\n");
-	fprintf(stderr, "\t-p no change - just prints current tuneable settings\n");
+	fprintf(stderr, "%s\n%s\n%s\n",
+"usage: tunefs [-A] [-a maxcontig] [-d rotdelay] [-e maxbpg] [-m minfree]",
+"              [-p] [-n enable | disable] [-o optimize_preference]",
+"              [special | filesystem]");
 	exit(2);
 }
 
