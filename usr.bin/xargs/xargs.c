@@ -216,7 +216,7 @@ main(int argc, char **argv)
 	if (nline <= 0)
 		errx(1, "insufficient space for command");
 
-	if ((bbp = malloc((u_int)nline + 1)) == NULL)
+	if ((bbp = malloc((size_t)nline + 1)) == NULL)
 		err(1, "malloc");
 	ebp = (argp = p = bbp) + nline - 1;
 
@@ -304,7 +304,7 @@ arg2:
 						if (avj != av && repls > 0 &&
 						    strstr(*tmp, replstr) != NULL) {
 							strnsubst(tmp, replstr,
-							    inpline, 255);
+							    inpline, (size_t)255);
 							repls--;
 						} else {
 							*tmp = strdup(*avj);
