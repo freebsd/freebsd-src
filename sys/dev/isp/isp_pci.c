@@ -296,12 +296,15 @@ static int
 isp_pci_attach(device_t dev)
 {
 	struct resource *regs, *irq;
-	int unit, bitmap, rtp, rgd, iqd, m1, m2, s, isp_debug;
+	int unit, bitmap, rtp, rgd, iqd, m1, m2, isp_debug;
 	u_int32_t data, cmd, linesz, psize, basetype;
 	struct isp_pcisoftc *pcs;
-	struct ispsoftc *isp;
+	struct ispsoftc *isp = NULL;
 	struct ispmdvec *mdvp;
 	bus_size_t lim;
+#ifdef	ISP_SMPLOCK
+	int locksetup = 0;
+#endif
 
 	/*
 	 * Figure out if we're supposed to skip this one.
@@ -466,11 +469,6 @@ isp_pci_attach(device_t dev)
 	}
 
 	/*
-	 *
-	 */
-
-	s = splbio();
-	/*
 	 * Make sure that SERR, PERR, WRITE INVALIDATE and BUSMASTER
 	 * are set.
 	 */
@@ -509,7 +507,6 @@ isp_pci_attach(device_t dev)
 	if (bus_dma_tag_create(NULL, 1, 0, BUS_SPACE_MAXADDR_32BIT,
 	    BUS_SPACE_MAXADDR, NULL, NULL, lim + 1,
 	    255, lim, 0, &pcs->parent_dmat) != 0) {
-		splx(s);
 		printf("%s: could not create master dma tag\n", isp->isp_name);
 		free(isp->isp_param, M_DEVBUF);
 		free(pcs, M_DEVBUF);
@@ -583,7 +580,6 @@ isp_pci_attach(device_t dev)
 	(void) getenv_int("isp_debug", &isp_debug);
 	if (bus_setup_intr(dev, irq, INTR_TYPE_CAM, (void (*)(void *))isp_intr,
 	    isp, &pcs->ih)) {
-		splx(s);
 		device_printf(dev, "could not setup interrupt\n");
 		goto bad;
 	}
@@ -599,13 +595,20 @@ isp_pci_attach(device_t dev)
 	if (bootverbose)
 		isp->isp_dblev |= ISP_LOGCONFIG;
 
+#ifdef	ISP_SMPLOCK
+	/* Make sure the lock is set up. */
+	mtx_init(&isp->isp_osinfo.lock, "isp", MTX_DEF);
+	locksetup++;
+#endif
+
 	/*
 	 * Make sure we're in reset state.
 	 */
+	ISP_LOCK(isp);
 	isp_reset(isp);
 
 	if (isp->isp_state != ISP_RESETSTATE) {
-		splx(s);
+		ISP_UNLOCK(isp);
 		goto bad;
 	}
 	isp_init(isp);
@@ -613,7 +616,7 @@ isp_pci_attach(device_t dev)
 		/* If we're a Fibre Channel Card, we allow deferred attach */
 		if (IS_SCSI(isp)) {
 			isp_uninit(isp);
-			splx(s);
+			ISP_UNLOCK(isp);
 			goto bad;
 		}
 	}
@@ -622,15 +625,15 @@ isp_pci_attach(device_t dev)
 		/* If we're a Fibre Channel Card, we allow deferred attach */
 		if (IS_SCSI(isp)) {
 			isp_uninit(isp);
-			splx(s);
+			ISP_UNLOCK(isp);
 			goto bad;
 		}
 	}
-	splx(s);
 	/*
 	 * XXXX: Here is where we might unload the f/w module
 	 * XXXX: (or decrease the reference count to it).
 	 */
+	ISP_UNLOCK(isp);
 	return (0);
 
 bad:
@@ -639,17 +642,27 @@ bad:
 		(void) bus_teardown_intr(dev, irq, pcs->ih);
 	}
 
+#ifdef	ISP_SMPLOCK
+	if (locksetup && isp) {
+		mtx_destroy(&isp->isp_osinfo.lock);
+	}
+#endif
+
 	if (irq) {
 		(void) bus_release_resource(dev, SYS_RES_IRQ, iqd, irq);
 	}
+
+
 	if (regs) {
 		(void) bus_release_resource(dev, rtp, rgd, regs);
 	}
+
 	if (pcs) {
 		if (pcs->pci_isp.isp_param)
 			free(pcs->pci_isp.isp_param, M_DEVBUF);
 		free(pcs, M_DEVBUF);
 	}
+
 	/*
 	 * XXXX: Here is where we might unload the f/w module
 	 * XXXX: (or decrease the reference count to it).
