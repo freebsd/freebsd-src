@@ -106,6 +106,10 @@ asn1_compile:					\
 	strupr.c
 	${CC} ${CFLAGS} ${.OODATE} -o ${.TARGET}
 
+.if defined(BOOTSTRAPPING)
+asn1_compile: getprogname.c setprogname.c
+.endif
+
 parse.o:	parse.c roken.h
 
 .ORDER: parse.c parse.h

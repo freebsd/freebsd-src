@@ -3,6 +3,8 @@
 
 /* $FreeBSD$ */
 
+#include <osreldate.h>
+
 #ifndef RCSID
 #define RCSID(msg) static /**/const char *const rcsid[] = { (const char *)rcsid, "\100(#)" msg }
 #endif
@@ -284,7 +286,10 @@
 #define HAVE_GETOPT 1
 
 /* Define if you have the `getprogname' function. */
+#if (__FreeBSD_version >= 430002 && __FreeBSD_version < 500000) || \
+    __FreeBSD_version >= 500019
 #define HAVE_GETPROGNAME 1
+#endif
 
 /* Define if you have the `getpwnam_r' function. */
 /* #undef HAVE_GETPWNAM_R */
@@ -582,7 +587,10 @@
 #define HAVE_SETPROCTITLE 1
 
 /* Define if you have the `setprogname' function. */
+#if (__FreeBSD_version >= 430002 && __FreeBSD_version < 500000) || \
+    __FreeBSD_version >= 500019
 #define HAVE_SETPROGNAME 1
+#endif
 
 /* Define if you have the `setregid' function. */
 #define HAVE_SETREGID 1
