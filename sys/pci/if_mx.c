@@ -629,29 +629,6 @@ static void mx_autoneg_mii(sc, flag, verbose)
 
 	ifm->ifm_media = IFM_ETHER | IFM_AUTO;
 
-	/*
-	 * The 100baseT4 PHY on the 3c905-T4 has the 'autoneg supported'
-	 * bit cleared in the status register, but has the 'autoneg enabled'
-	 * bit set in the control register. This is a contradiction, and
-	 * I'm not sure how to handle it. If you want to force an attempt
-	 * to autoneg for 100baseT4 PHYs, #define FORCE_AUTONEG_TFOUR
-	 * and see what happens.
-	 */
-#ifndef FORCE_AUTONEG_TFOUR
-	/*
-	 * First, see if autoneg is supported. If not, there's
-	 * no point in continuing.
-	 */
-	phy_sts = mx_phy_readreg(sc, PHY_BMSR);
-	if (!(phy_sts & PHY_BMSR_CANAUTONEG)) {
-		if (verbose)
-			printf("mx%d: autonegotiation not supported\n",
-							sc->mx_unit);
-		ifm->ifm_media = IFM_ETHER|IFM_10_T|IFM_HDX;	
-		return;
-	}
-#endif
-
 	switch (flag) {
 	case MX_FLAG_FORCEDELAY:
 		/*
@@ -707,12 +684,7 @@ static void mx_autoneg_mii(sc, flag, verbose)
 		advert = mx_phy_readreg(sc, PHY_ANAR);
 		ability = mx_phy_readreg(sc, PHY_LPAR);
 
-		if (advert & PHY_ANAR_100BT4 && ability & PHY_ANAR_100BT4) {
-			ifm->ifm_media = IFM_ETHER|IFM_100_T4;
-			media |= PHY_BMCR_SPEEDSEL;
-			media &= ~PHY_BMCR_DUPLEX;
-			printf("(100baseT4)\n");
-		} else if (advert & PHY_ANAR_100BTXFULL &&
+		if (advert & PHY_ANAR_100BTXFULL &&
 			ability & PHY_ANAR_100BTXFULL) {
 			ifm->ifm_media = IFM_ETHER|IFM_100_TX|IFM_FDX;
 			media |= PHY_BMCR_SPEEDSEL;
@@ -835,27 +807,21 @@ static void mx_autoneg(sc, flag, verbose)
 		!(CSR_READ_4(sc, MX_10BTSTAT) & MX_TSTAT_LS100)) {
 		if (verbose)
 			printf("link status good ");
-		ability = CSR_READ_4(sc, MX_NWAYSTAT);
-		if (ability & MX_NWAY_100BT4) {
-			ifm->ifm_media = IFM_ETHER|IFM_100_T4;
-			media |= MX_NETCFG_PORTSEL|MX_NETCFG_PCS|
-					MX_NETCFG_SCRAMBLER;
-			media &= ~(MX_NETCFG_FULLDUPLEX|MX_NETCFG_SPEEDSEL);
-			printf("(100baseT4)\n");
-		} else if (ability & MX_NWAY_100BTFULL) {
+		ability = CSR_READ_4(sc, MX_10BTSTAT) >> 16;
+		if (ability & PHY_ANAR_100BTXFULL) {
 			ifm->ifm_media = IFM_ETHER|IFM_100_TX|IFM_FDX;
 			media |= MX_NETCFG_PORTSEL|MX_NETCFG_PCS|
 					MX_NETCFG_SCRAMBLER;
 			media |= MX_NETCFG_FULLDUPLEX;
 			media &= ~MX_NETCFG_SPEEDSEL;
 			printf("(full-duplex, 100Mbps)\n");
-		} else if (ability & MX_NWAY_100BTHALF) {
+		} else if (ability &  PHY_ANAR_100BTXHALF) {
 			ifm->ifm_media = IFM_ETHER|IFM_100_TX|IFM_HDX;
 			media |= MX_NETCFG_PORTSEL|MX_NETCFG_PCS|
 					MX_NETCFG_SCRAMBLER;
 			media &= ~(MX_NETCFG_FULLDUPLEX|MX_NETCFG_SPEEDSEL);
 			printf("(half-duplex, 100Mbps)\n");
-		} else if (ability & MX_NWAY_10BTFULL) {
+		} else if (ability & PHY_ANAR_10BTFULL) {
 			ifm->ifm_media = IFM_ETHER|IFM_10_T|IFM_FDX;
 			media &= ~MX_NETCFG_PORTSEL;
 			media |= (MX_NETCFG_FULLDUPLEX|MX_NETCFG_SPEEDSEL);
@@ -940,22 +906,6 @@ static void mx_getmode_mii(sc)
 		sc->ifmedia.ifm_media = IFM_ETHER|IFM_100_TX|IFM_FDX;
 	}
 
-	/* Some also support 100BaseT4. */
-	if (bmsr & PHY_BMSR_100BT4) {
-		if (bootverbose)
-			printf("mx%d: 100baseT4 mode supported\n", sc->mx_unit);
-		ifp->if_baudrate = 100000000;
-		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_100_T4, 0, NULL);
-		sc->ifmedia.ifm_media = IFM_ETHER|IFM_100_T4;
-#ifdef FORCE_AUTONEG_TFOUR
-		if (bootverbose)
-			printf("mx%d: forcing on autoneg support for BT4\n",
-							 sc->mx_unit);
-		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_AUTO, 0 NULL):
-		sc->ifmedia.ifm_media = IFM_ETHER|IFM_AUTO;
-#endif
-	}
-
 	if (bmsr & PHY_BMSR_CANAUTONEG) {
 		if (bootverbose)
 			printf("mx%d: autoneg supported\n", sc->mx_unit);
@@ -995,12 +945,6 @@ static void mx_setmode_mii(sc, media)
 
 	bmcr &= ~(PHY_BMCR_AUTONEGENBL|PHY_BMCR_SPEEDSEL|
 			PHY_BMCR_DUPLEX|PHY_BMCR_LOOPBK);
-
-	if (IFM_SUBTYPE(media) == IFM_100_T4) {
-		printf("100Mbps/T4, half-duplex\n");
-		bmcr |= PHY_BMCR_SPEEDSEL;
-		bmcr &= ~PHY_BMCR_DUPLEX;
-	}
 
 	if (IFM_SUBTYPE(media) == IFM_100_TX) {
 		printf("100Mbps, ");
@@ -1055,12 +999,6 @@ static void mx_setmode(sc, media, verbose)
 
 	mode &= ~(MX_NETCFG_FULLDUPLEX|MX_NETCFG_PORTSEL|
 		MX_NETCFG_PCS|MX_NETCFG_SCRAMBLER|MX_NETCFG_SPEEDSEL);
-
-	if (IFM_SUBTYPE(media) == IFM_100_T4) {
-		if (verbose)
-			printf("100Mbps/T4, half-duplex\n");
-		mode |= MX_NETCFG_PORTSEL|MX_NETCFG_PCS|MX_NETCFG_SCRAMBLER;
-	}
 
 	if (IFM_SUBTYPE(media) == IFM_100_TX) {
 		if (verbose)
@@ -2344,10 +2282,7 @@ static void mx_ifmedia_sts(ifp, ifmr)
 
 	ability = mx_phy_readreg(sc, PHY_LPAR);
 	advert = mx_phy_readreg(sc, PHY_ANAR);
-	if (advert & PHY_ANAR_100BT4 &&
-		ability & PHY_ANAR_100BT4) {
-		ifmr->ifm_active = IFM_ETHER|IFM_100_T4;
-	} else if (advert & PHY_ANAR_100BTXFULL &&
+	if (advert & PHY_ANAR_100BTXFULL &&
 		ability & PHY_ANAR_100BTXFULL) {
 		ifmr->ifm_active = IFM_ETHER|IFM_100_TX|IFM_FDX;
 	} else if (advert & PHY_ANAR_100BTXHALF &&
