@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: malloc.c,v 1.29 1997/07/26 03:43:14 jdp Exp $
+ * $Id: malloc.c,v 1.30 1997/08/27 06:40:34 phk Exp $
  *
  */
 
@@ -84,6 +84,7 @@
 #include <sys/mman.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -577,8 +578,8 @@ malloc_make_chunks(int bits)
 	return 0;
 
     /* Find length of admin structure */
-    l = sizeof *bp - sizeof(u_long);
-    l += sizeof(u_long) *
+    l = offsetof(struct pginfo, bits[0]);
+    l += sizeof bp->bits[0] *
 	(((malloc_pagesize >> bits)+MALLOC_BITS-1) / MALLOC_BITS);
 
     /* Don't waste more than two chunks on this */
