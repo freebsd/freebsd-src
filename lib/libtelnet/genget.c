@@ -32,6 +32,7 @@
  */
 
 #include <sys/cdefs.h>
+
 __FBSDID("$FreeBSD$");
 
 #ifndef lint
@@ -43,6 +44,8 @@ static const char sccsid[] = "@(#)genget.c	8.2 (Berkeley) 5/30/95";
 
 #include <ctype.h>
 
+#include "misc-proto.h"
+
 #define	LOWER(x) (isupper(x) ? tolower(x) : (x))
 /*
  * The prefix function returns 0 if *s1 is not a prefix
@@ -51,7 +54,7 @@ static const char sccsid[] = "@(#)genget.c	8.2 (Berkeley) 5/30/95";
  * the length of *s1 is returned.
  */
 int
-isprefix(char *s1, char *s2)
+isprefix(char *s1, const char *s2)
 {
 	char *os1;
 	char c1, c2;
@@ -98,7 +101,7 @@ genget(char *name, char **table, int stlen)
  * Function call version of Ambiguous()
  */
 int
-Ambiguous(char *s)
+Ambiguous(char **s)
 {
-	return((char **)s == &ambiguous);
+	return(s == &ambiguous);
 }
