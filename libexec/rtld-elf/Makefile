@@ -1,6 +1,5 @@
-#
 # $FreeBSD$
-#
+
 MAINTAINER=	jdp
 PROG=		ld-elf.so.1
 SRCS=		rtld_start.S rtld.c lockdflt.c map_object.c malloc.c \
@@ -28,11 +27,13 @@ LDSO_IS_EXECUTABLE=	yes
 .ifdef LDSO_IS_EXECUTABLE
 OBJS+=		dyn_hack.so
 LDFLAGS+=	-Wl,-T,${LDSCRIPT} -Wl,-E -Wl,-Bstatic
-LDADD+=		-lc
+DPADD=		${LIBC}
+LDADD=		-lc
 .else
 CFLAGS+=	-fpic -DPIC
 LDFLAGS+=	-shared -Wl,-Bsymbolic
-LDADD+=		-lc_pic
+DPADD=		${LIBC_PIC}
+LDADD=		-lc_pic
 .endif
 
 dyn_hack.so:
