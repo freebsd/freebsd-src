@@ -388,6 +388,9 @@ union mcluster {
 		(void)m_clalloc(1, _mhow);				\
 	_mp = (caddr_t)mclfree;						\
 	if (_mp != NULL) {						\
+		KASSERT(mclrefcnt[mtocl(_mp)] == 0,			\
+			("free cluster with refcount %d.",		\
+			mclrefcnt[mtocl(_mp)]));			\
 		mclrefcnt[mtocl(_mp)]++;				\
 		mbstat.m_clfree--;					\
 		mclfree = ((union mcluster *)_mp)->mcl_next;		\
@@ -418,7 +421,9 @@ union mcluster {
 #define	MCLFREE1(p) do {						\
 	union mcluster *_mp = (union mcluster *)(p);			\
 									\
-	KASSERT(mclrefcnt[mtocl(_mp)] > 0, ("freeing free cluster"));	\
+	KASSERT(mclrefcnt[mtocl(_mp)] > 0,				\
+		("freeing free cluster, refcount: %d.",			\
+		mclrefcnt[mtocl(_mp)]));				\
 	if (--mclrefcnt[mtocl(_mp)] == 0) {				\
 		_mp->mcl_next = mclfree;				\
 		mclfree = _mp;						\
