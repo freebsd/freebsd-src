@@ -1,5 +1,5 @@
                                  RELEASE NOTES
-                            FreeBSD Release 4.0-RELEASE
+                           FreeBSD snapshot 4.0-STABLE
 
 Any installation failures or crashes should be reported by using the
 send-pr command (those preferring a Web-based interface can also see
@@ -10,7 +10,7 @@ directory (especially if you're installing from floppies!), see
 ABOUT.TXT.  For installation instructions, see the INSTALL.TXT and
 HARDWARE.TXT files.
 
-For the latest of these 4.0-current snapshots, you should always see:
+For the latest of these 4.0-stable snapshots, you should always see:
 
         ftp://current.freebsd.org/pub/FreeBSD
 
