@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.3 (Berkeley) 4/17/94
-#	$Id: Makefile.inc,v 1.11 1997/10/21 08:41:10 bde Exp $
+#	$Id: Makefile.inc,v 1.12 1998/02/13 02:13:23 imp Exp $
 
 # stdio sources
 .PATH: ${.CURDIR}/../libc/stdio
@@ -29,8 +29,7 @@ MLINKS+=fread.3 fwrite.3
 MLINKS+=fseek.3 fgetpos.3 fseek.3 fsetpos.3 fseek.3 ftell.3 fseek.3 rewind.3
 MLINKS+=funopen.3 fropen.3 funopen.3 fwopen.3
 MLINKS+=getc.3 fgetc.3 getc.3 getchar.3 getc.3 getw.3
-MLINKS+=mktemp.3 mkstemp.3
-MLINKS+=mktemp.3 mkdtemp.3
+MLINKS+=mktemp.3 mkdtemp.3 mktemp.3 mkstemp.3
 MLINKS+=printf.3 asprintf.3 printf.3 fprintf.3 \
 	printf.3 snprintf.3 printf.3 sprintf.3 \
 	printf.3 vasprintf.3 \
