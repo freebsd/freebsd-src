@@ -45,7 +45,7 @@ static char const copyright[] =
 static char const sccsid[] = "@(#)from: arp.c	8.2 (Berkeley) 1/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: arp.c,v 1.12 1997/09/03 06:32:31 charnier Exp $";
+	"$Id: arp.c,v 1.13 1997/11/13 01:16:57 julian Exp $";
 #endif /* not lint */
 
 /*
@@ -62,7 +62,6 @@ static const char rcsid[] =
 #include <sys/time.h>
 
 #include <net/if.h>
-#include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/route.h>

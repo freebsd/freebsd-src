@@ -27,7 +27,7 @@ The Regents of the University of California.  All rights reserved.\n";
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: rarpd.c,v 1.17 1997/10/13 11:03:36 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -47,7 +47,6 @@ static const char rcsid[] =
 
 #include <net/bpf.h>
 #include <net/if.h>
-#include <net/if_var.h>
 #include <net/if_types.h>
 #include <net/if_dl.h>
 #include <net/route.h>
