@@ -2,7 +2,7 @@
 # $FreeBSD$
 #
 
-SHLIB_MAJOR=	3
+SHLIB_MAJOR=	2
 LIB=		scrypt
 
 LCRYPTBASE=	libcrypt
