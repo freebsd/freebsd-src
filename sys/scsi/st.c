@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.57 1996/01/08 12:25:06 joerg Exp $
+ * $Id: st.c,v 1.58 1996/01/14 16:29:01 joerg Exp $
  */
 
 /*
@@ -519,6 +519,8 @@ struct scsi_link *sc_link)
 	if ((flags & O_ACCMODE) == FWRITE)
 		st->flags |= ST_WRITTEN;
 
+	scsi_prevent(sc_link, PR_PREVENT, 0);	/* who cares if it fails? */
+
 	SC_DEBUG(sc_link, SDEV_DB2, ("Open complete\n"));
 
 	st->flags |= ST_OPEN;
@@ -556,8 +558,11 @@ st_close(dev_t dev, int flag, int fmt, struct proc *p,
 		st_unmount(unit, EJECT);
 		break;
 	}
+	scsi_prevent(sc_link, PR_ALLOW, SCSI_SILENT);
+
 	sc_link->flags &= ~SDEV_OPEN;
 	st->flags &= ~ST_OPEN;
+
 	return (0);
 }
 
@@ -657,7 +662,6 @@ st_mount_tape(dev, flags)
 		printf("st%ld: Cannot set selected mode", unit);
 		return errno;
 	}
-	scsi_prevent(sc_link, PR_PREVENT, 0);	/* who cares if it fails? */
 	st->flags &= ~ST_NEW_MOUNT;
 	st->flags |= ST_MOUNTED;
 	sc_link->flags |= SDEV_MEDIA_LOADED;
@@ -683,7 +687,6 @@ st_unmount(int unit, boolean eject)
 	SC_DEBUG(sc_link, SDEV_DB1, ("unmounting\n"));
 	st_chkeod(unit, FALSE, &nmarks, SCSI_SILENT);
 	st_rewind(unit, FALSE, SCSI_SILENT);
-	scsi_prevent(sc_link, PR_ALLOW, SCSI_SILENT);
 	if (eject) {
 		st_load(unit, LD_UNLOAD, SCSI_SILENT);
 	}
