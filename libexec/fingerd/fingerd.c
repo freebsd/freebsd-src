@@ -42,7 +42,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)fingerd.c	8.1 (Berkeley) 6/4/93";
 */
 static const char rcsid[] =
-	"$Id: fingerd.c,v 1.7 1997/02/22 14:21:25 peter Exp $";
+	"$Id: fingerd.c,v 1.8 1997/03/28 15:48:09 imp Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -96,18 +96,6 @@ main(argc, argv)
 			logerr("illegal option -- %c", ch);
 		}
 
-	if (logging) {
-		sval = sizeof(sin);
-		if (getpeername(0, (struct sockaddr *)&sin, &sval) < 0)
-			logerr("getpeername: %s", strerror(errno));
-		if (hp = gethostbyaddr((char *)&sin.sin_addr.s_addr,
-		    sizeof(sin.sin_addr.s_addr), AF_INET))
-			lp = hp->h_name;
-		else
-			lp = inet_ntoa(sin.sin_addr);
-		syslog(LOG_NOTICE, "query from %s", lp);
-	}
-
 	/*
 	 * Enable server-side Transaction TCP.
 	 */
@@ -121,6 +109,32 @@ main(argc, argv)
 
 	if (!fgets(line, sizeof(line), stdin))
 		exit(1);
+
+	if (logging) {
+		char *t;
+		char *end;
+
+		end = memchr(line, 0, sizeof(line));
+		if (end == NULL) {
+			t = malloc(sizeof(line) + 1);
+			memcpy(t, line, sizeof(line));
+			t[sizeof(line)] = 0;
+		} else {
+			t = strdup(line);
+		}
+		for (end = t; *end; end++)
+			if (*end == '\n' || *end == '\r')
+				*end = ' ';
+		sval = sizeof(sin);
+		if (getpeername(0, (struct sockaddr *)&sin, &sval) < 0)
+			logerr("getpeername: %s", strerror(errno));
+		if (hp = gethostbyaddr((char *)&sin.sin_addr.s_addr,
+		    sizeof(sin.sin_addr.s_addr), AF_INET))
+			lp = hp->h_name;
+		else
+			lp = inet_ntoa(sin.sin_addr);
+		syslog(LOG_NOTICE, "query from %s: `%s'", lp, t);
+	}
 
 	comp = &av[1];
 	av[2] = "--";
