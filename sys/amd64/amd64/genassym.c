@@ -212,6 +212,13 @@ ASSYM(GD_PRV_CADDR3, offsetof(struct globaldata, gd_prv_CADDR3));
 ASSYM(GD_PRV_PADDR1, offsetof(struct globaldata, gd_prv_PADDR1));
 ASSYM(PS_IDLESTACK, offsetof(struct privatespace, idlestack));
 ASSYM(PS_IDLESTACK_TOP, sizeof(struct privatespace));
+
+ASSYM(LA_VER, offsetof(struct LAPIC, version));
+ASSYM(LA_TPR, offsetof(struct LAPIC, tpr));
+ASSYM(LA_EOI, offsetof(struct LAPIC, eoi));
+ASSYM(LA_SVR, offsetof(struct LAPIC, svr));
+ASSYM(LA_ICR_LO, offsetof(struct LAPIC, icr_lo));
+ASSYM(LA_ICR_HI, offsetof(struct LAPIC, icr_hi));
 #endif
 
 ASSYM(KCSEL, GSEL(GCODE_SEL, SEL_KPL));
