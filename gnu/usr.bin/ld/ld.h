@@ -1,4 +1,6 @@
-/*	$Id: ld.h,v 1.8 1993/12/11 11:58:26 jkh Exp $	*/
+/*
+ *	$Id: ld.h,v 1.8 1994/01/28 20:56:24 pk Exp $
+ */
 /*-
  * This code is derived from software copyrighted by the Free Software
  * Foundation.
@@ -29,6 +31,10 @@
 #define alloca __builtin_alloca
 #endif
 
+#ifdef __FreeBSD__
+#define FreeBSD
+#endif
+
 #include "md.h"
 #include "link.h"
 
@@ -41,23 +47,21 @@
 /* Align to machine dependent boundary */
 #define MALIGN(x)	PALIGN(x,MAX_ALIGNMENT)
 
-/* Size of a page; obtained from the operating system.  */
-
-int page_size;
-
 /* Name this program was invoked by.  */
+char	*progname;
 
-char *progname;
-
 /* System dependencies */
 
 /* Define this to specify the default executable format.  */
 
 #ifndef DEFAULT_MAGIC
+#ifdef FreeBSD
 #define DEFAULT_MAGIC QMAGIC
+extern int	netzmagic;
+#else
+#define DEFAULT_MAGIC ZMAGIC
 #endif
-
-extern netzmagic;
+#endif
 
 
 /*
@@ -181,7 +185,7 @@ extern netzmagic;
 #ifndef DATA_START
 #define DATA_START(x)		N_DATADDR(x)
 #endif
-
+
 /* If a this type of symbol is encountered, its name is a warning
    message to print each time the symbol referenced by the next symbol
    table entry is referenced.
@@ -330,6 +334,22 @@ extern netzmagic;
 
 #endif /* not __GNU_STAB__ */
 
+
+typedef struct localsymbol {
+	struct nzlist		nzlist;		/* n[z]list from file */
+	struct glosym		*symbol;	/* Corresponding global symbol,
+						   if any */
+	struct localsymbol	*next;		/* List of definitions */
+	struct file_entry	*entry;		/* Backpointer to file */
+	long			gotslot_offset;	/* Position in GOT, if any */
+	int			symbolnum;	/* Position in output nlist */
+	int			flags;
+#define LS_L_SYMBOL		1	/* Local symbol starts with an `L' */
+#define LS_WRITE		2	/* Symbol goes in output symtable */
+#define LS_RENAME		4	/* xlat name to `<file>.<name>' */
+#define LS_GOTSLOTCLAIMED	8	/* This symbol has a GOT entry */
+} localsymbol_t;
+
 /* Symbol table */
 
 /*
@@ -340,225 +360,102 @@ extern netzmagic;
  */
 
 typedef struct glosym {
-	/* Pointer to next symbol in this symbol's hash bucket.  */
-	struct glosym	*link;
-	/* Name of this symbol.  */
-	char		*name;
-	/* Value of this symbol as a global symbol.  */
-	long		value;
-	/*
-	 * Chain of external 'nlist's in files for this symbol, both defs and
-	 * refs.
-	 */
-	struct localsymbol	*refs;
-	/*
-	 * Any warning message that might be associated with this symbol from
-	 * an N_WARNING symbol encountered.
-	 */
-	char		*warning;
-	/*
-	 * Nonzero means definitions of this symbol as common have been seen,
-	 * and the value here is the largest size specified by any of them.
-	 */
-	int		max_common_size;
-	/*
-	 * For relocatable_output, records the index of this global sym in
-	 * the symbol table to be written, with the first global sym given
-	 * index 0.
-	 */
-	int		symbolnum;
-	/*
-	 * For dynamically linked output, records the index in the RRS
-	 * symbol table.
-	 */
-	int		rrs_symbolnum;
-	/*
-	 * Nonzero means a definition of this global symbol is known to
-	 * exist. Library members should not be loaded on its account.
-	 */
-	char		defined;
-	/*
-	 * Nonzero means a reference to this global symbol has been seen in a
-	 * file that is surely being loaded. A value higher than 1 is the
-	 * n_type code for the symbol's definition.
-	 */
-	char		referenced;
-	/*
-	 * A count of the number of undefined references printed for a
-	 * specific symbol.  If a symbol is unresolved at the end of
-	 * digest_symbols (and the loading run is supposed to produce
-	 * relocatable output) do_file_warnings keeps track of how many
-	 * unresolved reference error messages have been printed for each
-	 * symbol here.  When the number hits MAX_UREFS_PRINTED, messages
-	 * stop.
-	 */
-	unsigned char	undef_refs;
-	/*
-	 * 1 means that this symbol has multiple definitions.  2 means that
-	 * it has multiple definitions, and some of them are set elements,
-	 * one of which has been printed out already.
-	 */
-	unsigned char	multiply_defined;
-	/* Nonzero means print a message at all refs or defs of this symbol */
-	char		trace;
+	struct glosym	*link;	/* Next symbol hash bucket. */
+	char		*name;	/* Name of this symbol.  */
+	long		value;	/* Value of this symbol */
+	localsymbol_t	*refs;	/* Chain of local symbols from object
+				   files pertaining to this global
+				   symbol */
+	localsymbol_t	*sorefs;/* Same for local symbols from shared
+				   object files. */
 
-	/*
-	 * For symbols of type N_INDR, this points at the real symbol.
-	 */
-	struct glosym	*alias;
+	char	*warning;	/* message, from N_WARNING nlists */
+	int	common_size;	/* Common size */
+	int	symbolnum;	/* Symbol index in output symbol table */
+	int	rrs_symbolnum;	/* Symbol index in RRS symbol table */
 
-	/*
-	 * Count number of elements in set vector if symbol is of type N_SETV
-	 */
-	int		setv_count;
+	struct nlist	*def_nlist;	/* The local symbol that gave this
+					   global symbol its definition */
 
-	/* Dynamic lib support */
-
-	/*
-	 * Nonzero means a definition of this global symbol has been found
-	 * in a shared object. These symbols do not go into the symbol
-	 * section of the resulting a.out file. They *do* go into the
-	 * dynamic link information segment.
-	 */
-	char		so_defined;
-
-	/* Size of symbol as determined by N_SIZE symbols in object files */
-	int		size;
-
-	/* Auxialiary info to put in the `nz_other' field of the
-	 * RRS symbol table. Used by the run-time linker to resolve
-	 * references to function addresses from within shared objects.
-	 */
-	int		aux;
-#define RRS_FUNC	2
-
-	/*
-	 * Chain of external 'nlist's in shared objects for this symbol, both
-	 * defs and refs.
-	 */
-	struct localsymbol	*sorefs;
+	char	defined;	/* Definition of this symbol */
+	char	so_defined;	/* Definition of this symbol in a shared
+				   object. These go into the RRS symbol table */
+	u_char	undef_refs;	/* Count of number of "undefined"
+				   messages printed for this symbol */
+	u_char	mult_defs;	/* Same for "multiply defined" symbols */
+	struct glosym	*alias;	/* For symbols of type N_INDR, this
+				   points at the real symbol. */
+	int	setv_count;	/* Number of elements in N_SETV symbols */
+	int	size;		/* Size of this symbol (either from N_SIZE
+				   symbols or a from shared object's RRS */
+	int	aux;		/* Auxiliary type information conveyed in
+				   the `n_other' field of nlists */
 
 	/* The offset into one of the RRS tables, -1 if not used */
-	long			jmpslot_offset;
-	char			jmpslot_claimed;
+	long	jmpslot_offset;
+	long	gotslot_offset;
 
-	long			gotslot_offset;
-	char			gotslot_claimed;
+	long			flags;
 
-	char			cpyreloc_reserved;
-	char			cpyreloc_claimed;
+#define GS_DEFINED		1	/* Symbol has definition (notyetused)*/
+#define GS_REFERENCED		2	/* Symbol is referred to by something
+					   interesting */
+#define GS_TRACE		4	/* Symbol will be traced */
+#define GS_JMPSLOTCLAIMED	8	/*				 */
+#define GS_GOTSLOTCLAIMED	0x10	/* Some state bits concerning    */
+#define GS_CPYRELOCRESERVED	0x20	/* entries in GOT and PLT tables */
+#define GS_CPYRELOCCLAIMED	0x40	/*				 */
 
-	/* The local symbol that gave this global symbol its definition */
-	struct nlist		*def_nlist;
 } symbol;
 
 /* Number of buckets in symbol hash table */
-#define	TABSIZE	1009
+#define	SYMTABSIZE	1009
 
-/* The symbol hash table: a vector of TABSIZE pointers to struct glosym. */
-symbol *symtab[TABSIZE];
+/* The symbol hash table: a vector of SYMTABSIZE pointers to struct glosym. */
+extern symbol *symtab[];
 #define FOR_EACH_SYMBOL(i,sp) {					\
 	int i;							\
-	for (i = 0; i < TABSIZE; i++) {				\
+	for (i = 0; i < SYMTABSIZE; i++) {				\
 		register symbol *sp;				\
 		for (sp = symtab[i]; sp; sp = sp->link)
 
 #define END_EACH_SYMBOL	}}
 
-/* Number of symbols in symbol hash table. */
-int num_hash_tab_syms;
+/* # of global symbols referenced and not defined.  */
+extern int	undefined_global_sym_count;
 
-/* Count number of nlist entries for global symbols */
-int global_sym_count;
+/* # of undefined symbols referenced by shared objects */
+extern int	undefined_shobj_sym_count;
 
-/* Count number of N_SIZE nlist entries for output (relocatable_output only) */
-int size_sym_count;
+/* # of multiply defined symbols. */
+extern int	multiple_def_count;
 
-/* Count the number of nlist entries that are for local symbols.
-   This count and the three following counts
-   are incremented as as symbols are entered in the symbol table.  */
-int local_sym_count;
+/* # of common symbols. */
+extern int	common_defined_global_count;
 
-/* Count number of nlist entries that are for local symbols
-   whose names don't start with L. */
-int non_L_local_sym_count;
+/* # of warning symbols encountered. */
+extern int	warning_count;
 
-/* Count the number of nlist entries for debugger info.  */
-int debugger_sym_count;
-
-/* Count the number of global symbols referenced and not defined.  */
-int undefined_global_sym_count;
-
-/* Count the number of symbols referenced from shared objects and not defined */
-int undefined_shobj_sym_count;
-
-/* Count the number of global symbols multiply defined.  */
-int multiple_def_count;
-
-/* Count the number of defined global symbols.
-   Each symbol is counted only once
-   regardless of how many different nlist entries refer to it,
-   since the output file will need only one nlist entry for it.
-   This count is computed by `digest_symbols';
-   it is undefined while symbols are being loaded. */
-int defined_global_sym_count;
-
-/* Count the number of symbols defined through common declarations.
-   This count is kept in symdef_library, linear_library, and
-   enter_global_ref.  It is incremented when the defined flag is set
-   in a symbol because of a common definition, and decremented when
-   the symbol is defined "for real" (ie. by something besides a common
-   definition).  */
-int common_defined_global_count;
-
-/* Count the number of linker defined symbols.
-   XXX - Currently, only __DYNAMIC and _G_O_T_ go here if required,
-   perhaps _etext, _edata and _end should go here too */
-int	special_sym_count;
-
-/* Count number of aliased symbols */
-int	global_alias_count;
-
-/* Count number of set element type symbols and the number of separate
-   vectors which these symbols will fit into */
-int	set_symbol_count;
-int	set_vector_count;
-
-/* Define a linked list of strings which define symbols which should
-   be treated as set elements even though they aren't.  Any symbol
-   with a prefix matching one of these should be treated as a set
-   element.
-
-   This is to make up for deficiencies in many assemblers which aren't
-   willing to pass any stabs through to the loader which they don't
-   understand.  */
+/*
+ * Define a linked list of strings which define symbols which should be
+ * treated as set elements even though they aren't.  Any symbol with a prefix
+ * matching one of these should be treated as a set element.
+ * 
+ * This is to make up for deficiencies in many assemblers which aren't willing
+ * to pass any stabs through to the loader which they don't understand.
+ */
 struct string_list_element {
-  char *str;
-  struct string_list_element *next;
+	char *str;
+	struct string_list_element *next;
 };
 
-struct string_list_element *set_element_prefixes;
+extern symbol	*entry_symbol;		/* the entry symbol, if any */
+extern symbol	*edata_symbol;		/* the symbol _edata */
+extern symbol	*etext_symbol;		/* the symbol _etext */
+extern symbol	*end_symbol;		/* the symbol _end */
+extern symbol	*got_symbol;		/* the symbol __GLOBAL_OFFSET_TABLE_ */
+extern symbol	*dynamic_symbol;	/* the symbol __DYNAMIC */
 
-/* Count the number of warning symbols encountered. */
-int warning_count;
-
-/* 1 => write load map.  */
-int write_map;
-
-/* 1 => write relocation into output file so can re-input it later.  */
-int	relocatable_output;
-
-/* Nonzero means ptr to symbol entry for symbol to use as start addr.
-   -e sets this.  */
-symbol	*entry_symbol;
-
-symbol	*edata_symbol;		/* the symbol _edata */
-symbol	*etext_symbol;		/* the symbol _etext */
-symbol	*end_symbol;		/* the symbol _end */
-symbol	*got_symbol;		/* the symbol __GLOBAL_OFFSET_TABLE_ */
-symbol	*dynamic_symbol;	/* the symbol __DYNAMIC */
-
-
 /*
  * Each input file, and each library member ("subfile") being loaded, has a
  * `file_entry' structure for it.
@@ -573,160 +470,82 @@ symbol	*dynamic_symbol;	/* the symbol __DYNAMIC */
  */
 
 struct file_entry {
-	/* Name of this file.  */
-	char           *filename;
-
+	char	*filename;	/* Name of this file.  */
 	/*
 	 * Name to use for the symbol giving address of text start Usually
 	 * the same as filename, but for a file spec'd with -l this is the -l
 	 * switch itself rather than the filename.
 	 */
-	char           *local_sym_name;
-
-	/* Describe the layout of the contents of the file */
-
-	/* The file's a.out header.  */
-	struct exec     header;
-#if 0
-	/* Offset in file of GDB symbol segment, or 0 if there is none.  */
-	int             symseg_offset;
-#endif
-
-	/* Describe data from the file loaded into core */
+	char		*local_sym_name;
+	struct exec	header;	/* The file's a.out header.  */
+	localsymbol_t	*symbols;	/* Symbol table of the file. */
+	int		nsymbols;	/* Number of symbols in above array. */
+	int		string_size;	/* Size in bytes of string table. */
+	char		*strings;	/* Pointer to the string table when
+					   in core, NULL otherwise */
+	int		strings_offset;	/* Offset of string table,
+					   (normally N_STROFF() + 4) */
+	/*
+	 * Next two used only if `relocatable_output' or if needed for
+	 * output of undefined reference line numbers.
+	 */
+	struct relocation_info	*textrel;	/* Text relocations */
+	int			ntextrel;	/* # of text relocations */
+	struct relocation_info	*datarel;	/* Data relocations */
+	int			ndatarel;	/* # of data relocations */
 
 	/*
-	 * Symbol table of the file.
-	 * We need access to the global symbol early, ie. before
-	 * symbols are asssigned there final values. gotslot_offset is
-	 * here because GOT entries may be generated for local symbols.
+	 * Relation of this file's segments to the output file.
 	 */
-	struct localsymbol {
-		struct nzlist		nzlist;
-		struct glosym		*symbol;
-		struct localsymbol	*next;
-		long			gotslot_offset;
-		char			gotslot_claimed;
-		char			write;
-		char			is_L_symbol;
-		char			rename;
-		int			symbolnum;
-	} *symbols;
-
-	/* Number of symbols in above array. */
-	int		nsymbols;
-
-	/* Size in bytes of string table.  */
-	int             string_size;
-
-	/*
-	 * Pointer to the string table. The string table is not kept in core
-	 * all the time, but when it is in core, its address is here.
-	 */
-	char           *strings;
-
-	/* Offset of string table (normally N_STROFF() + 4) */
-	int		strings_offset;
-
-	/* Next two used only if `relocatable_output' or if needed for */
-	/* output of undefined reference line numbers. */
-
-	/* Text reloc info saved by `write_text' for `coptxtrel'.  */
-	struct relocation_info *textrel;
-	int		ntextrel;
-
-	/* Data reloc info saved by `write_data' for `copdatrel'.  */
-	struct relocation_info *datarel;
-	int		ndatarel;
-
-	/* Relation of this file's segments to the output file */
-
-	/* Start of this file's text seg in the output file core image.  */
-	int             text_start_address;
-
-	/* Start of this file's data seg in the output file core image.  */
-	int             data_start_address;
-
-	/* Start of this file's bss seg in the output file core image.  */
-	int             bss_start_address;
-#if 0
-	/*
-	 * Offset in bytes in the output file symbol table of the first local
-	 * symbol for this file. Set by `write_file_symbols'.
-	 */
-	int             local_syms_offset;
-#endif
-
-	/* For library members only */
-
-	/* For a library, points to chain of entries for the library members. */
-	struct file_entry *subfiles;
-
-	/*
-	 * For a library member, offset of the member within the archive.
-	 * Zero for files that are not library members.
-	 */
-	int             starting_offset;
-
-	/* Size of contents of this file, if library member.  */
-	int             total_size;
-
-	/* For library member, points to the library's own entry.  */
-	struct file_entry *superfile;
-
-	/* For library member, points to next entry for next member.  */
-	struct file_entry *chain;
-
+	int 	text_start_address;	/* Start of this file's text segment
+					   in the output file core image. */
+	int	data_start_address;	/* Start of this file's data segment
+					   in the output file core image. */
+	int	bss_start_address;	/* Start of this file's bss segment
+					   in the output file core image. */
+	struct file_entry *subfiles;	/* For a library, points to chain of
+					   entries for the library members. */
+	struct file_entry *superfile;	/* For library member, points to the
+					   library's own entry.  */
+	struct file_entry *chain;	/* For library member, points to next
+					   entry for next member.  */
+	int	starting_offset;	/* For a library member, offset of the
+					   member within the archive. Zero for
+					   files that are not library members.*/
+	int	total_size;		/* Size of contents of this file,
+					   if library member. */
 #ifdef SUN_COMPAT
-	/* For shared libraries which have a .sa companion */
-	struct file_entry *silly_archive;
+	struct file_entry *silly_archive;/* For shared libraries which have
+					    a .sa companion */
 #endif
+	int	lib_major, lib_minor;	/* Version numbers of a shared object */
 
-	/* 1 if file is a library. */
-	char            library_flag;
-
-	/* 1 if file's header has been read into this structure.  */
-	char            header_read_flag;
-
-	/* 1 means search a set of directories for this file.  */
-	char            search_dirs_flag;
-
-	/*
-	 * 1 means this is base file of incremental load. Do not load this
-	 * file's text or data. Also default text_start to after this file's
-	 * bss.
-	 */
-	char            just_syms_flag;
-
-	/* 1 means search for dynamic libraries (dependent on -B switch) */
-	char            search_dynamic_flag;
-
-	/* version numbers of selected shared library */
-	int             lib_major, lib_minor;
-
-	/* This entry is a shared object */
-	char            is_dynamic;
-
-	/* 1 if this entry is not a major player anymore */
-	char		scrapped;
+	int	flags;
+#define E_IS_LIBRARY		1	/* File is a an archive */
+#define E_HEADER_VALID		2	/* File's header has been read */
+#define E_SEARCH_DIRS		4	/* Search directories for file */
+#define E_SEARCH_DYNAMIC	8	/* Search for shared libs allowed */
+#define E_JUST_SYMS		0x10	/* File is used for incremental load */
+#define E_DYNAMIC		0x20	/* File is a shared object */
+#define E_SCRAPPED		0x40	/* Ignore this file */
+#define E_SYMBOLS_USED		0x80	/* Symbols from this entry were used */
 };
 
-typedef struct localsymbol localsymbol_t;
+/*
+ * Section start addresses.
+ */
+extern int	text_size;		/* total size of text. */
+extern int	text_start;		/* start of text */
+extern int	text_pad;		/* clear space between text and data */
+extern int	data_size;		/* total size of data. */
+extern int	data_start;		/* start of data */
+extern int	data_pad;		/* part of bss segment within data */
 
-/* Vector of entries for input files specified by arguments.
-   These are all the input files except for members of specified libraries.  */
-struct file_entry *file_table;
+extern int	bss_size;		/* total size of bss. */
+extern int	bss_start;		/* start of bss */
 
-/* Length of that vector.  */
-int number_of_files;
-
-/* Current link mode */
-#define DYNAMIC		1		/* Consider shared libraries */
-#define SYMBOLIC	2		/* Force symbolic resolution */
-#define FORCEARCHIVE	4		/* Force inclusion of all members
-					   of archives */
-#define SHAREABLE	8		/* Build a shared object */
-#define SILLYARCHIVE	16		/* Process .sa companions, if any */
-int	link_mode;
+extern int	text_reloc_size;	/* total size of text relocation. */
+extern int	data_reloc_size;	/* total size of data relocation. */
 
 /*
  * Runtime Relocation Section (RRS).
@@ -735,115 +554,57 @@ int	link_mode;
  * static linking), or can just exist of GOT and PLT entries (in case of
  * statically linked PIC code).
  */
-
-int	rrs_section_type;
+extern int		rrs_section_type;	/* What's in the RRS section */
 #define RRS_NONE	0
 #define RRS_PARTIAL	1
 #define RRS_FULL	2
-
-int	rrs_text_size;
-int	rrs_data_size;
-int	rrs_text_start;
-int	rrs_data_start;
+extern int		rrs_text_size;		/* Size of RRS text additions */
+extern int		rrs_text_start;		/* Location of above */
+extern int		rrs_data_size;		/* Size of RRS data additions */
+extern int		rrs_data_start;		/* Location of above */
 
 /* Version number to put in __DYNAMIC (set by -V) */
-int	soversion;
+extern int	soversion;
+#ifndef DEFAULT_SOVERSION
+#define DEFAULT_SOVERSION	LD_VERSION_BSD
+#endif
 
-/* When loading the text and data, we can avoid doing a close
-   and another open between members of the same library.
+extern int		pc_relocation;		/* Current PC reloc value */
 
-   These two variables remember the file that is currently open.
-   Both are zero if no file is open.
+extern int		number_of_shobjs;	/* # of shared objects linked in */
 
-   See `each_file' and `file_close'.  */
+/* Current link mode */
+extern int		link_mode;
+#define DYNAMIC		1		/* Consider shared libraries */
+#define SYMBOLIC	2		/* Force symbolic resolution */
+#define FORCEARCHIVE	4		/* Force inclusion of all members
+					   of archives */
+#define SHAREABLE	8		/* Build a shared object */
+#define SILLYARCHIVE	16		/* Process .sa companions, if any */
 
-struct file_entry *input_file;
-int input_desc;
+extern int		outdesc;	/* Output file descriptor. */
+extern struct exec	outheader;	/* Output file header. */
+extern int		magic;		/* Output file magic. */
+extern int		oldmagic;
+extern int		relocatable_output;
 
-/* The name of the file to write; "a.out" by default.  */
+/* Size of a page. */
+extern int	page_size;
 
-char *output_filename;
+extern char	**search_dirs;	/* Directories to search for libraries. */
+extern int	n_search_dirs;	/* Length of above. */
 
-/* Descriptor for writing that file with `mywrite'.  */
+extern int	write_map;	/* write a load map (`-M') */
 
-int outdesc;
+extern void	(*fatal_cleanup_hook)__P((void));
 
-/* Header for that file (filled in by `write_header').  */
-
-struct exec outheader;
-
-/* The following are computed by `digest_symbols'.  */
-
-int text_size;		/* total size of text of all input files. */
-int data_size;		/* total size of data of all input files. */
-int bss_size;		/* total size of bss of all input files. */
-int text_reloc_size;	/* total size of text relocation of all input files. */
-int data_reloc_size;	/* total size of data relocation of all input files. */
-
-/* Relocation offsets set by perform_relocation(). Defined globaly here
-   because some of the RRS routines need access to them */
-int	text_relocation;
-int	data_relocation;
-int	bss_relocation;
-int	pc_relocation;
-
-/* Specifications of start and length of the area reserved at the end
-   of the data segment for the set vectors.  Computed in 'digest_symbols' */
-int set_sect_start;
-int set_sect_size;
-
-/* Amount of cleared space to leave between the text and data segments.  */
-int text_pad;
-
-/* Amount of bss segment to include as part of the data segment.  */
-int data_pad;
-
-
-/* Record most of the command options.  */
-
-/* Address we assume the text section will be loaded at.
-   We relocate symbols and text and data for this, but we do not
-   write any padding in the output file for it.  */
-int text_start;
-
-/* Offset of default entry-pc within the text section.  */
-int entry_offset;
-
-/* Address we decide the data section will be loaded at.  */
-int data_start;
-int bss_start;
-
-/* Keep a list of any symbols referenced from the command line (so
-   that error messages for these guys can be generated). This list is
-   zero terminated. */
-struct glosym **cmdline_references;
-int cl_refs_allocated;
-
-/*
- * Actual vector of directories to search; this contains those specified with
- * -L plus the standard ones.
- */
-char	**search_dirs;
-
-/* Length of the vector `search_dirs'.  */
-int	n_search_dirs;
-
-void	load_symbols __P((void));
 void	read_header __P((int, struct file_entry *));
 void	read_entry_symbols __P((int, struct file_entry *));
 void	read_entry_strings __P((int, struct file_entry *));
 void	read_entry_relocation __P((int, struct file_entry *));
 void	enter_file_symbols __P((struct file_entry *));
 void	read_file_symbols __P((struct file_entry *));
-
-void	write_output __P((void));
-void	write_header __P((void));
-void	write_text __P((void));
-void	write_data __P((void));
-void	write_rel __P((void));
-void	write_syms __P((void));
-void	write_symsegs __P((void));
-void	mywrite ();
+void	mywrite __P((void *, int, int, int));
 
 /* In warnings.c: */
 void	perror_name __P((char *));
@@ -917,10 +678,10 @@ void	swap_longs __P((long *, int));
 void	swap_symbols __P((struct nlist *, int));
 void	swap_zsymbols __P((struct nzlist *, int));
 void	swap_ranlib_hdr __P((struct ranlib *, int));
-void	swap_link_dynamic __P((struct link_dynamic *));
-void	swap_link_dynamic_2 __P((struct link_dynamic_2 *));
-void	swap_ld_debug __P((struct ld_debug *));
-void	swapin_link_object __P((struct link_object *, int));
-void	swapout_link_object __P((struct link_object *, int));
+void	swap__dynamic __P((struct link_dynamic *));
+void	swap_section_dispatch_table __P((struct section_dispatch_table *));
+void	swap_so_debug __P((struct so_debug *));
+void	swapin_sod __P((struct sod *, int));
+void	swapout_sod __P((struct sod *, int));
 void	swapout_fshash __P((struct fshash *, int));
 #endif

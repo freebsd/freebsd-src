@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: md.h,v 1.7 1994/01/03 18:35:36 davidg Exp $
+ *	$Id: md.h,v 1.8 1994/01/19 15:00:37 davidg Exp $
  */
 
 
@@ -45,17 +45,41 @@
 #define PAGSIZ			4096
 #endif
 
-#define N_SET_FLAG(ex,f)	(netzmagic ? \
-				N_SETMAGIC_NET(ex,N_GETMAGIC_NET(ex), MID_MACHINE, \
-					N_GETFLAG_NET(ex)|(f)) : \
-				N_GETMAGIC(ex) == ZMAGIC ? \
-				N_SETMAGIC(ex,ZMAGIC,0,N_GETFLAG(ex)|(f)) : \
-				N_SETMAGIC(ex,N_GETMAGIC(ex), MID_MACHINE, \
-					N_GETFLAG(ex)|(f)))
-  
-#define N_IS_DYNAMIC(ex)	((N_GETMAGIC_NET(ex) == ZMAGIC) ? \
-				((N_GETFLAG_NET(ex) & EX_DYNAMIC)) : \
-				((N_GETFLAG(ex) & EX_DYNAMIC)))
+#if defined(NetBSD) || defined(CROSS_LINKER)
+
+#define N_SET_FLAG(ex,f)	(oldmagic || N_GETMAGIC(ex)==QMAGIC ? (0) : \
+					N_SETMAGIC(ex,			\
+						   N_GETMAGIC(ex),	\
+						   MID_MACHINE,		\
+						   N_GETFLAG(ex)|(f)))
+
+#define N_IS_DYNAMIC(ex)	((N_GETFLAG(ex) & EX_DYNAMIC))
+
+#define N_BADMID(ex) \
+	(N_GETMID(ex) != 0 && N_GETMID(ex) != MID_MACHINE)
+
+#endif
+
+/*
+ * FreeBSD does it differently
+ */
+#ifdef FreeBSD
+#define N_SET_FLAG(ex,f)	(oldmagic ? (0) :			\
+				  (netzmagic == 0 ?			\
+					N_SETMAGIC(ex,			\
+						   N_GETMAGIC(ex),	\
+						   MID_MACHINE,		\
+						   N_GETFLAG(ex)|(f)) :	\
+					N_SETMAGIC_NET(ex,		\
+						   N_GETMAGIC_NET(ex),	\
+						   MID_MACHINE,		\
+						   N_GETFLAG_NET(ex)|(f)) ))
+
+#define N_IS_DYNAMIC(ex)	((N_GETMAGIC_NET(ex) == ZMAGIC) ?	\
+				((N_GETFLAG_NET(ex) & EX_DYNAMIC)) :	\
+				((N_GETFLAG(ex) & EX_DYNAMIC) ))
+#define N_BADMID(ex) 0
+#endif
 
 /*
  * Should be handled by a.out.h ?
@@ -101,16 +125,16 @@ typedef struct jmpslot {
 #define md_swapout_zsymbols(s,n)
 #define md_swapin_reloc(r,n)
 #define md_swapout_reloc(r,n)
-#define md_swapin_link_dynamic(l)
-#define md_swapout_link_dynamic(l)
-#define md_swapin_link_dynamic_2(l)
-#define md_swapout_link_dynamic_2(l)
-#define md_swapin_ld_debug(d)
-#define md_swapout_ld_debug(d)
+#define md_swapin__dynamic(l)
+#define md_swapout__dynamic(l)
+#define md_swapin_section_dispatch_table(l)
+#define md_swapout_section_dispatch_table(l)
+#define md_swapin_so_debug(d)
+#define md_swapout_so_debug(d)
 #define md_swapin_rrs_hash(f,n)
 #define md_swapout_rrs_hash(f,n)
-#define md_swapin_link_object(l,n)
-#define md_swapout_link_object(l,n)
+#define md_swapin_sod(l,n)
+#define md_swapout_sod(l,n)
 #define md_swapout_jmpslot(j,n)
 #define md_swapout_got(g,n)
 #define md_swapin_ranlib_hdr(h,n)
@@ -130,23 +154,23 @@ void	md_swapin_reloc __P((struct relocation_info *, int));
 void	md_swapout_reloc __P((struct relocation_info *, int));
 void	md_swapout_jmpslot __P((jmpslot_t *, int));
 
-#define md_swapin_symbols(s,n)		swap_symbols(s,n)
-#define md_swapout_symbols(s,n)		swap_symbols(s,n)
-#define md_swapin_zsymbols(s,n)		swap_zsymbols(s,n)
-#define md_swapout_zsymbols(s,n)	swap_zsymbols(s,n)
-#define md_swapin_link_dynamic(l)	swap_link_dynamic(l)
-#define md_swapout_link_dynamic(l)	swap_link_dynamic(l)
-#define md_swapin_link_dynamic_2(l)	swap_link_dynamic_2(l)
-#define md_swapout_link_dynamic_2(l)	swap_link_dynamic_2(l)
-#define md_swapin_ld_debug(d)		swap_ld_debug(d)
-#define md_swapout_ld_debug(d)		swap_ld_debug(d)
-#define md_swapin_rrs_hash(f,n)		swap_rrs_hash(f,n)
-#define md_swapout_rrs_hash(f,n)	swap_rrs_hash(f,n)
-#define md_swapin_link_object(l,n)	swapin_link_object(l,n)
-#define md_swapout_link_object(l,n)	swapout_link_object(l,n)
-#define md_swapout_got(g,n)		swap_longs((long*)(g),n)
-#define md_swapin_ranlib_hdr(h,n)	swap_ranlib_hdr(h,n)
-#define md_swapout_ranlib_hdr(h,n)	swap_ranlib_hdr(h,n)
+#define md_swapin_symbols(s,n)			swap_symbols(s,n)
+#define md_swapout_symbols(s,n)			swap_symbols(s,n)
+#define md_swapin_zsymbols(s,n)			swap_zsymbols(s,n)
+#define md_swapout_zsymbols(s,n)		swap_zsymbols(s,n)
+#define md_swapin__dynamic(l)			swap__dynamic(l)
+#define md_swapout__dynamic(l)			swap__dynamic(l)
+#define md_swapin_section_dispatch_table(l)	swap_section_dispatch_table(l)
+#define md_swapout_section_dispatch_table(l)	swap_section_dispatch_table(l)
+#define md_swapin_so_debug(d)			swap_so_debug(d)
+#define md_swapout_so_debug(d)			swap_so_debug(d)
+#define md_swapin_rrs_hash(f,n)			swap_rrs_hash(f,n)
+#define md_swapout_rrs_hash(f,n)		swap_rrs_hash(f,n)
+#define md_swapin_sod(l,n)			swapin_sod(l,n)
+#define md_swapout_sod(l,n)			swapout_sod(l,n)
+#define md_swapout_got(g,n)			swap_longs((long*)(g),n)
+#define md_swapin_ranlib_hdr(h,n)		swap_ranlib_hdr(h,n)
+#define md_swapout_ranlib_hdr(h,n)		swap_ranlib_hdr(h,n)
 
 #define md_swap_short(x) ( (((x) >> 8) & 0xff) | (((x) & 0xff) << 8) )
 
