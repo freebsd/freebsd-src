@@ -2640,73 +2640,76 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">PCI-Based multi-port serial boards (&man.puc.4;
+    <para arch="i386,ia64">PCI-Based multi-port serial boards (&man.puc.4;
     driver)
       <itemizedlist>
-	<listitem>
+	<listitem arch="i386">
 	  <para>Actiontech 56K PCI</para>
 	</listitem>
-        <listitem>
+        <listitem arch="i386">
 	  <para>Avlab Technology, PCI IO 2S and PCI IO 4S</para>
 	</listitem>
-	<listitem>
+	<listitem arch="i386">
 	  <para>Comtrol RocketPort 550</para>
 	</listitem>
-	<listitem>
+	<listitem arch="i386">
 	  <para>Decision Computers PCCOM 4-port serial and dual port RS232/422/485</para>
 	</listitem>
-	<listitem>
+	<listitem arch="ia64">
+	  <para>Diva Serial (GSP) Multiport UART (development branch only)</para>
+	</listitem>
+	<listitem arch="i386">
 	  <para>Dolphin Peripherals 4025/4035/4036</para>
 	</listitem>
-	<listitem>
+	<listitem arch="i386">
 	  <para>IC Book Labs Dreadnought 16x Lite and Pro</para>
 	</listitem>
-	<listitem>
+	<listitem arch="i386">
 	  <para>Lava Computers 2SP-PCI/DSerial-PCI/Quattro-PCI/Octopus-550</para>
 	</listitem>
-	<listitem>
+	<listitem arch="i386">
 	  <para>Middle Digital, Weasle serial port</para>
 	</listitem>
-        <listitem>
+        <listitem arch="i386">
 	  <para>Moxa Industio CP-114, Smartio C104H-PCI and C168H/PCI</para>
 	</listitem>
-	<listitem>
+	<listitem arch="i386">
 	  <para>NEC PK-UG-X001 and PK-UG-X008</para>
 	</listitem>
-        <listitem>
+        <listitem arch="i386">
 	  <para>Netmos NM9835 PCI-2S-550</para>
 	</listitem>
-	<listitem>
+	<listitem arch="i386">
 	  <para>Oxford Semiconductor OX16PCI954 PCI UART</para>
 	</listitem>
-	<listitem>
+	<listitem arch="i386">
 	  <para>Syba Tech SD-LAB PCI-4S2P-550-ECP</para>
 	</listitem>
-	<listitem>
+	<listitem arch="i386">
 	  <para>SIIG Cyber I/O PCI 16C550/16C650/16C850</para>
 	</listitem>
-	<listitem>
+	<listitem arch="i386">
 	  <para>SIIG Cyber 2P1S PCI 16C550/16C650/16C850</para>
 	</listitem>
-	<listitem>
+	<listitem arch="i386">
 	  <para>SIIG Cyber 2S1P PCI 16C550/16C650/16C850</para>
 	</listitem>
-	<listitem>
+	<listitem arch="i386">
 	  <para>SIIG Cyber 4S PCI 16C550/16C650/16C850</para>
 	</listitem>
-	<listitem>
+	<listitem arch="i386">
 	  <para>SIIG Cyber Serial (Single and Dual) PCI 16C550/16C650/16C850</para>
 	</listitem>
-        <listitem>
+        <listitem arch="i386">
 	  <para>Syba Tech Ltd. PCI-4S2P-550-ECP</para>
 	</listitem>
-	<listitem>
+	<listitem arch="i386">
 	  <para>Titan PCI-200H and PCI-800H</para>
 	</listitem>
-	<listitem>
+	<listitem arch="i386">
 	  <para>US Robotics (3Com) 3CP5609 modem</para>
 	</listitem>
-	<listitem>
+	<listitem arch="i386">
 	  <para>VScom PCI-400 and PCI-800</para>
 	</listitem>
       </itemizedlist>
