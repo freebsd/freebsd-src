@@ -59,13 +59,11 @@ SRCS+=	dbinput.c dbstats.c dbutils.c dbxface.c
 SRCS+=	dmbuffer.c dmnames.c dmopcode.c dmresrc.c dmresrcl.c
 SRCS+=	dmresrcs.c dmutils.c dmwalk.c
 opt_ddb.h: Makefile
-	echo '#define DDB 1'  >opt_ddb.h
+	echo '#define DDB 1' > ${.TARGET}
 .else
 opt_ddb.h: Makefile
-	echo ''  >opt_ddb.h
+	echo -n > ${.TARGET}
 .endif
-opt_bus.h: Makefile
-	echo ''  >opt_bus.h
 
 # Machine-specific code such as sleep/wakeup
 SRCS+=	acpi_machdep.c acpi_wakecode.h acpi_wakeup.c
