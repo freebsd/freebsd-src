@@ -471,7 +471,7 @@ mutex_lock_common(pthread_mutex_t * mutex)
 	int	ret = 0;
 
 	PTHREAD_ASSERT((mutex != NULL) && (*mutex != NULL),
-	    "Uninitialized mutex in pthread_mutex_trylock_basic");
+	    "Uninitialized mutex in mutex_lock_common");
 
 	/*
 	 * Enter a loop waiting to become the mutex owner.  We need a
