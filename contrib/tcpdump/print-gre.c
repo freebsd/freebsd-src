@@ -24,7 +24,11 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: print-gre.c,v 1.4 96/12/10 23:28:23 leres Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-gre.c,v 1.6 1999/11/21 09:36:52 fenner Exp $";
+#endif
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
 
 #include <sys/param.h>
@@ -76,9 +80,6 @@ struct gre {
 #define GRE_SP		0x1000	/* Sequence Present */
 
 
-#define GREPROTO_IP	0x0800
-
-
 /*
  * Deencapsulate and print a GRE-tunneled IP datagram
  */
@@ -123,16 +124,9 @@ gre_print(const u_char *bp, u_int length)
 	if (flags & GRE_SP)
 		cp += 4;
 
-	switch (proto) {
-
-	case GREPROTO_IP:
-		ip_print(cp, length - ((cp - bp) / sizeof(u_char)));
-		break;
-
-	default:
-		printf("gre-proto-0x%04X", proto);
-		break;
-	}
+	length -= cp - bp;
+	if (ether_encap_print(proto, cp, length, length) == 0)
+ 		printf("gre-proto-0x%04X", proto);
 	return;
 
 trunc:

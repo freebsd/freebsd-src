@@ -4,11 +4,11 @@
 
 struct igrphdr {
 #ifdef WORDS_BIGENDIAN
-	u_char ig_v:4;		/* protocol version number */
-	u_char ig_op:4;		/* opcode */
+	u_int ig_v:4;		/* protocol version number */
+	u_int ig_op:4;		/* opcode */
 #else
-	u_char ig_op:4;		/* opcode */
-	u_char ig_v:4;		/* protocol version number */
+	u_int ig_op:4;		/* opcode */
+	u_int ig_v:4;		/* protocol version number */
 #endif
 	u_char ig_ed;		/* edition number */
 	u_short ig_as;		/* autonomous system number */
