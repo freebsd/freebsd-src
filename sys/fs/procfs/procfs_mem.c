@@ -37,7 +37,7 @@
  *
  *	@(#)procfs_mem.c	8.4 (Berkeley) 1/21/94
  *
- *	$Id: procfs_mem.c,v 1.1.1.1 1994/05/24 10:05:09 rgrimes Exp $
+ *	$Id: procfs_mem.c,v 1.2 1994/08/02 07:45:13 davidg Exp $
  */
 
 /*
@@ -180,7 +180,8 @@ procfs_rwmem(p, uio)
 			 * Now do the i/o move.
 			 */
 			if (!error)
-				error = uiomove(kva + page_offset, len, uio);
+				error = uiomove((caddr_t)(kva + page_offset),
+						len, uio);
 
 			vm_map_remove(kernel_map, kva, kva + PAGE_SIZE);
 		}

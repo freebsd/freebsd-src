@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.2 (Berkeley) 9/23/93
- * $Id$
+ * $Id: tty_pty.c,v 1.3 1994/08/02 07:42:51 davidg Exp $
  */
 
 /*
@@ -338,7 +338,8 @@ ptcread(dev, uio, flag)
 				if (pti->pt_send & TIOCPKT_IOCTL) {
 					cc = min(uio->uio_resid,
 						sizeof(tp->t_termios));
-					uiomove(&tp->t_termios, cc, uio);
+					uiomove((caddr_t)&tp->t_termios, cc,
+						uio);
 				}
 				pti->pt_send = 0;
 				return (0);
