@@ -6,6 +6,25 @@ chronology since 4.0 was released is included, followed by the common
 items quick how-tos, followed by entries for versions of -current
 prior to 4.0 Release.
 
+20001009:
+	The ports tree's new layout is in place.  Be sure to update
+	your entire ports tree, or you will have problems.
+
+20001006:
+	The perl build proceedure no longer installs miniperl, nor uses
+	the installed miniperl.  It is recommended that you delete
+	/usr/bin/miniperl.
+
+20000907:
+	Networking defaults have been tightened.  Anybody upgrading
+	/etc/defaults/rc.conf needs to add the following lines to
+	/etc/rc.conf if they want to have the same setup
+	afterwards (unless the variables already are set, of course):
+		# Enable network daemons for user convenience.
+		inetd_enable="YES"
+		portmap_enable="YES"
+		sendmail_enable="YES"
+
 20000907:
 	Changes to libkvm requires a recompile of the usual suspects.
 	(find /usr/src -name Makefile | xargs egrep LIBKVM)
