@@ -28,6 +28,9 @@
 .Dt EXTATTR_GET_FILE 2
 .Os
 .Sh NAME
+.Nm extattr_get_fd ,
+.Nm extattr_set_fd ,
+.Nm extattr_delete_fd ,
 .Nm extattr_get_file ,
 .Nm extattr_set_file ,
 .Nm extattr_delete_file
@@ -37,6 +40,12 @@
 .Sh SYNOPSIS
 .Fd #include <sys/uio.h>
 .Fd #include <sys/extattr.h>
+.Ft int
+.Fn extattr_get_fd "int fd" "int attrnamespace" "const char *attrname" "struct iovec *iovp" "unsigned iovcnt"
+.Ft int
+.Fn extattr_set_fd "int fd" "int attrnamespace" "const char *attrname" "struct iovec *iovp" "unsigned iovcnt"
+.Ft int
+.Fn extattr_delete_fd "int fd" "int attrnamespace" "const char *attrname"
 .Ft int
 .Fn extattr_get_file "const char *path" "int attrnamespace" "const char *attrname" "struct iovec *iovp" "unsigned iovcnt"
 .Ft int
@@ -75,11 +84,24 @@ and
 .Xr writev 2 ,
 respectively.
 .Pp
-The following arguments are common to the three system calls:
+The
+.Fn extatttr_get_fd ,
+.Fn extattr_set_fd ,
+and
+.Fn extattr_delete_fd
+calls are identical to their
+.Qq Li _file
+counterparts except for the first argument.
+The
+.Qq Li _fd
+functions take a file descriptor, while the
+.Qq Li _file
+functions take a path.
+Both arguments describe a file associated with the extended attribute
+that should be manipulated.
+.Pp
+The following arguments are common to all the system calls described here:
 .Bl -tag -width attrnamespace
-.It Fa path
-path name to the file or directory associated with the extended
-attribute
 .It Fa attrnamespace
 the namespace in which the extended attribute resides; see
 .Xr extattr 9
@@ -95,6 +117,10 @@ is attribute-specific.
 .Pp
 For more information on named extended attributes, please see
 .Xr extattr 9 .
+.Sh CAVEAT
+This interface is under active development, and as such is subject to
+change as applications are adapted to use it.
+Developers are discouraged from relying on its stability.
 .Sh RETURN VALUES
 If successful, the
 .Fn extattr_get_file
@@ -125,6 +151,28 @@ point outside the process's allocated address space.
 .It Bq Er ENAMETOOLONG
 The attribute name was longer than
 .Dv EXTATTR_MAXNAMELEN .
+.El
+.Pp
+The
+.Fn extattr_get_fd ,
+.Fn extattr_set_fd ,
+and
+.Fn extattr_delete_fd
+functions may also fail if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The file descriptor referenced by
+.Fa fd
+was invalid.
+.El
+.Pp
+Additionally, the
+.Fn extattr_get_file ,
+.Fn extattr_set_file ,
+and
+.Fn extattr_delete_file
+calls may also fail due to the following errors:
+.Bl -tag -width Er
 .It Bq Er ENOTDIR
 A component of the path prefix is not a directory.
 .It Bq Er ENAMETOOLONG
