@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.159 1998/02/19 07:34:46 jb Exp $
+#	$Id: Makefile,v 1.160 1998/03/12 10:08:50 bde Exp $
 #
 # While porting to the another architecture include the bootstrap instead
 # of the normal build.
@@ -16,7 +16,7 @@
 #
 #	-DNOCLEANDIR run ${MAKE} clean, instead of ${MAKE} cleandir
 #	-DNOCLEAN do not clean at all
-#       -DNOTOOLS do not rebuild any tools first
+#	-DNOTOOLS do not rebuild any tools first
 #	-DNOCRYPT will prevent building of crypt versions
 #	-DNOLKM do not build loadable kernel modules
 #	-DNOOBJDIR do not run ``${MAKE} obj''
@@ -42,7 +42,7 @@
 #		obj depend all install clean cleandepend cleanobj
 
 .if (!make(world)) && (!make(buildworld)) && (!make(installworld))
-.MAKEFLAGS:=	${.MAKEFLAGS} -m ${.CURDIR}/share/mk
+.MAKEFLAGS:=	-m ${.CURDIR}/share/mk ${.MAKEFLAGS}
 .endif
 
 # Put initial settings here.
@@ -192,7 +192,7 @@ TMPPATH=	${STRICTTMPPATH}:${PATH}
 #	It fails for set[ug]id executables (are any used?).
 COMPILER_ENV=	BISON_SIMPLE=${WORLDTMP}/usr/share/misc/bison.simple \
 		COMPILER_PATH=${WORLDTMP}/usr/libexec:${WORLDTMP}/usr/bin \
-		GCC_EXEC_PREFIX=${WORLDTMP}/usr/lib/ \
+		GCC_EXEC_PREFIX=${WORLDTMP}${SHLIBDIR}:${WORLDTMP}/usr/lib/ \
 		LD_LIBRARY_PATH=${WORLDTMP}${SHLIBDIR} \
 		LIBRARY_PATH=${WORLDTMP}${SHLIBDIR}:${WORLDTMP}/usr/lib
 
@@ -236,7 +236,7 @@ buildworld:
 		${IBMAKE} -I${.CURDIR}/share/mk ${CLEANDIR} ${OBJDIR}
 .endif
 	cd ${.CURDIR}/usr.bin/make && \
-		${IBMAKE} -I${.CURDIR}/share/mk depend && \
+		${IBMAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} depend && \
 		${IBMAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} all && \
 		${IBMAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} install && \
 		${IBMAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} clean cleandepend
@@ -258,7 +258,7 @@ buildworld:
 	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding the obj tree"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR} && ${BMAKE} par-obj
+	cd ${.CURDIR} && ${BMAKE} par-${OBJDIR}
 .endif
 .if !defined(NOTOOLS)
 	@echo
@@ -274,7 +274,7 @@ buildworld:
 .endif
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo " Rebuilding /usr/include"
+	@echo " Rebuilding ${DESTDIR}/usr/include"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR} && SHARED=symlinks ${BMAKE} includes
 .if !defined(NOTOOLS)
@@ -286,7 +286,7 @@ buildworld:
 .endif
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo " Rebuilding /usr/lib"
+	@echo " Rebuilding ${DESTDIR}/usr/lib"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR} && ${BMAKE} libraries
 .if !defined(NOTOOLS)
@@ -447,17 +447,18 @@ bootstrap:
 	cd ${.CURDIR}/include && find -dx . | cpio -dump ${DESTDIR}/usr/include
 	cd ${.CURDIR}/include && make symlinks
 .endif
-	cd ${.CURDIR}/usr.bin/make && ${MAKE} depend && \
+	cd ${.CURDIR}/usr.bin/make && ${MAKE} ${MK_FLAGS} depend && \
 		${MAKE} ${MK_FLAGS} all && \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
-	cd ${.CURDIR}/usr.bin/xinstall && ${MAKE} depend && \
+	cd ${.CURDIR}/usr.bin/xinstall && ${MAKE} ${MK_FLAGS} depend && \
 		${MAKE} ${MK_FLAGS} all && \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
-	cd ${.CURDIR}/usr.bin/lex && ${MAKE} bootstrap && ${MAKE} depend && \
+	cd ${.CURDIR}/usr.bin/lex && ${MAKE} bootstrap && \
+		${MAKE} ${MK_FLAGS} depend && \
 		${MAKE} ${MK_FLAGS} -DNOLIB all && \
 		${MAKE} ${MK_FLAGS} -DNOLIB -B install ${CLEANDIR}
 .if !defined(NOOBJDIR)
-	cd ${.CURDIR}/usr.bin/lex && ${MAKE} obj
+	cd ${.CURDIR}/usr.bin/lex && ${MAKE} ${OBJDIR}
 .endif
 
 #
@@ -469,7 +470,8 @@ bootstrap:
 # on cleaned away headers in ${WORLDTMP}.
 #
 include-tools:
-	cd ${.CURDIR}/usr.bin/rpcgen && ${MAKE} -B cleandepend depend && \
+	cd ${.CURDIR}/usr.bin/rpcgen && ${MAKE} -B cleandepend && \
+		${MAKE} ${MK_FLAGS} depend && \
 		${MAKE} ${MK_FLAGS} all && \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 
@@ -558,7 +560,7 @@ lib-tools:
 		usr.bin/nm		\
 		usr.bin/ranlib		\
 		usr.bin/uudecode
-	cd ${.CURDIR}/$d && ${MAKE} depend && \
+	cd ${.CURDIR}/$d && ${MAKE} ${MK_FLAGS} depend && \
 		${MAKE} ${MK_FLAGS} all && \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 .endfor
@@ -568,52 +570,52 @@ lib-tools:
 #
 libraries:
 .if exists(lib/csu/${MACHINE})
-	cd ${.CURDIR}/lib/csu/${MACHINE} && ${MAKE} depend && \
+	cd ${.CURDIR}/lib/csu/${MACHINE} && ${MAKE} ${MK_FLAGS} depend && \
 		${MAKE} ${MK_FLAGS} all && \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 .endif
 .if exists(lib/libcompat)
-	cd ${.CURDIR}/lib/libcompat && ${MAKE} depend && \
+	cd ${.CURDIR}/lib/libcompat && ${MAKE} ${MK_FLAGS} depend && \
 		${MAKE} ${MK_FLAGS} all && \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 .endif
 .if exists(lib/libncurses)
-	cd ${.CURDIR}/lib/libncurses && ${MAKE} depend && \
+	cd ${.CURDIR}/lib/libncurses && ${MAKE} ${MK_FLAGS} depend && \
 		${MAKE} ${MK_FLAGS} all && \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 .endif
 .if exists(lib/libtermcap)
-	cd ${.CURDIR}/lib/libtermcap && ${MAKE} depend && \
+	cd ${.CURDIR}/lib/libtermcap && ${MAKE} ${MK_FLAGS} depend && \
 		${MAKE} ${MK_FLAGS} all && \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 .endif
 .if exists(gnu)
-	cd ${.CURDIR}/gnu/lib && ${MAKE} depend && \
+	cd ${.CURDIR}/gnu/lib && ${MAKE} ${MK_FLAGS} depend && \
 		${MAKE} ${MK_FLAGS} all && \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 .endif
 .if exists(secure) && !defined(NOCRYPT) && !defined(NOSECURE)
-	cd ${.CURDIR}/secure/lib && ${MAKE} depend && \
+	cd ${.CURDIR}/secure/lib && ${MAKE} ${MK_FLAGS} depend && \
 		${MAKE} ${MK_FLAGS} all && \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 .endif
 .if exists(lib)
-	cd ${.CURDIR}/lib && ${MAKE} depend && \
+	cd ${.CURDIR}/lib && ${MAKE} ${MK_FLAGS} depend && \
 		${MAKE} ${MK_FLAGS} all && \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 .endif
 .if exists(usr.bin/lex/lib)
-	cd ${.CURDIR}/usr.bin/lex/lib && ${MAKE} depend && \
+	cd ${.CURDIR}/usr.bin/lex/lib && ${MAKE} ${MK_FLAGS} depend && \
 		${MAKE} ${MK_FLAGS} all && \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 .endif
 .if exists(kerberosIV) && !defined(NOCRYPT) && defined(MAKE_KERBEROS4)
-	cd ${.CURDIR}/kerberosIV/lib && ${MAKE} depend && \
+	cd ${.CURDIR}/kerberosIV/lib && ${MAKE} ${MK_FLAGS} depend && \
 		${MAKE} ${MK_FLAGS} all && \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 .endif
 .if exists(usr.sbin/pcvt/keycap)
-	cd ${.CURDIR}/usr.sbin/pcvt/keycap && ${MAKE} depend && \
+	cd ${.CURDIR}/usr.sbin/pcvt/keycap && ${MAKE} ${MK_FLAGS} depend && \
 		${MAKE} ${MK_FLAGS} all && \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 .endif
@@ -652,7 +654,7 @@ build-tools:
 		gnu/usr.bin/gzip	\
 		gnu/usr.bin/man/makewhatis	\
 		gnu/usr.bin/sort	\
-		gnu/usr.bin/texinfo     \
+		gnu/usr.bin/texinfo	\
 		share/info		\
 		usr.bin/basename	\
 		usr.bin/cap_mkdb	\
@@ -685,7 +687,7 @@ build-tools:
 		usr.sbin/chown		\
 		usr.sbin/mtree		\
 		usr.sbin/zic
-	cd ${.CURDIR}/$d && ${MAKE} depend && \
+	cd ${.CURDIR}/$d && ${MAKE} ${MK_FLAGS} depend && \
 		${MAKE} ${MK_FLAGS} all && \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 .endfor
