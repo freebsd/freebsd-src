@@ -2,7 +2,7 @@
  * Inline routines shareable across OS platforms.
  *
  * Copyright (c) 1994-2001 Justin T. Gibbs.
- * Copyright (c) 2000-2001 Adaptec Inc.
+ * Copyright (c) 2000-2002 Adaptec Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic79xx_inline.h#29 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic79xx_inline.h#34 $
  *
  * $FreeBSD$
  */
@@ -312,6 +312,10 @@ ahd_setup_scb_common(struct ahd_softc *ahd, struct scb *scb)
 		scb->hscb->task_attribute_nonpkt_tag =
 		    scb->hscb->control & SCB_TAG_TYPE;
 		scb->hscb->task_management = 0;
+		/*
+		 * For Rev A short lun workaround.
+		 */
+		scb->hscb->pkt_long_lun[6] = scb->hscb->lun;
 	} else {
 		scb->hscb->task_attribute_nonpkt_tag = SCB_GET_TAG(scb);
 	}
@@ -461,9 +465,6 @@ static __inline struct ahd_initiator_tinfo *
 					    char channel, u_int our_id,
 					    u_int remote_id,
 					    struct ahd_tmode_tstate **tstate);
-static __inline struct scb*
-			ahd_get_scb(struct ahd_softc *ahd);
-static __inline void	ahd_free_scb(struct ahd_softc *ahd, struct scb *scb);
 static __inline uint16_t
 			ahd_inw(struct ahd_softc *ahd, u_int port);
 static __inline void	ahd_outw(struct ahd_softc *ahd, u_int port,
@@ -548,41 +549,11 @@ ahd_fetch_transinfo(struct ahd_softc *ahd, char channel, u_int our_id,
 	return (&(*tstate)->transinfo[remote_id]);
 }
 
-/*
- * Get a free scb. If there are none, see if we can allocate a new SCB.
- */
-static __inline struct scb *
-ahd_get_scb(struct ahd_softc *ahd)
-{
-	struct scb *scb;
-
-	if ((scb = SLIST_FIRST(&ahd->scb_data.free_scbs)) == NULL) {
-		ahd_alloc_scbs(ahd);
-		scb = SLIST_FIRST(&ahd->scb_data.free_scbs);
-		if (scb == NULL)
-			return (NULL);
-	}
-	SLIST_REMOVE_HEAD(&ahd->scb_data.free_scbs, links.sle);
-	return (scb);
-}
-
-/*
- * Return an SCB resource to the free list.
- */
-static __inline void
-ahd_free_scb(struct ahd_softc *ahd, struct scb *scb)
-{       
-
-	/* Clean up for the next user */
-	ahd->scb_data.scbindex[SCB_GET_TAG(scb)] = NULL;
-	scb->flags = SCB_FREE;
-	scb->hscb->control = 0;
-
-	SLIST_INSERT_HEAD(&ahd->scb_data.free_scbs, scb, links.sle);
-
-	/* Notify the OSM that a resource is now available. */
-	ahd_platform_scb_free(ahd, scb);
-}
+#define AHD_COPY_COL_IDX(dst, src)				\
+do {								\
+	dst->hscb->scsiid = src->hscb->scsiid;			\
+	dst->hscb->lun = src->hscb->lun;			\
+} while (0)
 
 static __inline uint16_t
 ahd_inw(struct ahd_softc *ahd, u_int port)
@@ -793,7 +764,7 @@ ahd_swap_with_next_hscb(struct ahd_softc *ahd, struct scb *scb)
 	 * Our queuing method is a bit tricky.  The card
 	 * knows in advance which HSCB (by address) to download,
 	 * and we can't disappoint it.  To achieve this, the next
-	 * SCB to download is saved off in ahd->next_queued_scb.
+	 * HSCB to download is saved off in ahd->next_queued_hscb.
 	 * When we are called to queue "an arbitrary scb",
 	 * we copy the contents of the incoming HSCB to the one
 	 * the sequencer knows about, swap HSCB pointers and
@@ -801,14 +772,14 @@ ahd_swap_with_next_hscb(struct ahd_softc *ahd, struct scb *scb)
 	 * in the scb_array.  This makes sure that we can still
 	 * locate the correct SCB by SCB_TAG.
 	 */
-	q_hscb = ahd->next_queued_scb->hscb;
+	q_hscb = ahd->next_queued_hscb;
 	saved_hscb_busaddr = q_hscb->hscb_busaddr;
 	memcpy(q_hscb, scb->hscb, sizeof(*scb->hscb));
 	q_hscb->hscb_busaddr = saved_hscb_busaddr;
 	q_hscb->next_hscb_busaddr = scb->hscb->hscb_busaddr;
 
 	/* Now swap HSCB pointers. */
-	ahd->next_queued_scb->hscb = scb->hscb;
+	ahd->next_queued_hscb = scb->hscb;
 	scb->hscb = q_hscb;
 
 	/* Now define the mapping from tag to SCB in the scbindex */
@@ -914,7 +885,8 @@ ahd_check_cmdcmpltqueues(struct ahd_softc *ahd)
 	ahd_dmamap_sync(ahd, ahd->shared_data_dmat, ahd->shared_data_dmamap,
 			/*offset*/ahd->qoutfifonext, /*len*/2,
 			BUS_DMASYNC_POSTREAD);
-	if (ahd->qoutfifo[ahd->qoutfifonext] != SCB_LIST_NULL_LE)
+	if ((ahd->qoutfifo[ahd->qoutfifonext]
+	     & QOUTFIFO_ENTRY_VALID_LE) == ahd->qoutfifonext_valid_tag)
 		retval |= AHD_RUN_QOUTFIFO;
 #ifdef AHD_TARGET_MODE
 	if ((ahd->flags & AHD_TARGETROLE) != 0
@@ -938,6 +910,16 @@ static __inline void
 ahd_intr(struct ahd_softc *ahd)
 {
 	u_int	intstat;
+
+	if ((ahd->pause & INTEN) == 0) {
+		/*
+		 * Our interrupt is not enabled on the chip
+		 * and may be disabled for re-entrancy reasons,
+		 * so just return.  This is likely just a shared
+		 * interrupt.
+		 */
+		return;
+	}
 
 	/*
 	 * Instead of directly reading the interrupt status register,
