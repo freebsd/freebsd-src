@@ -20,6 +20,8 @@
    have a copy of the license, write to the Free Software Foundation,
    675 Mass Ave, Cambridge, MA 02139, USA. */
 
+/* $FreeBSD$ */
+
 #if !defined (_READLINE_H_)
 #define _READLINE_H_
 
@@ -300,15 +302,7 @@ extern int rl_read_init_file __P((char *));
 extern int rl_parse_and_bind __P((char *));
 
 /* Functions for manipulating keymaps. */
-extern Keymap rl_make_bare_keymap __P((void));
-extern Keymap rl_copy_keymap __P((Keymap));
-extern Keymap rl_make_keymap __P((void));
-extern void rl_discard_keymap __P((Keymap));
-
-extern Keymap rl_get_keymap_by_name __P((char *));
 extern char *rl_get_keymap_name __P((Keymap));
-extern void rl_set_keymap __P((Keymap));
-extern Keymap rl_get_keymap __P((void));
 extern void rl_set_keymap_from_edit_mode __P((void));
 extern char *rl_get_keymap_name_from_edit_mode __P((void));
 
