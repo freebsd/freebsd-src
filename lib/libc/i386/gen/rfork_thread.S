@@ -109,5 +109,9 @@ ENTRY(rfork_thread)
 	 * Branch here if the thread creation fails:
 	 */
 2:
+	addl	$8, %esp
+	popl	%esi
+	movl	%ebp, %esp
+	popl	%ebp
 	PIC_PROLOGUE
 	jmp	PIC_PLT(HIDENAME(cerror))
