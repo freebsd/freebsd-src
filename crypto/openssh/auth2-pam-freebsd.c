@@ -39,8 +39,11 @@ RCSID("$FreeBSD$");
 #include <security/pam_appl.h>
 
 #include "auth.h"
+#include "buffer.h"
+#include "bufaux.h"
 #include "log.h"
 #include "monitor_wrap.h"
+#include "msg.h"
 #include "packet.h"
 #include "ssh2.h"
 #include "xmalloc.h"
@@ -55,72 +58,6 @@ struct pam_ctxt {
 static void pam_free_ctx(void *);
 
 /*
- * Send message to parent or child.
- */
-static int
-pam_send(struct pam_ctxt *ctxt, char *fmt, ...)
-{
-	va_list ap;
-	char *mstr;
-	size_t len;
-	int r;
-
-	va_start(ap, fmt);
-	len = vasprintf(&mstr, fmt, ap);
-	va_end(ap);
-	if (mstr == NULL)
-		exit(1);
-	if (ctxt->pam_pid != 0)
-		debug2("to child: %s", mstr);
-	r = send(ctxt->pam_sock, mstr, len + 1, MSG_EOR);
-	free(mstr);
-	return (r);
-}
-
-/*
- * Peek at first byte of next message.
- */
-static int
-pam_peek(struct pam_ctxt *ctxt)
-{
-	char ch;
-
-	if (recv(ctxt->pam_sock, &ch, 1, MSG_PEEK) < 1)
-		return (-1);
-	return (ch);
-}
-
-/*
- * Receive a message from parent or child.
- */
-static char *
-pam_receive(struct pam_ctxt *ctxt)
-{
-	char *buf;
-	size_t len;
-	ssize_t rlen;
-
-	len = 64;
-	buf = NULL;
-	do {
-		len *= 2;
-		buf = xrealloc(buf, len);
-		rlen = recv(ctxt->pam_sock, buf, len, MSG_PEEK);
-		if (rlen < 1) {
-			xfree(buf);
-			return (NULL);
-		}
-	} while (rlen == len);
-	if (recv(ctxt->pam_sock, buf, len, 0) != rlen) {
-		xfree(buf);
-		return (NULL);
-	}
-	if (ctxt->pam_pid != 0)
-		debug2("from child: %s", buf);
-	return (buf);
-}
-
-/*
  * Conversation function for child process.
  */
 static int
@@ -129,42 +66,56 @@ pam_child_conv(int n,
 	 struct pam_response **resp,
 	 void *data)
 {
+	Buffer buffer;
 	struct pam_ctxt *ctxt;
 	int i;
 
 	ctxt = data;
 	if (n <= 0 || n > PAM_MAX_NUM_MSG)
 		return (PAM_CONV_ERR);
-	if ((*resp = calloc(n, sizeof **resp)) == NULL)
-		return (PAM_BUF_ERR);
+	*resp = xmalloc(n * sizeof **resp);
+	buffer_init(&buffer);
 	for (i = 0; i < n; ++i) {
 		resp[i]->resp_retcode = 0;
 		resp[i]->resp = NULL;
 		switch (msg[i]->msg_style) {
 		case PAM_PROMPT_ECHO_OFF:
-			pam_send(ctxt, "p%s", msg[i]->msg);
-			resp[i]->resp = pam_receive(ctxt);
+			buffer_put_cstring(&buffer, msg[i]->msg);
+			msg_send(ctxt->pam_sock, msg[i]->msg_style, &buffer);
+			msg_recv(ctxt->pam_sock, &buffer);
+			if (buffer_get_char(&buffer) != PAM_AUTHTOK)
+				goto fail;
+			resp[i]->resp = buffer_get_string(&buffer, NULL);
 			break;
 		case PAM_PROMPT_ECHO_ON:
-			pam_send(ctxt, "P%s", msg[i]->msg);
-			resp[i]->resp = pam_receive(ctxt);
+			buffer_put_cstring(&buffer, msg[i]->msg);
+			msg_send(ctxt->pam_sock, msg[i]->msg_style, &buffer);
+			msg_recv(ctxt->pam_sock, &buffer);
+			if (buffer_get_char(&buffer) != PAM_AUTHTOK)
+				goto fail;
+			resp[i]->resp = buffer_get_string(&buffer, NULL);
 			break;
 		case PAM_ERROR_MSG:
-			pam_send(ctxt, "e%s", msg[i]->msg);
+			buffer_put_cstring(&buffer, msg[i]->msg);
+			msg_send(ctxt->pam_sock, msg[i]->msg_style, &buffer);
 			break;
 		case PAM_TEXT_INFO:
-			pam_send(ctxt, "i%s", msg[i]->msg);
+			buffer_put_cstring(&buffer, msg[i]->msg);
+			msg_send(ctxt->pam_sock, msg[i]->msg_style, &buffer);
 			break;
 		default:
 			goto fail;
 		}
+		buffer_clear(&buffer);
 	}
+	buffer_free(&buffer);
 	return (PAM_SUCCESS);
  fail:
 	while (i)
-		free(resp[--i]);
-	free(*resp);
+		xfree(resp[--i]);
+	xfree(*resp);
 	*resp = NULL;
+	buffer_free(&buffer);
 	return (PAM_CONV_ERR);
 }
 
@@ -174,10 +125,13 @@ pam_child_conv(int n,
 static void *
 pam_child(struct pam_ctxt *ctxt)
 {
+	Buffer buffer;
 	struct pam_conv pam_conv = { pam_child_conv, ctxt };
 	pam_handle_t *pamh;
 	int pam_err;
 
+	buffer_init(&buffer);
+	setproctitle("%s [pam]", ctxt->pam_user);
 	pam_err = pam_start("sshd", ctxt->pam_user, &pam_conv, &pamh);
 	if (pam_err != PAM_SUCCESS)
 		goto auth_fail;
@@ -187,13 +141,28 @@ pam_child(struct pam_ctxt *ctxt)
 	pam_err = pam_acct_mgmt(pamh, 0);
 	if (pam_err != PAM_SUCCESS)
 		goto auth_fail;
-	pam_send(ctxt, "=OK");
+	buffer_put_cstring(&buffer, "OK");
+	msg_send(ctxt->pam_sock, PAM_SUCCESS, &buffer);
+	buffer_free(&buffer);
 	pam_end(pamh, pam_err);
 	exit(0);
  auth_fail:
-	pam_send(ctxt, "!%s", pam_strerror(pamh, pam_err));
+	buffer_put_cstring(&buffer, pam_strerror(pamh, pam_err));
+	msg_send(ctxt->pam_sock, PAM_AUTH_ERR, &buffer);
+	buffer_free(&buffer);
 	pam_end(pamh, pam_err);
 	exit(0);
+}
+
+static void
+pam_cleanup(void *ctxtp)
+{
+	struct pam_ctxt *ctxt = ctxtp;
+	int status;
+
+	close(ctxt->pam_sock);
+	kill(ctxt->pam_pid, SIGHUP);
+	waitpid(ctxt->pam_pid, &status, 0);
 }
 
 static void *
@@ -206,7 +175,7 @@ pam_init_ctx(Authctxt *authctxt)
 	ctxt = xmalloc(sizeof *ctxt);
 	ctxt->pam_user = xstrdup(authctxt->user);
 	ctxt->pam_done = 0;
-	if (socketpair(AF_UNIX, SOCK_DGRAM, PF_UNSPEC, socks) == -1) {
+	if (socketpair(AF_UNIX, SOCK_STREAM, PF_UNSPEC, socks) == -1) {
 		error("%s: failed create sockets: %s",
 		    __func__, strerror(errno));
 		xfree(ctxt);
@@ -223,7 +192,7 @@ pam_init_ctx(Authctxt *authctxt)
 	if (ctxt->pam_pid == 0) {
 		/* close everything except our end of the pipe */
 		ctxt->pam_sock = socks[1];
-		for (i = 0; i < getdtablesize(); ++i)
+		for (i = 3; i < getdtablesize(); ++i)
 			if (i != ctxt->pam_sock)
 				close(i);
 		pam_child(ctxt);
@@ -232,6 +201,7 @@ pam_init_ctx(Authctxt *authctxt)
 	}
 	ctxt->pam_sock = socks[0];
 	close(socks[1]);
+	fatal_add_cleanup(pam_cleanup, ctxt);
 	return (ctxt);
 }
 
@@ -239,34 +209,40 @@ static int
 pam_query(void *ctx, char **name, char **info,
     u_int *num, char ***prompts, u_int **echo_on)
 {
+	Buffer buffer;
 	struct pam_ctxt *ctxt = ctx;
 	size_t plen;
+	u_char type;
 	char *msg;
 
+	buffer_init(&buffer);
 	*name = xstrdup("");
 	*info = xstrdup("");
 	*prompts = xmalloc(sizeof(char *));
 	**prompts = NULL;
 	plen = 0;
 	*echo_on = xmalloc(sizeof(u_int));
-	while ((msg = pam_receive(ctxt)) != NULL) {
-		switch (*msg) {
-		case 'P':
-		case 'p':
+	while (msg_recv(ctxt->pam_sock, &buffer) == 0) {
+		type = buffer_get_char(&buffer);
+		msg = buffer_get_string(&buffer, NULL);
+		switch (type) {
+		case PAM_PROMPT_ECHO_ON:
+		case PAM_PROMPT_ECHO_OFF:
 			*num = 1;
-			**prompts = xrealloc(**prompts, plen + strlen(msg));
-			plen += sprintf(**prompts + plen, "%s", msg + 1);
-			**echo_on = (*msg == 'P');
+			**prompts = xrealloc(**prompts, plen + strlen(msg) + 1);
+			plen += sprintf(**prompts + plen, "%s", msg);
+			**echo_on = (type == PAM_PROMPT_ECHO_ON);
 			xfree(msg);
 			return (0);
-		case 'e':
-		case 'i':
+		case PAM_ERROR_MSG:
+		case PAM_TEXT_INFO:
 			/* accumulate messages */
-			**prompts = xrealloc(**prompts, plen + strlen(msg));
-			plen += sprintf(**prompts + plen, "%s", msg + 1);
+			**prompts = xrealloc(**prompts, plen + strlen(msg) + 1);
+			plen += sprintf(**prompts + plen, "%s", msg);
+			xfree(msg);
 			break;
-		case '=':
-		case '!':
+		case PAM_SUCCESS:
+		case PAM_AUTH_ERR:
 			if (**prompts != NULL) {
 				/* drain any accumulated messages */
 #if 0 /* not compatible with privsep */
@@ -279,14 +255,14 @@ pam_query(void *ctx, char **name, char **info,
 				xfree(**prompts);
 				**prompts = NULL;
 			}
-			if (*msg == '=') {
+			if (type == PAM_SUCCESS) {
 				*num = 0;
 				**echo_on = 0;
 				ctxt->pam_done = 1;
 				xfree(msg);
 				return (0);
 			}
-			error("%s", msg + 1);
+			error("%s", msg);
 		default:
 			*num = 0;
 			**echo_on = 0;
@@ -294,7 +270,6 @@ pam_query(void *ctx, char **name, char **info,
 			ctxt->pam_done = -1;
 			return (-1);
 		}
-		xfree(msg);
 	}
 	return (-1);
 }
@@ -302,6 +277,7 @@ pam_query(void *ctx, char **name, char **info,
 static int
 pam_respond(void *ctx, u_int num, char **resp)
 {
+	Buffer buffer;
 	struct pam_ctxt *ctxt = ctx;
 	char *msg;
 
@@ -318,26 +294,11 @@ pam_respond(void *ctx, u_int num, char **resp)
 		error("expected one response, got %u", num);
 		return (-1);
 	}
-	pam_send(ctxt, "%s", *resp);
-	switch (pam_peek(ctxt)) {
-	case 'P':
-	case 'p':
-	case 'e':
-	case 'i':
-		return (1);
-	case '=':
-		msg = pam_receive(ctxt);
-		xfree(msg);
-		ctxt->pam_done = 1;
-		return (0);
-	default:
-		msg = pam_receive(ctxt);
-		if (*msg == '!')
-			error("%s", msg + 1);
-		xfree(msg);
-		ctxt->pam_done = -1;
-		return (-1);
-	}
+	buffer_init(&buffer);
+	buffer_put_cstring(&buffer, *resp);
+	msg_send(ctxt->pam_sock, PAM_AUTHTOK, &buffer);
+	buffer_free(&buffer);
+	return (1);
 }
 
 static void
@@ -346,6 +307,7 @@ pam_free_ctx(void *ctxtp)
 	struct pam_ctxt *ctxt = ctxtp;
 	int status;
 
+	fatal_remove_cleanup(pam_cleanup, ctxt);
 	close(ctxt->pam_sock);
 	kill(ctxt->pam_pid, SIGHUP);
 	waitpid(ctxt->pam_pid, &status, 0);
