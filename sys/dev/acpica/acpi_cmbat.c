@@ -415,7 +415,7 @@ acpi_cmbat_attach(device_t dev)
 	acpi_cmbat_units++;
 	timespecclear(&acpi_cmbat_info_lastupdated);
 
-	sc->cmbat_timeout = timeout(acpi_cmbat_timeout, dev, CMBAT_POLLRATE);
+	AcpiOsQueueForExecution(OSD_PRIORITY_LO, acpi_cmbat_get_bif, dev);
 	return (0);
 }
 
