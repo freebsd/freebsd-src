@@ -80,10 +80,8 @@ typedef struct {
 	char		magic[8];	/* Magic saying what version we are */
 	char		encoding[32];	/* ASCII name of this encoding */
 
-	rune_t		(*sgetrune)
-(const char *, size_t, char const **);
-	int		(*sputrune)
-(rune_t, char *, size_t, char **);
+	rune_t		(*sgetrune)(const char *, size_t, char const **);
+	int		(*sputrune)(rune_t, char *, size_t, char **);
 	rune_t		invalid_rune;
 
 	unsigned long	runetype[_CACHED_RUNES];
