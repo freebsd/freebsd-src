@@ -1,4 +1,4 @@
-@(#) $Header: README,v 1.18 97/06/12 14:23:56 leres Exp $ (LBL)
+@(#) $Header: /tcpdump/master/libpcap/README,v 1.18.1.1 1999/10/07 23:46:40 mcr Exp $ (LBL)
 
 LIBPCAP 0.4
 Lawrence Berkeley National Laboratory
