@@ -7,7 +7,10 @@
 #define HAVE_FCHMOD
 #define NEED_PSELECT
 #define HAVE_SA_LEN
-#define USE_LOG_CONS
+#define SETPWENT_VOID
+#define RLIMIT_TYPE rlim_t
+#define RLIMIT_LONGLONG
+#define RLIMIT_FILE_INFINITY
 #define HAVE_CHROOT
 #define CAN_CHANGE_ID
 
