@@ -11,7 +11,7 @@
  * or modify this software as long as this message is kept with the software,
  * all derivative works or modified versions.
  *
- * Version 1.5, Thu Sep 21 23:08:11 MSD 1995
+ * Version 1.9, Mon Oct  9 22:34:47 MSK 1995
  */
 
 /*
@@ -112,15 +112,39 @@
 #include <sys/malloc.h>
 #include <i386/include/cpufunc.h>
 #include <i386/include/clock.h>
+
+#ifdef ATAPI_MODULE
+#   define ATAPI_STATIC
+#endif
+
 #include <i386/isa/atapi.h>
+
+#ifndef ATAPI_STATIC
+/*
+ * In the case of loadable ATAPI driver we need to store
+ * the probe info for delayed attaching.
+ */
+struct atapidrv atapi_drvtab[4];
+int atapi_ndrv;
+struct atapi *atapi_tab;
+
+int atapi_attach (int ctlr, int unit, int port, struct kern_devconf *parent)
+{
+	atapi_drvtab[atapi_ndrv].ctlr     = ctlr;
+	atapi_drvtab[atapi_ndrv].unit     = unit;
+	atapi_drvtab[atapi_ndrv].port     = port;
+	atapi_drvtab[atapi_ndrv].parent   = parent;
+	atapi_drvtab[atapi_ndrv].attached = 0;
+	++atapi_ndrv;
+	return (1);
+}
+#else /* ATAPI_STATIC */
 
 #ifdef DEBUG
 #   define print(s)     printf s
 #else
 #   define print(s)     {/*void*/}
 #endif
-
-#define MAXCMD  (8*NWDC)
 
 /*
  * ATAPI packet command phase.
@@ -130,32 +154,6 @@
 #define PHASE_DATAOUT   ARS_DRQ
 #define PHASE_COMPLETED (ARI_IN | ARI_CMD)
 #define PHASE_ABORTED   0                       /* nonstandard - for NEC 260 */
-
-struct atapicmd {                       /* ATAPI command block */
-	struct atapicmd *next;          /* next command in queue */
-	int              busy;          /* busy flag */
-	u_char           cmd[16];       /* command and args */
-	int              unit;          /* drive unit number */
-	int              count;         /* byte count, >0 - read, <0 - write */
-	char            *addr;          /* data to transfer */
-	void           (*callback) ();  /* call when done */
-	void            *cbarg1;        /* callback arg 1 */
-	void            *cbarg2;        /* callback arg 1 */
-	struct atapires  result;        /* resulting error code */
-};
-
-struct atapi {                          /* ATAPI controller data */
-	u_short          port;          /* i/o port base */
-	u_char           ctrlr;         /* physical controller number */
-	u_char           debug : 1;     /* trace enable flag */
-	u_char           cmd16 : 1;     /* 16-byte command flag */
-	u_char           intrcmd : 1;   /* interrupt before cmd flag */
-	u_char           slow : 1;      /* slow reaction device */
-	struct atapicmd *queue;         /* queue of commands to perform */
-	struct atapicmd *tail;          /* tail of queue */
-	struct atapicmd *free;          /* queue of free command blocks */
-	struct atapicmd  cmdrq[MAXCMD]; /* pool of command requests */
-};
 
 struct atapi atapitab[NWDC];
 
@@ -167,8 +165,16 @@ static int atapi_start_cmd (struct atapi *ata, struct atapicmd *ac);
 static int atapi_wait_cmd (struct atapi *ata, struct atapicmd *ac);
 
 extern int wdstart (int ctrlr);
+extern int wcdattach(struct atapi*, int, struct atapi_params*, int, struct kern_devconf*);
 
-void atapi_attach (int ctlr, int unit, int port, struct kern_devconf *parent)
+/*
+ * Probe the ATAPI device at IDE controller `ctlr', drive `unit'.
+ * Called at splbio().
+ */
+#ifdef ATAPI_MODULE
+static
+#endif
+int atapi_attach (int ctlr, int unit, int port, struct kern_devconf *parent)
 {
 	struct atapi *ata = atapitab + ctlr;
 	struct atapi_params *ap;
@@ -179,7 +185,7 @@ void atapi_attach (int ctlr, int unit, int port, struct kern_devconf *parent)
 	print (("atapi%d.%d at 0x%x: attach called\n", ctlr, unit, port));
 	ap = atapi_probe (port, unit);
 	if (! ap)
-		return;
+		return (0);
 
 	bcopy (ap->model, buf, sizeof(buf)-1);
 	buf[sizeof(buf)-1] = 0;
@@ -230,14 +236,16 @@ void atapi_attach (int ctlr, int unit, int port, struct kern_devconf *parent)
 
 	ata->port = port;
 	ata->ctrlr = ctlr;
+	ata->parent = parent;
+	ata->attached[unit] = 0;
 #ifdef DEBUG
 	ata->debug = 1;
 #else
 	ata->debug = 0;
 #endif
 	/* Initialize free queue. */
-	ata->cmdrq[MAXCMD-1].next = 0;
-	for (ac = ata->cmdrq+MAXCMD-2; ac >= ata->cmdrq; --ac)
+	ata->cmdrq[15].next = 0;
+	for (ac = ata->cmdrq+14; ac >= ata->cmdrq; --ac)
 		ac->next = ac+1;
 	ata->free = ata->cmdrq;
 
@@ -245,8 +253,12 @@ void atapi_attach (int ctlr, int unit, int port, struct kern_devconf *parent)
 		printf ("wdc%d: unit %d: unknown ATAPI protocol=%d\n",
 			ctlr, unit, ap->proto);
 		free (ap, M_TEMP);
-		return;
+		return (0);
 	}
+#ifdef ATAPI_MODULE
+	ata->params[unit] = ap;
+	return (1);
+#else
 	switch (ap->devtype) {
 	default:
 		/* unknown ATAPI device */
@@ -258,14 +270,11 @@ void atapi_attach (int ctlr, int unit, int port, struct kern_devconf *parent)
 	case AT_TYPE_CDROM:             /* CD-ROM device */
 #if NWCD > 0
 		/* ATAPI CD-ROM */
-		{
-			int wcdattach (struct atapi*, int, struct atapi_params*,
-				int, struct kern_devconf*);
-			if (wcdattach (ata, unit, ap, ata->debug, parent) < 0)
-				break;
-		}
+		if (wcdattach (ata, unit, ap, ata->debug, parent) < 0)
+			break;
 		/* Device attached successfully. */
-		return;
+		ata->attached[unit] = 1;
+		return (1);
 #else
 		printf ("wdc%d: ATAPI CD-ROMs not configured\n", ctlr);
 		break;
@@ -276,19 +285,46 @@ void atapi_attach (int ctlr, int unit, int port, struct kern_devconf *parent)
 		/* Add your driver here */
 #else
 		printf ("wdc%d: ATAPI streaming tapes not supported yet\n", ctlr);
-		break;
 #endif
+		break;
 
 	case AT_TYPE_OPTICAL:           /* optical disk */
 #if NWMD > 0
 		/* Add your driver here */
 #else
 		printf ("wdc%d: ATAPI optical disks not supported yet\n", ctlr);
-		break;
 #endif
+		break;
 	}
 	/* Attach failed. */
 	free (ap, M_TEMP);
+	return (0);
+#endif /* ATAPI_MODULE */
+}
+
+static char *cmdname (u_char cmd)
+{
+	static char buf[8];
+
+	switch (cmd) {
+	case 0x00: return ("TEST_UNIT_READY");
+	case 0x03: return ("REQUEST_SENSE");
+	case 0x1b: return ("START_STOP");
+	case 0x1e: return ("PREVENT_ALLOW");
+	case 0x25: return ("READ_CAPACITY");
+	case 0x28: return ("READ_BIG");
+	case 0x43: return ("READ_TOC");
+	case 0x42: return ("READ_SUBCHANNEL");
+	case 0x55: return ("MODE_SELECT_BIG");
+	case 0x5a: return ("MODE_SENSE");
+	case 0xb4: return ("PLAY_CD");
+	case 0x47: return ("PLAY_MSF");
+	case 0x4b: return ("PAUSE");
+	case 0x48: return ("PLAY_TRACK");
+	case 0xa5: return ("PLAY_BIG");
+	}
+	sprintf (buf, "[0x%x]", cmd);
+	return (buf);
 }
 
 static void bswap (char *buf, int len)
@@ -319,6 +355,7 @@ static struct atapi_params *atapi_probe (int port, int unit)
 	char tb [DEV_BSIZE];
 
 	/* Wait for controller not busy. */
+	outb (port + AR_DRIVE, unit ? ARD_DRIVE1 : ARD_DRIVE0);
 	if (atapi_wait (port, 0) < 0) {
 		print (("atapiX.%d at 0x%x: controller busy, status=%b\n",
 			unit, port, inb (port + AR_STATUS), ARS_BITS));
@@ -361,11 +398,10 @@ static struct atapi_params *atapi_probe (int port, int unit)
 	 * Mitsumi and NEC drives don't need this.
 	 */
 	if (! ((ap->model[0] == 'N' && ap->model[1] == 'E') ||
-	    (ap->model[0] == 'F' && ap->model[1] == 'X'))) {
+	    (ap->model[0] == 'F' && ap->model[1] == 'X')))
 		bswap (ap->model, sizeof(ap->model));
-		bswap (ap->serial, sizeof(ap->serial));
-		bswap (ap->revision, sizeof(ap->revision));
-	}
+	bswap (ap->serial, sizeof(ap->serial));
+	bswap (ap->revision, sizeof(ap->revision));
 
 	/* Clean up the model name, serial and revision numbers. */
 	btrim (ap->model, sizeof(ap->model));
@@ -537,17 +573,26 @@ int atapi_wait_cmd (struct atapi *ata, struct atapicmd *ac)
 {
 	/* Wait for DRQ from 50 usec to 3 msec for slow devices */
 	int cnt = ata->intrcmd ? 10000 : ata->slow ? 3000 : 50;
+	int ireason = 0, phase = 0;
 
+	/* Wait for command phase. */
 	for (; cnt>0; cnt-=10) {
+		ireason = inb (ata->port + AR_IREASON);
 		ac->result.status = inb (ata->port + AR_STATUS);
-		if (ac->result.status & ARS_DRQ)
+		phase = (ireason & (ARI_CMD | ARI_IN)) |
+			(ac->result.status & ARS_DRQ);
+		if (phase == PHASE_CMDOUT)
 			break;
 		DELAY (10);
 	}
-	if (! (ac->result.status & ARS_DRQ)) {
-		printf ("atapi%d.%d: no cmd drq\n", ata->ctrlr, ac->unit);
+
+	if (phase != PHASE_CMDOUT) {
 		ac->result.code = RES_NODRQ;
 		ac->result.error = inb (ata->port + AR_ERROR);
+		printf ("atapi%d.%d: invalid command phase, ireason=0x%x, status=%b, error=%b\n",
+			ata->ctrlr, ac->unit, ireason,
+			ac->result.status, ARS_BITS,
+			ac->result.error, AER_BITS);
 		return (-1);
 	}
 	return (0);
@@ -560,11 +605,11 @@ void atapi_send_cmd (struct atapi *ata, struct atapicmd *ac)
 {
 	outsw (ata->port + AR_DATA, ac->cmd, ata->cmd16 ? 8 : 6);
 	if (ata->debug)
-		printf ("atapi%d.%d: send cmd %x-%x-%x-%x-%x-%x-%x-%x-%x-%x-%x-%x-%x-%x-%x-%x\n",
-			ata->ctrlr, ac->unit, ac->cmd[0], ac->cmd[1],
-			ac->cmd[2], ac->cmd[3], ac->cmd[4], ac->cmd[5],
-			ac->cmd[6], ac->cmd[7], ac->cmd[8], ac->cmd[9],
-			ac->cmd[10], ac->cmd[11], ac->cmd[12],
+		printf ("atapi%d.%d: send cmd %s %x-%x-%x-%x-%x-%x-%x-%x-%x-%x-%x-%x-%x-%x-%x-%x\n",
+			ata->ctrlr, ac->unit, cmdname (ac->cmd[0]), ac->cmd[0],
+			ac->cmd[1], ac->cmd[2], ac->cmd[3], ac->cmd[4],
+			ac->cmd[5], ac->cmd[6], ac->cmd[7], ac->cmd[8],
+			ac->cmd[9], ac->cmd[10], ac->cmd[11], ac->cmd[12],
 			ac->cmd[13], ac->cmd[14], ac->cmd[15]);
 }
 
@@ -853,4 +898,133 @@ struct atapires atapi_request_immediate (struct atapi *ata, int unit,
 	}
 	return (ac->result);
 }
+#endif /* ATAPI_STATIC */
+
+#ifdef ATAPI_MODULE
+/*
+ * ATAPI loadable driver stubs.
+ */
+#include <sys/exec.h>
+#include <sys/conf.h>
+#include <sys/sysent.h>
+#include <sys/lkm.h>
+
+extern int (*atapi_start_ptr) (int ctrlr);
+extern int (*atapi_intr_ptr) (int ctrlr);
+extern void (*atapi_debug_ptr) (struct atapi *ata, int on);
+extern struct atapires (*atapi_request_wait_ptr) (struct atapi *ata, int unit,
+	u_char cmd, u_char a1, u_char a2, u_char a3, u_char a4,
+	u_char a5, u_char a6, u_char a7, u_char a8, u_char a9,
+	u_char a10, u_char a11, u_char a12, u_char a13, u_char a14, u_char a15,
+	char *addr, int count);
+extern void (*atapi_request_callback_ptr) (struct atapi *ata, int unit,
+	u_char cmd, u_char a1, u_char a2, u_char a3, u_char a4,
+	u_char a5, u_char a6, u_char a7, u_char a8, u_char a9,
+	u_char a10, u_char a11, u_char a12, u_char a13, u_char a14, u_char a15,
+	char *addr, int count, void (*done)(), void *x, void *y);
+extern struct atapires (*atapi_request_immediate_ptr) (struct atapi *ata, int unit,
+	u_char cmd, u_char a1, u_char a2, u_char a3, u_char a4,
+	u_char a5, u_char a6, u_char a7, u_char a8, u_char a9,
+	u_char a10, u_char a11, u_char a12, u_char a13, u_char a14, u_char a15,
+	char *addr, int count);
+
+extern void wdintr (int);
+
+/*
+ * Construct lkm_misc structure (see lkm.h).
+ */
+MOD_MISC("atapi")
+
+int atapi_locked;
+
+int atapi_lock (int ctlr)
+{
+	atapi_locked = 1;
+	wakeup (&atapi_locked);
+	return (1);
+}
+
+/*
+ * Function called when loading the driver.
+ */
+int atapi_load (struct lkm_table *lkmtp, int cmd)
+{
+	struct atapidrv *d;
+	int n, x;
+
+	/*
+	 * Probe all free IDE units, searching for ATAPI drives.
+	 */
+	n = 0;
+	for (d=atapi_drvtab; d<atapi_drvtab+atapi_ndrv && d->port; ++d) {
+		/* Lock the controller. */
+		x = splbio ();
+		atapi_locked = 0;
+		atapi_start_ptr = atapi_lock;
+		wdstart (d->ctlr);
+		while (! atapi_locked)
+			tsleep (&atapi_locked, PRIBIO, "atach", 0);
+
+		/* Probe the drive. */
+		if (atapi_attach (d->ctlr, d->unit, d->port, d->parent)) {
+			d->attached = 1;
+			++n;
+		}
+
+		/* Unlock the controller. */
+		atapi_start_ptr = 0;
+		wdintr (d->ctlr);
+		splx (x);
+	}
+	if (! n)
+		return ENXIO;
+	atapi_start_ptr             = atapi_start;
+	atapi_intr_ptr              = atapi_intr;
+	atapi_debug_ptr             = atapi_debug;
+	atapi_request_wait_ptr      = atapi_request_wait;
+	atapi_request_callback_ptr  = atapi_request_callback;
+	atapi_request_immediate_ptr = atapi_request_immediate;
+	atapi_tab                   = atapitab;
+	return 0;
+}
+
+/*
+ * Function called when unloading the driver.
+ */
+int atapi_unload (struct lkm_table *lkmtp, int cmd)
+{
+	struct atapi *ata;
+	int u;
+
+	for (ata=atapi_tab; ata<atapi_tab+2; ++ata)
+		if (ata->port)
+			for (u=0; u<2; ++u)
+				if (ata->attached[u])
+					return EBUSY;
+	for (ata=atapi_tab; ata<atapi_tab+2; ++ata)
+		if (ata->port)
+			for (u=0; u<2; ++u)
+				if (ata->params[u]) {
+					free (ata->params[u], M_TEMP);
+					ata->params[u] = 0;
+				}
+	atapi_start_ptr             = 0;
+	atapi_intr_ptr              = 0;
+	atapi_debug_ptr             = 0;
+	atapi_request_wait_ptr      = 0;
+	atapi_request_callback_ptr  = 0;
+	atapi_request_immediate_ptr = 0;
+	atapi_tab                   = 0;
+	return 0;
+}
+
+/*
+ * Dispatcher function for the module (load/unload/stat).
+ */
+int atapi (struct lkm_table *lkmtp, int cmd, int ver)
+{
+	DISPATCH (lkmtp, cmd, ver, atapi_load, atapi_unload, nosys);
+}
+#endif /* ATAPI_MODULE */
+
 #endif /* NWDC && ATAPI */
