@@ -24,7 +24,6 @@ case "$daily_clean_disks_enable" in
 	then
 	    echo '$daily_clean_disks_enable is set but' \
 		'$daily_clean_disks_files is not'
-		are misconfigured
 	    rc=2
 	else
 	    echo ""
