@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)queue.h	8.5 (Berkeley) 8/20/94
- * $Id: queue.h,v 1.19 1997/11/02 19:41:16 gibbs Exp $
+ * $Id: queue.h,v 1.20 1998/02/24 17:27:23 julian Exp $
  */
 
 #ifndef _SYS_QUEUE_H_
@@ -396,7 +396,9 @@ struct {								\
 #define CIRCLEQ_FIRST(head) ((head)->cqh_first)
 
 #define CIRCLEQ_FOREACH(var, head, field)				\
-	for((var) = (head)->cqh_first; (var); (var) = (var)->field.cqe_next)
+	for((var) = (head)->cqh_first;					\
+	    (var) != (void *)(head);					\
+	    (var) = (var)->field.cqe_next)
 
 #define	CIRCLEQ_INIT(head) do {						\
 	(head)->cqh_first = (void *)(head);				\
