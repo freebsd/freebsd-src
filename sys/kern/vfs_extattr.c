@@ -1595,8 +1595,12 @@ unlink(td, uap)
 		char *path;
 	} */ *uap;
 {
+	int error;
 
-	return (kern_unlink(td, uap->path, UIO_USERSPACE));
+	mtx_lock(&Giant);
+	error = kern_unlink(td, uap->path, UIO_USERSPACE);
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 int
