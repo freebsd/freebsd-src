@@ -1,6 +1,9 @@
-/* $Header: /home/ncvs/src/gnu/usr.bin/patch/version.c,v 1.2 1995/05/30 05:02:39 rgrimes Exp $
+/* $FreeBSD$
  *
  * $Log: version.c,v $
+ * Revision 1.4  1998/01/21 14:37:26  ache
+ * Resurrect patch 2.1 without FreeBSD Index: hack
+ *
  * Revision 1.2  1995/05/30 05:02:39  rgrimes
  * Remove trailing whitespace.
  *

@@ -33,10 +33,15 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ident "$Header: /home/ncvs/src/usr.sbin/pcvt/kbdio/Attic/lex.l,v 1.2 1995/04/01 17:16:27 joerg Exp $"
+#ident "$FreeBSD$"
 
 /*
  * $Log: lex.l,v $
+ * Revision 1.4  1999/01/01 08:31:58  peter
+ * Part 4 of pcvt/voxware revival: pcvt userland
+ *
+ * Reviewed by:    core
+ *
  * Revision 1.2  1995/04/01 17:16:27  joerg
  * Update pcvt to 3.20b23
  *

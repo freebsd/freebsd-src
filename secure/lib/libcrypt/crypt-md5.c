@@ -15,7 +15,8 @@
 
 #if 0
 #if defined(LIBC_SCCS) && !defined(lint)
-static char rcsid[] = "$Header: /home/ncvs/src/secure/lib/libcrypt/crypt-md5.c,v 1.5 1999/01/23 08:26:01 markm Exp $";
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
 #endif
 

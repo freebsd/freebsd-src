@@ -33,10 +33,15 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ident "$Header: /home/ncvs/src/usr.sbin/pcvt/vgaio/Attic/vgaio.y,v 1.1.1.1 1995/02/05 13:49:24 jkh Exp $"
+#ident "$FreeBSD$"
 
 /*
  * $Log: vgaio.y,v $
+ * Revision 1.3  1999/01/01 08:32:05  peter
+ * Part 4 of pcvt/voxware revival: pcvt userland
+ *
+ * Reviewed by:    core
+ *
  * Revision 1.1.1.1  1995/02/05 13:49:24  jkh
  * PCVT userland utilities.
  * Submitted by:	hm
