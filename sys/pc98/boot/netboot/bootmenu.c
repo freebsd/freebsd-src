@@ -32,8 +32,8 @@ struct bootcmds_t {
 	{"netmask",	cmd_netmask,	"<addr>     set network mask"},
 	{"hostname",	cmd_hostname,	"<name>    set hostname"},
 	{"kernel",	cmd_kernel,	"<file>      set boot filename"},
-	{"rootfs",	cmd_rootfs,	"ip:/fs      set root filesystem"},
-	{"swapfs",	cmd_swapfs,	"ip:/fs      set swap filesystem"},
+	{"rootfs",	cmd_rootfs,	"[ip:]/fs    set root filesystem"},
+	{"swapfs",	cmd_swapfs,	"[ip:]/fs    set swap filesystem"},
 	{"swapsize",	cmd_swapsize,	"<nblks>   set swap size"},
 	{"swapopts",	cmd_swapopts,	"<options> swap mount options"},
 	{"rootopts",	cmd_rootopts,	"<options> root mount options"},
@@ -160,17 +160,22 @@ CMD_ROOTFS - Set root filesystem name
 cmd_rootfs(p)
 	char *p;
 {
-	if (!setip(p, &arptable[ARP_ROOTSERVER].ipaddr)) {
-		printf("Root filesystem is %I:%s\n",
+	if (*p == '/') {
+		bcopy(&arptable[ARP_SERVER].ipaddr,
+		    &arptable[ARP_ROOTSERVER].ipaddr, 4);
+	} else if (!setip(p, &arptable[ARP_ROOTSERVER].ipaddr)) {
+		printf("Root filesystem is %I:%s\r\n",
 			nfsdiskless.root_saddr.sin_addr,
 			nfsdiskless.root_hostnam);
+		return;
 	} else {
-		bcopy(&arptable[ARP_ROOTSERVER].ipaddr,
-			&nfsdiskless.root_saddr.sin_addr, 4);
 		while (*p && (*p != ':')) p++;
 		if (*p == ':') p++;
-		sprintf(&nfsdiskless.root_hostnam, "%s", p);
 	}
+
+	bcopy(&arptable[ARP_ROOTSERVER].ipaddr,
+	    &nfsdiskless.root_saddr.sin_addr, 4);
+	sprintf(&nfsdiskless.root_hostnam, "%s", p);
 }
 
 /**************************************************************************
@@ -305,7 +310,8 @@ execute(buf)
 	while(cmd->name) {
 		p = buf;
 		q = cmd->name;
-		while (*q && (*(q++) == *(p++))) ;
+		while (*q && *q == *p++)
+			q++;
 		if ((!(*q)) && ((*p == ' ') || (*p == '\t') || (!(*p)))) {
 			if (!cmd->func) 
 				return(1);
@@ -349,5 +355,6 @@ bootmenu()
 		printf("\n");
 		if (execute(cmd)) break;
 	}
+#endif
 	eth_reset();
 }
