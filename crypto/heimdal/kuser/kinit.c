@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,7 +32,7 @@
  */
 
 #include "kuser_locl.h"
-RCSID("$Id: kinit.c,v 1.59 1999/12/02 17:05:01 joda Exp $");
+RCSID("$Id: kinit.c,v 1.60 2000/02/01 14:06:33 joda Exp $");
 
 int forwardable		= 0;
 int proxiable		= 0;
@@ -41,7 +41,7 @@ int renew_flag		= 0;
 int validate_flag	= 0;
 int version_flag	= 0;
 int help_flag		= 0;
-int no_addrs_flag	= 0;
+int addrs_flag		= 1;
 char *lifetime 		= NULL;
 char *renew_life	= NULL;
 char *server		= NULL;
@@ -106,7 +106,7 @@ struct getargs args[] = {
     { "fcache-version", 0,   arg_integer, &fcache_version,
       "file cache version to create" },
 
-    { "noaddresses",	0,   arg_flag,	&no_addrs_flag,
+    { "addresses",	0,   arg_negative_flag,	&addrs_flag,
       "request a ticket with no addresses" },
 
     { "version", 	0,   arg_flag, &version_flag },
@@ -267,7 +267,7 @@ main (int argc, char **argv)
     krb5_get_init_creds_opt_set_forwardable (&opt, forwardable);
     krb5_get_init_creds_opt_set_proxiable (&opt, proxiable);
 
-    if (no_addrs_flag) {
+    if (!addrs_flag) {
 	no_addrs.len = 0;
 	no_addrs.val = NULL;
 

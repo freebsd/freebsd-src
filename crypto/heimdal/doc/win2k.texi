@@ -24,10 +24,11 @@ our not so inspired guesses.  Hopefully it's still somewhat useful.
 
 Windows 2000 supports both the standard DES encryptions (des-cbc-crc and
 des-cbc-md5) and its own proprietary encryption that is based on md4 and
-rc4 and which you cannot get hold of how it works with a NDA.  To enable
-a given principal to use DES, it needs to have DES keys in the database.
-To do this, you need to enable DES keys for the particular principal
-with the user administration tool and then change the password.
+rc4 and which is supposed to be described in
+draft-brezak-win2k-krb-rc4-hmac-01.txt.  To enable a given principal to
+use DES, it needs to have DES keys in the database.  To do this, you
+need to enable DES keys for the particular principal with the user
+administration tool and then change the password.
 
 @node Authorization data,  , Encryption types, Windows 2000 compatability
 @comment  node-name,  next,  previous,  up

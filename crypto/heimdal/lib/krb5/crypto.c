@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,7 +32,7 @@
  */
 
 #include "krb5_locl.h"
-RCSID("$Id: crypto.c,v 1.28 2000/01/06 20:21:13 assar Exp $");
+RCSID("$Id: crypto.c,v 1.29 2000/01/25 23:06:55 assar Exp $");
 
 #undef CRYPTO_DEBUG
 #ifdef CRYPTO_DEBUG
@@ -228,12 +228,14 @@ DES_AFS3_Transarc_string_to_key (krb5_data pw,
     memcpy(&temp_key, "kerberos", 8);
     des_set_odd_parity (&temp_key);
     des_set_key (&temp_key, schedule);
-    des_cbc_cksum ((des_cblock *)password, &ivec, passlen, schedule, &ivec);
+    des_cbc_cksum ((const void *)password, &ivec, passlen,
+		   schedule, &ivec);
 
     memcpy(&temp_key, &ivec, 8);
     des_set_odd_parity (&temp_key);
     des_set_key (&temp_key, schedule);
-    des_cbc_cksum ((des_cblock *)password, key, passlen, schedule, &ivec);
+    des_cbc_cksum ((const void *)password, key, passlen,
+		   schedule, &ivec);
     memset(&schedule, 0, sizeof(schedule));
     memset(&temp_key, 0, sizeof(temp_key));
     memset(&ivec, 0, sizeof(ivec));
@@ -337,7 +339,8 @@ DES3_string_to_key(krb5_context context,
 	    des_set_key(keys + i, s[i]);
 	}
 	memset(&ivec, 0, sizeof(ivec));
-	des_ede3_cbc_encrypt((void*)tmp, (void*)tmp, sizeof(tmp), 
+	des_ede3_cbc_encrypt((const void *)tmp,
+			     (void *)tmp, sizeof(tmp), 
 			     s[0], s[1], s[2], &ivec, DES_ENCRYPT);
 	memset(s, 0, sizeof(s));
 	memset(&ivec, 0, sizeof(ivec));
@@ -411,7 +414,7 @@ ARCFOUR_string_to_key(krb5_context context,
     char *s, *p;
     size_t len;
     int i;
-    struct md4 m;
+    MD4_CTX m;
 
     len = 2 * (password.length + salt.saltvalue.length);
     s = malloc (len);
@@ -425,11 +428,11 @@ ARCFOUR_string_to_key(krb5_context context,
 	*p++ = ((char *)salt.saltvalue.data)[i];
 	*p++ = 0;
     }
-    md4_init(&m);
-    md4_update(&m, s, len);
+    MD4Init (&m);
+    MD4Update (&m, s, len);
     key->keytype = enctype;
     krb5_data_alloc (&key->keyvalue, 16);
-    md4_finito(&m, key->keyvalue.data);
+    MD4Final (key->keyvalue.data, &m);
     memset (s, 0, len);
     free (s);
     return 0;
@@ -806,10 +809,11 @@ RSA_MD4_checksum(krb5_context context,
 		 size_t len,
 		 Checksum *C)
 {
-    struct md4 m;
-    md4_init(&m);
-    md4_update(&m, data, len);
-    md4_finito(&m, C->checksum.data);
+    MD4_CTX m;
+
+    MD4Init (&m);
+    MD4Update (&m, data, len);
+    MD4Final (C->checksum.data, &m);
 }
 
 static void
@@ -819,18 +823,18 @@ RSA_MD4_DES_checksum(krb5_context context,
 		     size_t len, 
 		     Checksum *cksum)
 {
-    struct md4 md4;
+    MD4_CTX md4;
     des_cblock ivec;
     unsigned char *p = cksum->checksum.data;
     
     krb5_generate_random_block(p, 8);
-    md4_init(&md4);
-    md4_update(&md4, p, 8);
-    md4_update(&md4, data, len);
-    md4_finito(&md4, p + 8);
+    MD4Init (&md4);
+    MD4Update (&md4, p, 8);
+    MD4Update (&md4, data, len);
+    MD4Final (p + 8, &md4);
     memset (&ivec, 0, sizeof(ivec));
-    des_cbc_encrypt((des_cblock*)p, 
-		    (des_cblock*)p, 
+    des_cbc_encrypt((const void *)p, 
+		    (void *)p, 
 		    24, 
 		    key->schedule->data, 
 		    &ivec, 
@@ -844,23 +848,23 @@ RSA_MD4_DES_verify(krb5_context context,
 		   size_t len,
 		   Checksum *C)
 {
-    struct md4 md4;
+    MD4_CTX md4;
     unsigned char tmp[24];
     unsigned char res[16];
     des_cblock ivec;
     krb5_error_code ret = 0;
 
     memset(&ivec, 0, sizeof(ivec));
-    des_cbc_encrypt(C->checksum.data, 
+    des_cbc_encrypt(C->checksum.data,
 		    (void*)tmp, 
 		    C->checksum.length, 
 		    key->schedule->data,
 		    &ivec,
 		    DES_DECRYPT);
-    md4_init(&md4);
-    md4_update(&md4, tmp, 8); /* confounder */
-    md4_update(&md4, data, len);
-    md4_finito(&md4, res);
+    MD4Init (&md4);
+    MD4Update (&md4, tmp, 8); /* confounder */
+    MD4Update (&md4, data, len);
+    MD4Final (res, &md4);
     if(memcmp(res, tmp + 8, sizeof(res)) != 0)
 	ret = KRB5KRB_AP_ERR_BAD_INTEGRITY;
     memset(tmp, 0, sizeof(tmp));
@@ -875,10 +879,11 @@ RSA_MD5_checksum(krb5_context context,
 		 size_t len,
 		 Checksum *C)
 {
-    struct md5 m;
-    md5_init(&m);
-    md5_update(&m, data, len);
-    md5_finito(&m, C->checksum.data);
+    MD5_CTX m;
+
+    MD5Init  (&m);
+    MD5Update(&m, data, len);
+    MD5Final (C->checksum.data, &m);
 }
 
 static void
@@ -888,18 +893,18 @@ RSA_MD5_DES_checksum(krb5_context context,
 		     size_t len,
 		     Checksum *C)
 {
-    struct md5 md5;
+    MD5_CTX md5;
     des_cblock ivec;
     unsigned char *p = C->checksum.data;
     
     krb5_generate_random_block(p, 8);
-    md5_init(&md5);
-    md5_update(&md5, p, 8);
-    md5_update(&md5, data, len);
-    md5_finito(&md5, p + 8);
+    MD5Init (&md5);
+    MD5Update (&md5, p, 8);
+    MD5Update (&md5, data, len);
+    MD5Final (p + 8, &md5);
     memset (&ivec, 0, sizeof(ivec));
-    des_cbc_encrypt((des_cblock*)p, 
-		    (des_cblock*)p, 
+    des_cbc_encrypt((const void *)p, 
+		    (void *)p, 
 		    24, 
 		    key->schedule->data, 
 		    &ivec, 
@@ -913,7 +918,7 @@ RSA_MD5_DES_verify(krb5_context context,
 		   size_t len,
 		   Checksum *C)
 {
-    struct md5 md5;
+    MD5_CTX md5;
     unsigned char tmp[24];
     unsigned char res[16];
     des_cblock ivec;
@@ -927,10 +932,10 @@ RSA_MD5_DES_verify(krb5_context context,
 		    sched[0],
 		    &ivec,
 		    DES_DECRYPT);
-    md5_init(&md5);
-    md5_update(&md5, tmp, 8); /* confounder */
-    md5_update(&md5, data, len);
-    md5_finito(&md5, res);
+    MD5Init (&md5);
+    MD5Update (&md5, tmp, 8); /* confounder */
+    MD5Update (&md5, data, len);
+    MD5Final (res, &md5);
     if(memcmp(res, tmp + 8, sizeof(res)) != 0)
 	ret = KRB5KRB_AP_ERR_BAD_INTEGRITY;
     memset(tmp, 0, sizeof(tmp));
@@ -945,19 +950,19 @@ RSA_MD5_DES3_checksum(krb5_context context,
 		      size_t len,
 		      Checksum *C)
 {
-    struct md5 md5;
+    MD5_CTX md5;
     des_cblock ivec;
     unsigned char *p = C->checksum.data;
     des_key_schedule *sched = key->schedule->data;
     
     krb5_generate_random_block(p, 8);
-    md5_init(&md5);
-    md5_update(&md5, p, 8);
-    md5_update(&md5, data, len);
-    md5_finito(&md5, p + 8);
+    MD5Init (&md5);
+    MD5Update (&md5, p, 8);
+    MD5Update (&md5, data, len);
+    MD5Final (p + 8, &md5);
     memset (&ivec, 0, sizeof(ivec));
-    des_ede3_cbc_encrypt((des_cblock*)p, 
-			 (des_cblock*)p, 
+    des_ede3_cbc_encrypt((const void *)p, 
+			 (void *)p, 
 			 24, 
 			 sched[0], sched[1], sched[2],
 			 &ivec, 
@@ -971,7 +976,7 @@ RSA_MD5_DES3_verify(krb5_context context,
 		    size_t len,
 		    Checksum *C)
 {
-    struct md5 md5;
+    MD5_CTX md5;
     unsigned char tmp[24];
     unsigned char res[16];
     des_cblock ivec;
@@ -985,10 +990,10 @@ RSA_MD5_DES3_verify(krb5_context context,
 			 sched[0], sched[1], sched[2],
 			 &ivec,
 			 DES_DECRYPT);
-    md5_init(&md5);
-    md5_update(&md5, tmp, 8); /* confounder */
-    md5_update(&md5, data, len);
-    md5_finito(&md5, res);
+    MD5Init (&md5);
+    MD5Update (&md5, tmp, 8); /* confounder */
+    MD5Update (&md5, data, len);
+    MD5Final (res, &md5);
     if(memcmp(res, tmp + 8, sizeof(res)) != 0)
 	ret = KRB5KRB_AP_ERR_BAD_INTEGRITY;
     memset(tmp, 0, sizeof(tmp));
@@ -1003,10 +1008,11 @@ SHA1_checksum(krb5_context context,
 	      size_t len,
 	      Checksum *C)
 {
-    struct sha m;
-    sha_init(&m);
-    sha_update(&m, data, len);
-    sha_finito(&m, C->checksum.data);
+    SHA1_CTX m;
+
+    SHA1Init(&m);
+    SHA1Update(&m, data, len);
+    SHA1Final(C->checksum.data, &m);
 }
 
 /* HMAC according to RFC2104 */
@@ -2284,11 +2290,12 @@ krb5_get_keyid(krb5_context context,
 	       krb5_keyblock *key,
 	       u_int32_t *keyid)
 {
-    struct md5 md5;
+    MD5_CTX md5;
     unsigned char tmp[16];
-    md5_init(&md5);
-    md5_update(&md5, key->keyvalue.data, key->keyvalue.length);
-    md5_finito(&md5, tmp);
+
+    MD5Init (&md5);
+    MD5Update (&md5, key->keyvalue.data, key->keyvalue.length);
+    MD5Final (tmp, &md5);
     *keyid = (tmp[12] << 24) | (tmp[13] << 16) | (tmp[14] << 8) | tmp[15];
     return 0;
 }

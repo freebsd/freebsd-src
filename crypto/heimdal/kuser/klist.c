@@ -33,7 +33,7 @@
 
 #include "kuser_locl.h"
 
-RCSID("$Id: klist.c,v 1.52 1999/12/02 17:05:01 joda Exp $");
+RCSID("$Id: klist.c,v 1.53 2000/02/06 08:15:40 assar Exp $");
 
 static char*
 printable_time(time_t t)
@@ -58,7 +58,7 @@ print_cred(krb5_context context, krb5_creds *cred)
 {
     char *str;
     krb5_error_code ret;
-    int32_t sec;
+    krb5_timestamp sec;
 
     krb5_timeofday (context, &sec);
 
@@ -85,7 +85,7 @@ print_cred_verbose(krb5_context context, krb5_creds *cred)
     char *str;
     krb5_error_code ret;
     int first_flag;
-    int32_t sec;
+    krb5_timestamp sec;
 
     krb5_timeofday (context, &sec);
 

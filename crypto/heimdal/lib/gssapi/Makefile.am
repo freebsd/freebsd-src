@@ -1,11 +1,11 @@
-# $Id: Makefile.am,v 1.17 2000/01/06 21:47:40 assar Exp $
+# $Id: Makefile.am,v 1.19 2000/02/07 04:00:51 assar Exp $
 
 include $(top_srcdir)/Makefile.am.common
 
 INCLUDES += -I$(srcdir)/../krb5
 
 lib_LTLIBRARIES = libgssapi.la
-libgssapi_la_LDFLAGS = -version-info 0:4:0
+libgssapi_la_LDFLAGS = -version-info 0:5:0
 
 include_HEADERS = gssapi.h
 

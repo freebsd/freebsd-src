@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include <krb5_locl.h>
 
-RCSID("$Id: rd_cred.c,v 1.8 1999/12/02 17:05:12 joda Exp $");
+RCSID("$Id: rd_cred.c,v 1.9 2000/02/06 05:19:52 assar Exp $");
 
 krb5_error_code
 krb5_rd_cred (krb5_context      context,
@@ -122,7 +122,7 @@ krb5_rd_cred (krb5_context      context,
 
     /* check timestamp */
     if (auth_context->flags & KRB5_AUTH_CONTEXT_DO_TIME) {
-	int32_t sec;
+	krb5_timestamp sec;
 
 	krb5_timeofday (context, &sec);
 

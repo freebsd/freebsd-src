@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: keytab_memory.c,v 1.3 1999/12/02 17:05:10 joda Exp $");
+RCSID("$Id: keytab_memory.c,v 1.4 2000/02/07 03:18:39 assar Exp $");
 
 /* memory operations -------------------------------------------- */
 
@@ -73,7 +73,7 @@ mkt_get_name(krb5_context context,
 	     char *name, 
 	     size_t namesize)
 {
-    strncpy(name, "", namesize);
+    strlcpy(name, "", namesize);
     return 0;
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "kdc_locl.h"
 
-RCSID("$Id: kerberos4.c,v 1.24 1999/12/02 17:04:59 joda Exp $");
+RCSID("$Id: kerberos4.c,v 1.26 2000/02/02 01:26:41 assar Exp $");
 
 #ifdef KRB4
 
@@ -125,6 +125,12 @@ get_des_key(hdb_entry *principal, Key **key)
 
 #define RCHECK(X, L) if(X){make_err_reply(reply, KFAILURE, "Packet too short"); goto L;}
 
+/*
+ * Process the v4 request in `buf, len' (received from `addr'
+ * (with string `from').
+ * Return an error code and a reply in `reply'.
+ */
+
 krb5_error_code
 do_version4(unsigned char *buf,
 	    size_t len,
@@ -181,6 +187,23 @@ do_version4(unsigned char *buf,
 	    kdc_log(0, "Server not found in database: %s.%s@%s", 
 		    sname, sinst, v4_realm);
 	    make_err_reply(reply, KERB_ERR_PRINCIPAL_UNKNOWN, NULL);
+	    goto out1;
+	}
+
+	/*
+	 * There's no way to do pre-authentication in v4 and thus no
+	 * good error code to return if preauthentication is required.
+	 */
+
+	if (require_preauth
+	    || client->flags.require_preauth
+	    || server->flags.require_preauth) {
+	    kdc_log(0,
+		    "Pre-authentication required for v4-request: "
+		    "%s.%s@%s for %s.%s@%s", 
+		    name, inst, realm,
+		    sname, sinst, v4_realm);
+	    make_err_reply(reply, KERB_ERR_NULL_KEY, NULL);
 	    goto out1;
 	}
 
@@ -305,6 +328,9 @@ do_version4(unsigned char *buf,
 	memcpy(&auth.dat, buf, pos);
 	auth.length = pos;
 	krb_set_key(tkey->key.keyvalue.data, 0);
+
+	krb_ignore_ip_address = !check_ticket_addresses;
+
 	ret = krb_rd_req(&auth, "krbtgt", realm, 
 			 addr->sin_addr.s_addr, &ad, 0);
 	if(ret){

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: rsh_locl.h,v 1.22 1999/12/02 17:04:56 joda Exp $ */
+/* $Id: rsh_locl.h,v 1.23 2000/02/06 05:58:55 assar Exp $ */
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -123,8 +123,10 @@ extern int do_encrypt;
 extern krb5_context context;
 extern krb5_keyblock *keyblock;
 extern krb5_crypto crypto;
+#ifdef KRB4
 extern des_key_schedule schedule;
 extern des_cblock iv;
+#endif
 
 #define KCMD_VERSION "KCMDV0.1"
 

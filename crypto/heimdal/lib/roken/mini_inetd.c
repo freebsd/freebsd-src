@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -33,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: mini_inetd.c,v 1.21 1999/12/12 00:03:56 assar Exp $");
+RCSID("$Id: mini_inetd.c,v 1.25 2000/01/26 00:54:48 assar Exp $");
 #endif
 
 #include <stdio.h>
@@ -92,7 +92,7 @@ mini_inetd (int port)
     int error, ret;
     struct addrinfo *ai, *a, hints;
     char portstr[NI_MAXSERV];
-    int n, i;
+    int n, nalloc, i;
     int *fds;
     fd_set orig_read_set, read_set;
     int max_fd = -1;
@@ -107,19 +107,21 @@ mini_inetd (int port)
     if (error)
 	errx (1, "getaddrinfo: %s", gai_strerror (error));
 
-    for (n = 0, a = ai; a != NULL; a = a->ai_next)
-	++n;
+    for (nalloc = 0, a = ai; a != NULL; a = a->ai_next)
+	++nalloc;
 
-    fds = malloc (n * sizeof(*fds));
+    fds = malloc (nalloc * sizeof(*fds));
     if (fds == NULL)
 	errx (1, "mini_inetd: out of memory");
 
     FD_ZERO(&orig_read_set);
 
-    for (i = 0, a = ai; a != NULL; a = a->ai_next, ++i) {
+    for (i = 0, a = ai; a != NULL; a = a->ai_next) {
 	fds[i] = socket (a->ai_family, a->ai_socktype, a->ai_protocol);
-	if (fds[i] < 0)
-	    err (1, "socket");
+	if (fds[i] < 0) {
+	    warn ("socket");
+	    continue;
+	}
 	socket_set_reuseaddr (fds[i], 1);
 	if (bind (fds[i], a->ai_addr, a->ai_addrlen) < 0)
 	    err (1, "bind");
@@ -127,8 +129,12 @@ mini_inetd (int port)
 	    err (1, "listen");
 	FD_SET(fds[i], &orig_read_set);
 	max_fd = max(max_fd, fds[i]);
+	++i;
     }
     freeaddrinfo (ai);
+    if (i == 0)
+	errx (1, "no sockets");
+    n = i;
 
     do {
 	read_set = orig_read_set;

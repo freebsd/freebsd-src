@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -34,7 +34,7 @@
 #include "kadmin_locl.h"
 #include <sl.h>
 
-RCSID("$Id: kadmin.c,v 1.26 1999/12/02 17:04:58 joda Exp $");
+RCSID("$Id: kadmin.c,v 1.27 2000/01/31 23:51:52 assar Exp $");
 
 static char *config_file;
 static char *keyfile;
@@ -67,7 +67,7 @@ static struct getargs args[] = {
     },
     {	
 	"server-port",	's',	arg_integer,   &server_port, 
-	"server to contact", "port number" 
+	"port to use", "port number" 
     },
     {	"local", 'l', arg_flag, &local_flag, "local admin mode" },
     {	"help",		'h',	arg_flag,   &help_flag },
