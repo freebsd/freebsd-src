@@ -722,8 +722,10 @@ killall()
 	register int i;
 
 	for (i = 0; i < SLAVES; i++)
-		if (slaves[i].pid > 0)
+		if (slaves[i].pid > 0) {
 			(void) kill(slaves[i].pid, SIGKILL);
+			slaves[i].sent = 0;
+		}
 }
 
 /*
@@ -818,7 +820,7 @@ doslave(cmd, slave_number)
 		 * fixme: Pyramids running OSx return ENOSPC
 		 * at EOT on 1/2 inch drives.
 		 */
-		if (size < 0) {
+		if (wrote < 0) {
 			(void) kill(master, SIGUSR1);
 			for (;;)
 				(void) sigpause(0);
