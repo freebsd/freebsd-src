@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.55 1997/04/04 04:17:11 davidg Exp $
+ *	$Id: kern_exec.c,v 1.56 1997/04/04 07:30:06 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -150,10 +150,6 @@ interpret:
 	}
 
 	imgp->vp = ndp->ni_vp;
-	if (imgp->vp == NULL) {
-		error = ENOEXEC;
-		goto exec_fail_dealloc;
-	}
 
 	/*
 	 * Check file permissions (also 'opens' file)
