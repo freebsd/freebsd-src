@@ -38,6 +38,7 @@
 static char sccsid[] = "@(#)wwend.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
+#include <signal.h>
 #include "ww.h"
 #include "tt.h"
 
@@ -49,6 +50,7 @@ wwend(exit)
 		wwdocheckpoint = 0;
 	}
 	xxend();
+	(void) signal(SIGIO, SIG_DFL);
 	(void) wwsettty(0, &wwoldtty);
 #ifdef TERMINFO
 	if (exit)
