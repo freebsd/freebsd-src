@@ -287,7 +287,7 @@ display(struct fetch_state *fs, off_t size, ssize_t n)
 {
     static off_t bytes;
     static off_t bytestart;
-    static int pr, init = 0;
+    static int pr, stdoutatty, init = 0;
     static struct timeval t0, t_start;
     static char *s;
     struct timezone tz;
@@ -301,13 +301,13 @@ display(struct fetch_state *fs, off_t size, ssize_t n)
 	gettimeofday(&t0, &tz);
 	t_start = t0;
 	bytes = pr = 0;
-	s = safe_malloc(strlen(fs->fs_outputfile) + 50);
+	stdoutatty = isatty(STDOUT_FILENO);
 	if (size > 0)
-	    sprintf (s, "Receiving %s (%qd bytes)%s", fs->fs_outputfile, 
+	    asprintf (&s, "Receiving %s (%qd bytes)%s", fs->fs_outputfile,
 		     (quad_t)size,
 		     size ? "" : " [appending]");
 	else
-	    sprintf (s, "Receiving %s", fs->fs_outputfile);
+	    asprintf (&s, "Receiving %s", fs->fs_outputfile);
 	printf ("%s", s);
 	fflush (stdout);
 	bytestart = bytes = n;
@@ -315,10 +315,12 @@ display(struct fetch_state *fs, off_t size, ssize_t n)
     }
     gettimeofday(&t, &tz);
     if (n == -1) {
-	if (size > 0) 
-	    printf ("\r%s: 100%%", s);
-	else
-	    printf ("\r%s: %qd Kbytes", s, (quad_t)bytes/1024);
+	if(stdoutatty) {
+	    if (size > 0) 
+		printf ("\r%s: 100%%", s);
+	    else
+		printf ("\r%s: %qd Kbytes", s, (quad_t)bytes/1024);
+	}
 	bytes -= bytestart;
 	d = t.tv_sec + t.tv_usec/1.e6 - t_start.tv_sec - t_start.tv_usec/1.e6;
 	printf ("\n%qd bytes transfered in %.1f seconds", (quad_t)bytes, d); 
@@ -339,12 +341,14 @@ display(struct fetch_state *fs, off_t size, ssize_t n)
 	return;
     t0 = t;
     pr++;
-    if (size > 1000000) 
-	printf ("\r%s: %2qd%%", s, (quad_t)bytes/(size/100));
-    else if (size > 0) 
-	printf ("\r%s: %2qd%%", s, (quad_t)100*bytes/size);
-    else
-	printf ("\r%s: %qd kB", s, (quad_t)bytes/1024);
+    if(stdoutatty) {
+	if (size > 1000000) 
+	    printf ("\r%s: %2qd%%", s, (quad_t)bytes/(size/100));
+	else if (size > 0) 
+	    printf ("\r%s: %2qd%%", s, (quad_t)100*bytes/size);
+	else
+	    printf ("\r%s: %qd kB", s, (quad_t)bytes/1024);
+    }
     fflush (stdout);
 }
 
