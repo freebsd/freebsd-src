@@ -130,7 +130,8 @@ main(argc, argv)
 			break;
 		case 'e':
 			eflag = 1;
-			temp_arg = xmalloc(strlen(optarg) + 2);
+			if ((temp_arg = malloc(strlen(optarg) + 2)) == NULL)
+				err(1, "malloc");
 			strcpy(temp_arg, optarg);
 			strcat(temp_arg, "\n");
 			add_compunit(CU_STRING, temp_arg);
@@ -362,7 +363,8 @@ add_compunit(type, s)
 {
 	struct s_compunit *cu;
 
-	cu = xmalloc(sizeof(struct s_compunit));
+	if ((cu = malloc(sizeof(struct s_compunit))) == NULL)
+		err(1, "malloc");
 	cu->type = type;
 	cu->s = s;
 	cu->next = NULL;
@@ -379,7 +381,8 @@ add_file(s)
 {
 	struct s_flist *fp;
 
-	fp = xmalloc(sizeof(struct s_flist));
+	if ((fp = malloc(sizeof(struct s_flist))) == NULL)
+		err(1, "malloc");
 	fp->next = NULL;
 	*fl_nextp = fp;
 	fp->fname = s;
