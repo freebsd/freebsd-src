@@ -512,6 +512,7 @@ remotemodtime(file, noisy)
 	if (debug == 0)
 		verbose = -1;
 	if (command("MDTM %s", file) == COMPLETE) {
+		memset(&timebuf, 0, sizeof(timebuf));
 		/*
 		 * Parse the time string, which is expected to be 14
 		 * characters long.  Some broken servers send tm_year
@@ -529,8 +530,7 @@ remotemodtime(file, noisy)
 				y2kbug = 1;
 			} else if (len == 14)
 				fmt = "%04d%02d%02d%02d%02d%02d";
-			if (fmt != NULL)
-				memset(&timebuf, 0, sizeof(timebuf));
+			if (fmt != NULL) {
 				if (sscanf(mtbuf, fmt, &year, &month,
 				    &timebuf.tm_mday, &timebuf.tm_hour,
 				    &timebuf.tm_min, &timebuf.tm_sec) == 6) {
@@ -542,10 +542,12 @@ remotemodtime(file, noisy)
 						timebuf.tm_year = year - 1900;
 					rtime = mktime(&timebuf);
 				}
+			}
 		}
-		if (rtime == -1 && (noisy || debug != 0))
-			printf("Can't convert %s to a time.\n", mtbuf);
-		else
+		if (rtime == -1) {
+			if (noisy || debug != 0)
+				printf("Can't convert %s to a time.\n", mtbuf);
+		} else
 			rtime += timebuf.tm_gmtoff;	/* conv. local -> GMT */
 	} else if (noisy && debug == 0)
 		puts(reply_string);
