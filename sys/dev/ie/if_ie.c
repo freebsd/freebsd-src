@@ -110,10 +110,6 @@
  * 16-pointers, we subtract iomem and and with 0xffff.
  */
 
-#include "ie.h"
-#include "opt_inet.h"
-#include "opt_ipx.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/eventhandler.h>
@@ -124,6 +120,14 @@
 #include <sys/sockio.h>
 #include <sys/syslog.h>
 
+#include <sys/module.h>
+#include <sys/bus.h>
+
+#include <machine/bus_pio.h>
+#include <machine/bus.h>
+#include <machine/resource.h>
+#include <sys/rman.h>
+
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_types.h>
@@ -132,21 +136,14 @@
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 
-#include <machine/md_var.h>
-
-#include <i386/isa/isa_device.h>
-#include <i386/isa/icu.h>
 #include <dev/ic/i82586.h>
+#include <dev/ie/if_ievar.h>
 #include <dev/ie/if_iereg.h>
 #include <dev/ie/if_ie507.h>
 #include <dev/ie/if_iee16.h>
 #include <i386/isa/elink.h>
 
 #include <net/bpf.h>
-
-#ifndef COMPAT_OLDISA
-#error "The ie device requires the old isa compatibility shims"
-#endif
 
 #ifdef DEBUG
 #define IED_RINT	0x01
@@ -163,27 +160,11 @@ static int	ie_debug = IED_RNR;
 /* Forward declaration */
 struct ie_softc;
 
-static int	ieprobe			(struct isa_device * dvp);
-static int	ieattach		(struct isa_device * dvp);
-static ointhand2_t	ieintr;
-static int	sl_probe		(struct isa_device * dvp);
-static int	el_probe		(struct isa_device * dvp);
-static int	ee16_probe		(struct isa_device * dvp);
-
-static int	check_ie_present	(struct ie_softc *, caddr_t, unsigned);
 static void	ieinit			(void *);
 static void	ie_stop			(struct ie_softc *);
 static int	ieioctl			(struct ifnet *, u_long, caddr_t);
 static void	iestart			(struct ifnet *);
 
-static void	el_reset_586		(struct ie_softc *);
-static void	el_chan_attn		(struct ie_softc *);
-
-static void	sl_reset_586		(struct ie_softc *);
-static void	sl_chan_attn		(struct ie_softc *);
-
-static void	ee16_reset_586		(struct ie_softc *);
-static void	ee16_chan_attn		(struct ie_softc *);
 static __inline void
 		ee16_interrupt_enable	(struct ie_softc *);
 static void	ee16_eeprom_outbits	(struct ie_softc *, int, int);
@@ -197,7 +178,6 @@ static __inline void
 static void	iereset			(struct ie_softc *);
 static void	ie_readframe		(struct ie_softc *, int);
 static void	ie_drop_packet_buffer	(struct ie_softc *);
-static void	sl_read_ether		(struct ie_softc *, unsigned char *);
 static void	find_ie_mem_size	(struct ie_softc *);
 static void	chan_attn_timeout	(void *);
 static int	command_and_wait	(struct ie_softc *,
@@ -216,32 +196,12 @@ static void	ie_mc_reset		(struct ie_softc *);
 
 #ifdef DEBUG
 static void	print_rbd		(volatile struct ie_recv_buf_desc * rbd);
-
 static int	in_ierint = 0;
 static int	in_ietint = 0;
-
 #endif
 
-/*
- * This tells the autoconf code how to set us up.
- */
-struct isa_driver iedriver = {
-	INTR_TYPE_NET,
-	ieprobe, ieattach, "ie"
-};
-COMPAT_ISA_DRIVER(ie, iedriver);
-
-enum ie_hardware {
-	IE_STARLAN10,
-	IE_EN100,
-	IE_SLFIBER,
-	IE_3C507,
-	IE_NI5210,
-	IE_EE16,
-	IE_UNKNOWN
-};
-
 static const char *ie_hardware_names[] = {
+	"None",
 	"StarLAN 10",
 	"EN100",
 	"StarLAN Fiber",
@@ -281,237 +241,8 @@ static const char *ie_hardware_names[] = {
 #define	NTXBUFS		1	/* number of transmit commands */
 #define	IE_TBUF_SIZE	ETHER_MAX_LEN	/* size of transmit buffer */
 
-/*
- * Ethernet status, per interface.
- */
-static struct ie_softc {
-	struct	 arpcom arpcom;
-	void	 (*ie_reset_586) (struct ie_softc *);
-	void	 (*ie_chan_attn) (struct ie_softc *);
-	enum	 ie_hardware hard_type;
-	int	 hard_vers;
-	int	 unit;
-
-	u_short	 port;		/* i/o base address for this interface */
-	caddr_t	 iomem;		/* memory size */
-	caddr_t	 iomembot;	/* memory base address */
-	unsigned iosize;
-	int	 bus_use;	/* 0 means 16bit, 1 means 8 bit adapter */
-
-	int	 want_mcsetup;
-	int	 promisc;
-	int	 nframes;
-	int	 nrxbufs;
-	int	 ntxbufs;
-	volatile struct ie_int_sys_conf_ptr *iscp;
-	volatile struct ie_sys_ctl_block *scb;
-	volatile struct ie_recv_frame_desc **rframes;	/* nframes worth */
-	volatile struct ie_recv_buf_desc **rbuffs;	/* nrxbufs worth */
-	volatile u_char **cbuffs;			/* nrxbufs worth */
-	int	 rfhead, rftail, rbhead, rbtail;
-
-	volatile struct ie_xmit_cmd **xmit_cmds;	/* ntxbufs worth */
-	volatile struct ie_xmit_buf **xmit_buffs;	/* ntxbufs worth */
-	volatile u_char	 **xmit_cbuffs;			/* ntxbufs worth */
-	int	 xmit_count;
-
-	struct	 ie_en_addr mcast_addrs[MAXMCAST + 1];
-	int	 mcast_count;
-
-	u_short	 irq_encoded;	/* encoded interrupt on IEE16 */
-}	ie_softc[NIE];
-
 #define MK_24(base, ptr) ((caddr_t)((uintptr_t)ptr - (uintptr_t)base))
 #define MK_16(base, ptr) ((u_short)(uintptr_t)MK_24(base, ptr))
-
-#define	PORT(sc)	(sc->port)
-#define	MEM(sc)		(sc->iomem)
-
-static int
-ieprobe(struct isa_device *dvp)
-{
-	int	ret;
-
-	ret = sl_probe(dvp);
-	if (!ret)
-		ret = el_probe(dvp);
-	if (!ret)
-		ret = ee16_probe(dvp);
-
-	return (ret);
-}
-
-static int
-sl_probe(struct isa_device *dvp)
-{
-	struct ie_softc *	sc = &ie_softc[dvp->id_unit];
-	u_char			c;
-
-	sc->port = dvp->id_iobase;
-	sc->iomembot = dvp->id_maddr;
-	sc->iomem = 0;
-	sc->bus_use = 0;
-
-	c = inb(PORT(sc) + IEATT_REVISION);
-	switch (SL_BOARD(c)) {
-	case SL10_BOARD:
-		sc->hard_type = IE_STARLAN10;
-		break;
-	case EN100_BOARD:
-		sc->hard_type = IE_EN100;
-		break;
-	case SLFIBER_BOARD:
-		sc->hard_type = IE_SLFIBER;
-		break;
-	case 0x00:
-		if (inb(PORT(sc) + IEATT_ATTRIB) != 0x55)
-			return (0);
-	
-		sc->hard_type = IE_NI5210;
-		sc->bus_use = 1;
-
-		break;
-
-		/*
-		 * Anything else is not recognized or cannot be used.
-		 */
-	default:
-		return (0);
-	}
-
-	sc->ie_reset_586 = sl_reset_586;
-	sc->ie_chan_attn = sl_chan_attn;
-
-	sc->hard_vers = SL_REV(c);
-
-	/*
-	 * Divine memory size on-board the card.  Ususally 16k.
-	 */
-	find_ie_mem_size(sc);
-
-	if (!sc->iosize) {
-		return (0);
-	}
-
-	if (!dvp->id_msize) {
-		dvp->id_msize = sc->iosize;
-	} else if (dvp->id_msize != sc->iosize) {
-		printf("ie%d: kernel configured msize %d "
-		       "doesn't match board configured msize %d\n",
-			sc->unit,
-			dvp->id_msize,
-			sc->iosize);
-		return (0);
-	}
-
-	switch (sc->hard_type) {
-		case IE_EN100:
-		case IE_STARLAN10:
-		case IE_SLFIBER:
-		case IE_NI5210:
-			sl_read_ether(sc, sc->arpcom.ac_enaddr);
-			break;
-	default:
-		if (bootverbose)
-			printf("ie%d: unknown AT&T board type code %d\n",
-				sc->unit,
-		       		sc->hard_type);
-		return (0);
-	}
-
-	return (16);
-}
-
-static int
-el_probe(struct isa_device *dvp)
-{
-	struct ie_softc *sc = &ie_softc[dvp->id_unit];
-	u_char	c;
-	int	i;
-	u_char	signature[] = "*3COM*";
-
-	sc->unit = dvp->id_unit;
-	sc->port = dvp->id_iobase;
-	sc->iomembot = dvp->id_maddr;
-	sc->bus_use = 0;
-
-	/* Need this for part of the probe. */
-	sc->ie_reset_586 = el_reset_586;
-	sc->ie_chan_attn = el_chan_attn;
-
-	/* Reset and put card in CONFIG state without changing address. */
-	elink_reset();
-	outb(ELINK_ID_PORT, 0x00);
-	elink_idseq(ELINK_507_POLY);
-	elink_idseq(ELINK_507_POLY);
-	outb(ELINK_ID_PORT, 0xff);
-
-	c = inb(PORT(sc) + IE507_MADDR);
-	if (c & 0x20) {
-#ifdef DEBUG
-		printf("ie%d: can't map 3C507 RAM in high memory\n", sc->unit);
-#endif
-		return (0);
-	}
-	/* go to RUN state */
-	outb(ELINK_ID_PORT, 0x00);
-	elink_idseq(ELINK_507_POLY);
-	outb(ELINK_ID_PORT, 0x00);
-
-	outb(PORT(sc) + IE507_CTRL, EL_CTRL_NRST);
-
-	for (i = 0; i < 6; i++)
-		if (inb(PORT(sc) + i) != signature[i])
-			return (0);
-
-	c = inb(PORT(sc) + IE507_IRQ) & 0x0f;
-
-	if (dvp->id_irq != (1 << c)) {
-		printf("ie%d: kernel configured irq %d "
-		       "doesn't match board configured irq %d\n",
-		       sc->unit, ffs(dvp->id_irq) - 1, c);
-		return (0);
-	}
-	c = (inb(PORT(sc) + IE507_MADDR) & 0x1c) + 0xc0;
-
-	if (kvtop(dvp->id_maddr) != ((int) c << 12)) {
-		printf("ie%d: kernel configured maddr %lx "
-		       "doesn't match board configured maddr %x\n",
-		       sc->unit, (u_long)kvtop(dvp->id_maddr), (int) c << 12);
-		return (0);
-	}
-	outb(PORT(sc) + IE507_CTRL, EL_CTRL_NORMAL);
-
-	sc->hard_type = IE_3C507;
-	sc->hard_vers = 0;	/* 3C507 has no version number. */
-
-	/*
-	 * Divine memory size on-board the card.
-	 */
-	find_ie_mem_size(sc);
-
-	if (!sc->iosize) {
-		printf("ie%d: can't find shared memory\n", sc->unit);
-		outb(PORT(sc) + IE507_CTRL, EL_CTRL_NRST);
-		return (0);
-	}
-	if (!dvp->id_msize)
-		dvp->id_msize = sc->iosize;
-	else if (dvp->id_msize != sc->iosize) {
-		printf("ie%d: kernel configured msize %d "
-		       "doesn't match board configured msize %d\n",
-		       sc->unit, dvp->id_msize, sc->iosize);
-		outb(PORT(sc) + IE507_CTRL, EL_CTRL_NRST);
-		return (0);
-	}
-	sl_read_ether(sc, sc->arpcom.ac_enaddr);
-
-	/* Clear the interrupt latch just in case. */
-	outb(PORT(sc) + IE507_ICTRL, 1);
-
-	return (16);
-}
-
 
 static void
 ee16_shutdown(void *xsc, int howto)
@@ -523,236 +254,28 @@ ee16_shutdown(void *xsc, int howto)
 	outb(PORT(sc) + IEE16_ECTRL, 0);
 }
 
-
-/* Taken almost exactly from Rod's if_ix.c. */
-
-static int
-ee16_probe(struct isa_device *dvp)
-{
-	struct ie_softc *sc = &ie_softc[dvp->id_unit];
-
-	int	i;
-	u_short board_id, id_var1, id_var2, checksum = 0;
-	u_short eaddrtemp, irq;
-	u_short pg, adjust, decode, edecode;
-	u_char	bart_config;
-	u_long	bd_maddr;
-
-	short	irq_translate[] = {0, IRQ9, IRQ3, IRQ4, IRQ5, IRQ10, IRQ11, 0};
-	char	irq_encode[] = {0, 0, 0, 2, 3, 4, 0, 0, 0, 1, 5, 6, 0, 0, 0, 0};
-
-	/* Need this for part of the probe. */
-	sc->ie_reset_586 = ee16_reset_586;
-	sc->ie_chan_attn = ee16_chan_attn;
-
-	/* unsure if this is necessary */
-	sc->bus_use = 0;
-
-	/* reset any ee16 at the current iobase */
-	outb(dvp->id_iobase + IEE16_ECTRL, IEE16_RESET_ASIC);
-	outb(dvp->id_iobase + IEE16_ECTRL, 0);
-	DELAY(240);
-
-	/* now look for ee16. */
-	board_id = id_var1 = id_var2 = 0;
-	for (i = 0; i < 4; i++) {
-		id_var1 = inb(dvp->id_iobase + IEE16_ID_PORT);
-		id_var2 = ((id_var1 & 0x03) << 2);
-		board_id |= ((id_var1 >> 4) << id_var2);
-	}
-
-	if (board_id != IEE16_ID) {
-		if (bootverbose)
-			printf("ie%d: unknown board_id: %x\n", sc->unit, board_id);
-		return (0);
-	}
-	/* need sc->port for ee16_read_eeprom */
-	sc->port = dvp->id_iobase;
-	sc->hard_type = IE_EE16;
-
-	/*
-	 * The shared RAM location on the EE16 is encoded into bits 3-7 of
-	 * EEPROM location 6.  We zero the upper byte, and shift the 5 bits
-	 * right 3.  The resulting number tells us the RAM location.
-	 * Because the EE16 supports either 16k or 32k of shared RAM, we
-	 * only worry about the 32k locations.
-	 *
-	 * NOTE: if a 64k EE16 exists, it should be added to this switch. then
-	 * the ia->ia_msize would need to be set per case statement.
-	 *
-	 * value	msize	location
-	 * =====	=====	========
-	 * 0x03		0x8000	0xCC000
-	 * 0x06		0x8000	0xD0000
-	 * 0x0C		0x8000	0xD4000
-	 * 0x18		0x8000	0xD8000
-	 *
-	 */
-
-	bd_maddr = 0;
-	i = (ee16_read_eeprom(sc, 6) & 0x00ff) >> 3;
-	switch (i) {
-	case 0x03:
-		bd_maddr = 0xCC000;
-		break;
-	case 0x06:
-		bd_maddr = 0xD0000;
-		break;
-	case 0x0c:
-		bd_maddr = 0xD4000;
-		break;
-	case 0x18:
-		bd_maddr = 0xD8000;
-		break;
-	default:
-		bd_maddr = 0;
-		break;
-	}
-	dvp->id_msize = 0x8000;
-	if (kvtop(dvp->id_maddr) != bd_maddr) {
-		printf("ie%d: kernel configured maddr %lx "
-		       "doesn't match board configured maddr %lx\n",
-		       sc->unit, (u_long)kvtop(dvp->id_maddr), bd_maddr);
-	}
-	sc->iomembot = dvp->id_maddr;
-	sc->iomem = 0;		/* XXX some probes set this and some don't */
-	sc->iosize = dvp->id_msize;
-
-	/* need to put the 586 in RESET while we access the eeprom. */
-	outb(PORT(sc) + IEE16_ECTRL, IEE16_RESET_586);
-
-	/* read the eeprom and checksum it, should == IEE16_ID */
-	for (i = 0; i < 0x40; i++)
-		checksum += ee16_read_eeprom(sc, i);
-
-	if (checksum != IEE16_ID) {
-		printf("ie%d: invalid eeprom checksum: %x\n", sc->unit, checksum);
-		return (0);
-	}
-	/*
-	 * Size and test the memory on the board.  The size of the memory
-	 * can be one of 16k, 32k, 48k or 64k.	It can be located in the
-	 * address range 0xC0000 to 0xEFFFF on 16k boundaries.
-	 *
-	 * If the size does not match the passed in memory allocation size
-	 * issue a warning, but continue with the minimum of the two sizes.
-	 */
-
-	switch (dvp->id_msize) {
-	case 65536:
-	case 32768:		/* XXX Only support 32k and 64k right now */
-		break;
-	case 16384:
-	case 49512:
-	default:
-		printf("ie%d: mapped memory size %d not supported\n",
-		       sc->unit, dvp->id_msize);
-		return (0);
-		break;		/* NOTREACHED */
-	}
-
-	if ((kvtop(dvp->id_maddr) < 0xC0000) ||
-	    (kvtop(dvp->id_maddr) + sc->iosize > 0xF0000)) {
-		printf("ie%d: mapped memory location %p out of range\n",
-		       sc->unit, (void *)dvp->id_maddr);
-		return (0);
-	}
-	pg = (kvtop(dvp->id_maddr) & 0x3C000) >> 14;
-	adjust = IEE16_MCTRL_FMCS16 | (pg & 0x3) << 2;
-	decode = ((1 << (sc->iosize / 16384)) - 1) << pg;
-	edecode = ((~decode >> 4) & 0xF0) | (decode >> 8);
-
-	/* ZZZ This should be checked against eeprom location 6, low byte */
-	outb(PORT(sc) + IEE16_MEMDEC, decode & 0xFF);
-	/* ZZZ This should be checked against eeprom location 1, low byte */
-	outb(PORT(sc) + IEE16_MCTRL, adjust);
-	/* ZZZ Now if I could find this one I would have it made */
-	outb(PORT(sc) + IEE16_MPCTRL, (~decode & 0xFF));
-	/* ZZZ I think this is location 6, high byte */
-	outb(PORT(sc) + IEE16_MECTRL, edecode);	/* XXX disable Exxx */
-
-	(void) kvtop(dvp->id_maddr);
-
-	/*
-	 * first prime the stupid bart DRAM controller so that it works,
-	 * then zero out all of memory.
-	 */
-	bzero(sc->iomembot, 32);
-	bzero(sc->iomembot, sc->iosize);
-
-	/*
-	 * Get the encoded interrupt number from the EEPROM, check it
-	 * against the passed in IRQ.  Issue a warning if they do not match.
-	 * Always use the passed in IRQ, not the one in the EEPROM.
-	 */
-	irq = ee16_read_eeprom(sc, IEE16_EEPROM_CONFIG1);
-	irq = (irq & IEE16_EEPROM_IRQ) >> IEE16_EEPROM_IRQ_SHIFT;
-	irq = irq_translate[irq];
-	if (dvp->id_irq > 0) {
-		if (irq != dvp->id_irq) {
-			printf("ie%d: WARNING: board configured "
-			       "at irq %u, using %u\n",
-			       dvp->id_unit, dvp->id_irq, irq);
-			irq = dvp->id_unit;
-		}
-	} else {
-		dvp->id_irq = irq;
-	}
-	sc->irq_encoded = irq_encode[ffs(irq) - 1];
-
-	/*
-	 * Get the hardware ethernet address from the EEPROM and save it in
-	 * the softc for use by the 586 setup code.
-	 */
-	eaddrtemp = ee16_read_eeprom(sc, IEE16_EEPROM_ENET_HIGH);
-	sc->arpcom.ac_enaddr[1] = eaddrtemp & 0xFF;
-	sc->arpcom.ac_enaddr[0] = eaddrtemp >> 8;
-	eaddrtemp = ee16_read_eeprom(sc, IEE16_EEPROM_ENET_MID);
-	sc->arpcom.ac_enaddr[3] = eaddrtemp & 0xFF;
-	sc->arpcom.ac_enaddr[2] = eaddrtemp >> 8;
-	eaddrtemp = ee16_read_eeprom(sc, IEE16_EEPROM_ENET_LOW);
-	sc->arpcom.ac_enaddr[5] = eaddrtemp & 0xFF;
-	sc->arpcom.ac_enaddr[4] = eaddrtemp >> 8;
-
-	/* disable the board interrupts */
-	outb(PORT(sc) + IEE16_IRQ, sc->irq_encoded);
-
-	/* enable loopback to keep bad packets off the wire */
-	if (sc->hard_type == IE_EE16) {
-		bart_config = inb(PORT(sc) + IEE16_CONFIG);
-		bart_config |= IEE16_BART_LOOPBACK;
-		bart_config |= IEE16_BART_MCS16_TEST;/* inb doesn't get bit! */
-		outb(PORT(sc) + IEE16_CONFIG, bart_config);
-		bart_config = inb(PORT(sc) + IEE16_CONFIG);
-	}
-	/* take the board out of reset state */
-	outb(PORT(sc) + IEE16_ECTRL, 0);
-	DELAY(100);
-
-	if (!check_ie_present(sc, dvp->id_maddr, sc->iosize))
-		return (0);
-
-	return (16);		/* return the number of I/O ports */
-}
-
 /*
  * Taken almost exactly from Bill's if_is.c, then modified beyond recognition.
  */
-static int
-ieattach(struct isa_device *dvp)
+int
+ie_attach(device_t dev)
 {
-	int	factor;
-	struct ie_softc *sc = &ie_softc[dvp->id_unit];
-	struct ifnet *ifp = &sc->arpcom.ac_if;
-	size_t	allocsize;
+	struct ie_softc *       sc;
+	struct ifnet *          ifp;
+	size_t                  allocsize;
+	int                     factor;
 
-	dvp->id_ointr = ieintr;
+	sc = device_get_softc(dev);
+	ifp = &sc->arpcom.ac_if;
+
+	sc->dev = dev;
+	sc->unit = device_get_unit(dev);
 
 	/*
 	 * based on the amount of memory we have, allocate our tx and rx
 	 * resources.
 	 */
-	factor = dvp->id_msize / 8192;
+	factor = rman_get_size(sc->mem_res) / 8192;
 	sc->nframes = factor * NFRAMES;
 	sc->nrxbufs = factor * NRXBUFS;
 	sc->ntxbufs = factor * NTXBUFS;
@@ -768,7 +291,7 @@ ieattach(struct isa_device *dvp)
 								     M_DEVBUF,
 								   M_NOWAIT);
 	if (sc->rframes == NULL)
-		return (0);
+		return (ENXIO);
 	sc->rbuffs =
 	    (volatile struct ie_recv_buf_desc **)&sc->rframes[sc->nframes];
 	sc->cbuffs = (volatile u_char **)&sc->rbuffs[sc->nrxbufs];
@@ -778,15 +301,14 @@ ieattach(struct isa_device *dvp)
 	    (volatile struct ie_xmit_buf **)&sc->xmit_cmds[sc->ntxbufs];
 	sc->xmit_cbuffs = (volatile u_char **)&sc->xmit_buffs[sc->ntxbufs];
 
+	if (bootverbose)
+		device_printf(sc->dev, "hardware type %s, revision %d\n",
+			ie_hardware_names[sc->hard_type], sc->hard_vers + 1);
+
 	ifp->if_softc = sc;
-	ifp->if_unit = dvp->id_unit;
+	ifp->if_unit = sc->unit;
 	ifp->if_name = "ie";
 	ifp->if_mtu = ETHERMTU;
-	printf("ie%d: <%s R%d> address %6D\n", sc->unit,
-	       ie_hardware_names[sc->hard_type],
-	       sc->hard_vers + 1,
-	       sc->arpcom.ac_enaddr, ":");
-
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_start = iestart;
 	ifp->if_ioctl = ieioctl;
@@ -797,17 +319,20 @@ ieattach(struct isa_device *dvp)
 		EVENTHANDLER_REGISTER(shutdown_post_sync, ee16_shutdown,
 				      sc, SHUTDOWN_PRI_DEFAULT);
 
+	device_printf(sc->dev, "Ethernet address %6D\n",
+		      sc->arpcom.ac_enaddr, ":");
+
 	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
-	return (1);
+	return (0);
 }
 
 /*
  * What to do upon receipt of an interrupt.
  */
-static void
-ieintr(int unit)
+void
+ie_intr(void *xsc)
 {
-	struct ie_softc *sc = &ie_softc[unit];
+	struct ie_softc *sc = (struct ie_softc *)xsc;
 	u_short status;
 
 	/* Clear the interrupt latch on the 3C507. */
@@ -1457,8 +982,8 @@ iestart(struct ifnet *ifp)
 /*
  * Check to see if there's an 82586 out there.
  */
-static int
-check_ie_present(struct ie_softc *sc, caddr_t where, unsigned size)
+int
+check_ie_present(struct ie_softc *sc)
 {
 	volatile struct ie_sys_conf_ptr *scp;
 	volatile struct ie_int_sys_conf_ptr *iscp;
@@ -1468,7 +993,7 @@ check_ie_present(struct ie_softc *sc, caddr_t where, unsigned size)
 
 	s = splimp();
 
-	realbase = (uintptr_t) where + size - (1 << 24);
+	realbase = (uintptr_t) sc->iomembot + sc->iosize  - (1 << 24);
 
 	scp = (volatile struct ie_sys_conf_ptr *) (uintptr_t)
 	      (realbase + IE_SCP_ADDR);
@@ -1480,10 +1005,10 @@ check_ie_present(struct ie_softc *sc, caddr_t where, unsigned size)
 	 * controller's. This is NOT where the ISCP will be in normal
 	 * operation.
 	 */
-	iscp = (volatile struct ie_int_sys_conf_ptr *) where;
+	iscp = (volatile struct ie_int_sys_conf_ptr *) sc->iomembot;
 	bzero((volatile char *)iscp, sizeof *iscp);
 
-	scb = (volatile struct ie_sys_ctl_block *) where;
+	scb = (volatile struct ie_sys_ctl_block *) sc->iomembot;
 	bzero((volatile char *)scb, sizeof *scb);
 
 	scp->ie_bus_use = sc->bus_use;	/* 8-bit or 16-bit */
@@ -1526,7 +1051,6 @@ check_ie_present(struct ie_softc *sc, caddr_t where, unsigned size)
 		splx(s);
 		return (0);
 	}
-	sc->iosize = size;
 	sc->iomem = (caddr_t) (uintptr_t) realbase;
 
 	sc->iscp = iscp;
@@ -1553,7 +1077,7 @@ find_ie_mem_size(struct ie_softc *sc)
 	sc->iosize = 0;
 
 	for (size = 65536; size >= 8192; size -= 8192) {
-		if (check_ie_present(sc, sc->iomembot, size)) {
+		if (check_ie_present(sc)) {
 			return;
 		}
 	}
@@ -1561,7 +1085,7 @@ find_ie_mem_size(struct ie_softc *sc)
 	return;
 }
 
-static void
+void
 el_reset_586(struct ie_softc *sc)
 {
 	outb(PORT(sc) + IE507_CTRL, EL_CTRL_RESET);
@@ -1570,13 +1094,13 @@ el_reset_586(struct ie_softc *sc)
 	DELAY(100);
 }
 
-static void
+void
 sl_reset_586(struct ie_softc *sc)
 {
 	outb(PORT(sc) + IEATT_RESET, 0);
 }
 
-static void
+void
 ee16_reset_586(struct ie_softc *sc)
 {
 	outb(PORT(sc) + IEE16_ECTRL, IEE16_RESET_586);
@@ -1585,25 +1109,25 @@ ee16_reset_586(struct ie_softc *sc)
 	DELAY(100);
 }
 
-static void
+void
 el_chan_attn(struct ie_softc *sc)
 {
 	outb(PORT(sc) + IE507_ATTN, 1);
 }
 
-static void
+void
 sl_chan_attn(struct ie_softc *sc)
 {
 	outb(PORT(sc) + IEATT_ATTN, 0);
 }
 
-static void
+void
 ee16_chan_attn(struct ie_softc *sc)
 {
 	outb(PORT(sc) + IEE16_ATTN, 0);
 }
 
-static u_short
+u_short
 ee16_read_eeprom(struct ie_softc *sc, int location)
 {
 	int	ectrl, edata;
@@ -1687,7 +1211,7 @@ ee16_interrupt_enable(struct ie_softc *sc)
 	DELAY(100);
 }
 
-static void
+void
 sl_read_ether(struct ie_softc *sc, unsigned char *addr)
 {
 	int	i;
@@ -1709,10 +1233,6 @@ iereset(struct ie_softc *sc)
 {
 	int	s = splimp();
 
-	if (sc->unit >= NIE) {
-		splx(s);
-		return;
-	}
 	printf("ie%d: reset\n", sc->unit);
 	sc->arpcom.ac_if.if_flags &= ~IFF_UP;
 	ieioctl(&sc->arpcom.ac_if, SIOCSIFFLAGS, 0);
@@ -1727,7 +1247,7 @@ iereset(struct ie_softc *sc)
 		printf("ie%d: disable commands timed out\n", sc->unit);
 
 #ifdef notdef
-	if (!check_ie_present(sc, sc->iomembot, sc->iosize))
+	if (!check_ie_present(sc))
 		panic("ie disappeared!");
 #endif
 
@@ -2187,3 +1707,91 @@ print_rbd(volatile struct ie_recv_buf_desc * rbd)
 }
 
 #endif				/* DEBUG */
+
+int
+ie_alloc_resources (device_t dev)
+{
+	struct ie_softc *       sc;
+	int                     error;
+
+	error = 0;
+	sc = device_get_softc(dev);
+
+	sc->io_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->io_rid,
+					0, ~0, 1, RF_ACTIVE);
+	if (!sc->io_res) {
+		device_printf(dev, "No I/O space?!\n");
+		error = ENOMEM;
+		goto bad;
+	}
+	sc->io_bt = rman_get_bustag(sc->io_res);
+	sc->io_bh = rman_get_bushandle(sc->io_res);
+
+	sc->mem_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &sc->mem_rid,
+					 0, ~0, 1, RF_ACTIVE);
+	if (!sc->mem_res) {
+                device_printf(dev, "No Memory!\n");
+		error = ENOMEM;
+		goto bad;
+	}
+	sc->mem_bt = rman_get_bustag(sc->mem_res);
+	sc->mem_bh = rman_get_bushandle(sc->mem_res);
+
+	sc->irq_res = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irq_rid,
+					 0, ~0, 1, RF_ACTIVE);
+	if (!sc->irq_res) {
+		device_printf(dev, "No IRQ!\n");
+		error = ENOMEM;
+		goto bad;
+	}
+
+	sc->port = rman_get_start(sc->io_res);  /* XXX hack */
+	sc->iomembot = rman_get_virtual(sc->mem_res);
+	sc->iosize = rman_get_size(sc->mem_res);
+
+	return (0);
+bad:
+	return (error);
+}
+
+void
+ie_release_resources (device_t dev)
+{
+	struct ie_softc *       sc;
+
+	sc = device_get_softc(dev);
+
+	if (sc->irq_ih)
+		bus_teardown_intr(dev, sc->irq_res, sc->irq_ih);
+	if (sc->io_res)
+		bus_release_resource(dev, SYS_RES_IOPORT,
+				     sc->io_rid, sc->io_res);
+	if (sc->irq_res)
+		bus_release_resource(dev, SYS_RES_IRQ,
+				     sc->irq_rid, sc->irq_res);
+	if (sc->mem_res)
+		bus_release_resource(dev, SYS_RES_MEMORY,
+				     sc->mem_rid, sc->mem_res);
+
+	return;
+}
+
+int
+ie_detach (device_t dev)
+{
+	struct ie_softc *	sc;
+	struct ifnet *		ifp;
+
+	sc = device_get_softc(dev);
+	ifp = &sc->arpcom.ac_if;
+
+	if (sc->hard_type == IE_EE16)
+		ee16_shutdown(sc, 0);
+
+	ie_stop(sc);
+	ifp->if_flags &= ~IFF_RUNNING;
+	ether_ifdetach(ifp);
+	ie_release_resources(dev);
+
+	return (0);
+}

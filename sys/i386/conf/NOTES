@@ -505,15 +505,11 @@ device		el	1
 hint.el.0.at="isa"
 hint.el.0.port="0x300"
 hint.el.0.irq="9"
-device		ie	2
-hint.ie.0.at="isa"
-hint.ie.0.port="0x300"
-hint.ie.0.irq="5"
-hint.ie.0.maddr="0xd0000"
-hint.ie.1.at="isa"
-hint.ie.1.port="0x360"
-hint.ie.1.irq="7"
-hint.ie.1.maddr="0xd0000"
+device		ie			# Hints only required for Starlan
+hint.ie.2.at="isa"
+hint.ie.2.port="0x300"
+hint.ie.2.irq="5"
+hint.ie.2.maddr="0xd0000"
 device		le	1
 hint.le.0.at="isa"
 hint.le.0.port="0x300"
