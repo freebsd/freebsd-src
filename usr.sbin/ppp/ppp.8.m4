@@ -1541,7 +1541,8 @@ set filter
 .Op estab
 .Op syn
 .Op finrst
-.Oc Op timeout Ar secs
+.Op timeout Ar secs
+.Oc
 .Bl -enum
 .It
 .Ar Name
@@ -4395,7 +4396,8 @@ as they travel across the link.
 .Op estab
 .Op syn
 .Op finrst
-.Oc Op timeout Ar secs
+.Op timeout Ar secs
+.Oc
 .Xc
 .Nm
 supports four filter sets.
