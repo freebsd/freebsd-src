@@ -56,7 +56,7 @@ isdn:
  deny pred1 deflate
 
  # Our minimum charge period is 5 minutes, so don't hangup before then
- set timeout 60 600
+ set timeout 60 300
 
  # We have no chat scripts in the ISDN world (yet)
  set dial
@@ -66,6 +66,7 @@ isdn:
  # Use the raw B-channel devices
  set device /dev/i4brbch0 /dev/i4brbch1
  set speed sync
+ set bandwidth 65536
 
  # How long does it take to connect with ISDN ?
  link * set cd 6
