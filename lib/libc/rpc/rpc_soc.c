@@ -335,7 +335,7 @@ callrpc(host, prognum, versnum, procnum, inproc, in, outproc, out)
 	char *host;
 	int prognum, versnum, procnum;
 	xdrproc_t inproc, outproc;
-	char *in, *out;
+	void *in, *out;
 {
 
 	return (int)rpc_call(host, (rpcprog_t)prognum, (rpcvers_t)versnum,
