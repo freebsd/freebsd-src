@@ -74,12 +74,13 @@ static int _scancaches(char *);
 static int _yp_enabled;			/* set true when yp enabled */
 static int _pw_stepping_yp;		/* set true when stepping thru map */
 static int _yp_done;
-#endif
-static int __hashpw(), __initdb();
-
+static int _gotmaster;
+static char *_pw_yp_domain;
 static int _havemaster(char *);
 static int _getyppass(struct passwd *, const char *, const char *);
 static int _nextyppass(struct passwd *);
+#endif
+static int __hashpw(), __initdb();
 
 struct passwd *
 getpwent()
@@ -257,6 +258,13 @@ __initdb()
 		} else {
 			_yp_enabled = (int)*((char *)data.data) - 2;
 			_createcaches();
+		/* Don't even bother with this if we aren't root. */
+			if (!geteuid()) {
+				if (!_pw_yp_domain)
+					if (yp_get_default_domain(&_pw_yp_domain))
+					return(1);
+				_gotmaster = _havemaster(_pw_yp_domain);
+			} else _gotmaster = 0;
 		}
 #endif
 		return(1);
@@ -330,7 +338,6 @@ _createcaches()
 	struct _namelist *n, *namehead;
 	char *user, *host, *domain;
 	struct group *grp;
-	extern int ___use_only_yp;
 
 	/*
 	 * Assume that the database has already been initialized
@@ -538,28 +545,40 @@ char *user;
 }
 
 static int
-_pw_breakout_yp(struct passwd *pw, char *result, int master)
+_pw_breakout_yp(struct passwd *pw, char *res, int master)
 {
-	char *s;
-	static char name[UT_NAMESIZE+2], passwd[_PASSWORD_LEN], class[1024];
-	static char gecos[1024], dir[MAXPATHLEN], shell[MAXPATHLEN];
+	char *s, *c, *result;
+	static char resbuf[YPMAXRECORD+2];
 
-	strcpy(name, pw->pw_name); pw->pw_name = (char *)&name;
-	strcpy(passwd, pw->pw_passwd); pw->pw_passwd = (char *)&passwd;
-	strcpy(class, pw->pw_class); pw->pw_class = (char *)&class;
-	strcpy(gecos, pw->pw_gecos); pw->pw_gecos = (char *)&gecos;
-	strcpy(dir, pw->pw_dir); pw->pw_dir = (char *)&dir;
-	strcpy(shell, pw->pw_shell); pw->pw_shell = (char *)&shell;
+	/*
+	 * Be triple, ultra super-duper paranoid: reject entries
+	 * that start with a + or -. yp_mkdb and /var/yp/Makefile
+	 * are _both_ supposed to strip these out, but you never
+	 * know.
+	 */
+	if (*res == '+' || *res == '-')
+		return 0;
+
+	/*
+	 * The NIS protocol definition limits the size of an NIS
+	 * record to YPMAXRECORD bytes. We need to do a copy to
+	 * a static buffer here since the memory pointed to by
+	 * res will be free()ed when this function returns.
+	 */
+	strncpy((char *)&resbuf, res, YPMAXRECORD);
+	result = (char *)&resbuf;
 
 	/*
 	 * XXX Sanity check: make sure all fields are valid (no NULLs).
 	 * If we find a badly formatted entry, we punt.
 	 */
 	if ((s = strsep(&result, ":")) == NULL) return 0; /* name */
-	if(!(pw->pw_fields & _PWF_NAME) || (pw->pw_name[0] == '+')) {
-		pw->pw_name = s;
-		pw->pw_fields |= _PWF_NAME;
-	}
+	/*
+	 * We don't care what pw_fields says: we _always_ want the
+	 * username returned to us by NIS.
+	 */
+	pw->pw_name = s;
+	pw->pw_fields |= _PWF_NAME;
 
 	if ((s = strsep(&result, ":")) == NULL) return 0; /* password */
 	if(!(pw->pw_fields & _PWF_PASSWD)) {
@@ -617,10 +636,11 @@ _pw_breakout_yp(struct passwd *pw, char *result, int master)
 		pw->pw_fields |= _PWF_SHELL;
 	}
 
+	/* Be consistent. */
+	if ((s = strchr(pw->pw_shell, '\n'))) *s = '\0';
+
 	return 1;
 }
-
-static char *_pw_yp_domain;
 
 static int
 _havemaster(char *_pw_yp_domain)
@@ -641,11 +661,9 @@ static int
 _getyppass(struct passwd *pw, const char *name, const char *map)
 {
 	char *result, *s;
-	static char resultbuf[1024];
 	int resultlen;
+	int rv;
 	char mastermap[1024];
-	int gotmaster = 0;
-	char user[UT_NAMESIZE+2];
 
 	if(!_pw_yp_domain) {
 		if(yp_get_default_domain(&_pw_yp_domain))
@@ -654,34 +672,35 @@ _getyppass(struct passwd *pw, const char *name, const char *map)
 
 	sprintf(mastermap,"%s",map);
 
-	/* Don't even bother with this if we aren't root. */
-	if (!geteuid())
-		if (_havemaster(_pw_yp_domain)) {
-			sprintf(mastermap,"master.%s", map);
-			gotmaster++;
-		}
+	if (_gotmaster)
+		sprintf(mastermap,"master.%s", map);
 
 	if(yp_match(_pw_yp_domain, (char *)&mastermap, name, strlen(name),
 		    &result, &resultlen))
 		return 0;
 
-	s = strchr(result, '\n');
-	if(s) *s = '\0';
-
-	if(resultlen >= sizeof resultbuf) return 0;
-	strcpy(resultbuf, result);
-	snprintf (user, sizeof(user), "%.*s", (strchr(result, ':') - result), result);
+	s = strchr(result, ':');
+	if (s) {
+		*s = '\0';
+	} else {
+		/* Must be a malformed entry if no colons. */
+		free(result);
+		return(0);
+	}
 	_pw_passwd.pw_fields = -1; /* Impossible value */
-	if (_scancaches((char *)&user)) {
+	if (_scancaches(result)) {
 		free(result);
 		return(0);
-	} else
-		free(result);
+	}
 	/* No hits in the plus or minus lists: Bzzt! reject. */
-	if (_pw_passwd.pw_fields == -1)
+	if (_pw_passwd.pw_fields == -1) {
+		free(result);
 		return(0);
-	result = resultbuf;
-	return(_pw_breakout_yp(pw, resultbuf, gotmaster));
+	}
+	*s = ':'; /* Put back the colon we previously replaced with a NUL. */
+	rv = _pw_breakout_yp(pw, result, _gotmaster);
+	free(result);
+	return(rv);
 }
 
 static int
@@ -689,25 +708,18 @@ _nextyppass(struct passwd *pw)
 {
 	static char *key;
 	static int keylen;
-	char *lastkey, *result;
-	static char resultbuf[1024];
+	char *lastkey, *result, *s;
 	int resultlen;
 	int rv;
 	char *map = "passwd.byname";
-	int gotmaster = 0;
-	char user[UT_NAMESIZE+2];
 
 	if(!_pw_yp_domain) {
 		if(yp_get_default_domain(&_pw_yp_domain))
 		  return 0;
 	}
 
-	/* Don't even bother with this if we aren't root. */
-	if (!geteuid())
-		if(_havemaster(_pw_yp_domain)) {
-			map = "master.passwd.byname";
-			gotmaster++;
-		}
+	if (_gotmaster)
+		map = "master.passwd.byname";
 
 	if(!_pw_stepping_yp) {
 		if(key) free(key);
@@ -730,27 +742,33 @@ unpack:
 			return 0;
 		}
 
-		if(resultlen > sizeof(resultbuf)) {
+		s = strchr(result, ':');
+		if (s) {
+			*s = '\0';
+		} else {
+			/* Must be a malformed entry if no colon. */
 			free(result);
 			goto tryagain;
 		}
-
-		strcpy(resultbuf, result);
-		snprintf(user, sizeof(user), "%.*s", (strchr(result, ':') - result), result);
 		_pw_passwd.pw_fields = -1; /* Impossible value */
-		if (_scancaches((char *)&user)) {
+		if (_scancaches(result)) {
 			free(result);
 			goto tryagain;
-		} else
-			free(result);
+		}
 		/* No plus or minus hits: Bzzzt! reject. */
-		if (_pw_passwd.pw_fields == -1)
+		if (_pw_passwd.pw_fields == -1) {
+			free(result);
 			goto tryagain;
-		if(result = strchr(resultbuf, '\n')) *result = '\0';
-		if (_pw_breakout_yp(pw, resultbuf, gotmaster))
+		}
+		*s = ':';	/* Put back colon we previously replaced with a NUL. */
+		if(s = strchr(result, '\n')) *s = '\0';
+		if (_pw_breakout_yp(pw, result, _gotmaster)) {
+			free(result);
 			return(1);
-		else
+		} else {
+			free(result);
 			goto tryagain;
+		}
 	}
 }
 
