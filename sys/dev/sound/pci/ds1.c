@@ -202,7 +202,7 @@ static pcmchan_caps ds_reccaps = {4000, 48000, ds_recfmt, 0};
 static u_int32_t ds_playfmt[] = {
 	AFMT_U8,
 	AFMT_STEREO | AFMT_U8,
-	AFMT_S16_LE,
+	/* AFMT_S16_LE, */
 	AFMT_STEREO | AFMT_S16_LE,
 	0
 };
