@@ -78,4 +78,32 @@
 				 | IA64_FPSR_SF(3, (IA64_SF_DEFAULT	\
 						    | IA64_SF_TD)))
 
+struct fpswa_ret {
+	uint64_t	status;
+	uint64_t	err1;
+	uint64_t	err2;
+	uint64_t	err3;
+};
+
+struct fpswa_bundle {
+	long double	bits;		/* Force 16-byte alignment. */
+};
+
+struct fpswa_fpctx {
+	uint64_t	mask_low;			/* f63 - f2 */
+	uint64_t	mask_high;			/* f127 - f64 */
+	union _ia64_fpreg *fp_low_preserved;		/* f2 - f5 */
+	union _ia64_fpreg *fp_low_volatile;		/* f6 - f15 */
+	union _ia64_fpreg *fp_high_preserved;		/* f16 - f31 */
+	union _ia64_fpreg *fp_high_volatile;		/* f32 - f127 */
+};
+
+struct fpswa_iface {
+	uint32_t	if_rev;
+	uint32_t	__res;
+	struct fpswa_ret (*if_fpswa)(u_long, struct fpswa_bundle *,
+	    uint64_t *, uint64_t *, uint64_t *, uint64_t *, uint64_t *,
+	    struct fpswa_fpctx *);
+};
+
 #endif /* ! _MACHINE_FPU_H_ */

@@ -110,7 +110,7 @@ extern u_int64_t ia64_gateway_page[];
 extern u_int64_t break_sigtramp[];
 extern u_int64_t epc_sigtramp[];
 
-FPSWA_INTERFACE *fpswa_interface;
+struct fpswa_iface *fpswa_iface;
 
 u_int64_t ia64_pal_base;
 u_int64_t ia64_port_base;
@@ -257,12 +257,11 @@ cpu_startup(dummy)
 	printf("avail memory = %ld (%ld MB)\n", ptoa(cnt.v_free_count),
 	    ptoa(cnt.v_free_count) / 1048576);
  
-	if (fpswa_interface == NULL)
+	if (fpswa_iface == NULL)
 		printf("Warning: no FPSWA package supplied\n");
 	else
 		printf("FPSWA Revision = 0x%lx, Entry = %p\n",
-		    (long)fpswa_interface->Revision,
-		    (void *)fpswa_interface->Fpswa);
+		    (long)fpswa_iface->if_rev, (void *)fpswa_iface->if_fpswa);
 
 	/*
 	 * Set up buffers, so they can be used to read disk labels.
@@ -600,7 +599,7 @@ ia64_init(void)
 		printf("WARNING: loader(8) metadata is missing!\n");
 
 	/* Get FPSWA interface */
-	fpswa_interface = (FPSWA_INTERFACE*)IA64_PHYS_TO_RR7(bootinfo.bi_fpswa);
+	fpswa_iface = (struct fpswa_iface *)IA64_PHYS_TO_RR7(bootinfo.bi_fpswa);
 
 	/* Init basic tunables, including hz */
 	init_param1();
