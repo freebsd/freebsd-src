@@ -257,6 +257,7 @@ cpu_startup(dummy)
 	/*
 	 * Good {morning,afternoon,evening,night}.
 	 */
+	mtx_lock(&vm_mtx);
 	identifycpu();
 
 	/* startrtclock(); */
@@ -366,6 +367,7 @@ again:
 	exec_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr,
 				(16*(ARG_MAX+(PAGE_SIZE*3))));
 
+	mtx_unlock(&vm_mtx);
 	/*
 	 * XXX: Mbuf system machine-specific initializations should
 	 *      go here, if anywhere.
