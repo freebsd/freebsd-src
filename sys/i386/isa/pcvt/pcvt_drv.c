@@ -1383,7 +1383,7 @@ vgapelinit(void)
 #if defined XSERVER && !PCVT_USL_VT_COMPAT
 /*----------------------------------------------------------------------*
  *	initialize for X mode
- *	i.e.: grant current process (the X server) all IO priviledges,
+ *	i.e.: grant current process (the X server) all IO privileges,
  *	and mark in static variable so other hooks can test for it,
  *	save all loaded fonts and screen pages to pageable buffers;
  *	if parameter `on' is false, the same procedure is done reverse.
@@ -1403,7 +1403,7 @@ pcvt_xmode_set(int on, struct proc *p)
 	struct syscframe *fp;
 #endif /* PCVT_NETBSD > 9 */
 
-	int i;
+	int error, i;
 
 	/* X will only run on VGA and Hercules adaptors */
 
@@ -1419,12 +1419,15 @@ pcvt_xmode_set(int on, struct proc *p)
 	if(on)
 	{
 		/*
-		 * Test whether the calling process has super-user priviledges.
+		 * Test whether the calling process has super-user privileges
+		 * and we're in insecure mode.
 		 * This prevents us from granting the potential security hole
-		 * `IO priv' to any process (effective uid is checked).
+		 * `IO priv' to insufficiently privileged processes.
 		 */
-
-		if(suser(p->p_ucred, &p->p_acflag) != 0)
+		error = suser(p->p_ucred, &p->p_acflag);
+		if (error != 0)
+			return (error);
+		if (securelevel > 0)
 			return (EPERM);
 
 		if(pcvt_xmode)
