@@ -270,7 +270,7 @@
       <para arch="i386,amd64">The acpi_ibm driver for IBM laptops
 	has been added.</para>
 
-      <para arch="i386,amd64">The acpi_fujitsu driver for handling
+      <para arch="i386,amd64">The &man.acpi.fujitsu.4; driver for handling
         &man.acpi.4;-controlled buttons Fujitsu laptops has been added.</para>
 
       <para arch="i386,amd64">The acpi_sony driver,
@@ -573,7 +573,7 @@
 	driver.</para>
 
       <para>Information about newly-mounted cd9660 file systems (such
-	as the presence of Rockridge extensions) is now only printed
+	as the presence of RockRidge extensions) is now only printed
 	if the kernel was booted in verbose mode.  This change was
 	made to reduce the amount of (generally unnecessary) kernel
 	log messages. &merged;</para>
@@ -770,6 +770,24 @@
     <para>The &man.periodic.8; security output now supports the display of
       information about blocked packet counts from &man.pf.4;.  &merged;</para>
 
+    <para>The &man.pgrep.1; now supports an <option>-S</option> option
+      which allows to match system processes (kernel threads).</para>
+
+    <para>The &man.pgrep.1; and &man.pkill.1; now support an
+      <option>-F</option> option which allows to use file where PID is stored
+      for matching.</para>
+
+    <para>The &man.pgrep.1; and &man.pkill.1; now support an
+      <option>-i</option> option to ignore case in the process match.</para>
+
+    <para>The &man.pgrep.1; and &man.pkill.1; now support an
+      <option>-j</option> option which allows to match processes
+      based on its &man.jail.2; ID.</para>
+
+    <para>The &man.pgrep.1; and &man.pkill.1; now support an
+      <option>-o</option> option which allows to match oldest
+      (least recently started) of the matching processes.</para>
+
     <para>The &man.powerd.8; program for managing power consumption has been
       added.</para>
 
@@ -789,6 +807,10 @@
       They may result in an incorrect CBCP response,
       which violates the Microsoft PPP Callback Control Protocol
       section 3.2.  &merged;</para>
+
+    <para>The &man.ps.1; now supports a <literal>jid</literal>
+      keyword in the <option>-o</option> option.  It displays
+      &man.jail.2; ID of each process.</para>
 
     <para>The &man.rescue.8; utilities in the <filename>/rescue</filename>
       directory now include &man.bsdtar.1; instead of GNU tar.</para>
