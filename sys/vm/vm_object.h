@@ -82,6 +82,9 @@ typedef u_char objtype_t;
  *
  *	vm_object_t		Virtual memory object.
  *
+ * List of locks
+ *	(c)	const until freed
+ *
  */
 
 struct vm_object {
@@ -93,10 +96,10 @@ struct vm_object {
 	vm_size_t size;			/* Object size */
 	int ref_count;			/* How many refs?? */
 	int shadow_count;		/* how many objects that this is a shadow for */
-	int hash_rand;			/* vm hash table randomizer	*/
+	int hash_rand;			/* (c) hash table randomizer */
 	objtype_t type;			/* type of pager */
 	u_short flags;			/* see below */
-	u_short pg_color;		/* color of first page in obj */
+	u_short pg_color;		/* (c) color of first page in obj */
 	u_short paging_in_progress;	/* Paging (in or out) so don't collapse or destroy */
 	int resident_page_count;	/* number of resident pages */
 	struct vm_object *backing_object; /* object that I'm a shadow of */

@@ -146,8 +146,6 @@ extern int vm_pageout_page_count;
 
 static long object_collapses;
 static long object_bypasses;
-static int next_index;
-static int object_hash_rand;
 static uma_zone_t obj_zone;
 #define VM_OBJECTS_INIT 256
 
@@ -190,9 +188,9 @@ vm_object_zinit(void *mem, int size)
 void
 _vm_object_allocate(objtype_t type, vm_size_t size, vm_object_t object)
 {
-	int incr;
-
-	GIANT_REQUIRED;
+	static int next_index;
+	static int object_hash_rand;
+	int exp, incr;
 
 	TAILQ_INIT(&object->memq);
 	TAILQ_INIT(&object->shadow_head);
@@ -203,12 +201,14 @@ _vm_object_allocate(objtype_t type, vm_size_t size, vm_object_t object)
 	object->flags = 0;
 	if ((object->type == OBJT_DEFAULT) || (object->type == OBJT_SWAP))
 		vm_object_set_flag(object, OBJ_ONEMAPPING);
-	object->pg_color = next_index;
-	if (size > (PQ_L2_SIZE / 3 + PQ_PRIME1))
-		incr = PQ_L2_SIZE / 3 + PQ_PRIME1;
-	else
-		incr = size;
-	next_index = (next_index + incr) & PQ_L2_MASK;
+	do {
+		object->pg_color = next_index;
+		if (size > (PQ_L2_SIZE / 3 + PQ_PRIME1))
+			incr = PQ_L2_SIZE / 3 + PQ_PRIME1;
+		else
+			incr = size;
+	} while (!atomic_cmpset_int(&next_index, object->pg_color,
+				    (object->pg_color + incr) & PQ_L2_MASK));
 	object->handle = NULL;
 	object->backing_object = NULL;
 	object->backing_object_offset = (vm_ooffset_t) 0;
@@ -218,15 +218,16 @@ _vm_object_allocate(objtype_t type, vm_size_t size, vm_object_t object)
 	 * increments plus 1 more to offset it a little more by the time
 	 * it wraps around.
 	 */
-	object->hash_rand = object_hash_rand - 129;
+	do {
+		exp = object_hash_rand;
+		object->hash_rand = exp - 129;
+	} while (!atomic_cmpset_int(&object_hash_rand, exp, object->hash_rand));
 
-	object->generation++;
+	object->generation++;		/* atomicity needed? XXX */
 
 	mtx_lock(&vm_object_list_mtx);
 	TAILQ_INSERT_TAIL(&vm_object_list, object, object_list);
 	mtx_unlock(&vm_object_list_mtx);
-
-	object_hash_rand = object->hash_rand;
 }
 
 /*
@@ -237,8 +238,6 @@ _vm_object_allocate(objtype_t type, vm_size_t size, vm_object_t object)
 void
 vm_object_init(void)
 {
-	GIANT_REQUIRED;
-
 	TAILQ_INIT(&vm_object_list);
 	mtx_init(&vm_object_list_mtx, "vm object_list", NULL, MTX_DEF);
 	
@@ -267,7 +266,6 @@ vm_object_init2(void)
 void
 vm_object_set_flag(vm_object_t object, u_short bits)
 {
-	GIANT_REQUIRED;
 	object->flags |= bits;
 }
 
@@ -346,8 +344,6 @@ vm_object_t
 vm_object_allocate(objtype_t type, vm_size_t size)
 {
 	vm_object_t result;
-
-	GIANT_REQUIRED;
 
 	result = (vm_object_t) uma_zalloc(obj_zone, M_WAITOK);
 	_vm_object_allocate(type, size, result);
