@@ -185,7 +185,6 @@ do {								\
 #define	__ieee754_jn	jn
 #define	__ieee754_yn	yn
 #define	__ieee754_remainder remainder
-#define	__ieee754_rem	rem
 #define	__ieee754_scalb	scalb
 #define	__ieee754_sqrtf	sqrtf
 #define	__ieee754_acosf	acosf
@@ -212,16 +211,17 @@ do {								\
 #define	__ieee754_jnf	jnf
 #define	__ieee754_ynf	ynf
 #define	__ieee754_remainderf remainderf
-#define	__ieee754_rem	rem
 #define	__ieee754_scalbf scalbf
 
 /* fdlibm kernel function */
+int	__ieee754_rem_pio2(double,double*);
 double	__kernel_sin(double,double,int);
 double	__kernel_cos(double,double);
 double	__kernel_tan(double,double,int);
 int	__kernel_rem_pio2(double*,double*,int,int,int,const int*);
 
 /* float versions of fdlibm kernel functions */
+int	__ieee754_rem_pio2f(float,float*);
 float	__kernel_sinf(float,float,int);
 float	__kernel_cosf(float,float);
 float	__kernel_tanf(float,float,int);
