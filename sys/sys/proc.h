@@ -353,7 +353,6 @@ struct thread {
 #define	TDF_OWEUPC	0x008000 /* Owe thread an addupc() call at next AST. */
 #define	TDF_NEEDRESCHED	0x010000 /* Thread needs to yield. */
 #define	TDF_NEEDSIGCHK	0x020000 /* Thread may need signal delivery. */
-#define	TDF_SA		0x040000 /* A scheduler activation based thread. */
 #define	TDF_UMTXWAKEUP	0x080000 /* Libthr thread must not sleep on a umtx. */
 #define	TDF_THRWAKEUP	0x100000 /* Libthr thread must not suspend itself. */
 #define	TDF_DEADLKTREAT	0x800000 /* Lock aquisition - deadlock treatment. */
@@ -365,6 +364,7 @@ struct thread {
 #define	TDP_UPCALLING	0x0008 /* This thread is doing an upcall. */
 #define	TDP_COWINPROGRESS 0x0010 /* Snapshot copy-on-write in progress. */
 #define	TDP_ALTSTACK	0x0020 /* Have alternate signal stack. */
+#define	TDP_SA		0x0080 /* A scheduler activation based thread. */
 
 #define	TDI_SUSPENDED	0x0001	/* On suspension queue. */
 #define	TDI_SLEEPING	0x0002	/* Actually asleep! (tricky). */
