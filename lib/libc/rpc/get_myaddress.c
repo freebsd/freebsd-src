@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)get_myaddress.c 1.4 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)get_myaddress.c	2.1 88/07/29 4.0 RPCSRC";*/
-static char *rcsid = "$Id: get_myaddress.c,v 1.6 1996/12/30 14:26:28 peter Exp $";
+static char *rcsid = "$Id: get_myaddress.c,v 1.11 1997/05/28 05:05:11 wpaul Exp $";
 #endif
 
 /*
@@ -86,8 +86,8 @@ again:
 			close(s);
 			return(-1);
 		}
-		if ((ifreq.ifr_flags & IFF_UP) &&
-		    ifr->ifr_addr.sa_family == AF_INET &&
+		if (((ifreq.ifr_flags & IFF_UP) &&
+		    ifr->ifr_addr.sa_family == AF_INET) ||
 		    (loopback == 1 && (ifreq.ifr_flags & IFF_LOOPBACK))) {
 			*addr = *((struct sockaddr_in *)&ifr->ifr_addr);
 			addr->sin_port = htons(PMAPPORT);
