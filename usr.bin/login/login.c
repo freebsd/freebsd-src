@@ -493,7 +493,7 @@ main(argc, argv)
 	 * Since it isn't clear that flags are useful on character
 	 * devices, we just clear them.
 	 */
-	if (chflags(ttyn, 0) && (errno != EOPNOTSUPP))
+	if (chflags(ttyn, 0) && errno != EOPNOTSUPP)
 		syslog(LOG_ERR, "chmod(%s): %m", ttyn);
 	if (chown(ttyn, pwd->pw_uid,
 	    (gr = getgrnam(TTYGRPNAME)) ? gr->gr_gid : pwd->pw_gid))
