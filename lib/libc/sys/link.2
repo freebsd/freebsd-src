@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)link.2	8.3 (Berkeley) 1/12/94
-.\"	$Id: link.2,v 1.4 1996/08/29 21:24:11 wosch Exp $
+.\"	$Id: link.2,v 1.6 1997/01/11 23:56:05 mpp Exp $
 .\"
 .Dd January 12, 1994
 .Dt LINK 2
@@ -88,8 +88,6 @@ will fail and no link will be created if:
 .Bl -tag -width Ar
 .It Bq Er ENOTDIR
 A component of either path prefix is not a directory.
-.It Bq Er EINVAL
-Either pathname contains a character with the high-order bit set.
 .It Bq Er ENAMETOOLONG
 A component of either pathname exceeded 255 characters,
 or entire length of either path name exceeded 1023 characters.
