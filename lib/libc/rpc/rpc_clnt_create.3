@@ -35,7 +35,7 @@ handles
 .Ft "CLIENT *"
 .Fn clnt_create_vers "const char * host" "const rpcprog_t prognum" "rpcvers_t *vers_outp" "const rpcvers_t vers_low" "const rpcvers_t vers_high" "char *nettype"
 .Ft void
-.Fn clnt_destroy "CLIENT *" "clnt"
+.Fn clnt_destroy "CLIENT *clnt"
 .Ft "CLIENT *"
 .Fn clnt_dg_create "const int fildes" "const struct netbuf *svcaddr" "const rpcprog_t prognum" "const rpcvers_t versnum" "const u_int sendsz" "const u_int recvsz"
 .Ft void
