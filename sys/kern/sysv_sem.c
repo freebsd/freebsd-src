@@ -1,4 +1,4 @@
-/*	$Id: sysv_sem.c,v 1.8 1995/08/30 00:33:01 bde Exp $ */
+/*	$Id: sysv_sem.c,v 1.9 1995/09/09 18:10:07 davidg Exp $ */
 
 /*
  * Implementation of SVID semaphores
@@ -10,16 +10,35 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/sysproto.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/sem.h>
-#include <sys/malloc.h>
+#include <sys/sysent.h>
 
 static void seminit __P((void *));
 SYSINIT(sysv_sem, SI_SUB_SYSV_SEM, SI_ORDER_FIRST, seminit, NULL)
 
-static int	semctl(), semget(), semop(), semconfig();
-int	(*semcalls[])() = { semctl, semget, semop, semconfig };
+struct semctl_args;
+static int semctl __P((struct proc *p, struct semctl_args *uap, int *retval));
+struct semget_args;
+static int semget __P((struct proc *p, struct semget_args *uap, int *retval));
+struct semop_args;
+static int semop __P((struct proc *p, struct semop_args *uap, int *retval));
+struct semconfig_args;
+static int semconfig __P((struct proc *p, struct semconfig_args *uap, int *retval));
+
+struct sem_undo *semu_alloc __P((struct proc *p));
+int semundo_adjust __P((struct proc *p, struct sem_undo **supptr, int semid, int semnum, int adjval));
+void semundo_clear __P((int semid, int semnum));
+void semexit __P((struct proc *p));
+
+/* XXX casting to (sy_call_t *) is bogus, as usual. */
+sy_call_t *semcalls[] = {
+	(sy_call_t *)semctl, (sy_call_t *)semget,
+	(sy_call_t *)semop, (sy_call_t *)semconfig
+};
+
 int	semtot = 0;
 struct semid_ds *sema;		/* semaphore id pool */
 struct sem *sem;		/* semaphore pool */
@@ -30,8 +49,8 @@ int	*semu;			/* undo structure pool */
 static struct proc *semlock_holder = NULL;
 
 void
-seminit(udata)
-	void *udata;
+seminit(dummy)
+	void *dummy;
 {
 	register int i;
 
@@ -54,15 +73,17 @@ seminit(udata)
 /*
  * Entry point for all SEM calls
  */
-
-struct semsys_args {
-	u_int	which;
-};
-
 int
 semsys(p, uap, retval)
 	struct proc *p;
-	struct semsys_args *uap;
+	/* XXX actually varargs. */
+	struct semsys_args /* {
+		u_int	which;
+		int	a2;
+		int	a3;
+		int	a4;
+		int	a5;
+	} */ *uap;
 	int *retval;
 {
 
@@ -71,7 +92,7 @@ semsys(p, uap, retval)
 
 	if (uap->which >= sizeof(semcalls)/sizeof(semcalls[0]))
 		return (EINVAL);
-	return ((*semcalls[uap->which])(p, &uap[1], retval));
+	return ((*semcalls[uap->which])(p, &uap->a2, retval));
 }
 
 /*
@@ -93,7 +114,7 @@ struct semconfig_args {
 	semconfig_ctl_t	flag;
 };
 
-int
+static int
 semconfig(p, uap, retval)
 	struct proc *p;
 	struct semconfig_args *uap;
@@ -299,7 +320,7 @@ struct semctl_args {
 	union	semun *arg;
 };
 
-int
+static int
 semctl(p, uap, retval)
 	struct proc *p;
 	register struct semctl_args *uap;
@@ -462,7 +483,7 @@ struct semget_args {
 	int	semflg;
 };
 
-int
+static int
 semget(p, uap, retval)
 	struct proc *p;
 	register struct semget_args *uap;
@@ -575,7 +596,7 @@ struct semop_args {
 	int	nsops;
 };
 
-int
+static int
 semop(p, uap, retval)
 	struct proc *p;
 	register struct semop_args *uap;
