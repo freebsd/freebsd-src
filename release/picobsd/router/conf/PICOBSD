@@ -1,5 +1,5 @@
 #
-#	$Id: PICOBSD,v 1.10 1999/01/14 23:22:51 abial Exp $
+#	$Id: PICOBSD,v 1.11 1999/01/18 10:17:35 abial Exp $
 #
 
 machine		"i386"
@@ -70,7 +70,11 @@ device		sio1	at isa? port "IO_COM2" tty irq 3 vector siointr
 device		sio2	at isa? disable port "IO_COM3" tty irq 5
 device		sio3	at isa? disable port "IO_COM4" tty irq 9
 
-#device		lpt0	at isa? port? tty irq 7
+#device ppc0	at isa? port? net irq 7
+#controller	ppbus0
+#device		nlpt0	at ppbus?
+#device		plip0	at ppbus?
+#device		ppi0	at ppbus?
 
 # Order is important here due to intrusive probes, do *not* alphabetize
 # this list of network interfaces until the probes have been fixed.
