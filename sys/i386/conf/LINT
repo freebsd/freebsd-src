@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.492 1998/10/30 20:49:14 des Exp $
+#	$Id: LINT,v 1.493 1998/10/31 14:26:21 peter Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1491,6 +1491,12 @@ device		vx0
 device		xl0
 device		fpa0
 device		meteor0
+
+# Brooktree driver has been ported to the new I2C framework. Thus,
+# you'll need at least iicbus, iicbb and smbus. iic/smb are only needed if you
+# want to control other I2C slaves connected to the external connector of
+# some cards.
+#
 device		bktr0
 
 #
@@ -1531,7 +1537,8 @@ options		POWERFAIL_NMI	# make it beep instead of panicing
 # smb	standard io
 #
 # Supported interfaces:
-# iicsmb I2C to SMB bridge
+# iicsmb I2C to SMB bridge with any iicbus interface
+# bktr	brooktree848 I2C hardware interface
 #
 controller smbus0
 
@@ -1549,8 +1556,13 @@ device smb0	at smbus?
 #
 # Supported interfaces:
 # pcf	Philips PCF8584 ISA-bus controller
+# bktr	brooktree848 I2C software interface
+#
+# Other:
+# iicbb	generic I2C bit-banging code (needed by lpbb, bktr)
 #
 controller iicbus0
+controller iicbb0
 
 device ic0	at iicbus?
 device iic0	at iicbus?
@@ -1574,6 +1586,7 @@ controller pcf0	at isa? port 0x320 net irq 5
 # plip	Parallel network interface
 # ppi	General-purpose I/O ("Geek Port")
 # pps	Pulse per second Timing Interface
+# lpbb	Philips official parallel port I2C bit-banging interface
 #
 # Supported interfaces:
 # ppc	ISA-bus parallel port interfaces.  
@@ -1584,6 +1597,7 @@ device		nlpt0	at ppbus?
 device		plip0	at ppbus?
 device		ppi0	at ppbus?
 device		pps0	at ppbus?
+device		lpbb0	at ppbus?
 
 controller	ppc0	at isa? disable port ? tty irq 7
 
