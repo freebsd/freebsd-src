@@ -1871,6 +1871,61 @@ mac_biba_check_socket_visible(struct ucred *cred, struct socket *socket,
 }
 
 static int
+mac_biba_check_system_swapon(struct ucred *cred, struct vnode *vp,
+    struct label *label)
+{
+	struct mac_biba *subj, *obj;
+
+	if (!mac_biba_enabled)
+		return (0);
+
+	subj = SLOT(&cred->cr_label);
+	obj = SLOT(label);
+
+	if (!mac_biba_subject_privileged(subj))
+		return (EPERM);
+
+	if (!mac_biba_high_single(obj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
+mac_biba_check_system_sysctl(struct ucred *cred, int *name, u_int namelen,
+    void *old, size_t *oldlenp, int inkernel, void *new, size_t newlen)
+{
+	struct mac_biba *subj;
+	int error;
+
+	if (!mac_biba_enabled)
+		return (0);
+
+	subj = SLOT(&cred->cr_label);
+
+	/*
+	 * In general, treat sysctl variables as biba/high, but also
+	 * require privilege to change them, since they are a
+	 * communications channel between grades.  Exempt MIB
+	 * queries from this due to undocmented sysctl magic.
+	 * XXXMAC: This probably requires some more review.
+	 */
+	if (new != NULL) {
+		if (namelen > 0 && name[0] == 0)
+			return (0);
+
+		if (!mac_biba_subject_dominate_high(subj))
+			return (EACCES);
+
+		error = mac_biba_subject_privileged(subj);
+		if (error)
+			return (error);
+	}
+
+	return (0);
+}
+
+static int
 mac_biba_check_vnode_chdir(struct ucred *cred, struct vnode *dvp,
     struct label *dlabel)
 {
@@ -2651,6 +2706,10 @@ static struct mac_policy_op_entry mac_biba_ops[] =
 	    (macop_t)mac_biba_check_socket_relabel },
 	{ MAC_CHECK_SOCKET_VISIBLE,
 	    (macop_t)mac_biba_check_socket_visible },
+	{ MAC_CHECK_SYSTEM_SWAPON,
+	    (macop_t)mac_biba_check_system_swapon },
+	{ MAC_CHECK_SYSTEM_SYSCTL,
+	    (macop_t)mac_biba_check_system_sysctl },
 	{ MAC_CHECK_VNODE_ACCESS,
 	    (macop_t)mac_biba_check_vnode_open },
 	{ MAC_CHECK_VNODE_CHDIR,
