@@ -31,7 +31,7 @@
  * mpboot.s:	FreeBSD machine support for the Intel MP Spec
  *		multiprocessor systems.
  *
- *	$Id: mpboot.s,v 1.1 1997/04/26 11:45:17 peter Exp $
+ *	$Id: mpboot.s,v 1.2 1997/06/22 16:03:22 peter Exp $
  */
 
 
@@ -70,7 +70,7 @@
 /*
  * the APs enter here from their trampoline code (bootMP, below)
  */
-	.align	4
+	.p2align 4
 
 NON_GPROF_ENTRY(MPentry)
 	CHECKPOINT(0x36, 3)
@@ -229,7 +229,7 @@ dead:	hlt /* We should never get here */
 /*
  * MP boot strap Global Descriptor Table
  */
-	.align	4
+	.p2align 4
 	.globl	_MP_GDT
 	.globl	_bootCodeSeg
 	.globl	_bootDataSeg
