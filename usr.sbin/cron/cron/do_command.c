@@ -309,6 +309,11 @@ child_process(e, u)
 		register int	escaped = FALSE;
 		register int	ch;
 
+		if (out == NULL) {
+			warn("fdopen failed in child2");
+			_exit(ERROR_EXIT);
+		}
+
 		Debug(DPROC, ("[%d] child2 sending data to grandchild\n", getpid()))
 
 		/* close the pipe we don't use, since we inherited it and
@@ -368,6 +373,11 @@ child_process(e, u)
 	/*local*/{
 		register FILE	*in = fdopen(stdout_pipe[READ_PIPE], "r");
 		register int	ch = getc(in);
+
+		if (in == NULL) {
+			warn("fdopen failed in child");
+			_exit(ERROR_EXIT);
+		}
 
 		if (ch != EOF) {
 			register FILE	*mail;
