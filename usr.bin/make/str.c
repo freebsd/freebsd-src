@@ -169,24 +169,17 @@ brk_string(str, store_argc, expand)
 		case '"':
 		case '\'':
 			if (inquote) {
-				if (inquote == ch)
-					inquote = '\0';
-				else
+				if (ch != inquote)
 					break;
-			} else {
-				inquote = (char) ch;
+				inquote = '\0';
 				/* Don't miss "" or '' */
-				if (start == NULL && p[1] == inquote) {
-					start = t + 1;
-					break;
-				}
-			}
-			if (!expand) {
 				if (!start)
 					start = t;
-				*t++ = ch;
-			}
-			continue;
+			} else
+				inquote = (char) ch;
+			if (expand)
+				continue;
+			break;
 		case ' ':
 		case '\t':
 		case '\n':
