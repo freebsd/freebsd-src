@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.15 1995/06/28 16:02:05 se Exp $
+**  $Id: pcisupport.c,v 1.16 1995/07/27 22:04:57 se Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -96,14 +96,30 @@ chipset_probe (pcici_t tag, pcidi_t type)
 		    return ("Intel 82378ZB PCI-ISA bridge");
 		return ("Intel 82378IB PCI-ISA bridge");
 	case 0x04838086:
-		return ("Intel 82424ZX cache DRAM controller");
+		return ("Intel 82424ZX (Saturn) cache DRAM controller");
 	case 0x04828086:
 		return ("Intel 82375EB PCI-EISA bridge");
+	case 0x04868086:
+		return ("Intel 82430ZX (Aries)");
 	case 0x04a38086:
 		rev = (unsigned) pci_conf_read (tag, PCI_CLASS_REG) & 0xff;
 		if (rev == 16 || rev == 17)
-		    return ("Intel 82434NX PCI cache memory controller");
-		return ("Intel 82434LX PCI cache memory controller");
+		    return ("Intel 82434NX (Neptune) PCI cache memory controller");
+		return ("Intel 82434LX (Mercury) PCI cache memory controller");
+	case 0x122d8086:
+		return ("Intel 82437 (Triton)");
+	case 0x122e8086:
+		return ("Intel 82371 (Triton)");
+	case 0x12308086:
+		return ("Intel 82438 (Triton)");
+	case 0x04961039:
+		return ("SiS 85c496");
+	case 0x04061039:
+		return ("SiS 85c501");
+	case 0x00081039:
+		return ("SiS 85c503");
+	case 0x06011039:
+		return ("SiS 85c601");
 	case 0x00011011:
 		return ("DEC 21050 PCI-PCI bridge");
 	};
@@ -476,6 +492,7 @@ ign_probe (pcici_t tag, pcidi_t type)
 
 	case 0x10001042ul:	/* wd */
 		return ("");
+/*		return ("SMC FDC 37c665");*/
 	};
 	return ((char*)0);
 }
