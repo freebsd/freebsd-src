@@ -400,7 +400,8 @@ prthumanval(double bytes)
  */
 #define fsbtoblk(num, fsbs, bs) \
 	(((fsbs) != 0 && (fsbs) < (bs)) ? \
-		(num) / ((bs) / (fsbs)) : (num) * ((fsbs) / (bs)))
+		(num) / (intmax_t)((bs) / (fsbs)) : \
+		(num) * (intmax_t)((fsbs) / (bs)))
 
 /*
  * Print out status about a file system.
