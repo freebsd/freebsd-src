@@ -950,7 +950,7 @@ swapmode()
 {
 	char *header;
 	int hlen, nswap, nswdev, dmmax;
-	int s, e, div, i, l, avail, nfree, npfree, used;
+	int i, div, avail, nfree, npfree, used;
 	struct swdevt *sw;
 	long blocksize, *perdev;
 	struct rlist head;
