@@ -540,59 +540,59 @@ pci_get_powerstate_method(device_t dev, device_t child)
 static __inline void
 pci_set_command_bit(device_t dev, device_t child, u_int16_t bit)
 {
-    u_int16_t	command;
+	u_int16_t	command;
 
-    command = PCI_READ_CONFIG(dev, child, PCIR_COMMAND, 2);
-    command |= bit;
-    PCI_WRITE_CONFIG(dev, child, PCIR_COMMAND, command, 2);
+	command = PCI_READ_CONFIG(dev, child, PCIR_COMMAND, 2);
+	command |= bit;
+	PCI_WRITE_CONFIG(dev, child, PCIR_COMMAND, command, 2);
 }
 
 static __inline void
 pci_clear_command_bit(device_t dev, device_t child, u_int16_t bit)
 {
-    u_int16_t	command;
+	u_int16_t	command;
 
-    command = PCI_READ_CONFIG(dev, child, PCIR_COMMAND, 2);
-    command &= ~bit;
-    PCI_WRITE_CONFIG(dev, child, PCIR_COMMAND, command, 2);
+	command = PCI_READ_CONFIG(dev, child, PCIR_COMMAND, 2);
+	command &= ~bit;
+	PCI_WRITE_CONFIG(dev, child, PCIR_COMMAND, command, 2);
 }
 
 void
 pci_enable_busmaster_method(device_t dev, device_t child)
 {
-    pci_set_command_bit(dev, child, PCIM_CMD_BUSMASTEREN);
+	pci_set_command_bit(dev, child, PCIM_CMD_BUSMASTEREN);
 }
 
 void
 pci_disable_busmaster_method(device_t dev, device_t child)
 {
-    pci_clear_command_bit(dev, child, PCIM_CMD_BUSMASTEREN);
+	pci_clear_command_bit(dev, child, PCIM_CMD_BUSMASTEREN);
 }
 
 void
 pci_enable_io_method(device_t dev, device_t child, int space)
 {
-    switch(space) {
-    case SYS_RES_IOPORT:
-	pci_set_command_bit(dev, child, PCIM_CMD_PORTEN);
-	break;
-    case SYS_RES_MEMORY:
-	pci_set_command_bit(dev, child, PCIM_CMD_MEMEN);
-	break;
-    }
+	switch(space) {
+	case SYS_RES_IOPORT:
+		pci_set_command_bit(dev, child, PCIM_CMD_PORTEN);
+		break;
+	case SYS_RES_MEMORY:
+		pci_set_command_bit(dev, child, PCIM_CMD_MEMEN);
+		break;
+	}
 }
 
 void
 pci_disable_io_method(device_t dev, device_t child, int space)
 {
-    switch(space) {
-    case SYS_RES_IOPORT:
-	pci_clear_command_bit(dev, child, PCIM_CMD_PORTEN);
-	break;
-    case SYS_RES_MEMORY:
-	pci_clear_command_bit(dev, child, PCIM_CMD_MEMEN);
-	break;
-    }
+	switch(space) {
+	case SYS_RES_IOPORT:
+		pci_clear_command_bit(dev, child, PCIM_CMD_PORTEN);
+		break;
+	case SYS_RES_MEMORY:
+		pci_clear_command_bit(dev, child, PCIM_CMD_MEMEN);
+		break;
+	}
 }
 
 /*
@@ -607,30 +607,31 @@ pci_print_verbose(struct pci_devinfo *dinfo)
 		pcicfgregs *cfg = &dinfo->cfg;
 
 		printf("found->\tvendor=0x%04x, dev=0x%04x, revid=0x%02x\n", 
-		       cfg->vendor, cfg->device, cfg->revid);
+		    cfg->vendor, cfg->device, cfg->revid);
 		printf("\tbus=%d, slot=%d, func=%d\n",
-		       cfg->bus, cfg->slot, cfg->func);
+		    cfg->bus, cfg->slot, cfg->func);
 		printf("\tclass=%02x-%02x-%02x, hdrtype=0x%02x, mfdev=%d\n",
-		       cfg->baseclass, cfg->subclass, cfg->progif,
-		       cfg->hdrtype, cfg->mfdev);
+		    cfg->baseclass, cfg->subclass, cfg->progif, cfg->hdrtype,
+		    cfg->mfdev);
 #ifdef PCI_DEBUG
 		printf("\tcmdreg=0x%04x, statreg=0x%04x, cachelnsz=%d (dwords)\n", 
-		       cfg->cmdreg, cfg->statreg, cfg->cachelnsz);
+		    cfg->cmdreg, cfg->statreg, cfg->cachelnsz);
 		printf("\tlattimer=0x%02x (%d ns), mingnt=0x%02x (%d ns), maxlat=0x%02x (%d ns)\n",
-		       cfg->lattimer, cfg->lattimer * 30, 
-		       cfg->mingnt, cfg->mingnt * 250, cfg->maxlat, cfg->maxlat * 250);
+		    cfg->lattimer, cfg->lattimer * 30, cfg->mingnt,
+		    cfg->mingnt * 250, cfg->maxlat, cfg->maxlat * 250);
 #endif /* PCI_DEBUG */
 		if (cfg->intpin > 0)
-			printf("\tintpin=%c, irq=%d\n", cfg->intpin +'a' -1, cfg->intline);
+			printf("\tintpin=%c, irq=%d\n",
+			    cfg->intpin +'a' -1, cfg->intline);
 		if (cfg->pp_cap) {
 			u_int16_t status;
 
 			status = pci_read_config(cfg->dev, cfg->pp_status, 2);
 			printf("\tpowerspec %d  supports D0%s%s D3  current D%d\n",
-			       cfg->pp_cap & PCIM_PCAP_SPEC,
-			       cfg->pp_cap & PCIM_PCAP_D1SUPP ? " D1" : "",
-			       cfg->pp_cap & PCIM_PCAP_D2SUPP ? " D2" : "",
-			       status & PCIM_PSTAT_DMASK);
+			    cfg->pp_cap & PCIM_PCAP_SPEC,
+			    cfg->pp_cap & PCIM_PCAP_D1SUPP ? " D1" : "",
+			    cfg->pp_cap & PCIM_PCAP_D2SUPP ? " D2" : "",
+			    status & PCIM_PSTAT_DMASK);
 		}
 	}
 }
@@ -690,8 +691,8 @@ pci_add_map(device_t pcib, int b, int s, int f, int reg,
 
 	if (bootverbose) {
 		printf("\tmap[%02x]: type %x, range %2d, base %08x, size %2d",
-		       reg, pci_maptype(map), ln2range,
-		       (unsigned int) base, ln2size);
+		    reg, pci_maptype(map), ln2range, 
+		    (unsigned int) base, ln2size);
 		if (type == SYS_RES_IOPORT && !pci_porten(pcib, b, s, f))
 			printf(", port disabled\n");
 		else if (type == SYS_RES_MEMORY && !pci_memen(pcib, b, s, f))
@@ -725,9 +726,8 @@ pci_add_map(device_t pcib, int b, int s, int f, int reg,
 		return 1;
 #endif
 
-	resource_list_add(rl, type, reg,
-			  base, base + (1 << ln2size) - 1,
-			  (1 << ln2size));
+	resource_list_add(rl, type, reg, base, base + (1 << ln2size) - 1,
+	    (1 << ln2size));
 
 	return (ln2range == 64) ? 2 : 1;
 }
@@ -751,20 +751,14 @@ pci_add_resources(device_t pcib, int b, int s, int f, device_t dev)
 			pci_add_map(pcib, b, s, f, q->arg1, rl);
 	}
 
-	if (cfg->intpin > 0 && cfg->intline != 255
-#ifdef __i386__
-	    && cfg->intline != 0
-#endif
-	    ) {
+	if (cfg->intpin > 0 && cfg->intline != 255) {
 #ifdef __ia64__
 		/*
 		 * Re-route interrupts on ia64 so that we can get the
 		 * I/O SAPIC interrupt numbers (the BIOS leaves legacy
 		 * PIC interrupt numbers in the intline registers).
 		 */
-		cfg->intline = PCIB_ROUTE_INTERRUPT(pcib,
-						    dev,
-						    cfg->intpin);
+		cfg->intline = PCIB_ROUTE_INTERRUPT(pcib, dev, cfg->intpin);
 #endif
 		resource_list_add(rl, SYS_RES_IRQ, 0,
 				  cfg->intline, cfg->intline, 1);
@@ -823,7 +817,8 @@ pci_probe(device_t dev)
 
 	if (!once) {
 		make_dev(&pcicdev, 0, UID_ROOT, GID_WHEEL, 0644, "pci");
-		if ((vendordata = preload_search_by_type("pci_vendor_data")) != NULL) {
+		if ((vendordata = preload_search_by_type("pci_vendor_data"))
+		    != NULL) {
 			info = preload_search_info(vendordata, MODINFO_ADDR);
 			pci_vendordata = *(char **)info;
 			info = preload_search_info(vendordata, MODINFO_SIZE);
@@ -858,7 +853,7 @@ pci_print_child(device_t dev, device_t child)
 		retval += printf(" flags %#x", device_get_flags(dev));
 
 	retval += printf(" at device %d.%d", pci_get_slot(child),
-			 pci_get_function(child));
+	    pci_get_function(child));
 
 	retval += bus_print_child_footer(dev, child);
 
@@ -941,28 +936,28 @@ pci_probe_nomatch(device_t dev, device_t child)
 		device_printf(dev, "<%s>", device);
 		free(device, M_DEVBUF);
 	} else {
-	    /*
-	     * Scan the class/subclass descriptions for a general description.
-	     */
-	    cp = "unknown";
-	    scp = NULL;
-	    for (i = 0; pci_nomatch_tab[i].desc != NULL; i++) {
-		if (pci_nomatch_tab[i].class == pci_get_class(child)) {
-		    if (pci_nomatch_tab[i].subclass == -1) {
-			cp = pci_nomatch_tab[i].desc;
-		    } else if (pci_nomatch_tab[i].subclass == pci_get_subclass(child)) {
-			scp = pci_nomatch_tab[i].desc;
-		    }
+		/*
+		 * Scan the class/subclass descriptions for a general
+		 * description.
+		 */
+		cp = "unknown";
+		scp = NULL;
+		for (i = 0; pci_nomatch_tab[i].desc != NULL; i++) {
+			if (pci_nomatch_tab[i].class == pci_get_class(child)) {
+				if (pci_nomatch_tab[i].subclass == -1) {
+					cp = pci_nomatch_tab[i].desc;
+				} else if (pci_nomatch_tab[i].subclass ==
+				    pci_get_subclass(child)) {
+					scp = pci_nomatch_tab[i].desc;
+				}
+			}
 		}
-	    }
-	    device_printf(dev, "<%s%s%s>", 
-			  cp ? : "", 
-			  ((cp != NULL) && (scp != NULL)) ? ", " : "",
-			  scp ? : "");
+		device_printf(dev, "<%s%s%s>", 
+		    cp ? : "", ((cp != NULL) && (scp != NULL)) ? ", " : "",
+		    scp ? : "");
 	}
 	printf(" at device %d.%d (no driver attached)\n",
-	       pci_get_slot(child),
-	       pci_get_function(child));
+	    pci_get_slot(child), pci_get_function(child));
 	return;
 }
 
@@ -1011,10 +1006,12 @@ pci_describe_parse_line(char **ptr, int *vendor, int *device, char **desc)
 		}
 
 		/* vendor entry? */
-		if (*cp != '\t' && sscanf(cp, "%x\t%80[^\n]", vendor, *desc) == 2)
+		if (*cp != '\t' &&
+		    sscanf(cp, "%x\t%80[^\n]", vendor, *desc) == 2)
 			break;
 		/* device entry? */
-		if (*cp == '\t' && sscanf(cp, "%x\t%80[^\n]", device, *desc) == 2)
+		if (*cp == '\t' &&
+		    sscanf(cp, "%x\t%80[^\n]", device, *desc) == 2)
 			break;
 		
 		/* skip to next line */
@@ -1080,7 +1077,8 @@ pci_describe_device(device_t dev)
 	}
 	if (dp[0] == '\0')
 		snprintf(dp, 80, "0x%x", pci_get_device(dev));
-	if ((desc = malloc(strlen(vp) + strlen(dp) + 3, M_DEVBUF, M_NOWAIT)) != NULL)
+	if ((desc = malloc(strlen(vp) + strlen(dp) + 3, M_DEVBUF, M_NOWAIT)) !=
+	    NULL)
 		sprintf(desc, "%s, %s", vp, dp);
  out:
 	if (vp != NULL)
@@ -1195,22 +1193,25 @@ pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	 */
 	if (device_get_parent(child) == dev) {
 		/*
-		 * If device doesn't have an interrupt routed, and is deserving of 
-		 * an interrupt, try to assign it one.
+		 * If device doesn't have an interrupt routed, and is
+		 * deserving of  an interrupt, try to assign it one.
 		 */
-		if ((type == SYS_RES_IRQ) && (cfg->intline == 255 || cfg->intline == 0) && (cfg->intpin != 0)) {
-			cfg->intline = PCIB_ROUTE_INTERRUPT(device_get_parent(dev), child,
-							    cfg->intpin);
+		if ((type == SYS_RES_IRQ) &&
+		    (cfg->intline == 255 || cfg->intline == 0) && /* 0 bad? */
+		    (cfg->intpin != 0)) {
+			cfg->intline = PCIB_ROUTE_INTERRUPT(
+				device_get_parent(dev), child, cfg->intpin);
 			if (cfg->intline != 255) {
-				pci_write_config(child, PCIR_INTLINE, cfg->intline, 1);
+				pci_write_config(child, PCIR_INTLINE,
+				    cfg->intline, 1);
 				resource_list_add(rl, SYS_RES_IRQ, 0,
-						  cfg->intline, cfg->intline, 1);
+				    cfg->intline, cfg->intline, 1);
 			}
 		}
 	}
 
 	return resource_list_alloc(rl, dev, child, type, rid,
-				   start, end, count, flags);
+	    start, end, count, flags);
 }
 
 void
@@ -1265,8 +1266,7 @@ pci_read_config_method(device_t dev, device_t child, int reg, int width)
 	pcicfgregs *cfg = &dinfo->cfg;
 
 	return PCIB_READ_CONFIG(device_get_parent(dev),
-				cfg->bus, cfg->slot, cfg->func,
-				reg, width);
+	    cfg->bus, cfg->slot, cfg->func, reg, width);
 }
 
 void
@@ -1277,8 +1277,7 @@ pci_write_config_method(device_t dev, device_t child, int reg,
 	pcicfgregs *cfg = &dinfo->cfg;
 
 	PCIB_WRITE_CONFIG(device_get_parent(dev),
-			  cfg->bus, cfg->slot, cfg->func,
-			  reg, val, width);
+	    cfg->bus, cfg->slot, cfg->func, reg, val, width);
 }
 
 static int
