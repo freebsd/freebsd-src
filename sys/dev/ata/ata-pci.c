@@ -62,6 +62,15 @@ static int ata_pci_allocate(device_t, struct ata_channel *);
 static void ata_pci_dmainit(struct ata_channel *);
 static void ata_pci_locknoop(struct ata_channel *, int);
 
+int
+ata_legacy(device_t dev)
+{
+    return ((pci_read_config(dev, PCIR_PROGIF, 1)&PCIP_STORAGE_IDE_MASTERDEV) &&
+            ((pci_read_config(dev, PCIR_PROGIF, 1) &
+	      (PCIP_STORAGE_IDE_MODEPRIM | PCIP_STORAGE_IDE_MODESEC)) !=
+	     (PCIP_STORAGE_IDE_MODEPRIM | PCIP_STORAGE_IDE_MODESEC)));
+}
+
 static int
 ata_pci_probe(device_t dev)
 {
@@ -155,10 +164,11 @@ ata_pci_attach(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     u_int32_t cmd;
-    int unit;
+    u_int8_t progif;
+    int unit, prisec = 0;
 
     /* do chipset specific setups only needed once */
-    if (ATA_MASTERDEV(dev) || pci_read_config(dev, 0x18, 4) & IOMASK)
+    if (ata_legacy(dev) || pci_read_config(dev, 0x18, 4) & IOMASK)
 	ctlr->channels = 2;
     else
 	ctlr->channels = 1;
@@ -166,6 +176,26 @@ ata_pci_attach(device_t dev)
     ctlr->dmainit = ata_pci_dmainit;
     ctlr->locking = ata_pci_locknoop;
 
+    progif = pci_read_config(dev, PCIR_PROGIF, 1);
+    if ((progif & 0x85) == 0x80)
+	prisec = 1;
+
+    /* if this device supports PCI native addressing use it */
+#if 0
+    if ((progif & 0x8a) == 0x8a) {
+	if (pci_read_config(dev, PCIR_BAR(0), 4) &&
+ 	    pci_read_config(dev, PCIR_BAR(2), 4)) {
+	    device_printf(dev, "setting native PCI addressing mode ");
+	    pci_write_config(dev, PCIR_PROGIF, progif | 0x05, 1);
+	    if ((pci_read_config(dev, PCIR_PROGIF, 1) & 0x05) != 0x05) {
+	        pci_write_config(dev, PCIR_PROGIF, progif & ~0x05, 1);
+		printf("failed, using compat method\n");
+	    }
+	    else
+		printf("succeded\n");
+	}
+    }
+#endif
     /* if needed try to enable busmastering */
     cmd = pci_read_config(dev, PCIR_COMMAND, 2);
     if (!(cmd & PCIM_CMD_BUSMASTEREN)) {
@@ -185,7 +215,7 @@ ata_pci_attach(device_t dev)
 
     /* attach all channels on this controller */
     for (unit = 0; unit < ctlr->channels; unit++)
-	device_add_child(dev, "ata", ATA_MASTERDEV(dev) ?
+	device_add_child(dev, "ata", prisec ?
 			 unit : devclass_find_free_unit(ata_devclass, 2));
 
     return bus_generic_attach(dev);
@@ -227,7 +257,7 @@ ata_pci_print_child(device_t dev, device_t child)
     retval += bus_print_child_header(dev, child);
     retval += printf(": at 0x%lx", rman_get_start(ch->r_io[ATA_IDX_ADDR].res));
 
-    if (ATA_MASTERDEV(dev))
+    if (ata_legacy(dev))
 	retval += printf(" irq %d", 14 + ch->unit);
     
     retval += bus_print_child_footer(dev, child);
@@ -247,7 +277,7 @@ ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
     if (type == SYS_RES_IOPORT) {
 	switch (*rid) {
 	case ATA_IOADDR_RID:
-	    if (ATA_MASTERDEV(dev)) {
+	    if (ata_legacy(dev)) {
 		start = (unit ? ATA_SECONDARY : ATA_PRIMARY);
 		count = ATA_IOSIZE;
 		end = start + count - 1;
@@ -259,7 +289,7 @@ ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	    break;
 
 	case ATA_ALTADDR_RID:
-	    if (ATA_MASTERDEV(dev)) {
+	    if (ata_legacy(dev)) {
 		start = (unit ? ATA_SECONDARY : ATA_PRIMARY) + ATA_ALTOFFSET;
 		count = ATA_ALTIOSIZE;
 		end = start + count - 1;
@@ -274,7 +304,7 @@ ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
     }
 
     if (type == SYS_RES_IRQ && *rid == ATA_IRQ_RID) {
-	if (ATA_MASTERDEV(dev)) {
+	if (ata_legacy(dev)) {
 #ifdef __alpha__
 	    return alpha_platform_alloc_ide_intr(unit);
 #else
@@ -316,7 +346,7 @@ ata_pci_release_resource(device_t dev, device_t child, int type, int rid,
 	if (rid != ATA_IRQ_RID)
 	    return ENOENT;
 
-	if (ATA_MASTERDEV(dev)) {
+	if (ata_legacy(dev)) {
 #ifdef __alpha__
 	    return alpha_platform_release_ide_intr(unit, r);
 #else
@@ -335,7 +365,7 @@ ata_pci_setup_intr(device_t dev, device_t child, struct resource *irq,
 		   int flags, driver_intr_t *function, void *argument,
 		   void **cookiep)
 {
-    if (ATA_MASTERDEV(dev)) {
+    if (ata_legacy(dev)) {
 #ifdef __alpha__
 	return alpha_platform_setup_ide_intr(child, irq, function, argument,
 					     cookiep);
@@ -359,7 +389,7 @@ static int
 ata_pci_teardown_intr(device_t dev, device_t child, struct resource *irq,
 		      void *cookie)
 {
-    if (ATA_MASTERDEV(dev)) {
+    if (ata_legacy(dev)) {
 #ifdef __alpha__
 	return alpha_platform_teardown_ide_intr(child, irq, cookie);
 #else
@@ -402,7 +432,7 @@ ata_pci_allocate(device_t dev, struct ata_channel *ch)
 	ch->r_io[i].offset = i;
     }
     ch->r_io[ATA_ALTSTAT].res = altio;
-    ch->r_io[ATA_ALTSTAT].offset = 0;
+    ch->r_io[ATA_ALTSTAT].offset = ata_legacy(device_get_parent(dev)) ? 0 : 2;
     ch->r_io[ATA_IDX_ADDR].res = io;
 
     if (ctlr->r_res1) {
