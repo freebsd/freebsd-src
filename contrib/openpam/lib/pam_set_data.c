@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_set_data.c#8 $
+ * $P4: //depot/projects/openpam/lib/pam_set_data.c#9 $
  */
 
 #include <stdlib.h>
@@ -74,11 +74,13 @@ pam_set_data(pam_handle_t *pamh,
 	if ((dp = malloc(sizeof *dp)) == NULL)
 		return (PAM_BUF_ERR);
 	if ((dp->name = strdup(module_data_name)) == NULL) {
-		free(data);
+		free(dp);
 		return (PAM_BUF_ERR);
 	}
+	dp->data = data;
+	dp->cleanup = cleanup;
 	dp->next = pamh->module_data;
-	pamh->module_data = data;
+	pamh->module_data = dp;
 	return (PAM_SUCCESS);
 }
 
