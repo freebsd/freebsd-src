@@ -108,6 +108,7 @@ vendor MEGATRENDS	0x046b	American Megatrends
 vendor LOGITECH		0x046d	Logitech
 vendor BTC		0x046e	Behavior Tech. Computer
 vendor PHILIPS		0x0471	Philips
+vendor SANYO		0x0474	Sanyo Electric
 vendor CONNECTIX	0x0478	Connectix
 vendor KENSINGTON	0x047d	Kensington
 vendor LUCENT		0x047e	Lucent
@@ -970,6 +971,9 @@ product SANDISK SDDR05A		0x0001	ImageMate SDDR-05a
 product SANDISK SDDR31		0x0002	ImageMate SDDR-31
 product SANDISK SDDR12		0x0100	ImageMate SDDR-12
 product SANDISK SDDR09		0x0200	ImageMate SDDR-09
+
+/* Sanyo Electric products */
+product SANYO SCP4900 		0x0701	Sanyo SCP-4900 USB Phone
 
 /* ScanLogic products */
 product SCANLOGIC SL11R		0x0002	SL11R IDE Adapter
