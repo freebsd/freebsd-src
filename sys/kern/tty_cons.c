@@ -44,11 +44,15 @@
 #include <sys/conf.h>
 #include <sys/cons.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/namei.h>
 #include <sys/proc.h>
+#include <sys/queue.h>
 #include <sys/reboot.h>
 #include <sys/sysctl.h>
 #include <sys/tty.h>
 #include <sys/uio.h>
+#include <sys/vnode.h>
 
 #include <machine/cpu.h>
 
@@ -78,47 +82,43 @@ static struct cdevsw cn_cdevsw = {
 	/* kqfilter */	cnkqfilter,
 };
 
-static dev_t	cn_dev_t; 	/* seems to be never really used */
+struct cn_device {
+	STAILQ_ENTRY(cn_device) cnd_next;
+	char		cnd_name[16];
+	struct		vnode *cnd_vp;
+	struct		consdev *cnd_cn;
+};
+
+#define CNDEVPATHMAX	32
+#define CNDEVTAB_SIZE	4
+static struct cn_device cn_devtab[CNDEVTAB_SIZE];
+static STAILQ_HEAD(, cn_device) cn_devlist =
+    STAILQ_HEAD_INITIALIZER(cn_devlist);
+
+#define CND_INVALID(cnd, td) 						\
+	(cnd == NULL || cnd->cnd_vp == NULL ||				\
+	    (cnd->cnd_vp->v_type == VBAD && !cn_devopen(cnd, td, 1)))
+
 static udev_t	cn_udev_t;
 SYSCTL_OPAQUE(_machdep, CPU_CONSDEV, consdev, CTLFLAG_RD,
 	&cn_udev_t, sizeof cn_udev_t, "T,dev_t", "");
-
-static int cn_mute;
 
 int	cons_unavail = 0;	/* XXX:
 				 * physical console not available for
 				 * input (i.e., it is in graphics mode)
 				 */
-
-static u_char cn_is_open;		/* nonzero if logical console is open */
-static int openmode, openflag;		/* how /dev/console was openned */
+static int cn_mute;
+static int openflag;			/* how /dev/console was opened */
+static int cn_is_open;
 static dev_t cn_devfsdev;		/* represents the device private info */
-static u_char cn_phys_is_open;		/* nonzero if physical device is open */
-static d_close_t *cn_phys_close;	/* physical device close function */
-static d_open_t *cn_phys_open;		/* physical device open function */
-       struct consdev *cn_tab;		/* physical console device info */
 
 CONS_DRIVER(cons, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 SET_DECLARE(cons_set, struct consdev);
 
 void
-cninit()
+cninit(void)
 {
-	struct consdev *best_cp, *cp, **list;
-
-	/*
-	 * Find the first console with the highest priority.
-	 */
-	best_cp = NULL;
-	SET_FOREACH(list, cons_set) {
-		cp = *list;
-		if (cp->cn_probe == NULL)
-			continue;
-		(*cp->cn_probe)(cp);
-		if (cp->cn_pri > CN_DEAD &&
-		    (best_cp == NULL || cp->cn_pri > best_cp->cn_pri))
-			best_cp = cp;
-	}
+	struct consdev *best_cn, *cn, **list;
 
 	/*
 	 * Check if we should mute the console (for security reasons perhaps)
@@ -131,73 +131,175 @@ cninit()
 			|RB_VERBOSE
 			|RB_ASKNAME
 			|RB_CONFIG)) == RB_MUTE);
-	
-	/*
-	 * If no console, give up.
-	 */
-	if (best_cp == NULL) {
-		if (cn_tab != NULL && cn_tab->cn_term != NULL)
-			(*cn_tab->cn_term)(cn_tab);
-		cn_tab = best_cp;
-		return;
-	}
 
 	/*
-	 * Initialize console, then attach to it.  This ordering allows
-	 * debugging using the previous console, if any.
+	 * Find the first console with the highest priority.
 	 */
-	(*best_cp->cn_init)(best_cp);
-	if (cn_tab != NULL && cn_tab != best_cp) {
-		/* Turn off the previous console.  */
-		if (cn_tab->cn_term != NULL)
-			(*cn_tab->cn_term)(cn_tab);
+	best_cn = NULL;
+	SET_FOREACH(list, cons_set) {
+		cn = *list;
+		if (cn->cn_probe == NULL)
+			continue;
+		cn->cn_probe(cn);
+		if (cn->cn_pri == CN_DEAD)
+			continue;
+		if (best_cn == NULL || cn->cn_pri > best_cn->cn_pri)
+			best_cn = cn;
+		if (boothowto & RB_MULTIPLE) {
+			/*
+			 * Initialize console, and attach to it.
+			 */
+			cnadd(cn);
+			cn->cn_init(cn);
+		}
 	}
-	cn_tab = best_cp;
+	if (best_cn == NULL)
+		return;
+	if ((boothowto & RB_MULTIPLE) == 0) {
+		cnadd(best_cn);
+		best_cn->cn_init(best_cn);
+	}
+	/*
+	 * Make the best console the preferred console.
+	 */
+	cnselect(best_cn);
+}
+
+/* add a new physical console to back the virtual console */
+int
+cnadd(struct consdev *cn)
+{
+	struct cn_device *cnd;
+	int i;
+
+	STAILQ_FOREACH(cnd, &cn_devlist, cnd_next)
+		if (cnd->cnd_cn == cn)
+			return (0);
+	for (i = 0; i < CNDEVTAB_SIZE; i++) {
+		cnd = &cn_devtab[i];
+		if (cnd->cnd_cn == NULL)
+			break;
+	}
+	if (cnd->cnd_cn != NULL)
+		return (ENOMEM);
+	cnd->cnd_cn = cn;
+	STAILQ_INSERT_TAIL(&cn_devlist, cnd, cnd_next);
+	return (0);
 }
 
 void
-cninit_finish()
+cnremove(struct consdev *cn)
 {
-	struct cdevsw *cdp;
+	struct cn_device *cnd;
 
-	if ((cn_tab == NULL) || cn_mute)
+	STAILQ_FOREACH(cnd, &cn_devlist, cnd_next) {
+		if (cnd->cnd_cn != cn)
+			continue;
+		STAILQ_REMOVE(&cn_devlist, cnd, cn_device, cnd_next);
+		if (cnd->cnd_vp != NULL)
+			vn_close(cnd->cnd_vp, openflag, NOCRED, NULL);
+		cnd->cnd_vp = NULL;
+		cnd->cnd_cn = NULL;
+		cnd->cnd_name[0] = '\0';
+#if 0
+		/*
+		 * XXX
+		 * syscons gets really confused if console resources are
+		 * freed after the system has initialized.
+		 */
+		if (cn->cn_term != NULL)
+			cn->cn_term(cn);
+#endif
 		return;
-
-	/*
-	 * Hook the open and close functions.
-	 */
-	cdp = devsw(cn_tab->cn_dev);
-	if (cdp != NULL) {
-		cn_phys_close = cdp->d_close;
-		cdp->d_close = cnclose;
-		cn_phys_open = cdp->d_open;
-		cdp->d_open = cnopen;
 	}
-	cn_dev_t = cn_tab->cn_dev;
-	cn_udev_t = dev2udev(cn_dev_t);
 }
 
-static void
-cnuninit(void)
+void
+cnselect(struct consdev *cn)
 {
-	struct cdevsw *cdp;
+	struct cn_device *cnd;
 
-	if (cn_tab == NULL)
+	STAILQ_FOREACH(cnd, &cn_devlist, cnd_next) {
+		if (cnd->cnd_cn != cn)
+			continue;
+		if (cnd == STAILQ_FIRST(&cn_devlist))
+			return;
+		STAILQ_REMOVE(&cn_devlist, cnd, cn_device, cnd_next);
+		STAILQ_INSERT_HEAD(&cn_devlist, cnd, cnd_next);
 		return;
-
-	/*
-	 * Unhook the open and close functions.
-	 */
-	cdp = devsw(cn_tab->cn_dev);
-	if (cdp != NULL) {
-		cdp->d_close = cn_phys_close;
-		cdp->d_open = cn_phys_open;
 	}
-	cn_phys_close = NULL;
-	cn_phys_open = NULL;
-	cn_dev_t = NODEV;
-	cn_udev_t = NOUDEV;
 }
+
+void
+cndebug(char *str)
+{
+	int i, len;
+
+	len = strlen(str);
+	cnputc('>'); cnputc('>'); cnputc('>'); cnputc(' '); 
+	for (i = 0; i < len; i++)
+		cnputc(str[i]);
+	cnputc('\n');
+}
+
+static int
+sysctl_kern_console(SYSCTL_HANDLER_ARGS)
+{
+	struct cn_device *cnd;
+	struct consdev *cp, **list;
+	char *name, *p;
+	int delete, len, error;
+
+	len = 2;
+	SET_FOREACH(list, cons_set) {
+		cp = *list;
+		if (cp->cn_dev != NULL)
+			len += strlen(devtoname(cp->cn_dev)) + 1;
+	}
+	STAILQ_FOREACH(cnd, &cn_devlist, cnd_next)
+		len += strlen(devtoname(cnd->cnd_cn->cn_dev)) + 1;
+	len = len > CNDEVPATHMAX ? len : CNDEVPATHMAX;
+	MALLOC(name, char *, len, M_TEMP, M_WAITOK | M_ZERO);
+	p = name;
+	STAILQ_FOREACH(cnd, &cn_devlist, cnd_next)
+		p += sprintf(p, "%s,", devtoname(cnd->cnd_cn->cn_dev));
+	*p++ = '/';
+	SET_FOREACH(list, cons_set) {
+		cp = *list;
+		if (cp->cn_dev != NULL)
+			p += sprintf(p, "%s,", devtoname(cp->cn_dev));
+	}
+	error = sysctl_handle_string(oidp, name, len, req);
+	if (error == 0 && req->newptr != NULL) {
+		p = name;
+		error = ENXIO;
+		delete = 0;
+		if (*p == '-') {
+			delete = 1;
+			p++;
+		}
+		SET_FOREACH(list, cons_set) {
+			cp = *list;
+			if (cp->cn_dev == NULL ||
+			    strcmp(p, devtoname(cp->cn_dev)) != 0)
+				continue;
+			if (delete) {
+				cnremove(cp);
+				error = 0;
+			} else {
+				error = cnadd(cp);
+				if (error == 0)
+					cnselect(cp);
+			}
+			break;
+		}
+	}
+	FREE(name, M_TEMP);
+	return (error);
+}
+
+SYSCTL_PROC(_kern, OID_AUTO, console, CTLTYPE_STRING|CTLFLAG_RW,
+	0, 0, sysctl_kern_console, "A", "Console device control");
 
 /*
  * User has changed the state of the console muting.
@@ -211,165 +313,123 @@ sysctl_kern_consmute(SYSCTL_HANDLER_ARGS)
 
 	ocn_mute = cn_mute;
 	error = sysctl_handle_int(oidp, &cn_mute, 0, req);
-	if((error == 0) && (cn_tab != NULL) && (req->newptr != NULL)) {
-		if(ocn_mute && !cn_mute) {
-			/*
-			 * going from muted to unmuted.. open the physical dev 
-			 * if the console has been openned
-			 */
-			cninit_finish();
-			if(cn_is_open)
-				/* XXX curthread is not what we want really */
-				error = cnopen(cn_dev_t, openflag,
-					openmode, curthread);
-			/* if it failed, back it out */
-			if ( error != 0) cnuninit();
-		} else if (!ocn_mute && cn_mute) {
-			/*
-			 * going from unmuted to muted.. close the physical dev 
-			 * if it's only open via /dev/console
-			 */
-			if(cn_is_open)
-				error = cnclose(cn_dev_t, openflag,
-					openmode, curthread);
-			if ( error == 0) cnuninit();
-		}
-		if (error != 0) {
-			/* 
-	 		 * back out the change if there was an error
-			 */
-			cn_mute = ocn_mute;
-		}
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	if (ocn_mute && !cn_mute && cn_is_open)
+		error = cnopen(NODEV, openflag, 0, curthread);
+	else if (!ocn_mute && cn_mute && cn_is_open) {
+		error = cnclose(NODEV, openflag, 0, curthread);
+		cn_is_open = 1;		/* XXX hack */
 	}
 	return (error);
 }
 
 SYSCTL_PROC(_kern, OID_AUTO, consmute, CTLTYPE_INT|CTLFLAG_RW,
-	0, sizeof cn_mute, sysctl_kern_consmute, "I", "");
+	0, sizeof(cn_mute), sysctl_kern_consmute, "I", "");
 
 static int
-cnopen(dev, flag, mode, td)
-	dev_t dev;
-	int flag, mode;
-	struct thread *td;
+cn_devopen(struct cn_device *cnd, struct thread *td, int forceopen)
 {
-	dev_t cndev, physdev;
-	int retval = 0;
+	char path[CNDEVPATHMAX];
+        struct nameidata nd;
+	dev_t dev;
+	int error;
 
-	if (cn_tab == NULL || cn_phys_open == NULL)
-		return (0);
-	cndev = cn_tab->cn_dev;
-	physdev = (major(dev) == major(cndev) ? dev : cndev);
-	/*
-	 * If mute is active, then non console opens don't get here
-	 * so we don't need to check for that. They 
-	 * bypass this and go straight to the device.
-	 */
-	if(!cn_mute)
-		retval = (*cn_phys_open)(physdev, flag, mode, td);
-	if (retval == 0) {
-		/* 
-		 * check if we openned it via /dev/console or 
-		 * via the physical entry (e.g. /dev/sio0).
-		 */
-		if (dev == cndev)
-			cn_phys_is_open = 1;
-		else if (physdev == cndev) {
-			openmode = mode;
-			openflag = flag;
-			cn_is_open = 1;
+	if (cnd->cnd_vp != NULL) {
+		if (!forceopen) {
+			dev = cnd->cnd_vp->v_rdev;
+			return ((*devsw(dev)->d_open)(dev, openflag, 0, td));
 		}
-		dev->si_tty = physdev->si_tty;
+		vn_close(cnd->cnd_vp, openflag, td->td_proc->p_ucred, td);
+		cnd->cnd_vp = NULL;
 	}
-	return (retval);
+	if (cnd->cnd_name[0] == '\0')
+		strncpy(cnd->cnd_name, devtoname(cnd->cnd_cn->cn_dev),
+		    sizeof(cnd->cnd_name));
+	snprintf(path, sizeof(path), "/dev/%s", cnd->cnd_name);
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, path, td);
+	error = vn_open(&nd, &openflag, 0);
+	if (error == 0) {
+		NDFREE(&nd, NDF_ONLY_PNBUF);
+		VOP_UNLOCK(nd.ni_vp, 0, td);
+		if (nd.ni_vp->v_type == VCHR)
+			cnd->cnd_vp = nd.ni_vp;
+		else
+			vn_close(nd.ni_vp, openflag, td->td_proc->p_ucred, td);
+	}
+	return (cnd->cnd_vp != NULL);
 }
 
 static int
-cnclose(dev, flag, mode, td)
-	dev_t dev;
-	int flag, mode;
-	struct thread *td;
+cnopen(dev_t dev, int flag, int mode, struct thread *td)
 {
-	dev_t cndev;
-	struct tty *cn_tp;
+	struct cn_device *cnd;
 
-	if (cn_tab == NULL || cn_phys_open == NULL)
+	openflag = flag;
+	cn_is_open = 1;			/* console is logically open */
+	if (cn_mute)
 		return (0);
-	cndev = cn_tab->cn_dev;
-	cn_tp = cndev->si_tty;
-	/*
-	 * act appropriatly depending on whether it's /dev/console
-	 * or the pysical device (e.g. /dev/sio) that's being closed.
-	 * in either case, don't actually close the device unless
-	 * both are closed.
-	 */
-	if (dev == cndev) {
-		/* the physical device is about to be closed */
-		cn_phys_is_open = 0;
-		if (cn_is_open) {
-			if (cn_tp) {
-				/* perform a ttyhalfclose() */
-				/* reset session and proc group */
-				cn_tp->t_pgrp = NULL;
-				cn_tp->t_session = NULL;
-			}
-			return (0);
-		}
-	} else if (major(dev) != major(cndev)) {
-		/* the logical console is about to be closed */
-		cn_is_open = 0;
-		if (cn_phys_is_open)
-			return (0);
-		dev = cndev;
-	}
-	if(cn_phys_close)
-		return ((*cn_phys_close)(dev, flag, mode, td));
+	STAILQ_FOREACH(cnd, &cn_devlist, cnd_next)
+		cn_devopen(cnd, td, 0);
 	return (0);
 }
 
 static int
-cnread(dev, uio, flag)
-	dev_t dev;
-	struct uio *uio;
-	int flag;
+cnclose(dev_t dev, int flag, int mode, struct thread *td)
 {
+	struct cn_device *cnd;
 
-	if (cn_tab == NULL || cn_phys_open == NULL)
+	STAILQ_FOREACH(cnd, &cn_devlist, cnd_next) {
+		if (cnd->cnd_vp == NULL)
+			continue; 
+		vn_close(cnd->cnd_vp, mode, td->td_proc->p_ucred, td);
+		cnd->cnd_vp = NULL;
+	}
+	cn_is_open = 0;
+	return (0);
+}
+
+static int
+cnread(dev_t dev, struct uio *uio, int flag)
+{
+	struct cn_device *cnd;
+
+	cnd = STAILQ_FIRST(&cn_devlist);
+	if (cn_mute || CND_INVALID(cnd, curthread))
 		return (0);
-	dev = cn_tab->cn_dev;
+	dev = cnd->cnd_vp->v_rdev;
 	return ((*devsw(dev)->d_read)(dev, uio, flag));
 }
 
 static int
-cnwrite(dev, uio, flag)
-	dev_t dev;
-	struct uio *uio;
-	int flag;
+cnwrite(dev_t dev, struct uio *uio, int flag)
 {
+	struct cn_device *cnd;
 
-	if (cn_tab == NULL || cn_phys_open == NULL) {
-		uio->uio_resid = 0; /* dump the data */
-		return (0);
-	}
+	cnd = STAILQ_FIRST(&cn_devlist);
+	if (cn_mute || CND_INVALID(cnd, curthread))
+		goto done;
 	if (constty)
 		dev = constty->t_dev;
 	else
-		dev = cn_tab->cn_dev;
-	log_console(uio);
-	return ((*devsw(dev)->d_write)(dev, uio, flag));
+		dev = cnd->cnd_vp->v_rdev;
+	if (dev != NULL) {
+		log_console(uio);
+		return ((*devsw(dev)->d_write)(dev, uio, flag));
+	}
+done:
+	uio->uio_resid = 0; /* dump the data */
+	return (0);
 }
 
 static int
-cnioctl(dev, cmd, data, flag, td)
-	dev_t dev;
-	u_long cmd;
-	caddr_t data;
-	int flag;
-	struct thread *td;
+cnioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
+	struct cn_device *cnd;
 	int error;
 
-	if (cn_tab == NULL || cn_phys_open == NULL)
+	cnd = STAILQ_FIRST(&cn_devlist);
+	if (cn_mute || CND_INVALID(cnd, td))
 		return (0);
 	/*
 	 * Superuser can always use this to wrest control of console
@@ -382,82 +442,111 @@ cnioctl(dev, cmd, data, flag, td)
 		constty = NULL;
 		return (0);
 	}
-	dev = cn_tab->cn_dev;
-	return ((*devsw(dev)->d_ioctl)(dev, cmd, data, flag, td));
+	dev = cnd->cnd_vp->v_rdev;
+	if (dev != NULL)
+		return ((*devsw(dev)->d_ioctl)(dev, cmd, data, flag, td));
+	return (0);
+}
+
+/*
+ * XXX
+ * poll/kqfilter do not appear to be correct
+ */
+static int
+cnpoll(dev_t dev, int events, struct thread *td)
+{
+	struct cn_device *cnd;
+
+	cnd = STAILQ_FIRST(&cn_devlist);
+	if (cn_mute || CND_INVALID(cnd, td))
+		return (0);
+	dev = cnd->cnd_vp->v_rdev;
+	if (dev != NULL)
+		return ((*devsw(dev)->d_poll)(dev, events, td));
+	return (0);
 }
 
 static int
-cnpoll(dev, events, td)
-	dev_t dev;
-	int events;
-	struct thread *td;
+cnkqfilter(dev_t dev, struct knote *kn)
 {
-	if ((cn_tab == NULL) || cn_mute)
+	struct cn_device *cnd;
+
+	cnd = STAILQ_FIRST(&cn_devlist);
+	if (cn_mute || CND_INVALID(cnd, curthread))
 		return (1);
-
-	dev = cn_tab->cn_dev;
-
-	return ((*devsw(dev)->d_poll)(dev, events, td));
-}
-
-static int
-cnkqfilter(dev, kn)
-	dev_t dev;
-	struct knote *kn;
-{
-	if ((cn_tab == NULL) || cn_mute)
-		return (1);
-
-	dev = cn_tab->cn_dev;
-	if (devsw(dev)->d_flags & D_KQFILTER)
+	dev = cnd->cnd_vp->v_rdev;
+	if (dev != NULL)
 		return ((*devsw(dev)->d_kqfilter)(dev, kn));
 	return (1);
 }
 
+/*
+ * Low level console routines.
+ */
 int
-cngetc()
+cngetc(void)
 {
 	int c;
-	if ((cn_tab == NULL) || cn_mute)
+
+	if (cn_mute)
 		return (-1);
-	c = (*cn_tab->cn_getc)(cn_tab->cn_dev);
-	if (c == '\r') c = '\n'; /* console input is always ICRNL */
+	while ((c = cncheckc()) == -1)
+		;
+	if (c == '\r')
+		c = '\n';		/* console input is always ICRNL */
 	return (c);
 }
 
 int
-cncheckc()
+cncheckc(void)
 {
-	if ((cn_tab == NULL) || cn_mute)
+	struct cn_device *cnd;
+	struct consdev *cn;
+	int c;
+
+	if (cn_mute)
 		return (-1);
-	return ((*cn_tab->cn_checkc)(cn_tab->cn_dev));
+	STAILQ_FOREACH(cnd, &cn_devlist, cnd_next) {
+		cn = cnd->cnd_cn;
+		c = cn->cn_checkc(cn->cn_dev);
+		if (c != -1) {
+			return (c);
+		}
+	}
+	return (-1);
 }
 
 void
-cnputc(c)
-	register int c;
+cnputc(int c)
 {
-	if ((cn_tab == NULL) || cn_mute)
+	struct cn_device *cnd;
+	struct consdev *cn;
+
+	if (cn_mute || c == '\0')
 		return;
-	if (c) {
+	STAILQ_FOREACH(cnd, &cn_devlist, cnd_next) {
+		cn = cnd->cnd_cn;
 		if (c == '\n')
-			(*cn_tab->cn_putc)(cn_tab->cn_dev, '\r');
-		(*cn_tab->cn_putc)(cn_tab->cn_dev, c);
+			cn->cn_putc(cn->cn_dev, '\r');
+		cn->cn_putc(cn->cn_dev, c);
 	}
 }
 
 void
-cndbctl(on)
-	int on;
+cndbctl(int on)
 {
+	struct cn_device *cnd;
+	struct consdev *cn;
 	static int refcount;
 
-	if (cn_tab == NULL)
-		return;
 	if (!on)
 		refcount--;
-	if (refcount == 0 && cn_tab->cn_dbctl != NULL)
-		(*cn_tab->cn_dbctl)(cn_tab->cn_dev, on);
+	if (refcount == 0)
+		STAILQ_FOREACH(cnd, &cn_devlist, cnd_next) {
+			cn = cnd->cnd_cn;
+			if (cn->cn_dbctl != NULL)
+				cn->cn_dbctl(cn->cn_dev, on);
+		}
 	if (on)
 		refcount++;
 }
