@@ -72,3 +72,4 @@ struct	ether_header {
 #define	ETHERMTU	1500
 #define	ETHERMIN	(60-14)
 
+#define ETHER_HEADER_SIZE (ETHER_ADDR_LEN * 2 + sizeof (u_int16_t))
