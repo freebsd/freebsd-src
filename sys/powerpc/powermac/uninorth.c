@@ -86,6 +86,7 @@ static int		uninorth_route_interrupt(device_t, device_t, int);
  */
 static int		uninorth_enable_config(struct uninorth_softc *, u_int,
 			    u_int, u_int, u_int);
+static void		unin_enable_gmac(void);
 
 /*
  * Driver methods.
@@ -145,6 +146,7 @@ uninorth_attach(device_t dev)
 {
 	struct		uninorth_softc *sc;
 	phandle_t	node;
+	phandle_t	child;
 	u_int32_t	reg[2], busrange[2];
 	struct		uninorth_range *rp, *io, *mem[2];
 	int		nmem, i;
@@ -163,8 +165,6 @@ uninorth_attach(device_t dev)
 	sc->sc_addr = (vm_offset_t)pmap_mapdev(reg[0] + 0x800000, PAGE_SIZE);
 	sc->sc_data = (vm_offset_t)pmap_mapdev(reg[0] + 0xc00000, PAGE_SIZE);
 	sc->sc_bus = busrange[0];
-
-	ofw_pci_fixup(dev, sc->sc_bus, node);
 
 	bzero(sc->sc_range, sizeof(sc->sc_range));
 	sc->sc_nrange = OF_getprop(node, "ranges", sc->sc_range,
@@ -227,6 +227,27 @@ uninorth_attach(device_t dev)
 			return (ENXIO);
 		}
 	}
+
+	/*
+	 * Enable the GMAC ethernet cell if OpenFirmware says it is
+	 * used
+	 */
+	for (child = OF_child(node); child; child = OF_peer(child)) {
+		char compat[32];
+
+		memset(compat, 0, sizeof(compat));
+		OF_getprop(child, "compatible", compat, sizeof(compat));
+		if (strcmp(compat, "gmac") == 0) {
+			unin_enable_gmac();
+		}
+	}
+
+	/*
+	 * Write out the correct PIC interrupt values to config space 
+	 * of all devices on the bus. This has to be done after the GEM
+	 * cell is enabled above.
+	 */
+	ofw_pci_fixup(dev, sc->sc_bus, node);
 
 	device_add_child(dev, "pci", device_get_unit(dev));
 	return (bus_generic_attach(dev));
@@ -336,7 +357,9 @@ uninorth_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	switch (type) {
 	case SYS_RES_MEMORY:
 		rm = &sc->sc_mem_rman;
-		bt = sc->sc_memt;
+		bt = PPC_BUS_SPACE_MEM;
+                if (flags & PPC_BUS_SPARSE4)
+			bt |= 4;		
 		break;
 	case SYS_RES_IRQ:
 		return (bus_alloc_resource(bus, type, rid, start, end, count,
@@ -458,3 +481,91 @@ static driver_t unhb_driver = {
 static devclass_t unhb_devclass;
 
 DRIVER_MODULE(unhb, pci, unhb_driver, unhb_devclass, 0, 0);
+
+
+/*
+ * Small stub driver for the Uninorth chip itself, to allow setting
+ * of various parameters and cell enables
+ */
+static struct unin_chip_softc *uncsc;
+
+static void
+unin_enable_gmac(void)
+{
+	volatile u_int *clkreg;
+	u_int32_t tmpl;
+
+	if (uncsc == NULL)
+		panic("unin_enable_gmac: device not found");
+
+	clkreg = (void *)(uncsc->sc_addr + UNIN_CLOCKCNTL);
+	tmpl = inl(clkreg);
+	tmpl |= UNIN_CLOCKCNTL_GMAC;
+	outl(clkreg, tmpl);
+}
+
+static int
+unin_chip_probe(device_t dev)
+{
+	char	*name;
+
+	name = nexus_get_name(dev);
+
+	if (name == NULL)
+		return (ENXIO);
+
+	if (strcmp(name, "uni-n") != 0)
+		return (ENXIO);
+
+	device_set_desc(dev, "Apple UniNorth System Controller");
+	return (0);	
+}
+
+static int
+unin_chip_attach(device_t dev)
+{
+	phandle_t node;
+	u_int reg[2];
+
+	uncsc = device_get_softc(dev);
+	node = nexus_get_node(dev);
+
+	if (OF_getprop(node, "reg", reg, sizeof(reg)) < 8)
+		return (ENXIO);
+
+	uncsc->sc_physaddr = reg[0];
+	uncsc->sc_size = reg[1];
+
+	/*
+	 * Only map the first page, since that is where the registers
+	 * of interest lie.
+	 */
+	uncsc->sc_addr = (vm_offset_t) pmap_mapdev(reg[0], PAGE_SIZE);
+
+	uncsc->sc_version = *(u_int *)uncsc->sc_addr;
+	device_printf(dev, "Version %d\n", uncsc->sc_version);
+	
+	return (0);
+}
+
+static device_method_t unin_chip_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,         unin_chip_probe),
+	DEVMETHOD(device_attach,        unin_chip_attach),
+
+	{ 0, 0 }
+};
+
+static driver_t	unin_chip_driver = {
+	"unin",
+	unin_chip_methods,
+	sizeof(struct unin_chip_softc)
+};
+
+static devclass_t	unin_chip_devclass;
+
+DRIVER_MODULE(unin, nexus, unin_chip_driver, unin_chip_devclass, 0, 0);
+
+
+
+
