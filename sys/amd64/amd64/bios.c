@@ -99,7 +99,8 @@ bios32_init(void *junk)
 		printf("bios32: Entry = 0x%x (%x)  Rev = %d  Len = %d\n", 
 		       sdh->entry, bios32_SDCI, sdh->revision, sdh->len);
 	    }
-	    
+
+#ifndef PC98
 	    /* Allow user override of PCI BIOS search */
 	    if (((p = getenv("machdep.bios.pci")) == NULL) || strcmp(p, "disable")) {
 
@@ -108,6 +109,7 @@ bios32_init(void *junk)
 		if (!bios32_SDlookup(&PCIbios) && bootverbose)
 		    printf("pcibios: PCI BIOS entry at 0x%x+0x%x\n", PCIbios.base, PCIbios.entry);
 	    }
+#endif
 	} else {
 	    printf("bios32: Bad BIOS32 Service Directory\n");
 	}
