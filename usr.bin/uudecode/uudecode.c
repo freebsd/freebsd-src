@@ -37,13 +37,14 @@ static const char copyright[] =
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)uudecode.c	8.2 (Berkeley) 4/2/94";
-#endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * uudecode [file ...]
@@ -71,13 +72,11 @@ int cflag, iflag, oflag, pflag, sflag;
 
 static void usage(void);
 int	decode(void);
-int	decode2(int);
-void	base64_decode(const char *);
+int	decode2(void);
+int	base64_decode(const char *);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	int rval, ch;
 
@@ -115,11 +114,10 @@ main(argc, argv)
         argc -= optind;
         argv += optind;
 
-			
 	if (*argv) {
 		rval = 0;
 		do {
-			if (!freopen(filename = *argv, "r", stdin)) {
+			if (freopen(filename = *argv, "r", stdin) == NULL) {
 				warn("%s", *argv);
 				rval = 1;
 				continue;
@@ -134,228 +132,221 @@ main(argc, argv)
 }
 
 int
-decode ()
+decode(void)
 {
-	int flag;
+	int r, v;
 
-	/* decode only one file per input stream */
-	if (!cflag) 
-		return(decode2(0));
-
-	/* multiple uudecode'd files */
-	for (flag = 0; ; flag++)
-		if (decode2(flag))
-			return(1);
-		else if (feof(stdin))
+	v = decode2();
+	if (v == EOF) {
+		warnx("%s: missing or bad \"begin\" line", filename);
+		return (1);
+	}
+	for (r = v; cflag; r |= v) {
+		v = decode2();
+		if (v == EOF)
 			break;
-
-	return(0);
+	}
+	return (r);
 }
 
 int
-decode2(flag)
-	int flag;
+decode2(void)
 {
+	int base64, i;
+	size_t n;
+	char ch, *p, *q;
+	void *mode;
 	struct passwd *pw;
-	register int n;
-	register char ch, *p;
-	int base64, ignore, n1;
+	struct stat st;
 	char buf[MAXPATHLEN+1];
 	char buffn[MAXPATHLEN+1]; /* file name buffer */
-	char *mode, *s;
-	void *mode_handle;
 
-	base64 = ignore = 0;
+	base64 = 0;
 	/* search for header line */
-	do {
-		if (!fgets(buf, sizeof(buf), stdin)) {
-			if (flag) /* no error */
-				return(0);
-
-			warnx("%s: no \"begin\" line", filename);
-			return(1);
-		}
-	} while (strncmp(buf, "begin", 5) != 0);
-
-	if (strncmp(buf, "begin-base64", 12) == 0)
-		base64 = 1;
-
-	/* Parse the header: begin{,-base64} mode outfile. */
-	s = strtok(buf, " ");
-	if (s == NULL)
-		errx(1, "no mode or filename in input file");
-	s = strtok(NULL, " ");
-	if (s == NULL)
-		errx(1, "no mode in input file");
-	else {
-		mode = strdup(s);
-		if (mode == NULL)
-			err(1, "strdup()");
-	}
-	if (!oflag) {
-		outfile = strtok(NULL, "\r\n");
-		if (outfile == NULL)
-			errx(1, "no filename in input file");
+	for (;;) {
+		if (fgets(buf, sizeof(buf), stdin) == NULL)
+			return (EOF);
+		p = buf;
+		if (strncmp(p, "begin-base64 ", 13) == 0) {
+			base64 = 1;
+			p += 13;
+		} else if (strncmp(p, "begin ", 6) == 0)
+			p += 6;
+		else
+			continue;
+		/* p points to mode */
+		q = strchr(p, ' ');
+		if (q == NULL)
+			continue;
+		*q++ = '\0';
+		/* q points to filename */
+		n = strlen(q);
+		while (n > 0 && (q[n-1] == '\n' || q[n-1] == '\r'))
+			q[--n] = '\0';
+		/* found valid header? */
+		if (n > 0)
+			break;
 	}
 
-	if (strlcpy(buf, outfile, sizeof(buf)) >= sizeof(buf))
-		errx(1, "%s: filename too long", outfile);
-	if (!sflag && !pflag) {
-		strlcpy(buffn, buf, sizeof(buffn)); 
-		if (strrchr(buffn, '/') != NULL)
-			strncpy(buf, strrchr(buffn, '/') + 1, sizeof(buf));
-		if (buf[0] == '\0') {
-			warnx("%s: illegal filename", buffn);
-			return(1);
-		}
-
-		/* handle ~user/file format */
-		if (buf[0] == '~') {
-			if (!(p = index(buf, '/'))) {
-				warnx("%s: illegal ~user", filename);
-				return(1);
-			}
-			*p++ = '\0';
-			if (!(pw = getpwnam(buf + 1))) {
-				warnx("%s: no user %s", filename, buf);
-				return(1);
-			}
-			n = strlen(pw->pw_dir);
-			n1 = strlen(p);
-			if (n + n1 + 2 > MAXPATHLEN) {
-				warnx("%s: path too long", filename);
-				return(1);
-			}
-			bcopy(p, buf + n + 1, n1 + 1);
-			bcopy(pw->pw_dir, buf, n);
-			buf[n] = '/';
-		}
+	mode = setmode(p);
+	if (mode == NULL) {
+		warnx("%s: unable to parse file mode", filename);
+		return (1);
 	}
 
-	/* create output file, set mode */
-	if (pflag)
-		; /* print to stdout */
-
-	else {
-		mode_handle = setmode(mode);
-		if (mode_handle == NULL)
-			err(1, "setmode()");
-		if (iflag && !access(buf, F_OK)) {
-			(void)fprintf(stderr, "not overwritten: %s\n", buf);
-			ignore++;
-		} else if (!freopen(buf, "w", stdout) ||
-		    fchmod(fileno(stdout), getmode(mode_handle, 0) & 0666)) {
-			warn("%s: %s", buf, filename);
-			return(1);
+	if (oflag) {
+		/* use command-line filename */
+		n = strlcpy(buffn, outfile, sizeof(buffn));
+	} else if (sflag) {
+		/* don't strip, so try ~user/file expansion */
+		p = NULL;
+		pw = NULL;
+		if (*q == '~')
+			p = strchr(q, '/');
+		if (p != NULL) {
+			*p = '\0';
+			pw = getpwnam(q + 1);
+			*p = '/';
 		}
-		free(mode_handle);
-		free(mode);
+		if (pw != NULL) {
+			strlcpy(buffn, pw->pw_dir, sizeof(buffn));
+			n = strlcat(buffn, p, sizeof(buffn));
+		} else {
+			n = strlcpy(buffn, q, sizeof(buffn));
+		}
+	} else {
+		/* strip down to leaf name */
+		p = strrchr(q, '/');
+		if (p != NULL)
+			n = strlcpy(buffn, p+1, sizeof(buffn));
+		else
+			n = strlcpy(buffn, q, sizeof(buffn));
 	}
-	strcpy(buffn, buf); /* store file name from header line */
+	if (n >= sizeof(buffn) || *buffn == '\0') {
+		warnx("%s: bad output filename", filename);
+		return (1);
+	}
+
+	if (!pflag) {
+		if (iflag && !access(buffn, F_OK)) {
+			warnx("not overwritten: %s", buffn);
+			return (0);
+		}
+		if (freopen(buffn, "w", stdout) == NULL ||
+		    stat(buffn, &st) < 0 || (S_ISREG(st.st_mode) &&
+		    fchmod(fileno(stdout), getmode(mode, 0) & 0666) < 0)) {
+			warn("%s: %s", filename, buffn);
+			return (1);
+		}
+	}
+	free(mode);
+
+	if (base64)
+		return (base64_decode(buffn));
 
 	/* for each input line */
-next:
 	for (;;) {
-		if (!fgets(p = buf, sizeof(buf), stdin)) {
+		if (fgets(p = buf, sizeof(buf), stdin) == NULL) {
 			warnx("%s: short file", filename);
-			return(1);
+			return (1);
 		}
-		if (base64) {
-			if (strncmp(buf, "====", 4) == 0)
-				return (0);
-			base64_decode(buf);
-			goto next;
-		}
+
 #define	DEC(c)	(((c) - ' ') & 077)		/* single character decode */
-#define IS_DEC(c) ( (((c) - ' ') >= 0) &&  (((c) - ' ') <= 077 + 1) )
-/* #define IS_DEC(c) (1) */
+#define IS_DEC(c) ( (((c) - ' ') >= 0) && (((c) - ' ') <= 077 + 1) )
 
-#define OUT_OF_RANGE \
-{	\
-    warnx( \
-"\n\tinput file: %s\n\tencoded file: %s\n\tcharacter out of range: [%d-%d]", \
- 	filename, buffn, 1 + ' ', 077 + ' ' + 1); \
-        return(1); \
-}
-#define PUTCHAR(c) \
-if (!ignore) \
-	putchar(c)
-
+#define OUT_OF_RANGE do {						\
+	warnx("%s: %s: character out of range: [%d-%d]",		\
+	    filename, buffn, 1 + ' ', 077 + ' ' + 1);			\
+        return (1);							\
+} while (0)
 
 		/*
-		 * `n' is used to avoid writing out all the characters
+		 * `i' is used to avoid writing out all the characters
 		 * at the end of the file.
 		 */
-		if ((n = DEC(*p)) <= 0)
+		if ((i = DEC(*p)) <= 0)
 			break;
-		for (++p; n > 0; p += 4, n -= 3)
-			if (n >= 3) {
-				if (!(IS_DEC(*p) && IS_DEC(*(p + 1)) && 
+		for (++p; i > 0; p += 4, i -= 3)
+			if (i >= 3) {
+				if (!(IS_DEC(*p) && IS_DEC(*(p + 1)) &&
 				     IS_DEC(*(p + 2)) && IS_DEC(*(p + 3))))
-                                	OUT_OF_RANGE
+                                	OUT_OF_RANGE;
 
 				ch = DEC(p[0]) << 2 | DEC(p[1]) >> 4;
-				PUTCHAR(ch);
+				putchar(ch);
 				ch = DEC(p[1]) << 4 | DEC(p[2]) >> 2;
-				PUTCHAR(ch);
+				putchar(ch);
 				ch = DEC(p[2]) << 6 | DEC(p[3]);
-				PUTCHAR(ch);
-				
+				putchar(ch);
 			}
 			else {
-				if (n >= 1) {
+				if (i >= 1) {
 					if (!(IS_DEC(*p) && IS_DEC(*(p + 1))))
-	                                	OUT_OF_RANGE
+	                                	OUT_OF_RANGE;
 					ch = DEC(p[0]) << 2 | DEC(p[1]) >> 4;
-					PUTCHAR(ch);
+					putchar(ch);
 				}
-				if (n >= 2) {
-					if (!(IS_DEC(*(p + 1)) && 
+				if (i >= 2) {
+					if (!(IS_DEC(*(p + 1)) &&
 						IS_DEC(*(p + 2))))
-		                                OUT_OF_RANGE
+		                                OUT_OF_RANGE;
 
 					ch = DEC(p[1]) << 4 | DEC(p[2]) >> 2;
-					PUTCHAR(ch);
+					putchar(ch);
 				}
-				if (n >= 3) {
-					if (!(IS_DEC(*(p + 2)) && 
+				if (i >= 3) {
+					if (!(IS_DEC(*(p + 2)) &&
 						IS_DEC(*(p + 3))))
-		                                OUT_OF_RANGE
+		                                OUT_OF_RANGE;
 					ch = DEC(p[2]) << 6 | DEC(p[3]);
-					PUTCHAR(ch);
+					putchar(ch);
 				}
 			}
 	}
-	if (fgets(buf, sizeof(buf), stdin) == NULL || 
+	if (fgets(buf, sizeof(buf), stdin) == NULL ||
 	    (strcmp(buf, "end") && strcmp(buf, "end\n") &&
 	     strcmp(buf, "end\r\n"))) {
 		warnx("%s: no \"end\" line", filename);
-		return(1);
+		return (1);
 	}
-	return(0);
+	return (0);
 }
 
-void
-base64_decode(stream)
-	const char *stream;
+int
+base64_decode(const char *outname)
 {
+	int n;
+	char buf[MAXPATHLEN+1];
 	unsigned char out[MAXPATHLEN * 4];
-	int rv;
 
-	if (index(stream, '\r') != NULL)
-		*index(stream, '\r') = '\0';
-	if (index(stream, '\n') != NULL)
-		*index(stream, '\n') = '\0';
-	rv = b64_pton(stream, out, (sizeof(out) / sizeof(out[0])));
-	if (rv == -1)
-		errx(1, "b64_pton: error decoding base64 input stream");
-	fwrite(out, 1, rv, stdout);
+	for (;;) {
+		if (fgets(buf, sizeof(buf), stdin) == NULL) {
+			warnx("%s: short file", filename);
+			return (1);
+		}
+		if (strcmp(buf, "====") == 0 ||
+		    strcmp(buf, "====\n") == 0 ||
+		    strcmp(buf, "====\r\n") == 0)
+			return (0);
+		n = strlen(buf);
+		while (n > 0 && (buf[n-1] == '\n' || buf[n-1] == '\r'))
+			buf[--n] = '\0';
+		n = b64_pton(buf, out, sizeof(out));
+		if (n < 0) {
+			warnx("%s: %s: error decoding base64 input stream", filename, outname);
+			return (1);
+		}
+		fwrite(out, 1, n, stdout);
+	}
 }
 
 static void
-usage()
+usage(void)
 {
-	(void)fprintf(stderr, "usage: uudecode [-cips] [file ...]\n");
-	(void)fprintf(stderr, "usage: uudecode [-i] -o output_file [file]\n");
+	(void)fprintf(stderr,
+"usage: uudecode [-cips] [file ...]\n"
+"       uudecode [-i] -o output_file [file]\n"
+"       b64decode [-cips] [file ...]\n"
+"       b64decode [-i] -o output_file [file]\n");
 	exit(1);
 }
