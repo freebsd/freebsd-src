@@ -22,7 +22,8 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: adduser.8,v 1.20 1997/05/01 22:55:58 ache Exp $
+.\" $Id: adduser.8,v 1.21 1997/06/23 04:52:07 steve Exp $
+.\"
 .Dd January 9, 1995
 .Dt ADDUSER 8
 .Os FreeBSD 2.1
@@ -68,7 +69,8 @@
 .Nm Adduser 
 is a simple program for adding new users. Adduser checks
 the passwd, group and shell databases. It creates passwd/group entries,
-HOME-directory, dotfiles and sends the new user a welcome message.
+.Ev HOME
+directory, dotfiles and sends the new user a welcome message.
 .Sh RESTRICTIONS
 .Bl -tag -width Ds -compact
 .It Sy username
@@ -125,13 +127,13 @@ area.
 I have been using this model for almost 10 years and found that it works
 for most situations, and has never gotten in the way.  (Rod Grimes)
 .Sh CONFIGURATION
-.Bl -tag -width Ds -compact
-.It Sy 1.
-Read intern variables.
-.It Sy 2.
-Read config file (/etc/adduser.conf)
-.It Sy 3.
-Parse command line options
+.Bl -enum
+.It
+Read internal variables.
+.It
+Read configuration file (/etc/adduser.conf).
+.It
+Parse command line options.
 .El
 .Sh OPTIONS
 .Bl -tag -width Ds
@@ -140,15 +142,17 @@ Batch mode.
 .It Sy -check_only
 Check /etc/passwd, /etc/group, /etc/shells and exit.
 .It Sy -class Ar login_class
-Set default login class
+Set default login class.
 .It Sy -create_config
-Create new config and message file and exit. 
+Create new configuration and message file and exit. 
 .It Sy -dotdir Ar directory
 Copy files from 
 .Ar directory 
-into the HOME-directory of new users,
+into the
+.Ev HOME
+directory of new users,
 .Ql Pa dot.foo
-files renamed to 
+will be renamed to 
 .Ql Pa .foo .
 Don't copy files if
 .Ar directory 
@@ -168,19 +172,21 @@ to read/execute/write
 .It Sy -group Ar login_group
 Login group. 
 .Ar USER
-means use username as login group.
+means that the username is to be used as login group.
 .It Sy -help,-h,-?
-Print options and exit.
+Print a summary of options and exit.
 .It Sy -home Ar partition
 Default home partition where all users located.
 .It Sy -message Ar file
-Send new users a welcome message.
-Don't send message if
+Send new users a welcome message from
+.Ar file .
+Specifying a value of
+.Ar no
+for
 .Ar file 
-equal with
-.Ar no .
+causes no message to be sent to new users.
 .It Sy -noconfig
-Do not read config file.
+Do not read the default configuration file.
 .It Sy -shell Ar shell 
 Default shell for new users.
 .It Sy -silent,-s,-quiet,-q
@@ -195,7 +201,7 @@ Many warnings, questions. Recommended for novice users.
 .Bl -tag -width Ds -compact
 .Ql Pa #
 is a comment.  
-.It Sy config file
+.It Sy configuration file
 .Nm Adduser
 reads and writes this file. 
 See 
@@ -219,7 +225,8 @@ Create user 'baerenklau' and  login group 'baerenklau'. Invite user
 baerenklau into groups guest, staff and baer. Use default login class.
 Realname (fullname)
 is 'Teddy II'. Password is 'qwerty7' (don't use such passwords!). Create
-HOME directory 
+.Ev HOME
+directory 
 .Pa /home/baerenklau
 and copy all files and directories 
 from 
@@ -245,7 +252,7 @@ shell database
 .It Pa /etc/login.conf
 login classes database
 .It Pa /etc/adduser.conf
-config file for adduser
+configuration file for adduser
 .It Pa /etc/adduser.message
 message file for adduser
 .It Pa /usr/share/skel
