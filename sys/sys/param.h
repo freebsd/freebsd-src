@@ -232,9 +232,4 @@
 #ifdef _KERNEL
 void	panic __P((const char *, ...)) __dead2 __printflike(1, 2);
 #endif
-
-#include "opt_param.h"
-#ifndef NMBCLUSTERS
-#define NMBCLUSTERS     (512 + MAXUSERS * 16)
-#endif
 #endif	/* _SYS_PARAM_H_ */
