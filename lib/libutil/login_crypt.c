@@ -29,24 +29,18 @@
 #include <sys/types.h>
 
 #include <login_cap.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
-
-/*
- * Stub out what's in -lcrypt.
- */
-
-#pragma weak crypt_set_format
-int
-crypt_set_format(const char *f) {
-
-	return (0);
-}
 
 const char *
 login_setcryptfmt(login_cap_t *lc, const char *def, const char *error) {
 	const char *cipher;
 
-	cipher = login_getcapstr(lc, "passwd_format", def, NULL);
+	cipher = login_getcapstr(lc, "passwd_format", (char *)def, NULL);
+	if (getenv("CRYPT_DEBUG") != NULL)
+		fprintf(stderr, "login_setcryptfmt: "
+		    "passwd_format = %s\n", cipher);
 	if (cipher == NULL)
 		return (error);
 	if (!crypt_set_format(cipher))
