@@ -1,10 +1,10 @@
 <!--
   $FreeBSD$
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/alpha/proc-alpha.sgml,v 1.24 2003/01/09 12:24:18 ue Exp $
-  basiert auf: 1.52
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/alpha/proc-alpha.sgml,v 1.25 2003/01/13 20:30:47 ue Exp $
+  basiert auf: 1.54
 -->
 
-<sect1>
+<sect1 id="support-proc">
   <sect1info>
     <authorgroup>
       <author>
