@@ -160,14 +160,11 @@ typedef struct _drv_t {
 	cx_dma_mem_t dmamem;
 	struct tty *tty;
 	struct callout_handle dcd_timeout_handle;
-	unsigned dtrwait;
-	unsigned dtroff;
 	unsigned callout;
 	unsigned lock;
 	int open_dev;
 	int cd;
 	int running;
-	struct	callout_handle dtr_timeout_handle;
 #ifdef NETGRAPH
 	char	nodename [NG_NODELEN+1];
 	hook_p	hook;
@@ -217,7 +214,6 @@ extern const u_char csigma_fw_data[];
 static void cx_oproc (struct tty *tp);
 static int cx_param (struct tty *tp, struct termios *t);
 static void cx_stop (struct tty *tp, int flag);
-static void cx_dtrwakeup (void *a);
 static void cx_receive (cx_chan_t *c, char *data, int len);
 static void cx_transmit (cx_chan_t *c, void *attachment, int len);
 static void cx_error (cx_chan_t *c, int data);
@@ -817,7 +813,6 @@ static int cx_attach (device_t dev)
 		sprintf (d->name, "cx%d.%d", b->num, c->num);
 		d->board = b;
 		d->chan = c;
-		d->dtrwait = 3 * hz;	/* Default DTR off timeout is 3 seconds. */
 		d->open_dev = 0;
 		c->sys = d;
 
@@ -940,8 +935,6 @@ static int cx_detach (device_t dev)
 		if (!d || d->chan->type == T_NONE)
 			continue;
 
-		if (d->dtr_timeout_handle.callout)
-			untimeout (cx_dtrwakeup, d, d->dtr_timeout_handle);
 		if (d->dcd_timeout_handle.callout)
 			untimeout (cx_carrier, c, d->dcd_timeout_handle);
 	}
@@ -1518,12 +1511,9 @@ static int cx_open (struct cdev *dev, int flag, int mode, struct thread *td)
 	dev->si_tty = d->tty;
 	d->tty->t_dev = dev;
 again:
-	if (d->dtroff) {
-		error = tsleep (&d->dtrwait, TTIPRI | PCATCH, "cxdtr", 0);
-		if (error)
-			return error;
-		goto again;
-	}
+	error = ttydtrwaitsleep(d->tty);
+	if (error)
+		return error;
 
 	if ((d->tty->t_state & TS_ISOPEN) && (d->tty->t_state & TS_XCLUDE) &&
 #if __FreeBSD_version >= 500000
@@ -1608,11 +1598,7 @@ failed:         if (! (d->tty->t_state & TS_ISOPEN)) {
 			splhigh ();
 			cx_set_dtr (d->chan, 0);
 			cx_set_rts (d->chan, 0);
-			if (d->dtrwait) {
-				d->dtr_timeout_handle =
-				    timeout (cx_dtrwakeup, d, d->dtrwait);
-				d->dtroff = 1;
-			}
+			ttydtrwaitstart(d->tty);
 			spl0 ();
 		}
 		return error;
@@ -1652,11 +1638,7 @@ static int cx_close (struct cdev *dev, int flag, int mode, struct thread *td)
 	if ((d->tty->t_cflag & HUPCL) || ! (d->tty->t_state & TS_ISOPEN)) {
 		cx_set_dtr (d->chan, 0);
 		cx_set_rts (d->chan, 0);
-		if (d->dtrwait) {
-			d->dtr_timeout_handle =
-			    timeout (cx_dtrwakeup, d, d->dtrwait);
-			d->dtroff = 1;
-		}
+		ttydtrwaitstart(d->tty);
 	}
 	ttyclose (d->tty);
 	splx (s);
@@ -2139,47 +2121,10 @@ static int cx_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		*(int*)data = cx_modem_status (d);
 	        return 0;
 
-#ifdef TIOCMSDTRWAIT
-	case TIOCMSDTRWAIT:
-	        CX_DEBUG2 (d, ("ioctl: tiocmsdtrwait\n"));
-	        /* Only for superuser! */
-#if __FreeBSD_version < 500000
-	        error = suser (p);
-#else /* __FreeBSD_version >= 500000 */
-	        error = suser (td);
-#endif /* __FreeBSD_version >= 500000 */
-		if (error)
-			return error;
-		s = splhigh ();
-		d->dtrwait = *(int*)data * hz / 100;
-		splx (s);
-	        return 0;
-#endif
-
-#ifdef TIOCMGDTRWAIT
-	case TIOCMGDTRWAIT:
-	        CX_DEBUG2 (d, ("ioctl: tiocmgdtrwait\n"));
-		s = splhigh ();
-		*(int*)data = d->dtrwait * 100 / hz;
-		splx (s);
-	        return 0;
-#endif
 	}
         CX_DEBUG2 (d, ("ioctl: 0x%lx\n", cmd));
 	return ENOTTY;
 }
-
-/*
- * Wake up opens() waiting for DTR ready.
- */
-static void cx_dtrwakeup (void *arg)
-{
-	drv_t *d = arg;
-
-	d->dtroff = 0;
-	wakeup (&d->dtrwait);
-}
-
 
 #if __FreeBSD_version < 502113
 static void

@@ -331,7 +331,6 @@ struct si_port {
 	int		sp_last_hi_ip;	/* cached DCD */
 	int		sp_state;
 	int		sp_active_out;	/* callout is open */
-	int		sp_dtr_wait;	/* DTR holddown in hz */
 	int		sp_delta_overflows;
 	u_int		sp_wopeners;	/* # procs waiting DCD */
 	/* Initial state. */
@@ -362,7 +361,6 @@ struct si_port {
 /*			0x0800	--					*/
 #define	SS_WAITWRITE	0x1000
 #define	SS_BLOCKWRITE	0x2000
-#define	SS_DTR_OFF	0x4000	/* DTR held off				*/
 
 /*
  *	Command post flags

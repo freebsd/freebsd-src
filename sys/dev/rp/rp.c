@@ -871,7 +871,6 @@ rp_attachcommon(CONTROLLER_T *ctlp, int num_aiops, int num_ports)
 			rp->rp_tty->t_line = 0;
 	/*		tty->t_termios = deftermios;
 	*/
-			rp->dtr_wait = 3 * hz;
 			rp->it_in.c_iflag = 0;
 			rp->it_in.c_oflag = 0;
 			rp->it_in.c_cflag = TTYDEF_CFLAG;
@@ -983,7 +982,7 @@ rpopen(dev, flag, mode, td)
 
 open_top:
 	while(rp->state & ~SET_DTR) {
-		error = tsleep(&rp->dtr_wait, TTIPRI | PCATCH, "rpdtr", 0);
+		error = tsleep(&tp->t_dtr_wait, TTIPRI | PCATCH, "rpdtr", 0);
 		if(error != 0)
 			goto out;
 	}
@@ -1174,8 +1173,8 @@ rphardclose(struct rp_port *rp)
 	if(IS_CALLOUT(tp->t_dev)) {
 		sClrDTR(cp);
 	}
-	if(rp->dtr_wait != 0) {
-		timeout(rpdtrwakeup, rp, rp->dtr_wait);
+	if(tp->t_dtr_wait != 0) {
+		timeout(rpdtrwakeup, rp, tp->t_dtr_wait);
 		rp->state |= ~SET_DTR;
 	}
 
@@ -1222,7 +1221,7 @@ rpdtrwakeup(void *chan)
 
 	rp = (struct rp_port *)chan;
 	rp->state &= SET_DTR;
-	wakeup(&rp->dtr_wait);
+	wakeup(&rp->rp_tty->t_dtr_wait);
 }
 
 static int
@@ -1407,17 +1406,6 @@ rpioctl(dev, cmd, data, flag, td)
 		}
 
 		*(int *)data = result;
-		break;
-	case TIOCMSDTRWAIT:
-		error = suser(td);
-		if(error != 0) {
-			splx(oldspl);
-			return(error);
-		}
-		rp->dtr_wait = *(int *)data * hz/100;
-		break;
-	case TIOCMGDTRWAIT:
-		*(int *)data = rp->dtr_wait * 100/hz;
 		break;
 	default:
 		splx(oldspl);

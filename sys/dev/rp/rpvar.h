@@ -57,7 +57,6 @@ struct rp_port {
 	unsigned char		state;	/* state of dtr */
 
 /* Time to hold DTR down on close */
-	int			dtr_wait;
 	int			wopeners;	/* processes waiting for DCD */
 
 	int			rp_port;

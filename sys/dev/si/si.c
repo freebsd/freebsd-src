@@ -102,7 +102,6 @@ static void si_start(struct tty *);
 static void si_stop(struct tty *, int);
 static timeout_t si_lstart;
 static void sihardclose(struct si_port *pp);
-static void sidtrwakeup(void *chan);
 
 #ifdef SI_DEBUG
 static char	*si_mctl2str(enum si_mctl cmd);
@@ -543,7 +542,6 @@ try_next:
 			pp->sp_tty = ttymalloc(NULL);
 			pp->sp_pend = IDLE_CLOSE;
 			pp->sp_state = 0;	/* internal flag */
-			pp->sp_dtr_wait = 3 * hz;
 			pp->sp_iin.c_iflag = TTYDEF_IFLAG;
 			pp->sp_iin.c_oflag = TTYDEF_OFLAG;
 			pp->sp_iin.c_cflag = TTYDEF_CFLAG;
@@ -652,11 +650,9 @@ siopen(struct cdev *dev, int flag, int mode, struct thread *td)
 	error = 0;
 
 open_top:
-	while (pp->sp_state & SS_DTR_OFF) {
-		error = tsleep(&pp->sp_dtr_wait, TTIPRI|PCATCH, "sidtr", 0);
-		if (error != 0)
-			goto out;
-	}
+	error = ttydtrwaitsleep(tp);
+	if (error != 0)
+		goto out;
 
 	if (tp->t_state & TS_ISOPEN) {
 		/*
@@ -837,34 +833,11 @@ sihardclose(struct si_port *pp)
 		(void) si_modem(pp, BIC, TIOCM_DTR|TIOCM_RTS);
 		(void) si_command(pp, FCLOSE, SI_NOWAIT);
 
-		if (pp->sp_dtr_wait != 0) {
-			timeout(sidtrwakeup, pp, pp->sp_dtr_wait);
-			pp->sp_state |= SS_DTR_OFF;
-		}
-
+		ttydtrwaitstart(tp);
 	}
 	pp->sp_active_out = FALSE;
 	wakeup(&pp->sp_active_out);
 	wakeup(TSA_CARR_ON(tp));
-
-	splx(oldspl);
-}
-
-
-/*
- * called at splsoftclock()...
- */
-static void
-sidtrwakeup(void *chan)
-{
-	struct si_port *pp;
-	int oldspl;
-
-	oldspl = spltty();
-
-	pp = (struct si_port *)chan;
-	pp->sp_state &= ~SS_DTR_OFF;
-	wakeup(&pp->sp_dtr_wait);
 
 	splx(oldspl);
 }
@@ -1055,15 +1028,6 @@ siioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 		break;
 	case TIOCMGET:
 		*(int *)data = si_modem(pp, GET, 0);
-		break;
-	case TIOCMSDTRWAIT:
-		/* must be root since the wait applies to following logins */
-		error = suser(td);
-		if (error == 0)
-			pp->sp_dtr_wait = *(int *)data * hz / 100;
-		break;
-	case TIOCMGDTRWAIT:
-		*(int *)data = pp->sp_dtr_wait * 100 / hz;
 		break;
 	default:
 		error = ENOTTY;

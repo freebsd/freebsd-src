@@ -603,7 +603,6 @@ digi_init(struct digi_softc *sc)
 		fepcmd_w(port, SRXHWATER, (3 * port->rxbufsize) >> 2, 10);
 
 		bc->edelay = 100;
-		port->dtr_wait = 3 * hz;
 
 		/*
 		 * We don't use all the flags from <sys/ttydefaults.h> since
@@ -738,7 +737,7 @@ digiopen(struct cdev *dev, int flag, int mode, struct thread *td)
 open_top:
 	while (port->status & DIGI_DTR_OFF) {
 		port->wopeners++;
-		error = tsleep(&port->dtr_wait, TTIPRI | PCATCH, "digidtr", 0);
+		error = tsleep(&tp->t_dtr_wait, TTIPRI | PCATCH, "digidtr", 0);
 		port->wopeners--;
 		if (error)
 			goto out;
@@ -906,7 +905,7 @@ digidtrwakeup(void *chan)
 	struct digi_p *port = chan;
 
 	port->status &= ~DIGI_DTR_OFF;
-	wakeup(&port->dtr_wait);
+	wakeup(&port->tp->t_dtr_wait);
 	port->wopeners--;
 }
 
@@ -929,10 +928,10 @@ digihardclose(struct digi_p *port)
 	    !(port->it_in.c_cflag & CLOCAL)) ||
 	    !(port->tp->t_state & TS_ISOPEN)) {
 		digimodem(port->tp, 0, SER_DTR | SER_RTS);
-		if (port->dtr_wait != 0) {
+		if (port->tp->t_dtr_wait != 0) {
 			/* Schedule a wakeup of any callin devices */
 			port->wopeners++;
-			timeout(&digidtrwakeup, port, port->dtr_wait);
+			timeout(&digidtrwakeup, port, port->tp->t_dtr_wait);
 			port->status |= DIGI_DTR_OFF;
 		}
 	}
@@ -1281,18 +1280,6 @@ digiioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 	switch (cmd) {
 	case DIGIIO_RING:
 		port->send_ring = *(u_char *)data;
-		break;
-	case TIOCMSDTRWAIT:
-		error = suser(td);
-		if (error != 0) {
-			splx(s);
-			return (error);
-		}
-		port->dtr_wait = *(int *)data *hz / 100;
-
-		break;
-	case TIOCMGDTRWAIT:
-		*(int *)data = port->dtr_wait * 100 / hz;
 		break;
 #ifdef DIGI_INTERRUPT
 	case TIOCTIMESTAMP:
