@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)chpass.1	8.2 (Berkeley) 12/30/93
-.\"     $Id: chpass.1,v 1.13 1998/12/13 02:48:43 dillon Exp $
+.\"     $Id: chpass.1,v 1.14 1998/12/13 15:32:26 bde Exp $
 .\"
 .Dd December 30, 1993
 .Dt CHPASS 1
@@ -96,12 +96,12 @@ password change time
 account expiration time
 .It Full Name:
 user's real name
-.It Location:
-user's normal location (1)
-.It Home Phone:
-user's home phone (1)
+.It Office Location:
+user's office location (1)
 .It Office Phone:
 user's office phone (1)
+.It Home Phone:
+user's home phone (1)
 .It Other Information:
 any locally defined parameters for user (1)
 .It Home Directory:
@@ -180,6 +180,11 @@ numbers and finally
 .Ar other information
 which is a single comma delimited string to represent any additional
 gcos fields (typically used for site specific user information).
+Note that
+.Xr finger 1
+will display the office location and office phone together under the
+heading 
+.Ar Office: .
 .Pp
 The user's
 .Ar home directory
