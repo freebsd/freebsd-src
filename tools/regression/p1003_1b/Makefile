@@ -13,5 +13,5 @@ SRCS=\
 
 NOMAN=1
 
-COPTS+=-DNO_MEMLOCK
+CFLAGS+=-DNO_MEMLOCK
 .include <bsd.prog.mk>
