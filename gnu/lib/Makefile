@@ -1,6 +1,10 @@
 # $FreeBSD$
 
-SUBDIR= csu libdialog libgcc libgcc_r libgmp libmp libregex libreadline
+SUBDIR= csu libdialog libgcc libgmp libmp libregex libreadline
+
+.if !defined(NOLIBC_R)
+SUBDIR+= libgcc_r
+.endif
 
 .if !defined(NO_CXX)
 SUBDIR+= libstdc++
