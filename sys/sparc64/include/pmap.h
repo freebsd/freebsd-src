@@ -54,14 +54,10 @@
 
 #define	pmap_resident_count(pm)	(pm->pm_stats.resident_count)
 
-struct pv_entry;
-
 typedef	struct pmap *pmap_t;
-typedef struct pv_entry *pv_entry_t;
 
 struct md_page {
-	TAILQ_HEAD(, pv_entry) pv_list;
-	int	pv_list_count;
+	STAILQ_HEAD(, tte) tte_list;
 	int	colors[DCACHE_COLORS];
 };
 
@@ -71,14 +67,6 @@ struct pmap {
 	u_int	pm_active;
 	u_int	pm_context[MAXCPU];
 	struct	pmap_statistics pm_stats;
-};
-
-struct pv_entry {
-	TAILQ_ENTRY(pv_entry) pv_list;
-	TAILQ_ENTRY(pv_entry) pv_plist;
-	pmap_t	pv_pmap;
-	vm_offset_t pv_va;
-	vm_page_t pv_m;
 };
 
 void	pmap_bootstrap(vm_offset_t ekva);
