@@ -25,11 +25,9 @@
 #  include <config.h>
 #endif
 
-#include <stdio.h>
 #include <sys/types.h>
 #include <fcntl.h>
-#include <setjmp.h>
-#include <ctype.h>
+#include "posixjmp.h"
 
 #if defined (HAVE_UNISTD_H)
 #  include <unistd.h>           /* for _POSIX_VERSION */
@@ -40,6 +38,9 @@
 #else
 #  include "ansi_stdlib.h"
 #endif /* HAVE_STDLIB_H */
+
+#include <stdio.h>
+#include <ctype.h>
 
 /* System-specific feature definitions and include files. */
 #include "rldefs.h"
@@ -55,7 +56,7 @@
 
 /* Pseudo-globals imported from readline.c */
 extern int readline_echoing_p;
-extern jmp_buf readline_top_level;
+extern procenv_t readline_top_level;
 extern int rl_line_buffer_len;
 extern Function *rl_last_func;
 
@@ -242,17 +243,6 @@ _rl_qsort_string_compare (s1, s2)
   return result;
 #endif
 }
-
-#if !defined (SHELL)
-/* Backwards compatibility, now that savestring has been removed from
-   all `public' readline header files. */
-char *
-rl_savestring (s)
-     char *s;
-{
-  return ((char *)strcpy (xmalloc (1 + (int)strlen (s)), (s)));
-}
-#endif /* !SHELL */
 
 /* Function equivalents for the macros defined in chartypes.h. */
 #undef _rl_uppercase_p
