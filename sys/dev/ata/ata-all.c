@@ -249,6 +249,7 @@ ata_detach(device_t dev)
     ch->device[MASTER].mode = ATA_PIO;
     ch->device[SLAVE].mode = ATA_PIO;
     ch->devices = 0;
+    ata_dmafreetags(ch);
 
     bus_teardown_intr(dev, ch->r_irq, ch->ih);
     bus_release_resource(dev, SYS_RES_IRQ, ATA_IRQ_RID, ch->r_irq);
@@ -1251,7 +1252,7 @@ ata_change_mode(struct ata_device *atadev, int mode)
     }
 
     ATA_SLEEPLOCK_CH(atadev->channel, ATA_ACTIVE);
-    ata_dmainit(atadev->channel, atadev->unit, pmode, wmode, umode);
+    ata_dmainit(atadev, pmode, wmode, umode);
     ATA_UNLOCK_CH(atadev->channel);
     ata_start(atadev->channel); /* XXX SOS */
 }

@@ -36,80 +36,184 @@
 #include <sys/bus.h>
 #include <sys/disk.h>
 #include <sys/devicestat.h>
-#include <vm/vm.h>	     
-#include <vm/pmap.h>
 #include <pci/pcivar.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <dev/ata/ata-all.h>
 
 /* prototypes */
-static void cyrix_timing(struct ata_channel *, int, int);
-static void promise_timing(struct ata_channel *, int, int);
-static void hpt_timing(struct ata_channel *, int, int);
-static int hpt_cable80(struct ata_channel *);
+static void ata_dmacreate(struct ata_device *, int, int);
+static void ata_dmasetupd_cb(void *, bus_dma_segment_t *, int, int);
+static void ata_dmasetupc_cb(void *, bus_dma_segment_t *, int, int);
+static void cyrix_timing(struct ata_device *, int, int);
+static void promise_timing(struct ata_device *, int, int);
+static void hpt_timing(struct ata_device *, int, int);
+static int hpt_cable80(struct ata_device *);
 
 /* misc defines */
-#ifdef __alpha__
-#undef vtophys
-#define vtophys(va)	alpha_XXX_dmamap((vm_offset_t)va)
-#endif
-#define ATAPI_DEVICE(ch, device) \
-	((device == ATA_MASTER && ch->devices & ATA_ATAPI_MASTER) || \
-	 (device == ATA_SLAVE && ch->devices & ATA_ATAPI_SLAVE))
+#define ATAPI_DEVICE(atadev) \
+	((atadev->unit == ATA_MASTER && \
+	  atadev->channel->devices & ATA_ATAPI_MASTER) || \
+	 (atadev->unit == ATA_SLAVE && \
+	  atadev->channel->devices & ATA_ATAPI_SLAVE))
 
-void *
-ata_dmaalloc(struct ata_channel *ch, int device)
+#define	MAXSEGSZ	PAGE_SIZE
+#define	MAXTABSZ	PAGE_SIZE
+#define	MAXCTLDMASZ	(2 * (MAXTABSZ + MAXPHYS))
+
+struct ata_dc_cb_args {
+    bus_addr_t maddr;
+    int error;
+};
+
+static void
+ata_dmasetupc_cb(void *xsc, bus_dma_segment_t *segs, int nsegs, int error)
 {
-    void *dmatab;
+    struct ata_dc_cb_args *cba = (struct ata_dc_cb_args *)xsc;
 
-    if ((dmatab = malloc(PAGE_SIZE, M_DEVBUF, M_NOWAIT))) {
-	if (((uintptr_t)dmatab >> PAGE_SHIFT) ^
-	    (((uintptr_t)dmatab + PAGE_SIZE - 1) >> PAGE_SHIFT)) {
-	    ata_printf(ch, device, "dmatab crosses page boundary, no DMA\n");
-	    free(dmatab, M_DEVBUF);
-	    dmatab = NULL;
-	}
+    if (!(cba->error = error))
+	cba->maddr = segs[0].ds_addr;
+}
+
+int
+ata_dmaalloc(struct ata_device *atadev)
+{
+    struct ata_channel *ch;
+    struct ata_dc_cb_args ccba;
+    struct ata_dmastate *ds;
+    int error;
+
+    ch = atadev->channel;
+    ds = &atadev->dmastate;
+    if (!ds->cdmatag) {
+	if ((error = bus_dma_tag_create(ch->dmatag, 1, PAGE_SIZE,
+					BUS_SPACE_MAXADDR_32BIT,
+					BUS_SPACE_MAXADDR, NULL, NULL,
+					MAXTABSZ, 1, MAXTABSZ,
+					BUS_DMA_ALLOCNOW, &ds->cdmatag)))
+	    return error;
     }
-    return dmatab;
+    if (!ds->ddmatag) {
+	if ((error = bus_dma_tag_create(ch->dmatag, ch->alignment + 1, 0,
+					BUS_SPACE_MAXADDR_32BIT,
+					BUS_SPACE_MAXADDR, NULL, NULL,
+					MAXPHYS, ATA_DMA_ENTRIES, MAXSEGSZ,
+					BUS_DMA_ALLOCNOW, &ds->ddmatag)))
+	    return error;
+    }
+    if (!ds->mdmatab) {
+	if ((error = bus_dmamem_alloc(ds->cdmatag, (void **)&ds->dmatab, 0,
+				      &ds->cdmamap)))
+	    return error;
+
+	if ((error = bus_dmamap_load(ds->cdmatag, ds->cdmamap, ds->dmatab,
+				     MAXTABSZ, ata_dmasetupc_cb, &ccba,
+				     0)) != 0 || ccba.error != 0) {
+	    bus_dmamem_free(ds->cdmatag, ds->dmatab, ds->cdmamap);
+	    return error;
+	}
+	ds->mdmatab = ccba.maddr;
+    }
+    if (!ds->ddmamap) {
+	if ((error = bus_dmamap_create(ds->ddmatag, 0, &ds->ddmamap)) != 0)
+	    return error;
+    }
+    return 0;
 }
 
 void
-ata_dmainit(struct ata_channel *ch, int device,
-	    int apiomode, int wdmamode, int udmamode)
+ata_dmafree(struct ata_device *atadev)
 {
-    struct ata_device *atadev = &ch->device[ATA_DEV(device)];
-    device_t parent = device_get_parent(ch->dev);
-    int devno = (ch->unit << 1) + ATA_DEV(device);
+    struct ata_dmastate *ds;
+
+    ds = &atadev->dmastate;
+    if (ds->mdmatab) {
+	bus_dmamap_unload(ds->cdmatag, ds->cdmamap);
+	bus_dmamem_free(ds->cdmatag, ds->dmatab, ds->cdmamap);
+	ds->mdmatab = 0;
+	ds->cdmamap = NULL;
+	ds->dmatab = NULL;
+    }
+    if (ds->ddmamap) {
+	bus_dmamap_destroy(ds->ddmatag, ds->ddmamap);
+	ds->ddmamap = NULL;
+    }
+    if (ds->cdmatag) {
+	bus_dma_tag_destroy(ds->cdmatag);
+	ds->cdmatag = NULL;
+    }
+    if (ds->ddmatag) {
+	bus_dma_tag_destroy(ds->ddmatag);
+	ds->ddmatag = NULL;
+    }
+}
+
+void
+ata_dmafreetags(struct ata_channel *ch)
+{
+
+    if (ch->dmatag) {
+	bus_dma_tag_destroy(ch->dmatag);
+	ch->dmatag = NULL;
+    }
+}
+
+static void
+ata_dmacreate(struct ata_device *atadev, int apiomode, int mode)
+{
+
+    atadev->mode = mode;
+    if (!atadev->channel->dmatag) {
+	if (bus_dma_tag_create(NULL, 1, 0,
+			       BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
+			       NULL, NULL, MAXCTLDMASZ, ATA_DMA_ENTRIES,
+			       BUS_SPACE_MAXSIZE_32BIT, 0,
+			       &atadev->channel->dmatag)) {
+	    ata_prtdev(atadev, "DMA tag allocation failed, disabling DMA\n");
+	    ata_dmainit(atadev, apiomode, -1, -1);
+	}
+    }
+}
+
+void
+ata_dmainit(struct ata_device *atadev, int apiomode, int wdmamode, int udmamode)
+{
+    device_t parent = device_get_parent(atadev->channel->dev);
+    int chiptype = atadev->channel->chiptype;
+    int chiprev = pci_get_revid(parent);
+    int channel = atadev->channel->unit;
+    int device = ATA_DEV(atadev->unit);
+    int devno = (channel << 1) + device;
     int error;
 
     /* set our most pessimistic default mode */
     atadev->mode = ATA_PIO;
 
-    if (!ch->r_bmio)
+    if (!atadev->channel->r_bmio)
 	return;
 
     /* if simplex controller, only allow DMA on primary channel */
-    if (ch->unit == 1) {
-	ATA_OUTB(ch->r_bmio, ATA_BMSTAT_PORT,
-		 ATA_INB(ch->r_bmio, ATA_BMSTAT_PORT) &
+    if (channel == 1) {
+	ATA_OUTB(atadev->channel->r_bmio, ATA_BMSTAT_PORT,
+		 ATA_INB(atadev->channel->r_bmio, ATA_BMSTAT_PORT) &
 		 (ATA_BMSTAT_DMA_MASTER | ATA_BMSTAT_DMA_SLAVE));
-	if (ATA_INB(ch->r_bmio, ATA_BMSTAT_PORT) & ATA_BMSTAT_DMA_SIMPLEX) {
+	if (ATA_INB(atadev->channel->r_bmio, ATA_BMSTAT_PORT) &
+	    ATA_BMSTAT_DMA_SIMPLEX) {
 	    ata_prtdev(atadev, "simplex device, DMA on primary only\n");
 	    return;
 	}
     }
 
     /* DMA engine address alignment is usually 1 word (2 bytes) */
-    ch->alignment = 0x1;
+    atadev->channel->alignment = 0x1;
 
 #if 1
-    if (udmamode > 2 && !ch->device[ATA_DEV(device)].param->hwres_cblid) {
+    if (udmamode > 2 && !atadev->param->hwres_cblid) {
 	ata_prtdev(atadev,"DMA limited to UDMA33, non-ATA66 cable or device\n");
 	udmamode = 2;
     }
 #endif
-    switch (ch->chiptype) {
+    switch (chiptype) {
 
     case 0x248a8086:	/* Intel ICH3 mobile */ 
     case 0x248b8086:	/* Intel ICH3 */
@@ -133,7 +237,7 @@ ata_dmainit(struct ata_channel *ch, int device,
 				     (pci_read_config(parent, 0x48, 4) &
 				     ~mask48) | new48, 4);
 		    pci_write_config(parent, 0x54, word54 | (0x1000<<devno), 2);
-		    atadev->mode = ATA_UDMA5;
+		    ata_dmacreate(atadev, apiomode, ATA_UDMA5);
 		    return;
 		}
 	    }
@@ -163,7 +267,7 @@ ata_dmainit(struct ata_channel *ch, int device,
 				     (pci_read_config(parent, 0x48, 4) &
 				     ~mask48) | new48, 4);
 		    pci_write_config(parent, 0x54, word54 | (1 << devno), 2);
-		    atadev->mode = ATA_UDMA4;
+		    ata_dmacreate(atadev, apiomode, ATA_UDMA4);
 		    return;
 		}
 	    }
@@ -191,7 +295,7 @@ ata_dmainit(struct ata_channel *ch, int device,
 		pci_write_config(parent, 0x48, 
 				 (pci_read_config(parent, 0x48, 4) &
 				 ~mask48) | new48, 4);
-		atadev->mode = ATA_UDMA2;
+		ata_dmacreate(atadev, apiomode, ATA_UDMA2);
 		return;
 	    }
 	}
@@ -205,7 +309,7 @@ ata_dmainit(struct ata_channel *ch, int device,
 	    int32_t mask40, new40, mask44, new44;
 
 	    /* if SITRE not set doit for both channels */
-	    if (!((pci_read_config(parent,0x40,4)>>(ch->unit<<8))&0x4000)) {
+	    if (!((pci_read_config(parent, 0x40, 4) >> (channel<<8)) & 0x4000)){
 		new40 = pci_read_config(parent, 0x40, 4);
 		new44 = pci_read_config(parent, 0x44, 4); 
 		if (!(new40 & 0x00004000)) {
@@ -238,7 +342,7 @@ ata_dmainit(struct ata_channel *ch, int device,
 		    mask44 = 0x0000000f;
 		    new44 = 0x0000000b;
 		}
-		if (ch->unit) {
+		if (channel) {
 		    mask40 <<= 16;
 		    new40 <<= 16;
 		    mask44 <<= 4;
@@ -250,7 +354,7 @@ ata_dmainit(struct ata_channel *ch, int device,
 		pci_write_config(parent, 0x44,
 				 (pci_read_config(parent, 0x44, 4) & ~mask44)|
 				 new44, 4);
-		atadev->mode = ATA_WDMA2;
+		ata_dmacreate(atadev, apiomode, ATA_WDMA2);
 		return;
 	    }
 	}
@@ -262,11 +366,11 @@ ata_dmainit(struct ata_channel *ch, int device,
 	    int32_t word40;
 
 	    word40 = pci_read_config(parent, 0x40, 4);
-	    word40 >>= ch->unit * 16;
+	    word40 >>= channel * 16;
 
 	    /* Check for timing config usable for DMA on controller */
 	    if (!((word40 & 0x3300) == 0x2300 &&
-		  ((word40 >> (device == ATA_MASTER ? 0 : 4)) & 1) == 1))
+		  ((word40 >> (device ? 4 : 0)) & 1) == 1))
 		break;
 
 	    error = ata_command(atadev, ATA_C_SETFEATURES, 0,
@@ -275,7 +379,7 @@ ata_dmainit(struct ata_channel *ch, int device,
 		ata_prtdev(atadev, "%s setting WDMA2 on Intel chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
-		atadev->mode = ATA_WDMA2;
+		ata_dmacreate(atadev, apiomode, ATA_WDMA2);
 		return;
 	    }
 	}
@@ -283,12 +387,14 @@ ata_dmainit(struct ata_channel *ch, int device,
 
     case 0x522910b9:	/* AcerLabs Aladdin IV/V */
 	/* the older Aladdin doesn't support ATAPI DMA on both master & slave */
-	if (pci_get_revid(parent) < 0xc2 &&
-	    ch->devices & ATA_ATAPI_MASTER && ch->devices & ATA_ATAPI_SLAVE) {
+	if (chiprev < 0xc2 &&
+	    atadev->channel->devices & ATA_ATAPI_MASTER &&
+	    atadev->channel->devices & ATA_ATAPI_SLAVE) {
 	    ata_prtdev(atadev, "two atapi devices on this channel, no DMA\n");
 	    break;
 	}
-	if (udmamode >= 5 && pci_get_revid(parent) >= 0xc4) {
+	pci_write_config(parent, 0x58 + (channel << 2), 0x00310001, 4);
+	if (udmamode >= 5 && chiprev >= 0xc4) {
 	    error = ata_command(atadev, ATA_C_SETFEATURES, 0,
 				ATA_UDMA5, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
@@ -304,11 +410,11 @@ ata_dmainit(struct ata_channel *ch, int device,
 		pci_write_config(parent, 0x54, word54, 4);
 		pci_write_config(parent, 0x53, 
 				 pci_read_config(parent, 0x53, 1) | 0x03, 1);
-		atadev->mode = ATA_UDMA5;
+		ata_dmacreate(atadev, apiomode, ATA_UDMA5);
 		return;
 	    }
 	}
-	if (udmamode >= 4 && pci_get_revid(parent) >= 0xc2) {
+	if (udmamode >= 4 && chiprev >= 0xc2) {
 	    error = ata_command(atadev, ATA_C_SETFEATURES, 0,
 				ATA_UDMA4, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
@@ -324,11 +430,11 @@ ata_dmainit(struct ata_channel *ch, int device,
 		pci_write_config(parent, 0x54, word54, 4);
 		pci_write_config(parent, 0x53, 
 				 pci_read_config(parent, 0x53, 1) | 0x03, 1);
-		atadev->mode = ATA_UDMA4;
+		ata_dmacreate(atadev, apiomode, ATA_UDMA4);
 		return;
 	    }
 	}
-	if (udmamode >= 2 && pci_get_revid(parent) >= 0x20) {
+	if (udmamode >= 2 && chiprev >= 0x20) {
 	    error = ata_command(atadev, ATA_C_SETFEATURES, 0,
 				ATA_UDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
@@ -342,8 +448,8 @@ ata_dmainit(struct ata_channel *ch, int device,
 		pci_write_config(parent, 0x54, word54, 4);
 		pci_write_config(parent, 0x53, 
 				 pci_read_config(parent, 0x53, 1) | 0x03, 1);
-		ch->flags |= ATA_ATAPI_DMA_RO;
-		atadev->mode = ATA_UDMA2;
+		atadev->channel->flags |= ATA_ATAPI_DMA_RO;
+		ata_dmacreate(atadev, apiomode, ATA_UDMA2);
 		return;
 	    }
 	}
@@ -361,14 +467,39 @@ ata_dmainit(struct ata_channel *ch, int device,
 	    if (!error) {
 		pci_write_config(parent, 0x53, 
 				 pci_read_config(parent, 0x53, 1) | 0x03, 1);
-		ch->flags |= ATA_ATAPI_DMA_RO;
-		atadev->mode = ATA_WDMA2;
+		atadev->channel->flags |= ATA_ATAPI_DMA_RO;
+		ata_dmacreate(atadev, apiomode, ATA_WDMA2);
 		return;
 	    }
 	}
 	pci_write_config(parent, 0x53,
 			 (pci_read_config(parent, 0x53, 1) & ~0x01) | 0x02, 1);
-	/* we could set PIO mode timings, but we assume the BIOS did that */
+	error = ata_command(atadev, ATA_C_SETFEATURES, 0,
+			    ATA_PIO0 + apiomode,
+			    ATA_C_F_SETXFER, ATA_WAIT_READY);
+	if (bootverbose)
+	    ata_prtdev(atadev, "%s setting PIO%d on Acer chip\n",
+		       (error) ? "failed" : "success",
+		       (apiomode >= 0) ? apiomode : 0);
+	if (!error) {
+	    int32_t word54 = pci_read_config(parent, 0x54, 4);
+	    int32_t timing;
+
+	    switch(ATA_PIO0 + apiomode) {
+	    case ATA_PIO0: timing = 0x006d0003;
+	    case ATA_PIO1: timing = 0x00580002;
+	    case ATA_PIO2: timing = 0x00440001;
+	    case ATA_PIO3: timing = 0x00330001;
+	    case ATA_PIO4: timing = 0x00310001;
+	    default:	   timing = 0x006d0003;
+	    }
+	    pci_write_config(parent, 0x58 + (channel << 2), timing, 4);
+	    word54 &= ~(0x000f000f << (devno << 2));
+	    word54 |= (0x00000004 << (devno << 2));
+	    pci_write_config(parent, 0x54, word54, 4);
+	    atadev->mode = ATA_PIO0 + apiomode;
+	    return;
+	}
 	break;
 
     case 0x74411022:	/* AMD 768 */
@@ -381,7 +512,7 @@ ata_dmainit(struct ata_channel *ch, int device,
 			   (error) ? "failed" : "success");
 	    if (!error) {
 		pci_write_config(parent, 0x53 - devno, 0xc6, 1);
-		atadev->mode = ATA_UDMA5;
+		ata_dmacreate(atadev, apiomode, ATA_UDMA5);
 		return;
 	    }
 	}
@@ -396,7 +527,7 @@ ata_dmainit(struct ata_channel *ch, int device,
 			   (error) ? "failed" : "success");
 	    if (!error) {
 		pci_write_config(parent, 0x53 - devno, 0xc5, 1);
-		atadev->mode = ATA_UDMA4;
+		ata_dmacreate(atadev, apiomode, ATA_UDMA4);
 		return;
 	    }
 	}
@@ -448,7 +579,7 @@ via_82c586:
 			       (error) ? "failed" : "success");
 		if (!error) {
 		    pci_write_config(parent, 0x53 - devno, reg_val[6], 1);
-		    atadev->mode = ATA_UDMA6;
+		    ata_dmacreate(atadev, apiomode, ATA_UDMA6);
 		    return;
 		}
 	    }
@@ -460,7 +591,7 @@ via_82c586:
 			       (error) ? "failed" : "success");
 		if (!error) {
 		    pci_write_config(parent, 0x53 - devno, reg_val[5], 1);
-		    atadev->mode = ATA_UDMA5;
+		    ata_dmacreate(atadev, apiomode, ATA_UDMA5);
 		    return;
 		}
 	    }
@@ -472,7 +603,7 @@ via_82c586:
 			       (error) ? "failed" : "success");
 		if (!error) {
 		    pci_write_config(parent, 0x53 - devno, reg_val[4], 1);
-		    atadev->mode = ATA_UDMA4;
+		    ata_dmacreate(atadev, apiomode, ATA_UDMA4);
 		    return;
 		}
 	    }
@@ -484,7 +615,7 @@ via_82c586:
 			       (error) ? "failed" : "success");
 		if (!error) {
 		    pci_write_config(parent, 0x53 - devno, reg_val[2], 1);
-		    atadev->mode = ATA_UDMA2;
+		    ata_dmacreate(atadev, apiomode, ATA_UDMA2);
 		    return;
 		}
 	    }
@@ -496,11 +627,11 @@ via_82c586:
 	    if (bootverbose)
 		ata_prtdev(atadev, "%s setting WDMA2 on %s chip\n",
 			   (error) ? "failed" : "success",
-			   (ch->chiptype == 0x74091022) ? "AMD" : "VIA");
+			   (chiptype == 0x74091022) ? "AMD" : "VIA");
 	    if (!error) {
 		pci_write_config(parent, 0x53 - devno, 0x0b, 1);
 		pci_write_config(parent, 0x4b - devno, 0x31, 1);
-		atadev->mode = ATA_WDMA2;
+		ata_dmacreate(atadev, apiomode, ATA_WDMA2);
 		return;
 	    }
 	}
@@ -531,7 +662,7 @@ via_82c586:
 			       (error) ? "failed" : "success");
 		if (!error) {
 		    pci_write_config(parent, reg, val | 0x8000, 2);
-		    atadev->mode = ATA_UDMA5;
+		    ata_dmacreate(atadev, apiomode, ATA_UDMA5);
 		    return;
 		}
 	    }
@@ -543,7 +674,7 @@ via_82c586:
 			       (error) ? "failed" : "success");
 		if (!error) {
 		    pci_write_config(parent, reg, val | 0x9000, 2);
-		    atadev->mode = ATA_UDMA4;
+		    ata_dmacreate(atadev, apiomode, ATA_UDMA4);
 		    return;
 		}
 	    }
@@ -555,7 +686,7 @@ via_82c586:
 			       (error) ? "failed" : "success");
 		if (!error) {
 		    pci_write_config(parent, reg, val | 0xb000, 2);
-		    atadev->mode = ATA_UDMA2;
+		    ata_dmacreate(atadev, apiomode, ATA_UDMA2);
 		    return;
 		}
 	    }
@@ -574,7 +705,7 @@ via_82c586:
 			       (error) ? "failed" : "success");
 		if (!error) {
 		    pci_write_config(parent, reg, val | 0x9000, 2);
-		    atadev->mode = ATA_UDMA4;
+		    ata_dmacreate(atadev, apiomode, ATA_UDMA4);
 		    return;
 		}
 	    }
@@ -586,11 +717,11 @@ via_82c586:
 			       (error) ? "failed" : "success");
 		if (!error) {
 		    pci_write_config(parent, reg, val | 0xa000, 2);
-		    atadev->mode = ATA_UDMA2;
+		    ata_dmacreate(atadev, apiomode, ATA_UDMA2);
 		    return;
 		}
 	    }
-	} else if (udmamode >= 2 && pci_get_revid(parent) > 0xc1) {
+	} else if (udmamode >= 2 && chiprev > 0xc1) {
 	    error = ata_command(atadev, ATA_C_SETFEATURES, 0,
 				ATA_UDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
@@ -598,7 +729,7 @@ via_82c586:
 			   (error) ? "failed" : "success");
 	    if (!error) {
 		pci_write_config(parent, 0x40 + (devno << 1), 0xa301, 2);
-		atadev->mode = ATA_UDMA2;
+		ata_dmacreate(atadev, apiomode, ATA_UDMA2);
 		return;
 	    }
 	}
@@ -610,7 +741,7 @@ via_82c586:
 			   (error) ? "failed" : "success");
 	    if (!error) {
 		pci_write_config(parent, 0x40 + (devno << 1), 0x0301, 2);
-		atadev->mode = ATA_WDMA2;
+		ata_dmacreate(atadev, apiomode, ATA_WDMA2);
 		return;
 	    }
 	}
@@ -627,11 +758,11 @@ via_82c586:
 		ata_prtdev(atadev, "%s setting UDMA5 on CMD chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
-		umode = pci_read_config(parent, ch->unit ? 0x7b : 0x73, 1);
-		umode &= ~(device == ATA_MASTER ? 0x35 : 0xca);
-		umode |= (device == ATA_MASTER ? 0x05 : 0x0a);
-		pci_write_config(parent, ch->unit ? 0x7b : 0x73, umode, 1);
-		atadev->mode = ATA_UDMA5;
+		umode = pci_read_config(parent, channel ? 0x7b : 0x73, 1);
+		umode &= ~(device ? 0xca : 0x35);
+		umode |= (device ? 0x0a : 0x05);
+		pci_write_config(parent, channel ? 0x7b : 0x73, umode, 1);
+		ata_dmacreate(atadev, apiomode, ATA_UDMA5);
 		return;
 	    }
 	}
@@ -647,11 +778,11 @@ via_82c586:
 		ata_prtdev(atadev, "%s setting UDMA4 on CMD chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
-		umode = pci_read_config(parent, ch->unit ? 0x7b : 0x73, 1);
-		umode &= ~(device == ATA_MASTER ? 0x35 : 0xca);
-		umode |= (device == ATA_MASTER ? 0x15 : 0x4a);
-		pci_write_config(parent, ch->unit ? 0x7b : 0x73, umode, 1);
-		atadev->mode = ATA_UDMA4;
+		umode = pci_read_config(parent, channel ? 0x7b : 0x73, 1);
+		umode &= ~(device ? 0xca : 0x35);
+		umode |= (device ? 0x4a : 0x15);
+		pci_write_config(parent, channel ? 0x7b : 0x73, umode, 1);
+		ata_dmacreate(atadev, apiomode, ATA_UDMA4);
 		return;
 	    }
 	}
@@ -664,18 +795,18 @@ via_82c586:
 		ata_prtdev(atadev, "%s setting UDMA2 on CMD chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
-		umode = pci_read_config(parent, ch->unit ? 0x7b : 0x73, 1);
-		umode &= ~(device == ATA_MASTER ? 0x35 : 0xca);
-		umode |= (device == ATA_MASTER ? 0x11 : 0x42);
-		pci_write_config(parent, ch->unit ? 0x7b : 0x73, umode, 1);
-		atadev->mode = ATA_UDMA2;
+		umode = pci_read_config(parent, channel ? 0x7b : 0x73, 1);
+		umode &= ~(device ? 0xca : 0x35);
+		umode |= (device ? 0x42 : 0x11);
+		pci_write_config(parent, channel ? 0x7b : 0x73, umode, 1);
+		ata_dmacreate(atadev, apiomode, ATA_UDMA2);
 		return;
 	    }
 	}
 	/* make sure eventual UDMA mode from the BIOS is disabled */
-	pci_write_config(parent, ch->unit ? 0x7b : 0x73, 
-			 pci_read_config(parent, ch->unit ? 0x7b : 0x73, 1)&
-			 ~(device == ATA_MASTER ? 0x35 : 0xca), 1);
+	pci_write_config(parent, channel ? 0x7b : 0x73, 
+			 pci_read_config(parent, channel ? 0x7b : 0x73, 1) &
+			 		 ~(device ? 0xca : 0x53), 1);
 	/* FALLTHROUGH */
 
     case 0x06461095:	/* CMD 646 ATA controller */
@@ -689,7 +820,7 @@ via_82c586:
 		int32_t offset = (devno < 3) ? (devno << 1) : 7;
 
 		pci_write_config(parent, 0x54 + offset, 0x3f, 1);
-		atadev->mode = ATA_WDMA2;
+		ata_dmacreate(atadev, apiomode, ATA_WDMA2);
 		return;
 	    }
 	}
@@ -704,8 +835,9 @@ via_82c586:
 		ata_prtdev(atadev, "%s setting WDMA2 on Cypress chip\n",
 			   error ? "failed" : "success");
 	    if (!error) {
-		pci_write_config(ch->dev, ch->unit ? 0x4e:0x4c, 0x2020, 2);
-		atadev->mode = ATA_WDMA2;
+		pci_write_config(atadev->channel->dev,
+				 channel ? 0x4e:0x4c, 0x2020, 2);
+		ata_dmacreate(atadev, apiomode, ATA_WDMA2);
 		return;
 	    }
 	}
@@ -713,7 +845,7 @@ via_82c586:
 	break;
 
     case 0x01021078:	/* Cyrix 5530 ATA33 controller */
-	ch->alignment = 0xf;	/* DMA engine requires 16 byte alignment */
+	atadev->channel->alignment = 0xf;
 	if (udmamode >= 2) {
 	    error = ata_command(atadev, ATA_C_SETFEATURES, 0,
 				ATA_UDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
@@ -721,8 +853,8 @@ via_82c586:
 		ata_prtdev(atadev, "%s setting UDMA2 on Cyrix chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
-		cyrix_timing(ch, devno, ATA_UDMA2);
-		atadev->mode = ATA_UDMA2;
+		cyrix_timing(atadev, devno, ATA_UDMA2);
+		ata_dmacreate(atadev, apiomode, ATA_UDMA2);
 		return;
 	    }
 	}
@@ -733,8 +865,8 @@ via_82c586:
 		ata_prtdev(atadev, "%s setting WDMA2 on Cyrix chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
-		cyrix_timing(ch, devno, ATA_WDMA2);
-		atadev->mode = ATA_WDMA2;
+		cyrix_timing(atadev, devno, ATA_WDMA2);
+		ata_dmacreate(atadev, apiomode, ATA_WDMA2);
 		return;
 	    }
 	}
@@ -745,12 +877,12 @@ via_82c586:
 	    ata_prtdev(atadev, "%s setting %s on Cyrix chip\n",
 		       (error) ? "failed" : "success",
 		       ata_mode2str(ATA_PIO0 + apiomode));
-	cyrix_timing(ch, devno, ATA_PIO0 + apiomode);
+	cyrix_timing(atadev, devno, ATA_PIO0 + apiomode);
 	atadev->mode = ATA_PIO0 + apiomode;
 	return;
 
     case 0x02121166:	/* ServerWorks CSB5 ATA66/100 controller */
-	if (udmamode >= 5 && pci_get_revid(parent) >= 0x92) {
+	if (udmamode >= 5 && chiprev >= 0x92) {
 	    error = ata_command(atadev, ATA_C_SETFEATURES, 0,
 				ATA_UDMA5, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
@@ -766,7 +898,7 @@ via_82c586:
 		reg56 &= ~(0xf << (devno * 4));
 		reg56 |= (0x5 << (devno * 4));
 		pci_write_config(parent, 0x56, reg56, 2);
-		atadev->mode = ATA_UDMA5;
+		ata_dmacreate(atadev, apiomode, ATA_UDMA5);
 		return;
 	    }
 	}
@@ -786,7 +918,7 @@ via_82c586:
 		reg56 &= ~(0xf << (devno * 4));
 		reg56 |= (0x4 << (devno * 4));
 		pci_write_config(parent, 0x56, reg56, 2);
-		atadev->mode = ATA_UDMA4;
+		ata_dmacreate(atadev, apiomode, ATA_UDMA4);
 		return;
 	    }
 	}
@@ -809,7 +941,7 @@ via_82c586:
 		reg56 &= ~(0xf << (devno * 4));
 		reg56 |= (0x2 << (devno * 4));
 		pci_write_config(parent, 0x56, reg56, 2);
-		atadev->mode = ATA_UDMA2;
+		ata_dmacreate(atadev, apiomode, ATA_UDMA2);
 		return;
 	    }
 	}
@@ -820,7 +952,7 @@ via_82c586:
 		ata_prtdev(atadev, "%s setting WDMA2 on ServerWorks chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
-		int offset = (ch->unit * 2) + (device == ATA_MASTER);
+		int offset = devno ^ 0x01;
 		int word44 = pci_read_config(parent, 0x44, 4);
 
 		pci_write_config(parent, 0x54,
@@ -829,7 +961,7 @@ via_82c586:
 		word44 &= ~(0xff << (offset << 8));
 		word44 |= (0x20 << (offset << 8));
 		pci_write_config(parent, 0x44, 0x20, 4);
-		atadev->mode = ATA_WDMA2;
+		ata_dmacreate(atadev, apiomode, ATA_WDMA2);
 		return;
 	    }
 	}
@@ -837,15 +969,16 @@ via_82c586:
 	break;
 
     case 0x4d69105a:	/* Promise TX2 ATA133 controllers */
-	ATA_OUTB(ch->r_bmio, ATA_BMDEVSPEC_0, 0x0b);
-	if (udmamode >= 6 && !(ATA_INB(ch->r_bmio, ATA_BMDEVSPEC_1) & 0x04)) {
+	ATA_OUTB(atadev->channel->r_bmio, ATA_BMDEVSPEC_0, 0x0b);
+	if (udmamode >= 6 &&
+	    !(ATA_INB(atadev->channel->r_bmio, ATA_BMDEVSPEC_1) & 0x04)) {
 	    error = ata_command(atadev, ATA_C_SETFEATURES, 0,
 				ATA_UDMA6, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
 		ata_prtdev(atadev, "%s setting UDMA6 on Promise chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
-		atadev->mode = ATA_UDMA6;
+		ata_dmacreate(atadev, apiomode, ATA_UDMA6);
 		return;
 	    }
 	}
@@ -853,27 +986,29 @@ via_82c586:
 
     case 0x4d68105a:	/* Promise TX2 ATA100 controllers */
     case 0x6268105a:	/* Promise TX2 ATA100 controllers */
-	ATA_OUTB(ch->r_bmio, ATA_BMDEVSPEC_0, 0x0b);
-	if (udmamode >= 5 && !(ATA_INB(ch->r_bmio, ATA_BMDEVSPEC_1) & 0x04)) {
+	ATA_OUTB(atadev->channel->r_bmio, ATA_BMDEVSPEC_0, 0x0b);
+	if (udmamode >= 5 &&
+	    !(ATA_INB(atadev->channel->r_bmio, ATA_BMDEVSPEC_1) & 0x04)) {
 	    error = ata_command(atadev, ATA_C_SETFEATURES, 0,
 				ATA_UDMA5, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
 		ata_prtdev(atadev, "%s setting UDMA5 on Promise chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
-		atadev->mode = ATA_UDMA5;
+		ata_dmacreate(atadev, apiomode, ATA_UDMA5);
 		return;
 	    }
 	}
-	ATA_OUTB(ch->r_bmio, ATA_BMDEVSPEC_0, 0x0b);
-	if (udmamode >= 4 && !(ATA_INB(ch->r_bmio, ATA_BMDEVSPEC_1) & 0x04)) {
+	ATA_OUTB(atadev->channel->r_bmio, ATA_BMDEVSPEC_0, 0x0b);
+	if (udmamode >= 4 &&
+	    !(ATA_INB(atadev->channel->r_bmio, ATA_BMDEVSPEC_1) & 0x04)) {
 	    error = ata_command(atadev, ATA_C_SETFEATURES, 0,
 				ATA_UDMA4, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
 		ata_prtdev(atadev, "%s setting UDMA4 on Promise chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
-		atadev->mode = ATA_UDMA4;
+		ata_dmacreate(atadev, apiomode, ATA_UDMA4);
 		return;
 	    }
 	}
@@ -884,7 +1019,7 @@ via_82c586:
 		ata_prtdev(atadev, "%s setting UDMA on Promise chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
-		atadev->mode = ATA_UDMA2;
+		ata_dmacreate(atadev, apiomode, ATA_UDMA2);
 		return;
 	    }
 	}
@@ -895,7 +1030,7 @@ via_82c586:
 		ata_prtdev(atadev, "%s setting WDMA2 on Promise chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
-		atadev->mode = ATA_WDMA2;
+		ata_dmacreate(atadev, apiomode, ATA_WDMA2);
 		return;
 	    }
 	}
@@ -903,59 +1038,59 @@ via_82c586:
 
     case 0x4d30105a:	/* Promise Ultra/FastTrak 100 controllers */
     case 0x0d30105a:	/* Promise OEM ATA100 controllers */
-	if (!ATAPI_DEVICE(ch, device) && udmamode >= 5 && 
-	    !(pci_read_config(parent, 0x50, 2)&(ch->unit ? 1<<11 : 1<<10))){
+	if (!ATAPI_DEVICE(atadev) && udmamode >= 5 && 
+	    !(pci_read_config(parent, 0x50, 2) & (channel ? 1<<11 : 1<<10))) {
 	    error = ata_command(atadev, ATA_C_SETFEATURES, 0,
 				ATA_UDMA5, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
 		ata_prtdev(atadev, "%s setting UDMA5 on Promise chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
-		promise_timing(ch, devno, ATA_UDMA5);
-		atadev->mode = ATA_UDMA5;
+		promise_timing(atadev, devno, ATA_UDMA5);
+		ata_dmacreate(atadev, apiomode, ATA_UDMA5);
 		return;
 	    }
 	}
 	/* FALLTHROUGH */
 
     case 0x4d38105a:	/* Promise Ultra/FastTrak 66 controllers */
-	if (!ATAPI_DEVICE(ch, device) && udmamode >= 4 && 
-	    !(pci_read_config(parent, 0x50, 2)&(ch->unit ? 1<<11 : 1<<10))){
+	if (!ATAPI_DEVICE(atadev) && udmamode >= 4 && 
+	    !(pci_read_config(parent, 0x50, 2) & (channel ? 1<<11 : 1<<10))) {
 	    error = ata_command(atadev, ATA_C_SETFEATURES, 0,
 				ATA_UDMA4, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
 		ata_prtdev(atadev, "%s setting UDMA4 on Promise chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
-		promise_timing(ch, devno, ATA_UDMA4);
-		atadev->mode = ATA_UDMA4;
+		promise_timing(atadev, devno, ATA_UDMA4);
+		ata_dmacreate(atadev, apiomode, ATA_UDMA4);
 		return;
 	    }
 	}
 	/* FALLTHROUGH */
 
     case 0x4d33105a:	/* Promise Ultra/FastTrak 33 controllers */
-	if (!ATAPI_DEVICE(ch, device) && udmamode >= 2) {
+	if (!ATAPI_DEVICE(atadev) && udmamode >= 2) {
 	    error = ata_command(atadev, ATA_C_SETFEATURES, 0,
 				ATA_UDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
 		ata_prtdev(atadev, "%s setting UDMA2 on Promise chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
-		promise_timing(ch, devno, ATA_UDMA2);
-		atadev->mode = ATA_UDMA2;
+		promise_timing(atadev, devno, ATA_UDMA2);
+		ata_dmacreate(atadev, apiomode, ATA_UDMA2);
 		return;
 	    }
 	}
-	if (!ATAPI_DEVICE(ch, device) && wdmamode >= 2 && apiomode >= 4) {
+	if (!ATAPI_DEVICE(atadev) && wdmamode >= 2 && apiomode >= 4) {
 	    error = ata_command(atadev, ATA_C_SETFEATURES, 0,
 				ATA_WDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
 		ata_prtdev(atadev, "%s setting WDMA2 on Promise chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
-		promise_timing(ch, devno, ATA_WDMA2);
-		atadev->mode = ATA_WDMA2;
+		promise_timing(atadev, devno, ATA_WDMA2);
+		ata_dmacreate(atadev, apiomode, ATA_WDMA2);
 		return;
 	    }
 	}
@@ -966,76 +1101,76 @@ via_82c586:
 	    ata_prtdev(atadev, "%s setting PIO%d on Promise chip\n",
 		       (error) ? "failed" : "success",
 		       (apiomode >= 0) ? apiomode : 0);
-	promise_timing(ch, devno, ATA_PIO0 + apiomode);
+	promise_timing(atadev, devno, ATA_PIO0 + apiomode);
 	atadev->mode = ATA_PIO0 + apiomode;
 	return;
     
     case 0x00041103:	/* HighPoint HPT366/368/370/372 controllers */
     case 0x00051103:	/* HighPoint HPT372 controllers */
     case 0x00081103:	/* HighPoint HPT374 controllers */
-	if (!ATAPI_DEVICE(ch, device) && udmamode >= 6 && hpt_cable80(ch) &&
-	    ((ch->chiptype == 0x00041103 && pci_get_revid(parent) >= 0x05) ||
-	     (ch->chiptype == 0x00051103 && pci_get_revid(parent) >= 0x01) ||
-	     (ch->chiptype == 0x00081103 && pci_get_revid(parent) >= 0x07))) {
+	if (!ATAPI_DEVICE(atadev) && udmamode >= 6 && hpt_cable80(atadev) &&
+	    ((chiptype == 0x00041103 && chiprev >= 0x05) ||
+	     (chiptype == 0x00051103 && chiprev >= 0x01) ||
+	     (chiptype == 0x00081103 && chiprev >= 0x07))) {
 	    error = ata_command(atadev, ATA_C_SETFEATURES, 0,
 				ATA_UDMA6, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
 		ata_prtdev(atadev, "%s setting UDMA6 on HighPoint chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
-		hpt_timing(ch, devno, ATA_UDMA6);
-		atadev->mode = ATA_UDMA6;
+		hpt_timing(atadev, devno, ATA_UDMA6);
+		ata_dmacreate(atadev, apiomode, ATA_UDMA6);
 		return;
 	    }
 	}
-	if (!ATAPI_DEVICE(ch, device) && udmamode >= 5 && hpt_cable80(ch) &&
-	    ((ch->chiptype == 0x00041103 && pci_get_revid(parent) >= 0x03) ||
-	     (ch->chiptype == 0x00051103 && pci_get_revid(parent) >= 0x01) ||
-	     (ch->chiptype == 0x00081103 && pci_get_revid(parent) >= 0x07))) {
+	if (!ATAPI_DEVICE(atadev) && udmamode >= 5 && hpt_cable80(atadev) &&
+	    ((chiptype == 0x00041103 && chiprev >= 0x03) ||
+	     (chiptype == 0x00051103 && chiprev >= 0x01) ||
+	     (chiptype == 0x00081103 && chiprev >= 0x07))) {
 	    error = ata_command(atadev, ATA_C_SETFEATURES, 0,
 				ATA_UDMA5, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
 		ata_prtdev(atadev, "%s setting UDMA5 on HighPoint chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
-		hpt_timing(ch, devno, ATA_UDMA5);
-		atadev->mode = ATA_UDMA5;
+		hpt_timing(atadev, devno, ATA_UDMA5);
+		ata_dmacreate(atadev, apiomode, ATA_UDMA5);
 		return;
 	    }
 	}
-	if (!ATAPI_DEVICE(ch, device) && udmamode >= 4 && hpt_cable80(ch)) {
+	if (!ATAPI_DEVICE(atadev) && udmamode >= 4 && hpt_cable80(atadev)) {
 	    error = ata_command(atadev, ATA_C_SETFEATURES, 0,
 				ATA_UDMA4, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
 		ata_prtdev(atadev, "%s setting UDMA4 on HighPoint chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
-		hpt_timing(ch, devno, ATA_UDMA4);
-		atadev->mode = ATA_UDMA4;
+		hpt_timing(atadev, devno, ATA_UDMA4);
+		ata_dmacreate(atadev, apiomode, ATA_UDMA4);
 		return;
 	    }
 	}
-	if (!ATAPI_DEVICE(ch, device) && udmamode >= 2) {
+	if (!ATAPI_DEVICE(atadev) && udmamode >= 2) {
 	    error = ata_command(atadev, ATA_C_SETFEATURES, 0,
 				ATA_UDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
 		ata_prtdev(atadev, "%s setting UDMA2 on HighPoint chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
-		hpt_timing(ch, devno, ATA_UDMA2);
-		atadev->mode = ATA_UDMA2;
+		hpt_timing(atadev, devno, ATA_UDMA2);
+		ata_dmacreate(atadev, apiomode, ATA_UDMA2);
 		return;
 	    }
 	}
-	if (!ATAPI_DEVICE(ch, device) && wdmamode >= 2 && apiomode >= 4) {
+	if (!ATAPI_DEVICE(atadev) && wdmamode >= 2 && apiomode >= 4) {
 	    error = ata_command(atadev, ATA_C_SETFEATURES, 0,
 				ATA_WDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
 		ata_prtdev(atadev, "%s setting WDMA2 on HighPoint chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
-		hpt_timing(ch, devno, ATA_WDMA2);
-		atadev->mode = ATA_WDMA2;
+		hpt_timing(atadev, devno, ATA_WDMA2);
+		ata_dmacreate(atadev, apiomode, ATA_WDMA2);
 		return;
 	    }
 	}
@@ -1046,44 +1181,42 @@ via_82c586:
 	    ata_prtdev(atadev, "%s setting PIO%d on HighPoint chip\n",
 		       (error) ? "failed" : "success",
 		       (apiomode >= 0) ? apiomode : 0);
-	hpt_timing(ch, devno, ATA_PIO0 + apiomode);
+	hpt_timing(atadev, devno, ATA_PIO0 + apiomode);
 	atadev->mode = ATA_PIO0 + apiomode;
 	return;
 
     case 0x000116ca:	/* Cenatek Rocket Drive controller */
 	if (wdmamode >= 0 &&
-	    (ATA_INB(ch->r_bmio, ATA_BMSTAT_PORT) & 
-	     ((device==ATA_MASTER)?ATA_BMSTAT_DMA_MASTER:ATA_BMSTAT_DMA_SLAVE)))
-	    atadev->mode = ATA_DMA;
+	    (ATA_INB(atadev->channel->r_bmio, ATA_BMSTAT_PORT) & 
+	     (device ? ATA_BMSTAT_DMA_SLAVE : ATA_BMSTAT_DMA_MASTER)))
+	    ata_dmacreate(atadev, apiomode, ATA_DMA);
 	else
 	    atadev->mode = ATA_PIO;
 	return;
 
     default:		/* unknown controller chip */
 	/* better not try generic DMA on ATAPI devices it almost never works */
-	if ((device == ATA_MASTER && ch->devices & ATA_ATAPI_MASTER) ||
-	    (device == ATA_SLAVE && ch->devices & ATA_ATAPI_SLAVE))
+	if (ATAPI_DEVICE(atadev))
 	    break;
 
 	/* if controller says its setup for DMA take the easy way out */
 	/* the downside is we dont know what DMA mode we are in */
 	if ((udmamode >= 0 || wdmamode >= 2) &&
-	    (ATA_INB(ch->r_bmio, ATA_BMSTAT_PORT) &
-	     ((device==ATA_MASTER) ? 
-	      ATA_BMSTAT_DMA_MASTER : ATA_BMSTAT_DMA_SLAVE))) {
-	    atadev->mode = ATA_DMA;
+	    (ATA_INB(atadev->channel->r_bmio, ATA_BMSTAT_PORT) &
+	     (device ? ATA_BMSTAT_DMA_SLAVE : ATA_BMSTAT_DMA_MASTER))) {
+	    ata_dmacreate(atadev, apiomode, ATA_DMA);
 	    return;
 	}
 
 	/* well, we have no support for this, but try anyways */
-	if ((wdmamode >= 2 && apiomode >= 4) && ch->r_bmio) {
+	if ((wdmamode >= 2 && apiomode >= 4) && atadev->channel->r_bmio) {
 	    error = ata_command(atadev, ATA_C_SETFEATURES, 0,
 				ATA_WDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
 		ata_prtdev(atadev, "%s setting WDMA2 on generic chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
-		atadev->mode = ATA_WDMA2;
+		ata_dmacreate(atadev, apiomode, ATA_WDMA2);
 		return;
 	    }
 	}
@@ -1102,52 +1235,81 @@ via_82c586:
     }
 }
 
-int
-ata_dmasetup(struct ata_channel *ch, int device, struct ata_dmaentry *dmatab,
-	     caddr_t data, int32_t count)
+struct ata_dmasetup_data_cb_args {
+    struct ata_dmaentry *dmatab;
+    int error;
+};
+
+static void
+ata_dmasetupd_cb(void *xsc, bus_dma_segment_t *segs, int nsegs, int error)
 {
-    u_int32_t dma_count, dma_base;
-    int i = 0;
+    struct ata_dmasetup_data_cb_args *cba =
+	(struct ata_dmasetup_data_cb_args *)xsc;
+    bus_size_t cnt;
+    u_int32_t lastcount;
+    int i, j;
+
+    cba->error = error;
+    if (error != 0)
+	return;
+    lastcount = j = 0;
+    for (i = 0; i < nsegs; i++) {
+	/*
+	 * A maximum segment size was specified for bus_dma_tag_create, but
+	 * some busdma code does not seem to honor this, so fix up if needed.
+	 */
+	for (cnt = 0; cnt < segs[i].ds_len; cnt += MAXSEGSZ, j++) {
+	    cba->dmatab[j].base = htole32(segs[i].ds_addr + cnt);
+	    lastcount = ulmin(segs[i].ds_len - cnt, MAXSEGSZ) & 0xffff;
+	    cba->dmatab[j].count = htole32(lastcount);
+	}
+    }
+    cba->dmatab[j - 1].count = htole32(lastcount | ATA_DMA_EOT);
+}
+
+int
+ata_dmasetup(struct ata_device *atadev, caddr_t data, int32_t count)
+{
+    struct ata_channel *ch = atadev->channel;
+    struct ata_dmastate *ds = &atadev->dmastate;
+    struct ata_dmasetup_data_cb_args cba;
+
+    if (ds->flags & ATA_DS_ACTIVE)
+	    panic("ata_dmasetup: transfer active on this device!");
 
     if (((uintptr_t)data & ch->alignment) || (count & ch->alignment)) {
-	ata_printf(ch, device, "non aligned DMA transfer attempted\n");
+	ata_prtdev(atadev, "non aligned DMA transfer attempted\n");
 	return -1;
     }
 
     if (!count) {
-	ata_printf(ch, device, "zero length DMA transfer attempted\n");
+	ata_prtdev(atadev, "zero length DMA transfer attempted\n");
 	return -1;
     }
-    
-    dma_base = vtophys(data);
-    dma_count = imin(count, (PAGE_SIZE - ((uintptr_t)data & PAGE_MASK)));
-    data += dma_count;
-    count -= dma_count;
 
-    while (count) {
-	dmatab[i].base = dma_base;
-	dmatab[i].count = (dma_count & 0xffff);
-	i++; 
-	if (i >= ATA_DMA_ENTRIES) {
-	    ata_printf(ch, device, "too many segments in DMA table\n");
-	    return -1;
-	}
-	dma_base = vtophys(data);
-	dma_count = imin(count, PAGE_SIZE);
-	data += imin(count, PAGE_SIZE);
-	count -= imin(count, PAGE_SIZE);
-    }
-    dmatab[i].base = dma_base;
-    dmatab[i].count = (dma_count & 0xffff) | ATA_DMA_EOT;
+    cba.dmatab = ds->dmatab;
+    if (bus_dmamap_load(ds->ddmatag, ds->ddmamap, data, count,
+			ata_dmasetupd_cb, &cba, 0) || cba.error)
+    ds->flags = ATA_DS_ACTIVE;
+    bus_dmamap_sync(ds->cdmatag, ds->cdmamap, BUS_DMASYNC_PREWRITE);
+
     return 0;
 }
 
 void
-ata_dmastart(struct ata_channel *ch, int device, 
-	     struct ata_dmaentry *dmatab, int dir)
+ata_dmastart(struct ata_device *atadev, int dir)
 {
+    struct ata_channel *ch;
+    struct ata_dmastate *ds;
+
+    ch = atadev->channel;
+    ds = &atadev->dmastate;
+    bus_dmamap_sync(ds->ddmatag, ds->ddmamap, dir ? BUS_DMASYNC_PREREAD :
+		    BUS_DMASYNC_PREWRITE);
+    if (dir)
+	    ds->flags |= ATA_DS_READ;
     ch->flags |= ATA_DMA_ACTIVE;
-    ATA_OUTL(ch->r_bmio, ATA_BMDTP_PORT, vtophys(dmatab));
+    ATA_OUTL(ch->r_bmio, ATA_BMDTP_PORT, ds->mdmatab);
     ATA_OUTB(ch->r_bmio, ATA_BMCMD_PORT, dir ? ATA_BMCMD_WRITE_READ : 0);
     ATA_OUTB(ch->r_bmio, ATA_BMSTAT_PORT, 
 	 (ATA_INB(ch->r_bmio, ATA_BMSTAT_PORT) | 
@@ -1157,16 +1319,24 @@ ata_dmastart(struct ata_channel *ch, int device,
 }
 
 int
-ata_dmadone(struct ata_channel *ch)
+ata_dmadone(struct ata_device *atadev)
 {
+    struct ata_channel *ch;
+    struct ata_dmastate *ds;
     int error;
 
+    ch = atadev->channel;
+    ds = &atadev->dmastate;
+    bus_dmamap_sync(ds->ddmatag, ds->ddmamap, (ds->flags & ATA_DS_READ) != 0 ?
+		    BUS_DMASYNC_POSTREAD : BUS_DMASYNC_POSTWRITE);
+    bus_dmamap_unload(ds->ddmatag, ds->ddmamap);
     ATA_OUTB(ch->r_bmio, ATA_BMCMD_PORT, 
 		ATA_INB(ch->r_bmio, ATA_BMCMD_PORT) & ~ATA_BMCMD_START_STOP);
     ch->flags &= ~ATA_DMA_ACTIVE;
     error = ATA_INB(ch->r_bmio, ATA_BMSTAT_PORT);
     ATA_OUTB(ch->r_bmio, ATA_BMSTAT_PORT, 
 	     error | ATA_BMSTAT_INTERRUPT | ATA_BMSTAT_ERROR);
+    ds->flags = 0;
     return error & ATA_BMSTAT_MASK;
 }
 
@@ -1177,7 +1347,7 @@ ata_dmastatus(struct ata_channel *ch)
 }
 
 static void
-cyrix_timing(struct ata_channel *ch, int devno, int mode)
+cyrix_timing(struct ata_device *atadev, int devno, int mode)
 {
     u_int32_t reg20 = 0x0000e132;
     u_int32_t reg24 = 0x00017771;
@@ -1191,14 +1361,15 @@ cyrix_timing(struct ata_channel *ch, int devno, int mode)
     case ATA_WDMA2:	reg24 = 0x00002020; break;
     case ATA_UDMA2:	reg24 = 0x00911030; break;
     }
-    ATA_OUTL(ch->r_bmio, (devno << 3) + 0x20, reg20);
-    ATA_OUTL(ch->r_bmio, (devno << 3) + 0x24, reg24);
+    ATA_OUTL(atadev->channel->r_bmio, (devno << 3) + 0x20, reg20);
+    ATA_OUTL(atadev->channel->r_bmio, (devno << 3) + 0x24, reg24);
 }
 
 static void
-promise_timing(struct ata_channel *ch, int devno, int mode)
+promise_timing(struct ata_device *atadev, int devno, int mode)
 {
     u_int32_t timing = 0;
+    /* XXX: Endianess */
     struct promise_timing {
 	u_int8_t  pa:4;
 	u_int8_t  prefetch:1;
@@ -1220,7 +1391,7 @@ promise_timing(struct ata_channel *ch, int devno, int mode)
 	t->prefetch = 1; t->errdy = 1; t->syncin = 1;
     }
 
-    switch (ch->chiptype) {
+    switch (atadev->channel->chiptype) {
     case 0x4d33105a:  /* Promise Ultra/Fasttrak 33 */
 	switch (mode) {
 	default:
@@ -1251,16 +1422,19 @@ promise_timing(struct ata_channel *ch, int devno, int mode)
 	}
 	break;
     }
-    pci_write_config(device_get_parent(ch->dev), 0x60 + (devno<<2), timing, 4);
+    pci_write_config(device_get_parent(atadev->channel->dev),
+		     0x60 + (devno << 2), timing, 4);
 }
 
 static void
-hpt_timing(struct ata_channel *ch, int devno, int mode)
+hpt_timing(struct ata_device *atadev, int devno, int mode)
 {
-    device_t parent = device_get_parent(ch->dev);
+    device_t parent = device_get_parent(atadev->channel->dev);
+    u_int32_t chiptype = atadev->channel->chiptype;
+    int chiprev = pci_get_revid(parent);
     u_int32_t timing;
 
-    if (ch->chiptype == 0x00081103 && pci_get_revid(parent) >= 0x07) {
+    if (chiptype == 0x00081103 && chiprev >= 0x07) {
 	switch (mode) {						/* HPT374 */
 	case ATA_PIO0:	timing = 0x0ac1f48a; break;
 	case ATA_PIO1:	timing = 0x0ac1f465; break;
@@ -1275,8 +1449,8 @@ hpt_timing(struct ata_channel *ch, int devno, int mode)
 	default:	timing = 0x0d029d5e;
 	}
     }
-    else if ((ch->chiptype == 0x00041103 && pci_get_revid(parent) >= 0x05) ||
-	     (ch->chiptype == 0x00051103 && pci_get_revid(parent) >= 0x01)) {
+    else if ((chiptype == 0x00041103 && chiprev >= 0x05) ||
+	     (chiptype == 0x00051103 && chiprev >= 0x01)) {
 	switch (mode) {						/* HPT372 */
 	case ATA_PIO0:	timing = 0x0d029d5e; break;
 	case ATA_PIO1:	timing = 0x0d029d26; break;
@@ -1291,7 +1465,7 @@ hpt_timing(struct ata_channel *ch, int devno, int mode)
 	default:	timing = 0x0d029d5e;
 	}
     }
-    else if (ch->chiptype == 0x00041103 && pci_get_revid(parent) >= 0x03) {
+    else if (chiptype == 0x00041103 && chiprev >= 0x03) {
 	switch (mode) {						/* HPT370 */
 	case ATA_PIO0:	timing = 0x06914e57; break;
 	case ATA_PIO1:	timing = 0x06914e43; break;
@@ -1353,13 +1527,13 @@ hpt_timing(struct ata_channel *ch, int devno, int mode)
 }
 
 static int
-hpt_cable80(struct ata_channel *ch)
+hpt_cable80(struct ata_device *atadev)
 {
-    device_t parent = device_get_parent(ch->dev);
+    device_t parent = device_get_parent(atadev->channel->dev);
     u_int8_t reg, val, res;
 
-    if (ch->chiptype == 0x00081103 && pci_get_function(parent) == 1) {
-	reg = ch->unit ? 0x57 : 0x53;
+    if (atadev->channel->chiptype==0x00081103 && pci_get_function(parent)==1) {
+	reg = atadev->channel->unit ? 0x57 : 0x53;
 	val = pci_read_config(parent, reg, 1);
 	pci_write_config(parent, reg, val | 0x80, 1);
     }
@@ -1368,7 +1542,7 @@ hpt_cable80(struct ata_channel *ch)
 	val = pci_read_config(parent, reg, 1);
 	pci_write_config(parent, reg, val & 0xfe, 1);
     }
-    res = pci_read_config(parent, 0x5a, 1) & (ch->unit ? 0x01 : 0x02);
+    res = pci_read_config(parent, 0x5a, 1) & (atadev->channel->unit ? 0x1:0x2);
     pci_write_config(parent, reg, val, 1);
     return !res;
 }

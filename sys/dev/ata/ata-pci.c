@@ -28,6 +28,7 @@
  * $FreeBSD$
  */
 
+#include "opt_ata.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -363,13 +364,19 @@ ata_pci_attach(device_t dev)
     type = pci_get_devid(dev);
     class = pci_get_class(dev);
     subclass = pci_get_subclass(dev);
-    cmd = pci_read_config(dev, PCIR_COMMAND, 4);
+    cmd = pci_read_config(dev, PCIR_COMMAND, 2);
 
     if (!(cmd & PCIM_CMD_PORTEN)) {
 	device_printf(dev, "ATA channel disabled by BIOS\n");
 	return 0;
     }
 
+#ifdef ATA_ENABLE_BUSMASTER
+    if (!(cmd & PCIM_CMD_BUSMASTEREN)) {
+	pci_write_config(dev, PCIR_COMMAND, cmd | PCIM_CMD_BUSMASTEREN, 2);
+	cmd = pci_read_config(dev, PCIR_COMMAND, 2);
+    }
+#endif
     /* is busmastering supported ? */
     if ((cmd & (PCIM_CMD_PORTEN | PCIM_CMD_BUSMASTEREN)) == 
 	(PCIM_CMD_PORTEN | PCIM_CMD_BUSMASTEREN)) {
@@ -403,22 +410,28 @@ ata_pci_attach(device_t dev)
 	break;
 
     case 0x00041103: /* HighPoint HPT366/368/370/372 default setup */
-	if (pci_get_revid(dev) < 2) {	/* HPT 366 */
+	if (pci_get_revid(dev) < 2) {	/* HPT366 */
 	    /* turn off interrupt prediction */
 	    pci_write_config(dev, 0x51, 
 			     (pci_read_config(dev, 0x51, 1) & ~0x80), 1);
 	    break;
 	}
-	/* turn off interrupt prediction */
-	pci_write_config(dev, 0x51, (pci_read_config(dev, 0x51, 1) & ~0x03), 1);
-	pci_write_config(dev, 0x55, (pci_read_config(dev, 0x55, 1) & ~0x03), 1);
+	if (pci_get_revid(dev) < 5) {	/* HPT368/370 */
+	    /* turn off interrupt prediction */
+	    pci_write_config(dev, 0x51,
+			     (pci_read_config(dev, 0x51, 1) & ~0x03), 1);
+	    pci_write_config(dev, 0x55,
+			     (pci_read_config(dev, 0x55, 1) & ~0x03), 1);
 
-	/* turn on interrupts */
-	pci_write_config(dev, 0x5a, (pci_read_config(dev, 0x5a, 1) & ~0x10), 1);
+	    /* turn on interrupts */
+	    pci_write_config(dev, 0x5a,
+			     (pci_read_config(dev, 0x5a, 1) & ~0x10), 1);
 
-	/* set clocks etc */
-	pci_write_config(dev, 0x5b, 0x22, 1);
-	break;
+	    /* set clocks etc */
+	    pci_write_config(dev, 0x5b, 0x22, 1);
+	    break;
+	}
+	/* FALLTHROUGH */
 
     case 0x00051103: /* HighPoint HPT372 default setup */
     case 0x00081103: /* HighPoint HPT374 default setup */
@@ -479,6 +492,10 @@ ata_pci_attach(device_t dev)
 	pci_write_config(dev, 0x5a,   
 			 (pci_read_config(dev, 0x5a, 1) & ~0x40) |
 			 (pci_get_revid(dev) >= 0x92) ? 0x03 : 0x02, 1);
+	break;
+
+    case 0x06461095: /* CMD 646 enable interrupts, set DMA read mode */
+	pci_write_config(dev, 0x71, 0x01, 1);
 	break;
 
     case 0x10001042: /* RZ 100? known bad, no DMA */
@@ -631,7 +648,7 @@ ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 					 start, end, count, flags);
 		if (res) {
 			start = rman_get_start(res) + 2;
-			end = rman_get_start(res) + ATA_ALTIOSIZE - 1;
+			end = start + ATA_ALTIOSIZE - 1;
 			count = ATA_ALTIOSIZE;
 			BUS_RELEASE_RESOURCE(device_get_parent(dev), dev,
 					     SYS_RES_IOPORT, myrid, res);
