@@ -108,36 +108,36 @@ static const char rcsid[] =
 
 typedef	char	bool;
 
-FILE	*msgsrc;
-FILE	*newmsg;
-char	*sep = "-";
-char	inbuf[BUFSIZ];
-char	fname[MAXPATHLEN];
-char	cmdbuf[MAXPATHLEN + MAXPATHLEN];
-char	subj[128];
-char	from[128];
-char	date[128];
-char	*ptr;
-char	*in;
-bool	local;
-bool	ruptible;
-bool	totty;
-bool	seenfrom;
-bool	seensubj;
-bool	blankline;
-bool	printing = NO;
-bool	mailing = NO;
-bool	quitit = NO;
-bool	sending = NO;
-bool	intrpflg = NO;
-int	uid;
-int	msg;
-int	prevmsg;
-int	lct;
-int	nlines;
-int	Lpp = 0;
-time_t	t;
-time_t	keep;
+FILE		*msgsrc;
+FILE		*newmsg;
+const char	*sep = "-";
+char		inbuf[BUFSIZ];
+char		fname[MAXPATHLEN];
+char		cmdbuf[MAXPATHLEN + MAXPATHLEN];
+char		subj[128];
+char		from[128];
+char		date[128];
+char		*ptr;
+char		*in;
+bool		local;
+bool		ruptible;
+bool		totty;
+bool		seenfrom;
+bool		seensubj;
+bool		blankline;
+bool		printing = NO;
+bool		mailing = NO;
+bool		quitit = NO;
+bool		sending = NO;
+bool		intrpflg = NO;
+int		uid;
+int		msg;
+int		prevmsg;
+int		lct;
+int		nlines;
+int		Lpp = 0;
+time_t		t;
+time_t		keep;
 
 /* option initialization */
 bool	hdrs = NO;
@@ -151,15 +151,16 @@ bool	lastcmd = NO;
 jmp_buf	tstpbuf;
 
 
-void ask __P((char *));
-void gfrsub __P((FILE *));
-int linecnt __P((FILE *));
-int next __P((char *));
-char *nxtfld __P((unsigned char *));
-void onsusp __P((int));
-void onintr __P((int));
-void prmesg __P((int));
-static void usage __P((void));
+void		ask __P((const char *));
+void		gfrsub __P((FILE *));
+int		linecnt __P((FILE *));
+int		main __P((int, char *[]));
+int		next __P((char *));
+char		*nxtfld __P((unsigned char *));
+void		onsusp __P((int));
+void		onintr __P((int));
+void		prmesg __P((int));
+static void	usage __P((void));
 
 int
 main(argc, argv)
@@ -449,7 +450,7 @@ int argc; char *argv[];
 			Lpp = win.ws_row;
 		if (Lpp <= 0) {
 			if (tgetent(inbuf, getenv("TERM")) <= 0
-			    || (Lpp = tgetnum("li")) <= 0) {
+			    || (Lpp = tgetnum(__DECONST(char *, "li"))) <= 0) {
 				Lpp = NLINES;
 			}
 		}
@@ -671,7 +672,7 @@ int length;
 
 void
 onintr(unused)
-	int unused;
+	int unused __unused;
 {
 	signal(SIGINT, onintr);
 	if (mailing)
@@ -697,7 +698,7 @@ onintr(unused)
  */
 void
 onsusp(unused)
-	int unused;
+	int unused __unused;
 {
 	signal(SIGTSTP, SIG_DFL);
 	sigsetmask(0);
@@ -734,7 +735,7 @@ char *buf;
 
 void
 ask(prompt)
-char *prompt;
+const char *prompt;
 {
 	char	inch;
 	int	n, cmsg, fd;
