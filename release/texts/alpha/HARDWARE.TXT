@@ -28,7 +28,7 @@ In general, what do you need to run FreeBSD/alpha?
 --------------------------------------------------
 
 Obviously you will need an Alpha machine that FreeBSD/alpha knows about.
-Alpha machines are NOT PC-architectures. There are considerable differences
+Alpha machines are NOT like PCs. There are considerable differences
 between the various chip sets and mainboard designs. This means that a kernel
 needs to know the intimate details of a particular machine before it can run
 on it. Throwing some odd GENERIC kernel at unknown hardware is almost
@@ -46,7 +46,10 @@ which you only have to select (via an ARC/AlphaBIOS menu). In other cases
 you will have to re-flash the ROMs with SRM code. Check on
 http://ftp.digital.com/pub/DEC/Alpha/firmware to see what is available
 for your particular system. In any case: no SRM -> no FreeBSD (or NetBSD, 
-OpenBSD, Tru64 Unix or OpenVMS for that matter). 
+OpenBSD, Tru64 Unix or OpenVMS for that matter). With the demise of
+WindowsNT/alpha a lot of former NT boxes are sold on the second hand
+market. They have little or no trade-in value when they are NT-only from the
+console perspective. So, be suspicious if the price appears too good.
 
 As part of the SRM you will get the so called OSF/1 PAL code (OSF/1 being the
 initial name of DECs Unix offering on Alpha). The PAL code can be thought
@@ -55,7 +58,7 @@ system. It uses normal CPU instruction plus a handful of privileged
 instructions specific for PAL use. PAL is not microcode by the way. 
 The ARC firmware contains a different PAL code, geared towards WinNT and in
 no way suitable for use by FreeBSD (or more generic: Unix or OpenVMS).
-Before someone asks: AlphaLinux brings its own PAL code, allowing it to
+Before someone asks: Linux/alpha brings its own PAL code, allowing it to
 boot. There are various reasons why this is not a very good idea in the
 eyes of the *BSD folks. I don't want to go into details here.
 
@@ -93,9 +96,9 @@ generally (but are not guaranteed to) work. Note that Intel took over the
 logo on them these days.
 
 Alpha machines can be run with SRM on a graphics console or on
-a serial console. ARC does can be run on a serial consoles if need be. VT100
-with 8 bit controls should at least allow you to switch from ARC to SRM
-mode.
+a serial console. ARC can be run on a serial consoles if need be. VT100
+emulation with 8 bit controls should at least allow you to switch from 
+ARC to SRM mode without having to install a graphics card first.
 
 If you want to run your Alpha without a monitor/graphics card 
 just don't connect a keyboard/mouse to the machine. Instead hook 
@@ -103,13 +106,15 @@ up a serial terminal[emulator] to serial port #1.  The SRM will
 talk 9600N81 to you. This can be really practical for debugging purposes.
 Beware: some/most (?) SRMs will also present you with a console prompt at
 serial port #2. The booting kernel, however, will display the boot messages
-on serial port #1 and will also put the console there.
+on serial port #1 and will also put the console there. This can be extremely
+confusing.
 
 Most PCI based Alphas can use ordinary PC-type VGA cards. The SRM contains
 enough smarts to make that work. It does not, however, mean that each and
 every PCI VGA card out on the street will work in an Alpha machine. Things
 like S3 Trio64, Mach64 generally work. Old ET4000 based ISA cards have also
-worked for me. But ask around first before buying.
+worked for me. But ask around first before buying. Please note that TGA
+cards are not supported as FreeBSD console display cards. 
 
 Most PCI devices from the PC-world will also work in FreeBSD/alpha PCI-based
 machines. Check the /sys/alpha/conf/GENERIC file for the latest word on
@@ -119,7 +124,7 @@ Currently parallel ports do not work on FreeBSD/alpha. The driver needs
 work to make this happen. 
 
 For Alpha CPUs you will find multiple versions. The original Alpha
-design is the 21064. It was produced in a chip baking process called MOS4,
+design is the 21064. It was produced in a chip process called MOS4,
 chips made in this process are nicknamed EV4. Newer CPUs are 21164, 21264
 etc. You will see designations like EV4S, EV45, EV5, EV56, EV6, EV67.
 The EVs with double digit numbers are slightly improved versions. For example
@@ -144,7 +149,7 @@ System specific information
 ---------------------------
 
 Below is an overview of the hardware that FreeBSD/alpha runs on.
-This list is bound to grow, a look in /sys/alpha/conf/GENERIC
+This list will definitely grow, a look in /sys/alpha/conf/GENERIC
 can be enlightening. Alpha machines are often best known by their project
 code name, when known these are listed below in ().
 
@@ -184,7 +189,7 @@ SRM:
 NoNames can either have SRM *or* ARC console firmware in their Flash ROM.
 The Flash ROM is not big enough to hold both ARC and SRM at the same time 
 and allow software selection of alternate console code. But you need 
-SRM only anyway.
+SRM-only anyway.
 
 Cache:
 Cache for the NoNames are 15 or 20 ns DIL chips. For a 256 kByte cache you
@@ -199,7 +204,7 @@ a new power supply. The 3.3 Volts is only needed in case you run 3.3 Volts
 PCI expansion boards.
 
 IDE:
-SRM presumably cannot boot from IDE disks (have never tried this myself)
+SRM cannot boot from IDE disks.
 
 Memory:
 Make sure you use true 36 bit SIMMs, and only FPM (Fast Page Mode). EDO RAM
@@ -262,14 +267,15 @@ hacks. The low end Multia has a soldered-in CPU.
 
 Graphics: 
 It comes with a TGA based graphics on-board. Which is not suitable for
-console use according to reports I have received.
+console use according to reports I have received. Which means you will
+either have to run it on a serial console.
 
 Hot:
 Multias are somewhat notorious for dying of heat strokes. The very compact
 box does not really allow cooling air access very well. Please use the 
 Multia on its vertical stand, don't put it horizontally ('pizza style').
 Replacing the fan with something which pushes around more air is
-wholeheartedly recommended. Beware of PCI cards with high power consumption.
+recommended. Beware of PCI cards with high power consumption.
 
 SCSI:
 In case you want to change the internal hard drive: the internal flat cable
@@ -389,7 +395,7 @@ problems by the MiataGL SRM.
 
 The latest mainboard revisions of MX5 contain a hardware workaround for the
 bug. The SRM does not know about the ECO and will complain about unknown cards
-as before. The same remark applies to the FreeBSD kernel by the way.
+as before. So does the FreeBSD kernel by the way.
 
 EIDE:
 The Miata SRM can boot from IDE CDROM drives. Harddisk boot is known to work for
@@ -523,26 +529,26 @@ row is connected to Vss (GND) and the other is connected to pins
 If you bridge a pair of pads with a small resistor or a drop of  
 solder you ground that particular bit.
 
-PRD1    PRD2    mem. size
----------------------------------------------
-GND     GND     4 or 64 Mbyte
-Open    GND     2 or 32 Mbyte
-GND     Open    1 or 16 Mbyte
-Open    Open    8 Mbyte
+	PRD1    PRD2    mem. size
+	-----------------------------
+	GND     GND     4 or 64 Mbyte
+	Open    GND     2 or 32 Mbyte
+	GND     Open    1 or 16 Mbyte
+	Open    Open    8 Mbyte
 
-PRD3    PRD4    access time
--------------------------------------------------
-GND     GND     50 or 100 nsec
-Open    GND     80 nsec
-GND     Open    70 nsec
-Open    Open    60 nsec
+	PRD3    PRD4    access time
+	------------------------------
+	GND     GND     50 or 100 nsec
+	Open    GND     80 nsec
+	GND     Open    70 nsec
+	Open    Open    60 nsec
 
 DEC3000/500-class can use 2, 4, 8, 16 and 32 Mbyte 100pin SIMMs. 
 Note that the maximum memory size varies from system to system, 
 desktop machines have sacrificed box size for less memory SIMM sockets. 
 Given enough sockets and enough SIMMs you can get to 512 Mbytes maximum.
 This is one of the main differences between floor standing and desktop
-machines, the latter have much less SIMM sockets.
+machines, the latter have far less SIMM sockets.
 
 Sound:
 is not supported on any of the Birds.
@@ -866,10 +872,10 @@ same.
 
 Memory:
   AS1000-systems:
-  All EV4 based machines use standard PS/2 style 36 bit 72pin SIMMs in sets of
-  5. The fifth SIMM is used for ECC.
-  All EV5 based machines use standard PS/2 style 36 bit 72pin SIMMs in sets of
-  4. The ECC is done based on the 4 extra bits per SIMM (4 bits out of 36).
+  All EV4 based machines use standard PS/2 style 36 bit 72pin SIMMs in sets 
+  of 5. The fifth SIMM is used for ECC.
+  All EV5 based machines use standard PS/2 style 36 bit 72pin SIMMs in sets 
+  of 4. The ECC is done based on the 4 extra bits per SIMM (4 bits out of 36).
   The EV5 mainboards have 16 SIMM slots, the EV4 mainboards have 20 slots.
 
   AS800:
@@ -885,8 +891,8 @@ Upgrade CDROM.
   
 For the AlphaServer1000/1000A/800 machines the kernel config file must contain:
 	options         DEC_1000A
-	cpu		EV4		# depends on model CPU installed
-	cpu		EV5		# depends on model CPU installed
+	cpu		EV4		# depends on the CPU model installed
+	cpu		EV5		# depends on the CPU model installed
 
 *
 * DS10/VS10/XP900 ("Webbrick") / XP1000 ("Monet")
@@ -948,8 +954,10 @@ whether this works on FreeBSD on DS10 is as yet unknown.
 
 The kernel config file must contain:
 	options         DEC_ST6600    
+	cpu		EV5
+
 Contrary to expectation there is no 'cpu EV6' defined for inclusion in the
-kernel config file. A 'cpu EV5' is mandatory to keep config(8) happy.
+kernel config file. The 'cpu EV5' is mandatory to keep config(8) happy.
 
 ** Monet 
 
@@ -1007,8 +1015,10 @@ progress in this area.
 
 The kernel config file must contain:
 	options         DEC_ST6600    
+	cpu		EV5
+
 Contrary to expectation there is no 'cpu EV6' defined for inclusion in the
-kernel config file. A 'cpu EV5' is mandatory to keep config(8) happy.
+kernel config file. The 'cpu EV5' is mandatory to keep config(8) happy.
 
 ** DS20/DS20E ("Goldrush"):
 
@@ -1054,8 +1064,10 @@ have to move this card before you can install/boot FreeBSD on it.
 
 The kernel config file must contain:
 	options         DEC_ST6600    
+	cpu		EV5
+
 Contrary to expectation there is no 'cpu EV6' defined for inclusion in the
-kernel config file. A 'cpu EV5' is mandatory to keep config(8) happy.
+kernel config file. The 'cpu EV5' is mandatory to keep config(8) happy.
 
 ** AlphaPC 264DP <need more info on this one; please check for correctness>
 
@@ -1093,8 +1105,10 @@ Busmaster DMA is supported on the first IDE interface only.
 
 The kernel config file must contain:
 	options         DEC_ST6600    
+	cpu		EV5
+
 Contrary to expectation there is no 'cpu EV6' defined for inclusion in the
-kernel config file. A 'cpu EV5' is mandatory to keep config(8) happy.
+kernel config file. The 'cpu EV5' is mandatory to keep config(8) happy.
 
 Supported hardware overview
 ---------------------------
