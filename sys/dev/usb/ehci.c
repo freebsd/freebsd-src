@@ -245,6 +245,7 @@ Static void		ehci_abort_xfer(usbd_xfer_handle, usbd_status);
 
 #ifdef EHCI_DEBUG
 Static void		ehci_dump_regs(ehci_softc_t *);
+Static void		ehci_dump(void);
 Static ehci_softc_t 	*theehci;
 Static void		ehci_dump_link(ehci_link_t, int);
 Static void		ehci_dump_sqtds(ehci_soft_qtd_t *);
@@ -1242,7 +1243,6 @@ ehci_dump_regs(ehci_softc_t *sc)
  * Unused function - this is meant to be called from a kernel
  * debugger.
  */
-void ehci_dump(void);
 void
 ehci_dump()
 {
