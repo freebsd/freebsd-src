@@ -214,10 +214,10 @@ nfsrv3_access(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		nfsrv_access(vp, VEXEC, cred, rdonly, td, 0))
 		nfsmode &= ~testmode;
 	NFSD_UNLOCK();
-	mtx_lock(&Giant);
+	mtx_lock(&Giant);	/* VFS */
 	getret = VOP_GETATTR(vp, vap, cred, td);
 	vput(vp);
-	mtx_unlock(&Giant);
+	mtx_unlock(&Giant);	/* VFS */
 	vp = NULL;
 	NFSD_LOCK();
 	nfsm_reply(NFSX_POSTOPATTR(1) + NFSX_UNSIGNED);
@@ -263,10 +263,10 @@ nfsrv_getattr(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		goto nfsmout;
 	}
 	NFSD_UNLOCK();
-	mtx_lock(&Giant);
+	mtx_lock(&Giant);	/* VFS */
 	error = VOP_GETATTR(vp, vap, cred, td);
 	vput(vp);
-	mtx_unlock(&Giant);
+	mtx_unlock(&Giant);	/* VFS */
 	vp = NULL;
 	NFSD_LOCK();
 	nfsm_reply(NFSX_FATTR(nfsd->nd_flag & ND_NFSV3));
@@ -280,8 +280,13 @@ nfsrv_getattr(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	/* fall through */
 
 nfsmout:
-	if (vp)
+	if (vp) {
+		NFSD_UNLOCK();
+		mtx_lock(&Giant);	/* VFS */
 		vput(vp);
+		mtx_unlock(&Giant);	/* VFS */
+		NFSD_LOCK();
+	}
 	return(error);
 }
 
@@ -321,9 +326,9 @@ nfsrv_setattr(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		goto out;
 	}
 	NFSD_UNLOCK();
-	mtx_lock(&Giant);
+	mtx_lock(&Giant);	/* VFS */
 	(void) vn_start_write(NULL, &mp, V_WAIT);
-	mtx_unlock(&Giant);
+	mtx_unlock(&Giant);	/* VFS */
 	NFSD_LOCK();
 	VATTR_NULL(vap);
 	if (v3) {
@@ -451,11 +456,11 @@ out:
 
 nfsmout:
 	NFSD_UNLOCK();
-	mtx_lock(&Giant);
+	mtx_lock(&Giant);	/* VFS */
 	if (vp)
 		vput(vp);
 	vn_finished_write(mp);
-	mtx_unlock(&Giant);
+	mtx_unlock(&Giant);	/* VFS */
 	NFSD_LOCK();
 	return(error);
 }
@@ -593,7 +598,7 @@ nfsrv_lookup(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	 */
 
 	if (error) {
-		mtx_unlock(&Giant);
+		mtx_unlock(&Giant);	/* VFS */
 		NFSD_LOCK();
 		nfsm_reply(NFSX_POSTOPATTR(v3));
 		if (v3)
@@ -3102,7 +3107,11 @@ nfsrv_rmdir(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	error = nfs_namei(&nd, fhp, len, slp, nam, &md, &dpos,
 		&dirp, v3, &dirfor, &dirfor_ret, td, FALSE);
 	if (dirp && !v3) {
+		NFSD_UNLOCK();
+		mtx_lock(&Giant);	/* VFS */
 		vrele(dirp);
+		mtx_unlock(&Giant);	/* VFS */
+		NFSD_LOCK();
 		dirp = NULL;
 	}
 	if (error) {
@@ -3322,7 +3331,7 @@ nfsrv_readdir(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	}
 	if (error) {
 		vput(vp);
-		mtx_unlock(&Giant);
+		mtx_unlock(&Giant);	/* VFS */
 		NFSD_LOCK();
 		vp = NULL;
 		nfsm_reply(NFSX_POSTOPATTR(v3));
@@ -4178,9 +4187,9 @@ nfsrv_statfs(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 nfsmout:
 	if (vp) {
 		NFSD_UNLOCK();
-		mtx_lock(&Giant);
+		mtx_lock(&Giant);	/* VFS */
 		vput(vp);
-		mtx_unlock(&Giant);
+		mtx_unlock(&Giant);	/* VFS */
 		NFSD_LOCK();
 	}
 	return(error);
