@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.133 1998/10/25 17:44:58 phk Exp $
+ * $Id: vm_object.c,v 1.134 1998/10/27 13:22:51 dg Exp $
  */
 
 /*
@@ -461,8 +461,6 @@ vm_object_terminate(object)
 			vm_page_free(p);
 			cnt.v_pfree++;
 		} else {
-			if (!(p->flags & PG_FICTITIOUS))
-				printf("vm_object_terminate: not freeing wired page; wire_count=%d\n", p->wire_count);
 			vm_page_busy(p);
 			vm_page_remove(p);
 		}

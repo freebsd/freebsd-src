@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)socketvar.h	8.3 (Berkeley) 2/19/95
- *	$Id: socketvar.h,v 1.28 1998/06/07 17:13:03 dfr Exp $
+ *	$Id: socketvar.h,v 1.29 1998/08/23 03:07:17 wollman Exp $
  */
 
 #ifndef _SYS_SOCKETVAR_H_
@@ -254,6 +254,13 @@ struct sockopt {
 	void   *sopt_val;	/* fourth arg of [gs]etsockopt */
 	size_t	sopt_valsize;	/* (almost) fifth arg of [gs]etsockopt */
 	struct	proc *sopt_p;	/* calling process or null if kernel */
+};
+
+struct sf_buf {
+	SLIST_ENTRY(sf_buf) free_list;	/* list of free buffer slots */
+	int		refcnt;		/* reference count */
+	struct		vm_page *m;	/* currently mapped page */
+	vm_offset_t	kva;		/* va of mapping */
 };
 
 #ifdef MALLOC_DECLARE

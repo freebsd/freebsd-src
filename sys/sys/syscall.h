@@ -253,4 +253,5 @@
 #define	SYS_sched_get_priority_min	333
 #define	SYS_sched_rr_get_interval	334
 #define	SYS_utrace	335
-#define	SYS_MAXSYSCALL	336
+#define	SYS_sendfile	336
+#define	SYS_MAXSYSCALL	337

@@ -342,4 +342,5 @@ char *syscallnames[] = {
 	"sched_get_priority_min",			/* 333 = sched_get_priority_min */
 	"sched_rr_get_interval",			/* 334 = sched_rr_get_interval */
 	"utrace",			/* 335 = utrace */
+	"sendfile",			/* 336 = sendfile */
 };

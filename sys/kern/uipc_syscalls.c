@@ -2,6 +2,9 @@
  * Copyright (c) 1982, 1986, 1989, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
+ * sendfile(2) and related extensions:
+ * Copyright (c) 1998, David Greenman. All rights reserved. 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -31,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_syscalls.c	8.4 (Berkeley) 2/21/94
- * $Id: uipc_syscalls.c,v 1.40 1998/06/10 10:30:23 dfr Exp $
+ * $Id: uipc_syscalls.c,v 1.41 1998/08/23 03:06:59 wollman Exp $
  */
 
 #include "opt_compat.h"
@@ -39,6 +42,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/sysproto.h>
 #include <sys/malloc.h>
 #include <sys/filedesc.h>
@@ -51,9 +55,27 @@
 #include <sys/socketvar.h>
 #include <sys/signalvar.h>
 #include <sys/uio.h>
+#include <sys/vnode.h>
+#include <sys/lock.h>
+#include <sys/mount.h>
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif
+#include <vm/vm.h>
+#include <vm/vm_prot.h>
+#include <vm/vm_object.h>
+#include <vm/vm_page.h>
+#include <vm/vm_pager.h>
+#include <vm/vm_pageout.h>
+#include <vm/vm_kern.h>
+#include <vm/vm_extern.h>
+#include <machine/limits.h>
+
+static void sf_buf_init(void *arg);
+SYSINIT(sock_sf, SI_SUB_MBUF, SI_ORDER_ANY, sf_buf_init, NULL)
+static struct sf_buf *sf_buf_alloc(void);
+static void sf_buf_ref(caddr_t addr, u_int size);
+static void sf_buf_free(caddr_t addr, u_int size);
 
 static int sendit __P((struct proc *p, int s, struct msghdr *mp, int flags));
 static int recvit __P((struct proc *p, int s, struct msghdr *mp,
@@ -64,6 +86,11 @@ static int getsockname1 __P((struct proc *p, struct getsockname_args *uap,
 			     int compat));
 static int getpeername1 __P((struct proc *p, struct getpeername_args *uap,
 			     int compat));
+
+static SLIST_HEAD(, sf_buf) sf_freelist;
+static vm_offset_t sf_base;
+static struct sf_buf *sf_bufs;
+static int sf_buf_alloc_want;
 
 /*
  * System call interface to the socket abstraction.
@@ -1273,4 +1300,379 @@ getsock(fdp, fdes, fpp)
 		return (ENOTSOCK);
 	*fpp = fp;
 	return (0);
+}
+
+/*
+ * Allocate a pool of sf_bufs (sendfile(2) or "super-fast" if you prefer. :-))
+ * XXX - The sf_buf functions are currently private to sendfile(2), so have
+ * been made static, but may be useful in the future for doing zero-copy in
+ * other parts of the networking code. 
+ */
+static void
+sf_buf_init(void *arg)
+{
+	int i;
+
+	SLIST_INIT(&sf_freelist);
+	sf_base = kmem_alloc_pageable(kernel_map, nsfbufs * PAGE_SIZE);
+	sf_bufs = malloc(nsfbufs * sizeof(struct sf_buf), M_TEMP, M_NOWAIT);
+	bzero(sf_bufs, nsfbufs * sizeof(struct sf_buf));
+	for (i = 0; i < nsfbufs; i++) {
+		sf_bufs[i].kva = sf_base + i * PAGE_SIZE;
+		SLIST_INSERT_HEAD(&sf_freelist, &sf_bufs[i], free_list);
+	}
+}
+
+/*
+ * Get an sf_buf from the freelist. Will block if none are available.
+ */
+static struct sf_buf *
+sf_buf_alloc()
+{
+	struct sf_buf *sf;
+	int s;
+
+	s = splimp();
+	while ((sf = SLIST_FIRST(&sf_freelist)) == NULL) {
+		sf_buf_alloc_want = 1;
+		tsleep(&sf_freelist, PVM, "sfbufa", 0);
+	}
+	SLIST_REMOVE_HEAD(&sf_freelist, free_list);
+	splx(s);
+	sf->refcnt = 1;
+	return (sf);
+}
+
+#define dtosf(x)	(&sf_bufs[((uintptr_t)(x) - (uintptr_t)sf_base) >> PAGE_SHIFT])
+static void
+sf_buf_ref(caddr_t addr, u_int size)
+{
+	struct sf_buf *sf;
+
+	sf = dtosf(addr);
+	if (sf->refcnt == 0)
+		panic("sf_buf_ref: referencing a free sf_buf");
+	sf->refcnt++;
+}
+
+/*
+ * Lose a reference to an sf_buf. When none left, detach mapped page
+ * and release resources back to the system.
+ *
+ * Must be called at splimp.
+ */
+static void
+sf_buf_free(caddr_t addr, u_int size)
+{
+	struct sf_buf *sf;
+	struct vm_page *m;
+
+	sf = dtosf(addr);
+	if (sf->refcnt == 0)
+		panic("sf_buf_free: freeing free sf_buf");
+	sf->refcnt--;
+	if (sf->refcnt == 0) {
+		pmap_qremove((vm_offset_t)addr, 1);
+		m = sf->m;
+		vm_page_unwire(m, 0);
+		/*
+		 * Check for the object going away on us. This can
+		 * happen since we don't hold a reference to it.
+		 * If so, we're responsible for freeing the page.
+		 */
+		if (m->wire_count == 0 && m->object == NULL)
+			vm_page_free(m);
+		sf->m = NULL;
+		SLIST_INSERT_HEAD(&sf_freelist, sf, free_list);
+		if (sf_buf_alloc_want) {
+			sf_buf_alloc_want = 0;
+			wakeup(&sf_freelist);
+		}
+	}
+}
+
+/*
+ * sendfile(2).
+ * int sendfile(int fd, int s, off_t offset, size_t nbytes,
+ *	 struct sf_hdtr *hdtr, off_t *sbytes, int flags)
+ *
+ * Send a file specified by 'fd' and starting at 'offset' to a socket
+ * specified by 's'. Send only 'nbytes' of the file or until EOF if
+ * nbytes == 0. Optionally add a header and/or trailer to the socket
+ * output. If specified, write the total number of bytes sent into *sbytes.
+ */
+int
+sendfile(struct proc *p, struct sendfile_args *uap)
+{
+	struct file *fp;
+	struct filedesc *fdp = p->p_fd;
+	struct vnode *vp;
+	struct vm_object *obj;
+	struct socket *so;
+	struct mbuf *m;
+	struct sf_buf *sf;
+	struct vm_page *pg;
+	struct writev_args nuap;
+	struct sf_hdtr hdtr;
+	off_t off, xfsize, sbytes = 0;
+	int error = 0, i, s;
+
+	/*
+	 * Do argument checking. Must be a regular file in, stream
+	 * type and connected socket out, positive offset.
+	 */
+	if (((u_int)uap->fd) >= fdp->fd_nfiles ||
+	    (fp = fdp->fd_ofiles[uap->fd]) == NULL ||
+	    (fp->f_flag & FREAD) == 0) {
+		error = EBADF;
+		goto done;
+	}
+	if (fp->f_type != DTYPE_VNODE) {
+		error = EINVAL;
+		goto done;
+	}
+	vp = (struct vnode *)fp->f_data;
+	obj = vp->v_object;
+	if (vp->v_type != VREG || obj == NULL) {
+		error = EINVAL;
+		goto done;
+	}
+	error = getsock(p->p_fd, uap->s, &fp);
+	if (error)
+		goto done;
+	so = (struct socket *)fp->f_data;
+	if (so->so_type != SOCK_STREAM) {
+		error = EINVAL;
+		goto done;
+	}
+	if ((so->so_state & SS_ISCONNECTED) == 0) {
+		error = ENOTCONN;
+		goto done;
+	}
+	if (uap->offset < 0) {
+		error = EINVAL;
+		goto done;
+	}
+
+	/*
+	 * If specified, get the pointer to the sf_hdtr struct for
+	 * any headers/trailers.
+	 */
+	if (uap->hdtr != NULL) {
+		error = copyin(uap->hdtr, &hdtr, sizeof(hdtr));
+		if (error)
+			goto done;
+		/*
+		 * Send any headers. Wimp out and use writev(2).
+		 */
+		if (hdtr.headers != NULL) {
+			nuap.fd = uap->s;
+			nuap.iovp = hdtr.headers;
+			nuap.iovcnt = hdtr.hdr_cnt;
+			error = writev(p, &nuap);
+			if (error)
+				goto done;
+			sbytes += p->p_retval[0];
+		}
+	}
+
+	/*
+	 * Protect against multiple writers to the socket.
+	 */
+	(void) sblock(&so->so_snd, M_WAITOK);
+
+	/*
+	 * Loop through the pages in the file, starting with the requested
+	 * offset. Get a file page (do I/O if necessary), map the file page
+	 * into an sf_buf, attach an mbuf header to the sf_buf, and queue
+	 * it on the socket.
+	 */
+	for (off = uap->offset; ; off += xfsize, sbytes += xfsize) {
+		vm_pindex_t pindex;
+
+		pindex = OFF_TO_IDX(off);
+retry_lookup:
+		/*
+		 * Calculate the amount to transfer. Not to exceed a page,
+		 * the EOF, or the passed in nbytes.
+		 */
+		xfsize = obj->un_pager.vnp.vnp_size - off;
+		if (xfsize > PAGE_SIZE)
+			xfsize = PAGE_SIZE;
+		if (off & PAGE_MASK)
+			xfsize -= (off & PAGE_MASK);
+		if (uap->nbytes && xfsize > (uap->nbytes - sbytes))
+			xfsize = uap->nbytes - sbytes;
+		if (xfsize <= 0)
+			break;
+		/*
+		 * Attempt to look up the page. If the page doesn't exist or the
+		 * part we're interested in isn't valid, then read it from disk.
+		 * If some other part of the kernel has this page (i.e. it's busy),
+		 * then disk I/O may be occuring on it, so wait and retry.
+		 */
+		pg = vm_page_lookup(obj, pindex);
+		if (pg == NULL || (!(pg->flags & PG_BUSY) && !pg->busy &&
+		    !vm_page_is_valid(pg, off & PAGE_MASK, xfsize))) {
+			struct uio auio;
+			struct iovec aiov;
+			int bsize;
+
+			if (pg == NULL) {
+				pg = vm_page_alloc(obj, pindex, VM_ALLOC_NORMAL);
+				if (pg == NULL) {
+					VM_WAIT;
+					goto retry_lookup;
+				}
+				vm_page_flag_clear(pg, PG_BUSY);
+			}
+			/*
+			 * Ensure that our page is still around when the I/O completes.
+			 */
+			vm_page_io_start(pg);
+			vm_page_wire(pg);
+			/*
+			 * Get the page from backing store.
+			 */
+			bsize = vp->v_mount->mnt_stat.f_iosize;
+			auio.uio_iov = &aiov;
+			auio.uio_iovcnt = 1;
+			aiov.iov_base = 0;
+			aiov.iov_len = MAXBSIZE;
+			auio.uio_resid = MAXBSIZE;
+			auio.uio_offset = trunc_page(off);
+			auio.uio_segflg = UIO_NOCOPY;
+			auio.uio_rw = UIO_READ;
+			auio.uio_procp = curproc;
+			vn_lock(vp, LK_SHARED | LK_NOPAUSE | LK_RETRY, p);
+			error = VOP_READ(vp, &auio, IO_VMIO | ((MAXBSIZE / bsize) << 16),
+			        p->p_ucred);
+			VOP_UNLOCK(vp, 0, p);
+			vm_page_io_finish(pg);
+			vm_page_flag_clear(pg, PG_ZERO);
+			if (error) {
+				vm_page_unwire(pg, 0);
+				/*
+				 * See if anyone else might know about this page.
+				 * If not and it is not valid, then free it.
+				 */
+				if (pg->wire_count == 0 && pg->valid == 0 &&
+				    pg->busy == 0 && !(pg->flags & PG_BUSY) &&
+				    pg->hold_count == 0)
+					vm_page_free(pg);
+				sbunlock(&so->so_snd);
+				goto done;
+			}
+		} else {
+			if ((pg->flags & PG_BUSY) || pg->busy)  {
+				s = splvm();
+				if ((pg->flags & PG_BUSY) || pg->busy) {
+					/*
+					 * Page is busy. Wait and retry.
+					 */
+					vm_page_flag_set(pg, PG_WANTED);
+					tsleep(pg, PVM, "sfpbsy", 0);
+					splx(s);
+					goto retry_lookup;
+				}
+				splx(s);
+			}
+			/*
+			 * Protect from having the page ripped out from beneath us.
+			 */
+			vm_page_wire(pg);
+		}
+		/*
+		 * Allocate a kernel virtual page and insert the physical page
+		 * into it.
+		 */
+		sf = sf_buf_alloc();
+		sf->m = pg;
+		pmap_qenter(sf->kva, &pg, 1);
+		/*
+		 * Get an mbuf header and set it up as having external storage.
+		 */
+		MGETHDR(m, M_WAIT, MT_DATA);
+		m->m_ext.ext_free = sf_buf_free;
+		m->m_ext.ext_ref = sf_buf_ref;
+		m->m_ext.ext_buf = (void *)sf->kva;
+		m->m_ext.ext_size = PAGE_SIZE;
+		m->m_data = (char *) sf->kva + (off & PAGE_MASK);
+		m->m_flags |= M_EXT;
+		m->m_pkthdr.len = m->m_len = xfsize;
+		/*
+		 * Add the buffer to the socket buffer chain.
+		 */
+		s = splnet();
+retry_space:
+		/*
+		 * Make sure that the socket is still able to take more data.
+		 * CANTSENDMORE being true usually means that the connection
+		 * was closed. so_error is true when an error was sensed after
+		 * a previous send.
+		 * The state is checked after the page mapping and buffer
+		 * allocation above since those operations may block and make
+		 * any socket checks stale. From this point forward, nothing
+		 * blocks before the pru_send (or more accurately, any blocking
+		 * results in a loop back to here to re-check).
+		 */
+		if ((so->so_state & SS_CANTSENDMORE) || so->so_error) {
+			if (so->so_state & SS_CANTSENDMORE) {
+				error = EPIPE;
+			} else {
+				error = so->so_error;
+				so->so_error = 0;
+			}
+			m_freem(m);
+			sbunlock(&so->so_snd);
+			splx(s);
+			goto done;
+		}
+		/*
+		 * Wait for socket space to become available. We do this just
+		 * after checking the connection state above in order to avoid
+		 * a race condition with sbwait().
+		 */
+		if (sbspace(&so->so_snd) <= 0) {
+			error = sbwait(&so->so_snd);
+			/*
+			 * An error from sbwait usually indicates that we've
+			 * been interrupted by a signal. If we've sent anything
+			 * then return bytes sent, otherwise return the error.
+			 */
+			if (error) {
+				m_freem(m);
+				sbunlock(&so->so_snd);
+				splx(s);
+				goto done;
+			}
+			goto retry_space;
+		}
+		error = (*so->so_proto->pr_usrreqs->pru_send)(so, 0, m, 0, 0, p);
+		splx(s);
+		if (error) {
+			sbunlock(&so->so_snd);
+			goto done;
+		}
+	}
+	sbunlock(&so->so_snd);
+
+	/*
+	 * Send trailers. Wimp out and use writev(2).
+	 */
+	if (uap->hdtr != NULL && hdtr.trailers != NULL) {
+			nuap.fd = uap->s;
+			nuap.iovp = hdtr.trailers;
+			nuap.iovcnt = hdtr.trl_cnt;
+			error = writev(p, &nuap);
+			if (error)
+				goto done;
+			sbytes += p->p_retval[0];
+	}
+
+done:
+	if (uap->sbytes != NULL) {
+		copyout(&sbytes, uap->sbytes, sizeof(off_t));
+	}
+	return (error);
 }
