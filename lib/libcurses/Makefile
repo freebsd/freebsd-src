@@ -1,8 +1,9 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/2/94
-#	$Id$
+#	$Id: Makefile,v 1.2 1994/08/05 01:38:32 wollman Exp $
 
 CFLAGS+=#-DTFILE=\"/dev/ttyp0\"
 CFLAGS+=-D_CURSES_PRIVATE -I${.CURDIR}
+SHARED_LDADD+= -ltermcap
 LIB=	curses
 SRCS=	addbytes.c addch.c addnstr.c box.c clear.c clrtobot.c clrtoeol.c \
 	cr_put.c ctrace.c cur_hash.c curses.c delch.c deleteln.c delwin.c \
