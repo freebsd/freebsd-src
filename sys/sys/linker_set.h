@@ -60,7 +60,7 @@
 #define SET_ENTRY(set, sym)	__MAKE_SET(set, sym)
 
 /*
- * Initialize before referring to a give linker set
+ * Initialize before referring to a given linker set.
  */
 #define SET_DECLARE(set, ptype)						\
 	extern ptype *__CONCAT(__start_set_,set);			\
