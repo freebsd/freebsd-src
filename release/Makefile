@@ -669,7 +669,8 @@ release.9:
 .if exists(${.CURDIR}/../sys/boot/${TARGET}/loader)
 	cd ${.CURDIR}/../sys/boot/${TARGET}/loader; \
 	${WMAKE} clean cleandepend; \
-	${WMAKE} -DNOMAN -DNOFORTH all install DESTDIR=${RD}/trees/special
+	${WMAKE} -DNOMAN -DNOFORTH all; \
+	${WMAKE} -DNOMAN -DNOFORTH install DESTDIR=${RD}/trees/special
 .endif
 	cp ${RD}/trees/base/etc/disktab /etc
 	rm -rf ${RD}/mfsfd
