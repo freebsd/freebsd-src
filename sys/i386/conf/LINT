@@ -861,7 +861,7 @@ options 	MSGBUF_SIZE=40960
 
 # ISA and EISA devices:
 # EISA support is available for some device, so they can be auto-probed.
-# Micro Channel is not supported at all.
+# MicroChannel (MCA) support is available for some devices.
 
 #
 # Mandatory ISA devices: isa, npx
