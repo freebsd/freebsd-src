@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)mail.1	8.2 (Berkeley) 12/30/93
-.\"	$Id$
+.\"	$Id: mail.1,v 1.12 1997/02/22 19:56:06 peter Exp $
 .\"
 .Dd December 30, 1993
 .Dt MAIL 1
@@ -118,7 +118,7 @@ can be invoked with arguments which are the names of people to
 whom the mail will be sent.
 You are then expected to type in
 your message, followed
-by an
+by a
 .Sq Li control\-D
 at the beginning of a line.
 The section below
@@ -150,22 +150,22 @@ simple numbers.
 .Ss Disposing of mail.
 After examining a message you can
 .Ic delete
-.Ql Ic d )
+.Pq Ic d
 the message or
 .Ic reply
-.Ql Ic r )
+.Pq Ic r
 to it.
 Deletion causes the
 .Nm mail
 program to forget about the message.
 This is not irreversible; the message can be
 .Ic undeleted
-.Ql Ic u )
+.Pq Ic u
 by giving its number, or the
 .Nm mail
 session can be aborted by giving the
 .Ic exit
-.Ql Ic x )
+.Pq Ic x
 command.
 Deleted messages will, however, usually disappear never to be seen again.
 .Pp
@@ -223,7 +223,7 @@ You can end a
 .Nm mail
 session with the
 .Ic quit
-.Ql Ic q )
+.Pq Ic q
 command.
 Messages which have been examined go to your
 .Ar mbox
@@ -498,6 +498,7 @@ option set.
 .It Ic next
 .Pq Ic n
 like
+(
 .Ic \&+
 or
 .Tn CR )
