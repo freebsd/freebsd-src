@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: smp.h,v 1.35 1998/02/25 03:56:15 dyson Exp $
+ * $Id: smp.h,v 1.36 1998/03/03 19:44:34 tegge Exp $
  *
  */
 
@@ -79,10 +79,8 @@ extern u_int			ivectors[];
 extern volatile u_int		stopped_cpus;
 extern volatile u_int		started_cpus;
 
-#ifdef BETTER_CLOCK
 extern unsigned int		checkstate_probed_cpus;
 extern unsigned int		checkstate_need_ast;
-#endif
 
 /* global data in apic_ipl.s */
 extern u_int			vec[];
@@ -138,6 +136,7 @@ int	restart_cpus		__P((u_int));
 void	forward_statclock	__P((int pscnt));
 void	forward_hardclock	__P((int pscnt));
 #endif /* BETTER_CLOCK */
+void	forward_signal		__P((struct proc *));
 
 /* global data in mpapic.c */
 extern volatile lapic_t		lapic;

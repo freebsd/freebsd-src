@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.66 1998/03/01 04:18:50 dyson Exp $
+ *	$Id: mp_machdep.c,v 1.67 1998/03/03 20:09:14 tegge Exp $
  */
 
 #include "opt_smp.h"
@@ -569,11 +569,11 @@ mp_enable(u_int boot_addr)
 	/* install an inter-CPU IPI for reading processor state */
 	setidt(XCPUCHECKSTATE_OFFSET, Xcpucheckstate,
 	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
+#endif
 	
 	/* install an inter-CPU IPI for forcing an additional software trap */
 	setidt(XCPUAST_OFFSET, Xcpuast,
 	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
-#endif
 	
 	/* install an inter-CPU IPI for CPU stop/restart */
 	setidt(XCPUSTOP_OFFSET, Xcpustop,
@@ -1995,6 +1995,10 @@ int do_page_zero_idle = 1; /* bzero pages for fun and profit in idleloop */
 SYSCTL_INT(_machdep, OID_AUTO, do_page_zero_idle, CTLFLAG_RW,
 	   &do_page_zero_idle, 0, "");
 
+/* Enable forwarding of a signal to a process running on a different CPU */
+int forward_signal_enabled = 1;
+SYSCTL_INT(_machdep, OID_AUTO, forward_signal_enabled, CTLFLAG_RW,
+	   &forward_signal_enabled, 0, "");
 
 /*
  * This is called once the rest of the system is up and running and we're
@@ -2386,3 +2390,51 @@ forward_hardclock(int pscnt)
 }
 
 #endif /* BETTER_CLOCK */
+
+void 
+forward_signal(struct proc *p)
+{
+	int map;
+	int id;
+	int i;
+
+	/* Kludge. We don't yet have separate locks for the interrupts
+	 * and the kernel. This means that we cannot let the other processors
+	 * handle complex interrupts while inhibiting them from entering
+	 * the kernel in a non-interrupt context.
+	 *
+	 * What we can do, without changing the locking mechanisms yet,
+	 * is letting the other processors handle a very simple interrupt
+	 * (wich determines the processor states), and do the main
+	 * work ourself.
+	 */
+
+	if (!smp_started || !invltlb_ok || cold || panicstr)
+		return;
+	if (!forward_signal_enabled)
+		return;
+	while (1) {
+		if (p->p_stat != SRUN)
+			return;
+		id = (u_char) p->p_oncpu;
+		if (id == 0xff)
+			return;
+		map = (1<<id);
+		checkstate_need_ast |= map;
+		selected_apic_ipi(map, XCPUAST_OFFSET, APIC_DELMODE_FIXED);
+		i = 0;
+		while ((checkstate_need_ast & map) != 0) {
+			/* spin */
+			i++;
+			if (i > 100000) { 
+#if 0
+				printf("forward_signal: dropped ast 0x%x\n",
+				       checkstate_need_ast & map);
+#endif
+				break;
+			}
+		}
+		if (id == (u_char) p->p_oncpu)
+			return;
+	}
+}
