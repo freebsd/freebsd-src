@@ -691,15 +691,9 @@ sysctl variable.
 If IDE write caching is turned off, you can turn it back
 on by setting the
 .Va hw.ata.wc
-kernel variable back to 1.
-This must be done from the boot
-.Xr loader 8
-at boot time.
-Attempting to do it after the kernel boots will have no effect.
-Please see
-.Xr ata 4
-and
-.Xr loader 8 .
+loader tunable to 1.
+More information on tuning the ATA driver system may be found in
+.Xr ata 4.
 .Pp
 There is a new experimental feature for IDE hard drives called
 .Va hw.ata.tags
