@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_init.c	8.3 (Berkeley) 1/4/94
- * $Id: vfs_init.c,v 1.32 1998/02/09 06:09:33 eivind Exp $
+ * $Id: vfs_init.c,v 1.33 1998/09/05 17:13:27 bde Exp $
  */
 
 
@@ -249,9 +249,10 @@ vfsinit(dummy)
 	vfs_opv_init(vfs_opv_descs);   /* finish the job */
 	/*
 	 * Initialize each file system type.
+	 * Vfs type numbers must be distinct from VFS_GENERIC (and VFS_VFSCONF).
 	 */
 	vattr_null(&va_null);
-	maxtypenum = 0;
+	maxtypenum = VFS_GENERIC + 1;
 	vfc = (struct vfsconf **)vfs_set.ls_items;
 	vfsconf = *vfc;
 	for (; *vfc != NULL; maxtypenum++, vfc++) {
