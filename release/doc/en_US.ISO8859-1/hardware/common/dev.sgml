@@ -2408,7 +2408,7 @@
 	</listitem>
       </itemizedlist>
     </para>
-    <para arch="i386">Modems (umodem driver)
+    <para arch="i386">Modems (&man.umodem.4; driver)
       <itemizedlist>
         <listitem>
 	  <para>3Com 5605</para>
@@ -2458,7 +2458,7 @@
 	</listitem>
       </itemizedlist>
     </para>
-    <para arch="i386,alpha">Printers and parallel printer conversion cables (ulpt driver)
+    <para arch="i386,alpha">Printers and parallel printer conversion cables (&man.ulpt.4; driver)
       <itemizedlist>
         <listitem>
 	  <para>ATen parallel printer adapter</para>
@@ -2474,10 +2474,10 @@
     <para arch="i386">Serial devices
       <itemizedlist>
         <listitem>
-	  <para>Prolific PL-2303 serial adapter (uplcom driver)</para>
+	  <para>Prolific PL-2303 serial adapter (&man.uplcom.4; driver)</para>
         </listitem>
         <listitem>
-	  <para>SUNTAC Slipper U VS-10U (uvscom driver)</para>
+	  <para>SUNTAC Slipper U VS-10U (&man.uvscom.4; driver)</para>
         </listitem>
       </itemizedlist>
     </para>
