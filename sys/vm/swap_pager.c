@@ -1187,6 +1187,7 @@ swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 		    m[0]->object
 		);
 	}
+	VM_OBJECT_UNLOCK(object);
 	/*
 	 * Step 1
 	 *
@@ -1368,6 +1369,7 @@ swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 		swp_pager_async_iodone(bp);
 		splx(s);
 	}
+	VM_OBJECT_LOCK(object);
 }
 
 /*
@@ -1652,13 +1654,13 @@ swp_pager_force_pagein(struct swblock *swap, int idx)
 	m = vm_page_grab(object, pindex + idx, VM_ALLOC_NORMAL|VM_ALLOC_RETRY);
 	if (m->valid == VM_PAGE_BITS_ALL) {
 		vm_object_pip_subtract(object, 1);
-		VM_OBJECT_UNLOCK(object);
 		vm_page_lock_queues();
 		vm_page_activate(m);
 		vm_page_dirty(m);
 		vm_page_wakeup(m);
 		vm_page_unlock_queues();
 		vm_pager_page_unswapped(m);
+		VM_OBJECT_UNLOCK(object);
 		return;
 	}
 
@@ -1666,14 +1668,13 @@ swp_pager_force_pagein(struct swblock *swap, int idx)
 	    VM_PAGER_OK)
 		panic("swap_pager_force_pagein: read from swap failed");/*XXX*/
 	vm_object_pip_subtract(object, 1);
-	VM_OBJECT_UNLOCK(object);
-
 	vm_page_lock_queues();
 	vm_page_dirty(m);
 	vm_page_dontneed(m);
 	vm_page_wakeup(m);
 	vm_page_unlock_queues();
 	vm_pager_page_unswapped(m);
+	VM_OBJECT_UNLOCK(object);
 }
 
 
