@@ -32,7 +32,7 @@
 .\" USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 .\" DAMAGE.
 .\"
-.\" $Id$
+.\" $Id: wormcontrol.8,v 1.7 1997/02/22 16:14:11 peter Exp $
 .\"
 .\" arrgh, hilit19 needs this" :-(
 .Dd Jan 27, 1996
@@ -75,10 +75,7 @@ without destroying the medium in case of a catastrophic failure.
 In order to write a new track, the drive must be told whether the new
 track will become an audio or a data track.  Audio tracks are written
 with a block size of 2352 bytes, while data tracks have 2048 bytes per
-block.  There are actually more data formats available, but the driver
-currently does only support this
-.Em Yellow Book
-Mode 1 format.  For audio tracks, the driver does further need to know
+block.  For audio tracks, the driver does further need to know
 whether the data are recorded with a preemphasis.
 .Pp
 Once all tracks of a session have been written, the disk must be
@@ -87,38 +84,6 @@ This writes the table of contents and leadout information to the disk.
 The disk won't be usable without doing this.
 .Ss Commands
 .Bl -tag -indent -width "prepdisk"
-.It select Ar vendor-id model-id
-Unfortunately, each CD-R drive vendor decided to implement a set of
-SCSI commands of his own.  Thus, the
-.Xr worm 4
-driver needs to know which set of
-.Ql quirk
-functions to use for a particular device.  Currently, only devices
-that have quirk information statically compiled into the driver will
-work; it is however planned to make them available as loadable modules
-in the future.  The
-.Em select
-command causes the driver to lookup the appropriate quirks.  The driver
-matches the provided
-.Ar vendor-id
-and
-.Ar model-id
-against the list of known quirks.  An error will be returned if no
-quirk record matches, and the device won't be usable for anything else
-until a quirk record has been successfully selected.
-.Pp
-By now, the vendor/model names of
-.Dq PLASMON
-\&/
-.Dq RF4100 ,
-.Dq PHILIPS
-\&/
-.Dq CDD2000 ,
-and
-.Dq HP
-\&/
-.Dq 4020i
-are known.
 .It prepdisk Ar single \&| double Op Ar dummy
 Prepare the disk for recording.  This must be done before any tracks
 can be prepared, and remains in effect until the session has been
@@ -175,7 +140,6 @@ facility.
 .Sh EXAMPLES
 The typical sequence of burning a data CD-R looks like:
 .Bd -literal
-# wormcontrol select PLASMON RF4100
 # wormcontrol prepdisk double
 # wormcontrol track data
 # rtprio 5 team -v 1m 5 < cdrom.image | rtprio 5 dd of=/dev/rworm0 obs=20k
