@@ -391,6 +391,9 @@ i4b_l4_connect_ind(call_desc_t *cd)
 		else
 			strcpy(mp->src_subaddr, TELNO_EMPTY);
 
+		mp->src_ton = cd->src_ton;
+		mp->dst_ton = cd->dst_ton;
+
 		strcpy(mp->display, cd->display);
 
 		mp->scr_ind = cd->scr_ind;

@@ -153,6 +153,9 @@ typedef struct
 	u_char	src_telno[TELNO_MAX];	/* source number	*/
 	u_char	src_subaddr[SUBADDR_MAX];	/* source subaddr	*/
 
+	int	dst_ton;		/* destination type of number */
+	int	src_ton;		/* source type of number */
+
 	int	scr_ind;		/* screening ind for incoming call */
 	int	prs_ind;		/* presentation ind for incoming call */
 	

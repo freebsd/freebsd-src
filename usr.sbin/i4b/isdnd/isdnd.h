@@ -659,6 +659,10 @@ time_t starttime = 0;
 
 char holidayfile[MAXPATHLEN] = HOLIDAY_FILE_DEF; /* holiday filename */
 
+int addprefix = 0;
+char prefixnational[TELNO_MAX] = "";
+char prefixinternational[TELNO_MAX] = "";
+
 #else /* !MAIN */
 
 int isdnfd;
@@ -742,6 +746,10 @@ char rotatesuffix[MAXPATHLEN];
 time_t starttime;
 
 char holidayfile[MAXPATHLEN];
+
+int addprefix;
+char prefixnational[TELNO_MAX];
+char prefixinternational[TELNO_MAX];
 
 #endif /* MAIN */
 
