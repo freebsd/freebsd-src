@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: print.c,v 1.13 1996/05/02 13:06:21 phk Exp $
+ *	$Id: print.c,v 1.14 1996/06/29 08:04:05 peter Exp $
  */
 
 #ifndef lint
@@ -64,6 +64,7 @@ static char sccsid[] = "@(#)print.c	8.6 (Berkeley) 4/16/94";
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <string.h>
 #include <vis.h>
 
@@ -531,8 +532,8 @@ getpcpu(k)
 	if (p->p_swtime == 0 || (p->p_flag & P_INMEM) == 0)
 		return (0.0);
 	if (rawcpu)
-		return (100.0 * fxtofl(p->p_pctcpu));
-	return (100.0 * fxtofl(p->p_pctcpu) /
+		return (10000.0 / sysconf(_SC_CLK_TCK) * fxtofl(p->p_pctcpu));
+	return (10000.0 / sysconf(_SC_CLK_TCK) * fxtofl(p->p_pctcpu) /
 		(1.0 - exp(p->p_swtime * log(fxtofl(ccpu)))));
 }
 
