@@ -6,7 +6,7 @@
  * i386/eisa/bt_eisa.c	BT-74x, BT-75x cards
  * pci/bt_pci.c		BT-946, BT-948, BT-956, BT-958 cards
  *
- * Copyright (c) 1998 Justin T. Gibbs.
+ * Copyright (c) 1998, 1999 Justin T. Gibbs.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: btreg.h,v 1.2 1998/10/30 02:06:44 gibbs Exp $
+ *      $Id: btreg.h,v 1.3 1998/11/10 06:44:50 gibbs Exp $
  */
 
 #ifndef _BTREG_H_
@@ -504,6 +504,12 @@ typedef struct bt_mbox_in {
 	u_int8_t  comp_code;
 } bt_mbox_in_t;
 
+/***************** Compiled Probe Information *******************************/
+struct bt_probe_info {
+	int	drq;
+	int	irq;
+};
+
 /****************** Hardware CCB definition *********************************/
 typedef enum {
 	INITIATOR_CCB		= 0x00,
@@ -628,16 +634,17 @@ struct bt_softc {
 	u_int			 max_sg;
 	u_int			 unit;
 	u_int			 scsi_id;
-	u_int32_t		 extended_trans	  :1,
-				 wide_bus	  :1,
-				 diff_bus	  :1,
-				 ultra_scsi	  :1,
-				 extended_lun	  :1,
-				 strict_rr	  :1,
-				 tag_capable	  :1,
-				 wide_lun_ccb	  :1,
-				 resource_shortage:1,
-						  :23;
+	u_int32_t		 extended_trans	   :1,
+				 wide_bus	   :1,
+				 diff_bus	   :1,
+				 ultra_scsi	   :1,
+				 extended_lun	   :1,
+				 strict_rr	   :1,
+				 tag_capable	   :1,
+				 wide_lun_ccb	   :1,
+				 resource_shortage :1,
+				 level_trigger_ints:1,
+						   :22;
 	u_int16_t		 tags_permitted;
 	u_int16_t		 disc_permitted;
 	u_int16_t		 sync_permitted;
@@ -659,6 +666,8 @@ extern u_long bt_unit;
 struct bt_softc*	bt_alloc(int unit, bus_space_tag_t tag,
 				 bus_space_handle_t bsh);
 void			bt_free(struct bt_softc *bt);
+int			bt_port_probe(struct bt_softc *bt,
+				      struct bt_probe_info *info);
 int			bt_probe(struct bt_softc *bt);
 int			bt_fetch_adapter_info(struct bt_softc *bt);
 int			bt_init(struct bt_softc *bt); 
