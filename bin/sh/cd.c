@@ -87,7 +87,7 @@ cdcmd(int argc, char **argv)
 	struct stat statb;
 	int ch, phys, print = 0;
 
-	optreset = 1; optind = 1; /* initialize getopt */
+	optreset = 1; optind = 1; opterr = 0; /* initialize getopt */
 	phys = 0;
 	while ((ch = getopt(argc, argv, "LP")) != -1) {
 		switch (ch) {
@@ -323,7 +323,7 @@ pwdcmd(int argc, char **argv)
 	char buf[PATH_MAX];
 	int ch, phys;
 
-	optreset = 1; optind = 1; /* initialize getopt */
+	optreset = 1; optind = 1; opterr = 0; /* initialize getopt */
 	phys = 0;
 	while ((ch = getopt(argc, argv, "LP")) != -1) {
 		switch (ch) {
