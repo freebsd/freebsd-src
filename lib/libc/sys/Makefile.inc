@@ -26,7 +26,7 @@ ASM=	accept.o access.o acct.o adjtime.o bind.o chdir.o chflags.o chmod.o \
 	ntp_adjtime.o ntp_gettime.o open.o \
 	pathconf.o profil.o quotactl.o read.o \
 	readlink.o readv.o recvfrom.o recvmsg.o rename.o revoke.o rmdir.o \
-	select.o sendmsg.o sendto.o setegid.o seteuid.o setgid.o \
+	rtprio.o select.o sendmsg.o sendto.o setegid.o seteuid.o setgid.o \
 	setgroups.o setitimer.o setpgid.o setpriority.o setrlimit.o \
 	setsid.o setsockopt.o settimeofday.o setuid.o shutdown.o \
 	sigaction.o sigaltstack.o socket.o socketpair.o stat.o statfs.o \
@@ -92,9 +92,9 @@ MAN2+=	sys/accept.2 sys/access.2 sys/acct.2 sys/adjtime.2 sys/bind.2 \
 	sys/mkfifo.2 sys/mknod.2 sys/madvise.2 sys/mincore.2 sys/mlock.2 \
 	sys/mmap.2 sys/mount.2 sys/mprotect.2 sys/msync.2 sys/munmap.2 \
 	sys/nfssvc.2 sys/open.2 sys/pathconf.2 sys/pipe.2 sys/profil.2 \
-	sys/quotactl.2 \
-	sys/read.2 sys/readlink.2 sys/reboot.2 sys/recv.2 sys/rename.2 \
-	sys/revoke.2 sys/rmdir.2 sys/select.2 sys/send.2 sys/setgroups.2 \
+	sys/quotactl.2 sys/read.2 sys/readlink.2 sys/reboot.2 sys/recv.2 \
+	sys/rename.2 sys/revoke.2 sys/rmdir.2 sys/rtprio.2 sys/select.2 \
+	sys/send.2 sys/setgroups.2 \
 	sys/setpgid.2 sys/setsid.2 sys/setuid.2 sys/shutdown.2 \
 	sys/sigaction.2 sys/sigpending.2 sys/sigprocmask.2 sys/sigreturn.2 \
 	sys/sigaltstack.2 sys/sigstack.2 sys/sigsuspend.2 sys/socket.2 \
