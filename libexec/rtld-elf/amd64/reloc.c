@@ -211,11 +211,11 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 		goto done;
 	    }
 	}
+	r = 0;
+done:
 	if (cache)
 	    munmap(cache, bytes);
-    r = 0;
-done:
-    return(r);
+	return(r);
 }
 
 /* Process the PLT relocations. */
