@@ -1,0 +1,200 @@
+<!-- $Id: pgpkeys.sgml,v 1.5 1996/06/01 19:08:39 joerg Exp $ -->
+<!-- The FreeBSD Documentation Project -->
+
+<chapt><heading>PGP keys<label id="pgpkeys"></heading>
+	<p> In case you need to verify a signature or send encrypted
+	email to one of the officers or core team members a 
+	number of keys are provided here for your convenience.
+  <sect><heading>Officers</heading>
+  <sect1><heading>
+FreeBSD Security Officer &lt;security-officer@freebsd.org&gt;
+  </heading> <p>
+<tscreen><verb>
+FreeBSD Security Officer &lt;security-officer@freebsd.org&gt;
+Fingerprint = 41 08 4E BB DB 41 60 71  F9 E5 0E 98 73 AF 3F 11
+
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+Version: 2.6.3i
+
+mQCNAzF7MY4AAAEEAK7qBgPuBejER5HQbQlsOldk3ZVWXlRj54raz3IbuAUrDrQL
+h3g57T9QY++f3Mot2LAf5lDJbsMfWrtwPrPwCCFRYQd6XH778a+l4ju5axyjrt/L
+Ciw9RrOC+WaPv3lIdLuqYge2QRC1LvKACIPNbIcgbnLeRGLovFUuHi5z0oilAAUR
+tDdGcmVlQlNEIFNlY3VyaXR5IE9mZmljZXIgPHNlY3VyaXR5LW9mZmljZXJAZnJl
+ZWJzZC5vcmc+iQCVAwUQMX6yrOJgpPLZnQjrAQHyowQA1Nv2AY8vJIrdp2ttV6RU
+tZBYnI7gTO3sFC2bhIHsCvfVU3JphfqWQ7AnTXcD2yPjGcchUfc/EcL1tSlqW4y7
+PMP4GHZp9vHog1NAsgLC9Y1P/1cOeuhZ0pDpZZ5zxTo6TQcCBjQA6KhiBFP4TJql
+3olFfPBh3B/Tu3dqmEbSWpuJAJUDBRAxez3C9RVb+45ULV0BAak8A/9JIG/jRJaz
+QbKom6wMw852C/Z0qBLJy7KdN30099zMjQYeC9PnlkZ0USjQ4TSpC8UerYv6IfhV
+nNY6gyF2Hx4CbEFlopnfA1c4yxtXKti1kSN6wBy/ki3SmqtfDhPQ4Q31p63cSe5A
+3aoHcjvWuqPLpW4ba2uHVKGP3g7SSt6AOYkAlQMFEDF8mz0ff6kIA1j8vQEBmZcD
+/REaUPDRx6qr1XRQlMs6pfgNKEwnKmcUzQLCvKBnYYGmD5ydPLxCPSFnPcPthaUb
+5zVgMTjfjS2fkEiRrua4duGRgqN4xY7VRAsIQeMSITBOZeBZZf2oa9Ntidr5PumS
+9uQ9bvdfWMpsemk2MaRG9BSoy5Wvy8VxROYYUwpT8Cf2iQCVAwUQMXsyqWtaZ42B
+sqd5AQHKjAQAvolI30Nyu3IyTfNeCb/DvOe9tlOn/o+VUDNJiE/PuBe1s2Y94a/P
+BfcohpKC2kza3NiW6lLTp00OWQsuu0QAPc02vYOyseZWy4y3Phnw60pWzLcFdemT
+0GiYS5Xm1o9nAhPFciybn9j1q8UadIlIq0wbqWgdInBT8YI/l4f5sf6JAJUDBRAx
+ezKXVS4eLnPSiKUBAc5OBACIXTlKqQC3B53qt7bNMV46m81fuw1PhKaJEI033mCD
+ovzyEFFQeOyRXeu25Jg9Bq0Sn37ynISucHSmt2tUD5W0+p1MUGyTqnfqejMUWBzO
+v4Xhp6a8RtDdUMBOTtro16iulGiRrCKxzVgEl4i+9Z0ZiE6BWlg5AetoF5n3mGk1
+lw==
+=ipyA
+-----END PGP PUBLIC KEY BLOCK-----
+</verb></tscreen>
+
+  <sect><heading>Core team members</heading>
+  <sect1><heading>&a.jkh</heading><p>
+
+<tscreen><verb>
+Jordan K. Hubbard &lt;jkh@FreeBSD.org&gt;
+Fingerprint = 3C F2 27 7E 4A 6C 09 0A  4B C9 47 CD 4F 4D 0B 20
+
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+Version: 2.6.2i
+
+mQCNAzFjX0IAAAEEAML+nm9/kDNPp43ZUZGjYkm2QLtoC1Wxr8JulZXqk7qmhYcQ
+jvX+fyoriJ6/7ZlnLe2oG5j9tZOnRLPvMaz0g9CpW6Dz3nkXrNPkmOFV9B8D94Mk
+tyFeRJFqnkCuqBj6D+H8FtBwEeeTecSh2tJ0bZZTXnAMhxeOdvUVW/uOVC1dAAUR
+tCNKb3JkYW4gSy4gSHViYmFyZCA8amtoQEZyZWVCU0Qub3JnPokAlQMFEDF75D1r
+WmeNgbKneQEBXtcD+gJIv8JzZRKlDZyTCQanK8iRgE+zMhxptI0kDObaGxT1BrpY
+4/EPyiUN10G4k2Jb+DOc8Lg2xDQ3xmvgipFf9NMNV/ThaEuZ3wA31I6tW/arQEqB
+Tp8u6T3v20m62t7Afo9HaoE6MBpHQUk2TilxgAd5P57sporL3pgW9YojIO9ziQCV
+AwUQMXyV2h9/qQgDWPy9AQEMfgP/RmbSg2WlesATUQ4WuanjcdREduKPyfQatrXD
+2xt+jg9X78dTyiNN1YvLqvT6msfs04MKSC0hA2mou6ozw8Xak+1QmP0fBOZKp9pP
+8szO188Do9ByzJPvHF1eXT7jFMOXVq8ZIl9iwjxcIDLzlxOz49DC7LO6AT+LKQk7
+UGeP+lqJAJUDBRAxe+UG9RVb+45ULV0BAXZ9A/9F9gLpGukVNkeOjaqxQdJGTS+a
+xh/Abk0c/nKhAEyxpAl5JyQ3ifYk6BHhPvlTi9LrZoXGA8sk/eU4eRTZVzvGEC4G
++xsavlE/xzku8855QTLPpkCunUpQeu1wzaIrUUE6Zjh05imFbJYyQOBgTFpuqWsC
+rsUpl+2mr8IGIxG5rA==
+=LW9i
+-----END PGP PUBLIC KEY BLOCK-----
+</verb></tscreen>
+
+  <sect1><heading>&a.phk</heading><p>
+
+<tscreen><verb>
+Poul-Henning Kamp &lt;phk@FreeBSD.org&gt;
+Fingerprint = A3 F3 88 28 2F 9B 99 A2  49 F4 E2 FA 5A 78 8B 3E
+
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+Version: 2.6.3i
+
+mQCNAzAdpMIAAAEEALHDgrFUwhZtb7PbXg3upELoDVEUPFRwnmpJH1rRqyROUGcI
+ooVe7u+FQlIs5OsXK8ECs/5Wpe2UrZSzHvjwBYOND5H42YtI5UULZLRCo5bFfTVA
+K9Rpo5icfTsYihrzU2nmnycwFMk+jYXyT/ZDYWDP/BM9iLjj0x9/qQgDWPy9AAUR
+tCNQb3VsLUhlbm5pbmcgS2FtcCA8cGhrQEZyZWVCU0Qub3JnPokAlQMFEDF+jX1r
+WmeNgbKneQEBCrID/i/ri8/eXUXRJp2fqJqzvrWGTP9Ix1O4vMguah9IILijgpYy
+OJYkezZKijjVCVmLX7EwfNXfYkqLAWUa08eov4QfJfJDgfe+Z/3/UoX7RcJoy2Aj
+TBZQzOI9JMkrzFdtFGYwMr/QXhOdVVpSGeZ/6Hkrs7pd2Z6MNNrRf81ZyJyYiQCV
+AwUQMXyV5/UVW/uOVC1dAQFyfAP/SujU+lS2WQuat4O2wZOQ1rswUt6CthG8MOsc
+7A9kfXnZbaM9Sdxj54CtAlqR4eJMOYk2kVqAtmCWETRuonJxr5TAJdf7q6kByVYc
+QEyDZvKJYwyrI9UQSelSgczWwiSB01aV9ACaKlEF9iHYvIKBa9HwJu3A9ggW9SYa
+AHcxHzuJAJUDBRAxSx5cH3+pCANY/L0BAY+TA/9YQPISXYaS+5r0I60wCJ+i3a9P
+C69Zak2ikgTHQi97LhpVtEsP3SAYInDw4YMS2oU9w1XxoiLLd9hUpcZlmO8Ip3vN
+F+E2ZCfR4sNzKarY5fdo+sxzatGWRPgnHjbm6RHWCw6qJACDD3VpaFjx2XD8QrOT
+yiObnbHhWBdoEAIyNokAlQMFEDE5Q6DvYbnpEdWO1QEBsvgD/0c6flBrSWr20oj8
+eRJ1zl8ZAP/rpV0IEBvb3ZFsHsJL8QzTsx1typFFghrT7SDBDc52xY90JWAflEiG
+n9aIL5Q+RHVxjw30yDaRPAl9ll82o34GBaWBEw83bsI6Fg2XxDfc2X0KkEutlYAE
+XjiM95PQS+9PM//llDtPvkSxgpiJiQCVAwUQMOavJADy2QnruxtBAQE92wQAsKPq
+/U4G4ksslOXGaauSoBk9XO3lB147cSpra1w9ZxTSeo+8dgzNlxnugWDnw1mxauFJ
+BAMgHl74rrlD+Hp0Ltb9oOyRl3riPG0TOdfaS3T8w6vw52wOKzUrZ/0pB+2sDHzU
+qZXBbhOq3OXs1ZMNe3jh8w62JsLBWry/YMWRMnI=
+=MDQ9
+-----END PGP PUBLIC KEY BLOCK-----
+</verb></tscreen>
+
+  <sect1><heading>&a.joerg</heading><p>
+
+<tscreen><verb>
+Joerg Wunsch &lt;j@uriah.heep.sax.de&gt;
+Fingerprint = DC 47 E6 E4 FF A6 E9 8F  93 21 E0 7D F9 12 D6 4E
+
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+Version: 2.6.2i
+
+mQCNAzGCFeAAAAEEAKmRBU2Nvc7nZy1Ouid61HunA/5hF4O91cXm71/KPaT7dskz
+q5sFXvPJPpawwvqHPHfEbAK42ZaywyFp59L1GaYj87Pda+PlAYRJyY2DJl5/7JPe
+ziq+7B8MdvbX6D526sdmcR+jPXPbHznASjkx9DPmK+7TgFujyXW7bjh2o/exAAUR
+tCJKb2VyZyBXdW5zY2ggPGpAdXJpYWguaGVlcC5zYXguZGU+iQCVAwUQMalkbHW7
+bjh2o/exAQFwwQP+Pa82QeWpJE0m7f4DXd/DiYAvh/DeXWtub1fXQ9yqAL131n8O
+zsSLMb0PwG/qyZrpK61sT3bAvtVlNftaxmuD7yaf1SUQ3rNmsBq5/oju/3EKEiFc
+4gtuyaXG74y7y1XASIstck/0byfvO2t4z0R7d1RRnKRYeCspMcUjYshsoJeJAJUD
+BRAxpL3UPiAdBSUb0JkBAZg7BACE+mKhsrd39/P6NattCCOSg76Pf2CVgZdvbb7q
+K4SmsVGz+58pi2OWM1M0rcHgNZKTIg9rBy47gui2KOnqOR7ZuyMVJJqyEZZywmWm
+fCy/sR4Ui1PehZNNNBAi09u03ItbozrEH6Msa1oC8mp86XOA70Et8e4DYtj5a9tV
+bjjtJYkAlQMFEDGCUB31FVv7jlQtXQEB5KgD/iIJZe5lFkPr2B/Cr7BKMVBot1/J
+Su05NsHgJZ3uK15w4mVtNPZcFi/dKbn+qRM6LKDFe/GF0HZD/ZD1FJt8yQjzF2w3
+40B+F2GGEOwnClqZDtEAqnIBzM/ECQQqH+6Bi8gpkFZrFgg5eON7ikqmusDnOlYS
+tM/CBfgpSbR8kDmFtCZKb2VyZyBXdW5zY2ggPGpAaW50ZXJmYWNlLWJ1c2luZXNz
+LmRlPokAlQMFEDGpbnd1u244dqP3sQEBJnQD/RVSAzgf4uorv3fpbosI0LE3LUuf
+AYGBSJNJnskeKyudZkNkI5zGGDwVneH/cSkKT4ORooeqcTBxKeMaMuXPVl30Qahg
+NwWjfuTvl5OZ8orsQGGWIn5FhqYXsKkjEGxIOBOfvvlVQ0UbcR0N2+5F6Mb5GqrX
+ZpIesn7jFJpkQKPU
+=46Ab
+-----END PGP PUBLIC KEY BLOCK-----
+</verb></tscreen>
+
+  <sect1><heading>&a.ache</heading><p>
+
+<tscreen><verb>
+Andrey A. Chernov &lt;ache@FreeBSD.org&gt;
+Fingerprint = 33 03 9F 48 33 7B 4A 15  63 48 88 0A C4 97 FD 49
+
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+Version: 2.6.3ia
+
+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
+RhIG8pXauhAd9zrp2sxXH2RUSHF5NbH8iw72BA==
+=ekPo
+-----END PGP PUBLIC KEY BLOCK-----
+</verb></tscreen>
+
+  <sect1><heading>&a.rich</heading><p>
+
+<tscreen><verb>
+Rich Murphey &lt;rich@FreeBSD.org&gt;
+fingerprint = AF A0 60 C4 84 D6 0C 73  D1 EF C0 E9 9D 21 DB E4
+
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+Version: 2.6.2
+
+mQCNAy97V+MAAAEEALiNM3FCwm3qrCe81E20UOSlNclOWfZHNAyOyj1ahHeINvo1
+FBF2Gd5Lbj0y8SLMno5yJ6P4F4r+x3jwHZrzAIwMs/lxDXRtB0VeVWnlj6a3Rezs
+wbfaTeSVyh5JohEcKdoYiMG5wjATOwK/NAwIPthB1RzRjnEeer3HI3ZYNEOpAAUR
+tCRSaWNoIE11cnBoZXkgPHJpY2hAbGFtcHJleS51dG1iLmVkdT6JAJUDBRAve15W
+vccjdlg0Q6kBAZTZBACcNd/LiVnMFURPrO4pVRn1sVQeokVX7izeWQ7siE31Iy7g
+Sb97WRLEYDi686osaGfsuKNA87Rm+q5F+jxeUV4w4szoqp60gGvCbD0KCB2hWraP
+/2s2qdVAxhfcoTin/Qp1ZWvXxFF7imGA/IjYIfB42VkaRYu6BwLEm3YAGfGcSw==
+=QoiM
+-----END PGP PUBLIC KEY BLOCK-----
+</verb></tscreen>
