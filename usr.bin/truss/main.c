@@ -65,7 +65,7 @@ int nosigs = 0;
 FILE *outfile;
 int Procfd;
 
-static inline void
+static __inline void
 usage(void)
 {
   fprintf(stderr, "%s\n%s\n",
