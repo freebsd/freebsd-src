@@ -621,6 +621,7 @@ sf_buf_alloc(struct vm_page *m)
 	}
 	while ((sf = TAILQ_FIRST(&sf_buf_freelist)) == NULL) {
 		sf_buf_alloc_want++;
+		mbstat.sf_allocwait++;
 		error = msleep(&sf_buf_freelist, &sf_buf_lock, PVM|PCATCH,
 		    "sfbufa", 0);
 		sf_buf_alloc_want--;
