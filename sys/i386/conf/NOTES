@@ -625,7 +625,6 @@ options		SAFE_RNDTEST	# enable rndtest support
 #
 # apm: Laptop Advanced Power Management (experimental)
 # pmtimer: Timer device driver for power management events (APM or ACPI)
-# spigot: The Creative Labs Video Spigot video-acquisition board
 # cy: Cyclades serial driver
 # digi: Digiboard driver
 # gsc: Genius GS-4500 hand scanner.
@@ -634,17 +633,6 @@ options		SAFE_RNDTEST	# enable rndtest support
 # Notes on APM
 #  The flags takes the following meaning for apm0:
 #    0x0020  Statclock is broken.
-
-# Notes on the spigot:
-#  The video spigot is at 0xad6.  This port address can not be changed.
-#  The irq values may only be 10, 11, or 15
-#  I/O memory is an 8kb region.  Possible values are:
-#    0a0000, 0a2000, ..., 0fffff, f00000, f02000, ..., ffffff
-#    The start address must be on an even boundary.
-#  Add the following option if you want to allow non-root users to be able
-#  to access the spigot.  This option is not secure because it allows users
-#  direct access to the I/O page.
-#  	options SPIGOT_UNSECURE
 
 # Notes on the Specialix SI/XIO driver:
 #  The host card is memory, not IO mapped.
@@ -664,11 +652,6 @@ options		SAFE_RNDTEST	# enable rndtest support
 #  is the only thing truly supported, but apparently a fair percentage
 #  of the Vaio extra features are controlled by this device.
 
-device		spigot	1
-hint.spigot.0.at="isa"
-hint.spigot.0.port="0xad6"
-hint.spigot.0.irq="15"
-hint.spigot.0.maddr="0xee000"
 device		apm
 hint.apm.0.flags="0x20"
 device		pmtimer			# Adjust system timer at wakeup time
