@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: stage2.c,v 1.14 1994/11/11 07:58:08 jkh Exp $
+ * $Id: stage2.c,v 1.15 1994/11/17 19:44:53 ache Exp $
  *
  */
 
@@ -82,8 +82,13 @@ stage2()
     Mkdir("/mnt/mnt");
     Mkdir("/mnt/stand");
 
+    TellEm("unzipping /stand/sysinstall onto hard disk");
+    exec(4, "/stand/gzip", "zcat", 0 );
+/*
     CopyFile("/stand/sysinstall","/mnt/stand/sysinstall");
+*/
     Link("/mnt/stand/sysinstall","/mnt/stand/cpio");
+    Link("/mnt/stand/sysinstall","/mnt/stand/bad144");
     Link("/mnt/stand/sysinstall","/mnt/stand/gunzip");
     Link("/mnt/stand/sysinstall","/mnt/stand/gzip");
     Link("/mnt/stand/sysinstall","/mnt/stand/zcat");
