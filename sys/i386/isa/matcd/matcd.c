@@ -1021,12 +1021,6 @@ int matcdioctl(dev_t dev, u_long command, caddr_t addr,
 		*(struct disklabel *) addr = cd->dlabel;
 		return(0);
 
-	case	DIOCGPART:
-		((struct partinfo *) addr)->disklab=&cd->dlabel;
-		((struct partinfo *) addr)->part=
-		    &cd->dlabel.d_partitions[matcd_partition(dev)];
-		return(0);
-
 	case	DIOCWDINFO:
 	case	DIOCSDINFO:
 		if ((flags & FWRITE) == 0) {

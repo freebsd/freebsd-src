@@ -305,7 +305,6 @@ struct _volume
      */
     int plex[MAXPLEX];					    /* index of plexes */
 #ifdef _KERNEL
-    struct disklabel label;				    /* for DIOCGPART */
     dev_t dev;						    /* associated device */
 #endif
 };
