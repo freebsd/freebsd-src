@@ -1,0 +1,2 @@
+/defaults       type:=host;fs:=${autodir}/${rhost};rhost:=${key}
+*               opts:=rw,grpid
