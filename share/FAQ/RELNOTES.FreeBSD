@@ -158,7 +158,7 @@ Owner:			phk
 Sources involved:	isa/lpt.c
 
 
-ProAudioSpectrum SCSI-driver
+ProAudioSpectrum SCSI driver
 ----------------------------
 If you have a PAS board with a CD-ROM, and the MS-DOS driver is called
 TSLCDR.SYS, then the "pas" driver should work on your card.  You can
@@ -170,7 +170,21 @@ Owner:			phk
 Sources involved:	isa/pas.c
 
 
-Gzip'ed binaries
+Adaptec 2742/2842 SCSI driver
+-----------------------------
+Despite the non-cooperation of Adaptec in providing technical
+information, we now have a driver for the AHA-274x and AHA-284x
+series SCSI controller family.  This driver uses the GPL'd
+Linux sequencer code, so until we find an alternative, this
+will be part of the kernel that requires source code to be
+distributed with it at all times.  This shouldn't be a problem
+for any of FreeBSD's current users.
+
+Owner:			gibbs
+Sources involved:	isa/aic7770.c sys/gnu/misc/*
+
+
+Gzip'd binaries
 ----------------
 We have an experimental implementation for direct execution of gzip'ed
 binaries in this release.  When enabled, it allows you to simply gzip
@@ -527,4 +541,4 @@ hope you enjoy this release of FreeBSD!
 
 			The FreeBSD Core Team
 
-$Id: RELNOTES.FreeBSD,v 1.15 1994/11/18 03:10:32 jkh Exp $
+$Id: RELNOTES.FreeBSD,v 1.16 1994/11/18 13:02:23 jkh Exp $
