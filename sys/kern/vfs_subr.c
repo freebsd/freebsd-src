@@ -2602,8 +2602,9 @@ vop_revoke(ap)
 	dev_t dev;
 
 	KASSERT((ap->a_flags & REVOKEALL) != 0, ("vop_revoke"));
-
 	vp = ap->a_vp;
+	KASSERT((vp->v_type == VCHR), ("vop_revoke: not VCHR"));
+
 	VI_LOCK(vp);
 	/*
 	 * If a vgone (or vclean) is already in progress,
