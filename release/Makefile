@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.382 1998/09/13 17:20:57 phk Exp $
+#	$Id: Makefile,v 1.383 1998/09/14 11:39:38 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -281,6 +281,12 @@ release.2:
 		make obj all help-distribute DISTDIR=${RD}/trees &&\
 		make kprog \
 	)
+.endif
+	# XXX until lkm and mdec gets populated again by some other means
+.if ${MACHINE_ARCH} == "i386"
+	cd ${.CURDIR}/.. && OBJFORMAT=aout MAKEOBJDIRPREFIX=/usr/obj/aout \
+		NOTOOLS=1 NOSECURE=1 NOCRYPT=1 \
+		make -f Makefile.inc1 legacy-install DESTDIR=${RD}/trees/bin
 .endif
 	chflags -R noschg ${RD}/trees
 	touch release.2
