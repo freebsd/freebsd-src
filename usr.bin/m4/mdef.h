@@ -169,28 +169,28 @@ struct input_file {
  *      pushf() - push a call frame entry onto stack
  *      pushs() - push a string pointer onto stack
  */
-#define pushf(x) 			\
-	do {				\
+#define pushf(x) 					\
+	do {						\
 		if ((uintptr_t)++sp == STACKMAX) 	\
-			enlarge_stack();\
-		mstack[sp].sfra = (x);	\
-		sstack[sp] = 0; \
+			enlarge_stack();		\
+		mstack[sp].sfra = (x);			\
+		sstack[sp] = 0;				\
 	} while (0)
 
-#define pushs(x) 			\
-	do {				\
+#define pushs(x) 					\
+	do {						\
 		if ((uintptr_t)++sp == STACKMAX) 	\
-			enlarge_stack();\
-		mstack[sp].sstr = (x);	\
-		sstack[sp] = 1; \
+			enlarge_stack();		\
+		mstack[sp].sstr = (x);			\
+		sstack[sp] = 1;				\
 	} while (0)
 
-#define pushs1(x) 			\
-	do {				\
+#define pushs1(x) 					\
+	do {						\
 		if ((uintptr_t)++sp == STACKMAX) 	\
-			enlarge_stack();\
-		mstack[sp].sstr = (x);	\
-		sstack[sp] = 0; \
+			enlarge_stack();		\
+		mstack[sp].sstr = (x);			\
+		sstack[sp] = 0;				\
 	} while (0)
 
 /*
