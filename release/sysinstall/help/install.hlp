@@ -180,12 +180,14 @@ which is why I'm taking such special care to mention it here!
 If you're creating the floppies from another FreeBSD machine, a format
 is still not a bad idea though you don't need to put a DOS filesystem
 on each floppy.  You can use the `disklabel' and `newfs' commands to
-put a UFS filesystem on them instead, like so:
+put a UFS filesystem on a floppy, as the following sequence of commands
+(for a 3.5" 1.44MB floppy disk) illustrates:
 
-        disklabel -w -r fd0 floppy3     (use floppy5 for 1.2MB disks)
-        newfs /dev/rfd0
+        fdformat -f 1440 fd0.1440
+        disklabel -w -r fd0.1440 floppy3
+        newfs -t 2 -u 18 -l 1 -i 65536 /dev/rfd0
 
-Then you can mount and write to them like any other file system.
+(Use "fd0.1200" and "floppy5" for 5.25" 1.2MB disks).
 
 After you've formatted the floppies for DOS or UFS, you'll need to
 copy the files onto them.  The distribution files are split into
