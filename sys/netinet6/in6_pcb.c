@@ -705,9 +705,11 @@ in6_pcbnotify(pcbinfo, dst, fport_arg, src, lport_arg, cmd, cmdarg, notify)
 		}
 
 	  do_notify:
-		if (notify)
-			(*notify)(inp, errno);
-		INP_UNLOCK(inp);
+		if (notify) {
+			if ((*notify)(inp, errno))
+				INP_UNLOCK(inp);
+		} else
+			INP_UNLOCK(inp);
 	}
 	INP_INFO_WUNLOCK(pcbinfo);
 	splx(s);
