@@ -248,11 +248,13 @@ m_prepend(struct mbuf *bp, const void *ptr, size_t len, size_t extra)
     if (bp->m_offset >= len) {
       bp->m_offset -= len;
       bp->m_len += len;
-      memcpy(MBUF_CTOP(bp), ptr, len);
+      if (ptr)
+        memcpy(MBUF_CTOP(bp), ptr, len);
       return bp;
     }
     len -= bp->m_offset;
-    memcpy(bp + 1, (const char *)ptr + len, bp->m_offset);
+    if (ptr)
+      memcpy(bp + 1, (const char *)ptr + len, bp->m_offset);
     bp->m_len += bp->m_offset;
     bp->m_offset = 0;
   }
@@ -425,9 +427,11 @@ m_append(struct mbuf *bp, const void *v, size_t sz)
   if (m) {
     while (m->m_next)
       m = m->m_next;
-    if (m->m_size - m->m_len > sz)
+    if (m->m_size - m->m_len >= sz) {
+      if (v)
+        memcpy((char *)(m + 1) + m->m_len, v, sz);
       m->m_len += sz;
-    else
+    } else
       m->m_next = m_prepend(NULL, v, sz, 0);
   } else
     bp = m_prepend(NULL, v, sz, 0);
