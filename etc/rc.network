@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.network,v 1.27 1998/06/14 16:31:03 steve Exp $
+#	$Id: rc.network,v 1.28 1998/07/08 15:40:53 nectar Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
@@ -260,10 +260,10 @@ network_pass3() {
 		stash_flag=
 	    fi
 	    echo -n ' kerberos'; \
-		kerberos ${stash_flags} >> /var/log/kerberos.log &
+		kerberos ${stash_flag} >> /var/log/kerberos.log &
 	    if [ "X${kadmind_server_enable}" = "XYES" ]; then
 		echo -n ' kadmind'; \
-		(sleep 20; kadmind ${stash_flags} >/dev/null 2>&1 &) &
+		(sleep 20; kadmind ${stash_flag} >/dev/null 2>&1 &) &
 	    fi
 	    unset stash_flag
     fi
