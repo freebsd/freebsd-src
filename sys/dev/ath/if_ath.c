@@ -2999,9 +2999,17 @@ static int
 ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf,
     struct mbuf *m0)
 {
+#define	CTS_DURATION \
+	ath_hal_computetxtime(ah, rt, IEEE80211_ACK_LEN, cix, AH_TRUE)
+#define	updateCTSForBursting(_ah, _ds, _txq) \
+	ath_hal_updateCTSForBursting(_ah, _ds, \
+	    _txq->axq_linkbuf != NULL ? _txq->axq_linkbuf->bf_desc : NULL, \
+	    _txq->axq_lastdsWithCTS, _txq->axq_gatingds, \
+	    txopLimit, CTS_DURATION)
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ath_hal *ah = sc->sc_ah;
 	struct ifnet *ifp = &sc->sc_if;
+	const struct chanAccParams *cap = &ic->ic_wme.wme_chanParams;
 	int i, error, iswep, ismcast, keyix, hdrlen, pktlen, try0;
 	u_int8_t rix, txrate, ctsrate;
 	u_int8_t cix = 0xff;		/* NB: silence compiler */
@@ -3014,6 +3022,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 	HAL_BOOL shortPreamble;
 	struct ath_node *an;
 	struct mbuf *m;
+	u_int pri;
 
 	wh = mtod(m0, struct ieee80211_frame *);
 	iswep = wh->i_fc[1] & IEEE80211_FC1_WEP;
@@ -3160,9 +3169,9 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 		/* NB: force all management frames to highest queue */
 		if (ni->ni_flags & IEEE80211_NODE_QOS) {
 			/* NB: force all management frames to highest queue */
-			txq = sc->sc_ac2q[WME_AC_VO];
+			pri = WME_AC_VO;
 		} else
-			txq = sc->sc_ac2q[WME_AC_BE];
+			pri = WME_AC_BE;
 		flags |= HAL_TXDESC_INTREQ;	/* force interrupt */
 		break;
 	case IEEE80211_FC0_TYPE_CTL:
@@ -3176,9 +3185,9 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 		/* NB: force all ctl frames to highest queue */
 		if (ni->ni_flags & IEEE80211_NODE_QOS) {
 			/* NB: force all ctl frames to highest queue */
-			txq = sc->sc_ac2q[WME_AC_VO];
+			pri = WME_AC_VO;
 		} else
-			txq = sc->sc_ac2q[WME_AC_BE];
+			pri = WME_AC_BE;
 		flags |= HAL_TXDESC_INTREQ;	/* force interrupt */
 		break;
 	case IEEE80211_FC0_TYPE_DATA:
@@ -3193,14 +3202,13 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 		 * Default all non-QoS traffic to the background queue.
 		 */
 		if (wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_QOS) {
-			u_int pri = M_WME_GETAC(m0);
-			txq = sc->sc_ac2q[pri];
-			if (ic->ic_wme.wme_wmeChanParams.cap_wmeParams[pri].wmep_noackPolicy) {
+			pri = M_WME_GETAC(m0);
+			if (cap->cap_wmeParams[pri].wmep_noackPolicy) {
 				flags |= HAL_TXDESC_NOACK;
 				sc->sc_stats.ast_tx_noack++;
 			}
 		} else
-			txq = sc->sc_ac2q[WME_AC_BE];
+			pri = WME_AC_BE;
 		break;
 	default:
 		if_printf(ifp, "bogus frame type 0x%x (%s)\n",
@@ -3209,6 +3217,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 		m_freem(m0);
 		return EIO;
 	}
+	txq = sc->sc_ac2q[pri];
 
 	/*
 	 * When servicing one or more stations in power-save mode
@@ -3398,27 +3407,44 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 			__func__, i, ds->ds_link, ds->ds_data,
 			ds->ds_ctl0, ds->ds_ctl1, ds->ds_hw[0], ds->ds_hw[1]);
 	}
-#if 0
-	if ((flags & (HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA)) &&
-  	    !ath_hal_updateCTSForBursting(ah, ds 
-		     , txq->axq_linkbuf != NULL ?
-			txq->axq_linkbuf->bf_desc : NULL
-		     , txq->axq_lastdsWithCTS
-		     , txq->axq_gatingds
-		     , IEEE80211_TXOP_TO_US(ic->ic_chanParams.cap_wmeParams[skb->priority].wmep_txopLimit)
-		     , ath_hal_computetxtime(ah, rt, IEEE80211_ACK_LEN, cix, AH_TRUE))) {
-		ATH_TXQ_LOCK(txq);		     
-		txq->axq_lastdsWithCTS = ds;
-		/* set gating Desc to final desc */
-		txq->axq_gatingds = (struct ath_desc *)txq->axq_link;
-		ATH_TXQ_UNLOCK(txq);
-	}
-#endif
 	/*
 	 * Insert the frame on the outbound list and
 	 * pass it on to the hardware.
 	 */
 	ATH_TXQ_LOCK(txq);
+	if (flags & (HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA)) {
+		u_int32_t txopLimit = IEEE80211_TXOP_TO_US(
+			cap->cap_wmeParams[pri].wmep_txopLimit);
+		/*
+		 * When bursting, potentially extend the CTS duration
+		 * of a previously queued frame to cover this frame
+		 * and not exceed the txopLimit.  If that can be done
+		 * then disable RTS/CTS on this frame since it's now
+		 * covered (burst extension).  Otherwise we must terminate
+		 * the burst before this frame goes out so as not to
+		 * violate the WME parameters.  All this is complicated
+		 * as we need to update the state of packets on the
+		 * (live) hardware queue.  The logic is buried in the hal
+		 * because it's highly chip-specific.
+		 */
+		if (txopLimit != 0) {
+			sc->sc_stats.ast_tx_ctsburst++;
+			if (updateCTSForBursting(ah, ds0, txq) == 0) {
+				/*
+				 * This frame was not covered by RTS/CTS from
+				 * the previous frame in the burst; update the
+				 * descriptor pointers so this frame is now
+				 * treated as the last frame for extending a
+				 * burst.
+				 */
+				txq->axq_lastdsWithCTS = ds0;
+				/* set gating Desc to final desc */
+				txq->axq_gatingds =
+					(struct ath_desc *)txq->axq_link;
+			} else
+				sc->sc_stats.ast_tx_ctsext++;
+		}
+	}
 	ATH_TXQ_INSERT_TAIL(txq, bf, bf_list);
 	if (txq->axq_link == NULL) {
 		ath_hal_puttxbuf(ah, txq->axq_qnum, bf->bf_daddr);
@@ -3443,6 +3469,8 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 	if (txq != sc->sc_cabq)
 		ath_hal_txstart(ah, txq->axq_qnum);
 	return 0;
+#undef updateCTSForBursting
+#undef CTS_DURATION
 }
 
 /*
@@ -3454,7 +3482,7 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 	struct ath_hal *ah = sc->sc_ah;
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ath_buf *bf;
-	struct ath_desc *ds;
+	struct ath_desc *ds, *ds0;
 	struct ieee80211_node *ni;
 	struct ath_node *an;
 	int sr, lr, pri;
@@ -3473,7 +3501,7 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 			ATH_TXQ_UNLOCK(txq);
 			break;
 		}
-		/* only the last descriptor is needed */
+		ds0 = &bf->bf_desc[0];
 		ds = &bf->bf_desc[bf->bf_nseg - 1];
 		status = ath_hal_txprocdesc(ah, ds);
 #ifdef AR_DEBUG
@@ -3484,12 +3512,10 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 			ATH_TXQ_UNLOCK(txq);
 			break;
 		}
-#if 0
-		if (bf->bf_desc == txq->axq_lastdsWithCTS)
+		if (ds0 == txq->axq_lastdsWithCTS)
 			txq->axq_lastdsWithCTS = NULL;
 		if (ds == txq->axq_gatingds)
 			txq->axq_gatingds = NULL;
-#endif
 		ATH_TXQ_REMOVE_HEAD(txq, bf_list);
 		ATH_TXQ_UNLOCK(txq);
 
