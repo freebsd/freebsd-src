@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)inet.c	8.5 (Berkeley) 5/24/95";
 */
 static const char rcsid[] =
-	"$Id$";
+	"$Id: inet.c,v 1.21 1996/10/28 18:56:34 wollman Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -199,63 +199,63 @@ tcp_stats(off, name)
 #define	p3(f, m) if (tcpstat.f || sflag <= 1) \
     printf(m, tcpstat.f, plurales(tcpstat.f))
 
-	p(tcps_sndtotal, "\t%ld packet%s sent\n");
+	p(tcps_sndtotal, "\t%lu packet%s sent\n");
 	p2(tcps_sndpack,tcps_sndbyte,
-		"\t\t%ld data packet%s (%ld byte%s)\n");
+		"\t\t%lu data packet%s (%lu byte%s)\n");
 	p2(tcps_sndrexmitpack, tcps_sndrexmitbyte,
-		"\t\t%ld data packet%s (%ld byte%s) retransmitted\n");
-	p(tcps_mturesent, "\t\t%ld resend%s initiated by MTU discovery\n");
+		"\t\t%lu data packet%s (%lu byte%s) retransmitted\n");
+	p(tcps_mturesent, "\t\t%lu resend%s initiated by MTU discovery\n");
 	p2(tcps_sndacks, tcps_delack,
-		"\t\t%ld ack-only packet%s (%ld delayed)\n");
-	p(tcps_sndurg, "\t\t%ld URG only packet%s\n");
-	p(tcps_sndprobe, "\t\t%ld window probe packet%s\n");
-	p(tcps_sndwinup, "\t\t%ld window update packet%s\n");
-	p(tcps_sndctrl, "\t\t%ld control packet%s\n");
-	p(tcps_rcvtotal, "\t%ld packet%s received\n");
-	p2(tcps_rcvackpack, tcps_rcvackbyte, "\t\t%ld ack%s (for %ld byte%s)\n");
-	p(tcps_rcvdupack, "\t\t%ld duplicate ack%s\n");
-	p(tcps_rcvacktoomuch, "\t\t%ld ack%s for unsent data\n");
+		"\t\t%lu ack-only packet%s (%lu delayed)\n");
+	p(tcps_sndurg, "\t\t%lu URG only packet%s\n");
+	p(tcps_sndprobe, "\t\t%lu window probe packet%s\n");
+	p(tcps_sndwinup, "\t\t%lu window update packet%s\n");
+	p(tcps_sndctrl, "\t\t%lu control packet%s\n");
+	p(tcps_rcvtotal, "\t%lu packet%s received\n");
+	p2(tcps_rcvackpack, tcps_rcvackbyte, "\t\t%lu ack%s (for %lu byte%s)\n");
+	p(tcps_rcvdupack, "\t\t%lu duplicate ack%s\n");
+	p(tcps_rcvacktoomuch, "\t\t%lu ack%s for unsent data\n");
 	p2(tcps_rcvpack, tcps_rcvbyte,
-		"\t\t%ld packet%s (%ld byte%s) received in-sequence\n");
+		"\t\t%lu packet%s (%lu byte%s) received in-sequence\n");
 	p2(tcps_rcvduppack, tcps_rcvdupbyte,
-		"\t\t%ld completely duplicate packet%s (%ld byte%s)\n");
-	p(tcps_pawsdrop, "\t\t%ld old duplicate packet%s\n");
+		"\t\t%lu completely duplicate packet%s (%lu byte%s)\n");
+	p(tcps_pawsdrop, "\t\t%lu old duplicate packet%s\n");
 	p2(tcps_rcvpartduppack, tcps_rcvpartdupbyte,
-		"\t\t%ld packet%s with some dup. data (%ld byte%s duped)\n");
+		"\t\t%lu packet%s with some dup. data (%lu byte%s duped)\n");
 	p2(tcps_rcvoopack, tcps_rcvoobyte,
-		"\t\t%ld out-of-order packet%s (%ld byte%s)\n");
+		"\t\t%lu out-of-order packet%s (%lu byte%s)\n");
 	p2(tcps_rcvpackafterwin, tcps_rcvbyteafterwin,
-		"\t\t%ld packet%s (%ld byte%s) of data after window\n");
-	p(tcps_rcvwinprobe, "\t\t%ld window probe%s\n");
-	p(tcps_rcvwinupd, "\t\t%ld window update packet%s\n");
-	p(tcps_rcvafterclose, "\t\t%ld packet%s received after close\n");
-	p(tcps_rcvbadsum, "\t\t%ld discarded for bad checksum%s\n");
-	p(tcps_rcvbadoff, "\t\t%ld discarded for bad header offset field%s\n");
-	p(tcps_rcvshort, "\t\t%ld discarded because packet too short\n");
-	p(tcps_connattempt, "\t%ld connection request%s\n");
-	p(tcps_accepts, "\t%ld connection accept%s\n");
-	p(tcps_badsyn, "\t%ld bad connection attempt%s\n");
-	p(tcps_listendrop, "\t%ld listen queue overflow%s\n");
-	p(tcps_connects, "\t%ld connection%s established (including accepts)\n");
+		"\t\t%lu packet%s (%lu byte%s) of data after window\n");
+	p(tcps_rcvwinprobe, "\t\t%lu window probe%s\n");
+	p(tcps_rcvwinupd, "\t\t%lu window update packet%s\n");
+	p(tcps_rcvafterclose, "\t\t%lu packet%s received after close\n");
+	p(tcps_rcvbadsum, "\t\t%lu discarded for bad checksum%s\n");
+	p(tcps_rcvbadoff, "\t\t%lu discarded for bad header offset field%s\n");
+	p(tcps_rcvshort, "\t\t%lu discarded because packet too short\n");
+	p(tcps_connattempt, "\t%lu connection request%s\n");
+	p(tcps_accepts, "\t%lu connection accept%s\n");
+	p(tcps_badsyn, "\t%lu bad connection attempt%s\n");
+	p(tcps_listendrop, "\t%lu listen queue overflow%s\n");
+	p(tcps_connects, "\t%lu connection%s established (including accepts)\n");
 	p2(tcps_closed, tcps_drops,
-		"\t%ld connection%s closed (including %ld drop%s)\n");
-	p(tcps_cachedrtt, "\t\t%ld connection%s updated cached RTT on close\n");
+		"\t%lu connection%s closed (including %lu drop%s)\n");
+	p(tcps_cachedrtt, "\t\t%lu connection%s updated cached RTT on close\n");
 	p(tcps_cachedrttvar, 
-	  "\t\t%ld connection%s updated cached RTT variance on close\n");
+	  "\t\t%lu connection%s updated cached RTT variance on close\n");
 	p(tcps_cachedssthresh,
-	  "\t\t%ld connection%s updated cached ssthresh on close\n");
-	p(tcps_conndrops, "\t%ld embryonic connection%s dropped\n");
+	  "\t\t%lu connection%s updated cached ssthresh on close\n");
+	p(tcps_conndrops, "\t%lu embryonic connection%s dropped\n");
 	p2(tcps_rttupdated, tcps_segstimed,
-		"\t%ld segment%s updated rtt (of %ld attempt%s)\n");
-	p(tcps_rexmttimeo, "\t%ld retransmit timeout%s\n");
-	p(tcps_timeoutdrop, "\t\t%ld connection%s dropped by rexmit timeout\n");
-	p(tcps_persisttimeo, "\t%ld persist timeout%s\n");
-	p(tcps_persistdrop, "\t\t%ld connection%s dropped by persist timeout\n");
-	p(tcps_keeptimeo, "\t%ld keepalive timeout%s\n");
-	p(tcps_keepprobe, "\t\t%ld keepalive probe%s sent\n");
-	p(tcps_keepdrops, "\t\t%ld connection%s dropped by keepalive\n");
-	p(tcps_predack, "\t%ld correct ACK header prediction%s\n");
-	p(tcps_preddat, "\t%ld correct data packet header prediction%s\n");
+		"\t%lu segment%s updated rtt (of %lu attempt%s)\n");
+	p(tcps_rexmttimeo, "\t%lu retransmit timeout%s\n");
+	p(tcps_timeoutdrop, "\t\t%lu connection%s dropped by rexmit timeout\n");
+	p(tcps_persisttimeo, "\t%lu persist timeout%s\n");
+	p(tcps_persistdrop, "\t\t%lu connection%s dropped by persist timeout\n");
+	p(tcps_keeptimeo, "\t%lu keepalive timeout%s\n");
+	p(tcps_keepprobe, "\t\t%lu keepalive probe%s sent\n");
+	p(tcps_keepdrops, "\t\t%lu connection%s dropped by keepalive\n");
+	p(tcps_predack, "\t%lu correct ACK header prediction%s\n");
+	p(tcps_preddat, "\t%lu correct data packet header prediction%s\n");
 #undef p
 #undef p2
 #undef p3
