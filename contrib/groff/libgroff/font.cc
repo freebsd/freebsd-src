@@ -194,7 +194,11 @@ static int scale_round(int n, int x, int y)
   }
   else {
     if (-(unsigned)n <= (-(unsigned)INT_MIN - y2)/x)
-      return (n*x - y2)/y;
+      {
+        // XXX simplify expression to work around bug in gcc-2.6.0
+        int tmp = n*x - y2;
+        return tmp/y;
+      }
     return int(n*double(x)/double(y) - .5);
   }
 }
