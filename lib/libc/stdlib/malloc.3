@@ -71,7 +71,7 @@ for storage of any type of object.
 If the space is at least
 .Em pagesize
 bytes in length (see
-.Xr getpagesize 3 ),
+.Xr getpagesize 3 ) ,
 the returned memory will be page boundary aligned as well.
 If
 .Fn malloc
@@ -209,7 +209,7 @@ option.
 Rather than return failure for any allocation function,
 display a diagnostic message on stderr and cause the program to drop
 core (using
-.Xr abort 3 ).
+.Xr abort 3 ) .
 This option should be set at compile time by including the following in
 the source code:
 .Bd -literal -offset indent
