@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ns.c,v 1.1.1.1 1998/08/27 17:38:45 abial Exp $
+ * $Id: ns.c,v 1.2 1998/09/02 11:48:07 abial Exp $
  */
 
 
@@ -34,6 +34,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <unistd.h>
+#include <osreldate.h>
 #include <err.h>
 #include <sys/types.h>
 #include <sys/time.h>
@@ -411,7 +412,7 @@ print_ip_stats()
 	printf("* Packets ok:\n");
 	printf("  %10lu fragments received\n",s.ips_fragments);
 	printf("  %10lu forwarded\n",s.ips_forward);
-#if __FreeBSD_version < 300001
+#if __FreeBSD_version > 300001
 	printf("  %10lu fast forwarded\n",s.ips_fastforward);
 #endif
 	printf("  %10lu forwarded on same net (redirect)\n",s.ips_redirectsent);
@@ -437,7 +438,7 @@ print_ip_stats()
 	printf("  %10lu dropped due to no route\n",s.ips_noroute);
 	printf("  %10lu bad IP version\n",s.ips_badvers);
 	printf("  %10lu too long (more than max IP size)\n",s.ips_toolong);
-#if __FreeBSD_version < 300001
+#if __FreeBSD_version > 300001
 	printf("  %10lu multicast for unregistered groups\n",s.ips_notmember);
 #endif
 #endif
@@ -558,7 +559,7 @@ print_udp_stats()
 	printf("  %10lu packets not for hashed PCBs\n",s.udpps_pcbhashmiss);
 	printf("* Packets sent:\n");
 	printf("  %10lu total output packets\n",s.udps_opackets);
-#if __FreeBSD_version < 300001
+#if __FreeBSD_version > 300001
 	printf("  %10lu output packets on fast path\n",s.udps_fastout);
 #endif
 }
