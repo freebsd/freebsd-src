@@ -780,7 +780,8 @@ static void r128_cce_dispatch_indices( drm_device_t *dev,
 	sarea_priv->nbox = 0;
 }
 
-static int r128_cce_dispatch_blit( drm_device_t *dev,
+static int r128_cce_dispatch_blit( DRMFILE filp,
+				   drm_device_t *dev,
 				   drm_r128_blit_t *blit )
 {
 	drm_r128_private_t *dev_priv = dev->dev_private;
@@ -831,9 +832,9 @@ static int r128_cce_dispatch_blit( drm_device_t *dev,
 	buf = dma->buflist[blit->idx];
 	buf_priv = buf->dev_private;
 
-	if ( buf->pid != DRM_CURRENTPID ) {
-		DRM_ERROR( "process %d using buffer owned by %d\n",
-			   DRM_CURRENTPID, buf->pid );
+	if ( buf->filp != filp ) {
+		DRM_ERROR( "process %d using buffer owned by %p\n",
+			   DRM_CURRENTPID, buf->filp );
 		return DRM_ERR(EINVAL);
 	}
 	if ( buf->pending ) {
@@ -1246,7 +1247,7 @@ int r128_cce_clear( DRM_IOCTL_ARGS )
 	drm_r128_clear_t clear;
 	DRM_DEBUG( "\n" );
 
-	LOCK_TEST_WITH_RETURN( dev );
+	LOCK_TEST_WITH_RETURN( dev, filp );
 
 	DRM_COPY_FROM_USER_IOCTL( clear, (drm_r128_clear_t *) data,
 			     sizeof(clear) );
@@ -1272,7 +1273,7 @@ int r128_cce_swap( DRM_IOCTL_ARGS )
 	drm_r128_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	DRM_DEBUG( "%s\n", __FUNCTION__ );
 
-	LOCK_TEST_WITH_RETURN( dev );
+	LOCK_TEST_WITH_RETURN( dev, filp );
 
 	RING_SPACE_TEST_WITH_RETURN( dev_priv );
 
@@ -1299,7 +1300,7 @@ int r128_cce_vertex( DRM_IOCTL_ARGS )
 	drm_r128_buf_priv_t *buf_priv;
 	drm_r128_vertex_t vertex;
 
-	LOCK_TEST_WITH_RETURN( dev );
+	LOCK_TEST_WITH_RETURN( dev, filp );
 
 	if ( !dev_priv ) {
 		DRM_ERROR( "%s called with no initialization\n", __FUNCTION__ );
@@ -1330,9 +1331,9 @@ int r128_cce_vertex( DRM_IOCTL_ARGS )
 	buf = dma->buflist[vertex.idx];
 	buf_priv = buf->dev_private;
 
-	if ( buf->pid != DRM_CURRENTPID ) {
-		DRM_ERROR( "process %d using buffer owned by %d\n",
-			   DRM_CURRENTPID, buf->pid );
+	if ( buf->filp != filp ) {
+		DRM_ERROR( "process %d using buffer owned by %p\n",
+			   DRM_CURRENTPID, buf->filp );
 		return DRM_ERR(EINVAL);
 	}
 	if ( buf->pending ) {
@@ -1359,7 +1360,7 @@ int r128_cce_indices( DRM_IOCTL_ARGS )
 	drm_r128_indices_t elts;
 	int count;
 
-	LOCK_TEST_WITH_RETURN( dev );
+	LOCK_TEST_WITH_RETURN( dev, filp );
 
 	if ( !dev_priv ) {
 		DRM_ERROR( "%s called with no initialization\n", __FUNCTION__ );
@@ -1389,9 +1390,9 @@ int r128_cce_indices( DRM_IOCTL_ARGS )
 	buf = dma->buflist[elts.idx];
 	buf_priv = buf->dev_private;
 
-	if ( buf->pid != DRM_CURRENTPID ) {
-		DRM_ERROR( "process %d using buffer owned by %d\n",
-			   DRM_CURRENTPID, buf->pid );
+	if ( buf->filp != filp ) {
+		DRM_ERROR( "process %d using buffer owned by %p\n",
+			   DRM_CURRENTPID, buf->filp );
 		return DRM_ERR(EINVAL);
 	}
 	if ( buf->pending ) {
@@ -1427,7 +1428,7 @@ int r128_cce_blit( DRM_IOCTL_ARGS )
 	drm_r128_private_t *dev_priv = dev->dev_private;
 	drm_r128_blit_t blit;
 
-	LOCK_TEST_WITH_RETURN( dev );
+	LOCK_TEST_WITH_RETURN( dev, filp );
 
 	DRM_COPY_FROM_USER_IOCTL( blit, (drm_r128_blit_t *) data,
 			     sizeof(blit) );
@@ -1443,7 +1444,7 @@ int r128_cce_blit( DRM_IOCTL_ARGS )
 	RING_SPACE_TEST_WITH_RETURN( dev_priv );
 	VB_AGE_TEST_WITH_RETURN( dev_priv );
 
-	return r128_cce_dispatch_blit( dev, &blit );
+	return r128_cce_dispatch_blit( filp, dev, &blit );
 }
 
 int r128_cce_depth( DRM_IOCTL_ARGS )
@@ -1452,7 +1453,7 @@ int r128_cce_depth( DRM_IOCTL_ARGS )
 	drm_r128_private_t *dev_priv = dev->dev_private;
 	drm_r128_depth_t depth;
 
-	LOCK_TEST_WITH_RETURN( dev );
+	LOCK_TEST_WITH_RETURN( dev, filp );
 
 	DRM_COPY_FROM_USER_IOCTL( depth, (drm_r128_depth_t *) data,
 			     sizeof(depth) );
@@ -1480,7 +1481,7 @@ int r128_cce_stipple( DRM_IOCTL_ARGS )
 	drm_r128_stipple_t stipple;
 	u32 mask[32];
 
-	LOCK_TEST_WITH_RETURN( dev );
+	LOCK_TEST_WITH_RETURN( dev, filp );
 
 	DRM_COPY_FROM_USER_IOCTL( stipple, (drm_r128_stipple_t *) data,
 			     sizeof(stipple) );
@@ -1508,7 +1509,7 @@ int r128_cce_indirect( DRM_IOCTL_ARGS )
 	RING_LOCALS;
 #endif
 
-	LOCK_TEST_WITH_RETURN( dev );
+	LOCK_TEST_WITH_RETURN( dev, filp );
 
 	if ( !dev_priv ) {
 		DRM_ERROR( "%s called with no initialization\n", __FUNCTION__ );
@@ -1531,9 +1532,9 @@ int r128_cce_indirect( DRM_IOCTL_ARGS )
 	buf = dma->buflist[indirect.idx];
 	buf_priv = buf->dev_private;
 
-	if ( buf->pid != DRM_CURRENTPID ) {
-		DRM_ERROR( "process %d using buffer owned by %d\n",
-			   DRM_CURRENTPID, buf->pid );
+	if ( buf->filp != filp ) {
+		DRM_ERROR( "process %d using buffer owned by %p\n",
+			   DRM_CURRENTPID, buf->filp );
 		return DRM_ERR(EINVAL);
 	}
 	if ( buf->pending ) {

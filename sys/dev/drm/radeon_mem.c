@@ -42,7 +42,7 @@
  */
 
 static struct mem_block *split_block(struct mem_block *p, int start, int size,
-				     int pid )
+				     DRMFILE filp )
 {
 	/* Maybe cut off the start of an existing block */
 	if (start > p->start) {
@@ -51,7 +51,7 @@ static struct mem_block *split_block(struct mem_block *p, int start, int size,
 			goto out;
 		newblock->start = start;
 		newblock->size = p->size - (start - p->start);
-		newblock->pid = 0;
+		newblock->filp = 0;
 		newblock->next = p->next;
 		newblock->prev = p;
 		p->next->prev = newblock;
@@ -67,7 +67,7 @@ static struct mem_block *split_block(struct mem_block *p, int start, int size,
 			goto out;
 		newblock->start = start + size;
 		newblock->size = p->size - size;
-		newblock->pid = 0;
+		newblock->filp = 0;
 		newblock->next = p->next;
 		newblock->prev = p;
 		p->next->prev = newblock;
@@ -77,20 +77,20 @@ static struct mem_block *split_block(struct mem_block *p, int start, int size,
 
  out:
 	/* Our block is in the middle */
-	p->pid = pid;
+	p->filp = filp;
 	return p;
 }
 
 static struct mem_block *alloc_block( struct mem_block *heap, int size, 
-				      int align2, int pid )
+				      int align2, DRMFILE filp )
 {
 	struct mem_block *p;
 	int mask = (1 << align2)-1;
 
 	for (p = heap->next ; p != heap ; p = p->next) {
 		int start = (p->start + mask) & ~mask;
-		if (p->pid == 0 && start + size <= p->start + p->size)
-			return split_block( p, start, size, pid );
+		if (p->filp == 0 && start + size <= p->start + p->size)
+			return split_block( p, start, size, filp );
 	}
 
 	return NULL;
@@ -110,12 +110,12 @@ static struct mem_block *find_block( struct mem_block *heap, int start )
 
 static void free_block( struct mem_block *p )
 {
-	p->pid = 0;
+	p->filp = 0;
 
-	/* Assumes a single contiguous range.  Needs a special pid in
+	/* Assumes a single contiguous range.  Needs a special filp in
 	 * 'heap' to stop it being subsumed.
 	 */
-	if (p->next->pid == 0) {
+	if (p->next->filp == 0) {
 		struct mem_block *q = p->next;
 		p->size += q->size;
 		p->next = q->next;
@@ -123,7 +123,7 @@ static void free_block( struct mem_block *p )
 		DRM_FREE(q, sizeof(*q));
 	}
 
-	if (p->prev->pid == 0) {
+	if (p->prev->filp == 0) {
 		struct mem_block *q = p->prev;
 		q->size += p->size;
 		q->next = p->next;
@@ -149,36 +149,35 @@ static int init_heap(struct mem_block **heap, int start, int size)
 
 	blocks->start = start;
 	blocks->size = size;
-	blocks->pid = 0;
+	blocks->filp = 0;
 	blocks->next = blocks->prev = *heap;
 
 	memset( *heap, 0, sizeof(**heap) );
-	(*heap)->pid = -1;
+	(*heap)->filp = (DRMFILE) -1;
 	(*heap)->next = (*heap)->prev = blocks;
 	return 0;
 }
 
 
-/* Free all blocks associated with the releasing pid.
+/* Free all blocks associated with the releasing file.
  */
-void radeon_mem_release( struct mem_block *heap )
+void radeon_mem_release( DRMFILE filp, struct mem_block *heap )
 {
-	int pid = DRM_CURRENTPID;
 	struct mem_block *p;
 
 	if (!heap || !heap->next)
 		return;
 
 	for (p = heap->next ; p != heap ; p = p->next) {
-		if (p->pid == pid) 
-			p->pid = 0;
+		if (p->filp == filp) 
+			p->filp = 0;
 	}
 
-	/* Assumes a single contiguous range.  Needs a special pid in
+	/* Assumes a single contiguous range.  Needs a special filp in
 	 * 'heap' to stop it being subsumed.
 	 */
 	for (p = heap->next ; p != heap ; p = p->next) {
-		while (p->pid == 0 && p->next->pid == 0) {
+		while (p->filp == 0 && p->next->filp == 0) {
 			struct mem_block *q = p->next;
 			p->size += q->size;
 			p->next = q->next;
@@ -250,7 +249,7 @@ int radeon_mem_alloc( DRM_IOCTL_ARGS )
 		alloc.alignment = 12;
 
 	block = alloc_block( *heap, alloc.size, alloc.alignment,
-			     DRM_CURRENTPID );
+			     filp );
 
 	if (!block) 
 		return DRM_ERR(ENOMEM);
@@ -289,7 +288,7 @@ int radeon_mem_free( DRM_IOCTL_ARGS )
 	if (!block)
 		return DRM_ERR(EFAULT);
 
-	if (block->pid != DRM_CURRENTPID)
+	if (block->filp != filp)
 		return DRM_ERR(EPERM);
 
 	free_block( block );	

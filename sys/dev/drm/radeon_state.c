@@ -1065,7 +1065,8 @@ static void radeon_cp_dispatch_indices( drm_device_t *dev,
 
 #define RADEON_MAX_TEXTURE_SIZE (RADEON_BUFFER_SIZE - 8 * sizeof(u32))
 
-static int radeon_cp_dispatch_texture( drm_device_t *dev,
+static int radeon_cp_dispatch_texture( DRMFILE filp,
+				       drm_device_t *dev,
 				       drm_radeon_texture_t *tex,
 				       drm_radeon_tex_image_t *image )
 {
@@ -1218,7 +1219,7 @@ static int radeon_cp_dispatch_texture( drm_device_t *dev,
 			}
 		}
 
-		buf->pid = DRM_CURRENTPID;
+		buf->filp = filp;
 		buf->used = (dwords + 8) * sizeof(u32);
 		radeon_cp_dispatch_indirect( dev, buf, 0, buf->used );
 		radeon_cp_discard_buffer( dev, buf );
@@ -1275,7 +1276,7 @@ int radeon_cp_clear( DRM_IOCTL_ARGS )
 	drm_radeon_clear_rect_t depth_boxes[RADEON_NR_SAREA_CLIPRECTS];
 	DRM_DEBUG( "\n" );
 
-	LOCK_TEST_WITH_RETURN( dev );
+	LOCK_TEST_WITH_RETURN( dev, filp );
 
 	DRM_COPY_FROM_USER_IOCTL( clear, (drm_radeon_clear_t *)data,
 			     sizeof(clear) );
@@ -1344,7 +1345,7 @@ int radeon_cp_flip( DRM_IOCTL_ARGS )
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	DRM_DEBUG( "\n" );
 
-	LOCK_TEST_WITH_RETURN( dev );
+	LOCK_TEST_WITH_RETURN( dev, filp );
 
 	RING_SPACE_TEST_WITH_RETURN( dev_priv );
 
@@ -1364,7 +1365,7 @@ int radeon_cp_swap( DRM_IOCTL_ARGS )
 	drm_radeon_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	DRM_DEBUG( "\n" );
 
-	LOCK_TEST_WITH_RETURN( dev );
+	LOCK_TEST_WITH_RETURN( dev, filp );
 
 	RING_SPACE_TEST_WITH_RETURN( dev_priv );
 
@@ -1388,7 +1389,7 @@ int radeon_cp_vertex( DRM_IOCTL_ARGS )
 	drm_radeon_vertex_t vertex;
 	drm_radeon_tcl_prim_t prim;
 
-	LOCK_TEST_WITH_RETURN( dev );
+	LOCK_TEST_WITH_RETURN( dev, filp );
 
 	if ( !dev_priv ) {
 		DRM_ERROR( "%s called with no initialization\n", __FUNCTION__ );
@@ -1418,9 +1419,9 @@ int radeon_cp_vertex( DRM_IOCTL_ARGS )
 
 	buf = dma->buflist[vertex.idx];
 
-	if ( buf->pid != DRM_CURRENTPID ) {
-		DRM_ERROR( "process %d using buffer owned by %d\n",
-			   DRM_CURRENTPID, buf->pid );
+	if ( buf->filp != filp ) {
+		DRM_ERROR( "process %d using buffer owned by %p\n",
+			   DRM_CURRENTPID, buf->filp );
 		return DRM_ERR(EINVAL);
 	}
 	if ( buf->pending ) {
@@ -1475,7 +1476,7 @@ int radeon_cp_indices( DRM_IOCTL_ARGS )
 	drm_radeon_tcl_prim_t prim;
 	int count;
 
-	LOCK_TEST_WITH_RETURN( dev );
+	LOCK_TEST_WITH_RETURN( dev, filp );
 
 	if ( !dev_priv ) {
 		DRM_ERROR( "%s called with no initialization\n", __FUNCTION__ );
@@ -1505,9 +1506,9 @@ int radeon_cp_indices( DRM_IOCTL_ARGS )
 
 	buf = dma->buflist[elts.idx];
 
-	if ( buf->pid != DRM_CURRENTPID ) {
-		DRM_ERROR( "process %d using buffer owned by %d\n",
-			   DRM_CURRENTPID, buf->pid );
+	if ( buf->filp != filp ) {
+		DRM_ERROR( "process %d using buffer owned by %p\n",
+			   DRM_CURRENTPID, buf->filp );
 		return DRM_ERR(EINVAL);
 	}
 	if ( buf->pending ) {
@@ -1570,7 +1571,7 @@ int radeon_cp_texture( DRM_IOCTL_ARGS )
 	drm_radeon_tex_image_t image;
 	int ret;
 
-	LOCK_TEST_WITH_RETURN( dev );
+	LOCK_TEST_WITH_RETURN( dev, filp );
 
 	DRM_COPY_FROM_USER_IOCTL( tex, (drm_radeon_texture_t *)data, sizeof(tex) );
 
@@ -1587,7 +1588,7 @@ int radeon_cp_texture( DRM_IOCTL_ARGS )
 	RING_SPACE_TEST_WITH_RETURN( dev_priv );
 	VB_AGE_TEST_WITH_RETURN( dev_priv );
 
-	ret = radeon_cp_dispatch_texture( dev, &tex, &image );
+	ret = radeon_cp_dispatch_texture( filp, dev, &tex, &image );
 
 	COMMIT_RING();
 	return ret;
@@ -1600,7 +1601,7 @@ int radeon_cp_stipple( DRM_IOCTL_ARGS )
 	drm_radeon_stipple_t stipple;
 	u32 mask[32];
 
-	LOCK_TEST_WITH_RETURN( dev );
+	LOCK_TEST_WITH_RETURN( dev, filp );
 
 	DRM_COPY_FROM_USER_IOCTL( stipple, (drm_radeon_stipple_t *)data,
 			     sizeof(stipple) );
@@ -1625,7 +1626,7 @@ int radeon_cp_indirect( DRM_IOCTL_ARGS )
 	drm_radeon_indirect_t indirect;
 	RING_LOCALS;
 
-	LOCK_TEST_WITH_RETURN( dev );
+	LOCK_TEST_WITH_RETURN( dev, filp );
 
 	if ( !dev_priv ) {
 		DRM_ERROR( "%s called with no initialization\n", __FUNCTION__ );
@@ -1647,9 +1648,9 @@ int radeon_cp_indirect( DRM_IOCTL_ARGS )
 
 	buf = dma->buflist[indirect.idx];
 
-	if ( buf->pid != DRM_CURRENTPID ) {
-		DRM_ERROR( "process %d using buffer owned by %d\n",
-			   DRM_CURRENTPID, buf->pid );
+	if ( buf->filp != filp ) {
+		DRM_ERROR( "process %d using buffer owned by %p\n",
+			   DRM_CURRENTPID, buf->filp );
 		return DRM_ERR(EINVAL);
 	}
 	if ( buf->pending ) {
@@ -1702,7 +1703,7 @@ int radeon_cp_vertex2( DRM_IOCTL_ARGS )
 	int i;
 	unsigned char laststate;
 
-	LOCK_TEST_WITH_RETURN( dev );
+	LOCK_TEST_WITH_RETURN( dev, filp );
 
 	if ( !dev_priv ) {
 		DRM_ERROR( "%s called with no initialization\n", __FUNCTION__ );
@@ -1727,9 +1728,9 @@ int radeon_cp_vertex2( DRM_IOCTL_ARGS )
 
 	buf = dma->buflist[vertex.idx];
 
-	if ( buf->pid != DRM_CURRENTPID ) {
-		DRM_ERROR( "process %d using buffer owned by %d\n",
-			   DRM_CURRENTPID, buf->pid );
+	if ( buf->filp != filp ) {
+		DRM_ERROR( "process %d using buffer owned by %p\n",
+			   DRM_CURRENTPID, buf->filp );
 		return DRM_ERR(EINVAL);
 	}
 
@@ -2029,7 +2030,7 @@ int radeon_cp_cmdbuf( DRM_IOCTL_ARGS )
 	drm_radeon_cmd_header_t header;
 	int orig_nbox;
 
-	LOCK_TEST_WITH_RETURN( dev );
+	LOCK_TEST_WITH_RETURN( dev, filp );
 
 	if ( !dev_priv ) {
 		DRM_ERROR( "%s called with no initialization\n", __FUNCTION__ );
@@ -2098,8 +2099,9 @@ int radeon_cp_cmdbuf( DRM_IOCTL_ARGS )
 			}
 
 			buf = dma->buflist[idx];
-			if ( buf->pid != DRM_CURRENTPID || buf->pending ) {
-				DRM_ERROR( "bad buffer\n" );
+			if ( buf->filp != filp || buf->pending ) {
+				DRM_ERROR( "bad buffer %p %p %d\n",
+					   buf->filp, filp, buf->pending);
 				return DRM_ERR(EINVAL);
 			}
 
@@ -2190,6 +2192,19 @@ int radeon_cp_getparam( DRM_IOCTL_ARGS )
 		break;
 	case RADEON_PARAM_AGP_BASE:
 		value = dev_priv->agp_vm_start;
+		break;
+	case RADEON_PARAM_REGISTER_HANDLE:
+		value = dev_priv->mmio_offset;
+		break;
+	case RADEON_PARAM_STATUS_HANDLE:
+		value = dev_priv->ring_rptr_offset;
+		break;
+	case RADEON_PARAM_SAREA_HANDLE:
+		/* The lock is the first dword in the sarea. */
+		value = (int)dev->lock.hw_lock; 
+		break;	
+	case RADEON_PARAM_AGP_TEX_HANDLE:
+		value = dev_priv->agp_textures_offset;
 		break;
 	default:
 		return DRM_ERR(EINVAL);

@@ -45,15 +45,14 @@ paddr_t DRM(mmap)(dev_t kdev, off_t offset, int prot)
 	drm_map_list_entry_t *listentry=NULL;
 	drm_file_t *priv;
 
-/*	DRM_DEBUG("offset = 0x%x\n", offset);*/
-
 	priv = DRM(find_file_by_proc)(dev, DRM_CURPROC);
 	if (!priv) {
 		DRM_DEBUG("can't find authenticator\n");
 		return EINVAL;
 	}
 
-	if (!priv->authenticated) return DRM_ERR(EACCES);
+	if (!priv->authenticated)
+		return DRM_ERR(EACCES);
 
 	if (dev->dma
 	    && offset >= 0

@@ -181,7 +181,7 @@ int radeon_irq_emit( DRM_IOCTL_ARGS )
 	drm_radeon_irq_emit_t emit;
 	int result;
 
-	LOCK_TEST_WITH_RETURN( dev );
+	LOCK_TEST_WITH_RETURN( dev, filp );
 
 	if ( !dev_priv ) {
 		DRM_ERROR( "%s called with no initialization\n", __FUNCTION__ );
