@@ -89,6 +89,7 @@ typedef	int32_t		segsz_t;	/* segment size */
 #endif
 typedef	int32_t		swblk_t;	/* swap offset */
 typedef	int32_t		ufs_daddr_t;
+typedef	int32_t		ufs_time_t;
 typedef	u_int32_t	uid_t;		/* user id */
 
 #ifdef _KERNEL
