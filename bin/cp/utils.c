@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: utils.c,v 1.9 1996/03/08 06:58:08 wosch Exp $
+ *	$Id: utils.c,v 1.9.2.1 1997/08/24 10:34:49 jkh Exp $
  */
 
 #ifndef lint
@@ -60,7 +60,8 @@ copy_file(entp, dne)
 {
 	static char buf[MAXBSIZE];
 	struct stat to_stat, *fs;
-	int ch, checkch, from_fd, rcount, rval, to_fd, wcount;
+	int ch, checkch, from_fd, rcount, rval, to_fd, wcount, wresid;
+	char *bufp;
 #ifdef VM_AND_BUFFER_CACHE_SYNCHRONIZED
 	char *p;
 #endif
@@ -81,13 +82,16 @@ copy_file(entp, dne)
 	 * modified by the umask.)
 	 */
 	if (!dne) {
+#define YESNO "(y/n [n]) "
 		if (iflag) {
-			(void)fprintf(stderr, "overwrite %s? ", to.p_path);
+			(void)fprintf(stderr, "overwrite %s? %s", 
+					to.p_path, YESNO);
 			checkch = ch = getchar();
 			while (ch != '\n' && ch != EOF)
 				ch = getchar();
 			if (checkch != 'y' && checkch != 'Y') {
 				(void)close(from_fd);
+				(void)fprintf(stderr, "not overwritten\n");
 				return (0);
 			}
 		}
@@ -125,7 +129,13 @@ copy_file(entp, dne)
 			warn("%s", entp->fts_path);
 			rval = 1;
 		} else {
-			if (write(to_fd, p, fs->st_size) != fs->st_size) {
+			for (bufp = p, wresid = fs->st_size; ;
+			    bufp += wcount, wresid -= wcount) {
+				wcount = write(to_fd, bufp, wresid);
+				if (wcount >= wresid || wcount <= 0)
+					break;
+			}
+			if (wcount != wresid) {
 				warn("%s", to.p_path);
 				rval = 1;
 			}
@@ -139,8 +149,13 @@ copy_file(entp, dne)
 #endif
 	{
 		while ((rcount = read(from_fd, buf, MAXBSIZE)) > 0) {
-			wcount = write(to_fd, buf, rcount);
-			if (rcount != wcount || wcount == -1) {
+			for (bufp = buf, wresid = rcount; ;
+			    bufp += wcount, wresid -= wcount) {
+				wcount = write(to_fd, bufp, wresid);
+				if (wcount >= wresid || wcount <= 0)
+					break;
+			}
+			if (wcount != wresid) {
 				warn("%s", to.p_path);
 				rval = 1;
 				break;
