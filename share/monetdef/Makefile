@@ -16,6 +16,7 @@ LOCALES=	af_ZA.ISO_8859-1 \
 		fi_FI.ISO_8859-1 \
 		fr_FR.ISO_8859-1 \
 		fr_CA.ISO_8859-1 \
+		hu_HU.ISO_8859-2 \
 		is_IS.ISO_8859-1 \
 		nl_NL.ISO_8859-1 \
 		no_NO.ISO_8859-1 \
