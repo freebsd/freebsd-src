@@ -42,7 +42,7 @@ case "$daily_backup_passwd_enable" in
 		[ $rc -lt 1 ] && rc=1
 		echo "$host passwd diffs:"
 		diff $bak/master.passwd.bak /etc/master.passwd |\
-			sed 's/^\([<>] [^:]*\):[^:]*:/\1:(password):/'
+			sed 's/^\([<>] [^#][^:]*\):[^:]*:/\1:(password):/'
 		mv $bak/master.passwd.bak $bak/master.passwd.bak2
 		cp -p /etc/master.passwd $bak/master.passwd.bak || rc=3
 	    fi
