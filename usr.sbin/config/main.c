@@ -344,11 +344,12 @@ configfile()
 		perror(PREFIX);
 		exit(2);
 	}
-	fo = fopen(p=path("config.c"),"w");
+	fo = fopen(p=path("config.c.new"),"w");
 	if(!fo) {
 		perror(p);
 		exit(2);
 	}
+	fprintf(fo,"#include \"opt_config.h\"\n");
 	fprintf(fo,"#ifdef INCLUDE_CONFIG_FILE \n");
 	fprintf(fo,"static char *config = \"\n");
 	fprintf(fo,"START CONFIG FILE %s\n___",PREFIX);
@@ -365,9 +366,10 @@ configfile()
 	}
 	fprintf(fo,"\nEND CONFIG FILE %s\n",PREFIX);
 	fprintf(fo,"\";\n");
-	fprintf(fo,"\n#endif INCLUDE_CONFIG_FILE");
+	fprintf(fo,"\n#endif /* INCLUDE_CONFIG_FILE */\n");
 	fclose(fi);
 	fclose(fo);
+	moveifchanged(path("config.c.new"), path("config.c"));
 }
 
 /*
