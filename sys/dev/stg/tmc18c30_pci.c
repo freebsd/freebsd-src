@@ -93,7 +93,7 @@ stg_pci_attach(device_t dev)
 	struct stg_softc	*sc = device_get_softc(dev);
 	int			error;
 
-	sc->port_rid = PCIR_MAPS;
+	sc->port_rid = PCIR_BAR(0);
 	sc->irq_rid = 0;
 	error = stg_alloc_resource(dev);
 	if (error) {

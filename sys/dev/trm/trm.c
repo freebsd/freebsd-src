@@ -3395,7 +3395,7 @@ static PACB
 trm_init(u_int16_t unit, device_t dev)
 {
 	PACB		pACB;
-	int		rid = PCIR_MAPS, i = 0, j = 0;
+	int		rid = PCIR_BAR(0), i = 0, j = 0;
 	u_int16_t	adaptType = 0;
     
  	pACB = (PACB) device_get_softc(dev);
@@ -3514,7 +3514,7 @@ trm_init(u_int16_t unit, device_t dev)
 	return (pACB);
 bad:
 	if (pACB->iores)
-		bus_release_resource(dev, SYS_RES_IOPORT, PCIR_MAPS,
+		bus_release_resource(dev, SYS_RES_IOPORT, PCIR_BAR(0),
 		    pACB->iores);
 	if (pACB->sense_dmamap) {
 		bus_dmamap_unload(pACB->sense_dmat, pACB->sense_dmamap);
@@ -3630,7 +3630,7 @@ trm_attach(device_t dev)
 	return (0);
 bad:
 	if (pACB->iores)
-		bus_release_resource(dev, SYS_RES_IOPORT, PCIR_MAPS,
+		bus_release_resource(dev, SYS_RES_IOPORT, PCIR_BAR(0),
 		    pACB->iores);
 	if (pACB->srb_dmamap) {
 		bus_dmamap_unload(pACB->srb_dmat, pACB->srb_dmamap);
@@ -3688,7 +3688,7 @@ trm_detach(device_t dev)
 {
 	PACB pACB = device_get_softc(dev);
 
-	bus_release_resource(dev, SYS_RES_IOPORT, PCIR_MAPS, pACB->iores);
+	bus_release_resource(dev, SYS_RES_IOPORT, PCIR_BAR(0), pACB->iores);
 	bus_dmamap_unload(pACB->srb_dmat, pACB->srb_dmamap);
 	bus_dmamem_free(pACB->srb_dmat, pACB->pFreeSRB,
 	    pACB->srb_dmamap);

@@ -210,7 +210,7 @@ amr_pci_attach(device_t dev)
     /*
      * Allocate the PCI register window.
      */
-    rid = PCIR_MAPS;
+    rid = PCIR_BAR(0);
     rtype = AMR_IS_QUARTZ(sc) ? SYS_RES_MEMORY : SYS_RES_IOPORT;
     sc->amr_reg = bus_alloc_resource(dev, rtype, &rid, 0, ~0, 1, RF_ACTIVE);
     if (sc->amr_reg == NULL) {
@@ -468,7 +468,7 @@ amr_pci_free(struct amr_softc *sc)
     if (sc->amr_reg != NULL)
 	bus_release_resource(sc->amr_dev,
 			     AMR_IS_QUARTZ(sc) ? SYS_RES_MEMORY : SYS_RES_IOPORT,
-			     PCIR_MAPS, sc->amr_reg);
+			     PCIR_BAR(0), sc->amr_reg);
 }
 
 /********************************************************************************

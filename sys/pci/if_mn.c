@@ -1349,7 +1349,7 @@ mn_attach (device_t self)
 	sc->framing = E1;
 	sprintf(sc->name, "mn%d", sc->unit);
 
-        rid = PCIR_MAPS;
+        rid = PCIR_BAR(0);
         res = bus_alloc_resource(self, SYS_RES_MEMORY, &rid,
             0, ~0, 1, RF_ACTIVE);
         if (res == NULL) {
@@ -1360,7 +1360,7 @@ mn_attach (device_t self)
         sc->m0v = rman_get_virtual(res);
         sc->m0p = rman_get_start(res);
 
-        rid = PCIR_MAPS + 4;
+        rid = PCIR_BAR(1);
         res = bus_alloc_resource(self, SYS_RES_MEMORY, &rid,
             0, ~0, 1, RF_ACTIVE);
         if (res == NULL) {

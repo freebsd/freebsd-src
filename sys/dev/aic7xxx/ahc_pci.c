@@ -36,8 +36,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/aic7xxx/aic7xxx_osm.h>
 
-#define	AHC_PCI_IOADDR  PCIR_MAPS	/* I/O Address */
-#define	AHC_PCI_MEMADDR (PCIR_MAPS + 4) /* Mem I/O Address */
+#define	AHC_PCI_IOADDR  PCIR_BAR(0)	/* I/O Address */
+#define	AHC_PCI_MEMADDR PCIR_BAR(1)	/* Mem I/O Address */
 
 static int ahc_pci_probe(device_t dev);
 static int ahc_pci_attach(device_t dev);

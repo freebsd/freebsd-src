@@ -1044,7 +1044,7 @@ cardbus_pickup_maps(device_t cbdev, device_t child)
 	 * XXX: should we do this or use quirks?
 	 */
 	for (reg = 0; reg < dinfo->pci.cfg.nummaps; reg++) {
-		cardbus_add_map(cbdev, child, PCIR_MAPS + reg * 4);
+		cardbus_add_map(cbdev, child, PCIR_BAR(reg));
 	}
 
 	for (q = &cardbus_quirks[0]; q->devid; q++) {

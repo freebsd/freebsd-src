@@ -1467,7 +1467,7 @@ musycc_attach(device_t self)
 	}
 	csc->f[f] = self;
 	device_set_softc(self, csc);
-	rid = PCIR_MAPS;
+	rid = PCIR_BAR(0);
 	res = bus_alloc_resource(self, SYS_RES_MEMORY, &rid,
 	    0, ~0, 1, RF_ACTIVE);
 	if (res == NULL) {

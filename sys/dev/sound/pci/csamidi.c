@@ -165,8 +165,8 @@ csamidi_probe(device_t dev)
 
 	scp = device_get_softc(dev);
 	bzero(scp, sizeof(*scp));
-	scp->io_rid = PCIR_MAPS;
-	scp->mem_rid = PCIR_MAPS + 4;
+	scp->io_rid = PCIR_BAR(0);
+	scp->mem_rid = PCIR_BAR(1);
 	scp->irq_rid = 0;
 
 	device_set_desc(dev, s);

@@ -765,7 +765,7 @@ via_attach(device_t dev)
 	pci_set_powerstate(dev, PCI_POWERSTATE_D0);
 	pci_enable_busmaster(dev);
 	
-	via->regid = PCIR_MAPS;
+	via->regid = PCIR_BAR(0);
 	via->reg = bus_alloc_resource(dev, SYS_RES_IOPORT, &via->regid, 0, ~0,
 				      1, RF_ACTIVE);
 	if (!via->reg) {

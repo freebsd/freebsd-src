@@ -713,7 +713,7 @@ als_resource_free(device_t dev, struct sc_info *sc)
 static int
 als_resource_grab(device_t dev, struct sc_info *sc)
 {
-	sc->regid = PCIR_MAPS;
+	sc->regid = PCIR_BAR(0);
 	sc->reg = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->regid, 0, ~0,
 				     ALS_CONFIG_SPACE_BYTES, RF_ACTIVE);
 	if (sc->reg == 0) {
