@@ -843,7 +843,8 @@ vfs_domount(
 	 * Check if the fs implements the type VFS_[O]MOUNT()
 	 * function we are looking for.
 	 */
-	if ((compat == 0) == (mp->mnt_op->vfs_omount != NULL)) {
+	if ((compat && (mp->mnt_op->vfs_omount == NULL)) ||
+	    (!compat && (mp->mnt_op->vfs_mount == NULL))) {
 		printf("%s doesn't support the %s mount syscall\n",
 		    mp->mnt_vfc->vfc_name, compat ? "old" : "new");
 		VI_LOCK(vp);
