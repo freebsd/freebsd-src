@@ -47,8 +47,6 @@ typedef struct  fr_authstat {
 extern	frentry_t	*ipauth;
 extern	struct fr_authstat	fr_authstats;
 extern	int	fr_defaultauthage;
-extern	int	fr_authstart;
-extern	int	fr_authend;
 extern	int	fr_authsize;
 extern	int	fr_authused;
 extern	int	fr_auth_lock;
