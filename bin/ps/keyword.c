@@ -240,8 +240,11 @@ parsefmt(p)
 			vtail = vent;
 		}
 	}
-	if (!vhead)
-		errx(1, "no valid keywords");
+	if (!vhead) {
+		warnx("no valid keywords; valid keywords:");
+		showkey();
+		exit(1);
+	}
 }
 
 static VAR *
