@@ -705,7 +705,7 @@ Intel EtherExpress (not recommended due to driver instability)
 Intel EtherExpress Pro/10
 Intel EtherExpress Pro/100B PCI Fast Ethernet
 Intel PRO/100+ Management Adapter
-Intel Gigabit Ethernet (PRO/1000)
+Intel Gigabit Ethernet (PRO/1000, PRO1000/F, PRO1000/T)
 
 Isolan AT 4141-0 (16 bit)
 Isolink 4110     (8 bit)
@@ -1013,7 +1013,9 @@ ep:	3Com 3C529 network adapter
 Soundcards supported by newpcm:
 
 Advance Asound 100, 110 and Logic ALS120
+C-Media CMI-8x38
 Crystal Semiconductor CS461x/462x/428x
+Crystal Semiconductor CS4281
 ENSONIQ AudioPCI ES1370/1371
 ESS ES1868, ES1869, ES1879 and ES1888
 ESS Maestro-1, Maestro-2, and Maestro-2E

@@ -3,8 +3,8 @@
                              (alpha Architecture)
 
 This is a 5.0-CURRENT release SNAPshot of FreeBSD, an active
-development branch which will produce its first release in early
-March 2001.  Those features which have also been back-ported to
+development branch which will produce its first release in late
+2001.  Those features which have also been back-ported to
 the 4.x-stable branch (the next release for which will be 4.3)
 are marked [MERGED].
 
@@ -161,7 +161,7 @@ licensing restrictions, it cannot be compiled into the kernel.
 [MERGED] To use this driver, add the following line to
 /boot/loader.conf:
 
-	maestreo3_load="YES"
+	maestro3_load="YES"
 
 Replace the PQ_*CACHE options with a single PQ_CACHESIZE option to be
 set to the cache size in kilobytes.  The old options are still
@@ -342,6 +342,9 @@ The CAM error recovery code has been updated.
 The directory layout preference algorithm for FFS has been changed to
 improve its speed on large filesystems.
 
+The wx(4) driver now supports the Intel PRO1000-F and PRO1000-T
+(10/100/1000) adapters.
+
 
 1.2. SECURITY FIXES
 -------------------
@@ -459,7 +462,8 @@ allowed a race condition that could cause users to have unauthorized
 access to data, has been fixed (see security advisory
 FreeBSD-SA-01:30). [MERGED]
 
-A remotely-exploitable vulnerability in ntpd(8) has been closed. [MERGED]
+A remotely-exploitable vulnerability in ntpd(8) has been closed (see
+security advisory FreeBSD-SA-01:31). [MERGED]
 
 A security hole in IPFilter's fragment cache has been closed. [MERGED]
 
