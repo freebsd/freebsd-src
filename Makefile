@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.109.2.30 1998/06/02 18:41:21 jhay Exp $
+#	$Id: Makefile,v 1.109.2.31 1998/06/02 18:55:17 jhay Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -9,7 +9,7 @@
 #
 #	-DNOCLEANDIR run ${MAKE} clean, instead of ${MAKE} cleandir
 #	-DNOCLEAN do not clean at all
-#       -DNOTOOLS do not rebuild any tools first
+#	-DNOTOOLS do not rebuild any tools first
 #	-DNOCRYPT will prevent building of crypt versions
 #	-DNOLKM do not build loadable kernel modules
 #	-DNOOBJDIR do not run ``${MAKE} obj''
