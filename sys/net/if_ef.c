@@ -163,8 +163,8 @@ ef_detach(struct efnet *sc)
 		if (ifp->if_flags & IFF_RUNNING) {
 		    /* find internet addresses and delete routes */
 		    register struct ifaddr *ifa;
-		    for (ifa = ifp->if_addrhead.tqh_first; ifa;
-			 ifa = ifa->ifa_link.tqe_next) {
+		    for (ifa = TAILQ_FIRST(&ifp->if_addrhead); ifa;
+			 ifa = TAILQ_NEXT(ifa, ifa_link)) {
 			    rtinit(ifa, (int)RTM_DELETE, 0);
 		    }
 		}
@@ -518,7 +518,7 @@ ef_load(void)
 	struct ef_link *efl = NULL;
 	int error = 0, d;
 
-	for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_link.tqe_next) {
+	for (ifp = TAILQ_FIRST(&ifnet); ifp; ifp = TAILQ_NEXT(ifp, if_link)) {
 		if (ifp->if_type != IFT_ETHER) continue;
 		EFDEBUG("Found interface %s%d\n", ifp->if_name, ifp->if_unit);
 		efl = (struct ef_link*)malloc(sizeof(struct ef_link), 
