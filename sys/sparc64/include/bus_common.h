@@ -66,4 +66,8 @@
 #define	INTPRI(x)	((x) & 0x7)
 #define	INTINO(x)	((x) & INTMAP_INO)
 
+/* counter-timer support. */
+void sparc64_counter_init(bus_space_tag_t tag, bus_space_handle_t handle,
+    bus_addr_t offset);
+
 #endif	/* !_MACHINE_BUS_COMMON_H_ */
