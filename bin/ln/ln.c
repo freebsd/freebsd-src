@@ -50,6 +50,7 @@ static const char rcsid[] =
 
 #include <err.h>
 #include <errno.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -160,8 +161,8 @@ linkit(target, source, isdir)
 {
 	struct stat sb;
 	const char *p;
-	char path[MAXPATHLEN];
 	int ch, exists, first;
+	char path[PATH_MAX];
 
 	if (!sflag) {
 		/* If target doesn't exist, quit now. */
