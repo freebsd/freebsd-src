@@ -206,6 +206,20 @@ g_disk_start(struct bio *bp)
 }
 
 static void
+g_disk_dumpconf(struct sbuf *sb, char *indent, struct g_geom *gp, struct g_consumer *cp, struct g_provider *pp)
+{
+	struct disk *dp;
+
+	dp = gp->softc;
+	if (gp != NULL && (pp == NULL && cp == NULL)) {
+		sbuf_printf(sb, "%s<fwheads>%u</fwheads>\n",
+		    indent, dp->d_fwheads);
+		sbuf_printf(sb, "%s<fwsectors>%u</fwsectors>\n",
+		    indent, dp->d_fwsectors);
+	}
+}
+
+static void
 g_disk_create(void *arg)
 {
 	struct g_geom *gp;
@@ -218,6 +232,7 @@ g_disk_create(void *arg)
 	gp->start = g_disk_start;
 	gp->access = g_disk_access;
 	gp->softc = dev->si_disk;
+	gp->dumpconf = g_disk_dumpconf;
 	dev->si_disk->d_softc = gp;
 	pp = g_new_providerf(gp, "%s", gp->name);
 	g_error_provider(pp, 0);
