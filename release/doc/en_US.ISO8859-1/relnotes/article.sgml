@@ -401,7 +401,7 @@
 	  nVidia nForce MCP Networking Adapter, has been added.</para>
 
 	<para>The &man.re.4; driver now supports the &man.altq.4;
-	  framework.</para>
+	  framework.  &merged;</para>
 
 	<para>The &man.sf.4; driver now has support for device polling
 	  and &man.altq.4;. &merged;</para>
@@ -1091,7 +1091,7 @@ moused_ums0_port="/dev/ums0"</programlisting>
       &man.inet6.rth.space.3;,
       &man.inet6.rthdr.space.3;,
       &man.icmp6.4;, and
-      &man.ip6.4;.</para>
+      &man.ip6.4;.  &merged;</para>
 
   </sect2>
 </sect1>
