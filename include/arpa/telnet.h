@@ -281,13 +281,14 @@ extern char *slc_names[];
 #define	AUTHTYPE_KERBEROS_V5	2
 #define	AUTHTYPE_SPX		3
 #define	AUTHTYPE_MINK		4
-#define	AUTHTYPE_CNT		5
+#define	AUTHTYPE_SRA		6
+#define	AUTHTYPE_CNT		7
 
 #define	AUTHTYPE_TEST		99
 
 #ifdef	AUTH_NAMES
 char *authtype_names[] = {
-	"NULL", "KERBEROS_V4", "KERBEROS_V5", "SPX", "MINK",
+	"NULL", "KERBEROS_V4", "KERBEROS_V5", "SPX", "MINK", NULL, "SRA",
 	0
 };
 #else
