@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.74 1998/05/06 18:50:02 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.75 1998/05/06 23:49:27 brian Exp $
  */
 
 #include <sys/types.h>
@@ -150,11 +150,11 @@ bundle_CleanInterface(const struct bundle *bundle)
               strerror(errno));
     return (-1);
   }
-  strncpy(ifrq.ifr_name, bundle->ifname, sizeof ifrq.ifr_name - 1);
+  strncpy(ifrq.ifr_name, bundle->ifp.Name, sizeof ifrq.ifr_name - 1);
   ifrq.ifr_name[sizeof ifrq.ifr_name - 1] = '\0';
   while (ID0ioctl(s, SIOCGIFADDR, &ifrq) == 0) {
     memset(&ifra.ifra_mask, '\0', sizeof ifra.ifra_mask);
-    strncpy(ifra.ifra_name, bundle->ifname, sizeof ifra.ifra_name - 1);
+    strncpy(ifra.ifra_name, bundle->ifp.Name, sizeof ifra.ifra_name - 1);
     ifra.ifra_name[sizeof ifra.ifra_name - 1] = '\0';
     ifra.ifra_addr = ifrq.ifr_addr;
     if (ID0ioctl(s, SIOCGIFDSTADDR, &ifrq) < 0) {
@@ -162,7 +162,7 @@ bundle_CleanInterface(const struct bundle *bundle)
         log_Printf(LogERROR,
                   "bundle_CleanInterface: Can't get dst for %s on %s !\n",
                   inet_ntoa(((struct sockaddr_in *)&ifra.ifra_addr)->sin_addr),
-                  bundle->ifname);
+                  bundle->ifp.Name);
       return 0;
     }
     ifra.ifra_broadaddr = ifrq.ifr_dstaddr;
@@ -171,7 +171,7 @@ bundle_CleanInterface(const struct bundle *bundle)
         log_Printf(LogERROR,
                   "bundle_CleanInterface: Can't delete %s address on %s !\n",
                   inet_ntoa(((struct sockaddr_in *)&ifra.ifra_addr)->sin_addr),
-                  bundle->ifname);
+                  bundle->ifp.Name);
       return 0;
     }
   }
@@ -213,17 +213,17 @@ bundle_LayerUp(void *v, struct fsm *fp)
 
   if (fp->proto == PROTO_LCP) {
     if (bundle->ncp.mp.active) {
-      int speed;
       struct datalink *dl;
 
-      for (dl = bundle->links, speed = 0; dl; dl = dl->next)
+      bundle->ifp.Speed = 0;
+      for (dl = bundle->links; dl; dl = dl->next)
         if (dl->state == DATALINK_OPEN)
-          speed += modem_Speed(dl->physical);
-      if (speed)
-        tun_configure(bundle, bundle->ncp.mp.peer_mrru, speed);
-    } else
-      tun_configure(bundle, fsm2lcp(fp)->his_mru,
-                    modem_Speed(link2physical(fp->link)));
+          bundle->ifp.Speed += modem_Speed(dl->physical);
+      tun_configure(bundle, bundle->ncp.mp.peer_mrru);
+    } else {
+      bundle->ifp.Speed = modem_Speed(link2physical(fp->link));
+      tun_configure(bundle, fsm2lcp(fp)->his_mru);
+    }
   } else if (fp->proto == PROTO_IPCP) {
     bundle_StartIdleTimer(bundle);
     bundle_Notify(bundle, EX_NORMAL);
@@ -244,14 +244,15 @@ bundle_LayerDown(void *v, struct fsm *fp)
   if (fp->proto == PROTO_IPCP)
     bundle_StopIdleTimer(bundle);
   else if (fp->proto == PROTO_LCP && bundle->ncp.mp.active) {
-    int speed;
     struct datalink *dl;
 
-    for (dl = bundle->links, speed = 0; dl; dl = dl->next)
+    bundle->ifp.Speed = 0;
+    for (dl = bundle->links; dl; dl = dl->next)
       if (fp != &dl->physical->link.lcp.fsm && dl->state == DATALINK_OPEN)
-        speed += modem_Speed(dl->physical);
-    if (speed)
-      tun_configure(bundle, bundle->ncp.mp.link.lcp.his_mru, speed);
+        bundle->ifp.Speed += modem_Speed(dl->physical);
+    if (bundle->ifp.Speed)
+      /* Don't configure down to a speed of 0 */
+      tun_configure(bundle, bundle->ncp.mp.link.lcp.his_mru);
   }
 }
 
@@ -373,9 +374,9 @@ bundle_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
 
   /* If there are aren't many packets queued, look for some more. */
   if (bundle->links && bundle_FillQueues(bundle) < 20) {
-    if (*n < bundle->tun_fd + 1)
-      *n = bundle->tun_fd + 1;
-    FD_SET(bundle->tun_fd, r);
+    if (*n < bundle->dev.fd + 1)
+      *n = bundle->dev.fd + 1;
+    FD_SET(bundle->dev.fd, r);
     result++;
   }
 
@@ -397,7 +398,7 @@ bundle_IsSet(struct descriptor *d, const fd_set *fdset)
     if (descriptor_IsSet(desc, fdset))
       return 1;
 
-  return FD_ISSET(bundle->tun_fd, fdset);
+  return FD_ISSET(bundle->dev.fd, fdset);
 }
 
 static void
@@ -415,12 +416,12 @@ bundle_DescriptorRead(struct descriptor *d, struct bundle *bundle,
     if (descriptor_IsSet(desc, fdset))
       descriptor_Read(desc, bundle, fdset);
 
-  if (FD_ISSET(bundle->tun_fd, fdset)) {
+  if (FD_ISSET(bundle->dev.fd, fdset)) {
     struct tun_data tun;
     int n, pri;
 
     /* something to read from tun */
-    n = read(bundle->tun_fd, &tun, sizeof tun);
+    n = read(bundle->dev.fd, &tun, sizeof tun);
     if (n < 0) {
       log_Printf(LogERROR, "read from tun: %s\n", strerror(errno));
       return;
@@ -517,7 +518,7 @@ bundle_Create(const char *prefix, struct prompt *prompt, int type)
   struct ifreq ifrq;
   static struct bundle bundle;		/* there can be only one */
 
-  if (bundle.ifname != NULL) {	/* Already allocated ! */
+  if (bundle.ifp.Name != NULL) {	/* Already allocated ! */
     log_Printf(LogERROR, "bundle_Create:  There's only one BUNDLE !\n");
     return NULL;
   }
@@ -525,9 +526,10 @@ bundle_Create(const char *prefix, struct prompt *prompt, int type)
   err = ENOENT;
   enoentcount = 0;
   for (bundle.unit = 0; ; bundle.unit++) {
-    snprintf(bundle.dev, sizeof bundle.dev, "%s%d", prefix, bundle.unit);
-    bundle.tun_fd = ID0open(bundle.dev, O_RDWR);
-    if (bundle.tun_fd >= 0)
+    snprintf(bundle.dev.Name, sizeof bundle.dev.Name, "%s%d",
+             prefix, bundle.unit);
+    bundle.dev.fd = ID0open(bundle.dev.Name, O_RDWR);
+    if (bundle.dev.fd >= 0)
       break;
     else if (errno == ENXIO) {
       err = errno;
@@ -539,7 +541,7 @@ bundle_Create(const char *prefix, struct prompt *prompt, int type)
       err = errno;
   }
 
-  if (bundle.tun_fd < 0) {
+  if (bundle.dev.fd < 0) {
     log_Printf(LogWARN, "No available tunnel devices found (%s).\n",
               strerror(err));
     return NULL;
@@ -550,28 +552,28 @@ bundle_Create(const char *prefix, struct prompt *prompt, int type)
   s = socket(AF_INET, SOCK_DGRAM, 0);
   if (s < 0) {
     log_Printf(LogERROR, "bundle_Create: socket(): %s\n", strerror(errno));
-    close(bundle.tun_fd);
+    close(bundle.dev.fd);
     return NULL;
   }
 
-  bundle.ifname = strrchr(bundle.dev, '/');
-  if (bundle.ifname == NULL)
-    bundle.ifname = bundle.dev;
+  bundle.ifp.Name = strrchr(bundle.dev.Name, '/');
+  if (bundle.ifp.Name == NULL)
+    bundle.ifp.Name = bundle.dev.Name;
   else
-    bundle.ifname++;
+    bundle.ifp.Name++;
 
   /*
    * Now, bring up the interface.
    */
   memset(&ifrq, '\0', sizeof ifrq);
-  strncpy(ifrq.ifr_name, bundle.ifname, sizeof ifrq.ifr_name - 1);
+  strncpy(ifrq.ifr_name, bundle.ifp.Name, sizeof ifrq.ifr_name - 1);
   ifrq.ifr_name[sizeof ifrq.ifr_name - 1] = '\0';
   if (ID0ioctl(s, SIOCGIFFLAGS, &ifrq) < 0) {
     log_Printf(LogERROR, "OpenTunnel: ioctl(SIOCGIFFLAGS): %s\n",
 	      strerror(errno));
     close(s);
-    close(bundle.tun_fd);
-    bundle.ifname = NULL;
+    close(bundle.dev.fd);
+    bundle.ifp.Name = NULL;
     return NULL;
   }
   ifrq.ifr_flags |= IFF_UP;
@@ -579,22 +581,23 @@ bundle_Create(const char *prefix, struct prompt *prompt, int type)
     log_Printf(LogERROR, "OpenTunnel: ioctl(SIOCSIFFLAGS): %s\n",
 	      strerror(errno));
     close(s);
-    close(bundle.tun_fd);
-    bundle.ifname = NULL;
+    close(bundle.dev.fd);
+    bundle.ifp.Name = NULL;
     return NULL;
   }
 
   close(s);
 
-  if ((bundle.ifIndex = GetIfIndex(bundle.ifname)) < 0) {
-    log_Printf(LogERROR, "OpenTunnel: Can't find ifindex.\n");
-    close(bundle.tun_fd);
-    bundle.ifname = NULL;
+  if ((bundle.ifp.Index = GetIfIndex(bundle.ifp.Name)) < 0) {
+    log_Printf(LogERROR, "OpenTunnel: Can't find interface index.\n");
+    close(bundle.dev.fd);
+    bundle.ifp.Name = NULL;
     return NULL;
   }
+  prompt_Printf(prompt, "Using interface: %s\n", bundle.ifp.Name);
+  log_Printf(LogPHASE, "Using interface: %s\n", bundle.ifp.Name);
 
-  prompt_Printf(prompt, "Using interface: %s\n", bundle.ifname);
-  log_Printf(LogPHASE, "Using interface: %s\n", bundle.ifname);
+  bundle.ifp.Speed = 0;
 
   bundle.routing_seq = 0;
   bundle.phase = PHASE_DEAD;
@@ -618,8 +621,8 @@ bundle_Create(const char *prefix, struct prompt *prompt, int type)
   bundle.links = datalink_Create("deflink", &bundle, type);
   if (bundle.links == NULL) {
     log_Printf(LogERROR, "Cannot create data link: %s\n", strerror(errno));
-    close(bundle.tun_fd);
-    bundle.ifname = NULL;
+    close(bundle.dev.fd);
+    bundle.ifp.Name = NULL;
     return NULL;
   }
 
@@ -676,7 +679,7 @@ bundle_DownInterface(struct bundle *bundle)
   }
 
   memset(&ifrq, '\0', sizeof ifrq);
-  strncpy(ifrq.ifr_name, bundle->ifname, sizeof ifrq.ifr_name - 1);
+  strncpy(ifrq.ifr_name, bundle->ifp.Name, sizeof ifrq.ifr_name - 1);
   ifrq.ifr_name[sizeof ifrq.ifr_name - 1] = '\0';
   if (ID0ioctl(s, SIOCGIFFLAGS, &ifrq) < 0) {
     log_Printf(LogERROR, "bundle_DownInterface: ioctl(SIOCGIFFLAGS): %s\n",
@@ -722,7 +725,7 @@ bundle_Destroy(struct bundle *bundle)
     desc = ndesc;
   }
   bundle->desc.next = NULL;
-  bundle->ifname = NULL;
+  bundle->ifp.Name = NULL;
 }
 
 struct rtmsg {
@@ -774,11 +777,11 @@ bundle_SetRoute(struct bundle *bundle, int cmd, struct in_addr dst,
       const char *iname;
       int ilen;
 
-      iname = Index2Nam(bundle->ifIndex);
+      iname = Index2Nam(bundle->ifp.Index);
       ilen = strlen(iname);
       dl.sdl_len = sizeof dl - sizeof dl.sdl_data + ilen;
       dl.sdl_family = AF_LINK;
-      dl.sdl_index = bundle->ifIndex;
+      dl.sdl_index = bundle->ifp.Index;
       dl.sdl_type = 0;
       dl.sdl_nlen = ilen;
       dl.sdl_alen = 0;
@@ -960,7 +963,9 @@ bundle_ShowStatus(struct cmdargs const *arg)
   int remaining;
 
   prompt_Printf(arg->prompt, "Phase %s\n", bundle_PhaseName(arg->bundle));
-  prompt_Printf(arg->prompt, " Interface:     %s\n", arg->bundle->dev);
+  prompt_Printf(arg->prompt, " Device:        %s\n", arg->bundle->dev.Name);
+  prompt_Printf(arg->prompt, " Interface:     %s @ %lubps\n",
+                arg->bundle->ifp.Name, arg->bundle->ifp.Speed);
 
   prompt_Printf(arg->prompt, "\nDefaults:\n");
   prompt_Printf(arg->prompt, " Label:         %s\n", arg->bundle->cfg.label);

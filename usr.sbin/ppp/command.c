@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.77 1998/05/01 19:24:16 brian Exp $
+ * $Id: command.c,v 1.131.2.78 1998/05/05 23:30:01 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -123,7 +123,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.0-beta";
-const char VersionDate[] = "$Date: 1998/05/01 19:24:16 $";
+const char VersionDate[] = "$Date: 1998/05/05 23:30:01 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -338,7 +338,7 @@ ShellCommand(struct cmdargs const *arg, int bg)
 	if (strcasecmp(arg->argv[argc + arg->argn], "HISADDR") == 0)
 	  argv[argc] = strdup(inet_ntoa(arg->bundle->ncp.ipcp.peer_ip));
 	else if (strcasecmp(arg->argv[argc + arg->argn], "INTERFACE") == 0)
-	  argv[argc] = strdup(arg->bundle->ifname);
+	  argv[argc] = strdup(arg->bundle->ifp.Name);
 	else if (strcasecmp(arg->argv[argc + arg->argn], "MYADDR") == 0)
 	  argv[argc] = strdup(inet_ntoa(arg->bundle->ncp.ipcp.my_ip));
         else

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.50.2.49 1998/05/01 19:24:49 brian Exp $
+ * $Id: ipcp.c,v 1.50.2.50 1998/05/05 23:30:03 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -464,7 +464,7 @@ ipcp_SetIPaddress(struct bundle *bundle, struct in_addr myaddr,
   }
 
   memset(&ifra, '\0', sizeof ifra);
-  strncpy(ifra.ifra_name, bundle->ifname, sizeof ifra.ifra_name - 1);
+  strncpy(ifra.ifra_name, bundle->ifp.Name, sizeof ifra.ifra_name - 1);
   ifra.ifra_name[sizeof ifra.ifra_name - 1] = '\0';
 
   /* Set interface address */
@@ -642,7 +642,7 @@ ipcp_CleanInterface(struct ipcp *ipcp)
   if (ipcp->my_ifip.s_addr != INADDR_ANY ||
       ipcp->peer_ifip.s_addr != INADDR_ANY) {
     memset(&ifra, '\0', sizeof ifra);
-    strncpy(ifra.ifra_name, ipcp->fsm.bundle->ifname,
+    strncpy(ifra.ifra_name, ipcp->fsm.bundle->ifp.Name,
             sizeof ifra.ifra_name - 1);
     ifra.ifra_name[sizeof ifra.ifra_name - 1] = '\0';
     me = (struct sockaddr_in *)&ifra.ifra_addr;

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tun.c,v 1.6.4.16 1998/05/01 19:26:09 brian Exp $
+ *	$Id: tun.c,v 1.6.4.17 1998/05/05 03:01:32 brian Exp $
  */
 
 #include <sys/types.h>
@@ -60,18 +60,17 @@
 #include "tun.h"
 
 void
-tun_configure(struct bundle *bundle, int mtu, int speed)
+tun_configure(struct bundle *bundle, int mtu)
 {
   struct tuninfo info;
 
   info.type = 23;
   info.mtu = mtu;
-  info.baudrate = speed;
-  log_Printf(LogDEBUG, "Configuring tun at speed %d\n", speed);
+  info.baudrate = bundle->ifp.Speed;
 #ifdef __OpenBSD__                                           
   info.flags = IFF_UP|IFF_POINTOPOINT;                             
 #endif
-  if (ioctl(bundle->tun_fd, TUNSIFINFO, &info) < 0)
+  if (ioctl(bundle->dev.fd, TUNSIFINFO, &info) < 0)
     log_Printf(LogERROR, "tun_configure: ioctl(TUNSIFINFO): %s\n",
 	      strerror(errno));
 }

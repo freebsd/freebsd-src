@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tun.h,v 1.3.4.1 1998/02/02 19:32:16 brian Exp $
+ *	$Id: tun.h,v 1.3.4.2 1998/04/07 00:54:23 brian Exp $
  */
 
 struct tun_data {
@@ -43,4 +43,4 @@ struct tun_data {
 
 struct bundle;
 
-extern void tun_configure(struct bundle *, int, int);
+extern void tun_configure(struct bundle *, int);

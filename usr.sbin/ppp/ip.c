@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.38.2.24 1998/04/28 01:25:25 brian Exp $
+ * $Id: ip.c,v 1.38.2.25 1998/05/01 19:24:43 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -401,7 +401,7 @@ ip_Input(struct bundle *bundle, struct mbuf * bp)
 
       nb = ntohs(((struct ip *) tun.data)->ip_len);
       nb += sizeof tun - sizeof tun.data;
-      nw = write(bundle->tun_fd, &tun, nb);
+      nw = write(bundle->dev.fd, &tun, nb);
       if (nw != nb) {
         if (nw == -1)
 	  log_Printf(LogERROR, "ip_Input: wrote %d, got %s\n", nb,
@@ -417,7 +417,7 @@ ip_Input(struct bundle *bundle, struct mbuf * bp)
           frag = (struct tun_data *)
 	    ((char *)fptr - sizeof tun + sizeof tun.data);
           nb += sizeof tun - sizeof tun.data;
-	  nw = write(bundle->tun_fd, frag, nb);
+	  nw = write(bundle->dev.fd, frag, nb);
 	  if (nw != nb) {
             if (nw == -1)
 	      log_Printf(LogERROR, "ip_Input: wrote %d, got %s\n", nb,
@@ -454,7 +454,7 @@ ip_Input(struct bundle *bundle, struct mbuf * bp)
     ipcp_AddInOctets(&bundle->ncp.ipcp, nb);
 
     nb += sizeof tun - sizeof tun.data;
-    nw = write(bundle->tun_fd, &tun, nb);
+    nw = write(bundle->dev.fd, &tun, nb);
     if (nw != nb) {
       if (nw == -1)
 	log_Printf(LogERROR, "ip_Input: wrote %d, got %s\n", nb, strerror(errno));

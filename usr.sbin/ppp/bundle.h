@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.h,v 1.1.2.36 1998/05/05 23:29:57 brian Exp $
+ *	$Id: bundle.h,v 1.1.2.37 1998/05/06 18:50:04 brian Exp $
  */
 
 #define	PHASE_DEAD		0	/* Link is dead */
@@ -54,11 +54,19 @@ struct prompt;
 
 struct bundle {
   struct descriptor desc;     /* really all our datalinks */
-  int unit;                   /* The tun number */
-  int ifIndex;                /* The interface number */
-  int tun_fd;                 /* The /dev/tunX descriptor */
-  char dev[20];               /* The /dev/tunX name */
-  char *ifname;               /* The interface name */
+  int unit;                   /* The device/interface unit number */
+
+  struct {
+    char Name[20];            /* The /dev/XXXX name */
+    int fd;                   /* The /dev/XXXX descriptor */
+  } dev;
+
+  struct {
+    u_long Speed;             /* struct tuninfo speed */
+    int Index;                /* The interface index */
+    char *Name;               /* The interface name */
+  } ifp;
+
   int routing_seq;            /* The current routing sequence number */
   u_int phase;                /* Curent phase */
   int phys_type;              /* Union of all physical::type's */

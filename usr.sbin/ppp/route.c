@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.42.2.22 1998/05/05 23:30:12 brian Exp $
+ * $Id: route.c,v 1.42.2.23 1998/05/06 00:38:55 brian Exp $
  *
  */
 
@@ -351,7 +351,7 @@ route_IfDelete(struct bundle *bundle, int all)
   char *sp, *cp, *ep;
   int mib[6];
 
-  log_Printf(LogDEBUG, "route_IfDelete (%d)\n", bundle->ifIndex);
+  log_Printf(LogDEBUG, "route_IfDelete (%d)\n", bundle->ifp.Index);
   sa_none.s_addr = INADDR_ANY;
 
   mib[0] = CTL_NET;
@@ -399,7 +399,7 @@ route_IfDelete(struct bundle *bundle, int all)
                 Index2Nam(rtm->rtm_index), rtm->rtm_flags,
 	        inet_ntoa(((struct sockaddr_in *) sa)->sin_addr));
       if (rtm->rtm_addrs & RTA_DST && rtm->rtm_addrs & RTA_GATEWAY &&
-	  rtm->rtm_index == bundle->ifIndex &&
+	  rtm->rtm_index == bundle->ifp.Index &&
 	  (all || (rtm->rtm_flags & RTF_GATEWAY))) {
         sa_dst.s_addr = ((struct sockaddr_in *)sa)->sin_addr.s_addr;
         sa = (struct sockaddr *)((char *)sa + sa->sa_len);
