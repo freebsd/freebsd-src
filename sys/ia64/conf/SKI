@@ -30,7 +30,6 @@ makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 makeoptions	NO_MODULES=yes		#Ignore any x86 CPUTYPE
 
 options 	COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
-options 	COMPAT_FREEBSD4
 options 	DDB
 options 	FFS			#Berkeley Fast Filesystem
 options 	INET			#InterNETworking
