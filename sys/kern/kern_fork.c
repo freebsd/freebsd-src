@@ -93,6 +93,8 @@ struct fork_args {
 };
 #endif
 
+int forksleep; /* Place for fork1() to sleep on. */
+
 static void
 init_fork_list(void *data __unused)
 {
@@ -297,8 +299,8 @@ fork1(td, flags, procp)
 	 * processes, maxproc is the limit.
 	 */
 	uid = p1->p_ucred->cr_ruid;
-	if ((nprocs >= maxproc - 1 && uid != 0) || nprocs >= maxproc) {
-		tablefull("proc");
+	if ((nprocs >= maxproc - 10 && uid != 0) || nprocs >= maxproc) {
+		tsleep(&forksleep, PUSER, "fork", hz / 2);
 		return (EAGAIN);
 	}
 	/*
@@ -318,6 +320,7 @@ fork1(td, flags, procp)
 		 * Back out the process count
 		 */
 		nprocs--;
+		tsleep(&forksleep, PUSER, "fork", hz / 2);
 		return (EAGAIN);
 	}
 
