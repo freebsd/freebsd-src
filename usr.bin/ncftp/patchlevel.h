@@ -1,3 +1,5 @@
+v1.9.1 - January 1, 1995.  Passive mode fix with the SOCKS library.
+
 v1.9.0 - December 22, 1994.  The program won't exit from the interactive shell
   if it's working from a tty.  For example, it won't exit if you do an mget
   on a pattern that won't match anything.  Added padding around jmp_buf's
