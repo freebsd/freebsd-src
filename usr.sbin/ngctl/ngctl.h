@@ -93,3 +93,7 @@ extern const struct ngcmd quit_cmd;
 /* Data and control sockets */
 extern int	csock, dsock;
 
+/* Misc functions */
+extern void	MsgRead(void);
+extern void	DumpAscii(const u_char *buf, int len);
+
