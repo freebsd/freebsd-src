@@ -1,4 +1,4 @@
-<!-- $Id: policies.sgml,v 1.7 1996/12/10 05:54:31 asami Exp $ -->
+<!-- $Id: policies.sgml,v 1.8 1996/12/10 10:02:48 obrien Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Source Tree Guidelines and Policies
@@ -124,7 +124,7 @@ remaining files shall <em>not</em> be removed.
 dist tree automatically by some utility, something which would
 hopefully make it even easier to upgrade to a new version.  If this
 is done, be sure to check in such utilities (as necessary) in the
-src/tools directory along with the port itself so that it's available
+src/tools directory along with the port itself so that it is available
 to future maintainers.
 
 <p>In the src/contrib/tcl level directory, a file called README.FreeBSD

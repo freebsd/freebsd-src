@@ -1,7 +1,7 @@
 <!-- This is an SGML document in the linuxdoc DTD describing
      Printing with FreeBSD.  By Sean Kelly, 1995.
 
-     $Id: printing.sgml,v 1.12 1996/12/02 13:11:42 max Exp $
+     $Id: printing.sgml,v 1.13 1996/12/28 20:38:42 wosch Exp $
 
      The FreeBSD Documentation Project
 
@@ -79,12 +79,12 @@
 
 	<p> If you are the sole user of your system, you may be
 	  wondering why you should bother with the spooler when you
-	  don't need access control, header pages, or printer
-	  accounting.  While it's possible to enable direct access to
+	  do not need access control, header pages, or printer
+	  accounting.  While it is possible to enable direct access to
 	  a printer, you should use the spooler anyway since
 
 	  <itemize>
-	    <item>LPD prints jobs in the background; you don't have
+	    <item>LPD prints jobs in the background; you do not have
 	      to wait for data to be copied to the printer.
 
 	    <item>LPD can conveniently run a job to be printed
@@ -541,7 +541,7 @@ showpage
 		</enum>
 
 		You should see something print.  Do not worry if the
-		text doesn't look right; we'll fix such things later.
+		text does not look right; we will fix such things later.
 
 	    <sect4><heading>Checking a Serial Printer<label
 		  id="printing:checking:serial"></heading>
@@ -1298,7 +1298,7 @@ rattan|line|diablo|lp|Diablo 630 Line Printer:\
     <sect><heading>Using Printers<label id="printing:using"></heading>
 
       <p> This section tells you how to use printers you have setup with
-	FreeBSD.  Here's an overview of the user-level commands:
+	FreeBSD.  Here is an overview of the user-level commands:
 	<descrip>
 	  <tag/<tt/lpr//
 	    Print jobs

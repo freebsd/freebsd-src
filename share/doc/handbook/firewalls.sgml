@@ -1,4 +1,4 @@
-<!-- $Id: firewalls.sgml,v 1.13 1996/09/15 00:15:33 alex Exp $ -->
+<!-- $Id: firewalls.sgml,v 1.14 1996/10/04 22:54:01 wosch Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>Firewalls<label id="firewalls"></heading>
@@ -513,7 +513,7 @@ machine. The upper limit as defined by RFC 1700 (Assigned Numbers) is
 6063.
 
  <item>Check what ports any internal servers use (e.g. SQL servers,
-etc). It's probably a good idea to block those as well, as they
+etc). It is probably a good idea to block those as well, as they
 normally fall outside the 1-1024 range specified above.
 
 </itemize>

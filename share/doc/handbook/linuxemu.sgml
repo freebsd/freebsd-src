@@ -1,4 +1,4 @@
-<!-- $Id: linuxemu.sgml,v 1.12 1996/10/04 22:54:07 wosch Exp $ -->
+<!-- $Id: linuxemu.sgml,v 1.13 1996/10/05 18:36:18 wosch Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Linux Emulation<label id="linuxemu"></heading>
@@ -195,7 +195,7 @@ general this does not seem to be a problem.
 
 <sect2><heading>Installing libraries manually</heading>
 
-<p>If you don't have the ``ports'' distribution, you can install the
+<p>If you do not have the ``ports'' distribution, you can install the
 libraries by hand instead.  You will need the Linux shared libraries
 that the program depends on and the runtime linker.  Also, you will
 need to create a "shadow root" directory, /compat/linux, for Linux
@@ -521,7 +521,7 @@ slakware/x9/xf_lib.tgz
 
 <p>Extract the files from these gzipped tarfiles in your
 /compat/linux directory (possibly omitting or afterwards
-removing files you don't need), and you are done.
+removing files you do not need), and you are done.
 
 <p><bf>See also:</bf>
 <verb>
@@ -582,12 +582,12 @@ richc.isdn.bcm.tmc.edu   9845-03452-90255
 </tscreen>
 So, for example, the `machine ID' of `richc' is `9845-03452-90255'.
 You can ignore the message about the ioctl that is not
-implemented.  It won't prevent Mathematica from running
+implemented.  It will not prevent Mathematica from running
 in any way and you can safely ignore it, though you
 will see the message every time you run Mathematica.
 
 <p>When you register with Wolfram, either by email, phone
-or fax, you'll give them the 'machine ID' and they will
+or fax, you will give them the 'machine ID' and they will
 respond with a corresponding password consisting of
 groups of numbers.  You need to add them both along
 with the machine name and license number in your
@@ -602,7 +602,7 @@ You can do this by invoking:
 </tscreen>
 It will ask you to enter your license number and the
 Wolfram supplied password.  If you get them mixed up or
-for some reason the math.install fails, That's OK,
+for some reason the math.install fails, That is OK,
 because you can simply edit the file 'mathpass' in this
 same directory to correct the info manually.
 
@@ -612,7 +612,7 @@ you want to use your own.  If you are like us and
 distrust all install programs, you probably want to
 specify the actual directories.  Beware.  Although the
 math.install program asks you to specify directories,
-it won't create them for you, so you should perhaps
+it will not create them for you, so you should perhaps
 have a second window open with another shell so that
 you can create them before you give them to the install
 program.  Or, if it fails, you
@@ -636,8 +636,8 @@ go.
 as the X Front End, and you have to install it separately.
 To get the X Front End stuff correctly installed, cd
 into the /usr/local/Mathematica/FrontEnd directory and
-executed the ./xfe.install shell script.  You'll have
-to tell it where to put things, but you don't have to
+executed the ./xfe.install shell script.  You will have
+to tell it where to put things, but you do not have to
 create any directories because it uses all the same
 directories that had been created for math.install.
 When it finished, there should be a new shell script in
@@ -651,7 +651,7 @@ Mathematica has installed.  At the beginning of every shell script in
 XKEYSYMDB=/usr/local/Mathematica/lib/X11/XKeysymDB; export XKEYSYMDB
 </verb>
 </tscreen>
-This tells Mathematica were to find it's own version of the key
+This tells Mathematica were to find its own version of the key
 mapping file XKeysymDB.  Without this you will get pages of error
 messages about missing key mappings.
 
@@ -662,7 +662,7 @@ RESOLV_HOST_CONF=/compat/linux/etc/host.conf; export RESOLV_HOST_CONF
 </verb>
 </tscreen>
 This tells Mathematica to use the linux version of host.conf.  This
-file has a different syntax from FreeBSD's host.conf, so you'll get an
+file has a different syntax from FreeBSD's host.conf, so you will get an
 error message about /etc/host.conf if you leave this out.
 
 <p>You might want to also modify your /etc/manpath.config file
@@ -670,11 +670,11 @@ to read the new man directory, and you may need to edit your
 ~/.cshrc file to add /usr/local/Mathematica/bin
 to your path.
 
-<p>That's about all it takes, With this you should be able
+<p>That is about all it takes, With this you should be able
 to type "mathematica" and get a really slick looking
 Mathematica Notebook screen up.  Mathematica has included
-the Motif user interfaces, but it's compiled in statically,
-so you don't need the Motif libraries.  Good luck doing this
+the Motif user interfaces, but it is compiled in statically,
+so you do not need the Motif libraries.  Good luck doing this
 yourself!
 
 <sect1><heading>Bugs</heading>
@@ -687,7 +687,7 @@ File .../Untitled-1.mb appears to be broken for OMPR.257.0
 </verb>
 </tscreen>
 
-We haven't found the cause for this, but it only affects the
+We have not found the cause for this, but it only affects the
 Notebook's X Window front end, not the mathematica engine itself.  So
 the command line interface invoked by 'math' is unaffected by this
 bug.

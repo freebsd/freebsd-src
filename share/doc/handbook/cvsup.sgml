@@ -1,4 +1,4 @@
-<!-- $Id: cvsup.sgml,v 1.1 1996/12/19 20:23:05 jkh Exp $ -->
+<!-- $Id: cvsup.sgml,v 1.2 1996/12/20 00:05:01 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>CVSup<label id="cvsup"></heading>
@@ -186,7 +186,7 @@ different tomorrow than it means today.
 <descrip>
   <tag/tag=./
     The main line of development, also known as FreeBSD-current.
-    Note:  the "." is not punctuation; it's the name of the tag.
+    Note:  the "." is not punctuation; it is the name of the tag.
   <tag/tag=RELENG_2_2/
     The line of development leading up to FreeBSD-2.2.
   <tag/tag=RELENG_2_1_0/
@@ -250,9 +250,9 @@ command line, with "-h hostname".
 <p><item>Where do you want to put them on your own machine?<label id="cvsup:config:dest">
 
 <p>The "prefix=" field tells cvsup where to put the files it receives.
-In this example, we'll put the source files directly into our main
+In this example, we will put the source files directly into our main
 source tree, "/usr/src".  The "src" directory is already implicit in the
-collections we've chosen to receive, so this is the correct
+collections we have chosen to receive, so this is the correct
 specification:
 
 <verb>
@@ -263,7 +263,7 @@ specification:
 
 <p>The cvsup client maintains certain status files in what is called
 the "base" directory.  These files help CVSup to work more
-efficiently, by keeping track of which updates you've already
+efficiently, by keeping track of which updates you have already
 received.  We will use the standard base directory,
 "/usr/local/etc/cvsup":
 
@@ -271,12 +271,12 @@ received.  We will use the standard base directory,
   *default base=/usr/local/etc/cvsup
 </verb>
 
-<p>This setting is used by default if it's not specified in the
-supfile, so we actually don't need the above line.
+<p>This setting is used by default if it is not specified in the
+supfile, so we actually do not need the above line.
 
-<p>If your base directory doesn't already exist, now would be a good
+<p>If your base directory does not already exist, now would be a good
 time to create it.  The cvsup client will refuse to run if the base
-directory doesn't exist.
+directory does not exist.
 
 <p><item>Miscellaneous supfile settings:
 
@@ -300,11 +300,11 @@ alone.
 
 <p>"use-rel-suffix" is ... arcane.  If you really want to know about
 it, see the cvsup(1) manual page.  Otherwise, just specify it and
-don't worry about it.
+do not worry about it.
 
 <p>"compress" enables the use of gzip-style compression on the
 communication channel.  If your network link is T1 speed or faster,
-you probably shouldn't use compression.  Otherwise, it helps
+you probably should not use compression.  Otherwise, it helps
 substantially.
 
 <p><item>Putting it all together:
@@ -332,7 +332,7 @@ quite simple:
   cvsup supfile
 </verb>
 
-<p>where "supfile" is of course the name of the supfile you've just created.
+<p>where "supfile" is of course the name of the supfile you have just created.
 Assuming you are running under X11, cvsup will display a GUI window with
 some buttons to do the usual things.  Press the "go" button, and watch
 it run.
@@ -357,10 +357,10 @@ for all file updates.  CVSup will examine your usual files in
 updates will instead land in "/var/tmp/dest/usr/src".  CVSup will also
 leave its base directory status files untouched when run this way.
 The new versions of those files will be written into the specified
-directory.  As long as you have read access to "/usr/src", you don't
+directory.  As long as you have read access to "/usr/src", you do not
 even need to be root to perform this kind of trial run.
 
-<p>If you are not running X11 or if you just don't like GUIs, you
+<p>If you are not running X11 or if you just do not like GUIs, you
 should add a couple of options to the command line when you run cvsup:
 
 <verb>
@@ -378,7 +378,7 @@ The default is 0, which means total silence except for error messages.
 type "cvsup -H".  For more detailed descriptions, see the manual page.
 
 <p>Once you are satisfied with the way updates are working, you can arrange
-for regular runs of cvsup using cron(8).  Obviously, you shouldn't let
+for regular runs of cvsup using cron(8).  Obviously, you should not let
 cvsup use its GUI when running it from cron.
 
 <sect1><heading>Announcements, Questions, and Bug Reports</heading>
