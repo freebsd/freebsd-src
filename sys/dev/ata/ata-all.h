@@ -155,7 +155,7 @@ struct ata_softc {
 #define		ATA_IDLE		0x0
 #define		ATA_IMMEDIATE		0x0
 #define		ATA_WAIT_INTR		0x1
-#define		ATA_IGNORE_INTR		0x2
+#define		ATA_WAIT_READY		0x2
 #define		ATA_ACTIVE_ATA		0x3
 #define		ATA_ACTIVE_ATAPI	0x4
 #define		ATA_REINITING		0x5
