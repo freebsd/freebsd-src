@@ -77,7 +77,6 @@
 #include <netgraph/netgraph.h>
 #include <netgraph/ng_parse.h>
 #include <netgraph/ng_bridge.h>
-#include <netgraph/ng_ether.h>
 
 #ifdef NG_SEPARATE_MALLOC
 MALLOC_DEFINE(M_NETGRAPH_BRIDGE, "netgraph_bridge", "netgraph bridge node ");
@@ -172,7 +171,7 @@ ng_bridge_getTableLength(const struct ng_parse_type *type,
 
 /* Parse type for struct ng_bridge_host_ary */
 static const struct ng_parse_struct_field ng_bridge_host_type_fields[]
-	= NG_BRIDGE_HOST_TYPE_INFO(&ng_ether_enaddr_type);
+	= NG_BRIDGE_HOST_TYPE_INFO(&ng_parse_enaddr_type);
 static const struct ng_parse_type ng_bridge_host_type = {
 	&ng_parse_struct_type,
 	&ng_bridge_host_type_fields
@@ -286,9 +285,6 @@ static struct ng_type ng_bridge_typestruct = {
 	ng_bridge_cmdlist,
 };
 NETGRAPH_INIT(bridge, &ng_bridge_typestruct);
-
-/* Depend on ng_ether so we can use the Ethernet parse type */
-MODULE_DEPEND(ng_bridge, ng_ether, 1, 1, 1);
 
 /******************************************************************
 		    NETGRAPH NODE METHODS
