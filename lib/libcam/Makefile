@@ -3,7 +3,7 @@
 MAINTAINER=ken@FreeBSD.ORG
 
 LIB=	cam
-SRCS=	camlib.c scsi_cmdparse.c scsi_all.c scsi_sa.c cam.c
+SRCS=	camlib.c scsi_cmdparse.c scsi_all.c scsi_da.c scsi_sa.c cam.c
 INCS=	camlib.h
 
 MAN3=	cam.3 cam_cdbparse.3

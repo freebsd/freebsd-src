@@ -132,6 +132,7 @@ struct camcontrol_opts option_table[] = {
 	{"negotiate", CAM_ARG_RATE, negotiate_opts},
 	{"rate", CAM_ARG_RATE, negotiate_opts},
 	{"debug", CAM_ARG_DEBUG, "ITSc"},
+	{"format", CAM_ARG_FORMAT, "qwy"},
 	{"help", CAM_ARG_USAGE, NULL},
 	{"-?", CAM_ARG_USAGE, NULL},
 	{"-h", CAM_ARG_USAGE, NULL},
@@ -181,6 +182,8 @@ static int get_print_cts(struct cam_device *device, int user_settings,
 			 int quiet, struct ccb_trans_settings *cts);
 static int ratecontrol(struct cam_device *device, int retry_count,
 		       int timeout, int argc, char **argv, char *combinedopt);
+static int scsiformat(struct cam_device *device, int argc, char **argv,
+		      char *combinedopt, int retry_count, int timeout);
 
 camcontrol_optret
 getoption(char *arg, cam_argmask *argnum, char **subopt)
@@ -2652,6 +2655,311 @@ ratecontrol_bailout:
 	return(retval);
 }
 
+static int
+scsiformat(struct cam_device *device, int argc, char **argv,
+	   char *combinedopt, int retry_count, int timeout)
+{
+	union ccb *ccb;
+	int c;
+	int ycount = 0, quiet = 0;
+	int error = 0, response = 0, retval = 0;
+	int use_timeout = 10800 * 1000;
+	int immediate = 1;
+	struct format_defect_list_header fh;
+	u_int8_t *data_ptr = NULL;
+	u_int32_t dxfer_len = 0;
+	u_int8_t byte2 = 0;
+	int num_warnings = 0;
+
+	ccb = cam_getccb(device);
+
+	if (ccb == NULL) {
+		warnx("scsiformat: error allocating ccb");
+		return(1);
+	}
+
+	bzero(&(&ccb->ccb_h)[1],
+	      sizeof(struct ccb_scsiio) - sizeof(struct ccb_hdr));
+
+	while ((c = getopt(argc, argv, combinedopt)) != -1) {
+		switch(c) {
+		case 'q':
+			quiet++;
+			break;
+		case 'w':
+			immediate = 0;
+			break;
+		case 'y':
+			ycount++;
+			break;
+		}
+	}
+
+	if (quiet == 0) {
+		fprintf(stdout, "You are about to REMOVE ALL DATA from the "
+			"following device:\n");
+
+		error = scsidoinquiry(device, argc, argv, combinedopt,
+				      retry_count, timeout);
+
+		if (error != 0) {
+			warnx("scsiformat: error sending inquiry");
+			goto scsiformat_bailout;
+		}
+	}
+
+	if (ycount == 0) {
+
+		do {
+			char str[1024];
+
+			fprintf(stdout, "Are you SURE you want to do "
+				"this? (yes/no) ");
+
+			if (fgets(str, sizeof(str), stdin) != NULL) {
+
+				if (strncasecmp(str, "yes", 3) == 0)
+					response = 1;
+				else if (strncasecmp(str, "no", 2) == 0)
+					response = -1;
+				else {
+					fprintf(stdout, "Please answer"
+						" \"yes\" or \"no\"\n");
+				}
+			}
+		} while (response == 0);
+
+		if (response == -1) {
+			error = 1;
+			goto scsiformat_bailout;
+		}
+	}
+
+	if (timeout != 0)
+		use_timeout = timeout;
+
+	if (quiet == 0) {
+		fprintf(stdout, "Current format timeout is %d seconds\n",
+			use_timeout / 1000);
+	}
+
+	/*
+	 * If the user hasn't disabled questions and didn't specify a
+	 * timeout on the command line, ask them if they want the current
+	 * timeout.
+	 */
+	if ((ycount == 0)
+	 && (timeout == 0)) {
+		char str[1024];
+		int new_timeout = 0;
+
+		fprintf(stdout, "Enter new timeout in seconds or press\n"
+			"return to keep the current timeout [%d] ",
+			use_timeout / 1000);
+
+		if (fgets(str, sizeof(str), stdin) != NULL) {
+			if (str[0] != '\0')
+				new_timeout = atoi(str);
+		}
+
+		if (new_timeout != 0) {
+			use_timeout = new_timeout * 1000;
+			fprintf(stdout, "Using new timeout value %d\n",
+				use_timeout / 1000);
+		}
+	}
+
+	/*
+	 * Keep this outside the if block below to silence any unused
+	 * variable warnings.
+	 */
+	bzero(&fh, sizeof(fh));
+
+	/*
+	 * If we're in immediate mode, we've got to include the format
+	 * header
+	 */
+	if (immediate != 0) {
+		fh.byte2 = FU_DLH_IMMED;
+		data_ptr = (u_int8_t *)&fh;
+		dxfer_len = sizeof(fh);
+		byte2 = FU_FMT_DATA;
+	} else if (quiet == 0) {
+		fprintf(stdout, "Formatting...");
+		fflush(stdout);
+	}
+
+	scsi_format_unit(&ccb->csio,
+			 /* retries */ retry_count,
+			 /* cbfcnp */ NULL,
+			 /* tag_action */ MSG_SIMPLE_Q_TAG,
+			 /* byte2 */ byte2,
+			 /* ileave */ 0,
+			 /* data_ptr */ data_ptr,
+			 /* dxfer_len */ dxfer_len,
+			 /* sense_len */ SSD_FULL_SIZE,
+			 /* timeout */ use_timeout);
+
+	/* Disable freezing the device queue */
+	ccb->ccb_h.flags |= CAM_DEV_QFRZDIS;
+
+	if (arglist & CAM_ARG_ERR_RECOVER)
+		ccb->ccb_h.flags |= CAM_PASS_ERR_RECOVER;
+
+	if (((retval = cam_send_ccb(device, ccb)) < 0)
+	 || ((immediate == 0)
+	   && ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP))) {
+		char *errstr = "error sending format command";
+
+		if (retval < 0)
+			warn(errstr);
+		else
+			warnx(errstr);
+
+		if (arglist & CAM_ARG_VERBOSE) {
+			if ((ccb->ccb_h.status & CAM_STATUS_MASK) ==
+			    CAM_SCSI_STATUS_ERROR)
+				scsi_sense_print(device, &ccb->csio, stderr);
+			else
+				fprintf(stderr, "CAM status is %#x\n",
+					ccb->ccb_h.status);
+		}
+		error = 1;
+		goto scsiformat_bailout;
+	}
+
+	/*
+	 * If we ran in non-immediate mode, we already checked for errors
+	 * above and printed out any necessary information.  If we're in
+	 * immediate mode, we need to loop through and get status
+	 * information periodically.
+	 */
+	if (immediate == 0) {
+		if (quiet == 0) {
+			fprintf(stdout, "Format Complete\n");
+		}
+		goto scsiformat_bailout;
+	}
+
+	do {
+		cam_status status;
+
+		bzero(&(&ccb->ccb_h)[1],
+		      sizeof(struct ccb_scsiio) - sizeof(struct ccb_hdr));
+
+		/*
+		 * There's really no need to do error recovery or
+		 * retries here, since we're just going to sit in a
+		 * loop and wait for the device to finish formatting.
+		 */
+		scsi_test_unit_ready(&ccb->csio,
+				     /* retries */ 0,
+				     /* cbfcnp */ NULL,
+				     /* tag_action */ MSG_SIMPLE_Q_TAG,
+				     /* sense_len */ SSD_FULL_SIZE,
+				     /* timeout */ 5000);
+
+		/* Disable freezing the device queue */
+		ccb->ccb_h.flags |= CAM_DEV_QFRZDIS;
+
+		retval = cam_send_ccb(device, ccb);
+
+		/*
+		 * If we get an error from the ioctl, bail out.  SCSI
+		 * errors are expected.
+		 */
+		if (retval < 0) {
+			warn("error sending CAMIOCOMMAND ioctl");
+			if (arglist & CAM_ARG_VERBOSE) {
+				if ((ccb->ccb_h.status & CAM_STATUS_MASK) ==
+				    CAM_SCSI_STATUS_ERROR)
+					scsi_sense_print(device, &ccb->csio,
+							 stderr);
+				else
+					fprintf(stderr, "CAM status is %#x\n",
+						ccb->ccb_h.status);
+			}
+			error = 1;
+			goto scsiformat_bailout;
+		}
+
+		status = ccb->ccb_h.status & CAM_STATUS_MASK;
+
+		if ((status != CAM_REQ_CMP)
+		 && (status == CAM_SCSI_STATUS_ERROR)) {
+			struct scsi_sense_data *sense;
+			int error_code, sense_key, asc, ascq;
+
+			sense = &ccb->csio.sense_data;
+			scsi_extract_sense(sense, &error_code, &sense_key,
+					   &asc, &ascq);
+
+			/*
+			 * According to the SCSI-2 and SCSI-3 specs, a
+			 * drive that is in the middle of a format should
+			 * return NOT READY with an ASC of "logical unit
+			 * not ready, format in progress".  The sense key
+			 * specific bytes will then be a progress indicator.
+			 */
+			if ((sense_key == SSD_KEY_NOT_READY)
+			 && (asc == 0x04) && (ascq == 0x04)) {
+				if ((sense->extra_len >= 10)
+				 && ((sense->sense_key_spec[0] &
+				      SSD_SCS_VALID) != 0)
+				 && (quiet == 0)) {
+					int val;
+					u_int64_t percentage;
+
+					val = scsi_2btoul(
+						&sense->sense_key_spec[1]);
+					percentage = 10000 * val;
+
+					fprintf(stdout,
+						"\rFormatting:  %qd.%02qd %% "
+						"(%d/%d) done",
+						percentage / (0x10000 * 100),
+						(percentage / 0x10000) % 100,
+						val, 0x10000);
+					fflush(stdout);
+				} else if ((quiet == 0)
+					&& (++num_warnings <= 1)) {
+					warnx("Unexpected SCSI Sense Key "
+					      "Specific value returned "
+					      "during format:");
+					scsi_sense_print(device, &ccb->csio,
+							 stderr);
+					warnx("Unable to print status "
+					      "information, but format will "
+					      "proceed.");
+					warnx("will exit when format is "
+					      "complete");
+				}
+				sleep(1);
+			} else {
+				warnx("Unexpected SCSI error during format");
+				scsi_sense_print(device, &ccb->csio, stderr);
+				error = 1;
+				goto scsiformat_bailout;
+			}
+
+		} else if (status != CAM_REQ_CMP) {
+			warnx("Unexpected CAM status %#x", status);
+			error = 1;
+			goto scsiformat_bailout;
+		}
+
+	} while((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP);
+
+	if (quiet == 0)
+		fprintf(stdout, "\nFormat Complete\n");
+
+scsiformat_bailout:
+
+	cam_freeccb(ccb);
+
+	return(error);
+}
+
 void 
 usage(int verbose)
 {
@@ -2677,6 +2985,7 @@ usage(int verbose)
 "                              [-D <enable|disable>][-O offset][-q]\n"
 "                              [-R syncrate][-v][-T <enable|disable>]\n"
 "                              [-U][-W bus_width]\n"
+"        camcontrol format     [dev_id][generic args][-q][-w][-y]\n"
 "        camcontrol help\n");
 	if (!verbose)
 		return;
@@ -2697,6 +3006,7 @@ usage(int verbose)
 "debug       turn debugging on/off for a bus, target, or lun, or all devices\n"
 "tags        report or set the number of transaction slots for a device\n"
 "negotiate   report or set device negotiation parameters\n"
+"format      send the SCSI FORMAT UNIT command to the named device\n"
 "help        this message\n"
 "Device Identifiers:\n"
 "bus:target        specify the bus and target, lun defaults to 0\n"
@@ -2745,7 +3055,11 @@ usage(int verbose)
 "-T <arg>          \"enable\" or \"disable\" tagged queueing\n"
 "-U                report/set user negotiation settings\n"
 "-W bus_width      set the bus width in bits (8, 16 or 32)\n"
-"-v                also print a Path Inquiry CCB for the controller\n",
+"-v                also print a Path Inquiry CCB for the controller\n"
+"format arguments:\n"
+"-q                be quiet, don't print status messages\n"
+"-w                don't send immediate format command\n"
+"-y                don't ask any questions\n",
 DEFAULT_DEVICE, DEFAULT_UNIT);
 }
 
@@ -3004,6 +3318,10 @@ main(int argc, char **argv)
 		case CAM_ARG_RATE:
 			error = ratecontrol(cam_dev, retry_count, timeout,
 					    argc, argv, combinedopt);
+			break;
+		case CAM_ARG_FORMAT:
+			error = scsiformat(cam_dev, argc, argv,
+					   combinedopt, retry_count, timeout);
 			break;
 		case CAM_ARG_USAGE:
 			usage(1);
