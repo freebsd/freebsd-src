@@ -141,7 +141,7 @@ atm_initialize()
 
 	atm_intrq.ifq_maxlen = ATM_INTRQ_MAX;
 	mtx_init(&atm_intrq.ifq_mtx, "atm_inq", NULL, MTX_DEF);
-	netisr_register(NETISR_ATM, atm_intr, &atm_intrq);
+	netisr_register(NETISR_ATM, atm_intr, &atm_intrq, 0);
 
 	/*
 	 * Initialize subsystems
@@ -556,6 +556,8 @@ atm_intr(struct mbuf *m)
 	caddr_t		cp;
 	atm_intr_func_t	func;
 	void		*token;
+
+	GIANT_REQUIRED;
 
 	/*
 	 * Get function to call and token value

@@ -122,7 +122,7 @@ natm_init(void)
 	bzero(&natmintrq, sizeof(natmintrq));
 	natmintrq.ifq_maxlen = natmqmaxlen;
 	mtx_init(&natmintrq.ifq_mtx, "natm_inq", NULL, MTX_DEF);
-	netisr_register(NETISR_NATM, natmintr, &natmintrq);
+	netisr_register(NETISR_NATM, natmintr, &natmintrq, 0);
 }
 
 #if defined(__FreeBSD__)

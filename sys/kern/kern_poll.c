@@ -187,8 +187,8 @@ static void
 init_device_poll(void)
 {
 
-	netisr_register(NETISR_POLL, (netisr_t *)netisr_poll, NULL);
-	netisr_register(NETISR_POLLMORE, (netisr_t *)netisr_pollmore, NULL);
+	netisr_register(NETISR_POLL, (netisr_t *)netisr_poll, NULL, 0);
+	netisr_register(NETISR_POLLMORE, (netisr_t *)netisr_pollmore, NULL, 0);
 }
 SYSINIT(device_poll, SI_SUB_CLOCKS, SI_ORDER_MIDDLE, init_device_poll, NULL)
 
