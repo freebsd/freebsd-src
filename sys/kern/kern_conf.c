@@ -189,6 +189,9 @@ lminor(dev_t x)
 dev_t
 makebdev(int x, int y)
 {
+	
+	if (x == umajor(NOUDEV) && y == uminor(NOUDEV))
+		Debugger("makebdev of NOUDEV");
 	return (makedev(bmaj2cmaj[x], y));
 }
 
@@ -200,6 +203,8 @@ makedev(int x, int y)
 	int hash;
 	static int stashed;
 
+	if (x == umajor(NOUDEV) && y == uminor(NOUDEV))
+		Debugger("makedev of NOUDEV");
 	udev = (x << 8) | y;
 	hash = udev % DEVT_HASH;
 	LIST_FOREACH(si, &dev_hash[hash], si_hash) {
@@ -254,6 +259,9 @@ dev2udev(dev_t x)
 dev_t
 udev2dev(udev_t x, int b)
 {
+
+	if (x == NOUDEV)
+		return (NODEV);
 	switch (b) {
 		case 0:
 			return makedev(umajor(x), uminor(x));
