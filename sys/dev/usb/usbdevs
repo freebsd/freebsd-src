@@ -48,6 +48,7 @@ vendor KODAK		0x040a	Eastman Kodak Corp.
 vendor MELCO		0x0411	Melco Inc.
 vendor CATC		0x0423	Computer Access Technology Corp.
 vendor GRAVIS		0x0428	Advanced Gravis Computer Tech. Ltd.
+vendor SUN		0x0430	Sun Microsystems
 vendor LEXMARK		0x043d	Lexmark International Inc.
 vendor NANAO		0x0440	NANAO Corp.
 vendor THRUST		0x044f	Thrustmaster
@@ -77,6 +78,7 @@ vendor 3COM		0x0506	3Com Corp.
 vendor BELKIN		0x050d	Belkin Components
 vendor KAWATSU		0x050f	Kawatsu Semiconductor, Inc.
 vendor APC		0x051d	American Power Conversion
+vendor NETCHIP		0x0525	NetChip Technology
 vendor AKS		0x0529	Fast Security AG
 vendor UNIACCESS	0x0540	Universal Access
 vendor ANCHOR		0x0547	Anchor Chips Inc.
@@ -150,6 +152,10 @@ product CATC CHIEF		0x000d	USB Chief Bus & Protocol Analyzer
 /* Gravis products */
 product GRAVIS GAMEPADPRO	0x4001	GamePad Pro
 
+/* Sun Microsystems products */
+product SUN KEYBOARD		0x0005	Type 6 USB
+/* XXX The above is a North American PC style keyboard possibly */
+
 /* Lexmark products */
 product LEXMARK S2450		0x0009	Optra S 2450
 
@@ -205,6 +211,7 @@ product CYPRESS MOUSE		0x0001	mouse
 product CYPRESS THERMO		0x0002	thermometer
 
 /* Epson products */
+product EPSON PRINTER2		0x0002	ISD USB Smart Cable for Mac
 product EPSON PRINTER3		0x0003	ISD USB Smart Cable
 
 /* 3Com products */
@@ -236,6 +243,9 @@ product KAWATSU MH4000P		0x0003	MiniHub 4000P
 
 /* American Power Conversion products */
 product APC UPSPRO500		0x0002	Back-UPS Pro 500
+
+/* NetChip Technology Products */
+product NETCHIP TURBOCONNECT	0x1080	Turbo-Connect
 
 /* AKS products */
 product AKS USBHASP		0x0001	USB-HASP 0.06
