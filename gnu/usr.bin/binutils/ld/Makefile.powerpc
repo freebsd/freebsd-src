@@ -6,7 +6,7 @@ TARGET_TUPLE?=	powerpc-unknown-freebsd
 HOST=	${TARGET_TUPLE}
 CFLAGS+= -DDEFAULT_EMULATION=\"elf_powerpc\"
 CFLAGS+= -DTARGET=\"${TARGET_TUPLE}\"
-_powerpc_path=	\"/usr/lib\"
+_powerpc_path=	\"${TOOLS_PREFIX}/usr/lib\"
 .else
 _powerpc_path=	\"/usr/cross/powerpc-freebsd/usr/lib\"
 .endif

@@ -6,7 +6,7 @@ TARGET_TUPLE?=	alpha-unknown-freebsd
 HOST=	${TARGET_TUPLE}
 CFLAGS+= -DDEFAULT_EMULATION=\"elf64alpha\"
 CFLAGS+= -DTARGET=\"${TARGET_TUPLE}\"
-_alpha_path=	\"/usr/lib\"
+_alpha_path=	\"${TOOLS_PREFIX}/usr/lib\"
 .else
 _alpha_path=	\"/usr/cross/alpha-freebsd/usr/lib\"
 .endif
