@@ -44,7 +44,7 @@ _find_thread(pthread_t pthread)
 	if (pthread == NULL || pthread->magic != PTHREAD_MAGIC)
 		return(EINVAL);
 
-	GIANT_LOCK(curthread);
+	THREAD_LIST_LOCK;
 
 	/* Search for the specified thread: */
 	TAILQ_FOREACH(pthread1, &_thread_list, tle) {
@@ -52,7 +52,7 @@ _find_thread(pthread_t pthread)
 			break;
 	}
 
-	GIANT_UNLOCK(curthread);
+	THREAD_LIST_UNLOCK;
 
 	/* Return zero if the thread exists: */
 	return ((pthread1 != NULL) ? 0:ESRCH);
