@@ -597,7 +597,7 @@ isa_probe_children(device_t dev)
 			 * Claim any unallocated resources to keep other
 			 * devices from using them.
 			 */
-			SLIST_FOREACH(rle, rl, link) {
+			STAILQ_FOREACH(rle, rl, link) {
 				if (!rle->res) {
 					int rid = rle->rid;
 					resource_list_alloc(rl, dev, child,
@@ -646,7 +646,7 @@ isa_print_all_resources(device_t dev)
 	struct resource_list *rl = &idev->id_resources;
 	int retval = 0;
 
-	if (SLIST_FIRST(rl) || device_get_flags(dev))
+	if (STAILQ_FIRST(rl) || device_get_flags(dev))
 		retval += printf(" at");
 	
 	retval += resource_list_print_type(rl, "port", SYS_RES_IOPORT, "%#lx");
@@ -878,7 +878,7 @@ isa_child_detached(device_t dev, device_t child)
 		 * Claim any unallocated resources to keep other
 		 * devices from using them.
 		 */
-		SLIST_FOREACH(rle, rl, link) {
+		STAILQ_FOREACH(rle, rl, link) {
 			if (!rle->res) {
 				int rid = rle->rid;
 				resource_list_alloc(rl, dev, child,
@@ -923,7 +923,7 @@ isa_driver_added(device_t dev, driver_t *driver)
 		 * Free resources which we were holding on behalf of
 		 * the device.
 		 */
-		SLIST_FOREACH(rle, &idev->id_resources, link) {
+		STAILQ_FOREACH(rle, &idev->id_resources, link) {
 			if (rle->res)
 				resource_list_release(rl, dev, child,
 						      rle->type,
@@ -942,7 +942,7 @@ isa_driver_added(device_t dev, driver_t *driver)
 			 * Claim any unallocated resources to keep other
 			 * devices from using them.
 			 */
-			SLIST_FOREACH(rle, rl, link) {
+			STAILQ_FOREACH(rle, rl, link) {
 				if (!rle->res) {
 					int rid = rle->rid;
 					resource_list_alloc(rl, dev, child,

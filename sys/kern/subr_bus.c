@@ -2462,7 +2462,7 @@ device_set_unit(device_t dev, int unit)
 void
 resource_list_init(struct resource_list *rl)
 {
-	SLIST_INIT(rl);
+	STAILQ_INIT(rl);
 }
 
 /**
@@ -2478,10 +2478,10 @@ resource_list_free(struct resource_list *rl)
 {
 	struct resource_list_entry *rle;
 
-	while ((rle = SLIST_FIRST(rl)) != NULL) {
+	while ((rle = STAILQ_FIRST(rl)) != NULL) {
 		if (rle->res)
 			panic("resource_list_free: resource entry is busy");
-		SLIST_REMOVE_HEAD(rl, link);
+		STAILQ_REMOVE_HEAD(rl, link);
 		free(rle, M_BUS);
 	}
 }
@@ -2539,7 +2539,7 @@ resource_list_add(struct resource_list *rl, int type, int rid,
 		    M_NOWAIT);
 		if (!rle)
 			panic("resource_list_add: can't record entry");
-		SLIST_INSERT_HEAD(rl, rle, link);
+		STAILQ_INSERT_TAIL(rl, rle, link);
 		rle->type = type;
 		rle->rid = rid;
 		rle->res = NULL;
@@ -2568,7 +2568,7 @@ resource_list_find(struct resource_list *rl, int type, int rid)
 {
 	struct resource_list_entry *rle;
 
-	SLIST_FOREACH(rle, rl, link) {
+	STAILQ_FOREACH(rle, rl, link) {
 		if (rle->type == type && rle->rid == rid)
 			return (rle);
 	}
@@ -2590,7 +2590,7 @@ resource_list_delete(struct resource_list *rl, int type, int rid)
 	if (rle) {
 		if (rle->res != NULL)
 			panic("resource_list_delete: resource has not been released");
-		SLIST_REMOVE(rl, rle, resource_list_entry, link);
+		STAILQ_REMOVE(rl, rle, resource_list_entry, link);
 		free(rle, M_BUS);
 	}
 }
@@ -2741,7 +2741,7 @@ resource_list_print_type(struct resource_list *rl, const char *name, int type,
 	printed = 0;
 	retval = 0;
 	/* Yes, this is kinda cheating */
-	SLIST_FOREACH(rle, rl, link) {
+	STAILQ_FOREACH(rle, rl, link) {
 		if (rle->type == type) {
 			if (printed == 0)
 				retval += printf(" %s ", name);

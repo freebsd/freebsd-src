@@ -194,7 +194,7 @@ struct	resource;
  * @brief An entry for a single resource in a resource list.
  */
 struct resource_list_entry {
-	SLIST_ENTRY(resource_list_entry) link;
+	STAILQ_ENTRY(resource_list_entry) link;
 	int	type;			/**< @brief type argument to alloc_resource */
 	int	rid;			/**< @brief resource identifier */
 	struct	resource *res;		/**< @brief the real resource when allocated */
@@ -202,7 +202,7 @@ struct resource_list_entry {
 	u_long	end;			/**< @brief end of resource range */
 	u_long	count;			/**< @brief count within range */
 };
-SLIST_HEAD(resource_list, resource_list_entry);
+STAILQ_HEAD(resource_list, resource_list_entry);
 
 void	resource_list_init(struct resource_list *rl);
 void	resource_list_free(struct resource_list *rl);

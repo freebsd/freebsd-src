@@ -534,7 +534,7 @@ pccard_function_free(struct pccard_function *pf)
 		return;
 	}
 
-	SLIST_FOREACH(rle, &devi->resources, link) {
+	STAILQ_FOREACH(rle, &devi->resources, link) {
 		if (rle->res) {
 			if (rman_get_device(rle->res) != pf->sc->dev)
 				device_printf(pf->sc->dev,
