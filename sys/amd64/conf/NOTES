@@ -17,7 +17,7 @@ makeoptions	NO_MODULES=not_yet
 machine		amd64
 
 #
-# We want LINT to cover profiling as well
+# We want LINT to cover profiling as well.
 #XXX#profile         2
 
 
@@ -231,16 +231,16 @@ options 	DRM_DEBUG
 # Network interfaces:
 #
 
+# ath:	Atheros a/b/g WiFi adapters (requires ath_hal and wlan)
 # ed:   Western Digital and SMC 80xx; Novell NE1000 and NE2000; 3Com 3C503
 #       HP PC Lan+, various PC Card devices (refer to etc/defaults/pccard.conf)
+#	(requires miibus)
 # lnc:  Lance/PCnet cards (Isolan, Novell NE2100, NE32-VL, AMD Am7990 and
 #       Am79C960)
 
-#XXX#	Needs to be busdma'ed.
+#XXX#	still calls MD i386 kvtop function instead of vtophys etc
 #XXX#device		ed
 #XXX#device		lnc
-
-# ath:	Atheros a/b/g WiFi adapters (requires ath_hal and wlan)
 
 #XXX#device	ath
 #XXX#device	ath_hal		# Atheros HAL (includes binary component)
