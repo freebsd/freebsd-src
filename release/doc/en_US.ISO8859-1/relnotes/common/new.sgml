@@ -207,7 +207,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	the presence of dynamic attachments and detatchments.  Full
 	support for VLANs is also supported.</para>
 
-      <para>A bug in the IPSec processing for IPv4, which caused the
+      <para>A bug in the IPsec processing for IPv4, which caused the
 	inbound SPD checks to be ignored, has been fixed.</para>
 
       <para>A new ng_eiface netgraph module has been added, which
