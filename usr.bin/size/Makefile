@@ -2,5 +2,6 @@
 
 PROG=	size
 BINDIR= /usr/libexec/aout
+MAN1aout=size.1aout
 
 .include <bsd.prog.mk>

@@ -2,7 +2,7 @@
 
 PROG=	strip
 BINDIR= /usr/libexec/aout
-MAN1=	strip.1
+MAN1aout=strip.1aout
 CLEANFILES += maybe_stripped
 
 all: maybe_stripped
