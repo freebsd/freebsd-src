@@ -58,12 +58,8 @@ void cpu_critical_fork_exit(void);
 static __inline void
 cpu_critical_enter(struct thread *td)
 {
-	u_int           msr;
 
-	msr = mfmsr();
-	td->td_md.md_savecrit = msr;
-	msr &= ~PSL_EE;
-	mtmsr(msr);
+	td->td_md.md_savecrit = intr_disable();
 }
 
 /*
@@ -77,7 +73,7 @@ static __inline void
 cpu_critical_exit(struct thread *td)
 {
 
-	mtmsr(td->td_md.md_savecrit);
+	intr_restore(td->td_md.md_savecrit);
 }
 
 
