@@ -4,7 +4,7 @@
 MAN6=	wargames.6
 
 beforeinstall:
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} ${.CURDIR}/wargames.sh \
-	    ${DESTDIR}${BINDIR}/wargames
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+	    ${.CURDIR}/wargames.sh ${DESTDIR}${BINDIR}/wargames
 
 .include <bsd.prog.mk>
