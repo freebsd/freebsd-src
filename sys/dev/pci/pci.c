@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.43 1996/01/27 20:14:31 wollman Exp $
+**  $Id: pci.c,v 1.44 1996/01/30 01:14:29 se Exp $
 **
 **  General subroutines for the PCI bus.
 **  pci_configure ()
@@ -474,6 +474,8 @@ pci_bus_config (void)
 
 	real_device:
 
+#ifndef PCI_QUIET
+#ifdef PCI_BRIDGE_DEBUG
 		if (bootverbose) {
 		    printf ("\tconfig header: 0x%08x 0x%08x 0x%08x 0x%08x\n",
 			    pci_conf_read (tag, 0),
@@ -481,6 +483,8 @@ pci_bus_config (void)
 			    pci_conf_read (tag, 8),
 			    pci_conf_read (tag, 12));
 		}
+#endif
+#endif
 
 		if (func == 0 && pci_mfdev (bus_no, device)) {
 			maxfunc = 7;
@@ -1563,7 +1567,7 @@ static struct vt VendorTable[] = {
 };
 
 typedef struct {
-	const char 	subclass;
+	const int	subclass;
 	const char	*name;
 } subclass_name;
 
@@ -1659,9 +1663,13 @@ static const char *const majclasses[] = {
 
 void not_supported (pcici_t tag, u_long type)
 {
-	u_char	reg;
+	u_long	reg;
 	u_long	data;
+	u_char	class;
+	u_char	subclass;
 	struct vt * vp;
+	int	pciint;
+	int	irq;
 
 	/*
 	**	lookup the names.
@@ -1680,47 +1688,86 @@ void not_supported (pcici_t tag, u_long type)
 
 	printf (", device=0x%04lx", type >> 16);
 
-	data = (pcibus->pb_read(tag, PCI_CLASS_REG) >> 24) & 0xff;
-	if (data < sizeof(majclasses) / sizeof(majclasses[0]))
-		printf(", class=%s", majclasses[data]);
-	if (data < sizeof(subclasses) / sizeof(subclasses[0])) {
-		const subclass_name *p = subclasses[data];
+	data = pcibus->pb_read(tag, PCI_CLASS_REG);
+	class = (data >> 24) & 0xff;
+	subclass = (data >> 16) & 0xff;
 
-		data = (pcibus->pb_read(tag, PCI_CLASS_REG) >> 16) & 0xff;
-		while (p->name && (p->subclass != data)) 
+	if (class < sizeof(majclasses) / sizeof(majclasses[0])) {
+		printf(", class=%s", majclasses[class]);
+	} else {
+		printf(", class=0x%02x", class);
+	}
+
+	if (subclass < sizeof(subclasses) / sizeof(subclasses[0])) {
+		const subclass_name *p = subclasses[class];
+		while (p->name && (p->subclass != subclass)) 
 			p++;
 		if (p->name) {
 			printf(" (%s)", p->name);
 		} else {
-			printf(" (unknown subclass 0x%02lx)", data);
+			printf(" (unknown subclass 0x%02lx)", subclass);
 		}
+	} else {
+		printf(", subclass=0x%02x", subclass);
 	}
 
-	printf (" [no driver assigned]\n");
+	data = pcibus->pb_read (tag, PCI_INTERRUPT_REG);
+	pciint = PCI_INTERRUPT_PIN_EXTRACT(data);
+
+	if (pciint) {
+
+		printf (" int %c irq ", 0x60+pciint);
+
+		irq = PCI_INTERRUPT_LINE_EXTRACT(data);
+
+		/*
+		**	If it's zero, the isa irq number is unknown,
+		**	and we cannot bind the pci interrupt.
+		*/
+
+		if (irq && (irq != 0xff))
+			printf ("%d", irq);
+		else
+			printf ("??");
+	};
+
+	if (class != (PCI_CLASS_BRIDGE >> 24))
+	    printf (" [no driver assigned]");
+	printf ("\n");
 
 	if (bootverbose) {
-	    for (reg=PCI_MAP_REG_START; reg<PCI_MAP_REG_END; reg+=4) {
-		data = pcibus->pb_read (tag, reg);
-		if ((data&~7)==0) continue;
-		switch (data&7) {
+	    if (class == (PCI_CLASS_BRIDGE >> 24)) {
+		printf ("configuration space registers:");
+		for (reg = 0; reg < 0x100; reg+=4) {
+		    if ((reg & 0x0f) == 0) printf ("\n%02x:\t", reg);
+		    printf ("%08x ", pcibus->pb_read (tag, reg));
+		}
+		printf ("\n");
+	    } else {
+		for (reg=PCI_MAP_REG_START; reg<PCI_MAP_REG_END; reg+=4) {
+		    data = pcibus->pb_read (tag, reg);
+		    if ((data&~7)==0) continue;
+		    switch (data&7) {
 
 		case 1:
 		case 5:
-			printf ("	map(%x): io(%lx)\n",
+			printf ("\tmap(%x): io(%04lx)\n",
 				reg, data & ~3);
 			break;
 		case 0:
-			printf ("	map(%x): mem32(%lx)\n",
+			printf ("\tmap(%x): mem32(%08lx)\n",
 				reg, data & ~7);
 			break;
 		case 2:
-			printf ("	map(%x): mem20(%lx)\n",
+			printf ("\tmap(%x): mem20(%05lx)\n",
 				reg, data & ~7);
 			break;
 		case 4:
-			printf ("	map(%x): mem64(%lx)\n",
-				reg, data & ~7);
+			printf ("\tmap(%x): mem64(%08x%08lx)\n",
+				reg, pcibus->pb_read (tag, reg +4), data & ~7);
+			reg += 4;
 			break;
+		    }
 		}
 	    }
 	}

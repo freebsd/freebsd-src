@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.30 1996/01/27 20:14:32 wollman Exp $
+**  $Id: pcisupport.c,v 1.31 1996/01/28 22:15:46 wollman Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -44,6 +44,7 @@
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/devconf.h>
 
@@ -77,14 +78,39 @@ struct condmsg {
     unsigned char	port;
     unsigned char	mask;
     unsigned char	value;
-    char	flags;
-    const char       *text;
+    char		flags;
+    const char		*text;
 };
+
+/* make sure formats expand to at least as many chars !!! */
+#define PPB_DESCR "generic PCI bridge (vendor=%04x device=%04x subclass=%1.2d)"
+
+static char*
+generic_pci_bridge (pcici_t tag)
+{
+    char *descr;
+    unsigned classreg = pci_conf_read (tag, PCI_CLASS_REG);
+
+    if ((classreg & PCI_CLASS_MASK) == PCI_CLASS_BRIDGE) {
+
+	unsigned id = pci_conf_read (tag, PCI_ID_REG);
+
+	descr = malloc (sizeof PPB_DESCR +1, M_DEVBUF, M_WAITOK);
+	if (descr) {
+	    sprintf (descr, PPB_DESCR, id & 0xffff, (id >> 16) & 0xffff, 
+			(classreg >> 16) & 0xff);
+	}
+	return descr;
+    }
+    return 0;
+}
+
 
 static char*
 chipset_probe (pcici_t tag, pcidi_t type)
 {
 	unsigned	rev;
+	char		*descr;
 
 	switch (type) {
 	case 0x04868086:
@@ -115,11 +141,16 @@ chipset_probe (pcici_t tag, pcidi_t type)
 		return ("SiS 85c503");
 	case 0x06011039:
 		return ("SiS 85c601");
+	case 0x00221014:
+		return ("IBM 82351 PCI-PCI bridge");
 	case 0x00011011:
 		return ("DEC 21050 PCI-PCI bridge");
 	};
 
-	return ((char*)0);
+	if (descr = generic_pci_bridge(tag))
+		return descr;
+
+	return NULL;
 }
 
 #ifndef PCI_QUIET
@@ -587,6 +618,12 @@ chipset_attach (pcici_t config_id, int unit)
 	case 0x122e8086:
 		writeconfig (config_id, conf82371fb);
 		break;
+#if 0
+	case 0x00011011: /* DEC 21050 */
+	case 0x00221014: /* IBM xxx */
+		writeconfig (config_id, conf_pci2pci);
+		break;
+#endif
 #if 0
 	case 0x12308086:
 		writeconfig (config_id, conf82371fb2);
