@@ -212,9 +212,9 @@ dev_pager_getpages(object, m, count, reqpage)
 	d_mmap_t *mapfunc;
 	int prot;
 
-	mtx_assert(&Giant, MA_OWNED);
 	dev = object->handle;
 	offset = m[reqpage]->pindex;
+	VM_OBJECT_UNLOCK(object);
 	prot = PROT_READ;	/* XXX should pass in? */
 	mapfunc = devsw(dev)->d_mmap;
 
@@ -228,6 +228,7 @@ dev_pager_getpages(object, m, count, reqpage)
 	 * free up the all of the original pages.
 	 */
 	page = dev_pager_getfake(paddr);
+	VM_OBJECT_LOCK(object);
 	TAILQ_INSERT_TAIL(&object->un_pager.devp.devp_pglist, page, pageq);
 	vm_page_lock_queues();
 	for (i = 0; i < count; i++)
