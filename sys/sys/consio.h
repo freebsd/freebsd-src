@@ -239,6 +239,21 @@ typedef struct vid_info vid_info_t;
 /* release the current keyboard */
 #define CONS_RELKBD	_IO('c', 111)
 
+/* get/set the current terminal emulator info. */
+#define TI_NAME_LEN	32
+#define TI_DESC_LEN	64
+
+struct term_info {
+	int		ti_index;
+	int		ti_flags;
+	u_char		ti_name[TI_NAME_LEN];
+	u_char		ti_desc[TI_DESC_LEN];
+};
+typedef struct term_info term_info_t;
+
+#define CONS_GETTERM	_IOWR('c', 112, term_info_t)
+#define CONS_SETTERM	_IOW('c', 113, term_info_t)
+
 #ifdef PC98
 #define ADJUST_CLOCK	_IO('t',100)		/* for 98note resume */
 #endif
