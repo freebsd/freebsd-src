@@ -36,13 +36,14 @@ command is used to extract packages that have been previously created
 with the
 .Xr pkg_create 1
 command.
-
 .Sh WARNING
 .Bf -emphasis
 Since the
 .Nm
 command may execute scripts or programs contained within a package file,
-your system may be susceptible to ``trojan horses'' or other subtle
+your system may be susceptible to
+.Dq Em trojan horses
+or other subtle
 attacks from miscreants who create dangerous package files.
 .Pp
 You are advised to verify the competence and identity of those who
@@ -123,7 +124,8 @@ Use
 .Ar template
 as the input to 
 .Xr mktemp 3 
-when creating a ``staging area.''
+when creating a
+.Dq staging area .
 By default, this is the string
 .Pa /var/tmp/instmp.XXXXXX ,
 but it may be necessary to override it in the situation where
@@ -177,7 +179,9 @@ and the contents then acted on as normal.
 One or more
 .Ar pkg-name
 arguments may be specified, each being either a file containing the
-package (these usually ending with the ``.tgz'' suffix) or a
+package (these usually ending with the
+.Dq .tgz
+suffix) or a
 URL pointing at a file available on an ftp site.  Thus you may
 extract files directly from their anonymous ftp locations (e.g.
 .Nm
@@ -338,7 +342,9 @@ and
 .Ar PRE-INSTALL
 is that this allows you to write a single
 .Ar install
-script that does both ``before and after'' actions. But, separating the
+script that does both
+.Dq before and after
+actions. But, separating the
 functionality is more advantageous and easier from a maintainence viewpoint.
 .It
 After installation is complete, a copy of the packing list,

@@ -36,9 +36,11 @@
 The
 .Nm
 command is used to dump out information for packages, either packed up in
-files or already installed on the system
-with the
+files with the
 .Xr pkg_create 1
+command or already installed on the system
+with the
+.Xr pkg_add 1
 command.
 .Sh OPTIONS
 The following command line options are supported:
@@ -54,7 +56,9 @@ Turn on verbose output.
 .It Fl p
 Show the installation prefix for each package.
 .It Fl q
-Be ``quiet'' in emitting report headers and such, just dump the
+Be
+.Dq quiet
+in emitting report headers and such, just dump the
 raw info (basically, assume a non-human reading).
 .It Fl c
 Show the comment (one liner) field for each package.
@@ -102,7 +106,8 @@ Use
 .Ar template
 as the input to 
 .Xr mktemp 3 
-when creating a ``staging area.''
+when creating a
+.Dq staging area .
 By default, this is the string
 .Pa /tmp/instmp.XXXXXX ,
 but it may be necessary to override it in the situation where
