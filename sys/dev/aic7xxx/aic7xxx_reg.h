@@ -18,7 +18,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7xxx_reg.h,v 1.2 1996/01/03 06:25:32 gibbs Exp $
+ *	$Id: aic7xxx_reg.h,v 1.2.2.1 1996/01/08 02:52:24 gibbs Exp $
  */
 
 /*
@@ -572,6 +572,20 @@
 #define	SG_SIZEOF		0x08		/* sizeof(struct ahc_dma) */
 #endif
 #define	SCB_SIZEOF		0x1a		/* sizeof SCB to DMA */
+
+/* --------------------- AHA-2840-only definitions -------------------- */
+
+#define	SEECTL_2840		0xcc0
+/*	UNUSED			0xf8 */
+#define		CS_2840		0x04
+#define		CK_2840		0x02
+#define		DO_2840		0x01
+
+#define	STATUS_2840		0xcc1
+#define		EEPROM_TF	0x80
+#define		BIOS_SEL	0x60
+#define		ADSEL		0x1e
+#define		DI_2840		0x01
 
 /* --------------------- AIC-7870-only definitions -------------------- */
 
