@@ -169,8 +169,10 @@ main(int argc, char *argv[])
 	argv += optind;
 
 	/* some options make no sense when creating directories */
-	if (dostrip && dodir)
+	if (dostrip && dodir) {
+		warnx("-d and -s may not be specified together");
 		usage();
+	}
 
 	/* must have at least two arguments, except when creating directories */
 	if (argc == 0 || (argc == 1 && !dodir))
@@ -213,8 +215,10 @@ main(int argc, char *argv[])
 	}
 
 	/* can't do file1 file2 directory/file */
-	if (argc != 2)
+	if (argc != 2) {
+		warnx("wrong number or types of arguments");
 		usage();
+	}
 
 	if (!no_target) {
 		if (stat(*argv, &from_sb))
