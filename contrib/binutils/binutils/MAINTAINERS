@@ -1,0 +1,92 @@
+		========= Binutils Maintainers =========
+
+This is the list of individuals responsible for maintenance and update
+of the "binutils" module, which includes the bfd, binutils, include,
+gas, gprof, ld, and opcodes subdirectories.  The home page for binutils
+is http://sources.redhat.com/binutils/ and patches should be sent to
+binutils@sources.redhat.com with "[patch]" as part of the subject.
+
+Note - patches to the top level configure.in and config.sub scripts
+should be sent to config-patches@gnu.org and not to the binutils list.
+
+		--------- Blanket Write Privs ---------
+
+Nick Clifton <nickc@redhat.com> (head maintainer)
+Richard Henderson <rth@redhat.com>
+Ian Taylor <ian@zembu.com>
+Jeff Law <law@redhat.com>
+Jim Wilson <wilson@redhat.com>
+DJ Delorie <dj@redhat.com>
+Alan Modra <amodra@bigpond.net.au>
+Michael Meissner <meissner@redhat.com>
+
+		    --------- Maintainers ---------
+
+Maintainers are individuals who are responsible for, and have permission
+to check in changes in, certain subsets of the code.  Note that
+maintainers still need approval to check in changes outside of the
+immediate domain that they maintain.
+
+If there is no maintainer for a given domain then the responsibility
+falls to the head maintainer (above).  If there are several maintainers
+for a given domain then responsibility falls to the first maintainer.
+The first maintainer is free to devolve that responsibility among the
+other maintainers.
+
+ARM		Nick Clifton <nickc@redhat.com>
+AVR		Denis Chertykov <denisc@overta.ru>
+CRIS		Hans-Peter Nilsson <hp@axis.com>
+HPPA elf32	Alan Modra <amodra@bigpond.net.au>
+IA64		Jim Wilson <wilson@redhat.com>
+i860		Jason Eckhardt <jle@redhat.com>
+ix86		Alan Modra <amodra@bigpond.net.au>
+ix86 COFF,PE	DJ Delorie <dj@redhat.com>
+ix86		H.J.Lu <hjl@gnu.org>
+ix86 INTEL MODE Diego Novillo <dnovillo@redhat.com>
+MN10300		Eric Christopher <echristo@redhat.com>
+MIPS		Ulf Carlsson <ulfc@calypso.engr.sgi.com>
+PPC		Geoff Keating <geoffk@redhat.com>
+SH		Jörn Rennecke <amylaar@redhat.com>
+SH		Hans-Peter Nilsson <hp@bitrange.com>
+SPARC		Jakub Jelinek <jakub@redhat.com>
+68HC11 68HC12   Stephane Carrez <Stephane.Carrez@worldnet.fr>
+DWARF2		Jason Merrill <jason@redhat.com>
+x86_64		Jan Hubicka <jh@suse.cz>
+x86_64		Andreas Jaeger <aj@suse.de>
+
+               --------- CGEN Maintainers -------------
+
+CGEN is a tool for building, amongst other things, assemblers,
+disassemblers and simulators from a single description of a CPU.  It
+creates files in several of the binutils directories, but it is
+mentioned here since there is a single group that maintains CGEN and
+the files that it creates. 
+
+If you have CGEN related problems you can send email to;
+
+             cgen@sources.redhat.com
+
+The current CGEN maintainers are:
+
+  Doug Evans, Ben Elliston, Frank Eigler
+
+	       --------- Write After Approval ---------
+
+Individuals with "write after approval" have the ability to check in
+changes, but they must get approval for each change from someone in
+one of the above lists (blanket write or maintainers).
+
+[It's a huge list, folks.  You know who you are.  If you have the
+ *ability* to do binutils checkins, you're in this group.  Just remember
+ to get approval before checking anything in.]
+
+	       -------------  Obvious Fixes -------------
+
+Fixes for obvious mistakes do not need approval, and can be checked in
+right away, but the patch should still be sent to the binutils list.
+The definition of obvious is a bit hazy, and if you are not sure, then
+you should seek approval first.  Obvious fixes include fixes for
+spelling mistakes, blatantly incorrect code (where the correct code is
+also blatantly obvious), and so on.  Obvious fixes should always be
+small, the larger they are, the more likely it is that they contain
+some un-obvious side effect or consequence.
