@@ -41,6 +41,7 @@ void    abortpt __P((int));
 void    abortrecv __P((int));
 void    abortsend __P((int));
 void	account __P((int, char **));
+void	ai_unmapped __P((struct addrinfo *));
 void	alarmtimer __P((int));
 int	another __P((int *, char ***, const char *));
 int	auto_fetch __P((int, char **));
