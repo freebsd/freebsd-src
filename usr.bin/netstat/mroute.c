@@ -62,14 +62,13 @@
 #include "netstat.h"
 
 void
-mroutepr(mrpaddr, mfcaddr, vifaddr)
-	u_long mrpaddr, mfcaddr, vifaddr;
+mroutepr(mfcaddr, vifaddr)
+	u_long mfcaddr, vifaddr;
 {
 	u_int mrtproto;
-	struct mbuf *mfctable[MFCTBLSIZ];
+	struct mfc *mfctable[MFCTBLSIZ];
 	struct vif viftable[MAXVIFS];
-	struct mbuf mb, *m;
-	struct mfc smfc;
+	struct mfc mfc, *m;
 	register struct vif *v;
 	register vifi_t vifi;
 	register int i;
@@ -77,32 +76,8 @@ mroutepr(mrpaddr, mfcaddr, vifaddr)
 	register int saved_nflag;
 	vifi_t maxvif = 0;
 
-	if (mrpaddr == 0) {
-		printf("ip_mrtproto: symbol not in namelist\n");
-		return;
-	}
-
-	kread(mrpaddr, (char *)&mrtproto, sizeof(mrtproto));
-	switch (mrtproto) {
-
-	case 0:
-		printf("no multicast routing compiled into this system\n");
-		return;
-
-	case IGMP_DVMRP:
-		break;
-
-	default:
-		printf("multicast routing protocol %u, unknown\n", mrtproto);
-		return;
-	}
-
-	if (mfcaddr == 0) {
-		printf("mfctable: symbol not in namelist\n");
-		return;
-	}
-	if (vifaddr == 0) {
-		printf("viftable: symbol not in namelist\n");
+	if (mfcaddr == 0 || vifaddr == 0) {
+		printf("No multicast routing compiled into this system.\n");
 		return;
 	}
 
@@ -124,7 +99,8 @@ mroutepr(mrpaddr, mfcaddr, vifaddr)
 		}
 
 		printf(" %2u    %6u   %4d   %-15.15s",
-		    vifi, v->v_threshold, v->v_rate_limit, 
+					/* opposite math of add_vif() */
+		    vifi, v->v_threshold, v->v_rate_limit * 1000 / 1024, 
 		    routename(v->v_lcl_addr.s_addr));
 		printf(" %-15.15s", (v->v_flags & VIFF_TUNNEL) ?
 		    routename(v->v_rmt_addr.s_addr) : "");
@@ -139,8 +115,7 @@ mroutepr(mrpaddr, mfcaddr, vifaddr)
 	for (i = 0; i < MFCTBLSIZ; ++i) {
 		m = mfctable[i];
 		while(m) {
-			kread((u_long)m, (char *)&mb, sizeof mb);
-			m = &mb;
+			kread((u_long)m, (char *)&mfc, sizeof mfc);
 
 			if (!banner_printed) {
 				printf("\nMulticast Forwarding Cache\n"
@@ -149,19 +124,17 @@ mroutepr(mrpaddr, mfcaddr, vifaddr)
 				banner_printed = 1;
 			}
 
-			kread((u_long)mtod(m, char *), 
-			      (char *)&smfc, sizeof smfc);
-			printf(" %-15.15s", routename(smfc.mfc_origin.s_addr));
-			printf(" %-15.15s", routename(smfc.mfc_mcastgrp.s_addr));
-			printf(" %9lu", smfc.mfc_pkt_cnt);
-			printf("  %3d   ", smfc.mfc_parent);
+			printf(" %-15.15s", routename(mfc.mfc_origin.s_addr));
+			printf(" %-15.15s", routename(mfc.mfc_mcastgrp.s_addr));
+			printf(" %9lu", mfc.mfc_pkt_cnt);
+			printf("  %3d   ", mfc.mfc_parent);
 			for (vifi = 0; vifi <= maxvif; vifi++) {
-				if (smfc.mfc_ttls[vifi] > 0)
+				if (mfc.mfc_ttls[vifi] > 0)
 					printf(" %u:%u", vifi, 
-					       smfc.mfc_ttls[vifi]);
+					       mfc.mfc_ttls[vifi]);
 			}
 			printf("\n");
-			m = m->m_act;
+			m = mfc.mfc_next;
 		}
 	}
 	if (!banner_printed)
@@ -173,33 +146,13 @@ mroutepr(mrpaddr, mfcaddr, vifaddr)
 
 
 void
-mrt_stats(mrpaddr, mstaddr)
-	u_long mrpaddr, mstaddr;
+mrt_stats(mstaddr)
+	u_long mstaddr;
 {
-	u_int mrtproto;
 	struct mrtstat mrtstat;
 
-	if(mrpaddr == 0) {
-		printf("ip_mrtproto: symbol not in namelist\n");
-		return;
-	}
-
-	kread(mrpaddr, (char *)&mrtproto, sizeof(mrtproto));
-	switch (mrtproto) {
-	    case 0:
-		printf("no multicast routing compiled into this system\n");
-		return;
-
-	    case IGMP_DVMRP:
-		break;
-
-	    default:
-		printf("multicast routing protocol %u, unknown\n", mrtproto);
-		return;
-	}
-
 	if (mstaddr == 0) {
-		printf("mrtstat: symbol not in namelist\n");
+		printf("No multicast routing compiled into this system.\n");
 		return;
 	}
 
