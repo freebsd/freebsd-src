@@ -1155,9 +1155,10 @@ SBP_DEBUG(0)
 #endif
 END_DEBUG
 
-
-	if(sbp_cmd_status->status == SCSI_STATUS_CHECK_COND ||
-			sbp_cmd_status->status == SCSI_STATUS_CMD_TERMINATED){
+	switch (sbp_cmd_status->status) {
+	case SCSI_STATUS_CHECK_COND:
+	case SCSI_STATUS_BUSY:
+	case SCSI_STATUS_CMD_TERMINATED:
 		if(sbp_cmd_status->sfmt == SBP_SFMT_CURR){
 			sense->error_code = SSD_CURRENT_ERROR;
 		}else{
@@ -1211,8 +1212,11 @@ END_DEBUG
 
 }
 */
-	} else {
-		printf("sbp_scsi_status: unknown scsi status\n");
+		break;
+	default:
+		sbp_show_sdev_info(ocb->sdev, 2);
+		printf("sbp_scsi_status: unknown scsi status 0x%x\n",
+						sbp_cmd_status->status);
 	}
 }
 
