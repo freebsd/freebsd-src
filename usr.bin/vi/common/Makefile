@@ -5,11 +5,9 @@ EX=	nex
 VIEW=	nview
 PROG=	nvi
 LINKS=	${BINDIR}/${VI} ${BINDIR}/${EX} ${BINDIR}/${VI} ${BINDIR}/${VIEW}
+MAN1=	${.CURDIR}/../USD.doc/vi.man/vi.1
 
-#CFLAGS=-g -DDEBUG
-#CFLAGS+=-pg
 CFLAGS+=-I. -I${.CURDIR}
-#LDADD+=-pg
 DPADD+= ${LIBCURSES} ${LIBTERM} ${LIBUTIL}
 LDADD+=	-lcurses -ltermlib -lutil
 
@@ -18,7 +16,7 @@ LDADD+=	-lcurses -ltermlib -lutil
 
 SPECHDR=compat.h excmd.h options.h
 
-CLEANFILES+=${SPECHDR} ${EX} vi.1
+CLEANFILES+=${SPECHDR} ${EX}
 
 # General sources.
 SRCS=	cut.c delete.c exf.c line.c log.c main.c mark.c msg.c options.c \
@@ -54,9 +52,9 @@ SRCS+=	svi_confirm.c svi_curses.c svi_ex.c svi_get.c svi_line.c \
 # Athena widget set screen source.
 SRCS+=	xaw_screen.c
 
-all: ${VI} ${EX} vi.1
+all: ${VI} ${EX}
 
-all: nvi nex vi.1
+all: nvi nex
 nex: nvi
 	rm -f nex
 	ln nvi nex
@@ -82,10 +80,6 @@ excmd.h: excmd.h.stub excmd.c excmd.awk
 	rm -f excmd.h
 	cat ${.CURDIR}/../ex/excmd.h.stub > excmd.h
 	awk -f ${.CURDIR}/../ex/excmd.awk ${.CURDIR}/../ex/excmd.c >> excmd.h
-
-vi.1:
-	rm -f vi.1
-	ln -s ${.CURDIR}/../USD.doc/vi.man/vi.1 vi.1
 
 tags::
 	-(cd ${.CURDIR} && rm -f tags && \
