@@ -8,7 +8,7 @@ MAN1=	builtin.1 intro.1
 MLINKS=	builtin.1 alias.1 builtin.1 alloc.1 builtin.1 bg.1 \
 	builtin.1 break.1 builtin.1 breaksw.1 builtin.1 case.1 \
 	builtin.1 cd.1 builtin.1 chdir.1 builtin.1 command.1 \
-	builtin.1 continue.1 builtin.1 cwd.1 builtin.1 default.1 \
+	builtin.1 continue.1 builtin.1 default.1 \
 	builtin.1 dirs.1 builtin.1 do.1 builtin.1 done.1 \
 	builtin.1 elif.1 builtin.1 else.1 \
 	builtin.1 end.1 builtin.1 endif.1 builtin.1 endsw.1 \
