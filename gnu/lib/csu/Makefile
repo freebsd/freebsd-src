@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+INTERNALLIB=	true
+
 GCCDIR=	${.CURDIR}/../../../contrib/gcc
 .PATH: ${GCCDIR}
 
