@@ -725,7 +725,7 @@ network_pass3() {
 		esac
 
 		# If /var/db/mounttab exists, some nfs-server has not been
-		# sucessfully notified about a previous client shutdown.
+		# successfully notified about a previous client shutdown.
 		# If there is no /var/db/mounttab, we do nothing.
 		if [ -f /var/db/mounttab ]; then
 			rpc.umntall -k
