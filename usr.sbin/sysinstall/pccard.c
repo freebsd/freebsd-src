@@ -1,7 +1,7 @@
 /*
  * PC-card support for sysinstall
  *
- * $Id: pccard.c,v 1.1 1999/06/17 19:04:56 markm Exp $
+ * $Id: pccard.c,v 1.2 1999/06/30 05:04:37 hosokawa Exp $
  *
  * Copyright (c) 1997-1999
  *	Tatsumi Hosokawa <hosokawa@jp.FreeBSD.org>.  All rights reserved.
@@ -89,15 +89,19 @@ pccardInitialize(void)
     switch (t) {
       case 0:
 	pcic_mem = 0xd0000;
+	variable_set2("pccard_mem", "DEFAULT", 1);
 	break;
       case 1:
 	pcic_mem = 0xd4000;
+	variable_set2("pccard_mem", "0xd4000", 1);
 	break;
       case 2:
 	pcic_mem = 0xd8000;
+	variable_set2("pccard_mem", "0xd8000", 1);
 	break;
       case 3:
 	pcic_mem = 0xdc000;
+	variable_set2("pccard_mem", "0xdc000", 1);
 	break;
     }
 
