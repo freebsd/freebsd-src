@@ -113,7 +113,7 @@ static vop_setextattr_t	union_setextattr;
 static vop_strategy_t	union_strategy;
 static vop_symlink_t	union_symlink;
 static vop_whiteout_t	union_whiteout;
-static vop_read_t	union_write;
+static vop_write_t	union_write;
 
 static __inline
 struct vnode *
@@ -1076,7 +1076,7 @@ union_read(ap)
 
 static int
 union_write(ap)
-	struct vop_read_args /* {
+	struct vop_write_args /* {
 		struct vnode *a_vp;
 		struct uio *a_uio;
 		int  a_ioflag;
