@@ -1801,6 +1801,8 @@ contigmalloc1(
 	vm_paddr_t phys;
 	int pass;
 	vm_page_t pga = vm_page_array;
+	vm_page_t m;
+	int pqtype;
 
 	size = round_page(size);
 	if (size == 0)
@@ -1819,14 +1821,17 @@ again:
 		 * such that the boundary won't be crossed.
 		 */
 		for (i = start; i < cnt.v_page_count; i++) {
-			int pqtype;
-			phys = VM_PAGE_TO_PHYS(&pga[i]);
-			pqtype = pga[i].queue - pga[i].pc;
+			m = &pga[i];
+			phys = VM_PAGE_TO_PHYS(m);
+			pqtype = m->queue - m->pc;
 			if (((pqtype == PQ_FREE) || (pqtype == PQ_CACHE)) &&
 			    (phys >= low) && (phys < high) &&
 			    ((phys & (alignment - 1)) == 0) &&
-			    (((phys ^ (phys + size - 1)) & ~(boundary - 1)) == 0))
+			    (((phys ^ (phys + size - 1)) & ~(boundary - 1)) == 0) &&
+			    m->busy == 0 && m->wire_count == 0 &&
+			    m->hold_count == 0 && (m->flags & PG_BUSY) == 0) {
 				break;
+			}
 		}
 
 		/*
@@ -1900,25 +1905,27 @@ again1:
 		 * Check successive pages for contiguous and free.
 		 */
 		for (i = start + 1; i < (start + size / PAGE_SIZE); i++) {
-			int pqtype;
-			pqtype = pga[i].queue - pga[i].pc;
-			if ((VM_PAGE_TO_PHYS(&pga[i]) !=
-			    (VM_PAGE_TO_PHYS(&pga[i - 1]) + PAGE_SIZE)) ||
-			    ((pqtype != PQ_FREE) && (pqtype != PQ_CACHE))) {
+			m = &pga[i];
+			pqtype = m->queue - m->pc;
+			if ((VM_PAGE_TO_PHYS(&m[0]) !=
+			    (VM_PAGE_TO_PHYS(&m[-1]) + PAGE_SIZE)) ||
+			    ((pqtype != PQ_FREE) && (pqtype != PQ_CACHE)) ||
+			    m->busy || m->wire_count ||
+			    m->hold_count || (m->flags & PG_BUSY) ) {
 				start++;
 				goto again;
 			}
 		}
 
 		for (i = start; i < (start + size / PAGE_SIZE); i++) {
-			int pqtype;
-			vm_page_t m = &pga[i];
+			m = &pga[i];
 
 			pqtype = m->queue - m->pc;
 			if (pqtype == PQ_CACHE) {
 				vm_page_busy(m);
 				vm_page_free(m);
 			}
+			KASSERT((m->object == NULL), ("contigmalloc: object NULL"));
 			vm_page_unqueue_nowakeup(m);
 			m->valid = VM_PAGE_BITS_ALL;
 			if (m->flags & PG_ZERO)
@@ -1928,7 +1935,6 @@ again1:
 			KASSERT(m->dirty == 0, ("contigmalloc1: page %p was dirty", m));
 			m->wire_count = 0;
 			m->busy = 0;
-			m->object = NULL;
 		}
 
 		/*
