@@ -57,27 +57,26 @@
     (u_int32_t)(now)->tv_usec)
 
 __BEGIN_DECLS
-extern u_int __rpc_get_a_size __P((int));
-extern int __rpc_dtbsize __P((void));
-extern int _rpc_dtablesize __P((void));
-extern struct netconfig * __rpcgettp __P((int));
-extern  int  __rpc_get_default_domain __P((char **));
+extern u_int __rpc_get_a_size(int);
+extern int __rpc_dtbsize(void);
+extern int _rpc_dtablesize(void);
+extern struct netconfig * __rpcgettp(int);
+extern  int  __rpc_get_default_domain(char **);
 
-char *__rpc_taddr2uaddr_af __P((int, const struct netbuf *));
-struct netbuf *__rpc_uaddr2taddr_af __P((int, const char *));
-int __rpc_fixup_addr __P((struct netbuf *, const struct netbuf *));
-int __rpc_sockinfo2netid __P((struct __rpc_sockinfo *, const char **));
-int __rpc_seman2socktype __P((int));
-int __rpc_socktype2seman __P((int));
-void *rpc_nullproc __P((CLIENT *));
-int __rpc_sockisbound __P((int));
+char *__rpc_taddr2uaddr_af(int, const struct netbuf *);
+struct netbuf *__rpc_uaddr2taddr_af(int, const char *);
+int __rpc_fixup_addr(struct netbuf *, const struct netbuf *);
+int __rpc_sockinfo2netid(struct __rpc_sockinfo *, const char **);
+int __rpc_seman2socktype(int);
+int __rpc_socktype2seman(int);
+void *rpc_nullproc(CLIENT *);
+int __rpc_sockisbound(int);
 
-struct netbuf *__rpcb_findaddr __P((rpcprog_t, rpcvers_t,
-				    const struct netconfig *,
-				    const char *, CLIENT **));
-bool_t __rpc_control __P((int,void *));
+struct netbuf *__rpcb_findaddr(rpcprog_t, rpcvers_t, const struct netconfig *,
+			       const char *, CLIENT **);
+bool_t __rpc_control(int,void *);
 
-char *_get_next_token __P((char *, int));
+char *_get_next_token(char *, int);
 
 __END_DECLS
 

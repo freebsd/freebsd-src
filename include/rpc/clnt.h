@@ -97,22 +97,22 @@ typedef struct __rpc_client {
 	AUTH	*cl_auth;			/* authenticator */
 	struct clnt_ops {
 		/* call remote procedure */
-		enum clnt_stat	(*cl_call) __P((struct __rpc_client *,
+		enum clnt_stat	(*cl_call)(struct __rpc_client *,
 				    rpcproc_t, xdrproc_t, caddr_t, xdrproc_t,
-					caddr_t, struct timeval));
+					caddr_t, struct timeval);
 		/* abort a call */
-		void		(*cl_abort) __P((struct __rpc_client *));
+		void		(*cl_abort)(struct __rpc_client *);
 		/* get specific error code */
-		void		(*cl_geterr) __P((struct __rpc_client *,
-					struct rpc_err *));
+		void		(*cl_geterr)(struct __rpc_client *,
+					struct rpc_err *);
 		/* frees results */
-		bool_t		(*cl_freeres) __P((struct __rpc_client *,
-					xdrproc_t, caddr_t));
+		bool_t		(*cl_freeres)(struct __rpc_client *,
+					xdrproc_t, caddr_t);
 		/* destroy this structure */
-		void		(*cl_destroy) __P((struct __rpc_client *));
+		void		(*cl_destroy)(struct __rpc_client *);
 		/* the ioctl() of rpc */
-		bool_t          (*cl_control) __P((struct __rpc_client *, u_int,
-				    char *));
+		bool_t          (*cl_control)(struct __rpc_client *, u_int,
+				    char *);
 	} *cl_ops;
 	void 			*cl_private;	/* private stuff */
 	char			*cl_netid;	/* network token */
@@ -274,8 +274,8 @@ struct rpc_timers {
  *	const char *prot;	-- protocol
  */
 __BEGIN_DECLS
-extern CLIENT *clnt_create __P((const char *, const rpcprog_t, const rpcvers_t,
-				const char *));
+extern CLIENT *clnt_create(const char *, const rpcprog_t, const rpcvers_t,
+			   const char *);
 /*
  *
  * 	const char *hostname;			-- hostname
@@ -288,9 +288,9 @@ extern CLIENT *clnt_create __P((const char *, const rpcprog_t, const rpcvers_t,
  * Generic client creation routine. Supported protocols are which belong
  * to the nettype name space.
  */
-extern CLIENT *clnt_create_vers __P((const char *, const rpcprog_t, rpcvers_t *,
-				     const rpcvers_t, const rpcvers_t,
-				     const char *));
+extern CLIENT *clnt_create_vers(const char *, const rpcprog_t, rpcvers_t *,
+				const rpcvers_t, const rpcvers_t,
+				const char *);
 /*
  *	const char *host;		-- hostname
  *	const rpcprog_t prog;		-- program number
@@ -305,8 +305,8 @@ extern CLIENT *clnt_create_vers __P((const char *, const rpcprog_t, rpcvers_t *,
  * Generic client creation routine. It takes a netconfig structure
  * instead of nettype
  */
-extern CLIENT *clnt_tp_create __P((const char *, const rpcprog_t,
-				   const rpcvers_t, const struct netconfig *));
+extern CLIENT *clnt_tp_create(const char *, const rpcprog_t,
+			      const rpcvers_t, const struct netconfig *);
 /*
  *	const char *hostname;			-- hostname
  *	const rpcprog_t prog;			-- program number
@@ -318,9 +318,9 @@ extern CLIENT *clnt_tp_create __P((const char *, const rpcprog_t,
  * Generic TLI create routine. Only provided for compatibility.
  */
 
-extern CLIENT *clnt_tli_create __P((const int, const struct netconfig *,
-				    const struct netbuf *, const rpcprog_t,
-				    const rpcvers_t, const u_int, const u_int));
+extern CLIENT *clnt_tli_create(const int, const struct netconfig *,
+			       const struct netbuf *, const rpcprog_t,
+			       const rpcvers_t, const u_int, const u_int);
 /*
  *	const register int fd;		-- fd
  *	const struct netconfig *nconf;	-- netconfig structure
@@ -334,14 +334,14 @@ extern CLIENT *clnt_tli_create __P((const int, const struct netconfig *,
 /*
  * Low level clnt create routine for connectionful transports, e.g. tcp.
  */
-extern CLIENT *clnt_vc_create __P((const int, const struct netbuf *,
-				   const rpcprog_t, const rpcvers_t,
-				   const u_int, const u_int));
+extern CLIENT *clnt_vc_create(const int, const struct netbuf *,
+			      const rpcprog_t, const rpcvers_t,
+			      const u_int, const u_int);
 /*
  * Added for compatibility to old rpc 4.0. Obsoleted by clnt_vc_create().
  */
-extern CLIENT *clntunix_create  __P((struct sockaddr_un *,
-				     u_long, u_long, int *, u_int, u_int));
+extern CLIENT *clntunix_create(struct sockaddr_un *,
+			       u_long, u_long, int *, u_int, u_int);
 /*
  *	const int fd;				-- open file descriptor
  *	const struct netbuf *svcaddr;		-- servers address
@@ -354,9 +354,9 @@ extern CLIENT *clntunix_create  __P((struct sockaddr_un *,
 /*
  * Low level clnt create routine for connectionless transports, e.g. udp.
  */
-extern CLIENT *clnt_dg_create __P((const int, const struct netbuf *,
-				   const rpcprog_t, const rpcvers_t,
-				   const u_int, const u_int));
+extern CLIENT *clnt_dg_create(const int, const struct netbuf *,
+			      const rpcprog_t, const rpcvers_t,
+			      const u_int, const u_int);
 /*
  *	const int fd;				-- open file descriptor
  *	const struct netbuf *svcaddr;		-- servers address
@@ -373,7 +373,7 @@ extern CLIENT *clnt_dg_create __P((const int, const struct netbuf *,
  *	u_long prog;
  *	u_long vers;
  */
-extern CLIENT *clnt_raw_create	__P((rpcprog_t, rpcvers_t));
+extern CLIENT *clnt_raw_create(rpcprog_t, rpcvers_t);
 
 __END_DECLS
 
@@ -382,24 +382,24 @@ __END_DECLS
  * Print why creation failed
  */
 __BEGIN_DECLS
-extern void clnt_pcreateerror	__P((const char *));			/* stderr */
-extern char *clnt_spcreateerror	__P((const char *));			/* string */
+extern void clnt_pcreateerror(const char *);			/* stderr */
+extern char *clnt_spcreateerror(const char *);			/* string */
 __END_DECLS
 
 /*
  * Like clnt_perror(), but is more verbose in its output
  */
 __BEGIN_DECLS
-extern void clnt_perrno		__P((enum clnt_stat));		/* stderr */
-extern char *clnt_sperrno	__P((enum clnt_stat));		/* string */
+extern void clnt_perrno(enum clnt_stat);		/* stderr */
+extern char *clnt_sperrno(enum clnt_stat);		/* string */
 __END_DECLS
 
 /*
  * Print an English error message, given the client error code
  */
 __BEGIN_DECLS
-extern void clnt_perror		__P((CLIENT *, const char *));	 	/* stderr */
-extern char *clnt_sperror	__P((CLIENT *, const char *));		/* string */
+extern void clnt_perror(CLIENT *, const char *);	 	/* stderr */
+extern char *clnt_sperror(CLIENT *, const char *);		/* string */
 __END_DECLS
 
 
@@ -413,7 +413,7 @@ struct rpc_createerr {
 
 #ifdef _THREAD_SAFE
 __BEGIN_DECLS
-extern struct rpc_createerr	*__rpc_createerr __P((void));
+extern struct rpc_createerr	*__rpc_createerr(void);
 __END_DECLS
 #define rpc_createerr		(*(__rpc_createerr()))
 #else
@@ -434,10 +434,10 @@ extern struct rpc_createerr rpc_createerr;
  *	const char *nettype;
  */
 __BEGIN_DECLS
-extern enum clnt_stat rpc_call __P((const char *, const rpcprog_t,
-				    const rpcvers_t, const rpcproc_t,
-				    const xdrproc_t, const char *,
-				    const xdrproc_t, char *, const char *));
+extern enum clnt_stat rpc_call(const char *, const rpcprog_t,
+			       const rpcvers_t, const rpcproc_t,
+			       const xdrproc_t, const char *,
+			       const xdrproc_t, char *, const char *);
 __END_DECLS
 
 /*
@@ -484,18 +484,18 @@ __END_DECLS
  *	const char		*nettype;	-- Transport type
  */
 
-typedef bool_t (*resultproc_t) __P((caddr_t, ...));
+typedef bool_t (*resultproc_t)(caddr_t, ...);
 
 __BEGIN_DECLS
-extern enum clnt_stat rpc_broadcast __P((const rpcprog_t, const rpcvers_t,
-					 const rpcproc_t, const xdrproc_t,
-					 caddr_t, const xdrproc_t, caddr_t,
-					 const resultproc_t, const char *));
-extern enum clnt_stat rpc_broadcast_exp __P((const rpcprog_t, const rpcvers_t,
-					     const rpcproc_t, const xdrproc_t,
-					     caddr_t, const xdrproc_t, caddr_t,
-					     const resultproc_t, const int,
-					     const int, const char *));
+extern enum clnt_stat rpc_broadcast(const rpcprog_t, const rpcvers_t,
+				    const rpcproc_t, const xdrproc_t,
+				    caddr_t, const xdrproc_t, caddr_t,
+				    const resultproc_t, const char *);
+extern enum clnt_stat rpc_broadcast_exp(const rpcprog_t, const rpcvers_t,
+					const rpcproc_t, const xdrproc_t,
+					caddr_t, const xdrproc_t, caddr_t,
+					const resultproc_t, const int,
+					const int, const char *);
 __END_DECLS
 
 /* For backward compatibility */

@@ -69,7 +69,7 @@ struct authunix_parms {
 #define authsys_parms authunix_parms
 
 __BEGIN_DECLS
-extern bool_t xdr_authunix_parms __P((XDR *, struct authunix_parms *));
+extern bool_t xdr_authunix_parms(XDR *, struct authunix_parms *);
 __END_DECLS
 
 /*

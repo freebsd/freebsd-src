@@ -83,12 +83,12 @@ typedef	_BSD_SIZE_T_	size_t;
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-char	*vis __P((char *, int, int, int));
-int	strvis __P((char *, const char *, int));
-int	strvisx __P((char *, const char *, size_t, int));
-int	strunvis __P((char *, const char *));
-int	strunvisx __P((char *, const char *, int));
-int	unvis __P((char *, int, int *, int));
+char	*vis(char *, int, int, int);
+int	strvis(char *, const char *, int);
+int	strvisx(char *, const char *, size_t, int);
+int	strunvis(char *, const char *);
+int	strunvisx(char *, const char *, int);
+int	unvis(char *, int, int *, int);
 __END_DECLS
 
 #endif /* !_VIS_H_ */

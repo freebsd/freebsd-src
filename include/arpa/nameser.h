@@ -415,31 +415,31 @@ typedef enum __ns_class {
 #define	ns_name_uncompress	__ns_name_uncompress
 
 __BEGIN_DECLS
-u_int		ns_get16 __P((const u_char *));
-u_long		ns_get32 __P((const u_char *));
-void		ns_put16 __P((u_int, u_char *));
-void		ns_put32 __P((u_long, u_char *));
-int		ns_initparse __P((const u_char *, int, ns_msg *));
-int		ns_parserr __P((ns_msg *, ns_sect, int, ns_rr *));
-int		ns_sprintrr __P((const ns_msg *, const ns_rr *,
-				 const char *, const char *, char *, size_t));
-int		ns_sprintrrf __P((const u_char *, size_t, const char *,
-				  ns_class, ns_type, u_long, const u_char *,
-				  size_t, const char *, const char *,
-				  char *, size_t));
-int		ns_format_ttl __P((u_long, char *, size_t));
-int		ns_parse_ttl __P((const char *, u_long *));
-int		ns_name_ntop __P((const u_char *, char *, size_t));
-int		ns_name_pton __P((const char *, u_char *, size_t));
-int		ns_name_unpack __P((const u_char *, const u_char *,
-				    const u_char *, u_char *, size_t));
-int		ns_name_pack __P((const u_char *, u_char *, int,
-				  const u_char **, const u_char **));
-int		ns_name_uncompress __P((const u_char *, const u_char *,
-					const u_char *, char *, size_t));
-int		ns_name_compress __P((const char *, u_char *, size_t,
-				      const u_char **, const u_char **));
-int		ns_name_skip __P((const u_char **, const u_char *));
+u_int		ns_get16(const u_char *);
+u_long		ns_get32(const u_char *);
+void		ns_put16(u_int, u_char *);
+void		ns_put32(u_long, u_char *);
+int		ns_initparse(const u_char *, int, ns_msg *);
+int		ns_parserr(ns_msg *, ns_sect, int, ns_rr *);
+int		ns_sprintrr(const ns_msg *, const ns_rr *,
+			    const char *, const char *, char *, size_t);
+int		ns_sprintrrf(const u_char *, size_t, const char *,
+			     ns_class, ns_type, u_long, const u_char *,
+			     size_t, const char *, const char *,
+			     char *, size_t);
+int		ns_format_ttl(u_long, char *, size_t);
+int		ns_parse_ttl(const char *, u_long *);
+int		ns_name_ntop(const u_char *, char *, size_t);
+int		ns_name_pton(const char *, u_char *, size_t);
+int		ns_name_unpack(const u_char *, const u_char *,
+			       const u_char *, u_char *, size_t);
+int		ns_name_pack(const u_char *, u_char *, int,
+			     const u_char **, const u_char **);
+int		ns_name_uncompress(const u_char *, const u_char *,
+				   const u_char *, char *, size_t);
+int		ns_name_compress(const char *, u_char *, size_t,
+				 const u_char **, const u_char **);
+int		ns_name_skip(const u_char **, const u_char *);
 __END_DECLS
 
 #ifdef BIND_4_COMPAT
