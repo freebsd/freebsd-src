@@ -86,6 +86,7 @@ MAIN:{
     <meta name=\"robots\" content=\"nofollow\" />
     <meta http-equiv=\"refresh\" content=\"600\" />
     <link rel=\"stylesheet\" type=\"text/css\" media=\"screen\" href=\"tb.css\" />
+    <link rel=\"shortcut icon\" type=\"image/png\" href=\"daemon.png\" />
   </head>
   <body>
     <h1>FreeBSD tinderbox logs</h1>
