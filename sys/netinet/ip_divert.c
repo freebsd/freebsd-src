@@ -284,6 +284,7 @@ div_output(struct socket *so, struct mbuf *m,
 	divert_tag.mh_flags = PACKET_TAG_DIVERT;
 	divert_tag.mh_next = m;
 	divert_tag.mh_data = 0;		/* the matching rule # */
+	divert_tag.mh_nextpkt = NULL;
 	m->m_pkthdr.rcvif = NULL;	/* XXX is it necessary ? */
 
 #ifdef MAC
