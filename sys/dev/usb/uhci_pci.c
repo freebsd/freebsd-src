@@ -1,4 +1,4 @@
-/*	FreeBSD $Id: uhci_pci.c,v 1.1 1999/02/18 21:42:19 n_hibma Exp $ */
+/*	FreeBSD $Id: uhci_pci.c,v 1.2 1999/03/23 21:37:45 n_hibma Exp $ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -57,6 +57,11 @@
 #define PCI_SUBCLASS_SERIALBUS_USB		0x00030000
 #define PCI_SUBCLASS_SERIALBUS_FIBER		0x00040000
 
+#define PCI_INTERFACE(d)	(((d)>>8)&0xff)
+#define PCI_SUBCLASS(d)		((d)&PCI_SUBCLASS_MASK)
+#define PCI_CLASS(d)		((d)&PCI_CLASS_MASK)
+
+
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdivar.h>
@@ -65,12 +70,6 @@
 #include <dev/usb/uhcireg.h>
 #include <dev/usb/uhcivar.h>
 
-#define PCI_INTERFACE(d)	(((d)>>8)&0xff)
-#define PCI_SUBCLASS(d)		((d)&PCI_SUBCLASS_MASK)
-#define PCI_CLASS(d)		((d)&PCI_CLASS_MASK)
-
-#define PCI_VENDOR(d)		((d)&0xffff)
-#define PCI_DEVICE(d)		(((d)>>8)&0xffff)
 
 #define PCI_UHCI_VENDORID_INTEL		0x8086
 #define PCI_UHCI_VENDORID_VIA		0x1106
@@ -89,7 +88,7 @@ static const char *uhci_device_generic	= "UHCI (generic) USB Controller";
 static const char *uhci_pci_probe	__P((pcici_t, pcidi_t));
 static void uhci_pci_attach		__P((pcici_t, int));
 
-u_long uhci_count = 0;           /* global counter for nr. of devices found */
+static u_long uhci_count = 0;
 
 static struct pci_device uhci_pci_device = {
 	"uhci",
@@ -130,30 +129,53 @@ uhci_pci_attach(pcici_t config_id, int unit)
 {
 	int id, legsup;
 	char *typestr;
-	usbd_status r;
+	usbd_status err;
 	uhci_softc_t *sc = NULL;
+	device_t usbus;
 
 	sc = malloc(sizeof(uhci_softc_t), M_DEVBUF, M_NOWAIT);
 	/* Do not free it below, intr might use the sc */
 	if ( sc == NULL ) {
-		printf("usb%d: could not allocate memory", unit);
+		printf("uhci%d: could not allocate memory", unit);
 		return;
 	}
 	memset(sc, 0, sizeof(uhci_softc_t));
 
-	sc->sc_iobase = pci_conf_read(config_id,PCI_UHCI_BASE_REG) & 0xffe0;
-	sc->unit      = unit;
+	sc->sc_iobase = pci_conf_read(config_id, PCI_UHCI_BASE_REG) & 0xffe0;
 
 	if ( !pci_map_int(config_id, (pci_inthand_t *)uhci_intr,
 			  (void *) sc, &bio_imask)) {
-		printf("usb%d: could not map irq\n", unit);
+		printf("uhci%d: could not map irq\n", unit);
 		return;                    
 	}
 
-#ifndef USBVERBOSE
-	if (bootverbose)
-#endif
-	{
+	usbus = device_add_child(root_bus, "usb", -1, sc);
+	if (!usbus) {
+		printf("usb%d: could not add USB device to root bus\n", unit);
+		return;
+	}
+
+	id = pci_conf_read(config_id, PCI_ID_REG);
+	switch (id) {
+	case PCI_UHCI_DEVICEID_PIIX3:
+		device_set_desc(usbus, uhci_device_piix3);
+		sprintf(sc->sc_vendor, "Intel");
+		break;
+	case PCI_UHCI_DEVICEID_PIIX4:
+		device_set_desc(usbus, uhci_device_piix4);
+		sprintf(sc->sc_vendor, "Intel");
+		break;
+	case PCI_UHCI_DEVICEID_VT83C572:
+		device_set_desc(usbus, uhci_device_vt83c572);
+		sprintf(sc->sc_vendor, "VIA");
+		break;
+	default:
+		printf("(New UHCI DeviceId=0x%08x)\n", id);
+		device_set_desc(usbus, uhci_device_generic);
+		sprintf(sc->sc_vendor, "(0x%08x)", id);
+	}
+
+	if (bootverbose) {
 		switch(pci_conf_read(config_id, PCI_USBREV) & PCI_USBREV_MASK) {
 		case PCI_USBREV_PRE_1_0:
 			typestr = "pre 1.0";
@@ -165,71 +187,25 @@ uhci_pci_attach(pcici_t config_id, int unit)
 			typestr = "unknown";
 			break;
 		}
-		printf("usb%d: USB version %s, chip rev. %d\n", unit, typestr,
+		printf("uhci%d: USB version %s, chip rev. %d\n", unit, typestr,
 			(int) pci_conf_read(config_id, PCIR_REVID) & 0xff);
 	}
 
-	/* Figure out vendor for root hub descriptor. */
-	id = pci_conf_read(config_id, PCI_ID_REG);
-	if (PCI_VENDOR(id) == PCI_UHCI_VENDORID_INTEL)
-		sprintf(sc->sc_vendor, "Intel");
-	else if (PCI_VENDOR(id) == PCI_UHCI_VENDORID_VIA)
-		sprintf(sc->sc_vendor, "VIA");
-	else
-		sprintf(sc->sc_vendor, "(0x%04x)", PCI_VENDOR(id));
-
-	/* We add a child to the root bus. After PCI configuration
-	 * has completed the root bus will start to probe and
-	 * attach all the devices attached to it, including our new
-	 * kid.
-	 *
-	 * FIXME Sometime in the future the UHCI controller itself will
-	 * become a kid of PCI device and this device add will no longer
-	 * be necessary.
-	 *
-	 * See README for an elaborate description of the bus
-	 * structure in spe.
-	 */
-	sc->sc_bus.bdev = device_add_child(root_bus, "usb", unit, sc);
-	if (!sc->sc_bus.bdev) {
-		printf("usb%d: could not add USB device to root bus\n", unit);
-		return;
-	}
-
-	switch (id) {
-	case PCI_UHCI_DEVICEID_PIIX3:
-		device_set_desc(sc->sc_bus.bdev, uhci_device_piix3);
-		break;
-	case PCI_UHCI_DEVICEID_PIIX4:
-		device_set_desc(sc->sc_bus.bdev, uhci_device_piix4);
-		break;
-	case PCI_UHCI_DEVICEID_VT83C572:
-		device_set_desc(sc->sc_bus.bdev, uhci_device_vt83c572);
-		break;
-	default:
-		printf("(New UHCI DeviceId=0x%08x)\n", id);
-		device_set_desc(sc->sc_bus.bdev, uhci_device_generic);
-	}
-
 	legsup = pci_conf_read(config_id, PCI_LEGSUP);
-	if ( ! (legsup & PCI_LEGSUP_USBPIRQDEN) ) {
+	if ( !(legsup & PCI_LEGSUP_USBPIRQDEN) ) {
 #if ! (defined(USBVERBOSE) || defined(USB_DEBUG))
 		if (bootverbose)
 #endif
-			printf("%s%d: PIRQD enable not set\n",
-				device_get_name(sc->sc_bus.bdev),
-				device_get_unit(sc->sc_bus.bdev));
+			printf("uhcis%d: PIRQD enable not set\n", unit);
 		legsup |= PCI_LEGSUP_USBPIRQDEN;
 		pci_conf_write(config_id, PCI_LEGSUP, legsup);
 	}
 
-	r = uhci_init(sc);
-	if (r != USBD_NORMAL_COMPLETION) {
-		printf("%s%d: init failed, error=%d\n",
-			device_get_name(sc->sc_bus.bdev),
-			device_get_unit(sc->sc_bus.bdev),
-			r);
-		device_delete_child(root_bus, sc->sc_bus.bdev);
+	sc->sc_bus.bdev = usbus;
+	err = uhci_init(sc);
+	if (err != USBD_NORMAL_COMPLETION) {
+		printf("uhci%d: init failed, error=%d\n", unit, err);
+		device_delete_child(root_bus, usbus);
 	}
 
 	return;
