@@ -67,6 +67,7 @@
 #include <sys/dirent.h>
 #include <sys/extattr.h>
 #include <sys/jail.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 
 #include <machine/limits.h>
@@ -79,7 +80,7 @@
 
 static int change_dir(struct nameidata *ndp, struct thread *td);
 static int chroot_refuse_vdir_fds(struct filedesc *fdp);
-static int getutimes(const struct timeval *, struct timespec *);
+static int getutimes(const struct timeval *, enum uio_seg, struct timespec *);
 static int setfown(struct thread *td, struct vnode *, uid_t, gid_t);
 static int setfmode(struct thread *td, struct vnode *, int);
 static int setfflags(struct thread *td, struct vnode *, int);
@@ -442,13 +443,19 @@ chdir(td, uap)
 		syscallarg(char *) path;
 	} */ *uap;
 {
+
+	return (kern_chdir(td, uap->path, UIO_USERSPACE));
+}
+
+int
+kern_chdir(struct thread *td, char *path, enum uio_seg pathseg)
+{
 	register struct filedesc *fdp = td->td_proc->p_fd;
 	int error;
 	struct nameidata nd;
 	struct vnode *vp;
 
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE,
-	    SCARG(uap, path), td);
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, pathseg, path, td);
 	if ((error = change_dir(&nd, td)) != 0)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -608,30 +615,38 @@ open(td, uap)
 		syscallarg(int) mode;
 	} */ *uap;
 {
+
+	return (kern_open(td, uap->path, UIO_USERSPACE, uap->flags, uap->mode));
+}
+
+int
+kern_open(struct thread *td, char *path, enum uio_seg pathseg, int flags,
+    int mode)
+{
 	struct proc *p = td->td_proc;
 	struct filedesc *fdp = p->p_fd;
 	struct file *fp;
 	struct vnode *vp;
 	struct vattr vat;
 	struct mount *mp;
-	int cmode, flags, oflags;
+	int cmode, oflags;
 	struct file *nfp;
 	int type, indx, error;
 	struct flock lf;
 	struct nameidata nd;
 
-	oflags = SCARG(uap, flags);
-	if ((oflags & O_ACCMODE) == O_ACCMODE)
+	if ((flags & O_ACCMODE) == O_ACCMODE)
 		return (EINVAL);
-	flags = FFLAGS(oflags);
+	oflags = flags;
+	flags = FFLAGS(flags);
 	error = falloc(td, &nfp, &indx);
 	if (error)
 		return (error);
 	fp = nfp;
 	FILEDESC_LOCK(fdp);
-	cmode = ((SCARG(uap, mode) &~ fdp->fd_cmask) & ALLPERMS) &~ S_ISTXT;
+	cmode = ((mode &~ fdp->fd_cmask) & ALLPERMS) &~ S_ISTXT;
 	FILEDESC_UNLOCK(fdp);
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, SCARG(uap, path), td);
+	NDINIT(&nd, LOOKUP, FOLLOW, pathseg, path, td);
 	td->td_dupfd = -indx - 1;		/* XXX check for fdopen */
 	/*
 	 * Bump the ref count to prevent another process from closing
@@ -812,6 +827,14 @@ mknod(td, uap)
 		syscallarg(int) dev;
 	} */ *uap;
 {
+
+	return (kern_mknod(td, uap->path, UIO_USERSPACE, uap->mode, uap->dev));
+}
+
+int
+kern_mknod(struct thread *td, char *path, enum uio_seg pathseg, int mode,
+    int dev)
+{
 	struct vnode *vp;
 	struct mount *mp;
 	struct vattr vattr;
@@ -819,7 +842,7 @@ mknod(td, uap)
 	int whiteout = 0;
 	struct nameidata nd;
 
-	switch (SCARG(uap, mode) & S_IFMT) {
+	switch (mode & S_IFMT) {
 	case S_IFCHR:
 	case S_IFBLK:
 		error = suser(td);
@@ -832,8 +855,7 @@ mknod(td, uap)
 		return (error);
 restart:
 	bwillwrite();
-	NDINIT(&nd, CREATE, LOCKPARENT | SAVENAME, UIO_USERSPACE,
-	    SCARG(uap, path), td);
+	NDINIT(&nd, CREATE, LOCKPARENT | SAVENAME, pathseg, path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	vp = nd.ni_vp;
@@ -843,12 +865,13 @@ restart:
 	} else {
 		VATTR_NULL(&vattr);
 		FILEDESC_LOCK(td->td_proc->p_fd);
-		vattr.va_mode = (SCARG(uap, mode) & ALLPERMS) &~ td->td_proc->p_fd->fd_cmask;
+		vattr.va_mode = (mode & ALLPERMS) &
+		    ~td->td_proc->p_fd->fd_cmask;
 		FILEDESC_UNLOCK(td->td_proc->p_fd);
-		vattr.va_rdev = SCARG(uap, dev);
+		vattr.va_rdev = dev;
 		whiteout = 0;
 
-		switch (SCARG(uap, mode) & S_IFMT) {
+		switch (mode & S_IFMT) {
 		case S_IFMT:	/* used by badsect to flag bad sectors */
 			vattr.va_type = VBAD;
 			break;
@@ -910,6 +933,13 @@ mkfifo(td, uap)
 		syscallarg(int) mode;
 	} */ *uap;
 {
+
+	return (kern_mkfifo(td, uap->path, UIO_USERSPACE, uap->mode));
+}
+
+int
+kern_mkfifo(struct thread *td, char *path, enum uio_seg pathseg, int mode)
+{
 	struct mount *mp;
 	struct vattr vattr;
 	int error;
@@ -917,8 +947,7 @@ mkfifo(td, uap)
 
 restart:
 	bwillwrite();
-	NDINIT(&nd, CREATE, LOCKPARENT | SAVENAME, UIO_USERSPACE,
-	    SCARG(uap, path), td);
+	NDINIT(&nd, CREATE, LOCKPARENT | SAVENAME, pathseg, path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	if (nd.ni_vp != NULL) {
@@ -937,7 +966,7 @@ restart:
 	VATTR_NULL(&vattr);
 	vattr.va_type = VFIFO;
 	FILEDESC_LOCK(td->td_proc->p_fd);
-	vattr.va_mode = (SCARG(uap, mode) & ALLPERMS) &~ td->td_proc->p_fd->fd_cmask;
+	vattr.va_mode = (mode & ALLPERMS) & ~td->td_proc->p_fd->fd_cmask;
 	FILEDESC_UNLOCK(td->td_proc->p_fd);
 	VOP_LEASE(nd.ni_dvp, td, td->td_ucred, LEASE_WRITE);
 	error = VOP_MKNOD(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr);
@@ -967,13 +996,20 @@ link(td, uap)
 		syscallarg(char *) link;
 	} */ *uap;
 {
+
+	return (kern_link(td, uap->path, uap->link, UIO_USERSPACE));
+}
+
+int
+kern_link(struct thread *td, char *path, char *link, enum uio_seg segflg)
+{
 	struct vnode *vp;
 	struct mount *mp;
 	struct nameidata nd;
 	int error;
 
 	bwillwrite();
-	NDINIT(&nd, LOOKUP, FOLLOW|NOOBJ, UIO_USERSPACE, SCARG(uap, path), td);
+	NDINIT(&nd, LOOKUP, FOLLOW|NOOBJ, segflg, path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -986,8 +1022,7 @@ link(td, uap)
 		vrele(vp);
 		return (error);
 	}
-	NDINIT(&nd, CREATE, LOCKPARENT | NOOBJ | SAVENAME, UIO_USERSPACE,
-	    SCARG(uap, link), td);
+	NDINIT(&nd, CREATE, LOCKPARENT | NOOBJ | SAVENAME, segflg, link, td);
 	if ((error = namei(&nd)) == 0) {
 		if (nd.ni_vp != NULL) {
 			vrele(nd.ni_vp);
@@ -1025,19 +1060,29 @@ symlink(td, uap)
 		syscallarg(char *) link;
 	} */ *uap;
 {
+
+	return (kern_symlink(td, uap->path, uap->link, UIO_USERSPACE));
+}
+
+int
+kern_symlink(struct thread *td, char *path, char *link, enum uio_seg segflg)
+{
 	struct mount *mp;
 	struct vattr vattr;
-	char *path;
+	char *syspath;
 	int error;
 	struct nameidata nd;
 
-	path = uma_zalloc(namei_zone, M_WAITOK);
-	if ((error = copyinstr(SCARG(uap, path), path, MAXPATHLEN, NULL)) != 0)
-		goto out;
+	if (segflg == UIO_SYSSPACE) {
+		syspath = path;
+	} else {
+		syspath = uma_zalloc(namei_zone, M_WAITOK);
+		if ((error = copyinstr(path, syspath, MAXPATHLEN, NULL)) != 0)
+			goto out;
+	}
 restart:
 	bwillwrite();
-	NDINIT(&nd, CREATE, LOCKPARENT | NOOBJ | SAVENAME, UIO_USERSPACE,
-	    SCARG(uap, link), td);
+	NDINIT(&nd, CREATE, LOCKPARENT | NOOBJ | SAVENAME, segflg, link, td);
 	if ((error = namei(&nd)) != 0)
 		goto out;
 	if (nd.ni_vp) {
@@ -1059,7 +1104,7 @@ restart:
 	vattr.va_mode = ACCESSPERMS &~ td->td_proc->p_fd->fd_cmask;
 	FILEDESC_UNLOCK(td->td_proc->p_fd);
 	VOP_LEASE(nd.ni_dvp, td, td->td_ucred, LEASE_WRITE);
-	error = VOP_SYMLINK(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr, path);
+	error = VOP_SYMLINK(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr, syspath);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (error == 0)
 		vput(nd.ni_vp);
@@ -1068,7 +1113,8 @@ restart:
 	ASSERT_VOP_UNLOCKED(nd.ni_dvp, "symlink");
 	ASSERT_VOP_UNLOCKED(nd.ni_vp, "symlink");
 out:
-	uma_zfree(namei_zone, path);
+	if (segflg != UIO_SYSSPACE)
+		uma_zfree(namei_zone, syspath);
 	return (error);
 }
 
@@ -1135,6 +1181,13 @@ unlink(td, uap)
 		syscallarg(char *) path;
 	} */ *uap;
 {
+
+	return (kern_unlink(td, SCARG(uap, path), UIO_USERSPACE));
+}
+
+int
+kern_unlink(struct thread *td, char *path, enum uio_seg pathseg)
+{
 	struct mount *mp;
 	struct vnode *vp;
 	int error;
@@ -1142,8 +1195,7 @@ unlink(td, uap)
 
 restart:
 	bwillwrite();
-	NDINIT(&nd, DELETE, LOCKPARENT|LOCKLEAF, UIO_USERSPACE,
-	    SCARG(uap, path), td);
+	NDINIT(&nd, DELETE, LOCKPARENT|LOCKLEAF, pathseg, path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	vp = nd.ni_vp;
@@ -1343,6 +1395,13 @@ access(td, uap)
 		syscallarg(int) flags;
 	} */ *uap;
 {
+
+	return (kern_access(td, uap->path, UIO_USERSPACE, uap->flags));
+}
+
+int
+kern_access(struct thread *td, char *path, enum uio_seg pathseg, int flags)
+{
 	struct ucred *cred, *tmpcred;
 	register struct vnode *vp;
 	int error;
@@ -1362,13 +1421,12 @@ access(td, uap)
 	tmpcred->cr_uid = cred->cr_ruid;
 	tmpcred->cr_groups[0] = cred->cr_rgid;
 	td->td_ucred = tmpcred;
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
-	    SCARG(uap, path), td);
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | NOOBJ, pathseg, path, td);
 	if ((error = namei(&nd)) != 0)
 		goto out1;
 	vp = nd.ni_vp;
 
-	error = vn_access(vp, SCARG(uap, flags), tmpcred, td);
+	error = vn_access(vp, flags, tmpcred, td);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(vp);
 out1:
@@ -1749,14 +1807,22 @@ readlink(td, uap)
 		syscallarg(int) count;
 	} */ *uap;
 {
+
+	return (kern_readlink(td, uap->path, UIO_USERSPACE, uap->buf,
+	    UIO_USERSPACE, uap->count));
+}
+
+int
+kern_readlink(struct thread *td, char *path, enum uio_seg pathseg, char *buf,
+    enum uio_seg bufseg, int count)
+{
 	register struct vnode *vp;
 	struct iovec aiov;
 	struct uio auio;
 	int error;
 	struct nameidata nd;
 
-	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
-	    SCARG(uap, path), td);
+	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | NOOBJ, pathseg, path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -1771,19 +1837,19 @@ readlink(td, uap)
 	if (vp->v_type != VLNK)
 		error = EINVAL;
 	else {
-		aiov.iov_base = SCARG(uap, buf);
-		aiov.iov_len = SCARG(uap, count);
+		aiov.iov_base = buf;
+		aiov.iov_len = count;
 		auio.uio_iov = &aiov;
 		auio.uio_iovcnt = 1;
 		auio.uio_offset = 0;
 		auio.uio_rw = UIO_READ;
-		auio.uio_segflg = UIO_USERSPACE;
+		auio.uio_segflg = bufseg;
 		auio.uio_td = td;
-		auio.uio_resid = SCARG(uap, count);
+		auio.uio_resid = count;
 		error = VOP_READLINK(vp, &auio, td->td_ucred);
 	}
 	vput(vp);
-	td->td_retval[0] = SCARG(uap, count) - auio.uio_resid;
+	td->td_retval[0] = count - auio.uio_resid;
 	return (error);
 }
 
@@ -1959,14 +2025,21 @@ chmod(td, uap)
 		syscallarg(int) mode;
 	} */ *uap;
 {
+
+	return (kern_chmod(td, uap->path, UIO_USERSPACE, uap->mode));
+}
+
+int
+kern_chmod(struct thread *td, char *path, enum uio_seg pathseg, int mode)
+{
 	int error;
 	struct nameidata nd;
 
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, SCARG(uap, path), td);
+	NDINIT(&nd, LOOKUP, FOLLOW, pathseg, path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-	error = setfmode(td, nd.ni_vp, SCARG(uap, mode));
+	error = setfmode(td, nd.ni_vp, mode);
 	vrele(nd.ni_vp);
 	return error;
 }
@@ -2083,14 +2156,22 @@ chown(td, uap)
 		syscallarg(int) gid;
 	} */ *uap;
 {
+
+	return (kern_chown(td, uap->path, UIO_USERSPACE, uap->uid, uap->gid));
+}
+
+int
+kern_chown(struct thread *td, char *path, enum uio_seg pathseg, int uid,
+    int gid)
+{
 	int error;
 	struct nameidata nd;
 
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, SCARG(uap, path), td);
+	NDINIT(&nd, LOOKUP, FOLLOW, pathseg, path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-	error = setfown(td, nd.ni_vp, SCARG(uap, uid), SCARG(uap, gid));
+	error = setfown(td, nd.ni_vp, uid, gid);
 	vrele(nd.ni_vp);
 	return (error);
 }
@@ -2115,14 +2196,22 @@ lchown(td, uap)
 		syscallarg(int) gid;
 	} */ *uap;
 {
+
+	return (kern_lchown(td, uap->path, UIO_USERSPACE, uap->uid, uap->gid));
+}
+
+int
+kern_lchown(struct thread *td, char *path, enum uio_seg pathseg, int uid,
+    int gid)
+{
 	int error;
 	struct nameidata nd;
 
-	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, SCARG(uap, path), td);
+	NDINIT(&nd, LOOKUP, NOFOLLOW, pathseg, path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-	error = setfown(td, nd.ni_vp, SCARG(uap, uid), SCARG(uap, gid));
+	error = setfown(td, nd.ni_vp, uid, gid);
 	vrele(nd.ni_vp);
 	return (error);
 }
@@ -2164,11 +2253,13 @@ fchown(td, uap)
  * Common implementation code for utimes(), lutimes(), and futimes().
  */
 static int
-getutimes(usrtvp, tsp)
+getutimes(usrtvp, tvpseg, tsp)
 	const struct timeval *usrtvp;
+	enum uio_seg tvpseg;
 	struct timespec *tsp;
 {
 	struct timeval tv[2];
+	const struct timeval *tvp;
 	int error;
 
 	if (usrtvp == NULL) {
@@ -2176,10 +2267,16 @@ getutimes(usrtvp, tsp)
 		TIMEVAL_TO_TIMESPEC(&tv[0], &tsp[0]);
 		tsp[1] = tsp[0];
 	} else {
-		if ((error = copyin(usrtvp, tv, sizeof (tv))) != 0)
-			return (error);
-		TIMEVAL_TO_TIMESPEC(&tv[0], &tsp[0]);
-		TIMEVAL_TO_TIMESPEC(&tv[1], &tsp[1]);
+		if (tvpseg == UIO_SYSSPACE) {
+			tvp = usrtvp;
+		} else {
+			if ((error = copyin(usrtvp, tv, sizeof(tv))) != 0)
+				return (error);
+			tvp = tv;
+		}
+
+		TIMEVAL_TO_TIMESPEC(&tvp[0], &tsp[0]);
+		TIMEVAL_TO_TIMESPEC(&tvp[1], &tsp[1]);
 	}
 	return 0;
 }
@@ -2245,19 +2342,26 @@ utimes(td, uap)
 		syscallarg(struct timeval *) tptr;
 	} */ *uap;
 {
+
+	return (kern_utimes(td, uap->path, UIO_USERSPACE, uap->tptr,
+	    UIO_USERSPACE));
+}
+
+int
+kern_utimes(struct thread *td, char *path, enum uio_seg pathseg,
+    struct timeval *tptr, enum uio_seg tptrseg)
+{
 	struct timespec ts[2];
-	struct timeval *usrtvp;
 	int error;
 	struct nameidata nd;
 
-	usrtvp = SCARG(uap, tptr);
-	if ((error = getutimes(usrtvp, ts)) != 0)
+	if ((error = getutimes(tptr, tptrseg, ts)) != 0)
 		return (error);
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, SCARG(uap, path), td);
+	NDINIT(&nd, LOOKUP, FOLLOW, pathseg, path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-	error = setutimes(td, nd.ni_vp, ts, 2, usrtvp == NULL);
+	error = setutimes(td, nd.ni_vp, ts, 2, tptr == NULL);
 	vrele(nd.ni_vp);
 	return (error);
 }
@@ -2280,19 +2384,26 @@ lutimes(td, uap)
 		syscallarg(struct timeval *) tptr;
 	} */ *uap;
 {
+
+	return (kern_lutimes(td, uap->path, UIO_USERSPACE, uap->tptr,
+	    UIO_USERSPACE));
+}
+
+int
+kern_lutimes(struct thread *td, char *path, enum uio_seg pathseg,
+    struct timeval *tptr, enum uio_seg tptrseg)
+{
 	struct timespec ts[2];
-	struct timeval *usrtvp;
 	int error;
 	struct nameidata nd;
 
-	usrtvp = SCARG(uap, tptr);
-	if ((error = getutimes(usrtvp, ts)) != 0)
+	if ((error = getutimes(tptr, tptrseg, ts)) != 0)
 		return (error);
-	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, SCARG(uap, path), td);
+	NDINIT(&nd, LOOKUP, NOFOLLOW, pathseg, path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-	error = setutimes(td, nd.ni_vp, ts, 2, usrtvp == NULL);
+	error = setutimes(td, nd.ni_vp, ts, 2, tptr == NULL);
 	vrele(nd.ni_vp);
 	return (error);
 }
@@ -2315,17 +2426,23 @@ futimes(td, uap)
 		syscallarg(struct timeval *) tptr;
 	} */ *uap;
 {
+
+	return (kern_futimes(td, uap->fd, uap->tptr, UIO_USERSPACE));
+}
+
+int
+kern_futimes(struct thread *td, int fd, struct timeval *tptr,
+    enum uio_seg tptrseg)
+{
 	struct timespec ts[2];
 	struct file *fp;
-	struct timeval *usrtvp;
 	int error;
 
-	usrtvp = SCARG(uap, tptr);
-	if ((error = getutimes(usrtvp, ts)) != 0)
+	if ((error = getutimes(tptr, tptrseg, ts)) != 0)
 		return (error);
-	if ((error = getvnode(td->td_proc->p_fd, SCARG(uap, fd), &fp)) != 0)
+	if ((error = getvnode(td->td_proc->p_fd, fd, &fp)) != 0)
 		return (error);
-	error = setutimes(td, (struct vnode *)fp->f_data, ts, 2, usrtvp==NULL);
+	error = setutimes(td, (struct vnode *)fp->f_data, ts, 2, tptr == NULL);
 	fdrop(fp, td);
 	return (error);
 }
@@ -2350,15 +2467,22 @@ truncate(td, uap)
 		syscallarg(off_t) length;
 	} */ *uap;
 {
+
+	return (kern_truncate(td, uap->path, UIO_USERSPACE, uap->length));
+}
+
+int
+kern_truncate(struct thread *td, char *path, enum uio_seg pathseg, off_t length)
+{
 	struct mount *mp;
 	struct vnode *vp;
 	struct vattr vattr;
 	int error;
 	struct nameidata nd;
 
-	if (uap->length < 0)
+	if (length < 0)
 		return(EINVAL);
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, SCARG(uap, path), td);
+	NDINIT(&nd, LOOKUP, FOLLOW, pathseg, path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	vp = nd.ni_vp;
@@ -2378,7 +2502,7 @@ truncate(td, uap)
 	else if ((error = vn_writechk(vp)) == 0 &&
 	    (error = VOP_ACCESS(vp, VWRITE, td->td_ucred, td)) == 0) {
 		VATTR_NULL(&vattr);
-		vattr.va_size = SCARG(uap, length);
+		vattr.va_size = length;
 		error = VOP_SETATTR(vp, &vattr, td->td_ucred, td);
 	}
 	vput(vp);
@@ -2570,14 +2694,20 @@ rename(td, uap)
 		syscallarg(char *) to;
 	} */ *uap;
 {
+
+	return (kern_rename(td, uap->from, uap->to, UIO_USERSPACE));
+}
+
+int
+kern_rename(struct thread *td, char *from, char *to, enum uio_seg pathseg)
+{
 	struct mount *mp;
 	struct vnode *tvp, *fvp, *tdvp;
 	struct nameidata fromnd, tond;
 	int error;
 
 	bwillwrite();
-	NDINIT(&fromnd, DELETE, WANTPARENT | SAVESTART, UIO_USERSPACE,
-	    SCARG(uap, from), td);
+	NDINIT(&fromnd, DELETE, WANTPARENT | SAVESTART, pathseg, from, td);
 	if ((error = namei(&fromnd)) != 0)
 		return (error);
 	fvp = fromnd.ni_vp;
@@ -2587,8 +2717,8 @@ rename(td, uap)
 		vrele(fvp);
 		goto out1;
 	}
-	NDINIT(&tond, RENAME, LOCKPARENT | LOCKLEAF | NOCACHE | SAVESTART | NOOBJ,
-	    UIO_USERSPACE, SCARG(uap, to), td);
+	NDINIT(&tond, RENAME, LOCKPARENT | LOCKLEAF | NOCACHE | SAVESTART |
+	    NOOBJ, pathseg, to, td);
 	if (fromnd.ni_vp->v_type == VDIR)
 		tond.ni_cnd.cn_flags |= WILLBEDIR;
 	if ((error = namei(&tond)) != 0) {
@@ -2681,15 +2811,11 @@ mkdir(td, uap)
 	} */ *uap;
 {
 
-	return vn_mkdir(uap->path, uap->mode, UIO_USERSPACE, td);
+	return (kern_mkdir(td, uap->path, UIO_USERSPACE, uap->mode));
 }
 
 int
-vn_mkdir(path, mode, segflg, td)
-	char *path;
-	int mode;
-	enum uio_seg segflg;
-	struct thread *td;
+kern_mkdir(struct thread *td, char *path, enum uio_seg segflg, int mode)
 {
 	struct mount *mp;
 	struct vnode *vp;
@@ -2758,6 +2884,13 @@ rmdir(td, uap)
 		syscallarg(char *) path;
 	} */ *uap;
 {
+
+	return (kern_rmdir(td, uap->path, UIO_USERSPACE));
+}
+
+int
+kern_rmdir(struct thread *td, char *path, enum uio_seg pathseg)
+{
 	struct mount *mp;
 	struct vnode *vp;
 	int error;
@@ -2765,8 +2898,7 @@ rmdir(td, uap)
 
 restart:
 	bwillwrite();
-	NDINIT(&nd, DELETE, LOCKPARENT | LOCKLEAF, UIO_USERSPACE,
-	    SCARG(uap, path), td);
+	NDINIT(&nd, DELETE, LOCKPARENT | LOCKLEAF, pathseg, path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	vp = nd.ni_vp;
