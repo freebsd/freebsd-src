@@ -2,10 +2,10 @@
 
 .include "../Makefile.inc"
 
-.PATH: ../cc_tools ${GCCDIR}/objc ${GCCDIR}
+.PATH: ${GCCDIR}/objc ${GCCDIR}
 
 PROG=	cc1obj
-SRCS=	objc-parse.c objc-parse.h objc-parse.h objc-act.c
+SRCS=	c-parse.y objc-act.c
 # Ugh, compiled twice...
 SRCS+=	c-decl.c c-lex.c
 BINDIR=	/usr/libexec
@@ -19,17 +19,14 @@ LDADD+=	${LIBCC_INT}
 
 #-----------------------------------------------------------------------
 # objc parser
-.ORDER: objc-parse.c objc-parse.h
-objc-parse.c objc-parse.h: c-parse.in
-	sed -e "/^ifc$$/,/^end ifc$$/d" \
-	    -e "/^ifobjc$$/d" -e "/^end ifobjc$$/d" \
-	    ${GCCDIR}/c-parse.in > objc-parse.y
-	${YACC} -d -o objc-parse.c objc-parse.y
-	ln -sf objc-parse.h c-parse.h
-	mv objc-parse.y objc-parse.y.out
 
-CLEANFILES+=	objc-parse.c objc-parse.h c-parse.h \
-		objc-parse.y objc-parse.y.out	# insurance
+c-parse.y: c-parse.in
+	sed -e "/^ifc$$/,/^end ifc$$/d" \
+	    -e "/^ifobjc$$/d" \
+	    -e "/^end ifobjc$$/d" \
+	    ${.ALLSRC} > ${.TARGET}
+
+CLEANFILES+=	c-parse.y
 
 #-----------------------------------------------------------------------
 

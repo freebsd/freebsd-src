@@ -4278,9 +4278,6 @@ reload_as_needed (live_known)
 			    spill_reg_order);
 	    }
 
-	  if (num_eliminable && chain->need_elim)
-	    update_eliminable_offsets ();
-
 	  if (n_reloads > 0)
 	    {
 	      rtx next = NEXT_INSN (insn);
@@ -4327,6 +4324,10 @@ reload_as_needed (live_known)
 		      NOTE_LINE_NUMBER (p) = NOTE_INSN_DELETED;
 		    }
 	    }
+
+	  if (num_eliminable && chain->need_elim)
+	    update_eliminable_offsets ();
+
 	  /* Any previously reloaded spilled pseudo reg, stored in this insn,
 	     is no longer validly lying around to save a future reload.
 	     Note that this does not detect pseudos that were reloaded
@@ -8071,7 +8072,9 @@ delete_output_reload (insn, j, last_reload_reg)
     }
   n_occurrences = count_occurrences (PATTERN (insn), reg);
   if (substed)
-    n_occurrences += count_occurrences (PATTERN (insn), substed);
+    n_occurrences += count_occurrences (PATTERN (insn),
+					eliminate_regs (substed, 0,
+							NULL_RTX));
   if (n_occurrences > n_inherited)
     return;
 
@@ -9967,6 +9970,21 @@ reload_combine_note_use (xp, insn)
 	}
       break;
 
+    case USE:
+      /* If this is the USE of a return value, we can't change it.  */
+      if (GET_CODE (XEXP (x, 0)) == REG && REG_FUNCTION_VALUE_P (XEXP (x, 0)))
+	{
+	/* Mark the return register as used in an unknown fashion.  */
+	  rtx reg = XEXP (x, 0);
+	  int regno = REGNO (reg);
+	  int nregs = HARD_REGNO_NREGS (regno, GET_MODE (reg));
+
+	  while (--nregs >= 0)
+	    reg_state[regno + nregs].use_index = -1;
+	  return;
+	}
+      break;
+
     case CLOBBER:
       if (GET_CODE (SET_DEST (x)) == REG)
 	return;
@@ -9983,11 +10001,22 @@ reload_combine_note_use (xp, insn)
       {
 	int regno = REGNO (x);
 	int use_index;
+	int nregs;
 
 	/* Some spurious USEs of pseudo registers might remain.
 	   Just ignore them.  */
 	if (regno >= FIRST_PSEUDO_REGISTER)
 	  return;
+
+	nregs = HARD_REGNO_NREGS (regno, GET_MODE (x));
+
+	/* We can't substitute into multi-hard-reg uses.  */
+	if (nregs > 1)
+	  {
+	    while (--nregs >= 0)
+	      reg_state[regno + nregs].use_index = -1;
+	    return;
+	  }
 
 	/* If this register is already used in some unknown fashion, we
 	   can't do anything.

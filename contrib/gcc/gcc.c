@@ -3141,6 +3141,7 @@ process_command (argc, argv)
       fatal ("object format unknown");
     }
 #endif	/* FREEBSD_NATIVE */
+
 #ifndef OS2
   add_prefix (&exec_prefixes, standard_exec_prefix, "BINUTILS",
 	      0, 2, warn_std_ptr);
@@ -4991,7 +4992,7 @@ main (argc, argv)
 		  "BINUTILS", 0, 0, NULL_PTR);
       add_prefix (&startfile_prefixes, standard_startfile_prefix_2,
 		  "BINUTILS", 0, 0, NULL_PTR);
-#endif	/* FREEBSD_NATIVE */
+#endif /* FREEBSD_NATIVE */
 #if 0 /* Can cause surprises, and one can use -B./ instead.  */
       add_prefix (&startfile_prefixes, "./", NULL_PTR, 0, 1, NULL_PTR);
 #endif
@@ -5167,48 +5168,53 @@ main (argc, argv)
 	  int len;
 
 	  if (cp->spec[0][0] == '#')
-	    error ("%s: %s compiler not installed on this system",
-		   input_filename, &cp->spec[0][1]);
-
-	  input_basename = input_filename;
-	  for (p = input_filename; *p; p++)
-	    if (IS_DIR_SEPARATOR (*p))
-	      input_basename = p + 1;
-
-	  /* Find a suffix starting with the last period,
-	     and set basename_length to exclude that suffix.  */
-	  basename_length = strlen (input_basename);
-	  p = input_basename + basename_length;
-	  while (p != input_basename && *p != '.') --p;
-	  if (*p == '.' && p != input_basename)
 	    {
-	      basename_length = p - input_basename;
-	      input_suffix = p + 1;
+	      error ("%s: %s compiler not installed on this system",
+		     input_filename, &cp->spec[0][1]);
+	      this_file_error = 1;
 	    }
 	  else
-	    input_suffix = "";
+	    {
+	      input_basename = input_filename;
+	      for (p = input_filename; *p; p++)
+		if (IS_DIR_SEPARATOR (*p))
+		  input_basename = p + 1;
 
-	  len = 0;
-	  for (j = 0; j < sizeof cp->spec / sizeof cp->spec[0]; j++)
-	    if (cp->spec[j])
-	      len += strlen (cp->spec[j]);
-
-	  {
-	    char *p1 = (char *) xmalloc (len + 1);
-	    
-	    len = 0;
-	    for (j = 0; j < sizeof cp->spec / sizeof cp->spec[0]; j++)
-	      if (cp->spec[j])
+	      /* Find a suffix starting with the last period,
+		 and set basename_length to exclude that suffix.  */
+	      basename_length = strlen (input_basename);
+	      p = input_basename + basename_length;
+	      while (p != input_basename && *p != '.') --p;
+	      if (*p == '.' && p != input_basename)
 		{
-		  strcpy (p1 + len, cp->spec[j]);
-		  len += strlen (cp->spec[j]);
+		  basename_length = p - input_basename;
+		  input_suffix = p + 1;
 		}
+	      else
+		input_suffix = "";
+
+	      len = 0;
+	      for (j = 0; j < sizeof cp->spec / sizeof cp->spec[0]; j++)
+		if (cp->spec[j])
+		  len += strlen (cp->spec[j]);
+
+	      {
+		char *p1 = (char *) xmalloc (len + 1);
 	    
-	    value = do_spec (p1);
-	    free (p1);
-	  }
-	  if (value < 0)
-	    this_file_error = 1;
+		len = 0;
+		for (j = 0; j < sizeof cp->spec / sizeof cp->spec[0]; j++)
+		  if (cp->spec[j])
+		    {
+		      strcpy (p1 + len, cp->spec[j]);
+		      len += strlen (cp->spec[j]);
+		    }
+	    
+		value = do_spec (p1);
+		free (p1);
+	      }
+	      if (value < 0)
+		this_file_error = 1;
+	    }
 	}
 
       /* If this file's name does not contain a recognized suffix,

@@ -733,20 +733,20 @@ receive_exception_label (handler_label)
     }
 
   emit_label (handler_label);
-  
+
   if (! exceptions_via_longjmp)
     {
 #ifdef HAVE_exception_receiver
       if (HAVE_exception_receiver)
-       emit_insn (gen_exception_receiver ());
+	emit_insn (gen_exception_receiver ());
       else
 #endif
 #ifdef HAVE_nonlocal_goto_receiver
       if (HAVE_nonlocal_goto_receiver)
-       emit_insn (gen_nonlocal_goto_receiver ());
+	emit_insn (gen_nonlocal_goto_receiver ());
       else
 #endif
-       { /* Nothing */ }
+	{ /* Nothing */ }
     }
   else
     {

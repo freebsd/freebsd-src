@@ -1,3 +1,169 @@
+2001-10-02  Zack Weinberg  <zack@codesourcery.com>
+
+	* gcc.c (main): Set this_file_error if the appropriate
+	compiler for a language has not been installed.
+
+2001-09-17  Philip Blundell  <philb@gnu.org>
+
+	* cccp.c (print_help): Fix typos.
+
+2001-08-29  David O'Brien  <obrien@FreeBSD.org>
+
+	* config/alpha/crtbegin.asm: The normal calling convention for alpha is
+	to re-initialize gp using 'ldgp gp,0(ra)' after a jsr instruction.
+
+2001-06-19  Bernd Schmidt  <bernds@redhat.com>
+
+	* regmove.c (optimize_reg_copy_3): Do nothing if previous insn
+	carries a REG_EQUIV note.  If it carries REG_EQUAL, delete the
+	note.
+
+2001-05-22  Bernd Schmidt  <bernds@redhat.com>
+
+	* sparc.md (movsf, movdf): Allow constant to integer reg moves.
+	(movsf, movdf splitters): Always split if there's an alignment
+	problem.
+
+2001-05-22  David Edelsohn  <dje@watson.ibm.com>
+
+	* rs6000.md (movsfcc,movdfcc): Remove NE case.
+
+2001-05-17  Bernd Schmidt  <bernds@redhat.com>
+
+	* function.c: Small formatting change to prevent compilation errors
+	on broken hpux systems.
+
+	* expr.c (protect_from_queue): Protect against subsequent calls to
+	emit_queue.
+	(expand_expr, case ADDR_EXPR): Prevent protect_from_queue from being
+	too clever.
+
+2001-04-06  Bernd Schmidt  <bernds@redhat.com>
+
+	2000-10-17  Franz Sirl  <Franz.Sirl-kernel@lauterbach.com>
+	* function.c (locate_and_pad_parm): Don't align stack unconditionally.
+
+	Thu Oct 28 10:20:02 1999  Geoffrey Keating  <geoffk@cygnus.com>
+	* config/rs6000/rs6000.md (movsf): Don't convert a SUBREG
+	of the function return register into a plain REG until
+	after function inlining is done.
+
+2001-04-04  Bernd Schmidt  <bernds@redhat.com>
+
+	Fri Nov  5 10:07:25 1999  Nick Clifton  <nickc@cygnus.com>
+	* function.c (is_addressof): New function.  Returns true if
+	the given piece of RTL is an ADDRESSOF.
+	(purge_addressof_1): Make boolean.  Return false if the
+	ADDRESSOFs could not be purged.
+	(purge_addressof): If ADDRESSOFs could not be purged from the
+	notes attached to an insn, remove the offending note(s),
+	unless they are attached to a libcall.
+
+2001-04-03  Bernd Schmidt  <bernds@redhat.com>
+
+	2001-03-16  Jakub Jelinek  <jakub@redhat.com>
+	* crtstuff.c (init_dummy): Use CRT_END_INIT_DUMMY if defined.
+	Remove ia32 linux PIC kludge and move it...
+	* config/i386/linux.h (CRT_END_INIT_DUMMY): ...here.
+
+	* loop.c (combine_movables): Restrict combinations of constants with
+	different modes so that we don't introduce SUBREGs into memory
+	addresses.
+
+	2001-02-02  Philip Blundell  <philb@gnu.org>
+	* arm/linux-elf.h (MAKE_DECL_ONE_ONLY, UNIQUE_SECTION_P): Define.
+	(UNIQUE_SECTION): Define.                                  
+
+	Wed Aug 25 15:27:22 1999  Gavin Romig-Koch  <gavin@cygnus.com>
+	* combine.c (nonzero_bits) : Allow single-ly set registers to be
+	anywere in the function only if they are pseudos and set before
+	being used (not live at the start of the function).
+	(num_sign_bit_copies) : Same.
+	(get_last_value_validate) : Same.
+	(get_last_value) : Same.
+
+	Fri Mar  3 12:49:28 2000  J"orn Rennecke <amylaar@cygnus.co.uk>
+        * reload1.c (reload_combine_note_use): Handle return register USEs.
+	REG case: Handle multi-hard-register hard regs.
+
+2001-03-30  Bernd Schmidt  <bernds@redhat.com>
+
+	* jump.c (delete_barrier_successors): Fix error in last change.
+
+	* reload1.c (delete_output_reload): Call eliminate_regs on substed.
+	(reload_as_needed): Call update_eliminable_offsets a bit later.
+
+	* final.c (cleanup_subreg_operands): Also clean up inside MEMs.
+
+	Mon Oct  4 02:31:20 1999  Mark Mitchell  <mark@codesourcery.com>
+	* mips.md: Define conditional move patterns for floating point
+	operands and DI mode conditions.
+
+	2000-11-25  Jakub Jelinek  <jakub@redhat.com>
+	* config/sparc/sparc.md (muldi3_v8plus): Remove H constraint.
+	Handle CONST_INT as second argument.
+
+2001-03-28  Bernd Schmidt  <bernds@redhat.com>
+
+	* flow.c (propagate_block): When trying to delete a case vector, cope
+	if its label has LABEL_PRESERVE_P set.
+	* jump.c (jump_optimize_1): Move call to delete_barrier_successors to
+	a point where JUMP_LABELS and LABEL_NUSES are set up properly.
+	(delete_barrier_successors): If deleting a table jump, delete the case
+	vector as well.
+	* varasm.c (force_const_mem): If we have a label, set LABEL_PRESERVE_P
+	so it won't get deleted.
+
+Tue Mar 20 18:31:48 2001  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	1999-11-30  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+        * c-lex.c (yylex): With -Wtraditional, when the ANSI type of an
+	integer constant does not match the traditional type, limit the
+	warnings to cases where the base of the type is ten.
+
+        * invoke.texi (-Wtraditional): Document it.
+
+2001-03-20  David O'Brien  <obrien@FreeBSD.org>
+
+	from 2000-07-12  Zack Weinberg  <zack@wolery.cumb.org>
+	* final.c (profile_function): Do not emit profile counters in
+	the data section, if NO_PROFILE_COUNTERS is defined.
+	* tm.texi: Document NO_PROFILE_COUNTERS.  Update doc for
+	FUNCTION_PROFILER.
+
+	from 2000-10-02  David O'Brien  <obrien@dragon.nuxi.com>
+	* config/i386/freebsd.h (NO_PROFILE_COUNTERS): Define.
+
+2001-03-19  Bernd Schmidt  <bernds@redhat.com>
+
+	* version.c: Bump.
+
+	2000-01-18  Martin v. Löwis  <loewis@informatik.hu-berlin.de>
+	* c-parse.in (SAVE_WARN_FLAGS): Create an INTEGER_CST.
+	(RESTORE_WARN_FLAGS): Unpack it.
+	Change semantic type of extension to ttype.
+	* c-common.c (split_specs_attrs): Expect an INTEGER_CST.
+	* c-parse.y, c-parse.c, objc/objc-parse.y,
+	objc/objc-parse.c: Regenerate.
+
+	Wed Sep  1 09:12:02 1999  Jim Kingdon  <http://developer.redhat.com>
+	* c-parse.in: save and restore warn_pointer_arith on __extension__
+	along with pedantic.
+	(SAVE_WARN_FLAGS, RESTORE_WARN_FLAGS): Added.
+	Set the type of extension to itype rather than $<itype>1 kludge.
+	* extend.texi (Alternate Keywords): Adjust documentation.
+
+	Bring back the sjlj eh fixes.
+	* expr.c (expand_builtin_setjmp_setup): New.
+	(expand_builtin_setjmp_receiver): New.
+	(expand_builtin_setjmp): Split out _setup and _receiver functions.
+	Move argument parsing in from ...
+	(expand_builtin): ... here.
+	* except.c (receive_exception_label): Branch around receiver
+	unless new-style exceptions.  Call expand_builtin_setjmp_receiver.
+	(start_dynamic_handler): Call expand_builtin_setjmp_setup.
+	* expr.h: Update builtin setjmp decls.
+
 Fri Mar 16 12:46:19 GMT 2001 Bernd Schmidt  (bernds@redhat.com)
 
 	* gcc-2.95.3 Released.

@@ -60,7 +60,7 @@ Boston, MA 02111-1307, USA.  */
    the final CPP_PREDEFINES value.  */
 
 #define FBSD_CPP_PREDEFINES \
-  " -D__FreeBSD__=4 -D__FreeBSD_cc_version=440000 -Dunix -Asystem(unix) -Asystem(FreeBSD) "
+  " -D__FreeBSD__=4 -D__FreeBSD_cc_version=460001 -Dunix -Asystem(unix) -Asystem(FreeBSD) "
 
 #define FBSD_CPP_SPEC "							\
   %(cpp_cpu)								\
@@ -83,11 +83,11 @@ Boston, MA 02111-1307, USA.  */
 #undef  LIB_SPEC
 #include <sys/param.h>
 #if __FreeBSD_version >= 500016
- #define LIB_SPEC "							\
-   %{!shared:								\
-     %{!pg: %{pthread:-lc_r} -lc}					\
-     %{pg:  %{pthread:-lc_r_p} -lc_p}					\
-   }"
+#define LIB_SPEC "							\
+  %{!shared:								\
+    %{!pg: %{pthread:-lc_r} -lc}					\
+    %{pg:  %{pthread:-lc_r_p} -lc_p}					\
+  }"
 #else
 #define LIB_SPEC "							\
   %{!shared:								\
@@ -204,7 +204,7 @@ Boston, MA 02111-1307, USA.  */
   do {				 					\
     if (!flag_no_ident)							\
       fprintf ((FILE), "%s\"GCC: (GNU) %s %s\"\n",			\
-		IDENT_ASM_OP, lang_identify(), version_string);		\
+	       IDENT_ASM_OP, lang_identify(), version_string);		\
   } while (0)
 
 /* This is the pseudo-op used to generate a contiguous sequence of byte
