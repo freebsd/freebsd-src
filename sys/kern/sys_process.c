@@ -78,7 +78,7 @@ pread (struct proc *procp, unsigned int addr, unsigned int *retval) {
 		&object, &pindex, &out_prot, &wired);
 
 	if (rv != KERN_SUCCESS)
-		return EINVAL;
+		return (EINVAL);
 
 	vm_map_lookup_done (tmap, out_entry);
 
@@ -98,7 +98,7 @@ pread (struct proc *procp, unsigned int addr, unsigned int *retval) {
 		vm_map_remove (kernel_map, kva, kva + PAGE_SIZE);
 	}
 
-	return rv;
+	return (rv);
 }
 
 static int
@@ -137,7 +137,7 @@ pwrite (struct proc *procp, unsigned int addr, unsigned int datum) {
 		/* The page isn't writable, so let's try making it so... */
 		if ((rv = vm_map_protect (map, pageno, pageno + PAGE_SIZE,
 			VM_PROT_ALL, 0)) != KERN_SUCCESS)
-		  return EFAULT;	/* I guess... */
+		  return (EFAULT);	/* I guess... */
 	}
 
 	/*
@@ -151,7 +151,7 @@ pwrite (struct proc *procp, unsigned int addr, unsigned int datum) {
 	rv = vm_map_lookup (&tmap, pageno, VM_PROT_WRITE, &out_entry,
 		&object, &pindex, &out_prot, &wired);
 	if (rv != KERN_SUCCESS) {
-		return EINVAL;
+		return (EINVAL);
 	}
 
 	/*
@@ -166,7 +166,7 @@ pwrite (struct proc *procp, unsigned int addr, unsigned int datum) {
 
 	rv = vm_fault(map, pageno, VM_PROT_WRITE|VM_PROT_READ, FALSE);
 	if (rv != KERN_SUCCESS)
-		return EFAULT;
+		return (EFAULT);
 
 	/* Find space in kernel_map for the page we're interested in */
 	rv = vm_map_find (kernel_map, object, IDX_TO_OFF(pindex),
@@ -185,7 +185,7 @@ pwrite (struct proc *procp, unsigned int addr, unsigned int datum) {
 	if (fix_prot)
 		vm_map_protect (map, pageno, pageno + PAGE_SIZE,
 			VM_PROT_READ|VM_PROT_EXECUTE, 0);
-	return rv;
+	return (rv);
 }
 #endif
 
@@ -219,7 +219,7 @@ ptrace(td, uap)
 		PROC_LOCK(p);
 	} else {
 		if ((p = pfind(uap->pid)) == NULL)
-			return ESRCH;
+			return (ESRCH);
 	}
 	if (p_cansee(curp, p)) {
 		PROC_UNLOCK(p);
@@ -238,18 +238,18 @@ ptrace(td, uap)
 		/* Self */
 		if (p->p_pid == curp->p_pid) {
 			PROC_UNLOCK(p);
-			return EINVAL;
+			return (EINVAL);
 		}
 
 		/* Already traced */
 		if (p->p_flag & P_TRACED) {
 			PROC_UNLOCK(p);
-			return EBUSY;
+			return (EBUSY);
 		}
 
 		if ((error = p_candebug(curp, p))) {
 			PROC_UNLOCK(p);
-			return error;
+			return (error);
 		}
 
 		/* OK */
@@ -284,13 +284,13 @@ ptrace(td, uap)
 		/* not being traced... */
 		if ((p->p_flag & P_TRACED) == 0) {
 			PROC_UNLOCK(p);
-			return EPERM;
+			return (EPERM);
 		}
 
 		/* not being traced by YOU */
 		if (p->p_pptr != curp) {
 			PROC_UNLOCK(p);
-			return EBUSY;
+			return (EBUSY);
 		}
 
 		/* not currently stopped */
@@ -298,7 +298,7 @@ ptrace(td, uap)
 		if (p->p_stat != SSTOP || (p->p_flag & P_WAITED) == 0) {
 			mtx_unlock_spin(&sched_lock);
 			PROC_UNLOCK(p);
-			return EBUSY;
+			return (EBUSY);
 		}
 		mtx_unlock_spin(&sched_lock);
 
@@ -307,7 +307,7 @@ ptrace(td, uap)
 
 	default:
 		PROC_UNLOCK(p);
-		return EINVAL;
+		return (EINVAL);
 	}
 
 	PROC_UNLOCK(p);
@@ -333,7 +333,7 @@ ptrace(td, uap)
 		p->p_oppid = p->p_pptr->p_pid;
 		PROC_UNLOCK(p);
 		sx_xunlock(&proctree_lock);
-		return 0;
+		return (0);
 
 	case PT_ATTACH:
 		/* security check done above */
@@ -352,14 +352,14 @@ ptrace(td, uap)
 	case PT_CONTINUE:
 	case PT_DETACH:
 		if ((uap->req != PT_STEP) && ((unsigned)uap->data >= NSIG))
-			return EINVAL;
+			return (EINVAL);
 
 		PHOLD(p);
 
 		if (uap->req == PT_STEP) {
 			if ((error = ptrace_single_step (&p->p_thread))) {
 				PRELE(p);
-				return error;
+				return (error);
 			}
 		}
 
@@ -368,7 +368,7 @@ ptrace(td, uap)
 			if ((error = ptrace_set_pc (&p->p_thread,
 			    (u_long)(uintfptr_t)uap->addr))) {
 				PRELE(p);
-				return error;
+				return (error);
 			}
 		}
 		PRELE(p);
@@ -413,7 +413,7 @@ ptrace(td, uap)
 
 		}
 		PROC_UNLOCK(p);
-		return 0;
+		return (0);
 
 	case PT_WRITE_I:
 	case PT_WRITE_D:
@@ -462,7 +462,7 @@ ptrace(td, uap)
 #endif /* PT_SETREGS */
 #if defined(PT_SETREGS) || defined(PT_GETREGS)
 		if (!procfs_validregs(td))	/* no P_SYSTEM procs please */
-			return EINVAL;
+			return (EINVAL);
 		else {
 			iov.iov_base = uap->addr;
 			iov.iov_len = sizeof(struct reg);
@@ -488,7 +488,7 @@ ptrace(td, uap)
 #endif /* PT_SETFPREGS */
 #if defined(PT_SETFPREGS) || defined(PT_GETFPREGS)
 		if (!procfs_validfpregs(td))	/* no P_SYSTEM procs please */
-			return EINVAL;
+			return (EINVAL);
 		else {
 			iov.iov_base = uap->addr;
 			iov.iov_len = sizeof(struct fpreg);
@@ -514,7 +514,7 @@ ptrace(td, uap)
 #endif /* PT_SETDBREGS */
 #if defined(PT_SETDBREGS) || defined(PT_GETDBREGS)
 		if (!procfs_validdbregs(td))	/* no P_SYSTEM procs please */
-			return EINVAL;
+			return (EINVAL);
 		else {
 			iov.iov_base = uap->addr;
 			iov.iov_len = sizeof(struct dbreg);
@@ -533,14 +533,14 @@ ptrace(td, uap)
 		break;
 	}
 
-	return 0;
+	return (0);
 }
 
 int
 trace_req(p)
 	struct proc *p;
 {
-	return 1;
+	return (1);
 }
 
 /*
