@@ -257,8 +257,7 @@ void	sysinit_add __P((struct sysinit **set));
 #define TUNABLE_INT_DECL(path, defval, var)	\
 static void __Tunable_ ## var (void *ignored)	\
 {						\
-    if (!getenv_int((path), &(var)))		\
-       (var) = (defval);			\
+    TUNABLE_INT_FETCH((path), (defval), (var))	\
 }						\
 SYSINIT(__Tunable_init_ ## var, SI_SUB_TUNABLES, SI_ORDER_MIDDLE, __Tunable_ ## var , NULL);
 
@@ -269,18 +268,11 @@ SYSINIT(__Tunable_init_ ## var, SI_SUB_TUNABLES, SI_ORDER_MIDDLE, __Tunable_ ## 
 #define TUNABLE_STR_DECL(path, defval, var, size)	\
 static void __Tunable_ ## var (void *ignored)		\
 {							\
-    char *tmp;						\
-    tmp = getenv((path));				\
-    if (tmp == NULL)					\
-       tmp = (defval);					\
-    strncpy((var), tmp, (size));			\
-    (var)[(size) - 1] = 0;				\
+    TUNABLE_STR_FETCH((path), (defval), (var), (size))	\
 }							\
 SYSINIT(__Tunable_init_ ## var, SI_SUB_TUNABLES, SI_ORDER_MIDDLE, __Tunable_ ## var , NULL);
 
 #define TUNABLE_STR_FETCH(path, defval, var, size)	\
-static void __Tunable_ ## var (void *ignored)		\
-{							\
     char *tmp;						\
     tmp = getenv((path));				\
     if (tmp == NULL)					\
