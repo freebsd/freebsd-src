@@ -631,8 +631,8 @@ ata_start(struct ata_softc *scp)
 	TAILQ_REMOVE(&scp->atapi_queue, atapi_request, chain);
 	scp->active = ATA_ACTIVE_ATAPI;
 	scp->running = atapi_request;
-	atapi_transfer(atapi_request);
-	return;
+	if (atapi_transfer(atapi_request) == ATA_OP_CONTINUES)
+	    return;
     }
 #endif
     scp->active = ATA_IDLE;
