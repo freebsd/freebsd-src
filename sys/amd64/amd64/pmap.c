@@ -2119,7 +2119,7 @@ retry:
 			ptepa += NBPDR;
 			pde++;
 		}
-		pmap_invalidate_all(kernel_pmap);
+		pmap_invalidate_all(pmap);
 	}
 }
 
