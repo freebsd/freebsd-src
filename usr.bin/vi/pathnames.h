@@ -1,4 +1,8 @@
 /* @(#)pathnames.h.in	8.4 (Berkeley) 6/26/96 */
+/* $FreeBSD$ */
+
+/* Read standard system paths first. */
+#include <paths.h>
 
 #ifndef	_PATH_BSHELL
 #define	_PATH_BSHELL	"/bin/sh"

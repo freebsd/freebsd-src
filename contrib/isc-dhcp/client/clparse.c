@@ -53,7 +53,7 @@ static TIME parsed_time;
 
 struct client_config top_level_config;
 
-char client_script_name [] = "/sbin/dhclient-script";
+char client_script_name [] = _PATH_DHCLIENT_SCRIPT;
 
 u_int32_t default_requested_options [] = {
 	DHO_SUBNET_MASK,
