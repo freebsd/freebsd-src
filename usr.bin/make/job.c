@@ -1500,9 +1500,9 @@ JobStart(GNode *gn, int flags, Job *previous)
 
 	/*
 	 * Check the commands now so any attributes from .DEFAULT have a chance
-	 * to migrate to the node. XXXHB: missing parantheses below?
+	 * to migrate to the node.
 	 */
-	if (!compatMake && job->flags & JOB_FIRST) {
+	if (!compatMake && (job->flags & JOB_FIRST)) {
 		cmdsOK = Job_CheckCommands(gn, Error);
 	} else {
 		cmdsOK = TRUE;
