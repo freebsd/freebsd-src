@@ -7,7 +7,13 @@
 ** 
 *******************************************************************/
 
+#ifdef TESTMAIN
+#include <stdlib.h>
+#include <stdio.h>
+#include <ctype.h>
+#else
 #include <stand.h>
+#endif
 #include <string.h>
 #include "ficl.h"
 #include "math64.h"
