@@ -131,8 +131,9 @@ main(int argc, char *argv[])
 	dev_t ttydev;
 	pid_t *pids;
 	uid_t *uids;
-	int all, ch, flag, i, _fmt, lineno, nentries, nocludge, dropgid;
-	int prtheader, wflag, what, xflg, pid, uid, npids, nuids, showthreads;
+	int all, ch, dropgid, flag, _fmt, i, lineno;
+	int nentries, nocludge, noutput, npids, nuids, pid;
+	int prtheader, showthreads, uid, wflag, what, xflg;
 	char errbuf[_POSIX2_LINE_MAX];
 	const char *cp, *nlistf, *memf;
 
@@ -395,6 +396,7 @@ main(int argc, char *argv[])
 	/*
 	 * for each proc, call each variable output function.
 	 */
+	noutput = 0;
 	for (i = lineno = 0; i < nentries; i++) {
 		if (xflg == 0 && (KI_EPROC(&kinfo[i])->e_tdev == NODEV ||
 		    (KI_PROC(&kinfo[i])->p_flag & P_CONTROLT ) == 0))
@@ -421,13 +423,21 @@ main(int argc, char *argv[])
 				(void)putchar(' ');
 		}
 		(void)putchar('\n');
+		noutput++;
 		if (prtheader && lineno++ == prtheader - 4) {
 			(void)putchar('\n');
 			printheader();
 			lineno = 0;
 		}
 	}
-	free(uids);
+	if (pids != NULL)
+		free(pids);
+	if (uids != NULL)
+		free(uids);
+
+	/* Check if '-p proclist' or '-u userlist' matched zero processes */
+	if (noutput == 0)
+		eval = 1;
 
 	exit(eval);
 }
