@@ -52,9 +52,9 @@
 #include <machine/resource.h>
 #include <machine/md_var.h>		/* For the Alpha */
 
+#include <sys/pciio.h>
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
-#include <sys/pciio.h>
 
 #ifdef __alpha__
 #include <machine/rpb.h>
@@ -85,13 +85,6 @@ struct pci_quirk pci_quirks[] = {
 #define PCI_MAPMEM	0x01	/* memory map */
 #define PCI_MAPMEMP	0x02	/* prefetchable memory map */
 #define PCI_MAPPORT	0x04	/* port map */
-
-struct pci_devinfo {
-    	STAILQ_ENTRY(pci_devinfo) pci_links;
-	struct resource_list resources;
-	pcicfgregs		cfg;
-	struct pci_conf		conf;
-};
 
 static STAILQ_HEAD(devlist, pci_devinfo) pci_devq;
 u_int32_t pci_numdevs = 0;
@@ -857,101 +850,6 @@ static struct cdevsw pcicdev = {
 
 #include "pci_if.h"
 
-static devclass_t	pci_devclass;
-
-#ifdef COMPAT_OLDPCI
-/*
- * A simple driver to wrap the old pci driver mechanism for back-compat.
- */
-
-static int
-pci_compat_probe(device_t dev)
-{
-	struct pci_device *dvp;
-	struct pci_devinfo *dinfo;
-	pcicfgregs *cfg;
-	const char *name;
-	int error;
-	
-	dinfo = device_get_ivars(dev);
-	cfg = &dinfo->cfg;
-	dvp = device_get_driver(dev)->priv;
-
-	/*
-	 * Do the wrapped probe.
-	 */
-	error = ENXIO;
-	if (dvp && dvp->pd_probe) {
-		name = dvp->pd_probe(cfg, (cfg->device << 16) + cfg->vendor);
-		if (name) {
-			device_set_desc_copy(dev, name);
-			/* Allow newbus drivers to match "better" */
-			error = -200;
-		}
-	}
-
-	return error;
-}
-
-static int
-pci_compat_attach(device_t dev)
-{
-	struct pci_device *dvp;
-	struct pci_devinfo *dinfo;
-	pcicfgregs *cfg;
-	int unit;
-
-	dinfo = device_get_ivars(dev);
-	cfg = &dinfo->cfg;
-	dvp = device_get_driver(dev)->priv;
-
-	unit = device_get_unit(dev);
-	if (unit > *dvp->pd_count)
-		*dvp->pd_count = unit;
-	if (dvp->pd_attach)
-		dvp->pd_attach(cfg, unit);
-	device_printf(dev, "driver is using old-style compatability shims\n");
-	return 0;
-}
-
-static device_method_t pci_compat_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,		pci_compat_probe),
-	DEVMETHOD(device_attach,	pci_compat_attach),
-
-	{ 0, 0 }
-};
-
-/*
- * Create a new style driver around each old pci driver.
- */
-int
-compat_pci_handler(module_t mod, int type, void *data)
-{
-	struct pci_device *dvp = (struct pci_device *)data;
-	driver_t *driver;
-
-	switch (type) {
-	case MOD_LOAD:
-		driver = malloc(sizeof(driver_t), M_DEVBUF, M_NOWAIT);
-		if (!driver)
-			return ENOMEM;
-		bzero(driver, sizeof(driver_t));
-		driver->name = dvp->pd_name;
-		driver->methods = pci_compat_methods;
-		driver->size = sizeof(struct pci_devinfo *);
-		driver->priv = dvp;
-		devclass_add_driver(pci_devclass, driver);
-		break;
-	case MOD_UNLOAD:
-		printf("%s: module unload not supported!\n", dvp->pd_name);
-		return EOPNOTSUPP;
-	default:
-		break;
-	}
-	return 0;
-}
-#endif
 
 /*
  * New style pci driver.  Parent device is either a pci-host-bridge or a
@@ -1504,5 +1402,5 @@ static driver_t pci_driver = {
 	pci_methods,
 	1,			/* no softc */
 };
-
+static devclass_t	pci_devclass;
 DRIVER_MODULE(pci, pcib, pci_driver, pci_devclass, pci_modevent, 0);
