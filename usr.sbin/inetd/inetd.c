@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: inetd.c	8.4 (Berkeley) 4/13/94";
 #endif
 static const char rcsid[] =
-	"$Id: inetd.c,v 1.44 1998/12/28 15:09:43 des Exp $";
+	"$Id: inetd.c,v 1.45 1999/01/02 16:04:19 des Exp $";
 #endif /* not lint */
 
 /*
@@ -268,7 +268,7 @@ struct biltin {
 	{ "discard",	SOCK_STREAM,	1, 0,	discard_stream },
 	{ "discard",	SOCK_DGRAM,	0, 0,	discard_dg },
 
-	/* Return 32 bit time since 1970 */
+	/* Return 32 bit time since 1900 */
 	{ "time",	SOCK_STREAM,	0, 0,	machtime_stream },
 	{ "time",	SOCK_DGRAM,	0, 0,	machtime_dg },
 
@@ -1736,7 +1736,7 @@ chargen_dg(s, sep)		/* Character generator */
  * some seventy years Bell Labs was asleep.
  */
 
-long
+unsigned long
 machtime()
 {
 	struct timeval tv;
@@ -1757,7 +1757,7 @@ machtime_stream(s, sep)
 	int s;
 	struct servtab *sep;
 {
-	long result;
+	unsigned long result;
 
 	result = machtime();
 	(void) write(s, (char *) &result, sizeof(result));
@@ -1769,7 +1769,7 @@ machtime_dg(s, sep)
 	int s;
 	struct servtab *sep;
 {
-	long result;
+	unsigned long result;
 	struct sockaddr_in sin;
 	int size;
 
