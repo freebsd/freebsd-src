@@ -1,6 +1,3 @@
-#define WD_COUNT_RETRIES
-static int wdtest = 0;
-
 /*-
  * Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
@@ -37,7 +34,7 @@ static int wdtest = 0;
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.68 1995/03/06 05:40:44 davidg Exp $
+ *	$Id: wd.c,v 1.69 1995/03/16 18:12:08 bde Exp $
  */
 
 /* TODO:
@@ -45,7 +42,6 @@ static int wdtest = 0;
  *	o Satisfy ATA timing in all cases.
  *	o Finish merging berry/sos timeout code (bump error count...).
  *	o Merge/fix TIH/NetBSD bad144 code.
- *	o Merge/fix Dyson/NetBSD clustering code.
  *	o Don't use polling except for initialization.  Need to
  *	  reorganize the state machine.  Then "extra" interrupts
  *	  shouldn't happen (except maybe one for initialization).
@@ -53,8 +49,6 @@ static int wdtest = 0;
  *	  bad144 in standard versions.
  *	o Support extended DOS partitions.
  *	o Support swapping to DOS partitions.
- *	o Look at latest linux clustering methods.  Our disksort()
- *	  gets in the way of clustering.
  *	o Handle bad sectors, clustering, disklabelling, DOS
  *	  partitions and swapping driver-independently.  Use
  *	  i386/dkbad.c for bad sectors.  Swapping will need new
@@ -97,6 +91,9 @@ static int wdtest = 0;
 				/* correct max is 256 but some controllers */
 				/* can't handle that in all cases */
 #define BAD144_NO_CYL	0xffff	/* XXX should be in dkbad.h; bad144.c uses -1 */
+#ifndef NSECS_MULTI
+#define NSECS_MULTI 16
+#endif
 
 #ifdef notyet
 #define wdnoreloc(dev)	(minor(dev) & 0x80)	/* ignore partition table */
@@ -223,6 +220,7 @@ struct disk {
 #define	DKFL_WRITEPROT	0x00040	/* manual unit write protect */
 #define	DKFL_LABELLING	0x00080	/* readdisklabel() in progress */
 #define	DKFL_32BIT	0x00100	/* use 32-bit i/o mode */
+#define	DKFL_MULTI	0x00200	/* use multi-i/o mode */
 	struct wdparams dk_params; /* ESDI/IDE drive/controller parameters */
 	int	dk_dkunit;	/* number of statistics purposes */
 	struct disklabel dk_dd;	/* device configuration data */
@@ -230,8 +228,13 @@ struct disk {
 	struct dos_partition
 		dk_dospartitions[NDOSPART];	/* DOS view of disk */
 	struct dkbad dk_bad;	/* bad sector table */
+	int	dk_multi;	/* multi transfers */
+	int	dk_currentiosize;	/* current io size */
 	long    dk_badsect[127];        /* 126 plus trailing -1 marker */
 };
+
+#define WD_COUNT_RETRIES
+static int wdtest = 0;
 
 static struct disk *wddrives[NWD];	/* table of units */
 static struct buf wdtab[NWDC];
@@ -405,7 +408,9 @@ wdattach(struct isa_device *dvp)
 		    printf("wdc%d: unit %d (wd%d): <%s>",
 			dvp->id_unit, unit, lunit, buf);
 		    if (du->dk_flags & DKFL_32BIT)
-			printf(", 32-bit data path");
+			printf(", 32-bit");
+		    if (du->dk_multi > 1)
+			printf(", multi-block-%d", du->dk_multi);
 		    printf("\n");
 		    if (du->dk_params.wdp_heads == 0 && 
 			du->dk_dd.d_secperunit > 100)
@@ -414,12 +419,12 @@ wdattach(struct isa_device *dvp)
 		    else if (du->dk_params.wdp_heads == 0)
 			printf("wd%d: size unknown: ", lunit);
 		    else
-			printf("wd%d: %luMB (%lu total sec), ",
+			printf("wd%d: %luMB (%lu sectors), ",
 				lunit,
 				du->dk_dd.d_secperunit
 				* du->dk_dd.d_secsize / (1024 * 1024),
 				du->dk_dd.d_secperunit);
-		    printf("%lu cyl, %lu head, %lu sec, bytes/sec %lu\n",
+		    printf("%lu C %lu H %lu S/T %lu B/S\n",
 			   du->dk_dd.d_ncylinders,
 			   du->dk_dd.d_ntracks,
 			   du->dk_dd.d_nsectors,
@@ -590,6 +595,7 @@ wdstart(int ctrlr)
 	long	blknum, cylin, head, sector;
 	long	secpertrk, secpercyl;
 	int	lunit;
+	int	count;
 
 loop:
 	/* is there a drive for the controller to do a transfer with? */
@@ -627,11 +633,13 @@ loop:
 	secpertrk = lp->d_nsectors;
 	secpercyl = lp->d_secpercyl;
 
-	if(du->dk_dkunit >= 0) {
-		dk_wds[du->dk_dkunit] += bp->b_bcount >> 6;
-	}
 
 	if (du->dk_skip == 0) {
+
+		if(du->dk_dkunit >= 0) {
+			dk_wds[du->dk_dkunit] += bp->b_bcount >> 6;
+		}
+
 		du->dk_bc = bp->b_bcount;
 
 		if (bp->b_flags & B_BAD
@@ -671,10 +679,6 @@ loop:
 	}
 				
 	
-	cylin = blknum / secpercyl;
-	head = (blknum % secpercyl) / secpertrk;
-	sector = blknum % secpertrk;
-
 	wdtab[ctrlr].b_active = 1;	/* mark controller active */
 
 	/* if starting a multisector transfer, or doing single transfers */
@@ -682,8 +686,15 @@ loop:
 		u_int	command;
 		u_int	count;
 
+		cylin = blknum / secpercyl;
+		head = (blknum % secpercyl) / secpertrk;
+		sector = blknum % secpertrk;
+
 		if (wdtab[ctrlr].b_errcnt && (bp->b_flags & B_READ) == 0)
 			du->dk_bc += DEV_BSIZE;
+		count = howmany( du->dk_bc, DEV_BSIZE);
+
+		du->dk_flags &= ~DKFL_MULTI;
 
 #ifdef B_FORMAT
 		if (bp->b_flags & B_FORMAT) {
@@ -692,13 +703,33 @@ loop:
 			sector = lp->d_gap3 - 1;	/* + 1 later */
 		} else
 #endif
+
 		{
-			if (du->dk_flags & DKFL_SINGLE)
+			if (du->dk_flags & DKFL_SINGLE) {
+				command = (bp->b_flags & B_READ)
+					  ? WDCC_READ : WDCC_WRITE;
 				count = 1;
-			else
-				count = howmany(du->dk_bc, DEV_BSIZE);
-			command = (bp->b_flags & B_READ)
-				  ? WDCC_READ : WDCC_WRITE;
+				du->dk_currentiosize = 1;
+			} else {
+				if( (count > 1) && (du->dk_multi > 1)) {
+					du->dk_flags |= DKFL_MULTI;
+					if( bp->b_flags & B_READ) {
+						command = WDCC_READ_MULTI;
+					} else {
+						command = WDCC_WRITE_MULTI;
+					}
+					du->dk_currentiosize = du->dk_multi;
+					if( du->dk_currentiosize > count)
+						du->dk_currentiosize = count;
+				} else {
+					if( bp->b_flags & B_READ) {
+						command = WDCC_READ;
+					} else {
+						command = WDCC_WRITE;
+					}
+					du->dk_currentiosize = 1;
+				}
+			}
 		}
 
 		/*
@@ -765,16 +796,25 @@ loop:
 		 */
 	}
 
-	/* then send it! */
+	count = 1;
+	if( du->dk_flags & DKFL_MULTI) {
+		count = howmany(du->dk_bc, DEV_BSIZE);
+		if( count > du->dk_multi)
+			count = du->dk_multi;
+		if( du->dk_currentiosize > count)
+			du->dk_currentiosize = count;
+	}
+		
 	if (du->dk_flags & DKFL_32BIT)
 		outsl(du->dk_port + wd_data,
 		      (void *)((int)bp->b_un.b_addr + du->dk_skip * DEV_BSIZE),
-		      DEV_BSIZE / sizeof(long));
+		      (count * DEV_BSIZE) / sizeof(long));
 	else
 		outsw(du->dk_port + wd_data,
 		      (void *)((int)bp->b_un.b_addr + du->dk_skip * DEV_BSIZE),
-		      DEV_BSIZE / sizeof(short));
-	du->dk_bc -= DEV_BSIZE;
+		      (count * DEV_BSIZE) / sizeof(short));
+	du->dk_bc -= DEV_BSIZE * count;
+
 }
 
 /* Interrupt routine for the controller.  Acknowledge the interrupt, check for
@@ -798,7 +838,6 @@ wdintr(int unit)
 	bp = wdtab[unit].b_actf;
 	du = wddrives[wdunit(bp->b_dev)];
 	dp = &wdutab[du->dk_lunit];
-
 	du->dk_timeout = 0;
 
 	if (wdwait(du, 0, TIMEOUT) < 0) {
@@ -823,6 +862,10 @@ wdintr(int unit)
 	/* have we an error? */
 	if (du->dk_status & (WDCS_ERR | WDCS_ECCCOR)) {
 oops:
+		if( (du->dk_status & DKFL_MULTI) && (inb(du->dk_port) & WDERR_ABORT)) {
+			wderror(bp, du, "reverting to non-multi sector mode");
+			du->dk_multi = 1;
+		}
 #ifdef WDDEBUG
 		wderror(bp, du, "wdintr");
 #endif
@@ -856,6 +899,16 @@ oops:
 	 */
 	if (((bp->b_flags & (B_READ | B_ERROR)) == B_READ)
 	    && wdtab[unit].b_active) {
+		int	chk, dummy, multisize;
+		multisize = chk = du->dk_currentiosize * DEV_BSIZE;
+		if( du->dk_bc < chk) {
+			chk = du->dk_bc;
+			if( ((chk + DEV_BSIZE - 1) / DEV_BSIZE) < du->dk_currentiosize) {
+				du->dk_currentiosize = (chk + DEV_BSIZE - 1) / DEV_BSIZE;
+				multisize = du->dk_currentiosize * DEV_BSIZE;
+			}
+		}
+		
 		/* ready to receive data? */
 		if ((du->dk_status & (WDCS_READY | WDCS_SEEKCMPLT | WDCS_DRQ))
 		    != (WDCS_READY | WDCS_SEEKCMPLT | WDCS_DRQ))
@@ -866,15 +919,21 @@ oops:
 		}
 
 		/* suck in data */
-		if (du->dk_flags & DKFL_32BIT)
+		if( du->dk_flags & DKFL_32BIT)
 			insl(du->dk_port + wd_data,
-				bp->b_un.b_addr + du->dk_skip * DEV_BSIZE,
-				DEV_BSIZE / sizeof(long));
+			     (void *)((int)bp->b_un.b_addr + du->dk_skip * DEV_BSIZE),
+					chk / sizeof(long));
 		else
 			insw(du->dk_port + wd_data,
-				bp->b_un.b_addr + du->dk_skip * DEV_BSIZE,
-				DEV_BSIZE / sizeof(short));
-		du->dk_bc -= DEV_BSIZE;
+			     (void *)((int)bp->b_un.b_addr + du->dk_skip * DEV_BSIZE),
+					chk / sizeof(short));
+		du->dk_bc -= chk;
+
+		/* XXX for obsolete fractional sector reads. */
+		while (chk < multisize) {
+			insw(du->dk_port + wd_data, &dummy, 1);
+			chk += sizeof(short);
+		}
 	}
 
 	wdxfer[du->dk_lunit]++;
@@ -887,15 +946,20 @@ oops:
 outt:
 	if (wdtab[unit].b_active) {
 		if ((bp->b_flags & B_ERROR) == 0) {
-			du->dk_skip++;	/* add to successful sectors */
+			du->dk_skip += du->dk_currentiosize;/* add to successful sectors */
 			if (wdtab[unit].b_errcnt)
 				wderror(bp, du, "soft error");
 			wdtab[unit].b_errcnt = 0;
 
 			/* see if more to transfer */
 			if (du->dk_bc > 0 && (du->dk_flags & DKFL_ERROR) == 0) {
-				wdtab[unit].b_active = 0;
-				wdstart(unit);
+				if( (du->dk_flags & DKFL_SINGLE) ||
+					((bp->b_flags & B_READ) == 0)) {
+					wdtab[unit].b_active = 0;
+					wdstart(unit);
+				} else {
+					du->dk_timeout = 1 + 3;
+				}
 				return;	/* next chunk is started */
 			} else if ((du->dk_flags & (DKFL_SINGLE | DKFL_ERROR))
 				   == DKFL_ERROR) {
@@ -1170,12 +1234,16 @@ wdcommand(struct disk *du, u_int cylinder, u_int head, u_int sector,
 	if (wdwait(du, 0, TIMEOUT) < 0)
 		return (1);
 	wdc = du->dk_port;
-	outb(wdc + wd_precomp, du->dk_dd.d_precompcyl / 4);
-	outb(wdc + wd_cyl_lo, cylinder);
-	outb(wdc + wd_cyl_hi, cylinder >> 8);
-	outb(wdc + wd_sdh, WDSD_IBM | (du->dk_unit << 4) | head);
-	outb(wdc + wd_sector, sector + 1);
-	outb(wdc + wd_seccnt, count);
+	if( command == WDCC_FEATURES) {
+		outb(wdc + wd_features, count);
+	} else {
+		outb(wdc + wd_precomp, du->dk_dd.d_precompcyl / 4);
+		outb(wdc + wd_cyl_lo, cylinder);
+		outb(wdc + wd_cyl_hi, cylinder >> 8);
+		outb(wdc + wd_sdh, WDSD_IBM | (du->dk_unit << 4) | head);
+		outb(wdc + wd_sector, sector + 1);
+		outb(wdc + wd_seccnt, count);
+	}
 	if (wdwait(du, command == WDCC_DIAGNOSE || command == WDCC_IDC
 		       ? 0 : WDCS_READY, TIMEOUT) < 0)
 		return (1);
@@ -1257,10 +1325,17 @@ wdgetctlr(struct disk *du)
 {
 	int	i;
 	char    tb[DEV_BSIZE], tb2[DEV_BSIZE];
-	struct wdparams *wp;
+	struct wdparams *wp = NULL;
 again:
 	if (wdcommand(du, 0, 0, 0, 0, WDCC_READP) != 0
 	    || wdwait(du, WDCS_READY | WDCS_SEEKCMPLT | WDCS_DRQ, TIMEOUT) != 0) {
+
+		/*
+		 * if we failed on the second try, assume non-32bit
+		 */
+		if( du->dk_flags & DKFL_32BIT)
+			goto failed;
+		
 		/* XXX need to check error status after final transfer. */
 		/*
 		 * Old drives don't support WDCC_READP.  Try a seek to 0.
@@ -1352,6 +1427,7 @@ again:
 
 	/* check that we really have 32-bit controller */
 	if (bcmp (tb, tb2, sizeof(struct wdparams)) != 0) {
+failed:
 		/* test failed, use 16-bit i/o mode */
 		bcopy(tb2, tb, sizeof(struct wdparams));
 		du->dk_flags &= ~DKFL_32BIT;
@@ -1402,6 +1478,19 @@ again:
 	/* better ... */
 	du->dk_dd.d_type = DTYPE_ESDI;
 	du->dk_dd.d_subtype |= DSTYPE_GEOMETRY;
+
+	du->dk_multi = 1;
+	if( (NSECS_MULTI != 1) && ((wp->wdp_nsecperint & 0xff) >= NSECS_MULTI)){
+		if( !wdcommand(du, 0, 0, 0, NSECS_MULTI, WDCC_SET_MULTI)) {
+			du->dk_multi = NSECS_MULTI;
+		}
+	}
+
+#ifdef NOTYET
+/* set read caching and write caching */
+	wdcommand(du, 0, 0, 0, WDFEA_RCACHE, WDCC_FEATURES);
+	wdcommand(du, 0, 0, 0, WDFEA_WCACHE, WDCC_FEATURES);
+#endif
 
 	return (0);
 }
@@ -1953,7 +2042,12 @@ wdwait(struct disk *du, u_char bits_wanted, int timeout)
 	timeout += POLLING;
 
 	/* dummy read for delay */
-	(void) inb(wdc + wd_status);
+	/*
+	 * the reason that we are reading from an *unused* port,
+	 * is that it might be *really* fast to read from the
+	 * wd port.
+	 */
+	(void) inb(0x84);
 
 	do {
 #ifdef WD_COUNT_RETRIES
