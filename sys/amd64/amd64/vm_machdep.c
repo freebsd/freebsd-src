@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.106 1998/05/16 14:44:11 kato Exp $
+ *	$Id: vm_machdep.c,v 1.107 1998/05/17 22:12:11 tegge Exp $
  */
 
 #include "npx.h"
@@ -742,10 +742,27 @@ cpu_coredump(p, vp, cred)
 	struct vnode *vp;
 	struct ucred *cred;
 {
+	int error;
+	caddr_t tempuser;
 
-	return (vn_rdwr(UIO_WRITE, vp, (caddr_t) p->p_addr, ctob(UPAGES),
-	    (off_t)0, UIO_SYSSPACE, IO_NODELOCKED|IO_UNIT, cred, (int *)NULL,
-	    p));
+	tempuser = malloc(ctob(UPAGES), M_TEMP, M_WAITOK);
+	if (!tempuser)
+		return EINVAL;
+	
+	bzero(tempuser, ctob(UPAGES));
+	bcopy(p->p_addr, tempuser, sizeof(struct user));
+	bcopy(p->p_md.md_regs,
+	      tempuser + ((caddr_t) p->p_md.md_regs - (caddr_t) p->p_addr),
+	      sizeof(struct trapframe));
+
+	error = vn_rdwr(UIO_WRITE, vp, (caddr_t) tempuser, 
+			ctob(UPAGES),
+			(off_t)0, UIO_SYSSPACE, IO_NODELOCKED|IO_UNIT, 
+			cred, (int *)NULL, p);
+
+	free(tempuser, M_TEMP);
+	
+	return error;
 }
 
 #ifdef notyet

@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.18 (Berkeley) 5/21/95
  *
- *	$Id: procfs_vnops.c,v 1.55 1998/02/09 06:09:46 eivind Exp $
+ *	$Id: procfs_vnops.c,v 1.56 1998/03/26 20:52:42 phk Exp $
  */
 
 /*
@@ -142,7 +142,7 @@ procfs_open(ap)
 
 		p1 = ap->a_p;
 		if (!CHECKIO(p1, p2) &&
-		    (p1->p_cred->pc_ucred->cr_gid != KMEM_GROUP))
+		    !procfs_kmemaccess(p1))
 			return (EPERM);
 
 		if (ap->a_mode & FWRITE)
