@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)queue.h	8.5 (Berkeley) 8/20/94
- * $Id$
+ * $Id: queue.h,v 1.13 1997/02/22 09:45:44 peter Exp $
  */
 
 #ifndef _SYS_QUEUE_H_
@@ -217,6 +217,11 @@ struct {								\
 /*
  * List functions.
  */
+#define LIST_FIRST(head)	((head)->lh_first)
+
+#define LIST_FOREACH(var, head, field)					\
+	for((var) = (head)->lh_first; (var); (var) = (var)->field.le_next)
+
 #define	LIST_INIT(head) {						\
 	(head)->lh_first = NULL;					\
 }
@@ -242,6 +247,8 @@ struct {								\
 	(head)->lh_first = (elm);					\
 	(elm)->field.le_prev = &(head)->lh_first;			\
 }
+
+#define LIST_NEXT(elm, field)	((elm)->field.le_next)
 
 #define LIST_REMOVE(elm, field) {					\
 	if ((elm)->field.le_next != NULL)				\
