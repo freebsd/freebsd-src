@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: utils.c,v 1.14 1997/10/03 18:11:14 wosch Exp $
+ *	$Id: utils.c,v 1.15 1998/01/16 07:37:05 bde Exp $
  */
 
 #ifndef lint
@@ -130,7 +130,7 @@ copy_file(entp, dne)
 			rval = 1;
 		} else {
 			for (bufp = p, wresid = fs->st_size; ;
-			    bufp += wcount, wresid -= wcount)
+			    bufp += wcount, wresid -= wcount) {
 				wcount = write(to_fd, bufp, wresid);
 				if (wcount >= wresid || wcount <= 0)
 					break;
