@@ -1,5 +1,5 @@
                                  RELEASE NOTES
-                        FreeBSD Release 2.2-960428-SNAP
+                        FreeBSD Release 2.2-960501-SNAP
 
 
 0. What's new since 2.2-960323-SNAP?
@@ -17,7 +17,11 @@ Various VM system enhancements and a few bugs fixed (gzip'd binaries
 now work again, for example).
 
 The system installation tool has been revamped with slightly different
-menu behavior and a number of bugs have been fixed.
+menu behavior and a number of bugs have been fixed.  It's hoped that
+this installation will be more intuitive for new users than previous
+ones (feedback welcomed, of course).
+
+Much miscellaneous cleanup work with the header files and sources.
 
 
 1. What's New since 2.1.0-RELEASE?
@@ -492,4 +496,4 @@ We sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: relnotes.hlp,v 1.4 1996/04/28 06:08:41 jkh Exp $
+$Id: relnotes.hlp,v 1.6 1996/05/01 09:42:17 jkh Exp $

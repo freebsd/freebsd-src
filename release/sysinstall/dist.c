@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.45 1996/04/28 03:26:51 jkh Exp $
+ * $Id: dist.c,v 1.50 1996/05/01 08:50:00 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -71,6 +71,7 @@ static Distribution DistTable[] = {
 { "des",	"/",			&Dists,		DIST_DES,		DESDistTable	},
 { "compat1x",	"/",			&Dists,		DIST_COMPAT1X,		NULL		},
 { "compat20",	"/",			&Dists,		DIST_COMPAT20,		NULL		},
+{ "compat21",	"/",			&Dists,		DIST_COMPAT21,		NULL		},
 { "commerce",	"/usr/local",		&Dists,		DIST_COMMERCIAL,	NULL		},
 { "xperimnt",	"/usr/local",		&Dists,		DIST_EXPERIMENTAL,	NULL		},
 { "XF86312",	"/usr",			&Dists,		DIST_XF86,		XF86DistTable	},
@@ -299,8 +300,10 @@ distExtract(char *parent, Distribution *me)
     char *path, *dist, buf[10240];
     const char *tmp;
     Attribs *dist_attr;
+    WINDOW *w = savescr();
 
     status = TRUE;
+    dialog_clear();
     if (isDebug())
 	msgDebug("distExtract: parent: %s, me: %s\n", parent ? parent : "(none)", me->my_name);
 
@@ -433,6 +436,7 @@ distExtract(char *parent, Distribution *me)
 	if (status)
 	    *(me[i].my_mask) &= ~(me[i].my_bit);
     }
+    restorescr(w);
     return status;
 }
 
@@ -489,9 +493,10 @@ distExtractAll(dialogMenuItem *self)
 
     if (Dists) {
 	printSelected(buf, Dists, DistTable);
-	msgConfirm("Couldn't extract all of the distributions.  This may\n"
-		   "be because the following distributions are not available on the\n"
-		   "installation media you've chosen:\n\n\t%s", buf);
+	dialog_clear();
+	msgConfirm("Couldn't extract the following distributions.  This may\n"
+		   "be because they were not available on the installation\n"
+		   "media you've chosen:\n\n\t%s", buf);
     }
     return DITEM_SUCCESS;
 }

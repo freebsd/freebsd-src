@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: wizard.c,v 1.7 1995/12/07 10:34:25 peter Exp $
+ * $Id: wizard.c,v 1.8 1996/04/28 20:54:11 jkh Exp $
  *
  */
 
@@ -208,7 +208,7 @@ slice_wizard(Disk *d)
 	}
 	if (!strcasecmp(*cmds,"write")) {
 	    printf("Write=%d\n",
-		   Write_Disk(d));
+		   Fake ? 0 : Write_Disk(d));
 	    Free_Disk(d);
 	    d = Open_Disk(d->name);
 	    continue;
