@@ -1,0 +1,44 @@
+<!--
+     The FreeBSD Documentation Project
+     The FreeBSD French Documentation Project
+
+     $Id$
+     $FreeBSD$
+     Original revision: 1.2
+-->
+
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
+<!ENTITY % man PUBLIC "-//FreeBSD//ENTITIES DocBook Manual Page Entities//EN">
+%man;
+<!ENTITY % authors PUBLIC  "-//FreeBSD//ENTITIES DocBook Author Entities//EN">
+%authors;
+<!ENTITY % mlists PUBLIC "-//FreeBSD//ENTITIES DocBook Mailing List Entities//EN">
+%mlists;
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
+%release;
+<!ENTITY % sections SYSTEM "../common/hw.ent"> %sections;
+
+<!-- Architecture-specific customization -->
+
+<!ENTITY arch "sparc64">
+<!ENTITY arch.print "UltraSPARC">
+<!ENTITY unsupported "<emphasis>(unsupported)</emphasis>">
+<!ENTITY perforce "<emphasis>(not yet committed - in Perforce tree)</emphasis>">
+<!ENTITY sect.dev.sparc64 SYSTEM "./dev-sparc64.sgml">
+]>
+
+<article>
+  &artheader;
+  &sect.intro;
+  &sect.proc.sparc64;
+  &sect.dev.sparc64;
+  <sect1>
+    <title>Acknowledgments</title>
+
+    <para>This document is based in part on the &os;/Alpha and
+      NetBSD/sparc64 release documentation.  Information about
+      specific system models was obtained from <ulink
+      url="http://www.sun.com">Sun</ulink>.</para>
+
+  </sect1>
+</article>

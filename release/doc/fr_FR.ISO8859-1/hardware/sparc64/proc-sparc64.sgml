@@ -1,0 +1,245 @@
+<!--
+     The FreeBSD Documentation Project
+     The FreeBSD French Documentation Project
+
+     $Id$
+     $FreeBSD$
+     Original revision: 1.4
+-->
+<sect1>
+  <title>Supported Systems</title>
+
+  <para>Additions, corrections and constructive criticism are
+    invited. In particular, information on system quirks is more than
+    welcome.</para>
+
+  <sect2>
+    <title>Overview</title>
+
+    <para>This document tries to provide a starting point for those
+      who want to run &os; on an &arch.print;-based machine. It is
+      aimed at providing background information on the various
+      hardware designs. It is not a replacement for the systems
+      manuals.</para>
+
+    <para>The information is structured as follows:
+      <itemizedlist>
+        <listitem>
+	  <para>General hardware requirements to run &os; on &arch;.</para>
+	</listitem>
+        <listitem>
+          <para>System specific information for each of the
+          systems/boards supported by &os;.</para>
+        </listitem>
+	<listitem>
+	  <para>Information on expansion boards for &os;,
+	  including things that differ from what is in the generic
+	  supported hardware list.</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+
+  </sect2>
+
+  <sect2>
+    <title>In general, what do you need to run &os; on a &arch;</title>
+
+    <para>&os;/&arch; requires an &arch.print; system.  Currently, the
+      newer PCI-based systems are supported better than the older SBus
+      based systems.  The following systems are known to work to
+      varying degrees:</para>
+
+      <itemizedlist>
+        <listitem>
+	  <para>Sun Ultra 1 workstations</para>
+	</listitem>
+        <listitem>
+	  <para>Sun Ultra 2 workstations</para>
+	</listitem>
+        <listitem>
+	  <para>Sun Ultra 5 workstations</para>
+	</listitem>
+	<listitem>
+	  <para>Sun Ultra 10 workstations</para>
+	</listitem>
+	<listitem>
+	  <para>Sun Ultra 30 workstations</para>
+	</listitem>
+	<listitem>
+	  <para>Sun Ultra 60 workstations</para>
+	</listitem>
+	<listitem>
+	  <para>Sun Blade 100 workstations</para>
+	</listitem>
+	<listitem>
+	  <para>Sun Netra t1 series servers</para>
+	</listitem>
+	<listitem>
+	  <para>Sun Enterprise 220R servers</para>
+	</listitem>
+	<listitem>
+	  <para>Sun Enterprise 250 servers</para>
+	</listitem>
+	<listitem>
+	  <para>Sun Enterprise 420R servers</para>
+	</listitem>
+      </itemizedlist>
+
+    <para>Ultra 80 and Blade 1000 are expected to work, maybe
+      with minor modifications.  SMP is supported on Ultra 2 and 60
+      workstations and Enterprise 220R, 250 and 420R servers.</para>
+  </sect2>
+
+  <sect2>
+    <title>System-specific information</title>
+
+    <para>Below is an overview of the &arch.print; hardware that &os;
+      runs on. The GENERIC kernel configuration file in
+      <filename>/sys/&arch;/conf/GENERIC</filename> may contain
+      additional information about supported devices.</para>
+ 
+    <sect3>
+      <title>Ultra 1</title>
+
+      <para>UltraSPARC Ultra1-family systems have not been thoroughly
+	tested with FreeBSD.  These systems are not very well
+	supported, but it is possible to install FreeBSD onto an
+	Ultra-1e with a <devicename>hme</devicename> Ethernet
+	interface.</para>
+    </sect3>
+
+    <sect3>
+      <title>Ultra 2</title>
+
+      <para>UltraSPARC Ultra2-family systems include the following
+	hardware:</para>
+
+      <itemizedlist>
+        <listitem><para>1 or 2 UltraSPARC II CPUs</para></listitem>
+        <listitem><para>Built-in Ethernet
+          (<devicename>hme</devicename> compatible)
+          interface</para></listitem>
+        <listitem><para>4 SBus slots</para></listitem>
+        <listitem><para>1 UPA Slot</para></listitem>
+        <listitem><para>Serial and Parallel ports</para></listitem>
+        <listitem><para>16-bit audio</para></listitem>
+      </itemizedlist>
+    </sect3>
+
+
+    <sect3>    
+      <title>Ultra 5/10</title>
+
+      <para>UltraSPARC Ultra5/10-family systems include the following
+	hardware:</para>
+
+      <itemizedlist>
+        <listitem><para>UltraSPARC IIi CPU</para></listitem>
+        <listitem><para>Three PCI busses</para></listitem>
+        <listitem><para>Built-in Ethernet
+          (<devicename>hme</devicename> compatible)
+          interface</para></listitem>
+        <listitem><para>Built-in PCI-IDE controller &perforce;</para></listitem> 
+        <listitem><para>Two PC-AT style `com' ports for the mouse and keyboard</para></listitem>
+        <listitem><para>Floppy driver controller</para></listitem>
+        <listitem><para>Siemens SAB82532 dual-channel serial ports for ttya and ttyb</para></listitem>
+        <listitem><para>One CS4231 audio device</para></listitem>
+        <listitem><para>One PC-AT style parallel port</para></listitem>
+        <listitem><para>Sun `ffb' frame buffer (Ultra10 only)</para></listitem>
+        <listitem><para>EBus (Sun proprietary bus for slow
+          devices)</para></listitem>
+      </itemizedlist>
+    </sect3>
+
+    <sect3>    
+      <title>Ultra 60</title>
+
+      <para>Sun Ultra 60 workstations include the following hardware:</para>
+
+      <itemizedlist>
+        <listitem><para>1 or 2 UltraSPARC II CPUs</para></listitem>
+        <listitem><para>4 PCI slots</para></listitem>
+        <listitem><para>2 UPA slots</para></listitem>
+        <listitem><para>&man.sym.4;-based UltraSCSI
+          controller</para></listitem>
+        <listitem><para>Built-in Ethernet
+          (<devicename>hme</devicename> compatible)
+          interface</para></listitem>
+        <listitem><para>Serial and Parallel ports</para></listitem>
+        <listitem><para>16-bit audio</para></listitem>
+        <listitem><para>EBus (Sun proprietary bus for slow
+          devices)</para></listitem>
+      </itemizedlist>
+    </sect3>
+
+    <sect3>
+      <title>Blade 100</title>
+
+      <para>Sun Blade 100 workstations include the following hardware:</para>
+
+      <itemizedlist>
+        <listitem><para>UltraSPARC IIe CPU</para></listitem>
+        <listitem><para>Three PCI busses</para></listitem>
+        <listitem><para>Built-in Ethernet
+          (<devicename>gem</devicename> compatible)
+          interface</para></listitem>
+        <listitem><para>Two USB ports &unsupported;</para></listitem>
+        <listitem><para>Two Firewire ports &unsupported;</para></listitem>
+        <listitem><para>Built-in PCI-IDE controller &perforce;</para></listitem>
+        <listitem><para>Two PC-AT style `com' ports for the mouse and keyboard</para></listitem>
+        <listitem><para>Floppy driver controller</para></listitem>
+        <listitem><para>&man.sio.4; supported serial ports for ttya
+          and ttyb</para></listitem>
+        <listitem><para>One CS4231 audio device</para></listitem>
+        <listitem><para>One PC-AT style parallel port</para></listitem>
+        <listitem><para>Built-in PGX64 (ATI)
+          graphics</para></listitem>
+        <listitem><para>EBus (Sun proprietary bus for slow
+          devices)</para></listitem>
+        <listitem><para>ISA bus</para></listitem>
+
+      </itemizedlist>
+    </sect3>
+  </sect2>
+ 
+  <sect2>
+    <title>Supported Hardware Overview</title>
+
+    <para>A word of caution: the installed base for &os;/&arch; is not
+      nearly as large as for &os;/Intel. This means that the enormous
+      variation of PCI/ISA expansion cards out there has much less
+      chance of having been tested on &arch; than on Intel. This is
+      not to imply they are doomed to fail, just that the chance of
+      running into something never tested before is much higher.
+      <filename>GENERIC</filename> contains things that are known to
+      work on &arch; only.</para>
+
+    <para>The PCI bus is fully supported.  SBus support is limited,
+      but is reported to work well enough to netboot an SBus-based
+      Ultra 2 workstation.</para>
+
+    <para>1.44 Mbyte floppy drives are <emphasis>not</emphasis> yet
+      supported.</para>
+
+    <para>ATA and ATAPI (IDE) devices are supported via the &man.ata.4;
+      driver framework. &perforce;</para>
+
+    <para>There is full SCSI support via the CAM layer.  However, only
+      NCR/Symbios cards are currently working.  Adaptec 2940x (AIC
+      7xxx chip-based) and &man.isp.4; cards should be supported soon.
+      Be aware that SCSI cards must contain Sun FCODE in order to use
+      them as a boot device from OpenBoot.</para>
+
+    <para>If you want to boot your sparc64 over the Ethernet you will
+      obviously need an Ethernet card that the OpenBoot console
+      recognizes.</para>
+
+    <para><devicename>hme</devicename>, <devicename>gem</devicename>,
+      and <devicename>eri</devicename> based network devices.</para>
+
+    <para>The <quote>PC standard</quote> serial ports found on most
+      newer Sun workstations are supported.</para>
+
+  </sect2>
+
+</sect1>
