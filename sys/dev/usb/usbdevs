@@ -448,6 +448,9 @@ product AOX USB101		0x0008	USB ethernet controller engine
 product APPLE OPTMOUSE		0x0302	Optical mouse
 product APPLE SPEAKERS		0x1101	Speakers
 
+/* Asahi Optical products */
+product ASAHIOPTICAL OPTIO230	0x0004	Digital camera
+
 /* ATen products */
 product ATEN UC1284		0x2001	Parallel printer adapter
 product ATEN UC10T		0x2002	10Mbps ethernet adapter
