@@ -527,7 +527,9 @@ struct bktr_softc {
     pcici_t         tag;	/* 2.x PCI tag, for doing PCI commands */
     #endif
     #if (__FreeBSD_version >= 400000)
+    int             mem_rid;	/* 4.x resource id */
     struct resource *res_mem;	/* 4.x resource descriptor for registers */
+    int             irq_rid;	/* 4.x resource id */
     struct resource *res_irq;	/* 4.x resource descriptor for interrupt */
     void            *res_ih;	/* 4.x newbus interrupt handler cookie */
     #endif
