@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.15 1995/02/22 14:17:15 se Exp $
+**  $Id: pci.c,v 1.16 1995/02/25 17:26:22 se Exp $
 **
 **  General subroutines for the PCI bus on 80*86 systems.
 **  pci_configure ()
@@ -36,7 +36,7 @@
 ***************************************************************************
 */
 
-#define PCI_PATCHLEVEL  "pl3 95/02/25"
+#define PCI_PATCHLEVEL  "pl5 95/02/27"
 
 #include <pci.h>
 #if NPCI > 0
@@ -102,6 +102,19 @@ static	vm_offset_t pmap_mapdev (vm_offset_t paddr, vm_size_t vsize);
 **
 **========================================================
 */
+
+/*--------------------------------------------------------
+**
+**	Limit for pci bus numbers.
+**
+**--------------------------------------------------------
+*/
+
+#ifndef PCI_MAX_BUS
+#define PCI_MAX_BUS	(256)
+#endif
+
+static	u_long	pci_bus_max = 1;
 
 /*--------------------------------------------------------
 **
@@ -174,16 +187,17 @@ static	u_long      pci_irq   = PCI_IRQ;
 
 static void not_supported (pcici_t tag, u_long type);
 
-static unsigned long pci_seen[NPCI];
+static unsigned long pci_seen[PCI_MAX_BUS];
 
 static int pci_conf_count;
+static int pci_info_done;
 
 void pci_configure()
 {
-	u_char	device,last_device;
+	u_char	device,max_device;
 	u_short	bus;
 	pcici_t	tag;
-	pcidi_t type;
+	pcidi_t type, type8, type16;
 	u_long	data;
 	int	unit;
 	int	pci_mechanism;
@@ -213,19 +227,24 @@ void pci_configure()
 
 	pci_mechanism = pcibus.pb_mode ();
 	if (!pci_mechanism) return;
-	last_device = pci_mechanism==1 ? 31 : 15;
+	max_device = pci_mechanism==1 ? 32 : 16;
 
 	/*
 	**	hello world ..
 	*/
 
 	pci_pold=pci_paddr;
-	for (bus=0;bus<NPCI;bus++) {
+	for (bus=0; bus<pci_bus_max; bus++) {
 #ifndef PCI_QUIET
-	    printf ("%s%d: scanning device 0..%d, mechanism=%d.\n",
-		pcibus.pb_name, bus, last_device, pci_mechanism);
+	    printf ("Probing for devices on the %s%d bus:\n",
+	    	pcibus.pb_name, bus);
+	    if (!pci_info_done) {
+		pci_info_done=1;
+		printf ("\tconfiguration mode %d allows %d devices.\n",
+			pci_mechanism, max_device);
+	    };
 #endif
-	    for (device=0; device<=last_device; device ++) {
+	    for (device=0; device<max_device; device ++) {
 
 		if (pci_seen[bus] & (1ul << device))
 			continue;
@@ -249,19 +268,23 @@ void pci_configure()
 		/*
 		**	check for mirrored devices.
 		*/
-		if (device >= 8) {
-			pcici_t	tag0;
-			pcidi_t type0;
-			tag0  = pcibus.pb_tag (bus, device & 0x07, 0);
-			type0 = pcibus.pb_read (tag0, PCI_ID_REG);
-			if (type==type0) {
+		if (device & 0x08) {
+			pcici_t	mtag;
+			mtag  = pcibus.pb_tag (bus, device & ~0x08, 0);
+			type8 = pcibus.pb_read (mtag, PCI_ID_REG);
+		} else type8 = 0;
+		if (device & 0x10) {
+			pcici_t	mtag;
+			mtag  = pcibus.pb_tag (bus, device & ~0x10, 0);
+			type16 = pcibus.pb_read (mtag, PCI_ID_REG);
+		} else type16 = 0;
+		if ((type==type8) || (type==type16)) {
 #ifndef PCI_QUIET
-				if (dvp==NULL) continue;
-				printf ("%s? <%s> mirrored on pci%d:%d\n",
-					dvp->pd_name, name, bus, device);
+			if (dvp==NULL) continue;
+			printf ("%s? <%s> mirrored on pci%d:%d\n",
+				dvp->pd_name, name, bus, device);
 #endif
-				continue;
-			};
+			continue;
 		};
 
 		if (dvp==NULL) {
@@ -699,7 +722,7 @@ domap:
 			break;
 	};
 
-	if (data==0xffffffff) {
+	if ((data==0xffffffff) && !oldmap) {
 		printf ("\t(possible mapping problem: "
 			"at 0x%x read 0xffffffff)\n",
 			(unsigned) paddr);
@@ -713,6 +736,38 @@ domap:
 
 	*va = vaddr;
 	*pa = paddr;
+
+	return (1);
+}
+
+/*-----------------------------------------------------------------------
+**
+**	Map new pci bus. (XXX under construction)
+**
+**	PCI-Specification: ____________?
+**
+**-----------------------------------------------------------------------
+*/
+
+int pci_map_bus (pcici_t tag, u_long bus)
+{
+	if (bus >= PCI_MAX_BUS) {
+		printf ("pci_map_bus failed: bus number %d too big.\n",
+			(int) bus);
+		return (0);
+	};
+
+	if (bus >= pci_bus_max)
+		pci_bus_max = bus + 1;
+
+#ifndef PCI_QUIET
+	/*
+	**	display values.
+	*/
+
+	printf ("\tmapped pci bus %d.\n",
+		(int) bus);
+#endif
 
 	return (1);
 }
