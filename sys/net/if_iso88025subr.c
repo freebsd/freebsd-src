@@ -83,7 +83,7 @@ static u_char iso88025_broadcastaddr[ISO88025_ADDR_LEN] =
 			{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
 static int iso88025_resolvemulti (struct ifnet *, struct sockaddr **,
-				  struct sockaddr *));
+				  struct sockaddr *);
 
 #define	IFP2AC(IFP)	((struct arpcom *)IFP)
 #define	senderr(e)	do { error = (e); goto bad; } while (0)
@@ -475,8 +475,10 @@ iso88025_input(ifp, th, m)
 
 		if (l->llc_snap.org_code[0] != 0 ||
 		    l->llc_snap.org_code[1] != 0 ||
-		    l->llc_snap.org_code[2] != 0)
+		    l->llc_snap.org_code[2] != 0) {
+			ifp->if_noproto++;
 			goto dropanyway;
+		}
 
 		type = ntohs(l->llc_snap.ether_type);
 		m_adj(m, LLC_SNAPFRAMELEN);
@@ -568,12 +570,14 @@ iso88025_input(ifp, th, m)
 			printf("iso88025_input: unexpected llc control 0x%02x\n", l->llc_control);
 			ifp->if_noproto++;
 			goto dropanyway;
+			break;
 		}
 		break;
 	default:
 		printf("iso88025_input: unknown dsap 0x%x\n", l->llc_dsap);
 		ifp->if_noproto++;
 		goto dropanyway;
+		break;
 	}
 
 	netisr_dispatch(isr, m);
