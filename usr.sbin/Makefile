@@ -5,7 +5,7 @@
 # XXX TEMP. BROKEN:	iostat
 SUBDIR=	ac accton amd arp chown chroot cron crunch dbsym dev_mkdb \
 	diskpart edquota inetd kbdcontrol kgmon kvm_mkdb lpr lsdev manctl \
-	mtree mrouted named nslookup pkg_install portmap pstat  \
+	mtree mrouted named nslookup pkg_install portmap pppd pstat  \
 	pwd_mkdb quotaon repquota routed rmt rwhod sa sendmail sliplogin \
 	slstat sysctl syslogd tcpdump timed traceroute trpt tzsetup vipw \
 	xntpd xten ypbind yppoll ypset zic
