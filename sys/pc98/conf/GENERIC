@@ -217,6 +217,7 @@ device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 # ISA Ethernet NICs.
 #
 # DP8390 NIC
+# 'device ed' requires 'device miibus'
 #
 # ed0: generic driver/EtherEZ98
 # ed1: LANEED LD-BDN
@@ -318,7 +319,7 @@ pseudo-device	ppp	1	# Kernel PPP
 pseudo-device	tun		# Packet tunnel.
 pseudo-device	pty		# Pseudo-ttys (telnet etc)
 pseudo-device	md		# Memory "disks"
-pseudo-device	gif	4	# IPv6 and IPv4 tunneling
+pseudo-device	gif		# IPv6 and IPv4 tunneling
 pseudo-device	faith	1	# IPv6-to-IPv4 relaying (translation)
 
 # The `bpf' pseudo-device enables the Berkeley Packet Filter.
