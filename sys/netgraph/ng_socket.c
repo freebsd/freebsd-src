@@ -395,7 +395,7 @@ ng_setsockaddr(struct socket *so, struct sockaddr **addr)
 
 	s = splnet();
 	pcbp = sotongpcb(so);
-	if (pcbp == 0) {
+	if ((pcbp == 0) || (pcbp->sockdata == NULL)) {
 		splx(s);
 		return (EINVAL);
 	}
