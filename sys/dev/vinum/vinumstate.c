@@ -128,6 +128,7 @@ set_sd_state(int sdno, enum sdstate newstate, enum setstateflags flags)
 		return 0;				    /* not even by force */
 	    switch (sd->state) {
 	    case sd_crashed:
+	    case sd_reborn:
 	    case sd_down:				    /* been down, no data lost */
 		/*
 		 * If we're associated with a plex, and
@@ -145,12 +146,14 @@ set_sd_state(int sdno, enum sdstate newstate, enum setstateflags flags)
 		 *
 		 * Do we even want this any more?
 		 */
-		sd->state = sd_reborn;			    /* here it is again */
-		log(LOG_INFO,
-		    "vinum: subdisk %s is %s, not %s\n",
-		    sd->name,
-		    sd_state(sd->state),
-		    sd_state(newstate));
+		if (oldstate != sd_reborn) {
+		    sd->state = sd_reborn;		    /* here it is again */
+		    log(LOG_INFO,
+			"vinum: subdisk %s is %s, not %s\n",
+			sd->name,
+			sd_state(sd->state),
+			sd_state(newstate));
+		}
 		status = -1;
 		break;
 
