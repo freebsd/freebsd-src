@@ -85,6 +85,10 @@
 #include <sys/kthread.h>
 #include <sys/malloc.h>
 
+#ifdef BKTR_USE_FREEBSD_SMBUS
+#include <sys/bus.h>			/* required by bktr_reg.h */
+#endif
+
 #include <machine/bus.h>		/* required by bktr_reg.h */
 
 #include <dev/bktr/ioctl_meteor.h>
