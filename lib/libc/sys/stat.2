@@ -32,7 +32,7 @@
 .\"     @(#)stat.2	8.4 (Berkeley) 5/1/95
 .\" $FreeBSD$
 .\"
-.Dd May 1, 1995
+.Dd February 15, 2002
 .Dt STAT 2
 .Os
 .Sh NAME
@@ -110,7 +110,7 @@ struct stat {
     off_t     st_size;              /* file size, in bytes */
     int64_t   st_blocks;            /* blocks allocated for file */
     u_int32_t st_blksize;           /* optimal blocksize for I/O */
-    u_int32_t st_flags;             /* user defined flags for file */
+    fflags_t  st_flags;             /* user defined flags for file */
     u_int32_t st_gen;               /* file generation number */
 };
 .Ed
