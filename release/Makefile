@@ -82,11 +82,6 @@ BIN_DISTS?=	bin
 DISTRIBUTIONS?=	${BIN_DISTS} ${OTHER_DISTS} ${COMPAT_DISTS} ${CRYPTO_DISTS}
 KERNELS?=	GENERIC
 
-# Extra source tarballs; each argument is a pair of source dir and
-# distribution name.  The dist name should not exceed 7 characters
-# (another "s" for "source" will be prepended).
-EXTRA_SRC+=	usr.sbin/sendmail/cf smailcf
-
 BOOT1=	etc/protocols etc/defaults/rc.conf
 
 # mountpoint for filesystems.
