@@ -45,12 +45,12 @@ support for shared and exclusive locks, and recursion.
 Locks can also be upgraded and downgraded.
 .Pp
 Its arguments are:
-.Bl -tag -xwidth ".Fa interlkp"
+.Bl -tag -width ".Fa interlkp"
 .It Fa lkp
 A pointer to lock to manipulate.
 .It Fa flags
 Flags indicating what action is to be taken.
-.Bl -tag -xwidth ".Dv LK_EXCLUPGRADE"
+.Bl -tag -width ".Dv LK_EXCLUPGRADE"
 .It Dv LK_SHARED
 Aquire a shared lock.
 If we currently hold an exclusive lock it will be downgraded.
