@@ -1,0 +1,195 @@
+.\" Copyright (c) 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)jot.1	8.1 (Berkeley) 6/6/93
+.\"
+.TH JOT 1 "June 6, 1993"
+.UC 4
+.SH NAME
+jot \- print sequential or random data
+.SH SYNOPSIS
+.B jot [
+options
+.B ] [
+\fRreps \fB[\fP begin \fB[\fP end \fB[\fP s \fB] ] ] ]\fP
+.SH DESCRIPTION
+.I Jot
+is used to print out increasing, decreasing, random,
+or redundant data, usually numbers, one per line.
+The
+.I options
+are understood as follows.
+.IP \fB\-r\fP
+Generate random data instead of sequential data, the default.
+.IP \fB\-b\fP\ word
+Just print
+.I word
+repetitively.
+.IP \fB\-w\fP\ word
+Print
+.IR word
+with the generated data appended to it.
+Octal, hexadecimal, exponential, ASCII, zero padded,
+and right-adjusted representations
+are possible by using the appropriate
+.IR printf (3)
+conversion specification inside
+.IR word ,
+in which case the data are inserted rather than appended.
+.IP \fB\-c\fP
+This is an abbreviation for \fB\-w %c\fP.
+.IP \fB\-s\fP\ string
+Print data separated by
+.IR string .
+Normally, newlines separate data.
+.IP \fB\-n\fP
+Do not print the final newline normally appended to the output.
+.IP \fB\-p\fP\ precision
+Print only as many digits or characters of the data
+as indicated by the integer
+.IR precision .
+In the absence of
+.BR \-p ,
+the precision is the greater of the precisions of
+.I begin
+and
+.IR end .
+The
+.B \-p
+option is overridden by whatever appears in a
+.IR printf (3)
+conversion following
+.BR \-w .
+.PP
+The last four arguments indicate, respectively,
+the number of data, the lower bound, the upper bound,
+and the step size or, for random data, the seed.
+While at least one of them must appear,
+any of the other three may be omitted, and
+will be considered as such if given as
+.BR \- .
+Any three of these arguments determines the fourth.
+If four are specified and the given and computed values of
+.I reps
+conflict, the lower value is used.
+If fewer than three are specified, defaults are assigned
+left to right, except for
+.IR s ,
+which assumes its default unless both
+.I begin
+and
+.I end
+are given.
+.PP
+Defaults for the four arguments are, respectively,
+100, 1, 100, and 1, except that when random data are requested,
+.I s
+defaults to a seed depending upon the time of day.
+.I Reps
+is expected to be an unsigned integer,
+and if given as zero is taken to be infinite.
+.I Begin
+and
+.I end
+may be given as real numbers or as characters
+representing the corresponding value in ASCII.
+The last argument must be a real number.
+.PP
+Random numbers are obtained through
+.IR random (3).
+The name
+.I jot
+derives in part from
+.IR iota ,
+a function in APL.
+.SH EXAMPLES
+.de IC
+.IP
+.ss 36
+.ft B
+..
+.de NC
+.br
+.ss 12
+.PP
+..
+.PP
+The command
+.IC
+jot 21 \-1 1.00
+.NC
+prints 21 evenly spaced numbers increasing from \-1 to 1.
+The ASCII character set is generated with
+.IC
+jot \-c 128 0
+.NC
+and the strings xaa through xaz with
+.IC
+jot \-w xa%c 26 a
+.NC
+while 20 random 8-letter strings are produced with
+.IC
+jot \-r \-c 160 a z | rs \-g 0 8
+.NC
+Infinitely many
+.IR yes 's
+may be obtained through
+.IC
+jot \-b yes 0
+.NC
+and thirty
+.IR ed (1)
+substitution commands applying to lines 2, 7, 12, etc. is
+the result of
+.IC
+jot \-w %ds/old/new/ 30 2 \- 5
+.NC
+The stuttering sequence 9, 9, 8, 8, 7, etc. can be
+produced by suitable choice of precision and step size,
+as in
+.IC
+jot 0 9 \- \-.5
+.NC
+and a file containing exactly 1024 bytes is created with
+.IC
+jot \-b x 512 > block
+.NC
+Finally, to set tabs four spaces apart starting
+from column 10 and ending in column 132, use
+.IC
+expand \-\`jot \-s, \- 10 132 4\`
+.NC
+and to print all lines 80 characters or longer,
+.IC
+grep \`jot \-s "" \-b . 80\`
+.NC
+.SH SEE ALSO
+ed(1), expand(1), rs(1), yes(1), printf(3), random(3), expand(1)

@@ -1,0 +1,341 @@
+.\" Copyright (c) 1986, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)map3270.5	8.3 (Berkeley) 4/19/94
+.\"
+.TH MAP3270 5  "April 19, 1994"
+.UC 6
+.SH NAME
+map3270 \- database for mapping ascii keystrokes into IBM 3270 keys
+.SH SYNOPSIS
+.B map3270
+.SH DESCRIPTION
+When emulating IBM-style 3270 terminals under \s-1UNIX\s0 (see \fItn3270\fR(1)),
+a mapping must be performed between sequences of keys hit on
+a user's (ascii) keyboard, and the keys that are
+available on a 3270.  For example, a 3270 has a key labeled
+.B EEOF
+which erases the contents of the current field from the
+location of the cursor to the end.
+In order to accomplish this function,
+the terminal user and a program emulating a 3270 must
+agree on what keys will be typed
+to invoke the
+.B EEOF
+function.
+.PP
+The requirements for these sequences are:
+.nf
+.ta 4n 9n
+.sp
+	1)	that the first character of the sequence be outside of the
+		standard ascii printable characters;
+.sp
+	2)	that no sequence \fIbe\fR an initial part of another (although
+		sequences may \fIshare\fR initial parts).
+.sp
+.fi
+.SH FORMAT
+The file consists of entries for various keyboards.  The first part
+of an entry lists the names of the keyboards which use that entry.
+These names will often be the same as in
+.I /etc/termcap
+(see
+.IR termcap (5));
+however, note that often the terminals from various termcap entries will all
+use the same
+.I map3270
+entry; for example, both 925 and 925vb (for
+925 with visual bells) would probably use the same
+.I map3270
+entry.
+Additionally, there are occasions when the terminal type defines
+a window manager, and it will then be necessary to specify a
+keyboard name (via the
+.B KEYBD
+environment variable) as the name of the entry.
+After the names, separated by vertical bars (`|'), comes a left
+brace (`{'); the definitions; and, finally, a right brace
+(`}').
+.PP
+Each definition consists of a reserved keyword (see list below) which
+identifies the 3270 function (extended as defined below), followed
+by an equal sign (`='), followed by the various ways to generate
+this particular function, followed by a semi-colon (`;').
+Each way is a sequence of strings of
+.I printable
+ascii characters enclosed inside single quotes (`\(aa');
+various ways (alternatives) are separated by vertical bars (`|').
+.PP
+Inside the single quotes, a few characters are special.
+A caret
+(`^') specifies that the next character is
+the ``control'' character of whatever the character is.
+So, `^a'
+represents control-a, ie: hexadecimal 1
+(note that `^A' would generate the same code). 
+To generate
+.B rubout
+(DEL),
+one enters `^?'.
+To represent a control character inside a file
+requires using the caret to represent a control sequence;
+simply typing control-A will not work.
+Note: the ctrl-caret sequence
+(to generate a hexadecimal 1E)
+is represented as `^^' (not `^\e^').
+.PP
+In addition to the caret, a letter may be preceded by a backslash (`\e').
+Since this has little effect for most characters,
+its use is usually not recommended.
+For the case of a single quote (`\(aa'), the backslash
+prevents that single quote from terminating the string.
+For the case of a caret (`^'), the backslash prevents
+the caret from having its special meaning.
+To have the backslash be part of the string, it is necessary to
+place two backslashes ('\e\e') in the file.
+.PP
+In addition, the following characters are special:
+.sp
+.nf
+.in +0.5i
+`\eE'  means an escape character;
+`\en'  means newline;
+`\et'  means tab;
+`\er'  means carriage return.
+.in -0.5i
+.fi
+.sp
+It is not necessary for each character in a string
+to be enclosed within single quotes.
+`\eE\eE\eE' means three escape characters.
+.PP
+Comments, which may appear anywhere on a line,
+begin with a hash mark (`#'), and terminate
+at the end of that line.
+However, comments cannot begin inside a quoted string;
+a hash mark inside a quoted string has no special meaning.
+.PP
+.SH 3270 KEYS SUPPORTED
+The following is the list of 3270 key names that are supported in this file.
+Note that some of the keys don't really exist on a 3270.
+In particular, the developers of this file have relied
+extensively on the work at the Yale University Computer Center with
+their 3270 emulator which runs in an IBM Series/1 front end.
+The following list corresponds closely to the functions
+that the developers of the Yale code offer in their product.
+.sp
+.B In the following list, the
+.B starred ("*")
+.B functions are not supported by
+.IR tn3270 (1).
+An unsupported function will cause
+.IR tn3270(1)
+to send a (possibly visual) bell sequence to the user's terminal.
+.sp
+.nf
+        3270 Key Name   Functional description
+
+     (*)LPRT            local print
+        DP              dup character
+        FM              field mark character
+        CURSEL          cursor select
+        CENTSIGN        EBCDIC cent sign
+        RESHOW          redisplay the screen
+        EINP            erase input
+        EEOF            erase end of field
+        DELETE          delete character
+        INSRT           toggle insert mode
+        TAB             field tab
+        BTAB            field back tab
+        COLTAB          column tab
+        COLBAK          column back tab
+        INDENT          indent one tab stop
+        UNDENT          undent one tab stop
+        NL              new line
+        HOME            home the cursor
+        UP              up cursor
+        DOWN            down cursor
+        RIGHT           right cursor
+        LEFT            left cursor
+        SETTAB          set a column tab
+        DELTAB          delete a columntab
+        SETMRG          set left margin
+        SETHOM          set home position
+        CLRTAB          clear all column tabs
+     (*)APLON           apl on
+     (*)APLOFF          apl off
+     (*)APLEND          treat input as ascii
+     (*)PCON            xon/xoff on
+     (*)PCOFF           xon/xoff off
+        DISC            disconnect (suspend)
+     (*)INIT            new terminal type
+     (*)ALTK            alternate keyboard dvorak
+        FLINP           flush input
+        ERASE           erase last character
+        WERASE          erase last word
+        FERASE          erase field
+        SYNCH           we are in synch with the user
+        RESET           reset key-unlock keyboard
+        MASTER_RESET    reset, unlock and redisplay
+     (*)XOFF            please hold output
+     (*)XON             please give me output
+        ESCAPE          enter telnet command mode
+        WORDTAB         tab to beginning of next word
+        WORDBACKTAB     tab to beginning of current/last word
+        WORDEND         tab to end of current/next word
+        FIELDEND        tab to last non-blank of current/next
+                        unprotected (writable) field.
+
+        PA1             program attention 1
+        PA2             program attention 2
+        PA3             program attention 3
+
+        CLEAR           local clear of the 3270 screen
+        TREQ            test request
+        ENTER           enter key
+
+        PFK1            program function key 1
+        PFK2            program function key 2
+        etc.            etc.
+        PFK36           program function key 36
+.SH A SAMPLE ENTRY
+The following entry is used by
+tn3270(1) when unable to locate a reasonable version in the
+user's environment and in /etc/map3270:
+.sp
+.nf
+        name {          # actual name comes from TERM variable
+        clear = '^z';
+        flinp = '^x';
+        enter = '^m';
+        delete = '^d' | '^?';   # note that '^?' is delete (rubout)
+        synch = '^r';
+        reshow = '^v';
+        eeof = '^e';
+        tab = '^i';
+        btab = '^b';
+        nl = '^n';
+        left = '^h';
+        right = '^l';
+        up = '^k';
+        down = '^j';
+        einp = '^w';
+        reset = '^t';
+        xoff = '^s';
+        xon = '^q';
+        escape = '^c';
+        ferase = '^u';
+        insrt = '\E ';
+        # program attention keys
+        pa1 = '^p1'; pa2 = '^p2'; pa3 = '^p3';
+        # program function keys
+        pfk1 = '\eE1'; pfk2 = '\eE2'; pfk3 = '\eE3'; pfk4 = '\eE4';
+        pfk5 = '\eE5'; pfk6 = '\eE6'; pfk7 = '\eE7'; pfk8 = '\eE8';
+        pfk9 = '\eE9'; pfk10 = '\eE0'; pfk11 = '\eE-'; pfk12 = '\eE=';
+        pfk13 = '\eE!'; pfk14 = '\eE@'; pfk15 = '\eE#'; pfk16 = '\eE$';
+        pfk17 = '\eE%'; pfk18 = '\eE'; pfk19 = '\eE&'; pfk20 = '\eE*';
+        pfk21 = '\eE('; pfk22 = '\eE)'; pfk23 = '\eE_'; pfk24 = '\eE+';
+        }
+.fi
+.SH "IBM 3270 KEY DEFINITONS FOR AN ABOVE DEFINITION"
+The charts below show the proper keys to emulate
+each 3270 function when using the default key mapping supplied
+with
+.IR tn3270 (1)
+and
+.IR mset (1).
+.sp
+.nf
+     Command Keys             IBM 3270 Key                  Default Key(s)
+                              Enter                         RETURN
+                              Clear                         control-z
+     Cursor Movement Keys
+                              New Line                      control-n or
+                                                            Home
+                              Tab                           control-i
+                              Back Tab                      control-b
+                              Cursor Left                   control-h
+                              Cursor Right                  control-l
+                              Cursor Up                     control-k
+                              Cursor Down                   control-j or
+                                                            LINE FEED
+     Edit Control Keys
+                              Delete Char                   control-d or
+                                                            RUB
+                              Erase EOF                     control-e
+                              Erase Input                   control-w
+                              Insert Mode                   ESC Space
+                              End Insert                    ESC Space
+     Program Function Keys
+                              PF1                           ESC 1
+                              PF2                           ESC 2
+                              ...                           ...
+                              PF10                          ESC 0
+                              PF11                          ESC -
+                              PF12                          ESC =
+                              PF13                          ESC !
+                              PF14                          ESC @
+                              ...                           ...
+                              PF24                          ESC +
+     Program Attention Keys
+                              PA1                           control-p 1
+                              PA2                           control-p 2
+                              PA3                           control-p 3
+     Local Control Keys
+                              Reset After Error             control-r
+                              Purge Input Buffer            control-x
+                              Keyboard Unlock               control-t
+                              Redisplay Screen              control-v
+     Other Keys
+                              Erase current field           control-u
+.fi
+.SH FILES
+/etc/map3270
+.SH SEE ALSO
+tn3270(1), mset(1), \fIYale ASCII Terminal Communication
+System II Program Description/Operator's Manual\fR
+(IBM SB30-1911)
+.SH AUTHOR
+Greg Minshall
+.SH BUGS
+.I Tn3270
+doesn't yet understand how to process all the functions
+available in
+.I map3270;
+when such a function is requested 
+.I tn3270
+will beep at you.
+.PP
+The definition of "word" (for "word erase", "word tab") should be a run-time
+option.  Currently it is defined as the kernel tty driver defines it (strings
+of non-whitespace); more than one person would rather use the "vi" definition
+(strings of specials, strings of alphanumeric).

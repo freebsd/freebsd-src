@@ -1,0 +1,188 @@
+.\" Copyright (c) 1989, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)man.1	8.2 (Berkeley) 1/2/94
+.\"
+.Dd January 2, 1994
+.Dt MAN 1
+.Os BSD 4
+.Sh NAME
+.Nm man
+.Nd display the on-line manual pages
+.Sh SYNOPSIS
+.Nm man
+.Op Fl achw
+.Op Fl C Ar file
+.Op Fl M Ar path
+.Op Fl m Ar path
+.Op Ar section
+.Ar name Ar ...
+.Sh DESCRIPTION
+The
+.Nm man
+utility
+displays the
+.Bx
+manual pages entitled
+.Ar name .
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl a
+Display all of the manual pages for a specified
+.Ar section
+and
+.Ar name
+combination.
+(Normally, only the first manual page found is displayed.)
+.It Fl C
+Use the specified 
+.Ar file
+instead of the default configuration file.
+This permits users to configure their own manual environment.
+See
+.Xr man.conf 5
+for a description of the contents of this file.
+.It Fl c
+Copy the manual page to the standard output instead of using
+.Xr more 1
+to paginate it.
+This is done by default if the standard output is not a terminal device.
+.It Fl h
+Display only the
+.Dq Tn SYNOPSIS
+lines of the requested manual pages.
+.It Fl M
+Override the list of standard directories which
+.Nm man
+searches for manual pages.
+The supplied
+.Ar path
+must be a colon (``:'') separated list of directories.
+This search path may also be set using the environment variable
+.Ev MANPATH .
+The subdirectories to be searched, and their search order,
+is specified by the ``_subdir'' line in the
+.Nm man
+configuration file.
+.It Fl m
+Augment the list of standard directories which
+.Nm man
+searches for manual pages.
+The supplied
+.Ar path
+must be a colon (``:'') separated list of directories.
+These directories will be searched before the standard directories or
+the directories specified using the
+.Fl M
+option or the
+.Ev MANPATH
+environment variable.
+The subdirectories to be searched, and their search order,
+is specified by the ``_subdir'' line in the
+.Nm man
+configuration file.
+.It Fl w
+List the pathnames of the manual pages which
+.Nm man
+would display for the specified
+.Ar section
+and
+.Ar name
+combination.
+.El
+.Pp
+The optional
+.Ar section
+argument restricts the directories that
+.Nm man
+will search.
+The
+.Nm man
+configuration file (see
+.Xr man.conf 5 )
+specifies the possible
+.Ar section
+values that are currently available.
+If only a single argument is specified or if the first argument is
+not a valid section,
+.Nm man
+assumes that the argument is the name of a manual page to be displayed.
+.Sh ENVIRONMENT
+.Bl -tag -width MANPATHX
+.It Ev MACHINE
+As some manual pages are intended only for specific architectures,
+.Nm man
+searches any subdirectories,
+with the same name as the current architecture,
+in every directory which it searches.
+Machine specific areas are checked before general areas.
+The current machine type may be overridden by setting the environment
+variable
+.Ev MACHINE
+to the name of a specific architecture.
+.It Ev MANPATH
+The standard search path used by
+.Nm man
+may be overridden by specifying a path in the
+.Ev MANPATH
+environment
+variable.
+The format of the path is a colon (``:'') separated list of directories.
+The subdirectories to be searched as well as their search order
+is specified by the ``_subdir'' line in the
+.Nm man
+configuration file.
+.It Ev PAGER
+Any value of the environment variable
+.Ev PAGER
+will be used instead of the standard pagination program,
+.Xr more 1 .
+.El
+.Sh FILES
+.Bl -tag -width /etc/man.conf -compact
+.It Pa /etc/man.conf
+default man configuration file.
+.El
+.Sh SEE ALSO
+.Xr apropos 1 ,
+.Xr whatis 1 ,
+.Xr whereis 1 ,
+.Xr man.conf 5
+.Sh BUGS
+The on-line manual pages are, by necessity, forgiving toward stupid
+display devices, causing a few manual pages to not as nicely formatted
+as their typeset counterparts.
+.Sh HISTORY
+A
+.Nm
+command appeared in
+.At v6 .
