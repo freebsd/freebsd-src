@@ -26,6 +26,7 @@ extern FILE *output_file;
 extern FILE *yyin, *yyout;
 extern int yylineno;
 
+int
 main(argc, argv)
     int argc;
     char **argv;
@@ -85,10 +86,12 @@ main(argc, argv)
     return result;
 }
 
+int
 yyerror(s)
     char *s;
 {
     fputs(s, stderr);
     fprintf(stderr, "\nLine %d; last token was '%s'\n",
 	    yylineno, last_token);
+    return 0;
 }

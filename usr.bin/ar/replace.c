@@ -141,7 +141,7 @@ useold:			SETCF(afd, archive, curfd, tname, RPAD|WPAD);
         }
 
 	/* Append any left-over arguments to the end of the after file. */
-append:	while (file = *argv++) {
+append:	while ( (file = *argv++) ) {
 		if (options & AR_V)
 			(void)printf("a - %s\n", file);
 		if ((sfd = open(file, O_RDONLY)) < 0) {

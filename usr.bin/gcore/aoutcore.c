@@ -80,7 +80,8 @@ void	userdump __P((int, struct proc *, u_long, int));
 
 kvm_t *kd;
 /* XXX undocumented routine, should be in kvm.h? */
-ssize_t kvm_uread __P((kvm_t *, struct proc *, u_long, char *, size_t));
+ssize_t kvm_uread __P((kvm_t *, const struct proc *, u_long, char *, size_t));
+
 
 static int data_offset;
 

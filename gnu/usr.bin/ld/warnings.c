@@ -1,5 +1,5 @@
 /*
- * $Id: warnings.c,v 1.9 1994/12/23 22:30:57 nate Exp $
+ * $Id: warnings.c,v 1.10 1995/03/04 17:46:10 nate Exp $
  */
 
 #include <sys/param.h>
@@ -113,7 +113,7 @@ print_symbols(outfile)
 		else if (sp->defined == (N_UNDF|N_EXT))
 			fprintf(outfile, "common: size %#x", sp->common_size);
 		else
-			fprintf(outfile, "type %d, value %#x, size %#x",
+			fprintf(outfile, "type %d, value %#lx, size %#x",
 				sp->defined, sp->value, sp->size);
 		if (sp->alias)
 			fprintf(outfile, ", aliased to %s", sp->alias->name);
@@ -133,7 +133,7 @@ describe_file_sections(entry, outfile)
 	if (entry->flags & (E_JUST_SYMS | E_DYNAMIC))
 		fprintf(outfile, " symbols only\n");
 	else
-		fprintf(outfile, " text %x(%x), data %x(%x), bss %x(%x) hex\n",
+		fprintf(outfile, " text %x(%lx), data %x(%lx), bss %x(%lx) hex\n",
 			entry->text_start_address, entry->header.a_text,
 			entry->data_start_address, entry->header.a_data,
 			entry->bss_start_address, entry->header.a_bss);
@@ -161,7 +161,7 @@ list_file_locals (entry, outfile)
 		 * update it if necessary by this file's start address.
 		 */
 		if (!(p->n_type & (N_STAB | N_EXT)))
-			fprintf(outfile, "  %s: 0x%x\n",
+			fprintf(outfile, "  %s: 0x%lx\n",
 				entry->strings + p->n_un.n_strx, p->n_value);
 	}
 

@@ -28,6 +28,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include <varargs.h>
 #endif
 #include "insn-flags.h"
+#include <string.h>
 
 /* Decide whether a function's arguments should be processed
    from first to last or from last to first.
@@ -233,6 +234,8 @@ calls_function_1 (exp, which)
 
     case RTL_EXPR:
       return 0;
+    default:
+      break;
     }
 
   for (i = 0; i < length; i++)

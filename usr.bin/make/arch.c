@@ -486,7 +486,7 @@ ArchStatMember (archive, member, hash)
 		strncpy(copy, member, AR_MAX_NAME_LEN);
 		copy[AR_MAX_NAME_LEN] = '\0';
 	    }
-	    if (he = Hash_FindEntry (&ar->members, copy))
+	    if ( (he = Hash_FindEntry (&ar->members, copy)) )
 		return ((struct ar_hdr *) Hash_GetValue (he));
 	    return ((struct ar_hdr *) NULL);
 	}

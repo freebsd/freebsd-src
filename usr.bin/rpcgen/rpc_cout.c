@@ -39,17 +39,20 @@ static char sccsid[] = "@(#)rpc_cout.c 1.13 89/02/22 (C) 1987 SMI";
  */
 #include <stdio.h>
 #include <string.h>
+#include <ctype.h>
 #include "rpc_parse.h"
 #include "rpc_util.h"
 
-static int print_header __P(( definition * ));
-static int print_trailer __P(( void ));
-static int print_stat __P(( int , declaration * ));
-static int emit_enum __P(( definition * ));
-static int emit_program __P(( definition * ));
-static int emit_union __P(( definition * ));
-static int emit_struct __P(( definition * ));
-static int emit_typedef __P(( definition * ));
+static void print_header __P(( definition * ));
+static void print_trailer __P(( void ));
+static void print_stat __P(( int , declaration * ));
+static void emit_enum __P(( definition * ));
+static void emit_program __P(( definition * ));
+static void emit_union __P(( definition * ));
+static void emit_struct __P(( definition * ));
+static void emit_typedef __P(( definition * ));
+static void emit_inline __P(( int, declaration *, int ));
+static void emit_single_in_line __P(( int, declaration *, int, relation ));
 
 /*
  * Emit the C-routine for the given definition
@@ -89,11 +92,13 @@ emit(def)
 	case DEF_TYPEDEF:
 		emit_typedef(def);
 		break;
+		/* DEF_CONST and DEF_PROGRAM have already been handled */
+	default: 
 	}
 	print_trailer();
 }
 
-static
+static int
 findtype(def, type)
 	definition *def;
 	char *type;
@@ -106,7 +111,7 @@ findtype(def, type)
 	}
 }
 
-static
+static int
 undefined(type)
 	char *type;
 {
@@ -117,7 +122,7 @@ undefined(type)
 }
 
 
-static
+static void
 print_generic_header(procname, pointerp)
     char* procname;
     int pointerp;
@@ -141,15 +146,10 @@ print_generic_header(procname, pointerp)
 	}
 }
 
-static
+static void
 print_header(def)
 	definition *def;
 {
-
-	decl_list *dl;
-	bas_type *ptr;
-	int i;
-
 	print_generic_header(def->def_name,
 			    def->def_kind != DEF_TYPEDEF ||
 			    !isvectordef(def->def.ty.old_type,
@@ -162,14 +162,14 @@ print_header(def)
 	f_print(fout, "\tregister long *buf;\n\n");
 }
 
-static
+static void
 print_prog_header(plist)
 	proc_list *plist;
 {
 	print_generic_header(plist->args.argname, 1);
 }
 
-static
+static void
 print_trailer()
 {
 	f_print(fout, "\treturn (TRUE);\n");
@@ -177,7 +177,7 @@ print_trailer()
 }
 
 
-static
+static void
 print_ifopen(indent, name)
 	int indent;
 	char *name;
@@ -186,14 +186,14 @@ print_ifopen(indent, name)
 	f_print(fout, "if (!xdr_%s(xdrs", name);
 }
 
-static
+static void
 print_ifarg(arg)
 	char *arg;
 {
 	f_print(fout, ", %s", arg);
 }
 
-static
+static void
 print_ifsizeof(indent, prefix, type)
 	int indent;
 	char *prefix;
@@ -216,7 +216,7 @@ print_ifsizeof(indent, prefix, type)
 	}
 }
 
-static
+static void
 print_ifclose(indent)
 	int indent;
 {
@@ -225,7 +225,7 @@ print_ifclose(indent)
 	f_print(fout, "\treturn (FALSE);\n");
 }
 
-static
+static void
 print_ifstat(indent, prefix, type, rel, amax, objname, name)
 	int indent;
 	char *prefix;
@@ -302,7 +302,7 @@ print_ifstat(indent, prefix, type, rel, amax, objname, name)
 }
 
 /* ARGSUSED */
-static
+static void
 emit_enum(def)
 	definition *def;
 {
@@ -311,7 +311,7 @@ emit_enum(def)
 	print_ifclose(1);
 }
 
-static
+static void
 emit_program(def)
 	definition *def;
 {
@@ -332,7 +332,7 @@ emit_program(def)
 }
 
 
-static
+static void
 emit_union(def)
 	definition *def;
 {
@@ -384,6 +384,9 @@ strlen(dflt->name) + 1);
 			print_ifstat(2, dflt->prefix, dflt->type, dflt->rel,
 				    dflt->array_max, object, dflt->name);
 			free(object);
+			f_print(fout, "\t\tbreak;\n");
+		} else {
+			f_print(fout, "\tdefault:\n");
 			f_print(fout, "\t\tbreak;\n");
 		}
 	} else {
@@ -553,12 +556,12 @@ int flag;
 		}
 }
 
-static
+static void
 emit_struct(def)
 	definition *def;
 {
 	decl_list *dl;
-	int i, j, size, flag;
+	int j, size, flag;
 	bas_type *ptr;
 	int can_inline;
 
@@ -623,7 +626,7 @@ emit_struct(def)
 
 }
 
-static
+static void
 emit_typedef(def)
 	definition *def;
 {
@@ -635,7 +638,7 @@ emit_typedef(def)
 	print_ifstat(1, prefix, type, rel, amax, "objp", def->def_name);
 }
 
-static
+static void
 print_stat(indent, dec)
 	int indent;
 	declaration *dec;
@@ -657,6 +660,7 @@ print_stat(indent, dec)
 
 char *upcase ();
 
+static void
 emit_inline(indent, decl, flag)
 int indent;
 declaration *decl;
@@ -681,9 +685,11 @@ int flag;
 		f_print(fout, "}\n");
 		tabify(fout, indent);
 		f_print(fout, "}\n");
+	default:
 	}
 }
 
+static void
 emit_single_in_line(indent, decl, flag, rel)
 int indent;
 declaration *decl;

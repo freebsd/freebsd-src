@@ -50,10 +50,15 @@ static char sccsid[] = "@(#)ranlib.c	8.1 (Berkeley) 6/6/93";
 #include <stdlib.h>
 #include <archive.h>
 
+extern int build __P(( void ));
+extern int touch __P(( void ));
+void usage __P((void));
+
 CHDR chdr;
 u_int options;				/* UNUSED -- keep open_archive happy */
 char *archive;
 
+int
 main(argc, argv)
 	int argc;
 	char **argv;
@@ -77,13 +82,15 @@ main(argc, argv)
 	if (!*argv)
 		usage();
 
-	for (eval = 0; archive = *argv++;)
+	for (eval = 0; (archive = *argv++); )
 		eval |= tflag ? touch() : build();
 	exit(eval);
 }
 
-usage()
+void
+usage(void)
 {
 	(void)fprintf(stderr, "usage: ranlib [-t] archive ...\n");
 	exit(1);
 }
+

@@ -108,6 +108,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    reg_n_calls_crosses and reg_basic_block.  */
 
 #include <stdio.h>
+#include <string.h>
 #include "config.h"
 #include "rtl.h"
 #include "basic-block.h"
@@ -2542,6 +2543,8 @@ mark_used_regs (needed, live, x, final, insn)
 	if (global_regs[i])
 	  live[i / REGSET_ELT_BITS]
 	    |= (REGSET_ELT_TYPE) 1 << (i % REGSET_ELT_BITS);
+      break;
+    default:
       break;
     }
 

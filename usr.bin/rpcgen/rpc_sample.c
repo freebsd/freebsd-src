@@ -43,9 +43,9 @@
 static char RQSTP[] = "rqstp";
 
 extern void printarglist __P(( proc_list *, char *, char *, char *));
-static int write_sample_client __P(( char *, version_list * ));
-static int write_sample_server __P(( definition * ));
-static int return_type __P(( proc_list * ));
+static void write_sample_client __P(( char *, version_list * ));
+static void write_sample_server __P(( definition * ));
+static void return_type __P(( proc_list * ));
 
 void
 write_sample_svc(def)
@@ -76,7 +76,7 @@ write_sample_clnt(def)
 }
 
 
-static
+static void
 write_sample_client(program_name, vp)
      char *program_name;
      version_list *vp;
@@ -192,7 +192,7 @@ write_sample_client(program_name, vp)
 	f_print(fout, "}\n");
 }
 
-static
+static void
 write_sample_server(def)
 	definition *def;
 {
@@ -261,13 +261,14 @@ write_sample_server(def)
 
 
 
-static 
+static void
 return_type(plist)
 	proc_list *plist;
 {
   ptype(plist->res_prefix, plist->res_type, 1);
 }
 
+void
 add_sample_msg()
 {
 	f_print(fout, "/*\n");

@@ -38,7 +38,9 @@ static char sccsid[] = "@(#)rpc_util.c 1.11 89/02/22 (C) 1987 SMI";
  * Copyright (C) 1989, Sun Microsystems, Inc.
  */
 #include <stdio.h>
+#include <string.h>
 #include <ctype.h>
+#include <unistd.h>
 #include "rpc_scan.h"
 #include "rpc_parse.h"
 #include "rpc_util.h"
@@ -60,11 +62,12 @@ FILE *fin;			/* file pointer of current input */
 
 list *defined;			/* list of defined things */
 
-static int printwhere __P(( void ));
+static void printwhere __P(( void ));
 
 /*
  * Reinitialize the world
  */
+void
 reinitialize()
 {
 	memset(curline, 0, MAXLINESIZE);
@@ -76,6 +79,7 @@ reinitialize()
 /*
  * string equality
  */
+int
 streq(a, b)
 	char *a;
 	char *b;
@@ -119,7 +123,7 @@ storeval(lstp, val)
 	*l = lst;
 }
 
-static
+static int
 findit(def, type)
 	definition *def;
 	char *type;
@@ -192,7 +196,7 @@ ptype(prefix, type, follow)
 	}
 }
 
-static
+static int
 typedefed(def, type)
 	definition *def;
 	char *type;
@@ -204,6 +208,7 @@ typedefed(def, type)
 	}
 }
 
+int
 isvectordef(type, rel)
 	char *type;
 	relation rel;
@@ -227,6 +232,8 @@ isvectordef(type, rel)
 			rel = def->def.ty.rel;
 		}
 	}
+
+	return (0);
 }
 
 char *
@@ -237,7 +244,7 @@ locase(str)
 	static char buf[100];
 	char *p = buf;
 
-	while (c = *str++) {
+	while ( (c = *str++) ) {
 		*p++ = (c >= 'A' && c <= 'Z') ? (c - 'A' + 'a') : c;
 	}
 	*p = 0;
@@ -277,6 +284,7 @@ error(msg)
  * Something went wrong, unlink any files that we may have created and then
  * die.
  */
+void
 crash()
 {
 	int i;
@@ -399,7 +407,7 @@ toktostr(kind)
 	return (sp->str);
 }
 
-static
+static void
 printbuf()
 {
 	char c;
@@ -408,7 +416,7 @@ printbuf()
 
 #	define TABSIZE 4
 
-	for (i = 0; c = curline[i]; i++) {
+	for (i = 0; (c = curline[i]); i++) {
 		if (c == '\t') {
 			cnt = 8 - (i % TABSIZE);
 			c = ' ';
@@ -421,7 +429,7 @@ printbuf()
 	}
 }
 
-static
+static void
 printwhere()
 {
 	int i;
@@ -462,6 +470,7 @@ make_argname(pname, vname)
 bas_type *typ_list_h;
 bas_type *typ_list_t;
 
+void
 add_type(len, type)
 int len;
 char *type;
