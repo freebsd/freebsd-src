@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *		$Id$
+ *		$Id: init.c,v 1.17 1997/06/13 06:24:42 charnier Exp $
  */
 
 #ifndef lint
@@ -935,6 +935,7 @@ new_session(sprev, session_index, typ)
 	register struct ttyent *typ;
 {
 	register session_t *sp;
+	int fd;
 
 	if ((typ->ty_status & TTY_ON) == 0 ||
 	    typ->ty_name == 0 ||
@@ -948,6 +949,18 @@ new_session(sprev, session_index, typ)
 
 	sp->se_device = malloc(sizeof(_PATH_DEV) + strlen(typ->ty_name));
 	(void) sprintf(sp->se_device, "%s%s", _PATH_DEV, typ->ty_name);
+
+	/*
+	 * Attempt to open the device, if we get "device not configured"
+	 * then don't add the device to the session list.
+	 */
+	if ((fd = open(sp->se_device, O_RDONLY | O_NONBLOCK, 0)) < 0) {
+		if (errno == ENXIO) {
+			free_session(sp);
+			return (0);
+		}
+	} else
+		close(fd);
 
 	if (setupargv(sp, typ) == 0) {
 		free_session(sp);
