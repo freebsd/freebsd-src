@@ -17,10 +17,8 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.70 1999/03/01 13:46:45 brian Exp $
+ * $Id: lcp.c,v 1.66.2.1 1999/03/24 18:03:11 brian Exp $
  *
- * TODO:
- *	o Limit data field length by MRU
  */
 
 #include <sys/param.h>
