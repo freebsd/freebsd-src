@@ -7,7 +7,8 @@ bindir=			${BINDIR}
 pager=			more -s
 manpath_config_file=	/etc/manpath.config
 troff=			/usr/bin/groff -man
-nroff=                  /usr/bin/groff -Wall -mtty-char -Tascii -man
+# -Tascii or localized encoding added automatically
+nroff=                  /usr/bin/groff -Wall -mtty-char -man
 apropos=		/usr/bin/apropos
 whatis=			/usr/bin/whatis
 neqn=                   /usr/bin/eqn -Tascii
