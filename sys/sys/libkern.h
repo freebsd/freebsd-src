@@ -76,7 +76,7 @@ int	 fls(int);
 #endif
 int	 locc(int, char *, u_int);
 void	 qsort(void *base, size_t nmemb, size_t size,
-		    int (*compar)(const void *, const void *));
+	    int (*compar)(const void *, const void *));
 u_long	 random(void);
 char	*index(const char *, int);
 char	*rindex(const char *, int);

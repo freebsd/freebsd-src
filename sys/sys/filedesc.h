@@ -139,8 +139,8 @@ SLIST_HEAD(sigiolst, sigio);
 #define	FILEDESC_LOCK_ASSERT(fd, type)	mtx_assert(&(fd)->fd_mtx, (type))
 
 int	closef(struct file *fp, struct thread *p);
-int	dupfdopen(struct thread *td, struct filedesc *fdp, int indx,
-		       int dfd, int mode, int error);
+int	dupfdopen(struct thread *td, struct filedesc *fdp, int indx, int dfd,
+	    int mode, int error);
 int	falloc(struct thread *p, struct file **resultfp, int *resultfd);
 int	fdalloc(struct thread *p, int want, int *result);
 int	fdavail(struct thread *td, int n);

@@ -138,7 +138,7 @@ typedef int d_open_t(dev_t dev, int oflags, int devtype, struct thread *td);
 typedef int d_close_t(dev_t dev, int fflag, int devtype, struct thread *td);
 typedef void d_strategy_t(struct bio *bp);
 typedef int d_ioctl_t(dev_t dev, u_long cmd, caddr_t data,
-			   int fflag, struct thread *td);
+		      int fflag, struct thread *td);
 typedef int d_dump_t(dev_t dev);
 typedef int d_psize_t(dev_t dev);
 
@@ -153,7 +153,7 @@ typedef int l_close_t(struct tty *tp, int flag);
 typedef int l_read_t(struct tty *tp, struct uio *uio, int flag);
 typedef int l_write_t(struct tty *tp, struct uio *uio, int flag);
 typedef int l_ioctl_t(struct tty *tp, u_long cmd, caddr_t data,
-			   int flag, struct thread *td);
+		      int flag, struct thread *td);
 typedef int l_rint_t(int c, struct tty *tp);
 typedef int l_start_t(struct tty *tp);
 typedef int l_modem_t(struct tty *tp, int flag);
