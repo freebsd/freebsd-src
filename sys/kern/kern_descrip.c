@@ -1660,8 +1660,6 @@ setugidsafety(td)
 	struct filedesc *fdp;
 	int i;
 
-	GIANT_REQUIRED;		/* kqueue */
-
 	/* Certain daemons might not have file descriptors. */
 	fdp = td->td_proc->p_fd;
 	if (fdp == NULL)
