@@ -3,8 +3,10 @@
  * Written September 1994 by Garrett A. Wollman
  * This file is in the public domain.
  *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/types.h>

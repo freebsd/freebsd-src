@@ -1,5 +1,3 @@
-/*	$NetBSD: lockf.c,v 1.1 1997/12/20 20:23:18 kleink Exp $	*/
-
 /*-
  * Copyright (c) 1997 The NetBSD Foundation, Inc.
  * All rights reserved.
@@ -36,10 +34,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[]=
-  "$FreeBSD$";
-#endif
+/*	$NetBSD: lockf.c,v 1.1 1997/12/20 20:23:18 kleink Exp $	*/
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <errno.h>
