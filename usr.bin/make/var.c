@@ -880,14 +880,11 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, size_t *lengthPtr,
 				 * is done to support dynamic sources. The
 				 * result is just the invocation, unaltered */
 
-    *freePtr = FALSE;
-    dynamic = FALSE;
-    start = str;
-
     if (str[1] == '\0') {
 	/*
 	 * Error - there is only a dollar sign!
 	 */
+	*freePtr = FALSE;
 	*lengthPtr = 1;
 	return (err ? var_Error : varNoError);
     }
@@ -938,12 +935,14 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, size_t *lengthPtr,
 	     * right now, setting the length to be the distance to
 	     * the end of the string, since that's what make does.
 	     */
+	    *freePtr = FALSE;
 	    *lengthPtr = tstr - str;
 	    return (var_Error);
 	}
 
 	haveModifier = (*tstr == ':');
 	*tstr = '\0';			/* modify input string */
+	start = str;
 
 	Buf_AddByte(buf, (Byte)'\0');
 	str = Buf_GetAll(buf, (size_t *)NULL);	/* REPLACE str */
@@ -1028,6 +1027,7 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, size_t *lengthPtr,
 			dynamic = TRUE;
 			break;
 		    default:
+			dynamic = FALSE;
 			break;
 		}
 	    } else if ((vlen > 2) && (str[0] == '.') &&
@@ -1043,7 +1043,11 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, size_t *lengthPtr,
 		    (strncmp(str, ".MEMBER", len) == 0))
 		{
 		    dynamic = TRUE;
+		} else {
+		    dynamic = FALSE;
 		}
+	    } else {
+		dynamic = FALSE;
 	    }
 
 	    if (haveModifier) {
@@ -1067,11 +1071,15 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, size_t *lengthPtr,
 		    Buf_Destroy(buf, TRUE);
 		    return (str);
 		} else {
+		    *freePtr = FALSE;
 		    Buf_Destroy(buf, TRUE);
 		    return (err ? var_Error : varNoError);
 		}
 	    }
+	} else {
+	    dynamic = FALSE;
 	}
+	*freePtr = FALSE;
 	Buf_Destroy(buf, TRUE);
 
     } else {
@@ -1116,8 +1124,12 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, size_t *lengthPtr,
 	    /*
 	     * Error
 	     */
+	    *freePtr = FALSE;
 	    return (err ? var_Error : varNoError);
 	}
+	dynamic = FALSE;
+	start = str;
+	*freePtr = FALSE;
 	haveModifier = FALSE;
 	startc = 0;
 	endc = str[1];
