@@ -421,16 +421,6 @@ callout_reset(c, to_ticks, ftn, arg)
 	mtx_unlock_spin(&callout_lock);
 }
 
-/* For binary compatibility. */
-#undef callout_stop
-int
-callout_stop(c)
-	struct	callout *c;
-{
-
-	return(_callout_stop_safe(c, 0));
-}
-
 int
 _callout_stop_safe(c, safe)
 	struct	callout *c;
