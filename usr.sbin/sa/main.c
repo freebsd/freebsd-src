@@ -49,6 +49,7 @@ static const char rcsid[] =
 #include <err.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -361,10 +362,11 @@ acct_load(pn, wr)
 			if (sflag || (mflag && !qflag))
 				usracct_add(&ci);
 		} else if (!qflag)
-			printf("%6lu %12.2f cpu %12quk mem %12qu io %s\n",
+			printf("%6lu %12.2f cpu %12juk mem %12ju io %s\n",
 			    ci.ci_uid,
 			    (ci.ci_utime + ci.ci_stime) / (double) AHZ,
-			    ci.ci_mem, ci.ci_io, ci.ci_comm);
+			    (uintmax_t)ci.ci_mem, (uintmax_t)ci.ci_io,
+			    ci.ci_comm);
 	}
 
 	/* finally, return the file descriptor for possible truncation */
