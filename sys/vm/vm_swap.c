@@ -51,6 +51,7 @@
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/conf.h>
+#include <sys/disk.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/mac.h>
@@ -283,6 +284,7 @@ swaponvp(td, vp, dev, nblks)
 	swblk_t dvbase;
 	int error;
 	u_long aligned_nblks;
+	off_t mediasize;
 
 	if (!swapdev_vp) {
 		error = getnewvnode("none", NULL, swapdev_vnodeop_p,
@@ -312,11 +314,16 @@ swaponvp(td, vp, dev, nblks)
 	if (error)
 		return (error);
 
-	if (nblks == 0 && dev != NODEV && (devsw(dev)->d_psize == 0 ||
-	    (nblks = (*devsw(dev)->d_psize) (dev)) == -1)) {
-		(void) VOP_CLOSE(vp, FREAD | FWRITE, td->td_ucred, td);
-		return (ENXIO);
-	}
+	error = VOP_IOCTL(vp, DIOCGMEDIASIZE, (caddr_t)&mediasize,
+	    FREAD, td->td_ucred, td);
+	if (error == 0)
+            nblks = mediasize / DEV_BSIZE;
+	else
+	    nblks = 0;
+	/*
+	 * XXX: We should also check that the sectorsize makes sense
+	 * XXX: it should be a power of two, no larger than the page size.
+	 */
 	if (nblks == 0) {
 		(void) VOP_CLOSE(vp, FREAD | FWRITE, td->td_ucred, td);
 		return (ENXIO);
