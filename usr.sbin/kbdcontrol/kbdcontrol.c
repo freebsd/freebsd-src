@@ -28,7 +28,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: kbdcontrol.c,v 1.25 1999/05/09 04:57:51 yokota Exp $";
+	"$Id: kbdcontrol.c,v 1.26 1999/06/22 14:15:34 yokota Exp $";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -794,6 +794,8 @@ set_bell_values(char *opt)
 		bell |= 1;
 	else if (!strcmp(opt, "normal"))
 		duration = 5, pitch = 800;
+	else if (!strcmp(opt, "off"))
+		duration = 0, pitch = 0;
 	else {
 		char		*v1;
 
