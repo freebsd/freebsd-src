@@ -40,10 +40,6 @@ typedef struct device bdevice;			/* base device */
 /* XXX can't we put this somehow into a typedef? */
 #define bdevice	device_t			/* base device */
 
-#define USB_MODULE(name, driver, devclass)				\
-	DRIVER_MODULE((name), "usb", (driver), (devclass), usb_driver_load, 0)
-#endif
-
 
 
 
