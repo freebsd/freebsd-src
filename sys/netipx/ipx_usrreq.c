@@ -313,6 +313,7 @@ ipx_ctloutput(so, sopt)
 	int mask, error, optval;
 	short soptval;
 	struct ipx ioptval;
+	long seq;
 
 	error = 0;
 	if (ipxp == NULL)
@@ -336,6 +337,7 @@ ipx_ctloutput(so, sopt)
 		case SO_HEADERS_ON_OUTPUT:
 			mask = IPXP_RAWOUT;
 		get_flags:
+			/* Unlocked read. */
 			soptval = ipxp->ipxp_flags & mask;
 			error = sooptcopyout(sopt, &soptval, sizeof soptval);
 			break;
@@ -344,16 +346,20 @@ ipx_ctloutput(so, sopt)
 			ioptval.ipx_len = 0;
 			ioptval.ipx_sum = 0;
 			ioptval.ipx_tc = 0;
+			IPX_LOCK(ipxp);
 			ioptval.ipx_pt = ipxp->ipxp_dpt;
 			ioptval.ipx_dna = ipxp->ipxp_faddr;
 			ioptval.ipx_sna = ipxp->ipxp_laddr;
+			IPX_UNLOCK(ipxp);
 			error = sooptcopyout(sopt, &soptval, sizeof soptval);
 			break;
 
 		case SO_SEQNO:
-			error = sooptcopyout(sopt, &ipx_pexseq,
-					     sizeof ipx_pexseq);
+			IPX_LIST_LOCK();
+			seq = ipx_pexseq;
 			ipx_pexseq++;
+			IPX_LIST_UNLOCK();
+			error = sooptcopyout(sopt, &seq, sizeof seq);
 			break;
 
 		default:
@@ -381,10 +387,12 @@ ipx_ctloutput(so, sopt)
 					    sizeof optval);
 			if (error)
 				break;
+			IPX_LOCK(ipxp);
 			if (optval)
 				ipxp->ipxp_flags |= mask;
 			else
 				ipxp->ipxp_flags &= ~mask;
+			IPX_UNLOCK(ipxp);
 			break;
 
 		case SO_DEFAULT_HEADERS:
@@ -392,6 +400,7 @@ ipx_ctloutput(so, sopt)
 					    sizeof ioptval);
 			if (error)
 				break;
+			/* Unlocked write. */
 			ipxp->ipxp_dpt = ioptval.ipx_pt;
 			break;
 #ifdef IPXIP
