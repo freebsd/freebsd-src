@@ -142,7 +142,7 @@ TcpMonitorIn(struct ip *pip, struct alias_link *link)
         case ALIAS_TCP_STATE_NOT_CONNECTED:
             if (tc->th_flags & TH_SYN)
                 SetStateIn(link, ALIAS_TCP_STATE_CONNECTED);
-            break;
+            /*FALLTHROUGH*/
         case ALIAS_TCP_STATE_CONNECTED:
             if (tc->th_flags & TH_FIN
                 || tc->th_flags & TH_RST)
@@ -163,7 +163,7 @@ TcpMonitorOut(struct ip *pip, struct alias_link *link)
         case ALIAS_TCP_STATE_NOT_CONNECTED:
             if (tc->th_flags & TH_SYN)
                 SetStateOut(link, ALIAS_TCP_STATE_CONNECTED);
-            break;
+            /*FALLTHROUGH*/
         case ALIAS_TCP_STATE_CONNECTED:
             if (tc->th_flags & TH_FIN
                 || tc->th_flags & TH_RST)
