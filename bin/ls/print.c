@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: print.c,v 1.6 1995/08/08 00:03:04 ache Exp $
+ *	$Id: print.c,v 1.7 1995/12/30 18:15:30 joerg Exp $
  */
 
 #ifndef lint
@@ -53,7 +53,6 @@ static char sccsid[] = "@(#)print.c	8.4 (Berkeley) 4/17/94";
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
-#include <utmp.h>
 
 #include "ls.h"
 #include "extern.h"
