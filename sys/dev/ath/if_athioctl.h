@@ -70,6 +70,8 @@ struct ath_stats {
 	u_int32_t	ast_tx_rts;	/* tx frames with rts enabled */
 	u_int32_t	ast_tx_cts;	/* tx frames with cts enabled */
 	u_int32_t	ast_tx_shortpre;/* tx frames with short preamble */
+	u_int32_t	ast_tx_altrate;	/* tx frames with alternate rate */
+	u_int32_t	ast_tx_protect;	/* tx frames with protection */
 	u_int32_t	ast_rx_nombuf;	/* rx setup failed 'cuz no mbuf */
 	u_int32_t	ast_rx_busdma;	/* rx setup failed for dma resrcs */
 	u_int32_t	ast_rx_orn;	/* rx failed 'cuz of desc overrun */
@@ -79,6 +81,7 @@ struct ath_stats {
 	u_int32_t	ast_rx_phyerr;	/* rx failed 'cuz of PHY err */
 	u_int32_t	ast_rx_phy[32];	/* rx PHY error per-code counts */
 	u_int32_t	ast_rx_tooshort;/* rx discarded 'cuz frame too short */
+	u_int32_t	ast_rx_toobig;	/* rx discarded 'cuz frame too large */
 	u_int32_t	ast_rx_ctl;	/* rx discarded 'cuz ctl frame */
 	u_int32_t	ast_be_nombuf;	/* beacon setup failed 'cuz no mbuf */
 	u_int32_t	ast_per_cal;	/* periodic calibration calls */
