@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,9 +27,9 @@
  *	i4b daemon - main header file
  *	-----------------------------
  *
- *	$Id: isdnd.h,v 1.56 1998/12/16 13:39:46 hm Exp $ 
+ *	$Id: isdnd.h,v 1.59 1999/02/15 15:02:58 hm Exp $ 
  *
- *      last edit-date: [Mon Dec 14 10:06:39 1998]
+ *      last edit-date: [Mon Feb 15 15:42:37 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -94,6 +94,7 @@
 #define DL_PROC		0x0040	/* messages related to process handling	*/
 #define DL_DRVR		0x0080	/* messages related to kernel i4b msg i/o*/
 #define DL_CNST		0x0100	/* messages related to controller state	*/
+#define DL_RCCF		0x0200	/* messages related to isdnd.rc at boot	*/
 
 #ifdef DEBUG
 #define DBGL(cond, dolog) if(cond & debug_flags) dolog
@@ -145,10 +146,8 @@
 /* struct for rates - each day has one or more */
 struct rates
 {
-	int start_hr;	/* hour at which this rate starts, e.g. 12 */
-	int start_min;	/* minute of start ... */
-	int end_hr;	/* hour at which this rate ends, e.g. 19 */
-	int end_min;	/* minute of end ... */
+	int start_time;	/* hour and min at which this rate starts, e.g. 12:20 12*60+20*/
+	int end_time;	/* hour and min at which this rate ends, e.g. 19:10 19*60+10*/
 	int rate;	/* how long can I telephone at this price, seconds */
 	struct rates *next;
 };
@@ -266,6 +265,7 @@ typedef struct cfg_entry {
 	int idle_time_in;		/* max idle time incoming calls */
 	int idle_time_out;		/* max idle time outgoing calls */
 
+	msg_shorthold_algorithm_t shorthold_algorithm;	/* shorthold algorithm		*/
 	int  unitlength;		/* length of a charging unit	*/
 #define UNITLENGTH_DEFAULT	60	/* last resort unit length	*/
 

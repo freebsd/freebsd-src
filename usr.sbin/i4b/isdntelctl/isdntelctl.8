@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+.\" Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -22,9 +22,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: isdntelctl.8,v 1.4 1998/12/14 10:31:55 hm Exp $
+.\"	$Id: isdntelctl.8,v 1.6 1999/02/16 10:40:18 hm Exp $
 .\"
-.\"	last edit-date: [Mon Dec 14 11:34:51 1998]
+.\"	last edit-date: [Sun Feb 14 10:20:38 1999]
 .\"
 .Dd December 14, 1998
 .Dt isdntelctl 8
@@ -38,6 +38,7 @@
 .Op Fl u Ar unit
 .Op Fl A
 .Op Fl U
+.Op Fl R
 .Sh DESCRIPTION
 .Nm isdntelctl
 is part of the isdn4bsd package and is used to configure the sound format
@@ -56,6 +57,14 @@ device /dev/i4btel0.
 Set sound format to A-Law.
 .It Fl U
 Set sound format to u-Law.
+.It Fl R
+Set sound format to canonical (regular) A-Law format.
+.El
+.Pp
+By default, isdn4bsd sends and receives audio in A-Law as provided by the
+hardware. However, these samples cannot easily be processed further as the
+sample word is bit-reversed. Both the u-Law and canonical A-Law formats
+store samples in a way suitable for post-processing by e.\ g. sox(1).
 .Pp
 .Sh FILES
 /dev/i4btel<n>

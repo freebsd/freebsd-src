@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,9 +27,9 @@
  *	main.c - i4b set debug options
  *	------------------------------
  *
- *	$Id: main.c,v 1.13 1998/12/05 18:03:49 hm Exp $ 
+ *	$Id: main.c,v 1.14 1999/02/14 09:44:57 hm Exp $ 
  *
- *      last edit-date: [Sat Dec  5 18:13:55 1998]
+ *      last edit-date: [Sun Feb 14 10:13:25 1999]
  *
  *---------------------------------------------------------------------------*/
 

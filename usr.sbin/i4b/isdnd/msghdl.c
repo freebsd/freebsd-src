@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,9 +27,9 @@
  *	i4b daemon - message from kernel handling routines
  *	--------------------------------------------------
  *
- *	$Id: msghdl.c,v 1.54 1998/12/19 09:03:16 hm Exp $ 
+ *	$Id: msghdl.c,v 1.57 1999/02/25 12:45:41 hm Exp $ 
  *
- *      last edit-date: [Sat Dec 19 09:57:16 1998]
+ *      last edit-date: [Thu Feb 25 13:43:46 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -502,7 +502,7 @@ msg_ifstatechg_ind(msg_ifstatechg_ind_t *mp)
 	}
 
 	device = bdrivername(cep->usrdevicename);
-	log(LL_DBG, "%s%d: switched to state %d\n", device, cep->usrdeviceunit, mp->state);
+	log(LL_DBG, "%s%d: switched to state %d", device, cep->usrdeviceunit, mp->state);
 }
 
 /*---------------------------------------------------------------------------*
@@ -854,9 +854,11 @@ sendm_connect_req(cfg_entry_t *cep)
 	mcr.driver = cep->usrdevicename;
 	mcr.driver_unit = cep->usrdeviceunit;
 
-	mcr.unitlen_time = cep->unitlength;
-	mcr.idle_time = cep->idle_time_out;		
-	mcr.earlyhup_time = cep->earlyhangup;
+	/* setup the shorthold data */
+	mcr.shorthold_data.shorthold_algorithm = cep->shorthold_algorithm;
+	mcr.shorthold_data.unitlen_time = cep->unitlength;
+	mcr.shorthold_data.idle_time = cep->idle_time_out;		
+	mcr.shorthold_data.earlyhup_time = cep->earlyhangup;
 
 	if(cep->unitlengthsrc == ULSRC_DYN)
 		mcr.unitlen_method = ULEN_METHOD_DYNAMIC;
