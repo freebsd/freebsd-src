@@ -68,6 +68,7 @@ static void vfs_page_set_valid(struct buf *bp, vm_ooffset_t off,
 static void vfs_clean_pages(struct buf * bp);
 static void vfs_setdirty(struct buf *bp);
 static void vfs_vmio_release(struct buf *bp);
+static void vfs_backgroundwritedone(struct buf *bp);
 static int flushbufqueues(void);
 
 static int bd_request;
@@ -349,7 +350,7 @@ bufinit(void)
 	 * buffer cache operation.
 	 */
 	maxbufspace = (nbuf + 8) * DFLTBSIZE;
-	hibufspace = imax(3 * maxbufspace / 4, maxbufspace - MAXBSIZE * 5);
+	hibufspace = imax(3 * maxbufspace / 4, maxbufspace - MAXBSIZE * 10);
 /*
  * Limit the amount of malloc memory since it is wired permanently into
  * the kernel space.  Even though this is accounted for in the buffer
@@ -593,6 +594,7 @@ int
 bwrite(struct buf * bp)
 {
 	int oldflags, s;
+	struct buf *newbp;
 
 	if (bp->b_flags & B_INVAL) {
 		brelse(bp);
@@ -606,7 +608,65 @@ bwrite(struct buf * bp)
 		panic("bwrite: buffer is not busy???");
 #endif
 	s = splbio();
+	/*
+	 * If a background write is already in progress, delay
+	 * writing this block if it is asynchronous. Otherwise
+	 * wait for the background write to complete.
+	 */
+	if (bp->b_xflags & BX_BKGRDINPROG) {
+		if (bp->b_flags & B_ASYNC) {
+			splx(s);
+			bdwrite(bp);
+			return (0);
+		}
+		bp->b_xflags |= BX_BKGRDWAIT;
+		tsleep(&bp->b_xflags, PRIBIO, "biord", 0);
+		if (bp->b_xflags & BX_BKGRDINPROG)
+			panic("bwrite: still writing");
+	}
+
+	/* Mark the buffer clean */
 	bundirty(bp);
+
+	/*
+	 * If this buffer is marked for background writing and we
+	 * do not have to wait for it, make a copy and write the
+	 * copy so as to leave this buffer ready for further use.
+	 */
+	if ((bp->b_xflags & BX_BKGRDWRITE) && (bp->b_flags & B_ASYNC)) {
+		if (bp->b_flags & B_CALL)
+			panic("bwrite: need chained iodone");
+
+		/* get a new block */
+		newbp = geteblk(bp->b_bufsize);
+
+		/* set it to be identical to the old block */
+		memcpy(newbp->b_data, bp->b_data, bp->b_bufsize);
+		bgetvp(bp->b_vp, newbp);
+		newbp->b_lblkno = bp->b_lblkno;
+		newbp->b_blkno = bp->b_blkno;
+		newbp->b_offset = bp->b_offset;
+		newbp->b_iodone = vfs_backgroundwritedone;
+		newbp->b_flags |= B_ASYNC | B_CALL;
+		newbp->b_flags &= ~B_INVAL;
+
+		/* move over the dependencies */
+		if (LIST_FIRST(&bp->b_dep) != NULL && bioops.io_movedeps)
+			(*bioops.io_movedeps)(bp, newbp);
+
+		/*
+		 * Initiate write on the copy, release the original to
+		 * the B_LOCKED queue so that it cannot go away until
+		 * the background write completes. If not locked it could go
+		 * away and then be reconstituted while it was being written.
+		 * If the reconstituted buffer were written, we could end up
+		 * with two background copies being written at the same time.
+		 */
+		bp->b_xflags |= BX_BKGRDINPROG;
+		bp->b_flags |= B_LOCKED;
+		bqrelse(bp);
+		bp = newbp;
+	}
 
 	bp->b_flags &= ~(B_READ | B_DONE | B_ERROR);
 	bp->b_flags |= B_WRITEINPROG | B_CACHE;
@@ -627,6 +687,56 @@ bwrite(struct buf * bp)
 	}
 
 	return (0);
+}
+
+/*
+ * Complete a background write started from bwrite.
+ */
+static void
+vfs_backgroundwritedone(bp)
+	struct buf *bp;
+{
+	struct buf *origbp;
+
+	/*
+	 * Find the original buffer that we are writing.
+	 */
+	if ((origbp = gbincore(bp->b_vp, bp->b_lblkno)) == NULL)
+		panic("backgroundwritedone: lost buffer");
+	/*
+	 * Process dependencies then return any unfinished ones.
+	 */
+	if (LIST_FIRST(&bp->b_dep) != NULL && bioops.io_complete)
+		(*bioops.io_complete)(bp);
+	if (LIST_FIRST(&bp->b_dep) != NULL && bioops.io_movedeps)
+		(*bioops.io_movedeps)(bp, origbp);
+	/*
+	 * Clear the BX_BKGRDINPROG flag in the original buffer
+	 * and awaken it if it is waiting for the write to complete.
+	 */
+	origbp->b_xflags &= ~BX_BKGRDINPROG;
+	if (origbp->b_xflags & BX_BKGRDWAIT) {
+		origbp->b_xflags &= ~BX_BKGRDWAIT;
+		wakeup(&origbp->b_xflags);
+	}
+	/*
+	 * Clear the B_LOCKED flag and remove it from the locked
+	 * queue if it currently resides there.
+	 */
+	origbp->b_flags &= ~B_LOCKED;
+	if (BUF_LOCK(origbp, LK_EXCLUSIVE | LK_NOWAIT) == 0) {
+		bremfree(origbp);
+		bqrelse(origbp);
+	}
+	/*
+	 * This buffer is marked B_NOCACHE, so when it is released
+	 * by biodone, it will be tossed. We mark it with B_READ
+	 * to avoid biodone doing a second vwakeup.
+	 */
+	bp->b_flags |= B_NOCACHE | B_READ;
+	bp->b_flags &= ~(B_CACHE | B_CALL | B_DONE);
+	bp->b_iodone = 0;
+	biodone(bp);
 }
 
 /*
@@ -757,6 +867,10 @@ bundirty(bp)
 		--numdirtybuffers;
 		numdirtywakeup();
 	}
+	/*
+	 * Since it is now being written, we can clear its deferred write flag.
+	 */
+	bp->b_flags &= ~B_DEFERRED;
 }
 
 /*
@@ -895,12 +1009,16 @@ brelse(struct buf * bp)
 	 *
 	 * Normally we can do this whether a buffer is B_DELWRI or not.  If
 	 * the buffer is an NFS buffer, it is tracking piecemeal writes or
-	 * the commit state and we cannot afford to lose the buffer.
+	 * the commit state and we cannot afford to lose the buffer. If the
+	 * buffer has a background write in progress, we need to keep it
+	 * around to prevent it from being reconstituted and starting a second
+	 * background write.
 	 */
 	if ((bp->b_flags & B_VMIO)
 	    && !(bp->b_vp->v_tag == VT_NFS &&
 		 !vn_isdisk(bp->b_vp) &&
-		 (bp->b_flags & B_DELWRI))
+		 (bp->b_flags & B_DELWRI) &&
+		 (bp->b_xflags & BX_BKGRDINPROG))
 	    ) {
 
 		int i, j, resid;
@@ -997,6 +1115,9 @@ brelse(struct buf * bp)
 	/* buffers with no memory */
 	if (bp->b_bufsize == 0) {
 		bp->b_flags |= B_INVAL;
+		bp->b_xflags &= ~BX_BKGRDWRITE;
+		if (bp->b_xflags & BX_BKGRDINPROG)
+			panic("losing buffer 1");
 		if (bp->b_kvasize) {
 			bp->b_qindex = QUEUE_EMPTYKVA;
 			kvawakeup = 1;
@@ -1011,6 +1132,9 @@ brelse(struct buf * bp)
 	/* buffers with junk contents */
 	} else if (bp->b_flags & (B_ERROR | B_INVAL | B_NOCACHE | B_RELBUF)) {
 		bp->b_flags |= B_INVAL;
+		bp->b_xflags &= ~BX_BKGRDWRITE;
+		if (bp->b_xflags & BX_BKGRDINPROG)
+			panic("losing buffer 2");
 		bp->b_qindex = QUEUE_CLEAN;
 		if (bp->b_kvasize)
 			kvawakeup = 1;
@@ -1501,6 +1625,8 @@ restart:
 		}
 		if (LIST_FIRST(&bp->b_dep) != NULL && bioops.io_deallocate)
 			(*bioops.io_deallocate)(bp);
+		if (bp->b_xflags & BX_BKGRDINPROG)
+			panic("losing buffer 3");
 		LIST_REMOVE(bp, b_hash);
 		LIST_INSERT_HEAD(&invalhash, bp, b_hash);
 
@@ -1508,6 +1634,7 @@ restart:
 			allocbuf(bp, 0);
 
 		bp->b_flags = 0;
+		bp->b_xflags = 0;
 		bp->b_dev = NODEV;
 		bp->b_vp = NULL;
 		bp->b_blkno = bp->b_lblkno = 0;
@@ -1761,7 +1888,8 @@ flushbufqueues(void)
 
 	while (bp) {
 		KASSERT((bp->b_flags & B_DELWRI), ("unexpected clean buffer %p", bp));
-		if ((bp->b_flags & B_DELWRI) != 0) {
+		if ((bp->b_flags & B_DELWRI) != 0 &&
+		    (bp->b_xflags & BX_BKGRDINPROG) == 0) {
 			if (bp->b_flags & B_INVAL) {
 				if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT) != 0)
 					panic("flushbufqueues: locked buf");
@@ -1770,13 +1898,24 @@ flushbufqueues(void)
 				++r;
 				break;
 			}
+			if (LIST_FIRST(&bp->b_dep) != NULL &&
+			    bioops.io_countdeps &&
+			    (bp->b_flags & B_DEFERRED) == 0 &&
+			    (*bioops.io_countdeps)(bp, 0)) {
+				TAILQ_REMOVE(&bufqueues[QUEUE_DIRTY],
+				    bp, b_freelist);
+				TAILQ_INSERT_TAIL(&bufqueues[QUEUE_DIRTY],
+				    bp, b_freelist);
+				bp->b_flags |= B_DEFERRED;
+				continue;
+			}
 			vfs_bio_awrite(bp);
 			++r;
 			break;
 		}
 		bp = TAILQ_NEXT(bp, b_freelist);
 	}
-	return(r);
+	return (r);
 }
 
 /*

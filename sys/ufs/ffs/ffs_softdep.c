@@ -52,7 +52,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: @(#)ffs_softdep.c	9.45 (McKusick) 1/9/00
+ *	from: @(#)ffs_softdep.c	9.46 (McKusick) 1/9/00
  * $FreeBSD$
  */
 
@@ -212,6 +212,8 @@ static	void softdep_disk_write_complete __P((struct buf *));
 static	void softdep_deallocate_dependencies __P((struct buf *));
 static	int softdep_fsync __P((struct vnode *));
 static	int softdep_process_worklist __P((struct mount *));
+static	void softdep_move_dependencies __P((struct buf *, struct buf *));
+static	int softdep_count_dependencies __P((struct buf *bp, int));
 
 struct bio_ops bioops = {
 	softdep_disk_io_initiation,		/* io_start */
@@ -219,6 +221,8 @@ struct bio_ops bioops = {
 	softdep_deallocate_dependencies,	/* io_deallocate */
 	softdep_fsync,				/* io_fsync */
 	softdep_process_worklist,		/* io_sync */
+	softdep_move_dependencies,		/* io_movedeps */
+	softdep_count_dependencies,		/* io_countdeps */
 };
 
 /*
@@ -472,7 +476,6 @@ static int stat_dir_entry;	/* bufs redirtied as dir entry cannot write */
 #ifdef DEBUG
 #include <vm/vm.h>
 #include <sys/sysctl.h>
-#if defined(__FreeBSD__)
 SYSCTL_INT(_debug, OID_AUTO, max_softdeps, CTLFLAG_RW, &max_softdeps, 0, "");
 SYSCTL_INT(_debug, OID_AUTO, tickdelay, CTLFLAG_RW, &tickdelay, 0, "");
 SYSCTL_INT(_debug, OID_AUTO, blk_limit_push, CTLFLAG_RW, &stat_blk_limit_push, 0,"");
@@ -483,19 +486,6 @@ SYSCTL_INT(_debug, OID_AUTO, indir_blk_ptrs, CTLFLAG_RW, &stat_indir_blk_ptrs, 0
 SYSCTL_INT(_debug, OID_AUTO, inode_bitmap, CTLFLAG_RW, &stat_inode_bitmap, 0, "");
 SYSCTL_INT(_debug, OID_AUTO, direct_blk_ptrs, CTLFLAG_RW, &stat_direct_blk_ptrs, 0, "");
 SYSCTL_INT(_debug, OID_AUTO, dir_entry, CTLFLAG_RW, &stat_dir_entry, 0, "");
-#else /* !__FreeBSD__ */
-struct ctldebug debug20 = { "max_softdeps", &max_softdeps };
-struct ctldebug debug21 = { "tickdelay", &tickdelay };
-struct ctldebug debug23 = { "blk_limit_push", &stat_blk_limit_push };
-struct ctldebug debug24 = { "ino_limit_push", &stat_ino_limit_push };
-struct ctldebug debug25 = { "blk_limit_hit", &stat_blk_limit_hit };
-struct ctldebug debug26 = { "ino_limit_hit", &stat_ino_limit_hit };
-struct ctldebug debug27 = { "indir_blk_ptrs", &stat_indir_blk_ptrs };
-struct ctldebug debug28 = { "inode_bitmap", &stat_inode_bitmap };
-struct ctldebug debug29 = { "direct_blk_ptrs", &stat_direct_blk_ptrs };
-struct ctldebug debug30 = { "dir_entry", &stat_dir_entry };
-#endif	/* !__FreeBSD__ */
-
 #endif /* DEBUG */
 
 /*
@@ -634,6 +624,31 @@ softdep_process_worklist(matchmnt)
 	}
 	FREE_LOCK(&lk);
 	return (matchcnt);
+}
+
+/*
+ * Move dependencies from one buffer to another.
+ */
+static void
+softdep_move_dependencies(oldbp, newbp)
+	struct buf *oldbp;
+	struct buf *newbp;
+{
+	struct worklist *wk, *wktail;
+
+	if (LIST_FIRST(&newbp->b_dep) != NULL)
+		panic("softdep_move_dependencies: need merge code");
+	wktail = 0;
+	ACQUIRE_LOCK(&lk);
+	while (wk = LIST_FIRST(&oldbp->b_dep)) {
+		LIST_REMOVE(wk, wk_list);
+		if (wktail == 0)
+			LIST_INSERT_HEAD(&newbp->b_dep, wk, wk_list);
+		else
+			LIST_INSERT_AFTER(wktail, wk, wk_list);
+		wktail = wk;
+	}
+	FREE_LOCK(&lk);
 }
 
 /*
@@ -1633,11 +1648,6 @@ softdep_setup_freeblocks(ip, length)
 	if ((inodedep->id_state & IOSTARTED) != 0)
 		panic("softdep_setup_freeblocks: inode busy");
 	/*
-	 * Add the freeblks structure to the list of operations that
-	 * must await the zero'ed inode being written to disk.
-	 */
-	WORKLIST_INSERT(&inodedep->id_bufwait, &freeblks->fb_list);
-	/*
 	 * Because the file length has been truncated to zero, any
 	 * pending block allocation dependency structures associated
 	 * with this inode are obsolete and can simply be de-allocated.
@@ -1647,6 +1657,16 @@ softdep_setup_freeblocks(ip, length)
 	merge_inode_lists(inodedep);
 	while ((adp = TAILQ_FIRST(&inodedep->id_inoupdt)) != 0)
 		free_allocdirect(&inodedep->id_inoupdt, adp, 1);
+	/*
+	 * Add the freeblks structure to the list of operations that
+	 * must await the zero'ed inode being written to disk. If we
+	 * still have a bitmap dependency, then the inode has never been
+	 * written to disk, so we can process the freeblks immediately.
+	 */
+	if ((inodedep->id_state & DEPCOMPLETE) == 0)
+		handle_workitem_freeblocks(freeblks);
+	else
+		WORKLIST_INSERT(&inodedep->id_bufwait, &freeblks->fb_list);
 	FREE_LOCK(&lk);
 	bdwrite(bp);
 	/*
@@ -1841,36 +1861,35 @@ softdep_freefile(pvp, ino, mode)
 	 */
 	ACQUIRE_LOCK(&lk);
 	if (inodedep_lookup(ip->i_fs, ino, 0, &inodedep) == 0) {
-		add_to_worklist(&freefile->fx_list);
 		FREE_LOCK(&lk);
+		handle_workitem_freefile(freefile);
 		return;
 	}
 
 	/*
 	 * If we still have a bitmap dependency, then the inode has never
 	 * been written to disk. Drop the dependency as it is no longer
-	 * necessary since the inode is being deallocated. We could process
-	 * the freefile immediately, but then we would have to clear the
-	 * id_inowait dependencies here and it is easier just to let the
-	 * zero'ed inode be written and let them be cleaned up in the
-	 * normal followup actions that follow the inode write.
+	 * necessary since the inode is being deallocated. We set the
+	 * ALLCOMPLETE flags since the bitmap now properly shows that the
+	 * inode is not allocated. Even if the inode is actively being
+	 * written, it has been rolled back to its zero'ed state, so we
+	 * are ensured that a zero inode is what is on the disk. For short
+	 * lived files, this change will usually result in removing all the
+	 * depedencies from the inode so that it can be freed immediately.
 	 */
-	 if ((inodedep->id_state & DEPCOMPLETE) == 0) {
-		inodedep->id_state |= DEPCOMPLETE;
+	if ((inodedep->id_state & DEPCOMPLETE) == 0) {
+		inodedep->id_state |= ALLCOMPLETE;
 		LIST_REMOVE(inodedep, id_deps);
 		inodedep->id_buf = NULL;
+		WORKLIST_REMOVE(&inodedep->id_list);
 	}
-	/*
-	 * If the inodedep has no dependencies associated with it,
-	 * then we must free it here and free the file immediately.
-	 * This case arises when an early allocation fails (for
-	 * example, the user is over their file quota).
-	 */
-	if (free_inodedep(inodedep) == 0)
+	if (free_inodedep(inodedep) == 0) {
 		WORKLIST_INSERT(&inodedep->id_inowait, &freefile->fx_list);
-	else
-		add_to_worklist(&freefile->fx_list);
-	FREE_LOCK(&lk);
+		FREE_LOCK(&lk);
+	} else {
+		FREE_LOCK(&lk);
+		handle_workitem_freefile(freefile);
+	}
 }
 
 /*
@@ -2318,11 +2337,12 @@ softdep_setup_remove(bp, dp, ip, isrmdir)
 	if ((dirrem->dm_state & COMPLETE) == 0) {
 		LIST_INSERT_HEAD(&dirrem->dm_pagedep->pd_dirremhd, dirrem,
 		    dm_next);
+		FREE_LOCK(&lk);
 	} else {
 		dirrem->dm_dirinum = dirrem->dm_pagedep->pd_ino;
-		add_to_worklist(&dirrem->dm_list);
+		FREE_LOCK(&lk);
+		handle_workitem_remove(dirrem);
 	}
-	FREE_LOCK(&lk);
 }
 
 /*
@@ -2515,19 +2535,22 @@ softdep_setup_directory_change(bp, dp, ip, newinum, isrmdir)
 }
 
 /*
- * Called whenever the link count on an inode is increased.
+ * Called whenever the link count on an inode is changed.
  * It creates an inode dependency so that the new reference(s)
  * to the inode cannot be committed to disk until the updated
  * inode has been written.
  */
 void
-softdep_increase_linkcnt(ip)
+softdep_change_linkcnt(ip)
 	struct inode *ip;	/* the inode with the increased link count */
 {
 	struct inodedep *inodedep;
 
 	ACQUIRE_LOCK(&lk);
 	(void) inodedep_lookup(ip->i_fs, ip->i_number, DEPALLOC, &inodedep);
+	if (ip->i_nlink < ip->i_effnlink)
+		panic("softdep_change_linkcnt: bad delta");
+	inodedep->id_nlinkdelta = ip->i_nlink - ip->i_effnlink;
 	FREE_LOCK(&lk);
 }
 
@@ -2550,14 +2573,19 @@ handle_workitem_remove(dirrem)
 		return;
 	}
 	ip = VTOI(vp);
+	ACQUIRE_LOCK(&lk);
+	if ((inodedep_lookup(ip->i_fs, dirrem->dm_oldinum, 0, &inodedep)) == 0)
+		panic("handle_workitem_remove: lost inodedep 1");
 	/*
 	 * Normal file deletion.
 	 */
 	if ((dirrem->dm_state & RMDIR) == 0) {
 		ip->i_nlink--;
+		ip->i_flag |= IN_CHANGE;
 		if (ip->i_nlink < ip->i_effnlink)
 			panic("handle_workitem_remove: bad file delta");
-		ip->i_flag |= IN_CHANGE;
+		inodedep->id_nlinkdelta = ip->i_nlink - ip->i_effnlink;
+		FREE_LOCK(&lk);
 		vput(vp);
 		num_dirrem -= 1;
 		WORKITEM_FREE(dirrem, D_DIRREM);
@@ -2571,9 +2599,11 @@ handle_workitem_remove(dirrem)
 	 * the parent decremented to account for the loss of "..".
 	 */
 	ip->i_nlink -= 2;
+	ip->i_flag |= IN_CHANGE;
 	if (ip->i_nlink < ip->i_effnlink)
 		panic("handle_workitem_remove: bad dir delta");
-	ip->i_flag |= IN_CHANGE;
+	inodedep->id_nlinkdelta = ip->i_nlink - ip->i_effnlink;
+	FREE_LOCK(&lk);
 	if ((error = UFS_TRUNCATE(vp, (off_t)0, 0, p->p_ucred, p)) != 0)
 		softdep_error("handle_workitem_remove: truncate", error);
 	/*
@@ -2587,14 +2617,37 @@ handle_workitem_remove(dirrem)
 		WORKITEM_FREE(dirrem, D_DIRREM);
 		return;
 	}
+	/*
+	 * If we still have a bitmap dependency, then the inode has never
+	 * been written to disk. Drop the dependency as it is no longer
+	 * necessary since the inode is being deallocated. We set the
+	 * ALLCOMPLETE flags since the bitmap now properly shows that the
+	 * inode is not allocated. Even if the inode is actively being
+	 * written, it has been rolled back to its zero'ed state, so we
+	 * are ensured that a zero inode is what is on the disk. For short
+	 * lived files, this change will usually result in removing all the
+	 * depedencies from the inode so that it can be freed immediately.
+	 */
 	ACQUIRE_LOCK(&lk);
-	(void) inodedep_lookup(ip->i_fs, dirrem->dm_oldinum, DEPALLOC,
-	    &inodedep);
+	if ((inodedep_lookup(ip->i_fs, dirrem->dm_oldinum, 0, &inodedep)) == 0)
+		panic("handle_workitem_remove: lost inodedep 2");
+	if ((inodedep->id_state & DEPCOMPLETE) == 0) {
+		inodedep->id_state |= ALLCOMPLETE;
+		LIST_REMOVE(inodedep, id_deps);
+		inodedep->id_buf = NULL;
+		WORKLIST_REMOVE(&inodedep->id_list);
+	}
 	dirrem->dm_state = 0;
 	dirrem->dm_oldinum = dirrem->dm_dirinum;
-	WORKLIST_INSERT(&inodedep->id_inowait, &dirrem->dm_list);
-	FREE_LOCK(&lk);
-	vput(vp);
+	if (free_inodedep(inodedep) == 0) {
+		WORKLIST_INSERT(&inodedep->id_inowait, &dirrem->dm_list);
+		FREE_LOCK(&lk);
+		vput(vp);
+	} else {
+		FREE_LOCK(&lk);
+		vput(vp);
+		handle_workitem_remove(dirrem);
+	}
 }
 
 /*
@@ -3456,12 +3509,7 @@ softdep_load_inodeblock(ip)
 		FREE_LOCK(&lk);
 		return;
 	}
-	if (inodedep->id_nlinkdelta != 0) {
-		ip->i_effnlink -= inodedep->id_nlinkdelta;
-		ip->i_flag |= IN_MODIFIED;
-		inodedep->id_nlinkdelta = 0;
-		(void) free_inodedep(inodedep);
-	}
+	ip->i_effnlink -= inodedep->id_nlinkdelta;
 	FREE_LOCK(&lk);
 }
 
@@ -3500,9 +3548,8 @@ softdep_update_inodeblock(ip, bp, waitfor)
 		FREE_LOCK(&lk);
 		return;
 	}
-	if (ip->i_nlink < ip->i_effnlink)
+	if (inodedep->id_nlinkdelta != ip->i_nlink - ip->i_effnlink)
 		panic("softdep_update_inodeblock: bad delta");
-	inodedep->id_nlinkdelta = ip->i_nlink - ip->i_effnlink;
 	/*
 	 * Changes have been initiated. Anything depending on these
 	 * changes cannot occur until this inode has been written.
@@ -4402,6 +4449,87 @@ clear_inodedeps(p)
 		ACQUIRE_LOCK(&lk);
 	}
 	FREE_LOCK(&lk);
+}
+
+/*
+ * Function to determine if the buffer has outstanding dependencies
+ * that will cause a roll-back if the buffer is written. If wantcount
+ * is set, return number of dependencies, otherwise just yes or no.
+ */
+static int
+softdep_count_dependencies(bp, wantcount)
+	struct buf *bp;
+	int wantcount;
+{
+	struct worklist *wk;
+	struct inodedep *inodedep;
+	struct indirdep *indirdep;
+	struct allocindir *aip;
+	struct pagedep *pagedep;
+	struct diradd *dap;
+	int i, retval;
+
+	retval = 0;
+	ACQUIRE_LOCK(&lk);
+	for (wk = LIST_FIRST(&bp->b_dep); wk; wk = LIST_NEXT(wk, wk_list)) {
+		switch (wk->wk_type) {
+
+		case D_INODEDEP:
+			inodedep = WK_INODEDEP(wk);
+			if ((inodedep->id_state & DEPCOMPLETE) == 0) {
+				/* bitmap allocation dependency */
+				retval += 1;
+				if (!wantcount)
+					goto out;
+			}
+			if (TAILQ_FIRST(&inodedep->id_inoupdt)) {
+				/* direct block pointer dependency */
+				retval += 1;
+				if (!wantcount)
+					goto out;
+			}
+			continue;
+
+		case D_INDIRDEP:
+			indirdep = WK_INDIRDEP(wk);
+			for (aip = LIST_FIRST(&indirdep->ir_deplisthd);
+			     aip; aip = LIST_NEXT(aip, ai_next)) {
+				/* indirect block pointer dependency */
+				retval += 1;
+				if (!wantcount)
+					goto out;
+			}
+			continue;
+
+		case D_PAGEDEP:
+			pagedep = WK_PAGEDEP(wk);
+			for (i = 0; i < DAHASHSZ; i++) {
+				for (dap = LIST_FIRST(&pagedep->pd_diraddhd[i]);
+				     dap; dap = LIST_NEXT(dap, da_pdlist)) {
+					/* directory entry dependency */
+					retval += 1;
+					if (!wantcount)
+						goto out;
+				}
+			}
+			continue;
+
+		case D_BMSAFEMAP:
+		case D_ALLOCDIRECT:
+		case D_ALLOCINDIR:
+		case D_MKDIR:
+			/* never a dependency on these blocks */
+			continue;
+
+		default:
+			panic("softdep_check_for_rollback: Unexpected type %s",
+			    TYPENAME(wk->wk_type));
+			/* NOTREACHED */
+		}
+	}
+out:
+	FREE_LOCK(&lk);
+	return retval;
 }
 
 /*

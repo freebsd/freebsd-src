@@ -123,10 +123,11 @@ ffs_fsync(ap)
 	struct vnode *vp = ap->a_vp;
 	struct buf *bp;
 	struct buf *nbp;
-	int s, error, passes, skipmeta;
+	int s, error, wait, passes, skipmeta;
 	daddr_t lbn;
 
 
+	wait = (ap->a_waitfor == MNT_WAIT);
 	if (vn_isdisk(vp)) {
 		lbn = INT_MAX;
 		if (vp->v_specmountpoint != NULL &&
@@ -143,7 +144,7 @@ ffs_fsync(ap)
 	 */
 	passes = NIADDR + 1;
 	skipmeta = 0;
-	if (ap->a_waitfor == MNT_WAIT)
+	if (wait)
 		skipmeta = 1;
 	s = splbio();
 loop:
@@ -153,33 +154,43 @@ loop:
 	for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
 		nbp = TAILQ_NEXT(bp, b_vnbufs);
 		/* 
-		 * First time through on a synchronous call,
-		 * or if it's already scheduled, skip to the next 
-		 * buffer
+		 * Reasons to skip this buffer: it has already been considered
+		 * on this pass, this pass is the first time through on a
+		 * synchronous flush request and the buffer being considered
+		 * is metadata, the buffer has dependencies that will cause
+		 * it to be redirtied and it has not already been deferred,
+		 * or it is already being written.
 		 */
-		if ((bp->b_flags & B_SCANNED) ||
-		    ((skipmeta == 1) && (bp->b_lblkno < 0)) ||
-		    BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT))
+		if ((bp->b_flags & B_SCANNED) != 0)
+			continue;
+		bp->b_flags |= B_SCANNED;
+		if ((skipmeta == 1 && bp->b_lblkno < 0))
+			continue;
+		if (!wait && LIST_FIRST(&bp->b_dep) != NULL &&
+		    (bp->b_flags & B_DEFERRED) == 0 &&
+		    bioops.io_countdeps && (*bioops.io_countdeps)(bp, 0)) {
+			bp->b_flags |= B_DEFERRED;
+			continue;
+		}
+		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT))
 			continue;
 		if ((bp->b_flags & B_DELWRI) == 0)
 			panic("ffs_fsync: not dirty");
+		if (vp != bp->b_vp)
+			panic("ffs_fsync: vp != vp->b_vp");
 		/*
-		 * If data is outstanding to another vnode, or we were
-		 * asked to wait for everything, or it's not a file or BDEV,
-		 * start the IO on this buffer immediatly.
+		 * If this is a synchronous flush request, or it is not a
+		 * file or device, start the write on this buffer immediatly.
 		 */
-		bp->b_flags |= B_SCANNED;
-		if (((bp->b_vp != vp) || (ap->a_waitfor == MNT_WAIT)) ||
-		    ((vp->v_type != VREG) && (vp->v_type != VBLK))) {
+		if (wait || (vp->v_type != VREG && vp->v_type != VBLK)) {
 
 			/*
 			 * On our final pass through, do all I/O synchronously
 			 * so that we can find out if our flush is failing
 			 * because of write errors.
 			 */
-			if (passes > 0 || (ap->a_waitfor != MNT_WAIT)) {
-				if ((bp->b_flags & B_CLUSTEROK) &&
-				    ap->a_waitfor != MNT_WAIT) {
+			if (passes > 0 || !wait) {
+				if ((bp->b_flags & B_CLUSTEROK) && !wait) {
 					BUF_UNLOCK(bp);
 					(void) vfs_bio_awrite(bp);
 				} else {
@@ -224,7 +235,7 @@ loop:
 		goto loop;
 	}
 
-	if (ap->a_waitfor == MNT_WAIT) {
+	if (wait) {
 		while (vp->v_numoutput) {
 			vp->v_flag |= VBWAIT;
 			(void) tsleep((caddr_t)&vp->v_numoutput,
@@ -260,5 +271,5 @@ loop:
 		}
 	}
 	splx(s);
-	return (UFS_UPDATE(vp, ap->a_waitfor == MNT_WAIT));
+	return (UFS_UPDATE(vp, wait));
 }

@@ -754,7 +754,7 @@ ufs_link(ap)
 	ip->i_nlink++;
 	ip->i_flag |= IN_CHANGE;
 	if (DOINGSOFTDEP(vp))
-		softdep_increase_linkcnt(ip);
+		softdep_change_linkcnt(ip);
 	error = UFS_UPDATE(vp, !(DOINGSOFTDEP(vp) | DOINGASYNC(vp)));
 	if (!error) {
 		ufs_makedirentry(ip, cnp, &newdir);
@@ -765,6 +765,8 @@ ufs_link(ap)
 		ip->i_effnlink--;
 		ip->i_nlink--;
 		ip->i_flag |= IN_CHANGE;
+		if (DOINGSOFTDEP(vp))
+			softdep_change_linkcnt(ip);
 	}
 out1:
 	if (tdvp != vp)
@@ -1014,7 +1016,7 @@ abortit:
 	ip->i_nlink++;
 	ip->i_flag |= IN_CHANGE;
 	if (DOINGSOFTDEP(fvp))
-		softdep_increase_linkcnt(ip);
+		softdep_change_linkcnt(ip);
 	if ((error = UFS_UPDATE(fvp, !(DOINGSOFTDEP(fvp) |
 				       DOINGASYNC(fvp)))) != 0) {
 		VOP_UNLOCK(fvp, 0, p);
@@ -1079,7 +1081,7 @@ abortit:
 			dp->i_nlink++;
 			dp->i_flag |= IN_CHANGE;
 			if (DOINGSOFTDEP(tdvp))
-				softdep_increase_linkcnt(dp);
+				softdep_change_linkcnt(dp);
 			error = UFS_UPDATE(tdvp, !(DOINGSOFTDEP(tdvp) |
 						   DOINGASYNC(tdvp)));
 			if (error)
@@ -1092,6 +1094,8 @@ abortit:
 				dp->i_effnlink--;
 				dp->i_nlink--;
 				dp->i_flag |= IN_CHANGE;
+				if (DOINGSOFTDEP(tdvp))
+					softdep_change_linkcnt(dp);
 				(void)UFS_UPDATE(tdvp, 1);
 			}
 			goto bad;
@@ -1146,10 +1150,12 @@ abortit:
 		if (doingdirectory) {
 			if (!newparent) {
 				dp->i_effnlink--;
-				dp->i_flag |= IN_CHANGE;
+				if (DOINGSOFTDEP(tdvp))
+					softdep_change_linkcnt(dp);
 			}
 			xp->i_effnlink--;
-			xp->i_flag |= IN_CHANGE;
+			if (DOINGSOFTDEP(tvp))
+				softdep_change_linkcnt(xp);
 		}
 		VN_POLLEVENT(tdvp, POLLWRITE);
 		if (doingdirectory && !DOINGSOFTDEP(tvp)) {
@@ -1164,9 +1170,12 @@ abortit:
 			 * disk, so when running with that code we avoid doing
 			 * them now.
 			 */
-			if (!newparent)
+			if (!newparent) {
 				dp->i_nlink--;
+				dp->i_flag |= IN_CHANGE;
+			}
 			xp->i_nlink--;
+			xp->i_flag |= IN_CHANGE;
 			ioflag = DOINGASYNC(tvp) ? 0 : IO_SYNC;
 			if ((error = UFS_TRUNCATE(tvp, (off_t)0, ioflag,
 			    tcnp->cn_cred, tcnp->cn_proc)) != 0)
@@ -1247,6 +1256,8 @@ out:
 		ip->i_nlink--;
 		ip->i_flag |= IN_CHANGE;
 		ip->i_flag &= ~IN_RENAME;
+		if (DOINGSOFTDEP(fvp))
+			softdep_change_linkcnt(ip);
 		vput(fvp);
 	} else
 		vrele(fvp);
@@ -1359,7 +1370,7 @@ ufs_mkdir(ap)
 	ip->i_effnlink = 2;
 	ip->i_nlink = 2;
 	if (DOINGSOFTDEP(tvp))
-		softdep_increase_linkcnt(ip);
+		softdep_change_linkcnt(ip);
 	if (cnp->cn_flags & ISWHITEOUT)
 		ip->i_flags |= UF_OPAQUE;
 
@@ -1372,7 +1383,7 @@ ufs_mkdir(ap)
 	dp->i_nlink++;
 	dp->i_flag |= IN_CHANGE;
 	if (DOINGSOFTDEP(dvp))
-		softdep_increase_linkcnt(dp);
+		softdep_change_linkcnt(dp);
 	error = UFS_UPDATE(tvp, !(DOINGSOFTDEP(dvp) | DOINGASYNC(dvp)));
 	if (error)
 		goto bad;
@@ -1440,6 +1451,8 @@ bad:
 		dp->i_effnlink--;
 		dp->i_nlink--;
 		dp->i_flag |= IN_CHANGE;
+		if (DOINGSOFTDEP(dvp))
+			softdep_change_linkcnt(dp);
 		/*
 		 * No need to do an explicit VOP_TRUNCATE here, vrele will
 		 * do this for us because we set the link count to 0.
@@ -1447,6 +1460,8 @@ bad:
 		ip->i_effnlink = 0;
 		ip->i_nlink = 0;
 		ip->i_flag |= IN_CHANGE;
+		if (DOINGSOFTDEP(tvp))
+			softdep_change_linkcnt(ip);
 		vput(tvp);
 	}
 out:
@@ -1505,29 +1520,36 @@ ufs_rmdir(ap)
 	 * inode.  If we crash in between, the directory
 	 * will be reattached to lost+found,
 	 */
+	dp->i_effnlink--;
+	ip->i_effnlink--;
+	if (DOINGSOFTDEP(vp)) {
+		softdep_change_linkcnt(dp);
+		softdep_change_linkcnt(ip);
+	}
 	error = ufs_dirremove(dvp, ip, cnp->cn_flags, 1);
-	if (error)
+	if (error) {
+		dp->i_effnlink++;
+		ip->i_effnlink++;
+		if (DOINGSOFTDEP(vp)) {
+			softdep_change_linkcnt(dp);
+			softdep_change_linkcnt(ip);
+		}
 		goto out;
+	}
 	VN_POLLEVENT(dvp, POLLWRITE|POLLNLINK);
 	cache_purge(dvp);
 	/*
 	 * Truncate inode. The only stuff left in the directory is "." and
 	 * "..". The "." reference is inconsequential since we are quashing
-	 * it. We have removed the "." reference and the reference in the
-	 * parent directory, but there may be other hard links. So,
-	 * ufs_dirremove will set the UF_IMMUTABLE flag to ensure that no
-	 * new entries are made. The soft dependency code will arrange to
-	 * do these operations after the parent directory entry has been
-	 * deleted on disk, so when running with that code we avoid doing
-	 * them now.
+	 * it. The soft dependency code will arrange to do these operations
+	 * after the parent directory entry has been deleted on disk, so
+	 * when running with that code we avoid doing them now.
 	 */
-	dp->i_effnlink--;
-	dp->i_flag |= IN_CHANGE;
-	ip->i_effnlink--;
-	ip->i_flag |= IN_CHANGE;
 	if (!DOINGSOFTDEP(vp)) {
 		dp->i_nlink--;
+		dp->i_flag |= IN_CHANGE;
 		ip->i_nlink--;
+		ip->i_flag |= IN_CHANGE;
 		ioflag = DOINGASYNC(vp) ? 0 : IO_SYNC;
 		error = UFS_TRUNCATE(vp, (off_t)0, ioflag, cnp->cn_cred,
 		    cnp->cn_proc);
@@ -2119,7 +2141,7 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 	ip->i_effnlink = 1;
 	ip->i_nlink = 1;
 	if (DOINGSOFTDEP(tvp))
-		softdep_increase_linkcnt(ip);
+		softdep_change_linkcnt(ip);
 	if ((ip->i_mode & ISGID) && !groupmember(ip->i_gid, cnp->cn_cred) &&
 	    suser_xxx(cnp->cn_cred, 0, 0))
 		ip->i_mode &= ~ISGID;
@@ -2148,6 +2170,8 @@ bad:
 	ip->i_effnlink = 0;
 	ip->i_nlink = 0;
 	ip->i_flag |= IN_CHANGE;
+	if (DOINGSOFTDEP(tvp))
+		softdep_change_linkcnt(ip);
 	vput(tvp);
 	return (error);
 }
