@@ -57,7 +57,7 @@
 .\" 	Created.
 .\" 	[90/08/30            dbg]
 .\" 
-.\" $Id: ddb.4,v 1.2 1996/01/17 21:07:02 wollman Exp $
+.\" $Id: ddb.4,v 1.3 1996/10/18 20:22:07 julian Exp $
 .Dd January 16, 1996
 .Dt DDB 4
 .Os FreeBSD
@@ -116,6 +116,14 @@ one more line
 .It Li q
 abort the current command, and return to the command input mode
 .El
+.Pp
+Finally,
+.Nm
+provides a small (currently 10 items) command history, and offers
+simple emacs-style command line editing capabilities.  In addition to
+the emacs control keys, the usual ANSI arrow keys might be used to
+browse through the history buffer, and move the cursor within the
+current line.
 .Sh COMMANDS
 .Bl -ohang -compact
 .It Cm examine
@@ -430,6 +438,20 @@ with an error message.
 Attempts to watch wired kernel memory
 may cause unrecoverable error in some systems such as i386.
 Watchpoints on user addresses work best.
+
+.It Cm gdb
+Toggles between remote GDB and DDB mode.  In remote GDB mode, another
+machine is required that runs
+.Xr gdb 1
+using the remote debug feature, with a connection to the serial
+console port on the target machine.  Currently only available on the
+.Em i386
+architecture.
+
+.It Cm help
+Print a short summary of the available commands and command
+abbreviations.
+
 .El
 
 .Sh VARIABLES
@@ -528,6 +550,8 @@ indirection.  It may be followed by a
 .Sq Li :
 and modifiers as described above.
 .El
+.Sh SEE ALSO
+.Xr gdb 1
 .Sh HISTORY
 The
 .Nm
