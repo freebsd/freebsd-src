@@ -127,3 +127,55 @@ struct isp_fc_device {
  */
 #define	ISP_GET_FW_CRASH_DUMP	_IO(ISP_IOC, 10)
 #define	ISP_FORCE_CRASH_DUMP	_IO(ISP_IOC, 11)
+
+/*
+ * Get information about this Host Adapter, including current connection
+ * topology and capabilities.
+ */
+struct isp_hba_device {
+	u_int32_t
+					: 8,
+					: 4,
+		fc_speed		: 4,	/* Gbps */
+					: 2,
+		fc_class2		: 1,
+		fc_ip_supported		: 1,
+		fc_scsi_supported	: 1,
+		fc_topology		: 3,
+		fc_loopid		: 8;
+	u_int64_t	nvram_node_wwn;
+	u_int64_t	nvram_port_wwn;
+	u_int64_t	active_node_wwn;
+	u_int64_t	active_port_wwn;
+};
+
+#define	ISP_TOPO_UNKNOWN	0	/* connection topology unknown */
+#define	ISP_TOPO_FCAL		1	/* private or PL_DA */
+#define	ISP_TOPO_LPORT		2	/* public loop */
+#define	ISP_TOPO_NPORT		3	/* N-port */
+#define	ISP_TOPO_FPORT		4	/* F-port */
+
+#define	ISP_FC_GETHINFO	_IOR(ISP_IOC, 12, struct isp_hba_device)
+/*
+ * Set some internal parameters. This doesn't take effect until
+ * the chip is reset.
+ *
+ * Each parameter is generalized to be a name string with an integer value.
+ *
+ * Known parameters are:
+ *
+ *	Name				Value Range
+ *	
+ *	"framelength"			512,1024,2048
+ *	"exec_throttle"			16..255
+ *	"fullduplex"			0,1
+ *	"loopid"			0..125
+ */
+
+struct isp_fc_param {
+	char		param_name[16];	/* null terminated */
+	u_int32_t	parameter;
+};
+
+#define	ISP_GET_FC_PARAM	_IOWR(ISP_IOC, 98, struct isp_fc_param)
+#define	ISP_SET_FC_PARAM	_IOWR(ISP_IOC, 99, struct isp_fc_param)
