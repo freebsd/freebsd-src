@@ -332,14 +332,12 @@ int	comconsole = -1;
 static	volatile speed_t	comdefaultrate = CONSPEED;
 static	u_long			comdefaultrclk = DEFAULT_RCLK;
 SYSCTL_ULONG(_machdep, OID_AUTO, conrclk, CTLFLAG_RW, &comdefaultrclk, 0, "");
-#ifdef __alpha__
-static	volatile speed_t	gdbdefaultrate = CONSPEED;
-#endif
+static	speed_t			gdbdefaultrate = GDBSPEED;
+SYSCTL_UINT(_machdep, OID_AUTO, gdbspeed, CTLFLAG_RW,
+	    &gdbdefaultrate, GDBSPEED, "");
 static	u_int	com_events;	/* input chars + weighted output completions */
 static	Port_t	siocniobase;
-#ifndef __alpha__
-static	int	siocnunit;
-#endif
+static	int	siocnunit = -1;
 static	Port_t	siogdbiobase;
 static	int	siogdbunit = -1;
 static	void	*sio_slow_ih;
@@ -3126,13 +3124,17 @@ siocncheckc(dev)
 	Port_t	iobase;
 	int	s;
 	struct siocnstate	sp;
+	speed_t	speed;
 
-	if (minor(dev) == siogdbunit)
-		iobase = siogdbiobase;
-	else
+	if (minor(dev) == siocnunit) {
 		iobase = siocniobase;
+		speed = comdefaultrate;
+	} else {
+		iobase = siogdbiobase;
+		speed = gdbdefaultrate;
+	}
 	s = spltty();
-	siocnopen(&sp, iobase, comdefaultrate);
+	siocnopen(&sp, iobase, speed);
 	if (inb(iobase + com_lsr) & LSR_RXRDY)
 		c = inb(iobase + com_data);
 	else
@@ -3151,13 +3153,17 @@ siocngetc(dev)
 	Port_t	iobase;
 	int	s;
 	struct siocnstate	sp;
+	speed_t	speed;
 
-	if (minor(dev) == siogdbunit)
-		iobase = siogdbiobase;
-	else
+	if (minor(dev) == siocnunit) {
 		iobase = siocniobase;
+		speed = comdefaultrate;
+	} else {
+		iobase = siogdbiobase;
+		speed = gdbdefaultrate;
+	}
 	s = spltty();
-	siocnopen(&sp, iobase, comdefaultrate);
+	siocnopen(&sp, iobase, speed);
 	while (!(inb(iobase + com_lsr) & LSR_RXRDY))
 		;
 	c = inb(iobase + com_data);
@@ -3175,18 +3181,22 @@ siocnputc(dev, c)
 	int	s;
 	struct siocnstate	sp;
 	Port_t	iobase;
+	speed_t	speed;
 
-	if (minor(dev) == siogdbunit)
-		iobase = siogdbiobase;
-	else
+	if (minor(dev) == siocnunit) {
 		iobase = siocniobase;
+		speed = comdefaultrate;
+	} else {
+		iobase = siogdbiobase;
+		speed = gdbdefaultrate;
+	}
 	s = spltty();
 	need_unlock = 0;
 	if (sio_inited == 2 && !mtx_owned(&sio_lock)) {
 		mtx_lock_spin(&sio_lock);
 		need_unlock = 1;
 	}
-	siocnopen(&sp, iobase, comdefaultrate);
+	siocnopen(&sp, iobase, speed);
 	siocntxwait(iobase);
 	outb(iobase + com_data, c);
 	siocnclose(&sp, iobase);
@@ -3201,12 +3211,20 @@ siogdbgetc()
 {
 	int	c;
 	Port_t	iobase;
+	speed_t	speed;
 	int	s;
 	struct siocnstate	sp;
 
-	iobase = siogdbiobase;
+	if (minor(dev) == siocnunit) {
+		iobase = siocniobase;
+		speed = comdefaultrate;
+	} else {
+		iobase = siogdbiobase;
+		speed = gdbdefaultrate;
+	}
+
 	s = spltty();
-	siocnopen(&sp, iobase, gdbdefaultrate);
+	siocnopen(&sp, iobase, speed);
 	while (!(inb(iobase + com_lsr) & LSR_RXRDY))
 		;
 	c = inb(iobase + com_data);
@@ -3219,11 +3237,21 @@ void
 siogdbputc(c)
 	int	c;
 {
+	Port_t	iobase;
+	speed_t	speed;
 	int	s;
 	struct siocnstate	sp;
 
+	if (minor(dev) == siocnunit) {
+		iobase = siocniobase;
+		speed = comdefaultrate;
+	} else {
+		iobase = siogdbiobase;
+		speed = gdbdefaultrate;
+	}
+
 	s = spltty();
-	siocnopen(&sp, siogdbiobase, gdbdefaultrate);
+	siocnopen(&sp, iobase, speed);
 	siocntxwait(siogdbiobase);
 	outb(siogdbiobase + com_data, c);
 	siocnclose(&sp, siogdbiobase);
