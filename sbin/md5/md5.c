@@ -127,7 +127,7 @@ main(int argc, char *argv[])
  		if (strcasecmp(Algorithm[digest].progname, progname) == 0)
  			break;
  
- 	if (Algorithm[digest].progname == NULL)
+ 	if (digest == sizeof(Algorithm)/sizeof(*Algorithm))
  		digest = 0;
 
 	failed = 0;
