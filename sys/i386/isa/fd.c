@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.16.1.2 1995/01/10 23:49:30 j Exp $
+ *	$Id: fd.c,v 1.48 1995/01/11 16:13:01 joerg Exp $
  *
  */
 
@@ -971,33 +971,6 @@ Fdopen(dev_t dev, int flags)
 			}
 		}
 	}
-
-		/* select it */
-	set_motor(fdc->fdcu, fd_data[fdu].fdsu, TURNON);
-
-	if (flags & FWRITE) {
-		/*
-		 * Check to make sure the diskette is writable:
-		 */
-		int err = 0;
-
-		if (fd_sense_drive_status(fdc, &st3) != 0)
-			err = EIO;
-		else if ( (st3 & NE7_ST3_WP) )
-		{
-			/* XXX should be tprintf() */
-			printf("fd%d: drive is write protected.\n", fdu);
-			err = EIO;
-		}
-
-		if (err) {
-			set_motor(fdc->fdcu, fd_data[fdu].fdsu, TURNOFF);
-			return err;
-  		}
-	}
-
-	set_motor(fdc->fdcu, fd_data[fdu].fdsu, TURNOFF);
-
 	fd_data[fdu].ft = fd_types + type - 1;
 	fd_data[fdu].flags |= FD_OPEN;
 	kdc_fd[fdu].kdc_state = DC_BUSY;
@@ -1597,14 +1570,8 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 		return(1);	/* will return immediatly */
 	default:
 		printf("fdc%d: Unexpected FD int->", fdcu);
-		if (fd_sense_int(fdc, &st0, &cyl) != 0)
-		{
-			printf("[controller is dead now]\n");
-			return(0);
-		}
-		printf("ST0 = %x, PCN = %x\n", st0, cyl);
 		if (fd_read_status(fdc, fd->fdsu) == 0)
-			printf("FDC status :%lx %lx %lx %lx %lx %lx %lx\n",
+			printf("FDC status :%lx %lx %lx %lx %lx %lx %lx   ",
 			       fdc->status[0],
 			       fdc->status[1],
 			       fdc->status[2],
@@ -1613,9 +1580,16 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 			       fdc->status[5],
 			       fdc->status[6] );
 		else
-			printf("No status available\n");
+			printf("No status available   ");
+		if (fd_sense_int(fdc, &st0, &cyl) != 0)
+		{
+			printf("[controller is dead now]\n");
+			return(0);
+		}
+		printf("ST0 = %x, PCN = %x\n", st0, cyl);
 		return(0);
 	}
+	/*XXX confusing: some branches return immediately, others end up here*/
 	return(1); /* Come back immediatly to new state */
 }
 
