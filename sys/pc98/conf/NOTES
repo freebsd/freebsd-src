@@ -983,7 +983,6 @@ nooption	AHD_DEBUG
 nooption	AHD_DEBUG_OPTS
 nooption	AHD_REG_PRETTY_PRINT
 nooption	ADW_ALLOW_MEMIO
-nooption	DPT_ALLOW_MEMIO
 nooption	DPT_LOST_IRQ
 nooption	DPT_RESET_HBA
 nooption	DPT_TIMEOUT_FACTOR
