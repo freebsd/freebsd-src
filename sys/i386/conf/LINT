@@ -451,6 +451,7 @@ options 	NETGRAPH_FRAME_RELAY
 options 	NETGRAPH_HOLE
 options 	NETGRAPH_IFACE
 options 	NETGRAPH_KSOCKET
+options 	NETGRAPH_L2TP
 options 	NETGRAPH_LMI
 # MPPC compression requires proprietary files (not included)
 #options 	NETGRAPH_MPPC_COMPRESSION

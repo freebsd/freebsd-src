@@ -829,6 +829,7 @@ netgraph/ng_frame_relay.c	optional netgraph_frame_relay
 netgraph/ng_hole.c	optional netgraph_hole
 netgraph/ng_iface.c	optional netgraph_iface
 netgraph/ng_ksocket.c	optional netgraph_ksocket
+netgraph/ng_l2tp.c	optional netgraph_l2tp
 netgraph/ng_lmi.c	optional netgraph_lmi
 netgraph/ng_mppc.c	optional netgraph_mppc_compression
 # The next two files (plus the header file net/mppc.h) are proprietary and
