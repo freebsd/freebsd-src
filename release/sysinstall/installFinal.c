@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installFinal.c,v 1.21 1995/11/17 23:49:32 jkh Exp $
+ * $Id: installFinal.c,v 1.22 1996/03/18 15:27:56 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard & Coranth Gryphon.  All rights reserved.
@@ -98,7 +98,7 @@ configSamba(char *unused)
 
     if (!dmenuOpenSimple(&MenuSamba))
 	i = RET_FAIL;
-    else if (package_add("samba-1.9.14") != RET_SUCCESS)
+    else if (package_add("samba-1.9.15p8") != RET_SUCCESS)
 	i = RET_FAIL;
     else {
 	FILE *fptr;
