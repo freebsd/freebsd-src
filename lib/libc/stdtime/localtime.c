@@ -965,7 +965,7 @@ tzset_basic(void)
 
 	name = getenv("TZ");
 	if (name == NULL) {
-		tzsetwall();
+		tzsetwall_basic();
 		return;
 	}
 
@@ -1069,7 +1069,7 @@ const time_t * const	timep;
 struct tm *p_tm;
 {
 	_MUTEX_LOCK(&lcl_mutex);
-	tzset();
+	tzset_basic();
 	localsub(timep, 0L, p_tm);
 	_MUTEX_UNLOCK(&lcl_mutex);
 	return(p_tm);
@@ -1100,12 +1100,12 @@ const time_t * const	timep;
 			_pthread_setspecific(localtime_key, p_tm);
 		}
 		_pthread_mutex_lock(&lcl_mutex);
-		tzset();
+		tzset_basic();
 		localsub(timep, 0L, p_tm);
 		_pthread_mutex_unlock(&lcl_mutex);
 		return(p_tm);
 	} else {
-		tzset();
+		tzset_basic();
 		localsub(timep, 0L, &tm);
 		return(&tm);
 	}
@@ -1608,7 +1608,7 @@ struct tm * const	tmp;
 {
 	time_t mktime_return_value;
 	_MUTEX_LOCK(&lcl_mutex);
-	tzset();
+	tzset_basic();
 	mktime_return_value = time1(tmp, localsub, 0L);
 	_MUTEX_UNLOCK(&lcl_mutex);
 	return(mktime_return_value);
