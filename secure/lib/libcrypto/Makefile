@@ -111,7 +111,7 @@ SRCS+=	cbc_cksm.c cbc_enc.c cfb64ede.c cfb64enc.c cfb_enc.c \
 .if !defined(NOPERL) && ${MACHINE_ARCH} == "i386"
 SRCS+=	des-586.pl crypt586.pl
 .else
-SRCS+=	des_enc.c
+SRCS+=	des_enc.c fcrypt_b.c
 .endif
 
 # dh
