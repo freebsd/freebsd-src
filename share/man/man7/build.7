@@ -126,6 +126,7 @@ make buildworld
 make buildkernel KERNEL=FOO
 make installkernel KERNEL=FOO
 make installworld
+mergemaster
 .Ed
 .Pp
 .Dq FOO
@@ -157,6 +158,7 @@ may not work with the old kernel which is still running.
 .Xr make 1 ,
 .Xr make.conf 5 ,
 .Xr ports 7 ,
+.Xr mergemaster 8 ,
 .Xr reboot 8 ,
 .Xr shutdown 8
 .Sh AUTHORS
