@@ -191,7 +191,7 @@ done:	argv += optind;
 			rval = 1;
 		} else {
 			if (vflag) {
-				(void)printf("%s", p->fts_accpath);
+				(void)printf("%s", p->fts_path);
 
 				if (vflag > 1) {
 					char m1[12], m2[12];
