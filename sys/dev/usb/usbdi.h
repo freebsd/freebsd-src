@@ -1,4 +1,4 @@
-/*	$NetBSD: usbdi.h,v 1.39 2000/01/19 00:23:59 augustss Exp $	*/
+/*	$NetBSD: usbdi.h,v 1.40 2000/02/02 07:34:00 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -256,5 +256,6 @@ int usbd_driver_load(module_t mod, int what, void *arg);
  */
 /* XXX */
 #define splusb splbio
+#define splhardusb splbio
 #define IPL_USB IPL_BIO
 /* XXX */
