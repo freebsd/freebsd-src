@@ -1,10 +1,10 @@
-#	@(#)Makefile	5.3 (Berkeley) 6/8/93
+#	From: @(#)Makefile	5.3 (Berkeley) 6/8/93
+#	$Id$
 
-DIR=	papers/fsinterface
+VOLUME=	papers
+DOC=	fsinterface
 SRCS=	fsinterface.ms
 MACROS=	-ms
-
-paper.ps: ${SRCS}
-	${TBL} ${SRCS} | ${ROFF} > ${.TARGET}
+USE_TBL=	yes
 
 .include <bsd.doc.mk>
