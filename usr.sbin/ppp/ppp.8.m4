@@ -828,7 +828,7 @@ If you want to include a literal
 .Dq $
 or
 .Dq ~
-character in a command or argument, enclose them in double quotes, e.g.
+character in a command or argument, enclose them in double quotes, e.g.,
 .Bd -literal -offset indent
 set password "pa$ss~word"
 .Ed
