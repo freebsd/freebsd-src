@@ -264,14 +264,14 @@ IntToSpeed(int nspeed)
 }
 
 char *
-findblank(char *p, int reduce)
+findblank(char *p, int flags)
 {
   int instring;
 
   instring = 0;
   while (*p) {
     if (*p == '\\') {
-      if (reduce) {
+      if (flags & PARSE_REDUCE) {
         memmove(p, p + 1, strlen(p));
         if (!*p)
           break;
@@ -281,7 +281,8 @@ findblank(char *p, int reduce)
       memmove(p, p + 1, strlen(p));
       instring = !instring;
       continue;
-    } else if (!instring && (issep(*p) || *p == '#'))
+    } else if (!instring && (issep(*p) ||
+                             (*p == '#' && !(flags & PARSE_NOHASH))))
       return p;
     p++;
   }
@@ -290,7 +291,7 @@ findblank(char *p, int reduce)
 }
 
 int
-MakeArgs(char *script, char **pvect, int maxargs, int reduce)
+MakeArgs(char *script, char **pvect, int maxargs, int flags)
 {
   int nargs;
 
@@ -302,7 +303,7 @@ MakeArgs(char *script, char **pvect, int maxargs, int reduce)
 	break;
       *pvect++ = script;
       nargs++;
-      script = findblank(script, reduce);
+      script = findblank(script, flags);
       if (script == NULL)
         return -1;
       else if (*script == '#')
