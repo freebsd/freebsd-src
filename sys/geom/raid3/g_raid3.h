@@ -112,6 +112,7 @@ struct g_raid3_disk_sync {
 	off_t		 ds_offset;	/* Offset of next request to send. */
 	off_t		 ds_offset_done; /* Offset of already synchronized
 					   region. */
+	off_t		 ds_resync;	/* Resynchronize from this offset. */
 	u_int		 ds_syncid;	/* Disk's synchronization ID. */
 	u_char		*ds_data;
 };
