@@ -84,6 +84,9 @@ bool_t __rpc_control(int,void *);
 
 char *_get_next_token(char *, int);
 
+SVCXPRT **__svc_xports;
+int __svc_maxrec;
+
 __END_DECLS
 
 #endif /* _RPC_RPCCOM_H */
