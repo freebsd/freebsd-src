@@ -184,7 +184,8 @@ fork1(p1, flags, procp)
 	uid_t uid;
 	struct proc *newproc;
 	int ok;
-	static int pidchecked = 0;
+	static int curfail = 0, pidchecked = 0;
+	static struct timeval lastfail;
 	struct forklist *ep;
 	struct filedesc_to_leader *fdtol;
 
@@ -233,6 +234,8 @@ fork1(p1, flags, procp)
 	 */
 	uid = p1->p_cred->p_ruid;
 	if ((nprocs >= maxproc - 10 && uid != 0) || nprocs >= maxproc) {
+		if (ppsratecheck(&lastfail, &curfail, 1))
+			printf("maxproc limit exceeded by uid %d, please see tuning(7) and login.conf(5).\n", uid);
 		tsleep(&forksleep, PUSER, "fork", hz / 2);
 		return (EAGAIN);
 	}
@@ -253,6 +256,8 @@ fork1(p1, flags, procp)
 		 * Back out the process count
 		 */
 		nprocs--;
+		if (ppsratecheck(&lastfail, &curfail, 1))
+			printf("maxproc limit exceeded by uid %d, please see tuning(7) and login.conf(5).\n", uid);
 		tsleep(&forksleep, PUSER, "fork", hz / 2);
 		return (EAGAIN);
 	}
