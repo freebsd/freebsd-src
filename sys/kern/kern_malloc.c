@@ -241,12 +241,7 @@ malloc(size, type, flags)
 #ifdef INVARIANTS
 	freep = (struct freelist *)va;
 	savedtype = (const char *) freep->type->ks_shortdesc;
-#if BYTE_ORDER == BIG_ENDIAN
-	freep->type = (struct malloc_type *)WEIRD_ADDR >> 16;
-#endif
-#if BYTE_ORDER == LITTLE_ENDIAN
 	freep->type = (struct malloc_type *)WEIRD_ADDR;
-#endif
 	if ((intptr_t)(void *)&freep->next & 0x2)
 		freep->next = (caddr_t)((WEIRD_ADDR >> 16)|(WEIRD_ADDR << 16));
 	else
