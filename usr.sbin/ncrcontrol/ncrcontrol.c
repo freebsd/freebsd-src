@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncrcontrol.c,v 1.7 1995/03/16 15:10:11 se Exp $
+**  $Id: ncrcontrol.c,v 1.9 1995/09/14 18:14:28 se Exp $
 **
 **  Utility for NCR 53C810 device driver.
 **
@@ -677,6 +677,23 @@ void do_set (char * arg)
 	u_long addr;
 	int i;
 
+	if (!strcmp(arg, "?")) { printf (
+"async:         disable synchronous transfers.\n"
+"sync=value:    set the maximal synchronous transfer rate (MHz).\n"
+"fast:          set FAST SCSI-2.\n"
+"\n"
+"wide=value:    set the bus width (0=8bit 1=16bit).\n"
+"\n"
+"tags=value:    use this number of tags.\n"
+"orderedtag:    use ordered tags only.\n"
+"simpletag:     use simple tags only.\n"
+"orderedwrite:  use simple tags for read, else ordered tags.\n"
+"\n"
+"debug=value:   set debug mode.\n"
+"\n");
+		return;
+	};
+
 	open_kvm(O_RDWR);
 	addr = ncr_base + offsetof (struct ncb, user);
 
@@ -703,22 +720,6 @@ void do_set (char * arg)
 	user.data   = 0;
 	user.cmd    = 0;
 
-	if (!strcmp(arg, "?")) { printf (
-"async:         disable synchronous transfers.\n"
-"sync=value:    set the maximal synchronous transfer rate (MHz).\n"
-"fast:          set FAST SCSI-2.\n"
-"\n"
-"wide=value:    set the bus width (0=8bit 1=16bit).\n"
-"\n"
-"tags=value:    use this number of tags.\n"
-"orderedtag:    use ordered tags only.\n"
-"simpletag:     use simple tags only.\n"
-"orderedwrite:  use simple tags for read, else ordered tags.\n"
-"\n"
-"debug=value:   set debug mode.\n"
-"\n");
-		return;
-	};
 
 	if (!strcmp(arg, "async")) {
 		user.data = 255;
@@ -1504,11 +1505,13 @@ void main(argc, argv)
 		};
 		vmunix = optarg;
 		break;
+#ifdef OPT_F
 	case 'f':
 		fprintf (stderr,
 			"%s: -f: option not yet implemented.\n",
 			prog);
 		exit (1);
+#endif
 
         case 'u':
 		i = strtoul (optarg, &charp, 0);
@@ -1598,8 +1601,9 @@ void main(argc, argv)
 		fprintf (stderr,
 	"Usage:\n"
 	"\n"
-	"%s [-M$] [-N$] {-f$} {-t#} {-l#} [-hivw?] [-d$] [-s$] [-k] [[-p] <time>]\n"
+	"%s [-M$] [-N$] [-u] {-t#} {-l#} [-hivw?] [-d$] [-s$] [-k] [[-p] <time>]\n"
 	"\n"
+	"-u <#>             select controller number\n"
 	"-t <#>             select target number\n"
 	"-l <#>             select lun number\n"
 	"-i                 get info\n"
