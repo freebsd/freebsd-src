@@ -302,12 +302,6 @@
           </para>
 	</listitem>
         <listitem arch="i386">
-	  <para>Seagate ST01/02 SCSI controllers</para>
-	</listitem>
-        <listitem arch="i386">
-	  <para>Future Domain 8xx/950 series SCSI controllers</para>
-	</listitem>
-        <listitem arch="i386">
 	  <para>WD7000 SCSI controller</para>
 	</listitem>
       </itemizedlist>
