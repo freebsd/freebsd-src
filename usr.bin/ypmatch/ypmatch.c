@@ -27,15 +27,18 @@
  * SUCH DAMAGE.
  */
 
-#ifndef LINT
-static char rcsid[] = "ypmatch.c,v 1.2 1993/05/16 02:49:03 deraadt Exp";
-#endif
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <stdio.h>
 #include <ctype.h>
+#include <err.h>
+#include <stdio.h>
+#include <unistd.h>
 
 #include <rpc/rpc.h>
 #include <rpc/xdr.h>
@@ -56,16 +59,12 @@ struct ypalias {
 	{ "ethers", "ethers.byname" },
 };
 
+static void
 usage()
 {
-	fprintf(stderr, "Usage:\n");
-	fprintf(stderr, "\typmatch [-d domain] [-t] [-k] key [key ...] mname\n");
-	fprintf(stderr, "\typmatch -x\n");
-	fprintf(stderr, "where\n");
-	fprintf(stderr, "\tmname may be either a mapname or a nickname for a map\n");
-	fprintf(stderr, "\t-t inhibits map nickname translation\n");
-	fprintf(stderr, "\t-k prints keys as well as values.\n");
-	fprintf(stderr, "\t-x dumps the map nickname translation table.\n");
+	fprintf(stderr, "%s\n%s\n",
+		"usage: ypmatch [-d domain] [-t] [-k] key [key ...] mname",
+		"       ypmatch -x");
 	exit(1);
 }
 
@@ -73,15 +72,12 @@ int
 main(argc, argv)
 char **argv;
 {
-	char *domainname;
+	char *domainname = NULL;
 	char *inkey, *inmap, *outbuf;
-	extern char *optarg;
-	extern int optind;
 	int outbuflen, key, notrans;
 	int c, r, i;
 
 	notrans = key = 0;
-	yp_get_default_domain(&domainname);
 
 	while( (c=getopt(argc, argv, "xd:kt")) != -1)
 		switch(c) {
@@ -107,6 +103,9 @@ char **argv;
 	if( (argc-optind) < 2 )
 		usage();
 
+	if (!domainname)
+		yp_get_default_domain(&domainname);
+
 	inmap = argv[argc-1];
 	for(i=0; (!notrans) && i<sizeof ypaliases/sizeof ypaliases[0]; i++)
 		if( strcmp(inmap, ypaliases[i].alias) == 0)
@@ -123,13 +122,10 @@ char **argv;
 			printf("%*.*s\n", outbuflen, outbuflen, outbuf);
 			break;
 		case YPERR_YPBIND:
-			fprintf(stderr, "yp_match: not running ypbind\n");
-			exit(1);
+			errx(1, "not running ypbind");
 		default:
-			fprintf(stderr, "Can't match key %s in map %s. Reason: %s\n",
+			errx(1, "can't match key %s in map %s. reason: %s",
 				inkey, inmap, yperr_string(r));
-			exit(1);
-			break;
 		}
 	}
 	exit(0);
