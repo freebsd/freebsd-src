@@ -990,6 +990,8 @@ class KTRFile:
 		Lend(bythread, cpu, timestamp, newprio, thread)
 
 	def cpuload(self, cpu, timestamp, count):
+		if (self.checkstamp(timestamp) == 0):
+			return
 		cpu = int(cpu)
 		try:
 			load = self.load[cpu]
@@ -1000,6 +1002,8 @@ class KTRFile:
 		Count(load, cpu, timestamp, count)
 
 	def loadglobal(self, cpu, timestamp, count):
+		if (self.checkstamp(timestamp) == 0):
+			return
 		cpu = 0
 		try:
 			load = self.load[cpu]
