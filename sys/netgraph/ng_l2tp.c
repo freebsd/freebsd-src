@@ -171,6 +171,8 @@ static int	ng_l2tp_recv_data(node_p node, item_p item, hookpriv_p hpriv);
 static int	ng_l2tp_xmit_ctrl(priv_p priv, struct mbuf *m, u_int16_t ns);
 
 static void	ng_l2tp_seq_init(priv_p priv);
+static int	ng_l2tp_seq_set(priv_p priv,
+			const struct ng_l2tp_seq_config *conf);
 static int	ng_l2tp_seq_adjust(priv_p priv,
 			const struct ng_l2tp_config *conf);
 static void	ng_l2tp_seq_reset(priv_p priv);
@@ -186,6 +188,14 @@ static ng_fn_eachhook	ng_l2tp_reset_session;
 #ifdef INVARIANTS
 static void	ng_l2tp_seq_check(struct l2tp_seq *seq);
 #endif
+
+/* Parse type for struct ng_l2tp_seq_config. */
+static const struct ng_parse_struct_field
+	ng_l2tp_seq_config_fields[] = NG_L2TP_SEQ_CONFIG_TYPE_INFO;
+static const struct ng_parse_type ng_l2tp_seq_config_type = {
+	&ng_parse_struct_type,
+	&ng_l2tp_seq_config_fields
+};
 
 /* Parse type for struct ng_l2tp_config */
 static const struct ng_parse_struct_field
@@ -267,6 +277,13 @@ static const struct ng_cmdlist ng_l2tp_cmdlist[] = {
 	  NGM_L2TP_ACK_FAILURE,
 	  "ackfailure",
 	  NULL,
+	  NULL
+	},
+	{
+	  NGM_L2TP_COOKIE,
+	  NGM_L2TP_SET_SEQ,
+	  "setsequence",
+	  &ng_l2tp_seq_config_type,
 	  NULL
 	},
 	{ 0 }
@@ -457,7 +474,7 @@ ng_l2tp_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			hookpriv_p hpriv;
 			hook_p hook;
 
-			/* Check for invalid or illegal config */
+			/* Check for invalid or illegal config. */
 			if (msg->header.arglen != sizeof(*conf)) {
 				error = EINVAL;
 				break;
@@ -534,6 +551,25 @@ ng_l2tp_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			}
 			if (msg->header.cmd != NGM_L2TP_GET_STATS)
 				memset(&priv->stats, 0, sizeof(priv->stats));
+			break;
+		    }
+		case NGM_L2TP_SET_SEQ:
+		    {
+			struct ng_l2tp_seq_config *const conf =
+				(struct ng_l2tp_seq_config *)msg->data;
+
+			/* Check for invalid or illegal seq config. */
+			if (msg->header.arglen != sizeof(*conf)) {
+				error = EINVAL;
+				break;
+			}
+			conf->ns = htons(conf->ns);
+			conf->nr = htons(conf->nr);
+			conf->rack = htons(conf->rack);
+			conf->xack = htons(conf->xack);
+
+			/* Set sequence numbers. */
+			error = ng_l2tp_seq_set(priv, conf);
 			break;
 		    }
 		default:
@@ -1054,6 +1090,31 @@ ng_l2tp_seq_init(priv_p priv)
 	callout_init(&seq->rack_timer, 0);
 	callout_init(&seq->xack_timer, 0);
 	L2TP_SEQ_CHECK(seq);
+}
+
+/*
+ * Set sequence number state as given from user.
+ */
+static int
+ng_l2tp_seq_set(priv_p priv, const struct ng_l2tp_seq_config *conf)
+{
+	struct l2tp_seq *const seq = &priv->seq;
+
+	/* If node is enabled, deny update to sequence numbers. */
+	if (priv->conf.enabled)
+		return (EBUSY);
+
+	/* We only can handle the simple cases. */
+	if (conf->xack != conf->nr || conf->ns != conf->rack)
+		return (EINVAL);
+
+	/* Set ns,nr,rack,xack parameters. */
+	seq->ns = conf->ns;
+	seq->nr = conf->nr;
+	seq->rack = conf->rack;
+	seq->xack = conf->xack;
+
+	return (0);
 }
 
 /*
