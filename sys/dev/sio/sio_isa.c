@@ -34,7 +34,6 @@
 #include <sys/mutex.h>
 #include <sys/module.h>
 #include <sys/tty.h>
-#include <machine/clock.h>
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
 #include <sys/timepps.h>
@@ -58,7 +57,7 @@ static device_method_t sio_isa_methods[] = {
 static driver_t sio_isa_driver = {
 	sio_driver_name,
 	sio_isa_methods,
-	sizeof(struct com_s),
+	0,
 };
 
 static struct isa_pnp_id sio_ids[] = {
