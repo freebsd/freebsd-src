@@ -1494,7 +1494,14 @@ posix4/ksched.c	optional _kposix_priority_scheduling
 posix4/p1003_1b.c	standard
 posix4/posix4_mib.c	standard
 kern/uipc_sem.c		optional p1003_1b_semaphores
+security/mac_biba/mac_biba.c	optional mac_biba
+security/mac_bsdextended/mac_bsdextended.c	optional mac_bsdextended
+security/mac_ifoff/mac_ifoff.c	optional mac_ifoff
+security/mac_mls/mac_mls.c	optional mac_mls
 security/mac_none/mac_none.c	optional mac_none
+security/mac_partition/mac_partition.c	optional mac_partition
+security/mac_seeotheruids/mac_seeotheruids.c	optional mac_seeotheruids
+security/mac_test/mac_test.c	optional mac_test
 ufs/ffs/ffs_alloc.c	optional ffs
 ufs/ffs/ffs_balloc.c	optional ffs
 ufs/ffs/ffs_inode.c	optional ffs

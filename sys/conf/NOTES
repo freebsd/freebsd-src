@@ -760,8 +760,15 @@ options		P1003_1B_SEMAPHORES
 
 # Support for Mandatory Access Control (MAC):
 options 	MAC
+options 	MAC_BIBA
+options 	MAC_BSDEXTENDED
 options 	MAC_DEBUG
-options 	MAC_NONE		# Statically link mac_none policy
+options 	MAC_IFOFF
+options 	MAC_MLS
+options 	MAC_NONE
+options 	MAC_PARTITION
+options 	MAC_SEEOTHERUIDS
+options 	MAC_TEST
 
 
 #####################################################################
