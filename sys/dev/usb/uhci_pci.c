@@ -340,7 +340,7 @@ uhci_pci_attach(device_t self)
 	 * that the BIOS won't touch the keyboard anymore if it is connected
 	 * to the ports of the root hub?
 	 */
-#ifdef UHCI_DEBUG
+#ifdef USB_DEBUG
 	if (pci_read_config(self, PCI_LEGSUP, 4) != PCI_LEGSUP_USBPIRQDEN)
 		device_printf(self, "LegSup = 0x%08x\n",
 		    pci_read_config(self, PCI_LEGSUP, 4));
