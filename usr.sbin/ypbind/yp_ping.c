@@ -28,8 +28,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: yp_ping.c,v 1.1 1997/05/25 19:49:29 wpaul Exp $
  */
 
 /*
@@ -69,9 +67,12 @@
  */
 
 #ifndef lint
-/*static char *sccsid = "from: @(#)clnt_udp.c 1.39 87/08/11 Copyr 1984 Sun Micro";*/
-/*static char *sccsid = "from: @(#)clnt_udp.c	2.2 88/08/01 4.0 RPCSRC";*/
-static const char rcsid[] = "@(#) $Id: yp_ping.c,v 1.1 1997/05/25 19:49:29 wpaul Exp $";
+#if 0
+static char *sccsid = "@(#)from: clnt_udp.c 1.39 87/08/11 Copyr 1984 Sun Micro";
+static char *sccsid = "@(#)from: clnt_udp.c	2.2 88/08/01 4.0 RPCSRC";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif
 
 /*
@@ -80,19 +81,19 @@ static const char rcsid[] = "@(#) $Id: yp_ping.c,v 1.1 1997/05/25 19:49:29 wpaul
  * Copyright (C) 1984, Sun Microsystems, Inc.
  */
 
+#include <errno.h>
+#include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
+#include <unistd.h>
 #include <rpc/rpc.h>
-#include <sys/socket.h>
-#include <net/if.h>
-#include <sys/ioctl.h>
-#include <netdb.h>
-#include <errno.h>
 #include <rpc/pmap_clnt.h>
 #include <rpc/pmap_prot.h>
 #include <rpcsvc/yp.h>
+#include <sys/socket.h>
+#include <sys/ioctl.h>
+#include <net/if.h>
 #include "yp_ping.h"
 
 #ifndef timeradd
