@@ -52,6 +52,11 @@ struct uio;
 struct knote;
 struct vnode;
 struct socket;
+struct kqueue;
+struct pipe;
+struct fcrypt;
+struct vm_object;
+
 
 #endif /* _KERNEL */
 
@@ -100,6 +105,7 @@ struct fileops {
  * (f)	f_mtx in struct file
  * none	not locked
  */
+
 struct file {
 	LIST_ENTRY(file) f_list;/* (fl) list of active files */
 	short	f_gcflag;	/* used by thread doing fd garbage collection */
@@ -116,7 +122,15 @@ struct file {
 				 * offset of next expected read or write
 				 */
 	off_t	f_offset;
-	void	*f_data;		/* vnode or socket */
+	union {			/* file descriptor specific data */
+		void		*generic;
+		struct vnode	*vnode;
+		struct socket	*socket;
+		struct kqueue	*kqueue;
+		struct pipe	*pipe;
+		struct fcrypt	*fcrypt;
+		struct vm_object *object;
+	} un_data;
 	u_int	f_flag;		/* see fcntl.h */
 	struct mtx	*f_mtxp;	/* mutex to protect data */
 };
@@ -136,7 +150,15 @@ struct xfile {
 	int	xf_count;	/* reference count */
 	int	xf_msgcount;	/* references from message queue */
 	off_t	xf_offset;	/* file offset */
-	void	*xf_data;	/* pointer to vnode or socket */
+	union {
+		void		*generic;
+		struct vnode	*vnode;
+		struct socket	*socket;
+		struct kqueue	*kqueue;
+		struct pipe	*pipe;
+		struct fcrypt	*fcrypt;
+		struct vm_object *object;
+	} xun_data;
 	u_int	xf_flag;	/* flags (see fcntl.h) */
 };
 

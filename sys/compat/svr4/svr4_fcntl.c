@@ -311,7 +311,7 @@ fd_truncate(td, fd, flp)
 	if ((error = fget(td, fd, &fp)) != 0)
 		return (error);
 
-	vp = (struct vnode *) fp->f_data;
+	vp = fp->un_data.vnode;
 
 	if (fp->f_type != DTYPE_VNODE || vp->v_type == VFIFO) {
 		fdrop(fp, td);

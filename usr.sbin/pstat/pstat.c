@@ -418,7 +418,7 @@ filemode(void)
 		*fbp = '\0';
 		(void)printf("%6s  %3d", flagbuf, fp->xf_count);
 		(void)printf("  %3d", fp->xf_msgcount);
-		(void)printf("  %8lx", (u_long)(void *)fp->xf_data);
+		(void)printf("  %8lx", (u_long)fp->xun_data.generic);
 		(void)printf("  %jx\n", (uintmax_t)fp->xf_offset);
 	}
 	free(buf);

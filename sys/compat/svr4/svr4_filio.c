@@ -115,7 +115,7 @@ svr4_sys_read(td, uap)
      }
 
      if (fp->f_type == DTYPE_SOCKET) {
-       so = (struct socket *)fp->f_data;
+       so = fp->un_data.socket;
        DPRINTF(("fd %d is a socket\n", uap->fd));
        if (so->so_state & SS_ASYNC) {
 	 DPRINTF(("fd %d is an ASYNC socket!\n", uap->fd));

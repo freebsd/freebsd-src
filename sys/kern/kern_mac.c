@@ -3211,7 +3211,7 @@ __mac_get_fd(struct thread *td, struct __mac_get_fd_args *uap)
 	switch (fp->f_type) {
 	case DTYPE_FIFO:
 	case DTYPE_VNODE:
-		vp = (struct vnode *)fp->f_data;
+		vp = fp->un_data.vnode;
 
 		mac_init_vnode_label(&intlabel);
 
@@ -3221,7 +3221,7 @@ __mac_get_fd(struct thread *td, struct __mac_get_fd_args *uap)
 
 		break;
 	case DTYPE_PIPE:
-		pipe = (struct pipe *)fp->f_data;
+		pipe = fp->un_data.pipe;
 
 		mac_init_pipe_label(&intlabel);
 
@@ -3419,7 +3419,7 @@ __mac_set_fd(struct thread *td, struct __mac_set_fd_args *uap)
 			break;
 		}
 
-		vp = (struct vnode *)fp->f_data;
+		vp = fp->un_data.vnode;
 		error = vn_start_write(vp, &mp, V_WAIT | PCATCH);
 		if (error != 0) {
 			mac_destroy_vnode_label(&intlabel);
@@ -3438,7 +3438,7 @@ __mac_set_fd(struct thread *td, struct __mac_set_fd_args *uap)
 		mac_init_pipe_label(&intlabel);
 		error = mac_internalize_pipe_label(&intlabel, buffer);
 		if (error == 0) {
-			pipe = (struct pipe *)fp->f_data;
+			pipe = fp->un_data.pipe;
 			PIPE_LOCK(pipe);
 			error = mac_pipe_label_set(td->td_ucred, pipe,
 			    &intlabel);
