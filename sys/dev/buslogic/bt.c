@@ -119,7 +119,7 @@ static __inline struct bt_ccb *
 btccbptov(struct bt_softc *bt, u_int32_t ccb_addr)
 {
 	return (bt->bt_ccb_array +
-	        ((struct bt_ccb*)ccb_addr-(struct bt_ccb*)bt->bt_ccb_physbase));
+	        ((struct bt_ccb*)(uintptr_t)ccb_addr - (struct bt_ccb*)(uintptr_t)bt->bt_ccb_physbase));
 }
 
 static __inline u_int32_t
