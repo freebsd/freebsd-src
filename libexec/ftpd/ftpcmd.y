@@ -45,7 +45,7 @@
 static char sccsid[] = "@(#)ftpcmd.y	8.3 (Berkeley) 4/6/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: ftpcmd.y,v 1.8.2.2 1997/12/12 07:20:23 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -960,7 +960,7 @@ yylex()
 			}
 			(void) alarm(0);
 #ifdef SETPROCTITLE
-			if (strncasecmp(cbuf, "PASS", 4) != NULL)
+			if (strncasecmp(cbuf, "PASS", 4) != 0)
 				setproctitle("%s: %s", proctitle, cbuf);
 #endif /* SETPROCTITLE */
 			if ((cp = strchr(cbuf, '\r'))) {
