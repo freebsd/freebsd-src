@@ -2280,6 +2280,30 @@ cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 
 }
 
+void
+spinlock_enter(void)
+{
+	struct thread *td;
+
+	td = curthread;
+	if (td->td_md.md_spinlock_count == 0)
+		td->td_md.md_saved_flags = intr_disable();
+	td->td_md.md_spinlock_count++;
+	critical_enter();
+}
+
+void
+spinlock_exit(void)
+{
+	struct thread *td;
+
+	td = curthread;
+	critical_exit();
+	td->td_md.md_spinlock_count--;
+	if (td->td_md.md_spinlock_count == 0)
+		intr_restore(td->td_md.md_saved_flags);
+}
+
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
 static void f00f_hack(void *unused);
 SYSINIT(f00f_hack, SI_SUB_INTRINSIC, SI_ORDER_FIRST, f00f_hack, NULL)

@@ -2397,3 +2397,27 @@ cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t sz)
 	pcpu->pc_idlepcb.apcb_ptbr = thread0.td_pcb->pcb_hw.apcb_ptbr;
 	pcpu->pc_current_asngen = 1;
 }
+
+void
+spinlock_enter(void)
+{
+	struct thread *td;
+
+	td = curthread;
+	if (td->td_md.md_spinlock_count == 0)
+		td->td_md.md_saved_ipl = intr_disable();
+	td->td_md.md_spinlock_count++;
+	critical_enter();
+}
+
+void
+spinlock_exit(void)
+{
+	struct thread *td;
+
+	td = curthread;
+	critical_exit();
+	td->td_md.md_spinlock_count--;
+	if (td->td_md.md_spinlock_count == 0)
+		intr_restore(td->td_md.md_saved_ipl);
+}

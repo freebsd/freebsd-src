@@ -202,6 +202,10 @@ cpu_fork(td1, p2, td2, flags)
 	 */
 	td2->td_md.md_kernnest = 1;
 #endif
+
+	/* Setup to release sched_lock in fork_exit(). */
+	td2->td_md.md_spinlock_count = 1;
+	td2->td_md.md_saved_ipl = ALPHA_PSL_IPL_0;
 }
 
 /*
@@ -319,6 +323,10 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	 */
 	td->td_md.md_kernnest = 1;
 #endif
+
+	/* Setup to release sched_lock in fork_exit(). */
+	td->td_md.md_spinlock_count = 1;
+	td->td_md.md_saved_ipl = ALPHA_PSL_IPL_0;
 }
 
 void

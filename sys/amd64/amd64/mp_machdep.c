@@ -452,6 +452,10 @@ init_secondary(void)
 		panic("cpuid mismatch! boom!!");
 	}
 
+	/* Initialize curthread. */
+	KASSERT(PCPU_GET(idlethread) != NULL, ("no idle thread"));
+	PCPU_SET(curthread, PCPU_GET(idlethread));
+
 	mtx_lock_spin(&ap_boot_mtx);
 
 	/* Init local apic for irq's */
@@ -489,6 +493,18 @@ init_secondary(void)
 
 	/* ok, now grab sched_lock and enter the scheduler */
 	mtx_lock_spin(&sched_lock);
+
+	/*
+	 * Correct spinlock nesting.  The idle thread context that we are
+	 * borrowing was created so that it would start out with a single
+	 * spin lock (sched_lock) held in fork_trampoline().  Since we've
+	 * explicitly acquired locks in this function, the nesting count
+	 * is now 2 rather than 1.  Since we are nested, calling
+	 * spinlock_exit() will simply adjust the counts without allowing
+	 * spin lock using code to interrupt us.
+	 */
+	spinlock_exit();
+	KASSERT(curthread->td_md.md_spinlock_count == 1, ("invalid count"));
 
 	binuptime(PCPU_PTR(switchtime));
 	PCPU_SET(switchticks, ticks);

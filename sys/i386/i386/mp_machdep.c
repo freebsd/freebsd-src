@@ -432,6 +432,7 @@ cpu_mp_announce(void)
 void
 init_secondary(void)
 {
+	vm_offset_t addr;
 	int	gsel_tss;
 	int	x, myid;
 	u_int	cr0;
@@ -489,7 +490,8 @@ init_secondary(void)
 
 	/* BSP may have changed PTD while we were waiting */
 	invltlb();
-	pmap_invalidate_range(kernel_pmap, 0, NKPT * NBPDR - 1);
+	for (addr = 0; addr < NKPT * NBPDR - 1; addr += PAGE_SIZE)
+		invlpg(addr);
 
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
 	lidt(&r_idt);
@@ -512,6 +514,10 @@ init_secondary(void)
 		printf("PTD[MPPTDI] = %#jx\n", (uintmax_t)PTD[MPPTDI]);
 		panic("cpuid mismatch! boom!!");
 	}
+
+	/* Initialize curthread. */
+	KASSERT(PCPU_GET(idlethread) != NULL, ("no idle thread"));
+	PCPU_SET(curthread, PCPU_GET(idlethread));
 
 	mtx_lock_spin(&ap_boot_mtx);
 
@@ -550,6 +556,18 @@ init_secondary(void)
 
 	/* ok, now grab sched_lock and enter the scheduler */
 	mtx_lock_spin(&sched_lock);
+
+	/*
+	 * Correct spinlock nesting.  The idle thread context that we are
+	 * borrowing was created so that it would start out with a single
+	 * spin lock (sched_lock) held in fork_trampoline().  Since we've
+	 * explicitly acquired locks in this function, the nesting count
+	 * is now 2 rather than 1.  Since we are nested, calling
+	 * spinlock_exit() will simply adjust the counts without allowing
+	 * spin lock using code to interrupt us.
+	 */
+	spinlock_exit();
+	KASSERT(curthread->td_md.md_spinlock_count == 1, ("invalid count"));
 
 	binuptime(PCPU_PTR(switchtime));
 	PCPU_SET(switchticks, ticks);
