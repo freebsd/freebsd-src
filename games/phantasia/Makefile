@@ -11,12 +11,14 @@ CLEANFILES=${DATAFILES} map setup setup.o stamp.setuprun
 
 all: stamp.setuprun
 
+build-tools: setup
+
 stamp.setuprun: monsters.asc setup
 	./setup -m ${.CURDIR}/monsters.asc
 	touch ${.TARGET}
 
 setup: phantglobs.o setup.o ${LIBM}
-	${CC} ${CFLAGS} phantglobs.o setup.o -o ${.TARGET} -lm
+	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} phantglobs.o setup.o -lm
 
 beforeinstall:
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 660 \
