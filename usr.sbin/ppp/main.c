@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.81 1997/09/22 00:46:55 brian Exp $
+ * $Id: main.c,v 1.82 1997/10/07 00:56:57 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -547,6 +547,8 @@ ReadTty()
     n = read(netfd, linebuff, sizeof(linebuff) - 1);
     if (n > 0) {
       aft_cmd = 1;
+      linebuff[n] = '\0';
+      LogPrintf(LogCOMMAND, "Client: %s\n", linebuff);
       DecodeCommand(linebuff, n, 1);
     } else {
       LogPrintf(LogPHASE, "client connection closed.\n");
