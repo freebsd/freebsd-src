@@ -45,7 +45,7 @@
 .Op Fl M Ar core
 .Op Fl N Ar system
 .Nm
-.Op Fl gilnrsS
+.Op Fl gilnsS
 .Op Fl f Ar address_family
 .Op Fl M Ar core
 .Op Fl N Ar system
@@ -69,6 +69,17 @@
 .Fl m
 .Op Fl M Ar core
 .Op Fl N Ar system
+.Nm
+.Fl r
+.Op Fl Aaln
+.Op Fl f Ar address_family
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Nm
+.Fl rs
+.Op Fl s
+.Op Fl M Ar core
+.Op Fl N Ar system
 .Sh DESCRIPTION
 The
 .Nm
@@ -87,12 +98,14 @@ interval specified,
 will continuously display the information regarding packet
 traffic on the configured network interfaces.
 The fourth form displays statistics for
-the specified protocol or address familily.
+the specified protocol or address family.
 The fifth form displays per-interface statistics for
 the specified protocol or address family.
 The sixth form displays
 .Xr mbuf 9
 statistics.
+The seventh form displays routing table for the specified address family.
+The eighth form displays routing statistics.
 .Pp
 The options have the following meaning:
 .Bl -tag -width flag
