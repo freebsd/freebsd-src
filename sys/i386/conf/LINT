@@ -746,8 +746,8 @@ pseudo-device	vcoda	4		#coda minicache <-> venus comm.
 options 	EXT2FS
 
 # Use real implementations of the aio_* system calls.  There are numerous
-# stability issues in the current aio code that make it unsuitable for
-# inclusion on shell boxes.
+# stability and security issues in the current aio code that make it
+# unsuitable for inclusion on machines with untrusted local users.
 options 	VFS_AIO
 
 
