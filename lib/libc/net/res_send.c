@@ -420,7 +420,7 @@ res_send(buf, buflen, ans, anssiz)
 					res_close();
 					goto next_ns;
 				case res_done:
-					close(kq);
+					_close(kq);
 					return (resplen);
 				case res_modified:
 					/* give the hook another try */
@@ -430,7 +430,7 @@ res_send(buf, buflen, ans, anssiz)
 				case res_error:
 					/*FALLTHROUGH*/
 				default:
-					close(kq);
+					_close(kq);
 					return (-1);
 				}
 			} while (!done);
@@ -868,19 +868,19 @@ read_len:
 				case res_error:
 					/*FALLTHROUGH*/
 				default:
-					close(kq);
+					_close(kq);
 					return (-1);
 				}
 			} while (!done);
 
 		}
-		close(kq);
+		_close(kq);
 		return (resplen);
     next_ns: ;
 	   } /*foreach ns*/
 	} /*foreach retry*/
 	res_close();
-	close(kq);
+	_close(kq);
 	if (!v_circuit) {
 		if (!gotsomewhere)
 			errno = ECONNREFUSED;	/* no nameservers found */
