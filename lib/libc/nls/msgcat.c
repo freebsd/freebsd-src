@@ -1,4 +1,4 @@
-/*	$Id: msgcat.c,v 1.9 1997/03/25 05:36:37 imp Exp $ */
+/*	$Id: msgcat.c,v 1.10 1997/05/10 04:28:17 ache Exp $ */
 
 /***********************************************************
 Copyright 1990, by Alfalfa Software Incorporated, Cambridge, Massachusetts.
@@ -293,7 +293,7 @@ int type;
     MCHeaderT	header;
     MCCatT	*cat;
     MCSetT	*set;
-    long	i;
+    long        i, j;
     off_t	nextSet;
 
     cat = (MCCatT *) malloc(sizeof(MCCatT));
@@ -331,13 +331,31 @@ int type;
 
     nextSet = header.firstSet;
     for (i = 0; i < cat->numSets; ++i) {
-	if (lseek(cat->fd, nextSet, 0) == -1)
-		{free(cat->sets); CORRUPT();}
+	if (lseek(cat->fd, nextSet, 0) == -1) {
+		for (j = 0; j < i; j++) {
+			set = cat->sets + j;
+			if (!set->invalid) {
+			    free(set->data.str);
+			    free(set->u.msgs);
+			}
+		}
+		free(cat->sets);
+		CORRUPT();
+	}
 
 	/* read in the set header */
 	set = cat->sets + i;
-	if (read(cat->fd, set, sizeof(*set)) != sizeof(*set))
-		{free(cat->sets); CORRUPT();}
+	if (read(cat->fd, set, sizeof(*set)) != sizeof(*set)) {
+		for (j = 0; j < i; j++) {
+			set = cat->sets + j;
+			if (!set->invalid) {
+			    free(set->data.str);
+			    free(set->u.msgs);
+			}
+		}
+		free(cat->sets);
+		CORRUPT();
+	}
 
 	/* if it's invalid, skip over it (and backup 'i') */
 
@@ -349,7 +367,15 @@ int type;
 
 	if (cat->loadType == MCLoadAll) {
 	    nl_catd	res;
+
 	    if ((res = loadSet(cat, set)) <= 0) {
+		for (j = 0; j < i; j++) {
+			set = cat->sets + j;
+			if (!set->invalid) {
+			    free(set->data.str);
+			    free(set->u.msgs);
+			}
+		}
 		free(cat->sets);
 		if (res == -1) NOSPACE();
 		CORRUPT();
