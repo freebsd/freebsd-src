@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.16 1997/04/07 11:00:48 kato Exp $
+ *	$Id: trap.c,v 1.17 1997/04/15 11:49:00 kato Exp $
  */
 
 /*
@@ -44,6 +44,7 @@
 
 #include "opt_ktrace.h"
 #include "opt_ddb.h"
+#include "opt_smp.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -76,6 +77,7 @@
 #include <machine/reg.h>
 #include <machine/trap.h>
 #include <machine/../isa/isa_device.h>
+#include <machine/smp.h>
 
 #ifdef POWERFAIL_NMI
 #include <sys/syslog.h>
@@ -85,7 +87,11 @@
 #include "isa.h"
 #include "npx.h"
 
+#ifdef SMP
+extern struct i386tss *SMPcommon_tss_ptr[NCPU];
+#else
 extern struct i386tss common_tss;
+#endif
 
 int (*pmath_emulate) __P((struct trapframe *));
 
@@ -728,6 +734,9 @@ trap_fatal(frame)
 		printf("\n\nFatal trap %d: %s while in %s mode\n",
 			type, trap_msg[type],
 			ISPL(frame->tf_cs) == SEL_UPL ? "user" : "kernel");
+#ifdef SMP
+	printf("cpunumber = %d\n", cpunumber());
+#endif
 	if (type == T_PAGEFLT) {
 		printf("fault virtual address	= 0x%x\n", eva);
 		printf("fault code		= %s %s, %s\n",
@@ -790,6 +799,7 @@ trap_fatal(frame)
 	if (kdb_trap (type, 0, frame))
 		return;
 #endif
+	printf("trap number		= %d\n", type);
 	if (type <= MAX_TRAP_MSG)
 		panic(trap_msg[type]);
 	else
@@ -811,11 +821,20 @@ trap_fatal(frame)
 void
 dblfault_handler()
 {
+#ifdef SMP
+	int x = cpunumber();
+#endif
 
 	printf("\nFatal double fault:\n");
+#ifdef SMP
+	printf("eip = 0x%x\n", SMPcommon_tss_ptr[x]->tss_eip);
+	printf("esp = 0x%x\n", SMPcommon_tss_ptr[x]->tss_esp);
+	printf("ebp = 0x%x\n", SMPcommon_tss_ptr[x]->tss_ebp);
+#else
 	printf("eip = 0x%x\n", common_tss.tss_eip);
 	printf("esp = 0x%x\n", common_tss.tss_esp);
 	printf("ebp = 0x%x\n", common_tss.tss_ebp);
+#endif
 	panic("double fault");
 }
 
