@@ -2,6 +2,9 @@
  * Copyright (c) 1995
  *	The Regents of the University of California.  All rights reserved.
  *
+ * Copyright (C) 1997
+ *	John S. Dyson.  All rights reserved.
+ *
  * This code contains ideas from software contributed to Berkeley by
  * Avadis Tevanian, Jr., Michael Wayne Young, and the Mach Operating
  * System project at Carnegie-Mellon University.
@@ -35,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_lock.c	8.18 (Berkeley) 5/21/95
- * $Id: kern_lock.c,v 1.1 1997/08/04 17:46:51 smp Exp smp $
+ * $Id: kern_lock.c,v 1.7 1997/08/04 19:11:12 fsmp Exp $
  */
 
 #include <sys/param.h>
@@ -54,57 +57,122 @@
 #define COUNT(p, x)
 #endif
 
-#if NCPUS > 1
+#define LOCK_WAIT_TIME 100
+#define LOCK_SAMPLE_WAIT 7
 
-/*
- * For multiprocessor system, try spin lock first.
- *
- * This should be inline expanded below, but we cannot have #if
- * inside a multiline define.
- */
-int lock_wait_time = 100;
-#define PAUSE(lkp, wanted)						\
-		if (lock_wait_time > 0) {				\
-			int i;						\
-									\
-			simple_unlock(&lkp->lk_interlock);		\
-			for (i = lock_wait_time; i > 0; i--)		\
-				if (!(wanted))				\
-					break;				\
-			simple_lock(&lkp->lk_interlock);		\
-		}							\
-		if (!(wanted))						\
-			break;
+#if defined(DIAGNOSTIC)
+#define LOCK_INLINE
+#else
+#define LOCK_INLINE inline
+#endif
 
-#else /* NCPUS == 1 */
+static int acquire(struct lock *lkp, int extflags, int wanted);
 
-/*
- * It is an error to spin on a uniprocessor as nothing will ever cause
- * the simple lock to clear while we are executing.
- */
-#define PAUSE(lkp, wanted)
+static LOCK_INLINE void
+sharelock(struct lock *lkp, int incr) {
+	lkp->lk_flags |= LK_SHARE_NONZERO;
+	lkp->lk_sharecount += incr;
+}
 
-#endif /* NCPUS == 1 */
+static LOCK_INLINE void
+shareunlock(struct lock *lkp, int decr) {
+#if defined(DIAGNOSTIC)
+	if (lkp->lk_sharecount < decr)
+#if defined(DDB)
+		Debugger("shareunlock: count < decr");
+#else
+		panic("shareunlock: count < decr");
+#endif
+#endif
 
-/*
- * Acquire a resource.
- */
-#define ACQUIRE(lkp, error, extflags, wanted)				\
-	PAUSE(lkp, wanted);						\
-	for (error = 0; wanted; ) {					\
-		(lkp)->lk_waitcount++;					\
-		simple_unlock(&(lkp)->lk_interlock);			\
-		error = tsleep((void *)lkp, (lkp)->lk_prio,		\
-		    (lkp)->lk_wmesg, (lkp)->lk_timo);			\
-		simple_lock(&(lkp)->lk_interlock);			\
-		(lkp)->lk_waitcount--;					\
-		if (error)						\
-			break;						\
-		if ((extflags) & LK_SLEEPFAIL) {			\
-			error = ENOLCK;					\
-			break;						\
-		}							\
+	lkp->lk_sharecount -= decr;
+	if (lkp->lk_sharecount == 0)
+		lkp->lk_flags &= ~LK_SHARE_NONZERO;
+}
+
+static int
+apause(struct lock *lkp, int flags) {
+	int lock_wait;
+	lock_wait = LOCK_WAIT_TIME;
+	for (; lock_wait > 0; lock_wait--) {
+		int i;
+		if ((lkp->lk_flags & flags) == 0)
+			return 0;
+		simple_unlock(&lkp->lk_interlock);
+		for (i = LOCK_SAMPLE_WAIT; i > 0; i--) {
+			if ((lkp->lk_flags & flags) == 0) {
+				simple_lock(&lkp->lk_interlock);
+				if ((lkp->lk_flags & flags) == 0)
+					return 0;
+				break;
+			}
+		}
 	}
+	return 1;
+}
+
+
+static int
+acquire(struct lock *lkp, int extflags, int wanted) {
+	int error;
+	int lock_wait;
+
+	if ((extflags & LK_NOWAIT) && (lkp->lk_flags & wanted)) {
+		return EBUSY;
+	}
+
+	error = apause(lkp, wanted);
+	if (error == 0)
+		return 0;
+
+	while ((lkp->lk_flags & wanted) != 0) {
+		lkp->lk_flags |= LK_WAIT_NONZERO;
+		lkp->lk_waitcount++;
+		simple_unlock(&lkp->lk_interlock);
+		error = tsleep(lkp, lkp->lk_prio, lkp->lk_wmesg, lkp->lk_timo);
+		simple_lock(&lkp->lk_interlock);
+		lkp->lk_waitcount--;
+		if (lkp->lk_waitcount == 0)
+			lkp->lk_flags &= ~LK_WAIT_NONZERO;
+		if (error)
+			return error;
+		if (extflags & LK_SLEEPFAIL) {
+			return ENOLCK;
+		}
+	}
+	return 0;
+}
+
+#define LK_ALL (LK_HAVE_EXCL | LK_WANT_EXCL | LK_WANT_UPGRADE | \
+	LK_SHARE_NONZERO | LK_WAIT_NONZERO)
+
+static int
+acquiredrain(struct lock *lkp, int extflags) {
+	int error;
+	int lock_wait;
+
+	if ((extflags & LK_NOWAIT) && (lkp->lk_flags & LK_ALL)) {
+		return EBUSY;
+	}
+
+	error = apause(lkp, LK_ALL);
+	if (error == 0)
+		return 0;
+
+	while (lkp->lk_flags & LK_ALL) {
+		lkp->lk_flags |= LK_WAITDRAIN;
+		simple_unlock(&lkp->lk_interlock);
+		error = tsleep(&lkp->lk_flags, lkp->lk_prio,
+			lkp->lk_wmesg, lkp->lk_timo);
+		simple_lock(&lkp->lk_interlock);
+		if (error)
+			return error;
+		if (extflags & LK_SLEEPFAIL) {
+			return ENOLCK;
+		}
+	}
+	return 0;
+}
 
 /*
  * Initialize a lock; required before use.
@@ -119,7 +187,7 @@ lockinit(lkp, prio, wmesg, timo, flags)
 {
 
 	simple_lock_init(&lkp->lk_interlock);
-	lkp->lk_flags = flags & LK_EXTFLG_MASK;
+	lkp->lk_flags = (flags & LK_EXTFLG_MASK);
 	lkp->lk_sharecount = 0;
 	lkp->lk_waitcount = 0;
 	lkp->lk_exclusivecount = 0;
@@ -166,59 +234,25 @@ lockmgr(lkp, flags, interlkp, p)
 	int extflags;
 
 	error = 0;
-	if (p)
-		pid = p->p_pid;
-	else
-		pid = LK_KERNPROC;
+	if (p == NULL)
+		panic("lockmgr: called with null process");
+	pid = p->p_pid;
+
 	simple_lock(&lkp->lk_interlock);
 	if (flags & LK_INTERLOCK)
 		simple_unlock(interlkp);
+
 	extflags = (flags | lkp->lk_flags) & LK_EXTFLG_MASK;
-#ifdef DIAGNOSTIC
-	/*
-	 * Once a lock has drained, the LK_DRAINING flag is set and an
-	 * exclusive lock is returned. The only valid operation thereafter
-	 * is a single release of that exclusive lock. This final release
-	 * clears the LK_DRAINING flag and sets the LK_DRAINED flag. Any
-	 * further requests of any sort will result in a panic. The bits
-	 * selected for these two flags are chosen so that they will be set
-	 * in memory that is freed (freed memory is filled with 0xdeadbeef).
-	 * The final release is permitted to give a new lease on life to
-	 * the lock by specifying LK_REENABLE.
-	 */
-	if (lkp->lk_flags & (LK_DRAINING|LK_DRAINED)) {
-		if (lkp->lk_flags & LK_DRAINED)
-			panic("lockmgr: using decommissioned lock");
-		if ((flags & LK_TYPE_MASK) != LK_RELEASE ||
-		    lkp->lk_lockholder != pid)
-			panic("lockmgr: non-release on draining lock: %d\n",
-			    flags & LK_TYPE_MASK);
-		lkp->lk_flags &= ~LK_DRAINING;
-		if ((flags & LK_REENABLE) == 0)
-			lkp->lk_flags |= LK_DRAINED;
-	}
-#endif DIAGNOSTIC
 
 	switch (flags & LK_TYPE_MASK) {
 
 	case LK_SHARED:
 		if (lkp->lk_lockholder != pid) {
-			/*
-			 * If just polling, check to see if we will block.
-			 */
-			if ((extflags & LK_NOWAIT) && (lkp->lk_flags &
-			    (LK_HAVE_EXCL | LK_WANT_EXCL | LK_WANT_UPGRADE))) {
-				error = EBUSY;
-				break;
-			}
-			/*
-			 * Wait for exclusive locks and upgrades to clear.
-			 */
-			ACQUIRE(lkp, error, extflags, lkp->lk_flags &
-			    (LK_HAVE_EXCL | LK_WANT_EXCL | LK_WANT_UPGRADE));
+			error = acquire(lkp, extflags,
+				LK_HAVE_EXCL | LK_WANT_EXCL | LK_WANT_UPGRADE);
 			if (error)
 				break;
-			lkp->lk_sharecount++;
+			sharelock(lkp, 1);
 			COUNT(p, 1);
 			break;
 		}
@@ -226,14 +260,14 @@ lockmgr(lkp, flags, interlkp, p)
 		 * We hold an exclusive lock, so downgrade it to shared.
 		 * An alternative would be to fail with EDEADLK.
 		 */
-		lkp->lk_sharecount++;
+		sharelock(lkp, 1);
 		COUNT(p, 1);
 		/* fall into downgrade */
 
 	case LK_DOWNGRADE:
 		if (lkp->lk_lockholder != pid || lkp->lk_exclusivecount == 0)
 			panic("lockmgr: not holding exclusive lock");
-		lkp->lk_sharecount += lkp->lk_exclusivecount;
+		sharelock(lkp, lkp->lk_exclusivecount);
 		lkp->lk_exclusivecount = 0;
 		lkp->lk_flags &= ~LK_HAVE_EXCL;
 		lkp->lk_lockholder = LK_NOPROC;
@@ -248,7 +282,7 @@ lockmgr(lkp, flags, interlkp, p)
 		 * exclusive access.
 		 */
 		if (lkp->lk_flags & LK_WANT_UPGRADE) {
-			lkp->lk_sharecount--;
+			shareunlock(lkp, 1);
 			COUNT(p, -1);
 			error = EBUSY;
 			break;
@@ -264,9 +298,9 @@ lockmgr(lkp, flags, interlkp, p)
 		 * after the upgrade). If we return an error, the file
 		 * will always be unlocked.
 		 */
-		if (lkp->lk_lockholder == pid || lkp->lk_sharecount <= 0)
+		if ((lkp->lk_lockholder == pid) || (lkp->lk_sharecount <= 0))
 			panic("lockmgr: upgrade exclusive lock");
-		lkp->lk_sharecount--;
+		shareunlock(lkp, 1);
 		COUNT(p, -1);
 		/*
 		 * If we are just polling, check to see if we will block.
@@ -284,7 +318,7 @@ lockmgr(lkp, flags, interlkp, p)
 			 * drop to zero, then take exclusive lock.
 			 */
 			lkp->lk_flags |= LK_WANT_UPGRADE;
-			ACQUIRE(lkp, error, extflags, lkp->lk_sharecount);
+			error = acquire(lkp, extflags , LK_SHARE_NONZERO);
 			lkp->lk_flags &= ~LK_WANT_UPGRADE;
 			if (error)
 				break;
@@ -301,7 +335,8 @@ lockmgr(lkp, flags, interlkp, p)
 		 * lock, awaken upgrade requestor if we are the last shared
 		 * lock, then request an exclusive lock.
 		 */
-		if (lkp->lk_sharecount == 0 && lkp->lk_waitcount)
+		if ( (lkp->lk_flags & (LK_SHARE_NONZERO|LK_WAIT_NONZERO)) ==
+			LK_WAIT_NONZERO)
 			wakeup((void *)lkp);
 		/* fall into exclusive request */
 
@@ -319,25 +354,22 @@ lockmgr(lkp, flags, interlkp, p)
 		/*
 		 * If we are just polling, check to see if we will sleep.
 		 */
-		if ((extflags & LK_NOWAIT) && ((lkp->lk_flags &
-		     (LK_HAVE_EXCL | LK_WANT_EXCL | LK_WANT_UPGRADE)) ||
-		     lkp->lk_sharecount != 0)) {
+		if ((extflags & LK_NOWAIT) &&
+		    (lkp->lk_flags & (LK_HAVE_EXCL | LK_WANT_EXCL | LK_WANT_UPGRADE | LK_SHARE_NONZERO))) {
 			error = EBUSY;
 			break;
 		}
 		/*
 		 * Try to acquire the want_exclusive flag.
 		 */
-		ACQUIRE(lkp, error, extflags, lkp->lk_flags &
-		    (LK_HAVE_EXCL | LK_WANT_EXCL));
+		error = acquire(lkp, extflags, (LK_HAVE_EXCL | LK_WANT_EXCL));
 		if (error)
 			break;
 		lkp->lk_flags |= LK_WANT_EXCL;
 		/*
 		 * Wait for shared locks and upgrades to finish.
 		 */
-		ACQUIRE(lkp, error, extflags, lkp->lk_sharecount != 0 ||
-		       (lkp->lk_flags & LK_WANT_UPGRADE));
+		error = acquire(lkp, extflags, LK_WANT_UPGRADE | LK_SHARE_NONZERO);
 		lkp->lk_flags &= ~LK_WANT_EXCL;
 		if (error)
 			break;
@@ -361,11 +393,11 @@ lockmgr(lkp, flags, interlkp, p)
 				lkp->lk_flags &= ~LK_HAVE_EXCL;
 				lkp->lk_lockholder = LK_NOPROC;
 			}
-		} else if (lkp->lk_sharecount != 0) {
-			lkp->lk_sharecount--;
+		} else if (lkp->lk_flags & LK_SHARE_NONZERO) {
+			shareunlock(lkp, 1);
 			COUNT(p, -1);
 		}
-		if (lkp->lk_waitcount)
+		if (lkp->lk_flags & LK_WAIT_NONZERO)
 			wakeup((void *)lkp);
 		break;
 
@@ -378,30 +410,10 @@ lockmgr(lkp, flags, interlkp, p)
 		 */
 		if (lkp->lk_lockholder == pid)
 			panic("lockmgr: draining against myself");
-		/*
-		 * If we are just polling, check to see if we will sleep.
-		 */
-		if ((extflags & LK_NOWAIT) && ((lkp->lk_flags &
-		     (LK_HAVE_EXCL | LK_WANT_EXCL | LK_WANT_UPGRADE)) ||
-		     lkp->lk_sharecount != 0 || lkp->lk_waitcount != 0)) {
-			error = EBUSY;
+
+		error = acquiredrain(lkp, extflags);
+		if (error)
 			break;
-		}
-		PAUSE(lkp, ((lkp->lk_flags &
-		     (LK_HAVE_EXCL | LK_WANT_EXCL | LK_WANT_UPGRADE)) ||
-		     lkp->lk_sharecount != 0 || lkp->lk_waitcount != 0));
-		for (error = 0; ((lkp->lk_flags &
-		     (LK_HAVE_EXCL | LK_WANT_EXCL | LK_WANT_UPGRADE)) ||
-		     lkp->lk_sharecount != 0 || lkp->lk_waitcount != 0); ) {
-			lkp->lk_flags |= LK_WAITDRAIN;
-			simple_unlock(&lkp->lk_interlock);
-			if (error = tsleep((void *)&lkp->lk_flags, lkp->lk_prio,
-			    lkp->lk_wmesg, lkp->lk_timo))
-				return (error);
-			if ((extflags) & LK_SLEEPFAIL)
-				return (ENOLCK);
-			simple_lock(&lkp->lk_interlock);
-		}
 		lkp->lk_flags |= LK_DRAINING | LK_HAVE_EXCL;
 		lkp->lk_lockholder = pid;
 		lkp->lk_exclusivecount = 1;
@@ -414,9 +426,9 @@ lockmgr(lkp, flags, interlkp, p)
 		    flags & LK_TYPE_MASK);
 		/* NOTREACHED */
 	}
-	if ((lkp->lk_flags & LK_WAITDRAIN) && ((lkp->lk_flags &
-	     (LK_HAVE_EXCL | LK_WANT_EXCL | LK_WANT_UPGRADE)) == 0 &&
-	     lkp->lk_sharecount == 0 && lkp->lk_waitcount == 0)) {
+	if ((lkp->lk_flags & LK_WAITDRAIN) &&
+	    (lkp->lk_flags & (LK_HAVE_EXCL | LK_WANT_EXCL | LK_WANT_UPGRADE |
+		LK_SHARE_NONZERO | LK_WAIT_NONZERO)) == 0) {
 		lkp->lk_flags &= ~LK_WAITDRAIN;
 		wakeup((void *)&lkp->lk_flags);
 	}

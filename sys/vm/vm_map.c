@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.84 1997/08/05 23:03:23 dyson Exp $
+ * $Id: vm_map.c,v 1.85 1997/08/06 04:58:03 dyson Exp $
  */
 
 /*
@@ -1378,7 +1378,7 @@ vm_map_user_pageable(map, start, end, new_pageable)
 
 			/* First we need to allow map modifications */
 			vm_map_set_recursive(map);
-			lockmgr(&map->lock, LK_DOWNGRADE,(void *)0, curproc);
+			vm_map_lock_downgrade(map);
 
 			rv = vm_fault_user_wire(map, entry->start, entry->end);
 			if (rv) {
@@ -1394,7 +1394,7 @@ vm_map_user_pageable(map, start, end, new_pageable)
 			}
 
 			vm_map_clear_recursive(map);
-			lockmgr(&map->lock, LK_UPGRADE, (void *)0, curproc);
+			vm_map_lock_upgrade(map);
 
 			goto rescan;
 		}
@@ -1594,7 +1594,7 @@ vm_map_pageable(map, start, end, new_pageable)
 			vm_map_unlock(map);	/* trust me ... */
 		} else {
 			vm_map_set_recursive(map);
-			lockmgr(&map->lock, LK_DOWNGRADE, (void*)0, curproc);
+			vm_map_lock_downgrade(map);
 		}
 
 		rv = 0;
@@ -2374,9 +2374,7 @@ RetryLookup:;
 			 * object.
 			 */
 
-			if (lockmgr(&share_map->lock, LK_EXCLUPGRADE,
-					(void *)0, curproc)) {
-
+			if (vm_map_lock_upgrade(share_map)) {
 				if (share_map != map)
 					vm_map_unlock_read(map);
 
@@ -2388,9 +2386,7 @@ RetryLookup:;
 			    OFF_TO_IDX(entry->end - entry->start));
 
 			entry->eflags &= ~MAP_ENTRY_NEEDS_COPY;
-
-			lockmgr(&share_map->lock, LK_DOWNGRADE,
-				(void *)0, curproc);
+			vm_map_lock_downgrade(share_map);
 		} else {
 			/*
 			 * We're attempting to read a copy-on-write page --
@@ -2405,8 +2401,7 @@ RetryLookup:;
 	 */
 	if (entry->object.vm_object == NULL) {
 
-		if (lockmgr(&share_map->lock, LK_EXCLUPGRADE,
-				(void *)0, curproc)) {
+		if (vm_map_lock_upgrade(share_map)) {
 			if (share_map != map)
 				vm_map_unlock_read(map);
 			goto RetryLookup;
@@ -2414,7 +2409,7 @@ RetryLookup:;
 		entry->object.vm_object = vm_object_allocate(OBJT_DEFAULT,
 		    OFF_TO_IDX(entry->end - entry->start));
 		entry->offset = 0;
-		lockmgr(&share_map->lock, LK_DOWNGRADE, (void *)0, curproc);
+		vm_map_lock_downgrade(share_map);
 	}
 
 	if (entry->object.vm_object != NULL)

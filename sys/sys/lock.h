@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lock.h	8.12 (Berkeley) 5/19/95
- * $Id: lock.h,v 1.6 1997/07/24 18:01:34 fsmp Exp $
+ * $Id: lock.h,v 1.7 1997/08/04 19:11:26 fsmp Exp $
  */
 
 #ifndef	_LOCK_H_
@@ -126,9 +126,15 @@ struct lock {
  *
  * Non-persistent external flags.
  */
-#define LK_INTERLOCK	0x00010000	/* unlock passed simple lock after
-					   getting lk_interlock */
-#define LK_RETRY	0x00020000	/* vn_lock: retry until locked */
+#define LK_INTERLOCK	0x00010000 /* unlock passed simple lock after
+				   getting lk_interlock */
+#define LK_RETRY	0x00020000 /* vn_lock: retry until locked */
+
+/*
+ * Internal state flags corresponding to lk_sharecount, and lk_waitcount
+ */
+#define	LK_SHARE_NONZERO 0x00100000
+#define	LK_WAIT_NONZERO  0x00200000
 
 /*
  * Lock return status.
@@ -153,6 +159,7 @@ struct lock {
 #define LK_KERNPROC ((pid_t) -2)
 #define LK_NOPROC ((pid_t) -1)
 
+void dumplockinfo(struct lock *lkp);
 struct proc;
 
 void	lockinit __P((struct lock *, int prio, char *wmesg, int timo,
