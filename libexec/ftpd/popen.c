@@ -103,7 +103,7 @@ ftpd_popen(char *program, char *type)
 	gargv[0] = argv[0];
 	for (gargc = argc = 1; argv[argc] && gargc < (MAXGLOBARGS-1); argc++) {
 		glob_t gl;
-		int flags = GLOB_BRACE|GLOB_NOCHECK|GLOB_QUOTE|GLOB_TILDE;
+		int flags = GLOB_BRACE|GLOB_NOCHECK|GLOB_TILDE;
 
 		memset(&gl, 0, sizeof(gl));
 		gl.gl_matchc = MAXGLOBARGS;
