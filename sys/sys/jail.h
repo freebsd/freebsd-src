@@ -81,6 +81,7 @@ struct prison {
 extern int	jail_set_hostname_allowed;
 extern int	jail_socket_unixiproute_only;
 extern int	jail_sysvipc_allowed;
+extern int	jail_getfsstat_jailrootonly;
 
 LIST_HEAD(prisonlist, prison);
 extern struct	prisonlist allprison;
@@ -89,10 +90,12 @@ extern struct	prisonlist allprison;
  * Kernel support functions for jail().
  */
 struct ucred;
+struct mount;
 struct sockaddr;
 int jailed(struct ucred *cred);
 void getcredhostname(struct ucred *cred, char *, size_t);
 int prison_check(struct ucred *cred1, struct ucred *cred2);
+int prison_check_mount(struct ucred *cred, struct mount *mp);
 void prison_free(struct prison *pr);
 u_int32_t prison_getip(struct ucred *cred);
 void prison_hold(struct prison *pr);

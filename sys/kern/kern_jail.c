@@ -54,6 +54,11 @@ SYSCTL_INT(_security_jail, OID_AUTO, sysvipc_allowed, CTLFLAG_RW,
     &jail_sysvipc_allowed, 0,
     "Processes in jail can use System V IPC primitives");
 
+int	jail_getfsstatroot_only = 1;
+SYSCTL_INT(_security_jail, OID_AUTO, getfsstate_getfsstatroot_only, CTLFLAG_RW,
+    &jail_getfsstatroot_only, 0,
+    "Processes see only their root file system in getfsstat()");
+
 /* allprison, lastprid, and prisoncount are protected by allprison_mtx. */
 struct	prisonlist allprison;
 struct	mtx allprison_mtx;
@@ -416,6 +421,21 @@ getcredhostname(struct ucred *cred, char *buf, size_t size)
 		mtx_unlock(&cred->cr_prison->pr_mtx);
 	} else
 		strlcpy(buf, hostname, size);
+}
+
+/*
+ * Return 1 if the passed credential can "see" the passed mountpoint
+ * when performing a getfsstat(); otherwise, 0.
+ */
+int
+prison_check_mount(struct ucred *cred, struct mount *mp)
+{
+
+	if (jail_getfsstatroot_only) {
+		if (cred->cr_prison->pr_root->v_mount != mp)
+			return (0);
+	}
+	return (1);
 }
 
 static int
