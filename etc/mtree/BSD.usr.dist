@@ -599,6 +599,8 @@
             ..
             ru_RU.KOI8-R
             ..
+            sk_SK.ISO_8859-2
+            ..
             sl_SI.ISO_8859-2
             ..
             sv_SE.ISO_8859-15
@@ -888,6 +890,8 @@
             ru_RU.ISO_8859-5
             ..
             ru_RU.KOI8-R
+            ..
+            sk_SK.ISO_8859-2
             ..
             sl_SI.ISO_8859-2
             ..
