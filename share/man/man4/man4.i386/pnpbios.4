@@ -35,7 +35,8 @@
 The
 .Nm
 driver enumerates embedded ISA devices on the motherboard whose BIOS
-supports ``Plug and Play BIOS Specification''.
+supports
+.Dq "Plug and Play BIOS Specification" .
 It assigns ISA bus resources (interrupt line, DMA channel, I/O ports,
 and memory region) to each device and activates it.
 .Pp
@@ -47,7 +48,8 @@ to programs.
 There is no explicit way to disable individual embedded devices.
 The
 .Nm
-driver will find all devices reported by the ``Plug and Play (PnP)''
+driver will find all devices reported by the
+.Dq "Plug and Play (PnP)"
 BIOS and try to activate them all.
 .Pp
 There is no way to explicitly assign particular resource to a device.
@@ -55,13 +57,12 @@ The resource assignment is fully automatic and there is
 no provision for manual override.
 .Sh SEE ALSO
 .Xr pnp 4
-.Pp
 .Sh STANDARDS
 .Rs
 .%A Compaq
 .%A Phenix
 .%A Intel
-.%T ``Plug and Play BIOS Specification Version 1.0A''
+.%T "Plug and Play BIOS Specification Version 1.0A"
 .%D May 5, 1994
 .Re
 .Pp
@@ -69,17 +70,14 @@ no provision for manual override.
 .%A Compaq
 .%A Phenix
 .%A Intel
-.%T ``Plug and Play BIOS CLARIFICATION Paper \
-for Plug and Play BIOS Specification Version 1.0A''
+.%T "Plug and Play BIOS CLARIFICATION Paper for Plug and Play BIOS Specification Version 1.0A"
 .%D October 6, 1994
 .Re
-.Pp
 .Sh HISTORY
 The
 .Nm
 driver first appeared in
 .Fx 4.0 .
-.Pp
 .Sh AUTHORS
 The
 .Nm
