@@ -41,7 +41,7 @@
  *					into the patch kit.  Added in sioselect
  *					from com.c.  Added port 4 support.
  */
-static char rcsid[] = "$Header: /a/cvs/386BSD/src/sys.386bsd/i386/isa/sio.c,v 1.2 1993/07/15 17:53:12 davidg Exp $";
+static char rcsid[] = "$Header: /a/cvs/386BSD/src/sys.386bsd/i386/isa/sio.c,v 1.3 1993/07/18 21:27:57 rgrimes Exp $";
 
 #include "sio.h"
 #if NSIO > 0
@@ -377,7 +377,6 @@ sioprobe(dev)
 	if (   inb(iobase + com_cfcr) != CFCR_8BITS
 	    || inb(iobase + com_ier) != IER_ETXRDY
 	    || inb(iobase + com_mcr) != MCR_IENABLE
-	    || !isa_irq_pending(dev)
 	    || (inb(iobase + com_iir) & IIR_IMASK) != IIR_TXRDY
 	    || isa_irq_pending(dev)
 	    || (inb(iobase + com_iir) & IIR_IMASK) != IIR_NOPEND)
