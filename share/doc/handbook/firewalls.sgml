@@ -1,4 +1,4 @@
-<!-- $Id: firewalls.sgml,v 1.5 1996/06/25 03:15:17 alex Exp $ -->
+<!-- $Id: firewalls.sgml,v 1.1.2.5 1996/06/30 02:59:16 alex Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>Firewalls<label id="firewalls"></heading>
@@ -527,8 +527,8 @@ normally fall outside the 1-1024 range specified above.
 </itemize>
 
 <p>Another checklist for firewall configuration is available from CERT
-at <htmlurl url="ftp://ftp.cert.org/pub/tech_tips/packet_filtering"
-name="ftp://ftp.cert.org/pub/tech_tips/packet_filtering">
+at <htmlurl url="ftp://ftp.cert.org/pub/tech&lowbar;tips/packet&lowbar;filtering"
+name="ftp://ftp.cert.org/pub/tech&lowbar;tips/packet&lowbar;filtering">
 
 <p>As I said above, these are only <em>guidelines</em>. You will have
 to decide what filter rules you want to use on your firewall
