@@ -40,10 +40,8 @@ extern	int	Maxmem;
 extern	u_int	atdevbase;	/* offset in virtual memory of ISA io mem */
 extern	void	(*bcopy_vector)(const void *from, void *to, size_t len);
 extern	int	busdma_swi_pending;
-extern	int	(*copyin_vector)(const void *udaddr, void *kaddr,
-				      size_t len);
-extern	int	(*copyout_vector)(const void *kaddr, void *udaddr,
-				       size_t len);
+extern	int	(*copyin_vector)(const void *udaddr, void *kaddr, size_t len);
+extern	int	(*copyout_vector)(const void *kaddr, void *udaddr, size_t len);
 extern	u_int	cpu_feature;
 extern	u_int	cpu_high;
 extern	u_int	cpu_id;
@@ -88,8 +86,7 @@ int	i586_copyout(const void *kaddr, void *udaddr, size_t len);
 void	i686_pagezero(void *addr);
 int	is_physical_memory(vm_offset_t addr);
 u_long	kvtop(void *addr);
-void	setidt(int idx, alias_for_inthand_t *func, int typ, int dpl,
-		    int selec);
+void	setidt(int idx, alias_for_inthand_t *func, int typ, int dpl, int selec);
 void	swi_vm(void *);
 void	userconfig(void);
 int     user_dbreg_trap(void);
