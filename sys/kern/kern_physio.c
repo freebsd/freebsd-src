@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: kern_physio.c,v 1.35 1999/06/26 02:46:02 mckusick Exp $
+ * $Id: kern_physio.c,v 1.36 1999/08/14 11:40:42 phk Exp $
  */
 
 #include <sys/param.h>
@@ -57,6 +57,7 @@ physio(bp, dev, rw, minp, uio)
 	int error;
 	int spl;
 	caddr_t sa;
+	off_t blockno;
 	int bp_alloc = (bp == 0);
 	struct buf *bpa;
 
@@ -95,7 +96,12 @@ physio(bp, dev, rw, minp, uio)
 			 * for the temporary kernel mapping.
 			 */
 			bp->b_saveaddr = sa;
-			bp->b_blkno = btodb(uio->uio_offset);
+			blockno = uio->uio_offset >> DEV_BSHIFT;
+			bp->b_blkno = blockno;
+			if (bp->b_blkno != blockno) {
+				error = EINVAL;
+				goto doerror;
+			}
 			bp->b_offset = uio->uio_offset;
 
 			if (uio->uio_segflg == UIO_USERSPACE) {
