@@ -41,7 +41,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.39 1994/10/31 17:20:12 joerg Exp $
+ *	$Id: conf.c,v 1.40 1994/11/01 01:47:22 pst Exp $
  */
 
 #include <sys/param.h>
@@ -660,13 +660,21 @@ struct cdevsw	cdevsw[] =
 	  chioctl,	nostop,		nullreset,	NULL,	/* ch */
 	  noselect,	nommap,		nostrat },
 	{ suopen,	suclose,	noread,		nowrite,	/*18*/
-	  suioctl,	nostop,		nullreset,	NULL,	/* scsi 'generic' */
-	  seltrue,	nommap,		nostrat },
+	  suioctl,	nostop,		nullreset,	NULL,	/* scsi */
+	  seltrue,	nommap,		nostrat },		/* 'generic' */
 	{ twopen,	twclose,	twread,		twwrite,	/*19*/
 	  noioc,	nullstop,	nullreset,	NULL,	/* tw */
 	  twselect,	nommap,		nostrat },
+/*
+ * If you need a cdev major number for a driver that you intend to donate
+ * back to the group or release publically, please contact the FreeBSD team
+ * by sending mail to "FreeBSD-hackers@freefall.cdrom.com".
+ * If you assign one yourself it may conflict with someone else.
+ * Otherwise, simply use the one reserved for local use.
+ */
+	/* character device 20 is reserved for local use */
 	{ (d_open_t *)enxio, (d_close_t *)enxio, (d_rdwr_t *)enxio,	/*20*/
-	  (d_rdwr_t *)enxio, (d_ioctl_t *)enxio, (d_stop_t *)enxio, /* unused */
+	  (d_rdwr_t *)enxio, (d_ioctl_t *)enxio, (d_stop_t *)enxio,
 	  (d_reset_t *)enxio, NULL, (d_select_t *)enxio,
 	  (d_mmap_t *)enxio, NULL },
 	{ psmopen,	psmclose,	psmread,	nowrite,	/*21*/
@@ -697,7 +705,7 @@ struct cdevsw	cdevsw[] =
 	  mcdioctl,	nostop,		nullreset,	NULL,	/* mitsumi cd */
 	  seltrue,	nommap,		mcdstrategy },
 	{ sndopen,	sndclose,	sndread,	sndwrite,	/*30*/
-  	  sndioctl,	nostop,		nullreset,	NULL,	/* sound driver */
+  	  sndioctl,	nostop,		nullreset,	NULL,	/* sound */
   	  sndselect,	nommap,		NULL },
 	{ ukopen,	ukclose,	noread,         nowrite,      	/*31*/
 	  ukioctl,	nostop,		nullreset,	NULL,	/* unknown */
@@ -727,23 +735,11 @@ struct cdevsw	cdevsw[] =
 	  apmioctl,	nostop,		nullreset,	NULL,	/* laptop APM */
 	  seltrue,	nommap,		NULL },
 	{ ctxopen,	ctxclose,	ctxread,	ctxwrite,	/*40*/
-	  ctxioctl,	nostop,		nullreset,	NULL,	/* cortex framegrabber */
-	  seltrue,	nommap,		NULL },
+	  ctxioctl,	nostop,		nullreset,	NULL,	/* cortex */
+	  seltrue,	nommap,		NULL },			/*framegrabber*/
 	{ sockopen,	sockclose,	noread,		nowrite,	/*41*/
 	  sockioctl,	nostop,		nullreset,	NULL,	/* socksys */
-	  seltrue,	nommap,		NULL },
-	/* character device 42 is reserved for local use */
-	{ (d_open_t *)enxio,	(d_close_t *)enxio,	(d_rdwr_t *)enxio, /*42*/
-	  (d_rdwr_t *)enxio,	(d_ioctl_t *)enxio,	(d_stop_t *)enxio,
-	  (d_reset_t *)enxio,	NULL,			(d_select_t *)enxio,
-	  (d_mmap_t *)enxio,	NULL }
-/*
- * If you need a cdev major number for a driver that you intend to donate
- * back to the group or release publically, please contact the FreeBSD team
- * by sending mail to "FreeBSD-hackers@freefall.cdrom.com".
- * If you assign one yourself it may conflict with someone else.
- * Otherwise, simply use the one reserved for local use.
- */
+	  seltrue,	nommap,		NULL }
 };
 int	nchrdev = sizeof (cdevsw) / sizeof (cdevsw[0]);
 
