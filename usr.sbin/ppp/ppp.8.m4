@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.54 1997/08/20 23:47:51 brian Exp $
+.\" $Id: ppp.8,v 1.55 1997/08/21 16:21:36 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -1190,7 +1190,7 @@ the case, add the lines
 
 .Bd -literal -offset indent
 delete ALL
-add 0 0 10.10.11.11
+add 0 0 HISADDR
 .Ed
 
 .Pp
