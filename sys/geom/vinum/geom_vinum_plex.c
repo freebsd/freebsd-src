@@ -410,6 +410,10 @@ gv_plex_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		LIST_FOREACH(pp2, &gp->provider, provider)
 			pp2->mediasize = p->size;
 
+		/* Update the size of the volume this plex is attached to. */
+		if (p->vol_sc != NULL)
+			gv_update_vol_size(p->vol_sc, p->size);
+
 		return (NULL);
 
 	/* We need to create a new geom. */
