@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.77 1997/09/23 17:14:37 bde Exp $
+ *	$Id: autoconf.c,v 1.78 1997/10/26 04:36:11 nate Exp $
  */
 
 /*
@@ -396,6 +396,13 @@ setdumpdev(dev)
 	psize = bdevsw[maj]->d_psize(dev);
 	if (psize == -1)
 		return (ENXIO);		/* XXX should be ENODEV ? */
+	/*
+	 * XXX should clean up checking in dumpsys() to be more like this,
+	 * and nuke dodump sysctl (too many knobs), and move this to
+	 * kern_shutdown.c...
+	 */
+	if (dkpart(dev) != SWAP_PART)
+		return (ENODEV);
 	newdumplo = psize - Maxmem * PAGE_SIZE / DEV_BSIZE;
 	if (newdumplo < 0)
 		return (ENOSPC);
