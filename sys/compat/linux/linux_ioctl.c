@@ -135,7 +135,7 @@ linux_ioctl_disk(struct thread *td, struct linux_ioctl_args *args)
  */
 
 static int
-linux_ioctl_nvidia(struct proc *p, struct linux_ioctl_args *args)
+linux_ioctl_nvidia(struct thread *td, struct linux_ioctl_args *args)
 {
 	/*
 	 * The range has already been checked, and the native NVIDIA ioctl()
@@ -144,7 +144,7 @@ linux_ioctl_nvidia(struct proc *p, struct linux_ioctl_args *args)
 	 * every one of the possible NVIDIA ioctl() commands.
 	 */
 
-	return (ioctl(p, (struct ioctl_args *) args));
+	return (ioctl(td, (struct ioctl_args *) args));
 }
 
 /*
