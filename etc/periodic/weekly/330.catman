@@ -34,7 +34,7 @@ case "$weekly_catman_enable" in
 		    rc=0
          
 		    # Preformat original, non-localized manpages  
-		    echo /usr/libexec/catman.local "$MANPATH" |
+		    echo /usr/libexec/catman.local -r "$MANPATH" |
 			su -fm man || rc=3
 
 		    # Preformat localized manpages.
@@ -42,7 +42,7 @@ case "$weekly_catman_enable" in
 		    then
 			for i in $man_locales
 			do
-			    echo /usr/libexec/catman.local -L \
+			    echo /usr/libexec/catman.local -Lr \
 				"$MANPATH" | LC_ALL=$i su -fm man || rc=3
 			done
 		    fi
