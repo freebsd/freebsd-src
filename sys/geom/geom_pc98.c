@@ -78,7 +78,7 @@ g_dec_dos_partition(u_char *ptr, struct dos_partition *d)
 
 struct g_pc98_softc {
 	int type [NDOSPART];
-	struct dos_partition dospart[NDOSPART];
+	struct dos_partition dp[NDOSPART];
 };
 
 static int
@@ -111,29 +111,40 @@ g_pc98_dumpconf(struct sbuf *sb, char *indent, struct g_geom *gp,
 {
 	struct g_pc98_softc *mp;
 	struct g_slicer *gsp;
+	char sname[17];
 
 	gsp = gp->softc;
 	mp = gsp->softc;
 	g_slice_dumpconf(sb, indent, gp, cp, pp);
 	if (pp != NULL) {
-		if (indent == NULL)
+		strncpy(sname, mp->dp[pp->index].dp_name, 16);
+		sname[16] = '\0';
+		if (indent == NULL) {
 			sbuf_printf(sb, " ty %d", mp->type[pp->index]);
-		else
+			sbuf_printf(sb, " sn %s", sname);
+		} else {
 			sbuf_printf(sb, "%s<type>%d</type>\n", indent,
 				    mp->type[pp->index]);
+			sbuf_printf(sb, "%s<sname>%s</sname>\n", indent,
+				    sname);
+		}
 	}
 }
 
 static void
 g_pc98_print(int i, struct dos_partition *dp)
 {
+	char sname[17];
+
+	strncpy(sname, dp->dp_name, 16);
+	sname[16] = '\0';
 
 	g_hexdump(dp, sizeof(dp[0]));
 	printf("[%d] mid:%d(0x%x) sid:%d(0x%x)",
 	       i, dp->dp_mid, dp->dp_mid, dp->dp_sid, dp->dp_sid);
 	printf(" s:%d/%d/%d", dp->dp_scyl, dp->dp_shd, dp->dp_ssect);
 	printf(" e:%d/%d/%d", dp->dp_ecyl, dp->dp_ehd, dp->dp_esect);
-	printf(" name:%s\n", dp->dp_name);
+	printf(" sname:%s\n", sname);
 }
 
 static struct g_geom *
@@ -143,7 +154,6 @@ g_pc98_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	struct g_consumer *cp;
 	struct g_provider *pp2;
 	int error, i, npart;
-	struct dos_partition dp[NDOSPART];
 	struct g_pc98_softc *ms;
 	struct g_slicer *gsp;
 	u_int fwsectors, fwheads, sectorsize;
@@ -204,27 +214,29 @@ g_pc98_taste(struct g_class *mp, struct g_provider *pp, int flags)
 		for (i = 0; i < NDOSPART; i++)
 			g_dec_dos_partition(
 				buf + 512 + i * sizeof(struct dos_partition),
-				dp + i);
+				ms->dp + i);
 		g_free(buf);
 		for (i = 0; i < NDOSPART; i++) {
 			/* If start and end are identical it's bogus */
-			if (dp[i].dp_ssect == dp[i].dp_esect &&
-			    dp[i].dp_shd == dp[i].dp_ehd &&
-			    dp[i].dp_scyl == dp[i].dp_ecyl)
+			if (ms->dp[i].dp_ssect == ms->dp[i].dp_esect &&
+			    ms->dp[i].dp_shd == ms->dp[i].dp_ehd &&
+			    ms->dp[i].dp_scyl == ms->dp[i].dp_ecyl)
 				continue;
-			if (dp[i].dp_ecyl == 0)
+			if (ms->dp[i].dp_ecyl == 0)
 				continue;
                         if (bootverbose) {
 				printf("PC98 Slice %d on %s:\n",
 				       i + 1, gp->name);
-				g_pc98_print(i, dp + i);
+				g_pc98_print(i, ms->dp + i);
 			}
 			npart++;
-			ms->type[i] = (dp[i].dp_sid << 8) | dp[i].dp_mid;
+			ms->type[i] = (ms->dp[i].dp_sid << 8) |
+				ms->dp[i].dp_mid;
 			g_topology_lock();
 			pp2 = g_slice_addslice(gp, i,
-			    dp[i].dp_scyl * spercyl,
-			    (dp[i].dp_ecyl - dp[i].dp_scyl + 1) * spercyl,
+			    ms->dp[i].dp_scyl * spercyl,
+			    (ms->dp[i].dp_ecyl - ms->dp[i].dp_scyl + 1) *
+					       spercyl,
 			    sectorsize,
 			    "%ss%d", gp->name, i + 1);
 			g_topology_unlock();
