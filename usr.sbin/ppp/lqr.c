@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.c,v 1.5 1996/01/11 17:48:52 phk Exp $
+ * $Id: lqr.c,v 1.6 1996/01/30 11:08:37 dfr Exp $
  *
  *	o LQR based on RFC1333
  *
@@ -60,7 +60,7 @@ SendEchoReq()
     lqr = &lqrdata;
     lqr->magic = htonl(LcpInfo.want_magic);
     lqr->signature = htonl(SIGNATURE);
-    LogPrintf(LOG_LQM, "Send echo LQR [%d]\n", echoseq);
+    LogPrintf(LOG_LQM_BIT, "Send echo LQR [%d]\n", echoseq);
     lqr->sequence = htonl(echoseq++);
     FsmOutput(fp, CODE_ECHOREQ, fp->reqid++,
 	      (u_char *)lqr, sizeof(struct echolqr));
@@ -78,7 +78,7 @@ struct mbuf *bp;
     lqr = (struct echolqr *)MBUF_CTOP(bp);
     if (htonl(lqr->signature) == SIGNATURE) {
       seq = ntohl(lqr->sequence);
-      LogPrintf(LOG_LQM, "Got echo LQR [%d]\n", ntohl(lqr->sequence));
+      LogPrintf(LOG_LQM_BIT, "Got echo LQR [%d]\n", ntohl(lqr->sequence));
       gotseq = seq;
     }
   }
@@ -108,7 +108,7 @@ SendLqrReport()
       /*
        * XXX: Should implement LQM strategy
        */
-      LogPrintf(LOG_PHASE, "** 1 Too many ECHO packets are lost. **\n");
+      LogPrintf(LOG_PHASE_BIT, "** 1 Too many ECHO packets are lost. **\n");
       lqmmethod = 0;   /* Prevent rcursion via LcpClose() */
       LcpClose();
     } else {
@@ -118,7 +118,7 @@ SendLqrReport()
     }
   } else if (lqmmethod & LQM_ECHO) {
     if (echoseq - gotseq > 5) {
-      LogPrintf(LOG_PHASE, "** 2 Too many ECHO packets are lost. **\n");
+      LogPrintf(LOG_PHASE_BIT, "** 2 Too many ECHO packets are lost. **\n");
       lqmmethod = 0;   /* Prevent rcursion via LcpClose() */
       LcpClose();
     } else
@@ -193,7 +193,7 @@ StartLqm()
   if (Enabled(ConfLqr))
     lqmmethod |= LQM_LQR;
   StopTimer(&LqrTimer);
-  LogPrintf(LOG_LQM, "LQM method = %d\n", lqmmethod);
+  LogPrintf(LOG_LQM_BIT, "LQM method = %d\n", lqmmethod);
 
   if (lcp->his_lqrperiod || lcp->want_lqrperiod) {
     /*
@@ -206,10 +206,10 @@ StartLqm()
     LqrTimer.func = SendLqrReport;
     SendLqrReport();
     StartTimer(&LqrTimer);
-    LogPrintf(LOG_LQM, "Will send LQR every %d.%d secs\n",
+    LogPrintf(LOG_LQM_BIT, "Will send LQR every %d.%d secs\n",
 	      period/100, period % 100);
   } else {
-    LogPrintf(LOG_LQM, "LQR is not activated.\n");
+    LogPrintf(LOG_LQM_BIT, "LQR is not activated.\n");
   }
 }
 
@@ -223,12 +223,12 @@ void
 StopLqr(method)
 int method;
 {
-  LogPrintf(LOG_LQM, "StopLqr method = %x\n", method);
+  LogPrintf(LOG_LQM_BIT, "StopLqr method = %x\n", method);
 
   if (method == LQM_LQR)
-    LogPrintf(LOG_LQM, "Stop sending LQR, Use LCP ECHO instead.\n");
+    LogPrintf(LOG_LQM_BIT, "Stop sending LQR, Use LCP ECHO instead.\n");
   if (method == LQM_ECHO)
-    LogPrintf(LOG_LQM, "Stop sending LCP ECHO.\n");
+    LogPrintf(LOG_LQM_BIT, "Stop sending LCP ECHO.\n");
   lqmmethod &= ~method;
   if (lqmmethod)
     SendLqrReport();

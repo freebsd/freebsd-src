@@ -5,7 +5,7 @@
 
 /*
  *
- * $Id: pred.c,v 1.4 1996/01/10 21:27:59 phk Exp $
+ * $Id: pred.c,v 1.5 1996/01/30 11:08:48 dfr Exp $
  *
  * pred.c -- Test program for Dave Rand's rendition of the
  * predictor algorithm
@@ -179,7 +179,7 @@ struct mbuf *bp;
     CcpInfo.compin += olen;
     len &= 0x7fff;
     if (len != len1) {	/* Error is detected. Send reset request */
-      LogPrintf(LOG_LCP, "%s: Length Error\n", CcpFsm.name);
+      LogPrintf(LOG_LCP_BIT, "%s: Length Error\n", CcpFsm.name);
       CcpSendResetReq(&CcpFsm);
       pfree(bp);
       pfree(wp);

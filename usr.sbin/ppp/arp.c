@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: arp.c,v 1.3 1996/01/10 21:27:35 phk Exp $
+ * $Id: arp.c,v 1.4 1996/01/11 17:48:34 phk Exp $
  *
  */
 
@@ -183,7 +183,7 @@ sifproxyarp(unit, hisaddr)
      * as our local address.
      */
     if (!get_ether_addr(unit, hisaddr, &dls.sdl)) {
-	LogPrintf(LOG_PHASE, "Cannot determine ethernet address for proxy ARP\n");
+	LogPrintf(LOG_PHASE_BIT, "Cannot determine ethernet address for proxy ARP\n");
 	return 0;
     }
 
@@ -285,7 +285,7 @@ nextif:
 
     if (ifr >= ifend)
 	return 0;
-    LogPrintf(LOG_PHASE, "found interface %s for proxy arp\n", ifr->ifr_name);
+    LogPrintf(LOG_PHASE_BIT, "found interface %s for proxy arp\n", ifr->ifr_name);
 
     /*
      * Now scan through again looking for a link-level address

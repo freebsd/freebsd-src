@@ -1,5 +1,5 @@
 .\" manual page [] for ppp 0.94 beta2 + alpha
-.\" $Id: ppp.8,v 1.15 1996/03/09 08:18:41 ache Exp $
+.\" $Id: ppp.8,v 1.16 1996/05/02 19:18:47 mpp Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -664,8 +664,11 @@ is able to generate the following log info into
 .Bl -column SMMMMMM -offset indent -compat
 .It Li Phase	Phase transition log output
 .It Li Chat	Generate Chat script trace log
+.It Li Connect	Generate complete Chat log
+.It Li Carrier	Log Chat lines with 'CARRIER'
 .It Li LQM	Generate LQR report
 .It Li LCP	Generate LCP/IPCP packet trace
+.It Li Link	Log address assignments and link up/down events
 .It Li TCP/IP	Dump TCP/IP packet
 .It Li HDLC	Dump HDLC packet in hex
 .It Li Async	Dump async level packet in hex
@@ -675,7 +678,7 @@ The
 .Dq set debug
 command allows you to set logging output level, of which
 multiple levels can be specified.  The default is equivalent to
-.Dq set debug phase lcp .
+.Dq set debug carrier link phase .
 
 .Sh MORE DETAILS
 

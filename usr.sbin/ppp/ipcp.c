@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.6 1995/07/08 08:28:04 amurai Exp $
+ * $Id: ipcp.c,v 1.7 1996/01/11 17:48:50 phk Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -199,7 +199,7 @@ struct fsm *fp;
   struct ipcpstate *icp = &IpcpInfo;
 
   cp = ReqBuff;
-  LogPrintf(LOG_LCP, "%s: SendConfigReq\n", fp->name);
+  LogPrintf(LOG_LCP_BIT, "%s: SendConfigReq\n", fp->name);
   if (!DEV_IS_SYNC || !REJECTED(icp, TY_IPADDR))
     PutConfValue(&cp, cftypes, TY_IPADDR, 6, ntohl(icp->want_ipaddr.s_addr));
   if (icp->want_compproto && !REJECTED(icp, TY_COMPPROTO)) {
@@ -222,7 +222,7 @@ static void
 IpcpSendTerminateAck(fp)
 struct fsm *fp;
 {
-  LogPrintf(LOG_LCP, "  %s: SendTerminateAck\n", fp->name);
+  LogPrintf(LOG_LCP_BIT, "  %s: SendTerminateAck\n", fp->name);
   FsmOutput(fp, CODE_TERMACK, fp->reqid++, NULL, 0);
 }
 
@@ -230,14 +230,14 @@ static void
 IpcpLayerStart(fp)
 struct fsm *fp;
 {
-  LogPrintf(LOG_LCP, "%s: LayerStart.\n", fp->name);
+  LogPrintf(LOG_LCP_BIT, "%s: LayerStart.\n", fp->name);
 }
 
 static void
 IpcpLayerFinish(fp)
 struct fsm *fp;
 {
-  LogPrintf(LOG_LCP, "%s: LayerFinish.\n", fp->name);
+  LogPrintf(LOG_LCP_BIT, "%s: LayerFinish.\n", fp->name);
   LcpClose();
   NewPhase(PHASE_TERMINATE);
 }
@@ -246,7 +246,7 @@ static void
 IpcpLayerDown(fp)
 struct fsm *fp;
 {
-  LogPrintf(LOG_LCP, "%s: LayerDown.\n", fp->name);
+  LogPrintf(LOG_LCP_BIT, "%s: LayerDown.\n", fp->name);
   StopTimer(&IpcpReportTimer);
 }
 
@@ -263,9 +263,9 @@ struct fsm *fp;
   fprintf(stderr, "%s: LayerUp(%d).\r\n", fp->name, fp->state);
 #endif
   Prompt(1);
-  LogPrintf(LOG_LCP, "%s: LayerUp.\n", fp->name);
+  LogPrintf(LOG_LCP_BIT, "%s: LayerUp.\n", fp->name);
   sprintf(tbuff, "myaddr = %s ", inet_ntoa(IpcpInfo.want_ipaddr));
-  LogPrintf(LOG_LCP, " %s hisaddr = %s\n", tbuff, inet_ntoa(IpcpInfo.his_ipaddr));
+  LogPrintf(LOG_LCP_BIT|LOG_LINK_BIT, " %s hisaddr = %s\n", tbuff, inet_ntoa(IpcpInfo.his_ipaddr));
   OsSetIpaddress(IpcpInfo.want_ipaddr, IpcpInfo.his_ipaddr, ifnetmask);
   OsLinkup();
   IpcpStartReport();
@@ -276,7 +276,7 @@ void
 IpcpUp()
 {
   FsmUp(&IpcpFsm);
-  LogPrintf(LOG_LCP, "IPCP Up event!!\n");
+  LogPrintf(LOG_LCP_BIT, "IPCP Up event!!\n");
 }
 
 void
@@ -331,7 +331,7 @@ int mode;
     case TY_IPADDR:		/* RFC1332 */
       lp = (u_long *)(cp + 2);
       ipaddr.s_addr = *lp;
-      LogPrintf(LOG_LCP, "%s %s\n", tbuff, inet_ntoa(ipaddr));
+      LogPrintf(LOG_LCP_BIT, "%s %s\n", tbuff, inet_ntoa(ipaddr));
 
       switch (mode) {
       case MODE_REQ:
@@ -356,7 +356,7 @@ int mode;
            * Use address suggested by peer.
            */
 	  sprintf(tbuff+50, "%s changing address: %s ", tbuff, inet_ntoa(IpcpInfo.want_ipaddr));
-	  LogPrintf(LOG_LCP, "%s --> %s\n", tbuff+50, inet_ntoa(ipaddr));
+	  LogPrintf(LOG_LCP_BIT, "%s --> %s\n", tbuff+50, inet_ntoa(ipaddr));
 	  IpcpInfo.want_ipaddr = ipaddr;
 	}
 	break;
@@ -368,7 +368,7 @@ int mode;
     case TY_COMPPROTO:
       lp = (u_long *)(cp + 2);
       compproto = htonl(*lp);
-      LogPrintf(LOG_LCP, "%s %08x\n", tbuff, compproto);
+      LogPrintf(LOG_LCP_BIT, "%s %08x\n", tbuff, compproto);
 
       switch (mode) {
       case MODE_REQ:
@@ -416,7 +416,7 @@ int mode;
 	}
 	break;
       case MODE_NAK:
-	LogPrintf(LOG_LCP, "%s changing compproto: %08x --> %08x\n",
+	LogPrintf(LOG_LCP_BIT, "%s changing compproto: %08x --> %08x\n",
 	  tbuff, IpcpInfo.want_compproto, compproto);
 	IpcpInfo.want_compproto = compproto;
 	break;
@@ -430,8 +430,8 @@ int mode;
       ipaddr.s_addr = *lp;
       lp = (u_long *)(cp + 6);
       dstipaddr.s_addr = *lp;
-      LogPrintf(LOG_LCP, "%s %s, ", tbuff, inet_ntoa(ipaddr));
-      LogPrintf(LOG_LCP, "%s\n", inet_ntoa(dstipaddr));
+      LogPrintf(LOG_LCP_BIT, "%s %s, ", tbuff, inet_ntoa(ipaddr));
+      LogPrintf(LOG_LCP_BIT, "%s\n", inet_ntoa(dstipaddr));
 
       switch (mode) {
       case MODE_REQ:
@@ -441,9 +441,9 @@ int mode;
 	ackp += length;
 	break;
       case MODE_NAK:
-	LogPrintf(LOG_LCP, "%s changing address: %s ",
+	LogPrintf(LOG_LCP_BIT, "%s changing address: %s ",
 	  tbuff, inet_ntoa(IpcpInfo.want_ipaddr));
-	LogPrintf(LOG_LCP, "--> %s\n", inet_ntoa(ipaddr));
+	LogPrintf(LOG_LCP_BIT, "--> %s\n", inet_ntoa(ipaddr));
 	IpcpInfo.want_ipaddr = ipaddr;
 	IpcpInfo.his_ipaddr = dstipaddr;
 	break;
