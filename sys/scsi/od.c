@@ -28,7 +28,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: od.c,v 1.36 1998/04/15 17:47:18 bde Exp $
+ *	$Id: od.c,v 1.37 1998/04/17 22:37:07 des Exp $
  */
 
 /*
@@ -97,7 +97,7 @@ struct scsi_data {
 #define	ODINIT		0x04	/* device has been init'd */
 	struct disk_parms {
 		u_char    heads;	/* Number of heads */
-		u_int16_t cyls;		/* Number of cylinders (ficticous) */
+		u_int16_t cyls;		/* Number of cylinders (fictitious) */
 		u_int16_t sectors;	/* Number of sectors/track */
 		u_int16_t secsiz;	/* Number of bytes/sector */
 		u_int32_t disksize;	/* total number sectors */
@@ -780,7 +780,7 @@ od_size(unit, flags)
 		NULL,
 		flags | SCSI_SILENT | SCSI_DATA_IN) != 0) {
 
-		/* default to a ficticous geometry */
+		/* default to a fictitious geometry */
 		od->params.heads = 64;
 	} else {
 		SC_DEBUG(sc_link, SDEV_DB3,
@@ -791,7 +791,7 @@ od_size(unit, flags)
 
 		od->params.heads = scsi_sense.pages.rigid_geometry.nheads;
 		if (od->params.heads == 0)
-			od->params.heads = 64; /* ficticous */
+			od->params.heads = 64; /* fictitious */
 		od->params.rpm =
 			scsi_2btou(&scsi_sense.pages.rigid_geometry.medium_rot_rate_1);
 	}
@@ -817,7 +817,7 @@ od_size(unit, flags)
 		NULL,
 		flags | SCSI_SILENT | SCSI_DATA_IN) != 0) {
 
-		/* default to a ficticous geometry */
+		/* default to a fictitious geometry */
 		od->params.sectors = 32;
 	} else {
 		SC_DEBUG(sc_link, SDEV_DB3,
@@ -827,7 +827,7 @@ od_size(unit, flags)
 		od->params.sectors =
 			scsi_2btou(&scsi_sense.pages.disk_format.ph_sec_t_1);
 		if (od->params.sectors == 0)
-			od->params.sectors = 32; /* ficticous */
+			od->params.sectors = 32; /* fictitious */
 	}
 
 	return od->params.disksize;
@@ -887,12 +887,12 @@ od_get_parms(unit, flags)
 		return 0;
 
 	/*
-	 * Use ficticious geometry, this depends on the size of medium.
+	 * Use fictitious geometry, this depends on the size of medium.
 	 */
 	sectors = od_size(unit, flags);
 	/* od_size() sets secsiz, disksize, sectors, and heads */
 
-	/* ficticous number of cylinders, so that C*H*S <= total */
+	/* fictitious number of cylinders, so that C*H*S <= total */
 	if (disk_parms->sectors != 0 && disk_parms->heads != 0) {
 		disk_parms->cyls =
 		  sectors / (disk_parms->sectors * disk_parms->heads);

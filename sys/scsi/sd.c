@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.124 1998/04/19 23:32:36 julian Exp $
+ *      $Id: sd.c,v 1.125 1998/04/22 10:25:27 julian Exp $
  */
 
 #include "opt_bounce.h"
@@ -907,9 +907,9 @@ sd_get_parms(int unit, int flags)
 		flags | SCSI_DATA_IN) != 0) {
 
 		printf("sd%d could not mode sense (4).", unit);
-		printf(" Using ficticious geometry\n");
+		printf(" Using fictitious geometry\n");
 		/*
-		 * use adaptec standard ficticious geometry
+		 * use adaptec standard fictitious geometry
 		 * this depends on which controller (e.g. 1542C is
 		 * different. but we have to put SOMETHING here..)
 		 */
