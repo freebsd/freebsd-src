@@ -27,13 +27,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: crt0.c,v 1.32 1998/02/06 16:46:33 jdp Exp $
+ *	$Id: crt0.c,v 1.33 1998/02/09 06:05:09 jdp Exp $
  */
 
 #include <sys/param.h>
 
 #include <stdlib.h>
-#include <dlfcn.h>
 
 #ifdef DYNAMIC
 #include <sys/types.h>

@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.69 1998/01/02 09:39:12 jkh Exp $
+#	$Id: Makefile,v 1.70 1998/01/31 05:54:54 imp Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -11,7 +11,8 @@ depend lint tags:
 CLEANFILES= osreldate.h version vers.c
 SUBDIR= rpcsvc
 FILES=	a.out.h ar.h assert.h bitstring.h ctype.h db.h dirent.h disktab.h \
-	elf.h err.h fnmatch.h fstab.h fts.h glob.h grp.h strhash.h histedit.h \
+	dlfcn.h elf.h err.h fnmatch.h fstab.h \
+	fts.h glob.h grp.h strhash.h histedit.h \
 	kvm.h limits.h link.h locale.h malloc.h memory.h mpool.h \
 	ndbm.h netdb.h nl_types.h nlist.h paths.h pthread.h pthread_np.h pwd.h \
 	ranlib.h regex.h regexp.h resolv.h rune.h runetype.h setjmp.h sgtty.h \
