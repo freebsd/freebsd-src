@@ -169,6 +169,8 @@ main(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
+	if (Iflag && Jflag)
+		errx(1, "the -I and -J options may not be used together");
 	if (xflag && !nflag)
 		usage();
 	if (Iflag || Lflag)
