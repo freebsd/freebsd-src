@@ -33,34 +33,12 @@
 
 #include <sys/param.h>
 #include <sys/bus.h>
-#include <sys/rtprio.h>			/* change this name XXX */
-#include <sys/proc.h>
-#include <sys/systm.h>
-#include <sys/syslog.h>
-#include <sys/kernel.h>
-#include <sys/kthread.h>
-#include <sys/lock.h>
-#include <sys/malloc.h>
-#include <sys/module.h>
-#include <sys/mutex.h>
-#include <sys/unistd.h>
-#include <sys/errno.h>
 #include <sys/interrupt.h>
-#include <sys/random.h>
-#include <sys/resourcevar.h>
-#include <sys/time.h>
-#include <machine/md_var.h>
-#include <machine/segments.h>
+#include <sys/systm.h>
+#include <sys/vmmeter.h>
 
 #include <i386/isa/icu.h>
-
-#include <isa/isavar.h>
 #include <i386/isa/intr_machdep.h>
-#include <sys/interrupt.h>
-
-#include <sys/vmmeter.h>
-#include <sys/ktr.h>
-#include <machine/cpu.h>
 
 struct int_entropy {
 	struct proc *p;
