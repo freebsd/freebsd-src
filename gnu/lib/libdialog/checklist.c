@@ -199,8 +199,10 @@ dialog_checklist(unsigned char *title, unsigned char *prompt, int height, int wi
     /* Shortcut to OK? */
     if (toupper(key) == okButton) {
       if (ditems && result && ditems[OK_BUTTON].fire) {
-	if (ditems[OK_BUTTON].fire(&ditems[OK_BUTTON]) == DITEM_FAILURE)
+	if (ditems[OK_BUTTON].fire(&ditems[OK_BUTTON]) == DITEM_FAILURE) {
+	  wrefresh(dialog);
 	  continue;
+	}
 	else
 	  delwin(dialog);
       }
@@ -219,8 +221,10 @@ dialog_checklist(unsigned char *title, unsigned char *prompt, int height, int wi
     /* Shortcut to cancel? */
     else if (toupper(key) == cancelButton) {
       if (ditems && result && ditems[CANCEL_BUTTON].fire) {
-	if (ditems[CANCEL_BUTTON].fire(&ditems[CANCEL_BUTTON]) == DITEM_FAILURE)
+	if (ditems[CANCEL_BUTTON].fire(&ditems[CANCEL_BUTTON]) == DITEM_FAILURE) {
+	  wrefresh(dialog);
 	  continue;
+	}
       }
       delwin(dialog);
       return 1;
@@ -297,8 +301,10 @@ dialog_checklist(unsigned char *title, unsigned char *prompt, int height, int wi
 	      key = ESC;
 	      break;
 	    }
-	    else if (st == DITEM_FAILURE)
+	    else if (st == DITEM_FAILURE) {
+	      wrefresh(dialog);
 	      continue;
+	    }
 	    else if (st == DITEM_REDRAW) {
 	      for (i = 0; i < max_choice; i++) {
 		status[scroll + i] = ditems[scroll + i].checked ?
@@ -425,8 +431,10 @@ dialog_checklist(unsigned char *title, unsigned char *prompt, int height, int wi
       if (!button && result) {
 	if (ditems && ditems[button ? CANCEL_BUTTON : OK_BUTTON].fire) {
 	  if (ditems[button ? CANCEL_BUTTON : OK_BUTTON].fire(&ditems[button ? CANCEL_BUTTON : OK_BUTTON]) ==
-	      DITEM_FAILURE)
+	      DITEM_FAILURE) {
+	    wrefresh(dialog);
 	    continue;
+	  }
 	}
 	else {
 	  *result = '\0';
