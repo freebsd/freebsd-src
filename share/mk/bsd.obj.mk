@@ -1,4 +1,4 @@
-#	$Id: bsd.obj.mk,v 1.2 1996/04/09 22:43:33 wosch Exp $
+#	$Id: bsd.obj.mk,v 1.3 1996/04/22 23:31:39 wosch Exp $
 #
 # The include file <bsd.obj.mk> handles creating 'obj' directory
 # and cleaning up object files, log files etc.
@@ -12,8 +12,14 @@
 # BSDOBJDIR	The real path to the system 'obj' tree, so that 'make obj'
 #		will work correctly. [/usr/obj]
 #
+# CLEANFILES	Additional files to remove for the clean and cleandir targets.
+#
 # MAKEOBJDIR 	A file name to the directory where the targets 
-#		are built. [obj]
+#		are built. Note: MAKEOBJDIR is an *enviroment* variable
+#		and does work proper only if set as enviroment variable,
+#		not as global or command line variable! [obj]
+#
+#		E.g. use `env MAKEOBJDIR=obj-amd make'
 #
 # NOOBJ		Do not create 'obj' directory if defined. [not set]
 #
