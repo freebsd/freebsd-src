@@ -176,7 +176,7 @@ ip_output(m0, opt, ro, flags, imo)
             /*
              * the packet was already tagged, so part of the
              * processing was already done, and we need to go down.
-             * * Get parameters from the header.
+             * Get parameters from the header.
              */
             rule = (struct ip_fw_chain *)(m->m_data) ;
 	    opt = NULL ;
@@ -462,7 +462,7 @@ sendit:
 	/*
 	 * Check with the firewall...
 	 */
-	if (ip_fw_chk_ptr) {
+	if (fw_enable && ip_fw_chk_ptr) {
 		struct sockaddr_in *old = dst;
 
 		off = (*ip_fw_chk_ptr)(&ip,
