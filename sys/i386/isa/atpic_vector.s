@@ -67,7 +67,6 @@ IDTVEC(vec_name) ;							\
 	MEXITCOUNT ;							\
 	jmp	doreti
 
-MCOUNT_LABEL(bintr)
 	INTR(0, atpic_intr0)
 	INTR(1, atpic_intr1)
 	INTR(2, atpic_intr2)
@@ -84,4 +83,3 @@ MCOUNT_LABEL(bintr)
 	INTR(13, atpic_intr13)
 	INTR(14, atpic_intr14)
 	INTR(15, atpic_intr15)
-MCOUNT_LABEL(eintr)
