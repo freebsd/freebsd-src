@@ -36,6 +36,8 @@
 
 #ifndef lint
 static char sccsid[] = "@(#)look.c	8.1 (Berkeley) 6/6/93";
+static char rcsid[] =
+  "$FreeBSD$";
 #endif /* not lint */
 
 /*
@@ -45,6 +47,7 @@ static char sccsid[] = "@(#)look.c	8.1 (Berkeley) 6/6/93";
  */
 
 #include <sys/types.h>
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -89,10 +92,12 @@ char *name;
 	ndptr p;
 
 	h = hash(name);
-	p = (ndptr) xalloc(sizeof(struct ndblock));
+	if ((p = malloc(sizeof(struct ndblock))) == NULL)
+		err(1, "malloc");
 	p->nxtptr = hashtab[h];
 	hashtab[h] = p;
-	p->name = xstrdup(name);
+	if ((p->name = strdup(name)) == NULL)
+		err(1, "strdup");
 	return p;
 }
 

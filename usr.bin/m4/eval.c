@@ -86,6 +86,7 @@ register int td;
 {
 	register int c, n;
 	static int sysval = 0;
+	char *p;
 
 #ifdef DEBUG
 	printf("argc = %d\n", argc);
@@ -352,7 +353,9 @@ register int td;
 	 * dom4wrap - set up for
 	 * wrap-up/wind-down activity
 	 */
-		m4wraps = (argc > 2) ? xstrdup(argv[2]) : null;
+		if ((p = strdup(argv[2])) == NULL)
+			err(1, "strdup");
+		m4wraps = (argc > 2) ? p : null;
 		break;
 
 	case EXITTYPE:
@@ -472,7 +475,8 @@ register char *defn;
 	if (!*defn)
 		p->defn = null;
 	else
-		p->defn = xstrdup(defn);
+		if ((p->defn = strdup(defn)) == NULL)
+			err(1, "strdup");
 	p->type = MACRTYPE;
 }
 
@@ -515,7 +519,8 @@ register char *defn;
 	if (!*defn)
 		p->defn = null;
 	else
-		p->defn = xstrdup(defn);
+		if ((p->defn = strdup(defn)) == NULL)
+			err(1, "strdup");
 	p->type = MACRTYPE;
 }
 
