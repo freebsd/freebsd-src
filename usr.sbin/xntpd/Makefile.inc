@@ -8,10 +8,16 @@ CLOCKDEFS= -DLOCAL_CLOCK -DPST -DWWVB -DAS2201 -DGOES -DGPSTM -DOMEGA \
 	-DLEITCH -DTRAK -DACTS -DATOM -DDATUM -DHEATH -DMSFEES \
 	-DMX4200 -DNMEA -DBOEDER
 CFLAGS+= ${NTPDEFS} ${DEFS_LOCAL} ${AUTHDEFS} ${CLOCKDEFS} ${COPTS}
-BINDIR?= /usr/sbin
+
+.if exists(${.OBJDIR}/../lib)
+LIBNTP=	${.OBJDIR}/../lib/libntp.a
+.else
+LIBNTP=	${.CURDIR}/../lib/libntp.a
+.endif
 
 .if !defined(NOCRYPT) && exists(${.CURDIR}/../../../secure/usr.sbin/xntpd/lib)
 AUTHDEFS+=	-DDES
 .endif
 
+.include "../Makefile.inc"
 .endif

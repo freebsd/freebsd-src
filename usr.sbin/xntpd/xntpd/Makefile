@@ -1,27 +1,17 @@
 #
-# $Id$
+# $Id: Makefile,v 1.11 1997/02/22 16:14:39 peter Exp $
 #
 
 CFLAGS+= -I${.CURDIR}/../include
 
-.if exists(${.OBJDIR}/../lib)
-LDADD+= -L${.OBJDIR}/../lib
-DPADD+= ${.OBJDIR}/../lib/libntp.a
-.else
-LDADD+= -L${.CURDIR}/../lib
-DPADD+= ${.CURDIR}/../lib/libntp.a
-.endif
-
 .if exists(${.OBJDIR}/../parse)
-LDADD+= -L${.OBJDIR}/../parse
-DPADD+= ${.OBJDIR}/../parse/libparse.a
+LIBPARSE= ${.OBJDIR}/../parse/libparse.a
 .else
-LDADD+= -L${.CURDIR}/../parse
-DPADD+= ${.CURDIR}/../parse/libparse.a
+LIBPARSE= ${.CURDIR}/../parse/libparse.a
 .endif
 
-LDADD+= -lntp -lparse -lkvm
-DPADD+= ${LIBKVM}
+DPADD=	${LIBNTP} ${LIBPARSE} ${LIBKVM}
+LDADD=	${LIBNTP} ${LIBPARSE} -lkvm
 
 PROG= xntpd
 MAN8= ${.CURDIR}/../doc/xntpd.8
