@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.265 1996/06/16 20:04:47 joerg Exp $
+#	$Id: LINT,v 1.266 1996/06/18 10:20:16 julian Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -465,6 +465,11 @@ controller	isa0
 # than 16 megabytes of memory.  It doesn't hurt on other machines.
 # Some broken EISA and VLB hardware may need this, too.
 #
+# MAXMEM specifies the amount of RAM on the machine; if this is not
+# specified, only the first 64MB will be used. The amount is in kilobytes,
+# so for a machine with 128MB of RAM, it would be 131072 (128 * 1024).
+# Not needed if you have 64MB or less.
+#
 # TUNE_1542 enables the automatic ISA bus speed selection for the
 # Adaptec 1542 boards. Does not work for all boards, use it with caution.
 #
@@ -477,6 +482,7 @@ controller	isa0
 options		"AUTO_EOI_1"
 #options	"AUTO_EOI_2"
 options		BOUNCE_BUFFERS
+#options	"MAXMEM=128*1024"
 #options        "TUNE_1542"
 #options	BROKEN_KEYBOARD_RESET
 #options	PAS_JOYSTICK_ENABLE
