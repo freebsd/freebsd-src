@@ -37,7 +37,7 @@
 .\" FreeBSD: src/lib/libc/stdio/printf.3,v 1.47 2002/09/06 11:23:55 tjr Exp
 .\" $FreeBSD$
 .\"
-.Dd September 18, 2002
+.Dd July 5, 2003
 .Dt WPRINTF 3
 .Os
 .Sh NAME
@@ -596,8 +596,13 @@ field is expanded to contain the conversion result.
 Refer to
 .Xr printf 3 .
 .Sh SEE ALSO
+.Xr btowc 3 ,
+.Xr fputws 3 ,
 .Xr printf 3 ,
-.Xr setlocale 3
+.Xr putwc 3 ,
+.Xr setlocale 3 ,
+.Xr wcsrtombs 3 ,
+.Xr wscanf 3
 .Sh STANDARDS
 Subject to the caveats noted in the
 .Sx BUGS
