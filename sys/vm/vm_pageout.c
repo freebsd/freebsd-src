@@ -1194,7 +1194,7 @@ rescan0:
 	 * the process lock but just skip a process if it is already locked.
 	 */
 	if (pass != 0 &&
-	    ((vm_swap_size < 64 && vm_page_count_min()) ||
+	    ((swap_pager_avail < 64 && vm_page_count_min()) ||
 	     (swap_pager_full && vm_paging_target() > 0))) {
 		bigproc = NULL;
 		bigsize = 0;
@@ -1211,7 +1211,7 @@ rescan0:
 			 */
 			if ((p->p_flag & P_SYSTEM) || (p->p_pid == 1) ||
 			    (p->p_flag & P_PROTECTED) ||
-			    ((p->p_pid < 48) && (vm_swap_size != 0))) {
+			    ((p->p_pid < 48) && (swap_pager_avail != 0))) {
 				PROC_UNLOCK(p);
 				continue;
 			}
