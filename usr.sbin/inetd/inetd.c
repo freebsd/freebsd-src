@@ -925,7 +925,7 @@ config(void)
 		if (sep != 0) {
 			int i;
 
-#define SWAP(a, b) { typeof(a) c = a; a = b; b = c; }
+#define SWAP(a, b) { __typeof__(a) c = a; a = b; b = c; }
 			omask = sigblock(SIGBLOCK);
 			if (sep->se_nomapped != new->se_nomapped) {
 				sep->se_nomapped = new->se_nomapped;
