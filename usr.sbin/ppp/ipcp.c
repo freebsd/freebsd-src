@@ -208,26 +208,30 @@ static struct fsm_callbacks ipcp_Callbacks = {
   fsm_NullRecvResetAck
 };
 
-static const char * const cftypes[] = {
-  /* Check out the latest ``Assigned numbers'' rfc (rfc1700.txt) */
-  "???",
-  "IPADDRS",	/* 1: IP-Addresses */	/* deprecated */
-  "COMPPROTO",	/* 2: IP-Compression-Protocol */
-  "IPADDR",	/* 3: IP-Address */
-};
+static const char *
+protoname(int proto)
+{
+  static struct {
+    int id;
+    const char *txt;
+  } cftypes[] = {
+    /* Check out the latest ``Assigned numbers'' rfc (rfc1700.txt) */
+    { 1, "IPADDRS" },		/* IP-Addresses */	/* deprecated */
+    { 2, "COMPPROTO" },		/* IP-Compression-Protocol */
+    { 3, "IPADDR" },		/* IP-Address */
+    { 129, "PRIDNS" },		/* 129: Primary DNS Server Address */
+    { 130, "PRINBNS" },		/* 130: Primary NBNS Server Address */
+    { 131, "SECDNS" },		/* 131: Secondary DNS Server Address */
+    { 132, "SECNBNS" }		/* 132: Secondary NBNS Server Address */
+  };
+  int f;
 
-#define NCFTYPES (sizeof cftypes/sizeof cftypes[0])
+  for (f = 0; f < sizeof cftypes / sizeof *cftypes; f++)
+    if (cftypes[f].id == proto)
+      return cftypes[f].txt;
 
-static const char * const cftypes128[] = {
-  /* Check out the latest ``Assigned numbers'' rfc (rfc1700.txt) */
-  "???",
-  "PRIDNS",	/* 129: Primary DNS Server Address */
-  "PRINBNS",	/* 130: Primary NBNS Server Address */
-  "SECDNS",	/* 131: Secondary DNS Server Address */
-  "SECNBNS",	/* 132: Secondary NBNS Server Address */
-};
-
-#define NCFTYPES128 (sizeof cftypes128/sizeof cftypes128[0])
+  return NumStr(proto, NULL, 0);
+}
 
 void
 ipcp_AddInOctets(struct ipcp *ipcp, int n)
@@ -960,12 +964,7 @@ IpcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
       break;
     }
 
-    if (type < NCFTYPES)
-      snprintf(tbuff, sizeof tbuff, " %s[%d] ", cftypes[type], length);
-    else if (type > 128 && type < 128 + NCFTYPES128)
-      snprintf(tbuff, sizeof tbuff, " %s[%d] ", cftypes128[type-128], length);
-    else
-      snprintf(tbuff, sizeof tbuff, " <%d>[%d] ", type, length);
+    snprintf(tbuff, sizeof tbuff, " %s[%d] ", protoname(type), length);
 
     switch (type) {
     case TY_IPADDR:		/* RFC1332 */

@@ -300,13 +300,13 @@ Index2Nam(int idx)
     if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0) {
       log_Printf(LogERROR, "Index2Nam: sysctl: estimate: %s\n",
                  strerror(errno));
-      return "???";
+      return NumStr(idx, NULL, 0);
     }
     if ((buf = malloc(needed)) == NULL)
-      return "???";
+      return NumStr(idx, NULL, 0);
     if (sysctl(mib, 6, buf, &needed, NULL, 0) < 0) {
       free(buf);
-      return "???";
+      return NumStr(idx, NULL, 0);
     }
     end = buf + needed;
 
@@ -334,7 +334,7 @@ Index2Nam(int idx)
               ifs = NULL;
             }
             free(buf);
-            return "???";
+            return NumStr(idx, NULL, 0);
           }
           ifs = newifs;
           memset(ifs + had, '\0', sizeof(char *) * (have - had));
@@ -364,7 +364,7 @@ Index2Nam(int idx)
   }
 
   if (idx < 1 || idx > nifs || ifs[idx-1] == NULL)
-    return "???";
+    return NumStr(idx, NULL, 0);
 
   return ifs[idx-1];
 }
