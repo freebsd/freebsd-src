@@ -58,6 +58,11 @@ static MALLOC_DEFINE(M_BIOBUF, "BIO buffer", "BIO buffer");
 
 struct	bio_ops bioops;		/* I/O operation notification */
 
+struct	buf_ops buf_ops_bio = {
+	"buf_ops_bio",
+	bwrite
+};
+
 struct buf *buf;		/* buffer header pool */
 struct swqueue bswlist;
 struct mtx buftimelock;		/* Interlock on setting prio and timo */
@@ -1685,6 +1690,8 @@ restart:
 		bp->b_bcount = 0;
 		bp->b_npages = 0;
 		bp->b_dirtyoff = bp->b_dirtyend = 0;
+		bp->b_magic = B_MAGIC_BIO;
+		bp->b_op = &buf_ops_bio;
 
 		LIST_INIT(&bp->b_dep);
 
@@ -2088,7 +2095,7 @@ vfs_setdirty(struct buf *bp)
  *	case it is returned with B_INVAL clear and B_CACHE set based on the
  *	backing VM.
  *
- *	getblk() also forces a VOP_BWRITE() for any B_DELWRI buffer whos
+ *	getblk() also forces a BUF_WRITE() for any B_DELWRI buffer whos
  *	B_CACHE bit is clear.
  *	
  *	What this means, basically, is that the caller should use B_CACHE to

@@ -129,7 +129,6 @@ static int	nfsspec_access __P((struct vop_access_args *));
 static int	nfs_readlink __P((struct vop_readlink_args *));
 static int	nfs_print __P((struct vop_print_args *));
 static int	nfs_advlock __P((struct vop_advlock_args *));
-static int	nfs_bwrite __P((struct vop_bwrite_args *));
 /*
  * Global vfs data structures for nfs
  */
@@ -139,7 +138,6 @@ static struct vnodeopv_entry_desc nfsv2_vnodeop_entries[] = {
 	{ &vop_access_desc,		(vop_t *) nfs_access },
 	{ &vop_advlock_desc,		(vop_t *) nfs_advlock },
 	{ &vop_bmap_desc,		(vop_t *) nfs_bmap },
-	{ &vop_bwrite_desc,		(vop_t *) nfs_bwrite },
 	{ &vop_close_desc,		(vop_t *) nfs_close },
 	{ &vop_create_desc,		(vop_t *) nfs_create },
 	{ &vop_fsync_desc,		(vop_t *) nfs_fsync },
@@ -3090,23 +3088,10 @@ nfs_print(ap)
 }
 
 /*
- * Just call nfs_writebp() with the force argument set to 1.
- *
- * NOTE: B_DONE may or may not be set in a_bp on call.
- */
-static int
-nfs_bwrite(ap)
-	struct vop_bwrite_args /* {
-		struct vnode *a_bp;
-	} */ *ap;
-{
-	return (nfs_writebp(ap->a_bp, 1, curproc));
-}
-
-/*
- * This is a clone of vn_bwrite(), except that B_WRITEINPROG isn't set unless
- * the force flag is one and it also handles the B_NEEDCOMMIT flag.  We set
- * B_CACHE if this is a VMIO buffer.
+ * This is the "real" nfs::bwrite(struct buf*).
+ * B_WRITEINPROG isn't set unless the force flag is one and it 
+ * handles the B_NEEDCOMMIT flag.
+ * We set B_CACHE if this is a VMIO buffer.
  */
 int
 nfs_writebp(bp, force, procp)

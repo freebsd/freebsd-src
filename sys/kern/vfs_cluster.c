@@ -755,6 +755,8 @@ cluster_wbuild(vp, size, start_lbn, len)
 		 */
 		TAILQ_INIT(&bp->b_cluster.cluster_head);
 		bp->b_bcount = 0;
+		bp->b_magic = tbp->b_magic;
+		bp->b_op = tbp->b_op;
 		bp->b_bufsize = 0;
 		bp->b_npages = 0;
 		if (tbp->b_wcred != NOCRED) {
