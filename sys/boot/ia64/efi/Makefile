@@ -2,7 +2,7 @@
 
 PROG=		loader.sym
 INTERNALPROG=
-SRCS=		conf.c dev_net.c main.c start.S vers.c
+SRCS=		conf.c dev_net.c efimd.c main.c start.S vers.c
 NOMAN=
 
 CFLAGS+=	-DLOADER
@@ -47,11 +47,16 @@ vers.c: ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
 	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
 
 OBJCOPY?=	objcopy
+OBJDUMP?=	objdump
 
 loader.efi: loader.sym
+	if [ `${OBJDUMP} -t ${.ALLSRC} | fgrep '*UND*' | wc -l` != 0 ]; then \
+		${OBJDUMP} -t ${.ALLSRC} | fgrep '*UND*'; \
+		exit 1; \
+	fi
 	${OBJCOPY} -j .data -j .dynamic -j .dynstr -j .dynsym -j .hash \
 	    -j .rela.dyn -j .reloc -j .sdata -j .text \
-	    --target=efi-app-${MACHINE_ARCH} loader.sym loader.efi
+	    --target=efi-app-${MACHINE_ARCH} ${.ALLSRC} ${.TARGET}
 
 loader.help:	help.common
 	cat ${.ALLSRC} | awk -f ${.CURDIR}/../../common/merge_help.awk \
