@@ -138,7 +138,7 @@ Except as noted, each may be examined with
 .Fn getsockopt
 and set with
 .Fn setsockopt .
-.Bl -column SO_OOBINLINE -offset indent
+.Bl -column SO_ACCEPTFILTER -offset indent
 .It Dv SO_DEBUG Ta "enables recording of debugging information"
 .It Dv SO_REUSEADDR Ta "enables local address reuse"
 .It Dv SO_REUSEPORT Ta "enables duplicate address and port bindings"
@@ -153,6 +153,7 @@ and set with
 .It Dv SO_RCVLOWAT Ta "set minimum count for input"
 .It Dv SO_SNDTIMEO Ta "set timeout value for output"
 .It Dv SO_RCVTIMEO Ta "set timeout value for input"
+.It Dv SO_ACCEPTFILTER Ta "set accept filter on listen socket"
 .It Dv SO_TYPE Ta "get the type of the socket (get only)"
 .It Dv SO_ERROR Ta "get and clear error on the socket (get only)"
 .El
@@ -300,6 +301,37 @@ or with the error
 .Er EWOULDBLOCK
 if no data were received.
 .Pp
+.Dv SO_ACCEPTFILTER
+places an
+.Xr accept_filter 9
+on the socket,
+which will filter incoming connections
+on a listening stream socket before being presented for
+.Xr accept 2 .
+.Bd -literal
+struct  accept_filter_arg {
+        char    af_name[16];
+        char    af_arg[256-16];
+};
+.Ed
+.Pp
+.Fa optval
+should point to a
+.Fa struct accept_filter_arg .
+that will select and configure the
+.Xr accept_filter 9 .
+.Fa af_name
+should be filled with the name of the accept filter
+that the application wishes to place on the listening socket.
+.Fa af_arg
+is an optional parameter that can be passed to the accept
+filter specified by
+.Fa af_name
+to provide additional configuration options at attach time.
+Passing in an
+.Fa optval
+of NULL will remove the filter.
+.Pp
 Finally,
 .Dv SO_TYPE
 and
@@ -389,7 +421,8 @@ is not in a valid part of the process address space.
 .Xr getprotoent 3 ,
 .Xr sysctl 3 ,
 .Xr protocols 5 ,
-.Xr sysctl 8
+.Xr sysctl 8 ,
+.Xr accept_filter 9
 .Sh BUGS
 Several of the socket options should be handled at lower levels of the system.
 .Sh HISTORY
