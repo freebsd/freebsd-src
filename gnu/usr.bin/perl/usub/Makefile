@@ -2,7 +2,7 @@ PROG=	curseperl
 
 # From perl
 SRCS+= array.c cmd.c cons.c consarg.c doarg.c doio.c dolist.c dump.c
-SRCS+= eval.c form.c hash.c malloc.c perl.c perly.c regcomp.c regexec.c
+SRCS+= eval.c form.c hash.c perl.c perly.c regcomp.c regexec.c
 SRCS+= stab.c str.c toke.c util.c
 
 # Local to us.
