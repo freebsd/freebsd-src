@@ -299,6 +299,12 @@
     <para>To increase security, the <literal>UCONSOLE</literal> kernel
       configuration option has been removed.</para>
 
+    <para arch="i386">The UserConfig boot-time kernel configuration
+      feature, usually used to enable, disable, or configure ISA
+      devices, has been removed.  Its functionality has been replaced
+      by the kernel hints file in
+      <filename>/boot/device.hints</filename>.</para>
+
     <para>The <literal>USER_LDT</literal> kernel option is now
       activated by default.</para>
 
@@ -1223,6 +1229,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	listed in <filename>/etc/fstab</filename> can now be properly
 	mounted during startup initialization; their mounts are
 	deferred until after the network is initialized.</para>
+
+      <para>Read-only support for the Universal Disk Format (UDF) has
+	been added.  This format is used on packet-written CD-RWs and
+	most commercial DVD-Video disks.  The &man.mount.udf.8;
+	command can be used to mount these disks.</para>
     </sect3>
 
     <sect3>
@@ -2036,6 +2047,14 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>&man.inetd.8; now has the ability to manage UNIX-domain
       sockets. &merged;</para>
 
+    <para>By default, &man.inetd.8; is no longer run by &man.rc.8; at
+      boot-time, although &man.sysinstall.8; gives the option of
+      enabling it during binary installations.  &man.inetd.8; can also
+      be enabled by adding the following line to
+      <filename>/etc/rc.conf</filename>:</para>
+
+    <programlisting>inetd_enable="YES"</programlisting>
+
     <para>&man.install.1; has a number of new features, including the
       <option>-b</option> and <option>-B</option> options for backing up
       existing target files and the <option>-S</option> option for
@@ -2077,6 +2096,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <para>&man.keyinfo.1; is now a C program, rather than a Perl
       script. &merged;</para>
+
+    <para>The &man.kget.8; utility has been removed (it was only
+      useful for UserConfig, which is not present in &os;
+      &release.current;).</para>
 
     <para>&man.killall.1; is now a C program, rather than a Perl
       script.  As a result, its <option>-m</option> option now uses
@@ -3196,6 +3219,16 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	  different MTA, the <varname>mta_start_script</varname> can
 	  be used to point to a different startup script (more details
 	  can be found in &man.rc.sendmail.8;). &merged;</para>
+
+	<para>By default, &man.rc.8; no longer enables
+	  <application>sendmail</application> for inbound SMTP
+	  connections.  Note that &man.sysinstall.8; may override this
+	  default for a binary installation, based on what security
+	  profile is selected.  This functionality can also be
+	  manually enabled by adding the following line to
+	  <filename>/etc/rc.conf</filename>:</para>
+
+	<programlisting>sendmail_enable="YES"</programlisting>
 
       </sect4>
     </sect3>
