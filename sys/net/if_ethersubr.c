@@ -769,14 +769,14 @@ post_stats:
 		if (l->llc_dsap == LLC_SNAP_LSAP &&
 		    l->llc_ssap == LLC_SNAP_LSAP &&
 		    l->llc_control == LLC_UI) {
-			if (Bcmp(&(l->llc_snap_org_code)[0], at_org_code,
+			if (bcmp(&(l->llc_snap_org_code)[0], at_org_code,
 			    sizeof(at_org_code)) == 0 &&
 			    ntohs(l->llc_snap_ether_type) == ETHERTYPE_AT) {
 				m_adj(m, LLC_SNAPFRAMELEN);
 				isr = NETISR_ATALK2;
 				break;
 			}
-			if (Bcmp(&(l->llc_snap_org_code)[0], aarp_org_code,
+			if (bcmp(&(l->llc_snap_org_code)[0], aarp_org_code,
 			    sizeof(aarp_org_code)) == 0 &&
 			    ntohs(l->llc_snap_ether_type) == ETHERTYPE_AARP) {
 				m_adj(m, LLC_SNAPFRAMELEN);
