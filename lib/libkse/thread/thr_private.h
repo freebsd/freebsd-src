@@ -423,9 +423,9 @@ enum pthread_susp {
  * explicitly mapped red zones.
  * This is declared and initialized in uthread_init.c.
  */
-extern int pthread_guard_default;
+extern int _pthread_guard_default;
 
-extern int pthread_page_size;
+extern int _pthread_page_size;
 
 /*
  * Maximum size of initial thread's stack.  This perhaps deserves to be larger
