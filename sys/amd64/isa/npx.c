@@ -996,7 +996,7 @@ npxsetregs(td, addr)
 		return;
 
 	s = intr_disable();
-	if (curthread == PCPU_GET(fpcurthread)) {
+	if (td == PCPU_GET(fpcurthread)) {
 		fpurstor(addr);
 		intr_restore(s);
 	} else {
