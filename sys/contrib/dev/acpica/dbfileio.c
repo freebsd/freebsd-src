@@ -2,7 +2,7 @@
  *
  * Module Name: dbfileio - Debugger file I/O commands.  These can't usually
  *              be used when running the debugger in Ring 0 (Kernel mode)
- *              $Revision: 54 $
+ *              $Revision: 59 $
  *
  ******************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -126,7 +126,7 @@
 #ifdef ENABLE_DEBUGGER
 
 #define _COMPONENT          ACPI_DEBUGGER
-        MODULE_NAME         ("dbfileio")
+        ACPI_MODULE_NAME    ("dbfileio")
 
 
 /*
@@ -155,7 +155,7 @@ ACPI_TABLE_HEADER           *AcpiGbl_DbTablePtr = NULL;
  *
  ******************************************************************************/
 
-ACPI_OBJECT_TYPE8
+ACPI_OBJECT_TYPE
 AcpiDbMatchArgument (
     NATIVE_CHAR             *UserArgument,
     ARGUMENT_INFO           *Arguments)
@@ -170,9 +170,9 @@ AcpiDbMatchArgument (
 
     for (i = 0; Arguments[i].Name; i++)
     {
-        if (STRSTR (Arguments[i].Name, UserArgument) == Arguments[i].Name)
+        if (ACPI_STRSTR (Arguments[i].Name, UserArgument) == Arguments[i].Name)
         {
-            return ((ACPI_OBJECT_TYPE8) i);
+            return (i);
         }
     }
 
@@ -237,7 +237,7 @@ AcpiDbOpenDebugFile (
     if (AcpiGbl_DebugFile)
     {
         AcpiOsPrintf ("Debug output file %s opened\n", Name);
-        STRCPY (AcpiGbl_DbDebugFilename, Name);
+        ACPI_STRCPY (AcpiGbl_DbDebugFilename, Name);
         AcpiGbl_DbOutputToFile = TRUE;
     }
     else
@@ -299,12 +299,12 @@ AcpiDbLoadTable(
 
     /* We only support a limited number of table types */
 
-    if (STRNCMP ((char *) TableHeader.Signature, DSDT_SIG, 4) &&
-        STRNCMP ((char *) TableHeader.Signature, PSDT_SIG, 4) &&
-        STRNCMP ((char *) TableHeader.Signature, SSDT_SIG, 4))
+    if (ACPI_STRNCMP ((char *) TableHeader.Signature, DSDT_SIG, 4) &&
+        ACPI_STRNCMP ((char *) TableHeader.Signature, PSDT_SIG, 4) &&
+        ACPI_STRNCMP ((char *) TableHeader.Signature, SSDT_SIG, 4))
     {
         AcpiOsPrintf ("Table signature is invalid\n");
-        DUMP_BUFFER (&TableHeader, sizeof (ACPI_TABLE_HEADER));
+        ACPI_DUMP_BUFFER (&TableHeader, sizeof (ACPI_TABLE_HEADER));
         return (AE_ERROR);
     }
 
@@ -325,7 +325,7 @@ AcpiDbLoadTable(
 
     /* Copy the header to the buffer */
 
-    MEMCPY (*TablePtr, &TableHeader, sizeof (TableHeader));
+    ACPI_MEMCPY (*TablePtr, &TableHeader, sizeof (TableHeader));
 
     /* Get the rest of the table */
 
@@ -378,7 +378,7 @@ AeLocalLoadTable (
     ACPI_TABLE_DESC         TableInfo;
 
 
-    FUNCTION_TRACE ("AeLocalLoadTable");
+    ACPI_FUNCTION_TRACE ("AeLocalLoadTable");
 
     if (!TablePtr)
     {
@@ -474,7 +474,6 @@ AcpiDbLoadAcpiTable (
                             AcpiFormatException (Status));
         }
 
-        AcpiOsFree (AcpiGbl_DbTablePtr);
         return (Status);
     }
 

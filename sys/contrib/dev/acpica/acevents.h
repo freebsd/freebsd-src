@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acevents.h - Event subcomponent prototypes and defines
- *       $Revision: 67 $
+ *       $Revision: 74 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -122,9 +122,13 @@ ACPI_STATUS
 AcpiEvInitialize (
     void);
 
+ACPI_STATUS
+AcpiEvHandlerInitialize (
+    void);
+
 
 /*
- * AcpiEvfixed - Fixed event handling
+ * Evfixed - Fixed event handling
  */
 
 ACPI_STATUS
@@ -137,16 +141,16 @@ AcpiEvFixedEventDetect (
 
 UINT32
 AcpiEvFixedEventDispatch (
-    UINT32                  AcpiEvent);
+    UINT32                  Event);
 
 
 /*
- * AcpiEvglock - Global Lock support
+ * Evmisc
  */
 
 ACPI_STATUS
 AcpiEvAcquireGlobalLock(
-    void);
+    UINT32                  Timeout);
 
 void
 AcpiEvReleaseGlobalLock(
@@ -156,9 +160,26 @@ ACPI_STATUS
 AcpiEvInitGlobalLockHandler (
     void);
 
+UINT32
+AcpiEvGetGpeRegisterIndex (
+    UINT32                  GpeNumber);
+
+UINT32
+AcpiEvGetGpeNumberIndex (
+    UINT32                  GpeNumber);
+
+ACPI_STATUS
+AcpiEvQueueNotifyRequest (
+    ACPI_NAMESPACE_NODE     *Node,
+    UINT32                  NotifyValue);
+
+void
+AcpiEvNotifyDispatch (
+    void                    *Context);
+
 
 /*
- * AcpiEvgpe - GPE handling and dispatch
+ * Evgpe - GPE handling and dispatch
  */
 
 ACPI_STATUS
@@ -177,22 +198,8 @@ UINT32
 AcpiEvGpeDetect (
     void);
 
-
 /*
- * AcpiEvnotify - Device Notify handling and dispatch
- */
-
-ACPI_STATUS
-AcpiEvQueueNotifyRequest (
-    ACPI_NAMESPACE_NODE     *Node,
-    UINT32                  NotifyValue);
-
-void
-AcpiEvNotifyDispatch (
-    void                    *Context);
-
-/*
- * AcpiEvregion - Address Space handling
+ * Evregion - Address Space handling
  */
 
 ACPI_STATUS
@@ -227,7 +234,7 @@ AcpiEvAssociateRegionAndHandler (
 
 
 /*
- * AcpiEvregini - Region initialization and setup
+ * Evregini - Region initialization and setup
  */
 
 ACPI_STATUS
@@ -293,10 +300,6 @@ AcpiEvRemoveSciHandler (
 UINT32
 AcpiEvInitializeSCI (
     UINT32                  ProgramSCI);
-
-void
-AcpiEvRestoreAcpiState (
-    void);
 
 void
 AcpiEvTerminate (

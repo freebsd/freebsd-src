@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dsutils - Dispatcher utilities
- *              $Revision: 84 $
+ *              $Revision: 88 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -125,7 +125,7 @@
 #include "acdebug.h"
 
 #define _COMPONENT          ACPI_DISPATCHER
-        MODULE_NAME         ("dsutils")
+        ACPI_MODULE_NAME    ("dsutils")
 
 
 /*******************************************************************************
@@ -150,7 +150,7 @@ AcpiDsIsResultUsed (
     const ACPI_OPCODE_INFO  *ParentInfo;
 
 
-    FUNCTION_TRACE_PTR ("DsIsResultUsed", Op);
+    ACPI_FUNCTION_TRACE_PTR ("DsIsResultUsed", Op);
 
 
     /* Must have both an Op and a Result Object */
@@ -199,7 +199,6 @@ AcpiDsIsResultUsed (
             /* Never delete the return value associated with a return opcode */
 
             goto ResultUsed;
-            break;
 
         case AML_IF_OP:
         case AML_WHILE_OP:
@@ -208,7 +207,7 @@ AcpiDsIsResultUsed (
              * If we are executing the predicate AND this is the predicate op,
              * we will use the return value
              */
-            if ((WalkState->ControlState->Common.State == CONTROL_PREDICATE_EXECUTING) &&
+            if ((WalkState->ControlState->Common.State == ACPI_CONTROL_PREDICATE_EXECUTING) &&
                 (WalkState->ControlState->Control.PredicateOp == Op))
             {
                 goto ResultUsed;
@@ -218,7 +217,6 @@ AcpiDsIsResultUsed (
         /* The general control opcode returns no result */
 
         goto ResultNotUsed;
-        break;
 
 
     case AML_CLASS_CREATE:
@@ -228,7 +226,6 @@ AcpiDsIsResultUsed (
          * the operands can be method calls.  The result is used.
          */
         goto ResultUsed;
-        break;
 
 
     case AML_CLASS_NAMED_OBJECT:
@@ -244,7 +241,6 @@ AcpiDsIsResultUsed (
         }
 
         goto ResultNotUsed;
-        break;
 
 
     /*
@@ -253,7 +249,6 @@ AcpiDsIsResultUsed (
      */
     default:
         goto ResultUsed;
-        break;
     }
 
 
@@ -302,7 +297,7 @@ AcpiDsDeleteResultIfNotUsed (
     ACPI_STATUS             Status;
 
 
-    FUNCTION_TRACE_PTR ("DsDeleteResultIfNotUsed", ResultObj);
+    ACPI_FUNCTION_TRACE_PTR ("DsDeleteResultIfNotUsed", ResultObj);
 
 
     if (!Op)
@@ -361,11 +356,12 @@ AcpiDsCreateOperand (
     ACPI_OPERAND_OBJECT     *ObjDesc;
     ACPI_PARSE_OBJECT       *ParentOp;
     UINT16                  Opcode;
-    OPERATING_MODE          InterpreterMode;
+    ACPI_INTERPRETER_MODE   InterpreterMode;
     const ACPI_OPCODE_INFO  *OpInfo;
+    char                    *Name;
 
 
-    FUNCTION_TRACE_PTR ("DsCreateOperand", Arg);
+    ACPI_FUNCTION_TRACE_PTR ("DsCreateOperand", Arg);
 
 
     /* A valid name must be looked up in the namespace */
@@ -405,26 +401,21 @@ AcpiDsCreateOperand (
         {
             /* Enter name into namespace if not found */
 
-            InterpreterMode = IMODE_LOAD_PASS2;
+            InterpreterMode = ACPI_IMODE_LOAD_PASS2;
         }
 
         else
         {
             /* Return a failure if name not found */
 
-            InterpreterMode = IMODE_EXECUTE;
+            InterpreterMode = ACPI_IMODE_EXECUTE;
         }
 
         Status = AcpiNsLookup (WalkState->ScopeInfo, NameString,
                                 ACPI_TYPE_ANY, InterpreterMode,
-                                NS_SEARCH_PARENT | NS_DONT_OPEN_SCOPE,
+                                ACPI_NS_SEARCH_PARENT | ACPI_NS_DONT_OPEN_SCOPE,
                                 WalkState,
                                 (ACPI_NAMESPACE_NODE **) &ObjDesc);
-
-        /* Free the namestring created above */
-
-        ACPI_MEM_FREE (NameString);
-
         /*
          * The only case where we pass through (ignore) a NOT_FOUND
          * error is for the CondRefOf opcode.
@@ -451,12 +442,17 @@ AcpiDsCreateOperand (
                  */
                 Status = AE_AML_NAME_NOT_FOUND;
 
-                /* TBD: Externalize NameString and print */
-
+                Name = NULL;
+                AcpiNsExternalizeName (ACPI_UINT32_MAX, NameString, NULL, &Name);
                 ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-                        "Object name was not found in namespace\n"));
+                        "Object name [%s] was not found in namespace\n", Name));
+                ACPI_MEM_FREE (Name);
             }
         }
+
+        /* Free the namestring created above */
+
+        ACPI_MEM_FREE (NameString);
 
         /* Check status from the lookup */
 
@@ -472,7 +468,7 @@ AcpiDsCreateOperand (
         {
             return_ACPI_STATUS (Status);
         }
-        DEBUGGER_EXEC (AcpiDbDisplayArgumentObject (ObjDesc, WalkState));
+        ACPI_DEBUGGER_EXEC (AcpiDbDisplayArgumentObject (ObjDesc, WalkState));
     }
 
 
@@ -511,7 +507,8 @@ AcpiDsCreateOperand (
             ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
                 "Argument previously created, already stacked \n"));
 
-            DEBUGGER_EXEC (AcpiDbDisplayArgumentObject (WalkState->Operands [WalkState->NumOperands - 1], WalkState));
+            ACPI_DEBUGGER_EXEC (AcpiDbDisplayArgumentObject (
+                WalkState->Operands [WalkState->NumOperands - 1], WalkState));
 
             /*
              * Use value that was already previously returned
@@ -559,7 +556,7 @@ AcpiDsCreateOperand (
             return_ACPI_STATUS (Status);
         }
 
-        DEBUGGER_EXEC (AcpiDbDisplayArgumentObject (ObjDesc, WalkState));
+        ACPI_DEBUGGER_EXEC (AcpiDbDisplayArgumentObject (ObjDesc, WalkState));
     }
 
     return_ACPI_STATUS (AE_OK);
@@ -590,7 +587,7 @@ AcpiDsCreateOperands (
     UINT32                  ArgCount = 0;
 
 
-    FUNCTION_TRACE_PTR ("DsCreateOperands", FirstArg);
+    ACPI_FUNCTION_TRACE_PTR ("DsCreateOperands", FirstArg);
 
 
     /* For all arguments in the list... */
@@ -652,7 +649,7 @@ AcpiDsResolveOperands (
     ACPI_STATUS             Status = AE_OK;
 
 
-    FUNCTION_TRACE_PTR ("DsResolveOperands", WalkState);
+    ACPI_FUNCTION_TRACE_PTR ("DsResolveOperands", WalkState);
 
 
     /*

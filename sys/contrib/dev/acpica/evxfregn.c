@@ -2,7 +2,7 @@
  *
  * Module Name: evxfregn - External Interfaces, ACPI Operation Regions and
  *                         Address Spaces.
- *              $Revision: 41 $
+ *              $Revision: 48 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -125,7 +125,7 @@
 #include "acinterp.h"
 
 #define _COMPONENT          ACPI_EVENTS
-        MODULE_NAME         ("evxfregn")
+        ACPI_MODULE_NAME    ("evxfregn")
 
 
 /*******************************************************************************
@@ -155,24 +155,26 @@ AcpiInstallAddressSpaceHandler (
     ACPI_OPERAND_OBJECT     *ObjDesc;
     ACPI_OPERAND_OBJECT     *HandlerObj;
     ACPI_NAMESPACE_NODE     *Node;
-    ACPI_STATUS             Status = AE_OK;
-    ACPI_OBJECT_TYPE8       Type;
+    ACPI_STATUS             Status;
+    ACPI_OBJECT_TYPE        Type;
     UINT16                  Flags = 0;
 
 
-    FUNCTION_TRACE ("AcpiInstallAddressSpaceHandler");
+    ACPI_FUNCTION_TRACE ("AcpiInstallAddressSpaceHandler");
 
 
     /* Parameter validation */
 
-    if ((!Device)   ||
-        ((!Handler)  && (Handler != ACPI_DEFAULT_HANDLER)) ||
-        (SpaceId > ACPI_MAX_ADDRESS_SPACE))
+    if (!Device)
     {
         return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
 
-    AcpiUtAcquireMutex (ACPI_MTX_NAMESPACE);
+    Status = AcpiUtAcquireMutex (ACPI_MTX_NAMESPACE);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
 
     /* Convert and validate the device handle */
 
@@ -199,7 +201,7 @@ AcpiInstallAddressSpaceHandler (
 
     if (Handler == ACPI_DEFAULT_HANDLER)
     {
-        Flags = ADDR_HANDLER_DEFAULT_INSTALLED;
+        Flags = ACPI_ADDR_HANDLER_DEFAULT_INSTALLED;
 
         switch (SpaceId)
         {
@@ -228,10 +230,14 @@ AcpiInstallAddressSpaceHandler (
             Setup   = AcpiEvPciBarRegionSetup;
             break;
 
+        case ACPI_ADR_SPACE_DATA_TABLE:
+            Handler = AcpiExDataTableSpaceHandler;
+            Setup   = NULL;
+            break;
+
         default:
             Status = AE_NOT_EXIST;
             goto UnlockAndExit;
-            break;
         }
     }
 
@@ -275,7 +281,6 @@ AcpiInstallAddressSpaceHandler (
             HandlerObj = HandlerObj->AddrHandler.Next;
         }
     }
-
     else
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_OPREGION,
@@ -305,7 +310,7 @@ AcpiInstallAddressSpaceHandler (
 
         /* Attach the new object to the Node */
 
-        Status = AcpiNsAttachObject (Node, ObjDesc, (UINT8) Type);
+        Status = AcpiNsAttachObject (Node, ObjDesc, Type);
         if (ACPI_FAILURE (Status))
         {
             AcpiUtRemoveReference (ObjDesc);
@@ -353,7 +358,7 @@ AcpiInstallAddressSpaceHandler (
      * of the branch
      */
     Status = AcpiNsWalkNamespace (ACPI_TYPE_ANY, Device,
-                                  ACPI_UINT32_MAX, NS_WALK_UNLOCK,
+                                  ACPI_UINT32_MAX, ACPI_NS_WALK_UNLOCK,
                                   AcpiEvAddrHandlerHelper,
                                   HandlerObj, NULL);
 
@@ -367,7 +372,7 @@ AcpiInstallAddressSpaceHandler (
 
 
 UnlockAndExit:
-    AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
+    (void) AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
     return_ACPI_STATUS (Status);
 }
 
@@ -396,22 +401,24 @@ AcpiRemoveAddressSpaceHandler (
     ACPI_OPERAND_OBJECT     *RegionObj;
     ACPI_OPERAND_OBJECT     **LastObjPtr;
     ACPI_NAMESPACE_NODE     *Node;
-    ACPI_STATUS             Status = AE_OK;
+    ACPI_STATUS             Status;
 
 
-    FUNCTION_TRACE ("AcpiRemoveAddressSpaceHandler");
+    ACPI_FUNCTION_TRACE ("AcpiRemoveAddressSpaceHandler");
 
 
     /* Parameter validation */
 
-    if ((!Device)   ||
-        ((!Handler)  && (Handler != ACPI_DEFAULT_HANDLER)) ||
-        (SpaceId > ACPI_MAX_ADDRESS_SPACE))
+    if (!Device)
     {
         return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
 
-    AcpiUtAcquireMutex (ACPI_MTX_NAMESPACE);
+    Status = AcpiUtAcquireMutex (ACPI_MTX_NAMESPACE);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
 
     /* Convert and validate the device handle */
 
@@ -421,7 +428,6 @@ AcpiRemoveAddressSpaceHandler (
         Status = AE_BAD_PARAMETER;
         goto UnlockAndExit;
     }
-
 
     /* Make sure the internal object exists */
 
@@ -509,7 +515,7 @@ AcpiRemoveAddressSpaceHandler (
 
 
 UnlockAndExit:
-    AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
+    (void) AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
     return_ACPI_STATUS (Status);
 }
 

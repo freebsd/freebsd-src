@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: exfield - ACPI AML (p-code) execution - field manipulation
- *              $Revision: 101 $
+ *              $Revision: 105 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -127,7 +127,7 @@
 
 
 #define _COMPONENT          ACPI_EXECUTER
-        MODULE_NAME         ("exfield")
+        ACPI_MODULE_NAME    ("exfield")
 
 
 /*******************************************************************************
@@ -156,7 +156,7 @@ AcpiExReadDataFromField (
     BOOLEAN                 Locked;
 
 
-    FUNCTION_TRACE_PTR ("ExReadDataFromField", ObjDesc);
+    ACPI_FUNCTION_TRACE_PTR ("ExReadDataFromField", ObjDesc);
 
 
     /* Parameter validation */
@@ -192,7 +192,7 @@ AcpiExReadDataFromField (
      *
      * Note: Field.length is in bits.
      */
-    Length = ROUND_BITS_UP_TO_BYTES (ObjDesc->Field.BitLength);
+    Length = ACPI_ROUND_BITS_UP_TO_BYTES (ObjDesc->Field.BitLength);
 
     if (Length > sizeof (ACPI_INTEGER))
     {
@@ -289,7 +289,7 @@ AcpiExWriteDataToField (
     BOOLEAN                 Locked;
 
 
-    FUNCTION_TRACE_PTR ("ExWriteDataToField", ObjDesc);
+    ACPI_FUNCTION_TRACE_PTR ("ExWriteDataToField", ObjDesc);
 
 
     /* Parameter validation */
@@ -337,17 +337,16 @@ AcpiExWriteDataToField (
 
     default:
         return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
-        break;
     }
 
     /*
      * We must have a buffer that is at least as long as the field
-     * we are writing to.  This is because individual fields are 
+     * we are writing to.  This is because individual fields are
      * indivisible and partial writes are not supported -- as per
      * the ACPI specification.
      */
     NewBuffer = NULL;
-    RequiredLength = ROUND_BITS_UP_TO_BYTES (ObjDesc->CommonField.BitLength);
+    RequiredLength = ACPI_ROUND_BITS_UP_TO_BYTES (ObjDesc->CommonField.BitLength);
 
     if (Length < RequiredLength)
     {
@@ -364,7 +363,7 @@ AcpiExWriteDataToField (
          * at Byte zero.  All unused (upper) bytes of the
          * buffer will be 0.
          */
-        MEMCPY ((char *) NewBuffer, (char *) Buffer, Length);
+        ACPI_MEMCPY ((char *) NewBuffer, (char *) Buffer, Length);
         Buffer = NewBuffer;
         Length = RequiredLength;
     }

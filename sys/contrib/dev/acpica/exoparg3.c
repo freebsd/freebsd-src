@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exoparg3 - AML execution - opcodes with 3 arguments
- *              $Revision: 5 $
+ *              $Revision: 9 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -125,7 +125,7 @@
 
 
 #define _COMPONENT          ACPI_EXECUTER
-        MODULE_NAME         ("exoparg3")
+        ACPI_MODULE_NAME    ("exoparg3")
 
 
 /*!
@@ -172,7 +172,7 @@ AcpiExOpcode_3A_0T_0R (
     ACPI_STATUS             Status = AE_OK;
 
 
-    FUNCTION_TRACE_STR ("ExOpcode_3A_0T_0R", AcpiPsGetOpcodeName (WalkState->Opcode));
+    ACPI_FUNCTION_TRACE_STR ("ExOpcode_3A_0T_0R", AcpiPsGetOpcodeName (WalkState->Opcode));
 
 
     switch (WalkState->Opcode)
@@ -207,11 +207,10 @@ AcpiExOpcode_3A_0T_0R (
 
     default:
 
-        REPORT_ERROR (("AcpiExOpcode_3A_0T_0R: Unknown opcode %X\n",
+        ACPI_REPORT_ERROR (("AcpiExOpcode_3A_0T_0R: Unknown opcode %X\n",
                 WalkState->Opcode));
         Status = AE_AML_BAD_OPCODE;
         goto Cleanup;
-        break;
     }
 
 
@@ -245,7 +244,7 @@ AcpiExOpcode_3A_1T_1R (
     UINT32                  Length;
 
 
-    FUNCTION_TRACE_STR ("ExOpcode_3A_1T_1R", AcpiPsGetOpcodeName (WalkState->Opcode));
+    ACPI_FUNCTION_TRACE_STR ("ExOpcode_3A_1T_1R", AcpiPsGetOpcodeName (WalkState->Opcode));
 
 
     switch (WalkState->Opcode)
@@ -294,25 +293,23 @@ AcpiExOpcode_3A_1T_1R (
 
             /* Copy the portion requested */
 
-            MEMCPY (Buffer, Operand[0]->String.Pointer + Index,
-                    Length);
+            ACPI_MEMCPY (Buffer, Operand[0]->String.Pointer + Index,
+                         Length);
 
             /* Set the length of the new String/Buffer */
 
             ReturnDesc->String.Pointer = Buffer;
             ReturnDesc->String.Length = Length;
         }
-
         break;
 
 
     default:
 
-        REPORT_ERROR (("AcpiExOpcode_3A_0T_0R: Unknown opcode %X\n",
+        ACPI_REPORT_ERROR (("AcpiExOpcode_3A_0T_0R: Unknown opcode %X\n",
                 WalkState->Opcode));
         Status = AE_AML_BAD_OPCODE;
         goto Cleanup;
-        break;
     }
 
     /* Store the result in the target */

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: nssearch - Namespace search
- *              $Revision: 77 $
+ *              $Revision: 82 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -123,7 +123,7 @@
 
 
 #define _COMPONENT          ACPI_NAMESPACE
-        MODULE_NAME         ("nssearch")
+        ACPI_MODULE_NAME    ("nssearch")
 
 
 /*******************************************************************************
@@ -156,13 +156,13 @@ ACPI_STATUS
 AcpiNsSearchNode (
     UINT32                  TargetName,
     ACPI_NAMESPACE_NODE     *Node,
-    ACPI_OBJECT_TYPE8       Type,
+    ACPI_OBJECT_TYPE        Type,
     ACPI_NAMESPACE_NODE     **ReturnNode)
 {
     ACPI_NAMESPACE_NODE     *NextNode;
 
 
-    FUNCTION_TRACE ("NsSearchNode");
+    ACPI_FUNCTION_TRACE ("NsSearchNode");
 
 
 #ifdef ACPI_DEBUG
@@ -170,11 +170,11 @@ AcpiNsSearchNode (
     {
         NATIVE_CHAR         *ScopeName;
 
-        ScopeName = AcpiNsGetTablePathname (Node);
+        ScopeName = AcpiNsGetExternalPathname (Node);
         if (ScopeName)
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "Searching %s [%p] For %4.4s (type %X)\n",
-                ScopeName, Node, (char *) &TargetName, Type));
+            ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "Searching %s [%p] For %4.4s (type %s)\n",
+                ScopeName, Node, (char *) &TargetName, AcpiUtGetTypeName (Type)));
 
             ACPI_MEM_FREE (ScopeName);
         }
@@ -281,17 +281,17 @@ static ACPI_STATUS
 AcpiNsSearchParentTree (
     UINT32                  TargetName,
     ACPI_NAMESPACE_NODE     *Node,
-    ACPI_OBJECT_TYPE8       Type,
+    ACPI_OBJECT_TYPE        Type,
     ACPI_NAMESPACE_NODE     **ReturnNode)
 {
     ACPI_STATUS             Status;
     ACPI_NAMESPACE_NODE     *ParentNode;
 
 
-    FUNCTION_TRACE ("NsSearchParentTree");
+    ACPI_FUNCTION_TRACE ("NsSearchParentTree");
 
 
-    ParentNode = AcpiNsGetParentObject (Node);
+    ParentNode = AcpiNsGetParentNode (Node);
 
     /*
      * If there is no parent (at the root) or type is "local", we won't be
@@ -325,9 +325,9 @@ AcpiNsSearchParentTree (
      */
     while (ParentNode)
     {
-        /* 
+        /*
          * Search parent scope.  Use TYPE_ANY because we don't care about the
-         * object type at this point, we only care about the existence of 
+         * object type at this point, we only care about the existence of
          * the actual name we are searching for.  Typechecking comes later.
          */
         Status = AcpiNsSearchNode (TargetName, ParentNode,
@@ -341,7 +341,7 @@ AcpiNsSearchParentTree (
          * Not found here, go up another level
          * (until we reach the root)
          */
-        ParentNode = AcpiNsGetParentObject (ParentNode);
+        ParentNode = AcpiNsGetParentNode (ParentNode);
     }
 
     /* Not found in parent tree */
@@ -380,8 +380,8 @@ AcpiNsSearchAndEnter (
     UINT32                  TargetName,
     ACPI_WALK_STATE         *WalkState,
     ACPI_NAMESPACE_NODE     *Node,
-    OPERATING_MODE          InterpreterMode,
-    ACPI_OBJECT_TYPE8       Type,
+    ACPI_INTERPRETER_MODE   InterpreterMode,
+    ACPI_OBJECT_TYPE        Type,
     UINT32                  Flags,
     ACPI_NAMESPACE_NODE     **ReturnNode)
 {
@@ -389,7 +389,7 @@ AcpiNsSearchAndEnter (
     ACPI_NAMESPACE_NODE     *NewNode;
 
 
-    FUNCTION_TRACE ("NsSearchAndEnter");
+    ACPI_FUNCTION_TRACE ("NsSearchAndEnter");
 
 
     /* Parameter validation */
@@ -399,7 +399,7 @@ AcpiNsSearchAndEnter (
         ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Null param-  Table %p Name %X Return %p\n",
             Node, TargetName, ReturnNode));
 
-        REPORT_ERROR (("NsSearchAndEnter: bad (null) parameter\n"));
+        ACPI_REPORT_ERROR (("NsSearchAndEnter: bad (null) parameter\n"));
         return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
 
@@ -410,13 +410,13 @@ AcpiNsSearchAndEnter (
         ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "*** Bad character in name: %08x *** \n",
             TargetName));
 
-        REPORT_ERROR (("NsSearchAndEnter: Bad character in ACPI Name\n"));
+        ACPI_REPORT_ERROR (("NsSearchAndEnter: Bad character in ACPI Name\n"));
         return_ACPI_STATUS (AE_BAD_CHARACTER);
     }
 
     /* Try to find the name in the table specified by the caller */
 
-    *ReturnNode = ENTRY_NOT_FOUND;
+    *ReturnNode = ACPI_ENTRY_NOT_FOUND;
     Status = AcpiNsSearchNode (TargetName, Node, Type, ReturnNode);
     if (Status != AE_NOT_FOUND)
     {
@@ -425,7 +425,7 @@ AcpiNsSearchAndEnter (
          * return the error
          */
         if ((Status == AE_OK) &&
-            (Flags & NS_ERROR_IF_FOUND))
+            (Flags & ACPI_NS_ERROR_IF_FOUND))
         {
             Status = AE_ALREADY_EXISTS;
         }
@@ -446,8 +446,8 @@ AcpiNsSearchAndEnter (
      * the search when namespace references are being resolved
      * (load pass 2) and during the execution phase.
      */
-    if ((InterpreterMode != IMODE_LOAD_PASS1) &&
-        (Flags & NS_SEARCH_PARENT))
+    if ((InterpreterMode != ACPI_IMODE_LOAD_PASS1) &&
+        (Flags & ACPI_NS_SEARCH_PARENT))
     {
         /*
          * Not found in table - search parent tree according
@@ -464,7 +464,7 @@ AcpiNsSearchAndEnter (
     /*
      * In execute mode, just search, never add names.  Exit now.
      */
-    if (InterpreterMode == IMODE_EXECUTE)
+    if (InterpreterMode == ACPI_IMODE_EXECUTE)
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "%4.4s Not found in %p [Not adding]\n",
             (char *) &TargetName, Node));
