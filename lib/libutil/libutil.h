@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file providing the above
  *    conditions are met.
  *
- * $Id$
+ * $Id: libutil.h,v 1.4 1997/02/22 15:08:14 peter Exp $
  */
 
 #ifndef _LIBUTIL_H_
@@ -41,6 +41,8 @@ int	openpty __P((int *amaster, int *aslave, char *name,
 		     struct termios *termp, struct winsize *winp));
 int	forkpty __P((int *amaster, char *name,
 		     struct termios *termp, struct winsize *winp));
+int	uu_lock __P((char *ttyname));
+int	uu_unlock __P((char *ttyname));
 __END_DECLS
 
 #endif /* !_LIBUTIL_H_ */
