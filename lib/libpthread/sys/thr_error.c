@@ -34,16 +34,21 @@
  * $FreeBSD$
  */
 #include <pthread.h>
+#include "libc_private.h"
 #include "thr_private.h"
 extern	int	errno;
 
 int * __error()
 {
-	int	*p_errno;
-	if (_thread_run == _thread_initial) {
-		p_errno = &errno;
-	} else {
-		p_errno = &_thread_run->error;
+	struct pthread *curthread;
+
+	if (__isthreaded == 0)
+		return (&errno);
+	else {
+		curthread = _get_curthread();
+		if ((curthread == NULL) || (curthread == _thr_initial))
+			return (&errno);
+		else
+			return (&curthread->error);
 	}
-	return(p_errno);
 }
