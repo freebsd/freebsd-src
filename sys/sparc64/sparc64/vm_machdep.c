@@ -121,11 +121,6 @@ cpu_exit(struct thread *td)
 }
 
 void
-cpu_sched_exit(struct thread *td)
-{
-}
-
-void
 cpu_thread_exit(struct thread *td)
 {
 }
