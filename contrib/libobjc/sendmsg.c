@@ -3,19 +3,19 @@
    2001, 2002 Free Software Foundation, Inc.
    Contributed by Kresten Krab Thorup
 
-This file is part of GNU CC.
+This file is part of GCC.
 
-GNU CC is free software; you can redistribute it and/or modify it under the
+GCC is free software; you can redistribute it and/or modify it under the
 terms of the GNU General Public License as published by the Free Software
 Foundation; either version 2, or (at your option) any later version.
 
-GNU CC is distributed in the hope that it will be useful, but WITHOUT ANY
+GCC is distributed in the hope that it will be useful, but WITHOUT ANY
 WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
 details.
 
 You should have received a copy of the GNU General Public License along with
-GNU CC; see the file COPYING.  If not, write to the Free Software
+GCC; see the file COPYING.  If not, write to the Free Software
 Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
@@ -25,7 +25,11 @@ Boston, MA 02111-1307, USA.  */
    however invalidate any other reasons why the executable file might be
    covered by the GNU General Public License.  */
 
+/* FIXME: This file has no business including tm.h.  */
+
 #include "tconfig.h"
+#include "coretypes.h"
+#include "tm.h"
 #include "runtime.h"
 #include "sarray.h"
 #include "encoding.h"
@@ -115,6 +119,14 @@ __inline__
 IMP
 get_imp (Class class, SEL sel)
 {
+  /* In a vanilla implementation we would first check if the dispatch
+     table is installed.  Here instead, to get more speed in the
+     standard case (that the dispatch table is installed) we first try
+     to get the imp using brute force.  Only if that fails, we do what
+     we should have been doing from the very beginning, that is, check
+     if the dispatch table needs to be installed, install it if it's
+     not installed, and retrieve the imp from the table if it's
+     installed.  */
   void *res = sarray_get_safe (class->dtable, (size_t) sel->sel_id);
   if (res == 0)
     {
@@ -123,7 +135,16 @@ get_imp (Class class, SEL sel)
 	{
 	  /* The dispatch table needs to be installed. */
 	  objc_mutex_lock (__objc_runtime_mutex);
-	  __objc_install_dispatch_table_for_class (class);
+
+	   /* Double-checked locking pattern: Check
+	      __objc_uninstalled_dtable again in case another thread
+	      installed the dtable while we were waiting for the lock
+	      to be released.  */
+         if (class->dtable == __objc_uninstalled_dtable)
+           {
+             __objc_install_dispatch_table_for_class (class);
+           }
+
 	  objc_mutex_unlock (__objc_runtime_mutex);
 	  /* Call ourselves with the installed dispatch table
 	     and get the real method */
@@ -131,10 +152,22 @@ get_imp (Class class, SEL sel)
 	}
       else
 	{
-	  /* The dispatch table has been installed so the
-	     method just doesn't exist for the class.
-	     Return the forwarding implementation. */
-	  res = __objc_get_forward_imp (sel);
+	  /* The dispatch table has been installed.  */
+
+         /* Get the method from the dispatch table (we try to get it
+	    again in case another thread has installed the dtable just
+	    after we invoked sarray_get_safe, but before we checked
+	    class->dtable == __objc_uninstalled_dtable).
+         */
+	  res = sarray_get_safe (class->dtable, (size_t) sel->sel_id);
+	  if (res == 0)
+	    {
+	      /* The dispatch table has been installed, and the method
+		 is not in the dispatch table.  So the method just
+		 doesn't exist for the class.  Return the forwarding
+		 implementation. */
+	      res = __objc_get_forward_imp (sel);
+	    }
 	}
     }
   return res;
@@ -153,7 +186,10 @@ __objc_responds_to (id object, SEL sel)
   if (object->class_pointer->dtable == __objc_uninstalled_dtable)
     {
       objc_mutex_lock (__objc_runtime_mutex);
-      __objc_install_dispatch_table_for_class (object->class_pointer);
+      if (object->class_pointer->dtable == __objc_uninstalled_dtable)
+	{
+	  __objc_install_dispatch_table_for_class (object->class_pointer);
+	}
       objc_mutex_unlock (__objc_runtime_mutex);
     }
 
@@ -188,10 +224,19 @@ objc_msg_lookup (id receiver, SEL op)
 	    }
 	  else
 	    {
-	      /* The dispatch table has been installed so the
-		 method just doesn't exist for the class.
-		 Attempt to forward the method. */
-	      result = __objc_get_forward_imp (op);
+	      /* The dispatch table has been installed.  Check again
+		 if the method exists (just in case the dispatch table
+		 has been installed by another thread after we did the
+		 previous check that the method exists).
+	      */
+	      result = sarray_get_safe (receiver->class_pointer->dtable,
+					(sidx)op->sel_id);
+	      if (result == 0)
+		{
+		  /* If the method still just doesn't exist for the
+		     class, attempt to forward the method. */
+		  result = __objc_get_forward_imp (op);
+		}
 	    }
 	}
       return result;
@@ -235,13 +280,16 @@ __objc_init_dispatch_tables ()
 static void
 __objc_init_install_dtable (id receiver, SEL op __attribute__ ((__unused__)))
 {
+  objc_mutex_lock (__objc_runtime_mutex);
+  
   /* This may happen, if the programmer has taken the address of a 
      method before the dtable was initialized... too bad for him! */
   if (receiver->class_pointer->dtable != __objc_uninstalled_dtable)
-    return;
-
-  objc_mutex_lock (__objc_runtime_mutex);
-
+    {
+      objc_mutex_unlock (__objc_runtime_mutex);
+      return;
+    }
+  
   if (CLS_ISCLASS (receiver->class_pointer))
     {
       /* receiver is an ordinary object */
