@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncrcontrol.c,v 1.19 1997/10/02 11:46:53 charnier Exp $
+**  $Id: ncrcontrol.c,v 1.20 1998/03/30 10:09:05 phk Exp $
 **
 **  Utility for NCR 53C810 device driver.
 **
@@ -973,7 +973,6 @@ void dump_tstamp (const char* name, struct tstamp * p)
 	P ("data        ", data);
 	P ("status      ", status);
 	P ("disconnected", disconnect);
-	P ("reselected  ", reselect);
 	printf ("\n");
 }
 
@@ -1334,8 +1333,8 @@ static void dump_ncr (void)
 	printf ("    lasttime: %s", ctime ((time_t*)&ncr.lasttime));
 	printf ("\n");
 
-	if (wizard && strchr (debug_opt, 'd') && ncr.regtime.tv_sec) {
-		printf ("     regdump: %s", ctime (&ncr.regtime.tv_sec));
+	if (wizard && strchr (debug_opt, 'd') && ncr.regtime) {
+		printf ("     regdump: %s", ctime (&ncr.regtime));
 		dump_reg (&ncr.regdump);
 	};
 
