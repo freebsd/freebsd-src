@@ -3,7 +3,7 @@
  *	The Regents of the University of California.  All rights reserved.
  * Copyright (c) 2001 Mark R V Murray
  * All rights reserved.
- * Copyright (c) 2001 Networks Associates Technologies, Inc.
+ * Copyright (c) 2001 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * Portions of this software were developed for the FreeBSD Project by
