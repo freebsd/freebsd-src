@@ -7,9 +7,9 @@ LSDIR=	${.CURDIR}/../../contrib/less
 
 CFLAGS+=-I. -I${.CURDIR}/../less -I${LSDIR}
 
-.SUFFIXES:	.man .1
+.SUFFIXES:	.nro .1
 
-.man.1:
+.nro.1:
 	@${ECHO} Making $@ from $<
 	@-rm -f $@
 	@cp $< $@
