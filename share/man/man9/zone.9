@@ -92,6 +92,41 @@ The
 argument is a text name of the zone for debugging and stats; this memory
 should not be freed until the zone has been deallocated.
 .Pp
+The
+.Fa ctor
+and
+.Fa dtor
+arguments are callback functions that are called by
+the uma subsystem at the time of the call to
+.Fn uma_zalloc
+and
+.Fn uma_zfree
+respectively.  Their purpose is to provide hooks for initializing or
+destroying things that need to be done at the time of the allocation
+or release of a resource.  A good useage for the
+.Fa ctor
+and
+.Fa dtor
+callbacks
+might be to adjust a global count of the number of objects allocated.
+.Pp
+The
+.Fa uminit
+and
+.Fa fini
+arguments are used to optimize the allocation of
+objects from the zone.  They are called by the uma subsystem whenever
+it needs to allocate or free several items to satisfy requests or memory
+pressure.  A good use for the uminit and fini callbacks might be to
+initialize and destroy mutexes contained within the object.  This would
+allow one to re-use already initialized mutexes when an object is returned
+from the uma subsystem's object cache.  They are not called on each call
+to
+.Fn uma_zalloc
+and
+.Fn uma_zfree
+but rather in a batch mode on several objects.
+.Pp
 To allocate an item from a zone, simply call
 .Fn uma_zalloc
 with a pointer to that zone
