@@ -332,6 +332,7 @@ void vm_page_copy(vm_page_t src_m, vm_page_t dest_m);
 void vm_page_free(vm_page_t m);
 void vm_page_free_zero(vm_page_t m);
 int vm_page_sleep_busy(vm_page_t m, int also_m_busy, const char *msg);
+int vm_page_sleep_if_busy(vm_page_t m, int also_m_busy, const char *msg);
 void vm_page_dirty(vm_page_t m);
 void vm_page_undirty(vm_page_t m);
 void vm_page_wakeup(vm_page_t m);
