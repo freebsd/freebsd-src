@@ -254,9 +254,12 @@ get_geom_values(int disk)
 		sprintf(field[2].field, "%ld", lbl->d_nsectors);
 
 		disp_fields(window, field, sizeof(field)/sizeof(struct field));
-		key = edit_line(window, field[cur_field].y, field[cur_field].x,
-					 field[cur_field].field, field[cur_field].width,
-					 field[cur_field].maxlen);
+		key = line_edit(window, field[cur_field].y, field[cur_field].x,
+					 field[cur_field].width,
+					 field[cur_field].maxlen,
+					 item_selected_attr,
+					 1,
+					 field[cur_field].field);
 		next = change_field(field[cur_field], key);
 		if (next == -1)
 			beep();
@@ -353,9 +356,12 @@ edit_mbr(int disk)
 		}
 
 		disp_fields(window, mbr_field, sizeof(mbr_field)/sizeof(struct field));
-		key = edit_line(window, mbr_field[cur_field].y, mbr_field[cur_field].x,
-		                mbr_field[cur_field].field, mbr_field[cur_field].width,
-		                mbr_field[cur_field].maxlen);
+		key = line_edit(window, mbr_field[cur_field].y, mbr_field[cur_field].x,
+				mbr_field[cur_field].width,
+				mbr_field[cur_field].maxlen,
+				item_selected_attr,
+				1,
+				mbr_field[cur_field].field);
 
 		/* Propagate changes to MBR */
 		for (i=0; i < NDOSPART; i++) {
