@@ -119,8 +119,8 @@ enum sysinit_sub_id {
 	SI_SUB_WITNESS		= 0x1A80000,	/* witness initialization */
 	SI_SUB_LOCK		= 0x1B00000,	/* lockmgr locks */
 	SI_SUB_EVENTHANDLER	= 0x1C00000,	/* eventhandler init */
-	SI_SUB_CPU		= 0x2000000,	/* CPU resource(s)*/
-	SI_SUB_KLD		= 0x2100000,	/* KLD and module setup */
+	SI_SUB_KLD		= 0x2000000,	/* KLD and module setup */
+	SI_SUB_CPU		= 0x2100000,	/* CPU resource(s)*/
 	SI_SUB_INTRINSIC	= 0x2200000,	/* proc 0*/
 	SI_SUB_VM_CONF		= 0x2300000,	/* config VM, set limits*/
 	SI_SUB_RUN_QUEUE	= 0x2400000,	/* set up run queue*/
