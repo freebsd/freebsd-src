@@ -8,9 +8,9 @@
 	(If we didn't do this, then the file with the datestamp might
 	not be the one that received the last change in the document.)
 
-	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/errata/article.sgml,v 1.5 2002/03/11 23:07:40 ue Exp $
+	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/errata/article.sgml,v 1.4.2.2 2002/03/11 23:10:05 ue Exp $
 	$Id: article.sgml,v 1.6 2002/03/10 16:43:21 ue Exp $
-	basiert auf: 1.8
+	basiert auf: 1.1.2.57
 -->
 
 <!DOCTYPE ARTICLE PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -28,11 +28,14 @@
 
 <article lang="de">
   <articleinfo>
-
-<!-- XXX Change release.current to release.prev when there's -->
-<!-- XXX a release on this branch. -->
-
-    <title>&os; &release.current; Errata</title>
+    <title>&os;
+<![ %release.type.snapshot [
+    &release.prev;
+]]>
+<![ %release.type.release [
+    &release.current;
+]]>
+    Errata</title>
 
     <authorgroup>
       <corpauthor>Das &os; Projekt</corpauthor>
@@ -59,47 +62,46 @@
   </articleinfo>
 
   <abstract>
-
-<!-- XXX Change release.current to release.prev when there's -->
-<!-- XXX a release on this branch. -->
-
     <para>Dieses Dokument enth&auml;lt die Errata f&uuml;r &os;
-      &release.current;, also wichtige Informationen, die erst nach
-      der Ver&ouml;ffentlichung bekannt wurden.  Dazu geh&ouml;ren
+<![ %release.type.snapshot [
+      &release.prev;,
+]]>
+<![ %release.type.release [
+            &release.current;,
+]]>  
+      also wichtige Informationen, die erst nach
+      der Ver&ouml;ffentlichung bekannt wurden.  Dazu geh&ouml;hren
       Ratschl&auml;ge zur Sicherheit sowie &Auml;nderungen in der
-      Software oder Dokumentation, welche die Stabilit&auml;t und die
+      Software oder Dokumentation, die die Stabilit&auml;t und die
       Nutzung beeintr&auml;chtigen k&ouml;nnten.  Sie sollten immer
       die aktuelle Version dieses Dokumentes lesen, bevor sie diese
       Version von &os; installieren.</para>
 
+    <para>Dieses Errata f&uuml;r &os;
 <![ %release.type.snapshot [
-    <para>Diese Errata f&uuml;r &os; &release.prev; werden bis zum
-      Erscheinen von &os; &release.next; weiter aktualisiert
-      werden.</para>
+      &release.prev;
 ]]>
-
 <![ %release.type.release [
-    <para>Dies ist die letzte Version der Errata f&uuml;r &os;
-      &release.prev;.  Zuk&uuml;nftige Errata auf dem CVS-Zweig
-      &release.branch; werden &os; &release.current;  und die
-      nachfolgenden Ausgaben behandeln.</para>
-]]> 
+      &release.current;
+]]>
+      wird bis zum
+      Erscheinen von &os; &release.next; weiter aktualsiert
+      werden.</para>
 
-    <para>Zur Zeit gibt es keine Errata f&uuml;r &release.current;,
-      weil seit der Entstehung des Entwicklungszweiges
-      &release.branch; noch keine Version aus diesem Zweig
-      ver&ouml;ffentlicht wurde.  (Die erste derartige Version wird
-      &release.next; sein.) Diese Datei existiert, nur um eine saubere
-      Vorlage f&uuml;r neue Entwicklungszweige zu haben.  (Und dieser
-      Hinweis sollte nat&uuml;rlich nicht in einem Entwicklungszweig
-      auftauchen.)</para>
   </abstract>
 
   <sect1>
     <title>Einleitung</title>
 
-    <para>Diese Errata enthalten <quote>brandhei&szlig;e</quote>
-      Informationen &uuml; &os; &release.current;.  Bevor Sie diese
+    <para>Dieses Errata enth&auml;lt <quote>brandhei&szlig;e</quote>
+      Informationen &uuml;ber &os;
+<![ %release.type.snapshot [
+      &release.prev;.
+]]>
+<![ %release.type.release [
+      &release.current;.
+]]>
+      Bevor Sie diese
       Version installieren, sollten Sie auf jeden Fall dieses Dokument
       lesen, um &uuml;ber Probleme informiert zu werden, die erst nach
       der Ver&ouml;ffentlichung entdeckt (und vielleicht auch schon
@@ -128,11 +130,151 @@
 
   <sect1>
     <title>Sicherheitshinweise</title>
-    <para></para>
+
+<![ %release.type.release [
+    <para>Zur Zeit gibt es keine Sicherheitshinweise.</para>
+]]>
+
+<![ %release.type.snapshot [
+    <para>Unter bestimmten Umst&auml;nden war es m&ouml;glich, eine
+      Datei in der Zeit zwischen dem Aufruf von &man.fstatfs.2; und
+      dem Zugriff auf die Datei zu l&ouml;schen, dadurch kam es zu
+      einer Kernel Panic.  Dieses Problem betraft nur das
+      &man.procfs.5; Dateisystem.  Der Fehler wurde zwar schon in &os;
+      &release.prev; behoben, der Sicherheitshinweis mit der
+      Beschreibung des Fehler wurde aber erst nach dieser Version
+      herausgegeben.  Wie Sie das Problem umgehen bzw. beseitigen
+      k&ouml;nnen sowie weitere Informationen finden Sie in
+      <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:09.
+      fstatfs.asc">FreeBSD-SA-02:09</ulink>.</para>
+
+    <para>In der Multiplexer-Routine von
+      <application>OpenSSH</application> wurde ein
+      <quote>off-by-one</quote> Fehler beseitigt.  Durch diesen Fehler
+      w&auml;re ein authentifizierter Benutzer in der Lage gewesen,
+      auf dem Server beliebige Programme mit root-Rechten
+      ausf&uuml;hren zu lassen; ein Server w&auml;re in der Lage
+      gewesen, auf dem Client beliebige Programme mit den
+      Berechtigungen des Benutzers auszuf&uuml;hren.  Informationen,
+      wie Sie dieses Problem in den diversen Versionen von
+      <application>OpenSSH</application> umgehen bzw. beseitigen
+      k&ouml;nnen, finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:13.op
+      enssh.asc">FreeBSD-SA-02:13</ulink>.  Dabei wird sowohl die
+      im Basisversion verwendete Version von
+      <application>OpenSSH</application> betrachtet, als auch die
+      diversen Ports.</para>
+]]>
   </sect1>
 
   <sect1>
-    <title>Informationen &uuml;ber Updates</title>
-    <para></para>
+    <title>Zus&auml;tzliche Informationen</title>
+<![ %release.type.release [
+    <para>Zur Zeit gibt keine zus&auml;tzlichen Informationen.</para>
+]]>
+
+<![ %release.type.snapshot [
+    <para>Einige SSH-Clients haben Probleme beim Aufbau einer
+      Verbindung zu einem Server mit &os; &release.prev;.  Sie fordern
+      den Benutzer zur Eingabe eines <application>S/Key</application>
+      Pa&szlig;wortes auf, obwohl der &man.sshd.8; auf dem Server gar
+      nicht f&uuml;r <application>S/Key</application> Autentifizierung
+      konfiguriert ist.  M&ouml;gliche Gr&uuml;nde sind
+      &Auml;nderungen in den Standardeinstellungen der Clients (z.B.
+      die Benutzung der Version 2 des SSH Protokolls, wenn es vorher
+      nicht genutzt wurde) oder durch eine &Auml;nderung in der
+      Reihenfolge der Autentifizierungen.  Es gibt einige
+      M&ouml;glichkeiten, das Problem zu l&ouml;sen:</para>
+
+    <itemizedlist>
+      <listitem>
+        <para>Wenn Sie eine neuere Version eines
+          <application>OpenSSH</application> Clients verwenden,
+          sollten Sie die folgende Zeile in Ihre
+          <filename>~/.ssh/config</filename> einf&uuml;gen:</para>
+
+        <programlisting>PreferredAuthentications publickey,password,keyboard-interactive</programlisting>
+      </listitem>
+
+      <listitem>
+        <para>Bei <application>PuTTY</application> kann die
+          Reihenfolge der Autentifizierungen zwar nicht ge&auml;ndert
+          werden, in den Einstellungen k&ouml;nnen Sie aber
+          interaktive Methoden der Autentifizierung
+          deaktivieren.</para>
+      </listitem>
+
+      <listitem>
+        <para>Um interaktive Methoden der Autentifizierung auf dem
+          Server abzuschalten, m&uuml;ssen Sie auf dem Server das
+          Kommentarzeichen vor der folgenden Zeile in der
+          <filename>/etc/ssh/sshd_config</filename> entfernen:</para>
+
+        <programlisting>ChallengeResponseAuthentication no</programlisting>
+      </listitem>
+    </itemizedlist>
+
+    <para>Der neue Treiber sbni wird zwar in den Release Notes
+      erw&auml;hnt, allerdings ist der Verweis auf das Programm in der
+      &os; Ports Collection fehlerhaft.  Der richtige Dateiname
+      f&uuml;r den Ports ist <filename
+      role="package">sysutils/sbniconfig</filename>.</para>
+
+    <para>f&uuml;r die Linux-Emulation mu&szlig; jetzt die Zeile
+      <literal>options SYSVSEM</literal> in der Konfigurationsdatei
+      des angepa&szlig;ten Kernels stehen.  Diese Abh&auml;ngigkeit
+      existierte schon vor dem Erscheinen von &os;
+      &release.prev;.</para>
+
+    <para>Auf den ISO-Images (und damit auch auf dem offiziellen Satz
+      mit 4 CDs) wurden einige Pakete mit optionalen Komponenten der
+      <application>KDE</application> vergessen.  In &auml;teren
+      Versionen konnten diese Packages mit dem <filename
+      role="package">x11/kde2</filename> installiert werden.  Sie
+      k&ouml;nnen die Packages sowohl &uuml;ber die &os; Ports
+      Collection installieren oder die bin&auml;ren Packages von einem
+      der &os; FTP herunterladen.  Die fehlenden Pakete sind:
+      <filename role="package">games/kdegames2</filename>, <filename
+      role="package">misc/kdeutils2</filename>, <filename
+      role="package">editors/koffice</filename>, <filename
+      role="package">net/kdenetwork2</filename>, <filename
+      role="package">graphics/kdegraphics2</filename> und <filename
+      role="package">audio/kdemultimedia2</filename>.  Bitte beachten
+      Sie, da&szlig; die h&auml;fig ben&ouml;tigten Packages <filename
+      role="package">x11/kdelibs2</filename> und <filename
+      role="package">x11/kdebase2</filename> auf der ersten der vier
+      offiziellen CDs vorhanden <emphasis>sind</emphasis>.
+      <footnote>
+        <para>Die komplette &os; Package Collection belegt im Moment
+          neun CDs.  Der offizielle Satz von CDs kann daher nur eine
+          Auswahl der verf&uuml;gbare Packages enthalten.  Mehere
+          Firmen bieten &os; Distributionen an, die mehr Packages
+          enthalten; auch die &os; FTP Server bieten eine
+          gr&ouml;&szlig;ere Auswahl an.</para>
+      </footnote>
+    </para>
+
+    <para>Das <application>Samba</application> Package wurde bei der
+      Erzeugung der ISO Images vergessen.  Sie k&ouml;nnen diese
+      Anwendung mit dem Port <filename
+      role="package">net/samba</filename > aus der &os; Ports
+      Collection installieren oder das Package von einem der &os; FTP
+      Server herunterladen.</para>
+
+    <para>Bei den Soft Updates wurde ein Fehler korrigiert, durch den
+      das Dateisystem unter bestimmten Umst&auml;nden inkonsistent
+      werden konnte.  Der Fehler trat auf, wenn das System unmittelbar nach
+      massiver Benutzung des Dateisystems (z.B. der Installation eines
+      neuen Kernels oder anderer Software) heruntergefahren wurde.
+      Dabei war das System dann nicht in der Lage, alle Puffer auf
+      die Festplatte zu schreiben und gab eine entsprechende
+      Meldung aus.  Um das Problem zu umgehen, sollten Sie vor
+      einem Neustart des Systems mehrfach &man.sync.8; aufrufen;
+      um das Problem komplett aus der Welt zu schaffen, sollten
+      Sie einen aktuellen Snapshot von &os; &release.current;
+      einspielen.</para>
+
+]]>
   </sect1>
 </article>

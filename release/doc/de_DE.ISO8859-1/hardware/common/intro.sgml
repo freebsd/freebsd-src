@@ -1,8 +1,8 @@
 <!--
   $FreeBSD$
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/intro.sgml,v 1.4 2002/03/11 23:12:37 ue Exp $
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/intro.sgml,v 1.3.2.2 2002/03/12 15:34:28 ue Exp $
   $Id: intro.sgml,v 1.5 2002/03/10 15:37:15 ue Exp $
-  basiert auf: 1.3
+  basiert auf: 1.1.2.2
 -->
 
 <sect1>
@@ -19,7 +19,7 @@
 
   <note>
     <para>Dieses Dokument enth&auml;lt Informationen f&uuml;r
-      &arch.print; Systeme.  Andere Versionen dieses Dokumentes, die
+      &arch.print;  Systeme.  Andere Versionen dieses Dokumentes, die
       f&uuml;r andere Plattformen gedacht sind, werden in vielen
       Punkten von diesem Dokument abweichen.</para>
   </note>

@@ -1,9 +1,9 @@
 <!--
   The FreeBSD German Documentation Project
   The FreeBSD Documentation Project
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/readme/article.sgml,v 1.3 2002/03/12 18:17:47 ue Exp $
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/readme/article.sgml,v 1.2.2.2 2002/03/12 18:18:05 ue Exp $
   $Id: article.sgml,v 1.9 2002/03/10 15:37:18 ue Exp $
-  basiert auf: 1.14
+  basiert auf: 1.1.2.13 
 -->
 
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -114,10 +114,10 @@
       <para>Wenn Sie einen &release.type; benutzen wollen,
         m&uuml;ssen Sie sich mit der Technik von &os; und den
         aktuellen Vorg&auml;ngen bei der Entwicklung von &os;
-        &release.branch; (wie sie in der &a.current; diskutiert werden)
+        &release.branch; (wie sie in der &a.stable; diskutiert werden)
         auskennen.</para>
 
-      <para>[Anmerkung des &Uuml;bersetzers:  Auf der &a.current; wird
+      <para>[Anmerkung des &Uuml;bersetzers:  Auf der &a.stable; wird
         Englisch gesprochen und die meisten Dokumente sind ebenfalls
         in dieser Sprache verfa&szlig;t worden.  Ohne gute
         Englischkenntnisse kommt man also nicht weit.  Allerdings
@@ -190,10 +190,7 @@
       <para>Zus&auml;tzliche Mirrors sind immer willkommen.  Wenden
         Sie sich bitte an <email>freebsd-admin@FreeBSD.org</email>,
         wenn Sie an weiteren Informationen zu diesem Thema
-        interessiert sind.  Zus&auml;tzliche Informationen zu diesem
-        Thema finden Sie im Artikel <ulink
-        URL="http://www.FreeBSD.org/doc/en_US.ISO8859-1/articles/hubs/">Mirroring
-        FreeBSD</ulink>.</para>
+        interessiert sind.</para>
 
       <para>Sie finden die f&uuml;r den Start der Installation
         notwendigen Images der Bootdisketten und die Dateien der
@@ -213,9 +210,9 @@
       <para>Wenn Sie Fragen haben oder Hilfe ben&ouml;tigen, wenden
         Sie sich bitte an &a.questions;.</para>
 
-      <para>Wenn Sie die Entwicklung von &release.branch;
+      <para>Wenn Sie die Entwicklung von -STABLE
         mitverfolgen, <emphasis>m&uuml;ssen</emphasis> Sie die
-        Mailingliste &a.current; lesen.  Nur so k&ouml;nnen Sie die
+        Mailingliste &a.stable; lesen.  Nur so k&ouml;nnen Sie die
         teilweise lebensnotwendigen Informationen &uuml;ber die
         aktuellen Entwicklungen und &Auml;nderungen erhalten, die Sie
         f&uuml;r den Betrieb des Systems ben&ouml;tigen.</para>

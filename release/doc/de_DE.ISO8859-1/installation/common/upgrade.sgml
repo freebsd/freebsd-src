@@ -1,8 +1,8 @@
 <!--
   $FreeBSD$
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/common/upgrade.sgml,v 1.3 2002/03/12 17:24:26 ue Exp $
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/common/upgrade.sgml,v 1.2.2.2 2002/03/12 18:15:45 ue Exp $
   $Id: upgrade.sgml,v 1.3 2002/03/10 15:37:18 ue Exp $
-  basiert auf: 1.7
+  basiert auf: 1.1.2.7
 
 	This section contains the contents of the old UPGRADE.TXT
 	file.
@@ -92,7 +92,7 @@
         <filename>namedb</filename>, <filename>networks</filename>,
         <filename>newsyslog.conf</filename>,
         <filename>nsmb.conf</filename>,
-        <filename>nsswitch.conf</filename>,
+        <filename>host.conf</filename>,
         <filename>pam.conf</filename>, <filename>passwd</filename>,
         <filename>periodic</filename>, <filename>ppp</filename>,
         <filename>printcap</filename>, <filename>profile</filename>,
