@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yppasswdd_main.c,v 1.5 1996/10/22 14:58:10 wpaul Exp $
+ *	$Id: yppasswdd_main.c,v 1.6 1996/10/23 15:42:37 wpaul Exp $
  */
 
 #include "yppasswd.h"
@@ -72,7 +72,7 @@ struct dom_binding {};
 
 #define	_RPCSVC_CLOSEDOWN 120
 #ifndef lint
-static const char rcsid[] = "$Id: yppasswdd_main.c,v 1.5 1996/10/22 14:58:10 wpaul Exp $";
+static const char rcsid[] = "$Id: yppasswdd_main.c,v 1.6 1996/10/23 15:42:37 wpaul Exp $";
 #endif /* not lint */
 int _rpcpmstart = 0;		/* Started by a port monitor ? */
 static int _rpcfdtype;
@@ -194,6 +194,7 @@ static void usage()
 	exit(1);
 }
 
+int
 main(argc, argv)
 	int argc;
 	char *argv[];
@@ -204,7 +205,6 @@ main(argc, argv)
 	struct sockaddr_in saddr;
 	int asize = sizeof (saddr);
 	int ch;
-	int rval;
 	char *mastername;
 	char myname[MAXHOSTNAMELEN + 2];
 	extern int errno;
