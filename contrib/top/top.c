@@ -549,6 +549,7 @@ Usage: %s [-ISbinqut] [-d x] [-s x] [-o field] [-U username] [number]\n",
 	/* display the current time */
 	/* this method of getting the time SHOULD be fairly portable */
 	time(&curr_time);
+	i_uptime(&system_info.boottime, &curr_time);
 	i_timeofday(&curr_time);
 
 	/* display process state breakdown */
