@@ -78,7 +78,11 @@ DIST_DOCS= ABOUT.TXT ERRATA.TXT LAYOUT.TXT README.TXT HARDWARE.TXT \
 # Things which without too much trouble can be considered variables
 # BIN_DISTS are special in that they get full /etc installation sets.
 #
+.if ${MACHINE_ARCH} == "i386"
 COMPAT_DISTS?=	compat1x compat20 compat21 compat22 compat3x compat4x
+.else
+COMPAT_DISTS?=	compat4x
+.endif
 OTHER_DISTS?=	manpages catpages games proflibs dict info doc
 CRYPTO_DISTS?=	crypto krb4 krb5
 BIN_DISTS?=	bin
