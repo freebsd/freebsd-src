@@ -95,6 +95,10 @@ ata_pci_probe(device_t dev)
  	if (!ata_intel_ident(dev))
  	    return 0;
  	break;
+    case ATA_NATIONAL_ID:
+        if (!ata_national_ident(dev))
+	    return 0;
+	break;
     case ATA_NVIDIA_ID:
  	if (!ata_nvidia_ident(dev))
  	    return 0;
