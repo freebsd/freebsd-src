@@ -191,10 +191,6 @@ looutput(ifp, m, dst, rt)
 	struct sockaddr *dst;
 	register struct rtentry *rt;
 {
-#ifdef INET6
-	struct mbuf *n;
-#endif
-
 	M_ASSERTPKTHDR(m); /* check if we have the packet header */
 
 	if (rt && rt->rt_flags & (RTF_REJECT|RTF_BLACKHOLE)) {
@@ -202,29 +198,6 @@ looutput(ifp, m, dst, rt)
 		return (rt->rt_flags & RTF_BLACKHOLE ? 0 :
 		        rt->rt_flags & RTF_HOST ? EHOSTUNREACH : ENETUNREACH);
 	}
-#ifdef INET6
-	/*
-	 * KAME requires that the packet to be contiguous on the
-	 * mbuf.  We need to make that sure.
-	 * this kind of code should be avoided.
-	 *
-	 * XXX: KAME may no longer need contiguous packets.  Once
-	 * that has been verified, the following code _should_ be
-	 * removed.
-	 */
-
-	if (m && m->m_next != NULL) {
-
-		n = m_defrag(m, M_DONTWAIT);
-
-		if (n == NULL) {
-			m_freem(m);
-			return (ENOBUFS);
-		} else {
-			m = n;
-		}
-	}
-#endif
 
 	ifp->if_opackets++;
 	ifp->if_obytes += m->m_pkthdr.len;
