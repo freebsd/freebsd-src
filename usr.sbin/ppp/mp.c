@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.c,v 1.1.2.23 1998/05/04 21:42:41 brian Exp $
+ *	$Id: mp.c,v 1.1.2.24 1998/05/06 18:50:12 brian Exp $
  */
 
 #include <sys/types.h>
@@ -108,8 +108,15 @@ inc_seq(unsigned is12bit, u_int32_t seq)
 static int
 isbefore(unsigned is12bit, u_int32_t seq1, u_int32_t seq2)
 {
-  u_int32_t max = is12bit ? 0xfff : 0xffffff;
-  return seq1 < seq2 || (seq1 > max - 0x200 && seq2 <= 0x200);
+  u_int32_t max = (is12bit ? 0xfff : 0xffffff) - 0x200;
+
+  if (seq1 > max) {
+    if (seq2 < 0x200 || seq2 > seq1)
+      return 1;
+  } else if ((seq1 > 0x200 || seq2 <= max) && seq1 < seq2)
+    return 1;
+
+  return 0;
 }
 
 static int
@@ -493,7 +500,8 @@ mp_Input(struct mp *mp, struct mbuf *m, struct physical *p)
 }
 
 static void
-mp_Output(struct mp *mp, struct link *l, struct mbuf *m, int begin, int end)
+mp_Output(struct mp *mp, struct link *l, struct mbuf *m, u_int32_t begin,
+          u_int32_t end)
 {
   struct mbuf *mo;
 
@@ -526,7 +534,8 @@ mp_FillQueues(struct bundle *bundle)
 {
   struct mp *mp = &bundle->ncp.mp;
   struct datalink *dl, *fdl;
-  int total, add, len, begin, end, thislink, nlinks;
+  int total, add, len, thislink, nlinks;
+  u_int32_t begin, end;
   struct mbuf *m, *mo;
 
   thislink = nlinks = 0;

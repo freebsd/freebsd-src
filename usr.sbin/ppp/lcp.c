@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.55.2.51 1998/04/30 23:53:42 brian Exp $
+ * $Id: lcp.c,v 1.55.2.52 1998/05/01 19:24:55 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
@@ -797,6 +797,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
         break;
       case MODE_REJ:
 	lcp->his_reject |= (1 << type);
+        lcp->want_shortseq = 0;		/* For when we hit MP */
 	break;
       }
       break;
