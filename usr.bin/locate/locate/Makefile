@@ -4,7 +4,7 @@ PROG=	locate
 
 beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-	    ${.CURDIR}/updatedb.csh ${DESTDIR}/usr/libexec/locate.updatedb
+	    ${.CURDIR}/updatedb.sh ${DESTDIR}/usr/libexec/locate.updatedb
 
 .include "../../Makefile.inc"
 .include <bsd.prog.mk>
