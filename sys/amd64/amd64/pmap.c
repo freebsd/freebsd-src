@@ -117,6 +117,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sx.h>
 #include <sys/user.h>
 #include <sys/vmmeter.h>
+#include <sys/sched.h>
 #include <sys/sysctl.h>
 #ifdef SMP
 #include <sys/smp.h>
