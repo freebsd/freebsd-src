@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.5 1998/11/05 07:27:55 jkh Exp $
+# $Id: Makefile,v 1.6 1998/11/05 08:39:42 jkh Exp $
 #
 LIB=			ficl
 NOPROFILE=		yes
@@ -16,8 +16,8 @@ SOFTWORDS=	softcore.fr jhlocal.fr marker.fr
 .PATH:		${.CURDIR}/softwords
 CFLAGS+=	-I${.CURDIR}
 
-softcore.c:	${SOFTWORDS} softcore.pl
-	(cd ${.CURDIR}/softwords; perl softcore.pl ${SOFTWORDS}) > ${.TARGET}
+softcore.c:	${SOFTWORDS} softcore.awk
+	(cd ${.CURDIR}/softwords; cat ${SOFTWORDS} | awk -f softcore.awk) > ${.TARGET}
 
 .include <bsd.lib.mk>
 

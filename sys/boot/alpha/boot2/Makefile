@@ -47,7 +47,7 @@ ${BASE}.sym: ${OBJS} ${LIBSTAND} ${LIBALPHA} ${CRT} vers.o setdef0.o setdef1.o
 	vers.o ${LIBSTAND} ${LIBALPHA} ${LIBSTAND} >${.OBJDIR}/${BASE}.list
 
 ${BASE}.help: help.common help.alpha
-	perl ${.CURDIR}/../../common/merge_help.pl ${.ALLSRC} > ${.TARGET}
+	cat ${.ALLSRC} | awk -f ${.CURDIR}/../../common/merge_help.awk > ${.TARGET}
 
 beforeinstall:
 .if exists(${.OBJDIR}/loader.help)
