@@ -4,7 +4,7 @@
 
      $Id$
      $FreeBSD$
-     Original revision: 1.1.2.5
+     Original revision: 1.1.2.6
 -->
 
 <!DOCTYPE style-sheet PUBLIC "-//James Clark//DTD DSSSL Style Sheet//EN" [
