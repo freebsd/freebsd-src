@@ -182,6 +182,10 @@
 #define TXCON_FULL_DUPLEX		0x00000006
 #define TXCON_SLOT_TIME			0x00000078
 
+#define	MIICFG_SERIAL_ENABLE		0x00000001
+#define	MIICFG_694_ENABLE		0x00000002
+#define	MIICFG_694_STATUS		0x00000004
+#define	MIICFG_PHY_PRESENT		0x00000008
 #define	MIICFG_SMI_ENABLE		0x00000010
 
 #define	TEST1_CLOCK_TEST		0x00000008
@@ -257,13 +261,14 @@ struct epic_tx_buffer {
 typedef struct {
 	struct arpcom		arpcom;
 #if defined(__OpenBSD__)
-	struct device		sc_dev;
 	mii_data_t		sc_mii;
+	struct device		dev;
 #else /* __FreeBSD__ */
 	struct resource		*res;
 	struct resource		*irq;
 
 	device_t		miibus;
+	device_t		dev;
 	struct callout_handle	stat_ch;
 
 	u_int32_t		unit;
