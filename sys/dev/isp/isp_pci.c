@@ -181,6 +181,10 @@ static struct ispmdvec mdvec_2300 = {
 #define	PCI_PRODUCT_QLOGIC_ISP1080	0x1080
 #endif
 
+#ifndef	PCI_PRODUCT_QLOGIC_ISP10160
+#define	PCI_PRODUCT_QLOGIC_ISP10160	0x1016
+#endif
+
 #ifndef	PCI_PRODUCT_QLOGIC_ISP12160
 #define	PCI_PRODUCT_QLOGIC_ISP12160	0x1216
 #endif
@@ -214,6 +218,9 @@ static struct ispmdvec mdvec_2300 = {
 
 #define	PCI_QLOGIC_ISP1080	\
 	((PCI_PRODUCT_QLOGIC_ISP1080 << 16) | PCI_VENDOR_QLOGIC)
+
+#define	PCI_QLOGIC_ISP10160	\
+	((PCI_PRODUCT_QLOGIC_ISP10160 << 16) | PCI_VENDOR_QLOGIC)
 
 #define	PCI_QLOGIC_ISP12160	\
 	((PCI_PRODUCT_QLOGIC_ISP12160 << 16) | PCI_VENDOR_QLOGIC)
@@ -293,6 +300,9 @@ isp_pci_probe(device_t dev)
 		break;
 	case PCI_QLOGIC_ISP1280:
 		device_set_desc(dev, "Qlogic ISP 1280 PCI SCSI Adapter");
+		break;
+	case PCI_QLOGIC_ISP10160:
+		device_set_desc(dev, "Qlogic ISP 10160 PCI SCSI Adapter");
 		break;
 	case PCI_QLOGIC_ISP12160:
 		if (pci_get_subvendor(dev) == AMI_RAID_SUBVENDOR_ID) {
@@ -455,6 +465,13 @@ isp_pci_attach(device_t dev)
 		mdvp = &mdvec_1080;
 		basetype = ISP_HA_SCSI_1280;
 		psize = 2 * sizeof (sdparam);
+		pcs->pci_poff[DMA_BLOCK >> _BLK_REG_SHFT] =
+		    ISP1080_DMA_REGS_OFF;
+	}
+	if (pci_get_devid(dev) == PCI_QLOGIC_ISP10160) {
+		mdvp = &mdvec_12160;
+		basetype = ISP_HA_SCSI_10160;
+		psize = sizeof (sdparam);
 		pcs->pci_poff[DMA_BLOCK >> _BLK_REG_SHFT] =
 		    ISP1080_DMA_REGS_OFF;
 	}
