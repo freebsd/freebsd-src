@@ -268,7 +268,8 @@ syncache_init(void)
 	/* Initialize the timer queues. */
 	for (i = 0; i <= SYNCACHE_MAXREXMTS; i++) {
 		TAILQ_INIT(&tcp_syncache.timerq[i]);
-		callout_init(&tcp_syncache.tt_timerq[i], 0);
+		callout_init(&tcp_syncache.tt_timerq[i],
+			debug_mpsafenet ? CALLOUT_MPSAFE : 0);
 	}
 
 	/*
