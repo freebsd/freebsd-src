@@ -263,6 +263,7 @@ pcnet_probe(lnc_softc_t *sc)
 			case Am79C971:
 				return (PCnet_FAST);
 			case Am79C972:
+			case Am79C973:
 				return (PCnet_FASTplus);
 			case Am79C978:
 				return (PCnet_Home);
