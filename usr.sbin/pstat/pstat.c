@@ -56,6 +56,7 @@ static char sccsid[] = "@(#)pstat.c	8.9 (Berkeley) 2/16/94";
 #include <sys/stat.h>
 #include <nfs/nfsnode.h>
 #include <sys/ioctl.h>
+#include <sys/ioctl_compat.h>	/* XXX NTTYDISC is too well hidden */
 #include <sys/tty.h>
 #include <sys/conf.h>
 #include <sys/rlist.h>
@@ -129,6 +130,14 @@ struct nlist nl[] = {
 	{ "_sccons" },
 #define NSCCONS	(SNPTY+2)
 	{ "_nsccons" },
+#define SIO  (SNPTY+3)
+	{ "_sio_tty" },
+#define NSIO (SNPTY+4)
+	{ "_nsio_tty" },
+#define RC  (SNPTY+5)
+	{ "_rc_tty" },
+#define NRC (SNPTY+6)
+	{ "_nrc_tty" },
 #endif
 	{ "" }
 };
@@ -764,6 +773,10 @@ ttymode()
 #ifdef __FreeBSD__
 	if (nl[NSCCONS].n_type != 0)
 		ttytype(tty, "vty", SCCONS, NSCCONS);
+	if (nl[NSIO].n_type != 0)
+		ttytype(tty, "sio", SIO, NSIO);
+	if (nl[NRC].n_type != 0)
+		ttytype(tty, "rc", RC, NRC);
 #endif
 	if (nl[SNPTY].n_type != 0)
 		ttytype(tty, "pty", SPTY, SNPTY);
@@ -848,11 +861,17 @@ ttyprt(tp, line)
 	case TTYDISC:
 		(void)printf("term\n");
 		break;
+	case NTTYDISC:
+		(void)printf("ntty\n");
+		break;
 	case TABLDISC:
 		(void)printf("tab\n");
 		break;
 	case SLIPDISC:
 		(void)printf("slip\n");
+		break;
+	case PPPDISC:
+		(void)printf("ppp\n");
 		break;
 	default:
 		(void)printf("%d\n", tp->t_line);
