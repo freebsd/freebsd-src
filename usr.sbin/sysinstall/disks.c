@@ -758,7 +758,8 @@ diskPartitionEditor(dialogMenuItem *self)
 	/* Some are already selected */
 	for (i = 0; i < devcnt; i++) {
 	    if (devs[i]->enabled) {
-		if (variable_get(VAR_NONINTERACTIVE))
+		if (variable_get(VAR_NONINTERACTIVE) &&
+		  !variable_get(VAR_DISKINTERACTIVE))
 		    diskPartitionNonInteractive(devs[i]);
 		else
 		    diskPartition(devs[i]);
@@ -769,7 +770,8 @@ diskPartitionEditor(dialogMenuItem *self)
 	/* No disks are selected, fall-back case now */
 	if (devcnt == 1) {
 	    devs[0]->enabled = TRUE;
-	    if (variable_get(VAR_NONINTERACTIVE))
+	    if (variable_get(VAR_NONINTERACTIVE) &&
+	      !variable_get(VAR_DISKINTERACTIVE))
 		diskPartitionNonInteractive(devs[0]);
 	    else
 		diskPartition(devs[0]);
