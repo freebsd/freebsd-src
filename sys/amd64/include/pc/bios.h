@@ -54,6 +54,7 @@ struct bios32_SDentry
     u_int32_t	base;			/* base of service */
     u_int32_t	len;			/* service length */
     u_int32_t	entry;			/* entrypoint offset from base */
+    vm_offset_t	ventry;			/* entrypoint in kernel virtual segment */
 };
 
 extern int		bios32_SDlookup(struct bios32_SDentry *ent);
@@ -202,6 +203,16 @@ struct bios_args {
 #define PNP_GET_LASTBOOT	"sp",		0x64
 #define PNP_GET_BOOTFIRST	"sp",		0x65
 #define PNP_SET_BOOTFIRST	"sp",		0x66
+
+/*
+ * PCI BIOS functions
+ */
+#define PCIBIOS_READ_CONFIG_BYTE	0xb108
+#define PCIBIOS_READ_CONFIG_WORD	0xb109
+#define PCIBIOS_READ_CONFIG_DWORD	0xb10a
+#define PCIBIOS_WRITE_CONFIG_BYTE	0xb10b
+#define PCIBIOS_WRITE_CONFIG_WORD	0xb10c
+#define PCIBIOS_WRITE_CONFIG_DWORD	0xb10d
 
 extern int bios16(struct bios_args *, char *, ...);
 extern int bios16_call(struct bios_regs *, char *);
