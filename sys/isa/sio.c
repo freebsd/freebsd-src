@@ -279,6 +279,7 @@ struct com_s {
 	struct resource *irqres;
 	struct resource *ioportres;
 	void *cookie;
+	dev_t devs[6];
 
 	/*
 	 * Data area for output buffers.  Someday we should build the output
@@ -544,6 +545,7 @@ sio_pccard_detach(dev)
 	device_t	dev;
 {
 	struct com_s	*com;
+	int i;
 
 	com = (struct com_s *) device_get_softc(dev);
 	if (com == NULL) {
@@ -551,6 +553,8 @@ sio_pccard_detach(dev)
 		return (0);
 	}
 	com->gone = 1;
+	for (i = 0 ; i < 6; i++)
+		destroy_dev(com->devs[i]);
 	if (com->irqres) {
 		bus_teardown_intr(dev, com->irqres, com->cookie);
 		bus_release_resource(dev, SYS_RES_IRQ, 0, com->irqres);
@@ -1311,17 +1315,19 @@ determined_type: ;
 		register_swi(SWI_TTY, siopoll);
 		sio_registered = TRUE;
 	}
-	make_dev(&sio_cdevsw, unit,
+	com->devs[0] = make_dev(&sio_cdevsw, unit,
 	    UID_ROOT, GID_WHEEL, 0600, "ttyd%r", unit);
-	make_dev(&sio_cdevsw, unit | CONTROL_INIT_STATE,
+	com->devs[1] = make_dev(&sio_cdevsw, unit | CONTROL_INIT_STATE,
 	    UID_ROOT, GID_WHEEL, 0600, "ttyid%r", unit);
-	make_dev(&sio_cdevsw, unit | CONTROL_LOCK_STATE,
+	com->devs[2] = make_dev(&sio_cdevsw, unit | CONTROL_LOCK_STATE,
 	    UID_ROOT, GID_WHEEL, 0600, "ttyld%r", unit);
-	make_dev(&sio_cdevsw, unit | CALLOUT_MASK,
+	com->devs[3] = make_dev(&sio_cdevsw, unit | CALLOUT_MASK,
 	    UID_UUCP, GID_DIALER, 0660, "cuaa%r", unit);
-	make_dev(&sio_cdevsw, unit | CALLOUT_MASK | CONTROL_INIT_STATE,
+	com->devs[4] = make_dev(&sio_cdevsw,
+	    unit | CALLOUT_MASK | CONTROL_INIT_STATE,
 	    UID_UUCP, GID_DIALER, 0660, "cuaia%r", unit);
-	make_dev(&sio_cdevsw, unit | CALLOUT_MASK | CONTROL_LOCK_STATE,
+	com->devs[5] = make_dev(&sio_cdevsw,
+	    unit | CALLOUT_MASK | CONTROL_LOCK_STATE,
 	    UID_UUCP, GID_DIALER, 0660, "cuala%r", unit);
 	com->flags = flags;
 	com->pps.ppscap = PPS_CAPTUREASSERT | PPS_CAPTURECLEAR;
