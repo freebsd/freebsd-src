@@ -62,9 +62,7 @@ __FBSDID("$FreeBSD$");
  * unvis - decode characters previously encoded by vis
  */
 int
-unvis(cp, c, astate, flag)
-	char *cp;
-	int c, *astate, flag;
+unvis(char *cp, int c, int *astate, int flag)
 {
 
 	if (flag & UNVIS_END) {
@@ -241,9 +239,7 @@ unvis(cp, c, astate, flag)
  */
 
 int
-strunvis(dst, src)
-	char *dst;
-	const char *src;
+strunvis(char *dst, const char *src)
 {
 	char c;
 	char *start = dst;
@@ -272,9 +268,7 @@ strunvis(dst, src)
 }
 
 int
-strunvisx(dst, src, flag)
-	char *dst;
-	const char *src;
+strunvisx(char *dst, const char *src, int flag)
 {
 	char c;
 	char *start = dst;
