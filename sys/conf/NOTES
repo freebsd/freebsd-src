@@ -2065,6 +2065,13 @@ options 	BOOTP_WIRED_TO=fxp0 # Use interface fxp0 for BOOTP
 options 	HW_WDOG
 
 #
+# Add software watchdog routines.  This will add some sysctl OIDs that
+# can be used in combination with an external daemon to create a
+# software-based watchdog solution.
+#
+options		WATCHDOG
+
+#
 # Disable swapping of upages and stack pages.  This option removes all
 # code which actually performs swapping, so it's not possible to turn
 # it back on at run-time.
