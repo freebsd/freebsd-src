@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.47 1994/08/06 09:15:14 davidg Exp $
+ *	$Id: machdep.c,v 1.48 1994/08/10 03:51:07 wollman Exp $
  */
 
 #include "npx.h"
@@ -96,7 +96,7 @@ static void initcpu(void);
 static int test_page(int *, int);
 
 extern int grow(struct proc *,u_int);
-char machine[] = "PC-Class";
+char machine[] = "i386";
 char cpu_model[sizeof("Pentium") + 1];
 
 #ifndef PANIC_REBOOT_WAIT_TIME
