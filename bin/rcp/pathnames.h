@@ -31,10 +31,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)pathnames.h	8.1 (Berkeley) 5/31/93
- *	$Id$
+ *	$Id: pathnames.h,v 1.2 1994/09/24 02:56:55 davidg Exp $
  */
 
 #include <paths.h>
 
 #define	_PATH_CP	"/bin/cp"
+#define	_PATH_RCP	"/bin/rcp"
+#define	_PATH_RLOGIN	"/usr/bin/rlogin"
 #define	_PATH_RSH	"/usr/bin/rsh"

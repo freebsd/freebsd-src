@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: fmt.c,v 1.6 1995/10/23 21:03:40 ache Exp $
+ *	$Id: fmt.c,v 1.6.2.1 1997/03/10 19:10:52 guido Exp $
  */
 
 #ifndef lint
@@ -44,6 +44,7 @@ static char sccsid[] = "@(#)fmt.c	8.4 (Berkeley) 4/15/94";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <vis.h>
 #include "ps.h"
 
@@ -58,8 +59,16 @@ static char *
 shquote(argv)
 	char **argv;
 {
+	long arg_max;
 	char **p, *dst, *src;
-	static char buf[4*ARG_MAX];		/* XXX */
+	static char *buf = NULL;
+
+	if (buf == NULL) {
+		if ((arg_max = sysconf(_SC_ARG_MAX)) == -1)
+			errx(1, "sysconf _SC_ARG_MAX failed");
+		if ((buf = malloc((4 * arg_max)  +  1)) == NULL)
+			errx(1, "malloc failed");
+	}
 
 	if (*argv == 0) {
 		buf[0] = 0;

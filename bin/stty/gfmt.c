@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: gfmt.c,v 1.4 1995/05/30 00:07:26 rgrimes Exp $
+ *	$Id: gfmt.c,v 1.4.6.1 1997/08/25 09:24:02 jkh Exp $
  */
 
 #ifndef lint
@@ -65,10 +65,12 @@ gprint(tp, wp, ldisc)
 	struct cchar *cp;
 
 	(void)printf("gfmt1:cflag=%lx:iflag=%lx:lflag=%lx:oflag=%lx:",
-	    tp->c_cflag, tp->c_iflag, tp->c_lflag, tp->c_oflag);
+	    (u_long)tp->c_cflag, (u_long)tp->c_iflag, (u_long)tp->c_lflag,
+	    (u_long)tp->c_oflag);
 	for (cp = cchars1; cp->name; ++cp)
 		(void)printf("%s=%x:", cp->name, tp->c_cc[cp->sub]);
-	(void)printf("ispeed=%ld:ospeed=%ld\n", cfgetispeed(tp), cfgetospeed(tp));
+	(void)printf("ispeed=%lu:ospeed=%lu\n",
+	    (u_long)cfgetispeed(tp), (u_long)cfgetospeed(tp));
 }
 
 void

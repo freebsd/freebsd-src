@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mv.c,v 1.8.2.2 1998/02/15 11:16:28 jkh Exp $
+ *	$Id: mv.c,v 1.8.2.3 1998/05/25 22:45:42 steve Exp $
  */
 
 #ifndef lint
@@ -78,7 +78,7 @@ main(argc, argv)
 	register char *p, *endp;
 	struct stat sb;
 	int ch;
-	char path[MAXPATHLEN + 1];
+	char path[MAXPATHLEN];
 
 	while ((ch = getopt(argc, argv, "fi")) != -1)
 		switch (ch) {
@@ -110,6 +110,8 @@ main(argc, argv)
 	}
 
 	/* It's a directory, move each file into it. */
+	if (strlen(argv[argc - 1]) > sizeof(path) - 1)
+		errx(1, "%s: destination pathname too long", *argv);
 	(void)strcpy(path, argv[argc - 1]);
 	baselen = strlen(path);
 	endp = &path[baselen];
@@ -268,8 +270,8 @@ err:		if (unlink(to))
 
 	oldmode = sbp->st_mode & ALLPERMS;
 	if (fchown(to_fd, sbp->st_uid, sbp->st_gid)) {
-		warn("%s: set owner/group (was: %u/%u)", to, sbp->st_uid,
-		    sbp->st_gid);
+		warn("%s: set owner/group (was: %lu/%lu)", to,
+		    (u_long)sbp->st_uid, (u_long)sbp->st_gid);
 		if (oldmode & (S_ISUID | S_ISGID)) {
 			warnx(
 "%s: owner/group changed; clearing suid/sgid (mode was 0%03o)",
