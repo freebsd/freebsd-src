@@ -77,6 +77,7 @@
 #include <netinet/tcpip.h>
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
+#include <altq/if_altq.h>
 
 #ifdef IPSEC
 #include <netinet6/ipsec.h>
@@ -553,6 +554,13 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ether_header *eh,
 		if (l->log_left == 0)
 			limit_reached = l->max_log;
 		cmd += F_LEN(cmd);	/* point to first action */
+		if (cmd->opcode == O_ALTQ) {
+			ipfw_insn_altq *altq = (ipfw_insn_altq *)cmd;
+
+			snprintf(SNPARGS(action2, 0), "Altq %d",
+				altq->qid);
+			cmd += F_LEN(cmd);
+		}
 		if (cmd->opcode == O_PROB)
 			cmd += F_LEN(cmd);
 
@@ -1323,6 +1331,8 @@ lookup_next_rule(struct ip_fw *me)
 	/* look for action, in case it is a skipto */
 	cmd = ACTION_PTR(me);
 	if (cmd->opcode == O_LOG)
+		cmd += F_LEN(cmd);
+	if (cmd->opcode == O_ALTQ)
 		cmd += F_LEN(cmd);
 	if ( cmd->opcode == O_SKIPTO )
 		for (rule = me->next; rule ; rule = rule->next)
@@ -2212,6 +2222,32 @@ check_body:
 				     (TH_RST | TH_ACK | TH_SYN)) != TH_SYN);
 				break;
 
+			case O_ALTQ: {
+				struct altq_tag *at;
+				ipfw_insn_altq *altq = (ipfw_insn_altq *)cmd;
+
+				match = 1;
+				mtag = m_tag_get(PACKET_TAG_PF_QID,
+						sizeof(struct altq_tag),
+						M_NOWAIT);
+				if (mtag == NULL) {
+					/*
+					 * Let the packet fall back to the
+					 * default ALTQ.
+					 */
+					break;
+				}
+				at = (struct altq_tag *)(mtag+1);
+				at->qid = altq->qid;
+				if (hlen != 0)
+					at->af = AF_INET;
+				else
+					at->af = AF_LINK;
+				at->hdr = ip;
+				m_tag_prepend(m, mtag);
+				break;
+			}
+
 			case O_LOG:
 				if (fw_verbose)
 					ipfw_log(f, hlen, args->eh, m, oif);
@@ -2274,6 +2310,9 @@ check_body:
 			 *   ('goto next_rule', equivalent to a 'break 2'),
 			 *   or to the SKIPTO target ('goto again' after
 			 *   having set f, cmd and l), respectively.
+			 *
+			 * O_LOG and O_ALTQ action parameters:
+			 *   perform some action and set match = 1;
 			 *
 			 * O_LIMIT and O_KEEP_STATE: these opcodes are
 			 *   not real 'actions', and are stored right
@@ -2971,6 +3010,11 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 		case O_XMIT:
 		case O_VIA:
 			if (cmdlen != F_INSN_SIZE(ipfw_insn_if))
+				goto bad_size;
+			break;
+
+		case O_ALTQ:
+			if (cmdlen != F_INSN_SIZE(ipfw_insn_altq))
 				goto bad_size;
 			break;
 
