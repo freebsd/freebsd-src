@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.53 1994/02/09 05:35:57 nate Exp $
+#	$Id: LINT,v 1.54 1994/02/27 21:53:53 phk Exp $
 #
 
 machine		"i386"
@@ -58,6 +58,8 @@ options		EXCLUDE_CHIP_MIDI	# \  sound driver options
 options		"EXCLUDE_MPU401"	#  \ exclude specified
 options		EXCLUDE_GUS		#  / device or chip
 options		EXCLUDE_SBPRO		# /  from driver
+options		EXCLUDE_SB16		# |
+options		EXCLUDE_PAS		# |
 
 options		USER_LDT		#allow user-level control of i386 ldt
 
@@ -168,8 +170,10 @@ device		wt0	at isa? port 0x300 bio irq 5 drq 1 vector wtintr
 # See /sys/i386/doc/sound.doc for more information.
 device snd5 at isa? port 0x330 irq 6 drq 0 vector mpuintr
 device snd4 at isa? port 0x220 irq 15 drq 6 vector gusintr
-device snd3 at isa? port 0x388 irq 12 drq 3 vector pasintr
+device snd3 at isa? port 0x388 irq 10 drq 6 vector pasintr
 device snd2 at isa? port 0x220 irq 7 drq 1 vector sbintr
+device snd6 at isa? port 0x220 irq 7 drq 5 vector sbintr
+device snd7 at isa? port 0x300 irq 7 drq 0 vector sbintr
 device snd1 at isa? port 0x388 irq 0 drq 0 vector sbintr
 #
 #
