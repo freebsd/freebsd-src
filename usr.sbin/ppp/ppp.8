@@ -3007,6 +3007,14 @@ Disabling this option will prevent the re-application of sticky routes,
 although the
 .Sq stick route
 list will still be maintained.
+.It Op tcp Ns Xo
+.No mssfixup
+.Xc
+Default: Enabled.
+This option tells
+.Nm
+to adjust outgoing TCP SYN packets so that the maximum receive segment
+size is not greater than the amount allowed by the interface MTU.
 .It throughput
 Default: Enabled.
 This option tells
