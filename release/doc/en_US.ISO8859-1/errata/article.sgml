@@ -113,6 +113,10 @@
     as a fix, can be found in security advisory
     FreeBSD-SA-01:49.</para>
 
+    <para>A vulnerability whereby a remote attacker could exhaust a
+    target's pool of network buffers has been closed.  More details,
+    as well as a fix, can be found in security advisory
+    FreeBSD-SA-01:52.</para>
   </sect1>
 
   <sect1>

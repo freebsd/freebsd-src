@@ -252,12 +252,6 @@
     turned off by default.  However, if you turn on NFS server, NIS services,
     or Amd; the portmapper will still be started.</para>
 
-    <para>The new <varname>net.inet.ip.maxfragpackets</varname> 
-    and <varname>net.inet.ip.maxfragpackets</varname> sysctl
-    variables limit the amount of memory that can be consumed by IPv4
-    and IPv6 packet fragments, which defends against some denial of service
-    attacks.</para>
-
     <para>A flaw allowed some signal handlers to remain in effect in a
     child process after being exec-ed from its parent.  This allowed
     an attacker to execute arbitrary code in the context of a setuid
@@ -269,6 +263,12 @@
 
     <para>A remote buffer overflow in &man.telnetd.8; has been
     fixed (see security advisory FreeBSD-SA-01:49).</para>
+
+    <para>The new <varname>net.inet.ip.maxfragpackets</varname> 
+    and <varname>net.inet.ip6.maxfragpackets</varname> sysctl
+    variables limit the amount of memory that can be consumed by IPv4
+    and IPv6 packet fragments, which defends against some denial of service
+    attacks (see security advisory FreeBSD-SA-01:52).</para>
   </sect2>
   <sect2 id="userland">
     <title>Userland Changes</title>
