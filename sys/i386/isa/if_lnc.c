@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_lnc.c,v 1.60 1999/05/09 23:24:47 peter Exp $
+ * $Id: if_lnc.c,v 1.61 1999/07/06 19:22:50 des Exp $
  */
 
 /*
@@ -151,6 +151,7 @@ static char const * const ic_ident[] = {
 	"PCnet-PCI II",
 	"PCnet-FAST",
 	"PCnet-FAST+",
+	"PCnet-Home",
 };
 
 static void lnc_setladrf __P((struct lnc_softc *sc));
@@ -1192,6 +1193,8 @@ pcnet_probe(struct lnc_softc *sc)
 				return (PCnet_FAST);
 			case Am79C972:
 				return (PCnet_FASTplus);
+			case Am79C978:
+				return (PCnet_Home);
 			default:
 				break;
 			}
@@ -1490,6 +1493,15 @@ lnc_init(struct lnc_softc *sc)
 	sc->pending_transmits = 0;
 
 	/* Give the LANCE the physical address of the initialisation block */
+
+	if (sc->nic.ic == PCnet_Home) {
+		u_short	media;
+		/* Set PHY_SEL to HomeRun */
+		media = read_bcr(sc, BCR49);
+		media &= ~3;
+		media |= 1;
+		write_bcr(sc, BCR49, media);
+	}
 
 	write_csr(sc, CSR1, kvtop(sc->init_block));
 	write_csr(sc, CSR2, (kvtop(sc->init_block) >> 16) & 0xff);
