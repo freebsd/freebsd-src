@@ -44,37 +44,7 @@ static char sccsid[] = "@(#)getpass.c	8.1 (Berkeley) 6/4/93";
 #include <unistd.h>
 
 static	struct termios oterm, term;
-static	sig_t ointhandler, oquithandler, otstphandler, oconthandler;
 static	FILE *fp;
-
-static void
-sighandler(int signo)
-{
-	/* restore tty state */
-	(void)tcsetattr(fileno(fp), TCSAFLUSH|TCSASOFT, &oterm);
-
-	/* restore old sig handlers */
-	(void)signal(SIGINT, ointhandler);
-	(void)signal(SIGQUIT, oquithandler);
-	(void)signal(SIGTSTP, otstphandler);
-
-	/* resend us this signal */
-	(void)kill(getpid(), signo);
-}
-
-/* ARGSUSED */
-static void
-sigconthandler(int signo)
-{
-	/* re-install our signal handlers */
-	ointhandler = signal(SIGINT, sighandler);
-	oquithandler = signal(SIGQUIT, sighandler);
-	otstphandler = signal(SIGTSTP, sighandler);
-
-	/* turn off echo again */
-	(void)tcsetattr(fileno(fp), TCSAFLUSH|TCSASOFT, &term);
-}
-
 
 char *
 getpass(prompt)
@@ -84,6 +54,7 @@ getpass(prompt)
 	register char *p;
 	FILE *outfp;
 	static char buf[_PASSWORD_LEN + 1];
+	sigset_t oset, nset;
 
 	/*
 	 * read and write to /dev/tty if possible; else read from
@@ -94,11 +65,15 @@ getpass(prompt)
 		fp = stdin;
 	}
 
-	ointhandler = signal(SIGINT, sighandler);
-	oquithandler = signal(SIGQUIT, sighandler);
-	otstphandler = signal(SIGTSTP, sighandler);
-	oconthandler = signal(SIGCONT, sigconthandler);
-
+	/*
+	 * note - blocking signals isn't necessarily the
+	 * right thing, but we leave it for now.
+	 */
+	sigemptyset(&nset);
+	sigaddset(&nset, SIGINT);
+	sigaddset(&nset, SIGTSTP);
+	(void)sigprocmask(SIG_BLOCK, &nset, &oset);
+	
 	(void)tcgetattr(fileno(fp), &oterm);
 	term = oterm;
 	term.c_lflag &= ~ECHO;
@@ -112,11 +87,7 @@ getpass(prompt)
 	(void)write(fileno(outfp), "\n", 1);
 	(void)tcsetattr(fileno(fp), TCSAFLUSH|TCSASOFT, &oterm);
 
-	/* restore old sig handlers */
-	(void)signal(SIGINT, ointhandler);
-	(void)signal(SIGQUIT, oquithandler);
-	(void)signal(SIGTSTP, otstphandler);
-	(void)signal(SIGCONT, oconthandler);
+	(void)sigprocmask(SIG_SETMASK, &oset, NULL);
 
 	if (fp != stdin)
 		(void)fclose(fp);
