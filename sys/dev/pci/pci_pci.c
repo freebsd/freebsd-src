@@ -562,6 +562,11 @@ host_pcib_get_busno(pci_read_config_fn read_config, int bus, int slot, int func,
 	case 0x03021014:
 		*busnum = read_config(bus, slot, func, 0x44, 1);
 		break;
+
+		/* Compaq/HP -- vendor 0x0e11 */
+	case 0x60100e11:
+		*busnum = read_config(bus, slot, func, 0xc8, 1);
+		break;
 	default:
 		/* Don't know how to read bus number. */
 		return 0;
