@@ -83,9 +83,11 @@ struct fs_ops *file_system[] = {
  * rather than reading the file go first.
  */
 extern struct file_format	i386_elf;
+extern struct file_format	i386_elf_obj;
 
 struct file_format *file_formats[] = {
     &i386_elf,
+    &i386_elf_obj,
     NULL
 };
 
