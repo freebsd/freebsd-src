@@ -10,6 +10,8 @@
  * $FreeBSD$
  */
 
+#include <sys/types.h>
+#include <sys/random.h>
 #include <sys/libkern.h>
 
 #define	ARC4_MAXRUNS 64
@@ -18,8 +20,6 @@ static u_int8_t arc4_i, arc4_j;
 static int arc4_initialized = 0;
 static int arc4_numruns = 0;
 static u_int8_t arc4_sbox[256];
-
-extern u_int read_random (void *, u_int);
 
 static __inline void
 arc4_swap(u_int8_t *a, u_int8_t *b)
@@ -40,7 +40,8 @@ arc4_randomstir (void)
 	u_int8_t key[256];
 	int r, n;
 
-	r = read_random(key, sizeof(key));
+	/* r = read_random(key, sizeof(key)); */
+	r = 0; /* XXX MarkM - revisit this when /dev/random is done */
 	/* if r == 0 || -1, just use what was on the stack */
 	if (r > 0)
 	{
