@@ -26,10 +26,6 @@
  * $FreeBSD$
  */
 
-/* NOTE NOTE NOTE - This is not finished! It will supply numbers, but
- *                  it is not yet cryptographically secure!!
- */
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
