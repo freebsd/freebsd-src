@@ -995,14 +995,8 @@ doTARBALL:
 		   md5 * > CHECKSUM.MD5) \
 	)
 
-.if target(release.9.${TARGET_ARCH})
-RELEASE9=release.9.${TARGET_ARCH}
-.else
-RELEASE9=release.9 
-.endif
-
 doRELEASE:  release.1 release.2 release.3 ${DOCREL} release.4 release.5 \
-		release.6 release.7 release.8 ${RELEASE9} release.10
+		release.6 release.7 release.8 release.9 release.10
 	@cd ${.CURDIR} && ${MAKE} ${EXTRAS}
 	@echo "Release done"
 
