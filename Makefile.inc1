@@ -632,7 +632,7 @@ _perl=	gnu/usr.bin/perl/libperl gnu/usr.bin/perl/miniperl
 
 cross-tools:
 .for _tool in ${_btxld} ${_elf2exe} ${_perl} \
-    usr.bin/gensetdefs gnu/usr.bin/binutils usr.bin/objformat gnu/usr.bin/cc
+    gnu/usr.bin/binutils usr.bin/objformat gnu/usr.bin/cc
 	cd ${.CURDIR}/${_tool}; \
 		${MAKE} obj; \
 		${MAKE} depend; \
