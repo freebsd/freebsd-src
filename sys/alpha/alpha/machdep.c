@@ -602,7 +602,7 @@ alpha_init(pfn, ptb, bim, bip, biv)
 	struct mddt_cluster *memc;
 	int i, mddtweird;
 	int cputype;
-	char* p;
+	char *p;
 
 	/* NO OUTPUT ALLOWED UNTIL FURTHER NOTICE */
 
@@ -753,11 +753,21 @@ alpha_init(pfn, ptb, bim, bip, biv)
 		 */
 		cputype = -cputype;
 	}
-	if (cputype >= ncpuinit) {
-		platform_not_supported(cputype);
-		/* NOTREACHED */
+	
+	if (cputype >= API_ST_BASE) {
+		if (cputype >= napi_cpuinit + API_ST_BASE) {
+			platform_not_supported(cputype);
+			/* NOTREACHED */
+		}
+		cputype -= API_ST_BASE;
+		api_cpuinit[cputype].init(cputype);
+	} else {
+		if (cputype >= ncpuinit) {
+			platform_not_supported(cputype);
+			/* NOTREACHED */
+		}	
+		cpuinit[cputype].init(cputype);
 	}
-	cpuinit[cputype].init(cputype);
 	snprintf(cpu_model, sizeof(cpu_model), "%s", platform.model);
 
 	/*
@@ -1088,6 +1098,16 @@ alpha_init(pfn, ptb, bim, bip, biv)
 	}
 
 	/*
+	 * Catch case of boot_verbose set in environment.
+	 */
+	if ((p = getenv("boot_verbose")) != NULL) {
+		if (strcmp(p, "yes") == 0 || strcmp(p, "YES") == 0) {
+			boothowto |= RB_VERBOSE;
+			bootverbose = 1;
+		}
+	}
+
+	/*
 	 * Initialize debuggers, and break into them if appropriate.
 	 */
 #ifdef DDB
@@ -1158,17 +1178,46 @@ bzero(void *buf, size_t len)
 	}
 }
 
-/*
- * Wait "n" microseconds.
- */
 void
 DELAY(int n)
 {
-#ifndef SIMOS
-	long N = cycles_per_usec * (n);
+#ifndef	SIMOS
+	unsigned long pcc0, pcc1, curcycle, cycles;
+        int usec;
 
-	while (N > 0)				/* XXX */
-		N -= 3;				/* XXX */
+	if (n == 0)
+		return;
+
+        pcc0 = alpha_rpcc() & 0xffffffffUL;
+	cycles = 0;
+	usec = 0;
+
+        while (usec <= n) {
+		/*
+		 * Get the next CPU cycle count. The assumption here
+		 * is that we can't have wrapped twice past 32 bits worth
+		 * of CPU cycles since we last checked.
+		 */
+		pcc1 = alpha_rpcc() & 0xffffffffUL;
+		if (pcc1 < pcc0) {
+			curcycle = (pcc1 + 0x100000000UL) - pcc0;
+		} else {
+			curcycle = pcc1 - pcc0;
+		}
+
+		/*
+		 * We now have the number of processor cycles since we
+		 * last checked. Add the current cycle count to the
+		 * running total. If it's over cycles_per_usec, increment
+		 * the usec counter.
+		 */
+		cycles += curcycle;
+		while (cycles > cycles_per_usec) {
+			usec++;
+			cycles -= cycles_per_usec;
+		}
+		pcc0 = pcc1;
+        }
 #endif
 }
 
