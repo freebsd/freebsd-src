@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)nm.1	8.1 (Berkeley) 6/6/93
-.\"	$Id$
+.\"	$Id: nm.1,v 1.7 1997/02/22 19:56:28 peter Exp $
 .\"
 .Dd June 6, 1993
 .Dt NM 1
@@ -39,9 +39,9 @@
 .Nm nm
 .Nd display name list (symbol table)
 .Sh SYNOPSIS
-.Nm nm
+.Nm
 .Op Fl agnoprtuwW
-.Ar
+.Op Ar
 .Sh DESCRIPTION
 The symbol table (name list) of each object in
 .Ar file(s)
@@ -121,6 +121,6 @@ The output is sorted alphabetically.
 .Xr stab 5
 .Sh HISTORY
 An
-.Nm nm
+.Nm
 command appeared in
 .At v1 .
