@@ -453,7 +453,7 @@ open_top:
 		/* set initial DCD state */
 		if (DEV_IS_CALLOUT(mynor) ||
 					(sx_modem(sc, pp, GET, 0) & TIOCM_CD)) {
-			(*linesw[tp->t_line].l_modem)(tp, 1);
+			ttyld_modem(tp, 1);
 		}
 	}
 	/* whoops! we beat the close! */
@@ -475,7 +475,7 @@ open_top:
 		goto open_top;
 	}
 
-	error = (*linesw[tp->t_line].l_open)(dev, tp);
+	error = ttyld_open(tp, dev);
 	sx_disc_optim(tp, &tp->t_termios, pp);
 	if (tp->t_state & TS_ISOPEN && DEV_IS_CALLOUT(mynor))
 		pp->sp_active_out = TRUE;
@@ -536,7 +536,7 @@ sxclose(
 	sx_write_enable(pp, 0);		/* block writes for ttywait() */
 
 	/* THIS MAY SLEEP IN TTYWAIT!!! */
-	(*linesw[tp->t_line].l_close)(tp, flag);
+	ttyld_close(tp, flag);
 
 	sx_write_enable(pp, 1);
 
@@ -675,7 +675,7 @@ sxwrite(
 			goto out;
 		}
 	}
-	error = (*linesw[tp->t_line].l_write)(tp, uio, flag);
+	error = ttyld_write(tp, uio, flag);
 out:	splx(oldspl);
 	DPRINT((pp, DBG_WRITE, "sxwrite out\n"));
 	return (error);
@@ -1313,7 +1313,7 @@ sx_transmit(
 	 * discipline to send more.
 	 */
 	if (flags & CD1865_IER_TXRDY) {
-		(*linesw[tp->t_line].l_start)(tp);
+		ttyld_start(tp);
 		pp->sp_state &= ~SX_SS_IXMIT;
 		DPRINT((pp, DBG_TRANSMIT, "sx_xmit TXRDY out\n"));
 		return;
@@ -1365,11 +1365,11 @@ sx_modem_state(
 		if ((sx_cd1865_in(sc, CD1865_MSVR) & CD1865_MSVR_CD) == 0) {
 			DPRINT((pp, DBG_INTR, "modem carr on t_line %d\n",
 				tp->t_line));
-			(void)(*linesw[tp->t_line].l_modem)(tp, 1);
+			(void)ttyld_modem(tp, 1);
 		}
 		else {			/* CD went down.                      */
 			DPRINT((pp, DBG_INTR, "modem carr off\n"));
-			if ((*linesw[tp->t_line].l_modem)(tp, 0))
+			if (ttyld_modem(tp, 0))
 				(void)sx_modem(sc, pp, SET, 0);
 		}
 	}
@@ -1496,7 +1496,7 @@ sx_receive(
 		 */
 		for (x = 0; x < count; x++) {
 			i = sx_rxbuf[x];
-			if ((*linesw[tp->t_line].l_rint)(i, tp) == -1)
+			if (ttyld_rint(tp, i) == -1)
 				pp->sp_delta_overflows++;
 		}
 	}
@@ -1561,7 +1561,7 @@ sx_receive_exception(
 		ch |= TTY_FE;
 	else if (st & CD1865_RCSR_OE)
 		ch |= TTY_OE;
-	(*linesw[tp->t_line].l_rint)(ch, tp);
+	ttyld_rint(tp, ch);
 	pp->sp_state &= ~SX_SS_IRCVEXC;
 }
 

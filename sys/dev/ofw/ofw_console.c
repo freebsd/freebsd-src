@@ -138,7 +138,7 @@ ofw_dev_open(dev_t dev, int flag, int mode, struct thread *td)
 		return (EBUSY);
 	}
 
-	error = (*linesw[tp->t_line].l_open)(dev, tp);
+	error = ttyld_open(tp, dev);
 
 	if (error == 0 && setuptimeout) {
 		polltime = hz / OFW_POLL_HZ;
@@ -165,7 +165,7 @@ ofw_dev_close(dev_t dev, int flag, int mode, struct thread *td)
 		return (ENXIO);
 	}
 
-	(*linesw[tp->t_line].l_close)(tp, flag);
+	ttyld_close(tp, flag);
 	ttyclose(tp);
 
 	return (0);
@@ -218,7 +218,7 @@ ofw_timeout(void *v)
 
 	while ((c = ofw_cons_checkc(NULL)) != -1) {
 		if (tp->t_state & TS_ISOPEN) {
-			(*linesw[tp->t_line].l_rint)(c, tp);
+			ttyld_rint(tp, c);
 		}
 	}
 

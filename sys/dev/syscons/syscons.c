@@ -495,13 +495,13 @@ scopen(dev_t dev, int flag, int mode, struct thread *td)
 	tp->t_lflag = TTYDEF_LFLAG;
 	tp->t_ispeed = tp->t_ospeed = TTYDEF_SPEED;
 	scparam(tp, &tp->t_termios);
-	(*linesw[tp->t_line].l_modem)(tp, 1);
+	ttyld_modem(tp, 1);
     }
     else
 	if (tp->t_state & TS_XCLUDE && suser(td))
 	    return(EBUSY);
 
-    error = (*linesw[tp->t_line].l_open)(dev, tp);
+    error = ttyld_open(tp, dev);
 
     scp = sc_get_stat(dev);
     if (scp == NULL) {
@@ -561,7 +561,7 @@ scclose(dev_t dev, int flag, int mode, struct thread *td)
 	DPRINTF(5, ("done.\n"));
     }
     spltty();
-    (*linesw[tp->t_line].l_close)(tp, flag);
+    ttyld_close(tp, flag);
     ttyclose(tp);
     spl0();
     return(0);
@@ -618,23 +618,23 @@ sckbdevent(keyboard_t *thiskbd, int event, void *arg)
 
 	switch (KEYFLAGS(c)) {
 	case 0x0000: /* normal key */
-	    (*linesw[cur_tty->t_line].l_rint)(KEYCHAR(c), cur_tty);
+	    ttyld_rint(cur_tty, KEYCHAR(c));
 	    break;
 	case FKEY:  /* function key, return string */
 	    cp = kbd_get_fkeystr(thiskbd, KEYCHAR(c), &len);
 	    if (cp != NULL) {
 	    	while (len-- >  0)
-		    (*linesw[cur_tty->t_line].l_rint)(*cp++, cur_tty);
+		    ttyld_rint(cur_tty, *cp++);
 	    }
 	    break;
 	case MKEY:  /* meta is active, prepend ESC */
-	    (*linesw[cur_tty->t_line].l_rint)(0x1b, cur_tty);
-	    (*linesw[cur_tty->t_line].l_rint)(KEYCHAR(c), cur_tty);
+	    ttyld_rint(cur_tty, 0x1b);
+	    ttyld_rint(cur_tty, KEYCHAR(c));
 	    break;
 	case BKEY:  /* backtab fixed sequence (esc [ Z) */
-	    (*linesw[cur_tty->t_line].l_rint)(0x1b, cur_tty);
-	    (*linesw[cur_tty->t_line].l_rint)('[', cur_tty);
-	    (*linesw[cur_tty->t_line].l_rint)('Z', cur_tty);
+	    ttyld_rint(cur_tty, 0x1b);
+	    ttyld_rint(cur_tty, '[');
+	    ttyld_rint(cur_tty, 'Z');
 	    break;
 	}
     }
@@ -3571,7 +3571,7 @@ sc_paste(scr_stat *scp, u_char *p, int count)
 	return;
     rmap = scp->sc->scr_rmap;
     for (; count > 0; --count)
-	(*linesw[tp->t_line].l_rint)(rmap[*p++], tp);
+	ttyld_rint(tp, rmap[*p++]);
 }
 
 void

@@ -182,7 +182,7 @@ ptsopen(dev, flag, devtype, td)
 	else if (pti->pt_prison != td->td_ucred->cr_prison)
 		return (EBUSY);
 	if (tp->t_oproc)			/* Ctrlr still around. */
-		(void)(*linesw[tp->t_line].l_modem)(tp, 1);
+		(void)ttyld_modem(tp, 1);
 	while ((tp->t_state & TS_CARR_ON) == 0) {
 		if (flag&FNONBLOCK)
 			break;
@@ -191,7 +191,7 @@ ptsopen(dev, flag, devtype, td)
 		if (error)
 			return (error);
 	}
-	error = (*linesw[tp->t_line].l_open)(dev, tp);
+	error = ttyld_open(tp, dev);
 	if (error == 0)
 		ptcwakeup(tp, FREAD|FWRITE);
 	return (error);
@@ -207,7 +207,7 @@ ptsclose(dev, flag, mode, td)
 	int err;
 
 	tp = dev->si_tty;
-	err = (*linesw[tp->t_line].l_close)(tp, flag);
+	err = ttyld_close(tp, flag);
 	(void) ttyclose(tp);
 	return (err);
 }
@@ -268,7 +268,7 @@ again:
 			return (error);
 	} else
 		if (tp->t_oproc)
-			error = (*linesw[tp->t_line].l_read)(tp, uio, flag);
+			error = ttyld_read(tp, uio, flag);
 	ptcwakeup(tp, FWRITE);
 	return (error);
 }
@@ -289,7 +289,7 @@ ptswrite(dev, uio, flag)
 	tp = dev->si_tty;
 	if (tp->t_oproc == 0)
 		return (EIO);
-	return ((*linesw[tp->t_line].l_write)(tp, uio, flag));
+	return (ttyld_write(tp, uio, flag));
 }
 
 /*
@@ -347,7 +347,7 @@ ptcopen(dev, flag, devtype, td)
 	tp->t_timeout = -1;
 	tp->t_oproc = ptsstart;
 	tp->t_stop = ptsstop;
-	(void)(*linesw[tp->t_line].l_modem)(tp, 1);
+	(void)ttyld_modem(tp, 1);
 	tp->t_lflag &= ~EXTPROC;
 	pti = dev->si_drv1;
 	pti->pt_prison = td->td_ucred->cr_prison;
@@ -367,7 +367,7 @@ ptcclose(dev, flags, fmt, td)
 	struct tty *tp;
 
 	tp = dev->si_tty;
-	(void)(*linesw[tp->t_line].l_modem)(tp, 0);
+	(void)ttyld_modem(tp, 0);
 
 	/*
 	 * XXX MDMBUF makes no sense for ptys but would inhibit the above
@@ -600,7 +600,7 @@ again:
 				wakeup(TSA_HUP_OR_INPUT(tp));
 				goto block;
 			}
-			(*linesw[tp->t_line].l_rint)(*cp++, tp);
+			ttyld_rint(tp, *cp++);
 			cnt++;
 			cc--;
 		}

@@ -304,7 +304,7 @@ pcvt_open(dev_t dev, int flag, int mode, struct thread *td)
 		tp->t_lflag = TTYDEF_LFLAG;
 		tp->t_ispeed = tp->t_ospeed = TTYDEF_SPEED;
 		pcvt_param(tp, &tp->t_termios);
-		(*linesw[tp->t_line].l_modem)(tp, 1);	/* fake connection */
+		ttyld_modem(tp, 1);	/* fake connection */
 		winsz = 1;			/* set winsize later */
 	}
 	else if (tp->t_state & TS_XCLUDE && suser(td))
@@ -312,7 +312,7 @@ pcvt_open(dev_t dev, int flag, int mode, struct thread *td)
 		return (EBUSY);
 	}
 
-	retval = ((*linesw[tp->t_line].l_open)(dev, tp));
+	retval = (ttyld_open(tp, dev));
 
 	if(winsz == 1)
 	{
@@ -352,7 +352,7 @@ pcvt_close(dev_t dev, int flag, int mode, struct thread *td)
 
 	tp = pcvt_tty[i];
 
-	(*linesw[tp->t_line].l_close)(tp, flag);
+	ttyld_close(tp, flag);
 
 	ttyclose(tp);
 
@@ -442,13 +442,13 @@ pcvt_timeout(void *arg)
 			if(*cp == '\0')
 			{
 				/* pass a NULL character */
-				(*linesw[tp->t_line].l_rint)('\0', tp);
+				ttyld_rint(tp, '\0');
 			}
 /* XXX */		else
 #endif /* PCVT_NULLCHARS */
 
 			while (*cp)
-				(*linesw[tp->t_line].l_rint)(*cp++ & 0xff, tp);
+				ttyld_rint(tp, *cp++ & 0xff);
 		}
 
 		PCVT_DISABLE_INTR ();

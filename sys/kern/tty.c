@@ -1014,10 +1014,10 @@ ttioctl(struct tty *tp, u_long cmd, void *data, int flag)
 			return (ENXIO);
 		if (t != tp->t_line) {
 			s = spltty();
-			(*linesw[tp->t_line].l_close)(tp, flag);
+			ttyld_close(tp, flag);
 			error = (*linesw[t].l_open)(device, tp);
 			if (error) {
-				(void)(*linesw[tp->t_line].l_open)(device, tp);
+				(void)ttyld_open(tp, device);
 				splx(s);
 				return (error);
 			}
@@ -1042,7 +1042,7 @@ ttioctl(struct tty *tp, u_long cmd, void *data, int flag)
 		if (!isctty(p, tp) && suser(td))
 			return (EACCES);
 		s = spltty();
-		(*linesw[tp->t_line].l_rint)(*(u_char *)data, tp);
+		ttyld_rint(tp, *(u_char *)data);
 		splx(s);
 		break;
 	case TIOCSTOP:			/* stop output, like ^S */
@@ -2728,7 +2728,7 @@ ttyread(dev_t dev, struct uio *uio, int flag)
 	    ("ttyread(): no tty pointer on device (%s)", devtoname(dev)));
 	if (tp == NULL)
 		return (ENODEV);
-	return ((*linesw[tp->t_line].l_read)(tp, uio, flag));
+	return (ttyld_read(tp, uio, flag));
 }
 
 int
@@ -2743,7 +2743,7 @@ ttywrite(dev_t dev, struct uio *uio, int flag)
 	    ("ttywrite(): no tty pointer on device (%s)", devtoname(dev)));
 	if (tp == NULL)
 		return (ENODEV);
-	return ((*linesw[tp->t_line].l_write)(tp, uio, flag));
+	return (ttyld_write(tp, uio, flag));
 }
 
 int

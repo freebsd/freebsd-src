@@ -782,7 +782,7 @@ siodetach(dev)
 				     com->ioportres);
 	if (com->tp && (com->tp->t_state & TS_ISOPEN)) {
 		device_printf(dev, "still open, forcing close\n");
-		(*linesw[com->tp->t_line].l_close)(com->tp, 0);
+		ttyld_close(com->tp, 0);
 		ttyclose(com->tp);
 	} else {
 		if (com->ibuf != NULL)
@@ -2048,10 +2048,10 @@ open_top:
 		    (!IS_8251(com->pc98_if_type) &&
 			(com->prev_modem_status & MSR_DCD)) ||
 		    mynor & CALLOUT_MASK)
-			(*linesw[tp->t_line].l_modem)(tp, 1);
+			ttyld_modem(tp, 1);
 #else
 		if (com->prev_modem_status & MSR_DCD || mynor & CALLOUT_MASK)
-			(*linesw[tp->t_line].l_modem)(tp, 1);
+			ttyld_modem(tp, 1);
 #endif
 	}
 	/*
@@ -2068,7 +2068,7 @@ open_top:
 			goto out;
 		goto open_top;
 	}
-	error =	(*linesw[tp->t_line].l_open)(dev, tp);
+	error =	ttyld_open(tp, dev);
 	disc_optim(tp, &tp->t_termios, com);
 	if (tp->t_state & TS_ISOPEN && mynor & CALLOUT_MASK)
 		com->active_out = TRUE;
@@ -2100,7 +2100,7 @@ sioclose(dev, flag, mode, td)
 		return (ENODEV);
 	tp = com->tp;
 	s = spltty();
-	(*linesw[tp->t_line].l_close)(tp, flag);
+	ttyld_close(tp, flag);
 #ifdef PC98
 	com->modem_checking = 0;
 #endif
@@ -2236,7 +2236,7 @@ sioread(dev, uio, flag)
 	com = com_addr(MINOR_TO_UNIT(mynor));
 	if (com == NULL || com->gone)
 		return (ENODEV);
-	return ((*linesw[com->tp->t_line].l_read)(com->tp, uio, flag));
+	return (ttyld_read(com->tp, uio, flag));
 }
 
 static int
@@ -2265,7 +2265,7 @@ siowrite(dev, uio, flag)
 	 */
 	if (constty != NULL && unit == comconsole)
 		constty = NULL;
-	return ((*linesw[com->tp->t_line].l_write)(com->tp, uio, flag));
+	return (ttyld_write(com->tp, uio, flag));
 }
 
 static void
@@ -2430,7 +2430,7 @@ sioinput(com)
 				if (line_status & LSR_PE)
 					recv_data |= TTY_PE;
 			}
-			(*linesw[tp->t_line].l_rint)(recv_data, tp);
+			ttyld_rint(tp, recv_data);
 			mtx_lock_spin(&sio_lock);
 		} while (buf < com->iptr);
 	}
@@ -3218,7 +3218,7 @@ repeat:
 				timeout(siobusycheck, com, hz / 100);
 				com->extra_state |= CSE_BUSYCHECK;
 			}
-			(*linesw[tp->t_line].l_start)(tp);
+			ttyld_start(tp);
 		}
 		if (com_events == 0)
 			break;
@@ -3886,8 +3886,8 @@ commint(dev_t dev)
 	}
 	if ((delta & TIOCM_CAR) && (mynor & CALLOUT_MASK) == 0) {
 	    if (stat & TIOCM_CAR )
-		(void)(*linesw[tp->t_line].l_modem)(tp, 1);
-	    else if ((*linesw[tp->t_line].l_modem)(tp, 0) == 0) {
+		(void)ttyld_modem(tp, 1);
+	    else if (ttyld_modem(tp, 0) == 0) {
 		/* negate DTR, RTS */
 		com_tiocm_bic(com, (tp->t_cflag & HUPCL) ?
 				TIOCM_DTR|TIOCM_RTS|TIOCM_LE : TIOCM_LE );
