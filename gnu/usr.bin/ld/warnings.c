@@ -30,7 +30,7 @@
    Set, indirect, and warning symbol features added by Randy Smith. */
 
 /*
- * $Id$
+ * $Id: warnings.c,v 1.15 1997/02/22 15:46:27 peter Exp $
  */
 
 #include <sys/param.h>
@@ -185,10 +185,14 @@ describe_file_sections(entry, outfile)
 	if (entry->flags & (E_JUST_SYMS | E_DYNAMIC))
 		fprintf(outfile, " symbols only\n");
 	else
-		fprintf(outfile, " text %x(%lx), data %x(%lx), bss %x(%lx) hex\n",
-			entry->text_start_address, entry->header.a_text,
-			entry->data_start_address, entry->header.a_data,
-			entry->bss_start_address, entry->header.a_bss);
+		fprintf(outfile,
+			" text %x(%lx), data %x(%lx), bss %x(%lx) hex\n",
+			entry->text_start_address,
+			(unsigned long)entry->header.a_text,
+			entry->data_start_address,
+			(unsigned long)entry->header.a_data,
+			entry->bss_start_address,
+			(unsigned long)entry->header.a_bss);
 }
 
 static void

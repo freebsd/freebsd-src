@@ -1,4 +1,4 @@
-/* $RCSfile: str.c,v $$Revision: 1.2 $$Date: 1995/05/30 05:03:21 $
+/* $RCSfile: str.c,v $$Revision: 1.3 $$Date: 1997/08/08 20:53:59 $
  *
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,6 +6,12 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: str.c,v $
+ * Revision 1.3  1997/08/08 20:53:59  joerg
+ * Fix a buffer overflow condition (that causes a security hole in suidperl).
+ *
+ * Closes: CERT Advisory CA-97.17 - Vulnerability in suidperl
+ * Obtained from: (partly) the fix in CA-97.17
+ *
  * Revision 1.2  1995/05/30 05:03:21  rgrimes
  * Remove trailing whitespace.
  *
@@ -206,7 +212,7 @@ register STR *str;
     str->str_pok = 1;
 #ifdef DEBUGGING
     if (debug & 32)
-	fprintf(stderr,"0x%lx ptr(%s)\n",str,str->str_ptr);
+	fprintf(stderr,"%p ptr(%s)\n",str,str->str_ptr);
 #endif
     return str->str_ptr;
 }
@@ -232,7 +238,7 @@ register STR *str;
     str->str_nok = 1;
 #ifdef DEBUGGING
     if (debug & 32)
-	fprintf(stderr,"0x%lx num(%g)\n",str,str->str_u.str_nval);
+	fprintf(stderr,"%p num(%g)\n",str,str->str_u.str_nval);
 #endif
     return str->str_u.str_nval;
 }
