@@ -65,7 +65,7 @@ struct iodone_chain {
 struct bio {
 	u_int	bio_cmd;		/* I/O operation. */
 	dev_t	bio_dev;		/* Device to do I/O on. */
-	daddr_t	bio_blkno;		/* Underlying physical block number. */
+	daddr64_t bio_blkno;		/* Underlying physical block number. */
 	off_t	bio_offset;		/* Offset into file. */
 	long	bio_bcount;		/* Valid bytes in buffer. */
 	caddr_t	bio_data;		/* Memory, superblocks, indirect etc. */
@@ -81,7 +81,7 @@ struct bio {
 	TAILQ_ENTRY(bio) bio_queue;	/* Disksort queue. */
 
 	/* XXX: these go away when bio chaining is introduced */
-	daddr_t	bio_pblkno;               /* physical block number */
+	daddr64_t bio_pblkno;               /* physical block number */
 	struct	iodone_chain *bio_done_chain;
 	struct bio *bio_linkage;
 	off_t	bio_length;
@@ -136,7 +136,7 @@ biofinish(struct bio *bp, struct devstat *stat, int error)
 
 struct bio_queue_head {
 	TAILQ_HEAD(bio_queue, bio) queue;
-	daddr_t	last_pblkno;
+	daddr64_t last_pblkno;
 	struct	bio *insert_point;
 	struct	bio *switch_point;
 	int busy;

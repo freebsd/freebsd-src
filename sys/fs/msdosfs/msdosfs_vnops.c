@@ -711,10 +711,11 @@ msdosfs_write(ap)
 			 * for the fat table. (see msdosfs_strategy)
 			 */
 			if (bp->b_blkno == bp->b_lblkno) {
-				error = pcbmap(dep, bp->b_lblkno, &bp->b_blkno, 
-				     0, 0);
+				error = pcbmap(dep, bp->b_lblkno, &bn, 0, 0);
 				if (error)
 					bp->b_blkno = -1;
+				else
+					bp->b_blkno = bn;
 			}
 			if (bp->b_blkno == -1) {
 				brelse(bp);
@@ -1733,14 +1734,16 @@ static int
 msdosfs_bmap(ap)
 	struct vop_bmap_args /* {
 		struct vnode *a_vp;
-		daddr_t a_bn;
+		daddr64_t a_bn;
 		struct vnode **a_vpp;
-		daddr_t *a_bnp;
+		daddr64_t *a_bnp;
 		int *a_runp;
 		int *a_runb;
 	} */ *ap;
 {
 	struct denode *dep = VTODE(ap->a_vp);
+	daddr_t blkno;
+	int error;
 
 	if (ap->a_vpp != NULL)
 		*ap->a_vpp = dep->de_devvp;
@@ -1755,7 +1758,9 @@ msdosfs_bmap(ap)
 	if (ap->a_runb) {
 		*ap->a_runb = 0;
 	}
-	return (pcbmap(dep, ap->a_bn, ap->a_bnp, 0, 0));
+	error = pcbmap(dep, ap->a_bn, &blkno, 0, 0);
+	*ap->a_bnp = blkno;
+	return (error);
 }
 
 static int
@@ -1769,6 +1774,7 @@ msdosfs_strategy(ap)
 	struct denode *dep = VTODE(bp->b_vp);
 	struct vnode *vp;
 	int error = 0;
+	daddr_t blkno;
 
 	if (bp->b_vp->v_type == VBLK || bp->b_vp->v_type == VCHR)
 		panic("msdosfs_strategy: spec");
@@ -1779,7 +1785,8 @@ msdosfs_strategy(ap)
 	 * don't allow files with holes, so we shouldn't ever see this.
 	 */
 	if (bp->b_blkno == bp->b_lblkno) {
-		error = pcbmap(dep, bp->b_lblkno, &bp->b_blkno, 0, 0);
+		error = pcbmap(dep, bp->b_lblkno, &blkno, 0, 0);
+		bp->b_blkno = blkno;
 		if (error) {
 			bp->b_error = error;
 			bp->b_ioflags |= BIO_ERROR;
