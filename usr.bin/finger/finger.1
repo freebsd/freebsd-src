@@ -40,7 +40,7 @@
 .Nd user information lookup program
 .Sh SYNOPSIS
 .Nm
-.Op Fl lmpshoT
+.Op Fl glmpshoT
 .Op Ar user ...\&
 .Op Ar user@host ...\&
 .Sh DESCRIPTION
@@ -87,16 +87,24 @@ When used in conjunction with the
 option, the office location and office phone information is displayed
 instead of the name of the remote host.
 .Pp
+.It Fl g
+This option restricts the gecos output to only the users' real
+name. It also has the side-effect of restricting the output
+of the remote host when used in conjunction with the
+.Fl h
+option.
+.Pp
 .It Fl l
-Produces a multi-line format displaying all of the information
+Produce a multi-line format displaying all of the information
 described for the
 .Fl s
 option as well as the user's home directory, home phone number, login
 shell, mail status, and the contents of the files
 .Dq Pa .forward ,
-.Dq Pa .plan
-and
+.Dq Pa .plan ,
 .Dq Pa .project
+and
+.Dq Pa .pubkey
 from the user's home directory.
 .Pp
 If idle time is at least a minute and less than a day, it is
@@ -122,16 +130,17 @@ mailbox since new mail arriving, or ``New mail received ...'', ``Unread
 since ...'' if they have new mail.
 .Pp
 .It Fl p
-Prevents
+Prevent
 the
 .Fl l
 option of
 .Nm
 from displaying the contents of the
 .Dq Pa .forward ,
-.Dq Pa .plan
-and
+.Dq Pa .plan ,
 .Dq Pa .project
+and
+.Dq Pa .pubkey
 files.
 .It Fl m
 Prevent matching of

@@ -34,13 +34,14 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)sprint.c	8.3 (Berkeley) 4/28/95";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <db.h>
 #include <err.h>
@@ -52,16 +53,16 @@ static const char rcsid[] =
 #include <utmp.h>
 #include "finger.h"
 
-static void	  stimeprint __P((WHERE *));
+static void	  stimeprint(WHERE *);
 
 void
 sflag_print()
 {
 	extern time_t now;
 	extern int    oflag;
-	register PERSON *pn;
-	register WHERE *w;
-	register int sflag, r, namelen;
+	PERSON *pn;
+	WHERE *w;
+	int sflag, r, namelen;
 	char p[80];
 	PERSON *tmp;
 	DBT data, key;
@@ -88,7 +89,7 @@ sflag_print()
 #define	MAXREALNAME	20
 #define MAXHOSTNAME     17      /* in reality, hosts are never longer than 16 */
 	(void)printf("%-*s %-*s%s  %s\n", UT_NAMESIZE, "Login", MAXREALNAME,
-	    "Name", " TTY  Idle  Login  Time",
+	    "Name", " TTY  Idle  Login  Time ", (gflag) ? "" :
 	    oflag ? "Office  Phone" : "Where");
 
 	for (sflag = R_FIRST;; sflag = R_NEXT) {
@@ -142,7 +143,10 @@ sflag_print()
 				(void)strftime(p, sizeof(p), "%R", lc);
 			}
 			(void)printf(" %-5.5s", p);
-office:			if (oflag) {
+office:
+			if (gflag)
+				goto no_gecos;
+			if (oflag) {
 				if (pn->office)
 					(void)printf(" %-7.7s", pn->office);
 				else if (pn->officephone)
@@ -152,6 +156,7 @@ office:			if (oflag) {
 					    prphone(pn->officephone));
 			} else
 				(void)printf(" %.*s", MAXHOSTNAME, w->host);
+no_gecos:
 			putchar('\n');
 		}
 	}
@@ -161,7 +166,7 @@ static void
 stimeprint(w)
 	WHERE *w;
 {
-	register struct tm *delta;
+	struct tm *delta;
 
 	delta = gmtime(&w->idletime);
 	if (!delta->tm_yday)
