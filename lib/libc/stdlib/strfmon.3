@@ -33,7 +33,7 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.Fd #include <monetary.h>
+.In monetary.h
 .Ft ssize_t
 .Fn strfmon "char *s" "size_t maxsize" "const char *format" "..."
 .Sh DESCRIPTION
@@ -41,27 +41,30 @@ The
 .Fn strfmon
 function places characters into the array pointed to by
 .Fa s
-as controlled by the strong pointed to by
+as controlled by the string pointed to by
 .Fa format .
 No more than
 .Fa maxsize
 bytes are placed into the array.
 .Sh RETURN VALUES
-If the total number of resulting bytes including the terminating null
+If the total number of resulting bytes including the terminating
+.Dv NULL
 byte is not more than
 .Fa maxsize ,
-.Nm
+.Fn strfmon
 returns the number of bytes placed into the array pointed to by
 .Fa s ,
-not including the terminating null byte.
-Otherwise, -1 is returned,
+not including the terminating
+.Dv NULL
+byte.
+Otherwise, \-1 is returned,
 the contents of the array are indeterminate,
 and
 .Va errno
 is set to indicate the error.
 .Sh ERRORS
 The
-.Nm
+.Fn strfmon
 function will fail if:
 .Bl -tag -width Er
 .It Bq Er E2BIG
@@ -76,10 +79,10 @@ function
 conforms to
 .St -xpg4
 and
-.St -susv2
+.St -susv2 .
 .Sh AUTHORS
 The
-.Nm
+.Fn strfmon
 function was implemented by
 .An Alexey Zelkin Aq phantom@FreeBSD.org .
 .Pp
