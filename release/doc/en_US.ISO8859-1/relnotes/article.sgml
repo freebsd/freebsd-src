@@ -602,7 +602,7 @@
       library, has been removed.  This flag is confusing in the
       presence of multiple threading libraries (specifically
       <filename>libc_r</filename>, <filename>libkse</filename>, and
-      <filename>libthr</filename>.  Ports should use the
+      <filename>libthr</filename>).  Ports should use the
       <varname>PTHREAD_LIBS</varname> variable to select the correct
       threading library.</para>
 
