@@ -401,6 +401,7 @@ extern DMenu		MenuHTMLDoc;		/* HTML Documentation menu			*/
 extern DMenu		MenuUsermgmt;		/* User management menu				*/
 extern DMenu		MenuFixit;		/* Fixit floppy/CDROM/shell menu		*/
 extern DMenu		MenuXF86Config;		/* Select XFree86 configuration type		*/
+extern int              FixItMode;              /* FixItMode starts shell onc urrent device (ie Serial port) */
 
 /* Stuff from libdialog which isn't properly declared outside */
 extern void display_helpfile(void);
@@ -710,6 +711,8 @@ extern void	systemInitialize(int argc, char **argv);
 extern void	systemShutdown(int status);
 extern int	execExecute(char *cmd, char *name);
 extern int	systemExecute(char *cmd);
+extern void	systemSuspendDialog(void);
+extern void	systemResumeDialog(void);
 extern int	systemDisplayHelp(char *file);
 extern char	*systemHelpFile(char *file, char *buf);
 extern void	systemChangeFont(const u_char font[]);

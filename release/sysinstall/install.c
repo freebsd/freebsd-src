@@ -56,6 +56,7 @@
  * Used by package.c
  */
 int _interactiveHack;
+int FixItMode = 0;
 
 static void	create_termcap(void);
 static void	fixit_common(void);
@@ -248,8 +249,10 @@ installInitial(void)
 int
 installFixitHoloShell(dialogMenuItem *self)
 {
+    FixItMode = 1;
     systemCreateHoloshell();
     return DITEM_SUCCESS;
+    FixItMode = 0;
 }
 
 int
@@ -397,6 +400,8 @@ fixit_common(void)
 	msgConfirm("Couldn't symlink the /etc/ files!  I'm not sure I like this..");
     if (!file_readable(TERMCAP_FILE))
 	create_termcap();
+    if (!OnVTY)
+	systemSuspendDialog();	/* must be before the fork() */
     if (!(child = fork())) {
 	int i, fd;
 	struct termios foo;
