@@ -41,39 +41,7 @@ The
 .Nm
 is a network device driver
 for Ethernet adapters based on Fujitsu MB86960A, MB86965A,
-or other compatible chips, such as:
-.Pp
-.Bl -bullet -compact
-.It
-Allied Telesis RE1000, RE1000Plus, ME1500 (110-pin)
-.It
-CONTEC C-NET(98)P2, C-NET (9N)E (110-pin), C-NET(9N)C (ExtCard)
-.It
-CONTEC C-NET(PC)C PCMCIA Ethernet
-.It
-Eiger Labs EPX-10BT
-.It
-Fujitsu FMV-J182, FMV-J182A
-.It
-Fujitsu MBH10303, MBH10302 Ethernet PCMCIA
-.It
-Fujitsu Towa LA501 Ethernet
-.It
-HITACHI HT-4840-11
-.It
-NextCom J Link NC5310
-.It
-RATOC REX-5588, REX-9822, REX-4886, and REX-R280
-.It
-RATOC REX-9880/9881/9882/9883
-.It
-TDK LAC-98012, LAC-98013, LAC-98025, LAC-9N011 (110-pin)
-.It
-TDK LAK-CD021, LAK-CD021A, LAK-CD021BX
-.It
-Ungermann-Bass Access/PC N98C+(PC85152, PC85142), Access/NOTE
-N98(PC86132) (110-pin)
-.El
+or other compatible chips.
 .Pp
 The driver provides automatic I/O port address configuration and
 automatic IRQ configuration,
@@ -157,6 +125,44 @@ This is a troubleshooting flag and should not be used
 without understanding of the adapter hardware.
 Consult the Fujitsu manual for more information
 on DLCR6 settings.
+.El
+.Sh HARDWARE
+Controllers and cards supported by the
+.Nm
+driver include:
+.Pp
+.Bl -bullet -compact
+.It
+Allied Telesis RE1000, RE1000Plus, ME1500 (110-pin)
+.It
+CONTEC C-NET(98)P2, C-NET (9N)E (110-pin), C-NET(9N)C (ExtCard)
+.It
+CONTEC C-NET(PC)C PCMCIA Ethernet
+.It
+Eiger Labs EPX-10BT
+.It
+Fujitsu FMV-J182, FMV-J182A
+.It
+Fujitsu MB86960A, MB86965A
+.It
+Fujitsu MBH10303, MBH10302 Ethernet PCMCIA
+.It
+Fujitsu Towa LA501 Ethernet
+.It
+HITACHI HT-4840-11
+.It
+NextCom J Link NC5310
+.It
+RATOC REX-5588, REX-9822, REX-4886, and REX-R280
+.It
+RATOC REX-9880/9881/9882/9883
+.It
+TDK LAC-98012, LAC-98013, LAC-98025, LAC-9N011 (110-pin)
+.It
+TDK LAK-CD021, LAK-CD021A, LAK-CD021BX
+.It
+Ungermann-Bass Access/PC N98C+(PC85152, PC85142), Access/NOTE
+N98(PC86132) (110-pin)
 .El
 .Sh OPTIONS
 The
