@@ -2409,10 +2409,8 @@ sigexit(td, sig)
 		 * (Log as LOG_INFO to appease those who don't want
 		 * these messages.)
 		 * XXX : Todo, as well as euid, write out ruid too
+		 * Note that coredump() drops proc lock.
 		 */
-		PROC_UNLOCK(p);
-		if (!mtx_owned(&Giant))
-			mtx_lock(&Giant);
 		if (coredump(td) == 0)
 			sig |= WCOREFLAG;
 		if (kern_logsigexit)
@@ -2422,11 +2420,8 @@ sigexit(td, sig)
 			    td->td_ucred ? td->td_ucred->cr_uid : -1,
 			    sig &~ WCOREFLAG,
 			    sig & WCOREFLAG ? " (core dumped)" : "");
-	} else {
+	} else
 		PROC_UNLOCK(p);
-		if (!mtx_owned(&Giant))
-			mtx_lock(&Giant);
-	}
 	exit1(td, W_EXITCODE(0, sig));
 	/* NOTREACHED */
 }
@@ -2529,7 +2524,7 @@ coredump(struct thread *td)
 	char *name;			/* name of corefile */
 	off_t limit;
 
-	PROC_LOCK(p);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 	_STOPEVENT(p, S_CORE, 0);
 
 	if (((sugid_coredump == 0) && p->p_flag & P_SUGID) || do_coredump == 0) {
@@ -2550,16 +2545,21 @@ coredump(struct thread *td)
 	if (limit == 0)
 		return (EFBIG);
 
+	mtx_lock(&Giant);
 restart:
 	name = expand_name(p->p_comm, td->td_ucred->cr_uid, p->p_pid);
-	if (name == NULL)
+	if (name == NULL) {
+		mtx_unlock(&Giant);
 		return (EINVAL);
+	}
 	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, name, td); /* XXXKSE */
 	flags = O_CREAT | FWRITE | O_NOFOLLOW;
 	error = vn_open(&nd, &flags, S_IRUSR | S_IWUSR, -1);
 	free(name, M_TEMP);
-	if (error)
+	if (error) {
+		mtx_unlock(&Giant);		
 		return (error);
+	}
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vp = nd.ni_vp;
 
@@ -2568,7 +2568,7 @@ restart:
 	    VOP_GETATTR(vp, &vattr, cred, td) || vattr.va_nlink != 1) {
 		VOP_UNLOCK(vp, 0, td);
 		error = EFAULT;
-		goto out2;
+		goto out;
 	}
 
 	VOP_UNLOCK(vp, 0, td);
@@ -2608,8 +2608,9 @@ restart:
 		VOP_ADVLOCK(vp, (caddr_t)p, F_UNLCK, &lf, F_FLOCK);
 	}
 	vn_finished_write(mp);
-out2:
+out:
 	error1 = vn_close(vp, FWRITE, cred, td);
+	mtx_unlock(&Giant);
 	if (error == 0)
 		error = error1;
 	return (error);
