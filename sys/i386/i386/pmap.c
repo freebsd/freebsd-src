@@ -274,13 +274,6 @@ pmap_kmem_choose(vm_offset_t addr)
 {
 	vm_offset_t newaddr = addr;
 
-#ifdef I686_CPU_not	/* Problem seems to have gone away */
-	/* Deal with un-resolved Pentium4 issues */
-	if (cpu_class == CPUCLASS_686 &&
-	    strcmp(cpu_vendor, "GenuineIntel") == 0 &&
-	    (cpu_id & 0xf00) == 0xf00)
-		return newaddr;
-#endif
 #ifndef DISABLE_PSE
 	if (cpu_feature & CPUID_PSE)
 		newaddr = (addr + PDRMASK) & ~PDRMASK;
@@ -395,26 +388,6 @@ pmap_bootstrap(firstaddr, loadaddr)
 	*CMAP1 = *CMAP2 = 0;
 	for (i = 0; i < NKPT; i++)
 		PTD[i] = 0;
-
-#ifdef I686_CPU_not	/* Problem seems to have gone away */
-	/* Deal with un-resolved Pentium4 issues */
-	if (cpu_class == CPUCLASS_686 &&
-	    strcmp(cpu_vendor, "GenuineIntel") == 0 &&
-	    (cpu_id & 0xf00) == 0xf00) {
-		printf("Warning: Pentium 4 cpu: PG_G disabled (global flag)\n");
-		pgeflag = 0;
-	}
-#endif
-
-#ifdef I686_CPU_not	/* Problem seems to have gone away */
-	/* Deal with un-resolved Pentium4 issues */
-	if (cpu_class == CPUCLASS_686 &&
-	    strcmp(cpu_vendor, "GenuineIntel") == 0 &&
-	    (cpu_id & 0xf00) == 0xf00) {
-		printf("Warning: Pentium 4 cpu: PG_PS disabled (4MB pages)\n");
-		pseflag = 0;
-	}
-#endif
 
 	/* Turn on PG_G on kernel page(s) */
 	pmap_set_pg();
