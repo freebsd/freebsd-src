@@ -494,8 +494,8 @@ via_attach(device_t dev)
 	mixer_init(dev, ac97_getmixerclass(), via->codec);
 
 	via->codec_caps = ac97_getextcaps(via->codec);
-	if (via->codec_caps & AC97_EXTCAP_VRA)
-		ac97_setextmode(via->codec, AC97_EXTCAP_VRA | AC97_EXTCAP_VRM);
+	ac97_setextmode(via->codec, 
+			via->codec_caps & (AC97_EXTCAP_VRA | AC97_EXTCAP_VRM));
 
 	/* DMA tag for buffers */
 	if (bus_dma_tag_create(/*parent*/NULL, /*alignment*/2, /*boundary*/0,
