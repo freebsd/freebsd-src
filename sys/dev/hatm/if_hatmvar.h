@@ -275,6 +275,7 @@ struct mbuf_page {
 struct mbuf_chunk_hdr {
 	uint16_t		pageno;
 	uint16_t		chunkno;
+	u_int			ref_cnt;
 };
 
 #define MBUFX_STORAGE_SIZE(X) (MBUF##X##_CHUNK	\
