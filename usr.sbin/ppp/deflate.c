@@ -1,5 +1,5 @@
 /*
- * $Id: deflate.c,v 1.1 1997/12/03 10:23:45 brian Exp $
+ * $Id: deflate.c,v 1.2 1997/12/03 23:27:57 brian Exp $
  */
 
 #include <sys/param.h>
@@ -299,7 +299,7 @@ DeflateInput(u_short *proto, struct mbuf *mi)
 static void
 DeflateDictSetup(u_short proto, struct mbuf *mi)
 {
-  int res, flush;
+  int res, flush, expect_error;
   u_char *rp;
   struct mbuf *mi_head;
   short len;
@@ -336,11 +336,14 @@ DeflateDictSetup(u_short proto, struct mbuf *mi)
   InputState.cx.next_out = garbage;
   InputState.cx.avail_out = sizeof garbage;
   flush = Z_NO_FLUSH;
+  expect_error = 0;
 
   while (1) {
     if ((res = inflate(&InputState.cx, flush)) != Z_OK) {
       if (res == Z_STREAM_END)
         break;			/* Done */
+      if (expect_error && res == Z_BUF_ERROR)
+        break;
       LogPrintf(LogERROR, "DeflateDictSetup: inflate returned %d (%s)\n",
                 res, InputState.cx.msg ? InputState.cx.msg : "");
       LogPrintf(LogERROR, "DeflateDictSetup: avail_in %d, avail_out %d\n",
@@ -362,6 +365,19 @@ DeflateDictSetup(u_short proto, struct mbuf *mi)
     }
 
     if (InputState.cx.avail_out == 0) {
+      if (InputState.cx.avail_in == 0)
+        /*
+         * This seems to be a bug in libz !  If inflate() finished
+         * with 0 avail_in and 0 avail_out *and* this is the end of
+         * our input *and* inflate() *has* actually written all the
+         * output it's going to, it *doesn't* return Z_STREAM_END !
+         * When we subsequently call it with no more input, it gives
+         * us Z_BUF_ERROR :-(  It seems pretty safe to ignore this
+         * error (the dictionary seems to stay in sync).  In the worst
+         * case, we'll drop the next compressed packet and do a
+         * CcpReset() then.
+         */
+        expect_error = 1;
       /* overflow */
       InputState.cx.next_out = garbage;
       InputState.cx.avail_out = sizeof garbage;
