@@ -203,6 +203,8 @@ int		requiredby(const char *, struct reqr_by_head **, Boolean, Boolean);
 
 /* Version */
 int		verscmp(Package *, int, int);
+const char	*version_of(const char *, int *, int *);
+int		version_cmp(const char *, const char *);
 
 /* Externs */
 extern Boolean	Verbose;
