@@ -31,192 +31,171 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bio.h>
-#include <sys/module.h>
-#include <sys/bus.h>
-#include <sys/conf.h>
 #include <sys/kernel.h>
-#include <sys/limits.h>
-#include <geom/geom_disk.h>
+#include <sys/kthread.h>
+#include <sys/linker.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
+
+#include <geom/geom.h>
 
 #include <dev/ofw/openfirm.h>
-
-#include <machine/bus.h>
-#include <machine/md_var.h>
-#include <machine/nexusvar.h>
 
 #define	OFWD_BLOCKSIZE	512
 
 struct ofwd_softc
 {
-	device_t	ofwd_dev;
-	struct		disk *ofwd_disk;
-	phandle_t	ofwd_package;
+        struct bio_queue_head ofwd_bio_queue;
+        struct mtx	ofwd_queue_mtx;
 	ihandle_t	ofwd_instance;
+	off_t		ofwd_mediasize;
+        unsigned	ofwd_sectorsize;
+        unsigned	ofwd_fwheads;
+        unsigned	ofwd_fwsectors;
+        struct proc	*ofwd_procp;
+        struct g_geom	*ofwd_gp;
+        struct g_provider *ofwd_pp;
+} ofwd_softc;
+
+static g_init_t g_ofwd_init;
+static g_start_t g_ofwd_start;
+static g_access_t g_ofwd_access;
+
+struct g_class g_ofwd_class = {
+	.name = "OFWD",
+	.version = G_VERSION,
+	.init = g_ofwd_init,
+	.start = g_ofwd_start,
+	.access = g_ofwd_access,
 };
 
-/*
- * Disk device bus interface.
- */
-static void	ofwd_identify(driver_t *, device_t);
-static int	ofwd_probe(device_t);
-static int	ofwd_attach(device_t);
+DECLARE_GEOM_CLASS(g_ofwd_class, g_ofwd);
 
-static device_method_t	ofwd_methods[] = {
-	DEVMETHOD(device_identify,	ofwd_identify),
-	DEVMETHOD(device_probe, 	ofwd_probe),
-	DEVMETHOD(device_attach,	ofwd_attach),
-	{ 0, 0 }
-};
-
-static driver_t ofwd_driver = {
-	"ofwd",
-	ofwd_methods,
-	sizeof(struct ofwd_softc)
-};
-
-static devclass_t	ofwd_devclass;
-
-DRIVER_MODULE(ofwd, nexus, ofwd_driver, ofwd_devclass, 0, 0);
-
-/*
- * Disk device control interface.
- */
-static disk_strategy_t	ofwd_strategy;
-
-/*
- * Handle an I/O request.
- */
-static void
-ofwd_strategy(struct bio *bp)
+static int
+ofwd_startio(struct ofwd_softc *sc, struct bio *bp)
 {
-	struct	ofwd_softc *sc;
-	long	r;
-
-	sc = (struct ofwd_softc *)bp->bio_disk->d_drv1;
-
-	if (sc == NULL) {
-		printf("ofwd: bio for invalid disk!\n");
-		biofinish(bp, NULL, EINVAL);
-		return;
-	}
-
-	bp->bio_resid = bp->bio_bcount;
+	u_int r;
 
 	r = OF_seek(sc->ofwd_instance, bp->bio_offset);
-	if (r == -1) {
-		device_printf(sc->ofwd_dev, "seek failed\n");
-		biofinish(bp, NULL, EIO);
-		return;
-	}
-
-	if (bp->bio_cmd == BIO_READ) {
+        switch (bp->bio_cmd) {
+        case BIO_READ:
 		r = OF_read(sc->ofwd_instance, (void *)bp->bio_data,
-		    bp->bio_bcount);
-	} else {
+		        bp->bio_length);
+                break;
+        case BIO_WRITE:
 		r = OF_write(sc->ofwd_instance, (void *)bp->bio_data,
-			    bp->bio_bcount);
-	}
+		        bp->bio_length);
+                break;
+        }
+	if (r != bp->bio_length)
+		panic("ofwd: incorrect i/o count");
 
-	if (r > bp->bio_bcount)
-		panic("ofwd: more bytes read/written than requested");
-	if (r == -1) {
-		device_printf(sc->ofwd_dev, "r (%ld) < bp->bio_bcount (%ld)\n",
-		    r, bp->bio_bcount);
-		biofinish(bp, NULL, EIO);
-		return;
-	}
-
-	bp->bio_resid -= r;
-
-	if (r < bp->bio_bcount) {
-		device_printf(sc->ofwd_dev, "r (%ld) < bp->bio_bcount (%ld)\n",
-		    r, bp->bio_bcount);
-		biofinish(bp, NULL, EIO);	/* XXX: probably not an error */
-		return;
-	}
-	biodone(bp);
-	return;
+        bp->bio_resid = 0;
+        return (0);
 }
 
-/*
- * Attach the Open Firmware disk to nexus if present.
- */
 static void
-ofwd_identify(driver_t *driver, device_t parent)
+ofwd_kthread(void *arg)
 {
-	device_t child;
+	struct ofwd_softc *sc;
+	struct bio *bp;
+	int error;
+
+        sc = arg;
+        curthread->td_base_pri = PRIBIO;
+
+        for (;;) {
+		mtx_lock(&sc->ofwd_queue_mtx);
+		bp = bioq_takefirst(&sc->ofwd_bio_queue);
+		if (!bp) {
+			msleep(sc, &sc->ofwd_queue_mtx, PRIBIO | PDROP,
+			    "ofwdwait", 0);
+                        continue;
+		}
+                mtx_unlock(&sc->ofwd_queue_mtx);
+                if (bp->bio_cmd == BIO_GETATTR) {
+			error = EOPNOTSUPP;
+                } else
+			error = ofwd_startio(sc, bp);
+
+		if (error != -1) {
+                        bp->bio_completed = bp->bio_length;
+                        g_io_deliver(bp, error);
+                }
+	}
+}
+
+static void
+g_ofwd_init(struct g_class *mp __unused)
+{
+	struct ofwd_softc *sc;
+        struct g_geom *gp;
+        struct g_provider *pp;
+	char	path[128];
+	char	fname[32];
 	phandle_t ofd;
-	static char type[8];
+	ihandle_t ifd;
+	int	error;
 
 	ofd = OF_finddevice("ofwdisk");
 	if (ofd == -1)
 		return;
 
-	OF_getprop(ofd, "device_type", type, sizeof(type));
-
-	child = BUS_ADD_CHILD(parent, INT_MAX, "ofwd", 0);
-	if (child != NULL) {
-		nexus_set_device_type(child, type);
-		nexus_set_node(child, ofd);
-	}
-}
-
-/*
- * Probe for an Open Firmware disk.
- */
-static int
-ofwd_probe(device_t dev)
-{
-	char		*type;
-	char		fname[32];
-	phandle_t	node;
-
-	type = nexus_get_device_type(dev);
-	node = nexus_get_node(dev);
-
-	if (type == NULL ||
-	    (strcmp(type, "disk") != 0 && strcmp(type, "block") != 0))
-		return (ENXIO);
-
-	if (OF_getprop(node, "file", fname, sizeof(fname)) == -1)
-		return (ENXIO);
-
-	device_set_desc(dev, "Open Firmware disk");
-	return (0);
-}
-
-static int
-ofwd_attach(device_t dev)
-{
-	struct	ofwd_softc *sc;
-	char	path[128];
-	char	fname[32];
-
-	sc = device_get_softc(dev);
-	sc->ofwd_dev = dev;
-
 	bzero(path, 128);
-	OF_package_to_path(nexus_get_node(dev), path, 128);
-	OF_getprop(nexus_get_node(dev), "file", fname, sizeof(fname));
-	device_printf(dev, "located at %s, file %s\n", path, fname);
-	sc->ofwd_instance = OF_open(path);
-	if (sc->ofwd_instance == -1) {
-		device_printf(dev, "could not create instance\n");
-		return (ENXIO);
+	OF_package_to_path(ofd, path, 128);
+	OF_getprop(ofd, "file", fname, sizeof(fname));
+	printf("ofw_disk located at %s, file %s\n", path, fname);
+	ifd = OF_open(path);
+	if (ifd == -1) {
+		printf("ofw_disk: could not create instance\n");
+		return;
 	}
 
-	sc->ofwd_disk = disk_alloc();
-	sc->ofwd_disk->d_strategy = ofwd_strategy;
-	sc->ofwd_disk->d_name = "ofwd";
-	sc->ofwd_disk->d_sectorsize = OFWD_BLOCKSIZE;
-	sc->ofwd_disk->d_mediasize = (off_t)33554432 * OFWD_BLOCKSIZE;
-	sc->ofwd_disk->d_fwsectors = 0;
-	sc->ofwd_disk->d_fwheads = 0;
-	sc->ofwd_disk->d_drv1 = sc;
-	sc->ofwd_disk->d_maxsize = PAGE_SIZE;
-	sc->ofwd_disk->d_unit = device_get_unit(dev);
-	sc->ofwd_disk->d_flags = DISKFLAG_NEEDSGIANT;
-	disk_create(sc->ofwd_disk, DISK_VERSION);
+	sc = (struct ofwd_softc *)malloc(sizeof *sc, M_DEVBUF,
+	         M_WAITOK|M_ZERO);
+	bioq_init(&sc->ofwd_bio_queue);
+        mtx_init(&sc->ofwd_queue_mtx, "ofwd bio queue", NULL, MTX_DEF);
+	sc->ofwd_instance = ifd;
+	sc->ofwd_mediasize = (off_t)2*33554432 * OFWD_BLOCKSIZE;
+	sc->ofwd_sectorsize = OFWD_BLOCKSIZE;
+	sc->ofwd_fwsectors = 0;
+	sc->ofwd_fwheads = 0;
+	error = kthread_create(ofwd_kthread, sc, &sc->ofwd_procp, 0, 0,
+		     "ofwd0");
+        if (error != 0) {
+		free(sc, M_DEVBUF);
+                return;
+	}
 
-	return (0);
+	gp = g_new_geomf(&g_ofwd_class, "ofwd0");
+	gp->softc = sc;
+	pp = g_new_providerf(gp, "ofwd0");
+	pp->mediasize = sc->ofwd_mediasize;
+	pp->sectorsize = sc->ofwd_sectorsize;
+	sc->ofwd_gp = gp;
+	sc->ofwd_pp = pp;
+	g_error_provider(pp, 0);
+}
+
+static void
+g_ofwd_start(struct bio *bp)
+{
+        struct ofwd_softc *sc;
+
+        sc = bp->bio_to->geom->softc;
+        mtx_lock(&sc->ofwd_queue_mtx);
+        bioq_disksort(&sc->ofwd_bio_queue, bp);
+        mtx_unlock(&sc->ofwd_queue_mtx);
+        wakeup(sc);
+}
+
+static int
+g_ofwd_access(struct g_provider *pp, int r, int w, int e)
+{
+
+	if (pp->geom->softc == NULL)
+		return (ENXIO);
+        return (0);
 }
