@@ -44,16 +44,24 @@ The
 driver supports the following media types:
 .Pp
 .Bl -tag -width xxxxxxxxxxxxxxx
-.It link0
-Disable autonegotiation
-.It link1
-Set full-duplex mode
-.It link2
-Set 100Mbps mode
+.It autoselect
+Enable autonegotiation (default)
+.It 100baseTX
+Set 100Mbps (fast ethernet) operation
+.It 10baseT/UTP
+Set 10Mbps on 10baseT port
 .El
 .Pp
-If autonegotiation is enabled, link1 and link2 flags are meaningless.
-You should down interface and up it again if you want media type change.
+The
+.Nm
+driver supports the following media options:
+.Pp
+.Bl -tag -width xxxxxxxxxxxxxxx
+.It full-duplex
+Set full-duplex operation
+.El
+.Pp
+The old ``ifconfig tx0 linkN'' method of configuration is not supported.
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "tx%d: device timeout %d packets"
@@ -63,15 +71,15 @@ One of following errors occured: PCI Target Abort, PCI Master Abort, Data
 Parity Error or Address Parity Error. Device and driver reset follows this error.
 .It "tx%d: WARNING! no link estabilished"
 No media connected. Displayed at startup only.
-.It "tx%d: malloc failed"
-Failed to allocate static buffer for FIFO rings.
+.It "tx%d: cannot allocate mbuf header/cluster"
+Cannot allocate memory for received packet. Packet througth away.
 .It "tx%d: can't stop %s DMA"
 While reseting, driver failed to stop device correctly. 
 .El
 .Sh BUGS
 .Pp
-The multicast packets filtering is not supported. Autonegotiation for
-full-duplex modes is not supported.
+The multicast packets filtering is not supported.
+Only one PHY was realy tested (Quality Semiconductor QS6612).
 .Sh SEE ALSO
 .Xr arp 4 ,
 .Xr netintro 4 ,
