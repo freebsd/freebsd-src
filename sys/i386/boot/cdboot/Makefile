@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.1 1997/07/11 05:52:34 joerg Exp $
 #
 
 PROG=	boot
@@ -15,6 +15,7 @@ CFLAGS=		-O2 -malign-functions=0 -malign-jumps=0 -malign-loops=0 \
 		-DDO_BAD144 -DBOOTWAIT=${BOOTWAIT} -DTIMEOUT=${TIMEOUT}
 CFLAGS+=	-DBOOTSEG=${BOOTSEG} -DBOOTSTACK=${BOOTSTACK}
 CFLAGS+=	-I${.CURDIR}/../../.. -I${.CURDIR}/../biosboot
+CFLAGS+=	-DCDBOOT
 CFLAGS+=	${CWARNFLAGS}
 #CFLAGS+=	-DDEBUG
 
