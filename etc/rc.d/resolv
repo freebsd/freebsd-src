@@ -22,7 +22,7 @@
 # HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
-# $FreeBSD$
+# SUCH DAMAGE.
 #
 # $FreeBSD$
 #
@@ -60,6 +60,13 @@ mount_md()
 if [ -r /etc/rc.subr ]; then
         . /etc/rc.subr
         load_rc_config $name
+elif [ -r /etc/defaults/rc.conf ]; then
+	. /etc/defaults/rc.conf
+	source_rc_confs
+elif [ -r /etc/rc.conf ]; then
+	. /etc/rc.conf
+fi
+
 echo "+++ mount_md of /var"
 mount_md ${varsize:=32m} /var 1
 
