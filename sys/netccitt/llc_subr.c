@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)llc_subr.c	8.1 (Berkeley) 6/10/93
- * $Id: llc_subr.c,v 1.2 1994/08/02 07:47:20 davidg Exp $
+ * $Id: llc_subr.c,v 1.3 1994/12/13 22:32:14 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -2335,7 +2335,8 @@ llc_link_dump(struct llc_linkcb* linkp, const char *message)
 
 	/* print flag values */
 	printf("flags P %d/F %d/S %d/DATA %d/REMOTE_BUSY %d\n",
-	       LLC_GETFLAG(linkp, P), LLC_GETFLAG(linkp, S), 
+	       LLC_GETFLAG(linkp, P), LLC_GETFLAG(linkp, F),
+	       LLC_GETFLAG(linkp, S), 
 	       LLC_GETFLAG(linkp, DATA), LLC_GETFLAG(linkp, REMOTE_BUSY));
 
 	/* print send and receive state variables, ack, and window */

@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.55 1995/03/30 08:55:39 davidg Exp $
+ *	$Id: pmap.c,v 1.56 1995/04/09 05:40:38 davidg Exp $
  */
 
 /*
@@ -1180,7 +1180,8 @@ pmap_enter(pmap, va, pa, prot, wired)
 	 * Page Directory table entry not valid, we need a new PT page
 	 */
 	if (*pmap_pde(pmap, va) == 0) {
-		printf("kernel page directory invalid pdir=0x%x, va=0x%x\n", pmap->pm_pdir[PTDPTDI], va);
+		printf("kernel page directory invalid pdir=%p, va=0x%lx\n",
+			pmap->pm_pdir[PTDPTDI], va);
 		panic("invalid kernel page directory");
 	}
 	pte = pmap_pte(pmap, va);

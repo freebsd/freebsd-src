@@ -2,7 +2,7 @@
  * Written by grefen@?????
  * Based on scsi drivers by Julian Elischer (julian@tfs.com)
  *
- *      $Id: ch.c,v 1.18 1995/04/14 15:10:26 dufault Exp $
+ *      $Id: ch.c,v 1.19 1995/05/03 18:09:08 dufault Exp $
  */
 
 #include	<sys/types.h>
@@ -193,7 +193,7 @@ struct scsi_link *sc_link)
 	 * Make sure data is loaded
 	 */
 	if ( (errcode = (ch_mode_sense(unit, SCSI_NOSLEEP | SCSI_NOMASK))) ) {
-		printf("ch%d: scsi changer :- offline\n", unit);
+		printf("ch%ld: scsi changer :- offline\n", unit);
 		sc_link->flags &= ~SDEV_OPEN;
 		return (errcode);
 	}

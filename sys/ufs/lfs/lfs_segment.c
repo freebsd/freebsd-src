@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_segment.c	8.5 (Berkeley) 1/4/94
- * $Id: lfs_segment.c,v 1.8 1995/03/19 14:29:18 davidg Exp $
+ * $Id: lfs_segment.c,v 1.9 1995/03/28 07:58:05 bde Exp $
  */
 
 #include <sys/param.h>
@@ -532,7 +532,7 @@ lfs_writeinode(fs, sp, ip)
 #ifdef DIAGNOSTIC
 		if (sup->su_nbytes < sizeof(struct dinode)) {
 			/* XXX -- Change to a panic. */
-			printf("lfs: negative bytes (segment %d)\n",
+			printf("lfs: negative bytes (segment %ld)\n",
 			    datosn(fs, daddr));
 			panic("negative bytes");
 		}
@@ -697,7 +697,7 @@ lfs_updatemeta(sp)
 #ifdef DIAGNOSTIC
 			if (sup->su_nbytes < fs->lfs_bsize) {
 				/* XXX -- Change to a panic. */
-				printf("lfs: negative bytes (segment %d)\n",
+				printf("lfs: negative bytes (segment %ld)\n",
 				    datosn(fs, daddr));
 				panic ("Negative Bytes");
 			}
