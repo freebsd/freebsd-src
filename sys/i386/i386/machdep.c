@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.75 1994/10/17 12:36:43 ache Exp $
+ *	$Id: machdep.c,v 1.76 1994/10/18 03:40:14 ache Exp $
  */
 
 #include "npx.h"
@@ -89,6 +89,7 @@ extern vm_offset_t avail_start, avail_end;
 #include <machine/specialreg.h>
 #include <machine/sysarch.h>
 #include <machine/cons.h>
+#include <machine/devconf.h>
 
 #include <i386/isa/isa.h>
 #include <i386/isa/rtc.h>
@@ -1619,5 +1620,16 @@ bounds_check_with_label(struct buf *bp, struct disklabel *lp, int wlabel)
 bad:
         bp->b_flags |= B_ERROR;
         return(-1);
+}
+
+int
+disk_externalize(int drive, void *userp, size_t *maxlen)
+{
+	if(*maxlen < sizeof drive) {
+		return ENOMEM;
+	}
+
+	*maxlen -= sizeof drive;
+	return copyout(&drive, userp, sizeof drive);
 }
 
