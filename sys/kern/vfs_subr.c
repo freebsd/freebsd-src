@@ -2838,12 +2838,12 @@ int
 count_dev(dev)
 	dev_t dev;
 {
-	struct vnode *vp;
+	int count;
 
-	vp = SLIST_FIRST(&dev->si_hlist);
-	if (vp == NULL)
-		return (0);
-	return(vcount(vp));
+	mtx_lock(&spechash_mtx);
+	count = dev->si_usecount;
+	mtx_unlock(&spechash_mtx);
+	return(count);
 }
 
 /*
