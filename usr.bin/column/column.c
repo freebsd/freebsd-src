@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/ioctl.h>
+#include <sys/param.h>
 
 #include <err.h>
 #include <limits.h>
@@ -140,7 +141,7 @@ main(int argc, char **argv)
 	if (!entries)
 		exit(eval);
 
-	maxlength = (maxlength + TAB) & ~(TAB - 1);
+	maxlength = roundup(maxlength, TAB);
 	if (tflag)
 		maketbl();
 	else if (maxlength >= termwidth)
@@ -170,7 +171,7 @@ c_columnate(void)
 			endcol = maxlength;
 			putwchar('\n');
 		} else {
-			while ((cnt = ((chcnt + TAB) & ~(TAB - 1))) <= endcol) {
+			while ((cnt = roundup(chcnt, TAB)) <= endcol) {
 				(void)putwchar('\t');
 				chcnt = cnt;
 			}
@@ -198,7 +199,7 @@ r_columnate(void)
 			chcnt += width(list[base]);
 			if ((base += numrows) >= entries)
 				break;
-			while ((cnt = ((chcnt + TAB) & ~(TAB - 1))) <= endcol) {
+			while ((cnt = roundup(chcnt, TAB)) <= endcol) {
 				(void)putwchar('\t');
 				chcnt = cnt;
 			}
