@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.40 1996/10/09 18:16:17 bde Exp $
+ *	$Id: support.s,v 1.41 1996/10/09 19:47:20 bde Exp $
  */
 
 #include "opt_cpu.h"
@@ -691,7 +691,7 @@ ENTRY(copyout)					/* copyout(from_kernel, to_user, len) */
 	/* bcopy(%esi, %edi, %ebx) */
 3:
 	movl	%ebx,%ecx
-#if defined(I586_CPU) && defined(I586_FAST_BCOPY)
+#if defined(I586_CPU)
 	cmpl	$1024,%ecx
 	jb	slow_copyout
 
@@ -707,7 +707,7 @@ ENTRY(copyout)					/* copyout(from_kernel, to_user, len) */
 
 	ALIGN_TEXT
 slow_copyout:
-#endif /* I586_CPU && I586_FAST_BCOPY */
+#endif /* I586_CPU */
 	shrl	$2,%ecx
 	cld
 	rep
@@ -755,7 +755,7 @@ ENTRY(copyin)
 	cmpl	$VM_MAXUSER_ADDRESS,%edx
 	ja	copyin_fault
 
-#if defined(I586_CPU) && defined(I586_FAST_BCOPY)
+#if defined(I586_CPU)
 	cmpl	$1024,%ecx
 	jb	slow_copyin
 
@@ -771,7 +771,7 @@ ENTRY(copyin)
 
 	ALIGN_TEXT
 slow_copyin:
-#endif /* I586_CPU && I586_FAST_BCOPY */
+#endif /* I586_CPU */
 	movb	%cl,%al
 	shrl	$2,%ecx				/* copy longword-wise */
 	cld
@@ -782,10 +782,10 @@ slow_copyin:
 	rep
 	movsb
 
-#if defined(I586_CPU) && defined(I586_FAST_BCOPY)
+#if defined(I586_CPU)
 	ALIGN_TEXT
 done_copyin:
-#endif /* I586_CPU && I586_FAST_BCOPY */
+#endif /* I586_CPU */
 	popl	%edi
 	popl	%esi
 	xorl	%eax,%eax
@@ -802,7 +802,7 @@ copyin_fault:
 	movl	$EFAULT,%eax
 	ret
 
-#if defined(I586_CPU) && defined(I586_FAST_BCOPY)
+#if defined(I586_CPU)
 /* fastmove(src, dst, len)
 	src in %esi
 	dst in %edi
@@ -956,7 +956,7 @@ fastmove_tail:
 	movsb
 
 	ret
-#endif /* I586_CPU && I586_FAST_BCOPY */
+#endif /* I586_CPU */
 
 /*
  * fu{byte,sword,word} : fetch a byte (sword, word) from user memory
