@@ -235,7 +235,7 @@ USB_MATCH(udbp)
 
 	if ((uaa->vendor == USB_VENDOR_ANCHOR &&
 	     uaa->product == USB_PRODUCT_ANCHOR_EZLINK))
-		return(UMATCH_IFACECLASS_IFACESUBCLASS_IFACEPROTO);
+		return(UMATCH_VENDOR_PRODUCT);
 	
 	return (UMATCH_NONE);
 }
