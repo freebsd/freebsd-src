@@ -48,7 +48,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: lpr.c	8.4 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: lpr.c,v 1.22 1997/12/02 20:46:10 wollman Exp $";
+	"$Id: lpr.c,v 1.23 1997/12/06 17:55:07 jdp Exp $";
 #endif /* not lint */
 
 /*
@@ -204,8 +204,8 @@ main(argc, argv)
 			format = 'r';
 			break;
 
-		case 'h':		/* toggle want of header page */
-			hdr = !hdr;
+		case 'h':		/* nulifiy header page */
+			hdr = 0;
 			break;
 
 		case 'i':		/* indent output */
