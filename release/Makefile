@@ -489,6 +489,7 @@ release.8: write_mfs_in_kernel
 	-test -f ${.CURDIR}/install.cfg && cp ${.CURDIR}/install.cfg ${RD}/mfsfd
 	@mkdir -p ${RD}/mfsfd/boot
 	@cp /boot/boot* ${RD}/mfsfd/boot
+	@cp /boot/loader.help ${RD}/mfsfd/boot
 	@echo "Making the regular boot floppy."
 	@tar --exclude CVS -cf - -C ${.CURDIR}/sysinstall help | \
 		tar xf - -C ${RD}/mfsfd/stand
