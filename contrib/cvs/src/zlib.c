@@ -153,10 +153,10 @@ compress_buffer_input (closure, data, need, size, got)
     bd = cb->buf->data;
     if (bd == NULL)
     {
-	bd = ((struct buffer_data *) malloc (sizeof (struct buffer_data)));
+	bd = ((struct buffer_data *) xmalloc (sizeof (struct buffer_data)));
 	if (bd == NULL)
 	    return -2;
-	bd->text = (char *) malloc (BUFFER_DATA_SIZE);
+	bd->text = (char *) xmalloc (BUFFER_DATA_SIZE);
 	if (bd->text == NULL)
 	{
 	    free (bd);
@@ -535,7 +535,7 @@ gunzip_and_write (fd, fullname, buf, size)
 }
 
 /* Read all of FD and put the gzipped data (RFC1952/RFC1951) into *BUF,
-   replacing previous contents of *BUF.  *BUF is malloc'd and *SIZE is
+   replacing previous contents of *BUF.  *BUF is xmalloc'd and *SIZE is
    its allocated size.  Put the actual number of bytes of data in
    *LEN.  If something goes wrong, give a nonfatal error mentioning
    FULLNAME as the name of the file for FD, and return 1 if we can't
@@ -561,7 +561,7 @@ read_and_gzip (fd, fullname, buf, size, len, level)
 	unsigned char *newbuf;
 
 	*size = 1024;
-	newbuf = realloc (*buf, *size);
+	newbuf = xrealloc (*buf, *size);
 	if (newbuf == NULL)
 	{
 	    error (0, 0, "out of memory");
@@ -622,7 +622,7 @@ read_and_gzip (fd, fullname, buf, size, len, level)
 
 		offset = zstr.next_out - *buf;
 		*size *= 2;
-		newbuf = realloc (*buf, *size);
+		newbuf = xrealloc (*buf, *size);
 		if (newbuf == NULL)
 		{
 		    error (0, 0, "out of memory");

@@ -154,7 +154,7 @@ while (<AVAIL>) {
     # Module matches if it is a NULL module list in the avail line.  If module
     # list is not null, we check every argument combination.
     if (!($in_repo = !$m)) {
-	@tmp = split(/[\s,]+/,$m);
+	my @tmp = split(/[\s,]+/,$m);
 	for $j (@tmp) {
 	    # If the repos from avail is a parent(or equal) dir of $repos, OK
 	    $in_repo = 1, last if ($repos eq $j || $repos =~ /^$j\//);

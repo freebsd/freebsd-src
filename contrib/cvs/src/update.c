@@ -492,7 +492,7 @@ do_update (argc, argv, xoptions, xtag, xdate, xforce, local, xbuild, xaflag,
 	   follows it; someone should make sure that I did it right. */
 	err = start_recursion (get_linkinfo_proc, (FILESDONEPROC) NULL,
 			       (DIRENTPROC) NULL, (DIRLEAVEPROC) NULL, NULL,
-			       argc, argv, local, which, aflag, LOCK_READ,
+			       argc, argv, local, which, aflag, CVS_LOCK_READ,
 			       preload_update_dir, 1);
 	if (err)
 	    return (err);
@@ -508,7 +508,7 @@ do_update (argc, argv, xoptions, xtag, xdate, xforce, local, xbuild, xaflag,
     /* call the recursion processor */
     err = start_recursion (update_fileproc, update_filesdone_proc,
 			   update_dirent_proc, update_dirleave_proc, NULL,
-			   argc, argv, local, which, aflag, LOCK_READ,
+			   argc, argv, local, which, aflag, CVS_LOCK_READ,
 			   preload_update_dir, 1);
 
 #ifdef SERVER_SUPPORT

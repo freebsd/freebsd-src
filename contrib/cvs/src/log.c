@@ -550,7 +550,7 @@ rlog_proc (argc, argv, xwhere, mwhere, mfile, shorten, local, mname, msg)
 
     err = start_recursion (log_fileproc, (FILESDONEPROC) NULL, log_dirproc,
 			   (DIRLEAVEPROC) NULL, (void *) &log_data,
-			   argc - 1, argv + 1, local, which, 0, LOCK_READ,
+			   argc - 1, argv + 1, local, which, 0, CVS_LOCK_READ,
 			   where, 1);
     return err;
 }
