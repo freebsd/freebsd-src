@@ -404,7 +404,7 @@ arl_ioctl(ifp, cmd, data)
 {
 	struct arl_softc *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *)data;
-	struct ieee80211req *ireq = (struct ieee80211req *)data;;
+	struct ieee80211req *ireq = (struct ieee80211req *)data;
 	d_thread_t *td = _ARL_CURPROC;
 	struct arl_req arlan_io;
 	int count, s, error = 0;
