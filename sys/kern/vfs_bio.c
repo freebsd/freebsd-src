@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.104.2.11 1998/08/29 17:39:39 luoqi Exp $
+ * $Id: vfs_bio.c,v 1.104.2.12 1998/08/29 17:50:13 luoqi Exp $
  */
 
 /*
@@ -467,6 +467,19 @@ brelse(struct buf * bp)
 			brelvp(bp);
 		}
 	}
+
+        /*
+         * We must clear B_RELBUF if B_DELWRI is set.  If vfs_vmio_release()
+         * is called with B_DELWRI set, the underlying pages may wind up
+         * getting freed causing a previous write (bdwrite()) to get 'lost'
+         * because pages associated with a B_DELWRI bp are marked clean.
+         *
+         * We still allow the B_INVAL case to call vfs_vmio_release(), even
+         * if B_DELWRI is set.
+         */
+ 
+        if (bp->b_flags & B_DELWRI)
+                bp->b_flags &= ~B_RELBUF; 
 
 	/*
 	 * VMIO buffer rundown.  It is not very necessary to keep a VMIO buffer
