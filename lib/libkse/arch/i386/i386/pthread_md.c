@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <ucontext.h>
 
 #include "pthread_md.h"
-#include "ksd.h"
 
 #define LDT_ENTRIES 8192
 #define LDT_WORDS   (8192/sizeof(unsigned int))
@@ -94,76 +93,79 @@ free_ldt_entry(u_int index)
 	ldt_mask[i] |= (1 << j);
 }
 
-/*
- * Initialize KSD.  This also includes setting up the LDT.
- */
-int
-_ksd_create(struct ksd *ksd, void *base, int size)
+struct tcb *
+_tcb_ctor(struct pthread *thread)
 {
-	union descriptor ldt;
+	struct tcb *tcb;
+	void *addr;
 
-	if (initialized == 0)
-		initialize();
-	ksd->ldt = alloc_ldt_entry();
-	if (ksd->ldt == 0)
-		return (-1);
-	ksd->base = base;
-	ksd->size = size;
-	ldt.sd.sd_hibase = (unsigned int)ksd->base >> 24;
-	ldt.sd.sd_lobase = (unsigned int)ksd->base & 0xFFFFFF;
-	ldt.sd.sd_hilimit = (size >> 16) & 0xF;
-	ldt.sd.sd_lolimit = ksd->size & 0xFFFF;
-	ldt.sd.sd_type = SDT_MEMRWA;
-	ldt.sd.sd_dpl = SEL_UPL;
-	ldt.sd.sd_p = 1;
-	ldt.sd.sd_xx = 0;
-	ldt.sd.sd_def32 = 1;
-	ldt.sd.sd_gran = 0;	/* no more than 1M */
-	if (i386_set_ldt(ksd->ldt, &ldt, 1) < 0) {
-		free_ldt_entry(ksd->ldt);
-		return (-1);
+	addr = malloc(sizeof(struct tcb) + 15);
+	if (addr == NULL)
+		tcb = NULL;
+	else {
+		tcb = (struct tcb *)(((uintptr_t)(addr) + 15) & ~15);
+		bzero(tcb, sizeof(struct tcb));
+		tcb->tcb_addr = addr;
+		tcb->tcb_thread = thread;
+		/* XXX - Allocate tdv/tls */
 	}
-	ksd->flags = KSDF_INITIALIZED;
-	return (0);
+	return (tcb);
 }
 
 void
-_ksd_destroy(struct ksd *ksd)
+_tcb_dtor(struct tcb *tcb)
 {
-	if ((ksd->flags & KSDF_INITIALIZED) != 0) {
-		free_ldt_entry(ksd->ldt);
-	}
-}
+	void *addr;
 
-int
-_ksd_getprivate(struct ksd *ksd, void **base, int *size)
-{
-
-	if ((ksd == NULL) || ((ksd->flags & KSDF_INITIALIZED) == 0))
-		return (-1);
-	else {
-		*base = ksd->base;
-		*size = ksd->size;
-		return (0);
-	}
+	addr = tcb->tcb_addr;
+	tcb->tcb_addr = NULL;
+	free(addr);
 }
 
 /*
- * This assumes that the LDT is already setup.  Just set %gs to
- * reference it.
+ * Initialize KSD.  This also includes setting up the LDT.
  */
-int
-_ksd_setprivate(struct ksd *ksd)
+struct kcb *
+_kcb_ctor(struct kse *kse)
 {
-	int val;
-	int ret;
+	union descriptor ldt;
+	struct kcb *kcb;
 
-	if ((ksd->flags & KSDF_INITIALIZED) == 0)
-		ret = -1;
-	else {
-		val = (ksd->ldt << 3) | 7;
-		__asm __volatile("movl %0, %%gs" : : "r" (val));
-		ret = 0;
+	if (initialized == 0)
+		initialize();
+	kcb = malloc(sizeof(struct kcb));
+	if (kcb != NULL) {
+		bzero(kcb, sizeof(struct kcb));
+		kcb->kcb_self = kcb;
+		kcb->kcb_kse = kse;
+		kcb->kcb_ldt = alloc_ldt_entry();
+		if (kcb->kcb_ldt == 0) {
+			free(kcb);
+			return (NULL);
+		}
+		ldt.sd.sd_hibase = (unsigned int)kcb >> 24;
+		ldt.sd.sd_lobase = (unsigned int)kcb & 0xFFFFFF;
+		ldt.sd.sd_hilimit = (sizeof(struct kcb) >> 16) & 0xF;
+		ldt.sd.sd_lolimit = sizeof(struct kcb) & 0xFFFF;
+		ldt.sd.sd_type = SDT_MEMRWA;
+		ldt.sd.sd_dpl = SEL_UPL;
+		ldt.sd.sd_p = 1;
+		ldt.sd.sd_xx = 0;
+		ldt.sd.sd_def32 = 1;
+		ldt.sd.sd_gran = 0;	/* no more than 1M */
+		if (i386_set_ldt(kcb->kcb_ldt, &ldt, 1) < 0) {
+			free_ldt_entry(kcb->kcb_ldt);
+			free(kcb);
+			return (NULL);
+		}
 	}
-	return (ret);
+	return (kcb);
+}
+
+void
+_kcb_dtor(struct kcb *kcb)
+{
+	if (kcb->kcb_ldt != -1)
+		free_ldt_entry(kcb->kcb_ldt);
+	free(kcb);
 }
