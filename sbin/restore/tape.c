@@ -565,6 +565,14 @@ extractfile(char *name)
 		return (genliteraldir(name, curfile.ino));
 
 	case IFLNK:
+	  {
+		uid_t uid;
+		gid_t gid;
+		int ret;
+
+		uid = curfile.dip->di_uid;
+		gid = curfile.dip->di_gid;
+
 		lnkbuf[0] = '\0';
 		pathlen = 0;
 		getfile(xtrlnkfile, xtrlnkskip);
@@ -573,7 +581,17 @@ extractfile(char *name)
 			    "%s: zero length symbolic link (ignored)\n", name);
 			return (GOOD);
 		}
-		return (linkit(lnkbuf, name, SYMLINK));
+		ret = linkit(lnkbuf, name, SYMLINK);
+		if (ret == GOOD) {
+			if (lchown(name, uid, gid))
+				perror(name);
+			if (lchmod(name, mode))
+				perror(name);
+			lutimes(name, timep);
+		}
+		/* symbolic link doesn't have any flags */
+		return (ret);
+	  }
 
 	case IFIFO:
 		vprintf(stdout, "extract fifo %s\n", name);
