@@ -420,6 +420,10 @@ Fdisk()
 	    dp[l-1].dp_typ=l3;
 	    i = AskEm(stdscr, "Bootflag (0x80 for YES)> ", buf, 5);
 	    dp[l-1].dp_flag=strtol(buf, 0, 0);
+	    if(dp[l-1].dp_flag)
+		    for(i=0;i<NDOSPART;i++)
+			    if(i != (l-1))
+				    dp[i].dp_flag = 0;
 	    break;
 
 	case 'd': case 'D':
