@@ -31,11 +31,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)unistd.h	8.2 (Berkeley) 1/7/94
- * $Id: unistd.h,v 1.14 1997/06/16 00:29:26 dyson Exp $
+ * $Id: unistd.h,v 1.15 1998/03/04 10:26:46 dufault Exp $
  */
 
 #ifndef _SYS_UNISTD_H_
 #define	_SYS_UNISTD_H_
+
+#include <sys/_posix.h>
 
 /* compile-time symbolic constants */
 #define	_POSIX_JOB_CONTROL	/* implementation supports job control */
@@ -50,46 +52,9 @@
 #define	_POSIX_SAVED_IDS	/* saved set-user-ID and set-group-ID */
 #endif
 
-#ifdef POSIX4
-
-/* Select POSIX.4 regardless.
- * Don't undef first - we want an error on conflicts. 
- */
-
-#define _POSIX_VERSION 199309L
-#endif
-
-#ifndef _POSIX_VERSION
-#define	_POSIX_VERSION		199009L
-#endif
-
-#if _POSIX_VERSION > 199009L
-/*
- * Set it up so that all new headers can assume _POSIX_C_SOURCE is the
- * only thing that must be looked at to determine the feature set,
- * and so that old headers don't have to change:
- */
-#if defined(_POSIX_SOURCE) && !defined(_POSIX_C_SOURCE)
-/*
- * Default to latest:
- */
-#define _POSIX_C_SOURCE _POSIX_VERSION
-#endif
-
-#if defined(_POSIX_C_SOURCE) && !defined(_POSIX_SOURCE)
-/*
- * Define _POSIX_SOURCE for older headers:
- */
-#define _POSIX_SOURCE
-#endif
-
 #if _POSIX_VERSION >= 199309L
 #include <posix4/posix4.h>
 #endif
-
-#endif	/* _POSIX_VERSION */
-
-
 
 #define	_POSIX2_VERSION		199212L
 
@@ -162,7 +127,7 @@
 /* configurable system strings */
 #define	_CS_PATH		 1
 
-#ifdef POSIX4_VISIBLE
+#ifdef _POSIX4_VISIBLE
 
 #if 0
 /* Not until the dust settles after the header commit
@@ -205,7 +170,7 @@
 #define _PC_PRIO_IO		54
 #define _PC_SYNC_IO		55
 
-#endif /* POSIX4_VISIBLE */
+#endif /* _POSIX4_VISIBLE */
 
 #ifndef _POSIX_SOURCE
 /*

@@ -39,6 +39,7 @@
 #include <sys/cdefs.h>
 #include <sys/signal.h>
 #include <machine/ansi.h>
+#include <sys/_posix.h>
 
 #if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
 extern __const char *__const sys_signame[NSIG];
@@ -63,10 +64,39 @@ int	signanosleep __P((const struct timespec *, struct timespec *,
 int	sigpending __P((sigset_t *));
 int	sigprocmask __P((int, const sigset_t *, sigset_t *));
 int	sigsuspend __P((const sigset_t *));
-#ifdef POSIX4_VISIBLE
+
+#ifdef _POSIX4_VISIBLE_HISTORICALLY
+
+/* Async event notification */
+
+union sigval {
+	int	sival_int;
+	void	*sival_ptr;
+};
+struct sigevent {
+	int	sigev_notify;		/* Notification type */
+	int	sigev_signo;		/* Signal number */
+	union sigval sigev_value;	/* Signal value */
+};
+#define	SIGEV_NONE	0		/* No async notification */
+#define	SIGEV_SIGNAL	1		/* Queue signal with value */
+
+#endif /* _POSIX4_VISIBLE_HISTORICALLY */
+
+#ifdef _POSIX4_VISIBLE
+
+typedef struct siginfo {
+	int	si_signo;		/* Signal number */
+	int	si_code;		/* Cause of the signal */
+	union sigval si_value;		/* Signal value */
+} siginfo_t;
+
+__BEGIN_DECLS
 int sigqueue __P((_BSD_PID_T_, int, const union sigval));
-int sigtimedwait __P((const sig_set_t *, siginfo_t *));
-int sigwaitinfo __P((const sig_set_t *, siginfo_t *));
+int sigtimedwait __P((const sigset_t *, siginfo_t *));
+int sigwaitinfo __P((const sigset_t *, siginfo_t *));
+__END_DECLS
+
 #endif
 #ifndef _POSIX_SOURCE
 int	killpg __P((_BSD_PID_T_, int));

@@ -31,11 +31,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)mman.h	8.2 (Berkeley) 1/9/95
- * $Id: mman.h,v 1.20 1997/12/31 01:22:00 alex Exp $
+ * $Id: mman.h,v 1.21 1998/03/04 10:26:35 dufault Exp $
  */
 
 #ifndef _SYS_MMAN_H_
 #define _SYS_MMAN_H_
+
+#include <sys/_posix.h>
 
 /*
  * Protections are chosen from these bits, or-ed together
@@ -63,14 +65,14 @@
 #define	MAP_NOEXTEND	 0x0100	/* for MAP_FILE, don't change file size */
 #define	MAP_HASSEMAPHORE 0x0200	/* region may contain semaphores */
 
-#ifdef POSIX4_VISIBLE
+#ifdef _POSIX4_VISIBLE
 /*
  * Process memory locking
  */
 #define MCL_CURRENT	0x0001	/* Lock only current memory */
 #define MCL_FUTURE	0x0002	/* Lock all future memory as well */
 
-#endif /* POSIX4_VISIBLE */
+#endif /* _POSIX4_VISIBLE */
 
 /*
  * Error return from mmap()
@@ -115,12 +117,12 @@
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-#ifdef POSIX4_VISIBLE
+#ifdef _POSIX4_VISIBLE
 int	mlockall __P((int));
 int	munlockall __P((void));
 int	shm_open __P((const char *, int, mode_t));
 int	shm_unlink __P((const char *));
-#endif /* POSIX4_VISIBLE */
+#endif /* _POSIX4_VISIBLE */
 int	mlock __P((const void *, size_t));
 #ifndef _MMAP_DECLARED
 #define	_MMAP_DECLARED

@@ -36,7 +36,7 @@
  *
  */
 
-#ifdef POSIX4_INCLUDE_MAYBES
+#ifdef _POSIX4_INCLUDE_MAYBES
 #include <sys/types.h>
 #include <fcntl.h>
 #endif
@@ -46,6 +46,7 @@ typedef int sem_t;
 #ifndef KERNEL
 #include <sys/cdefs.h>
 
+__BEGIN_DECLS
 int sem_init __P(sem_t *, int, unsigned int));
 int sem_destroy __P((sem_t *));
 sem_t sem_open __P((const char *, int, ...));
@@ -55,6 +56,7 @@ int sem_wait((sem_t *));
 int sem_trywait((sem_t *));
 int sem_post((sem_t *));
 int sem_getvalue((sem_t *, int *));
+__END_DECLS
 
 #endif /* KERNEL */
 

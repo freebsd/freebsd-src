@@ -176,7 +176,7 @@ sysconf(name)
 		mib[1] = USER_POSIX2_UPE;
 		goto yesno;
 
-#ifdef POSIX4
+#if _POSIX_VERSION >= 199309L
 	/* POSIX.4 */
 
 	case _SC_ASYNCHRONOUS_IO:
@@ -279,7 +279,7 @@ sysconf(name)
 		mib[0] = CTL_POSIX4;
 		mib[1] = CTL_POSIX4_TIMER_MAX;
 		goto yesno;
-#endif /* POSIX4 */
+#endif /* _POSIX_VERSION >= 199309L */
 
 yesno:		if (sysctl(mib, 2, &value, &len, NULL, 0) == -1)
 			return (-1);
