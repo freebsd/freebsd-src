@@ -147,7 +147,7 @@ intpr(interval, ifnetaddr)
 			if ((ifnet.if_flags&IFF_UP) == 0)
 				*cp++ = '*';
 			*cp = '\0';
-			ifaddraddr = (u_long)ifnet.if_addrlist;
+			ifaddraddr = (u_long)ifnet.if_addrhead.tqh_first;
 		}
 		printf("%-5.5s %-5lu ", name, ifnet.if_mtu);
 		ifaddrfound = ifaddraddr;
@@ -246,7 +246,7 @@ intpr(interval, ifnetaddr)
 					putchar(' ');
 				break;
 			}
-			ifaddraddr = (u_long)ifaddr.ifa.ifa_next;
+			ifaddraddr = (u_long)ifaddr.ifa.ifa_link.tqe_next;
 		}
 		printf("%8lu %5lu ",
 		    ifnet.if_ipackets, ifnet.if_ierrors);
