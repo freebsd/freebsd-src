@@ -23,6 +23,33 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20040928:
+	If enabled, the default is now to run named in a chroot
+	"sandbox." For users with existing configurations in
+	/etc/namedb the migration should be simple. Upgrade your
+	world as usual, then after installworld but before
+	mergemaster do the following:
+
+	If named is running: /etc/rc.d/named stop
+	cd /etc
+	mv namedb namedb.bak
+	mkdir -p /var/named/etc/namedb
+	cp -Rp namedb.bak/* /var/named/etc/namedb/
+	mergemaster (with your usual options)
+	If using the generated localhost* files:
+		cd /var/named/etc/namedb
+		/bin/sh make-localhost
+		rm -f localhost-v6.rev localhost.rev
+	/etc/rc.d/named start
+
+	If you are using a custom configuration, or if you have
+	customised the named_* variables in /etc/rc.conf[.local]
+	then you may have to adjust the instructions accordingly.
+	It is suggested that you carefully examine the new named
+	variables in /etc/defaults/rc.conf and the options in
+	/var/named/etc/namedb/named.conf to see if they might
+	now be more suitable.
+
 20040925:
 	BIND 9 has been imported into the base, and is now fully
 	functional. BIND 8 has now been removed. There are numerous

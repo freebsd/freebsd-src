@@ -5,16 +5,13 @@
 
 /set type=dir uname=root gname=wheel mode=0755
 .
-    dev
+    dev             mode=0555
     ..
     etc
-/set type=dir uname=bind gname=wheel mode=0755
-        namedb
-/set type=dir uname=root gname=wheel mode=0755
+        namedb      uname=bind
             master
             ..
-/set type=dir uname=bind gname=wheel mode=0755
-            slave
+            slave   uname=bind
             ..
         ..
     ..
