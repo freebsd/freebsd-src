@@ -3,8 +3,6 @@
 MAN8=	MAKEDEV.8
 MANSUBDIR=/i386
 
-clean depend lint tags:
-
-install: maninstall
+MLINKS= MAKEDEV.8 ../MAKEDEV.8
 
 .include <bsd.prog.mk>
