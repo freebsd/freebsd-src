@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.46 1994/12/23 03:30:02 jkh Exp $
+# $Id: instdist.sh,v 1.47 1994/12/23 05:11:16 jkh Exp $
 
 if [ "${_INSTINST_SH_LOADED_}" = "yes" ]; then
 	return 0
@@ -96,8 +96,9 @@ Please select the site closest to you or \"other\" if you'd like\n\
 to specify another choice.  Also note that not all sites carry\n\
 every possible distribution!  Distributions other than the basic\n\
 binary set are only guaranteed to be available from the Primary site.\n\
+If the first site selected doesn't respond, try one of the alternates.\n\
 Please use arrow keys to scroll through all items." \
--1 -1 6 \
+-1 -1 5 \
   "Primary" "ftp.freebsd.org" \
   "Australia" "ftp.physics.usyd.edu.au" \
   "Finland" "nic.funet.fi" \
@@ -114,6 +115,7 @@ Please use arrow keys to scroll through all items." \
   "Netherlands" "ftp.nl.net" \
   "Russia" "ftp.kiae.su" \
   "Taiwan" "netbsd.csie.nctu.edu.tw" \
+  "Thailand" "ftp.nectec.or.th" \
   "UK" "ftp.demon.co.uk" \
   "UK-2" "src.doc.ic.ac.uk" \
   "UK-3" "unix.hensa.ac.uk" \
@@ -144,6 +146,7 @@ Please use arrow keys to scroll through all items." \
    Netherlands) FTP_PATH="ftp://ftp.nl.net/pub/os/FreeBSD/${DISTNAME}" ;;
    Russia) FTP_PATH="ftp://ftp.kiae.su/FreeBSD/${DISTNAME}" ;;
    Taiwan) FTP_PATH="ftp://netbsd.csie.nctu.edu.tw/pub/FreeBSD/${DISTNAME}" ;;
+   Thailand) FTP_PATH="ftp.nectec.or.th/pub/FreeBSD/${DISTNAME}" ;;
    UK) FTP_PATH="ftp://ftp.demon.co.uk/pub/BSD/FreeBSD/${DISTNAME}" ;;
    UK-2) FTP_PATH="ftp://src.doc.ic.ac.uk/packages/unix/FreeBSD/${DISTNAME}" ;;
    UK-3) FTP_PATH="ftp://unix.hensa.ac.uk/pub/walnut.creek/FreeBSD/${DISTNAME}" ;;
