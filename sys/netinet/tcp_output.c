@@ -89,7 +89,7 @@ int ss_fltsz = 1;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, slowstart_flightsize, CTLFLAG_RW,
 	&ss_fltsz, 1, "Slow start flight size");
 
-int ss_fltsz_local = TCP_MAXWIN;               /* something large */
+int ss_fltsz_local = 4;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, local_slowstart_flightsize, CTLFLAG_RW,
 	&ss_fltsz_local, 1, "Slow start flight size for local networks");
 
