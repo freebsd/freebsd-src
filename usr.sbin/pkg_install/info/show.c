@@ -167,6 +167,11 @@ show_plist(const char *title, Package *plist, plist_t type, Boolean showall)
 		p->name);
 	    break;
 
+	case PLIST_ORIGIN:
+	    printf(Quiet ? "@comment ORIGIN:%s\n" :
+		"\tPackage origin: %s\n", p->name); 
+	    break;
+
 	default:
 	    cleanup(0);
 	    errx(2, __FUNCTION__ ": unknown command type %d (%s)", p->type, p->name);
