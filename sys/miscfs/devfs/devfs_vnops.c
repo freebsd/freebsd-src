@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_vnops.c,v 1.51 1998/01/02 07:31:06 julian Exp $
+ *	$Id: devfs_vnops.c,v 1.52 1998/03/10 09:12:19 julian Exp $
  */
 
 #include <sys/param.h>
@@ -531,7 +531,6 @@ devfs_setattr(struct vop_setattr_args *ap)
 	gid_t *gp;
 	int i;
 	dn_p	file_node;
-	struct timeval tv;
 
 	if (error = devfs_vntodn(vp,&file_node))
 	{
@@ -578,8 +577,7 @@ DBPRINT(("setattr\n"));
 			return (EACCES);
 		file_node->atime = vap->va_atime;
 		file_node->mtime = vap->va_mtime;
-		microtime(&tv);
-		TIMEVAL_TO_TIMESPEC(&tv, &file_node->ctime);
+		nanotime(&file_node->ctime);
 		return (0);
 	}
 
@@ -675,7 +673,7 @@ DBPRINT(("read\n"));
 	case VCHR:
 	case VBLK:
 		error = VOCALL(spec_vnodeop_p, VOFFSET(vop_read), ap);
-		TIMEVAL_TO_TIMESPEC(&time,&(file_node->atime))
+		getnanotime(&(file_node->atime));
 		return(error);
 
 	default:
@@ -715,7 +713,7 @@ DBPRINT(("write\n"));
 	case VCHR:
 	case VBLK:
 		error = VOCALL(spec_vnodeop_p, VOFFSET(vop_write), ap);
-		TIMEVAL_TO_TIMESPEC(&time,&(file_node->mtime))
+		getnanotime(&(file_node->mtime));
 		return(error);
 
 	default:
@@ -828,7 +826,7 @@ abortit:
 	/***********************************
 	 * Start actually doing things.... *
 	 ***********************************/
-	TIMEVAL_TO_TIMESPEC(&time,&(tdp->mtime));
+	getnanotime(&(tdp->mtime));
 
 
 	/*
@@ -918,7 +916,7 @@ abortit:
 	/***********************************
 	 * Start actually doing things.... *
 	 ***********************************/
-	TIMEVAL_TO_TIMESPEC(&time,&(tdp->atime));
+	getnanotime(&(tdp->atime));
 	error = dev_add_name(cnp->cn_nameptr,
 			tdp,
 			NULL,
@@ -1084,7 +1082,7 @@ abortit:
 	/***********************************
 	 * Start actually doing things.... *
 	 ***********************************/
-	TIMEVAL_TO_TIMESPEC(&time,&(fp->atime));
+	getnanotime(&(fp->atime));
 	/*
 	 * Check if just deleting a link name.
 	 */
@@ -1276,7 +1274,7 @@ DBPRINT(("readdir\n"));
 	startpos = uio->uio_offset;
 	name_node = dir_node->by.Dir.dirlist;
 	nodenumber = 0;
-	TIMEVAL_TO_TIMESPEC(&time,&(dir_node->atime))
+	getnanotime(&(dir_node->atime));
 
 	while ((name_node || (nodenumber < 2)) && (uio->uio_resid > 0))
 	{

@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: sys_pipe.c,v 1.38 1998/02/06 12:13:26 eivind Exp $
+ * $Id: sys_pipe.c,v 1.39 1998/02/09 06:09:25 eivind Exp $
  */
 
 /*
@@ -251,7 +251,7 @@ pipeinit(cpipe)
 	cpipe->pipe_state = 0;
 	cpipe->pipe_peer = NULL;
 	cpipe->pipe_busy = 0;
-	gettime(&cpipe->pipe_ctime);
+	getnanotime(&cpipe->pipe_ctime);
 	cpipe->pipe_atime = cpipe->pipe_ctime;
 	cpipe->pipe_mtime = cpipe->pipe_ctime;
 	bzero(&cpipe->pipe_sel, sizeof cpipe->pipe_sel);
@@ -436,7 +436,7 @@ pipe_read(fp, uio, cred)
 	}
 
 	if (error == 0)
-		gettime(&rpipe->pipe_atime);
+		getnanotime(&rpipe->pipe_atime);
 
 	--rpipe->pipe_busy;
 	if ((rpipe->pipe_busy == 0) && (rpipe->pipe_state & PIPE_WANT)) {
@@ -908,7 +908,7 @@ pipe_write(fp, uio, cred)
 		error = 0;
 
 	if (error == 0)
-		gettime(&wpipe->pipe_mtime);
+		getnanotime(&wpipe->pipe_mtime);
 
 	/*
 	 * We have something to offer,
@@ -1018,9 +1018,9 @@ pipe_stat(pipe, ub)
 	ub->st_blksize = pipe->pipe_buffer.size;
 	ub->st_size = pipe->pipe_buffer.cnt;
 	ub->st_blocks = (ub->st_size + ub->st_blksize - 1) / ub->st_blksize;
-	TIMEVAL_TO_TIMESPEC(&pipe->pipe_atime, &ub->st_atimespec);
-	TIMEVAL_TO_TIMESPEC(&pipe->pipe_mtime, &ub->st_mtimespec);
-	TIMEVAL_TO_TIMESPEC(&pipe->pipe_ctime, &ub->st_ctimespec);
+	ub->st_atimespec = pipe->pipe_atime;
+	ub->st_mtimespec = pipe->pipe_mtime;
+	ub->st_ctimespec = pipe->pipe_ctime;
 	/*
 	 * Left as 0: st_dev, st_ino, st_nlink, st_uid, st_gid, st_rdev,
 	 * st_flags, st_gen.

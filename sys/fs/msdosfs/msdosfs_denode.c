@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_denode.c,v 1.32 1998/02/18 09:28:33 jkh Exp $ */
+/*	$Id: msdosfs_denode.c,v 1.33 1998/03/20 02:33:35 kato Exp $ */
 /*	$NetBSD: msdosfs_denode.c,v 1.28 1998/02/10 14:10:00 mrg Exp $	*/
 
 /*-
@@ -364,7 +364,7 @@ deupdat(dep, waitfor)
 
 	if (DETOV(dep)->v_mount->mnt_flag & MNT_RDONLY)
 		return (0);
-	TIMEVAL_TO_TIMESPEC(&time, &ts);
+	getnanotime(&ts);
 	DETIMES(dep, &ts, &ts, &ts);
 	if ((dep->de_flag & DE_MODIFIED) == 0)
 		return (0);

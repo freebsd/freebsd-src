@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.18 (Berkeley) 5/21/95
  *
- *	$Id: procfs_vnops.c,v 1.54 1998/02/06 12:13:42 eivind Exp $
+ *	$Id: procfs_vnops.c,v 1.55 1998/02/09 06:09:46 eivind Exp $
  */
 
 /*
@@ -475,11 +475,7 @@ procfs_getattr(ap)
 	 * p_stat structure is not addressible if u. gets
 	 * swapped out for that process.
 	 */
-	{
-		struct timeval tv;
-		microtime(&tv);
-		TIMEVAL_TO_TIMESPEC(&tv, &vap->va_ctime);
-	}
+	nanotime(&vap->va_ctime);
 	vap->va_atime = vap->va_mtime = vap->va_ctime;
 
 	/*
