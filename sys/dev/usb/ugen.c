@@ -65,9 +65,9 @@
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
 
-#ifdef USB_DEBUG
-#define DPRINTF(x)	if (ugendebug) printf x
-#define DPRINTFN(n,x)	if (ugendebug>(n)) printf x
+#ifdef UGEN_DEBUG
+#define DPRINTF(x)	if (ugendebug) logprintf x
+#define DPRINTFN(n,x)	if (ugendebug>(n)) logprintf x
 int	ugendebug = 1;
 #else
 #define DPRINTF(x)
@@ -103,17 +103,37 @@ struct ugen_softc {
 	int sc_disconnected;		/* device is gone */
 };
 
+#if defined(__NetBSD__)
 int ugenopen __P((dev_t, int, int, struct proc *));
 int ugenclose __P((dev_t, int, int, struct proc *p));
 int ugenread __P((dev_t, struct uio *uio, int));
 int ugenwrite __P((dev_t, struct uio *uio, int));
 int ugenioctl __P((dev_t, u_long, caddr_t, int, struct proc *));
 int ugenpoll __P((dev_t, int, struct proc *));
+#elif defined(__FreeBSD__)
+d_open_t  ugenopen;
+d_close_t ugenclose;
+d_read_t  ugenread;
+d_write_t ugenwrite;
+d_ioctl_t ugenioctl;
+d_poll_t  ugenpoll;
+
+#define UGEN_CDEV_MAJOR	114
+
+static struct cdevsw ugen_cdevsw = {
+	ugenopen,	ugenclose,	ugenread,	ugenwrite,
+	ugenioctl,	nostop,		nullreset,	nodevtotty,
+	ugenpoll,	nommap,		nostrat,
+	"ugen",		NULL,		-1
+};
+#endif
+
 void ugenintr __P((usbd_request_handle reqh, usbd_private_handle addr, 
 		   usbd_status status));
 void ugen_disco __P((void *));
 
-#define UGEN_CDEV_MAJOR	114
+
+
 
 int ugen_set_config __P((struct ugen_softc *sc, int configno));
 usb_config_descriptor_t *ugen_get_cdesc __P((struct ugen_softc *sc, int index,
@@ -715,7 +735,7 @@ ugenioctl(dev, cmd, addr, flag, p)
 		return (EINVAL);
 
 	switch (cmd) {
-#ifdef USB_DEBUG
+#ifdef UGEN_DEBUG
 	case USB_SETDEBUG:
 		ugendebug = *(int *)addr;
 		break;
@@ -972,14 +992,11 @@ ugenpoll(dev, events, p)
 static int
 ugen_detach(device_t self)
 {       
-	char *devinfo = (char *) device_get_desc(self);
-
-	if (devinfo) {
-		device_set_desc(self, NULL);
-		free(devinfo, M_USB);
-	}
+	DPRINTF(("%s: disconnected\n", USBDEVNAME(self)));
+	device_set_desc(self, NULL);
 	return 0;
 }
 
-DRIVER_MODULE(ugen, uhub, ugen_driver, ugen_devclass, usbd_driver_load, 0);
+CDEV_DRIVER_MODULE(ugen, uhub, ugen_driver, ugen_devclass,
+			UGEN_CDEV_MAJOR, ugen_cdevsw, usbd_driver_load, 0);
 #endif

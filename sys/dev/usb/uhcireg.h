@@ -1,5 +1,5 @@
 /*	$NetBSD: uhcireg.h,v 1.5 1998/12/27 23:40:52 augustss Exp $	*/
-/*	FreeBSD $Id$ */
+/*	$FreeBSD$	*/
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -47,6 +47,9 @@
 #define  PCI_USBREV_MASK	0xff
 #define  PCI_USBREV_PRE_1_0	0x00
 #define  PCI_USBREV_1_0		0x10
+
+#define PCI_LEGSUP		0xc0	/* Legacy Support register */
+#define  PCI_LEGSUP_USBPIRQDEN	0x2000	/* USB PIRQ D Enable */
 
 #define PCI_CBIO		0x20	/* configuration base IO */
 
@@ -144,7 +147,7 @@ typedef struct {
 #define UHCI_TD_ACTIVE		0x00800000
 #define UHCI_TD_IOC		0x01000000
 #define UHCI_TD_IOS		0x02000000
-#define UHCI_TD_LS		0x04000000
+#define UHCI_TD_LOWSPEED	0x04000000
 #define UHCI_TD_GET_ERRCNT(s)	(((s) >> 27) & 3)
 #define UHCI_TD_SET_ERRCNT(n)	((n) << 27)
 #define UHCI_TD_SPD		0x20000000

@@ -111,6 +111,7 @@ __CONCAT(dname,_attach)(parent, self, aux) \
 #define USB_DO_ATTACH(dev, bdev, parent, args, print, sub) \
 	((dev)->softc = config_found_sm(parent, args, print, sub))
 
+#define logprintf	printf
 
 
 
@@ -125,7 +126,7 @@ __CONCAT(dname,_attach)(parent, self, aux) \
  * because of includes in the wrong order.
  */
 #define bdevice device_t
-#define USBDEVNAME(bdev) usbd_devname(&bdev)
+#define USBDEVNAME(bdev) usbd_devname(bdev)
 
 /* XXX Change this when FreeBSD has memset
  */
@@ -183,8 +184,8 @@ __CONCAT(dname,_attach)(device_t self)
 #define USB_ATTACH_SUCCESS_RETURN	return 0
 
 #define USB_ATTACH_SETUP \
-	usbd_device_set_desc(self, devinfo); \
-	sc->sc_dev = self
+	sc->sc_dev = self; \
+	usbd_device_set_desc(self, devinfo)
 
 #define USB_GET_SC_OPEN(dname, unit, sc) \
 	struct __CONCAT(dname,_softc) *sc = \
@@ -196,11 +197,12 @@ __CONCAT(dname,_attach)(device_t self)
 	struct __CONCAT(dname,_softc) *sc = \
 		devclass_get_softc(__CONCAT(dname,_devclass), unit)
 
-#define USB_DO_ATTACH(dev, bdev, parent, args, print, sub) \
-	(device_probe_and_attach((bdev)) == 0 ? ((dev)->softc = (bdev)) : 0)
+#define USB_DO_ATTACH(dev, bdev, parent, args, print, sub)	\
+	(device_probe_and_attach((bdev)) == 0 ?			\
+		((dev)->softc = device_get_softc(bdev)) : 0)
 
 /* conversion from one type of queue to the other */
-#define SIMPLEQ_REMOVE_HEAD	STAILQ_REMOVE_HEAD_UNTIL
+#define SIMPLEQ_REMOVE_HEAD	STAILQ_REMOVE_HEAD
 #define SIMPLEQ_INSERT_HEAD	STAILQ_INSERT_HEAD
 #define SIMPLEQ_INSERT_TAIL	STAILQ_INSERT_TAIL
 #define SIMPLEQ_NEXT		STAILQ_NEXT
@@ -208,6 +210,9 @@ __CONCAT(dname,_attach)(device_t self)
 #define SIMPLEQ_HEAD		STAILQ_HEAD
 #define SIMPLEQ_INIT		STAILQ_INIT
 #define SIMPLEQ_ENTRY		STAILQ_ENTRY
+
+#include <sys/syslog.h>
+#define logprintf(args...)	log(LOG_DEBUG, args);
 
 #endif /* __FreeBSD__ */
 

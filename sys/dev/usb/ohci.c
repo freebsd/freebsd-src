@@ -1,4 +1,4 @@
-/*	$NetBSD: ohci.c,v 1.23 1999/01/07 02:06:05 augustss Exp $	*/
+/*	$NetBSD: ohci.c,v 1.27 1999/01/13 10:33:53 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -75,7 +75,15 @@
 #include <machine/clock.h>
 
 #define delay(d)                DELAY(d)
+#endif
 
+#ifdef OHCI_DEBUG
+#define DPRINTF(x)	if (ohcidebug) logprintf x
+#define DPRINTFN(n,x)	if (ohcidebug>(n)) logprintf x
+int ohcidebug = 1;
+#else
+#define DPRINTF(x)
+#define DPRINTFN(n,x)
 #endif
 
 /*
@@ -145,7 +153,7 @@ int		ohci_str __P((usb_string_descriptor_t *, int, char *));
 void		ohci_timeout __P((void *));
 void		ohci_rhsc_able __P((ohci_softc_t *, int));
 
-#ifdef USB_DEBUG
+#ifdef OHCI_DEBUG
 ohci_softc_t   *thesc;
 void		ohci_dumpregs __P((ohci_softc_t *));
 void		ohci_dump_tds __P((ohci_soft_td_t *));
@@ -162,6 +170,7 @@ void		ohci_dump_ed __P((ohci_soft_ed_t *));
 #define OREAD4(sc, r) (*(u_int32_t *) ((sc)->sc_iobase + (r)))
 #define OREAD2(sc, r) (*(u_int16_t *) ((sc)->sc_iobase + (r)))
 #endif
+
 
 /* Reverse the bits in a value 0 .. 31 */
 static u_int8_t revbits[OHCI_NO_INTRS] = 
@@ -458,7 +467,7 @@ ohci_init(sc)
 		r = USBD_IOERROR;
 		goto bad3;
 	}
-#ifdef USB_DEBUG
+#ifdef OHCI_DEBUG
 	thesc = sc;
 	if (ohcidebug > 15)
 		ohci_dumpregs(sc);
@@ -494,7 +503,7 @@ ohci_init(sc)
 
 	sc->sc_noport = OHCI_GET_NDP(OREAD4(sc, OHCI_RH_DESCRIPTOR_A));
 
-#ifdef USB_DEBUG
+#ifdef OHCI_DEBUG
 	if (ohcidebug > 5)
 		ohci_dumpregs(sc);
 #endif
@@ -515,7 +524,7 @@ ohci_init(sc)
 	return (r);
 }
 
-#ifdef USB_DEBUG
+#ifdef OHCI_DEBUG
 void ohcidump(void);
 void ohcidump(void) { ohci_dumpregs(thesc); }
 
@@ -565,7 +574,7 @@ ohci_intr(p)
 	void *p;
 {
 	ohci_softc_t *sc = p;
-	u_int32_t intrs = 0, eintrs;
+	u_int32_t intrs, eintrs;
 	ohci_physaddr_t done;
 
 	/* In case the interrupt occurs before initialization has completed. */
@@ -576,6 +585,7 @@ ohci_intr(p)
 		return (0);
 	}
 
+	intrs = 0;
 	done = LE(sc->sc_hcca->hcca_done_head);
 	if (done != 0) {
 		sc->sc_hcca->hcca_done_head = 0;
@@ -649,7 +659,7 @@ ohci_rhsc_able(sc, on)
 	}
 }
 
-#ifdef USB_DEBUG
+#ifdef OHCI_DEBUG
 char *ohci_cc_strs[] = {
 	"NO_ERROR",
 	"CRC",
@@ -672,7 +682,7 @@ ohci_process_done(sc, done)
 	ohci_softc_t *sc;
 	ohci_physaddr_t done;
 {
-	ohci_soft_td_t *std = NULL, *sdone;
+	ohci_soft_td_t *std, *sdone;
 	usbd_request_handle reqh;
 	int len, cc;
 
@@ -685,8 +695,8 @@ ohci_process_done(sc, done)
 		sdone = std;
 	}
 
-#ifdef USB_DEBUG
-	if (ohcidebug > 10) {
+#ifdef OHCI_DEBUG
+	if (ohcidebug > 11) {
 		printf("ohci_process_done: TD done:\n");
 		ohci_dump_tds(sdone);
 	}
@@ -936,7 +946,7 @@ ohci_waitintr(sc, reqh)
 		usb_delay_ms(&sc->sc_bus, 1);
 		intrs = OREAD4(sc, OHCI_INTERRUPT_STATUS) & sc->sc_eintrs;
 		DPRINTFN(15,("ohci_waitintr: 0x%04x\n", intrs));
-#ifdef USB_DEBUG
+#ifdef OHCI_DEBUG
 		if (ohcidebug > 15)
 			ohci_dumpregs(sc);
 #endif
@@ -1064,7 +1074,7 @@ ohci_device_request(reqh)
 
 	reqh->hcpriv = stat;
 
-#if USB_DEBUG
+#ifdef OHCI_DEBUG
 	if (ohcidebug > 5) {
 		printf("ohci_device_request:\n");
 		ohci_dump_ed(sed);
@@ -1087,14 +1097,16 @@ ohci_device_request(reqh)
 	}
 	splx(s);
 
-#if USB_DEBUG
-	if (ohcidebug > 5) {
+#if 0
+#ifdef OHCI_DEBUG
+	if (ohcidebug > 15) {
 		delay(5000);
 		printf("ohci_device_request: status=%x\n",
 		       OREAD4(sc, OHCI_COMMAND_STATUS));
 		ohci_dump_ed(sed);
 		ohci_dump_tds(setup);
 	}
+#endif
 #endif
 
 	return (USBD_NORMAL_COMPLETION);
@@ -1195,9 +1207,12 @@ ohci_timeout(addr)
 {
 #if 0
 	usbd_request_handle *reqh = addr;
-	int s;
+#endif
 
 	DPRINTF(("ohci_timeout: reqh=%p\n", reqh));
+#if 0
+	int s;
+
 	s = splusb();
 	/* XXX need to inactivate TD before calling interrupt routine */
 	ohci_XXX_done(reqh);
@@ -1205,7 +1220,7 @@ ohci_timeout(addr)
 #endif
 }
 
-#ifdef USB_DEBUG
+#ifdef OHCI_DEBUG
 void
 ohci_dump_tds(std)
 	ohci_soft_td_t *std;
@@ -2070,7 +2085,7 @@ ohci_device_intr_start(reqh)
 
 	reqh->hcpriv = xfer;
 
-#if USB_DEBUG
+#ifdef OHCI_DEBUG
 	if (ohcidebug > 5) {
 		printf("ohci_device_intr_transfer:\n");
 		ohci_dump_ed(sed);
@@ -2091,8 +2106,9 @@ ohci_device_intr_start(reqh)
 #endif
 	sed->ed->ed_flags &= LE(~OHCI_ED_SKIP);
 
-#ifdef USB_DEBUG
-	if (ohcidebug > 5) {
+#if 0
+#ifdef OHCI_DEBUG
+	if (ohcidebug > 15) {
 		delay(5000);
 		printf("ohci_device_intr_transfer: status=%x\n",
 		       OREAD4(sc, OHCI_COMMAND_STATUS));
@@ -2100,7 +2116,7 @@ ohci_device_intr_start(reqh)
 		ohci_dump_tds(xfer);
 	}
 #endif
-	/* moved splx(s) because of indefinite printing of TD's */
+#endif
 	splx(s);
 
 	return (USBD_IN_PROGRESS);

@@ -1,4 +1,4 @@
-/*	$NetBSD: uhid.c,v 1.14 1999/01/08 11:58:25 augustss Exp $	*/
+/*	$NetBSD: uhid.c,v 1.15 1999/01/10 11:13:36 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -38,6 +38,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+/*
+ * HID spec: http://www.usb.org/developers/data/usbhid10.pdf
+ */
+
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -68,9 +72,9 @@
 #include <dev/usb/hid.h>
 #include <dev/usb/usb_quirks.h>
 
-#ifdef USB_DEBUG
-#define DPRINTF(x)	if (uhiddebug) printf x
-#define DPRINTFN(n,x)	if (uhiddebug>(n)) printf x
+#ifdef UHID_DEBUG
+#define DPRINTF(x)	if (uhiddebug) logprintf x
+#define DPRINTFN(n,x)	if (uhiddebug>(n)) logprintf x
 int	uhiddebug = 1;
 #else
 #define DPRINTF(x)
@@ -200,12 +204,8 @@ USB_ATTACH(uhid)
 static int
 uhid_detach(device_t self)
 {       
-	char *devinfo = (char *) device_get_desc(self);
-
-	if (devinfo) {
-		device_set_desc(self, NULL);
-		free(devinfo, M_USB);
-	}
+	DPRINTF(("%s: disconnected\n", USBDEVNAME(self)));
+	device_set_desc(self, NULL);
 	return 0;
 }
 #endif

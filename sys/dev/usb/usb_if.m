@@ -25,7 +25,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 # THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# $Id$
+# $Id: usb_if.m,v 1.6 1999/05/03 23:19:55 n_hibma Exp $
 #
 
 # USB interface description
@@ -33,9 +33,8 @@
 
 INTERFACE usb;
 
-# The device should start probing for new children again
+# The device should start probing for new drivers again
 #
 METHOD int reconfigure {
 	device_t dev;
 };
-
