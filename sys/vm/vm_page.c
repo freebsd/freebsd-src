@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.50 1996/03/28 04:53:27 dyson Exp $
+ *	$Id: vm_page.c,v 1.51 1996/05/18 03:37:57 dyson Exp $
  */
 
 /*
@@ -911,6 +911,9 @@ vm_page_cache(m)
 		return;
 
 	vm_page_protect(m, VM_PROT_NONE);
+	if (m->dirty != 0) {
+		panic("vm_page_cache: caching a dirty page, pindex: %d", m->pindex);
+	}
 	s = splvm();
 	vm_page_unqueue(m);
 	TAILQ_INSERT_TAIL(&vm_page_queue_cache, m, pageq);
