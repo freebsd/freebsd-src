@@ -64,7 +64,7 @@ struct templ {
     int         rwcode;
 };
 
-struct templ specials[1000] =
+struct templ specials[100] =
 {
     {"switch", 1},
     {"case", 2},
@@ -94,8 +94,6 @@ struct templ specials[1000] =
     {"else", 6},
     {"do", 6},
     {"sizeof", 7},
-    {"const", 9},
-    {"volatile", 9},
     {0, 0}
 };
 
@@ -274,28 +272,17 @@ lexi(void)
 
 	    case 3:		/* a "struct" */
 		if (ps.p_l_follow)
-			break;	/* inside parens: cast */
-		/*
-		 * Next time around, we may want to know that we have had a
-		 * 'struct'
-		 */
+		    break;	/* inside parens: cast */
 		l_struct = true;
 
 		/*
-		 * Fall through to test for a cast, function prototype or
-		 * sizeof().
+		 * Next time around, we will want to know that we have had a
+		 * 'struct'
 		 */
 	    case 4:		/* one of the declaration keywords */
 		if (ps.p_l_follow) {
 		    ps.cast_mask |= 1 << ps.p_l_follow;
-
-		    /*
-		     * Forget that we saw `struct' if we're in a sizeof().
-		     */
-		    if (ps.sizeof_mask)
-			l_struct = false;
-
-		    break;	/* inside parens: cast, prototype or sizeof() */
+		    break;	/* inside parens: cast */
 		}
 		last_code = decl;
 		return (decl);
