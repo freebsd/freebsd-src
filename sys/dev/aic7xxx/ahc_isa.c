@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/aic7xxx/aic7xxx_osm.h>
 
 #include <sys/limits.h>		/* For CHAR_BIT*/
-#include <dev/eisa/eisaconf.h>	/* For EISA constants */
 #include <isa/isavar.h>		/* For ISA attach glue */
 
 
@@ -62,7 +61,7 @@ static int			ahc_isa_attach(device_t dev);
  */
 static struct aic7770_identity *
 ahc_isa_find_device(bus_space_tag_t tag, bus_space_handle_t bsh) {
-	eisa_id_t id;
+	uint32_t  id;
 	u_int	  id_size;
 	int	  i;
 
@@ -93,7 +92,7 @@ ahc_isa_identify(driver_t *driver, device_t parent)
 		int		    rid;
 
 		rid = 0;
-		iobase = (slot * EISA_SLOT_SIZE) + AHC_EISA_SLOT_OFFSET;
+		iobase = (slot * AHC_EISA_SLOT_SIZE) + AHC_EISA_SLOT_OFFSET;
 		regs = bus_alloc_resource(parent, SYS_RES_IOPORT, &rid,
 					  iobase, iobase, AHC_EISA_IOSIZE,
 					  RF_ACTIVE);
@@ -138,7 +137,6 @@ ahc_isa_probe(device_t dev)
 	int	  error;
 	int	  zero;
 
-	iobase = isa_get_port(dev);
 	error = ENODEV;
 	zero = 0;
 	regs = NULL;
@@ -146,10 +144,11 @@ ahc_isa_probe(device_t dev)
 
 	regs = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &zero, RF_ACTIVE);
 	if (regs == NULL) {
-		device_printf(dev, "ioport 0x%x alloc failed\n", iobase);
+		device_printf(dev, "No resources alloated.\n");
 		return (ENOMEM);
 	}
 
+	iobase = rman_get_start(regs);
 	tag = rman_get_bustag(regs);
 	bsh = rman_get_bushandle(regs);
 
