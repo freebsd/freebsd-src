@@ -238,7 +238,7 @@ options 	DRM_DEBUG
 
 # ath:	Atheros a/b/g WiFi adapters (requires ath_hal and wlan)
 
-device		ath
+#X#device	ath
 #X#device	ath_hal		# Atheros HAL (includes binary component)
 device		wlan		# 802.11 layer
 
