@@ -56,7 +56,7 @@ env_copy(envp)
 
 	for (count = 0;  envp[count] != NULL;  count++)
 		;
-	p = (char **) malloc((count+1) * sizeof(char *));  /* 1 for the NULL */
+	p = (char **) malloc((count+1) * sizeof(char **)); /* 1 for the NULL */
 	if (p == NULL) {
 		errno = ENOMEM;
 		return NULL;
@@ -81,6 +81,7 @@ env_set(envp, envstr)
 {
 	register int	count, found;
 	register char	**p;
+	char		*q;
 
 	/*
 	 * count the number of elements, including the null pointer;
@@ -98,12 +99,14 @@ env_set(envp, envstr)
 		 * it exists already, so just free the existing setting,
 		 * save our new one there, and return the existing array.
 		 */
-		free(envp[found]);
+		q = envp[found];
 		if ((envp[found] = strdup(envstr)) == NULL) {
-			envp[found] = "";
+			envp[found] = q;
+			/* XXX env_free(envp); */
 			errno = ENOMEM;
 			return NULL;
 		}
+		free(q);
 		return (envp);
 	}
 
@@ -115,11 +118,13 @@ env_set(envp, envstr)
 	p = (char **) realloc((void *) envp,
 			      (unsigned) ((count+1) * sizeof(char **)));
 	if (p == NULL) 	{
+		/* XXX env_free(envp); */
 		errno = ENOMEM;
 		return NULL;
 	}
 	p[count] = p[count-1];
 	if ((p[count-1] = strdup(envstr)) == NULL) {
+		env_free(p);
 		errno = ENOMEM;
 		return NULL;
 	}
