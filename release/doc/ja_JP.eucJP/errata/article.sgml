@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.1.2.113
+    Original revision: 1.1.2.117
 -->
 
 <!-- 
@@ -27,6 +27,10 @@
 %authors;
 <!ENTITY % ja-mlists PUBLIC "-//FreeBSD//ENTITIES DocBook Mailing List Entities//JA">
 %ja-mlists;
+<!ENTITY % ja-trademarks PUBLIC "-//FreeBSD//ENTITIES DocBook Trademark Entities//JA">
+%ja-trademarks;
+<!ENTITY % trademarks PUBLIC "-//FreeBSD//ENTITIES DocBook Trademark Entities//EN">
+%trademarks;
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
 ]>
@@ -54,6 +58,12 @@
       <year>2003</year>
       <holder role="mailto:doc@FreeBSD.org">FreeBSD ドキュメンテーションプロジェクト</holder>
     </copyright>
+
+    <legalnotice id="trademarks" role="trademarks">
+      &tm-attrib.freebsd;
+      &tm-attrib.intel;
+      &tm-attrib.general;
+    </legalnotice>
   </articleinfo>
 
   <abstract>
@@ -130,129 +140,7 @@
 ]]>
 
 <![ %release.type.snapshot [
-
-    <para>古いバージョンの <application>sendmail</application> には
-      ヘッダ解析時にバッファオーバフローが発生する問題があり、
-      リモートの攻撃者は、&man.sendmail.8; に
-      sendmail を起動したユーザ (通常 <username>root</username>) の権限で
-      任意のコードを実行させるような
-      特殊な細工を施したメッセージを作成することができます。
-      修正パッチの場所を含む詳細は、セキュリティ勧告 <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:07.sendmail.asc">FreeBSD-SA-03:07</ulink>
-      をご覧ください。
-      この問題は &os; &release.prev; ではベンダ提供のパッチを適用して、
-      &os; &release.current; では新しいバージョンの
-      <application>sendmail</application> を統合して修正されました。
-      しかしながら、この変更はリリース文書に記載されていないかもしれません。</para>
-
-    <para>&man.realpath.3; 関数の実装に
-      1 バイトのバッファオーバフローを引き起こすバグがありました。
-      この問題は、&man.realpath.3; を利用するアプリケーションと
-      他の要因に依存してさまざまな影響を発生する可能性があります。
-      このバグは &release.prev; セキュリティブランチと
-      &release.branch; 開発ブランチで修正されました。
-      詳細は、セキュリティ勧告
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:08.realpath.asc">FreeBSD-SA-03:08</ulink>
-      をご覧ください。</para>
-
-    <para>カーネルに不正なシグナルの配送を可能にするバグがあり、
-      カーネルパニックを引き起こしたり、特定の状況では
-      カーネルメモリを不正に改変できる可能性があります。
-      このバグは &release.branch; 開発ブランチと
-      &release.prev; セキュリティブランチで修正されました。
-      詳細は、セキュリティ勧告
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:09.signal.asc">FreeBSD-SA-03:09</ulink>
-      をご覧ください。</para>
-
-    <para>iBCS2 エミュレーションモジュールのバグが原因で、
-      カーネルメモリの内容が漏洩する可能性があります。
-      なお、このモジュールはデフォルトでは有効になっていません。
-      このバグは &release.branch; 開発ブランチと
-      &release.prev; セキュリティブランチで修正されました。
-      詳細は、セキュリティ勧告
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:10.ibcs2.asc">FreeBSD-SA-03:10</ulink>
-      をご覧ください。</para>
-
-    <para><application>sendmail</application> の
-      <quote>DNS マップ</quote> 機能の実装にプログラミング上の誤りがあり、
-      &man.sendmail.8; の子プロセスがクラッシュしたり
-      意図した挙動をしない可能性があります。
-      この誤りは &release.branch; 開発ブランチでは
-      新しいバージョンの <application>sendmail</application> を統合することで、
-      &release.prev; セキュリティブランチではパッチを適用することで
-      修正されました。
-      ただし、&os; のデフォルトの設定では DNS マップ機能は使用していません。
-      詳細は、セキュリティ勧告
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:11.sendmail.asc">FreeBSD-SA-03:11</ulink>
-      をご覧ください。</para>
-
-    <para><application>OpenSSH</application> の
-      バッファを管理するコードにバグが原因で、
-      クラッシュを引き起こす可能性があります。
-      このバグは、ベンダ提供のパッチを適用して、
-      &release.branch; 開発ブランチと
-      &release.prev; セキュリティブランチで修正されました。
-      詳細は、セキュリティ勧告
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:12.openssh.asc">FreeBSD-SA-03:12</ulink>
-      をご覧ください。</para>
-
-    <para><application>sendmail</application> に、
-      リモートから悪用可能なバッファオーバフロー問題が発見されています。
-      このバグは、ベンダ提供のパッチを適用して、
-      &release.branch; 開発ブランチと
-      &release.prev; セキュリティブランチで修正されました。
-      詳細は、セキュリティ勧告
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:13.sendmail.asc">FreeBSD-SA-03:13</ulink>
-      をご覧ください。</para>
-
-    <para>&os; の ARP 実装には、カーネル資源を枯渇させ、
-      システムパニックを発生させる可能性のあるバグがあります。
-      このバグは &release.branch; 開発ブランチと
-      &release.prev; セキュリティブランチで修正されました。
-      詳細は、セキュリティ勧告
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:14.arp.asc">FreeBSD-SA-03:14</ulink>
-      をご覧ください。</para>
-
-    <para><application>OpenSSH</application> の
-      PAM 認証のコードには、
-      不正認証やスタック破壊のおそれがあるバグが、複数含まれています。
-      これらのバグはベンダ提供のパッチを適用して修正されました。
-      詳細は、セキュリティ勧告
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:15.openssh.asc">FreeBSD-SA-03:15</ulink>
-      をご覧ください。</para>
-
-    <para>&man.readv.2; システムコールの実装にバグがあり、
-      システムがクラッシュしたり高い権限を獲得できる可能性があります。
-      このバグは &release.branch; 開発ブランチと
-      &release.prev; セキュリティブランチで修正されました。
-      詳細は、セキュリティ勧告
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:16.filedesc.asc">FreeBSD-SA-03:16</ulink>
-      をご覧ください。</para>
-
-    <para>&man.procfs.5; と &man.linprocfs.5; の実装にバグがあり、
-      カーネルメモリの内容が漏洩する可能性があります。
-      このバグは &release.branch; 開発ブランチと
-      &release.prev; セキュリティブランチで修正されました。
-      詳細は、セキュリティ勧告
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:17.procfs.asc">FreeBSD-SA-03:17</ulink>
-      をご覧ください。</para>
-
-    <para><application>OpenSSL</application> には、
-      リモートの攻撃者が <application>OpenSSL</application> を利用する
-      アプリケーションをクラッシュさせたり、
-      そのアプリケーションの権限で任意のコードを実行できる可能性があるバグが
-      複数含まれています。
-      これらのバグは、&release.branch; 開発ブランチでは
-      新しいバージョンの <application>OpenSSL</application> を統合することで、
-      &release.prev; セキュリティブランチではベンダ提供のパッチを適用することで
-      修正されました。
-      ただし、この問題の影響を受けるのは、<application>OpenSSL</application>
-      に含まれる ASN.1 または X.509 の処理コードを利用するアプリケーションに
-      限られます
-      (たとえば、<application>OpenSSH</application> には影響しません)。
-      詳細は、セキュリティ勧告
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:18.openssl.asc">FreeBSD-SA-03:18</ulink>
-      をご覧ください。</para>
+    <para>セキュリティ勧告は発行されていません。</para>
 ]]>
 
   </sect1>
@@ -266,90 +154,51 @@
 
 <![ %release.type.snapshot [
 
-    <para>リリースサイクルの終盤にいくつかの問題が発見されたため、
-      ISO イメージは再度作成され、
-      FTP インストール用の &os; &release.prev;/i386 ディレクトリは再更新されました。
-      最終的な ISO イメージの &man.md5.1; チェックサムは次の通りです。</para>
+    <para>(2003 年 10 月 28 日) リリース工程の終盤で、
+      &intel; プロセッサの
+      HyperThreading (HTT) 対応機能を
+      SMP カーネルではデフォルトで有効とする変更が行われました。
+      その結果、不要となったカーネルオプション
+      <literal>HTT</literal> は削除されました。
+      HTT 機能で有効化された論理 CPU は
+      割り込みを処理できるように常に起動されますが、
+      デフォルトではユーザプロセスを実行できないようになっています。
+      論理 CPU がユーザプロセスを実行できるようにするには、
+      &man.sysctl.8; 変数 <varname>machdep.hlt_logical_cpus</varname> を
+      <literal>1</literal> から <literal>0</literal> に変更してください。
+      loader で、この変数を同じ名前で設定することもできます。
+      この動作は &os; 5.<replaceable>X</replaceable> と同一です。</para>
 
-    <programlisting>MD5 (4.8-RELEASE-i386-disc1.iso) = c4e34b6a6be5cd1977ca206bf821c7fc
-MD5 (4.8-RELEASE-i386-disc2.iso) = 93b09f97c01deead302557d7d24f87cb
-MD5 (4.8-RELEASE-i386-mini.iso) = 5f0d2576dbb56d6ec85d49ac9fa4bbf9</programlisting>
+    <para>(2003 年 10 月 29 日)
+      一つ目の CD-ROM に収録されている packages のいくつかが、
+      それぞれ異なる (共存できない) バージョンの
+      <application>OpenLDAP</application> に依存していました。
+      この問題により、packages を利用して
+      <filename role="package">x11/gnome2</filename> と
+      <filename role="package">x11/kde3</filename> の両方を
+      インストールすることはできないということが判明しています。</para>
 
-    <para>いくつかの文書には &os; &release.prev; のリリースが
-      2003 年 3 月であると記載されているかもしれませんが、
-      正しくは 2003 年 4 月です。</para>
+    <para>(2003 年 10 月 30 日)
+      &os; のベースシステム全体を正しく機能させるために
+      <filename>crypto</filename> 配布物は必須のようです。
+      少なくとも、&man.pkg.add.1; の実行には
+      <filename>crypto</filename> 配布物にあるライブラリが必要です。</para>
 
-    <para>&os; &release.prev; において &man.mly.4; デバイスで構築した
-      RAID ドライブへのインストールが再び可能になりました
-      (&os; 4.7-RELEASE ではこの機能は使えませんでした)。</para>
+    <para>(2003 年 10 月 30 日)
+      ごく最近の i386 マシンでは El Torito CDROM
+      のエミュレーションモードによる起動に対応していないことがわかっています。
+      この結果、&os; &release.current; は
+      CDROM からの起動に失敗してしまいます。
+      回避方法として、フロッピディスクイメージをダウンロードして
+      &man.sysinstall.8; を起動してから、CDROM でインストールを行ってください。
+      この文章を書いている時点では、この問題はそれほど発生していないようです。
 
-    <para><application>GNOME</application> をインストールした後、
-      ターミナルのデフォルトのフォントがぐちゃぐちゃになるかもしれません。
-      もしそうなった場合は、
-      <filename role="port">x11-fonts/bitstream-vera</filename>
-      port をインストールして
-      <application>GNOME</application> を再起動してください。
-      新しいフォントの効果は自動的に反映されるはずですが、
-      反映されなければ gnome-terminal のプロファイルを編集して
-      Bitstream Vera Sans Mono フォントを選択してください。</para>
-
-    <para>容量の制限のために、i386 アーキテクチャの
-      起動フロッピー <filename>kern.flp</filename> (1.44MB) で利用されている
-      カーネルから &man.awi.4; ドライバが削除されました。
-      &os; &release.prev; では、このドライバのモジュールは提供されていません。
-      したがって、一般的には、&man.awi.4; ドライバを利用する
-      &os; &release.prev; のネットワークインストールはできません。</para>
-
-    <para>容量不足のため、1,44MB の alpha 版
-      <filename>kern.flp</filename> 起動フロッピから、
-      ATAPI フロッピディスクと DEC AlphaServer 8200 および
-      8400 (<quote>TurboLaser</quote>) マシン対応が削除されました。</para>
-
-    <para>&os; &release.prev; カーネルには、
-      Intel 80386 プロセッサ上で起動しないというバグがあります。
-      &release.prev; セキュリティ修正ブランチと
-      &release.branch; 開発ブランチでは、この問題は修正ずみです。</para>
-
-    <para>&os; は、<filename>/etc/login.conf.db</filename>
-      にあるハッシュされた login
-      ケーパビリティデータベースに対応しています。
-      これは <filename>/etc/login.conf</filename>
-      というテキストファイルから生成されるものです。
-      ハッシュされたデータベースが存在する場合、
-      &man.login.1; はテキストファイルよりもそれを優先して使います。
-      &os; &release.prev; は、<filename>/etc/login.conf.db</filename>
-      がインストールメディア収録された初めてのリリースです。
-      そのため、<filename>/etc/login.conf</filename> を変更した場合、
-      &man.cap.mkdb.1;
-      を使ってデータベースを忘れずに再構築しなければなりません。
-      ソースからアップグレードしていれば、アップグレード中に
-      &man.mergemaster.8; が <filename>/etc/login.conf.db</filename>
-      を更新するかどうか尋ねてくるため、大きな問題にはならないでしょう。
-      login ケーパビリティデータベースの書式や使用方法の詳細については、
-      &man.login.conf.5; をご覧ください。</para>
-
-    <para>&man.sysinstall.8; を使って Ports Collection をインストールした場合、
-      <filename role="port">multimedia/gstreamer-plugins</filename> port
-      含まれるファイルのファイル名が壊れている可能性があります。
-      これは、その port の構築や package のインストールには影響ありません。
-      しかし、将来 Pors Collection を更新する際に問題となる可能性があるので、
-      次のコマンドを実行してファイル名を変更することをおすすめします。</para>
-
-    <screen>&prompt.root; <userinput>cd /usr/ports/multimedia/gstreamer-plugins/files</userinput>
-&prompt.root; <userinput>mv patch-gst-libs_ext_ffmpeg_ffmpeg_libavcodec_alpha_simple_i \
-patch-gst-libs_ext_ffmpeg_ffmpeg_libavcodec_alpha_simple_idct_alpha.c
-</userinput></screen>
-
-    <para>最近になって、メーリングリストが majordomo から変更され、
-      Mailman リストサーバを使うようになりました。
-      この新しいメーリングリストに関する詳細は、
-      <ulink url="http://www.FreeBSD.org/mailman/listinfo/">FreeBSD
-      Mailman Info Page</ulink> をご覧ください。</para>
-
-    <para>&man.dc.4; ドライバが、Davicom DC9102 カードでは
-      データの送出を適切に行っていませんでした。
-      この問題は &os; 4.5-RELEASE から存在し、
-      &os; &release.current; で修正されました。</para>
+      <note>
+	<para>&os; 5.<replaceable>X</replaceable> は、デフォルトでは
+	  El Torito CDROM エミュレーションモードによる起動方法を
+	  使用していません。そのため、エミュレーションモードにしか
+	  対応していない古い i386 マシンでは起動することができません。</para>
+      </note></para>
 
 ]]>
   </sect1>
