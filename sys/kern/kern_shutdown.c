@@ -546,7 +546,7 @@ set_dumper(struct dumperinfo *di)
 	return (0);
 }
 
-#ifndef __i386__
+#if !defined(__i386__) || defined(PC98)
 void
 dumpsys(struct dumperinfo *di __unused)
 {
