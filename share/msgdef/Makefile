@@ -7,6 +7,7 @@ LOCALES=	af_ZA.ISO_8859-1 \
 		da_DK.ISO_8859-1 \
 		de_DE.ISO_8859-1 \
 		en_US.ISO_8859-1 \
+		fi_FI.ISO_8859-1 \
 		fr_FR.ISO_8859-1 \
 		nl_NL.ISO_8859-1 \
 		no_NO.ISO_8859-1 \
