@@ -264,6 +264,8 @@ rtprio(curp, uap)
 
 	switch (uap->function) {
 	case RTP_LOOKUP:
+		if ((error = p_can(curp, p, P_CAN_SEE, NULL)))
+			return (error);
 		pri_to_rtp(&p->p_pri, &rtp);
 		return (copyout(&rtp, uap->rtp, sizeof(struct rtprio)));
 	case RTP_SET:
