@@ -607,7 +607,7 @@ explore_fqdn(pai, hostname, servname, res)
 		return 0;
 	}
 
-	switch (nsdispatch(&result, dtab, NSDB_HOSTS, "getaddrinfo",
+	switch (_nsdispatch(&result, dtab, NSDB_HOSTS, "getaddrinfo",
 			default_dns_files, hostname, pai)) {
 	case NS_TRYAGAIN:
 		error = EAI_AGAIN;
