@@ -6,7 +6,7 @@ static char	elsieid[] = "@(#)zdump.c	7.28";
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: zdump.c,v 1.5 1999/01/21 17:12:49 wollman Exp $";
+	"$Id: zdump.c,v 1.5 1999/01/21 17:46:19 wollman Exp $";
 #endif /* not lint */
 
 /*
@@ -136,6 +136,7 @@ static time_t	hunt P((char * name, time_t lot, time_t	hit));
 static size_t	longest;
 static char *	progname;
 static void	show P((char * zone, time_t t, int v));
+static void     usage(void);
 
 int
 main(argc, argv)
@@ -271,7 +272,7 @@ char *	argv[];
 }
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr, _("usage: zdump [-v] [-c cutoff] zonename ...\n"));
 	exit(EXIT_FAILURE);
