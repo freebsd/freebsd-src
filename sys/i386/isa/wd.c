@@ -37,7 +37,7 @@ static int wdtest = 0;
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.30 1994/02/21 12:32:33 rgrimes Exp $
+ *	$Id: wd.c,v 1.31 1994/02/22 18:51:27 rgrimes Exp $
  */
 
 /* TODO:
@@ -1110,11 +1110,17 @@ wdgetctlr(struct disk *du)
 		p = (u_short *) (wp->wdp_model + i);
 		*p = ntohs(*p);
 	}
-	/* Clean up the wdp_model by converting nulls to spaces */
-	for (i = 0; i < sizeof(wp->wdp_model); i++) {
+	/*
+	 * Clean up the wdp_model by converting nulls to spaces, and
+	 * then removing the trailing spaces.
+	 */
+	for (i=0; i < sizeof(wp->wdp_model); i++) {
 		if (wp->wdp_model[i] == '\0') {
 			wp->wdp_model[i] = ' ';
 		}
+	}
+	for (i=sizeof(wp->wdp_model)-1; i>=0 && wp->wdp_model[i]==' '; i--) {
+		wp->wdp_model[i] = '\0';
 	}
 
 #ifdef WDDEBUG
