@@ -175,8 +175,6 @@ in_len2mask(mask, len)
 		p[i] = (0xff00 >> (len % 8)) & 0xff;
 }
 
-static int in_interfaces;	/* number of external internet interfaces */
-
 /*
  * Generic internet control operations (ioctl's).
  * Ifp is 0 if not an interface-specific ioctl.
@@ -293,8 +291,6 @@ in_control(so, cmd, data, ifp, td)
 				ia->ia_broadaddr.sin_family = AF_INET;
 			}
 			ia->ia_ifp = ifp;
-			if (!(ifp->if_flags & IFF_LOOPBACK))
-				in_interfaces++;
 			splx(s);
 			iaIsNew = 1;
 		}
