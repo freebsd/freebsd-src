@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.117 1995/11/04 17:07:50 bde Exp $
+ *	$Id: sio.c,v 1.118 1995/11/20 12:13:27 phk Exp $
  */
 
 #include "sio.h"
@@ -99,6 +99,7 @@
 #include "crd.h"
 #if NCRD > 0
 #include <pccard/card.h>
+#include <pccard/driver.h>
 #include <pccard/slot.h>
 #endif /* NCRD > 0 */
 
@@ -298,6 +299,7 @@ static struct tty	*sio_tty[NSIO];
 #else
 static struct tty	sio_tty[NSIO];
 #endif
+static	const int	nsio_tty = NSIO;
 
 #ifdef KGDB
 #include <machine/remote-sl.h>
