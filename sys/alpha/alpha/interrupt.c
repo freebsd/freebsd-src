@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/unistd.h>
 #include <sys/vmmeter.h>
@@ -447,8 +448,16 @@ alpha_dispatch_intr(void *frame, unsigned long vector)
 		    "alpha_dispatch_intr: disabling vector 0x%x", i->vector);
 		ithd->it_disable(ithd->it_vector);
 	}
-	error = ithread_schedule(ithd, 0 /* !cold */);
+
+	/*
+	 * It seems that we need to return from an interrupt back to PAL
+	 * on the same CPU that received the interrupt, so pin the interrupted
+	 * thread to the current CPU until we return from the interrupt.
+	 */
+	sched_pin();
+	error = ithread_schedule(ithd, !cold);
 	KASSERT(error == 0, ("got an impossible stray interrupt"));
+	sched_unpin();
 }
 
 static void
