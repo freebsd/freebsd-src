@@ -53,7 +53,7 @@ cam_simq_free(struct cam_devq *devq)
 
 struct cam_sim *
 cam_sim_alloc(sim_action_func sim_action, sim_poll_func sim_poll,
-	      char *sim_name, void *softc, u_int32_t unit,
+	      const char *sim_name, void *softc, u_int32_t unit,
 	      int max_dev_transactions,
 	      int max_tagged_dev_transactions, struct cam_devq *queue)
 {
