@@ -1,7 +1,7 @@
 # $FreeBSD$
 
-PROG=		kdc
-SRCS=		\
+PROG=	kdc
+SRCS=	\
 	config.c	\
 	connect.c	\
 	kdc_locl.h	\
@@ -20,17 +20,11 @@ CFLAGS+=	-I${KRB5DIR}/include \
 		-I${ASN1OBJDIR} \
 		-I${HDBOBJDIR} \
 		-I${.OBJDIR}
-.if defined(MAKE_KERBEROS4)
-SRCS+=	524.c kerberos4.c kaserver.c rx.h
-_krb4libs=	-lkrb -lkafs
-_krb4deps=	${LIBKRB} ${LIBKAFS}
-.endif
 LDADD=		-L${KRB5OBJDIR} -lkrb5 \
 		-L${HDBOBJDIR} -lhdb -L${ROKENOBJDIR} -lroken \
 		-L${VERSOBJDIR} -lvers \
-		${_krb4libs} \
 		-L${ASN1OBJDIR} -lasn1 -lcrypto -lcrypt -lcom_err
-DPADD=		${LIBKRB5} ${LIBKAFS5} ${LIBHDB} ${LIBROKEN} ${_krb4deps} \
+DPADD=		${LIBKRB5} ${LIBKAFS5} ${LIBHDB} ${LIBROKEN} \
 		${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} ${LIBCOM_ERR}
 MAN=		kdc.8
 

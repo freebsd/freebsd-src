@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PROG=		k5admind
+PROG=		kadmind
 SRCS=		kadmind.c server.c kadm_conn.c \
 		kadm5/private.h kadm5/admin.h kadm5/kadm5_err.h
 CFLAGS+=	-I${KRB5DIR}/include \
@@ -14,19 +14,13 @@ CFLAGS+=	-I${KRB5DIR}/include \
 		-I${ASN1OBJDIR} \
 		-I${HDBOBJDIR} \
 		-I${.OBJDIR}
-.if defined(MAKE_KERBEROS4)
-SRCS+=		version4.c
-_krb4libs=	-lkrb -lkafs
-_krb4deps=	${LIBKRB} ${LIBKAFS}
-.endif
 LDADD=		-L${KRB5OBJDIR} -lkrb5 \
 		-L${ROKENOBJDIR} -lroken \
 		-L${VERSOBJDIR} -lvers \
-		${_krb4libs} \
 		-L${KADM5SOBJDIR} -lkadm5srv \
 		-L${HDBOBJDIR} -lhdb \
 		-L${ASN1OBJDIR} -lasn1 -lcrypto -lcrypt -lcom_err
-DPADD=		${LIBKRB5} ${LIBKAFS5} ${LIBROKEN} ${_krb4deps} \
+DPADD=		${LIBKRB5} ${LIBKAFS5} ${LIBROKEN} \
 		${LIBKADM5CLNT} ${LIBKADM5SRV} ${LIBHDB} \
 		${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} ${LIBCOM_ERR}
 NOMAN=		yes
