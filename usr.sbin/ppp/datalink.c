@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.50 1998/04/30 23:52:53 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.51 1998/04/30 23:53:32 brian Exp $
  */
 
 #include <sys/types.h>
@@ -1022,6 +1022,10 @@ datalink_ToBinary(struct datalink *dl, int fd)
    *  | datalink | name len | name | physical len |
    *  `----------'----------'------'--------------'
    */
+
+  StopTimer(&dl->dial_timer);
+  StopTimer(&dl->pap.authtimer);
+  StopTimer(&dl->chap.auth.authtimer);
 
   if (fd != -1) {
     int err;

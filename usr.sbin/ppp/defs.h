@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: defs.h,v 1.29.2.14 1998/04/23 03:22:51 brian Exp $
+ * $Id: defs.h,v 1.29.2.15 1998/04/30 23:53:36 brian Exp $
  *
  *	TODO:
  */
@@ -32,7 +32,7 @@
 #endif
 
 #define TUN_PREFIX	"/dev/tun"	/* tunnel device prefix */
-#define PPPMPIPE	"pppmpipe"	/* Multilink pipe program name */
+#define CATPROG		"/bin/cat"	/* Multilink pipe program name */
 
 #define MODEM_SPEED	B38400	/* tty speed */
 #define	SERVER_PORT	3000	/* Base server port no. */

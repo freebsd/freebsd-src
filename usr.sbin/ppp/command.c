@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.73 1998/04/27 01:40:38 brian Exp $
+ * $Id: command.c,v 1.131.2.74 1998/04/30 23:53:29 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -123,7 +123,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.0-beta";
-const char VersionDate[] = "$Date: 1998/04/27 01:40:38 $";
+const char VersionDate[] = "$Date: 1998/04/30 23:53:29 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -325,8 +325,9 @@ ShellCommand(struct cmdargs const *arg, int bg)
 
     if (arg->prompt)
       fd = arg->prompt->fd_out;
-    else if ((fd = open("/dev/null", O_RDWR)) == -1) {
-      LogPrintf(LogALERT, "Failed to open /dev/null: %s\n", strerror(errno));
+    else if ((fd = open(_PATH_DEVNULL, O_RDWR)) == -1) {
+      LogPrintf(LogALERT, "Failed to open %s: %s\n",
+                _PATH_DEVNULL, strerror(errno));
       exit(1);
     }
     for (i = 0; i < 3; i++)

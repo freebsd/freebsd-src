@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.59 1998/04/28 01:25:31 brian Exp $
+ * $Id: modem.c,v 1.77.2.60 1998/04/30 23:53:49 brian Exp $
  *
  *  TODO:
  */
@@ -75,12 +75,6 @@
 #include "datalink.h"
 #include "systems.h"
 
-
-#ifndef O_NONBLOCK
-#ifdef O_NDELAY
-#define O_NONBLOCK O_NDELAY
-#endif
-#endif
 
 static void modem_DescriptorWrite(struct descriptor *, struct bundle *,
                                   const fd_set *);
@@ -997,6 +991,14 @@ modem_ToBinary(struct physical *p, int fd)
 
   hdlc_StopTimer(&p->hdlc);
   StopLqrTimer(p);
+  StopTimer(&p->link.lcp.fsm.FsmTimer);
+  StopTimer(&p->link.ccp.fsm.FsmTimer);
+  StopTimer(&p->link.lcp.fsm.OpenTimer);
+  StopTimer(&p->link.ccp.fsm.OpenTimer);
+  StopTimer(&p->link.lcp.fsm.StoppedTimer);
+  StopTimer(&p->link.ccp.fsm.StoppedTimer);
+  StopTimer(&p->Timer);
+  StopTimer(&p->link.throughput.Timer);
 
   if (fd != -1 && write(fd, p, sizeof *p) != sizeof *p) {
     LogPrintf(LogERROR, "Failed sending physical\n");

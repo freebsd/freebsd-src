@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.64 1998/04/28 01:25:04 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.65 1998/04/30 23:53:21 brian Exp $
  */
 
 #include <sys/types.h>
@@ -40,6 +40,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -1143,9 +1144,9 @@ bundle_ReceiveDatalink(struct bundle *bundle, int fd)
 }
 
 void
-bundle_SendDatalink(struct datalink *dl, int fd)
+bundle_SendDatalink(struct datalink *dl, int ppp_fd)
 {
-  int len, link_fd, err;
+  int len, link_fd, err, nfd, flags;
   struct datalink **pdl;
   struct bundle *bundle = dl->bundle;
   char procname[100];
@@ -1171,42 +1172,65 @@ bundle_SendDatalink(struct datalink *dl, int fd)
   /* Write our bit of the data */
   err = 0;
   len = strlen(Version);
-  if (write(fd, &len, sizeof len) != sizeof len)
+  if (write(ppp_fd, &len, sizeof len) != sizeof len)
     err++;
-  if (write(fd, Version, len) != len)
+  if (write(ppp_fd, Version, len) != len)
     err++;
   len = sizeof(struct datalink);
-  if (write(fd, &len, sizeof len) != sizeof len)
+  if (write(ppp_fd, &len, sizeof len) != sizeof len)
     err++;
 
   if (err) {
     LogPrintf(LogERROR, "Failed sending version\n");
-    close(fd);
-    fd = -1;
+    close(ppp_fd);
+    ppp_fd = -1;
   }
 
-  link_fd = datalink_ToBinary(dl, fd);
+  link_fd = datalink_ToBinary(dl, ppp_fd);
 
   if (link_fd != -1) {
     switch (fork()) {
       case 0:
-        snprintf(procname, sizeof procname, "%s <-> %s",
-                 dl->name, *dl->physical->name.base ?
-                 dl->physical->name.base : "network");
+        TermTimerService();
+
+        ppp_fd = fcntl(ppp_fd, F_DUPFD, 3);
+        link_fd = fcntl(link_fd, F_DUPFD, 3);
+        nfd = dup2(open(_PATH_DEVNULL, O_WRONLY), STDERR_FILENO);
+
         setsid();
-        dup2(link_fd, STDIN_FILENO);
-        dup2(fd, STDOUT_FILENO);
-        dup2(fd, STDERR_FILENO);
         setuid(geteuid());
-        /* signals are defaulted by the exec */
-        execlp(PPPMPIPE, procname, NULL);
-        LogPrintf(LogERROR, "exec: %s: %s\n", PPPMPIPE, strerror(errno));
+
+        flags = fcntl(ppp_fd, F_GETFL, 0);
+        fcntl(ppp_fd, F_SETFL, flags & ~O_NONBLOCK);
+        flags = fcntl(link_fd, F_GETFL, 0);
+        fcntl(link_fd, F_SETFL, flags & ~O_NONBLOCK);
+
+        switch (fork()) {
+          case 0:
+            dup2(ppp_fd, STDIN_FILENO);
+            dup2(link_fd, STDOUT_FILENO);
+            snprintf(procname, sizeof procname, "%s -> %s",
+                     dl->name, *dl->physical->name.base ?
+                     dl->physical->name.base : "network");
+            execl(CATPROG, procname, NULL);
+            LogPrintf(LogERROR, "exec: %s: %s\n", CATPROG, strerror(errno));
+            break;
+          case -1:
+            break;
+          default:
+            dup2(link_fd, STDIN_FILENO);
+            dup2(ppp_fd, STDOUT_FILENO);
+            snprintf(procname, sizeof procname, "%s <- %s",
+                     dl->name, *dl->physical->name.base ?
+                     dl->physical->name.base : "network");
+            execl(CATPROG, procname, NULL);
+            LogPrintf(LogERROR, "exec: %s: %s\n", CATPROG, strerror(errno));
+            break;
+        }
         exit(1);
         break;
       case -1:
         LogPrintf(LogERROR, "fork: %s\n", strerror(errno));
-        /* Fall through */
-      default:
         break;
     }
   }
