@@ -167,6 +167,7 @@ sdp_search(void *xss,
 
 		if (xpdu.pdu.pid == SDP_PDU_ERROR_RESPONSE ||
 		    xpdu.pdu.tid != ss->tid ||
+		    xpdu.pdu.len > len ||
 		    xpdu.len > xpdu.pdu.len) {
 			ss->error = EIO;
 			return (-1);
