@@ -93,7 +93,7 @@ distribution: distrib-dirs
 	 cd /usr/mdec; find . | cpio -pdalmuv ${DESTDIR}/usr/mdec)
 	(cd ..; make install)
 	(cd ../include; make copies)
-	(cd ../usr.sbin/sendmail; make install)
+	(cd ../usr.sbin/sendmail/src; make install)
 .endif
 
 hcx9-distribution:
