@@ -3,6 +3,6 @@
 PROG=	gpt
 SRCS=	add.c create.c destroy.c gpt.c map.c migrate.c recover.c show.c
 WARNS=	4
-NOMAN=	not yet
+MAN=	gpt.8
 
 .include <bsd.prog.mk>
