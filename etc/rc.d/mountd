@@ -5,7 +5,7 @@
 #
 
 # PROVIDE: mountd
-# REQUIRE: NETWORKING mountall beforemountlkm nfsserver rpcbind quota
+# REQUIRE: NETWORKING nfsserver rpcbind quota
 # KEYWORD: FreeBSD
 
 . /etc/rc.subr

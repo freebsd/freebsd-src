@@ -5,7 +5,7 @@
 #
 
 # PROVIDE: amd
-# REQUIRE: rpcbind mountall ypbind nfsclient
+# REQUIRE: rpcbind ypbind nfsclient
 # BEFORE: DAEMON
 # KEYWORD: FreeBSD
 
