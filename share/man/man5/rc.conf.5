@@ -135,7 +135,7 @@ to set your hostname via DHCP, this variable should be set to an empty string.
 .Ar NO
 if you are not running NIS.
 .It Ar dhcp_program
-(str) Path to the DHCP client progam (/sbin/dhclient, the ISC DHCP client,
+(str) Path to the DHCP client program (/sbin/dhclient, the ISC DHCP client,
 is the default).
 .It Ar dhcp_flags
 (str) Additional flags to pass to the DHCP client program.
@@ -1172,6 +1172,22 @@ on system operation.
 if you want to start
 .Xr vinum 8
 at system boot time.
+.It Ar sshd_program
+(str) Path to the SSH server program (/usr/sbin/sshd is the default).
+.It Ar sshd_enable
+(bool) Set to
+.Ar YES
+if you want to start
+.Xr sshd 8
+at system boot time.
+.It Ar sshd_flags
+(str) If
+.Ar sshd_enable
+is set to
+.Ar YES ,
+these are the flags to pass to the
+.Xr sshd 8
+daemon.
 .Sh FILES
 .Bl -tag -width /etc/defaults/rc.conf -compact
 .It Pa /etc/defaults/rc.conf
@@ -1218,6 +1234,7 @@ at system boot time.
 .Xr rwhod 8 ,
 .Xr savecore 8 ,
 .Xr sendmail 8 ,
+.Xr sshd 8 ,
 .Xr sysctl 8 ,
 .Xr syslogd 8 ,
 .Xr swapon 8 ,
