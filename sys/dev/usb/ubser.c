@@ -442,8 +442,6 @@ bad:
 				if (tp->t_state & TS_ISOPEN) {
 					(*linesw[tp->t_line].l_close)(tp, 0);
 					ttyclose(tp);
-					ttwakeup(tp);
-					ttwwakeup(tp);
 				}
 			}
 			destroy_dev(sc->dev[i]);
@@ -478,8 +476,6 @@ USB_DETACH(ubser)
 				if (tp->t_state & TS_ISOPEN) {
 					(*linesw[tp->t_line].l_close)(tp, 0);
 					ttyclose(tp);
-					ttwakeup(tp);
-					ttwwakeup(tp);
 				}
 			}
 			destroy_dev(sc->dev[i]);
