@@ -655,6 +655,7 @@ fill_floppy_image() {
 
 verbose=""
 TAR_VERBOSE=""
+CONFIG=config
 
 while [ true ]; do
     case $1 in
