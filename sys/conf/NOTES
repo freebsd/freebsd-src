@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.195 1995/08/20 15:52:10 ats Exp $
+#	$Id: LINT,v 1.196 1995/08/27 14:13:04 joerg Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -662,6 +662,7 @@ device pca0 at isa? port IO_TIMER1 tty
 # ctx: Cortex-I frame grabber
 # apm: Laptop Advanced Power Management (experimental)
 # spigot: The Creative Labs Video Spigot video-aquisition board
+# meteor: Matrox Meteor video capture board
 # cy: Cyclades high-speed serial driver (ALPHA QUALITY!)
 # gp:  National Instruments AT-GPIB and AT-GPIB/TNT board
 # gsc: Genius GS-4500 hand scanner.
@@ -727,10 +728,20 @@ device		si0	at isa? iomem 0xd0000 tty irq 12 vector siintr
 # The PROBE_VERBOSE option enables a long listing of chip set registers
 # for supported PCI chip sets (currently only intel Saturn and Mercury).
 # 
+# The 'meteor' device is a PCI video capture board. It can also have the
+# following options:
+#   options "METEOR_ALLOC_PAGES=xxx"	preallocate kernel pages for data entry
+#	figure (ROWS*COLUMN*BYTES_PER_PIXEL*FRAME+PAGE_SIZE-1)/PAGE_SIZE
+#   options METEOR_DEALLOC_PAGES	remove all allocated pages on close(2)
+#   options "METEOR_DEALLOC_ABOVE=xxx"	remove all allocated pages above the
+#	specified amount. If this value is below the allocated amount no action
+#	taken
+#
 controller	pci0
 device		ncr0
 device		de0
 device		fpa0
+device		meteor0
 options		PROBE_VERBOSE
 
 #
