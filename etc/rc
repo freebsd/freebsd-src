@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.7 1993/11/30 16:59:27 rich Exp $
+#	$Id: rc,v 1.8 1993/12/13 08:28:03 davidg Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -62,6 +62,12 @@ swapon -a
 umount -a >/dev/null 2>&1
 mount -a -t nonfs
 rm -f /fastboot		# XXX (root now writeable)
+
+# If the machine runs wall CMOS clock (compatible with MSDOS),
+# activate following line by creating empty file /etc/wall_cmos_clock
+# If this file not exist, following line does nothing (assumed
+# the machine runs UTC CMOS clock). See adjkerntz(8) for details.
+adjkerntz -i
 
 # set hostname, turn on network
 echo 'starting network'
