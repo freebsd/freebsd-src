@@ -431,39 +431,39 @@ err1:			syslog(LOG_WARNING, "%s: %m", path);
 		if (compress) {
 			nw = fwrite(buf, 1, nr, fp);
 		} else {
-		for (nw = 0; nw < nr; nw = he) {
-			/* find a contiguous block of zeroes */
-			for (hs = nw; hs < nr; hs += BLOCKSIZE) {
+			for (nw = 0; nw < nr; nw = he) {
+			    /* find a contiguous block of zeroes */
+			    for (hs = nw; hs < nr; hs += BLOCKSIZE) {
 				for (he = hs; he < nr && buf[he] == 0; ++he)
-					/* nothing */ ;
+				    /* nothing */ ;
 
 				/* is the hole long enough to matter? */
 				if (he >= hs + BLOCKSIZE)
-					break;
-			}
+				    break;
+			    }
 			
-			/* back down to a block boundary */
-			he &= BLOCKMASK;
+			    /* back down to a block boundary */
+			    he &= BLOCKMASK;
 
-			/*
-			 * 1) Don't go beyond the end of the buffer.
-			 * 2) If the end of the buffer is less than
-			 *    BLOCKSIZE bytes away, we're at the end
-			 *    of the file, so just grab what's left.
-			 */
-			if (hs + BLOCKSIZE > nr)
+			    /*
+			     * 1) Don't go beyond the end of the buffer.
+			     * 2) If the end of the buffer is less than
+			     *    BLOCKSIZE bytes away, we're at the end
+			     *    of the file, so just grab what's left.
+			     */
+			    if (hs + BLOCKSIZE > nr)
 				hs = he = nr;
 			
-			/*
-			 * At this point, we have a partial ordering:
-			 *     nw <= hs <= he <= nr
-			 * If hs > nw, buf[nw..hs] contains non-zero data.
-			 * If he > hs, buf[hs..he] is all zeroes.
-			 */
-			if (hs > nw)
+			    /*
+			     * At this point, we have a partial ordering:
+			     *     nw <= hs <= he <= nr
+			     * If hs > nw, buf[nw..hs] contains non-zero data.
+			     * If he > hs, buf[hs..he] is all zeroes.
+			     */
+			    if (hs > nw)
 				if (fwrite(buf + nw, hs - nw, 1, fp) != 1)
 					break;
-			if (he > hs)
+			    if (he > hs)
 				if (fseeko(fp, he - hs, SEEK_CUR) == -1)
 					break;
 			}
