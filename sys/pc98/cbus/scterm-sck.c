@@ -933,7 +933,7 @@ kanji_end:
 
 static int
 scterm_ioctl(scr_stat *scp, struct tty *tp, u_long cmd, caddr_t data,
-	     int flag, struct proc *p)
+	     int flag, struct thread *td)
 {
 	term_stat *tcp = scp->ts;
 	vid_info_t *vi;
