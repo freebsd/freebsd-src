@@ -701,6 +701,8 @@ USB_MATCH(umass)
 	USB_MATCH_START(umass, uaa);
 	struct umass_softc *sc = device_get_softc(self);
 
+	USB_MATCH_SETUP;
+
 	if (uaa->iface == NULL)
 		return(UMATCH_NONE);
 
