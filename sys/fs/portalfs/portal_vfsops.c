@@ -85,7 +85,7 @@ portal_omount(mp, path, data, td)
 	/*
 	 * Update is a no-op
 	 */
-	if (mp->mnt_flag & MNT_UPDATE)
+	if (mp->mnt_flag & (MNT_UPDATE | MNT_ROOTFS))
 		return (EOPNOTSUPP);
 
 	error = copyin(data, (caddr_t) &args, sizeof(struct portal_args));

@@ -393,7 +393,7 @@ nfs_omount(struct mount *mp, char *path, caddr_t data, struct thread *td)
 	char hst[MNAMELEN];
 	size_t len;
 
-	if (path == NULL) {
+	if (mp->mnt_flag & MNT_ROOTFS) {
 		printf("NFSv4: nfs_mountroot not supported\n");
 		return EINVAL;
 	}

@@ -99,7 +99,7 @@ umapfs_omount(mp, path, data, ndp, td)
 	/*
 	 * Update is a no-op
 	 */
-	if (mp->mnt_flag & MNT_UPDATE) {
+	if (mp->mnt_flag & (MNT_UPDATE | MNT_ROOTFS)) {
 		return (EOPNOTSUPP);
 		/* return (VFS_MOUNT(MOUNTTOUMAPMOUNT(mp)->umapm_vfs, path, data, ndp, td));*/
 	}

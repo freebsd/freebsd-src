@@ -122,10 +122,9 @@ smbfs_omount(struct mount *mp, char *path, caddr_t data, struct thread *td)
 		printf("missing data argument\n");
 		return EINVAL;
 	}
-	if (mp->mnt_flag & MNT_UPDATE) {
-		printf("MNT_UPDATE not implemented");
+	if (mp->mnt_flag & (MNT_UPDATE | MNT_ROOTFS))
 		return EOPNOTSUPP;
-	}
+
 	error = copyin(data, (caddr_t)&args, sizeof(struct smbfs_args));
 	if (error)
 		return error;
