@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.193.2.7 1995/07/25 19:15:36 jkh Exp $
+#	$Id: Makefile,v 1.193.2.8 1995/07/26 03:09:16 jkh Exp $
 #
 # How to roll a release:
 #
@@ -11,8 +11,8 @@
 # that on a 14.4 line just yet...
 #
 # SET THIS !!!
-BUILDNAME=2.1.0-950725-SNAP
-CHROOTDIR=/mnt/b/release
+BUILDNAME=2.1.0-950726-SNAP
+#CHROOTDIR=/a/release
 # If this is a RELEASE, then set
 RELEASETAG=RELENG_2_1_0
 
@@ -94,8 +94,11 @@ release:
 	cd ${CHROOTDIR}/usr ; cvs co -P -r ${RELEASETAG} src
 .endif
 	( cd ${CHROOTDIR}/usr/src/sys/conf && \
-	  mv newvers.sh foo && \
+	  cp newvers.sh foo && \
 	  sed "s/^RELEASE=.*/RELEASE=${BUILDNAME}/" foo > newvers.sh; rm foo )
+	( cd ${CHROOTDIR}/usr/src/release/sysinstall && \
+	  cp menus.c foo && \
+	  sed "s/RELEASE_NAME/${BUILDNAME}/" foo > menus.c; rm foo )
 	chmod 755 ${CHROOTDIR}/mk
 	chroot ${CHROOTDIR} /mk
 
