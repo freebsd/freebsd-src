@@ -26,10 +26,6 @@
  * $FreeBSD$
  */
 
-#include "splash.h"
-
-#if NSPLASH > 0
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -208,5 +204,3 @@ splash(video_adapter_t *adp, int on)
 		return (*splash_decoder->splash)(adp, on);
 	return ENODEV;
 }
-
-#endif /* NSPLASH > 0 */
