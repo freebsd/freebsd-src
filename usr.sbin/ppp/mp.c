@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.c,v 1.10 1998/06/20 00:19:42 brian Exp $
+ *	$Id: mp.c,v 1.11 1998/06/24 19:33:34 brian Exp $
  */
 
 #include <sys/types.h>
@@ -272,9 +272,10 @@ mp_Up(struct mp *mp, struct datalink *dl)
       ipcp_SetLink(&mp->bundle->ncp.ipcp, &mp->link);
 
       /* Our lcp's already up 'cos of the NULL parent */
-      ccp_SetOpenMode(&mp->link.ccp);
-      fsm_Up(&mp->link.ccp.fsm);
-      fsm_Open(&mp->link.ccp.fsm);
+      if (ccp_SetOpenMode(&mp->link.ccp)) {
+        fsm_Up(&mp->link.ccp.fsm);
+        fsm_Open(&mp->link.ccp.fsm);
+      }
 
       mp->active = 1;
       break;
