@@ -27,6 +27,10 @@ system that is being used for our development work, to say nothing of
 the network access and other donations of hardware resources.  It would have
 been impossible to do this release without their support.
 
+TRW Financial Systems, Inc. provided 130 PCs, three 68 GB fileservers, 
+twelve ethernets, two routers and an ATM switch for debugging the diskless
+code.  They also keep a couple of FreeBSD hackers alive and busy.  Thanks !
+
 Thanks also to Dermot McDonnell for his donation of a Toshiba XM3401B CDROM
 drive.  It's been most useful!
 
@@ -192,4 +196,8 @@ Wolfgang Solfrank <ws@tools.de>
 Wolfgang Stanglmeier <wolf@dentaro.GUN.de>
 Yuval Yarom <yval@cs.huji.ac.il>
 
-$Id: CONTRIB.FreeBSD,v 1.36 1994/06/28 08:09:27 jkh Exp $
+Last but not least, the release engineer would like to thank:
+	His Wife, for chocolate chip cookies, and some other things.
+	The DGB project @ TFS, for patience and tolerance.
+	
+$Id: CONTRIB.FreeBSD,v 1.1 1994/11/18 12:03:25 jkh Exp $
