@@ -408,12 +408,13 @@ physical_DescriptorWrite(struct fdescriptor *d, struct bundle *bundle,
 	p->out = m_free(p->out);
       result = 1;
     } else if (nw < 0) {
-      if (errno != EAGAIN) {
+      if (errno == EAGAIN)
+        result = 1;
+      else if (errno != ENOBUFS) {
 	log_Printf(LogPHASE, "%s: write (%d): %s\n", p->link.name,
                    p->fd, strerror(errno));
         datalink_Down(p->dl, CLOSE_NORMAL);
       }
-      result = 1;
     }
     /* else we shouldn't really have been called !  select() is broken ! */
   }
