@@ -11,7 +11,8 @@
 # optional site-specific configuration.
 #
 # For Options, see the bottom of the file where the processing is
-# done... so
+# done. The picobsd(8) manpage might be of some help, but code and docs
+# tend to lose sync over time...
 #
 # This script depends on the following files:
 #
@@ -37,12 +38,16 @@
 #
 
 # initialize some shell variables used by the script.
+# This must be done after option parsing so user-specified values
+# are used to compute dependent ones. Make sure to use the
+# VAR=${VAR:-value} construct for those variables which can
+# be overridden from the command line.
 
 init_vars() {	# OK
 
     # if you include the floppy tree in the mfs, you
-    # can boot from the image via diskless.
-    INCLUDE_FLOPPY_IN_MFS="yes"
+    # can boot from the image via diskless. Default to yes.
+    INCLUDE_FLOPPY_IN_MFS=${INCLUDE_FLOPPY_IN_MFS:-yes}
 
     # SRC points to your FreeBSD source tree.
     # OBJ points to the obj tree. Normally /usr/obj-pico.
@@ -53,7 +58,7 @@ init_vars() {	# OK
 
     SRC=${SRC:-/usr/src}
     OBJ=${OBJ:-/usr/obj-pico}
-    PICO_TREE=${PICO_TREE:-/usr/src/release/picobsd}
+    PICO_TREE=${PICO_TREE:-${SRC}/release/picobsd}
     START_DIR=`pwd`
 
     # Various temporary files and directories.
@@ -69,7 +74,7 @@ init_vars() {	# OK
     #	1720, 2880, etc. but beware that only 1440 and 1480 will boot
     #	from 1.44M floppy drives (1480 will not work on vmware).
     EDITOR=${EDITOR:-vi}
-    SITE=
+    SITE=${SITE:-}
     FLOPPY_SIZE=${FLOPPY_SIZE:-1440}
 
     NO_DEVFS=yes # DEVFS is currently broken. Always set this.
@@ -82,6 +87,7 @@ init_vars() {	# OK
     boot1=/boot/boot1
     boot2=/boot/boot2
 
+    makeopts=${MAKEOPTS:--s}	# be silent by default
     # abort in case of error...
     set -e
 
@@ -104,6 +110,7 @@ log() {
 set_type() {		# OK
     a=$1
     for i in ${START_DIR}/${a} ${PICO_TREE}/${a} ; do
+	log "set_type: checking $i"
 	if [ -d $i -a -f $i/PICOBSD -a -f $i/crunch.conf ] ; then
 	    set -- `cat $i/PICOBSD | \
 	    awk '/^#PicoBSD/ {print $2, $3, $4, $5, $6}'`
@@ -359,7 +366,7 @@ init_stage1() {
 # invoke the makefile to compile the kernel.
 # Then copy it here and strip as much as possible.
 do_kernel() {		# OK
-    log "---> Preparing kernel "$name" in $MY_TREE"
+    log "---> Preparing kernel \"$name\" in $MY_TREE"
     export name SRC # used in this makefile
     (cd $MY_TREE; make -v -f ${PICO_TREE}/build/Makefile.conf )
     cp -p ${SRC}/sys/compile/PICOBSD-${name}/kernel ${BUILDDIR}/kernel || \
@@ -495,7 +502,7 @@ populate_mfs() {
     crunchgen -p ${PICO_OBJ} -o $arg -m ${BUILDDIR}/crunch.mk $a || true
     # failure is not critical here
     log "Now make -f crunch.mk"
-    make -s -f ${BUILDDIR}/crunch.mk
+    make ${makeopts} -f ${BUILDDIR}/crunch.mk
     strip --remove-section=.note --remove-section=.comment crunch1
     mv crunch1 ${MFS_MOUNTPOINT}/stand/crunch
     chmod 555 ${MFS_MOUNTPOINT}/stand/crunch
@@ -650,10 +657,26 @@ fill_floppy_image() {
 #-------------------------------------------------------------------
 # Main entry of the script
 
-init_vars
+verbose=""
+TAR_VERBOSE=""
 
 while [ true ]; do
     case $1 in
+    --src)	# set the source path instead of /usr/src
+	SRC=$2
+	# Optionally creates include directory, and set cflags
+	# accordingly. Note that you will still need the right
+	# libraries...
+
+	#i=${SRC}/usr/include	# the include directory...
+	#if [ \! -d $i ] ; then
+	#    echo "Create \"$i\" as include directory"
+	#    mkdir -p $i
+	#    (cd ${SRC}; DESTDIR=${SRC} make includes )
+	#fi
+	#CFLAGS="-nostdinc -I$i" ; export CFLAGS
+	shift
+	;;
     --floppy_size)
 	FLOPPY_SIZE=$2
 	shift
@@ -668,6 +691,7 @@ while [ true ]; do
     -v)
 	verbose="YES"
 	TAR_VERBOSE="v"
+	makeopts="-d l" # be verbose
 	;;
     *)
 	break ;
@@ -676,6 +700,7 @@ while [ true ]; do
     esac
     shift
 done
+init_vars
 
 THETYPE=$1
 SITE=$2
