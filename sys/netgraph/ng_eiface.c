@@ -360,9 +360,7 @@ ng_eiface_constructor(node_p *nodep)
 	*/
 
 	/* Attach the interface */
-	if_attach(ifp);
 	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
-	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 
 	/* Done */
 	return (0);
