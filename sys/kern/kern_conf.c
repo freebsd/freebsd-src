@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.50 1999/07/19 09:37:59 phk Exp $
+ * $Id: kern_conf.c,v 1.51 1999/07/20 09:47:41 phk Exp $
  */
 
 #include <sys/param.h>
@@ -240,6 +240,15 @@ dev2udev(dev_t x)
 	if (x == NODEV)
 		return NOUDEV;
 	return (x->si_udev);
+}
+
+udev_t
+dev2budev(dev_t x)
+{
+	if (dumpdev == NODEV)
+		return NOUDEV;
+	else
+		return makeudev(devsw(x)->d_bmaj, minor(x));
 }
 
 dev_t
