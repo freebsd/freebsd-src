@@ -18,7 +18,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: main.c,v 1.7 1996/10/22 21:41:43 scrappy Exp $";
+static char rcsid[] = "$Id: main.c,v 1.7.2.1 1997/05/02 21:51:45 danny Exp $";
 #endif
 
 #include <stdio.h>
@@ -397,7 +397,7 @@ main(argc, argv)
 	/* write interface unit number to file */
     	for (n = strlen(devnam); n > 0 ; n--)
 		if (devnam[n] == '/') { 
-			n = n++;
+			n++;
 			break;
 		}
 	(void) sprintf(iffilename, "%s%s.if", _PATH_VARRUN, &devnam[n]);
