@@ -21,7 +21,7 @@ deltas via mail
 .Ar ctm-delta
 .Ar mail-alias
 .Nm ctm_rmail
-.Op Fl Dfv
+.Op Fl Dfuv
 .Op Fl l Ar log
 .Op Fl p Ar piecedir
 .Op Fl d Ar deltadir
@@ -148,6 +148,13 @@ Don't worry about zillions of background
 processes loading your machine, since locking is used to prevent more than one
 .Xr ctm
 invocation at a time.
+.It Fl u
+Pass the
+.Fl u
+flag to the
+.Xr ctm
+command when applying the complete deltas, causing it to set the modification
+time of created and modified files to the CTM delta creation time.
 .It Fl v
 Pass the
 .Fl v

@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm.c,v 1.11 1995/05/30 03:47:19 rgrimes Exp $
+ * $Id: ctm.c,v 1.12 1996/02/05 16:06:46 phk Exp $
  *
  * This is the client program of 'CTM'.  It will apply a CTM-patch to a
  * collection of files.
@@ -28,6 +28,7 @@
  * -P			Paranoid.
  * -q 			Tell us less.
  * -T <tmpdir>.		Temporary files.
+ * -u			Set all file modification times to the timestamp
  * -v 			Tell us more.
  * -V <level>		Tell us more level = number of -v
  *
@@ -54,10 +55,11 @@ main(int argc, char **argv)
     basedir = NULL;
     Verbose = 1;
     Paranoid = 1;
+    SetTime = 0;
     setbuf(stderr,0);
     setbuf(stdout,0);
 
-    while((c=getopt(argc,argv,"ab:B:cd:Fm:pPqr:R:T:V:v")) != -1) {
+    while((c=getopt(argc,argv,"ab:B:cd:Fm:pPqr:R:T:uV:v")) != -1) {
 	switch (c) {
 	    case 'b': basedir = optarg;	break; /* Base Directory */
 	    case 'c': CheckIt++;	break; /* Only check it */
@@ -67,6 +69,7 @@ main(int argc, char **argv)
 	    case 'v': Verbose++;	break; /* Verbose */
 	    case 'T': TmpDir = optarg;	break;
 	    case 'F': Force = 1;	break;
+	    case 'u': SetTime++;	break; /* Set timestamp on files */
 	    case 'V': sscanf(optarg,"%d", &c); /* Verbose */
 		      Verbose += c;
 		      break;
