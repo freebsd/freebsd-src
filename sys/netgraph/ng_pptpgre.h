@@ -45,7 +45,7 @@
 
 /* Node type name and magic cookie */
 #define NG_PPTPGRE_NODE_TYPE	"pptpgre"
-#define NGM_PPTPGRE_COOKIE	942783546
+#define NGM_PPTPGRE_COOKIE	942783547
 
 /* Hook names */
 #define NG_PPTPGRE_HOOK_UPPER	"upper"		/* to upper layers */
@@ -55,6 +55,7 @@
 struct ng_pptpgre_conf {
 	u_char		enabled;	/* enables traffic flow */
 	u_char		enableDelayedAck;/* enables delayed acks */
+	u_char		enableAlwaysAck;/* always include ack with data */
 	u_int16_t	cid;		/* my call id */
 	u_int16_t	peerCid;	/* peer call id */
 	u_int16_t	recvWin;	/* peer recv window size */
@@ -67,6 +68,7 @@ struct ng_pptpgre_conf {
 	{							\
 	  { "enabled",		&ng_parse_int8_type	},	\
 	  { "enableDelayedAck",	&ng_parse_int8_type	},	\
+	  { "enableAlwaysAck",	&ng_parse_int8_type	},	\
 	  { "cid",		&ng_parse_int16_type	},	\
 	  { "peerCid",		&ng_parse_int16_type	},	\
 	  { "recvWin",		&ng_parse_int16_type	},	\
@@ -92,6 +94,7 @@ struct ng_pptpgre_stats {
 	u_int32_t recvDuplicates;	/* packets rec'd with duplicate seq # */
 	u_int32_t recvLoneAcks;		/* ack-only packets rec'd */
 	u_int32_t recvAckTimeouts;	/* times peer failed to ack in time */
+	u_int32_t memoryFailures;	/* times we couldn't allocate memory */
 };
 
 /* Keep this in sync with the above structure definition */
@@ -112,6 +115,7 @@ struct ng_pptpgre_stats {
 	  { "recvDuplicates",	&ng_parse_int32_type	},	\
 	  { "recvLoneAcks",	&ng_parse_int32_type	},	\
 	  { "recvAckTimeouts",	&ng_parse_int32_type	},	\
+	  { "memoryFailures",	&ng_parse_int32_type	},	\
 	  { NULL }						\
 	}							\
 }
