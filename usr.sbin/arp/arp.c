@@ -83,7 +83,7 @@ main(argc, argv)
 	int ch;
 
 	pid = getpid();
-	while ((ch = getopt(argc, argv, "ands")) != EOF)
+	while ((ch = getopt(argc, argv, "andfs")) != EOF)
 		switch((char)ch) {
 		case 'a':
 			dump(0);
@@ -100,6 +100,11 @@ main(argc, argv)
 			if (argc < 4 || argc > 7)
 				usage();
 			exit(set(argc-2, &argv[2]) ? 1 : 0);
+		case 'f' :
+			if (argc != 3)
+				usage();
+			file(argv[2]);
+			exit(0);
 		case '?':
 		default:
 			usage();
