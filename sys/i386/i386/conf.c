@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.90 1995/07/31 22:06:55 jkh Exp $
+ *	$Id: conf.c,v 1.91 1995/08/05 21:33:04 peter Exp $
  */
 
 #include <sys/param.h>
@@ -294,6 +294,19 @@ d_psize_t	atasize;
 #define	atadump		nxdump
 #endif
 
+#include "wcd.h"
+#if NWCD > 0
+d_open_t	wcdopen;
+d_close_t	wcdclose;
+d_strategy_t	wcdstrategy;
+d_ioctl_t	wcdioctl;
+#else
+#define wcdopen		nxopen
+#define wcdclose	nxclose
+#define wcdstrategy	nxstrategy
+#define wcdioctl	nxioctl
+#endif
+
 #include "ch.h"
 #if NCH > 0
 d_open_t	chopen;
@@ -422,7 +435,10 @@ struct bdevsw	bdevsw[] =
 	{ matcdopen,	matcdclose,	matcdstrategy,	matcdioctl,	/*17*/
 	  matcddump,	matcdsize,	0 },
 	{ ataopen,	ataclose,	atastrategy,	ataioctl,	/*18*/
-	  atadump,	atasize,	0 }
+	  atadump,	atasize,	0 },
+	{ wcdopen,      wcdclose,       wcdstrategy,    wcdioctl,       /*19*/
+	  nxdump,       zerosize,       0 },
+
 /*
  * If you need a bdev major number for a driver that you intend to donate
  * back to the group or release publically, please contact the FreeBSD team
@@ -1275,6 +1291,9 @@ struct cdevsw	cdevsw[] =
 	{ siopen,	siclose,	siread,		siwrite,	/*68*/
 	  siioctl,	sistop,		sireset,	sidevtotty,/* slxos */
 	  ttselect,	nxmmap,		NULL },
+	{ wcdopen,      wcdclose,       rawread,        nowrite,        /*69*/
+	  wcdioctl,     nostop,         nullreset,      nodevtotty,/* atapi */
+	  seltrue,      nommap,         wcdstrategy },
 };
 int	nchrdev = sizeof (cdevsw) / sizeof (cdevsw[0]);
 
