@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000 Mark R V Murray
+ * Copyright (c) 2000, 2001, 2002, 2003 Mark R V Murray
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,16 +29,16 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/types.h>
-#include <sys/queue.h>
 #include <sys/kthread.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/poll.h>
+#include <sys/queue.h>
+#include <sys/random.h>
 #include <sys/selinfo.h>
 #include <sys/sysctl.h>
-#include <sys/random.h>
+#include <sys/systm.h>
 
 #include <machine/cpu.h>
 

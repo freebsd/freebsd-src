@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000 Mark R V Murray
+ * Copyright (c) 2000, 2001, 2002, 2003 Mark R V Murray
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,12 +29,13 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/random.h>
 #include <sys/sysctl.h>
+#include <sys/systm.h>
 
 #include <crypto/rijndael/rijndael.h>
 #include <crypto/sha2/sha2.h>
@@ -42,8 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/random/hash.h>
 #include <dev/random/randomdev.h>
 #include <dev/random/yarrow.h>
-
-/* #define DEBUG */
 
 RANDOM_CHECK_UINT(gengateinterval, 4, 64);
 RANDOM_CHECK_UINT(bins, 2, 16);
@@ -164,10 +163,6 @@ reseed(u_int fastslow)
 	u_int i;
 	enum esource j;
 
-#ifdef DEBUG
-	printf("Reseed type %d\n", fastslow);
-#endif
-
 	/* The reseed task must not be jumped on */
 	mtx_lock(&random_reseed_mtx);
 
@@ -240,10 +235,6 @@ reseed(u_int fastslow)
 	/* Release the reseed mutex */
 	mtx_unlock(&random_reseed_mtx);
 
-#ifdef DEBUG
-	printf("Reseed finish\n");
-#endif
-
 	/* Unblock the device if it was blocked due to being unseeded */
 	random_unblock();
 }
@@ -315,10 +306,6 @@ generator_gate(void)
 	u_int i;
 	u_char temp[KEYSIZE];
 
-#ifdef DEBUG
-	printf("Generator gate\n");
-#endif
-
 	for (i = 0; i < KEYSIZE; i += sizeof(random_state.counter)) {
 		random_state.counter[0]++;
 		yarrow_encrypt(&random_state.key, random_state.counter,
@@ -328,9 +315,6 @@ generator_gate(void)
 	yarrow_encrypt_init(&random_state.key, temp);
 	memset((void *)temp, 0, KEYSIZE);
 
-#ifdef DEBUG
-	printf("Generator gate finish\n");
-#endif
 }
 
 /* Helper routine to perform explicit reseeds */
