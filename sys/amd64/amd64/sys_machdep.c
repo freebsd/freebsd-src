@@ -240,16 +240,16 @@ done:
 /*
  * Update the GDT entry pointing to the LDT to point to the LDT of the
  * current process.
+ *
+ * This must be called with sched_lock held.  Unfortunately, we can't use a
+ * mtx_assert() here because cpu_switch() calls this function after changing
+ * curproc but before sched_lock's owner is updated in mi_switch().
  */   
 void
 set_user_ldt(struct pcb *pcb)
 {
 	struct pcb_ldt *pcb_ldt;
 
-	if (pcb != PCPU_GET(curpcb))
-		return;
-
-	mtx_lock_spin(&sched_lock);
 	pcb_ldt = pcb->pcb_ldt;
 #ifdef SMP
 	gdt[PCPU_GET(cpuid) * NGDT + GUSERLDT_SEL].sd = pcb_ldt->ldt_sd;
@@ -258,6 +258,17 @@ set_user_ldt(struct pcb *pcb)
 #endif
 	lldt(GSEL(GUSERLDT_SEL, SEL_KPL));
 	PCPU_SET(currentldt, GSEL(GUSERLDT_SEL, SEL_KPL));
+}
+
+void
+set_user_ldt_rv(struct pcb *pcb)
+{
+
+	if (pcb != PCPU_GET(curpcb))
+		return;
+
+	mtx_lock_spin(&sched_lock);
+	set_user_ldt(pcb);
 	mtx_unlock_spin(&sched_lock);
 }
 
@@ -422,15 +433,21 @@ i386_set_ldt(p, args)
 			kmem_free(kernel_map, (vm_offset_t)old_ldt_base,
 				old_ldt_len * sizeof(union descriptor));
 			FREE(new_ldt, M_SUBPROC);
+#ifndef SMP
+			mtx_lock_spin(&sched_lock);
+#endif
 		} else {
 			pcb->pcb_ldt = pcb_ldt = new_ldt;
+#ifdef SMP
 			mtx_unlock_spin(&sched_lock);
+#endif
 		}
 #ifdef SMP
 		/* signal other cpus to reload ldt */
-		smp_rendezvous(NULL, (void (*)(void *))set_user_ldt, NULL, pcb);
+		smp_rendezvous(NULL, (void (*)(void *))set_user_ldt_rv, NULL, pcb);
 #else
 		set_user_ldt(pcb);
+		mtx_unlock_spin(&sched_lock);
 #endif
 	}
 
