@@ -47,8 +47,8 @@
 #define PCI_DEVICE_ID_PCNet_PCI	0x20001022
 #define PCI_DEVICE_ID_PCHome_PCI 0x20011022
 
-extern int pcnet_probe __P((struct lnc_softc *sc));
-extern int lnc_attach_sc __P((struct lnc_softc *sc, int unit));
+extern int pcnet_probe __P((lnc_softc_t *sc));
+extern int lnc_attach_sc __P((lnc_softc_t *sc, int unit));
 
 static const char* lnc_pci_probe __P((pcici_t tag, pcidi_t type));
 static void lnc_pci_attach __P((pcici_t config_id, int unit));
@@ -88,7 +88,7 @@ lnc_pci_attach(config_id, unit)
 	pcici_t config_id;
 	int	unit;
 {
-	struct lnc_softc *sc;
+	lnc_softc_t *sc;
 	unsigned iobase;
 	unsigned data;	/* scratch to make this device a bus master*/
 	int i;
