@@ -76,8 +76,10 @@ pam_sm_authenticate(pam_handle_t * pamh, int flags, int argc, const char **argv)
 
 	PAM_LOG("Options processed");
 
-	if (pam_test_option(&options, PAM_OPT_AUTH_AS_SELF, NULL))
+	if (pam_test_option(&options, PAM_OPT_AUTH_AS_SELF, NULL)) {
 		pwd = getpwnam(getlogin());
+		user = strdup(pwd->pw_name);
+	}
 	else {
 		retval = pam_get_user(pamh, &user, NULL);
 		if (retval != PAM_SUCCESS)
@@ -86,9 +88,10 @@ pam_sm_authenticate(pam_handle_t * pamh, int flags, int argc, const char **argv)
 	}
 
 	PAM_LOG("Got user: %s", user);
+	PAM_LOG("User's primary uid, gid: %d, %d", pwd->pw_uid, pwd->pw_gid);
 
 	/* Ignore if already uid 0 */
-	if (pwd->pw_uid)
+	if (pwd->pw_uid == 0)
 		PAM_RETURN(PAM_IGNORE);
 
 	PAM_LOG("Not superuser");
@@ -103,15 +106,20 @@ pam_sm_authenticate(pam_handle_t * pamh, int flags, int argc, const char **argv)
 	if (grp == NULL || grp->gr_mem == NULL) {
 		if (pam_test_option(&options, PAM_OPT_DENY, NULL))
 			PAM_RETURN(PAM_IGNORE);
-		else
+		else {
+			PAM_VERBOSE_ERROR("Permission denied");
 			PAM_RETURN(PAM_AUTH_ERR);
+		}
 	}
 
 	PAM_LOG("Got group: %s", grp->gr_name);
 
 	if (pwd->pw_gid == grp->gr_gid || in_list(grp->gr_mem, pwd->pw_name)) {
-		if (pam_test_option(&options, PAM_OPT_DENY, NULL))
+		if (pam_test_option(&options, PAM_OPT_DENY, NULL)) {
+			PAM_VERBOSE_ERROR("Member of group %s; denied",
+			    grp->gr_name);
 			PAM_RETURN(PAM_PERM_DENIED);
+		}
 		if (pam_test_option(&options, PAM_OPT_TRUST, NULL))
 			PAM_RETURN(PAM_SUCCESS);
 		PAM_RETURN(PAM_IGNORE);
@@ -120,13 +128,21 @@ pam_sm_authenticate(pam_handle_t * pamh, int flags, int argc, const char **argv)
 	if (pam_test_option(&options, PAM_OPT_DENY, NULL))
 		PAM_RETURN(PAM_SUCCESS);
 
+	PAM_VERBOSE_ERROR("Not member of group %s; denied", grp->gr_name);
+
 	PAM_RETURN(PAM_PERM_DENIED);
 }
 
 PAM_EXTERN int 
 pam_sm_setcred(pam_handle_t * pamh, int flags, int argc, const char **argv)
 {
-	return PAM_SUCCESS;
+	struct options options;
+
+	pam_std_option(&options, other_options, argc, argv);
+
+	PAM_LOG("Options processed");
+
+	PAM_RETURN(PAM_SUCCESS);
 }
 
 PAM_MODULE_ENTRY("pam_wheel");
