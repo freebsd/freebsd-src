@@ -199,6 +199,15 @@
     <para>&man.cat.1; now has the ability to read from UNIX-domain
     sockets.</para>
 
+    <para arch="i386">The <filename>compat4x</filename> compatability
+    distribution now includes versions of
+    <filename>libcrypto.so.1</filename> and
+    <filename>libssl.so.1</filename> that do not depend on the
+    <filename>librsaUSA.so</filename> and
+    <filename>librsaINTL.so</filename> libraries.  This change
+    improves compatability with binaries built for &os; 4.1-RELEASE
+    and older.</para>
+
     <para>&man.find.1; can now take various units of time to be
     applied to the <option>-[acm]time</option> primaries.</para>
 
