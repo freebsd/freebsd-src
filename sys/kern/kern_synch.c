@@ -722,12 +722,14 @@ wakeup(ident)
 {
 	register struct slpquehead *qp;
 	register struct proc *p;
+	struct proc *np;
 	int s;
 
 	s = splhigh();
 	qp = &slpque[LOOKUP(ident)];
 restart:
-	TAILQ_FOREACH(p, qp, p_procq) {
+	for (p = TAILQ_FIRST(qp); p != NULL; p = np) {
+		np = TAILQ_NEXT(p, p_procq);
 		if (p->p_wchan == ident) {
 			TAILQ_REMOVE(qp, p, p_procq);
 			p->p_wchan = 0;
@@ -763,12 +765,15 @@ wakeup_one(ident)
 {
 	register struct slpquehead *qp;
 	register struct proc *p;
+	struct proc *np;
 	int s;
 
 	s = splhigh();
 	qp = &slpque[LOOKUP(ident)];
 
-	TAILQ_FOREACH(p, qp, p_procq) {
+restart:
+	for (p = TAILQ_FIRST(qp); p != NULL; p = np) {
+		np = TAILQ_NEXT(p, p_procq);
 		if (p->p_wchan == ident) {
 			TAILQ_REMOVE(qp, p, p_procq);
 			p->p_wchan = 0;
@@ -787,6 +792,7 @@ wakeup_one(ident)
 					wakeup((caddr_t)&proc0);
 				}
 				/* END INLINE EXPANSION */
+				goto restart;
 			}
 		}
 	}
