@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)errno.h	8.5 (Berkeley) 1/21/94
- * $Id: errno.h,v 1.3 1994/08/21 04:41:42 paul Exp $
+ * $Id: errno.h,v 1.4 1996/01/22 00:02:33 julian Exp $
  */
 
 #ifndef _SYS_ERRNO_H_
@@ -44,7 +44,10 @@
 
 #ifndef KERNEL
 #ifdef	_THREAD_SAFE
-extern	int *		__error();
+#include <sys/cdefs.h>
+__BEGIN_DECLS
+int *	__error __P((void));
+__END_DECLS
 #define	errno		(* __error())
 #else
 extern int errno;			/* global error number */
