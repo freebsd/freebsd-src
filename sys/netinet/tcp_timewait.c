@@ -488,10 +488,10 @@ tcp_respond(tp, ipgen, th, m, ack, seq, flags)
 		mac_create_mbuf_from_socket(tp->t_inpcb->inp_socket, m);
 	} else {
 		/*
-		 * XXXMAC: This will need to call a mac function that
-		 * modifies the mbuf label in place for TCP datagrams
-		 * not associated with a PCB.
+		 * Packet is not associated with a socket, so possibly
+		 * update the label in place.
 		 */
+		mac_reflect_mbuf_tcp(m);
 	}
 #endif
 	nth->th_seq = htonl(seq);
