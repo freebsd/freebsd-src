@@ -94,6 +94,7 @@ SUBDIR=	accf_data \
 	raidframe \
 	${_random} \
 	rc \
+	rc4 \
 	rl \
 	rp \
 	sf \
@@ -136,6 +137,7 @@ SUBDIR=	accf_data \
 	vr \
 	vx \
 	wb \
+	wlan \
 	xl
 
 .if defined(WANT_EXT2FS_MODULE)
