@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: cdrom.c,v 1.17 1996/07/08 08:54:22 jkh Exp $
+ * $Id: cdrom.c,v 1.18 1996/07/12 11:13:54 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -76,9 +76,6 @@ mediaInitCDROM(Device *dev)
     if (cdromMounted != CD_UNMOUNTED)
 	return TRUE;
 
-    if (Mkdir("/cdrom"))
-	return FALSE;
-
     bzero(&args, sizeof(args));
     args.fspec = dev->devname;
     args.flags = 0;
@@ -88,6 +85,7 @@ mediaInitCDROM(Device *dev)
     dontRead = FALSE;
     /* If this cdrom's not already mounted or can't be mounted, yell */
     if (!file_readable("/cdrom/cdrom.inf")) {
+	Mkdir("/cdrom");
 	if (mount(MOUNT_CD9660, "/cdrom", MNT_RDONLY, (caddr_t) &args) == -1) {
 	    msgConfirm("Error mounting %s on /cdrom: %s (%u)", dev->devname, strerror(errno), errno);
 	    return FALSE;
@@ -119,7 +117,7 @@ mediaInitCDROM(Device *dev)
 		       "does not match the version of this boot floppy (%s).\n"
 		       "If this is intentional, then please visit the Options editor\n"
 		       "to set the boot floppy version string to match that of the CD\n"
-		       "before selecting it as an installation media.");
+		       "before selecting it as an installation media.", cp, variable_get(VAR_RELNAME));
 	cdromMounted = CD_UNMOUNTED;
 	return FALSE;
     }
