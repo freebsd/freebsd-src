@@ -1,3 +1,4 @@
+.\" $FreeBSD$
 .Dd February 14, 1994
 .Dt MD5 1
 .Os
@@ -6,7 +7,7 @@
 .Nd calculate a message-digest fingerprint (checksum) for a file
 .Sh SYNOPSIS
 .Nm md5
-.Op Fl ptx
+.Op Fl prtx
 .Op Fl s Ar string
 .Op Ar file ...
 .Sh DESCRIPTION
@@ -37,6 +38,11 @@ Print a checksum of the given
 .Ar string .
 .It Fl p
 Echo stdin to stdout and appends the MD5 sum to stdout.
+.It Fl r
+Reverses the format of the output.  This helps with visual diffs.  Does nothing
+when combined with the 
+.Fl stpx
+options.
 .It Fl t
 Run a built-in time trial.
 .It Fl x
