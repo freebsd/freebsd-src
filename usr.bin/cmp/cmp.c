@@ -29,6 +29,9 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
+ *
  */
 
 #ifndef lint
@@ -53,7 +56,7 @@ static const char sccsid[] = "@(#)cmp.c	8.3 (Berkeley) 4/2/94";
 
 #include "extern.h"
 
-int	lflag, sflag;
+int	lflag, sflag, xflag;
 
 static void usage __P((void));
 
@@ -67,13 +70,17 @@ main(argc, argv)
 	int ch, fd1, fd2, special;
 	char *file1, *file2;
 
-	while ((ch = getopt(argc, argv, "-ls")) != -1)
+	while ((ch = getopt(argc, argv, "-lsx")) != -1)
 		switch (ch) {
 		case 'l':		/* print all differences */
 			lflag = 1;
 			break;
 		case 's':		/* silent run */
 			sflag = 1;
+			break;
+		case 'x':		/* hex output */
+			lflag = 1;
+			xflag = 1;
 			break;
 		case '-':		/* stdin (must be after options) */
 			--optind;
