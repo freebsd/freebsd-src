@@ -599,6 +599,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	const char *interp = NULL;
 	Elf_Brandinfo *brand_info;
 	char *path;
+	struct thread *td = curthread;
 
 	GIANT_REQUIRED;
 
@@ -624,16 +625,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	 * From this point on, we may have resources that need to be freed.
 	 */
 
-	/*
-	 * Yeah, I'm paranoid.  There is every reason in the world to get
-	 * VTEXT now since from here on out, there are places we can have
-	 * a context switch.  Better safe than sorry; I really don't want
-	 * the file to change while it's being loaded.
-	 *
-	 * XXX We can't really set this flag safely without the vnode lock.
-	 */
-	mp_fixme("This needs the vnode lock to be safe.");
-	imgp->vp->v_vflag |= VV_TEXT;
+	VOP_UNLOCK(imgp->vp, 0, td);
 
 	if ((error = exec_extract_strings(imgp)) != 0)
 		goto fail;
@@ -846,6 +838,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	imgp->interpreted = 0;
 
 fail:
+	vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY, td);
 	return error;
 }
 
