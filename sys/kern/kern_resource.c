@@ -392,6 +392,7 @@ int
 rtp_to_pri(struct rtprio *rtp, struct ksegrp *kg)
 {
 
+	mtx_assert(&sched_lock, MA_OWNED);
 	if (rtp->prio > RTP_PRIO_MAX)
 		return (EINVAL);
 	switch (RTP_PRIO_BASE(rtp->type)) {
@@ -419,6 +420,7 @@ void
 pri_to_rtp(struct ksegrp *kg, struct rtprio *rtp)
 {
 
+	mtx_assert(&sched_lock, MA_OWNED);
 	switch (PRI_BASE(kg->kg_pri_class)) {
 	case PRI_REALTIME:
 		rtp->prio = kg->kg_user_pri - PRI_MIN_REALTIME;
