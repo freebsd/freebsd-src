@@ -156,12 +156,10 @@ Make_OODate (gn)
      */
     if ((gn->type & (OP_JOIN|OP_USE|OP_EXEC)) == 0) {
 	(void) Dir_MTime (gn);
-	if (DEBUG(MAKE)) {
-	    if (gn->mtime != 0) {
-		printf ("modified %s...", Targ_FmtTime(gn->mtime));
-	    } else {
-		printf ("non-existent...");
-	    }
+	if (gn->mtime != 0) {
+	    DEBUGF(MAKE, "modified %s...", Targ_FmtTime(gn->mtime));
+	} else {
+	    DEBUGF(MAKE, "non-existent...");
 	}
     }
 
@@ -184,14 +182,10 @@ Make_OODate (gn)
 	 * If the node is a USE node it is *never* out of date
 	 * no matter *what*.
 	 */
-	if (DEBUG(MAKE)) {
-	    printf(".USE node...");
-	}
+	DEBUGF(MAKE, ".USE node...");
 	oodate = FALSE;
     } else if (gn->type & OP_LIB) {
-	if (DEBUG(MAKE)) {
-	    printf("library...");
-	}
+	DEBUGF(MAKE, "library...");
 
 	/*
 	 * always out of date if no children and :: target
@@ -204,23 +198,19 @@ Make_OODate (gn)
 	 * A target with the .JOIN attribute is only considered
 	 * out-of-date if any of its children was out-of-date.
 	 */
-	if (DEBUG(MAKE)) {
-	    printf(".JOIN node...");
-	}
+	DEBUGF(MAKE, ".JOIN node...");
 	oodate = gn->childMade;
     } else if (gn->type & (OP_FORCE|OP_EXEC|OP_PHONY)) {
 	/*
 	 * A node which is the object of the force (!) operator or which has
 	 * the .EXEC attribute is always considered out-of-date.
 	 */
-	if (DEBUG(MAKE)) {
-	    if (gn->type & OP_FORCE) {
-		printf("! operator...");
-	    } else if (gn->type & OP_PHONY) {
-		printf(".PHONY node...");
-	    } else {
-		printf(".EXEC node...");
-	    }
+	if (gn->type & OP_FORCE) {
+	    DEBUGF(MAKE, "! operator...");
+	} else if (gn->type & OP_PHONY) {
+	    DEBUGF(MAKE, ".PHONY node...");
+	} else {
+	    DEBUGF(MAKE, ".EXEC node...");
 	}
 	oodate = TRUE;
     } else if ((gn->mtime < gn->cmtime) ||
@@ -234,22 +224,18 @@ Make_OODate (gn)
 	 * :: operator is out-of-date. Why? Because that's the way Make does
 	 * it.
 	 */
-	if (DEBUG(MAKE)) {
-	    if (gn->mtime < gn->cmtime) {
-		printf("modified before source...");
-	    } else if (gn->mtime == 0) {
-		printf("non-existent and no sources...");
-	    } else {
-		printf(":: operator and no sources...");
-	    }
+	if (gn->mtime < gn->cmtime) {
+	    DEBUGF(MAKE, "modified before source...");
+	} else if (gn->mtime == 0) {
+	    DEBUGF(MAKE, "non-existent and no sources...");
+	} else {
+	    DEBUGF(MAKE, ":: operator and no sources...");
 	}
 	oodate = TRUE;
     } else {
 #if 0
 	/* WHY? */
-	if (DEBUG(MAKE)) {
-	    printf("source %smade...", gn->childMade ? "" : "not ");
-	}
+	DEBUGF(MAKE, "source %smade...", gn->childMade ? "" : "not ");
 	oodate = gn->childMade;
 #else
 	oodate = FALSE;
@@ -471,9 +457,7 @@ Make_Update (cgn)
 	if (noExecute || (cgn->type & OP_SAVE_CMDS) || Dir_MTime(cgn) == 0) {
 	    cgn->mtime = now;
 	}
-	if (DEBUG(MAKE)) {
-	    printf("update time: %s\n", Targ_FmtTime(cgn->mtime));
-	}
+	DEBUGF(MAKE, "update time: %s\n", Targ_FmtTime(cgn->mtime));
 #endif
     }
 
@@ -678,9 +662,7 @@ MakeStartJobs ()
 
     while (!Job_Full() && !Lst_IsEmpty (toBeMade)) {
 	gn = (GNode *) Lst_DeQueue (toBeMade);
-	if (DEBUG(MAKE)) {
-	    printf ("Examining %s...", gn->name);
-	}
+	DEBUGF(MAKE, "Examining %s...", gn->name);
 	/*
 	 * Make sure any and all predecessors that are going to be made,
 	 * have been.
@@ -692,9 +674,7 @@ MakeStartJobs ()
 		GNode	*pgn = (GNode *)Lst_Datum(ln);
 
 		if (pgn->make && pgn->made == UNMADE) {
-		    if (DEBUG(MAKE)) {
-			printf("predecessor %s not made yet.\n", pgn->name);
-		    }
+		    DEBUGF(MAKE, "predecessor %s not made yet.\n", pgn->name);
 		    break;
 		}
 	    }
@@ -711,18 +691,14 @@ MakeStartJobs ()
 
 	numNodes--;
 	if (Make_OODate (gn)) {
-	    if (DEBUG(MAKE)) {
-		printf ("out-of-date\n");
-	    }
+	    DEBUGF(MAKE, "out-of-date\n");
 	    if (queryFlag) {
 		return (TRUE);
 	    }
 	    Make_DoAllVar (gn);
 	    Job_Make (gn);
 	} else {
-	    if (DEBUG(MAKE)) {
-		printf ("up-to-date\n");
-	    }
+	    DEBUGF(MAKE, "up-to-date\n");
 	    gn->made = UPTODATE;
 	    if (gn->type & OP_JOIN) {
 		/*

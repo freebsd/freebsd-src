@@ -1813,8 +1813,7 @@ Parse_FromString(str)
 {
     IFile         *oldFile;	/* state associated with this file */
 
-    if (DEBUG(FOR))
-	(void) fprintf(stderr, "%s\n----\n", str);
+    DEBUGF(FOR, "%s\n----\n", str);
 
     oldFile = (IFile *) emalloc (sizeof (IFile));
     oldFile->lineno = lineno;

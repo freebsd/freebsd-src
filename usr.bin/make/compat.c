@@ -457,17 +457,13 @@ CompatMake (gnp, pgnp)
 	 * we were modified last. The criteria for datedness are defined by the
 	 * Make_OODate function.
 	 */
-	if (DEBUG(MAKE)) {
-	    printf("Examining %s...", gn->name);
-	}
+	DEBUGF(MAKE, "Examining %s...", gn->name);
 	if (! Make_OODate(gn)) {
 	    gn->made = UPTODATE;
-	    if (DEBUG(MAKE)) {
-		printf("up-to-date.\n");
-	    }
+	    DEBUGF(MAKE, "up-to-date.\n");
 	    return (0);
-	} else if (DEBUG(MAKE)) {
-	    printf("out-of-date.\n");
+	} else {
+	    DEBUGF(MAKE, "out-of-date.\n");
 	}
 
 	/*
@@ -574,9 +570,7 @@ CompatMake (gnp, pgnp)
 	    }
 	    if (gn->cmtime > gn->mtime)
 		gn->mtime = gn->cmtime;
-	    if (DEBUG(MAKE)) {
-		printf("update time: %s\n", Targ_FmtTime(gn->mtime));
-	    }
+	    DEBUGF(MAKE, "update time: %s\n", Targ_FmtTime(gn->mtime));
 #endif
 	    if (!(gn->type & OP_EXEC)) {
 		pgn->childMade = TRUE;
