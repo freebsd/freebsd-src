@@ -1,5 +1,5 @@
 /* info.c -- Display nodes of Info files in multiple windows.
-   $Id: info.c,v 1.2 2003/01/19 18:45:59 karl Exp $
+   $Id: info.c,v 1.7 2003/05/19 13:10:59 karl Exp $
 
    Copyright (C) 1993, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003
    Free Software Foundation, Inc.
@@ -120,16 +120,16 @@ static struct option long_options[] = {
 
 /* String describing the shorthand versions of the long options found above. */
 #ifdef __MSDOS__
-static char *short_options = "d:n:f:o:ORsb";
+static char *short_options = "d:n:f:ho:ORsb";
 #else
-static char *short_options = "d:n:f:o:ORs";
+static char *short_options = "d:n:f:ho:ORs";
 #endif
 
 /* When non-zero, the Info window system has been initialized. */
 int info_windows_initialized_p = 0;
 
 /* Some "forward" declarations. */
-static void info_short_help (), remember_info_program_name ();
+static void info_short_help ();
 static void init_messages ();
 extern void add_file_directory_to_path ();
 
@@ -158,7 +158,7 @@ main (argc, argv)
   textdomain (PACKAGE);
 
   init_messages ();
-  
+
   while (1)
     {
       int option_character;
@@ -166,7 +166,7 @@ main (argc, argv)
       option_character = getopt_long
         (argc, argv, short_options, long_options, &getopt_long_index);
 
-      /* getopt_long () returns EOF when there are no more long options. */
+      /* getopt_long returns EOF when there are no more long options. */
       if (option_character == EOF)
         break;
 
@@ -197,6 +197,11 @@ main (argc, argv)
             free (user_filename);
 
           user_filename = xstrdup (optarg);
+          break;
+
+          /* Treat -h like --help. */
+        case 'h':
+          print_help_p = 1;
           break;
 
           /* User is specifying the name of a file to output to. */
@@ -473,6 +478,8 @@ For more information about these matters, see the files named COPYING.\n"),
 
     xexit (0);
   }
+
+  return 0; /* Avoid bogus warnings.  */
 }
 
 void
@@ -558,7 +565,7 @@ info_short_help ()
   static const char speech_friendly_string[] = "";
 #endif
 
-    
+
   printf (_("\
 Usage: %s [OPTION]... [MENU-ITEM...]\n\
 \n\
@@ -609,22 +616,22 @@ Texinfo home page: http://www.gnu.org/software/texinfo/"));
    use them that way.  This also has the advantage that there's only one
    copy of the strings.  */
 
-char *msg_cant_find_node;
-char *msg_cant_file_node;
-char *msg_cant_find_window;
-char *msg_cant_find_point;
-char *msg_cant_kill_last;
-char *msg_no_menu_node;
-char *msg_no_foot_node;
-char *msg_no_xref_node;
-char *msg_no_pointer;
-char *msg_unknown_command;
-char *msg_term_too_dumb;
-char *msg_at_node_bottom;
-char *msg_at_node_top;
-char *msg_one_window;
-char *msg_win_too_small;
-char *msg_cant_make_help;
+const char *msg_cant_find_node;
+const char *msg_cant_file_node;
+const char *msg_cant_find_window;
+const char *msg_cant_find_point;
+const char *msg_cant_kill_last;
+const char *msg_no_menu_node;
+const char *msg_no_foot_node;
+const char *msg_no_xref_node;
+const char *msg_no_pointer;
+const char *msg_unknown_command;
+const char *msg_term_too_dumb;
+const char *msg_at_node_bottom;
+const char *msg_at_node_top;
+const char *msg_one_window;
+const char *msg_win_too_small;
+const char *msg_cant_make_help;
 
 static void
 init_messages ()

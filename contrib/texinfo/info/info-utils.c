@@ -1,7 +1,7 @@
 /* info-utils.c -- miscellanous.
-   $Id: info-utils.c,v 1.1 2002/08/25 23:38:38 karl Exp $
+   $Id: info-utils.c,v 1.2 2003/03/06 23:22:23 karl Exp $
 
-   Copyright (C) 1993, 98 Free Software Foundation, Inc.
+   Copyright (C) 1993, 1998, 2003 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -355,6 +355,27 @@ info_concatenate_references (ref1, ref2)
   return (result);
 }
 
+
+
+/* Copy a reference structure.  Since we tend to free everything at
+   every opportunity, we don't share any points, but copy everything into
+   new memory.  */
+REFERENCE *
+info_copy_reference (src)
+    REFERENCE *src;
+{
+  REFERENCE *dest = xmalloc (sizeof (REFERENCE));
+  dest->label = src->label ? xstrdup (src->label) : NULL;
+  dest->filename = src->filename ? xstrdup (src->filename) : NULL;
+  dest->nodename = src->nodename ? xstrdup (src->nodename) : NULL;
+  dest->start = src->start;
+  dest->end = src->end;
+  
+  return dest;
+}
+
+
+
 /* Free the data associated with REFERENCES. */
 void
 info_free_references (references)

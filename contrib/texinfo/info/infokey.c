@@ -1,5 +1,5 @@
 /* infokey.c -- compile ~/.infokey to ~/.info.
-   $Id: infokey.c,v 1.3 2003/01/19 18:46:27 karl Exp $
+   $Id: infokey.c,v 1.4 2003/05/13 16:26:02 karl Exp $
 
    Copyright (C) 1999, 2001, 2002, 2003 Free Software Foundation, Inc.
 
@@ -86,7 +86,6 @@ main (argc, argv)
      char **argv;
 {
   int getopt_long_index;	/* Index returned by getopt_long (). */
-  NODE *initial_node;		/* First node loaded by Info. */
 
 #ifdef HAVE_SETLOCALE
   /* Set locale via LC_ALL.  */
@@ -233,7 +232,7 @@ For more information about these matters, see the files named COPYING.\n"),
     fclose (inf);
   }
 
-  xexit (0);
+  return 0;
 }
 
 static char *
@@ -289,18 +288,18 @@ mkpath (dir, file)
 		#info
 		#echo-area
 		#var
-	
+
 	The sections may occur in any order.  Each section may be
 	omitted completely.  If the 'info' section is the first in the
 	file, its '#info' line may be omitted.
-	
+
 	The 'info' and 'echo-area' sections
 	-----------------------------------
 	Each line in the 'info' or 'echo-area' sections has the
 	following syntax:
 
 		key-sequence SPACE action-name [ SPACE [ # comment ] ] \n
-	
+
 	Where SPACE is one or more white space characters excluding
 	newline, "action-name" is the name of a GNU Info command,
 	"comment" is any sequence of characters excluding newline, and
@@ -319,7 +318,7 @@ mkpath (dir, file)
 		\r indicates a single CR;
 		\t indicates a single TAB;
 		\b indicates a single BACKSPACE;
-	
+
 	   4.	\ku indicates the Up Arrow key;
 	   	\kd indicates the Down Arrow key;
 	   	\kl indicates the Left Arrow key;
@@ -345,17 +344,17 @@ mkpath (dir, file)
 	If the following line:
 
 		#stop
-	
+
 	occurs anywhere in an 'info' or 'echo-area' section, that
 	indicates to GNU Info to suppress all of its default key
 	bindings in that context.
-	
+
 	The 'var' section
 	-----------------
 	Each line in the 'var' section has the following syntax:
 
 		variable-name = value \n
-	
+
 	Where "variable-name" is the name of a GNU Info variable and
 	"value" is the value that GNU Info will assign to that variable
 	when commencing execution.  There must be no white space in the
@@ -567,7 +566,7 @@ compile (fp, filename, sections)
 		  seqstate = special_key;
 		  break;
 		default:
-		  /* Backslash followed by any other char 
+		  /* Backslash followed by any other char
 		     just means that char.  */
 		  To_seq (c);
 		  seqstate = normal;
@@ -683,7 +682,7 @@ compile (fp, filename, sections)
 	      error = 1;
 	    }
 	  break;
-	
+
 	case got_action:
 	  if (c == '#')
 	    state = in_trailing_comment;
@@ -720,7 +719,7 @@ compile (fp, filename, sections)
 	      error = 1;
 	    }
 	  break;
-	
+
 	case get_value:
 	  if (c == '\n')
 	    {
