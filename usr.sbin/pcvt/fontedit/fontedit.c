@@ -20,16 +20,17 @@
  *      Nov 21, 1987 - Fixed man page to say "Fontedit" instead of "Top"
  *      Nov 22, 1987 - Added BSD Compatible ioctl, turned cursor on/off
  *                     - eap@bucsf.bu.edu
+ * $FreeBSD$
  */
 
 void clear_screen();
 #include <stdio.h>
 #ifdef SYSV
 #include <sys/termio.h>
-#endif SYSV
+#endif /* SYSV */
 #ifdef BSD
 #include <sys/ioctl.h>
-#endif BSD
+#endif /* BSD */
 #if defined (__NetBSD__) || defined (__FreeBSD__)
 #include <sys/termios.h>
 #include <sys/ioctl.h>
@@ -39,7 +40,7 @@ void clear_screen();
 #ifdef CURFIX
 #define CURSORON  "\033[?25h"
 #define CURSOROFF "\033[?25l"
-#endif CURFIX
+#endif /* CURFIX */
 
 #define	MAX_ROWS	10
 #define	MAX_COLS	8
@@ -103,10 +104,10 @@ unsigned int	current_entry;
 
 #ifdef SYSV
 struct termio old_stty, new_stty;
-#endif SYSV
+#endif /* SYSV */
 #ifdef BSD
 struct sgttyb old_stty, new_stty;
-#endif BSD
+#endif /* BSD */
 #if defined (__NetBSD__) || defined (__FreeBSD__)
 struct termios old_stty, new_stty;
 #endif /* __NetBSD__ || __FreeBSD__ */
@@ -123,13 +124,13 @@ interrupt()
 	void clear_screen();
 #ifdef CURFIX
         printf("%s\n",CURSORON);
-#endif CURFIX
+#endif /* CURFIX */
 #ifdef SYSV
 	ioctl( 0, TCSETA, &old_stty );
-#endif SYSV
+#endif /* SYSV */
 #ifdef BSD
         ioctl( 0, TIOCSETP, &old_stty );
-#endif BSD
+#endif /* BSD */
 #if defined (__NetBSD__) || defined (__FreeBSD__)
         ioctl( 0, TIOCSETA, &old_stty );
 #endif /* __NetBSD__ || __FreeBSD__ */
@@ -180,13 +181,13 @@ char *argv[];
 	}
 #ifdef CURFIX
         printf("%s\n",CURSOROFF);
-#endif CURFIX
+#endif /* CURFIX */
 #ifdef SYSV
 	ioctl( 0, TCGETA, &old_stty );
-#endif SYSV
+#endif /* SYSV */
 #ifdef BSD
         ioctl( 0, TIOCGETP, &old_stty );
-#endif BSD
+#endif /* BSD */
 #if defined (__NetBSD__) || defined (__FreeBSD__)
         ioctl( 0, TIOCGETA, &old_stty );
 #endif /* __NetBSD__ || __FreeBSD__ */
@@ -196,7 +197,7 @@ char *argv[];
 	new_stty.c_lflag &= ~ICANON;
 	new_stty.c_cc[VMIN] = 1;
 	ioctl( 0, TCSETA, &new_stty );
-#endif SYSV
+#endif /* SYSV */
 #if defined (__NetBSD__) || defined (__FreeBSD__)
 	new_stty.c_lflag &= ~ICANON;
         new_stty.c_lflag &= ~ECHO;
@@ -207,17 +208,17 @@ char *argv[];
 	new_stty.sg_flags |= CBREAK;
         new_stty.sg_flags &= ~ECHO;
 	ioctl( 0, TIOCSETP, &new_stty );
-#endif BSD
+#endif /* BSD */
 	current_entry = 1;
 	extract_entry( current_entry );
 	init_restore();
 	command();
 #ifdef SYSV
 	ioctl( 0, TCSETA, &old_stty );
-#endif SYSV
+#endif /* SYSV */
 #ifdef BSD
 	ioctl( 0, TIOCSETP, &old_stty );
-#endif BSD
+#endif /* BSD */
 #if defined (__NetBSD__) || defined (__FreeBSD__)
 	ioctl( 0, TIOCSETA, &old_stty );
 #endif /* __NetBSD__ || __FreeBSD__ */
@@ -230,7 +231,7 @@ char *argv[];
 	fclose( font_file );
 #ifdef CURFIX
         printf("%s\n",CURSORON);
-#endif CURFIX
+#endif /* CURFIX */
 }
 
 
