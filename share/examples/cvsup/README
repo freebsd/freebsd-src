@@ -1,4 +1,4 @@
-# $Id$
+# $Id: README,v 1.6 1997/02/22 13:55:45 peter Exp $
 
 This directory contains sample "supfiles" for obtaining and updating
 the FreeBSD sources via the Internet.  These supfiles will work
@@ -32,17 +32,14 @@ The supfiles contained in this directory all obtain their updates
 from cvsup.FreeBSD.org.  Please choose one of the servers listed
 below for your updates.
 
-  USA:
-    cvsup.FreeBSD.org
-    cvsup2.FreeBSD.org
-    cvsup4.FreeBSD.org
-    cvsup5.FreeBSD.org
-
   Argentina:
     cvsup.ar.FreeBSD.org
 
   Australia:
     cvsup.au.FreeBSD.org
+
+  Brazil:
+    cvsup.br.FreeBSD.org
 
   Germany:
     cvsup.de.FreeBSD.org
@@ -53,8 +50,19 @@ below for your updates.
   Netherlands:
     cvsup.nl.FreeBSD.org
 
+  Norway:
+    cvsup.no.FreeBSD.org
+
   South Africa:
     cvsup.za.FreeBSD.org
 
   Taiwan:
-    sup.tw.FreeBSD.org
+    cvsup.tw.FreeBSD.org
+
+  USA:
+    cvsup.FreeBSD.org		(Washington state)
+    cvsup2.FreeBSD.org		(California)
+    FreeBSD.lcs.mit.edu		(Massachusetts)
+
+  International Crypto Repository:
+    cvsup.internat.FreeBSD.org
