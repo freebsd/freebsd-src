@@ -443,6 +443,10 @@ options 	ACPI_MAX_THREADS=1
 #!options 	ACPI_NO_SEMAPHORES
 #!options 	ACPICA_PEDANTIC
 
+# ACPI Toshiba Extras (LCD backlight/brightness, video output, etc.)
+#
+device		acpi_toshiba
+
 # DRM options:
 # mgadrm:    AGP Matrox G200, G400, G450, G550
 # r128drm:   ATI Rage 128
