@@ -59,7 +59,7 @@ int dialog_textbox(unsigned char *title, unsigned char *file, int height, int wi
   /* Open input file for reading */
   if ((fd = open(file, O_RDONLY)) == -1) {
     endwin();
-    fprintf(stderr, "\nCan't open input file in dialog_textbox().\n");
+    fprintf(stderr, "\nCan't open input file <%s>in dialog_textbox().\n", file);
     exit(-1);
   }
   /* Get file size. Actually, 'file_size' is the real file size - 1,
@@ -139,6 +139,8 @@ int dialog_textbox(unsigned char *title, unsigned char *file, int height, int wi
     waddstr(dialog, title);
     waddch(dialog, ' ');
   }
+  display_helpline(dialog, height-1, width);
+
   print_button(dialog, " EXIT ", height-2, width/2-4, TRUE);
   wnoutrefresh(dialog);
   getyx(dialog, cur_y, cur_x);    /* Save cursor position */
@@ -411,6 +413,9 @@ int dialog_textbox(unsigned char *title, unsigned char *file, int height, int wi
         break;
       case ESC:
         break;
+    case KEY_F(1):
+	display_helpfile();
+	break;
     }
   }
 

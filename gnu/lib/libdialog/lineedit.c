@@ -45,8 +45,10 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int flen, int box_width, cht
     memset(instr, 0, sizeof(instr));
     strcpy(instr, result);
     i = strlen(instr);
-    input_x = i % box_width;
-    scroll = i - input_x;
+/*    input_x = i % box_width;*/
+    input_x = (i > box_width) ? box_width - 1 : i;
+/*    scroll = i - input_x;*/
+    scroll = (i > box_width) ? i - box_width + 1: 0;
   }
   wmove(dialog, box_y, box_x);
   wattrset(dialog, attr);
@@ -65,6 +67,12 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int flen, int box_width, cht
     wrefresh(dialog);
     key = wgetch(dialog);
     switch (key) {
+      case ctrl('q'):
+	goto ret;
+	break;
+      case KEY_F(1):
+	display_helpfile();
+	break;
       case TAB:
       case KEY_BTAB:
       case KEY_UP:

@@ -21,22 +21,26 @@
 
 #include <dialog.h>
 #include "dialog.priv.h"
-
+#include <ncurses.h>
 
 static void print_item(WINDOW *win, unsigned char *tag, unsigned char *item, int choice, int selected);
 
 
 static int menu_width, tag_x, item_x;
 
-
 /*
  * Display a menu for choosing among a number of options
  */
-int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int width, int menu_height, int item_no, unsigned char **items, unsigned char *result)
+int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int width, int menu_height, int item_no, unsigned char **items, unsigned char *result, int *ch, int *sc)
 {
   int i, j, x, y, cur_x, cur_y, box_x, box_y, key = 0, button = 0, choice = 0,
-      l, k, scroll = 0, max_choice;
+      l, k, scroll = 0, max_choice, redraw_menu = FALSE;
   WINDOW *dialog, *menu;
+
+  if (ch)  /* restore menu item info */
+      choice = *ch;
+  if (sc)
+      scroll = *sc;
 
   max_choice = MIN(menu_height, item_no);
 
@@ -137,10 +141,13 @@ int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int wid
     waddstr(dialog,"(+)");
   }
 
+  display_helpline(dialog, height-1, width);
+
   x = width/2-11;
   y = height-2;
   print_button(dialog, "Cancel", y, x+14, FALSE);
   print_button(dialog, "  OK  ", y, x, TRUE);
+
   wrefresh(dialog);
 
   while (key != ESC) {
@@ -273,20 +280,54 @@ int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int wid
       continue;    /* wait for another key press */
     }
 
+    /* save info about menu item position */
+    if (ch)
+	*ch = choice;
+    if (sc)
+	*sc = scroll;
+    
     switch (key) {
-      case 'O':
-      case 'o':
+    case KEY_PPAGE:
+	if (scroll > height-4) {	/* can we go up? */
+	    scroll -= (height-4);
+	} else {
+	    scroll = 0;
+	}
+	redraw_menu = TRUE;
+	break;
+    case KEY_NPAGE:
+	if (scroll + menu_height >= item_no-1 - menu_height) { /* can we go down a full page? */
+	    scroll = item_no - menu_height;
+	    if (scroll < 0) scroll = 0;
+	} else {
+	    scroll += menu_height;
+	}
+	redraw_menu = TRUE;
+	break;
+    case KEY_HOME:
+	scroll = 0;
+	choice = 0;
+	redraw_menu = TRUE;
+	break;
+    case KEY_END:
+	scroll = item_no - menu_height;
+	if (scroll < 0) scroll = 0;
+	choice = max_choice - 1;
+	redraw_menu = TRUE;
+	break;
+    case 'O':
+    case 'o':
         delwin(dialog);
 	strcpy(result, items[(scroll+choice)*2]);
         return 0;
-      case 'C':
-      case 'c':
+    case 'C':
+    case 'c':
         delwin(dialog);
         return 1;
-      case KEY_BTAB:
-      case TAB:
-      case KEY_LEFT:
-      case KEY_RIGHT:
+    case KEY_BTAB:
+    case TAB:
+    case KEY_LEFT:
+    case KEY_RIGHT:
         if (!button) {
           button = 1;    /* Indicates "Cancel" button is selected */
           print_button(dialog, "  OK  ", y, x, FALSE);
@@ -299,15 +340,28 @@ int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int wid
         }
         wrefresh(dialog);
         break;
-      case ' ':
-      case '\r':
-      case '\n':
+    case ' ':
+    case '\r':
+    case '\n':
         delwin(dialog);
         if (!button)
 	  strcpy(result, items[(scroll+choice)*2]);
         return button;
-      case ESC:
+    case ESC:
         break;
+    case KEY_F(1):
+    case '?':
+	display_helpfile();
+	break;
+    }
+    if (redraw_menu) {
+	for (i = 0; i < max_choice; i++) {
+	    print_item(menu, items[(scroll+i)*2], 
+		       items[(scroll+i)*2 + 1], i, i == choice);
+	}
+	wnoutrefresh(menu);
+	wrefresh(dialog);
+	redraw_menu = FALSE;
     }
   }
 
