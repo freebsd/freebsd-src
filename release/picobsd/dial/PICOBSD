@@ -2,7 +2,8 @@
 # $FreeBSD$
 #Line starting with #PicoBSD contains PicoBSD build parameters
 #marker                def_sz  init    MFS_inodes      floppy_inodes
-#PicoBSD       1600    init    4096            32768
+#PicoBSD       2000    init    4096            32768
+options MD_ROOT_SIZE=2000      # same as def_sz
 
 #
 machine		i386
