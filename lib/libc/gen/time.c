@@ -47,8 +47,8 @@ time(t)
 	struct timeval tt;
 
 	if (gettimeofday(&tt, (struct timezone *)0) < 0)
-		return(-1);
+		return (-1);
 	if (t)
 		*t = tt.tv_sec;
-	return(tt.tv_sec);
+	return (tt.tv_sec);
 }
