@@ -197,6 +197,8 @@ do_vgapage(int page)
  */
 
 static int lost_intr_timeout_queued = 0;
+static struct callout_handle lost_intr_ch =
+    CALLOUT_HANDLE_INITIALIZER(&lost_intr_ch);
 
 static void
 check_for_lost_intr (void *arg)
@@ -220,7 +222,7 @@ check_for_lost_intr (void *arg)
 			pcrint (0);
 		splx (opri);
 	}
-	timeout(check_for_lost_intr, (void *)NULL, hz);
+	lost_intr_ch = timeout(check_for_lost_intr, (void *)NULL, hz);
 	lost_intr_timeout_queued = 1;
 #endif /* !_I386_ISA_KBDIO_H_ */
 }
@@ -309,9 +311,9 @@ update_led(void)
 
 #if PCVT_UPDLED_LOSES_INTR
 		if (lost_intr_timeout_queued)
-			untimeout(check_for_lost_intr, NULL);
+			untimeout(check_for_lost_intr, NULL, lost_intr_ch);
 
-		timeout(check_for_lost_intr, NULL, hz);
+		lost_intr_ch = timeout(check_for_lost_intr, NULL, hz);
 		lost_intr_timeout_queued = 1;
 #endif /* PCVT_UPDLED_LOSES_INTR */
 
@@ -675,7 +677,7 @@ r_entry:
 		return;
 
 	if (lost_intr_timeout_queued) {
-		untimeout(check_for_lost_intr, (void *)NULL);
+		untimeout(check_for_lost_intr, (void *)NULL, lost_intr_ch);
 		lost_intr_timeout_queued = 0;
 	}
 
@@ -816,7 +818,7 @@ r_entry:
 
 	update_led();
 
-	timeout(check_for_lost_intr, (void *)NULL, hz);
+	lost_intr_ch = timeout(check_for_lost_intr, (void *)NULL, hz);
 	lost_intr_timeout_queued = 1;
 
 #endif /* !_I386_ISA_KBDIO_H_ */

@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt.c,v 1.13 1997/03/23 06:33:37 bde Exp $
+ *      $Id: bt.c,v 1.14 1997/07/20 16:21:36 bde Exp $
  */
 
 /*
@@ -643,7 +643,8 @@ bt_intr(arg)
 		}
 		wmbi->stat = BT_MBI_FREE;
 		if (ccb) {
-			untimeout(bt_timeout, (caddr_t)ccb);
+			untimeout(bt_timeout, (caddr_t)ccb,
+				  ccb->xfer->timeout_ch);
 			bt_done(bt, ccb);
 		}
 		/* Set the IN mail Box pointer for next */ bt_nextmbx(wmbi, wmbx, mbi);
@@ -1410,7 +1411,8 @@ bt_scsi_cmd(xs)
 	 */
 	SC_DEBUG(xs->sc_link, SDEV_DB3, ("cmd_sent\n"));
 	if (!(flags & SCSI_NOMASK)) {
-		timeout(bt_timeout, (caddr_t)ccb, (xs->timeout * hz) / 1000);
+		xs->timeout_ch = timeout(bt_timeout, (caddr_t)ccb,
+					 (xs->timeout * hz) / 1000);
 		return (SUCCESSFULLY_QUEUED);
 	}
 	/*
@@ -1459,7 +1461,7 @@ bt_poll(bt, xs, ccb)
 		 * because we are polling, take out the timeout entry
 		 * bt_timeout made
 		 */
-		untimeout(bt_timeout, (caddr_t)ccb);
+		untimeout(bt_timeout, (caddr_t)ccb, ccb->xfer->timeout_ch);
 		count = 2000;
 		while (count) {
 			/*
@@ -1501,7 +1503,7 @@ bt_timeout(void *arg1)
 	 * Entry chains when time outed....So infinity Loop..
          *                              94/04/20 amurai@spec.co.jp
          */
-	untimeout(bt_timeout, (caddr_t)ccb);
+	untimeout(bt_timeout, (caddr_t)ccb, ccb->xfer->timeout_ch);
 
 	unit = ccb->xfer->sc_link->adapter_unit;
 	bt = btdata[unit];
@@ -1537,7 +1539,8 @@ bt_timeout(void *arg1)
 		bt_send_mbo(bt, ~SCSI_NOMASK, BT_MBO_ABORT, ccb);
 		/* 2 secs for the abort */
 		ccb->flags = CCB_ABORTED;
-		timeout(bt_timeout, (caddr_t)ccb, 2 * hz);
+		ccb->xfer->timeout_ch = timeout(bt_timeout, (caddr_t)ccb,
+						2 * hz);
 	}
 	splx(s);
 }

@@ -84,8 +84,13 @@ static void vgapcvtinfo ( struct pcvtinfo *data );
 static unsigned char * compute_charset_base ( unsigned fontset );
 #endif /* XSERVER */
 
+static struct callout_handle async_update_ch =
+    CALLOUT_HANDLE_INITIALIZER(&async_update_ch);
+
 #if PCVT_SCREENSAVER
 static void scrnsv_timedout ( void *arg );
+static struct callout_handle scrnsv_timeout_ch =
+    CALLOUT_HANDLE_INITIALIZER(&scrnsv_timeout_ch);
 static u_short *savedscreen = (u_short *)0;	/* ptr to screen contents */
 static size_t scrnsv_size = (size_t)-1;		/* size of saved image */
 
@@ -96,6 +101,8 @@ static void pcvt_set_scrnsv_tmo ( int timeout );/* else declared global */
 
 #if PCVT_PRETTYSCRNS
 static u_short *scrnsv_current = (u_short *)0;	/* attention char ptr */
+static struct callout_handle scrnsv_blink_ch =
+    CALLOUT_HANDLE_INITIALIZER(&scrnsv_blink_ch);
 static void scrnsv_blink ( void * );
 static u_short getrand ( void );
 #endif /* PCVT_PRETTYSCRNS */
@@ -897,7 +904,7 @@ async_update(void *arg)
 
 	if(arg == UPDATE_STOP)
 	{
-		untimeout(async_update, UPDATE_START);
+		untimeout(async_update, UPDATE_START, async_update_ch);
 		return;
 	}
 #endif /* XSERVER */
@@ -1082,7 +1089,8 @@ async_update_exit:
 
  	if(arg == UPDATE_START)
 	{
-	   timeout(async_update, UPDATE_START, PCVT_UPDATEFAST);
+	   async_update_ch = timeout(async_update, UPDATE_START,
+				     PCVT_UPDATEFAST);
 	}
 }
 
@@ -1942,7 +1950,7 @@ scrnsv_blink(void * arg)
 	*scrnsv_current = (7 /* LIGHTGRAY */ << 8) + '*';
 	if(adaptor_type == VGA_ADAPTOR)
 		vgapaletteio(7 /* LIGHTGRAY */, &blink_rgb[(r >> 4) & 7], 1);
-	timeout(scrnsv_blink, NULL, hz);
+	scrnsv_blink_ch = timeout(scrnsv_blink, NULL, hz);
 }
 
 #endif /* PCVT_PRETTYSCRNS */
@@ -1961,7 +1969,7 @@ pcvt_set_scrnsv_tmo(int timeout)
 	int x = splhigh();
 
 	if(scrnsv_timeout)
-		untimeout(scrnsv_timedout, NULL);
+		untimeout(scrnsv_timedout, NULL, scrnsv_timeout_ch);
 
 	scrnsv_timeout = timeout;
 	pcvt_scrnsv_reset();		/* sanity */
@@ -2038,7 +2046,7 @@ scrnsv_timedout(void *arg)
 			vgapaletteio(0 /* BLACK */, &black, 1);
 		}
 		/* prepare for next time... */
-		timeout(scrnsv_timedout, NULL, hz / 10);
+		scrnsv_timeout_ch = timeout(scrnsv_timedout, NULL, hz / 10);
 	}
 	else
 	{
@@ -2048,7 +2056,7 @@ scrnsv_timedout(void *arg)
 
 #if PCVT_PRETTYSCRNS
 		scrnsv_current = vsp->Crtat;
-		timeout(scrnsv_blink, NULL, hz);
+		scrnsv_blink_ch = timeout(scrnsv_blink, NULL, hz);
 #endif /* PCVT_PRETTYSCRNS */
 
 		sw_cursor(0);	/* cursor off on mda/cga */
@@ -2076,14 +2084,14 @@ pcvt_scrnsv_reset(void)
 	{
 		last_schedule = time.tv_sec;
 		reschedule = 1;
-		untimeout(scrnsv_timedout, NULL);
+		untimeout(scrnsv_timedout, NULL, scrnsv_timeout_ch);
 	}
 	if(scrnsv_active)
 	{
 
 #if PCVT_PRETTYSCRNS
 		if(scrnsv_active > 1)
-			untimeout(scrnsv_blink, NULL);
+			untimeout(scrnsv_blink, NULL, scrnsv_blink_ch);
 #endif /* PCVT_PRETTYSCRNS */
 
 		bcopy(savedscreen, vsp->Crtat, scrnsv_size);
@@ -2106,7 +2114,8 @@ pcvt_scrnsv_reset(void)
 	if(reschedule)
 	{
 		/* mark next timeout */
-		timeout(scrnsv_timedout, NULL, scrnsv_timeout * hz);
+		scrnsv_timeout_ch = timeout(scrnsv_timedout, NULL,
+					    scrnsv_timeout * hz);
 	}
 	splx(x);
 }
