@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: ldd.c,v 1.13 1997/02/22 15:46:43 peter Exp $
  */
 
 #include <sys/types.h>
@@ -44,7 +44,7 @@
 #include <string.h>
 #include <unistd.h>
 
-extern void	dump_filename __P((const char *));
+extern void	dump_file __P((const char *));
 extern int	error_count;
 
 void
