@@ -1,8 +1,8 @@
 # bootpd/Makefile
-# $Id: Makefile,v 1.1.1.1 1994/09/30 05:45:04 pst Exp $
+# $Id: Makefile,v 1.3 1995/07/25 23:38:40 wpaul Exp $
 
 PROG=	bootpd
-#CFLAGS+= -DETC_ETHERS
+CFLAGS+= -DETC_ETHERS
 CFLAGS+= -DSYSLOG -DDEBUG -DVEND_CMU
 
 SUBDIR= tools
