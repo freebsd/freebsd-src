@@ -35,7 +35,6 @@
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/select.h>
-#include <sys/interrupt.h>
 
 #include <machine/clock.h>
 
