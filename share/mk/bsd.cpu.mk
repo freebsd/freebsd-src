@@ -6,7 +6,7 @@
 
 .if !defined(CPUTYPE) || empty(CPUTYPE)
 . if ${MACHINE_ARCH} == "i386"
-_CPUCFLAGS = -mcpu=pentiumpro
+_CPUCFLAGS =
 MACHINE_CPU = i486
 . elif ${MACHINE_ARCH} == "alpha"
 _CPUCFLAGS = -mcpu=ev4 -mtune=ev5
