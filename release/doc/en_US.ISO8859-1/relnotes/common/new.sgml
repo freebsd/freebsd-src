@@ -238,6 +238,9 @@
       This feature is disabled by default, and controlled using the
       <varname>security.jail.allow_raw_sockets</varname> sysctl.</para>
 
+    <para arch="amd64">Loadable kernel modules now work and are
+      enabled in the amd64 build.</para>
+
     <para arch="i386">The loran (Loran-C receiver) driver has been removed due to
       breakage and lack of maintainership.</para>
 
@@ -363,6 +366,10 @@
       <para arch="i386,pc98">The hea (Efficient Networks, Inc. ENI-155p ATM adapter)
 	driver has been removed due to breakage.  Its functionality
 	has been subsumed into the &man.en.4; driver.</para>
+
+      <para>The <devicename>ixgb</devicename> driver, which supports
+        Intel PRO/10GBE 10 gigabit Ethernet cards, has been
+        added. &merged;</para>
 
       <para arch="i386">The lmc (LAN Media Corp. PCI WAN adapter) driver has been
 	removed due to breakage and lack of maintainership.</para>
