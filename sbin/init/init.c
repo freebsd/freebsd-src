@@ -1418,7 +1418,7 @@ clean_ttys()
 			}
 			if (old_getty)
 				free(old_getty);
-			if (old_getty)
+			if (old_window)
 				free(old_window);
 			if (old_type)
 				free(old_type);
