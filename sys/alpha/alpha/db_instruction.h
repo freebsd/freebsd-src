@@ -62,6 +62,15 @@ typedef union {
 	unsigned int	bits;
 
 	/*
+	 *	Generic instruction pseudo format; look at
+	 *	opcode to see how to interpret the rest.
+	 */
+	struct {
+		unsigned	  bits : 26,
+				opcode : 6;
+	} generic_format;
+
+	/*
 	 *	Memory instructions contain a 16 bit
 	 *	signed immediate value and two register
 	 *	specifiers
@@ -110,6 +119,16 @@ typedef union {
 	 *	a second source register or with a literal
 	 *	specifier.  Bit 12 sez which is which.
 	 */
+	struct {
+		unsigned	rc : 5,
+				function : 7,
+				is_lit : 1,
+				sbz_or_litlo : 3,
+				rb_or_lithi : 5,
+				ra : 5,
+				opcode : 6;
+	} operate_generic_format;
+			
 	struct {
 		unsigned	rd : 5,
 				function : 7,

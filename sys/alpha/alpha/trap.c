@@ -69,6 +69,7 @@
 #ifdef DDB
 #include <ddb/ddb.h>
 #endif
+#include <alpha/alpha/db_instruction.h>		/* for handle_opdec() */
 
 unsigned long	Sfloat_to_reg __P((unsigned int));
 unsigned int	reg_to_Sfloat __P((unsigned long));
@@ -81,6 +82,7 @@ unsigned long	Gfloat_reg_cvt __P((unsigned long));
 
 int		unaligned_fixup __P((unsigned long, unsigned long,
 		    unsigned long, struct proc *));
+int		handle_opdec(struct proc *p, u_int64_t *ucodep);
 
 static void printtrap __P((const unsigned long, const unsigned long,
       const unsigned long, const unsigned long, struct trapframe *, int, int));
@@ -346,8 +348,9 @@ trap(a0, a1, a2, entry, framep)
 			break;
 
 		case ALPHA_IF_CODE_OPDEC:
-			ucode = a0;		/* trap type */
-			i = SIGILL;
+			i = handle_opdec(p, &ucode);
+			if (i == 0)
+				goto out;
 			break;
 
 		case ALPHA_IF_CODE_FEN:
@@ -1140,4 +1143,167 @@ unaligned_fixup(va, opcode, reg, p)
 
 out:
 	return (signal);
+}
+
+
+/*
+ * Reserved/unimplemented instruction (opDec fault) handler
+ *
+ * Argument is the process that caused it.  No useful information
+ * is passed to the trap handler other than the fault type.  The
+ * address of the instruction that caused the fault is 4 less than
+ * the PC stored in the trap frame.
+ *
+ * If the instruction is emulated successfully, this function returns 0.
+ * Otherwise, this function returns the signal to deliver to the process,
+ * and fills in *ucodep with the code to be delivered.
+ */
+int
+handle_opdec(p, ucodep)
+	struct proc *p;
+	u_int64_t *ucodep;
+{
+	alpha_instruction inst;
+	register_t *regptr, memaddr;
+	u_int64_t inst_pc;
+	int sig;
+
+	/*
+	 * Read USP into frame in case it's going to be used or modified.
+	 * This keeps us from having to check for it in lots of places
+	 * later.
+	 */
+	p->p_md.md_tf->tf_regs[FRAME_SP] = alpha_pal_rdusp();
+
+	inst_pc = memaddr = p->p_md.md_tf->tf_regs[FRAME_PC] - 4;
+	if (copyin((caddr_t)inst_pc, &inst, sizeof (inst)) != 0) {
+		/*
+		 * really, this should never happen, but in case it
+		 * does we handle it.
+		 */
+		printf("WARNING: handle_opdec() couldn't fetch instruction\n");
+		goto sigsegv;
+	}
+
+	switch (inst.generic_format.opcode) {
+	case op_ldbu:
+	case op_ldwu:
+	case op_stw:
+	case op_stb:
+		regptr = irp(p, inst.mem_format.rs);
+		if (regptr != NULL)
+			memaddr = *regptr;
+		else
+			memaddr = 0;
+		memaddr += inst.mem_format.displacement;
+
+		regptr = irp(p, inst.mem_format.rd);
+
+		if (inst.mem_format.opcode == op_ldwu ||
+		    inst.mem_format.opcode == op_stw) {
+			if (memaddr & 0x01) {
+				sig = unaligned_fixup(memaddr,
+				    inst.mem_format.opcode,
+				    inst.mem_format.rd, p);
+				if (sig)
+					goto unaligned_fixup_sig;
+				break;
+			}
+		}
+
+		if (inst.mem_format.opcode == op_ldbu) {
+			u_int8_t b;
+
+			/* XXX ONLY WORKS ON LITTLE-ENDIAN ALPHA */
+			if (copyin((caddr_t)memaddr, &b, sizeof (b)) != 0)
+				goto sigsegv;
+			if (regptr != NULL)
+				*regptr = b;
+		} else if (inst.mem_format.opcode == op_ldwu) {
+			u_int16_t w;
+
+			/* XXX ONLY WORKS ON LITTLE-ENDIAN ALPHA */
+			if (copyin((caddr_t)memaddr, &w, sizeof (w)) != 0)
+				goto sigsegv;
+			if (regptr != NULL)
+				*regptr = w;
+		} else if (inst.mem_format.opcode == op_stw) {
+			u_int16_t w;
+
+			/* XXX ONLY WORKS ON LITTLE-ENDIAN ALPHA */
+			w = (regptr != NULL) ? *regptr : 0;
+			if (copyout(&w, (caddr_t)memaddr, sizeof (w)) != 0)
+				goto sigsegv;
+		} else if (inst.mem_format.opcode == op_stb) {
+			u_int8_t b;
+
+			/* XXX ONLY WORKS ON LITTLE-ENDIAN ALPHA */
+			b = (regptr != NULL) ? *regptr : 0;
+			if (copyout(&b, (caddr_t)memaddr, sizeof (b)) != 0)
+				goto sigsegv;
+		}
+		break;
+
+	case op_intmisc:
+		if (inst.operate_generic_format.function == op_sextb &&
+		    inst.operate_generic_format.ra == 31) {
+			int8_t b;
+
+			if (inst.operate_generic_format.is_lit) {
+				b = inst.operate_lit_format.literal;
+			} else {
+				if (inst.operate_reg_format.sbz != 0)
+					goto sigill;
+				regptr = irp(p, inst.operate_reg_format.rt);
+				b = (regptr != NULL) ? *regptr : 0;
+			}
+
+			regptr = irp(p, inst.operate_generic_format.rc);
+			if (regptr != NULL)
+				*regptr = b;
+			break;
+		}
+		if (inst.operate_generic_format.function == op_sextw &&
+		    inst.operate_generic_format.ra == 31) {
+			int16_t w;
+
+			if (inst.operate_generic_format.is_lit) {
+				w = inst.operate_lit_format.literal;
+			} else {
+				if (inst.operate_reg_format.sbz != 0)
+					goto sigill;
+				regptr = irp(p, inst.operate_reg_format.rt);
+				w = (regptr != NULL) ? *regptr : 0;
+			}
+
+			regptr = irp(p, inst.operate_generic_format.rc);
+			if (regptr != NULL)
+				*regptr = w;
+			break;
+		}
+		goto sigill;
+
+	default:
+		goto sigill;
+	}
+
+	/*
+	 * Write back USP.  Note that in the error cases below,
+	 * nothing will have been successfully modified so we don't
+	 * have to write it out.
+	 */
+	alpha_pal_wrusp(p->p_md.md_tf->tf_regs[FRAME_SP]);
+
+	return (0);
+
+sigill:
+	*ucodep = ALPHA_IF_CODE_OPDEC;			/* trap type */
+	return (SIGILL);
+
+sigsegv:
+	sig = SIGSEGV;
+	p->p_md.md_tf->tf_regs[FRAME_PC] = inst_pc;	/* re-run instr. */
+unaligned_fixup_sig:
+	*ucodep = memaddr;				/* faulting address */
+	return (sig);
 }
