@@ -52,8 +52,8 @@ links: ${DEPEND_H}
 
 CLEANFILES+=	links
 CLEANFILES+=	config.h config.sh config_h.sh
-CLEANFILES+=	regcomp.c regexec.c
-CLEANFILES+=	writemain writemain.sh config_h.sh cflags cflags.sh myconfig
+CLEANFILES+=	regcomp.c regexec.c miniperlmain.c
+CLEANFILES+=	writemain writemain.sh cflags cflags.sh myconfig
 CLEANDIRS+=	lib ext Porting hints build
 FARMDIRS=	lib ext Porting hints
 
