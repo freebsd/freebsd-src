@@ -4,7 +4,7 @@
 # This is sysconfig - a file full of useful variables that you can set 
 # to change the default startup behavior of your system.
 #
-#	$Id: sysconfig,v 1.54 1996/12/10 02:23:27 adam Exp $
+#	$Id: sysconfig,v 1.55 1997/01/04 23:29:56 alex Exp $
 
 ######################### Start Of Local Configuration Section ###########
 
@@ -273,7 +273,10 @@ pccard_mem=DEFAULT
 # If you want to use Etnerent PCMCIA cards, specify the ifconfig portion
 # here.  (card-specific flags like connector selection should be written in
 # the card-specific entry in /etc/pccard.conf).  Set to DHCP if you want to
-# use a DHCP server to determine your IP address (not implemented).
+# use a DHCP server to determine your IP address.  If you want to use DHCP
+# please install Wide-DHCP client from ports/packages collection (this
+# package requires you to configure and setup BPF (Berkeley Packet Filter)
+# in your kernel.
 #
 # Set to NO if you don't want to configure your PC-CARD ethernet controller.
 #

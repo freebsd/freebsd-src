@@ -15,6 +15,6 @@ if [ "x$pccard_enable" != "xNO" ] ; then
 	else
 		/usr/sbin/pccardc pccardmem 0xd0000
 	fi
-	echo -n "Enable PC-card." 
-	/usr/sbin/pccardd 2>&1 > /var/log/pccardd.debug &
+	echo "Enable PC-card." 
+	/usr/sbin/pccardd &
 fi
