@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.57 1994/10/20 00:45:36 phk Exp $
+ *	$Id: sio.c,v 1.58 1994/10/23 21:27:34 wollman Exp $
  */
 
 #include "sio.h"
@@ -129,7 +129,7 @@ termioschars(t)
  * off the low bits.
  *
  * The following com and tty flags correspond closely:
- *	TS_BUSY		= CS_BUSY (maintained by comstart() and comflush())
+ *	CS_BUSY		= TS_BUSY (maintained by comstart() and comflush())
  *	CS_TTGO		= ~TS_TTSTOP (maintained by comstart() and siostop())
  *	CS_CTS_OFLOW	= CCTS_OFLOW (maintained by comparam())
  *	CS_RTS_IFLOW	= CRTS_IFLOW (maintained by comparam())
@@ -222,7 +222,7 @@ struct com_s {
 	u_long	bytes_in;	/* statistics */
 	u_long	bytes_out;
 	u_int	delta_error_counts[CE_NTYPES];
-	u_int	error_counts[CE_NTYPES];
+	u_long	error_counts[CE_NTYPES];
 
 	/*
 	 * Ping-pong input buffers.  The extra factor of 2 in the sizes is
@@ -263,8 +263,8 @@ int	sioselect	__P((dev_t dev, int rw, struct proc *p));
 #define	siostrategy	nostrategy
 
 /* Console device entry points. */
-int	siocngetc	__P((dev_t dev));
 int	siocncheckc	__P((dev_t dev));
+int	siocngetc	__P((dev_t dev));
 struct consdev;
 void	siocninit	__P((struct consdev *cp));
 void	siocnprobe	__P((struct consdev *cp));
@@ -278,6 +278,7 @@ static	void	siointr1	__P((struct com_s *com));
 static	void	commctl		__P((struct com_s *com, int bits, int how));
 static	int	comparam	__P((struct tty *tp, struct termios *t));
 static	int	sioprobe	__P((struct isa_device *dev));
+static	void	sioregisterdev	__P((struct isa_device *id));
 static	void	comstart	__P((struct tty *tp));
 static	timeout_t comwakeup;
 static	int	tiocm_xxx2mcr	__P((int tiocm_xxx));
@@ -537,14 +538,18 @@ static struct kern_devconf kdc_sio[NSIO] = { {
 	"RS-232 serial port"
 } };
 
-static inline void
-sio_registerdev(struct isa_device *id)
+static void
+sioregisterdev(id)
+	struct isa_device *id;
 {
-	if(id->id_unit)
-		kdc_sio[id->id_unit] = kdc_sio[0];
-	kdc_sio[id->id_unit].kdc_unit = id->id_unit;
-	kdc_sio[id->id_unit].kdc_isa = id;
-	dev_attach(&kdc_sio[id->id_unit]);
+	int	unit;
+
+	unit = id->id_unit;
+	if (unit != 0)
+		kdc_sio[unit] = kdc_sio[0];
+	kdc_sio[unit].kdc_unit = unit;
+	kdc_sio[unit].kdc_isa = id;
+	dev_attach(&kdc_sio[unit]);
 }
 
 
@@ -682,7 +687,7 @@ determined_type: ;
 #endif /* COM_MULTIPORT */
 	printf("\n");
 
-	sio_registerdev(isdp);
+	sioregisterdev(isdp);
 
 #ifdef KGDB
 	if (kgdb_dev == makedev(commajor, unit)) {
@@ -1487,46 +1492,6 @@ repeat:
 				(*linesw[tp->t_line].l_modem)
 					(tp, com->prev_modem_status & MSR_DCD);
 		}
-
-		/* XXX */
-		if (TRUE) {
-			u_int	delta;
-			int	errnum;
-			u_long	total;
-
-			for (errnum = 0; errnum < CE_NTYPES; ++errnum) {
-				disable_intr();
-				delta = com->delta_error_counts[errnum];
-				com->delta_error_counts[errnum] = 0;
-				enable_intr();
-				if (delta == 0 || !(tp->t_state & TS_ISOPEN))
-					continue;
-				total = com->error_counts[errnum] += delta;
-					log(LOG_ERR,
-					"sio%d: %u more %s%s (total %lu)\n",
-					    unit, delta, error_desc[errnum],
-					    delta == 1 ? "" : "s", total);
-#if 0
-				if (errnum == CE_OVERRUN && com->hasfifo
-				    && com->ftl > FIFO_TRIGGER_1) {
-					static	u_char ftl_in_bytes[] =
-						{ 1, 4, 8, 14, };
-
-					com->ftl_init = FIFO_TRIGGER_8;
-#define	FIFO_TRIGGER_DELTA	FIFO_TRIGGER_4
-					com->ftl_max =
-					com->ftl -= FIFO_TRIGGER_DELTA;
-					outb(com->iobase + com_fifo,
-					     FIFO_ENABLE | com->ftl);
-					log(LOG_DEBUG,
-				"sio%d: reduced fifo trigger level to %d\n",
-					    unit,
-					    ftl_in_bytes[com->ftl
-							 / FIFO_TRIGGER_DELTA]);
-				}
-#endif
-			}
-		}
 		if (com->state & CS_ODONE) {
 			comflush(com);
 			/* XXX - why isn't the table used for t_line == 0? */
@@ -1792,7 +1757,7 @@ comstart(tp)
 		selwakeup(&tp->t_wsel);
 	}
 #endif
-	if (com->state & CS_BUSY) {
+	if (tp->t_state & TS_BUSY) {
 		disable_intr();
 		siointr1(com);
 		enable_intr();
@@ -1870,7 +1835,9 @@ static void
 comwakeup(chan)
 	void	*chan;
 {
-	int	unit;
+	struct com_s	*com;
+	static	int	log_countdown = 1;
+	int		unit;
 
 	timeout(comwakeup, (caddr_t)NULL, hz > 200 ? hz / 200 : 1);
 
@@ -1882,17 +1849,70 @@ comwakeup(chan)
 		splx(s);
 	}
 
-	/* recover from lost output interrupts */
-	/* poll any lines that don't use interrupts */
+	/*
+	 * Recover from lost output interrupts.
+	 * Poll any lines that don't use interrupts.
+	 */
 	for (unit = 0; unit < NSIO; ++unit) {
-		struct com_s	*com;
-
 		com = com_addr(unit);
 		if (com != NULL
 		    && (com->state >= (CS_BUSY | CS_TTGO) || com->poll)) {
 			disable_intr();
 			siointr1(com);
 			enable_intr();
+		}
+	}
+
+	/*
+	 * Check for and log errors, but not too often.
+	 */
+	if (--log_countdown > 0)
+		return;
+	log_countdown = hz > 200 ? 200 : hz;
+	for (unit = 0; unit < NSIO; ++unit) {
+		int	errnum;
+
+		com = com_addr(unit);
+		if (com == NULL)
+			continue;
+		for (errnum = 0; errnum < CE_NTYPES; ++errnum) {
+			u_int	delta;
+			u_long	total;
+
+			disable_intr();
+			delta = com->delta_error_counts[errnum];
+			com->delta_error_counts[errnum] = 0;
+			enable_intr();
+			if (delta == 0)
+				continue;
+			total = com->error_counts[errnum] += delta;
+			log(LOG_ERR, "sio%d: %u more %s%s (total %lu)\n",
+			    unit, delta, error_desc[errnum],
+			    delta == 1 ? "" : "s", total);
+#if 0
+			/*
+			 * XXX if we resurrect this then we should move
+			 * the dropping of the ftl to somewhere with less
+			 * latency.
+			 */
+			if (errnum == CE_OVERRUN && com->hasfifo
+			    && com->ftl > FIFO_TRIGGER_1) {
+				static	u_char	ftl_in_bytes[] =
+					{ 1, 4, 8, 14, };
+
+				com->ftl_init = FIFO_TRIGGER_8;
+#define	FIFO_TRIGGER_DELTA	FIFO_TRIGGER_4
+				com->ftl_max =
+				com->ftl -= FIFO_TRIGGER_DELTA;
+				outb(com->iobase + com_fifo,
+				     FIFO_ENABLE | com->ftl);
+				log(LOG_DEBUG,
+				    "sio%d: reduced fifo trigger level to %d\n",
+				    unit,
+				    ftl_in_bytes[com->ftl
+						 / FIFO_TRIGGER_DELTA]);
+			}
+#endif
 		}
 	}
 }
@@ -2029,7 +2049,7 @@ int
 siocncheckc(dev)
 	dev_t	dev;
 {
-	int	c=0;
+	int	c;
 	Port_t	iobase;
 	int	s;
 	struct siocnstate	sp;
@@ -2039,6 +2059,8 @@ siocncheckc(dev)
 	siocnopen(&sp);
 	if (inb(iobase + com_lsr) & LSR_RXRDY)
 		c = inb(iobase + com_data);
+	else
+		c = 0;
 	siocnclose(&sp);
 	splx(s);
 	return (c);
