@@ -46,7 +46,7 @@ static char ocopyright[] =
 #include <net80211/ieee80211.h>
 #endif
 
-TIME cur_time;
+extern TIME cur_time;
 TIME default_lease_time = 43200; /* 12 hours... */
 TIME max_lease_time = 86400; /* 24 hours... */
 
