@@ -143,6 +143,9 @@ struct twe_code_lookup twe_table_aen[] = {
     {"c verify complete",		0x2b},
     {"p overwrote bad sector during rebuild",	0x2c},
     {"p encountered bad sector during rebuild",	0x2d},
+    {"a replacement drive too small", 0x2e},
+    {"c array not previously initialized", 0x2f},
+    {"p drive not supported", 0x30},
     {"a aen queue full",		0xff},
     {NULL, 0},
     {"x unknown AEN",		0}

@@ -144,7 +144,9 @@ extern void	twe_enable_interrupts(struct twe_softc *sc);	/* enable controller in
 extern void	twe_disable_interrupts(struct twe_softc *sc);	/* disable controller interrupts */
 
 extern void	twe_attach_drive(struct twe_softc *sc,
-					 struct twe_drive *dr); /* attach drive when found in twe_init */
+					 struct twe_drive *dr); /* attach drive when found in twe_add_unit */
+extern void	twe_detach_drive(struct twe_softc *sc,
+					 int unit);		/* detach drive */
 extern void	twe_clear_pci_parity_error(struct twe_softc *sc);
 extern void	twe_clear_pci_abort(struct twe_softc *sc);
 extern void	twed_intr(twe_bio *bp);				/* return bio from core */
