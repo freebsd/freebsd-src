@@ -65,9 +65,10 @@
 #include <ufs/ffs/ffs_extern.h>
 
 #include <vm/vm.h>
+#include <vm/uma.h>
 #include <vm/vm_page.h>
 
-static MALLOC_DEFINE(M_FFSNODE, "FFS node", "FFS vnode private part");
+uma_zone_t uma_inode, uma_ufs1, uma_ufs2;
 
 static int	ffs_sbupdate(struct ufsmount *, int);
        int	ffs_reload(struct mount *,struct ucred *,struct thread *);
@@ -152,6 +153,17 @@ ffs_mount(mp, path, data, ndp, td)
 	int error, flags;
 	mode_t accessmode;
 
+	if (uma_inode == NULL) {
+		uma_inode = uma_zcreate("FFS inode",
+		    sizeof(struct inode), NULL, NULL, NULL, NULL,
+		    UMA_ALIGN_PTR, 0);
+		uma_ufs1 = uma_zcreate("FFS1 dinode",
+		    sizeof(struct ufs1_dinode), NULL, NULL, NULL, NULL,
+		    UMA_ALIGN_PTR, 0);
+		uma_ufs2 = uma_zcreate("FFS2 dinode",
+		    sizeof(struct ufs2_dinode), NULL, NULL, NULL, NULL,
+		    UMA_ALIGN_PTR, 0);
+	}
 	/*
 	 * Use NULL path to indicate we are mounting the root filesystem.
 	 */
@@ -1236,14 +1248,13 @@ ffs_vget(mp, ino, flags, vpp)
 	 * which will cause a panic because ffs_sync() blindly
 	 * dereferences vp->v_data (as well it should).
 	 */
-	MALLOC(ip, struct inode *, sizeof(struct inode), 
-	    M_FFSNODE, M_WAITOK);
+	ip = uma_zalloc(uma_inode, M_WAITOK);
 
 	/* Allocate a new vnode/inode. */
 	error = getnewvnode("ufs", mp, ffs_vnodeop_p, &vp);
 	if (error) {
 		*vpp = NULL;
-		FREE(ip, M_FFSNODE);
+		uma_zfree(uma_inode, ip);
 		return (error);
 	}
 	bzero((caddr_t)ip, sizeof(struct inode));
@@ -1304,11 +1315,9 @@ ffs_vget(mp, ino, flags, vpp)
 		return (error);
 	}
 	if (ip->i_ump->um_fstype == UFS1)
-		MALLOC(ip->i_din1, struct ufs1_dinode *,
-		    sizeof(struct ufs1_dinode), M_FFSNODE, M_WAITOK);
+		ip->i_din1 = uma_zalloc(uma_ufs1, M_WAITOK);
 	else
-		MALLOC(ip->i_din2, struct ufs2_dinode *,
-		    sizeof(struct ufs2_dinode), M_FFSNODE, M_WAITOK);
+		ip->i_din2 = uma_zalloc(uma_ufs2, M_WAITOK);
 	ffs_load_inode(bp, ip, fs, ino);
 	if (DOINGSOFTDEP(vp))
 		softdep_load_inodeblock(ip);
@@ -1529,8 +1538,8 @@ ffs_ifree(struct ufsmount *ump, struct inode *ip)
 {
 
 	if (ump->um_fstype == UFS1)
-		FREE(ip->i_din1, M_FFSNODE);
+		uma_zfree(uma_ufs1, ip->i_din1);
 	else
-		FREE(ip->i_din2, M_FFSNODE);
-	FREE(ip, M_FFSNODE);
+		uma_zfree(uma_ufs2, ip->i_din1);
+	uma_zfree(uma_inode, ip);
 }
