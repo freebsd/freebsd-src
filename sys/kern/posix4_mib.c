@@ -36,6 +36,7 @@
 #include <sys/kernel.h>
 #include <sys/queue.h>
 #include <sys/sysctl.h>
+#include <sys/vnode.h>
 #include <posix4/posix4.h>
 
 static int facility[CTL_P1003_1B_MAXID - 1];
@@ -64,7 +65,8 @@ SYSCTL_NODE(_kern, OID_AUTO, p1003_1b, CTLFLAG_RW, 0, "P1003.1B");
 
 #endif
 
-P1B_SYSCTL(CTL_P1003_1B_ASYNCHRONOUS_IO, asynchronous_io);
+SYSCTL_INT(_p1003_1b, CTL_P1003_1B_ASYNCHRONOUS_IO, \
+	asynchronous_io, CTLFLAG_RD, &async_io_version, 0, "");
 P1B_SYSCTL(CTL_P1003_1B_MAPPED_FILES, mapped_files);
 P1B_SYSCTL(CTL_P1003_1B_MEMLOCK, memlock);
 P1B_SYSCTL(CTL_P1003_1B_MEMLOCK_RANGE, memlock_range);
