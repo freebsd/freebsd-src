@@ -73,7 +73,7 @@ utility.
 recognizes a number of environment variables that can be used to modify
 its behaviour as follows:
 .Pp
-.Bl -tag -width "LD_IGNORE_MISSING_OBJECTS"
+.Bl -tag -width LD_LIBRARY_PATH
 .It Ev LD_LIBRARY_PATH
 A colon separated list of directories, overriding the default search path
 for shared libraries.
@@ -110,7 +110,7 @@ option and allows
 .Xr ldd 1
 to be operated as a filter more conveniently.
 The following conversions can be used:
-.Bl -tag -indent "LD_TRACE_LOADED_OBJECTS_FMT1 " -width "xxxx"
+.Bl -tag -width "xxxx"
 .It \&%a
 The main program's name
 .Po
@@ -140,7 +140,9 @@ are recognized and have their usual meaning.
 .El
 .Pp
 .Sh FILES
-/var/run/ld-elf.so.hints
+.Bl -tag -width indent
+.It Pa /var/run/ld-elf.so.hints
+.El
 .Pp
 .Sh SEE ALSO
 .Xr elf 5 ,
