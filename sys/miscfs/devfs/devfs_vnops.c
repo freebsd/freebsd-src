@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.7 1995/09/02 07:09:01 julian Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.8 1995/09/04 00:20:30 dyson Exp $
  *
  * symlinks can wait 'til later.
  */
@@ -174,7 +174,7 @@ DBPRINT(("errr, maybe not cached "));
 
 	heldchar = cnp->cn_nameptr[cnp->cn_namelen];
 	cnp->cn_nameptr[cnp->cn_namelen] = '\0';
-	new_node = dev_findfront(dir_node,cnp->cn_nameptr);
+	new_node = dev_findname(dir_node,cnp->cn_nameptr);
 	cnp->cn_nameptr[cnp->cn_namelen] = heldchar;
 	if(new_node)
 	{
