@@ -94,7 +94,7 @@ int main (argc, argv, envp)
 	int argc;
 	char **argv, **envp;
 {
-	int i;
+	int i, e;
 	struct servent *ent;
 	struct interface_info *ip;
 	struct client_state *client;
@@ -111,8 +111,11 @@ int main (argc, argv, envp)
 	int no_dhclient_db = 0;
 	int no_dhclient_pid = 0;
 	int no_dhclient_script = 0;
+	FILE *pidfd;
+	pid_t oldpid;
 	char *s;
 
+	oldpid = 0;
 	/* Make sure we have stdin, stdout and stderr. */
 	i = open ("/dev/null", O_RDWR);
 	if (i == 0)
@@ -253,15 +256,18 @@ int main (argc, argv, envp)
 
 	/* first kill of any currently running client */
 	if (release_mode) {
-	        /* XXX inelegant hack to prove concept */
-		char command[1024];
 
-#if !defined (NO_SNPRINTF)
-		snprintf (command, 1024, "kill `cat %s`", path_dhclient_pid);
-#else
-		sprintf (command, "kill `cat %s`", path_dhclient_pid);
-#endif
-		system (command);
+		if ((pidfd = fopen(path_dhclient_pid, "r")) != NULL) {
+			e = fscanf(pidfd, "%d", &oldpid);
+
+			if (e != 0 && e != EOF) {
+				if (oldpid) {
+					if (kill(oldpid, SIGKILL) == 0)
+						unlink(path_dhclient_pid);
+				}
+			}
+			fclose(pidfd);
+		}
 	}
 
 	if (!quiet) {
