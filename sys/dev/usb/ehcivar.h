@@ -106,6 +106,7 @@ typedef struct ehci_softc {
 	char sc_vendor[16];		/* vendor string for root hub */
 	int sc_id_vendor;		/* vendor ID for root hub */
 
+	u_int32_t sc_cmd;		/* shadow of cmd reg during suspend */
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 	void *sc_powerhook;		/* cookie from power hook */
 	void *sc_shutdownhook;		/* cookie from shutdown hook */
