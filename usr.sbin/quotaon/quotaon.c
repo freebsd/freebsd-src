@@ -65,7 +65,7 @@ static const char rcsid[] =
 char *qfname = QUOTAFILENAME;
 char *qfextension[] = INITQFNAMES;
 
-int	aflag;		/* all file systems */
+int	aflag;		/* all filesystems */
 int	gflag;		/* operate on group quotas */
 int	uflag;		/* operate on user quotas */
 int	vflag;		/* verbose */
@@ -244,7 +244,7 @@ hasquota(fs, type, qfnamep)
 }
 
 /*
- * Verify file system is mounted and not readonly.
+ * Verify filesystem is mounted and not readonly.
  */
 int
 readonly(fs)
