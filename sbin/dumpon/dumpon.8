@@ -93,12 +93,24 @@ or to
 .Ar special_file
 is the text string:
 .Dq Li off .
+.Pp
+Since
+.Nm
+can only be called after the system enters single-user mode,
+it can not be used to create dumps for system panics during
+kernel initialization.
+In such cases use
+.Va dumpdev
+tunable provided by
+.Xr loader 8
+instead.
 .Sh SEE ALSO
 .Xr sysctl 3 ,
 .Xr fstab 5 ,
 .Xr rc.conf 5 ,
 .Xr config 8 ,
 .Xr init 8 ,
+.Xr loader 8 ,
 .Xr rc 8 ,
 .Xr savecore 8 ,
 .Xr swapon 8 ,
@@ -113,12 +125,6 @@ boot-time system configuration
 .Sh BUGS
 Because the filesystem layer is already dead by the time a crash dump
 is taken, it is not possible to send crash dumps directly to a file.
-.Pp
-Since
-.Nm
-can only be called after the system enters single-user mode,
-it can not be used to create dumps
-for system panics during kernel initialization.
 .Sh HISTORY
 The
 .Nm
