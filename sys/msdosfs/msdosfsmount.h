@@ -1,4 +1,4 @@
-/*	$Id: msdosfsmount.h,v 1.4 1995/11/07 14:06:45 phk Exp $ */
+/*	$Id: msdosfsmount.h,v 1.5 1995/11/16 11:48:10 bde Exp $ */
 /*	$NetBSD: msdosfsmount.h,v 1.7 1994/08/21 18:44:17 ws Exp $	*/
 
 /*-
@@ -79,7 +79,7 @@ struct msdosfsmount {
 	u_long pm_fatsize;	/* size of fat in bytes */
 	u_int *pm_inusemap;	/* ptr to bitmap of in-use clusters */
 	char pm_ronly;		/* read only if non-zero */
-	char pm_waitonfat;	/* wait for writes of the fat to complt, when 0 use bdwrite, else use bwrite */
+	char pm_waitonfat;	/* wait for writes of the fat to complete, when 0 use bdwrite, else use bwrite */
 	struct netexport pm_export;	/* export information */
 };
 

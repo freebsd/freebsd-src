@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcibus.h,v 1.2 1995/03/21 23:01:03 se Exp $
+**  $Id: pcibus.h,v 1.3 1995/11/21 12:54:54 bde Exp $
 **
 **  Declarations for pci bus driver.
 **
@@ -65,7 +65,7 @@
 **		(should be a long word alligned one), and a value.
 **
 **	pcibus_regirq():
-**		Register an interupt handler for a pci device.
+**		Register an interrupt handler for a pci device.
 **		Requires a tag (from pcitag), the register number
 **		(should be a long word alligned one), and a value.
 **

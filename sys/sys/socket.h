@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)socket.h	8.4 (Berkeley) 2/21/94
- * $Id: socket.h,v 1.7 1995/09/13 05:35:49 davidg Exp $
+ * $Id: socket.h,v 1.8 1996/01/05 17:49:30 davidg Exp $
  */
 
 #ifndef _SYS_SOCKET_H_
@@ -102,7 +102,7 @@ struct	linger {
 #define	AF_NS		6		/* XEROX NS protocols */
 #define	AF_ISO		7		/* ISO protocols */
 #define	AF_OSI		AF_ISO
-#define	AF_ECMA		8		/* european computer manufacturers */
+#define	AF_ECMA		8		/* European computer manufacturers */
 #define	AF_DATAKIT	9		/* datakit protocols */
 #define	AF_CCITT	10		/* CCITT protocols, X.25 etc */
 #define	AF_SNA		11		/* IBM SNA */

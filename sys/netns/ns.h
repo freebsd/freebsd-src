@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ns.h	8.1 (Berkeley) 6/10/93
- * $Id: ns.h,v 1.5 1995/10/26 20:31:44 julian Exp $
+ * $Id: ns.h,v 1.6 1995/11/21 12:54:28 bde Exp $
  */
 
 #ifndef _NETNS_NS_H_
@@ -63,7 +63,7 @@
 #define NSPORT_RE	3		/* Router Error */
 
 /*
- * Ports < NSPORT_RESERVED are reserved for priveleged
+ * Ports < NSPORT_RESERVED are reserved for privileged
  * processes (e.g. root).
  */
 #define NSPORT_RESERVED		3000

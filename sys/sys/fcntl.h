@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fcntl.h	8.3 (Berkeley) 1/21/94
- * $Id$
+ * $Id: fcntl.h,v 1.2 1994/08/02 07:52:57 davidg Exp $
  */
 
 #ifndef _SYS_FCNTL_H_
@@ -85,7 +85,7 @@
 #define	O_ASYNC		0x0040		/* signal pgrp when data ready */
 #define	O_FSYNC		0x0080		/* synchronous writes */
 #endif
-#define	O_CREAT		0x0200		/* create if nonexistant */
+#define	O_CREAT		0x0200		/* create if nonexistent */
 #define	O_TRUNC		0x0400		/* truncate to zero length */
 #define	O_EXCL		0x0800		/* error if already exists */
 #ifdef KERNEL

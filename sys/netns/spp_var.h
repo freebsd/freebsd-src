@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spp_var.h	8.1 (Berkeley) 6/10/93
- * $Id: spp_var.h,v 1.3 1994/08/21 06:22:12 paul Exp $
+ * $Id: spp_var.h,v 1.4 1995/07/29 11:42:01 bde Exp $
  */
 
 #ifndef _NETNS_SPP_VAR_H_
@@ -83,7 +83,7 @@ struct sppcb {
 	u_short	s_swl1;			/* == tcp snd_wl1 */
 	u_short	s_swl2;			/* == tcp snd_wl2 */
 	int	s_cwmx;			/* max allowable cwnd */
-	int	s_ssthresh;		/* s_cwnd size threshhold for
+	int	s_ssthresh;		/* s_cwnd size threshold for
 					 * slow start exponential-to-
 					 * linear switch */
 /* transmit timing stuff

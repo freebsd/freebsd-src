@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ixreg.h,v 1.5 1995/05/10 15:19:29 rgrimes Exp $
+ *	$Id: if_ixreg.h,v 1.6 1995/05/30 08:02:17 rgrimes Exp $
  */
 
 /*
@@ -106,7 +106,7 @@
 #define	eeprom_enetaddr_low	0x02	/* Ethernet address, low word */
 #define	eeprom_enetaddr_mid	0x03	/* Ethernet address, middle word */
 #define	eeprom_enetaddr_high	0x04	/* Ethernet address, high word */
-#define	eeprom_config2		0x05	/* Configureation register 2 */
+#define	eeprom_config2		0x05	/* Configuration register 2 */
 #define	  CONNECT_TPE		  0x0001	/* 0 = BNC, 1 = TPE */
 
 /* this converts a kernal virtual address to a board offset */
@@ -211,7 +211,7 @@ typedef struct /* System Control Block */
 	volatile
 	u_short	rsc_errors;	/* did not have resources to receive */
 	volatile
-	u_short	ovr_errors;	/* system bus was not availiable to receive */
+	u_short	ovr_errors;	/* system bus was not available to receive */
 	}	scb_t;
 
 typedef struct /* command block - nop (also the common part of cb's */

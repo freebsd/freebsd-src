@@ -31,14 +31,14 @@
  * SUCH DAMAGE.
  *
  *	@(#)wait.h	8.1 (Berkeley) 6/2/93
- * $Id: wait.h,v 1.3 1994/08/21 04:42:17 paul Exp $
+ * $Id: wait.h,v 1.4 1995/05/30 08:14:54 rgrimes Exp $
  */
 
 #ifndef _SYS_WAIT_H_
 #define _SYS_WAIT_H_
 
 /*
- * This file holds definitions relevent to the wait4 system call
+ * This file holds definitions relevant to the wait4 system call
  * and the alternate interfaces that use it (wait, wait3, waitpid).
  */
 
@@ -81,7 +81,7 @@
 #define WUNTRACED	2	/* tell about stopped, untraced children */
 
 #ifndef _POSIX_SOURCE
-/* POSIX extensions and 4.2/4.3 compatability: */
+/* POSIX extensions and 4.2/4.3 compatibility: */
 
 /*
  * Tokens for special values of the "pid" parameter to wait4.

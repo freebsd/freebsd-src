@@ -12,7 +12,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software withough specific prior written permission
+ *    derived from this software without specific prior written permission
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: console.h,v 1.18 1995/01/28 22:15:30 sos Exp $
+ *	$Id: console.h,v 1.19 1995/05/30 08:00:28 rgrimes Exp $
  */
 
 #ifndef	_CONSOLE_H_
@@ -117,7 +117,7 @@ struct mouse_info {
 #define KD_HERCULES	2		/* hercules adapter          	*/
 #define KD_CGA		3		/* color graphics adapter    	*/
 #define KD_EGA		4		/* enhanced graphics adapter 	*/
-#define KD_VGA		5		/* video graohics adapter    	*/
+#define KD_VGA		5		/* video graphics adapter    	*/
 
 #define KD_TEXT		0		/* set text mode restore fonts  */
 #define KD_TEXT0	0		/* ditto			*/
@@ -238,7 +238,7 @@ typedef struct ssaver ssaver_t;
 #define F(x)		((x)+F_FN-1)
 #define	S(x)		((x)+F_SCR-1)
 #define NOKEY		0x100		/* no key pressed marker 	*/
-#define FKEY		0x200		/* funtion key marker 		*/
+#define FKEY		0x200		/* function key marker 		*/
 #define MKEY		0x400		/* meta key marker (prepend ESC)*/
 #define BKEY		0x800		/* backtab (ESC [ Z)		*/
 

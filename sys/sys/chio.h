@@ -1,10 +1,10 @@
 /*
  * 16 Feb 93	Julian Elischer		ADDED for SCSI system
  *
- *	$Id: chio.h,v 1.4 1993/11/18 05:03:24 rgrimes Exp $
+ *	$Id: chio.h,v 1.5 1995/05/30 08:14:13 rgrimes Exp $
  */
 
-/* This is a "convertet" mtio.h from 386BSD
+/* This is a "converted" mtio.h from 386BSD
    Stefan Grefen grefen@goofy.zdv.uni-mainz.de
  */
 
@@ -61,7 +61,7 @@ struct chop {
 				u_char add_sense_code_qualifier;
 				} specs;
 				short add_sense;
-/* WARINING LSB only */
+/* WARNING LSB only */
 #define CH_CHOLDER	0x0290	/* Cartridge holder is missing */
 #define CH_STATUSQ	0x0390	/* Status is questionable */
 #define CH_CTS_CLOSED	0x0490	/* CTS door is closed */

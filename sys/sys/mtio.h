@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mtio.h	8.1 (Berkeley) 6/2/93
- * $Id: mtio.h,v 1.5 1995/03/21 11:21:37 dufault Exp $
+ * $Id: mtio.h,v 1.6 1996/01/08 12:26:15 joerg Exp $
  */
 
 #ifndef _SYS_MTIO_H_
@@ -69,7 +69,7 @@ struct mtop {
 #define MTSETBSIZ	10
 
 /* Set density values for device. They are defined in the SCSI II spec	*/
-/* and range from 0 to 0x17. Sets the value for the openned mode only	*/
+/* and range from 0 to 0x17. Sets the value for the opened mode only	*/
 
 #define MTSETDNSTY	11
 
@@ -92,7 +92,7 @@ struct mtget {
 #if defined (__FreeBSD__)
 	daddr_t mt_blksiz;	/* presently operating blocksize */
 	daddr_t mt_density;	/* presently operating density */
-	daddr_t mt_comp;	/* presently operating compresion */
+	daddr_t mt_comp;	/* presently operating compression */
 	daddr_t mt_blksiz0;	/* blocksize for mode 0 */
 	daddr_t mt_blksiz1;	/* blocksize for mode 1 */
 	daddr_t mt_blksiz2;	/* blocksize for mode 2 */

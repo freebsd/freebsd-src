@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: diskslice.h,v 1.10 1995/05/30 08:14:19 rgrimes Exp $
+ *	$Id: diskslice.h,v 1.11 1996/01/27 04:18:15 bde Exp $
  */
 
 #ifndef _SYS_DISKSLICE_H_
@@ -48,7 +48,7 @@ struct	diskslice {
 	struct disklabel *ds_label;	/* BSD label, if any */
 	void	*ds_bdev;		/* devfs token for whole slice */
 	void	*ds_cdev;		/* devfs token for raw whole slice */
-#ifdef MAXPARTITIONS			/* XXX don't depend on dislabel.h */
+#ifdef MAXPARTITIONS			/* XXX don't depend on disklabel.h */
 #if MAXPARTITIONS !=	8		/* but check consistency if possible */
 #error "inconsistent MAXPARTITIONS"
 #endif
@@ -94,7 +94,7 @@ struct	diskslice {
 struct diskslices {
 	struct bdevsw *dss_bdevsw;	/* for containing device */
 	struct cdevsw *dss_cdevsw;	/* for containing device */
-	int	dss_first_bsd_slice;	/* COMPATIBILTY_SLICE is mapped here */
+	int	dss_first_bsd_slice;	/* COMPATIBILITY_SLICE is mapped here */
 	u_int	dss_nslices;		/* actual dimension of dss_slices[] */
 	struct diskslice
 		dss_slices[MAX_SLICES];	/* actually usually less */

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ioctl.h	8.6 (Berkeley) 3/28/94
- * $Id$
+ * $Id: ioctl.h,v 1.2 1994/08/02 07:53:04 davidg Exp $
  */
 
 #ifndef	_SYS_IOCTL_H_
@@ -47,7 +47,7 @@
 /*
  * Pun for SunOS prior to 3.2.  SunOS 3.2 and later support TIOCGWINSZ
  * and TIOCSWINSZ (yes, even 3.2-3.5, the fact that it wasn't documented
- * nonwithstanding).
+ * notwithstanding).
  */
 struct ttysize {
 	unsigned short	ts_lines;
@@ -75,7 +75,7 @@ __END_DECLS
 
 /*
  * Keep outside _SYS_IOCTL_H_
- * Compatability with old terminal driver
+ * Compatibility with old terminal driver
  *
  * Source level -> #define USE_OLD_TTY
  * Kernel level -> options COMPAT_43 or COMPAT_SUNOS

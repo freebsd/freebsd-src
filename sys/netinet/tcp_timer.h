@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_timer.h	8.1 (Berkeley) 6/10/93
- * $Id: tcp_timer.h,v 1.6 1995/02/14 02:35:18 wollman Exp $
+ * $Id: tcp_timer.h,v 1.7 1995/11/14 20:34:45 phk Exp $
  */
 
 #ifndef _NETINET_TCP_TIMER_H_
@@ -44,7 +44,7 @@
 #define	TCPT_NTIMERS	4
 
 #define	TCPT_REXMT	0		/* retransmit */
-#define	TCPT_PERSIST	1		/* retransmit persistance */
+#define	TCPT_PERSIST	1		/* retransmit persistence */
 #define	TCPT_KEEP	2		/* keep alive */
 #define	TCPT_2MSL	3		/* 2*msl quiet time timer */
 
@@ -92,7 +92,7 @@
 						   if 0, no idea yet */
 #define	TCPTV_SRTTDFLT	(  3*PR_SLOWHZ)		/* assumed RTT if no info */
 
-#define	TCPTV_PERSMIN	(  5*PR_SLOWHZ)		/* retransmit persistance */
+#define	TCPTV_PERSMIN	(  5*PR_SLOWHZ)		/* retransmit persistence */
 #define	TCPTV_PERSMAX	( 60*PR_SLOWHZ)		/* maximum persist interval */
 
 #define	TCPTV_KEEP_INIT	( 75*PR_SLOWHZ)		/* initial connect keep alive */

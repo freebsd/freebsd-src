@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fs.h	8.7 (Berkeley) 4/19/94
- * $Id: fs.h,v 1.4 1995/03/10 22:18:16 davidg Exp $
+ * $Id: fs.h,v 1.5 1995/05/30 08:15:07 rgrimes Exp $
  */
 
 #ifndef _UFS_FFS_FS_H_
@@ -72,7 +72,7 @@
  * Addresses stored in inodes are capable of addressing fragments
  * of `blocks'. File system blocks of at most size MAXBSIZE can
  * be optionally broken into 2, 4, or 8 pieces, each of which is
- * addressible; these pieces may be DEV_BSIZE, or some multiple of
+ * addressable; these pieces may be DEV_BSIZE, or some multiple of
  * a DEV_BSIZE unit.
  *
  * Large files consist of exclusively large data blocks.  To avoid
@@ -240,7 +240,7 @@ struct fs {
 /* actually longer */
 };
 /*
- * Filesystem idetification
+ * Filesystem identification
  */
 #define	FS_MAGIC	0x011954	/* the fast filesystem magic number */
 #define	FS_OKAY		0x7c269d38	/* superblock checksum */

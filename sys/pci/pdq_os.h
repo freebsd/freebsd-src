@@ -8,7 +8,7 @@
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
  * 2. The name of the author may not be used to endorse or promote products
- *    derived from this software withough specific prior written permission
+ *    derived from this software without specific prior written permission
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -21,9 +21,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pdq_os.h,v 1.4 1995/10/29 15:33:36 phk Exp $
+ * $Id: pdq_os.h,v 1.5 1995/12/07 12:47:43 davidg Exp $
  *
  * $Log: pdq_os.h,v $
+ * Revision 1.5  1995/12/07 12:47:43  davidg
+ * Untangled the vm.h include file spaghetti.
+ *
  * Revision 1.4  1995/10/29  15:33:36  phk
  * Second batch of cleanup changes.
  * This time mostly making a lot of things static and some unused

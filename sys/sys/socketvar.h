@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)socketvar.h	8.1 (Berkeley) 6/2/93
- * $Id: socketvar.h,v 1.8 1995/12/14 08:32:36 phk Exp $
+ * $Id: socketvar.h,v 1.9 1995/12/14 22:51:13 bde Exp $
  */
 
 #ifndef _SYS_SOCKETVAR_H_
@@ -55,7 +55,7 @@ struct socket {
 	caddr_t	so_pcb;			/* protocol control block */
 	struct	protosw *so_proto;	/* protocol handle */
 /*
- * Variables for connection queueing.
+ * Variables for connection queuing.
  * Socket where accepts occur is so_head in all subsidiary sockets.
  * If so_head is 0, socket is not related to an accept.
  * For head socket so_q0 queues partially completed connections,

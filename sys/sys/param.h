@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)param.h	8.2 (Berkeley) 1/21/94
- * $Id: param.h,v 1.9 1995/10/06 09:56:26 phk Exp $
+ * $Id: param.h,v 1.10 1995/12/05 21:03:13 bde Exp $
  */
 
 #ifndef _SYS_PARAM_H_
@@ -162,7 +162,7 @@
 #define MAXFRAG 	8
 
 /*
- * MAXPATHLEN defines the longest permissable path length after expanding
+ * MAXPATHLEN defines the longest permissible path length after expanding
  * symbolic links. It is used to allocate a temporary buffer from the buffer
  * pool in which to do the name expansion, hence should be a power of two,
  * and must be less than or equal to MAXBSIZE.  MAXSYMLINKS defines the

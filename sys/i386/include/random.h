@@ -1,7 +1,7 @@
 /*
  * random.h -- A strong random number generator
  *
- * $Id$
+ * $Id: random.h,v 1.3 1995/12/29 08:04:13 markm Exp $
  *
  * Version 0.95, last modified 18-Oct-95
  * 
@@ -62,7 +62,7 @@
 
 #if defined(KERNEL)
 
-/* Interrupts to be used in the randomising process */
+/* Interrupts to be used in the randomizing process */
 
 extern inthand2_t *sec_intr_handler[ICU_LEN];
 extern int sec_intr_unit[ICU_LEN];
