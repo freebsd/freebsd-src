@@ -412,10 +412,11 @@ nfs_open(upath, f)
 		return (ENXIO);
 	}
 
-#ifdef __sparc64__
+#ifndef __i386__
 	if (strcmp(f->f_dev->dv_name, "net") != 0)
 		return(EINVAL);
 #endif
+
 	if (!(desc = socktodesc(*(int *)(f->f_devdata))))
 		return(EINVAL);
 
