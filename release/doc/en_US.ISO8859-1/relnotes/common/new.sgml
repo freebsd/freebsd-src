@@ -85,7 +85,7 @@
 
   <para>Typical release note items
     document new drivers or hardware support, new commands or options,
-    major bugfixes, or contributed software upgrades.  Applicable security
+    major bug fixes, or contributed software upgrades.  Applicable security
     advisories issued after &release.prev.historic; are also listed.</para>
 
   <para>Many additional changes were made to &os; that are not listed
@@ -151,7 +151,7 @@
     <para arch="i386,pc98">The DRM kernel modules have been updated to
       a snapshot from the DRI CVS repository, roughly equivalent to
       XFree86 4.3.0 but also including some additional
-      bugfixes.</para>
+      bug fixes.</para>
 
     <para>A minor bug in the permissions handling of
       <filename>/dev/tty</filename> has been fixed.  As a result,
@@ -562,7 +562,7 @@
 
     <para>&man.systat.1; now includes an <option>-ifstat</option>
       display mode that displays the network traffic going through
-      active intrfaces on the system.</para>
+      active interfaces on the system.</para>
 
     <para>&man.xargs.1; now supports a <option>-P</option> option to
       execute multiple copies of the same utility in parallel.</para>
