@@ -91,6 +91,10 @@ SYSCTL_INT(_debug, OID_AUTO, debugger_on_panic, CTLFLAG_RW,
 	&debugger_on_panic, 0, "Run debugger on kernel panic");
 #endif
 
+int sync_on_panic = 1;
+SYSCTL_INT(_kern, OID_AUTO, sync_on_panic, CTLFLAG_RW,
+	&sync_on_panic, 0, "Do a sync before rebooting from a panic");
+
 SYSCTL_NODE(_kern, OID_AUTO, shutdown, CTLFLAG_RW, 0, "Shutdown environment");
 
 #ifdef	HW_WDOG
@@ -625,6 +629,8 @@ panic(const char *fmt, ...)
 	}
 #endif
 #endif
+	if (!sync_on_panic)
+		bootopt |= RB_NOSYNC;
 	boot(bootopt);
 }
 
