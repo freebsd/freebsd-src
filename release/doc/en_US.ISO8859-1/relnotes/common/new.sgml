@@ -57,9 +57,9 @@
     url="&release.url;"></ulink> or any of its mirrors.  More
     information on obtaining this (or other) &release.type;
     distributions of &os; can be found in the <ulink
-    url="&url.main;/doc/en_US.ISO8859-1/books/handbook/mirrors.html"><quote>Obtaining
+    url="&url.books.handbook;/mirrors.html"><quote>Obtaining
     FreeBSD</quote> appendix</ulink> to the <ulink
-    url="&url.main;/doc/en_US.ISO8859-1/books/handbook/">FreeBSD
+    url="&url.books.handbook;/">FreeBSD
     Handbook</ulink>.</para>
 
 ]]>
@@ -1317,7 +1317,7 @@
 	  will cause serious problems.
 	  If you are a <application>GNOME</application> desktop user,
 	  please read the instructions carefully at
-	  <ulink url="&url.main;/gnome/docs/faq26.html"></ulink>,
+	  <ulink url="&url.base;/gnome/docs/faq26.html"></ulink>,
 	  and use the <filename>gnome_upgrade.sh</filename> script to
 	  properly upgrade to <application>GNOME</application> 2.6.</para>
 
