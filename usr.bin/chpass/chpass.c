@@ -83,7 +83,7 @@ main(argc, argv)
 	char **argv;
 {
 	enum { NEWSH, LOADENTRY, EDITENTRY, NEWPW, NEWEXP } op;
-	struct passwd *pw = NULL, lpw, old_pw;
+	struct passwd *pw = NULL, lpw, old_pw, *pold_pw;
 	char *username = NULL;
 	int ch, pfd, tfd;
 	char *arg = NULL;
@@ -190,6 +190,7 @@ main(argc, argv)
 		/* Make a copy for later verification */
 		old_pw = *pw;
 		old_pw.pw_gecos = strdup(old_pw.pw_gecos);
+		pold_pw = &old_pw;
 	}
 
 	if (op == NEWSH) {
@@ -213,6 +214,10 @@ main(argc, argv)
 		pw = &lpw;
 		if (!pw_scan(arg, pw))
 			exit(1);
+		if ((pold_pw = getpwnam(pw->pw_name)) != NULL) {
+			old_pw = *pold_pw;
+			old_pw.pw_gecos = strdup(old_pw.pw_gecos);
+		}
 	}
 	username = pw->pw_name;
 
@@ -268,7 +273,7 @@ main(argc, argv)
 	} else {
 #endif /* YP */
 	pfd = pw_lock();
-	pw_copy(pfd, tfd, pw, &old_pw);
+	pw_copy(pfd, tfd, pw, pold_pw);
 
 	if (!pw_mkdb(username))
 		pw_error((char *)NULL, 0, 1);
