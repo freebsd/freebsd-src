@@ -1,6 +1,6 @@
 /* Determine whether a locale is hard.
 
-   Copyright (C) 1999, 2003 Free Software Foundation, Inc.
+   Copyright (C) 1999, 2003, 2004 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,8 @@
 #ifndef HARD_LOCALE_H_
 # define HARD_LOCALE_H_ 1
 
-int hard_locale (int);
+# include <stdbool.h>
+
+bool hard_locale (int);
 
 #endif /* HARD_LOCALE_H_ */

@@ -1,5 +1,5 @@
 /* Error handler for noninteractive utilities
-   Copyright (C) 1990-1998, 2000-2002, 2003 Free Software Foundation, Inc.
+   Copyright (C) 1990-1998, 2000-2002, 2003, 2004 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
    This program is free software; you can redistribute it and/or modify
@@ -106,7 +106,7 @@ extern char *program_name;
 static void
 print_errno_message (int errnum)
 {
-  char const *s;
+  char const *s = NULL;
 
 #if defined HAVE_STRERROR_R || _LIBC
   char errbuf[1024];
@@ -115,15 +115,11 @@ print_errno_message (int errnum)
 # else
   if (__strerror_r (errnum, errbuf, sizeof errbuf) == 0)
     s = errbuf;
-  else
-    s = 0;
 # endif
-#else
-  s = strerror (errnum);
 #endif
 
 #if !_LIBC
-  if (! s)
+  if (! s && ! (s = strerror (errnum)))
     s = _("Unknown system error");
 #endif
 
