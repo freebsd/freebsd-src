@@ -29,13 +29,13 @@ The argument passed to the IOCTL is the address of a structure of
 the following type:
 .Bd -literal -ffset indent
 struct snptty {
-	int	st_type;		/* type of the tty to attach */
 	int	st_unit;		/* number of the tty unit */
-}
-
+	int	st_type;		/* type of the tty to attach */
 #define	ST_PTY		0		/* regular pty */
 #define	ST_VTY		1		/* syscons vty */
 #define	ST_SIO		2		/* serial lines */
+}
+
 .Ed
 .Pp
 By setting st_type or st_unit to -1, the user may detach the snp device
