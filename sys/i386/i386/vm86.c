@@ -603,6 +603,7 @@ vm86_datacall(intnum, vmf, vmc)
 		entry = vmc->pmap[i].pte_num; 
 		vmc->pmap[i].old_pte = pte[entry];
 		pte[entry] = page | PG_V | PG_RW | PG_U;
+		pmap_invalidate_page(kernel_pmap, vmc->pmap[i].kva);
 	}
 
 	vmf->vmf_trapno = intnum;
@@ -611,6 +612,7 @@ vm86_datacall(intnum, vmf, vmc)
 	for (i = 0; i < vmc->npages; i++) {
 		entry = vmc->pmap[i].pte_num;
 		pte[entry] = vmc->pmap[i].old_pte;
+		pmap_invalidate_page(kernel_pmap, vmc->pmap[i].kva);
 	}
 	mtx_unlock(&vm86_lock);
 

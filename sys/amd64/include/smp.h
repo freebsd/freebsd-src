@@ -51,6 +51,8 @@ extern int current_postcode;  /** XXX currently in mp_machdep.c */
  * Interprocessor interrupts for SMP.
  */
 #define	IPI_INVLTLB		XINVLTLB_OFFSET
+#define	IPI_INVLPG		XINVLPG_OFFSET
+#define	IPI_INVLRNG		XINVLRNG_OFFSET
 #define	IPI_RENDEZVOUS		XRENDEZVOUS_OFFSET
 #define	IPI_AST			XCPUAST_OFFSET
 #define	IPI_STOP		XCPUSTOP_OFFSET
@@ -107,7 +109,6 @@ void	assign_apic_irq(int apic, int intpin, int irq);
 void	revoke_apic_irq(int irq);
 void	bsp_apic_configure(void);
 void	init_secondary(void);
-void	smp_invltlb(void);
 void	forward_statclock(void);
 void	forwarded_statclock(struct trapframe frame);
 void	forward_hardclock(void);
@@ -119,6 +120,13 @@ void	ipi_self(u_int ipi);
 #ifdef	APIC_INTR_REORDER
 void	set_lapic_isrloc(int, int);
 #endif /* APIC_INTR_REORDER */
+void	smp_invlpg(vm_offset_t addr);
+void	smp_masked_invlpg(u_int mask, vm_offset_t addr);
+void	smp_invlpg_range(vm_offset_t startva, vm_offset_t endva);
+void	smp_masked_invlpg_range(u_int mask, vm_offset_t startva,
+	    vm_offset_t endva);
+void	smp_invltlb(void);
+void	smp_masked_invltlb(u_int mask);
 
 /* global data in mpapic.c */
 extern volatile lapic_t		lapic;
