@@ -973,30 +973,6 @@ vm_object_pmap_copy_1(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
 #endif
 
 /*
- *	vm_object_pmap_remove:
- *
- *	Removes all physical pages in the specified
- *	object range from all physical maps.
- *
- *	The object must *not* be locked.
- */
-void
-vm_object_pmap_remove(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
-{
-	vm_page_t p;
-
-	GIANT_REQUIRED;
-	if (object == NULL)
-		return;
-	TAILQ_FOREACH(p, &object->memq, listq) {
-		if (p->pindex >= start && p->pindex < end)
-			pmap_page_protect(p, VM_PROT_NONE);
-	}
-	if ((start == 0) && (object->size == end))
-		vm_object_clear_flag(object, OBJ_WRITEABLE);
-}
-
-/*
  *	vm_object_madvise:
  *
  *	Implements the madvise function at the object/page level.
