@@ -530,14 +530,14 @@
  */
 #define HACK_FOR_CARDBUS_BRIDGE_PROBLEM
 #ifdef HACK_FOR_CARDBUS_BRIDGE_PROBLEM
-static __inline u_int16_t
+static __inline uint16_t
 cs_inw(struct cs_softc *sc, int off)
 {
 	return ((inb(sc->nic_addr + off) & 0xff) |
 	    (inb(sc->nic_addr + off + 1) << 8));
 }
 #else
-static __inline u_int16_t
+static __inline uint16_t
 cs_inw(struct cs_softc *sc, int off)
 {
 	return (inw(sc->nic_addr + off));
@@ -545,19 +545,19 @@ cs_inw(struct cs_softc *sc, int off)
 #endif
 
 static __inline void
-cs_outw(struct cs_softc *sc, int off, u_int16_t val)
+cs_outw(struct cs_softc *sc, int off, uint16_t val)
 {
 	outw(sc->nic_addr + off, val);
 }
 
-static __inline u_int16_t
-cs_readreg(struct cs_softc *sc, u_int16_t port)
+static __inline uint16_t
+cs_readreg(struct cs_softc *sc, uint16_t port)
 {
 	cs_outw(sc, ADD_PORT, port);
 	return (cs_inw(sc, DATA_PORT));
 }
 static __inline void
-cs_writereg(struct cs_softc *sc, u_int16_t port, u_int16_t val)
+cs_writereg(struct cs_softc *sc, uint16_t port, uint16_t val)
 {
 	cs_outw(sc, ADD_PORT, port);
 	cs_outw(sc, DATA_PORT, val);
