@@ -84,6 +84,9 @@ asr0	dyn	dyn	dyn	dyn	DPT SmartRaid V, VI, and
 					Adaptec SCSI RAID
 mly0	dyn	dyn	dyn	dyn	Mylex AcceleRAID/eXtremeRAID
 aac	dyn	dyn	dyn	dyn	Adaptec FSA family PCI SCSI RAID
+ncv	dyn	dyn	n/a	n/a	NCR 53C500 based PC-Card SCSI
+nsp	dyn	dyn	n/a	dyn	Workbit Ninja SCSI-3 based PC-Card SCSI
+stg	dyn	dyn	n/a	n/a	TMC 18C30/50 based ISA/PC-Card SCSI
 
 wt0     300     5       1       dyn     Wangtek and Archive QIC-02/QIC-36
 
@@ -488,10 +491,31 @@ SymBios (formerly NCR) 53C810, 53C810a, 53C815, 53C820, 53C825a, 53C860,
     Tekram DC390W, 390U and 390F
     Tyan S1365
 
+NCR 53C500 based PC-Card SCSI host adapters:
+    IO DATA PCSC-DV
+    KME KXLC002(TAXAN ICD-400PN, etc.), KXLC004
+    Macnica Miracle SCSI-II mPS110
+    Media Intelligent MSC-110, MSC-200
+    NEC PC-9801N-J03R
+    New Media Corporation BASICS SCSI
+    Qlogic Fast SCSI
+    RATOC REX-9530, REX-5572 (as SCSI only)
+    
+TMC 18C30, 18C50 based ISA/PC-Card SCSI host adapters:
+    Future Domain SCSI2GO
+    IBM SCSI PCMCIA Card
+    ICM PSC-2401 SCSI
+    Melco IFC-SC
+    RATOC REX-5536, REX-5536AM, REX-5536M, REX-9836A
+
 DTC 3290 EISA SCSI controller in 1542 emulation mode.
 
 Tekram DC390 and DC390T controllers (maybe other cards based on the
 AMD 53c974 as well).
+
+Workbit Ninja SCSI-3 based PC-Card SCSI host adapters:
+    Alpha-Data AD-PCS201
+    IO DATA CBSC16
 
 With all supported SCSI controllers, full support is provided for
 SCSI-I & SCSI-II peripherals, including hard disks, optical disks,
