@@ -203,7 +203,7 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
     struct atapi_hcb *hcb = NULL;
     int unit = cam_sim_unit(sim);
     int bus = cam_sim_bus(sim);
-    int len;
+    int len, s;
     char *buf;
 
     switch (ccb_h->func_code) {
@@ -452,7 +452,9 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 						  M_NOWAIT | M_ZERO)))
 		goto action_oom;
 	}
+	s = splbio();
 	TAILQ_INSERT_TAIL(&softc->pending_hcbs, hcb, chain);
+	splx(s);
 	if (atapi_queue_cmd(dev, hcb->cmd, buf, len,
 			    (((ccb_h->flags & CAM_DIR_MASK) == CAM_DIR_IN) ?
 			    ATPR_F_READ : 0) | ATPR_F_QUIET,
@@ -490,10 +492,10 @@ atapi_poll(struct cam_sim *sim)
 int 
 atapi_cb(struct atapi_request *req)
 {
-    int s = splcam();
     struct atapi_hcb *hcb = (struct atapi_hcb *) req->driver;
     struct ccb_scsiio *csio = &hcb->ccb->csio;
     int hcb_status = req->result;
+    int s = splbio();
 
 #ifdef CAMDEBUG
 	if (CAM_DEBUGGED(csio->ccb_h.path, CAM_DEBUG_CDB)) {
@@ -550,7 +552,7 @@ static void
 atapi_async(void *callback_arg, u_int32_t code,
 	    struct cam_path *path, void *arg)
 {
-    int s = splcam();
+    int s = splbio();
 
     atapi_async1(callback_arg, code, path, arg);
     splx(s);
