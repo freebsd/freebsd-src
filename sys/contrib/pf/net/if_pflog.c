@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$OpenBSD: if_pflog.c,v 1.9 2003/05/14 08:42:00 canacar Exp $	*/
+/*	$OpenBSD: if_pflog.c,v 1.11 2003/12/31 11:18:25 cedric Exp $	*/
 /*
  * The authors of this code are John Ioannidis (ji@tla.org),
  * Angelos D. Keromytis (kermit@csd.uch.gr) and 
@@ -151,12 +151,7 @@ pflog_clone_create(struct if_clone *ifc, int unit)
 
 	MALLOC(sc, struct pflog_softc *, sizeof(*sc), M_PFLOG, M_WAITOK|M_ZERO);
 
-#if (__FreeBSD_version < 501113)
-        sc->sc_if.if_name = PFLOGNAME;
-        sc->sc_if.if_unit = unit;
-#else
 	if_initname(&sc->sc_if, ifc->ifc_name, unit);
-#endif
         sc->sc_if.if_mtu = PFLOGMTU;
         sc->sc_if.if_ioctl = pflogioctl;
         sc->sc_if.if_output = pflogoutput;
@@ -165,12 +160,6 @@ pflog_clone_create(struct if_clone *ifc, int unit)
         sc->sc_if.if_snd.ifq_maxlen = ifqmaxlen;
         sc->sc_if.if_hdrlen = PFLOG_HDRLEN;
         sc->sc_if.if_softc = sc;
-	/*
-	 * We would get a message like
-	 * "in6_ifattach: pflog0 is not multicast capable, IPv6 not enabled".
-	 * We need a patch to in6_ifattach() to exclude interface type
-	 * IFT_PFLOG.
-	 */
         if_attach(&sc->sc_if);
 
         LIST_INSERT_HEAD(&pflog_list, sc, sc_next);
@@ -218,24 +207,32 @@ void
 pflogstart(struct ifnet *ifp)
 {
 	struct mbuf *m;
+#ifndef __FreeBSD__
 	int s;
+#endif
 
 	for (;;) {
-		s = splimp();
 #ifdef __FreeBSD__
 		IF_LOCK(&ifp->if_snd);
 		_IF_DROP(&ifp->if_snd);
 		_IF_DEQUEUE(&ifp->if_snd, m);
+		if (m == NULL) {
+			IF_UNLOCK(&ifp->if_snd);
+			return;
+		}
+		else
+			m_freem(m);
 		IF_UNLOCK(&ifp->if_snd);			
 #else
+		s = splimp();
 		IF_DROP(&ifp->if_snd);
 		IF_DEQUEUE(&ifp->if_snd, m);
-#endif
 		splx(s);
 		if (m == NULL)
 			return;
 		else
 			m_freem(m);
+#endif
 	}
 }
 
@@ -277,38 +274,34 @@ pflogioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 }
 
 int
-pflog_packet(struct ifnet *ifp, struct mbuf *m, sa_family_t af, u_int8_t dir,
+pflog_packet(struct pfi_kif *kif, struct mbuf *m, sa_family_t af, u_int8_t dir,
     u_int8_t reason, struct pf_rule *rm, struct pf_rule *am,
     struct pf_ruleset *ruleset)
 {
 #if NBPFILTER > 0
 	struct ifnet *ifn;
 	struct pfloghdr hdr;
+#ifndef __FreeBSD__
 	struct mbuf m1;
+#endif
 
-	if (ifp == NULL || m == NULL || rm == NULL)
+	if (kif == NULL || m == NULL || rm == NULL)
 		return (-1);
 
+	bzero(&hdr, sizeof(hdr));
 	hdr.length = PFLOG_REAL_HDRLEN;
 	hdr.af = af;
 	hdr.action = rm->action;
 	hdr.reason = reason;
-#if defined(__FreeBSD__) && (__FreeBSD_version < 501113)
-	snprintf(hdr.ifname, IFNAMSIZ, "%s%d", ifp->if_name, ifp->if_unit);
-#else
-	memcpy(hdr.ifname, ifp->if_xname, sizeof(hdr.ifname));
-#endif
+	memcpy(hdr.ifname, kif->pfik_name, sizeof(hdr.ifname));
 
 	if (am == NULL) {
 		hdr.rulenr = htonl(rm->nr);
 		hdr.subrulenr = -1;
-		bzero(hdr.ruleset, sizeof(hdr.ruleset));
 	} else {
 		hdr.rulenr = htonl(am->nr);
 		hdr.subrulenr = htonl(rm->nr);
-		if (ruleset == NULL)
-			bzero(hdr.ruleset, sizeof(hdr.ruleset));
-		else
+		if (ruleset != NULL)
 			memcpy(hdr.ruleset, ruleset->name,
 			    sizeof(hdr.ruleset));
 
@@ -326,19 +319,22 @@ pflog_packet(struct ifnet *ifp, struct mbuf *m, sa_family_t af, u_int8_t dir,
 	}
 #endif /* INET */
 
+#ifndef __FreeBSD__
 	m1.m_next = m;
 	m1.m_len = PFLOG_HDRLEN;
 	m1.m_data = (char *) &hdr;
+#endif
 
 #ifdef __FreeBSD__
 	KASSERT((!LIST_EMPTY(&pflog_list)), ("pflog: no interface"));
 	ifn = &LIST_FIRST(&pflog_list)->sc_if;
+	BPF_MTAP2(ifn, &hdr, sizeof(hdr), m);
 #else
 	ifn = &(pflogif[0].sc_if);
-#endif
 
 	if (ifn->if_bpf)
 		bpf_mtap(ifn->if_bpf, &m1);
+#endif
 #endif
 
 	return (0);

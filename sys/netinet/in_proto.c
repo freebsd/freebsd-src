@@ -35,6 +35,7 @@
 #include "opt_mrouting.h"
 #include "opt_ipsec.h"
 #include "opt_inet6.h"
+#include "opt_pf.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -84,6 +85,11 @@
 
 #ifdef IPXIP
 #include <netipx/ipx_ip.h>
+#endif
+
+#ifdef DEV_PFSYNC
+#include <net/pfvar.h>
+#include <net/if_pfsync.h>
 #endif
 
 extern	struct domain inetdomain;
@@ -225,6 +231,14 @@ struct protosw inetsw[] = {
   &rip_usrreqs
 },
 #endif	/* PIM */
+#ifdef DEV_PFSYNC
+{ SOCK_RAW,	&inetdomain,	IPPROTO_PFSYNC,	PR_ATOMIC|PR_ADDR,
+  pfsync_input,	0,		0,		rip_ctloutput,
+  0,
+  0,		0,		0,		0,
+  &rip_usrreqs
+},
+#endif	/* DEV_PFSYNC */
 	/* raw wildcard */
 { SOCK_RAW,	&inetdomain,	0,		PR_ATOMIC|PR_ADDR,
   rip_input,	0,		0,		rip_ctloutput,
