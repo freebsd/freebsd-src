@@ -100,4 +100,6 @@ struct sun_disklabel {			/* total size = 512 bytes */
 	u_int16_t	sl_cksum;		/* xor checksum of all shorts */
 };
 
+#ifdef CTASSERT
 CTASSERT(sizeof (struct sun_disklabel) == 512);
+#endif
