@@ -2261,7 +2261,8 @@ fatm_open_vcc(struct fatm_softc *sc, struct atmio_openvcc *op, int wait)
 		cmd |= (5 << 8);
 
 	q = fatm_start_vcc(sc, op->param.vpi, op->param.vci, cmd, 1,
-	    wait ? fatm_cmd_complete : fatm_open_complete);
+	    (wait && !(op->param.flags & ATMIO_FLAG_ASYNC)) ?
+	    fatm_cmd_complete : fatm_open_complete);
 	if (q == NULL) {
 		error = EIO;
 		goto done;
@@ -2271,7 +2272,7 @@ fatm_open_vcc(struct fatm_softc *sc, struct atmio_openvcc *op, int wait)
 	sc->vccs[op->param.vci] = vc;
 	sc->open_vccs++;
 
-	if (wait) {
+	if (wait && !(op->param.flags & ATMIO_FLAG_ASYNC)) {
 		error = fatm_waitvcc(sc, q);
 		if (error != 0) {
 			sc->vccs[op->param.vci] = NULL;
@@ -2359,7 +2360,8 @@ fatm_close_vcc(struct fatm_softc *sc, struct atmio_closevcc *cl, int wait)
 
 	q = fatm_start_vcc(sc, cl->vpi, cl->vci, 
 	    FATM_OP_DEACTIVATE_VCIN | FATM_OP_INTERRUPT_SEL, 1,
-	    wait ? fatm_cmd_complete : fatm_close_complete);
+	    (wait && !(vc->param.flags & ATMIO_FLAG_ASYNC)) ?
+	    fatm_cmd_complete : fatm_close_complete);
 	if (q == NULL) {
 		error = EIO;
 		goto done;
@@ -2368,7 +2370,7 @@ fatm_close_vcc(struct fatm_softc *sc, struct atmio_closevcc *cl, int wait)
 	vc->vflags &= ~(FATM_VCC_OPEN | FATM_VCC_TRY_OPEN);
 	vc->vflags |= FATM_VCC_TRY_CLOSE;
 
-	if (wait) {
+	if (wait && !(vc->param.flags & ATMIO_FLAG_ASYNC)) {
 		error = fatm_waitvcc(sc, q);
 		if (error != 0)
 			goto done;
