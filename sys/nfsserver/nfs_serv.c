@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_serv.c,v 1.47 1997/08/16 19:15:56 wollman Exp $
+ * $Id: nfs_serv.c,v 1.48 1997/09/02 01:19:33 bde Exp $
  */
 
 /*
@@ -2594,11 +2594,6 @@ nfsrv_readdir(nfsd, slp, procp, mrq)
 	}
 	VOP_UNLOCK(vp, 0, procp);
 	MALLOC(rbuf, caddr_t, siz, M_TEMP, M_WAITOK);
-#ifdef __NetBSD__
-	ncookies = siz / (5 * NFSX_UNSIGNED); /*7 for V3, but it's an est. so*/
-	MALLOC(cookies, u_long *, ncookies * sizeof (u_long *), M_TEMP,
-		M_WAITOK);
-#endif
 again:
 	iv.iov_base = rbuf;
 	iv.iov_len = fullsiz;
@@ -2668,7 +2663,6 @@ again:
 	cend = rbuf + siz;
 	dp = (struct dirent *)cpos;
 	cookiep = cookies;
-#ifdef __FreeBSD__
 	/*
 	 * For some reason FreeBSD's ufs_readdir() chooses to back the
 	 * directory offset up to a block boundary, so it is necessary to
@@ -2678,9 +2672,6 @@ again:
 	 */
 	while (cpos < cend && ncookies > 0 &&
 		(dp->d_fileno == 0 || ((u_quad_t)(*cookiep)) <= toff)) {
-#else
-	while (dp->d_fileno == 0 && cpos < cend && ncookies > 0) {
-#endif
 		cpos += dp->d_reclen;
 		dp = (struct dirent *)cpos;
 		cookiep++;
@@ -2857,11 +2848,6 @@ nfsrv_readdirplus(nfsd, slp, procp, mrq)
 	}
 	VOP_UNLOCK(vp, 0, procp);
 	MALLOC(rbuf, caddr_t, siz, M_TEMP, M_WAITOK);
-#ifdef __NetBSD__
-	ncookies = siz / (7 * NFSX_UNSIGNED);
-	MALLOC(cookies, u_long *, ncookies * sizeof (u_long *), M_TEMP,
-		M_WAITOK);
-#endif
 again:
 	iv.iov_base = rbuf;
 	iv.iov_len = fullsiz;
@@ -2926,7 +2912,6 @@ again:
 	cend = rbuf + siz;
 	dp = (struct dirent *)cpos;
 	cookiep = cookies;
-#ifdef __FreeBSD__
 	/*
 	 * For some reason FreeBSD's ufs_readdir() chooses to back the
 	 * directory offset up to a block boundary, so it is necessary to
@@ -2936,9 +2921,6 @@ again:
 	 */
 	while (cpos < cend && ncookies > 0 &&
 		(dp->d_fileno == 0 || ((u_quad_t)(*cookiep)) <= toff)) {
-#else
-	while (dp->d_fileno == 0 && cpos < cend && ncookies > 0) {
-#endif
 		cpos += dp->d_reclen;
 		dp = (struct dirent *)cpos;
 		cookiep++;
