@@ -1099,10 +1099,6 @@ unp_init(void)
 	LIST_INIT(&unp_shead);
 }
 
-#ifndef MIN
-#define	MIN(a,b) (((a)<(b))?(a):(b))
-#endif
-
 static int
 unp_internalize(controlp, td)
 	struct mbuf **controlp;
