@@ -43,6 +43,7 @@
 #	mcd*	"mitsumi cdrom disks"
 #	scd*	"sony cdrom disks"
 #	matcd*	"Matsushita (panasonic) cdrom disks"
+#	wcd*	"IDE cdrom disks"
 #	vn*	"vnode disks"
 #	od*	"optical disks"
 #
@@ -92,7 +93,7 @@
 #	isdn*	ISDN devices
 #	labpc*	National Instrument's Lab-PC and LAB-PC+
 #
-#	$Id: MAKEDEV,v 1.103 1995/08/19 15:50:56 joerg Exp $
+#	$Id: MAKEDEV,v 1.104 1995/09/03 20:40:16 jkh Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
