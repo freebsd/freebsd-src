@@ -349,7 +349,6 @@ static char	MATCDCOPYRIGHT[] = "Matsushita CD-ROM driver, Copr. 1994,1995 Frank 
 #include	<sys/systm.h>
 
 #include	<sys/buf.h>
-#include	<sys/dkbad.h>
 #include	<sys/cdio.h>
 #include	<sys/disklabel.h>
 #include	<sys/fcntl.h>
@@ -1014,8 +1013,6 @@ int matcdioctl(dev_t dev, u_long command, caddr_t addr,
 		return(EIO);		/*<16>then drive really isn't ready*/
 
 	switch(command) {
-	case	DIOCSBAD:
-		return(EINVAL);
 
 	case	DIOCGDINFO:
 		*(struct disklabel *) addr = cd->dlabel;
