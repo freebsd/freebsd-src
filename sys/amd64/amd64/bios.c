@@ -59,7 +59,8 @@ __FBSDID("$FreeBSD$");
 
 /* exported lookup results */
 struct bios32_SDentry		PCIbios;
-struct PnPBIOS_table		*PnPBIOStable;
+
+static struct PnPBIOS_table	*PnPBIOStable;
 
 static u_int			bios32_SDCI;
 
@@ -555,7 +556,7 @@ pnpbios_identify(driver_t *driver, device_t parent)
 	return;
 
     /* ACPI already active */
-    if (devclass_get_softc(devclass_find("ACPI"), 0) != NULL)
+    if (devclass_get_softc(devclass_find("acpi"), 0) != NULL)
 	return;
 
     /* get count of PnP devices */
