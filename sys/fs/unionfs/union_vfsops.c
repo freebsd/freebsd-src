@@ -351,11 +351,7 @@ union_unmount(mp, mntflags, td)
 		int n;
 
 		/* count #vnodes held on mount list */
-		mtx_lock(&mntvnode_mtx);
-		n = 0;
-		TAILQ_FOREACH(vp, &mp->mnt_nvnodelist, v_nmntvnodes)
-			n++;
-		mtx_unlock(&mntvnode_mtx);
+		n = mp->mnt_nvnodelistsize;
 
 		/* if this is unchanged then stop */
 		if (n == freeing)
