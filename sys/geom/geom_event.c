@@ -139,6 +139,8 @@ g_orphan_register(struct g_provider *pp)
 		cp->geom->orphan(cp);
 		cp = cp2;
 	}
+	if (LIST_EMPTY(&pp->consumers) && (pp->flags & G_PF_WITHER))
+		g_destroy_provider(pp);
 #ifdef notyet
 	cp = LIST_FIRST(&pp->consumers);
 	if (cp != NULL)
