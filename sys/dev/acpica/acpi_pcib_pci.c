@@ -106,6 +106,7 @@ static driver_t acpi_pcib_pci_driver = {
 };
 
 DRIVER_MODULE(acpi_pcib, pci, acpi_pcib_pci_driver, pcib_devclass, 0, 0);
+MODULE_DEPEND(acpi_pcib, acpi, 1, 1, 1);
 
 static int
 acpi_pcib_pci_probe(device_t dev)

@@ -184,6 +184,7 @@ static driver_t acpi_cpu_driver = {
 
 static devclass_t acpi_cpu_devclass;
 DRIVER_MODULE(acpi_cpu, acpi, acpi_cpu_driver, acpi_cpu_devclass, 0, 0);
+MODULE_DEPEND(acpi_cpu, acpi, 1, 1, 1);
 
 static int
 acpi_cpu_probe(device_t dev)

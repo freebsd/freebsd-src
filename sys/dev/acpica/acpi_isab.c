@@ -88,6 +88,7 @@ static driver_t acpi_isab_driver = {
 };
 
 DRIVER_MODULE(acpi_isab, acpi, acpi_isab_driver, isab_devclass, 0, 0);
+MODULE_DEPEND(acpi_isab, acpi, 1, 1, 1);
 
 static int
 acpi_isab_probe(device_t dev)

@@ -83,6 +83,7 @@ static driver_t acpi_button_driver = {
 static devclass_t acpi_button_devclass;
 DRIVER_MODULE(acpi_button, acpi, acpi_button_driver, acpi_button_devclass,
 	      0, 0);
+MODULE_DEPEND(acpi_button, acpi, 1, 1, 1);
 
 static int
 acpi_button_probe(device_t dev)
