@@ -1169,8 +1169,7 @@ vinvalbuf(vp, flags, cred, td, slpflag, slptimeo)
 		}
 		VI_UNLOCK(vp);
 		if (VOP_GETVOBJECT(vp, &object) == 0) {
-			while (object->paging_in_progress)
-			vm_object_pip_sleep(object, "vnvlbx");
+			vm_object_pip_wait(object, "vnvlbx");
 		}
 		VI_LOCK(vp);
 	} while (vp->v_numoutput > 0);
