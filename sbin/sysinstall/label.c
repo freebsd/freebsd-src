@@ -36,10 +36,18 @@ struct field {
 
 struct field label_fields[MAXPARTITIONS][EDITABLES];
 
+int allocated_space;
+int ourpart_offset;
+int ourpart_size;
+
 void
 yelp(char *str)
 {
-    dialog_msgbox("Validation Error", str, 6, 75, 1);
+    standout();
+    mvprintw(24, 0, "Validation Error: %s.  Press return to continue", str);
+    standend();
+    beep();
+    (void)getch();
 }
 
 void
@@ -419,8 +427,6 @@ CleanMount(int disk, int part)
     MP[disk][part] = 0;
 }
 
-int free_space;
-
 void
 DiskLabel()
 {
@@ -443,12 +449,16 @@ DiskLabel()
     hd = lbl->d_ntracks;
     sec = lbl->d_nsectors;
     tsec = lbl->d_secperunit;
-    free_space = lbl->d_partitions[OURPART].p_size;
     while(!done) {
 	clear(); standend();
 	j = 0;
 	mvprintw(j++, 0, "%s -- Diskspace editor -- DISKLABEL",  TITLE);
 	j++;
+
+	allocated_space = 0;
+	ourpart_size = lbl->d_partitions[OURPART].p_size;
+	ourpart_offset = lbl->d_partitions[OURPART].p_offset;
+
         mvprintw(j++, 0, "Part  Start       End    Blocks     MB   Type       Mountpoint");
 	for (i = 0; i < MAXPARTITIONS; i++) {
 	    mvprintw(j++, 0, "%c ", 'a'+i);
@@ -474,10 +484,15 @@ DiskLabel()
 	    else {
 		if (Fmount[MP[diskno][i]])
 		    printw(Fmount[MP[diskno][i]]);
-		free_space -= lbl->d_partitions[i].p_size;
+		if ((lbl->d_partitions[i].p_offset >= ourpart_offset) &&
+		    ((lbl->d_partitions[i].p_offset +
+		     lbl->d_partitions[i].p_size) <= 
+		     (ourpart_offset + ourpart_size)))
+		    allocated_space += lbl->d_partitions[i].p_size;
 	    }
 	}
-	mvprintw(19, 0, "Free space: %d blocks.", free_space);
+	mvprintw(18, 0, "Total size:      %d blocks", ourpart_size);
+	mvprintw(19, 0, "Space allocated: %d blocks", allocated_space);
 	mvprintw(21, 0, "Commands available:");
 	mvprintw(22, 0, "(S)ize  (M)ountpoint  (D)elete  (R)eread  (W)rite  (Q)uit");
 	mvprintw(23, 0, "Enter Command> ");
@@ -627,8 +642,9 @@ DiskLabel()
 	    if (ioctl(Dfd[diskno], DIOCWLABEL, &flag) < 0)
 		Fatal("Couldn't disable writing of labels");
 	    
-	    mvprintw(24, 0, "Label written successfully.");
-	    beep();
+	    mvprintw(24, 0,
+		     "Label written successfully.  Press return to continue.");
+	    (void)getch();
 	    break;
 
 	case 'q': case 'Q':
