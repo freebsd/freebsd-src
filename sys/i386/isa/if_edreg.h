@@ -6,7 +6,7 @@
  *   of this software, nor does the author assume any responsibility
  *   for damages incurred with its use.
  *
- * $Id: if_edreg.h,v 1.14 1994/04/10 20:06:28 davidg Exp $
+ * $Id: if_edreg.h,v 1.15 1994/08/02 07:39:30 davidg Exp $
  */
 /*
  * National Semiconductor DS8390 NIC register definitions 
@@ -547,19 +547,11 @@
  * A contiguous portion of those blocks are marked for receive packets
  * by setting start and end block #'s in the NIC.  For each packet that
  * is put into the receive ring, one of these headers (4 bytes each) is
- * tacked onto the front.
+ * tacked onto the front. The first byte is a copy of the receiver status
+ * register at the time the packet was received.
  */
 struct ed_ring	{
-	struct edr_status {		/* received packet status	*/
-	    u_char rs_prx:1,		/* packet received intack	*/
-		   rs_crc:1,		/* crc error		*/
-	           rs_fae:1,		/* frame alignment error	*/
-	           rs_fo:1,		/* fifo overrun		*/
-	           rs_mpa:1,		/* packet received intack	*/
-	           rs_phy:1,		/* packet received intack	*/
-	           rs_dis:1,		/* packet received intack	*/
-	           rs_dfr:1;		/* packet received intack	*/
-	} ed_rcv_status;		/* received packet status	*/
+	u_char	rsr;			/* receiver status */
 	u_char	next_packet;		/* pointer to next packet	*/
 	u_short	count;			/* bytes in packet (length + 4)	*/
 };
