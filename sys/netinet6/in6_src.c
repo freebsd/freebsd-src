@@ -256,7 +256,8 @@ in6_selectsrc(dstsock, opts, mopts, ro, laddr, errorp)
 			if (IN6_IS_ADDR_MULTICAST(dst)) {
 				ro->ro_rt = rtalloc1(&((struct route *)ro)
 						     ->ro_dst, 0, 0UL);
-				RT_UNLOCK(ro->ro_rt);
+				if (ro->ro_rt)
+					RT_UNLOCK(ro->ro_rt);
 			} else {
 				rtalloc((struct route *)ro);
 			}
