@@ -97,7 +97,6 @@ main(argc, argv)
 		case 'p':
 			if (oflag)
 				usage();
-			warnx("-p is deprecated, use `-o /dev/stdout' instead.");
 			pflag = 1; /* print output to stdout */
 			break;
 		case 's':
