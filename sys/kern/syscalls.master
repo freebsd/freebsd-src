@@ -544,3 +544,4 @@
 			    const char *attrname); }
 374	MSTD	BSD	{ int __setugid(int flag); }
 375	NOIMPL	BSD	{ int nfsclnt(int flag, caddr_t argp); }
+376	STD	BSD	{ int eaccess(char *path, int flags); }
