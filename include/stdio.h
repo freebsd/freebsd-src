@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)stdio.h	8.5 (Berkeley) 4/29/95
- *	$Id: stdio.h,v 1.18 1998/06/14 16:04:20 bde Exp $
+ *	$Id: stdio.h,v 1.19 1998/07/08 00:52:40 peter Exp $
  */
 
 #ifndef	_STDIO_H_
@@ -293,7 +293,7 @@ __END_DECLS
  */
 #if !defined (_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
 __BEGIN_DECLS
-int	 asprintf __P((char **, const char *, ...));
+int	 asprintf __P((char **, const char *, ...)) __printflike(2, 3);
 char	*fgetln __P((FILE *, size_t *));
 int	 fpurge __P((FILE *));
 int	 getw __P((FILE *));
@@ -303,11 +303,14 @@ int	 putw __P((int, FILE *));
 void	 setbuffer __P((FILE *, char *, int));
 int	 setlinebuf __P((FILE *));
 char	*tempnam __P((const char *, const char *));
-int	 snprintf __P((char *, size_t, const char *, ...));
-int	 vasprintf __P((char **, const char *, _BSD_VA_LIST_));
-int	 vsnprintf __P((char *, size_t, const char *, _BSD_VA_LIST_));
-int	 vscanf __P((const char *, _BSD_VA_LIST_));
-int	 vsscanf __P((const char *, const char *, _BSD_VA_LIST_));
+int	 snprintf __P((char *, size_t, const char *, ...)) __printflike(3, 4);
+int	 vasprintf __P((char **, const char *, _BSD_VA_LIST_))
+	    __printflike(2, 0);
+int	 vsnprintf __P((char *, size_t, const char *, _BSD_VA_LIST_))
+	    __printflike(3, 0);
+int	 vscanf __P((const char *, _BSD_VA_LIST_)) __scanflike(1, 0);
+int	 vsscanf __P((const char *, const char *, _BSD_VA_LIST_))
+	    __scanflike(2, 0);
 __END_DECLS
 
 /*
