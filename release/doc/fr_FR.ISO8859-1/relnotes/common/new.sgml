@@ -1045,7 +1045,125 @@ options HZ=1000 # pas obligatoire, mais fortemment recommandé</programlisting>
     <sect3>
       <title>Systèmes de fichier</title>
 
-      <para></para>
+      <para>Le support des attributs étendus a été ajouté au noyau
+      de &os; Cela permet au noyau, et certains processus utilisateurs
+      privilégiés, de marqué des fichiers et des répertoires avec
+      des données supplémentaires. Les attributs étendus ont été ajoutés
+      pour supporter le projet TrustedBSD, en particulier les ACL, 
+      l'accès via des jetons (voyez le fichier 
+      <filename>/usr/src/sys/ufs/ufs/README.extattr</filename> pour
+      plus de détails).</para>
+
+      <para>Suite a un changement dans sa license, les "softupdates"
+      ont été intégrés dans la portion principale des sources
+      du noyau. Cela a pour conséquence de permettre aux
+      "softupdates" de pouvoir etre disponible dans le 
+      noyau <filename>GENERIC</filename>. &merged;</para>
+
+      <para>La capacité d'effectuer un snapshot a été ajouté a FFS.
+      Plus de détails peuvent etre trouvé dans le fichier 
+      <filename>/usr/src/sys/ufs/ffs/README.snapshot</filename>.</para>
+
+      <para>Les "softupdates" pour FFS ont reçus de nombreux
+      correctifs et améliorations.</para>
+
+      <para>Lors de l'utilisation des "softupdates" et &man.statfs.2;,
+      &man.df.1; affiche le nombre de blocs et de fichiers qui sont
+      pret a etre nettoyés.</para>
+
+      <para>Le bogue dans FFS corrompant les superblock sur de grands
+      systèmes de fichier a été corrigé.&merged;</para>
+
+      <para>Le système de fichier Inode (IFS) a été ajouté; plus
+      d'informations sont disponible dans le fichier
+      <filename>/usr/src/sys/ufs/ifs/README</filename>.</para>
+
+      <para>Le système de fichiers ISO-9660 dispose maintenant
+      d'une routine chargeable a la demande de convertion de
+      caractères. Le port <filename role="package">sysutils/cd9660_unicode</filename>
+      comporte un ensemble de base de conversions.</para>
+
+      <para>&man.kernfs.5; est obsolète et a été retiré.</para>
+
+      <para>Un bogue dans le client NFS causant un temps d'accès faux
+      sur les fichiers ouverts par <literal>O_EXCL|O_CREAT</literal>
+      a été corrigé &merged;</para>
+
+      <para>Une nouvelle fonction de hashage NFS (basé sur l'algorithme
+      de hashage Fowler/Noll/Vo) a été implémentée et améliore les
+      performances NFS en augmentant l'efficience des tables de hashage
+      de <varname>nfsnode</varname>. &merged;</para>
+
+      <para>Les locks NFS coté client on été implémentés.</para>
+
+      <para>Le code NFS coté client et serveur dans le noyau 
+      a été croisé de manière complexe. Ils ont été séparés
+      pour une meilleure maintenance et de futurs développements..</para>
+
+      <para>Le support des listes de controle d'accès (ACLs) sur
+      le système de fichiers a été introduit, permettant de controler
+      de façon plus fine l'accès aux fichiers et répertoires. Ce support
+      vient du projet TrustedBSD. Plus de détails sont disponibles
+      dans le fichier
+      <filename>/usr/src/sys/ufs/ufs/README.acls</filename>.</para>
+
+      <para>L'algorithme préféré de schéma des répertoires pour FFS
+       (<literal>dirprefs</literal>) a changé. Plutot que de couper
+       les blocs de répertoires a travers un disque, il essaie
+       de grgouper les blocs de répertoire ensemble. Les opérations
+       de traversé de larges structures de répertoire, comme les ports
+       de &os;, a démontré plus de rapidité. Ce changement est
+       transparent et automatique pour les nouveaux répertoires. &merged;</para>
+
+      <para arch="i386">Le support de smbfs(CIFS) a été ajouté au noyau. Les
+      programmes utilisateurs &man.smbutil.1; et &man.mount.smbfs.8; 
+      peuvent etre utilisés pour se servir des partages SMB. Notez que
+      &man.mount.smbfs.8; charge automatiquement le module <filename>smbfs.ko</filename>
+      dans le noyau, meme si <literal>LIBMCHAIN</literal> et 
+      <literal>LIBICONV</literal> ne sont pas compilé dans le noyau.
+      &merged;</para>
+
+      <para>Pour rester cohérent les systèmes de fichiers 
+      fdesc, fifo, null, msdos, portal, umap et union ont
+      été renommés en fdescfs, fifofs, msdosfs, nullfs, portalfs, 
+      umapfs, et unionfs. Les modules et programmes mount_* possibles
+      ont été aussi renommés. La compatiblité avec l'entrée du système
+      de fichiers <literal>msdos</literal> dans &man.fstab.5; a été
+      ajoutée a  &man.mount.8; permettant de fonctionner sans changement.</para>
+
+      <para>pseudofs, un canevas pour des pseudo-systèmes de fichiers, 
+      a été ajouté. &man.linprocfs.5; et &man.procfs.5; ont été modifiés
+      pour permettre l'utilisation de pseudofs.</para>
+
+      <para>Une optimisation très simple sur la recherche de hashage
+      de gros répertoires, appelé <literal>dirhash</literal>, a été ajouté.
+      Conditionné par l'option noyau <literal>UFS_DIRHASH</literal> 
+      (activé par défaut dans le noyau <filename>GENERIC</filename>), 
+      permet d'augmenter la rapidité de traitement dans les gros
+      répertoires tout en consommant un peu plus de mémoire. &merged;</para>
+
+      <para>Le sous-système de mémoire virtuel supporte maintenant
+      les nécessités mémoire des répertoires UFS par défaut (cette fonction
+      est controler via la variable sysctl 
+      <varname>vfs.vmiodirenable</varname>). &merged;</para>
+
+      <para>Un bogue empéchant le montage du système de
+      fichier "root" depuis un CDROM SCSI a été corrigé (les
+      CDROM ATAPI ont toujours été supportés). &merged;</para>
+
+      <para>Des bogues dans le code des systèmes
+      de fichiers, découvert en utilisant l'utilitaire
+      <application>fsx</application>de test des systèmes de fichiers,
+      ont été corrigés. Dans certaines cas (principalement lors de 
+      l'utilisation de NFS) certains bogues causaient la corruption
+      des données ou des paniques du noyau. &merged;</para>
+
+      <para>Les systèmes de fichiers réseaux (comme NFS et smbfs) listés
+      dans le fichier <filename>/etc/fstab</filename> peuvent 
+      maintenant etre montés au moment de l'initialisation du système;
+      le montage est alors suspendu jusqu'à l'initialisation finale
+      du réseau.</para>
+
     </sect3>
 
     <sect3>
