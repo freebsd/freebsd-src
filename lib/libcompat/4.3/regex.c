@@ -59,7 +59,7 @@ char *
 re_comp(s)
 	char *s;
 {
-	if (s == NULL)
+	if (s == NULL || *s == '\0')
 		return (NULL);
 	if (re_regexp)
 		free(re_regexp);
