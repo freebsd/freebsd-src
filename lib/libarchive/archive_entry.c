@@ -1366,6 +1366,8 @@ ae_fflagstostr(unsigned long bitset, unsigned long bitclear)
 			bits &= ~(flag->set | flag->clear);
 		}
 
+	if (length == 0)
+		return (NULL);
 	string = malloc(length);
 	if (string == NULL)
 		return (NULL);
