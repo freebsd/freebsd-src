@@ -123,6 +123,7 @@ __FBSDID("$FreeBSD$");
 #define	COM_PPSCTS(flags)	((flags) & 0x10000)
 #define	COM_ST16650A(flags)	((flags) & 0x20000)
 #define	COM_TI16754(flags)	((flags) & 0x200000)
+#define	COM_ALTCONSOLE(flags)	((flags) & 0x400000)
 
 #define	sio_getreg(com, off) \
 	(bus_space_read_1((com)->bst, (com)->bsh, (off)))
@@ -749,7 +750,7 @@ sioprobe(dev, xrid, rclk, noprobe)
 		sio_setreg(com, com_cfcr, CFCR_8BITS);
 		mtx_unlock_spin(&sio_lock);
 		bus_release_resource(dev, SYS_RES_IOPORT, rid, port);
-		if (iobase == siocniobase)
+		if (comconsole != -1 && iobase == siocniobase)
 			result = 0;
 		if (result != 0) {
 			device_set_softc(dev, NULL);
@@ -795,6 +796,7 @@ sioprobe(dev, xrid, rclk, noprobe)
 
 	mtx_unlock_spin(&sio_lock);
 
+	result = 0;
 	irqs = irqmap[1] & ~irqmap[0];
 	if (bus_get_resource(idev, SYS_RES_IRQ, 0, &xirq, NULL) == 0 &&
 	    ((1 << xirq) & irqs) == 0) {
@@ -804,14 +806,14 @@ sioprobe(dev, xrid, rclk, noprobe)
 		printf(
 		"sio%d: port may not be enabled\n",
 		    device_get_unit(dev));
+		result = ENXIO;
 	}
 	if (bootverbose)
 		printf("sio%d: irq maps: %#x %#x %#x %#x\n",
 		    device_get_unit(dev),
 		    irqmap[0], irqmap[1], irqmap[2], irqmap[3]);
 
-	result = 0;
-	for (fn = 0; fn < sizeof failures; ++fn)
+	for (fn = 0; result == 0 && fn < sizeof failures; ++fn)
 		if (failures[fn]) {
 			sio_setreg(com, com_mcr, 0);
 			result = ENXIO;
@@ -826,7 +828,7 @@ sioprobe(dev, xrid, rclk, noprobe)
 			break;
 		}
 	bus_release_resource(dev, SYS_RES_IOPORT, rid, port);
-	if (iobase == siocniobase)
+	if (comconsole != -1 && iobase == siocniobase)
 		result = 0;
 	if (result != 0) {
 		device_set_softc(dev, NULL);
@@ -2814,6 +2816,9 @@ siocngetspeed(iobase, rclk)
 	u_char  cfcr;
 
 	cfcr = inb(iobase + com_cfcr);
+	outb(iobase + com_cfcr, 0x0e);
+	if (inb(iobase + com_cfcr) != 0x0e)
+		return (0);
 	outb(iobase + com_cfcr, CFCR_DLAB | cfcr);
 
 	dlbl = inb(iobase + com_dlbl);
@@ -2826,7 +2831,12 @@ siocngetspeed(iobase, rclk)
 	/* XXX there should be more sanity checking. */
 	if (divisor == 0)
 		return (CONSPEED);
+
+#ifdef FORCECONSPEED
+	return (CONSPEED);
+#else
 	return (rclk / (16UL * divisor));
+#endif
 }
 
 #endif
@@ -2907,7 +2917,7 @@ siocnprobe(cp)
 	speed_t			boot_speed;
 	u_char			cfcr;
 	u_int			divisor;
-	int			s, unit;
+	int			s, unit, check_flags;
 	struct siocnstate	sp;
 
 	/*
@@ -2926,27 +2936,41 @@ siocnprobe(cp)
 	 */
 	cp->cn_pri = CN_DEAD;
 
-	for (unit = 0; unit < 16; unit++) { /* XXX need to know how many */
-		int flags;
+	siocniobase = 0;
+	for(check_flags = 1; check_flags >= 0 && !siocniobase; check_flags--) {
+		for (unit = 0; unit < 16; unit++) { /* XXX need to know how 
+						       many */
+			int flags;
 
-		if (resource_disabled("sio", unit))
-			continue;
-		if (resource_int_value("sio", unit, "flags", &flags))
-			continue;
-		if (COM_CONSOLE(flags) || COM_DEBUGGER(flags)) {
-			int port;
-			Port_t iobase;
-
-			if (resource_int_value("sio", unit, "port", &port))
+			if (resource_disabled("sio", unit))
 				continue;
-			iobase = port;
-			s = spltty();
-			if (boothowto & RB_SERIAL) {
-				boot_speed =
-				    siocngetspeed(iobase, comdefaultrclk);
-				if (boot_speed)
-					comdefaultrate = boot_speed;
+			if (resource_int_value("sio", unit, "flags", &flags))
+				continue;
+
+			if (!check_flags && COM_ALTCONSOLE(flags) 
+			    && !siocniobase){
+				flags |= 0x10;
 			}
+
+			if (COM_CONSOLE(flags) || COM_DEBUGGER(flags)) {
+				int port;
+				Port_t iobase;
+
+				if (resource_int_value("sio", unit, "port",
+				    &port))
+					continue;
+				iobase = port;
+				s = spltty();
+				if (boothowto & RB_SERIAL) {
+					boot_speed = siocngetspeed(iobase, 
+					    comdefaultrclk);
+					if (boot_speed)
+						comdefaultrate = boot_speed;
+					else {
+						splx(s);
+						continue;
+					}
+				}
 
 			/*
 			 * Initialize the divisor latch.  We can't rely on
@@ -2957,34 +2981,37 @@ siocnprobe(cp)
 			 * need to set the speed in hardware so that
 			 * switching it later is null.
 			 */
-			cfcr = inb(iobase + com_cfcr);
-			outb(iobase + com_cfcr, CFCR_DLAB | cfcr);
-			divisor = siodivisor(comdefaultrclk, comdefaultrate);
-			outb(iobase + com_dlbl, divisor & 0xff);
-			outb(iobase + com_dlbh, divisor >> 8);
-			outb(iobase + com_cfcr, cfcr);
+				cfcr = inb(iobase + com_cfcr);
+				outb(iobase + com_cfcr, CFCR_DLAB | cfcr);
+				divisor = siodivisor(comdefaultrclk, comdefaultrate);
+				outb(iobase + com_dlbl, divisor & 0xff);
+				outb(iobase + com_dlbh, divisor >> 8);
+				outb(iobase + com_cfcr, cfcr);
 
-			siocnopen(&sp, iobase, comdefaultrate);
+				siocnopen(&sp, iobase, comdefaultrate);
 
-			splx(s);
-			if (COM_CONSOLE(flags) && !COM_LLCONSOLE(flags)) {
-				siocnset(cp, unit);
-				cp->cn_pri = COM_FORCECONSOLE(flags)
-					     || boothowto & RB_SERIAL
-					     ? CN_REMOTE : CN_NORMAL;
-				siocniobase = iobase;
-				siocnunit = unit;
-			}
-			if (COM_DEBUGGER(flags)) {
-				printf("sio%d: gdb debugging port\n", unit);
-				siogdbiobase = iobase;
-				siogdbunit = unit;
+				splx(s);
+				if (!siocniobase && COM_CONSOLE(flags)
+				    && !COM_LLCONSOLE(flags)) {
+					siocnset(cp, unit);
+					cp->cn_pri = COM_FORCECONSOLE(flags)
+						|| boothowto & RB_SERIAL
+						? CN_REMOTE : CN_NORMAL;
+					siocniobase = iobase;
+					siocnunit = unit;
+				}
+				if (COM_DEBUGGER(flags)) {
+					printf("sio%d: gdb debugging port\n",
+					    unit);
+					siogdbiobase = iobase;
+					siogdbunit = unit;
 #if DDB > 0
-				siocnset(&gdbconsdev, unit);
-				gdb_arg = &gdbconsdev;
-				gdb_getc = siocngetc;
-				gdb_putc = siocnputc;
+					siocnset(&gdbconsdev, unit);
+					gdb_arg = &gdbconsdev;
+					gdb_getc = siocngetc;
+					gdb_putc = siocnputc;
 #endif
+				}
 			}
 		}
 	}
