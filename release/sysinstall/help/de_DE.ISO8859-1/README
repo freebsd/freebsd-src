@@ -1,0 +1,109 @@
+   -----------------------------------------
+       FreeBSD 2.0.5  ---  RELEASE Version             ,        ,
+   -----------------------------------------          /(        )`
+                                                      \ \___   / |
+Willkommen zur Release 2.0.5 von FreeBSD. 2.0.5,      /- _  `-/  '
+ein Zwischen-Release von FreeBSD, f|llt eine oft     (/\/ \ \   /\
+geforderte L|cke zwischen 2.0R (das im Nov. '94      / /   | `    \
+erschien) und 2.1R, das spdt im Juli '95 er-         O O   ) /    |
+scheinen wird. FreeBSD 2.0.5 enthdlt wesentliche     `-^--'`<     '
+Verbesserungen gg|. 2.0R, deren wichtigste eine     (_.)  _  )   /
+erhvhte Systemstabilitdt (wesentlich besser),        `.___/`    /
+Dutzende neuer Features und ein stark                  `-----' /
+verbessertes Installationsprogramm        <----.     __ / __   \
+sind. Lesen Sie die Release Notes         <----|====O)))==) \) /====
+f|r weitere Details bzgl. der Neu-        <----'    `--' `.__,' \
+heiten in FreeBSD 2.0.5.                               |        |
+                                                        \       /       /\
+                                                   ______( (_  / \______/
+                                                 ,'  ,-----'   |
+                                                 `--{__________)
+
+
+
+Was ist FreeBSD? FreeBSD ist ein 4.4BSD Lite basiertes Betriebssystem
+f|r Intel, AMD, Cyrix oder NexGen "x86"-PC-Hardware. Es arbeitet mit
+einer gro_en Anzahl von PC-Peripherie und -Konfigurationen zusammen. Es
+kann f|r die Software-Entwicklung bis hin zum Anbieten von Internet-
+Diensten eingesetzt werden; der meist genutzte Rechner im Internet, 
+ftp.cdrom.com, ist ein FreeBSD-Rechner.
+
+Diese FreeBSD-Release enthdlt alles was Sie zur Nutzung eines
+solchen Systems brauchen; zusdtzlich erhalten Sie den kompletten
+Quellcode. Wenn Sie den Quellcode installiert haben, kvnnen Sie
+das ganze Betriebssystem von Grund auf mit einem einzigen Befehl
+|bersetzen; dies eignet es in idealer Weise f|r Studenten, Forscher
+oder einfach Leute, die sehen wollen wie alles funktioniert.
+
+Eine gro_e Anzahl portierter Dritt-Software (die "ports collection")
+gibt es ebenfalls, um Ihnen die Verf|gbarkeit und die Installation
+Ihrer traditionellen Lieblings-UNIX-Utilities f|r FreeBSD zu 
+erleichtern. \ber 270 Portierungen, vom EMACS Editor bis zur 
+Programmiersprache LISP, machen FreeBSD zu einem mdchtigen
+und umfassenden Betriebssystem, das keinen Vergleich zu dem gro_er
+Workstations scheut.
+
+Als weitere Dokumentation zu diesem System empfehlen wir die 4.4BSD
+Dokumentation von O'Reilly Associates und der USENIX Association,
+ISBN 1-56592-082-1. Wir sind nicht mit O'Reilly verbunden, sondern
+nur zufriedene Kunden!
+
+Wir empfehlen die HARDWARE ANLEITUNG *vor* jeglicher Fortf|hrung der
+Installation zu lesen. PC Hardware f|r irgend etwas anderes als
+DOS/Windows (das keine gro_en Anforderungen an die Hardware stellt)
+zu konfigurieren, ist schwieriger als es zundchst aussieht. Und wenn
+Sie glauben PCs zu verstehen, dann haben Sie diese noch nicht lange
+genung benutzt :) Diese Anleitung wird Ihnen einige Tips zur Konfigu-
+ration Ihrer Hardware geben und Ihnen sagen auf welche Symptome Sie
+bei Schwierigkeiten achten m|ssen. Die Anleitung ist im Dokumentations-
+menue der FreeBSD Bootfloppy verf|gbar.
+
+VORBEHALT: Obwohl FreeBSD alles versucht Ihre Daten gegen zufdlligen
+Verlust zu sch|tzen, ist es mit dieser Installation mehr als nur mvglich
+IHRE GESAMTE FESTPLATTE ZU LVSCHEN! Bitte fahren Sie nicht mit der
+endg|ltigen Installation von FreeBSD fort, ohne zuerst alle wichtigen
+Daten angemessen gesichert zu haben! Wir empfehlen es eindringlichst!
+
+Technische Kommentare dieser Release sollten an:
+
+	hackers@FreeBSD.org
+
+gesandt werden.
+
+Fehlermeldungen sollten bei erfolgreicher Installation mittels des 
+`send-pr' Kommandos, ansonsten an:
+
+	bugs@FreeBSD.org
+
+gesandt werden.
+
+Bitte stellen Sie sicher, da_ die von Ihnen genutzte FreeBSD-VERSION
+in jeder Fehlermeldung genannt wird!
+
+Allgemeine Fragen sollten an:
+
+	questions@FreeBSD.org
+
+gesandt werden.
+
+Wir bitten um Geduld, wenn Ihre Fragen nicht sofort beantwortet werden -
+dieses sind besonders arbeitsintensive Zeiten f|r uns, und unsere 
+Resourcen i(auf freiwilliger Basis) sind oft bis an die Grenzen ausgereizt!
+Mittels send-pr verschickte Fehlermeldungen werden registriert und in
+unserer Datenbank verfolgt. Sie werden |ber Statusdnderungen |ber die
+gesamte Lebensdauer des Fehlers (oder der Forderung nach einem Feature)
+auf dem Laufenden gehalten.
+
+Unsere WEB Site, http://www.freebsd.org, ist ebenfalls eine gute Quelle
+f|r neue Informationen und enthdlt einige weitere, fortf|hrende Infor-
+mationen. Sie kvnnen die BSDI-Version von Netscape zum browsen (bldttern)
+im World Wide Web direkt aus FreeBSD heraus nutzen.
+
+Wir empfehlen auch in /usr/share/FAQ und /usr/share/doc zu weiteren
+Informationen zum System nachzuschauen.
+
+Wir danken Ihnen f|r Ihre Aufmerksamkeit und hoffen, da_ Ihnen dieses
+Release von FreeBSD viel Freude bereitet.
+
+                                Jordan Hubbard,
+                                f|r das FreeBSD Projekt
