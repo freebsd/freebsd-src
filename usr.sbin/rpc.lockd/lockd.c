@@ -75,7 +75,6 @@ pid_t client_pid;
 struct mon mon_host;
 
 void	init_nsm(void);
-int	main(int, char **);
 void	nlm_prog_0(struct svc_req *, SVCXPRT *);
 void	nlm_prog_1(struct svc_req *, SVCXPRT *);
 void	nlm_prog_3(struct svc_req *, SVCXPRT *);
