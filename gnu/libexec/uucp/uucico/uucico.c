@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char uucico_rcsid[] = "$Id: uucico.c,v 1.182 1994/04/17 02:35:08 ian Rel $";
+const char uucico_rcsid[] = "$Id: uucico.c,v 1.2 1994/05/07 18:14:02 ache Exp $";
 #endif
 
 #include <ctype.h>
@@ -918,26 +918,6 @@ fcall (puuconf, zconfig, fuuxqt, qorigsys, qport, fifwork, fforce, fdetach,
       if (iuuconf != UUCONF_SUCCESS)
 	ulog_uuconf (LOG_ERROR, puuconf, iuuconf);
     }
-  sDaemon.qsys = NULL;
-  sDaemon.zlocalname = NULL;
-  sDaemon.qconn = NULL;
-  sDaemon.qproto = NULL;
-  sDaemon.cchans = 1;
-  sDaemon.clocal_size = -1;
-  sDaemon.cremote_size = -1;
-  sDaemon.cmax_ever = -2;
-  sDaemon.cmax_receive = -1;
-  sDaemon.csent = 0;
-  sDaemon.creceived = 0;
-  sDaemon.cxfiles_received = 0;
-  sDaemon.ifeatures = 0;
-  sDaemon.frequest_hangup = FALSE;
-  sDaemon.fhangup_requested = FALSE;
-  sDaemon.fhangup = FALSE;
-  sDaemon.fmaster = TRUE;
-  sDaemon.fcaller = TRUE;
-  sDaemon.ireliable = 0;
-  sDaemon.bgrade = '\0';
 
   fbadtime = TRUE;
   fnevertime = TRUE;
@@ -964,6 +944,25 @@ fcall (puuconf, zconfig, fuuxqt, qorigsys, qport, fifwork, fforce, fdetach,
       fbadtime = FALSE;
 
       sDaemon.qsys = qsys;
+      sDaemon.zlocalname = NULL;
+      sDaemon.qconn = NULL;
+      sDaemon.qproto = NULL;
+      sDaemon.cchans = 1;
+      sDaemon.clocal_size = -1;
+      sDaemon.cremote_size = -1;
+      sDaemon.cmax_ever = -2;
+      sDaemon.cmax_receive = -1;
+      sDaemon.csent = 0;
+      sDaemon.creceived = 0;
+      sDaemon.cxfiles_received = 0;
+      sDaemon.ifeatures = 0;
+      sDaemon.frequest_hangup = FALSE;
+      sDaemon.fhangup_requested = FALSE;
+      sDaemon.fhangup = FALSE;
+      sDaemon.fmaster = TRUE;
+      sDaemon.fcaller = TRUE;
+      sDaemon.ireliable = 0;
+      sDaemon.bgrade = '\0';
 
       /* Queue up any work there is to do.  */
       if (! fqueue (&sDaemon, &fany))
