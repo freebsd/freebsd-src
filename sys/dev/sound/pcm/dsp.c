@@ -141,7 +141,7 @@ dsp_close(snddev_info *d, int chan, int devtype)
 {
 	pcm_channel *rdch, *wrch;
 
-	d->ref[chan]--;
+	d->ref[chan] = 0;
 #if 0
 	/* enable this if/when every close() is propagated here */
 	if (d->ref[chan]) return 0;
@@ -411,10 +411,12 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 
     	case SNDCTL_DSP_SETFMT:	/* sets _one_ format */
 		splx(s);
-		if (wrch)
-			ret = chn_setformat(wrch, (*arg_i) | (wrch->format & AFMT_STEREO));
-		if (rdch && ret == 0)
-			ret = chn_setformat(rdch, (*arg_i) | (rdch->format & AFMT_STEREO));
+		if ((*arg_i != AFMT_QUERY)) {
+			if (wrch)
+				ret = chn_setformat(wrch, (*arg_i) | (wrch->format & AFMT_STEREO));
+			if (rdch && ret == 0)
+				ret = chn_setformat(rdch, (*arg_i) | (rdch->format & AFMT_STEREO));
+		}
 		*arg_i = (wrch? wrch->format: rdch->format) & ~AFMT_STEREO;
 		break;
 
