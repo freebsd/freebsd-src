@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.67 1996/09/12 23:01:21 roberto Exp $
+<date> $Id: FAQ.sgml,v 1.1 1996/09/28 22:20:13 jfieber Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -761,11 +761,9 @@ Any entries with a &lt;XXX&gt; are under construction.
       <sect1>
         <heading>How can I add my new hard disk to my FreeBSD system?</heading>
         <p>
-          The easiest way to do this is from the installation  program. You can
-          start the installation program by running /stand/sysinstall as root 
-          (note however that this will require kernel support for running 
-          gzipped executables - the one shipped with FreeBSD does <tt /not/ 
-          support this).
+          The easiest way to do this is from the installation program. You
+          can start the installation program by running
+          <tt>/stand/sysinstall</tt> as root.
         <p>
           Alternatively, if you still have the install floppy, you can just
           reboot from that.
@@ -777,13 +775,17 @@ Any entries with a &lt;XXX&gt; are under construction.
           remain compatible with other operating systems, and ``Yes'' when
           asked if you know what you're doing.
         <p>
+          <bf>NOTE: <tt /sysinstall/ is slightly broken in 2.1.0-RELEASE
+          and will not run disklabel properly. See 
+          <ref id="2.1-disklabel-fix" name="below"> for a workaround.</bf>
+        <p>
           Pressing `q' to quit will transfer you to the disklabel editor. 
           Divide up your FreeBSD slice according to taste and press `w' when
           you are happy with the way it looks. Again, say ``Yes'' when asked
           for confirmation, and press `q' to quit.
         <p>
           At this point, you will be asked if you wish to commit your changes.
-          Do <tt /not/ do this! Instead, keep pressing the `escape' key until
+          Do <em /not/ do this! Instead, keep pressing the `escape' key until
           you exit the installation program. If you booted from the install
           floppy, the system will reboot at this point. Remember to remove the
           floppy from the drive first!
@@ -805,6 +807,149 @@ Any entries with a &lt;XXX&gt; are under construction.
         <p>
           If that sentence did not make any sense to you, you definitely do not
           need to worry about tuning your filesystem! :-)
+        <p>
+          <label id="2.1-disklabel-fix">
+          <bf>Using disklabel(8) manually with 2.1.0-RELEASE</bf>
+        <p>
+          <em>WARNING: There is no substitute for reading carefully
+          &amp; understanding what you are doing! Things described here may
+          DESTROY your system. Proceed with caution! Remember, a BACKUP is your
+          friend!</em>
+        <p>
+          <tt /sysinstall/ is broken with 2.1.0-RELEASE and will
+          insist on mounting something at / in the disklabel editor. You will
+          have to manually run <tt /disklabel(8)/ before you can run
+          <tt /newfs(8)/. This means doing the math for partitions
+          yourself. This is rumoured to be easy :-) See if you can obtain a
+          skeletal label with ''<tt>disklabel -r &lt;diskname&gt;</tt>''
+          <em>(eg.  </em>''<tt>disklabel -r /dev/rwd0s2</tt>''<em>, assuming
+          that your new disk is wd0, the first IDE drive, and the FreeBSD
+          slice is the second one, s2)</em>. You should see something
+          like:-
+
+<verb>
+# /dev/rwd0s2:
+type: ESDI
+disk: wd0s2
+label: 
+flags:
+bytes/sector: 512
+sectors/track: 63
+tracks/cylinder: 64
+sectors/cylinder: 4032
+cylinders: 610
+sectors/unit: 2459520
+rpm: 3600
+interleave: 1
+trackskew: 0
+cylinderskew: 0
+headswitch: 0           # milliseconds
+track-to-track seek: 0  # milliseconds
+drivedata: 0 
+
+8 partitions:
+#        size   offset    fstype   [fsize bsize bps/cpg]
+  c:  2459520        0    unused        0     0         # (Cyl.    0 - 609)
+  e:  2459520        0    4.2BSD        0     0     0   # (Cyl.    0 - 609)
+</verb>
+
+          Make sure that the size is correct, in this case, 2459520
+          sectors/unit x 512 bytes/sector / 2**20 (1 Megabyte) = 1200
+          Megabytes. The rest of the stuff (b/s, t/c, s/c, interleave, etc.)
+          should get suitable defaults from <tt /disklabel/, but see 
+          <ref id="ESDI" name="this note"> for older disks. 'fsize' is the 
+          <ref id="fsize" name="Fragment size"> for the filesystem, 
+          and 'bsize' is the <ref id="bsize" name="Block size">. 'c' is 
+          the partition covering the entire slice (or entire disk for a 
+          non-sliced disk), and must remain as it is. <em>It should not be
+          used for a filesystem</em>. The 'c' partition is magic in that it
+          is faked by the kernel even if no disklabel exists.
+        <p>
+          In the trivial case, where you want a single filesystem spanning
+          the whole slice, the entry for 'e' has to be corrected. Setting fsize
+          to 1024 and bsize to 8192 (8 fragments/block), which are reasonable
+          values for a filesystem, the correct entry for 'e' would be:-
+
+<verb>
+  e:  2459520        0    4.2BSD     1024  8192
+</verb>
+
+        <p>
+          Now, the (slightly) harder case, where we want 2 partitions for 2
+          filesystems. Following the <ref id="fsname" name="BSD naming
+          conventions">, the partitions will be <tt /wd0s2e/ &amp;
+          <tt /wd0s2f/. Suppose we split up the 1200 MB into 300 MB for
+          'e' and the remaining 900 MB for 'f'. The partition entries would
+          be:-
+
+<verb>
+8 partitions:
+#        size   offset    fstype   [fsize bsize bps/cpg]
+  c:  2459520        0    unused        0     0         # (Cyl.    0 - 609)
+  e:   614400        0    4.2BSD     1024  8192
+  f:  1843200   614400    4.2BSD     1024  8192
+</verb>
+
+        <p>
+          <bf /Note:/ You can directly edit the disklabel with
+          ''<tt>disklabel -e wd0s2</tt>''. See <tt /disklabel(8)/.
+        <p>
+          You're done! Time to initialise the filesystems with something
+          like:-
+
+        <verb>
+            newfs -d0 /dev/rwd0s2e
+            newfs -d0 /dev/rwd0s2f
+        </verb>
+
+          Depending on the disk name and slice number, it might be
+          required that you run the script <tt>/dev/MAKEDEV</tt>
+          before in order to create the desired device nodes.
+
+          And mount your new filesystems (See <tt /mount(8)/):-
+
+        <verb>
+            mount /dev/wd0s2e /mnt/foo
+            mount /dev/wd0s2f /mnt/bar
+        </verb>
+
+          You may wish to edit <tt>/etc/fstab</tt> to automatically mount
+          the filesystems at boot time.
+
+        <p>
+          <bf /Glossary:/
+          <descrip>
+            <tag><label id="fsize"><bf>Fragment Size (fsize)</bf></tag>
+              The basic unit of storage for <tt /ffs/. See 
+              M. McKusick, W. Joy, S. Leffler, and R. Fabry,
+              "A Fast File System for  UNIX",
+              ACM Transactions on Computer Systems 2, 3, pp 181-197, August
+              1984, (reprinted in the BSD System Manager's Manual, SMM:5) or
+              <url url="file:/usr/share/doc/smm/05.fastfs/paper.ascii.gz"
+                 name="/usr/share/doc/smm/05.fastfs/paper.ascii.gz">
+              on your system.
+            <tag><label id="bsize"><bf>Block Size (bsize)</bf></tag>
+              A block comprises one or more fragments. See the
+              reference above and
+              <url url="file:/usr/include/sys/disklabel.h"
+                 name="&lt;sys/disklabel.h&gt;">
+            <tag><label id="ESDI">
+                <bf>Disklabel Characteristics for Older Disks (ESDI)</bf></tag>
+              You may need to provide more information to <tt /disklabel/
+              if you happen to own a ``true disk'', i.e. one with a
+              uniform geometry, real heads, sectors, and cylinders,
+              such as an old ESDI drive. All of this should be easily
+              obtainable from the drive case, owner's manual, fellow
+              sufferers, etc. :-)
+            <tag><label id="fsname">
+                <bf>BSD Filesystem Naming Conventions</bf></tag>
+              Partition 'a' is by convention reserved for a bootable
+              partition, and partition 'b' for swap space. Regular
+              partition names should start with 'd'. ('d' used to be
+              magic in 386BSD 0.1 through FreeBSD 2.0, thus partition
+              'e' is often used for the first non-bootable partition
+              containing a filesystem.)
+          </descrip>
 
       <sect1>
 	<heading>I have bad blocks on my hard drive!</heading>
