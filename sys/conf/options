@@ -213,7 +213,6 @@ AST_DEBUG		opt_ata.h
 ATAPI_DEBUG		opt_ata.h
 ATA_DEBUG		opt_ata.h
 ATA_STATIC_ID		opt_ata.h
-ATA_ENABLE_ATAPI_DMA	opt_ata.h
 ATA_ENABLE_WC		opt_ata.h 
 ATA_ENABLE_TAGS		opt_ata.h	# also sets ATA_ENABLE_WC
 DEV_ATADISK		opt_ata.h
