@@ -481,28 +481,29 @@ pcic_probe(device_t dev)
 		}
 	}
 	bus_release_resource(dev, SYS_RES_IOPORT, rid, r);
+	if (validslots != 0)
+		return (0);
 #ifdef  PC98    
-	if (validslots == 0) {
-		sp = &pcic_slots[validunits * PCIC_CARD_SLOTS];
-		if (inb(PCIC98_REG0) != 0xff) {
-			sp->controller	= PCIC_PC98;
-			sp->revision	= 0;
-			cinfo.mapmem	= pcic98_memory;
-			cinfo.mapio	= pcic98_io;
-			cinfo.power	= pcic98_power;
-			cinfo.mapirq	= pcic98_mapirq;
-			cinfo.reset	= pcic98_reset;
-			cinfo.disable	= pcic98_disable;
-			cinfo.resume	= pcic98_resume;
-			cinfo.maxmem	= 1;
+	sp = &pcic_slots[validunits * PCIC_CARD_SLOTS];
+	if (inb(PCIC98_REG0) != 0xff) {
+		sp->controller	= PCIC_PC98;
+		sp->revision	= 0;
+		cinfo.mapmem	= pcic98_memory;
+		cinfo.mapio	= pcic98_io;
+		cinfo.power	= pcic98_power;
+		cinfo.mapirq	= pcic98_mapirq;
+		cinfo.reset	= pcic98_reset;
+		cinfo.disable	= pcic98_disable;
+		cinfo.resume	= pcic98_resume;
+		cinfo.maxmem	= 1;
 #if 0   
-			cinfo.maxio	= 1;
+		cinfo.maxio	= 1;
 #else   
-			cinfo.maxio	= 2;	/* fake for UE2212 LAN card */
+		cinfo.maxio	= 2;	/* fake for UE2212 LAN card */
 #endif  
-			validslots++;
-			/* XXX Do I need to allocated the port resources? */
-		}
+		validslots++;
+		/* XXX Do I need to allocated the port resources? */
+		device_set_desc(dev, "NEC PC98 Original PCMCIA Controller");
 	}
 #endif  /* PC98 */
 	return(validslots ? 0 : ENXIO);
