@@ -202,7 +202,7 @@ on them.
 
 The packages and ports directories contain the FreeBSD packages and
 ports collections.  Packages may be installed from the packages directory
-by running the /stand/sysinstall utility with the argument ``configPackages''
+by running the sysinstall utility with the argument ``configPackages''
 or by feeding the individual filenames to the pkg_add(1) command.
 
 The ports collection may be installed like any other distribution
