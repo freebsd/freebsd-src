@@ -3,7 +3,7 @@
 PROG=	strip
 
 install:
-	install -c -o ${BINOWN} -g ${BINOWN} -m ${BINMODE} strip \
+	install -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} strip \
 	    ${DESTDIR}${BINDIR}
 	./strip ${DESTDIR}${BINDIR}/strip
 
