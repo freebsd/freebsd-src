@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: ethertype.h,v 1.4 94/06/14 20:11:45 leres Exp $ (LBL)
+ * @(#) $Header: /home/ncvs/src/usr.sbin/tcpdump/tcpdump/ethertype.h,v 1.1 1995/03/08 12:52:12 olah Exp $ (LBL)
  */
 
 /* Map between Ethernet protocol types and names */
@@ -66,5 +66,8 @@
 #endif
 #ifndef ETHERTYPE_NS
 #define ETHERTYPE_NS		0x0600
+#endif
+#ifndef ETHERTYPE_IPX
+#define ETHERTYPE_IPX		0x8137
 #endif
 
