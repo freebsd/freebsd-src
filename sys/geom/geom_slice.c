@@ -121,6 +121,38 @@ g_slice_access(struct g_provider *pp, int dr, int dw, int de)
 	return (error);
 }
 
+void
+g_slice_finish_hot(struct bio *bp)
+{
+	struct bio *bp2;
+	struct g_geom *gp;
+	struct g_consumer *cp;
+	struct g_slicer *gsp;
+	struct g_slice *gsl;
+	int index;
+
+	KASSERT(bp->bio_to != NULL, ("NULL bio_to in g_slice_finish_hot(%p)", bp));
+	KASSERT(bp->bio_from != NULL, ("NULL bio_from in g_slice_finish_hot(%p)", bp));
+	gp = bp->bio_to->geom;
+	gsp = gp->softc;
+	cp = LIST_FIRST(&gp->consumer);
+	KASSERT(cp != NULL, ("NULL consumer in g_slice_finish_hot(%p)", bp));
+	index = bp->bio_to->index;
+	gsl = &gsp->slices[index];
+
+	bp2 = g_clone_bio(bp);
+	if (bp2 == NULL) {
+		g_io_deliver(bp, ENOMEM);
+		return;
+	}
+	if (bp2->bio_offset + bp2->bio_length > gsl->length)
+		bp2->bio_length = gsl->length - bp2->bio_offset;
+	bp2->bio_done = g_std_done;
+	bp2->bio_offset += gsl->offset;
+	g_io_request(bp2, cp);
+	return;
+}
+
 static void
 g_slice_start(struct bio *bp)
 {
@@ -129,8 +161,9 @@ g_slice_start(struct bio *bp)
 	struct g_geom *gp;
 	struct g_consumer *cp;
 	struct g_slicer *gsp;
-	struct g_slice *gsl;
-	int index;
+	struct g_slice *gsl, *gmp;
+	int index, error;
+	u_int m_index;
 	off_t t;
 
 	pp = bp->bio_to;
@@ -146,6 +179,25 @@ g_slice_start(struct bio *bp)
 		if (bp->bio_offset > gsl->length) {
 			g_io_deliver(bp, EINVAL); /* XXX: EWHAT ? */
 			return;
+		}
+		/*
+		 * Check if we collide with any hot spaces, and call the
+		 * method once if so.
+		 */
+		for (m_index = 0; m_index < gsp->nhot; m_index++) {
+			gmp = &gsp->hot[m_index];
+			if (bp->bio_offset >= gmp->offset + gmp->length)
+				continue;
+			if (bp->bio_offset + bp->bio_length <= gmp->offset)
+				continue;
+			error = gsp->start(bp);
+			if (error == EJUSTRETURN)
+				return;
+			else if (error) {
+				g_io_deliver(bp, error);
+				return;
+			}
+			break;
 		}
 		bp2 = g_clone_bio(bp);
 		if (bp2 == NULL) {
@@ -230,7 +282,7 @@ g_slice_dumpconf(struct sbuf *sb, char *indent, struct g_geom *gp, struct g_cons
 }
 
 int
-g_slice_config(struct g_geom *gp, int index, int how, off_t offset, off_t length, u_int sectorsize, char *fmt, ...)
+g_slice_config(struct g_geom *gp, u_int index, int how, off_t offset, off_t length, u_int sectorsize, char *fmt, ...)
 {
 	struct g_provider *pp;
 	struct g_slicer *gsp;
@@ -301,6 +353,35 @@ g_slice_config(struct g_geom *gp, int index, int how, off_t offset, off_t length
 	return(0);
 }
 
+int
+g_slice_conf_hot(struct g_geom *gp, u_int index, off_t offset, off_t length)
+{
+	struct g_slicer *gsp;
+	struct g_slice *gsl, *gsl2;
+
+	g_trace(G_T_TOPOLOGY, "g_slice_conf_hot()");
+	g_topology_assert();
+	gsp = gp->softc;
+	gsl = gsp->hot;
+	if(index >= gsp->nhot) {
+		gsl2 = g_malloc((index + 1) * sizeof *gsl2, M_WAITOK | M_ZERO);
+		if (gsp->hot != NULL)
+			bcopy(gsp->hot, gsl2, gsp->nhot * sizeof *gsl2);
+		gsp->hot = gsl2;
+		if (gsp->hot != NULL)
+			g_free(gsl);
+		gsl = gsl2;
+		gsp->nhot = index + 1;
+	}
+	if (bootverbose)
+		printf("GEOM: Add %s hot[%d] start %jd length %jd end %jd\n",
+		    gp->name, index, (intmax_t)offset, (intmax_t)length,
+		    (intmax_t)(offset + length - 1));
+	gsl[index].offset = offset;
+	gsl[index].length = length;
+	return (0);
+}
+
 struct g_provider *
 g_slice_addslice(struct g_geom *gp, int index, off_t offset, off_t length, u_int sectorsize, char *fmt, ...)
 {
@@ -334,7 +415,7 @@ g_slice_addslice(struct g_geom *gp, int index, off_t offset, off_t length, u_int
 }
 
 struct g_geom *
-g_slice_new(struct g_class *mp, int slices, struct g_provider *pp, struct g_consumer **cpp, void *extrap, int extra, g_slice_start_t *start)
+g_slice_new(struct g_class *mp, u_int slices, struct g_provider *pp, struct g_consumer **cpp, void *extrap, int extra, g_slice_start_t *start)
 {
 	struct g_geom *gp;
 	struct g_slicer *gsp;
@@ -389,6 +470,7 @@ g_slice_orphan(struct g_consumer *cp)
 	    ("g_slice_orphan with error == 0"));
 
 	gp = cp->geom;
+	/* XXX: Not good enough we leak the softc and its suballocations */
 	gp->flags |= G_GEOM_WITHER;
 	error = cp->provider->error;
 	LIST_FOREACH(pp, &gp->provider, provider)
