@@ -1,5 +1,5 @@
 /* Handle #pragma, system V.4 style.  Supports #pragma weak and #pragma pack.
-   Copyright (C) 1992, 1997, 1998, 1999, 2000, 2001
+   Copyright (C) 1992, 1997, 1998, 1999, 2000, 2001, 2002
    Free Software Foundation, Inc.
 
 This file is part of GCC.
@@ -30,6 +30,7 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #include "toplev.h"
 #include "ggc.h"
 #include "c-lex.h"
+#include "c-common.h"
 #include "output.h"
 #include "tm_p.h"
 
@@ -55,9 +56,9 @@ static struct align_stack * alignment_stack = NULL;
    maximum_field_alignment in effect.  When the final pop_alignment() 
    happens, we restore the value to this, not to a value of 0 for
    maximum_field_alignment.  Value is in bits.  */
-static int  default_alignment;
+static int default_alignment;
 #define SET_GLOBAL_ALIGNMENT(ALIGN) \
-(default_alignment = maximum_field_alignment = (ALIGN))
+  (default_alignment = maximum_field_alignment = (ALIGN))
 
 static void push_alignment PARAMS ((int, tree));
 static void pop_alignment  PARAMS ((tree));
@@ -69,7 +70,6 @@ push_alignment (alignment, id)
      int alignment;
      tree id;
 {
-  
   if (alignment_stack == NULL
       || alignment_stack->alignment != alignment
       || id != NULL_TREE)
@@ -274,14 +274,57 @@ handle_pragma_pack (dummy)
 #endif  /* HANDLE_PRAGMA_PACK */
 
 #ifdef HANDLE_PRAGMA_WEAK
+static void apply_pragma_weak PARAMS ((tree, tree));
 static void handle_pragma_weak PARAMS ((cpp_reader *));
+
+static tree pending_weaks;
+
+static void
+apply_pragma_weak (decl, value)
+     tree decl, value;
+{
+  if (value)
+    decl_attributes (&decl, build_tree_list (get_identifier ("alias"),
+				             build_tree_list (NULL, value)),
+		     0);
+  if (SUPPORTS_WEAK && DECL_EXTERNAL (decl) && TREE_USED (decl)
+      && TREE_SYMBOL_REFERENCED (DECL_ASSEMBLER_NAME (decl)))
+    warning_with_decl (decl, "applying #pragma weak `%s' after first use results in unspecified behavior");
+
+  declare_weak (decl);
+}
+
+void
+maybe_apply_pragma_weak (decl)
+     tree decl;
+{
+  tree *p, t, id;
+
+  /* Copied from the check in set_decl_assembler_name.  */
+  if (TREE_CODE (decl) == FUNCTION_DECL
+      || (TREE_CODE (decl) == VAR_DECL 
+          && (TREE_STATIC (decl) 
+              || DECL_EXTERNAL (decl) 
+              || TREE_PUBLIC (decl))))
+    id = DECL_ASSEMBLER_NAME (decl);
+  else
+    return;
+
+  for (p = &pending_weaks; (t = *p) ; p = &TREE_CHAIN (t))
+    if (id == TREE_PURPOSE (t))
+      {
+	apply_pragma_weak (decl, TREE_VALUE (t));
+	*p = TREE_CHAIN (t);
+	break;
+      }
+}
 
 /* #pragma weak name [= value] */
 static void
 handle_pragma_weak (dummy)
      cpp_reader *dummy ATTRIBUTE_UNUSED;
 {
-  tree name, value, x;
+  tree name, value, x, decl;
   enum cpp_ttype t;
 
   value = 0;
@@ -298,9 +341,148 @@ handle_pragma_weak (dummy)
   if (t != CPP_EOF)
     warning ("junk at end of #pragma weak");
 
-  add_weak (IDENTIFIER_POINTER (name), value ? IDENTIFIER_POINTER (value) : 0);
+  decl = identifier_global_value (name);
+  if (decl && TREE_CODE_CLASS (TREE_CODE (decl)) == 'd')
+    apply_pragma_weak (decl, value);
+  else
+    pending_weaks = tree_cons (name, value, pending_weaks);
+}
+#else
+void
+maybe_apply_pragma_weak (decl)
+     tree decl ATTRIBUTE_UNUSED;
+{
+}
+#endif /* HANDLE_PRAGMA_WEAK */
+
+#ifdef HANDLE_PRAGMA_REDEFINE_EXTNAME
+static void handle_pragma_redefine_extname PARAMS ((cpp_reader *));
+
+static tree pending_redefine_extname;
+
+/* #pragma redefined_extname oldname newname */
+static void
+handle_pragma_redefine_extname (dummy)
+     cpp_reader *dummy ATTRIBUTE_UNUSED;
+{
+  tree oldname, newname, decl, x;
+  enum cpp_ttype t;
+
+  if (c_lex (&oldname) != CPP_NAME)
+    {
+      warning ("malformed #pragma redefine_extname, ignored");
+      return;
+    }
+  if (c_lex (&newname) != CPP_NAME)
+    {
+      warning ("malformed #pragma redefine_extname, ignored");
+      return;
+    }
+  t = c_lex (&x);
+  if (t != CPP_EOF)
+    warning ("junk at end of #pragma redefine_extname");
+
+  decl = identifier_global_value (oldname);
+  if (decl && TREE_CODE_CLASS (TREE_CODE (decl)) == 'd')
+    {
+      if (DECL_ASSEMBLER_NAME_SET_P (decl)
+	  && DECL_ASSEMBLER_NAME (decl) != newname)
+        warning ("#pragma redefine_extname conflicts with declaration");
+      SET_DECL_ASSEMBLER_NAME (decl, newname);
+    }
+  else
+    pending_redefine_extname
+      = tree_cons (oldname, newname, pending_redefine_extname);
 }
 #endif
+
+#ifdef HANDLE_PRAGMA_EXTERN_PREFIX
+static void handle_pragma_extern_prefix PARAMS ((cpp_reader *));
+
+static tree pragma_extern_prefix;
+
+/* #pragma extern_prefix "prefix" */
+static void
+handle_pragma_extern_prefix (dummy)
+     cpp_reader *dummy ATTRIBUTE_UNUSED;
+{
+  tree prefix, x;
+  enum cpp_ttype t;
+
+  if (c_lex (&prefix) != CPP_STRING)
+    {
+      warning ("malformed #pragma extern_prefix, ignored");
+      return;
+    }
+  t = c_lex (&x);
+  if (t != CPP_EOF)
+    warning ("junk at end of #pragma extern_prefix");
+
+  /* Note that the length includes the null terminator.  */
+  pragma_extern_prefix = (TREE_STRING_LENGTH (prefix) > 1 ? prefix : NULL);
+}
+#endif
+
+/* Hook from the front ends to apply the results of one of the preceeding
+   pragmas that rename variables.  */
+
+tree
+maybe_apply_renaming_pragma (decl, asmname)
+     tree decl, asmname;
+{
+  tree oldname;
+
+  /* Copied from the check in set_decl_assembler_name.  */
+  if (TREE_CODE (decl) == FUNCTION_DECL
+      || (TREE_CODE (decl) == VAR_DECL 
+          && (TREE_STATIC (decl) 
+              || DECL_EXTERNAL (decl) 
+              || TREE_PUBLIC (decl))))
+    oldname = DECL_ASSEMBLER_NAME (decl);
+  else
+    return asmname;
+
+  /* If the name begins with a *, that's a sign of an asmname attached to
+     a previous declaration.  */
+  if (IDENTIFIER_POINTER (oldname)[0] == '*')
+    {
+      const char *oldasmname = IDENTIFIER_POINTER (oldname) + 1;
+      if (asmname && strcmp (TREE_STRING_POINTER (asmname), oldasmname) != 0)
+	warning ("asm declaration conficts with previous rename");
+      asmname = build_string (strlen (oldasmname), oldasmname);
+    }
+
+#ifdef HANDLE_PRAGMA_REDEFINE_EXTNAME
+  {
+    tree *p, t;
+
+    for (p = &pending_redefine_extname; (t = *p) ; p = &TREE_CHAIN (t))
+      if (oldname == TREE_PURPOSE (t))
+	{
+	  const char *newname = IDENTIFIER_POINTER (TREE_VALUE (t));
+
+	  if (asmname && strcmp (TREE_STRING_POINTER (asmname), newname) != 0)
+            warning ("#pragma redefine_extname conflicts with declaration");
+	  *p = TREE_CHAIN (t);
+
+	  return build_string (strlen (newname), newname);
+	}
+  }
+#endif
+
+#ifdef HANDLE_PRAGMA_EXTERN_PREFIX
+  if (pragma_extern_prefix && !asmname)
+    {
+      char *x = concat (TREE_STRING_POINTER (pragma_extern_prefix),
+			IDENTIFIER_POINTER (oldname), NULL);
+      asmname = build_string (strlen (x), x);
+      free (x);
+      return asmname;
+    }
+#endif
+
+  return asmname;
+}
 
 void
 init_pragma ()
@@ -310,7 +492,19 @@ init_pragma ()
 #endif
 #ifdef HANDLE_PRAGMA_WEAK
   cpp_register_pragma (parse_in, 0, "weak", handle_pragma_weak);
+  ggc_add_tree_root (&pending_weaks, 1);
 #endif
+#ifdef HANDLE_PRAGMA_REDEFINE_EXTNAME
+  cpp_register_pragma (parse_in, 0, "redefine_extname",
+		       handle_pragma_redefine_extname);
+  ggc_add_tree_root (&pending_redefine_extname, 1);
+#endif
+#ifdef HANDLE_PRAGMA_EXTERN_PREFIX
+  cpp_register_pragma (parse_in, 0, "extern_prefix",
+		       handle_pragma_extern_prefix);
+  ggc_add_tree_root (&pragma_extern_prefix, 1);
+#endif
+
 #ifdef REGISTER_TARGET_PRAGMAS
   REGISTER_TARGET_PRAGMAS (parse_in);
 #endif

@@ -1,5 +1,5 @@
 /* proj.h file for Gnu Fortran
-   Copyright (C) 1995, 1996, 2000, 2001 Free Software Foundation, Inc.
+   Copyright (C) 1995, 1996, 2000, 2001, 2002 Free Software Foundation, Inc.
    Contributed by James Craig Burley.
 
 This file is part of GNU Fortran.
@@ -32,7 +32,7 @@ the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #include "system.h"
 
 #if (GCC_VERSION < 2000)
- #error "You have to use gcc 2.x to build g77 (might be fixed in g77-0.6)."
+ #error "You have to use gcc 2.x to build g77."
 #endif
 
 /* Include files everyone gets.  <assert.h> is needed for assert().  */

@@ -1,5 +1,5 @@
 /* Definitions for SPARC running Linux-based GNU systems with ELF.
-   Copyright (C) 1996, 1997, 1998, 1999, 2000 Free Software Foundation, Inc.
+   Copyright (C) 1996, 1997, 1998, 1999, 2000, 2002 Free Software Foundation, Inc.
    Contributed by Eddie C. Dost (ecd@skynet.be)
 
 This file is part of GNU CC.
@@ -62,7 +62,8 @@ Boston, MA 02111-1307, USA.  */
 
 #undef  ENDFILE_SPEC
 #define ENDFILE_SPEC \
-  "%{!shared:crtend.o%s} %{shared:crtendS.o%s} crtn.o%s"
+  "%{ffast-math|funsafe-math-optimizations:crtfastmath.o%s} \
+   %{!shared:crtend.o%s} %{shared:crtendS.o%s} crtn.o%s"
 
 /* This is for -profile to use -lc_p instead of -lc.  */
 #undef	CC1_SPEC
@@ -97,10 +98,8 @@ Boston, MA 02111-1307, USA.  */
 #undef WCHAR_TYPE_SIZE
 #define WCHAR_TYPE_SIZE 32
 
-#undef MAX_WCHAR_TYPE_SIZE
-    
 #undef CPP_PREDEFINES
-#define CPP_PREDEFINES "-D__ELF__ -Dunix -D__sparc__ -Dlinux -Asystem=unix -Asystem=posix"
+#define CPP_PREDEFINES "-D__ELF__ -Dunix -D__sparc__ -D__gnu_linux__ -Dlinux -Asystem=unix -Asystem=posix"
 
 #undef CPP_SUBTARGET_SPEC
 #ifdef USE_GNULIBC_1
@@ -186,7 +185,7 @@ Boston, MA 02111-1307, USA.  */
 #undef ASM_SPEC
 #define ASM_SPEC \
   "%{V} %{v:%{!V:-V}} %{!Qn:-Qy} %{n} %{T} %{Ym,*} %{Wa,*:%*} -s %{fpic:-K PIC} \
-   %{fPIC:-K PIC} %(asm_relax)"
+   %{fPIC:-K PIC} %(asm_cpu) %(asm_relax)"
 
 /* Same as sparc.h */
 #undef DBX_REGISTER_NUMBER
@@ -203,6 +202,9 @@ do {									\
 
 #undef COMMON_ASM_OP
 #define COMMON_ASM_OP "\t.common\t"
+
+#undef  LOCAL_LABEL_PREFIX
+#define LOCAL_LABEL_PREFIX  "."
 
 /* This is how to output a definition of an internal numbered label where
    PREFIX is the class of label and NUM is the number within the class.  */
@@ -247,3 +249,73 @@ do {									\
 #define LINK_EH_SPEC "%{!static:--eh-frame-hdr} "
 #endif
 
+/* Don't be different from other Linux platforms in this regard.  */
+#define HANDLE_PRAGMA_PACK_PUSH_POP
+
+/* We use GNU ld so undefine this so that attribute((init_priority)) works.  */
+#undef CTORS_SECTION_ASM_OP
+#undef DTORS_SECTION_ASM_OP
+
+/* Do code reading to identify a signal frame, and set the frame
+   state data appropriately.  See unwind-dw2.c for the structs.  */
+
+#define MD_FALLBACK_FRAME_STATE_FOR(CONTEXT, FS, SUCCESS)		\
+  do {									\
+    unsigned int *pc_ = (CONTEXT)->ra;					\
+    int new_cfa_, i_, oldstyle_;					\
+    int regs_off_, fpu_save_off_;					\
+    int fpu_save_, this_cfa_;						\
+									\
+    if (pc_[1] != 0x91d02010)		/* ta 0x10 */			\
+      break;								\
+    if (pc_[0] == 0x821020d8)		/* mov NR_sigreturn, %g1 */	\
+      oldstyle_ = 1;							\
+    else if (pc_[0] == 0x82102065)	/* mov NR_rt_sigreturn, %g1 */	\
+      oldstyle_ = 0;							\
+    else								\
+      break;								\
+    if (oldstyle_)							\
+      {									\
+        regs_off_ = 96;							\
+        fpu_save_off_ = regs_off_ + (4 * 4) + (16 * 4);			\
+      }									\
+    else								\
+      {									\
+        regs_off_ = 96 + 128;						\
+        fpu_save_off_ = regs_off_ + (4 * 4) + (16 * 4) + (2 * 4);	\
+      }									\
+    this_cfa_ = (int) (CONTEXT)->cfa;					\
+    new_cfa_ = *(int *)(((CONTEXT)->cfa) + (regs_off_+(4*4)+(14 * 4)));	\
+    fpu_save_ = *(int *)((this_cfa_) + (fpu_save_off_));		\
+    (FS)->cfa_how = CFA_REG_OFFSET;					\
+    (FS)->cfa_reg = 14;							\
+    (FS)->cfa_offset = new_cfa_ - (int) (CONTEXT)->cfa;			\
+    for (i_ = 1; i_ < 16; ++i_)						\
+      {									\
+        if (i_ == 14)							\
+          continue;							\
+	(FS)->regs.reg[i_].how = REG_SAVED_OFFSET;			\
+	(FS)->regs.reg[i_].loc.offset =					\
+	   this_cfa_ + (regs_off_+(4 * 4)+(i_ * 4)) - new_cfa_;		\
+      }									\
+    for (i_ = 0; i_ < 16; ++i_)						\
+      {									\
+	(FS)->regs.reg[i_ + 16].how = REG_SAVED_OFFSET;			\
+	(FS)->regs.reg[i_ + 16].loc.offset =				\
+	  this_cfa_ + (i_ * 4) - new_cfa_;				\
+      }									\
+    if (fpu_save_)							\
+      {									\
+	for (i_ = 0; i_ < 32; ++i_)					\
+	  {								\
+	    (FS)->regs.reg[i_ + 32].how = REG_SAVED_OFFSET;		\
+	    (FS)->regs.reg[i_ + 32].loc.offset =			\
+	      (fpu_save_ + (i_ * 4)) - new_cfa_;			\
+	  }								\
+      }									\
+    /* Stick return address into %g0, same trick Alpha uses.  */	\
+    (FS)->regs.reg[0].how = REG_SAVED_OFFSET;				\
+    (FS)->regs.reg[0].loc.offset = this_cfa_+(regs_off_+4)-new_cfa_;	\
+    (FS)->retaddr_column = 0;						\
+    goto SUCCESS;							\
+  } while (0)

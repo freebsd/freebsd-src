@@ -251,6 +251,12 @@ typedef struct {int num_args; enum avms_arg_type atypes[6];} avms_arg_info;
   alpha_write_verstamp (FILE);					\
   fprintf (FILE, "\t.set noreorder\n");				\
   fprintf (FILE, "\t.set volatile\n");				\
+  if (TARGET_BWX | TARGET_MAX | TARGET_FIX | TARGET_CIX)	\
+    {								\
+      fprintf (FILE, "\t.arch %s\n",				\
+               (TARGET_CPU_EV6 ? "ev6"				\
+                : TARGET_MAX ? "pca56" : "ev56"));		\
+    }								\
   ASM_OUTPUT_SOURCE_FILENAME (FILE, main_input_filename);	\
 }
 
@@ -385,22 +391,14 @@ do {									\
 #define LINK_EH_SPEC "vms-dwarf2eh.o%s "
 
 #ifdef IN_LIBGCC2
-#include <libicb.h>
 #include <pdscdef.h>
 
 #define MD_FALLBACK_FRAME_STATE_FOR(CONTEXT, FS, SUCCESS)		\
  do {									\
-  unsigned long handle;							\
-  PDSCDEF *pv;								\
-  INVO_CONTEXT_BLK invo;						\
+  PDSCDEF *pv = *((PDSCDEF **) (CONTEXT)->reg [29]);                    \
 									\
-  memset (&invo, 0, sizeof (INVO_CONTEXT_BLK));				\
-									\
-  invo.libicb$q_ireg [29] = *((long long *) (CONTEXT)->reg [29]);	\
-  invo.libicb$q_ireg [30] = (long long) (CONTEXT)->cfa;			\
-  handle = LIB$GET_INVO_HANDLE (&invo);					\
-  LIB$GET_INVO_CONTEXT (handle, &invo);					\
-  pv = (PDSCDEF *) invo.libicb$ph_procedure_descriptor;			\
+  if (pv && ((long) pv & 0x7) == 0) /* low bits 0 means address */      \
+    pv = *(PDSCDEF **) pv;                                              \
 									\
   if (pv && ((pv->pdsc$w_flags & 0xf) == PDSC$K_KIND_FP_STACK))		\
     {									\
@@ -423,6 +421,19 @@ do {									\
 	      = -(pv->pdsc$l_size - pv->pdsc$w_rsa_offset - 8 * ++j);	\
 	    (FS)->regs.reg[i].how = REG_SAVED_OFFSET;			\
 	  }								\
+									\
+      goto SUCCESS;							\
+    }									\
+  else if (pv && ((pv->pdsc$w_flags & 0xf) == PDSC$K_KIND_FP_REGISTER))	\
+    {									\
+      (FS)->cfa_offset = pv->pdsc$l_size;				\
+      (FS)->cfa_reg = pv->pdsc$w_flags & PDSC$M_BASE_REG_IS_FP ? 29 : 30; \
+      (FS)->retaddr_column = 26;					\
+      (FS)->cfa_how = CFA_REG_OFFSET;					\
+      (FS)->regs.reg[26].loc.reg = pv->pdsc$b_save_ra;			\
+      (FS)->regs.reg[26].how = REG_SAVED_REG;			        \
+      (FS)->regs.reg[29].loc.reg = pv->pdsc$b_save_fp;			\
+      (FS)->regs.reg[29].how = REG_SAVED_REG;			        \
 									\
       goto SUCCESS;							\
     }									\
@@ -508,11 +519,17 @@ do {									\
 #define NAME__MAIN "__gccmain"
 #define SYMBOL__MAIN __gccmain
 
+#define MD_EXEC_PREFIX "/gnu/lib/gcc-lib/"
+#define MD_STARTFILE_PREFIX "/gnu/lib/gcc-lib/"
+
 /* Specify the list of include file directories.  */
-#define INCLUDE_DEFAULTS		\
-{					\
-  { "/gnu_gxx_include", 0, 1, 1 },	\
-  { "/gnu_cc_include", 0, 0, 0 },	\
-  { "/gnu/include", 0, 0, 0 },	        \
-  { 0, 0, 0, 0 }			\
+#define INCLUDE_DEFAULTS		   \
+{					   \
+  { "/gnu/lib/gcc-lib/include", 0, 0, 0 }, \
+  { "/gnu_gxx_include", 0, 1, 1 },	   \
+  { "/gnu_cc_include", 0, 0, 0 },	   \
+  { "/gnu/include", 0, 0, 0 },	           \
+  { 0, 0, 0, 0 }			   \
 }
+
+#define LONGLONG_STANDALONE 1

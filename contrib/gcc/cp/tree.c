@@ -464,7 +464,12 @@ build_cplus_array_type_1 (elt_type, index_type)
   if (elt_type == error_mark_node || index_type == error_mark_node)
     return error_mark_node;
 
-  if (processing_template_decl 
+  /* Don't do the minimal thing just because processing_template_decl is
+     set; we want to give string constants the right type immediately, so
+     we don't have to fix them up at instantiation time.  */
+  if ((processing_template_decl
+       && index_type && TYPE_MAX_VALUE (index_type)
+       && TREE_CODE (TYPE_MAX_VALUE (index_type)) != INTEGER_CST)
       || uses_template_parms (elt_type) 
       || uses_template_parms (index_type))
     {
@@ -505,18 +510,32 @@ build_cplus_array_type (elt_type, index_type)
 
 /* Make a variant of TYPE, qualified with the TYPE_QUALS.  Handles
    arrays correctly.  In particular, if TYPE is an array of T's, and
-   TYPE_QUALS is non-empty, returns an array of qualified T's.  If
-   at attempt is made to qualify a type illegally, and COMPLAIN is
-   non-zero, an error is issued.  If COMPLAIN is zero, error_mark_node
-   is returned.  */
+   TYPE_QUALS is non-empty, returns an array of qualified T's.
+  
+   FLAGS determines how to deal with illformed qualifications. If
+   tf_ignore_bad_quals is set, then bad qualifications are dropped
+   (this is permitted if TYPE was introduced via a typedef or template
+   type parameter). If bad qualifications are dropped and tf_warning
+   is set, then a warning is issued for non-const qualifications.  If
+   tf_ignore_bad_quals is not set and tf_error is not set, we
+   return error_mark_node. Otherwise, we issue an error, and ignore
+   the qualifications.
 
+   Qualification of a reference type is valid when the reference came
+   via a typedef or template type argument. [dcl.ref] No such
+   dispensation is provided for qualifying a function type.  [dcl.fct]
+   DR 295 queries this and the proposed resolution brings it into line
+   with qualifiying a reference.  We implement the DR.  We also behave
+   in a similar manner for restricting non-pointer types.  */
+ 
 tree
 cp_build_qualified_type_real (type, type_quals, complain)
      tree type;
      int type_quals;
-     int complain;
+     tsubst_flags_t complain;
 {
   tree result;
+  int bad_quals = TYPE_UNQUALIFIED;
 
   if (type == error_mark_node)
     return type;
@@ -524,32 +543,51 @@ cp_build_qualified_type_real (type, type_quals, complain)
   if (type_quals == cp_type_quals (type))
     return type;
 
-  /* A restrict-qualified pointer type must be a pointer (or reference)
+  /* A reference, fucntion or method type shall not be cv qualified.
+     [dcl.ref], [dct.fct]  */
+  if (type_quals & (TYPE_QUAL_CONST | TYPE_QUAL_VOLATILE)
+      && (TREE_CODE (type) == REFERENCE_TYPE
+	  || TREE_CODE (type) == FUNCTION_TYPE
+	  || TREE_CODE (type) == METHOD_TYPE))
+    {
+      bad_quals |= type_quals & (TYPE_QUAL_CONST | TYPE_QUAL_VOLATILE);
+      type_quals &= ~(TYPE_QUAL_CONST | TYPE_QUAL_VOLATILE);
+    }
+  
+  /* A restrict-qualified type must be a pointer (or reference)
      to object or incomplete type.  */
   if ((type_quals & TYPE_QUAL_RESTRICT)
       && TREE_CODE (type) != TEMPLATE_TYPE_PARM
-      && (!POINTER_TYPE_P (type)
-	  || TYPE_PTRMEM_P (type)
-	  || TREE_CODE (TREE_TYPE (type)) == FUNCTION_TYPE))
+      && TREE_CODE (type) != TYPENAME_TYPE
+      && !POINTER_TYPE_P (type))
     {
-      if (complain)
-	error ("`%T' cannot be `restrict'-qualified", type);
-      else
-	return error_mark_node;
-
+      bad_quals |= TYPE_QUAL_RESTRICT;
       type_quals &= ~TYPE_QUAL_RESTRICT;
     }
 
-  if (type_quals != TYPE_UNQUALIFIED
-      && TREE_CODE (type) == FUNCTION_TYPE)
+  if (bad_quals == TYPE_UNQUALIFIED)
+    /*OK*/;
+  else if (!(complain & (tf_error | tf_ignore_bad_quals)))
+    return error_mark_node;
+  else
     {
-      if (complain)
-	error ("`%T' cannot be `const'-, `volatile'-, or `restrict'-qualified", type);
-      else
-	return error_mark_node;
-      type_quals = TYPE_UNQUALIFIED;
+      if (complain & tf_ignore_bad_quals)
+ 	/* We're not going to warn about constifying things that can't
+ 	   be constified.  */
+ 	bad_quals &= ~TYPE_QUAL_CONST;
+      if (bad_quals)
+ 	{
+ 	  tree bad_type = build_qualified_type (ptr_type_node, bad_quals);
+ 
+ 	  if (!(complain & tf_ignore_bad_quals))
+ 	    error ("`%V' qualifiers cannot be applied to `%T'",
+		   bad_type, type);
+ 	  else if (complain & tf_warning)
+ 	    warning ("ignoring `%V' qualifiers on `%T'", bad_type, type);
+ 	}
     }
-  else if (TREE_CODE (type) == ARRAY_TYPE)
+  
+  if (TREE_CODE (type) == ARRAY_TYPE)
     {
       /* In C++, the qualification really applies to the array element
 	 type.  Obtain the appropriately qualified element type.  */
@@ -591,7 +629,7 @@ cp_build_qualified_type_real (type, type_quals, complain)
     {
       /* For a pointer-to-member type, we can't just return a
 	 cv-qualified version of the RECORD_TYPE.  If we do, we
-	 haven't change the field that contains the actual pointer to
+	 haven't changed the field that contains the actual pointer to
 	 a method, and so TYPE_PTRMEMFUNC_FN_TYPE will be wrong.  */
       tree t;
 
@@ -599,7 +637,7 @@ cp_build_qualified_type_real (type, type_quals, complain)
       t = cp_build_qualified_type_real (t, type_quals, complain);
       return build_ptrmemfunc_type (t);
     }
-
+  
   /* Retrieve (or create) the appropriately qualified variant.  */
   result = build_qualified_type (type, type_quals);
 
@@ -999,7 +1037,6 @@ cp_statement_code_p (code)
   switch (code)
     {
     case SUBOBJECT:
-    case CLEANUP_STMT:
     case CTOR_STMT:
     case CTOR_INITIALIZER:
     case RETURN_INIT:
@@ -2099,6 +2136,10 @@ cp_cannot_inline_tree_fn (fnp)
      tree *fnp;
 {
   tree fn = *fnp;
+
+  if (flag_really_no_inline
+      && lookup_attribute ("always_inline", DECL_ATTRIBUTES (fn)) == NULL)
+    return 1;
 
   /* We can inline a template instantiation only if it's fully
      instantiated.  */

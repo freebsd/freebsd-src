@@ -1,5 +1,6 @@
 /* Implementation of Fortran lexer
-   Copyright (C) 1995, 1996, 1997, 1998, 2001 Free Software Foundation, Inc.
+   Copyright (C) 1995, 1996, 1997, 1998, 2001, 2002
+   Free Software Foundation, Inc.
    Contributed by James Craig Burley.
 
 This file is part of GNU Fortran.
@@ -269,6 +270,7 @@ ffelex_backslash_ (int c, ffewhereColumnNumber col)
 	case 'x':
 	  if (warn_traditional)
 	    {
+	      /* xgettext:no-c-format */
 	      ffebad_start_msg_lex ("The meaning of `\\x' (at %0) varies with -traditional",
 				    FFEBAD_severityWARNING);
 	      ffelex_bad_here_ (0, line, column);
@@ -319,6 +321,7 @@ ffelex_backslash_ (int c, ffewhereColumnNumber col)
 	case 'a':
 	  if (warn_traditional)
 	    {
+	      /* xgettext:no-c-format */
 	      ffebad_start_msg_lex ("The meaning of `\\a' (at %0) varies with -traditional",
 				    FFEBAD_severityWARNING);
 	      ffelex_bad_here_ (0, line, column);
@@ -348,6 +351,7 @@ ffelex_backslash_ (int c, ffewhereColumnNumber col)
 
 	      m[0] = c;
 	      m[1] = '\0';
+	      /* xgettext:no-c-format */
 	      ffebad_start_msg_lex ("Non-ISO-C-standard escape sequence `\\%A' at %0",
 				    FFEBAD_severityPEDANTIC);
 	      ffelex_bad_here_ (0, line, column);
@@ -366,6 +370,7 @@ ffelex_backslash_ (int c, ffewhereColumnNumber col)
 
 	      m[0] = c;
 	      m[1] = '\0';
+	      /* xgettext:no-c-format */
 	      ffebad_start_msg_lex ("Unknown escape sequence `\\%A' at %0",
 				    FFEBAD_severityPEDANTIC);
 	      ffelex_bad_here_ (0, line, column);
@@ -374,6 +379,7 @@ ffelex_backslash_ (int c, ffewhereColumnNumber col)
 	    }
 	  else if (c == EOF)
 	    {
+	      /* xgettext:no-c-format */
 	      ffebad_start_msg_lex ("Unterminated escape sequence `\\' at %0",
 				    FFEBAD_severityPEDANTIC);
 	      ffelex_bad_here_ (0, line, column);
@@ -384,6 +390,7 @@ ffelex_backslash_ (int c, ffewhereColumnNumber col)
 	      char m[20];
 
 	      sprintf (&m[0], "%x", c);
+	      /* xgettext:no-c-format */
 	      ffebad_start_msg_lex ("Unknown escape sequence `\\' followed by char code 0x%A at %0",
 				    FFEBAD_severityPEDANTIC);
 	      ffelex_bad_here_ (0, line, column);
@@ -411,6 +418,7 @@ ffelex_backslash_ (int c, ffewhereColumnNumber col)
 
       if (! nonnull)
 	{
+	  /* xgettext:no-c-format */
 	  ffebad_start_msg_lex ("\\x used at %0 with no following hex digits",
 				FFEBAD_severityFATAL);
 	  ffelex_bad_here_ (0, line, column);
@@ -424,6 +432,7 @@ ffelex_backslash_ (int c, ffewhereColumnNumber col)
 		   && ((1 << (TYPE_PRECISION (integer_type_node) - (count - 1) * 4))
 		       <= (int) firstdig)))
 	{
+	  /* xgettext:no-c-format */
 	  ffebad_start_msg_lex ("Hex escape at %0 out of range",
 				FFEBAD_severityPEDANTIC);
 	  ffelex_bad_here_ (0, line, column);
@@ -457,6 +466,7 @@ ffelex_backslash_ (int c, ffewhereColumnNumber col)
       && TYPE_PRECISION (char_type_node) < HOST_BITS_PER_INT
       && code >= (1 << TYPE_PRECISION (char_type_node)))
     {
+      /* xgettext:no-c-format */
       ffebad_start_msg_lex ("Escape sequence at %0 out of range for character",
 			    FFEBAD_severityFATAL);
       ffelex_bad_here_ (0, line, column);
@@ -1462,6 +1472,7 @@ ffelex_image_char_ (int c, ffewhereColumnNumber column)
 	  ffelex_bad_line_ = TRUE;
 	  strcpy (&ffelex_card_image_[column], "[\\0]");
 	  ffelex_card_length_ = column + 4;
+	  /* xgettext:no-c-format */
 	  ffebad_start_msg_lex ("Null character at %0 -- line ignored",
 				FFEBAD_severityFATAL);
 	  ffelex_bad_here_ (0, ffelex_linecount_current_, column + 1);

@@ -395,7 +395,7 @@ fndef:
 	  save_filename save_lineno compstmt_or_error
 		{ DECL_SOURCE_FILE (current_function_decl) = $7;
 		  DECL_SOURCE_LINE (current_function_decl) = $8;
-		  finish_function (0); 
+		  finish_function (0, 1); 
 		  POP_DECLSPEC_STACK; }
 	| declspecs_ts setspecs declarator error
 		{ POP_DECLSPEC_STACK; }
@@ -409,7 +409,7 @@ fndef:
 	  save_filename save_lineno compstmt_or_error
 		{ DECL_SOURCE_FILE (current_function_decl) = $7;
 		  DECL_SOURCE_LINE (current_function_decl) = $8;
-		  finish_function (0); 
+		  finish_function (0, 1); 
 		  POP_DECLSPEC_STACK; }
 	| declspecs_nots setspecs notype_declarator error
 		{ POP_DECLSPEC_STACK; }
@@ -423,7 +423,7 @@ fndef:
 	  save_filename save_lineno compstmt_or_error
 		{ DECL_SOURCE_FILE (current_function_decl) = $6;
 		  DECL_SOURCE_LINE (current_function_decl) = $7;
-		  finish_function (0); 
+		  finish_function (0, 1); 
 		  POP_DECLSPEC_STACK; }
 	| setspecs notype_declarator error
 		{ POP_DECLSPEC_STACK; }
@@ -1582,7 +1582,7 @@ nested_function:
 		{ tree decl = current_function_decl;
 		  DECL_SOURCE_FILE (decl) = $5;
 		  DECL_SOURCE_LINE (decl) = $6;
-		  finish_function (1);
+		  finish_function (1, 1);
 		  pop_function_context (); 
 		  add_decl_stmt (decl); }
 	;
@@ -1612,7 +1612,7 @@ notype_nested_function:
 		{ tree decl = current_function_decl;
 		  DECL_SOURCE_FILE (decl) = $5;
 		  DECL_SOURCE_LINE (decl) = $6;
-		  finish_function (1);
+		  finish_function (1, 1);
 		  pop_function_context (); 
 		  add_decl_stmt (decl); }
 	;
@@ -2067,6 +2067,7 @@ end ifobjc
 
 poplevel:  /* empty */
                 { $$ = add_scope_stmt (/*begin_p=*/0, /*partial_p=*/0); }
+        ;
 
 /* Start and end blocks created for the new scopes of C99.  */
 c99_block_start: /* empty */
@@ -2137,7 +2138,8 @@ compstmt_or_error:
 	;
 
 compstmt_start: '{' { compstmt_count++;
-                      $$ = c_begin_compound_stmt (); } 
+                      $$ = c_begin_compound_stmt (); }
+        ;
 
 compstmt_nostart: '}'
 		{ $$ = convert (void_type_node, integer_zero_node); }
@@ -2169,9 +2171,11 @@ compstmt_primary_start:
 		  compstmt_count++;
 		  $$ = add_stmt (build_stmt (COMPOUND_STMT, last_tree));
 		}
+        ;
 
 compstmt: compstmt_start compstmt_nostart
 		{ RECHAIN_STMTS ($1, COMPOUND_BODY ($1)); 
+		  last_expr_type = NULL_TREE;
                   $$ = $1; }
 	;
 
