@@ -26,7 +26,7 @@
  * $FreeBSD$
  */
 #ifndef _SYS_WATCHDOG_H
-#define	_SYS__WATCHDOG_H
+#define	_SYS_WATCHDOG_H
 
 #include <sys/ioccom.h>
 
