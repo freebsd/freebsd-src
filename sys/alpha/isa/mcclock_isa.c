@@ -1,4 +1,4 @@
-/* $Id: mcclock_isa.c,v 1.1 1998/07/15 19:21:31 dfr Exp $ */
+/* $Id: mcclock_isa.c,v 1.2 1998/07/22 08:30:25 dfr Exp $ */
 /* $NetBSD: mcclock_tlsb.c,v 1.8 1998/05/13 02:50:29 thorpej Exp $ */
 
 /*
@@ -105,4 +105,4 @@ mcclock_isa_read(device_t dev, u_int reg)
 	return inb(port+1);
 }
 
-DRIVER_MODULE(mcclock_isa, isa, mcclock_isa_driver, mcclock_devclass, 0, 0);
+DRIVER_MODULE(mcclock, isa, mcclock_isa_driver, mcclock_devclass, 0, 0);
