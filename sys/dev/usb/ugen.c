@@ -155,6 +155,10 @@ Static int ugen_do_read(struct ugen_softc *, int, struct uio *, int);
 Static int ugen_do_write(struct ugen_softc *, int, struct uio *, int);
 Static int ugen_do_ioctl(struct ugen_softc *, int, u_long, 
 			 caddr_t, int, struct proc *);
+#if defined(__FreeBSD__)
+Static void ugen_make_devnodes(struct ugen_softc *sc);
+Static void ugen_destroy_devnodes(struct ugen_softc *sc);
+#endif
 Static int ugen_set_config(struct ugen_softc *sc, int configno);
 Static usb_config_descriptor_t *ugen_get_cdesc(struct ugen_softc *sc,
 					       int index, int *lenp);
@@ -191,6 +195,13 @@ USB_ATTACH(ugen)
 
 	sc->sc_udev = udev = uaa->device;
 
+#if defined(__FreeBSD__)
+	/* the main device, ctrl endpoint */
+	make_dev(&ugen_cdevsw, UGENMINOR(USBDEVUNIT(sc->sc_dev), 0),
+		UID_ROOT, GID_OPERATOR, 0644, "%s", USBDEVNAME(sc->sc_dev));
+#endif
+	memset(sc->sc_endpoints, 0, sizeof sc->sc_endpoints);
+
 	/* First set configuration index 0, the default one for ugen. */
 	err = usbd_set_config_index(udev, 0, 0);
 	if (err) {
@@ -213,6 +224,63 @@ USB_ATTACH(ugen)
 	USB_ATTACH_SUCCESS_RETURN;
 }
 
+#if defined(__FreeBSD__)
+Static void
+ugen_make_devnodes(struct ugen_softc *sc)
+{
+	int endptno;
+
+	for (endptno = 1; endptno < USB_MAX_ENDPOINTS; endptno++) {
+		if (sc->sc_endpoints[endptno][IN].sc != NULL ||
+		    sc->sc_endpoints[endptno][OUT].sc != NULL ) {
+			/* endpt can be 0x81 and 0x01, representing
+			 * endpoint address 0x01 and IN/OUT directions.
+			 * We map both endpts to the same device,
+			 * IN is reading from it, OUT is writing to it.
+			 *
+			 * In the if clause above we check whether one
+			 * of the structs is populated.
+			 */
+			make_dev(&ugen_cdevsw,
+				UGENMINOR(USBDEVUNIT(sc->sc_dev), endptno),
+				UID_ROOT, GID_OPERATOR, 0644,
+				"%s.%d",
+				USBDEVNAME(sc->sc_dev), endptno);
+		}
+	}
+}
+
+Static void
+ugen_destroy_devnodes(struct ugen_softc *sc)
+{
+	int endptno;
+	dev_t dev;
+	struct vnode *vp;
+
+	/* destroy all devices for the other (existing) endpoints as well */
+	for (endptno = 1; endptno < USB_MAX_ENDPOINTS; endptno++) {
+		if (sc->sc_endpoints[endptno][IN].sc != NULL ||
+		    sc->sc_endpoints[endptno][OUT].sc != NULL ) {
+			/* endpt can be 0x81 and 0x01, representing
+			 * endpoint address 0x01 and IN/OUT directions.
+			 * We map both endpoint addresses to the same device,
+			 * IN is reading from it, OUT is writing to it.
+			 *
+			 * In the if clause above we check whether one
+			 * of the structs is populated.
+			 */
+			dev = makedev(UGEN_CDEV_MAJOR,
+				UGENMINOR(USBDEVUNIT(sc->sc_dev), endptno));
+			vp = SLIST_FIRST(&dev->si_hlist);
+			if (vp)
+				VOP_REVOKE(vp, REVOKEALL);
+
+			destroy_dev(dev);
+		}
+	}
+}
+#endif
+
 Static int
 ugen_set_config(struct ugen_softc *sc, int configno)
 {
@@ -227,6 +295,10 @@ ugen_set_config(struct ugen_softc *sc, int configno)
 
 	DPRINTFN(1,("ugen_set_config: %s to configno %d, sc=%p\n",
 		    USBDEVNAME(sc->sc_dev), configno, sc));
+
+#if defined(__FreeBSD__)
+	ugen_destroy_devnodes(sc);
+#endif
 
 	/* We start at 1, not 0, because we don't care whether the
 	 * control endpoint is open or not. It is always present.
@@ -275,30 +347,8 @@ ugen_set_config(struct ugen_softc *sc, int configno)
 		}
 	}
 
-
 #if defined(__FreeBSD__)
-	/* the main device, ctrl endpoint */
-	make_dev(&ugen_cdevsw, UGENMINOR(USBDEVUNIT(sc->sc_dev), 0),
-		UID_ROOT, GID_OPERATOR, 0644, "%s", USBDEVNAME(sc->sc_dev));
-
-	for (endptno = 1; endptno < USB_MAX_ENDPOINTS; endptno++) {
-		if (sc->sc_endpoints[endptno][IN].sc != NULL ||
-		    sc->sc_endpoints[endptno][OUT].sc != NULL ) {
-			/* endpt can be 0x81 and 0x01, representing
-			 * endpoint address 0x01 and IN/OUT directions.
-			 * We map both endpts to the same device,
-			 * IN is reading from it, OUT is writing to it.
-			 *
-			 * In the if clause above we check whether one
-			 * of the structs is populated.
-			 */
-			make_dev(&ugen_cdevsw,
-				UGENMINOR(USBDEVUNIT(sc->sc_dev), endptno),
-				UID_ROOT, GID_OPERATOR, 0644,
-				"%s.%d",
-				USBDEVNAME(sc->sc_dev), endptno);
-		}
-	}
+	ugen_make_devnodes(sc);
 #endif
 
 	return (USBD_NORMAL_COMPLETION);
@@ -757,7 +807,6 @@ USB_DETACH(ugen)
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 	int maj, mn;
 #elif defined(__FreeBSD__)
-	int endptno;
 	dev_t dev;
 	struct vnode *vp;
 #endif
@@ -804,28 +853,7 @@ USB_DETACH(ugen)
 	if (vp)
 		VOP_REVOKE(vp, REVOKEALL);
 	destroy_dev(dev);
-
-	/* destroy all devices for the other (existing) endpoints as well */
-	for (endptno = 1; endptno < USB_MAX_ENDPOINTS; endptno++) {
-		if (sc->sc_endpoints[endptno][IN].sc != NULL ||
-		    sc->sc_endpoints[endptno][OUT].sc != NULL ) {
-			/* endpt can be 0x81 and 0x01, representing
-			 * endpoint address 0x01 and IN/OUT directions.
-			 * We map both endpoint addresses to the same device,
-			 * IN is reading from it, OUT is writing to it.
-			 *
-			 * In the if clause above we check whether one
-			 * of the structs is populated.
-			 */
-			dev = makedev(UGEN_CDEV_MAJOR,
-				UGENMINOR(USBDEVUNIT(sc->sc_dev), endptno));
-			vp = SLIST_FIRST(&dev->si_hlist);
-			if (vp)
-				VOP_REVOKE(vp, REVOKEALL);
-
-			destroy_dev(dev);
-		}
-	}
+	ugen_destroy_devnodes(sc);
 #endif
 
 	return (0);
