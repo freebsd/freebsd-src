@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.70 1996/07/30 03:08:05 dyson Exp $
+ * $Id: swap_pager.c,v 1.71 1996/09/08 20:44:33 dyson Exp $
  */
 
 /*
@@ -156,10 +156,8 @@ static int npendingio = NPENDINGIO;
 static int dmmin;
 int dmmax;
 
-static __pure int
-		swap_pager_block_index __P((vm_pindex_t pindex)) __pure2;
-static __pure int
-		swap_pager_block_offset __P((vm_pindex_t pindex)) __pure2;
+static int	swap_pager_block_index __P((vm_pindex_t pindex));
+static int	swap_pager_block_offset __P((vm_pindex_t pindex));
 static daddr_t *swap_pager_diskaddr __P((vm_object_t object,
 					  vm_pindex_t pindex, int *valid));
 static void	swap_pager_finish __P((swp_clean_t spc));
@@ -761,14 +759,14 @@ swap_pager_dealloc(object)
 	object->un_pager.swp.swp_blocks = NULL;
 }
 
-static inline __pure int
+static inline int
 swap_pager_block_index(pindex)
 	vm_pindex_t pindex;
 {
 	return (pindex / SWB_NPAGES);
 }
 
-static inline __pure int
+static inline int
 swap_pager_block_offset(pindex)
 	vm_pindex_t pindex;
 {
