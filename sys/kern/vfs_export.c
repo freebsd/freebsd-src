@@ -1103,12 +1103,11 @@ sched_sync(void)
 int
 speedup_syncer()
 {
-	int s;
 
-	s = splhigh();
+	mtx_enter(&sched_lock, MTX_SPIN);
 	if (updateproc->p_wchan == &lbolt)
 		setrunnable(updateproc);
-	splx(s);
+	mtx_exit(&sched_lock, MTX_SPIN);
 	if (rushjob < syncdelay / 2) {
 		rushjob += 1;
 		stat_rush_requests += 1;
