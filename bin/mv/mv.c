@@ -221,7 +221,7 @@ do_move(from, to)
 	 * it's a regular file, do the copy internally; otherwise, use
 	 * cp and rm.
 	 */
-	if (stat(from, &sb)) {
+	if (lstat(from, &sb)) {
 		warn("%s", from);
 		return (1);
 	}
