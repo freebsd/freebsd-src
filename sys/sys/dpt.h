@@ -40,7 +40,7 @@
  */
 
 
-#ident "$Id: dpt.h,v 1.2 1998/04/15 17:47:28 bde Exp $"
+#ident "$Id: dpt.h,v 1.3 1998/06/02 00:32:37 eivind Exp $"
 
 #ifndef _DPT_H
 #define _DPT_H
@@ -63,14 +63,14 @@ extern u_long dpt_unit;
 
 #define DPT_RELEASE				1
 #define DPT_VERSION				4
-#define DPT_PATCH				3
-#define DPT_MONTH				6
-#define DPT_DAY					1
+#define DPT_PATCH				5
+#define DPT_MONTH				8
+#define DPT_DAY					3
 #define DPT_YEAR				18	/* 1998 - 1980 */
 
 #define DPT_CTL_RELEASE			1
 #define DPT_CTL_VERSION			0
-#define DPT_CTL_PATCH			5
+#define DPT_CTL_PATCH			6
 
 #ifndef PAGESIZ
 #define PAGESIZ					4096
@@ -229,6 +229,8 @@ typedef void *physaddr;
 #define EATA_CMD_PIO_TRUNC		      	0xf4
 
 #define EATA_CMD_RESET			       	0xf9
+#define EATA_COLD_BOOT                          0x06 /* Last resort only! */
+
 #define EATA_CMD_IMMEDIATE		       	0xfa
 
 #define EATA_CMD_DMA_READ_CONFIG		0xfd
@@ -452,88 +454,88 @@ typedef struct eata_register {	/* EATA register set */
  * Everything back.
  */
 typedef struct get_conf {  /* Read Configuration Array */
-    union {
-	struct {
-	    u_int8_t foo_DevType;
-	    u_int8_t foo_PageCode;
-	    u_int8_t foo_Reserved0; 
-	    u_int8_t foo_len;
-	} foo;
-	u_int32_t foo_length;	/* Should return 0x22, 0x24, etc */
-    } bar;
+		union {
+				struct {
+						u_int8_t foo_DevType;
+						u_int8_t foo_PageCode;
+						u_int8_t foo_Reserved0; 
+						u_int8_t foo_len;
+				} foo;
+				u_int32_t foo_length;	/* Should return 0x22, 0x24, etc */
+		} bar;
 
 #define gcs_length	       	bar.foo_length
 #define gcs_PageCode		bar.foo.foo_DevType
 #define gcs_reserved0		bar.foo.foo_Reserved0
 #define gcs_len		       	bar.foo.foo_len
 
-    u_int32_t signature;	/* Signature MUST be "EATA".	ntohl()`ed */
+		u_int32_t signature;	/* Signature MUST be "EATA".	ntohl()`ed */
 	
-    u_int8_t	version2:4,
-	version:4;	/* EATA Version level */
+		u_int8_t	version2:4,
+				version:4;	/* EATA Version level */
 
-    u_int8_t	OCS_enabled:1, /* Overlap Command Support enabled */
-	TAR_support:1,	/* SCSI Target Mode supported */
-	TRNXFR:1,	/* 
-			 * Truncate Transfer Cmd not necessary Only
-			 * used in PIO Mode
-			 */
-	MORE_support:1, /* MORE supported (only PIO Mode) */
-	DMA_support:1,	/* DMA supported Driver uses only this mode */
-	DMA_valid:1,		/* DRQ value in Byte 30 is valid */
-	ATA:1,			/* ATA device connected (not supported)	*/
-	HAA_valid:1;		/* Hostadapter Address is valid */
+		u_int8_t	OCS_enabled:1, /* Overlap Command Support enabled */
+				TAR_support:1,	/* SCSI Target Mode supported */
+				TRNXFR:1,	/* 
+							 * Truncate Transfer Cmd not necessary Only
+							 * used in PIO Mode
+							 */
+				MORE_support:1, /* MORE supported (only PIO Mode) */
+				DMA_support:1,	/* DMA supported Driver uses only this mode */
+				DMA_valid:1,		/* DRQ value in Byte 30 is valid */
+				ATA:1,			/* ATA device connected (not supported)	*/
+				HAA_valid:1;		/* Hostadapter Address is valid */
 
-    u_int16_t cppadlen;	/*
-			 * Number of pad bytes send after CD data set
-			 * to zero for DMA commands. Ntohl()`ed
-			 */
-    u_int8_t	scsi_idS;	/* SCSI ID of controller 2-0 Byte 0 res. */
-    u_int8_t	scsi_id2;	/* If not, zero is returned */
-    u_int8_t	scsi_id1;
-    u_int8_t	scsi_id0;
-    u_int32_t cplen;	/* CP length: number of valid cp bytes	*/
+		u_int16_t cppadlen;	/*
+							 * Number of pad bytes send after CD data set
+							 * to zero for DMA commands. Ntohl()`ed
+							 */
+		u_int8_t	scsi_idS;	/* SCSI ID of controller 2-0 Byte 0 res. */
+		u_int8_t	scsi_id2;	/* If not, zero is returned */
+		u_int8_t	scsi_id1;
+		u_int8_t	scsi_id0;
+		u_int32_t cplen;	/* CP length: number of valid cp bytes	*/
 
-    u_int32_t splen;	/*
-			 * Number of bytes returned after we receive
-			 * SP command
-			 */
-    u_int16_t queuesiz;	/* max number of queueable CPs */
+		u_int32_t splen;	/*
+							 * Number of bytes returned after we receive
+							 * SP command
+							 */
+		u_int16_t queuesiz;	/* max number of queueable CPs */
 
-    u_int16_t dummy;
-    u_int16_t SGsiz;	/* max number of SG table entrie */
+		u_int16_t dummy;
+		u_int16_t SGsiz;	/* max number of SG table entrie */
 
-    u_int8_t	IRQ:4,		/* IRQ used this HBA */
-	IRQ_TR:1,	/* IRQ Trigger: 0=edge, 1=level	 */
-	SECOND:1,	/* This is a secondary controller */
-	DMA_channel:2;	/* DRQ index, DRQ is 2comp of DRQX */
+		u_int8_t	IRQ:4,		/* IRQ used this HBA */
+				IRQ_TR:1,	/* IRQ Trigger: 0=edge, 1=level	 */
+				SECOND:1,	/* This is a secondary controller */
+				DMA_channel:2;	/* DRQ index, DRQ is 2comp of DRQX */
 
-    u_int8_t	sync;		/*
-				 * device at ID 7 tru 0 is running in
-				 * synchronous mode, this will disappear
-				 */
-    u_int8_t	DSBLE:1,	/* ISA i/o addressing is disabled */
-	FORCADR:1,	/* i/o address has been forced */
-	SG_64K:1,
-	SG_UAE:1,:4;
+		u_int8_t	sync;		/*
+								 * device at ID 7 tru 0 is running in
+								 * synchronous mode, this will disappear
+								 */
+		u_int8_t	DSBLE:1,	/* ISA i/o addressing is disabled */
+				FORCADR:1,	/* i/o address has been forced */
+				SG_64K:1,
+				SG_UAE:1,:4;
 
-    u_int8_t	MAX_ID:5,	/* Max number of SCSI target IDs */
-	MAX_CHAN:3;	/* Number of SCSI busses on HBA	 */
+		u_int8_t	MAX_ID:5,	/* Max number of SCSI target IDs */
+				MAX_CHAN:3;	/* Number of SCSI busses on HBA	 */
 
-    u_int8_t	MAX_LUN;	/* Max number of LUNs */
-    u_int8_t	:3,
-	AUTOTRM:1,
-	M1_inst:1,
-	ID_qest:1,	/* Raidnum ID is questionable */
-	is_PCI:1,	/* HBA is PCI */
-	is_EISA:1;	/* HBA is EISA */
+		u_int8_t	MAX_LUN;	/* Max number of LUNs */
+		u_int8_t	:3,
+				AUTOTRM:1,
+				M1_inst:1,
+				ID_qest:1,	/* Raidnum ID is questionable */
+				is_PCI:1,	/* HBA is PCI */
+				is_EISA:1;	/* HBA is EISA */
 
-    u_int8_t	RAIDNUM;	/* unique HBA identifier */
-    u_int8_t	unused[4];	/* When doing PIO, you	GET 512 bytes */
+		u_int8_t	RAIDNUM;	/* unique HBA identifier */
+		u_int8_t	unused[4];	/* When doing PIO, you	GET 512 bytes */
     
-    /* >>------>>	End of The DPT structure	<<------<< */
+		/* >>------>>	End of The DPT structure	<<------<< */
 
-    u_int32_t length;	/* True length, after ntohl conversion	*/
+		u_int32_t length;	/* True length, after ntohl conversion	*/
 } dpt_conf_t;
 
 /* Scatter-Gather list entry */
@@ -1055,6 +1057,9 @@ typedef struct dpt_metrics {
 #define SIZE_OTHER	9
 
     struct	timeval intr_started;
+
+    u_int32_t   warm_starts;
+    u_int32_t   cold_boots;
 } dpt_perf_t;
 #endif
 
@@ -1186,14 +1191,13 @@ typedef struct dpt_softc {
 	 * This isi most visible with usr/sbin/dpt_softc(8)
 	 */
 
-#ifdef	DEVFS
-    void	*devfs_data_token;
-    void	*devfs_ctl_token;
-#endif
 #ifdef DPT_MEASURE_PERFORMANCE
 	dpt_perf_t	performance;
 #endif
 
+#ifdef DPT_RESET_HBA
+	struct timeval  last_contact;
+#endif
 } dpt_softc_t;
 
 /* This structure is used to pass dpt_softc contents to userland via the 
@@ -1268,6 +1272,31 @@ typedef struct dpt_user_softc {
  *
  */
 
+#ifdef KERNEL
+/* This function gets the current hi-res time and returns it to the caller */
+static __inline struct timeval
+dpt_time_now(void)
+{
+	struct timeval now;
+
+	microtime(&now);
+	return(now);
+}
+
+/**
+ * Given a minor device number, get its SCSI Unit.
+ */
+
+static __inline int
+dpt_minor2unit(int minor)
+{
+	return(minor2hba(minor & ~SCSI_CONTROL_MASK));
+}
+
+dpt_softc_t            *dpt_minor2softc(int minor_no);
+
+#endif /* KERNEL */
+
 /*
  * This function substracts one timval structure from another,
  * Returning the result in usec.
@@ -1288,11 +1317,13 @@ dpt_time_delta(struct timeval start,
     return ( (end.tv_sec - start.tv_sec) * 1000000 +
 	     (end.tv_usec - start.tv_usec) );
 }
+
 #ifndef _DPT_C_
 
 extern TAILQ_HEAD(, dpt_softc) dpt_softc_list;
 
 extern int		dpt_controllers_present;
+
 extern void		hex_dump(u_char * data, int length,
 				 char *name, int no);
 extern char		*i2bin(unsigned int no, int length);
@@ -1335,6 +1366,8 @@ extern int          dpt_send_buffer(int           unit,
 
 
 #endif /* _DPT_C_ */
+
+void dpt_reset_performance(dpt_softc_t *dpt);
 
 #endif /* _DPT_H */
 

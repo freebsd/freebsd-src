@@ -36,7 +36,7 @@
  * future.
  */
 
-#ident "$Id: dpt_control.c,v 1.6 1998/06/07 17:09:42 dfr Exp $"
+#ident "$Id: dpt_control.c,v 1.7 1998/07/13 09:52:51 bde Exp $"
 
 #include "opt_dpt.h"
 
@@ -67,8 +67,6 @@ static vm_offset_t dpt_physmap(u_int32_t paddr, vm_size_t size);
 static void     dpt_unphysmap(u_int8_t * vaddr, vm_size_t size);
 
 static void     dpt_get_sysinfo(void);
-static INLINE dpt_softc_t *dpt_minor2softc(int minor_no);
-static INLINE int dpt_minor2unit(int minor_no);
 
 static int      dpt_open(dev_t dev, int flags, int fmt, struct proc * p);
 static int      dpt_close(dev_t dev, int flags, int fmt, struct proc * p);
@@ -101,6 +99,52 @@ NULL, -1};
 
 static struct buf *dpt_inbuf[DPT_MAX_ADAPTERS];
 static char     dpt_rw_command[DPT_MAX_ADAPTERS][DPT_RW_CMD_LEN + 1];
+
+#ifdef DPT_MEASURE_PERFORMANCE
+void
+dpt_reset_performance(dpt_softc_t *dpt)
+{
+	int ndx;
+
+    /* Zero out all command counters */
+    bzero(&dpt->performance, sizeof(dpt_perf_t));
+    for ( ndx = 0; ndx < 256; ndx ++ )
+	  dpt->performance.min_command_time[ndx] = BIG_ENOUGH;
+    
+    dpt->performance.min_intr_time     = BIG_ENOUGH;
+    dpt->performance.min_waiting_time  = BIG_ENOUGH;
+    dpt->performance.min_submit_time   = BIG_ENOUGH;
+    dpt->performance.min_complete_time = BIG_ENOUGH;
+    dpt->performance.min_eata_tries    = BIG_ENOUGH;
+    
+    for (ndx = 0; ndx < 10; ndx++ ) {
+	    dpt->performance.read_by_size_min_time[ndx] = BIG_ENOUGH;
+	    dpt->performance.write_by_size_min_time[ndx] = BIG_ENOUGH;
+    }
+	
+}
+
+#endif        /* DPT_MEASURE_PERFORMANCE */
+
+/**
+ * Given a minor device number,
+ * return the pointer to its softc structure
+ */
+
+dpt_softc_t *
+dpt_minor2softc(int minor_no)
+{
+	dpt_softc_t    *dpt;
+
+	if (dpt_minor2unit(minor_no & ~SCSI_CONTROL_MASK) == -1)
+		return (NULL);
+
+	for (dpt = TAILQ_FIRST(&dpt_softc_list);
+	     (dpt != NULL) && (dpt->unit != (minor_no & ~SCSI_CONTROL_MASK));
+	     dpt = TAILQ_NEXT(dpt, links));
+
+	return (dpt);
+}
 
 /**
  * Map a physical address to virtual one.
@@ -157,40 +201,6 @@ dpt_unphysmap(u_int8_t * vaddr, vm_size_t size)
 	}
 
 	kmem_free(kernel_map, (vm_offset_t) vaddr, size);
-}
-
-/**
- * Given a minor device number, get its SCSI Unit.
- */
-
-static INLINE int
-dpt_minor2unit(int minor)
-{
-	int             unit;
-
-	unit = minor2hba(minor & ~SCSI_CONTROL_MASK);
-
-	return (unit);
-}
-
-/**
- * Given a minor device number,
- * return the pointer to its softc structure
- */
-
-static INLINE dpt_softc_t *
-dpt_minor2softc(int minor_no)
-{
-	dpt_softc_t    *dpt;
-
-	if (dpt_minor2unit(minor_no & ~SCSI_CONTROL_MASK) == -1)
-		return (NULL);
-
-	for (dpt = TAILQ_FIRST(&dpt_softc_list);
-	     (dpt != NULL) && (dpt->unit != (minor_no & ~SCSI_CONTROL_MASK));
-	     dpt = TAILQ_NEXT(dpt, links));
-
-	return (dpt);
 }
 
 /**
@@ -620,7 +630,7 @@ dpt_read(dev_t dev, struct uio * uio, int ioflag)
 			wbp += x;
 		} else if (strcmp(command, DPT_RW_CMD_CLEAR_METRICS) == 0) {
 #ifdef DPT_MEASURE_PERFORMANCE
-			bzero(&dpt->performance, sizeof(dpt->performance));
+			dpt_reset_performance(dpt);
 #endif				/* DPT_MEASURE_PERFORMANCE */
 
 			x = sprintf(wbp, "dpt%d: Metrics have been cleared\n",
@@ -628,9 +638,6 @@ dpt_read(dev_t dev, struct uio * uio, int ioflag)
 			work_size += x;
 			wbp += x;
 		} else if (strcmp(command, DPT_RW_CMD_SHOW_LED) == 0) {
-#ifdef DPT_MEASURE_PERFORMANCE
-			bzero(&dpt->performance, sizeof(dpt->performance));
-#endif				/* DPT_MEASURE_PERFORMANCE */
 
 			x = sprintf(wbp, "dpt%d:%s\n",
 				dpt->unit, i2bin(dpt_blinking_led(dpt), 8));
@@ -697,8 +704,8 @@ dpt_ioctl(dev_t dev, u_long cmd, caddr_t cmdarg, int flags, struct proc * p)
 
 	switch (cmd) {
 #ifdef DPT_MEASURE_PERFORMANCE
-	case DPT_IOCTL_INTERNAL_METRICS:
-		(void) memcpy(cmdarg, (char *) &dpt->performance, sizeof(dpt_perf_t));
+	case DPT_IOCTL_INTERNAL_METRICS:	    
+		memcpy(cmdarg, &dpt->performance, sizeof(dpt->performance));
 		return (0);
 #endif				/* DPT_MEASURE_PERFORMANCE */
 	case DPT_IOCTL_SOFTC:
@@ -757,7 +764,7 @@ dpt_ioctl(dev_t dev, u_long cmd, caddr_t cmdarg, int flags, struct proc * p)
 		udpt.cache_type = dpt->cache_type;
 		udpt.cache_size = dpt->cache_size;
 
-		(void) memcpy(cmdarg, (char *) &udpt, sizeof(dpt_user_softc_t));
+		memcpy(cmdarg, &udpt, sizeof(dpt_user_softc_t));
 		return (0);
 	case SDI_SEND:
 	case DPT_IOCTL_SEND:
@@ -821,9 +828,7 @@ dpt_ioctl(dev_t dev, u_long cmd, caddr_t cmdarg, int flags, struct proc * p)
 				 (caddr_t *) eata_pass_thru->command_buffer,
 					sizeof(dpt_sysinfo)));
 		case EATAUSRCMD:
-			printf("%d\n", __LINE__);
 			result = dpt_user_cmd(dpt, eata_pass_thru, cmdarg, minor_no);
-			printf("%d\n", __LINE__);
 			return (result);
 		case DPT_BLINKLED:
 			result = dpt_blinking_led(dpt);
