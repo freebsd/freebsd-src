@@ -275,8 +275,8 @@ main(argc, argv)
 	l_chrbeg = convexp(cp);
 	cgetustr(defs, "le", &cp);
 	l_chrend = convexp(cp);
-	cgetustr(defs, "nc", &cp);
-	l_nocom = convexp(cp);
+	if (cgetustr(defs, "nc", &cp) >= 0)
+		l_nocom = convexp(cp);
 	l_escape = '\\';
 	l_onecase = (cgetcap(defs, "oc", ':') != NULL);
 	l_toplex = (cgetcap(defs, "tl", ':') != NULL);
