@@ -136,7 +136,8 @@ forward(fp, style, off, sbp)
 				return;
 			}
 		} else
-			bytes(fp, off);
+			if (bytes(fp, off))
+				return;
 		break;
 	case RLINES:
 		if (S_ISREG(sbp->st_mode))
@@ -154,7 +155,8 @@ forward(fp, style, off, sbp)
 				return;
 			}
 		} else
-			lines(fp, off);
+			if (lines(fp, off))
+				return;
 		break;
 	}
 
