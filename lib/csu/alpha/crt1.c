@@ -1,4 +1,6 @@
-/*-
+/*
+ * Copyright 2001 David E. O'Brien
+ * All rights reserved.
  * Copyright 1996-1998 John D. Polstra.
  * All rights reserved.
  * Copyright (c) 1995 Christopher G. Demetriou
@@ -14,6 +16,8 @@
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
+ *          This product includes software developed for the FreeBSD Project.
+ *          See http://www.freebsd.org/ for information about FreeBSD.
  *      This product includes software developed by Christopher G. Demetriou
  *    for the NetBSD Project.
  * 4. The name of the author may not be used to endorse or promote products
@@ -29,8 +33,6 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #ifndef __GNUC__
@@ -101,4 +103,12 @@ _start(char **ap,
 __asm__(".text");
 __asm__("eprol:");
 __asm__(".previous");
+#endif
+
+/*
+ * NOTE: Leave the RCS ID _after_ __start(), in case it gets placed in .text.
+ */
+#ifndef lint
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif
