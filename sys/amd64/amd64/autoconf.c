@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.53 1996/05/02 14:19:39 phk Exp $
+ *	$Id: autoconf.c,v 1.54 1996/06/02 18:58:39 joerg Exp $
  */
 
 /*
@@ -48,7 +48,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/buf.h>
-#include <sys/dkstat.h>
 #include <sys/conf.h>
 #include <sys/dmap.h>
 #include <sys/reboot.h>
@@ -57,7 +56,6 @@
 #include <sys/sysctl.h>
 
 #include <machine/cons.h>
-#include <machine/cpu.h>
 #include <machine/md_var.h>
 #include <i386/isa/icu.h> /* For interrupts */
 
