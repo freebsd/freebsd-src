@@ -18,7 +18,7 @@
  *		Columbus, OH  43221
  *		(614)451-1883
  *
- * $Id: chat.c,v 1.7 1996/03/08 12:34:37 ache Exp $
+ * $Id: chat.c,v 1.8 1996/03/08 13:22:21 ache Exp $
  *
  *  TODO:
  *	o Support more UUCP compatible control sequences.
@@ -45,7 +45,7 @@ static int TimeoutSec;
 static int abort_next, timeout_next;
 static int numaborts;
 char *AbortStrings[50];
-char inbuff[IBSIZE];
+char inbuff[IBSIZE*2+1];
 
 extern int ChangeParity(char *);
 
@@ -209,6 +209,11 @@ char *estr;
   str = buff;
   inp = inbuff;
 
+  if (strlen(str)>=IBSIZE){
+    str[IBSIZE]=0;
+    LogPrintf(LOG_CHAT, "Truncating String to %d character: %s\n", IBSIZE, str);
+  }
+
   nfds = modem + 1;
   s = str;
   for (;;) {
@@ -245,8 +250,13 @@ char *estr;
     }
     if (FD_ISSET(modem, &rfds)) {	/* got something */
       if (DEV_IS_SYNC) {
-        nb = read(modem, inbuff, IBSIZE-1);
-	inbuff[nb] = 0;
+	int length;
+	if ((length=strlen(inbuff))>IBSIZE){
+	  bcopy(&(inbuff[IBSIZE]),inbuff,IBSIZE+1); /* shuffle down next part*/
+	  length=strlen(inbuff);
+	}
+	nb = read(modem, &(inbuff[length]), IBSIZE);
+	inbuff[nb + length] = 0;
 	if (strstr(inbuff, str)) {
 #ifdef SIGALRM
           sigsetmask(omask);
