@@ -144,12 +144,11 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro,
 	int isbroadcast, sw_csum;
 	struct in_addr pkt_dst;
 	struct route iproute;
-	struct m_tag *dummytag;
+	struct m_tag *mtag, *dummytag;
 #ifdef IPSEC
 	struct secpolicy *sp = NULL;
 #endif
 #ifdef FAST_IPSEC
-	struct m_tag *mtag;
 	struct secpolicy *sp = NULL;
 	struct tdb_ident *tdbi;
 	int s;
@@ -884,7 +883,7 @@ spd_done:
 					break;
 			}
 			if (ia) {	/* tell ip_input "dont filter" */
-				struct m_tag *mtag = m_tag_get(
+				mtag = m_tag_get(
 				    PACKET_TAG_IPFORWARD,
 				    sizeof(struct sockaddr_in *), M_NOWAIT);
 				if (mtag == NULL) {
