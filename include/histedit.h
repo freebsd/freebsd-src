@@ -1,4 +1,4 @@
-/*	$Id$ */
+/*	$Id: histedit.h,v 1.3 1997/06/25 09:47:31 msmith Exp $ */
 /*	$NetBSD: histedit.h,v 1.5 1997/04/11 17:52:45 christos Exp $	*/
 
 /*-
@@ -130,6 +130,9 @@ int		el_source	__P((EditLine *, const char *));
  * of the application
  */
 void		 el_resize	__P((EditLine *));
+
+void		 el_data_set	__P((EditLine *, void *));
+void *		 el_data_get	__P((EditLine *));
 
 
 /*
