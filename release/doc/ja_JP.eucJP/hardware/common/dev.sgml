@@ -779,8 +779,35 @@
       </itemizedlist>
     </para>
 
+    <para arch="i386">Compaq Intelligent ディスクアレイコントローラ
+      (&man.ida.4; ドライバ)
+
+      <itemizedlist>
+       <listitem>
+         <para>Compaq SMART アレイ 221</para>
+       </listitem>
+
+       <listitem>
+         <para>Compaq 内蔵 SMART アレイコントローラ</para>
+       </listitem>
+
+       <listitem>
+         <para>Compaq SMART アレイ 4200, 4250ES コントローラ</para>
+       </listitem>
+
+       <listitem>
+         <para>Compaq SMART アレイ 3200, 3100ES コントローラ</para>
+       </listitem>
+
+       <listitem>
+         <para>Compaq SMART-2/DH, SMART-2/SL, SMART-2/P, SMART-2E, および
+           SMART コントローラ</para>
+       </listitem>
+      </itemizedlist>
+    </para>
+
     <para arch="i386">Command Interface for SCSI-3 を利用する
-      SCSI アダプタ (ciss ドライバ)
+      SCSI アダプタ (&man.ciss.4; ドライバ)
       <itemizedlist>
 	<listitem>
 	  <para>Compaq Smart Array 5* シリーズ (5300, 5i, 532)</para>
@@ -788,7 +815,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">Intel Integrated RAID コントローラ (iir ドライバ)
+    <para arch="i386">Intel 内蔵 RAID コントローラ (&man.iir.4; ドライバ)
       <itemizedlist>
         <listitem>
 	  <para>Intel RAID コントローラ SRCMR</para>
@@ -2381,6 +2408,29 @@
         <listitem>
 	  <para>ZoomAir 4000</para>
 	</listitem>
+      </itemizedlist>
+    </para>
+
+    <para arch="i386">DEC <quote>Tulip</quote> Fast Ethernet コントローラ
+       (lmc ドライバ) ベースの LAN Media Corp WAN アダプタ
+
+      <itemizedlist>
+        <listitem>
+         <para>LMC1000 同期式シリアルインタフェースアダプタ</para>
+        </listitem>
+
+        <listitem>
+         <para>LMC1200 T1/E1 WAN アダプタ</para>
+        </listitem>
+
+        <listitem>
+         <para>LMC5200 高速同期式インタフェース
+           (HSSI: High Speed Synchronous Interface) アダプタ</para>
+        </listitem>
+
+        <listitem>
+         <para>LMC5245 DS3 WAN アダプタ</para>
+        </listitem>
       </itemizedlist>
     </para>
 
