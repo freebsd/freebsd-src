@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.75 1999/02/19 14:25:34 luoqi Exp $
+ * $Id: kern_exit.c,v 1.76 1999/03/02 00:28:08 julian Exp $
  */
 
 #include "opt_compat.h"
@@ -302,6 +302,15 @@ exit1(p, rv)
 	*p->p_ru = p->p_stats->p_ru;
 	calcru(p, &p->p_ru->ru_utime, &p->p_ru->ru_stime, NULL);
 	ruadd(p->p_ru, &p->p_stats->p_cru);
+
+	/*
+	 * Pretend that an mi_switch() to the next process occurs now.  We
+	 * must set `switchtime' directly since we will call cpu_switch()
+	 * directly.  Set it now so that the rest of the exit time gets
+	 * counted somewhere if possible.
+	 */
+	microuptime(&switchtime);
+	switchticks = ticks;
 
 	/*
 	 * Notify parent that we're gone.  If parent has the P_NOCLDWAIT
