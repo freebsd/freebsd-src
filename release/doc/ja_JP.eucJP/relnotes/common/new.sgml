@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.573
+    Original revision: 1.575
 -->
 
 <articleinfo>
@@ -132,196 +132,29 @@
   <sect2 id="security">
     <title>セキュリティ勧告</title>
 
-    <para>バージョン 1.11.5 の統合により、<application>CVS</application>
-      にあったリモートから悪用可能なセキュリティ上の弱点が修正されました。
-      問題の詳細は、セキュリティ勧告 <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:01.cvs.asc">FreeBSD-SA-03:01</ulink>
-      をご覧ください。
-      &merged;</para>
-
-    <para><application>OpenSSL</application> がバージョン
-      0.9.7 にアップグレードされました。これには、
-      攻撃者がある条件下で平文にアクセスできる、
-      <application>OpenSSL</application>
-      へのタイミングベース攻撃への対策が含まれています。
-      問題の詳細は、セキュリティ勧告 <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:02.openssl.asc">FreeBSD-SA-03:02</ulink>
-      をご覧ください。
-      &merged;</para>
-
-    <para>攻撃者からの詐称された TCP 接続を防止できるよう、
-      <quote>syncookies</quote> 機能のセキュリティと性能が改良されました。      
-      問題の詳細は、セキュリティ勧告 <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:03.syncookies.asc">FreeBSD-SA-03:03</ulink>
-      をご覧ください。
-      &merged;</para>
-
-    <para><application>sendmail</application> にあった
-      リモートから悪用可能なバッファオーバフロー問題が修正されました。
-      問題の詳細は、セキュリティ勧告 <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:04.sendmail.asc">FreeBSD-SA-03:04</ulink>
-      および <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:07.sendmail.asc">FreeBSD-SA-03:07</ulink>
-      をご覧ください。
-      &merged;</para>
-
-    <para>XDR 実装にあった、リモートからのサービス妨害攻撃が可能になるような
-      境界チェックのバグが修正されました。
-      問題の詳細は、セキュリティ勧告 <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:05.xdr.asc">FreeBSD-SA-03:05</ulink>
-      をご覧ください。
-      &merged;</para>
-
-    <para>最近公開された <application>OpenSSL</application>
-      の 2 種類のセキュリティ上の弱点が修正されました。
-      問題の詳細は、セキュリティ勧告 <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:06.openssl.asc">FreeBSD-SA-03:06</ulink>
-      をご覧ください。
-      &merged;</para>
+    <para></para>
   </sect2>
 
   <sect2 id="kernel">
     <title>カーネルの変更点</title>
 
-    <para arch="pc98">CanBe の電源管理コントローラに対応しました。
-      &merged;</para>
-
-    <para>&man.devfs.5; がオプション機能ではなく、必須になりました。
-      <literal>NODEVFS</literal> オプションは、
-      指定可能なカーネル設定オプションから削除されています。</para>
-
-    <para arch="i386,ia64,pc98">&man.ehci.4; ドライバが追加されました。
-      これは USB 2.0 コントローラで使われている
-      USB Enhanced Host Controller Interface に対応しています。</para>
-
-    <para><filename>/dev/tty</filename>
-      の許可属性の取り扱いにあった、小さなバグが修正されました。
-      これにより、&man.su.1; の実行後も &man.ssh.1;
-      が使用できるようになっています。</para>
-
-    <para>&man.fstat.2; が、TCP ソケットから読み込めるバイト数として
-      <literal>0</literal> を返してしまうバグが修正されました。</para>
-
-    <para>&man.kqueue.2; が、TCP ソケットから読み込めるバイト数として
-      <literal>0</literal> を返してしまうバグが修正されました。
-      また、<literal>EVFILT_READ</literal> の
-      <literal>NOTE_LOWAT</literal> フラグも修正されています。</para>
-
-    <para>Linux エミュレーションモードが IPv6 に対応しました。</para>
-
-    <para>&man.madvise.2; が、新しく
-      <literal>MADV_PROTECT</literal> という動作に対応しました。
-      これは、そのプロセスは非常に重要なもので、
-      スワップ空間が枯渇してしまった時でも kill
-      してはいけない、ということを仮想メモリシステムに伝えるものです。
-      その時のプロセスは、スーパユーザが所有するものである必要があります。</para>
-
-    <para arch="i386,pc98">
-      (X-10 ホームコントロール製品で使われている) TW-523
-      電源インタフェース用の tw ドライバが削除されました。
-      これは現在動作しておらず、&release.branch;
-      で動作させるには大幅な変更が必要です。
-      xten および xtend という、
-      ユーザランドの制御プログラムも削除されています。</para>
+    <para></para>
 
     <!-- Above this line, sort kernel changes by manpage/keyword-->
 
-    <para>SMP における性能向上が期待できる、
-      新しい汎用のプロセススケジューラがスケジューラフレームワークに追加されました。
-      カーネルコンフィグファイルには、スケジューラをどれか一つだけ指定する必要があります。
-      従来のスケジューラを使う場合は
-      <literal>options&nbsp;SCHED_4BSD</literal>
-      を、新しい (まだ試験段階の) スケジューラを使う場合には
-      <literal>options&nbsp;SCHED_ULE</literal> を指定してください。</para>
+    <sect3 id="proc">
+      <title>プラットフォーム固有のハードウェアの対応状況</title>
 
-    <para>デバイスのメジャー番号が、デフォルトで動的に割り当てられるようになりました。
-      この変更により、デバイスドライバに割り当てるメジャー番号のテーブルを、
-      静的に集中管理する必要性がほとんど
-      (互換性を保つため、従来の静的なメジャー番号のままなっているドライバも二・三残っています)
-      なくなり、デバイスのメジャー番号が足りなくなる可能性も低くなっています。</para>
-
-    <para arch="i386,pc98">カーネルスレッド用の簡易的な遅延スイッチ機構が実装されました。
-      これは、(割り込みハンドラなど) 他のプロセスと関係がない、
-      細かいコンテキストスイッチによるオーバヘッドを削減するためのものです。
-      この機能は <literal>options&nbsp;LAZY_SWITCH</literal>
-      を指定すると有効になります。<para>
-
-    <sect3>
-      <title>プロセッサ・マザーボードの対応状況</title>
-
-      <para arch="i386"><literal>SMP</literal> カーネルに HyperThreading (HTT)
-        対応の基礎部分が追加されました。
-        スケジューラは論理 CPU を、物理 CPU を追加した場合と同じように
-        プロセススケジューリングに使います。
-        HTT は、資源が足りなくなるいくつかのケースで最善の性能にならないことが
-        あるため、起動時には論理 CPU はデフォルトで停止状態になっています。
-        有効にするには、<varname>machdep.hlt_logical_cpus</varname> sysctl
-        変数を使います。また、<varname>machdep.hlt_cpus</varname> sysctl
-        変数を使うと、アイドルループを使って CPU を停止状態にすることも可能です。
-        詳しくは &man.smp.4; のマニュアルページをご覧ください。
-
-	<note>
-	  <para>初期の 5.0-CURRENT スナップショットや 4.8-RELEASE などの
-            バージョンの &os; は、HyperThreading 機能を有効にするために
-            カーネルコンフィグ時に <literal>options&nbsp;HTT</literal>
-            を指定していました。現在は、このオプションを指定する必要は
-            なくなっています。</para>
-	</note>
-
-      </para>
-
-      <para arch="i386">Intel Pentium Pro 以降に搭載されている
-        Physical Address Extensions (PAE) 機能に対応しました。
-        これは、一つのマシン上で最大 64GB の RAM を使用することが
-        できるようになる機能ですが、一つのプロセス (と &os; カーネル)
-        が使えるメモリ量は従来のままです。
-        詳しくは、&man.pae.4; のマニュアルページをご覧ください。
-        この機能の作業は、DARPA および Network Associates Laboratories
-        の支援を受けて行なわれました。</para>
-
-      <para arch="i386">&man.vpd.4; ドライバが新しく追加されました。
-        これは IBM ThinkPad シリーズの Vital Product Data
-        構造体からハードウェア情報を読み出すためのものです。</para>
-
+      <para arch="i386">単一プロセッサ構成の i386 プラットフォームで、
+        常に PCI 割り込みが使われるようになりました。
+        これにより、今まで使用できなかった (特にラップトップの) PCI
+        カードが使用できるようになっています。</para>
     </sect3>
 
     <sect3 id="boot">
       <title>ブートローダの変更</title>
 
-      <para arch="alpha">alpha アーキテクチャ用のブートローダ
-        (<filename>boot1</filename>) は、
-        他のプラットフォームと合わせるために
-        <filename>boot</filename> という名前に変わりました。</para>
-
-      <para arch="i386,pc98">i386 アーキテクチャ用ブートローダのうちの
-        (<filename>boot1</filename> および <filename>boot2</filename>)
-        が <filename>boot</filename> という一つのファイルに統合されました。
-        これは、
-        ブートローダを操作したり書き込むプログラムの構造を単純化するための変更です。</para>
-
-      <para arch="pc98">PC98 ブートローダが SCSI MO
-        メディアからの起動に対応しました。
-        &merged;</para>
-
-      <para>(以前、&os; 4.<replaceable>X</replaceable>
-        のモジュールが置かれるデフォルトのディレクトリだった)
-        <filename>/modules</filename> ディレクトリが、
-        デフォルトで <varname>kern.module_path</varname>
-        に含まれなくなりました。
-        サードパーティ製のモジュールは、
-        <filename>/boot/modules</filename>
-        に置かれなければならなくなっています。
-
-	<note>
-	  <para>&os; 4.<replaceable>X</replaceable>
-          用に設計されたモジュールはパニックをを引き起こしやすいため、
-            利用する場合は十分注意してください。</para>
-	</note>
-      </para>
-
-      <para arch="i386">コードサイズの制限から、
-        i386 ブートローダから読むことのできるカーネルは
-        1.5TB 以下のルートファイルシステムにあるものだけになっています。</para>
+      <para></para>
 
        <!-- Above this line, order bootloader changes by keyword-->
 
@@ -330,201 +163,34 @@
     <sect3 id="net-if">
       <title>ネットワークインターフェイスの対応状況</title>
 
-      <para arch="i386,pc98">&man.axe.4;
-        ネットワークドライバが新しく追加されました。
-        これは ASIX Electronics AX88172 USB 2.0
-        チップセットをベースにした
-        USB Ethernet アダプタに対応しています。</para>
-
-      <para>cm ドライバが IPX に対応しました。
-        &merged;</para>
-
-      <para arch="i386,pc98">&man.rue.4; ネットワークドライバが追加されました。
-        これは RealTek RTL8150 USB to Fast Ethernet
-        コントローラチップをベースにした Ethernet アダプタに対応しています。</para>
-
-      <para arch="i386">&man.sbsh.4; ドライバが追加されました。
-        これは Granch SBNI16 SHDSL モデムに対応しています。
-        &merged;</para>
-
-      <para>802.11 リンク層に対応した wlan モジュールが新しく追加されました。
-        現在、&man.wi.4; ドライバ、&man.an.4;
-        ドライバがこの機能を利用しています。</para>
-
-      <para arch="i386,alpha,pc98,sparc64">インタフェースの設定時にカーネルパニック
-        (や他の問題)
-        を引き起こす可能性があった、&man.xl.4;
-        ドライバのタイミングバグが修正されました。</para>
+      <para></para>
     </sect3>
 
     <sect3 id="net-proto">
       <title>ネットワークプロトコル</title>
 
-      <para>&man.ipfw.4; の <literal>skipto</literal> ルールと
-        <literal>log</literal> キーワードが、
-        以前のように同時に使えるようになりました。
-        また、&man.ipfw.4; の <literal>uid</literal>
-        ルールも動作するようになっています。</para>
-
-      <para>同一のカーネルで
-        <literal>FAST_IPSEC</literal> と <literal>INET6</literal>
-        を同時に指定して構築することができるようになりました
-        (ただし、両方の機能を同時に使用することはまだできません)。</para>
-
-      <para>NewReno を有効にしていると高速リカバリが途中で終了してしまうという、
-        TCP NewReno のバグが修正されました。
-        &merged;</para>
-
-      <para>TCP が、RFC 3042 で提案されている <quote>Limited
-	Transmit</quote> 機構に対応しました。
-        この機能は、ある特定の条件下における
-        TCP ロスのリカバリ効率を向上させることを目的としたものです。
-        <varname>net.inet.tcp.rfc3042</varname> sysctl
-        変数で有効にすることができ、
-        デフォルトでは無効になっています。
-        詳細については、&man.tcp.4; をご覧ください。</para>
-
-      <para>TCP が、RFC 3390 に記載されている、
-        より大きな初期輻輳ウィンドウサイズに対応するように変更されました。
-        この機能は、短いデータ転送や、広帯域で転送遅延量の大きい接続における
-        スループットを向上させる効果があります。
-        <varname>net.inet.tcp.rfc3390</varname> sysctl 変数で有効にすることができ、
-        デフォルトでは無効になっています。
-        詳細については、&man.tcp.4; をご覧ください。</para>
-
-      <para>IP フラグメントの再組み立てコードが大量のフラグメントパケットを
-        受け取った時の動作が、より洗練されたものになりました
-        (これは、フラグメントパケットを利用したサービス妨害攻撃への
-        耐性を高めるための変更です)。
-        &merged;</para>
-
-      <para><literal>TIME_WAIT</literal> 状態の TCP 接続が、
-        完全な TCP プロトコル制御ブロック (PCB) ではなく、
-        より容量の小さい特別な PCB を使うように変更されました。
-        これにより、<literal>TIME_WAIT</literal>
-        状態が使う構造体やリソースを、
-        従来よりも早く解放することが可能になっています。</para>
-
-      <para><quote>特権ポート (privileged ports)</quote>
-        (&man.bind.2; するのにスーパユーザ権限が必要な
-        TCP と UDP のポート番号) の範囲が設定できるようになりました。
-        設定には、
-        <varname>net.inet.ip.portrange.reservedlow</varname> および
-        <varname>net.inet.ip.portrange.reservedhigh</varname> sysctl
-        変数を使います。デフォルトは、伝統的な UNIX と同じになっています。
-        この機能は、スーパユーザ権限を持たないネットワークサーバが、
-        従来特権が必要だったポートに bind できるようにする目的で追加されました。
-        詳細は &man.ip.4; をご覧ください。</para>
-
-      <para>非ブロッキング RPC コードにあったいくつかのバグが修正されました。
-        これにより、&man.amd.8; を使って &release.current;
-        のサーバからマウントすることができるようになっています。</para>
-
-      <para>7 年間正常に動作していなかった
-        XNS ネットワーク対応が削除されました。</para>
-
+      <para>情報漏洩を防ぐため、フラグメンテーション (断片化) されない場合は
+        IPv4 パケットの <varname>ip_id</varname>
+        フィールドが設定されなくなりました。</para>
    </sect3>
 
     <sect3 id="disks">
       <title>ディスク・記憶装置</title>
 
-      <para>&man.aac.4; ドライバが、ジャイアントカーネルロックなしに
-        動作するようになりました。この変更により、SMP システム上の
-        複数の高負荷 I/O において、速度性能がおよそ 20% 向上しています。</para>
-
-      <para>&man.ata.4; ドライバが、現在知られている
-        SiS チップセットすべてに対応しました
-        (詳細はハードウェアノートをご覧ください)。</para>
-
-      <para>&man.ata.4; ドライバが Promise
-        SATA150、TX2、TX4 Serial ATA/150
-        コントローラに対応しました。</para>
-
-      <para>&man.ata.4; ドライバがシャットダウン時に
-        デバイスをフラッシュするようになりました。
-        コンソールにフラッシュに対応していないデバイスから、
-        フラッシュに失敗したというメッセージが表示されるかも知れませんが、
-        それはこの変更によるものです。</para>
-
-      <para>CAM レイヤが
-	2<superscript>32</superscript>
-        個以上のブロックを持つデバイスに対応しました
-        (1 ブロック 512 バイトとすると、これは 2TB
-        より大きいデバイスに対応したことに相当します)。
-
-	<note>
-	  <para>この変更前後でアップグレードする場合は、
-            &man.pass.4; もしくは &man.xpt.4;
-            デバイスを利用するユーザランドアプリケーションをすべて
-            再構築しなければならないことに注意してください。
-            たとえば、ベースシステムに含まれる &man.camcontrol.8;、
-            port に含まれる
-            <filename role="port">sysutils/cdrtools</filename> や
-            <filename role="port">multimedia/xmms</filename>
-            がそれらに該当します。</para>
-	</note>
-	
-      </para>
-
-      <para>&man.cd.4; に数多くの変更が加えられました。
-        ユーザに影響がある主なものとして、
-        ATAPI/USB/Firewire CDROM ドライブとの互換性向上があります。</para>
-
-      <para>&man.geom.4; がオプション機能ではなく、必須になりました。
-        <literal>NO_GEOM</literal> オプションは、
-        指定可能なカーネル設定オプションから削除されています。</para>
-
-      <para>&man.iir.4; ドライバが更新されました。
-        この更新で、インストール時にディスクの検出ができないという問題が解決しています。</para>
-
-      <para arch="i386">IBM (現在は Adaptec) の ServeRAID
-        シリーズに対応した ips ドライバが追加されました。</para>
-
-      <para>&man.mly.4; ドライバにあった、
-        ハングアップするバグが修正されました。</para>
-
-      <para>UFS および UFS2 ファイルシステムが、
-        ボリュームラベルに対応しました。ボリュームラベルは、
-        ボリュームを同定するために使われる、
-        デバイスの種類に依存しない文字列です。
-        ボリュームラベルは
-        &man.newfs.8; もしくは &man.tunefs.8; に
-        <option>-L</option>
-        オプションを指定することで設定することができます。
-        <literal>GEOM_VOL</literal> モジュールを使うと、
-        <filename>/dev/vol</filename>
-        以下に現れるボリュームラベルを使ってボリュームにアクセスすることが可能になります。</para>
-
-      <para>&man.vinum.4; ボリュームにルートファイルシステムが置けるようになりました。
-        詳しくは &man.vinum.4; のマニュアルページをご覧ください。</para>
-
-      <para arch="pc98">しばらく壊れたままだった
-        wfd ドライバと wst ドライバが削除されました。</para>
+      <para><filename>geom_apple</filename>,
+	<filename>geom_bde</filename>,
+	<filename>geom_bsd</filename>,
+	<filename>geom_gpt</filename>,
+	<filename>geom_mbr</filename>,
+	<filename>geom_pc98</filename>,
+	<filename>geom_sunlabel</filename>,
+	<filename>geom_vol_ffs</filename>
+        といった、さまざまある &man.geom.4; モジュールが、
+        カーネルモジュールとして読み込み可能になりました。</para>
     </sect3>
 
     <sect3 id="fs">
       <title>ファイルシステム</title>
-
-      <para>新しく <literal>DIRECTIO</literal>
-        カーネルオプションが追加されました。
-        これはバッファキャッシュを経由せずに直接データを読み込んだり、
-        ユーザ空間のバッファに直接データを書き込むことを可能にします。
-        この機能を使うには、ファイル記述子に
-        <literal>O_DIRECT</literal> フラグをセットすることと、
-        読み出し操作時のオフセット・データ長の両方に、
-        物理メディアセクタ長の整数倍を指定する必要があります。
-        &merged;</para>
-
-      <para>NETNCP および Netware Filesystem 対応 (nwfs)
-        が、正しく動作するようになりました。</para>
-
-      <para>smbfs にあった、アンマウントができない、
-        もしくはアンマウント時にカーネルパニックが発生するというバグが
-        修正されました。</para>
-    </sect3>
-
-    <sect3 id="pccard">
-      <title>PCCARD 対応</title>
 
       <para></para>
     </sect3>
@@ -532,623 +198,57 @@
     <sect3 id="mm">
       <title>マルチメディアへの対応状況</title>
 
-      <para arch="i386,pc98">&man.speaker.4; デバイス用の
-        <filename>atspeaker.ko</filename>
-        モジュールと
-        <filename>pcspeaker.ko</filename>
-        モジュールは、
-        <filename>speaker.ko</filename>
-        という名前に変わりました。</para>
+      <para></para>
     </sect3>
   </sect2>
 
   <sect2 id="userland">
     <title>ユーザランドの変更点</title>
 
-    <para>&man.adduser.8; が、シェルの特殊文字を含むパスワードを
-      正しく処理できるようになりました。</para>
-
-    <para>従来のディスクラベルユーティリティに代わって、
-      &man.bsdlabel.8; ユーティリティが導入されました。
-      これは従来のものと同様、ディスクパーティションにある
-      BSD ラベルのインストールや表示、変更を行なったり、
-      ブートストラップコードのインストールを行なうことができます。
-      disklabel ユーティリティと比べて、使われなくなったオプションや
-      パラメータの多くが削除された点が異なります。
-      &man.bsdlabel.8; には新しく <option>-m</option>
-      オプションが追加されており、指定したマシンアーキテクチャに適したレイアウトを
-      使用できるようになっています。</para>
-
-    <para>&man.adduser.8; に、ユーザのデフォルトログイングループを設定する
-      <option>-g</option> オプションが追加されました。</para>
-
-    <para arch="alpha,i386"><filename>compat4x</filename>
-      配布物に、&os; 4.7-RELEASE に含まれる
-      <filename>libcrypto.so.2</filename>,
-      <filename>libgmp.so.3</filename>,
-      <filename>libssl.so.2</filename> ライブラリが追加されました。</para>
-
-    <para>&man.chgrp.1 および &man.chown.8 は、
-      <option>-v</option> オプションが複数個指定された場合、
-      所有者/所有グループを変更する時に新旧の uid/gid
-      を表示するようになりました。</para>
-
-    <para>&man.config.8; に、
-      カーネルコンフィグファイルの <literal>device</literal>
-      指示子の指定を無効にする <literal>nodevice</literal>
-      指示子が追加されました。
-      また、<literal>nooption</literal> と
-      <literal>nomakeoption</literal> 指示子も追加されており、
-      それより前にある <literal>options</literal> および
-      <literal>makeoptions</literal> 指示子をそれぞれ無効にします。</para>
-
-    <para>&man.diskinfo.8; ユーティリティが追加されました。
-      これは、ディスクデバイスの情報の表示と、
-      ネイティブな性能試験を行なうためのものです。</para>
-
-    <para>disklabel ユーティリティが &man.bsdlabel.8; に置き換えられました。
-      alpha、i386、pc98 プラットフォームでは、disklabel ユーティリティは
-      &man.bsdlabel.8; へのリンクになっています。</para>
-
-    <para>&man.dump.8; に、ディスクブロックをキャッシュする
-      <option>-C</option> オプションが追加されました。
-      これは、パスの間のファイルシステム更新を反映しないという欠点がありますが、
-      ダンプ速度を向上させることが可能です。</para>
-
-    <para>&man.dumpfs.8; に、ファイルシステムのパラメータを
-      &man.newfs.8; コマンドの形式で表示する
-      <option>-m</option> フラグが追加されました。</para>
-
-    <para>&man.elf.5; 実行ファイルフォーマットの情報を表示するユーティリティ
-      elfdump が追加されました。</para>
-
-    <para>&man.fetch.1; は &man.fetch.3; の <filename>.netrc</filename>
-      に対応し、さらに、異なる <filename>.netrc</filename> を指定する
-      <option>-N</option> オプションが追加されました。</para>
-
-    <para>&man.fetch.3; が <filename>.netrc</filename> に対応しました
-      (詳しくは &man.ftp.1; をご覧ください)。</para>
-
-    <para>&man.ftpd.8; に、サーバメッセージ中に &man.ftpd.8;
-      のバージョンやホスト名などの固有情報を表示しないようにする
-      <option>-h</option> オプションが追加されました。
-      &merged;</para>
-
-    <para>&man.ftpd.8; に、デーモンモードで listen するポート番号を
-      指定する <option>-P</option> が追加されました。
-      また、デフォルトのデータポート番号は制御ポート番号より 1 少ない値になっており、
-      特定の固定値は使わなくなりました。
-      &merged;</para>
-
-    <para>&man.ftpd.8; に使われる <filename>/etc/ftpchroot</filename>
-      ファイルの書式が拡張されました。詳しくは、新しく追加された
-      &man.ftpchroot.5; のマニュアルページをご覧ください。
-      &merged;</para>
-
-    <para>&man.ftpd.8; のログインディレクトリのパス名に、
-      &man.chroot.2; 用のディレクトリと、
-      chroot 環境でのカレントディレクトリが指定できるようになりました。
-      指定には、他の FTP デーモンでも使われている
-      <literal>/./</literal>
-      というセパレータを使います。
-      これは &man.ftpchroot.5; と &man.passwd.5; の両方で指定可能です。
-      &merged;</para>
-
-    <para>&man.fwcontrol.8; に、DV ストリームの送受信用オプション
-      <option>-R</option> および <option>-S</option> が追加されました。
-      &merged;</para>
-
-    <para>&man.gstat.8; ユーティリティが追加されました。
-      これは、&man.geom.4;
-      サブシステムにおけるディスクの稼働状態を表示するものです。</para>
-
-    <para>&man.ipfw.8; に、(ファイアウォール機能そのものの有効化・無効化を含む)
-      &man.ipfw.4; におけるさまざまな制御を実現するため、
-      <literal>enable</literal> コマンド、
-      <literal>disable</literal> コマンドが追加されました。
-      これらは、従来の sysctl 変数よりもわかりやすく、
-      便利な操作手段を提供します。&merged;</para>
-
-    <para>&man.jail.8; に、新しく <option>-i</option> フラグが追加されました。
-      これは、新しく作成した jail の識別子を出力します。</para>
-
-    <para>既存の jail の中でコマンドを実行する、&man.jexec.8;
-      ユーティリティが追加されました。</para>
-
-    <para>既存の jail を一覧表示する &man.jls.8; ユーティリティが追加されました。</para>
-
-    <para>&man.kenv.1; が、ルートファイルシステムのみがマウントされた状態で
-      システムが起動している場合にも利用できるよう、
-      <filename>/usr/bin</filename> から
-      <filename>/bin</filename> に移されました。</para>
-
-    <para>&man.killall.1; に新しく <option>-j</option> オプションが追加されました。
-      これは、ひとつの jail にあるすべてのプロセスを kill します。</para>
-
-    <para>ユーザランドから &man.geom.4; サブシステムの一部へのアクセスを提供する
-      &man.libgeom.3; ライブラリが追加されました。</para>
-
-    <para>mac_portacl MAC ポリシモジュールが追加されました。
-      これはユーザとグループに、TCP ポート、UDP ポートへの bind
-      を許可するという単純な ACL 機構です。
-      最近追加された
-      <varname>net.inet.ip.portrange.reservedhigh</varname>
-      sysctl 変数と組み合わせて使うことを想定しています。</para>
-
-    <para>&man.devfs.5; が必須となったため、
-      必要がなくなった <filename>MAKEDEV</filename>
-      スクリプトは削除されました。</para>
-
-    <para>&man.mergemaster.8; に、置き換えられたファイルの内容を保存する
-      <option>-P</option> オプションが追加されました。</para>
-
-    <para>&man.mixer.8; に、相対値を使ったボリューム調整が実装されました。</para>
-
-    <para>FFS スナップショットの作成を簡単に行なうための
-      &man.mksnap.ffs.8; プログラムが追加されました。
-      これは <groupname>operator</groupname> グループ
-      に所属するユーザから利用することを想定した
-      SUID-<username>root</username> 実行ファイルです。</para>
-
-    <para>&man.mount.8; および &man.umount.8; に、
-      標準の場所にない &man.fstab.5; を指定するための
-      <option>-F</option> オプションが追加されました。</para>
-
-    <para>&man.mount.nfs.8; に、UDP マウントポイントに対して
-      &man.connect.2; を行なわないようにする <option>-c</option>
-      フラグが追加されました。このオプションは、サーバが
-      標準の NFS ポート番号である 2049 からの要求に応答しない、
-      あるいはその要求に対してサーバが異なる IP アドレスを
-      使って応答する (サーバがマルチホーム構成の場合など) 時に使います。
-      <varname>vfs.nfs.nfs_ip_paranoia</varname> sysctl 変数を
-      <literal>0</literal> にすると、このオプションがデフォルト動作になります。
-      &merged;</para>
-
-    <para>&man.mount.nfs.8; に、<option>noinet4</option> と
-      <option>noinet6</option> マウントオプションが追加されました。
-      これは、それぞれ IPv4 と IPv6 による NFS マウントを禁止します。</para>
-
-    <para>&man.newfs.8; は、<option>-O1</option>
-      オプションを使って UFS1 が指定されていない限り、デフォルトで UFS2
-      ファイルシステムを作成するようになりました。</para>
-
-    <para>&man.newsyslog.8; に、多くの新機能が追加されました。
-
-      <itemizedlist>
-        <listitem><para>エントリの圧縮処理の開始前に、
-            前回開始した圧縮処理を強制終了させる
-            <literal>W</literal> フラグ (エントリのグループの場合は
-            <literal>G</literal> フラグ) が追加されました。
-            この機能は、大きいファイルを同時に圧縮する処理でシステムが過負荷に
-            なるのを避けるためのものです。
-            &merged;</para>
-        </listitem>
-
-	<listitem>
-	  <para>ローテーションを指定し、
-            設定ファイルに何も指定しなかった場合に使われる
-            <quote>デフォルトのローテート動作</quote>
-            が指定できるようになりました。
-            &merged;</para>
-	</listitem>
-
-	<listitem>
-	  <para>ファイルをローテートする時にシグナルを送らないようにする
-            <option>-s</option> コマンドラインフラグが追加されました。
-            &merged;</para>
-	</listitem>
-
-	<listitem>
-	  <para>ファイルをローテートする時に、シグナルを送る必要がないことを示す
-            <literal>N</literal> 設定ファイルフラグが追加されました。
-            &merged;</para>
-	</listitem>
-
-	<listitem>
-	  <para>ファイルをローテートする時に、(プロセス単体ではなく)
-            プロセスグループにシグナルを送ることを指定する
-            <literal>U</literal> 設定ファイルフラグが追加されました。
-            &merged;</para>
-	</listitem>
-      </itemizedlist>
-
-    </para>
-
-    <para>&man.nsdispatch.3; はスレッドセーフになり、
-      Name Service Switch (NSS) モジュールに対応しました。
-      NSS モジュールは <filename>libc</filename> に静的に構築したり、
-      &man.dlopen.3; で動的にロードすることが可能です。
-      ロード・初期化は設定時 (&man.nsdispatch.3; が呼ばれ、
-      &man.nsswitch.conf.5; の読み込み/再読み込みが行なわれた時) に行なわれます。</para>
-
-    <para>新たに &man.pam.chroot.8; モジュールが追加されました。
-      これはユーザに対して、あらかじめ決まったディレクトリか、
-      ホームディレクトリの下にあるディレクトリのいずれかに
-      &man.chroot.2; 操作を行なうためのものです。</para>
-
-    <para>&man.pam.ssh.8; が書き換えられました。
-      その影響で、各セションは最初のセションで実行されたエージェントに接続しようとするのではなく、
-      各セションに対して個別に &man.ssh-agent.1; が実行されるようになっています。</para>
-
-    <para>&man.ping.8; に、送出パケットの
-      <quote>Don't Fragment</quote> ビットをセットする
-      <option>-D</option> フラグが追加されました。</para>
-
-    <para>&man.ping.8; に、ICMP echo 要求の代わりに、
-       ICMP マスク要求メッセージやタイムスタンプ要求メッセージを使う
-       <option>-M</option> オプションが追加されました。</para>
-
-    <para>&man.ping.8; に、送出パケットの
-      Type of Service ビットをセットする
-      <option>-z</option> フラグが追加されました。</para>
-
-    <para>&man.pw.8; が、<literal>$</literal>
-      文字で終わるユーザの追加に対応しました。
-      これは、主に <application>Samba</application>
-      サービスの管理を容易にするための変更です。&merged;</para>
-
-    <para>&man.pwd.mkdb.8; で生成される
-      <filename>/etc/pwd.db</filename> および
-      <filename>/etc/spwd.db</filename> パスワードデータベースの構造が、
-      バイトオーダに依存しない形に変更されました。
-      前処理されたこれらのパスワードデータベースは、
-      異なるアーキテクチャ間で移動させて利用することが可能になっています。
-      古いバイナリとの互換性を保つため、
-      ファイルのエントリにはバージョン番号が含まれています。</para>
-
-    <para>&man.rand.3; の、乱数列が
-      <literal>0</literal> になってしまう可能性があったバグが修正されました
-      (ただし &man.rand.3; は、依然として実用的な用途には適していません)。</para>
-
-    <para>&man.rtld.1; が新しく、
-      共有オブジェクト依存関係の動的マッピングに対応しました。
-      このオプション機能は特に、
-      複数の異なるスレッドライブラリを使って実験する時に便利です。
-      ただし、デフォルトでは構築されません。
-      詳しくは &man.libmap.conf.5; をご覧ください。
-      これはオプション機能のひとつで、デフォルトでは無効になっています。</para>
-
-    <para>&man.sem.open.3; が、
-      同じセマフォの複数回オープンを正しく処理できるようになりました。
-      これにより、&man.sem.close.3;
-      で呼び出し元のプログラムがクラッシュすることはなくなっています。</para>
-
-    <para>&man.srandom.3; の乱数シードアルゴリズムが、
-      より強いものになりました。</para>
-
-    <para arch="sparc64">Sun ディスクラベルで動作する
-      &man.bsdlabel.8; 風のプログラム、
-      sunlabel ユーティリティが追加されました。</para>
-
-    <para arch="i386,alpha,sparc64,ia64">&man.sysinstall.8; は、
-      ディスクラベルエディタにおいて手動で指定されなかった場合、
-      新しく作成するファイルシステムのデフォルトレイアウトとして、
-      UFS2 を選択するようになりました。
-
-      <note arch="i386">
-	<para>i386 ブートローダの制限のため、ルートファイルシステムは
-          1.5TB 以下の大きさでなければなりません。</para>
-      </note>
-    </para>
-
-    <para>デバイス上のページングとスワップ処理を無効にする
-      &man.swapoff.8; コマンドが追加されました。
-      関連するコマンド &man.swapctl.8; も、他の BSD にあるような
-      &man.swapon.8; と &man.swapoff.8;
-      へのインタフェースに対応しました。
-
-      <note>
-        <para>&man.swapoff.8;
-          機能は実験的なものと考えられています。</para>
-      </note>
-    </para>
-
-    <para>&man.syslogd.8; は、&man.syslog.conf.5;
-      ファイル中でホストやプログラムを指定する部分に、
-      複数のホストやプログラムを指定できるようになりました。</para>
-
-    <para>&man.systat.1; に、新しく <option>-ifstat</option>
-      ディスプレイモードが追加されました。
-      これは、システム上の有効かインタフェースを通過するネットワークトラフィックを表示します。</para>
-
-    <para>&man.usbhidaction.1; コマンドが追加されました。
-      これは、USB HID 制御に応じて、設定された動作を行なうためのものです。</para>
-
-    <para>&man.uudecode.1; と &man.b64decode.1; に、
-      先頭フレーム行、もしくは最終フレーム行が欠けた、
-      壊れたファイルをデコードするための
-      <option>-r</option> フラグが追加されました。
-      &merged;</para>
-
-    <para>&man.vmstat.8; で fork 操作の統計を表示する
-      <option>-f</option> フラグが再実装されました。</para>
-
-    <para>&man.xargs.1; に、ユーティリティを複数並列に実行する
-      <option>-P</option> オプションが追加されました。</para>
-
-    <para>&man.xargs.1; に、コマンド実行前に子プロセス用に
-      <filename>/dev/tty</filename> を再オープンする
-      <option>-o</option> フラグが追加されました。
-      これは、子プロセスが対話的なアプリケーションの場合に有用です。</para>
-
-    <para arch="i386,pc98">KSE を使って POSIX スレッド機能を提供する
-      <filename>libkse</filename>
-      ライブラリがデフォルトでインストールされ、有効化されるようになりました。
-      このライブラリは現在 M:N スレッド機能に対応しています。
-      プロセススコープ、システムスコープスレッドの両方を使うことができ、
-      並列レベルの取得・設定が可能です。
-      デフォルトでは、並列レベルがシステムの CPU 数に設定されます。
-      各並列レベルは 1 個の KSE と関連づけられおり、
-      すべてのプロセススコープスレッドはこれらの KSE の中で動作します。
-      システムスコープスレッドは、並列レベルに対応する独立した
-      KSE を取得します。
-      <filename>libkse</filename> はまだ作業中のものであり、
-      デフォルトでは使われませんが、プログラムをリンクする時に
-      <option>-pthread</option>
-      ではなく
-      <option>-lkse</option>
-      を指定することで、
-      <filename>libc_r</filename>
-      の代替品として使うことが可能です。</para>
-
-    <para arch="i386,pc98,sparc64,ia64">1:1 スレッドパッケージ (ひとつのアプリケーションにある
-      すべての pthread に対して、ひとつの KSE とスレッドが対応するというもの)
-      が実装されました。
-      このモデルでは、カーネルがすべてのスレッドスケジューリングを決定し、
-      すべてのシグナルを配送します。KSE コードのいくつかの部分を使っており、
-      作業中の M:N スレッドの限定されたものだと考えてよいでしょう。
-      <filename>libthr</filename> ライブラリは、
-      この機能のユーザランド部分として実装されたもので、
-      <filename>libc_r</filename> ライブラリの代替として使うことができます。
-      ただし、<filename>libthr</filename>
-      は (現時点では) デフォルトで構築されません。</para>
-
-    <para>従来から BSD で使われてきた <filename>/etc</filename>
-      にある起動スクリプトが削除され、
-      <application>NetBSD</application> から移植された
-      <filename>rc.d</filename> システムに置き換えられました
-      (これは <quote>rcNG</quote> とも呼ばれています)。
-      従来あった機能はすべてそのまま残っており、特に
-      <filename>/etc/rc.conf</filename> などのファイル群は、
-      今後も標準のシステムの起動設定手段として継続して使われます。
-      <filename>rc.d</filename> システムは &os; 5.0-RELEASE
-      よりデフォルトになっていたため、この変更は、
-      ほとんどのユーザにとって意識しなければならないものではないでしょう。
-      <filename>/etc</filename> にあった以下のファイルは削除されましたので、
-      従来のスタイルのスタートアップスクリプトをカスタマイズしているユーザは
-      注意してください。
-
-      <filename>rc.atm</filename>,
-      <filename>rc.devfs</filename>,
-      <filename>rc.diskless1</filename>,
-      <filename>rc.diskless2</filename>,
-      <filename>rc.i386</filename>,
-      <filename>rc.alpha</filename>,
-      <filename>rc.amd64</filename>,
-      <filename>rc.ia64</filename>,
-      <filename>rc.sparc64</filename>,
-      <filename>rc.isdn</filename>,
-      <filename>rc.network</filename>,
-      <filename>rc.network6</filename>,
-      <filename>rc.pccard</filename>,
-      <filename>rc.serial</filename>,
-      <filename>rc.syscons</filename>,
-      <filename>rc.sysctl</filename>.
-
-      &man.mergemaster.8;, を実行すると、
-      これらのファイルを異なる場所に移動するかどうか尋ねられます。
-      詳しくは、&man.rc.subr.8; をご覧ください。</para>
+    <para>&man.chroot.8; が、chroot 環境で使うユーザとプライマリグループ、
+      グループリストの設定に対応しました。
+      設定にはそれぞれ、<option>-u</option>, <option>-g</option>,
+      <option>-G</option> オプションを使います。</para>
+
+    <para><filename>libcipher</filename> DES
+      暗号ライブラリが削除されました。
+      これらの機能はすべて <filename>libcrypto</filename> ライブラリで
+      提供されているもので、ベースシステムに含まれている
+      <filename>libcipher</filename> を使っていたプログラムは、
+      すべて <filename>libcrypto</filename>
+      を使うように変更されています。</para>
+
+    <para arch="i386,ia64"><filename>libthr</filename> 1:1
+      スレッドライブラリがデフォルトで構築されるようになりました。</para>
+
+    <para>ゲストログインに対応する
+      &man.pam.guest.8; PAM モジュールが追加されました。
+      これは pam_ftp(8) モジュールを置き換えるものです。</para>
   </sect2>
 
   <sect2 id="contrib">
     <title>寄贈ソフトウェア</title>
 
-    <para><application>ACPI-CA</application> コードが、
-      20021118 スナップショットから
-      20030228 スナップショットに更新されました。</para>
-
-    <para>Bell Labs 由来の <application>awk</application>
-      が 2003 年 3 月 14 日時点のスナップショットが統合されました。</para>
-
-    <para><application>BIND</application> がバージョン
-      8.3.4 に更新されました。
-      &merged;</para>
-
-    <para>ベースシステムに <application>bzip2</application>
-      スイート全体、特に <command>bzip2recover</command>
-      がインストールされるようになりました。&merged;</para>
-
-    <para><application>CVS</application> がバージョン
-      1.11.5 に更新されました。
-      &merged;</para>
-
-    <para arch="i386,pc98">The <application>DRM</application> kernel modules have been updated to
-      a snapshot from the DRI CVS repository, as of 24 April 2003.
-      The <literal>DRM_LINUX</literal> kernel option hsa been removed
-      because the handler is now provided by the Linux compatibility
-      code.</para>
-
-    <para arch="i386,pc98">DRM カーネルモジュールが、
-      DRI CVS リポジトリの 2003 年 4 月 24
-      日時点のスナップショットに更新されました。
-      必要なハンドラが Linux 互換機能に追加されたため、
-      <literal>DRM_LINUX</literal> カーネルオプションは削除されました。</para>
-
-    <para><application>FILE</application> がバージョン
-      3.41 に更新されました。
-      &merged;</para>
-
-    <para><application>GCC</application> が
-      3.2.2 (リリース版) に更新されました。
-
-      <note arch="i386">
-	<para><application>GCC</application> は、
-          <option>-march=pentium4</option>
-          オプションを指定すると異常なコードを生成することが判明しています。
-	  この問題を回避するには、
-	  <varname>CPUTYPE=p4</varname> Makefile 変数を
-          (たとえば &man.make.conf.5; などで) 定義して、
-          GCC の <option>-march=pentium3</option> オプションを使ってください。
-          現在の状況は、将来的に GCC 3.3
-          を導入することで解決できる見とおしです。</para>
-      </note>
-    </para>
-
-    <para>文字列と浮動小数点数を変換する
-      <application>gdtoa</application> ライブラリが統合されました。
-      ソースは 2003 年 3 月 24 日付けのものです。</para>
-
-    <para><application>groff</application> (および関連ユーティリティ) が、
-      バージョン 1.18.1 からバージョン 1.19
-      に更新されました。</para>
-
-    <para><application>IPFilter</application> がバージョン
-      3.4.31 に更新されました。
-      &merged;</para>
-
-    <para><application>ISC DHCP</application> クライアントがバージョン
-      3.0.1RC11 に更新されました。
-      &merged;</para>
-
-    <para><application>ISC DHCP</application> クライアントには、新しく
-      &man.omshell.1; ユーティリティと &man.dhcpctl.3;
-      ライブラリが含まれるようになりました。
-      これらは、クライアント実行時の制御を行なうためのものです。</para>
-
-    <para><application>Kerberos IV</application> 対応
-      (<application>KTH eBones</application>) が削除されました。
-      この機能を必要としているユーザは、
-      <filename role="port">security/krb4</filename> の port
-      (もしくは package) から入手することができます。
-      Kerberos 5 の Kerberos IV 互換モードも削除され、
-      <literal>k5<replaceable>プログラム名</replaceable></literal>
-      というユーザランドユーティリティは、
-      <literal>k<replaceable>プログラム名</replaceable></literal>
-      という名前に変更されています。</para>
-
-    <para><application>Kerberos 5</application>
-      が <literal>buildworld</literal> の過程で、
-      デフォルトで構築されるようになりました。
-      現在、<varname>MAKE_KERBEROS5</varname> 変数は使われなくなっており、
-      ベースシステムの Kerberos 5 を無効にするには、
-      <varname>NO_KERBEROS</varname> Makefile
-      変数を定義する必要があります。</para>
-
-    <para><application>libpcap</application> が、
-      同一のインタフェース上での複数のデータリンクタイプの選択に対応しました。</para>
-
-    <para><application>lukemftpd</application> (デフォルトでは構築・インストールされません)
-      が、2003 年 1 月 22 日のスナップショットに更新されました。</para>
-
-    <para><application>OpenPAM</application>
-      がリリース <quote>Citronella</quote> からリリース
-      <quote>Dianthus</quote> に更新されました。</para>
-
-    <para><application>OpenSSH</application> がバージョン
-      3.6.1p1 に更新されました。</para>
-
-    <para><application>OpenSSL</application> がリリース
-      0.9.7a に更新されました。
-      このリリースには、AES と &man.crypto.4;
-      デバイス対応が含まれています。</para>
-
-    <para><application>sendmail</application> がバージョン
-      8.12.9 に更新されました。
-      &merged;</para>
-
-    <para>&man.tcpdump.1; がバージョン 3.7.2 に更新されました。&merged;
-      また、インタフェースで利用可能なデータリンクタイプを一覧表示する
-      <option>-L</option> フラグと、
-      パケットキャプチャ中にどのデータリンクタイプを使うのかを指定する
-      <option>-y</option> オプションが追加されました。</para>
-
-    <para><application>texinfo</application>
-      がバージョン 4.2 から 4.5 に更新されました。</para>
-
-    <para>timezone データベースが
-      <filename>tzdata2002d</filename>
-      から
-      <filename>tzdata2003a</filename>
-      に更新されました。
-      &merged;</para>
+    <para><application>OpenPAM</application> が
+      <quote>Digitalis</quote> リリースに更新されました。</para>
   </sect2>
 
   <sect2 id="ports">
     <title>Ports/Packages Collection インフラストラクチャ</title>
 
-    <para>1 行の <filename>pkg-comment</filename> ファイルが、
-      各 port スケルトンから削除され、その内容が
-      <filename>Makefile</filename> の中に移動しました。
-      この変更により、 ports ツリーで消費するディスク容量と
-      inode 数が少なくなっています。
-      &merged;</para>
-
-    <para>port 構築における配布ファイルの取得で
-      MD5 チェックサムが一致しなかった場合に、
-      何回再取得を試みるかを <varname>FETCH_REGET</varname>
-      <filename>Makefile</filename> 変数に指定できるようになりました。
-      また、取得途中で止めたファイルの再取得にも対応しています。</para>
-
-    <para>&man.pkg.create.1; に、それと衝突する package
-      のリストを登録する <option>-C</option> オプションが追加されました。
-      このリストにある package がすでに存在している場合、
-      (&man.pkg.add.1; での) インストールは失敗します。
-      この衝突チェックは、&man.pkg.add.1; に <option>-f</option>
-      フラグを追加することで無効にすることが可能です。</para>
-
-    <para>&man.pkg.info.1; は、<option>-b</option> フラグの表示の際に
-      <varname>BLOCKSIZE</varname>
-      環境変数の設定に従うようになりました。</para>
-
-    <para>&man.pkg.info.1; に、
-      <option>-q</option> <quote>quiet</quote> オプションの動作に加えて、
-      最初に package 名を表示するという動作を行なう
-      <option>-Q</option> オプションが追加されました。</para>
+    <para></para>
   </sect2>
 
   <sect2>
     <title>リリースエンジニアリングと統合</title>
 
-    <para>FreeBSD が公式に対応している <application>GNOME</application>
-      のリリースが、バージョン 2.2.1 に更新されました。
-      &merged;</para>
-
-    <para>FreeBSD が公式に対応している <application>KDE</application>
-      のリリースが、バージョン 3.1.2 に更新されました。
-      &merged;</para>
-
-    <para>個別の <filename>krb5</filename> 配布物が廃止されました。
-      Kerberos 5 ライブラリとユーティリティは、
-      <filename>crypto</filename> 配布物に含まれるようになっています。</para>
-
-    <para>&man.sysinstall.8; が、<application>XFree86</application> の
-      個々のコンポーネントのインストールに再度対応しました。
-      この変更により、(ユーザが意識することはありませんが)
-      配布物のインストールを package
-      として行なうための汎用の仕組みが組み込まれました。</para>
-
-    <para>FreeBSD が公式に対応している <application>XFree86</application>
-      のリリースが、バージョン 4.3.0 に更新されました。
-      &merged;</para>
-
-    <para>&os;
-      2.<replaceable>X</replaceable> から
-      3.<replaceable>X</replaceable>、
-      &os;
-      3.<replaceable>X</replaceable> から
-      4.<replaceable>X</replaceable>
-      というメジャーバージョン間のアップグレードを行なう機能が削除されました。</para>
+    <para></para>
   </sect2>
 
   <sect2 id="doc">
     <title>ドキュメンテーション</title>
 
-    <para>文書セットに <quote>FreeBSD From Scratch</quote> と
-      <quote>The Roadmap for 5-STABLE</quote>
-      という記事が追加されました。</para>
-
-    <para>新しくデンマーク語 (<filename>da_DK.ISO8859-1</filename>)
-      翻訳プロジェクトが発足しました。</para>
+    <para></para>
   </sect2>
 </sect1>
 
