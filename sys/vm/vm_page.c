@@ -649,9 +649,11 @@ vm_page_lookup(vm_object_t object, vm_pindex_t pindex)
 	vm_page_t m;
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
-	m = vm_page_splay(pindex, object->root);
-	if ((object->root = m) != NULL && m->pindex != pindex)
-		m = NULL;
+	if ((m = object->root) != NULL && m->pindex != pindex) {
+		m = vm_page_splay(pindex, m);
+		if ((object->root = m)->pindex != pindex)
+			m = NULL;
+	}
 	return (m);
 }
 
