@@ -11,6 +11,7 @@ MODULES		+= pam_kerberosIV
 .endif
 .if defined(MAKE_KERBEROS5) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
 MODULES		+= pam_krb5
+MODULES		+= pam_ksu
 .endif
 MODULES		+= pam_lastlog
 MODULES		+= pam_login_access
