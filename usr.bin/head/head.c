@@ -113,7 +113,7 @@ head(fp, cnt)
 {
 	register int ch;
 
-	while ((ch = getc(fp)) != EOF && cnt) {
+	while (cnt && (ch = getc(fp)) != EOF) {
 			if (putchar(ch) == EOF)
 				err(1, "stdout: %s", strerror(errno));
 			if (ch == '\n')
