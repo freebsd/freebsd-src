@@ -57,6 +57,7 @@
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
+#include <sys/stat.h>
 #include <sys/syslog.h>
 #include <sys/vnode.h>
 #include <sys/conf.h>
@@ -1725,7 +1726,7 @@ softdep_setup_freeblocks(ip, length)
 
 	fs = ip->i_fs;
 	if (length != 0)
-		panic("softde_setup_freeblocks: non-zero length");
+		panic("softdep_setup_freeblocks: non-zero length");
 	MALLOC(freeblks, struct freeblks *, sizeof(struct freeblks),
 		M_FREEBLKS, M_SOFTDEP_FLAGS|M_ZERO);
 	freeblks->fb_list.wk_type = D_FREEBLKS;
@@ -1746,6 +1747,13 @@ softdep_setup_freeblocks(ip, length)
 	}
 	ip->i_blocks = 0;
 	ip->i_size = 0;
+	/*
+	 * If the file was removed, then the space being freed was
+	 * accounted for then (see softdep_filereleased()). If the
+	 * file is merely being truncated, then we account for it now.
+	 */
+	if ((ip->i_flag & IN_SPACECOUNTED) == 0)
+		fs->fs_pendingblocks += freeblks->fb_chkcnt;
 	/*
 	 * Push the zero'ed inode to to its disk buffer so that we are free
 	 * to delete its dependencies below. Once the dependencies are gone
@@ -1986,6 +1994,8 @@ softdep_freefile(pvp, ino, mode)
 	freefile->fx_oldinum = ino;
 	freefile->fx_devvp = ip->i_devvp;
 	freefile->fx_mnt = ITOV(ip)->v_mount;
+	if ((ip->i_flag & IN_SPACECOUNTED) == 0)
+		ip->i_fs->fs_pendinginodes += 1;
 
 	/*
 	 * If the inodedep does not exist, then the zero'ed inode has
@@ -2118,6 +2128,7 @@ handle_workitem_freeblocks(freeblks, flags)
 		    baselbns[level], &blocksreleased)) == 0)
 			allerror = error;
 		ffs_blkfree(&tip, bn, fs->fs_bsize);
+		fs->fs_pendingblocks -= nblocks;
 		blocksreleased += nblocks;
 	}
 	/*
@@ -2128,6 +2139,7 @@ handle_workitem_freeblocks(freeblks, flags)
 			continue;
 		bsize = blksize(fs, &tip, i);
 		ffs_blkfree(&tip, bn, bsize);
+		fs->fs_pendingblocks -= btodb(bsize);
 		blocksreleased += btodb(bsize);
 	}
 	/*
@@ -2229,6 +2241,7 @@ indir_trunc(ip, dbn, level, lbn, countp)
 				allerror = error;
 		}
 		ffs_blkfree(ip, nb, fs->fs_bsize);
+		fs->fs_pendingblocks -= nblocks;
 		*countp += nblocks;
 	}
 	bp->b_flags |= B_INVAL | B_NOCACHE;
@@ -2780,6 +2793,47 @@ softdep_change_linkcnt(ip)
 }
 
 /*
+ * Called when the effective link count and the reference count
+ * on an inode drops to zero. At this point there are no names
+ * referencing the file in the filesystem and no active file
+ * references. The space associated with the file will be freed
+ * as soon as the necessary soft dependencies are cleared.
+ */
+void
+softdep_releasefile(ip)
+	struct inode *ip;	/* inode with the zero effective link count */
+{
+	struct inodedep *inodedep;
+
+	if (ip->i_effnlink > 0)
+		panic("softdep_filerelease: file still referenced");
+	/*
+	 * We may be called several times as the real reference count
+	 * drops to zero. We only want to account for the space once.
+	 */
+	if (ip->i_flag & IN_SPACECOUNTED)
+		return;
+	/*
+	 * We have to deactivate a snapshot otherwise copyonwrites may
+	 * add blocks and the cleanup may remove blocks after we have
+	 * tried to account for them.
+	 */
+	if ((ip->i_flags & SF_SNAPSHOT) != 0)
+		ffs_snapremove(ITOV(ip));
+	/*
+	 * If we are tracking an nlinkdelta, we have to also remember
+	 * whether we accounted for the freed space yet.
+	 */
+	ACQUIRE_LOCK(&lk);
+	if ((inodedep_lookup(ip->i_fs, ip->i_number, 0, &inodedep)))
+		inodedep->id_state |= SPACECOUNTED;
+	FREE_LOCK(&lk);
+	ip->i_fs->fs_pendingblocks += ip->i_blocks;
+	ip->i_fs->fs_pendinginodes += 1;
+	ip->i_flag |= IN_SPACECOUNTED;
+}
+
+/*
  * This workitem decrements the inode's link count.
  * If the link count reaches zero, the file is removed.
  */
@@ -2905,6 +2959,7 @@ handle_workitem_freefile(freefile)
 	tip.i_devvp = freefile->fx_devvp;
 	tip.i_dev = freefile->fx_devvp->v_rdev;
 	tip.i_fs = fs;
+	fs->fs_pendinginodes -= 1;
 	if ((error = ffs_freefile(&tip, freefile->fx_oldinum, freefile->fx_mode)) != 0)
 		softdep_error("handle_workitem_freefile", error);
 	WORKITEM_FREE(freefile, D_FREEFILE);
@@ -3779,6 +3834,8 @@ softdep_load_inodeblock(ip)
 		return;
 	}
 	ip->i_effnlink -= inodedep->id_nlinkdelta;
+	if (inodedep->id_state & SPACECOUNTED)
+		ip->i_flag |= IN_SPACECOUNTED;
 	FREE_LOCK(&lk);
 }
 

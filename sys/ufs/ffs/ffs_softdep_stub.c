@@ -270,6 +270,15 @@ int
 softdep_slowdown(vp)
 	struct vnode *vp;
 {
+
 	panic("softdep_slowdown called");
+}
+
+void
+softdep_releasefile(ip)
+	struct inode *ip;	/* inode with the zero effective link count */
+{
+
+	panic("softdep_releasefile called");
 }
 #endif	/* SOFTUPDATES not configured in */
