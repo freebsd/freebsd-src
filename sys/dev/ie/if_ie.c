@@ -275,11 +275,11 @@ static const char *ie_hardware_names[] = {
  * of both transmit and receive buffers.
  */
 
-#define NFRAMES		8	/* number of receive frames */
-#define NRXBUFS		48	/* number of buffers to allocate */
-#define IE_RBUF_SIZE	256	/* size of each buffer, MUST BE POWER OF TWO */
-#define NTXBUFS		2	/* number of transmit commands */
-#define IE_TBUF_SIZE	ETHER_MAX_LEN	/* size of transmit buffer */
+#define	NFRAMES		4	/* number of receive frames */
+#define	NRXBUFS		24	/* number of buffers to allocate */
+#define	IE_RBUF_SIZE	256	/* size of each buffer, MUST BE POWER OF TWO */
+#define	NTXBUFS		1	/* number of transmit commands */
+#define	IE_TBUF_SIZE	ETHER_MAX_LEN	/* size of transmit buffer */
 
 /*
  * Ethernet status, per interface.
@@ -752,7 +752,7 @@ ieattach(struct isa_device *dvp)
 	 * based on the amount of memory we have, allocate our tx and rx
 	 * resources.
 	 */
-	factor = dvp->id_msize / 16384;
+	factor = dvp->id_msize / 8192;
 	sc->nframes = factor * NFRAMES;
 	sc->nrxbufs = factor * NRXBUFS;
 	sc->ntxbufs = factor * NTXBUFS;
