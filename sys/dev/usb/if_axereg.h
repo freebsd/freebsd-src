@@ -93,13 +93,9 @@
 #define AXE_NOPHY				0xE0
 
 #define AXE_TIMEOUT		1000
-#define AXE_BUFSZ		1536
 #define AXE_MIN_FRAMELEN	60
 #define AXE_RX_FRAMES		1
 #define AXE_TX_FRAMES		1
-
-#define AXE_RX_LIST_CNT		1
-#define AXE_TX_LIST_CNT		1
 
 #define AXE_CTL_READ		0x01
 #define AXE_CTL_WRITE		0x02
@@ -121,25 +117,6 @@ struct axe_type {
 	u_int16_t		axe_did;
 };
 
-struct axe_softc;
-
-struct axe_chain {
-	struct axe_softc	*axe_sc;
-	usbd_xfer_handle	axe_xfer;
-	char			*axe_buf;
-	struct mbuf		*axe_mbuf;
-	int			axe_idx;
-};
-
-struct axe_cdata {
-	struct axe_chain	axe_tx_chain[AXE_TX_LIST_CNT];
-	struct axe_chain	axe_rx_chain[AXE_RX_LIST_CNT];
-	int			axe_tx_prod;
-	int			axe_tx_cons;
-	int			axe_tx_cnt;
-	int			axe_rx_prod;
-};
-
 #define AXE_INC(x, y)		(x) = (x + 1) % y
 
 struct axe_softc {
@@ -159,7 +136,7 @@ struct axe_softc {
 	usbd_pipe_handle	axe_ep[AXE_ENDPT_MAX];
 	int			axe_unit;
 	int			axe_if_flags;
-	struct axe_cdata	axe_cdata;
+	struct ue_cdata		axe_cdata;
 	struct callout_handle	axe_stat_ch;
 #if __FreeBSD_version >= 500000
 	struct mtx		axe_mtx;

@@ -35,34 +35,11 @@
 #ifndef _USB_IF_CDCEREG_H_
 #define _USB_IF_CDCEREG_H_
 
-#define CDCE_RX_LIST_CNT	1
-#define CDCE_TX_LIST_CNT	1
-#define CDCE_BUFSZ		1542
-
 struct cdce_type {
 	struct usb_devno	 cdce_dev;
 	u_int16_t		 cdce_flags;
 #define CDCE_ZAURUS	1
 #define CDCE_NO_UNION	2
-};
-
-struct cdce_softc;
-
-struct cdce_chain {
-	struct cdce_softc	*cdce_sc;
-	usbd_xfer_handle	 cdce_xfer;
-	char			*cdce_buf;
-	struct mbuf		*cdce_mbuf;
-	int			 cdce_idx;
-};
-
-struct cdce_cdata {
-	struct cdce_chain	 cdce_tx_chain[CDCE_TX_LIST_CNT];
-	struct cdce_chain	 cdce_rx_chain[CDCE_TX_LIST_CNT];
-	int			 cdce_tx_prod;
-	int			 cdce_tx_cons;
-	int			 cdce_tx_cnt;
-	int			 cdce_rx_prod;
 };
 
 struct cdce_softc {
@@ -79,7 +56,7 @@ struct cdce_softc {
 	device_t		 cdce_dev;
 	int			 cdce_unit;
 
-	struct cdce_cdata	 cdce_cdata;
+	struct ue_cdata		 cdce_cdata;
 	struct timeval		 cdce_rx_notice;
 	int			 cdce_rxeof_errors;
 

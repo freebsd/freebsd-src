@@ -196,29 +196,6 @@ struct aue_rxpkt {
 #define AUE_RXSTAT_DRIBBLE	0x10
 #define AUE_RXSTAT_MASK		0x1E
 
-#define AUE_TX_LIST_CNT		1
-#define AUE_RX_LIST_CNT		1
-
-struct aue_softc;
-
-struct aue_chain {
-	struct aue_softc	*aue_sc;
-	usbd_xfer_handle	aue_xfer;
-	char			*aue_buf;
-	struct mbuf		*aue_mbuf;
-	int			aue_idx;
-};
-
-struct aue_cdata {
-	struct aue_chain	aue_tx_chain[AUE_TX_LIST_CNT];
-	struct aue_chain	aue_rx_chain[AUE_RX_LIST_CNT];
-	struct aue_intrpkt	*aue_ibuf;
-	int			aue_tx_prod;
-	int			aue_tx_cons;
-	int			aue_tx_cnt;
-	int			aue_rx_prod;
-};
-
 #define AUE_INC(x, y)		(x) = (x + 1) % y
 
 struct aue_softc {
@@ -241,7 +218,7 @@ struct aue_softc {
 	int			aue_unit;
 	u_int8_t		aue_link;
 	int			aue_if_flags;
-	struct aue_cdata	aue_cdata;
+	struct ue_cdata		aue_cdata;
 	struct callout_handle	aue_stat_ch;
 #if __FreeBSD_version >= 500000
 	struct mtx		aue_mtx;
@@ -261,6 +238,5 @@ struct aue_softc {
 #endif
 
 #define AUE_TIMEOUT		1000
-#define AUE_BUFSZ		1536
 #define AUE_MIN_FRAMELEN	60
 #define AUE_INTR_INTERVAL	100 /* ms */
