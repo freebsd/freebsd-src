@@ -27,42 +27,29 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-/*
- * MD primitives supporting placement of module data 
- */
-#include <stand.h>
-
 #include <efi.h>
 #include <efilib.h>
-#include <machine/ia64_cpu.h>
-#include <machine/vmparam.h>
+#include <stand.h>
 
 int
-efi_copyin(void *src, vm_offset_t dest, size_t len)
+efi_copyin(void *src, vm_offset_t va, size_t len)
 {
-	EFI_PHYSICAL_ADDRESS p = IA64_RR_MASK(dest);
-#if 0
-	BS->AllocatePages(AllocateAddress, EfiRuntimeServicesData,
-			  len >> 12, &p);
-#endif
-	bcopy(src, (void*) p, len);
+
+	bcopy(src, (void *)efimd_va2pa(va), len);
 	return (len);
 }
 
 int
-efi_copyout(vm_offset_t src, void *dest, size_t len)
+efi_copyout(vm_offset_t va, void *dst, size_t len)
 {
-	bcopy((void*) IA64_RR_MASK(src), dest, len);
+
+	bcopy((void *)efimd_va2pa(va), dst, len);
 	return (len);
 }
 
 int
-efi_readin(int fd, vm_offset_t dest, size_t len)
+efi_readin(int fd, vm_offset_t va, size_t len)
 {
-	EFI_PHYSICAL_ADDRESS p = IA64_RR_MASK(dest);
-#if 0
-	BS->AllocatePages(AllocateAddress, EfiRuntimeServicesData,
-			  len >> 12, &p);
-#endif
-	return (read(fd, (void*) p, len));
+
+	return (read(fd, (void *)efimd_va2pa(va), len));
 }

@@ -34,5 +34,7 @@ extern EFI_RUNTIME_SERVICES	*RS;
 void *efi_get_table(EFI_GUID *tbl);
 void efi_main(EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_table);
 
+EFI_PHYSICAL_ADDRESS efimd_va2pa(EFI_VIRTUAL_ADDRESS);
+
 EFI_STATUS main(int argc, CHAR16 *argv[]);
 void exit(EFI_STATUS status);
