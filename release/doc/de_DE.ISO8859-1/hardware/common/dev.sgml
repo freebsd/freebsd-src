@@ -28,8 +28,8 @@
 	this file to fix "missed" conversions are likely to break the
 	build.
 
-	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/dev.sgml,v 1.57 2003/01/14 23:25:14 ue Exp $
-	basiert auf: 1.128
+	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/dev.sgml,v 1.58 2003/01/20 07:09:43 ue Exp $
+	basiert auf: 1.129
 -->
 
 <sect1 id="support">
@@ -2358,7 +2358,7 @@
     <para arch="i386">3Com 3C501 8-bit ISA Netzwerkkarten (&man.el.4;
       Treiber)</para>
 
-    <para arch="i386,pc98,alpha">Netzwerkkarten mit 3Com Etherlink XL
+    <para arch="i386,pc98,alpha,sparc64">Netzwerkkarten mit 3Com Etherlink XL
       (&man.xl.4; Treiber)
       <itemizedlist>
         <listitem>
