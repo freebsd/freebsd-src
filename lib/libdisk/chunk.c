@@ -361,8 +361,15 @@ Debug_Chunk(struct chunk *c1)
 int
 Delete_Chunk(struct disk *d, struct chunk *c)
 {
+    return(Delete_Chunk2(d, c, 0));
+}
+
+int
+Delete_Chunk2(struct disk *d, struct chunk *c, int rflags)
+{
 	struct chunk *c1=0, *c2, *c3;
 	chunk_e type = c->type;
+	long offset = c->offset;
 
 	if(type == whole)
 		return 1;
@@ -398,9 +405,23 @@ Delete_Chunk(struct disk *d, struct chunk *c)
 	}
 	return 1;
     scan:
+	/*
+	 * Collapse multiple unused elements together, and attempt
+	 * to extend the previous chunk into the freed chunk.
+	 *
+	 * We only extend non-unused elements which are marked
+	 * for newfs (we can't extend working filesystems), and
+	 * only if we are called with DELCHUNK_RECOVER.
+	 */
 	for(c2 = c1->part; c2; c2 = c2->next) {
-		if (c2->type != unused)
-			continue;
+		if (c2->type != unused) {
+			if (c2->offset + c2->size != offset ||
+			    (rflags & DELCHUNK_RECOVER) == 0 ||
+			    (c2->flags & CHUNK_NEWFS) == 0) {
+				continue;
+			}
+			/* else extend into free area */
+		}
 		if (!c2->next)
 			continue;
 		if (c2->next->type != unused)
