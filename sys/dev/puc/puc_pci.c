@@ -26,9 +26,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*-
  * Copyright (c) 1996, 1998, 1999
  *	Christopher G. Demetriou.  All rights reserved.
