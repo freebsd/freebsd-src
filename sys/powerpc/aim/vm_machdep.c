@@ -166,6 +166,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 
 	pcb->pcb_sp = (register_t)cf;
 	pcb->pcb_lr = (register_t)fork_trampoline;
+	pcb->pcb_usr = kernel_pmap->pm_sr[USER_SR];
 
 	/*
  	 * Now cpu_switch() can schedule the new process.
