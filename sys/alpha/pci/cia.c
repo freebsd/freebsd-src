@@ -542,7 +542,7 @@ cia_setup_intr(device_t dev, device_t child,
 	error = alpha_setup_intr(
 			device_get_nameunit(child ? child : dev),
 			0x900 + (irq->r_start << 4), intr, arg,
-			ithread_priority(flags), cookiep,
+			ithread_priority(flags), flags, cookiep,
 			&intrcnt[INTRCNT_EB164_IRQ + irq->r_start],
 			cia_disable_intr, cia_enable_intr);
 	if (error)

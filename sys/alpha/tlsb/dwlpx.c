@@ -393,7 +393,8 @@ dwlpx_setup_intr(device_t dev, device_t child, struct resource *irq, int flags,
 	vector = DWLPX_MVEC(ionode, hose, slot);
 	pri = ithread_priority(flags);
 	error = alpha_setup_intr(device_get_nameunit(child ? child : dev),
-	    vector, intr, arg, pri, cookiep, &intrcnt[INTRCNT_KN8AE_IRQ], NULL, NULL);
+	    vector, intr, arg, pri, flags, cookiep,
+	    &intrcnt[INTRCNT_KN8AE_IRQ], NULL, NULL);
 	if (error)
 		return error;
 	dwlpx_enadis_intr(vector, intpin, 1);

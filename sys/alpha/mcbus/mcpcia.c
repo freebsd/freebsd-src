@@ -376,7 +376,7 @@ mcpcia_setup_intr(device_t dev, device_t child, struct resource *ir, int flags,
 	birq = irq + INTRCNT_KN300_IRQ;
 	pri = ithread_priority(flags);
 	error = alpha_setup_intr(device_get_nameunit(child ? child : dev), h,
-	    intr, arg, pri, cp, &intrcnt[birq],
+	    intr, arg, pri, flags, cp, &intrcnt[birq],
 	    mcpcia_disable_intr_vec, mcpcia_enable_intr_vec);
 	if (error)
 		return error;
