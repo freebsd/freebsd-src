@@ -23,7 +23,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: kern_environment.c,v 1.1 1998/10/09 00:31:29 msmith Exp $
+ */
 
 /*
  * The unified bootloader passes us a pointer to a preserved copy of
