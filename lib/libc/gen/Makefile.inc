@@ -28,8 +28,8 @@ SRCS+=  __xuname.c _pthread_stubs.c _rand48.c _spinlock_stub.c _thread_init.c \
 	sigsetops.c sleep.c srand48.c statvfs.c stringlist.c strtofflags.c \
 	sysconf.c sysctl.c sysctlbyname.c sysctlnametomib.c \
 	syslog.c telldir.c termios.c time.c times.c timezone.c ttyname.c \
-	ttyslot.c ualarm.c uname.c unvis.c usleep.c utime.c valloc.c vis.c \
-	wait.c wait3.c waitpid.c
+	ttyslot.c ualarm.c ulimit.c uname.c unvis.c usleep.c utime.c \
+	valloc.c vis.c wait.c wait3.c waitpid.c
 
 # machine-dependent gen sources
 .if exists(${.CURDIR}/../libc/${MACHINE_ARCH}/gen/Makefile.inc)
@@ -56,7 +56,7 @@ MAN+=	alarm.3 arc4random.3 \
 	siginterrupt.3 signal.3 sigsetops.3 sleep.3 statvfs.3 stringlist.3 \
 	strtofflags.3 sysconf.3 sysctl.3 syslog.3 tcgetpgrp.3 \
 	tcsendbreak.3 tcsetattr.3 tcsetpgrp.3 time.3 times.3 timezone.3 \
-	ttyname.3 tzset.3 ualarm.3 uname.3 unvis.3 usleep.3 utime.3 \
+	ttyname.3 tzset.3 ualarm.3 ulimit.3 uname.3 unvis.3 usleep.3 utime.3 \
 	valloc.3 vis.3
 
 MLINKS+=arc4random.3 arc4random_addrandom.3 arc4random.3 arc4random_stir.3
