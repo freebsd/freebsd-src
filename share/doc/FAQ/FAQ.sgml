@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: FAQ.sgml,v 1.2 1996/09/29 17:11:59 joerg Exp $
+<date> $Id: FAQ.sgml,v 1.3 1996/10/01 16:47:11 jfieber Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -100,7 +100,7 @@ Any entries with a &lt;XXX&gt; are under construction.
       <sect1>
 	<heading>What is the latest version of FreeBSD?</heading>
 	<p>
-	  Version 2.1.5 is the latest version; it was released in mid-July.
+	  Version 2.1.5 is the latest version; it was released in mid-July, 1996.
 
       <sect1>
 	<heading>What is FreeBSD-current?</heading>
@@ -147,24 +147,28 @@ Any entries with a &lt;XXX&gt; are under construction.
            enhancements would be made to it (for Internet Service Providers 
            and other commercial enterprises for whom sudden shifts or 
            experimental features are quite undesirable).  The other branch was
-           -current, which essentially has been one unbroken line since 2.0
-           was released. If a little ASCII art would help, this is how it 
-           looks:
+           2.2-current, which essentially has been one unbroken line leading
+           towards 2.2-RELEASE since 2.0 was released. If a little ASCII art
+           would help, this is how it looks:
 <verb>
                        2.0
                         |
                         |
                         |
-                      2.0.5 ---> 2.1 ---> 2.1.5   [-stable]
+                      2.0.5 ---> 2.1 ---> 2.1.5 ---> 2.1.6 ---* [-stable ends]
+                        |                         (Dec 1996)
+                        |
+     [2.2-current]   2.2-SNAPs
                         |
                         |
-          [-current]   2.2-SNAPs
-                        |
-                        |
-                       2.2 (scheduled for Q4 '96)
+                    2.2-RELEASE (scheduled for Q1 1997)
                         |
                         |
                         .
+                       \|/
+                        +
+
+                [future releases]
 </verb>
          <p>
            The -current branch is slowly progressing towards 2.2 and beyond, 
