@@ -10,22 +10,56 @@ SRCS=	der_get.c der_put.c der_free.c der_length.c der_copy.c \
 	timegm.c asn1_err.c asn1_err.h asn1.h roken.h \
 	${GEN:S/.x/.c/g}
 
-GEN=	asn1_APOptions.x asn1_AP_REP.x asn1_AP_REQ.x asn1_AS_REP.x \
-	asn1_AS_REQ.x asn1_Authenticator.x asn1_AuthorizationData.x \
-	asn1_Checksum.x asn1_EncAPRepPart.x asn1_EncASRepPart.x \
-	asn1_EncKDCRepPart.x asn1_EncKrbCredPart.x \
-	asn1_EncKrbPrivPart.x asn1_EncTGSRepPart.x \
-	asn1_EncTicketPart.x asn1_EncryptedData.x \
-	asn1_EncryptionKey.x asn1_ETYPE_INFO.x asn1_ETYPE_INFO_ENTRY.x \
-	asn1_HostAddress.x asn1_HostAddresses.x asn1_KDCOptions.x \
-	asn1_KDC_REP.x asn1_KDC_REQ.x asn1_KDC_REQ_BODY.x \
-	asn1_KRB_CRED.x asn1_KRB_ERROR.x asn1_KRB_PRIV.x \
-	asn1_KRB_SAFE.x asn1_KRB_SAFE_BODY.x asn1_KerberosTime.x \
-	asn1_KrbCredInfo.x asn1_LastReq.x asn1_METHOD_DATA.x \
-	asn1_PA_DATA.x asn1_PA_ENC_TS_ENC.x asn1_Principal.x \
-	asn1_PrincipalName.x asn1_Realm.x asn1_TGS_REP.x \
-	asn1_TGS_REQ.x asn1_Ticket.x asn1_TicketFlags.x \
-	asn1_TransitedEncoding.x
+GEN=						\
+	asn1_APOptions.x			\
+	asn1_AP_REP.x				\
+	asn1_AP_REQ.x				\
+	asn1_AS_REP.x				\
+	asn1_AS_REQ.x				\
+	asn1_Authenticator.x			\
+	asn1_AuthorizationData.x		\
+	asn1_CKSUMTYPE.x			\
+	asn1_Checksum.x				\
+	asn1_ETYPE_INFO.x			\
+	asn1_ETYPE_INFO_ENTRY.x			\
+	asn1_EncAPRepPart.x			\
+	asn1_EncASRepPart.x			\
+	asn1_EncKDCRepPart.x			\
+	asn1_EncKrbCredPart.x			\
+	asn1_EncKrbPrivPart.x			\
+	asn1_EncTGSRepPart.x			\
+	asn1_EncTicketPart.x			\
+	asn1_EncryptedData.x			\
+	asn1_EncryptionKey.x			\
+	asn1_HostAddress.x			\
+	asn1_HostAddresses.x			\
+	asn1_KDCOptions.x			\
+	asn1_KDC_REP.x				\
+	asn1_KDC_REQ.x				\
+	asn1_KDC_REQ_BODY.x			\
+	asn1_KRB_CRED.x				\
+	asn1_KRB_ERROR.x			\
+	asn1_KRB_PRIV.x				\
+	asn1_KRB_SAFE.x				\
+	asn1_KRB_SAFE_BODY.x			\
+	asn1_KerberosTime.x			\
+	asn1_KrbCredInfo.x			\
+	asn1_LastReq.x				\
+	asn1_MESSAGE_TYPE.x			\
+	asn1_METHOD_DATA.x			\
+	asn1_NAME_TYPE.x			\
+	asn1_PADATA_TYPE.x			\
+	asn1_PA_DATA.x				\
+	asn1_PA_ENC_TS_ENC.x			\
+	asn1_Principal.x			\
+	asn1_PrincipalName.x			\
+	asn1_Realm.x				\
+	asn1_TGS_REP.x				\
+	asn1_TGS_REQ.x				\
+	asn1_Ticket.x				\
+	asn1_TicketFlags.x			\
+	asn1_TransitedEncoding.x		\
+	asn1_UNSIGNED.x
 
 INCLUDES=asn1.h asn1_err.h 
 
