@@ -53,6 +53,8 @@ struct acpi_button_softc {
 
 static int	acpi_button_probe(device_t dev);
 static int	acpi_button_attach(device_t dev);
+static int	acpi_button_suspend(device_t dev);
+static int	acpi_button_resume(device_t dev);
 static void 	acpi_button_notify_handler(ACPI_HANDLE h,UINT32 notify, void *context);
 static void	acpi_button_notify_pressed_for_sleep(void *arg);
 static void	acpi_button_notify_pressed_for_wakeup(void *arg);
@@ -61,6 +63,8 @@ static device_method_t acpi_button_methods[] = {
     /* Device interface */
     DEVMETHOD(device_probe,	acpi_button_probe),
     DEVMETHOD(device_attach,	acpi_button_attach),
+    DEVMETHOD(device_suspend,	acpi_button_suspend),
+    DEVMETHOD(device_resume,	acpi_button_resume),
 
     {0, 0}
 };
@@ -114,7 +118,25 @@ acpi_button_attach(device_t dev)
 	device_printf(sc->button_dev, "couldn't install Notify handler - %s\n", AcpiFormatException(status));
 	return_VALUE(ENXIO);
     }
+    acpi_device_enable_wake_capability(sc->button_handle, 1);
     return_VALUE(0);
+}
+
+static int
+acpi_button_suspend(device_t dev)
+{
+    struct acpi_button_softc	*sc;
+
+    sc = device_get_softc(dev);
+    acpi_device_enable_wake_event(sc->button_handle);
+    return (0);
+}
+
+static int
+acpi_button_resume(device_t dev)
+{
+
+    return (0);
 }
 
 static void
