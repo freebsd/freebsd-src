@@ -1003,6 +1003,7 @@ npxsetregs(td, addr)
 		intr_restore(s);
 		bcopy(addr, &td->td_pcb->pcb_save, sizeof(*addr));
 	}
+	curthread->td_pcb->pcb_flags |= PCB_NPXINITDONE;
 }
 
 static void
