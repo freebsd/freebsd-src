@@ -142,6 +142,7 @@ thread_ctor(void *mem, int size, void *arg)
 	td = (struct thread *)mem;
 	td->td_state = TDS_INACTIVE;
 	td->td_oncpu	= NOCPU;
+	td->td_critnest = 1;
 }
 
 /*

@@ -294,7 +294,6 @@ struct thread {
 	u_int		td_uuticks;	/* (*) Statclock in user, for UTS */
 	u_int		td_usticks;	/* (*) Statclock in kernel, for UTS */
 	int		td_intrval;	/* (*) Return value of TDF_INTERRUPT */
-	u_int		td_critnest;	/* (k) Critical section nest level. */
 	sigset_t	td_oldsigmask;	/* (k) Saved mask from pre sigpause. */
 	sigset_t	td_sigmask;	/* (c) Current signal mask. */
 	sigset_t	td_siglist;	/* (c) Sigs arrived, not delivered. */
@@ -330,6 +329,7 @@ struct thread {
 	struct vm_object *td_altkstack_obj;/* (a) Alternate kstack object. */
 	vm_offset_t	td_altkstack;	/* (a) Kernel VA of alternate kstack. */
 	int		td_altkstack_pages; /* (a) Size of the alternate kstack */
+	u_int		td_critnest;	/* (k) Critical section nest level. */
 	struct mdthread td_md;		/* (k) Any machine-dependent fields. */
 	struct td_sched	*td_sched;	/* (*) Scheduler specific data */
 };
