@@ -76,34 +76,46 @@ These devices are also commonly known as IDE or EIDE devices.
 .Pp
 The currently supported controllers with their maximum speed include:
 .Pp
-.Bl -tag -width "Promise Fasttrak-33    " -compact
+.Bl -tag -width "xxxxxxxxxxxxxxxxxxxxxxxxxxxxx" -compact
 .It Acerlabs Aladdin
 Ultra DMA 33 (UDMA2), 33 MB/sec
 .It AMD 756
 Ultra DMA 66 (UDMA4), 66 MB/sec
 .It CMD 646
 DMA 2 (WDMA2), 16 MB/sec
+.It CMD 648
+Ultra DMA 66 (UDMA4), 66 MB/sec
+.It CMD 649
+Ultra DMA 100 (UDMA5), 100 MB/sec
 .It Cypress 82C693
 DMA 2 (WDMA2), 16 MB/sec
 .It HighPoint HPT366
 Ultra DMA 66 (UDMA4), 66 MB/sec
+.It HighPoint HPT370
+Ultra DMA 100 (UDMA5), 100 MB/sec
 .It Intel PIIX
 DMA 2 (WDMA2), 16 MB/sec
 .It Intel PIIX3
 DMA 2 (WDMA2), 16 MB/sec
 .It Intel PIIX4
 Ultra DMA 33 (UDMA2), 33 MB/sec
+.It Intel ICH0
+Ultra DMA 33 (UDMA2), 33 MB/sec
 .It Intel ICH
 Ultra DMA 66 (UDMA4), 66 MB/sec
-.It Promise Fasttrak-33
+.It Intel ICH2
+Ultra DMA 100 (UDMA5), 100 MB/sec
+.It Promise Ultra/Fasttrak-33
 Ultra DMA 33 (UDMA2), 33 MB/sec
-.It Promise Fasttrak-66
+.It Promise Ultra/Fasttrak-66
 Ultra DMA 66 (UDMA4), 66 MB/sec
-.It Promise Ultra-33
+.It Promise Ultra/Fasttrak-100
+Ultra DMA 100 (UDMA5), 100 MB/sec
+.It ServerWorks ROSB4 
 Ultra DMA 33 (UDMA2), 33 MB/sec
-.It Promise Ultra-66
-Ultra DMA 66 (UDMA4), 66 MB/sec
 .It SiS 5591
+Ultra DMA 33 (UDMA2), 33 MB/sec
+.It Cyrix 5530
 Ultra DMA 33 (UDMA2), 33 MB/sec
 .It VIA 82C586
 Ultra DMA 33 (UDMA2), 33 MB/sec
@@ -181,11 +193,11 @@ to use a special 80 conductor cable,
 and the driver tries to determine if you have such a cable
 attached before setting UDMA4 mode.
 .Pp
-The use of UDMA4(66MHz) and non-UDMA4 devices on the same ATA channel is not
-recommended,
+The use of UDMA4(66MHz) and higher together with non-UDMA4 devices on 
+the same ATA channel is not recommended,
 unless they are run at the non-UDMA4 device's lower speed.
-The driver has been designed to handle this but some older devices do
-not like this.
+The driver has been designed to handle that kind of setup but lots of
+older devices do not like this.
 .Sh AUTHORS
 The ata driver was written by
 .An Søren Schmidt
