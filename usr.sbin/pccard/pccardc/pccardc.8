@@ -44,11 +44,13 @@ The
 utility controls PC-CARD slots and configures and displays information
 about PCMCIA cards.  It understands the following subcommands:
 .Pp
-.Bl -tag -width pccardmem -compact
+.Bl -tag -width dumpcisfile -compact
 .It Ic beep
 Set beep type
 .It Ic dumpcis
 Print card CIS(s)
+.It Ic dumpcisfile
+Print card CIS(s) from files
 .It Ic enabler
 Device driver enabler
 .It Ic help
@@ -100,6 +102,15 @@ Displays
 specifies which slot to read.
 When no option is supplied, it displays
 the CIS of all of the available cards.
+.It
+.Ic dumpcisfile
+.Ar files Op Ar ...
+.Pp
+Displays CIS(s) in the same format as
+.Ic dumpcis ,
+but does so using
+.Ar files
+as the input CIS data instead of physical PC-CARD cards.
 .It
 .Ic enabler Ar slot driver
 .Op Fl m Ar card addr size
