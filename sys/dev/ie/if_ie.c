@@ -107,7 +107,6 @@ iomem and and with 0xffff.
 */
 
 #include "ie.h"
-#if NIE > 0
 #include "opt_inet.h"
 #include "opt_ipx.h"
 
@@ -2321,4 +2320,3 @@ print_rbd(volatile struct ie_recv_buf_desc * rbd)
 }
 
 #endif				/* DEBUG */
-#endif				/* NIE > 0 */
