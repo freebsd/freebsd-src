@@ -334,6 +334,7 @@
 376:::Andorra
 378:549::San Marino
 380:44:Kiev:Ukraine
+380:652:Simferopol:Ukraine
 380:::Turkmenistan
 381:11:Belgrade:Yugoslavia
 381:11:Belgrade:Serbia
@@ -347,10 +348,7 @@
 421:7:Bratislava:Slovakia
 501:2:Belize City:Belize
 501:8:Belmopan:Belize
-502:2:Guatemala City:Guatemala
-502:9:Amatitlan:Guatemala
-502:9:Antigua:Guatemala
-502:9:Quezaltenango:Guatemala
+502::Guatemala City:Guatemala
 502:9:Villa Nueva:Guatemala
 503:::El Salvador
 504:::Honduras
