@@ -1178,18 +1178,18 @@ sk_ioctl(ifp, command, data)
 	int			error = 0;
 	struct mii_data		*mii;
 
-	SK_IF_LOCK(sc_if);
-
 	switch(command) {
 	case SIOCSIFMTU:
 		if (ifr->ifr_mtu > SK_JUMBO_MTU)
 			error = EINVAL;
 		else {
 			ifp->if_mtu = ifr->ifr_mtu;
+			ifp->if_flags &= ~IFF_RUNNING;
 			sk_init(sc_if);
 		}
 		break;
 	case SIOCSIFFLAGS:
+		SK_IF_LOCK(sc_if);
 		if (ifp->if_flags & IFF_UP) {
 			if (ifp->if_flags & IFF_RUNNING) {
 				if ((ifp->if_flags ^ sc_if->sk_if_flags)
@@ -1204,12 +1204,17 @@ sk_ioctl(ifp, command, data)
 				sk_stop(sc_if);
 		}
 		sc_if->sk_if_flags = ifp->if_flags;
+		SK_IF_UNLOCK(sc_if);
 		error = 0;
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-		sk_setmulti(sc_if);
-		error = 0;
+		if (ifp->if_flags & IFF_RUNNING) {
+			SK_IF_LOCK(sc_if);
+			sk_setmulti(sc_if);
+			SK_IF_UNLOCK(sc_if);
+			error = 0;
+		}
 		break;
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
@@ -1220,8 +1225,6 @@ sk_ioctl(ifp, command, data)
 		error = ether_ioctl(ifp, command, data);
 		break;
 	}
-
-	SK_IF_UNLOCK(sc_if);
 
 	return(error);
 }
@@ -1892,6 +1895,7 @@ sk_watchdog(ifp)
 	sc_if = ifp->if_softc;
 
 	printf("sk%d: watchdog timeout\n", sc_if->sk_unit);
+	ifp->if_flags &= ~IFF_RUNNING;
 	sk_init(sc_if);
 
 	return;
@@ -2556,6 +2560,11 @@ sk_init(xsc)
 	ifp = &sc_if->arpcom.ac_if;
 	sc = sc_if->sk_softc;
 	mii = device_get_softc(sc_if->sk_miibus);
+
+	if (ifp->if_flags & IFF_RUNNING) {
+		SK_IF_UNLOCK(sc_if);
+		return;
+	}
 
 	/* Cancel pending I/O and free all RX/TX buffers. */
 	sk_stop(sc_if);
