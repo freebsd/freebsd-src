@@ -37,6 +37,7 @@
 
 #include <machine/asmacros.h>
 #include <machine/cputypes.h>
+#include <machine/pmap.h>
 #include <machine/specialreg.h>
 
 #include "assym.s"
@@ -674,18 +675,20 @@ ENTRY(generic_copyout)
 	shrl	$IDXSHIFT,%edx
 	andb	$0xfc,%dl
 
- 1:	/* check PTE for each page */
+1:
+	/* check PTE for each page */
 	leal	_PTmap(%edx),%eax
 	shrl	$IDXSHIFT,%eax
 	andb	$0xfc,%al
-	testb	$0x01,_PTmap(%eax)	/* PTE Page must be VALID */
+	testb	$PG_V,_PTmap(%eax)		/* PTE page must be valid */
 	je	4f
- 	movb	_PTmap(%edx),%al
- 	andb	$0x07,%al	/* Pages must be VALID + USERACC + WRITABLE */
- 	cmpb	$0x07,%al
- 	je	2f
- 
-4:	/* simulate a trap */
+	movb	_PTmap(%edx),%al
+	andb	$PG_V|PG_RW|PG_U,%al		/* page must be valid and user writable */
+	cmpb	$PG_V|PG_RW|PG_U,%al
+	je	2f
+
+4:
+	/* simulate a trap */
 	pushl	%edx
 	pushl	%ecx
 	shll	$IDXSHIFT,%edx
@@ -1004,7 +1007,7 @@ fastmove_loop:
 	addl	%eax,%ecx
 	cmpl	$64,%ecx
 	jae	4b
-	
+
 /* curpcb->pcb_savefpu = tmp; */
 	movl	%ecx,-12(%ebp)
 	movl	%esi,-8(%ebp)
@@ -1026,7 +1029,7 @@ fastmove_loop:
 	lmsw	%ax
 /* npxproc = NULL; */
 	movl	$0,_npxproc
-	
+
 	ALIGN_TEXT
 fastmove_tail:
 	movl	_curpcb,%eax
@@ -1155,15 +1158,16 @@ ENTRY(suword)
 	leal	_PTmap(%edx),%ecx
 	shrl	$IDXSHIFT,%ecx
 	andb	$0xfc,%cl
-	testb	$0x01,_PTmap(%ecx)	/* PTE Page must be VALID */
+	testb	$PG_V,_PTmap(%ecx)		/* PTE page must be valid */
 	je	4f
 	movb	_PTmap(%edx),%dl
-	andb	$0x7,%dl		/* must be VALID + USERACC + WRITE */
-	cmpb	$0x7,%dl
+	andb	$PG_V|PG_RW|PG_U,%dl		/* page must be valid and user writable */
+	cmpb	$PG_V|PG_RW|PG_U,%dl
 	je	1f
 
+4:
 	/* simulate a trap */
-4:	pushl	%eax
+	pushl	%eax
 	call	_trapwrite
 	popl	%edx				/* remove junk parameter from stack */
 	testl	%eax,%eax
@@ -1172,7 +1176,7 @@ ENTRY(suword)
 	movl	4(%esp),%edx
 #endif
 
-2:	
+2:
 	cmpl	$VM_MAXUSER_ADDRESS-4,%edx	/* verify address validity */
 	ja	fusufault
 
@@ -1203,14 +1207,15 @@ ENTRY(susword)
 	leal	_PTmap(%edx),%ecx
 	shrl	$IDXSHIFT,%ecx
 	andb	$0xfc,%cl
-	testb	$0x01,_PTmap(%ecx)	/* PTE Page must be VALID */
+	testb	$PG_V,_PTmap(%ecx)		/* PTE page must be valid */
 	je	4f
 	movb	_PTmap(%edx),%dl
-	andb	$0x7,%dl			/* must be VALID + USERACC + WRITE */
-	cmpb	$0x7,%dl
+	andb	$PG_V|PG_RW|PG_U,%dl		/* page must be valid and user writable */
+	cmpb	$PG_V|PG_RW|PG_U,%dl
 	je	1f
 
-4:	/* simulate a trap */
+4:
+	/* simulate a trap */
 	pushl	%eax
 	call	_trapwrite
 	popl	%edx				/* remove junk parameter from stack */
@@ -1251,15 +1256,15 @@ ENTRY(subyte)
 	leal	_PTmap(%edx),%ecx
 	shrl	$IDXSHIFT,%ecx
 	andb	$0xfc,%cl
-	testb	$0x01,_PTmap(%ecx)	/* PTE Page must be VALID */
+	testb	$PG_V,_PTmap(%ecx)		/* PTE page must be valid */
 	je	4f
-
 	movb	_PTmap(%edx),%dl
-	andb	$0x7,%dl			/* must be VALID + USERACC + WRITE */
-	cmpb	$0x7,%dl
+	andb	$PG_V|PG_RW|PG_U,%dl		/* page must be valid and user writable */
+	cmpb	$PG_V|PG_RW|PG_U,%dl
 	je	1f
 
-4:	/* simulate a trap */
+4:
+	/* simulate a trap */
 	pushl	%eax
 	call	_trapwrite
 	popl	%edx				/* remove junk parameter from stack */
