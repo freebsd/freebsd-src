@@ -89,11 +89,6 @@ A) Re-commit everything on freefall (you *did* use a test repo for
       - X11Forwarding defaults to "yes" (it's a threat to the client,
         not to the server.)
 
-      - Unless the config file says otherwise, we automatically enable
-        Kerberos support if an appropriate keytab is present.
-
-      - PAMAuthenticationViaKbdInt defaults to "yes".
-
 2) Modified client-side defaults
 
    We've modified some configuration defaults in ssh:
@@ -114,12 +109,7 @@ A) Re-commit everything on freefall (you *did* use a test repo for
    We've added support for using OPIE as a drop-in replacement for
    S/Key.
 
-5) PAM
-
-   We use our own PAM code, which wraps PAM in a KbdintDevice and
-   works with privsep, instead of OpenSSH's own PAM code.
-
-6) setusercontext() environment
+5) setusercontext() environment
 
    Our setusercontext(3) can set environment variables, which we must
    take care to transfer to the child's environment.
