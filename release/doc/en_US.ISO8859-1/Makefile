@@ -7,6 +7,7 @@ SUBDIR+= hardware
 SUBDIR+= readme
 SUBDIR+= errata
 SUBDIR+= installation
+SUBDIR+= early-adopter
 
 COMPAT_SYMLINK = en
 
