@@ -347,7 +347,7 @@ kvm_read(kd, kva, buf, len)
 	size_t len;
 {
 	int cc;
-	void *cp;
+	char *cp;
 
 	if (ISALIVE(kd)) {
 		/*
@@ -394,11 +394,11 @@ kvm_read(kd, kva, buf, len)
 			 */
 			if (cc == 0)
 				break;
-			(char *)cp += cc;
+			cp += cc;
 			kva += cc;
 			len -= cc;
 		}
-		return ((char *)cp - (char *)buf);
+		return (cp - (char *)buf);
 	}
 	/* NOTREACHED */
 }
