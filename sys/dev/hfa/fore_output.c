@@ -333,7 +333,7 @@ retry:
 		 * Get start of data onto full-word alignment
 		 */
 		KB_DATASTART(m, cp, caddr_t);
-		if ((align = ((u_int)cp) & (XMIT_SEG_ALIGN - 1)) != 0) {
+		if ((align = ((uintptr_t)cp) & (XMIT_SEG_ALIGN - 1)) != 0) {
 			/*
 			 * Gotta slide the data up
 			 */

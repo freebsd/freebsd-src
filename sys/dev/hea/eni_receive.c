@@ -148,8 +148,8 @@ eni_do_service ( eup )
 		 * Find the start of the adapter buffer for this VC.
 		 */
 		rxp = (u_long *)
-		    ((int)(((vci_hdr >> VCI_LOC_SHIFT ) & VCI_LOC_MASK)
-			<< ENI_LOC_PREDIV) + (int)eup->eu_ram);
+		    ((intptr_t)(((vci_hdr >> VCI_LOC_SHIFT ) & VCI_LOC_MASK)
+			<< ENI_LOC_PREDIV) + (intptr_t)eup->eu_ram);
 		/*
 		 * Locate incoming VCC for this PDU and find where we
 		 * should next read from.
@@ -798,7 +798,7 @@ eni_recv_drain ( eup )
 			KB_DATASTART ( m, up, u_long * );
 			*((int *)up) = (int)eni_recv_stack;
 			up++;
-			*((int *)up) = (int)evp;
+			*((int *)up) = (int)(intptr_t)evp;
 			/*
 			 * Schedule callback
 			 */
@@ -876,7 +876,7 @@ eni_recv_stack ( tok, m )
 	 * Send the data up the stack
 	 */
 	STACK_CALL ( CPCS_UNITDATA_SIG, evp->ev_upper,
-		(void *)evp->ev_toku, evp->ev_connvc, (int)m, 0, err );
+		(void *)evp->ev_toku, evp->ev_connvc, (intptr_t)m, 0, err );
 	if ( err ) {
 		KB_FREEALL ( m );
 	}

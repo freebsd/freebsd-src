@@ -544,7 +544,7 @@ fore_recv_stack(tok, m)
 	 * Send the data up the stack
 	 */
 	STACK_CALL(CPCS_UNITDATA_SIG, fvp->fv_upper,
-		fvp->fv_toku, fvp->fv_connvc, (int)m, 0, err);
+		fvp->fv_toku, fvp->fv_connvc, (intptr_t)m, 0, err);
 	if (err)
 		KB_FREEALL(m);
 
