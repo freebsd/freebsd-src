@@ -1336,9 +1336,6 @@ brelse(struct buf * bp)
 			int had_bogus = 0;
 
 			m = bp->b_pages[i];
-			vm_page_lock_queues();
-			vm_page_flag_clear(m, PG_ZERO);
-			vm_page_unlock_queues();
 
 			/*
 			 * If we hit a bogus page, fixup *all* the bogus pages
@@ -1582,7 +1579,6 @@ vfs_vmio_release(bp)
 			continue;
 			
 		if (m->wire_count == 0) {
-			vm_page_flag_clear(m, PG_ZERO);
 			/*
 			 * Might as well free the page if we can and it has
 			 * no valid data.  We also free the page if the
@@ -2326,10 +2322,8 @@ vfs_setdirty(struct buf *bp)
 		 * test the pages to see if they have been modified directly
 		 * by users through the VM system.
 		 */
-		for (i = 0; i < bp->b_npages; i++) {
-			vm_page_flag_clear(bp->b_pages[i], PG_ZERO);
+		for (i = 0; i < bp->b_npages; i++)
 			vm_page_test_dirty(bp->b_pages[i]);
-		}
 
 		/*
 		 * Calculate the encompassing dirty range, boffset and eoffset,
@@ -2919,7 +2913,6 @@ allocbuf(struct buf *bp, int size)
 					(cnt.v_free_min + cnt.v_cache_min))) {
 					pagedaemon_wakeup();
 				}
-				vm_page_flag_clear(m, PG_ZERO);
 				vm_page_wire(m);
 				vm_page_unlock_queues();
 				bp->b_pages[bp->b_npages] = m;
@@ -3233,7 +3226,6 @@ bufdone(struct buf *bp)
 			if ((bp->b_iocmd == BIO_READ) && !bogusflag && resid > 0) {
 				vfs_page_set_valid(bp, foff, i, m);
 			}
-			vm_page_flag_clear(m, PG_ZERO);
 
 			/*
 			 * when debugging new filesystems or buffer I/O methods, this
@@ -3316,7 +3308,6 @@ vfs_unbusy_pages(struct buf * bp)
 				pmap_qenter(trunc_page((vm_offset_t)bp->b_data), bp->b_pages, bp->b_npages);
 			}
 			vm_object_pip_subtract(obj, 1);
-			vm_page_flag_clear(m, PG_ZERO);
 			vm_page_io_finish(m);
 		}
 		vm_page_unlock_queues();
@@ -3402,7 +3393,6 @@ retry:
 		for (i = 0; i < bp->b_npages; i++) {
 			vm_page_t m = bp->b_pages[i];
 
-			vm_page_flag_clear(m, PG_ZERO);
 			if ((bp->b_flags & B_CLUSTER) == 0) {
 				vm_object_pip_add(obj, 1);
 				vm_page_io_start(m);
@@ -3579,9 +3569,6 @@ vfs_bio_clrbuf(struct buf *bp)
 				}
 			}
 			bp->b_pages[i]->valid |= mask;
-			vm_page_lock_queues();
-			vm_page_flag_clear(bp->b_pages[i], PG_ZERO);
-			vm_page_unlock_queues();
 		}
 unlock:
 		VM_OBJECT_UNLOCK(bp->b_object);
