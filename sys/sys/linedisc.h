@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.5 (Berkeley) 1/9/95
- * $Id: conf.h,v 1.43 1998/07/04 22:30:26 julian Exp $
+ * $Id: conf.h,v 1.44 1998/08/20 06:10:42 bde Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -93,6 +93,7 @@ typedef int l_modem_t __P((struct tty *tp, int flag));
 #define	D_NOCLUSTERR	0x10000		/* disables cluter read */
 #define	D_NOCLUSTERW	0x20000		/* disables cluster write */
 #define	D_NOCLUSTERRW	(D_NOCLUSTERR | D_NOCLUSTERW)
+#define	D_CANFREE	0x40000		/* can free blocks */
 
 
 /*

@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.173 1998/08/28 20:07:13 luoqi Exp $
+ * $Id: vfs_bio.c,v 1.174 1998/09/04 08:06:55 dfr Exp $
  */
 
 /*
@@ -587,14 +587,14 @@ brelse(struct buf * bp)
 	if (bp->b_flags & B_LOCKED)
 		bp->b_flags &= ~B_ERROR;
 
-	if ((bp->b_flags & (B_NOCACHE | B_INVAL | B_ERROR)) ||
+	if ((bp->b_flags & (B_NOCACHE | B_INVAL | B_ERROR | B_FREEBUF)) ||
 	    (bp->b_bufsize <= 0)) {
 		bp->b_flags |= B_INVAL;
 		if (LIST_FIRST(&bp->b_dep) != NULL && bioops.io_deallocate)
 			(*bioops.io_deallocate)(bp);
 		if (bp->b_flags & B_DELWRI)
 			--numdirtybuffers;
-		bp->b_flags &= ~(B_DELWRI | B_CACHE);
+		bp->b_flags &= ~(B_DELWRI | B_CACHE | B_FREEBUF);
 		if ((bp->b_flags & B_VMIO) == 0) {
 			if (bp->b_bufsize)
 				allocbuf(bp, 0);
@@ -1895,6 +1895,12 @@ biodone(register struct buf * bp)
 	}
 	bp->b_flags |= B_DONE;
 
+	if (bp->b_flags & B_FREEBUF) {
+		brelse(bp);
+		splx(s);
+		return;
+	}
+
 	if ((bp->b_flags & B_READ) == 0) {
 		vwakeup(bp);
 	}
@@ -2415,12 +2421,7 @@ DB_SHOW_COMMAND(buffer, db_show_buffer)
 	}
 
 	db_printf("b_proc = %p,\nb_flags = 0x%b\n", (void *)bp->b_proc,
-		  (u_int)bp->b_flags,
-		  "\20\40bounce\37cluster\36vmio\35ram\34ordered"
-		  "\33paging\32xxx\31writeinprog\30wanted\27relbuf\26avail3"
-		  "\25read\24raw\23phys\22clusterok\21malloc\20nocache"
-		  "\17locked\16inval\15avail2\14error\13eintr\12done\11avail1"
-		  "\10delwri\7call\6cache\5busy\4bad\3async\2needcommit\1age");
+		  (u_int)bp->b_flags, PRINT_BUF_FLAGS);
 	db_printf("b_error = %d, b_bufsize = %ld, b_bcount = %ld, "
 		  "b_resid = %ld\nb_dev = 0x%x, b_data = %p, "
 		  "b_blkno = %d, b_pblkno = %d\n",
