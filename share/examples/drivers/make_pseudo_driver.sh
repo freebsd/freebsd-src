@@ -21,7 +21,7 @@ DONE
 cat >${UPPER} <<DONE
 # Configuration file for kernel type: ${UPPER}
 ident	${UPPER}
-# \$Id: make_pseudo_driver.sh,v 1.1 1997/02/02 07:19:30 julian Exp $"
+# \$Id: make_pseudo_driver.sh,v 1.2 1997/12/30 03:23:13 julian Exp $"
 DONE
 
 grep -v GENERIC < GENERIC >>${UPPER}
@@ -37,7 +37,7 @@ cat >../../dev/${1}.c <<DONE
  * Copyright ME
  *
  * ${1} driver
- * \$Id: make_pseudo_driver.sh,v 1.1 1997/02/02 07:19:30 julian Exp $
+ * \$Id: make_pseudo_driver.sh,v 1.2 1997/12/30 03:23:13 julian Exp $
  */
 
 
@@ -55,7 +55,7 @@ cat >../../dev/${1}.c <<DONE
 
 
 
-/* Function prototypes (these should all be static  except for ${1}intr()) */
+/* Function prototypes (these should all be static) */
 static  d_open_t	${1}open;
 static  d_close_t	${1}close;
 static  d_read_t	${1}read;
