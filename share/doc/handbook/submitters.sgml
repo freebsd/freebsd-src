@@ -1,4 +1,4 @@
-<!-- $Id: submitters.sgml,v 1.37 1997/01/02 18:21:48 max Exp $ -->
+<!-- $Id: submitters.sgml,v 1.38 1997/01/02 18:24:42 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Contributing to FreeBSD<label id="submitters"></heading>
@@ -247,14 +247,23 @@ the following 6 categories:
           See <ref id="eresources:mail" name="mailing lists">
 	  for more information about this and other mailing lists.
 
-	<item>An actual bug report should be filed by using the 
-          <htmlurl url="http://www.freebsd.org/send-pr.html" name="send-pr(1)">
-	  program.  This will prompt you for various fields to fill in.
-	  Simply go to the fields surrounded by <tt>&lt;&gt;</tt>'s and fill
-	  in your own information in place of what is suggested there.
-	  You should receive confirmation of your bug report and a tracking
-	  number.  Keep this tracking number and use it in any subsequent
-	  correspondence.
+	<item>An actual bug report should be filed by using the send-pr(1)
+          program or its <htmlurl url="http://www.freebsd.org/send-pr.html"
+	  name="WEB based equivalent">. This will prompt you for various
+	  fields to fill in.  In the send-pr(1) case, simply go to the
+	  fields surrounded by <tt>&lt;&gt;</tt>'s and fill in your own
+	  information in place of what is suggested there.  With the
+	  WEB based interface, you simply select the appropriate items from
+	  various option menus and fill in the various fields shown there.
+
+	  <p>You should receive confirmation of your bug report along with
+	  a tracking number.  Please keep this tracking number and refer to
+	  it in any subsequent correspondence so that people can find the
+	  details of your problem quickly.  You may also send mail to
+	  <htmlurl url="mailto:bug-followup@freebsd.org"
+	  name="bug-followup@freebsd.org"> with your PR# in the subject
+	  line to append further information to an existing bug report.
+
           If you do not receive confirmation in a timely fashion (3 days to
           a week, depending on your email connection) or are, for some
           reason, unable to use the <tt>send-pr(1)</tt> command,
