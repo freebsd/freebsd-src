@@ -55,7 +55,7 @@
 
 /*
  *	@(#)inet.h	8.1 (Berkeley) 6/2/93
- *	$Id: inet.h,v 8.6 1996/08/08 06:54:29 vixie Exp $
+ *	$Id: inet.h,v 8.5 1997/01/29 08:48:09 vixie Exp $
  */
 
 #ifndef _INET_H_
@@ -70,6 +70,21 @@
 # include <sys/types.h>
 #endif
 #include <sys/cdefs.h>
+
+#define	inet_addr		__inet_addr
+#define	inet_aton		__inet_aton
+#define	inet_lnaof		__inet_lnaof
+#define	inet_makeaddr		__inet_makeaddr
+#define	inet_neta		__inet_neta
+#define	inet_netof		__inet_netof
+#define	inet_network		__inet_network
+#define	inet_net_ntop		__inet_net_ntop
+#define	inet_net_pton		__inet_net_pton
+#define	inet_ntoa		__inet_ntoa
+#define	inet_pton		__inet_pton
+#define	inet_ntop		__inet_ntop
+#define	inet_nsap_addr		__inet_nsap_addr
+#define	inet_nsap_ntoa		__inet_nsap_ntoa
 
 __BEGIN_DECLS
 unsigned long	 inet_addr __P((const char *));

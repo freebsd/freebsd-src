@@ -55,7 +55,7 @@
 
 /*
  *      @(#)netdb.h	8.1 (Berkeley) 6/2/93
- *	$Id: netdb.h,v 8.8 1997/06/01 20:34:32 vixie Exp $
+ *	$Id: netdb.h,v 8.9 1996/11/19 08:39:29 vixie Exp $
  */
 
 #ifndef _NETDB_H_
@@ -67,7 +67,9 @@
 #endif
 #include <sys/cdefs.h>
 
-#define	_PATH_HEQUIV	"/etc/hosts.equiv"
+#ifndef _PATH_HEQUIV
+# define	_PATH_HEQUIV	"/etc/hosts.equiv"
+#endif
 #define	_PATH_HOSTS	"/etc/hosts"
 #define	_PATH_NETWORKS	"/etc/networks"
 #define	_PATH_PROTOCOLS	"/etc/protocols"
@@ -166,13 +168,5 @@ struct rpcent {
 struct rpcent	*getrpcbyname(), *getrpcbynumber(), *getrpcent();
 #endif /* __GNU_LIBRARY__ */
 #endif /* sun */
-
-/*
- * The Motorola kernel will only support 64 characters for hostname
- * also defined in /usr/ucbinclude/netdb.h
- */
-#ifdef __m88k__
-#define MAXHOSTNAMELEN 64
-#endif
 
 #endif /* !_NETDB_H_ */

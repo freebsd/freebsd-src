@@ -1,0 +1,53 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+<HEAD>
+  <TITLE>BIND include Statement</TITLE>
+</HEAD>
+
+<BODY>
+<H2>BIND Configuration File Guide--<CODE>include</CODE> Statement</H2>
+
+<HR>
+
+<A NAME="Syntax"><H3>Syntax</H3></A>
+
+<P><CODE>include <VAR><A HREF="docdef.html">path_name</A></VAR>;</CODE></P>
+
+<HR>
+
+<A Name="#Usage"><H3>Definition and Usage</H3></A>
+
+<P>The <CODE>include</CODE> statement inserts the specified file at
+the point that the <CODE>include</CODE> statement is encountered.  It
+cannot be used within another statement, though, so a line such as
+<CODE>acl internal_hosts { "include internal_hosts.acl" }</CODE> is
+not allowed.</P>
+
+<P>Use <CODE>include</CODE> to break the configuration up into
+easily-managed chunks.  For example:</P> 
+
+<UL COMPACT>
+<LI><CODE>include &quot;/etc/security/keys.bind&quot;;</CODE></LI>
+<LI><CODE>include &quot;/etc/acls.bind&quot;;</CODE></LI>
+</UL>
+
+<P>could be used at the top of a BIND configuration file in order to
+include any ACL or key information.</P>
+
+<P>Be careful not to type
+&quot;<CODE>#include</CODE>&quot;, like you would in a C
+program, because &quot;<CODE>#</CODE>&quot; is used to start a
+comment.</P>
+
+<HR>
+
+<CENTER><P>[ <A HREF="config.html">BIND Config. File</A>
+| <A HREF="http://www.vix.com/isc/bind.html">BIND Home</A>
+| <A HREF="http://www.isc.org">ISC</A> ]</P></CENTER>
+
+<HR>
+<ADDRESS>
+Last Updated: $Id: include.html,v 1.5 1998/03/21 01:03:12 halley Exp $
+</ADDRESS>
+</BODY>
+</HTML>
