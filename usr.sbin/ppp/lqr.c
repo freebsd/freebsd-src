@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.c,v 1.22.2.15 1998/03/20 19:47:00 brian Exp $
+ * $Id: lqr.c,v 1.22.2.16 1998/03/20 19:47:30 brian Exp $
  *
  *	o LQR based on RFC1333
  *
@@ -130,7 +130,7 @@ SendLqrReport(void *v)
       LogPrintf(LogPHASE, "** Too many LQR packets lost **\n");
       LogPrintf(LogLQM, "LqrOutput: Too many LQR packets lost\n");
       hdlc->lqm.method = 0;	/* Prevent recursion via bundle_Close() */
-      bundle_Close(lcp->fsm.bundle, NULL, 1);
+      bundle_Close(lcp->fsm.bundle, NULL, 0);
     } else {
       bp = mballoc(sizeof(struct lqrdata), MB_LQR);
       HdlcOutput(lcp->fsm.link, PRI_LINK, PROTO_LQR, bp);
@@ -144,7 +144,7 @@ SendLqrReport(void *v)
       LogPrintf(LogPHASE, "** Too many ECHO LQR packets lost **\n");
       LogPrintf(LogLQM, "LqrOutput: Too many ECHO LQR packets lost\n");
       hdlc->lqm.method = 0;	/* Prevent recursion via bundle_Close() */
-      bundle_Close(lcp->fsm.bundle, NULL, 1);
+      bundle_Close(lcp->fsm.bundle, NULL, 0);
     } else
       SendEchoReq(lcp);
   }
