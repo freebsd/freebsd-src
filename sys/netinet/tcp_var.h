@@ -54,7 +54,7 @@ extern struct uma_zone *tcp_reass_zone;
 
 struct sackblk {
 	tcp_seq start;		/* start seq no. of sack block */
-	tcp_seq end; 		/* end seq no. */
+	tcp_seq end;		/* end seq no. */
 };
 
 struct sackhole {
@@ -63,6 +63,7 @@ struct sackhole {
 	tcp_seq rxmit;		/* next seq. no in hole to be retransmitted */
 	struct sackhole *next;	/* next in list */
 };
+
 struct tcptemp {
 	u_char	tt_ipgen[40]; /* the size must be of max ip header, now IPv6 */
 	struct	tcphdr tt_t;
@@ -190,11 +191,10 @@ struct tcpcb {
 	u_long	rcv_second;		/* start of interval second */
 	u_long	rcv_pps;		/* received packets per second */
 	u_long	rcv_byps;		/* received bytes per second */
-	/* SACK related state */
+/* SACK related state */
 	int	sack_enable;		/* enable SACK for this connection */
 	int	snd_numholes;		/* number of holes seen by sender */
 	struct sackhole *snd_holes;	/* linked list of holes (sorted) */
-
 	tcp_seq	rcv_laststart;		/* start of last segment recd. */
 	tcp_seq	rcv_lastend;		/* end of ... */
 	tcp_seq	rcv_lastsack;		/* last seq number(+1) sack'd by rcv'r*/
