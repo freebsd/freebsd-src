@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id$
+ *      $Id: elf32.h,v 1.1 1997/05/21 23:07:30 jdp Exp $
  */
 
 #ifndef _SYS_ELF32_H_
@@ -93,6 +93,12 @@ typedef struct {
 #define ELFDATA2LSB	1	/* 2's complement little-endian. */
 #define ELFDATA2MSB	2	/* 2's complement big-endian. */
 
+/* e_ident */
+#define IS_ELF(ehdr)	((ehdr).e_ident[EI_MAG0] == ELFMAG0 && \
+			 (ehdr).e_ident[EI_MAG1] == ELFMAG1 && \
+			 (ehdr).e_ident[EI_MAG2] == ELFMAG2 && \
+			 (ehdr).e_ident[EI_MAG3] == ELFMAG3)
+
 /* Values for e_type. */
 #define ET_NONE		0	/* Unknown type. */
 #define ET_REL		1	/* Relocatable. */
@@ -109,6 +115,14 @@ typedef struct {
 #define EM_88K		5	/* Motorola 88000. */
 #define EM_486		6	/* Intel i486. */
 #define EM_860		7	/* Intel i860. */
+#define EM_MIPS		8	/* MIPS R3000 Big-Endian only */
+
+/* Extensions */
+#define EM_MIPS_RS4_BE	10	/* MIPS R4000 Big-Endian */
+#define EM_SPARC64	11	/* SPARC v9 64-bit unoffical */
+#define EM_PARISC	15	/* HPPA */
+#define EM_PPC		20	/* PowerPC */
+
 
 /*
  * Section header.
@@ -136,6 +150,25 @@ typedef struct {
 #define SHN_ABS		0xfff1		/* Absolute values. */
 #define SHN_COMMON	0xfff2		/* Common data. */
 #define SHN_HIRESERVE	0xffff		/* Last of reserved range. */
+
+/* sh_type */
+#define SHT_NULL	0		/* inactive */
+#define SHT_PROGBITS	1		/* program defined information */
+#define SHT_SYMTAB	2		/* symbol table section */
+#define SHT_STRTAB	3		/* string table section */
+#define SHT_RELA	4		/* relocation section with addends*/
+#define SHT_HASH	5		/* symbol hash table section */
+#define SHT_DYNAMIC	6		/* dynamic section */ 
+#define SHT_NOTE	7		/* note section */
+#define SHT_NOBITS	8		/* no space section */
+#define SHT_REL		9		/* relation section without addends */
+#define SHT_SHLIB	10		/* reserved - purpose unknown */
+#define SHT_DYNSYM	11		/* dynamic symbol table section */ 
+#define SHT_LOPROC	0x70000000	/* reserved range for processor */
+#define SHT_HIPROC	0x7fffffff	/* specific section header types */
+#define SHT_LOUSER	0x80000000	/* reserved range for application */
+#define SHT_HIUSER	0xffffffff	/* specific indexes */
+
 
 /*
  * Program header.
@@ -255,12 +288,21 @@ typedef struct {
 /* Macro for constructing st_info from field values. */
 #define ELF32_ST_INFO(bind, type)	(((bind) << 4) + ((type) & 0xf))
 
-/* Symbol types. */
+/* Symbol Binding - ELF32_ST_BIND - st_info */
+#define STB_LOCAL	0	/* Local symbol */
+#define STB_GLOBAL	1	/* Global symbol */
+#define STB_WEAK	2	/* like global - lower precedence */
+#define STB_LOPROC	13	/* reserved range for processor */
+#define STB_HIPROC	15	/*  specific symbol bindings */
+
+/* Symbol type - ELF32_ST_TYPE - st_info */
 #define STT_NOTYPE	0	/* Unspecified type. */
 #define STT_OBJECT	1	/* Data object. */
 #define STT_FUNC	2	/* Function. */
 #define STT_SECTION	3	/* Section. */
 #define STT_FILE	4	/* Source file. */
+#define STT_LOPROC	13	/* reserved range for processor */
+#define STT_HIPROC	15	/*  specific symbol types */
 
 /* Special symbol table indexes. */
 #define STN_UNDEF	0	/* Undefined symbol index. */
