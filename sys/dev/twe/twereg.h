@@ -100,7 +100,7 @@
 
 /* PCI related defines */
 #define TWE_IO_CONFIG_REG		0x10
-#define TWE_DEVICE_NAME			"3ware 7000 series Storage Controller"
+#define TWE_DEVICE_NAME			"3ware Storage Controller"
 #define TWE_VENDOR_ID			0x13C1
 #define TWE_DEVICE_ID			0x1000
 #define TWE_DEVICE_ID_ASIC		0x1001
