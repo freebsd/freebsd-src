@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.24 1994/06/01 17:04:01 paul Exp $
+#	$Id: rc,v 1.25 1994/06/04 00:43:59 ache Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -213,9 +213,9 @@ echo '.'
 
 mount -a -t nfs >/dev/null 2>&1 &	# XXX shouldn't need background
 
-if [ -x /usr/libexec/xtend ]; then
-	echo -n ' xtend';   /usr/libexec/xtend
-fi
+# if [ -x /usr/libexec/xtend ]; then
+# 	echo -n ' xtend';   /usr/libexec/xtend
+# fi
 
 # Make shared lib searching a little faster.  Leave /usr/lib first if you
 # add your own entries or you may come to grief.
