@@ -71,6 +71,7 @@
 #include <sys/resourcevar.h>
 #include <sys/shm.h>
 #include <sys/vmmeter.h>
+#include <sys/sx.h>
 #include <sys/sysctl.h>
 
 #include <sys/kernel.h>
@@ -364,7 +365,7 @@ loop:
 
 	pp = NULL;
 	ppri = INT_MIN;
-	ALLPROC_LOCK(AP_SHARED);
+	sx_slock(&allproc_lock);
 	LIST_FOREACH(p, &allproc, p_list) {
 		mtx_lock_spin(&sched_lock);
 		if (p->p_stat == SRUN &&
@@ -387,7 +388,7 @@ loop:
 		}
 		mtx_unlock_spin(&sched_lock);
 	}
-	ALLPROC_LOCK(AP_RELEASE);
+	sx_sunlock(&allproc_lock);
 
 	/*
 	 * Nothing to do, back to sleep.
@@ -448,7 +449,7 @@ int action;
 
 	outp = outp2 = NULL;
 	outpri = outpri2 = INT_MIN;
-	ALLPROC_LOCK(AP_SHARED);
+	sx_slock(&allproc_lock);
 retry:
 	LIST_FOREACH(p, &allproc, p_list) {
 		struct vmspace *vm;
@@ -535,7 +536,7 @@ retry:
 				mtx_unlock_spin(&sched_lock);
 		}
 	}
-	ALLPROC_LOCK(AP_RELEASE);
+	sx_sunlock(&allproc_lock);
 	/*
 	 * If we swapped something out, and another process needed memory,
 	 * then wakeup the sched process.

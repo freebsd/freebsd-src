@@ -62,8 +62,9 @@
 #include <sys/ktr.h>
 #include <sys/ktrace.h>
 #include <sys/resourcevar.h>
-#include <sys/syslog.h>
 #include <sys/stat.h>
+#include <sys/sx.h>
+#include <sys/syslog.h>
 #include <sys/sysent.h>
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
@@ -897,7 +898,7 @@ killpg1(cp, sig, pgid, all)
 		/*
 		 * broadcast
 		 */
-		ALLPROC_LOCK(AP_SHARED);
+		sx_slock(&allproc_lock);
 		LIST_FOREACH(p, &allproc, p_list) {
 			PROC_LOCK(p);
 			if (p->p_pid <= 1 || p->p_flag & P_SYSTEM || p == cp) {
@@ -918,7 +919,7 @@ killpg1(cp, sig, pgid, all)
 				PROC_UNLOCK(p);
 			}
 		}
-		ALLPROC_LOCK(AP_RELEASE);
+		sx_sunlock(&allproc_lock);
 	} else {
 		if (pgid == 0)
 			/*

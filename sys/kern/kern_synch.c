@@ -43,18 +43,19 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
+#include <sys/condvar.h>
 #include <sys/ipl.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
-#include <sys/condvar.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#include <sys/signalvar.h>
+#include <sys/proc.h>
 #include <sys/resourcevar.h>
-#include <sys/vmmeter.h>
+#include <sys/signalvar.h>
+#include <sys/sx.h>
 #include <sys/sysctl.h>
 #include <sys/sysproto.h>
+#include <sys/vmmeter.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #ifdef KTRACE
@@ -241,7 +242,7 @@ schedcpu(arg)
 	register int realstathz, s;
 
 	realstathz = stathz ? stathz : hz;
-	ALLPROC_LOCK(AP_SHARED);
+	sx_slock(&allproc_lock);
 	LIST_FOREACH(p, &allproc, p_list) {
 		/*
 		 * Increment time in/out of memory and sleep time
@@ -302,7 +303,7 @@ schedcpu(arg)
 		mtx_unlock_spin(&sched_lock);
 		splx(s);
 	}
-	ALLPROC_LOCK(AP_RELEASE);
+	sx_sunlock(&allproc_lock);
 	vmmeter();
 	wakeup((caddr_t)&lbolt);
 	callout_reset(&schedcpu_callout, hz, schedcpu, NULL);

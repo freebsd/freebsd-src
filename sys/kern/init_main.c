@@ -49,6 +49,7 @@
 #include <sys/filedesc.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
+#include <sys/lock.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/sysctl.h>
@@ -59,6 +60,7 @@
 #include <sys/vnode.h>
 #include <sys/sysent.h>
 #include <sys/reboot.h>
+#include <sys/sx.h>
 #include <sys/sysproto.h>
 #include <sys/vmmeter.h>
 #include <sys/unistd.h>
@@ -70,7 +72,6 @@
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
-#include <sys/lock.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <sys/user.h>
@@ -393,12 +394,12 @@ proc0_post(void *dummy __unused)
 	 * Now we can look at the time, having had a chance to verify the
 	 * time from the file system.  Pretend that proc0 started now.
 	 */
-	ALLPROC_LOCK(AP_SHARED);
+	sx_slock(&allproc_lock);
 	LIST_FOREACH(p, &allproc, p_list) {
 		microtime(&p->p_stats->p_start);
 		p->p_runtime = 0;
 	}
-	ALLPROC_LOCK(AP_RELEASE);
+	sx_sunlock(&allproc_lock);
 	microuptime(PCPU_PTR(switchtime));
 	PCPU_SET(switchticks, ticks);
 

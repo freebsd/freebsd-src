@@ -52,6 +52,7 @@
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
+#include <sys/sx.h>
 #include <sys/time.h>
 
 #include <vm/vm.h>
@@ -120,13 +121,13 @@ getpriority(curp, uap)
 	case PRIO_USER:
 		if (uap->who == 0)
 			uap->who = curp->p_ucred->cr_uid;
-		ALLPROC_LOCK(AP_SHARED);
+		sx_slock(&allproc_lock);
 		LIST_FOREACH(p, &allproc, p_list)
 			if (!p_can(curp, p, P_CAN_SEE, NULL) &&
 			    p->p_ucred->cr_uid == uap->who &&
 			    p->p_nice < low)
 				low = p->p_nice;
-		ALLPROC_LOCK(AP_RELEASE);
+		sx_sunlock(&allproc_lock);
 		break;
 
 	default:
@@ -188,14 +189,14 @@ setpriority(curp, uap)
 	case PRIO_USER:
 		if (uap->who == 0)
 			uap->who = curp->p_ucred->cr_uid;
-		ALLPROC_LOCK(AP_SHARED);
+		sx_slock(&allproc_lock);
 		LIST_FOREACH(p, &allproc, p_list)
 			if (p->p_ucred->cr_uid == uap->who &&
 			    !p_can(curp, p, P_CAN_SEE, NULL)) {
 				error = donice(curp, p, uap->prio);
 				found++;
 			}
-		ALLPROC_LOCK(AP_RELEASE);
+		sx_sunlock(&allproc_lock);
 		break;
 
 	default:

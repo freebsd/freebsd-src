@@ -59,6 +59,7 @@
 #include <sys/file.h>
 #include <sys/linker.h>
 #include <sys/stat.h>
+#include <sys/sx.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
 #include <sys/proc.h>
@@ -415,7 +416,7 @@ checkdirs(olddp, newdp)
 
 	if (olddp->v_usecount == 1)
 		return;
-	ALLPROC_LOCK(AP_SHARED);
+	sx_slock(&allproc_lock);
 	LIST_FOREACH(p, &allproc, p_list) {
 		fdp = p->p_fd;
 		if (fdp == NULL)
@@ -431,7 +432,7 @@ checkdirs(olddp, newdp)
 			fdp->fd_rdir = newdp;
 		}
 	}
-	ALLPROC_LOCK(AP_RELEASE);
+	sx_sunlock(&allproc_lock);
 	if (rootvnode == olddp) {
 		vrele(rootvnode);
 		VREF(newdp);

@@ -83,6 +83,7 @@
 #include <sys/signalvar.h>
 #include <sys/vnode.h>
 #include <sys/vmmeter.h>
+#include <sys/sx.h>
 #include <sys/sysctl.h>
 
 #include <vm/vm.h>
@@ -1123,7 +1124,7 @@ rescan0:
 	if ((vm_swap_size < 64 || swap_pager_full) && vm_page_count_min()) {
 		bigproc = NULL;
 		bigsize = 0;
-		ALLPROC_LOCK(AP_SHARED);
+		sx_slock(&allproc_lock);
 		LIST_FOREACH(p, &allproc, p_list) {
 			/*
 			 * if this is a system process, skip it
@@ -1159,7 +1160,7 @@ rescan0:
 				bigsize = size;
 			}
 		}
-		ALLPROC_LOCK(AP_RELEASE);
+		sx_sunlock(&allproc_lock);
 		if (bigproc != NULL) {
 			killproc(bigproc, "out of swap space");
 			mtx_lock_spin(&sched_lock);
@@ -1462,7 +1463,7 @@ vm_daemon()
 		 * process is swapped out -- deactivate pages
 		 */
 
-		ALLPROC_LOCK(AP_SHARED);
+		sx_slock(&allproc_lock);
 		LIST_FOREACH(p, &allproc, p_list) {
 			vm_pindex_t limit, size;
 
@@ -1504,7 +1505,7 @@ vm_daemon()
 				    &p->p_vmspace->vm_map, limit);
 			}
 		}
-		ALLPROC_LOCK(AP_RELEASE);
+		sx_sunlock(&allproc_lock);
 	}
 }
 #endif

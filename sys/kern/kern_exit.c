@@ -56,6 +56,7 @@
 #include <sys/vnode.h>
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
+#include <sys/sx.h>
 #include <sys/ptrace.h>
 #include <sys/acct.h>		/* for acct_process() function prototype */
 #include <sys/filedesc.h>
@@ -279,13 +280,13 @@ exit1(p, rv)
 	 * Remove proc from allproc queue and pidhash chain.
 	 * Place onto zombproc.  Unlink from parent's child list.
 	 */
-	ALLPROC_LOCK(AP_EXCLUSIVE);
+	sx_xlock(&allproc_lock);
 	LIST_REMOVE(p, p_list);
 	LIST_INSERT_HEAD(&zombproc, p, p_list);
 	LIST_REMOVE(p, p_hash);
-	ALLPROC_LOCK(AP_RELEASE);
+	sx_xunlock(&allproc_lock);
 
-	PROCTREE_LOCK(PT_EXCLUSIVE);
+	sx_xlock(&proctree_lock);
 	q = LIST_FIRST(&p->p_children);
 	if (q != NULL)		/* only need this if any child is S_ZOMB */
 		wakeup((caddr_t) initproc);
@@ -357,7 +358,7 @@ exit1(p, rv)
 	        psignal(p->p_pptr, SIGCHLD);
 	PROC_UNLOCK(p->p_pptr);
 	PROC_UNLOCK(p);
-	PROCTREE_LOCK(PT_RELEASE);
+	sx_xunlock(&proctree_lock);
 	
 	/*
 	 * Clear curproc after we've done all operations
@@ -435,7 +436,7 @@ wait1(q, uap, compat)
 		return (EINVAL);
 loop:
 	nfound = 0;
-	PROCTREE_LOCK(PT_SHARED);
+	sx_slock(&proctree_lock);
 	LIST_FOREACH(p, &q->p_children, p_sibling) {
 		if (uap->pid != WAIT_ANY &&
 		    p->p_pid != uap->pid && p->p_pgid != -uap->pid)
@@ -467,7 +468,7 @@ loop:
 
 			mtx_unlock_spin(&sched_lock);
 			PROC_UNLOCK(p);
-			PROCTREE_LOCK(PT_RELEASE);
+			sx_sunlock(&proctree_lock);
 
 			q->p_retval[0] = p->p_pid;
 #ifdef COMPAT_43
@@ -488,7 +489,7 @@ loop:
 			 * If we got the child via a ptrace 'attach',
 			 * we need to give it back to the old parent.
 			 */
-			PROCTREE_LOCK(PT_EXCLUSIVE);
+			sx_xlock(&proctree_lock);
 			if (p->p_oppid) {
 				if ((t = pfind(p->p_oppid)) != NULL) {
 					PROC_LOCK(p);
@@ -498,12 +499,12 @@ loop:
 					PROC_LOCK(t);
 					psignal(t, SIGCHLD);
 					PROC_UNLOCK(t);
-					PROCTREE_LOCK(PT_RELEASE);
+					sx_xunlock(&proctree_lock);
 					wakeup((caddr_t)t);
 					return (0);
 				}
 			}
-			PROCTREE_LOCK(PT_RELEASE);
+			sx_xunlock(&proctree_lock);
 			PROC_LOCK(p);
 			p->p_xstat = 0;
 			PROC_UNLOCK(p);
@@ -546,13 +547,13 @@ loop:
 			 */
 			leavepgrp(p);
 
-			ALLPROC_LOCK(AP_EXCLUSIVE);
+			sx_xlock(&allproc_lock);
 			LIST_REMOVE(p, p_list);	/* off zombproc */
-			ALLPROC_LOCK(AP_RELEASE);
+			sx_xunlock(&allproc_lock);
 
-			PROCTREE_LOCK(PT_EXCLUSIVE);
+			sx_xlock(&proctree_lock);
 			LIST_REMOVE(p, p_sibling);
-			PROCTREE_LOCK(PT_RELEASE);
+			sx_xunlock(&proctree_lock);
 
 			PROC_LOCK(p);
 			if (--p->p_procsig->ps_refcnt == 0) {
@@ -579,7 +580,7 @@ loop:
 			mtx_unlock_spin(&sched_lock);
 			p->p_flag |= P_WAITED;
 			PROC_UNLOCK(p);
-			PROCTREE_LOCK(PT_RELEASE);
+			sx_sunlock(&proctree_lock);
 			q->p_retval[0] = p->p_pid;
 #ifdef COMPAT_43
 			if (compat) {
@@ -598,7 +599,7 @@ loop:
 		mtx_unlock_spin(&sched_lock);
 		PROC_UNLOCK(p);
 	}
-	PROCTREE_LOCK(PT_RELEASE);
+	sx_sunlock(&proctree_lock);
 	if (nfound == 0)
 		return (ECHILD);
 	if (uap->options & WNOHANG) {
@@ -620,7 +621,7 @@ proc_reparent(child, parent)
 	register struct proc *parent;
 {
 
-	PROCTREE_ASSERT(PT_EXCLUSIVE);
+	SX_ASSERT_XLOCKED(&proctree_lock);
 	PROC_LOCK_ASSERT(child, MA_OWNED);
 	if (child->p_pptr == parent)
 		return;
