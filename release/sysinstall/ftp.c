@@ -163,7 +163,9 @@ try:
 	 * the base directory and try again.  Lots of chdirs, but oh well. :)
 	 */
 	for (fdir = 0; ftp_dirs[fdir]; fdir++) {
-	    if (ftpChdir(OpenConn, (char *)ftp_dirs[fdir]) != 0)
+	    /* Avoid sending CWD . commands which confuse some ftp servers */
+	    if (strcmp(ftp_dirs[fdir], ".") &&
+		(ftpChdir(OpenConn, (char *)ftp_dirs[fdir]) != 0))
 		continue;
 	    if (ftpChdir(OpenConn, rel) == 0) {
 		ftpInitted = TRUE;
