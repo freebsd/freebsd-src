@@ -537,7 +537,8 @@ nuke_entry(struct sockaddr_dl *sdl,
 void
 ether_print(u_char *cp)
 {
-	printf("%x:%x:%x:%x:%x:%x", cp[0], cp[1], cp[2], cp[3], cp[4], cp[5]);
+	printf("%02x:%02x:%02x:%02x:%02x:%02x", cp[0], cp[1], cp[2], cp[3],
+						cp[4], cp[5]);
 }
 
 int
