@@ -39,6 +39,7 @@
 #include "opt_inet.h"
 
 #include <sys/param.h>
+#include <sys/conf.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/systm.h>
@@ -80,6 +81,7 @@ static void	link_rtrequest(int, struct rtentry *, struct sockaddr *);
 static int	if_rtdel(struct radix_node *, void *);
 static struct	if_clone *if_clone_lookup(const char *, int *);
 static int	if_clone_list(struct if_clonereq *);
+static int	ifhwioctl(u_long, struct ifnet *, caddr_t, struct thread *);
 #ifdef INET6
 /*
  * XXX: declare here to avoid to include many inet6 related files..
@@ -96,6 +98,7 @@ int	if_cloners_count;
 LIST_HEAD(, if_clone) if_cloners = LIST_HEAD_INITIALIZER(if_cloners);
 
 static int	if_indexlim = 8;
+static struct	klist ifklist;
 
 /*
  * System initialization
@@ -105,6 +108,69 @@ SYSINIT(interface_check, SI_SUB_PROTO_IF, SI_ORDER_FIRST, if_check, NULL)
 
 MALLOC_DEFINE(M_IFADDR, "ifaddr", "interface address");
 MALLOC_DEFINE(M_IFMADDR, "ether_multi", "link-level multicast address");
+
+#define CDEV_MAJOR	165
+
+static d_open_t		netopen;
+static d_close_t	netclose;
+static d_ioctl_t	netioctl;
+
+static struct cdevsw net_cdevsw = {
+	/* open */	netopen,
+	/* close */	netclose,
+	/* read */	noread,
+	/* write */	nowrite,
+	/* ioctl */	netioctl,
+	/* poll */	nopoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"net",
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0
+};
+
+static int
+netopen(dev_t dev, int flag, int mode, struct thread *td)
+{
+	return (0);
+}
+
+static int
+netclose(dev_t dev, int flags, int fmt, struct thread *td)
+{
+	return (0);
+}
+
+static int
+netioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
+{
+	struct ifnet *ifp;
+	int error, idx;
+
+	/* only support interface specific ioctls */
+	if (IOCGROUP(cmd) != 'i')
+		return (EOPNOTSUPP);
+	idx = minor(dev);
+	if (idx == 0) {
+		/*
+		 * special network device, not interface.
+		 */
+		if (cmd == SIOCGIFCONF)
+			return (ifconf(cmd, data));	/* XXX remove cmd */
+		return (EOPNOTSUPP);
+	}
+
+	ifp = ifnet_byindex(idx);
+	if (ifp == NULL)
+		return (ENXIO);
+
+	error = ifhwioctl(cmd, ifp, data, td);
+	if (error == ENOIOCTL)
+		error = EOPNOTSUPP;
+	return (error);
+}
 
 /*
  * Network interface utility routines.
@@ -119,7 +185,10 @@ if_init(dummy)
 {
 
 	TAILQ_INIT(&ifnet);
+	SLIST_INIT(&ifklist);
 	if_grow();				/* create initial table */
+	ifdev_byindex(0) = make_dev(&net_cdevsw, 0,
+	    UID_ROOT, GID_WHEEL, 0600, "network");
 }
 
 static void
@@ -194,6 +263,12 @@ if_attach(ifp)
 		if_grow();
 
 	ifnet_byindex(if_index) = ifp;
+	ifdev_byindex(if_index) = make_dev(&net_cdevsw, if_index,
+	    UID_ROOT, GID_WHEEL, 0600, "%s%d", ifp->if_name, ifp->if_unit);
+#if 0
+	make_dev_alias(ifdev_byindex(if_index), "%s%d", "net", if_index - 1);
+#endif
+
 	mtx_init(&ifp->if_snd.ifq_mtx, ifp->if_name, MTX_DEF);
 
 	/*
@@ -255,6 +330,8 @@ if_detach(ifp)
 	 * Clean up all addresses.
 	 */
 	ifaddr_byindex(ifp->if_index) = NULL;
+	destroy_dev(ifdev_byindex(ifp->if_index));
+	ifdev_byindex(ifp->if_index) = NULL;
 
 	while (if_index > 0 && ifaddr_byindex(if_index) == NULL)
 		if_index--;
@@ -947,49 +1024,18 @@ if_withname(sa)
 	return ifunit(ifname);
 }
 
-
 /*
- * Interface ioctls.
+ * Hardware specific interface ioctls.
  */
-int
-ifioctl(so, cmd, data, td)
-	struct socket *so;
-	u_long cmd;
-	caddr_t data;
-	struct thread *td;
+static int
+ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 {
-	register struct ifnet *ifp;
-	register struct ifreq *ifr;
+	struct ifreq *ifr;
 	struct ifstat *ifs;
-	int error;
-	short oif_flags;
+	int error = 0;
 
-	switch (cmd) {
-
-	case SIOCGIFCONF:
-	case OSIOCGIFCONF:
-		return (ifconf(cmd, data));
-	}
 	ifr = (struct ifreq *)data;
-
 	switch (cmd) {
-	case SIOCIFCREATE:
-	case SIOCIFDESTROY:
-		if ((error = suser_td(td)) != 0)
-			return (error);
-		return ((cmd == SIOCIFCREATE) ?
-			if_clone_create(ifr->ifr_name, sizeof(ifr->ifr_name)) :
-			if_clone_destroy(ifr->ifr_name));
-	
-	case SIOCIFGCLONERS:
-		return (if_clone_list((struct if_clonereq *)data));
-	}
-
-	ifp = ifunit(ifr->ifr_name);
-	if (ifp == 0)
-		return (ENXIO);
-	switch (cmd) {
-
 	case SIOCGIFFLAGS:
 		ifr->ifr_flags = ifp->if_flags;
 		break;
@@ -1071,10 +1117,10 @@ ifioctl(so, cmd, data, td)
 		error = suser_td(td);
 		if (error)
 			return (error);
-		if (ifp->if_ioctl == NULL)
-			return (EOPNOTSUPP);
 		if (ifr->ifr_mtu < IF_MINMTU || ifr->ifr_mtu > IF_MAXMTU)
 			return (EINVAL);
+		if (ifp->if_ioctl == NULL)
+			return (EOPNOTSUPP);
 		error = (*ifp->if_ioctl)(ifp, cmd, data);
 		if (error == 0) {
 			getmicrotime(&ifp->if_lastchange);
@@ -1088,7 +1134,7 @@ ifioctl(so, cmd, data, td)
 			nd6_setmtu(ifp);
 #endif
 		}
-		return (error);
+		break;
 	}
 
 	case SIOCADDMULTI:
@@ -1099,11 +1145,11 @@ ifioctl(so, cmd, data, td)
 
 		/* Don't allow group membership on non-multicast interfaces. */
 		if ((ifp->if_flags & IFF_MULTICAST) == 0)
-			return EOPNOTSUPP;
+			return (EOPNOTSUPP);
 
 		/* Don't let users screw up protocols' entries. */
 		if (ifr->ifr_addr.sa_family != AF_LINK)
-			return EINVAL;
+			return (EINVAL);
 
 		if (cmd == SIOCADDMULTI) {
 			struct ifmultiaddr *ifma;
@@ -1113,7 +1159,7 @@ ifioctl(so, cmd, data, td)
 		}
 		if (error == 0)
 			getmicrotime(&ifp->if_lastchange);
-		return error;
+		break;
 
 	case SIOCSIFPHYADDR:
 	case SIOCDIFPHYADDR:
@@ -1126,12 +1172,12 @@ ifioctl(so, cmd, data, td)
 		error = suser_td(td);
 		if (error)
 			return (error);
-		if (ifp->if_ioctl == 0)
+		if (ifp->if_ioctl == NULL)
 			return (EOPNOTSUPP);
 		error = (*ifp->if_ioctl)(ifp, cmd, data);
 		if (error == 0)
 			getmicrotime(&ifp->if_lastchange);
-		return error;
+		break;
 
 	case SIOCGIFSTATUS:
 		ifs = (struct ifstat *)data;
@@ -1144,25 +1190,76 @@ ifioctl(so, cmd, data, td)
 	case SIOCGIFGENERIC:
 		if (ifp->if_ioctl == 0)
 			return (EOPNOTSUPP);
-		return ((*ifp->if_ioctl)(ifp, cmd, data));
+		error = (*ifp->if_ioctl)(ifp, cmd, data);
+		break;
 
 	case SIOCSIFLLADDR:
 		error = suser_td(td);
 		if (error)
 			return (error);
-		return if_setlladdr(ifp,
+		error = if_setlladdr(ifp,
 		    ifr->ifr_addr.sa_data, ifr->ifr_addr.sa_len);
+		break;
 
 	default:
-		oif_flags = ifp->if_flags;
-		if (so->so_proto == 0)
-			return (EOPNOTSUPP);
+		error = ENOIOCTL;
+		break;
+	}
+	return (error);
+}
+
+/*
+ * Interface ioctls.
+ */
+int
+ifioctl(so, cmd, data, td)
+	struct socket *so;
+	u_long cmd;
+	caddr_t data;
+	struct thread *td;
+{
+	struct ifnet *ifp;
+	struct ifreq *ifr;
+	int error;
+	short oif_flags;
+
+	switch (cmd) {
+	case SIOCGIFCONF:
+	case OSIOCGIFCONF:
+		return (ifconf(cmd, data));
+	}
+	ifr = (struct ifreq *)data;
+
+	switch (cmd) {
+	case SIOCIFCREATE:
+	case SIOCIFDESTROY:
+		if ((error = suser_td(td)) != 0)
+			return (error);
+		return ((cmd == SIOCIFCREATE) ?
+			if_clone_create(ifr->ifr_name, sizeof(ifr->ifr_name)) :
+			if_clone_destroy(ifr->ifr_name));
+	
+	case SIOCIFGCLONERS:
+		return (if_clone_list((struct if_clonereq *)data));
+	}
+
+	ifp = ifunit(ifr->ifr_name);
+	if (ifp == 0)
+		return (ENXIO);
+
+	error = ifhwioctl(cmd, ifp, data, td);
+	if (error != ENOIOCTL)
+		return (error);
+
+	oif_flags = ifp->if_flags;
+	if (so->so_proto == 0)
+		return (EOPNOTSUPP);
 #ifndef COMPAT_43
-		error = ((*so->so_proto->pr_usrreqs->pru_control)(so, cmd,
+	error = ((*so->so_proto->pr_usrreqs->pru_control)(so, cmd,
 								 data,
 								 ifp, td));
 #else
-	    {
+	{
 		int ocmd = cmd;
 
 		switch (cmd) {
@@ -1211,23 +1308,20 @@ ifioctl(so, cmd, data, td)
 			*(u_short *)&ifr->ifr_addr = ifr->ifr_addr.sa_family;
 
 		}
-	    }
+	}
 #endif /* COMPAT_43 */
 
-		if ((oif_flags ^ ifp->if_flags) & IFF_UP) {
+	if ((oif_flags ^ ifp->if_flags) & IFF_UP) {
 #ifdef INET6
-			DELAY(100);/* XXX: temporal workaround for fxp issue*/
-			if (ifp->if_flags & IFF_UP) {
-				int s = splimp();
-				in6_if_up(ifp);
-				splx(s);
-			}
-#endif
+		DELAY(100);/* XXX: temporal workaround for fxp issue*/
+		if (ifp->if_flags & IFF_UP) {
+			int s = splimp();
+			in6_if_up(ifp);
+			splx(s);
 		}
-		return (error);
-
+#endif
 	}
-	return (0);
+	return (error);
 }
 
 /*
