@@ -48,7 +48,8 @@ __FBSDID("$FreeBSD$");
      */
 #define	HZ_WRONG	0
 
-hertz()
+int
+hertz(void)
 {
 	struct itimerval tim;
 
