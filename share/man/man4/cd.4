@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: cd.4,v 1.10 1997/02/22 13:24:23 peter Exp $
+.\"	$Id: cd.4,v 1.6.2.2 1997/02/28 03:26:27 mpp Exp $
 .\"
 .Dd January 16, 1996
 .Dt CD 4
@@ -63,12 +63,16 @@ bus is scanned for devices. Any devices found which answer as `Read-only'
 type devices will be `attached' to the 
 .Nm
 driver.
-In FreeBSD releases prior to 2.1, the first found will be attached as
+Prior to
+.Fx 2.1 ,
+the first device found will be attached as
 .Li cd0
 the next, 
 .Li cd1 ,
 etc.
-Beginning in 2.1 it is possible to specify what cd unit a device should
+Beginning in
+.Fx 2.1
+it is possible to specify what cd unit a device should
 come on line as; refer to
 .Xr scsi 4
 for details on kernel configuration.
