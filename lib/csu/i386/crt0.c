@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: crt0.c,v 1.25 1996/10/06 03:19:26 steve Exp $
+ *	$Id: crt0.c,v 1.26 1996/12/28 17:10:52 peter Exp $
  */
 
 #include <sys/param.h>
@@ -250,6 +250,7 @@ __do_dynamic_link ()
 	crt.crt_ep = environ;
 	crt.crt_bp = (caddr_t)_callmain;
 	crt.crt_prog = __progname;
+	crt.crt_ldso = ldso;
 	crt.crt_ldentry = NULL;
 
 	entry = (int (*)())(crt.crt_ba + sizeof hdr);
