@@ -237,25 +237,38 @@ install install.debug: modules-install
 reinstall reinstall.debug: modules-reinstall
 .endif
 
+MKMODULESENV=	MAKEOBJDIRPREFIX=${.OBJDIR}/modules KMODDIR=${KODIR}
+.if defined(MODULES_OVERRIDE)
+MKMODULESENV+=	MODULES_OVERRIDE="${MODULES_OVERRIDE}"
+.endif
+.if defined(DEBUG)
+MKMODULESENV+=	DEBUG="${DEBUG}" DEBUG_FLAGS="${DEBUG}"
+.endif
+
 modules:
 	@mkdir -p ${.OBJDIR}/modules
-	cd $S/modules && env MAKEOBJDIRPREFIX=${.OBJDIR}/modules ${MAKE} obj all
+	cd $S/modules ; env ${MKMODULESENV} ${MAKE} obj ; \
+	    env ${MKMODULESENV} ${MAKE} all
 
 modules-depend:
 	@mkdir -p ${.OBJDIR}/modules
-	cd $S/modules && env MAKEOBJDIRPREFIX=${.OBJDIR}/modules ${MAKE} obj depend
+	cd $S/modules ; env ${MKMODULESENV} ${MAKE} obj ; \
+	    env ${MKMODULESENV} ${MAKE} depend
 
 modules-clean:
-	cd $S/modules && env MAKEOBJDIRPREFIX=${.OBJDIR}/modules ${MAKE} clean
+	cd $S/modules ; env ${MKMODULESENV} ${MAKE} clean
 
 modules-cleandepend:
-	cd $S/modules && env MAKEOBJDIRPREFIX=${.OBJDIR}/modules ${MAKE} cleandepend
+	cd $S/modules ; env ${MKMODULESENV} ${MAKE} cleandepend
+
+modules-clobber:	modules-clean
+	rm -rf ${MKMODULESENV}
 
 modules-cleandir:
-	cd $S/modules && env MAKEOBJDIRPREFIX=${.OBJDIR}/modules ${MAKE} cleandir
+	cd $S/modules ; env ${MKMODULESENV} ${MAKE} cleandir
 
 modules-tags:
-	cd $S/modules && env MAKEOBJDIRPREFIX=${.OBJDIR}/modules ${MAKE} tags
+	cd $S/modules ; env ${MKMODULESENV} ${MAKE} tags
 
 modules-install modules-install.debug:
 .if !defined(NO_MODULES_OLD)
@@ -264,10 +277,10 @@ modules-install modules-install.debug:
 		cp -p ${DESTDIR}/modules/* ${DESTDIR}/modules.old; \
 	fi;
 .endif
-	cd $S/modules && env MAKEOBJDIRPREFIX=${.OBJDIR}/modules ${MAKE} install
+	cd $S/modules ; env ${MKMODULESENV} ${MAKE} install
 
 modules-reinstall modules-reinstall.debug:
-	cd $S/modules && env MAKEOBJDIRPREFIX=${.OBJDIR}/modules ${MAKE} install
+	cd $S/modules ; env ${MKMODULESENV} ${MAKE} install
 
 config.o:
 	${NORMAL_C}

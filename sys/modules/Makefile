@@ -109,4 +109,8 @@ SUBDIR+=snc
 SUBDIR+=osf1
 .endif
 
+.if defined(MODULES_OVERRIDE)
+SUBDIR=${MODULES_OVERRIDE}
+.endif
+
 .include <bsd.subdir.mk>
