@@ -294,7 +294,7 @@ options 	SEMUME=11	# max number of undo entries per process
 
 # System V message queues and tunable parameters
 options 	SYSVMSG		# include support for message queues
-options 	MSGMNB=2049	# max characters per message
+options 	MSGMNB=2049	# max characters per message queue
 options 	MSGMNI=41	# max number of message queue identifiers
 options 	MSGSEG=2049	# max number of message segments in the system
 options 	MSGSSZ=16	# size of a message segment MUST be power of 2
