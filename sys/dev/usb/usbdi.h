@@ -217,11 +217,11 @@ usbd_status usbd_open_pipe_iso
 	     usbd_private_handle priv, u_int32_t bufsize, u_int32_t nbuf,
 	     usbd_callback));
 usbd_status usbd_do_request 
-	__P((usbd_device_handle pipe, usb_device_request_t *req, void *data));
+	__P((usbd_device_handle dev, usb_device_request_t *req, void *data));
 usbd_status usbd_do_request_async
-	__P((usbd_device_handle pipe, usb_device_request_t *req, void *data));
+	__P((usbd_device_handle dev, usb_device_request_t *req, void *data));
 usbd_status usbd_do_request_flags
-	__P((usbd_device_handle pipe, usb_device_request_t *req, 
+	__P((usbd_device_handle dev, usb_device_request_t *req, 
 	     void *data, u_int16_t flags, int *));
 usb_interface_descriptor_t *usbd_get_interface_descriptor
 	__P((usbd_interface_handle iface));
