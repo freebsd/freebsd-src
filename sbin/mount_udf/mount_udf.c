@@ -46,9 +46,14 @@
 
 #include <sys/cdio.h>
 #include <sys/file.h>
+#include <sys/iconv.h>
 #include <sys/param.h>
+#include <sys/linker.h>
+#include <sys/module.h>
 #include <sys/mount.h>
 #include <sys/uio.h>
+
+#include <fs/udf/udf_mount.h>
 
 #include <err.h>
 #include <errno.h>
@@ -66,24 +71,32 @@ struct mntopt mopts[] = {
 	{ NULL, 0, 0, 0 }
 };
 
+int	set_charset(char **, char **, const char *);
 void	usage(void);
 
 int
 main(int argc, char **argv)
 {
-	struct iovec iov[6];
-	int ch, mntflags, opts;
+	struct iovec iov[12];
+	int ch, i, mntflags, opts, udf_flags;
 	char *dev, *dir, mntpath[MAXPATHLEN];
+	char *cs_disk, *cs_local;
 	int verbose;
 
-	mntflags = opts = verbose = 0;
-	while ((ch = getopt(argc, argv, "o:v")) != -1)
+	i = mntflags = opts = udf_flags = verbose = 0;
+	cs_disk = cs_local = NULL;
+	while ((ch = getopt(argc, argv, "o:vC:")) != -1)
 		switch (ch) {
 		case 'o':
 			getmntopts(optarg, mopts, &mntflags, &opts);
 			break;
 		case 'v':
 			verbose++;
+			break;
+		case 'C':
+			if (set_charset(&cs_disk, &cs_local, optarg) == -1)
+				err(EX_OSERR, "udf_iconv");
+			udf_flags |= UDFMNT_KICONV;
 			break;
 		case '?':
 		default:
@@ -110,27 +123,71 @@ main(int argc, char **argv)
 	 */
 	mntflags |= MNT_RDONLY;
 
-	iov[0].iov_base = "fstype";
-	iov[0].iov_len = sizeof("fstype");
-	iov[1].iov_base = "udf";
-	iov[1].iov_len = strlen(iov[1].iov_base) + 1;
-	iov[2].iov_base = "fspath";
-	iov[2].iov_len = sizeof("fspath");
-	iov[3].iov_base = mntpath;
-	iov[3].iov_len = strlen(mntpath) + 1;
-	iov[4].iov_base = "from";
-	iov[4].iov_len = sizeof("from");
-	iov[5].iov_base = dev;
-	iov[5].iov_len = strlen(dev) + 1;
-	if (nmount(iov, 6, mntflags) < 0)
+	iov[i].iov_base = "fstype";
+	iov[i++].iov_len = sizeof("fstype");
+	iov[i].iov_base = "udf";
+	iov[i].iov_len = strlen(iov[i].iov_base) + 1;
+	i++;
+	iov[i].iov_base = "fspath";
+	iov[i++].iov_len = sizeof("fspath");
+	iov[i].iov_base = mntpath;
+	iov[i++].iov_len = strlen(mntpath) + 1;
+	iov[i].iov_base = "from";
+	iov[i++].iov_len = sizeof("from");
+	iov[i].iov_base = dev;
+	iov[i++].iov_len = strlen(dev) + 1;
+	iov[i].iov_base = "flags";
+	iov[i++].iov_len = sizeof("flags");
+	iov[i].iov_base = &udf_flags;
+	iov[i++].iov_len = sizeof(udf_flags);
+	if (udf_flags & UDFMNT_KICONV) {
+		iov[i].iov_base = "cs_disk";
+		iov[i++].iov_len = sizeof("cs_disk") + 1;
+		iov[i].iov_base = cs_disk;
+		iov[i++].iov_len = strlen(cs_disk) + 1;
+		iov[i].iov_base = "cs_local";
+		iov[i++].iov_len = sizeof("cs_local") + 1;
+		iov[i].iov_base = cs_local;
+		iov[i++].iov_len = strlen(cs_local) + 1;
+	}
+	if (nmount(iov, i, mntflags) < 0)
 		err(1, "%s", dev);
 	exit(0);
+}
+
+int
+set_charset(char **cs_disk, char **cs_local, const char *localcs)
+{
+	int error;
+
+	if (modfind("udf_iconv") < 0)
+		if (kldload("udf_iconv") < 0 || modfind("udf_iconv") < 0) {
+			warnx( "cannot find or load \"udf_iconv\" kernel module");
+			return (-1);
+		}
+
+	if ((*cs_disk = malloc(ICONV_CSNMAXLEN)) == NULL)
+		return (-1);
+	if ((*cs_local = malloc(ICONV_CSNMAXLEN)) == NULL)
+		return (-1);
+	strncpy(*cs_disk, ENCODING_UNICODE, ICONV_CSNMAXLEN);
+	strncpy(*cs_local, localcs, ICONV_CSNMAXLEN);
+	error = kiconv_add_xlat16_cspair(*cs_local, *cs_disk, 0);
+	if (error)
+		return (-1);
+#if 0
+	error = kiconv_add_xlat16_cspair(*cs_disk, *cs_local, 0);
+	if (error)
+		return (-1);
+#endif
+
+	return (0);
 }
 
 void
 usage(void)
 {
 	(void)fprintf(stderr,
-		"usage: mount_udf [-v] [-o options] special node\n");
+		"usage: mount_udf [-v] [-o options] [-C charset] special node\n");
 	exit(EX_USAGE);
 }
