@@ -57,12 +57,6 @@ If
 is specified, only
 its value is printed.
 .Pp
-If a
-.Ar name
-is specified and it is not defined in the environment,
-.Nm
-returns exit status 1, else it returns status 0.
-.Pp
 Some shells may provide a builtin
 .Nm
 command which is similar or identical to this utility.
@@ -122,11 +116,26 @@ this way also allows one to reference
 .Pa foo
 without the path,
 as well as set up the environment as desired.
+.Sh DIAGNOSTICS
+.Ex -std printenv
+.Pp
+.Ex -std env
+An exit status of 126 indicates
+.Ar command
+was found, but could not be executed.
+An exit status of 127 indicates
+.Ar command
+could not be found.
 .Sh SEE ALSO
 .Xr csh 1 ,
 .Xr sh 1 ,
 .Xr execvp 3 ,
 .Xr environ 7
+.Sh STANDARDS
+The
+.Nm env
+utility conforms to
+.St -p1003.1-2001 .
 .Sh HISTORY
 The
 .Nm
