@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\" 
-.\" $Id$
+.\" $Id: login_tty.3,v 1.1 1996/12/29 18:30:39 joerg Exp $
 .\" "
 .Dd December 29, 1996
 .Os
@@ -43,11 +43,11 @@ on the
 command line.
 .Sh DESCRIPTION
 The function
-.Nm login_tty
-prepares a terminal for a new login session.  The filedescriptor
+.Fn login_tty
+prepares a terminal for a new login session.  The file descriptor
 .Ar fd
 passed to
-.Nm login_tty
+.Fn login_tty
 must be opened for reading and writing on a terminal device.  It will be
 made the controlling terminal for the calling process, after allocating
 a new session with
@@ -55,7 +55,7 @@ a new session with
 This terminal device will also be made the standard input, standard output,
 and standard error output of the calling process.
 .Sh RETURN VALUES
-.Nm Login_tty
+.Fn Login_tty
 returns -1 if it could not make the device referenced by
 .Ar fd
 the controlling terminal of the calling process, and 0 otherwise.
