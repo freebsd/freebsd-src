@@ -43,6 +43,7 @@
 .Nm finitef ,
 .Nm ilogb ,
 .Nm ilogbf ,
+.Nm ilogbl ,
 .Nm nextafter ,
 .Nm nextafterf ,
 .Nm remainder ,
@@ -70,6 +71,8 @@
 .Fn ilogb "double x"
 .Ft int
 .Fn ilogbf "float x"
+.Ft int
+.Fn ilogbl "long double x"
 .Ft double
 .Fn nextafter "double x" "double y"
 .Ft float
@@ -116,9 +119,10 @@ zero is returned
 .Fa x
 is \*(Na).
 .Pp
-.Fn ilogb
-and
+.Fn ilogb ,
 .Fn ilogbf
+and
+.Fn ilogbl
 return
 .Fa x Ns 's exponent,
 in integer format.
