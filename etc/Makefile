@@ -10,8 +10,8 @@ NOOBJ=	oobj
 BINOWN= root
 BINGRP= wheel
 BIN1=	aliases csh.cshrc csh.login csh.logout dm.conf \
-	ftpusers gettytab group hosts hosts.equiv hosts.lpd inetd.conf \
-	man.conf motd myname netstart phones \
+	ftpusers gettytab group hosts host.conf hosts.equiv hosts.lpd \
+	inetd.conf man.conf motd myname netstart phones \
 	printcap protocols rc rc.local remote security services shells \
 	syslog.conf ttys etc.${MACHINE}/disktab rpc
 
