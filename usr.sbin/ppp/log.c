@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: log.c,v 1.35 1998/08/21 18:10:14 brian Exp $
+ *	$Id: log.c,v 1.36 1999/03/07 11:54:41 brian Exp $
  */
 
 #include <sys/types.h>
@@ -364,7 +364,7 @@ log_DumpBp(int lev, const char *hdr, const struct mbuf *bp)
 }
 
 void
-log_DumpBuff(int lev, const char *hdr, const u_char * ptr, int n)
+log_DumpBuff(int lev, const char *hdr, const u_char *ptr, int n)
 {
   if (log_IsKept(lev)) {
     char buf[50];
