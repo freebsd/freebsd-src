@@ -38,6 +38,8 @@
 #define ARC 4
 #define CURVE 5
 #define POLYGON 6
+#define BSPLINE 7
+#define BEZIER 8
 #define TOPLEFT 10
 #define TOPCENT 11
 #define TOPRIGHT 12

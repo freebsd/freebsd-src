@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001
+/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001, 2002
    Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
@@ -389,7 +389,7 @@ static int ps_get_line(char *buf, FILE *fp)
   int err = 0;
   while (c != '\r' && c != '\n' && c != EOF) {
     if ((c < 0x1b && !white_space(c)) || c == 0x7f)
-      error("illegal input character code %1", int(c));
+      error("invalid input character code %1", int(c));
     else if (i < PS_LINE_MAX)
       buf[i++] = c;
     else if (!err) {
@@ -724,6 +724,32 @@ int read_one_of(const char **ptr, const char **s, int n)
   return -1;
 }
 
+void skip_possible_newline(const char *ptr, FILE *fp, FILE *outfp)
+{
+  int c = getc(fp);
+  if (c == '\r') {
+    current_lineno++;
+    if (outfp)
+      putc(c, outfp);
+    int cc = getc(fp);
+    if (cc != '\n') {
+      if (cc != EOF)
+	ungetc(cc, fp);
+    }
+    else {
+      if (outfp)
+	putc(cc, outfp);
+    }
+  }
+  else if (c == '\n') {
+    current_lineno++;
+    if (outfp)
+      putc(c, outfp);
+  }
+  else if (c != EOF)
+    ungetc(c, fp);
+}
+
 int resource_manager::do_begin_data(const char *ptr, int, FILE *fp,
 				    FILE *outfp)
 {
@@ -790,6 +816,7 @@ int resource_manager::do_begin_data(const char *ptr, int, FILE *fp,
       }
     } while ((unit == Bytes ? bytecount : linecount) < numberof);
   }
+  skip_possible_newline(ptr, fp, outfp);
   char buf[PS_LINE_MAX + 2];
   if (!ps_get_line(buf, fp)) {
     error("missing %%%%EndData line");
@@ -826,11 +853,12 @@ int resource_manager::do_begin_binary(const char *ptr, int, FILE *fp,
       if (cc != '\n')
 	current_lineno++;
       if (cc != EOF)
-	ungetc(c, fp);
+	ungetc(cc, fp);
     }
     else if (c == '\n')
       current_lineno++;
   }
+  skip_possible_newline(ptr, fp, outfp);
   char buf[PS_LINE_MAX + 2];
   if (!ps_get_line(buf, fp)) {
     error("missing %%%%EndBinary line");

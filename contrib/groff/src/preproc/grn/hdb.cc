@@ -15,6 +15,7 @@
 #include "error.h"
 
 #define MAXSTRING 128
+#define MAXSTRING_S "127"
 
 /* imports from main.cc */
 
@@ -89,7 +90,7 @@ DBRead(register FILE *file)
 
   SUNFILE = FALSE;
   elist = DBInit();
-  (void) fscanf(file, "%s\n", string);
+  (void) fscanf(file, "%" MAXSTRING_S "s%*[^\n]\n", string);
   if (strcmp(string, "gremlinfile")) {
     if (strcmp(string, "sungremlinfile")) {
       error("`%1' is not a gremlin file", gremlinfile);
@@ -103,10 +104,10 @@ DBRead(register FILE *file)
 
   done = FALSE;
   while (!done) {
-    /* if (fscanf(file,"%s\n", string) == EOF) */
+    /* if (fscanf(file,"%" MAXSTRING_S "s\n", string) == EOF) */
     /* I changed the scanf format because the element */
     /* can have two words (e.g. CURVE SPLINE)         */
-    if (fscanf(file, "\n%[^\n]\n", string) == EOF) {
+    if (fscanf(file, "\n%" MAXSTRING_S "[^\n]%*[^\n]\n", string) == EOF) {
       error("`%1', error in file format", gremlinfile);
       return (elist);
     }
@@ -210,8 +211,20 @@ DBGetType(register char *s)
   case 'A':
     return (ARC);
   case 'C':
-    if (s[1] == 'U')
-      return (CURVE);
+    if (s[1] == 'U') {
+      if (s[5] == '\n')
+	return (CURVE);
+      switch (s[7]) {
+      case 'S': 
+	return(BSPLINE);
+      case 'E':
+	fprintf(stderr,
+		"Warning: Bezier Curves will be printed as B-Splines\n");
+	return(BSPLINE);
+      default:
+	return(CURVE);
+      }
+    }
     switch (s[4]) {
     case 'L':
       return (CENTLEFT);

@@ -1,7 +1,7 @@
 srcdir=@srcdir@
 top_srcdir=@top_srcdir@
 VPATH=@srcdir@
-top_builddir=@top_builddir@
+top_builddir=@groff_top_builddir@
 
 version=`cat $(top_srcdir)/VERSION`
 # No additional number if revision is zero
@@ -12,7 +12,8 @@ GROFF_DATADIR = $(GROFF_PREFIX)/share
 GROFF_DATAPROGRAMDIR = $(GROFF_DATADIR)/groff
 GROFF_DATASUBDIR = $(GROFF_DATAPROGRAMDIR)/$(version)$(revision)
 GROFF_FONTDIR = $(GROFF_DATASUBDIR)/font
-GROFF_FONTPATH = $(GROFF_FONTDIR):/usr/local/lib/font:/usr/lib/font
+GROFF_LOCALFONTDIR = $(GROFF_DATAPROGRAMDIR)/site-font
+GROFF_FONTPATH = $(GROFF_FONTDIR):$(GROFF_LOCALFONTDIR):/usr/lib/font
 DPIS = 75 100
 
 PROGRAMS = \
@@ -72,7 +73,10 @@ DEFINES = \
 DEVDIR = $(top_builddir)/font
 MKINSTALLDIRS = $(top_srcdir)/mkinstalldirs
 
+#undef ProgramTargetHelper
+#define ProgramTargetHelper ProgramTargetHelperNoMan
 ComplexProgramTarget_1(gxditview,$(LOCAL_LIBRARIES),$(MATHLIB))
+InstallManPageLong($(srcdir)/gxditview,$(MANDIR),gxditview)
 NormalProgramTarget(xtotroff,$(OBJS2),$(DEPXLIB),$(XLIB), /**/)
 
 InstallAppDefaults(GXditview)

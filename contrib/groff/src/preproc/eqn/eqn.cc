@@ -1,26 +1,13 @@
-#if defined(__STDC__) || defined(__cplusplus)
-#define YYCONST const
-#define YYPARAMS(x) x
-#define YYDEFUN(name, arglist, args) name(args)
-#define YYAND ,
-#define YYPTR void *
-#else
-#define YYCONST
-#define YYPARAMS(x) ()
-#define YYDEFUN(name, arglist, args) name arglist args;
-#define YYAND ;
-#define YYPTR char *
-#endif
 #ifndef lint
-YYCONST static char yysccsid[] = "@(#)yaccpar	1.8 (Berkeley +Cygnus.28) 01/20/91";
+static char yysccsid[] = "@(#)yaccpar	1.9 (Berkeley) 02/21/93 (groff)";
 #endif
 #define YYBYACC 1
-#ifndef YYDONT_INCLUDE_STDIO
-#include <stdio.h>
-#endif
-#ifdef __cplusplus
-#include <stdlib.h> /* for malloc/realloc/free */
-#endif
+#define YYMAJOR 1
+#define YYMINOR 9
+#define yyclearin (yychar=(-1))
+#define yyerrok (yyerrflag=0)
+#define YYRECOVERING (yyerrflag!=0)
+#define YYPREFIX "yy"
 #line 20 "eqn.y"
 #include <stdio.h>
 #include <string.h>
@@ -41,7 +28,7 @@ typedef union {
 	int n;
 	column *col;
 } YYSTYPE;
-#line 45 "y.tab.c"
+#line 32 "y.tab.c"
 #define OVER 257
 #define SMALLOVER 258
 #define SQRT 259
@@ -101,7 +88,7 @@ typedef union {
 #define GRFONT 313
 #define GBFONT 314
 #define YYERRCODE 256
-static YYCONST short yylhs[] = {                                        -1,
+short yylhs[] = {                                        -1,
     0,    0,    6,    6,    1,    1,    1,    2,    2,    2,
     2,    2,    3,    3,    3,    3,    4,    4,    7,    7,
     7,    5,    5,    5,    5,    5,    5,    5,    5,    5,
@@ -111,7 +98,7 @@ static YYCONST short yylhs[] = {                                        -1,
    13,   16,   16,   15,   15,   14,   14,   14,   14,    9,
     9,   10,   10,   10,
 };
-static YYCONST short yylen[] = {                                         2,
+short yylen[] = {                                         2,
     0,    1,    1,    2,    1,    2,    2,    1,    3,    3,
     5,    5,    1,    2,    3,    3,    1,    3,    1,    3,
     5,    1,    1,    2,    2,    1,    1,    1,    3,    2,
@@ -121,7 +108,7 @@ static YYCONST short yylen[] = {                                         2,
     2,    1,    3,    3,    4,    2,    2,    2,    2,    1,
     1,    1,    1,    1,
 };
-static YYCONST short yydefred[] = {                                      0,
+short yydefred[] = {                                      0,
     0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
     0,    0,   22,   23,    0,    0,    0,    0,    0,    0,
     0,    0,    0,    0,    0,    0,   26,   27,   28,    0,
@@ -137,11 +124,11 @@ static YYCONST short yydefred[] = {                                      0,
    69,   34,   61,    0,    0,    0,    0,   59,   35,    0,
     0,    0,   11,   12,   21,    0,   64,    0,    0,   65,
 };
-static YYCONST short yydgoto[] = {                                      31,
+short yydgoto[] = {                                      31,
    32,   33,   34,   35,   36,   84,   38,   43,   44,   52,
    85,   45,   98,   99,  118,  131,
 };
-static YYCONST short yysindex[] = {                                   1488,
+short yysindex[] = {                                   1488,
  1527, -120, -120, -120, -120, -123, -249, -249, 1566, 1566,
  1566, 1566,    0,    0, -249, -249, -249, -249, -115, 1488,
  1488, -249, 1566, -256, -251, -249,    0,    0,    0, 1488,
@@ -157,7 +144,7 @@ static YYCONST short yysindex[] = {                                   1488,
     0,    0,    0, 1527, 1527, 1566, 1488,    0,    0, 1488,
  -105, 1488,    0,    0,    0, 1488,    0, -104, 1488,    0,
 };
-static YYCONST short yyrindex[] = {                                     41,
+short yyrindex[] = {                                     41,
     0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
     0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
     0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
@@ -173,12 +160,12 @@ static YYCONST short yyrindex[] = {                                     41,
     0,    0,    0,    0,    0,    0, -102,    0,    0, -101,
     0,    0,    0,    0,    0,    0,    0,    0,  -99,    0,
 };
-static YYCONST short yygindex[] = {                                      0,
+short yygindex[] = {                                      0,
    -7,  -69,    3,  -66,  458,    9,  -26,   52,   27,  -63,
   -32,   54,    0,  -35,    2,  -59,
 };
 #define YYTABLESIZE 1865
-static YYCONST short yytable[] = {                                      49,
+short yytable[] = {                                      49,
     8,   50,   42,   39,  105,  116,  122,   63,   37,    8,
   109,  113,   64,   65,   94,   95,   96,   97,  128,  137,
   140,   56,   57,   62,   68,   63,   76,   77,   69,   83,
@@ -367,7 +354,7 @@ static YYCONST short yytable[] = {                                      49,
    18,   19,    0,    0,    0,    0,    0,    0,   22,   23,
     0,   24,   25,    0,   26,
 };
-static YYCONST short yycheck[] = {                                     123,
+short yycheck[] = {                                     123,
     0,  125,  123,    1,   74,  123,  125,  123,    0,    9,
    77,  125,   20,   21,  287,  288,  289,  290,  125,  125,
   125,  125,  125,  125,  281,  125,  260,  261,  280,   37,
@@ -562,7 +549,7 @@ static YYCONST short yycheck[] = {                                     123,
 #endif
 #define YYMAXTOKEN 314
 #if YYDEBUG
-static YYCONST char *YYCONST yyname[] = {
+char *yyname[] = {
 "end-of-file",0,0,0,0,0,0,0,0,"'\\t'",0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,"'^'",0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -577,7 +564,7 @@ static YYCONST char *YYCONST yyname[] = {
 "UACCENT","SPECIAL","SPACE","GFONT","GSIZE","DEFINE","NDEFINE","TDEFINE",
 "SDEFINE","UNDEF","IFDEF","INCLUDE","DELIM","CHARTYPE","SET","GRFONT","GBFONT",
 };
-static YYCONST char *YYCONST yyrule[] = {
+char *yyrule[] = {
 "$accept : top",
 "top :",
 "top : equation",
@@ -655,13 +642,6 @@ static YYCONST char *YYCONST yyrule[] = {
 "delim : '}'",
 };
 #endif
-#define YYLEX yylex()
-#define YYEMPTY -1
-#define yyclearin (yychar=(YYEMPTY))
-#define yyerrok (yyerrflag=0)
-#ifndef YYINITDEPTH
-#define YYINITDEPTH 200
-#endif
 #ifdef YYSTACKSIZE
 #undef YYMAXDEPTH
 #define YYMAXDEPTH YYSTACKSIZE
@@ -669,44 +649,36 @@ static YYCONST char *YYCONST yyrule[] = {
 #ifdef YYMAXDEPTH
 #define YYSTACKSIZE YYMAXDEPTH
 #else
-#define YYSTACKSIZE 10000
-#define YYMAXDEPTH 10000
+#define YYSTACKSIZE 500
+#define YYMAXDEPTH 500
 #endif
 #endif
 int yydebug;
 int yynerrs;
 int yyerrflag;
 int yychar;
+short *yyssp;
+YYSTYPE *yyvsp;
 YYSTYPE yyval;
 YYSTYPE yylval;
-static short *yyss;
-static YYSTYPE *yyvs;
-static int yystacksize;
-static int yygrow ();
-static YYPTR yymalloc YYPARAMS((unsigned));
-static YYPTR yyrealloc YYPARAMS((YYPTR, unsigned));
-#define yyfree(x) free(x)
+short yyss[YYSTACKSIZE];
+YYSTYPE yyvs[YYSTACKSIZE];
+#define yystacksize YYSTACKSIZE
 #define YYABORT goto yyabort
+#define YYREJECT goto yyabort
 #define YYACCEPT goto yyaccept
 #define YYERROR goto yyerrlab
-
-#if YYDEBUG
-#ifdef __cplusplus
-extern "C" char *getenv();
-#else
-extern char *getenv();
-#endif
-#endif
-
 int
+#if defined(__STDC__)
+yyparse(void)
+#else
 yyparse()
+#endif
 {
     register int yym, yyn, yystate;
-    register YYSTYPE *yyvsp;
-    register short *yyssp;
-    short *yysse;
 #if YYDEBUG
-    register YYCONST char *yys;
+    register char *yys;
+    extern char *getenv();
 
     if (yys = getenv("YYDEBUG"))
     {
@@ -720,26 +692,12 @@ yyparse()
     yyerrflag = 0;
     yychar = (-1);
 
-    if (yyss == 0)
-    {
-        yyss = (short *) yymalloc (YYINITDEPTH * sizeof (short));
-        if (yyss == 0)
-          goto yyabort;
-        yyvs = (YYSTYPE *) yymalloc (YYINITDEPTH * sizeof (YYSTYPE));
-        if (yyvs == 0)
-        {
-            yyfree (yyss);
-            goto yyabort;
-        }
-        yystacksize = YYINITDEPTH;
-    }
-    yysse = yyss + yystacksize - 1;
     yyssp = yyss;
     yyvsp = yyvs;
     *yyssp = yystate = 0;
 
 yyloop:
-    if (yyn = yydefred[yystate]) goto yyreduce;
+    if ((yyn = yydefred[yystate]) != 0) goto yyreduce;
     if (yychar < 0)
     {
         if ((yychar = yylex()) < 0) yychar = 0;
@@ -749,8 +707,8 @@ yyloop:
             yys = 0;
             if (yychar <= YYMAXTOKEN) yys = yyname[yychar];
             if (!yys) yys = "illegal-symbol";
-            printf("yydebug: state %d, reading %d (%s)\n", yystate,
-                    yychar, yys);
+            printf("%sdebug: state %d, reading %d (%s)\n",
+                    YYPREFIX, yystate, yychar, yys);
         }
 #endif
     }
@@ -759,18 +717,12 @@ yyloop:
     {
 #if YYDEBUG
         if (yydebug)
-            printf("yydebug: state %d, shifting to state %d\n",
-                    yystate, yytable[yyn]);
+            printf("%sdebug: state %d, shifting to state %d\n",
+                    YYPREFIX, yystate, yytable[yyn]);
 #endif
-        if (yyssp >= yysse)
+        if (yyssp >= yyss + yystacksize - 1)
         {
-            /* FIXME: Rework so there's only one of these.  */
-            int depth = yyssp - yyss;
-            if (yygrow () != 0)
-              goto yyoverflow;
-            yysse = yyss + yystacksize - 1;
-            yyssp = yyss + depth;
-            yyvsp = yyvs + depth;
+            goto yyoverflow;
         }
         *++yyssp = yystate = yytable[yyn];
         *++yyvsp = yylval;
@@ -806,17 +758,12 @@ yyinrecovery:
             {
 #if YYDEBUG
                 if (yydebug)
-                    printf("yydebug: state %d, error recovery shifting\
- to state %d\n", *yyssp, yytable[yyn]);
+                    printf("%sdebug: state %d, error recovery shifting\
+ to state %d\n", YYPREFIX, *yyssp, yytable[yyn]);
 #endif
-                if (yyssp >= yysse)
+                if (yyssp >= yyss + yystacksize - 1)
                 {
-                    int depth = yyssp - yyss;
-                    if (yygrow () != 0)
-                      goto yyoverflow;
-                    yysse = yyss + yystacksize - 1;
-                    yyssp = yyss + depth;
-                    yyvsp = yyvs + depth;
+                    goto yyoverflow;
                 }
                 *++yyssp = yystate = yytable[yyn];
                 *++yyvsp = yylval;
@@ -826,8 +773,8 @@ yyinrecovery:
             {
 #if YYDEBUG
                 if (yydebug)
-                    printf("yydebug: error recovery discarding state %d\n",
-                            *yyssp);
+                    printf("%sdebug: error recovery discarding state %d\n",
+                            YYPREFIX, *yyssp);
 #endif
                 if (yyssp <= yyss) goto yyabort;
                 --yyssp;
@@ -844,8 +791,8 @@ yyinrecovery:
             yys = 0;
             if (yychar <= YYMAXTOKEN) yys = yyname[yychar];
             if (!yys) yys = "illegal-symbol";
-            printf("yydebug: state %d, error recovery discards token %d (%s)\n",
-                    yystate, yychar, yys);
+            printf("%sdebug: state %d, error recovery discards token %d (%s)\n",
+                    YYPREFIX, yystate, yychar, yys);
         }
 #endif
         yychar = (-1);
@@ -854,8 +801,8 @@ yyinrecovery:
 yyreduce:
 #if YYDEBUG
     if (yydebug)
-        printf("yydebug: state %d, reducing by rule %d (%s)\n",
-                yystate, yyn, yyrule[yyn]);
+        printf("%sdebug: state %d, reducing by rule %d (%s)\n",
+                YYPREFIX, yystate, yyn, yyrule[yyn]);
 #endif
     yym = yylen[yyn];
     yyval = yyvsp[1-yym];
@@ -1164,7 +1111,7 @@ case 74:
 #line 328 "eqn.y"
 { yyval.str = strsave("}"); }
 break;
-#line 1168 "y.tab.c"
+#line 1115 "y.tab.c"
     }
     yyssp -= yym;
     yystate = *yyssp;
@@ -1174,8 +1121,8 @@ break;
     {
 #if YYDEBUG
         if (yydebug)
-            printf("yydebug: after reduction, shifting from state 0 to\
- state %d\n", YYFINAL);
+            printf("%sdebug: after reduction, shifting from state 0 to\
+ state %d\n", YYPREFIX, YYFINAL);
 #endif
         yystate = YYFINAL;
         *++yyssp = YYFINAL;
@@ -1189,8 +1136,8 @@ break;
                 yys = 0;
                 if (yychar <= YYMAXTOKEN) yys = yyname[yychar];
                 if (!yys) yys = "illegal-symbol";
-                printf("yydebug: state %d, reading %d (%s)\n",
-                        YYFINAL, yychar, yys);
+                printf("%sdebug: state %d, reading %d (%s)\n",
+                        YYPREFIX, YYFINAL, yychar, yys);
             }
 #endif
         }
@@ -1204,17 +1151,12 @@ break;
         yystate = yydgoto[yym];
 #if YYDEBUG
     if (yydebug)
-        printf("yydebug: after reduction, shifting from state %d \
-to state %d\n", *yyssp, yystate);
+        printf("%sdebug: after reduction, shifting from state %d \
+to state %d\n", YYPREFIX, *yyssp, yystate);
 #endif
-    if (yyssp >= yysse)
+    if (yyssp >= yyss + yystacksize - 1)
     {
-        int depth = yyssp - yyss;
-        if (yygrow () != 0)
-          goto yyoverflow;
-        yysse = yyss + yystacksize - 1;
-        yyssp = yyss + depth;
-        yyvsp = yyvs + depth;
+        goto yyoverflow;
     }
     *++yyssp = yystate;
     *++yyvsp = yyval;
@@ -1224,54 +1166,5 @@ yyoverflow:
 yyabort:
     return (1);
 yyaccept:
-    return (0);
-}
-
-static int
-yygrow ()
-{
-    int old_stacksize = yystacksize;
-    short *new_yyss;
-    YYSTYPE *new_yyvs;
-
-    if (yystacksize >= YYMAXDEPTH)
-        return (1);
-    yystacksize *= 2;
-    if (yystacksize > YYMAXDEPTH)
-        yystacksize = YYMAXDEPTH;
-#if YYDEBUG
-    if (yydebug)
-        printf("yydebug: growing stack size from %d to %d\n",
-               old_stacksize, yystacksize);
-#endif
-    new_yyss = (short *) yyrealloc (yyss, yystacksize * sizeof (short));
-    if (new_yyss == 0)
-        return (1);
-    new_yyvs = (YYSTYPE *) yyrealloc (yyvs, yystacksize * sizeof (YYSTYPE));
-    if (new_yyvs == 0)
-    {
-        yyfree (new_yyss);
-        return (1);
-    }
-    yyss = new_yyss;
-    yyvs = new_yyvs;
-    return (0);
-}
-
-static YYPTR
-YYDEFUN (yymalloc, (bytes), unsigned bytes)
-{
-    YYPTR ptr = (YYPTR) malloc (bytes);
-    if (ptr != 0) return (ptr);
-    yyerror ("yyparse: memory exhausted");
-    return (0);
-}
-
-static YYPTR
-YYDEFUN (yyrealloc, (old, bytes), YYPTR old YYAND unsigned bytes)
-{
-    YYPTR ptr = (YYPTR) realloc (old, bytes);
-    if (ptr != 0) return (ptr);
-    yyerror ("yyparse: memory exhausted");
     return (0);
 }

@@ -1,6 +1,7 @@
 .\" an-old.tmac
 .\"
-.\" Copyright (C) 1989, 1990, 1991, 1992, 2001 Free Software Foundation, Inc.
+.\" Copyright (C) 1989, 1990, 1991, 1992, 2001, 2002
+.\"   Free Software Foundation, Inc.
 .\"      Written by James Clark (jjc@jclark.com)
 .\"
 .\" This file is part of groff.
@@ -30,16 +31,18 @@
 .\"  -rXnnn => Number pages after nnn as nnna, nnnb, nnnc, ...
 .\"
 .\" The file man.local is loaded at the end.  Put local additions there.
-.\" If you need to add things to TH, use `.am TH'.
+.\" If you need to add things to TH, use `.am1 TH'.
 .\"
 .
 .if !\n(.g .ab These man macros work only with groff.
 .
+.do if d RI .nx
+.
 .nr _C \n(.C
 .cp 0
 .
-.if (\n[.x]\n[.y]\n[.Y] < 1171) \
-.  ab You need GNU troff version 1.17.1 or higher to run this version of man!
+.if (\n[.x]\n[.y] < 118) \
+.  ab You need GNU troff version 1.18 or higher to run this version of man!
 .
 .if !r D .nr D 0
 .if !r C .nr C 0
@@ -55,10 +58,32 @@
 .  el   .nr cR 0
 .\}
 .
+.if !r LL \{\
+.  ie n .nr LL 78n
+.  el   .nr LL 6.5i
+.\}
+.if !r LT \{\
+.  ie n .nr LT 78n
+.  el   .nr LT 6.5i
+.\}
+.
 .nr an-html 0
 .if '\*[.T]'html' .nr an-html 1
 .if \n[an-html] .nr C 1
 .if r ps4html .nr C 1
+.
+.\" we redefine .ne to avoid page breaks; instead, the page length is
+.\" increased to the necessary amount (this is needed for tables)
+.if n \{\
+.  de1 ne
+.    ie \\n[.$] \
+.      nr an-ne \\$*
+.    el \
+.      nr an-ne 1v
+.    if (\\n[an-ne] >= \\n[.t]) \
+.      pl +(\\n[an-ne]u - \\n[.t]u + 1v)
+.  .
+.\}
 .
 .de set-an-margin
 .  nr an-margin \\n[IN]
@@ -67,7 +92,7 @@
 .\" .TH title section extra1 extra2 extra3
 .de1 TH
 .  if \\n[an-html] \{\
-.     HTML-TAG ".tl"
+.    HTML-TAG ".tl"
 \\$1
 .  \}
 .
@@ -109,6 +134,7 @@
 .
 .  ps \\n[PS]u
 .  vs \\n[VS]u
+.  ll \\n[LL]u
 .
 .  nr IN 7.2n
 .  PD
@@ -171,6 +197,7 @@
 .  ev 1
 .  ps \\n[PS]u
 .  vs \\n[VS]u
+.  lt \\n[LT]u
 .  ie \\n[an-html] \
 .    tl ''''
 .  el \{\
@@ -196,6 +223,7 @@
 .  ev 1
 .  ps \\n[PS]u
 .  vs \\n[VS]u
+.  lt \\n[LT]u
 .  ie \\n[an-html] \{\
 .    ds an-page-string
 .    ds an-extra1
@@ -226,7 +254,7 @@
 .
 .de1 an-end
 .  nr % 1
-.  pl +3v
+.  pl +4v
 .  fl
 .  sp 3
 .  an-p-footer
@@ -249,7 +277,7 @@
 .  nr an-break-flag 1
 .  ps \\n[PS-SH]u
 .  ft B
-.  if !\\n[cR] .ne (2v + 1u)
+.  ne (2v + 1u)
 .  if \\n[.$] \&\\$*
 ..
 .
@@ -266,7 +294,7 @@
 .  nr an-break-flag 1
 .  ps \\n[PS-SS]u
 .  ft B
-.  if !\\n[cR] .ne (2v + 1u)
+.  ne (2v + 1u)
 .  if \\n[.$] \&\\$*
 ..
 .
@@ -279,7 +307,7 @@
 .de1 I
 .  it 1 an-trap
 .  ft I
-.  if \\n[.$] \&\\$*
+.  if \\n[.$] \,\\$*\/
 ..
 .
 .de1 SM
@@ -299,12 +327,9 @@
 .  sp \\n[PD]u
 .  if \\n[.$] .nr an-prevailing-indent (n;\\$1)
 .  it 1 an-trap
+.  in 0
+.  ll -\\n[an-margin]u
 .  if !\\n[an-div?] .di an-div
-.  ie \\n[an-html] .in \\n[an-margin]u
-.  el \{\
-.    in 0
-.    ll -\\n[an-margin]u
-.  \}
 .  nr an-div? 1
 ..
 .
@@ -330,7 +355,7 @@
 .  di
 .  ie (\\n[dl] + \\n[an-tag-sep] > \\n[an-prevailing-indent]) \{\
 .    in \\n[an-margin]u
-.    if !\\n[cR] .ne (2v + 1u)
+.    ne (2v + 1u)
 .    an-div
 .    br
 .    in (\\n[an-margin]u + \\n[an-prevailing-indent]u)
@@ -339,8 +364,29 @@
 .    in (\\n[an-margin]u + \\n[an-prevailing-indent]u)
 .    ti -\\n[an-prevailing-indent]u
 .    chop an-div
-.    if !\\n[cR] .ne (1v + 1u)
+.    ne (1v + 1u)
 \\*[an-div]\\h'|\\n[an-prevailing-indent]u'\c
+.  \}
+..
+.
+.de an-do-tag-html
+.  nr an-div? 0
+.  br
+.  ll
+.  di
+.  ie ((\\n[dl] + \\n[an-tag-sep]) > \\n[an-prevailing-indent]) \{\
+.    in \\n[an-margin]u
+.    an-div
+.    br
+.    in (\\n[an-margin]u + \\n[an-prevailing-indent]u + \\n[an-tag-sep]u)
+.  \}
+.  el \{\
+.    in (\\n[an-margin]u + \\n[an-prevailing-indent]u + \\n[an-tag-sep]u)
+.    ti \\n[an-margin]u
+.    chop an-div
+.    HTML-TAG-NS ".col 1"
+\\*[an-div]\\h'|\\n[an-prevailing-indent]u'\\h'\\n[an-tag-sep]u'\c
+.    HTML-TAG-NS ".col 2"
 .  \}
 ..
 .
@@ -363,7 +409,7 @@
 .    vs \\n[VS]u
 .    ft R
 .    sp \\n[PD]u
-.    if !\\n[cR] .ne (1v + 1u)
+.    ne (1v + 1u)
 .    in (\\n[an-margin]u + \\n[an-prevailing-indent]u)
 .  \}
 .  el \{\
@@ -378,7 +424,7 @@
 .  vs \\n[VS]u
 .  ft R
 .  sp \\n[PD]u
-.  if !\\n[cR] .ne (1v + 1u)
+.  ne (1v + 1u)
 .  if \\n[.$] .nr an-prevailing-indent (n;\\$1)
 .  in (\\n[an-margin]u + \\n[an-prevailing-indent]u)
 .  ti \\n[an-margin]u
@@ -483,17 +529,55 @@
 .  in \\n[an-margin]u
 ..
 .
+.\" table support
+.
+.de1 TS
+.  sp \\n[PD]u
+.  HTML-IMAGE
+..
+.
+.de1 T&
+..
+.
+.de1 TE
+.  HTML-IMAGE-END
+..
+.
+.\" dummy equation delimiters
+.de1 EQ
+.  HTML-IMAGE
+..
+.de1 EN
+.  HTML-IMAGE-END
+..
+.
+.de1 R
+\c
+.  ie \\n[.$] \{\
+.    tm `R' is a string (producing the registered sign), not a macro.
+.    nop \\$*
+.  \}
+.  el \{\
+.    ie c\[rg] \
+.      nop \[rg]\c
+.    el \
+.      nop (Reg.)\c
+.  \}
+..
+.
 .\" these strings must work in compatibility mode also
 .
-.ds S \s(\\n(PS
-.ie c\[rg] .ds R \(rg
-.el        .ds R (Reg.)
+.ds S \s'\\n(PSu'
 .ie c\[tm] .ds Tm \(tm
 .el        .ds Tm (TM)
 .ds lq \(lq
 .ds rq \(rq
 .
-.if !\n[an-html] .hy 14
+.ie \n[an-html] \{\
+.   rm an-do-tag
+.   als an-do-tag an-do-tag-html
+.\}
+.el .hy 14
 .
 .\" Load local modifications.
 .mso man.local

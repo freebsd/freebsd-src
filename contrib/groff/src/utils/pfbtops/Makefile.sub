@@ -1,6 +1,6 @@
-PROG=pfbtops
+PROG=pfbtops$(EXEEXT)
 MAN1=pfbtops.n
-OBJS=pfbtops.o
+OBJS=pfbtops.$(OBJEXT)
 CSRCS=$(srcdir)/pfbtops.c
 XLIBS=$(LIBGROFF)
 MLIB=$(LIBM)

@@ -1,6 +1,6 @@
-#! /usr/bin/perl -P-
+#! /usr/bin/perl
 # -*- Perl -*-
-# Copyright (C) 1989-2000 Free Software Foundation, Inc.
+# Copyright (C) 1989-2000, 2001, 2002 Free Software Foundation, Inc.
 #      Written by James Clark (jjc@jclark.com)
 #
 # This file is part of groff.
@@ -145,6 +145,7 @@ if ($opt_e) {
     
     open(ENCODING, $opt_e) || die "$prog: can't open \`$opt_e': $!\n";
     while (<ENCODING>) {
+	next if /^#/;
 	chop;
 	@field = split(' ');
 	if ($#field == 1) {

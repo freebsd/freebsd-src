@@ -1,5 +1,6 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992 Free Software Foundation, Inc.
+/* Copyright (C) 1989, 1990, 1991, 1992, 2001, 2002
+     Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -51,14 +52,6 @@ void output::set_args(const char *s)
     args = 0;
   else
     args = strsave(s);
-}
-
-void output::command(const char *, const char *, int)
-{
-}
-
-void output::set_location(const char *, int)
-{
 }
 
 int output::supports_filled_polygons()
@@ -219,7 +212,8 @@ struct arrow_head_type {
 };
 
 void draw_arrow(const position &pos, const distance &dir,
-		const arrow_head_type &aht, const line_type &lt)
+		const arrow_head_type &aht, const line_type &lt,
+		char *outline_color_for_fill)
 {
   double hyp = hypot(dir);
   if (hyp == 0.0) {
@@ -237,8 +231,9 @@ void draw_arrow(const position &pos, const distance &dir,
     v[0] = pos;
     v[1] = pos + base + n;
     v[2] = pos + base - n;
-    // A value > 1 means fill with the current color.
-    out->polygon(v, 3, slt, 2.0);
+    // fill with outline color
+    out->set_color(outline_color_for_fill, outline_color_for_fill);
+    out->polygon(v, 3, slt, 1);
   }
   else {
     position v[2];
@@ -549,6 +544,8 @@ class graphic_object : public object {
   int aligned;
 protected:
   line_type lt;
+  char *outline_color;
+  char *color_fill;
 public:
   graphic_object();
   ~graphic_object();
@@ -559,10 +556,14 @@ public:
   void set_dashed(double);
   void set_thickness(double);
   void set_invisible();
+  void set_outline_color(char *);
+  char *get_outline_color();
   virtual void set_fill(double);
+  virtual void set_fill_color(char *);
 };
 
-graphic_object::graphic_object() : ntext(0), text(0), aligned(0)
+graphic_object::graphic_object()
+: ntext(0), text(0), aligned(0), outline_color(0), color_fill(0)
 {
 }
 
@@ -585,6 +586,21 @@ void graphic_object::set_thickness(double th)
 
 void graphic_object::set_fill(double)
 {
+}
+
+void graphic_object::set_fill_color(char *c)
+{
+  color_fill = c;
+}
+
+void graphic_object::set_outline_color(char *c)
+{
+  outline_color = c;
+}
+
+char *graphic_object::get_outline_color()
+{
+  return outline_color;
 }
 
 void graphic_object::set_invisible()
@@ -622,8 +638,11 @@ void graphic_object::print_text()
     if (d.x != 0.0 || d.y != 0.0)
       angle = atan2(d.y, d.x);
   }
-  if (text != 0)
+  if (text != 0) {
+    out->set_color(color_fill, get_outline_color());
     out->text(center(), text, ntext, angle);
+    out->reset_color();
+  }
 }
 
 graphic_object::~graphic_object()
@@ -676,12 +695,14 @@ public:
   closed_object(const position &);
   object_type type() = 0;
   void set_fill(double);
+  void set_fill_color(char *fill);
 protected:
   double fill;			// < 0 if not filled
+  char *color_fill;		// = 0 if not colored
 };
 
 closed_object::closed_object(const position &pos)
-: rectangle_object(pos), fill(-1.0)
+: rectangle_object(pos), fill(-1.0), color_fill(0)
 {
 }
 
@@ -691,6 +712,10 @@ void closed_object::set_fill(double f)
   fill = f;
 }
 
+void closed_object::set_fill_color(char *fill)
+{
+  color_fill = fill;
+}
 
 class box_object : public closed_object {
   double xrad;
@@ -738,8 +763,9 @@ position box_object::south_west()
 
 void box_object::print()
 {
-  if (lt.type == line_type::invisible && fill < 0.0)
+  if (lt.type == line_type::invisible && fill < 0.0 && color_fill == 0)
     return;
+  out->set_color(color_fill, graphic_object::get_outline_color());
   if (xrad == 0.0) {
     distance dim2 = dim/2.0;
     position vec[4];
@@ -753,6 +779,7 @@ void box_object::print()
     distance abs_dim(fabs(dim.x), fabs(dim.y));
     out->rounded_box(cent, abs_dim, fabs(xrad), lt, fill);
   }
+  out->reset_color();
 }
 
 graphic_object *object_spec::make_box(position *curpos, direction *dirp)
@@ -990,9 +1017,11 @@ ellipse_object::ellipse_object(const position &d)
 
 void ellipse_object::print()
 {
-  if (lt.type == line_type::invisible && fill < 0.0)
+  if (lt.type == line_type::invisible && fill < 0.0 && color_fill == 0)
     return;
+  out->set_color(color_fill, graphic_object::get_outline_color());
   out->ellipse(cent, dim, lt, fill);
+  out->reset_color();
 }
 
 graphic_object *object_spec::make_ellipse(position *curpos, direction *dirp)
@@ -1037,9 +1066,11 @@ circle_object::circle_object(double diam)
 
 void circle_object::print()
 {
-  if (lt.type == line_type::invisible && fill < 0.0)
+  if (lt.type == line_type::invisible && fill < 0.0 && color_fill == 0)
     return;
+  out->set_color(color_fill, graphic_object::get_outline_color());
   out->circle(cent, dim.x/2.0, lt, fill);
+  out->reset_color();
 }
 
 graphic_object *object_spec::make_circle(position *curpos, direction *dirp)
@@ -1098,7 +1129,7 @@ graphic_object *object_spec::make_move(position *curpos, direction *dirp)
   // No need to look at at since `at' attribute sets `from' attribute.
   position startpos = (flags & HAS_FROM) ? from : *curpos;
   if (!(flags & HAS_SEGMENT)) {
-    if ((flags && IS_SAME) && have_last_move)
+    if ((flags & IS_SAME) && have_last_move)
       segment_pos = last_move;
     else {
       switch (dir) {
@@ -1222,11 +1253,14 @@ void line_object::print()
 {
   if (lt.type == line_type::invisible)
     return;
+  out->set_color(0, graphic_object::get_outline_color());
   out->line(strt, v, n, lt);
   if (arrow_at_start)
-    draw_arrow(strt, strt-v[0], aht, lt);
+    draw_arrow(strt, strt-v[0], aht, lt, graphic_object::get_outline_color());
   if (arrow_at_end)
-    draw_arrow(en, v[n-1] - (n > 1 ? v[n - 2] : strt), aht, lt);
+    draw_arrow(en, v[n-1] - (n > 1 ? v[n - 2] : strt), aht, lt,
+	       graphic_object::get_outline_color());
+  out->reset_color();
 }
 
 void line_object::update_bounding_box(bounding_box *p)
@@ -1289,11 +1323,14 @@ void spline_object::print()
 {
   if (lt.type == line_type::invisible)
     return;
+  out->set_color(0, graphic_object::get_outline_color());
   out->spline(strt, v, n, lt);
   if (arrow_at_start)
-    draw_arrow(strt, strt-v[0], aht, lt);
+    draw_arrow(strt, strt-v[0], aht, lt, graphic_object::get_outline_color());
   if (arrow_at_end)
-    draw_arrow(en, v[n-1] - (n > 1 ? v[n - 2] : strt), aht, lt);
+    draw_arrow(en, v[n-1] - (n > 1 ? v[n - 2] : strt), aht, lt,
+	       graphic_object::get_outline_color());
+  out->reset_color();
 }
 
 line_object::~line_object()
@@ -1500,6 +1537,7 @@ void arc_object::print()
 {
   if (lt.type == line_type::invisible)
     return;
+  out->set_color(0, graphic_object::get_outline_color());
   if (clockwise)
     out->arc(en, cent, strt, lt);
   else
@@ -1508,14 +1546,15 @@ void arc_object::print()
     position c = cent - strt;
     draw_arrow(strt,
 	       (clockwise ? position(c.y, -c.x) : position(-c.y, c.x)),
-	       aht, lt);
+	       aht, lt, graphic_object::get_outline_color());
   }
   if (arrow_at_end) {
     position e = en - cent;
     draw_arrow(en,
 	       (clockwise ? position(e.y, -e.x) : position(-e.y, e.x)),
-	       aht, lt);
+	       aht, lt, graphic_object::get_outline_color());
   }
+  out->reset_color();
 }
 
 inline double max(double a, double b)
@@ -1708,13 +1747,19 @@ object *object_spec::make_object(position *curpos, direction *dirp)
     else
       lookup_variable("linethick", &th);
     obj->set_thickness(th);
+    if (flags & IS_OUTLINED)
+      obj->set_outline_color(outlined);
     if (flags & (IS_DEFAULT_FILLED|IS_FILLED)) {
-      if (flags & IS_DEFAULT_FILLED)
-	lookup_variable("fillval", &fill);
-      if (fill < 0.0)
-	error("bad fill value %1", fill);
-      else
-	obj->set_fill(fill);
+      if (flags & IS_SHADED)
+	obj->set_fill_color(shaded);
+      else {
+	if (flags & IS_DEFAULT_FILLED)
+	  lookup_variable("fillval", &fill);
+	if (fill < 0.0)
+	  error("bad fill value %1", fill);
+	else
+	  obj->set_fill(fill);
+      }
     }
   }
   return obj;
@@ -1737,18 +1782,28 @@ string_list::~string_list()
   a_delete str;
 }
   
-/* A path is used to hold the argument to the with attribute. For example,
-`.nw' or `.A.s' or `.A'. The major operation on a path is to take a 
-place and follow the path through the place to place within the place.
-Note that `.A.B.C.sw' will work. */
+/* A path is used to hold the argument to the `with' attribute.  For
+   example, `.nw' or `.A.s' or `.A'.  The major operation on a path is to
+   take a place and follow the path through the place to place within the
+   place.  Note that `.A.B.C.sw' will work.
+
+   For compatibility with DWB pic, `with' accepts positions also (this
+   is incorrectly documented in CSTR 116). */
 
 path::path(corner c)
-: crn(c), label_list(0), ypath(0)
+: crn(c), label_list(0), ypath(0), is_position(0)
 {
 }
 
+path::path(position p)
+: crn(0), label_list(0), ypath(0), is_position(1)
+{
+  pos.x = p.x;
+  pos.y = p.y;
+}
+
 path::path(char *l, corner c)
-: crn(c), ypath(0)
+: crn(c), ypath(0), is_position(0)
 {
   label_list = new string_list(l);
 }
@@ -1786,6 +1841,12 @@ void path::set_ypath(path *p)
 
 int path::follow(const place &pl, place *result) const
 {
+  if (is_position) {
+    result->x = pos.x;
+    result->y = pos.y;
+    result->obj = 0;
+    return 1;
+  }
   const place *p = &pl;
   for (string_list *lb = label_list; lb; lb = lb->next)
     if (p->obj == 0 || (p = p->obj->find_label(lb->str)) == 0) {
@@ -1795,9 +1856,9 @@ int path::follow(const place &pl, place *result) const
   if (crn == 0 || p->obj == 0)
     *result = *p;
   else {
-    position pos = ((p->obj)->*(crn))();
-    result->x = pos.x;
-    result->y = pos.y;
+    position ps = ((p->obj)->*(crn))();
+    result->x = ps.x;
+    result->y = ps.y;
     result->obj = 0;
   }
   if (ypath) {

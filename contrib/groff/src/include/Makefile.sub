@@ -2,14 +2,16 @@ HDRS=\
   assert.h \
   cmap.h \
   cset.h \
+  color.h \
   device.h \
   driver.h \
   errarg.h \
   error.h \
   font.h \
+  geometry.h \
   getopt.h \
   groff-getopt.h \
-  htmlindicate.h \
+  htmlhint.h \
   index.h \
   lib.h \
   macropath.h \
@@ -22,7 +24,6 @@ HDRS=\
   searchpath.h \
   stringclass.h
 GENHDRS=defs.h
-CLEANADD=$(GENHDRS)
 
 all depend: $(GENHDRS)
 

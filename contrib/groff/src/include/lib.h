@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989-2000, 2001 Free Software Foundation, Inc.
+/* Copyright (C) 1989-2000, 2001, 2002 Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -18,20 +18,30 @@ You should have received a copy of the GNU General Public License along
 with groff; see the file COPYING.  If not, write to the Free Software
 Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 extern "C" {
 #ifndef HAVE_STRERROR
   char *strerror(int);
 #endif
   const char *i_to_a(int);
+  const char *ui_to_a(unsigned int);
   const char *if_to_a(int, int);
 }
 
-/* stdio.h on IRIX, OSF/1, and UWIN includes getopt.h */
+/* stdio.h on IRIX, OSF/1, emx, and UWIN include getopt.h */
+/* unistd.h on CYGWIN includes getopt.h */
 
 #if !(defined(__sgi) \
       || (defined(__osf__) && defined(__alpha)) \
-      || defined(_UWIN))
+      || defined(_UWIN) \
+      || defined(__EMX__) \
+      || defined(__CYGWIN__))
 #include <groff-getopt.h>
+#else
+#include <getopt.h>
 #endif
 
 char *strsave(const char *s);
@@ -43,31 +53,54 @@ int is_prime(unsigned);
 #include <strings.h>
 #endif
 
-FILE *xtmpfile(char **namep = 0, char *postfix = 0, int do_unlink = 1);
-char *xtmptemplate(char *extension = 0);
+#ifndef HAVE_SNPRINTF
+#include <stdarg.h>
+extern "C" {
+  int snprintf(char *, size_t, const char *, /*args*/ ...);
+  int vsnprintf(char *, size_t, const char *, va_list);
+}
+#endif
+
+#ifndef HAVE_MKSTEMP
+/* since mkstemp() is defined as a real C++ function if taken from
+   groff's mkstemp.cc we need a declaration */
+int mkstemp(char *tmpl);
+#endif /* HAVE_MKSTEMP */
+
+int mksdir(char *tmpl);
+
+FILE *xtmpfile(char **namep = 0,
+	       const char *postfix_long = 0, const char *postfix_short = 0,
+	       int do_unlink = 1);
+char *xtmptemplate(const char *postfix_long, const char *postfix_short);
 
 #ifdef NEED_DECLARATION_POPEN
-
 extern "C" { FILE *popen(const char *, const char *); }
-
 #endif /* NEED_DECLARATION_POPEN */
 
 #ifdef NEED_DECLARATION_PCLOSE
-
 extern "C" { int pclose (FILE *); }
-
 #endif /* NEED_DECLARATION_PCLOSE */
 
 size_t file_name_max(const char *fname);
 
 int interpret_lf_args(const char *p);
 
-extern char illegal_char_table[];
+extern char invalid_char_table[];
 
-inline int illegal_input_char(int c)
+inline int invalid_input_char(int c)
 {
-  return c >= 0 && illegal_char_table[c];
+  return c >= 0 && invalid_char_table[c];
 }
+
+#ifdef HAVE_STRCASECMP
+#ifdef NEED_DECLARATION_STRCASECMP
+extern "C" {
+  // Ultrix4.3's string.h fails to declare this.
+  int strcasecmp(const char *, const char *);
+}
+#endif /* NEED_DECLARATION_STRCASECMP */
+#endif /* HAVE_STRCASECMP */
 
 #if !defined(_AIX) && !defined(sinix) && !defined(__sinix__)
 #ifdef HAVE_STRNCASECMP

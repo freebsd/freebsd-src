@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 2000, 2001 Free Software Foundation, Inc.
+/* Copyright (C) 2000, 2001, 2002 Free Software Foundation, Inc.
      Written by Gaius Mulley (gaius@glam.ac.uk).
 
 This file is part of groff.
@@ -20,18 +20,21 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 
 #define PREHTMLC
 
-#include <stdio.h>
+#include "lib.h"
+
 #include <signal.h>
 #include <ctype.h>
 #include <assert.h>
 #include <stdlib.h>
 #include <errno.h>
-#include "lib.h"
 #include "errarg.h"
 #include "error.h"
 #include "stringclass.h"
 #include "posix.h"
 #include "defs.h"
+#include "searchpath.h"
+#include "paper.h"
+#include "font.h"
 
 #include <errno.h>
 #include <sys/types.h>
@@ -53,32 +56,27 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 extern "C" const char *Version_string;
 
 #include "pre-html.h"
-#include "pushbackbuffer.h"
+#include "pushback.h"
 #include "html-strings.h"
 
-#define POSTSCRIPTRES          72000   // maybe there is a better way to find this? --fixme--
-#define DEFAULT_IMAGE_RES         80   // 80 pixels per inch resolution
-#define DEFAULT_VERTICAL_OFFSET   45   // DEFAULT_VERTICAL_OFFSET/72 of an inch
+#define DEFAULT_LINE_LENGTH        7   // inches wide
+#define DEFAULT_IMAGE_RES        100   // number of pixels per inch resolution
 #define IMAGE_BOARDER_PIXELS       0
-#define MAX_WIDTH                  8   // inches
 #define INLINE_LEADER_CHAR      '\\'
-#define MAX_RETRIES             4096   // number of different page directory names to try before giving up
 
-#define TRANSPARENT  "-background \"#FFF\" -transparent \"#FFF\""
+#define TRANSPARENT  "-background white -transparent white"
+#define MIN_ALPHA_BITS             0
+#define MAX_ALPHA_BITS             4
 
-#ifdef __MSDOS__
-#define PAGE_TEMPLATE "pg"
-#define PS_TEMPLATE "ps"
-#define REGION_TEMPLATE "rg"
-#else
-#define PAGE_TEMPLATE "-page-"
-#define PS_TEMPLATE "-ps-"
-#define REGION_TEMPLATE "-regions-"
-#endif
+#define PAGE_TEMPLATE_SHORT "pg"
+#define PAGE_TEMPLATE_LONG "-page-"
+#define PS_TEMPLATE_SHORT "ps"
+#define PS_TEMPLATE_LONG "-ps-"
+#define REGION_TEMPLATE_SHORT "rg"
+#define REGION_TEMPLATE_LONG "-regions-"
 
 #if 0
 #   define  DEBUGGING
-#   define  DEBUG_HTML
 #endif
 
 #if !defined(TRUE)
@@ -88,30 +86,40 @@ extern "C" const char *Version_string;
 #   define FALSE (1==0)
 #endif
 
-void stop() {}
-
 typedef enum {CENTERED, LEFT, RIGHT, INLINE} IMAGE_ALIGNMENT;
 
-static int   stdoutfd       = 1;                // output file descriptor - normally 1 but might move
+static int   postscriptRes    =-1;              // postscript resolution, dots per inch
+static int   stdoutfd         = 1;              // output file descriptor - normally 1 but might move
                                                 // -1 means closed
-static int   copyofstdoutfd =-1;                // a copy of stdout, so we can restore stdout when
+static int   copyofstdoutfd   =-1;              // a copy of stdout, so we can restore stdout when
                                                 // writing to post-html
-static char *psFileName     = NULL;             // name of postscript file
-static char *regionFileName = NULL;             // name of file containing all image regions
-static char *imagePageStem  = NULL;             // stem of all files containing page images
-static char *image_device   = "pnmraw";
-static int   image_res      = DEFAULT_IMAGE_RES;
-static int   vertical_offset= DEFAULT_VERTICAL_OFFSET;
-static char *image_template = NULL;             // image template filename
-static int   troff_arg      = 0;                // troff arg index
-static char *command_prefix = NULL;             // optional prefix for some installations.
-static char *troff_command  = NULL;
-static char *image_dir      = NULL;             // user specified image directory
+static char *psFileName       = NULL;           // name of postscript file
+static char *psPageName       = NULL;           // name of file containing postscript current page
+static char *regionFileName   = NULL;           // name of file containing all image regions
+static char *imagePageName    = NULL;           // name of bitmap image containing current page
+static char *image_device     = "pnmraw";
+static int   image_res        = DEFAULT_IMAGE_RES;
+static int   vertical_offset  = 0;
+static char *image_template   = NULL;           // image template filename
+static char *macroset_template= NULL;           // image template passed to troff by -D
+static int   troff_arg        = 0;              // troff arg index
+static char *image_dir        = NULL;           // user specified image directory
+static int   textAlphaBits    = MAX_ALPHA_BITS;
+static int   graphicAlphaBits = MAX_ALPHA_BITS;
+static char *antiAlias        = NULL;           // antialias arguments we pass to gs.
+static int   show_progress    = FALSE;          // should we display page numbers as they are processed?
+static int   currentPageNo    = -1;             // current image page number
 #if defined(DEBUGGING)
 static int   debug          = FALSE;
 static char *troffFileName  = NULL;             // output of pre-html output which is sent to troff -Tps
 static char *htmlFileName   = NULL;             // output of pre-html output which is sent to troff -Thtml
 #endif
+
+static char *linebuf = NULL;                    // for scanning devps/DESC
+static int linebufsize = 0;
+
+const char *const FONT_ENV_VAR = "GROFF_FONT_PATH";
+static search_path font_path(FONT_ENV_VAR, FONTPATH, 0, 0);
 
 
 /*
@@ -132,12 +140,80 @@ static int do_file(const char *filename);
 
 void sys_fatal (const char *s)
 {
-  fprintf(stderr, "%s: %s: %s", program_name, s, strerror(errno));
+  fatal("%1: %2", s, strerror(errno));
+}
+
+/*
+ *  get_line - copies a line (w/o newline) from a file to the global line buffer
+ */
+
+int get_line (FILE *f)
+{
+  if (f == 0)
+    return 0;
+  if (linebuf == 0) {
+    linebuf = new char[128];
+    linebufsize = 128;
+  }
+  int i = 0;
+  // skip leading whitespace
+  for (;;) {
+    int c = getc(f);
+    if (c == EOF)
+      return 0;
+    if (c != ' ' && c != '\t') {
+      ungetc(c, f);
+      break;
+    }
+  }
+  for (;;) {
+    int c = getc(f);
+    if (c == EOF)
+      break;
+    if (i + 1 >= linebufsize) {
+      char *old_linebuf = linebuf;
+      linebuf = new char[linebufsize * 2];
+      memcpy(linebuf, old_linebuf, linebufsize);
+      a_delete old_linebuf;
+      linebufsize *= 2;
+    }
+    linebuf[i++] = c;
+    if (c == '\n') {
+      i--;
+      break;
+    }
+  }
+  linebuf[i] = '\0';
+  return 1;
+}
+
+/*
+ *  get_resolution - returns the postscript resolution from devps/DESC
+ */
+
+static unsigned int get_resolution (void)
+{
+  char *pathp;
+  FILE *f;
+  unsigned int res;
+  f = font_path.open_file("devps/DESC", &pathp);
+  if (f == 0)
+    fatal("can't open devps/DESC");
+  while (get_line(f)) {
+    int n = sscanf(linebuf, "res %u", &res);
+    if (n >= 1) {
+      fclose(f);
+      return res;
+    }
+  }
+  fatal("can't find `res' keyword in devps/DESC");
+  return 0;
 }
 
 /*
  *  html_system - a wrapper for system()
  */
+
 void html_system(const char *s, int redirect_stdout)
 {
   // Redirect standard error to the null device.  This is more
@@ -160,15 +236,9 @@ void html_system(const char *s, int redirect_stdout)
     fprintf(stderr, "Calling `%s' failed\n", s);
   else if (status)
     fprintf(stderr, "Calling `%s' returned status %d\n", s, status);
+  close(save_stderr);
+  close(save_stdout);
 }
-
-#if 0
-
-/*
- *  if/when vsnprintf becomes available on all *NIX machines we can use this function,
- *  until then we must use the more complex function below which performs hand built
- *  %d, %s and %%.
- */
 
 /*
  *  make_message - taken from man printf(3), creates a string via malloc
@@ -194,9 +264,7 @@ make_message (const char *fmt, ...)
     /* If that worked, return the string. */
     if (n > -1 && n < size) {
       if (size > n+1) {
-	np = strdup(p);
-	if (np == NULL)
-	  sys_fatal("strdup");
+	np = strsave(p);
 	free(p);
 	return np;
       }
@@ -214,142 +282,6 @@ make_message (const char *fmt, ...)
     p = np;  /* use realloc'ed, p */
   }
 }
-#else
-
-/*
- *  lengthOfintToStr - returns the length of the proposed string value of i.
- *                     Hand built log10.
- */
-
-int
-lengthOfintToStr (int i)
-{
-  int n=0;
-
-  if (i < 0)
-    sys_fatal("expecting positive integer value");
-
-  do {
-    i /= 10;
-    n++;
-  } while (i > 0);
-  return n;
-}
-
-/*
- *  intToStr - returns a string containing the positive value of i.
- *             (int i is assumed to be positive).
- */
-
-char *
-intToStr (int i)
-{
-  int n=lengthOfintToStr(i)+1;
-  char *p = (char *)malloc(n);
-
-  if (p == NULL)
-    sys_fatal("malloc");
-
-  if (i < 0)
-    sys_fatal("expecting positive integer value");
-
-  n--;
-  p[n] = (char)0;
-  do {
-    n--;
-    p[n] = (char)((i % 10) + (int)'0');
-    i /= 10;
-  } while (i > 0);
-  return( p );
-}
-
-/*
- *  make_message - returns a string built from a format specifier.
- *                 This function does not use vsnprintf; it only
- *                 understands primitive %%, %s, and %d specifiers.
- */
-
-char *
-make_message (const char *fmt, ...)
-{
-  char *p = strdup(fmt);  /* so we can splat a nul anywhere in the string */
-  char *np;
-  char *l;
-  char *s;
-  char *num;
-  int   search=0;
-  va_list ap;
-
-  if (p == NULL)
-    sys_fatal("strdup");
-  
-  va_start(ap, fmt);
-  while (p) {
-    int   lenp=strlen(p);
-    char *f   = strchr(p+search, '%');
-
-    search = f-p;
-    np = p;
-
-    if (f == NULL) {
-      va_end(ap);
-      return p;
-    }
-    switch (*(f+1)) {
-
-    case 'd':
-      l = strdup(f+2);
-      if (l == NULL)
-	sys_fatal("strdup");
-      *f = (char)0;
-      num = intToStr(va_arg(ap, int));
-      np = (char *)malloc(strlen(p)+strlen(num)+strlen(l)+1);
-      if (np == NULL)
-	sys_fatal("malloc");
-      strcpy(np, p);
-      strcat(np, num);
-      strcat(np, l);
-      search += strlen(np)-lenp;
-      free(num);
-      free(l);
-      break;
-    case 's':
-      /* concat */
-      l = f+2;
-      if (l == NULL)
-	sys_fatal("strdup");
-      s = va_arg(ap, char *);
-      *f = (char)0;
-      np = (char *)malloc(strlen(l)+1+strlen(p)+strlen(s));
-      if (np == NULL)
-	sys_fatal("malloc");
-      strcpy(np, p);
-      strcat(np, s);
-      strcat(np, l);
-      search += strlen(s);
-      break;
-    case '%':
-      /* remove one of the two % that we have seen */
-      *f = (char)0;
-      l = f+1;
-      np = (char *)malloc(strlen(l)+1+strlen(p));
-      if (np == NULL)
-	sys_fatal("malloc");
-      strcpy(np, p);
-      strcat(np, l);
-      search++;
-      break;
-    default:
-      sys_fatal("unexpected format specifier");
-      return NULL;
-    }
-    free(p);
-    p = np;
-  }
-  va_end(ap);
-  return NULL;
-}
-#endif
 
 /*
  *  the class and methods for retaining ascii text
@@ -385,7 +317,7 @@ public:
   void write_upto_newline (char_block **t, int *i, int is_html);
   int  can_see(char_block **t, int *i, char *string);
   int  skip_spaces(char_block **t, int *i);
-  void skip_to_newline(char_block **t, int *i);
+  void skip_until_newline(char_block **t, int *i);
 private:
   char_block *head;
   char_block *tail;
@@ -473,13 +405,12 @@ static void writeString (char *s)
 }
 
 /*
- *  makeFileName - creates the image filename template.
+ *  makeFileName - creates the image filename template
+ *                 and the macroset image template.
  */
 
 static void makeFileName (void)
 {
-  char *s;
-
   if ((image_dir != NULL) && (strchr(image_dir, '%') != NULL)) {
     error("cannot use a `%%' within the image directory name");
     exit(1);
@@ -499,19 +430,35 @@ static void makeFileName (void)
   }
   
   if (image_template == NULL)
-    s = make_message("%sgrohtml-%d", image_dir, (int)getpid());
-  else {
-    s = make_message("%s%s", image_dir, image_template);
-  }
-  if (s == NULL)
+    macroset_template = make_message("%sgrohtml-%d", image_dir, (int)getpid());
+  else
+    macroset_template = make_message("%s%s", image_dir, image_template);
+
+  if (macroset_template == NULL)
     sys_fatal("make_message");
 
-  image_template = (char *)malloc(strlen("-%d")+strlen(s)+1);
+  image_template = (char *)malloc(strlen("-%d")+strlen(macroset_template)+1);
   if (image_template == NULL)
     sys_fatal("malloc");
-  strcpy(image_template, s);
+  strcpy(image_template, macroset_template);
   strcat(image_template, "-%d");
-  free(s);
+}
+
+/*
+ *  setupAntiAlias - sets up the antialias string, used when we call gs.
+ */
+
+static void setupAntiAlias (void)
+{
+  if (textAlphaBits == 0 && graphicAlphaBits == 0)
+    antiAlias = make_message(" ");
+  else if (textAlphaBits == 0)
+    antiAlias = make_message("-dGraphicsAlphaBits=%d ", graphicAlphaBits);
+  else if (graphicAlphaBits == 0)
+    antiAlias = make_message("-dTextAlphaBits=%d ", textAlphaBits);
+  else
+    antiAlias = make_message("-dTextAlphaBits=%d -dGraphicsAlphaBits=%d ",
+			     textAlphaBits, graphicAlphaBits);
 }
 
 /*
@@ -521,7 +468,7 @@ static void makeFileName (void)
 static void checkImageDir (void)
 {
   if ((image_dir != NULL) && (strcmp(image_dir, "") != 0))
-    if (! ((mkdir(image_dir, 0700) == 0) || (errno == EEXIST))) {
+    if (! ((mkdir(image_dir, 0777) == 0) || (errno == EEXIST))) {
       error("cannot create directory `%1'", image_dir);
       exit(1);
     }
@@ -533,17 +480,19 @@ static void checkImageDir (void)
 
 static void write_end_image (int is_html)
 {
-  if (is_html) {
-    /*
-     *  emit image name and enable output
-     */
-    writeString("\\O[2]\\O[1]\\O[4]\n");
-  } else {
-    /*
-     *  postscript, therefore emit image boundaries
-     */
-    writeString("\\O[2]\\O[4]\n");
-  }
+  /*
+   *  if we are producing html then these
+   *    emit image name and enable output
+   *  else
+   *    we are producing images
+   *    in which case these generate image
+   *    boundaries
+   */
+  writeString("\\O[4]\\O[2]");
+  if (is_html)
+    writeString("\\O[1]");
+  else
+    writeString("\\O[0]");
 }
 
 /*
@@ -556,36 +505,29 @@ static void write_end_image (int is_html)
 
 static void write_start_image (IMAGE_ALIGNMENT pos, int is_html)
 {
-  if (pos == INLINE) {
-    writeString("\\O[3]\\O[5 ");
-    writeString(image_template); writeString(".png]");
-  } else {
-    writeString(".begin \\{\\\n");
-    switch (pos) {
+  writeString("\\O[5");
+  switch (pos) {
 
-    case LEFT:
-      writeString(".    image l ");
-      break;
-    case RIGHT:
-      writeString(".    image r ");
-      break;
-    case CENTERED:
-    default:
-      writeString(".    image c ");
-    }
-    writeString(image_template); writeString(".png\n");
-    if (! is_html) {
-      writeString(".bp\n");
-      writeString(".tl ''''\n");
-    }
-    writeString("\\}\n");
+  case INLINE:
+    writeString("i");
+    break;
+  case LEFT:
+    writeString("l");
+    break;
+  case RIGHT:
+    writeString("r");
+    break;
+  case CENTERED:
+  default:
+    writeString("c");
+    break;
   }
-  if (is_html) {
-    writeString("\\O[0]\n");
-  } else {
+  writeString(image_template); writeString(".png]");
+  if (is_html)
+    writeString("\\O[0]\\O[3]");
+  else
     // reset min/max registers
-    writeString("\\O[0]\\O[1]\n");
-  }
+    writeString("\\O[1]\\O[3]");
 }
 
 /*
@@ -690,11 +632,11 @@ int char_buffer::skip_spaces(char_block **t, int *i)
 }
 
 /*
- *  skip_to_newline - skips all characters until a newline is seen.
- *                    The newline is also consumed.
+ *  skip_until_newline - skips all characters until a newline is seen.
+ *                       The newline is not consumed.
  */
 
-void char_buffer::skip_to_newline (char_block **t, int *i)
+void char_buffer::skip_until_newline (char_block **t, int *i)
 {
   int j=*i;
 
@@ -702,17 +644,10 @@ void char_buffer::skip_to_newline (char_block **t, int *i)
     while ((j < (*t)->used) && ((*t)->buffer[j] != '\n')) {
       j++;
     }
-    if ((j < (*t)->used) && ((*t)->buffer[j] == '\n')) {
-      j++;
-    }
     if (j == (*t)->used) {
       *i = 0;
-      if ((*t)->buffer[j-1] == '\n') {
-	*t = (*t)->next;
-      } else {
-	*t = (*t)->next;
-	skip_to_newline(t, i);
-      }
+      *t = (*t)->next;
+      skip_until_newline(t, i);
     } else {
       // newline was seen
       *i = j;
@@ -731,24 +666,7 @@ void char_buffer::write_file_troff (void)
 
   if (t != NULL) {
     do {
-      /*
-       *  remember to check the shortest string last
-       */
-      if (can_see(&t, &i, HTML_IMAGE_END)) {
-	write_end_image(FALSE);
-	skip_to_newline(&t, &i);
-      } else if (can_see(&t, &i, HTML_IMAGE_LEFT)) {
-	write_start_image(LEFT, FALSE);
-	skip_to_newline(&t, &i);
-      } else if (can_see(&t, &i, HTML_IMAGE_RIGHT)) {
-	write_start_image(RIGHT, FALSE);
-	skip_to_newline(&t, &i);
-      } else if (can_see(&t, &i, HTML_IMAGE_CENTERED)) {
-	write_start_image(CENTERED, FALSE);
-	skip_to_newline(&t, &i);
-      } else {
-	write_upto_newline(&t, &i, FALSE);
-      }
+      write_upto_newline(&t, &i, FALSE);
     } while (t != NULL);
   }
   if (close(stdoutfd) < 0)
@@ -820,6 +738,10 @@ public:
   imageList();
   ~imageList();
   void  add(int x1, int y1, int x2, int y2, int page, int res, int maxx, char *name);
+  void  createImages (void);
+  int   createPage (int pageno);
+  void  createImage (imageItem *i);
+  int   getMaxX (int pageno);
 };
 
 /*
@@ -845,79 +767,73 @@ imageList::~imageList ()
 }
 
 /*
- *  createAllPages - creates a set of images, one per page.
+ *  createPage - creates one image of, page pageno, from the postscript file.
  */
 
-static int createAllPages (void)
+int imageList::createPage (int pageno)
 {
-  char buffer[4096];
   char *s;
-  int retries = MAX_RETRIES;
 
-  imagePageStem = xtmptemplate(PAGE_TEMPLATE);
-  strcpy(buffer, imagePageStem);
+  if (currentPageNo == pageno)
+    return 0;
 
-  do {
-    if (mktemp(imagePageStem) == NULL) {
-      sys_fatal("mktemp");
-      return -1;
-    }
-    if (mkdir(imagePageStem, 0700) == 0) break;
-    if (errno == EEXIST) {
-      // directory already exists, try another name
-      retries--;
-      if (retries == 0) {
-	// time to give up
-	sys_fatal("mkdir");
-	return -1;
-      }
-    } else {
-      // another error, quit
-      sys_fatal("mkdir");
-      return -1;
-    }      
-    strcpy(imagePageStem, buffer);
-  } while (1);
+  if (currentPageNo >= 1) {
+    /*
+     *  we need to unlink the files which change each time a new page is processed.
+     *  The final unlink is done by xtmpfile when pre-grohtml exits.
+     */
+    unlink(imagePageName);
+    unlink(psPageName);
+  }
 
-  s = make_message("echo showpage | "
-		   "gs%s -q -dSAFER -sDEVICE=%s -r%d "
-		   "-sOutputFile=%s/%%d %s -",
-		   EXE_EXT,
-		   image_device,
-		   image_res,
-		   imagePageStem,
-		   psFileName);
+  if (show_progress) {
+    fprintf(stderr, "[%d] ", pageno);
+    fflush(stderr);
+  }
+
+#if defined(DEBUGGING)
+  if (debug)
+    fprintf(stderr, "creating page %d\n", pageno);
+#endif
+
+  s = make_message("psselect -q -p%d %s %s\n",
+		   pageno, psFileName, psPageName);
+
   if (s == NULL)
     sys_fatal("make_message");
 #if defined(DEBUGGING)
-  fwrite(s, sizeof(char), strlen(s), stderr);
-  fflush(stderr);
+  if (debug) {
+    fwrite(s, sizeof(char), strlen(s), stderr);
+    fflush(stderr);
+  }
 #endif
   html_system(s, 1);
-  free(s);
-  return 0;
-}
-
-/*
- *  removeAllPages - removes all page images.
- */
-
-static void removeAllPages (void)
-{
-#if !defined(DEBUGGING)
-  char *s=NULL;
-  int  i=1;
-
-  do {
-    if (s)
-      free(s);
-    s = make_message("%s/%d", imagePageStem, i);
-    if (s == NULL)
-      sys_fatal("make_message");
-    i++;
-  } while (unlink(s) == 0);
-  rmdir(imagePageStem);
+  
+  s = make_message("echo showpage | "
+		   "gs%s -q -dBATCH -dSAFER "
+		   "-dDEVICEHEIGHTPOINTS=792 "
+		   "-dDEVICEWIDTHPOINTS=%d -dFIXEDMEDIA=true "
+		   "-sDEVICE=%s -r%d %s "
+		   "-sOutputFile=%s %s -\n",
+		   EXE_EXT,
+		   (getMaxX(pageno) * image_res) / postscriptRes,
+		   image_device,
+		   image_res,
+		   antiAlias,
+		   imagePageName,
+		   psPageName);
+  if (s == NULL)
+    sys_fatal("make_message");
+#if defined(DEBUGGING)
+  if (debug) {
+    fwrite(s, sizeof(char), strlen(s), stderr);
+    fflush(stderr);
+  }
 #endif
+  html_system(s, 1);
+  a_delete s;
+  currentPageNo = pageno;
+  return 0;
 }
 
 /*
@@ -947,38 +863,63 @@ int max (int x, int y)
 }
 
 /*
+ *  getMaxX - returns the largest right hand position for any image on, pageno
+ */
+
+int imageList::getMaxX (int pageno)
+{
+  imageItem *h = head;
+  int x        = postscriptRes * DEFAULT_LINE_LENGTH;
+
+  while (h != NULL) {
+    if (h->pageNo == pageno)
+      x = max(h->X2, x);
+    h = h->next;
+  }
+  return x;
+}
+
+/*
  *  createImage - generates a minimal png file from the set of page images.
  */
 
-static void createImage (imageItem *i)
+void imageList::createImage (imageItem *i)
 {
   if (i->X1 != -1) {
     char *s;
-    int  x1 = max(min(i->X1, i->X2)*image_res/POSTSCRIPTRES-1*IMAGE_BOARDER_PIXELS, 0);
-    int  y1 = max((image_res*vertical_offset/72)+min(i->Y1, i->Y2)*image_res/POSTSCRIPTRES-IMAGE_BOARDER_PIXELS, 0);
-    int  x2 = max(i->X1, i->X2)*image_res/POSTSCRIPTRES+1*IMAGE_BOARDER_PIXELS;
-    int  y2 = (image_res*vertical_offset/72)+max(i->Y1, i->Y2)*image_res/POSTSCRIPTRES+1*IMAGE_BOARDER_PIXELS;
-
-    s = make_message("pnmcut%s %d %d %d %d < %s/%d | pnmtopng%s %s > %s \n",
-		     EXE_EXT,
-		     x1, y1, x2-x1+1, y2-y1+1,
-		     imagePageStem,
-		     i->pageNo,
-		     EXE_EXT,
-		     TRANSPARENT,
-		     i->imageName);
-    if (s == NULL)
-      sys_fatal("make_message");
+    int  x1 = max(min(i->X1, i->X2)*image_res/postscriptRes-1*IMAGE_BOARDER_PIXELS, 0);
+    int  y1 = max((image_res*vertical_offset/72)+min(i->Y1, i->Y2)*image_res/postscriptRes-IMAGE_BOARDER_PIXELS, 0);
+    int  x2 = max(i->X1, i->X2)*image_res/postscriptRes+1*IMAGE_BOARDER_PIXELS;
+    int  y2 = (image_res*vertical_offset/72)+(max(i->Y1, i->Y2)*image_res/postscriptRes)+1+IMAGE_BOARDER_PIXELS;
+    if (createPage(i->pageNo) == 0) {
+      s = make_message("pnmcut%s %d %d %d %d < %s | pnmcrop -quiet | pnmtopng%s %s > %s \n",
+		       EXE_EXT,
+		       x1, y1, x2-x1+1, y2-y1+1,
+		       imagePageName,
+		       EXE_EXT,
+		       TRANSPARENT,
+		       i->imageName);
+      if (s == NULL)
+	sys_fatal("make_message");
 
 #if defined(DEBUGGING)
-    fprintf(stderr, s);
+      if (debug) {
+	fprintf(stderr, s);
+	fflush(stderr);
+      }
 #endif
-    html_system(s, 0);
-    free(s);
+      html_system(s, 0);
+      a_delete s;
+    } else {
+      fprintf(stderr, "failed to generate image of page %d\n", i->pageNo);
+      fflush(stderr);
+    }
 #if defined(DEBUGGING)
   } else {
-    fprintf(stderr, "ignoring image as x1 coord is -1\n");
-    fflush(stderr);
+    if (debug) {
+      fprintf(stderr, "ignoring image as x1 coord is -1\n");
+      fflush(stderr);
+    }
 #endif
   }
 }
@@ -998,7 +939,20 @@ void imageList::add (int x1, int y1, int x2, int y2, int page, int res, int maxx
     tail->next = i;
     tail = i;
   }
-  createImage(i);
+}
+
+/*
+ *  createImages - foreach image descriptor on the imageList, create the actual image.
+ */
+
+void imageList::createImages (void)
+{
+  imageItem *h = head;
+
+  while (h != NULL) {
+    createImage(h);
+    h = h->next;
+  }
 }
 
 static imageList listOfImages;  // list of images defined by the region file.
@@ -1011,31 +965,12 @@ static imageList listOfImages;  // list of images defined by the region file.
 
 void char_buffer::write_file_html (void)
 {
-  char_block *t      =head;
+  char_block *t=head;
   int         i=0;
 
   if (t != NULL) {
-    stop();
     do {
-      /*
-       *  remember to check the shortest string last
-       */
-      if (can_see(&t, &i, HTML_IMAGE_END)) {
-	write_end_image(TRUE);
-	skip_to_newline(&t, &i);
-      } else if (can_see(&t, &i, HTML_IMAGE_LEFT)) {
-	write_start_image(LEFT, TRUE);
-	skip_to_newline(&t, &i);
-      } else if (can_see(&t, &i, HTML_IMAGE_RIGHT)) {
-	write_start_image(RIGHT, TRUE);
-	skip_to_newline(&t, &i);
-      } else if (can_see(&t, &i, HTML_IMAGE_CENTERED)) {
-	stop();
-	write_start_image(CENTERED, TRUE);
-	skip_to_newline(&t, &i);
-      } else {
-	write_upto_newline(&t, &i, TRUE);
-      }
+      write_upto_newline(&t, &i, TRUE);
     } while (t != NULL);
   }
   if (close(stdoutfd) < 0)
@@ -1067,9 +1002,9 @@ static void generateImages (char *regionFileName)
       int y1     = f->readInt();
       int x2     = f->readInt();
       int y2     = f->readInt();
-      int maxx   = max(f->readInt(), MAX_WIDTH*image_res);
+      int maxx   = f->readInt();
       char *name = f->readString();
-      int res    = POSTSCRIPTRES;  // --fixme--    prefer (f->readInt()) providing that troff can discover the value
+      int res    = postscriptRes;
       listOfImages.add(x1, y1, x2, y2, page, res, maxx, name);
       while ((f->putPB(f->getPB()) != '\n') &&
 	     (f->putPB(f->getPB()) != eof)) {
@@ -1085,6 +1020,13 @@ static void generateImages (char *regionFileName)
       fputc(f->getPB(), stderr);
     }
   }
+  
+  listOfImages.createImages();
+  if (show_progress) {
+    fprintf(stderr, "done\n");
+    fflush(stderr);
+  }
+  delete f;
 }
 
 /*
@@ -1123,7 +1065,7 @@ static void waitForChild (PID_T pid)
   PID_T waitpd;
   int   status;
 
-  waitpd = wait(&status);
+  waitpd = WAIT(&status, pid, _WAIT_CHILD);
   if (waitpd != pid)
     sys_fatal("wait");
 }
@@ -1132,7 +1074,7 @@ static void waitForChild (PID_T pid)
  *  alterDeviceTo - if toImage is set then the arg list is altered to include
  *                     IMAGE_DEVICE and we invoke groff rather than troff.
  *                  else 
- *                     set -Thtml and troff
+ *                     set -Thtml and groff
  */
 
 static void alterDeviceTo (int argc, char *argv[], int toImage)
@@ -1154,8 +1096,68 @@ static void alterDeviceTo (int argc, char *argv[], int toImage)
       }
       i++;
     }
-    argv[troff_arg] = troff_command;  /* use troff */
+    argv[troff_arg] = "groff";   /* use groff -Z */
   }
+}
+
+/*
+ *  addZ - appends -Z onto the command list for groff.
+ */
+
+char **addZ (int argc, char *argv[])
+{
+  char **new_argv = (char **)malloc((argc+2)*sizeof(char *));
+  int    i=0;
+
+  if (new_argv == NULL)
+    sys_fatal("malloc");
+
+  if (argc > 0) {
+    new_argv[i] = argv[i];
+    i++;
+  }
+  new_argv[i] = "-Z";
+  while (i<argc) {
+    new_argv[i+1] = argv[i];
+    i++;
+  }
+  argc++;
+  new_argv[argc] = NULL;
+  return new_argv;
+}
+
+/*
+ *  addRegDef - appends a defined register or string onto the command list for troff.
+ */
+
+char **addRegDef (int argc, char *argv[], const char *numReg)
+{
+  char **new_argv = (char **)malloc((argc+2)*sizeof(char *));
+  int    i=0;
+
+  if (new_argv == NULL)
+    sys_fatal("malloc");
+
+  while (i<argc) {
+    new_argv[i] = argv[i];
+    i++;
+  }
+  new_argv[argc] = strdup(numReg);
+  argc++;
+  new_argv[argc] = NULL;
+  return new_argv;
+}
+
+/*
+ *  dump_args - display the argument list.
+ */
+
+void dump_args (int argc, char *argv[])
+{
+  fprintf(stderr, "  %d arguments:", argc);
+  for (int i=0; i<argc; i++)
+    fprintf(stderr, " %s", argv[i]);
+  fprintf(stderr, "\n");
 }
 
 /*
@@ -1167,19 +1169,23 @@ int char_buffer::do_html(int argc, char *argv[])
 {
   int pdes[2];
   PID_T pid;
+  string s;
+
+  alterDeviceTo(argc, argv, 0);
+  argv += troff_arg;   // skip all arguments up to groff
+  argc -= troff_arg;
+  argv = addZ(argc, argv);
+  argc++;
+
+  s = "-dwww-image-template=";
+  s += macroset_template;   // do not combine these statements otherwise they will not work
+  s += '\0';                // the trailing '\0' is ignored
+  argv = addRegDef(argc, argv, s.contents());
+  argc++;
 
   if (pipe(pdes) < 0)
     sys_fatal("pipe");
 
-  alterDeviceTo(argc, argv, 0);
-  argv += troff_arg;   // skip all arguments up to troff/groff
-  argc -= troff_arg;
-
-#if defined(DEBUG_HTML)
-  write_file_html();
-  writeString("--------------- troff --------------------------\n");
-  write_file_troff();
-#else
   pid = fork();
   if (pid < 0)
     sys_fatal("fork");
@@ -1216,30 +1222,7 @@ int char_buffer::do_html(int argc, char *argv[])
     write_file_html();
     waitForChild(pid);
   }
-#endif
-  return( 0 );
-}
-
-/*
- *  addps4html - appends -rps4html=1 onto the command list for troff.
- */
-
-char **addps4html (int argc, char *argv[])
-{
-  char **new_argv = (char **)malloc((argc+2)*sizeof(char *));
-  int   i=0;
-
-  if (new_argv == NULL)
-    sys_fatal("malloc");
-
-  while (i<argc) {
-    new_argv[i] = argv[i];
-    i++;
-  }
-  new_argv[argc] = "-rps4html=1";
-  argc++;
-  new_argv[argc] = NULL;
-  return( new_argv );
+  return 0;
 }
 
 /*
@@ -1250,15 +1233,26 @@ int char_buffer::do_image(int argc, char *argv[])
 {
   PID_T pid;
   int pdes[2];
-
-  if (pipe(pdes) < 0)
-    sys_fatal("pipe");
+  string s;
 
   alterDeviceTo(argc, argv, 1);
   argv += troff_arg;   // skip all arguments up to troff/groff
   argc -= troff_arg;
-  argv = addps4html(argc, argv);
+  argv = addRegDef(argc, argv, "-rps4html=1");
   argc++;
+
+  s = "-dwww-image-template=";
+  s += macroset_template;
+  s += '\0';
+  argv = addRegDef(argc, argv, s.contents());
+  argc++;
+
+  // override local settings and produce a page size letter postscript file
+  argv = addRegDef(argc, argv, "-P-pletter");
+  argc++;
+
+  if (pipe(pdes) < 0)
+    sys_fatal("pipe");
 
   pid = fork();
   if (pid == 0) {
@@ -1295,7 +1289,7 @@ int char_buffer::do_image(int argc, char *argv[])
     write_file_troff();
     waitForChild(pid);
   }
-  return( 0 );
+  return 0;
 }
 
 static char_buffer inputFile;
@@ -1315,44 +1309,96 @@ void usage(FILE *stream)
 }
 
 /*
- *  scanArguments - scans for -P-i, -P-o, -P-D and -P-I arguments.
+ *  scanArguments - scans for all arguments including -P-i, -P-o, -P-D and -P-I. It returns
+ *                  the argument index of the first non option.
  */
 
 int scanArguments (int argc, char **argv)
 {
-  int i=1;
-
-  while (i<argc) {
-    if (strncmp(argv[i], "-D", 2) == 0) {
-      image_dir = (char *)(argv[i]+2);
-    } else if (strncmp(argv[i], "-I", 2) == 0) {
-      image_template = (char *)(argv[i]+2);
-    } else if (strncmp(argv[i], "-i", 2) == 0) {
-      image_res = atoi((char *)(argv[i]+2));
-    } else if (strncmp(argv[i], "-o", 2) == 0) {
-      vertical_offset = atoi((char *)(argv[i]+2));
-    } else if ((strcmp(argv[i], "-v") == 0)
-	       || (strcmp(argv[i], "--version") == 0)) {
+  const char *command_prefix = getenv("GROFF_COMMAND_PREFIX");
+  if (!command_prefix)
+    command_prefix = PROG_PREFIX;
+  char *troff_name = new char[strlen(command_prefix) + strlen("troff") + 1];
+  strcpy(troff_name, command_prefix);
+  strcat(troff_name, "troff");
+  int c, i;
+  static const struct option long_options[] = {
+    { "help", no_argument, 0, CHAR_MAX + 1 },
+    { "version", no_argument, 0, 'v' },
+    { NULL, 0, 0, 0 }
+  };
+  while ((c = getopt_long(argc, argv, "+a:g:o:i:I:D:F:vbdhlrnp", long_options, NULL))
+	 != EOF)
+    switch(c) {
+    case 'v':
       printf("GNU pre-grohtml (groff) version %s\n", Version_string);
       exit(0);
-    } else if ((strcmp(argv[i], "-h") == 0)
-	       || (strcmp(argv[i], "--help") == 0)
-	       || (strcmp(argv[i], "-?") == 0)) {
-      usage(stdout);
-      exit(0);
-    } else if (strcmp(argv[i], troff_command) == 0) {
-      /* remember troff argument number */
-      troff_arg = i;
+    case 'a':
+      textAlphaBits = min(max(MIN_ALPHA_BITS, atoi(optarg)), MAX_ALPHA_BITS);
+      if (textAlphaBits == 3) {
+	error("cannot use 3 bits of antialiasing information");
+	exit(1);
+      }
+      break;
+    case 'g':
+      graphicAlphaBits = min(max(MIN_ALPHA_BITS, atoi(optarg)), MAX_ALPHA_BITS);
+      if (graphicAlphaBits == 3) {
+	error("cannot use 3 bits of antialiasing information");
+	exit(1);
+      }
+      break;
+    case 'b':
+      // handled by post-grohtml (set background color to white)
+      break;
+    case 'D':
+      image_dir = optarg;
+      break;
+    case 'I':
+      image_template = optarg;
+      break;
+    case 'i':
+      image_res = atoi(optarg);
+      break;
+    case 'F':
+      font_path.command_line_dir(optarg);
+      break;
+    case 'o':
+      vertical_offset = atoi(optarg);
+      break;
+    case 'p':
+      show_progress = TRUE;
+      break;
+    case 'd':
 #if defined(DEBUGGING)
-    } else if (strcmp(argv[i], "-d") == 0) {
       debug = TRUE;
 #endif
-    } else if (argv[i][0] != '-') {
-      return( i );
+      break;
+    case 'h':
+      // handled by post-grohtml
+      break;
+    case CHAR_MAX + 1: // --help
+      usage(stdout);
+      exit(0);
+      break;
+    case '?':
+      usage(stderr);
+      exit(1);
+      break;
+    default:
+      break;
     }
+
+  i = optind;
+  while (i < argc) {
+    if (strcmp(argv[i], troff_name) == 0)
+      troff_arg = i;
+    else if (argv[i][0] != '-')
+      return i;
     i++;
   }
-  return( argc );
+  a_delete troff_name;
+
+  return argc;
 }
 
 /*
@@ -1364,57 +1410,56 @@ static int makeTempFiles (void)
 #if defined(DEBUGGING)
   psFileName     = "/tmp/prehtml-ps";
   regionFileName = "/tmp/prehtml-region";
-  imagePageStem  = "/tmp/prehtml-page";
+  imagePageName  = "/tmp/prehtml-page";
+  psPageName     = "/tmp/prehtml-psn";
   troffFileName  = "/tmp/prehtml-troff";
   htmlFileName   = "/tmp/prehtml-html";
 #else
-  int fd;
+  FILE *f;
 
-  if ((fd = mkstemp(psFileName = xtmptemplate(PS_TEMPLATE))) == -1) {
-    sys_fatal("mkstemp");
+  /* psPageName contains a single page of postscript */
+  f = xtmpfile(&psPageName,
+	       PS_TEMPLATE_LONG, PS_TEMPLATE_SHORT,
+	       TRUE);
+  if (f == NULL) {
+    sys_fatal("xtmpfile");
     return -1;
   }
-  close(fd);
-  if ((fd = mkstemp(regionFileName = xtmptemplate(REGION_TEMPLATE))) == -1) {
-    sys_fatal("mkstemp");
-    unlink(psFileName);
+  fclose(f);
+
+  /* imagePageName contains a bitmap image of the single postscript page */
+  f = xtmpfile(&imagePageName,
+	       PAGE_TEMPLATE_LONG, PAGE_TEMPLATE_SHORT,
+	       TRUE);
+  if (f == NULL) {
+    sys_fatal("xtmpfile");
     return -1;
   }
-  close(fd);
+  fclose(f);
+
+  /* psFileName contains a postscript file of the complete document */
+  f = xtmpfile(&psFileName,
+	       PS_TEMPLATE_LONG, PS_TEMPLATE_SHORT,
+	       TRUE);
+  if (f == NULL) {
+    sys_fatal("xtmpfile");
+    return -1;
+  }
+  fclose(f);
+
+  /* regionFileName contains a list of the images and their boxed coordinates */
+  f = xtmpfile(&regionFileName,
+	       REGION_TEMPLATE_LONG, REGION_TEMPLATE_SHORT,
+	       TRUE);
+  if (f == NULL) {
+    sys_fatal("xtmpfile");
+    return -1;
+  }
+  fclose(f);
+
 #endif
   return 0;
 }
-
-/*
- *  removeTempFiles - remove the temporary files
- */
-
-static void removeTempFiles (void)
-{
-#if !defined(DEBUGGING)
-  unlink(psFileName);
-  unlink(regionFileName);
-#endif
-}
-
-/*
- *  findPrefix - finds the optional prefix to the groff utilities.
- *               It also builds the 'troff' executable name.
- */
-
-static void findPrefix (void)
-{
-  command_prefix = getenv("GROFF_COMMAND_PREFIX");
-  if (!command_prefix)
-    command_prefix = PROG_PREFIX;
-  troff_command = (char *)malloc(strlen("troff")+strlen(command_prefix)+1);
-  if (troff_command == NULL)
-    sys_fatal("malloc");
-
-  strcpy(troff_command, command_prefix);
-  strcat(troff_command, "troff");
-}
-
 
 int main(int argc, char **argv)
 {
@@ -1423,8 +1468,9 @@ int main(int argc, char **argv)
   int found=0;
   int ok=1;
 
-  findPrefix();
+  postscriptRes = get_resolution();
   i = scanArguments(argc, argv);
+  setupAntiAlias();
   checkImageDir();
   makeFileName();
   while (i < argc) {
@@ -1448,14 +1494,9 @@ int main(int argc, char **argv)
     return 1;
   ok = inputFile.do_image(argc, argv);
   if (ok == 0) {
-    ok = createAllPages();
-    if (ok == 0) {
-      generateImages(regionFileName);
-      ok = inputFile.do_html(argc, argv);
-      removeAllPages();
-    }
+    generateImages(regionFileName);
+    ok = inputFile.do_html(argc, argv);
   }
-  removeTempFiles();
   return ok;
 }
 

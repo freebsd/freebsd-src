@@ -118,199 +118,114 @@ a~	24	0	0x007E
 ~	"
 ti	"
 r!	24	0	0x00A1
-char161	"
 ct	24	0	0x00A2
-char162	"
 Po	24	0	0x00A3
-char163	"
 Cs	24	0	0x00A4
-char164	"
 Ye	24	0	0x00A5
-char165	"
 bb	24	0	0x00A6
-char166	"
 sc	24	0	0x00A7
-char167	"
 ad	24	0	0x00A8
-char168	"
 co	24	0	0x00A9
-char169	"
 Of	24	0	0x00AA
-char170	"
 Fo	24	0	0x00AB
-char171	"
 no	24	0	0x00AC
-char172	"
 shc	24	0	0x00AD
-char173	"
 rg	24	0	0x00AE
-char174	"
 a-	24	0	0x00AF
-char175	"
 de	24	0	0x00B0
-char176	"
 +-	24	0	0x00B1
-char177	"
+t+-	"
 S2	24	0	0x00B2
-char178	"
 S3	24	0	0x00B3
-char179	"
 aa	24	0	0x00B4
-char180	"
-char181	24	0	0x00B5
+\'	"
+mc	24	0	0x00B5
 ps	24	0	0x00B6
-char182	"
 pc	24	0	0x00B7
-char183	"
 ac	24	0	0x00B8
-char184	"
 S1	24	0	0x00B9
-char185	"
 Om	24	0	0x00BA
-char186	"
 Fc	24	0	0x00BB
-char187	"
 14	24	0	0x00BC
-char188	"
 12	24	0	0x00BD
-char189	"
 34	24	0	0x00BE
-char190	"
 r?	24	0	0x00BF
-char191	"
 `A	24	0	0x00C0
-char192	"
 'A	24	0	0x00C1
-char193	"
 ^A	24	0	0x00C2
-char194	"
 ~A	24	0	0x00C3
-char195	"
 :A	24	0	0x00C4
-char196	"
 oA	24	0	0x00C5
-char197	"
 AE	24	0	0x00C6
-char198	"
 ,C	24	0	0x00C7
-char199	"
 `E	24	0	0x00C8
-char200	"
 'E	24	0	0x00C9
-char201	"
 ^E	24	0	0x00CA
-char202	"
 :E	24	0	0x00CB
-char203	"
 `I	24	0	0x00CC
-char204	"
 'I	24	0	0x00CD
-char205	"
 ^I	24	0	0x00CE
-char206	"
 :I	24	0	0x00CF
-char207	"
 -D	24	0	0x00D0
-char208	"
 ~N	24	0	0x00D1
-char209	"
 `O	24	0	0x00D2
-char210	"
 'O	24	0	0x00D3
-char211	"
 ^O	24	0	0x00D4
-char212	"
 ~O	24	0	0x00D5
-char213	"
 :O	24	0	0x00D6
-char214	"
 mu	24	0	0x00D7
-char215	"
+tmu	"
 /O	24	0	0x00D8
-char216	"
 `U	24	0	0x00D9
-char217	"
 'U	24	0	0x00DA
-char218	"
 ^U	24	0	0x00DB
-char219	"
 :U	24	0	0x00DC
-char220	"
 'Y	24	0	0x00DD
-char221	"
 TP	24	0	0x00DE
-char222	"
 ss	24	0	0x00DF
-char223	"
 `a	24	0	0x00E0
-char224	"
 'a	24	0	0x00E1
-char225	"
 ^a	24	0	0x00E2
-char226	"
 ~a	24	0	0x00E3
-char227	"
 :a	24	0	0x00E4
-char228	"
 oa	24	0	0x00E5
-char229	"
 ae	24	0	0x00E6
-char230	"
 ,c	24	0	0x00E7
-char231	"
 `e	24	0	0x00E8
-char232	"
 'e	24	0	0x00E9
-char233	"
 ^e	24	0	0x00EA
-char234	"
 :e	24	0	0x00EB
-char235	"
 `i	24	0	0x00EC
-char236	"
 'i	24	0	0x00ED
-char237	"
 ^i	24	0	0x00EE
-char238	"
 :i	24	0	0x00EF
-char239	"
 Sd	24	0	0x00F0
-char240	"
 ~n	24	0	0x00F1
-char241	"
 `o	24	0	0x00F2
-char242	"
 'o	24	0	0x00F3
-char243	"
 ^o	24	0	0x00F4
-char244	"
 ~o	24	0	0x00F5
-char245	"
 :o	24	0	0x00F6
-char246	"
 di	24	0	0x00F7
-char247	"
+tdi	"
 /o	24	0	0x00F8
-char248	"
 `u	24	0	0x00F9
-char249	"
 'u	24	0	0x00FA
-char250	"
 ^u	24	0	0x00FB
-char251	"
 :u	24	0	0x00FC
-char252	"
 'y	24	0	0x00FD
-char253	"
 Tp	24	0	0x00FE
-char254	"
 :y	24	0	0x00FF
-char255	"
 .i	24	0	0x0131
 /L	24	0	0x0141
 /l	24	0	0x0142
 OE	24	0	0x0152
 oe	24	0	0x0153
+vS	24	0	0x0160
+vs	24	0	0x0161
+:Y	24	0	0x0178
+vZ	24	0	0x017D
+vz	24	0	0x017E
 Fn	24	0	0x0192
 ah	24	0	0x02C7
 ab	24	0	0x02D8
@@ -392,6 +307,8 @@ fo	24	0	0x2039
 fc	24	0	0x203A
 rn	24	0	0x203E
 f/	24	0	0x2044
+eu	24	0	0x20AC
+Eu	"
 Im	24	0	0x2111
 wp	24	0	0x2118
 Re	24	0	0x211C
@@ -415,6 +332,8 @@ gr	24	0	0x2207
 mo	24	0	0x2208
 nm	24	0	0x2209
 st	24	0	0x220B
+product	24	0	0x220F
+sum	24	0	0x2211
 \-	24	0	0x2212
 mi	"
 **	24	0	0x2217
@@ -428,6 +347,7 @@ ca	24	0	0x2229
 cu	24	0	0x222A
 is	24	0	0x222B
 tf	24	0	0x2234
+3d	"
 ti	24	0	0x223C
 ap	"
 =~	24	0	0x2245
@@ -439,12 +359,13 @@ ap	"
 >=	24	0	0x2265
 sb	24	0	0x2282
 sp	24	0	0x2283
+nb	24	0	0x2284
 ib	24	0	0x2286
 ip	24	0	0x2287
 c+	24	0	0x2295
 c*	24	0	0x2297
 pp	24	0	0x22A5
-pc	24	0	0x22C5
+md	24	0	0x22C5
 lc	24	0	0x2308
 rc	24	0	0x2309
 lf	24	0	0x230A
@@ -466,6 +387,10 @@ lz	24	0	0x25CA
 ci	24	0	0x25EF
 lh	24	0	0x261C
 rh	24	0	0x261E
+SP	24	0	0x2660
+CL	24	0	0x2663
+HE	24	0	0x2665
+DI	24	0	0x2666
 ff	24	0	0xFB00
 fi	24	0	0xFB01
 fl	24	0	0xFB02

@@ -46,7 +46,7 @@
 .\" for an already extremely slow package.
 .\"
 .
-.Dd July 20, 2001
+.Dd October 07, 2002
 .Os
 .Dt GROFF_MDOC 7
 .
@@ -102,7 +102,7 @@ options, function names, function parameters, pathnames, variables, cross
 references to other manual pages, and so on.
 These domain items have value for both the author and the future user of the
 manual page.
-It is hoped the consistency gained across the manual set will provide easier
+Hopefully, the consistency gained across the manual set will provide easier
 translation to future documentation tools.
 .Pp
 Throughout the
@@ -245,7 +245,7 @@ as follows:
 The
 .Nm \-mdoc
 package attempts to simplify the process of writing a man page.
-Theoretically, one should not have to learn the dirty details of
+Theoretically, one should not have to learn the tricky details of
 .Tn GNU
 .Xr troff 1
 to use
@@ -265,10 +265,10 @@ a macro is called by placing a
 .Ql .\&
 (dot character) at the beginning of a line followed by the two-character
 (or three-character) name for the macro.
-There can be space characters between the dot and the macro name (but
+There can be space or tab characters between the dot and the macro name.
+Arguments may follow the macro separated by spaces (but
 .Em no
 tabs).
-Arguments may follow the macro separated by spaces (again, no tabs).
 It is the dot character at the beginning of the line which causes
 .Tn GNU
 .Xr troff 1
@@ -281,11 +281,8 @@ a macro invocation, precede the
 .Ql .\&
 (dot) with the
 .Ql \e&
-escape sequence.
-The
-.Ql \e&
-translates literally to a zero-width space, and is never displayed in
-the output.
+escape sequence which translates literally to a zero-width space, and is
+never displayed in the output.
 .Pp
 In general,
 .Tn GNU
@@ -307,14 +304,13 @@ argument lists are
 .Em parsed
 for callable macro names.
 This means an argument on the argument list which matches a general text or
-manual domain macro name and is determined to be callable will be executed
-or called when it is processed.
+manual domain macro name (and which is defined to be callable) will be
+executed or called when it is processed.
 In this case the argument, although the name of a macro, is not preceded by
 a
 .Ql .\&
 (dot).
-It is in this manner that many macros are nested; for example the
-option macro,
+This makes it possible to nest macros; for example the option macro,
 .Ql .Op ,
 may
 .Em call
@@ -361,15 +357,22 @@ are parsed, but as it was cumbersome to constantly refer to macros as
 being callable and being able to call other macros, the term parsed
 has been used.
 .
+.Pp
+In the following, we call an
+.Nm \-mdoc
+macro which starts a line (with a leading dot) a
+.Em command
+if this distinction is necessary.
+.
 .Ss "Passing Space Characters in an Argument"
 .
 Sometimes it is desirable to give as an argument a string containing one or
-more blank space characters.
-This may be necessary to specify arguments to macros which expect particular
-arrangement of items in the argument list.  Additionally, it makes
+more blank space characters, say, to specify arguments to commands which
+expect particular arrangement of items in the argument list.
+Additionally, it makes
 .Nm \-mdoc
 working faster.
-For example, the function macro
+For example, the function command
 .Ql .Fn
 expects the first argument to be the name of a function and any remaining
 arguments to be function parameters.
@@ -438,7 +441,7 @@ It is a wise preventive measure to globally remove all blank spaces
 from
 .Ao blank-space Ac Ns Ao end-of-line Ac
 character sequences.
-Should the need arise to force a blank character at the end of a line, it
+Should the need arise to use a blank character at the end of a line, it
 may be forced with an unpaddable space and the
 .Ql \e&
 escape character.
@@ -559,33 +562,33 @@ extension); the rest of such a line is ignored.
 The body of a man page is easily constructed from a basic template:
 .
 .Bd -literal -offset indent
-\&.\e" The following requests are required for all man pages.
+\&.\e" The following commands are required for all man pages.
 \&.Dd Month day, year
 \&.Os [OPERATING_SYSTEM] [version/release]
 \&.Dt DOCUMENT_TITLE [section number] [architecture/volume]
 \&.Sh NAME
 \&.Nm name
 \&.Nd one line description of name
-\&.\e" This next request is for sections 2 and 3 only.
+\&.\e" This next command is for sections 2 and 3 only.
 \&.\e" .Sh LIBRARY
 \&.Sh SYNOPSIS
 \&.Sh DESCRIPTION
-\&.\e" The following requests should be uncommented and
+\&.\e" The following commands should be uncommented and
 \&.\e" used where appropriate.
 \&.\e" .Sh IMPLEMENTATION NOTES
-\&.\e" This next request is for sections 2, 3 and 9 function
+\&.\e" This next command is for sections 2, 3 and 9 function
 \&.\e" return values only.
 \&.\e" .Sh RETURN VALUES
-\&.\e" This next request is for sections 1, 6, 7 and 8 only.
+\&.\e" This next command is for sections 1, 6, 7 and 8 only.
 \&.\e" .Sh ENVIRONMENT
 \&.\e" .Sh FILES
 \&.\e" .Sh EXAMPLES
-\&.\e" This next request is for sections 1, 6, 7, 8 and 9 only
+\&.\e" This next command is for sections 1, 6, 7, 8 and 9 only
 \&.\e"     (command return values (to shell) and
 \&.\e"     fprintf/stderr type diagnostics).
 \&.\e" .Sh DIAGNOSTICS
 \&.\e" .Sh COMPATIBILITY
-\&.\e" This next request is for sections 2, 3 and 9 error
+\&.\e" This next command is for sections 2, 3 and 9 error
 \&.\e"     and signal handling only.
 \&.\e" .Sh ERRORS
 \&.\e" .Sh SEE ALSO
@@ -596,7 +599,7 @@ The body of a man page is easily constructed from a basic template:
 .Ed
 .Pp
 .
-The first items in the template are the macros
+The first items in the template are the commands
 .Ql .Dd ,
 .Ql .Os ,
 and
@@ -605,7 +608,7 @@ the document date, the operating system the man page or subject source is
 developed or modified for, and the man page title (in
 .Em upper case )
 along with the section of the manual the page belongs in.
-These macros identify the page and are discussed below in
+These commands identify the page and are discussed below in
 .Sx TITLE MACROS .
 .Pp
 The remaining items in the template are section headers
@@ -652,6 +655,21 @@ Example:
 .
 .Pp
 Except stated explicitly, all macros are parsed and callable.
+.Pp
+Note that a macro takes effect up to the next nested macro.
+For example,
+.Ql ".Ic foo Aq bar"
+doesn't produce
+.Sq Ic "foo <bar>"
+but
+.Sq Ic foo Aq bar .
+Consequently, a warning message is emitted for most commands if the first
+argument is a macro itself since it cancels the effect of the calling
+command completely.
+Another consequence is that quoting macros never insert literal quotes;
+.Sq Ic "foo <bar>"
+has been produced by
+.Ql ".Ic \*[q]foo <bar>\*[q]" .
 .Pp
 Most macros have a default width value which can be used to specify a label
 width
@@ -898,7 +916,7 @@ Slightly different variations of this language are used to describe the
 three different aspects of writing a man page.
 First, there is the description of
 .Nm \-mdoc
-macro request usage.
+macro command usage.
 Second is the description of a
 .Ux
 command
@@ -918,7 +936,7 @@ command is:
 .Pp
 .
 .Ql .Xx
-is a macro command or request, and anything following it are arguments to
+is a macro command, and anything following it are arguments to
 be processed.
 In the second case, the description of a
 .Ux
@@ -1053,7 +1071,7 @@ impose an order on their argument lists.
 All content macros are capable of recognizing and properly handling
 punctuation, provided each punctuation character is separated by a leading
 space.
-If a request is given:
+If a command is given:
 .Pp
 .Dl \&.Ar sptr, ptr),
 .Pp
@@ -1147,7 +1165,7 @@ In the
 .Sx AUTHORS
 section, the
 .Ql .An
-request causes a line break allowing each new name to appear on its own
+command causes a line break allowing each new name to appear on its own
 line.
 If this is not desirable,
 .
@@ -1211,7 +1229,7 @@ In the
 .Sx SYNOPSIS
 section a
 .Ql .Cd
-request causes a line break before and after its arguments are printed.
+command causes a line break before and after its arguments are printed.
 .Pp
 .
 The default width is 12n.
@@ -1359,7 +1377,7 @@ In the
 .Sx SYNOPSIS
 section a
 .Ql .Fd
-request causes a line break if a function has already been presented and a
+command causes a line break if a function has already been presented and a
 break has not occurred.
 This leaves a nice vertical space in between the previous function call and
 the declaration for the next function.
@@ -2047,7 +2065,7 @@ For possible values of
 .Ao version Ac
 see the description of the
 .Ql .Os
-request above in section
+command above in section
 .Sx "TITLE MACROS" .
 .
 .Ss "FreeBSD Macro"
@@ -2066,7 +2084,7 @@ For possible values of
 .Ao version Ac
 see the description of the
 .Ql .Os
-request above in section
+command above in section
 .Sx "TITLE MACROS" .
 .
 .Ss "OpenBSD Macro"
@@ -2337,7 +2355,7 @@ Note: The
 macro always invokes the
 .Ql .No
 macro after eliminating the space unless another macro name follows it.
-If used as a request (i.e., the second form above in the
+If used as a command (i.e., the second form above in the
 .Sq Usage
 line),
 .Ql .Ns
@@ -3825,6 +3843,7 @@ The following strings are predefined:
 .It Li Gt     Ta >        Ta \*[Gt]   Ta "greater than"
 .It Li Pm     Ta +\-      Ta \*[Pm]   Ta "plus minus"
 .It Li If     Ta infinity Ta \*[If]   Ta "infinity"
+.It Li Am     Ta \*[Am]   Ta \*[Am]   Ta "ampersand"
 .It Li Na     Ta \*[Na]   Ta \*[Na]   Ta "not a number"
 .It Li Ba     Ta \*[Ba]   Ta \*[Ba]   Ta "vertical bar"
 .El
@@ -3917,6 +3936,17 @@ Register
 is ignored for
 .Tn TTY
 devices.
+.Pp
+The line and title length can be changed by setting the registers
+.Ql LL
+and
+.Ql LT ,
+respectively:
+.Pp
+.Dl groff -Tutf8 -rLL=100n -rLT=100n -mdoc foo.man | less
+.Pp
+If not set, both registers default to 78n for TTY devices and 6.5i
+otherwise.
 .
 .
 .Sh FILES

@@ -1,6 +1,5 @@
 #ifndef lint
-/*static char yysccsid[] = "from: @(#)yaccpar	1.9 (Berkeley) 02/21/93";*/
-static char yyrcsid[] = "$Id: label.cc,v 1.2 2000/02/28 11:02:12 wlemb Exp $";
+static char yysccsid[] = "@(#)yaccpar	1.9 (Berkeley) 02/21/93 (groff)";
 #endif
 #define YYBYACC 1
 #define YYMAJOR 1
@@ -214,7 +213,7 @@ typedef union {
   struct { int ndigits; int val; } dig;
   struct { int start; int len; } str;
 } YYSTYPE;
-#line 218 "y.tab.c"
+#line 217 "y.tab.c"
 #define TOKEN_LETTER 257
 #define TOKEN_LITERAL 258
 #define TOKEN_DIGIT 259
@@ -1224,7 +1223,7 @@ int reference::get_nauthors() const
   }
   return nauthors;
 }
-#line 1228 "y.tab.c"
+#line 1227 "y.tab.c"
 #define YYABORT goto yyabort
 #define YYREJECT goto yyabort
 #define YYACCEPT goto yyaccept
@@ -1298,6 +1297,10 @@ yyloop:
         goto yyreduce;
     }
     if (yyerrflag) goto yyinrecovery;
+#ifdef lint
+    goto yynewerror;
+#endif
+yynewerror:
     yyerror("syntax error");
 #ifdef lint
     goto yyerrlab;
@@ -1543,7 +1546,7 @@ case 33:
 #line 393 "label.y"
 { yyval.num = -1; }
 break;
-#line 1547 "y.tab.c"
+#line 1550 "y.tab.c"
     }
     yyssp -= yym;
     yystate = *yyssp;

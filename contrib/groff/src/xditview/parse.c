@@ -141,6 +141,7 @@ ParseInput(dw)
 			break;
 		case 'F':       /* input files */
 		case '+':	/* continuation of X device control */
+		case 'm':	/* color */
 		case '#':	/* comment */
 			GetLine(dw, NULL, 0);
 			break;
@@ -205,7 +206,7 @@ DviWidget	dw;
 char		*buf;
 {
 	int v[DRAW_ARGS_MAX];
-	int i;
+	int i, no_move = 0;
 	char *ptr;
 	
 	v[0] = v[1] = v[2] = v[3] = 0;
@@ -257,24 +258,28 @@ char		*buf;
 	case 'f':
 		if (i > 0 && v[0] >= 0 && v[0] <= DVI_FILL_MAX)
 			dw->dvi.fill = v[0];
+		no_move = 1;
 		break;
 	default:
 #if 0
 		warning("unknown drawing function %s", buf);
 #endif
+		no_move = 1;
 		break;
 	}
 	
-	if (buf[0] == 'e') {
-		if (i > 0)
-			dw->dvi.state->x += v[0];
-	}
-	else {
-		while (--i >= 0) {
-			if (i & 1)
-				dw->dvi.state->y += v[i];
-			else
-				dw->dvi.state->x += v[i];
+	if (!no_move) {
+		if (buf[0] == 'e') {
+			if (i > 0)
+				dw->dvi.state->x += v[0];
+		}
+		else {
+			while (--i >= 0) {
+				if (i & 1)
+					dw->dvi.state->y += v[i];
+				else
+					dw->dvi.state->x += v[i];
+			}
 		}
 	}
 } 

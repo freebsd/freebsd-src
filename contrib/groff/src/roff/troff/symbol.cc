@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992 Free Software Foundation, Inc.
+/* Copyright (C) 1989, 1990, 1991, 1992, 2002 Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -29,6 +29,7 @@ char *symbol::block = 0;
 int symbol::block_size = 0;
 
 const symbol NULL_SYMBOL;
+const symbol EMPTY_SYMBOL("");
 
 #ifdef BLOCK_SIZE
 #undef BLOCK_SIZE
@@ -38,9 +39,9 @@ const int BLOCK_SIZE = 1024;
 // the table will increase in size as necessary
 // the size will be chosen from the following array
 // add some more if you want
-// I think it unlikely that we'll need more than a million symbols
 static const unsigned int table_sizes[] = { 
-101, 503, 1009, 2003, 3001, 4001, 5003, 10007, 20011, 40009, 80021, 160001, 500009, 1000003, 0 
+  101, 503, 1009, 2003, 3001, 4001, 5003, 10007, 20011, 40009, 80021,
+  160001, 500009, 1000003, 1500007, 2000003, 0 
 };
 const double FULL_MAX = 0.3;	// don't let the table get more than this full
 
@@ -73,8 +74,12 @@ inline void unused(void *) { }
 
 symbol::symbol(const char *p, int how)
 {
-  if (p == 0 || *p == 0) {
+  if (p == 0) {
     s = 0;
+    return;
+  }
+  if (*p == 0) {
+    s = "";
     return;
   }
   if (table == 0) {
@@ -147,4 +152,3 @@ symbol concat(symbol s1, symbol s2)
   a_delete buf;
   return res;
 }
-

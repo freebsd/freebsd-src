@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992 Free Software Foundation, Inc.
+/* Copyright (C) 1989, 1990, 1991, 1992, 2002 Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -26,6 +26,7 @@ public:
   ps_output &put_fix_number(int);
   ps_output &put_float(double);
   ps_output &put_symbol(const char *);
+  ps_output &put_color(unsigned int);
   ps_output &put_literal_symbol(const char *);
   ps_output &set_fixed_point(int);
   ps_output &simple_comment(const char *);

@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001
+/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001, 2002
    Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
@@ -85,6 +85,7 @@ public:
   ~tab_stops();
   void operator=(const tab_stops &);
   tab_type distance_to_next_tab(hunits pos, hunits *distance);
+  tab_type distance_to_next_tab(hunits curpos, hunits *distance, hunits *leftpos);
   void clear();
   void add_tab(hunits pos, tab_type type, int repeated);
   const char *to_string();
@@ -140,6 +141,7 @@ class environment {
   int underline_spaces;
   symbol input_trap;
   int input_trap_count;
+  int continued_input_trap;
   node *line;			// in reverse order
   hunits prev_text_length;
   hunits width_total;
@@ -181,11 +183,15 @@ class environment {
 #ifdef WIDOW_CONTROL
   int widow_control;
 #endif /* WIDOW_CONTROL */
-  int need_eol;
   int ignore_next_eol;
   int emitted_node;    // have we emitted a node since the last html eol tag?
+  color *glyph_color;
+  color *prev_glyph_color;
+  color *fill_color;
+  color *prev_fill_color;
 
   tab_type distance_to_next_tab(hunits *);
+  tab_type distance_to_next_tab(hunits *distance, hunits *leftpos);
   void start_line();
   void output_line(node *, hunits);
   void output(node *nd, int retain_size, vunits vs, vunits post_vs,
@@ -261,6 +267,12 @@ public:
   int get_center_lines();
   int get_right_justify_lines();
   int get_prev_line_interrupted() { return prev_line_interrupted; }
+  color *get_fill_color();
+  color *get_glyph_color();
+  color *get_prev_glyph_color();
+  color *get_prev_fill_color();
+  void set_glyph_color(color *c);
+  void set_fill_color(color *c);
   node *make_char_node(charinfo *);
   node *extract_output_line();
   void width_registers();
@@ -277,10 +289,11 @@ public:
   void possibly_break_line(int start_here = 0, int forced = 0);
   void do_break(int spread = 0);	// .br
   void final_break();
-  void add_html_tag_eol();
-  void add_html_tag(const char *);
-  void add_html_tag(const char *, int);
-  void add_html_tag_tabs();
+  void add_html_tag(int, const char *);
+  void add_html_tag(int, const char *, int);
+  void add_html_tag_tabs(int);
+  node *make_html_tag(const char *name, int i);
+  node *make_html_tag(const char *);
   void newline();
   void handle_tab(int is_leader = 0); // do a tab or leader
   void add_node(node *);
@@ -291,6 +304,7 @@ public:
   void space(hunits, hunits);
   void space_newline();
   const char *get_font_family_string();
+  const char *get_font_name_string();
   const char *get_name_string();
   const char *get_point_size_string();
   const char *get_requested_point_size_string();
@@ -311,7 +325,7 @@ public:
   friend void indent();
   friend void temporary_indent();
   friend void do_underline(int);
-  friend void input_trap();
+  friend void do_input_trap(int);
   friend void set_tabs();
   friend void margin_character();
   friend void no_number();
@@ -343,7 +357,12 @@ extern void push_env(int);
 
 void init_environments();
 void read_hyphen_file(const char *name);
+void title();
+
+extern double spread_limit;
 
 extern int break_flag;
 extern symbol default_family;
 extern int translate_space_to_dummy;
+
+extern unsigned char hpf_code_table[];

@@ -1,12 +1,12 @@
-PROG=grn
+PROG=grn$(EXEEXT)
 MAN1=grn.n
 MLIB=$(LIBM)
 XLIBS=$(LIBGROFF)
 OBJS=\
-  hdb.o \
-  hpoint.o \
-  hgraph.o \
-  main.o
+  hdb.$(OBJEXT) \
+  hpoint.$(OBJEXT) \
+  hgraph.$(OBJEXT) \
+  main.$(OBJEXT)
 CCSRCS=\
   $(srcdir)/hdb.cc \
   $(srcdir)/hpoint.cc \

@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992 Free Software Foundation, Inc.
+/* Copyright (C) 1989, 1990, 1991, 1992, 2002 Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -55,10 +55,10 @@ limit_box::~limit_box()
 
 int limit_box::compute_metrics(int style)
 {
-  printf(".nr " SIZE_FORMAT " \\n[.s]\n", uid);
+  printf(".nr " SIZE_FORMAT " \\n[.ps]\n", uid);
   if (!(style <= SCRIPT_STYLE && one_size_reduction_flag))
     set_script_size();
-  printf(".nr " SMALL_SIZE_FORMAT " \\n[.s]\n", uid);
+  printf(".nr " SMALL_SIZE_FORMAT " \\n[.ps]\n", uid);
   int res = 0;
   int mark_uid = -1;
   if (from != 0) {
@@ -75,7 +75,7 @@ int limit_box::compute_metrics(int style)
       res = r;
     }
   }
-  printf(".ps \\n[" SIZE_FORMAT "]\n", uid);
+  printf(".ps \\n[" SIZE_FORMAT "]u\n", uid);
   int r = p->compute_metrics(style);
   p->compute_subscript_kern();
   if (res && r)
@@ -139,7 +139,7 @@ int limit_box::compute_metrics(int style)
 
 void limit_box::output()
 {
-  printf("\\s[\\n[" SMALL_SIZE_FORMAT "]]", uid);
+  printf("\\s[\\n[" SMALL_SIZE_FORMAT "]u]", uid);
   if (to != 0) {
     printf("\\Z" DELIMITER_CHAR);
     printf("\\v'-\\n[" SUP_RAISE_FORMAT "]u'", uid);
@@ -158,7 +158,7 @@ void limit_box::output()
     from->output();
     printf(DELIMITER_CHAR);
   }
-  printf("\\s[\\n[" SIZE_FORMAT "]]", uid);
+  printf("\\s[\\n[" SIZE_FORMAT "]u]", uid);
   printf("\\Z" DELIMITER_CHAR);
   printf("\\h'\\n[" LEFT_WIDTH_FORMAT "]u"
 	 "-(\\n[" WIDTH_FORMAT "]u/2u)'",

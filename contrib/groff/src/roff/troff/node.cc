@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001
+/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001, 2002
    Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
@@ -19,11 +19,12 @@ You should have received a copy of the GNU General Public License along
 with groff; see the file COPYING.  If not, write to the Free Software
 Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 
+#include "troff.h"
+
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
 
-#include "troff.h"
 #include "symbol.h"
 #include "dictionary.h"
 #include "hvunits.h"
@@ -35,6 +36,8 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 #include "font.h"
 #include "reg.h"
 #include "input.h"
+#include "div.h"
+#include "geometry.h"
 
 #include "nonposix.h"
 
@@ -60,8 +63,8 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
  *  debugging grohtml
  */
 
-static int image_no=0;
-static int suppress_start_page=0;
+int image_no = 0;
+static int suppress_start_page = 0;
 
 #define STORE_WIDTH 1
 
@@ -147,6 +150,7 @@ public:
   int get_bold(hunits *);
   int is_special();
   int is_style();
+  friend symbol get_font_name(int, environment *);
 };
 
 class tfont_spec {
@@ -232,6 +236,14 @@ inline int font_info::is_special()
 inline int font_info::is_style()
 {
   return fm == 0;
+}
+
+tfont *make_tfont(tfont_spec &spec)
+{
+  for (tfont *p = tfont::tfont_list; p; p = p->next)
+    if (*p == spec)
+      return p;
+  return new tfont(spec);
 }
 
 // this is the current_font, fontno is where we found the character,
@@ -376,6 +388,15 @@ int font_info::is_named(symbol s)
 symbol font_info::get_name()
 {
   return internal_name;
+}
+
+symbol get_font_name(int fontno, environment *env)
+{
+  symbol f = font_table[fontno]->get_name();
+  if (font_table[fontno]->is_style()) {
+    return concat(env->get_family()->nm, f);
+  }
+  return f;
 }
 
 hunits font_info::get_space_width(font_size fs, int space_size)
@@ -626,14 +647,6 @@ inline int tfont::get_kern(charinfo *c1, charinfo *c2, hunits *res)
   }
 }
 
-tfont *make_tfont(tfont_spec &spec)
-{
-  for (tfont *p = tfont::tfont_list; p; p = p->next)
-    if (*p == spec)
-      return p;
-  return new tfont(spec);
-}
-
 tfont *tfont::tfont_list = 0;
 
 tfont::tfont(tfont_spec &spec) : tfont_spec(spec)
@@ -658,7 +671,7 @@ class real_output_file : public output_file {
   int piped;
 #endif
   int printing;        // decision via optional page list
-  int output_on;       // .output 1 or .output 0 requests
+  int output_on;       // \O[0] or \O[1] escape calls
   virtual void really_transparent_char(unsigned char) = 0;
   virtual void really_print_line(hunits x, vunits y, node *n,
 				 vunits before, vunits after, hunits width) = 0;
@@ -727,6 +740,8 @@ class troff_output_file : public real_output_file {
   int current_slant;
   int current_height;
   tfont *current_tfont;
+  color *current_fill_color;
+  color *current_glyph_color;
   int current_font_number;
   symbol *font_position;
   int nfont_positions;
@@ -739,6 +754,7 @@ class troff_output_file : public real_output_file {
   void put(char c);
   void put(unsigned char c);
   void put(int i);
+  void put(unsigned int i);
   void put(const char *s);
   void set_font(tfont *tf);
   void flush_tbuf();
@@ -746,13 +762,13 @@ public:
   troff_output_file();
   ~troff_output_file();
   void trailer(vunits page_length);
-  void put_char(charinfo *ci, tfont *tf);
-  void put_char_width(charinfo *ci, tfont *tf, hunits w, hunits k);
+  void put_char(charinfo *, tfont *, color *, color *);
+  void put_char_width(charinfo *, tfont *, color *, color *, hunits, hunits);
   void right(hunits);
   void down(vunits);
   void moveto(hunits, vunits);
-  void start_special(tfont *tf, int no_init_string = 0);
-  void start_special(int no_init_string = 0);
+  void start_special(tfont *, color *, color *, int = 0);
+  void start_special();
   void special_char(unsigned char c);
   void end_special();
   void word_marker();
@@ -763,9 +779,11 @@ public:
   void really_put_filename(const char *filename);
   void really_on();
   void really_off();
-  void draw(char, hvpair *, int, font_size);
+  void draw(char, hvpair *, int, font_size, color *, color *);
   void determine_line_limits (char code, hvpair *point, int npoints);
   void check_charinfo(tfont *tf, charinfo *ci);
+  void glyph_color(color *c);
+  void fill_color(color *c);
   int get_hpos() { return hpos; }
   int get_vpos() { return vpos; }
 };
@@ -796,29 +814,29 @@ inline void troff_output_file::put(int i)
   put_string(i_to_a(i), fp);
 }
 
-void troff_output_file::start_special(tfont *tf, int no_init_string)
+inline void troff_output_file::put(unsigned int i)
+{
+  put_string(ui_to_a(i), fp);
+}
+
+void troff_output_file::start_special(tfont *tf, color *gcol, color *fcol,
+				      int no_init_string)
 {
   flush_tbuf();
-
-  /*
-   *  although this is extremely unlikely to have an effect on other devices
-   *  this way is safer. Currently this is only needed for html.
-   */
-  if (is_html && tf) {
-    if (tf != current_tfont)
-      set_font(tf);
-  }
   do_motion();
+  if (tf != current_tfont)
+    set_font(tf);
+  glyph_color(gcol);
+  fill_color(fcol);
   if (!no_init_string)
     put("x X ");
 }
 
-void troff_output_file::start_special(int no_init_string)
+void troff_output_file::start_special()
 {
   flush_tbuf();
   do_motion();
-  if (!no_init_string)
-    put("x X ");
+  put("x X ");
 }
 
 void troff_output_file::special_char(unsigned char c)
@@ -844,8 +862,7 @@ void troff_output_file::really_print_line(hunits x, vunits y, node *n,
 {
   moveto(x, y);
   while (n != 0) {
-    if (is_on() || (n->force_tprint()))
-      n->tprint(this);
+    n->tprint(this);
     n = n->next;
   }
   flush_tbuf();
@@ -864,7 +881,8 @@ void troff_output_file::really_print_line(hunits x, vunits y, node *n,
 inline void troff_output_file::word_marker()
 {
   flush_tbuf();
-  put('w');
+  if (is_on())
+    put('w');
 }
 
 inline void troff_output_file::right(hunits n)
@@ -920,6 +938,11 @@ void troff_output_file::do_motion()
 
 void troff_output_file::flush_tbuf()
 {
+  if (!is_on()) {
+    tbuf_len = 0;
+    return;
+  }
+
   if (tbuf_len == 0)
     return;
   if (tbuf_kern == 0)
@@ -930,7 +953,7 @@ void troff_output_file::flush_tbuf()
     put(' ');
   }
   check_output_limits(hpos, vpos);
-  check_output_limits(hpos, vpos + current_size + current_height);
+  check_output_limits(hpos, vpos - current_size);
 
   for (int i = 0; i < tbuf_len; i++)
     put(tbuf[i]);
@@ -940,29 +963,37 @@ void troff_output_file::flush_tbuf()
 
 void troff_output_file::check_charinfo(tfont *tf, charinfo *ci)
 {
-  int size = tf->get_size().to_scaled_points();
+  if (!is_on())
+    return;
+
   int height = tf->get_char_height(ci).to_units();
   int width = tf->get_width(ci).to_units()
 	      + tf->get_italic_correction(ci).to_units();
   int depth = tf->get_char_depth(ci).to_units();
-  check_output_limits(output_hpos,
-		      output_vpos - height);
-  check_output_limits(output_hpos + width,
-		      output_vpos + size + depth);
+  check_output_limits(output_hpos, output_vpos - height);
+  check_output_limits(output_hpos + width, output_vpos + depth);
 }
 
-void troff_output_file::put_char_width(charinfo *ci, tfont *tf, hunits w,
-				       hunits k)
+void troff_output_file::put_char_width(charinfo *ci, tfont *tf,
+				       color *gcol, color *fcol,
+				       hunits w, hunits k)
 {
+  int kk = k.to_units();
+  if (!is_on()) {
+    flush_tbuf();
+    hpos += w.to_units() + kk;
+    return;
+  }
   if (tf != current_tfont) {
     flush_tbuf();
     set_font(tf);
   }
   char c = ci->get_ascii_code();
-  int kk = k.to_units();
   if (c == '\0') {
     flush_tbuf();
     do_motion();
+    glyph_color(gcol);
+    fill_color(fcol);
     check_charinfo(tf, ci);
     if (ci->numbered()) {
       put('N');
@@ -983,6 +1014,7 @@ void troff_output_file::put_char_width(charinfo *ci, tfont *tf, hunits w,
   }
   else if (tcommand_flag) {
     if (tbuf_len > 0 && hpos == output_hpos && vpos == output_vpos
+	&& gcol == current_glyph_color && fcol == current_fill_color
 	&& kk == tbuf_kern
 	&& tbuf_len < TBUF_SIZE) {
       check_charinfo(tf, ci);
@@ -993,6 +1025,8 @@ void troff_output_file::put_char_width(charinfo *ci, tfont *tf, hunits w,
     }
     flush_tbuf();
     do_motion();
+    glyph_color(gcol);
+    fill_color(fcol);
     check_charinfo(tf, ci);
     tbuf[tbuf_len++] = c;
     output_hpos += w.to_units() + kk;
@@ -1004,7 +1038,9 @@ void troff_output_file::put_char_width(charinfo *ci, tfont *tf, hunits w,
     int n = hpos - output_hpos;
     check_charinfo(tf, ci);
     // check_output_limits(output_hpos, output_vpos);
-    if (vpos == output_vpos && n > 0 && n < 100 && !force_motion) {
+    if (vpos == output_vpos
+	&& gcol == current_glyph_color && fcol == current_fill_color
+	&& n > 0 && n < 100 && !force_motion) {
       put(char(n/10 + '0'));
       put(char(n%10 + '0'));
       put(c);
@@ -1019,14 +1055,19 @@ void troff_output_file::put_char_width(charinfo *ci, tfont *tf, hunits w,
   }
 }
 
-void troff_output_file::put_char(charinfo *ci, tfont *tf)
+void troff_output_file::put_char(charinfo *ci, tfont *tf,
+				 color *gcol, color *fcol)
 {
   flush_tbuf();
+  if (!is_on())
+    return;
   if (tf != current_tfont)
     set_font(tf);
   char c = ci->get_ascii_code();
   if (c == '\0') {
     do_motion();
+    glyph_color(gcol);
+    fill_color(fcol);
     if (ci->numbered()) {
       put('N');
       put(ci->get_number());
@@ -1045,7 +1086,9 @@ void troff_output_file::put_char(charinfo *ci, tfont *tf)
   }
   else {
     int n = hpos - output_hpos;
-    if (vpos == output_vpos && n > 0 && n < 100) {
+    if (vpos == output_vpos
+	&& gcol == current_glyph_color && fcol == current_fill_color
+	&& n > 0 && n < 100) {
       put(char(n/10 + '0'));
       put(char(n%10 + '0'));
       put(c);
@@ -1053,6 +1096,8 @@ void troff_output_file::put_char(charinfo *ci, tfont *tf)
     }
     else {
       do_motion();
+      glyph_color(gcol);
+      fill_color(fcol);
       put('c');
       put(c);
     }
@@ -1115,12 +1160,112 @@ void troff_output_file::set_font(tfont *tf)
   current_tfont = tf;
 }
 
+void troff_output_file::fill_color(color *col)
+{
+  if ((current_fill_color == col) || !color_flag)
+    return;
+  flush_tbuf();
+  put("DF");
+  unsigned int components[4];
+  color_scheme cs;
+  cs = col->get_components(components);
+  switch (cs) {
+  case DEFAULT:
+    put('d');
+    break;
+  case RGB:
+    put("r ");
+    put(Red);
+    put(' ');
+    put(Green);
+    put(' ');
+    put(Blue);
+    break;
+  case CMY:
+    put("c ");
+    put(Cyan);
+    put(' ');
+    put(Magenta);
+    put(' ');
+    put(Yellow);
+    break;
+  case CMYK:
+    put("k ");
+    put(Cyan);
+    put(' ');
+    put(Magenta);
+    put(' ');
+    put(Yellow);
+    put(' ');
+    put(Black);
+    break;
+  case GRAY:
+    put("g ");
+    put(Gray);
+    break;
+  }
+  put('\n');
+  current_fill_color = col;
+}
+
+void troff_output_file::glyph_color(color *col)
+{
+  if ((current_glyph_color == col) || !color_flag)
+    return;
+  flush_tbuf();
+  put("m");
+  unsigned int components[4];
+  color_scheme cs;
+  cs = col->get_components(components);
+  switch (cs) {
+  case DEFAULT:
+    put('d');
+    break;
+  case RGB:
+    put("r ");
+    put(Red);
+    put(' ');
+    put(Green);
+    put(' ');
+    put(Blue);
+    break;
+  case CMY:
+    put("c ");
+    put(Cyan);
+    put(' ');
+    put(Magenta);
+    put(' ');
+    put(Yellow);
+    break;
+  case CMYK:
+    put("k ");
+    put(Cyan);
+    put(' ');
+    put(Magenta);
+    put(' ');
+    put(Yellow);
+    put(' ');
+    put(Black);
+    break;
+  case GRAY:
+    put("g ");
+    put(Gray);
+    break;
+  }
+  put('\n');
+  current_glyph_color = col;
+}
+
 // determine_line_limits - works out the smallest box which will contain
 //			   the entity, code, built from the point array.
 void troff_output_file::determine_line_limits(char code, hvpair *point,
 					      int npoints)
 {
   int i, x, y;
+
+  if (!is_on())
+    return;
+
   switch (code) {
   case 'c':
   case 'C':
@@ -1157,8 +1302,37 @@ void troff_output_file::determine_line_limits(char code, hvpair *point,
       check_output_limits(x, y);
     }
     break;
+  case 'a':
+    double c[2];
+    int p[4];
+    int minx, miny, maxx, maxy;
+    x = output_hpos;
+    y = output_vpos;
+    p[0] = point[0].h.to_units();
+    p[1] = point[0].v.to_units();
+    p[2] = point[1].h.to_units();
+    p[3] = point[1].v.to_units();
+    if (adjust_arc_center(p, c)) {
+      check_output_arc_limits(x, y,
+			      p[0], p[1], p[2], p[3],
+			      c[0], c[1],
+			      &minx, &maxx, &miny, &maxy);
+      check_output_limits(minx, miny);
+      check_output_limits(maxx, maxy);
+      break;
+    }
+    // fall through
+  case 'l':
+    x = output_hpos;
+    y = output_vpos;
+    check_output_limits(x, y);
+    for (i = 0; i < npoints; i++) {
+      x += point[i].h.to_units();
+      y += point[i].v.to_units();
+      check_output_limits(x, y);
+    }
+    break;
   default:
-    // remember this doesn't work for arc.. yet
     x = output_hpos;
     y = output_vpos;
     for (i = 0; i < npoints; i++) {
@@ -1170,34 +1344,37 @@ void troff_output_file::determine_line_limits(char code, hvpair *point,
 }
 
 void troff_output_file::draw(char code, hvpair *point, int npoints,
-			     font_size fsize)
+			     font_size fsize, color *gcol, color *fcol)
 {
+  int i;
   flush_tbuf();
   do_motion();
-  int size = fsize.to_scaled_points();
-  if (current_size != size) {
-    put('s');
-    put(size);
-    put('\n');
-    current_size = size;
-    current_tfont = 0;
-  }
-  put('D');
-  put(code);
-  int i;
-  if (code == 'c') {
-    put(' ');
-    put(point[0].h.to_units());
-  }
-  else
-    for (i = 0; i < npoints; i++) {
-      put(' ');
-      put(point[i].h.to_units());
-      put(' ');
-      put(point[i].v.to_units());
+  glyph_color(gcol);
+  fill_color(fcol);
+  if (is_on()) {
+    int size = fsize.to_scaled_points();
+    if (current_size != size) {
+      put('s');
+      put(size);
+      put('\n');
+      current_size = size;
+      current_tfont = 0;
     }
-
-  determine_line_limits(code, point, npoints);
+    put('D');
+    put(code);
+    if (code == 'c') {
+      put(' ');
+      put(point[0].h.to_units());
+    }
+    else
+      for (i = 0; i < npoints; i++) {
+	put(' ');
+	put(point[i].h.to_units());
+	put(' ');
+	put(point[i].v.to_units());
+      }
+    determine_line_limits(code, point, npoints);
+  }
 
   for (i = 0; i < npoints; i++)
     output_hpos += point[i].h.to_units();
@@ -1207,15 +1384,18 @@ void troff_output_file::draw(char code, hvpair *point, int npoints,
       output_vpos += point[i].v.to_units();
     vpos = output_vpos;
   }
-  put('\n');
+  if (is_on())
+    put('\n');
 }
 
-void troff_output_file::really_on ()
+void troff_output_file::really_on()
 {
   flush_tbuf();
+  force_motion = 1;
+  do_motion();
 }
 
-void troff_output_file::really_off ()
+void troff_output_file::really_off()
 {
   flush_tbuf();
 }
@@ -1412,7 +1592,7 @@ int real_output_file::is_printing()
 void real_output_file::begin_page(int pageno, vunits page_length)
 {
   printing = in_output_page_list(pageno);
-  if (printing && output_on)
+  if (printing)
     really_begin_page(pageno, page_length);
 }
 
@@ -1454,9 +1634,8 @@ void real_output_file::really_put_filename(const char *filename)
 void real_output_file::on()
 {
   really_on();
-  if (output_on == 0) {
+  if (output_on == 0)
     output_on = 1;
-  }
 }
 
 void real_output_file::off()
@@ -1467,7 +1646,7 @@ void real_output_file::off()
 
 int real_output_file::is_on()
 {
-  return( output_on );
+  return output_on;
 }
 
 void real_output_file::really_on()
@@ -1562,14 +1741,16 @@ class glyph_node : public charinfo_node {
   static glyph_node *free_list;
 protected:
   tfont *tf;
+  color *gcol;
+  color *fcol;		/* this is needed for grotty */
 #ifdef STORE_WIDTH
   hunits wid;
-  glyph_node(charinfo *, tfont *, hunits, node * = 0);
+  glyph_node(charinfo *, tfont *, color *, color *, hunits, node * = 0);
 #endif
 public:
   void *operator new(size_t);
   void operator delete(void *);
-  glyph_node(charinfo *, tfont *, node * = 0);
+  glyph_node(charinfo *, tfont *, color *, color *, node * = 0);
   ~glyph_node() {}
   node *copy();
   node *merge_glyph_node(glyph_node *);
@@ -1584,6 +1765,8 @@ public:
   hunits skew();
   hyphenation_type get_hyphenation_type();
   tfont *get_tfont();
+  color *get_glyph_color();
+  color *get_fill_color();
   void tprint(troff_output_file *);
   void zero_width_tprint(troff_output_file *);
   hyphen_list *get_hyphen_list(hyphen_list *ss = 0);
@@ -1602,12 +1785,14 @@ class ligature_node : public glyph_node {
   node *n1;
   node *n2;
 #ifdef STORE_WIDTH
-  ligature_node(charinfo *, tfont *, hunits, node *gn1, node *gn2, node *x = 0);
+  ligature_node(charinfo *, tfont *, color *, color *, hunits,
+		node *, node *, node * = 0);
 #endif
 public:
   void *operator new(size_t);
   void operator delete(void *);
-  ligature_node(charinfo *, tfont *, node *gn1, node *gn2, node *x = 0);
+  ligature_node(charinfo *, tfont *, color *, color *,
+		node *, node *, node * = 0);
   ~ligature_node();
   node *copy();
   node *add_self(node *, hyphen_list **);
@@ -1708,8 +1893,8 @@ void ligature_node::operator delete(void *p)
   delete[] (char *)p;
 }
 
-glyph_node::glyph_node(charinfo *c, tfont *t, node *x)
-: charinfo_node(c, x), tf(t)
+glyph_node::glyph_node(charinfo *c, tfont *t, color *gc, color *fc, node *x)
+: charinfo_node(c, x), tf(t), gcol(gc), fcol(fc)
 {
 #ifdef STORE_WIDTH
   wid = tf->get_width(ci);
@@ -1717,8 +1902,9 @@ glyph_node::glyph_node(charinfo *c, tfont *t, node *x)
 }
 
 #ifdef STORE_WIDTH
-glyph_node::glyph_node(charinfo *c, tfont *t, hunits w, node *x)
-: charinfo_node(c, x), tf(t), wid(w)
+glyph_node::glyph_node(charinfo *c, tfont *t,
+		       color *gc, color *fc, hunits w, node *x)
+: charinfo_node(c, x), tf(t), gcol(gc), fcol(fc), wid(w)
 {
 }
 #endif
@@ -1726,9 +1912,9 @@ glyph_node::glyph_node(charinfo *c, tfont *t, hunits w, node *x)
 node *glyph_node::copy()
 {
 #ifdef STORE_WIDTH
-  return new glyph_node(ci, tf, wid);
+  return new glyph_node(ci, tf, gcol, fcol, wid);
 #else
-  return new glyph_node(ci, tf);
+  return new glyph_node(ci, tf, gcol, fcol);
 #endif
 }
 
@@ -1779,6 +1965,26 @@ tfont *glyph_node::get_tfont()
   return tf;
 }
 
+color *node::get_glyph_color()
+{
+  return 0;
+}
+
+color *glyph_node::get_glyph_color()
+{
+  return gcol;
+}
+
+color *node::get_fill_color()
+{
+  return 0;
+}
+
+color *glyph_node::get_fill_color()
+{
+  return fcol;
+}
+
 node *node::merge_glyph_node(glyph_node * /*gn*/)
 {
   return 0;
@@ -1786,12 +1992,12 @@ node *node::merge_glyph_node(glyph_node * /*gn*/)
 
 node *glyph_node::merge_glyph_node(glyph_node *gn)
 {
-  if (tf == gn->tf) {
+  if (tf == gn->tf && gcol == gn->gcol && fcol == gn->fcol) {
     charinfo *lig;
     if ((lig = tf->get_lig(ci, gn->ci)) != 0) {
       node *next1 = next;
       next = 0;
-      return new ligature_node(lig, tf, this, gn, next1);
+      return new ligature_node(lig, tf, gcol, fcol, this, gn, next1);
     }
     hunits kern;
     if (tf->get_kern(ci, gn->ci, &kern)) {
@@ -1860,16 +2066,16 @@ void glyph_node::ascii_print(ascii_output_file *ascii)
     ascii->outs(ci->nm.contents());
 }
 
-ligature_node::ligature_node(charinfo *c, tfont *t,
+ligature_node::ligature_node(charinfo *c, tfont *t, color *gc, color *fc,
 			     node *gn1, node *gn2, node *x)
-: glyph_node(c, t, x), n1(gn1), n2(gn2)
+: glyph_node(c, t, gc, fc, x), n1(gn1), n2(gn2)
 {
 }
 
 #ifdef STORE_WIDTH
-ligature_node::ligature_node(charinfo *c, tfont *t, hunits w,
-			       node *gn1, node *gn2, node *x)
-: glyph_node(c, t, w, x), n1(gn1), n2(gn2)
+ligature_node::ligature_node(charinfo *c, tfont *t, color *gc, color *fc,
+			     hunits w, node *gn1, node *gn2, node *x)
+: glyph_node(c, t, gc, fc, w, x), n1(gn1), n2(gn2)
 {
 }
 #endif
@@ -1883,9 +2089,9 @@ ligature_node::~ligature_node()
 node *ligature_node::copy()
 {
 #ifdef STORE_WIDTH
-  return new ligature_node(ci, tf, wid, n1->copy(), n2->copy());
+  return new ligature_node(ci, tf, gcol, fcol, wid, n1->copy(), n2->copy());
 #else
-  return new ligature_node(ci, tf, n1->copy(), n2->copy());
+  return new ligature_node(ci, tf, gcol, fcol, n1->copy(), n2->copy());
 #endif
 }
 
@@ -1986,10 +2192,12 @@ node *kern_pair_node::add_discretionary_hyphen()
   tfont *tf = n2->get_tfont();
   if (tf) {
     if (tf->contains(soft_hyphen_char)) {
+      color *gcol = n2->get_glyph_color();
+      color *fcol = n2->get_fill_color();
       node *next1 = next;
       next = 0;
       node *n = copy();
-      glyph_node *gn = new glyph_node(soft_hyphen_char, tf);
+      glyph_node *gn = new glyph_node(soft_hyphen_char, tf, gcol, fcol);
       node *nn = n->merge_glyph_node(gn);
       if (nn == 0) {
 	gn->next = n;
@@ -2121,10 +2329,12 @@ node *node::add_discretionary_hyphen()
   if (!tf)
     return new hyphen_inhibitor_node(this);
   if (tf->contains(soft_hyphen_char)) {
+    color *gcol = get_glyph_color();
+    color *fcol = get_fill_color();
     node *next1 = next;
     next = 0;
     node *n = copy();
-    glyph_node *gn = new glyph_node(soft_hyphen_char, tf);
+    glyph_node *gn = new glyph_node(soft_hyphen_char, tf, gcol, fcol);
     node *n1 = n->merge_glyph_node(gn);
     if (n1 == 0) {
       gn->next = n;
@@ -2362,8 +2572,9 @@ int italic_corrected_node::character_type()
 class break_char_node : public node {
   node *ch;
   char break_code;
+  color *col;
 public:
-  break_char_node(node *, int, node * = 0);
+  break_char_node(node *, int, color *, node * = 0);
   ~break_char_node();
   node *copy();
   hunits width();
@@ -2387,8 +2598,8 @@ public:
   int force_tprint();
 };
 
-break_char_node::break_char_node(node *n, int c, node *x)
-: node(x), ch(n), break_code(c)
+break_char_node::break_char_node(node *n, int bc, color *c, node *x)
+: node(x), ch(n), break_code(bc), col(c)
 {
 }
 
@@ -2399,7 +2610,7 @@ break_char_node::~break_char_node()
 
 node *break_char_node::copy()
 {
-  return new break_char_node(ch->copy(), break_code);
+  return new break_char_node(ch->copy(), break_code, col);
 }
 
 hunits break_char_node::width()
@@ -2431,13 +2642,13 @@ node *break_char_node::add_self(node *n, hyphen_list **p)
 {
   assert((*p)->hyphenation_code == 0);
   if ((*p)->breakable && (break_code & 1)) {
-    n = new space_node(H0, n);
+    n = new space_node(H0, col, n);
     n->freeze_space();
   }
   next = n;
   n = this;
   if ((*p)->breakable && (break_code & 2)) {
-    n = new space_node(H0, n);
+    n = new space_node(H0, col, n);
     n->freeze_space();
   }
   hyphen_list *pp = *p;
@@ -2493,17 +2704,17 @@ node *vertical_size_node::copy()
 
 node *hmotion_node::copy()
 {
-  return new hmotion_node(n, was_tab, unformat);
+  return new hmotion_node(n, was_tab, unformat, col);
 }
 
 node *space_char_hmotion_node::copy()
 {
-  return new space_char_hmotion_node(n);
+  return new space_char_hmotion_node(n, col);
 }
 
 node *vmotion_node::copy()
 {
-  return new vmotion_node(n);
+  return new vmotion_node(n, col);
 }
 
 node *dummy_node::copy()
@@ -2648,6 +2859,8 @@ node *bracket_node::copy()
   bracket_node *on = new bracket_node;
   node *last = 0;
   node *tem;
+  if (list)
+    list->last = 0;
   for (tem = list; tem; tem = tem->next) {
     if (tem->next)
       tem->next->last = tem;
@@ -2711,13 +2924,13 @@ inline void space_node::operator delete(void *p)
 }
 #endif
 
-space_node::space_node(hunits nn, node *p)
-: node(p), n(nn), set(0), was_escape_colon(0)
+space_node::space_node(hunits nn, color *c, node *p)
+: node(p), n(nn), set(0), was_escape_colon(0), col(c)
 {
 }
 
-space_node::space_node(hunits nn, int s, int flag, node *p)
-: node(p), n(nn), set(s), was_escape_colon(flag)
+space_node::space_node(hunits nn, int s, int flag, color *c, node *p)
+: node(p), n(nn), set(s), was_escape_colon(flag), col(c)
 {
 }
 
@@ -2729,7 +2942,7 @@ space_node::~space_node()
 
 node *space_node::copy()
 {
-  return new space_node(n, set, was_escape_colon);
+  return new space_node(n, set, was_escape_colon, col);
 }
 
 int space_node::force_tprint()
@@ -3025,7 +3238,9 @@ void node::asciify(macro *m)
 
 void glyph_node::asciify(macro *m)
 {
-  unsigned char c = ci->get_ascii_code();
+  unsigned char c = ci->get_asciify_code();
+  if (c == 0)
+    c = ci->get_ascii_code();
   if (c != 0) {
     m->append(c);
     delete this;
@@ -3098,8 +3313,9 @@ void hmotion_node::asciify(macro *m)
     m->append(this);
 }
 
-space_char_hmotion_node::space_char_hmotion_node(hunits i, node *next)
-: hmotion_node(i, next)
+space_char_hmotion_node::space_char_hmotion_node(hunits i, color *c,
+						 node *next)
+: hmotion_node(i, c, next)
 {
 }
 
@@ -3153,8 +3369,8 @@ int node::nbreaks()
   return 0;
 }
 
-breakpoint *space_node::get_breakpoints(hunits width, int ns, breakpoint *rest,
-			    int is_inner)
+breakpoint *space_node::get_breakpoints(hunits width, int ns,
+					breakpoint *rest, int is_inner)
 {
   if (next->discardable())
     return rest;
@@ -3351,23 +3567,27 @@ special_node::special_node(const macro &m, int n)
   font_size fs = curenv->get_font_size();
   int char_height = curenv->get_char_height();
   int char_slant = curenv->get_char_slant();
-  int fontno = curenv->get_font();
-  tf = font_table[fontno]->get_tfont(fs, char_height, char_slant,
-				     fontno);
+  int fontno = env_definite_font(curenv);
+  tf = font_table[fontno]->get_tfont(fs, char_height, char_slant, fontno);
   if (curenv->is_composite())
     tf = tf->get_plain();
+  gcol = curenv->get_glyph_color();
+  fcol = curenv->get_fill_color();
 }
 
-special_node::special_node(const macro &m, tfont *t, int n)
-: mac(m), tf(t), no_init_string(n)
+special_node::special_node(const macro &m, tfont *t,
+			   color *gc, color *fc, int n)
+: mac(m), tf(t), gcol(gc), fcol(fc), no_init_string(n)
 {
 }
 
 int special_node::same(node *n)
 {
-  return ((mac == ((special_node *)n)->mac)
-	  && (tf == ((special_node *)n)->tf)
-	  && (no_init_string == ((special_node *)n)->no_init_string));
+  return mac == ((special_node *)n)->mac
+	 && tf == ((special_node *)n)->tf
+	 && gcol == ((special_node *)n)->gcol
+	 && fcol == ((special_node *)n)->fcol
+	 && no_init_string == ((special_node *)n)->no_init_string;
 }
 
 const char *special_node::type()
@@ -3387,12 +3607,12 @@ int special_node::force_tprint()
 
 node *special_node::copy()
 {
-  return new special_node(mac, tf, no_init_string);
+  return new special_node(mac, tf, gcol, fcol, no_init_string);
 }
 
 void special_node::tprint_start(troff_output_file *out)
 {
-  out->start_special(get_tfont(), no_init_string);
+  out->start_special(tf, gcol, fcol, no_init_string);
 }
 
 void special_node::tprint_char(troff_output_file *out, unsigned char c)
@@ -3413,18 +3633,20 @@ tfont *special_node::get_tfont()
 /* suppress_node */
 
 suppress_node::suppress_node(int on_or_off, int issue_limits)
-: is_on(on_or_off), emit_limits(issue_limits), filename(0), position(0)
+: is_on(on_or_off), emit_limits(issue_limits),
+  filename(0), position(0), image_id(0)
 {
 }
 
-suppress_node::suppress_node(symbol f, char p)
-: is_on(2), emit_limits(0), filename(f), position(p)
+suppress_node::suppress_node(symbol f, char p, int id)
+: is_on(2), emit_limits(0), filename(f), position(p), image_id(id)
 {
 }
 
 suppress_node::suppress_node(int issue_limits, int on_or_off,
-			     symbol f, char p)
-: is_on(on_or_off), emit_limits(issue_limits), filename(f), position(p)
+			     symbol f, char p, int id)
+: is_on(on_or_off), emit_limits(issue_limits),
+  filename(f), position(p), image_id(id)
 {
 }
 
@@ -3433,8 +3655,8 @@ int suppress_node::same(node *n)
   return ((is_on == ((suppress_node *)n)->is_on)
 	  && (emit_limits == ((suppress_node *)n)->emit_limits)
 	  && (filename == ((suppress_node *)n)->filename)
-	  && (position == ((suppress_node *)n)->position));
-;
+	  && (position == ((suppress_node *)n)->position)
+	  && (image_id == ((suppress_node *)n)->image_id));
 }
 
 const char *suppress_node::type()
@@ -3444,7 +3666,7 @@ const char *suppress_node::type()
 
 node *suppress_node::copy()
 {
-  return new suppress_node(emit_limits, is_on, filename, position);
+  return new suppress_node(emit_limits, is_on, filename, position, image_id);
 }
 
 int get_reg_int(const char *p)
@@ -3483,6 +3705,7 @@ void suppress_node::put(troff_output_file *out, const char *s)
 
 static char last_position = 0;
 static const char *last_image_filename = 0;
+static int last_image_id = 0;
 
 inline int min(int a, int b)
 {
@@ -3508,22 +3731,23 @@ inline int min(int a, int b)
 
 void suppress_node::tprint(troff_output_file *out)
 {
-  int current_page = get_reg_int("%");
+  int current_page = topdiv->get_page_number();
   // firstly check to see whether this suppress node contains
   // an image filename & position.
   if (is_on == 2) {
     // remember position and filename
     last_position = position;
-    last_image_filename = filename.contents();
+    last_image_filename = strdup(filename.contents());
+    last_image_id = image_id;
+    // printf("start of image and page = %d\n", current_page);
   }
   else {
     // now check whether the suppress node requires us to issue limits.
     if (emit_limits) {
       char name[8192];
-      image_no++;
       // remember that the filename will contain a %d in which the
-      // image_no is placed
-      sprintf(name, last_image_filename, image_no);
+      // last_image_id is placed
+      sprintf(name, last_image_filename, last_image_id);
       if (is_html) {
 	switch (last_position) {
 	case 'c':
@@ -3551,14 +3775,18 @@ void suppress_node::tprint(troff_output_file *out)
       }
       else {
 	// postscript (or other device)
-	if (current_page != suppress_start_page)
+	if (suppress_start_page > 0 && current_page != suppress_start_page)
 	  error("suppression limit registers span more than one page;\n"
 	        "image description %1 will be wrong", image_no);
+	// if (topdiv->get_page_number() != suppress_start_page)
+	//  fprintf(stderr, "end of image and topdiv page = %d   and  suppress_start_page = %d\n",
+	//	  topdiv->get_page_number(), suppress_start_page);
+
 	// remember that the filename will contain a %d in which the
 	// image_no is placed
 	fprintf(stderr,
 		"grohtml-info:page %d  %d  %d  %d  %d  %d  %s  %d  %d  %s\n",
-		current_page,
+		topdiv->get_page_number(),
 		get_reg_int("opminx"), get_reg_int("opminy"),
 		get_reg_int("opmaxx"), get_reg_int("opmaxy"),
 		// page offset + line length
@@ -3568,12 +3796,13 @@ void suppress_node::tprint(troff_output_file *out)
       }
     }
     else {
-      if (is_on)
+      if (is_on) {
 	out->on();
+	// lastly we reset the output registers
+	reset_output_registers(out->get_vpos());
+      }
       else
 	out->off();
-      // lastly we reset the output registers
-      reset_output_registers(out->get_vpos());
       suppress_start_page = current_page;
     }
   }
@@ -3670,7 +3899,9 @@ hyphenation_type composite_node::get_hyphenation_type()
 
 void composite_node::asciify(macro *m)
 {
-  unsigned char c = ci->get_ascii_code();
+  unsigned char c = ci->get_asciify_code();
+  if (c == 0)
+    c = ci->get_ascii_code();
   if (c != 0) {
     m->append(c);
     delete this;
@@ -3741,14 +3972,14 @@ width_list::width_list(width_list *w)
 {
 }
 
-word_space_node::word_space_node(hunits d, width_list *w, node *x)
-: space_node(d, x), orig_width(w), unformat(0)
+word_space_node::word_space_node(hunits d, color *c, width_list *w, node *x)
+: space_node(d, c, x), orig_width(w), unformat(0)
 {
 }
 
-word_space_node::word_space_node(hunits d, int s, width_list *w,
+word_space_node::word_space_node(hunits d, int s, color *c, width_list *w,
 				 int flag, node *x)
-: space_node(d, s, 0, x), orig_width(w), unformat(flag)
+: space_node(d, s, 0, c, x), orig_width(w), unformat(flag)
 {
 }
 
@@ -3774,7 +4005,7 @@ node *word_space_node::copy()
     w_new_curr = w_new_curr->next;
     w_old_curr = w_old_curr->next;
   }
-  return new word_space_node(n, set, w_new, unformat);
+  return new word_space_node(n, set, col, w_new, unformat);
 }
 
 int word_space_node::set_unformat_flag()
@@ -3785,8 +4016,9 @@ int word_space_node::set_unformat_flag()
 
 void word_space_node::tprint(troff_output_file *out)
 {
+  out->fill_color(col);
   out->word_marker();
-  space_node::tprint(out);
+  out->right(n);
 }
 
 int word_space_node::merge_space(hunits h, hunits sw, hunits ssw)
@@ -3800,19 +4032,20 @@ int word_space_node::merge_space(hunits h, hunits sw, hunits ssw)
   return 1;
 }
 
-unbreakable_space_node::unbreakable_space_node(hunits d, node *x)
-: word_space_node(d, 0, x)
+unbreakable_space_node::unbreakable_space_node(hunits d, color *c, node *x)
+: word_space_node(d, c, 0, x)
 {
 }
 
-unbreakable_space_node::unbreakable_space_node(hunits d, int s, node *x)
-: word_space_node(d, s, 0, 0, x)
+unbreakable_space_node::unbreakable_space_node(hunits d, int s,
+					       color *c, node *x)
+: word_space_node(d, s, c, 0, 0, x)
 {
 }
 
 node *unbreakable_space_node::copy()
 {
-  return new unbreakable_space_node(n, set);
+  return new unbreakable_space_node(n, set, col);
 }
 
 int unbreakable_space_node::force_tprint()
@@ -3845,8 +4078,9 @@ hvpair::hvpair()
 {
 }
 
-draw_node::draw_node(char c, hvpair *p, int np, font_size s)
-: npoints(np), sz(s), code(c)
+draw_node::draw_node(char c, hvpair *p, int np, font_size s,
+		     color *gc, color *fc)
+: npoints(np), sz(s), gcol(gc), fcol(fc), code(c)
 {
   point = new hvpair[npoints];
   for (int i = 0; i < npoints; i++)
@@ -3856,7 +4090,8 @@ draw_node::draw_node(char c, hvpair *p, int np, font_size s)
 int draw_node::same(node *n)
 {
   draw_node *nd = (draw_node *)n;
-  if (code != nd->code || npoints != nd->npoints || sz != nd->sz)
+  if (code != nd->code || npoints != nd->npoints || sz != nd->sz
+      || gcol != nd->gcol || fcol != nd->fcol)
     return 0;
   for (int i = 0; i < npoints; i++)
     if (point[i].h != nd->point[i].h || point[i].v != nd->point[i].v)
@@ -3900,12 +4135,12 @@ vunits draw_node::vertical_width()
 
 node *draw_node::copy()
 {
-  return new draw_node(code, point, npoints, sz);
+  return new draw_node(code, point, npoints, sz, gcol, fcol);
 }
 
 void draw_node::tprint(troff_output_file *out)
 {
-  out->draw(code, point, npoints, sz);
+  out->draw(code, point, npoints, sz, gcol, fcol);
 }
 
 /* tprint methods */
@@ -3914,7 +4149,7 @@ void glyph_node::tprint(troff_output_file *out)
 {
   tfont *ptf = tf->get_plain();
   if (ptf == tf)
-    out->put_char_width(ci, ptf, width(), H0);
+    out->put_char_width(ci, ptf, gcol, fcol, width(), H0);
   else {
     hunits offset;
     int bold = tf->get_bold(&offset);
@@ -3933,10 +4168,10 @@ void glyph_node::tprint(troff_output_file *out)
     else
       k = tf->get_track_kern();
     if (bold) {
-      out->put_char(ci, ptf);
+      out->put_char(ci, ptf, gcol, fcol);
       out->right(offset);
     }
-    out->put_char_width(ci, ptf, w, k);
+    out->put_char_width(ci, ptf, gcol, fcol, w, k);
   }
 }
 
@@ -3954,10 +4189,10 @@ void glyph_node::zero_width_tprint(troff_output_file *out)
     x = x/2;
     out->right(x);
   }
-  out->put_char(ci, ptf);
+  out->put_char(ci, ptf, gcol, fcol);
   if (bold) {
     out->right(offset);
-    out->put_char(ci, ptf);
+    out->put_char(ci, ptf, gcol, fcol);
     out->right(-offset);
   }
   if (cs)
@@ -3995,20 +4230,23 @@ void hline_node::tprint(troff_output_file *out)
     hunits xx = x - w;
     hunits xx2 = xx/2;
     out->right(xx2);
-    n->tprint(out);
+    if (out->is_on())
+      n->tprint(out);
     out->right(xx - xx2);
   }
   else {
     hunits rem = x - w*i;
     if (rem > H0)
       if (n->overlaps_horizontally()) {
-	n->tprint(out);
+	if (out->is_on())
+	  n->tprint(out);
 	out->right(rem - w);
       }
       else
 	out->right(rem);
     while (--i >= 0)
-      n->tprint(out);
+      if (out->is_on())
+	n->tprint(out);
   }
 }
 
@@ -4037,11 +4275,13 @@ void vline_node::tprint(troff_output_file *out)
       if (overlaps) {
 	n->zero_width_tprint(out);
 	out->down(-rem);
-	n->tprint(out);
+	if (out->is_on())
+	  n->tprint(out);
 	out->down(-h);
       }
       else {
-	n->tprint(out);
+	if (out->is_on())
+	  n->tprint(out);
 	out->down(-h - rem);
       }
     }
@@ -4062,7 +4302,8 @@ void vline_node::tprint(troff_output_file *out)
 	n->zero_width_tprint(out);
 	out->down(h);
       }
-      n->tprint(out);
+      if (out->is_on())
+	n->tprint(out);
     }
   }
 }
@@ -4131,16 +4372,19 @@ void node::zero_width_tprint(troff_output_file *out)
 
 void space_node::tprint(troff_output_file *out)
 {
+  out->fill_color(col);
   out->right(n);
 }
 
 void hmotion_node::tprint(troff_output_file *out)
 {
+  out->fill_color(col);
   out->right(n);
 }
 
 void vmotion_node::tprint(troff_output_file *out)
 {
+  out->fill_color(col);
   out->down(n);
 }
 
@@ -4226,6 +4470,8 @@ node *make_glyph_node(charinfo *s, environment *env, int no_error_message = 0)
   int fn = fontno;
   int found = font_table[fontno]->contains(s);
   if (!found) {
+    if (s->is_fallback())
+      return make_composite_node(s, env);
     if (s->numbered()) {
       if (!no_error_message)
 	warning(WARN_CHAR, "can't find numbered character %1",
@@ -4284,16 +4530,20 @@ node *make_glyph_node(charinfo *s, environment *env, int no_error_message = 0)
   tfont *tf = font_table[fontno]->get_tfont(fs, char_height, char_slant, fn);
   if (env->is_composite())
     tf = tf->get_plain();
-  return new glyph_node(s, tf);
+  color *gcol = env->get_glyph_color();
+  color *fcol = env->get_fill_color();
+  return new glyph_node(s, tf, gcol, fcol);
 }
 
 node *make_node(charinfo *ci, environment *env)
 {
   switch (ci->get_special_translation()) {
   case charinfo::TRANSLATE_SPACE:
-    return new space_char_hmotion_node(env->get_space_width());
+    return new space_char_hmotion_node(env->get_space_width(),
+				       env->get_fill_color());
   case charinfo::TRANSLATE_STRETCHABLE_SPACE:
-    return new unbreakable_space_node(env->get_space_width());
+    return new unbreakable_space_node(env->get_space_width(),
+				      env->get_fill_color());
   case charinfo::TRANSLATE_DUMMY:
     return new dummy_node;
   case charinfo::TRANSLATE_HYPHEN_INDICATOR:
@@ -4304,7 +4554,7 @@ node *make_node(charinfo *ci, environment *env)
   if (tem)
     ci = tem;
   macro *mac = ci->get_macro();
-  if (mac)
+  if (mac && !ci->is_fallback())
     return make_composite_node(ci, env);
   else
     return make_glyph_node(ci, env);
@@ -4333,11 +4583,14 @@ node *node::add_char(charinfo *ci, environment *env,
   node *res;
   switch (ci->get_special_translation()) {
   case charinfo::TRANSLATE_SPACE:
-    res = new space_char_hmotion_node(env->get_space_width(), this);
+    res = new space_char_hmotion_node(env->get_space_width(),
+				      env->get_fill_color(), this);
     *widthp += res->width();
     return res;
   case charinfo::TRANSLATE_STRETCHABLE_SPACE:
-    res = new unbreakable_space_node(env->get_space_width(), this);
+    res = new unbreakable_space_node(env->get_space_width(),
+				     env->get_fill_color(), this);
+    res->freeze_space();
     *widthp += res->width();
     *spacep += res->nspaces();
     return res;
@@ -4350,7 +4603,7 @@ node *node::add_char(charinfo *ci, environment *env,
   if (tem)
     ci = tem;
   macro *mac = ci->get_macro();
-  if (mac) {
+  if (mac && !ci->is_fallback()) {
     res = make_composite_node(ci, env);
     if (res) {
       res->next = this;
@@ -4385,7 +4638,7 @@ node *node::add_char(charinfo *ci, environment *env,
   if (break_code) {
     node *next1 = res->next;
     res->next = 0;
-    res = new break_char_node(res, break_code, next1);
+    res = new break_char_node(res, break_code, env->get_fill_color(), next1);
   }
   return res;
 }
@@ -4453,7 +4706,8 @@ int vertical_size_node::force_tprint()
 
 int hmotion_node::same(node *nd)
 {
-  return n == ((hmotion_node *)nd)->n;
+  return n == ((hmotion_node *)nd)->n
+	 && col == ((hmotion_node *)nd)->col;
 }
 
 const char *hmotion_node::type()
@@ -4488,7 +4742,8 @@ hyphen_list *hmotion_node::get_hyphen_list(hyphen_list *tail)
 
 int space_char_hmotion_node::same(node *nd)
 {
-  return n == ((space_char_hmotion_node *)nd)->n;
+  return n == ((space_char_hmotion_node *)nd)->n
+	 && col == ((space_char_hmotion_node *)nd)->col;
 }
 
 const char *space_char_hmotion_node::type()
@@ -4517,7 +4772,8 @@ hyphen_list *space_char_hmotion_node::get_hyphen_list(hyphen_list *tail)
 
 int vmotion_node::same(node *nd)
 {
-  return n == ((vmotion_node *)nd)->n;
+  return n == ((vmotion_node *)nd)->n
+	 && col == ((vmotion_node *)nd)->col;
 }
 
 const char *vmotion_node::type()
@@ -4841,7 +5097,10 @@ int composite_node::force_tprint()
 
 int glyph_node::same(node *nd)
 {
-  return ci == ((glyph_node *)nd)->ci && tf == ((glyph_node *)nd)->tf;
+  return ci == ((glyph_node *)nd)->ci
+	 && tf == ((glyph_node *)nd)->tf
+	 && gcol == ((glyph_node *)nd)->gcol
+	 && fcol == ((glyph_node *)nd)->fcol;
 }
 
 const char *glyph_node::type()
@@ -4907,8 +5166,9 @@ int dbreak_node::force_tprint()
 
 int break_char_node::same(node *nd)
 {
-  return (break_code == ((break_char_node *)nd)->break_code
-	  && same_node(ch, ((break_char_node *)nd)->ch));
+  return break_code == ((break_char_node *)nd)->break_code
+	 && col == ((break_char_node *)nd)->col
+	 && same_node(ch, ((break_char_node *)nd)->ch);
 }
 
 const char *break_char_node::type()
@@ -4938,7 +5198,9 @@ int line_start_node::force_tprint()
 
 int space_node::same(node *nd)
 {
-  return n == ((space_node *)nd)->n && set == ((space_node *)nd)->set;
+  return n == ((space_node *)nd)->n
+	      && set == ((space_node *)nd)->set
+	      && col == ((space_node *)nd)->col;
 }
 
 const char *space_node::type()
@@ -4948,8 +5210,9 @@ const char *space_node::type()
 
 int word_space_node::same(node *nd)
 {
-  return (n == ((word_space_node *)nd)->n
-	  && set == ((word_space_node *)nd)->set);
+  return n == ((word_space_node *)nd)->n
+	 && set == ((word_space_node *)nd)->set
+	 && col == ((word_space_node *)nd)->col;
 }
 
 const char *word_space_node::type()
@@ -4964,8 +5227,9 @@ int word_space_node::force_tprint()
 
 int unbreakable_space_node::same(node *nd)
 {
-  return (n == ((unbreakable_space_node *)nd)->n
-	  && set == ((unbreakable_space_node *)nd)->set);
+  return n == ((unbreakable_space_node *)nd)->n
+	 && set == ((unbreakable_space_node *)nd)->set
+	 && col == ((unbreakable_space_node *)nd)->col;
 }
 
 const char *unbreakable_space_node::type()
@@ -5345,7 +5609,7 @@ int symbol_fontno(symbol s)
 
 int is_good_fontno(int n)
 {
-  return n >= 0 && n < font_table_size && font_table[n] != NULL;
+  return n >= 0 && n < font_table_size && font_table[n] != 0;
 }
 
 int get_bold_fontno(int n)
