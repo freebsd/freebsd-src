@@ -206,6 +206,12 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
       <para arch="i386">The ufm driver, supporting the D-Link DSB-R100
 	USB Radio, has been added.</para>
+
+      <para arch="i386">The via82c686 sound driver now supports the VIA
+	VT8233.</para>
+
+      <para arch="i386">The ich sound driver now support the SiS
+	7012 chipset.</para>
     </sect3>
 
     <sect3>
