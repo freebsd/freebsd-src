@@ -436,6 +436,12 @@ DiskLabel()
        lbl->d_partitions[i].p_fstype = 0;
     }
     lbl->d_npartitions = MAXPARTITIONS;
+
+    if(Dname[diskno][0] == 's' && Dname[diskno][1] == 'd')
+        lbl->d_type = DTYPE_SCSI;
+    else
+        lbl->d_type = DTYPE_ST506;
+ 
     while(!done) {
 	clear(); standend();
 	if (yip) {
