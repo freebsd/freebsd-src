@@ -158,17 +158,17 @@ FreeBSD 4.0  |      |  |  |  | NetBSD 1.4.2    |             |
  |      |             |   NetBSD 1.6       OpenBSD 3.2       |
  |   FreeBSD 4.8      |      |    |            |             |
  |      |             |      | NetBSD 1.6.1    |             |
- |      |             |      |    |        OpenBSD 3.3       |
+ |      |             |      |    |        OpenBSD 3.3     BSD/OS 5.0
  |      |             |      |    |            |             |
- |   FreeBSD 4.9      |      |    |        OpenBSD 3.4       |
- |      |             |      |    |            |             |
- |      v             |      | NetBSD 1.6.2    |             |
- |                    |      |    |            |             |
- |                    |      |    v            |             |
-FreeBSD 5.0	      |      |                 |             |
- |                    |      |                 |            BSD/OS 5.0
-FreeBSD 5.1           |   NetBSD -current  OpenBSD -current  |
- |          \         |      |                 |             v
+ |   FreeBSD 4.9      |      |    |        OpenBSD 3.4     BSD/OS 5.1 ISE
+ |      |             |      |    |            |
+ |      v             |      | NetBSD 1.6.2    |
+ |                    |      |    |            |
+ |                    |      |    v        OpenBSD 3.5
+FreeBSD 5.0	      |      |                 |
+ |                    |      |                 |
+FreeBSD 5.1           |   NetBSD -current  OpenBSD -current
+ |          \         |      |                 |
  |           ----- Mac OS X  |                 |
  |                   10.3    |                 |
 FreeBSD 5.2           |      |                 |
@@ -391,10 +391,12 @@ BSD/OS 5.0		2003-05-?? [WRS]
 FreeBSD 5.1		2003-06-09 [FBD]
 Mac OS X 10.3		2003-10-24 [APL]
 FreeBSD 4.9		2003-10-28 [FBD]
+BSD/OS 5.1 ISE		2003-10-?? [WRS] (final version)
 OpenBSD 3.4		2003-11-01 [OBD]
 FreeBSD 5.2		2004-01-12 [FBD]
 FreeBSD 5.2.1		2004-02-22 [FBD] (patch release)
-NetBSD 1.6.2		2004-03-01 [NBD]
+NetBSD 1.6.2		2004-03-01 [NBD] (patch release)
+OpenBSD 3.5		2004-04-01 [OBD]
 
 Bibliography
 ------------------------
