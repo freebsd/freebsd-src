@@ -114,7 +114,6 @@ static int	bpf_allocbufs __P((struct bpf_d *));
 static void	bpf_attachd __P((struct bpf_d *d, struct bpf_if *bp));
 static void	bpf_detachd __P((struct bpf_d *d));
 static void	bpf_freed __P((struct bpf_d *));
-static void	bpf_ifname __P((struct ifnet *, struct ifreq *));
 static void	bpf_mcopy __P((const void *, void *, size_t));
 static int	bpf_movein __P((struct uio *, int,
 		    struct mbuf **, struct sockaddr *, int *));
@@ -755,13 +754,18 @@ bpfioctl(dev, cmd, addr, flags, p)
 		break;
 
 	/*
-	 * Set interface name.
+	 * Get interface name.
 	 */
 	case BIOCGETIF:
 		if (d->bd_bif == 0)
 			error = EINVAL;
-		else
-			bpf_ifname(d->bd_bif->bif_ifp, (struct ifreq *)addr);
+		else {
+			struct ifnet *const ifp = d->bd_bif->bif_ifp;
+			struct ifreq *const ifr = (struct ifreq *)addr;
+
+			snprintf(ifr->ifr_name, sizeof(ifr->ifr_name),
+			    "%s%d", ifp->if_name, ifp->if_unit);
+		}
 		break;
 
 	/*
@@ -988,26 +992,6 @@ bpf_setif(d, ifr)
 	}
 	/* Not found. */
 	return (ENXIO);
-}
-
-/*
- * Convert an interface name plus unit number of an ifp to a single
- * name which is returned in the ifr.
- */
-static void
-bpf_ifname(ifp, ifr)
-	struct ifnet *ifp;
-	struct ifreq *ifr;
-{
-	char *s = ifp->if_name;
-	char *d = ifr->ifr_name;
-
-	while ((*d++ = *s++) != 0)
-		continue;
-	d--; /* back to the null */
-	/* XXX Assume that unit number is less than 10. */
-	*d++ = ifp->if_unit + '0';
-	*d = '\0';
 }
 
 /*
