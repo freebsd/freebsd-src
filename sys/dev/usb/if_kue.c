@@ -259,7 +259,19 @@ static int kue_load_fw(sc)
 	struct kue_softc	*sc;
 {
 	usbd_status		err;
-	u_int8_t		eaddr[] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+	usb_device_descriptor_t	*dd;
+	int			hwrev;
+
+	dd = &sc->kue_udev->ddesc;
+	hwrev = UGETW(dd->bcdDevice);
+
+	/*
+	 * Force the revision code and rescan the quirks
+	 * database: the adapter will return a different
+	 * revision code if the firmware is already running.
+	 */
+	USETW(dd->bcdDevice, 0x002);
+	sc->kue_udev->quirks = usbd_find_quirk(dd);
 
 	/*
 	 * First, check if we even need to load the firmware.
@@ -270,16 +282,13 @@ static int kue_load_fw(sc)
 	 * so we have to avoid this condition if we don't want
 	 * to look stupid.
 	 *
-	 * We can test this quickly by trying to read the MAC
-	 * address; if this fails to return any data, the firmware
-	 * needs to be reloaded, otherwise the device is already
-	 * operational and we can just return.
+	 * We can test this quickly by checking the bcdRevision
+	 * code. The NIC will return a different revision code if
+	 * it's probed while the firmware is still loaded and
+	 * running.
 	 */
-	err = kue_ctl(sc, KUE_CTL_READ, KUE_CMD_GET_MAC,
-	    0, (char *)&eaddr, ETHER_ADDR_LEN);
-
-	if (bcmp(eaddr, etherbroadcastaddr, ETHER_ADDR_LEN))
-		return(USBD_NORMAL_COMPLETION);
+	if (hwrev == 0x0202)
+		return(0);
 
 	/* Load code segment */
 	err = kue_ctl(sc, KUE_CTL_WRITE, KUE_CMD_SEND_SCAN,
@@ -382,28 +391,14 @@ USB_MATCH(kue)
 {
 	USB_MATCH_START(kue, uaa);
 	struct kue_type			*t;
-	usb_device_descriptor_t		*dd;
 
 	if (!uaa->iface)
 		return(UMATCH_NONE);
-
-	dd = &uaa->device->ddesc;
 
 	t = kue_devs;
 	while(t->kue_vid) {
 		if (uaa->vendor == t->kue_vid &&
 		    uaa->product == t->kue_did) {
-			/*
-			 * Force the revision code and then rescan the
-			 * quirks so that we get the right quirk bits set.
-			 * Why? The chip without the firmware loaded returns
-			 * one revision code. The chip with the firmware
-			 * loaded and running returns a *different* revision
-			 * code. This confuses the quirk mechanism, which is
-			 * dependent on the revision data.
-			 */
-			USETW(dd->bcdDevice, 0x002);
-			uaa->device->quirks = usbd_find_quirk(dd);
 			return(UMATCH_VENDOR_PRODUCT);
 		}
 		t++;
