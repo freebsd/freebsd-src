@@ -284,6 +284,11 @@ setflags(n)
 	else
 		CLR(cflag, MDMBUF);
 
+	if (HW)
+		SET(cflag, CRTSCTS);
+	else
+		CLR(cflag, CRTSCTS);
+
 	if (NL) {
 		SET(iflag, ICRNL);
 		SET(oflag, ONLCR|OPOST);
