@@ -34,6 +34,7 @@
 
 #include <btxv86.h>
 
+#include "boot2.h"
 #include "lib.h"
 
 #define RBX_ASKNAME	0x0	/* -a */
@@ -739,7 +740,7 @@ drvread(void *buf, unsigned lba, unsigned nblk)
 
     printf("%c\b", c = c << 8 | c >> 24);
     v86.ctl = V86_ADDR | V86_CALLF | V86_FLAGS;
-    v86.addr = 0x704;		/* call to xread in boot1 */
+    v86.addr = XREADORG;		/* call to xread in boot1 */
     v86.es = VTOPSEG(buf);
     v86.eax = lba;
     v86.ebx = VTOPOFF(buf);
