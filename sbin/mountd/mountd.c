@@ -43,7 +43,7 @@ static char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "From: @(#)mountd.c	8.8 (Berkeley) 2/20/94";*/
 static const char rcsid[] =
-	"$Id: mountd.c,v 1.11.2.8 1997/09/30 13:25:35 jlemon Exp $";
+	"$Id: mountd.c,v 1.11.2.9 1997/12/04 07:36:15 imp Exp $";
 #endif /*not lint*/
 
 #include <sys/param.h>
@@ -882,7 +882,10 @@ get_exportlist()
 				    grp = grp->gr_next;
 				}
 				if (netgrp) {
-				    if (get_host(hst, grp, tgrp)) {
+				    if (hst == 0) {
+					syslog(LOG_ERR, "Null hostname in netgroup %s, skipping", cp);
+					grp->gr_type = GT_IGNORE;
+				    } else if (get_host(hst, grp, tgrp)) {
 					syslog(LOG_ERR, "Bad host %s in netgroup %s, skipping", hst, cp);
 					grp->gr_type = GT_IGNORE;
 				    }
