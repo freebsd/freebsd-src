@@ -3742,7 +3742,7 @@ out:
 
 /*
  * Convert a user file descriptor to a kernel file entry.
- * The file entry is locked upon returning.
+ * A reference on the file entry is held upon returning.
  */
 int
 getvnode(fdp, fd, fpp)
