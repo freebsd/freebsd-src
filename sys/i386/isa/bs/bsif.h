@@ -155,7 +155,7 @@
 #include <i386/isa/ic/wd33c93.h>
 #include <i386/isa/ccbque.h>
 
-#include <i386/isa/scsi_dvcfg.h>
+#include <cam/scsi/scsi_dvcfg.h>
 #include <i386/isa/bs/bsvar.h>
 #include <i386/isa/bs/bshw.h>
 #include <i386/isa/bs/bsfunc.h>
