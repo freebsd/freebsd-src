@@ -1046,7 +1046,7 @@ thread_sigframe_add(pthread_t thread, int sig)
 	   (struct pthread_signal_frame *) stackp;
 	thread->curframe = thread->sigframes[thread->sigframe_count];
 	thread->curframe->stackp = stackp;
-	thread->curframe->ctxtype = CTX_JB;
+	thread->curframe->ctxtype = CTX_JB_NOSIG;
 	thread->curframe->longjmp_val = 1;
 	thread->curframe->signo = sig;
 
