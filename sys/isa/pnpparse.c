@@ -41,7 +41,7 @@
 #define	MAXDEP	8
 
 #define I16(p)	((p)[0] + ((p)[1] << 8))
-#define I32(p)	(I16(p) + (I16(p+2) << 16))
+#define I32(p)	(I16(p) + (I16((p)+2) << 16))
 
 void
 pnp_printf(u_int32_t id, char *fmt, ...)
