@@ -330,7 +330,6 @@ ath_detach(struct ath_softc *sc)
 
 	DPRINTF(("ath_detach: if_flags %x\n", ifp->if_flags));
 
-	mtx_lock(&sc->sc_mtx);
 	ath_stop(ifp);
 	bpfdetach(ifp);
 	ath_desc_free(sc);
@@ -851,8 +850,19 @@ ath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				 * only reflect promisc mode settings.
 				 */
 				ath_mode_init(sc);
-			} else
-				ath_init(ifp);		/* XXX lose error */
+			} else {
+				/*
+				 * Beware of being called during detach to
+				 * reset promiscuous mode.  In that case we
+				 * will still be marked UP but not RUNNING.
+				 * However trying to re-init the interface
+				 * is the wrong thing to do as we've already
+				 * torn down much of our state.  There's
+				 * probably a better way to deal with this.
+				 */
+				if (!sc->sc_invalid)
+					ath_init(ifp);	/* XXX lose error */
+			}
 		} else
 			ath_stop(ifp);
 		break;
