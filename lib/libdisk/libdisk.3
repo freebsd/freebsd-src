@@ -25,7 +25,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: libdisk.3,v 1.1 1996/03/17 23:20:09 joerg Exp $
+.\" $Id: libdisk.3,v 1.2 1996/03/24 18:55:38 joerg Exp $
 .\" "
 .Dd March 15, 1996
 .Dt LIBDISK 3
@@ -57,11 +57,19 @@
 .Nm MakeDevDisk ,
 .Nm ShowChunkFlags ,
 .Nm ChunkCanBeRoot ,
+.Nm chunk_n ,
+.Nm slice_type_name
 .Nd library interface to slice and partition labels
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <libdisk.h>
 .Dv extern const u_char *boot1, boot2;
+.\"		What is the correct way to cause a single line break ???
+.Bd -literal
+.Dv extern const char *chunk_n[];
+.Ed
+.Ft const char *
+.Fn slice_type_name "int type" "int subtype"
 .Ft struct disk *
 .Fn Open_Disk "const char *devname"
 .Ft struct disk *
@@ -310,6 +318,17 @@ returns a string to show flags.
 .Pp
 .Fn ChunkCanBeRoot
 returns NULL if chunk can be
+.Pp
+Chunk name strings can be accessed directly using the external array
+.Va chunk_n .
+.Pp
+.Fn slice_type_name
+returns the name strings associated with the specified 
+.Ql type .
+.Ql subtype .
+If
+.Fn slice_type_name
+returns "unknown" for slices it isn't familar with.
 .Ql / .
 .Sh AUTHOR
 .Nm Libdisk

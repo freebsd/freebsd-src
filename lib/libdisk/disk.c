@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: disk.c,v 1.22.2.1 1996/11/28 21:51:08 phk Exp $
+ * $Id: disk.c,v 1.22.2.2 1996/12/14 11:56:43 joerg Exp $
  *
  */
 
@@ -346,4 +346,41 @@ Set_Boot_Blocks(struct disk *d, const u_char *b1, const u_char *b2)
 	d->boot2 = malloc(15*512);
 	if(!d->boot2) err(1,"malloc failed");
 	memcpy(d->boot2,b2,15*512);
+}
+
+const char *
+slice_type_name( int type, int subtype )
+{
+	switch (type) {
+		case 0:		return "whole";
+		case 1:		switch (subtype) {
+					case 1:		return "fat (12-bit)";
+					case 2:		return "XENIX /";
+					case 3:		return "XENIX /usr";
+					case 4:		return "fat (16-bit)";
+					case 5:		return "extended DOS";
+					case 6:		return "fat (>32Mb)";
+					case 7:		return "NTFS/HPFS";
+					case 10:	return "OS/2 bootmgr";
+					case 84:	return "OnTrack diskmgr";
+					case 100:	return "Netware 2.x";
+					case 101:	return "Netware 3.x";
+					case 128:	return "Minix 1.1";
+					case 129:	return "Minix 1.5";
+					case 130:	return "linux_swap";
+					case 131:	return "ext2fs";
+					case 183:	return "bsd/os";
+					case 184:	return "bsd/os swap";
+					default:	return "unknown";
+				}
+		case 2:		return "fat";
+		case 3:		switch (subtype) {
+					case 165:	return "freebsd";
+					default:	return "unknown";
+				}
+		case 4:		return "extended";
+		case 5:		return "part";
+		case 6:		return "unused";
+		default:	return "unknown";
+	}
 }
