@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)mt.c	8.2 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id: mt.c,v 1.21 1999/02/05 02:46:21 mjacob Exp $";
+	"$Id: mt.c,v 1.22 1999/03/02 06:27:59 mjacob Exp $";
 #endif /* not lint */
 
 /*
@@ -589,7 +589,7 @@ comptostring(u_int32_t comp)
 			break;
 
 	if (ct->comp_number == 0xf0f0f0f0) {
-		sprintf(buf, "0x%2x", comp);
+		sprintf(buf, "0x%x", comp);
 		return(buf);
 	} else
 		return(ct->name);
