@@ -26,14 +26,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_elf.c,v 1.16 1997/02/22 09:38:56 peter Exp $
+ *	$Id: imgact_elf.c,v 1.17 1997/03/23 03:36:16 bde Exp $
  */
 
 #include "opt_rlimit.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/resourcevar.h>
 #include <sys/exec.h>
 #include <sys/mman.h>
 #include <sys/imgact.h>
@@ -45,7 +44,6 @@
 #include <sys/mount.h>
 #include <sys/namei.h>
 #include <sys/proc.h>
-#include <sys/sysproto.h>
 #include <sys/syscall.h>
 #include <sys/signalvar.h>
 #include <sys/sysctl.h>
@@ -61,8 +59,6 @@
 #include <vm/vm_extern.h>
 
 #include <machine/md_var.h>
-#include <i386/linux/linux_syscall.h>
-#include <i386/linux/linux.h>
 
 #define MAX_PHDR	32	/* XXX enough ? */
 
@@ -75,8 +71,8 @@ static int elf_load_file __P((struct proc *p, char *file, u_long *addr, u_long *
 static int elf_freebsd_fixup __P((int **stack_base, struct image_params *imgp));
 int exec_elf_imgact __P((struct image_params *imgp));
 
-int elf_trace = 0;
-SYSCTL_INT(_debug, 1, elf_trace, CTLFLAG_RW, &elf_trace, 0, "");
+static int elf_trace = 0;
+SYSCTL_INT(_debug, OID_AUTO, elf_trace, CTLFLAG_RW, &elf_trace, 0, "");
 #define UPRINTF if (elf_trace) uprintf
 
 static struct sysentvec elf_freebsd_sysvec = {
@@ -744,6 +740,6 @@ elf_freebsd_fixup(int **stack_base, struct image_params *imgp)
  * Since `const' objects end up in the text segment, TEXT_SET is the
  * correct directive to use.
  */
-const struct execsw elf_execsw = {exec_elf_imgact, "ELF"};
+static const struct execsw elf_execsw = {exec_elf_imgact, "ELF"};
 TEXT_SET(execsw_set, elf_execsw);
 
