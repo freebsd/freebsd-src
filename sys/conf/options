@@ -62,8 +62,6 @@ ADW_ALLOW_MEMIO		opt_adw.h	# Allow PCI devices to use memory
 					# mapped I/O
 
 # Miscellaneous options.
-GEOM		opt_geom.h
-
 ADAPTIVE_MUTEXES
 COMPAT_43	opt_compat.h
 COMPAT_FREEBSD4	opt_compat.h
@@ -76,7 +74,7 @@ DDB_NOKLDSYM	opt_ddb.h
 DDB_UNATTENDED	opt_ddb.h
 GDB_REMOTE_CHAT	opt_ddb.h
 GDBSPEED	opt_ddb.h
-NODEVFS		opt_devfs.h
+GEOM
 HW_WDOG
 KTRACE
 KTRACE_REQUEST_POOL	opt_ktrace.h
@@ -84,6 +82,7 @@ LIBICONV
 MD_ROOT		opt_md.h
 MD_ROOT_SIZE	opt_md.h
 NDGBPORTS	opt_dgb.h
+NODEVFS		opt_devfs.h
 NTIMECOUNTER	opt_ntp.h
 NSWAPDEV	opt_swap.h
 PPS_SYNC	opt_ntp.h
