@@ -387,6 +387,24 @@ options 	NETATALK		#Appletalk communications protocols
 #options 	EON			#ISO CLNP over IP
 #options 	NSIP			#XNS over IP
 
+# netgraph(4). Enable the base netgraph code with the NETGRAPH option.
+# Individual node types can be enabled with the corresponding option
+# listed below; however, this is not strictly necessary as netgraph
+# will automatically load the corresponding KLD module if the node type
+# is not already compiled into the kernel.
+options			NETGRAPH		#netgraph(4) system
+options			NETGRAPH_ASYNC
+options			NETGRAPH_CISCO
+options			NETGRAPH_ECHO
+options			NETGRAPH_FRAME_RELAY
+options			NETGRAPH_HOLE
+options			NETGRAPH_IFACE
+options			NETGRAPH_LMI
+options			NETGRAPH_RFC1490
+options			NETGRAPH_TEE
+options			NETGRAPH_TTY
+options			NETGRAPH_UI
+
 #
 # Network interfaces:
 #  The `loop' pseudo-device is MANDATORY when networking is enabled.

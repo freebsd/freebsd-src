@@ -237,6 +237,24 @@ TCPDEBUG
 TCP_DROP_SYNFIN		opt_tcp_input.h
 TCP_RESTRICT_RST	opt_tcp_input.h
 
+# Netgraph(4). Use option NETGRAPH to enable the base netgraph code.
+# Each netgraph node type can be either be compiled into the kernel
+# or loaded dynamically. To get the former, include the corresponding
+# option below.
+NETGRAPH
+NETGRAPH_ASYNC		opt_netgraph.h
+NETGRAPH_CISCO		opt_netgraph.h
+NETGRAPH_ECHO		opt_netgraph.h
+NETGRAPH_FRAME_RELAY	opt_netgraph.h
+NETGRAPH_HOLE		opt_netgraph.h
+NETGRAPH_IFACE		opt_netgraph.h
+NETGRAPH_LMI		opt_netgraph.h
+NETGRAPH_RFC1490	opt_netgraph.h
+NETGRAPH_SOCKET		opt_netgraph.h
+NETGRAPH_TEE		opt_netgraph.h
+NETGRAPH_TTY		opt_netgraph.h
+NETGRAPH_UI		opt_netgraph.h
+
 # ATM (HARP version)
 ATM_CORE		opt_atm.h
 ATM_IP			opt_atm.h

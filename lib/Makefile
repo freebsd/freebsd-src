@@ -22,8 +22,8 @@ SUBDIR=	${_csu} libcom_err ${_libm} libmd ${_libcrypt} \
 	${_compat} libalias libatm libbind libc ${_libc_r} libcalendar libcam \
 	libcompat libdevstat libdisk libedit libfetch libform \
 	libftpio libgnumalloc ${_libio} libipx libkvm libmenu ${_libncp} \
-	libopie libpam libpanel libpcap libresolv librpcsvc libss libstand \
-	${_libtelnet} libutil ${_libvgl} libwrap libxpg4 liby libz
+	libnetgraph libopie libpam libpanel libpcap libresolv librpcsvc libss \
+	libstand ${_libtelnet} libutil ${_libvgl} libwrap libxpg4 liby libz
 
 .if exists(${.CURDIR}/csu/${MACHINE_ARCH}-${OBJFORMAT})
 _csu=csu/${MACHINE_ARCH}-${OBJFORMAT}
