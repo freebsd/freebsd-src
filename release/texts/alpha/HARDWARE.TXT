@@ -1635,7 +1635,7 @@ contain:
         cpu             EV5 
 
 *
-* Alpha Processor Inc. UP1100
+* Alpha Processor Inc. UP1000
 *
 
 The UP1000 is an ATX mainboard based on the 21264a CPU which itself lives in
@@ -1708,8 +1708,9 @@ The UP1100 is an ATX mainboard based on the 21264a CPU running at 600 MHz.
 It is normally housed in a ATX [mini]tower enclosure.
 
 Features:
-- 21264a Alpha CPU at 600 MHz
-- memory bus: 100MHz 64-bit 
+- 21264a Alpha EV6 CPU at 600 or 700 MHz
+- memory bus: 100MHz 64-bit (PC-100 SDRAM)
+  800 MB/s memory bandwidth
 - on-board Bcache / L2 cache: 2Mb 
 - AMD AMD-751 ('Irongate') system controller chip
 - Acer Labs M1535D PCI-ISA bridge controller / super-IO chip
@@ -1720,7 +1721,7 @@ Features:
 - 2x 16550A serial port
 - 1x ECP/EPP parallel port
 - floppy interface
-- 2x embedded Ultra DMA33 IDE interface
+- 2x embedded Ultra DMA66 IDE interface
 - 2x USB port
 - expansion: 3 32 bit PCI slots
              1 AGP2x slot
@@ -1731,12 +1732,12 @@ flash ROM.
 
 Memory:
 The machine needs ECC capable DIMMs, so 72 bit ones. This does not appear to
-be documented in the UP1000 docs. The system accesses the serial EEPROM on
+be documented in the UP1100 docs. The system accesses the serial EEPROM on
 the DIMMs via the SM bus. Note that if only a single DIMM is used it must be
 installed in slot *2*. This is a bit counter-intuitive.
 
 Power
-The UP1000 needs a 400Watt ATX power supply according to the manufacturer.
+The UP1100 needs a 400Watt ATX power supply according to the manufacturer.
 This might be a bit overly conservative/pessimistic judging from the power
 consumption of the board & cpu. But as always you will have to take your
 expansion cards and peripherals into account. The M1535D chip contains power
