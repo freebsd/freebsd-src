@@ -53,7 +53,8 @@ Options available:
 .It Ar person
 If you wish to talk to someone on your own machine, then
 .Ar person
-is just the person's login name.  If you wish to talk to a user on
+is just the person's login name.
+If you wish to talk to a user on
 another host, then
 .Ar person
 is of the form
@@ -88,20 +89,25 @@ of the message should reply by typing
 .Dl talk \ your_name@your_machine
 .Pp
 It doesn't matter from which machine the recipient replies, as
-long as his login-name is the same.  Once communication is established,
+long as his login-name is the same.
+Once communication is established,
 the two parties may type simultaneously, with their output appearing
-in separate windows.  Typing control-L
+in separate windows.
+Typing control-L
 .Ql ^L
 will cause the screen to
 be reprinted, while your erase, kill, and word kill characters will
-behave normally.  To exit, just type your interrupt character;
+behave normally.
+To exit, just type your interrupt character;
 .Nm
 then moves the cursor to the bottom of the screen and restores the
 terminal to its previous state.
 .Pp
 Permission to talk may be denied or granted by use of the
 .Xr mesg 1
-command.  At the outset talking is allowed.  Certain commands, in
+command.
+At the outset talking is allowed.
+Certain commands, in
 particular
 .Xr nroff 1
 and
