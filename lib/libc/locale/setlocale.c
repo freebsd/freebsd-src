@@ -166,6 +166,14 @@ loadlocale(category)
 		return (current_categories[LC_COLLATE]);
 	}
 
+	if (category == LC_TIME) {
+		if (__time_load_locale(new_categories[LC_TIME]) < 0)
+			return (NULL);
+		strcpy(current_categories[LC_COLLATE], 
+		       new_categories[LC_COLLATE]);
+		return (current_categories[LC_COLLATE]);
+	}
+
 	if (!strcmp(new_categories[category], "C") ||
 		!strcmp(new_categories[category], "POSIX")) {
 
@@ -188,7 +196,6 @@ loadlocale(category)
 	switch (category) {
 		case LC_MONETARY:
 		case LC_NUMERIC:
-		case LC_TIME:
 			return (NULL);
 	}
 }
