@@ -1046,7 +1046,7 @@ ext2_checkpath(source, target, cred)
 			IO_NODELOCKED, cred, (int *)0, (struct proc *)0);
 		if (error != 0)
 			break;
-		namlen = dirbuf.dotdot_namlen;
+		namlen = ((struct odirtemplate *)&dirbuf)->dotdot_namlen;	/* XXX */
 		if (namlen != 2 ||
 		    dirbuf.dotdot_name[0] != '.' ||
 		    dirbuf.dotdot_name[1] != '.') {
