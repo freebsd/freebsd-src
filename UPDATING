@@ -5,6 +5,16 @@ directly to him.  See end of file for further details.  For commonly
 done items, please see the end of the file.  Search for 'COMMON
 ITEMS:'
 
+20010530:
+	INSTALL=install -C is being deprecated.  If you want to do this,
+	use COPY=-C instead.  The former method will be supported for only
+	a limited time.  If you see
+
+install: warning: the -d and -C options may not be specified together
+
+	in your makeworld, then you need to migrate towards using
+	COPY=-C.
+
 20010525:
 	It appears that vm is now stable enough to use again.  However,
 	there may be other problems, so caution is still urged.  alpha
