@@ -124,14 +124,14 @@ __ElfType(Auxinfo);
 #define	R_X86_64_PC16	13	/* Add 16 bit signed extended pc relative symbol value */
 #define	R_X86_64_8	14	/* Add 8 bit zero extended symbol value */
 #define	R_X86_64_PC8	15	/* Add 8 bit signed extended pc relative symbol value */
-#define R_X86_64_DTPMOD64 16	/* ID of module containing symbol */
-#define R_X86_64_DTPOFF64 17	/* Offset in TLS block */
-#define R_X86_64_TPOFF64 18	/* Offset in static TLS block */
-#define R_X86_64_TLSGD	19	/* PC relative offset to GD GOT entry */
-#define R_X86_64_TLSLD	20	/* PC relative offset to LD GOT entry */
-#define R_X86_64_DTPOFF32 21	/* Offset in TLS block */
-#define R_X86_64_GOTTPOFF 22	/* PC relative offset to IE GOT entry */
-#define R_X86_64_TPOFF32 23	/* Offset in static TLS block */
+#define	R_X86_64_DTPMOD64 16	/* ID of module containing symbol */
+#define	R_X86_64_DTPOFF64 17	/* Offset in TLS block */
+#define	R_X86_64_TPOFF64 18	/* Offset in static TLS block */
+#define	R_X86_64_TLSGD	19	/* PC relative offset to GD GOT entry */
+#define	R_X86_64_TLSLD	20	/* PC relative offset to LD GOT entry */
+#define	R_X86_64_DTPOFF32 21	/* Offset in TLS block */
+#define	R_X86_64_GOTTPOFF 22	/* PC relative offset to IE GOT entry */
+#define	R_X86_64_TPOFF32 23	/* Offset in static TLS block */
 
 #define	R_X86_64_COUNT	24	/* Count of defined relocation types. */
 
