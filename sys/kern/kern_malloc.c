@@ -162,6 +162,9 @@ malloc(size, type, flags)
 	int indx;
 	caddr_t va;
 	uma_zone_t zone;
+#ifdef DIAGNOSTIC
+	unsigned long osize = size;
+#endif
 	register struct malloc_type *ksp = type;
 
 #if 0
@@ -207,6 +210,11 @@ out:
 	if (va == NULL) {
 		t_malloc_fail = time_uptime;
 	}
+#ifdef DIAGNOSTIC
+	if (!(flags & M_ZERO)) {
+		memset(va, 0x70, osize);
+	}
+#endif
 	return ((void *) va);
 }
 
