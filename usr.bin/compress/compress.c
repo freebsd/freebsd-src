@@ -300,14 +300,9 @@ decompress(const char *in, const char *out, int bits)
 	isreg = oreg = !exists || S_ISREG(sb.st_mode);
 
 	ifp = ofp = NULL;
-	if ((ofp = fopen(out, "w")) == NULL) {
-		cwarn("%s", out);
-		return;
-	}
-
 	if ((ifp = zopen(in, "r", bits)) == NULL) {
 		cwarn("%s", in);
-		goto err;
+		return;
 	}
 	if (stat(in, &sb)) {
 		cwarn("%s", in);
@@ -315,6 +310,22 @@ decompress(const char *in, const char *out, int bits)
 	}
 	if (!S_ISREG(sb.st_mode))
 		isreg = 0;
+
+	/*
+	 * Try to read the first few uncompressed bytes from the input file
+	 * before blindly truncating the output file.
+	 */
+	if ((nr = fread(buf, 1, sizeof(buf), ifp)) == 0) {
+		cwarn("%s", in);
+		(void)fclose(ifp);
+		return;
+	}
+	if ((ofp = fopen(out, "w")) == NULL ||
+	    (nr != 0 && fwrite(buf, 1, nr, ofp) != nr)) {
+		cwarn("%s", out);
+		(void)fclose(ifp);
+		return;
+	}
 
 	while ((nr = fread(buf, 1, sizeof(buf), ifp)) != 0)
 		if (fwrite(buf, 1, nr, ofp) != nr) {
