@@ -3,11 +3,11 @@
 # It also adds FOO and files.FOO configuration files so you can compile
 # a kernel with your FOO driver linked in.
 # To do so:
-# cd /sys/i386/conf; config FOO; cd ../../compile/FOO; make depend; make
+# cd /usr/src; make buildkernel KERNCONF=FOO
 #
 # More interestingly, it creates a modules/foo directory
 # which it populates, to allow you to compile a FOO module
-# which can be lonked with your presently running kernel (if you feel brave).
+# which can be linked with your presently running kernel (if you feel brave).
 # To do so:
 # cd /sys/modules/foo; make depend; make; make install; kldload foo
 #
@@ -22,7 +22,7 @@
 # $FreeBSD$"
 #
 #
-if [ "${1}X" = "X" ] 
+if [ "X${1}" = "X" ] 
 then
 	echo "Hey , how about some help here.. give me a device name!"
 	exit 1
@@ -175,6 +175,10 @@ cat >${TOP}/dev/${1}/${1}.c <<DONE
 #define SOME_PORT 123
 #define EXPECTED_VALUE 0x42
 
+/*
+ * The softc is automatically allocated by the parent bus using the
+ * size specified in the driver_t declaration below
+ */
 #define DEV2SOFTC(dev)	((struct ${1}_softc *) (dev)->si_drv1)
 #define DEVICE2SOFTC(dev) ((struct ${1}_softc *) device_get_softc(dev))
 
@@ -294,14 +298,14 @@ static struct localhints {
 	{0,0,0,0}
 };
 
-#define MAXHINTS 10 /* just an arbitrary safty limit */
+#define MAXHINTS 10 /* just an arbitrary safety limit */
 /*
  * Called once when the driver is somehow connected with the bus,
  * (Either linked in and the bus is started, or loaded as a module).
  *
  * The aim of this routine in an ISA driver is to add child entries to
  * the parent bus so that it looks as if the devices were detected by
- * some pnp-like method, or at least mentionned in the hints.
+ * some pnp-like method, or at least mentioned in the hints.
  *
  * For NON-PNP "dumb" devices:
  * Add entries into the bus's list of likely devices, so that
@@ -321,8 +325,8 @@ static struct localhints {
  * The ISA PNP system will have automatically added it to the system and
  * so your identify routine needn't do anything.
  *
- * If the device is mentionned in the 'hints' file then this
- * function can be removed. All devices mentionned in the hints
+ * If the device is mentioned in the 'hints' file then this
+ * function can be removed. All devices mentioned in the hints
  * file get added as children for probing, whether or not the
  * driver is linked in. So even as a module it MAY still be there.
  * See isa/isahint.c for hints being added in.
@@ -407,8 +411,8 @@ ${1}_isa_probe (device_t device)
 	 * Check this device for a PNP match in our table..
 	 * There are several possible outcomes.
 	 * error == 0		We match a PNP ).
-	 * error == ENXIO,	It is a PNP device but not in out table.
-	 * error == ENOENT,	I is not a PNP device.. try heuristic probes.
+	 * error == ENXIO,	It is a PNP device but not in our table.
+	 * error == ENOENT,	It is not a PNP device.. try heuristic probes.
 	 *    -- logic from if_ed_isa.c, added info from isa/isa_if.m:
 	 *
 	 * If we had a list of devices that we could handle really well,
@@ -441,7 +445,7 @@ ${1}_isa_probe (device_t device)
 		 * which is read in by code in isa/isahint.c
 		 * and kern/subr_bus.c to create resource entries,
 		 * or have been added by the 'identify routine above.
-		 * Note that HINTS based resourse requests have NO
+		 * Note that HINTS based resource requests have NO
 		 * SIZE for the memory or ports requests  (just a base)
 		 * so we may need to 'correct' this before we
 		 * do any probing.
@@ -504,15 +508,15 @@ ${1}_isa_probe (device_t device)
 		/*
 		 * Unreserve the resources for now because
 		 * another driver may bid for device too.
-		 * If we lose the bid, but still hold the resouces, we will
-		 * effectively have diabled the other driver from getting them
+		 * If we lose the bid, but still hold the resources, we will
+		 * effectively have disabled the other driver from getting them
 		 * which will result in neither driver getting the device.
 		 * We will ask for them again in attach if we win.
 		 */
 		${1}_deallocate_resources(device);
 		break;
 	case  ENXIO:
-		/* It was PNP but not ours, leave imediatly */
+		/* It was PNP but not ours, leave immediately */
 	default:
 		error = ENXIO;
 	}
@@ -599,7 +603,7 @@ static struct _pcsid
 };
 
 /*
- * See if this card is specifically mentionned in our list of known devices.
+ * See if this card is specifically mentioned in our list of known devices.
  * Theoretically we might also put in a weak bid for some devices that
  * report themselves to be some generic type of device if we can handle
  * that generic type. (other PCI_XXX calls give that info).
@@ -650,7 +654,7 @@ ${1}_pci_detach (device_t device)
 
 /*
  ****************************************
- *  Common Attachment subfunctions
+ *  Common Attachment sub-functions
  ****************************************
  */
 static int
@@ -679,15 +683,15 @@ ${1}_attach(device_t device, struct ${1}_softc * scp)
 	 *	INTR_TYPE_NET
 	 *	INTR_TYPE_MISC
 	 * This will probably change with SMPng.  INTR_TYPE_FAST may be
-	 * or'd into this type to mark the interrupt fast.  However, fast
+	 * OR'd into this type to mark the interrupt fast.  However, fast
 	 * interrupts cannot be shared at all so special precautions are
-	 * necessary when coding fast interrutp routines.
+	 * necessary when coding fast interrupt routines.
 	 */
 	if (scp->res_irq) {
 		/* default to the tty mask for registration */  /* XXX */
 		if (BUS_SETUP_INTR(parent, device, scp->res_irq, INTR_TYPE_TTY,
 				${1}intr, scp, &scp->intr_cookie) == 0) {
-			/* do something if successfull */
+			/* do something if successful */
 		} else {
 			goto errexit;
 		}
@@ -834,7 +838,7 @@ ${1}intr(void *arg)
 	struct ${1}_softc *scp = (struct ${1}_softc *) arg;
 
 	/* 
-	 * well we got an interupt, now what?
+	 * well we got an interrupt, now what?
 	 *
 	 * Make sure that the interrupt routine will always terminate,
 	 * even in the face of "bogus" data from the card.
