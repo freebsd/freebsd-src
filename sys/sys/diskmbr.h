@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)disklabel.h	8.1 (Berkeley) 6/2/93
- * $Id: disklabel.h,v 1.6 1994/10/27 20:45:09 jkh Exp $
+ * $Id: disklabel.h,v 1.7 1994/10/31 06:31:14 phk Exp $
  */
 
 #ifndef _SYS_DISKLABEL_H_
@@ -378,6 +378,8 @@ extern struct dos_partition dos_partitions[NDOSPART];
 #endif /* LOCORE */
 
 #ifdef KERNEL
+struct dkbad;
+
 u_int	 dkcksum __P((struct disklabel *));
 int	writedisklabel __P((dev_t dev, void (*strat)(), struct disklabel *lp));
 char *	readdisklabel __P((dev_t dev, void (*strat)(), struct disklabel *lp, struct dos_partition *dp, struct dkbad *bdp));
