@@ -72,7 +72,8 @@
 #error NG_VJC_MAX_CHANNELS must be the same as MAX_STATES
 #endif
 
-#define MAX_VJHEADER		16
+/* Maximum length of a compressed TCP VJ header */
+#define MAX_VJHEADER		19
 
 /* Node private data */
 struct private {
@@ -96,7 +97,7 @@ static ng_rcvdata_t	ng_vjc_rcvdata;
 static ng_disconnect_t	ng_vjc_disconnect;
 
 /* Helper stuff */
-static struct mbuf *ng_vjc_pulluphdrs(struct mbuf *m);
+static struct mbuf *ng_vjc_pulluphdrs(struct mbuf *m, int knownTCP);
 
 /* Node type descriptor */
 static struct ng_type typestruct = {
@@ -204,9 +205,8 @@ ng_vjc_rcvmsg(node_p node, struct ng_mesg *msg,
 				if (c->maxChannel > NG_VJC_MAX_CHANNELS - 1
 				    || c->maxChannel < NG_VJC_MIN_CHANNELS - 1)
 					ERROUT(EINVAL);
-			} else {
-				c->maxChannel = NG_VJC_MAX_CHANNELS;
-			}
+			} else
+				c->maxChannel = NG_VJC_MAX_CHANNELS - 1;
 			if (c->enableComp != 0 || c->enableDecomp != 0) {
 				bzero(&priv->slc, sizeof(priv->slc));
 				sl_compress_init(&priv->slc, c->maxChannel);
@@ -263,20 +263,27 @@ ng_vjc_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 	int error = 0;
 
 	if (hook == priv->ip) {			/* outgoing packet */
-		u_int   type;
+		u_int type = TYPE_IP;
 
-		if (!priv->conf.enableComp)	/* compression not enabled */
-			type = TYPE_IP;
-		else {
+		/* Compress packet if enabled and proto is TCP */
+		if (priv->conf.enableComp) {
 			struct ip *ip;
 
-			if ((m = ng_vjc_pulluphdrs(m)) == NULL)
-				ERROUT(ENOBUFS);
+			if ((m = ng_vjc_pulluphdrs(m, 0)) == NULL) {
+				NG_FREE_META(meta);
+				return (ENOBUFS);
+			}
 			ip = mtod(m, struct ip *);
-			type = (ip->ip_p == IPPROTO_TCP) ?
-			    sl_compress_tcp(m, ip,
-				&priv->slc, priv->conf.compressCID) : TYPE_IP;
+			if (ip->ip_p == IPPROTO_TCP) {
+				const int origLen = m->m_len;
+
+				type = sl_compress_tcp(m, ip,
+				    &priv->slc, priv->conf.compressCID);
+				m->m_pkthdr.len += m->m_len - origLen;
+			}
 		}
+
+		/* Dispatch to the appropriate outgoing hook */
 		switch (type) {
 		case TYPE_IP:
 			hook = priv->vjip;
@@ -291,56 +298,62 @@ ng_vjc_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 			panic("%s: type=%d", __FUNCTION__, type);
 		}
 	} else if (hook == priv->vjcomp) {	/* incoming compressed packet */
-		int     vjlen;
-		u_int   hlen;
+		int vjlen, need2pullup;
+		struct mbuf *hm;
 		u_char *hdr;
-		struct mbuf *mp;
+		u_int hlen;
 
 		/* Are we decompressing? */
 		if (!priv->conf.enableDecomp) {
 			NG_FREE_DATA(m, meta);
-			ERROUT(ENETDOWN);
+			return (ENXIO);
+		}
+
+		/* Pull up the necessary amount from the mbuf */
+		need2pullup = MAX_VJHEADER;
+		if (need2pullup > m->m_pkthdr.len)
+			need2pullup = m->m_pkthdr.len;
+		if (m->m_len < need2pullup
+		    && (m = m_pullup(m, need2pullup)) == NULL) {
+			priv->slc.sls_errorin++;
+			NG_FREE_META(meta);
+			return (ENOBUFS);
 		}
 
 		/* Uncompress packet to reconstruct TCP/IP header */
-		if (m->m_len < MAX_VJHEADER
-		    && (m = m_pullup(m, MAX_VJHEADER)) == NULL) {
-			priv->slc.sls_tossed++;
-			NG_FREE_META(meta);
-			ERROUT(ENOBUFS);
-		}
 		vjlen = sl_uncompress_tcp_core(mtod(m, u_char *),
 		    m->m_len, m->m_pkthdr.len, TYPE_COMPRESSED_TCP,
 		    &priv->slc, &hdr, &hlen);
 		if (vjlen <= 0) {
 			NG_FREE_DATA(m, meta);
-			ERROUT(EINVAL);
+			return (EINVAL);
 		}
 		m_adj(m, vjlen);
 
 		/* Copy the reconstructed TCP/IP headers into a new mbuf */
-		MGETHDR(mp, M_DONTWAIT, MT_DATA);
-		if (mp == NULL)
-			goto compfailmem;
-		mp->m_len = 0;
-		mp->m_next = NULL;
-		if (hlen > MHLEN) {
-			MCLGET(mp, M_DONTWAIT);
-			if (M_TRAILINGSPACE(mp) < hlen) {
-				m_freem(mp);	/* can't get a cluster, drop */
-compfailmem:
-				priv->slc.sls_tossed++;
+		MGETHDR(hm, M_DONTWAIT, MT_DATA);
+		if (hm == NULL) {
+			priv->slc.sls_errorin++;
+			NG_FREE_DATA(m, meta);
+			return (ENOBUFS);
+		}
+		hm->m_len = 0;
+		if (hlen > MHLEN) {		/* unlikely, but can happen */
+			MCLGET(hm, M_DONTWAIT);
+			if ((hm->m_flags & M_EXT) == 0) {
+				m_freem(hm);
+				priv->slc.sls_errorin++;
 				NG_FREE_DATA(m, meta);
-				ERROUT(ENOBUFS);
+				return (ENOBUFS);
 			}
 		}
-		bcopy(hdr, mtod(mp, u_char *), hlen);
-		mp->m_len = hlen;
+		bcopy(hdr, mtod(hm, u_char *), hlen);
+		hm->m_len = hlen;
 
-		/* Stick header and rest of packet together */
-		mp->m_next = m;
-		mp->m_pkthdr.len = hlen + m->m_pkthdr.len;
-		m = mp;
+		/* Glue TCP/IP headers and rest of packet together */
+		hm->m_next = m;
+		hm->m_pkthdr.len = hlen + m->m_pkthdr.len;
+		m = hm;
 		hook = priv->ip;
 	} else if (hook == priv->vjuncomp) {	/* incoming uncompressed pkt */
 		u_char *hdr;
@@ -349,17 +362,21 @@ compfailmem:
 		/* Are we decompressing? */
 		if (!priv->conf.enableDecomp) {
 			NG_FREE_DATA(m, meta);
-			ERROUT(ENETDOWN);
+			return (ENXIO);
+		}
+
+		/* Pull up IP+TCP headers */
+		if ((m = ng_vjc_pulluphdrs(m, 1)) == NULL) {
+			NG_FREE_META(meta);
+			return (ENOBUFS);
 		}
 
 		/* Run packet through uncompressor */
-		if ((m = ng_vjc_pulluphdrs(m)) == NULL)
-			ERROUT(ENOBUFS);
 		if (sl_uncompress_tcp_core(mtod(m, u_char *),
 		    m->m_len, m->m_pkthdr.len, TYPE_UNCOMPRESSED_TCP,
 		    &priv->slc, &hdr, &hlen) < 0) {
 			NG_FREE_DATA(m, meta);
-			ERROUT(EINVAL);
+			return (EINVAL);
 		}
 		hook = priv->ip;
 	} else if (hook == priv->vjip)	/* incoming regular packet (bypass) */
@@ -367,11 +384,8 @@ compfailmem:
 	else
 		panic("%s: unknown hook", __FUNCTION__);
 
-done:
-	if (m != NULL)
-		NG_SEND_DATA(error, hook, m, meta);
-	else
-		NG_FREE_META(meta);
+	/* Send result back out */
+	NG_SEND_DATA(error, hook, m, meta);
 	return (error);
 }
 
@@ -413,7 +427,7 @@ ng_vjc_disconnect(hook_p hook)
  * a TCP packet, just pull up the IP header.
  */
 static struct mbuf *
-ng_vjc_pulluphdrs(struct mbuf *m)
+ng_vjc_pulluphdrs(struct mbuf *m, int knownTCP)
 {
 	struct ip *ip;
 	struct tcphdr *tcp;
@@ -422,7 +436,7 @@ ng_vjc_pulluphdrs(struct mbuf *m)
 	if (m->m_len < sizeof(*ip) && (m = m_pullup(m, sizeof(*ip))) == NULL)
 		return (NULL);
 	ip = mtod(m, struct ip *);
-	if (ip->ip_p != IPPROTO_TCP)
+	if (!knownTCP && ip->ip_p != IPPROTO_TCP)
 		return (m);
 	ihlen = ip->ip_hl << 2;
 	if (m->m_len < ihlen + sizeof(*tcp)) {
@@ -430,7 +444,7 @@ ng_vjc_pulluphdrs(struct mbuf *m)
 			return (NULL);
 		ip = mtod(m, struct ip *);
 	}
-	tcp = (struct tcphdr *) ((u_char *) ip + ihlen);
+	tcp = (struct tcphdr *)((u_char *)ip + ihlen);
 	thlen = tcp->th_off << 2;
 	if (m->m_len < ihlen + thlen)
 		m = m_pullup(m, ihlen + thlen);
