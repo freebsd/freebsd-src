@@ -586,7 +586,7 @@ static void DoAliasing (int fd, int direction)
 static void FlushPacketBuffer (int fd)
 {
 	int			wrote;
-	char			msgBuf[160];
+	char			msgBuf[80];
 /*
  * Put packet back for processing.
  */
@@ -616,8 +616,7 @@ static void FlushPacketBuffer (int fd)
 		}
 		else {
 
-			sprintf (msgBuf, "failed to write packet back (%s)",
-			    FormatPacket((struct ip*) packetBuf));
+			sprintf (msgBuf, "failed to write packet back");
 			Warn (msgBuf);
 		}
 	}
