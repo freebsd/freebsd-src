@@ -98,8 +98,6 @@ SYSCTL_INT(_debug_ctau, OID_AUTO, mpsafenet, CTLFLAG_RD, &ct_mpsafenet, 0,
 					mtx_assert (&(_bd)->ct_mtx, MA_OWNED); \
 				} while (0)
 
-#define CDEV_MAJOR	99
-
 static void ct_identify		__P((driver_t *, device_t));
 static int ct_probe		__P((device_t));
 static int ct_attach		__P((device_t));
@@ -1736,7 +1734,6 @@ static struct cdevsw ct_cdevsw = {
 	.d_close    = ct_close,
 	.d_ioctl    = ct_ioctl,
 	.d_name     = "ct",
-	.d_maj      = CDEV_MAJOR,
 	.d_flags    = D_NEEDGIANT,
 };
 

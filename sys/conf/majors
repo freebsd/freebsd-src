@@ -61,7 +61,6 @@
 125	digio		Advantech PCI-1750 IO card jen@vulture.dmem.strath.ac.uk
 126	sync		Generic sync port support <phk>, <brian>
 128	arla		Arla (AFS-clone) driver
-134	cp		Cronyx Tau-PCI synchronous WAN adapters
 136	ipr		Iprobe on-chip perf. counters (gallatin@freebsd.org)
 137	nfp		nFast PCI crypto accelerator (support@ncipher.com)
 139	wanrouter	Sangoma Technologies Inc. (al.feldman@sangoma.com)
