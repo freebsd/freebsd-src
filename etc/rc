@@ -201,7 +201,7 @@ case ${ipv6_enable} in
 esac
 
 # Mount NFS filesystems if present in /etc/fstab
-if mount -d -a -t nfs | grep nfs >/dev/null 2>&1; then
+if mount -d -a -t nfs | grep -q nfs >/dev/null 2>&1; then
 	echo -n "Mounting NFS file systems"
 	mount -a -t nfs
 	echo .
