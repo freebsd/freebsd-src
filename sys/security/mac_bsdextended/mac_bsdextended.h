@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 1999-2002 Robert N. M. Watson
- * Copyright (c) 2001-2002 Networks Associates Technology, Inc.
+ * Copyright (c) 2001-2005 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed by Robert Watson for the TrustedBSD Project.
@@ -41,6 +41,21 @@
 #define	MBI_GID_DEFINED	0x00000002	/* gid field should be used */
 #define	MBI_NEGATED	0x00000004	/* negate uid/gid matches */
 #define	MBI_BITS	(MBI_UID_DEFINED | MBI_GID_DEFINED | MBI_NEGATED)
+
+/*
+ * Rights that can be represented in mbr_mode.  These have the same values
+ * as the V* rights in vnode.h, but in order to avoid sharing user and
+ * kernel constants, we define them here.  That will also improve ABI
+ * stability if the in-kernel values change.
+ */
+#define	MBI_EXEC	000100
+#define	MBI_WRITE	000200
+#define	MBI_READ	000400
+#define	MBI_ADMIN	010000
+#define	MBI_STAT	020000
+#define	MBI_APPEND	040000
+#define	MBI_ALLPERM	(MBI_EXEC | MBI_WRITE | MBI_READ | MBI_ADMIN | \
+			    MBI_STAT | MBI_APPEND)
 
 struct mac_bsdextended_identity {
 	int	mbi_flags;
