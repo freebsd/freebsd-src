@@ -1146,7 +1146,7 @@ static void
 md_takeroot(void *junk)
 {
 	if (mdrootready)
-		rootdevnames[0] = "ufs:/dev/md0c";
+		rootdevnames[0] = "ufs:/dev/md0";
 }
 
 SYSINIT(md_root, SI_SUB_MOUNT_ROOT, SI_ORDER_FIRST, md_takeroot, NULL);
