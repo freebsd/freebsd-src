@@ -256,9 +256,7 @@ The sense of the match can be inverted by preceding an address with the
 ``not'' modifier, causing all other addresses to be matched instead. This
 does not affect the selection of port numbers.
 .Pp
-With the TCP and UDP
-.Em protocols ,
-optional
+With the TCP and UDP protocols, optional
 .Em ports
 may be specified as:
 .Pp
@@ -268,9 +266,9 @@ may be specified as:
 .Pp
 Service names (from 
 .Pa /etc/services )
-may not be used instead of a numeric port value.
-Also, note that a range may only be specified as the first value,
-and the port list is limited to
+may be used instead of numeric port values.
+A range may only be specified as the first value,
+and the length of the port list is limited to
 .Dv IP_FW_MAX_PORTS
 (as defined in 
 .Pa /usr/src/sys/netinet/ip_fw.h )
@@ -459,8 +457,9 @@ This rule diverts all incoming packets from 192.168.2.0/24 to divert port 5000:
 .Pp
 .Dl ipfw divert 5000 all from 192.168.2.0/24 to any in
 .Sh SEE ALSO
-.Xr divert 4 ,
 .Xr ip 4 ,
+.Xr ipfirewall 4 ,
+.Xr divert 4 ,
 .Xr protocols 5 ,
 .Xr services 5 ,
 .Xr reboot 8 ,
@@ -484,6 +483,8 @@ Incoming packet fragments diverted by
 are reassembled before delivery to the socket, whereas fragments diverted via
 .Ar tee
 are not.
+.Pp
+Port aliases containing dashes cannot be first in a list.
 .Sh AUTHORS
 Ugen J. S. Antsilevich,
 Poul-Henning Kamp,

@@ -16,7 +16,7 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $Id: ipfw.c,v 1.34.2.3 1997/03/05 12:30:08 bde Exp $
+ * $Id: ipfw.c,v 1.34.2.4 1997/06/21 00:10:26 julian Exp $
  *
  */
 
@@ -548,6 +548,37 @@ add_port(cnt, ptr, off, port)
 	(*cnt)++;
 }
 
+static int
+lookup_port(const char *arg, int test, int nodash)
+{
+	int		val;
+	char		*earg, buf[32];
+	struct servent	*s;
+
+	snprintf(buf, sizeof(buf), "%s", arg);
+	buf[strcspn(arg, nodash ? "-," : ",")] = 0;
+	val = (int) strtoul(buf, &earg, 0);
+	if (!*buf || *earg) {
+		setservent(1);
+		if ((s = getservbyname(buf, NULL))) {
+			val = htons(s->s_port);
+		} else {
+			if (!test) {
+				errx(1, "unknown port ``%s''", arg);
+			}
+			val = -1;
+		}
+	} else {
+		if (val < 0 || val > 0xffff) {
+			if (!test) {
+				errx(1, "port ``%s'' out of range", arg);
+			}
+			val = -1;
+		}
+	}
+	return(val);
+}
+
 int
 fill_port(cnt, ptr, off, arg)
 	u_short *cnt, *ptr, off;
@@ -556,17 +587,17 @@ fill_port(cnt, ptr, off, arg)
 	char *s;
 	int initial_range = 0;
 
-	s = strchr(arg,'-');
-	if (s) {
+	s = arg + strcspn(arg, "-,");	/* first port name can't have a dash */
+	if (*s == '-') {
 		*s++ = '\0';
 		if (strchr(arg, ','))
 			errx(1, "port range must be first in list");
-		add_port(cnt, ptr, off, *arg ? atoi(arg) : 0x0000);
+		add_port(cnt, ptr, off, *arg ? lookup_port(arg, 0, 0) : 0x0000);
 		arg = s;
 		s = strchr(arg,',');
 		if (s)
 			*s++ = '\0';
-		add_port(cnt, ptr, off, *arg ? atoi(arg) : 0xffff);
+		add_port(cnt, ptr, off, *arg ? lookup_port(arg, 0, 0) : 0xffff);
 		arg = s;
 		initial_range = 1;
 	}
@@ -574,7 +605,7 @@ fill_port(cnt, ptr, off, arg)
 		s = strchr(arg,',');
 		if (s)
 			*s++ = '\0';
-		add_port(cnt, ptr, off, atoi(arg));
+		add_port(cnt, ptr, off, lookup_port(arg, 0, 0));
 		arg = s;
 	}
 	return initial_range;
@@ -843,7 +874,7 @@ add(ac,av)
 
 	fill_ip(&rule.fw_src, &rule.fw_smsk, &ac, &av);
 
-	if (ac && isdigit(**av)) {
+	if (ac && (isdigit(**av) || lookup_port(*av, 1, 1) >= 0)) {
 		u_short nports = 0;
 
 		if (fill_port(&nports, rule.fw_pts, 0, *av))
@@ -866,7 +897,7 @@ add(ac,av)
 
 	fill_ip(&rule.fw_dst, &rule.fw_dmsk, &ac, &av);
 
-	if (ac && isdigit(**av)) {
+	if (ac && (isdigit(**av) || lookup_port(*av, 1, 1) >= 0)) {
 		u_short	nports = 0;
 
 		if (fill_port(&nports,
