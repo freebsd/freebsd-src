@@ -47,6 +47,7 @@
 #include <sys/callout.h>
 
 extern int securelevel;		/* system security level (see init(8)) */
+extern int suser_enabled;	/* suser_xxx() is permitted to return 0 */
 
 extern int cold;		/* nonzero if we are doing a cold boot */
 extern const char *panicstr;	/* panic message */
