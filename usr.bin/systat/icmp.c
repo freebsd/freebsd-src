@@ -31,15 +31,17 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-/* From:
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
+#ifdef lint
 static char sccsid[] = "@(#)mbufs.c	8.1 (Berkeley) 6/6/93";
-static const char rcsid[] =
-	"Id: mbufs.c,v 1.5 1997/02/24 20:59:03 wollman Exp";
+#endif
+
+/* From:
+	"Id: mbufs.c,v 1.5 1997/02/24 20:59:03 wollman Exp"
 */
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/types.h>

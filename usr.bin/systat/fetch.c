@@ -29,21 +29,23 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#ifndef lint
-static char sccsid[] = "@(#)fetch.c	8.1 (Berkeley) 6/6/93";
-#endif /* not lint */
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
+#ifdef lint
+static const char sccsid[] = "@(#)fetch.c	8.1 (Berkeley) 6/6/93";
+#endif
 
 #include <sys/types.h>
 #include <sys/sysctl.h>
 
-#include <errno.h>
 #include <err.h>
-#include <string.h>
+#include <errno.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "systat.h"
 #include "extern.h"
@@ -55,7 +57,7 @@ kvm_ckread(a, b, l)
 {
 	if (kvm_read(kd, (u_long)a, b, l) != l) {
 		if (verbose)
-			error("error reading kmem at %x", a);
+			error("error reading kmem at %p", a);
 		return (0);
 	}
 	else
@@ -63,13 +65,12 @@ kvm_ckread(a, b, l)
 }
 
 void getsysctl(name, ptr, len)
-	char *name;
+	const char *name;
 	void *ptr;
 	size_t len;
 {
-	int err;
 	size_t nlen = len;
-	if ((err = sysctlbyname(name, ptr, &nlen, NULL, 0)) != 0) {
+	if (sysctlbyname(name, ptr, &nlen, NULL, 0) != 0) {
 		error("sysctl(%s...) failed: %s", name, 
 		    strerror(errno));
 	}
@@ -103,7 +104,7 @@ void getsysctl(name, ptr, len)
 
 char *
 sysctl_dynread(n, szp)
-	char *n;
+	const char *n;
 	size_t *szp;
 {
 	char   *rv = NULL;

@@ -31,11 +31,13 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-static char sccsid[] = "@(#)mbufs.c	8.1 (Berkeley) 6/6/93";
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
+#ifdef lint
+static const char sccsid[] = "@(#)mbufs.c	8.1 (Berkeley) 6/6/93";
+#endif
 
 #include <sys/param.h>
 #include <sys/types.h>
@@ -46,6 +48,7 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <paths.h>
+
 #include "systat.h"
 #include "extern.h"
 
@@ -58,7 +61,7 @@ static short nmbtypes;
 
 static struct mtnames {
 	short mt_type;
-	char *mt_name;
+	const char *mt_name;
 } mtnames[] = {
 	{ MT_DATA, 	"data"},
 	{ MT_HEADER,	"headers"},
@@ -97,10 +100,10 @@ labelmbufs()
 void
 showmbufs()
 {
-	int i, j, max, index;
+	int i, j, max, idx;
 	u_long totfree;
 	char buf[10];
-	char *mtname;
+	const char *mtname;
 
 	totfree = mbpstat[GENLST]->mb_mbfree; 
 	for (i = 1; i < nmbtypes; i++)
@@ -117,7 +120,7 @@ showmbufs()
 	 * Print totals for different mbuf types.
 	 */
 	for (j = 0; j < wnd->_maxy; j++) {
-		max = 0, index = -1;
+		max = 0, idx = -1;
 		for (i = 0; i < wnd->_maxy; i++) {
 			if (i == MT_NOTMBUF)
 				continue;
@@ -125,18 +128,18 @@ showmbufs()
 				break;
 			if (m_mbtypes[i] > max) {
 				max = m_mbtypes[i];
-				index = i;
+				idx = i;
 			}
 		}
 		if (max == 0)
 			break;
 
 		mtname = NULL;
-		for (i = 0; i < NNAMES; i++)
-			if (mtnames[i].mt_type == index)
+		for (i = 0; i < (int)NNAMES; i++)
+			if (mtnames[i].mt_type == idx)
 				mtname = mtnames[i].mt_name;
 		if (mtname == NULL)
-			mvwprintw(wnd, 1+j, 0, "%10d", index);
+			mvwprintw(wnd, 1+j, 0, "%10d", idx);
 		else
 			mvwprintw(wnd, 1+j, 0, "%-10.10s", mtname);
 		wmove(wnd, 1 + j, 10);
@@ -150,7 +153,7 @@ showmbufs()
 			while (max--)
 				waddch(wnd, 'X');
 		wclrtoeol(wnd);
-		m_mbtypes[index] = 0;
+		m_mbtypes[idx] = 0;
 	}
 
 	/*
