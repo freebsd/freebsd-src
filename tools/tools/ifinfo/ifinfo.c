@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: ifinfo.c,v 1.3 1997/02/22 14:08:24 peter Exp $
  */
 #include <sys/types.h>
 #include <sys/socket.h>		/* for PF_LINK */
@@ -38,6 +38,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
+#include <unistd.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
@@ -54,8 +55,7 @@ static printfcn findlink(int);
 static void
 usage(const char *argv0)
 {
-	fprintf(stderr, "%s: usage:\n\t%s [-i] [ifnames...]\n",
-		argv0, argv0);
+	fprintf(stderr, "%s: usage:\n\t%s [-l]\n", argv0, argv0);
 	exit(EX_USAGE);
 }
 
