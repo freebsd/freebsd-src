@@ -4,8 +4,9 @@
 KMOD		= snd_pcm
 SRCS		= device_if.h bus_if.h isa_if.h pci_if.h
 SRCS		+= ac97_if.h channel_if.h feeder_if.h mixer_if.h
+SRCS		+= ac97_if.c channel_if.c feeder_if.c mixer_if.c
 SRCS		+= ac97.c channel.c dsp.c fake.c
-SRCS		+= feeder.c feeder_fmt.c feeder_rate.c
+SRCS		+= feeder.c feeder_fmt.c
 SRCS		+= mixer.c sound.c
 
 .include <bsd.kmod.mk>
