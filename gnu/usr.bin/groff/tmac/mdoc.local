@@ -49,25 +49,18 @@
 .ds doc-str-Lb-libmd       Message Digest (MD4, MD5, etc.) Support Library (libmd, \-lmd)
 .ds doc-str-Lb-libnetgraph Netgraph User Library (libnetgraph, \-lnetgraph)
 .ds doc-str-Lb-libpam      PAM Library (libpam, \-lpam)
-.ds doc-str-Lb-libpthread  POSIX Threads Library (libpthread, \-lpthread)
 .ds doc-str-Lb-librpcsvc   RPC Service Library (librpcsvc, \-lrpcsvc)
 .ds doc-str-Lb-libsdp      Bluetooth Service Discovery Protocol User Library (libsdp, \-lsdp)
 .ds doc-str-Lb-libthr      1:1 Threading Library (libthr, \-lthr)
 .ds doc-str-Lb-libufs      UFS File System Access Library (libufs, \-lufs)
 .ds doc-str-Lb-libugidfw   File System Firewall Interface Library (libugidfw, \-lugidfw)
-.ds doc-str-Lb-libusbhid   USB HID access routines library (libusbhid, \-lusbhid)
 .ds doc-str-Lb-libvgl      Video Graphics Library (libvgl, \-lvgl)
 .
 .\" Default .Os value
 .ds doc-default-operating-system FreeBSD\~5.2
 .
 .\" FreeBSD releases not found in doc-common
-.ds doc-operating-system-FreeBSD-4.9    4.9
-.ds doc-operating-system-FreeBSD-4.10   4.10
-.ds doc-operating-system-FreeBSD-5.1    5.1
-.ds doc-operating-system-FreeBSD-5.2    5.2
-.ds doc-operating-system-FreeBSD-5.2.1  5.2.1
-.ds doc-operating-system-FreeBSD-5.3    5.3
+.\" .ds doc-operating-system-FreeBSD-5.4    5.4
 .
 .ec
 .
