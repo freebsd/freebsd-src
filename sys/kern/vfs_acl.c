@@ -419,11 +419,11 @@ acl_posix1e_mode_to_entry(acl_tag_t tag, uid_t uid, gid_t gid, mode_t mode)
 		break;
 
 	case ACL_OTHER:
-		acl_entry.ae_id = 0;
+		acl_entry.ae_id = ACL_UNDEFINED_ID;
 		break;
 
 	default:
-		acl_entry.ae_id = 0;
+		acl_entry.ae_id = ACL_UNDEFINED_ID;
 		printf("acl_posix1e_mode_to_entry: invalid tag (%d)\n", tag);
 	}
 
