@@ -58,7 +58,7 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-static int	Aflag, aflag, bflag, dflag, nflag, wflag, Xflag;
+static int	Aflag, aflag, bflag, nflag, wflag, Xflag;
 
 static int	oidfmt(int *, int, char *, u_int *);
 static void	parse(char *);
@@ -71,11 +71,11 @@ usage(void)
 {
 
 	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
-		"usage: sysctl [-bdn] variable ...",
+		"usage: sysctl [-bn] variable ...",
 		"       sysctl [-bn] -w variable=value ...",
-		"       sysctl [-bdn] -a",
-		"       sysctl [-bdn] -A",
-		"       sysctl [-bdn] -X");
+		"       sysctl [-bn] -a",
+		"       sysctl [-bn] -A",
+		"       sysctl [-bn] -X");
 	exit(1);
 }
 
@@ -86,12 +86,11 @@ main(int argc, char **argv)
 	setbuf(stdout,0);
 	setbuf(stderr,0);
 
-	while ((ch = getopt(argc, argv, "AabdnwX")) != -1) {
+	while ((ch = getopt(argc, argv, "AabnwX")) != -1) {
 		switch (ch) {
 		case 'A': Aflag = 1; break;
 		case 'a': aflag = 1; break;
 		case 'b': bflag = 1; break;
-		case 'd': dflag = 1; break;
 		case 'n': nflag = 1; break;
 		case 'w': wflag = 1; break;
 		case 'X': Xflag = Aflag = 1; break;
@@ -101,7 +100,7 @@ main(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
-	if (wflag && (Aflag || aflag || dflag))
+	if (wflag && (Aflag || aflag))
 		usage();
 	if (Aflag || aflag)
 		exit (sysctl_all(0, 0));
@@ -356,18 +355,6 @@ show_var(int *oid, int nlen)
 	if (i || !j)
 		err(1, "sysctl name %d %d %d", i, j, errno);
 
-	if (dflag) {
-		qoid[1] = 5;
-		j = sizeof descr;
-		i = sysctl(qoid, nlen + 2, descr, &j, 0, 0);
-		if (i || !j)
-			err(1, "sysctl name %d %d %d", i, j, errno);
-		if (!nflag)
-			printf("%s: ", name);
-		printf("%s", descr[0] ? descr : "[no description]");
-		return (0);
-	}
-	
 	/* find an estimate of how much we need for this var */
 	j = 0;
 	i = sysctl(oid, nlen, 0, &j, 0, 0);
