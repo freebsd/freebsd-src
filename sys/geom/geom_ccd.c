@@ -425,6 +425,16 @@ g_ccd_start(struct bio *bp)
 	cs = bp->bio_to->geom->softc;
 
 	/*
+	 * Block all GETATTR requests, we wouldn't know which of our
+	 * subdevices we should ship it off to.
+	 * XXX: this may not be the right policy.
+	 */
+	if(bp->bio_cmd == BIO_GETATTR) {
+		g_io_deliver(bp, EINVAL);
+		return;
+	}
+
+	/*
 	 * Translate the partition-relative block number to an absolute.
 	 */
 	bn = bp->bio_offset / cs->sc_secsize;
