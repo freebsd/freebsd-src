@@ -36,7 +36,7 @@
 static const char sccsid[] = "@(#)preen.c	8.5 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: preen.c,v 1.9 1998/06/15 07:07:20 charnier Exp $";
+	"$Id: preen.c,v 1.11 1998/12/03 02:41:11 julian Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -320,6 +320,8 @@ retry:
 			return (origname);
 		}
 		if ((stchar.st_mode & S_IFMT) == S_IFCHR) {
+			if (stslash.st_dev == stchar.st_rdev)
+				hotroot++;
 			return (raw);
 		} else {
 			printf("%s is not a character device\n", raw);
