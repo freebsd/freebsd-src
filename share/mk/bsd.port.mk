@@ -1,7 +1,7 @@
 #-*- mode: Fundamental; tab-width: 4; -*-
 # ex:ts=4
 #
-#	$Id: bsd.port.mk,v 1.292 1998/10/06 21:12:14 asami Exp $
+#	$Id: bsd.port.mk,v 1.293 1998/10/09 01:27:21 asami Exp $
 #	$NetBSD: $
 #
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
@@ -245,6 +245,18 @@ OpenBSD_MAINTAINER=	imp@OpenBSD.ORG
 #				  NOMANCOMPRESS.  The default is "yes" if USE_IMAKE
 #				  is set and NO_INSTALL_MANPAGES is not set, and
 #				  "no" otherwise.
+#
+# If your port wants the package to be built with several options,
+# set the following variables.
+#
+# LOOP_VAR		- The name of the variable.
+# LOOP_OPTIONS	- The value of the options.
+#
+# If they are set, there will be a target "package-loop" which will
+# iterate several times, each time cleaning up afterwards, with the
+# value of ${LOOP_VAR} set to one of ${LOOP_OPTIONS}.  In addition,
+# the "describe" target will print out multiple lines with the variable
+# set accordingly.
 #
 # Default targets and their behaviors:
 #
@@ -1034,7 +1046,7 @@ IGNORE=	"is marked as broken: ${BROKEN}"
 .endif
 
 .if (defined(MANUAL_PACKAGE_BUILD) && defined(PACKAGE_BUILDING))
-IGNORE=	"package has to be built manually: ${MANUAL_PACKAGE_BUILD}"
+IGNORE=	"has to be built manually: ${MANUAL_PACKAGE_BUILD}"
 clean:
 	@${IGNORECMD}
 .endif
@@ -1109,6 +1121,7 @@ checksum: fetch
 # Disable extract
 .if defined(NO_EXTRACT) && !target(extract)
 extract: fetch
+	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} checksum REAL_EXTRACT=yes
 	@${TOUCH} ${TOUCH_FLAGS} ${EXTRACT_COOKIE}
 .endif
 
@@ -1761,6 +1774,26 @@ package-noinstall:
 	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} PACKAGE_NOINSTALL=yes real-package
 .endif
 
+# Loop through several options for package building
+
+.if !target(package-loop)
+.if defined(LOOP_VAR)
+package-loop:
+.if !exists(${PACKAGE_COOKIE})
+.for option in ${LOOP_OPTIONS}
+	@cd ${.CURDIR} && ${SETENV} ${LOOP_VAR}=${option} LOOP=yes \
+		${MAKE} ${.MAKEFLAGS} clean
+	@cd ${.CURDIR} && ${SETENV} ${LOOP_VAR}=${option} LOOP=yes \
+		${MAKE} ${.MAKEFLAGS} package
+.endfor
+.else
+	@${DO_NADA}
+.endif
+.else
+package-loop: package
+.endif
+.endif
+
 ################################################################
 # Dependency checking
 ################################################################
@@ -1843,7 +1876,7 @@ lib-depends:
 		else \
 			target=${DEPENDS_TARGET}; \
 		fi; \
-		if ${LDCONFIG} -r | ${GREP} -q -e "-l$$lib"; then \
+		if ${LDCONFIG} -r | ${GREP} -qwF -e "-l$$lib"; then \
 			${ECHO_MSG} "===>   ${PKGNAME} depends on shared library: $$lib - found"; \
 		else \
 			${ECHO_MSG} "===>   ${PKGNAME} depends on shared library: $$lib - not found"; \
@@ -1853,7 +1886,7 @@ lib-depends:
 			else \
 				(cd $$dir; ${MAKE} ${.MAKEFLAGS} $$target) ; \
 				${ECHO_MSG} "===>   Returning to build of ${PKGNAME}"; \
-				if ${LDCONFIG} -r | ${GREP} -q -e "-l$$lib"; then \
+				if ${LDCONFIG} -r | ${GREP} -qwF -e "-l$$lib"; then \
 					${TRUE}; \
 				else \
 					${ECHO_MSG} "Error: shared library \"$$lib\" does not exist"; \
@@ -1934,8 +1967,22 @@ depends-list:
 # distribution-name|port-path|installation-prefix|comment| \
 #  description-file|maintainer|categories|build deps|run deps
 #
+# If LOOP_VAR is set, multiple lines will be printed with the
+# variable set to each value of LOOP_OPTIONS.
+
 .if !target(describe)
 describe:
+.if !defined(LOOP_VAR)
+	@cd ${.CURDIR} && ${MAKE} do-describe
+.else
+.for option in ${LOOP_OPTIONS}
+	@cd ${.CURDIR} && ${SETENV} ${LOOP_VAR}=${option} ${MAKE} do-describe
+.endfor
+.endif
+.endif
+
+.if !target(do-describe)
+do-describe:
 	@${ECHO} -n "${PKGNAME}|${.CURDIR}|"; \
 	${ECHO} -n "${PREFIX}|"; \
 	if [ -f ${COMMENT} ]; then \
