@@ -28,7 +28,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: vidcontrol.c,v 1.19 1998/07/14 10:32:27 bde Exp $";
+	"$Id: vidcontrol.c,v 1.20 1998/09/15 18:16:39 sos Exp $";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -59,8 +59,8 @@ usage()
 {
 	fprintf(stderr, "%s\n%s\n%s\n",
 "usage: vidcontrol [-r fg bg] [-b color] [-c appearance] [-d] [-l scrmap]",
-"                  [-L] [-m on|off] [-f size file] [-s number] [-t N|off]",
-"                  [-x] [mode] [fgcol [bgcol]] [show]");
+"                  [-i adapter | mode] [-L] [-m on|off] [-f size file]",
+"                  [-s number] [-t N|off] [-x] [mode] [fgcol [bgcol]] [show]");
 	exit(1);
 }
 
