@@ -1,6 +1,6 @@
-/* Prints out tree in human readable form - GNU C-compiler
+/* Prints out tree in human readable form - GCC
    Copyright (C) 1990, 1991, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-   2001, 2002 Free Software Foundation, Inc.
+   2001, 2002, 2003, 2004 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -22,6 +22,8 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 
 #include "config.h"
 #include "system.h"
+#include "coretypes.h"
+#include "tm.h"
 #include "tree.h"
 #include "real.h"
 #include "ggc.h"
@@ -45,23 +47,19 @@ static struct bucket **table;
    down to a depth of six.  */
 
 void
-debug_tree (node)
-     tree node;
+debug_tree (tree node)
 {
-  table = (struct bucket **) xcalloc (HASH_SIZE, sizeof (struct bucket *));
+  table = xcalloc (HASH_SIZE, sizeof (struct bucket *));
   print_node (stderr, "", node, 0);
+  free (table);
   table = 0;
-  fprintf (stderr, "\n");
+  putc ('\n', stderr);
 }
 
 /* Print a node in brief fashion, with just the code, address and name.  */
 
 void
-print_node_brief (file, prefix, node, indent)
-     FILE *file;
-     const char *prefix;
-     tree node;
-     int indent;
+print_node_brief (FILE *file, const char *prefix, tree node, int indent)
 {
   char class;
 
@@ -74,8 +72,8 @@ print_node_brief (file, prefix, node, indent)
      name if any.  */
   if (indent > 0)
     fprintf (file, " ");
-  fprintf (file, "%s <%s ", prefix, tree_code_name[(int) TREE_CODE (node)]);
-  fprintf (file, HOST_PTR_PRINTF, (char *) node);
+  fprintf (file, "%s <%s " HOST_PTR_PRINTF,
+	   prefix, tree_code_name[(int) TREE_CODE (node)], (char *) node);
 
   if (class == 'd')
     {
@@ -108,11 +106,8 @@ print_node_brief (file, prefix, node, indent)
 	fprintf (file, HOST_WIDE_INT_PRINT_UNSIGNED, TREE_INT_CST_LOW (node));
       else if (TREE_INT_CST_HIGH (node) == -1
 	       && TREE_INT_CST_LOW (node) != 0)
-	{
-	  fprintf (file, "-");
-	  fprintf (file, HOST_WIDE_INT_PRINT_UNSIGNED,
-		   -TREE_INT_CST_LOW (node));
-	}
+	fprintf (file, "-" HOST_WIDE_INT_PRINT_UNSIGNED,
+		 -TREE_INT_CST_LOW (node));
       else
 	fprintf (file, HOST_WIDE_INT_PRINT_DOUBLE_HEX,
 		 TREE_INT_CST_HIGH (node), TREE_INT_CST_LOW (node));
@@ -141,9 +136,7 @@ print_node_brief (file, prefix, node, indent)
 }
 
 void
-indent_to (file, column)
-     FILE *file;
-     int column;
+indent_to (FILE *file, int column)
 {
   int i;
 
@@ -158,11 +151,7 @@ indent_to (file, column)
    starting in column INDENT.  */
 
 void
-print_node (file, prefix, node, indent)
-     FILE *file;
-     const char *prefix;
-     tree node;
-     int indent;
+print_node (FILE *file, const char *prefix, tree node, int indent)
 {
   int hash;
   struct bucket *b;
@@ -193,7 +182,7 @@ print_node (file, prefix, node, indent)
       return;
     }
 
-  /* It is unsafe to look at any other filds of an ERROR_MARK node.  */
+  /* It is unsafe to look at any other fields of an ERROR_MARK node.  */
   if (TREE_CODE (node) == ERROR_MARK)
     {
       print_node_brief (file, prefix, node, indent);
@@ -211,7 +200,7 @@ print_node (file, prefix, node, indent)
       }
 
   /* Add this node to the table.  */
-  b = (struct bucket *) xmalloc (sizeof (struct bucket));
+  b = xmalloc (sizeof (struct bucket));
   b->node = node;
   b->next = table[hash];
   table[hash] = b;
@@ -220,8 +209,8 @@ print_node (file, prefix, node, indent)
   indent_to (file, indent);
 
   /* Print the slot this node is in, and its code, and address.  */
-  fprintf (file, "%s <%s ", prefix, tree_code_name[(int) TREE_CODE (node)]);
-  fprintf (file, HOST_PTR_PRINTF, (char *) node);
+  fprintf (file, "%s <%s " HOST_PTR_PRINTF,
+	   prefix, tree_code_name[(int) TREE_CODE (node)], (void *) node);
 
   /* Print the name, if any.  */
   if (class == 'd')
@@ -273,7 +262,7 @@ print_node (file, prefix, node, indent)
   if (TREE_USED (node))
     fputs (" used", file);
   if (TREE_NOTHROW (node))
-    fputs (" nothrow", file);
+    fputs (TYPE_P (node) ? " align-ok" : " nothrow", file);
   if (TREE_PUBLIC (node))
     fputs (" public", file);
   if (TREE_PRIVATE (node))
@@ -328,14 +317,10 @@ print_node (file, prefix, node, indent)
       if (TREE_CODE (node) == TYPE_DECL && TYPE_DECL_SUPPRESS_DEBUG (node))
 	fputs (" suppress-debug", file);
 
-      if (TREE_CODE (node) == FUNCTION_DECL && DID_INLINE_FUNC (node))
-	fputs (" autoinline", file);
-      else if (TREE_CODE (node) == FUNCTION_DECL && DECL_INLINE (node))
-	fputs (" inline", file);
+      if (TREE_CODE (node) == FUNCTION_DECL && DECL_INLINE (node))
+	fputs (DECL_DECLARED_INLINE_P (node) ? " inline" : " autoinline", file);
       if (TREE_CODE (node) == FUNCTION_DECL && DECL_BUILT_IN (node))
 	fputs (" built-in", file);
-      if (TREE_CODE (node) == FUNCTION_DECL && DECL_BUILT_IN_NONANSI (node))
-	fputs (" built-in-nonansi", file);
       if (TREE_CODE (node) == FUNCTION_DECL && DECL_NO_STATIC_CHAIN (node))
 	fputs (" no-static-chain", file);
 
@@ -399,11 +384,8 @@ print_node (file, prefix, node, indent)
 
 	  fprintf (file, " align %d", DECL_ALIGN (node));
 	  if (TREE_CODE (node) == FIELD_DECL)
-	    {
-	      fprintf (file, " offset_align ");
-	      fprintf (file, HOST_WIDE_INT_PRINT_UNSIGNED,
-		       DECL_OFFSET_ALIGN (node));
-	    }
+	    fprintf (file, " offset_align " HOST_WIDE_INT_PRINT_UNSIGNED,
+		     DECL_OFFSET_ALIGN (node));
 	}
       else if (DECL_BUILT_IN (node))
 	{
@@ -416,11 +398,8 @@ print_node (file, prefix, node, indent)
 	}
 
       if (DECL_POINTER_ALIAS_SET_KNOWN_P (node))
-	{
-	  fprintf (file, " alias set ");
-	  fprintf (file, HOST_WIDE_INT_PRINT_DEC,
-		   DECL_POINTER_ALIAS_SET (node));
-	}
+	fprintf (file, " alias set " HOST_WIDE_INT_PRINT_DEC,
+		 DECL_POINTER_ALIAS_SET (node));
 
       if (TREE_CODE (node) == FIELD_DECL)
 	{
@@ -464,8 +443,8 @@ print_node (file, prefix, node, indent)
 	       && DECL_SAVED_INSNS (node) != 0)
 	{
 	  indent_to (file, indent + 4);
-	  fprintf (file, "saved-insns ");
-	  fprintf (file, HOST_PTR_PRINTF, (char *) DECL_SAVED_INSNS (node));
+	  fprintf (file, "saved-insns " HOST_PTR_PRINTF,
+		   (void *) DECL_SAVED_INSNS (node));
 	}
 
       /* Print the decl chain only if decl is at second level.  */
@@ -502,9 +481,6 @@ print_node (file, prefix, node, indent)
       else if (TREE_CODE (node) == ARRAY_TYPE
 	       && TYPE_NONALIASED_COMPONENT (node))
 	fputs (" nonaliased-component", file);
-      else if (TREE_CODE (node) == FUNCTION_TYPE
-	       && TYPE_AMBIENT_BOUNDEDNESS (node))
-	fputs (" ambient-boundedness", file);
 
       if (TYPE_PACKED (node))
 	fputs (" packed", file);
@@ -537,10 +513,9 @@ print_node (file, prefix, node, indent)
       if (TYPE_USER_ALIGN (node))
 	fprintf (file, " user");
 
-      fprintf (file, " align %d", TYPE_ALIGN (node));
-      fprintf (file, " symtab %d", TYPE_SYMTAB_ADDRESS (node));
-      fprintf (file, " alias set ");
-      fprintf (file, HOST_WIDE_INT_PRINT_DEC, TYPE_ALIAS_SET (node));
+      fprintf (file, " align %d symtab %d alias set " HOST_WIDE_INT_PRINT_DEC,
+	       TYPE_ALIGN (node), TYPE_SYMTAB_ADDRESS (node),
+	       TYPE_ALIAS_SET (node));
 
       print_node (file, "attributes", TYPE_ATTRIBUTES (node), indent + 4);
 
@@ -622,7 +597,7 @@ print_node (file, prefix, node, indent)
 	      indent_to (file, indent + 4);
 	      fprintf (file, "rtl %d ", i);
 	      if (TREE_OPERAND (node, i))
-		print_rtl (file, (struct rtx_def *) TREE_OPERAND (node, i));
+		print_rtl (file, (rtx) TREE_OPERAND (node, i));
 	      else
 		fprintf (file, "(nil)");
 	      fprintf (file, "\n");
@@ -661,11 +636,8 @@ print_node (file, prefix, node, indent)
 		     TREE_INT_CST_LOW (node));
 	  else if (TREE_INT_CST_HIGH (node) == -1
 		   && TREE_INT_CST_LOW (node) != 0)
-	    {
-	      fprintf (file, "-");
-	      fprintf (file, HOST_WIDE_INT_PRINT_UNSIGNED,
-		       -TREE_INT_CST_LOW (node));
-	    }
+	    fprintf (file, "-" HOST_WIDE_INT_PRINT_UNSIGNED,
+		     -TREE_INT_CST_LOW (node));
 	  else
 	    fprintf (file, HOST_WIDE_INT_PRINT_DOUBLE_HEX,
 		     TREE_INT_CST_HIGH (node), TREE_INT_CST_LOW (node));
