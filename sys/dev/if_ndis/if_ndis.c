@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/queue.h>
 #include <sys/sysctl.h>
-#include <sys/taskqueue.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -106,11 +105,11 @@ static __stdcall void ndis_linksts	(ndis_handle,
 static __stdcall void ndis_linksts_done	(ndis_handle);
 
 static void ndis_intr		(void *);
-static void ndis_intrtask	(void *, int);
+static void ndis_intrtask	(void *);
 static void ndis_tick		(void *);
-static void ndis_ticktask	(void *, int);
+static void ndis_ticktask	(void *);
 static void ndis_start		(struct ifnet *);
-static void ndis_starttask	(void *, int);
+static void ndis_starttask	(void *);
 static int ndis_ioctl		(struct ifnet *, u_long, caddr_t);
 static int ndis_wi_ioctl_get	(struct ifnet *, u_long, caddr_t);
 static int ndis_wi_ioctl_set	(struct ifnet *, u_long, caddr_t);
@@ -239,10 +238,6 @@ ndis_attach(dev)
 
 	sc->ndis_mtx = mtx_pool_alloc(ndis_mtxpool);
 	sc->ndis_intrmtx = mtx_pool_alloc(ndis_mtxpool);
-	TASK_INIT(&sc->ndis_intrtask, 0, ndis_intrtask, sc);
-	TASK_INIT(&sc->ndis_ticktask, 0, ndis_ticktask, sc);
-	TASK_INIT(&sc->ndis_starttask, 0, ndis_starttask, sc);
-
 
 	/*
 	 * Map control/status registers.
@@ -825,20 +820,25 @@ ndis_txeof(adapter, packet, status)
 
 	m = packet->np_m0;
 	idx = packet->np_txidx;
-	ifp->if_opackets++;
 	if (sc->ndis_sc)
 		bus_dmamap_unload(sc->ndis_ttag, sc->ndis_tmaps[idx]);
 
 	ndis_free_packet(packet);
+	m_freem(m);
+
+	NDIS_LOCK(sc);
 	sc->ndis_txarray[idx] = NULL;
 	sc->ndis_txpending++;
 
+	if (status == NDIS_STATUS_SUCCESS)
+		ifp->if_opackets++;
+	else
+		ifp->if_oerrors++;
 	ifp->if_timer = 0;
 	ifp->if_flags &= ~IFF_OACTIVE;
+	NDIS_UNLOCK(sc);
 
-	m_freem(m);
-
-	taskqueue_enqueue(taskqueue_swi, &sc->ndis_starttask);
+	ndis_sched(ndis_starttask, ifp, NDIS_TASKQUEUE);
 
 	return;
 }
@@ -875,13 +875,13 @@ ndis_linksts_done(adapter)
 
 	switch (block->nmb_getstat) {
 	case NDIS_STATUS_MEDIA_CONNECT:
-		taskqueue_enqueue(taskqueue_swi, &sc->ndis_ticktask);
-		taskqueue_enqueue(taskqueue_swi, &sc->ndis_starttask);
+		ndis_sched(ndis_ticktask, sc, NDIS_TASKQUEUE);
+		ndis_sched(ndis_starttask, ifp, NDIS_TASKQUEUE);
 		break;
 	case NDIS_STATUS_MEDIA_DISCONNECT:
 		if (sc->ndis_80211)
 			ndis_getstate_80211(sc);
-		taskqueue_enqueue(taskqueue_swi, &sc->ndis_ticktask);
+		ndis_sched(ndis_ticktask, sc, NDIS_TASKQUEUE);
 		break;
 	default:
 		break;
@@ -891,9 +891,8 @@ ndis_linksts_done(adapter)
 }
 
 static void
-ndis_intrtask(arg, pending)
+ndis_intrtask(arg)
 	void			*arg;
-	int			pending;
 {
 	struct ndis_softc	*sc;
 	struct ifnet		*ifp;
@@ -901,15 +900,10 @@ ndis_intrtask(arg, pending)
 	sc = arg;
 	ifp = &sc->arpcom.ac_if;
 
-	NDIS_LOCK(sc);
 	ndis_intrhand(sc);
-	NDIS_UNLOCK(sc);
 	mtx_lock(sc->ndis_intrmtx);
 	ndis_enable_intr(sc);
 	mtx_unlock(sc->ndis_intrmtx);
-
-	if (ifp->if_snd.ifq_head != NULL)
-		ndis_start(ifp);
 
 	return;
 }
@@ -940,7 +934,7 @@ ndis_intr(arg)
 	mtx_unlock(sc->ndis_intrmtx);
 
 	if ((is_our_intr || call_isr) && (ifp->if_flags & IFF_UP))
-		taskqueue_enqueue(taskqueue_swi, &sc->ndis_intrtask);
+		ndis_sched(ndis_intrtask, ifp, NDIS_SWI);
 
 	return;
 }
@@ -951,16 +945,16 @@ ndis_tick(xsc)
 {
 	struct ndis_softc	*sc;
 	sc = xsc;
-	taskqueue_enqueue(taskqueue_swi, &sc->ndis_ticktask);
+
+	ndis_sched(ndis_ticktask, sc, NDIS_TASKQUEUE);
 	sc->ndis_stat_ch = timeout(ndis_tick, sc, hz *
 	    sc->ndis_block.nmb_checkforhangsecs);
 
 }
 
 static void
-ndis_ticktask(xsc, pending)
+ndis_ticktask(xsc)
 	void			*xsc;
-	int			pending;
 {
 	struct ndis_softc	*sc;
 	__stdcall ndis_checkforhang_handler hangfunc;
@@ -1029,9 +1023,8 @@ ndis_map_sclist(arg, segs, nseg, mapsize, error)
 }
 
 static void
-ndis_starttask(arg, pending)
+ndis_starttask(arg)
 	void			*arg;
-	int			pending;
 {
 	struct ifnet		*ifp;
 
@@ -1875,12 +1868,10 @@ ndis_watchdog(ifp)
 	NDIS_LOCK(sc);
 	ifp->if_oerrors++;
 	device_printf(sc->ndis_dev, "watchdog timeout\n");
+	NDIS_UNLOCK(sc);
 
 	ndis_reset(sc);
-
-	taskqueue_enqueue(taskqueue_swi, &sc->ndis_starttask);
-
-	NDIS_UNLOCK(sc);
+	ndis_sched(ndis_starttask, ifp, NDIS_TASKQUEUE);
 
 	return;
 }
@@ -1895,17 +1886,16 @@ ndis_stop(sc)
 {
 	struct ifnet		*ifp;
 
-/*	NDIS_LOCK(sc);*/
 	ifp = &sc->arpcom.ac_if;
-	ifp->if_timer = 0;
-
-	sc->ndis_link = 0;
 	untimeout(ndis_tick, sc, sc->ndis_stat_ch);
 
 	ndis_halt_nic(sc);
 
+	NDIS_LOCK(sc);
+	ifp->if_timer = 0;
+	sc->ndis_link = 0;
 	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
-	/*NDIS_UNLOCK(sc);*/
+	NDIS_UNLOCK(sc);
 
 	return;
 }

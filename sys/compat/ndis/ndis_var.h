@@ -1321,6 +1321,9 @@ typedef ndis_status (*driver_entry)(void *, ndis_unicode_string *);
 
 extern image_patch_table ndis_functbl[];
 
+#define NDIS_TASKQUEUE	1
+#define NDIS_SWI	2
+
 __BEGIN_DECLS
 extern int ndis_libinit(void);
 extern int ndis_libfini(void);
@@ -1353,6 +1356,7 @@ extern int ndis_destroy_dma(void *);
 extern int ndis_create_sysctls(void *);
 extern int ndis_add_sysctl(void *, char *, char *, char *, int);
 extern int ndis_flush_sysctls(void *);
+extern int ndis_sched(void (*)(void *), void *, int);
 __END_DECLS
 
 #endif /* _NDIS_VAR_H_ */
