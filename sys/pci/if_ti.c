@@ -630,7 +630,8 @@ static int ti_alloc_jumbo_mem(sc)
 		entry = malloc(sizeof(struct ti_jpool_entry), 
 			       M_DEVBUF, M_NOWAIT);
 		if (entry == NULL) {
-			free(sc->ti_cdata.ti_jumbo_buf, M_DEVBUF);
+			contigfree(sc->ti_cdata.ti_jumbo_buf, TI_JMEM,
+			           M_DEVBUF);
 			sc->ti_cdata.ti_jumbo_buf = NULL;
 			printf("ti%d: no memory for jumbo "
 			    "buffer queue!\n", sc->ti_unit);
@@ -1681,7 +1682,8 @@ static int ti_attach(dev)
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->ti_irq);
 		bus_release_resource(dev, SYS_RES_MEMORY,
 		    TI_PCI_LOMEM, sc->ti_res);
-		free(sc->ti_rdata, M_DEVBUF);
+		contigfree(sc->ti_rdata, sizeof(struct ti_ring_data),
+		    M_DEVBUF);
 		error = ENXIO;
 		goto fail;
 	}
@@ -1752,8 +1754,8 @@ static int ti_detach(dev)
 	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->ti_irq);
 	bus_release_resource(dev, SYS_RES_MEMORY, TI_PCI_LOMEM, sc->ti_res);
 
-	free(sc->ti_cdata.ti_jumbo_buf, M_DEVBUF);
-	free(sc->ti_rdata, M_DEVBUF);
+	contigfree(sc->ti_cdata.ti_jumbo_buf, TI_JMEM, M_DEVBUF);
+	contigfree(sc->ti_rdata, sizeof(struct ti_ring_data), M_DEVBUF);
 	ifmedia_removeall(&sc->ifmedia);
 
 	splx(s);
