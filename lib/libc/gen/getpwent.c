@@ -135,7 +135,7 @@ getpwnam(name)
 		if(rval)
 			rval = _getyppass(&_pw_passwd, name, "passwd.byname");
 	}
-#else
+#endif
 	/*
 	 * Prevent login attempts when YP is not enabled but YP entries
 	 * are in /etc/master.passwd.
