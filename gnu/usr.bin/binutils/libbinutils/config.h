@@ -1,5 +1,8 @@
 /* $FreeBSD$ */
 
+/* FreeBSD isn't any form of AIX. */
+#define bin_dummy_emulation bin_vanilla_emulation
+
 /* config.h.  Generated automatically by configure.  */
 /* config.in.  Generated automatically from configure.in by autoheader.  */
 
@@ -30,6 +33,9 @@
 
 /* Define to `long' if <sys/types.h> doesn't define.  */
 /* #undef off_t */
+
+/* Define if you need to in order for stat and other things to work.  */
+/* #undef _POSIX_SOURCE */
 
 /* Define to `unsigned' if <sys/types.h> doesn't define.  */
 /* #undef size_t */
@@ -97,6 +103,9 @@
 /* Define if you have the strchr function.  */
 #define HAVE_STRCHR 1
 
+/* Define if you have the strcoll function.  */
+#define HAVE_STRCOLL 1
+
 /* Define if you have the utimes function.  */
 #define HAVE_UTIMES 1
 
@@ -149,7 +158,7 @@
 #define PACKAGE "binutils"
 
 /* Version number of package */
-/* #define VERSION "2.12" */
+/* #define VERSION "2.13" */
 
 /* Define if you have the stpcpy function */
 /* #undef HAVE_STPCPY */
@@ -203,5 +212,5 @@
 /* #undef USE_BINARY_FOPEN */
 
 /* Configured target name. */
-/* #define TARGET "alpha-unknown-freebsd5.0" */
+/* #define TARGET "alpha-obrien-freebsd5.0" */
 
