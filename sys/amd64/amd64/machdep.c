@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.263 1997/09/04 15:23:33 davidg Exp $
+ *	$Id: machdep.c,v 1.264 1997/09/21 15:03:57 peter Exp $
  */
 
 #include "apm.h"
@@ -238,6 +238,15 @@ cpu_startup(dummy)
 	setup_netisrs(&netisr_set);
 
 	/*
+	 * Calculate callout wheel size
+	 */
+	for (callwheelsize = 1, callwheelbits = 0;
+	     callwheelsize < ncallout;
+	     callwheelsize <<= 1, ++callwheelbits)
+		;
+	callwheelmask = callwheelsize - 1;
+
+	/*
 	 * Allocate space for system data structures.
 	 * The first available kernel virtual address is in "v".
 	 * As pages of kernel virtual memory are allocated, "v" is incremented.
@@ -261,6 +270,7 @@ again:
 #define	valloclim(name, type, num, lim) \
 	    (name) = (type *)v; v = (caddr_t)((lim) = ((name)+(num)))
 	valloc(callout, struct callout, ncallout);
+	valloc(callwheel, struct callout_tailq, callwheelsize);
 #ifdef SYSVSHM
 	valloc(shmsegs, struct shmid_ds, shminfo.shmmni);
 #endif
@@ -358,9 +368,14 @@ again:
 	/*
 	 * Initialize callouts
 	 */
-	callfree = callout;
-	for (i = 1; i < ncallout; i++)
-		callout[i-1].c_next = &callout[i];
+	SLIST_INIT(&callfree);
+	for (i = 0; i < ncallout; i++) {
+		SLIST_INSERT_HEAD(&callfree, &callout[i], c_links.sle);
+	}
+
+	for (i = 0; i < callwheelsize; i++) {
+		TAILQ_INIT(&callwheel[i]);
+	}
 
 #if defined(USERCONFIG)
 #if defined(USERCONFIG_BOOT)

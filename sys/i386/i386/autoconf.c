@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.74 1997/07/22 20:12:32 fsmp Exp $
+ *	$Id: autoconf.c,v 1.75 1997/09/09 12:48:56 jmg Exp $
  */
 
 /*
@@ -192,6 +192,13 @@ configure(dummy)
 	configure_start();
 
 	/* Allow all routines to decide for themselves if they want intrs */
+	/*
+	 * XXX Since this cannot be achieved on all architectures, we should
+	 * XXX go back to disabling all interrupts until configuration is
+	 * XXX completed and switch any devices that rely on the current
+	 * XXX behavior to no longer rely on interrupts or to register an
+	 * XXX interrupt_driven_config_hook for the task.
+	 */
 #ifdef APIC_IO
 	bsp_apic_configure();
 	enable_intr();
@@ -220,9 +227,6 @@ configure(dummy)
 	/* After everyone else has a chance at grabbing resources */
 	pccard_configure();
 #endif
-
-	if (setdumpdev(dumpdev) != 0)
-		dumpdev = NODEV;
 
 	configure_finish();
 
@@ -266,7 +270,19 @@ configure(dummy)
 
 		printf("Device configuration finished.\n");
 	}
+	setconf();
+	cold = 0;
+	if (bootverbose)
+		printf("configure() finished.\n");
+}
 
+void
+cpu_rootconf()
+{
+	/*
+	 * XXX NetBSD has a much cleaner approach to finding root.
+	 * XXX We should adopt their code.
+	 */
 #ifdef CD9660
 	if ((boothowto & RB_CDROM)) {
 		if (bootverbose)
@@ -351,11 +367,13 @@ configure(dummy)
 	if (!mountrootfsname) {
 		panic("Nobody wants to mount my root for me");
 	}
+}
 
-	setconf();
-	cold = 0;
-	if (bootverbose)
-		printf("configure() finished.\n");
+void
+cpu_dumpconf()
+{
+	if (setdumpdev(dumpdev) != 0)
+		dumpdev = NODEV;
 }
 
 static int
