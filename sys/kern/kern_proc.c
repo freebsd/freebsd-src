@@ -585,7 +585,7 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 		p = pfind((pid_t)name[0]);
 		if (!p)
 			return (0);
-		if (p_can(curproc, p, P_CAN_SEE, NULL)) {
+		if (p_cansee(curproc, p)) {
 			PROC_UNLOCK(p);
 			return (0);
 		}
@@ -616,7 +616,7 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 			/*
 			 * Show a user only appropriate processes.
 			 */
-			if (p_can(curproc, p, P_CAN_SEE, NULL))
+			if (p_cansee(curproc, p))
 				continue;
 			/*
 			 * Skip embryonic processes.
@@ -658,7 +658,7 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 				break;
 			}
 
-			if (p_can(curproc, p, P_CAN_SEE, NULL))
+			if (p_cansee(curproc, p))
 				continue;
 
 			error = sysctl_out_proc(p, req, doingzomb);
@@ -694,7 +694,7 @@ sysctl_kern_proc_args(SYSCTL_HANDLER_ARGS)
 	if (!p)
 		return (0);
 
-	if ((!ps_argsopen) && p_can(curproc, p, P_CAN_SEE, NULL)) {
+	if ((!ps_argsopen) && p_cansee(curproc, p)) {
 		PROC_UNLOCK(p);
 		return (0);
 	}

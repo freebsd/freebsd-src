@@ -65,7 +65,7 @@ procfs_dofpregs(curp, p, pfs, uio)
 	char *kv;
 	int kl;
 
-	if (p_can(curp, p, P_CAN_DEBUG, NULL))
+	if (p_candebug(curp, p))
 		return EPERM;
 	kl = sizeof(r);
 	kv = (char *) &r;

@@ -220,7 +220,7 @@ ptrace(curp, uap)
 		if ((p = pfind(uap->pid)) == NULL)
 			return ESRCH;
 	}
-	if (p_can(curp, p, P_CAN_SEE, NULL)) {
+	if (p_cansee(curp, p)) {
 		PROC_UNLOCK(p);
 		return (ESRCH);
 	}
@@ -246,7 +246,7 @@ ptrace(curp, uap)
 			return EBUSY;
 		}
 
-		if ((error = p_can(curp, p, P_CAN_DEBUG, NULL))) {
+		if ((error = p_candebug(curp, p))) {
 			PROC_UNLOCK(p);
 			return error;
 		}

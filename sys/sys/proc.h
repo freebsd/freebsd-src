@@ -518,8 +518,9 @@ void	fork_return __P((struct proc *, struct trapframe *));
 int	inferior __P((struct proc *p));
 int	leavepgrp __P((struct proc *p));
 void	mi_switch __P((void));
-int	p_can __P((struct proc *p1, struct proc *p2, int operation,
-	    int *privused));
+int	p_candebug __P((struct proc *p1, struct proc *p2));
+int	p_cansee __P((struct proc *p1, struct proc *p2));
+int	p_cansched __P((struct proc *p1, struct proc *p2));
 int	p_cansignal __P((struct proc *p1, struct proc *p2, int signum));
 int	p_trespass __P((struct proc *p1, struct proc *p2));
 void	procinit __P((void));

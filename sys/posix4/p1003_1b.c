@@ -122,7 +122,7 @@ int sched_setparam(struct proc *p,
 			return (ESRCH);
 	}
 
-	e = p_can(p, targetp, P_CAN_SCHED, NULL);
+	e = p_cansched(p, targetp);
 	PROC_UNLOCK(targetp);
 	if (e)
 		return (e);
@@ -148,7 +148,7 @@ int sched_getparam(struct proc *p,
 			return (ESRCH);
 	}
 
-	e = p_can(p, targetp, P_CAN_SEE, NULL);
+	e = p_cansee(p, targetp);
 	PROC_UNLOCK(targetp);
 	if (e)
 		return (e);
@@ -180,7 +180,7 @@ int sched_setscheduler(struct proc *p,
 			return (ESRCH);
 	}
 
-	e = p_can(p, targetp, P_CAN_SCHED, NULL);
+	e = p_cansched(p, targetp);
 	PROC_UNLOCK(targetp);
 	if (e)
 		return (e);
@@ -205,7 +205,7 @@ int sched_getscheduler(struct proc *p,
 			return (ESRCH);
 	}
 
-	e = p_can(p, targetp, P_CAN_SEE, NULL);
+	e = p_cansee(p, targetp);
 	PROC_UNLOCK(targetp);
 	if (e)
 		return (e);
@@ -246,7 +246,7 @@ int sched_rr_get_interval(struct proc *p,
 			return (ESRCH);
 	}
 
-	e = p_can(p, targetp, P_CAN_SEE, NULL);
+	e = p_cansee(p, targetp);
 	PROC_UNLOCK(targetp);
 	if (e)
 		return (e);
