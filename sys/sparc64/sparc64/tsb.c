@@ -92,6 +92,8 @@ SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, tsb_nforeach, CTLFLAG_RD,
 #endif
 
 struct tte *tsb_kernel;
+vm_size_t tsb_kernel_mask;
+vm_size_t tsb_kernel_size;
 vm_offset_t tsb_kernel_phys;
 
 struct tte *
