@@ -599,6 +599,8 @@ dev/pccard/pccard_cis.c	optional pccard
 dev/pccard/pccard_cis_quirks.c optional pccard
 dev/pccard/power_if.m	standard
 dev/pccbb/pccbb.c	optional cbb
+dev/pccbb/pccbb_isa.c	optional cbb isa
+dev/pccbb/pccbb_pci.c	optional cbb pci
 dev/pci/eisa_pci.c	optional pci eisa
 dev/pci/fixup_pci.c	optional pci
 dev/pci/ignore_pci.c	optional pci
