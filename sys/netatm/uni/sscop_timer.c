@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: sscop_timer.c,v 1.6 1998/04/07 23:21:48 mks Exp $
+ *	@(#) $Id: sscop_timer.c,v 1.1 1998/09/15 08:23:08 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: sscop_timer.c,v 1.6 1998/04/07 23:21:48 mks Exp $";
+static char *RCSid = "@(#) $Id: sscop_timer.c,v 1.1 1998/09/15 08:23:08 phk Exp $";
 #endif
 
 #include <netatm/kern_include.h>
@@ -121,8 +121,8 @@ sscop_timeout(tip)
 						"CC",
 						"IDLE"
 					};
-					ATM_DEBUG3("sscop_timer: %s expired, sop=0x%x, state=%d\n",
-						tn[i], (int)sop, sop->so_state);
+					ATM_DEBUG3("sscop_timer: %s expired, sop=%p, state=%d\n",
+						tn[i], sop, sop->so_state);
 				}
 #endif
 
@@ -170,8 +170,8 @@ sscop_poll_expire(sop)
 	if ((sop->so_state != SOS_READY) &&
 	    ((sop->so_state != SOS_INRESYN) ||
 	     (sop->so_vers != SSCOP_VERS_QSAAL))) {
-		log(LOG_ERR, "sscop: invalid %s state: sop=0x%x, state=%d\n",
-			"Timer_POLL", (int)sop, sop->so_state);
+		log(LOG_ERR, "sscop: invalid %s state: sop=%p, state=%d\n",
+			"Timer_POLL", sop, sop->so_state);
 		return;
 	}
 
@@ -214,8 +214,8 @@ sscop_idle_expire(sop)
 	 * Timer_IDLE only valid in READY state
 	 */
 	if (sop->so_state != SOS_READY) {
-		log(LOG_ERR, "sscop: invalid %s state: sop=0x%x, state=%d\n",
-			"Timer_IDLE", (int)sop, sop->so_state);
+		log(LOG_ERR, "sscop: invalid %s state: sop=%p, state=%d\n",
+			"Timer_IDLE", sop, sop->so_state);
 		return;
 	}
 
@@ -266,8 +266,8 @@ sscop_noresponse_expire(sop)
 	if ((sop->so_state != SOS_READY) &&
 	    ((sop->so_state != SOS_INRESYN) ||
 	     (sop->so_vers != SSCOP_VERS_QSAAL))) {
-		log(LOG_ERR, "sscop: invalid %s state: sop=0x%x, state=%d\n",
-			"Timer_NORESPONSE", (int)sop, sop->so_state);
+		log(LOG_ERR, "sscop: invalid %s state: sop=%p, state=%d\n",
+			"Timer_NORESPONSE", sop, sop->so_state);
 		return;
 	}
 
@@ -569,8 +569,8 @@ rexmitrs:
 		break;
 
 	default:
-		log(LOG_ERR, "sscop: invalid %s state: sop=0x%x, state=%d\n",
-			"Timer_CC", (int)sop, sop->so_state);
+		log(LOG_ERR, "sscop: invalid %s state: sop=%p, state=%d\n",
+			"Timer_CC", sop, sop->so_state);
 	}
 }
 

@@ -23,7 +23,7 @@
 # Copies of this Software may be made, however, the above copyright
 # notice must be reproduced on all copies.
 #
-#	@(#) $Id: Makefile,v 1.1 1998/09/15 08:22:47 phk Exp $
+#	@(#) $Id: Makefile,v 1.2 1998/09/15 19:16:32 phk Exp $
 #
 #
 
@@ -32,5 +32,6 @@ MAN8=	ilmid.8
 
 CFLAGS+=	-I${.CURDIR}/../../../sys
 LDADD+=		-latm
+DPADD+=		${LIBATM}
 
 .include <bsd.prog.mk>

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: fore_load.c,v 1.12 1998/06/29 21:42:14 mks Exp $
+ *	@(#) $Id: fore_load.c,v 1.1 1998/09/15 08:22:55 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: fore_load.c,v 1.12 1998/06/29 21:42:14 mks Exp $";
+static char *RCSid = "@(#) $Id: fore_load.c,v 1.1 1998/09/15 08:22:55 phk Exp $";
 #endif
 
 #include <dev/hfa/fore_include.h>
@@ -363,19 +363,19 @@ fore_attach(devinfo_p)
 	fore_units[unit] = fup;
 	unit++;
 
-	ATM_DEBUG1("fore_attach: fup=0x%x\n", (int)fup);
-	ATM_DEBUG2("\tfu_xmit_q=0x%x fu_xmit_head=0x%x\n",
-		(int)fup->fu_xmit_q, (int)&fup->fu_xmit_head);
-	ATM_DEBUG2("\tfu_recv_q=0x%x fu_recv_head=0x%x\n",
-		(int)fup->fu_recv_q, (int)&fup->fu_recv_head);
-	ATM_DEBUG2("\tfu_buf1s_q=0x%x fu_buf1s_head=0x%x\n",
-		(int)fup->fu_buf1s_q, (int)&fup->fu_buf1s_head);
-	ATM_DEBUG2("\tfu_buf1l_q=0x%x fu_buf1l_head=0x%x\n",
-		(int)fup->fu_buf1l_q, (int)&fup->fu_buf1l_head);
-	ATM_DEBUG2("\tfu_cmd_q=0x%x fu_cmd_head=0x%x\n",
-		(int)fup->fu_cmd_q, (int)&fup->fu_cmd_head);
-	ATM_DEBUG1("\tfu_stats=0x%x\n",
-		(int)&fup->fu_stats);
+	ATM_DEBUG1("fore_attach: fup=%p\n", fup);
+	ATM_DEBUG2("\tfu_xmit_q=%p fu_xmit_head=%p\n",
+		fup->fu_xmit_q, &fup->fu_xmit_head);
+	ATM_DEBUG2("\tfu_recv_q=%p fu_recv_head=%p\n",
+		fup->fu_recv_q, &fup->fu_recv_head);
+	ATM_DEBUG2("\tfu_buf1s_q=%p fu_buf1s_head=%p\n",
+		fup->fu_buf1s_q, &fup->fu_buf1s_head);
+	ATM_DEBUG2("\tfu_buf1l_q=%p fu_buf1l_head=%p\n",
+		fup->fu_buf1l_q, &fup->fu_buf1l_head);
+	ATM_DEBUG2("\tfu_cmd_q=%p fu_cmd_head=%p\n",
+		fup->fu_cmd_q, &fup->fu_cmd_head);
+	ATM_DEBUG1("\tfu_stats=%p\n",
+		&fup->fu_stats);
 
 	/*
 	 * Tell kernel our unit number
@@ -991,7 +991,7 @@ fore_pci_attach(config_id, unit)
 				FORE_DEV_NAME, unit);
 			goto failed;
 		} else if ( --err_count == 0 ) {
-			log(LOG_ERR, "%s%d: unable to boot - status=0x%x\n", 
+			log(LOG_ERR, "%s%d: unable to boot - status=0x%lx\n", 
 				FORE_DEV_NAME, unit,
 				CP_READ(fup->fu_mon->mon_bstat));
 			goto failed;

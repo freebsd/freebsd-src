@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: fore_stats.c,v 1.5 1997/08/22 18:41:21 mks Exp $
+ *	@(#) $Id: fore_stats.c,v 1.1 1998/09/15 08:22:55 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: fore_stats.c,v 1.5 1997/08/22 18:41:21 mks Exp $";
+static char *RCSid = "@(#) $Id: fore_stats.c,v 1.1 1998/09/15 08:22:55 phk Exp $";
 #endif
 
 #include <dev/hfa/fore_include.h>
@@ -68,7 +68,7 @@ fore_get_stats(fup)
 	Cmd_queue	*cqp;
 	int		s, sst;
 
-	ATM_DEBUG1("fore_get_stats: fup=0x%x\n", (int)fup);
+	ATM_DEBUG1("fore_get_stats: fup=%p\n", fup);
 
 	/*
 	 * Make sure device has been initialized

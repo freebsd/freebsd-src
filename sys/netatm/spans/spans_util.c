@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: spans_util.c,v 1.6 1998/08/26 23:29:10 mks Exp $
+ *	@(#) $Id: spans_util.c,v 1.1 1998/09/15 08:23:04 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: spans_util.c,v 1.6 1998/08/26 23:29:10 mks Exp $";
+static char *RCSid = "@(#) $Id: spans_util.c,v 1.1 1998/09/15 08:23:04 phk Exp $";
 #endif
 
 #include <netatm/kern_include.h>
@@ -441,7 +441,7 @@ spans_addr_print(p)
 	/*
 	 * Print and return the string
 	 */
-	sprintf(strbuff, "%x.%x", ntohl(u1.w), ntohl(u2.w));
+	sprintf(strbuff, "%lx.%lx", ntohl(u1.w), ntohl(u2.w));
 	return(strbuff);
 }
 
@@ -468,7 +468,7 @@ spans_dump_buffer(m)
 		KB_DATASTART(m, cp, caddr_t);
 		for (i = 0; i < KB_LEN(m); i++) {
 			if (i == 0)
-				printf("   bfr=0x%x: ", (int)m);
+				printf("   bfr=%p: ", m);
 			printf("%x ", (u_char)*cp++);
 		}
 		printf("<end_bfr>\n");

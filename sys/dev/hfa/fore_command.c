@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: fore_command.c,v 1.10 1998/06/29 21:42:09 mks Exp $
+ *	@(#) $Id: fore_command.c,v 1.1 1998/09/15 08:22:54 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: fore_command.c,v 1.10 1998/06/29 21:42:09 mks Exp $";
+static char *RCSid = "@(#) $Id: fore_command.c,v 1.1 1998/09/15 08:22:54 phk Exp $";
 #endif
 
 #include <dev/hfa/fore_include.h>
@@ -341,7 +341,8 @@ fore_cmd_drain(fup)
 					sizeof(struct mac_addr));
 				fup->fu_config.ac_macaddr = 
 					fup->fu_pif.pif_macaddr;
-				sprintf(fup->fu_config.ac_hard_vers, "%d.%d.%d",
+				sprintf(fup->fu_config.ac_hard_vers,
+					"%ld.%ld.%ld",
 					(fp->pr_hwver >> 16) & 0xff,
 					(fp->pr_hwver >> 8) & 0xff,
 					fp->pr_hwver & 0xff);
@@ -354,7 +355,7 @@ fore_cmd_drain(fup)
 #endif	/* FORE_PCI */
 
 		default:
-			log(LOG_ERR, "fore_cmd_drain: unknown command %d\n",
+			log(LOG_ERR, "fore_cmd_drain: unknown command %ld\n",
 				hcp->hcq_code);
 		}
 

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: spans_print.c,v 1.4 1997/05/06 22:17:11 mks Exp $
+ *	@(#) $Id: spans_print.c,v 1.1 1998/09/15 08:23:03 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: spans_print.c,v 1.4 1997/05/06 22:17:11 mks Exp $";
+static char *RCSid = "@(#) $Id: spans_print.c,v 1.1 1998/09/15 08:23:03 phk Exp $";
 #endif
 
 #include <netatm/kern_include.h>
@@ -876,7 +876,7 @@ spans_print_msgbody(objp)
 	switch (objp->mb_type) {
 	case SPANS_STAT_REQ:
 		streq_p = &objp->spans_msgbody_u.mb_stat_req;
-		printf("es_epoch=0x%x", streq_p->streq_es_epoch);
+		printf("es_epoch=0x%lx", streq_p->streq_es_epoch);
 		break;
 	case SPANS_STAT_IND:
 		stind_p = &objp->spans_msgbody_u.mb_stat_ind;
@@ -884,7 +884,7 @@ spans_print_msgbody(objp)
 				sizeof(daddr));
 		strncpy(saddr, spans_addr_print(&stind_p->stind_sw_addr),
 				sizeof(daddr));
-		printf("sw_epoch=0x%x, es_addr=%s, sw_addr=0x%s",
+		printf("sw_epoch=0x%lx, es_addr=%s, sw_addr=0x%s",
 				stind_p->stind_sw_epoch,
 				daddr, saddr);
 		break;
@@ -892,7 +892,7 @@ spans_print_msgbody(objp)
 		strsp_p = &objp->spans_msgbody_u.mb_stat_rsp;
 		strncpy(daddr, spans_addr_print(&strsp_p->strsp_es_addr),
 				sizeof(daddr));
-		printf("es_epoch=0x%x, es_addr=%s",
+		printf("es_epoch=0x%lx, es_addr=%s",
 				strsp_p->strsp_es_epoch, daddr);
 		break;
 	case SPANS_OPEN_REQ:

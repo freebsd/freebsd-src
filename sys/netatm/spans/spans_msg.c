@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: spans_msg.c,v 1.8 1998/08/26 23:29:09 mks Exp $
+ *	@(#) $Id: spans_msg.c,v 1.1 1998/09/15 08:23:03 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: spans_msg.c,v 1.8 1998/08/26 23:29:09 mks Exp $";
+static char *RCSid = "@(#) $Id: spans_msg.c,v 1.1 1998/09/15 08:23:03 phk Exp $";
 #endif
 
 #include <netatm/kern_include.h>
@@ -136,7 +136,7 @@ spans_send_msg(spp, msg)
 	XDR		xdrs;
 
 #ifdef NOTDEF
-	ATM_DEBUG2("spans_send_msg: msg=0x%x, type=%d\n", msg,
+	ATM_DEBUG2("spans_send_msg: msg=%p, type=%d\n", msg,
 			msg->sm_type);
 	if (msg->sm_type != SPANS_STAT_REQ &&
 			msg->sm_type != SPANS_STAT_IND &&
@@ -207,7 +207,7 @@ spans_send_open_req(spp, svp)
 	spans_msg	*req;
 	int		err = 0;
 
-	ATM_DEBUG1("spans_send_open_req: svp=0x%x\n", svp);
+	ATM_DEBUG1("spans_send_open_req: svp=%p\n", svp);
 
 	/*
 	 * Get memory for a request message
@@ -265,7 +265,7 @@ spans_send_open_rsp(spp, svp, result)
 	spans_msg	*rsp;
 	int		rc;
 
-	ATM_DEBUG2("spans_send_open_rsp: svp=0x%x, result=%d\n", svp,
+	ATM_DEBUG2("spans_send_open_rsp: svp=%p, result=%d\n", svp,
 			result);
 
 	/*
@@ -317,7 +317,7 @@ spans_send_close_req(spp, svp)
 	spans_msg	*req;
 	int		err = 0;
 
-	ATM_DEBUG1("spans_send_close_req: svp=0x%x\n", svp);
+	ATM_DEBUG1("spans_send_close_req: svp=%p\n", svp);
 
 	/*
 	 * Get memory for a close request
@@ -540,7 +540,7 @@ spans_open_req(spp, msg)
 	Aal_t			aal;
 	Atm_attributes		call_attrs;
 
-	ATM_DEBUG2("spans_open_req: spp=0x%x, msg=0x%x\n", spp, msg);
+	ATM_DEBUG2("spans_open_req: spp=%p, msg=%p\n", spp, msg);
 
 	/*
 	 * See if the connection is new
@@ -833,7 +833,7 @@ spans_open_rsp(spp, msg)
 {
 	struct spans_vccb	*svp;
 
-	ATM_DEBUG2("spans_open_rsp: spp=0x%x, msg=0x%x\n", spp, msg);
+	ATM_DEBUG2("spans_open_rsp: spp=%p, msg=%p\n", spp, msg);
 
 	/*
 	 * Locate the VCCB for the connection
@@ -935,7 +935,7 @@ spans_close_req(spp, msg)
 	u_char			outstate;
 	Atm_connvc		*cvp;
 
-	ATM_DEBUG2("spans_close_req: spp=0x%x, msg=0x%x\n", spp, msg);
+	ATM_DEBUG2("spans_close_req: spp=%p, msg=%p\n", spp, msg);
 
 	/*
 	 * Locate the VCCB for the connection
@@ -1055,7 +1055,7 @@ spans_close_rsp(spp, msg)
 {
 	struct spans_vccb	*svp;
 
-	ATM_DEBUG2("spans_close_rsp: spp=0x%x, msg=0x%x\n", spp, msg);
+	ATM_DEBUG2("spans_close_rsp: spp=%p, msg=%p\n", spp, msg);
 
 	/*
 	 * Locate the VCCB for the connection
@@ -1371,7 +1371,7 @@ spans_query_req(spp, msg)
 	struct spans_vccb	*svp = NULL;
 	spans_msg		*rsp_msg;
 
-	ATM_DEBUG1("spans_query_req: msg=0x%x\n", msg);
+	ATM_DEBUG1("spans_query_req: msg=%p\n", msg);
 
 	/*
 	 * Ignore an end-to-end query

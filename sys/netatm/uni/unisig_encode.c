@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: unisig_encode.c,v 1.11 1998/08/26 23:29:21 mks Exp $
+ *	@(#) $Id: unisig_encode.c,v 1.1 1998/09/15 08:23:11 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: unisig_encode.c,v 1.11 1998/08/26 23:29:21 mks Exp $";
+static char *RCSid = "@(#) $Id: unisig_encode.c,v 1.1 1998/09/15 08:23:11 phk Exp $";
 #endif
 
 #include <netatm/kern_include.h>
@@ -142,8 +142,8 @@ usf_enc_msg(usf, msg)
 		u_char	sb[sizeof(short)];
 	} su;
 
-	ATM_DEBUG2("usf_enc_msg: usf=0x%x, msg=0x%x\n",
-			(int)usf, (int)msg);
+	ATM_DEBUG2("usf_enc_msg: usf=%p, msg=%p\n",
+			usf, msg);
 
 	/*
 	 * Encode the protocol discriminator
@@ -251,8 +251,8 @@ usf_enc_ie(usf, ie)
 		u_char	sb[sizeof(short)];
 	} su;
 
-	ATM_DEBUG2("usf_enc_ie: usf=0x%x, ie=0x%x\n",
-			(int)usf, (int)ie);
+	ATM_DEBUG2("usf_enc_ie: usf=%p, ie=%p\n",
+			usf, ie);
 
 	/*
 	 * Encode the IE identifier
@@ -337,8 +337,8 @@ usf_enc_ie_aalp(usf, ie)
 {
 	int		i, rc = 0;
 
-	ATM_DEBUG2("usf_enc_ie_aalp: usf=0x%x, ie=0x%x\n",
-			(int)usf, (int)ie);
+	ATM_DEBUG2("usf_enc_ie_aalp: usf=%p, ie=%p\n",
+			usf, ie);
 
 	ie->ie_length = 0;
 
@@ -414,8 +414,8 @@ usf_enc_ie_clrt(usf, ie)
 {
 	int	rc;
 
-	ATM_DEBUG2("usf_enc_ie_clrt: usf=0x%x, ie=0x%x\n",
-			(int)usf, (int)ie);
+	ATM_DEBUG2("usf_enc_ie_clrt: usf=%p, ie=%p\n",
+			usf, ie);
 
 #ifdef NOTDEF
 	/*
@@ -484,8 +484,8 @@ usf_enc_ie_bbcp(usf, ie)
 	int	rc;
 	u_char	c;
 
-	ATM_DEBUG2("usf_enc_ie_bbcp: usf=0x%x, ie=0x%x\n",
-			(int)usf, (int)ie);
+	ATM_DEBUG2("usf_enc_ie_bbcp: usf=%p, ie=%p\n",
+			usf, ie);
 
 	ie->ie_length = 0;
 
@@ -555,8 +555,8 @@ usf_enc_ie_bhli(usf, ie)
 	int	i, rc;
 	u_int	type;
 
-	ATM_DEBUG2("usf_enc_ie_bhli: usf=0x%x, ie=0x%x\n",
-			(int)usf, (int)ie);
+	ATM_DEBUG2("usf_enc_ie_bhli: usf=%p, ie=%p\n",
+			usf, ie);
 
 	ie->ie_length = 0;
 
@@ -643,8 +643,8 @@ usf_enc_ie_blli(usf, ie)
 	int		rc;
 	u_int		ipi;
 
-	ATM_DEBUG2("usf_enc_ie_blli: usf=0x%x, ie=0x%x\n",
-			(int)usf, (int)ie);
+	ATM_DEBUG2("usf_enc_ie_blli: usf=%p, ie=%p\n",
+			usf, ie);
 
 	ie->ie_length = 0;
 
@@ -932,8 +932,8 @@ usf_enc_ie_clst(usf, ie)
 	int	rc;
 	u_char	c;
 
-	ATM_DEBUG2("usf_enc_ie_clst: usf=0x%x, ie=0x%x\n",
-			(int)usf, (int)ie);
+	ATM_DEBUG2("usf_enc_ie_clst: usf=%p, ie=%p\n",
+			usf, ie);
 
 	c = ie->ie_clst_state & UNI_IE_CLST_STATE_MASK;
 	rc = usf_byte(usf, &c);
@@ -965,8 +965,8 @@ usf_enc_ie_cdad(usf, ie)
 	u_char	c;
 	int	rc;
 
-	ATM_DEBUG2("usf_enc_ie_cdad: usf=0x%x, ie=0x%x\n",
-			(int)usf, (int)ie);
+	ATM_DEBUG2("usf_enc_ie_cdad: usf=%p, ie=%p\n",
+			usf, ie);
 
 	/*
 	 * Encode the numbering plan
@@ -1066,8 +1066,8 @@ usf_enc_ie_cgad(usf, ie)
 	u_char	c;
 	int	rc;
 
-	ATM_DEBUG2("usf_enc_ie_cgad: usf=0x%x, ie=0x%x\n",
-			(int)usf, (int)ie);
+	ATM_DEBUG2("usf_enc_ie_cgad: usf=%p, ie=%p\n",
+			usf, ie);
 
 	/*
 	 * Encode the numbering plan
@@ -1183,8 +1183,8 @@ usf_enc_ie_caus(usf, ie)
 	int			i, rc;
 	u_char			c;
 
-	ATM_DEBUG2("usf_enc_ie_caus: usf=0x%x, ie=0x%x\n",
-			(int)usf, (int)ie);
+	ATM_DEBUG2("usf_enc_ie_caus: usf=%p, ie=%p\n",
+			usf, ie);
 
 	ie->ie_length = 0;
 
@@ -1242,8 +1242,8 @@ usf_enc_ie_cnid(usf, ie)
 	int	rc;
 	u_char	c;
 
-	ATM_DEBUG2("usf_enc_ie_cnid: usf=0x%x, ie=0x%x\n",
-			(int)usf, (int)ie);
+	ATM_DEBUG2("usf_enc_ie_cnid: usf=%p, ie=%p\n",
+			usf, ie);
 
 	c = ((ie->ie_cnid_vp_sig & UNI_IE_CNID_VPSIG_MASK)
 				<< UNI_IE_CNID_VPSIG_SHIFT) +
@@ -1284,8 +1284,8 @@ usf_enc_ie_qosp(usf, ie)
 {
         int             rc;
 
-	ATM_DEBUG2("usf_enc_ie_qosp: usf=0x%x, ie=0x%x\n",
-			(int)usf, (int)ie);
+	ATM_DEBUG2("usf_enc_ie_qosp: usf=%p, ie=%p\n",
+			usf, ie);
 
         /*
          * Encode forward QoS class
@@ -1327,8 +1327,8 @@ usf_enc_ie_brpi(usf, ie)
 	int	rc;
 	u_char	c;
 
-	ATM_DEBUG2("usf_enc_ie_brpi: usf=0x%x, ie=0x%x\n",
-			(int)usf, (int)ie);
+	ATM_DEBUG2("usf_enc_ie_brpi: usf=%p, ie=%p\n",
+			usf, ie);
 
 	/*
 	 * Encode the repeat indicator
@@ -1360,8 +1360,8 @@ usf_enc_ie_rsti(usf, ie)
 	int	rc;
 	u_char	c;
 
-	ATM_DEBUG2("usf_enc_ie_rsti: usf=0x%x, ie=0x%x\n",
-			(int)usf, (int)ie);
+	ATM_DEBUG2("usf_enc_ie_rsti: usf=%p, ie=%p\n",
+			usf, ie);
 
 	/*
 	 * Encode the restart class
@@ -1395,8 +1395,8 @@ usf_enc_ie_bsdc(usf, ie)
 	int	rc;
 	u_char	c;
 
-	ATM_DEBUG2("usf_enc_ie_bsdc: usf=0x%x, ie=0x%x\n",
-			(int)usf, (int)ie);
+	ATM_DEBUG2("usf_enc_ie_bsdc: usf=%p, ie=%p\n",
+			usf, ie);
 
 	/*
 	 * Encode the sending complete indicator
@@ -1429,8 +1429,8 @@ usf_enc_ie_trnt(usf, ie)
 	int	i, rc;
 	u_char	c;
 
-	ATM_DEBUG2("usf_enc_ie_trnt: usf=0x%x, ie=0x%x\n",
-			(int)usf, (int)ie);
+	ATM_DEBUG2("usf_enc_ie_trnt: usf=%p, ie=%p\n",
+			usf, ie);
 
 	/*
 	 * Encode the sending complete indicator
@@ -1508,8 +1508,8 @@ usf_enc_ie_ident(usf, ie, tbl)
 	u_int16_t	sv;
 	u_int32_t	iv;
 
-	ATM_DEBUG3("usf_enc_ie_ident: usf=0x%x, ie=0x%x, tbl=0x%x\n",
-			(int)usf, (int)ie, (int)tbl);
+	ATM_DEBUG3("usf_enc_ie_ident: usf=%p, ie=%p, tbl=%p\n",
+			usf, ie, tbl);
 
 	/*
 	 * Scan through the IE table

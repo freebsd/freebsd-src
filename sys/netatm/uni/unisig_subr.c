@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: unisig_subr.c,v 1.12 1998/08/26 23:29:24 mks Exp $
+ *	@(#) $Id: unisig_subr.c,v 1.1 1998/09/15 08:23:12 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: unisig_subr.c,v 1.12 1998/08/26 23:29:24 mks Exp $";
+static char *RCSid = "@(#) $Id: unisig_subr.c,v 1.1 1998/09/15 08:23:12 phk Exp $";
 #endif
 
 #include <netatm/kern_include.h>
@@ -129,7 +129,7 @@ unisig_open_vcc(usp, cvp)
 	Atm_addr_pvc		*pvp;
 	int			err, pvc;
 
-	ATM_DEBUG2("unisig_open_vcc: usp=0x%x, cvp=0x%x\n", usp, cvp);
+	ATM_DEBUG2("unisig_open_vcc: usp=%p, cvp=%p\n", usp, cvp);
 
 	/*
 	 * Validate user parameters.  AAL and encapsulation are
@@ -305,7 +305,7 @@ unisig_close_vcc(usp, uvp)
 {
 	int		err = 0;
 
-	ATM_DEBUG2("unisig_close_vcc: uvp=0x%x, state=%d\n", uvp,
+	ATM_DEBUG2("unisig_close_vcc: uvp=%p, state=%d\n", uvp,
 			uvp->uv_sstate);
 
 	/*
@@ -367,8 +367,8 @@ unisig_clear_vcc(usp, uvp, cause)
 {
 	u_char	outstate;
 
-	ATM_DEBUG3("unisig_clear_vcc: uvp=0x%x, state=%d, cause=%d\n",
-			(int)uvp, uvp->uv_sstate, cause);
+	ATM_DEBUG3("unisig_clear_vcc: uvp=%p, state=%d, cause=%d\n",
+			uvp, uvp->uv_sstate, cause);
 
 	/*
 	 * Check that this is for the same interface UNISIG uses
@@ -432,7 +432,7 @@ unisig_switch_reset(usp, cause)
 	int			s;
 	struct unisig_vccb	*uvp, *vnext;
 
-	ATM_DEBUG2("unisig_switch_reset: usp=0x%x, cause=%d\n",
+	ATM_DEBUG2("unisig_switch_reset: usp=%p, cause=%d\n",
 			usp, cause);
 
 	/*
@@ -463,7 +463,7 @@ unisig_switch_reset(usp, cause)
 			}
 			atm_cm_cleared(uvp->uv_connvc, cause);
 		} else {
-			log(LOG_ERR, "unisig: invalid VCC type: vccb=0x%x, type=%d\n",
+			log(LOG_ERR, "unisig: invalid VCC type: vccb=%p, type=%d\n",
 					uvp, uvp->uv_type);
 		}
 	}

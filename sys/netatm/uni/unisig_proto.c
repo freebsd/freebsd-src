@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: unisig_proto.c,v 1.9 1998/08/26 23:29:23 mks Exp $
+ *	@(#) $Id: unisig_proto.c,v 1.1 1998/09/15 08:23:12 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: unisig_proto.c,v 1.9 1998/08/26 23:29:23 mks Exp $";
+static char *RCSid = "@(#) $Id: unisig_proto.c,v 1.1 1998/09/15 08:23:12 phk Exp $";
 #endif
 
 #include <netatm/kern_include.h>
@@ -75,8 +75,8 @@ unisig_timer(tip)
 	usp = (struct unisig *)
 		((caddr_t)tip - (int)(&((struct unisig *)0)->us_time));
 
-	ATM_DEBUG2("unisig_timer: usp=0x%x,state=%d\n",
-			(int)usp, usp->us_state);
+	ATM_DEBUG2("unisig_timer: usp=%p,state=%d\n",
+			usp, usp->us_state);
 
 	/*
 	 * Pass the timeout to the signalling manager state machine
@@ -116,8 +116,8 @@ unisig_vctimer(tip)
 			(int)(&((struct vccb *)0)->vc_time));
 	usp = (struct unisig *)uvp->uv_pif->pif_siginst;
 
-	ATM_DEBUG3("unisig_vctimer: uvp=0x%x, sstate=%d, ustate=%d\n",
-			(int)uvp, uvp->uv_sstate, uvp->uv_ustate);
+	ATM_DEBUG3("unisig_vctimer: uvp=%p, sstate=%d, ustate=%d\n",
+			uvp, uvp->uv_sstate, uvp->uv_ustate);
 
 	/*
 	 * Hand the timeout to the VC finite state machine
@@ -162,8 +162,8 @@ unisig_saal_ctl(cmd, tok, a1)
 {
 	struct unisig	*usp = tok;
 
-	ATM_DEBUG4("unisig_upper: usp=0x%x,state=%d,cmd=%d,a1=0x%x,\n",
-			(u_long)usp, usp->us_state, cmd, (u_long)a1);
+	ATM_DEBUG4("unisig_upper: usp=%p,state=%d,cmd=%d,a1=0x%lx,\n",
+			usp, usp->us_state, cmd, (u_long)a1);
 
 	/*
 	 * Process command
@@ -196,8 +196,8 @@ unisig_saal_ctl(cmd, tok, a1)
 
 	default:
 		log(LOG_ERR,
-			"unisig: unknown SAAL cmd: usp=0x%x, state=%d, cmd=%d\n",
-			(int)usp, usp->us_state, cmd);
+			"unisig: unknown SAAL cmd: usp=%p, state=%d, cmd=%d\n",
+			usp, usp->us_state, cmd);
 	}
 }
 
@@ -223,8 +223,8 @@ unisig_saal_data(tok, m)
 {
 	struct unisig	*usp = tok;
 
-	ATM_DEBUG3("unisig_saal_data: usp=0x%x,state=%d,m=0x%x,\n",
-			(int)usp, usp->us_state, m);
+	ATM_DEBUG3("unisig_saal_data: usp=%p,state=%d,m=%p,\n",
+			usp, usp->us_state, m);
 
 	/*
 	 * Pass data to signalling manager state machine
@@ -280,14 +280,14 @@ unisig_connected(tok)
 {
 	struct unisig		*usp = tok;
 
-	ATM_DEBUG2("unisig_connected: usp=0x%x,state=%d\n",
-			(u_long)usp, usp->us_state);
+	ATM_DEBUG2("unisig_connected: usp=%p,state=%d\n",
+			usp, usp->us_state);
 
 	/*
 	 * Connected routine shouldn't ever get called for a PVC
 	 */
-	log(LOG_ERR, "unisig: connected notification, usp=0x%x\n",
-			(u_long)usp);
+	log(LOG_ERR, "unisig: connected notification, usp=%p\n",
+			usp);
 }
 
 
@@ -311,8 +311,8 @@ unisig_cleared(tok, cp)
 {
 	struct unisig		*usp = tok;
 
-	ATM_DEBUG3("unisig_cleared: usp=0x%x, state=%d, cause=%d\n",
-			(u_long)usp, usp->us_state, cp->cause_value);
+	ATM_DEBUG3("unisig_cleared: usp=%p, state=%d, cause=%d\n",
+			usp, usp->us_state, cp->cause_value);
 
 	/*
 	 * VCC has been closed.  Notify the signalling

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: ipatm_vcm.c,v 1.13 1998/08/06 18:21:14 mks Exp $
+ *	@(#) $Id: ipatm_vcm.c,v 1.1 1998/09/15 08:23:01 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: ipatm_vcm.c,v 1.13 1998/08/06 18:21:14 mks Exp $";
+static char *RCSid = "@(#) $Id: ipatm_vcm.c,v 1.1 1998/09/15 08:23:01 phk Exp $";
 #endif
 
 #include <netatm/kern_include.h>
@@ -1093,8 +1093,8 @@ ipatm_closevc(ivp, code)
 
 	default:
 		log(LOG_ERR, 
-			"ipatm_closevc: unknown state: ivp=0x%x, state=%d\n",
-                       	(int)ivp, ivp->iv_state);
+			"ipatm_closevc: unknown state: ivp=%p, state=%d\n",
+                       	ivp, ivp->iv_state);
 	}
 
 	/*

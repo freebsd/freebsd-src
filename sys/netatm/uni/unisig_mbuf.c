@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: unisig_mbuf.c,v 1.6 1998/08/26 23:29:22 mks Exp $
+ *	@(#) $Id: unisig_mbuf.c,v 1.1 1998/09/15 08:23:11 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: unisig_mbuf.c,v 1.6 1998/08/26 23:29:22 mks Exp $";
+static char *RCSid = "@(#) $Id: unisig_mbuf.c,v 1.1 1998/09/15 08:23:11 phk Exp $";
 #endif
 
 #include <netatm/kern_include.h>
@@ -71,8 +71,8 @@ usf_init(usf, usp, buf, op, headroom)
 {
 	KBuffer		*m;
 
-	ATM_DEBUG3("usf_init: usf=0x%x, buf=0x%x, op=%d\n",
-			(int) usf, (int) buf, op);
+	ATM_DEBUG3("usf_init: usf=%p, buf=%p, op=%d\n",
+			usf, buf, op);
 
 	/*
 	 * Check parameters

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm_cm.c,v 1.8 1998/08/06 18:10:42 mks Exp $
+ *	@(#) $Id: atm_cm.c,v 1.1 1998/09/15 08:22:57 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: atm_cm.c,v 1.8 1998/08/06 18:10:42 mks Exp $";
+static char *RCSid = "@(#) $Id: atm_cm.c,v 1.1 1998/09/15 08:22:57 phk Exp $";
 #endif
 
 #include <netatm/kern_include.h>
@@ -1065,8 +1065,8 @@ atm_cm_abort(cvp, cause)
 	Atm_connvc	*cvp;
 	struct t_atm_cause	*cause;
 {
-	ATM_DEBUG2("atm_cm_abort: cvp=0x%x cause=%d\n",
-		(int)cvp, cause->cause_value);
+	ATM_DEBUG2("atm_cm_abort: cvp=%p cause=%d\n",
+		cvp, cause->cause_value);
 
 	/*
 	 * Note that we're aborting
@@ -1106,8 +1106,8 @@ atm_cm_abort(cvp, cause)
 
 	default:
 		log(LOG_ERR,
-			"atm_cm_abort: invalid state: cvp=0x%x, state=%d\n",
-			(int)cvp, cvp->cvc_state);
+			"atm_cm_abort: invalid state: cvp=%p, state=%d\n",
+			cvp, cvp->cvc_state);
 	}
 	return (0);
 }
@@ -2630,8 +2630,8 @@ atm_cm_timeout(tip)
 	default:
 logerr:
 		log(LOG_ERR,
-			"atm_cm_timeout: invalid state: cvp=0x%x, state=%d\n",
-			(int)cvp, cvp->cvc_state);
+			"atm_cm_timeout: invalid state: cvp=%p, state=%d\n",
+			cvp, cvp->cvc_state);
 	}
 }
 
