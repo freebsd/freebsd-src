@@ -38,9 +38,6 @@
 #include <sys/smp.h>
 
 #include <machine/cpu.h>
-#ifdef SMP
-#include <machine/smptests.h>	/** CPUSTOP_ON_DDBBREAK */
-#endif
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -75,9 +72,9 @@ rss(void)
  *  kdb_trap - field a TRACE or BPT trap
  */
 int
-kdb_trap(int type, int code, struct i386_saved_state *regs)
+kdb_trap(int type, int code, struct amd64_saved_state *regs)
 {
-	u_int ef;
+	u_long ef;
 	volatile int ddb_mode = !(boothowto & RB_GDB);
 
 	/*
@@ -91,13 +88,13 @@ kdb_trap(int type, int code, struct i386_saved_state *regs)
 	 */
 	if (cons_unavail && ddb_mode) {
 	    if (type == T_TRCTRAP) {
-		regs->tf_eflags &= ~PSL_T;
+		regs->tf_rflags &= ~PSL_T;
 		return (1);
 	    }
 	    return (0);
 	}
 
-	ef = read_eflags();
+	ef = read_rflags();
 	disable_intr();
 
 	switch (type) {
@@ -140,27 +137,9 @@ kdb_trap(int type, int code, struct i386_saved_state *regs)
 	 * If in kernel mode, esp and ss are not saved, so dummy them up.
 	 */
 	if (ISPL(regs->tf_cs) == 0) {
-	    ddb_regs.tf_esp = (int)&regs->tf_esp;
+	    ddb_regs.tf_rsp = (long)&regs->tf_rsp;
 	    ddb_regs.tf_ss = rss();
 	}
-
-#ifdef SMP
-#ifdef CPUSTOP_ON_DDBBREAK
-
-#if defined(VERBOSE_CPUSTOP_ON_DDBBREAK)
-	db_printf("\nCPU%d stopping CPUs: 0x%08x...", PCPU_GET(cpuid),
-	    PCPU_GET(other_cpus));
-#endif /* VERBOSE_CPUSTOP_ON_DDBBREAK */
-
-	/* We stop all CPUs except ourselves (obviously) */
-	stop_cpus(PCPU_GET(other_cpus));
-
-#if defined(VERBOSE_CPUSTOP_ON_DDBBREAK)
-	db_printf(" stopped.\n");
-#endif /* VERBOSE_CPUSTOP_ON_DDBBREAK */
-
-#endif /* CPUSTOP_ON_DDBBREAK */
-#endif /* SMP */
 
 	(void) setjmp(db_global_jmpbuf);
 	if (ddb_mode) {
@@ -175,53 +154,44 @@ kdb_trap(int type, int code, struct i386_saved_state *regs)
 	}
 	db_active = 0;
 
-#ifdef SMP
-#ifdef CPUSTOP_ON_DDBBREAK
-
-#if defined(VERBOSE_CPUSTOP_ON_DDBBREAK)
-	db_printf("\nCPU%d restarting CPUs: 0x%08x...", PCPU_GET(cpuid),
-	    stopped_cpus);
-#endif /* VERBOSE_CPUSTOP_ON_DDBBREAK */
-
-	/* Restart all the CPUs we previously stopped */
-	if (stopped_cpus != PCPU_GET(other_cpus) && smp_started != 0) {
-		db_printf("whoa, other_cpus: 0x%08x, stopped_cpus: 0x%08x\n",
-			  PCPU_GET(other_cpus), stopped_cpus);
-		panic("stop_cpus() failed");
-	}
-	restart_cpus(stopped_cpus);
-
-#if defined(VERBOSE_CPUSTOP_ON_DDBBREAK)
-	db_printf(" restarted.\n");
-#endif /* VERBOSE_CPUSTOP_ON_DDBBREAK */
-
-#endif /* CPUSTOP_ON_DDBBREAK */
-#endif /* SMP */
-
-	regs->tf_eip    = ddb_regs.tf_eip;
-	regs->tf_eflags = ddb_regs.tf_eflags;
-	regs->tf_eax    = ddb_regs.tf_eax;
-	regs->tf_ecx    = ddb_regs.tf_ecx;
-	regs->tf_edx    = ddb_regs.tf_edx;
-	regs->tf_ebx    = ddb_regs.tf_ebx;
+	regs->tf_rip    = ddb_regs.tf_rip;
+	regs->tf_rflags = ddb_regs.tf_rflags;
+	regs->tf_rax    = ddb_regs.tf_rax;
+	regs->tf_rcx    = ddb_regs.tf_rcx;
+	regs->tf_rdx    = ddb_regs.tf_rdx;
+	regs->tf_rbx    = ddb_regs.tf_rbx;
 
 	/*
 	 * If in user mode, the saved ESP and SS were valid, restore them.
 	 */
 	if (ISPL(regs->tf_cs)) {
-	    regs->tf_esp = ddb_regs.tf_esp;
+	    regs->tf_rsp = ddb_regs.tf_rsp;
 	    regs->tf_ss  = ddb_regs.tf_ss & 0xffff;
 	}
 
-	regs->tf_ebp    = ddb_regs.tf_ebp;
-	regs->tf_esi    = ddb_regs.tf_esi;
-	regs->tf_edi    = ddb_regs.tf_edi;
+	regs->tf_rbp    = ddb_regs.tf_rbp;
+	regs->tf_rsi    = ddb_regs.tf_rsi;
+	regs->tf_rdi    = ddb_regs.tf_rdi;
+
+	regs->tf_r8	= ddb_regs.tf_r8;
+	regs->tf_r9	= ddb_regs.tf_r9;
+	regs->tf_r10	= ddb_regs.tf_r10;
+	regs->tf_r11	= ddb_regs.tf_r11;
+	regs->tf_r12	= ddb_regs.tf_r12;
+	regs->tf_r13	= ddb_regs.tf_r13;
+	regs->tf_r14	= ddb_regs.tf_r14;
+	regs->tf_r15	= ddb_regs.tf_r15;
+
+#if 0
 	regs->tf_es     = ddb_regs.tf_es & 0xffff;
 	regs->tf_fs     = ddb_regs.tf_fs & 0xffff;
+#endif
 	regs->tf_cs     = ddb_regs.tf_cs & 0xffff;
+#if 0
 	regs->tf_ds     = ddb_regs.tf_ds & 0xffff;
+#endif
 
-	write_eflags(ef);
+	write_rflags(ef);
 
 	return (1);
 }
@@ -262,7 +232,7 @@ db_write_bytes(vm_offset_t addr, size_t size, char *data)
 	if (addr > trunc_page((vm_offset_t)btext) - size &&
 	    addr < round_page((vm_offset_t)etext)) {
 
-	    ptep0 = pmap_pte_quick(kernel_pmap, addr);
+	    ptep0 = vtopte(addr);
 	    oldmap0 = *ptep0;
 	    *ptep0 |= PG_RW;
 
@@ -270,14 +240,14 @@ db_write_bytes(vm_offset_t addr, size_t size, char *data)
 	    if ((*ptep0 & PG_PS) == 0) {
 	    	addr1 = trunc_page(addr + size - 1);
 	    	if (trunc_page(addr) != addr1) {
-		    ptep1 = pmap_pte_quick(kernel_pmap, addr1);
+		    ptep1 = vtopte(addr1);
 		    oldmap1 = *ptep1;
 		    *ptep1 |= PG_RW;
 	    	}
 	    } else {
-		addr1 = trunc_4mpage(addr + size - 1);
-		if (trunc_4mpage(addr) != addr1) {
-		    ptep1 = pmap_pte_quick(kernel_pmap, addr1);
+		addr1 = trunc_2mpage(addr + size - 1);
+		if (trunc_2mpage(addr) != addr1) {
+		    ptep1 = vtopte(addr1);
 		    oldmap1 = *ptep1;
 		    *ptep1 |= PG_RW;
 		}
@@ -333,5 +303,7 @@ void
 db_show_mdpcpu(struct pcpu *pc)
 {
 
+#if 0
 	db_printf("currentldt   = 0x%x\n", pc->pc_currentldt);
+#endif
 }
