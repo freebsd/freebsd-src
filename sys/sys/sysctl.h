@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id: sysctl.h,v 1.41 1996/03/11 02:17:53 hsu Exp $
+ * $Id: sysctl.h,v 1.42 1996/06/10 16:23:42 nate Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_
@@ -211,7 +211,7 @@ int sysctl_handle_opaque SYSCTL_HANDLER_ARGS;
 #define	KERN_JOB_CONTROL	19	/* int: is job control available */
 #define	KERN_SAVED_IDS		20	/* int: saved set-user/group-ID */
 #define	KERN_BOOTTIME		21	/* struct: time kernel was booted */
-#define KERN_DOMAINNAME		22	/* string: YP domain name */
+#define KERN_NISDOMAINNAME	22	/* string: YP domain name */
 #define KERN_UPDATEINTERVAL	23	/* int: update process sleep time */
 #define KERN_OSRELDATE		24	/* int: OS release date */
 #define KERN_NTP_PLL		25	/* node: NTP PLL control */
@@ -248,7 +248,7 @@ int sysctl_handle_opaque SYSCTL_HANDLER_ARGS;
 	{ "job_control", CTLTYPE_INT }, \
 	{ "saved_ids", CTLTYPE_INT }, \
 	{ "boottime", CTLTYPE_STRUCT }, \
-	{ "domainname", CTLTYPE_STRING }, \
+	{ "nisdomainname", CTLTYPE_STRING }, \
 	{ "update", CTLTYPE_INT }, \
 	{ "osreldate", CTLTYPE_INT }, \
         { "ntp_pll", CTLTYPE_NODE }, \
