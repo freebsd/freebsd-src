@@ -31,7 +31,12 @@ characteristics etc.
 The following command line options are supported.
 .TP
 .BI "\-b\ " [ duration.pitch ]
-Set the bell duration and pitch values.
+Set the bell duration and pitch values. Argument may also be one of 
+.BI "normal"
+which set sound parameters back to normal values, or 
+.BI "visual"
+which set the bell to visual mode, ie flashes the screen instead.
+
 .TP
 .BI "\-r\ " [ delay.repeat | slow | fast | normal ]
 Set keyboard
@@ -72,6 +77,5 @@ Report when found.
 .BR vidcontrol (1) ,
 .BR keyboard (4) ,
 .BR screen (4) ,
-.BR /sys/i386/conf/SYSCONS
 .SH AUTHORS
-Søren Schmidt (sos@login.dkuug.dk)
+Søren Schmidt (sos@FreeBSD.org)

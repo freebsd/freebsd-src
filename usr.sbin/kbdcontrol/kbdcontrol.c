@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1994 Søren Schmidt
+ * Copyright (c) 1994-1995 Søren Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: kbdcontrol.c,v 1.1 1994/08/17 08:59:34 sos Exp $
+ *	$Id: kbdcontrol.c,v 1.2 1994/10/25 20:50:41 swallace Exp $
  */
 
 #include <ctype.h>
@@ -86,10 +86,9 @@ nextarg(int ac, char **av, int *indp, int oc)
 char *
 mkfullname(const char *s1, const char *s2, const char *s3)
 {
-static char	*buf = NULL;
-static int	bufl = 0;
-int		f;
-
+	static char	*buf = NULL;
+	static int	bufl = 0;
+	int		f;
 
 	f = strlen(s1) + strlen(s2) + strlen(s3) + 1;
 	if (f > bufl)
@@ -421,14 +420,17 @@ set_functionkey(char *keynumstr, char *string)
 void
 set_bell_values(char *opt)
 {
-	int duration, pitch;
+	int bell, duration, pitch;
 
-	if (!strcmp(opt, "normal"))
-		duration = 1, pitch = 15;
+	if (!strcmp(opt, "visual")) 
+		bell = 1, duration = 1, pitch = 800;
+	else if (!strcmp(opt, "normal"))
+		bell = 0, duration = 1, pitch = 800;
 	else {
 		int		n;
 		char		*v1;
-
+		
+		bell = 0;
 		duration = strtol(opt, &v1, 0);
 		if ((duration < 0) || (*v1 != '.'))
 			goto badopt;
@@ -443,9 +445,14 @@ badopt:
 	}
 
 	if (verbose)
-		fprintf(stderr, "setting bell values to %d.%d\n",
-			duration, pitch);
-	fprintf(stderr, "[=%d;%dB", pitch, duration);
+		if (bell)
+			fprintf(stderr, "setting visual bell\n");
+		else	
+			fprintf(stderr, "setting bell values to %d.%d\n",
+				duration, pitch);
+	ioctl(0, CONS_BELLTYPE, &bell);
+	if (!bell)
+		fprintf(stderr, "[=%d;%dB", pitch, duration);
 }
 
 
@@ -501,16 +508,17 @@ badopt:
 usage()
 {
 	fprintf(stderr,
-"Usage: kbdcontrol -b duration.pitch (set bell duration & pitch)\n"
-"                  -d                (dump keyboard map to stdout)\n"
-"                  -l filename       (load keyboard map file)\n"
-"                  -f <N> string     (set function key N to send <string>)\n"
-"                  -F                (set function keys back to default)\n"
-"                  -r delay.repeat   (set keyboard delay & repeat rate)\n"
-"                  -r slow           (set keyboard delay & repeat to slow)\n"
-"                  -r normal         (set keyboard delay & repeat to normal)\n"
-"                  -r fast           (set keyboard delay & repeat to fast)\n"
-"                  -v                (verbose)\n"
+"Usage: kbdcontrol -b duration.pitch   (set bell duration & pitch)\n"
+"                  -b normal | visual  (set bell to visual type)\n"
+"                  -d                  (dump keyboard map to stdout)\n"
+"                  -l filename         (load keyboard map file)\n"
+"                  -f <N> string       (set function key N to send <string>)\n"
+"                  -F                  (set function keys back to default)\n"
+"                  -r delay.repeat     (set keyboard delay & repeat rate)\n"
+"                  -r slow             (set keyboard delay & repeat to slow)\n"
+"                  -r normal           (set keyboard delay & repeat to normal)\n"
+"                  -r fast             (set keyboard delay & repeat to fast)\n"
+"                  -v                  (verbose)\n"
 	);
 }
 

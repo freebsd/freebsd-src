@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1994 Søren Schmidt
+ * Copyright (c) 1994-1995 Søren Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: vidcontrol.c,v 1.2 1994/09/15 07:28:06 sos Exp $
+ *	$Id: vidcontrol.c,v 1.3 1994/09/26 20:20:44 ache Exp $
  */
 
 #include <ctype.h>
@@ -264,26 +264,19 @@ set_screensaver_type(char *type)
 }
 
 void
-set_cursor_values(char *size)
+set_cursor_type(char *appearence)
 {
-	int start, end;
-	int n;
-	char *v1;
+	int type;
 
-	start = strtol(size, &v1, 0);
-	if ((start < 0) || (*v1 != '.'))
-		goto badopt;
-	size = ++v1;
-	end = strtol(size, &v1, 0);
-	if ((end < 0) || (*size == '\0') || (*v1 != '\0')) {
-badopt:
-		fprintf(stderr, 
-			"argument to -c must be start.end\n");
+	if (!strcmp(appearence, "blink"))
+		type = 1;
+	else if (!strcmp(appearence, "noblink"))
+		type = 0;
+	else {
+		fprintf(stderr, "argument to -c must be blink or noblink\n");
 		return;
 	}
-	if (verbose)
-		fprintf(stderr, "setting cursor to %d.%d\n", start, end);
-	fprintf(stdout, "[=%d;%dC", start, end);
+	ioctl(0, CONS_CURSORTYPE, &type);
 }
 
 
@@ -297,8 +290,12 @@ video_mode(int argc, char **argv, int *index)
 			mode = SW_VGA_C40x25;
 		else if (!strcmp(argv[*index], "VGA_80x25"))
 			mode = SW_VGA_C80x25;
+		else if (!strcmp(argv[*index], "VGA_80x30"))
+			mode = SW_VGA_C80x30;
 		else if (!strcmp(argv[*index], "VGA_80x50"))
 			mode = SW_VGA_C80x50;
+		else if (!strcmp(argv[*index], "VGA_80x60"))
+			mode = SW_VGA_C80x60;
 		else if (!strcmp(argv[*index], "VGA_320x200"))
 			mode = SW_VGA_CG320;
 		else if (!strcmp(argv[*index], "EGA_80x25"))
@@ -397,18 +394,18 @@ usage()
 "Usage: vidcontrol mode             (available modes: VGA_40x25, VGA_80x25,\n"
 "                                                     VGA_80x50, VGA_320x200,\n"
 "                                                     EGA_80x25, EGA_80x43)\n"
-"                  show             (show available colors)\n"
-"                  fgcol bgcol      (set fore- & background colors)\n"
-"                  -r fgcol bgcol   (set reverse fore- & background colors)\n"
-"                  -b color         (set border color)\n"
-"                  -c n.m           (set cursor start line n & end line m)\n"
-"                  -d               (dump screenmap to stdout)\n"
-"                  -l filename      (load srceenmap file filename)\n"
-"                  -L               (load default screenmap)\n"
-"                  -f DxL filename  (load font, D dots wide & L lines high)\n"
-"                  -s saver | help  (set screensaver type or help for a list)\n"
-"                  -t N             (set screensaver timeout in seconds)\n"
-"                  -x               (use hex numbers for output)\n"
+"                  show               (show available colors)\n"
+"                  fgcol bgcol        (set fore- & background colors)\n"
+"                  -r fgcol bgcol     (set reverse fore- & background colors)\n"
+"                  -b color           (set border color)\n"
+"                  -c blink | noblink (set cursor type)\n"
+"                  -d                 (dump screenmap to stdout)\n"
+"                  -l filename        (load srceenmap file filename)\n"
+"                  -L                 (load default screenmap)\n"
+"                  -f DxL filename    (load font, D dots wide & L lines high)\n"
+"                  -s saver | help    (set screensaver type or help for a list)\n"
+"                  -t N               (set screensaver timeout in seconds)\n"
+"                  -x                 (use hex numbers for output)\n"
 	);
 }
 
@@ -423,13 +420,13 @@ main(int argc, char **argv)
 	
 	info.size = sizeof(info);
 	if (ioctl(0, CONS_GETINFO, &info) < 0) {
-		perror("Must be on a vty");
+		perror("Must be on a vrtual console");
 		exit(1);
 	}
 	while((opt = getopt(argc, argv, "b:c:df:l:Lr:s:t:vx")) != -1)
 		switch(opt) {
 			case 'c':
-				set_cursor_values(optarg);
+				set_cursor_type(optarg);
 				break;
 			case 'b':
 				set_border_color(optarg);
