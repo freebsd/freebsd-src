@@ -36,6 +36,7 @@
 static char sccsid[] = "@(#)print.c	8.6 (Berkeley) 4/16/94";
 #endif /* not lint */
 #endif
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -539,14 +540,30 @@ void
 elapsed(KINFO *k, VARENT *ve)
 {
 	VAR *v;
-	time_t secs;
+	time_t days, hours, mins, secs;
 	char obuff[128];
 
 	v = ve->var;
 
 	secs = now - k->ki_p->ki_start.tv_sec;
-	(void)snprintf(obuff, sizeof(obuff), "%3ld:%02ld", (long)secs/60,
-	    (long)secs%60);
+	days = secs/(24*60*60);
+	secs %= (24*60*60);
+	hours = secs/(60*60);
+	secs %= (60*60);
+	mins = secs/60;
+	secs %= 60;
+	if (days != 0) {
+		(void)snprintf(obuff, sizeof(obuff), "%3ld-%02ld:%02ld:%02ld",
+			(long)days, (long)hours, (long)mins, (long)secs);
+	}
+	else if (hours != 0) {
+		(void)snprintf(obuff, sizeof(obuff), "%02ld:%02ld:%02ld",
+			            (long)hours, (long)mins, (long)secs);
+	}
+	else {
+		(void)snprintf(obuff, sizeof(obuff), "%02ld:%02ld",
+			                         (long)mins, (long)secs);
+	}
 	(void)printf("%*s", v->width, obuff);
 }
 
