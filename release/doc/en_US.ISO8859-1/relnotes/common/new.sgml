@@ -2135,31 +2135,24 @@
         <title>OpenSSH</title>
 
 	<para><application>OpenSSH</application> has been updated to
-	2.1.0, which provides support for the SSH2 protocol, including DSA
-	keys.  Therefore, <application>OpenSSH</application> users in the
-	US no longer need to rely on the restrictively-licensed
-	RSAREF toolkit which is required to
-	handle RSA keys.  <application>OpenSSH</application> 2.1 interoperates well with other SSH2
-	clients and servers, including the <filename>ssh2</filename> port.
-	See the <ulink url="http://www.openssh.com/">OpenSSH Web
-	site</ulink> for more details. &merged;</para>
+	2.9, which provides support for the SSH2 protocol (now the
+	default) and DSA keys.  &man.ssh-add.1; and &man.ssh-agent.1;
+	can now handle DSA keys, with support for authentication
+	forwarding.  <application>OpenSSH</application> users in the
+	USA no longer need to rely on the restrictively-licensed
+	RSAREF toolkit which is required to handle RSA keys.  Among
+	other new features: A client and server for sftp has been
+	added.  &man.scp.1; can now handle files larger than 2 GBytes.
+	A limit on the number of outstanding, unauthenticated 
+	connections in &man.sshd.8; has been added.  Support has been
+	added for the Rijndael encryption algorithm.  Rekeying of
+	existing sessions is now supported, and an experimental
+	<application>SOCKS4</application> proxy has been added to
+	&man.ssh.1;.</para>
 
 	<para><application>OpenSSH</application> can now authenticate
 	using OPIE passwords in SSH1 mode.  Support is not yet available
 	in SSH2 mode. &merged;</para>
-
-	<para><application>OpenSSH</application> has been updated to
-	2.2.0.  &man.ssh-add.1; and &man.ssh-agent.1; can now handle DSA
-	keys.  A server for sftp, interoperable with ssh.com
-	clients and others has been added.  &man.scp.1; can now handle
-	files larger than 2 GBytes.  Interoperability with other SSH2
-	clients/servers has been improved.  A new feature to limit the
-	number of outstanding unauthenticated ssh connections in
-	&man.sshd.8; has been added. &merged;</para>
-
-	<para><application>OpenSSH</application> has been updated to
-	2.3.0.  This version adds support for the Rijndael encryption
-	algorithm. &merged;</para>
 
         <para><application>PAM</application> support for
         <application>OpenSSH</application> has been added.</para>
@@ -2193,15 +2186,6 @@
 	&man.sshd.8; to allow changing the part of the
 	<application>OpenSSH</application> version string after the
 	main version number.</para>
-
-	<para><application>OpenSSH</application> has been updated to
-	version 2.9, which adds two new programs, &man.sftp.1; and
-	&man.ssh-keyscan.1;.  Among the various enhancements: The
-	default protocol is now v2, rekeying of existing SSH sessions
-	is now supported, &man.ssh-agent.1; now
-	supports authentication forwarding for DSA keys, and an experimental
-	<application>SOCKS4</application> proxy has been added to
-	&man.ssh.1;. &merged;</para>
       </sect4>
 
       <sect4>
