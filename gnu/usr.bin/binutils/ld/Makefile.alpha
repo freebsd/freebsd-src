@@ -6,7 +6,7 @@
 HOST=		alpha-unknown-freebsd
 CFLAGS+=	-DDEFAULT_EMULATION=\"elf64alpha\"
 CFLAGS+=	-DTARGET=\"alpha-unknown-freebsd\"
-_alpha_path=	\"/usr/lib\"
+_alpha_path=	\"${TOOLS_PREFIX}/usr/lib\"
 .else
 _alpha_path=	\"/usr/cross/alpha-freebsd/usr/lib\"
 .endif

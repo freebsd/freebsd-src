@@ -6,7 +6,7 @@
 HOST=		i386-unknown-freebsd
 CFLAGS+=	-DDEFAULT_EMULATION=\"elf_i386\"
 CFLAGS+=	-DTARGET=\"i386-unknown-freebsd\"
-_i386_path=	\"/usr/lib\"
+_i386_path=	\"${TOOLS_PREFIX}/usr/lib\"
 .else
 _i386_path=	\"/usr/cross/i386-freebsd/usr/lib\"
 .endif
