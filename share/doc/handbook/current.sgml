@@ -1,4 +1,4 @@
-<!-- $Id: current.sgml,v 1.9 1996/02/11 00:16:12 jkh Exp $ -->
+<!-- $Id: current.sgml,v 1.10 1996/05/09 23:04:33 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 
@@ -10,7 +10,7 @@
 
                         THE FREEBSD CURRENT POLICY 
 
-Last updated: $Date: 1996/02/11 00:16:12 $
+Last updated: $Date: 1996/05/09 23:04:33 $
 
 This document attempts to explain the rationale behind
 FreeBSD-current, what you should expect should you decide to run it,
@@ -32,9 +32,9 @@ desired functionality can literally be a matter of which part of any
 given 24 hour period you grabbed them in!
 
 Under certain circumstances we will sometimes make binaries for parts
-of FreeBSD-current available, but only because we're interested in
-getting something tested, not because we're in the business of
-providing binary releases of current.  If we don't offer, please don't
+of FreeBSD-current available, but only because we are interested in
+getting something tested, not because we are in the business of
+providing binary releases of current.  If we do not offer, please do not
 ask!  It takes far too much time to do this as a general task.
 
 <sect><heading>Who needs FreeBSD-current?</heading>
@@ -72,10 +72,10 @@ ask!  It takes far too much time to do this as a general task.
         ``legitimate'' FreeBSD-current categories, but we simply <em>do not
         have the time</em> to help every person who jumps into FreeBSD-current
         with more enthusiasm than knowledge of how to deal with
-        experimental system software.  This is not because we're mean and
-        nasty people who don't like helping people out (we wouldn't even be
-        doing FreeBSD if we were), it's literally because we can't answer
-        400 messages a day <em>and</em> actually work on FreeBSD!  I'm sure
+        experimental system software.  This is not because we are mean and
+        nasty people who do not like helping people out (we would not even be
+        doing FreeBSD if we were),  it is literally because we cannot answer
+        400 messages a day <em>and</em> actually work on FreeBSD!  I am sure
         that, if given the choice between having us answer lots of questions or
         continuing to improve FreeBSD, most of you would vote for us
         improving it.
@@ -84,9 +84,9 @@ ask!  It takes far too much time to do this as a general task.
 <sect><heading>Using FreeBSD-current</heading>
 
 <p><enum> <item> Join the freebsd-current and cvs-all
-    mailing lists.  This is not just a good idea, it's
-    <em>essential</em>.  If you aren't on the &a.current, you
-    won't see the comments that people are making about the
+    mailing lists.  This is not just a good idea, it is
+    <em>essential</em>.  If you are not on the &a.current, you
+    will not see the comments that people are making about the
     current state of the system and thus will probably end up stumbling
     over a lot of problems that others have already found and
     solved.  Even more importantly, you will miss out on
@@ -95,12 +95,10 @@ ask!  It takes far too much time to do this as a general task.
     rebuild the kernel or your system will crash horribly!").
 
     The cvs-all mailing list will allow you to see the commit log
-    entry for each change as it's made along with any pertinent
+    entry for each change as it is made along with any pertinent
     information on possible side-effects.
 
-        To join these lists, send mail to
-        <htmlurl url="mailto:majordomo@FreeBSD.ORG"
-        name="majordomo@FreeBSD.ORG"> and say:
+        To join these lists, send mail to &a.majordomo and specify:
 <verb>
             subscribe current
             subscribe cvs-all
@@ -120,7 +118,7 @@ ask!  It takes far too much time to do this as a general task.
         <item>  Use the CMU `sup' program (Software Update
 	     Protocol), also described below.
             This is the second most recommended method, since it allows 
-	    you to grab the entire collection once and then only what's
+	    you to grab the entire collection once and then only what has
             changed from then on.  Many people run sup from cron
             and keep their sources up-to-date automatically.
 
@@ -146,7 +144,7 @@ ask!  It takes far too much time to do this as a general task.
     communications bandwidth is not a consideration, use sup or ftp.
     Otherwise, use CTM.
 
-    <item>  If you're grabbing the sources to run, and not just look at,
+    <item>  If you are grabbing the sources to run, and not just look at,
     then grab <em>all</em> of current, not just selected portions.  The
     reason for this is that various parts of the source depend on
     updates elsewhere, and trying to compile just a subset is almost
@@ -159,7 +157,7 @@ ask!  It takes far too much time to do this as a general task.
         bootstrapping procedures that sometimes become necessary as we move
         towards	the next release.
 
-    <item>  Be active!  If you're running FreeBSD-current, we want to know
+    <item>  Be active!  If you are  running FreeBSD-current, we want to know
 	what you have to say about it, especially if you have suggestions
 	for enhancements or bug fixes.  Suggestions with accompanying code
 	are received most enthusiastically! 

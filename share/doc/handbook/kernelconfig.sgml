@@ -1,4 +1,4 @@
-<!-- $Id: kernelconfig.sgml,v 1.10 1996/05/09 23:04:46 mpp Exp $ -->
+<!-- $Id: kernelconfig.sgml,v 1.11 1996/05/15 15:17:26 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 <!-- <!DOCTYPE linuxdoc PUBLIC '-//FreeBSD//DTD linuxdoc//EN'> -->
   <chapt><heading>Configuring the FreeBSD Kernel<label id="kernelconfig"></heading>
@@ -77,7 +77,7 @@
 </verb></tscreen>
 	Traditionally, this name is in all capital letters and,
 	if you are maintaining multiple FreeBSD machines with
-	different hardware, it's a good idea to name it after
+	different hardware, it is a good idea to name it after
 	your machine's hostname.  We will call it MYKERNEL for
 	the purpose of this example.
 	
@@ -91,11 +91,11 @@
 	here, but is covered well in many books in the <ref
 	id="bibliography" name="bibliography">.  Feel free to change the
 	comment	lines at the top to reflect your configuration or the
-	changes you've made to differentiate it from GENERIC.
+	changes you have made to differentiate it from GENERIC.
 
-	If you've build a kernel under SunOS or some other BSD
+	If you have build a kernel under SunOS or some other BSD
 	operating system, much of this file will be very familiar
-	to you.  If you're coming from some other operating
+	to you.  If you are coming from some other operating
 	system such as DOS, on the other hand, the GENERIC
 	configuration file might seem overwhelming to you, so
 	follow the descriptions in the <ref
@@ -106,10 +106,10 @@
 	older version of FreeBSD, you will probably have to get a new
 	version of <tt>config(8)</tt> from the same place you got the new
 	kernel sources.  It is located in <tt>/usr/src/usr.sbin</tt>, so
-	you'll need to download those sources as well.  Re-build and install
+	you will need to download those sources as well.  Re-build and install
 	it before running the next commands.</quote>
 
-	When you're finished, type the following to compile and
+	When you are finished, type the following to compile and
 	install your kernel:
 <tscreen><verb>
 # /usr/sbin/config MYKERNEL
@@ -128,7 +128,7 @@
 	to recover in case your new kernel <ref
 	id="kernelconfig:noboot" name="does not boot">.
 
-	<quote><em/Note:/ If you've added any new devices (such
+	<quote><em/Note:/ If you have added any new devices (such
 	as sound cards) you may have to add some <ref
 	id="kernelconfig:nodes" name="device nodes"> to your
 	<tt>/dev</tt> directory before you can use them.</quote>
@@ -160,7 +160,7 @@
 	be dependant upon an option gets this option out of an
 	<tt>opt_<em>foo</em>.h</tt> declaration file created in the
 	compile directory by <tt>config</tt>.  The list of valid options
-	for <tt>config</tt> lives in two files: options that don't
+	for <tt>config</tt> lives in two files: options that do nott
 	depend on the architecture are listed in
 	<tt>/sys/conf/options</tt>, architecture-dependant ones
 	in <tt>/sys/<em>arch</em>/conf/options.<em>arch</em></tt>,
@@ -210,7 +210,7 @@
 	      this from GENERIC to whatever you named your
 	      kernel, in this example, MYKERNEL.  The value you
 	      put in <tt>ident</tt> will print when you boot up
-	      the kernel, so it's useful to give a kernel a
+	      the kernel, so it is useful to give a kernel a
 	      different name if you want to keep it separate from
 	      your usual kernel (if you want to build an
 	      experimental kernel, for example).  Note that, as
@@ -219,7 +219,7 @@
 	      contains any numbers.
 
 	      Since this name is passed to the C compiler as a
-	      <tt>-D</tt> switch, don't use names like <tt>
+	      <tt>-D</tt> switch, do not use names like <tt>
 	      DEBUG</tt>, or something that could be confused
 	      with another machine or CPU name, like <tt>vax</tt>.
 
@@ -231,7 +231,7 @@
 	      you expect to have on your machine.  However, under
 	      normal circumstances, you will want to set
 	      <tt>maxusers</tt> to at least four, especially if
-	      you're using X Windows or compiling software.  The
+	      you are using X Windows or compiling software.  The
 	      reason is that the most important table set by
 	      <tt>maxusers</tt> is the maximum number of
 	      processes, which is set to <bf><tt>20 + 16 *
@@ -336,7 +336,7 @@
 	      Windows, which many graphics-intensive programs
 	      (such as the movie player XAnim, and Linux DOOM)
 	      will automatically take advantage of for extra
-	      speed.  If you use X Windows, you'll definitely
+	      speed.  If you use X Windows, you will definitely
 	      want to include this.
 
 	    <tag>options SYSVSEM</tag> 
@@ -505,7 +505,7 @@
 	      <tt>wdc1</tt> is a secondary IDE controller where
 	      you might have a third or fourth hard drive, or an
 	      IDE CD-ROM.  Comment out the lines which do not
-	      apply (if you have a SCSI hard drive, you'll
+	      apply (if you have a SCSI hard drive, you will
 	      probably want to comment out all six lines, for
 	      example).
 
@@ -625,11 +625,11 @@
 	    <p>This causes the
 	      kernel to pause 15 seconds before probing each SCSI
 	      device in your system.  If you only have IDE hard
-	      drives, you can ignore this, otherwise you'll
+	      drives, you can ignore this, otherwise you will
 	      probably want to lower this number, perhaps to 5
 	      seconds, to speed up booting.  Of course if you do
 	      this, and FreeBSD has trouble recognizing your SCSI
-	      devices, you'll have to raise it back up.
+	      devices, you will have to raise it back up.
 
 	    <tag>controller scbus0</tag> 
 
@@ -797,7 +797,7 @@
 
 	    <p>The next lines enable support for various Ethernet
 	      cards.  If you do not have a network card, you can
-	      comment out all of these lines.  Otherwise, you'll
+	      comment out all of these lines.  Otherwise, you will
 	      want to leave in support for your particular
 	      Ethernet card(s):
 
@@ -869,7 +869,7 @@
 	      </descrip>
 
 	      <quote><em/Note:/ With certain cards (notably the
-		NE2000) you'll have to change the port and/or IRQ
+		NE2000) you will have to change the port and/or IRQ
 		since there is no ``standard'' location for these
 		cards.</quote>
 
@@ -946,7 +946,7 @@
 
 	<p>This is the first section containing lines that are
 	  not in the GENERIC kernel.  To include sound card
-	  support, you'll have to copy the appropriate lines from
+	  support, you will have to copy the appropriate lines from
 	  the LINT kernel (which contains support for
 	  <em>every</em> device) as follows:
 
@@ -1054,7 +1054,7 @@
 	    <tag>pseudo-device pty <em>number</em><label id="kernelconfig:ptys"></tag>
 
 	    <p><tt>pty</tt> is a ``pseudo-terminal'' or simulated
-	      login port.  It's used by incoming <bf>telnet</bf>
+	      login port.  It is used by incoming <bf>telnet</bf>
 	      and <bf>rlogin</bf> sessions, xterm, and some other
 	      applications such as emacs.  The <em>number</em>
 	      indicates the number of <tt>pty</tt>s to create.
@@ -1088,7 +1088,7 @@
 
 	<p>This section describes some miscellaneous hardware
 	  devices supported by FreeBSD.  Note that none of these
-	  lines are included in the GENERIC kernel, you'll have
+	  lines are included in the GENERIC kernel, you will have
 	  to copy them from this handbook or the LINT kernel
 	  (which contains support for <em>every</em> device):
 
@@ -1106,7 +1106,7 @@
 	      script that plays some simple songs, and
 	      <tt>/usr/games/piano</tt> which lets you play songs
 	      using the keyboard as a simple piano (this file
-	      only exists if you've installed the <em>games</em>
+	      only exists if you have installed the <em>games</em>
 	      package).  Also, the excellent text role-playing
 	      game NetHack (in the ports collection) can be
 	      configured to use this device to play songs when
@@ -1174,7 +1174,7 @@ controller wcd0
 
 	  <p>If the <tt>config</tt>
 	    command fails when you give it your kernel
-	    description, you've probably made a simple error
+	    description, you have probably made a simple error
 	    somewhere.  Fortunately, <tt>config</tt> will print
 	    the line number that it had trouble with, so you can
 	    quickly skip to it with <tt>vi</tt>.  For example, if
@@ -1244,7 +1244,7 @@ config: line 17: syntax error
 
 	  <tag>Kernel works, but <tt>ps</tt> does not work any more!</tag>
 
-	  <p>If you've installed a different version
+	  <p>If you have installed a different version
 	    of the kernel from the one that the system utilities
 	    have been built with, for example, an experimental
 	    ``2.2.0'' kernel on a 2.1.0-RELEASE system, many

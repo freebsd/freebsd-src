@@ -1,17 +1,17 @@
-<!-- $Id: submitters.sgml,v 1.25 1996/05/09 23:04:50 mpp Exp $ -->
+<!-- $Id: submitters.sgml,v 1.26 1996/05/09 23:32:44 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Contributing to FreeBSD<label id="submitters"></heading>
 
 <p><em>Contributed by &a.jkh;.</em>
 
-<p>So you want to contribute something to FreeBSD?  That's great!
+<p>So you want to contribute something to FreeBSD?  That is great!
 We can always use the help, and FreeBSD is one of those systems
 that <em>relies</em> on the contributions of its user base in order
-to survive.  Your contributions are not only appreciated, they're
+to survive.  Your contributions are not only appreciated, they are
 vital to FreeBSD's continued growth!
 
-<p>Contrary to what some people might also have you believe, you don't
+<p>Contrary to what some people might also have you believe, you do not
 need to be a hot-shot programmer or a close personal friend of the
 FreeBSD core team in order to have your contributions accepted.  The
 FreeBSD Project's development is done by a large and growing number of
@@ -24,28 +24,28 @@ system environment (and its installation) rather than just a kernel or
 a few scattered utilities, our "TODO" list also spans a very wide
 range of tasks, from documentation, beta testing and presentation to
 highly specialized types of kernel development.  No matter what your
-skill level, there's almost certainly something you can do to help the
+skill level, there is almost certainly something you can do to help the
 project!
 
 <p>Commercial entities engaged in FreeBSD-related enterprises are
 also encouraged to contact us.  Need a special extension to make your
-product work?  You'll find us receptive to your requests, given that
-they aren't too outlandish.  Working on a value-added product?  Please
+product work?  You will find us receptive to your requests, given that
+they are not too outlandish.  Working on a value-added product?  Please
 let us know!  We may be able to work cooperatively on some aspect of
 it.  The free software world is challenging a lot of existing
 assumptions about how software is developed, sold, and maintained
 throughout its life cycle, and we urge you to at least give it a
 second look.
 
-<sect><heading>What's needed</heading>
+<sect><heading>What is needed</heading>
 
 <p>The following list of tasks and sub-projects represents something
 of an amalgam of the various core team TODO lists and user requests
-we've collected over the last couple of months.  Where possible, tasks
-have been ranked by degree of urgency.  If you're interested in
+we have collected over the last couple of months.  Where possible, tasks
+have been ranked by degree of urgency.  If you are interested in
 working on one of the tasks you see here, send mail to the coordinator
 listed by clicking on their names.  If no coordinator has been
-appointed, maybe you'd like to volunteer?
+appointed, maybe you would like to volunteer?
 
 <sect1><heading>High priority tasks</heading>
 <p>The following tasks are considered to be urgent, usually because
@@ -133,7 +133,7 @@ your hardware, etc.
 
 <sect1><heading>Low priority tasks</heading>
 <p>The following tasks are purely cosmetic or represent such an
-investment of work that it's not likely that anyone will get them done
+investment of work that it is not likely that anyone will get them done
 anytime soon:
 
 <p>The first 20 items are from Terry Lambert &lt;terry@lambert.org&gt
@@ -198,7 +198,7 @@ as opportunity permits.  SCO and Solaris are good candidates,
 followed by UnixWare, etc.
 
 <item>Processor emulation environments for execution of foreign binaries.
-This is easier than it sounds if the system call interface doesn't
+This is easier than it sounds if the system call interface does not
 change much.
 
 <item>Streams to allow the use of commercial streams drivers.
@@ -220,7 +220,7 @@ PCMCIA).
 <item>Reorganization of the source tree for multiple platform ports.
 
 <item>A "make world" that "makes the world" (rename the current one
-to "make regress" if that's all it is good for).
+to "make regress" if that is all it is good for).
 
 <item>A 4M (preferably smaller!) memory footprint.
 
@@ -241,8 +241,7 @@ the following 6 categories:
 	  in such things (and a tolerance for a <em>high</em>
 	  volume of mail!) may
 	  subscribe to the hackers mailing list by sending mail to 
-          <tt><htmlurl url="mailto:majordomo@FreeBSD.ORG"
-	  name="&lt;majordomo@FreeBSD.ORG&gt;"></tt>.  
+          &a.majordomo;.
           See <ref id="eresources:mail" name="mailing lists">
 	  for more information about this and other mailing lists.
 
@@ -251,7 +250,7 @@ the following 6 categories:
 	  you for various fields to fill in.  Simply go to the fields
 	  surrounded by <tt>&lt;&gt;</tt>'s and fill in your own 
           information in place of
-	  what's suggested there.  You should receive confirmation of your
+	  what is suggested there.  You should receive confirmation of your
 	  bug report and a tracking number.  Keep this tracking number and use
 	  it in any subsequent correspondence.
           If you do not receive confirmation in a timely fashion (3 days to
@@ -307,8 +306,8 @@ diff -c -r olddir newdir
    likely get back in touch with you in 24 hours or less,
    assuming of course that your diffs are interesting! :-)
 
-   If your changes don't express themselves well as diffs alone
-   (e.g. you've perhaps added, deleted or renamed files as well)
+   If your changes do not express themselves well as diffs alone
+   (e.g. you have perhaps added, deleted or renamed files as well)
    then you may be better off bundling any new files, diffs and
    instructions for deleting/renaming others into a <tt>tar</tt>
    file and running the <tt>uuencode(1)</tt> program on it before
@@ -317,8 +316,8 @@ diff -c -r olddir newdir
    information on bundling files this way.
 
    If your change is of a potentially sensitive nature, e.g.
-   you're unsure of copyright issues governing its further distribution
-   or you're simply not ready to release it without a tighter review first,
+   you are unsure of copyright issues governing its further distribution
+   or you are simply not ready to release it without a tighter review first,
    then you should send it to <tt><htmlurl url="mailto:core@FreeBSD.ORG"
    name="&lt;core@FreeBSD.ORG&gt;"></tt> rather than the &a.hackers
    The core mailing list
@@ -348,7 +347,7 @@ diff -c -r olddir newdir
 	    who might eventually be inclined to invest something of their own
 	    into FreeBSD.
 
-	<item>The GNU Public License, or ``GPL''.  This license isn't quite
+	<item>The GNU Public License, or ``GPL''.  This license is not quite
 	    as popular with us due to the amount of extra effort demanded
 	    of anyone using the code for commercial purposes, but given
 	    the sheer quantity of GPL'd code we currently require (compiler,
@@ -400,7 +399,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-	$Id: submitters.sgml,v 1.25 1996/05/09 23:04:50 mpp Exp $
+	$Id: submitters.sgml,v 1.26 1996/05/09 23:32:44 jkh Exp $
 </verb></tscreen>
 For your convenience, a copy of this text can be found in
 <tt>/usr/share/examples/etc/bsd-style-copyright</tt>.
@@ -408,7 +407,7 @@ For your convenience, a copy of this text can be found in
         &porting;
 
 <sect1><heading>Money, Hardware or Internet access</heading>
-<p>We're always very happy to accept donations to further the cause of
+<p>We are always very happy to accept donations to further the cause of
 the FreeBSD Project and, in a volunteer effort like ours, a little can go
 a long way!  Donations of hardware are also very important to expanding
 our list of supported peripherals since we generally lack the funds to
@@ -464,20 +463,20 @@ systems should be sent to the FreeBSD, Inc. address listed in the
 We are currently trying to put together a testing lab of all components
 that FreeBSD supports so that proper regression testing can be done with
 each new release. We are still lacking many important pieces (network cards,
-motherboards, etc) and if you'd like to make such a donation, please contact
+motherboards, etc) and if you would like to make such a donation, please contact
 &a.davidg for information on which items are still required.
 
-<item>Hardware currently unsupported by FreeBSD for which you'd like to
+<item>Hardware currently unsupported by FreeBSD for which you would like to
 see such support added.  Please contact the <htmlurl
 url="mailto:core@FreeBSD.ORG" name="FreeBSD Core Team"> before sending
-such items as we'll need to find a developer willing to take on the task
+such items as we will need to find a developer willing to take on the task
 before we can accept delivery of them.  
 </itemize>
 
 <sect2><heading>Donating Internet access</heading>
 
 <p>We can always use new mirror sites for FTP, WWW or sup.
-If you'd like to be such a mirror, please contact
+If you would like to be such a mirror, please contact
 <htmlurl url="mailto:admin@FreeBSD.ORG" name="the FreeBSD project
 administrators"> for more information.
 
@@ -502,7 +501,7 @@ like to publically thank them here!
 	<item><htmlurl url="http://www.cdrom.com" name="Walnut Creek CDROM">
 	has donated almost more than we can say (see the
 	<ref id="history" name="history"> document for more details).
-	In particular, we'd like to thank them for the hardware used for
+	In particular, we would like to thank them for the hardware used for
 	<em>freefall.FreeBSD.ORG</em>, our primary development machine,
 	and for <em>thud.FreeBSD.ORG</em>, our testing and build box.
 	We are also indebted to them for funding various contributors over

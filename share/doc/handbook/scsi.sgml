@@ -1,4 +1,4 @@
-<!-- $Id: scsi.sgml,v 1.12 1996/01/31 19:03:02 mpp Exp $ -->
+<!-- $Id: scsi.sgml,v 1.13 1996/04/19 21:50:32 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -42,8 +42,8 @@
 
         The SCSI bus is a parallel bus, which comes in a number of
         variants.  The oldest and most used is an 8 bit wide bus, with
-        single-ended signals, carried on 50 wires.  (If you don't know what
-        single-ended means, don't worry, that is what this document is all
+        single-ended signals, carried on 50 wires.  (If you do not know what
+        single-ended means, do not worry, that is what this document is all
         about.)  Modern designs also use 16 bit wide buses, with
         differential signals.  This allows transfer speeds of
         20Mbytes/second, on cables lengths of up to 25 meters. SCSI-2
@@ -112,7 +112,7 @@
 
           So, gold plated connectors, shielded cabling, sturdy connector
           hoods with strain reliefs etc are the way to go. Second golden
-          rule: don't use cables longer than necessary. I once spent 3 days
+          rule: do no use cables longer than necessary. I once spent 3 days
           hunting down a problem with a flaky machine only to discover that
           shortening the SCSI bus by 1 meter solved the problem.  And the
           original bus length was well within the SCSI specification.
@@ -201,7 +201,7 @@
             difference between these two wires determines whether the
             signal is asserted or de-asserted. To a certain extent the
             voltage difference between ground and the signal wire pair is
-            not relevant (don't try 10 kVolts though..).
+            not relevant (do not try 10 kVolts though..).
             
             It is beyond the scope of this document to explain why this
             differential idea is so much better. Just accept that
@@ -225,14 +225,14 @@
             reflections or ringing.  If you once made a long distance
             telephone call on a bad line you probably know what reflections
             are.  With 20Mbytes/sec traveling over your SCSI bus, you
-            don't want signals echoing back.
+            do not want signals echoing back.
 
             Terminators come in various incarnations, with more or less
             sophisticated designs.  Of course, there are internal and
             external variants.  Almost every SCSI device comes with a
             number of sockets in which a number of resistor networks can
             (must be!) installed.  If you remove terminators from a device,
-            carefully store 'm. You will need them when you ever decide to
+            carefully store them. You will need them when you ever decide to
             reconfigure your SCSI bus.  There is enough variation in even
             these simple tiny things to make finding the exact replacement
             a frustrating business.  There are also SCSI devices that have
@@ -404,7 +404,7 @@
           megabytes. The division by 2 is to get from disk blocks that are
           normally 512 bytes in size to Kbytes.
 
-          Right.. All is well now?! No, it isn't. The system BIOS has
+          Right.. All is well now?! No, it is not. The system BIOS has
           another quirk you might run into. The number of cylinders of a
           bootable hard disk cannot be greater than 1024. Using the
           translation above, this is a show-stopper for disks greater than
@@ -437,7 +437,7 @@
 	aha0 targ 0 lun 0: <MICROP  1588-15MB1057404HSP4>
 	sd0: 636MB (1303250 total sec), 1632 cyl, 15 head, 53 sec, bytes/sec 512
           </verb>
-          Newer kernels usually don't report this information.. e.g.
+          Newer kernels usually do not report this information.. e.g.
 	  <verb>
 	 (bt0:0:0): "SEAGATE ST41651 7574" type 0 fixed SCSI 2
 	 sd0(bt0:0:0): Direct-Access 1350MB (2766300 512 byte sectors)
@@ -721,11 +721,11 @@ options        "TUNE_1542"             #dynamic tune of bus DMA speed
           <item>
             If you can compile a kernel, make one with the SCSIDEBUG option,
 	    and try accessing the device with debugging turned on for
-	    that device. If your device doesn't even probe at startup,
+	    that device. If your device does not even probe at startup,
 	    you may have to define the address of the device that
 	    is failing, and the desired debug level in
 	    <tt>/sys/scsi/scsidebug.h</tt>.
-	    If it probes but just doesn't work, you can use the
+	    If it probes but just does not work, you can use the
 	    <tt>scsi(8)</tt> command to dynamically set a debug level to
 	    it in a running kernel (if SCSIDEBUG is defined).
 	    This will give you COPIOUS debugging output with which to confuse

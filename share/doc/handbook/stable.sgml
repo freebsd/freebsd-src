@@ -1,4 +1,4 @@
-<!-- $Id: current.sgml,v 1.8 1996/01/31 14:26:01 mpp Exp $ -->
+<!-- $Id: stable.sgml,v 1.1 1996/02/11 00:16:17 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 
@@ -10,7 +10,7 @@
 
                         THE FREEBSD STABLE POLICY 
 
-Last updated: $Date: 1996/01/31 14:26:01 $
+Last updated: $Date: 1996/02/11 00:16:17 $
 
 This document attempts to explain the rationale behind
 FreeBSD-stable, what you should expect should you decide to run it,
@@ -27,9 +27,9 @@ branch (see <ref id="current" name="FreeBSD-current">).
 
 <sect><heading>Who needs FreeBSD-stable?</heading>
 
-<p>If you're a commercial user or someone who puts maximum stability of
+<p>If you are a commercial user or someone who puts maximum stability of
 their FreeBSD system before all other concerns, you should consider tracking
-<em>stable</em>.  This is especially true if you've installed the most
+<em>stable</em>.  This is especially true if you have installed the most
 recent release (<htmlurl url="ftp://ftp.freebsd.org/pub/FreeBSD/2.1.0-RELEASE"
 name="2.1.0-RELEASE"> at the time of this writing) since the <em>stable</em>
 branch is effectively a bug-fix stream relative to the previous release.
@@ -53,8 +53,7 @@ next section).
     the users a chance to respond if they have any issues to raise concerning
     the proposed change.
 
-    To join this list, send mail to <htmlurl url="mailto:majordomo@FreeBSD.ORG"
-    name="majordomo@FreeBSD.ORG"> and say:
+    To join this list, send mail to &a.majordomo and say:
 <verb>
             subscribe freebsd-stable
 </verb>
@@ -73,7 +72,7 @@ next section).
         <item>  Use the CMU `sup' program (Software Update
 	     Protocol), also described below.
             This is the second most recommended method, since it allows 
-	    you to grab the entire collection once and then only what's
+	    you to grab the entire collection once and then only what has
             changed from then on.  Many people run sup from cron
             and keep their sources up-to-date automatically.
 
