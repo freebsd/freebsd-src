@@ -45,6 +45,7 @@ struct usbd_quirks {
 #define UQ_MS_REVZ	0x04	/* mouse has Z-axis reversed */
 #define UQ_NO_STRINGS	0x08	/* string descriptors are broken. */
 #define UQ_BAD_ADC	0x10	/* bad audio spec version number. */
+#define UQ_SPUR_BUT_UP	0x20	/* spurious mouse button up events */
 };
 
 extern struct usbd_quirks usbd_no_quirk;
