@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.143 1999/07/01 13:21:46 peter Exp $
+ * $Id: vm_pageout.c,v 1.144 1999/07/04 00:25:37 mckusick Exp $
  */
 
 /*
@@ -235,38 +235,12 @@ vm_pageout_clean(m)
 	 * check has been moved up a procedural level.
 	 */
 
-#if 0
-	/*
-	 * If not OBJT_SWAP, additional memory may be needed to do the pageout.
-	 * Try to avoid the deadlock.
-	 */
-	if ((object->type == OBJT_DEFAULT) &&
-	    ((cnt.v_free_count + cnt.v_cache_count) < cnt.v_pageout_free_min))
-		return 0;
-#endif
-
 	/*
 	 * Don't mess with the page if it's busy.
 	 */
 	if ((m->hold_count != 0) ||
 	    ((m->busy != 0) || (m->flags & PG_BUSY)))
 		return 0;
-
-#if 0
-	/*
-	 * XXX REMOVED XXX.  vm_object_collapse() can block, which can
-	 * change the page state.  Calling vm_object_collapse() might also
-	 * destroy or rename the page because we have not busied it yet!!!
-	 * So this code segment is removed.
-	 */
-	/*
-	 * Try collapsing before it's too late.   XXX huh?  Why are we doing
-	 * this here?
-	 */
-	if (object->backing_object) {
-		vm_object_collapse(object);
-	}
-#endif
 
 	mc[vm_pageout_page_count] = m;
 	pageout_count = 1;
