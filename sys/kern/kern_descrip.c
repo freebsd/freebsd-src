@@ -1209,7 +1209,7 @@ falloc(td, resultfp, resultfd)
 	 * descriptor to the list of open files at that point, otherwise
 	 * put it at the front of the list of open files.
 	 */
-	fp->f_mtxp = mtx_pool_alloc();
+	fp->f_mtxp = mtx_pool_alloc(mtxpool_sleep);
 	fp->f_count = 1;
 	fp->f_cred = crhold(td->td_ucred);
 	fp->f_ops = &badfileops;

@@ -1652,7 +1652,7 @@ crget(void)
 
 	MALLOC(cr, struct ucred *, sizeof(*cr), M_CRED, M_WAITOK | M_ZERO);
 	cr->cr_ref = 1;
-	cr->cr_mtxp = mtx_pool_find(cr);
+	cr->cr_mtxp = mtx_pool_find(mtxpool_sleep, cr);
 #ifdef MAC
 	mac_init_cred(cr);
 #endif
