@@ -1115,6 +1115,22 @@ Match all TCP or UDP packets sent by or received for a
 A
 .Ar user
 may be matched by name or identification number.
+.It Cm verrevpath
+For incoming packets,
+a routing table lookup is done on the packet's source address.
+If the interface on which the packet entered the system matches the
+outgoing interface for the route,
+the packet matches.
+If the interfaces do not match up,
+the packet does not match.
+All outgoing packets or packets with no incoming interface match.
+.Pp
+The name and functionality of the option is intentionally similar to
+the Cisco IOS command:
+.Pp
+.Dl ip verify unicast reverse-path
+.Pp
+This option can be used to make anti-spoofing rules.
 .El
 .Sh SETS OF RULES
 Each rule belongs to one of 32 different
@@ -1818,6 +1834,18 @@ The
 .Nm ipfw1
 syntax would require a separate rule for each IP in the above
 example.
+.Pp
+The
+.Cm verrevpath
+option could be used to do automated anti-spoofing by adding the
+following to the top of a ruleset:
+.Pp
+.Dl "ipfw add deny ip from any to any not verrevpath in"
+.Pp
+This rule drops all incoming packets that appear to be coming to the
+sytem on the wrong interface. For example, a packet with a source
+address belonging to a host on a protected internal network would be
+dropped if it tried to enter the system from an external interface.
 .Ss DYNAMIC RULES
 In order to protect a site from flood attacks involving fake
 TCP packets, it is safer to use dynamic rules:

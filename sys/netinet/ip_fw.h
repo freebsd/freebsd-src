@@ -89,6 +89,8 @@ enum ipfw_opcodes {		/* arguments (4 byte each)	*/
 	O_ICMPTYPE,		/* u32 = icmp bitmap		*/
 	O_TCPOPTS,		/* arg1 = 2*u8 bitmap		*/
 
+	O_VERREVPATH,		/* none				*/
+
 	O_PROBE_STATE,		/* none				*/
 	O_KEEP_STATE,		/* none				*/
 	O_LIMIT,		/* ipfw_insn_limit		*/
