@@ -319,13 +319,16 @@ yielding the MiataGL. Unfortunately the boxes are quite indistinguishable.
 An easy check is to see if the back of the machine sports two
 USB connectors. If yes, it is a MiataGL. 
 
-System designations look like "Personal Workstation 433a". This means 
-it has a 433 MHz CPU, and started life as a WinNT workstation 
+System designations look like "Personal Workstation 433a". Personal
+Workstation, being a bit of a mouthful, is often abbreviated to PWS.
+This means it has a 433 MHz CPU, and started life as a WinNT workstation 
 (the trailing 'a'). Systems designated from day 1 to run Tru64 
 Unix or OpenVMS will sport '433au'. WinNT-Miatas are likely
-to come pre-configured with an IDE CDROM drive. There was also a Miata model
-with a special cooling system by Kryotech. This one has a different
-enclosure.
+to come pre-configured with an IDE CDROM drive. So, in general systems
+are named like PWS[433,500,600]a[u]. 
+
+There was also a Miata model with a special cooling system by Kryotech. 
+That one has a different enclosure.
 
 Features:
 
