@@ -74,6 +74,10 @@ static const char rcsid[] =
 #include <nfs/nfsnode.h>
 
 
+#include <vm/vm.h>
+#include <vm/vm_map.h>
+#include <vm/vm_object.h>
+
 #include <net/route.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -100,6 +104,7 @@ static const char rcsid[] =
 #define	CDIR	-2
 #define	RDIR	-3
 #define	TRACE	-4
+#define	MMAP	-5
 
 DEVS *devs;
 
@@ -115,6 +120,7 @@ int 	fsflg,	/* show files on same filesystem as file(s) argument */
 int 	checkfile; /* true if restricting to particular files or filesystems */
 int	nflg;	/* (numerical) display f.s. and rdev as dev_t */
 int	vflg;	/* display errors in locating kernel data objects etc... */
+int	mflg;	/* include memory-mapped files */
 
 
 struct file **ofiles;	/* buffer of pointers to file structures */
@@ -132,6 +138,7 @@ int maxfiles;
 kvm_t *kd;
 
 void dofiles __P((struct kinfo_proc *kp));
+void dommap __P((struct kinfo_proc *kp));
 void vtrans __P((struct vnode *vp, int i, int flag));
 int  ufs_filestat __P((struct vnode *vp, struct filestat *fsp));
 int  nfs_filestat __P((struct vnode *vp, struct filestat *fsp));
@@ -158,7 +165,7 @@ main(argc, argv)
 	arg = 0;
 	what = KERN_PROC_ALL;
 	nlistf = memf = NULL;
-	while ((ch = getopt(argc, argv, "fnp:u:vN:M:")) != -1)
+	while ((ch = getopt(argc, argv, "fmnp:u:vN:M:")) != -1)
 		switch((char)ch) {
 		case 'f':
 			fsflg = 1;
@@ -168,6 +175,9 @@ main(argc, argv)
 			break;
 		case 'N':
 			nlistf = optarg;
+			break;
+		case 'm':
+			mflg = 1;
 			break;
 		case 'n':
 			nflg = 1;
@@ -246,6 +256,8 @@ main(argc, argv)
 		if (p->kp_proc.p_stat == SZOMB)
 			continue;
 		dofiles(p);
+		if (mflg)
+			dommap(p);
 	}
 	exit(0);
 }
@@ -266,6 +278,9 @@ int	Pid;
 		break; \
 	case TRACE: \
 		printf("   tr"); \
+		break; \
+	case MMAP: \
+		printf(" mmap"); \
 		break; \
 	default: \
 		printf(" %4d", i); \
@@ -356,6 +371,65 @@ dofiles(kp)
 			dprintf(stderr,
 				"unknown file type %d for file %d of pid %d\n",
 				file.f_type, i, Pid);
+		}
+	}
+}
+
+void
+dommap(kp)
+	struct kinfo_proc *kp;
+{
+	struct proc *p = &kp->kp_proc;
+	struct vmspace vmspace;
+	vm_map_t map;
+	struct vm_map_entry entry;
+	vm_map_entry_t entryp;
+	struct vm_object object;
+	vm_object_t objp;
+	int prot, fflags;
+
+	if (!KVM_READ(p->p_vmspace, &vmspace, sizeof(vmspace))) {
+		dprintf(stderr, "can't read vmspace at %p for pid %d\n",
+		    (void *)p->p_vmspace, Pid);
+		return;
+	}
+
+	map = &vmspace.vm_map;
+
+	for (entryp = map->header.next; entryp != &p->p_vmspace->vm_map.header;
+	    entryp = entry.next) {
+		if (!KVM_READ(entryp, &entry, sizeof(entry))) {
+			dprintf(stderr,
+			    "can't read vm_map_entry at %p for pid %d\n",
+			    (void *)entryp, Pid);
+			return;
+		}
+
+		if (entry.eflags & MAP_ENTRY_IS_SUB_MAP)
+			continue;
+
+		if ((objp = entry.object.vm_object) == NULL)
+			continue;
+
+		for (; objp; objp = object.backing_object) {
+			if (!KVM_READ(objp, &object, sizeof(object))) {
+				dprintf(stderr,
+				    "can't read vm_object at %p for pid %d\n",
+				    (void *)objp, Pid);
+				return;
+			}
+		}
+
+		prot = entry.protection;
+		fflags = (prot & VM_PROT_READ ? FREAD : 0) |
+		    (prot & VM_PROT_WRITE ? FWRITE : 0);
+
+		switch (object.type) {
+		case OBJT_VNODE:
+			vtrans((struct vnode *)object.handle, MMAP, fflags);
+			break;
+		default:
+			break;
 		}
 	}
 }
@@ -794,6 +868,6 @@ void
 usage()
 {
 	(void)fprintf(stderr,
- "usage: fstat [-fnv] [-p pid] [-u user] [-N system] [-M core] [file ...]\n");
+ "usage: fstat [-fmnv] [-p pid] [-u user] [-N system] [-M core] [file ...]\n");
 	exit(1);
 }
