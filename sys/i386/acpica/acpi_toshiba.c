@@ -172,7 +172,7 @@ static driver_t acpi_toshiba_driver = {
 static devclass_t acpi_toshiba_devclass;
 DRIVER_MODULE(acpi_toshiba, acpi, acpi_toshiba_driver, acpi_toshiba_devclass,
 	      0, 0);
-MODULE_DEPEND(acpi_toshiba, acpi, 100, 100, 100);
+MODULE_DEPEND(acpi_toshiba, acpi, 1, 1, 1);
 
 static int	enable_fn_keys = 1;
 TUNABLE_INT("hw.acpi.toshiba.enable_fn_keys", &enable_fn_keys);

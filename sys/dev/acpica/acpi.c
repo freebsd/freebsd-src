@@ -187,7 +187,7 @@ static driver_t acpi_driver = {
 
 static devclass_t acpi_devclass;
 DRIVER_MODULE(acpi, nexus, acpi_driver, acpi_devclass, acpi_modevent, 0);
-MODULE_VERSION(acpi, 100);
+MODULE_VERSION(acpi, 1);
 
 SYSCTL_NODE(_debug, OID_AUTO, acpi, CTLFLAG_RW, NULL, "ACPI debugging");
 static char acpi_ca_version[12];

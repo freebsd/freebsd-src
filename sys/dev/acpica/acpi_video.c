@@ -154,7 +154,7 @@ static devclass_t acpi_video_devclass;
 
 DRIVER_MODULE(acpi_video, acpi, acpi_video_driver, acpi_video_devclass,
 	      acpi_video_modevent, NULL);
-MODULE_DEPEND(acpi_video, acpi, 100, 100, 100);
+MODULE_DEPEND(acpi_video, acpi, 1, 1, 1);
 
 struct sysctl_ctx_list	acpi_video_sysctl_ctx;
 struct sysctl_oid	*acpi_video_sysctl_tree;
