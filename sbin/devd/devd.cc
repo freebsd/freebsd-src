@@ -696,7 +696,6 @@ event_loop(void)
 			FD_SET(fd, &fds);
 			rv = select(fd + 1, &fds, &fds, &fds, &tv);
 			// No events -> we've processed all pending events
-			fprintf(stderr, "Select returns %d\n", rv);
 			if (rv == 0) {
 				if (Dflag)
 					fprintf(stderr, "Calling daemon\n");
