@@ -213,7 +213,7 @@ puc_pci_attach(device_t dev)
 	sc->irqrid = rid;
 #ifdef PUC_FASTINTR
 	irq_setup = BUS_SETUP_INTR(device_get_parent(dev), dev, res,
-	    INTR_TYPE_TTY | INTR_FAST, puc_intr, sc, &sc->intr_cookie);
+	    INTR_TYPE_TTY | INTR_TYPE_FAST, puc_intr, sc, &sc->intr_cookie);
 #else
 	irq_setup = ENXIO;
 #endif
