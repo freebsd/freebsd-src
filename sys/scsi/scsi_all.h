@@ -1,19 +1,15 @@
 /*
  * HISTORY
- * $Log: scsi_all.h,v $
+ * $Log:	scsi_all.h,v $
+ * Revision 1.1.1.1  1993/06/12  14:57:27  rgrimes
+ * Initial import, 0.1 + pk 0.2.4-B1
+ *
  * Revision 1.2  1992/11/20  23:07:13  julian
  * add a definition for device type T_NODEVICE
  *
  * Revision 1.1  1992/09/26  22:14:02  julian
  * Initial revision
  *
- *
- * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
- * --------------------         -----   ----------------------
- * CURRENT PATCH LEVEL:         1       00098
- * --------------------         -----   ----------------------
- *
- * 16 Feb 93	Julian Elischer		ADDED for SCSI system
  * 
  */
 

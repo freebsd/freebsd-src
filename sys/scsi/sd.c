@@ -12,14 +12,6 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
- * --------------------         -----   ----------------------
- * CURRENT PATCH LEVEL:         2       00149
- * --------------------         -----   ----------------------
- *
- * 16 Feb 93	Julian Elischer		ADDED for SCSI system
- * 20 Apr 93	Julian Elischer		Fixed error reporting
- *
  */
 
 static	char rev[] = "$Revision: 1.3 $";
@@ -1454,13 +1446,143 @@ sdsize(dev_t dev)
 	return((int)sd->disklabel.d_partitions[part].p_size);
 }
 
+#ifdef SCSIDUMP
+#include <vm/vm.h>
+/***********************************************************************\
+* dump all of physical memory into the partition specified, starting	*
+* at offset 'dumplo' into the partition.				*
+\***********************************************************************/
+static struct	scsi_xfer sx;
+#define	MAXTRANSFER 8 /* 1 page at a time */
+int
+sddump(dev_t dev)			/* dump core after a system crash */
+{
+	register struct sd_data *sd;	/* disk unit to do the IO */
+	long	num;			/* number of sectors to write */
+	int	unit, part, sdc;
+	long	blkoff, blknum, blkcnt;
+	long	nblocks;
+	char	*addr;
+	struct	scsi_rw_big	cmd;
+	extern	int Maxmem;
+	static  sddoingadump = 0 ;
+	extern	caddr_t CADDR1; /* map the page we are about to write, here*/
+	struct scsi_xfer *xs = &sx;
+	int	retval;
+
+	addr = (char *) 0;		/* starting address */
+
+	/* toss any characters present prior to dump */
+	while (sgetc(1))
+		;
+
+	/* size of memory to dump */
+	num = Maxmem;
+	unit = UNIT(dev);		/* eventually support floppies? */
+	part = PARTITION(dev);		/* file system */
+	/* check for acceptable drive number */
+	if (unit >= NSD) return(ENXIO);		/* 31 Jul 92*/
+
+	sd = sd_data+unit;
+	/* was it ever initialized etc. ? */
+	if (!(sd->flags & SDINIT)) 		return (ENXIO);
+	if (sd->flags & SDVALID != SDVALID) 	return (ENXIO) ;
+	if (sd->flags & SDWRITEPROT) 		return (ENXIO);
+
+	/* Convert to disk sectors */
+	num = (u_long) num * NBPG / sd->disklabel.d_secsize;
+
+	/* check if controller active */
+	if (sddoingadump) return(EFAULT);
+
+	nblocks = sd->disklabel.d_partitions[part].p_size;
+	blkoff = sd->disklabel.d_partitions[part].p_offset;
+
+	/* check transfer bounds against partition size */
+	if ((dumplo < 0) || ((dumplo + num) > nblocks))
+		return(EINVAL);
+
+	sddoingadump = 1  ;
+
+	blknum = dumplo + blkoff;
+	while (num > 0)
+	{
+		if (blkcnt > MAXTRANSFER) blkcnt = MAXTRANSFER;
+		pmap_enter(	kernel_pmap,
+				CADDR1,
+				trunc_page(addr),
+				VM_PROT_READ,
+				TRUE);
+#ifndef  NOT_TRUSTED
+		/*******************************************************\
+		*  Fill out the scsi command				*
+		\*******************************************************/
+		bzero(&cmd, sizeof(cmd));
+		cmd.op_code	=	WRITE_BIG;
+		cmd.addr_3	=	(blknum & 0xff000000) >> 24;
+		cmd.addr_2	=	(blknum & 0xff0000) >> 16;
+		cmd.addr_1	=	(blknum & 0xff00) >> 8;
+		cmd.addr_0	=	blknum & 0xff;
+		cmd.length2	=	(blkcnt & 0xff00) >> 8;
+		cmd.length1	=	(blkcnt & 0xff);
+		/*******************************************************\
+		* Fill out the scsi_xfer structure			*
+		*	Note: we cannot sleep as we may be an interrupt	*
+		\*******************************************************/
+		bzero(xs, sizeof(sx));
+		xs->flags	|=	SCSI_NOMASK|SCSI_NOSLEEP|INUSE;
+		xs->adapter	=	sd->ctlr;
+		xs->targ	=	sd->targ;
+		xs->lu		=	sd->lu;
+		xs->retries	=	SD_RETRIES;
+		xs->timeout	=	10000;/* 10000 millisecs for a disk !*/
+		xs->cmd		=	(struct scsi_generic *)&cmd;
+		xs->cmdlen	=	sizeof(cmd);
+		xs->resid	=	blkcnt * 512;
+		xs->when_done	=	0;
+		xs->done_arg	=	unit;
+		xs->done_arg2	=	(int)xs;
+		xs->error	=	XS_NOERROR;
+		xs->bp		=	0;
+		xs->data	=	(u_char *)CADDR1;
+		xs->datalen	=	blkcnt * 512;
+
+		/*******************************************************\
+		* Pass all this info to the scsi driver.		*
+		\*******************************************************/
+		retval = (*(sd->sc_sw->scsi_cmd))(xs);
+		switch(retval)
+		{
+		case	SUCCESSFULLY_QUEUED:
+		case	HAD_ERROR:
+			return(ENXIO); /* we said not to sleep! */
+		case	COMPLETE:
+			break;
+		default:
+			return(ENXIO); /* we said not to sleep! */
+		}
+#else	NOT_TRUSTED
+		printf ("sd%d addr 0x%x, blk %d\n",unit,addr,blknum);
+#endif
+		
+		if ((unsigned)addr % (1024*1024) == 0) printf("%d ", num/2048) ;
+		/* update block count */
+		num -= MAXTRANSFER;
+		blknum += MAXTRANSFER ;
+		(int) addr += 512 * MAXTRANSFER;
+
+		/* operator aborting dump? */
+		if (sgetc(1))
+			return(EINTR);
+	}
+	return(0);
+}
+#else	/* No SCSIDUMP CODE */
 sddump()
 {
-    printf("sddump()        -- not implemented\n");
-    return(-1);
+	printf("\nsddump()        -- not implemented\n");
+	DELAY(100000000);	/* 100 seconds */
+	return(-1);
 }
-
-
-
-
+#endif
 
