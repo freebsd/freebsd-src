@@ -645,9 +645,9 @@ int	debug_vn_lock(struct vnode *vp, int flags, struct thread *p,
 	    const char *filename, int line);
 #define vn_lock(vp,flags,p) debug_vn_lock(vp,flags,p,__FILE__,__LINE__)
 #endif
-int	vn_open(struct nameidata *ndp, int *flagp, int cmode);
+int	vn_open(struct nameidata *ndp, int *flagp, int cmode, int fdidx);
 int	vn_open_cred(struct nameidata *ndp, int *flagp, int cmode,
-	    struct ucred *cred);
+	    struct ucred *cred, int fdidx);
 void	vn_pollevent(struct vnode *vp, int events);
 void	vn_pollgone(struct vnode *vp);
 int	vn_pollrecord(struct vnode *vp, struct thread *p, int events);

@@ -144,7 +144,7 @@ nfs_dolock(struct vop_advlock_args *ap)
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, _PATH_LCKFIFO, td);
 
 	fmode = FFLAGS(O_WRONLY | O_NONBLOCK);
-	error = vn_open_cred(&nd, &fmode, 0, thread0.td_ucred);
+	error = vn_open_cred(&nd, &fmode, 0, thread0.td_ucred, -1);
 	switch (error) {
 	case ENOENT:
 	case ENXIO:

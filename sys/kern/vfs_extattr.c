@@ -685,7 +685,7 @@ kern_open(struct thread *td, char *path, enum uio_seg pathseg, int flags,
 	 * the descriptor while we are blocked in vn_open()
 	 */
 	fhold(fp);
-	error = vn_open(&nd, &flags, cmode);
+	error = vn_open(&nd, &flags, cmode, -1);
 	if (error) {
 		/*
 		 * release our own reference

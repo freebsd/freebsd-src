@@ -524,7 +524,7 @@ ktrace(td, uap)
 		NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, uap->fname, td);
 		flags = FREAD | FWRITE | O_NOFOLLOW;
 		mtx_lock(&Giant);
-		error = vn_open(&nd, &flags, 0);
+		error = vn_open(&nd, &flags, 0, -1);
 		if (error) {
 			mtx_unlock(&Giant);
 			td->td_pflags &= ~TDP_INKTRACE;
