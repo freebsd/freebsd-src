@@ -70,6 +70,9 @@ WaveLAN/IEEE 802.11 and the Cabletron RoamAbout.
 
 1.2. SECURITY FIXES
 -------------------
+A new jail(2) system call and admin command (jail(8)) have been added for
+additional flexibility in creating secure process execution environments.
+
 
 1.3. USERLAND CHANGES
 ---------------------
