@@ -9,7 +9,7 @@
  * Modified by Bill Fenner, PARC, April 1995
  *
  * MROUTING Revision: 3.5
- * $FreeBSD$
+ * $Id$
  */
 
 #include "opt_mrouting.h"
@@ -729,7 +729,7 @@ add_vif(vifcp)
 
 	/* Enable promiscuous reception of all IP multicasts from the if */
 	s = splnet();
-	if_allmulti(ifp, 1);
+	error = if_allmulti(ifp, 1);
 	splx(s);
 	if (error)
 	    return error;
