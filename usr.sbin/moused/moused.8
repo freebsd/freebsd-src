@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: moused.8,v 1.17 1998/11/20 11:19:20 yokota Exp $
+.\"	$Id: moused.8,v 1.18 1998/11/20 11:22:16 yokota Exp $
 .\"
 .Dd December 3, 1997
 .Dt MOUSED 8
@@ -221,10 +221,22 @@ you need to use this option only if the
 command is not able to detect the protocol automatically
 .Pq see the Sx Configuring Mouse Daemon .
 .Pp
-Also note that if a protocol type is specified with this option, the
+Note that if a protocol type is specified with this option, the
 .Fl P
 option above is implied and Plug and Play COM device enumeration 
 procedure will be disabled.
+.Pp
+Also note that if your mouse is attached to the PS/2 mouse port, you should
+always choose
+.Ar auto
+or
+.Ar ps/2 ,
+regardless of the brand and model of the mouse.  Likewise, if your
+mouse is attached to the bus mouse port, choose
+.Ar auto
+or
+.Ar busmouse .
+Serial mouse protocols will not work with these mice.
 .Pp
 Valid types for this option are
 listed below.
