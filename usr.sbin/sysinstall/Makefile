@@ -29,6 +29,12 @@ BOOTS=${.CURDIR}/../../sys/i386/boot/biosboot/obj
 BOOTS=${.CURDIR}/../../sys/i386/boot/biosboot
 .endif
 
+.if exists(${.CURDIR}/../../share/syscons/scrnmaps/obj)
+MKSCRNMAP=${.CURDIR}/../../share/syscons/scrnmaps/obj/koi8-r2cp866.mk
+.else
+MKSCRNMAP=${.CURDIR}/../../share/syscons/scrnmaps/koi8-r2cp866.mk
+.endif
+
 makedevs.c:	dev2c.sh Makefile rtermcap
 	rm -f makedevs.tmp
 	mkdir -p dev
@@ -70,10 +76,14 @@ makedevs.c:	dev2c.sh Makefile rtermcap
 		&& file2c 'const u_char font_cp850_8x16[] = {' '};' \
 		< cp850-8x16 >> makedevs.tmp
 	rm cp850-8x16
-	uudecode < ${.CURDIR}/../../share/syscons/fonts/koi8-r-8x16.fnt \
-		&& file2c 'const u_char font_koi8_r_8x16[] = {' '};' \
-		< koi8-r-8x16 >> makedevs.tmp
-	rm koi8-r-8x16
+	uudecode < ${.CURDIR}/../../share/syscons/fonts/cp866-8x16.fnt \
+		&& file2c 'const u_char font_cp866_8x16[] = {' '};' \
+		< cp866-8x16 >> makedevs.tmp
+	rm cp866-8x16
+	${MKSCRNMAP} koi8-r2cp866 \
+		&& file2c 'const u_char koi8_r2cp866[] = {' '};' \
+		< koi8-r2cp866 >> makedevs.tmp
+	rm koi8-r2cp866
 	mv makedevs.tmp makedevs.c
 
 rtermcap:	${.CURDIR}/rtermcap.c
