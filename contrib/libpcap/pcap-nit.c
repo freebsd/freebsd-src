@@ -19,8 +19,8 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 #ifndef lint
-static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/libpcap/pcap-nit.c,v 1.41 2001/12/10 07:14:18 guy Exp $ (LBL)";
+static const char rcsid[] _U_ =
+    "@(#) $Header: /tcpdump/master/libpcap/pcap-nit.c,v 1.50.2.4 2004/03/21 08:33:23 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -71,8 +71,8 @@ static const char rcsid[] =
 /* Forwards */
 static int nit_setflags(int, int, int, char *);
 
-int
-pcap_stats(pcap_t *p, struct pcap_stat *ps)
+static int
+pcap_stats_nit(pcap_t *p, struct pcap_stat *ps)
 {
 
 	/*
@@ -95,8 +95,8 @@ pcap_stats(pcap_t *p, struct pcap_stat *ps)
 	return (0);
 }
 
-int
-pcap_read(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
+static int
+pcap_read_nit(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 {
 	register int cc, n;
 	register struct bpf_insn *fcode = p->fcode.bf_insns;
@@ -126,6 +126,26 @@ pcap_read(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 	n = 0;
 	ep = bp + cc;
 	while (bp < ep) {
+		/*
+		 * Has "pcap_breakloop()" been called?
+		 * If so, return immediately - if we haven't read any
+		 * packets, clear the flag and return -2 to indicate
+		 * that we were told to break out of the loop, otherwise
+		 * leave the flag set, so that the *next* call will break
+		 * out of the loop without having read any packets, and
+		 * return the number of packets we've processed so far.
+		 */
+		if (p->break_loop) {
+			if (n == 0) {
+				p->break_loop = 0;
+				return (-2);
+			} else {
+				p->cc = ep - bp;
+				p->bp = bp;
+				return (n);
+			}
+		}
+
 		nh = (struct nit_hdr *)bp;
 		cp = bp + sizeof(*nh);
 
@@ -201,8 +221,18 @@ nit_setflags(int fd, int promisc, int to_ms, char *ebuf)
 	return (0);
 }
 
+static void
+pcap_close_nit(pcap_t *p)
+{
+	if (p->buffer != NULL)
+		free(p->buffer);
+	if (p->fd >= 0)
+		close(p->fd);
+}
+
 pcap_t *
-pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
+pcap_open_live(const char *device, int snaplen, int promisc, int to_ms,
+    char *ebuf)
 {
 	int fd;
 	struct sockaddr_nit snit;
@@ -249,6 +279,20 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 		strlcpy(ebuf, pcap_strerror(errno), PCAP_ERRBUF_SIZE);
 		goto bad;
 	}
+
+	/*
+	 * "p->fd" is a socket, so "select()" should work on it.
+	 */
+	p->selectable_fd = p->fd;
+
+	p->read_op = pcap_read_nit;
+	p->setfilter_op = install_bpf_program;	/* no kernel filtering */
+	p->set_datalink_op = NULL;	/* can't change data link type */
+	p->getnonblock_op = pcap_getnonblock_fd;
+	p->setnonblock_op = pcap_setnonblock_fd;
+	p->stats_op = pcap_stats_nit;
+	p->close_op = pcap_close_nit;
+
 	return (p);
  bad:
 	if (fd >= 0)
@@ -258,10 +302,7 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 }
 
 int
-pcap_setfilter(pcap_t *p, struct bpf_program *fp)
+pcap_platform_finddevs(pcap_if_t **alldevsp, char *errbuf)
 {
-
-	if (install_bpf_program(p, fp) < 0)
-		return (-1);
 	return (0);
 }

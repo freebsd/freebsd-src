@@ -1,4 +1,4 @@
-@(#) $Header: /tcpdump/master/libpcap/INSTALL.txt,v 1.2 2001/06/05 03:45:53 guy Exp $ (LBL)
+@(#) $Header: /tcpdump/master/libpcap/INSTALL.txt,v 1.7.2.2 2003/12/15 02:05:00 guy Exp $ (LBL)
 
 To build libpcap, run "./configure" (a shell script). The configure
 script will determine your system attributes and generate an
@@ -295,48 +295,80 @@ timestamp resolution if it finds it's running on a SS-1).
 FILES
 -----
 CHANGES		- description of differences between releases
+CREDITS		- people that have helped libpcap along
 FILES		- list of files exported as part of the distribution
-INSTALL		- this file
+INSTALL.txt	- this file
+LICENSE		- the license under which tcpdump is distributed
 Makefile.in	- compilation rules (input to the configure script)
 README		- description of distribution
+README.aix	- notes on using libpcap on AIX
+README.dag	- notes on using libpcap to capture on Endace DAG devices
+README.hpux	- notes on using libpcap on HP-UX
+README.linux	- notes on using libpcap on Linux
+README.tru64	- notes on using libpcap on Digital/Tru64 UNIX
+README.Win32	- notes on using libpcap on Win32 systems (with WinPcap)
 SUNOS4		- pre-SunOS 4.1 replacement kernel nit modules
 VERSION		- version of this release
+acconfig.h	- support for post-2.13 autoconf
 aclocal.m4	- autoconf macros
-bpf/net		- copies of bpf_filter.c and bpf.h
+arcnet.h	- ARCNET definitions
+atmuni31.h	- ATM Q.2931 definitions
+bpf/net		- copy of bpf_filter.c
+bpf_dump.c	- BPF program printing routines
 bpf_filter.c	- symlink to bpf/net/bpf_filter.c
-bpf_image.c	- bpf disassembly routine
+bpf_image.c	- BPF disassembly routine
 config.guess	- autoconf support
+config.h.in	- autoconf input
 config.sub	- autoconf support
 configure	- configure script (run this first)
 configure.in	- configure script source
 etherent.c	- /etc/ethers support routines
-ethertype.h	- ethernet protocol types and names definitions
-gencode.c	- bpf code generation routines
-gencode.h	- bpf code generation definitions
+ethertype.h	- Ethernet protocol types and names definitions
+fad-getad.c	- pcap_findalldevs() for systems with getifaddrs()
+fad-gifc.c	- pcap_findalldevs() for systems with only SIOCGIFLIST
+fad-glifc.c	- pcap_findalldevs() for systems with SIOCGLIFCONF
+fad-null.c	- pcap_findalldevs() for systems without capture support
+fad-win32.c	- pcap_findalldevs() for WinPcap
+gencode.c	- BPF code generation routines
+gencode.h	- BPF code generation definitions
 grammar.y	- filter string grammar
 inet.c		- network routines
 install-sh	- BSD style install script
-lbl/gnuc.h	- gcc macros and defines
-lbl/os-*.h	- os dependent defines and prototypes
+lbl/os-*.h	- OS-dependent defines and prototypes
+llc.h		- 802.2 LLC SAP definitions
 mkdep		- construct Makefile dependency list
 nametoaddr.c	- hostname to address routines
+nlpid.h		- OSI network layer protocol identifier definitions
 net		- symlink to bpf/net
-optimize.c	- bpf optimization routines
+optimize.c	- BPF optimization routines
+packaging	- packaging information for building libpcap RPMs
 pcap-bpf.c	- BSD Packet Filter support
+pcap-bpf.h	- BPF definitions
+pcap-dag.c	- Endace DAG device capture support
+pcap-dag.h	- Endace DAG device capture support
 pcap-dlpi.c	- Data Link Provider Interface support
 pcap-enet.c	- enet support
 pcap-int.h	- internal libpcap definitions
+pcap-linux.c	- Linux packet socket support
 pcap-namedb.h	- public libpcap name database definitions
-pcap-nit.c	- Network Interface Tap support
-pcap-nit.h	- Network Interface Tap definitions
+pcap-nit.c	- SunOS Network Interface Tap support
+pcap-nit.h	- SunOS Network Interface Tap definitions
 pcap-null.c	- dummy monitor support (allows offline use of libpcap)
-pcap-pf.c	- Packet Filter support
-pcap-pf.h	- Packet Filter definitions
-pcap-snit.c	- Streams based Network Interface Tap support
-pcap-snoop.c	- Snoop network monitoring support
+pcap-pf.c	- Ultrix and Digital/Tru64 UNIX Packet Filter support
+pcap-pf.h	- Ultrix and Digital/Tru64 UNIX Packet Filter definitions
+pcap-stdinc.h	- includes and #defines for compiling on Win32 systems
+pcap-snit.c	- SunOS 4.x STREAMS-based Network Interface Tap support
+pcap-snoop.c	- IRIX Snoop network monitoring support
+pcap-win32.c	- WinPcap capture support
 pcap.3		- manual entry
 pcap.c		- pcap utility routines
 pcap.h		- public libpcap definitions
+pf.h		- OpenBSD DLT_PFLOG definitions
 ppp.h		- Point to Point Protocol definitions
+rawss7.h	- information on DLT_ types for SS7
 savefile.c	- offline support
 scanner.l	- filter string scanner
+sll.h		- definitions for Linux cooked mode fake link-layer header
+snprintf.c	- snprintf and vsnprintf for platforms that lack them
+sunatmpos.h	- definitions for SunATM capturing
+Win32		- headers and routines for building on Win32 systems
