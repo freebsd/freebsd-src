@@ -2,7 +2,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.40 1997/09/07 16:20:50 bde Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.41 1997/09/16 09:10:18 julian Exp $
  */
 
 #include "opt_devfs.h"
@@ -609,7 +609,13 @@ devfs_remove_dev(void *devnmp)
 
 	/*
 	 * then free the main node
+	 * If we are not running in SPLIT_DEVS mode, then
+	 * THIS is what gets rid of the propogated nodes.
 	 */
+	while(dnp->linklist)
+	{
+		dev_free_name(dnp->linklist);
+	}
 	dev_free_name((devnm_p)devnmp);
 	return ;
 }
