@@ -327,6 +327,7 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 	 * structs may be too large to put on the stack anyway.
 	 */
 	union {
+		struct ptrace_io_desc piod;
 		struct dbreg dbreg;
 		struct fpreg fpreg;
 		struct reg reg;
@@ -390,6 +391,7 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 	case PT_READ_D:
 	case PT_WRITE_I:
 	case PT_WRITE_D:
+	case PT_IO:
 	case PT_CONTINUE:
 	case PT_KILL:
 	case PT_STEP:
@@ -566,6 +568,35 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 			if (error == 0 || error == ENOSPC || error == EPERM)
 				error = EINVAL;	/* EOF */
 		}
+		return (error);
+
+	case PT_IO:
+		error = copyin(uap->addr, &r.piod, sizeof r.piod);
+		if (error)
+			return (error);
+		iov.iov_base = r.piod.piod_addr;
+		iov.iov_len = r.piod.piod_len;
+		uio.uio_iov = &iov;
+		uio.uio_iovcnt = 1;
+		uio.uio_offset = (off_t)(uintptr_t)r.piod.piod_offs;
+		uio.uio_resid = r.piod.piod_len;
+		uio.uio_segflg = UIO_USERSPACE;
+		uio.uio_td = td;
+		switch (r.piod.piod_op) {
+		case PIOD_READ_D:
+		case PIOD_READ_I:
+			uio.uio_rw = UIO_READ;
+			break;
+		case PIOD_WRITE_D:
+		case PIOD_WRITE_I:
+			uio.uio_rw = UIO_WRITE;
+			break;
+		default:
+			return (EINVAL);
+		}
+		error = proc_rwmem(p, &uio);
+		r.piod.piod_len -= uio.uio_resid;
+		(void)copyout(&r.piod, uap->addr, sizeof r.piod);
 		return (error);
 
 	case PT_KILL:
