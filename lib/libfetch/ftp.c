@@ -82,6 +82,7 @@
 #define FTP_OK				200
 #define FTP_FILE_STATUS			213
 #define FTP_SERVICE_READY		220
+#define FTP_SUCCESSFUL			226
 #define FTP_PASSIVE_MODE		227
 #define FTP_LPASSIVE_MODE		228
 #define FTP_EPASSIVE_MODE		229
@@ -90,6 +91,7 @@
 #define FTP_NEED_PASSWORD		331
 #define FTP_NEED_ACCOUNT		332
 #define FTP_FILE_OK			350
+#define FTP_NO_DATA_CONNECTION		425
 #define FTP_SYNTAX_ERROR		500
 
 static char ENDL[2] = "\r\n";
@@ -362,9 +364,15 @@ _ftp_transfer(int cd, char *oper, char *file,
 	    goto sysouch;
 
 	/* make the server initiate the transfer */
-	if (verbose)
-	    _fetch_info("initiating transfer");
-	e = _ftp_cmd(cd, "%s %s", oper, s);
+	if (s && *s == '\0') {
+	    if (verbose)
+		_fetch_info("initiating %s transfer", oper);
+	    e = _ftp_cmd(cd, oper);
+	} else {
+	    if (verbose)
+		_fetch_info("initiating %s \"%s\" transfer", oper, s);
+	    e = _ftp_cmd(cd, "%s %s", oper, s);
+	}
 	if (e != FTP_OPEN_DATA_CONNECTION)
 	    goto ouch;
 	
@@ -792,6 +800,136 @@ extern void warnx(char *, ...);
 struct url_ent *
 fetchListFTP(struct url *url, char *flags)
 {
-    warnx("fetchListFTP(): not implemented");
-    return NULL;
+    int cd, n, e, status;
+    int size, len;
+    struct tm tm;
+    time_t t, now;
+    off_t s;
+    FILE * df;
+    char * filename;
+    struct url_stat thistat;
+    struct url_ent * answer = NULL;
+    size_t lastbuf = 0, thisbuf = 1024;
+    char * bp, * cp, * buffer = NULL, * ln;
+
+    int verbose = (flags && strchr(flags, 'v'));
+
+    /* Connect to server. */
+    if ((cd = _ftp_cached_connect(url, flags)) == NULL)
+	return NULL;
+    
+    /* Initiate the transfer. */
+    df = _ftp_transfer(cd, "NLST", url->doc, "r", (off_t) 0, flags);
+    if (df == NULL)
+	return NULL;
+
+    /* Get initial buffer for filenames. */
+    if ((buffer = malloc(thisbuf)) == NULL)
+	return NULL;
+
+    /*
+     * Read the list of filenames in this directory from the ftp connection.
+     * Once the list is complete, scan the list and STAT each file, adding
+     * them to the list.
+     */
+    while (1) {
+	n = fread(buffer + lastbuf, 1, thisbuf - lastbuf, df);
+	if (n < (thisbuf - lastbuf))
+	    break;
+	
+	/*
+	 * That didn't get it all, so expand the buffer and read
+	 * some more.
+	 */
+	lastbuf = thisbuf;
+	thisbuf *= 2;
+	if ((buffer = realloc(buffer, thisbuf)) == NULL)
+	    return NULL;
+    }
+    
+    /* Expect server reply, punt if nothing happened. */
+    if (((e = _ftp_chkerr(cd)) != FTP_SUCCESSFUL) || (n < 0))
+	return NULL;
+    
+    /*
+     * We have all the filenames in the buffer.  The end of the buffer is at
+     * buffer + lastbuf + n, so we'll point lastbuf at it for convenience.
+     * Parse and stat each filename so we can fill in the URL entries.
+     */
+    lastbuf += n;
+    buffer[lastbuf++] = '\0';
+    now = time(0);
+
+    for (n = 0, bp = buffer; (cp = strsep(&bp, "\r\n")) != NULL; n++) {
+	if (*cp == '\0')
+	    continue;
+
+	/* Copy the "doc" member so we can modify it. */
+
+	filename = malloc(MAXPATHLEN + 1);
+	strlcpy(filename, url->doc, MAXPATHLEN);
+	strlcat(filename, cp, MAXPATHLEN);
+
+	t = now;
+	s = (off_t) 0;
+
+	/* Get file modification time from the server. */
+
+	status = _ftp_cmd(cd, "MDTM %s", filename);
+
+	if (status == FTP_FILE_STATUS) {
+	    /* MDTM succeeded, get file time */
+
+	    for (ln = last_reply + 4; *ln && isspace(*ln); ln++)
+		/* nothing */ ;
+	    
+	    switch ((e = strspn(ln, "0123456789"))) {
+	    case 14:
+		break;
+	    case 15:
+		ln++;
+		ln[0] = '2';
+		ln[1] = '0';
+		break;
+	    default:
+		goto ouch;
+	    }
+	    if (sscanf(ln, "%04d%02d%02d%02d%02d%02d",
+		       &tm.tm_year, &tm.tm_mon, &tm.tm_mday,
+		       &tm.tm_hour, &tm.tm_min, &tm.tm_sec) == 6) {
+		tm.tm_mon--;
+		tm.tm_year -= 1900;
+		tm.tm_isdst = -1;
+		t = timegm(&tm);
+		if (t == (time_t)-1)
+		    t = now;
+	    }
+
+	ouch:
+	    /* If MDTM succeeded it is a file, so get the size too. */
+	    if ((e = _ftp_cmd(cd, "SIZE %s", filename)) == FTP_FILE_STATUS) {
+		for (ln = last_reply + 4; *ln && isspace(*ln); ln++)
+		    /* nothing */ ;
+		sscanf(ln, "%qu", &s);
+	    }
+	}
+	
+	thistat.mtime = thistat.atime = t;
+	thistat.size = s;
+
+	if (verbose) {
+	    printf("%2d (%3d): %qu %s %s",
+		   n, status,
+		   thistat.size, filename, ctime(&thistat.mtime));
+	}
+	
+	_fetch_add_entry(&answer, &size, &len, filename, &thistat);
+
+	free(filename);
+    }
+
+    fclose(df);
+    free(buffer);
+
+    return answer;
 }
