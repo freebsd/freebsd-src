@@ -3,7 +3,8 @@ FreeBSD ?.?.?  (UNKNOWN)
 Welcome to FreeBSD!
 
 If the info distribution has been loaded on this machine, the FreeBSD
-Handbook will be in file:/usr/share/doc/handbook and the FAQ
-in file:/usr/share/doc/FAQ 
+Handbook will be in file:/usr/share/doc/handbook and the FAQ in
+file:/usr/share/doc/FAQ 
 
 Type /stand/sysinstall to re-enter the installation and configuration utility.
+
