@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcireg.h,v 1.2 1994/11/02 23:47:14 se Exp $
+**  $Id: pcivar.h,v 1.1 1995/02/01 22:56:55 se Exp $
 **
 **  Declarations for pci device drivers.
 **
@@ -37,6 +37,8 @@
 
 #ifndef __PCI_VAR_H__
 #define __PCI_VAR_H__
+
+#define PCIVAR_H_PATCHLEVEL  "pl1 95/02/27"
 
 /*-----------------------------------------------------------------
 **
@@ -160,6 +162,16 @@ struct pci_externalize_buffer {
 };
 
 
+/*-----------------------------------------------------------------
+**
+**	Register an additional pci bus for probing.
+**	Called by pci-pci bridge handlers.
+**
+**-----------------------------------------------------------------
+*/
+
+int pci_map_bus (pcici_t tag, u_long bus);
+
 /*-----------------------------------------------------------------
 **
 **	Map a pci device to physical and virtual memory.
