@@ -31,7 +31,7 @@ struct lmp {
 	TAILQ_ENTRY(lmp) lmp_link;
 };
 
-static void		lm_add		(char *, char *, char *);
+static void		lm_add		(const char *, const char *, const char *);
 static void		lm_free		(struct lm_list *);
 static char *		lml_find	(struct lm_list *, const char *);
 static struct lm_list *	lmp_find	(const char *);
@@ -45,7 +45,7 @@ lm_init (void)
 {
 	FILE	*fp;
 	char	*cp;
-	char	*f, *t, *p;
+	char	*f, *t, *p, *c;
 	char	prog[MAXPATHLEN];
 	char	line[MAXPATHLEN + 2];
 
@@ -56,7 +56,7 @@ lm_init (void)
 
 	p = NULL;
 	while ((cp = fgets(line, MAXPATHLEN + 1, fp)) != NULL) {
-		t = f = NULL;
+		t = f = c = NULL;
 
 		/* Skip over leading space */
 		while (isspace(*cp)) cp++;
@@ -75,7 +75,7 @@ lm_init (void)
 			if  (iseol(*cp) || *cp == ']')
 				continue;
 
-			p = cp++;
+			c = cp++;
 			/* Skip to end of word */
 			while (!isspace(*cp) && !iseol(*cp) && *cp != ']')
 				cp++;
@@ -93,10 +93,10 @@ lm_init (void)
 			 * There should be nothing except whitespace or comment
 			  from this point to the end of the line.
 			 */
-			while(isspace(*cp++));
+			while(isspace(*cp)) *cp++;
 			if (!iseol(*cp)) continue;
 
-			strcpy(prog, p);
+			strcpy(prog, c);
 			p = prog;
 			continue;
 		}
@@ -122,7 +122,7 @@ lm_init (void)
 		if (!iseol(*cp)) continue;
 
 		*cp = '\0';
-		lm_add(p, xstrdup(f), xstrdup(t));
+		lm_add(p, f, t);
 	}
 	fclose(fp);
 	return;
@@ -159,7 +159,7 @@ lm_fini (void)
 }
 
 static void
-lm_add (char *p, char *f, char *t)
+lm_add (const char *p, const char *f, const char *t)
 {
 	struct lm_list *lml;
 	struct lm *lm;
@@ -171,8 +171,8 @@ lm_add (char *p, char *f, char *t)
 		lml = lmp_init(xstrdup(p));
 
 	lm = xmalloc(sizeof(struct lm));
-	lm->f = f;
-	lm->t = t;
+	lm->f = xstrdup(f);
+	lm->t = xstrdup(t);
 	TAILQ_INSERT_HEAD(lml, lm, lm_link);
 }
 
@@ -189,7 +189,7 @@ lm_find (const char *p, const char *f)
 			 * Add a global mapping if we have
 			 * a successful constrained match.
 			 */
-			lm_add(NULL, xstrdup(f), xstrdup(t));
+			lm_add(NULL, f, t);
 			return (t);
 		}
 	}
