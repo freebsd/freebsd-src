@@ -161,8 +161,8 @@ uudecode -o /dev/stdout < $MAIL | zcat | tar xfv -
 .Xr uucp 1 ,
 .Xr uuencode 5
 .Sh BUGS
-The encoded form of the file is expanded by 35% (3 bytes become 4 plus
-control information).
+Files encoded using the traditional algorithm are expanded by 35% (3
+bytes become 4 plus control information).
 .Sh HISTORY
 The
 .Nm uudecode
