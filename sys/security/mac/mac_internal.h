@@ -50,6 +50,7 @@ SYSCTL_DECL(_security_mac_debug_counters);
  * MAC Framework global types and typedefs.
  */
 LIST_HEAD(mac_policy_list_head, mac_policy_conf);
+MALLOC_DECLARE(M_MACTEMP);
 
 /*
  * MAC Framework global variables.
@@ -62,11 +63,6 @@ extern int				mac_enforce_vm;
 #ifndef MAC_ALWAYS_LABEL_MBUF
 extern int				mac_labelmbufs;
 #endif
-
-/*
- * MAC Framework global types and constants.
- */
-MALLOC_DECLARE(M_MACTEMP);
 
 /*
  * MAC Framework object/access counter primitives, conditionally
@@ -109,7 +105,6 @@ int	mac_externalize_cred_label(struct label *label, char *elements,
 void	mac_init_cred_label(struct label *label);
 int	mac_internalize_cred_label(struct label *label, char *string);
 void	mac_relabel_cred(struct ucred *cred, struct label *newlabel);
-
 
 void	mac_copy_pipe_label(struct label *src, struct label *dest);
 void	mac_destroy_pipe_label(struct label *label);
