@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.198 1999/05/14 20:40:15 luoqi Exp $
+ * $Id: vfs_subr.c,v 1.199 1999/05/24 00:34:10 jb Exp $
  */
 
 /*
@@ -324,11 +324,11 @@ vfs_getnewfsid(mp)
 
 	simple_lock(&mntid_slock); 
 	mtype = mp->mnt_vfc->vfc_typenum;
-	mp->mnt_stat.f_fsid.val[0] = (nblkdev + mtype) * 256;
+	mp->mnt_stat.f_fsid.val[0] = (256 + mtype) * 256;
 	mp->mnt_stat.f_fsid.val[1] = mtype;
 	if (xxxfs_mntid == 0)
 		++xxxfs_mntid;
-	tfsid.val[0] = (nblkdev + mtype) * 256 | xxxfs_mntid;
+	tfsid.val[0] = (256 + mtype) * 256 | xxxfs_mntid;
 	tfsid.val[1] = mtype;
 	if (mountlist.cqh_first != (void *)&mountlist) {
 		while (vfs_getvfs(&tfsid)) {
@@ -1175,7 +1175,7 @@ bdevvp(dev, vpp)
 	struct vnode *nvp;
 	int error;
 
-	if (dev == NODEV || major(dev) >= nblkdev) {
+	if (dev == NODEV) {
 		*vpp = NULLVP;
 		return (ENXIO);
 	}
@@ -1211,7 +1211,6 @@ checkalias(nvp, nvp_rdev, mp)
 	struct proc *p = curproc;	/* XXX */
 	struct vnode *vp;
 	struct vnode **vpp;
-	int rmaj = umajor(nvp_rdev);
 	dev_t	dev;
 
 	if (nvp->v_type != VBLK && nvp->v_type != VCHR)
@@ -1275,10 +1274,10 @@ loop:
 		 * si_bsize_* parameters may need fixing up.
 		 */
 
-		if (nvp->v_type == VBLK && rmaj < nblkdev) {
+		if (nvp->v_type == VBLK) {
 			if (bdevsw(dev) && bdevsw(dev)->d_parms)
 				(*bdevsw(dev)->d_parms)(dev, sinfo, DPARM_GET);
-		} else if (nvp->v_type == VCHR && rmaj < nchrdev) {
+		} else if (nvp->v_type == VCHR) {
 			if (devsw(dev) && devsw(dev)->d_parms)
 				(*devsw(dev)->d_parms)(dev, sinfo, DPARM_GET);
 		}
@@ -2584,8 +2583,7 @@ retry:
 			if ((error = VOP_GETATTR(vp, &vat, cred, p)) != 0)
 				goto retn;
 			object = vnode_pager_alloc(vp, vat.va_size, 0, 0);
-		} else if (major(vp->v_rdev) < nblkdev &&
-		    bdevsw(vp->v_rdev) != NULL) {
+		} else if (bdevsw(vp->v_rdev) != NULL) {
 			/*
 			 * This simply allocates the biggest object possible
 			 * for a VBLK vnode.  This should be fixed, but doesn't

@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_pt.c,v 1.8 1999/05/22 22:00:22 gibbs Exp $
+ *      $Id: scsi_pt.c,v 1.9 1999/05/30 16:51:05 phk Exp $
  */
 
 #include <sys/param.h>
@@ -304,10 +304,7 @@ ptinit(void)
 		       "due to status 0x%x!\n", status);
 	} else {
 		/* If we were successfull, register our devsw */
-		dev_t dev;
-
-		dev = makedev(PT_CDEV_MAJOR, 0);
-		cdevsw_add(&dev,&pt_cdevsw, NULL);
+		cdevsw_add(&pt_cdevsw);
 	}
 }
 

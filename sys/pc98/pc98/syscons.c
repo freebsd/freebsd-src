@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.118 1999/05/09 05:02:26 kato Exp $
+ *  $Id: syscons.c,v 1.119 1999/05/30 16:53:24 phk Exp $
  */
 
 #include "sc.h"
@@ -721,7 +721,7 @@ scattach(device_t dev)
 
     at_shutdown(scshutdown, NULL, SHUTDOWN_PRE_SYNC);
 
-    cdevsw_add(&cdev, &sc_cdevsw, NULL);
+    cdevsw_add(&sc_cdevsw);
 
 #ifdef DEVFS
     for (vc = 0; vc < MAXCONS; vc++)

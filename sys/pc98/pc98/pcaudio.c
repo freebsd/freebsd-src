@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pcaudio.c,v 1.22 1999/05/09 04:39:36 kato Exp $
+ *	$Id: pcaudio.c,v 1.23 1999/05/30 16:53:21 phk Exp $
  */
 
 #include "pca.h"
@@ -608,11 +608,9 @@ static int pca_devsw_installed;
 
 static void 	pca_drvinit(void *unused)
 {
-	dev_t dev;
 
 	if( ! pca_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev,&pca_cdevsw, NULL);
+		cdevsw_add(&pca_cdevsw);
 		pca_devsw_installed = 1;
     	}
 }

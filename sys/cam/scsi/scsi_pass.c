@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_pass.c,v 1.10 1999/05/22 22:00:21 gibbs Exp $
+ *      $Id: scsi_pass.c,v 1.11 1999/05/30 16:51:03 phk Exp $
  */
 
 #include <sys/param.h>
@@ -184,11 +184,8 @@ passinit(void)
 		printf("pass: Failed to attach master async callback "
 		       "due to status 0x%x!\n", status);
 	} else {
-		dev_t dev;
-
 		/* If we were successfull, register our devsw */
-		dev = makedev(PASS_CDEV_MAJOR, 0);
-		cdevsw_add(&dev, &pass_cdevsw, NULL);
+		cdevsw_add(&pass_cdevsw);
 	}
 	
 }

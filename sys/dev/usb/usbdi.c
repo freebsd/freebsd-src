@@ -965,17 +965,13 @@ static int usbd_global_init_done = 0;
 void
 usbd_init()
 {
-#if defined(__FreeBSD__)
-	dev_t dev;
-#endif
 	
 	if (!usbd_global_init_done) {
 		usbd_global_init_done = 1;
 		SIMPLEQ_INIT(&usbd_free_requests);
 
 #if defined(__FreeBSD__)
-		dev = makedev(USB_CDEV_MAJOR, 0);
-		cdevsw_add(&dev, &usb_cdevsw, NULL);
+		cdevsw_add(&usb_cdevsw);
 #endif
 	}
 }

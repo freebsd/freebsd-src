@@ -4,7 +4,7 @@
  * v1.4 by Eric S. Raymond (esr@snark.thyrsus.com) Aug 1993
  * modified for FreeBSD by Andrew A. Chernov <ache@astral.msk.su>
  *
- *    $Id: spkr.c,v 1.14 1998/08/28 12:47:45 kato Exp $
+ *    $Id: spkr.c,v 1.15 1999/05/30 16:53:23 phk Exp $
  */
 
 /*
@@ -640,11 +640,9 @@ static int spkr_devsw_installed;
 static void
 spkr_drvinit(void *unused)
 {
-	dev_t dev;
 
 	if( ! spkr_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev,&spkr_cdevsw, NULL);
+		cdevsw_add(&spkr_cdevsw);
 		spkr_devsw_installed = 1;
 #ifdef DEVFS
 		devfs_token = devfs_add_devswf(&spkr_cdevsw, 0, DV_CHR,

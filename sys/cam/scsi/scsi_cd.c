@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_cd.c,v 1.21 1999/05/22 22:00:18 gibbs Exp $
+ *      $Id: scsi_cd.c,v 1.22 1999/05/30 16:51:00 phk Exp $
  */
 /*
  * Portions of this driver taken from the original FreeBSD cd driver.
@@ -346,7 +346,7 @@ cdinit(void)
 		       "due to status 0x%x!\n", status);
 	} else {
 		/* If we were successfull, register our devsw */
-		cdevsw_add_generic(CD_BDEV_MAJOR, CD_CDEV_MAJOR, &cd_cdevsw);
+		cdevsw_add(&cd_cdevsw);
 	}
 }
 

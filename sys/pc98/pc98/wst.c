@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: wst.c,v 1.21 1999/05/07 07:03:32 phk Exp $
+ *	$Id: wst.c,v 1.22 1999/05/30 16:52:30 phk Exp $
  */
 
 #include "wdc.h"
@@ -787,18 +787,10 @@ wst_reset(struct wst *t)
     DELAY(30);
 }
 
-static int wst_devsw_installed;
-
 static void 
 wst_drvinit(void *unused)
 {
-    if (!wst_devsw_installed) {
-	dev_t dev;
-
-	dev = makedev(CDEV_MAJOR, 0);
-        cdevsw_add(&dev, &wst_cdevsw, NULL);
-        wst_devsw_installed = 1;
-    }
+    cdevsw_add(&wst_cdevsw);
 }
 
 SYSINIT(wstdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,wst_drvinit,NULL)

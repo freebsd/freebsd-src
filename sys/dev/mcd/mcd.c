@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.106 1999/05/08 07:02:30 phk Exp $
+ *	$Id: mcd.c,v 1.107 1999/05/30 16:52:19 phk Exp $
  */
 static const char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -756,6 +756,10 @@ mcd_probe(struct isa_device *dev)
 	int unit = dev->id_unit;
 	int i, j;
 	unsigned char stbytes[3];
+	static int once;
+
+	if (!once++)
+		cdevsw_add(&mcd_cdevsw);
 
 	mcd_data[unit].flags = MCDPROBING;
 
@@ -1855,20 +1859,5 @@ mcd_resume(int unit)
 		return EINVAL;
 	return mcd_play(unit, &cd->lastpb);
 }
-
-
-static int mcd_devsw_installed;
-
-static void 	mcd_drvinit(void *unused)
-{
-
-	if( ! mcd_devsw_installed ) {
-		cdevsw_add_generic(BDEV_MAJOR,CDEV_MAJOR, &mcd_cdevsw);
-		mcd_devsw_installed = 1;
-    	}
-}
-
-SYSINIT(mcddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,mcd_drvinit,NULL)
-
 
 #endif /* NMCD > 0 */

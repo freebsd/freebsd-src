@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.88 1999/05/28 13:23:21 bde Exp $
+ *	$Id: cy.c,v 1.89 1999/05/30 16:52:11 phk Exp $
  */
 
 #include "opt_compat.h"
@@ -541,7 +541,6 @@ cyattach_common(cy_iobase, cy_align)
 {
 	int	adapter;
 	int	cyu;
-	dev_t	dev;
 	u_char	firmware_version;
 	cy_addr	iobase;
 	int	ncyu;
@@ -633,8 +632,7 @@ cyattach_common(cy_iobase, cy_align)
 	splx(s);
 
 	if (!sio_registered) {
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev, &sio_cdevsw, NULL);
+		cdevsw_add(&sio_cdevsw);
 		register_swi(SWI_TTY, siopoll);
 		sio_registered = TRUE;
 	}

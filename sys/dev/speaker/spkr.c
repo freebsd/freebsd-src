@@ -4,7 +4,7 @@
  * v1.4 by Eric S. Raymond (esr@snark.thyrsus.com) Aug 1993
  * modified for FreeBSD by Andrew A. Chernov <ache@astral.msk.su>
  *
- *    $Id: spkr.c,v 1.35 1998/08/24 02:28:16 bde Exp $
+ *    $Id: spkr.c,v 1.36 1999/05/30 16:52:27 phk Exp $
  */
 
 #include "speaker.h"
@@ -601,24 +601,14 @@ spkrioctl(dev, cmd, cmdarg, flags, p)
     return(EINVAL);
 }
 
-
-static int spkr_devsw_installed;
-
 static void
 spkr_drvinit(void *unused)
 {
-	dev_t dev;
-
-	if( ! spkr_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev,&spkr_cdevsw, NULL);
-		spkr_devsw_installed = 1;
+	cdevsw_add(&spkr_cdevsw);
 #ifdef DEVFS
-		devfs_token = devfs_add_devswf(&spkr_cdevsw, 0, DV_CHR,
-					       UID_ROOT, GID_WHEEL, 0600,
-					       "speaker");
+	devfs_token = devfs_add_devswf(&spkr_cdevsw, 0, DV_CHR,
+				       UID_ROOT, GID_WHEEL, 0600, "speaker");
 #endif
-    	}
 }
 
 SYSINIT(spkrdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,spkr_drvinit,NULL)

@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.8 1999/05/29 19:47:51 gallatin Exp $
+ *	$Id: mem.c,v 1.9 1999/05/30 16:50:43 phk Exp $
  */
 
 /*
@@ -445,23 +445,14 @@ iszerodev(dev)
 		   && (minor(dev) == 0x02600000)));
 }
 
-
-
-static int mem_devsw_installed;
-
 static void
 mem_drvinit(void *unused)
 {
-	dev_t dev;
 
-	if( ! mem_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev,&mem_cdevsw, NULL);
-		mem_devsw_installed = 1;
+	cdevsw_add(&mem_cdevsw);
 #ifdef DEVFS
-		memdevfs_init();
+	memdevfs_init();
 #endif
-	}
 }
 
 SYSINIT(memdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,mem_drvinit,NULL)

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smb.c,v 1.11 1999/05/09 13:00:37 phk Exp $
+ *	$Id: smb.c,v 1.12 1999/05/30 16:51:37 phk Exp $
  *
  */
 #include <sys/param.h>
@@ -122,6 +122,10 @@ static int
 smb_probe(device_t dev)
 {
 	struct smb_softc *sc = (struct smb_softc *)device_get_softc(dev);
+	static int once;
+
+	if (!once++)
+                cdevsw_add(&smb_cdevsw);
 
 	sc->sc_addr = smbus_get_addr(dev);
 
@@ -272,21 +276,5 @@ smbioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
 	return (error);
 }
 
-static int smb_devsw_installed = 0;
-
-static void
-smb_drvinit(void *unused)
-{
-        dev_t dev;
-
-        if( ! smb_devsw_installed ) {
-                dev = makedev(CDEV_MAJOR,0);
-                cdevsw_add(&dev,&smb_cdevsw,NULL);
-                smb_devsw_installed = 1;
-        }
-}
-
 DEV_DRIVER_MODULE(smb, smbus, smb_driver, smb_devclass, CDEV_MAJOR, NOMAJ,
 			smb_cdevsw, 0, 0);
-
-SYSINIT(smbdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,smb_drvinit,NULL)

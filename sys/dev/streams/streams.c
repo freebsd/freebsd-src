@@ -152,21 +152,14 @@ typedef	struct streams_softc *sc_p;
 
 static sc_p sca[NSTREAMS];
 
-static void
-streamsattach(void *dummy)
-{
-	cdevsw_add_generic(CDEV_MAJOR, CDEV_MAJOR, &streams_cdevsw);
-}
-
 static	int
 streams_modevent(module_t mod, int type, void *unused)
 {
 	switch (type) {
 	case MOD_LOAD:
-		streamsattach(NULL);
+		cdevsw_add(&streams_cdevsw);
 		return 0;
 	case MOD_UNLOAD:
-		cdevsw[CDEV_MAJOR] = NULL;		/* clean up cdev */
 		return 0;
 	default:
 		break;
@@ -394,12 +387,10 @@ svr4_soo_close(struct file *fp, struct proc *p)
 static void             
 streams_drvinit(void *unused)
 {
-        dev_t dev;
 	int	unit;
 	sc_p scp  = sca[unit];
 
-	dev = makedev(CDEV_MAJOR, 0);
-	cdevsw_add(&dev, &streams_cdevsw, NULL);
+	cdevsw_add(&streams_cdevsw);
 	for (unit = 0; unit < NSTREAMS; unit++) {
 		/* 
 		 * Allocate storage for this instance .

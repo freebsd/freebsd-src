@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci.c,v 1.105 1999/05/30 10:54:31 dfr Exp $
+ * $Id: pci.c,v 1.106 1999/05/30 16:53:36 phk Exp $
  *
  */
 
@@ -875,10 +875,7 @@ static void *pci_devfs_token;
 static void
 pci_cdevinit(void *dummy)
 {
-	dev_t dev;
-
-	dev = makedev(PCI_CDEV, 0);
-	cdevsw_add(&dev, &pcicdev, NULL);
+	cdevsw_add(&pcicdev);
 #ifdef	DEVFS
 	pci_devfs_token = devfs_add_devswf(&pcicdev, 0, DV_CHR,
 					   UID_ROOT, GID_WHEEL, 0644, "pci");

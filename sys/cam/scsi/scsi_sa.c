@@ -1,5 +1,5 @@
 /*
- * $Id: scsi_sa.c,v 1.26 1999/05/25 23:10:54 mjacob Exp $
+ * $Id: scsi_sa.c,v 1.27 1999/05/30 16:51:07 phk Exp $
  *
  * Implementation of SCSI Sequential Access Peripheral driver for CAM.
  *
@@ -1148,7 +1148,7 @@ sainit(void)
 		       "due to status 0x%x!\n", status);
 	} else {
 		/* If we were successfull, register our devsw */
-		cdevsw_add_generic(SA_BDEV_MAJOR, SA_CDEV_MAJOR, &sa_cdevsw);
+		cdevsw_add(&sa_cdevsw);
 	}
 }
 

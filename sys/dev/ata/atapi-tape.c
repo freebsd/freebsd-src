@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-tape.c,v 1.8 1999/05/17 15:58:47 sos Exp $
+ *	$Id: atapi-tape.c,v 1.9 1999/05/30 16:51:16 phk Exp $
  */
 
 #include "ata.h"
@@ -554,9 +554,7 @@ ast_drvinit(void *unused)
     static int32_t ast_devsw_installed = 0;
 
     if (!ast_devsw_installed) {
-	dev_t dev = makedev(CDEV_MAJOR, 0);
-
-        cdevsw_add(&dev, &ast_cdevsw, NULL);
+        cdevsw_add(&ast_cdevsw);
         ast_devsw_installed = 1;
     }
 }

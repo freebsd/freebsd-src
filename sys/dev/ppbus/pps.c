@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: pps.c,v 1.17 1999/05/06 22:03:14 peter Exp $
+ * $Id: pps.c,v 1.18 1999/05/30 16:51:36 phk Exp $
  *
  * This driver implements a draft-mogul-pps-api-02.txt PPS source.
  *
@@ -87,6 +87,10 @@ static struct ppb_device *
 ppsprobe(struct ppb_data *ppb)
 {
 	struct pps_data *sc;
+	static int once;
+
+	if (!once++)
+		cdevsw_add(&pps_cdevsw);
 
 	sc = (struct pps_data *) malloc(sizeof(struct pps_data),
 							M_TEMP, M_NOWAIT);
@@ -113,7 +117,6 @@ ppsprobe(struct ppb_data *ppb)
 static int
 ppsattach(struct ppb_device *dev)
 {
-	dev_t devt;
 
 	/*
 	 * Report ourselves
@@ -126,8 +129,6 @@ ppsattach(struct ppb_device *dev)
 		dev->id_unit, DV_CHR,
 		UID_ROOT, GID_WHEEL, 0600, PPS_NAME "%d", dev->id_unit);
 #endif
-	devt = makedev(CDEV_MAJOR, 0);
-	cdevsw_add(&devt, &pps_cdevsw, NULL);
 	return (1);
 }
 

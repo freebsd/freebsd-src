@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rp.c,v 1.26 1999/05/09 17:07:20 peter Exp $
+ *	$Id: rp.c,v 1.27 1999/05/30 16:52:22 phk Exp $
  */
 
 /* 
@@ -1085,7 +1085,6 @@ struct isa_device *dev;
 static void
 rp_pciattach(pcici_t tag, int unit)
 {
-	dev_t	rp_dev;
 	int	success, oldspl;
 	u_short iobase;
 	int	num_ports, num_chan, num_aiops;
@@ -1140,8 +1139,7 @@ rp_pciattach(pcici_t tag, int unit)
 	rp_addr(unit) = rp;
 	splx(oldspl);
 
-	rp_dev = makedev(CDEV_MAJOR, unit);
-	cdevsw_add(&rp_dev, &rp_cdevsw, NULL);
+	cdevsw_add(&rp_cdevsw);
 
 	port = 0;
 	for(aiop=0; aiop < num_aiops; aiop++) {
@@ -1196,7 +1194,6 @@ int
 rpattach(dev)
 struct	isa_device	*dev;
 {
-	dev_t	rp_dev;
 	int	iobase, unit, /*rpmajor,*/ oldspl;
 	int	num_ports, num_chan, num_aiops;
 	int	aiop, chan, port;
@@ -1252,8 +1249,7 @@ struct	isa_device	*dev;
 	rp_addr(unit) = rp;
 	splx(oldspl);
 
-	rp_dev = makedev(CDEV_MAJOR, unit);
-	cdevsw_add(&rp_dev, &rp_cdevsw, NULL);
+	cdevsw_add(&rp_cdevsw);
 
 	port = 0;
 	for(aiop=0; aiop < num_aiops; aiop++) {

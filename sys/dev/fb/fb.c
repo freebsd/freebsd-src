@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: fb.c,v 1.3 1999/01/19 11:31:10 yokota Exp $
+ * $Id: fb.c,v 1.4 1999/05/30 16:51:23 phk Exp $
  */
 
 #include "fb.h"
@@ -311,11 +311,9 @@ static void
 vfbattach(void *arg)
 {
 	static int fb_devsw_installed = FALSE;
-	dev_t dev;
 
 	if (!fb_devsw_installed) {
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev, &fb_cdevsw, NULL);
+		cdevsw_add(&fb_cdevsw);
 		fb_devsw_installed = TRUE;
 	}
 }
