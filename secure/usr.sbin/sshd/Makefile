@@ -14,7 +14,7 @@ SRCS=	sshd.c auth-rhosts.c auth-passwd.c auth-rsa.c auth-rh-rsa.c \
 	auth.c auth1.c auth2.c auth-options.c session.c login_access.c dh.c \
 	auth-pam.c
 
-CFLAGS+= -DLIBWRAP -DHAVE_LOGIN_CAP -DLOGIN_ACCESS -I${LOGINSRC} -DUSE_PAM
+CFLAGS+= -DLIBWRAP -DHAVE_LOGIN_CAP -DLOGIN_ACCESS -I${LOGINSRC} -DUSE_PAM -DHAVE_PAM_GETENVLIST
 
 .include <bsd.own.mk>
 
