@@ -114,7 +114,7 @@ If your card has nonstandard I/O address or IRQ number, change defines
 #ifdef PC98
 #define SB16MIDI_BASE	0x80d2
 #else
-#define SB16MIDI_BASE	0x300
+#define SB16MIDI_BASE	0x330
 #endif
 #endif
 
