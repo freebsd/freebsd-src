@@ -181,6 +181,8 @@ case ${firewall_type} in
 
 	# Allow access to our DNS
 	${fwcmd} add pass tcp from any to ${oip} 53 setup
+	${fwcmd} add pass udp from any to ${oip} 53
+	${fwcmd} add pass udp from ${oip} 53 to any
 
 	# Allow access to our WWW
 	${fwcmd} add pass tcp from any to ${oip} 80 setup
