@@ -253,7 +253,6 @@ forward(fp, style, off, sbp)
 				(void)sleep(1);
 			if (sb2.st_ino != sbp->st_ino ||
 			    sb2.st_dev != sbp->st_dev ||
-			    sb2.st_rdev != sbp->st_rdev ||
 			    sb2.st_nlink == 0) {
 				fp = freopen(fname, "r", fp);
 				if (fp == NULL) {
