@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_usrreq.c	8.6 (Berkeley) 5/23/95
- *	$Id: udp_usrreq.c,v 1.47 1998/05/15 20:11:35 wollman Exp $
+ *	$Id: udp_usrreq.c,v 1.48 1998/08/24 07:47:39 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -57,6 +57,7 @@
 #include <netinet/in_var.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_icmp.h>
+#include <netinet/icmp_var.h>
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
 
@@ -296,6 +297,10 @@ udp_input(m, iphlen)
 			goto bad;
 		}
 		*ip = save_ip;
+#ifdef ICMP_BANDLIM
+		if (badport_bandlim(0) < 0)
+			goto bad;
+#endif
 		icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_PORT, 0, 0);
 		return;
 	}
@@ -691,3 +696,4 @@ struct pr_usrreqs udp_usrreqs = {
 	pru_rcvoob_notsupp, udp_send, pru_sense_null, udp_shutdown,
 	in_setsockaddr, sosend, soreceive, sopoll
 };
+
