@@ -16,7 +16,7 @@
 	${LCRYPTO_SRC}/stack ${LCRYPTO_SRC}/txt_db ${LCRYPTO_SRC}/x509 \
 	${LCRYPTO_SRC}/x509v3
 
-.if !defined(NOPERL) && ${MACHINE_ARCH} == "i386"
+.if !defined(NOPERL) && !defined(NO_PERL) && ${MACHINE_ARCH} == "i386"
 .PATH:	${LCRYPTO_SRC}/rc4/asm ${LCRYPTO_SRC}/rc5/asm \
 	${LCRYPTO_SRC}/des/asm ${LCRYPTO_SRC}/cast/asm \
 	${LCRYPTO_SRC}/sha/asm ${LCRYPTO_SRC}/bn/asm \
@@ -58,7 +58,7 @@ SRCS+=	a_bitstr.c a_bmp.c a_bool.c a_bytes.c a_d2i_fp.c a_digest.c \
 
 # blowfish
 SRCS+=	bf_cfb64.c bf_ecb.c bf_ofb64.c bf_skey.c
-.if !defined(NOPERL) && ${MACHINE_ARCH} == "i386"
+.if !defined(NOPERL) && !defined(NO_PERL) && ${MACHINE_ARCH} == "i386"
 .if ${MACHINE_CPU:Mi686}
 SRCS+=	bf-686.pl
 .else
@@ -79,7 +79,7 @@ SRCS+=	bn_add.c bn_blind.c bn_ctx.c bn_div.c bn_err.c \
 	bn_exp.c bn_exp2.c bn_gcd.c bn_lib.c bn_mont.c bn_mpi.c \
 	bn_mul.c bn_prime.c bn_print.c bn_rand.c bn_recp.c bn_shift.c \
 	bn_sqr.c bn_word.c
-.if !defined(NOPERL) && ${MACHINE_ARCH} == "i386"
+.if !defined(NOPERL) && !defined(NO_PERL) && ${MACHINE_ARCH} == "i386"
 SRCS+=	bn-586.pl co-586.pl
 .else
 SRCS+=	bn_asm.c
@@ -90,7 +90,7 @@ SRCS+=	buf_err.c buffer.c
 
 # cast
 SRCS+=	c_cfb64.c c_ecb.c c_ofb64.c c_skey.c
-.if !defined(NOPERL) && ${MACHINE_ARCH} == "i386"
+.if !defined(NOPERL) && !defined(NO_PERL) && ${MACHINE_ARCH} == "i386"
 SRCS+=	cast-586.pl
 .else
 SRCS+=	c_enc.c
@@ -108,7 +108,7 @@ SRCS+=	cbc_cksm.c cbc_enc.c cfb64ede.c cfb64enc.c cfb_enc.c \
 	fcrypt.c ofb64ede.c ofb64enc.c ofb_enc.c pcbc_enc.c \
 	qud_cksm.c rand_key.c read2pwd.c read_pwd.c rpc_enc.c \
 	set_key.c str2key.c xcbc_enc.c rnd_keys.c
-.if !defined(NOPERL) && ${MACHINE_ARCH} == "i386"
+.if !defined(NOPERL) && !defined(NO_PERL) && ${MACHINE_ARCH} == "i386"
 SRCS+=	des-586.pl crypt586.pl
 .else
 SRCS+=	des_enc.c fcrypt_b.c
@@ -156,7 +156,7 @@ SRCS+=	md4_dgst.c md4_one.c
 
 # md5
 SRCS+=	md5_dgst.c md5_one.c
-.if !defined(NOPERL) && ${MACHINE_ARCH} == "i386"
+.if !defined(NOPERL) && !defined(NO_PERL) && ${MACHINE_ARCH} == "i386"
 SRCS+=	md5-586.pl
 .endif
 
@@ -185,7 +185,7 @@ SRCS+=	rc2_cbc.c rc2cfb64.c rc2_ecb.c rc2ofb64.c rc2_skey.c
 
 # rc4
 SRCS+=	rc4_skey.c
-.if !defined(NOPERL) && ${MACHINE_ARCH} == "i386"
+.if !defined(NOPERL) && !defined(NO_PERL) && ${MACHINE_ARCH} == "i386"
 SRCS+=	rc4-586.pl
 .else
 SRCS+=	rc4_enc.c
@@ -193,7 +193,7 @@ SRCS+=	rc4_enc.c
 
 # rc5
 SRCS+=	rc5cfb64.c rc5_ecb.c rc5ofb64.c rc5_skey.c
-.if !defined(NOPERL) && ${MACHINE_ARCH} == "i386"
+.if !defined(NOPERL) && !defined(NO_PERL) && ${MACHINE_ARCH} == "i386"
 SRCS+=	rc5-586.pl
 .else
 SRCS+=	rc5_enc.c
@@ -201,7 +201,7 @@ SRCS+=	rc5_enc.c
 
 # ripemd
 SRCS+=	rmd_dgst.c rmd_one.c
-.if !defined(NOPERL) && ${MACHINE_ARCH} == "i386"
+.if !defined(NOPERL) && !defined(NO_PERL) && ${MACHINE_ARCH} == "i386"
 SRCS+=	rmd-586.pl
 .endif
 
@@ -213,7 +213,7 @@ SRCS+=	rsa_chk.c rsa_eay.c rsa_err.c rsa_gen.c rsa_lib.c rsa_none.c \
 
 # sha
 SRCS+=	sha_dgst.c sha_one.c sha1_one.c sha1dgst.c
-.if !defined(NOPERL) && ${MACHINE_ARCH} == "i386"
+.if !defined(NOPERL) && !defined(NO_PERL) && ${MACHINE_ARCH} == "i386"
 SRCS+=	sha1-586.pl
 .endif
 
@@ -388,7 +388,7 @@ SYMLINKS+=	lib${LIB}_p.a ${LIBDIR}/libdes_p.a
 
 .include <bsd.lib.mk>
 
-.if !defined(NOPERL) && ${MACHINE_ARCH} == "i386"
+.if !defined(NOPERL) && !defined(NO_PERL) && ${MACHINE_ARCH} == "i386"
 CLEANFILES+=	${SRCS:M*.pl:S/.pl$/.cmt/} ${SRCS:M*.pl:S/.pl$/.s/}
 .SUFFIXES:	.pl .cmt
 .pl.cmt:
