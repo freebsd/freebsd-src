@@ -32,7 +32,7 @@
  */
 
 /*
- * $Id: aic6360.c,v 1.41 1998/06/21 14:53:09 bde Exp $
+ * $Id: aic6360.c,v 1.42 1998/10/22 05:58:38 bde Exp $
  *
  * Acknowledgements: Many of the algorithms used in this driver are
  * inspired by the work of Julian Elischer (julian@tfs.com) and
@@ -715,6 +715,7 @@ static struct scsi_device aic_dev = {
 #include "card.h"
 #if NCARD > 0
 #include <sys/select.h>
+#include <sys/module.h>
 #include <pccard/cardinfo.h>
 #include <pccard/slot.h>
 
@@ -722,16 +723,7 @@ static int	aic_card_intr	__P((struct pccard_devinfo *));
 static int	aicinit		__P((struct pccard_devinfo *));
 static void	aicunload	__P((struct pccard_devinfo *));
 
-static struct pccard_device aic_info = {
-	"aic",
-	aicinit,
-	aicunload,
-	aic_card_intr,
-	0,			/* Attributes - presently unused */
-	&bio_imask
-};
-
-DATA_SET(pccarddrv_set, aic_info);
+PCCARD_MODULE(aic, aicinit, aicunload, aic_card_intr, 0, bio_imask);
 
 /*
  * Initialize the device - called from Slot manager.

@@ -21,7 +21,7 @@
  */
 
 /*
- * $Id: if_fe.c,v 1.46 1998/12/31 03:21:14 kato Exp $
+ * $Id: if_fe.c,v 1.47 1999/01/12 00:36:29 eivind Exp $
  *
  * Device driver for Fujitsu MB86960A/MB86965A based Ethernet cards.
  * To be used with FreeBSD 3.x
@@ -127,6 +127,7 @@
 #if NCARD > 0
 #include <sys/kernel.h>
 #include <sys/select.h>
+#include <sys/module.h>
 #include <pccard/cardinfo.h>
 #include <pccard/slot.h>
 #endif
@@ -396,16 +397,7 @@ static int	feinit		(struct pccard_devinfo *);
 static void	feunload	(struct pccard_devinfo *);
 static int	fe_card_intr	(struct pccard_devinfo *);
 
-static struct pccard_device fe_info = {
-	"fe",
-	feinit,
-	feunload,
-	fe_card_intr,
-	0,			/* Attributes - presently unused */
-	&net_imask		/* XXX - Should this also include tty_imask? */
-};
-
-DATA_SET(pccarddrv_set, fe_info);
+PCCARD_MODULE(fe, feinit, feunload, fe_card_intr, 0, net_imask);
 
 /*
  *      Initialize the device - called from Slot manager.

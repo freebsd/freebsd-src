@@ -38,7 +38,7 @@
  */
 
 /*
- *  $Id: if_ep.c,v 1.76 1998/06/21 18:02:38 bde Exp $
+ *  $Id: if_ep.c,v 1.77 1998/10/22 05:58:39 bde Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -149,6 +149,7 @@ struct isa_driver epdriver = {
 
 #if NCARD > 0
 #include <sys/select.h>
+#include <sys/module.h>
 #include <pccard/cardinfo.h>
 #include <pccard/slot.h>
 
@@ -160,16 +161,7 @@ static int ep_pccard_attach  __P((struct pccard_devinfo *));
 static void ep_unload __P((struct pccard_devinfo *));
 static int card_intr __P((struct pccard_devinfo *));
 
-static struct pccard_device ep_info = {
-    "ep",
-    ep_pccard_init,
-    ep_unload,
-    card_intr,
-    0,                      /* Attributes - presently unused */
-    &net_imask
-};
-
-DATA_SET(pccarddrv_set, ep_info);
+PCCARD_MODULE(ep, ep_pccard_init, ep_unload, card_intr, 0, net_imask);
 
 /*
  * Initialize the device - called from Slot manager.
