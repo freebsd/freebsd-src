@@ -1191,9 +1191,11 @@ const time_t * const	timep;
 		}
 	}
 	pthread_mutex_unlock(&gmtime_mutex);
-	if ((p_tm = pthread_getspecific(gmtime_key)) != 0) {
-		return(NULL);
-	} else if (p_tm == NULL) {
+	/*
+	 * Changed to follow draft 4 pthreads standard, which
+	 * is what BSD currently has.
+	 */
+	if ((p_tm = pthread_getspecific(gmtime_key)) == NULL) {
 		if ((p_tm = (struct tm *)malloc(sizeof(struct tm))) == NULL) {
 			return(NULL);
 		}

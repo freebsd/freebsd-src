@@ -126,9 +126,7 @@ __ttyname_basic(int fd)
 	pthread_mutex_unlock(&ttyname_lock);
 
 	/* Must have thread specific data field to put data */
-	if ((buf = pthread_getspecific(ttyname_key)) != 0) {
-		return (NULL);
-	} else if (buf == NULL) {
+	if ((buf = pthread_getspecific(ttyname_key)) == NULL) {
 		if ((buf = malloc(sizeof(_PATH_DEV) + MAXNAMLEN)) != NULL) {
 			if (pthread_setspecific(ttyname_key, buf) != 0) {
 				free(buf);
