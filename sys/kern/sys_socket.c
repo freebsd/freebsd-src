@@ -206,7 +206,7 @@ soo_stat(fp, ub, active_cred, td)
 		ub->st_mode |= S_IRUSR | S_IRGRP | S_IROTH;
 	if ((so->so_state & SS_CANTSENDMORE) == 0)
 		ub->st_mode |= S_IWUSR | S_IWGRP | S_IWOTH;
-	ub->st_size = so->so_rcv.sb_cc;
+	ub->st_size = so->so_rcv.sb_cc - so->so_rcv.sb_ctl;
 	ub->st_uid = so->so_cred->cr_uid;
 	ub->st_gid = so->so_cred->cr_gid;
 	return ((*so->so_proto->pr_usrreqs->pru_sense)(so, ub));
