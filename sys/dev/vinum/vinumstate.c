@@ -174,18 +174,22 @@ set_sd_state(int sdno, enum sdstate newstate, enum setstateflags flags)
 		/* FALLTHROUGH */
 
 	    case sd_empty:
+	    case sd_initialized:
 		/*
-		 * If we're associated with a plex which is down, or which is
-		 * the only one in the volume, and we're not a RAID-5 plex, we
-		 * can come up without being inconsistent.  Internally, we use
-		 * the force flag to bring up a RAID-5 plex after
-		 * initialization.
+		 * If we're associated with a plex which
+		 * is down, or which is the only one in
+		 * the volume, and we're not a RAID-5
+		 * plex, we can come up without being
+		 * inconsistent.  Internally, we use the
+		 * force flag to bring up a RAID-5 plex
+		 * after initialization.
 		 */
 		if ((sd->plexno >= 0)
 		    && ((PLEX[sd->plexno].organization != plex_raid5)
 			|| (flags & setstate_force))
-		    && (((PLEX[sd->plexno].state < plex_firstup)
-			    || (PLEX[sd->plexno].subdisks > 1))))
+		    && ((PLEX[sd->plexno].state < plex_firstup)
+			|| (PLEX[sd->plexno].volno < 0)
+			|| (VOL[PLEX[sd->plexno].volno].plexes == 1)))
 		    break;
 		/* Otherwise it's just out of date */
 		/* FALLTHROUGH */
@@ -193,20 +197,31 @@ set_sd_state(int sdno, enum sdstate newstate, enum setstateflags flags)
 	    case sd_stale:				    /* out of date info, need reviving */
 	    case sd_obsolete:
 		/*
-		 * 1.  If the subdisk is not part of a plex, bring it up, don't revive.
+
+		 *  1.  If the subdisk is not part of a
+		 *      plex, bring it up, don't revive.
 		 *
-		 * 2.  If the subdisk is part of a one-plex volume or an unattached plex,
-		 *     and it's not RAID-5, we *can't revive*.  The subdisk doesn't
+		 *  2.  If the subdisk is part of a
+		 *     one-plex volume or an unattached
+		 *     plex, and it's not RAID-5, we
+		 *     *can't revive*.  The subdisk
+		 *     doesn't change its state.
+		 *
+		 * 3.  If the subdisk is part of a
+		 *     one-plex volume or an unattached
+		 *     plex, and it's RAID-5, but more
+		 *     than one subdisk is down, we *still
+		 *     can't revive*.  The subdisk doesn't
 		 *     change its state.
 		 *
-		 * 3.  If the subdisk is part of a one-plex volume or an unattached plex,
-		 *     and it's RAID-5, but more than one subdisk is down, we *still
-		 *     can't revive*.  The subdisk doesn't change its state.
-		 *
-		 * 4.  If the subdisk is part of a multi-plex volume, we'll change to
-		 *     reviving and let the revive routines find out whether it will work
-		 *     or not.  If they don't, the revive stops with an error message,
-		 *     but the state doesn't change (FWIW).
+		 * 4.  If the subdisk is part of a
+		 *     multi-plex volume, we'll change to
+		 *     reviving and let the revive
+		 *     routines find out whether it will
+		 *     work or not.  If they don't, the
+		 *     revive stops with an error message,
+		 *     but the state doesn't change
+		 *     (FWIW).
 		 */
 		if (sd->plexno < 0)			    /* no plex associated, */
 		    break;				    /* bring it up */
@@ -582,24 +597,6 @@ update_volume_state(int volno)
 }
 
 /*
- * Helper for checksdstate.  If this is a write
- * operation, it's no necessarily the end of the
- * world that we can't write: there could be
- * another plex which can satisfy the operation.
- * We must write everything we can, though, so we
- * don't want to stop when we hit a subdisk which
- * is down.  Return a separate indication instead.
- */
-enum requeststatus
-sddownstate(struct request *rq)
-{
-    if (rq->bp->b_flags & B_READ)			    /* read operation? */
-	return REQUEST_DOWN;				    /* OK, can't do it */
-    else
-	return REQUEST_DEGRADED;
-}
-
-/*
  * Called from request routines when they find
  * a subdisk which is not kosher.  Decide whether
  * it warrants changing the state.  Return
@@ -640,11 +637,11 @@ checksdstate(struct sd *sd, struct request *rq, daddr_t diskaddr, daddr_t disken
 	 *   subdisk is down
 	 */
 	if (plex->state == plex_striped)		    /* plex is striped, */
-	    return sddownstate(rq);
+	    return REQUEST_DOWN;
 
 	else if (plex->state == plex_raid5) {		    /* RAID5 plex */
 	    if (plex->sddowncount > 1)			    /* with more than one sd down, */
-		return sddownstate(rq);
+		return REQUEST_DOWN;
 	    else
 		/*
 		 * XXX We shouldn't do this if we can find a
@@ -657,13 +654,13 @@ checksdstate(struct sd *sd, struct request *rq, daddr_t diskaddr, daddr_t disken
 	if (diskaddr > (sd->revived
 		+ sd->plexoffset
 		+ (sd->revive_blocksize >> DEV_BSHIFT)))    /* we're beyond the end */
-	    return sddownstate(rq);
+	    return REQUEST_DOWN;
 	else if (diskend > (sd->revived + sd->plexoffset)) { /* we finish beyond the end */
 	    if (writeop) {
 		rq->flags |= XFR_REVIVECONFLICT;	    /* note a potential conflict */
 		rq->sdno = sd->sdno;			    /* and which sd last caused it */
 	    } else
-		return sddownstate(rq);
+		return REQUEST_DOWN;
 	}
 	return REQUEST_OK;
 
@@ -676,20 +673,20 @@ checksdstate(struct sd *sd, struct request *rq, daddr_t diskaddr, daddr_t disken
 	       * a read request to a reborn subdisk if that's
 	       * all we have. XXX
 	     */
-	    return sddownstate(rq);
+	    return REQUEST_DOWN;
 
     case sd_down:
 	if (writeop)					    /* writing to a consistent down disk */
 	    set_sd_state(sd->sdno, sd_obsolete, setstate_force); /* it's not consistent now */
-	return sddownstate(rq);
+	return REQUEST_DOWN;
 
     case sd_crashed:
 	if (writeop)					    /* writing to a consistent down disk */
 	    set_sd_state(sd->sdno, sd_stale, setstate_force); /* it's not consistent now */
-	return sddownstate(rq);
+	return REQUEST_DOWN;
 
     default:
-	return sddownstate(rq);
+	return REQUEST_DOWN;
     }
 }
 
@@ -1035,6 +1032,38 @@ setstate(struct vinum_ioctl_msg *msg)
     case object_up:
 	start_object(msg);
     }
+}
+
+/*
+ * Brute force set state function.  Don't look at
+ * any dependencies, just do it.  This is mainly
+ * intended for testing and recovery.
+ */
+void
+setstate_by_force(struct vinum_ioctl_msg *msg)
+{
+    struct _ioctl_reply *ioctl_reply = (struct _ioctl_reply *) msg; /* format for returning replies */
+
+    switch (msg->type) {
+    case drive_object:
+	DRIVE[msg->index].state = msg->state;
+	break;
+
+    case sd_object:
+	SD[msg->index].state = msg->state;
+	break;
+
+    case plex_object:
+	PLEX[msg->index].state = msg->state;
+	break;
+
+    case volume_object:
+	VOL[msg->index].state = msg->state;
+	break;
+
+    default:
+    }
+    ioctl_reply->error = 0;
 }
 /* Local Variables: */
 /* fill-column: 50 */
