@@ -118,10 +118,12 @@ device		ses		# SCSI Environmental Services (and SAF-TE)
 #device		amr		# AMI MegaRAID
 #device		mlx		# Mylex DAC960 family
 
-#device		splash		# Splash screen and screen saver support
 
 # syscons is the default console driver, resembling an SCO console
 #device		sc
+#device		creator		# Creator graphics cards
+#device		splash		# Splash screen and screen saver support
+#options	KBD_INSTALL_CDEV
 
 device		ofw_console	# OpenBoot firmware console device
 
@@ -134,6 +136,8 @@ device		"mk48txx"	# Mostek MK48T02, MK48T08, MK48T59 clock
 #device		sio		# 8250, 16[45]50 based serial ports
 device		sab		# Siemens SAB82532 based serial ports
 device		zs		# Zilog 8530 based serial ports
+#device		uart		# Multi-uart driver
+#device		puc		# Multi-channel uarts
 
 # Parallel port
 #device		ppc
