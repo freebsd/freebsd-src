@@ -767,6 +767,10 @@ bs_setup_ctrl(ti, quirks, flags)
 	if (quirks & SDEV_AUTOSAVE)
 		flags |= BS_SCSI_SAVESP;
 #endif
+#ifdef	SD_Q_NO_SYNC
+	if (quirks & SD_Q_NO_SYNC)
+		flags &= ~BS_SCSI_SYNC;
+#endif
 
 	if ((flags & BS_SCSI_DISC) == 0 ||
 	    (ti->targ_support & SID_Linked) == 0)

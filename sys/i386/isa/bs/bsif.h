@@ -194,8 +194,21 @@ void bsattach __P((struct device *, struct device *, void *));
 #endif	/* __NetBSD__ */
 
 #ifdef __FreeBSD__
+static BS_INLINE void memcopy __P((void *from, void *to, register size_t len));
 u_int32_t bs_adapter_info __P((int));
 #define delay(y) DELAY(y)
 extern int dma_init_flag;
 #define softintr(y) ipending |= (y)
+
+static BS_INLINE void
+memcopy(from, to, len)
+	void *from, *to;
+	register size_t len;
+{
+
+	len >>= 2;
+	__asm __volatile("cld\n\trep\n\tmovsl" : :
+			 "S" (from), "D" (to), "c" (len) :
+			 "%esi", "%edi", "%ecx");
+}
 #endif	/* __FreeBSD__ */

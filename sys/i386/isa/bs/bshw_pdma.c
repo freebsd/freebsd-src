@@ -209,7 +209,11 @@ bs_lc_smit_xfer(ti, direction)
 				break;
 
 			count = (datalen > LC_FSZ ? LC_FSZ : datalen);
+#ifdef	FreeBSD
 			memcopy(ti->sm_vaddr, data, count);
+#else	/* NetBSD */
+			bus_mem_read_multi_4(bsc->sc_bc, bsc->sc_memh, 0, data, count >> 2);
+#endif	/* NetBSD */
 			data += count;
 			datalen -= count;
 		}
@@ -225,7 +229,11 @@ bs_lc_smit_xfer(ti, direction)
 				break;
 
 			count = (datalen > LC_SFSZ ? LC_SFSZ : datalen);
+#ifdef	FreeBSD
 			memcopy(data, ti->sm_vaddr, count);
+#else	/* NetBSD */
+			bus_mem_write_multi_4(bsc->sc_bc, bsc->sc_memh, 0, data, count >> 2);
+#endif	/* NetBSD */
 			data += count;
 			datalen -= count;
 
@@ -233,7 +241,11 @@ bs_lc_smit_xfer(ti, direction)
 				break;
 
 			count = (datalen > LC_REST ? LC_REST : datalen);
+#ifdef	FreeBSD
 			memcopy(data, ti->sm_vaddr + LC_SFSZ, count);
+#else	/* NetBSD */
+			bus_mem_write_multi_4(bsc->sc_bc, bsc->sc_memh, LC_SFSZ, data, count >> 2);
+#endif	/* NetBSD */
 			data += count;
 			datalen -= count;
 		}
