@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.74 1998/11/23 13:58:55 bde Exp $
+ *	$Id: cy.c,v 1.75 1998/11/28 13:18:16 bde Exp $
  */
 
 #include "opt_compat.h"
@@ -200,6 +200,7 @@
 #define	CS_DTR_OFF	0x10	/* DTR held off */
 #define	CS_ODONE	4	/* output completed */
 #define	CS_RTS_IFLOW	8	/* use RTS input flow control */
+#define	CSE_ODONE	1	/* output transmitted */
 
 static	char const * const	error_desc[] = {
 #define	CE_OVERRUN			0
@@ -231,6 +232,9 @@ struct com_s {
 	bool_t  active_out;	/* nonzero if the callout device is open */
 #if 0
 	u_char	cfcr_image;	/* copy of value written to CFCR */
+#endif
+	u_char	extra_state;	/* more flag bits, separate for order trick */
+#if 0
 	u_char	fifo_image;	/* copy of value written to FIFO */
 #endif
 	u_char	gfrcr_image;	/* copy of value read from GFRCR */
@@ -1280,7 +1284,9 @@ cont:
 						cd_outb(iobase, CD1400_SRER,
 							cy_align,
 							com->intr_enable
-							|= CD1400_SRER_TXRDY);
+							= com->intr_enable
+							  & ~CD1400_SRER_TXMPTY
+							  | CD1400_SRER_TXRDY);
 				} else {
 					com->state &= ~CS_ODEVREADY;
 					if (com->intr_enable
@@ -1288,7 +1294,9 @@ cont:
 						cd_outb(iobase, CD1400_SRER,
 							cy_align,
 							com->intr_enable
-							&= ~CD1400_SRER_TXRDY);
+							= com->intr_enable
+							  & ~CD1400_SRER_TXRDY
+							  | CD1400_SRER_TXMPTY);
 				}
 			}
 #endif
@@ -1331,6 +1339,17 @@ cont:
 					  & CD1400_xIVR_CHAN));
 #endif
 
+			if (com->intr_enable & CD1400_SRER_TXMPTY) {
+				if (!(com->extra_state & CSE_ODONE)) {
+					com_events += LOTS_OF_EVENTS;
+					com->extra_state |= CSE_ODONE;
+					setsofttty();
+				}
+				cd_outb(iobase, CD1400_SRER, cy_align,
+					com->intr_enable
+					&= ~CD1400_SRER_TXMPTY);
+				goto terminate_tx_service;
+			}
 		if (com->state >= (CS_BUSY | CS_TTGO | CS_ODEVREADY)) {
 			u_char	*ioptr;
 			u_int	ocount;
@@ -1358,9 +1377,24 @@ cont:
 				} else {
 					/* output just completed */
 					com->state &= ~CS_BUSY;
+
+					/*
+					 * The setting of CSE_ODONE may be
+					 * stale here.  We currently only
+					 * use it when CS_BUSY is set, and
+					 * fixing it when we clear CS_BUSY
+					 * is easiest.
+					 */
+					if (com->extra_state & CSE_ODONE) {
+						com_events -= LOTS_OF_EVENTS;
+						com->extra_state &= ~CSE_ODONE;
+					}
+
 					cd_outb(iobase, CD1400_SRER, cy_align,
 						com->intr_enable
-						&= ~CD1400_SRER_TXRDY);
+						= com->intr_enable
+						  & ~CD1400_SRER_TXRDY
+						  | CD1400_SRER_TXMPTY);
 				}
 				if (!(com->state & CS_ODONE)) {
 					com_events += LOTS_OF_EVENTS;
@@ -1373,6 +1407,7 @@ cont:
 		}
 
 			/* terminate service context */
+terminate_tx_service:
 #ifdef PollMode
 			cd_outb(iobase, CD1400_TIR, cy_align,
 				save_tir
@@ -1651,10 +1686,18 @@ repeat:
 			disable_intr();
 			com_events -= LOTS_OF_EVENTS;
 			com->state &= ~CS_ODONE;
-			if (!(com->state & CS_BUSY))
-				com->tp->t_state &= ~TS_BUSY;
 			enable_intr();
 			(*linesw[tp->t_line].l_start)(tp);
+		}
+		if (com->extra_state & CSE_ODONE) {
+			disable_intr();
+			com_events -= LOTS_OF_EVENTS;
+			com->extra_state &= ~CSE_ODONE;
+			enable_intr();
+			if (!(com->state & CS_BUSY)) {
+				tp->t_state &= ~TS_BUSY;
+				ttwwakeup(com->tp);
+			}
 		}
 		if (incc <= 0 || !(tp->t_state & TS_ISOPEN))
 			continue;
@@ -2049,11 +2092,15 @@ comparam(tp, t)
 	if (com->state >= (CS_BUSY | CS_TTGO | CS_ODEVREADY)) {
 		if (!(com->intr_enable & CD1400_SRER_TXRDY))
 			cd_setreg(com, CD1400_SRER,
-				  com->intr_enable |= CD1400_SRER_TXRDY);
+				  com->intr_enable
+				  = com->intr_enable & ~CD1400_SRER_TXMPTY
+				    | CD1400_SRER_TXRDY);
 	} else {
 		if (com->intr_enable & CD1400_SRER_TXRDY)
 			cd_setreg(com, CD1400_SRER,
-				  com->intr_enable &= ~CD1400_SRER_TXRDY);
+				  com->intr_enable
+				  = com->intr_enable & ~CD1400_SRER_TXRDY
+				    | CD1400_SRER_TXMPTY);
 	}
 
 	enable_intr();
@@ -2087,13 +2134,17 @@ comstart(tp)
 		com->state &= ~CS_TTGO;
 		if (com->intr_enable & CD1400_SRER_TXRDY)
 			cd_setreg(com, CD1400_SRER,
-				  com->intr_enable &= ~CD1400_SRER_TXRDY);
+				  com->intr_enable
+				  = com->intr_enable & ~CD1400_SRER_TXRDY
+				    | CD1400_SRER_TXMPTY);
 	} else {
 		com->state |= CS_TTGO;
 		if (com->state >= (CS_BUSY | CS_TTGO | CS_ODEVREADY)
 		    && !(com->intr_enable & CD1400_SRER_TXRDY))
 			cd_setreg(com, CD1400_SRER,
-				  com->intr_enable |= CD1400_SRER_TXRDY);
+				  com->intr_enable
+				  = com->intr_enable & ~CD1400_SRER_TXMPTY
+				    | CD1400_SRER_TXRDY);
 	}
 	if (tp->t_state & TS_TBLOCK) {
 		if (com->mcr_image & com->mcr_rts && com->state & CS_RTS_IFLOW)
@@ -2148,7 +2199,9 @@ comstart(tp)
 						   | CS_ODEVREADY))
 					cd_setreg(com, CD1400_SRER,
 						  com->intr_enable
-						  |= CD1400_SRER_TXRDY);
+						  = com->intr_enable
+						    & ~CD1400_SRER_TXMPTY
+						    | CD1400_SRER_TXRDY);
 			}
 			enable_intr();
 		}
@@ -2176,7 +2229,9 @@ comstart(tp)
 						   | CS_ODEVREADY))
 					cd_setreg(com, CD1400_SRER,
 						  com->intr_enable
-						  |= CD1400_SRER_TXRDY);
+						  = com->intr_enable
+						    & ~CD1400_SRER_TXMPTY
+						    | CD1400_SRER_TXRDY);
 			}
 			enable_intr();
 		}
@@ -2211,6 +2266,10 @@ siostop(tp, rw)
 		if (com->state & CS_ODONE)
 			com_events -= LOTS_OF_EVENTS;
 		com->state &= ~(CS_ODONE | CS_BUSY);
+		if (com->extra_state & CSE_ODONE) {
+			com_events -= LOTS_OF_EVENTS;
+			com->extra_state &= ~CSE_ODONE;
+		}
 		com->tp->t_state &= ~TS_BUSY;
 	}
 	if (rw & FREAD) {
