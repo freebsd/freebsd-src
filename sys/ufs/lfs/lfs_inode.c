@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_inode.c	8.5 (Berkeley) 12/30/93
- * $Id$
+ * $Id: lfs_inode.c,v 1.2 1994/08/02 07:54:35 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -217,7 +217,6 @@ lfs_truncate(ap)
 			return (e1);
 		ip->i_size = length;
 		size = blksize(fs);
-		(void)vnode_pager_uncache(vp);
 		bzero((char *)bp->b_data + offset, (u_int)(size - offset));
 		allocbuf(bp, size);
 		if (e1 = VOP_BWRITE(bp))

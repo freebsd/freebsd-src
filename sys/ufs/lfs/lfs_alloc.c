@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_alloc.c	8.4 (Berkeley) 1/4/94
- * $Id: lfs_alloc.c,v 1.2 1994/08/02 07:54:29 davidg Exp $
+ * $Id: lfs_alloc.c,v 1.3 1994/08/20 03:49:00 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -99,7 +99,6 @@ lfs_valloc(ap)
 		lfs_balloc(vp, fs->lfs_bsize, blkno, &bp);
 		ip->i_size += fs->lfs_bsize;
 		vnode_pager_setsize(vp, (u_long)ip->i_size);
-		vnode_pager_uncache(vp);
 
 		i = (blkno - fs->lfs_segtabsz - fs->lfs_cleansz) *
 		    fs->lfs_ifpb;

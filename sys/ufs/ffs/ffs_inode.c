@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_inode.c	8.5 (Berkeley) 12/30/93
- * $Id: ffs_inode.c,v 1.4 1994/08/02 13:51:05 davidg Exp $
+ * $Id: ffs_inode.c,v 1.5 1994/08/03 08:19:35 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -190,7 +190,7 @@ ffs_truncate(ap)
 	/*
 	 * Lengthen the size of the file. We must ensure that the
 	 * last byte of the file is allocated. Since the smallest
-	 * value of oszie is 0, length will be at least 1.
+	 * value of osize is 0, length will be at least 1.
 	 */
 	if (osize < length) {
 		offset = blkoff(fs, length - 1);
@@ -202,7 +202,6 @@ ffs_truncate(ap)
 		    aflags))
 			return (error);
 		oip->i_size = length;
-		(void) vnode_pager_uncache(ovp);
 		if (aflags & IO_SYNC)
 			bwrite(bp);
 		else
@@ -230,7 +229,6 @@ ffs_truncate(ap)
 			return (error);
 		oip->i_size = length;
 		size = blksize(fs, oip, lbn);
-		(void) vnode_pager_uncache(ovp);
 		bzero((char *)bp->b_data + offset, (u_int)(size - offset));
 		allocbuf(bp, size);
 		if (aflags & IO_SYNC)
