@@ -29,13 +29,13 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)getttyent.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <ttyent.h>
 #include <stdio.h>
@@ -50,14 +50,14 @@ static char *line;
 
 #define	MALLOCCHUNK	100
 
-static char *skip __P((char *));
-static char *value __P((char *));
+static char *skip(char *);
+static char *value(char *);
 
 struct ttyent *
 getttynam(tty)
 	const char *tty;
 {
-	register struct ttyent *t;
+	struct ttyent *t;
 
 	if (strncmp(tty, "/dev/", 5) == 0)
 		tty += 5;
@@ -73,8 +73,8 @@ struct ttyent *
 getttyent()
 {
 	static struct ttyent tty;
-	register char *p;
-	register int c;
+	char *p;
+	int c;
 	size_t i;
 
 	if (!tf && !setttyent())
@@ -165,10 +165,10 @@ getttyent()
  */
 static char *
 skip(p)
-	register char *p;
+	char *p;
 {
-	register char *t;
-	register int c, q;
+	char *t;
+	int c, q;
 
 	for (q = 0, t = p; (c = *p) != '\0'; p++) {
 		if (c == '"') {
@@ -199,7 +199,7 @@ skip(p)
 
 static char *
 value(p)
-	register char *p;
+	char *p;
 {
 
 	return ((p = index(p, '=')) ? ++p : NULL);
@@ -244,7 +244,7 @@ isttystat(tty, flag)
 	const char *tty;
 	int flag;
 {
-	register struct ttyent *t;
+	struct ttyent *t;
 
 	return ((t = getttynam(tty)) == NULL) ? 0 : !!(t->ty_status & flag);
 }

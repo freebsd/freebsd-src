@@ -29,13 +29,13 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)nlist.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <sys/param.h>
@@ -58,9 +58,9 @@ static char sccsid[] = "@(#)nlist.c	8.1 (Berkeley) 6/4/93";
 #include <elf-hints.h>
 #endif
 
-int __fdnlist		__P((int, struct nlist *));
-int __aout_fdnlist	__P((int, struct nlist *));
-int __elf_fdnlist	__P((int, struct nlist *));
+int __fdnlist(int, struct nlist *);
+int __aout_fdnlist(int, struct nlist *);
+int __elf_fdnlist(int, struct nlist *);
 
 int
 nlist(name, list)
@@ -78,7 +78,7 @@ nlist(name, list)
 }
 
 static struct nlist_handlers {
-	int	(*fn) __P((int fd, struct nlist *list));
+	int	(*fn)(int fd, struct nlist *list);
 } nlist_fn[] = {
 #ifdef _NLIST_DO_AOUT
 	{ __aout_fdnlist },
@@ -90,8 +90,8 @@ static struct nlist_handlers {
 
 int
 __fdnlist(fd, list)
-	register int fd;
-	register struct nlist *list;
+	int fd;
+	struct nlist *list;
 {
 	int n = -1, i;
 
@@ -108,14 +108,14 @@ __fdnlist(fd, list)
 #ifdef _NLIST_DO_AOUT
 int
 __aout_fdnlist(fd, list)
-	register int fd;
-	register struct nlist *list;
+	int fd;
+	struct nlist *list;
 {
-	register struct nlist *p, *symtab;
-	register caddr_t strtab, a_out_mmap;
-	register off_t stroff, symoff;
-	register u_long symsize;
-	register int nent;
+	struct nlist *p, *symtab;
+	caddr_t strtab, a_out_mmap;
+	off_t stroff, symoff;
+	u_long symsize;
+	int nent;
 	struct exec * exec;
 	struct stat st;
 
@@ -178,7 +178,7 @@ __aout_fdnlist(fd, list)
 	}
 
 	while (symsize > 0) {
-		register int soff;
+		int soff;
 
 		symsize-= sizeof(struct nlist);
 		soff = symtab->n_un.n_strx;
@@ -202,7 +202,7 @@ __aout_fdnlist(fd, list)
 #endif
 
 #ifdef _NLIST_DO_ELF
-static void elf_sym_to_nlist __P((struct nlist *, Elf_Sym *, Elf_Shdr *, int));
+static void elf_sym_to_nlist(struct nlist *, Elf_Sym *, Elf_Shdr *, int);
 
 /*
  * __elf_is_okay__ - Determine if ehdr really
@@ -213,9 +213,9 @@ static void elf_sym_to_nlist __P((struct nlist *, Elf_Sym *, Elf_Shdr *, int));
  */
 int
 __elf_is_okay__(ehdr)
-	register Elf_Ehdr *ehdr;
+	Elf_Ehdr *ehdr;
 {
-	register int retval = 0;
+	int retval = 0;
 	/*
 	 * We need to check magic, class size, endianess,
 	 * and version before we look at the rest of the
@@ -237,13 +237,13 @@ __elf_is_okay__(ehdr)
 
 int
 __elf_fdnlist(fd, list)
-	register int fd;
-	register struct nlist *list;
+	int fd;
+	struct nlist *list;
 {
-	register struct nlist *p;
-	register Elf_Off symoff = 0, symstroff = 0;
-	register Elf_Word symsize = 0, symstrsize = 0;
-	register Elf_Sword cc, i;
+	struct nlist *p;
+	Elf_Off symoff = 0, symstroff = 0;
+	Elf_Word symsize = 0, symstrsize = 0;
+	Elf_Sword cc, i;
 	int nent = -1;
 	int errsave;
 	Elf_Sym sbuf[1024];

@@ -32,13 +32,13 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)glob.c	8.3 (Berkeley) 10/13/93";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * glob(3) -- a superset of the one defined in POSIX 1003.2.
@@ -130,33 +130,33 @@ typedef char Char;
 #define	ismeta(c)	(((c)&M_QUOTE) != 0)
 
 
-static int	 compare __P((const void *, const void *));
-static int	 g_Ctoc __P((const Char *, char *, u_int));
-static int	 g_lstat __P((Char *, struct stat *, glob_t *));
-static DIR	*g_opendir __P((Char *, glob_t *));
-static Char	*g_strchr __P((Char *, int));
+static int	 compare(const void *, const void *);
+static int	 g_Ctoc(const Char *, char *, u_int);
+static int	 g_lstat(Char *, struct stat *, glob_t *);
+static DIR	*g_opendir(Char *, glob_t *);
+static Char	*g_strchr(Char *, int);
 #ifdef notdef
-static Char	*g_strcat __P((Char *, const Char *));
+static Char	*g_strcat(Char *, const Char *);
 #endif
-static int	 g_stat __P((Char *, struct stat *, glob_t *));
-static int	 glob0 __P((const Char *, glob_t *, int *));
-static int	 glob1 __P((Char *, glob_t *, int *));
-static int	 glob2 __P((Char *, Char *, Char *, Char *, glob_t *, int *));
-static int	 glob3 __P((Char *, Char *, Char *, Char *, Char *, glob_t *, int *));
-static int	 globextend __P((const Char *, glob_t *, int *));
+static int	 g_stat(Char *, struct stat *, glob_t *);
+static int	 glob0(const Char *, glob_t *, int *);
+static int	 glob1(Char *, glob_t *, int *);
+static int	 glob2(Char *, Char *, Char *, Char *, glob_t *, int *);
+static int	 glob3(Char *, Char *, Char *, Char *, Char *, glob_t *, int *);
+static int	 globextend(const Char *, glob_t *, int *);
 static const Char *	
-		 globtilde __P((const Char *, Char *, size_t, glob_t *));
-static int	 globexp1 __P((const Char *, glob_t *, int *));
-static int	 globexp2 __P((const Char *, const Char *, glob_t *, int *, int *));
-static int	 match __P((Char *, Char *, Char *));
+		 globtilde(const Char *, Char *, size_t, glob_t *);
+static int	 globexp1(const Char *, glob_t *, int *);
+static int	 globexp2(const Char *, const Char *, glob_t *, int *, int *);
+static int	 match(Char *, Char *, Char *);
 #ifdef DEBUG
-static void	 qprintf __P((const char *, Char *));
+static void	 qprintf(const char *, Char *);
 #endif
 
 int
 glob(pattern, flags, errfunc, pglob)
 	const char *pattern;
-	int flags, (*errfunc) __P((const char *, int));
+	int flags, (*errfunc)(const char *, int);
 	glob_t *pglob;
 {
 	const u_char *patnext;
@@ -597,7 +597,7 @@ glob3(pathbuf, pathend, pathend_last, pattern, restpattern, pglob, limit)
 	glob_t *pglob;
 	int *limit;
 {
-	register struct dirent *dp;
+	struct dirent *dp;
 	DIR *dirp;
 	int err;
 	char buf[MAXPATHLEN];
@@ -635,8 +635,8 @@ glob3(pathbuf, pathend, pathend_last, pattern, restpattern, pglob, limit)
 	else
 		readdirfunc = readdir;
 	while ((dp = (*readdirfunc)(dirp))) {
-		register u_char *sc;
-		register Char *dc;
+		u_char *sc;
+		Char *dc;
 
 		/* Initial DOT must be matched literally. */
 		if (dp->d_name[0] == DOT && *pattern != DOT)
@@ -683,8 +683,8 @@ globextend(path, pglob, limit)
 	glob_t *pglob;
 	int *limit;
 {
-	register char **pathv;
-	register int i;
+	char **pathv;
+	int i;
 	u_int newsize, len;
 	char *copy;
 	const Char *p;
@@ -734,7 +734,7 @@ globextend(path, pglob, limit)
  */
 static int
 match(name, pat, patend)
-	register Char *name, *pat, *patend;
+	Char *name, *pat, *patend;
 {
 	int ok, negate_range;
 	Char c, k;
@@ -788,8 +788,8 @@ void
 globfree(pglob)
 	glob_t *pglob;
 {
-	register int i;
-	register char **pp;
+	int i;
+	char **pp;
 
 	if (pglob->gl_pathv != NULL) {
 		pp = pglob->gl_pathv + pglob->gl_offs;
@@ -803,7 +803,7 @@ globfree(pglob)
 
 static DIR *
 g_opendir(str, pglob)
-	register Char *str;
+	Char *str;
 	glob_t *pglob;
 {
 	char buf[MAXPATHLEN];
@@ -823,7 +823,7 @@ g_opendir(str, pglob)
 
 static int
 g_lstat(fn, sb, pglob)
-	register Char *fn;
+	Char *fn;
 	struct stat *sb;
 	glob_t *pglob;
 {
@@ -840,7 +840,7 @@ g_lstat(fn, sb, pglob)
 
 static int
 g_stat(fn, sb, pglob)
-	register Char *fn;
+	Char *fn;
 	struct stat *sb;
 	glob_t *pglob;
 {
@@ -885,9 +885,9 @@ g_Ctoc(str, buf, len)
 static void
 qprintf(str, s)
 	const char *str;
-	register Char *s;
+	Char *s;
 {
-	register Char *p;
+	Char *p;
 
 	(void)printf("%s:\n", str);
 	for (p = s; *p; p++)
