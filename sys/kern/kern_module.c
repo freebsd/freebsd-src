@@ -102,8 +102,8 @@ module_register_init(const void *arg)
 	if (error) {
 		MOD_EVENT(mod, MOD_UNLOAD);
 		module_release(mod);
-		printf("module_register_init: MOD_LOAD (%s, %lx, %p) error"
-		    " %d\n", data->name, data->evhand, data->priv,
+		printf("module_register_init: MOD_LOAD (%s, %p, %p) error"
+		    " %d\n", data->name, (void *)data->evhand, data->priv,
 		    error); 
 	}
 }
