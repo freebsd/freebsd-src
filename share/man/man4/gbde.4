@@ -16,9 +16,6 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. The names of the authors may not be used to endorse or promote
-.\"    products derived from this software without specific prior written
-.\"    permission.
 .\"
 .\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -42,6 +39,18 @@
 .Nd Geom Based Disk Encryption.
 .Sh SYNOPSIS
 .Cd options GEOM_BDE
+.Sh NOTICE
+.Pp
+Please be aware that this code has not yet received much review
+and analysis by qualified cryptographers and therefore should be considered
+a slightly suspect experimental facility.
+.Pp
+We cannot at this point guarantee that the on-disk format will not change
+in response to reviews or bug-fixes, so potential users are adviced to
+be prepared that
+.Xr dump 8 /
+.Xr restore 8
+based migrations may be called for in the future.
 .Sh DESCRIPTION
 .Pp
 The objective of this facility is to provide a high degree of
@@ -64,64 +73,78 @@ a valid pass-phrase.
 Four cryptographic barriers must be passed to gain access to the data,
 and only a valid pass-phrase will allow yield this access.
 .Pp
-When the pass-phrase is entered, it is used to seed an ARC4 based
-byte oriented PNRG which is used to produce what we call the
+When the pass-phrase is entered, it is hashed with SHA2 into a 512 bit
 .Dq key-material .
 This is a way to producing cryptographic usable keys from a typically
 all-ASCII pass-phrase of an unpredictable user-selected length.
-.Ss First barrier: the location of the \&"master-lock" sector.
+.Ss First barrier: the location of the \&"lock-sector".
 During initialization, up to four indepenent but mutually aware
-.Dq master-key
+.Dq lock-sectors
 sectors are written to the device in randomly chosen
 locations.
-These master-keys contain a 2048 random bit key and a number of parameters
-of the layout geometry (more on this later).
-Since the entire device will contain isotropic data, there is no way
-short of trying, to determine which sequence of bytes contain 
-the encrypted master-key.
+These lock-sectors contain the 2048 random bit master-key and a number
+of parameters of the layout geometry (more on this later).
+Since the entire device will contain isotropic data, there is no
+short-cut to rapidly determine which sequence of bytes contain a lock-sector.
 .Pp
-To find one of these sectors, a small piece of data called the
-.Dq lockdata
+To locate a lock-sector, a small piece of data called the
+.Dq metadata
 and the key-material must be available.
 The key-material decrypts the
-lockdata, which contains the byte offset on the device where the
-master-key is located.
-If the lockdata is lost or unavailable but the key-material is at
+metadata, which contains the byte offset on the device where the
+corresponding lock-sector is located.
+If the metadata is lost or unavailable but the key-material is at
 hand, it would be feasible to do a brute force scan where each byte offset
-of the device is checked to see if it contains the master-key data.
+of the device is checked to see if it contains the lock-sector data.
 .Ss Second barrier: decryption of the master-key using key-material.
-The master-key is stored in an architecture neutral byte-sequence which
-is scrambled and encrypted with the key-material.
+The lock-sector contains an encrypted copy of an architecture neutral
+byte-sequence which encodes the fields of the lock-structure.
+The order in which these fields are encoded is determined from the key-material.
+The encoded bytestream is encrypted with 256bit AES in CBC mode.
 .Ss Third barrier: decryption of the sector key.
-Using a PNRG like process seeded with the sector address and the 2048 bit key 
-from the master-key a per-sector key is derived which is used to encrypt
-the sector key which is stored on the disk.
+For each sector, an MD5 hash over a
+.Dq salt
+from the lock-sector and the sector number is used to 
+.Dq cherry-pick
+a subset of the master key,
+which hashed together with the sector offset through MD5 produces the
+.Dq kkey ,
+the key which encryptes the sector key.
 .Ss Fourth barrier: decryption of the sector data.
-The actual payload of the sector is encrypted with a single-use random bits
-key.
+The actual payload of the sector is encrypted with 128 bit AES in CBC mode
+using a single-use random bits key.
 .Ss Examining the reverse path
 Assuming an attacker who knows an amount of plaintext, and has managed to
 locate the corresponding encrypted sectors on the device, gaining access
 to the plaintext context of other sectors is a daunting task:
+.Pp
 First he will have to derive from the encrypted sector and the known plain
 text the sector key(s) used.
-(At the time of writing, it is speculated that it could maybe be possible
-to do so in only 2^80 operations which is still a staggering number).
+At the time of writing, it has been speculated that it could maybe be
+possible to break open AES in only 2^80 operations even so, that is still
+a very impossible task.
 .Pp
 Armed with one or more sector keys, our patient attacker will then go
 through essentially the same exercise, using the sector key and the
 encrypted sector key to find the key used to encrypt the sectorkey.
 .Pp
 Armed with one or more of these
-.Dq key-keys ,
-our attacker has to derive
-as much information about the 2048 bit master-key.
-To do so, he
-first has to reverse an MD5 hash, and then the PRNG-like algorithm
-which derives the MD5 input from the master-key.
+.Dq kkeys ,
+our attacker has to
+run them backwards through MD5.
+Even though he knows that the input to MD5 was 24 bytes and has the value
+of 8 of these bytes from the sector number, he is still faced with 2^128
+equally likely possibilities.
 .Pp
-Any attacker with access to the necessary machine power will probably be
-better off attempting to brute-force the pass-phrase.
+Having succesfully done that, our attacker has successfully discovered
+up to 16 bytes of the master-key, but is still unaware which 16 bytes,
+and in which other sectors any of these known bytes contribute to the kkey.
+.Pp
+To unravel the last bit, the attacker has to guess the 16 byte random-bits
+salt stored in the lock-sector to recover the indexes into the masterkey.
+.Pp
+Any attacker with access to the necessary machine power to even attempt
+this attack will be better off attempting to brute-force the pass-phrase.
 .Ss Postive denial facilities
 Considering the infeasibility of the above attack,
 gaining access to the pass-phrase will be of paramount importance for an
@@ -144,13 +167,13 @@ single key, which has a complexity comparable to a number with 600 digits.
 .Pp
 This key exists in four copies, each of which is stored in one of 
 four small safes, each of which can be opened
-with unique key which has a complexity comparable to a 40 digit
+with unique key which has a complexity comparable to a 80 digit
 number.
 .Pp
 In addition to the masterkey, each of the four safes also contain
 the exact locations of all four key-safes which are located in
-randomly chosen places on the outside surface of the vault and they
-are impossible to detect when they are closed.
+randomly chosen places on the outside surface of the vault where they
+are practically impossible to detect when they are closed.
 .Pp
 Finally, each safe contains four switches which are wired to a bar
 of dynamite inside each of the four safes.
@@ -233,6 +256,10 @@ single-use key
 .Dq ( "the skey" ) .
 AES is well documented.
 .Pp
+No IV is used in the encryption of the sectors, the assumption being
+that since the key is random bits and single-use, an IV adds nothing to the
+security of AES.
+.Pp
 The random key is produced with
 .Xr arc4rand 9
 which is belived to do a respectable job at producing unpredictable bytes.
@@ -242,35 +269,20 @@ the location of the encrypted payload data.
 The stored copy is encrypted with AES in CBC mode using a 128 bit key
 .Dq ( "the kkey" )
 derived
-from the master key using a purpose built PRNG like algorithm seeded
-with the sector address of the data in question.
-The function of the PRNG is to produce a hash of the masterkey
-unique for each of the payload sectors on the device in one-way
-sort of way.
-Up to 12.5% of the masterkey (32 bytes out of 2048 bits) will be involved
-in producing each kkey.
-Since the one-way properties of this algorithm has not been properly
-studied and therefore may have any strength, the output is subsequently
-hashed using MD5 to get the final kkey.
-MD5 is well documented.
+from a subset of the master key chosen by the output of an MD5 hash
+over a 16 byte random bit static salt and the sector offset.
+Up to 6.25% of the masterkey (16 bytes out of 2048 bits) will be selected
+and hashed though MD5 with the sector offset to generate the kkey.
 .Pp
 Up to four copies of the master-key and associated geometry information
-is stored on the device in randomly chosen locations.
-Each of these copies are XORed with key-material and subsequently
-encrypted with AES in CBC mode using 128 bit key-material.
+is stored on the device in static randomly chosen sectors.
+The exact location inside the sector is randomly chosen.
+The order in which the fields are encoded depends on the key-material.
+The encoded byte-stream is encrypted with AES in CBC mode using 256 bit
+key-material.
 .Pp
 The key-material is derived from the user-entered pass-phrase using
-an ARC4 PRNG.
-ARC4 is a very simple algorithm, the sbox of which can be in up 
-to 2^1700 possible states.
-ARC4 is compatible with RC4, the formal documentation and analysis
-of which is not publically available.
-.Pp
-The ARC4 PRNG is seeded with the pass-phrase as selected and entered
-by the user.
-Each additional byte of pass-phrase after the first 255 adds significantly
-less entropy to the initial state of the ARC4 sbox due to aliasing in
-the ARC4 seeding algorithm.
+512 bit SHA2.
 .Pp
 No chain is stronger than its weakest link, which usually is poor pass-phrases.
 .Sh SEE ALSO

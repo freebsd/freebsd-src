@@ -16,9 +16,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The names of the authors may not be used to endorse or promote
- *    products derived from this software without specific prior written
- *    permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -51,12 +48,49 @@
 #include <libutil.h>
 #include <sys/errno.h>
 #include <sys/disk.h>
+#include <sys/stat.h>
 #include <crypto/rijndael/rijndael.h>
+#include <crypto/sha2/sha2.h>
+
+#define KASSERT(foo, bar) do { if(!(foo)) { warn bar ; exit (1); } } while (0)
 
 #include <geom/geom.h>
 #include <geom/bde/g_bde.h>
 
 extern const char template[];
+
+
+#if 0
+static void
+g_hexdump(void *ptr, int length)
+{
+	int i, j, k;
+	unsigned char *cp;
+
+	cp = ptr;
+	for (i = 0; i < length; i+= 16) {
+		printf("%04x  ", i);
+		for (j = 0; j < 16; j++) {
+			k = i + j;
+			if (k < length)
+				printf(" %02x", cp[k]);
+			else
+				printf("   ");
+		}
+		printf("  |");
+		for (j = 0; j < 16; j++) {
+			k = i + j;
+			if (k >= length)
+				printf(" ");
+			else if (cp[k] >= ' ' && cp[k] <= '~')
+				printf("%c", cp[k]);
+			else
+				printf(".");
+		}
+		printf("|\n");
+	}
+}
+#endif
 
 static void __dead2
 usage(const char *reason)
@@ -114,14 +148,13 @@ random_bits(void *p, u_int len)
 }
 
 /* XXX: not nice */
-static u_char sbox[256];
+static u_char sha2[SHA512_DIGEST_LENGTH];
 
 static void
 reset_passphrase(struct g_bde_softc *sc)
 {
 
-	memcpy(sc->arc4_sbox, sbox, 256);
-	sc->arc4_i = sc->arc4_j = 0;
+	memcpy(sc->sha2, sha2, SHA512_DIGEST_LENGTH);
 }
 
 static void
@@ -130,8 +163,8 @@ setup_passphrase(struct g_bde_softc *sc, int sure, const char *input)
 	char buf1[BUFSIZ], buf2[BUFSIZ], *p;
 
 	if (input != NULL) {
-		g_bde_arc4_seed(sc, input, strlen(input));
-		memcpy(sbox, sc->arc4_sbox, 256);
+		g_bde_hash_pass(sc, input, strlen(input));
+		memcpy(sha2, sc->sha2, SHA512_DIGEST_LENGTH);
 		return;
 	}
 	for (;;) {
@@ -160,12 +193,12 @@ setup_passphrase(struct g_bde_softc *sc, int sure, const char *input)
 		}
 		break;
 	}
-	g_bde_arc4_seed(sc, buf1, strlen(buf1));
-	memcpy(sbox, sc->arc4_sbox, 256);
+	g_bde_hash_pass(sc, buf1, strlen(buf1));
+	memcpy(sha2, sc->sha2, SHA512_DIGEST_LENGTH);
 }
 
 static void
-encrypt_sector(void *d, int len, void *key)
+encrypt_sector(void *d, int len, int klen, void *key)
 {
 	keyInstance ki;
 	cipherInstance ci;
@@ -174,7 +207,7 @@ encrypt_sector(void *d, int len, void *key)
 	error = rijndael_cipherInit(&ci, MODE_CBC, NULL);
 	if (error <= 0)
 		errx(1, "rijndael_cipherInit=%d", error);
-	error = rijndael_makeKey(&ki, DIR_ENCRYPT, 128, key);
+	error = rijndael_makeKey(&ki, DIR_ENCRYPT, klen, key);
 	if (error <= 0)
 		errx(1, "rijndael_makeKeY=%d", error);
 	error = rijndael_blockEncrypt(&ci, &ki, d, len * 8, d);
@@ -205,12 +238,12 @@ cmd_attach(const struct g_bde_softc *sc, const char *dest, const char *lfile)
 		ffd = open(lfile, O_RDONLY, 0);
 		if (ffd < 0)
 			err(1, lfile);
-		read(ffd, buf + 256, 16);
+		read(ffd, buf + sizeof(sc->sha2), 16);
 		close(ffd);
 	} else {
-		memset(buf + 256, 0, 16);
+		memset(buf + sizeof(sc->sha2), 0, 16);
 	}
-	memcpy(buf, sc->arc4_sbox, 256);
+	memcpy(buf, sc->sha2, sizeof(sc->sha2));
 
 	i = ioctl(gfd, GEOMCONFIGGEOM, &gcg);
 	if (i != 0)
@@ -241,12 +274,28 @@ cmd_detach(const char *dest)
 }
 
 static void
-cmd_open(struct g_bde_softc *sc, int dfd __unused, const char *l_opt, u_int *nkey)
+cmd_open(struct g_bde_softc *sc, int dfd , const char *l_opt, u_int *nkey)
 {
 	int error;
 	int ffd;
 	u_char keyloc[16];
+	u_int sectorsize;
+	off_t mediasize;
+	struct stat st;
 
+	error = ioctl(dfd, DIOCGSECTORSIZE, &sectorsize);
+	if (error)
+		sectorsize = 512;
+	error = ioctl(dfd, DIOCGMEDIASIZE, &mediasize);
+	if (error) {
+		error = fstat(dfd, &st);
+		if (error == 0 && S_ISREG(st.st_mode))
+			mediasize = st.st_size;
+		else
+			error = ENOENT;
+	}
+	if (error)
+		mediasize = (off_t)-1;
 	if (l_opt != NULL) {
 		ffd = open(l_opt, O_RDONLY, 0);
 		if (ffd < 0)
@@ -257,8 +306,8 @@ cmd_open(struct g_bde_softc *sc, int dfd __unused, const char *l_opt, u_int *nke
 		memset(keyloc, 0, sizeof keyloc);
 	}
 
-	error = g_bde_decrypt_lock(sc, sbox, keyloc, 0xffffffff,
-	    512, nkey);
+	error = g_bde_decrypt_lock(sc, sc->sha2, keyloc, mediasize,
+	    sectorsize, nkey);
 	if (error == ENOENT)
 		errx(1, "Lock was destroyed.");
 	if (error == ESRCH)
@@ -294,12 +343,10 @@ cmd_nuke(struct g_bde_key *gl, int dfd , int key)
 static void
 cmd_write(struct g_bde_key *gl, struct g_bde_softc *sc, int dfd , int key, const char *l_opt)
 {
-	char buf[BUFSIZ];
 	int i, ffd;
 	uint64_t off[2];
 	u_char keyloc[16];
 	u_char *sbuf, *q;
-	MD5_CTX c;
 	off_t offset, offset2;
 
 	sbuf = malloc(gl->sectorsize);
@@ -352,32 +399,16 @@ cmd_write(struct g_bde_key *gl, struct g_bde_softc *sc, int dfd , int key, const
 		err(1, "malloc");
 	random_bits(sbuf, gl->sectorsize);
 
-	/* Fill in the hash field with something we can recognize again */
-	g_bde_arc4_seq(sc, buf, 16);
-	MD5Init(&c);
-	MD5Update(&c, "0000", 4);	/* XXX: for future versioning */
-	MD5Update(&c, buf, 16);
-	MD5Final(gl->hash, &c);
-
 	/* Fill random bits in the spare field */
 	random_bits(gl->spare, sizeof(gl->spare));
 
 	/* Encode the structure where we want it */
 	q = sbuf + (off[0] % gl->sectorsize);
-	g_bde_encode_lock(gl, q);
+	i = g_bde_encode_lock(sc, gl, q);
+	if (i < 0)
+		errx(1, "programming error encoding lock");
 
-	/*
-	 * The encoded structure likely contains long sequences of zeros
-	 * which stick out as a sore thumb, so we XOR with key-material
-	 * to make it harder to recognize in a brute-force attack
-	 */
-	g_bde_arc4_seq(sc, buf, G_BDE_LOCKSIZE);
-	for (i = 0; i < G_BDE_LOCKSIZE; i++)
-		q[i] ^= buf[i];
-
-	g_bde_arc4_seq(sc, buf, 16);
-
-	encrypt_sector(q, G_BDE_LOCKSIZE, buf);
+	encrypt_sector(q, G_BDE_LOCKSIZE, 256, sc->sha2 + 16);
 	offset = gl->lsector[key] & ~(gl->sectorsize - 1);
 	offset2 = lseek(dfd, offset, SEEK_SET);
 	if (offset2 != offset)
