@@ -92,9 +92,8 @@ int
 main(int argc, char *argv[])
 {
 	int all, errs, ch, mntsize, error;
-	char **typelist = NULL, *mntonname, *mntfromname;
-	char *type;
-	struct statfs *mntbuf, *sfsrev;
+	char **typelist = NULL;
+	struct statfs *mntbuf, *sfs;
 	struct addrinfo hints;
 
 	/* Start disks transferring immediately. */
@@ -157,29 +156,11 @@ main(int argc, char *argv[])
 		 * that they were mounted.
 		 */
 		for (errs = 0, mntsize--; mntsize > 0; mntsize--) {
-			if (checkvfsname(mntbuf[mntsize].f_fstypename,
-			    typelist))
+			sfs = &mntbuf[mntsize];
+			if (checkvfsname(sfs->f_fstypename, typelist))
 				continue;
-			/*
-			 * Check if a mountpoint is laid over by another mount.
-			 * A warning will be printed to stderr if this is
-			 * the case. The laid over mount remains unmounted.
-			 */
-			mntonname = mntbuf[mntsize].f_mntonname;
-			mntfromname = mntbuf[mntsize].f_mntfromname;
-
-			sfsrev = getmntentry(mntonname, NULL, MNTON, &type,
-			    NAME);
-
-			if (!fflag && bcmp(&sfsrev->f_fsid,
-			    &mntbuf[mntsize].f_fsid, sizeof(fsid_t)) != 0) {
-				warnx("cannot umount %s, %s\n        "
-				    "is mounted there, umount it first",
-				    mntonname, sfsrev->f_mntfromname);
-			}
-
-			if (checkname(mntbuf[mntsize].f_mntonname,
-			    typelist) != 0)
+			if (umountfs(sfs->f_mntfromname, sfs->f_mntonname,
+			    &sfs->f_fsid, sfs->f_fstypename) != 0)
 				errs = 1;
 		}
 		free(mntbuf);
@@ -259,7 +240,7 @@ checkname(char *name, char **typelist)
 	int speclen;
 	char *resolved, realname[MAXPATHLEN];
 	char *type, *hostp, *delimp, *origname;
-	struct statfs *sfs, *sfsrev;
+	struct statfs *sfs;
 
 	len = 0;
 	delimp = hostp = NULL;
@@ -364,29 +345,10 @@ checkname(char *name, char **typelist)
 		return (1);
 
 	/*
-	 * Check if the reverse entrys of the mounttable are really the
-	 * same as the normal ones.
-	 */
-	sfsrev = getmntentry(sfs->f_mntonname, NULL, MNTON, &type, NAME);
-	/*
 	 * Mark the uppermost mount as unmounted.
 	 */
 	(void)getmntentry(sfs->f_mntfromname, sfs->f_mntonname, NOTHING, &type,
 	     MARK);
-	/*
-	 * If several equal mounts are in the mounttable, check the order
-	 * and warn the user if necessary.
-	 */
-	if (fflag != MNT_FORCE && sfsrev != sfs) {
-		warnx("cannot umount %s, %s\n        "
-		    "is mounted there, umount it first",
-		    sfs->f_mntonname, sfsrev->f_mntfromname);
-
-		/* call getmntentry again to set mntcheck[i] to 0 */
-		(void)getmntentry(sfs->f_mntfromname, sfs->f_mntonname,
-		    NOTHING, &type, UNMARK);
-		return (1);
-	}
 	return (umountfs(sfs->f_mntfromname, sfs->f_mntonname, &sfs->f_fsid,
 	    type));
 }
