@@ -23,13 +23,13 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
-
-#include <machine/asm.h>
-__FBSDID("$FreeBSD$");
 
 #define LOCORE
 
+#include <machine/asmacros.h>
 #include <machine/param.h>
 #include <machine/specialreg.h>
 
