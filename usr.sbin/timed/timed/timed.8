@@ -47,7 +47,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-daemon is a time server daemon
+utility is a time server daemon
 which is normally invoked at boot time from the
 .Xr rc.network 8
 file.
@@ -79,8 +79,9 @@ This option may be specified multiple times
 to add more than one network to the list.
 .It Fl F Ar host ...
 Create a list of trusted hosts.
+The
 .Nm
-will only accept trusted hosts as masters.
+utility will only accept trusted hosts as masters.
 If it finds an untrusted host claiming to be master,
 .Nm
 will suppress incoming messages from that host
@@ -141,8 +142,9 @@ flag is not used,
 .Nm
 will treat all machines as trustworthy.
 .Pp
+The
 .Nm
-is based on a master-slave
+utility is based on a master-slave
 scheme.
 When
 .Nm
@@ -160,7 +162,7 @@ and with
 .Xr timedc 8 ,
 a
 .Nm
-control program.
+control utility.
 If the machine running the master becomes unreachable,
 the slaves will elect a new master
 from among those slaves
@@ -187,8 +189,9 @@ or
 flags, it will provide synchronization service on any attached networks
 on which no trusted master server was detected.
 Such a server propagates the time computed by the top-level master.
+The
 .Nm
-will periodically check for the presence of a master
+utility will periodically check for the presence of a master
 on those networks for which it is operating as a slave.
 If it finds that there are no trusted masters on a network,
 it will begin the election process on that network.
@@ -260,5 +263,5 @@ log file for master timed
 .Sh HISTORY
 The
 .Nm
-daemon appeared in
+utility appeared in
 .Bx 4.3 .

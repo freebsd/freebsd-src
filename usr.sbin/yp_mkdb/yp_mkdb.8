@@ -53,14 +53,16 @@
 .Ar inputfile
 .Ar dbname
 .Sh DESCRIPTION
-.Nm Yp_mkdb
-creates
+The
+.Nm
+utility creates
 .Xr db 3
 style databases for use with
 .Fx Ns 's
 NIS server.
-.Nm Yp_mkdb
-reads data from
+The
+.Nm
+utility reads data from
 .Ar inputfile ,
 and writes it to
 .Ar dbname
@@ -79,11 +81,13 @@ These databases are typically stored in
 where
 .Ar domainname
 is the name of the NIS domain being served.
-.Nm Yp_mkdb
-is usually invoked by
+The
+.Nm
+utility is usually invoked by
 .Pa /var/yp/Makefile .
-.Nm Yp_mkdb
-can also be used to dump an NIS database file so that its
+The
+.Nm
+utility can also be used to dump an NIS database file so that its
 contents can be examined.
 For security reasons, all databases that
 .Nm

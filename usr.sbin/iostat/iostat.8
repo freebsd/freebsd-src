@@ -84,8 +84,9 @@ statistics
 .Op Fl w Ar wait
 .Op Ar drives
 .Sh DESCRIPTION
-.Nm Iostat
-displays kernel
+The
+.Nm
+utility displays kernel
 .Tn I/O
 statistics on terminal, device and cpu operations.
 The first statistics that are printed are averaged over the system uptime.
@@ -138,8 +139,9 @@ instead of the default
 Display up to
 .Ar devs
 number of devices.
+The
 .Nm
-will display fewer devices if there aren't
+utility will display fewer devices if there aren't
 .Ar devs
 devices present.
 .It Fl N
@@ -241,8 +243,9 @@ is specified, the default is infinity.
 Display a usage statement and exit.
 .El
 .Pp
-.Nm Iostat
-displays its information in the following format:
+The
+.Nm
+utility displays its information in the following format:
 .Bl -tag -width flag
 .It tty
 .Bl -tag -width indent -compact
@@ -254,7 +257,9 @@ characters written to terminals
 .It devices
 Device operations.
 The header of the field is the device name and unit number.
+The
 .Nm
+utility
 will display as many devices as will fit in a standard 80 column screen, or
 the maximum number of devices in the system, whichever is smaller.
 If
@@ -267,7 +272,9 @@ To force
 .Nm
 to display specific drives, their names may be supplied on the command
 line.
+The
 .Nm
+utility
 will not display more devices than will fit in an 80 column screen, unless
 the
 .Fl n

@@ -49,7 +49,9 @@
 .Op Fl u Ar charging unit length
 .Op Fl m
 .Sh DESCRIPTION
-.Nm Isdnd
+The
+.Nm
+utility
 is the isdn4bsd package daemon which manages all ISDN related connection
 and disconnection of ISDN devices supported by the package.
 .Pp
@@ -118,7 +120,7 @@ or
 will pop-up a command window.
 Because the
 .Nm
-daemon will not listen to messages while the command window is active,
+utility will not listen to messages while the command window is active,
 this command window will disappear automatically after 5 seconds without
 any command key press.
 .Pp
@@ -206,7 +208,9 @@ file option
 .Em monitor-allowed .
 .El
 .Sh INTERACTION WITH THE KERNEL
-.Nm Isdnd
+The
+.Nm
+utility
 communicates with the kernel part of isdn4bsd by receiving status and
 event messages
 .Xr ( read 2
@@ -279,7 +283,7 @@ sends a
 .Em MSG_DIALOUT_IND
 to the
 .Nm
-daemon.
+utility.
 .Pp
 The daemon requests a new CDID from the kernel by using the
 .Em I4B_CDID_REQ
@@ -390,8 +394,9 @@ isdnd -d0xf9 -F
 .Pp
 This will start isdnd with reasonable debugging settings and produce
 output on the current terminal.
-.Nm Isdnd
-can then be terminated by entering Control-C.
+The
+.Nm
+utility can then be terminated by entering Control-C.
 .Pp
 Another example, the command:
 .Bd -literal -offset indent
@@ -419,5 +424,5 @@ Still one or more left.
 .Sh AUTHORS
 The
 .Nm
-daemon and this manual page were written by
+utility and this manual page were written by
 .An Hellmuth Michaelis Aq hm@FreeBSD.org .

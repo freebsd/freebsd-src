@@ -47,8 +47,9 @@
 .Op Fl v
 .Ar mapname
 .Sh DESCRIPTION
-.Nm Yppush
-distributes updated NIS databases (or
+The
+.Nm
+utility distributes updated NIS databases (or
 .Pa maps )
 from an NIS master server to NIS slave servers within an NIS
 domain.
@@ -107,8 +108,9 @@ controls how long
 will wait for a response from a slave server before sending a
 map transfer request to the next slave server in its list.
 .It Fl j Ar #parallel jobs
-.Nm Yppush
-normally performs transfers serially, meaning that it will
+The
+.Nm
+utility normally performs transfers serially, meaning that it will
 send a map transfer request to one slave server and then wait for
 it to respond before moving on to the next slave server.
 In environments
@@ -152,7 +154,7 @@ The
 flag can be used to specify an alternate path in the event that
 the system administrator decides to store the NIS maps somewhere else.
 .It Fl v
-Verbose mode: causes
+Verbose mode: it causes
 .Nm
 to print debugging messages as it runs.
 Specifying this flag twice

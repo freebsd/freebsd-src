@@ -40,8 +40,9 @@
 .Op Fl c Ar configfile
 .Ar interface ...
 .Sh DESCRIPTION
+The
 .Nm
-sends router advertisement packets to the specified
+utility sends router advertisement packets to the specified
 .Ar interfaces .
 .Pp
 The program will daemonize itself on invocation.
@@ -61,8 +62,9 @@ In particular,
 reads all the interface routes from the routing table and advertises
 them as on-link prefixes.
 .Pp
+The
 .Nm
-also watches the routing table.
+utility also watches the routing table.
 If an interface direct route is
 added on an advertising interface and no static prefixes are
 specified by the configuration file,
@@ -188,7 +190,7 @@ dumps its internal state.
 .Sh HISTORY
 The
 .Nm
-command first appeared in WIDE Hydrangea IPv6 protocol stack kit.
+utility first appeared in WIDE Hydrangea IPv6 protocol stack kit.
 .Sh CAVEAT
 There used to be some text that recommended users not to let
 .Nm

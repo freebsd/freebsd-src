@@ -46,7 +46,9 @@
 .Op Fl B Ar boot-banner
 .Op Fl b Ar unit-number
 .Sh DESCRIPTION
-.Nm Stlload
+The
+.Nm
+utility
 is used to download the firmware code to Stallion Technologies intelligent
 multiport serial boards.
 A firmware download is only required for those boards that use the Stallion
@@ -109,8 +111,9 @@ Specify the unit (board) number to be downloaded.  The default is to
 download board 0.
 .El
 .Pp
-.Nm Stlload
-would typically be run from
+The
+.Nm
+utility would typically be run from
 .Pa /etc/rc.serial .
 .Sh FILES
 .Bl -tag -width /usr/libdata/stallion/2681.sys

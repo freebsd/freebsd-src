@@ -43,7 +43,9 @@
 .Op Fl cdlpsW46
 .Op Ar port#
 .Sh DESCRIPTION
-.Nm Lpd
+The
+.Nm
+utility
 is the line printer daemon (spool area handler) and is normally invoked
 at boot time from the
 .Xr rc 8
@@ -256,13 +258,15 @@ If a file cannot be opened, a message will be logged via
 using the
 .Em LOG_LPR
 facility.
-.Nm Lpd
-will try up to 20 times
+The
+.Nm
+utility will try up to 20 times
 to reopen a file it expects to be there, after which it will
 skip the file to be printed.
 .Pp
-.Nm Lpd
-uses
+The
+.Nm
+utility uses
 .Xr flock 2
 to provide exclusive access to the lock file and to prevent multiple
 daemons from becoming active simultaneously.  If the daemon should be killed

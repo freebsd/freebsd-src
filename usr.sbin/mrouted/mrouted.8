@@ -14,15 +14,17 @@
 .Op Fl d Op Ar debug_level
 .Op Fl p
 .Sh DESCRIPTION
-.Nm Mrouted
-is an implementation of the Distance-Vector Multicast Routing
+The
+.Nm
+utility is an implementation of the Distance-Vector Multicast Routing
 Protocol (DVMRP), an earlier version of which is specified in RFC-1075.
 It maintains topological knowledge via a distance-vector routing protocol
 (like RIP, described in RFC-1058), upon which it implements a multicast
 datagram forwarding algorithm called Reverse Path Multicasting.
 .Pp
-.Nm Mrouted
-forwards a multicast datagram along a shortest (reverse) path tree
+The
+.Nm
+utility forwards a multicast datagram along a shortest (reverse) path tree
 rooted at the subnet on which the datagram originates.
 The multicast
 delivery tree may be thought of as a broadcast delivery tree that has
@@ -60,11 +62,14 @@ the purpose of multicasting only, which is independent of the physical
 internet, and which may span multiple Autonomous Systems.  This capability
 is intended for experimental support of internet multicasting only, pending
 widespread support for multicast routing by the regular (unicast) routers.
-.Nm Mrouted
-suffers from the well-known scaling problems of any distance-vector
+The
+.Nm
+utility suffers from the well-known scaling problems of any distance-vector
 routing protocol, and does not (yet) support hierarchical multicast routing.
 .Pp
-.Nm Mrouted
+The
+.Nm
+utility
 handles multicast routing only; there may or may not be unicast routing
 software running on the same machine as
 .Nm .
@@ -131,8 +136,9 @@ writes its pid to the file
 .Pa /var/run/mrouted.pid .
 .El
 .Sh CONFIGURATION
-.Nm Mrouted
-automatically configures itself to forward on all multicast-capable
+The
+.Nm
+utility automatically configures itself to forward on all multicast-capable
 interfaces, i.e., interfaces that have the IFF_MULTICAST flag set (excluding
 the loopback "interface"), and it finds other DVMRP routers directly reachable
 via those interfaces.  To override the default configuration, or to add
@@ -174,7 +180,9 @@ the time to recover from a reboot.  For use in this situation, the
 prune_lifetime keyword may be specified on an interface as described
 below.
 .It noflood
-.Nm Mrouted
+The
+.Nm
+utility
 uses a DVMRP optimization to prevent having to keep individual routing tables
 for each neighbor; part of this optimization is that
 .Nm
@@ -189,8 +197,7 @@ Turning on noflood can cause black holes on restart, which will generally
 last approximately one full route report interval.
 The noflood keyword can also be specified on individual interfaces.
 .It rexmit_prunes Ar [on|off]
-.Nm Mrouted Ns 's
-default is to retransmit prunes on all point-to-point interfaces
+Default is to retransmit prunes on all point-to-point interfaces
 (including tunnels) but no multi-access interfaces.  This option
 may be used to make the default on (or off) for all interfaces.
 The rexmit_prunes keyword can also be specified on individual interfaces.
@@ -379,8 +386,9 @@ filters are only applied on input.  Poison reverse routes are never
 filtered out.
 .El
 .Pp
-.Nm Mrouted
-will not initiate execution if it has fewer than two enabled vifs,
+The
+.Nm
+utility will not initiate execution if it has fewer than two enabled vifs,
 where a vif (virtual interface) is either a physical multicast-capable
 interface or a tunnel.  It will log a warning if all of its vifs are
 tunnels; such an
@@ -426,8 +434,9 @@ tunnel 192.168.5.4 10.11.12.13 metric 1 threshold 32
 	boundary LOCAL boundary EE
 .Ed
 .Sh SIGNALS
-.Nm Mrouted
-responds to the following signals:
+The
+.Nm
+utility responds to the following signals:
 .Bl -tag -width indent
 .It HUP
 Restarts
@@ -515,8 +524,9 @@ the outgoing vif is connected to a leaf of the broadcast tree rooted at the
 origin, and a multicast datagram from that origin will be forwarded on that
 outgoing vif only if there are members of the destination group on that leaf.
 .Pp
-.Nm Mrouted
-also maintains a copy of the kernel forwarding cache table.
+The
+.Nm
+utility also maintains a copy of the kernel forwarding cache table.
 Entries
 are created and deleted by
 .Nm .

@@ -40,15 +40,17 @@
 .Op Fl dhst
 .Ar dsdt_file ...
 .Sh DESCRIPTION
-.Nm Amldb
-parses the DSDT
+The
+.Nm
+utility parses the DSDT
 (Differentiated System Description Table)
 files, which usually are acquired from ACPI BIOS, and executes
 the sequence of ACPI Control Methods described in AML
 (ACPI Machine Language)
 with its AML interpreter.
-.Nm Amldb
-also has a simple ACPI virtual machine.  During execution of the
+The
+.Nm
+utility also has a simple ACPI virtual machine.  During execution of the
 Control Methods each access to the region, such as
 SystemMemory, SystemIO, PCI_Config, does not affect the real
 hardware but only the virtual machine.
@@ -229,7 +231,7 @@ DSDT data file is read.
 .El
 .Sh EXAMPLES
 The following is an example including, invoking the
-.Nm ,
+.Nm Ns ,
 searching
 .Li _PRS
 (Possible Resource Settings)
@@ -332,5 +334,5 @@ and
 .Sh HISTORY
 The
 .Nm
-command appeared in
+utility appeared in
 .Fx 5.0 .

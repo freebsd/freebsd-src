@@ -42,9 +42,9 @@
 .Ar service
 .Op Ar serverpath Op Ar serverargs
 .Sh DESCRIPTION
+The
 .Nm
-provides IPv6-to-IPv4 TCP relay.
-.Nm
+utility provides IPv6-to-IPv4 TCP relay.  It
 must be used on an IPv4/v6 dual stack router.
 .Pp
 When
@@ -99,8 +99,9 @@ and
 .Xr sysctl 8
 commands.
 .Pp
+The
 .Nm
-needs a special name-to-address translation logic, so that
+utility needs a special name-to-address translation logic, so that
 hostnames gets resolved into special
 .Tn IPv6
 address prefix.
@@ -122,8 +123,9 @@ When
 is invoked as a standalone program,
 .Nm
 will daemonize itself.
+The
 .Nm
-will listen to
+utility will listen to
 .Tn TCPv6
 port
 .Ar service .
@@ -147,8 +149,9 @@ By specifying
 to
 .Nm ,
 you can run local daemons on the router.
+The
 .Nm
-will invoke local daemon at
+utility will invoke local daemon at
 .Ar serverpath
 if the destination address is local interface address,
 and will perform translation to IPv4 TCP in other cases.
@@ -174,11 +177,13 @@ and
 this flag is not necessary as special program code is supplied.
 .El
 .Pp
+The
 .Nm
-will relay both normal and out-of-band TCP data.
+utility will relay both normal and out-of-band TCP data.
 It is capable of emulating TCP half close as well.
+The
 .Nm
-includes special support for protocols used by
+utility includes special support for protocols used by
 .Xr ftp 1
 and
 .Xr rlogin 1 .
@@ -218,8 +223,9 @@ will invoke service-specific daemon like
 by using the command argument passed from
 .Xr inetd 8 .
 .Pp
+The
 .Nm
-determines operation mode by the local TCP port number,
+utility determines operation mode by the local TCP port number,
 and enables special protocol handling whenever necessary/possible.
 For example, if
 .Nm
@@ -343,8 +349,9 @@ Whenever connection comes in,
 will be invoked by
 .Xr inetd 8 .
 If it the connection endpoint is in the reserved IPv6 address prefix.
+The
 .Nm
-will relay the connection.
+utility will relay the connection.
 Otherwise,
 .Nm
 will invoke service-specific daemon like
@@ -364,8 +371,9 @@ setting.
 3ffe:501:ffff::/48 permit 0.0.0.0/0
 .Ed
 .Sh RETURN VALUES
+The
 .Nm
-exits with
+utility exits with
 .Dv EXIT_SUCCESS
 .Pq 0
 on success, and
@@ -388,7 +396,7 @@ on error.
 .Sh HISTORY
 The
 .Nm
-command first appeared in WIDE Hydrangea IPv6 protocol stack kit.
+utility first appeared in WIDE Hydrangea IPv6 protocol stack kit.
 .\"
 .Pp
 IPv6 and IPsec support based on the KAME Project (http://www.kame.net/) stack

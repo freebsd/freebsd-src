@@ -42,8 +42,9 @@
 .Nm
 .Op Ar loginname Op Ar device
 .Sh DESCRIPTION
-.Nm Sliplogin
-is used to turn the terminal line on standard input (or
+The
+.Nm
+utility is used to turn the terminal line on standard input (or
 .Ar device )
 into a Serial Line IP
 .Pq Tn SLIP
@@ -231,8 +232,9 @@ may run
 The system administrator should make sure that all legitimate users
 are a member of the correct group.
 .Sh DIAGNOSTICS
-.Nm Sliplogin
-logs various information to the system log daemon,
+The
+.Nm
+utility logs various information to the system log daemon,
 .Xr syslogd 8 ,
 with a facility code of
 .Em daemon .
@@ -306,6 +308,5 @@ contains the PID of the sliplogin process which is using interface
 .Sh HISTORY
 The
 .Nm
-command
-appeared in
+utility appeared in
 .Bx 4.3 Reno .
