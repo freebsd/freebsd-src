@@ -44,6 +44,17 @@ Used by the driver identify routine to add devices to the tree.
 Please see
 .Xr device_add_child 9
 for more details.
+The interface is the same as
+.Fn device_add_child
+however, the bus'
+.Ft BUS_ADD_CHILD
+is called.
+.Pp
+Busses implementing
+.Ft BUS_ADD_CHILD
+should insert the device into the tree using
+.Fn device_add_child
+before adding things such as their own ivars and resource lists to the device.
 .Sh SEE ALSO
 .Xr device 9 ,
 .Xr device_add_child 9 ,
