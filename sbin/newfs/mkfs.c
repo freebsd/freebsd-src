@@ -1324,6 +1324,11 @@ rdfs(bno, size, bf)
 	}
 }
 
+#define WCSIZE (128 * 1024)
+daddr_t wc_sect;		/* units of sectorsize */
+int wc_end;			/* bytes */
+static char wc[WCSIZE];		/* bytes */
+
 /*
  * write a block to the file system
  */
@@ -1334,12 +1339,44 @@ wtfs(bno, size, bf)
 	char *bf;
 {
 	int n;
+	int done;
 
 	if (mfs) {
 		memmove(membase + bno * sectorsize, bf, size);
 		return;
 	}
 	if (Nflag)
+		return;
+	done = 0;
+	if (wc_end == 0 && size <= WCSIZE) {
+		wc_sect = bno;
+		bcopy(bf, wc, size);
+		wc_end = size;
+		if (wc_end < WCSIZE)
+			return;
+		done = 1;
+	}
+	if (wc_sect * sectorsize + wc_end == bno * sectorsize &&
+	    wc_end + size <= WCSIZE) {
+		bcopy(bf, wc + wc_end, size);
+		wc_end += size;
+		if (wc_end < WCSIZE)
+			return;
+		done = 1;
+	}
+	if (wc_end) {
+		if (lseek(fso, (off_t)wc_sect * sectorsize, SEEK_SET) < 0) {
+			printf("seek error: %ld\n", (long)wc_sect);
+			err(35, "wtfs - writecombine");
+		}
+		n = write(fso, wc, wc_end);
+		if (n != wc_end) {
+			printf("write error: %ld\n", (long)wc_sect);
+			err(36, "wtfs - writecombine");
+		}
+		wc_end = 0;
+	}
+	if (done)
 		return;
 	if (lseek(fso, (off_t)bno * sectorsize, SEEK_SET) < 0) {
 		printf("seek error: %ld\n", (long)bno);
