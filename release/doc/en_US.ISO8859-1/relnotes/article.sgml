@@ -958,7 +958,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	<varname>kern.polling.user_frac</varname> sysctl indicating
 	the percentage of CPU time to be reserved for userland.  The
 	devices initially supporting polling are &man.dc.4;,
-	&man.fxp.4;, &man.rl.4;, and &man.sis.4;.  More details can be found in
+	&man.fxp.4;, &man.nge.4;, &man.rl.4;, and &man.sis.4;.  More details can be found in
 	the &man.polling.4; manual page. &merged;</para>
 
       <para arch="i386,pc98" role="historic">The packet-forwarding performance of certain
@@ -1571,7 +1571,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	command can be used to mount these disks.</para>
 
       <para>Basic support has been added for the UFS2 filesystem.
-        Among its features:
+        Among the new features of UFS2:
 
 	<itemizedlist>
 	  <listitem>
@@ -1593,7 +1593,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	  </listitem>
 	</itemizedlist>
 
-	</para>
+	UFS1 remains the default on-disk format, although UFS2 can be
+	selected as an option in &man.newfs.8; or via the partitioning
+	screen in &man.sysinstall.8;.  64-bit platforms can boot from
+	UFS2 root filesystems.</para>
 
     </sect3>
 
@@ -2245,6 +2248,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>Support for creating &man.a.out.5; format executables with
       the base system compiler toolchain has been removed.</para>
 
+    <para>&man.adduser.8; and &man.rmuser.8; are now &man.sh.1;
+      scripts, rather than Perl scripts.</para>
+
     <para role="historic">If the first argument to &man.ancontrol.8; or
       &man.wicontrol.8; doesn't start with a <literal>-</literal>, it
       is assumed to be an interface. &merged;</para>
@@ -2465,6 +2471,12 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <para role="historic">&man.dump.8; now supports inheritance of the
       <literal>nodump</literal> flag down a hierarchy. &merged;</para>
+
+    <para>&man.dump.8; now supports a <option>-L</option> flag for
+      dumping live UFS and UFS2 filesystems safely.  To obtain a
+      consistent dump image, &man.dump.8; takes a snapshot of the
+      filesystem and performs the dump on the snapshot.  The snapshot
+      is removed when the dump is complete.</para>
 
     <para role="historic">The <option>-T</option> option to &man.dump.8; no longer
       swallows an extra argument. &merged;</para>
@@ -3948,7 +3960,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
       <para><application>Perl</application> has been removed from the
 	&os; base system.  It can still be installed from the &os;
-	Ports Collection or as a binary package; moving it out of the
+	Ports Collection, as a binary package, or via the <guimenuitem>Perl
+	distribution</guimenuitem> item in &man.sysinstall.8;'s
+	distribution menu.
+	Moving Perl out of the
 	base system will make future upgrades and maintenence easier.
 	To reduce the dependence of the base system on
 	Perl, many utilities have been
@@ -3956,8 +3971,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	made for each affected utility).
 
 	  <note>
-	    <para>The Perl removal and
-	      package integration work is ongoing.</para>
+	    <para>The Perl script removal work is ongoing.</para>
 	  </note>
 
 	</para>
