@@ -585,9 +585,9 @@ dev/wds/wd7000.c		optional wds isa
 dev/wi/if_wi.c			optional wi card
 dev/wi/if_wi.c			optional wi pccard
 dev/xe/if_xe.c			optional xe card
-fs/devfs/devfs_vnops.c		optional devfs
-fs/devfs/devfs_vfsops.c		optional devfs
-fs/devfs/devfs_devs.c		optional devfs
+fs/devfs/devfs_vnops.c		standard
+fs/devfs/devfs_vfsops.c		standard
+fs/devfs/devfs_devs.c		standard
 fs/hpfs/hpfs_vfsops.c		optional hpfs
 fs/hpfs/hpfs_vnops.c		optional hpfs
 fs/hpfs/hpfs_hash.c		optional hpfs

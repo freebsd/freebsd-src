@@ -672,7 +672,7 @@ options 	PORTAL			#Portal filesystem
 options 	PROCFS			#Process filesystem
 options 	UMAPFS			#UID map filesystem
 options 	UNION			#Union filesystem
-options 	DEVFS			#devices filesystem
+# options 	NODEVFS			#disable devices filesystem
 # The xFS_ROOT options REQUIRE the associated ``options xFS''
 options 	NFS_ROOT		#NFS usable as root device
 # This code enables IFS, an FFS which exports inodes as the namespace.
