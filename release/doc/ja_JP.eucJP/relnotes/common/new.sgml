@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.22.2.168
+    Original revision: 1.22.2.171
 -->
 
 <articleinfo>
@@ -203,6 +203,11 @@
       <filename>/boot/loader.conf</filename> に
       <literal>clock_compat_osf1=1</literal> という行を追加することで,
       時間が狂うことなくデュアルブートすることが可能になります.</para>
+
+    <para>インストール CD のカーネルが <filename>mfsroot</filename>
+      から分離されました.  これにより, CD からの起動に対応しているマシンで
+      CD からインストールする場合 (フロッピー用に機能を削ったカーネルではなく)
+      通常のカーネルを用いることが可能になっています.</para>
 
     <sect3>
       <title>プロセッサ・マザーボードの対応状況</title>
@@ -555,54 +560,6 @@
       <application>bzip2</application>
       で圧縮されたファイルが含まれるファイルシステムに対応しました.</para>
 
-    <para>X11R6 や他の UNIX 系 OS で使われているものと互換性を向上させるため,
-      locale 名が変更されました.
-      たとえば
-      <literal>en_US.ISO_8859-1</literal> という locale 名は
-      <literal>en_US.ISO8859-1</literal> に変わっています.
-      後方互換性は
-      <filename>/etc/locale.alias</filename>,
-      <filename>/etc/man.alias</filename>,
-      <filename>/etc/nls.alias</filename>
-      の各ファイル中のエントリによって実現されます.
-      次の表は locale 名の変更をまとめたものです.
-      
-      <informaltable>
-        <tgroup cols=2 align=left>
-          <colspec colwidth="*">
-            <colspec colwidth="*">
-              <thead>
-                <row>
-                  <entry>&os; &release.prev;</entry>
-                  <entry>&os; &release.current;</entry>
-                </row>
-              </thead>
-              <tbody>
-                <row>
-                  <entry><literal>ISO_</literal><replaceable>*</replaceable></entry>
-                  <entry><literal>ISO</literal><replaceable>*</replaceable></entry>
-                </row>
-                <row>
-                  <entry><literal>ru_SU</literal><replaceable>*</replaceable></entry>
-                  <entry><literal>ru_RU</literal><replaceable>*</replaceable></entry>
-                </row>
-                <row>
-                  <entry><literal>DIS_</literal><replaceable>*</replaceable></entry>
-                  <entry><literal>ISO</literal><replaceable>*</replaceable><literal>-15</literal></entry>
-                </row>
-                <row>
-                  <entry><replaceable>*</replaceable><literal>.EUC</literal></entry>
-                  <entry><replaceable>*</replaceable><literal>.euc</literal><replaceable>??</replaceable></entry>
-                </row>
-                <row>
-                  <entry><replaceable>*</replaceable><literal>.ASCII</literal></entry>
-                  <entry><replaceable>*</replaceable><literal>.US-ASCII</literal></entry>
-                </row>
-              </tbody>
-        </tgroup>
-      </informaltable>
-    </para>
-    
     <para>&man.lpd.8; の制御ファイルに新しく,
       <literal>o</literal> という型のプリントファイル動作指定が追加されました.
       これは <application>MacOS</application> 10.1
@@ -623,7 +580,8 @@
       この変更には, &man.fsck.8; の性能向上と断片化 (fragmentation)
       の低減という効果があります.</para>
 
-    <para>&man.newfs.8; で新規にファイルシステムを構築する際の
+    <para><anchor id="newfs-block-frag-sizes">
+      &man.newfs.8; で新規にファイルシステムを構築する際の
       ブロックとフラグメント長の標準値が, それぞれ 16384, 2048
       バイトに変更されました (従来の標準値は 8192, 1024 バイト).
       この変更により多少ディスクの利用率が犠牲になるものの,
@@ -682,6 +640,24 @@
       (ただしルートファイルシステムを除く) において,
       標準で Soft Updates が有効化されるようになりました.</para>
 
+    <para arch="alpha">&man.sysinstall.8;
+      で作成されるファイルシステムは &man.newfs.8; の標準値を使わず,
+      従来の標準値であるブロック長 8192 バイト,
+      フラグメント長 1024 バイトを使うようになっています.
+      &man.newfs.8; の標準パラメータは &os; &release.current;
+      で変更 (この文書の<link linkend="newfs-block-frag-sizes">関連項目</link>を参照のこと)
+      されたのですが, &arch; の起動コードは, ルートファイルシステムが 8192
+      バイトのブロック長が 8192 バイトであることを仮定しています.
+      この変更により,
+      新規インストール時にもルートファイルシステムのパラメータが
+      正しく設定されるようになっています.</para>
+    
+    <para>&man.sysinstall.8; が更新され,
+      パーティションの自動分割 (<quote>auto</quote>) モードにおいて,
+      各パーティションの大きさがより適切に設定されるようになりました.
+      また, 大きさが自動で設定されたパーティションは,
+      他のパーティションが削除された際にできる空き領域を自動的に使用するようになっています.</para>
+    
     <para>&man.syslogd.8; に新しく
       (利用可能なすべてのアドレスを使うのではなく)
       指定アドレスのみに bind する機能が追加されました.
