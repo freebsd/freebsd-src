@@ -33,7 +33,7 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: init_sec_context.c,v 1.25 2001/01/30 22:49:56 assar Exp $");
+RCSID("$Id: init_sec_context.c,v 1.29 2001/08/29 02:21:09 assar Exp $");
 
 /*
  * copy the addresses from `input_chan_bindings' (if any) to
@@ -228,6 +228,7 @@ init_auth
     kret = krb5_auth_con_init (gssapi_krb5_context,
 			       &(*context_handle)->auth_context);
     if (kret) {
+	gssapi_krb5_set_error_string ();
 	*minor_status = kret;
 	ret = GSS_S_FAILURE;
 	goto failure;
@@ -259,6 +260,7 @@ init_auth
     if (initiator_cred_handle == GSS_C_NO_CREDENTIAL) {
 	kret = krb5_cc_default (gssapi_krb5_context, &ccache);
 	if (kret) {
+	    gssapi_krb5_set_error_string ();
 	    *minor_status = kret;
 	    ret = GSS_S_FAILURE;
 	    goto failure;
@@ -270,6 +272,7 @@ init_auth
 				  ccache,
 				  &(*context_handle)->source);
     if (kret) {
+	gssapi_krb5_set_error_string ();
 	*minor_status = kret;
 	ret = GSS_S_FAILURE;
 	goto failure;
@@ -279,6 +282,7 @@ init_auth
 				target_name,
 				&(*context_handle)->target);
     if (kret) {
+	gssapi_krb5_set_error_string ();
 	*minor_status = kret;
 	ret = GSS_S_FAILURE;
 	goto failure;
@@ -303,6 +307,7 @@ init_auth
 				 &cred);
 
     if (kret) {
+	gssapi_krb5_set_error_string ();
 	*minor_status = kret;
 	ret = GSS_S_FAILURE;
 	goto failure;
@@ -339,16 +344,14 @@ init_auth
     (*context_handle)->flags = flags;
     (*context_handle)->more_flags = LOCAL;
     
-    kret = gssapi_krb5_create_8003_checksum (input_chan_bindings,
-					     flags,
-					     &fwd_data,
-					     &cksum);
+    ret = gssapi_krb5_create_8003_checksum (minor_status,
+					    input_chan_bindings,
+					    flags,
+					    &fwd_data,
+					    &cksum);
     krb5_data_free (&fwd_data);
-    if (kret) {
-	*minor_status = kret;
-	ret = GSS_S_FAILURE;
+    if (ret)
 	goto failure;
-    }
 
 #if 1
     enctype = (*context_handle)->auth_context->keyblock->keytype;
@@ -374,6 +377,7 @@ init_auth
 				     KRB5_KU_AP_REQ_AUTH);
 
     if (kret) {
+	gssapi_krb5_set_error_string ();
 	*minor_status = kret;
 	ret = GSS_S_FAILURE;
 	goto failure;
@@ -387,16 +391,16 @@ init_auth
 			      &outbuf);
 
     if (kret) {
+	gssapi_krb5_set_error_string ();
 	*minor_status = kret;
 	ret = GSS_S_FAILURE;
 	goto failure;
     }
 
-    ret = gssapi_krb5_encapsulate (&outbuf, output_token, "\x01\x00");
-    if (ret) {
-	*minor_status = kret;
+    ret = gssapi_krb5_encapsulate (minor_status, &outbuf, output_token,
+				   "\x01\x00");
+    if (ret)
 	goto failure;
-    }
 
     krb5_data_free (&outbuf);
 
@@ -444,18 +448,21 @@ repl_mutual
     krb5_data indata;
     krb5_ap_rep_enc_part *repl;
 
-    ret = gssapi_krb5_decapsulate (input_token, &indata, "\x02\x00");
-    if (ret) {
+    ret = gssapi_krb5_decapsulate (minor_status, input_token, &indata,
+				   "\x02\x00");
+    if (ret)
 				/* XXX - Handle AP_ERROR */
-	return GSS_S_FAILURE;
-    }
+	return ret;
 
     kret = krb5_rd_rep (gssapi_krb5_context,
 			(*context_handle)->auth_context,
 			&indata,
 			&repl);
-    if (kret)
+    if (kret) {
+	gssapi_krb5_set_error_string ();
+	*minor_status = kret;
 	return GSS_S_FAILURE;
+    }
     krb5_free_ap_rep_enc_part (gssapi_krb5_context,
 			       repl);
 

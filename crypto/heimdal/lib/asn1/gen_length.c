@@ -33,7 +33,7 @@
 
 #include "gen_locl.h"
 
-RCSID("$Id: gen_length.c,v 1.10 2000/06/21 22:40:53 assar Exp $");
+RCSID("$Id: gen_length.c,v 1.11 2001/09/25 13:39:26 assar Exp $");
 
 static void
 length_primitive (const char *typename,
@@ -69,8 +69,14 @@ length_type (const char *name, const Type *t, const char *variable)
     case TUInteger:
 	length_primitive ("unsigned", name, variable);
 	break;
+    case TEnumerated :
+	length_primitive ("enumerated", name, variable);
+	break;
     case TOctetString:
 	length_primitive ("octet_string", name, variable);
+	break;
+    case TOID :
+	length_primitive ("oid", name, variable);
 	break;
     case TBitString: {
 	/*

@@ -33,7 +33,7 @@
 
 #include "telnet_locl.h"
 
-RCSID("$Id: commands.c,v 1.64 2000/12/11 01:44:01 assar Exp $");
+RCSID("$Id: commands.c,v 1.67 2001/08/29 00:45:20 assar Exp $");
 
 #if	defined(IPPROTO_IP) && defined(IP_TOS)
 int tos = -1;
@@ -350,11 +350,12 @@ send_wontcmd(char *name)
     return(send_tncmd(send_wont, "wont", name));
 }
 
+extern char *telopts[];		/* XXX */
+
 static int
 send_tncmd(void (*func)(), char *cmd, char *name)
 {
     char **cpp;
-    extern char *telopts[];
     int val = 0;
 
     if (isprefix(name, "help") || isprefix(name, "?")) {
@@ -988,7 +989,6 @@ unsetcmd(int argc, char *argv[])
  * 'mode' command.
  */
 #ifdef	KLUDGELINEMODE
-extern int kludgelinemode;
 
 static int
 dokludgemode(void)
@@ -1030,7 +1030,6 @@ static int
 dolmmode(int bit, int on)
 {
     unsigned char c;
-    extern int linemode;
 
     if (my_want_state_is_wont(TELOPT_LINEMODE)) {
 	printf("?Need to have LINEMODE option enabled first.\r\n");
@@ -1328,8 +1327,6 @@ shell(int argc, char **argv)
 static int
 bye(int argc, char **argv)
 {
-    extern int resettermname;
-
     if (connected) {
 	shutdown(net, 2);
 	printf("Connection closed.\r\n");
@@ -1551,7 +1548,6 @@ env_find(unsigned char *var)
 void
 env_init(void)
 {
-	extern char **environ;
 	char **epp, *cp;
 	struct env_lst *ep;
 
@@ -1569,7 +1565,7 @@ env_init(void)
 	 * "unix:0.0", we have to get rid of "unix" and insert our
 	 * hostname.
 	 */
-	if ((ep = env_find("DISPLAY"))
+	if ((ep = env_find((unsigned char*)"DISPLAY"))
 	    && (*ep->value == ':'
 	    || strncmp((char *)ep->value, "unix:", 5) == 0)) {
 		char hbuf[256+1];
@@ -1609,7 +1605,8 @@ env_init(void)
 	 * USER with the value from LOGNAME.  By default, we
 	 * don't export the USER variable.
 	 */
-	if ((env_find("USER") == NULL) && (ep = env_find("LOGNAME"))) {
+	if ((env_find((unsigned char*)"USER") == NULL) && 
+	    (ep = env_find((unsigned char*)"LOGNAME"))) {
 		env_define((unsigned char *)"USER", ep->value);
 		env_unexport((unsigned char *)"USER");
 	}
@@ -1972,7 +1969,7 @@ status(int argc, char **argv)
 /*
  * Function that gets called when SIGINFO is received.
  */
-void
+RETSIGTYPE
 ayt_status(int ignore)
 {
     call(status, "status", "notmuch", 0);
@@ -2117,6 +2114,7 @@ tn(int argc, char **argv)
 	goto usage;
 
     strlcpy (_hostname, hostp, sizeof(_hostname));
+    hostp = _hostname;
     if (hostp[0] == '@' || hostp[0] == '!') {
 	char *p;
 	hostname = NULL;

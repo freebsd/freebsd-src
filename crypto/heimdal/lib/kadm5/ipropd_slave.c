@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "iprop.h"
 
-RCSID("$Id: ipropd_slave.c,v 1.21 2000/08/06 02:06:19 assar Exp $");
+RCSID("$Id: ipropd_slave.c,v 1.24 2001/08/31 03:12:17 assar Exp $");
 
 static krb5_log_facility *log_facility;
 
@@ -72,10 +72,6 @@ get_creds(krb5_context context, const char *keytab_str,
     char *server;
     char keytab_buf[256];
     
-    ret = krb5_kt_register(context, &hdb_kt_ops);
-    if(ret)
-	krb5_err(context, 1, ret, "krb5_kt_register");
-
     if (keytab_str == NULL) {
 	ret = krb5_kt_default_name (context, keytab_buf, sizeof(keytab_buf));
 	if (ret)
@@ -348,7 +344,8 @@ main(int argc, char **argv)
 
     master = argv[0];
 
-    krb5_openlog (context, "ipropd-master", &log_facility);
+    pidfile (NULL);
+    krb5_openlog (context, "ipropd-slave", &log_facility);
     krb5_set_warn_dest(context, log_facility);
 
     ret = krb5_kt_register(context, &hdb_kt_ops);
@@ -430,4 +427,4 @@ main(int argc, char **argv)
     }
     
     return 0;
-    }
+}

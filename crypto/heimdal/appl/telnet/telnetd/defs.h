@@ -156,7 +156,7 @@ typedef struct {
 			((options[opt]+MY_STATE_DO) & MY_WANT_STATE_DO)
 
 /*
- * Make everything symetrical
+ * Make everything symmetrical
  */
 
 #define	HIS_STATE_WILL			MY_STATE_DO

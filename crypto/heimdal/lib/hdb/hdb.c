@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "hdb_locl.h"
 
-RCSID("$Id: hdb.c,v 1.42 2000/11/15 23:12:15 assar Exp $");
+RCSID("$Id: hdb.c,v 1.44 2001/08/09 08:41:48 assar Exp $");
 
 struct hdb_method {
     const char *prefix;
@@ -41,18 +41,18 @@ struct hdb_method {
 };
 
 static struct hdb_method methods[] = {
-#ifdef HAVE_DB_H
+#if HAVE_DB1 || HAVE_DB3
     {"db:",	hdb_db_create},
 #endif
-#if defined(HAVE_NDBM_H) || defined(HAVE_GDBM_NDBM_H)
+#if HAVE_NDBM
     {"ndbm:",	hdb_ndbm_create},
 #endif
 #ifdef OPENLDAP
     {"ldap:",	hdb_ldap_create},
 #endif
-#ifdef HAVE_DB_H
+#if HAVE_DB1 || HAVE_DB3
     {"",	hdb_db_create},
-#elif defined(HAVE_NDBM_H)
+#elif defined(HAVE_NDBM)
     {"",	hdb_ndbm_create},
 #elif defined(OPENLDAP)
     {"",	hdb_ldap_create},
@@ -232,7 +232,7 @@ hdb_create(krb5_context context, HDB **db, const char *filename)
 
     if(filename == NULL)
 	filename = HDB_DEFAULT_DB;
-    initialize_hdb_error_table_r(&context->et_list);
+    krb5_add_et_list(context, initialize_hdb_error_table_r);
     h = find_method (filename, &residual);
     if (h == NULL)
 	krb5_errx(context, 1, "No database support! (hdb_create)");

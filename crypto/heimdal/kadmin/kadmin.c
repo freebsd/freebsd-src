@@ -34,7 +34,7 @@
 #include "kadmin_locl.h"
 #include <sl.h>
 
-RCSID("$Id: kadmin.c,v 1.34 2001/01/26 22:20:52 joda Exp $");
+RCSID("$Id: kadmin.c,v 1.41 2001/08/10 08:06:13 joda Exp $");
 
 static char *config_file;
 static char *keyfile;
@@ -45,10 +45,13 @@ static char *realm;
 static char *admin_server;
 static int server_port = 0;
 static char *client_name;
+static char *keytab;
 
 static struct getargs args[] = {
     {	"principal", 	'p',	arg_string,	&client_name,
 	"principal to authenticate as" },
+    {   "keytab",	'K',	arg_string,	&keytab,
+   	"keytab for authentication pricipal" },
     { 
 	"config-file",	'c',	arg_string,	&config_file, 
 	"location of config file",	"file" 
@@ -115,6 +118,7 @@ static SL_cmd commands[] = {
 	"Deletes all principals matching the expressions."
     },
     { "del_entry" },
+    { "del" },
     {
 	"del_enctype",	del_enctype,	"del_enctype principal enctype...",
 	"Delete all the mentioned enctypes for principal."
@@ -220,16 +224,15 @@ main(int argc, char **argv)
     krb5_config_section *cf = NULL;
     kadm5_config_params conf;
     int optind = 0;
-    int e;
 
-    set_progname(argv[0]);
+    setprogname(argv[0]);
 
     ret = krb5_init_context(&context);
     if (ret)
 	errx (1, "krb5_init_context failed: %d", ret);
-
-    while((e = getarg(args, num_args, argc, argv, &optind)))
-	errx(1, "error at argument `%s'", argv[optind]);
+    
+    if(getarg(args, num_args, argc, argv, &optind))
+	usage(1);
 
     if (help_flag)
 	usage (0);
@@ -245,12 +248,13 @@ main(int argc, char **argv)
     if (config_file == NULL)
 	config_file = HDB_DB_DIR "/kdc.conf";
 
-    if(krb5_config_parse_file(config_file, &cf) == 0) {
+    if(krb5_config_parse_file(context, config_file, &cf) == 0) {
 	const char *p = krb5_config_get_string (context, cf, 
 						"kdc", "key-file", NULL);
 	if (p)
 	    keyfile = strdup(p);
     }
+    krb5_clear_error_string (context);
 
     memset(&conf, 0, sizeof(conf));
     if(realm) {
@@ -278,6 +282,14 @@ main(int argc, char **argv)
 					     &conf, 0, 0, 
 					     &kadm_handle);
 	actual_cmds = commands;
+    } else if (keytab) {
+        ret = kadm5_c_init_with_skey_ctx(context,
+					 client_name,
+					 keytab,
+					 KADM5_ADMIN_SERVICE,
+                                         &conf, 0, 0,
+                                         &kadm_handle);
+        actual_cmds = commands + 4; /* XXX */
     } else {
 	ret = kadm5_c_init_with_password_ctx(context, 
 					     client_name,

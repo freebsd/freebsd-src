@@ -33,7 +33,7 @@
 
 #include "kdc_locl.h"
 
-RCSID("$Id: main.c,v 1.24 2000/12/31 07:46:14 assar Exp $");
+RCSID("$Id: main.c,v 1.25 2001/02/20 01:44:50 assar Exp $");
 
 sig_atomic_t exit_flag = 0;
 krb5_context context;
@@ -48,7 +48,7 @@ int
 main(int argc, char **argv)
 {
     krb5_error_code ret;
-    set_progname(argv[0]);
+    setprogname(argv[0]);
     
     ret = krb5_init_context(&context);
     if (ret)

@@ -1,12 +1,12 @@
 #
-# $Id: services.append,v 1.5 2000/06/07 02:52:51 assar Exp $
+# $Id: services.append,v 1.6 2001/08/08 15:48:37 assar Exp $
 #
 # Kerberos services
 #
 kerberos	88/udp		kerberos-sec	# Kerberos v5 UDP
 kerberos	88/tcp		kerberos-sec	# Kerberos v5 TCP
 kpasswd		464/udp				# password changing
-kpasswd		464/tdp				# password changing
+kpasswd		464/tcp				# password changing
 klogin		543/tcp				# Kerberos authenticated rlogin
 kshell		544/tcp		krcmd		# and remote shell
 ekshell		545/tcp		      # Kerberos encrypted remote shell -kfall

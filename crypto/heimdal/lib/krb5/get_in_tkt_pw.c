@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: get_in_tkt_pw.c,v 1.15 1999/12/02 17:05:10 joda Exp $");
+RCSID("$Id: get_in_tkt_pw.c,v 1.16 2001/05/14 06:14:48 assar Exp $");
 
 krb5_error_code
 krb5_password_key_proc (krb5_context context,
@@ -47,11 +47,14 @@ krb5_password_key_proc (krb5_context context,
     char buf[BUFSIZ];
      
     *key = malloc (sizeof (**key));
-    if (*key == NULL)
+    if (*key == NULL) {
+	krb5_set_error_string(context, "malloc: out of memory");
 	return ENOMEM;
+    }
     if (password == NULL) {
 	if(des_read_pw_string (buf, sizeof(buf), "Password: ", 0)) {
 	    free (*key);
+	    krb5_clear_error_string(context);
 	    return KRB5_LIBOS_PWDINTR;
 	}
 	password = buf;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,13 +33,14 @@
 
 #include "ktutil_locl.h"
 
-RCSID("$Id: remove.c,v 1.1 2000/01/02 04:41:02 assar Exp $");
+RCSID("$Id: remove.c,v 1.3 2001/07/23 09:46:41 joda Exp $");
 
 int
 kt_remove(int argc, char **argv)
 {
-    krb5_error_code ret;
+    krb5_error_code ret = 0;
     krb5_keytab_entry entry;
+    krb5_keytab keytab;
     char *principal_string = NULL;
     krb5_principal principal = NULL;
     int kvno = 0;
@@ -61,7 +62,7 @@ kt_remove(int argc, char **argv)
     args[i++].value = &help_flag;
     if(getarg(args, num_args, argc, argv, &optind)) {
 	arg_printusage(args, num_args, "ktutil remove", "");
-	return 0;
+	return 1;
     }
     if(help_flag) {
 	arg_printusage(args, num_args, "ktutil remove", "");
@@ -71,7 +72,7 @@ kt_remove(int argc, char **argv)
 	ret = krb5_parse_name(context, principal_string, &principal);
 	if(ret) {
 	    krb5_warn(context, ret, "%s", principal_string);
-	    return 0;
+	    return 1;
 	}
     }
     if(keytype_string) {
@@ -84,7 +85,7 @@ kt_remove(int argc, char **argv)
 		krb5_warn(context, ret, "%s", keytype_string);
 		if(principal)
 		    krb5_free_principal(context, principal);
-		return 0;
+		return 1;
 	    }
 	}
     }
@@ -92,12 +93,17 @@ kt_remove(int argc, char **argv)
 	krb5_warnx(context, 
 		   "You must give at least one of "
 		   "principal, enctype or kvno.");
-	return 0;
+	return 1;
     }
+
+    if((keytab = ktutil_open_keytab()) == NULL)
+	return 1;
+
     entry.principal = principal;
     entry.keyblock.keytype = enctype;
     entry.vno = kvno;
     ret = krb5_kt_remove_entry(context, keytab, &entry);
+    krb5_kt_close(context, keytab);
     if(ret)
 	krb5_warn(context, ret, "remove");
     if(principal)

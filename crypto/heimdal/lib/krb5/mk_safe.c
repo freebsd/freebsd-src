@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include <krb5_locl.h>
 
-RCSID("$Id: mk_safe.c,v 1.24 2000/08/18 06:48:40 assar Exp $");
+RCSID("$Id: mk_safe.c,v 1.27 2001/06/18 02:45:15 assar Exp $");
 
 krb5_error_code
 krb5_mk_safe(krb5_context context,
@@ -48,10 +48,19 @@ krb5_mk_safe(krb5_context context,
   KerberosTime sec2;
   int usec2;
   u_char *buf = NULL;
+  void *tmp;
   size_t buf_size;
   size_t len;
   u_int32_t tmp_seq;
   krb5_crypto crypto;
+  krb5_keyblock *key;
+
+  if (auth_context->local_subkey)
+      key = auth_context->local_subkey;
+  else if (auth_context->remote_subkey)
+      key = auth_context->remote_subkey;
+  else
+      key = auth_context->keyblock;
 
   s.pvno = 5;
   s.msg_type = krb_safe;
@@ -78,14 +87,16 @@ krb5_mk_safe(krb5_context context,
 
   buf_size = length_KRB_SAFE(&s);
   buf = malloc(buf_size + 128); /* add some for checksum */
-  if(buf == NULL)
+  if(buf == NULL) {
+      krb5_set_error_string (context, "malloc: out of memory");
       return ENOMEM;
+  }
   ret = encode_KRB_SAFE (buf + buf_size - 1, buf_size, &s, &len);
   if (ret) {
       free (buf);
       return ret;
   }
-  ret = krb5_crypto_init(context, auth_context->keyblock, 0, &crypto);
+  ret = krb5_crypto_init(context, key, 0, &crypto);
   if (ret) {
       free (buf);
       return ret;
@@ -93,6 +104,7 @@ krb5_mk_safe(krb5_context context,
   ret = krb5_create_checksum(context, 
 			     crypto,
 			     KRB5_KU_KRB_SAFE_CKSUM,
+			     0,
 			     buf + buf_size - len,
 			     len,
 			     &s.cksum);
@@ -103,9 +115,13 @@ krb5_mk_safe(krb5_context context,
   }
 
   buf_size = length_KRB_SAFE(&s);
-  buf = realloc(buf, buf_size);
-  if(buf == NULL)
+  tmp = realloc(buf, buf_size);
+  if(tmp == NULL) {
+      free(buf);
+      krb5_set_error_string (context, "malloc: out of memory");
       return ENOMEM;
+  }
+  buf = tmp;
   
   ret = encode_KRB_SAFE (buf + buf_size - 1, buf_size, &s, &len);
   free_Checksum (&s.cksum);
@@ -114,6 +130,7 @@ krb5_mk_safe(krb5_context context,
   outbuf->data   = malloc (len);
   if (outbuf->data == NULL) {
       free (buf);
+      krb5_set_error_string (context, "malloc: out of memory");
       return ENOMEM;
   }
   memcpy (outbuf->data, buf + buf_size - len, len);

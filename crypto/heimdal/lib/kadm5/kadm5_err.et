@@ -3,7 +3,7 @@
 #
 # This might look like a com_err file, but is not
 #
-id "$Id: kadm5_err.et,v 1.4 1998/02/16 16:37:17 joda Exp $"
+id "$Id: kadm5_err.et,v 1.5 2001/12/06 17:02:55 assar Exp $"
 
 error_table ovk kadm5
 
@@ -29,7 +29,7 @@ error_code BAD_POLICY,		"Invalid policy name"
 error_code BAD_PRINCIPAL,	"Invalid principal name."
 error_code BAD_AUX_ATTR,	"Invalid auxillary attributes"
 error_code BAD_HISTORY,		"Invalid password history count"
-error_code BAD_MIN_PASS_LIFE,	"Password minimum life is greater then password maximum life"
+error_code BAD_MIN_PASS_LIFE,	"Password minimum life is greater than password maximum life"
 error_code PASS_Q_TOOSHORT,	"Password is too short"
 error_code PASS_Q_CLASS,	"Password does not contain enough character classes"
 error_code PASS_Q_DICT,		"Password is in the password dictionary"

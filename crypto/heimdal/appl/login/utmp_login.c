@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -33,7 +33,49 @@
 
 #include "login_locl.h"
 
-RCSID("$Id: utmp_login.c,v 1.17 1999/12/02 17:04:56 joda Exp $");
+RCSID("$Id: utmp_login.c,v 1.18 2001/02/08 16:08:26 assar Exp $");
+
+/* try to put something useful from hostname into dst, dst_sz:
+ * full name, first component or address */
+
+void
+shrink_hostname (const char *hostname,
+		 char *dst, size_t dst_sz)
+{
+    char local_hostname[MaxHostNameLen];
+    char *ld, *hd;
+    int ret;
+    struct addrinfo *ai;
+
+    if (strlen(hostname) < dst_sz) {
+	strlcpy (dst, hostname, dst_sz);
+	return;
+    }
+    gethostname (local_hostname, sizeof(local_hostname));
+    hd = strchr (hostname, '.');
+    ld = strchr (local_hostname, '.');
+    if (hd != NULL && ld != NULL && strcmp(hd, ld) == 0
+	&& hd - hostname < dst_sz) {
+	strlcpy (dst, hostname, dst_sz);
+	dst[hd - hostname] = '\0';
+	return;
+    }
+
+    ret = getaddrinfo (hostname, NULL, NULL, &ai);
+    if (ret) {
+	strncpy (dst, hostname, dst_sz);
+	return;
+    }
+    ret = getnameinfo (ai->ai_addr, ai->ai_addrlen,
+		       dst, dst_sz,
+		       NULL, 0,
+		       NI_NUMERICHOST);
+    freeaddrinfo (ai);
+    if (ret) {
+	strncpy (dst, hostname, dst_sz);
+	return;
+    }
+}
 
 void
 prepare_utmp (struct utmp *utmp, char *tty, 
@@ -60,7 +102,7 @@ prepare_utmp (struct utmp *utmp, char *tty,
 # endif
 
 # ifdef HAVE_STRUCT_UTMP_UT_HOST
-    strncpy(utmp->ut_host, hostname, sizeof(utmp->ut_host));
+    shrink_hostname (hostname, utmp->ut_host, sizeof(utmp->ut_host));
 # endif
 
 # ifdef HAVE_STRUCT_UTMP_UT_TYPE

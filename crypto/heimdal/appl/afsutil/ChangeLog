@@ -1,3 +1,7 @@
+2001-05-17  Assar Westerlund  <assar@sics.se>
+
+	* afslog.c (main): call free_getarg_strings
+
 2000-12-31  Assar Westerlund  <assar@sics.se>
 
 	* afslog.c (main): handle krb5_init_context failure consistently

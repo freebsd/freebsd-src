@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 2000 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "kuser_locl.h"
 
-RCSID("$Id: generate-requests.c,v 1.2 2000/12/31 07:49:27 assar Exp $");
+RCSID("$Id: generate-requests.c,v 1.4 2001/08/24 01:07:22 assar Exp $");
 
 static krb5_error_code
 null_key_proc (krb5_context context,
@@ -134,9 +134,18 @@ main(int argc, char **argv)
     int nreq;
     char *end;
 
-    set_progname(argv[0]);
+    setprogname(argv[0]);
     if(getarg(args, sizeof(args) / sizeof(args[0]), argc, argv, &optind))
 	usage(1);
+
+    if (help_flag)
+	usage (0);
+
+    if(version_flag) {
+	print_version(NULL);
+	exit(0);
+    }
+
     argc -= optind;
     argv += optind;
 

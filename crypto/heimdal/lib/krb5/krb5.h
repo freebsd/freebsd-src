@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: krb5.h,v 1.179 2000/12/15 17:11:12 joda Exp $ */
+/* $Id: krb5.h,v 1.197 2001/09/27 01:31:53 assar Exp $ */
 
 #ifndef __KRB5_H__
 #define __KRB5_H__
@@ -42,8 +42,9 @@
 #include <asn1_err.h>
 #include <krb5_err.h>
 #include <heim_err.h>
+#include <k524_err.h>
 
-#include <asn1.h>
+#include <krb5_asn1.h>
 
 /* simple constants */
 
@@ -70,26 +71,31 @@ typedef struct krb5_crypto_data *krb5_crypto;
 
 typedef CKSUMTYPE krb5_cksumtype;
 
-typedef enum krb5_enctype { 
-  ETYPE_NULL			= 0,
-  ETYPE_DES_CBC_CRC		= 1,
-  ETYPE_DES_CBC_MD4		= 2,
-  ETYPE_DES_CBC_MD5		= 3,
-  ETYPE_DES3_CBC_MD5		= 5,
-  ETYPE_OLD_DES3_CBC_SHA1	= 7,
-  ETYPE_SIGN_DSA_GENERATE	= 8,
-  ETYPE_ENCRYPT_RSA_PRIV	= 9,
-  ETYPE_ENCRYPT_RSA_PUB		= 10,
-  ETYPE_DES3_CBC_SHA1		= 16, /* with key derivation */
-  ETYPE_ARCFOUR_HMAC_MD5	= 23,
-  ETYPE_ARCFOUR_HMAC_MD5_56	= 24,
-  ETYPE_ENCTYPE_PK_CROSS	= 48,
-  ETYPE_DES_CBC_NONE		= -0x1000,
-  ETYPE_DES3_CBC_NONE		= -0x1001,
-  ETYPE_DES_CFB64_NONE		= -0x1002,
-  ETYPE_DES_PCBC_NONE		= -0x1003,
-  ETYPE_DES3_CBC_NONE_IVEC	= -0x1004
-} krb5_enctype;
+typedef Checksum krb5_checksum;
+
+typedef ENCTYPE krb5_enctype;
+
+/* alternative names */
+enum {
+    ENCTYPE_NULL		= ETYPE_NULL,
+    ENCTYPE_DES_CBC_CRC		= ETYPE_DES_CBC_CRC,
+    ENCTYPE_DES_CBC_MD4		= ETYPE_DES_CBC_MD4,
+    ENCTYPE_DES_CBC_MD5		= ETYPE_DES_CBC_MD5,
+    ENCTYPE_DES3_CBC_MD5	= ETYPE_DES3_CBC_MD5,
+    ENCTYPE_OLD_DES3_CBC_SHA1	= ETYPE_OLD_DES3_CBC_SHA1,
+    ENCTYPE_SIGN_DSA_GENERATE	= ETYPE_SIGN_DSA_GENERATE,
+    ENCTYPE_ENCRYPT_RSA_PRIV	= ETYPE_ENCRYPT_RSA_PRIV,
+    ENCTYPE_ENCRYPT_RSA_PUB	= ETYPE_ENCRYPT_RSA_PUB,
+    ENCTYPE_DES3_CBC_SHA1	= ETYPE_DES3_CBC_SHA1,
+    ENCTYPE_ARCFOUR_HMAC_MD5	= ETYPE_ARCFOUR_HMAC_MD5,
+    ENCTYPE_ARCFOUR_HMAC_MD5_56	= ETYPE_ARCFOUR_HMAC_MD5_56,
+    ENCTYPE_ENCTYPE_PK_CROSS	= ETYPE_ENCTYPE_PK_CROSS,
+    ENCTYPE_DES_CBC_NONE	= ETYPE_DES_CBC_NONE,
+    ENCTYPE_DES3_CBC_NONE	= ETYPE_DES3_CBC_NONE,
+    ENCTYPE_DES_CFB64_NONE	= ETYPE_DES_CFB64_NONE,
+    ENCTYPE_DES_PCBC_NONE	= ETYPE_DES_PCBC_NONE,
+    ENCTYPE_DES3_CBC_NONE_IVEC	= ETYPE_DES3_CBC_NONE_IVEC
+};
 
 typedef PADATA_TYPE krb5_preauthtype;
 
@@ -163,6 +169,8 @@ typedef enum krb5_key_usage {
     KRB5_KU_USAGE_SEQ = 24
     /* SEQ in GSSAPI krb5 mechanism */
 } krb5_key_usage;
+
+typedef krb5_key_usage krb5_keyusage;
 
 typedef enum krb5_salttype {
     KRB5_PW_SALT = KRB5_PADATA_PW_SALT,
@@ -284,8 +292,8 @@ typedef union {
 
 #define KRB5_VERIFY_AP_REQ_IGNORE_INVALID	(1 << 0)
 
-#define KRB5_GC_CACHED		1
-#define KRB5_GC_USER_USER	2
+#define KRB5_GC_CACHED			(1U << 0)
+#define KRB5_GC_USER_USER		(1U << 1)
 
 /* constants for compare_creds (and cc_retrieve_cred) */
 #define KRB5_TC_DONT_MATCH_REALM	(1U << 31)
@@ -364,17 +372,20 @@ typedef struct krb5_context_data {
     const char *time_fmt;
     krb5_boolean log_utc;
     const char *default_keytab;
+    const char *default_keytab_modify;
     krb5_boolean use_admin_kdc;
     krb5_addresses *extra_addresses;
     krb5_boolean scan_interfaces;	/* `ifconfig -a' */
     krb5_boolean srv_lookup;		/* do SRV lookups */
     krb5_boolean srv_try_txt;		/* try TXT records also */
-    krb5_boolean srv_try_rfc2052;	/* try RFC2052 compatible records */
     int32_t fcache_vno;			/* create cache files w/ this
                                            version */
     int num_kt_types;			/* # of registered keytab types */
     struct krb5_keytab_data *kt_types;  /* registered keytab types */
     const char *date_fmt;
+    char *error_string;
+    char error_buf[256];
+    krb5_addresses *ignore_addresses;
 } krb5_context_data;
 
 typedef struct krb5_ticket {
@@ -391,10 +402,14 @@ struct krb5_rcache_data;
 typedef struct krb5_rcache_data *krb5_rcache;
 typedef Authenticator krb5_donot_replay;
 
-#define KRB5_STORAGE_HOST_BYTEORDER			0x01
+#define KRB5_STORAGE_HOST_BYTEORDER			0x01 /* old */
 #define KRB5_STORAGE_PRINCIPAL_WRONG_NUM_COMPONENTS	0x02
 #define KRB5_STORAGE_PRINCIPAL_NO_NAME_TYPE		0x04
 #define KRB5_STORAGE_KEYBLOCK_KEYTYPE_TWICE		0x08
+#define KRB5_STORAGE_BYTEORDER_MASK			0x60
+#define KRB5_STORAGE_BYTEORDER_BE			0x00 /* default */
+#define KRB5_STORAGE_BYTEORDER_LE			0x20
+#define KRB5_STORAGE_BYTEORDER_HOST			0x40
 
 typedef struct krb5_storage {
     void *data;
@@ -527,14 +542,23 @@ typedef EncAPRepPart krb5_ap_rep_enc_part;
 extern const char krb5_config_file[];
 extern const char krb5_defkeyname[];
 
+typedef enum {
+    KRB5_PROMPT_TYPE_PASSWORD		= 0x1,
+    KRB5_PROMPT_TYPE_NEW_PASSWORD	= 0x2,
+    KRB5_PROMPT_TYPE_NEW_PASSWORD_AGAIN = 0x3,
+    KRB5_PROMPT_TYPE_PREAUTH		= 0x4
+} krb5_prompt_type;
+
 typedef struct _krb5_prompt {
     char *prompt;
     int hidden;
     krb5_data *reply;
+    krb5_prompt_type type;
 } krb5_prompt;
 
 typedef int (*krb5_prompter_fct)(krb5_context context,
 				 void *data,
+				 const char *name,
 				 const char *banner,
 				 int num_prompts,
 				 krb5_prompt prompts[]);
@@ -588,6 +612,17 @@ typedef struct _krb5_verify_init_creds_opt {
 
 #define KRB5_VERIFY_INIT_CREDS_OPT_AP_REQ_NOFAIL	0x0001
 
+typedef struct krb5_verify_opt {
+    unsigned int flags;
+    krb5_ccache ccache;
+    krb5_keytab keytab;
+    krb5_boolean secure;
+    const char *service;
+} krb5_verify_opt;
+
+#define KRB5_VERIFY_LREALMS		1
+#define KRB5_VERIFY_NO_ADDRESSES	2
+
 extern const krb5_cc_ops krb5_fcc_ops;
 extern const krb5_cc_ops krb5_mcc_ops;
 
@@ -595,14 +630,37 @@ extern const krb5_kt_ops krb5_fkt_ops;
 extern const krb5_kt_ops krb5_mkt_ops;
 extern const krb5_kt_ops krb5_akf_ops;
 extern const krb5_kt_ops krb4_fkt_ops;
+extern const krb5_kt_ops krb5_srvtab_fkt_ops;
+extern const krb5_kt_ops krb5_any_ops;
 
 #define KRB5_KPASSWD_SUCCESS	0
-#define KRB5_KPASSWD_MALFORMED	0
-#define KRB5_KPASSWD_HARDERROR	0
-#define KRB5_KPASSWD_AUTHERROR	0
-#define KRB5_KPASSWD_SOFTERROR	0
+#define KRB5_KPASSWD_MALFORMED	1
+#define KRB5_KPASSWD_HARDERROR	2
+#define KRB5_KPASSWD_AUTHERROR	3
+#define KRB5_KPASSWD_SOFTERROR	4
 
 #define KPASSWD_PORT 464
+
+/* types for the new krbhst interface */
+struct krb5_krbhst_data;
+typedef struct krb5_krbhst_data *krb5_krbhst_handle;
+
+#define KRB5_KRBHST_KDC		1
+#define KRB5_KRBHST_ADMIN	2
+#define KRB5_KRBHST_CHANGEPW	3
+#define KRB5_KRBHST_KRB524	4
+
+typedef struct krb5_krbhst_info {
+    enum { KRB5_KRBHST_UDP,
+	   KRB5_KRBHST_TCP,
+	   KRB5_KRBHST_HTTP } proto;
+    unsigned short port;
+    unsigned short def_port;
+    struct addrinfo *ai;
+    struct krb5_krbhst_info *next;
+    char hostname[1]; /* has to come last */
+} krb5_krbhst_info;
+
 
 struct credentials; /* this is to keep the compiler happy */
 struct getargs;

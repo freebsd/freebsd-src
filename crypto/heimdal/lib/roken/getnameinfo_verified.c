@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1999 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -33,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: getnameinfo_verified.c,v 1.3 2000/06/28 01:21:53 assar Exp $");
+RCSID("$Id: getnameinfo_verified.c,v 1.5 2001/02/12 13:55:07 assar Exp $");
 #endif
 
 #include "roken.h"
@@ -46,14 +46,25 @@ getnameinfo_verified(const struct sockaddr *sa, socklen_t salen,
 {
     int ret;
     struct addrinfo *ai, *a;
+    char servbuf[NI_MAXSERV];
+    struct addrinfo hints;
 
     if (host == NULL)
 	return EAI_NONAME;
 
-    ret = getnameinfo (sa, salen, host, hostlen, serv, servlen, flags);
+    if (serv == NULL) {
+	serv = servbuf;
+	servlen = sizeof(servbuf);
+    }
+
+    ret = getnameinfo (sa, salen, host, hostlen, serv, servlen,
+		       flags | NI_NUMERICSERV);
     if (ret)
 	return ret;
-    ret = getaddrinfo (host, serv, NULL, &ai);
+
+    memset (&hints, 0, sizeof(hints));
+    hints.ai_socktype = SOCK_STREAM;
+    ret = getaddrinfo (host, serv, &hints, &ai);
     if (ret)
 	return ret;
     for (a = ai; a != NULL; a = a->ai_next) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "kafs_locl.h"
 
-RCSID("$Id: common.c,v 1.19 1999/12/02 16:58:40 joda Exp $");
+RCSID("$Id: common.c,v 1.22 2001/09/10 16:08:17 assar Exp $");
 
 #define AUTH_SUPERUSER "afs"
 
@@ -241,6 +241,10 @@ _kafs_afslog_all_local_cells(kafs_data *data, uid_t uid, const char *homedir)
     find_cells(_PATH_THISCELL, &cells, &index);
     find_cells(_PATH_ARLA_THESECELLS, &cells, &index);
     find_cells(_PATH_ARLA_THISCELL, &cells, &index);
+    find_cells(_PATH_OPENAFS_DEBIAN_THESECELLS, &cells, &index);
+    find_cells(_PATH_OPENAFS_DEBIAN_THISCELL, &cells, &index);
+    find_cells(_PATH_ARLA_DEBIAN_THESECELLS, &cells, &index);
+    find_cells(_PATH_ARLA_DEBIAN_THISCELL, &cells, &index);
     
     ret = afslog_cells(data, cells, index, uid, homedir);
     while(index > 0)
@@ -250,18 +254,8 @@ _kafs_afslog_all_local_cells(kafs_data *data, uid_t uid, const char *homedir)
 }
 
 
-/* Find the realm associated with cell. Do this by opening
-   /usr/vice/etc/CellServDB and getting the realm-of-host for the
-   first VL-server for the cell.
-
-   This does not work when the VL-server is living in one realm, but
-   the cell it is serving is living in another realm.
-
-   Return 0 on success, -1 otherwise.
-   */
-
-int
-_kafs_realm_of_cell(kafs_data *data, const char *cell, char **realm)
+static int
+file_find_cell(kafs_data *data, const char *cell, char **realm, int exact)
 {
     FILE *F;
     char buf[1024];
@@ -269,11 +263,23 @@ _kafs_realm_of_cell(kafs_data *data, const char *cell, char **realm)
     int ret = -1;
 
     if ((F = fopen(_PATH_CELLSERVDB, "r"))
-	|| (F = fopen(_PATH_ARLA_CELLSERVDB, "r"))) {
+	|| (F = fopen(_PATH_ARLA_CELLSERVDB, "r"))
+	|| (F = fopen(_PATH_OPENAFS_DEBIAN_CELLSERVDB, "r"))
+	|| (F = fopen(_PATH_ARLA_DEBIAN_CELLSERVDB, "r"))) {
 	while (fgets(buf, sizeof(buf), F)) {
+	    int cmp;
+
 	    if (buf[0] != '>')
 		continue; /* Not a cell name line, try next line */
-	    if (strncmp(buf + 1, cell, strlen(cell)) == 0) {
+	    p = buf;
+	    strsep(&p, " \t\n#");
+
+	    if (exact)
+		cmp = strcmp(buf + 1, cell);
+	    else
+		cmp = strncmp(buf + 1, cell, strlen(cell));
+
+	    if (cmp == 0) {
 		/*
 		 * We found the cell name we're looking for.
 		 * Read next line on the form ip-address '#' hostname
@@ -294,12 +300,34 @@ _kafs_realm_of_cell(kafs_data *data, const char *cell, char **realm)
 	}
 	fclose(F);
     }
-    if (*realm == NULL && dns_find_cell(cell, buf, sizeof(buf)) == 0) {
-	*realm = strdup(krb_realmofhost(buf));
-	if(*realm != NULL)
-	    ret = 0;
-    }
     return ret;
+}
+
+/* Find the realm associated with cell. Do this by opening
+   /usr/vice/etc/CellServDB and getting the realm-of-host for the
+   first VL-server for the cell.
+
+   This does not work when the VL-server is living in one realm, but
+   the cell it is serving is living in another realm.
+
+   Return 0 on success, -1 otherwise.
+   */
+
+int
+_kafs_realm_of_cell(kafs_data *data, const char *cell, char **realm)
+{
+    char buf[1024];
+    int ret;
+
+    ret = file_find_cell(data, cell, realm, 1);
+    if (ret == 0)
+	return ret;
+    if (dns_find_cell(cell, buf, sizeof(buf)) == 0) {
+	*realm = (*data->get_realm)(data, buf);
+	if(*realm != NULL)
+	    return 0;
+    }
+    return file_find_cell(data, cell, realm, 0);
 }
 
 int

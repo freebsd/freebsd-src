@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,13 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: store.c,v 1.34 2000/04/11 00:46:09 assar Exp $");
+RCSID("$Id: store.c,v 1.35 2001/05/11 13:01:43 joda Exp $");
+
+#define BYTEORDER_IS(SP, V) (((SP)->flags & KRB5_STORAGE_BYTEORDER_MASK) == (V))
+#define BYTEORDER_IS_LE(SP) BYTEORDER_IS((SP), KRB5_STORAGE_BYTEORDER_LE)
+#define BYTEORDER_IS_BE(SP) BYTEORDER_IS((SP), KRB5_STORAGE_BYTEORDER_BE)
+#define BYTEORDER_IS_HOST(SP) (BYTEORDER_IS((SP), KRB5_STORAGE_BYTEORDER_HOST) || \
+			       krb5_storage_is_flags((SP), KRB5_STORAGE_HOST_BYTEORDER))
 
 void
 krb5_storage_set_flags(krb5_storage *sp, krb5_flags flags)
@@ -52,6 +58,20 @@ krb5_storage_is_flags(krb5_storage *sp, krb5_flags flags)
 {
     return (sp->flags & flags) == flags;
 }
+
+void
+krb5_storage_set_byteorder(krb5_storage *sp, krb5_flags byteorder)
+{
+    sp->flags &= ~KRB5_STORAGE_BYTEORDER_MASK;
+    sp->flags |= byteorder;
+}
+
+krb5_flags
+krb5_storage_get_byteorder(krb5_storage *sp, krb5_flags byteorder)
+{
+    return sp->flags & KRB5_STORAGE_BYTEORDER_MASK;
+}
+
 
 ssize_t
 _krb5_put_int(void *buffer, unsigned long value, size_t size)
@@ -115,8 +135,10 @@ krb5_store_int(krb5_storage *sp,
 	       size_t len)
 {
     int ret;
-    unsigned char v[4];
+    unsigned char v[16];
 
+    if(len > sizeof(v))
+	return EINVAL;
     _krb5_put_int(v, value, len);
     ret = sp->store(sp, v, len);
     if (ret != len)
@@ -128,8 +150,10 @@ krb5_error_code
 krb5_store_int32(krb5_storage *sp,
 		 int32_t value)
 {
-    if(krb5_storage_is_flags(sp, KRB5_STORAGE_HOST_BYTEORDER))
+    if(BYTEORDER_IS_HOST(sp))
 	value = htonl(value);
+    else if(BYTEORDER_IS_LE(sp))
+	value = bswap32(value);
     return krb5_store_int(sp, value, 4);
 }
 
@@ -156,8 +180,10 @@ krb5_ret_int32(krb5_storage *sp,
     krb5_error_code ret = krb5_ret_int(sp, value, 4);
     if(ret)
 	return ret;
-    if(krb5_storage_is_flags(sp, KRB5_STORAGE_HOST_BYTEORDER))
-	*value = ntohl(*value);
+    if(BYTEORDER_IS_HOST(sp))
+	*value = htonl(*value);
+    else if(BYTEORDER_IS_LE(sp))
+	*value = bswap32(*value);
     return 0;
 }
 
@@ -165,8 +191,10 @@ krb5_error_code
 krb5_store_int16(krb5_storage *sp,
 		 int16_t value)
 {
-    if(krb5_storage_is_flags(sp, KRB5_STORAGE_HOST_BYTEORDER))
+    if(BYTEORDER_IS_HOST(sp))
 	value = htons(value);
+    else if(BYTEORDER_IS_LE(sp))
+	value = bswap16(value);
     return krb5_store_int(sp, value, 2);
 }
 
@@ -180,8 +208,10 @@ krb5_ret_int16(krb5_storage *sp,
     if(ret)
 	return ret;
     *value = v;
-    if(krb5_storage_is_flags(sp, KRB5_STORAGE_HOST_BYTEORDER))
-	*value = ntohs(*value);
+    if(BYTEORDER_IS_HOST(sp))
+	*value = htons(*value);
+    else if(BYTEORDER_IS_LE(sp))
+	*value = bswap16(*value);
     return 0;
 }
 

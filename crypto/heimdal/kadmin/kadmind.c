@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "kadmin_locl.h"
 
-RCSID("$Id: kadmind.c,v 1.24 2000/12/31 07:45:23 assar Exp $");
+RCSID("$Id: kadmind.c,v 1.27 2001/05/14 06:16:41 assar Exp $");
 
 static char *check_library  = NULL;
 static char *check_function = NULL;
@@ -98,7 +98,7 @@ main(int argc, char **argv)
     krb5_log_facility *logf;
     krb5_keytab keytab;
 
-    set_progname(argv[0]);
+    setprogname(argv[0]);
 
     ret = krb5_init_context(&context);
     if (ret)
@@ -128,7 +128,7 @@ main(int argc, char **argv)
     if (config_file == NULL)
 	config_file = HDB_DB_DIR "/kdc.conf";
 
-    if(krb5_config_parse_file(config_file, &cf) == 0) {
+    if(krb5_config_parse_file(context, config_file, &cf) == 0) {
 	const char *p = krb5_config_get_string (context, cf, 
 						"kdc", "key-file", NULL);
 	if (p)
@@ -143,11 +143,12 @@ main(int argc, char **argv)
 
     {
 	int fd = 0;
-	struct sockaddr sa;
-	socklen_t sa_size;
+	struct sockaddr_storage __ss;
+	struct sockaddr *sa = (struct sockaddr *)&__ss;
+	socklen_t sa_size = sizeof(__ss);
 	krb5_auth_context ac = NULL;
 	int debug_port;
-	sa_size = sizeof(sa);
+
 	if(debug_flag) {
 	    if(port_str == NULL)
 		debug_port = krb5_getportbyname (context, "kerberos-adm", 
@@ -155,7 +156,7 @@ main(int argc, char **argv)
 	    else
 		debug_port = htons(atoi(port_str));
 	    mini_inetd(debug_port);
-	} else if(roken_getsockname(STDIN_FILENO, &sa, &sa_size) < 0 && 
+	} else if(roken_getsockname(STDIN_FILENO, sa, &sa_size) < 0 && 
 		   errno == ENOTSOCK) {
 	    parse_ports(context, port_str ? port_str : "+");
 	    pidfile(NULL);

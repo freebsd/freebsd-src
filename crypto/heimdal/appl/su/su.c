@@ -32,7 +32,7 @@
 
 #include <config.h>
 
-RCSID("$Id: su.c,v 1.18 2001/01/26 16:02:49 joda Exp $");
+RCSID("$Id: su.c,v 1.23 2002/01/09 19:40:12 nectar Exp $");
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -50,7 +50,11 @@ RCSID("$Id: su.c,v 1.18 2001/01/26 16:02:49 joda Exp $");
 
 #include <pwd.h>
 
+#ifdef HAVE_OPENSSL
+#include <openssl/des.h>
+#else
 #include <des.h>
+#endif
 #include <krb5.h>
 #include <kafs.h>
 #include <err.h>
@@ -103,10 +107,21 @@ usage (int ret)
     exit (ret);
 }
 
+static void
+free_info(struct passwd *p)
+{
+    free (p->pw_name);
+    free (p->pw_passwd);
+    free (p->pw_dir);
+    free (p->pw_shell);
+    free (p);
+}
+
 static struct passwd*
-make_info(struct passwd *pwd)
+dup_info(const struct passwd *pwd)
 {
     struct passwd *info;
+
     info = malloc(sizeof(*info));
     if(info == NULL)
 	return NULL;
@@ -117,8 +132,10 @@ make_info(struct passwd *pwd)
     info->pw_dir = strdup(pwd->pw_dir);
     info->pw_shell = strdup(pwd->pw_shell);
     if(info->pw_name == NULL || info->pw_passwd == NULL ||
-       info->pw_dir == NULL || info->pw_shell == NULL)
+       info->pw_dir == NULL || info->pw_shell == NULL) {
+	free_info (info);
 	return NULL;
+    }
     return info;
 }
 
@@ -128,7 +145,8 @@ static krb5_ccache ccache;
 #endif
 
 static int
-krb5_verify(struct passwd *login_info, struct passwd *su_info,
+krb5_verify(const struct passwd *login_info,
+	    const struct passwd *su_info,
 	    const char *kerberos_instance)
 {
 #ifdef KRB5
@@ -279,7 +297,7 @@ main(int argc, char **argv)
     int ok = 0;
     int kerberos_error=1;
 
-    set_progname (argv[0]);
+    setprogname (argv[0]);
 
     if(getarg(args, sizeof(args) / sizeof(args[0]), argc, argv, &optind))
 	usage(1);
@@ -308,12 +326,16 @@ main(int argc, char **argv)
 	syslog (LOG_ALERT, "NIS attack, user %s has uid 0", su_user);
 	errx (1, "unknown login %s", su_user);
     }
-    su_info = make_info(pwd);
+    su_info = dup_info(pwd);
+    if (su_info == NULL)
+	errx (1, "malloc: out of memory");
     
 	pwd = getpwuid(getuid());
     if(pwd == NULL)
 	errx(1, "who are you?");
-    login_info = make_info(pwd);
+    login_info = dup_info(pwd);
+    if (login_info == NULL)
+	errx (1, "malloc: out of memory");
     if(env_flag)
 	shell = login_info->pw_shell;
     else

@@ -33,7 +33,7 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: get_mic.c,v 1.15 2001/01/29 02:08:58 assar Exp $");
+RCSID("$Id: get_mic.c,v 1.19 2001/10/31 13:37:39 nectar Exp $");
 
 static OM_uint32
 mic_des
@@ -91,7 +91,7 @@ mic_des
   memcpy (p - 8, hash, 8);	/* SGN_CKSUM */
 
   /* sequence number */
-  krb5_auth_getlocalseqnumber (gssapi_krb5_context,
+  krb5_auth_con_getlocalseqnumber (gssapi_krb5_context,
 			       context_handle->auth_context,
 			       &seq_number);
 
@@ -108,7 +108,7 @@ mic_des
   des_cbc_encrypt ((void *)p, (void *)p, 8,
 		   schedule, (des_cblock *)(p + 8), DES_ENCRYPT);
 
-  krb5_auth_setlocalseqnumber (gssapi_krb5_context,
+  krb5_auth_con_setlocalseqnumber (gssapi_krb5_context,
 			       context_handle->auth_context,
 			       ++seq_number);
   
@@ -174,6 +174,7 @@ mic_des3
   if (kret) {
       free (message_token->value);
       free (tmp);
+      gssapi_krb5_set_error_string ();
       *minor_status = kret;
       return GSS_S_FAILURE;
   }
@@ -181,6 +182,7 @@ mic_des3
   kret = krb5_create_checksum (gssapi_krb5_context,
 			       crypto,
 			       KRB5_KU_USAGE_SIGN,
+			       0,
 			       tmp,
 			       message_buffer->length + 8,
 			       &cksum);
@@ -188,6 +190,7 @@ mic_des3
   krb5_crypto_destroy (gssapi_krb5_context, crypto);
   if (kret) {
       free (message_token->value);
+      gssapi_krb5_set_error_string ();
       *minor_status = kret;
       return GSS_S_FAILURE;
   }
@@ -195,7 +198,7 @@ mic_des3
   memcpy (p + 8, cksum.checksum.data, cksum.checksum.length);
 
   /* sequence number */
-  krb5_auth_getlocalseqnumber (gssapi_krb5_context,
+  krb5_auth_con_getlocalseqnumber (gssapi_krb5_context,
 			       context_handle->auth_context,
 			       &seq_number);
 
@@ -211,6 +214,7 @@ mic_des3
 			  ETYPE_DES3_CBC_NONE, &crypto);
   if (kret) {
       free (message_token->value);
+      gssapi_krb5_set_error_string ();
       *minor_status = kret;
       return GSS_S_FAILURE;
   }
@@ -222,6 +226,7 @@ mic_des3
   krb5_crypto_destroy (gssapi_krb5_context, crypto);
   if (kret) {
       free (message_token->value);
+      gssapi_krb5_set_error_string ();
       *minor_status = kret;
       return GSS_S_FAILURE;
   }
@@ -231,11 +236,7 @@ mic_des3
   memcpy (p, encdata.data, encdata.length);
   krb5_data_free (&encdata);
 
-  p += 8 + cksum.checksum.length;
-
-  memcpy (p, message_buffer->value, message_buffer->length);
-
-  krb5_auth_setlocalseqnumber (gssapi_krb5_context,
+  krb5_auth_con_setlocalseqnumber (gssapi_krb5_context,
 			       context_handle->auth_context,
 			       ++seq_number);
   
@@ -255,8 +256,9 @@ OM_uint32 gss_get_mic
   OM_uint32 ret;
   krb5_keytype keytype;
 
-  ret = gss_krb5_getsomekey(context_handle, &key);
+  ret = gss_krb5_get_localkey(context_handle, &key);
   if (ret) {
+      gssapi_krb5_set_error_string ();
       *minor_status = ret;
       return GSS_S_FAILURE;
   }

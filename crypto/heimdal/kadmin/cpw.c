@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "kadmin_locl.h"
 
-RCSID("$Id: cpw.c,v 1.11 2000/04/12 10:45:54 assar Exp $");
+RCSID("$Id: cpw.c,v 1.13 2001/08/10 08:05:35 joda Exp $");
 
 struct cpw_entry_data {
     int random_key;
@@ -54,7 +54,7 @@ static int num_args = sizeof(args) / sizeof(args[0]);
 static void
 usage(void)
 {
-    arg_printusage(args, num_args, "cpw", "principal...");
+    arg_printusage(args, num_args, "passwd", "principal...");
 }
 
 static int
@@ -202,7 +202,7 @@ cpw_entry(int argc, char **argv)
     argv += optind;
 
     for(i = 0; i < argc; i++)
-	ret = foreach_principal(argv[i], do_cpw_entry, &data);
+	ret = foreach_principal(argv[i], do_cpw_entry, "cpw", &data);
 
     if (data.key_data) {
 	int16_t dummy;

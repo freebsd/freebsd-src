@@ -33,7 +33,7 @@
 
 #include "telnetd.h"
 
-RCSID("$Id: termstat.c,v 1.11 1997/05/11 06:30:04 assar Exp $");
+RCSID("$Id: termstat.c,v 1.12 2001/08/29 00:45:23 assar Exp $");
 
 /*
  * local variables
@@ -49,7 +49,7 @@ int def_row = 0, def_col = 0;
  * Check for changes to flow control
  */
 void
-flowstat()
+flowstat(void)
 {
     if (his_state_is_will(TELOPT_LFLOW)) {
 	if (tty_flowmode() != flowmode) {
@@ -81,8 +81,6 @@ flowstat()
 void
 clientstat(int code, int parm1, int parm2)
 {
-    void netflush();
-
     /*
      * Get a copy of terminal characteristics.
      */

@@ -1,3 +1,67 @@
+2001-09-13  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftpd/ftpd.c (dataconn): don't wait forever on accept
+
+2001-09-04  Assar Westerlund  <assar@sics.se>
+
+	* ftp/gssapi.c (gss_adat): leak less memory and check return value
+	from asprintf
+
+2001-08-28  Jacques Vidrine <n@nectar.com>
+
+	* ftpd/ftpd.c, ftpd/ftpd.8: On systems with IP_PORTRANGE, have
+	  ftpd use `high-numbered' ports by default.  Add a -U option
+	  to get the old behavior.
+
+2001-08-28  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftp/gssapi.c: try using "host" if there's no "ftp" principal
+
+2001-08-26  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftpd/ls.c: implement -R
+
+2001-08-08  Assar Westerlund  <assar@sics.se>
+
+	* ftpd/ls.c: make -a and -A do the same as in ls(1)
+
+2001-08-05  Assar Westerlund  <assar@sics.se>
+
+	* ftpd/ftpcmd.y: add some (unsigned char) casts to is*
+	* ftp/cmds.c: add some (unsigned char) casts to is*
+	* ftpd/gss_userok.c (gss_userok): make argument to printf type
+	correct
+
+2001-08-05  Assar Westerlund  <assar@sics.se>
+
+	* ftp/cmds.c (setpeer): __NetBSD__ is also a unix-like OS
+
+2001-06-19  Assar Westerlund  <assar@sics.se>
+
+	* ftpd/popen.c, ftpd/ftpd.c: try to handle GLOB_MAXPATH (FreeBSD)
+
+2001-04-19  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftpd/ftpd.c (do_store): call closefunc before claiming that
+	everything went ok, if the close fails the file might not have
+	been stored properly
+
+2001-03-26  Assar Westerlund  <assar@sics.se>
+
+	* ftpd/ftpd.c, ftpd/popen.c: always use GLOB_LIMIT
+	* ftpd/popen.c (ftpd_popen): use GLOB_LIMIT if defined
+	* ftpd/ftpd.c (send_file_list): use GLOB_LIMIT if defined
+
+2001-02-15  Assar Westerlund  <assar@sics.se>
+
+	* ftp/cmds.c (setpeer): handle both service names and port numbers
+	for the second optional argument.  also make parsing more robust
+
+2001-02-07  Assar Westerlund  <assar@sics.se>
+
+	* ftp/security.c (sec_end): only clean app_data if there is any
+	(*): do realloc consistently
+
 2001-02-05  Assar Westerlund  <assar@sics.se>
 
 	* ftpd/popen.c (ftpd_popen): avoid overwriting the bounds of argv

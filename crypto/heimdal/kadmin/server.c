@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -34,7 +34,7 @@
 #include "kadmin_locl.h"
 #include <krb5-private.h>
 
-RCSID("$Id: server.c,v 1.32 2000/09/19 12:46:01 assar Exp $");
+RCSID("$Id: server.c,v 1.33 2001/07/23 13:46:47 joda Exp $");
 
 static kadm5_ret_t
 kadmind_dispatch(void *kadm_handle, krb5_boolean initial,
@@ -483,7 +483,7 @@ handle_v5(krb5_context context,
 				      NULL, KRB5_RECVAUTH_IGNORE_VERSION, 
 				      keytab, &ticket);
     if(ret == KRB5_KT_NOTFOUND)
-	krb5_errx(context, 1, "krb5_recvauth: key no found");
+	krb5_errx(context, 1, "krb5_recvauth: key not found");
     if(ret)
 	krb5_err(context, 1, ret, "krb5_recvauth");
 

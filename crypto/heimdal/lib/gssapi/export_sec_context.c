@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1999 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: export_sec_context.c,v 1.3 2000/07/08 11:42:22 assar Exp $");
+RCSID("$Id: export_sec_context.c,v 1.4 2001/02/18 03:39:09 assar Exp $");
 
 OM_uint32
 gss_export_sec_context (
@@ -44,10 +44,12 @@ gss_export_sec_context (
 {
     krb5_storage *sp;
     krb5_auth_context ac;
-    int ret;
+    OM_uint32 ret = GSS_S_COMPLETE;
     krb5_data data;
     gss_buffer_desc buffer;
     int flags;
+    OM_uint32 minor;
+    krb5_error_code kret;
 
     gssapi_krb5_init ();
     if (!((*context_handle)->flags & GSS_C_TRANS_FLAG))
@@ -74,25 +76,74 @@ gss_export_sec_context (
     if (ac->remote_subkey)
 	flags |= SC_REMOTE_SUBKEY;
 
-    krb5_store_int32 (sp, flags);
+    kret = krb5_store_int32 (sp, flags);
+    if (kret) {
+	*minor_status = kret;
+	goto failure;
+    }
 
     /* marshall auth context */
 
-    krb5_store_int32 (sp, ac->flags);
-    if (ac->local_address)
-	krb5_store_address (sp, *ac->local_address);
-    if (ac->remote_address)
-	krb5_store_address (sp, *ac->remote_address);
-    krb5_store_int16 (sp, ac->local_port);
-    krb5_store_int16 (sp, ac->remote_port);
-    if (ac->keyblock)
-	krb5_store_keyblock (sp, *ac->keyblock);
-    if (ac->local_subkey)
-	krb5_store_keyblock (sp, *ac->local_subkey);
-    if (ac->remote_subkey)
-	krb5_store_keyblock (sp, *ac->remote_subkey);
-    krb5_store_int32 (sp, ac->local_seqnumber);
-    krb5_store_int32 (sp, ac->remote_seqnumber);
+    kret = krb5_store_int32 (sp, ac->flags);
+    if (kret) {
+	*minor_status = kret;
+	goto failure;
+    }
+    if (ac->local_address) {
+	kret = krb5_store_address (sp, *ac->local_address);
+	if (kret) {
+	    *minor_status = kret;
+	    goto failure;
+	}
+    }
+    if (ac->remote_address) {
+	kret = krb5_store_address (sp, *ac->remote_address);
+	if (kret) {
+	    *minor_status = kret;
+	    goto failure;
+	}
+    }
+    kret = krb5_store_int16 (sp, ac->local_port);
+    if (kret) {
+	*minor_status = kret;
+	goto failure;
+    }
+    kret = krb5_store_int16 (sp, ac->remote_port);
+    if (kret) {
+	*minor_status = kret;
+	goto failure;
+    }
+    if (ac->keyblock) {
+	kret = krb5_store_keyblock (sp, *ac->keyblock);
+	if (kret) {
+	    *minor_status = kret;
+	    goto failure;
+	}
+    }
+    if (ac->local_subkey) {
+	kret = krb5_store_keyblock (sp, *ac->local_subkey);
+	if (kret) {
+	    *minor_status = kret;
+	    goto failure;
+	}
+    }
+    if (ac->remote_subkey) {
+	kret = krb5_store_keyblock (sp, *ac->remote_subkey);
+	if (kret) {
+	    *minor_status = kret;
+	    goto failure;
+	}
+    }
+    kret = krb5_store_int32 (sp, ac->local_seqnumber);
+	if (kret) {
+	    *minor_status = kret;
+	    goto failure;
+	}
+    kret = krb5_store_int32 (sp, ac->remote_seqnumber);
+	if (kret) {
+	    *minor_status = kret;
+	    goto failure;
+	}
 
 #if 0
     {
@@ -108,31 +159,65 @@ gss_export_sec_context (
 	}
 	data.data   = auth_buf;
 	data.length = sz;
-	krb5_store_data (sp, data);
+	kret = krb5_store_data (sp, data);
+	if (kret) {
+	    *minor_status = kret;
+	    goto failure;
+	}
     }
 #endif
-    krb5_store_int32 (sp, ac->keytype);
-    krb5_store_int32 (sp, ac->cksumtype);
+    kret = krb5_store_int32 (sp, ac->keytype);
+    if (kret) {
+	*minor_status = kret;
+	goto failure;
+    }
+    kret = krb5_store_int32 (sp, ac->cksumtype);
+    if (kret) {
+	*minor_status = kret;
+	goto failure;
+    }
 
     /* names */
 
-    gss_export_name (minor_status, (*context_handle)->source, &buffer);
+    ret = gss_export_name (minor_status, (*context_handle)->source, &buffer);
+    if (ret)
+	goto failure;
     data.data   = buffer.value;
     data.length = buffer.length;
-    krb5_store_data (sp, data);
+    kret = krb5_store_data (sp, data);
+    gss_release_buffer (&minor, &buffer);
+    if (kret) {
+	*minor_status = kret;
+	goto failure;
+    }
 
-    gss_export_name (minor_status, (*context_handle)->target, &buffer);
+    ret = gss_export_name (minor_status, (*context_handle)->target, &buffer);
+    if (ret)
+	goto failure;
     data.data   = buffer.value;
     data.length = buffer.length;
-    krb5_store_data (sp, data);
+    kret = krb5_store_data (sp, data);
+    gss_release_buffer (&minor, &buffer);
+    if (kret) {
+	*minor_status = kret;
+	goto failure;
+    }
 
-    krb5_store_int32 (sp, (*context_handle)->flags);
-    krb5_store_int32 (sp, (*context_handle)->more_flags);
+    kret = krb5_store_int32 (sp, (*context_handle)->flags);
+    if (kret) {
+	*minor_status = kret;
+	goto failure;
+    }
+    kret = krb5_store_int32 (sp, (*context_handle)->more_flags);
+    if (kret) {
+	*minor_status = kret;
+	goto failure;
+    }
 
-    ret = krb5_storage_to_data (sp, &data);
+    kret = krb5_storage_to_data (sp, &data);
     krb5_storage_free (sp);
-    if (ret) {
-	*minor_status = ret;
+    if (kret) {
+	*minor_status = kret;
 	return GSS_S_FAILURE;
     }
     interprocess_token->length = data.length;
@@ -141,5 +226,8 @@ gss_export_sec_context (
 				  GSS_C_NO_BUFFER);
     if (ret != GSS_S_COMPLETE)
 	gss_release_buffer (NULL, interprocess_token);
+    return ret;
+ failure:
+    krb5_storage_free (sp);
     return ret;
 }

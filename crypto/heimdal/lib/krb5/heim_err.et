@@ -3,7 +3,7 @@
 #
 # This might look like a com_err file, but is not
 #
-id "$Id: heim_err.et,v 1.10 2000/07/08 13:02:11 joda Exp $"
+id "$Id: heim_err.et,v 1.12 2001/06/21 03:51:36 assar Exp $"
 
 error_table heim
 
@@ -16,6 +16,7 @@ error_code NOHOST,		"Host not found"
 error_code OPNOTSUPP,		"Operation not supported"
 error_code EOF,			"End of file"
 error_code BAD_MKEY,		"Failed to get the master key"
+error_code SERVICE_NOMATCH,	"Unacceptable service used"
 
 index 128
 prefix HEIM_EAI
@@ -32,5 +33,4 @@ error_code NONAME,		"nodename nor servname provided, or not known"
 error_code SERVICE,		"servname not supported for ai_socktype"
 error_code SOCKTYPE,		"ai_socktype not supported"
 error_code SYSTEM,		"system error returned in errno"
-
 end

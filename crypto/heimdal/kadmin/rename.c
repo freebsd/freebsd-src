@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "kadmin_locl.h"
 
-RCSID("$Id: rename.c,v 1.3 2000/09/10 19:19:20 joda Exp $");
+RCSID("$Id: rename.c,v 1.4 2001/05/04 13:07:03 joda Exp $");
 
 static struct getargs args[] = {
     { "help", 'h', arg_flag, NULL }
@@ -62,7 +62,7 @@ rename_entry(int argc, char **argv)
 	usage ();
 	return 0;
     }
-    if(argc - optind < 3 || help_flag) {
+    if(argc - optind != 2 || help_flag) {
 	usage ();
 	return 0;
     }

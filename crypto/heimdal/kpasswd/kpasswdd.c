@@ -32,7 +32,7 @@
  */
 
 #include "kpasswd_locl.h"
-RCSID("$Id: kpasswdd.c,v 1.49 2001/01/11 21:33:53 assar Exp $");
+RCSID("$Id: kpasswdd.c,v 1.52 2001/07/02 16:27:09 assar Exp $");
 
 #include <kadm5/admin.h>
 
@@ -138,7 +138,8 @@ reply_error (krb5_principal server,
 			 &e_data,
 			 NULL,
 			 server,
-			 0,
+			 NULL,
+			 NULL,
 			 &error_data);
     krb5_data_free (&e_data);
     if (ret) {
@@ -366,7 +367,10 @@ process (krb5_principal server,
 	return;
     }
 
-    ret = krb5_sockaddr2address (sa, &other_addr);
+    krb5_auth_con_setflags (context, auth_context,
+			    KRB5_AUTH_CONTEXT_DO_SEQUENCE);
+
+    ret = krb5_sockaddr2address (context, sa, &other_addr);
     if (ret) {
 	krb5_warn (context, ret, "krb5_sockaddr2address");
 	goto out;
@@ -438,13 +442,12 @@ doit (krb5_keytab keytab, int port)
     sockets = malloc (n * sizeof(*sockets));
     if (sockets == NULL)
 	krb5_errx (context, 1, "out of memory");
-    maxfd = 0;
+    maxfd = -1;
     FD_ZERO(&real_fdset);
     for (i = 0; i < n; ++i) {
 	int sa_size;
 
-	krb5_addr2sockaddr (&addrs.val[i], sa, &sa_size, port);
-
+	krb5_addr2sockaddr (context, &addrs.val[i], sa, &sa_size, port);
 	
 	sockets[i] = socket (sa->sa_family, SOCK_DGRAM, 0);
 	if (sockets[i] < 0)
@@ -452,14 +455,21 @@ doit (krb5_keytab keytab, int port)
 	if (bind (sockets[i], sa, sa_size) < 0) {
 	    char str[128];
 	    size_t len;
+	    int save_errno = errno;
+
 	    ret = krb5_print_address (&addrs.val[i], str, sizeof(str), &len);
-	    krb5_err (context, 1, errno, "bind(%s)", str);
+	    if (ret)
+		strlcpy(str, "unknown address", sizeof(str));
+	    krb5_warn (context, save_errno, "bind(%s)", str);
+	    continue;
 	}
 	maxfd = max (maxfd, sockets[i]);
 	if (maxfd >= FD_SETSIZE)
 	    krb5_errx (context, 1, "fd too large");
 	FD_SET(sockets[i], &real_fdset);
     }
+    if (maxfd == -1)
+	krb5_errx (context, 1, "No sockets!");
 
     while(exit_flag == 0) {
 	int ret;

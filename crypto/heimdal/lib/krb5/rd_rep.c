@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include <krb5_locl.h>
 
-RCSID("$Id: rd_rep.c,v 1.20 2000/08/18 06:49:03 assar Exp $");
+RCSID("$Id: rd_rep.c,v 1.22 2001/06/18 02:46:53 assar Exp $");
 
 krb5_error_code
 krb5_rd_rep(krb5_context context,
@@ -55,10 +55,12 @@ krb5_rd_rep(krb5_context context,
       return ret;
   if (ap_rep.pvno != 5) {
     ret = KRB5KRB_AP_ERR_BADVERSION;
+    krb5_clear_error_string (context);
     goto out;
   }
   if (ap_rep.msg_type != krb_ap_rep) {
     ret = KRB5KRB_AP_ERR_MSG_TYPE;
+    krb5_clear_error_string (context);
     goto out;
   }
 
@@ -77,6 +79,7 @@ krb5_rd_rep(krb5_context context,
   *repl = malloc(sizeof(**repl));
   if (*repl == NULL) {
     ret = ENOMEM;
+    krb5_set_error_string (context, "malloc: out of memory");
     goto out;
   }
   ret = krb5_decode_EncAPRepPart(context,
@@ -90,10 +93,14 @@ krb5_rd_rep(krb5_context context,
   if ((*repl)->ctime != auth_context->authenticator->ctime ||
       (*repl)->cusec != auth_context->authenticator->cusec) {
     ret = KRB5KRB_AP_ERR_MUT_FAIL;
+    krb5_clear_error_string (context);
     goto out;
   }
   if ((*repl)->seq_number)
-    auth_context->remote_seqnumber = *((*repl)->seq_number);
+      krb5_auth_con_setremoteseqnumber(context, auth_context,
+				       *((*repl)->seq_number));
+  if ((*repl)->subkey)
+    krb5_auth_con_setremotesubkey(context, auth_context, (*repl)->subkey);
   
 out:
   krb5_data_free (&data);

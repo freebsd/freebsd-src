@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: roken-common.h,v 1.42 2001/01/29 02:09:09 assar Exp $ */
+/* $Id: roken-common.h,v 1.48 2001/09/03 12:04:34 joda Exp $ */
 
 #ifndef __ROKEN_COMMON_H__
 #define __ROKEN_COMMON_H__
@@ -264,14 +264,18 @@ int ROKEN_LIB_FUNCTION simple_execlp(const char*, ...);
 int ROKEN_LIB_FUNCTION simple_execle(const char*, ...);
 int ROKEN_LIB_FUNCTION simple_execl(const char *file, ...);
 
-void ROKEN_LIB_FUNCTION print_version(const char *);
+int ROKEN_LIB_FUNCTION wait_for_process(pid_t);
+int ROKEN_LIB_FUNCTION pipe_execv(FILE**, FILE**, FILE**, const char*, ...);
 
-void *ROKEN_LIB_FUNCTION emalloc (size_t);
-void *ROKEN_LIB_FUNCTION erealloc (void *, size_t);
-char *ROKEN_LIB_FUNCTION estrdup (const char *);
+void ROKEN_LIB_FUNCTION print_version(const char *);
 
 ssize_t ROKEN_LIB_FUNCTION eread (int fd, void *buf, size_t nbytes);
 ssize_t ROKEN_LIB_FUNCTION ewrite (int fd, const void *buf, size_t nbytes);
+
+struct hostent;
+
+const char *
+hostent_find_fqdn (const struct hostent *he);
 
 void
 esetenv(const char *var, const char *val, int rewrite);
@@ -296,6 +300,9 @@ socket_get_port (const struct sockaddr *sa);
 
 void
 socket_set_port (struct sockaddr *sa, int port);
+
+void
+socket_set_portrange (int sock, int restr, int af);
 
 void
 socket_set_debug (int sock);

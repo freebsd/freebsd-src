@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -34,13 +34,12 @@
 #include "ktutil_locl.h"
 #include <err.h>
 
-RCSID("$Id: ktutil.c,v 1.30 2001/01/25 12:44:37 assar Exp $");
+RCSID("$Id: ktutil.c,v 1.36 2002/02/11 14:14:11 joda Exp $");
 
 static int help_flag;
 static int version_flag;
 int verbose_flag;
 char *keytab_string; 
-
 static char keytab_buf[256];
 
 static int help(int argc, char **argv);
@@ -60,6 +59,8 @@ static SL_cmd cmds[] = {
       "remove old and superceeded entries" },
     { "remove", 	kt_remove,	"remove",
       "remove key from keytab" },
+    { "rename", 	kt_rename,	"rename from to",
+      "rename entry" },
     { "srvconvert",	srvconv,	"srvconvert [flags]",
       "convert v4 srvtab to keytab" },
     { "srv2keytab" },
@@ -108,7 +109,30 @@ static struct getargs args[] = {
 static int num_args = sizeof(args) / sizeof(args[0]);
 
 krb5_context context;
-krb5_keytab keytab;
+
+krb5_keytab
+ktutil_open_keytab(void)
+{
+    krb5_error_code ret;
+    krb5_keytab keytab;
+    if (keytab_string == NULL) {
+	ret = krb5_kt_default_name (context, keytab_buf, sizeof(keytab_buf));
+	if (ret) {
+	    krb5_warn(context, ret, "krb5_kt_default_name");
+	    return NULL;
+	}
+	keytab_string = keytab_buf;
+    }
+    ret = krb5_kt_resolve(context, keytab_string, &keytab);
+    if (ret) {
+	krb5_warn(context, ret, "resolving keytab %s", keytab_string);
+	return NULL;
+    }
+    if (verbose_flag)
+	fprintf (stderr, "Using keytab %s\n", keytab_string);
+	
+    return keytab;
+}
 
 static int
 help(int argc, char **argv)
@@ -129,7 +153,7 @@ main(int argc, char **argv)
 {
     int optind = 0;
     krb5_error_code ret;
-    set_progname(argv[0]);
+    setprogname(argv[0]);
     ret = krb5_init_context(&context);
     if (ret)
 	errx (1, "krb5_init_context failed: %d", ret);
@@ -145,20 +169,8 @@ main(int argc, char **argv)
     argv += optind;
     if(argc == 0)
 	usage(1);
-    if(keytab_string) {
-	ret = krb5_kt_resolve(context, keytab_string, &keytab);
-    } else {
-	if(krb5_kt_default_name (context, keytab_buf, sizeof(keytab_buf)))
-	    strlcpy (keytab_buf, "unknown", sizeof(keytab_buf));
-	keytab_string = keytab_buf;
-
-	ret = krb5_kt_default(context, &keytab);
-    }
-    if(ret)
-	krb5_err(context, 1, ret, "resolving keytab");
     ret = sl_command(cmds, argc, argv);
     if(ret == -1)
 	krb5_warnx (context, "unrecognized command: %s", argv[0]);
-    krb5_kt_close(context, keytab);
     return ret;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,7 +32,7 @@
  */
 
 #include "krb5_locl.h"
-RCSID("$Id: convert_creds.c,v 1.15 2000/07/11 19:30:04 joda Exp $");
+RCSID("$Id: convert_creds.c,v 1.24 2001/06/20 02:49:21 joda Exp $");
 
 static krb5_error_code
 check_ticket_flags(TicketFlags f)
@@ -121,7 +121,6 @@ _krb_time_to_life(time_t start, time_t end)
 
 krb5_error_code
 krb524_convert_creds_kdc(krb5_context context, 
-			 krb5_ccache ccache,
 			 krb5_creds *in_cred,
 			 struct credentials *v4creds)
 {
@@ -132,18 +131,99 @@ krb524_convert_creds_kdc(krb5_context context,
     krb5_data ticket;
     char realm[REALM_SZ];
     krb5_creds *v5_creds = in_cred;
+
+    ret = check_ticket_flags(v5_creds->flags.b);
+    if(ret)
+	goto out2;
+
+    {
+	krb5_krbhst_handle handle;
+
+	ret = krb5_krbhst_init(context,
+			       *krb5_princ_realm(context, 
+						v5_creds->server),
+			       KRB5_KRBHST_KRB524,
+			       &handle);
+	if (ret)
+	    goto out2;
+
+	ret = krb5_sendto (context,
+			   &v5_creds->ticket,
+			   handle,
+			   &reply);
+	krb5_krbhst_free(context, handle);
+	if (ret)
+	    goto out2;
+    }
+    sp = krb5_storage_from_mem(reply.data, reply.length);
+    if(sp == NULL) {
+	ret = ENOMEM;
+	krb5_set_error_string (context, "malloc: out of memory");
+	goto out2;
+    }
+    krb5_ret_int32(sp, &tmp);
+    ret = tmp;
+    if(ret == 0) {
+	memset(v4creds, 0, sizeof(*v4creds));
+	ret = krb5_ret_int32(sp, &tmp);
+	if(ret)
+	    goto out;
+	v4creds->kvno = tmp;
+	ret = krb5_ret_data(sp, &ticket);
+	if(ret)
+	    goto out;
+	v4creds->ticket_st.length = ticket.length;
+	memcpy(v4creds->ticket_st.dat, ticket.data, ticket.length);
+	krb5_data_free(&ticket);
+	ret = krb5_524_conv_principal(context, 
+				      v5_creds->server, 
+				      v4creds->service, 
+				      v4creds->instance, 
+				      v4creds->realm);
+	if(ret)
+	    goto out;
+	v4creds->issue_date = v5_creds->times.starttime;
+	v4creds->lifetime = _krb_time_to_life(v4creds->issue_date,
+					      v5_creds->times.endtime);
+	ret = krb5_524_conv_principal(context, v5_creds->client, 
+				      v4creds->pname, 
+				      v4creds->pinst, 
+				      realm);
+	if(ret)
+	    goto out;
+	memcpy(v4creds->session, v5_creds->session.keyvalue.data, 8);
+    } else {
+	krb5_set_error_string(context, "converting credentials: %s", 
+			      krb5_get_err_text(context, ret));
+    }
+out:
+    krb5_storage_free(sp);
+    krb5_data_free(&reply);
+out2:
+    if (v5_creds != in_cred)
+	krb5_free_creds (context, v5_creds);
+    return ret;
+}
+
+krb5_error_code
+krb524_convert_creds_kdc_ccache(krb5_context context, 
+				krb5_ccache ccache,
+				krb5_creds *in_cred,
+				struct credentials *v4creds)
+{
+    krb5_error_code ret;
+    krb5_creds *v5_creds = in_cred;
     krb5_keytype keytype;
 
-    ret = krb5_enctype_to_keytype (context, v5_creds->session.keytype,
-				   &keytype);
-    if (ret)
-	return ret;
+    keytype = v5_creds->session.keytype;
 
-    if (keytype != KEYTYPE_DES) {
+    if (keytype != ENCTYPE_DES_CBC_CRC) {
+	/* MIT krb524d doesn't like nothing but des-cbc-crc tickets,
+           so go get one */
 	krb5_creds template;
 
 	memset (&template, 0, sizeof(template));
-	template.session.keytype = KEYTYPE_DES;
+	template.session.keytype = ENCTYPE_DES_CBC_CRC;
 	ret = krb5_copy_principal (context, in_cred->client, &template.client);
 	if (ret) {
 	    krb5_free_creds_contents (context, &template);
@@ -162,75 +242,8 @@ krb524_convert_creds_kdc(krb5_context context,
 	    return ret;
     }
 
-    ret = check_ticket_flags(v5_creds->flags.b);
-    if(ret)
-	goto out2;
+    ret = krb524_convert_creds_kdc(context, v5_creds, v4creds);
 
-    {
-	char **hostlist;
-	int port;
-	port = krb5_getportbyname (context, "krb524", "udp", 4444);
-	
-	ret = krb5_get_krbhst (context, krb5_princ_realm(context, 
-							 v5_creds->server), 
-			       &hostlist);
-	if(ret)
-	    goto out2;
-	
-	ret = krb5_sendto (context,
-			   &v5_creds->ticket,
-			   hostlist,
-			   port,
-			   &reply);
-	if(ret == KRB5_KDC_UNREACH) {
-	    port = krb5_getportbyname (context, "kerberos", "udp", 88);
-	    ret = krb5_sendto (context,
-			       &v5_creds->ticket,
-			       hostlist,
-			       port,
-			       &reply);
-	}
-	krb5_free_krbhst (context, hostlist);
-    }
-    if (ret)
-	goto out2;
-    sp = krb5_storage_from_mem(reply.data, reply.length);
-    if(sp == NULL) {
-	ret = ENOMEM;
-	goto out2;
-    }
-    krb5_ret_int32(sp, &tmp);
-    ret = tmp;
-    if(ret == 0) {
-	memset(v4creds, 0, sizeof(*v4creds));
-	ret = krb5_ret_int32(sp, &tmp);
-	if(ret) goto out;
-	v4creds->kvno = tmp;
-	ret = krb5_ret_data(sp, &ticket);
-	if(ret) goto out;
-	v4creds->ticket_st.length = ticket.length;
-	memcpy(v4creds->ticket_st.dat, ticket.data, ticket.length);
-	krb5_data_free(&ticket);
-	ret = krb5_524_conv_principal(context, 
-				      v5_creds->server, 
-				      v4creds->service, 
-				      v4creds->instance, 
-				      v4creds->realm);
-	if(ret) goto out;
-	v4creds->issue_date = v5_creds->times.authtime;
-	v4creds->lifetime = _krb_time_to_life(v4creds->issue_date,
-					      v5_creds->times.endtime);
-	ret = krb5_524_conv_principal(context, v5_creds->client, 
-				      v4creds->pname, 
-				      v4creds->pinst, 
-				      realm);
-	if(ret) goto out;
-	memcpy(v4creds->session, v5_creds->session.keyvalue.data, 8);
-    }
-out:
-    krb5_storage_free(sp);
-    krb5_data_free(&reply);
-out2:
     if (v5_creds != in_cred)
 	krb5_free_creds (context, v5_creds);
     return ret;

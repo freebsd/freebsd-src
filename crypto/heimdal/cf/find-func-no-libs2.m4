@@ -1,4 +1,4 @@
-dnl $Id: find-func-no-libs2.m4,v 1.4 2000/07/15 18:10:19 joda Exp $
+dnl $Id: find-func-no-libs2.m4,v 1.6 2001/09/01 10:57:32 assar Exp $
 dnl
 dnl
 dnl Look for function in any of the specified libraries
@@ -13,11 +13,13 @@ AC_CACHE_VAL(ac_cv_funclib_$1,
 if eval "test \"\$ac_cv_func_$1\" != yes" ; then
 	ac_save_LIBS="$LIBS"
 	for ac_lib in $2; do
-		if test -n "$ac_lib"; then 
-			ac_lib="-l$ac_lib"
-		else
-			ac_lib=""
-		fi
+		case "$ac_lib" in
+		"") ;;
+		yes) ac_lib="" ;;
+		no) continue ;;
+		-l*) ;;
+		*) ac_lib="-l$ac_lib" ;;
+		esac
 		LIBS="$6 $ac_lib $5 $ac_save_LIBS"
 		AC_TRY_LINK([$3],[$1($4)],eval "if test -n \"$ac_lib\";then ac_cv_funclib_$1=$ac_lib; else ac_cv_funclib_$1=yes; fi";break)
 	done

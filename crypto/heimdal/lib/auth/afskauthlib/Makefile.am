@@ -1,4 +1,4 @@
-# $Id: Makefile.am,v 1.5 2000/11/30 01:39:09 joda Exp $
+# $Id: Makefile.am,v 1.6 2001/07/15 04:21:07 assar Exp $
 
 include $(top_srcdir)/Makefile.am.common
 
@@ -31,8 +31,8 @@ L = \
 	$(KAFS)	\
 	$(top_builddir)/lib/krb5/libkrb5.la	\
 	$(top_builddir)/lib/asn1/libasn1.la	\
-	$(LIB_krb4)					\
-	$(top_builddir)/lib/des/libdes.la		\
+	$(LIB_krb4)				\
+	$(LIB_des)				\
 	$(top_builddir)/lib/roken/libroken.la	\
 	-lc
 
@@ -40,8 +40,8 @@ else
 
 L = \
 	$(KAFS)	\
-	$(LIB_krb4)					\
-	$(top_builddir)/lib/des/libdes.la		\
+	$(LIB_krb4)				\
+	$(LIB_des)				\
 	$(top_builddir)/lib/roken/libroken.la	\
 	-lc
 endif

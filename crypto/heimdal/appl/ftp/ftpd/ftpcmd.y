@@ -43,7 +43,7 @@
 %{
 
 #include "ftpd_locl.h"
-RCSID("$Id: ftpcmd.y,v 1.60 2000/11/05 16:53:20 joda Exp $");
+RCSID("$Id: ftpcmd.y,v 1.61 2001/08/05 06:39:29 assar Exp $");
 
 off_t	restart_point;
 
@@ -1238,9 +1238,9 @@ yylex(void)
 				cpos++;
 				return (SP);
 			}
-			if (isdigit(cbuf[cpos])) {
+			if (isdigit((unsigned char)cbuf[cpos])) {
 				cp = &cbuf[cpos];
-				while (isdigit(cbuf[++cpos]))
+				while (isdigit((unsigned char)cbuf[++cpos]))
 					;
 				c = cbuf[cpos];
 				cbuf[cpos] = '\0';
@@ -1253,9 +1253,9 @@ yylex(void)
 			goto dostr1;
 
 		case ARGS:
-			if (isdigit(cbuf[cpos])) {
+			if (isdigit((unsigned char)cbuf[cpos])) {
 				cp = &cbuf[cpos];
-				while (isdigit(cbuf[++cpos]))
+				while (isdigit((unsigned char)cbuf[++cpos]))
 					;
 				c = cbuf[cpos];
 				cbuf[cpos] = '\0';

@@ -1,4 +1,4 @@
-dnl $Id: krb-struct-winsize.m4,v 1.2 1999/03/01 09:52:23 joda Exp $
+dnl $Id: krb-struct-winsize.m4,v 1.3 2001/09/01 11:56:05 assar Exp $
 dnl
 dnl
 dnl Search for struct winsize
@@ -10,9 +10,7 @@ AC_CACHE_VAL(ac_cv_struct_winsize, [
 ac_cv_struct_winsize=no
 for i in sys/termios.h sys/ioctl.h; do
 AC_EGREP_HEADER(
-changequote(, )dnl
-struct[ 	]*winsize,dnl
-changequote([,])dnl
+struct[[ 	]]*winsize,dnl
 $i, ac_cv_struct_winsize=yes; break)dnl
 done
 ])

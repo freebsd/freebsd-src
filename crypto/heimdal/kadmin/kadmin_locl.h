@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,7 +32,7 @@
  */
 
 /* 
- * $Id: kadmin_locl.h,v 1.25 2000/02/06 05:16:35 assar Exp $
+ * $Id: kadmin_locl.h,v 1.40 2001/08/22 20:30:24 assar Exp $
  * $FreeBSD$
  */
 
@@ -76,6 +76,9 @@
 #ifdef HAVE_UTIL_H
 #include <util.h>
 #endif
+#ifdef HAVE_LIBUTIL_H
+#include <libutil.h>
+#endif
 #ifdef HAVE_NETDB_H
 #include <netdb.h>
 #endif
@@ -84,7 +87,11 @@
 #endif
 #include <err.h>
 #include <roken.h>
+#ifdef HAVE_OPENSSL
 #include <openssl/des.h>
+#else
+#include <des.h>
+#endif
 #include <krb5.h>
 #include <krb5_locl.h>
 #include <hdb.h>
@@ -142,6 +149,8 @@ int  edit_deltat (const char *prompt, krb5_deltat *value, int *mask, int bit);
 
 int edit_entry(kadm5_principal_ent_t ent, int *mask,
 	       kadm5_principal_ent_t default_ent, int default_mask);
+void set_defaults(kadm5_principal_ent_t ent, int *mask,
+		  kadm5_principal_ent_t default_ent, int default_mask);
 int set_entry(krb5_context context,
 	      kadm5_principal_ent_t ent,
 	      int *mask,
@@ -153,9 +162,8 @@ int set_entry(krb5_context context,
 int
 foreach_principal(const char *exp, 
 		  int (*func)(krb5_principal, void*), 
+		  const char *funcname,
 		  void *data);
-
-void get_response(const char *prompt, const char *def, char *buf, size_t len);
 
 int parse_des_key (const char *key_string,
 		   krb5_key_data *key_data, const char **err);
@@ -177,7 +185,7 @@ random_password(char *pw, size_t len);
 
 /* kadm_conn.c */
 
-sig_atomic_t term_flag, doing_useful_work;
+extern sig_atomic_t term_flag, doing_useful_work;
 
 void parse_ports(krb5_context, const char*);
 int start_server(krb5_context);

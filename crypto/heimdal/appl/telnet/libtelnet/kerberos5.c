@@ -53,7 +53,7 @@
 
 #include <config.h>
 
-RCSID("$Id: kerberos5.c,v 1.47 2001/01/09 18:45:33 assar Exp $");
+RCSID("$Id: kerberos5.c,v 1.49 2001/06/18 19:50:11 joda Exp $");
 
 #ifdef	KRB5
 
@@ -118,7 +118,7 @@ Data(Authenticator *ap, int type, void *d, int c)
     unsigned char *cd = (unsigned char *)d;
 
     if (c == -1)
-	c = strlen(cd);
+	c = strlen((char*)cd);
 
     if (auth_debug_mode) {
 	printf("%s:%d: [%d] (%d)",
@@ -224,7 +224,7 @@ kerberos5_send(char *name, Authenticator *ap)
 	return(0);
     }
 
-    krb5_auth_setkeytype (context, auth_context, KEYTYPE_DES);
+    krb5_auth_con_setkeytype (context, auth_context, KEYTYPE_DES);
 
     foo[0] = ap->type;
     foo[1] = ap->way;
@@ -713,11 +713,11 @@ kerberos5_printsub(unsigned char *data, int cnt, unsigned char *buf, int buflen)
 	goto common2;
 
     default:
-	snprintf(buf, buflen, " %d (unknown)", data[3]);
+	snprintf((char*)buf, buflen, " %d (unknown)", data[3]);
     common2:
 	BUMP(buf, buflen);
 	for (i = 4; i < cnt; i++) {
-	    snprintf(buf, buflen, " %d", data[i]);
+	    snprintf((char*)buf, buflen, " %d", data[i]);
 	    BUMP(buf, buflen);
 	}
 	break;

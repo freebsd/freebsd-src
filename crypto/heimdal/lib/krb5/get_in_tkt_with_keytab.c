@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: get_in_tkt_with_keytab.c,v 1.5 1999/12/02 17:05:10 joda Exp $");
+RCSID("$Id: get_in_tkt_with_keytab.c,v 1.6 2001/05/14 06:14:48 assar Exp $");
 
 krb5_error_code
 krb5_keytab_key_proc (krb5_context context,
@@ -82,8 +82,10 @@ krb5_get_in_tkt_with_keytab (krb5_context context,
     krb5_keytab_key_proc_args *a;
 
     a = malloc(sizeof(*a));
-    if (a == NULL)
+    if (a == NULL) {
+	krb5_set_error_string(context, "malloc: out of memory");
 	return ENOMEM;
+    }
 
     a->principal = creds->client;
     a->keytab    = keytab;
