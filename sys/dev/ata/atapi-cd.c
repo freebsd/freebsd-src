@@ -494,7 +494,7 @@ acdopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
 	    return EBUSY;
     }
     if (count_dev(dev) == 1) {
-	if (cdp->slot != cdp->changer_info->current_slot) {
+	if (cdp->changer_info && cdp->slot != cdp->changer_info->current_slot) {
 	    acd_select_slot(cdp);
 	    tsleep(&cdp->changer_info, PRIBIO, "acdopn", 0);
 	}
@@ -515,7 +515,7 @@ acdclose(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
     struct acd_softc *cdp = dev->si_drv1;
     
     if (count_dev(dev) == 1) {
-	if (cdp->slot != cdp->changer_info->current_slot) {
+	if (cdp->changer_info && cdp->slot != cdp->changer_info->current_slot) {
 	    acd_select_slot(cdp);
 	    tsleep(&cdp->changer_info, PRIBIO, "acdclo", 0);
 	}
@@ -531,7 +531,7 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flags, struct proc *p)
     struct acd_softc *cdp = dev->si_drv1;
     int32_t error = 0;
 
-    if (cdp->slot != cdp->changer_info->current_slot) {
+    if (cdp->changer_info && cdp->slot != cdp->changer_info->current_slot) {
 	acd_select_slot(cdp);
 	tsleep(&cdp->changer_info, PRIBIO, "acdctl", 0);
     }
