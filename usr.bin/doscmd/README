@@ -5,7 +5,7 @@ page for help on configuring doscmd.
 
 Things known not to work:
     *	No mouse support (yet)
-    *	No xms/ems support (yet)
+    *	No ems support (yet)
     *	No raw VGA support (yet)
     *	Printer support (yet)
     *	COM ports (being worked on)
