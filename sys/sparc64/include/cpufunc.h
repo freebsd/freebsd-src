@@ -184,6 +184,29 @@ cpu_critical_exit(critical_t pil)
 	wrpr(pil, pil, 0);
 }
 
+static __inline u_long
+intr_disable(void)
+{
+	u_long s;
+
+	s = rdpr(pstate);
+	wrpr(pstate, s & ~PSTATE_IE, 0);
+	return (s);
+}
+#define	intr_restore(s)	wrpr(pstate, (s), 0)
+
+/*
+ * In some places, it is required that the store is directly followed by a
+ * membar #Sync. Don't trust the compiler to not insert instructions in
+ * between. We also need to disable interrupts completely.
+ */
+#define	stxa_sync(va, asi, val) do {					\
+	u_long s = intr_disable();					\
+	__asm __volatile("stxa %0, [%1] %2; membar #Sync"		\
+	    : : "r" (val), "r" (va), "n" (asi));			\
+	intr_restore(s);						\
+} while (0)
+
 void ascopy(u_long asi, vm_offset_t src, vm_offset_t dst, size_t len);
 void ascopyfrom(u_long sasi, vm_offset_t src, caddr_t dst, size_t len);
 void ascopyto(caddr_t src, u_long dasi, vm_offset_t dst, size_t len);
