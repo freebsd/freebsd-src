@@ -1,6 +1,6 @@
 #! /bin/sh
 
-: '@(#)yearistype.sh	7.6'
+: '@(#)yearistype.sh	7.7'
 
 case $#-$1 in
 	2-|2-0*|2-*[!0-9]*)
@@ -34,3 +34,4 @@ case $#-$2 in
 esac
 
 echo "$0: usage is $0 year even|odd|uspres|nonpres|nonuspres" >&2
+exit 1
