@@ -902,7 +902,7 @@ linprocfs_readdir(ap)
 				dp->d_fileno = PROCFS_FILENO(p->p_pid, Pproc);
 				dp->d_namlen = sprintf(dp->d_name, "%ld",
 				    (long)p->p_pid);
-				dp->d_type = DT_REG;
+				dp->d_type = DT_DIR;
 				p = p->p_list.le_next;
 				break;
 			}
