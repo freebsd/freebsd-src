@@ -68,7 +68,7 @@ virtual memory statistics (a la
 .Xr vmstat  8  ) ,
 network ``mbuf'' utilization,
 .Tn TCP/IP
-statistics, 
+statistics,
 and network connections (a la
 .Xr netstat  1  ) .
 .Pp
@@ -231,7 +231,7 @@ display; the minimum unambiguous prefix may be supplied.
 .Bl -tag -width Fl -compact
 .It Cm numbers
 Show the disk
-.Tn I/O 
+.Tn I/O
 statistics in numeric form.  Values are
 displayed in numeric columns which scroll downward.
 .It Cm bars
@@ -244,11 +244,11 @@ Toggle the display of kilobytes per transaction.
 not display kilobytes per transaction).
 .El
 .It Ic swap
-Show information about swap space usage on all the 
+Show information about swap space usage on all the
 swap areas compiled into the kernel.
 The first column is the device name of the partition.
 The next column is the total space available in the partition.
-The 
+The
 .Ar Used
 column indicates the total blocks used so far;
 the graph shows the percentage of space in use on each partition.
@@ -307,14 +307,14 @@ handled by the per process name translation cache.
 .Pp
 At the bottom left is the disk usage display.
 It reports the number of
-kilobytes per transaction, transactions per second, megabytes 
+kilobytes per transaction, transactions per second, megabytes
 per second and the percentage of the time the disk was busy averaged
 over the refresh period of the display (by default, five seconds).
 The system keeps statistics on most every storage device.  In general, up
 to seven devices are displayed.  The devices displayed by default are the
-first devices in the kernel's device list.  See 
+first devices in the kernel's device list.  See
 .Xr devstat 3
-and 
+and
 .Xr devstat 9
 for details on the devstat system.
 .Pp
@@ -483,7 +483,7 @@ then the pipe separated matching expressions are ORed together.  Any
 device matching the combined expression will be displayed, if there is room
 to display it.  For example:
 .Pp
-.Dl match da,scsi | cd,ide 
+.Dl match da,scsi | cd,ide
 .Pp
 This will display all SCSI Direct Access devices and all IDE CDROM devices.
 .Pp

@@ -5,7 +5,7 @@
 .\"
 .Dd December 8, 2000
 .Dt MAGIC 5 "Public Domain"
-.Os 
+.Os
 .Sh NAME
 .Nm magic
 .Nd file command's magic number file
@@ -110,10 +110,10 @@ value,
 to specify that the value from the file must be greater than the specified
 value,
 .Em & ,
-to specify that the value from the file must have set all of the bits 
+to specify that the value from the file must have set all of the bits
 that are set in the specified value,
 .Em ^ ,
-to specify that the value from the file must have clear any of the bits 
+to specify that the value from the file must have clear any of the bits
 that are set in the specified value, or
 .Em x ,
 to specify that any value will match.
@@ -130,7 +130,7 @@ is octal, and
 is hexadecimal.
 .It ""
 For string values, the byte string from the
-file must match the specified byte string. 
+file must match the specified byte string.
 The operators
 .Em = ,
 .Em <
@@ -184,11 +184,11 @@ The value at that offset is read, and is used again as an offset
 in the file.
 Indirect offsets are of the form:
 .Em (x[.[bslBSL]][+-][y]) .
-The value of 
+The value of
 .Em x
 is used as an offset in the file.
 A byte, short or long is read at that offset
-depending on the 
+depending on the
 .Em [bslBSL]
 type specifier.
 The capitalized types interpret the number as a big endian value, whereas
@@ -203,13 +203,13 @@ Sometimes you do not know the exact offset as this depends on the length of
 preceding fields.
 You can specify an offset relative to the end of the
 last uplevel field (of course this may only be done for sublevel tests, i.e.\&
-test beginning with 
+test beginning with
 .Em > Ns ) .
 Such a relative offset is specified using
 .Em &
 as a prefix to the offset.
 .Sh BUGS
-The formats 
+The formats
 .Em long ,
 .Em belong ,
 .Em lelong ,
@@ -221,7 +221,7 @@ The formats
 and
 .Em ledate
 are system-dependent; perhaps they should be specified as a number
-of bytes (2B, 4B, etc), 
+of bytes (2B, 4B, etc),
 since the files being recognized typically come from
 a system on which the lengths are invariant.
 .Pp
@@ -237,7 +237,7 @@ indirect offsets.
 .\" Date: 3 Sep 85 08:19:07 GMT
 .\" Organization: Sun Microsystems, Inc.
 .\" Lines: 136
-.\" 
+.\"
 .\" Here's a manual page for the format accepted by the "file" made by adding
 .\" the changes I posted to the S5R2 version.
 .\"

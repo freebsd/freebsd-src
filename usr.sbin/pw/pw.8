@@ -1,6 +1,6 @@
 .\" Copyright (C) 1996
 .\" David L. Nugent.  All rights reserved.
-.\" 
+.\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 
+.\"
 .\" THIS SOFTWARE IS PROVIDED BY DAVID L. NUGENT AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 .\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -194,15 +194,15 @@ Note that
 only operates on the local user and group files.  NIS users and groups must be
 maintained on the NIS server.
 .Nm Pw
-handles updating the 
-.Pa passwd , 
-.Pa master.passwd , 
+handles updating the
+.Pa passwd ,
+.Pa master.passwd ,
 .Pa group
 and the secure and insecure
 password database files, and must be run as root.
 .Pp
 The first one or two keywords provided to
-.Nm 
+.Nm
 on the command line provide the context for the remainder of the arguments.
 The keywords
 .Ar user
@@ -217,8 +217,8 @@ or
 .Ar next
 in any order.
 (For example,
-.Ar showuser , 
-.Ar usershow , 
+.Ar showuser ,
+.Ar usershow ,
 .Ar show user ,
 and
 .Ar user show
@@ -270,10 +270,10 @@ is preferable to interpret status codes returned by
 .Nm
 rather than messing up a carefully formatted display.
 .It Fl N
-This option is available in 
-.Ar add 
-and 
-.Ar modify 
+This option is available in
+.Ar add
+and
+.Ar modify
 operations, and tells
 .Nm
 to output the result of the operation without updating the user or group
@@ -291,7 +291,7 @@ after changing to the directory
 This is intended to allow automatic updating of NIS database files.
 If separate passwd and group files are being used by NIS, then use the
 .Fl y Ar path
-option to specify the location of the NIS passwd database so that 
+option to specify the location of the NIS passwd database so that
 .Nm
 will concurrently update it with the system password
 databases.
@@ -333,7 +333,7 @@ or
 keywords on the command line without using the
 .Fl n
 or
-.Fl u 
+.Fl u
 options.
 .El
 .Pp
@@ -354,13 +354,13 @@ file itself.
 .It Fl d Ar dir
 This option sets the account's home directory.
 Normally, you will only use this if the home directory is to be different from the
-default determined from 
+default determined from
 .Pa /etc/pw.conf
 - normally
 .Pa /home
 with the account name as a subdirectory.
 .It Fl e Ar date
-Set the account's expiration date. 
+Set the account's expiration date.
 Format of the date is either a UNIX time in decimal, or a date in
 .Ql dd-mmm-yy[yy]
 format, where dd is the day, mmm is the month, either in numeric or alphabetic format
@@ -424,10 +424,10 @@ overwritten from the skeleton files.
 When a user's home directory is created, it will by default be a subdirectory of the
 .Ar basehome
 directory as specified by the
-.Fl b 
+.Fl b
 option (see below), bearing the name of the new account.
 This can be overridden by the
-.Fl d 
+.Fl d
 option on the command line, if desired.
 .It Fl k Ar dir
 Set the
@@ -437,7 +437,7 @@ the user's home directory is created.
 This option only has meaning when used with the
 .Fl d
 or
-.Fl m 
+.Fl m
 flags.
 .It Fl s Ar shell
 Set or changes the user's login shell to
@@ -701,7 +701,7 @@ that use
 .Nm .
 .Sh GROUP OPTIONS
 The
-.Fl C 
+.Fl C
 and
 .Fl q
 options (explained at the start of the previous section) are available
@@ -790,7 +790,7 @@ and
 options as described above are accepted by these commands.
 .Sh DIAGNOSTICS
 .Nm Pw
-returns EXIT_SUCCESS on successful operation, otherwise 
+returns EXIT_SUCCESS on successful operation, otherwise
 .Nm
 returns one of the
 following exit codes defined by
@@ -888,7 +888,7 @@ specified in the passwd file may be used by default.
 .Bl -tag -width /etc/master.passwd.new -compact
 .It Pa /etc/master.passwd
 The user database
-.It Pa /etc/passwd 
+.It Pa /etc/passwd
 A Version 7 format password file
 .It Pa /etc/login.conf
 The user capabilities database

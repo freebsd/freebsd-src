@@ -155,15 +155,15 @@ to be
 Do not prepend filenames to output lines (brief mode).
 .It Fl c
 Cause a checking printout of the parsed form of the magic file.
-This is usually used in conjunction with 
+This is usually used in conjunction with
 .Fl m
 to debug a new magic file before installing it.
 .It Fl f Ar namefile
-Read the names of the files to be examined from 
+Read the names of the files to be examined from
 .Ar namefile
-(one per line) 
+(one per line)
 before the argument list.
-Either 
+Either
 .Ar namefile
 or at least one filename argument must be present;
 to test the standard input, use
@@ -243,12 +243,12 @@ can be used to set the default magic number files.
 .Sh STANDARDS CONFORMANCE
 This program is believed to exceed the System V Interface Definition
 of FILE(CMD), as near as one can determine from the vague language
-contained therein. 
+contained therein.
 Its behaviour is mostly compatible with the System V program of the same name.
 This version knows more magic, however, so it will produce
-different (albeit more accurate) output in many cases. 
+different (albeit more accurate) output in many cases.
 .Pp
-The one significant difference 
+The one significant difference
 between this version and System V
 is that this version treats any white space
 as a delimiter, so that spaces in pattern strings must be escaped.
@@ -286,7 +286,7 @@ mainly USENET, and contributed by various authors.
 .An Christos Zoulas
 (address below) will collect additional
 or corrected magic file entries.
-A consolidation of magic file entries 
+A consolidation of magic file entries
 will be distributed periodically.
 .Pp
 The order of entries in the magic file is significant.
@@ -296,7 +296,7 @@ If your old
 .Nm
 command uses a magic file,
 keep the old magic file around for comparison purposes
-(rename it to 
+(rename it to
 .Pa /usr/share/misc/magic.orig ) .
 .Sh EXAMPLES
 .Bd -literal
@@ -325,7 +325,7 @@ file:        application/x-executable, dynamically linked (uses shared libs), no
 /dev/hda:    application/x-not-regular-file
 .Ed
 .Sh HISTORY
-There has been a 
+There has been a
 .Nm
 command in every
 .Ux

@@ -15,7 +15,7 @@
 .\"
 .\"
 .\"     @(#)pkg_create.1
-.\" $FreeBSD$	
+.\" $FreeBSD$
 .\"
 .\" hacked up by John Kohl for NetBSD--fixed a few bugs, extended keywords,
 .\" added dependency tracking, etc.
@@ -201,7 +201,7 @@ during package creation.
 .It Fl t Ar template
 Use
 .Ar template
-as the input to 
+as the input to
 .Xr mktemp 3 .
 By default, this is the string
 .Pa /tmp/instmp.XXXXXX ,
@@ -233,15 +233,15 @@ legal notices on almost-free software, etc.
 .It Fl m Ar mtreefile
 Run
 .Xr mtree 8
-with input from mtreefile before the package is installed.  
+with input from mtreefile before the package is installed.
 Mtree is invoked as
 .Cm mtree
-.Fl u 
-.Fl f 
+.Fl u
+.Fl f
 .Ar mtreefile
 .Fl d
-.Fl e 
-.Fl p 
+.Fl e
+.Fl p
 .Pa prefix ,
 where
 .Pa prefix
@@ -391,12 +391,12 @@ trying to document some particularly hairy sequence that
 may trip someone up later.
 .It Cm @ignore
 Used internally to tell extraction to ignore the next file (don't
-copy it anywhere), as it's used for some special purpose. 
+copy it anywhere), as it's used for some special purpose.
 .It Cm @ignore_inst
 Similar to
 .Cm @ignore ,
 but the ignoring of the next file is delayed one evaluation cycle.  This
-makes it possible to use this directive in the 
+makes it possible to use this directive in the
 .Ar packinglist
 file, so you can pack a
 specialized datafile in with a distribution for your install script (or
@@ -426,15 +426,15 @@ Declare
 .Pa name
 as an
 .Xr mtree 8
-input file to be used at install time (see 
+input file to be used at install time (see
 .Fl m
 above).  Only the first
 .Cm @mtree
-directive is honored. 
+directive is honored.
 .It Cm @display Ar name
 Declare
 .Pa name
-as the file to be displayed at install time (see 
+as the file to be displayed at install time (see
 .Fl D
 above).
 .It Cm @pkgdep Ar pkgname
@@ -454,14 +454,14 @@ The environment variable
 .Ev PKG_TMPDIR
 names the directory where
 .Nm
-will attempt to create its temporary files.  
+will attempt to create its temporary files.
 If
 .Ev PKG_TMPDIR
-is not set, 
+is not set,
 the directory named by the contents of
-.Ev TMPDIR 
+.Ev TMPDIR
 will be used.
-If neither of 
+If neither of
 .Ev PKG_TMPDIR
 and
 .Ev TMPDIR
@@ -470,16 +470,16 @@ are set, the builtin defaults are used.
 .Bl -tag -width /usr/tmp -compact
 .It Pa /var/tmp
 Temporary directory if environmental variables
-.Ev PKG_TMPDIR 
+.Ev PKG_TMPDIR
 and
 .Ev TMPDIR
 are not set.
 .It Pa /tmp
-The next choice if 
+The next choice if
 .Pa /var/tmp
 does not exist.
 .It Pa /usr/tmp
-The last choice if 
+The last choice if
 .Pa /tmp
 is unsuitable.
 .El

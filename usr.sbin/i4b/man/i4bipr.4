@@ -41,7 +41,7 @@ none
 .Sh DESCRIPTION
 The
 .Nm
-driver interfaces the IP subsystem of the operating system with the 
+driver interfaces the IP subsystem of the operating system with the
 isdn4bsd package so that transport of IP packets over an ISDN link
 is possible.
 .Pp
@@ -67,19 +67,19 @@ with the
 .Nm ipr
 interfaces.
 .Pp
-The driver optionally (when compiled with the IPR_VJ option) provides Van 
+The driver optionally (when compiled with the IPR_VJ option) provides Van
 Jacobsen header compression, under control of the link0 and link1 options to
 .Xr ifconfig 8
 :
-.Pp 
+.Pp
 .Bl -tag -width 15n -offset indent -compact
 .It link0
 Apply VJ compression to outgoing packets on this interface, and assume that
 incoming packets require decompression.
 .It link1
 Check incoming packets for Van Jacobsen compression; if they appear to be
-compressed, automatically set link0.  
-.El 
+compressed, automatically set link0.
+.El
 .Pp
 The default values are
 .Em on
@@ -97,5 +97,5 @@ for
 .Sh AUTHORS
 The
 .Nm
-device driver and this manpage were written by 
+device driver and this manpage were written by
 .An Hellmuth Michaelis Aq hm@kts.org .

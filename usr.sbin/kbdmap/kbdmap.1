@@ -32,8 +32,8 @@
 .Nd front end for syscons
 .Sh SYNOPSIS
 .Nm
-.Op Fl K 
-.Op Fl V 
+.Op Fl K
+.Op Fl V
 .Op Fl d | Fl default
 .Op Fl h | Fl help
 .Op Fl l | Fl lang Ar language
@@ -41,27 +41,27 @@
 .Op Fl r | Fl restore
 .Op Fl s | Fl show
 .Op Fl v | Fl verbose
-.Sh DESCRIPTION 
+.Sh DESCRIPTION
 .Nm Kbdmap
-allows easy setting of available keymaps. 
+allows easy setting of available keymaps.
 The
-.Nm vidfont 
+.Nm vidfont
 command allows the setting of fonts.
 Both examine a database for the keymaps and fonts.
 Descriptions are in English by default, but may also be
 in other languages.
 .Pp
-It is strongly recommended to not choose 
-.Tn MSDOS 
+It is strongly recommended to not choose
+.Tn MSDOS
 codepage keymaps
 or fonts.
-Use the 
-.Tn ISO 
-standard version if available! 
-.Tn X11 
+Use the
+.Tn ISO
+standard version if available!
+.Tn X11
 does not
-support 
-.Tn MSDOS 
+support
+.Tn MSDOS
 codepage.
 .Pp
 The following options are available:
@@ -114,10 +114,10 @@ values
 .El
 .Sh BUGS
 .\" .Nm kbdmap/vidfont
-.\" does not know which font is in use. E.g. if the current font 
-.\" is iso-8859-1 and you chose lang 'ru' (for Russian) 
+.\" does not know which font is in use. E.g. if the current font
+.\" is iso-8859-1 and you chose lang 'ru' (for Russian)
 .\" you get funny latin1 characters and not russkij shrift.
-.\" 
+.\"
 .Nm Vidcontrol
 and
 .Nm kbdcontrol

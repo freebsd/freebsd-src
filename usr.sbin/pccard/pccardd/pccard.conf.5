@@ -60,7 +60,7 @@ file is included from the file
 .Pa /etc/defaults/pccard.conf ,
 which contains the default resource pool settings and
 pccard identifiers database.
-The user specific configuration can be specified in 
+The user specific configuration can be specified in
 .Pa /etc/pccard.conf
 when the user wishes to override these defaults and/or
 add additional entries.
@@ -237,10 +237,10 @@ card version strings from the CIS are used to synthesize the string issued.
 .Ss "Wildcard entries"
 Following two wildcard entries of card identifiers are available
 for generic type of the cards:
-.Pp    
+.Pp
 .Dl generic serial
 .Dl generic fixed_disk
-.Pp 
+.Pp
 The keyword
 .Em serial
 matches ``Functional ID: Serial port/modem'' and
@@ -250,7 +250,7 @@ The syntax is the same of
 .Em "card identifiers"
 but used ``generic'' instead of ``card'' in the first line.
 These are in the last of
-.Nm  
+.Nm
 because unmatched cards with the other
 .Em card
 entries can match these entries secondly.

@@ -50,7 +50,7 @@ command provides a command line interface to the functionality provided by
 .Pa /dev/pci Ns 's
 .Xr ioctl 2
 interface.
-With the 
+With the
 .Fl l
 option, it lists all devices found by the boot probe in the following format:
 .Bd -literal
@@ -61,12 +61,12 @@ none0@pci0:6:0: class=0x020000 card=0x00000000 chip=0x802910ec rev=0x00 hdr=0x00
 .Pp
 If the
 .Fl v
-option is supplied, 
+option is supplied,
 .Nm
 will attempt to load the vendor/device information database, and print
 vendor, device, class and subclass identification strings for each device.
 .Pp
-The first column gives the 
+The first column gives the
 device name, unit number, and
 .Ar selector .
 If there is no device configured in the kernel for the
@@ -79,46 +79,46 @@ each unconfigured device that is encountered.  The
 is in a form which may directly be used for the other forms of the command.
 The second column is the class code, with the class byte printed as two
 hex digits, followed by the sub-class and the interface bytes.
-The third column gives the contents of the subvendorid register, introduced 
-in revision 2.1 of the 
+The third column gives the contents of the subvendorid register, introduced
+in revision 2.1 of the
 .Tn PCI
 standard.
 It is 0 for most current (2.0)
 .Tn PCI
 cards, but is supposed to be loaded with a unique card identification code
-in newly developed 
-.Tn PCI 
+in newly developed
+.Tn PCI
 cards.
 The field consists of the card ID in the upper
 half and the card vendor ID in the lower half of the value.
 .Pp
-The fourth column contains the chip device ID, which identifies the chip 
+The fourth column contains the chip device ID, which identifies the chip
 this card is based on.
-It consists of two fields, identifying the chip and 
+It consists of two fields, identifying the chip and
 its vendor, as above.
 The fifth column prints the chip's revision.
-The sixth column describes the header type. 
-Currently assigned header types are 0 for all devices except 
+The sixth column describes the header type.
+Currently assigned header types are 0 for all devices except
 .Tn PCI
 to
 .Tn PCI
 bridges, and 1 for such bridge chips.
 If the most significant bit
-of the header type register is set for 
-function 0 of a 
-.Tn PCI 
+of the header type register is set for
+function 0 of a
+.Tn PCI
 device, it is a
 .Em multi-function
-device, which contains several (similar or independent) functions on 
+device, which contains several (similar or independent) functions on
 one chip.
 .Pp
-The 
+The
 .Fl l
 option is the only one available to non-root users.
-All other invocations of 
+All other invocations of
 .Nm
 require a
-.Ar selector 
+.Ar selector
 of the form
 .Li pci Ns Va bus Ns \&: Ns Va device
 (optionally followed by
@@ -134,27 +134,27 @@ With the
 flag,
 .Nm
 determines whether any driver has been assigned to the device
-identified by 
+identified by
 .Ar selector .
 An exit status of zero indicates that the device has a driver;
 non-zero indicates that it does not.
 .Pp
-The 
+The
 .Fl r
-option reads a configuration space register at byte offset 
-.Ar reg 
+option reads a configuration space register at byte offset
+.Ar reg
 of device
 .Ar selector
 and prints out its value in hexadecimal.
 The optional second
 .Ar reg2
 specifies a range to read.
-The 
-.Fl w 
-option writes the 
+The
+.Fl w
+option writes the
 .Ar value
-into a configuration space register at byte offset 
-.Ar reg 
+into a configuration space register at byte offset
+.Ar reg
 of device
 .Ar selector .
 For both operations, the flags
@@ -175,15 +175,15 @@ This path can be overridden by setting the environment variable
 .Sh SEE ALSO
 .Xr ioctl 2 ,
 .\" .Xr pci 4 ,
-.Xr kldload 8 
+.Xr kldload 8
 .Sh HISTORY
-The 
+The
 .Nm
 command appeared first in
 .Fx 2.2 .
-The 
+The
 .Fl a
-option was added for 
+option was added for
 .Tn PCI
 KLD support in
 .Fx 3.0 .
@@ -196,23 +196,23 @@ facility was written by
 and
 .An Garrett Wollman .
 .Sh BUGS
-The 
-.Fl b 
-and 
+The
+.Fl b
+and
 .Fl h
-options are implemented in 
+options are implemented in
 .Nm ,
-but not in the underlying 
+but not in the underlying
 .Xr ioctl 2 .
 .Pp
-It might be useful to give non-root users access to the 
+It might be useful to give non-root users access to the
 .Fl a
 and
 .Fl r
 options.
-But only root will be able to execute a 
+But only root will be able to execute a
 .Nm kldload
 to provide the device with a driver KLD, and reading of configuration space
-registers may cause a failure in badly designed 
+registers may cause a failure in badly designed
 .Tn PCI
 chips.

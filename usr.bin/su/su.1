@@ -42,7 +42,7 @@
 .Nm
 .Op Fl
 .Op Fl flm
-.Op Fl c Ar class 
+.Op Fl c Ar class
 .Op Ar login Op Ar args
 .Sh DESCRIPTION
 .Nm Su
@@ -189,16 +189,16 @@ as user
 You will be asked for man's password unless your real UID is 0.
 .It Li "su man -c 'catman /usr/share/man /usr/local/man /usr/X11R6/man'"
 Same as above, but the target command constitutes of more than a
-single word and hence is quoted for use with the 
+single word and hence is quoted for use with the
 .Fl c
 option being passed to the shell.  (Most shells expect the argument to
 .Fl c
 to be a single word).
 .It Li "su -c staff man -c 'catman /usr/share/man /usr/local/man /usr/X11R6/man'"
-Same as above, but the target command is run with the resource limits of 
-the login class 
+Same as above, but the target command is run with the resource limits of
+the login class
 .Dq staff .
-Note: in this example, the first 
+Note: in this example, the first
 .Fl c
 option applies to
 .Nm

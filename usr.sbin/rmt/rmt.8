@@ -52,14 +52,14 @@ or
 .Xr rcmd 3
 call.
 .Pp
-The 
+The
 .Nm
 program accepts requests specific to the manipulation of
 magnetic tapes, performs the commands, then responds with
 a status indication.  All responses are in
 .Tn ASCII
 and in
-one of two forms. 
+one of two forms.
 Successful commands have responses of:
 .Bd -ragged -offset indent
 .Sm off
@@ -101,7 +101,7 @@ indicates that a newline should be supplied:
 .No \en Ar mode No \en
 .Xc
 .Sm on
-Open the specified 
+Open the specified
 .Ar device
 using the indicated
 .Ar mode .
@@ -158,9 +158,9 @@ If
 exceeds the size of the data buffer (10 kilobytes), it is
 truncated to the data buffer size.
 .Nm Rmt
-then performs the requested 
+then performs the requested
 .Xr read 2
-and responds with 
+and responds with
 .Sm off
 .Sy A Ar count-read No \en
 .Sm on
@@ -180,7 +180,7 @@ command using the specified parameters.
 The parameters are interpreted as the
 .Tn ASCII
 representations of the decimal values
-to place in the 
+to place in the
 .Ar mt_op
 and
 .Ar mt_count
@@ -200,7 +200,7 @@ status buffer, then the status buffer is
 sent (in binary).
 .El
 .Pp
-Any other command causes 
+Any other command causes
 .Nm
 to exit.
 .Sh DIAGNOSTICS

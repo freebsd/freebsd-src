@@ -74,7 +74,7 @@ List the names of the available signals and exit, like in
 .It Fl m
 Match the argument
 .Ar procname
-as a (case insensitive) regular expression against the names 
+as a (case insensitive) regular expression against the names
 of processes found.
 CAUTION!  This is dangerous, a single dot will match any process
 running under the effective UID of the caller.
@@ -91,7 +91,7 @@ Limit potentially matching processes to those belonging to
 the specified
 .Ar user .
 .It Fl t Ar tty
-Limit potentially matching processes to those running on 
+Limit potentially matching processes to those running on
 the specified
 .Ar tty .
 .It Fl c Ar procname
@@ -104,11 +104,11 @@ the specified
 .Ar progname .
 .El
 .Sh ALL PROCESSES
-Sending a signal to all processes with uid 
+Sending a signal to all processes with uid
 .Nm XYZ
 is already supported by
-.Xr kill 1 . 
-So use 
+.Xr kill 1 .
+So use
 .Xr kill 1
 for this job (e.g. $ kill -TERM -1 or
 as root $ echo kill -TERM -1 | su -m <user>)

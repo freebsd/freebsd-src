@@ -52,21 +52,21 @@ at a low priority.
 If
 .Fl Ns Ar number
 is not given,
-.Nm 
+.Nm
 assumes the value 10.
 The priority is a value in the range -20 to 20.
-The default priority is 0, priority 20 is the lowest possible. 
+The default priority is 0, priority 20 is the lowest possible.
 .Nm Nice
 will execute
 .Ar command
 at priority
 .Ar number
 relative to the priority
-of 
+of
 .Nm .
 Higher priorities than the
 current process priority can only requested by the
-super-user. 
+super-user.
 Negative numbers are expressed as
 .Fl - Ns Ar number .
 .Pp
@@ -83,15 +83,15 @@ manual page.
 .Sh EXAMPLES
 $ nice -5 date
 .Pp
-Execute command 
-.Sq date 
+Execute command
+.Sq date
 at priority 5 assuming the priority of the
 shell is 0.
 .Pp
 # nice -16 nice --35 date
 .Pp
-Execute command 
-.Sq date 
+Execute command
+.Sq date
 at priority -19 assuming the priority of the
 shell is 0 and you are the super-user.
 .Sh SEE ALSO
