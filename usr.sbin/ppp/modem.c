@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.24.2.24 1997/09/22 00:57:01 brian Exp $
+ * $Id: modem.c,v 1.24.2.25 1997/09/23 00:01:25 brian Exp $
  *
  *  TODO:
  */
@@ -443,7 +443,7 @@ LockModem()
   if (*VarDevice != '/')
     return 0;
 
-  if ((res = uu_lock(VarBaseDevice)) != UU_LOCK_OK) {
+  if (!(mode & MODE_DIRECT) && (res = uu_lock(VarBaseDevice)) != UU_LOCK_OK) {
     if (res == UU_LOCK_INUSE)
       LogPrintf(LogPHASE, "Modem %s is in use\n", VarDevice);
     else
@@ -474,7 +474,7 @@ UnlockModem()
   if (unlink(fn) == -1)
     LogPrintf(LogALERT, "Warning: Can't remove %s: %s\n", fn, strerror(errno));
 
-  if (uu_unlock(VarBaseDevice) == -1)
+  if (!(mode & MODE_DIRECT) && uu_unlock(VarBaseDevice) == -1)
     LogPrintf(LogALERT, "Warning: Can't uu_unlock %s\n", fn);
 }
 
@@ -499,11 +499,12 @@ OpenModem(int mode)
         close(0);
         return -1;
       }
+      modem = 0;
     } else {
       LogPrintf(LogDEBUG, "OpenModem(direct): Modem is not a tty\n");
       SetVariable(0, 0, 0, VAR_DEVICE);
+      return modem = 0;
     }
-    return modem = 0;
   } else {
     if (strncmp(VarDevice, "/dev/", 5) == 0) {
       if (LockModem() == -1)
