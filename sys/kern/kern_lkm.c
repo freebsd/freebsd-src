@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_lkm.c,v 1.38 1997/03/23 03:36:20 bde Exp $
+ * $Id: kern_lkm.c,v 1.39 1997/03/24 11:24:35 bde Exp $
  */
 
 #include <sys/param.h>
@@ -539,7 +539,7 @@ _lkm_syscall(lkmtp, cmd)
 		/* don't load twice! */
 		if (lkmexists(lkmtp))
 			return(EEXIST);
-		if ((i = args->lkm_offset) == -1) {	/* auto */
+		if ((i = args->lkm_offset) == LKM_ANON) {	/* auto */
 			/*
 			 * Search the table looking for a slot...
 			 */
@@ -707,7 +707,7 @@ _lkm_dev(lkmtp, cmd)
 			return(EEXIST);
 		switch(args->lkm_devtype) {
 		case LM_DT_BLOCK:
-			if ((i = args->lkm_offset) == -1)
+			if ((i = args->lkm_offset) == LKM_ANON)
 				descrip = (dev_t) -1;
 			else
 				descrip = makedev(args->lkm_offset,0);
@@ -719,7 +719,7 @@ _lkm_dev(lkmtp, cmd)
 			break;
 
 		case LM_DT_CHAR:
-			if ((i = args->lkm_offset) == -1)
+			if ((i = args->lkm_offset) == LKM_ANON)
 				descrip = (dev_t) -1;
 			else
 				descrip = makedev(args->lkm_offset,0);
@@ -817,7 +817,7 @@ _lkm_exec(lkmtp, cmd)
 		/* don't load twice! */
 		if (lkmexists(lkmtp))
 			return(EEXIST);
-		if ((i = args->lkm_offset) == -1) {	/* auto */
+		if ((i = args->lkm_offset) == LKM_ANON) {	/* auto */
 			/*
 			 * Search the table looking for a slot...
 			 */

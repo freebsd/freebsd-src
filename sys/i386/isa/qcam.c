@@ -312,9 +312,8 @@ qcam_stat (struct lkm_table *lkmtp, int cmd)
 int
 qcam_mod (struct lkm_table *lkmtp, int cmd, int ver)
 {
-#define _module qcam_module
-	DISPATCH(lkmtp, cmd, ver,
-		 qcam_load, qcam_unload, qcam_stat);
+	MOD_DISPATCH(qcam, lkmtp, cmd, ver,
+		qcam_load, qcam_unload, qcam_stat);
 }
 
 #endif /* QCAM_MODULE */

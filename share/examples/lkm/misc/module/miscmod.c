@@ -37,18 +37,11 @@
  *
  */
 #include <sys/param.h>
-#include <sys/ioctl.h>
-#include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
-#include <sys/conf.h>
-#include <sys/mount.h>
 #include <sys/exec.h>
 #include <sys/sysent.h>
 #include <sys/lkm.h>
-#include <a.out.h>
-#include <sys/file.h>
-#include <sys/errno.h>
 
 /* XXX this should be in a header. */
 extern int	misccall __P((struct proc *p, void *uap, int retval[]));
@@ -186,5 +179,6 @@ struct lkm_table	*lkmtp;
 int			cmd;
 int			ver;
 {
-	DISPATCH(lkmtp, cmd, ver, misc_load, misc_load, lkm_nullcmd);
+	MOD_DISPATCH(misc, lkmtp, cmd, ver,
+		misc_load, misc_load, lkm_nullcmd);
 }
