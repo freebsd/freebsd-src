@@ -143,7 +143,7 @@
 /*
  * Tuning constants.
  */
-#define	IOMMU_MAX_PRE		BUS_SPACE_MAXSIZE
+#define	IOMMU_MAX_PRE		(128 * 1024)
 #define	IOMMU_MAX_PRE_SEG	3
 
 MALLOC_DEFINE(M_IOMMU, "dvmamem", "IOMMU DVMA Buffers");
