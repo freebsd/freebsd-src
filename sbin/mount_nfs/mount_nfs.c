@@ -158,6 +158,19 @@ struct nfs_args nfsdefargs = {
 	NFS_MAXDIRATTRTIMO,
 };
 
+/* Table for af,sotype -> netid conversions. */
+struct nc_protos {
+	char *netid;
+	int af;
+	int sotype;
+} nc_protos[] = {
+	{"udp",		AF_INET,	SOCK_DGRAM},
+	{"tcp",		AF_INET,	SOCK_STREAM},
+	{"udp6",	AF_INET6,	SOCK_DGRAM},
+	{"tcp6",	AF_INET6,	SOCK_STREAM},
+	{NULL}
+};
+
 struct nfhret {
 	u_long		stat;
 	long		vers;
@@ -204,6 +217,8 @@ enum tryret {
 
 int	getnfsargs __P((char *, struct nfs_args *));
 /* void	set_rpc_maxgrouplist __P((int)); */
+struct netconfig *getnetconf_cached(const char *netid);
+char	*netidbytype(int af, int sotype);
 void	usage __P((void)) __dead2;
 int	xdr_dir __P((XDR *, char *));
 int	xdr_fh __P((XDR *, struct nfhret *));
@@ -757,15 +772,13 @@ nfs_tryproto(struct nfs_args *nfsargsp, struct addrinfo *ai, char *hostp,
 	errbuf[0] = '\0';
 	*errstr = errbuf;
 
-	/*
-	 * XXX. Nead a generic (family, type, proto) -> nconf interface.
-	 * __rpc_*2nconf exist, maybe they should be exported.
-	 */
-	if (nfsargsp->sotype == SOCK_STREAM)
-		netid = (ai->ai_family == AF_INET6) ? "tcp6" : "tcp";
-	else
-		netid = (ai->ai_family == AF_INET6) ? "udp6" : "udp";
-	if ((nconf = getnetconfigent(netid)) == NULL) {
+	if ((netid = netidbytype(ai->ai_family, nfsargsp->sotype)) == NULL) {
+		snprintf(errbuf, sizeof errbuf,
+		    "af %d sotype %d not supported", ai->ai_family,
+		    nfsargsp->sotype);
+		return (TRYRET_LOCALERR);
+	}
+	if ((nconf = getnetconf_cached(netid)) == NULL) {
 		snprintf(errbuf, sizeof errbuf, "%s: %s", netid, nc_sperror());
 		return (TRYRET_LOCALERR);
 	}
@@ -774,8 +787,14 @@ nfs_tryproto(struct nfs_args *nfsargsp, struct addrinfo *ai, char *hostp,
 		netid_mnt = netid;
 		nconf_mnt = nconf;
 	} else {
-		netid_mnt = (ai->ai_family == AF_INET6) ? "udp6" : "udp";
-		if ((nconf_mnt = getnetconfigent(netid_mnt)) == NULL) {
+		if ((netid_mnt = netidbytype(ai->ai_family, SOCK_DGRAM))
+		     == NULL) {
+			snprintf(errbuf, sizeof errbuf,
+			    "af %d sotype SOCK_DGRAM not supported",
+			     ai->ai_family);
+			return (TRYRET_LOCALERR);
+		}
+		if ((nconf_mnt = getnetconf_cached(netid_mnt)) == NULL) {
 			snprintf(errbuf, sizeof errbuf, "%s: %s", netid_mnt,
 			    nc_sperror());
 			return (TRYRET_LOCALERR);
@@ -931,6 +950,55 @@ returncode(enum clnt_stat stat, struct rpc_err *rpcerr)
 		break;
 	}
 	return (TRYRET_LOCALERR);
+}
+
+/*
+ * Look up a netid based on an address family and socket type.
+ * `af' is the address family, and `sotype' is SOCK_DGRAM or SOCK_STREAM.
+ *
+ * XXX there should be a library function for this.
+ */
+char *
+netidbytype(int af, int sotype) {
+	struct nc_protos *p;
+
+	for (p = nc_protos; p->netid != NULL; p++) {
+		if (af != p->af || sotype != p->sotype)
+			continue;
+		return (p->netid);
+	}
+	return (NULL);
+}
+
+/*
+ * Look up a netconfig entry based on a netid, and cache the result so
+ * that we don't need to remember to call freenetconfigent().
+ *
+ * Otherwise it behaves just like getnetconfigent(), so nc_*error()
+ * work on failure.
+ */
+struct netconfig *
+getnetconf_cached(const char *netid) {
+	static struct nc_entry {
+		struct netconfig *nconf;
+		struct nc_entry *next;
+	} *head;
+	struct nc_entry *p;
+	struct netconfig *nconf;
+
+	for (p = head; p != NULL; p = p->next)
+		if (strcmp(netid, p->nconf->nc_netid) == 0)
+			return (p->nconf);
+
+	if ((nconf = getnetconfigent(netid)) == NULL)
+		return (NULL);
+	if ((p = malloc(sizeof(*p))) == NULL)
+		err(1, "malloc");
+	p->nconf = nconf;
+	p->next = head;
+	head = p;
+
+	return (p->nconf);
 }
 
 /*
