@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from:@(#)syscons.c	1.3 940129
- *	$Id: syscons.c,v 1.37 1994/03/06 20:56:26 guido Exp $
+ *	$Id: syscons.c,v 1.38 1994/03/08 15:17:41 davidg Exp $
  *
  */
 
@@ -162,6 +162,10 @@ static default_attr kernel_default = {
 	(FG_WHITE | BG_BLACK) << 8,
 	(FG_BLACK | BG_LIGHTGREY) << 8
 };
+
+#define CONSOLE_BUFFER_SIZE 1024
+int console_buffer_count;
+char console_buffer[CONSOLE_BUFFER_SIZE];
 
 static	scr_stat	console[NCONS];
 static	scr_stat	*cur_console = &console[0];
@@ -1054,13 +1058,14 @@ void pcstart(struct tty *tp)
 
 #else /* __FreeBSD__ & __386BSD__ */
 
-	int c, s;
+	int c, s, len, i;
 	scr_stat *scp = get_scr_stat(tp->t_dev);
+	u_char buf[PCBURST];
 
 	if (scp->status & SLKED) 
 		return;
 	s = spltty();
-	if (!(tp->t_state & (TS_TIMEOUT|TS_BUSY|TS_TTSTOP)))
+	if (!(tp->t_state & (TS_TIMEOUT|TS_BUSY|TS_TTSTOP))) {
 		for (;;) {
 			if (RB_LEN(tp->t_out) <= tp->t_lowat) {
 				if (tp->t_state & TS_ASLEEP) {
@@ -1078,13 +1083,29 @@ void pcstart(struct tty *tp)
 				break;
 			if (scp->status & SLKED) 
 				break;
-			c = getc(tp->t_out);
+			len = 0;
+			while( len < PCBURST) {
+				buf[len++] = getc(tp->t_out);
+				if( RB_LEN(tp->t_out) == 0)
+					break;
+			}
 			tp->t_state |= TS_BUSY;
 			splx(s);
-			ansi_put(scp, c);
+			for(i=0;i<len;i++)
+				ansi_put(scp, buf[i]);
 			s = spltty();
 			tp->t_state &= ~TS_BUSY;
 		}
+		tp->t_state |= TS_BUSY;
+		if( in_putc == 0) {
+			int i;
+			for(i=0;i<console_buffer_count;i++) {
+				scput(console_buffer[i]);
+			}
+			console_buffer_count = 0;
+		}
+		tp->t_state &= ~TS_BUSY;
+	}
 	splx(s);
 #endif
 }
@@ -1444,7 +1465,7 @@ static void move_crsr(scr_stat *scp, int x, int y)
 	scp->crtat = scp->crt_base + scp->ypos * scp->xsize + scp->xpos;
 }
 
-
+#if 0
 static void move_up(u_short *s, u_short *d, u_int len)
 {
 	s += len;
@@ -1452,13 +1473,18 @@ static void move_up(u_short *s, u_short *d, u_int len)
 	while (len-- > 0)
 		*--d = *--s;
 }
+#endif
 
 
+#if 0
 static void move_down(u_short *s, u_short *d, u_int len)
 {
 	while (len-- > 0)
 		*d++ = *s++;
 }
+#endif
+#define move_down(s,d,len) bcopyw(s,d,len/2)
+#define move_up(s,d,len) bcopyw(s,d,len/2)
 
 
 static void scan_esc(scr_stat *scp, u_char c)
@@ -2031,13 +2057,20 @@ static void scput(u_char c)
 
 	if (crtat == 0)
 		scinit();
-	save = scp->term;
-	scp->term = kernel_console;
-	current_default = &kernel_default;
-	ansi_put(scp, c);
-	kernel_console = scp->term;
-	current_default = &user_default;
-	scp->term = save;
+	if( in_putc == 0) {
+		++in_putc;
+		save = scp->term;
+		scp->term = kernel_console;
+		current_default = &kernel_default;
+		ansi_put(scp, c);
+		kernel_console = scp->term;
+		current_default = &user_default;
+		scp->term = save;
+		--in_putc;
+	} else {
+		if( console_buffer_count < CONSOLE_BUFFER_SIZE)
+			console_buffer[console_buffer_count++] = c;
+	}
 }
 
 
