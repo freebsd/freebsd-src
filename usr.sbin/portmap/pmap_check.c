@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#) pmap_check.c 1.6 93/11/21 20:58:59";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/portmap/pmap_check.c,v 1.6 2000/01/15 23:08:28 brian Exp $";
 #endif
 
 #include <stdio.h>

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.sbin/pkg_install/lib/lib.h,v 1.29.2.9 2001/10/24 10:06:56 sobomax Exp $ */
 
 /*
  * FreeBSD install - a package for the installation and maintainance

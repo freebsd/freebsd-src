@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libutil/login_crypt.c,v 1.2.2.2 2000/10/27 01:50:31 green Exp $
  */
 
 #include <sys/types.h>

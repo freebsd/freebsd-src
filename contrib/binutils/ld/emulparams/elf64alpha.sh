@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/contrib/binutils/ld/emulparams/elf64alpha.sh,v 1.3.2.1 2001/08/01 23:03:12 obrien Exp $
 
 
 ENTRY=_start

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libc/Makefile.inc,v 1.5 1999/08/27 23:58:06 peter Exp $
 #
 # This file contains make rules that are shared by libc and libc_r.
 #

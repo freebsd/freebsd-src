@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/tcp_syncache.c,v 1.5.2.4 2002/01/24 16:09:08 jlemon Exp $
  */
 
 #include "opt_inet6.h"

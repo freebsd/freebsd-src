@@ -27,7 +27,7 @@
  */
 
 /* $Header: /home/daffy/u0/vern/flex/RCS/sym.c,v 2.19 95/03/04 16:11:04 vern Exp $ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.bin/lex/sym.c,v 1.5 1999/10/27 07:56:47 obrien Exp $ */
 
 #include "flexdef.h"
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/share/syscons/scrnmaps/mkscrfil.c,v 1.1.14.1 2001/09/17 15:37:00 ru Exp $
  */
 
 #include <sys/ioctl.h>

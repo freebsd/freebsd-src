@@ -30,7 +30,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/bge/if_bge.c,v 1.3.2.6 2001/12/18 08:08:34 peter Exp $
  */
 
 /*
@@ -120,7 +120,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sys/dev/bge/if_bge.c,v 1.3.2.6 2001/12/18 08:08:34 peter Exp $";
 #endif
 
 /*

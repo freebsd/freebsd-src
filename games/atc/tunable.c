@@ -48,7 +48,7 @@
 static char sccsid[] = "@(#)tunable.c	8.1 (Berkeley) 5/31/93";
 #endif
 static const char rcsid[] =
- "$FreeBSD$";
+ "$FreeBSD: src/games/atc/tunable.c,v 1.2 1999/11/30 03:48:21 billf Exp $";
 #endif /* not lint */
 
 /*

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netsmb/smb_conn.h,v 1.1.2.1 2001/05/22 08:32:33 bp Exp $
  */
 #ifndef _NETINET_IN_H_
 #include <netinet/in.h>

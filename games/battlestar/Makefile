@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 5/31/93
-# $FreeBSD$
+# $FreeBSD: src/games/battlestar/Makefile,v 1.5.2.1 2001/04/25 09:28:44 ru Exp $
 
 PROG=	battlestar
 SRCS=	battlestar.c com1.c com2.c com3.c com4.c com5.c com6.c com7.c \

@@ -17,7 +17,7 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- * $FreeBSD$
+ * $FreeBSD: src/gnu/lib/libdialog/prgbox.c,v 1.12.6.1 2000/12/15 05:54:36 jkh Exp $
  */
 
 

@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/tools/regression/p1003_1b/README,v 1.1 2000/02/16 14:28:39 dufault Exp $
 
 p1003_1b: Regression tests for the scheduling facilities.
 The following should always work as of the release of 4.0:

@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/net/net_osdep.h,v 1.1.2.2 2001/07/03 11:01:41 ume Exp $	*/
 /*	$KAME: net_osdep.h,v 1.44 2001/05/16 03:13:40 jinmei Exp $	*/
 
 /*

@@ -41,7 +41,7 @@
 static char sccsid[] = "@(#)tape.c	8.9 (Berkeley) 5/1/95";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sbin/restore/tape.c,v 1.16.2.6 2001/08/01 09:00:28 obrien Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

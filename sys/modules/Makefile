@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/Makefile,v 1.110.2.44 2001/12/26 17:55:45 pdeuskar Exp $
 
 # XXX present but broken: ip_mroute_mod pcic
 

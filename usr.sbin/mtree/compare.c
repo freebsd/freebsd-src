@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)compare.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/mtree/compare.c,v 1.15.2.3 2001/01/12 19:17:18 phk Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/net/pfkeyv2.h,v 1.4.2.3 2001/10/24 19:49:13 ume Exp $	*/
 /*	$KAME: pfkeyv2.h,v 1.26 2001/06/27 10:49:49 sakane Exp $	*/
 
 /*

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/binutils/gdb/freebsd-uthread.c,v 1.3.2.2 2000/11/10 00:38:53 deischen Exp $ */
 /* Low level interface for debugging FreeBSD user threads for GDB, the GNU debugger.
    Copyright 1996, 1999 Free Software Foundation, Inc.
 

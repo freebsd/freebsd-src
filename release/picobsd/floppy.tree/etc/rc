@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/floppy.tree/etc/rc,v 1.3.2.2 2001/10/04 00:50:39 luigi Exp $
 ############################################
 ### Special setup for one floppy PICOBSD ###
 ### THIS IS NOT THE NORMAL /etc/rc !!!!! ###

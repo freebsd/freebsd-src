@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/vm/vm_glue.c,v 1.94.2.2 2001/11/03 01:41:09 ps Exp $
  */
 
 #include "opt_vm.h"

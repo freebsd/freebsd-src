@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# $FreeBSD$
+# $FreeBSD: src/release/scripts/dict-make.sh,v 1.7 1999/09/11 06:11:52 jkh Exp $
 
 # Move the dict stuff out to its own dist
 if [ -d ${RD}/trees/bin/usr/share/dict ]; then

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/named.restart/Makefile,v 1.6.2.2 2001/04/25 14:04:55 ru Exp $
 
 .include "${.CURDIR}/../named/Makefile.inc"
 

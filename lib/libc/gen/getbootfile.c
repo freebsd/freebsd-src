@@ -34,7 +34,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char sccsid[] = "From: @(#)gethostname.c	8.1 (Berkeley) 6/4/93";*/
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/lib/libc/gen/getbootfile.c,v 1.5 1999/08/27 23:58:37 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>

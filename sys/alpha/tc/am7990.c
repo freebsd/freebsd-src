@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/tc/am7990.c,v 1.9.2.3 2001/06/29 15:31:01 mjacob Exp $ */
 /*	$NetBSD: am7990.c,v 1.43 1998/03/29 22:36:42 mycroft Exp $	*/
 
 /*-

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/nls.alias,v 1.2.2.4 2002/01/23 18:59:02 phantom Exp $
 
 ASCII                   C
 POSIX                   C

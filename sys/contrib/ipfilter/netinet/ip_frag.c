@@ -90,7 +90,7 @@ extern struct timeout ipfr_slowtimer_ch;
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_frag.c	1.11 3/24/96 (C) 1993-2000 Darren Reed";
 /*static const char rcsid[] = "@(#)$Id: ip_frag.c,v 2.10.2.4 2000/06/06 15:49:15 darrenr Exp $";*/
-static const char rcsid[] = "@(#)$FreeBSD$";
+static const char rcsid[] = "@(#)$FreeBSD: src/sys/contrib/ipfilter/netinet/ip_frag.c,v 1.15.2.3 2001/07/30 11:04:03 darrenr Exp $";
 #endif
 
 

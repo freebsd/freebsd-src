@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/stdlib/strtod.c,v 1.3.8.2 2001/03/02 17:14:15 tegge Exp $
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)

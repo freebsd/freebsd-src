@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/fsck/fsutil.c,v 1.2.2.1 2001/08/01 05:47:55 obrien Exp $
  */
 
 #include <sys/cdefs.h>

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/libiconv/Makefile,v 1.1.2.1 2001/12/20 09:49:24 sheldonh Exp $
 
 .PATH: ${.CURDIR}/../../libkern ${.CURDIR}/../../sys
 

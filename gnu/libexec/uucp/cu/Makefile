@@ -1,5 +1,5 @@
 # Makefile for cu
-# $FreeBSD$
+# $FreeBSD: src/gnu/libexec/uucp/cu/Makefile,v 1.8.2.1 2001/09/10 20:22:57 dillon Exp $
 
 BINDIR=		$(bindir)
 BINOWN=		$(owner)

@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/crypto/des/des_setkey.c,v 1.1.2.3 2001/07/10 09:46:35 ume Exp $	*/
 /*	$KAME: des_setkey.c,v 1.6 2001/07/03 14:27:53 itojun Exp $	*/
 
 /* crypto/des/set_key.c */

@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/vm/vm_fault.c,v 1.108.2.7 2001/11/17 01:02:47 dillon Exp $
  */
 
 /*

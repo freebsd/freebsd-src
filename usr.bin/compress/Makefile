@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 4/17/94
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/compress/Makefile,v 1.4.6.1 2001/04/25 11:29:18 ru Exp $
 
 PROG=	compress
 CFLAGS+=-Wall

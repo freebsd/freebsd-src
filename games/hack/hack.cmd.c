@@ -1,6 +1,6 @@
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* hack.cmd.c - version 1.0.3 */
-/* $FreeBSD$ */
+/* $FreeBSD: src/games/hack/hack.cmd.c,v 1.4 1999/11/16 10:26:35 marcel Exp $ */
 
 #include	"hack.h"
 #include	"def.func_tab.h"

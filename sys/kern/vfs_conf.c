@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/kern/vfs_conf.c,v 1.49.2.3 2001/08/08 19:26:34 dwmalone Exp $
  */
 
 /*

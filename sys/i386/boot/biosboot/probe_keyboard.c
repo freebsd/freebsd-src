@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/boot/biosboot/probe_keyboard.c,v 1.15 1999/08/28 00:43:13 peter Exp $
  */
 
 #include <sys/types.h>

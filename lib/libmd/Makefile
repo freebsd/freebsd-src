@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libmd/Makefile,v 1.34.2.1 2001/04/25 10:04:33 ru Exp $
 
 LIB=	md
 SRCS=	md2c.c md4c.c md5c.c md2hl.c md4hl.c md5hl.c \

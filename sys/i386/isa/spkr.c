@@ -4,7 +4,7 @@
  * v1.4 by Eric S. Raymond (esr@snark.thyrsus.com) Aug 1993
  * modified for FreeBSD by Andrew A. Chernov <ache@astral.msk.su>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/spkr.c,v 1.45 2000/01/29 16:00:32 peter Exp $
  */
 
 #include <sys/param.h>

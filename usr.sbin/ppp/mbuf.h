@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/mbuf.h,v 1.24.2.2 2001/06/13 21:56:36 brian Exp $
  */
 
 struct mbuf {

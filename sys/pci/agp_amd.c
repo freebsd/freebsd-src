@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/pci/agp_amd.c,v 1.3.2.2 2001/12/20 10:27:41 murray Exp $
  */
 
 #include "opt_bus.h"

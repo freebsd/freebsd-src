@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lang.l	8.1 (Berkeley) 6/6/93
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/config/lang.l,v 1.27 1999/11/09 07:20:22 peter Exp $
  */
 
 #include <ctype.h>

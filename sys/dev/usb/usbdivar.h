@@ -1,5 +1,5 @@
 /*	$NetBSD: usbdivar.h,v 1.46 2000/01/19 01:16:40 augustss Exp $	*/
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/usb/usbdivar.h,v 1.14.2.2 2000/10/31 23:23:30 n_hibma Exp $	*/
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

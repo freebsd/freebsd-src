@@ -27,7 +27,7 @@
  *	i4b daemon - controller state support routines
  *	----------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdnd/controller.c,v 1.6.2.3 2001/12/10 10:33:56 hm Exp $
  *
  *      last edit-date: [Mon Dec 10 11:32:05 2001]
  *

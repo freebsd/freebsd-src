@@ -31,7 +31,7 @@
  *
  *---------------------------------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/ispppcontrol/ispppcontrol.c,v 1.1.2.1 2001/08/01 17:45:09 obrien Exp $
  */
 
 #ifndef lint

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/pc98/btx/btxldr/Makefile,v 1.2.2.1 2000/04/16 03:55:19 nyan Exp $
 
 M4?=	m4
 M4FLAGS+=	-DLOADER_ADDRESS=${LOADER_ADDRESS} -DPC98

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/hpfs/hpfs_subr.h,v 1.1 1999/12/09 19:09:59 semenu Exp $
  */
 
 #define	hpfs_bmmarkfree(hpmp, bn,bl) hpfs_bmmark(hpmp, bn, bl, 1)

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/wi/Makefile,v 1.3.2.2 2001/08/28 06:21:15 imp Exp $
 
 .PATH:	${.CURDIR}/../../i386/isa
 KMOD	= if_wi

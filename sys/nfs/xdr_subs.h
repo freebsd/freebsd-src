@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)xdr_subs.h	8.3 (Berkeley) 3/30/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/nfs/xdr_subs.h,v 1.13 1999/08/28 00:50:04 peter Exp $
  */
 
 

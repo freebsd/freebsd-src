@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/vfs_subr.c,v 1.249.2.23 2002/01/19 21:01:32 dillon Exp $
  */
 
 /*

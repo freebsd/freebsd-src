@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/mrouted/dvmrp.h,v 1.9 1999/08/28 01:17:03 peter Exp $
  * dvmrp.h,v 3.8.4.5 1997/11/18 23:25:57 fenner Exp
  */
 

@@ -32,7 +32,7 @@
  *
  *	@(#)def.h	8.2 (Berkeley) 3/21/94
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/mail/def.h,v 1.4.6.2 2001/06/12 22:34:47 mikeh Exp $
  */
 
 /*

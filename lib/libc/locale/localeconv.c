@@ -34,7 +34,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)localeconv.c	8.1 (Berkeley) 6/4/93";
 static char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/lib/libc/locale/localeconv.c,v 1.1.1.1.14.1 2001/03/05 10:21:18 obrien Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <locale.h>

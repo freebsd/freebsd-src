@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_types.h	8.2 (Berkeley) 4/20/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/if_types.h,v 1.8.2.3 2001/07/03 11:01:41 ume Exp $
  */
 
 #ifndef _NET_IF_TYPES_H_

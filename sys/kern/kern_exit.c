@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/kern_exit.c,v 1.92.2.8 2001/12/14 03:33:50 luigi Exp $
  */
 
 #include "opt_compat.h"

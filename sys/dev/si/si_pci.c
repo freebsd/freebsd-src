@@ -17,7 +17,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/si/si_pci.c,v 1.2 2000/01/24 08:11:10 peter Exp $
  */
 
 #include <sys/param.h>

@@ -1,5 +1,5 @@
 #	@(#)bsd.README	8.2 (Berkeley) 4/2/94
-# $FreeBSD$
+# $FreeBSD: src/share/mk/bsd.README,v 1.15.2.4 2001/12/20 10:44:03 ru Exp $
 
 XXX This document is seriously out of date, it is currenly being revised.
 

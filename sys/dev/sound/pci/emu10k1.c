@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/pci/emu10k1.c,v 1.6.2.8 2001/12/22 16:17:02 cg Exp $
  */
 
 #include <dev/sound/pcm/sound.h>

@@ -32,7 +32,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 SUCH DAMAGE.
 ***************************************************************************
 **************************************************************************/
-/*$FreeBSD$*/
+/*$FreeBSD: src/sys/dev/em/if_em_fxhw.c,v 1.2.2.1 2001/12/15 01:40:52 pdeuskar Exp $*/
 /*
 * Workfile: fxhw.c 
 * Date: 9/25/01 2:40p 

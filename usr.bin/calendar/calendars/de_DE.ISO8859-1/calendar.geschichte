@@ -13,7 +13,7 @@
  * 
  * ISBN 3-924521-59-X
  * 
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/calendar/calendars/de_DE.ISO8859-1/calendar.geschichte,v 1.8.2.1 2002/01/05 15:43:37 phantom Exp $
  */
 
 #ifndef _de_DE_ISO8859_1_geschichte_

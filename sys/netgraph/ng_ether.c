@@ -37,7 +37,7 @@
  * Authors: Archie Cobbs <archie@freebsd.org>
  *	    Julian Elischer <julian@freebsd.org>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/ng_ether.c,v 1.2.2.10 2001/09/01 08:22:29 yar Exp $
  */
 
 /*

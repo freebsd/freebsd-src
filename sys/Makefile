@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/Makefile,v 1.20.2.1 2000/07/10 08:22:34 obrien Exp $
 
 # This is the old aout only boot loader.
 .if	exists(${.CURDIR}/${MACHINE_ARCH}/boot) && ${OBJFORMAT} == "aout"

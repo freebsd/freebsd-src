@@ -4,7 +4,7 @@
 #
 # Taken from:
 #
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/custom/Makefile,v 1.2 1999/12/11 15:12:30 jdp Exp $
 #
 
 # Building a PicoBSD kernel involves four basic operations:

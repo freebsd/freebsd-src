@@ -34,7 +34,7 @@ static char *rcsid = "$OpenBSD: strlcpy.c,v 1.4 1999/05/01 18:56:41 millert Exp 
 #endif /* LIBC_SCCS and not lint */
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/lib/libc/string/strlcpy.c,v 1.2.4.1 2001/07/09 23:30:06 obrien Exp $";
 #endif
 
 #include <sys/types.h>

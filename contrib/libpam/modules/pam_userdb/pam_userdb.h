@@ -2,7 +2,7 @@
 #ifndef _PAM_USERSDB_H
 #define _PAM_USERSDB_H
 /* $Id: pam_userdb.h,v 1.1.1.1 2000/06/20 22:12:09 agmorgan Exp $ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/libpam/modules/pam_userdb/pam_userdb.h,v 1.1.1.1.2.2 2001/06/11 15:28:34 markm Exp $ */
    
 /* Header files */
 #include <security/pam_appl.h>

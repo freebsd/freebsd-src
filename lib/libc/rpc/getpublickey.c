@@ -27,7 +27,7 @@
  * 2550 Garcia Avenue
  * Mountain View, California  94043
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/rpc/getpublickey.c,v 1.2.6.1 2000/09/20 04:43:11 jkh Exp $
  */
 #if !defined(lint) && defined(SCCSIDS)
 static char sccsid[] = "@(#)publickey.c 1.10 91/03/11 Copyr 1986 Sun Micro";

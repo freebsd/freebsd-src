@@ -29,7 +29,7 @@
  *
  *	BSDI cwd.h,v 2.2 1996/04/08 19:32:26 bostic Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/doscmd/cwd.h,v 1.2.2.1 2001/07/03 11:55:22 tg Exp $
  */
 
 static inline u_char *

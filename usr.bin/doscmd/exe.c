@@ -28,7 +28,7 @@
  * SUCH DAMAGE.
  *
  *	BSDI exe.c,v 2.2 1996/04/08 19:32:34 bostic Exp
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/doscmd/exe.c,v 1.2 1999/08/28 01:00:15 peter Exp $
  */
 
 #include <stdio.h>

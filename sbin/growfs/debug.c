@@ -36,13 +36,13 @@
  * SUCH DAMAGE.
  *
  * $TSHeader: src/sbin/growfs/debug.c,v 1.3 2000/12/12 19:31:00 tomsoft Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sbin/growfs/debug.c,v 1.3.2.1 2001/07/16 15:02:13 tomsoft Exp $
  *
  */
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sbin/growfs/debug.c,v 1.3.2.1 2001/07/16 15:02:13 tomsoft Exp $";
 #endif /* not lint */
 
 /* ********************************************************** INCLUDES ***** */

@@ -9,7 +9,7 @@
 # sparc-sun-sunos4.1.3 sparc-sun-sunos4.1.3 sun4 "" sun3 sparc-sun-sunos4.1.3
 # produces sun3.x sun3.xbn sun3.xn sun3.xr sun3.xu em_sun3.c
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/ld/genscripts.sh,v 1.1.2.2 2001/08/01 22:54:09 obrien Exp $
 #
 # This is a cut-down version of the GNU script. Instead of jumping through
 # hoops for all possible combinations of paths, just use the libdir

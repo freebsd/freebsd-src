@@ -29,7 +29,7 @@
    c/o Cygnus Support, 48 Grove Street, Somerville, MA 02144.
    */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/libexec/uucp/common_sources/uuconf.h,v 1.6.8.1 2000/06/03 17:18:09 ume Exp $ */
 
 #ifndef UUCONF_H
 

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/snc/if_snc_pccard.c,v 1.1.2.1 2000/10/21 03:30:03 nyan Exp $
  */
 
 /*

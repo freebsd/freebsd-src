@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/calendar/Makefile,v 1.12.8.2 2002/01/05 15:42:21 phantom Exp $
 
 PROG=	calendar
 SRCS=   calendar.c io.c day.c ostern.c paskha.c

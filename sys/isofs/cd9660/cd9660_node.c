@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_node.c	8.2 (Berkeley) 1/23/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/isofs/cd9660/cd9660_node.c,v 1.29.2.1 2000/07/08 14:35:56 bp Exp $
  */
 
 #include <sys/param.h>

@@ -1,4 +1,4 @@
-/* $FreeBSD$	*/
+/* $FreeBSD: src/usr.bin/ftp/ftp_var.h,v 1.11.2.1 2000/06/24 15:35:46 ru Exp $	*/
 /*	$NetBSD: ftp_var.h,v 1.20.2.1 1997/11/18 01:01:37 mellon Exp $	*/
 
 /*

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/share/examples/ses/srcs/sesd.c,v 1.1 2000/02/29 05:44:18 mjacob Exp $ */
 /*
  * Copyright (c) 2000 by Matthew Jacob
  * All rights reserved.

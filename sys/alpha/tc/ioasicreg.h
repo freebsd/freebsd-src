@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/tc/ioasicreg.h,v 1.2 1999/08/28 00:39:09 peter Exp $ */
 /* $NetBSD: ioasicreg.h,v 1.2 1997/04/06 22:30:28 cgd Exp $ */
 
 /* 

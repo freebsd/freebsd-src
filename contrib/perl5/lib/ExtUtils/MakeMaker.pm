@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/contrib/perl5/lib/ExtUtils/MakeMaker.pm,v 1.2 1999/12/04 12:35:56 marcel Exp $
 
 BEGIN {require 5.002;} # MakeMaker 5.17 was the last MakeMaker that was compatible with perl5.001m
 

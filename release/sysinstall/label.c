@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $FreeBSD$
+ * $FreeBSD: src/release/sysinstall/label.c,v 1.98.2.7 2002/01/07 07:59:30 dillon Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -1012,8 +1012,7 @@ diskLabel(Device *dev)
 	    break;
 
 	case 'T':	/* Toggle newfs state */
-	    if ((label_chunk_info[here].type == PART_FILESYSTEM) &&
-	        (label_chunk_info[here].c->private_data)) {
+	    if (label_chunk_info[here].type == PART_FILESYSTEM) {
 		PartInfo *pi = ((PartInfo *)label_chunk_info[here].c->private_data);
 
 		if (!pi->newfs)

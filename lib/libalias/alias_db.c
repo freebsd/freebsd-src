@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libalias/alias_db.c,v 1.21.2.13 2001/11/03 11:34:33 brian Exp $
  */
 
 /*

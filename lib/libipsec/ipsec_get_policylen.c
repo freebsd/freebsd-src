@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/lib/libipsec/ipsec_get_policylen.c,v 1.1.2.1 2000/07/15 07:24:04 kris Exp $	*/
 /*	$KAME: ipsec_get_policylen.c,v 1.5 2000/05/07 05:25:03 itojun Exp $	*/
 
 /*

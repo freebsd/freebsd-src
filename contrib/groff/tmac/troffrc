@@ -1,5 +1,5 @@
 .\" Startup file for troff.
-.\" $FreeBSD$
+.\" $FreeBSD: src/contrib/groff/tmac/troffrc,v 1.6.2.2 2001/04/26 17:35:42 ru Exp $
 .\" This is tested by pic.
 .nr 0p 0
 .\" Use .do here, so that it works with -C.

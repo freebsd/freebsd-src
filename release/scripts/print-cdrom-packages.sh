@@ -2,7 +2,7 @@
 #
 # Author:	Jordan Hubbard
 # Date:		Mon Jul 10 01:18:20 2000
-# Version:	$FreeBSD$
+# Version:	$FreeBSD: src/release/scripts/print-cdrom-packages.sh,v 1.1.2.12 2002/01/07 13:45:41 sheldonh Exp $
 #
 # MAINTAINER:	jkh
 #

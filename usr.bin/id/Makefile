@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/id/Makefile,v 1.5.6.3 2001/12/20 12:09:03 ru Exp $
 
 PROG=	id
 WARNS?=	2

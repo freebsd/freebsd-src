@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/compat/Makefile.inc,v 1.6.2.1 2001/11/27 02:49:59 peter Exp $
 
 LIBCOMPATDIR?=	${LIBDIR}/compat/aout
 

@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libcam/camlib.c,v 1.8.2.1 2001/07/24 23:09:04 mjacob Exp $
  */
 
 #include <sys/types.h>

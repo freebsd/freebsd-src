@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/kern/sysv_msg.c,v 1.23.2.3 2000/11/01 17:58:06 rwatson Exp $ */
 
 /*
  * Implementation of SVID messages

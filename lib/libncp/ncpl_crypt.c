@@ -3,7 +3,7 @@
  *  Adapted for ncplib by Boris Popov
  *  Please note that ncpl_crypt.c file should be indentical to this one
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libncp/ncpl_crypt.c,v 1.1 1999/10/12 11:56:39 bp Exp $
  */
 #include <sys/param.h>
 #include <sys/errno.h>

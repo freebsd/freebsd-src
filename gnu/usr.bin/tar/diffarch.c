@@ -17,7 +17,7 @@ You should have received a copy of the GNU General Public License
 along with GNU Tar; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/tar/diffarch.c,v 1.2.6.1 2001/03/05 10:51:46 kris Exp $ */
 
 /*
  * Diff files from a tar archive.

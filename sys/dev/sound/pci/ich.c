@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THEPOSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/pci/ich.c,v 1.3.2.5 2002/01/21 17:26:57 orion Exp $
  */
 
 #include <dev/sound/pcm/sound.h>

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/usr.bin/fetch/fetch.c,v 1.10.2.17 2001/12/18 09:48:09 des Exp $
  */
 
 #include <sys/param.h>

@@ -32,7 +32,7 @@
  *
  *	@(#)limits.h	8.3 (Berkeley) 1/4/94
  *	From: NetBSD: limits.h,v 1.3 1997/04/06 08:47:31 cgd Exp
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/include/limits.h,v 1.2.2.3 2000/12/28 18:22:16 obrien Exp $
  */
 
 #ifndef	_MACHINE_LIMITS_H_

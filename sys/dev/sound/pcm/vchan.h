@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/pcm/vchan.h,v 1.1.2.1 2001/08/01 03:41:03 cg Exp $
  */
 
 int vchan_create(struct pcm_channel *parent);

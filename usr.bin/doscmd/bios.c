@@ -29,7 +29,7 @@
  *
  *	BSDI bios.c,v 2.3 1996/04/08 19:32:19 bostic Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/doscmd/bios.c,v 1.5 1999/09/29 20:09:17 marcel Exp $
  */
 
 #include "doscmd.h"

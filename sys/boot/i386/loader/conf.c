@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/i386/loader/conf.c,v 1.11.2.5 2001/12/21 22:20:37 jhb Exp $
  */
 
 #include <stand.h>

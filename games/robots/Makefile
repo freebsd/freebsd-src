@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 5/31/93
-# $FreeBSD$
+# $FreeBSD: src/games/robots/Makefile,v 1.5.2.1 2001/04/25 09:29:02 ru Exp $
 
 PROG=	robots
 CFLAGS+=-DMAX_PER_UID=5

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/kern_timeout.c,v 1.59.2.1 2001/11/13 18:24:52 archie Exp $
  */
 
 #include <sys/param.h>

@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
-# $FreeBSD$
+# $FreeBSD: src/libexec/talkd/Makefile,v 1.6.2.2 2001/10/18 12:30:42 des Exp $
 
 PROG=	ntalkd
 CFLAGS+=-I${.CURDIR}/../../usr.bin/wall

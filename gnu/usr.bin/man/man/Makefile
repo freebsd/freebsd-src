@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/man/man/Makefile,v 1.27.2.2 2001/04/25 12:03:53 ru Exp $
 #
 
 MAN_LIBZ=YES

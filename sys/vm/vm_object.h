@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/vm/vm_object.h,v 1.63.2.2 2001/11/03 19:59:28 dillon Exp $
  */
 
 /*

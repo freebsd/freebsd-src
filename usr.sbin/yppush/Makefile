@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/yppush/Makefile,v 1.6.2.1 2001/04/25 12:11:14 ru Exp $
 
 PROG=	yppush
 SRCS=	ypxfr_getmap.c yp_dblookup.c yp_error.c ypxfr_misc.c yppush_main.c \

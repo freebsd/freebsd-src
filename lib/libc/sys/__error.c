@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/sys/__error.c,v 1.1.8.1 2001/03/05 11:45:51 obrien Exp $
  */
 
 #include <sys/cdefs.h>

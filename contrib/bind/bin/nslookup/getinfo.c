@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/bind/bin/nslookup/getinfo.c,v 1.3.2.3 2001/08/05 16:02:13 asmodai Exp $ */
 /*
  * Copyright (c) 1985, 1989
  *    The Regents of the University of California.  All rights reserved.

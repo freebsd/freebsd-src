@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/mail/Makefile,v 1.9.2.14 2001/11/23 17:14:57 gshapiro Exp $
 #
 # This Makefile provides an easy way to generate the configuration
 # file and database maps for the sendmail(8) daemon.

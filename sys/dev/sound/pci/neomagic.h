@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THEPOSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/pci/neomagic.h,v 1.1.2.1 2001/08/01 03:40:58 cg Exp $
  */
 
 #ifndef _NM256_H_

@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/md/md.c,v 1.8.2.1 2000/07/17 13:48:40 sheldonh Exp $
  *
  */
 

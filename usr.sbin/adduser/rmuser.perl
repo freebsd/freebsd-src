@@ -30,7 +30,7 @@
 #
 # Guy Helmer <ghelmer@cs.iastate.edu>, 02/23/97
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/adduser/rmuser.perl,v 1.8.2.7 2001/08/01 20:26:37 ghelmer Exp $
 
 use Fcntl;
 

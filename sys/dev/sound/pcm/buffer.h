@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/pcm/buffer.h,v 1.1.2.2 2001/08/01 03:41:03 cg Exp $
  */
 
 #define ISA_DMA(b) (sndbuf_getflags((b)) & SNDBUF_F_ISADMA)

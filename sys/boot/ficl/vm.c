@@ -13,7 +13,7 @@
 ** of the interp.
 */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/boot/ficl/vm.c,v 1.5.2.1 2000/07/06 23:51:45 obrien Exp $ */
 
 #ifdef TESTMAIN
 #include <stdlib.h>

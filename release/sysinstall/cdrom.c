@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $FreeBSD$
+ * $FreeBSD: src/release/sysinstall/cdrom.c,v 1.47.2.2 2001/08/30 16:26:07 nik Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

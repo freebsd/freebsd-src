@@ -53,7 +53,7 @@
  *
  * W. Metzenthen   June 1994.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/gnu/i386/fpemul/README,v 1.2.20.1 2000/08/03 00:53:55 peter Exp $
  */
 
 wm-FPU-emu is an FPU emulator for Linux. It is derived from wm-emu387

@@ -29,7 +29,7 @@
  *
  *	BSDI cmos.c,v 2.3 1996/04/08 19:32:20 bostic Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/doscmd/cmos.c,v 1.2.2.1 2001/08/02 02:17:15 obrien Exp $
  */
 
 #include "doscmd.h"

@@ -25,7 +25,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)security	5.3 (Berkeley) 5/28/91
-# $FreeBSD$
+# $FreeBSD: src/etc/security,v 1.36.2.20 2001/12/14 09:00:37 ru Exp $
 #
 
 PATH=/sbin:/bin:/usr/bin

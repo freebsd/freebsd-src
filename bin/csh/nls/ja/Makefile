@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/bin/csh/nls/ja/Makefile,v 1.4.2.3 2002/01/09 04:40:02 murray Exp $
 
 NL=     ja
 DL=     ja_JP.EUC

@@ -1,5 +1,5 @@
 // $Header: /home/daffy/u0/vern/flex/RCS/FlexLexer.h,v 1.19 96/05/25 20:43:02 vern Exp $
-// $FreeBSD$
+// $FreeBSD: src/usr.bin/lex/FlexLexer.h,v 1.3 1999/10/27 07:56:43 obrien Exp $
 
 // FlexLexer.h -- define interfaces for lexical analyzer classes generated
 //		  by flex

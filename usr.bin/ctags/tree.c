@@ -36,7 +36,7 @@
 static const char sccsid[] = "@(#)tree.c	8.3 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/ctags/tree.c,v 1.2.6.1 2001/09/18 04:16:53 mikeh Exp $";
 #endif /* not lint */
 
 #include <err.h>

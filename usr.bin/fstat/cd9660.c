@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/fstat/cd9660.c,v 1.1.2.3 2001/11/21 10:49:37 dwmalone Exp $
  */
 
 /*

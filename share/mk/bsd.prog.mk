@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-# $FreeBSD$
+# $FreeBSD: src/share/mk/bsd.prog.mk,v 1.86.2.5 2001/09/24 15:44:23 ru Exp $
 
 .if !target(__initialized__)
 __initialized__:

@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)gethostid.c	8.1 (Berkeley) 6/2/93";
 */
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/lib/libc/gen/getosreldate.c,v 1.4 1999/08/27 23:58:43 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)reg.h	5.5 (Berkeley) 1/18/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/reg.h,v 1.22.2.1 2000/10/21 01:42:52 bsd Exp $
  */
 
 #ifndef _MACHINE_REG_H_

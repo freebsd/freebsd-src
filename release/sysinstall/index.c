@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $FreeBSD$
+ * $FreeBSD: src/release/sysinstall/index.c,v 1.80.2.13 2001/07/22 13:50:19 dd Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -636,19 +636,6 @@ index_extract(Device *dev, PkgNodePtr top, PkgNodePtr who, Boolean depended)
     PkgNodePtr tmp2;
     IndexEntryPtr id = who->data;
     WINDOW *w = savescr();
-
-    /* 
-     * Short circuit the package dependency checks.  We're already
-     * maintaining a data structure of installed packages, so if a
-     * package is already installed, don't try to check to make sure
-     * that all of its dependencies are installed.  At best this
-     * wastes a ton of cycles and can cause minor delays between
-     * package extraction.  At work it can cause an infinite loop with
-     * a certain faulty INDEX file. 
-     */
-
-    if (id->installed == 1)
-	    return DITEM_SUCCESS;
 
     if (id && id->deps && strlen(id->deps)) {
 	char t[1024], *cp, *cp2;

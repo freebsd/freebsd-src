@@ -29,7 +29,7 @@
  *
  *	BSDI AsyncIO.c,v 2.2 1996/04/08 19:32:10 bostic Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/doscmd/AsyncIO.c,v 1.3.2.1 2001/08/02 02:17:15 obrien Exp $
  */
 
 #include <sys/param.h>

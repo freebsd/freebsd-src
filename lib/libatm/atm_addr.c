@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libatm/atm_addr.c,v 1.4.2.1 2001/09/28 16:52:10 dillon Exp $");
 
 /*
  * User Space Library Functions

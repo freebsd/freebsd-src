@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/pcm/ac97.c,v 1.5.2.7 2001/12/12 19:45:23 guido Exp $
  */
 
 #include <dev/sound/pcm/sound.h>

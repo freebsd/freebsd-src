@@ -21,7 +21,7 @@
 /* This thing should be set up to do byteordering correctly.  But... */
 
 #ifndef lint
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$FreeBSD: src/gnu/usr.bin/as/write.c,v 1.11 1999/08/27 23:34:23 peter Exp $";
 #endif
 
 #include "as.h"

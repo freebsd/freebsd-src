@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/hpfs/Makefile,v 1.3 1999/12/12 20:34:02 peter Exp $
 
 .PATH:	${.CURDIR}/../../fs/hpfs
 KMOD=	hpfs

@@ -5,7 +5,7 @@
  *
  * @(#)ip_frag.h	1.5 3/24/96
  * $Id: ip_frag.h,v 2.2 1999/08/06 06:26:38 darrenr Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/contrib/ipfilter/netinet/ip_frag.h,v 1.12.2.2 2001/07/28 13:05:48 darrenr Exp $
  */
 
 #ifndef	__IP_FRAG_H__

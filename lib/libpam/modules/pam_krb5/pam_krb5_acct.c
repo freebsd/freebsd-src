@@ -3,7 +3,7 @@
  *
  * PAM account management functions for pam_krb5
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libpam/modules/pam_krb5/pam_krb5_acct.c,v 1.1.2.1 2001/06/07 09:37:07 markm Exp $
  */
 
 static const char rcsid[] = "$Id: pam_krb5_acct.c,v 1.3 1999/01/19 21:26:44 fcusack Exp $";

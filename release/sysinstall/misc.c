@@ -1,7 +1,7 @@
 /*
  * Miscellaneous support routines..
  *
- * $FreeBSD$
+ * $FreeBSD: src/release/sysinstall/misc.c,v 1.40.2.1 2001/09/27 06:51:09 murray Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

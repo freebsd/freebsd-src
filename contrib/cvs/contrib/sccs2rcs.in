@@ -42,7 +42,7 @@
 # ...!harvard!cg-atla!viewlog!kenstir
 #
 # Various hacks made by Brian Berliner before inclusion in CVS contrib area.
-# $FreeBSD$
+# $FreeBSD: src/contrib/cvs/contrib/sccs2rcs.in,v 1.3.2.1 2001/10/28 21:31:59 peter Exp $
 
 
 #we'll assume the user set up the path correctly

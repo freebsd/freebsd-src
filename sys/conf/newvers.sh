@@ -32,12 +32,12 @@
 # SUCH DAMAGE.
 #
 #	@(#)newvers.sh	8.1 (Berkeley) 4/20/94
-# $FreeBSD$
+# $FreeBSD: src/sys/conf/newvers.sh,v 1.44.2.20.2.1 2002/01/28 06:42:16 murray Exp $
 
 TYPE="FreeBSD"
 REVISION="4.5"
 BRANCH="RELEASE"
-RELEASE="${REVISION}-${BRANCH}"
+RELEASE=4.5-RELEASE
 VERSION="${TYPE} ${RELEASE}"
 
 if [ "X${PARAMFILE}" != "X" ]; then

@@ -36,7 +36,7 @@
  *
  * Author: Archie Cobbs <archie@whistle.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libnetgraph/debug.c,v 1.5.2.1 2000/05/01 18:09:54 archie Exp $
  * $Whistle: debug.c,v 1.24 1999/01/24 01:15:33 archie Exp $
  */
 

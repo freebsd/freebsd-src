@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs_vnops.c	8.15 (Berkeley) 5/21/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/miscfs/kernfs/kernfs_vnops.c,v 1.43 1999/12/21 06:28:58 chris Exp $
  */
 
 /*

@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)memalloc.c	8.3 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/bin/sh/memalloc.c,v 1.15.2.1 2000/09/06 08:38:45 cracauer Exp $";
 #endif /* not lint */
 
 #include "shell.h"

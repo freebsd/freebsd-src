@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/ancontrol/Makefile,v 1.1.2.3 2001/07/30 17:44:01 brooks Exp $
 
 PROG=		ancontrol
 MAN=		ancontrol.8

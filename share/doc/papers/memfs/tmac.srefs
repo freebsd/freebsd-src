@@ -1,5 +1,5 @@
 .\" @(#)tmac.srefs	1.14 11/2/88
-.\" $FreeBSD$
+.\" $FreeBSD: src/share/doc/papers/memfs/tmac.srefs,v 1.2.6.1 2000/11/30 18:41:04 ru Exp $
 .\" REFER macros .... citations
 .de []
 .][ \\$1

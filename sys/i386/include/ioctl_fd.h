@@ -24,7 +24,7 @@
  * USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/ioctl_fd.h,v 1.13.2.1 2001/07/19 13:16:54 joerg Exp $
  */
 
 #ifndef	_MACHINE_IOCTL_FD_H_

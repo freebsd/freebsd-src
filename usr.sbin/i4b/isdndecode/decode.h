@@ -29,7 +29,7 @@
  *
  *	$Id: decode.h,v 1.6 1999/12/13 21:25:25 hm Exp $
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdndecode/decode.h,v 1.6.2.1 2001/08/01 17:45:05 obrien Exp $
  *
  *      last edit-date: [Mon Dec 13 21:49:50 1999]
  *

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/as/config/Makefile.pc532,v 1.4 1999/08/27 23:34:27 peter Exp $
 
 SRCS+=		tc-ns32k.c atof-ns32k.c
 

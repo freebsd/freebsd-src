@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/sys_pipe.c,v 1.60.2.11 2001/12/05 16:19:48 sobomax Exp $
  */
 
 /*

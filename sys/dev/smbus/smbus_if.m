@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/dev/smbus/smbus_if.m,v 1.5 1999/08/28 00:42:30 peter Exp $
 #
 
 INTERFACE smbus;

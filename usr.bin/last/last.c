@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/last/last.c,v 1.10.6.7 2001/10/09 14:09:49 fenner Exp $
  */
 
 #ifndef lint

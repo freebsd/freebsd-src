@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/release/sysinstall/http.c,v 1.2.2.4 2001/12/01 13:04:43 matusita Exp $
  */
 
 #include "sysinstall.h"

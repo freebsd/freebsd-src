@@ -28,7 +28,7 @@
  * its contributors.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/usb/urio.c,v 1.11.2.1 2001/09/27 17:43:05 alfred Exp $ */
 
 /*
  * 2000/3/24  added NetBSD/OpenBSD support (from Alex Nemirovsky)

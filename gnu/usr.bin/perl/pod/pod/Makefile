@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/perl/pod/pod/Makefile,v 1.5.2.2 2001/04/25 12:03:54 ru Exp $
 #
 
 PODS=	perl.pod perl5004delta.pod perlapio.pod perlbook.pod perlbot.pod \

@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/cam/scsi/scsi_da.c,v 1.42.2.20 2002/01/14 09:25:43 sobomax Exp $
  */
 
 #ifdef _KERNEL

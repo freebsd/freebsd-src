@@ -28,7 +28,7 @@
 #
 # A package version-checking utility for FreeBSD.
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/pkg_install/version/pkg_version.pl,v 1.4.2.13 2001/09/21 16:54:17 bmah Exp $
 #
 
 use Cwd;

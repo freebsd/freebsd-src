@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/bin/csh/nls/finnish/Makefile,v 1.5.2.2 2002/01/05 15:50:16 phantom Exp $
 
 NL=     finnish
 DL=     fi_FI.ISO8859-1

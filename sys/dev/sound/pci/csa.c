@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/pci/csa.c,v 1.8.2.9 2001/11/29 16:16:32 bmah Exp $
  */
 
 #include <sys/param.h>

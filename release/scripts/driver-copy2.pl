@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/release/scripts/driver-copy2.pl,v 1.1.2.1 2002/01/17 21:13:40 murray Exp $
 # 
 
 if ($#ARGV != 2) {

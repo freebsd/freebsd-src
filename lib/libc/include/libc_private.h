@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/include/libc_private.h,v 1.3 1999/08/27 23:59:47 peter Exp $
  *
  * Private definitions for libc, libc_r and libpthread.
  *

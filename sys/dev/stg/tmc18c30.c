@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/stg/tmc18c30.c,v 1.1.2.5 2001/12/17 13:30:19 non Exp $	*/
 /*	$NecBSD: tmc18c30.c,v 1.28.12.3 2001/06/19 04:35:48 honda Exp $	*/
 /*	$NetBSD$	*/
 

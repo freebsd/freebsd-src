@@ -30,7 +30,7 @@
  *
  * $Id: //depot/src/aic7xxx/aic7xxx_inline.h#27 $
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/aic7xxx/aic7xxx_inline.h,v 1.2.2.10 2001/07/28 18:46:40 gibbs Exp $
  */
 
 #ifndef _AIC7XXX_INLINE_H_

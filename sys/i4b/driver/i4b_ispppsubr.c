@@ -15,7 +15,7 @@
  * or modify this software as long as this message is kept with the software,
  * all derivative works or modified versions.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/driver/i4b_ispppsubr.c,v 1.11.2.5 2002/01/08 06:49:04 joerg Exp $
  */
 
 #define USE_ISPPP

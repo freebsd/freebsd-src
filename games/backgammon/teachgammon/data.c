@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)data.c	8.1 (Berkeley) 5/31/93";
 #endif
 static const char rcsid[] =
- "$FreeBSD$";
+ "$FreeBSD: src/games/backgammon/teachgammon/data.c,v 1.4 1999/11/30 03:48:29 billf Exp $";
 #endif /* not lint */
 
 #include "tutor.h"

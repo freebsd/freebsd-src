@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/isa/sbc.c,v 1.19.2.10 2001/10/06 17:42:21 greid Exp $
  */
 
 #include <dev/sound/chip.h>

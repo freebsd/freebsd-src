@@ -21,7 +21,7 @@
    02111-1307, USA.  */
 
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/binutils/gas/config/tc-i386.c,v 1.4.2.3 2001/08/01 23:03:01 obrien Exp $ */
 
 
 /* Intel 80386 machine specific gas.

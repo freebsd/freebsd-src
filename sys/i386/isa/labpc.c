@@ -38,7 +38,7 @@
  * Peter Dufault
  * dufault@hda.com
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/labpc.c,v 1.35 1999/09/25 18:24:08 phk Exp $
  *
  */
 

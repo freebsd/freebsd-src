@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/aic7xxx/aic7xxx.seq,v 1.94.2.15 2001/08/06 13:44:33 gibbs Exp $
  */
 
 VERSION = "$Id: //depot/src/aic7xxx/aic7xxx.seq#32 $"

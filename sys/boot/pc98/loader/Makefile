@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/pc98/loader/Makefile,v 1.12.2.7 2002/01/23 08:02:38 nyan Exp $
 
 BASE=		loader
 PROG=		${BASE}

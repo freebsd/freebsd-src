@@ -19,7 +19,7 @@ PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
 ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 SOFTWARE.
 
- $FreeBSD$
+ $FreeBSD: src/libexec/bootpd/bootpd.c,v 1.13.2.2 2001/10/14 21:20:12 iedowse Exp $
 
 ************************************************************************/
 
