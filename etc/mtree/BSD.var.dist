@@ -24,6 +24,8 @@ db
 ..
 log
 ..
+mail
+..
 msgs
 ..
 preserve
@@ -61,8 +63,7 @@ spool
 /set type=dir uname=bin gname=bin mode=0755
 tmp	mode=01777
 ..
-mail
-..
+
 /set type=file uname=games gname=bin mode=0755
 games	type=dir
 	hackdir	type=dir
