@@ -197,6 +197,8 @@ static int nsw_cluster_max;	/* maximum VOP I/O allowed		*/
 
 static struct swblock **swhash;
 static int swhash_mask;
+static struct mtx swhash_mtx;
+
 static int swap_async_max = 4;	/* maximum in-progress async I/O's	*/
 static struct sx sw_alloc_sx;
 
@@ -419,7 +421,7 @@ swap_pager_swap_init(void)
 		n = maxswzone / sizeof(struct swblock);
 	n2 = n;
 	swap_zone = uma_zcreate("SWAPMETA", sizeof(struct swblock), NULL, NULL,
-	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE | UMA_ZONE_VM);
 	do {
 		if (uma_zone_set_obj(swap_zone, NULL, n))
 			break;
@@ -447,6 +449,7 @@ swap_pager_swap_init(void)
 		;
 	swhash = malloc(sizeof(struct swblock *) * n, M_VMPGDATA, M_WAITOK | M_ZERO);
 	swhash_mask = n - 1;
+	mtx_init(&swhash_mtx, "swap_pager swhash", NULL, MTX_DEF);
 }
 
 /*
@@ -1625,16 +1628,19 @@ swap_pager_isswapped(vm_object_t object, struct swdevt *sp)
 	for (bcount = 0; bcount < object->un_pager.swp.swp_bcount; bcount++) {
 		struct swblock *swap;
 
+		mtx_lock(&swhash_mtx);
 		if ((swap = *swp_pager_hash(object, index)) != NULL) {
 			for (i = 0; i < SWAP_META_PAGES; ++i) {
 				daddr_t v = swap->swb_pages[i];
 				if (v == SWAPBLK_NONE)
 					continue;
-				if (swp_pager_find_dev(v) == sp)
+				if (swp_pager_find_dev(v) == sp) {
+					mtx_unlock(&swhash_mtx);
 					return 1;
+				}
 			}
 		}
-
+		mtx_unlock(&swhash_mtx);
 		index += SWAP_META_PAGES;
 		if (index > 0x20000000)
 			panic("swap_pager_isswapped: failed to locate all swap meta blocks");
@@ -1823,16 +1829,18 @@ swp_pager_meta_build(vm_object_t object, vm_pindex_t pindex, daddr_t swapblk)
 	 * and, since the hash table may have changed, retry.
 	 */
 retry:
+	mtx_lock(&swhash_mtx);
 	pswap = swp_pager_hash(object, pindex);
 
 	if ((swap = *pswap) == NULL) {
 		int i;
 
 		if (swapblk == SWAPBLK_NONE)
-			return;
+			goto done;
 
 		swap = *pswap = uma_zalloc(swap_zone, M_NOWAIT);
 		if (swap == NULL) {
+			mtx_unlock(&swhash_mtx);
 			VM_OBJECT_UNLOCK(object);
 			VM_WAIT;
 			VM_OBJECT_LOCK(object);
@@ -1866,6 +1874,8 @@ retry:
 	swap->swb_pages[idx] = swapblk;
 	if (swapblk != SWAPBLK_NONE)
 		++swap->swb_count;
+done:
+	mtx_unlock(&swhash_mtx);
 }
 
 /*
@@ -1892,6 +1902,7 @@ swp_pager_meta_free(vm_object_t object, vm_pindex_t index, daddr_t count)
 		struct swblock **pswap;
 		struct swblock *swap;
 
+		mtx_lock(&swhash_mtx);
 		pswap = swp_pager_hash(object, index);
 
 		if ((swap = *pswap) != NULL) {
@@ -1914,6 +1925,7 @@ swp_pager_meta_free(vm_object_t object, vm_pindex_t index, daddr_t count)
 			count -= n;
 			index += n;
 		}
+		mtx_unlock(&swhash_mtx);
 	}
 }
 
@@ -1939,6 +1951,7 @@ swp_pager_meta_free_all(vm_object_t object)
 		struct swblock **pswap;
 		struct swblock *swap;
 
+		mtx_lock(&swhash_mtx);
 		pswap = swp_pager_hash(object, index);
 		if ((swap = *pswap) != NULL) {
 			int i;
@@ -1956,6 +1969,7 @@ swp_pager_meta_free_all(vm_object_t object)
 			uma_zfree(swap_zone, swap);
 			--object->un_pager.swp.swp_bcount;
 		}
+		mtx_unlock(&swhash_mtx);
 		index += SWAP_META_PAGES;
 		if (index > 0x20000000)
 			panic("swp_pager_meta_free_all: failed to locate all swap meta blocks");
@@ -2001,6 +2015,7 @@ swp_pager_meta_ctl(vm_object_t object, vm_pindex_t pindex, int flags)
 		return (SWAPBLK_NONE);
 
 	r1 = SWAPBLK_NONE;
+	mtx_lock(&swhash_mtx);
 	pswap = swp_pager_hash(object, pindex);
 
 	if ((swap = *pswap) != NULL) {
@@ -2022,6 +2037,7 @@ swp_pager_meta_ctl(vm_object_t object, vm_pindex_t pindex, int flags)
 			} 
 		}
 	}
+	mtx_unlock(&swhash_mtx);
 	return (r1);
 }
 
