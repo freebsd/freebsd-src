@@ -103,9 +103,9 @@ main(int argc, const char **argv)
 				i = sectorsize;
 			time(&t2);
 			if (t1 != t2 || lp->len < BIGSIZE) {
-				printf("\r%13jd %7jd %13jd %3d %13jd %13jd %.8f",
+				printf("\r%13jd %7zu %13jd %3d %13jd %13jd %.8f",
 				    (intmax_t)lp->start,
-				    (intmax_t)i, 
+				    i, 
 				    (intmax_t)lp->len,
 				    lp->state,
 				    (intmax_t)d,
@@ -125,14 +125,13 @@ main(int argc, const char **argv)
 				else
 					j = i;
 				if (j != i)
-					printf("\nWrite error at %jd/%jd\n",
-					    lp->start, (intmax_t)i);
+					printf("\nWrite error at %jd/%zu\n",
+					    lp->start, i);
 				lp->start += i;
 				lp->len -= i;
 				continue;
 			}
-			printf("\n%jd %jd failed %d\n",
-			    lp->start, (intmax_t)i, errno);
+			printf("\n%jd %zu failed %d\n", lp->start, i, errno);
 			new_lump(lp->start, i, lp->state + 1);
 			lp->start += i;
 			lp->len -= i;
