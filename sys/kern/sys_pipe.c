@@ -88,9 +88,9 @@
  * interfaces to the outside world
  */
 static int pipe_read __P((struct file *fp, struct uio *uio, 
-		struct ucred *cred, int flags));
+		struct ucred *cred, int flags, struct proc *p));
 static int pipe_write __P((struct file *fp, struct uio *uio, 
-		struct ucred *cred, int flags));
+		struct ucred *cred, int flags, struct proc *p));
 static int pipe_close __P((struct file *fp, struct proc *p));
 static int pipe_poll __P((struct file *fp, int events, struct ucred *cred,
 		struct proc *p));
@@ -319,10 +319,11 @@ pipeselwakeup(cpipe)
 
 /* ARGSUSED */
 static int
-pipe_read(fp, uio, cred, flags)
+pipe_read(fp, uio, cred, flags, p)
 	struct file *fp;
 	struct uio *uio;
 	struct ucred *cred;
+	struct proc *p;
 	int flags;
 {
 
@@ -681,10 +682,11 @@ error1:
 #endif
 	
 static int
-pipe_write(fp, uio, cred, flags)
+pipe_write(fp, uio, cred, flags, p)
 	struct file *fp;
 	struct uio *uio;
 	struct ucred *cred;
+	struct proc *p;
 	int flags;
 {
 	int error = 0;

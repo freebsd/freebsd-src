@@ -176,7 +176,7 @@ dofileread(p, fp, fd, buf, nbyte, offset, flags)
 		ktriov = aiov;
 #endif
 	cnt = nbyte;
-	if ((error = (*fp->f_ops->fo_read)(fp, &auio, fp->f_cred, flags)))
+	if ((error = fo_read(fp, &auio, fp->f_cred, flags, p)))
 		if (auio.uio_resid != cnt && (error == ERESTART ||
 		    error == EINTR || error == EWOULDBLOCK))
 			error = 0;
@@ -256,7 +256,7 @@ readv(p, uap)
 	}
 #endif
 	cnt = auio.uio_resid;
-	if ((error = (*fp->f_ops->fo_read)(fp, &auio, fp->f_cred, 0)))
+	if ((error = fo_read(fp, &auio, fp->f_cred, 0, p)))
 		if (auio.uio_resid != cnt && (error == ERESTART ||
 		    error == EINTR || error == EWOULDBLOCK))
 			error = 0;
@@ -360,7 +360,7 @@ dofilewrite(p, fp, fd, buf, nbyte, offset, flags)
 		ktriov = aiov;
 #endif
 	cnt = nbyte;
-	if ((error = (*fp->f_ops->fo_write)(fp, &auio, fp->f_cred, flags))) {
+	if ((error = fo_write(fp, &auio, fp->f_cred, flags, p))) {
 		if (auio.uio_resid != cnt && (error == ERESTART ||
 		    error == EINTR || error == EWOULDBLOCK))
 			error = 0;
@@ -444,7 +444,7 @@ writev(p, uap)
 	}
 #endif
 	cnt = auio.uio_resid;
-	if ((error = (*fp->f_ops->fo_write)(fp, &auio, fp->f_cred, 0))) {
+	if ((error = fo_write(fp, &auio, fp->f_cred, 0, p))) {
 		if (auio.uio_resid != cnt && (error == ERESTART ||
 		    error == EINTR || error == EWOULDBLOCK))
 			error = 0;
@@ -549,7 +549,7 @@ ioctl(p, uap)
 			fp->f_flag |= FNONBLOCK;
 		else
 			fp->f_flag &= ~FNONBLOCK;
-		error = (*fp->f_ops->fo_ioctl)(fp, FIONBIO, (caddr_t)&tmp, p);
+		error = fo_ioctl(fp, FIONBIO, (caddr_t)&tmp, p);
 		break;
 
 	case FIOASYNC:
@@ -557,11 +557,11 @@ ioctl(p, uap)
 			fp->f_flag |= FASYNC;
 		else
 			fp->f_flag &= ~FASYNC;
-		error = (*fp->f_ops->fo_ioctl)(fp, FIOASYNC, (caddr_t)&tmp, p);
+		error = fo_ioctl(fp, FIOASYNC, (caddr_t)&tmp, p);
 		break;
 
 	default:
-		error = (*fp->f_ops->fo_ioctl)(fp, com, data, p);
+		error = fo_ioctl(fp, com, data, p);
 		/*
 		 * Copy any data to user, size was
 		 * already set and checked above.
@@ -740,8 +740,7 @@ selscan(p, ibits, obits, nfd)
 				fp = fdp->fd_ofiles[fd];
 				if (fp == NULL)
 					return (EBADF);
-				if ((*fp->f_ops->fo_poll)(fp, flag[msk],
-				    fp->f_cred, p)) {
+				if (fo_poll(fp, flag[msk], fp->f_cred, p)) {
 					obits[msk][(fd)/NFDBITS] |=
 						(1 << ((fd) % NFDBITS));
 					n++;
@@ -868,8 +867,8 @@ pollscan(p, fds, nfd)
 				 * Note: backend also returns POLLHUP and
 				 * POLLERR if appropriate.
 				 */
-				fds->revents = (*fp->f_ops->fo_poll)(fp,
-				    fds->events, fp->f_cred, p);
+				fds->revents = fo_poll(fp, fds->events,
+				    fp->f_cred, p);
 				if (fds->revents != 0)
 					n++;
 			}

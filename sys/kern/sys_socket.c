@@ -54,10 +54,11 @@ struct	fileops socketops =
 
 /* ARGSUSED */
 int
-soo_read(fp, uio, cred, flags)
+soo_read(fp, uio, cred, flags, p)
 	struct file *fp;
 	struct uio *uio;
 	struct ucred *cred;
+	struct proc *p;
 	int flags;
 {
 	struct socket *so = (struct socket *)fp->f_data;
@@ -66,10 +67,11 @@ soo_read(fp, uio, cred, flags)
 
 /* ARGSUSED */
 int
-soo_write(fp, uio, cred, flags)
+soo_write(fp, uio, cred, flags, p)
 	struct file *fp;
 	struct uio *uio;
 	struct ucred *cred;
+	struct proc *p;
 	int flags;
 {
 	struct socket *so = (struct socket *)fp->f_data;
