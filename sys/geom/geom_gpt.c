@@ -124,9 +124,13 @@ g_gpt_dumpconf(struct sbuf *sb, char *indent, struct g_geom *gp,
 
 	if (pp != NULL) {
 		uuid = &gs->part[pp->index]->ent_type;
-		sbuf_printf(sb, "%s<type>", indent);
+		if (indent != NULL)
+			sbuf_printf(sb, "%s<type>", indent);
+		else
+			sbuf_printf(sb, " ty ");
 		sbuf_printf_uuid(sb, uuid);
-		sbuf_printf(sb, "</type>\n");
+		if (indent != NULL)
+			sbuf_printf(sb, "</type>\n");
 	}
 }
 
