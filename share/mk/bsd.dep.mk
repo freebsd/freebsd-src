@@ -56,7 +56,7 @@ MKDEPCMD?=	mkdep
 DEPENDFILE?=	.depend
 
 # Keep `tags' here, before SRCS are mangled below for `depend'.
-.if !target(tags) && defined(SRCS) && !defined(NOTAGS)
+.if !target(tags) && defined(SRCS) && !defined(NO_TAGS)
 tags: ${SRCS}
 .if ${CTAGS:T} == "ctags"
 	@${CTAGS} ${CTAGSFLAGS} -f /dev/stdout \
