@@ -549,7 +549,7 @@ MAIN:{
 
     # Build GENERIC if requested
     if ($cmds{'generic'}) {
-	logstage("building generic kernel (COPTFLAGS=${ENV}{'COPTFLAGS'})");
+	logstage("building generic kernel (COPTFLAGS=$ENV{'COPTFLAGS'})");
 	cd("$sandbox/src");
 	spawn('/usr/bin/make', 'buildkernel', 'KERNCONF=GENERIC')
 	    or error("failed to build generic kernel");
@@ -569,7 +569,7 @@ MAIN:{
 	}
     }
     if ($cmds{'lint'}) {
-	logstage("building LINT kernel (COPTFLAGS=${ENV}{'COPTFLAGS'})");
+	logstage("building LINT kernel (COPTFLAGS=$ENV{'COPTFLAGS'})");
 	cd("$sandbox/src");
 	spawn('/usr/bin/make', 'buildkernel', 'KERNCONF=LINT')
 	    or error("failed to build lint kernel");
