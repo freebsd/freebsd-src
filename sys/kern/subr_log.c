@@ -115,8 +115,8 @@ static	int
 logclose(dev_t dev, int flag, int mode, struct proc *p)
 {
 
-	callout_stop(&logsoftc.sc_callout);
 	log_open = 0;
+	callout_stop(&logsoftc.sc_callout);
 	logsoftc.sc_state = 0;
 	funsetown(logsoftc.sc_sigio);
 	return (0);
@@ -188,11 +188,14 @@ static void
 logtimeout(void *arg)
 {
 
-	if (msgbuftrigger == 0)
-		return;
-	msgbuftrigger = 0;
 	if (!log_open)
 		return;
+	if (msgbuftrigger == 0) {
+		callout_reset(&logsoftc.sc_callout,
+		    hz / log_wakeups_per_second, logtimeout, NULL);
+		return;
+	}
+	msgbuftrigger = 0;
 	selwakeup(&logsoftc.sc_selp);
 	if ((logsoftc.sc_state & LOG_ASYNC) && logsoftc.sc_sigio != NULL)
 		pgsigio(logsoftc.sc_sigio, SIGIO, 0);
