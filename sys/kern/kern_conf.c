@@ -362,6 +362,19 @@ make_dev_alias(dev_t pdev, const char *fmt, ...)
 }
 
 void
+revoke_and_destroy_dev(dev_t dev)
+{
+	struct vnode *vp;
+
+	GIANT_REQUIRED;
+
+	vp = SLIST_FIRST(&dev->si_hlist);
+	if (vp != NULL)
+		VOP_REVOKE(vp, REVOKEALL);
+	destroy_dev(dev);
+}
+
+void
 destroy_dev(dev_t dev)
 {
 	

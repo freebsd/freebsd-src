@@ -317,6 +317,7 @@ int	cdevsw_add __P((struct cdevsw *new));
 int	cdevsw_remove __P((struct cdevsw *old));
 int	count_dev __P((dev_t dev));
 void	destroy_dev __P((dev_t dev));
+void	revoke_and_destroy_dev __P((dev_t dev));
 struct cdevsw *devsw __P((dev_t dev));
 const char *devtoname __P((dev_t dev));
 int	dev_named __P((dev_t pdev, const char *name));
