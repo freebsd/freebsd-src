@@ -150,7 +150,7 @@ static int	ng_h4_node = 0;
 static int
 ng_h4_open(dev_t dev, struct tty *tp)
 {
-	char		 name[NG_NODELEN + 1];
+	char		 name[NG_NODESIZ];
 	ng_h4_info_p	 sc = NULL;
 	int		 s, error;
 
@@ -733,7 +733,7 @@ static int
 ng_h4_shutdown(node_p node)
 {
 	ng_h4_info_p	sc = (ng_h4_info_p) NG_NODE_PRIVATE(node);
-	char		name[NG_NODELEN + 1];
+	char		name[NG_NODESIZ];
 
 	/* Let old node go */
 	NG_NODE_SET_PRIVATE(node, NULL);

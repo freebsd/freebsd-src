@@ -50,12 +50,17 @@
 /*
  * XXX FIXME: probably does not belong here
  * Bluetooth version of struct sockaddr for raw HCI sockets
+ *
+ * XXX: sizeof(hci_node) was NG_NODELEN + 1, but NG_NODESIZ (the equivalent
+ * of NG_NODELEN + 1) has been bumped to 32. The code currently
+ * truncates the node name to sizeof(hci_node), although it would be
+ * possible to correctly handle this by means of the hci_len field.
  */
 
 struct sockaddr_hci {
 	u_char		hci_len;	/* total length */
 	u_char		hci_family;	/* address family */
-	char		hci_node[16];	/* address (size == NG_NODELEN  + 1) */
+	char		hci_node[16];	/* address */
 };
 
 /* Raw HCI socket options */
