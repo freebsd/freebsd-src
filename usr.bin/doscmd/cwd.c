@@ -225,12 +225,12 @@ dos_makepath(u_char *where, u_char *newpath)
 
     np = newpath;
     if (*where != '\\' && *where != '/') {
-	ustrcpy(tmppath, d->cwd);
+	ustrncpy(tmppath, d->cwd, 1024);
 	if (d->cwd[1])
-	    ustrcat(tmppath, (u_char *)"/");
-	ustrcat(tmppath, where);
+	    ustrncat(tmppath, (u_char *)"/", 1024 - ustrlen(tmppath));
+	ustrncat(tmppath, where, 1024 - ustrlen(tmppath));
     } else {
-	ustrcpy(tmppath, where);
+	ustrncpy(tmppath, where, 1024 - ustrlen(tmppath));
     }
 
     dirs = get_entries(tmppath);
