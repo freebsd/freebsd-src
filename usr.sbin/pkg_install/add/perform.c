@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.25 1995/05/30 03:49:54 rgrimes Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.25.2.1 1995/06/10 08:14:08 jkh Exp $";
 #endif
 
 /*
@@ -213,7 +213,7 @@ pkg_do(char *pkg)
 		if (Verbose)
 		    printf(" which is not currently loaded");
 		if (!isURL(p->name)) {
-		    snprintf(path, FILENAME_MAX, "%s/%s", Home, p->name);
+		    snprintf(path, FILENAME_MAX, "%s/%s.tgz", Home, p->name);
 		    if (fexists(path))
 			cp = path;
 		    else
