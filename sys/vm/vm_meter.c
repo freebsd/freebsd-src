@@ -88,11 +88,6 @@ loadav(struct loadavg *avg)
 	FOREACH_PROC_IN_SYSTEM(p) {
 		FOREACH_KSEGRP_IN_PROC(p, kg) {
 			switch (p->p_stat) {
-			case SSLEEP:
-				if (kg->kg_pri.pri_level > PZERO ||
-				    kg->kg_slptime != 0) /* ke? */
-					goto nextproc;
-				/* FALLTHROUGH */
 			case SRUN:
 				if ((p->p_flag & P_NOLOAD) != 0)
 					goto nextproc;
