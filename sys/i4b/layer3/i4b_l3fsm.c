@@ -211,13 +211,13 @@ void next_l3state(call_desc_t *cd, int event)
 {
 	int currstate, newstate;
 
-	if(event > N_EVENTS)
-		panic("i4b_l3fsm.c: event > N_EVENTS\n");
+	if(event >= N_EVENTS)
+		panic("i4b_l3fsm.c: event >= N_EVENTS\n");
 
 	currstate = cd->Q931state;
 
-	if(currstate > N_STATES)
-		panic("i4b_l3fsm.c: currstate > N_STATES\n");	
+	if(currstate >= N_STATES)
+		panic("i4b_l3fsm.c: currstate >= N_STATES\n");	
 
 	newstate = l3state_tab[event][currstate].newstate;
 
