@@ -7,6 +7,6 @@ SAMPLES=bjc-240.sh.sample
 afterinstall:
 	cd ${.CURDIR} && \
 	    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${SHAREMODE} \
-	    ${SAMPLES} ${BINDIR}
+	    ${SAMPLES} ${DESTDIR}${BINDIR}
 
 .include <bsd.prog.mk>
