@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.161 1998/04/22 19:27:53 julian Exp $
+ *	$Id: wd.c,v 1.162 1998/04/23 22:09:55 julian Exp $
  */
 
 /* TODO:
@@ -2716,7 +2716,9 @@ wdsopen(void *private, int flags, int mode, struct proc *p)
 		du->dk_state = OPEN;
 		du->dk_flags &= ~DKFL_BADSCAN;
 	} else {
-		du->dk_state = CLOSED;
+		/* <luoqi@watermarkgroup.com> suggests I remove this */
+		/* du->dk_state = CLOSED;*/ 
+		/* du->dk_state = WANTOPEN; */ /* maybe this? */
 	}
 	return (error);
 }

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: slice_device.c,v 1.2 1998/04/22 10:25:10 julian Exp $
+ *	$Id: slice_device.c,v 1.3 1998/04/22 19:27:52 julian Exp $
  */
 #define DIAGNOSTIC 1
 
@@ -115,9 +115,9 @@ RR;
 	 * Add an entry in the devfs for it. Possibly should happen later.
 	 */
 	slice->devfs_ctoken = devfs_add_devswf(&slice_cdevsw, unit, DV_CHR,
-	    UID_ROOT, GID_KMEM, 0600, "r%s", name ? name : "-");
+	    UID_ROOT, GID_OPERATOR, 0600, "r%s", name ? name : "-");
 	slice->devfs_btoken = devfs_add_devswf(&slice_bdevsw, unit, DV_BLK,
-	     UID_ROOT, GID_KMEM, 0600, "%s", name ? name : "-");
+	     UID_ROOT, GID_OPERATOR, 0600, "%s", name ? name : "-");
 	/* XXX link this node into upper list of caller */
 }
 
