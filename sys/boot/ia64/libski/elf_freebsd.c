@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* $NetBSD: loadfile.c,v 1.10 1998/06/25 06:45:46 ross Exp $ */
 
 /*-
@@ -37,7 +36,6 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-
 /*
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -75,6 +73,9 @@
  *
  *	@(#)boot.c	8.1 (Berkeley) 6/10/93
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <stand.h>
 #include <string.h>

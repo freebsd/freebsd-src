@@ -24,10 +24,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * 	From Id: probe_keyboard.c,v 1.13 1997/06/09 05:10:55 bde Exp
- *
- * $FreeBSD$
+ * 	Id: probe_keyboard.c,v 1.13 1997/06/09 05:10:55 bde Exp
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <stand.h>
 #include <bootstrap.h>
