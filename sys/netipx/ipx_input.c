@@ -85,8 +85,11 @@ const union	ipx_host ipx_broadhost = { .s_host[0] = 0xffff,
 struct	ipxstat ipxstat;
 struct	sockaddr_ipx ipx_netmask, ipx_hostmask;
 
-struct	ipxpcb ipxpcb;
-struct	ipxpcb ipxrawpcb;
+/*
+ * IPX protocol control block (pcb) lists.
+ */
+struct ipxpcbhead	ipxpcb_list;
+struct ipxpcbhead	ipxrawpcb_list;
 
 static int ipxqmaxlen = IFQ_MAXLEN;
 static	struct ifqueue ipxintrq;
@@ -107,8 +110,9 @@ ipx_init()
 {
 
 	read_random(&ipx_pexseq, sizeof ipx_pexseq);
-	ipxpcb.ipxp_next = ipxpcb.ipxp_prev = &ipxpcb;
-	ipxrawpcb.ipxp_next = ipxrawpcb.ipxp_prev = &ipxrawpcb;
+
+	LIST_INIT(&ipxpcb_list);
+	LIST_INIT(&ipxrawpcb_list);
 
 	ipx_netmask.sipx_len = 6;
 	ipx_netmask.sipx_addr.x_net = ipx_broadnet;
@@ -155,8 +159,7 @@ ipxintr(struct mbuf *m)
 	/*
 	 * Give any raw listeners a crack at the packet
 	 */
-	for (ipxp = ipxrawpcb.ipxp_next; ipxp != &ipxrawpcb;
-	     ipxp = ipxp->ipxp_next) {
+	LIST_FOREACH(ipxp, &ipxrawpcb_list, ipxp_list) {
 		struct mbuf *m1 = m_copy(m, 0, (int)M_COPYALL);
 		if (m1 != NULL)
 			ipx_input(m1, ipxp);
@@ -468,8 +471,7 @@ struct ifnet *ifp;
 	/*
 	 * Give any raw listeners a crack at the packet
 	 */
-	for (ipxp = ipxrawpcb.ipxp_next; ipxp != &ipxrawpcb;
-	     ipxp = ipxp->ipxp_next) {
+	LIST_FOREACH(ipxp, &ipxrawpcb_list, ipxp_list) {
 		struct mbuf *m0 = m_copy(m, 0, (int)M_COPYALL);
 		if (m0 != NULL) {
 			register struct ipx *ipx;

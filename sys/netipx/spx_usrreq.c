@@ -1291,7 +1291,7 @@ spx_attach(so, proto, td)
 	if (ipxp != NULL)
 		return (EISCONN);
 	s = splnet();
-	error = ipx_pcballoc(so, &ipxpcb, td);
+	error = ipx_pcballoc(so, &ipxpcb_list, td);
 	if (error)
 		goto spx_attach_end;
 	if (so->so_snd.sb_hiwat == 0 || so->so_rcv.sb_hiwat == 0) {
@@ -1712,9 +1712,7 @@ spx_fasttimo()
 	register struct spxpcb *cb;
 	int s = splnet();
 
-	ipxp = ipxpcb.ipxp_next;
-	if (ipxp != NULL)
-	for (; ipxp != &ipxpcb; ipxp = ipxp->ipxp_next)
+	LIST_FOREACH(ipxp, &ipxpcb_list, ipxp_list) {
 		if ((cb = (struct spxpcb *)ipxp->ipxp_pcb) != NULL &&
 		    (cb->s_flags & SF_DELACK)) {
 			cb->s_flags &= ~SF_DELACK;
@@ -1722,6 +1720,8 @@ spx_fasttimo()
 			spxstat.spxs_delack++;
 			spx_output(cb, (struct mbuf *)NULL);
 		}
+	}
+
 	splx(s);
 }
 
@@ -1733,36 +1733,32 @@ spx_fasttimo()
 void
 spx_slowtimo()
 {
-	register struct ipxpcb *ip, *ipnxt;
+	register struct ipxpcb *ip, *ip_temp;
 	register struct spxpcb *cb;
 	int s = splnet();
 	register int i;
 
 	/*
-	 * Search through tcb's and update active timers.
+	 * Search through tcb's and update active timers.  Note that timers
+	 * may free the ipxpcb, so be sure to handle that case.
 	 */
-	ip = ipxpcb.ipxp_next;
-	if (ip == NULL) {
-		splx(s);
-		return;
-	}
-	while (ip != &ipxpcb) {
+	LIST_FOREACH_SAFE(ip, &ipxpcb_list, ipxp_list, ip_temp) {
 		cb = ipxtospxpcb(ip);
-		ipnxt = ip->ipxp_next;
 		if (cb == NULL)
-			goto tpgone;
+			continue;
 		for (i = 0; i < SPXT_NTIMERS; i++) {
 			if (cb->s_timer[i] && --cb->s_timer[i] == 0) {
-				spx_timers(cb, i);
-				if (ipnxt->ipxp_prev != ip)
-					goto tpgone;
+				/*
+				 * spx_timers() returns (NULL) if it free'd
+				 * the pcb.
+				 */
+				if (spx_timers(cb, i) == NULL)
+					continue;
 			}
 		}
 		cb->s_idle++;
 		if (cb->s_rtt)
 			cb->s_rtt++;
-tpgone:
-		ip = ipnxt;
 	}
 	spx_iss += SPX_ISSINCR/PR_SLOWHZ;		/* increment iss */
 	splx(s);

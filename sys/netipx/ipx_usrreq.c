@@ -434,7 +434,7 @@ ipx_attach(so, proto, td)
 	if (ipxp != NULL)
 		return (EINVAL);
 	s = splnet();
-	error = ipx_pcballoc(so, &ipxpcb, td);
+	error = ipx_pcballoc(so, &ipxpcb_list, td);
 	splx(s);
 	if (error == 0)
 		error = soreserve(so, ipxsendspace, ipxrecvspace);
@@ -595,7 +595,7 @@ ripx_attach(so, proto, td)
 	if (td != NULL && (error = suser(td)) != 0)
 		return (error);
 	s = splnet();
-	error = ipx_pcballoc(so, &ipxrawpcb, td);
+	error = ipx_pcballoc(so, &ipxrawpcb_list, td);
 	splx(s);
 	if (error)
 		return (error);
