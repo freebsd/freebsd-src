@@ -52,7 +52,8 @@ _accept(int fd, struct sockaddr * name, socklen_t *namelen)
 		/* Enter a loop to wait for a connection request: */
 		while ((ret = __sys_accept(fd, name, namelen)) < 0) {
 			/* Check if the socket is to block: */
-			if ((_thread_fd_table[fd]->flags & O_NONBLOCK) == 0 && (errno == EWOULDBLOCK || errno == EAGAIN)) {
+			if ((_thread_fd_getflags(fd) & O_NONBLOCK) == 0
+			    && (errno == EWOULDBLOCK || errno == EAGAIN)) {
 				/* Save the socket file descriptor: */
 				curthread->data.fd.fd = fd;
 				curthread->data.fd.fname = __FILE__;
@@ -99,9 +100,9 @@ _accept(int fd, struct sockaddr * name, socklen_t *namelen)
 		 * set the new socket flags to non-blocking, as that 
 		 * will be the inherited state of the new socket.
 		 */
-		if((ret > 0) && (_thread_fd_table[fd]->flags & O_NONBLOCK) == 0)
-			_thread_fd_table[ret]->flags &= ~O_NONBLOCK;
-
+		if((ret > 0) && (_thread_fd_getflags(fd) & O_NONBLOCK) == 0)
+			_thread_fd_setflags(ret,
+			    _thread_fd_getflags(ret) & ~O_NONBLOCK);
 		/* Unlock the file descriptor: */
 		_FD_UNLOCK(fd, FD_RDWR);
 	}

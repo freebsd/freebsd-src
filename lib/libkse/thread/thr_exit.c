@@ -69,7 +69,7 @@ void _exit(int status)
 	for (i = 0; i < _thread_dtablesize; i++) {
 		/* Check if this file descriptor is in use: */
 		if (_thread_fd_table[i] != NULL &&
-			!(_thread_fd_table[i]->flags & O_NONBLOCK)) {
+		    (_thread_fd_getflags(i) & O_NONBLOCK) == 0) {
 			/* Get the current flags: */
 			flags = __sys_fcntl(i, F_GETFL, NULL);
 			/* Clear the nonblocking file descriptor flag: */

@@ -536,7 +536,7 @@ thread_sig_handle_special(int sig)
 				 * Set the file descriptor to non-blocking:
 				 */
 				__sys_fcntl(i, F_SETFL,
-				    _thread_fd_table[i]->flags | O_NONBLOCK);
+				    _thread_fd_getflags(i) | O_NONBLOCK);
 			}
 		}
 		/*

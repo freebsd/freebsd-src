@@ -82,7 +82,8 @@ _close(int fd)
 		 * using, which would then cause any reads to block
 		 * indefinitely.
 		 */
-		if ((S_ISREG(sb.st_mode) || S_ISCHR(sb.st_mode)) && (_thread_fd_table[fd]->flags & O_NONBLOCK) == 0) {
+		if ((S_ISREG(sb.st_mode) || S_ISCHR(sb.st_mode))
+		    && (_thread_fd_getflags(fd) & O_NONBLOCK) == 0) {
 			/* Get the current flags: */
 			flags = __sys_fcntl(fd, F_GETFL, NULL);
 			/* Clear the nonblocking file descriptor flag: */

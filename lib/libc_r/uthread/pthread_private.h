@@ -1140,8 +1140,6 @@ void	_set_curthread(struct pthread *);
 void	*_thread_stack_alloc(size_t, size_t);
 void	_thread_stack_free(void *, size_t, size_t);
 int     _thread_create(pthread_t *,const pthread_attr_t *,void *(*start_routine)(void *),void *,pthread_t);
-int     _thread_fd_lock(int, int, struct timespec *);
-int     _thread_fd_lock_debug(int, int, struct timespec *,char *fname,int lineno);
 int	_mutex_cv_lock(pthread_mutex_t *);
 int	_mutex_cv_unlock(pthread_mutex_t *);
 void	_mutex_lock_backout(pthread_t);
@@ -1177,6 +1175,11 @@ void	_waitq_clearactive(void);
 #endif
 void    _thread_exit(char *, int, char *);
 void    _thread_exit_cleanup(void);
+int	_thread_fd_getflags(int);
+int     _thread_fd_lock(int, int, struct timespec *);
+int     _thread_fd_lock_debug(int, int, struct timespec *,char *fname,int lineno);
+void	_thread_fd_setflags(int, int);
+int     _thread_fd_table_init(int fd);
 void    _thread_fd_unlock(int, int);
 void    _thread_fd_unlock_debug(int, int, char *, int);
 void    _thread_fd_unlock_owned(pthread_t);
@@ -1203,7 +1206,6 @@ void	_thread_sigframe_restore(struct pthread *thread,
 	    struct pthread_signal_frame *psf);
 void    _thread_start(void);
 void	_thread_seterrno(pthread_t, int);
-int     _thread_fd_table_init(int fd);
 pthread_addr_t _thread_gc(pthread_addr_t);
 void	_thread_enter_cancellation_point(void);
 void	_thread_leave_cancellation_point(void);
