@@ -75,6 +75,7 @@ struct ipc_perm {
 #define	IPC_RMID	0	/* remove identifier */
 #define	IPC_SET		1	/* set options */
 #define	IPC_STAT	2	/* get options */
+#define	IPC_INFO	3	/* get info */
 
 #ifdef _KERNEL
 /* Macros to convert between ipc ids and array indices or sequence ids */
