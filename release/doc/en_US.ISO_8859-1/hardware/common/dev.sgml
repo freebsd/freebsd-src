@@ -960,8 +960,6 @@
       </itemizedlist>
     </para>
 
-    
-
     <para>Sundance Technologies ST201 PCI Fast Ethernet NICs
     (&man.ste.4; driver)
       <itemizedlist>
@@ -1479,6 +1477,18 @@
         <listitem>
 	  <para>NEC PC-9801N-25 and -J02R</para>
         </listitem>
+      </itemizedlist>
+    </para>
+
+    <para arch="i386">Gigabit Ethernet cards based on the Level 1
+    LXT1001 NetCellerator controller (&man.lge.4; driver)
+      <itemizedlist>
+        <listitem>
+	  <para>D-Link DGE=500SX</para>
+	</listitem>
+        <listitem>
+	  <para>SMC TigerCard 1000 (SMC9462SX)</para>
+	</listitem>
       </itemizedlist>
     </para>
 

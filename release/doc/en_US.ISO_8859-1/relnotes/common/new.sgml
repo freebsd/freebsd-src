@@ -310,6 +310,12 @@
       FriendlyNet GigaNIC 1000TA and 1000TPC and Addtron
       AEG320T.</para>
 
+      <para>The &man.lge.4; driver has been added to support the Level
+      1 LXT1001 NetCellerator Gigabit Ethernet controller chip. This
+      device is used on some fiber optic GigE cards from SMC, D-Link
+      and Addtron.  Jumbograms and TCP/IP checksum offload on receive
+      are supported, although hardware VLAN filtering is not.</para>
+
     </sect3>
 
     <sect3>
@@ -391,6 +397,14 @@
       <para>&man.ip6fw.8; now has the ability to use a preprocessor
       and use the <option>-q</option> (quiet) flag when reading from a
       file. &merged;</para>
+
+      <para>A new <literal>options RANDOM_IP_ID</literal> kernel
+      option causes the ID field of IP packets to be randomized.  This
+      closes a minor information leak which allows a remote observer
+      to determine the rate at which the machine is generating
+      packets, since the default behaviour is to increment a counter
+      for each packet sent.</para>
+
     </sect3>
 
     <sect3>
@@ -541,10 +555,13 @@
       <para arch="i386">smbfs (CIFS) support in kernel has been
       added. &merged;</para>
 
-      <para>For consistency, the fdesc, fifo, null, portal, umap, and
-      union filesystems have been renamed to fdescfs, fifofs, nullfs,
-      portalfs, umapfs, and unionfs.  Where applicable, modules and
-      mount_* programs have been renamed.</para>
+      <para>For consistency, the fdesc, fifo, null, msdos, portal,
+      umap, and union filesystems have been renamed to fdescfs,
+      fifofs, msdosfs, nullfs, portalfs, umapfs, and unionfs.  Where
+      applicable, modules and mount_* programs have been
+      renamed.  Compatability <quote>glue</quote> has been added to
+      &man.mount.8; so that <literal>msdos</literal> filesystem
+      entries in &man.fstab.5; will work without changes.</para>
 
     </sect3>
 
@@ -1340,6 +1357,10 @@
 
     <para>&man.chown.8; now correctly follows symbolic links named as
     command line arguments if run without <option>-R</option>.</para>
+
+    <para>&man.chown.8; no longer takes <literal>.</literal> as a
+    user/group delimeter.  This change was made to support usernames
+    containing a <literal>.</literal>.</para>
 
     <para>&man.chmod.1; now supports a <option>-h</option> for
     changing the mode of a symbolic link.</para>
