@@ -391,7 +391,10 @@ nullfs_vptofh(vp, fhp)
 	struct vnode *vp;
 	struct fid *fhp;
 {
-	return VFS_VPTOFH(NULLVPTOLOWERVP(vp), fhp);
+	struct vnode *lvp;
+
+	lvp = NULLVPTOLOWERVP(vp);
+	return VFS_VPTOFH(lvp, fhp);
 }
 
 static int                        

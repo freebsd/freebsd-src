@@ -418,8 +418,10 @@ umapfs_vptofh(vp, fhp)
 	struct vnode *vp;
 	struct fid *fhp;
 {
+	struct vnode *lvp;
 
-	return (VFS_VPTOFH(UMAPVPTOLOWERVP(vp), fhp));
+	lvp = UMAPVPTOLOWERVP(vp);
+	return (VFS_VPTOFH(lvp, fhp));
 }
 
 static int
