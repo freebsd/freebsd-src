@@ -13,7 +13,7 @@ SRCS=	anonFTP.c apache.c attr.c cdrom.c command.c config.c devices.c \
 
 CFLAGS+= -Wall -I${.CURDIR}/../../gnu/lib/libdialog
 
-CFLAGS+=	-DLOAD_CONFIG_FILE=\"install.cfg\"
+#CFLAGS+=	-DLOAD_CONFIG_FILE=\"install.cfg\"
 
 DPADD=	${LIBDIALOG} ${LIBNCURSES} ${LIBMYTINFO} ${LIBUTIL} ${LIBDISK}
 LDADD=	-ldialog -lncurses -lmytinfo -lutil -ldisk
