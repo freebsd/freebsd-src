@@ -128,28 +128,6 @@ devsw(dev_t dev)
 }
 
 /*
- *  Add a cdevsw entry
- */
-
-int
-cdevsw_add(struct cdevsw *newentry)
-{
-
-	return (0);
-}
-
-/*
- *  Remove a cdevsw entry
- */
-
-int
-cdevsw_remove(struct cdevsw *oldentry)
-{
-
-	return 0;
-}
-
-/*
  * dev_t and u_dev_t primitives
  */
 
