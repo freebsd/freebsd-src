@@ -3,7 +3,7 @@
 MAINTAINER=	rnordier
 
 PROG=	kgzip
-SRCS=	kgzip.c elfhdr.c kgzcmp.c kgzld.c xio.c
+SRCS=	kgzip.c aouthdr.c elfhdr.c kgzcmp.c kgzld.c xio.c
 MAN8=	kgzip.8
 CFLAGS+=-pedantic \
 	-W -Wall -Waggregate-return -Wbad-function-cast -Wcast-align \
