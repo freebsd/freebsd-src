@@ -9,7 +9,7 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"	$Id: op.me,v 8.317.4.71 2001/08/14 15:26:00 ca Exp $
+.\"	$Id: op.me,v 8.592 2001/12/26 03:44:39 ca Exp $
 .\"
 .\" eqn op.me | pic | troff -me
 .\"
@@ -81,16 +81,17 @@ This documentation is under modification.
 .sp
 .r
 Eric Allman
+Gregory Neil Shapiro
+Claus Assmann
 Sendmail, Inc.
-eric@Sendmail.COM
 .sp
 .de Ve
 Version \\$2
 ..
-.Ve $Revision: 8.317.4.71 $
+.Ve $Revision: 8.592 $
 .rm Ve
 .sp
-For Sendmail Version 8.11
+For Sendmail Version 8.12
 .)l
 .(f
 Sendmail is a trademark of Sendmail, Inc.
@@ -127,9 +128,9 @@ RFC821 (Simple Mail Transport Protocol),
 RFC822 (Internet Mail Headers Format),
 RFC974 (MX routing),
 RFC1123 (Internet Host Requirements),
-RFC2045 (MIME),
-RFC1869 (SMTP Service Extensions),
+RFC1413 (Identification server),
 RFC1652 (SMTP 8BITMIME Extension),
+RFC1869 (SMTP Service Extensions),
 RFC1870 (SMTP SIZE Extension),
 RFC1891 (SMTP Delivery Status Notifications),
 RFC1892 (Multipart/Report),
@@ -138,10 +139,15 @@ RFC1894 (Delivery Status Notifications),
 RFC1985 (SMTP Service Extension for Remote Message Queue Starting),
 RFC2033 (Local Message Transmission Protocol),
 RFC2034 (SMTP Service Extension for Returning Enhanced Error Codes),
+RFC2045 (MIME),
 RFC2476 (Message Submission),
 RFC2487 (SMTP Service Extension for Secure SMTP over TLS),
+RFC2554 (SMTP Service Extension for Authentication),
+RFC2821 (Simple Mail Transfer Protocol),
+RFC2822 (Internet Message Format),
+RFC2852 (Deliver By SMTP Service Extension),
 and
-RFC2554 (SMTP Service Extension for Authentication).
+RFC2920 (SMTP Service Extension for Command Pipelining).
 However, since
 .i sendmail
 is designed to work in a wider world,
@@ -169,9 +175,9 @@ for you to install
 .i sendmail
 and keep it happy.
 Section three
-describes some parameters that may be safely tweaked.
-Section four
 has information regarding the command line arguments.
+Section four
+describes some parameters that may be safely tweaked.
 Section five
 contains the nitty-gritty information about the configuration
 file.
@@ -203,6 +209,11 @@ and the settings of various options.
 Although the configuration file can be quite complex,
 a configuration can usually be built
 using an M4-based configuration language.
+Assuming you have the standard
+.i sendmail
+distribution, see
+.i cf/README
+for further information.
 .pp
 The remainder of this section will describe the installation of
 .i sendmail
@@ -214,10 +225,11 @@ are given from the root of the
 subtree,
 normally
 .i /usr/src/usr.\*(SD/sendmail
-on 4.4BSD.
+on 4.4BSD-based systems.
 .pp
-If you are loading this off the tape,
-continue with the next section.
+Continue with the next section if you need/want to compile
+.i sendmail
+yourself.
 If you have a running binary already on your system,
 you should probably skip to section 1.2.
 .sh 2 "Compiling Sendmail"
@@ -248,6 +260,8 @@ command.
 In most cases these are only used when the
 .i obj.*
 directory is first created.
+To restart from scratch, use
+.i -c .
 These commands include:
 .nr ii 0.5i
 .ip "\-L \fIlibdirs\fP"
@@ -285,9 +299,10 @@ will avoid auto-detecting libraries if this is set.
 All libraries and map definitions must be specified
 in the site configuration file.
 .lp
-Any other parameters are passed to the
+Most other parameters are passed to the
 .i make
-program.
+program; for details see
+.i $BUILDTOOLS/README .
 .sh 3 "Creating a Site Configuration File"
 .\"XXX
 .pp
@@ -343,6 +358,8 @@ If neither of these are defined,
 reads the alias file into memory on every invocation.
 This can be slow and should be avoided.
 There are also several methods for remote database access:
+.ip LDAP
+Lightweight Directory Access Protocol.
 .ip NIS
 Sun's Network Information Services (formerly YP).
 .ip NISPLUS
@@ -352,9 +369,12 @@ NeXT's NetInfo service.
 .ip HESIOD
 Hesiod service (from Athena).
 .lp
-Other compilation flags are set in conf.h
+Other compilation flags are set in
+.i conf.h
 and should be predefined for you
 unless you are porting to a new environment.
+For more options see
+.i sendmail/README .
 .sh 3 "Compilation and installation"
 .pp
 After making the local system configuration described above,
@@ -382,7 +402,14 @@ and
 /usr/\*(SB/mailq
 to
 /usr/\*(SD/sendmail.
-On 4.4BSD systems it will also format and install man pages.
+On most systems it will also format and install man pages.
+Notice: as of version 8.12
+.i sendmail
+will no longer be installed set-user-ID root by default.
+If you really want to use the old method, you can specify it as target:
+.(b
+\&./Build install-set-user-id
+.)b
 .sh 2 "Configuration Files"
 .pp
 .i Sendmail
@@ -401,24 +428,9 @@ The world is complex,
 and the mail configuration reflects that.
 The distribution includes an m4-based configuration package
 that hides a lot of the complexity.
-.pp
-These configuration files are simpler than old versions
-largely because the world has become simpler;
-in particular,
-text-based host files are officially eliminated,
-obviating the need to
-.q hide
-hosts behind a registered internet gateway.
-.pp
-These files also assume that most of your neighbors
-use domain-based UUCP addressing;
-that is,
-instead of naming hosts as
-.q host!user
-they will use
-.q host.domain!user .
-The configuration files can be customized to work around this,
-but it is more complex.
+See
+.i cf/README
+for details.
 .pp
 Our configuration files are processed by
 .i m4
@@ -444,7 +456,7 @@ as a general description of an SMTP-connected host
 running Solaris 2.x.
 Files ending
 .b \&.mc
-(``Master Configuration'')
+(``M4 Configuration'')
 are the input descriptions;
 the output is in the corresponding
 .b \&.cf
@@ -521,6 +533,7 @@ Local UUCP connectivity information.
 This directory has been supplanted by the mailertable feature;
 any new configurations should use that feature to do UUCP
 (and other) routing.
+The use of this directory is deprecated.
 .pp
 If you are in a new domain
 (e.g., a company),
@@ -580,7 +593,8 @@ many systems install it in
 I understand it is in /usr/ucblib
 on System V Release 4.
 .)f
-It should be setuid root.
+It should be set-group-ID smmsp as described in
+sendmail/SECURITY.
 For security reasons,
 /, /usr, and /usr/\*(SD
 should be owned by root, mode 755\**.
@@ -594,7 +608,7 @@ and permissions are
 .)f
 .sh 3 "/etc/mail/sendmail.cf"
 .pp
-This is the configuration file for
+This is the main configuration file for
 .i sendmail \**.
 .(f
 \**Actually, the pathname varies depending on the operating system;
@@ -609,8 +623,9 @@ to the flags passed to the C compiler.
 Moving this file is not recommended:
 other programs and scripts know of this location.
 .)f
-This is the only non-library file name compiled into
-.i sendmail \**.
+This is one of the two non-library file names compiled into
+.i sendmail \**,
+the other is /etc/mail/submit.cf.
 .(f
 \**The system libraries can reference other files;
 in particular, system library subroutines that
@@ -627,6 +642,32 @@ If you have a particularly unusual system configuration
 you may need to create a special version.
 The format of this file is detailed in later sections
 of this document.
+.sh 3 "/etc/mail/submit.cf"
+.pp
+This is the configuration file for
+.i sendmail
+when it is used for initial mail submission, in which case
+it is also called ``Mail Submission Program'' (MSP)
+in contrast to ``Mail Transfer Agent'' (MTA).
+Starting with version 8.12,
+.i sendmail
+uses one of two different configuration files based on its operation mode
+(or the new
+.b \-A
+option).
+For initial mail submission, i.e., if one of the options
+.b \-bm
+(default),
+.b \-bs ,
+or
+.b \-t
+is specified, submit.cf is used (if available),
+for other operations sendmail.cf is used.
+Details can be found in
+.i sendmail/SECURITY .
+submit.cf is shipped with sendmail (in cf/cf/) and is installed by default.
+If changes to the configuration need to be made, start with
+cf/cf/submit.mc and follow the instruction in cf/README.
 .sh 3 "/usr/\*(SB/newaliases"
 .pp
 The
@@ -670,8 +711,8 @@ This directory should be mode 700
 and owned by root.
 .pp
 The actual path of this directory
-is defined in the
-.b Q
+is defined by the
+.b QueueDirectory
 option of the
 .i sendmail.cf
 file.
@@ -692,6 +733,40 @@ queue file types.
 That is, the data files are stored in the `df' subdirectory,
 the transcript files are stored in the `xf' subdirectory, and
 all others are stored in the `qf' subdirectory.
+.pp
+If shared memory support is compiled in,
+.i sendmail
+stores the available diskspace in a shared memory segment
+to make the values readily available to all children without
+incurring system overhead.
+In this case, only the daemon updates the data;
+i.e., the sendmail daemon creates the shared memory segment
+and deletes it if it is terminated.
+To use this,
+.i sendmail
+must have been compiled with support for shared memory
+(-DSM_CONF_SHM)
+and the option
+.b SharedMemoryKey
+must be set.
+Notice: do not use the same key for
+.i sendmail
+invocations with different queue directories
+or different queue group declarations.
+.sh 3 "/var/spool/clientmqueue"
+.pp
+The directory
+.i /var/spool/clientmqueue
+should be created to hold the mail queue.
+This directory should be mode 770
+and owned by user smmsp, group smmsp.
+.pp
+The actual path of this directory
+is defined by the
+.b QueueDirectory
+option of the
+.i submit.cf
+file.
 .sh 3 "/var/spool/mqueue/.hoststat"
 .pp
 This is a typical value for the
@@ -711,7 +786,7 @@ which includes some aliases which
 .i must
 be defined:
 .(b
-cp lib/aliases /etc/mail/aliases
+cp sendmail/aliases /etc/mail/aliases
 .i "edit /etc/mail/aliases"
 .)b
 You should extend this file with any aliases that are apropos to your system.
@@ -743,7 +818,7 @@ it listens on the SMTP socket for connections
 and it processes the queue periodically
 to insure that mail gets delivered when hosts come up.
 .pp
-Add the following lines to
+If necessary, add the following lines to
 .q /etc/rc
 (or
 .q /etc/rc.local
@@ -755,7 +830,7 @@ in one of the startup files, typically
 .q /etc/init.d/sendmail :
 .(b
 if [ \-f /usr/\*(SD/sendmail \-a \-f /etc/mail/sendmail.cf ]; then
-	(cd /var/spool/mqueue; rm \-f [lnx]f*)
+	(cd /var/spool/mqueue; rm \-f xf*)
 	/usr/\*(SD/sendmail \-bd \-q30m &
 	echo \-n ' sendmail' >/dev/console
 fi
@@ -764,8 +839,8 @@ The
 .q cd
 and
 .q rm
-commands insure that all lock files have been removed;
-extraneous lock files may be left around
+commands insure that all transcript files have been removed;
+extraneous transcript files may be left around
 if the system goes down in the middle of processing a message.
 The line that actually invokes
 .i sendmail
@@ -834,12 +909,6 @@ done
 Figure 1 \(em A complex startup script
 .hl
 .)z
-.pp
-If you are not running a version of UNIX
-that supports Berkeley TCP/IP,
-do not include the
-.b \-bd
-flag.
 .sh 3 "/etc/mail/helpfile"
 .pp
 This is the help file used by the SMTP
@@ -944,10 +1013,10 @@ The number of envelope recipients for this message
 The message id of the message (from the header).
 .ip proto
 The protocol used to receive this message (e.g., ESMTP or UUCP)
-.ip daemon
-The daemon name from the
-.b DaemonPortOptions
-setting.
+.ip daemon 
+The daemon name from the 
+.b DaemonPortOptions 
+setting. 
 .ip relay
 The machine from which it was received.
 .lp
@@ -976,7 +1045,7 @@ The enhanced error code (RFC2034) if available.
 The delivery status.
 .lp
 Not all fields are present in all messages;
-for example, the relay is not listed for local deliveries.
+for example, the relay is usually not listed for local deliveries.
 .sh 3 "Levels"
 .pp
 If you have
@@ -1015,13 +1084,109 @@ signal.
 The results are logged at
 .sm LOG_DEBUG
 priority.
-.sh 2 "The Mail Queue"
+.sh 2 "The Mail Queues"
 .pp
-Sometimes a host cannot handle a message immediately.
-For example, it may be down or overloaded, causing it to refuse connections.
-The sending host is then expected to save this message in
-its mail queue
-and attempt to deliver it later.
+Mail messages may either be delivered immediately or be held for later
+delivery.
+Held messages are placed into a holding directory called a mail queue.
+.pp
+A mail message may be queued for these reasons:
+.bu
+If a mail message is temporarily undeliverable, it is queued
+and delivery is attempted later.
+If the message is addressed to multiple recipients, it is queued
+only for those recipients to whom delivery is not immediately possible.
+.bu
+If the SuperSafe option is set to true,
+all mail messages are queued while delivery is attempted.
+.bu
+If the DeliveryMode option is set to queue-only or defer,
+all mail is queued, and no immediate delivery is attempted.
+.bu
+If the load average becomes higher than the value of the QueueLA option
+and the
+.b QueueFactor
+(\c
+.b q )
+option divided by the difference in the current load average and the
+.b QueueLA
+option plus one
+is less than the priority of the message,
+messages are queued rather than immediately delivered.
+.sh 3 "Queue Groups and Queue Directories"
+.pp
+There are one or more mail queues.
+Each mail queue belongs to a queue group.
+There is always a default queue group that is called ``mqueue''
+(which is where messages go by default unless otherwise specified).
+The directory or directories which comprise the default queue group
+are specified by the QueueDirectory option.
+There are zero or more
+additional named queue groups declared using the
+.b Q
+command in the configuration file.
+.pp
+By default, a queued message is placed in the queue group
+associated with the first recipient in the recipient list.
+A recipient address is mapped to a queue group as follows.
+First, if there is a ruleset called ``queuegroup'',
+and if this ruleset maps the address to a queue group name,
+then that queue group is chosen.
+That is, the argument for the ruleset is the recipient address
+and the result should be
+.b $#
+followed by the name of a queue group.
+Otherwise, if the mailer associated with the address specifies
+a queue group, then that queue group is chosen.
+Otherwise, the default queue group is chosen.
+.pp
+A message with multiple recipients will be split
+if different queue groups are chosen
+by the mapping of recipients to queue groups.
+.pp
+When a message is placed in a queue group, and the queue group has
+more than one queue, a queue is selected randomly.
+.pp
+If a message with multiple recipients is placed into a queue group
+with the 'r' option (maximum number of recipients per message)
+set to a positive value
+.i N ,
+and if there are more than
+.i N
+recipients
+in the message, then the message will be split into multiple messages,
+each of which have at most
+.i N
+recipients.
+.sh 3 "Queue Runs"
+.pp
+.i sendmail
+has two different ways to process the queue(s).
+The first one is to start queue runners after certain intervals
+(``normal'' queue runners),
+the second one is to keep queue runner processes around
+(``persistent'' queue runners).
+How to select either of these types is discussed in the appendix
+``COMMAND LINE FLAGS''.
+Persistent queue runners have the advantage that no new processes
+need to be spawned at certain intervals; they just sleep for
+a specified time after they finished a queue run.
+Another advantage of persistent queue runners is that only one process
+belonging to a workgroup (a workgroup is a set of queue groups)
+collects the data for a queue run
+and then multiple queue runner may go ahead using that data.
+This can significantly reduce the disk I/O necessary to read the
+queue files compared to starting multiple queue runners directly.
+Their disadvantage is that a new queue run is only started
+after all queue runners belonging to a group finished their tasks.
+In case one of the queue runners tries delivery to a slow recipient site
+at the end of a queue run, the next queue run may be substantially delayed.
+In general this should be smoothed out due to the distribution of
+those slow jobs, however, for sites with small number of
+queue entries this might introduce noticable delays.
+In general, persistent queue runners are only useful for
+sites with big queues.
+.sh 3 "Manual Intervention"
 .pp
 Under normal conditions the mail queue will be processed transparently.
 However, you may find that manual intervention is sometimes necessary.
@@ -1032,9 +1197,11 @@ Although
 .i sendmail
 ought to recover gracefully when the host comes up,
 you may find performance unacceptably bad in the meantime.
+In that case you want to check the content of the queue
+and manipulate it as explained in the next two sections.
 .sh 3 "Printing the queue"
 .pp
-The contents of the queue can be printed
+The contents of the queue(s) can be printed
 using the
 .i mailq
 command
@@ -1049,13 +1216,17 @@ This will produce a listing of the queue id's,
 the size of the message,
 the date the message entered the queue,
 and the sender and recipients.
+If shared memory support is compiled in,
+the flag
+.b \-bP
+can be used to print the number of entries in the queue(s),
+provided a process updates the data.
 .sh 3 "Forcing the queue"
 .pp
 .i Sendmail
-should run the queue automatically
-at intervals.
+should run the queue automatically at intervals.
 When using multiple queues,
-a separate process will be created to
+a separate process will by default be created to
 run each of the queues
 unless the queue run is initiated by a user
 with the verbose flag.
@@ -1107,17 +1278,34 @@ You should then kill the existing daemon
 (since it will still be processing in the old queue directory)
 and create a new daemon.
 .pp
-To run the old mail queue,
-run the following command:
+To run the old mail queue, issue the following command:
 .(b
-/usr/\*(SD/sendmail \-oQ/var/spool/omqueue \-q
+/usr/\*(SD/sendmail \-C /etc/mail/queue.cf \-q
 .)b
 The
-.b \-oQ
-flag specifies an alternate queue directory
+.b \-C
+flag specifies an alternate configuration file
+.b queue.cf
+which should refer to the moved queue directory
+.(b
+O QueueDirectory=/var/spool/omqueue
+.)b
 and the
 .b \-q
 flag says to just run every job in the queue.
+You can also specify the moved queue directory on the command line
+.(b
+/usr/\*(SD/sendmail \-oQ/var/spool/omqueue \-q
+.)b
+but this requires that you do not have 
+queue groups in the configuration file,
+because those are not subdirectories of the moved directory.
+See the section about "Queue Group Declaration" for details;
+you most likely need a different configuration file to correctly deal
+with this problem.
+However, a proper configuration of queue groups should avoid
+filling up queue directories, so you shouldn't run into
+this problem.
 If you have a tendency toward voyeurism,
 you can use the
 .b \-v
@@ -1132,7 +1320,7 @@ rmdir /var/spool/omqueue
 .pp
 .i Sendmail
 stores a large amount of information about each remote system it
-has connected to in memory. It is now possible to preserve some
+has connected to in memory. It is possible to preserve some
 of this information on disk as well, by using the
 .b HostStatusDirectory
 option, so that it may be shared between several invocations of
@@ -1241,13 +1429,23 @@ aliases	files nis
 will ask
 .i sendmail
 to look for hosts in the Domain Name System first.
-If the requested host name is not found,
-it tries local files,
+If the requested host name is not found, it tries local files,
 and if that fails it tries NIS.
-Similarly,
-when looking for aliases
-it will try the local files first
-followed by NIS.
+Similarly, when looking for aliases
+it will try the local files first followed by NIS.
+.pp
+Notice: since
+.i sendmail
+must access MX records for correct operation, it will use
+DNS if it is configured in the
+.b ServiceSwitchFile
+file.
+Hence an entry like
+.(b
+hosts	files dns
+.)b
+will not avoid DNS lookups even if a host can be found
+in /etc/hosts.
 .pp
 Service switches are not completely integrated.
 For example, despite the fact that the host entry listed in the above example
@@ -1255,14 +1453,6 @@ specifies to look in NIS,
 on SunOS this won't happen because the system implementation of
 .i gethostbyname \|(3)
 doesn't understand this.
-If there is enough demand
-.i sendmail
-may reimplement
-.i gethostbyname \|(3),
-.i gethostbyaddr \|(3),
-.i getpwent \|(3),
-and the other system routines that would be necessary
-to make this work seamlessly.
 .sh 2 "The Alias Database"
 .pp
 After recipient addresses are read from the SMTP connection
@@ -1422,28 +1612,6 @@ flag:
 /usr/\*(SD/sendmail \-bi
 .)b
 .pp
-If the
-.b RebuildAliases
-(old
-.b D )
-option is specified in the configuration,
-.i sendmail
-will rebuild the alias database automatically
-if possible
-when it is out of date.
-Auto-rebuild can be dangerous
-on heavily loaded machines
-with large alias files;
-if it might take more than the rebuild timeout
-(option
-.b AliasWait ,
-old
-.b a ,
-which is normally five minutes)
-to rebuild the database,
-there is a chance that several processes will start the rebuild process
-simultaneously.
-.pp
 If you have multiple aliases databases specified,
 the
 .b \-bi
@@ -1534,6 +1702,9 @@ of using ``\c
 as the return address.
 .sh 2 "User Information Database"
 .pp
+This option is deprecated, use virtusertable and genericstable instead
+as explained in
+.i cf/README .
 If you have a version of
 .i sendmail
 with the user information database
@@ -1582,7 +1753,7 @@ defined by the configuration file.
 Others have interpretations built into
 .i sendmail
 that cannot be changed without changing the code.
-These builtins are described here.
+These built-ins are described here.
 .sh 3 "Errors-To:"
 .pp
 If errors occur anywhere during processing,
@@ -1617,7 +1788,7 @@ One of the possible actions is to add an
 header line for any recipients it is aware of.
 .pp
 The Apparently-To: header is non-standard
-and is deprecated.
+and is both deprecated and strongly discouraged.
 .sh 3 "Precedence"
 .pp
 The Precedence: header can be used as a crude control of message priority.
@@ -1693,27 +1864,32 @@ Some important arguments are described here.
 .sh 2 "Queue Interval"
 .pp
 The amount of time between forking a process
-to run through the queue
-is defined by the
+to run through the queue is defined by the
 .b \-q
 flag.
 If you run with delivery mode set to
 .b i
 or
 .b b
-this can be relatively large,
-since it will only be relevant
+this can be relatively large, since it will only be relevant
 when a host that was down comes back up.
 If you run in
 .b q
-mode
-it should be relatively short,
+mode it should be relatively short,
 since it defines the maximum amount of time that a message
 may sit in the queue.
 (See also the MinQueueAge option.)
 .pp
 RFC 1123 section 5.3.1.1 says that this value should be at least 30 minutes
 (although that probably doesn't make sense if you use ``queue-only'' mode).
+.pp
+Notice: the meaning of the interval time depends on whether normal
+queue runners or persistent queue runners are used.
+For the former, it is the time between subsequent starts of a queue run.
+For the latter, it is the time sendmail waits after a persistent queue
+runner has finished its work to start the next one.
+Hence for persistent queue runners this interval should be very low,
+typically no more than two minutes.
 .sh 2 "Daemon Mode"
 .pp
 If you allow incoming mail over an IPC connection,
@@ -1735,8 +1911,9 @@ flag may be combined in one call:
 An alternative approach is to invoke sendmail from
 .i inetd (8)
 (use the
-.b \-bs
-flag to ask sendmail to speak SMTP on its standard input and output).
+.b \-bs \ \-Am
+flags to ask sendmail to speak SMTP on its standard input and output
+and to run as MTA).
 This works and allows you to wrap
 .i sendmail
 in a TCP wrapper program,
@@ -1764,7 +1941,7 @@ when this is done to watch what happens:
 .)b
 .pp
 You can also limit the jobs to those with a particular queue identifier,
-sender, or recipient
+recipient, sender, or queue group
 using one of the queue modifiers.
 For example,
 .q \-qRberkeley
@@ -1773,40 +1950,77 @@ restricts the queue run to jobs that have the string
 somewhere in one of the recipient addresses.
 Similarly,
 .q \-qSstring
-limits the run to particular senders and
+limits the run to particular senders,
 .q \-qIstring
-limits it to particular queue identifiers.
+limits it to particular queue identifiers, and
+.q \-qGstring
+limits it to a particular queue group.
+You may also place an
+.b !
+before the
+.b I
+or
+.b R
+or
+.b S
+to indicate that jobs are limited to not including a particular queue
+identifier, recipient or sender.
+For example,
+.q \-q!Rseattle
+limits the queue run to jobs that do not have the string
+.q seattle
+somewhere in one of the recipient addresses.
+Should you need to terminate the queue jobs currently active then a SIGTERM
+to the parent of the process (or processes) will cleanly stop the jobs.
 .sh 2 "Debugging"
 .pp
 There are a fairly large number of debug flags
 built into
 .i sendmail .
-Each debug flag has a number and a level,
-where higher levels means to print out more information.
+Each debug flag has a category and a level.
+Higher levels increase the level of debugging activity;
+in most cases, this means to print out more information.
 The convention is that levels greater than nine are
 .q absurd,
 i.e.,
 they print out so much information that you wouldn't normally
 want to see them except for debugging that particular piece of code.
+.pp
+A debug category is either an integer, like 42,
+or a name, like ANSI.
+You can specify a range of numeric debug categories
+using the syntax 17-42.
+You can specify a set of named debug categories using
+a glob pattern like
+.q sm_trace_* .
+At present, only
+.q *
+and
+.q ?
+are supported in these glob patterns.
+.pp
 Debug flags are set using the
 .b \-d
 option;
 the syntax is:
 .(b
-.ta \w'debug-option  'u
+.ta \w'debug-categories:M 'u
 debug-flag:	\fB\-d\fP debug-list
 debug-list:	debug-option [ , debug-option ]*
-debug-option:	debug-range [ . debug-level ]
-debug-range:	integer | integer \- integer
+debug-option:	debug-categories [ . debug-level ]
+debug-categories:	integer | integer \- integer | category-pattern
+category-pattern:	[a-zA-Z_*?][a-zA-Z0-9_*?]*
 debug-level:	integer
 .)b
 where spaces are for reading ease only.
 For example,
 .(b
-\-d12	Set flag 12 to level 1
-\-d12.3	Set flag 12 to level 3
-\-d3\-17	Set flags 3 through 17 to level 1
-\-d3\-17.4	Set flags 3 through 17 to level 4
+\-d12	Set category 12 to level 1
+\-d12.3	Set category 12 to level 3
+\-d3\-17	Set categories 3 through 17 to level 1
+\-d3\-17.4	Set categories 3 through 17 to level 4
+\-dANSI	Set category ANSI to level 1
+\-dsm_trace_*.3	Set all named categories matching sm_trace_* to level 3
 .)b
 For a complete list of the available debug flags
 you will have to look at the code
@@ -1814,6 +2028,10 @@ and the
 .i TRACEFLAGS
 file in the sendmail distribution
 (they are too dynamic to keep this document up to date).
+For a list of named debug categories in the sendmail binary, use
+.(b
+ident /usr/sbin/sendmail | grep Debug
+.)b
 .sh 2 "Changing the Values of Options"
 .pp
 Options can be overridden using the
@@ -1836,7 +2054,7 @@ the equivalent line using the long option name is
 .pp
 Some options have security implications.
 Sendmail allows you to set these,
-but relinquishes its setuid root permissions thereafter\**.
+but relinquishes its set-user-ID or set-group-ID permissions thereafter\**.
 .(f
 \**That is, it sets its effective uid to the real uid;
 thus, if you are executing as root,
@@ -1864,7 +2082,8 @@ it defaults to
 in the current directory.
 .pp
 .i Sendmail
-gives up its setuid root permissions
+gives up set-user-ID root permissions
+(if it has been installed set-user-ID root)
 when you use this flag, so it is common to use a publicly writable directory
 (such as /tmp)
 as the queue directory (QueueDirectory or Q option) while testing.
@@ -1965,8 +2184,8 @@ This version requires that you use:
 .pp
 As of version 8.7,
 some other syntaxes are available in test mode:
-.bu
-\&.D\|x\|value
+.nr ii 1i
+.ip \&.D\|x\|value
 defines macro
 .i x
 to have the indicated
@@ -1975,18 +2194,47 @@ This is useful when debugging rules that use the
 .b $& \c
 .i x
 syntax.
-.bu
-\&.C\|c\|value
+.ip \&.C\|c\|value
 adds the indicated
 .i value
 to class
 .i c .
-.bu
-\&.S\|ruleset
+.ip \&=S\|ruleset
 dumps the contents of the indicated ruleset.
-.bu
-\-d\|debug-spec
+.ip \-d\|debug-spec
 is equivalent to the command-line flag.
+.lp
+Version 8.9 introduced more features:
+.nr ii 1i
+.ip ?
+shows a help message.
+.ip =M
+display the known mailers.
+.ip $m
+print the value of macro m.
+.ip $=c
+print the contents of class c.
+.ip /mx\ host
+returns the MX records for `host'.
+.ip /parse\ address
+parse address, returning the value of
+.i crackaddr ,
+and the parsed address.
+.ip /try\ mailer\ addr
+rewrite address into the form it will have when
+presented to the indicated mailer.
+.ip /tryflags\ flags
+set flags used by parsing.  The flags can be `H' for
+Header or `E' for Envelope, and `S' for Sender or `R'
+for Recipient.  These can be combined, `HR' sets
+flags for header recipients.
+.ip /canon\ hostname
+try to canonify hostname.
+.ip /map\ mapname\ key
+look up `key' in the indicated `mapname'.
+.ip /quit
+quit address test mode.
+.lp
 .sh 2 "Persistent Host Status Information"
 .pp
 When
@@ -2072,22 +2320,22 @@ w	weeks
 .pp
 The argument to the
 .b \-q
-flag
-specifies how often a sub-daemon will run the queue.
-This is typically set to between fifteen minutes
-and one hour.
-If not set,
-or set to zero,
+flag specifies how often a sub-daemon will run the queue.
+This is typically set to between fifteen minutes and one hour.
+If not set, or set to zero,
 the queue will not be run automatically.
 RFC 1123 section 5.3.1.1 recommends that this be at least 30 minutes.
+Should you need to terminate the queue jobs currently active then a SIGTERM
+to the parent of the process (or processes) will cleanly stop the jobs.
 .sh 3 "Read timeouts"
 .pp
 Timeouts all have option names
 .q Timeout.\fIsuboption\fP .
+Most of these control SMTP operations.
 The recognized
 .i suboption s,
 their default values, and the minimum values
-allowed by RFC 1123 section 5.3.2 are:
+allowed by RFC 2821 section 4.5.3.2 (or RFC 1123 section 5.3.2) are:
 .nr ii 1i
 .ip connect
 The time to wait for an SMTP connection to open
@@ -2110,6 +2358,18 @@ The concept is that this should be very short (a few seconds);
 hosts that are well connected and responsive will thus be serviced immediately.
 Hosts that are slow will not hold up other deliveries in the initial
 delivery attempt.
+.ip aconnect
+[0, unspecified]
+The overall timeout waiting for all connection for a single delivery
+attempt to succeed.
+If 0, no overall limit is applied.
+This can be used to restrict the total amount of time trying to connect to
+a long list of host that could accept an e-mail for the recipient.
+This timeout does not apply to
+.b FallbackMXhost ,
+i.e., if the time is exhausted, the
+.b FallbackMXhost
+is tried next.
 .ip initial
 The wait for the initial 220 greeting message
 [5m, 5m].
@@ -2162,10 +2422,19 @@ the time to wait for another command.
 [1h, 5m].
 .ip ident\(dd
 The timeout waiting for a reply to an IDENT query
-[30s\**, unspecified].
+[5s\**, unspecified].
 .(f
 \**On some systems the default is zero to turn the protocol off entirely.
 .)f
+.ip lhlo
+The wait for a reply to an LMTP LHLO command
+[2m, unspecified].
+.ip auth
+The timeout for a reply in an SMTP AUTH dialogue
+[10m, unspecified].
+.ip starttls
+The timeout for a reply to an SMTP STARTTLS command and the TLS handshake
+[1h, unspecified].
 .ip fileopen\(dd
 The timeout for opening .forward and :include: files [60s, none].
 .ip control\(dd
@@ -2175,7 +2444,7 @@ How long status information about a host
 (e.g., host down)
 will be cached before it is considered stale
 [30m, unspecified].
-.ip resolver.retrans
+.ip resolver.retrans\(dd
 The resolver's
 retransmission time interval
 (in seconds)
@@ -2184,21 +2453,21 @@ Sets both
 .i Timeout.resolver.retrans.first
 and
 .i Timeout.resolver.retrans.normal .
-.ip resolver.retrans.first
+.ip resolver.retrans.first\(dd
 The resolver's
 retransmission time interval
 (in seconds)
 for the first attempt to
 deliver a message
 [varies].
-.ip resolver.retrans.normal
+.ip resolver.retrans.normal\(dd
 The resolver's
 retransmission time interval
 (in seconds)
 for all resolver lookups
 except the first delivery attempt
 [varies].
-.ip resolver.retry
+.ip resolver.retry\(dd
 The number of times
 to retransmit a resolver query.
 Sets both
@@ -2206,13 +2475,13 @@ Sets both
 and
 .i Timeout.resolver.retry.normal
 [varies].
-.ip resolver.retry.first
+.ip resolver.retry.first\(dd
 The number of times
 to retransmit a resolver query
 for the first attempt
 to deliver a message
 [varies].
-.ip resolver.retry.normal
+.ip resolver.retry.normal\(dd
 The number of times
 to retransmit a resolver query
 for all resolver lookups
@@ -2230,32 +2499,6 @@ All but those marked with
 .DD
 (\(dd) apply to client SMTP.
 .pp
-Many of the RFC 1123 minimum values
-may well be too short.
-.i Sendmail
-was designed to the RFC 822 protocols,
-which did not specify read timeouts;
-hence, versions of
-.i sendmail
-prior to version 8.1 did not guarantee to reply to messages promptly.
-In particular, a
-.q RCPT
-command specifying a mailing list
-will expand and verify the entire list;
-a large list on a slow system
-may easily take more than five minutes\**.
-.(f
-\**This verification includes looking up every address
-with the name server;
-this involves network delays,
-and can in some cases can be considerable.
-.)f
-I recommend a one hour timeout \*-
-since a communications failure during the RCPT phase is rare,
-a long timeout is not onerous
-and may ultimately help reduce network load
-and duplicated messages.
-.pp
 For example, the lines:
 .(b
 O Timeout.command=25m
@@ -2266,7 +2509,7 @@ and the input data block timeout to three hours.
 .sh 3 "Message timeouts"
 .pp
 After sitting in the queue for a few days,
-a message will time out.
+an undeliverable message will time out.
 This is to insure that at least the sender is aware
 of the inability to send a message.
 The timeout is typically set to five days.
@@ -2313,7 +2556,7 @@ to return entries immediately during a queue run,
 e.g., to bounce messages independent of their time in the queue.
 .pp
 Since these options are global,
-and since you can not know
+and since you cannot know
 .i "a priori"
 how long another host outside your domain will be down,
 a five day timeout is recommended.
@@ -2347,11 +2590,13 @@ option,
 .i sendmail
 will fork before each individual message
 while running the queue.
-This will prevent
+This option was used with earlier releases to prevent
 .i sendmail
-from consuming large amounts of memory,
-so it may be useful in memory-poor environments.
-However, if the
+from consuming large amounts of memory.
+It should no longer be necessary with
+.i sendmail
+8.12.
+If the
 .b ForkEachJob
 option is not set,
 .i sendmail
@@ -2362,7 +2607,7 @@ If the
 .b ForkEachJob
 option is set,
 .i sendmail
-can not use connection caching.
+cannot use connection caching.
 .sh 2 "Queue Priorities"
 .pp
 Every message is assigned a priority when it is first instantiated,
@@ -2430,27 +2675,23 @@ option defaults to 90000.
 .sh 2 "Load Limiting"
 .pp
 .i Sendmail
-can be asked to queue (but not deliver)
-mail if the system load average gets too high
-using the
+can be asked to queue (but not deliver) mail
+if the system load average gets too high using the
 .b QueueLA
 (\c
 .b x )
 option.
 When the load average exceeds the value of the
 .b QueueLA
-option,
-the delivery mode is set to
+option, the delivery mode is set to
 .b q
-(queue only)
-if the
+(queue only) if the
 .b QueueFactor
 (\c
 .b q )
 option divided by the difference in the current load average and the
 .b QueueLA
-option
-plus one
+option plus one
 is less than the priority of the message \(em
 that is, the message is queued iff:
 .EQ
@@ -2459,22 +2700,22 @@ pri > { bold QueueFactor } over { LA - { bold QueueLA } + 1 }
 The
 .b QueueFactor
 option defaults to 600000,
-so each point of load average is worth 600000
-priority points
+so each point of load average is worth 600000 priority points
 (as described above).
 .pp
-For drastic cases,
-the
+For drastic cases, the
 .b RefuseLA
 (\c
 .b X )
 option defines a load average at which
 .i sendmail
-will refuse
-to accept network connections.
-Locally generated mail
-(including incoming UUCP mail)
+will refuse to accept network connections.
+Locally generated mail, i.e., mail which is not submitted via SMTP
+(including incoming UUCP mail),
 is still accepted.
+Notice that the MSP submits mail to the MTA via SMTP, and hence
+mail will be queued in the client queue in such a case.
+Therefore it is necessary to run the client mail queue periodically.
 .sh 2 "Delivery Mode"
 .pp
 There are a number of delivery modes that
@@ -2514,7 +2755,9 @@ Mode
 .q d
 is identical to mode
 .q q
-except that it also prevents all the early map lookups from working;
+except that it also prevents lookups in maps including the
+.b -D
+flag from working during the initial queue phase;
 it is intended for ``dial on demand'' sites where DNS lookups
 might cost real money.
 Some simple error messages
@@ -2538,7 +2781,7 @@ upon initial receipt of the mail.
 This speeds up the response to RCPT commands.
 Mode
 .q i
-cannot be used by the SMTP server.
+should not be used by the SMTP server.
 .sh 2 "Log Level"
 .pp
 The level of logging can be set for
@@ -2610,9 +2853,18 @@ option to turn off some of these checks.
 .sh 3 "To suid or not to suid?"
 .pp
 .i Sendmail
-is normally installed
-setuid to root.
-At the point where it is about to
+is no longer installed
+set-user-ID to root.
+sendmail/SECURITY
+explains how to configure and install
+.i sendmail
+without set-user-ID to root but set-group-ID
+which is the default configuration starting with 8.12.
+.pp
+The daemon usually runs as root, unless other measures are taken.
+At the point where
+.i sendmail
+is about to
 .i exec \|(2)
 a mailer,
 it checks to see if the userid is zero (root);
@@ -2638,36 +2890,7 @@ to be accounted
 to root
 rather than to the user sending the mail.
 .pp
-If you don't make
-.i sendmail
-setuid to root, it will still run but you lose a lot of functionality
-and a lot of privacy, since you'll have to make the queue directory
-world readable.
-You could also make
-.i sendmail
-setuid to some pseudo-user
-(e.g., create a user called
-.q sendmail
-and make
-.i sendmail
-setuid to that)
-which will fix the privacy problems
-but not the functionality issues.
-It also introduces problems on some operating systems
-if sendmail needs to give up the setuid special privileges.
-Also, this isn't a guarantee of security:
-for example,
-root occasionally sends mail,
-and the daemon often runs as root.
-Note however that
-.i sendmail
-must run as root or the trusted user in order to create the SMTP listener
-socket.
-.pp
-A middle ground is to make
-.i sendmail
-setuid to root,
-but set the
+A middle ground is to set the
 .b RunAsUser
 option.
 This causes
@@ -2714,6 +2937,11 @@ that are group writable
 on the grounds that they might have been tampered with
 by someone other than the owner;
 it will even refuse to read files in group writable directories.
+Also, sendmail will refuse to create a new aliases database in an
+unsafe directory.  You can get around this by manually creating the
+database file as a trusted user ahead of time and then rebuilding the
+aliases database with
+.b newaliases .
 .pp
 If you are
 .i quite
@@ -2772,6 +3000,10 @@ Allow a
 .i \&.forward
 file that is in an unsafe directory to include references
 to program and files.
+.ip GroupReadableKeyFile
+Accept a group-readable key file for STARTTLS.
+.ip GroupReadableSASLDBFile
+Accept a group-readable Cyrus SASL password file.
 .ip GroupWritableAliasFile
 Allow group-writable alias files.
 .ip GroupWritableDirPathSafe
@@ -2779,14 +3011,24 @@ Change the definition of
 .q "unsafe directory"
 to consider group-writable directories to be safe.
 World-writable directories are always unsafe.
+.ip GroupWritableForwardFile
+Allow group writable
+.i \&.forward
+files.
 .ip GroupWritableForwardFileSafe
 Accept group-writable
 .i \&.forward
 files as safe for program and file delivery.
+.ip GroupWritableIncludeFile
+Allow group wriable
+.i :include:
+files.
 .ip GroupWritableIncludeFileSafe
 Accept group-writable
 .i :include:
 files as safe for program and file delivery.
+.ip GroupWritableSASLDBFile
+Accept a group-writable Cyrus SASL password file.
 .ip HelpFileInUnsafeDirPath
 Allow the file named in the
 .b HelpFile
@@ -2821,6 +3063,7 @@ Allow
 files that are links in writable directories.
 .ip LinkedMapInWritableDir
 Allow map files that are links in writable directories.
+This includes alias database files.
 .ip LinkedServiceSwitchFileInWritableDir
 Allow the service switch file to be a link
 even if the directory is writable.
@@ -2832,13 +3075,14 @@ and
 .i dbm
 files)
 in unsafe directories.
+This includes alias database files.
 .ip NonRootSafeAddr
 Do not mark file and program deliveries as unsafe
 if sendmail is not running with root privileges.
 .ip RunProgramInUnsafeDirPath
-Go ahead and run programs that are in writable directories.
+Run programs that are in writable directories without logging a warning.
 .ip RunWritableProgram
-Go ahead and run programs that are group- or world-writable.
+Run programs that are group- or world-writable without logging a warning.
 .ip TrustStickyBit
 Allow group or world writable directories
 if the sticky bit is set on the directory.
@@ -2846,6 +3090,14 @@ Do not set this on systems which do not honor
 the sticky bit on directories.
 .ip WorldWritableAliasFile
 Accept world-writable alias files.
+.ip WorldWritableForwardfile
+Allow world writable
+.i \&.forward
+files.
+.ip WorldWritableIncludefile
+Allow world wriable
+.i :include:
+files.
 .ip WriteMapToHardLink
 Allow writes to maps that are hard links.
 .ip WriteMapToSymLink
@@ -2980,13 +3232,24 @@ turns on the AAONLY (accept authoritative answers only)
 and turns off the DNSRCH (search the domain path) options.
 Most resolver libraries default DNSRCH, DEFNAMES, and RECURSE
 flags on and all others off.
+If NETINET6 is enabled, most libraries default to USE_INET6 as well.
 You can also include
 .q HasWildcardMX
 to specify that there is a wildcard MX record matching your domain;
 this turns off MX matching when canonifying names,
 which can lead to inappropriate canonifications.
+Use
+.q WorkAroundBrokenAAAA
+when faced with a a broken nameservers that returns SERVFAIL
+(a temporary failure)
+on T_AAAA (IPv6) lookups
+during hostname canonification.
+Notice: it might be necessary to apply the same (or similar) options to
+.i submit.cf
+too.
 .pp
-Version level 1 configurations
+Version level 1 configurations (see the section about
+Configuration Version Level)
 turn DNSRCH and DEFNAMES off when doing delivery lookups,
 but leave them on everywhere else.
 Version 8 of
@@ -3026,7 +3289,8 @@ when linking.
 Some sites mount each user's home directory
 from a local disk on their workstation,
 so that local access is fast.
-However, the result is that .forward file lookups are slow.
+However, the result is that .forward file lookups
+from a central mail server are slow.
 In some cases,
 mail can even be delivered on machines inappropriately
 because of a file server being down.
@@ -3056,14 +3320,13 @@ it should be mode 1777
 (that is, the sticky bit should be set).
 Users should create the files mode 644.
 Note that you must use the
-forwardfileinunsafedirpath and
-forwardfileinunsafedirpathsafe
-flags with the DontBlameSendmail option
-to allow forward files in a world
-writable directory.
-This might also be used as a
-denial of service
-attack (users could create forward files for other users);
+ForwardFileInUnsafeDirPath and
+ForwardFileInUnsafeDirPathSafe
+flags with the
+.b DontBlameSendmail
+option to allow forward files in a world writable directory.
+This might also be used as a denial of service attack
+(users could create forward files for other users);
 a better approach might be to create
 /var/forward
 mode 755
@@ -3162,10 +3425,11 @@ since this is done every time
 .i sendmail
 starts up,
 rather than easy for a human to read or write.
-On the
-.q "future project"
-list is a
-configuration-file compiler.
+The configuration file should be generated via the method described in
+.b cf/README ,
+it should not be edited directly unless someone is familiar
+with the internals of the syntax described here and it is
+not possible to achieve the desired result via the default method.
 .pp
 The configuration file is organized as a series of lines,
 each of which begins with a single character
@@ -3432,7 +3696,7 @@ and
 may be multi-part.
 If the
 .i mailer
-is the builtin IPC mailer,
+is the built-in IPC mailer,
 the
 .i host
 may be a colon-separated list of hosts
@@ -3653,7 +3917,12 @@ Many of these can also resolve to the special mailer name
 this accepts the message as though it were successful
 but then discards it without delivery.
 Note,
-this mailer can not be chosen as a mailer in ruleset 0.
+this mailer cannot be chosen as a mailer in ruleset 0.
+Note also that all
+.q check_*
+rulesets have to deal with temporary failures, especially for map lookups,
+themselves, i.e., they should return a temporary error code
+or at least they should make a proper decision in those cases.
 .sh 4 "check_relay"
 .pp
 The
@@ -3686,6 +3955,14 @@ ruleset is passed the user name parameter of the
 .sm "SMTP RCPT"
 command.
 It can accept or reject the address.
+.sh 4 "check_data"
+.pp
+The
+.i check_data
+ruleset is called after the
+.sm "SMTP DATA"
+command, its parameter is the number of recipients.
+It can accept or reject the command.
 .sh 4 "check_compat"
 .pp
 The
@@ -3817,6 +4094,103 @@ If the ruleset does resolve to the
 .q error
 mailer, the connection is aborted
 (treated as non-deliverable with a permanent or temporary error).
+.sh 4 "tls_rcpt"
+.pp
+The
+.i tls_rcpt
+ruleset is called each time before a RCPT TO command is sent.
+The parameter is the current recipient.
+If the ruleset does resolve to the
+.q error
+mailer, the RCPT TO command is suppressed
+(treated as non-deliverable with a permanent or temporary error).
+This ruleset allows to require encryption or verification of
+the recipient's MTA even if the mail is somehow redirected
+to another host.
+For example, sending mail to
+.i luke@endmail.org
+may get redirected to a host named
+.i death.star
+and hence the tls_server ruleset won't apply.
+By introducing per recipient restrictions such attacks
+(e.g., via DNS spoofing) can be made impossible.
+See
+.i cf/README
+how this ruleset can be used.
+.sh 4 "srv_features"
+.pp
+The
+.i srv_features
+ruleset is called when a client connects to sendmail.
+This ruleset should return
+.b $#
+followed by a list of options (single characters
+delimited by white space).
+If the return value starts with anything else it is silently ignored.
+Generally upper case characters turn off a feature
+while lower case characters turn it on.
+The option `S' causes the server not to offer STARTTLS.
+This is useful to interact with MTAs/MUAs that have broken
+STARTTLS implementations by simply not offering it.
+`V' turns off the request for a client certificate
+during the TLS handshake.
+Option `A' and `P' suppress SMTP AUTH and PIPELINING, respectively.
+The ruleset may return `$#temp' to indicate that there is a temporary
+problem determining the correct features, e.g., if a map is unavailable.
+In that case, the SMTP server issues a temporary failure and does not
+accept email.
+.sh 4 "try_tls"
+.pp
+The
+.i try_tls
+ruleset is called when sendmail connects to another MTA.
+If the ruleset does resolve to the
+.q error
+mailer, sendmail does not try STARTTLS even if it is offered.
+This is useful to interact with MTAs that have broken
+STARTTLS implementations by simply not using it.
+.sh 4 "authinfo"
+.pp
+The
+.i authinfo
+ruleset is called when sendmail tries to authenticate to another MTA.
+It should return
+.b $#
+followed by a list of tokens that are used for SMTP AUTH.
+If the return value starts with anything else it is silently ignored.
+Each token is a tagged string of the form:
+"TDstring"
+(including the quotes), where
+.(b
+.ta 9n
+T	Tag which describes the item
+D	Delimiter: ':' simple text follows
+	'=' string is base64 encoded
+string	Value of the item
+.)b
+Valid values for the tag are:
+.(b
+.ta 9n
+U	user (authorization) id
+I	authentication id
+P	password
+R	realm
+M	list of mechanisms delimited by spaces
+.)b
+If this ruleset is defined, the option
+.b DefaultAuthInfo
+is ignored (even if the ruleset does not return a ``useful'' result).
+.sh 4 "queuegroup"
+.pp
+The
+.i queuegroup
+ruleset is used to map an address to a queue group name.
+It should return
+.b $#
+followed by the name of a queue group.
+If the return value starts with anything else it is silently ignored.
+See the section about Queue Groups and Queue Directories
+for further information.
 .sh 3 "IPC mailers"
 .pp
 Some special processing occurs
@@ -3831,10 +4205,15 @@ The host name passed after
 has MX expansion performed if not delivering via a named socket;
 this looks the name up in DNS to find alternate delivery sites.
 .pp
-The host name can also be provided as a dotted quad in square brackets;
+The host name can also be provided as a dotted quad
+or an IPv6 address in square brackets;
 for example:
 .(b
 [128.32.149.78]
+.)b
+or
+.(b
+[IPv6:2002:c0a8:51d2::23f4]
 .)b
 This causes direct conversion of the numeric value
 to an IP host address.
@@ -3934,19 +4313,6 @@ The
 .b $| )
 clause may be omitted.
 .pp
-Lower case macro names are reserved to have
-special semantics,
-used to pass information in or out of
-.i sendmail ,
-and special characters are reserved to
-provide conditionals, etc.
-Upper case names
-(that is,
-.b $A
-through
-.b $Z )
-are specifically reserved for configuration file authors.
-.pp
 The following macros are defined and/or used internally by
 .i sendmail
 for interpolation into argv's for mailers
@@ -4005,7 +4371,7 @@ This is set in ruleset 0 from the $@ field of a parsed address.
 .ip $i
 The queue id,
 e.g.,
-.q HAA12345 .
+.q f344MXxp018717 .
 .ip $j\(dd
 The \*(lqofficial\*(rq domain name for this site.
 This is fully qualified if the full qualification can be found.
@@ -4106,15 +4472,28 @@ The full name of the sender.
 The home directory of the recipient.
 .ip $_
 The validated sender address.
+See also
+.b ${client_resolve} .
+.ip ${addr_type}
+The type of the address which is currently being rewritten.
+This macro contains up to three characters, the first
+is either `e' or `h' for envelope/header address,
+the second is a space,
+and the third is either `s' or `r' for sender/recipient address.
+Notice: for header addresses no distinction is currently made
+between sender and recipient addresses, i.e., the macro contains
+only `h'.
 .ip ${auth_authen}
 The client's authentication credentials as determined by authentication
 (only set if successful).
+The format depends on the mechanism used, it might be just `user',
+or `user@realm', or something similar (SMTP AUTH only).
 .ip ${auth_author}
 The authorization identity, i.e. the AUTH= parameter of the
 .sm "SMTP MAIL"
 command if supplied.
 .ip ${auth_type}
-The mechanism used for authentication
+The mechanism used for SMTP authentication
 (only set if successful).
 .ip ${auth_ssf}
 The keylength (in bits) of the symmetric encryption algorithm
@@ -4125,44 +4504,74 @@ The message body type
 as determined from the envelope.
 .ip ${cert_issuer}
 The DN (distinguished name) of the CA (certificate authority)
-that signed the presented certificate (the cert issuer).
+that signed the presented certificate (the cert issuer)
+(STARTTLS only).
+.ip ${cert_md5}
+The MD5 hash of the presented certificate (STARTTLS only).
 .ip ${cert_subject}
-The DN of the presented certificate (called the cert subject).
+The DN of the presented certificate (called the cert subject)
+(STARTTLS only).
 .ip ${cipher}
 The cipher suite used for the connection, e.g., EDH-DSS-DES-CBC3-SHA,
-EDH-RSA-DES-CBC-SHA, DES-CBC-MD5, DES-CBC3-SHA.
+EDH-RSA-DES-CBC-SHA, DES-CBC-MD5, DES-CBC3-SHA
+(STARTTLS only).
 .ip ${cipher_bits}
 The keylength (in bits) of the symmetric encryption algorithm
 used for a TLS connection.
 .ip ${client_addr}
 The IP address of the SMTP client.
+IPv6 addresses are tagged with "IPv6:" before the address.
 Defined in the SMTP server only.
 .ip ${client_name}
 The host name of the SMTP client.
 This may be the client's bracketed IP address
-in the form [ nnn.nnn.nnn.nnn ] if the client's
+in the form [ nnn.nnn.nnn.nnn ] for IPv4
+and [ IPv6:nnnn:...:nnnn ] for IPv6
+if the client's
 IP address is not resolvable, or if it is resolvable
 but the IP address of the resolved hostname
 doesn't match the original IP address.
 Defined in the SMTP server only.
+See also
+.b ${client_resolve} .
 .ip ${client_port}
 The port number of the SMTP client.
 Defined in the SMTP server only.
 .ip ${client_resolve}
 Holds the result of the resolve call for
-.b ${client_name}
-: OK, FAIL, FORGED, TEMP.
+.b ${client_name} .
+Possible values are:
+.(b
+.ta 10n
+OK	resolved successfully
+FAIL	permanent lookup failure
+FORGED	forward lookup doesn't match reverse lookup
+TEMP	temporary lookup failure
+.)b
 Defined in the SMTP server only.
+.i sendmail 
+performs a hostname lookup on the IP address of the connecting client.
+Next the IP addresses of that hostname are looked up.
+If the client IP address does not appear in that list,
+then the hostname is maybe forged.
+This is reflected as the value FORGED for
+.b ${client_resolve}
+and it also shows up in
+.b $_
+as "(may be forged)".
+.ip ${cn_issuer}
+The CN (common name) of the CA that signed the presented certificate
+(STARTTLS only).
+.ip ${cn_subject}
+The CN (common name) of the presented certificate
+(STARTTLS only).
 .ip ${currHeader}
 Header value as quoted string
 (possibly truncated to
 .b MAXNAME ).
+This macro is only available in header check rulesets.
 .ip ${daemon_addr}
 The IP address the daemon is listening on for connections.
-Unless
-.b DaemonPortOptions
-is set, this will be
-.q 0.0.0.0 .
 .ip ${daemon_family}
 The network family
 if the daemon is accepting network connections.
@@ -4208,32 +4617,43 @@ It is initially set to the value of the
 .b DeliveryMode
 option.
 .ip ${envid}
-The envelope id passed to sendmail as part of the envelope.
+The envelope id parameter (ENVID=) passed to sendmail as part of the envelope.
 .ip ${hdrlen}
 The length of the header value which is stored in
 ${currHeader} (before possible truncation).
-If this value is greater than or equal
+If this value is greater than or equal to
 .b MAXNAME
 the header has been truncated.
 .ip ${hdr_name}
 The name of the header field for which the current header
 check ruleset has been called.
 This is useful for a default header check ruleset to get
-the name of the header.
+the name of the header;
+the macro is only available in header check rulesets.
 .ip ${if_addr}
 The IP address of the interface of an incoming connection
 unless it is in the loopback net.
+IPv6 addresses are tagged with "IPv6:" before the address.
+.ip ${if_addr_out}
+The IP address of the interface of an outgoing connection
+unless it is in the loopback net.
+IPv6 addresses are tagged with "IPv6:" before the address.
 .ip ${if_family}
 The IP family of the interface of an incoming connection
 unless it is in the loopback net.
+.ip ${if_family_out}
+The IP family of the interface of an outgoing connection
+unless it is in the loopback net.
 .ip ${if_name}
-The name of the interface of an incoming connection.
+The hostname associated with the interface of an incoming connection.
 This macro can be used for
 SmtpGreetingMessage and HReceived for virtual hosting.
 For example:
 .(b
 O SmtpGreetingMessage=$?{if_name}${if_name}$|$j$. MTA
 .)b
+.ip ${if_name_out}
+The name of the interface of an outgoing connection.
 .ip ${mail_addr}
 The address part of the resolved triple of the address given for the
 .sm "SMTP MAIL"
@@ -4256,6 +4676,12 @@ before the message has been collected, thereafter
 the message size as computed by
 .i sendmail 
 (and can be used in check_compat).
+.ip ${nrcpts}
+The number of validated recipients for a single message.
+Note: since recipient validation happens after
+.i check_rcpt
+has been called, the value in this ruleset
+is one less than what might be expected.
 .ip ${ntries}
 The number of delivery attempts.
 .ip ${opMode}
@@ -4276,36 +4702,40 @@ to
 The address part of the resolved triple of the address given for the
 .sm "SMTP RCPT"
 command.
-Defined in the SMTP server only.
+Defined in the SMTP server only after a RCPT command.
 .ip ${rcpt_host}
 The host from the resolved triple of the address given for the
 .sm "SMTP RCPT"
 command.
-Defined in the SMTP server only.
+Defined in the SMTP server only after a RCPT command.
 .ip ${rcpt_mailer}
 The mailer from the resolved triple of the address given for the
 .sm "SMTP RCPT"
 command.
-Defined in the SMTP server only.
+Defined in the SMTP server only after a RCPT command.
 .ip ${server_addr}
 The address of the server of the current outgoing SMTP connection.
+For LMTP delivery the macro is set to the name of the mailer.
 .ip ${server_name}
-The name of the server of the current outgoing SMTP connection.
+The name of the server of the current outgoing SMTP or LMTP connection.
 .ip ${tls_version}
-The TLS/SSL version used for the connection, e.g., TLSv1, SSLv3, SSLv2.
+The TLS/SSL version used for the connection, e.g., TLSv1, SSLv3, SSLv2;
+defined after STARTTLS has been used.
 .ip ${verify}
-The result of the verification of the presented cert.
+The result of the verification of the presented cert;
+only defined after STARTTLS has been used.
 Possible values are:
 .(b
-.ta 9n
+.ta 13n
 OK	verification succeeded.
 NO	no cert presented.
+NOT	no cert requested.
 FAIL	cert presented but could not be verified,
 	e.g., the signing CA is missing.
 NONE	STARTTLS has not been performed.
 TEMP	temporary error occurred.
-PROTOCOL some protocol error occurred.
-SOFTWARE STARTTLS handshake failed,
+PROTOCOL	some protocol error occurred.
+SOFTWARE	STARTTLS handshake failed,
 	which is a fatal error for this session,
 	the e-mail will be queued.
 .)b
@@ -4552,6 +4982,9 @@ The syntax is:
 .br
 .b F \c
 .i c\||program
+.br
+.b F \c
+.i c\|[mapkey]@mapclass:mapspec
 .)b
 The first form defines the class
 .i c
@@ -4582,18 +5015,47 @@ The ``F'' forms
 read the elements of the class
 .i c
 from the named
-.i file
+.i file ,
+.i program ,
 or
-.i program .
+.i "map specification" .
 Each element should be listed on a separate line.
-To specify an optional file, use ``-o'' between the class
+To specify an optional file, use ``\-o'' between the class
 name and the file name, e.g.,
 .(b
-Fc -o /path/to/file
+Fc \-o /path/to/file
 .)b
 If the file can't be used,
 .i sendmail
 will not complain but silently ignore it.
+The map form should be an optional map key, an at sign,
+and a map class followed by the specification for that map.
+Examples include:
+.(b
+F{VirtHosts}@ldap:\-k (&(objectClass=virtHosts)(host=*)) \-v host
+F{MyClass}foo@hash:/etc/mail/classes
+.)b
+will fill the class
+.b $={VirtHosts}
+from an LDAP map lookup and
+.b $={MyClass}
+from a hash database map lookup of the
+.b foo .
+There is also a built-in schema that can be accessed by only specifying:
+.(b
+F{\c
+.i ClassName }@LDAP
+.)b
+This will tell sendmail to use the default schema:
+.(b
+\-k (&(objectClass=sendmailMTAClass)
+     (sendmailMTAClassName=\c
+.i ClassName )
+     (|(sendmailMTACluster=${sendmailMTACluster})
+       (sendmailMTAHost=$j)))
+\-v sendmailMTAClassValue
+.)b
+Note that the lookup is only done when sendmail is initially started.
 .pp
 Elements of classes can be accessed in rules using
 .b $=
@@ -4729,6 +5191,7 @@ Path	The pathname of the mailer
 Flags	Special flags for this mailer
 Sender	Rewriting set(s) for sender addresses
 Recipient	Rewriting set(s) for recipient addresses
+recipients	Maximum number of recipients per connection
 Argv	An argument vector to pass to this mailer
 Eol	The end-of-line string for this mailer
 Maxsize	The maximum message length to this mailer
@@ -4740,9 +5203,11 @@ Nice	The nice(2) increment for the mailer
 Charset	The default character set for 8-bit characters
 Type	Type information for DSN diagnostics
 Wait	The maximum time to wait for the mailer
+Queuegroup	The default queue group for the mailer
 /	The root directory for the mailer
 .)b
-Only the first character of the field name is checked.
+Only the first character of the field name is checked
+(it's case-sensitive).
 .pp
 The following flags may be set in the mailer description.
 Any other flags may be used freely
@@ -4870,10 +5335,10 @@ to another
 .i sendmail
 \*-
 as such it can use special protocol features.
-This option is not required
-(i.e.,
-if this option is omitted the transmission will still operate successfully,
-although perhaps not as efficiently as possible).
+This flag should not be used except for debugging purposes
+because it uses
+.b VERB
+as SMTP command.
 .ip j
 Do User Database rewriting on recipients as well as senders.
 .ip k
@@ -4972,6 +5437,8 @@ Secure ports aren't
 (secure, that is)
 except on UNIX machines,
 so it is unclear that this adds anything.
+.i sendmail
+must be running as root to be able to use this flag.
 .ip s
 Strip quote characters (" and \e) off of the address
 before calling the mailer.
@@ -5001,10 +5468,12 @@ on the end.
 .ip w
 The user must have a valid account on this machine,
 i.e.,
-getpwnam
+.i getpwnam
 must succeed.
-If not,
-the mail is bounced.
+If not, the mail is bounced.
+See also the
+.b MailBoxDatabase
+option.
 This is required to get
 .q \&.forward
 capability.
@@ -5013,11 +5482,8 @@ This mailer wants a
 .q Full-Name:
 header line.
 .ip X
-This mailer want to use the hidden dot algorithm
-as specified in RFC821;
-basically,
-any line beginning with a dot
-will have an extra dot prepended
+This mailer wants to use the hidden dot algorithm as specified in RFC821;
+basically, any line beginning with a dot will have an extra dot prepended
 (to be stripped at the other end).
 This insures that lines in the message containing a dot
 will not terminate the message prematurely.
@@ -5029,8 +5495,19 @@ and the local mailer.
 This is a variant on SMTP
 defined in RFC 2033
 that is specifically designed for delivery to a local mailbox.
+.ip Z
+Apply DialDelay (if set) to this mailer.
 .ip 0
-Don't look up MX records for hosts sent via SMTP.
+Don't look up MX records for hosts sent via SMTP/LMTP.
+Do not apply
+.b FallbackMXhost
+either.
+.ip 1
+Don't send null characters ('\\0') to this mailer.
+.ip 2
+Don't use ESMTP even if offered; this is useful for broken
+systems that offer ESMTP but fail on EHLO (without recovering
+when HELO is tried next).
 .ip 3
 Extend the list of characters converted to =XX notation
 when converting to Quoted-Printable
@@ -5124,7 +5601,7 @@ The mailer with the special name
 .q discard
 causes any mail sent to it to be discarded
 but otherwise treated as though it were successfully delivered.
-This mailer can not be used in ruleset 0,
+This mailer cannot be used in ruleset 0,
 only in the various address checking rulesets.
 .pp
 The mailer named
@@ -5148,13 +5625,31 @@ M*file*, P=[FILE], F=lsDFMPEouq9, T=DNS/RFC822/X-Unix, A=FILE $u
 M*include*, P=/dev/null, F=su, A=INCLUDE $u
 .)b
 .pp
+Builtin pathnames are [FILE] and [IPC], the former is used for
+delivery to files, the latter for delivery via interprocess communication.
+For mailers that use [IPC] as pathname the argument vector (A=)
+must start with TCP or FILE for delivery via a TCP or a Unix domain socket.
+If TCP is used, the second argument must be the name of the host
+to contact.
+Optionally a third argument can be used to specify a port,
+the default is smtp (port 25).
+If FILE is used, the second argument must be the name of
+the Unix domain socket.
+.pp
+If the argument vector does not contain $u then
+.i sendmail
+will speak SMTP (or LMTP if the mailer flag z is specified) to the mailer.
+.pp
+If no Eol field is defined, then the default is "\\r\\n" for
+SMTP mailers and "\\n" of others.
+.pp
 The Sender and Recipient rewriting sets
 may either be a simple ruleset id
 or may be two ids separated by a slash;
 if so, the first rewriting set is applied to envelope
 addresses
 and the second is applied to headers.
-Setting any value zero disables corresponding mailer-specific rewriting.
+Setting any value to zero disables corresponding mailer-specific rewriting.
 .pp
 The Directory
 is actually a colon-separated path of directories to try.
@@ -5168,7 +5663,7 @@ This is intended to be used only on the
 mailer,
 since some shells (such as
 .i csh )
-refuse to execute if they cannot read the home directory.
+refuse to execute if they cannot read the current directory.
 Since the queue directory is not normally readable by unprivileged users
 .i csh
 scripts as recipients can fail.
@@ -5232,8 +5727,13 @@ or begin with
 The default is
 .q dns/rfc822/smtp .
 .pp
-The m= field specifies the maximum number of messages to attempt to deliver 
-on a single SMTP or LMTP connection.
+The m= field specifies the maximum number of messages
+to attempt to deliver on a single SMTP or LMTP connection.
+The default is infinite.
+.pp
+The r= field specifies the maximum number of recipients
+to attempt to deliver in a single envelope.
+It defaults to 100.
 .pp
 The /= field specifies a new root directory for the mailer.  The path is
 macro expanded and then passed to the
@@ -5245,6 +5745,11 @@ The Wait= field specifies the maximum time to wait for the
 mailer to return after sending all data to it.
 This applies to mailers that have been forked by
 .i sendmail .
+.pp
+The Queuegroup= field specifies the default queue group in which
+received mail should be queued.
+This can be overridden by other means as explained in section
+``Queue Groups and Queue Directories''.
 .sh 2 "H \*- Define Header"
 .pp
 The format of the header lines that
@@ -5272,8 +5777,8 @@ The syntax of this line is one of the following:
 .)b
 .(b F
 .b H [\c
-.b ? \c
-.i ${macro} \c
+.b ?$ \c
+.i {macro} \c
 .b ? \c
 .b ]\c
 .i hname \c
@@ -5305,6 +5810,12 @@ storage map in a ruleset.
 If one of these headers is in the input
 it is reflected to the output
 regardless of these flags or macros.
+Notice:
+If a
+.i ${macro}
+is used to set a header, then it is useful to add that macro to class
+.i $={persistentMacros}
+which consists of the macros that should be saved across queue runs.
 .pp
 Some headers have special semantics
 that will be described later.
@@ -5378,13 +5889,10 @@ or
 .)b
 .sh 2 "O \*- Set Option"
 .pp
-There are a number of
-global
-options that
+There are a number of global options that
 can be set from a configuration file.
 Options are represented by full words;
-some are also representable as single characters
-for back compatibility.
+some are also representable as single characters for back compatibility.
 The syntax of this line is:
 .(b F
 .b O \0
@@ -5421,6 +5929,11 @@ the default is TRUE),
 or
 a time interval.
 .pp
+All filenames used in options should be absolute paths,
+i.e., starting with '/'.
+Relative filenames most likely cause surprises during operation
+(unless otherwise noted).
+.pp
 The options supported (with the old, one character names in brackets) are:
 .nr ii 1i
 .ip "AliasFile=\fIspec, spec, ...\fP"
@@ -5437,6 +5950,29 @@ where
 .i class \c
 .b :
 is optional and defaults to ``implicit''.
+Note that 
+.i info
+is required for all 
+.i class es
+except
+.q ldap .
+For the
+.q ldap
+class,
+if
+.i info
+is not specified,
+a default
+.i info
+value is used as follows:
+.(b
+\-k (&(objectClass=sendmailMTAAliasObject)
+     (sendmailMTAAliasName=aliases)
+     (|(sendmailMTACluster=${sendmailMTACluster})
+       (sendmailMTAHost=$j))
+     (sendmailMTAKey=%0))
+\-v sendmailMTAAliasValue
+.)b
 Depending on how
 .i sendmail
 is compiled, valid classes are
@@ -5487,47 +6023,72 @@ entry to exist in the alias database
 before starting up.
 If it does not appear in the
 .i timeout
-interval
-rebuild the database
-(if the
-.b AutoRebuildAliases
-option is also set)
-or issue a warning.
+interval issue a warning.
 .ip AllowBogusHELO
 [no short name]
 If set, allow HELO SMTP commands that don't include a host name.
 Setting this violates RFC 1123 section 5.2.5,
 but is necessary to interoperate with several SMTP clients.
 If there is a value, it is still checked for legitimacy.
+.ip AuthMaxBits=\fIN\fP
+[no short name]
+Limit the maximum encryption strength for the security layer in
+SMTP AUTH (SASL). Default is essentially unlimited.
+This allows to turn off additional encryption in SASL if
+STARTTLS is already encrypting the communication, because the
+existing encryption strength is taken into account when choosing
+an algorithm for the security layer.
+For example, if STARTTLS is used and the symmetric cipher is 3DES,
+then the the keylength (in bits) is 168.
+Hence setting
+.b AuthMaxBits
+to 168 will disable any encryption in SASL.
 .ip AuthMechanisms
 [no short name]
 List of authentication mechanisms for AUTH (separated by spaces).
 The advertised list of authentication mechanisms will be the
 intersection of this list and the list of available mechanisms as
 determined by the Cyrus SASL library.
+If STARTTLS is active, EXTERNAL will be added to this list.
+In that case, the value of {cert_subject} is used as authentication id.
 .ip AuthOptions
 [no short name]
-When to use the AUTH= parameter for the MAIL FROM command;
+List of options for SMTP AUTH consisting of single characters
+with intervening white space or commas.
 .(b
-.ta 1i
-A Only when authentication succeeded.
+.ta 4n
+A	Use the AUTH= parameter for the MAIL FROM
+	command only when authentication succeeded.
+	This can be used as a workaround for broken
+	MTAs that do not implement RFC2554 correctly.
+a	protection from active (non-dictionary) attacks
+	during authentication exchange.
+c	require mechanisms which pass client credentials,
+	and allow mechanisms which can pass credentials
+	to do so.
+d	don't permit mechanisms susceptible to passive
+	dictionary attack.
+f	require forward secrecy between sessions
+	(breaking one won't help break next).
+p	don't permit mechanisms susceptible to simple
+	passive attack (e.g., PLAIN, LOGIN).
+y	don't permit mechanisms that allow anonymous login.
 .)b
-The default is to try whenever SMTP AUTH is available.
-.ip AutoRebuildAliases
-[D]
-If set,
-rebuild the alias database if necessary and possible.
-The rebuild will happen the next time an alias is looked up.
-If this option is not set,
-.i sendmail
-will never rebuild the alias database
-unless explicitly requested
-using
-.b \-bi .
-.b NOTE :
-There is a potential for a denial of service attack if this is set.
-This option is deprecated and
-will be removed from a future version.
+The first option applies to sendmail as a client, the others to a server.
+Example:
+.(b
+O AuthOptions=p,y
+.)b
+would disallow ANONYMOUS as AUTH mechanism and would
+allow PLAIN only if a security layer (e.g.,
+provided by STARTTLS) is already active.
+The options 'a', 'c', 'd', 'f', 'p', and 'y' refer to properties of the
+selected SASL mechanisms.
+Explanations of these properties can be found in the Cyrus SASL documentation.
+.ip BadRcptThrottle=\fIN\fP
+[no short name]
+If set and more than the specified number of recipients in a single SMTP
+envelope are rejected, sleep for one second after each rejected RCPT command.
 .ip BlankSub=\fIc\fP
 [B]
 Set the blank substitution character to
@@ -5541,7 +6102,8 @@ This directory directory must contain the hashes of each CA certificate
 as filenames (or as links to them).
 .ip CACERTFile
 [no short name]
-File containing one CA certificate.
+File containing one or more CA certificates;
+see section about STARTTLS for more information.
 .ip CheckAliases
 [n]
 Validate the RHS of aliases when rebuilding the alias database.
@@ -5570,7 +6132,15 @@ Defaults to 1800.
 .ip ClientCertFile
 [no short name]
 File containing the certificate of the client, i.e., this certificate
-is used when sendmail acts as client.
+is used when
+.i sendmail
+acts as client (for STARTTLS).
+.ip ClientKeyFile
+[no short name]
+File containing the private key belonging to the client certificate
+(for STARTTLS if
+.i sendmail
+runs as client).
 .ip ClientPortOptions=\fIoptions\fP
 [O]
 Set client SMTP options.
@@ -5596,13 +6166,21 @@ can be the following character:
 .(b
 .ta 1i
 h	use name of interface for HELO command
+A	don't use AUTH when sending e-mail
+S	don't use STARTTLS when sending e-mail
 .)b
 If ``h'' is set, the name corresponding to the outgoing interface
 address (whether chosen via the Connection parameter or
 the default) is used for the HELO/EHLO command.
-.ip ClientKeyFile
-[no short name]
-File containing the private key belonging to the client certificate.
+However, the name must not start with a square bracket
+and it must contain at least one dot.
+This is a simple test whether the name is not
+an IP address (in square brackets) but a qualified hostname.
+Note that multiple ClientPortOptions settings are allowed
+in order to give settings for each protocol family
+(e.g., one for Family=inet and one for Family=inet6).
+A restriction placed on one family only affects
+outgoing connections on that particular family.
 .ip ColonOkInAddr
 [no short name]
 If set, colons are acceptable in e-mail addresses
@@ -5661,7 +6239,7 @@ override the connection address (for testing purposes).
 If set to a positive value,
 allow no more than
 .i N
-incoming daemon connections in a one second period.
+incoming connections in a one second period per daemon.
 This is intended to flatten out peaks
 and allow the load average checking to cut in.
 Defaults to zero (no limits).
@@ -5687,7 +6265,9 @@ If not set, no control socket will be available.
 Solaris and pre-4.4BSD kernel users should see the note in sendmail/README .
 .ip DHParameters
 File with DH parameters for STARTTLS.
-This is only required if DSA/DH is used.
+This is only required if a ciphersuite containing DSA/DH is used.
+This is only for people with a good knowledge of TLS, all others
+can ignore this option.
 .ip DaemonPortOptions=\fIoptions\fP
 [O]
 Set server SMTP options.
@@ -5729,8 +6309,11 @@ b	bind to interface through which mail has been received
 c	perform hostname canonification (.cf)
 f	require fully qualified hostname (.cf)
 u	allow unqualified addresses (.cf)
+A	disable AUTH (overrides 'a' modifier)
 C	don't perform hostname canonification
 E	disallow ETRN (see RFC 2476)
+O	optional; if opening the socket fails ignore it
+S	don't offer STARTTLS
 .)b
 That is, one way to specify a message submission agent (MSA) that
 always requires authentication is:
@@ -5756,7 +6339,8 @@ See the relevant documentation for
 The modifier ``f'' disallows addresses of the form
 .b user@host
 unless they are submitted directly.
-The flag ``u'' allows unqualified sender addresses.
+The flag ``u'' allows unqualified sender addresses,
+i.e., those without @host.
 ``b'' forces sendmail to bind to the interface
 through which the e-mail has been
 received for the outgoing connection.
@@ -5773,16 +6357,29 @@ Note,
 will listen on a new socket
 for each occurence of the DaemonPortOptions option
 in a configuration file.
+The modifier ``O'' causes sendmail to ignore a socket
+if it can't be opened.
+This applies to failures from the socket(2) and bind(2) calls.
 .ip DefaultAuthInfo
 [no short name]
 Filename that contains default authentication information for outgoing
 connections. This file must contain the user id, the authorization id,
-the password (plain text), and the realm to use
+the password (plain text), the realm and the list of mechanisms to use
 on separate lines and must be readable by
 root (or the trusted user) only.
 If no realm is specified,
 .b $j 
 is used.
+If no mechanisms are specified, the list given by
+.b AuthMechanisms
+is used.
+Notice: this option is deprecated and will be removed in future versions.
+Moreover, it doesn't work for the MSP since it can't read the file
+(the file must not be group/world-readable otherwise
+.i sendmail
+will complain).
+Use the authinfo ruleset instead which provides more control over
+the usage of the data anyway.
 .ip DefaultCharSet=\fIcharset\fP
 [no short name]
 When a message that has 8-bit characters but is not in MIME format
@@ -5811,7 +6408,7 @@ formerly hardcoded to /usr/tmp/dead.letter.
 If this option is not set (the default),
 sendmail will not attempt to save to a system-wide dead.letter file
 in the event
-it can not bounce the mail to the user or postmaster.
+it cannot bounce the mail to the user or postmaster.
 Instead, it will rename the qf file
 as it has in the past
 when the dead.letter file could not be opened.
@@ -5845,6 +6442,19 @@ option has been combined into the
 .b DefaultUser
 option.
 .)f
+.ip DelayLA=\fILA\fP
+[no short name]
+When the system load average exceeds
+.i LA ,
+.i sendmail
+will sleep for one second on most SMTP commands and
+before accepting connections.
+.ip DeliverByMin=\fItime\fP
+[0]
+Set minimum time for Deliver By SMTP Service Extension (RFC 2852).
+If 0, no time is listed, if less than 0, the extension is not offered,
+if greater than 0, it is listed as minimum time
+for the EHLO keyword DELIVERBY.
 .ip DeliveryMode=\fIx\fP
 [d]
 Deliver in mode
@@ -5879,6 +6489,17 @@ Units default to seconds, so
 uses a five second delay.
 Defaults to zero
 (no retry).
+This delay only applies to mailers which have the
+Z flag set.
+.ip DirectSubmissionModifiers=\fImodifiers\fP
+Defines
+.b ${daemon_flags}
+for direct (command line) submissions. 
+If not set,
+.b ${daemon_flags}
+is either "CC f" if the option
+.b \-G
+is used or "c u" otherwise.
 .ip DontBlameSendmail=\fIoption,option,...\fP
 [no short name]
 In order to avoid possible cracking attempts
@@ -5892,46 +6513,7 @@ a group-writable
 directory,
 then you will have to turn off this checking
 (at the cost of making your system more vulnerable to attack).
-The arguments are individual options that turn off checking:
-.(b
-Safe
-AssumeSafeChown
-ClassFileInUnsafeDirPath
-DontWarnForwardFileInUnsafeDirPath
-ErrorHeaderInUnsafeDirPath
-FileDeliveryToHardLink
-FileDeliveryToSymLink
-ForwardFileInUnsafeDirPath
-ForwardFileInUnsafeDirPathSafe
-ForwardFileIngroupWritableDirPath
-GroupWritableAliasFile
-GroupWritableDirPathSafe
-GroupWritableForwardFileSafe
-GroupWritableIncludeFileSafe
-HelpFileinUnsafeDirPath
-IncludeFileInUnsafeDirPath
-IncludeFileInUnsafeDirPathSafe
-IncludeFileIngroupWritableDirPath
-InsufficientEntropy
-LinkedAliasFileInWritableDir
-LinkedClassFileInWritableDir
-LinkedForwardFileInWritableDir
-LinkedIncludeFileInWritableDir
-LinkedMapInWritableDir
-LinkedServiceSwitchFileInWritableDir
-MapInUnsafeDirPath
-NonRootSafeAddr
-RunProgramInUnsafeDirPath
-RunWritableProgram
-TrustStickyBit
-WorldWritableAliasFile
-WriteMapToHardLink
-WriteMapToSymLink
-WriteStatsToHardLink
-WriteStatsToSymLink
-.)b
-.b Safe
-is the default.
+The possible arguments have been described earlier.
 The details of these flags are described above.
 .\"XXX should have more here!!!  XXX
 .b "Use of this option is not recommended."
@@ -5981,6 +6563,9 @@ However, you will need to be certain to include all variant names
 in the
 .b $=w
 class by some other mechanism.
+If set to
+.b loopback ,
+loopback interfaces (e.g., lo0) will not be probed.
 .ip DontPruneRoutes
 [R]
 Normally,
@@ -6018,6 +6603,7 @@ The address is macro expanded
 at the time of delivery.
 If not set, defaults to
 .q postmaster .
+If set to an empty string, double bounces are dropped.
 .ip EightBitMode=\fIaction\fP
 [8]
 Set handling of eight-bit data.
@@ -6092,17 +6678,34 @@ If specified, the
 .i fallbackhost
 acts like a very low priority MX
 on every host.
+MX records will be looked up for this host,
+unless the name is surrounded by square brackets.
 This is intended to be used by sites with poor network connectivity.
 Messages which are undeliverable due to temporary address failures
 (e.g., DNS failure)
-also go to the FallBackMX host.
+also go to the FallbackMXhost.
+.ip FastSplit
+[no short name]
+If set to a value greater than zero (the default is one),
+it suppresses the MX lookups on addresses
+when they are initially sorted, i.e., for the first delivery attempt.
+This usually results in faster envelope splitting unless the MX records
+are readily available in a local DNS cache.
+To enforce initial sorting based on MX records set
+.b FastSplit
+to zero.
+If the mail is submitted directly from the command line, then
+the value also limits the number of processes to deliver the envelopes;
+if more envelopes are created they are only queued up
+and must be taken care of by a queue run.
+Since the default submission method is via SMTP (either from a MUA
+or via the MSP), the value of
+.b FastSplit
+is seldom used to limit the number of processes to deliver the envelopes.
 .ip ForkEachJob
 [Y]
 If set,
 deliver each job that is run from the queue in a separate process.
-Use this option if you are short of memory,
-since the default tends to consume considerable amounts of memory
-while the queue is being processed.
 .ip ForwardPath=\fIpath\fP
 [J]
 Set the path for searching for users' .forward files.
@@ -6174,6 +6777,11 @@ A suggested value for sites desiring persistent host status is
 Ignore dots in incoming messages.
 This is always disabled (that is, dots are always accepted)
 when reading SMTP mail.
+.ip InputMailFilters=\fIname,name,...\fP
+A comma separated list of filters which determines which filters
+(see the "X \*- Mail Filter (Milter) Definitions" section)
+and the invocation sequence are contacted for incoming SMTP messages.
+If none are set, no filters will be contacted.
 .ip LDAPDefaultSpec=\fIspec\fP
 [no short name]
 Sets a default map specification for LDAP maps.
@@ -6198,6 +6806,21 @@ This is intended only for use from the command line.
 The
 .b \-M
 flag is preferred.
+.ip MailboxDatabase
+[no short name]
+Type of lookup to find information about local mailboxes,
+defaults to ``pw'' which uses
+.i getpwnam .
+Other types can be introduced by adding them to the source code,
+see libsm/mbdb.c for details.
+.ip UseMSP
+[no short name]
+Use as mail submission program, i.e.,
+allow group writable queue files
+if the group is the same as that of a set-group-ID sendmail binary.
+See the file
+.b sendmail/SECURITY
+in the distribution tarball.
 .ip MatchGECOS
 [G]
 Allow fuzzy matching on the GECOS field.
@@ -6243,10 +6866,12 @@ to be advertised in the ESMTP EHLO response.
 Messages larger than this will be rejected.
 .ip MaxMimeHeaderLength=\fIN[/M]\fP
 [no short name]
-Sets the maximum length of certain MIME header field values
-to
+Sets the maximum length of certain MIME header field values to
 .i N
 characters.
+These MIME header fields are determined by being a member of
+class {checkMIMETextHeaders}, which currently contains only
+the header Content-Description.
 For some of these headers which take parameters,
 the maximum length of each parameter is set to
 .i M
@@ -6257,6 +6882,21 @@ is not specified, one half of
 will be used.
 By default,
 these values are 0, meaning no checks are done.
+.ip MaxQueueChildren=\fIN\fP
+[no short name]
+When set, this limits the number of concurrent queue runner processes to
+.i N.
+This helps to control the amount of system resources used when processing
+the queue.  When there are multiple queue groups defined and the total number
+of queue runners for these queue groups would exceed
+.i MaxQueueChildren
+then the queue groups will not all run concurrently. That is, some portion
+of the queue groups will run concurrently such that
+.i MaxQueueChildren
+will not be exceeded, while the remaining queue groups will be run later (in
+round robin order). See also
+.i MaxRunnersPerQueue
+and the section \fBQueue Group Declaration\fP.
 .ip MaxQueueRunSize=\fIN\fP
 [no short name]
 The maximum number of jobs that will be processed
@@ -6279,12 +6919,52 @@ in an SMTP transaction.
 Note: setting this too low can interfere with sending mail from
 MUAs that use SMTP for initial submission.
 If not set, there is no limit on the number of recipients per envelope.
+.ip MaxRunnersPerQueue=\fIN\fP
+[no short name]
+This sets the default maximum number of queue runners for queue groups.
+Up to
+.i N
+queue runners will work in parallel on a queue group's messages.
+This is useful where the processing of a message in the queue might
+delay the processing of subsequent messages. Such a delay may be the result
+of non-erroneous situations such as a low bandwidth connection.
+May be overridden on a per queue group basis by setting the
+.i Runners
+option; see the section \fBQueue Group Declaration\fP.
+The default is 1 when not set.
 .ip MeToo
 [m]
 Send to me too,
 even if I am in an alias expansion.
 This option is deprecated
 and will be removed from a future version.
+.ip Milter
+[no short name]
+This option has several sub(sub)options.
+The names of the suboptions are separated by dots.
+At the first level the following options are available:
+.(b
+.ta \w'LogLevel'u+3n
+LogLevel	Log level for input mail filter actions, defaults to LogLevel.
+macros		Specifies list of macro to transmit to filters.
+		See list below.
+.)b
+The ``macros'' option has the following suboptions
+which specify the list of macro to transmit to milters
+after a certain event occurred.
+.(b
+.ta \w'envfrom'u+3n
+connect	After session connection start
+helo	After HELO command
+envfrom	After MAIL FROM command
+envrcpt	After RCPT TO command
+.)b
+By default the lists of macros are empty.
+Example:
+.(b
+O Milter.LogLevel=12
+O Milter.macros.connect=j, _, {daemon_name}
+.)b
 .ip MinFreeBlocks=\fIN\fP
 [b]
 Insist on at least
@@ -6310,6 +6990,9 @@ Sets the list of characters that must be quoted if used in a full name
 that is in the phrase part of a ``phrase <address>'' syntax.
 The default is ``\'.''.
 The characters ``@,;:\e()[]'' are always added to this list.
+.ip NiceQueueRun
+[no short name]
+The priority of queue runners (nice(3)).
 .ip NoRecipientAction
 [no short name]
 The action to take when you receive a message that has no valid
@@ -6411,6 +7094,7 @@ noetrn	Disallow ETRN entirely
 noverb	Disallow VERB entirely
 restrictmailq	Restrict mailq command
 restrictqrun	Restrict \-q command line flag
+restrictexpand	Restrict \-bv and \-v command line flags
 noreceipts	Don't return success DSNs\**
 nobodyreturn	Don't return the body of a message with DSNs
 goaway	Disallow essentially all SMTP status queries
@@ -6430,6 +7114,7 @@ pseudo-flag sets all flags except
 .q noreceipts ,
 .q restrictmailq ,
 .q restrictqrun ,
+.q restrictexpand ,
 .q noetrn ,
 and
 .q nobodyreturn .
@@ -6439,6 +7124,22 @@ can print the queue.
 If queue runs are restricted,
 only root and the owner of the queue directory
 can run the queue.
+The
+.q restrictexpand
+pseudo-flag instructs
+.i sendmail
+to drop privileges when the
+.b \-bv
+option is given by users who are neither root nor the TrustedUser
+so users cannot read private aliases, forwards, or :include: files.
+It will add the
+.q NonRootSafeAddr
+to the
+.q DontBlameSendmail
+option to prevent misleading unsafe address warnings.
+It also overrides the
+.b \-v
+(verbose) command line option to prevent information leakage.
 Authentication Warnings add warnings about various conditions
 that may indicate attempts to spoof the mail system,
 such as using a non-standard queue directory.
@@ -6451,18 +7152,27 @@ The
 will be macro processed.
 .ip QueueDirectory=\fIdir\fP
 [Q]
-Use the named
-.i dir
-as the queue directory.
-To use multiple queues, supply a value ending with an asterisk.
-For example,
-.i /var/spool/mqueue/q*
-will use all of the directories or symbolic links to directories
-beginning with
-.i q
-in
+The QueueDirectory option serves two purposes.
+First, it specifies the directory or set of directories that comprise
+the default queue group.
+Second, it specifies the directory D which is the ancestor of all queue
+directories, and which sendmail uses as its current working directory.
+When sendmail dumps core, it leaves its core files in D.
+There are two cases.
+If \fIdir\fR ends with an asterisk (eg, \fI/var/spool/mqueue/qd*\fR),
+then all of the directories or symbolic links to directories
+beginning with `qd' in
 .i /var/spool/mqueue
-as queue directories.
+will be used as queue directories of the default queue group,
+and
+.i /var/spool/mqueue
+will be used as the working directory D.
+Otherwise,
+\fIdir\fR must name a directory (usually \fI/var/spool/mqueue\fR):
+the default queue group consists of the single queue directory \fIdir\fR,
+and the working directory D is set to \fIdir\fR.
+To define additional groups of queue directories,
+use the configuration file `Q' command.
 Do not change the queue directory structure
 while sendmail is running.
 .ip QueueFactor=\fIfactor\fP
@@ -6496,6 +7206,11 @@ just queue messages
 Defaults to 8 multiplied by
 the number of processors online on the system
 (if that can be determined).
+.ip QueueFileMode=\fImode\fP
+[no short name]
+Default permissions for queue files (octal).
+If not set, sendmail uses 0600 unless its real
+and effective uid are different in which case it uses 0644.
 .ip QueueSortOrder=\fIalgorithm\fP
 [no short name]
 Sets the
@@ -6508,7 +7223,11 @@ Legal values are
 .q filename
 (to order by the name of the queue file name),
 .q time
-(to order by the submission time),
+(to order by the submission/creation time),
+.q random
+(to order randomly),
+.q modification
+(to order by the modification time of the qf file (older entries first)),
 and
 .q priority
 (to order by message priority).
@@ -6517,13 +7236,16 @@ but may tend to process low priority messages
 that go to a single host
 over high priority messages that go to several hosts;
 it probably shouldn't be used on slow network links.
-Filename ordering saves the overhead of
+Filename and modification time ordering saves the overhead of
 reading all of the queued items
 before starting the queue run.
-Time ordering is almost always a bad idea,
+Creation (submission) time ordering is almost always a bad idea,
 since it allows large, bulk mail to go out
 before smaller, personal mail,
 but may have applicability on some hosts with very fast connections.
+Random is useful if several queue runners are started by hand
+which try to drain the same queue since odds are they will be working
+on different parts of the queue at the same time.
 Priority ordering is the default.
 .ip QueueTimeout=\fItimeout\fP
 [T]
@@ -6559,6 +7281,7 @@ can be
 .q recurse ,
 .q defnames ,
 .q stayopen ,
+.q use_inet6 ,
 or
 .q dnsrch .
 The string
@@ -6569,16 +7292,17 @@ or
 .b \- )
 can be specified to turn off matching against MX records
 when doing name canonifications.
-.b N.B.
-Prior to 8.7,
-this option indicated that the name server be responding
-in order to accept addresses.
-This has been replaced by checking to see
-if the
-.q dns
-method is listed in the service switch entry for the
-.q hosts
-service.
+The string
+.q WorkAroundBrokenAAAA
+(without a
+.b +
+or
+.b \- )
+can be specified to work around some broken nameservers
+which return SERVFAIL (a temporary failure) on T_AAAA (IPv6) lookups.
+Notice: it might be necessary to apply the same (or similar) options to
+.i submit.cf
+too.
 .ip RrtImpliesDsn
 [R]
 If this option is set, a
@@ -6693,6 +7417,20 @@ UNIX-style
 lines at the front of headers.
 Normally they are assumed redundant
 and discarded.
+.ip SharedMemoryKey
+[no short name]
+Key to use for shared memory segment;
+if not set (or 0), shared memory will not be used.
+Requires support for shared memory to be compiled into
+.i sendmail .
+If this option is set,
+.i sendmail
+can share some data between different instances.
+For example, the number of entries in a queue directory
+or the available space in a file system.
+This allows for more efficient program execution, since only
+one process needs to update the data instead of each individual
+process gathering the data each time it is required.
 .ip SendMimeErrors
 [j]
 If set, send error messages in MIME format
@@ -6705,10 +7443,12 @@ RFC1891.
 .ip ServerCertFile
 [no short name]
 File containing the certificate of the server, i.e., this certificate
-is used when sendmail acts as server.
+is used when sendmail acts as server
+(used for STARTTLS).
 .ip ServerKeyFile
 [no short name]
-File containing the private key belonging to the server certificate.
+File containing the private key belonging to the server certificate
+(used for STARTTLS).
 .ip ServiceSwitchFile=\fIfilename\fP
 [no short name]
 If your host operating system has a service switch abstraction
@@ -6799,9 +7539,11 @@ It can be printed using the
 program.
 .ip SuperSafe
 [s]
-Be super-safe when running things,
-i.e.,
-always instantiate the queue file,
+This option can be set to True, False, or Interactive.
+If set to True,
+.i sendmail
+will be super-safe when running things,
+i.e., always instantiate the queue file,
 even if you are going to attempt immediate delivery.
 .i Sendmail
 always instantiates the queue file
@@ -6809,10 +7551,23 @@ before returning control to the client
 under any circumstances.
 This should really
 .i always
-be set.
+be set to True.
+The Interactive value has been introduced in 8.12 and can
+be used together with
+.b DeliveryMode=i .
+It skips some synchronization calls which are effectively
+doubled in the code execution path for this mode.
+.ip TLSSrvOptions
+[no short name]
+List of options for SMTP STARTTLS for the server
+consisting of single characters
+with intervening white space or commas.
+The flag ``V'' disables client verification, and hence
+it is not possible to use a client certificate for relaying.
+Currently there are no other flags available.
 .ip TempFileMode=\fImode\fP
 [F]
-The file mode for queue files, files to which
+The file mode for transcript files, files to which
 .i sendmail
 delivers directly, and files in the
 .b HostStatusDirectory .
@@ -6890,6 +7645,9 @@ that is,
 they cannot reference programs or write directly to files.
 World writable :include: and .forward files
 are always unsafe.
+Note: use
+.b DontBlameSendmail
+instead; this option is deprecated.
 .ip UseErrorsTo
 [l]
 If there is an
@@ -6939,7 +7697,7 @@ All options can be specified on the command line using the
 \-O or \-o flag,
 but most will cause
 .i sendmail
-to relinquish its setuid permissions.
+to relinquish its set-user-ID permissions.
 The options that will not cause this are
 SevenBitInput [7],
 EightBitMode [8], 
@@ -7038,7 +7796,7 @@ to do with the version
 on the files.
 For example,
 as of this writing
-version 8 config files
+version 10 config files
 (specifically, 8.10)
 used version level 9 configurations.
 .pp
@@ -7143,6 +7901,9 @@ Version level nine configuration files allow
 parentheses in rulesets, i.e. they are not treated
 as comments and hence removed.
 .pp
+Version level ten configuration files allow
+queue group definitions.
+.pp
 The
 .b V
 line may have an optional
@@ -7241,7 +8002,7 @@ Note that
 .i default
 clauses never do this mapping.
 .pp
-The built in map with both name and class
+The built-in map with both name and class
 .q host
 is the host name canonicalization lookup.
 Thus,
@@ -7381,6 +8142,13 @@ If the
 .b \-z
 flag is given, then all MX names are returned,
 separated by the given delimiter.
+.ip dns
+This map requires the option -R to specify the DNS resource record
+type to lookup. The following types are supported:
+A, AAAA, AFSDB, CNAME, MX, NS, PTR, SRV, and TXT.
+A map lookup will return only one record.
+Hence for some types, e.g., MX records, the return value might be a random
+element of the list due to randomizing in the DNS resolver.
 .ip sequence
 The arguments on the `K' line are a list of maps;
 the resulting map searches the argument maps in order
@@ -7470,15 +8238,14 @@ or the string specified with the the
 .b \-d
 flag.  The flags available for the map are
 .(b
+.ta 4n
 -n	not
 -f	case sensitive
--b	basic regular expressions
-	(default is extended)
+-b	basic regular expressions (default is extended)
 -s	substring match
 -d	set the delimiter used for -s
 -a	append string to key
--m	match only, do not
-	replace/discard value
+-m	match only, do not replace/discard value
 -D	perform no lookup in deferred delivery mode.
 .)b
 The
@@ -7530,7 +8297,8 @@ R$\-	$: $(storage {MyMacro} $) $1
 .)b
 .ip arith
 Perform simple arithmetic operations.
-The operation is given as key, currently +, -, *, /,
+The operation is given as key, currently +, -, *, /, %,
+|, & (bitwise OR, AND),
 l (for less than), and = are supported.
 The two operands are given as arguments.
 The lookup returns the result of the computation,
@@ -7714,6 +8482,12 @@ in the presence of the
 .b \-A
 flag.
 .pp
+Some additional flags are available for the host and dns maps:
+.ip "\-d"
+delay: specify the resolver's retransmission time interval (in seconds).
+.ip "\-r"
+retry: specify the number of times to retransmit a resolver query.
+.pp
 The following additional flags are present in the ldap map only:
 .ip "\-R"
 Do not auto chase referrals.  sendmail must be compiled with
@@ -7721,6 +8495,10 @@ Do not auto chase referrals.  sendmail must be compiled with
 to use this flag.
 .ip "\-n"
 Retrieve attribute names only.
+.ip "\-V\fIsep\fP"
+Retrieve both attributes name and value(s),
+separated by
+.i sep .
 .ip "\-r\fIderef\fP"
 Set the alias dereference option to one of never, always, search, or find.
 .ip "\-s\fIscope\fP"
@@ -7811,8 +8589,245 @@ New classes can be added in the routine
 .b setupmaps
 in file
 .b conf.c .
+.sh 2 "Q \*- Queue Group Declaration"
+.pp
+In addition to the option
+.i QueueDirectory,
+queue groups can be declared that define a (group of) queue directories
+under a common name.
+The syntax is as follows:
+.(b F
+.b Q \c
+.i name
+{, \c
+.i field =\c
+.i value \|}+
+.)b
+where
+.i name
+is the symbolic name of the queue group under which
+it can be referenced in various places
+and the
+.q field=name
+pairs define attributes of the queue group.
+Fields are:
+.ip Flags
+Flags for this queue group.
+.ip Nice
+The nice(2) increment for the queue group.
+.ip Interval
+The time between two queue runs.
+.ip Path
+The queue directory of the group (required).
+.ip Runners
+The number of parallel runners processing the queue.
+.ip Jobs
+The maximum number of jobs (messages delivered) per queue run.
+.ip recipients
+The maximum number of recipients per envelope.
+Envelopes with more than this number of recipients will be split
+into multiple envelopes in the same queue directory.
+The default value 0 means no limit.
+.lp
+Only the first character of the field name is checked.
+.pp
+By default, a queue group named
+.i mqueue
+is defined that uses the value of the
+.i QueueDirectory 
+option as path.
+Notice: all paths that are used for queue groups must
+be subdirectories of
+.i QueueDirectory .
+Since they can be symbolic links, this isn't a real restriction,
+If
+.i QueueDirectory
+uses a wildcard, then the directory one level up is considered
+the ``base'' directory which all other queue directories must share.
+Please make sure that the queue directories do not overlap,
+e.g., do not specify
+.(b
+O QueueDirectory=/var/spool/mqueue/*
+Qone, P=/var/spool/mqueue/dir1
+Qtwo, P=/var/spool/mqueue/dir2
+.)b
+because this also includes
+.q dir1
+and
+.q dir2
+in the default queue group.
+However,
+.(b
+O QueueDirectory=/var/spool/mqueue/main*
+Qone, P=/var/spool/mqueue/dir
+Qtwo, P=/var/spool/mqueue/other*
+.)b
+is a valid queue group specification.
+.pp
+Options listed in the ``Flags'' field can be used to modify
+the behavior of a queue group.
+The ``f'' flag must be set if multiple queue runners are
+supposed to work on the entries in a queue group.
+Otherwise
+.i sendmail
+will work on the entries strictly sequentially.
+.pp
+The ``Interval'' field sets the time between queue runs.
+If no queue group specific interval is set, then the parameter of the
+.b -q
+option from the command line is used.
+.pp
+To control the overall number of concurrently active queue runners
+the option
+.b MaxQueueChildren
+can be set.
+This limits the number of processes used for running the queues to
+.b MaxQueueChildren ,
+though at any one time fewer processes may be active
+as a result of queue options, completed queue runs, system load, etc.
+.pp
+The maximum number of queue runners for an individual queue group can be
+controlled via the
+.b Runners
+option.
+If set to 0, entries in the queue will not be processed, which
+is useful to ``quarantine'' queue files.
+The number of runners per queue group may also be set with the option
+.b MaxRunnersPerQueue ,
+which applies to queue groups that have no individual limit.
+That is, the default value for
+.b Runners
+is
+.b MaxRunnersPerQueue
+if set, otherwise 1.
+.pp
+The field Jobs describes the maximum number of jobs
+(messages delivered) per queue run, which is the queue group specific
+value of
+.b MaxQueueRunSize .
+.pp
+Notice: queue groups should be declared after all queue related options
+have been set because queue groups take their defaults from those options.
+If an option is set after a queue group declaration, the values of
+options in the queue group are set to the defaults of
+.i sendmail
+unless explicitly set in the declaration.
+.pp
+Each envelope is assigned to a queue group based on the algorithm
+described in section
+``Queue Groups and Queue Directories''.
+.sh 2 "X \*- Mail Filter (Milter) Definitions"
+.pp
+The
+.i sendmail
+Mail Filter API (Milter) is designed to allow third-party programs access
+to mail messages as they are being processed in order to filter
+meta-information and content.
+They are declared in the configuration file as:
+.(b F
+.b X \c
+.i name
+{, \c
+.i field =\c
+.i value \|}*
+.)b
+where
+.i name
+is the name of the filter
+(used internally only)
+and the
+.q field=name
+pairs define attributes of the filter.
+Also see the documentation for the
+.b InputMailFilters
+option for more information.
+.pp
+Fields are:
+.(b
+.ta 1i
+Socket		The socket specification
+Flags		Special flags for this filter
+Timeouts	Timeouts for this filter
+.)b
+Only the first character of the field name is checked
+(it's case-sensitive).
+.pp
+The socket specification is one of the following forms:
+.(b F
+.b S= \c
+.b inet \c
+.b :
+.i port
+.b @
+.i host
+.)b
+.(b F
+.b S= \c
+.b inet6 \c
+.b :
+.i port
+.b @
+.i host
+.)b
+.(b F
+.b S= \c
+.b local \c
+.b :
+.i path
+.)b
+The first two describe an IPv4 or IPv6 socket listening on a certain
+.i port
+at a given
+.i host
+or IP address.
+The final form describes a named socket on the filesystem at the given
+.i path .
+.pp
+The following flags may be set in the filter description.
+.nr ii 4n
+.ip R
+Reject connection if filter unavailable.
+.ip T
+Temporary fail connection if filter unavailable.
+.pp
+The timeouts can be set using the four fields inside of the
+.b T=
+equate:
+.nr ii 4n
+.ip C
+Timeout for connecting to a filter.
+If set to 0, the system's
+.i connect()
+timeout will be used.
+.ip S
+Timeout for sending information from the MTA to a filter.
+.ip R
+Timeout for reading reply from the filter.
+.ip E
+Overall timeout between sending end-of-message to filter and waiting for
+the final acknowledgment.
+.pp
+Note the separator between each timeout field is a
+.b ';' .
+The default values (if not set) are:
+.b T=C:5m;S:10s;R:10s;E:5m
+where 
+.b s
+is seconds and 
+.b m
+is minutes.
+.pp
+Examples:
+.(b
+Xfilter1, S=local:/var/run/f1.sock, F=R
+Xfilter2, S=inet6:999@localhost, F=T, T=S:1s;R:1s;E:5m
+Xfilter3, S=inet:3333@localhost, T=C:2m
+.)b
 .sh 2 "The User Database"
 .pp
+The user database is deprecated in favor of ``virtusertable''
+and ``genericstable'' as explained in the file
+.b cf/README .
 If you have a version of
 .i sendmail
 with the user database package
@@ -8028,6 +9043,10 @@ Compile in support for Hesiod.
 Compile in support for IRIX NSD lookups.
 .ip MAP_REGEX
 Compile in support for regular expression matching.
+.ip DNSMAP
+Compile in support for DNS map lookups in the
+.i sendmail.cf
+file.
 .ip PH_MAP
 Compile in support for ph lookups.
 .ip SASL
@@ -8038,15 +9057,18 @@ Compile in support for STARTTLS.
 .ip EGD
 Compile in support for the "Entropy Gathering Daemon"
 to provide better random data for TLS.
-.ip SFIO
-Compile in support for sfio, which is required to enable encryption,
-e.g., STARTTLS.
 .ip TCPWRAPPERS
 Compile in support for TCP Wrappers.
 .ip _PATH_SENDMAILCF
 The pathname of the sendmail.cf file.
 .ip _PATH_SENDMAILPID
 The pathname of the sendmail.pid file.
+.ip SM_CONF_SHM
+Compile in support for shared memory, see section about
+"/var/spool/mqueue".
+.ip MILTER
+Compile in support for contacting external mail filters built with the
+Milter API.
 .pp
 There are also several compilation flags to indicate the environment
 such as
@@ -8090,6 +9112,8 @@ since
 .i sendmail
 will break up a delivery into smaller batches as needed.
 A higher number may reduce load on your system, however.
+.ip "MAXQUEUEGROUPS [50]"
+The maximum number of queue groups.
 .ip "MAXATOM [1000]"
 The maximum number of atoms
 (tokens)
@@ -8123,9 +9147,6 @@ The maximum number of items in the user environment
 that will be passed to subordinate mailers.
 .ip "MAXMXHOSTS [100]"
 The maximum number of MX records we will accept for any single host.
-.ip "MAXALIASDB [12]"
-The maximum number of alias databases that can be open at any time.
-Note that there may also be an open file limit.
 .ip "MAXMAPSTACK [12]"
 The maximum number of maps that may be "stacked" in a
 .b sequence
@@ -8198,17 +9219,6 @@ you can set this flag to turn off special processing
 of UNIX-style
 .q "From "
 lines.
-.ip QUEUE\(dg
-This flag should be set to compile in the queueing code.
-If this is not set,
-mailers must accept the mail immediately
-or it will be returned to the sender.
-.ip SMTP\(dg
-If set,
-the code to handle user and server SMTP will be compiled in.
-This is only necessary if your machine has some mailer
-that speaks SMTP
-(this means most machines everywhere).
 .ip USERDB\(dg
 Include the
 .b experimental
@@ -8600,9 +9610,9 @@ is a pointer to the portion of the configuration file line
 following the map class name;
 flags and filenames can be extracted from this line.
 The initialization function must return
-.sm TRUE
+.sm true
 if it successfully opened the map,
-.sm FALSE
+.sm false
 otherwise.
 .pp
 The lookup function is called as
@@ -8641,7 +9651,7 @@ shouldqueue(pri, ctime)
 	time_t ctime;
 {
 	if (CurrentLA < QueueLA)
-		return (FALSE);
+		return false;
 	return (pri > (QueueFactor / (CurrentLA \- QueueLA + 1)));
 }
 .)b
@@ -8656,7 +9666,7 @@ variable
 .i QueueLA ),
 .i shouldqueue
 returns
-.sm FALSE
+.sm false
 immediately
 (that is, it should
 .i not
@@ -8668,7 +9678,7 @@ variable
 .i RefuseLA ),
 .i shouldqueue
 returns
-.sm TRUE
+.sm true
 immediately.
 Otherwise, it computes the function based on the message priority,
 the queue factor
@@ -8699,7 +9709,7 @@ to ensure that messages are eventually processed.
 The function
 .i refuseconnections
 returns
-.sm TRUE
+.sm true
 if incoming SMTP connections should be refused.
 The current implementation is based exclusively on the current load average
 and the refuse load average option
@@ -8745,11 +9755,20 @@ if you wanted to generalize
 .b $]
 lookups.
 We now recommend that you create a new keyed map instead.
-.sh 2 "Certificates for STARTTLS"
+.sh 2 "STARTTLS"
 .pp
 In this section we assume that
 .i sendmail
 has been compiled with support for STARTTLS.
+To properly understand the use of STARTTLS in
+.i sendmail ,
+it is necessary to understand at least some basics about X.509 certificates
+and public key cryptography.
+This information can be found in books about SSL/TLS
+or on WWW sites, e.g.,
+.q http://www.OpenSSL.org/ .
+.sh 3 "Certificates for STARTTLS"
+.pp
 When acting as a server,
 .i sendmail
 requires X.509 certificates to support STARTTLS:
@@ -8764,6 +9783,14 @@ can contain several certificates of CAs.
 The DNs of these certificates are sent
 to the client during the TLS handshake (as part of the
 CertificateRequest) as the list of acceptable CAs.
+However, do not list too many root CAs in that file, otherwise
+the TLS handshake may fail; e.g.,
+.(b
+error:14094417:SSL routines:SSL3_READ_BYTES:
+sslv3 alert illegal parameter:s3_pkt.c:964:SSL alert number 47
+.)b
+You should probably put only the CA cert into that file
+that signed your own cert(s), or at least only those you trust.
 The CACERTPath directory must contain the hashes of each CA certificate
 as filenames (or as links to them).
 Symbolic links can be generated with the following
@@ -8785,7 +9812,7 @@ To allow for automatic startup of sendmail, private keys
 must be stored unencrypted.
 The keys are only protected by the permissions of the file system.
 Never make a private key available to a third party.
-.sh 2 "PRNG for STARTTLS"
+.sh 3 "PRNG for STARTTLS"
 .pp
 STARTTLS requires a strong pseudo random number generator (PRNG)
 to operate properly.
@@ -8917,6 +9944,26 @@ have freed me up to do other work.
 .pp
 Arguments must be presented with flags before addresses.
 The flags are:
+.ip \-A\fIx\fP
+Select an alternative .cf file which is either
+.i sendmail.cf
+for
+.b \-Am
+or
+.i submit.cf
+for
+.b \-Ac .
+By default the .cf file is chosen based on the operation mode.
+For
+.b -bm
+(default),
+.b -bs ,
+and
+.b -t
+it is
+.i submit.cf
+if it exists, for all others it is
+.i sendmail.cf .
 .ip \-b\fIx\fP
 Set operation mode to
 .i x .
@@ -8932,6 +9979,7 @@ t	Run in test mode
 v	Just verify addresses, don't collect or deliver
 i	Initialize the alias database
 p	Print the mail queue
+P	Print overview over the mail queue (requires shared memory)
 h	Print the persistent host status database
 H	Purge expired entries from the persistent host status database
 .)b
@@ -9048,10 +10096,40 @@ Try to process the queued up mail.
 If the time is given,
 a
 .i sendmail
-will run through the queue at the specified interval
-to deliver queued mail;
-otherwise, it only runs once.
-.ip \-q\fIXstring\fP
+will start one or more processes to run through the queue(s) at the specified
+time interval to deliver queued mail; otherwise, it only runs once.
+Each of these processes acts on a workgroup.
+These processes are also known as workgroup processes or WGP's for short.
+Each workgroup is responsible for controlling the processing of one or
+more queues; workgroups help manage the use of system resources by sendmail.
+Each workgroup may have one or more children concurrently processing
+queues depending on the setting of \fIMaxQueueChildren\fP.
+.ip \-qp\fItime\fP
+Similar to \-q with a time argument,
+except that instead of periodically starting WGP's
+sendmail starts persistent WGP's
+that alternate between processing queues and sleeping.
+The sleep time is specified by the time argument; it defaults to 1 second,
+except that a WGP always sleeps at least 5 seconds if their queues were
+empty in the previous run.
+Persistent processes are managed by a queue control process (QCP).
+The QCP is the parent process of the WGP's.
+Typically the QCP will be the sendmail daemon (when started with \-bd or \-bD)
+or a special process (named Queue control) (when started without \-bd or \-bD).
+If a persistent WGP ceases to be active for some reason
+another WGP will be started by the QCP for the same workgroup
+in most cases. When a persistent WGP has core dumped, the debug flag
+\fIno_persistent_restart\fP is set or the specific persistent WGP has been
+restarted too many times already then the WGP will not be started again
+and a message will be logged to this effect.
+To stop (SIGTERM) or restart (SIGHUP) persistent WGP's the appropriate
+signal should be sent to the QCP. The QCP will propagate the signal to all of
+the WGP's and if appropriate restart the persistent WGP's.
+.ip \-q\fIGname\fP
+Run the jobs in the queue group
+.i name
+once.
+.ip \-q[!]\fIXstring\fP
 Run the queue once,
 limiting the jobs to those matching
 .i Xstring .
@@ -9068,6 +10146,7 @@ to limit based on sender.
 A particular queued job is accepted if one of the corresponding addresses
 contains the indicated
 .i string .
+The optional ! character negates the condition tested.
 Multiple
 .i \-q\fIX\fP
 flags are permitted,
@@ -9101,12 +10180,6 @@ The
 line will be deleted before sending.
 Any addresses in the argument vector will be deleted
 from the send list.
-.ip "\-U"
-Indicate that this is an initial User Agent submission.
-This flag is deprecated.
-Future releases will ignore this flag and
-assume all submissions from the command line are
-initial submissions.
 .ip "\-V envid"
 The indicated
 .i envid
@@ -9139,14 +10212,7 @@ running as daemon.
 .+c "QUEUE FILE FORMATS"
 .pp
 This appendix describes the format of the queue files.
-These files live in the directory defined by the
-.b Q
-option in the
-.i sendmail.cf
-file, usually
-.i /var/spool/mqueue
-or
-.i /usr/spool/mqueue .
+These files live in a queue directory.
 The individual qf, df, and xf files
 may be stored in separate 
 .i qf/ ,
@@ -9156,28 +10222,15 @@ and
 subdirectories
 if they are present in the queue directory.
 .pp
-To use multiple queues,
-supply a value ending with an asterisk.
-For example,
-.i /var/spool/mqueue/q*
-will use all of the directories or symbolic links to directories
-beginning with `q' in
-.i /var/spool/mqueue
-as queue directories.
-New messages will be randomly placed
-into one of the queues.
-Do not change the queue directory structure
-while sendmail is running.
-.pp
 All queue files have the name
-\fIx\fP\|\fBf\fP\fIYMDhmsNPPPPP\fP
+.i ttYMDhmsNNppppp
 where
-.i YMDhmsNPPPPP
+.i YMDhmsNNppppp
 is the
 .i id
 for this message
 and the
-.i x
+.i tt
 is a type.
 The individual letters in the
 .i id
@@ -9195,37 +10248,58 @@ Encoded hour
 Encoded minute
 .ip s
 Encoded second
-.ip N
-Envelope number
-.ip PPPPP
-At least five digits of the process ID
+.ip NN
+Encoded envelope number
+.ip ppppp
+At least five decimal digits of the process ID
 .pp
 All files with the same id collectively define one message.
-If memory-buffered files are available,
-some of these files may never appear
-on disk.
+Due to the use of memory-buffered files,
+some of these files may never appear on disk.
 .pp
 The types are:
 .nr ii 0.5i
-.ip d
-The data file.
-The message body (excluding the header) is kept in this file.
-.ip q
+.ip qf
 The queue control file.
 This file contains the information necessary to process the job.
-.ip t
+.ip df
+The data file.
+The message body (excluding the header) is kept in this file.
+Sometimes the df file is not stored in the same directory as the qf file;
+in this case,
+the qf file contains a `d' record which names the queue directory
+that contains the df file.
+.ip tf
 A temporary file.
-These are an image of the
+This is an image of the
 .b qf
 file when it is being rebuilt.
 It should be renamed to a
 .b qf
 file very quickly.
-.ip x
+.ip xf
 A transcript file,
 existing during the life of a session
 showing everything that happens
 during that session.
+Sometimes the xf file must be generated before a queue group has been selected;
+in this case,
+the xf file will be stored in a directory of the default queue group.
+.ip Qf
+A ``lost'' queue control file.
+.i sendmail
+renames a
+.b qf
+file to
+.b Qf
+if there is a severe (configuration) problem that cannot be solved without
+human intervention.
+Search the logfile for the queue file id to figure out what happened.
+After you resolved the problem, you can rename the
+.b Qf
+file to
+.b qf
+and send it again.
 .pp
 The
 .b qf
@@ -9239,7 +10313,7 @@ used to allow new
 binaries to read queue files created by older versions.
 Defaults to version zero.
 Must be the first line of the file if present.
-For 8.10 the version number is 4.
+For 8.12 the version number is 6.
 .ip A
 The information given by the AUTH= parameter of the
 .q "MAIL FROM:"
@@ -9267,13 +10341,16 @@ is the name of the alias that expanded to this address
 The ``original recipient'',
 specified by the ORCPT= field in an ESMTP transaction.
 Used exclusively for Delivery Status Notifications.
-It applies only to the immediately following `R' line.
+It applies only to the following `R' line.
+.ip r
+The ``final recipient''
+used for Delivery Status Notifications.
+It applies only to the following `R' line.
 .ip R
 A recipient address.
 This will normally be completely aliased,
 but is actually realiased when the job is processed.
-There will be one line
-for each recipient.
+There will be one line for each recipient.
 Version 1 qf files
 also include a leading colon-terminated list of flags,
 which can be
@@ -9319,6 +10396,10 @@ The total number of delivery attempts.
 .ip K
 The time (as seconds since January 1, 1970)
 of the last delivery attempt.
+.ip d
+If the df file is in a different directory than the qf file,
+then a `d' record is present,
+specifying the directory in which the df file resides.
 .ip I
 The i-number of the data file;
 this can be used to recover your mail queue
@@ -9475,7 +10556,7 @@ replace it with a blank sheet for double-sided output.
 .\".sz 10
 .\"Eric Allman
 .\".sp
-.\"Version $Revision: 8.317.4.71 $
+.\"Version $Revision: 8.592 $
 .\".ce 0
 .bp 3
 .ce

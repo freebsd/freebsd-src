@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 1999 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -11,60 +11,11 @@
  *
  */
 
-#ifndef lint
-static char id[] = "@(#)$Id: sysexits.c,v 8.25 1999/09/23 19:59:24 ca Exp $";
-#endif /* ! lint */
-
 #include <sendmail.h>
 
+SM_RCSID("@(#)$Id: sysexits.c,v 8.33 2001/09/11 04:05:17 gshapiro Exp $")
+
 /*
-**  SYSEXITS.C -- error messages corresponding to sysexits.h
-**
-**	If the first character of the string is a colon, interpolate
-**	the current errno after the rest of the string.
-*/
-
-char *SysExMsg[] =
-{
-	/* 64 USAGE */		" 500 5.0.0 Bad usage",
-	/* 65 DATAERR */	" 501 5.6.0 Data format error",
-	/* 66 NOINPUT */	":550 5.3.0 Cannot open input",
-	/* 67 NOUSER */		" 550 5.1.1 User unknown",
-	/* 68 NOHOST */		" 550 5.1.2 Host unknown",
-	/* 69 UNAVAILABLE */	" 554 5.0.0 Service unavailable",
-	/* 70 SOFTWARE */	":554 5.3.0 Internal error",
-	/* 71 OSERR */		":451 4.0.0 Operating system error",
-	/* 72 OSFILE */		":554 5.3.5 System file missing",
-	/* 73 CANTCREAT */	":550 5.0.0 Can't create output",
-	/* 74 IOERR */		":451 4.0.0 I/O error",
-	/* 75 TEMPFAIL */	" 450 4.0.0 Deferred",
-	/* 76 PROTOCOL */	" 554 5.5.0 Remote protocol error",
-	/* 77 NOPERM */		":550 5.0.0 Insufficient permission",
-	/* 78 CONFIG */		" 554 5.3.5 Local configuration error",
-};
-
-int N_SysEx = sizeof(SysExMsg) / sizeof(SysExMsg[0]);
-
-static char *SysExitMsg[] =
-{
-	"command line usage error",
-	"data format error",
-	"cannot open input",
-	"addressee unknown",
-	"host name unknown",
-	"service unavailable",
-	"internal software error",
-	"system error (e.g., can't fork)",
-	"critical OS file missing",
-	"can't create (user) output file",
-	"input/output error",
-	"temp failure; user is invited to retry",
-	"remote error in protocol",
-	"permission denied",
-	"configuration error"
-};
-
-/*
 **  DSNTOEXITSTAT -- convert DSN-style error code to EX_ style.
 **
 **	Parameters:
@@ -181,8 +132,7 @@ dsntoexitstat(dsncode)
 	}
 	return EX_CONFIG;
 }
-
-/*
+/*
 **  EXITSTAT -- convert EX_ value to error text.
 **
 **	Parameters:
@@ -198,19 +148,15 @@ exitstat(excode)
 {
 	char *c;
 	int i;
+	char *exitmsg;
 
 	if (excode == NULL || *excode == '\0')
 		return excode;
-	i = 0;
-	for (c = excode; *c != '\0'; c++)
-	{
-		if (isascii(*c) && isdigit(*c))
-			i = i * 10 + (*c - '0');
-		else
-			return excode;
-	}
-	i -= EX__BASE;
-	if (i >= 0 && i <= N_SysEx)
-		return SysExitMsg[i];
+	i = (int) strtol(excode, &c, 10);
+	if (*c != '\0')
+		return excode;
+	exitmsg = sm_sysexitmsg(i);
+	if (exitmsg != NULL)
+		return exitmsg;
 	return excode;
 }

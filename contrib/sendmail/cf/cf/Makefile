@@ -1,7 +1,7 @@
 #
 #  Makefile for configuration files.
 #
-#	$Id: Makefile,v 8.40.8.5 2001/04/12 22:39:52 gshapiro Exp $
+#	$Id: Makefile,v 8.56 2001/12/13 23:56:37 gshapiro Exp $
 #
 
 #
@@ -11,11 +11,24 @@
 #  /usr/5bin/m4.
 #
 
+# name of source for sendmail.cf (without extension)
+CF=	sendmail
+# name of source for submit.cf (without extension)
+SUBMIT=	submit
+# directory for .cf files
+MAILDIR=/etc/mail
 M4=	m4
 CFDIR=	..
 CHMOD=	chmod
 ROMODE=	444
 RM=	rm -f
+# use our own install program; should be really confINSTALL
+INSTALL=../../devtools/bin/install.sh
+# CF file ownership/permissions
+CFOWN=root
+CFGRP=bin
+CFMODE=0444
+
 
 .SUFFIXES:  .mc .cf
 
@@ -25,16 +38,16 @@ RM=	rm -f
 	$(CHMOD) $(ROMODE) $@
 
 GENERIC=generic-bsd4.4.cf generic-hpux9.cf generic-hpux10.cf \
-		generic-linux.cf generic-nextstep3.3.cf \
-		generic-osf1.cf generic-solaris2.cf \
+		generic-linux.cf generic-mpeix.cf generic-nextstep3.3.cf \
+		generic-osf1.cf generic-solaris.cf \
 		generic-sunos4.1.cf generic-ultrix4.cf
-BERKELEY=cs-hpux9.cf cs-hpux10.cf cs-osf1.cf cs-solaris2.cf \
+BERKELEY=cs-hpux9.cf cs-hpux10.cf cs-osf1.cf cs-solaris.cf \
 	cs-sunos4.1.cf cs-ultrix4.cf \
 	s2k-osf1.cf s2k-ultrix4.cf \
 	chez.cs.cf huginn.cs.cf mail.cs.cf mail.eecs.cf mailspool.cs.cf \
 	python.cs.cf ucbarpa.cf ucbvax.cf vangogh.cs.cf
 OTHER=	knecht.cf
-ALL=	$(GENERIC) $(BERKELEY) $(OTHER)
+ALL=	submit.cf $(GENERIC) $(OTHER)
 
 all: $(ALL)
 
@@ -45,7 +58,30 @@ other: $(OTHER)
 clean cleandir:
 	$(RM) $(ALL) core
 
-depend install:
+install:
+	@echo "Before installing the .cf files please make sure you have read the"
+	@echo "instructions in the file ../../INSTALL.  You should have prepared the"
+	@echo "files \"submit.mc\" (supplied) and \"sendmail.mc\". Then you can use"
+	@echo ""
+	@echo "	make install-cf"
+	@echo ""
+	@echo "If you use a different name than \"sendmail\" for your main .mc file"
+
+	@echo "then you should use"
+	@echo ""
+	@echo "	make install-cf CF=config"
+	@echo ""
+	@echo "where \"config\" is the name of your main .mc file."
+
+install-cf:  install-sendmail-cf install-submit-cf
+
+install-sendmail-cf: $(CF).cf
+	$(INSTALL) -c -o $(CFOWN) -g $(CFGRP) -m $(CFMODE) $(CF).cf ${DESTDIR}$(MAILDIR)/sendmail.cf
+
+install-submit-cf: $(SUBMIT).cf
+	$(INSTALL) -c -o $(CFOWN) -g $(CFGRP) -m $(CFMODE) $(SUBMIT).cf ${DESTDIR}$(MAILDIR)/submit.cf
+
+depend:
 
 # this is overkill, but....
 M4FILES=\
@@ -82,7 +118,6 @@ M4FILES=\
 	${CFDIR}/feature/nouucp.m4 \
 	${CFDIR}/feature/nullclient.m4 \
 	${CFDIR}/feature/promiscuous_relay.m4 \
-	${CFDIR}/feature/rbl.m4 \
 	${CFDIR}/feature/redirect.m4 \
 	${CFDIR}/feature/relay_based_on_MX.m4 \
 	${CFDIR}/feature/relay_entire_domain.m4 \
@@ -112,11 +147,11 @@ M4FILES=\
 	${CFDIR}/mailer/smtp.m4 \
 	${CFDIR}/mailer/usenet.m4 \
 	${CFDIR}/mailer/uucp.m4 \
-	${CFDIR}/ostype/aix2.m4 \
 	${CFDIR}/ostype/aix3.m4 \
 	${CFDIR}/ostype/aix4.m4 \
 	${CFDIR}/ostype/altos.m4 \
 	${CFDIR}/ostype/amdahl-uts.m4 \
+	${CFDIR}/ostype/a-ux.m4 \
 	${CFDIR}/ostype/bsd4.3.m4 \
 	${CFDIR}/ostype/bsd4.4.m4 \
 	${CFDIR}/ostype/bsdi.m4 \
@@ -125,6 +160,8 @@ M4FILES=\
 	${CFDIR}/ostype/dgux.m4 \
 	${CFDIR}/ostype/domainos.m4 \
 	${CFDIR}/ostype/dynix3.2.m4 \
+	${CFDIR}/ostype/freebsd4.m4 \
+	${CFDIR}/ostype/freebsd5.m4 \
 	${CFDIR}/ostype/gnu.m4 \
 	${CFDIR}/ostype/hpux10.m4 \
 	${CFDIR}/ostype/hpux11.m4 \
@@ -136,6 +173,7 @@ M4FILES=\
 	${CFDIR}/ostype/linux.m4 \
 	${CFDIR}/ostype/maxion.m4 \
 	${CFDIR}/ostype/mklinux.m4 \
+	${CFDIR}/ostype/mpeix.m4 \
 	${CFDIR}/ostype/nextstep.m4 \
 	${CFDIR}/ostype/openbsd.m4 \
 	${CFDIR}/ostype/osf1.m4 \

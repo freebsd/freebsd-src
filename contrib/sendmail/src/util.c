@@ -11,73 +11,30 @@
  *
  */
 
-#ifndef lint
-static char id[] = "@(#)$Id: util.c,v 8.225.2.1.2.26 2001/06/01 08:23:25 gshapiro Exp $";
-#endif /* ! lint */
-
 #include <sendmail.h>
+
+SM_RCSID("@(#)$Id: util.c,v 8.357 2001/11/28 19:19:27 gshapiro Exp $")
+
 #include <sysexits.h>
+#include <sm/xtrap.h>
 
-
-static void	readtimeout __P((time_t));
-
-/*
-**  STRIPQUOTES -- Strip quotes & quote bits from a string.
-**
-**	Runs through a string and strips off unquoted quote
-**	characters and quote bits.  This is done in place.
-**
-**	Parameters:
-**		s -- the string to strip.
-**
-**	Returns:
-**		none.
-**
-**	Side Effects:
-**		none.
-*/
-
-void
-stripquotes(s)
-	char *s;
-{
-	register char *p;
-	register char *q;
-	register char c;
-
-	if (s == NULL)
-		return;
-
-	p = q = s;
-	do
-	{
-		c = *p++;
-		if (c == '\\')
-			c = *p++;
-		else if (c == '"')
-			continue;
-		*q++ = c;
-	} while (c != '\0');
-}
-/*
+/*
 **  ADDQUOTES -- Adds quotes & quote bits to a string.
 **
-**	Runs through a string and adds characters and quote bits.
+**	Runs through a string and adds backslashes and quote bits.
 **
 **	Parameters:
 **		s -- the string to modify.
+**		rpool -- resource pool from which to allocate result
 **
 **	Returns:
 **		pointer to quoted string.
-**
-**	Side Effects:
-**		none.
-**
 */
 
 char *
-addquotes(s)
+addquotes(s, rpool)
 	char *s;
+	SM_RPOOL_T *rpool;
 {
 	int len = 0;
 	char c;
@@ -94,7 +51,7 @@ addquotes(s)
 			len++;
 	}
 
-	q = r = xalloc(len + 3);
+	q = r = sm_rpool_malloc_x(rpool, len + 3);
 	p = s;
 
 	/* add leading quote */
@@ -110,7 +67,7 @@ addquotes(s)
 	*q = '\0';
 	return r;
 }
-/*
+/*
 **  RFC822_STRING -- Checks string for proper RFC822 string quoting.
 **
 **	Runs through a string and verifies RFC822 special characters
@@ -121,24 +78,19 @@ addquotes(s)
 **		s -- the string to modify.
 **
 **	Returns:
-**		TRUE -- if the string is RFC822 compliant.
-**		FALSE -- if the string is not RFC822 compliant.
-**
-**	Side Effects:
-**		none.
-**
+**		true iff the string is RFC822 compliant, false otherwise.
 */
 
 bool
 rfc822_string(s)
 	char *s;
 {
-	bool quoted = FALSE;
+	bool quoted = false;
 	int commentlev = 0;
 	char *c = s;
 
 	if (s == NULL)
-		return FALSE;
+		return false;
 
 	while (*c != '\0')
 	{
@@ -147,7 +99,7 @@ rfc822_string(s)
 		{
 			c++;
 			if (*c == '\0')
-				return FALSE;
+				return false;
 		}
 		else if (commentlev == 0 && *c == '"')
 			quoted = !quoted;
@@ -157,7 +109,7 @@ rfc822_string(s)
 			{
 				/* unbalanced ')' */
 				if (commentlev == 0)
-					return FALSE;
+					return false;
 				else
 					commentlev--;
 			}
@@ -165,17 +117,15 @@ rfc822_string(s)
 				commentlev++;
 			else if (commentlev == 0 &&
 				 strchr(MustQuoteChars, *c) != NULL)
-				return FALSE;
+				return false;
 		}
 		c++;
 	}
+
 	/* unbalanced '"' or '(' */
-	if (quoted || commentlev != 0)
-		return FALSE;
-	else
-		return TRUE;
+	return !quoted && commentlev == 0;
 }
-/*
+/*
 **  SHORTEN_RFC822_STRING -- Truncate and rebalance an RFC822 string
 **
 **	Arbitrarily shorten (in place) an RFC822 string and rebalance
@@ -186,7 +136,7 @@ rfc822_string(s)
 **		length -- the maximum size, 0 if no maximum
 **
 **	Returns:
-**		TRUE if string is changed, FALSE otherwise
+**		true if string is changed, false otherwise
 **
 **	Side Effects:
 **		Changes string in place, possibly resulting
@@ -198,9 +148,9 @@ shorten_rfc822_string(string, length)
 	char *string;
 	size_t length;
 {
-	bool backslash = FALSE;
-	bool modified = FALSE;
-	bool quoted = FALSE;
+	bool backslash = false;
+	bool modified = false;
+	bool quoted = false;
 	size_t slen;
 	int parencount = 0;
 	char *ptr = string;
@@ -218,12 +168,12 @@ shorten_rfc822_string(string, length)
 	{
 		if (backslash)
 		{
-			backslash = FALSE;
+			backslash = false;
 			goto increment;
 		}
 
 		if (*ptr == '\\')
-			backslash = TRUE;
+			backslash = true;
 		else if (*ptr == '(')
 		{
 			if (!quoted)
@@ -247,11 +197,11 @@ increment:
 		{
 			/* Not enough, backtrack */
 			if (*ptr == '\\')
-				backslash = FALSE;
+				backslash = false;
 			else if (*ptr == '(' && !quoted)
 				parencount--;
 			else if (*ptr == '"' && parencount == 0)
-				quoted = FALSE;
+				quoted = false;
 			break;
 		}
 		ptr++;
@@ -262,7 +212,7 @@ increment:
 	{
 		if (*ptr != ')')
 		{
-			modified = TRUE;
+			modified = true;
 			*ptr = ')';
 		}
 		ptr++;
@@ -271,19 +221,19 @@ increment:
 	{
 		if (*ptr != '"')
 		{
-			modified = TRUE;
+			modified = true;
 			*ptr = '"';
 		}
 		ptr++;
 	}
 	if (*ptr != '\0')
 	{
-		modified = TRUE;
+		modified = true;
 		*ptr = '\0';
 	}
 	return modified;
 }
-/*
+/*
 **  FIND_CHARACTER -- find an unquoted character in an RFC822 string
 **
 **	Find an unquoted, non-commented character in an RFC822
@@ -304,15 +254,15 @@ find_character(string, character)
 	char *string;
 	int character;
 {
-	bool backslash = FALSE;
-	bool quoted = FALSE;
+	bool backslash = false;
+	bool quoted = false;
 	int parencount = 0;
 
 	while (string != NULL && *string != '\0')
 	{
 		if (backslash)
 		{
-			backslash = FALSE;
+			backslash = false;
 			if (!quoted && character == '\\' && *string == '\\')
 				break;
 			string++;
@@ -321,7 +271,7 @@ find_character(string, character)
 		switch (*string)
 		{
 		  case '\\':
-			backslash = TRUE;
+			backslash = true;
 			break;
 
 		  case '(':
@@ -352,11 +302,78 @@ find_character(string, character)
 	/* Return pointer to the character */
 	return string;
 }
-/*
-**  XALLOC -- Allocate memory and bitch wildly on failure.
+
+/*
+**  CHECK_BODYTYPE -- check bodytype parameter
 **
-**	THIS IS A CLUDGE.  This should be made to give a proper
-**	error -- but after all, what can we do?
+**	Parameters:
+**		bodytype -- bodytype parameter
+**
+**	Returns:
+**		BODYTYPE_* according to parameter
+**
+*/
+
+int
+check_bodytype(bodytype)
+	char *bodytype;
+{
+	/* check body type for legality */
+	if (bodytype == NULL)
+		return BODYTYPE_NONE;
+	if (sm_strcasecmp(bodytype, "7BIT") == 0)
+		return BODYTYPE_7BIT;
+	if (sm_strcasecmp(bodytype, "8BITMIME") == 0)
+		return BODYTYPE_8BITMIME;
+	return BODYTYPE_ILLEGAL;
+}
+
+#if _FFR_BESTMX_BETTER_TRUNCATION || _FFR_DNSMAP_MULTI
+/*
+**  TRUNCATE_AT_DELIM -- truncate string at a delimiter and append "..."
+**
+**	Parameters:
+**		str -- string to truncate
+**		len -- maximum length (including '\0') (0 for unlimited)
+**		delim -- delimiter character
+**
+**	Returns:
+**		None.
+*/
+
+void
+truncate_at_delim(str, len, delim)
+	char *str;
+	size_t len;
+	int delim;
+{
+	char *p;
+
+	if (str == NULL || len == 0 || strlen(str) < len)
+		return;
+
+	*(str + len - 1) = '\0';
+	while ((p = strrchr(str, delim)) != NULL)
+	{
+		*p = '\0';
+		if (p - str + 4 < len)
+		{
+			*p++ = ':';
+			*p = '\0';
+			(void) sm_strlcat(str, "...", len);
+			return;
+		}
+	}
+
+	/* Couldn't find a place to append "..." */
+	if (len > 3)
+		(void) sm_strlcpy(str, "...", len);
+	else
+		str[0] = '\0';
+}
+#endif /* _FFR_BESTMX_BETTER_TRUNCATION || _FFR_DNSMAP_MULTI */
+/*
+**  XALLOC -- Allocate memory, raise an exception on error
 **
 **	Parameters:
 **		sz -- size of area to allocate.
@@ -364,13 +381,23 @@ find_character(string, character)
 **	Returns:
 **		pointer to data region.
 **
+**	Exceptions:
+**		SmHeapOutOfMemory (F:sm.heap) -- cannot allocate memory
+**
 **	Side Effects:
 **		Memory is allocated.
 */
 
 char *
+#if SM_HEAP_CHECK
+xalloc_tagged(sz, file, line)
+	register int sz;
+	char *file;
+	int line;
+#else /* SM_HEAP_CHECK */
 xalloc(sz)
 	register int sz;
+#endif /* SM_HEAP_CHECK */
 {
 	register char *p;
 
@@ -378,144 +405,39 @@ xalloc(sz)
 	if (sz <= 0)
 		sz = 1;
 
-	ENTER_CRITICAL();
-	p = malloc((unsigned) sz);
-	LEAVE_CRITICAL();
+	/* scaffolding for testing error handling code */
+	sm_xtrap_raise_x(&SmHeapOutOfMemory);
+
+	p = sm_malloc_tagged((unsigned) sz, file, line, sm_heap_group());
 	if (p == NULL)
 	{
-		syserr("!Out of memory!!");
-
-		/* NOTREACHED */
-		exit(EX_UNAVAILABLE);
+		sm_exc_raise_x(&SmHeapOutOfMemory);
 	}
 	return p;
 }
-/*
-**  XREALLOC -- Reallocate memory and bitch wildly on failure.
-**
-**	THIS IS A CLUDGE.  This should be made to give a proper
-**	error -- but after all, what can we do?
-**
-**	Parameters:
-**		ptr -- original area.
-**		sz -- size of new area to allocate.
-**
-**	Returns:
-**		pointer to data region.
-**
-**	Side Effects:
-**		Memory is allocated.
-*/
-
-char *
-xrealloc(ptr, sz)
-	void *ptr;
-	size_t sz;
-{
-	register char *p;
-
-	/* some systems can't handle size zero mallocs */
-	if (sz <= 0)
-		sz = 1;
-
-	ENTER_CRITICAL();
-	p = realloc(ptr, (unsigned) sz);
-	LEAVE_CRITICAL();
-	if (p == NULL)
-	{
-		syserr("!Out of memory!!");
-
-		/* NOTREACHED */
-		exit(EX_UNAVAILABLE);
-	}
-	return p;
-}
-/*
-**  XCALLOC -- Allocate memory and bitch wildly on failure.
-**
-**	THIS IS A CLUDGE.  This should be made to give a proper
-**	error -- but after all, what can we do?
-**
-**	Parameters:
-**		num -- number of items to allocate
-**		sz -- size of new area to allocate.
-**
-**	Returns:
-**		pointer to data region.
-**
-**	Side Effects:
-**		Memory is allocated.
-*/
-
-char *
-xcalloc(num, sz)
-	size_t num;
-	size_t sz;
-{
-	register char *p;
-
-	/* some systems can't handle size zero mallocs */
-	if (num <= 0)
-		num = 1;
-	if (sz <= 0)
-		sz = 1;
-
-	ENTER_CRITICAL();
-	p = calloc((unsigned) num, (unsigned) sz);
-	LEAVE_CRITICAL();
-	if (p == NULL)
-	{
-		syserr("!Out of memory!!");
-
-		/* NOTREACHED */
-		exit(EX_UNAVAILABLE);
-	}
-	return p;
-}
-/*
-**  SM_FREE -- Free memory safely.
-**
-**	Parameters:
-**		ptr -- area to free
-**
-**	Returns:
-**		none.
-**
-**	Side Effects:
-**		Memory is freed.
-*/
-
-void
-sm_free(ptr)
-	void *ptr;
-{
-	ENTER_CRITICAL();
-	free(ptr);
-	LEAVE_CRITICAL();
-}
-/*
+/*
 **  COPYPLIST -- copy list of pointers.
 **
-**	This routine is the equivalent of newstr for lists of
+**	This routine is the equivalent of strdup for lists of
 **	pointers.
 **
 **	Parameters:
 **		list -- list of pointers to copy.
 **			Must be NULL terminated.
-**		copycont -- if TRUE, copy the contents of the vector
+**		copycont -- if true, copy the contents of the vector
 **			(which must be a string) also.
+**		rpool -- resource pool from which to allocate storage,
+**			or NULL
 **
 **	Returns:
 **		a copy of 'list'.
-**
-**	Side Effects:
-**		none.
 */
 
 char **
-copyplist(list, copycont)
+copyplist(list, copycont, rpool)
 	char **list;
 	bool copycont;
+	SM_RPOOL_T *rpool;
 {
 	register char **vp;
 	register char **newvp;
@@ -525,36 +447,35 @@ copyplist(list, copycont)
 
 	vp++;
 
-	newvp = (char **) xalloc((int) (vp - list) * sizeof *vp);
+	newvp = (char **) sm_rpool_malloc_x(rpool, (vp - list) * sizeof *vp);
 	memmove((char *) newvp, (char *) list, (int) (vp - list) * sizeof *vp);
 
 	if (copycont)
 	{
 		for (vp = newvp; *vp != NULL; vp++)
-			*vp = newstr(*vp);
+			*vp = sm_rpool_strdup_x(rpool, *vp);
 	}
 
 	return newvp;
 }
-/*
+/*
 **  COPYQUEUE -- copy address queue.
 **
-**	This routine is the equivalent of newstr for address queues
+**	This routine is the equivalent of strdup for address queues;
 **	addresses marked as QS_IS_DEAD() aren't copied
 **
 **	Parameters:
 **		addr -- list of address structures to copy.
+**		rpool -- resource pool from which to allocate storage
 **
 **	Returns:
 **		a copy of 'addr'.
-**
-**	Side Effects:
-**		none.
 */
 
 ADDRESS *
-copyqueue(addr)
+copyqueue(addr, rpool)
 	ADDRESS *addr;
+	SM_RPOOL_T *rpool;
 {
 	register ADDRESS *newaddr;
 	ADDRESS *ret;
@@ -564,7 +485,8 @@ copyqueue(addr)
 	{
 		if (!QS_IS_DEAD(addr->q_state))
 		{
-			newaddr = (ADDRESS *) xalloc(sizeof *newaddr);
+			newaddr = (ADDRESS *) sm_rpool_malloc_x(rpool,
+							sizeof *newaddr);
 			STRUCTCOPY(*addr, *newaddr);
 			*tail = newaddr;
 			tail = &newaddr->q_next;
@@ -575,7 +497,7 @@ copyqueue(addr)
 
 	return ret;
 }
-/*
+/*
 **  LOG_SENDMAIL_PID -- record sendmail pid and command line.
 **
 **	Parameters:
@@ -585,7 +507,7 @@ copyqueue(addr)
 **		none.
 **
 **	Side Effects:
-**		writes pidfile.
+**		writes pidfile, logs command line.
 */
 
 void
@@ -593,8 +515,9 @@ log_sendmail_pid(e)
 	ENVELOPE *e;
 {
 	long sff;
-	FILE *pidf;
+	SM_FILE_T *pidf;
 	char pidpath[MAXPATHLEN + 1];
+	extern char *CommandLineArgs;
 
 	/* write the pid to the log file for posterity */
 	sff = SFF_NOLINK|SFF_ROOTOK|SFF_REGONLY|SFF_CREAT;
@@ -605,26 +528,29 @@ log_sendmail_pid(e)
 	if (pidf == NULL)
 	{
 		sm_syslog(LOG_ERR, NOQID, "unable to write %s: %s",
-			  pidpath, errstring(errno));
+			  pidpath, sm_errstring(errno));
 	}
 	else
 	{
 		pid_t pid;
-		extern char *CommandLineArgs;
 
 		pid = getpid();
 
 		/* write the process id on line 1 */
-		fprintf(pidf, "%ld\n", (long) pid);
+		(void) sm_io_fprintf(pidf, SM_TIME_DEFAULT, "%ld\n",
+				     (long) pid);
 
 		/* line 2 contains all command line flags */
-		fprintf(pidf, "%s\n", CommandLineArgs);
+		(void) sm_io_fprintf(pidf, SM_TIME_DEFAULT, "%s\n",
+				     CommandLineArgs);
 
 		/* flush and close */
-		(void) fclose(pidf);
+		(void) sm_io_close(pidf, SM_TIME_DEFAULT);
 	}
+	if (LogLevel > 9)
+		sm_syslog(LOG_INFO, NOQID, "started as: %s", CommandLineArgs);
 }
-/*
+/*
 **  SET_DELIVERY_MODE -- set and record the delivery mode
 **
 **	Parameters:
@@ -635,7 +561,7 @@ log_sendmail_pid(e)
 **		none.
 **
 **	Side Effects:
-**		sets $&{deliveryMode} macro
+**		sets {deliveryMode} macro
 */
 
 void
@@ -645,12 +571,38 @@ set_delivery_mode(mode, e)
 {
 	char buf[2];
 
-	e->e_sendmode = (char)mode;
-	buf[0] = (char)mode;
+	e->e_sendmode = (char) mode;
+	buf[0] = (char) mode;
 	buf[1] = '\0';
-	define(macid("{deliveryMode}", NULL), newstr(buf), e);
+	macdefine(&e->e_macro, A_TEMP, macid("{deliveryMode}"), buf);
 }
-/*
+/*
+**  SET_OP_MODE -- set and record the op mode
+**
+**	Parameters:
+**		mode -- op mode
+**		e -- the current envelope.
+**
+**	Returns:
+**		none.
+**
+**	Side Effects:
+**		sets {opMode} macro
+*/
+
+void
+set_op_mode(mode)
+	int mode;
+{
+	char buf[2];
+	extern ENVELOPE BlankEnvelope;
+
+	OpMode = (char) mode;
+	buf[0] = (char) mode;
+	buf[1] = '\0';
+	macdefine(&BlankEnvelope.e_macro, A_TEMP, MID_OPMODE, buf);
+}
+/*
 **  PRINTAV -- print argument vector.
 **
 **	Parameters:
@@ -670,33 +622,14 @@ printav(av)
 	while (*av != NULL)
 	{
 		if (tTd(0, 44))
-			dprintf("\n\t%08lx=", (u_long) *av);
+			sm_dprintf("\n\t%08lx=", (unsigned long) *av);
 		else
-			(void) putchar(' ');
+			(void) sm_io_putc(smioout, SM_TIME_DEFAULT, ' ');
 		xputs(*av++);
 	}
-	(void) putchar('\n');
+	(void) sm_io_putc(smioout, SM_TIME_DEFAULT, '\n');
 }
-/*
-**  LOWER -- turn letter into lower case.
-**
-**	Parameters:
-**		c -- character to turn into lower case.
-**
-**	Returns:
-**		c, in lower case.
-**
-**	Side Effects:
-**		none.
-*/
-
-char
-lower(c)
-	register int c;
-{
-	return ((isascii(c) && isupper(c)) ? tolower(c) : c);
-}
-/*
+/*
 **  XPUTS -- put string doing control escapes.
 **
 **	Parameters:
@@ -715,27 +648,53 @@ xputs(s)
 {
 	register int c;
 	register struct metamac *mp;
-	bool shiftout = FALSE;
+	bool shiftout = false;
 	extern struct metamac MetaMacros[];
+	static SM_DEBUG_T DebugANSI = SM_DEBUG_INITIALIZER("ANSI",
+		"@(#)$Debug: ANSI - enable reverse video in debug output $");
+
+	/*
+	**  TermEscape is set here, rather than in main(),
+	**  because ANSI mode can be turned on or off at any time
+	**  if we are in -bt rule testing mode.
+	*/
+
+	if (sm_debug_unknown(&DebugANSI))
+	{
+		if (sm_debug_active(&DebugANSI, 1))
+		{
+			TermEscape.te_rv_on = "\033[7m";
+			TermEscape.te_rv_off = "\033[0m";
+		}
+		else
+		{
+			TermEscape.te_rv_on = "";
+			TermEscape.te_rv_off = "";
+		}
+	}
 
 	if (s == NULL)
 	{
-		printf("%s<null>%s", TermEscape.te_rv_on, TermEscape.te_rv_off);
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "%s<null>%s",
+				     TermEscape.te_rv_on, TermEscape.te_rv_off);
 		return;
 	}
 	while ((c = (*s++ & 0377)) != '\0')
 	{
 		if (shiftout)
 		{
-			printf("%s", TermEscape.te_rv_off);
-			shiftout = FALSE;
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "%s",
+					     TermEscape.te_rv_off);
+			shiftout = false;
 		}
 		if (!isascii(c))
 		{
 			if (c == MATCHREPL)
 			{
-				printf("%s$", TermEscape.te_rv_on);
-				shiftout = TRUE;
+				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+						     "%s$",
+						     TermEscape.te_rv_on);
+				shiftout = true;
 				if (*s == '\0')
 					continue;
 				c = *s++ & 0377;
@@ -743,50 +702,70 @@ xputs(s)
 			}
 			if (c == MACROEXPAND || c == MACRODEXPAND)
 			{
-				printf("%s$", TermEscape.te_rv_on);
+				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+						     "%s$",
+						     TermEscape.te_rv_on);
 				if (c == MACRODEXPAND)
-					(void) putchar('&');
-				shiftout = TRUE;
+					(void) sm_io_putc(smioout,
+							  SM_TIME_DEFAULT, '&');
+				shiftout = true;
 				if (*s == '\0')
 					continue;
 				if (strchr("=~&?", *s) != NULL)
-					(void) putchar(*s++);
+					(void) sm_io_putc(smioout,
+							  SM_TIME_DEFAULT,
+							  *s++);
 				if (bitset(0200, *s))
-					printf("{%s}", macname(bitidx(*s++)));
+					(void) sm_io_fprintf(smioout,
+							     SM_TIME_DEFAULT,
+							     "{%s}",
+							     macname(bitidx(*s++)));
 				else
-					printf("%c", *s++);
+					(void) sm_io_fprintf(smioout,
+							     SM_TIME_DEFAULT,
+							     "%c",
+							     *s++);
 				continue;
 			}
 			for (mp = MetaMacros; mp->metaname != '\0'; mp++)
 			{
-				if ((mp->metaval & 0377) == c)
+				if (bitidx(mp->metaval) == c)
 				{
-					printf("%s$%c",
-						TermEscape.te_rv_on,
-						mp->metaname);
-					shiftout = TRUE;
+					(void) sm_io_fprintf(smioout,
+							     SM_TIME_DEFAULT,
+							     "%s$%c",
+							     TermEscape.te_rv_on,
+							     mp->metaname);
+					shiftout = true;
 					break;
 				}
 			}
 			if (c == MATCHCLASS || c == MATCHNCLASS)
 			{
 				if (bitset(0200, *s))
-					printf("{%s}", macname(*s++ & 0377));
+					(void) sm_io_fprintf(smioout,
+							     SM_TIME_DEFAULT,
+							     "{%s}",
+							     macname(bitidx(*s++)));
 				else if (*s != '\0')
-					printf("%c", *s++);
+					(void) sm_io_fprintf(smioout,
+							     SM_TIME_DEFAULT,
+							     "%c",
+							     *s++);
 			}
 			if (mp->metaname != '\0')
 				continue;
 
 			/* unrecognized meta character */
-			printf("%sM-", TermEscape.te_rv_on);
-			shiftout = TRUE;
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "%sM-",
+					     TermEscape.te_rv_on);
+			shiftout = true;
 			c &= 0177;
 		}
   printchar:
 		if (isprint(c))
 		{
-			(void) putchar(c);
+			(void) sm_io_putc(smioout, SM_TIME_DEFAULT, c);
 			continue;
 		}
 
@@ -807,25 +786,27 @@ xputs(s)
 		}
 		if (!shiftout)
 		{
-			printf("%s", TermEscape.te_rv_on);
-			shiftout = TRUE;
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "%s",
+					     TermEscape.te_rv_on);
+			shiftout = true;
 		}
 		if (isprint(c))
 		{
-			(void) putchar('\\');
-			(void) putchar(c);
+			(void) sm_io_putc(smioout, SM_TIME_DEFAULT, '\\');
+			(void) sm_io_putc(smioout, SM_TIME_DEFAULT, c);
 		}
 		else
 		{
-			(void) putchar('^');
-			(void) putchar(c ^ 0100);
+			(void) sm_io_putc(smioout, SM_TIME_DEFAULT, '^');
+			(void) sm_io_putc(smioout, SM_TIME_DEFAULT, c ^ 0100);
 		}
 	}
 	if (shiftout)
-		printf("%s", TermEscape.te_rv_off);
-	(void) fflush(stdout);
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "%s",
+				     TermEscape.te_rv_off);
+	(void) sm_io_flush(smioout, SM_TIME_DEFAULT);
 }
-/*
+/*
 **  MAKELOWER -- Translate a line into lower case
 **
 **	Parameters:
@@ -851,60 +832,7 @@ makelower(p)
 		if (isascii(c) && isupper(c))
 			*p = tolower(c);
 }
-/*
-**  BUILDFNAME -- build full name from gecos style entry.
-**
-**	This routine interprets the strange entry that would appear
-**	in the GECOS field of the password file.
-**
-**	Parameters:
-**		p -- name to build.
-**		user -- the login name of this user (for &).
-**		buf -- place to put the result.
-**		buflen -- length of buf.
-**
-**	Returns:
-**		none.
-**
-**	Side Effects:
-**		none.
-*/
-
-void
-buildfname(gecos, user, buf, buflen)
-	register char *gecos;
-	char *user;
-	char *buf;
-	int buflen;
-{
-	register char *p;
-	register char *bp = buf;
-
-	if (*gecos == '*')
-		gecos++;
-
-	/* copy gecos, interpolating & to be full name */
-	for (p = gecos; *p != '\0' && *p != ',' && *p != ';' && *p != '%'; p++)
-	{
-		if (bp >= &buf[buflen - 1])
-		{
-			/* buffer overflow -- just use login name */
-			snprintf(buf, buflen, "%s", user);
-			return;
-		}
-		if (*p == '&')
-		{
-			/* interpolate full name */
-			snprintf(bp, buflen - (bp - buf), "%s", user);
-			*bp = toupper(*bp);
-			bp += strlen(bp);
-		}
-		else
-			*bp++ = *p;
-	}
-	*bp = '\0';
-}
-/*
+/*
 **  FIXCRLF -- fix <CR><LF> in line.
 **
 **	Looks for the <CR><LF> combination and turns it into the
@@ -939,7 +867,7 @@ fixcrlf(line, stripnl)
 		*p++ = '\n';
 	*p = '\0';
 }
-/*
+/*
 **  PUTLINE -- put a line like fputs obeying SMTP conventions
 **
 **	This routine always guarantees outputing a newline (or CRLF,
@@ -953,7 +881,7 @@ fixcrlf(line, stripnl)
 **		none
 **
 **	Side Effects:
-**		output of l to fp.
+**		output of l to mci->mci_out.
 */
 
 void
@@ -963,7 +891,7 @@ putline(l, mci)
 {
 	putxline(l, strlen(l), mci, PXLF_MAPFROM);
 }
-/*
+/*
 **  PUTXLINE -- putline with flags bits.
 **
 **	This routine always guarantees outputing a newline (or CRLF,
@@ -982,7 +910,7 @@ putline(l, mci)
 **		none
 **
 **	Side Effects:
-**		output of l to fp.
+**		output of l to mci->mci_out.
 */
 
 void
@@ -992,7 +920,7 @@ putxline(l, len, mci, pxflags)
 	register MCI *mci;
 	int pxflags;
 {
-	bool dead = FALSE;
+	bool dead = false;
 	register char *p, *end;
 	int slop = 0;
 
@@ -1016,7 +944,8 @@ putxline(l, len, mci, pxflags)
 			p = end;
 
 		if (TrafficLogFile != NULL)
-			fprintf(TrafficLogFile, "%05d >>> ", (int) getpid());
+			(void) sm_io_fprintf(TrafficLogFile, SM_TIME_DEFAULT,
+					     "%05d >>> ", (int) CurrentPid);
 
 		/* check for line overflow */
 		while (mci->mci_mailer->m_linelimit > 0 &&
@@ -1028,71 +957,82 @@ putxline(l, len, mci, pxflags)
 			if (l[0] == '.' && slop == 0 &&
 			    bitnset(M_XDOT, mci->mci_mailer->m_flags))
 			{
-				if (putc('.', mci->mci_out) == EOF)
-					dead = TRUE;
+				if (sm_io_putc(mci->mci_out, SM_TIME_DEFAULT,
+					       '.') == SM_IO_EOF)
+					dead = true;
 				else
 				{
 					/* record progress for DATA timeout */
-					DataProgress = TRUE;
+					DataProgress = true;
 				}
 				if (TrafficLogFile != NULL)
-					(void) putc('.', TrafficLogFile);
+					(void) sm_io_putc(TrafficLogFile,
+							  SM_TIME_DEFAULT, '.');
 			}
 			else if (l[0] == 'F' && slop == 0 &&
 				 bitset(PXLF_MAPFROM, pxflags) &&
 				 strncmp(l, "From ", 5) == 0 &&
 				 bitnset(M_ESCFROM, mci->mci_mailer->m_flags))
 			{
-				if (putc('>', mci->mci_out) == EOF)
-					dead = TRUE;
+				if (sm_io_putc(mci->mci_out, SM_TIME_DEFAULT,
+					       '>') == SM_IO_EOF)
+					dead = true;
 				else
 				{
 					/* record progress for DATA timeout */
-					DataProgress = TRUE;
+					DataProgress = true;
 				}
 				if (TrafficLogFile != NULL)
-					(void) putc('>', TrafficLogFile);
+					(void) sm_io_putc(TrafficLogFile,
+							  SM_TIME_DEFAULT,
+							  '>');
 			}
 			if (dead)
 				break;
 
 			while (l < q)
 			{
-				if (putc((unsigned char) *l++, mci->mci_out) ==
-				    EOF)
+				if (sm_io_putc(mci->mci_out, SM_TIME_DEFAULT,
+					       (unsigned char) *l++) == SM_IO_EOF)
 				{
-					dead = TRUE;
+					dead = true;
 					break;
 				}
 				else
 				{
 					/* record progress for DATA timeout */
-					DataProgress = TRUE;
+					DataProgress = true;
 				}
 			}
 			if (dead)
 				break;
 
-			if (putc('!', mci->mci_out) == EOF ||
-			    fputs(mci->mci_mailer->m_eol,
-				  mci->mci_out) == EOF ||
-			    putc(' ', mci->mci_out) == EOF)
+			if (sm_io_putc(mci->mci_out, SM_TIME_DEFAULT, '!') ==
+			    SM_IO_EOF ||
+			    sm_io_fputs(mci->mci_out, SM_TIME_DEFAULT,
+					mci->mci_mailer->m_eol) ==
+			    SM_IO_EOF ||
+			    sm_io_putc(mci->mci_out, SM_TIME_DEFAULT, ' ') ==
+			    SM_IO_EOF)
 			{
-				dead = TRUE;
+				dead = true;
 				break;
 			}
 			else
 			{
 				/* record progress for DATA timeout */
-				DataProgress = TRUE;
+				DataProgress = true;
 			}
 			if (TrafficLogFile != NULL)
 			{
 				for (l = l_base; l < q; l++)
-					(void) putc((unsigned char)*l,
-						    TrafficLogFile);
-				fprintf(TrafficLogFile, "!\n%05d >>>  ",
-					(int) getpid());
+					(void) sm_io_putc(TrafficLogFile,
+							  SM_TIME_DEFAULT,
+							  (unsigned char)*l);
+				(void) sm_io_fprintf(TrafficLogFile,
+						     SM_TIME_DEFAULT,
+						     "!\n%05d >>>  ",
+						     (int) CurrentPid);
 			}
 			slop = 1;
 		}
@@ -1104,107 +1044,125 @@ putxline(l, len, mci, pxflags)
 		if (l[0] == '.' && slop == 0 &&
 		    bitnset(M_XDOT, mci->mci_mailer->m_flags))
 		{
-			if (putc('.', mci->mci_out) == EOF)
+			if (sm_io_putc(mci->mci_out, SM_TIME_DEFAULT, '.') ==
+			    SM_IO_EOF)
 				break;
 			else
 			{
 				/* record progress for DATA timeout */
-				DataProgress = TRUE;
+				DataProgress = true;
 			}
 			if (TrafficLogFile != NULL)
-				(void) putc('.', TrafficLogFile);
+				(void) sm_io_putc(TrafficLogFile,
+						  SM_TIME_DEFAULT, '.');
 		}
 		else if (l[0] == 'F' && slop == 0 &&
 			 bitset(PXLF_MAPFROM, pxflags) &&
 			 strncmp(l, "From ", 5) == 0 &&
 			 bitnset(M_ESCFROM, mci->mci_mailer->m_flags))
 		{
-			if (putc('>', mci->mci_out) == EOF)
+			if (sm_io_putc(mci->mci_out, SM_TIME_DEFAULT, '>') ==
+			    SM_IO_EOF)
 				break;
 			else
 			{
 				/* record progress for DATA timeout */
-				DataProgress = TRUE;
+				DataProgress = true;
 			}
 			if (TrafficLogFile != NULL)
-				(void) putc('>', TrafficLogFile);
+				(void) sm_io_putc(TrafficLogFile,
+						  SM_TIME_DEFAULT, '>');
 		}
 		for ( ; l < p; ++l)
 		{
 			if (TrafficLogFile != NULL)
-				(void) putc((unsigned char)*l, TrafficLogFile);
-			if (putc((unsigned char) *l, mci->mci_out) == EOF)
+				(void) sm_io_putc(TrafficLogFile,
+						  SM_TIME_DEFAULT,
+						  (unsigned char)*l);
+			if (sm_io_putc(mci->mci_out, SM_TIME_DEFAULT,
+				       (unsigned char) *l) == SM_IO_EOF)
 			{
-				dead = TRUE;
+				dead = true;
 				break;
 			}
 			else
 			{
 				/* record progress for DATA timeout */
-				DataProgress = TRUE;
+				DataProgress = true;
 			}
 		}
 		if (dead)
 			break;
 
 		if (TrafficLogFile != NULL)
-			(void) putc('\n', TrafficLogFile);
-		if (fputs(mci->mci_mailer->m_eol, mci->mci_out) == EOF)
+			(void) sm_io_putc(TrafficLogFile, SM_TIME_DEFAULT,
+					  '\n');
+		if (sm_io_fputs(mci->mci_out, SM_TIME_DEFAULT,
+				mci->mci_mailer->m_eol) == SM_IO_EOF)
 			break;
 		else
 		{
 			/* record progress for DATA timeout */
-			DataProgress = TRUE;
+			DataProgress = true;
 		}
 		if (l < end && *l == '\n')
 		{
 			if (*++l != ' ' && *l != '\t' && *l != '\0' &&
 			    bitset(PXLF_HEADER, pxflags))
 			{
-				if (putc(' ', mci->mci_out) == EOF)
+				if (sm_io_putc(mci->mci_out, SM_TIME_DEFAULT,
+					       ' ') == SM_IO_EOF)
 					break;
 				else
 				{
 					/* record progress for DATA timeout */
-					DataProgress = TRUE;
+					DataProgress = true;
 				}
+
 				if (TrafficLogFile != NULL)
-					(void) putc(' ', TrafficLogFile);
+					(void) sm_io_putc(TrafficLogFile,
+							  SM_TIME_DEFAULT, ' ');
 			}
 		}
+
+		/* record progress for DATA timeout */
+		DataProgress = true;
 	} while (l < end);
 }
-/*
+/*
 **  XUNLINK -- unlink a file, doing logging as appropriate.
 **
 **	Parameters:
 **		f -- name of file to unlink.
 **
 **	Returns:
-**		none.
+**		return value of unlink()
 **
 **	Side Effects:
 **		f is unlinked.
 */
 
-void
+int
 xunlink(f)
 	char *f;
 {
 	register int i;
+	int save_errno;
 
 	if (LogLevel > 98)
-		sm_syslog(LOG_DEBUG, CurEnv->e_id,
-			  "unlink %s",
-			  f);
+		sm_syslog(LOG_DEBUG, CurEnv->e_id, "unlink %s", f);
 
 	i = unlink(f);
+	save_errno = errno;
 	if (i < 0 && LogLevel > 97)
-		sm_syslog(LOG_DEBUG, CurEnv->e_id,
-			  "%s: unlink-fail %d",
+		sm_syslog(LOG_DEBUG, CurEnv->e_id, "%s: unlink-fail %d",
 			  f, errno);
+	if (i >= 0)
+		SYNC_DIR(f, false);
+	errno = save_errno;
+	return i;
 }
-/*
+/*
 **  SFGETS -- "safe" fgets -- times out and ignores random interrupts.
 **
 **	Parameters:
@@ -1215,73 +1173,69 @@ xunlink(f)
 **		during -- what we are trying to read (for error messages).
 **
 **	Returns:
-**		NULL on error (including timeout).  This will also leave
+**		NULL on error (including timeout).  This may also leave
 **			buf containing a null string.
 **		buf otherwise.
-**
-**	Side Effects:
-**		none.
 */
 
-
-static jmp_buf	CtxReadTimeout;
 
 char *
 sfgets(buf, siz, fp, timeout, during)
 	char *buf;
 	int siz;
-	FILE *fp;
+	SM_FILE_T *fp;
 	time_t timeout;
 	char *during;
 {
-	register EVENT *ev = NULL;
 	register char *p;
 	int save_errno;
+	int io_timeout;
+
+	SM_REQUIRE(siz > 0);
+	SM_REQUIRE(buf != NULL);
 
 	if (fp == NULL)
 	{
 		buf[0] = '\0';
+		errno = EBADF;
 		return NULL;
 	}
 
-	/* set the timeout */
-	if (timeout != 0)
+	/* try to read */
+	p = NULL;
+	errno = 0;
+
+	/* convert the timeout to sm_io notation */
+	io_timeout = (timeout <= 0) ? SM_TIME_DEFAULT : timeout * 1000;
+	while (!sm_io_eof(fp) && !sm_io_error(fp))
 	{
-		if (setjmp(CtxReadTimeout) != 0)
+		errno = 0;
+		p = sm_io_fgets(fp, io_timeout, buf, siz);
+		if (p == NULL && errno == EAGAIN)
 		{
+			/* The sm_io_fgets() call timedout */
 			if (LogLevel > 1)
 				sm_syslog(LOG_NOTICE, CurEnv->e_id,
 					  "timeout waiting for input from %.100s during %s",
-					  CurHostName ? CurHostName : "local",
+					  CURHOSTNAME,
 					  during);
 			buf[0] = '\0';
 #if XDEBUG
 			checkfd012(during);
 #endif /* XDEBUG */
 			if (TrafficLogFile != NULL)
-				fprintf(TrafficLogFile, "%05d <<< [TIMEOUT]\n",
-					(int) getpid());
-			errno = 0;
+				(void) sm_io_fprintf(TrafficLogFile,
+						     SM_TIME_DEFAULT,
+						     "%05d <<< [TIMEOUT]\n",
+						     (int) CurrentPid);
+			errno = ETIMEDOUT;
 			return NULL;
 		}
-		ev = setevent(timeout, readtimeout, 0);
-	}
-
-	/* try to read */
-	p = NULL;
-	errno = 0;
-	while (!feof(fp) && !ferror(fp))
-	{
-		errno = 0;
-		p = fgets(buf, siz, fp);
 		if (p != NULL || errno != EINTR)
 			break;
-		clearerr(fp);
+		(void) sm_io_clearerr(fp);
 	}
 	save_errno = errno;
-
-	/* clear the event if it has not sprung */
-	clrevent(ev);
 
 	/* clean up the books and exit */
 	LineNumber++;
@@ -1289,12 +1243,15 @@ sfgets(buf, siz, fp, timeout, during)
 	{
 		buf[0] = '\0';
 		if (TrafficLogFile != NULL)
-			fprintf(TrafficLogFile, "%05d <<< [EOF]\n", (int) getpid());
+			(void) sm_io_fprintf(TrafficLogFile, SM_TIME_DEFAULT,
+					     "%05d <<< [EOF]\n",
+					     (int) CurrentPid);
 		errno = save_errno;
 		return NULL;
 	}
 	if (TrafficLogFile != NULL)
-		fprintf(TrafficLogFile, "%05d <<< %s", (int) getpid(), buf);
+		(void) sm_io_fprintf(TrafficLogFile, SM_TIME_DEFAULT,
+				     "%05d <<< %s", (int) CurrentPid, buf);
 	if (SevenBitInput)
 	{
 		for (p = buf; *p != '\0'; p++)
@@ -1306,30 +1263,15 @@ sfgets(buf, siz, fp, timeout, during)
 		{
 			if (bitset(0200, *p))
 			{
-				HasEightBits = TRUE;
+				HasEightBits = true;
 				break;
 			}
 		}
 	}
 	return buf;
 }
-
-/* ARGSUSED */
-static void
-readtimeout(timeout)
-	time_t timeout;
-{
-	/*
-	**  NOTE: THIS CAN BE CALLED FROM A SIGNAL HANDLER.  DO NOT ADD
-	**	ANYTHING TO THIS ROUTINE UNLESS YOU KNOW WHAT YOU ARE
-	**	DOING.
-	*/
-
-	errno = ETIMEDOUT;
-	longjmp(CtxReadTimeout, 1);
-}
-/*
-**  FGETFOLDED -- like fgets, but know about folded lines.
+/*
+**  FGETFOLDED -- like fgets, but knows about folded lines.
 **
 **	Parameters:
 **		buf -- place to put result.
@@ -1337,9 +1279,9 @@ readtimeout(timeout)
 **		f -- file to read from.
 **
 **	Returns:
-**		input line(s) on success, NULL on error or EOF.
+**		input line(s) on success, NULL on error or SM_IO_EOF.
 **		This will normally be buf -- unless the line is too
-**			long, when it will be xalloc()ed.
+**			long, when it will be sm_malloc_x()ed.
 **
 **	Side Effects:
 **		buf gets lines from f, with continuation lines (lines
@@ -1351,22 +1293,32 @@ char *
 fgetfolded(buf, n, f)
 	char *buf;
 	register int n;
-	FILE *f;
+	SM_FILE_T *f;
 {
 	register char *p = buf;
 	char *bp = buf;
 	register int i;
 
+	SM_REQUIRE(n > 0);
+	SM_REQUIRE(buf != NULL);
+	if (f == NULL)
+	{
+		buf[0] = '\0';
+		errno = EBADF;
+		return NULL;
+	}
+
 	n--;
-	while ((i = getc(f)) != EOF)
+	while ((i = sm_io_getc(f, SM_TIME_DEFAULT)) != SM_IO_EOF)
 	{
 		if (i == '\r')
 		{
-			i = getc(f);
+			i = sm_io_getc(f, SM_TIME_DEFAULT);
 			if (i != '\n')
 			{
-				if (i != EOF)
-					(void) ungetc(i, f);
+				if (i != SM_IO_EOF)
+					(void) sm_io_ungetc(f, SM_TIME_DEFAULT,
+							    i);
 				i = '\r';
 			}
 		}
@@ -1381,7 +1333,7 @@ fgetfolded(buf, n, f)
 				nn *= 2;
 			else
 				nn += MEMCHUNKSIZE;
-			nbp = xalloc(nn);
+			nbp = sm_malloc_x(nn);
 			memmove(nbp, bp, p - bp);
 			p = &nbp[p - bp];
 			if (bp != buf)
@@ -1393,9 +1345,9 @@ fgetfolded(buf, n, f)
 		if (i == '\n')
 		{
 			LineNumber++;
-			i = getc(f);
-			if (i != EOF)
-				(void) ungetc(i, f);
+			i = sm_io_getc(f, SM_TIME_DEFAULT);
+			if (i != SM_IO_EOF)
+				(void) sm_io_ungetc(f, SM_TIME_DEFAULT, i);
 			if (i != ' ' && i != '\t')
 				break;
 		}
@@ -1407,7 +1359,7 @@ fgetfolded(buf, n, f)
 	*p = '\0';
 	return bp;
 }
-/*
+/*
 **  CURTIME -- return current time.
 **
 **	Parameters:
@@ -1415,9 +1367,6 @@ fgetfolded(buf, n, f)
 **
 **	Returns:
 **		the current time.
-**
-**	Side Effects:
-**		none.
 */
 
 time_t
@@ -1428,20 +1377,17 @@ curtime()
 	(void) time(&t);
 	return t;
 }
-/*
+/*
 **  ATOBOOL -- convert a string representation to boolean.
 **
-**	Defaults to "TRUE"
+**	Defaults to false
 **
 **	Parameters:
-**		s -- string to convert.  Takes "tTyY" as true,
+**		s -- string to convert.  Takes "tTyY", empty, and NULL as true,
 **			others as false.
 **
 **	Returns:
 **		A boolean representation of the string.
-**
-**	Side Effects:
-**		none.
 */
 
 bool
@@ -1449,10 +1395,10 @@ atobool(s)
 	register char *s;
 {
 	if (s == NULL || *s == '\0' || strchr("tTyY", *s) != NULL)
-		return TRUE;
-	return FALSE;
+		return true;
+	return false;
 }
-/*
+/*
 **  ATOOCT -- convert a string representation to octal.
 **
 **	Parameters:
@@ -1461,9 +1407,6 @@ atobool(s)
 **	Returns:
 **		An integer representing the string interpreted as an
 **		octal number.
-**
-**	Side Effects:
-**		none.
 */
 
 int
@@ -1476,18 +1419,15 @@ atooct(s)
 		i = (i << 3) | (*s++ - '0');
 	return i;
 }
-/*
+/*
 **  BITINTERSECT -- tell if two bitmaps intersect
 **
 **	Parameters:
 **		a, b -- the bitmaps in question
 **
 **	Returns:
-**		TRUE if they have a non-null intersection
-**		FALSE otherwise
-**
-**	Side Effects:
-**		none.
+**		true if they have a non-null intersection
+**		false otherwise
 */
 
 bool
@@ -1500,22 +1440,19 @@ bitintersect(a, b)
 	for (i = BITMAPBYTES / sizeof (int); --i >= 0; )
 	{
 		if ((a[i] & b[i]) != 0)
-			return TRUE;
+			return true;
 	}
-	return FALSE;
+	return false;
 }
-/*
+/*
 **  BITZEROP -- tell if a bitmap is all zero
 **
 **	Parameters:
 **		map -- the bit map to check
 **
 **	Returns:
-**		TRUE if map is all zero.
-**		FALSE if there are any bits set in map.
-**
-**	Side Effects:
-**		none.
+**		true if map is all zero.
+**		false if there are any bits set in map.
 */
 
 bool
@@ -1527,24 +1464,26 @@ bitzerop(map)
 	for (i = BITMAPBYTES / sizeof (int); --i >= 0; )
 	{
 		if (map[i] != 0)
-			return FALSE;
+			return false;
 	}
-	return TRUE;
+	return true;
 }
-/*
+/*
 **  STRCONTAINEDIN -- tell if one string is contained in another
 **
 **	Parameters:
+**		icase -- ignore case?
 **		a -- possible substring.
 **		b -- possible superstring.
 **
 **	Returns:
-**		TRUE if a is contained in b.
-**		FALSE otherwise.
+**		true if a is contained in b (case insensitive).
+**		false otherwise.
 */
 
 bool
-strcontainedin(a, b)
+strcontainedin(icase, a, b)
+	bool icase;
 	register char *a;
 	register char *b;
 {
@@ -1555,18 +1494,29 @@ strcontainedin(a, b)
 	la = strlen(a);
 	lb = strlen(b);
 	c = *a;
-	if (isascii(c) && isupper(c))
+	if (icase && isascii(c) && isupper(c))
 		c = tolower(c);
 	for (; lb-- >= la; b++)
 	{
-		if (*b != c && isascii(*b) && isupper(*b) && tolower(*b) != c)
-			continue;
-		if (strncasecmp(a, b, la) == 0)
-			return TRUE;
+		if (icase)
+		{
+			if (*b != c &&
+			    isascii(*b) && isupper(*b) && tolower(*b) != c)
+				continue;
+			if (sm_strncasecmp(a, b, la) == 0)
+				return true;
+		}
+		else
+		{
+			if (*b != c)
+				continue;
+			if (strncmp(a, b, la) == 0)
+				return true;
+		}
 	}
-	return FALSE;
+	return false;
 }
-/*
+/*
 **  CHECKFD012 -- check low numbered file descriptors
 **
 **	File descriptors 0, 1, and 2 should be open at all times.
@@ -1590,7 +1540,7 @@ checkfd012(where)
 		fill_fd(i, where);
 #endif /* XDEBUG */
 }
-/*
+/*
 **  CHECKFDOPEN -- make sure file descriptor is open -- for extended debugging
 **
 **	Parameters:
@@ -1612,11 +1562,11 @@ checkfdopen(fd, where)
 	if (fstat(fd, &st) < 0 && errno == EBADF)
 	{
 		syserr("checkfdopen(%d): %s not open as expected!", fd, where);
-		printopenfds(TRUE);
+		printopenfds(true);
 	}
 #endif /* XDEBUG */
 }
-/*
+/*
 **  CHECKFDS -- check for new or missing file descriptors
 **
 **	Parameters:
@@ -1635,7 +1585,7 @@ checkfds(where)
 {
 	int maxfd;
 	register int fd;
-	bool printhdr = TRUE;
+	bool printhdr = true;
 	int save_errno = errno;
 	static BITMAP256 baseline;
 	extern int DtableSize;
@@ -1670,13 +1620,13 @@ checkfds(where)
 			sm_syslog(LOG_DEBUG, CurEnv->e_id,
 				  "%s: changed fds:",
 				  where);
-			printhdr = FALSE;
+			printhdr = false;
 		}
-		dumpfd(fd, TRUE, TRUE);
+		dumpfd(fd, true, true);
 	}
 	errno = save_errno;
 }
-/*
+/*
 **  PRINTOPENFDS -- print the open file descriptors (for debugging)
 **
 **	Parameters:
@@ -1699,9 +1649,9 @@ printopenfds(logit)
 	extern int DtableSize;
 
 	for (fd = 0; fd < DtableSize; fd++)
-		dumpfd(fd, FALSE, logit);
+		dumpfd(fd, false, logit);
 }
-/*
+/*
 **  DUMPFD -- dump a file descriptor
 **
 **	Parameters:
@@ -1709,6 +1659,9 @@ printopenfds(logit)
 **		printclosed -- if set, print a notification even if
 **			it is closed; otherwise print nothing.
 **		logit -- if set, send output to syslog instead of stdout.
+**
+**	Returns:
+**		none.
 */
 
 void
@@ -1732,7 +1685,7 @@ dumpfd(fd, printclosed, logit)
 	char buf[200];
 
 	p = buf;
-	snprintf(p, SPACELEFT(buf, p), "%3d: ", fd);
+	(void) sm_snprintf(p, SPACELEFT(buf, p), "%3d: ", fd);
 	p += strlen(p);
 
 	if (
@@ -1745,13 +1698,14 @@ dumpfd(fd, printclosed, logit)
 	{
 		if (errno != EBADF)
 		{
-			snprintf(p, SPACELEFT(buf, p), "CANNOT STAT (%s)",
-				errstring(errno));
+			(void) sm_snprintf(p, SPACELEFT(buf, p),
+				"CANNOT STAT (%s)",
+				sm_errstring(errno));
 			goto printit;
 		}
 		else if (printclosed)
 		{
-			snprintf(p, SPACELEFT(buf, p), "CLOSED");
+			(void) sm_snprintf(p, SPACELEFT(buf, p), "CLOSED");
 			goto printit;
 		}
 		return;
@@ -1760,23 +1714,24 @@ dumpfd(fd, printclosed, logit)
 	i = fcntl(fd, F_GETFL, NULL);
 	if (i != -1)
 	{
-		snprintf(p, SPACELEFT(buf, p), "fl=0x%x, ", i);
+		(void) sm_snprintf(p, SPACELEFT(buf, p), "fl=0x%x, ", i);
 		p += strlen(p);
 	}
 
-	snprintf(p, SPACELEFT(buf, p), "mode=%o: ", (int) st.st_mode);
+	(void) sm_snprintf(p, SPACELEFT(buf, p), "mode=%o: ",
+			(int) st.st_mode);
 	p += strlen(p);
 	switch (st.st_mode & S_IFMT)
 	{
 #ifdef S_IFSOCK
 	  case S_IFSOCK:
-		snprintf(p, SPACELEFT(buf, p), "SOCK ");
+		(void) sm_snprintf(p, SPACELEFT(buf, p), "SOCK ");
 		p += strlen(p);
 		memset(&sa, '\0', sizeof sa);
 		slen = sizeof sa;
 		if (getsockname(fd, &sa.sa, &slen) < 0)
-			snprintf(p, SPACELEFT(buf, p), "(%s)",
-				 errstring(errno));
+			(void) sm_snprintf(p, SPACELEFT(buf, p), "(%s)",
+				 sm_errstring(errno));
 		else
 		{
 			hp = hostnamebyanyaddr(&sa);
@@ -1787,23 +1742,25 @@ dumpfd(fd, printclosed, logit)
 			}
 # if NETINET
 			else if (sa.sa.sa_family == AF_INET)
-				snprintf(p, SPACELEFT(buf, p), "%s/%d",
-					 hp, ntohs(sa.sin.sin_port));
+				(void) sm_snprintf(p, SPACELEFT(buf, p),
+					"%s/%d", hp, ntohs(sa.sin.sin_port));
 # endif /* NETINET */
 # if NETINET6
 			else if (sa.sa.sa_family == AF_INET6)
-				snprintf(p, SPACELEFT(buf, p), "%s/%d",
-					 hp, ntohs(sa.sin6.sin6_port));
+				(void) sm_snprintf(p, SPACELEFT(buf, p),
+					"%s/%d", hp, ntohs(sa.sin6.sin6_port));
 # endif /* NETINET6 */
 			else
-				snprintf(p, SPACELEFT(buf, p), "%s", hp);
+				(void) sm_snprintf(p, SPACELEFT(buf, p),
+					"%s", hp);
 		}
 		p += strlen(p);
-		snprintf(p, SPACELEFT(buf, p), "->");
+		(void) sm_snprintf(p, SPACELEFT(buf, p), "->");
 		p += strlen(p);
 		slen = sizeof sa;
 		if (getpeername(fd, &sa.sa, &slen) < 0)
-			snprintf(p, SPACELEFT(buf, p), "(%s)", errstring(errno));
+			(void) sm_snprintf(p, SPACELEFT(buf, p), "(%s)",
+					sm_errstring(errno));
 		else
 		{
 			hp = hostnamebyanyaddr(&sa);
@@ -1814,75 +1771,65 @@ dumpfd(fd, printclosed, logit)
 			}
 # if NETINET
 			else if (sa.sa.sa_family == AF_INET)
-				snprintf(p, SPACELEFT(buf, p), "%s/%d",
-					 hp, ntohs(sa.sin.sin_port));
+				(void) sm_snprintf(p, SPACELEFT(buf, p),
+					"%s/%d", hp, ntohs(sa.sin.sin_port));
 # endif /* NETINET */
 # if NETINET6
 			else if (sa.sa.sa_family == AF_INET6)
-				snprintf(p, SPACELEFT(buf, p), "%s/%d",
-					 hp, ntohs(sa.sin6.sin6_port));
+				(void) sm_snprintf(p, SPACELEFT(buf, p),
+					"%s/%d", hp, ntohs(sa.sin6.sin6_port));
 # endif /* NETINET6 */
 			else
-				snprintf(p, SPACELEFT(buf, p), "%s", hp);
+				(void) sm_snprintf(p, SPACELEFT(buf, p),
+					"%s", hp);
 		}
 		break;
 #endif /* S_IFSOCK */
 
 	  case S_IFCHR:
-		snprintf(p, SPACELEFT(buf, p), "CHR: ");
+		(void) sm_snprintf(p, SPACELEFT(buf, p), "CHR: ");
 		p += strlen(p);
 		goto defprint;
 
+#ifdef S_IFBLK
 	  case S_IFBLK:
-		snprintf(p, SPACELEFT(buf, p), "BLK: ");
+		(void) sm_snprintf(p, SPACELEFT(buf, p), "BLK: ");
 		p += strlen(p);
 		goto defprint;
+#endif /* S_IFBLK */
 
 #if defined(S_IFIFO) && (!defined(S_IFSOCK) || S_IFIFO != S_IFSOCK)
 	  case S_IFIFO:
-		snprintf(p, SPACELEFT(buf, p), "FIFO: ");
+		(void) sm_snprintf(p, SPACELEFT(buf, p), "FIFO: ");
 		p += strlen(p);
 		goto defprint;
 #endif /* defined(S_IFIFO) && (!defined(S_IFSOCK) || S_IFIFO != S_IFSOCK) */
 
 #ifdef S_IFDIR
 	  case S_IFDIR:
-		snprintf(p, SPACELEFT(buf, p), "DIR: ");
+		(void) sm_snprintf(p, SPACELEFT(buf, p), "DIR: ");
 		p += strlen(p);
 		goto defprint;
 #endif /* S_IFDIR */
 
 #ifdef S_IFLNK
 	  case S_IFLNK:
-		snprintf(p, SPACELEFT(buf, p), "LNK: ");
+		(void) sm_snprintf(p, SPACELEFT(buf, p), "LNK: ");
 		p += strlen(p);
 		goto defprint;
 #endif /* S_IFLNK */
 
 	  default:
 defprint:
-		/*CONSTCOND*/
-		if (sizeof st.st_ino > sizeof (long))
-			snprintf(p, SPACELEFT(buf, p),
-				 "dev=%d/%d, ino=%s, nlink=%d, u/gid=%d/%d, ",
-				 major(st.st_dev), minor(st.st_dev),
-				 quad_to_string(st.st_ino),
-				 (int) st.st_nlink, (int) st.st_uid,
-				 (int) st.st_gid);
-		else
-			snprintf(p, SPACELEFT(buf, p),
-				 "dev=%d/%d, ino=%lu, nlink=%d, u/gid=%d/%d, ",
-				 major(st.st_dev), minor(st.st_dev),
-				 (unsigned long) st.st_ino,
-				 (int) st.st_nlink, (int) st.st_uid,
-				 (int) st.st_gid);
-		/*CONSTCOND*/
-		if (sizeof st.st_size > sizeof (long))
-			snprintf(p, SPACELEFT(buf, p), "size=%s",
-				 quad_to_string(st.st_size));
-		else
-			snprintf(p, SPACELEFT(buf, p), "size=%lu",
-				 (unsigned long) st.st_size);
+		(void) sm_snprintf(p, SPACELEFT(buf, p),
+			 "dev=%d/%d, ino=%llu, nlink=%d, u/gid=%d/%d, ",
+			 major(st.st_dev), minor(st.st_dev),
+			 (ULONGLONG_T) st.st_ino,
+			 (int) st.st_nlink, (int) st.st_uid,
+			 (int) st.st_gid);
+		p += strlen(p);
+		(void) sm_snprintf(p, SPACELEFT(buf, p), "size=%llu",
+			 (ULONGLONG_T) st.st_size);
 		break;
 	}
 
@@ -1891,16 +1838,16 @@ printit:
 		sm_syslog(LOG_DEBUG, CurEnv ? CurEnv->e_id : NULL,
 			  "%.800s", buf);
 	else
-		printf("%s\n", buf);
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "%s\n", buf);
 }
-/*
+/*
 **  SHORTEN_HOSTNAME -- strip local domain information off of hostname.
 **
 **	Parameters:
 **		host -- the host to shorten (stripped in place).
 **
 **	Returns:
-**		place where string was trunacted, NULL if not truncated.
+**		place where string was truncated, NULL if not truncated.
 */
 
 char *
@@ -1910,14 +1857,15 @@ shorten_hostname(host)
 	register char *p;
 	char *mydom;
 	int i;
-	bool canon = FALSE;
+	bool canon = false;
 
 	/* strip off final dot */
-	p = &host[strlen(host) - 1];
+	i = strlen(host);
+	p = &host[(i == 0) ? 0 : i - 1];
 	if (*p == '.')
 	{
 		*p = '\0';
-		canon = TRUE;
+		canon = true;
 	}
 
 	/* see if there is any domain at all -- if not, we are done */
@@ -1930,15 +1878,16 @@ shorten_hostname(host)
 	if (mydom == NULL)
 		mydom = "";
 	i = strlen(++p);
-	if ((canon ? strcasecmp(p, mydom) : strncasecmp(p, mydom, i)) == 0 &&
-	    (mydom[i] == '.' || mydom[i] == '\0'))
+	if ((canon ? sm_strcasecmp(p, mydom)
+		   : sm_strncasecmp(p, mydom, i)) == 0 &&
+			(mydom[i] == '.' || mydom[i] == '\0'))
 	{
 		*--p = '\0';
 		return p;
 	}
 	return NULL;
 }
-/*
+/*
 **  PROG_OPEN -- open a program for reading
 **
 **	Parameters:
@@ -1959,6 +1908,8 @@ prog_open(argv, pfd, e)
 	pid_t pid;
 	int i;
 	int save_errno;
+	int sff;
+	int ret;
 	int fdv[2];
 	char *p, *q;
 	char buf[MAXLINE + 1];
@@ -1985,13 +1936,22 @@ prog_open(argv, pfd, e)
 		return pid;
 	}
 
-	/* child -- close stdin */
-	(void) close(0);
-
 	/* Reset global flags */
 	RestartRequest = NULL;
+	RestartWorkGroup = false;
 	ShutdownRequest = NULL;
 	PendingSignal = 0;
+	CurrentPid = getpid();
+
+	/*
+	**  Initialize exception stack and default exception
+	**  handler for child process.
+	*/
+
+	sm_exc_newthread(fatal_error);
+
+	/* child -- close stdin */
+	(void) close(0);
 
 	/* stdout goes back to parent */
 	(void) close(fdv[0]);
@@ -2007,7 +1967,7 @@ prog_open(argv, pfd, e)
 	{
 		int xfd;
 
-		xfd = fileno(e->e_xfp);
+		xfd = sm_io_getinfo(e->e_xfp, SM_IO_WHAT_FD, NULL);
 		if (xfd >= 0 && dup2(xfd, 2) < 0)
 		{
 			syserr("%s: cannot dup2 for stderr", argv[0]);
@@ -2017,7 +1977,7 @@ prog_open(argv, pfd, e)
 
 	/* this process has no right to the queue file */
 	if (e->e_lockfp != NULL)
-		(void) close(fileno(e->e_lockfp));
+		(void) close(sm_io_getinfo(e->e_lockfp, SM_IO_WHAT_FD, NULL));
 
 	/* chroot to the program mailer directory, if defined */
 	if (ProgMailer != NULL && ProgMailer->m_rootdir != NULL)
@@ -2037,6 +1997,7 @@ prog_open(argv, pfd, e)
 
 	/* run as default user */
 	endpwent();
+	sm_mbdb_terminate();
 	if (setgid(DefGid) < 0 && geteuid() == 0)
 	{
 		syserr("prog_open: setgid(%ld) failed", (long) DefGid);
@@ -2071,6 +2032,20 @@ prog_open(argv, pfd, e)
 			(void) chdir("/");
 	}
 
+	/* Check safety of program to be run */
+	sff = SFF_ROOTOK|SFF_EXECOK;
+	if (!bitnset(DBS_RUNWRITABLEPROGRAM, DontBlameSendmail))
+		sff |= SFF_NOGWFILES|SFF_NOWWFILES;
+	if (bitnset(DBS_RUNPROGRAMINUNSAFEDIRPATH, DontBlameSendmail))
+		sff |= SFF_NOPATHCHECK;
+	else
+		sff |= SFF_SAFEDIRPATH;
+	ret = safefile(argv[0], DefUid, DefGid, DefUser, sff, 0, NULL);
+	if (ret != 0)
+		sm_syslog(LOG_INFO, e->e_id,
+			  "Warning: prog_open: program %s unsafe: %s",
+			  argv[0], sm_errstring(ret));
+
 	/* arrange for all the files to be closed */
 	for (i = 3; i < DtableSize; i++)
 	{
@@ -2091,7 +2066,7 @@ prog_open(argv, pfd, e)
 	_exit(EX_CONFIG);
 	return -1;	/* avoid compiler warning on IRIX */
 }
-/*
+/*
 **  GET_COLUMN -- look up a Column in a line buffer
 **
 **	Parameters:
@@ -2120,23 +2095,23 @@ get_column(line, col, delim, buf, buflen)
 	int i;
 	char delimbuf[4];
 
-	if ((char)delim == '\0')
-		(void) strlcpy(delimbuf, "\n\t ", sizeof delimbuf);
+	if ((char) delim == '\0')
+		(void) sm_strlcpy(delimbuf, "\n\t ", sizeof delimbuf);
 	else
 	{
-		delimbuf[0] = (char)delim;
+		delimbuf[0] = (char) delim;
 		delimbuf[1] = '\0';
 	}
 
 	p = line;
 	if (*p == '\0')
 		return NULL;			/* line empty */
-	if (*p == (char)delim && col == 0)
+	if (*p == (char) delim && col == 0)
 		return NULL;			/* first column empty */
 
 	begin = line;
 
-	if (col == 0 && (char)delim == '\0')
+	if (col == 0 && (char) delim == '\0')
 	{
 		while (*begin != '\0' && isascii(*begin) && isspace(*begin))
 			begin++;
@@ -2147,7 +2122,7 @@ get_column(line, col, delim, buf, buflen)
 		if ((begin = strpbrk(begin, delimbuf)) == NULL)
 			return NULL;		/* no such column */
 		begin++;
-		if ((char)delim == '\0')
+		if ((char) delim == '\0')
 		{
 			while (*begin != '\0' && isascii(*begin) && isspace(*begin))
 				begin++;
@@ -2161,10 +2136,10 @@ get_column(line, col, delim, buf, buflen)
 		i = end - begin;
 	if (i >= buflen)
 		i = buflen - 1;
-	(void) strlcpy(buf, begin, i + 1);
+	(void) sm_strlcpy(buf, begin, i + 1);
 	return buf;
 }
-/*
+/*
 **  CLEANSTRCPY -- copy string keeping out bogus characters
 **
 **	Parameters:
@@ -2183,7 +2158,7 @@ cleanstrcpy(t, f, l)
 	int l;
 {
 	/* check for newlines and log if necessary */
-	(void) denlstring(f, TRUE, TRUE);
+	(void) denlstring(f, true, true);
 
 	if (l <= 0)
 		syserr("!cleanstrcpy: length == 0");
@@ -2201,8 +2176,7 @@ cleanstrcpy(t, f, l)
 	}
 	*t = '\0';
 }
-
-/*
+/*
 **  DENLSTRING -- convert newlines in a string to spaces
 **
 **	Parameters:
@@ -2237,12 +2211,14 @@ denlstring(s, strict, logattacks)
 	if (bl < l)
 	{
 		/* allocate more space */
+		char *nbp = sm_pmalloc_x(l);
+
 		if (bp != NULL)
 			sm_free(bp);
-		bp = xalloc(l);
+		bp = nbp;
 		bl = l;
 	}
-	(void) strlcpy(bp, s, l);
+	(void) sm_strlcpy(bp, s, l);
 	for (p = bp; (p = strchr(p, '\n')) != NULL; )
 		*p++ = ' ';
 
@@ -2256,7 +2232,100 @@ denlstring(s, strict, logattacks)
 
 	return bp;
 }
-/*
+/*
+**  STR2PRT -- convert "unprintable" characters in a string to \oct
+**
+**	Parameters:
+**		s -- string to convert
+**
+**	Returns:
+**		converted string.
+**		This is a static local buffer, string must be copied
+**		before this function is called again!
+*/
+
+char *
+str2prt(s)
+	char *s;
+{
+	int l;
+	char c, *h;
+	bool ok;
+	static int len = 0;
+	static char *buf = NULL;
+
+	if (s == NULL)
+		return NULL;
+	ok = true;
+	for (h = s, l = 1; *h != '\0'; h++, l++)
+	{
+		if (*h == '\\')
+		{
+			++l;
+			ok = false;
+		}
+		else if (!(isascii(*h) && isprint(*h)))
+		{
+			l += 3;
+			ok = false;
+		}
+	}
+	if (ok)
+		return s;
+	if (l > len)
+	{
+		char *nbuf = sm_pmalloc_x(l);
+
+		if (buf != NULL)
+			sm_free(buf);
+		len = l;
+		buf = nbuf;
+	}
+	for (h = buf; *s != '\0' && l > 0; s++, l--)
+	{
+		c = *s;
+		if (isascii(c) && isprint(c) && c != '\\')
+		{
+			*h++ = c;
+		}
+		else
+		{
+			*h++ = '\\';
+			--l;
+			switch (c)
+			{
+			  case '\\':
+				*h++ = '\\';
+				break;
+			  case '\t':
+				*h++ = 't';
+				break;
+			  case '\n':
+				*h++ = 'n';
+				break;
+			  case '\r':
+				*h++ = 'r';
+				break;
+			  default:
+				(void) sm_snprintf(h, l, "%03o", (int) c);
+
+				/*
+				**  XXX since l is unsigned this may
+				**  wrap around if the calculation is screwed
+				**  up...
+				*/
+
+				l -= 2;
+				h += 3;
+				break;
+			}
+		}
+	}
+	*h = '\0';
+	buf[len - 1] = '\0';
+	return buf;
+}
+/*
 **  PATH_IS_DIR -- check to see if file exists and is a directory.
 **
 **	There are some additional checks for security violations in
@@ -2268,8 +2337,8 @@ denlstring(s, strict, logattacks)
 **		createflag -- if set, create directory if needed.
 **
 **	Returns:
-**		TRUE -- if the indicated pathname is a directory
-**		FALSE -- otherwise
+**		true -- if the indicated pathname is a directory
+**		false -- otherwise
 */
 
 int
@@ -2286,46 +2355,63 @@ path_is_dir(pathname, createflag)
 #endif /* HASLSTAT */
 	{
 		if (errno != ENOENT || !createflag)
-			return FALSE;
+			return false;
 		if (mkdir(pathname, 0755) < 0)
-			return FALSE;
-		return TRUE;
+			return false;
+		return true;
 	}
 	if (!S_ISDIR(statbuf.st_mode))
 	{
 		errno = ENOTDIR;
-		return FALSE;
+		return false;
 	}
 
 	/* security: don't allow writable directories */
 	if (bitset(S_IWGRP|S_IWOTH, statbuf.st_mode))
 	{
 		errno = EACCES;
-		return FALSE;
+		return false;
 	}
-
-	return TRUE;
+	return true;
 }
-/*
+/*
 **  PROC_LIST_ADD -- add process id to list of our children
 **
 **	Parameters:
 **		pid -- pid to add to list.
 **		task -- task of pid.
 **		type -- type of process.
+**		count -- number of processes.
+**		other -- other information for this type.
 **
 **	Returns:
 **		none
+**
+**	Side Effects:
+**		May increase CurChildren. May grow ProcList.
 */
 
-static struct procs	*volatile ProcListVec = NULL;
-static int		ProcListSize = 0;
+typedef struct procs	PROCS_T;
+
+struct procs
+{
+	pid_t	proc_pid;
+	char	*proc_task;
+	int	proc_type;
+	int	proc_count;
+	int	proc_other;
+};
+
+static PROCS_T	*volatile ProcListVec = NULL;
+static int	ProcListSize = 0;
 
 void
-proc_list_add(pid, task, type)
+proc_list_add(pid, task, type, count, other)
 	pid_t pid;
 	char *task;
 	int type;
+	int count;
+	int other;
 {
 	int i;
 
@@ -2349,16 +2435,19 @@ proc_list_add(pid, task, type)
 	if (i >= ProcListSize)
 	{
 		/* grow process list */
-		struct procs *npv;
+		PROCS_T *npv;
 
-		npv = (struct procs *) xalloc((sizeof *npv) *
-					      (ProcListSize + PROC_LIST_SEG));
+		SM_ASSERT(ProcListSize < INT_MAX - PROC_LIST_SEG);
+		npv = (PROCS_T *) sm_pmalloc_x((sizeof *npv) *
+					       (ProcListSize + PROC_LIST_SEG));
 		if (ProcListSize > 0)
 		{
 			memmove(npv, ProcListVec,
-				ProcListSize * sizeof (struct procs));
+				ProcListSize * sizeof (PROCS_T));
 			sm_free(ProcListVec);
 		}
+
+		/* XXX just use memset() to initialize this part? */
 		for (i = ProcListSize; i < ProcListSize + PROC_LIST_SEG; i++)
 		{
 			npv[i].proc_pid = NO_PID;
@@ -2370,16 +2459,19 @@ proc_list_add(pid, task, type)
 		ProcListVec = npv;
 	}
 	ProcListVec[i].proc_pid = pid;
-	if (ProcListVec[i].proc_task != NULL)
-		sm_free(ProcListVec[i].proc_task);
-	ProcListVec[i].proc_task = newstr(task);
+	PSTRSET(ProcListVec[i].proc_task, task);
 	ProcListVec[i].proc_type = type;
+	ProcListVec[i].proc_count = count;
+	ProcListVec[i].proc_other = other;
 
 	/* if process adding itself, it's not a child */
-	if (pid != getpid())
+	if (pid != CurrentPid)
+	{
+		SM_ASSERT(CurChildren < INT_MAX);
 		CurChildren++;
+	}
 }
-/*
+/*
 **  PROC_LIST_SET -- set pid task in process list
 **
 **	Parameters:
@@ -2401,30 +2493,36 @@ proc_list_set(pid, task)
 	{
 		if (ProcListVec[i].proc_pid == pid)
 		{
-			if (ProcListVec[i].proc_task != NULL)
-				sm_free(ProcListVec[i].proc_task);
-			ProcListVec[i].proc_task = newstr(task);
+			PSTRSET(ProcListVec[i].proc_task, task);
 			break;
 		}
 	}
 }
-/*
+/*
 **  PROC_LIST_DROP -- drop pid from process list
 **
 **	Parameters:
 **		pid -- pid to drop
+**		st -- process status
+**		other -- storage for proc_other (return).
 **
 **	Returns:
-**		type of process
+**		none.
+**
+**	Side Effects:
+**		May decrease CurChildren, CurRunners, or
+**		set RestartRequest or ShutdownRequest.
 **
 **	NOTE:	THIS CAN BE CALLED FROM A SIGNAL HANDLER.  DO NOT ADD
 **		ANYTHING TO THIS ROUTINE UNLESS YOU KNOW WHAT YOU ARE
 **		DOING.
 */
 
-int
-proc_list_drop(pid)
+void
+proc_list_drop(pid, st, other)
 	pid_t pid;
+	int st;
+	int *other;
 {
 	int i;
 	int type = PROC_NONE;
@@ -2435,6 +2533,8 @@ proc_list_drop(pid)
 		{
 			ProcListVec[i].proc_pid = NO_PID;
 			type = ProcListVec[i].proc_type;
+			if (other != NULL)
+				*other = ProcListVec[i].proc_other;
 			break;
 		}
 	}
@@ -2442,9 +2542,24 @@ proc_list_drop(pid)
 		CurChildren--;
 
 
-	return type;
+	if (type == PROC_CONTROL && WIFEXITED(st))
+	{
+		/* if so, see if we need to restart or shutdown */
+		if (WEXITSTATUS(st) == EX_RESTART)
+			RestartRequest = "control socket";
+		else if (WEXITSTATUS(st) == EX_SHUTDOWN)
+			ShutdownRequest = "control socket";
+	}
+	else if (type == PROC_QUEUE_CHILD && !WIFSTOPPED(st) &&
+		 ProcListVec[i].proc_other > -1)
+	{
+		/* restart this persistent runner */
+		mark_work_group_restart(ProcListVec[i].proc_other, st);
+	}
+	else if (type == PROC_QUEUE)
+		CurRunners -= ProcListVec[i].proc_count;
 }
-/*
+/*
 **  PROC_LIST_CLEAR -- clear the process list
 **
 **	Parameters:
@@ -2452,6 +2567,9 @@ proc_list_drop(pid)
 **
 **	Returns:
 **		none.
+**
+**	Side Effects:
+**		Sets CurChildren to zero.
 */
 
 void
@@ -2461,12 +2579,10 @@ proc_list_clear()
 
 	/* start from 1 since 0 is the daemon itself */
 	for (i = 1; i < ProcListSize; i++)
-	{
 		ProcListVec[i].proc_pid = NO_PID;
-	}
 	CurChildren = 0;
 }
-/*
+/*
 **  PROC_LIST_PROBE -- probe processes in the list to see if they still exist
 **
 **	Parameters:
@@ -2474,6 +2590,9 @@ proc_list_clear()
 **
 **	Returns:
 **		none
+**
+**	Side Effects:
+**		May decrease CurChildren.
 */
 
 void
@@ -2493,25 +2612,29 @@ proc_list_probe()
 					  "proc_list_probe: lost pid %d",
 					  (int) ProcListVec[i].proc_pid);
 			ProcListVec[i].proc_pid = NO_PID;
+			SM_FREE_CLR(ProcListVec[i].proc_task);
 			CurChildren--;
 		}
 	}
 	if (CurChildren < 0)
 		CurChildren = 0;
 }
-/*
+
+/*
 **  PROC_LIST_DISPLAY -- display the process list
 **
 **	Parameters:
 **		out -- output file pointer
+**		prefix -- string to output in front of each line.
 **
 **	Returns:
 **		none.
 */
 
 void
-proc_list_display(out)
-	FILE *out;
+proc_list_display(out, prefix)
+	SM_FILE_T *out;
+	char *prefix;
 {
 	int i;
 
@@ -2520,202 +2643,60 @@ proc_list_display(out)
 		if (ProcListVec[i].proc_pid == NO_PID)
 			continue;
 
-		fprintf(out, "%d %s%s\n", (int) ProcListVec[i].proc_pid,
-			ProcListVec[i].proc_task != NULL ?
-			ProcListVec[i].proc_task : "(unknown)",
-			(OpMode == MD_SMTP ||
-			 OpMode == MD_DAEMON ||
-			 OpMode == MD_ARPAFTP) ? "\r" : "");
+		(void) sm_io_fprintf(out, SM_TIME_DEFAULT, "%s%d %s%s\n",
+				     prefix,
+				     (int) ProcListVec[i].proc_pid,
+				     ProcListVec[i].proc_task != NULL ?
+				     ProcListVec[i].proc_task : "(unknown)",
+				     (OpMode == MD_SMTP ||
+				      OpMode == MD_DAEMON ||
+				      OpMode == MD_ARPAFTP) ? "\r" : "");
 	}
 }
-/*
-**  SAFEFOPEN -- do a file open with extra checking
+
+/*
+**  PROC_LIST_SIGNAL -- send a signal to a type of process in the list
 **
 **	Parameters:
-**		fn -- the file name to open.
-**		omode -- the open-style mode flags.
-**		cmode -- the create-style mode flags.
-**		sff -- safefile flags.
+**		type -- type of process to signal
+**		signal -- the type of signal to send
 **
-**	Returns:
-**		Same as fopen.
+**	Results:
+**		none.
+**
+**	NOTE:	THIS CAN BE CALLED FROM A SIGNAL HANDLER.  DO NOT ADD
+**		ANYTHING TO THIS ROUTINE UNLESS YOU KNOW WHAT YOU ARE
+**		DOING.
 */
 
-FILE *
-safefopen(fn, omode, cmode, sff)
-	char *fn;
-	int omode;
-	int cmode;
-	long sff;
+void
+proc_list_signal(type, signal)
+	int type;
+	int signal;
 {
-	int fd;
-	int save_errno;
-	FILE *fp;
-	char *fmode;
+	int chldwasblocked;
+	int alrmwasblocked;
+	int i;
+	pid_t mypid = getpid();
 
-	switch (omode & O_ACCMODE)
+	/* block these signals so that we may signal cleanly */
+	chldwasblocked = sm_blocksignal(SIGCHLD);
+	alrmwasblocked = sm_blocksignal(SIGALRM);
+
+	/* Find all processes of type and send signal */
+	for (i = 0; i < ProcListSize; i++)
 	{
-	  case O_RDONLY:
-		fmode = "r";
-		break;
-
-	  case O_WRONLY:
-		if (bitset(O_APPEND, omode))
-			fmode = "a";
-		else
-			fmode = "w";
-		break;
-
-	  case O_RDWR:
-		if (bitset(O_TRUNC, omode))
-			fmode = "w+";
-		else if (bitset(O_APPEND, omode))
-			fmode = "a+";
-		else
-			fmode = "r+";
-		break;
-
-	  default:
-		syserr("554 5.3.5 safefopen: unknown omode %o", omode);
-		fmode = "x";
+		if (ProcListVec[i].proc_pid == NO_PID ||
+		    ProcListVec[i].proc_pid == mypid)
+			continue;
+		if (ProcListVec[i].proc_type != type)
+			continue;
+		(void) kill(ProcListVec[i].proc_pid, signal);
 	}
-	fd = safeopen(fn, omode, cmode, sff);
-	if (fd < 0)
-	{
-		save_errno = errno;
-		if (tTd(44, 10))
-			dprintf("safefopen: safeopen failed: %s\n",
-				errstring(errno));
-		errno = save_errno;
-		return NULL;
-	}
-	fp = fdopen(fd, fmode);
-	if (fp != NULL)
-		return fp;
 
-	save_errno = errno;
-	if (tTd(44, 10))
-	{
-		dprintf("safefopen: fdopen(%s, %s) failed: omode=%x, sff=%lx, err=%s\n",
-			fn, fmode, omode, sff, errstring(errno));
-	}
-	(void) close(fd);
-	errno = save_errno;
-	return NULL;
-}
-/*
-**  SM_STRCASECMP -- 8-bit clean version of strcasecmp
-**
-**	Thank you, vendors, for making this all necessary.
-*/
-
-/*
- * Copyright (c) 1987, 1993
- *	The Regents of the University of California.  All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- */
-
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)strcasecmp.c	8.1 (Berkeley) 6/4/93";
-#endif /* defined(LIBC_SCCS) && !defined(lint) */
-
-/*
- * This array is designed for mapping upper and lower case letter
- * together for a case independent comparison.  The mappings are
- * based upon ascii character sequences.
- */
-static const u_char charmap[] = {
-	0000, 0001, 0002, 0003, 0004, 0005, 0006, 0007,
-	0010, 0011, 0012, 0013, 0014, 0015, 0016, 0017,
-	0020, 0021, 0022, 0023, 0024, 0025, 0026, 0027,
-	0030, 0031, 0032, 0033, 0034, 0035, 0036, 0037,
-	0040, 0041, 0042, 0043, 0044, 0045, 0046, 0047,
-	0050, 0051, 0052, 0053, 0054, 0055, 0056, 0057,
-	0060, 0061, 0062, 0063, 0064, 0065, 0066, 0067,
-	0070, 0071, 0072, 0073, 0074, 0075, 0076, 0077,
-	0100, 0141, 0142, 0143, 0144, 0145, 0146, 0147,
-	0150, 0151, 0152, 0153, 0154, 0155, 0156, 0157,
-	0160, 0161, 0162, 0163, 0164, 0165, 0166, 0167,
-	0170, 0171, 0172, 0133, 0134, 0135, 0136, 0137,
-	0140, 0141, 0142, 0143, 0144, 0145, 0146, 0147,
-	0150, 0151, 0152, 0153, 0154, 0155, 0156, 0157,
-	0160, 0161, 0162, 0163, 0164, 0165, 0166, 0167,
-	0170, 0171, 0172, 0173, 0174, 0175, 0176, 0177,
-	0200, 0201, 0202, 0203, 0204, 0205, 0206, 0207,
-	0210, 0211, 0212, 0213, 0214, 0215, 0216, 0217,
-	0220, 0221, 0222, 0223, 0224, 0225, 0226, 0227,
-	0230, 0231, 0232, 0233, 0234, 0235, 0236, 0237,
-	0240, 0241, 0242, 0243, 0244, 0245, 0246, 0247,
-	0250, 0251, 0252, 0253, 0254, 0255, 0256, 0257,
-	0260, 0261, 0262, 0263, 0264, 0265, 0266, 0267,
-	0270, 0271, 0272, 0273, 0274, 0275, 0276, 0277,
-	0300, 0301, 0302, 0303, 0304, 0305, 0306, 0307,
-	0310, 0311, 0312, 0313, 0314, 0315, 0316, 0317,
-	0320, 0321, 0322, 0323, 0324, 0325, 0326, 0327,
-	0330, 0331, 0332, 0333, 0334, 0335, 0336, 0337,
-	0340, 0341, 0342, 0343, 0344, 0345, 0346, 0347,
-	0350, 0351, 0352, 0353, 0354, 0355, 0356, 0357,
-	0360, 0361, 0362, 0363, 0364, 0365, 0366, 0367,
-	0370, 0371, 0372, 0373, 0374, 0375, 0376, 0377,
-};
-
-int
-sm_strcasecmp(s1, s2)
-	const char *s1, *s2;
-{
-	register const u_char *cm = charmap,
-			*us1 = (const u_char *)s1,
-			*us2 = (const u_char *)s2;
-
-	while (cm[*us1] == cm[*us2++])
-		if (*us1++ == '\0')
-			return 0;
-	return (cm[*us1] - cm[*--us2]);
-}
-
-int
-sm_strncasecmp(s1, s2, n)
-	const char *s1, *s2;
-	register size_t n;
-{
-	if (n != 0) {
-		register const u_char *cm = charmap,
-				*us1 = (const u_char *)s1,
-				*us2 = (const u_char *)s2;
-
-		do {
-			if (cm[*us1] != cm[*us2++])
-				return (cm[*us1] - cm[*--us2]);
-			if (*us1++ == '\0')
-				break;
-		} while (--n != 0);
-	}
-	return 0;
+	/* restore the signals */
+	if (alrmwasblocked == 0)
+		(void) sm_releasesignal(SIGALRM);
+	if (chldwasblocked == 0)
+		(void) sm_releasesignal(SIGCHLD);
 }

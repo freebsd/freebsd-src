@@ -11,8 +11,13 @@
  *
  */
 
+#define _DEFINE
+#include <sendmail.h>
+#include <sm/xtrap.h>
+#include <sm/signal.h>
+
 #ifndef lint
-static char copyright[] =
+SM_UNUSED(static char copyright[]) =
 "@(#) Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.\n\
 	All rights reserved.\n\
      Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.\n\
@@ -20,28 +25,32 @@ static char copyright[] =
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* ! lint */
 
-#ifndef lint
-static char id[] = "@(#)$Id: main.c,v 8.485.4.65 2001/07/20 00:53:00 gshapiro Exp $";
-#endif /* ! lint */
-
-#define	_DEFINE
-
-#include <sendmail.h>
+SM_RCSID("@(#)$Id: main.c,v 8.868 2001/12/29 04:54:38 ca Exp $")
 
 
 #if NETINET || NETINET6
 # include <arpa/inet.h>
 #endif /* NETINET || NETINET6 */
 
-static SIGFUNC_DECL	intindebug __P((int));
-static SIGFUNC_DECL	quiesce __P((int));
-#ifdef SIGUSR1
-static SIGFUNC_DECL	sigusr1 __P((int));
-# endif /* SIGUSR1 */
-static SIGFUNC_DECL	term_daemon __P((int));
+/* for getcfname() */
+#include <sendmail/pathnames.h>
+
+static SM_DEBUG_T
+DebugNoPRestart = SM_DEBUG_INITIALIZER("no_persistent_restart",
+	"@(#)$Debug: no_persistent_restart - don't restart, log only $");
+
 static void	dump_class __P((STAB *, int));
 static void	obsolete __P((char **));
 static void	testmodeline __P((char *, ENVELOPE *));
+static char	*getextenv __P((const char *));
+static void	sm_printoptions __P((char **));
+static SIGFUNC_DECL	intindebug __P((int));
+static SIGFUNC_DECL	sighup __P((int));
+static SIGFUNC_DECL	sigpipe __P((int));
+static SIGFUNC_DECL	sigterm __P((int));
+#ifdef SIGUSR1
+static SIGFUNC_DECL	sigusr1 __P((int));
+#endif /* SIGUSR1 */
 
 /*
 **  SENDMAIL -- Post mail to a set of destinations.
@@ -59,7 +68,7 @@ static void	testmodeline __P((char *, ENVELOPE *));
 **
 **		See the associated documentation for details.
 **
-**	Author:
+**	Authors:
 **		Eric Allman, UCB/INGRES (until 10/81).
 **			     Britton-Lee, Inc., purveyors of fine
 **				database computers (11/81 - 10/88).
@@ -71,31 +80,30 @@ static void	testmodeline __P((char *, ENVELOPE *));
 **		The support of the my employers is gratefully acknowledged.
 **			Few of them (Britton-Lee in particular) have had
 **			anything to gain from my involvement in this project.
+**
+**		Gregory Neil Shapiro,
+**			Worcester Polytechnic Institute	(until 3/98).
+**			Sendmail, Inc. (3/98 - present).
+**
+**		Claus Assmann,
+**			Sendmail, Inc. (12/98 - present).
 */
 
-
-int		NextMailer;	/* "free" index into Mailer struct */
 char		*FullName;	/* sender's full name */
 ENVELOPE	BlankEnvelope;	/* a "blank" envelope */
 static ENVELOPE	MainEnvelope;	/* the envelope around the basic letter */
 ADDRESS		NullAddress =	/* a null address */
 		{ "", "", NULL, "" };
 char		*CommandLineArgs;	/* command line args for pid file */
-bool		Warn_Q_option = FALSE;	/* warn about Q option use */
+bool		Warn_Q_option = false;	/* warn about Q option use */
 static int	MissingFds = 0;	/* bit map of fds missing on startup */
+char		*Mbdb = "pw";	/* mailbox database defaults to /etc/passwd */
 
 #ifdef NGROUPS_MAX
 GIDSET_T	InitialGidSet[NGROUPS_MAX];
 #endif /* NGROUPS_MAX */
 
-#if DAEMON && !SMTP
-ERROR %%%%   Cannot have DAEMON mode without SMTP   %%%% ERROR
-#endif /* DAEMON && !SMTP */
-#if SMTP && !QUEUE
-ERROR %%%%   Cannot have SMTP mode without QUEUE   %%%% ERROR
-#endif /* SMTP && !QUEUE */
-
-#define MAXCONFIGLEVEL	9	/* highest config version level known */
+#define MAXCONFIGLEVEL	10	/* highest config version level known */
 
 #if SASL
 static sasl_callback_t srvcallbacks[] =
@@ -104,10 +112,37 @@ static sasl_callback_t srvcallbacks[] =
 	{	SASL_CB_PROXY_POLICY,	&proxy_policy,	NULL	},
 	{	SASL_CB_LIST_END,	NULL,		NULL	}
 };
-
 #endif /* SASL */
 
-int SubmitMode;
+unsigned int	SubmitMode;
+int		SyslogPrefixLen; /* estimated length of syslog prefix */
+#define PIDLEN		6	/* pid length for computing SyslogPrefixLen */
+#ifndef SL_FUDGE
+# define SL_FUDGE	10	/* fudge offset for SyslogPrefixLen */
+#endif /* ! SL_FUDGE */
+#define SLDLL		8	/* est. length of default syslog label */
+
+
+/* Some options are dangerous to allow users to use in non-submit mode */
+#define CHECK_AGAINST_OPMODE(cmd)					\
+{									\
+	if (extraprivs &&						\
+	    OpMode != MD_DELIVER && OpMode != MD_SMTP &&		\
+	    OpMode != MD_VERIFY && OpMode != MD_TEST)			\
+	{								\
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,		\
+				     "WARNING: Ignoring submission mode -%c option (not in submission mode)\n", \
+		       (cmd));						\
+		break;							\
+	}								\
+	if (extraprivs && queuerun)					\
+	{								\
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,		\
+				     "WARNING: Ignoring submission mode -%c option with -q\n", \
+		       (cmd));						\
+		break;							\
+	}								\
+}
 
 int
 main(argc, argv, envp)
@@ -123,32 +158,60 @@ main(argc, argv, envp)
 	register int i;
 	int j;
 	int dp;
-	bool safecf = TRUE;
+	int fill_errno;
+	int qgrp = NOQGRP;		/* queue group to process */
+	bool safecf = true;
 	BITMAP256 *p_flags = NULL;	/* daemon flags */
-	bool warn_C_flag = FALSE;
-	bool auth = TRUE;		/* whether to set e_auth_param */
+	bool warn_C_flag = false;
+	bool auth = true;		/* whether to set e_auth_param */
 	char warn_f_flag = '\0';
-	bool run_in_foreground = FALSE;	/* -bD mode */
-	static bool reenter = FALSE;
+	bool run_in_foreground = false;	/* -bD mode */
+	bool queuerun = false, debug = false;
 	struct passwd *pw;
 	struct hostent *hp;
 	char *nullserver = NULL;
 	char *authinfo = NULL;
 	char *sysloglabel = NULL;	/* label for syslog */
-	bool forged;
+	char *conffile = NULL;		/* name of .cf file */
+	char *queuegroup = NULL;	/* queue group to process */
+#if _FFR_QUARANTINE
+	char *quarantining = NULL;	/* quarantine queue items? */
+#endif /* _FFR_QUARANTINE */
+	bool extraprivs;
+	bool forged, negate;
+	bool queuepersistent = false;	/* queue runner process runs forever */
+	bool foregroundqueue = false;	/* queue run in foreground */
+	bool save_val;			/* to save some bool var. */
+	int cftype;			/* which cf file to use? */
+	static time_t starttime = 0;	/* when was process started */
 	struct stat traf_st;		/* for TrafficLog FIFO check */
+	char buf[MAXLINE];
 	char jbuf[MAXHOSTNAMELEN];	/* holds MyHostName */
 	static char rnamebuf[MAXNAME];	/* holds RealUserName */
 	char *emptyenviron[1];
-# if STARTTLS
+#if STARTTLS
 	bool tls_ok;
-# endif /* STARTTLS */
+#endif /* STARTTLS */
 	QUEUE_CHAR *new;
+	ENVELOPE *e;
 	extern int DtableSize;
 	extern int optind;
 	extern int opterr;
 	extern char *optarg;
 	extern char **environ;
+#if SASL
+	extern void sm_sasl_init __P((void));
+#endif /* SASL */
+
+#if USE_ENVIRON
+	envp = environ;
+#endif /* USE_ENVIRON */
+
+	/* turn off profiling */
+	SM_PROF(0);
+
+	/* install default exception handler */
+	sm_exc_newthread(fatal_error);
 
 	/*
 	**  Check to see if we reentered.
@@ -156,15 +219,69 @@ main(argc, argv, envp)
 	**	were NULL when invoked.
 	*/
 
-	if (reenter)
+	if (starttime != 0)
 	{
 		syserr("main: reentered!");
 		abort();
 	}
-	reenter = TRUE;
+	starttime = curtime();
 
 	/* avoid null pointer dereferences */
 	TermEscape.te_rv_on = TermEscape.te_rv_off = "";
+
+	RealUid = getuid();
+	RealGid = getgid();
+
+	/* Check if sendmail is running with extra privs */
+	extraprivs = (RealUid != 0 &&
+		      (geteuid() != getuid() || getegid() != getgid()));
+
+	CurrentPid = getpid();
+
+	/* get whatever .cf file is right for the opmode */
+	cftype = SM_GET_RIGHT_CF;
+
+	/* in 4.4BSD, the table can be huge; impose a reasonable limit */
+	DtableSize = getdtsize();
+	if (DtableSize > 256)
+		DtableSize = 256;
+
+	/*
+	**  Be sure we have enough file descriptors.
+	**	But also be sure that 0, 1, & 2 are open.
+	*/
+
+	/* reset errno and fill_errno; the latter is used way down below */
+	errno = fill_errno = 0;
+	fill_fd(STDIN_FILENO, NULL);
+	if (errno != 0)
+		fill_errno = errno;
+	fill_fd(STDOUT_FILENO, NULL);
+	if (errno != 0)
+		fill_errno = errno;
+	fill_fd(STDERR_FILENO, NULL);
+	if (errno != 0)
+		fill_errno = errno;
+
+	i = DtableSize;
+	while (--i > 0)
+	{
+		if (i != STDIN_FILENO && i != STDOUT_FILENO &&
+		    i != STDERR_FILENO)
+			(void) close(i);
+	}
+	errno = 0;
+
+#if LOG
+# ifndef SM_LOG_STR
+#  define SM_LOG_STR	"sendmail"
+# endif /* ! SM_LOG_STR */
+#  ifdef LOG_MAIL
+	openlog(SM_LOG_STR, LOG_PID, LOG_MAIL);
+#  else /* LOG_MAIL */
+	openlog(SM_LOG_STR, LOG_PID);
+#  endif /* LOG_MAIL */
+#endif /* LOG */
 
 	/*
 	**  Seed the random number generator.
@@ -178,49 +295,7 @@ main(argc, argv, envp)
 	init_md(argc, argv);
 
 
-	/* in 4.4BSD, the table can be huge; impose a reasonable limit */
-	DtableSize = getdtsize();
-	if (DtableSize > 256)
-		DtableSize = 256;
-
-	/*
-	**  Be sure we have enough file descriptors.
-	**	But also be sure that 0, 1, & 2 are open.
-	*/
-
-	fill_fd(STDIN_FILENO, NULL);
-	fill_fd(STDOUT_FILENO, NULL);
-	fill_fd(STDERR_FILENO, NULL);
-
-	i = DtableSize;
-	while (--i > 0)
-	{
-		if (i != STDIN_FILENO && i != STDOUT_FILENO && i != STDERR_FILENO)
-			(void) close(i);
-	}
-	errno = 0;
-
-#if LOG
-#  ifdef LOG_MAIL
-	openlog("sendmail", LOG_PID, LOG_MAIL);
-#  else /* LOG_MAIL */
-	openlog("sendmail", LOG_PID);
-#  endif /* LOG_MAIL */
-#endif /* LOG */
-
-	if (MissingFds != 0)
-	{
-		char mbuf[MAXLINE];
-
-		mbuf[0] = '\0';
-		if (bitset(1 << STDIN_FILENO, MissingFds))
-			(void) strlcat(mbuf, ", stdin", sizeof mbuf);
-		if (bitset(1 << STDOUT_FILENO, MissingFds))
-			(void) strlcat(mbuf, ", stdout", sizeof mbuf);
-		if (bitset(1 << STDERR_FILENO, MissingFds))
-			(void) strlcat(mbuf, ", stderr", sizeof mbuf);
-		syserr("File descriptors missing on startup: %s", &mbuf[2]);
-	}
+	SyslogPrefixLen = PIDLEN + (MAXQFNAME - 3) + SL_FUDGE + SLDLL;
 
 	/* reset status from syserr() calls for missing file descriptors */
 	Errors = 0;
@@ -231,30 +306,32 @@ main(argc, argv, envp)
 	checkfd012("after openlog");
 #endif /* XDEBUG */
 
-	tTsetup(tTdvect, sizeof tTdvect, "0-99.1");
+	tTsetup(tTdvect, sizeof tTdvect, "0-99.1,*_trace_*.1");
 
 #ifdef NGROUPS_MAX
 	/* save initial group set for future checks */
 	i = getgroups(NGROUPS_MAX, InitialGidSet);
-	if (i == 0)
+	if (i <= 0)
+	{
 		InitialGidSet[0] = (GID_T) -1;
+		i = 0;
+	}
 	while (i < NGROUPS_MAX)
 		InitialGidSet[i++] = InitialGidSet[0];
 #endif /* NGROUPS_MAX */
 
 	/* drop group id privileges (RunAsUser not yet set) */
-	dp = drop_privileges(FALSE);
+	dp = drop_privileges(false);
 	setstat(dp);
 
-# ifdef SIGUSR1
+#ifdef SIGUSR1
 	/* Only allow root (or non-set-*-ID binaries) to use SIGUSR1 */
-	if (getuid() == 0 ||
-	    (getuid() == geteuid() && getgid() == getegid()))
+	if (extraprivs)
 	{
 		/* arrange to dump state on user-1 signal */
-		(void) setsignal(SIGUSR1, sigusr1);
+		(void) sm_signal(SIGUSR1, sigusr1);
 	}
-# endif /* SIGUSR1 */
+#endif /* SIGUSR1 */
 
 	/* initialize for setproctitle */
 	initsetproctitle(argc, argv, envp);
@@ -267,48 +344,120 @@ main(argc, argv, envp)
 	*/
 
 
-#if defined(__osf__) || defined(_AIX3)
-# define OPTIONS	"B:b:C:cd:e:F:f:Gh:IiL:M:mN:nO:o:p:q:R:r:sTtUV:vX:x"
-#endif /* defined(__osf__) || defined(_AIX3) */
-#if defined(sony_news)
-# define OPTIONS	"B:b:C:cd:E:e:F:f:Gh:IiJ:L:M:mN:nO:o:p:q:R:r:sTtUV:vX:"
-#endif /* defined(sony_news) */
-#ifndef OPTIONS
-# define OPTIONS	"B:b:C:cd:e:F:f:Gh:IiL:M:mN:nO:o:p:q:R:r:sTtUV:vX:"
-#endif /* ! OPTIONS */
+	/* find initial opMode */
+	OpMode = MD_DELIVER;
+	av = argv;
+	p = strrchr(*av, '/');
+	if (p++ == NULL)
+		p = *av;
+	if (strcmp(p, "newaliases") == 0)
+		OpMode = MD_INITALIAS;
+	else if (strcmp(p, "mailq") == 0)
+		OpMode = MD_PRINT;
+	else if (strcmp(p, "smtpd") == 0)
+		OpMode = MD_DAEMON;
+	else if (strcmp(p, "hoststat") == 0)
+		OpMode = MD_HOSTSTAT;
+	else if (strcmp(p, "purgestat") == 0)
+		OpMode = MD_PURGESTAT;
+
+#if _FFR_QUARANTINE
+# if defined(__osf__) || defined(_AIX3)
+#  define OPTIONS	"A:B:b:C:cd:e:F:f:Gh:IiL:M:mN:nO:o:p:q:R:r:sTtV:vX:xQ:"
+# endif /* defined(__osf__) || defined(_AIX3) */
+# if defined(sony_news)
+#  define OPTIONS	"A:B:b:C:cd:E:e:F:f:Gh:IiJ:L:M:mN:nO:o:p:q:R:r:sTtV:vX:Q:"
+# endif /* defined(sony_news) */
+# ifndef OPTIONS
+#  define OPTIONS	"A:B:b:C:cd:e:F:f:Gh:IiL:M:mN:nO:o:p:q:R:r:sTtV:vX:Q:"
+# endif /* ! OPTIONS */
+#else /* _FFR_QUARANTINE */
+# if defined(__osf__) || defined(_AIX3)
+#  define OPTIONS	"A:B:b:C:cd:e:F:f:Gh:IiL:M:mN:nO:o:p:q:R:r:sTtV:vX:x"
+# endif /* defined(__osf__) || defined(_AIX3) */
+# if defined(sony_news)
+#  define OPTIONS	"A:B:b:C:cd:E:e:F:f:Gh:IiJ:L:M:mN:nO:o:p:q:R:r:sTtV:vX:"
+# endif /* defined(sony_news) */
+# ifndef OPTIONS
+#  define OPTIONS	"A:B:b:C:cd:e:F:f:Gh:IiL:M:mN:nO:o:p:q:R:r:sTtV:vX:"
+# endif /* ! OPTIONS */
+#endif /* _FFR_QUARANTINE */
+
 	opterr = 0;
 	while ((j = getopt(argc, argv, OPTIONS)) != -1)
 	{
 		switch (j)
 		{
-		  case 'd':
-			/* hack attack -- see if should use ANSI mode */
-			if (strcmp(optarg, "ANSI") == 0)
+		  case 'b':	/* operations mode */
+			switch (j = *optarg)
 			{
-				TermEscape.te_rv_on = "\033[7m";
-				TermEscape.te_rv_off = "\033[0m";
+			  case MD_DAEMON:
+			  case MD_FGDAEMON:
+			  case MD_SMTP:
+			  case MD_INITALIAS:
+			  case MD_DELIVER:
+			  case MD_VERIFY:
+			  case MD_TEST:
+			  case MD_PRINT:
+			  case MD_PRINTNQE:
+			  case MD_HOSTSTAT:
+			  case MD_PURGESTAT:
+			  case MD_ARPAFTP:
+				OpMode = j;
 				break;
+
+			  case MD_FREEZE:
+				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+						     "Frozen configurations unsupported\n");
+				return EX_USAGE;
+
+			  default:
+				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+						     "Invalid operation mode %c\n",
+						     j);
+				return EX_USAGE;
 			}
+			break;
+
+		  case 'd':
+			debug = true;
 			tTflag(optarg);
-			setbuf(stdout, (char *) NULL);
+			(void) sm_io_setvbuf(smioout, SM_TIME_DEFAULT,
+					     (char *) NULL, SM_IO_NBF,
+					     SM_IO_BUFSIZ);
 			break;
 
 		  case 'G':	/* relay (gateway) submission */
-			SubmitMode |= SUBMIT_MTA;
+			SubmitMode = SUBMIT_MTA;
 			break;
 
 		  case 'L':
-			j = min(strlen(optarg), 24) + 1;
+			j = SM_MIN(strlen(optarg), 24) + 1;
 			sysloglabel = xalloc(j);
-			(void) strlcpy(sysloglabel, optarg, j);
+			(void) sm_strlcpy(sysloglabel, optarg, j);
+			SyslogPrefixLen = PIDLEN + (MAXQFNAME - 3) +
+					  SL_FUDGE + j;
 			break;
 
-		  case 'U':	/* initial (user) submission */
-			SubmitMode |= SUBMIT_MSA;
+#if _FFR_QUARANTINE
+		  case 'Q':
+#endif /* _FFR_QUARANTINE */
+		  case 'q':
+			/* just check if it is there */
+			queuerun = true;
 			break;
 		}
 	}
 	opterr = 1;
+
+	/* Don't leak queue information via debug flags */
+	if (extraprivs && queuerun && debug)
+	{
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				     "WARNING: Can not use -d with -q.  Disabling debugging.\n");
+		sm_debug_setfile(NULL);
+		(void) memset(tTdvect, '\0', sizeof tTdvect);
+	}
 
 #if LOG
 	if (sysloglabel != NULL)
@@ -342,56 +491,66 @@ main(argc, argv, envp)
 	*/
 
 	setdefaults(&BlankEnvelope);
+	initmacros(&BlankEnvelope);
 
-	RealUid = getuid();
-	RealGid = getgid();
+	/* reset macro */
+	set_op_mode(OpMode);
 
 	pw = sm_getpwuid(RealUid);
 	if (pw != NULL)
-		(void) snprintf(rnamebuf, sizeof rnamebuf, "%s", pw->pw_name);
+		(void) sm_strlcpy(rnamebuf, pw->pw_name, sizeof rnamebuf);
 	else
-		(void) snprintf(rnamebuf, sizeof rnamebuf, "Unknown UID %d",
-				(int) RealUid);
+		(void) sm_snprintf(rnamebuf, sizeof rnamebuf, "Unknown UID %d",
+				   (int) RealUid);
 
 	RealUserName = rnamebuf;
 
 	if (tTd(0, 101))
 	{
-		dprintf("Version %s\n", Version);
-		finis(FALSE, EX_OK);
+		sm_dprintf("Version %s\n", Version);
+		finis(false, true, EX_OK);
+		/* NOTREACHED */
 	}
 
 	/*
-	**  if running non-setuid binary as non-root, pretend
+	**  if running non-set-user-ID binary as non-root, pretend
 	**  we are the RunAsUid
 	*/
 
 	if (RealUid != 0 && geteuid() == RealUid)
 	{
 		if (tTd(47, 1))
-			dprintf("Non-setuid binary: RunAsUid = RealUid = %d\n",
-				(int)RealUid);
+			sm_dprintf("Non-set-user-ID binary: RunAsUid = RealUid = %d\n",
+				   (int) RealUid);
 		RunAsUid = RealUid;
 	}
 	else if (geteuid() != 0)
 		RunAsUid = geteuid();
 
-	if (RealUid != 0 && getegid() == RealGid)
+	EffGid = getegid();
+	if (RealUid != 0 && EffGid == RealGid)
 		RunAsGid = RealGid;
 
 	if (tTd(47, 5))
 	{
-		dprintf("main: e/ruid = %d/%d e/rgid = %d/%d\n",
-			(int)geteuid(), (int)getuid(),
-			(int)getegid(), (int)getgid());
-		dprintf("main: RunAsUser = %d:%d\n",
-			(int)RunAsUid, (int)RunAsGid);
+		sm_dprintf("main: e/ruid = %d/%d e/rgid = %d/%d\n",
+			   (int) geteuid(), (int) getuid(),
+			   (int) getegid(), (int) getgid());
+		sm_dprintf("main: RunAsUser = %d:%d\n",
+			   (int) RunAsUid, (int) RunAsGid);
 	}
 
 	/* save command line arguments */
 	j = 0;
 	for (av = argv; *av != NULL; )
 		j += strlen(*av++) + 1;
+	if (j < 0 || j > SM_ARG_MAX)
+	{
+		syserr("!Arguments too long");
+
+		/* NOTREACHED */
+		return EX_USAGE;
+	}
 	SaveArgv = (char **) xalloc(sizeof (char *) * (argc + 1));
 	CommandLineArgs = xalloc(j);
 	p = CommandLineArgs;
@@ -402,7 +561,7 @@ main(argc, argv, envp)
 		SaveArgv[i++] = newstr(*av);
 		if (av != argv)
 			*p++ = ' ';
-		(void) strlcpy(p, *av++, j);
+		(void) sm_strlcpy(p, *av++, j);
 		h = strlen(p);
 		p += h;
 		j -= h + 1;
@@ -411,60 +570,48 @@ main(argc, argv, envp)
 
 	if (tTd(0, 1))
 	{
-		int ll;
 		extern char *CompileOptions[];
 
-		dprintf("Version %s\n Compiled with:", Version);
-		av = CompileOptions;
-		ll = 7;
-		while (*av != NULL)
-		{
-			if (ll + strlen(*av) > 63)
-			{
-				dprintf("\n");
-				ll = 0;
-			}
-			if (ll == 0)
-				dprintf("\t\t");
-			else
-				dprintf(" ");
-			dprintf("%s", *av);
-			ll += strlen(*av++) + 1;
-		}
-		dprintf("\n");
+		sm_dprintf("Version %s\n Compiled with:", Version);
+		sm_printoptions(CompileOptions);
 	}
 	if (tTd(0, 10))
 	{
-		int ll;
 		extern char *OsCompileOptions[];
 
-		dprintf("    OS Defines:");
-		av = OsCompileOptions;
-		ll = 7;
-		while (*av != NULL)
-		{
-			if (ll + strlen(*av) > 63)
-			{
-				dprintf("\n");
-				ll = 0;
-			}
-			if (ll == 0)
-				dprintf("\t\t");
-			else
-				dprintf(" ");
-			dprintf("%s", *av);
-			ll += strlen(*av++) + 1;
-		}
-		dprintf("\n");
+		sm_dprintf("    OS Defines:");
+		sm_printoptions(OsCompileOptions);
 #ifdef _PATH_UNIX
-		dprintf("Kernel symbols:\t%s\n", _PATH_UNIX);
+		sm_dprintf("Kernel symbols:\t%s\n", _PATH_UNIX);
 #endif /* _PATH_UNIX */
-		dprintf(" Def Conf file:\t%s\n", getcfname());
-		dprintf("  Def Pid file:\t%s\n", PidFile);
+
+		sm_dprintf("     Conf file:\t%s (default for MSP)\n",
+			   getcfname(OpMode, SubmitMode, SM_GET_SUBMIT_CF,
+				     conffile));
+		sm_dprintf("     Conf file:\t%s (default for MTA)\n",
+			   getcfname(OpMode, SubmitMode, SM_GET_SENDMAIL_CF,
+				     conffile));
+		sm_dprintf("      Pid file:\t%s (default)\n", PidFile);
 	}
 
-	InChannel = stdin;
-	OutChannel = stdout;
+	if (tTd(0, 12))
+	{
+		extern char *SmCompileOptions[];
+
+		sm_dprintf(" libsm Defines:");
+		sm_printoptions(SmCompileOptions);
+	}
+
+	if (tTd(0, 13))
+	{
+		extern char *FFRCompileOptions[];
+
+		sm_dprintf("   FFR Defines:");
+		sm_printoptions(FFRCompileOptions);
+	}
+
+	InChannel = smioin;
+	OutChannel = smioout;
 
 	/* clear sendmail's environment */
 	ExternalEnviron = environ;
@@ -475,23 +622,26 @@ main(argc, argv, envp)
 	**  restore any original TZ setting until TimeZoneSpec has been
 	**  determined - or early log messages may get bogus time stamps
 	*/
+
 	if ((p = getextenv("TZ")) != NULL)
 	{
 		char *tz;
 		int tzlen;
 
+		/* XXX check for reasonable length? */
 		tzlen = strlen(p) + 4;
 		tz = xalloc(tzlen);
-		(void) snprintf(tz, tzlen, "TZ=%s", p);
+		(void) sm_strlcpyn(tz, tzlen, 2, "TZ=", p);
+
+		/* XXX check return code? */
 		(void) putenv(tz);
 	}
 
 	/* prime the child environment */
 	setuserenv("AGENT", "sendmail");
-	(void) setsignal(SIGPIPE, SIG_IGN);
 
+	(void) sm_signal(SIGPIPE, SIG_IGN);
 	OldUmask = umask(022);
-	OpMode = MD_DELIVER;
 	FullName = getextenv("NAME");
 
 	/*
@@ -501,20 +651,13 @@ main(argc, argv, envp)
 #if NAMED_BIND
 	if (!bitset(RES_INIT, _res.options))
 		(void) res_init();
-
-	/*
-	**  hack to avoid crashes when debugging for the resolver is
-	**  turned on and sfio is used
-	*/
 	if (tTd(8, 8))
-# if !SFIO || SFIO_STDIO_COMPAT
 		_res.options |= RES_DEBUG;
-# else /* !SFIO || SFIO_STDIO_COMPAT */
-		dprintf("RES_DEBUG not available due to SFIO\n");
-# endif /* !SFIO || SFIO_STDIO_COMPAT */
 	else
 		_res.options &= ~RES_DEBUG;
 # ifdef RES_NOALIASES
+	if (bitset(RES_NOALIASES, _res.options))
+		ResNoAliases = true;
 	_res.options |= RES_NOALIASES;
 # endif /* RES_NOALIASES */
 	TimeOuts.res_retry[RES_TO_DEFAULT] = _res.retry;
@@ -529,22 +672,21 @@ main(argc, argv, envp)
 	from = NULL;
 
 	/* initialize some macros, etc. */
-	initmacros(CurEnv);
-	init_vendor_macros(CurEnv);
+	init_vendor_macros(&BlankEnvelope);
 
 	/* version */
-	define('v', Version, CurEnv);
+	macdefine(&BlankEnvelope.e_macro, A_PERM, 'v', Version);
 
 	/* hostname */
 	hp = myhostname(jbuf, sizeof jbuf);
 	if (jbuf[0] != '\0')
 	{
-		struct	utsname	utsname;
+		struct utsname utsname;
 
 		if (tTd(0, 4))
-			dprintf("canonical name: %s\n", jbuf);
-		define('w', newstr(jbuf), CurEnv);	/* must be new string */
-		define('j', newstr(jbuf), CurEnv);
+			sm_dprintf("Canonical name: %s\n", jbuf);
+		macdefine(&BlankEnvelope.e_macro, A_TEMP, 'w', jbuf);
+		macdefine(&BlankEnvelope.e_macro, A_TEMP, 'j', jbuf);
 		setclass('w', jbuf);
 
 		p = strchr(jbuf, '.');
@@ -552,13 +694,14 @@ main(argc, argv, envp)
 		{
 			if (p[1] != '\0')
 			{
-				define('m', newstr(&p[1]), CurEnv);
+				macdefine(&BlankEnvelope.e_macro, A_TEMP, 'm',
+					  &p[1]);
 			}
 			while (p != NULL && strchr(&p[1], '.') != NULL)
 			{
 				*p = '\0';
 				if (tTd(0, 4))
-					dprintf("\ta.k.a.: %s\n", jbuf);
+					sm_dprintf("\ta.k.a.: %s\n", jbuf);
 				setclass('w', jbuf);
 				*p++ = '.';
 				p = strchr(p, '.');
@@ -570,15 +713,14 @@ main(argc, argv, envp)
 		else
 		{
 			if (tTd(0, 22))
-				dprintf("uname failed (%s)\n",
-					errstring(errno));
+				sm_dprintf("uname failed (%s)\n",
+					   sm_errstring(errno));
 			makelower(jbuf);
 			p = jbuf;
 		}
 		if (tTd(0, 4))
-			dprintf(" UUCP nodename: %s\n", p);
-		p = newstr(p);
-		define('k', p, CurEnv);
+			sm_dprintf(" UUCP nodename: %s\n", p);
+		macdefine(&BlankEnvelope.e_macro, A_TEMP, 'k', p);
 		setclass('k', p);
 		setclass('w', p);
 	}
@@ -587,11 +729,11 @@ main(argc, argv, envp)
 		for (av = hp->h_aliases; av != NULL && *av != NULL; av++)
 		{
 			if (tTd(0, 4))
-				dprintf("\ta.k.a.: %s\n", *av);
+				sm_dprintf("\ta.k.a.: %s\n", *av);
 			setclass('w', *av);
 		}
 #if NETINET || NETINET6
-		for (i = 0; hp->h_addr_list[i] != NULL; i++)
+		for (i = 0; i >= 0 && hp->h_addr_list[i] != NULL; i++)
 		{
 # if NETINET6
 			char *addr;
@@ -612,8 +754,8 @@ main(argc, argv, envp)
 					break;
 
 				memmove(&ia, hp->h_addr_list[i], INADDRSZ);
-				(void) snprintf(ipbuf,	 sizeof ipbuf,
-						"[%.100s]", inet_ntoa(ia));
+				(void) sm_snprintf(ipbuf, sizeof ipbuf,
+						   "[%.100s]", inet_ntoa(ia));
 				break;
 # endif /* NETINET */
 
@@ -625,8 +767,8 @@ main(argc, argv, envp)
 				memmove(&ia6, hp->h_addr_list[i], IN6ADDRSZ);
 				addr = anynet_ntop(&ia6, buf6, sizeof buf6);
 				if (addr != NULL)
-					(void) snprintf(ipbuf, sizeof ipbuf,
-							"[%.100s]", addr);
+					(void) sm_snprintf(ipbuf, sizeof ipbuf,
+							   "[%.100s]", addr);
 				break;
 # endif /* NETINET6 */
 			}
@@ -634,43 +776,32 @@ main(argc, argv, envp)
 				break;
 
 			if (tTd(0, 4))
-				dprintf("\ta.k.a.: %s\n", ipbuf);
+				sm_dprintf("\ta.k.a.: %s\n", ipbuf);
 			setclass('w', ipbuf);
 		}
 #endif /* NETINET || NETINET6 */
-#if _FFR_FREEHOSTENT && NETINET6
+#if NETINET6
 		freehostent(hp);
 		hp = NULL;
-#endif /* _FFR_FREEHOSTENT && NETINET6 */
+#endif /* NETINET6 */
 	}
 
 	/* current time */
-	define('b', arpadate((char *) NULL), CurEnv);
+	macdefine(&BlankEnvelope.e_macro, A_TEMP, 'b', arpadate((char *) NULL));
+
 	/* current load average */
-	CurrentLA = sm_getla(CurEnv);
+	sm_getla();
 
 	QueueLimitRecipient = (QUEUE_CHAR *) NULL;
 	QueueLimitSender = (QUEUE_CHAR *) NULL;
 	QueueLimitId = (QUEUE_CHAR *) NULL;
+#if _FFR_QUARANTINE
+	QueueLimitQuarantine = (QUEUE_CHAR *) NULL;
+#endif /* _FFR_QUARANTINE */
 
 	/*
 	**  Crack argv.
 	*/
-
-	av = argv;
-	p = strrchr(*av, '/');
-	if (p++ == NULL)
-		p = *av;
-	if (strcmp(p, "newaliases") == 0)
-		OpMode = MD_INITALIAS;
-	else if (strcmp(p, "mailq") == 0)
-		OpMode = MD_PRINT;
-	else if (strcmp(p, "smtpd") == 0)
-		OpMode = MD_DAEMON;
-	else if (strcmp(p, "hoststat") == 0)
-		OpMode = MD_HOSTSTAT;
-	else if (strcmp(p, "purgestat") == 0)
-		OpMode = MD_PURGESTAT;
 
 	optind = 1;
 	while ((j = getopt(argc, argv, OPTIONS)) != -1)
@@ -678,84 +809,64 @@ main(argc, argv, envp)
 		switch (j)
 		{
 		  case 'b':	/* operations mode */
-			switch (j = *optarg)
-			{
-			  case MD_DAEMON:
-			  case MD_FGDAEMON:
-#if !DAEMON
-				usrerr("Daemon mode not implemented");
-				ExitStat = EX_USAGE;
-				break;
-#endif /* !DAEMON */
-			  case MD_SMTP:
-#if !SMTP
-				usrerr("I don't speak SMTP");
-				ExitStat = EX_USAGE;
-				break;
-#endif /* !SMTP */
+			/* already done */
+			break;
 
-			  case MD_INITALIAS:
-			  case MD_DELIVER:
-			  case MD_VERIFY:
-			  case MD_TEST:
-			  case MD_PRINT:
-			  case MD_HOSTSTAT:
-			  case MD_PURGESTAT:
-			  case MD_ARPAFTP:
-				OpMode = j;
-				break;
-
-			  case MD_FREEZE:
-				usrerr("Frozen configurations unsupported");
-				ExitStat = EX_USAGE;
-				break;
-
-			  default:
-				usrerr("Invalid operation mode %c", j);
-				ExitStat = EX_USAGE;
-				break;
-			}
+		  case 'A':	/* use Alternate sendmail/submit.cf */
+			cftype = optarg[0] == 'c' ? SM_GET_SUBMIT_CF
+						  : SM_GET_SENDMAIL_CF;
 			break;
 
 		  case 'B':	/* body type */
-			CurEnv->e_bodytype = newstr(optarg);
+			CHECK_AGAINST_OPMODE(j);
+			BlankEnvelope.e_bodytype = newstr(optarg);
 			break;
 
 		  case 'C':	/* select configuration file (already done) */
 			if (RealUid != 0)
-				warn_C_flag = TRUE;
-			ConfFile = newstr(optarg);
-			dp = drop_privileges(TRUE);
+				warn_C_flag = true;
+			conffile = newstr(optarg);
+			dp = drop_privileges(true);
 			setstat(dp);
-			safecf = FALSE;
+			safecf = false;
 			break;
 
-		  case 'd':	/* debugging -- already done */
+		  case 'd':	/* debugging */
+			/* already done */
 			break;
 
 		  case 'f':	/* from address */
 		  case 'r':	/* obsolete -f flag */
+			CHECK_AGAINST_OPMODE(j);
 			if (from != NULL)
 			{
 				usrerr("More than one \"from\" person");
 				ExitStat = EX_USAGE;
 				break;
 			}
-			from = newstr(denlstring(optarg, TRUE, TRUE));
+			from = newstr(denlstring(optarg, true, true));
 			if (strcmp(RealUserName, from) != 0)
 				warn_f_flag = j;
 			break;
 
 		  case 'F':	/* set full name */
+			CHECK_AGAINST_OPMODE(j);
 			FullName = newstr(optarg);
 			break;
 
 		  case 'G':	/* relay (gateway) submission */
 			/* already set */
+			CHECK_AGAINST_OPMODE(j);
 			break;
 
 		  case 'h':	/* hop count */
-			CurEnv->e_hopcount = (short) strtol(optarg, &ep, 10);
+			CHECK_AGAINST_OPMODE(j);
+			BlankEnvelope.e_hopcount = (short) strtol(optarg, &ep,
+								  10);
+			(void) sm_snprintf(buf, sizeof buf, "%d",
+					   BlankEnvelope.e_hopcount);
+			macdefine(&BlankEnvelope.e_macro, A_TEMP, 'c', buf);
+
 			if (*ep)
 			{
 				usrerr("Bad hop count (%s)", optarg);
@@ -768,25 +879,27 @@ main(argc, argv, envp)
 			break;
 
 		  case 'n':	/* don't alias */
-			NoAlias = TRUE;
+			CHECK_AGAINST_OPMODE(j);
+			NoAlias = true;
 			break;
 
 		  case 'N':	/* delivery status notifications */
+			CHECK_AGAINST_OPMODE(j);
 			DefaultNotify |= QHASNOTIFY;
-			define(macid("{dsn_notify}", NULL),
-			       newstr(optarg), CurEnv);
-			if (strcasecmp(optarg, "never") == 0)
+			macdefine(&BlankEnvelope.e_macro, A_TEMP,
+				macid("{dsn_notify}"), optarg);
+			if (sm_strcasecmp(optarg, "never") == 0)
 				break;
 			for (p = optarg; p != NULL; optarg = p)
 			{
 				p = strchr(p, ',');
 				if (p != NULL)
 					*p++ = '\0';
-				if (strcasecmp(optarg, "success") == 0)
+				if (sm_strcasecmp(optarg, "success") == 0)
 					DefaultNotify |= QPINGONSUCCESS;
-				else if (strcasecmp(optarg, "failure") == 0)
+				else if (sm_strcasecmp(optarg, "failure") == 0)
 					DefaultNotify |= QPINGONFAILURE;
-				else if (strcasecmp(optarg, "delay") == 0)
+				else if (sm_strcasecmp(optarg, "delay") == 0)
 					DefaultNotify |= QPINGONDELAY;
 				else
 				{
@@ -797,40 +910,64 @@ main(argc, argv, envp)
 			break;
 
 		  case 'o':	/* set option */
-			setoption(*optarg, optarg + 1, FALSE, TRUE, CurEnv);
+			setoption(*optarg, optarg + 1, false, true,
+				  &BlankEnvelope);
 			break;
 
 		  case 'O':	/* set option (long form) */
-			setoption(' ', optarg, FALSE, TRUE, CurEnv);
+			setoption(' ', optarg, false, true, &BlankEnvelope);
 			break;
 
 		  case 'p':	/* set protocol */
+			CHECK_AGAINST_OPMODE(j);
 			p = strchr(optarg, ':');
 			if (p != NULL)
 			{
 				*p++ = '\0';
 				if (*p != '\0')
 				{
-					ep = xalloc(strlen(p) + 1);
+					ep = sm_malloc_x(strlen(p) + 1);
 					cleanstrcpy(ep, p, MAXNAME);
-					define('s', ep, CurEnv);
+					macdefine(&BlankEnvelope.e_macro,
+						  A_HEAP, 's', ep);
 				}
 			}
 			if (*optarg != '\0')
 			{
-				ep = xalloc(strlen(optarg) + 1);
+				ep = sm_malloc_x(strlen(optarg) + 1);
 				cleanstrcpy(ep, optarg, MAXNAME);
-				define('r', ep, CurEnv);
+				macdefine(&BlankEnvelope.e_macro, A_HEAP,
+					  'r', ep);
 			}
 			break;
 
+#if _FFR_QUARANTINE
+		  case 'Q':	/* change quarantining on queued items */
+			/* sanity check */
+			if (OpMode != MD_DELIVER &&
+			    OpMode != MD_QUEUERUN)
+			{
+				usrerr("Can not use -Q with -b%c", OpMode);
+				ExitStat = EX_USAGE;
+				break;
+			}
+
+			if (OpMode == MD_DELIVER)
+				set_op_mode(MD_QUEUERUN);
+
+			FullName = NULL;
+
+			quarantining = newstr(optarg);
+			break;
+#endif /* _FFR_QUARANTINE */
+
 		  case 'q':	/* run queue files at intervals */
-#if QUEUE
 			/* sanity check */
 			if (OpMode != MD_DELIVER &&
 			    OpMode != MD_DAEMON &&
 			    OpMode != MD_FGDAEMON &&
 			    OpMode != MD_PRINT &&
+			    OpMode != MD_PRINTNQE &&
 			    OpMode != MD_QUEUERUN)
 			{
 				usrerr("Can not use -q with -b%c", OpMode);
@@ -840,32 +977,88 @@ main(argc, argv, envp)
 
 			/* don't override -bd, -bD or -bp */
 			if (OpMode == MD_DELIVER)
-				OpMode = MD_QUEUERUN;
+				set_op_mode(MD_QUEUERUN);
 
 			FullName = NULL;
+			negate = optarg[0] == '!';
+			if (negate)
+			{
+				/* negate meaning of pattern match */
+				optarg++; /* skip '!' for next switch */
+			}
 
 			switch (optarg[0])
 			{
-			  case 'I':
+			  case 'G': /* Limit by queue group name */
+				if (negate)
+				{
+					usrerr("Can not use -q!G");
+					ExitStat = EX_USAGE;
+					break;
+				}
+				if (queuegroup != NULL)
+				{
+					usrerr("Can not use multiple -qG options");
+					ExitStat = EX_USAGE;
+					break;
+				}
+				queuegroup = newstr(&optarg[1]);
+				break;
+
+			  case 'I': /* Limit by ID */
 				new = (QUEUE_CHAR *) xalloc(sizeof *new);
 				new->queue_match = newstr(&optarg[1]);
+				new->queue_negate = negate;
 				new->queue_next = QueueLimitId;
 				QueueLimitId = new;
 				break;
 
-			  case 'R':
+			  case 'R': /* Limit by recipient */
 				new = (QUEUE_CHAR *) xalloc(sizeof *new);
 				new->queue_match = newstr(&optarg[1]);
+				new->queue_negate = negate;
 				new->queue_next = QueueLimitRecipient;
 				QueueLimitRecipient = new;
 				break;
 
-			  case 'S':
+			  case 'S': /* Limit by sender */
 				new = (QUEUE_CHAR *) xalloc(sizeof *new);
 				new->queue_match = newstr(&optarg[1]);
+				new->queue_negate = negate;
 				new->queue_next = QueueLimitSender;
 				QueueLimitSender = new;
 				break;
+
+			  case 'f': /* foreground queue run */
+				foregroundqueue  = true;
+				break;
+
+#if _FFR_QUARANTINE
+			  case 'Q': /* Limit by quarantine message */
+				if (optarg[1] != '\0')
+				{
+					new = (QUEUE_CHAR *) xalloc(sizeof *new);
+					new->queue_match = newstr(&optarg[1]);
+					new->queue_negate = negate;
+					new->queue_next = QueueLimitQuarantine;
+					QueueLimitQuarantine = new;
+				}
+				QueueMode = QM_QUARANTINE;
+				break;
+
+			  case 'L': /* act on lost items */
+				QueueMode = QM_LOST;
+				break;
+#endif /* _FFR_QUARANTINE */
+
+			  case 'p': /* Persistent queue */
+				queuepersistent = true;
+				if (QueueIntvl == 0)
+					QueueIntvl = 1;
+				if (optarg[1] == '\0')
+					break;
+				++optarg;
+				/* FALLTHROUGH */
 
 			  default:
 				i = Errors;
@@ -876,40 +1069,35 @@ main(argc, argv, envp)
 					ExitStat = EX_USAGE;
 				break;
 			}
-#else /* QUEUE */
-			usrerr("I don't know about queues");
-			ExitStat = EX_USAGE;
-#endif /* QUEUE */
 			break;
 
 		  case 'R':	/* DSN RET: what to return */
-			if (bitset(EF_RET_PARAM, CurEnv->e_flags))
+			CHECK_AGAINST_OPMODE(j);
+			if (bitset(EF_RET_PARAM, BlankEnvelope.e_flags))
 			{
 				usrerr("Duplicate -R flag");
 				ExitStat = EX_USAGE;
 				break;
 			}
-			CurEnv->e_flags |= EF_RET_PARAM;
-			if (strcasecmp(optarg, "hdrs") == 0)
-				CurEnv->e_flags |= EF_NO_BODY_RETN;
-			else if (strcasecmp(optarg, "full") != 0)
+			BlankEnvelope.e_flags |= EF_RET_PARAM;
+			if (sm_strcasecmp(optarg, "hdrs") == 0)
+				BlankEnvelope.e_flags |= EF_NO_BODY_RETN;
+			else if (sm_strcasecmp(optarg, "full") != 0)
 			{
 				usrerr("Invalid -R value");
 				ExitStat = EX_USAGE;
 			}
-			define(macid("{dsn_ret}", NULL),
-			       newstr(optarg), CurEnv);
+			macdefine(&BlankEnvelope.e_macro, A_TEMP,
+				  macid("{dsn_ret}"), optarg);
 			break;
 
 		  case 't':	/* read recipients from message */
-			GrabTo = TRUE;
-			break;
-
-		  case 'U':	/* initial (user) submission */
-			/* already set */
+			CHECK_AGAINST_OPMODE(j);
+			GrabTo = true;
 			break;
 
 		  case 'V':	/* DSN ENVID: set "original" envelope id */
+			CHECK_AGAINST_OPMODE(j);
 			if (!xtextok(optarg))
 			{
 				usrerr("Invalid syntax in -V flag");
@@ -917,31 +1105,34 @@ main(argc, argv, envp)
 			}
 			else
 			{
-				CurEnv->e_envid = newstr(optarg);
-				define(macid("{dsn_envid}", NULL),
-				       newstr(optarg), CurEnv);
+				BlankEnvelope.e_envid = newstr(optarg);
+				macdefine(&BlankEnvelope.e_macro, A_TEMP,
+					  macid("{dsn_envid}"), optarg);
 			}
 			break;
 
 		  case 'X':	/* traffic log file */
-			dp = drop_privileges(TRUE);
+			dp = drop_privileges(true);
 			setstat(dp);
 			if (stat(optarg, &traf_st) == 0 &&
 			    S_ISFIFO(traf_st.st_mode))
-				TrafficLogFile = fopen(optarg, "w");
+				TrafficLogFile = sm_io_open(SmFtStdio,
+							    SM_TIME_DEFAULT,
+							    optarg,
+							    SM_IO_WRONLY, NULL);
 			else
-				TrafficLogFile = fopen(optarg, "a");
+				TrafficLogFile = sm_io_open(SmFtStdio,
+							    SM_TIME_DEFAULT,
+							    optarg,
+							    SM_IO_APPEND, NULL);
 			if (TrafficLogFile == NULL)
 			{
 				syserr("cannot open %s", optarg);
 				ExitStat = EX_CANTCREAT;
 				break;
 			}
-#if HASSETVBUF
-			(void) setvbuf(TrafficLogFile, NULL, _IOLBF, 0);
-#else /* HASSETVBUF */
-			(void) setlinebuf(TrafficLogFile);
-#endif /* HASSETVBUF */
+			(void) sm_io_setvbuf(TrafficLogFile, SM_TIME_DEFAULT,
+					     NULL, SM_IO_LBF, 0);
 			break;
 
 			/* compatibility flags */
@@ -950,21 +1141,21 @@ main(argc, argv, envp)
 		  case 'm':	/* send to me too */
 		  case 'T':	/* set timeout interval */
 		  case 'v':	/* give blow-by-blow description */
-			setoption(j, "T", FALSE, TRUE, CurEnv);
+			setoption(j, "T", false, true, &BlankEnvelope);
 			break;
 
 		  case 'e':	/* error message disposition */
 		  case 'M':	/* define macro */
-			setoption(j, optarg, FALSE, TRUE, CurEnv);
+			setoption(j, optarg, false, true, &BlankEnvelope);
 			break;
 
 		  case 's':	/* save From lines in headers */
-			setoption('f', "T", FALSE, TRUE, CurEnv);
+			setoption('f', "T", false, true, &BlankEnvelope);
 			break;
 
 #ifdef DBM
 		  case 'I':	/* initialize alias DBM file */
-			OpMode = MD_INITALIAS;
+			set_op_mode(MD_INITALIAS);
 			break;
 #endif /* DBM */
 
@@ -980,39 +1171,30 @@ main(argc, argv, envp)
 #endif /* defined(sony_news) */
 
 		  default:
-			finis(TRUE, EX_USAGE);
+			finis(true, true, EX_USAGE);
+			/* NOTREACHED */
 			break;
 		}
 	}
-	av += optind;
 
-	if (bitset(SUBMIT_MTA, SubmitMode) &&
-	    bitset(SUBMIT_MSA, SubmitMode))
+	/* if we've had errors so far, exit now */
+	if ((ExitStat != EX_OK && OpMode != MD_TEST) ||
+	    ExitStat == EX_OSERR)
 	{
-		/* sanity check */
-		errno = 0;	/* reset to avoid bogus error messages */
-		syserr("Cannot use both -G and -U together");
+		finis(false, true, ExitStat);
+		/* NOTREACHED */
 	}
-	else if (bitset(SUBMIT_MTA, SubmitMode))
-		define(macid("{daemon_flags}", NULL), "CC f", CurEnv);
-	else if (bitset(SUBMIT_MSA, SubmitMode))
-	{
-		define(macid("{daemon_flags}", NULL), "c u", CurEnv);
 
-		/* check for wrong OpMode */
-		if (OpMode != MD_DELIVER && OpMode != MD_SMTP)
-		{
-			errno = 0;	/* reset to avoid bogus error msgs */
-			syserr("Cannot use -U and -b%c", OpMode);
-		}
-	}
-	else
+	if (bitset(SUBMIT_MTA, SubmitMode))
 	{
-#if _FFR_DEFAULT_SUBMIT_TO_MSA
-		define(macid("{daemon_flags}", NULL), "c u", CurEnv);
-#else /* _FFR_DEFAULT_SUBMIT_TO_MSA */
-		/* EMPTY */
-#endif /* _FFR_DEFAULT_SUBMIT_TO_MSA */
+		macdefine(&BlankEnvelope.e_macro, A_PERM,
+			  macid("{daemon_flags}"), "CC f");
+	}
+	else if (OpMode == MD_DELIVER || OpMode == MD_SMTP)
+	{
+		SubmitMode = SUBMIT_MSA;
+		macdefine(&BlankEnvelope.e_macro, A_PERM,
+			  macid("{daemon_flags}"), "c u");
 	}
 
 	/*
@@ -1021,27 +1203,39 @@ main(argc, argv, envp)
 	**	Extract special fields for local use.
 	*/
 
-	/* set up ${opMode} for use in config file */
-	{
-		char mbuf[2];
-
-		mbuf[0] = OpMode;
-		mbuf[1] = '\0';
-		define(MID_OPMODE, newstr(mbuf), CurEnv);
-	}
-
 #if XDEBUG
 	checkfd012("before readcf");
 #endif /* XDEBUG */
-	vendor_pre_defaults(CurEnv);
+	vendor_pre_defaults(&BlankEnvelope);
 
-	readcf(getcfname(), safecf, CurEnv);
-	ConfigFileRead = TRUE;
-	vendor_post_defaults(CurEnv);
+	readcf(getcfname(OpMode, SubmitMode, cftype, conffile),
+			 safecf, &BlankEnvelope);
+#if !defined(_USE_SUN_NSSWITCH_) && !defined(_USE_DEC_SVC_CONF_)
+	ConfigFileRead = true;
+#endif /* !defined(_USE_SUN_NSSWITCH_) && !defined(_USE_DEC_SVC_CONF_) */
+	vendor_post_defaults(&BlankEnvelope);
+
+	/* now we can complain about missing fds */
+	if (MissingFds != 0 && LogLevel > 8)
+	{
+		char mbuf[MAXLINE];
+
+		mbuf[0] = '\0';
+		if (bitset(1 << STDIN_FILENO, MissingFds))
+			(void) sm_strlcat(mbuf, ", stdin", sizeof mbuf);
+		if (bitset(1 << STDOUT_FILENO, MissingFds))
+			(void) sm_strlcat(mbuf, ", stdout", sizeof mbuf);
+		if (bitset(1 << STDERR_FILENO, MissingFds))
+			(void) sm_strlcat(mbuf, ", stderr", sizeof mbuf);
+
+		/* Notice: fill_errno is from high above: fill_fd() */
+		sm_syslog(LOG_WARNING, NOQID,
+			  "File descriptors missing on startup: %s; %s",
+			  &mbuf[2], sm_errstring(fill_errno));
+	}
 
 	/* Remove the ability for a normal user to send signals */
-	if (RealUid != 0 &&
-	    RealUid != geteuid())
+	if (RealUid != 0 && RealUid != geteuid())
 	{
 		uid_t new_uid = geteuid();
 
@@ -1056,17 +1250,17 @@ main(argc, argv, envp)
 		if (new_uid == 0)
 			new_uid = DefUid;
 		if (tTd(47, 5))
-			dprintf("Changing real uid to %d\n", (int) new_uid);
+			sm_dprintf("Changing real uid to %d\n", (int) new_uid);
 		if (setreuid(new_uid, geteuid()) < 0)
 		{
 			syserr("main: setreuid(%d, %d) failed",
 			       (int) new_uid, (int) geteuid());
-			finis(FALSE, EX_OSERR);
+			finis(false, true, EX_OSERR);
 			/* NOTREACHED */
 		}
 		if (tTd(47, 10))
-			dprintf("Now running as e/ruid %d:%d\n",
-				(int) geteuid(), (int) getuid());
+			sm_dprintf("Now running as e/ruid %d:%d\n",
+				   (int) geteuid(), (int) getuid());
 #else /* HASSETREUID */
 		/*
 		**  Have to change both effective and real so need to
@@ -1074,23 +1268,45 @@ main(argc, argv, envp)
 		*/
 
 		if (tTd(47, 5))
-			dprintf("Changing uid to %d\n", (int) new_uid);
+			sm_dprintf("Changing uid to %d\n", (int) new_uid);
 		if (setuid(new_uid) < 0)
 		{
 			syserr("main: setuid(%d) failed", (int) new_uid);
-			finis(FALSE, EX_OSERR);
+			finis(false, true, EX_OSERR);
 			/* NOTREACHED */
 		}
 		if (tTd(47, 10))
-			dprintf("Now running as e/ruid %d:%d\n",
-				(int) geteuid(), (int) getuid());
+			sm_dprintf("Now running as e/ruid %d:%d\n",
+				   (int) geteuid(), (int) getuid());
 #endif /* HASSETREUID */
 	}
 
+#if NAMED_BIND
+	if (FallBackMX != NULL)
+		(void) getfallbackmxrr(FallBackMX);
+#endif /* NAMED_BIND */
+
+	if (SuperSafe == SAFE_INTERACTIVE && CurEnv->e_sendmode != SM_DELIVER)
+	{
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				     "WARNING: SuperSafe=interactive should only be used with\n         DeliveryMode=interactive\n");
+	}
+
+	if (UseMSP && (OpMode == MD_DAEMON || OpMode == MD_FGDAEMON))
+	{
+		usrerr("Mail submission program cannot be used as daemon");
+		finis(false, true, EX_USAGE);
+	}
+
+	if (OpMode == MD_DELIVER || OpMode == MD_SMTP ||
+	    OpMode == MD_QUEUERUN || OpMode == MD_ARPAFTP ||
+	    OpMode == MD_DAEMON || OpMode == MD_FGDAEMON)
+		makeworkgroups();
+
 	/* set up the basic signal handlers */
-	if (setsignal(SIGINT, SIG_IGN) != SIG_IGN)
-		(void) setsignal(SIGINT, intsig);
-	(void) setsignal(SIGTERM, intsig);
+	if (sm_signal(SIGINT, SIG_IGN) != SIG_IGN)
+		(void) sm_signal(SIGINT, intsig);
+	(void) sm_signal(SIGTERM, intsig);
 
 	/* Enforce use of local time (null string overrides this) */
 	if (TimeZoneSpec == NULL)
@@ -1101,14 +1317,39 @@ main(argc, argv, envp)
 		setuserenv("TZ", NULL);
 	tzset();
 
+	/* initialize mailbox database */
+	i = sm_mbdb_initialize(Mbdb);
+	if (i != EX_OK)
+	{
+		usrerr("Can't initialize mailbox database \"%s\": %s",
+		       Mbdb, sm_strexit(i));
+		ExitStat = i;
+	}
+
 	/* avoid denial-of-service attacks */
 	resetlimits();
 
-	if (OpMode != MD_DAEMON && OpMode != MD_FGDAEMON)
+	if (OpMode == MD_TEST)
+	{
+		/* can't be done after readcf if RunAs* is used */
+		dp = drop_privileges(true);
+		if (dp != EX_OK)
+		{
+			finis(false, true, dp);
+			/* NOTREACHED */
+		}
+	}
+	else if (OpMode != MD_DAEMON && OpMode != MD_FGDAEMON)
 	{
 		/* drop privileges -- daemon mode done after socket/bind */
-		dp = drop_privileges(FALSE);
+		dp = drop_privileges(false);
 		setstat(dp);
+		if (dp == EX_OK && UseMSP && (geteuid() == 0 || getuid() == 0))
+		{
+			usrerr("Mail submission program must have RunAsUser set to non root user");
+			finis(false, true, EX_CONFIG);
+			/* NOTREACHED */
+		}
 	}
 
 #if NAMED_BIND
@@ -1121,33 +1362,41 @@ main(argc, argv, envp)
 	*/
 
 	authinfo = getauthinfo(STDIN_FILENO, &forged);
-	define('_', authinfo, CurEnv);
+	macdefine(&BlankEnvelope.e_macro, A_TEMP, '_', authinfo);
 
 	/* suppress error printing if errors mailed back or whatever */
-	if (CurEnv->e_errormode != EM_PRINT)
-		HoldErrs = TRUE;
+	if (BlankEnvelope.e_errormode != EM_PRINT)
+		HoldErrs = true;
 
 	/* set up the $=m class now, after .cf has a chance to redefine $m */
-	expand("\201m", jbuf, sizeof jbuf, CurEnv);
+	expand("\201m", jbuf, sizeof jbuf, &BlankEnvelope);
 	if (jbuf[0] != '\0')
 		setclass('m', jbuf);
 
 	/* probe interfaces and locate any additional names */
-	if (!DontProbeInterfaces)
+	if (DontProbeInterfaces != DPI_PROBENONE)
 		load_if_names();
+
+	if (tTd(0, 10))
+	{
+		/* Now we know which .cf file we use */
+		sm_dprintf("     Conf file:\t%s (selected)\n",
+			   getcfname(OpMode, SubmitMode, cftype, conffile));
+		sm_dprintf("      Pid file:\t%s (selected)\n", PidFile);
+	}
 
 	if (tTd(0, 1))
 	{
-		dprintf("\n============ SYSTEM IDENTITY (after readcf) ============");
-		dprintf("\n      (short domain name) $w = ");
-		xputs(macvalue('w', CurEnv));
-		dprintf("\n  (canonical domain name) $j = ");
-		xputs(macvalue('j', CurEnv));
-		dprintf("\n         (subdomain name) $m = ");
-		xputs(macvalue('m', CurEnv));
-		dprintf("\n              (node name) $k = ");
-		xputs(macvalue('k', CurEnv));
-		dprintf("\n========================================================\n\n");
+		sm_dprintf("\n============ SYSTEM IDENTITY (after readcf) ============");
+		sm_dprintf("\n      (short domain name) $w = ");
+		xputs(macvalue('w', &BlankEnvelope));
+		sm_dprintf("\n  (canonical domain name) $j = ");
+		xputs(macvalue('j', &BlankEnvelope));
+		sm_dprintf("\n         (subdomain name) $m = ");
+		xputs(macvalue('m', &BlankEnvelope));
+		sm_dprintf("\n              (node name) $k = ");
+		xputs(macvalue('k', &BlankEnvelope));
+		sm_dprintf("\n========================================================\n\n");
 	}
 
 	/*
@@ -1157,24 +1406,25 @@ main(argc, argv, envp)
 
 	/* process authorization warnings from command line */
 	if (warn_C_flag)
-		auth_warning(CurEnv, "Processed by %s with -C %s",
-			RealUserName, ConfFile);
+		auth_warning(&BlankEnvelope, "Processed by %s with -C %s",
+			     RealUserName, conffile);
 	if (Warn_Q_option && !wordinclass(RealUserName, 't'))
-		auth_warning(CurEnv, "Processed from queue %s", QueueDir);
+		auth_warning(&BlankEnvelope, "Processed from queue %s",
+			     QueueDir);
+	if (sysloglabel != NULL && !wordinclass(RealUserName, 't') &&
+	    RealUid != 0 && RealUid != TrustedUid && LogLevel > 1)
+		sm_syslog(LOG_WARNING, NOQID, "user %d changed syslog label",
+			  (int) RealUid);
 
 	/* check body type for legality */
-	if (CurEnv->e_bodytype == NULL)
-		/* EMPTY */
-		/* nothing */ ;
-	else if (strcasecmp(CurEnv->e_bodytype, "7BIT") == 0)
-		SevenBitInput = TRUE;
-	else if (strcasecmp(CurEnv->e_bodytype, "8BITMIME") == 0)
-		SevenBitInput = FALSE;
-	else
+	i = check_bodytype(BlankEnvelope.e_bodytype);
+	if (i == BODYTYPE_ILLEGAL)
 	{
-		usrerr("Illegal body type %s", CurEnv->e_bodytype);
-		CurEnv->e_bodytype = NULL;
+		usrerr("Illegal body type %s", BlankEnvelope.e_bodytype);
+		BlankEnvelope.e_bodytype = NULL;
 	}
+	else if (i != BODYTYPE_NONE)
+		SevenBitInput = (i == BODYTYPE_7BIT);
 
 	/* tweak default DSN notifications */
 	if (DefaultNotify == 0)
@@ -1188,50 +1438,156 @@ main(argc, argv, envp)
 	if (ConfigLevel > MAXCONFIGLEVEL)
 	{
 		syserr("Warning: .cf version level (%d) exceeds sendmail version %s functionality (%d)",
-			ConfigLevel, Version, MAXCONFIGLEVEL);
+		       ConfigLevel, Version, MAXCONFIGLEVEL);
 	}
 
 	/* need MCI cache to have persistence */
 	if (HostStatDir != NULL && MaxMciCache == 0)
 	{
 		HostStatDir = NULL;
-		printf("Warning: HostStatusDirectory disabled with ConnectionCacheSize = 0\n");
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				     "Warning: HostStatusDirectory disabled with ConnectionCacheSize = 0\n");
 	}
 
 	/* need HostStatusDir in order to have SingleThreadDelivery */
 	if (SingleThreadDelivery && HostStatDir == NULL)
 	{
-		SingleThreadDelivery = FALSE;
-		printf("Warning: HostStatusDirectory required for SingleThreadDelivery\n");
+		SingleThreadDelivery = false;
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				     "Warning: HostStatusDirectory required for SingleThreadDelivery\n");
 	}
 
 	/* check for permissions */
-	if ((OpMode == MD_DAEMON ||
-	     OpMode == MD_FGDAEMON ||
-	     OpMode == MD_PURGESTAT) &&
-	    RealUid != 0 &&
+	if (RealUid != 0 &&
 	    RealUid != TrustedUid)
 	{
-		if (LogLevel > 1)
-			sm_syslog(LOG_ALERT, NOQID,
-				  "user %d attempted to %s",
-				  RealUid,
-				  OpMode != MD_PURGESTAT ? "run daemon"
-							 : "purge host status");
-		usrerr("Permission denied");
-		finis(FALSE, EX_USAGE);
-	}
-	if (OpMode == MD_INITALIAS &&
-	    RealUid != 0 &&
-	    RealUid != TrustedUid &&
-	    !wordinclass(RealUserName, 't'))
-	{
-		if (LogLevel > 1)
-			sm_syslog(LOG_ALERT, NOQID,
-				  "user %d attempted to rebuild the alias map",
-				  RealUid);
-		usrerr("Permission denied");
-		finis(FALSE, EX_USAGE);
+		char *action = NULL;
+
+		switch (OpMode)
+		{
+		  case MD_QUEUERUN:
+#if _FFR_QUARANTINE
+			if (quarantining != NULL)
+				action = "quarantine jobs";
+			else
+#endif /* _FFR_QUARANTINE */
+			/* Normal users can do a single queue run */
+			if (QueueIntvl == 0)
+				break;
+
+			/* but not persistent queue runners */
+			if (action == NULL)
+				action = "start a queue runner daemon";
+			/* FALLTHROUGH */
+
+		  case MD_PURGESTAT:
+			if (action == NULL)
+				action = "purge host status";
+			/* FALLTHROUGH */
+
+		  case MD_DAEMON:
+		  case MD_FGDAEMON:
+			if (action == NULL)
+				action = "run daemon";
+
+			if (tTd(65, 1))
+				sm_dprintf("Deny user %d attempt to %s\n",
+					   (int) RealUid, action);
+
+			if (LogLevel > 1)
+				sm_syslog(LOG_ALERT, NOQID,
+					  "user %d attempted to %s",
+					  (int) RealUid, action);
+			HoldErrs = false;
+			usrerr("Permission denied (real uid not trusted)");
+			finis(false, true, EX_USAGE);
+			/* NOTREACHED */
+			break;
+
+		  case MD_VERIFY:
+			if (bitset(PRIV_RESTRICTEXPAND, PrivacyFlags))
+			{
+				/*
+				**  If -bv and RestrictExpand,
+				**  drop privs to prevent normal
+				**  users from reading private
+				**  aliases/forwards/:include:s
+				*/
+
+				if (tTd(65, 1))
+					sm_dprintf("Drop privs for user %d attempt to expand (RestrictExpand)\n",
+						   (int) RealUid);
+
+				dp = drop_privileges(true);
+
+				/* Fake address safety */
+				if (tTd(65, 1))
+					sm_dprintf("Faking DontBlameSendmail=NonRootSafeAddr\n");
+				setbitn(DBS_NONROOTSAFEADDR, DontBlameSendmail);
+
+				if (dp != EX_OK)
+				{
+					if (tTd(65, 1))
+						sm_dprintf("Failed to drop privs for user %d attempt to expand, exiting\n",
+							   (int) RealUid);
+					CurEnv->e_id = NULL;
+					finis(true, true, dp);
+					/* NOTREACHED */
+				}
+			}
+			break;
+
+		  case MD_TEST:
+		  case MD_PRINT:
+		  case MD_PRINTNQE:
+		  case MD_FREEZE:
+		  case MD_HOSTSTAT:
+			/* Nothing special to check */
+			break;
+
+		  case MD_INITALIAS:
+			if (!wordinclass(RealUserName, 't'))
+			{
+				if (tTd(65, 1))
+					sm_dprintf("Deny user %d attempt to rebuild the alias map\n",
+						   (int) RealUid);
+				if (LogLevel > 1)
+					sm_syslog(LOG_ALERT, NOQID,
+						  "user %d attempted to rebuild the alias map",
+						  (int) RealUid);
+				HoldErrs = false;
+				usrerr("Permission denied (real uid not trusted)");
+				finis(false, true, EX_USAGE);
+				/* NOTREACHED */
+			}
+			if (UseMSP)
+			{
+				HoldErrs = false;
+				usrerr("User %d cannot rebuild aliases in mail submission program",
+				       (int) RealUid);
+				finis(false, true, EX_USAGE);
+				/* NOTREACHED */
+			}
+			/* FALLTHROUGH */
+
+		  default:
+			if (bitset(PRIV_RESTRICTEXPAND, PrivacyFlags) &&
+			    Verbose != 0)
+			{
+				/*
+				**  If -v and RestrictExpand, reset
+				**  Verbose to prevent normal users
+				**  from seeing the expansion of
+				**  aliases/forwards/:include:s
+				*/
+
+				if (tTd(65, 1))
+					sm_dprintf("Dropping verbosity for user %d (RestrictExpand)\n",
+						   (int) RealUid);
+				Verbose = 0;
+			}
+			break;
+		}
 	}
 
 	if (MeToo)
@@ -1244,48 +1600,49 @@ main(argc, argv, envp)
 		HostStatDir = NULL;
 		if (Verbose == 0)
 			Verbose = 2;
-		CurEnv->e_errormode = EM_PRINT;
-		HoldErrs = FALSE;
+		BlankEnvelope.e_errormode = EM_PRINT;
+		HoldErrs = false;
 		break;
 
 	  case MD_VERIFY:
-		CurEnv->e_errormode = EM_PRINT;
-		HoldErrs = FALSE;
-
+		BlankEnvelope.e_errormode = EM_PRINT;
+		HoldErrs = false;
 		/* arrange to exit cleanly on hangup signal */
-		if (setsignal(SIGHUP, SIG_IGN) == (sigfunc_t) SIG_DFL)
-			(void) setsignal(SIGHUP, intsig);
+		if (sm_signal(SIGHUP, SIG_IGN) == (sigfunc_t) SIG_DFL)
+			(void) sm_signal(SIGHUP, intsig);
+		if (geteuid() != 0)
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					     "Notice: -bv may give misleading output for non-privileged user\n");
 		break;
 
 	  case MD_FGDAEMON:
-		run_in_foreground = TRUE;
-		OpMode = MD_DAEMON;
+		run_in_foreground = true;
+		set_op_mode(MD_DAEMON);
 		/* FALLTHROUGH */
 
 	  case MD_DAEMON:
-		vendor_daemon_setup(CurEnv);
+		vendor_daemon_setup(&BlankEnvelope);
 
 		/* remove things that don't make sense in daemon mode */
 		FullName = NULL;
-		GrabTo = FALSE;
+		GrabTo = false;
 
 		/* arrange to restart on hangup signal */
 		if (SaveArgv[0] == NULL || SaveArgv[0][0] != '/')
 			sm_syslog(LOG_WARNING, NOQID,
 				  "daemon invoked without full pathname; kill -1 won't work");
-		(void) setsignal(SIGTERM, term_daemon);
 		break;
 
 	  case MD_INITALIAS:
 		Verbose = 2;
-		CurEnv->e_errormode = EM_PRINT;
-		HoldErrs = FALSE;
+		BlankEnvelope.e_errormode = EM_PRINT;
+		HoldErrs = false;
 		/* FALLTHROUGH */
 
 	  default:
 		/* arrange to exit cleanly on hangup signal */
-		if (setsignal(SIGHUP, SIG_IGN) == (sigfunc_t) SIG_DFL)
-			(void) setsignal(SIGHUP, intsig);
+		if (sm_signal(SIGHUP, SIG_IGN) == (sigfunc_t) SIG_DFL)
+			(void) sm_signal(SIGHUP, intsig);
 		break;
 	}
 
@@ -1297,7 +1654,7 @@ main(argc, argv, envp)
 		/* full names can't have newlines */
 		if (strchr(FullName, '\n') != NULL)
 		{
-			full = newstr(denlstring(FullName, TRUE, TRUE));
+			full = newstr(denlstring(FullName, true, true));
 			FullName = full;
 		}
 
@@ -1310,9 +1667,9 @@ main(argc, argv, envp)
 			**  the name portion of the address.
 			*/
 
-			FullName = addquotes(FullName);
+			FullName = addquotes(FullName, NULL);
 			if (full != NULL)
-				sm_free(full);
+				sm_free(full);  /* XXX */
 		}
 	}
 
@@ -1320,10 +1677,10 @@ main(argc, argv, envp)
 	if (Verbose)
 	{
 		/* turn off noconnect option */
-		setoption('c', "F", TRUE, FALSE, CurEnv);
+		setoption('c', "F", true, false, &BlankEnvelope);
 
 		/* turn on interactive delivery */
-		setoption('d', "", TRUE, FALSE, CurEnv);
+		setoption('d', "", true, false, &BlankEnvelope);
 	}
 
 #ifdef VENDOR_CODE
@@ -1343,19 +1700,21 @@ main(argc, argv, envp)
 	}
 
 	if (ConfigLevel < 3)
-		UseErrorsTo = TRUE;
+		UseErrorsTo = true;
 
 	/* set options that were previous macros */
 	if (SmtpGreeting == NULL)
 	{
-		if (ConfigLevel < 7 && (p = macvalue('e', CurEnv)) != NULL)
+		if (ConfigLevel < 7 &&
+		    (p = macvalue('e', &BlankEnvelope)) != NULL)
 			SmtpGreeting = newstr(p);
 		else
 			SmtpGreeting = "\201j Sendmail \201v ready at \201b";
 	}
 	if (UnixFromLine == NULL)
 	{
-		if (ConfigLevel < 7 && (p = macvalue('l', CurEnv)) != NULL)
+		if (ConfigLevel < 7 &&
+		    (p = macvalue('l', &BlankEnvelope)) != NULL)
 			UnixFromLine = newstr(p);
 		else
 			UnixFromLine = "From \201g  \201d";
@@ -1363,17 +1722,24 @@ main(argc, argv, envp)
 	SmtpError[0] = '\0';
 
 	/* our name for SMTP codes */
-	expand("\201j", jbuf, sizeof jbuf, CurEnv);
+	expand("\201j", jbuf, sizeof jbuf, &BlankEnvelope);
 	if (jbuf[0] == '\0')
-		MyHostName = newstr("localhost");
+		PSTRSET(MyHostName, "localhost");
 	else
-		MyHostName = jbuf;
+		PSTRSET(MyHostName, jbuf);
 	if (strchr(MyHostName, '.') == NULL)
 		message("WARNING: local host name (%s) is not qualified; fix $j in config file",
 			MyHostName);
 
 	/* make certain that this name is part of the $=w class */
 	setclass('w', MyHostName);
+
+	/* fill in the structure of the *default* queue */
+	st = stab("mqueue", ST_QUEUE, ST_FIND);
+	if (st == NULL)
+		syserr("No default queue (mqueue) defined");
+	else
+		set_def_queueval(st->s_quegrp, true);
 
 	/* the indices of built-in mailers */
 	st = stab("local", ST_MAILER, ST_FIND);
@@ -1454,29 +1820,28 @@ main(argc, argv, envp)
 #endif /* USE_B_CLASS */
 
 	/* MIME headers which have fields to check for overflow */
-	setclass(macid("{checkMIMEFieldHeaders}", NULL), "content-disposition");
-	setclass(macid("{checkMIMEFieldHeaders}", NULL), "content-type");
+	setclass(macid("{checkMIMEFieldHeaders}"), "content-disposition");
+	setclass(macid("{checkMIMEFieldHeaders}"), "content-type");
 
 	/* MIME headers to check for length overflow */
-	setclass(macid("{checkMIMETextHeaders}", NULL), "content-description");
+	setclass(macid("{checkMIMETextHeaders}"), "content-description");
 
 	/* MIME headers to check for overflow and rebalance */
-	setclass(macid("{checkMIMEHeaders}", NULL), "content-disposition");
-	setclass(macid("{checkMIMEHeaders}", NULL), "content-id");
-	setclass(macid("{checkMIMEHeaders}", NULL), "content-transfer-encoding");
-	setclass(macid("{checkMIMEHeaders}", NULL), "content-type");
-	setclass(macid("{checkMIMEHeaders}", NULL), "mime-version");
+	setclass(macid("{checkMIMEHeaders}"), "content-disposition");
+	setclass(macid("{checkMIMEHeaders}"), "content-id");
+	setclass(macid("{checkMIMEHeaders}"), "content-transfer-encoding");
+	setclass(macid("{checkMIMEHeaders}"), "content-type");
+	setclass(macid("{checkMIMEHeaders}"), "mime-version");
 
-	/* Macros to save in the qf file -- don't remove any */
-	setclass(macid("{persistentMacros}", NULL), "r");
-	setclass(macid("{persistentMacros}", NULL), "s");
-	setclass(macid("{persistentMacros}", NULL), "_");
-	setclass(macid("{persistentMacros}", NULL), "{if_addr}");
-	setclass(macid("{persistentMacros}", NULL), "{daemon_flags}");
-	setclass(macid("{persistentMacros}", NULL), "{client_flags}");
+	/* Macros to save in the queue file -- don't remove any */
+	setclass(macid("{persistentMacros}"), "r");
+	setclass(macid("{persistentMacros}"), "s");
+	setclass(macid("{persistentMacros}"), "_");
+	setclass(macid("{persistentMacros}"), "{if_addr}");
+	setclass(macid("{persistentMacros}"), "{daemon_flags}");
 
 	/* operate in queue directory */
-	if (QueueDir == NULL)
+	if (QueueDir == NULL || *QueueDir == '\0')
 	{
 		if (OpMode != MD_TEST)
 		{
@@ -1486,29 +1851,22 @@ main(argc, argv, envp)
 	}
 	else
 	{
-		/*
-		**  If multiple queues wildcarded, use one for
-		**  the daemon's home. Note that this preconditions
-		**  a wildcarded QueueDir to a real pathname.
-		*/
-
 		if (OpMode != MD_TEST)
-			multiqueue_cache();
+			setup_queues(OpMode == MD_DAEMON);
 	}
 
 	/* check host status directory for validity */
-	if (HostStatDir != NULL && !path_is_dir(HostStatDir, FALSE))
+	if (HostStatDir != NULL && !path_is_dir(HostStatDir, false))
 	{
 		/* cannot use this value */
-		if (tTd(0, 2))
-			dprintf("Cannot use HostStatusDirectory = %s: %s\n",
-				HostStatDir, errstring(errno));
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				     "Warning: Cannot use HostStatusDirectory = %s: %s\n",
+				     HostStatDir, sm_errstring(errno));
 		HostStatDir = NULL;
 	}
 
-#if QUEUE
-	if (OpMode == MD_QUEUERUN && RealUid != 0 &&
-	    bitset(PRIV_RESTRICTQRUN, PrivacyFlags))
+	if (OpMode == MD_QUEUERUN &&
+	    RealUid != 0 && bitset(PRIV_RESTRICTQRUN, PrivacyFlags))
 	{
 		struct stat stbuf;
 
@@ -1518,22 +1876,48 @@ main(argc, argv, envp)
 		if (stbuf.st_uid != RealUid)
 		{
 			/* nope, really a botch */
+			HoldErrs = false;
 			usrerr("You do not have permission to process the queue");
-			finis(FALSE, EX_NOPERM);
+			finis(false, true, EX_NOPERM);
+			/* NOTREACHED */
 		}
 	}
-#endif /* QUEUE */
 
-#if _FFR_MILTER
+#if MILTER
 	/* sanity checks on milter filters */
 	if (OpMode == MD_DAEMON || OpMode == MD_SMTP)
-		milter_parse_list(InputFilterList, InputFilters, MAXFILTERS);
-#endif /* _FFR_MILTER */
+	{
+		milter_config(InputFilterList, InputFilters, MAXFILTERS);
+# if _FFR_MILTER_PERDAEMON
+		setup_daemon_milters();
+# endif /* _FFR_MILTER_PERDAEMON */
+	}
+#endif /* MILTER */
 
+	/* Convert queuegroup string to qgrp number */
+	if (queuegroup != NULL)
+	{
+		qgrp = name2qid(queuegroup);
+		if (qgrp == NOQGRP)
+		{
+			HoldErrs = false;
+			usrerr("Queue group %s unknown", queuegroup);
+			finis(false, true, ExitStat);
+			/* NOTREACHED */
+		}
+	}
 
 	/* if we've had errors so far, exit now */
 	if (ExitStat != EX_OK && OpMode != MD_TEST)
-		finis(FALSE, ExitStat);
+	{
+		finis(false, true, ExitStat);
+		/* NOTREACHED */
+	}
+
+#if SASL
+	/* sendmail specific SASL initialization */
+	sm_sasl_init();
+#endif /* SASL */
 
 #if XDEBUG
 	checkfd012("before main() initmaps");
@@ -1547,43 +1931,89 @@ main(argc, argv, envp)
 	{
 	  case MD_PRINT:
 		/* print the queue */
-#if QUEUE
-		dropenvelope(CurEnv, TRUE);
-		(void) setsignal(SIGPIPE, quiesce);
+		HoldErrs = false;
+		dropenvelope(&BlankEnvelope, true, false);
+		(void) sm_signal(SIGPIPE, sigpipe);
+		if (qgrp != NOQGRP)
+		{
+			int j;
+
+			/* Selecting a particular queue group to run */
+			for (j = 0; j < Queue[qgrp]->qg_numqueues; j++)
+			{
+				if (StopRequest)
+					stop_sendmail();
+				(void) print_single_queue(qgrp, j);
+			}
+			finis(false, true, EX_OK);
+			/* NOTREACHED */
+		}
 		printqueue();
-		finis(FALSE, EX_OK);
-#else /* QUEUE */
-		usrerr("No queue to print");
-		finis(FALSE, EX_UNAVAILABLE);
-#endif /* QUEUE */
+		finis(false, true, EX_OK);
+		/* NOTREACHED */
 		break;
 
+	  case MD_PRINTNQE:
+		/* print number of entries in queue */
+		dropenvelope(&BlankEnvelope, true, false);
+		(void) sm_signal(SIGPIPE, sigpipe);
+		printnqe(smioout, NULL);
+		finis(false, true, EX_OK);
+		/* NOTREACHED */
+		break;
+
+#if _FFR_QUARANTINE
+	  case MD_QUEUERUN:
+		/* only handle quarantining here */
+		if (quarantining == NULL)
+			break;
+
+		if (QueueMode != QM_QUARANTINE &&
+		    QueueMode != QM_NORMAL)
+		{
+			HoldErrs = false;
+			usrerr("Can not use -Q with -q%c", QueueMode);
+			ExitStat = EX_USAGE;
+			finis(false, true, ExitStat);
+			/* NOTREACHED */
+		}
+		quarantine_queue(quarantining, qgrp);
+		finis(false, true, EX_OK);
+		break;
+#endif /* _FFR_QUARANTINE */
+
 	  case MD_HOSTSTAT:
-		(void) setsignal(SIGPIPE, quiesce);
+		(void) sm_signal(SIGPIPE, sigpipe);
 		(void) mci_traverse_persistent(mci_print_persistent, NULL);
-		finis(FALSE, EX_OK);
+		finis(false, true, EX_OK);
+		/* NOTREACHED */
 		break;
 
 	  case MD_PURGESTAT:
 		(void) mci_traverse_persistent(mci_purge_persistent, NULL);
-		finis(FALSE, EX_OK);
+		finis(false, true, EX_OK);
+		/* NOTREACHED */
 		break;
 
 	  case MD_INITALIAS:
 		/* initialize maps */
 		initmaps();
-		finis(FALSE, ExitStat);
+		finis(false, true, ExitStat);
+		/* NOTREACHED */
 		break;
 
 	  case MD_SMTP:
 	  case MD_DAEMON:
 		/* reset DSN parameters */
 		DefaultNotify = QPINGONFAILURE|QPINGONDELAY;
-		define(macid("{dsn_notify}", NULL), NULL, CurEnv);
-		CurEnv->e_envid = NULL;
-		define(macid("{dsn_envid}", NULL), NULL, CurEnv);
-		CurEnv->e_flags &= ~(EF_RET_PARAM|EF_NO_BODY_RETN);
-		define(macid("{dsn_ret}", NULL), NULL, CurEnv);
+		macdefine(&BlankEnvelope.e_macro, A_PERM,
+			  macid("{dsn_notify}"), NULL);
+		BlankEnvelope.e_envid = NULL;
+		macdefine(&BlankEnvelope.e_macro, A_PERM,
+			  macid("{dsn_envid}"), NULL);
+		BlankEnvelope.e_flags &= ~(EF_RET_PARAM|EF_NO_BODY_RETN);
+		macdefine(&BlankEnvelope.e_macro, A_PERM,
+			  macid("{dsn_ret}"), NULL);
 
 		/* don't open maps for daemon -- done below in child */
 		break;
@@ -1605,7 +2035,8 @@ main(argc, argv, envp)
 	**  Switch to the main envelope.
 	*/
 
-	CurEnv = newenvelope(&MainEnvelope, CurEnv);
+	CurEnv = newenvelope(&MainEnvelope, &BlankEnvelope,
+			     sm_rpool_new_x(NULL));
 	MainEnvelope.e_flags = BlankEnvelope.e_flags;
 
 	/*
@@ -1614,81 +2045,190 @@ main(argc, argv, envp)
 
 	if (OpMode == MD_TEST)
 	{
-		char buf[MAXLINE];
-
-#if _FFR_TESTMODE_DROP_PRIVS
-		dp = drop_privileges(TRUE);
-		if (dp != EX_OK)
-		{
-			CurEnv->e_id = NULL;
-			finis(TRUE, dp);
-		}
-#endif /* _FFR_TESTMODE_DROP_PRIVS */
-
-		if (isatty(fileno(stdin)))
+		if (isatty(sm_io_getinfo(smioin, SM_IO_WHAT_FD, NULL)))
 			Verbose = 2;
 
 		if (Verbose)
 		{
-			printf("ADDRESS TEST MODE (ruleset 3 NOT automatically invoked)\n");
-			printf("Enter <ruleset> <address>\n");
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				     "ADDRESS TEST MODE (ruleset 3 NOT automatically invoked)\n");
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				     "Enter <ruleset> <address>\n");
 		}
-		if (setjmp(TopFrame) > 0)
-			printf("\n");
-		(void) setsignal(SIGINT, intindebug);
+		macdefine(&(MainEnvelope.e_macro), A_PERM,
+			  macid("{addr_type}"), "e r");
 		for (;;)
 		{
-			if (Verbose == 2)
-				printf("> ");
-			(void) fflush(stdout);
-			if (fgets(buf, sizeof buf, stdin) == NULL)
-				testmodeline("/quit", CurEnv);
-			p = strchr(buf, '\n');
-			if (p != NULL)
-				*p = '\0';
-			if (Verbose < 2)
-				printf("> %s\n", buf);
-			testmodeline(buf, CurEnv);
+			SM_TRY
+			{
+				(void) sm_signal(SIGINT, intindebug);
+				(void) sm_releasesignal(SIGINT);
+				if (Verbose == 2)
+					(void) sm_io_fprintf(smioout,
+							     SM_TIME_DEFAULT,
+							     "> ");
+				(void) sm_io_flush(smioout, SM_TIME_DEFAULT);
+				if (sm_io_fgets(smioin, SM_TIME_DEFAULT, buf,
+						sizeof buf) == NULL)
+					testmodeline("/quit", &MainEnvelope);
+				p = strchr(buf, '\n');
+				if (p != NULL)
+					*p = '\0';
+				if (Verbose < 2)
+					(void) sm_io_fprintf(smioout,
+							     SM_TIME_DEFAULT,
+							     "> %s\n", buf);
+				testmodeline(buf, &MainEnvelope);
+			}
+			SM_EXCEPT(exc, "[!F]*")
+			{
+				/*
+				**  8.10 just prints \n on interrupt.
+				**  I'm printing the exception here in case
+				**  sendmail is extended to raise additional
+				**  exceptions in this context.
+				*/
+
+				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+						     "\n");
+				sm_exc_print(exc, smioout);
+			}
+			SM_END_TRY
 		}
 	}
 
-#if SMTP
-# if STARTTLS
-	tls_ok = init_tls_library();
-# endif /* STARTTLS */
-#endif /* SMTP */
+#if STARTTLS
+	tls_ok = true;
+	if (OpMode == MD_QUEUERUN || OpMode == MD_DELIVER)
+	{
+		/* check whether STARTTLS is turned off for the client */
+		if (chkclientmodifiers(D_NOTLS))
+			tls_ok = false;
+	}
+	else if (OpMode == MD_DAEMON || OpMode == MD_FGDAEMON ||
+		 OpMode == MD_SMTP)
+	{
+		/* check whether STARTTLS is turned off for the server */
+		if (chkdaemonmodifiers(D_NOTLS))
+			tls_ok = false;
+	}
+	else	/* other modes don't need STARTTLS */
+		tls_ok = false;
 
-#if QUEUE
+	if (tls_ok)
+	{
+		/* basic TLS initialization */
+		tls_ok = init_tls_library();
+	}
+
+	if (!tls_ok && (OpMode == MD_QUEUERUN || OpMode == MD_DELIVER))
+	{
+		/* disable TLS for client */
+		setclttls(false);
+	}
+#endif /* STARTTLS */
+
 	/*
 	**  If collecting stuff from the queue, go start doing that.
 	*/
 
 	if (OpMode == MD_QUEUERUN && QueueIntvl == 0)
 	{
-# if SMTP
-#  if STARTTLS
-		if (tls_ok
-		   )
+		pid_t pid = -1;
+
+#if STARTTLS
+		/* init TLS for client, ignore result for now */
+		(void) initclttls(tls_ok);
+#endif /* STARTTLS */
+
+		/*
+		**  The parent process of the caller of runqueue() needs
+		**  to stay around for a possible SIGTERM. The SIGTERM will
+		**  tell this process that all of the queue runners children
+		**  need to be sent SIGTERM as well. At the same time, we
+		**  want to return control to the command line. So we do an
+		**  extra fork().
+		*/
+
+		if (Verbose || foregroundqueue || (pid = fork()) <= 0)
 		{
-			/* init TLS for client, ignore result for now */
-			(void) initclttls();
+			/*
+			**  If the fork() failed we should still try to do
+			**  the queue run. If it succeeded then the child
+			**  is going to start the run and wait for all
+			**  of the children to finish.
+			*/
+
+			if (pid == 0)
+			{
+				/* Reset global flags */
+				RestartRequest = NULL;
+				ShutdownRequest = NULL;
+				PendingSignal = 0;
+
+				/* disconnect from terminal */
+				disconnect(2, CurEnv);
+			}
+
+			CurrentPid = getpid();
+			if (qgrp != NOQGRP)
+			{
+				/*
+				**  To run a specific queue group mark it to
+				**  be run, select the work group it's in and
+				**  increment the work counter.
+				*/
+
+				runqueueevent(qgrp);
+				(void) run_work_group(Queue[qgrp]->qg_wgrp,
+						      false, Verbose,
+						      queuepersistent, false);
+			}
+			else
+				(void) runqueue(false, Verbose,
+						queuepersistent, true);
+
+			/* set the title to make it easier to find */
+			sm_setproctitle(true, CurEnv, "Queue control");
+			(void) sm_signal(SIGCHLD, SIG_DFL);
+			while (CurChildren > 0)
+			{
+				int status;
+				pid_t ret;
+
+				while ((ret = sm_wait(&status)) <= 0)
+					continue;
+
+				/* Only drop when a child gives status */
+				if (WIFSTOPPED(status))
+					continue;
+
+				proc_list_drop(ret, status, NULL);
+			}
 		}
-#  endif /* STARTTLS */
-# endif /* SMTP */
-		(void) runqueue(FALSE, Verbose);
-		finis(TRUE, ExitStat);
+		finis(true, true, ExitStat);
+		/* NOTREACHED */
 	}
-#endif /* QUEUE */
 
 # if SASL
 	if (OpMode == MD_SMTP || OpMode == MD_DAEMON)
 	{
-		/* give a syserr or just disable AUTH ? */
-		if ((i = sasl_server_init(srvcallbacks, "Sendmail")) != SASL_OK)
+		/* check whether AUTH is turned off for the server */
+		if (!chkdaemonmodifiers(D_NOAUTH) &&
+		    (i = sasl_server_init(srvcallbacks, "Sendmail")) != SASL_OK)
 			syserr("!sasl_server_init failed! [%s]",
-			       sasl_errstring(i, NULL, NULL));
+				sasl_errstring(i, NULL, NULL));
 	}
 # endif /* SASL */
+
+	if (OpMode == MD_SMTP)
+	{
+		proc_list_add(CurrentPid, "Sendmail SMTP Agent",
+			      PROC_DAEMON, 0, -1);
+
+		/* clean up background delivery children */
+		(void) sm_signal(SIGCHLD, reapchild);
+	}
 
 	/*
 	**  If a daemon, wait for a request.
@@ -1710,80 +2250,203 @@ main(argc, argv, envp)
 			if (i < 0)
 				syserr("daemon: cannot fork");
 			if (i != 0)
-				finis(FALSE, EX_OK);
+			{
+				finis(false, true, EX_OK);
+				/* NOTREACHED */
+			}
+
+			/*
+			**  Initialize exception stack and default exception
+			**  handler for child process.
+			*/
+
+			/* Reset global flags */
+			RestartRequest = NULL;
+			RestartWorkGroup = false;
+			ShutdownRequest = NULL;
+			PendingSignal = 0;
+			CurrentPid = getpid();
+
+			sm_exc_newthread(fatal_error);
 
 			/* disconnect from our controlling tty */
-			disconnect(2, CurEnv);
+			disconnect(2, &MainEnvelope);
 		}
 
 		dtype[0] = '\0';
 		if (OpMode == MD_DAEMON)
-			(void) strlcat(dtype, "+SMTP", sizeof dtype);
+		{
+			(void) sm_strlcat(dtype, "+SMTP", sizeof dtype);
+			DaemonPid = CurrentPid;
+		}
 		if (QueueIntvl != 0)
 		{
-			(void) strlcat(dtype, "+queueing@", sizeof dtype);
-			(void) strlcat(dtype, pintvl(QueueIntvl, TRUE),
-				       sizeof dtype);
+			(void) sm_strlcat2(dtype,
+					   queuepersistent
+					   ? "+persistent-queueing@"
+					   : "+queueing@",
+					   pintvl(QueueIntvl, true),
+					   sizeof dtype);
 		}
 		if (tTd(0, 1))
-			(void) strlcat(dtype, "+debugging", sizeof dtype);
+			(void) sm_strlcat(dtype, "+debugging", sizeof dtype);
 
 		sm_syslog(LOG_INFO, NOQID,
 			  "starting daemon (%s): %s", Version, dtype + 1);
-#ifdef XLA
+#if XLA
 		xla_create_file();
 #endif /* XLA */
 
 		/* save daemon type in a macro for possible PidFile use */
-		define(macid("{daemon_info}", NULL),
-		       newstr(dtype + 1), &BlankEnvelope);
+		macdefine(&BlankEnvelope.e_macro, A_TEMP,
+			macid("{daemon_info}"), dtype + 1);
 
 		/* save queue interval in a macro for possible PidFile use */
-		define(macid("{queue_interval}", NULL),
-		       newstr(pintvl(QueueIntvl, TRUE)), CurEnv);
+		macdefine(&MainEnvelope.e_macro, A_TEMP,
+			macid("{queue_interval}"), pintvl(QueueIntvl, true));
 
-#if QUEUE
+		/* workaround: can't seem to release the signal in the parent */
+		(void) sm_signal(SIGHUP, sighup);
+		(void) sm_releasesignal(SIGHUP);
+		(void) sm_signal(SIGTERM, sigterm);
+
 		if (QueueIntvl != 0)
 		{
-			(void) runqueue(TRUE, FALSE);
+			(void) runqueue(true, false, queuepersistent, true);
+
+			/*
+			**  If queuepersistent but not in daemon mode then
+			**  we're going to do the queue runner monitoring here.
+			**  If in daemon mode then the monitoring will happen
+			**  elsewhere.
+			*/
+
+			if (OpMode != MD_DAEMON && queuepersistent)
+			{
+				/* set the title to make it easier to find */
+				sm_setproctitle(true, CurEnv, "Queue control");
+				(void) sm_signal(SIGCHLD, SIG_DFL);
+				while (CurChildren > 0)
+				{
+					int status;
+					pid_t ret;
+					int group;
+
+					if (ShutdownRequest != NULL)
+						shutdown_daemon();
+					else if (RestartRequest != NULL)
+						restart_daemon();
+					else if (RestartWorkGroup)
+						restart_marked_work_groups();
+
+					while ((ret = sm_wait(&status)) <= 0)
+						continue;
+
+					if (WIFSTOPPED(status))
+						continue;
+
+					/* Probe only on a child status */
+					proc_list_drop(ret, status, &group);
+
+					if (WIFSIGNALED(status))
+					{
+						if (WCOREDUMP(status))
+						{
+							sm_syslog(LOG_ERR, NOQID,
+								  "persistent queue runner=%d core dumped, signal=%d",
+								  group, WTERMSIG(status));
+
+							/* don't restart this one */
+							mark_work_group_restart(group, -1);
+							continue;
+						}
+
+						sm_syslog(LOG_ERR, NOQID,
+							  "persistent queue runner=%d died, signal=%d",
+							  group, WTERMSIG(status));
+					}
+
+					/*
+					**  When debugging active, don't
+					**  restart the persistent queues.
+					**  But do log this as info.
+					*/
+
+					if (sm_debug_active(&DebugNoPRestart,
+							    1))
+					{
+						sm_syslog(LOG_DEBUG, NOQID,
+							  "persistent queue runner=%d, exited",
+							  group);
+						mark_work_group_restart(group, -1);
+					}
+				}
+				finis(true, true, ExitStat);
+				/* NOTREACHED */
+			}
+
 			if (OpMode != MD_DAEMON)
 			{
-				/* write the pid to file */
-				log_sendmail_pid(CurEnv);
-				(void) setsignal(SIGTERM, term_daemon);
+				char qtype[200];
+
+				/*
+				**  Write the pid to file
+				**  XXX Overwrites sendmail.pid
+				*/
+
+				log_sendmail_pid(&MainEnvelope);
+
+				/* set the title to make it easier to find */
+				qtype[0] = '\0';
+				(void) sm_strlcpyn(qtype, sizeof qtype, 4,
+						   "Queue runner@",
+						   pintvl(QueueIntvl, true),
+						   " for ",
+						   QueueDir);
+				sm_setproctitle(true, CurEnv, qtype);
 				for (;;)
 				{
 					(void) pause();
 					if (ShutdownRequest != NULL)
 						shutdown_daemon();
-					else if (DoQueueRun)
-						(void) runqueue(TRUE, FALSE);
+					else if (RestartRequest != NULL)
+						restart_daemon();
+					else if (RestartWorkGroup)
+						restart_marked_work_groups();
+
+					if (doqueuerun())
+						(void) runqueue(true, false,
+								false, false);
 				}
 			}
 		}
-#endif /* QUEUE */
-		dropenvelope(CurEnv, TRUE);
+		dropenvelope(&MainEnvelope, true, false);
 
-#if DAEMON
-# if STARTTLS
+#if STARTTLS
 		/* init TLS for server, ignore result for now */
-		(void) initsrvtls();
-# endif /* STARTTLS */
-		p_flags = getrequests(CurEnv);
+		(void) initsrvtls(tls_ok);
+#endif /* STARTTLS */
+#if PROFILING
+	nextreq:
+#endif /* PROFILING */
+		p_flags = getrequests(&MainEnvelope);
 
 		/* drop privileges */
-		(void) drop_privileges(FALSE);
-
-		/* at this point we are in a child: reset state */
-		(void) newenvelope(CurEnv, CurEnv);
+		(void) drop_privileges(false);
 
 		/*
 		**  Get authentication data
+		**  Set _ macro in BlankEnvelope before calling newenvelope().
 		*/
 
-		authinfo = getauthinfo(fileno(InChannel), &forged);
-		define('_', authinfo, &BlankEnvelope);
-#endif /* DAEMON */
+		authinfo = getauthinfo(sm_io_getinfo(InChannel, SM_IO_WHAT_FD,
+						     NULL), &forged);
+		macdefine(&BlankEnvelope.e_macro, A_TEMP, '_', authinfo);
+
+		/* at this point we are in a child: reset state */
+		sm_rpool_free(MainEnvelope.e_rpool);
+		(void) newenvelope(&MainEnvelope, &MainEnvelope,
+				   sm_rpool_new_x(NULL));
 	}
 
 	if (LogLevel > 9)
@@ -1792,7 +2455,6 @@ main(argc, argv, envp)
 		sm_syslog(LOG_INFO, NULL, "connect from %.100s", authinfo);
 	}
 
-#if SMTP
 	/*
 	**  If running SMTP protocol, start collecting and executing
 	**  commands.  This will never return.
@@ -1810,91 +2472,98 @@ main(argc, argv, envp)
 		{
 			char ipbuf[103];
 
-			(void) snprintf(ipbuf, sizeof ipbuf, "[%.100s]",
-					anynet_ntoa(&RealHostAddr));
-			define(macid("{client_name}", NULL),
-			       newstr(ipbuf), &BlankEnvelope);
-			define(macid("{client_resolve}", NULL),
-			       "FORGED", &BlankEnvelope);
+			(void) sm_snprintf(ipbuf, sizeof ipbuf, "[%.100s]",
+					   anynet_ntoa(&RealHostAddr));
+			macdefine(&BlankEnvelope.e_macro, A_TEMP,
+				  macid("{client_name}"), ipbuf);
 		}
 		else
-			define(macid("{client_name}", NULL), RealHostName,
-			       &BlankEnvelope);
-		define(macid("{client_addr}", NULL),
-		       newstr(anynet_ntoa(&RealHostAddr)), &BlankEnvelope);
-		(void)sm_getla(&BlankEnvelope);
+			macdefine(&BlankEnvelope.e_macro, A_PERM,
+				  macid("{client_name}"), RealHostName);
+		macdefine(&BlankEnvelope.e_macro, A_TEMP,
+			  macid("{client_addr}"), anynet_ntoa(&RealHostAddr));
+		sm_getla();
 
-		switch(RealHostAddr.sa.sa_family)
+		switch (RealHostAddr.sa.sa_family)
 		{
-# if NETINET
+#if NETINET
 		  case AF_INET:
-			(void) snprintf(pbuf, sizeof pbuf, "%d",
-					RealHostAddr.sin.sin_port);
+			(void) sm_snprintf(pbuf, sizeof pbuf, "%d",
+					   RealHostAddr.sin.sin_port);
 			break;
-# endif /* NETINET */
-# if NETINET6
+#endif /* NETINET */
+#if NETINET6
 		  case AF_INET6:
-			(void) snprintf(pbuf, sizeof pbuf, "%d",
-					RealHostAddr.sin6.sin6_port);
+			(void) sm_snprintf(pbuf, sizeof pbuf, "%d",
+					   RealHostAddr.sin6.sin6_port);
 			break;
-# endif /* NETINET6 */
+#endif /* NETINET6 */
 		  default:
-			(void) snprintf(pbuf, sizeof pbuf, "0");
+			(void) sm_snprintf(pbuf, sizeof pbuf, "0");
 			break;
 		}
-		define(macid("{client_port}", NULL),
-		       newstr(pbuf), &BlankEnvelope);
+		macdefine(&BlankEnvelope.e_macro, A_TEMP,
+			macid("{client_port}"), pbuf);
 
 		if (OpMode == MD_DAEMON)
 		{
 			/* validate the connection */
-			HoldErrs = TRUE;
+			HoldErrs = true;
 			nullserver = validate_connection(&RealHostAddr,
-							 RealHostName, CurEnv);
-			HoldErrs = FALSE;
+							 RealHostName,
+							 &MainEnvelope);
+			HoldErrs = false;
 		}
 		else if (p_flags == NULL)
 		{
 			p_flags = (BITMAP256 *) xalloc(sizeof *p_flags);
 			clrbitmap(p_flags);
 		}
-# if STARTTLS
+#if STARTTLS
 		if (OpMode == MD_SMTP)
-			(void) initsrvtls();
-# endif /* STARTTLS */
+			(void) initsrvtls(tls_ok);
+#endif /* STARTTLS */
 
-
-		smtp(nullserver, *p_flags, CurEnv);
+		/* turn off profiling */
+		SM_PROF(1);
+		smtp(nullserver, *p_flags, &MainEnvelope);
+#if PROFILING
+		/* turn off profiling */
+		SM_PROF(0);
+		if (OpMode == MD_DAEMON)
+			goto nextreq;
+#endif /* PROFILING */
 	}
-#endif /* SMTP */
 
-	clearenvelope(CurEnv, FALSE);
+	sm_rpool_free(MainEnvelope.e_rpool);
+	clearenvelope(&MainEnvelope, false, sm_rpool_new_x(NULL));
 	if (OpMode == MD_VERIFY)
 	{
-		set_delivery_mode(SM_VERIFY, CurEnv);
+		set_delivery_mode(SM_VERIFY, &MainEnvelope);
 		PostMasterCopy = NULL;
 	}
 	else
 	{
 		/* interactive -- all errors are global */
-		CurEnv->e_flags |= EF_GLOBALERRS|EF_LOGSENDER;
+		MainEnvelope.e_flags |= EF_GLOBALERRS|EF_LOGSENDER;
 	}
 
 	/*
 	**  Do basic system initialization and set the sender
 	*/
 
-	initsys(CurEnv);
-	define(macid("{ntries}", NULL), "0", CurEnv);
-	setsender(from, CurEnv, NULL, '\0', FALSE);
+	initsys(&MainEnvelope);
+	macdefine(&MainEnvelope.e_macro, A_PERM, macid("{ntries}"), "0");
+	macdefine(&MainEnvelope.e_macro, A_PERM, macid("{nrcpts}"), "0");
+	setsender(from, &MainEnvelope, NULL, '\0', false);
 	if (warn_f_flag != '\0' && !wordinclass(RealUserName, 't') &&
-	    (!bitnset(M_LOCALMAILER, CurEnv->e_from.q_mailer->m_flags) ||
-	     strcmp(CurEnv->e_from.q_user, RealUserName) != 0))
+	    (!bitnset(M_LOCALMAILER, MainEnvelope.e_from.q_mailer->m_flags) ||
+	     strcmp(MainEnvelope.e_from.q_user, RealUserName) != 0))
 	{
-		auth_warning(CurEnv, "%s set sender to %s using -%c",
-			RealUserName, from, warn_f_flag);
+		auth_warning(&MainEnvelope, "%s set sender to %s using -%c",
+			     RealUserName, from, warn_f_flag);
 #if SASL
-		auth = FALSE;
+		auth = false;
 #endif /* SASL */
 	}
 	if (auth)
@@ -1902,46 +2571,54 @@ main(argc, argv, envp)
 		char *fv;
 
 		/* set the initial sender for AUTH= to $f@$j */
-		fv = macvalue('f', CurEnv);
+		fv = macvalue('f', &MainEnvelope);
 		if (fv == NULL || *fv == '\0')
-			CurEnv->e_auth_param = NULL;
+			MainEnvelope.e_auth_param = NULL;
 		else
 		{
 			if (strchr(fv, '@') == NULL)
 			{
-				i = strlen(fv) + strlen(macvalue('j', CurEnv))
-				    + 2;
-				p = xalloc(i);
-				(void) snprintf(p, i, "%s@%s", fv,
-						macvalue('j', CurEnv));
+				i = strlen(fv) + strlen(macvalue('j',
+							&MainEnvelope)) + 2;
+				p = sm_malloc_x(i);
+				(void) sm_strlcpyn(p, i, 3, fv, "@",
+						   macvalue('j',
+							    &MainEnvelope));
 			}
 			else
-				p = newstr(fv);
-			CurEnv->e_auth_param = newstr(xtextify(p, "="));
+				p = sm_strdup_x(fv);
+			MainEnvelope.e_auth_param = sm_rpool_strdup_x(MainEnvelope.e_rpool,
+								      xtextify(p, "="));
+			sm_free(p);  /* XXX */
 		}
 	}
-	if (macvalue('s', CurEnv) == NULL)
-		define('s', RealHostName, CurEnv);
+	if (macvalue('s', &MainEnvelope) == NULL)
+		macdefine(&MainEnvelope.e_macro, A_PERM, 's', RealHostName);
 
+	av = argv + optind;
 	if (*av == NULL && !GrabTo)
 	{
-		CurEnv->e_to = NULL;
-		CurEnv->e_flags |= EF_GLOBALERRS;
-		HoldErrs = FALSE;
-		SuperSafe = FALSE;
+		MainEnvelope.e_to = NULL;
+		MainEnvelope.e_flags |= EF_GLOBALERRS;
+		HoldErrs = false;
+		SuperSafe = SAFE_NO;
 		usrerr("Recipient names must be specified");
 
 		/* collect body for UUCP return */
 		if (OpMode != MD_VERIFY)
-			collect(InChannel, FALSE, NULL, CurEnv);
-		finis(TRUE, EX_USAGE);
+			collect(InChannel, false, NULL, &MainEnvelope);
+		finis(true, true, EX_USAGE);
+		/* NOTREACHED */
 	}
 
 	/*
 	**  Scan argv and deliver the message to everyone.
 	*/
 
-	sendtoargv(av, CurEnv);
+	save_val = LogUsrErrs;
+	LogUsrErrs = true;
+	sendtoargv(av, &MainEnvelope);
+	LogUsrErrs = save_val;
 
 	/* if we have had errors sofar, arrange a meaningful exit stat */
 	if (Errors > 0 && ExitStat == EX_OK)
@@ -1957,7 +2634,7 @@ main(argc, argv, envp)
 	{
 		ADDRESS *q;
 
-		for (q = CurEnv->e_sendqueue; q != NULL; q = q->q_next)
+		for (q = MainEnvelope.e_sendqueue; q != NULL; q = q->q_next)
 			q->q_state = QS_REMOVED;
 	}
 #endif /* _FFR_FIX_DASHT */
@@ -1966,122 +2643,120 @@ main(argc, argv, envp)
 	**  Read the input mail.
 	*/
 
-	CurEnv->e_to = NULL;
+	MainEnvelope.e_to = NULL;
 	if (OpMode != MD_VERIFY || GrabTo)
 	{
-		int savederrors = Errors;
-		long savedflags = CurEnv->e_flags & EF_FATALERRS;
+		int savederrors;
+		unsigned long savedflags;
 
-		CurEnv->e_flags |= EF_GLOBALERRS;
-		CurEnv->e_flags &= ~EF_FATALERRS;
+		/*
+		**  workaround for compiler warning on Irix:
+		**  do not initialize variable in the definition, but
+		**  later on:
+		**  warning(1548): transfer of control bypasses
+		**  initialization of:
+		**  variable "savederrors" (declared at line 2570)
+		**  variable "savedflags" (declared at line 2571)
+		**  goto giveup;
+		*/
+
+		savederrors = Errors;
+		savedflags = MainEnvelope.e_flags & EF_FATALERRS;
+		MainEnvelope.e_flags |= EF_GLOBALERRS;
+		MainEnvelope.e_flags &= ~EF_FATALERRS;
 		Errors = 0;
 		buffer_errors();
-		collect(InChannel, FALSE, NULL, CurEnv);
+		collect(InChannel, false, NULL, &MainEnvelope);
 
 		/* header checks failed */
 		if (Errors > 0)
 		{
-			/* Log who the mail would have gone to */
-			if (LogLevel > 8 && CurEnv->e_message != NULL &&
-			    !GrabTo)
+  giveup:
+			if (!GrabTo)
 			{
-				ADDRESS *a;
-
-				for (a = CurEnv->e_sendqueue;
-				     a != NULL;
-				     a = a->q_next)
-				{
-					if (!QS_IS_UNDELIVERED(a->q_state))
-						continue;
-
-					CurEnv->e_to = a->q_paddr;
-					logdelivery(NULL, NULL, NULL,
-						    CurEnv->e_message,
-						    NULL, (time_t) 0, CurEnv);
-				}
-				CurEnv->e_to = NULL;
+				/* Log who the mail would have gone to */
+				logundelrcpts(&MainEnvelope,
+					      MainEnvelope.e_message,
+					      8, false);
 			}
-			flush_errors(TRUE);
-			finis(TRUE, ExitStat);
+			flush_errors(true);
+			finis(true, true, ExitStat);
 			/* NOTREACHED */
 			return -1;
 		}
 
 		/* bail out if message too large */
-		if (bitset(EF_CLRQUEUE, CurEnv->e_flags))
+		if (bitset(EF_CLRQUEUE, MainEnvelope.e_flags))
 		{
-			finis(TRUE, ExitStat != EX_OK ? ExitStat : EX_DATAERR);
+			finis(true, true, ExitStat != EX_OK ? ExitStat
+							    : EX_DATAERR);
 			/* NOTREACHED */
 			return -1;
 		}
 		Errors = savederrors;
-		CurEnv->e_flags |= savedflags;
+		MainEnvelope.e_flags |= savedflags;
 	}
 	errno = 0;
 
 	if (tTd(1, 1))
-		dprintf("From person = \"%s\"\n", CurEnv->e_from.q_paddr);
+		sm_dprintf("From person = \"%s\"\n",
+			   MainEnvelope.e_from.q_paddr);
+
+#if _FFR_QUARANTINE
+	/* Check if quarantining stats should be updated */
+	if (MainEnvelope.e_quarmsg != NULL)
+		markstats(&MainEnvelope, NULL, STATS_QUARANTINE);
+#endif /* _FFR_QUARANTINE */
 
 	/*
 	**  Actually send everything.
 	**	If verifying, just ack.
 	*/
 
-	CurEnv->e_from.q_state = QS_SENDER;
-	if (tTd(1, 5))
+	if (Errors == 0)
 	{
-		dprintf("main: QS_SENDER ");
-		printaddr(&CurEnv->e_from, FALSE);
+		if (!split_by_recipient(&MainEnvelope) &&
+		    bitset(EF_FATALERRS, MainEnvelope.e_flags))
+			goto giveup;
 	}
-	CurEnv->e_to = NULL;
-	CurrentLA = sm_getla(CurEnv);
-	GrabTo = FALSE;
+
+	/* make sure we deliver at least the first envelope */
+	i = FastSplit > 0 ? 0 : -1;
+	for (e = &MainEnvelope; e != NULL; e = e->e_sibling, i++)
+	{
+		ENVELOPE *next;
+
+		e->e_from.q_state = QS_SENDER;
+		if (tTd(1, 5))
+		{
+			sm_dprintf("main[%d]: QS_SENDER ", i);
+			printaddr(&e->e_from, false);
+		}
+		e->e_to = NULL;
+		sm_getla();
+		GrabTo = false;
 #if NAMED_BIND
-	_res.retry = TimeOuts.res_retry[RES_TO_FIRST];
-	_res.retrans = TimeOuts.res_retrans[RES_TO_FIRST];
+		_res.retry = TimeOuts.res_retry[RES_TO_FIRST];
+		_res.retrans = TimeOuts.res_retrans[RES_TO_FIRST];
 #endif /* NAMED_BIND */
-	sendall(CurEnv, SM_DEFAULT);
+		next = e->e_sibling;
+		e->e_sibling = NULL;
+
+		/* after FastSplit envelopes: queue up */
+		sendall(e, i >= FastSplit ? SM_QUEUE : SM_DEFAULT);
+		e->e_sibling = next;
+	}
 
 	/*
 	**  All done.
 	**	Don't send return error message if in VERIFY mode.
 	*/
 
-	finis(TRUE, ExitStat);
+	finis(true, true, ExitStat);
 	/* NOTREACHED */
 	return ExitStat;
 }
-/*
-**  QUIESCE -- signal handler for SIGPIPE
-**
-**	Parameters:
-**		sig -- incoming signal.
-**
-**	Returns:
-**		none.
-**
-**	Side Effects:
-**		Sets StopRequest which should cause the mailq/hoststatus
-**		display to stop.
-**
-**	NOTE:	THIS CAN BE CALLED FROM A SIGNAL HANDLER.  DO NOT ADD
-**		ANYTHING TO THIS ROUTINE UNLESS YOU KNOW WHAT YOU ARE
-**		DOING.
-*/
-
-/* ARGSUSED */
-static SIGFUNC_DECL
-quiesce(sig)
-	int sig;
-{
-	int save_errno = errno;
-
-	FIX_SYSV_SIGNAL(sig, quiesce);
-	StopRequest = TRUE;
-	errno = save_errno;
-	return SIGFUNC_RETURN;
-}
-/*
+/*
 **  STOP_SENDMAIL -- Stop the running program
 **
 **	Parameters:
@@ -2102,8 +2777,117 @@ stop_sendmail()
 	(void) setuid(RealUid);
 	exit(EX_OK);
 }
+/*
+**  FINIS -- Clean up and exit.
+**
+**	Parameters:
+**		drop -- whether or not to drop CurEnv envelope
+**		cleanup -- call exit() or _exit()?
+**		exitstat -- exit status to use for exit() call
+**
+**	Returns:
+**		never
+**
+**	Side Effects:
+**		exits sendmail
+*/
 
-/*
+void
+finis(drop, cleanup, exitstat)
+	bool drop;
+	bool cleanup;
+	volatile int exitstat;
+{
+	/* Still want to process new timeouts added below */
+	sm_clear_events();
+	(void) sm_releasesignal(SIGALRM);
+
+	if (tTd(2, 1))
+	{
+		sm_dprintf("\n====finis: stat %d e_id=%s e_flags=",
+			   exitstat,
+			   CurEnv->e_id == NULL ? "NOQUEUE" : CurEnv->e_id);
+		printenvflags(CurEnv);
+	}
+	if (tTd(2, 9))
+		printopenfds(false);
+
+	SM_TRY
+		/*
+		**  Clean up.  This might raise E:mta.quickabort
+		*/
+
+		/* clean up temp files */
+		CurEnv->e_to = NULL;
+		if (drop)
+		{
+			if (CurEnv->e_id != NULL)
+			{
+				dropenvelope(CurEnv, true, false);
+				sm_rpool_free(CurEnv->e_rpool);
+				CurEnv->e_rpool = NULL;
+			}
+			else
+				poststats(StatFile);
+		}
+
+		/* flush any cached connections */
+		mci_flush(true, NULL);
+
+		/* close maps belonging to this pid */
+		closemaps(false);
+
+#if USERDB
+		/* close UserDatabase */
+		_udbx_close();
+#endif /* USERDB */
+
+#if SASL
+		stop_sasl_client();
+#endif /* SASL */
+
+#if XLA
+		/* clean up extended load average stuff */
+		xla_all_end();
+#endif /* XLA */
+
+	SM_FINALLY
+		/*
+		**  And exit.
+		*/
+
+		if (LogLevel > 78)
+			sm_syslog(LOG_DEBUG, CurEnv->e_id, "finis, pid=%d",
+				  (int) CurrentPid);
+		if (exitstat == EX_TEMPFAIL ||
+		    CurEnv->e_errormode == EM_BERKNET)
+			exitstat = EX_OK;
+
+		/* XXX clean up queues and related data structures */
+		cleanup_queues();
+#if SM_CONF_SHM
+		cleanup_shm(DaemonPid == getpid());
+#endif /* SM_CONF_SHM */
+
+		/* reset uid for process accounting */
+		endpwent();
+		sm_mbdb_terminate();
+		(void) setuid(RealUid);
+#if SM_HEAP_CHECK
+		/* dump the heap, if we are checking for memory leaks */
+		if (sm_debug_active(&SmHeapCheck, 2))
+			sm_heap_report(smioout,
+				       sm_debug_level(&SmHeapCheck) - 1);
+#endif /* SM_HEAP_CHECK */
+		if (sm_debug_active(&SmXtrapReport, 1))
+			sm_dprintf("xtrap count = %d\n", SmXtrapCount);
+		if (cleanup)
+			exit(exitstat);
+		else
+			_exit(exitstat);
+	SM_END_TRY
+}
+/*
 **  INTINDEBUG -- signal handler for SIGINT in -bt mode
 **
 **	Parameters:
@@ -2118,9 +2902,17 @@ stop_sendmail()
 **	NOTE:	THIS CAN BE CALLED FROM A SIGNAL HANDLER.  DO NOT ADD
 **		ANYTHING TO THIS ROUTINE UNLESS YOU KNOW WHAT YOU ARE
 **		DOING.
-**
-**	XXX: More work is needed for this signal handler.
 */
+
+/* Type of an exception generated on SIGINT during address test mode.  */
+static const SM_EXC_TYPE_T EtypeInterrupt =
+{
+	SmExcTypeMagic,
+	"S:mta.interrupt",
+	"",
+	sm_etype_printf,
+	"interrupt",
+};
 
 /* ARGSUSED */
 static SIGFUNC_DECL
@@ -2132,95 +2924,13 @@ intindebug(sig)
 	FIX_SYSV_SIGNAL(sig, intindebug);
 	errno = save_errno;
 	CHECK_CRITICAL(sig);
-
 	errno = save_errno;
-	longjmp(TopFrame, 1);
+	sm_exc_raisenew_x(&EtypeInterrupt);
+	errno = save_errno;
 	return SIGFUNC_RETURN;
 }
-/*
-**  FINIS -- Clean up and exit.
-**
-**	Parameters:
-**		drop -- whether or not to drop CurEnv envelope
-**		exitstat -- exit status to use for exit() call
-**
-**	Returns:
-**		never
-**
-**	Side Effects:
-**		exits sendmail
-*/
-
-void
-finis(drop, exitstat)
-	bool drop;
-	volatile int exitstat;
-{
-	/* Still want to process new timeouts added below */
-	clear_events();
-	(void) releasesignal(SIGALRM);
-
-	if (tTd(2, 1))
-	{
-		dprintf("\n====finis: stat %d e_id=%s e_flags=",
-			exitstat,
-			CurEnv->e_id == NULL ? "NOQUEUE" : CurEnv->e_id);
-		printenvflags(CurEnv);
-	}
-	if (tTd(2, 9))
-		printopenfds(FALSE);
-
-	/* if we fail in finis(), just exit */
-	if (setjmp(TopFrame) != 0)
-	{
-		/* failed -- just give it up */
-		goto forceexit;
-	}
-
-	/* clean up temp files */
-	CurEnv->e_to = NULL;
-	if (drop)
-	{
-		if (CurEnv->e_id != NULL)
-			dropenvelope(CurEnv, TRUE);
-		else
-			poststats(StatFile);
-	}
-
-	/* flush any cached connections */
-	mci_flush(TRUE, NULL);
-
-	/* close maps belonging to this pid */
-	closemaps();
-
-#if USERDB
-	/* close UserDatabase */
-	_udbx_close();
-#endif /* USERDB */
-
-#ifdef XLA
-	/* clean up extended load average stuff */
-	xla_all_end();
-#endif /* XLA */
-
-	/* and exit */
-  forceexit:
-	if (LogLevel > 78)
-		sm_syslog(LOG_DEBUG, CurEnv->e_id,
-			  "finis, pid=%d",
-			  (int) getpid());
-	if (exitstat == EX_TEMPFAIL || CurEnv->e_errormode == EM_BERKNET)
-		exitstat = EX_OK;
-
-	sync_queue_time();
-
-	/* reset uid for process accounting */
-	endpwent();
-	(void) setuid(RealUid);
-	exit(exitstat);
-}
-/*
-**  TERM_DEAMON -- SIGTERM handler for the daemon
+/*
+**  SIGTERM -- SIGTERM handler for the daemon
 **
 **	Parameters:
 **		sig -- signal number.
@@ -2239,53 +2949,77 @@ finis(drop, exitstat)
 
 /* ARGSUSED */
 static SIGFUNC_DECL
-term_daemon(sig)
+sigterm(sig)
 	int sig;
 {
 	int save_errno = errno;
 
-	FIX_SYSV_SIGNAL(sig, term_daemon);
+	FIX_SYSV_SIGNAL(sig, sigterm);
 	ShutdownRequest = "signal";
 	errno = save_errno;
 	return SIGFUNC_RETURN;
 }
-/*
-**  SHUTDOWN_DAEMON -- Performs a clean shutdown of the daemon
+/*
+**  SIGHUP -- handle a SIGHUP signal
 **
 **	Parameters:
-**		none.
+**		sig -- incoming signal.
 **
 **	Returns:
 **		none.
 **
 **	Side Effects:
-**		closes control socket, exits.
+**		Sets RestartRequest which should cause the daemon
+**		to restart.
+**
+**	NOTE:	THIS CAN BE CALLED FROM A SIGNAL HANDLER.  DO NOT ADD
+**		ANYTHING TO THIS ROUTINE UNLESS YOU KNOW WHAT YOU ARE
+**		DOING.
 */
 
-void
-shutdown_daemon()
+/* ARGSUSED */
+static SIGFUNC_DECL
+sighup(sig)
+	int sig;
 {
-	char *reason;
+	int save_errno = errno;
 
-	allsignals(TRUE);
-
-	reason = ShutdownRequest;
-	ShutdownRequest = NULL;
-	PendingSignal = 0;
-
-	if (LogLevel > 79)
-		sm_syslog(LOG_DEBUG, CurEnv->e_id, "interrupt (%s)",
-			  reason == NULL ? "implicit call" : reason);
-
-	FileName = NULL;
-	closecontrolsocket(TRUE);
-#ifdef XLA
-	xla_all_end();
-#endif /* XLA */
-
-	finis(FALSE, EX_OK);
+	FIX_SYSV_SIGNAL(sig, sighup);
+	RestartRequest = "signal";
+	errno = save_errno;
+	return SIGFUNC_RETURN;
 }
-/*
+/*
+**  SIGPIPE -- signal handler for SIGPIPE
+**
+**	Parameters:
+**		sig -- incoming signal.
+**
+**	Returns:
+**		none.
+**
+**	Side Effects:
+**		Sets StopRequest which should cause the mailq/hoststatus
+**		display to stop.
+**
+**	NOTE:	THIS CAN BE CALLED FROM A SIGNAL HANDLER.  DO NOT ADD
+**		ANYTHING TO THIS ROUTINE UNLESS YOU KNOW WHAT YOU ARE
+**		DOING.
+*/
+
+/* ARGSUSED */
+static SIGFUNC_DECL
+sigpipe(sig)
+	int sig;
+{
+	int save_errno = errno;
+
+	FIX_SYSV_SIGNAL(sig, sigpipe);
+	StopRequest = true;
+	errno = save_errno;
+	return SIGFUNC_RETURN;
+}
+/*
 **  INTSIG -- clean up on interrupt
 **
 **	This just arranges to exit.  It pessimizes in that it
@@ -2312,13 +3046,14 @@ SIGFUNC_DECL
 intsig(sig)
 	int sig;
 {
-	bool drop = FALSE;
+	bool drop = false;
 	int save_errno = errno;
 
 	FIX_SYSV_SIGNAL(sig, intsig);
 	errno = save_errno;
 	CHECK_CRITICAL(sig);
-	allsignals(TRUE);
+	sm_allsignals(true);
+
 	if (sig != 0 && LogLevel > 79)
 		sm_syslog(LOG_DEBUG, CurEnv->e_id, "interrupt");
 	FileName = NULL;
@@ -2344,91 +3079,17 @@ intsig(sig)
 		for (q = CurEnv->e_sendqueue; q != NULL; q = q->q_next)
 			q->q_state = QS_DONTSEND;
 
-		/* and don't try to deliver the partial message either */
-		if (InChild)
-			ExitStat = EX_QUIT;
-
-		drop = TRUE;
+		drop = true;
 	}
 	else if (OpMode != MD_TEST)
+	{
 		unlockqueue(CurEnv);
-
-	finis(drop, EX_OK);
-}
-/*
-**  INITMACROS -- initialize the macro system
-**
-**	This just involves defining some macros that are actually
-**	used internally as metasymbols to be themselves.
-**
-**	Parameters:
-**		none.
-**
-**	Returns:
-**		none.
-**
-**	Side Effects:
-**		initializes several macros to be themselves.
-*/
-
-struct metamac	MetaMacros[] =
-{
-	/* LHS pattern matching characters */
-	{ '*', MATCHZANY },	{ '+', MATCHANY },	{ '-', MATCHONE },
-	{ '=', MATCHCLASS },	{ '~', MATCHNCLASS },
-
-	/* these are RHS metasymbols */
-	{ '#', CANONNET },	{ '@', CANONHOST },	{ ':', CANONUSER },
-	{ '>', CALLSUBR },
-
-	/* the conditional operations */
-	{ '?', CONDIF },	{ '|', CONDELSE },	{ '.', CONDFI },
-
-	/* the hostname lookup characters */
-	{ '[', HOSTBEGIN },	{ ']', HOSTEND },
-	{ '(', LOOKUPBEGIN },	{ ')', LOOKUPEND },
-
-	/* miscellaneous control characters */
-	{ '&', MACRODEXPAND },
-
-	{ '\0', '\0' }
-};
-
-#define MACBINDING(name, mid) \
-		stab(name, ST_MACRO, ST_ENTER)->s_macro = mid; \
-		MacroName[mid] = name;
-
-void
-initmacros(e)
-	register ENVELOPE *e;
-{
-	register struct metamac *m;
-	register int c;
-	char buf[5];
-	extern char *MacroName[MAXMACROID + 1];
-
-	for (m = MetaMacros; m->metaname != '\0'; m++)
-	{
-		buf[0] = m->metaval;
-		buf[1] = '\0';
-		define(m->metaname, newstr(buf), e);
-	}
-	buf[0] = MATCHREPL;
-	buf[2] = '\0';
-	for (c = '0'; c <= '9'; c++)
-	{
-		buf[1] = c;
-		define(c, newstr(buf), e);
 	}
 
-	/* set defaults for some macros sendmail will use later */
-	define('n', "MAILER-DAEMON", e);
-
-	/* set up external names for some internal macros */
-	MACBINDING("opMode", MID_OPMODE);
-	/*XXX should probably add equivalents for all short macros here XXX*/
+	finis(drop, false, EX_OK);
+	/* NOTREACHED */
 }
-/*
+/*
 **  DISCONNECT -- remove our connection with any foreground process
 **
 **	Parameters:
@@ -2456,11 +3117,12 @@ disconnect(droplev, e)
 	int fd;
 
 	if (tTd(52, 1))
-		dprintf("disconnect: In %d Out %d, e=%lx\n",
-			fileno(InChannel), fileno(OutChannel), (u_long) e);
+		sm_dprintf("disconnect: In %d Out %d, e=%p\n",
+			   sm_io_getinfo(InChannel, SM_IO_WHAT_FD, NULL),
+			   sm_io_getinfo(OutChannel, SM_IO_WHAT_FD, NULL), e);
 	if (tTd(52, 100))
 	{
-		dprintf("don't\n");
+		sm_dprintf("don't\n");
 		return;
 	}
 	if (LogLevel > 93)
@@ -2469,40 +3131,64 @@ disconnect(droplev, e)
 			  droplev);
 
 	/* be sure we don't get nasty signals */
-	(void) setsignal(SIGINT, SIG_IGN);
-	(void) setsignal(SIGQUIT, SIG_IGN);
+	(void) sm_signal(SIGINT, SIG_IGN);
+	(void) sm_signal(SIGQUIT, SIG_IGN);
 
 	/* we can't communicate with our caller, so.... */
-	HoldErrs = TRUE;
+	HoldErrs = true;
 	CurEnv->e_errormode = EM_MAIL;
 	Verbose = 0;
-	DisConnected = TRUE;
+	DisConnected = true;
 
 	/* all input from /dev/null */
-	if (InChannel != stdin)
+	if (InChannel != smioin)
 	{
-		(void) fclose(InChannel);
-		InChannel = stdin;
+		(void) sm_io_close(InChannel, SM_TIME_DEFAULT);
+		InChannel = smioin;
 	}
-	if (freopen("/dev/null", "r", stdin) == NULL)
+	if (sm_io_reopen(SmFtStdio, SM_TIME_DEFAULT, SM_PATH_DEVNULL,
+			 SM_IO_RDONLY, NULL, smioin) == NULL)
 		sm_syslog(LOG_ERR, e->e_id,
-			  "disconnect: freopen(\"/dev/null\") failed: %s",
-			  errstring(errno));
+			  "disconnect: sm_io_reopen(\"%s\") failed: %s",
+			  SM_PATH_DEVNULL, sm_errstring(errno));
 
-	/* output to the transcript */
-	if (OutChannel != stdout)
+	/*
+	**  output to the transcript
+	**	We also compare the fd numbers here since OutChannel
+	**	might be a layer on top of smioout due to encryption
+	**	(see sfsasl.c).
+	*/
+
+	if (OutChannel != smioout &&
+	    sm_io_getinfo(OutChannel, SM_IO_WHAT_FD, NULL) !=
+	    sm_io_getinfo(smioout, SM_IO_WHAT_FD, NULL))
 	{
-		(void) fclose(OutChannel);
-		OutChannel = stdout;
+		(void) sm_io_close(OutChannel, SM_TIME_DEFAULT);
+		OutChannel = smioout;
+
+#if 0
+		/*
+		**  Has smioout been closed? Reopen it.
+		**	This shouldn't happen anymore, the code is here
+		**	just as a reminder.
+		*/
+
+		if (smioout->sm_magic == NULL &&
+		    sm_io_reopen(SmFtStdio, SM_TIME_DEFAULT, SM_PATH_DEVNULL,
+				 SM_IO_WRONLY, NULL, smioout) == NULL)
+			sm_syslog(LOG_ERR, e->e_id,
+				  "disconnect: sm_io_reopen(\"%s\") failed: %s",
+				  SM_PATH_DEVNULL, sm_errstring(errno));
+#endif /* 0 */
 	}
 	if (droplev > 0)
 	{
-		fd = open("/dev/null", O_WRONLY, 0666);
+		fd = open(SM_PATH_DEVNULL, O_WRONLY, 0666);
 		if (fd == -1)
 			sm_syslog(LOG_ERR, e->e_id,
-				  "disconnect: open(\"/dev/null\") failed: %s",
-				  errstring(errno));
-		(void) fflush(stdout);
+				  "disconnect: open(\"%s\") failed: %s",
+				  SM_PATH_DEVNULL, sm_errstring(errno));
+		(void) sm_io_flush(smioout, SM_TIME_DEFAULT);
 		(void) dup2(fd, STDOUT_FILENO);
 		(void) dup2(fd, STDERR_FILENO);
 		(void) close(fd);
@@ -2520,9 +3206,8 @@ disconnect(droplev, e)
 #endif /* XDEBUG */
 
 	if (LogLevel > 71)
-		sm_syslog(LOG_DEBUG, e->e_id,
-			  "in background, pid=%d",
-			  (int) getpid());
+		sm_syslog(LOG_DEBUG, e->e_id, "in background, pid=%d",
+			  (int) CurrentPid);
 
 	errno = 0;
 }
@@ -2540,6 +3225,18 @@ obsolete(argv)
 		if (ap[0] != '-' || ap[1] == '-')
 			return;
 
+#if _FFR_QUARANTINE
+		/* Don't allow users to use "-Q." or "-Q ." */
+		if ((ap[1] == 'Q' && ap[2] == '.') ||
+		    (ap[1] == 'Q' && argv[1] != NULL &&
+		     argv[1][0] == '.' && argv[1][1] == '\0'))
+		{
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					     "Can not use -Q.\n");
+			exit(EX_USAGE);
+		}
+#endif /* _FFR_QUARANTINE */
+
 		/* skip over options that do have a value */
 		op = strchr(OPTIONS, ap[1]);
 		if (op != NULL && *++op == ':' && ap[2] == '\0' &&
@@ -2554,17 +3251,23 @@ obsolete(argv)
 		}
 
 		/* If -C doesn't have an argument, use sendmail.cf. */
-#define	__DEFPATH	"sendmail.cf"
+#define __DEFPATH	"sendmail.cf"
 		if (ap[1] == 'C' && ap[2] == '\0')
 		{
 			*argv = xalloc(sizeof(__DEFPATH) + 2);
-			(void) snprintf(argv[0], sizeof(__DEFPATH) + 2, "-C%s",
-					__DEFPATH);
+			(void) sm_strlcpyn(argv[0], sizeof(__DEFPATH) + 2, 2,
+					   "-C", __DEFPATH);
 		}
 
 		/* If -q doesn't have an argument, run it once. */
 		if (ap[1] == 'q' && ap[2] == '\0')
 			*argv = "-q0";
+
+#if _FFR_QUARANTINE
+		/* If -Q doesn't have an argument, disable quarantining */
+		if (ap[1] == 'Q' && ap[2] == '\0')
+			*argv = "-Q.";
+#endif /* _FFR_QUARANTINE */
 
 		/* if -d doesn't have an argument, use 0-99.1 */
 		if (ap[1] == 'd' && ap[2] == '\0')
@@ -2581,7 +3284,7 @@ obsolete(argv)
 #endif /* defined(sony_news) */
 	}
 }
-/*
+/*
 **  AUTH_WARNING -- specify authorization warning
 **
 **	Parameters:
@@ -2604,7 +3307,7 @@ auth_warning(e, msg, va_alist)
 #endif /* __STDC__ */
 {
 	char buf[MAXLINE];
-	VA_LOCAL_DECL
+	SM_VA_LOCAL_DECL
 
 	if (bitset(PRIV_AUTHWARNINGS, PrivacyFlags))
 	{
@@ -2616,28 +3319,28 @@ auth_warning(e, msg, va_alist)
 			struct hostent *hp;
 
 			hp = myhostname(hostbuf, sizeof hostbuf);
-#if _FFR_FREEHOSTENT && NETINET6
+#if NETINET6
 			if (hp != NULL)
 			{
 				freehostent(hp);
 				hp = NULL;
 			}
-#endif /* _FFR_FREEHOSTENT && NETINET6 */
+#endif /* NETINET6 */
 		}
 
-		(void) snprintf(buf, sizeof buf, "%s: ", hostbuf);
+		(void) sm_strlcpyn(buf, sizeof buf, 2, hostbuf, ": ");
 		p = &buf[strlen(buf)];
-		VA_START(msg);
-		vsnprintf(p, SPACELEFT(buf, p), msg, ap);
-		VA_END;
-		addheader("X-Authentication-Warning", buf, 0, &e->e_header);
+		SM_VA_START(ap, msg);
+		(void) sm_vsnprintf(p, SPACELEFT(buf, p), msg, ap);
+		SM_VA_END(ap);
+		addheader("X-Authentication-Warning", buf, 0, e);
 		if (LogLevel > 3)
 			sm_syslog(LOG_INFO, e->e_id,
 				  "Authentication-Warning: %.400s",
 				  buf);
 	}
 }
-/*
+/*
 **  GETEXTENV -- get from external environment
 **
 **	Parameters:
@@ -2647,7 +3350,7 @@ auth_warning(e, msg, va_alist)
 **		The value, if any.
 */
 
-char *
+static char *
 getextenv(envar)
 	const char *envar;
 {
@@ -2662,8 +3365,8 @@ getextenv(envar)
 	}
 	return NULL;
 }
-/*
-**  SETUSERENV -- set an environment in the propogated environment
+/*
+**  SETUSERENV -- set an environment in the propagated environment
 **
 **	Parameters:
 **		envar -- the name of the environment variable.
@@ -2692,10 +3395,11 @@ setuserenv(envar, value)
 			return;
 	}
 
+	/* XXX enforce reasonable size? */
 	i = strlen(envar) + 1;
 	l = strlen(value) + i + 1;
 	p = (char *) xalloc(l);
-	(void) snprintf(p, l, "%s=%s", envar, value);
+	(void) sm_strlcpyn(p, l, 3, envar, "=", value);
 
 	while (*evp != NULL && strncmp(*evp, p, i) != 0)
 		evp++;
@@ -2713,7 +3417,7 @@ setuserenv(envar, value)
 	if (putenv(p) < 0)
 		syserr("setuserenv: putenv(%s) failed", p);
 }
-/*
+/*
 **  DUMPSTATE -- dump state
 **
 **	For debugging.
@@ -2738,12 +3442,12 @@ dumpstate(when)
 				  "*** $j not in $=w ***");
 	}
 	sm_syslog(LOG_DEBUG, CurEnv->e_id, "CurChildren = %d", CurChildren);
-	sm_syslog(LOG_DEBUG, CurEnv->e_id, "NextMacroId = %d (Max %d)\n",
+	sm_syslog(LOG_DEBUG, CurEnv->e_id, "NextMacroId = %d (Max %d)",
 		  NextMacroId, MAXMACROID);
 	sm_syslog(LOG_DEBUG, CurEnv->e_id, "--- open file descriptors: ---");
-	printopenfds(TRUE);
+	printopenfds(true);
 	sm_syslog(LOG_DEBUG, CurEnv->e_id, "--- connection cache: ---");
-	mci_dump_all(TRUE);
+	mci_dump_all(true);
 	rs = strtorwset("debug_dumpstate", NULL, ST_FIND);
 	if (rs > 0)
 	{
@@ -2752,7 +3456,7 @@ dumpstate(when)
 		char *pv[MAXATOM + 1];
 
 		pv[0] = NULL;
-		status = rewrite(pv, rs, 0, CurEnv);
+		status = REWRITE(pv, rs, CurEnv);
 		sm_syslog(LOG_DEBUG, CurEnv->e_id,
 			  "--- ruleset debug_dumpstate returns stat %d, pv: ---",
 			  status);
@@ -2761,8 +3465,9 @@ dumpstate(when)
 	}
 	sm_syslog(LOG_DEBUG, CurEnv->e_id, "--- end of state dump ---");
 }
+
 #ifdef SIGUSR1
-/*
+/*
 **  SIGUSR1 -- Signal a request to dump state.
 **
 **	Parameters:
@@ -2784,16 +3489,23 @@ sigusr1(sig)
 	int sig;
 {
 	int save_errno = errno;
+# if SM_HEAP_CHECK
+	extern void dumpstab __P((void));
+# endif /* SM_HEAP_CHECK */
 
 	FIX_SYSV_SIGNAL(sig, sigusr1);
 	errno = save_errno;
 	CHECK_CRITICAL(sig);
 	dumpstate("user signal");
+# if SM_HEAP_CHECK
+	dumpstab();
+# endif /* SM_HEAP_CHECK */
 	errno = save_errno;
 	return SIGFUNC_RETURN;
 }
-# endif /* SIGUSR1 */
-/*
+#endif /* SIGUSR1 */
+
+/*
 **  DROP_PRIVILEGES -- reduce privileges to those of the RunAsUser option
 **
 **	Parameters:
@@ -2813,9 +3525,12 @@ drop_privileges(to_real_uid)
 	GIDSET_T emptygidset[1];
 
 	if (tTd(47, 1))
-		dprintf("drop_privileges(%d): Real[UG]id=%d:%d, RunAs[UG]id=%d:%d\n",
-			(int)to_real_uid, (int)RealUid,
-			(int)RealGid, (int)RunAsUid, (int)RunAsGid);
+		sm_dprintf("drop_privileges(%d): Real[UG]id=%d:%d, get[ug]id=%d:%d, gete[ug]id=%d:%d, RunAs[UG]id=%d:%d\n",
+			   (int) to_real_uid,
+			   (int) RealUid, (int) RealGid,
+			   (int) getuid(), (int) getgid(),
+			   (int) geteuid(), (int) getegid(),
+			   (int) RunAsUid, (int) RunAsGid);
 
 	if (to_real_uid)
 	{
@@ -2826,33 +3541,131 @@ drop_privileges(to_real_uid)
 
 	/* make sure no one can grab open descriptors for secret files */
 	endpwent();
+	sm_mbdb_terminate();
 
 	/* reset group permissions; these can be set later */
 	emptygidset[0] = (to_real_uid || RunAsGid != 0) ? RunAsGid : getegid();
+
+	/*
+	**  Notice:  on some OS (Linux...) the setgroups() call causes
+	**	a logfile entry if sendmail is not run by root.
+	**	However, it is unclear (no POSIX standard) whether
+	**	setgroups() can only succeed if executed by root.
+	**	So for now we keep it as it is; if you want to change it, use
+	**  if (geteuid() == 0 && setgroups(1, emptygidset) == -1)
+	*/
+
 	if (setgroups(1, emptygidset) == -1 && geteuid() == 0)
 	{
 		syserr("drop_privileges: setgroups(1, %d) failed",
-		       (int)emptygidset[0]);
+		       (int) emptygidset[0]);
 		rval = EX_OSERR;
 	}
 
-	/* reset primary group and user id */
-	if ((to_real_uid || RunAsGid != 0) && setgid(RunAsGid) < 0)
+	/* reset primary group id */
+	if (to_real_uid)
 	{
-		syserr("drop_privileges: setgid(%d) failed", (int)RunAsGid);
-		rval = EX_OSERR;
+		/*
+		**  Drop gid to real gid.
+		**  On some OS we must reset the effective[/real[/saved]] gid,
+		**  and then use setgid() to finally drop all group privileges.
+		**  Later on we check whether we can get back the
+		**  effective gid.
+		*/
+
+#if HASSETEGID
+		if (setegid(RunAsGid) < 0)
+		{
+			syserr("drop_privileges: setegid(%d) failed",
+			       (int) RunAsGid);
+			rval = EX_OSERR;
+		}
+#else /* HASSETEGID */
+# if HASSETREGID
+		if (setregid(RunAsGid, RunAsGid) < 0)
+		{
+			syserr("drop_privileges: setregid(%d, %d) failed",
+			       (int) RunAsGid, (int) RunAsGid);
+			rval = EX_OSERR;
+		}
+# else /* HASSETREGID */
+#  if HASSETRESGID
+		if (setresgid(RunAsGid, RunAsGid, RunAsGid) < 0)
+		{
+			syserr("drop_privileges: setresgid(%d, %d, %d) failed",
+			       (int) RunAsGid, (int) RunAsGid, (int) RunAsGid);
+			rval = EX_OSERR;
+		}
+#  endif /* HASSETRESGID */
+# endif /* HASSETREGID */
+#endif /* HASSETEGID */
 	}
+	if (rval == EX_OK && (to_real_uid || RunAsGid != 0))
+	{
+		if (setgid(RunAsGid) < 0 && (!UseMSP || getegid() != RunAsGid))
+		{
+			syserr("drop_privileges: setgid(%d) failed",
+			       (int) RunAsGid);
+			rval = EX_OSERR;
+		}
+		errno = 0;
+		if (rval == EX_OK && getegid() != RunAsGid)
+		{
+			syserr("drop_privileges: Unable to set effective gid=%d to RunAsGid=%d",
+			       (int) getegid(), (int) RunAsGid);
+			rval = EX_OSERR;
+		}
+	}
+
+	/* fiddle with uid */
 	if (to_real_uid || RunAsUid != 0)
 	{
 		uid_t euid = geteuid();
 
-		if (setuid(RunAsUid) < 0)
+		/*
+		**  Try to setuid(RunAsUid).
+		**  euid must be RunAsUid,
+		**  ruid must be RunAsUid unless it's the MSP and the euid
+		**  wasn't 0 and we didn't have to drop privileges to the
+		**  real uid.
+		*/
+
+		if (setuid(RunAsUid) < 0 ||
+		    (getuid() != RunAsUid  &&
+		     (!UseMSP || euid == 0 || to_real_uid )) ||
+		    geteuid() != RunAsUid)
 		{
-			syserr("drop_privileges: setuid(%d) failed",
-			       (int)RunAsUid);
-			rval = EX_OSERR;
+#if HASSETREUID
+			/*
+			**  if ruid != RunAsUid, euid == RunAsUid, then
+			**  try resetting just the real uid, then using
+			**  setuid() to drop the saved-uid as well.
+			*/
+
+			if (euid == RunAsUid)
+			{
+				if (setreuid(RunAsUid, -1) < 0)
+				{
+					syserr("drop_privileges: setreuid(%d, -1) failed",
+					       (int) RunAsUid);
+					rval = EX_OSERR;
+				}
+				if (setuid(RunAsUid) < 0)
+				{
+					syserr("drop_privileges: second setuid(%d) attempt failed",
+					       (int) RunAsUid);
+					rval = EX_OSERR;
+				}
+			}
+			else
+#endif /* HASSETREUID */
+			{
+				syserr("drop_privileges: setuid(%d) failed",
+				       (int) RunAsUid);
+				rval = EX_OSERR;
+			}
 		}
-		else if (RunAsUid != 0 && setuid(0) == 0)
+		if (RunAsUid != 0 && setuid(0) == 0)
 		{
 			/*
 			**  Believe it or not, the Linux capability model
@@ -2872,23 +3685,37 @@ drop_privileges(to_real_uid)
 			**  making it possible to set it back again later.
 			*/
 
-			syserr("drop_privileges: Unable to drop non-root set-user-id privileges");
+			syserr("drop_privileges: Unable to drop non-root set-user-ID privileges");
 			rval = EX_OSERR;
 		}
 	}
+
+	if ((to_real_uid || RunAsGid != 0) &&
+	    rval == EX_OK && RunAsGid != EffGid &&
+	    getuid() != 0 && geteuid() != 0)
+	{
+		errno = 0;
+		if (setgid(EffGid) == 0)
+		{
+			syserr("drop_privileges: setgid(%d) succeeded (when it should not)",
+			       (int) EffGid);
+			rval = EX_OSERR;
+		}
+	}
+
 	if (tTd(47, 5))
 	{
-		dprintf("drop_privileges: e/ruid = %d/%d e/rgid = %d/%d\n",
-			(int)geteuid(), (int)getuid(),
-			(int)getegid(), (int)getgid());
-		dprintf("drop_privileges: RunAsUser = %d:%d\n",
-			(int)RunAsUid, (int)RunAsGid);
+		sm_dprintf("drop_privileges: e/ruid = %d/%d e/rgid = %d/%d\n",
+			   (int) geteuid(), (int) getuid(),
+			   (int) getegid(), (int) getgid());
+		sm_dprintf("drop_privileges: RunAsUser = %d:%d\n",
+			   (int) RunAsUid, (int) RunAsGid);
 		if (tTd(47, 10))
-			dprintf("drop_privileges: rval = %d\n", rval);
+			sm_dprintf("drop_privileges: rval = %d\n", rval);
 	}
 	return rval;
 }
-/*
+/*
 **  FILL_FD -- make sure a file descriptor has been properly allocated
 **
 **	Used to make sure that stdin/out/err are allocated on startup
@@ -2901,6 +3728,9 @@ drop_privileges(to_real_uid)
 **
 **	Returns:
 **		none
+**
+**	Side Effects:
+**		possibly changes MissingFds
 */
 
 void
@@ -2918,11 +3748,11 @@ fill_fd(fd, where)
 		syserr("fill_fd: %s: fd %d not open", where, fd);
 	else
 		MissingFds |= 1 << fd;
-	i = open("/dev/null", fd == 0 ? O_RDONLY : O_WRONLY, 0666);
+	i = open(SM_PATH_DEVNULL, fd == 0 ? O_RDONLY : O_WRONLY, 0666);
 	if (i < 0)
 	{
-		syserr("!fill_fd: %s: cannot open /dev/null",
-			where == NULL ? "startup" : where);
+		syserr("!fill_fd: %s: cannot open %s",
+		       where == NULL ? "startup" : where, SM_PATH_DEVNULL);
 	}
 	if (fd != i)
 	{
@@ -2930,7 +3760,42 @@ fill_fd(fd, where)
 		(void) close(i);
 	}
 }
-/*
+/*
+**  SM_PRINTOPTIONS -- print options
+**
+**	Parameters:
+**		options -- array of options.
+**
+**	Returns:
+**		none.
+*/
+
+static void
+sm_printoptions(options)
+	char **options;
+{
+	int ll;
+	char **av;
+
+	av = options;
+	ll = 7;
+	while (*av != NULL)
+	{
+		if (ll + strlen(*av) > 63)
+		{
+			sm_dprintf("\n");
+			ll = 0;
+		}
+		if (ll == 0)
+			sm_dprintf("\t\t");
+		else
+			sm_dprintf(" ");
+		sm_dprintf("%s", *av);
+		ll += strlen(*av++) + 1;
+	}
+	sm_dprintf("\n");
+}
+/*
 **  TESTMODELINE -- process a test mode input line
 **
 **	Parameters:
@@ -2961,11 +3826,7 @@ testmodeline(line, e)
 	ADDRESS a;
 	static int tryflags = RF_COPYNONE;
 	char exbuf[MAXLINE];
-	extern u_char TokTypeNoC[];
-
-#if _FFR_ADDR_TYPE
-	define(macid("{addr_type}", NULL), "e r", e);
-#endif /* _FFR_ADDR_TYPE */
+	extern unsigned char TokTypeNoC[];
 
 	/* skip leading spaces */
 	while (*line == ' ')
@@ -2985,18 +3846,18 @@ testmodeline(line, e)
 		switch (line[1])
 		{
 		  case 'D':
-			mid = macid(&line[2], &delimptr);
+			mid = macid_parse(&line[2], &delimptr);
 			if (mid == 0)
 				return;
 			translate_dollars(delimptr);
-			define(mid, newstr(delimptr), e);
+			macdefine(&e->e_macro, A_TEMP, mid, delimptr);
 			break;
 
 		  case 'C':
 			if (line[2] == '\0')	/* not to call syserr() */
 				return;
 
-			mid = macid(&line[2], &delimptr);
+			mid = macid_parse(&line[2], &delimptr);
 			if (mid == 0)
 				return;
 			translate_dollars(delimptr);
@@ -3021,11 +3882,13 @@ testmodeline(line, e)
 			break;
 
 		  case '\0':
-			printf("Usage: .[DC]macro value(s)\n");
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					     "Usage: .[DC]macro value(s)\n");
 			break;
 
 		  default:
-			printf("Unknown \".\" command %s\n", line);
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					     "Unknown \".\" command %s\n", line);
 			break;
 		}
 		return;
@@ -3037,7 +3900,8 @@ testmodeline(line, e)
 			rs = strtorwset(&line[2], NULL, ST_FIND);
 			if (rs < 0)
 			{
-				printf("Undefined ruleset %s\n", &line[2]);
+				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+						     "Undefined ruleset %s\n", &line[2]);
 				return;
 			}
 			rw = RewriteRules[rs];
@@ -3045,22 +3909,28 @@ testmodeline(line, e)
 				return;
 			do
 			{
-				(void) putchar('R');
+				(void) sm_io_putc(smioout, SM_TIME_DEFAULT,
+						  'R');
 				s = rw->r_lhs;
 				while (*s != NULL)
 				{
 					xputs(*s++);
-					(void) putchar(' ');
+					(void) sm_io_putc(smioout,
+							  SM_TIME_DEFAULT, ' ');
 				}
-				(void) putchar('\t');
-				(void) putchar('\t');
+				(void) sm_io_putc(smioout, SM_TIME_DEFAULT,
+						  '\t');
+				(void) sm_io_putc(smioout, SM_TIME_DEFAULT,
+						  '\t');
 				s = rw->r_rhs;
 				while (*s != NULL)
 				{
 					xputs(*s++);
-					(void) putchar(' ');
+					(void) sm_io_putc(smioout,
+							  SM_TIME_DEFAULT, ' ');
 				}
-				(void) putchar('\n');
+				(void) sm_io_putc(smioout, SM_TIME_DEFAULT,
+						  '\n');
 			} while ((rw = rw->r_next) != NULL);
 			break;
 
@@ -3073,11 +3943,13 @@ testmodeline(line, e)
 			break;
 
 		  case '\0':
-			printf("Usage: =Sruleset or =M\n");
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					     "Usage: =Sruleset or =M\n");
 			break;
 
 		  default:
-			printf("Unknown \"=\" command %s\n", line);
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					     "Unknown \"=\" command %s\n", line);
 			break;
 		}
 		return;
@@ -3090,11 +3962,13 @@ testmodeline(line, e)
 			break;
 
 		  case '\0':
-			printf("Usage: -d{debug arguments}\n");
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					     "Usage: -d{debug arguments}\n");
 			break;
 
 		  default:
-			printf("Unknown \"-\" command %s\n", line);
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					     "Unknown \"-\" command %s\n", line);
 			break;
 		}
 		return;
@@ -3102,21 +3976,23 @@ testmodeline(line, e)
 	  case '$':
 		if (line[1] == '=')
 		{
-			mid = macid(&line[2], NULL);
+			mid = macid(&line[2]);
 			if (mid != 0)
 				stabapply(dump_class, mid);
 			return;
 		}
-		mid = macid(&line[1], NULL);
+		mid = macid(&line[1]);
 		if (mid == 0)
 			return;
 		p = macvalue(mid, e);
 		if (p == NULL)
-			printf("Undefined\n");
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					     "Undefined\n");
 		else
 		{
 			xputs(p);
-			printf("\n");
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					     "\n");
 		}
 		return;
 
@@ -3134,15 +4010,17 @@ testmodeline(line, e)
 			p = "";
 		if (line[1] == '\0')
 		{
-			printf("Usage: /[canon|map|mx|parse|try|tryflags]\n");
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					     "Usage: /[canon|map|mx|parse|try|tryflags]\n");
 			return;
 		}
-		if (strcasecmp(&line[1], "quit") == 0)
+		if (sm_strcasecmp(&line[1], "quit") == 0)
 		{
 			CurEnv->e_id = NULL;
-			finis(TRUE, ExitStat);
+			finis(true, true, ExitStat);
+			/* NOTREACHED */
 		}
-		if (strcasecmp(&line[1], "mx") == 0)
+		if (sm_strcasecmp(&line[1], "mx") == 0)
 		{
 #if NAMED_BIND
 			/* look up MX records */
@@ -3152,75 +4030,95 @@ testmodeline(line, e)
 
 			if (*p == '\0')
 			{
-				printf("Usage: /mx address\n");
+				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+						     "Usage: /mx address\n");
 				return;
 			}
-			nmx = getmxrr(p, mxhosts, NULL, FALSE, &rcode);
-			printf("getmxrr(%s) returns %d value(s):\n", p, nmx);
+			nmx = getmxrr(p, mxhosts, NULL, false, &rcode, true,
+				      NULL);
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					     "getmxrr(%s) returns %d value(s):\n",
+				p, nmx);
 			for (i = 0; i < nmx; i++)
-				printf("\t%s\n", mxhosts[i]);
+				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+						     "\t%s\n", mxhosts[i]);
 #else /* NAMED_BIND */
-			printf("No MX code compiled in\n");
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					     "No MX code compiled in\n");
 #endif /* NAMED_BIND */
 		}
-		else if (strcasecmp(&line[1], "canon") == 0)
+		else if (sm_strcasecmp(&line[1], "canon") == 0)
 		{
 			char host[MAXHOSTNAMELEN];
 
 			if (*p == '\0')
 			{
-				printf("Usage: /canon address\n");
+				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+						     "Usage: /canon address\n");
 				return;
 			}
-			else if (strlcpy(host, p, sizeof host) >= sizeof host)
+			else if (sm_strlcpy(host, p, sizeof host) >= sizeof host)
 			{
-				printf("Name too long\n");
+				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+						     "Name too long\n");
 				return;
 			}
-			(void) getcanonname(host, sizeof host, HasWildcardMX);
-			printf("getcanonname(%s) returns %s\n", p, host);
+			(void) getcanonname(host, sizeof host, HasWildcardMX,
+					    NULL);
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					     "getcanonname(%s) returns %s\n",
+					     p, host);
 		}
-		else if (strcasecmp(&line[1], "map") == 0)
+		else if (sm_strcasecmp(&line[1], "map") == 0)
 		{
 			auto int rcode = EX_OK;
 			char *av[2];
 
 			if (*p == '\0')
 			{
-				printf("Usage: /map mapname key\n");
+				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+						     "Usage: /map mapname key\n");
 				return;
 			}
-			for (q = p; *q != '\0' && !(isascii(*q) && isspace(*q)); q++)
+			for (q = p; *q != '\0' && !(isascii(*q) && isspace(*q));			     q++)
 				continue;
 			if (*q == '\0')
 			{
-				printf("No key specified\n");
+				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+						     "No key specified\n");
 				return;
 			}
 			*q++ = '\0';
 			map = stab(p, ST_MAP, ST_FIND);
 			if (map == NULL)
 			{
-				printf("Map named \"%s\" not found\n", p);
+				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+						     "Map named \"%s\" not found\n", p);
 				return;
 			}
 			if (!bitset(MF_OPEN, map->s_map.map_mflags) &&
 			    !openmap(&(map->s_map)))
 			{
-				printf("Map named \"%s\" not open\n", p);
+				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+						     "Map named \"%s\" not open\n", p);
 				return;
 			}
-			printf("map_lookup: %s (%s) ", p, q);
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					     "map_lookup: %s (%s) ", p, q);
 			av[0] = q;
 			av[1] = NULL;
 			p = (*map->s_map.map_class->map_lookup)
 					(&map->s_map, q, av, &rcode);
 			if (p == NULL)
-				printf("no match (%d)\n", rcode);
+				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+						     "no match (%d)\n",
+						     rcode);
 			else
-				printf("returns %s (%d)\n", p, rcode);
+				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+						     "returns %s (%d)\n", p,
+						     rcode);
 		}
-		else if (strcasecmp(&line[1], "try") == 0)
+		else if (sm_strcasecmp(&line[1], "try") == 0)
 		{
 			MAILER *m;
 			STAB *st;
@@ -3234,30 +4132,36 @@ testmodeline(line, e)
 			}
 			if (q == NULL || *q == '\0')
 			{
-				printf("Usage: /try mailer address\n");
+				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+						     "Usage: /try mailer address\n");
 				return;
 			}
 			st = stab(p, ST_MAILER, ST_FIND);
 			if (st == NULL)
 			{
-				printf("Unknown mailer %s\n", p);
+				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+						     "Unknown mailer %s\n", p);
 				return;
 			}
 			m = st->s_mailer;
-			printf("Trying %s %s address %s for mailer %s\n",
-				bitset(RF_HEADERADDR, tryflags) ? "header" : "envelope",
-				bitset(RF_SENDERADDR, tryflags) ? "sender" : "recipient",
-				q, p);
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					     "Trying %s %s address %s for mailer %s\n",
+				     bitset(RF_HEADERADDR, tryflags) ? "header"
+							: "envelope",
+				     bitset(RF_SENDERADDR, tryflags) ? "sender"
+							: "recipient", q, p);
 			p = remotename(q, m, tryflags, &rcode, CurEnv);
-			printf("Rcode = %d, addr = %s\n",
-				rcode, p == NULL ? "<NULL>" : p);
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					     "Rcode = %d, addr = %s\n",
+					     rcode, p == NULL ? "<NULL>" : p);
 			e->e_to = NULL;
 		}
-		else if (strcasecmp(&line[1], "tryflags") == 0)
+		else if (sm_strcasecmp(&line[1], "tryflags") == 0)
 		{
 			if (*p == '\0')
 			{
-				printf("Usage: /tryflags [Hh|Ee][Ss|Rr]\n");
+				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+						     "Usage: /tryflags [Hh|Ee][Ss|Rr]\n");
 				return;
 			}
 			for (; *p != '\0'; p++)
@@ -3285,40 +4189,53 @@ testmodeline(line, e)
 					break;
 				}
 			}
-#if _FFR_ADDR_TYPE
 			exbuf[0] = bitset(RF_HEADERADDR, tryflags) ? 'h' : 'e';
 			exbuf[1] = ' ';
 			exbuf[2] = bitset(RF_SENDERADDR, tryflags) ? 's' : 'r';
 			exbuf[3] = '\0';
-			define(macid("{addr_type}", NULL), newstr(exbuf), e);
-#endif /* _FFR_ADDR_TYPE */
+			macdefine(&e->e_macro, A_TEMP,
+				macid("{addr_type}"), exbuf);
 		}
-		else if (strcasecmp(&line[1], "parse") == 0)
+		else if (sm_strcasecmp(&line[1], "parse") == 0)
 		{
 			if (*p == '\0')
 			{
-				printf("Usage: /parse address\n");
+				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+						     "Usage: /parse address\n");
 				return;
 			}
 			q = crackaddr(p);
-			printf("Cracked address = ");
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					     "Cracked address = ");
 			xputs(q);
-			printf("\nParsing %s %s address\n",
-				bitset(RF_HEADERADDR, tryflags) ? "header" : "envelope",
-				bitset(RF_SENDERADDR, tryflags) ? "sender" : "recipient");
-			if (parseaddr(p, &a, tryflags, '\0', NULL, e) == NULL)
-				printf("Cannot parse\n");
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					     "\nParsing %s %s address\n",
+					     bitset(RF_HEADERADDR, tryflags) ?
+							"header" : "envelope",
+					     bitset(RF_SENDERADDR, tryflags) ?
+							"sender" : "recipient");
+			if (parseaddr(p, &a, tryflags, '\0', NULL, e, true)
+			    == NULL)
+				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+						     "Cannot parse\n");
 			else if (a.q_host != NULL && a.q_host[0] != '\0')
-				printf("mailer %s, host %s, user %s\n",
-					a.q_mailer->m_name, a.q_host, a.q_user);
+				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+						     "mailer %s, host %s, user %s\n",
+						     a.q_mailer->m_name,
+						     a.q_host,
+						     a.q_user);
 			else
-				printf("mailer %s, user %s\n",
-					a.q_mailer->m_name, a.q_user);
+				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+						     "mailer %s, user %s\n",
+						     a.q_mailer->m_name,
+						     a.q_user);
 			e->e_to = NULL;
 		}
 		else
 		{
-			printf("Unknown \"/\" command %s\n", line);
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					     "Unknown \"/\" command %s\n",
+					     line);
 		}
 		return;
 	}
@@ -3330,11 +4247,12 @@ testmodeline(line, e)
 		p++;
 	if (*p == '\0')
 	{
-		printf("No address!\n");
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				     "No address!\n");
 		return;
 	}
 	*p = '\0';
-	if (invalidaddr(p + 1, NULL))
+	if (invalidaddr(p + 1, NULL, true))
 		return;
 	do
 	{
@@ -3353,13 +4271,16 @@ testmodeline(line, e)
 			rs = strtorwset(p, NULL, ST_FIND);
 			if (rs < 0)
 			{
-				printf("Undefined ruleset %s\n", p);
+				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+						     "Undefined ruleset %s\n",
+						     p);
 				break;
 			}
-			status = rewrite(pvp, rs, 0, e);
+			status = REWRITE(pvp, rs, e);
 			if (status != EX_OK)
-				printf("== Ruleset %s (%d) status %d\n",
-					p, rs, status);
+				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+						     "== Ruleset %s (%d) status %d\n",
+						     p, rs, status);
 			while (*p != '\0' && *p++ != ',')
 				continue;
 		}
@@ -3371,8 +4292,26 @@ dump_class(s, id)
 	register STAB *s;
 	int id;
 {
-	if (s->s_type != ST_CLASS)
+	if (s->s_symtype != ST_CLASS)
 		return;
 	if (bitnset(bitidx(id), s->s_class))
-		printf("%s\n", s->s_name);
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				     "%s\n", s->s_name);
 }
+
+/*
+**  An exception type used to create QuickAbort exceptions.
+**  This is my first cut at converting QuickAbort from longjmp to exceptions.
+**  These exceptions have a single integer argument, which is the argument
+**  to longjmp in the original code (either 1 or 2).  I don't know the
+**  significance of 1 vs 2: the calls to setjmp don't care.
+*/
+
+const SM_EXC_TYPE_T EtypeQuickAbort =
+{
+	SmExcTypeMagic,
+	"E:mta.quickabort",
+	"i",
+	sm_etype_printf,
+	"quick abort %0",
+};
