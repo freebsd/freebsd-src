@@ -49,6 +49,9 @@ static ACPI_STATUS	fdc_acpi_probe_child(ACPI_HANDLE h, device_t *dev,
 /* Maximum number of child devices of a controller (4 floppy + 1 tape.) */
 #define ACPI_FDC_MAXDEVS	5
 
+/* Standard size of buffer returned by the _FDE method. */
+#define ACPI_FDC_FDE_LEN	(ACPI_FDC_MAXDEVS * sizeof(uint32_t))
+
 /*
  * Parameters for the tape drive (5th device).  Some BIOS authors use this
  * for all drives, not just the tape drive (e.g., ASUS K8V).  This isn't
@@ -93,10 +96,10 @@ fdc_acpi_attach(device_t dev)
 	struct fdc_data *sc;
 	ACPI_BUFFER buf;
 	device_t bus;
-	int error, i;
+	int error, fde_count, i;
 	ACPI_OBJECT *obj, *pkg;
 	ACPI_HANDLE h;
-	uint32_t *fde;
+	uint32_t fde[ACPI_FDC_MAXDEVS];
 
 	/* Get our softc and use the same accessor as ISA. */
 	sc = device_get_softc(dev);
@@ -126,48 +129,62 @@ fdc_acpi_attach(device_t dev)
 	 * this fails, fall back to the ISA hints-based probe method.
 	 */
 	bus = device_get_parent(dev);
-	if (ACPI_SUCCESS(ACPI_EVALUATE_OBJECT(bus, dev, "_FDE", NULL, &buf))) {
-		obj = pkg = (ACPI_OBJECT *)buf.Pointer;
-		switch (obj->Type) {
-		case ACPI_TYPE_BUFFER:
-			/*
-			 * The spec says _FDE should be a buffer of five
-			 * 32-bit integers.
-			 */
-			fde = (uint32_t *)obj->Buffer.Pointer;
-			if (obj->Buffer.Length < 20) {
-				device_printf(dev, "_FDE too small\n");
-				goto out;
-			}
+	if (ACPI_FAILURE(ACPI_EVALUATE_OBJECT(bus, dev, "_FDE", NULL, &buf))) {
+		error = ENXIO;
+		goto out;
+	}
+
+	/* Parse the output of _FDE in various ways. */
+	obj = pkg = (ACPI_OBJECT *)buf.Pointer;
+	switch (obj->Type) {
+	case ACPI_TYPE_BUFFER:
+		/*
+		 * The spec says _FDE should be a buffer of five 32-bit
+		 * integers.  In violation of the spec, some systems use
+		 * five bytes instead.
+		 */
+		switch (obj->Buffer.Length) {
+		case ACPI_FDC_FDE_LEN:
+			bcopy(obj->Buffer.Pointer, fde, ACPI_FDC_FDE_LEN);
 			break;
-		case ACPI_TYPE_PACKAGE:
-			/*
-			 * In violation of the spec, systems including the ASUS
-			 * K8V return a package of five integers instead of a
-			 * buffer of five 32-bit integers.
-			 */
-			fde = malloc(pkg->Package.Count * sizeof(uint32_t),
-			    M_TEMP, M_NOWAIT | M_ZERO);
-			if (fde == NULL) {
-				goto out;
-			}
-			for (i = 0; i < pkg->Package.Count; i++) {
-				obj = &pkg->Package.Elements[i];
-				if (obj->Type == ACPI_TYPE_INTEGER)
-					fde[i] = (uint32_t)obj->Integer.Value;
-			}
+		case ACPI_FDC_MAXDEVS:
+			for (i = 0; i < ACPI_FDC_MAXDEVS; i++)
+				fde[i] = ((uint8_t *)obj->Buffer.Pointer)[i];
 			break;
 		default:
-			device_printf(dev, "invalid _FDE type %d\n", obj->Type);
+			device_printf(dev, "_FDE wrong length: %d\n",
+			    obj->Buffer.Length);
+			error = ENXIO;
 			goto out;
 		}
-		error = fdc_acpi_probe_children(bus, dev, fde);
-		if (pkg->Type == ACPI_TYPE_PACKAGE)
-			free(fde, M_TEMP);
-	} else
-		error = fdc_hints_probe(dev);
+		break;
+	case ACPI_TYPE_PACKAGE:
+		/*
+		 * In violation of the spec, systems including the ASUS
+		 * K8V return a package of five integers instead of a
+		 * buffer of five 32-bit integers.
+		 */
+		fde_count = min(ACPI_FDC_MAXDEVS, pkg->Package.Count);
+		for (i = 0; i < fde_count; i++) {
+			obj = &pkg->Package.Elements[i];
+			if (obj->Type == ACPI_TYPE_INTEGER)
+				fde[i] = (uint32_t)obj->Integer.Value;
+		}
+		break;
+	default:
+		device_printf(dev, "invalid _FDE type %d\n", obj->Type);
+		error = ENXIO;
+		goto out;
+	}
+
+	/* Add fd child devices as specified. */
+	error = fdc_acpi_probe_children(bus, dev, fde);
 
 out:
+	/* If there was a problem, fall back to the hints-based probe. */
+	if (error)
+		error = fdc_hints_probe(dev);
+
 	if (buf.Pointer)
 		free(buf.Pointer, M_TEMP);
 	if (error != 0)
