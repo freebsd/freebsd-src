@@ -27,6 +27,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
+ * $Id$
+ *
  */
 
 /*
@@ -55,21 +57,21 @@
 #include "vx.h"
 #if NVX > 0
 
+#if NVX < 4	/* These cost 4 bytes apiece, so give us 4 */
+#undef NVX
+#define NVX 4
+#endif
+
 #include "bpfilter.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/conf.h>
-#include <sys/errno.h>
-#include <sys/ioctl.h>
+#include <sys/sockio.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
-#include <sys/syslog.h>
 
 #include <net/if.h>
-#include <net/if_dl.h>
-#include <net/if_mib.h>
-#include <net/if_types.h>
 
 #ifdef INET
 #include <netinet/in.h>
@@ -79,23 +81,14 @@
 #include <netinet/if_ether.h>
 #endif
 
-#ifdef IPX
-#include <netipx/ipx.h>
-#include <netipx/ipx_if.h>
-#endif
-
-#ifdef NS
-#include <netns/ns.h>
-#include <netns/ns_if.h>
-#endif
+#include <net/ethernet.h>
+#include <net/if_arp.h>
 
 #if NBPFILTER > 0
 #include <net/bpf.h>
-#include <net/bpfdesc.h>
 #endif
 
 #include <machine/clock.h>
-#include <machine/md_var.h>
 
 #include <dev/vx/if_vxreg.h>
 
@@ -306,11 +299,11 @@ vxsetfilter(sc)
     struct vx_softc *sc;
 {
     register struct ifnet *ifp = &sc->arpcom.ac_if;  
-        
+    
     GO_WINDOW(1);           /* Window 1 is operating window */
     outw(BASE + VX_COMMAND, SET_RX_FILTER | FIL_INDIVIDUAL | FIL_BRDCST |
-	((sc->arpcom.ac_multicnt > 0) ? FIL_MULTICAST : 0 ) |
-	((ifp->if_flags & IFF_PROMISC) ? FIL_PROMISC : 0 ));
+	 FIL_MULTICAST |
+	 ((ifp->if_flags & IFF_PROMISC) ? FIL_PROMISC : 0 ));
 }               
 
 static void            
@@ -912,7 +905,6 @@ vxioctl(ifp, cmd, data)
     caddr_t data;
 {
     struct vx_softc *sc = vx_softc[ifp->if_unit];
-    struct ifaddr *ifa = (struct ifaddr *) data;
     struct ifreq *ifr = (struct ifreq *) data;
     int s, error = 0;
 
@@ -964,18 +956,12 @@ vxioctl(ifp, cmd, data)
 
     case SIOCADDMULTI:
     case SIOCDELMULTI:
-        error = ((u_int) cmd == SIOCADDMULTI) ?
-            ether_addmulti(ifr, &sc->arpcom) :
-            ether_delmulti(ifr, &sc->arpcom);
-
-        if (error == ENETRESET) {
-            /*
-             * Multicast list has changed; set the hardware filter
-             * accordingly.
-             */
-            vxreset(sc);
-            error = 0;
-        }
+	/*
+	 * Multicast list has changed; set the hardware filter
+	 * accordingly.
+	 */
+	vxreset(sc);
+	error = 0;
         break;
 
 
