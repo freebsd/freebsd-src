@@ -10,7 +10,7 @@ SRCS+=	archive.c archive64.c archures.c bfd.c binary.c cache.c \
 	hash.c ihex.c init.c libbfd.c linker.c merge.c opncls.c reloc.c \
 	section.c srec.c stab-syms.c stabs.c syms.c targets.c tekhex.c \
 	targmatch.h dwarf1.c dwarf2.c config.h
-.if (${TARGET_ARCH} == "alpha")
+.if (${TARGET_ARCH} == "alpha" || ${TARGET_ARCH} == "sparc64")
 WARNS=	2
 .endif
 CFLAGS+= -I${SRCDIR}/bfd
