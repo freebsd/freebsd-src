@@ -24,7 +24,6 @@ SRCS=	addrtoname.c gmt2local.c machdep.c parsenfsfh.c \
 	print-tftp.c print-timed.c print-token.c print-udp.c \
 	print-vjc.c print-vrrp.c print-wb.c \
 	savestr.c setsignal.c smbutil.c tcpdump.c util.c version.c
-SRCS+=	bpf_dump.c	# XXX Temporary, until libpcap 0.6 merged
 CLEANFILES+=	version.c
 
 CFLAGS+= -I${.CURDIR}
