@@ -43,31 +43,33 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_isa.h"
+#include "opt_kstack_pages.h"
 #include "opt_npx.h"
 #ifdef PC98
 #include "opt_pc98.h"
 #endif
 #include "opt_reset.h"
-#include "opt_isa.h"
-#include "opt_kstack_pages.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
-#include <sys/proc.h>
-#include <sys/kse.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
-#include <sys/vnode.h>
-#include <sys/vmmeter.h>
+#include <sys/kse.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
-#include <sys/smp.h>
+#include <sys/proc.h>
 #include <sys/sf_buf.h>
+#include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/unistd.h>
+#include <sys/user.h>
+#include <sys/vnode.h>
+#include <sys/vmmeter.h>
 
 #include <machine/cpu.h>
 #include <machine/md_var.h>
@@ -76,14 +78,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/vm86.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <sys/lock.h>
+#include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
-#include <vm/vm_extern.h>
-
-#include <sys/user.h>
+#include <vm/vm_param.h>
 
 #ifdef PC98
 #include <pc98/pc98/pc98.h>
