@@ -24,7 +24,7 @@ static const char copyright[] =
     "@(#) Copyright (c) 1988, 1989, 1991, 1994, 1995, 1996\n\
 The Regents of the University of California.  All rights reserved.\n";
 static const char rcsid[] =
-    "@(#)$Header: /home/ncvs/src/contrib/traceroute/traceroute.c,v 1.2 1996/09/30 19:39:25 fenner Exp $ (LBL)";
+    "@(#)$Header: /home/ncvs/src/contrib/traceroute/traceroute.c,v 1.3 1996/10/05 01:43:13 sef Exp $ (LBL)";
 #endif
 
 /*
@@ -313,6 +313,7 @@ main(int argc, char **argv)
 	register int tos = 0;
 	register int lsrr = 0;
 	register int optlen = 0;
+	int sump = 0;
 	int sockerrno;
 
 	/*
@@ -337,9 +338,12 @@ main(int argc, char **argv)
 		prog = argv[0];
 
 	opterr = 0;
-	while ((op = getopt(argc, argv, "dnrvg:m:p:q:s:t:w:")) != EOF)
+	while ((op = getopt(argc, argv, "Sdnrvg:m:p:q:s:t:w:")) != EOF)
 		switch (op) {
 
+		case 'S':
+			sump = 1;
+			break;
 		case 'd':
 			options |= SO_DEBUG;
 			break;
@@ -701,7 +705,9 @@ main(int argc, char **argv)
 			}
 			(void)fflush(stdout);
 		}
-		Printf(" (%d%% loss)", (int)(((float)loss / nprobes) * 100));
+		if (sump) {
+			Printf(" (%d%% loss)", (lost * 100) / nprobes);
+		}
 		putchar('\n');
 		if (got_there ||
 		    (unreachable > 0 && unreachable >= nprobes - 1))
