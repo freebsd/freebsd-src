@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.43 1997/08/26 07:32:39 phk Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.44 1997/09/14 02:57:44 peter Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.20 1994/08/21 18:44:13 ws Exp $	*/
 
 /*-
@@ -177,9 +177,9 @@ msdosfs_create(ap)
 	if ((error = createde(&ndirent, pdep, &dep)) == 0) {
 		*ap->a_vpp = DETOV(dep);
 		if ((cnp->cn_flags & SAVESTART) == 0)
-			free(cnp->cn_pnbuf, M_NAMEI);
+			zfree(namei_zone, cnp->cn_pnbuf);
 	} else {
-		free(cnp->cn_pnbuf, M_NAMEI);
+		zfree(namei_zone, cnp->cn_pnbuf);
 	}
 	vput(ap->a_dvp);		/* release parent dir */
 	return error;
@@ -207,7 +207,7 @@ msdosfs_mknod(ap)
 
 	default:
 		error = EINVAL;
-		free(ap->a_cnp->cn_pnbuf, M_NAMEI);
+		zfree(namei_zone, ap->a_cnp->cn_pnbuf);
 		vput(ap->a_dvp);
 		break;
 	}
@@ -1336,7 +1336,7 @@ msdosfs_mkdir(ap)
 	 * change size.
 	 */
 	if (pdep->de_StartCluster == MSDOSFSROOT && pdep->de_fndclust == (u_long)-1) {
-		free(ap->a_cnp->cn_pnbuf, M_NAMEI);
+		zfree(namei_zone, ap->a_cnp->cn_pnbuf);
 		vput(ap->a_dvp);
 		return ENOSPC;
 	}
@@ -1348,7 +1348,7 @@ msdosfs_mkdir(ap)
 	 */
 	error = clusteralloc(pmp, 0, 1, CLUST_EOFE, &newcluster, NULL);
 	if (error) {
-		free(ap->a_cnp->cn_pnbuf, M_NAMEI);
+		zfree(namei_zone, ap->a_cnp->cn_pnbuf);
 		vput(ap->a_dvp);
 		return error;
 	}
@@ -1376,7 +1376,7 @@ msdosfs_mkdir(ap)
 	error = bwrite(bp);
 	if (error) {
 		clusterfree(pmp, newcluster, NULL);
-		free(ap->a_cnp->cn_pnbuf, M_NAMEI);
+		zfree(namei_zone, ap->a_cnp->cn_pnbuf);
 		vput(ap->a_dvp);
 		return error;
 	}
@@ -1401,7 +1401,7 @@ msdosfs_mkdir(ap)
 	} else {
 		*ap->a_vpp = DETOV(ndep);
 	}
-	free(ap->a_cnp->cn_pnbuf, M_NAMEI);
+	zfree(namei_zone, ap->a_cnp->cn_pnbuf);
 #ifdef MSDOSFS_DEBUG
 	printf("msdosfs_mkdir(): vput(%08x)\n", ap->a_dvp);
 #endif
@@ -1479,7 +1479,7 @@ msdosfs_symlink(ap)
 		char *a_target;
 	} */ *ap;
 {
-	free(ap->a_cnp->cn_pnbuf, M_NAMEI);
+	zfree(namei_zone, ap->a_cnp->cn_pnbuf);
 	vput(ap->a_dvp);
 	return EINVAL;
 }
@@ -1794,7 +1794,7 @@ msdosfs_abortop(ap)
 	} */ *ap;
 {
 	if ((ap->a_cnp->cn_flags & (HASBUF | SAVESTART)) == HASBUF)
-		FREE(ap->a_cnp->cn_pnbuf, M_NAMEI);
+		zfree(namei_zone, ap->a_cnp->cn_pnbuf);
 	return 0;
 }
 

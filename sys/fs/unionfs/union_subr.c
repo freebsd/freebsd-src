@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_subr.c	8.20 (Berkeley) 5/20/95
- * $Id: union_subr.c,v 1.19 1997/08/02 14:32:28 bde Exp $
+ * $Id: union_subr.c,v 1.20 1997/08/14 03:57:46 kato Exp $
  */
 
 #include <sys/param.h>
@@ -740,7 +740,7 @@ union_relookup(um, dvp, vpp, cnp, cn, path, pathlen)
 	 * The pathname buffer will be FREEed by VOP_MKDIR.
 	 */
 	cn->cn_namelen = pathlen;
-	cn->cn_pnbuf = malloc(cn->cn_namelen+1, M_NAMEI, M_WAITOK);
+	cn->cn_pnbuf = zalloc(namei_zone);
 	bcopy(path, cn->cn_pnbuf, cn->cn_namelen);
 	cn->cn_pnbuf[cn->cn_namelen] = '\0';
 
@@ -760,7 +760,7 @@ union_relookup(um, dvp, vpp, cnp, cn, path, pathlen)
 	if (!error)
 		vrele(dvp);
 	else {
-		free(cn->cn_pnbuf, M_NAMEI);
+		zfree(namei_zone, cn->cn_pnbuf);
 		cn->cn_pnbuf = '\0';
 	}
 
@@ -906,7 +906,7 @@ union_vn_create(vpp, un, p)
 	 * copied in the first place).
 	 */
 	cn.cn_namelen = strlen(un->un_path);
-	cn.cn_pnbuf = (caddr_t) malloc(cn.cn_namelen+1, M_NAMEI, M_WAITOK);
+	cn.cn_pnbuf = zalloc(namei_zone);
 	bcopy(un->un_path, cn.cn_pnbuf, cn.cn_namelen+1);
 	cn.cn_nameiop = CREATE;
 	cn.cn_flags = (LOCKPARENT|HASBUF|SAVENAME|SAVESTART|ISLASTCN);

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.89 1997/09/01 03:17:18 bde Exp $
+ * $Id: vm_map.c,v 1.90 1997/09/12 15:58:47 jlemon Exp $
  */
 
 /*
@@ -214,8 +214,9 @@ vm_init2(void) {
 	zinitna(mapentzone, &mapentobj,
 		NULL, 0, 0, 0, 4);
 	zinitna(mapzone, &mapobj,
-		NULL, 0, 0, 0, 1);
+		NULL, 0, 0, 0, 2);
 	pmap_init2();
+	vm_object_init2();
 }
 
 void
@@ -684,8 +685,12 @@ vm_map_findspace(map, start, length, addr)
 	}
 	SAVE_HINT(map, entry);
 	*addr = start;
-	if (map == kernel_map && round_page(start + length) > kernel_vm_end)
-		pmap_growkernel(round_page(start + length));
+	if (map == kernel_map) {
+		vm_offset_t ksize;
+		if ((ksize = round_page(start + length)) > kernel_vm_end) {
+			pmap_growkernel(ksize);
+		}
+	}
 	return (0);
 }
 

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_init.c	8.3 (Berkeley) 1/4/94
- * $Id: vfs_init.c,v 1.26 1997/08/02 14:31:44 bde Exp $
+ * $Id: vfs_init.c,v 1.27 1997/09/10 20:11:01 phk Exp $
  */
 
 
@@ -46,6 +46,7 @@
 #include <sys/mount.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>
+#include <vm/vm_zone.h>
 
 static void	vfs_op_init __P((void));
 
@@ -70,6 +71,11 @@ extern struct linker_set vfs_set;
 
 extern struct vnodeop_desc *vfs_op_descs[];
 				/* and the operations they perform */
+
+/*
+ * Zone for namei
+ */
+struct vm_zone *namei_zone;
 
 /*
  * A miscellaneous routine.
@@ -233,6 +239,8 @@ vfsinit(dummy)
 {
 	struct vfsconf **vfc;
 	int maxtypenum;
+
+	namei_zone = zinit("NAMEI", MAXPATHLEN, 0, 0, 2);
 
 	/*
 	 * Initialize the vnode table

@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_coff.c,v 1.25 1997/07/20 09:39:51 bde Exp $
+ *	$Id: imgact_coff.c,v 1.26 1997/08/25 22:14:57 bde Exp $
  */
 
 #include <sys/param.h>
@@ -277,8 +277,8 @@ coff_load_file(struct proc *p, char *name)
     		panic(__FUNCTION__ " vm_map_remove failed");
 
  fail:
-  	vput(nd.ni_vp);
-  	FREE(nd.ni_cnd.cn_pnbuf, M_NAMEI);
+    vput(nd.ni_vp);
+	zfree(namei_zone, nd.ni_cnd.cn_pnbuf);
   	return error;
 }
 

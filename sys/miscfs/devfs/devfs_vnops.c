@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.38 1997/08/27 02:58:40 julian Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.39 1997/09/14 02:57:48 peter Exp $
  *
  * symlinks can wait 'til later.
  */
@@ -1432,7 +1432,7 @@ devfs_abortop(struct vop_abortop_args *ap)
 {
 DBPRINT(("abortop\n"));
 	if ((ap->a_cnp->cn_flags & (HASBUF | SAVESTART)) == HASBUF)
-		FREE(ap->a_cnp->cn_pnbuf, M_NAMEI);
+		zfree(namei_zone, ap->a_cnp->cn_pnbuf);
 	return 0;
 }
 #endif /* notyet */

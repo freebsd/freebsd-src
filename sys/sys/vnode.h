@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.47 1997/08/31 07:32:35 phk Exp $
+ * $Id: vnode.h,v 1.48 1997/09/14 02:25:41 peter Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -453,6 +453,9 @@ struct uio;
 struct vattr;
 struct vnode;
 struct vop_bwrite_args;
+struct vm_zone;
+
+extern struct vm_zone *namei_zone;
 
 extern int	(*lease_check_hook) __P((struct vop_lease_args *));
 

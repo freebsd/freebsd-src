@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.18 (Berkeley) 5/21/95
  *
- *	$Id: procfs_vnops.c,v 1.31 1997/08/12 04:34:30 sef Exp $
+ *	$Id: procfs_vnops.c,v 1.32 1997/09/14 02:57:58 peter Exp $
  */
 
 /*
@@ -351,7 +351,7 @@ procfs_abortop(ap)
 {
 
 	if ((ap->a_cnp->cn_flags & (HASBUF | SAVESTART)) == HASBUF)
-		FREE(ap->a_cnp->cn_pnbuf, M_NAMEI);
+		zfree(namei_zone, ap->a_cnp->cn_pnbuf);
 	return (0);
 }
 
