@@ -23,7 +23,7 @@ ifdef html ! define ps|X|html %1% !
 ifdef ps|X|html ! sdefine inf %"\s[\En[.s]*13u/10u]\v'12M'\(if\v'-12M'\s0"% !
 
 ifdef dvi !
-sdefine int %{type "operator" vcenter \(is}%
+sdefine int %{type "operator" vcenter \[integral]}%
 sdefine sum %{type "operator" vcenter \[sum]}%
 sdefine prod %{type "operator" vcenter \[product]}%
 sdefine coprod %{type "operator" vcenter \[coproduct]}%
