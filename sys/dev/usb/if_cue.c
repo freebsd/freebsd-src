@@ -116,7 +116,7 @@ Static void cue_watchdog(struct ifnet *);
 Static void cue_shutdown(device_ptr_t);
 
 Static void cue_setmulti(struct cue_softc *);
-Static u_int32_t cue_crc(caddr_t);
+Static u_int32_t cue_crc(const uint8_t *);
 Static void cue_reset(struct cue_softc *);
 
 Static int cue_csr_read_1(struct cue_softc *, int);
@@ -331,9 +331,9 @@ cue_getmac(struct cue_softc *sc, void *buf)
 #define CUE_BITS	9
 
 Static u_int32_t
-cue_crc(caddr_t addr)
+cue_crc(const uint8_t *addr)
 {
-	u_int32_t		idx, bit, data, crc;
+	uint32_t		idx, bit, data, crc;
 
 	/* Compute CRC for the address value. */
 	crc = 0xFFFFFFFF; /* initial value */
