@@ -63,6 +63,8 @@ static int	ed_pccard_detach(device_t);
 static void	ax88190_geteprom(struct ed_softc *);
 static int	ed_pccard_memwrite(device_t dev, off_t offset, u_char byte);
 static int	ed_pccard_memread(device_t dev, off_t offset, u_char *buf, int size);
+static int	ed_pccard_Linksys(device_t dev);
+static int	linksys;
 
 static device_method_t ed_pccard_methods[] = {
 	/* Device interface */
@@ -168,8 +170,15 @@ ed_pccard_probe(device_t dev)
 	if (error == 0)
 		goto end;
 	ed_release_resources(dev);
+	goto end2;
 
 end:
+	if (ED_FLAGS_GETTYPE(flags) & ED_FLAGS_LINKSYS) {
+		linksys = ed_pccard_Linksys(dev);
+	} else {
+		linksys = 0;
+	}
+end2:
 	if (error == 0)
 		error = ed_alloc_irq(dev, 0, 0);
 
@@ -201,7 +210,7 @@ ed_pccard_attach(device_t dev)
 		return (error);
 	}	      
 
-	if (ed_get_Linksys(sc) == 0) {
+	if (linksys == 0) {
 		pccard_get_ether(dev, ether_addr);
 		for (i = 0, sum = 0; i < ETHER_ADDR_LEN; i++)
 			sum |= ether_addr[i];
@@ -312,4 +321,41 @@ ed_pccard_memread(device_t dev, off_t offset, u_char *buf, int size)
 
 	d = makedev(CARD_MAJOR, devi->slt->slotnum);
 	return devsw(d)->d_read(d, &uios, 0);
+}
+
+/*
+ * Probe the Ethernet MAC addrees for PCMCIA Linksys EtherFast 10/100 
+ * and compatible cards (DL10019C Ethernet controller).
+ *
+ * Note: The PAO patches try to use more memory for the card, but that
+ * seems to fail for my card.  A future optimization would add this back
+ * conditionally.
+ */
+static int
+ed_pccard_Linksys(device_t dev)
+{
+	struct ed_softc *sc = device_get_softc(dev);
+	u_char sum;
+	int i;
+
+	/*
+	 * Linksys registers(offset from ASIC base)
+	 *
+	 * 0x04-0x09 : Physical Address Register 0-5 (PAR0-PAR5)
+	 * 0x0A      : Card ID Register (CIR)
+	 * 0x0B      : Check Sum Register (SR)
+	 */
+	for (sum = 0, i = 0x04; i < 0x0c; i++)
+		sum += ed_asic_inb(sc, i);
+	if (sum != 0xff)
+		return (0);		/* invalid DL10019C */
+	for (i = 0; i < ETHER_ADDR_LEN; i++) {
+		sc->arpcom.ac_enaddr[i] = ed_asic_inb(sc, 0x04 + i);
+	}
+
+	ed_nic_outb(sc, ED_P0_DCR, ED_DCR_WTS | ED_DCR_FT1 | ED_DCR_LS);
+	sc->isa16bit = 1;
+	sc->type = ED_TYPE_NE2000;
+	sc->type_str = "Linksys";
+	return (1);
 }
