@@ -37,7 +37,7 @@
 
 struct	osigframe {
 	/*
-	 * The first three members may be used by applications.
+	 * The first four members may be used by applications.
 	 */
 
 	register_t	sf_signum;
@@ -51,6 +51,8 @@ struct	osigframe {
 	/* Points to sf_siginfo.si_sc. */
 	register_t	sf_scp;
 
+	register_t	*sf_addr;
+
 	/*
 	 * The following arguments are not constrained by the
 	 * function call protocol.
@@ -58,8 +60,6 @@ struct	osigframe {
 	 * except using the pointers we provide in the first three
 	 * arguments.
 	 */
-
-	char		*sf_addr;
 
 	union {
 		__osiginfohandler_t	*sf_action;
@@ -73,14 +73,15 @@ struct	osigframe {
 struct sigframe {
 	/*
 	 * The first four members may be used by applications.
+	 *
 	 * NOTE: The 4th argument is undocumented, ill commented
-	 *       on and seems to be somewhat BSD "standard".
-	 *       Handlers installed with sigvec may be using it.
+	 * on and seems to be somewhat BSD "standard".  Handlers
+	 * installed with sigvec may be using it.
 	 */
 	register_t	sf_signum;
-	register_t	sf_siginfo;		/* code or pointer to sf_si */
-	register_t	sf_ucontext;		/* points to sf_uc */
-	char		*sf_addr;		/* undocumented 4th arg */
+	register_t	sf_siginfo;	/* code or pointer to sf_si */
+	register_t	sf_ucontext;	/* points to sf_uc */
+	register_t	*sf_addr;	/* undocumented 4th arg */
 
 	union {
 		__siginfohandler_t	*sf_action;
