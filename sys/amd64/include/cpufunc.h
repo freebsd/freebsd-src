@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.30 1994/11/15 14:55:25 bde Exp $
+ *	$Id: cpufunc.h,v 1.31 1995/01/04 20:42:25 davidg Exp $
  */
 
 /*
@@ -420,7 +420,6 @@ void	ltr		__P((u_short sel));
 u_int	rcr0		__P((void));
 u_long	rcr3		__P((void));
 int	rtcin		__P((int val));
-int	susword		__P((void *base, int word));
 
 /*
  * These functions are NOT in support.s and should be declared elsewhere.
