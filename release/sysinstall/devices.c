@@ -442,6 +442,10 @@ skipif:
 	    Chunk *c1;
 	    Disk *d;
 
+	    /* Skip memory disks */
+	    if (!strncmp(names[i], "md", 2))
+		continue;
+
 	    d = Open_Disk(names[i]);
 	    if (!d)
 		msgFatal("Unable to open disk %s", names[i]);
