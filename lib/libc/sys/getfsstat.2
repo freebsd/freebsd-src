@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)getfsstat.2	8.1 (Berkeley) 6/9/93
+.\"	@(#)getfsstat.2	8.3 (Berkeley) 5/25/95
 .\"
-.Dd June 9, 1993
+.Dd May 25, 1995
 .Dt GETFSSTAT 2
 .Os
 .Sh NAME
@@ -78,31 +78,40 @@ struct statfs {
     char    f_mntonname[MNAMELEN];/* directory on which mounted */
     char    f_mntfromname[MNAMELEN];/* mounted filesystem */
 };
-
-/*
- * File system types.
- */
-#define	MOUNT_NONE	0
-#define	MOUNT_UFS	1	/* Fast Filesystem */
-#define	MOUNT_NFS	2	/* Sun-compatible Network Filesystem */
-#define	MOUNT_MFS	3	/* Memory-based Filesystem */
-#define	MOUNT_MSDOS	4	/* MS/DOS Filesystem */
-#define	MOUNT_LFS	5	/* Log-based Filesystem */
-#define	MOUNT_LOFS	6	/* Loopback Filesystem */
-#define	MOUNT_FDESC	7	/* File Descriptor Filesystem */
-#define	MOUNT_PORTAL	8	/* Portal Filesystem */
-#define MOUNT_NULL	9	/* Minimal Filesystem Layer */
-#define MOUNT_UMAP	10	/* User/Group Identifier Remapping Filesystem */
-#define MOUNT_KERNFS	11	/* Kernel Information Filesystem */
-#define MOUNT_PROCFS	12	/* /proc Filesystem */
-#define MOUNT_AFS	13	/* Andrew Filesystem */
-#define MOUNT_CD9660	14	/* ISO9660 (aka CDROM) Filesystem */
-#define MOUNT_UNION	15	/* Union (translucent) Filesystem */
-#define MOUNT_DEVFS	16	/* existing device Filesystem */
-#define	MOUNT_EXT2FS	17	/* Linux EXT2FS */
-#define MOUNT_TFS	18	/* Netcon Novell filesystem */
-#define	MOUNT_MAXTYPE	18
 .Ed
+.Pp
+The flags that may be returned include:
+.Bl -tag -width MNT_ASYNCHRONOUS
+.It Dv MNT_RDONLY
+The filesystem is mounted read-only;
+Even the super-user may not write on it.
+.It Dv MNT_NOEXEC
+Files may not be executed from the filesystem.
+.It Dv MNT_NOSUID
+Setuid and setgid bits on files are not honored when they are executed.
+.It Dv MNT_NODEV
+Special files in the filesystem may not be opened.
+.It Dv MNT_SYNCHRONOUS
+All I/O to the filesystem is done synchronously.
+.It Dv MNT_ASYNCHRONOUS
+No filesystem I/O is done synchronously.
+.It Dv MNT_LOCAL
+The filesystem resides locally.
+.It Dv MNT_QUOTA
+The filesystem has quotas enabled on it.
+.It Dv MNT_ROOTFS
+Identifies the root filesystem.
+.It Dv MNT_EXRDONLY
+The filesystem is exported read-only.
+.It Dv MNT_EXPORTED
+The filesystem is exported for both reading and writing.
+.It Dv MNT_DEFEXPORTED
+The filesystem is exported for both reading and writing to any Internet host.
+.It Dv MNT_EXPORTANON
+The filesystem maps all remote accesses to the anonymous user.
+.It Dv MNT_EXKERB
+The filesystem is exported with Kerberos uid mapping.
+.El
 .Pp
 Fields that are undefined for a particular filesystem are set to -1.
 The buffer is filled with an array of

@@ -29,10 +29,10 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)stat.2	8.3 (Berkeley) 4/19/94
-.\"	$Id$
+.\"     @(#)stat.2	8.4 (Berkeley) 5/1/95
+.\"	$Id: stat.2,v 1.11 1997/02/22 15:04:29 peter Exp $
 .\"
-.Dd April 19, 1994
+.Dd May 1, 1995
 .Dt STAT 2
 .Os BSD 4
 .Sh NAME
@@ -259,16 +259,6 @@ points to an invalid address.
 .It Bq Er EIO
 An I/O error occurred while reading from or writing to the file system.
 .El
-.Sh CAVEAT
-The fields in the stat structure currently marked
-.Fa st_spare1 ,
-.Fa st_spare2 ,
-and
-.Fa st_spare3
-are present in preparation for inode time stamps expanding
-to 64 bits.  This, however, can break certain programs that
-depend on the time stamps being contiguous (in calls to
-.Xr utimes 2 ) .
 .Sh SEE ALSO
 .Xr chmod 2 ,
 .Xr chown 2 ,
