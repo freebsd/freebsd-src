@@ -401,8 +401,22 @@ callout_reset(c, to_ticks, ftn, arg)
 		mtx_unlock_spin(&callout_lock);
 		return;
 	}
-	if (c->c_flags & CALLOUT_PENDING)
-		callout_stop(c);
+	if (c->c_flags & CALLOUT_PENDING) {
+		if (nextsoftcheck == c) {
+			nextsoftcheck = TAILQ_NEXT(c, c_links.tqe);
+		}
+		TAILQ_REMOVE(&callwheel[c->c_time & callwheelmask], c,
+		    c_links.tqe);
+
+		/*
+		 * Part of the normal "stop a pending callout" process
+		 * is to clear the CALLOUT_ACTIVE and CALLOUT_PENDING
+		 * flags.  We're not going to bother doing that here,
+		 * because we're going to be setting those flags ten lines
+		 * after this point, and we're holding callout_lock
+		 * between now and then.
+		 */
+	}
 
 	/*
 	 * We could unlock callout_lock here and lock it again before the
