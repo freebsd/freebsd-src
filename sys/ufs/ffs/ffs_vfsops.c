@@ -636,6 +636,7 @@ ffs_mountfs(devvp, mp, td, malloctype)
 		fs->fs_pendingblocks = 0;
 		fs->fs_pendinginodes = 0;
 	}
+	fs->fs_active = 0;
 	/* XXX updating 4.2 FFS superblocks trashes rotational layout tables */
 	if (fs->fs_postblformat == FS_42POSTBLFMT && !ronly) {
 		error = EROFS;          /* needs translation */

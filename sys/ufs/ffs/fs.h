@@ -295,7 +295,8 @@ struct fs {
 	int32_t	 fs_snapinum[FSMAXSNAP];/* list of snapshot inode numbers */
 	int32_t	 fs_avgfilesize;	/* expected average file size */
 	int32_t	 fs_avgfpdir;		/* expected # of files per directory */
-	int32_t	 fs_sparecon[26];	/* reserved for future constants */
+	u_int8_t *fs_active;		/* used by snapshots to track fs */
+	int32_t	 fs_sparecon[25];	/* reserved for future constants */
 	int32_t	 fs_pendingblocks;	/* blocks in process of being freed */
 	int32_t	 fs_pendinginodes;	/* inodes in process of being freed */
 	int32_t	 fs_contigsumsize;	/* size of cluster summary array */ 
