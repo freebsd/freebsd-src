@@ -364,7 +364,6 @@ options 	PCVT_GREENSAVER
 # will be used, unless it is found to be broken or unless "flags" to
 # npx0 includes "0x08", which requests preference for the emulator.
 device		npx
-hint.npx.0.at="nexus"
 hint.npx.0.port="0x0F0"
 hint.npx.0.flags="0x0"
 hint.npx.0.irq="13"
@@ -604,7 +603,6 @@ hint.spigot.0.maddr="0xee000"
 device		apm
 hint.apm.0.flags="0x20"
 device		pmtimer			# Adjust system timer at wakeup time
-hint.pmtimer.0.at="isa"
 device		gp
 hint.gp.0.at="isa"
 hint.gp.0.port="0x2c0"
