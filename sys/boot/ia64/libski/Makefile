@@ -5,7 +5,7 @@ INTERNALLIB=	true
 
 SRCS=	skiconsole.c time.c copy.c devicename.c module.c exit.c
 SRCS+=	delay.c skifs.c elf_freebsd.c bootinfo.c ssc.c
-SRCS+=	acpi_stub.c efi_stub.c pal_stub.s sal_stub.c
+SRCS+=	acpi_stub.c efi_stub.c pal_stub.S sal_stub.c
 
 CFLAGS+=	-ffreestanding -fpic -g
 CFLAGS+=	-I${.CURDIR}/../include
