@@ -1038,10 +1038,8 @@ vm_fault_quick(caddr_t v, int prot)
  *	Wire down a range of virtual addresses in a map.
  */
 int
-vm_fault_wire(map, start, end, user_wire)
-	vm_map_t map;
-	vm_offset_t start, end;
-	boolean_t user_wire;
+vm_fault_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
+    boolean_t user_wire, boolean_t fictitious)
 {
 	vm_offset_t va;
 	int rv;
@@ -1057,7 +1055,7 @@ vm_fault_wire(map, start, end, user_wire)
 		    user_wire ? VM_FAULT_USER_WIRE : VM_FAULT_CHANGE_WIRING);
 		if (rv) {
 			if (va != start)
-				vm_fault_unwire(map, start, va);
+				vm_fault_unwire(map, start, va, fictitious);
 			return (rv);
 		}
 	}
@@ -1070,9 +1068,8 @@ vm_fault_wire(map, start, end, user_wire)
  *	Unwire a range of virtual addresses in a map.
  */
 void
-vm_fault_unwire(map, start, end)
-	vm_map_t map;
-	vm_offset_t start, end;
+vm_fault_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
+    boolean_t fictitious)
 {
 	vm_paddr_t pa;
 	vm_offset_t va;
@@ -1090,9 +1087,11 @@ vm_fault_unwire(map, start, end)
 		pa = pmap_extract(pmap, va);
 		if (pa != 0) {
 			pmap_change_wiring(pmap, va, FALSE);
-			vm_page_lock_queues();
-			vm_page_unwire(PHYS_TO_VM_PAGE(pa), 1);
-			vm_page_unlock_queues();
+			if (!fictitious) {
+				vm_page_lock_queues();
+				vm_page_unwire(PHYS_TO_VM_PAGE(pa), 1);
+				vm_page_unlock_queues();
+			}
 		}
 	}
 	if (pmap != kernel_pmap)
