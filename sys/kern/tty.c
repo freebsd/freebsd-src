@@ -2233,9 +2233,9 @@ ttyinfo(tp)
 {
 	register struct proc *p, *pick;
 	struct timeval utime, stime;
+	const char *stmp;
+	long ltmp;
 	int tmp;
-	const char *s;
-	long l;
 
 	if (ttycheckoutq(tp,0) == 0)
 		return;
@@ -2251,46 +2251,34 @@ ttyinfo(tp)
 	else if ((p = LIST_FIRST(&tp->t_pgrp->pg_members)) == 0)
 		ttyprintf(tp, "empty foreground process group\n");
 	else {
+		mtx_enter(&sched_lock, MTX_SPIN);
+
 		/* Pick interesting process. */
 		for (pick = NULL; p != 0; p = LIST_NEXT(p, p_pglist))
 			if (proc_compare(pick, p))
 				pick = p;
 
-		mtx_enter(&sched_lock, MTX_SPIN);
-		s = pick->p_stat == SRUN ? "running" :
+		stmp = pick->p_stat == SRUN ? "running" :
 		    pick->p_wmesg ? pick->p_wmesg : "iowait";
+		calcru(pick, &utime, &stime, NULL);
+		ltmp = pick->p_stat == SIDL || pick->p_stat == SWAIT ||
+		    pick->p_stat == SZOMB ? 0 :
+		    pgtok(vmspace_resident_count(pick->p_vmspace));
 		mtx_exit(&sched_lock, MTX_SPIN);
+
 		ttyprintf(tp, " cmd: %s %d [%s] ", pick->p_comm, pick->p_pid,
-		    s);
-		mtx_enter(&sched_lock, MTX_SPIN);
-		if (pick->p_flag & P_INMEM) {
-			mtx_exit(&sched_lock, MTX_SPIN);
-			calcru(pick, &utime, &stime, NULL);
+		    stmp);
 
-			/* Print user time. */
-			ttyprintf(tp, "%ld.%02ldu ",
-			    utime.tv_sec, utime.tv_usec / 10000);
+		/* Print user time. */
+		ttyprintf(tp, "%ld.%02ldu ",
+		    utime.tv_sec, utime.tv_usec / 10000);
 
-			/* Print system time. */
-			ttyprintf(tp, "%ld.%02lds ",
-			    stime.tv_sec, stime.tv_usec / 10000);
-		} else {
-			mtx_exit(&sched_lock, MTX_SPIN);
-			ttyprintf(tp, "?.??u ?.??s ");
-		}
+		/* Print system time. */
+		ttyprintf(tp, "%ld.%02lds ",
+		    stime.tv_sec, stime.tv_usec / 10000);
 
 		/* Print percentage cpu, resident set size. */
-		mtx_enter(&sched_lock, MTX_SPIN);
-		tmp = (pick->p_pctcpu * 10000 + FSCALE / 2) >> FSHIFT;
-		if (pick->p_stat == SIDL || pick->p_stat == SWAIT ||
-		    pick->p_stat == SZOMB) {
-			mtx_exit(&sched_lock, MTX_SPIN);
-			l = 0;
-		} else {
-			mtx_exit(&sched_lock, MTX_SPIN);
-			l = pgtok(vmspace_resident_count(pick->p_vmspace));
-		}
-		ttyprintf(tp, "%d%% %ldk\n", tmp / 100, l);
+		ttyprintf(tp, "%d%% %ldk\n", tmp / 100, ltmp);
 	}
 	tp->t_rocount = 0;	/* so pending input will be retyped if BS */
 }
@@ -2322,19 +2310,15 @@ proc_compare(p1, p2)
 	if (p1 == NULL)
 		return (1);
 
-	mtx_enter(&sched_lock, MTX_SPIN);
 	/*
 	 * see if at least one of them is runnable
 	 */
 	switch (TESTAB(ISRUN(p1), ISRUN(p2))) {
 	case ONLYA:
-		mtx_exit(&sched_lock, MTX_SPIN);
 		return (0);
 	case ONLYB:
-		mtx_exit(&sched_lock, MTX_SPIN);
 		return (1);
 	case BOTH:
-		mtx_exit(&sched_lock, MTX_SPIN);
 		/*
 		 * tie - favor one with highest recent cpu utilization
 		 */
@@ -2349,16 +2333,12 @@ proc_compare(p1, p2)
 	 */
 	switch (TESTAB(p1->p_stat == SZOMB, p2->p_stat == SZOMB)) {
 	case ONLYA:
-		mtx_exit(&sched_lock, MTX_SPIN);
 		return (1);
 	case ONLYB:
-		mtx_exit(&sched_lock, MTX_SPIN);
 		return (0);
 	case BOTH:
-		mtx_exit(&sched_lock, MTX_SPIN);
 		return (p2->p_pid > p1->p_pid); /* tie - return highest pid */
 	}
-	mtx_exit(&sched_lock, MTX_SPIN);
 
 	/*
 	 * pick the one with the smallest sleep time
