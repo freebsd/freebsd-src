@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_lookup.c,v 1.1 1994/09/19 15:41:44 dfr Exp $ */
+/*	$Id: msdosfs_lookup.c,v 1.2 1994/09/27 20:42:51 phk Exp $ */
 /*	$NetBSD: msdosfs_lookup.c,v 1.14 1994/08/21 18:44:07 ws Exp $	*/
 
 /*-
@@ -109,6 +109,7 @@ msdosfs_lookup(ap)
 	struct msdosfsmount *pmp;
 	struct buf *bp = 0;
 	struct direntry *dep = NULL;
+	struct ucred *cred = cnp->cn_cred;
 	u_char dosfilename[12];
 	int flags = cnp->cn_flags;
 	int nameiop = cnp->cn_nameiop;
@@ -318,6 +319,9 @@ notfound:;
 #endif
 	if ((nameiop == CREATE || nameiop == RENAME) &&
 	    (flags & ISLASTCN) && dp->de_refcnt != 0) {
+		error = VOP_ACCESS(vdp, VWRITE, cred, cnp->cn_proc);
+		if (error)
+			return error;
 		if (slotstatus == NONE) {
 			dp->de_fndoffset = (u_long)-1;
 			dp->de_fndclust = (u_long)-1;
@@ -363,6 +367,12 @@ foundroot:;
 	 * deget() the directory entry.
 	 */
 	if (nameiop == DELETE && (flags & ISLASTCN)) {
+		error = VOP_ACCESS(vdp, VWRITE, cred, cnp->cn_proc);
+		if (error) {
+			if (bp)
+				brelse(bp);
+			return error;
+		}
 		if (dp->de_StartCluster == scn && isadir) {	/* "." */
 			VREF(vdp);
 			*vpp = vdp;
@@ -388,6 +398,12 @@ foundroot:;
 	 * If renaming.
 	 */
 	if (nameiop == RENAME && wantparent && (flags & ISLASTCN)) {
+		error = VOP_ACCESS(vdp, VWRITE, cred, cnp->cn_proc);
+		if (error) {
+			if (bp)
+				brelse(bp);
+			return error;
+		}
 		if (dp->de_StartCluster == scn && isadir) {
 			if (bp)
 				brelse(bp);
