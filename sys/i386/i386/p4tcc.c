@@ -226,7 +226,7 @@ setup_p4tcc(void *dummy __unused)
 	sysctl_ctx_init(&p4tcc_sysctl_ctx);
 	p4tcc_sysctl_tree = SYSCTL_ADD_NODE(&p4tcc_sysctl_ctx,
 	    SYSCTL_STATIC_CHILDREN(_hw), OID_AUTO, "p4tcc", CTLFLAG_RD, 0,
-	    "Pentium 4 Ternal Control Circuitry support");
+	    "Pentium 4 Thermal Control Circuitry support");
 	SYSCTL_ADD_PROC(&p4tcc_sysctl_ctx,
 	    SYSCTL_CHILDREN(p4tcc_sysctl_tree), OID_AUTO,
 	    "cpuperf", CTLTYPE_INT | CTLFLAG_RW,
