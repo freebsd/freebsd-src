@@ -31,18 +31,18 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
 #if 0
-static const char sccsid[] = "@(#)yacc.c	8.3 (Berkeley) 4/2/94";
+#ifndef lint
+static char sccsid[] = "@(#)yacc.c	8.3 (Berkeley) 4/2/94";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 #include <limits.h>
 #include <stdio.h>
-#include <string.h>
 
 #include "ctags.h"
 
@@ -51,7 +51,7 @@ static const char rcsid[] =
  *	find the yacc tags and put them in.
  */
 void
-y_entries()
+y_entries(void)
 {
 	int	c;
 	char	*sp;
@@ -123,7 +123,7 @@ y_entries()
  *	throw away lines up to the next "\n%%\n"
  */
 void
-toss_yysec()
+toss_yysec(void)
 {
 	int	c;			/* read character */
 	int	state;
@@ -132,7 +132,7 @@ toss_yysec()
 	 * state == 0 : waiting
 	 * state == 1 : received a newline
 	 * state == 2 : received first %
-	 * state == 3 : recieved second %
+	 * state == 3 : received second %
 	 */
 	lineftell = ftell(inf);
 	for (state = 0; GETC(!=, EOF);)
