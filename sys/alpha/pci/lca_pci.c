@@ -104,7 +104,7 @@ lca_pcib_cvt_dense(device_t dev, vm_offset_t addr)
 static int
 lca_pcib_maxslots(device_t dev)
 {
-	return 31;
+	return 15;
 }
 
 #define LCA_CFGOFF(b, s, f, r) \
