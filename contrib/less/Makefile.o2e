@@ -1,0 +1,39 @@
+# Makefile for less.
+# OS/2 version, for emx+gcc compiler
+
+#### Start of system configuration section. ####
+
+CC = gcc -Zomf
+CFLAGS = -I. -O
+LDFLAGS = -s -Zcrtdll -Zstack 512
+LIBS = -ltermcap
+O = obj
+
+#### End of system configuration section. ####
+
+.SUFFIXES: .c .${O}
+
+# This rule allows us to supply the necessary -D options
+# in addition to whatever the user asks for.
+.c.${O}:
+	${CC} -c ${CPPFLAGS} ${CFLAGS} $<
+
+OBJ =	main.${O} screen.${O} brac.${O} ch.${O} charset.${O} cmdbuf.${O} \
+	command.${O} decode.${O} edit.${O} filename.${O} forwback.${O} \
+	help.${O} ifile.${O} input.${O} jump.${O} line.${O} linenum.${O} \
+	lsystem.${O} mark.${O} optfunc.${O} option.${O} opttbl.${O} os.${O} \
+	output.${O} position.${O} prompt.${O} search.${O} signal.${O} \
+	tags.${O} ttyin.${O} version.${O}  regexp.${O}
+
+all:    less.exe lesskey.exe
+
+less.exe: ${OBJ}
+	${CC} ${OBJ} -o $@ ${LDFLAGS} ${LIBS}
+
+lesskey.exe: lesskey.${O} version.${O}
+	${CC} lesskey.${O} version.${O} -o $@ ${LDFLAGS}
+
+${OBJ}: defines.h less.h
+
+defines.h: defines.o2
+	copy defines.o2 defines.h
