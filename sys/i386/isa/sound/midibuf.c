@@ -29,7 +29,7 @@
 
 #include "sound_config.h"
 
-extern void drain_midi_queue __P((int dev));
+static void drain_midi_queue __P((int dev));
 
 #if defined(CONFIGURE_SOUNDCARD) && !defined(EXCLUDE_MIDI)
 
@@ -89,7 +89,7 @@ static volatile int open_devs = 0;
 	  RESTORE_INTR(flags); \
 	}
 
-void
+static void
 drain_midi_queue (int dev)
 {
 

@@ -117,7 +117,7 @@ typedef struct mixer_def mixer_ent;
 	{{reg_l, bit_l, len_l}, {reg_r, bit_r, len_r}}
 
 #ifdef __SB_MIXER_C__
-mixer_tab sbpro_mix = {
+static mixer_tab sbpro_mix = {
 MIX_ENT(SOUND_MIXER_VOLUME,	0x22, 7, 4, 0x22, 3, 4),
 MIX_ENT(SOUND_MIXER_BASS,	0x00, 0, 0, 0x00, 0, 0),
 MIX_ENT(SOUND_MIXER_TREBLE,	0x00, 0, 0, 0x00, 0, 0),
@@ -133,7 +133,7 @@ MIX_ENT(SOUND_MIXER_RECLEV,	0x00, 0, 0, 0x00, 0, 0)
 };
 
 #ifdef	__SGNXPRO__
-mixer_tab sgnxpro_mix = {
+static mixer_tab sgnxpro_mix = {
 MIX_ENT(SOUND_MIXER_VOLUME,	0x22, 7, 4, 0x22, 3, 4),
 MIX_ENT(SOUND_MIXER_BASS,	0x46, 2, 3, 0x00, 0, 0),
 MIX_ENT(SOUND_MIXER_TREBLE,	0x44, 2, 3, 0x00, 0, 0),
@@ -151,7 +151,7 @@ MIX_ENT(SOUND_MIXER_OGAIN,	0x00, 0, 0, 0x00, 0, 0)
 };
 #endif
 
-mixer_tab sb16_mix = {
+static mixer_tab sb16_mix = {
 MIX_ENT(SOUND_MIXER_VOLUME,	0x30, 7, 5, 0x31, 7, 5),
 MIX_ENT(SOUND_MIXER_BASS,	0x46, 7, 4, 0x47, 7, 4),
 MIX_ENT(SOUND_MIXER_TREBLE,	0x44, 7, 4, 0x45, 7, 4),

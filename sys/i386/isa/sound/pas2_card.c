@@ -35,9 +35,9 @@
 #define DEFINE_TRANSLATIONS
 #include "pas.h"
 
-extern int config_pas_hw __P((struct address_info *hw_config));
-extern int detect_pas_hw __P((struct address_info *hw_config));
-extern void pas2_msg __P((char *foo));
+static int config_pas_hw __P((struct address_info *hw_config));
+static int detect_pas_hw __P((struct address_info *hw_config));
+static void pas2_msg __P((char *foo));
 
 /*
  * The Address Translation code is used to convert I/O register addresses to
@@ -75,7 +75,7 @@ pas_write (unsigned char data, int ioaddr)
   OUTB (data, ioaddr ^ translat_code);
 }
 
-void
+static void
 pas2_msg (char *foo)
 {
   printk ("    PAS2: %s.\n", foo);
@@ -151,7 +151,7 @@ pas_remove_intr (int mask)
 
 /******************* Begin of the Initialization Code ******************/
 
-int
+static int
 config_pas_hw (struct address_info *hw_config)
 {
   char            ok = 1;
@@ -312,7 +312,7 @@ config_pas_hw (struct address_info *hw_config)
   return ok;
 }
 
-int
+static int
 detect_pas_hw (struct address_info *hw_config)
 {
   unsigned char   board_id, foo;
