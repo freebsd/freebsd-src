@@ -51,6 +51,7 @@ static device_method_t sio_isa_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		sio_isa_probe),
 	DEVMETHOD(device_attach,	sio_isa_attach),
+	DEVMETHOD(device_detach,	siodetach),
 
 	{ 0, 0 }
 };
