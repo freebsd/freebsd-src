@@ -36,7 +36,7 @@
 static char sccsid[] = "From: @(#)route.c	8.6 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: route.c,v 1.28 1997/07/29 06:51:41 charnier Exp $";
+	"$Id: route.c,v 1.29 1998/04/19 18:18:25 phk Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -99,10 +99,12 @@ struct bits {
 	{ 0 }
 };
 
-static union {
+typedef union {
 	struct	sockaddr u_sa;
 	u_short	u_data[128];
-} pt_u;
+} sa_u;
+
+static sa_u pt_u;
 
 int	do_rtent = 0;
 struct	rtentry rtentry;
@@ -510,7 +512,7 @@ p_rtentry(rt)
 	static char name[16];
 	static char prettyname[9];
 	struct sockaddr *sa;
-	struct sockaddr addr, mask;
+	sa_u addr, mask;
 
 	/*
 	 * Don't print protocol-cloned routes unless -a.
@@ -518,14 +520,14 @@ p_rtentry(rt)
 	if (rt->rt_parent && !aflag)
 		return;
 
-	if (!(sa = kgetsa(rt_key(rt))))
-		bzero(&addr, sizeof addr);
-	else
-		addr = *sa;
-	if (!rt_mask(rt) || !(sa = kgetsa(rt_mask(rt))))
-		bzero(&mask, sizeof mask);
-	else
-		mask = *sa;
+	bzero(&addr, sizeof addr);
+	if ((sa = kgetsa(rt_key(rt))))
+		bcopy(sa,&addr,sa->sa_len);
+
+	bzero(&mask, sizeof mask);
+	if (rt_mask(rt) && (sa = kgetsa(rt_mask(rt))))
+		bcopy(sa,&mask,sa->sa_len);
+
 	p_sockaddr(&addr, &mask, rt->rt_flags, WID_DST);
 	p_sockaddr(kgetsa(rt->rt_gateway), NULL, RTF_HOST, WID_GW);
 	p_flags(rt->rt_flags, "%-6.6s ");
