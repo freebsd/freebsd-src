@@ -1329,6 +1329,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	    frame->tf_regs[FRAME_TRAPARG_A1];
 	sf.sf_uc.uc_mcontext.mc_regs[R_TRAPARG_A2] =
 	    frame->tf_regs[FRAME_TRAPARG_A2];
+	sf.sf_uc.uc_mcontext.mc_format = __UC_REV0_SIGFRAME;
 
 	/*
 	 * Allocate and validate space for the signal handler
