@@ -135,7 +135,6 @@ int options;
 #endif /*IPSEC_POLICY_IPSEC*/
 #endif /*IPSEC*/
 #define	F_TTL		0x8000
-#define	F_MISSED	0x10000
 
 /*
  * MAX_DUP_CHK is the number of bits in received table, i.e. the maximum
@@ -151,7 +150,6 @@ int datalen = DEFDATALEN;
 int s;				/* socket file descriptor */
 u_char outpack[MAXPACKET];
 char BSPACE = '\b';		/* characters written for flood */
-char BBELL = '\a';		/* characters written for MISSED and AUDIBLE */
 char DOT = '.';
 char *hostname;
 char *shostname;
@@ -238,7 +236,7 @@ main(argc, argv)
 
 	datap = &outpack[8 + PHDR_LEN];
 	while ((ch = getopt(argc, argv,
-		"AI:LQRS:T:c:adfi:l:m:np:qrs:t:v"
+		"I:LQRS:T:c:adfi:l:m:np:qrs:t:v"
 #ifdef IPSEC
 #ifdef IPSEC_POLICY_IPSEC
 		"P:"
@@ -247,9 +245,6 @@ main(argc, argv)
 		)) != -1)
 	{
 		switch(ch) {
-		case 'A':
-			options |= F_MISSED;
-			break;
 		case 'a':
 			options |= F_AUDIBLE;
 			break;
@@ -700,9 +695,6 @@ main(argc, argv)
 					intvl.tv_sec = MAXWAIT;
 			}
 			(void)gettimeofday(&last, NULL);
-
-			if (ntransmitted != nreceived+1 && options & F_MISSED)
-				(void)write(STDOUT_FILENO, &BBELL, 1);
 		}
 	}
 	finish();
@@ -863,7 +855,7 @@ pr_pack(buf, cc, from, tv)
 			if (dupflag)
 				(void)printf(" (DUP!)");
 			if (options & F_AUDIBLE)
-				(void)write(STDOUT_FILENO, &BBELL, 1);
+				(void)printf("\a");
 			/* check the data */
 			cp = (u_char*)&icp->icmp_data[PHDR_LEN];
 			dp = &outpack[8 + PHDR_LEN];
