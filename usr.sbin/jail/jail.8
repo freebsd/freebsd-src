@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 2000 Robert N. M. Watson
+.\" Copyright (c) 2000, 2003 Robert N. M. Watson
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -191,16 +191,8 @@ interface so that you can clean it up a little and set up accounts.
 As
 with any machine (virtual or not) you will need to set a root password, time
 zone, etc.
-Before beginning, you may want to copy
-.Xr sysinstall 8
-into the tree so that you can use it to set things up easily.
-Do this using:
-.Bd -literal -offset indent
-mkdir /data/jail/192.168.11.100/stand
-cp /stand/sysinstall /data/jail/192.168.11.100/stand
-.Ed
 .Pp
-Now start the jail:
+Start a shell in the jail:
 .Pp
 .Dl "jail /data/jail/192.168.11.100 testhostname 192.168.11.100 /bin/sh"
 .Pp
