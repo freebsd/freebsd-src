@@ -18,7 +18,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: options.c,v 1.16 1997/10/10 09:28:37 peter Exp $";
+static char rcsid[] = "$Id: options.c,v 1.17 1998/03/22 05:33:03 peter Exp $";
 #endif
 
 #include <ctype.h>
@@ -216,6 +216,7 @@ static int setbsdcomp __P((char **));
 static int setnobsdcomp __P((char **));
 static int setdeflate __P((char **));
 static int setnodeflate __P((char **));
+static int setnobaddeflate __P((char **));
 static int setdemand __P((char **));
 static int setpred1comp __P((char **));
 static int setnopred1comp __P((char **));
@@ -370,6 +371,8 @@ static struct cmd {
     {"deflate", 1, setdeflate},		/* request Deflate compression */
     {"nodeflate", 0, setnodeflate},	/* don't allow Deflate compression */
     {"-deflate", 0, setnodeflate},	/* don't allow Deflate compression */
+    {"nobaddeflate", 0, setnobaddeflate}, /* don't allow (wrong) Deflate */
+    {"-baddeflate", 0, setnobaddeflate}, /* don't allow (wrong) Deflate */
     {"predictor1", 0, setpred1comp},	/* request Predictor-1 */
     {"nopredictor1", 0, setnopred1comp},/* don't allow Predictor-1 */
     {"-predictor1", 0, setnopred1comp},	/* don't allow Predictor-1 */
@@ -2220,6 +2223,13 @@ setdeflate(argv)
 	ccp_allowoptions[0].deflate_size = abits;
     } else
 	ccp_allowoptions[0].deflate = 0;
+
+    /* XXX copy over settings for switch compatability */
+    ccp_wantoptions[0].baddeflate = ccp_wantoptions[0].deflate;
+    ccp_wantoptions[0].baddeflate_size = ccp_wantoptions[0].deflate_size;
+    ccp_allowoptions[0].baddeflate = ccp_allowoptions[0].deflate;
+    ccp_allowoptions[0].baddeflate_size = ccp_allowoptions[0].deflate_size;
+
     return 1;
 }
 
@@ -2229,6 +2239,15 @@ setnodeflate(argv)
 {
     ccp_wantoptions[0].deflate = 0;
     ccp_allowoptions[0].deflate = 0;
+    return 1;
+}
+
+static int
+setnobaddeflate(argv)
+    char **argv;
+{
+    ccp_wantoptions[0].baddeflate = 0;
+    ccp_allowoptions[0].baddeflate = 0;
     return 1;
 }
 
