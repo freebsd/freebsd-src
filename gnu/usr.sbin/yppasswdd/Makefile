@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.4 1995/02/15 04:35:55 wpaul Exp $
+# $Id: Makefile,v 1.5 1995/04/01 19:23:11 wpaul Exp $
 # @(#)Makefile	8.3 (Berkeley) 4/2/94
 
 PROG=	yppasswdd
@@ -9,7 +9,7 @@ SRCS=	yppasswdd.c update.c pw_copy.c pw_util.c
 LDADD=	-lcrypt -lrpcsvc
 CFLAGS+=-DCRYPT -I${.CURDIR} -I${.CURDIR}/../../../usr.sbin/vipw \
 	-I${.CURDIR}/../../../usr.bin/chpass
-CFLAGS+=-DVERSION=\"0.5\" -DYPLIBDIR=\"/usr/libexec\" -D_GNU_SOURCE
+CFLAGS+=-DVERSION=\"0.7\" -DYPLIBDIR=\"/usr/libexec\" -D_GNU_SOURCE
 
 afterinstall:
 	install -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \

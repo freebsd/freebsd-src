@@ -27,6 +27,7 @@
 #include "yppasswd.h"
 
 extern char *optarg;
+extern void pw_init __P((void));
 static char *program_name = "";
 static char *version = "yppsswdd " VERSION;
 char *passfile = _PATH_MASTERPASSWD;
@@ -46,18 +47,18 @@ yppasswdprog_1(struct svc_req *rqstp, SVCXPRT *transp)
 	union {
 		yppasswd yppasswdproc_update_1_arg;
 	} argument;
-	char *result;
-	bool_t (*xdr_argument)(), (*xdr_result)();
+	char        *result;
+	xdrproc_t   xdr_argument, xdr_result;
 	char *(*local)();
 
 	switch (rqstp->rq_proc) {
 	case NULLPROC:
-		(void)svc_sendreply(transp, xdr_void, (char *)NULL);
+		(void)svc_sendreply(transp, (xdrproc_t)xdr_void, (char *)NULL);
 		return;
 
 	case YPPASSWDPROC_UPDATE:
-		xdr_argument = xdr_yppasswd;
-		xdr_result = xdr_int;
+		xdr_argument = (xdrproc_t) xdr_yppasswd;
+		xdr_result   = (xdrproc_t) xdr_int;
 		local = (char *(*)()) yppasswdproc_pwupdate_1;
 		break;
 
@@ -71,7 +72,8 @@ yppasswdprog_1(struct svc_req *rqstp, SVCXPRT *transp)
 		return;
 	}
 	result = (*local)(&argument, rqstp);
-	if (result != NULL && !svc_sendreply(transp, xdr_result, result)) {
+	if (result != NULL
+	 && !svc_sendreply(transp, (xdrproc_t)xdr_result, result)) {
 		svcerr_systemerr(transp);
 	}
 	if (!svc_freeargs(transp, xdr_argument, &argument)) {
@@ -90,17 +92,26 @@ usage(FILE *fp, int n)
 void
 reaper( int sig )
 {
-    wait(NULL);
+    extern pid_t pid;
+    extern int pstat;
+
+    pid = waitpid(pid, &pstat, 0);
 }
 
 void
-install_reaper( void )
+install_reaper( int on )
 {
     struct sigaction act, oact;
 
-    act.sa_handler = reaper;
-    act.sa_mask = 0;
-    act.sa_flags = SA_RESTART;
+    if (on) {
+	act.sa_handler = reaper;
+	sigemptyset(&act.sa_mask);
+	act.sa_flags = SA_RESTART;
+    } else {
+	act.sa_handler = SIG_DFL;
+	sigemptyset(&act.sa_mask);
+	act.sa_flags = SA_RESTART;
+    }
     sigaction( SIGCHLD, &act, &oact );
 }
 
@@ -144,27 +155,16 @@ main(int argc, char **argv)
             usage(stderr, 1);
         }
 
-#ifndef RPC_SVC_FG
-    /* We first fork off a child. */
-    if ((c = fork()) > 0)
-        exit(0);
-    if (c < 0) {
-        fprintf(stderr, "yppasswdd: cannot fork: %s\n", strerror(errno));
-        exit(-1);
-    }
-    /* Now we remove ourselves from the foreground. */
-    (void) close(0);
-    (void) close(1);
-    (void) close(2);
-#ifdef TIOCNOTTY
-    if ((c = open("/dev/tty", O_RDWR)) >= 0) {
-        (void) ioctl(c, TIOCNOTTY, (char *) NULL);
-        (void) close(c);
-    }
-#else
-    setsid();
-#endif
-#endif /* not RPC_SVC_FG */
+	if (daemon(0,0)) {
+		perror("fork");
+		exit(1);
+	}
+
+	/*
+	 * We can call this here since it does some necessary setup
+	 * for us (blocking signals, setting resourse limits, etc.
+	 */
+	pw_init();
 
     /* Initialize logging.
      */
@@ -172,7 +172,7 @@ main(int argc, char **argv)
 
     /* Register a signal handler to reap children after they terminated
      */
-    install_reaper();
+    install_reaper(1);
 
     /*
      * Create the RPC server
