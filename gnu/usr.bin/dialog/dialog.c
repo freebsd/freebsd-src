@@ -75,6 +75,10 @@
  *	         prove 'interesting' to say the least :-)
  *             Added radiolist option
  *	     - Version 0.4 released.
+ *
+ *  09/28/98 - Patches by Anatoly A. Orehovsky - tolik@mpeks.tomsk.su
+ *             Added ftree and tree options
+ *
  */
 
 #include <stdio.h>
@@ -333,6 +337,51 @@ int main(int argc, unsigned char *argv[])
     end_dialog();
     return retval;
   }
+/* ftree and tree options */
+  else if (!strcmp(argv[offset+1], "--ftree")) {
+  	unsigned char *tresult;
+    if (argc-offset != 8) {
+      Usage(argv[0]);
+      exit(-1);
+    }
+    init_dialog();
+    retval = dialog_ftree(argv[offset+2], *argv[offset+3],
+    	title, argv[offset+4], atoi(argv[offset+5]), atoi(argv[offset+6]),
+                            atoi(argv[offset+7]), &tresult);
+
+    dialog_update();
+    if (!retval)
+    {
+    	fputs(tresult, stderr);
+    	free(tresult);
+    }
+    if (clear_screen)   /* clear screen before exit */
+      dialog_clear();
+    end_dialog();
+    return retval;
+  }  
+  else if (!strcmp(argv[offset+1], "--tree")) {
+  	unsigned char *tresult;
+    if (argc-offset < 8) {
+      Usage(argv[0]);
+      exit(-1);
+    }
+    init_dialog();
+    retval = dialog_tree(argv+offset+7, argc-offset-7, *argv[offset+2],
+    	title, argv[offset+3], atoi(argv[offset+4]), atoi(argv[offset+5]),
+                            atoi(argv[offset+6]), &tresult);
+
+    dialog_update();
+    if (!retval)
+    {
+    	fputs(tresult, stderr);
+    	free(tresult);
+    }
+    if (clear_screen)   /* clear screen before exit */
+      dialog_clear();
+    end_dialog();
+    return retval;
+  }    
 
   Usage(argv[0]);
   exit(-1);
@@ -349,6 +398,7 @@ void Usage(unsigned char *name)
 \ndialog version 0.3, by Savio Lam (lam836@cs.cuhk.hk).\
 \n  patched to version %s by Stuart Herbert (S.Herbert@shef.ac.uk)\
 \n  Changes Copyright (C) 1995 by Andrey A. Chernov, Moscow, Russia\
+\n  patched by Anatoly A. Orehovsky (tolik@mpeks.tomsk.su)\
 \n\
 \n* Display dialog boxes from shell scripts *\
 \n\
@@ -367,6 +417,8 @@ void Usage(unsigned char *name)
 \n  --textbox   <file> <height> <width>\
 \n  --menu      <text> <height> <width> <menu height> <tag1> <item1>...\
 \n  --checklist <text> <height> <width> <list height> <tag1> <item1> <status1>...\
-\n  --radiolist <text> <height> <width> <list height> <tag1> <item1> <status1>...\n", VERSION, name, name, name);
+\n  --radiolist <text> <height> <width> <list height> <tag1> <item1> <status1>...\
+\n  --ftree     <file> <FS> <text> <height> <width> <menu height>\
+\n  --tree      <FS> <text> <height> <width> <menu height> <item1>...\n", VERSION, name, name, name);
 }
 /* End of Usage() */
