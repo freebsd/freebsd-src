@@ -1,5 +1,5 @@
 /*
- * $Id: server.c,v 1.8 1997/11/09 14:18:51 brian Exp $
+ * $Id: server.c,v 1.9 1997/11/09 22:07:29 brian Exp $
  */
 
 #include <sys/param.h>
@@ -42,7 +42,7 @@ ServerLocalOpen(const char *name, mode_t mask)
     return 1;
   }
 
-  if (!(mode&(MODE_AUTO|MODE_DEDICATED|MODE_DIRECT))) {
+  if (mode & MODE_INTER) {
     LogPrintf(LogERROR, "Local: Can't open socket in interactive mode\n");
     return 1;
   }
@@ -100,7 +100,7 @@ ServerTcpOpen(int port)
     return 6;
   }
 
-  if (!(mode&(MODE_AUTO|MODE_DEDICATED|MODE_DIRECT))) {
+  if (mode & MODE_INTER) {
     LogPrintf(LogERROR, "Tcp: Can't open socket in interactive mode\n");
     return 6;
   }

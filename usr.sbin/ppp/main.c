@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.91 1997/11/09 18:51:23 brian Exp $
+ * $Id: main.c,v 1.92 1997/11/09 22:07:28 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -177,8 +177,7 @@ Cleanup(int excode)
   OsInterfaceDown(1);
   HangupModem(1);
   nointr_sleep(1);
-  if (mode & MODE_AUTO)
-    DeleteIfRoutes(1);
+  DeleteIfRoutes(1);
   ID0unlink(pid_filename);
   if (mode & MODE_BACKGROUND && BGFiledes[1] != -1) {
     char c = EX_ERRDEAD;
@@ -200,11 +199,13 @@ static void
 CloseConnection(int signo)
 {
   /* NOTE, these are manual, we've done a setsid() */
+  pending_signal(SIGINT, SIG_IGN);
   LogPrintf(LogPHASE, "Caught signal %d, abort connection\n", signo);
   reconnectState = RECON_FALSE;
   reconnectCount = 0;
   DownConnection();
   dial_up = 0;
+  pending_signal(SIGINT, CloseConnection);
 }
 
 static void
@@ -286,19 +287,25 @@ ProcessArgs(int argc, char **argv)
   char *cp;
 
   optc = 0;
+  mode = MODE_INTER;
   while (argc > 0 && **argv == '-') {
     cp = *argv + 1;
-    if (strcmp(cp, "auto") == 0)
+    if (strcmp(cp, "auto") == 0) {
       mode |= MODE_AUTO;
-    else if (strcmp(cp, "background") == 0)
-      mode |= MODE_BACKGROUND | MODE_AUTO;
-    else if (strcmp(cp, "direct") == 0)
+      mode &= ~MODE_INTER;
+    } else if (strcmp(cp, "background") == 0) {
+      mode |= MODE_BACKGROUND;
+      mode &= ~MODE_INTER;
+    } else if (strcmp(cp, "direct") == 0) {
       mode |= MODE_DIRECT;
-    else if (strcmp(cp, "dedicated") == 0)
+      mode &= ~MODE_INTER;
+    } else if (strcmp(cp, "dedicated") == 0) {
       mode |= MODE_DEDICATED;
-    else if (strcmp(cp, "ddial") == 0)
-      mode |= MODE_DDIAL | MODE_AUTO;
-    else if (strcmp(cp, "alias") == 0) {
+      mode &= ~MODE_INTER;
+    } else if (strcmp(cp, "ddial") == 0) {
+      mode |= MODE_DDIAL;
+      mode &= ~MODE_INTER;
+    } else if (strcmp(cp, "alias") == 0) {
       if (loadAliasHandlers(&VarAliasHandlers) == 0)
 	mode |= MODE_ALIAS;
       else
@@ -315,7 +322,7 @@ ProcessArgs(int argc, char **argv)
     exit(EX_START);
   }
   if (argc == 1)
-    dstsystem = *argv;
+    SetLabel(*argv);
 
   if (optc > 1) {
     fprintf(stderr, "specify only one mode.\n");
@@ -345,15 +352,15 @@ main(int argc, char **argv)
   argc--;
   argv++;
   ProcessArgs(argc, argv);
-  if (!(mode & MODE_DIRECT)) {
-    if (getuid() != 0) {
-      fprintf(stderr, "You may only run ppp in client mode as user id 0\n");
-      LogClose();
-      return EX_NOPERM;
-    }
+  if (!(mode & MODE_DIRECT))
     VarTerm = stdout;
-  }
+
   ID0init();
+  if (!ValidSystem(GetLabel())) {
+    fprintf(stderr, "You may not use ppp in this mode with this label\n");
+    return 1;
+  }
+
   Greetings();
   IpcpDefAddress();
   LocalAuthInit();
@@ -365,20 +372,17 @@ main(int argc, char **argv)
     LogPrintf(LogWARN, "open_tun: %s\n", strerror(errno));
     return EX_START;
   }
-  if (mode & (MODE_AUTO | MODE_DIRECT | MODE_DEDICATED))
-    mode &= ~MODE_INTER;
   if (mode & MODE_INTER) {
     fprintf(VarTerm, "Interactive mode\n");
     netfd = STDOUT_FILENO;
-  } else if (mode & MODE_AUTO) {
-    fprintf(VarTerm, "Automatic Dialer mode\n");
-    if (dstsystem == NULL) {
+  } else if ((mode & MODE_OUTGOING_DAEMON) && !(mode & MODE_DEDICATED))
+    if (GetLabel() == NULL) {
       if (VarTerm)
 	fprintf(VarTerm, "Destination system must be specified in"
 		" auto, background or ddial mode.\n");
       return EX_START;
     }
-  }
+
   tcgetattr(0, &oldtio);	/* Save original tty mode */
 
   pending_signal(SIGHUP, CloseSession);
@@ -402,28 +406,29 @@ main(int argc, char **argv)
     pending_signal(SIGTTOU, SIG_IGN);
 #endif
   }
+  if (!(mode & MODE_INTER)) {
 #ifdef SIGUSR1
-  if (mode != MODE_INTER)
     pending_signal(SIGUSR1, SetUpServer);
 #endif
 #ifdef SIGUSR2
-  if (mode != MODE_INTER)
     pending_signal(SIGUSR2, BringDownServer);
 #endif
+  }
 
-  if (dstsystem) {
-    if (SelectSystem(dstsystem, CONFFILE) < 0) {
+  if (GetLabel()) {
+    if (SelectSystem(GetLabel(), CONFFILE) < 0) {
       LogPrintf(LogWARN, "Destination system not found in conf file.\n");
       Cleanup(EX_START);
     }
-    if ((mode & MODE_AUTO) && DefHisAddress.ipaddr.s_addr == INADDR_ANY) {
+    if (mode & MODE_OUTGOING_DAEMON &&
+	DefHisAddress.ipaddr.s_addr == INADDR_ANY) {
       LogPrintf(LogWARN, "Must specify dstaddr with"
 		" auto, background or ddial mode.\n");
       Cleanup(EX_START);
     }
   }
 
-  if (!(mode & MODE_INTER)) {
+  if (mode & MODE_DAEMON) {
     if (mode & MODE_BACKGROUND) {
       if (pipe(BGFiledes)) {
 	LogPrintf(LogERROR, "pipe: %s\n", strerror(errno));
@@ -468,13 +473,9 @@ main(int argc, char **argv)
     close(1);
     close(2);
 
-#ifdef DOTTYINIT
-    if (mode & (MODE_DIRECT | MODE_DEDICATED))
-#else
     if (mode & MODE_DIRECT)
-#endif
       TtyInit(1);
-    else {
+    else if (mode & MODE_DAEMON) {
       setsid();
       close(0);
     }
@@ -522,12 +523,11 @@ PacketMode()
   LcpUp();
 
   LcpOpen(VarOpenMode);
-  if ((mode & (MODE_INTER | MODE_AUTO)) == MODE_INTER) {
+  if (mode & MODE_INTER)
     TtyCommandMode(1);
-    if (VarTerm) {
-      fprintf(VarTerm, "Packet mode.\n");
-      aft_cmd = 1;
-    }
+  if (VarTerm) {
+    fprintf(VarTerm, "Packet mode.\n");
+    aft_cmd = 1;
   }
 }
 
@@ -571,7 +571,6 @@ ReadTty()
         Prompt();
     } else {
       LogPrintf(LogPHASE, "client connection closed.\n");
-      mode &= ~MODE_INTER;
       oVarTerm = VarTerm;
       VarTerm = 0;
       if (oVarTerm && oVarTerm != stdout)
@@ -771,7 +770,9 @@ DoLoop()
 	    Cleanup(EX_DEAD);
 	}
 	reconnectState = RECON_ENVOKED;
-      }
+      } else if (mode & MODE_DEDICATED)
+        if (VarOpenMode == OPEN_ACTIVE)
+          PacketMode();
     }
 
     /*
@@ -933,13 +934,12 @@ DoLoop()
 	netfd = wfd;
       VarTerm = fdopen(netfd, "a+");
       LocalAuthInit();
-      mode |= MODE_INTER;
       Greetings();
       IsInteractive(1);
       Prompt();
     }
-    if ((mode & MODE_INTER) && (netfd >= 0 && FD_ISSET(netfd, &rfds)) &&
-	((mode & MODE_AUTO) || pgroup == tcgetpgrp(0))) {
+    if (netfd >= 0 && FD_ISSET(netfd, &rfds) &&
+	((mode & MODE_OUTGOING_DAEMON) || pgroup == tcgetpgrp(0))) {
       /* something to read from tty */
       ReadTty();
     }

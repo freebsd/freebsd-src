@@ -1,14 +1,20 @@
-.\" $Id: ppp.8,v 1.76 1997/11/09 17:51:26 brian Exp $
+.\" $Id: ppp.8,v 1.77 1997/11/09 22:07:28 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
 .Sh NAME
 .Nm ppp
-.Nd
-Point to Point Protocol (a.k.a. iijppp) 
+.Nd Point to Point Protocol (a.k.a. iijppp) 
 .Sh SYNOPSIS
 .Nm
-.Op Fl auto | background | ddial | direct | dedicated 
+.\" SOMEONE FIX ME ! The .Op macro can't handle enough args !
+[
+.Fl auto |
+.Fl background |
+.Fl ddial |
+.Fl direct |
+.Fl dedicated
+]
 .Op Fl alias
 .Op Ar system
 .Sh DESCRIPTION
@@ -46,19 +52,35 @@ can write a chat script to define the necessary dialing and login
 procedure for later convenience.
 
 .It Supports on-demand dialup capability.
-By using auto mode,
+By using
+.Fl auto
+mode,
 .Nm
 will act as a daemon and wait for a packet to be sent over the
 .Em PPP
 link.  When this happens, the daemon automatically dials and establishes the
 connection.
 
-In almost the same manner ddial mode (dedicated or daemon dialing)
-also automatically dials and establishes the connection.  However, it
-differs in that it will dial the remote site any time it detects the
-link is down, even if there are no packets to be sent.  This mode is
-useful for full-time connections who worry less about line charges
-and more about being connected full time.
+In almost the same manner
+.Fl ddial
+mode (direct-dial mode) also automatically dials and establishes the
+connection.  However, it differs in that it will dial the remote site
+any time it detects the link is down, even if there are no packets to be
+sent.  This mode is useful for full-time connections where we worry less
+about line charges and more about being connected full time.
+
+A third
+.Fl dedicated
+mode is also available.  This mode is targeted at a dedicated link
+between two machines.
+.Nm Ppp
+will never voluntarily quit from dedicated mode - you must send it the
+.Dq quit all
+command via its diagnostic socket.  A
+.Dv SIGHUP
+will force an LCP renegotiation, and a
+.Dv SIGTERM
+will force it to exit.
 
 .It Supports packet aliasing.
 Packet aliasing (a.k.a. IP masquerading) allows computers on a
@@ -144,20 +166,24 @@ and group
 .Dv network ,
 with permissions
 .Dv 4550 .
-.Nm Ppp
-will not execute in client mode if the invoking user id is not zero.
-.Nm Ppp
-will run in
-.Fl direct
-mode as a normal user, but due to its execution permissions, this user
-must be a member of group
-.Dv network .
+By default, 
+.Nm
+will not run if the invoking user id is not zero.  This may be overridden
+by using the
+.Dq allow users
+command in
+.Pa /etc/ppp/ppp.conf .
 When running as a normal user,
 .Nm
-switches to user id 0 in order to alter the system routing table.  All
+switches to user id 0 in order to alter the system routing table, set up
+system lock files and read the ppp configuration files.  All
 external commands (executed via the "shell" or "!bg" commands) are executed
 as the user id that invoked
 .Nm ppp .
+Refer to the
+.Sq ID0
+logging facility if you're interested in what exactly is done as user id
+zero.
 
 .Sh GETTING STARTED
 
@@ -1658,6 +1684,136 @@ is the next hop gateway to get to the given
 .Dq dest
 machine/network.
 
+.It allow .....
+This command controls access to
+.Nm
+and its configuration files.  It is possible to allow user-level access,
+depending on the configuration file label and on the mode that
+.Nm
+is being run in.  For example, you may wish to configure
+.Nm
+so that only user
+.Sq fred
+may access label
+.Sq fredlabel
+in
+.Fl background
+mode.
+.Pp
+User id 0 is immune to these commands.
+
+.Bl -tag -width 20
+.It allow user|users logname...
+By default, only user id 0 is allowed access.  If this command is specified,
+all of the listed users are allowed access to the section in which the
+.Dq allow users
+command is found.  The
+.Sq default
+section is always checked first (although it is only ever automatically
+loaded at startup).  Each successive
+.Dq allow users
+command overrides the previous one, so it's possible to allow users access
+to everything except a given label by specifying default users in the
+.Sq default
+section, and then specifying a new user list for that label.
+.Pp
+If user
+.Sq *
+is specified, access is allowed to all users.
+
+.It allow mode|modes modelist...
+By default, access using all
+.Nm
+modes is possible.  If this command is used, it restricts the access
+modes allowed to load the label under which this command is specified.
+Again, as with the
+.Dq allow users
+command, each
+.Dq allow modes
+command overrides the previous, and the
+.Sq default
+section is always checked first.
+.Pp
+Possible modes are:
+.Sq interactive ,
+.Sq auto ,
+.Sq direct ,
+.Sq dedicated ,
+.Sq ddial ,
+.Sq background
+and
+.Sq * .
+.El
+
+.It alias .....
+This command allows the control of the aliasing (or masquerading)
+facilities that are built into
+.Nm ppp .
+Until this code is required, it is not loaded by
+.Nm ppp ,
+and it is quite possible that the alias library is not installed
+on your system (some administrators consider it a security risk).
+
+If aliasing is enabled on your system, the following commands are
+possible:
+
+.Bl -tag -width 20
+.It alias enable [yes|no]
+This command either switches aliasing on or turns it off.
+The
+.Fl alias
+command line flag is synonymous with
+.Dq alias enable yes .
+
+.It alias port [proto targetIP:targetPORT [aliasIP:]aliasPORT]
+This command allows us to redirect connections arriving at
+.Dq aliasPORT
+for machine [aliasIP] to
+.Dq targetPORT
+on
+.Dq targetIP .
+If proto is specified, only connections of the given protocol
+are matched.  This option is useful if you wish to run things like
+Internet phone on the machines behind your gateway.
+
+.It alias addr [addr_local addr_alias]
+This command allows data for
+.Dq addr_alias
+to be redirected to
+.Dq addr_local .
+It is useful if you own a small number of real IP numbers that
+you wish to map to specific machines behind your gateway.
+
+.It alias deny_incoming [yes|no]
+If set to yes, this command will refuse all incoming connections
+by dropping the packets in much the same way as a firewall would.
+
+.It alias log [yes|no]
+This option causes various aliasing statistics and information to
+be logged to the file
+.Pa /var/log/alias.log .
+
+.It alias same_ports [yes|no]
+When enabled, this command will tell the alias library attempt to
+avoid changing the port number on outgoing packets.  This is useful
+if you want to support protocols such as RPC and LPD which require
+connections to come from a well known port.
+
+.It alias use_sockets [yes|no]
+When enabled, this option tells the alias library to create a
+socket so that it can guarantee a correct incoming ftp data or
+IRC connection.
+
+.It alias unregistered_only [yes|no]
+Only alter outgoing packets with an unregistered source ad-
+dress.  According to RFC 1918, unregistered source addresses
+are 10.0.0.0/8, 172.16.0.0/12 and 192.168.0.0/16.
+
+.It alias help|?
+This command gives a summary of available alias commands.
+
+.El
+
 .It [!]bg command
 The given command is executed in the background.
 Any of the pseudo arguments
@@ -1711,10 +1867,14 @@ values as specified under
 .Dq accept|deny|enable|disable option....
 above.
 
-.It passwd pass
-Specify the password required for access to the full
-.Nm
-command set.
+.It down
+Bring the link down ungracefully, as if the physical layer had become
+unavailable.  It's not considered polite to use this command.
+
+.It help|? [command]
+Show a list of available commands.  If
+.Dq command
+is specified, show the usage string for that command.
 
 .It load [remote]
 Load the given
@@ -1724,6 +1884,28 @@ label.  If
 is not given, the
 .Dq default
 label is assumed.
+
+.It passwd pass
+Specify the password required for access to the full
+.Nm
+command set.
+
+.It quit|bye [all]
+Exit
+.Nm ppp .
+If
+.Nm
+is in interactive mode or if the
+.Dq all
+argument is given,
+.Nm
+will exit, closing the connection.  A simple
+.Dq quit
+issued from a
+.Xr pppctl 8
+or
+.Xr telnet 1
+session will not close the current connection.
 
 .It save
 This option is not (yet) implemented.
@@ -2139,101 +2321,6 @@ screen.  When a
 peer is detected on the other side of the modem,
 .Nm
 automatically enables Packet Mode and goes back into command mode.
-
-.It alias .....
-This command allows the control of the aliasing (or masquerading)
-facilities that are built into
-.Nm ppp .
-Until this code is required, it is not loaded by
-.Nm ppp ,
-and it is quite possible that the alias library is not installed
-on your system (some administrators consider it a security risk).
-
-If aliasing is enabled on your system, the following commands are
-possible:
-
-.Bl -tag -width 20
-.It alias enable [yes|no]
-This command either switches aliasing on or turns it off.
-The
-.Fl alias
-command line flag is synonymous with
-.Dq alias enable yes .
-
-.It alias port [proto targetIP:targetPORT [aliasIP:]aliasPORT]
-This command allows us to redirect connections arriving at
-.Dq aliasPORT
-for machine [aliasIP] to
-.Dq targetPORT
-on
-.Dq targetIP .
-If proto is specified, only connections of the given protocol
-are matched.  This option is useful if you wish to run things like
-Internet phone on the machines behind your gateway.
-
-.It alias addr [addr_local addr_alias]
-This command allows data for
-.Dq addr_alias
-to be redirected to
-.Dq addr_local .
-It is useful if you own a small number of real IP numbers that
-you wish to map to specific machines behind your gateway.
-
-.It alias deny_incoming [yes|no]
-If set to yes, this command will refuse all incoming connections
-by dropping the packets in much the same way as a firewall would.
-
-.It alias log [yes|no]
-This option causes various aliasing statistics and information to
-be logged to the file
-.Pa /var/log/alias.log .
-
-.It alias same_ports [yes|no]
-When enabled, this command will tell the alias library attempt to
-avoid changing the port number on outgoing packets.  This is useful
-if you want to support protocols such as RPC and LPD which require
-connections to come from a well known port.
-
-.It alias use_sockets [yes|no]
-When enabled, this option tells the alias library to create a
-socket so that it can guarantee a correct incoming ftp data or
-IRC connection.
-
-.It alias unregistered_only [yes|no]
-Only alter outgoing packets with an unregistered source ad-
-dress.  According to RFC 1918, unregistered source addresses
-are 10.0.0.0/8, 172.16.0.0/12 and 192.168.0.0/16.
-
-.It alias help|?
-This command gives a summary of available alias commands.
-
-.El
-
-.It quit|bye [all]
-Exit
-.Nm ppp .
-If
-.Nm
-is in interactive mode or if the
-.Dq all
-argument is given,
-.Nm
-will exit, closing the connection.  A simple
-.Dq quit
-issued from a
-.Xr pppctl 8
-or
-.Xr telnet 1
-session will not close the current connection.
-
-.It help|? [command]
-Show a list of available commands.  If
-.Dq command
-is specified, show the usage string for that command.
-
-.It down
-Bring the link down ungracefully.  It's not considered polite to
-use this command.
 
 .El
 
