@@ -395,7 +395,8 @@ route_output(m, so)
 			if (rtm->rtm_addrs & (RTA_IFP | RTA_IFA)) {
 				ifp = rt->rt_ifp;
 				if (ifp) {
-					info.rti_info[RTAX_IFP] = TAILQ_FIRST(&ifp->if_addrhead)->ifa_addr;
+					info.rti_info[RTAX_IFP] =
+					    ifaddr_byindex(ifp->if_index)->ifa_addr;
 					info.rti_info[RTAX_IFA] =
 						rt->rt_ifa->ifa_addr;
 					if (ifp->if_flags & IFF_POINTOPOINT)
@@ -810,7 +811,8 @@ rt_newaddrmsg(int cmd, struct ifaddr *ifa, int error, struct rtentry *rt)
 			int ncmd = cmd == RTM_ADD ? RTM_NEWADDR : RTM_DELADDR;
 
 			info.rti_info[RTAX_IFA] = sa = ifa->ifa_addr;
-			info.rti_info[RTAX_IFP] = TAILQ_FIRST(&ifp->if_addrhead)->ifa_addr;
+			info.rti_info[RTAX_IFP] =
+			    ifaddr_byindex(ifp->if_index)->ifa_addr;
 			info.rti_info[RTAX_NETMASK] = ifa->ifa_netmask;
 			info.rti_info[RTAX_BRD] = ifa->ifa_dstaddr;
 			if ((m = rt_msg1(ncmd, &info)) == NULL)
@@ -860,11 +862,8 @@ rt_newmaddrmsg(int cmd, struct ifmultiaddr *ifma)
 
 	bzero((caddr_t)&info, sizeof(info));
 	info.rti_info[RTAX_IFA] = ifma->ifma_addr;
-	if (ifp && TAILQ_FIRST(&ifp->if_addrhead))
-		info.rti_info[RTAX_IFP] =
-			TAILQ_FIRST(&ifp->if_addrhead)->ifa_addr;
-	else
-		info.rti_info[RTAX_IFP] = NULL;
+	info.rti_info[RTAX_IFP] =
+	    ifp ? ifaddr_byindex(ifp->if_index)->ifa_addr : NULL;
 	/*
 	 * If a link-layer address is present, present it as a ``gateway''
 	 * (similarly to how ARP entries, e.g., are presented).
@@ -933,7 +932,7 @@ sysctl_dumpentry(struct radix_node *rn, void *vw)
 	info.rti_info[RTAX_GENMASK] = rt->rt_genmask;
 	if (rt->rt_ifp) {
 		info.rti_info[RTAX_IFP] =
-			TAILQ_FIRST(&rt->rt_ifp->if_addrhead)->ifa_addr;
+		    ifaddr_byindex(rt->rt_ifp->if_index)->ifa_addr;
 		info.rti_info[RTAX_IFA] = rt->rt_ifa->ifa_addr;
 		if (rt->rt_ifp->if_flags & IFF_POINTOPOINT)
 			info.rti_info[RTAX_BRD] = rt->rt_ifa->ifa_dstaddr;
@@ -967,7 +966,7 @@ sysctl_iflist(int af, struct walkarg *w)
 	TAILQ_FOREACH(ifp, &ifnet, if_link) {
 		if (w->w_arg && w->w_arg != ifp->if_index)
 			continue;
-		ifa = TAILQ_FIRST(&ifp->if_addrhead);
+		ifa = ifaddr_byindex(ifp->if_index);
 		info.rti_info[RTAX_IFP] = ifa->ifa_addr;
 		len = rt_msg2(RTM_IFINFO, &info, (caddr_t)0, w);
 		info.rti_info[RTAX_IFP] = 0;
@@ -1015,20 +1014,26 @@ done:
 }
 
 int
-sysctl_ifmalist(af, w)
-	int	af;
-	register struct	walkarg *w;
+sysctl_ifmalist(int af, struct walkarg *w)
 {
-	register struct ifnet *ifp;
+	struct ifnet *ifp;
 	struct ifmultiaddr *ifma;
 	struct	rt_addrinfo info;
 	int	len, error = 0;
+	struct ifaddr *ifa;
 
 	bzero((caddr_t)&info, sizeof(info));
 	/* IFNET_RLOCK(); */		/* could sleep XXX */
+	/*
+	 * XXX i think this code is buggy. It does not properly reset
+	 * 'info' at each inner loop, resulting in possibly incorrect
+	 * values in rti_addrs. Also, some ops are repeated for each ifma
+	 * where they could be done just once per ifp.
+	 */
 	TAILQ_FOREACH(ifp, &ifnet, if_link) {
 		if (w->w_arg && w->w_arg != ifp->if_index)
 			continue;
+		ifa = ifaddr_byindex(ifp->if_index);
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (af && af != ifma->ifma_addr->sa_family)
 				continue;
@@ -1037,10 +1042,9 @@ sysctl_ifmalist(af, w)
 				continue;
 			info.rti_addrs = RTA_IFA;
 			info.rti_info[RTAX_IFA] = ifma->ifma_addr;
-			if (TAILQ_FIRST(&ifp->if_addrhead)) {
+			if (ifa) {
 				info.rti_addrs |= RTA_IFP;
-				info.rti_info[RTAX_IFP] =
-				    TAILQ_FIRST(&ifp->if_addrhead)->ifa_addr;
+				info.rti_info[RTAX_IFP] = ifa->ifa_addr;
 			} else
 				info.rti_info[RTAX_IFP] = NULL;
 
@@ -1052,7 +1056,7 @@ sysctl_ifmalist(af, w)
 
 			len = rt_msg2(RTM_NEWMADDR, &info, 0, w);
 			if (w->w_req && w->w_tmem) {
-				register struct ifma_msghdr *ifmam;
+				struct ifma_msghdr *ifmam;
 
 				ifmam = (struct ifma_msghdr *)w->w_tmem;
 				ifmam->ifmam_index = ifma->ifma_ifp->if_index;
