@@ -951,7 +951,7 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr, "%s%s",
-		"usage: vmstat [-aimsz] [-c count] [-M core] [-N system] [-w wait]\n",
+		"usage: vmstat [-aimsz] [-c count] [-M core [-N system]] [-w wait]\n",
 		"              [-n devs] [disks]\n");
 	exit(1);
 }

@@ -43,8 +43,7 @@
 .\" .Op Fl fimst
 .Op Fl afimsz
 .Op Fl c Ar count
-.Op Fl M Ar core
-.Op Fl N Ar system
+.Op Fl M Ar core Op Fl N Ar system
 .Op Fl w Ar wait
 .Op Fl n Ar devs
 .Oo
@@ -59,6 +58,16 @@ The
 .Nm
 utility reports certain kernel statistics kept about process, virtual memory,
 disk, trap and cpu activity.
+.Pp
+If the
+.Fl M
+option is not specified, information is obtained from
+the currently running kernel via the
+.Xr sysctl 3
+interface.
+Otherwise, information is read from the specified core file,
+using the name list from the specified kernel image (or from
+the default image).
 .Pp
 The options are as follows:
 .Bl -tag -width indent
@@ -90,14 +99,15 @@ Report on the number of interrupts taken by each device since system
 startup.
 .It Fl M
 Extract values associated with the name list from the specified
-.Ar core
-instead of the default
-.Pa /dev/kmem .
+.Ar core .
 .It Fl N
-Extract the name list from the specified
+If
+.Fl M
+is also specified,
+extract the name list from the specified
 .Ar system
-instead of the default
-.Pa /boot/kernel/kernel .
+instead of the default,
+which is the kernel image the system has booted from.
 .It Fl m
 Report on the usage of kernel dynamic memory listed first by size of
 allocation and then by type of usage.
