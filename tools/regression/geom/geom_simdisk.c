@@ -52,7 +52,7 @@ struct g_class g_simdisk_class = {
 	"SIMDISK-class",
 	NULL,
 	NULL,
-	G_CLASS_INITSTUFF
+	G_CLASS_INITIALIZER
 };
 
 static void
@@ -106,15 +106,15 @@ g_simdisk_start(struct bio *bp)
 		return;
 	}
 	if (bp->bio_cmd == BIO_GETATTR) {
-		if (g_haveattr_int(bp, "GEOM::sectorsize", sc->sectorsize))
+		if (g_handleattr_int(bp, "GEOM::sectorsize", sc->sectorsize))
 			return;
-		if (g_haveattr_int(bp, "GEOM::fwsectors", sc->fwsectors))
+		if (g_handleattr_int(bp, "GEOM::fwsectors", sc->fwsectors))
 			return;
-		if (g_haveattr_int(bp, "GEOM::fwheads", sc->fwheads))
+		if (g_handleattr_int(bp, "GEOM::fwheads", sc->fwheads))
 			return;
-		if (g_haveattr_int(bp, "GEOM::fwcylinders", sc->fwcylinders))
+		if (g_handleattr_int(bp, "GEOM::fwcylinders", sc->fwcylinders))
 			return;
-		if (g_haveattr_off_t(bp, "GEOM::mediasize", sc->mediasize))
+		if (g_handleattr_off_t(bp, "GEOM::mediasize", sc->mediasize))
 			return;
 	}
 	bp->bio_error = EOPNOTSUPP;
