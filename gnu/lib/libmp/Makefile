@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.12 1997/08/29 13:58:08 peter Exp $
+# $Id: Makefile,v 1.13 1998/01/25 09:45:00 jb Exp $
 #
 
 LIB=	mp
@@ -47,7 +47,8 @@ MPBSD_SRCS=	itom.c mdiv.c mfree.c min.c mout.c move.c mtox.c sdiv.c xtom.c \
 
 SRCS=		memory.c mp_set_fns.c mp_clz_tab.c version.c stack-alloc.c \
 		mp_bpl.c extract-double.c insert-double.c \
-		${MPN_SRC_ASM}
+		${MPN_SRC_ASM} \
+		asm-syntax.h sysdep.h
 
 # Look though the generic C source for names that don't have assembly
 # source version.
@@ -59,7 +60,7 @@ SRCS+=$(_src)
 
 SRCS+=		${MPBSD_SRCS}
 
-beforedepend all: mpz sysdep.h asm-syntax.h
+beforedepend all: mpz
 
 .if defined(BINFORMAT) && ${BINFORMAT} == elf
 

@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.14 1997/08/29 14:02:14 peter Exp $
+# $Id: Makefile,v 1.15 1998/01/25 09:44:18 jb Exp $
 #
 
 LIB=	gmp
@@ -83,7 +83,8 @@ MPQ_SRCS=	mpq/add.c mpq/canonicalize.c mpq/clear.c mpq/cmp.c \
 
 SRCS=	memory.c mp_set_fns.c mp_clz_tab.c version.c stack-alloc.c mp_bpl.c \
 	extract-double.c insert-double.c \
-	${MPN_SRC_ASM}
+	${MPN_SRC_ASM} \
+	asm-syntax.h sysdep.h
 
 # Look though the generic C source for names that don't have assembly
 # source version.
@@ -116,7 +117,7 @@ CFLAGS+=	-DBROKEN_ALIGN
 
 .endif
 
-beforedepend all: mpz mpf mpq sysdep.h asm-syntax.h
+beforedepend all: mpz mpf mpq
 
 CLEANFILES+=	sysdep.h asm-syntax.h
 
