@@ -108,12 +108,15 @@ static unsigned char u8_to_ulaw[] = {
 static int
 feed_root(pcm_feeder *feeder, u_int8_t *buffer, u_int32_t count, struct uio *stream)
 {
-	int ret, tmp;
+	int ret, tmp = 0, c = 0;
 	if (!count) panic("feed_root: count == 0");
-	tmp = stream->uio_resid;
-	ret = uiomove(buffer, count, stream);
-	if (ret) panic("feed_root: uiomove failed");
-	tmp -= stream->uio_resid;
+	while ((stream->uio_resid > 0) && (c < count)) {
+		tmp = stream->uio_resid;
+		ret = uiomove(buffer + c, count - c, stream);
+		if (ret) panic("feed_root: uiomove failed");
+		tmp -= stream->uio_resid;
+		c += tmp;
+	}
 	if (!tmp) panic("feed_root: uiomove didn't");
 	return tmp;
 }
@@ -232,7 +235,7 @@ feed_endian(pcm_feeder *f, u_int8_t *b, u_int32_t count, struct uio *stream)
 		b[i + 1] = t;
 		i += 2;
 	}
-	return count;
+	return i;
 }
 static pcm_feeder feeder_endian = { "endian", NULL, NULL, feed_endian };
 
