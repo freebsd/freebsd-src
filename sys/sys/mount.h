@@ -466,7 +466,8 @@ struct mntarg;
 
 typedef int vfs_cmount_t(struct mntarg *ma, void *data, int flags, struct thread *td);
 typedef int vfs_unmount_t(struct mount *mp, int mntflags, struct thread *td);
-typedef int vfs_root_t(struct mount *mp, struct vnode **vpp, struct thread *td);
+typedef int vfs_root_t(struct mount *mp, int flags, struct vnode **vpp,
+		    struct thread *td);
 typedef	int vfs_quotactl_t(struct mount *mp, int cmds, uid_t uid,
 		    caddr_t arg, struct thread *td);
 typedef	int vfs_statfs_t(struct mount *mp, struct statfs *sbp,
@@ -509,7 +510,8 @@ vfs_statfs_t	__vfs_statfs;
 
 #define VFS_MOUNT(MP, P)    (*(MP)->mnt_op->vfs_mount)(MP, P)
 #define VFS_UNMOUNT(MP, FORCE, P) (*(MP)->mnt_op->vfs_unmount)(MP, FORCE, P)
-#define VFS_ROOT(MP, VPP, P)	  (*(MP)->mnt_op->vfs_root)(MP, VPP, P)
+#define VFS_ROOT(MP, FLAGS, VPP, P) \
+	(*(MP)->mnt_op->vfs_root)(MP, FLAGS, VPP, P)
 #define VFS_QUOTACTL(MP,C,U,A,P)  (*(MP)->mnt_op->vfs_quotactl)(MP, C, U, A, P)
 #define VFS_STATFS(MP, SBP, P)	  __vfs_statfs((MP), (SBP), (P))
 #define VFS_SYNC(MP, WAIT, P)  (*(MP)->mnt_op->vfs_sync)(MP, WAIT, P)
