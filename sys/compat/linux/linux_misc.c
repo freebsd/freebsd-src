@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.58 1999/05/06 18:44:25 peter Exp $
+ *  $Id: linux_misc.c,v 1.59 1999/07/05 19:18:03 marcel Exp $
  */
 
 #include <sys/param.h>
@@ -172,7 +172,7 @@ linux_uselib(struct proc *p, struct linux_uselib_args *args)
     locked = 0;
     vp = NULL;
 
-    NDINIT(&ni, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE, args->library, p);
+    NDINIT(&ni, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE, args->library, p);
     error = namei(&ni);
     if (error)
 	goto cleanup;
