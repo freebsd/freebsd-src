@@ -677,6 +677,12 @@ spec_strategy(ap)
 	if (((bp->b_flags & B_READ) == 0) &&
 		(LIST_FIRST(&bp->b_dep)) != NULL && bioops.io_start)
 		(*bioops.io_start)(bp);
+	KASSERT(devsw(bp->b_dev) != NULL, 
+	   ("No devsw on dev %s responsible for buffer %p\n", 
+	   devtoname(bp->b_dev), bp));
+	KASSERT(devsw(bp->b_dev)->d_strategy != NULL, 
+	   ("No strategy on dev %s responsible for buffer %p\n", 
+	   devtoname(bp->b_dev), bp));
 	BUF_STRATEGY(bp, 0);
 	return (0);
 }
