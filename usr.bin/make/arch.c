@@ -210,7 +210,7 @@ Arch_ParseArchive(char **linePtr, Lst *nodeLst, GNode *ctxt)
 
 		while (*cp != '\0' && *cp != ')' &&
 		    isspace((unsigned char)*cp)) {
-		    cp++;
+			cp++;
 		}
 
 		memName = cp;
@@ -477,8 +477,8 @@ ArchFindMember(const char *archive, const char *member, struct ar_hdr *arhPtr,
 	 * We use the ARMAG string to make sure this is an archive we
 	 * can handle...
 	 */
-	if ((fread(magic, SARMAG, 1, arch) != 1) ||
-	    (strncmp(magic, ARMAG, SARMAG) != 0)) {
+	if (fread(magic, SARMAG, 1, arch) != 1 ||
+	    strncmp(magic, ARMAG, SARMAG) != 0) {
 		fclose(arch);
 		return (NULL);
 	}
@@ -490,7 +490,7 @@ ArchFindMember(const char *archive, const char *member, struct ar_hdr *arhPtr,
 	 * the comparisons easier...
 	 */
 	cp = strrchr(member, '/');
-	if ((cp != NULL) && (strcmp(member, RANLIBMAG) != 0)) {
+	if (cp != NULL && strcmp(member, RANLIBMAG) != 0) {
 		member = cp + 1;
 	}
 	len = tlen = strlen(member);
@@ -724,7 +724,7 @@ ArchStatMember(const char *archive, const char *member, Boolean hash)
 	 * the comparisons easier...
 	 */
 	cp = strrchr(member, '/');
-	if ((cp != NULL) && (strcmp(member, RANLIBMAG) != 0))
+	if (cp != NULL && strcmp(member, RANLIBMAG) != 0)
 		member = cp + 1;
 
 	ln = Lst_Find(&archives, archive, ArchFindArchive);
@@ -778,8 +778,8 @@ ArchStatMember(const char *archive, const char *member, Boolean hash)
 	 * We use the ARMAG string to make sure this is an archive we
 	 * can handle...
 	 */
-	if ((fread(magic, SARMAG, 1, arch) != 1) ||
-	    (strncmp(magic, ARMAG, SARMAG) != 0)) {
+	if (fread(magic, SARMAG, 1, arch) != 1 ||
+	    strncmp(magic, ARMAG, SARMAG) != 0) {
 		fclose(arch);
 		return (NULL);
 	}
@@ -1145,7 +1145,7 @@ Arch_LibOODate(GNode *gn)
 	if (OP_NOP(gn->type) && Lst_IsEmpty(&gn->children)) {
 		return (FALSE);
 	}
-	if ((gn->mtime > now) || (gn->mtime < gn->cmtime)) {
+	if (gn->mtime > now || gn->mtime < gn->cmtime) {
 		return (TRUE);
 	}
 
