@@ -54,8 +54,8 @@ typedef struct usb_dma_block {
 #define DMAADDR(dma, offset) ((dma)->block->segs[0].ds_addr + (dma)->offs + (offset))
 #define KERNADDR(dma, offset) ((void *)((dma)->block->kaddr + (dma)->offs) + (offset))
 
-usbd_status	usb_allocmem __P((usbd_bus_handle,size_t,size_t, usb_dma_t *));
-void		usb_freemem  __P((usbd_bus_handle, usb_dma_t *));
+usbd_status	usb_allocmem(usbd_bus_handle,size_t,size_t, usb_dma_t *);
+void		usb_freemem(usbd_bus_handle, usb_dma_t *);
 
 #elif defined(__FreeBSD__)
 

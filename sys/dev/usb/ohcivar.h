@@ -122,11 +122,11 @@ typedef struct ohci_softc {
 	device_ptr_t sc_child;
 } ohci_softc_t;
 
-usbd_status	ohci_init __P((ohci_softc_t *));
-int		ohci_intr __P((void *));
+usbd_status	ohci_init(ohci_softc_t *);
+int		ohci_intr(void *);
 #if defined(__NetBSD__) || defined(__OpenBSD__)
-int		ohci_detach __P((ohci_softc_t *, int));
-int		ohci_activate __P((device_ptr_t, enum devact));
+int		ohci_detach(ohci_softc_t *, int);
+int		ohci_activate(device_ptr_t, enum devact);
 #endif
 
 #define MS_TO_TICKS(ms) ((ms) * hz / 1000)

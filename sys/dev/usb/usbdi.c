@@ -76,12 +76,12 @@ extern int usbdebug;
 #define DPRINTFN(n,x)
 #endif
 
-Static usbd_status usbd_ar_pipe  __P((usbd_pipe_handle pipe));
+Static usbd_status usbd_ar_pipe(usbd_pipe_handle pipe);
 Static void usbd_do_request_async_cb 
-    __P((usbd_xfer_handle, usbd_private_handle, usbd_status));
-Static void usbd_start_next __P((usbd_pipe_handle pipe));
+    (usbd_xfer_handle, usbd_private_handle, usbd_status);
+Static void usbd_start_next(usbd_pipe_handle pipe);
 Static usbd_status usbd_open_pipe_ival
-    __P((usbd_interface_handle, u_int8_t, u_int8_t, usbd_pipe_handle *, int));
+    (usbd_interface_handle, u_int8_t, u_int8_t, usbd_pipe_handle *, int);
 
 Static int usbd_nbuses = 0;
 
@@ -97,7 +97,7 @@ usbd_finish()
 	--usbd_nbuses;
 }
 
-Static __inline int usbd_xfer_isread __P((usbd_xfer_handle xfer));
+Static __inline int usbd_xfer_isread(usbd_xfer_handle xfer);
 Static __inline int
 usbd_xfer_isread(xfer)
 	usbd_xfer_handle xfer;
@@ -110,7 +110,7 @@ usbd_xfer_isread(xfer)
 }
 
 #ifdef USB_DEBUG
-void usbd_dump_queue __P((usbd_pipe_handle));
+void usbd_dump_queue(usbd_pipe_handle);
 
 void
 usbd_dump_queue(pipe)
@@ -406,9 +406,9 @@ usbd_setup_xfer(xfer, pipe, priv, buffer, length, flags, timeout, callback)
 	u_int32_t length;
 	u_int16_t flags;
 	u_int32_t timeout;
-	void (*callback) __P((usbd_xfer_handle,
+	void (*callback)(usbd_xfer_handle,
 			      usbd_private_handle,
-			      usbd_status));
+			      usbd_status);
 {
 	xfer->pipe = pipe;
 	xfer->priv = priv;
@@ -434,9 +434,9 @@ usbd_setup_default_xfer(xfer, dev, priv, timeout, req, buffer,
 	void *buffer;
 	u_int32_t length;
 	u_int16_t flags;
-	void (*callback) __P((usbd_xfer_handle,
+	void (*callback)(usbd_xfer_handle,
 			      usbd_private_handle,
-			      usbd_status));
+			      usbd_status);
 {
 	xfer->pipe = dev->default_pipe;
 	xfer->priv = priv;
