@@ -76,12 +76,12 @@ at_pr_net(struct sockaddr_at *sat)
 static	char mybuf[50];
 
 	switch(sat->sat_addr.s_net) {
-	case ATADDR_ANYNODE:
-		return("any");
-	case ATADDR_BCAST:
-		return "bcast";
+	case 0xffff:
+		return "????";
+	case ATADDR_ANYNET:
+		return("*");
 	default:
-		sprintf(mybuf,"%hd",ntohs(sat->sat_addr.s_net));
+		sprintf(mybuf,"%hu",ntohs(sat->sat_addr.s_net));
 	}
 	return mybuf;
 }
@@ -92,10 +92,10 @@ at_pr_host(struct sockaddr_at *sat)
 static	char mybuf[50];
 
 	switch(sat->sat_addr.s_node) {
-	case 0:
-		return("local");
-	case /*ATADDR_ANYNET*/0xffff:
-		return "????";
+	case ATADDR_BCAST:
+		return "bcast";
+	case ATADDR_ANYNODE:
+		return("*");
 	default:
 		sprintf(mybuf,"%d",(unsigned int)sat->sat_addr.s_node);
 	}
@@ -109,7 +109,7 @@ static	char mybuf[50];
 
 	switch(sat->sat_port) {
 	case ATADDR_ANYPORT:
-		return("any");
+		return("*");
 	case 0xff:
 		return "????";
 	default:
