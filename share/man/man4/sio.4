@@ -34,7 +34,7 @@
 .\"
 .\"     from: @(#)dca.4	5.2 (Berkeley) 3/27/91
 .\"	from: com.4,v 1.1 1993/08/06 11:19:07 cgd Exp
-.\"	$Id: sio.4,v 1.23 1997/02/22 13:25:41 peter Exp $
+.\"	$Id: sio.4,v 1.24 1997/05/18 21:24:04 phk Exp $
 .\"
 .Dd October 10, 1995
 .Dt SIO 4 i386
@@ -67,21 +67,32 @@ For Hayes ESP cards:
 .Cd "options" \&"COM_ESP\&"
 .Cd "..."
 .Pp
-Meaning of \fBflags\fR:
-.br
-\fB0x00001\fR shared IRQs
-.br
-\fB0x00002\fR disable FIFO
-.br
-\fB0x00004\fR no AST/4 compatible IRQ control register
-.br
-\fB0x00008\fR recover sooner from lost output interrupts
-.br
-\fB0x00080\fR enable diagnostics in probe
-.br
-\fB0x0\fI??\fB00\fR minor number of master port
-.br
-\fB0x10000\fR disable test#3 which often fails for internal modems
+Meaning of
+.Ar flags :
+.Bl -tag -offset indent -compact -width 0x000000
+.It 0x00001
+shared IRQs
+.It 0x00002
+disable FIFO
+.It 0x00004
+no AST/4 compatible IRQ control register
+.It 0x00008
+recover sooner from lost output interrupts
+.It 0x00010
+device is potential system console
+.It 0x00020
+device is forced to become system console
+.It 0x00040
+device is reserved for low-level IO (e. g. for remote kernel debugging)
+.It 0x00080
+enable diagnostics in probe
+.It 0x0 Ns Em ?? Ns 00
+minor number of master port
+.It 0x10000
+disable test#3 which often fails for internal modems
+.It 0x20000
+device is assumed to use a 16650A-type (extended FIFO) chip
+.El
 .Pp
 Minor numbering:
 .br
