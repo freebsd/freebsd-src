@@ -286,7 +286,7 @@
 #define	LINUX_VQUIT		9
 #define	LINUX_VMIN		16
 #define	LINUX_VTIME		17
-#define	LINUX_NCC		19
+#define	LINUX_NCC		8
 
 /* Linux termios c_cc values */
 #define	LINUX_VEOL		1
