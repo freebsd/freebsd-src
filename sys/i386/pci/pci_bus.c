@@ -84,8 +84,6 @@ nexus_pcib_route_interrupt(device_t pcib, device_t dev, int pin)
 	return (pcibios_pcib_route_interrupt(pcib, dev, pin));
 }
 
-static devclass_t	pcib_devclass;
-
 static const char *
 nexus_pcib_is_host_bridge(int bus, int slot, int func,
 			  u_int32_t id, u_int8_t class, u_int8_t subclass,
