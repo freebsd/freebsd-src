@@ -97,24 +97,6 @@ g_dec_dos_partition(u_char *ptr, struct dos_partition *d)
 	d->dp_size = g_dec_le4(ptr + 12);
 }
 
-#if 0
-static void
-g_enc_dos_partition(u_char *ptr, struct dos_partition *d)
-{
-
-	ptr[0] = d->dp_flag;
-	ptr[1] = d->dp_shd;
-	ptr[2] = d->dp_ssect;
-	ptr[3] = d->dp_scyl;
-	ptr[4] = d->dp_typ;
-	ptr[5] = d->dp_ehd;
-	ptr[6] = d->dp_esect;
-	ptr[7] = d->dp_ecyl;
-	g_enc_le4(ptr + 8, d->dp_start);
-	g_enc_le4(ptr + 12, d->dp_size);
-}
-#endif
-
 struct g_mbr_softc {
 	int		type [NDOSPART];
 	u_int		sectorsize;
