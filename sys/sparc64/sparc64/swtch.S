@@ -154,9 +154,7 @@ ENTRY(cpu_switch)
 	 * Mark the pmap no longer active on this cpu.
 	 */
 	lduw	[%l2 + VM_PMAP + PM_ACTIVE], %l3
-	mov	1, %l4
-	lduw	[PCPU(CPUID)], %l5
-	sllx	%l4, %l5, %l4
+	lduw	[PCPU(CPUMASK)], %l4
 	andn	%l3, %l4, %l3
 	stw	%l3, [%l2 + VM_PMAP + PM_ACTIVE]
 
@@ -181,9 +179,7 @@ ENTRY(cpu_switch)
 	 * Mark the pmap as active on this cpu.
 	 */
 	lduw	[%o2 + VM_PMAP + PM_ACTIVE], %o3
-	mov	1, %o4
-	lduw	[PCPU(CPUID)], %o5
-	sllx	%o4, %o5, %o4
+	lduw	[PCPU(CPUMASK)], %o4
 	or	%o3, %o4, %o3
 	stw	%o3, [%o2 + VM_PMAP + PM_ACTIVE]
 
