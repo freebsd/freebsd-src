@@ -1,4 +1,4 @@
-/*	$NetBSD: usb.c,v 1.28 1999/10/13 08:10:57 augustss Exp $	*/
+/*	$NetBSD: usb.c,v 1.33 1999/11/22 21:57:09 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -94,6 +94,11 @@ extern int uhcidebug;
 #ifdef OHCI_DEBUG
 extern int ohcidebug;
 #endif
+/* 
+ * 0  - do usual exploration
+ * 1  - do not use timeout exploration
+ * >1 - do no exploration
+ */
 int	usb_noexplore = 0;
 #else
 #define DPRINTF(x)
@@ -167,6 +172,8 @@ static int usb_get_next_event __P((struct usb_event *));
 extern int cold;
 #endif
 
+static const char *usbrev_str[] = USBREV_STR;
+
 USB_DECLARE_DRIVER(usb);
 
 USB_MATCH(usb)
@@ -182,25 +189,34 @@ USB_ATTACH(usb)
 #elif defined(__FreeBSD__)
 	struct usb_softc *sc = device_get_softc(self);
 	void *aux = device_get_ivars(self);
+	static int global_init_done = 0;
 #endif
 	usbd_device_handle dev;
 	usbd_status err;
-	static int global_init_done = 0;
+	int usbrev;
 
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-	printf("\n");
-#elif defined(__FreeBSD__)
 	sc->sc_dev = self;
-#endif
 
 	DPRINTF(("usbd_attach\n"));
+
 	usbd_init();
 	sc->sc_bus = aux;
 	sc->sc_bus->usbctl = sc;
 	sc->sc_port.power = USB_MAX_POWER;
+
+#if defined(__FreeBSD__)
+	printf("%s", USBDEVNAME(sc->sc_dev));
+#endif
+	usbrev = sc->sc_bus->usbrev;
+	printf(": USB revision %s", usbrev_str[usbrev]);
+	if (usbrev != USBREV_1_0 && usbrev != USBREV_1_1) {
+		printf(", not supported\n");
+		USB_ATTACH_ERROR_RETURN;
+	}
+	printf("\n");
+
 	err = usbd_new_device(USBDEV(sc->sc_dev), sc->sc_bus, 0, 0, 0,
 		  &sc->sc_port);
-
 	if (!err) {
 		dev = sc->sc_port.device;
 		if (dev->hub == NULL) {
@@ -231,9 +247,11 @@ USB_ATTACH(usb)
 	kthread_create(usb_create_event_thread, sc);
 
 #if defined(__FreeBSD__)
+	/* The per controller devices (used for usb_discover) */
 	make_dev(&usb_cdevsw, device_get_unit(self), UID_ROOT, GID_OPERATOR,
 		0644, "usb%d", device_get_unit(self));
 	if (!global_init_done) {
+		/* The device spitting out events */
 		make_dev(&usb_cdevsw, USB_DEV_MINOR, UID_ROOT, GID_OPERATOR,
 			0644, "usb");
 		global_init_done = 1;
@@ -268,11 +286,15 @@ usb_event_thread(arg)
 
 	while (!sc->sc_dying) {
 #ifdef USB_DEBUG
-		if (!usb_noexplore)
+		if (usb_noexplore < 2)
 #endif
 		usb_discover(sc);
-		(void)tsleep(&sc->sc_bus->needs_explore, 
-			     PWAIT, "usbevt", hz*60);
+		(void)tsleep(&sc->sc_bus->needs_explore, PWAIT, "usbevt",
+#ifdef USB_DEBUG
+			     usb_noexplore ? 0 :
+#endif
+			     hz*60
+                       );
 		DPRINTFN(2,("usb_event_thread: woke up\n"));
 	}
 	sc->sc_event_thread = 0;
