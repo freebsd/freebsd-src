@@ -50,6 +50,7 @@ SRCS=	8003.c \
 	add_cred.c \
 	add_oid_set_member.c \
 	address_to_krb5addr.c \
+	arcfour.c \
 	canonicalize_name.c \
 	compare_name.c \
 	compat.c \
