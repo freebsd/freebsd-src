@@ -230,7 +230,8 @@
       models including a file system firewall.  This feature will
       permit easier development and maintenance of local and vendor
       security extensions.  The extensibility service is enabled
-      by compiling your kernel with <literal>options MAC</literal>.
+      by adding <literal>options MAC</literal> to the kernel
+      configuration.
 
       <note>
         <para>The MAC framework is considered an experimental
@@ -1279,6 +1280,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
       <para role="historic">The &man.isp.4; driver now supports the Qlogic 2300 and
 	2312 Optical Fibre Channel PCI cards. &merged;</para>
+
+      <para arch="i386,pc98">The &man.matcd.4; driver has been removed
+        due to breakage and licensing issues.</para>
 
       <para>&man.md.4;, the memory disk device, has had the
 	functionality of &man.vn.4; incorporated into it.  &man.md.4;
@@ -3664,6 +3668,15 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	&man.less.1;, although it can still be run as
 	<command>more</command>. &merged; Version 371 of
       <application>less</application> has been imported.</para>
+
+      <para>An XML processing library, named
+        <filename>libbsdxml</filename> has been added for the benefit
+        of XML-using utilities in the base system.  It is based almost
+        entirely on an import of <application>expat</application>
+        1.95.5, but is installed under a different name to avoid
+        conflicts with any versions of
+        <application>expat</application> installed from the Ports
+        Collection.</para>
 
       <para><application>libpcap</application> has been updated to
 	0.7.1. &merged;</para>
