@@ -76,17 +76,10 @@ SYSCTL_INT(_hw_usb_ufm, OID_AUTO, debug, CTLFLAG_RW,
 #define DPRINTFN(n,x)
 #endif
 
-#ifdef __FreeBSD_version
-typedef d_thread_t usb_proc_t;
-#else
-typedef struct proc usb_proc_t;
-#endif
-
 #if defined(__NetBSD__) || defined(__OpenBSD__)
-typedef struct proc usb_proc_t;
-int ufmopen(dev_t, int, int, struct proc *);
-int ufmclose(dev_t, int, int, struct proc *p);
-int ufmioctl(dev_t, u_long, caddr_t, int, struct proc *);
+int ufmopen(dev_t, int, int, usb_proc_ptr);
+int ufmclose(dev_t, int, int, usb_proc_ptr);
+int ufmioctl(dev_t, u_long, caddr_t, int, usb_proc_ptr);
 
 cdev_decl(ufm);
 #elif defined(__FreeBSD__)
