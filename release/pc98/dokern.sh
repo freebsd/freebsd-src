@@ -22,7 +22,6 @@ sed	-e '/	pci$/d' \
 	-e '/	em/d' \
 	-e '/	fxp/d' \
 	-e '/	tx/d' \
-	-e '/	txp/d' \
 	-e '/	bge/d' \
 	-e '/	vx/d' \
 	-e '/	wx/d' \
@@ -36,8 +35,6 @@ sed	-e '/	pci$/d' \
 	-e '/	vr/d' \
 	-e '/	wb/d' \
 	-e '/	xl/d' \
-	-e '/	an$/d' \
-	-e '/	wi$/d' \
 	-e '/pty/d' \
 	-e '/pass/d' \
 	-e '/	apm/d' \
@@ -90,9 +87,6 @@ sed	-e '/pty/d' \
 	-e '/AHC_REG_PRETTY_PRINT/d' \
 	-e '/AHD_REG_PRETTY_PRINT/d' \
 	-e '/	ncr/d' \
-	-e '/	txp/d' \
-	-e '/	an$/d' \
-	-e '/	wi$/d' \
 	-e '/atapist/d' \
 	-e '/lpt/d' \
 	-e '/ppi/d' \
