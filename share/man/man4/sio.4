@@ -34,7 +34,7 @@
 .\"
 .\"     from: @(#)dca.4	5.2 (Berkeley) 3/27/91
 .\"	from: com.4,v 1.1 1993/08/06 11:19:07 cgd Exp
-.\"	$Id: sio.4,v 1.24 1997/05/18 21:24:04 phk Exp $
+.\"	$Id: sio.4,v 1.25 1997/09/14 18:55:41 joerg Exp $
 .\"
 .Dd October 10, 1995
 .Dt SIO 4 i386
@@ -84,12 +84,8 @@ device is potential system console
 device is forced to become system console
 .It 0x00040
 device is reserved for low-level IO (e. g. for remote kernel debugging)
-.It 0x00080
-enable diagnostics in probe
 .It 0x0 Ns Em ?? Ns 00
 minor number of master port
-.It 0x10000
-disable test#3 which often fails for internal modems
 .It 0x20000
 device is assumed to use a 16650A-type (extended FIFO) chip
 .El
@@ -147,12 +143,9 @@ The
 keyword may be used on each
 .Em device sio
 line in the kernel configuration file
-to silence the probe
-or to disable the FIFO on 16550A UARTs
+to disable the FIFO on 16550A UARTs
 (see the synopsis).
-Disabling the FIFO should rarely be necessary
-since the driver automatically adjusts the receiver
-FIFO trigger level for low latency and high efficiency.
+Disabling the FIFO should rarely be necessary.
 .Pp
 The
 .Em flags
