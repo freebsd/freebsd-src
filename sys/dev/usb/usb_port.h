@@ -52,7 +52,7 @@
 
 #include "opt_usbverbose.h"
 
-/*#define USB_USE_SOFTINTR */
+#define USB_USE_SOFTINTR
 
 #ifdef USB_DEBUG
 #define UHID_DEBUG 1
@@ -299,6 +299,8 @@ MALLOC_DECLARE(M_USBHC);
 #endif
 
 #define USBVERBOSE
+
+#define USB_USE_SOFTINTR
 
 #define Static static
 
