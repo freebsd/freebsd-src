@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 9, 2004
+.Dd August 10, 2004
 .Dt RELEASE 7
 .Os
 .Sh NAME
@@ -52,7 +52,9 @@ and should have experience upgrading systems from source.
 The release build process requires that
 .Pa /usr/obj
 be populated with the output of
-.Dq Li "make buildworld" .
+a native
+.Dq Li "make buildworld"
+compiled from sources matching the currently running kernel.
 This is necessary so that the object files for a complete system can
 be installed into a clean
 .Xr chroot 8
