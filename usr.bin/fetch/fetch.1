@@ -1,1 +1,106 @@
-.\" under construction :-)
+.\" $Id$
+.Dd July 2, 1996
+.Dt FETCH 1
+.Os
+.Sh NAME
+.Nm fetch
+.Nd retrieve a file by Uniform Resource Locator
+.Sh SYNOPSIS
+.Nm fetch
+.Op Fl MPmpqr
+.Op Fl o Ar file
+.Ar URL
+.Nm fetch
+.Op Fl MPmpqr
+.Op Fl o Ar file
+.Op Fl c Ar dir
+.Fl f Ar file
+.Fl h Ar host
+.Sh DESCRIPTION
+.Nm fetch
+allows a user to transfer files from a remote network site using
+either the
+.Em ftp
+or the
+.Em http
+protocol. In the first form of the command, the
+.Ar URL
+may be of the form 
+.Em http://site.domain/path/to/the/file
+or
+.Em ftp://site.domain/path/to/the/file. 
+For compatibility with 
+.Xr tftp 1
+the form 
+.Em site.domain:/path/to/the/file
+is also accepted.
+
+The second form of the command can be used to get a file using the
+.Em ftp
+protocol, specifying the file name and the remote host with the 
+.Fl h
+and the 
+.Fl f
+flags.
+.Pp
+The following options are available:
+.Bl -tag -width Fl -compact
+.It Fl M
+.It Fl m
+Mirror mode: Set the modification time of the file so that it is
+identical to the modification time of the file at the remote host.
+If the file already exists on the local host and is identical (as
+gauged by size and modification time), no transfer is done.
+.It Fl P
+.It Fl p
+Use passive mode if you are behind a firewall.
+.It Fl c Ar dir
+Change to directory
+.Ar dir
+at remote host before starting the transfer.
+.It Fl f Ar file
+Retrieve 
+.Ar file
+on the remote host.
+.It Fl h Ar host
+Set the
+.Ar host
+for transfer.
+.It Fl q
+Quiet mode. Do not report transfer progress on the terminal.
+.It Fl r
+Reget. Use this flag to restart an interrupted transfer.
+.It Fl o Ar file
+Set the output file name to 
+.Ar file
+.El
+.Sh ENVIRONMENT
+A transfer using the
+.Em ftp
+protocol will be aborted after the delay specified by the
+.Ev FTP_TIMEOUT 
+variable. The default is 300 (seconds)
+
+A transfer using the
+.Em http
+protocol will be aborted after the delay specified by the
+.Ev HTTP_TIMEOUT
+variable. The default is 60 (seconds)
+
+.Ev FTP_LOGIN
+is the login name for the remote host. Default is
+.Em anonymous
+
+.Ev FTP_PASSWORD
+is the password for the remote host. Default is
+.Em <yourname>@
+
+.Ev FTP_PASSIVE_MODE
+will force the use of passive mode FTP for firewalls.
+.Sh SEE ALSO
+.Xr tftp 1
+.Xr ftp 1
+.Sh HISTORY
+The 
+.Nm fetch
+command appeared in FreeBSD 2.1.5
