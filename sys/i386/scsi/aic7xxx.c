@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.29.2.28 1997/02/14 03:09:50 davidg Exp $
+ *      $Id: aic7xxx.c,v 1.29.2.29 1997/02/18 04:27:05 gibbs Exp $
  */
 /*
  * TODO:
@@ -2179,20 +2179,8 @@ ahc_init(ahc)
 	 * QCount mask to deal with broken aic7850s that
 	 * sporatically get garbage in the upper bits of
 	 * their QCount registers.
-	 *
-	 * QFullCount to guard against overflowing the
-	 * QINFIFO or QOUTFIFO when we are paging SCBs.
-	 *
-	 * QOUTQCNT is a scratch ram variable that counts
-	 * up as the sequencer fills the QOUTFIFO so it
-	 * can guard against overflowing the FIFO.  Since
-	 * the fifo starts empty, clear it.
 	 */
 	ahc_outb(ahc, QCNTMASK, ahc->qcntmask);
-
-	ahc_outb(ahc, QFULLCNT, ahc->qfullcount);
-
-	ahc_outb(ahc, QOUTQCNT, 0);
 
 	/* We don't have any waiting selections */
 	ahc_outb(ahc, WAITING_SCBH, SCB_LIST_NULL);
