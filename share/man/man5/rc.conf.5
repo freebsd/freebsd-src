@@ -1157,6 +1157,11 @@ this specifies a list of additional iBCS2 loaders to enable.
 .Ar YES
 if you wish to enable Linux/ELF binary emulation at system initial
 boot time.
+.It Ar osf1_enable
+(bool) Set to
+.Ar YES
+if you wish to enable OSF/1 (Digital UNIX) binary emulation at system
+initial boot time. (alpha)
 .It Ar clear_tmp_enable
 (bool) Set to
 .Ar YES
@@ -1216,6 +1221,10 @@ is set to
 these are the flags to pass to the
 .Xr sshd 8
 daemon.
+.It Ar unaligned_print
+(bool) If set to  
+.Ar NO
+then unaligned access warnings will not be printed. (alpha)
 .Sh FILES
 .Bl -tag -width /etc/defaults/rc.conf -compact
 .It Pa /etc/defaults/rc.conf
