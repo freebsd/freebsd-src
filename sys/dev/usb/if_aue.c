@@ -101,24 +101,17 @@ static const char rcsid[] =
 #endif
 
 /*
- * Various supported device vendors/types and their names.
+ * Various supported device vendors/products.
  */
 static struct aue_type aue_devs[] = {
-	{ USB_VENDOR_ADMTEK, USB_PRODUCT_ADMTEK_PEGASUS,
-	    "ADMtek AN986 Pegasus 10/100BaseTX" },
-	{ USB_VENDOR_BILLIONTON, USB_PRODUCT_BILLIONTON_USB100,
-	    "ADMtek AN986 Pegasus 10/100BaseTX" },
-	{ USB_VENDOR_MELCO, USB_PRODUCT_MELCO_LUATX,
-	    "ADMtek AN986 Pegasus 10/100BaseTX" },
-	{ USB_VENDOR_DLINK, USB_PRODUCT_DLINK_DSB650TX,
-	    "ADMtek AN986 Pegasus 10/100BaseTX" },
-	{ USB_VENDOR_DLINK, USB_PRODUCT_DLINK_DSB650TX_PNA,
-	    "ADMtek AN986 Pegasus 10/100BaseTX" },
-	{ USB_VENDOR_SMC, USB_PRODUCT_SMC_2202USB,
-	    "ADMtek AN986 Pegasus 10/100BaseTX" },
-	{ USB_VENDOR_LINKSYS, USB_PRODUCT_LINKSYS_USB100TX,
-	    "ADMtek AN986 Pegasus 10/100BaseTX" },
-	{ 0, 0, NULL }
+	{ USB_VENDOR_ADMTEK, USB_PRODUCT_ADMTEK_PEGASUS },
+	{ USB_VENDOR_BILLIONTON, USB_PRODUCT_BILLIONTON_USB100 },
+	{ USB_VENDOR_MELCO, USB_PRODUCT_MELCO_LUATX },
+	{ USB_VENDOR_DLINK, USB_PRODUCT_DLINK_DSB650TX },
+	{ USB_VENDOR_DLINK, USB_PRODUCT_DLINK_DSB650TX_PNA },
+	{ USB_VENDOR_SMC, USB_PRODUCT_SMC_2202USB },
+	{ USB_VENDOR_LINKSYS, USB_PRODUCT_LINKSYS_USB100TX },
+	{ 0, 0 }
 };
 
 static struct usb_qdat aue_qdat;
@@ -582,10 +575,9 @@ USB_MATCH(aue)
 		return(UMATCH_NONE);
 
 	t = aue_devs;
-	while(t->aue_name != NULL) {
+	while(t->aue_vid) {
 		if (uaa->vendor == t->aue_vid &&
 		    uaa->product == t->aue_did) {
-			device_set_desc(self, t->aue_name);
 			return(UMATCH_VENDOR_PRODUCT);
 		}
 		t++;
@@ -617,8 +609,15 @@ USB_ATTACH(aue)
 	sc->aue_udev = uaa->device;
 	sc->aue_unit = device_get_unit(self);
 
+	if (usbd_set_config_no(sc->aue_udev, AUE_CONFIG_NO, 0)) {
+		printf("aue%d: getting interface handle failed\n",
+		    sc->aue_unit);
+		splx(s);
+		USB_ATTACH_ERROR_RETURN;
+	}
+
 	t = aue_devs;
-	while(t->aue_name != NULL) {
+	while(t->aue_vid) {
 		if (uaa->vendor == t->aue_vid &&
 		    uaa->product == t->aue_did) {
 			sc->aue_info = t;
@@ -688,7 +687,7 @@ USB_ATTACH(aue)
 	 * NOTE: Doing this causes child devices to be attached to us,
 	 * which we would normally disconnect at in the detach routine
 	 * using device_delete_child(). However the USB code is set up
-	 * such that when this driver is removed, all childred devices
+	 * such that when this driver is removed, all children devices
 	 * are removed as well. In effect, the USB code ends up detaching
 	 * all of our children for us, so we don't have to do is ourselves
 	 * in aue_detach(). It's important to point this out since if
@@ -1138,7 +1137,7 @@ static int aue_encap(sc, m, idx)
 	 * and base the frame size on the bulk transfer length.
 	 */
 	c->aue_buf[0] = (u_int8_t)m->m_pkthdr.len;
-	c->aue_buf[1] = (u_int8_t)(m->m_pkthdr.len >> 3) & 0xE0;
+	c->aue_buf[1] = (u_int8_t)(m->m_pkthdr.len >> 8);
 
 	usbd_setup_xfer(c->aue_xfer, sc->aue_ep[AUE_ENDPT_TX],
 	    c, c->aue_buf, total_len, 0, 10000, aue_txeof);
