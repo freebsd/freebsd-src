@@ -231,10 +231,10 @@ options 	DRM_DEBUG
 # Network interfaces:
 #
 
-# ath:	Atheros a/b/g WiFi adapters (requires ath_hal and wlan)
+# ath:  Atheros a/b/g WiFi adapters (requires ath_hal and wlan)
 # ed:   Western Digital and SMC 80xx; Novell NE1000 and NE2000; 3Com 3C503
 #       HP PC Lan+, various PC Card devices (refer to etc/defaults/pccard.conf)
-#	(requires miibus)
+#       (requires miibus)
 # lnc:  Lance/PCnet cards (Isolan, Novell NE2100, NE32-VL, AMD Am7990 and
 #       Am79C960)
 
@@ -251,6 +251,14 @@ device		wlan		# 802.11 layer
 #
 #XXX this stores pointers in a 32bit field that is defined by the hardware
 #device	pst
+
+#
+# 3ware 9000 series PATA/SATA RAID controller driver and options.
+# The driver is implemented as a SIM, and so, needs the CAM infrastructure.
+#
+options		TWA_DEBUG		# 0-10; 10 prints the most messages.
+options		TWA_FLASH_FIRMWARE	# firmware image bundled when defined.
+device		twa			# 3ware 9000 series PATA/SATA RAID
 
 #
 # SCSI host adapters:
@@ -286,8 +294,8 @@ options		SAFE_RNDTEST	# enable rndtest support
 #
 # Miscellaneous hardware:
 #
+# cy: Cyclades serial driver
 # digi: Digiboard driver
-# stl: Stallion EasyIO and EasyConnection 8/32 (cd1400 based)
 
 # Notes on the Specialix SI/XIO driver:
 #  The host card is memory, not IO mapped.
@@ -295,10 +303,9 @@ options		SAFE_RNDTEST	# enable rndtest support
 #  The Rev 2 host cards use a 32K chunk, on a 32K boundary.
 #  The cards can use an IRQ of 11, 12 or 15.
 
+device		cy
+options 	CY_PCI_FASTINTR		# Use with cy_pci unless irq is shared
 device		digi
-hint.digi.0.at="isa"
-hint.digi.0.port="0x104"
-hint.digi.0.maddr="0xd0000"
 # BIOS & FEP/OS components of device digi.
 device		digi_CX
 device		digi_CX_PCI
@@ -307,9 +314,9 @@ device		digi_EPCX_PCI
 device		digi_Xe
 device		digi_Xem
 device		digi_Xr
-#XXX#	PCI versions exist, but driver needs to be moved and split up,
-#XXX#	Warner Losh working on it.
-#XXX#device		stl
+# sx device is i386 and pc98 only at the moment.
+device		sx
+options 	SX_DEBUG
 # HOT1 Xilinx 6200 card (http://www.vcc.com/)
 device		xrpu
 
@@ -428,6 +435,11 @@ options 	IPR_LOG=32
 #---------------------------------------------------------------------------
 
 #
+# System Management Bus (SMB)
+#
+options 	ENABLE_ALART		# Control alarm on Intel intpm driver
+
+#
 # Set the number of PV entries per process.  Increasing this can
 # stop panics related to heavy use of shared memory.  However, that can
 # (combined with large amounts of physical memory) cause panics at
@@ -496,7 +508,6 @@ options 	KSTACK_PAGES=3
 
 options 	FB_INSTALL_CDEV		# install a CDEV entry in /dev
 
-options 	ENABLE_ALART		# Control alarm on Intel intpm driver
 options 	KBDIO_DEBUG=2
 options 	KBD_MAXRETRY=4
 options 	KBD_MAXWAIT=6
