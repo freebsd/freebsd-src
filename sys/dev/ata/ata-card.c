@@ -74,7 +74,7 @@ ata_pccard_match(device_t dev)
 
     /* match other devices here, primarily cdrom/dvd rom */
     if ((pp = pccard_product_lookup(dev, ata_pccard_products,
-      sizeof(ata_pccard_products[0]), NULL)) != NULL) {
+				    sizeof(ata_pccard_products[0]), NULL))) {
 	if (pp->pp_name)
 	    device_set_desc(dev, pp->pp_name);
 	return (0);

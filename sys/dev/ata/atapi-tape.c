@@ -63,8 +63,8 @@ static struct cdevsw ast_cdevsw = {
 };
 
 /* prototypes */
-static void ast_detach(struct ata_device *atadev);
-static void ast_start(struct ata_device *atadev);
+static void ast_detach(struct ata_device *);
+static void ast_start(struct ata_device *);
 static int ast_sense(struct ast_softc *);
 static void ast_describe(struct ast_softc *);
 static void ast_done(struct ata_request *);
@@ -78,8 +78,8 @@ static int ast_prevent_allow(struct ast_softc *stp, int);
 static int ast_load_unload(struct ast_softc *, u_int8_t);
 static int ast_rewind(struct ast_softc *);
 static int ast_erase(struct ast_softc *);
-static int ast_test_ready(struct ata_device *atadev);
-static int ast_wait_dsc(struct ata_device *atadev, int timeout);
+static int ast_test_ready(struct ata_device *);
+static int ast_wait_dsc(struct ata_device *, int);
 
 /* internal vars */
 static u_int32_t ast_lun_map = 0;
@@ -343,8 +343,9 @@ ast_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 	    g->mt_blksiz2 = 0; g->mt_blksiz3 = 0;
 	    g->mt_comp0 = 0; g->mt_comp1 = 0;
 	    g->mt_comp2 = 0; g->mt_comp3 = 0;
-	    break;	 
 	}
+	break;	 
+
     case MTIOCTOP:
 	{	
 	    int i;
@@ -401,8 +402,9 @@ ast_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 	    default:
 		error = EINVAL;
 	    }
-	    break;
 	}
+	break;
+
     case MTIOCRDSPOS:
 	{
 	    struct ast_readposition position;
@@ -410,8 +412,9 @@ ast_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 	    if ((error = ast_read_position(stp, 0, &position)))
 		break;
 	    *(u_int32_t *)addr = position.tape;
-	    break;
 	}
+	break;
+
     case MTIOCRDHPOS:
 	{
 	    struct ast_readposition position;
@@ -419,14 +422,17 @@ ast_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 	    if ((error = ast_read_position(stp, 1, &position)))
 		break;
 	    *(u_int32_t *)addr = position.tape;
-	    break;
 	}
+	break;
+
     case MTIOCSLOCATE:
 	error = ast_locate(stp, 0, *(u_int32_t *)addr);
 	break;
+
     case MTIOCHLOCATE:
 	error = ast_locate(stp, 1, *(u_int32_t *)addr);
 	break;
+
     default:
 	error = ENOTTY;
     }

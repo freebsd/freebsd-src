@@ -69,8 +69,8 @@ static struct cdevsw acd_cdevsw = {
 };
 
 /* prototypes */
-static void acd_detach(struct ata_device *atadev);
-static void acd_start(struct ata_device *atadev);
+static void acd_detach(struct ata_device *);
+static void acd_start(struct ata_device *);
 
 static struct acd_softc *acd_init_lun(struct ata_device *);
 static void acd_make_dev(struct acd_softc *);
@@ -104,8 +104,8 @@ static int acd_set_speed(struct acd_softc *, int, int);
 static void acd_get_cap(struct acd_softc *);
 static int acd_read_format_caps(struct acd_softc *, struct cdr_format_capacities *);
 static int acd_format(struct acd_softc *, struct cdr_format_params *);
-static int acd_test_ready(struct ata_device *atadev);
-static int acd_request_sense(struct ata_device *atadev, struct atapi_sense *sense);
+static int acd_test_ready(struct ata_device *);
+static int acd_request_sense(struct ata_device *, struct atapi_sense *);
 
 /* internal vars */
 static u_int32_t acd_lun_map = 0;
@@ -710,8 +710,9 @@ acd_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 			    te->data, len);
 	    if (te->address_format == CD_MSF_FORMAT)
 		free(toc, M_ACD);
-	    break;
 	}
+	break;
+
     case CDIOREADTOCENTRY:
 	{
 	    struct ioc_read_toc_single_entry *te =
@@ -802,8 +803,8 @@ acd_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 		}
 	    }
 	    error = copyout(&cdp->subchan, args->data, args->data_len);
-	    break;
 	}
+	break;
 
     case CDIOCPLAYMSF:
 	{
@@ -813,16 +814,16 @@ acd_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 		acd_play(cdp, 
 			 msf2lba(args->start_m, args->start_s, args->start_f),
 			 msf2lba(args->end_m, args->end_s, args->end_f));
-	    break;
 	}
+	break;
 
     case CDIOCPLAYBLOCKS:
 	{
 	    struct ioc_play_blocks *args = (struct ioc_play_blocks *)addr;
 
 	    error = acd_play(cdp, args->blk, args->blk + args->len);
-	    break;
 	}
+	break;
 
     case CDIOCPLAYTRACKS:
 	{
@@ -846,8 +847,8 @@ acd_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 	    }
 	    error = acd_play(cdp, ntohl(cdp->toc.tab[t1].addr.lba),
 			     ntohl(cdp->toc.tab[t2].addr.lba));
-	    break;
 	}
+	break;
 
     case CDIOCGETVOL:
 	{
@@ -865,8 +866,8 @@ acd_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 	    arg->vol[1] = cdp->au.port[1].volume;
 	    arg->vol[2] = cdp->au.port[2].volume;
 	    arg->vol[3] = cdp->au.port[3].volume;
-	    break;
 	}
+	break;
 
     case CDIOCSETVOL:
 	{
@@ -891,16 +892,17 @@ acd_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 	    cdp->au.port[2].volume = arg->vol[2] & cdp->aumask.port[2].volume;
 	    cdp->au.port[3].volume = arg->vol[3] & cdp->aumask.port[3].volume;
 	    error =  acd_mode_select(cdp, (caddr_t)&cdp->au, sizeof(cdp->au));
-	    break;
 	}
+	break;
+
     case CDIOCSETPATCH:
 	{
 	    struct ioc_patch *arg = (struct ioc_patch *)addr;
 
 	    error = acd_setchan(cdp, arg->patch[0], arg->patch[1],
 				arg->patch[2], arg->patch[3]);
-	    break;
 	}
+	break;
 
     case CDIOCSETMONO:
 	error = acd_setchan(cdp, CHANNEL_0|CHANNEL_1, CHANNEL_0|CHANNEL_1, 0,0);
