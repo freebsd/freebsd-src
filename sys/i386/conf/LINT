@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.458 1998/09/08 18:09:49 brian Exp $
+#	$Id: LINT,v 1.459 1998/09/08 20:57:46 sos Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1175,7 +1175,6 @@ device pca0 at isa? port IO_TIMER1 tty
 # spigot: The Creative Labs Video Spigot video-acquisition board
 # meteor: Matrox Meteor video capture board
 # alog: Industrial Computer Source AIO8-P driver
-# bktr: Bt848 capture boards (http://www.freebsd.org/~fsmp/HomeAuto/Bt848.html)
 # cy: Cyclades serial driver
 # dgb: Digiboard PC/Xi and PC/Xe series driver (ALPHA QUALITY!)
 # dgm: Digiboard PC/Xem driver
@@ -1400,11 +1399,26 @@ options	"EISA_SLOTS=12"
 #   option METEOR_SYSTEM_DEFAULT={METEOR_PAL|METEOR_NTSC|METEOR_SECAM}, used
 #	for initialization of fps routine when a signal is not present.
 #
-# The 'bktr' device is a PCI video capture board. It also has a TV tuner
-# on board. To override the tuner detection use
-#   options OVERRIDE_TUNER=x
+# The 'bktr' device is a PCI video capture device using the Brooktree 
+# bt848/bt848a/bt849/bt878/bt879 chipset. When used with a TV Tuner it forms a
+# TV card, eg Miro PC/TV,Hauppauge WinCast/TV WinTV, VideoLogic Captivator,
+# Intel Smart Video III, AverMedia, IMS Turbo. 
+# The following options can be used to override the auto detection
+#   options OVERRIDE_CARD=xxx
+#   options OVERRIDE_TUNER=xxx
+#   options OVERRIDE_MSP=1
+#   options OVERRIDE_DBX=1
 # The current values are found in /usr/src/sys/pci/brooktree848.c
 #
+#   option BROOKTREE_SYSTEM_DEFAULT=BROOKTREE_PAL
+# This is required for Dual Crystal (28&35Mhz) boards where PAL is used
+# to prevent hangs during initialisation.  eg VideoLogic Captivator PCI.
+#
+# PAL or SECAM users who have a 28Mhz crystal (and no 35Mhz crystal)
+# must enable PLL mode with this option. eg some new Hauppauge cards.
+#   option BKTR_USE_PLL
+#
+# Using sysctl(8) run-time overrides on a per-card basis can be made
 #
 controller	pci0
 controller	ahc1
@@ -1420,8 +1434,6 @@ device		xl0
 device		fpa0
 device		meteor0
 device		bktr0
-
-options         OVERRIDE_TUNER=NO_TUNER
 
 #
 # PCI options
