@@ -209,7 +209,6 @@ udp_CreateDevice(struct physical *p, char *host, char *port)
   }
 
   dev->sock.sin_family = AF_INET;
-  dev->sock.sin_addr.s_addr = inet_addr(host);
   dev->sock.sin_addr = GetIpAddr(host);
   if (dev->sock.sin_addr.s_addr == INADDR_NONE) {
     log_Printf(LogWARN, "%s: %s: unknown host\n", p->link.name, host);
