@@ -1,10 +1,10 @@
 /**************************************************************************
 **
-**  $Id: pcivar.h,v 1.2 1995/02/27 17:17:14 se Exp $
+**  $Id: pcivar.h,v 1.3 1995/03/17 04:27:21 davidg Exp $
 **
 **  Declarations for pci device drivers.
 **
-**  386bsd / FreeBSD
+**  FreeBSD
 **
 **-------------------------------------------------------------------------
 **
@@ -36,10 +36,8 @@
 */
 
 #ifndef __PCI_VAR_H__
-#define __PCI_VAR_H__
+#define __PCI_VAR_H__ "pl2 95/03/21"
 
-#define PCIVAR_H_PATCHLEVEL  "pl1 95/02/27"
-
 /*-----------------------------------------------------------------
 **
 **	main pci initialization function.
@@ -60,12 +58,15 @@ void pci_configure (void);
 
 typedef union {
 	u_long	 cfg1;
-        struct {
+	struct {
 		 u_char   enable;
 		 u_char   forward;
 		 u_short  port;
 	       } cfg2;
+	unsigned tag;
 	} pcici_t;
+
+#define sametag(x,y)  ((x).tag == (y).tag)
 
 /*-----------------------------------------------------------------
 **
@@ -98,7 +99,7 @@ typedef u_long pcidi_t;
 u_long pci_conf_read  (pcici_t tag, u_long reg		   );
 
 void   pci_conf_write (pcici_t tag, u_long reg, u_long data);
-
+
 /*-----------------------------------------------------------------
 **
 **	The pci driver structure.
@@ -141,7 +142,11 @@ struct pci_device {
 */
 
 extern struct linker_set pcidevice_set;
-
+
+extern unsigned pci_max_burst_len;  /* log2 of safe burst transfer length */
+extern unsigned pci_mechanism;
+extern unsigned pci_maxdevice;
+
 /*-----------------------------------------------------------------
 **
 **	The pci-devconf interface.
@@ -150,8 +155,8 @@ extern struct linker_set pcidevice_set;
 */
 
 struct pci_info {
-        u_short pi_bus;
-        u_short pi_device;
+	u_short pi_bus;
+	u_short pi_device;
 };  
    
 #define PCI_EXT_CONF_LEN (16)
@@ -162,31 +167,18 @@ struct pci_externalize_buffer {
 	u_long		peb_config[PCI_EXT_CONF_LEN];
 };
 
-
-/*-----------------------------------------------------------------
-**
-**	Register an additional pci bus for probing.
-**	Called by pci-pci bridge handlers.
-**
-**-----------------------------------------------------------------
-*/
-
-int pci_map_bus (pcici_t tag, u_long bus);
-
 /*-----------------------------------------------------------------
 **
 **	Map a pci device to physical and virtual memory.
 **
-**	The va and pa addresses are "in/out" parameters.
-**	If they are 0 on entry, the function assigns an address.
-**
-**	Entry selects the register in the pci configuration
+**      Entry selects the register in the pci configuration
 **	space, which supplies the size of the region, and
 **	receives the physical address.
 **
-**	If there is any error, a message is written, and
-**	the function returns with zero.
-**	Else it returns with a value different to zero.
+**	In case of success the function sets the addresses
+**	in *va and *pa, and returns 1.
+**	In case of errors a message is written,
+**	and the function returns 0.
 **
 **-----------------------------------------------------------------
 */
@@ -197,59 +189,65 @@ int pci_map_mem (pcici_t tag, u_long entry, u_long  * va, u_long * pa);
 **
 **	Map a pci device to an io port area.
 **
-**	*pa is an "in/out" parameter.
-**	If it's 0 on entry, the function assigns an port number..
-**
 **	Entry selects the register in the pci configuration
 **	space, which supplies the size of the region, and
 **	receives the port number.
 **
-**	If there is any error, a message is written, and
-**	the function returns with zero.
-**	Else it returns with a value different to zero.
+**	In case of success the function sets the port number in pa,
+**	and returns 1.
+**	In case of errors a message is written,
+**	and the function returns 0.
 **
 **-----------------------------------------------------------------
 */
 
-int pci_map_port(pcici_t tag, u_long entry, u_short * pa);
-
+int pci_map_port (pcici_t tag, u_long entry, u_short * pa);
+
 /*-----------------------------------------------------------------
 **
-**	Map a pci interrupt to an isa irq line,
-**	and enable the interrupt.
+**	Map a pci interrupt to an isa irq line, and enable the interrupt.
 **
-**	func is the interrupt handler, arg is the argument
-**	to this function.
+**      -----------------
 **
-**	The maskptr argument should be  &bio_imask,
-**	&net_imask etc. or NULL.
+**      func is the interrupt handler, arg is the argument
+**      to the handler (usually a pointer to a softc).
 **
-**	If there is any error, a message is written, and
-**	the function returns with zero.
-**	Else it returns with a value different to zero.
+**      The maskptr argument should be  &bio_imask,
+**      &net_imask etc. or NULL.
 **
-**	A word of caution for FreeBSD 2.0:
+**      If there is any error, a message is written, and
+**      the function returns with zero.
+**      Else it returns with a value different to zero.
 **
-**	We use the register_intr() function.
+**      -----------------
 **
-**	The interrupt line of the selected device is included
-**	into the supplied mask: after the corresponding splXXX
-**	this drivers interrupts are blocked.
+**	The irq number is read from the configuration space.
+**	(Should have been set by the bios).
 **
-**	But in the interrupt handlers startup code ONLY
-**	the interrupt of the driver is blocked, and NOT
-**	all interrupts of the spl group.
+**	Supports multiple handlers per irq (shared interrupts).
 **
-**	It may be required to additional block the group
-**	interrupts by splXXX() inside the interrupt handler.
+**	-----------------
 **
-**	In pre 2.0 kernels we emulate the register_intr
-**	function. The emulating function blocks all interrupts
-**	of the group in the interrupt handler prefix code.
+**	There is code to support shared edge triggered ints.
+**	This relies on the cooperation of the interrupt handlers:
+**	they have to return a value <>0 if and only if something
+**	was done. Beware of the performance penalty.
 **
 **-----------------------------------------------------------------
 */
 
+struct pci_int_desc {
+	struct pci_int_desc * pcid_next;
+	pcici_t 	      pcid_tag;
+	int		    (*pcid_handler)();
+	void*		      pcid_argument;
+	unsigned *	      pcid_maskptr;
+	unsigned	      pcid_tally;
+	unsigned	      pcid_mask;
+};
+
 int pci_map_int (pcici_t tag, int (*func)(), void* arg, unsigned * maskptr);
+
+int pci_unmap_int (pcici_t tag);
 
 #endif
