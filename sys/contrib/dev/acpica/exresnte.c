@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exresnte - AML Interpreter object resolution
- *              $Revision: 64 $
+ *              $Revision: 65 $
  *
  *****************************************************************************/
 
@@ -182,11 +182,12 @@ AcpiExResolveNodeToValue (
     ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Entry=%p SourceDesc=%p [%s]\n",
          Node, SourceDesc, AcpiUtGetTypeName (EntryType)));
 
-    if (EntryType == ACPI_TYPE_LOCAL_ALIAS)
+    if ((EntryType == ACPI_TYPE_LOCAL_ALIAS) ||
+        (EntryType == ACPI_TYPE_LOCAL_METHOD_ALIAS))
     {
         /* There is always exactly one level of indirection */
 
-        Node       = (ACPI_NAMESPACE_NODE *) Node->Object;
+        Node       = ACPI_CAST_PTR (ACPI_NAMESPACE_NODE, Node->Object);
         SourceDesc = AcpiNsGetAttachedObject (Node);
         EntryType  = AcpiNsGetType ((ACPI_HANDLE) Node);
         *ObjectPtr = Node;

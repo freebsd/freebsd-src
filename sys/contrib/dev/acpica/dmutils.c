@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dmutils - AML disassembler utilities
- *              $Revision: 9 $
+ *              $Revision: 10 $
  *
  ******************************************************************************/
 
@@ -118,12 +118,16 @@
 #include "acpi.h"
 #include "amlcode.h"
 #include "acdisasm.h"
+#include "acnamesp.h"
 
 
 #ifdef ACPI_DISASSEMBLER
 
 #define _COMPONENT          ACPI_CA_DEBUGGER
         ACPI_MODULE_NAME    ("dmutils")
+
+
+ACPI_EXTERNAL_LIST              *AcpiGbl_ExternalList = NULL;
 
 
 /* Data used in keeping track of fields */
@@ -285,6 +289,56 @@ const char                      *AcpiGbl_SIZDecode[4] =
     "Transfer16",
     "InvalidSize"
 };
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmAddToExternalList
+ *
+ * PARAMETERS:  Path            - Internal (AML) path to the object
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Insert a new path into the list of Externals which will in
+ *              turn be emitted as an External() declaration in the disassembled
+ *              output.
+ *
+ ******************************************************************************/
+
+void
+AcpiDmAddToExternalList (
+    char                    *Path)
+{
+    char                    *ExternalPath;
+    ACPI_EXTERNAL_LIST      *NewExternal;
+    ACPI_STATUS             Status;
+
+
+    if (!Path)
+    {
+        return;
+    }
+
+    /* Externalize the ACPI path */
+
+    Status = AcpiNsExternalizeName (ACPI_UINT32_MAX, Path,
+                    NULL, &ExternalPath);
+    if (ACPI_SUCCESS (Status))
+    {
+        /* Allocate and init a new External() descriptor */
+
+        NewExternal = ACPI_MEM_CALLOCATE (sizeof (ACPI_EXTERNAL_LIST));
+        NewExternal->Path = ExternalPath;
+
+        /* Link the new descriptor into the global list */
+
+        if (AcpiGbl_ExternalList)
+        {
+            NewExternal->Next = AcpiGbl_ExternalList;
+        }
+        AcpiGbl_ExternalList = NewExternal;
+    }
+}
 
 
 /*******************************************************************************

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbexec - debugger control method execution
- *              $Revision: 59 $
+ *              $Revision: 60 $
  *
  ******************************************************************************/
 
@@ -484,7 +484,7 @@ AcpiDbMethodThread (
             }
         }
 
-        if ((i % 1000) == 0)
+        if ((i % 100) == 0)
         {
             AcpiOsPrintf ("%d executions\n", i);
         }

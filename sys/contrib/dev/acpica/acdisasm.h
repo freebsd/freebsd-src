@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acdisasm.h - AML disassembler
- *       $Revision: 11 $
+ *       $Revision: 12 $
  *
  *****************************************************************************/
 
@@ -125,6 +125,14 @@
 #define BLOCK_BRACE             2
 #define BLOCK_COMMA_LIST        4
 
+typedef struct acpi_external_list
+{
+    char                        *Path;
+    struct acpi_external_list   *Next;
+
+} ACPI_EXTERNAL_LIST;
+
+extern ACPI_EXTERNAL_LIST       *AcpiGbl_ExternalList;
 extern const char               *AcpiGbl_IoDecode[2];
 extern const char               *AcpiGbl_WordDecode[4];
 extern const char               *AcpiGbl_ConsumeDecode[2];
@@ -472,5 +480,13 @@ AcpiDmVendorSmallDescriptor (
     UINT32                  Length,
     UINT32                  Level);
 
+
+/*
+ * dmutils
+ */
+
+void
+AcpiDmAddToExternalList (
+    char                    *Path);
 
 #endif  /* __ACDISASM_H__ */

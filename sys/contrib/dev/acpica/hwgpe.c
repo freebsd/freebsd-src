@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: hwgpe - Low level GPE enable/disable/clear functions
- *              $Revision: 56 $
+ *              $Revision: 57 $
  *
  *****************************************************************************/
 
@@ -126,9 +126,9 @@
  *
  * FUNCTION:    AcpiHwEnableGpe
  *
- * PARAMETERS:  GpeNumber       - The GPE
+ * PARAMETERS:  GpeEventInfo        - Info block for the GPE to be enabled
  *
- * RETURN:      None
+ * RETURN:      Status
  *
  * DESCRIPTION: Enable a single GPE.
  *
@@ -169,7 +169,7 @@ AcpiHwEnableGpe (
  *
  * FUNCTION:    AcpiHwEnableGpeForWakeup
  *
- * PARAMETERS:  GpeNumber       - The GPE
+ * PARAMETERS:  GpeEventInfo        - Info block for the GPE to be enabled
  *
  * RETURN:      None
  *
@@ -197,9 +197,11 @@ AcpiHwEnableGpeForWakeup (
     }
 
     /*
-     * Set the bit so we will not disable this when sleeping
+     * Set the bit so we will not enable this GPE when sleeping (and disable
+     * it upon wake)
      */
     GpeRegisterInfo->WakeEnable |= GpeEventInfo->BitMask;
+    GpeEventInfo->Flags |= (ACPI_GPE_TYPE_WAKE | ACPI_GPE_ENABLED);
 }
 
 
@@ -207,9 +209,9 @@ AcpiHwEnableGpeForWakeup (
  *
  * FUNCTION:    AcpiHwDisableGpe
  *
- * PARAMETERS:  GpeNumber       - The GPE
+ * PARAMETERS:  GpeEventInfo        - Info block for the GPE to be disabled
  *
- * RETURN:      None
+ * RETURN:      Status
  *
  * DESCRIPTION: Disable a single GPE.
  *
@@ -255,6 +257,8 @@ AcpiHwDisableGpe (
         return (Status);
     }
 
+    /* Make sure this GPE is disabled for wake, also */
+
     AcpiHwDisableGpeForWakeup (GpeEventInfo);
     return (AE_OK);
 }
@@ -264,7 +268,7 @@ AcpiHwDisableGpe (
  *
  * FUNCTION:    AcpiHwDisableGpeForWakeup
  *
- * PARAMETERS:  GpeNumber       - The GPE
+ * PARAMETERS:  GpeEventInfo        - Info block for the GPE to be disabled
  *
  * RETURN:      None
  *
@@ -291,9 +295,8 @@ AcpiHwDisableGpeForWakeup (
         return;
     }
 
-    /*
-     * Clear the bit so we will disable this when sleeping
-     */
+    /* Clear the bit so we will disable this when sleeping */
+
     GpeRegisterInfo->WakeEnable &= ~(GpeEventInfo->BitMask);
 }
 
@@ -302,11 +305,11 @@ AcpiHwDisableGpeForWakeup (
  *
  * FUNCTION:    AcpiHwClearGpe
  *
- * PARAMETERS:  GpeNumber       - The GPE
+ * PARAMETERS:  GpeEventInfo        - Info block for the GPE to be cleared
  *
- * RETURN:      None
+ * RETURN:      StatusStatus
  *
- * DESCRIPTION: Clear a single GPE.
+ * DESCRIPTION: Clear the status bit for a single GPE.
  *
  ******************************************************************************/
 
@@ -335,9 +338,10 @@ AcpiHwClearGpe (
  *
  * FUNCTION:    AcpiHwGetGpeStatus
  *
- * PARAMETERS:  GpeNumber       - The GPE
+ * PARAMETERS:  GpeEventInfo        - Info block for the GPE to queried
+ *              EventStatus         - Where the GPE status is returned
  *
- * RETURN:      None
+ * RETURN:      Status
  *
  * DESCRIPTION: Return the status of a single GPE.
  *
@@ -463,7 +467,7 @@ AcpiHwDisableGpeBlock (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Clear all GPEs within a GPE block
+ * DESCRIPTION: Clear status bits for all GPEs within a GPE block
  *
  ******************************************************************************/
 
@@ -480,7 +484,7 @@ AcpiHwClearGpeBlock (
 
     for (i = 0; i < GpeBlock->RegisterCount; i++)
     {
-        /* Clear all GPEs in this register */
+        /* Clear status on all GPEs in this register */
 
         Status = AcpiHwLowLevelWrite (8, 0xFF,
                     &GpeBlock->RegisterInfo[i].StatusAddress);
@@ -496,19 +500,20 @@ AcpiHwClearGpeBlock (
 
 /******************************************************************************
  *
- * FUNCTION:    AcpiHwDisableNonWakeupGpeBlock
+ * FUNCTION:    AcpiHwPrepareGpeBlockForSleep
  *
  * PARAMETERS:  GpeXruptInfo        - GPE Interrupt info
  *              GpeBlock            - Gpe Block info
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Disable all GPEs except wakeup GPEs in a GPE block
+ * DESCRIPTION: Disable all runtime GPEs and enable all wakeup GPEs -- within
+ *              a single GPE block
  *
  ******************************************************************************/
 
 static ACPI_STATUS
-AcpiHwDisableNonWakeupGpeBlock (
+AcpiHwPrepareGpeBlockForSleep (
     ACPI_GPE_XRUPT_INFO     *GpeXruptInfo,
     ACPI_GPE_BLOCK_INFO     *GpeBlock)
 {
@@ -527,8 +532,11 @@ AcpiHwDisableNonWakeupGpeBlock (
     for (i = 0; i < GpeBlock->RegisterCount; i++)
     {
         /*
-         * Read the enabled status of all GPEs. We
+         * Read the enabled/disabled status of all GPEs. We
          * will be using it to restore all the GPEs later.
+         *
+         * NOTE:  Wake GPEs are are ALL disabled at this time, so when we wake
+         * and restore this register, they will be automatically disabled.
          */
         Status = AcpiHwLowLevelRead (8, &InValue,
                     &GpeRegisterInfo->EnableAddress);
@@ -540,7 +548,8 @@ AcpiHwDisableNonWakeupGpeBlock (
         GpeRegisterInfo->Enable = (UINT8) InValue;
 
         /*
-         * Disable all GPEs except wakeup GPEs.
+         * 1) Disable all runtime GPEs 
+         * 2) Enable all wakeup GPEs
          */
         Status = AcpiHwLowLevelWrite (8, GpeRegisterInfo->WakeEnable,
                 &GpeRegisterInfo->EnableAddress);
@@ -548,6 +557,8 @@ AcpiHwDisableNonWakeupGpeBlock (
         {
             return (Status);
         }
+
+        /* Point to next GPE register */
 
         GpeRegisterInfo++;
     }
@@ -558,22 +569,22 @@ AcpiHwDisableNonWakeupGpeBlock (
 
 /******************************************************************************
  *
- * FUNCTION:    AcpiHwDisableNonWakeupGpes
+ * FUNCTION:    AcpiHwPrepareGpesForSleep
  *
  * PARAMETERS:  None
  *
- * RETURN:      None
+ * RETURN:      Status
  *
- * DESCRIPTION: Disable all non-wakeup GPEs
+ * DESCRIPTION: Disable all runtime GPEs, enable all wake GPEs.
  *              Called with interrupts disabled. The interrupt handler also
  *              modifies GpeRegisterInfo->Enable, so it should not be
- *              given the chance to run until after non-wake GPEs are
+ *              given the chance to run until after the runtime GPEs are
  *              re-enabled.
  *
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiHwDisableNonWakeupGpes (
+AcpiHwPrepareGpesForSleep (
     void)
 {
     ACPI_STATUS             Status;
@@ -582,27 +593,27 @@ AcpiHwDisableNonWakeupGpes (
     ACPI_FUNCTION_ENTRY ();
 
 
-    Status = AcpiEvWalkGpeList (AcpiHwDisableNonWakeupGpeBlock);
-
+    Status = AcpiEvWalkGpeList (AcpiHwPrepareGpeBlockForSleep);
     return (Status);
 }
 
 
 /******************************************************************************
  *
- * FUNCTION:    AcpiHwEnableNonWakeupGpeBlock
+ * FUNCTION:    AcpiHwRestoreGpeBlockOnWake
  *
  * PARAMETERS:  GpeXruptInfo        - GPE Interrupt info
  *              GpeBlock            - Gpe Block info
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Enable a single GPE.
+ * DESCRIPTION: Enable all runtime GPEs and disable all wake GPEs -- in one
+ *              GPE block
  *
  ******************************************************************************/
 
 static ACPI_STATUS
-AcpiHwEnableNonWakeupGpeBlock (
+AcpiHwRestoreGpeBlockOnWake (
     ACPI_GPE_XRUPT_INFO     *GpeXruptInfo,
     ACPI_GPE_BLOCK_INFO     *GpeBlock)
 {
@@ -631,8 +642,12 @@ AcpiHwEnableNonWakeupGpeBlock (
         }
 
         /*
-         * We previously stored the enabled status of all GPEs.
-         * Blast them back in.
+         * Restore the GPE Enable register, which will do the following:
+         *
+         * 1) Disable all wakeup GPEs 
+         * 2) Enable all runtime GPEs
+         *
+         *  (On sleep, we saved the enabled status of all GPEs)
          */
         Status = AcpiHwLowLevelWrite (8, GpeRegisterInfo->Enable,
                     &GpeRegisterInfo->EnableAddress);
@@ -641,9 +656,10 @@ AcpiHwEnableNonWakeupGpeBlock (
             return (Status);
         }
 
+        /* Point to next GPE register */
+
         GpeRegisterInfo++;
     }
-
 
     return (AE_OK);
 }
@@ -651,18 +667,19 @@ AcpiHwEnableNonWakeupGpeBlock (
 
 /******************************************************************************
  *
- * FUNCTION:    AcpiHwEnableNonWakeupGpes
+ * FUNCTION:    AcpiHwRestoreGpesOnWake
  *
  * PARAMETERS:  None
  *
- * RETURN:      None
+ * RETURN:      Status
  *
- * DESCRIPTION: Enable all non-wakeup GPEs we previously enabled.
+ * DESCRIPTION: Enable all runtime GPEs and disable all wake GPEs -- in all 
+ *              GPE blocks
  *
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiHwEnableNonWakeupGpes (
+AcpiHwRestoreGpesOnWake (
     void)
 {
     ACPI_STATUS             Status;
@@ -671,7 +688,6 @@ AcpiHwEnableNonWakeupGpes (
     ACPI_FUNCTION_ENTRY ();
 
 
-    Status = AcpiEvWalkGpeList (AcpiHwEnableNonWakeupGpeBlock);
-
+    Status = AcpiEvWalkGpeList (AcpiHwRestoreGpeBlockOnWake);
     return (Status);
 }
