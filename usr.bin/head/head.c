@@ -41,9 +41,10 @@ static const char copyright[] =
 #if 0
 static char sccsid[] = "@(#)head.c	8.2 (Berkeley) 5/4/95";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 
@@ -66,9 +67,7 @@ static void obsolete(char *[]);
 static void usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	int ch;
 	FILE *fp;
@@ -126,9 +125,7 @@ main(argc, argv)
 }
 
 static void
-head(fp, cnt)
-	FILE *fp;
-	int cnt;
+head(FILE *fp, int cnt)
 {
 	char *cp;
 	size_t error, readlen;
@@ -142,9 +139,7 @@ head(fp, cnt)
 }
 
 static void
-head_bytes(fp, cnt)
-	FILE *fp;
-	size_t cnt;
+head_bytes(FILE *fp, size_t cnt)
 {
 	char buf[4096];
 	size_t readlen;
@@ -164,8 +159,7 @@ head_bytes(fp, cnt)
 }
 
 static void
-obsolete(argv)
-	char *argv[];
+obsolete(char *argv[])
 {
 	char *ap;
 
@@ -183,7 +177,7 @@ obsolete(argv)
 }
 
 static void
-usage()
+usage(void)
 {
 
 	(void)fprintf(stderr, "usage: head [-n lines | -c bytes] [file ...]\n");
