@@ -496,8 +496,6 @@ _mtx_try_enter(mtx_t *mtxp, int type, const char *file, int line)
 	return rval;
 }
 
-#define	mtx_legal2block()	(read_eflags() & 0x200)
-
 /*
  * Release lock m
  */
