@@ -381,6 +381,7 @@ ptrace(curp, uap)
 		if (p->p_stat == SSTOP) {
 			p->p_xstat = uap->data;
 			setrunnable(p);
+			psignal(p, SIGCONT);
 			mtx_exit(&sched_lock, MTX_SPIN);
 		} else {
 			mtx_exit(&sched_lock, MTX_SPIN);
