@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC98,v 1.72 1999/04/20 09:06:03 kato Exp $
+#	$Id: GENERIC98,v 1.73 1999/04/25 04:03:22 kato Exp $
 
 # GENERIC98 -- Generic PC98 machine with WD/SCSI disks
 
@@ -69,13 +69,13 @@ controller	isa0	at nexus?
 controller	pnp0			# PnP support for ISA
 controller	pci0	at nexus?
 
-controller	fdc0	at isa? port IO_FD1 bio irq 11 drq 2
+controller	fdc0	at isa? port IO_FD1 irq 11 drq 2
 disk		fd0	at fdc0 drive 0
 disk		fd1	at fdc0 drive 1
 disk		fd2	at fdc0 drive 2
 disk		fd3	at fdc0 drive 3
 
-controller	wdc0	at isa? port IO_WD1 bio irq 9
+controller	wdc0	at isa? port IO_WD1 irq 9
 disk		wd0	at wdc0 drive 0
 #disk		wd1	at wdc0 drive 1
 #disk		wd2	at wdc0 drive 2
@@ -98,17 +98,17 @@ controller	adv0
 options	BS_TARG_SAFEMODE
 
 # PC-9801-92
-controller bs0 at isa? port IO_SCSI bio irq 5 drq 3 flags 0
+controller bs0 at isa? port IO_SCSI irq 5 drq 3 flags 0
 # SC-98
-# controller bs0 at isa? port IO_SCSI bio irq 5 drq 3 flags 0x10000
+# controller bs0 at isa? port IO_SCSI irq 5 drq 3 flags 0x10000
 # HA-55BS2 and later
-#controller bs0 at isa? port IO_SCSI bio irq 5 drq 3 flags 0x20000
+#controller bs0 at isa? port IO_SCSI irq 5 drq 3 flags 0x20000
 # ELECOM type
-#controller bs0 at isa? port IO_SCSI bio irq 5 drq 3 flags 0x30000
+#controller bs0 at isa? port IO_SCSI irq 5 drq 3 flags 0x30000
 # SMIT
-#controller bs0 at isa? port IO_SCSI bio irq 5 drq 3 iomem 0xdd000 iosiz 0x1000 flags 0x40000
+#controller bs0 at isa? port IO_SCSI irq 5 drq 3 iomem 0xdd000 iosiz 0x1000 flags 0x40000
 # Logitec LHA-20x
-#controller bs0 at isa? port IO_SCSI bio irq 5 drq 3 flags 0x50000
+#controller bs0 at isa? port IO_SCSI irq 5 drq 3 flags 0x50000
 
 controller	scbus0
 
@@ -120,10 +120,10 @@ device		pass0
 
 device		cd0	#Only need one of these, the code dynamically grows
 
-controller	matcd0	at isa? port? bio
+controller	matcd0	at isa? port?
 
 # keyboard driver
-device		pckbd0	at isa? port IO_KBD tty irq 1
+device		pckbd0	at isa? port IO_KBD irq 1
 #options	KBD_INSTALL_CDEV
 
 device		gdc0	at isa?
@@ -131,7 +131,7 @@ device		gdc0	at isa?
 # splash screen/screen saver
 pseudo-device	splash
 
-device		sc0	at isa? tty
+device		sc0	at isa?
 
 device		npx0	at nexus? port IO_NPX irq 8
 
@@ -149,32 +149,32 @@ device		apm0    at nexus? disable flags 0x31 # Advanced Power Management
 # Serial Interface
 #
 # COM1
-device		sio0	at isa? port IO_COM1 tty irq 4
+device		sio0	at isa? port IO_COM1 irq 4
 # COM2 (2nd CCU)
-device		sio1	at isa? port 0x238 tty irq 5 flags 0x12000000
+device		sio1	at isa? port 0x238 irq 5 flags 0x12000000
 # PC-9861K, PC-9801-101, MDC-926Rs
-#device		sio1	at isa? port IO_COM2 tty irq 5 flags 0x01000000
-#device		sio2	at isa? port IO_COM3 tty irq 6 flags 0x02000000
+#device		sio1	at isa? port IO_COM2 irq 5 flags 0x01000000
+#device		sio2	at isa? port IO_COM3 irq 6 flags 0x02000000
 # PC-9801-120 (PnP off)
-#device		sio1	at isa? port 0x8b0 tty irq 5 flags 0x11000000
+#device		sio1	at isa? port 0x8b0 irq 5 flags 0x11000000
 # MC-16550II, MC-RS98
-#device		sio1	at isa? port 0xd2 tty irq 5 flags 0x14000101
-#device		sio2	at isa? port 0x8d2 tty flags 0x14000101
+#device		sio1	at isa? port 0xd2 irq 5 flags 0x14000101
+#device		sio2	at isa? port 0x8d2 flags 0x14000101
 # RSB-2000, RSB-3000, B98-02
-#device		sio1	at isa? port 0xb0 tty flags 0x15000101
-#device		sio2	at isa? port 0xb1 tty flags 0x15000101
+#device		sio1	at isa? port 0xb0 flags 0x15000101
+#device		sio2	at isa? port 0xb1 flags 0x15000101
 # RSB-384
-#device		sio1	at isa? port 0xb0 tty flags 0x16000000
-#device		sio2	at isa? port 0xb1 tty flags 0x16000000
+#device		sio1	at isa? port 0xb0 flags 0x16000000
+#device		sio2	at isa? port 0xb1 flags 0x16000000
 # RSA-98III
-#device		sio1	at isa? port 0x50e0 tty irq 5 flags 0x18000101
-#device		sio2	at isa? port 0x51e0 tty flags 0x18000101
+#device		sio1	at isa? port 0x50e0 irq 5 flags 0x18000101
+#device		sio2	at isa? port 0x51e0 flags 0x18000101
 # ESP98
 #options	COM_ESP
-#device		sio1	at isa? port 0x18b0 tty irq 5 flags 0x19000000
+#device		sio1	at isa? port 0x18b0 irq 5 flags 0x19000000
 
-#device		lpt0	at isa? port IO_LPT  tty
-device		mse0	at isa? port IO_MSE tty irq 13
+#device		lpt0	at isa? port IO_LPT
+device		mse0	at isa? port IO_MSE irq 13
 
 #
 # The following Ethernet NICs are all PCI devices.
@@ -210,21 +210,21 @@ device xl0		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 #
 # FE_8BIT_SUPPORT is needed to support LAC-98
 #
-device ed0 at isa? port 0x00d0 net irq 6
-device ed5 at isa? port 0x00d0 net irq 6 iomem 0xd0000 iosiz 16384 flags 0x600000
-device ed1 at isa? port 0x00d8 net irq 6 flags 0x200000
-device ed3 at isa? port 0x00d0 net irq 6 flags 0x400000
-device ed4 at isa? port 0x56d0 net irq 5 flags 0x500000
-device ed2 at isa? port 0x00d8 net irq 6 flags 0x300000
-device ed7 at isa? port 0x00d0 net irq 6 flags 0x900000
-device ed6 at isa? port 0x0770 net irq 6 flags 0x800000
-device ed9 at isa? port 0x03d0 net irq 6 flags 0xb00000
-device ed8 at isa? port 0xa3d0 net irq 6 iomem 0xd0000 iosiz 16384 flags 0xa00000
-device ep0 at isa? port 0x40d0 net irq 3
-device fe0 at isa? port 0x00d0 net irq 3
-device fe1 at isa? port 0x73d0 net irq 5
-device lnc0 at isa? port 0x03d0 net irq 6
-#device zp0 at isa? port 0x00d0 net irq 10 iomem 0xe0000
+device ed0 at isa? port 0x00d0 irq 6
+device ed5 at isa? port 0x00d0 irq 6 iomem 0xd0000 iosiz 16384 flags 0x600000
+device ed1 at isa? port 0x00d8 irq 6 flags 0x200000
+device ed3 at isa? port 0x00d0 irq 6 flags 0x400000
+device ed4 at isa? port 0x56d0 irq 5 flags 0x500000
+device ed2 at isa? port 0x00d8 irq 6 flags 0x300000
+device ed7 at isa? port 0x00d0 irq 6 flags 0x900000
+device ed6 at isa? port 0x0770 irq 6 flags 0x800000
+device ed9 at isa? port 0x03d0 irq 6 flags 0xb00000
+device ed8 at isa? port 0xa3d0 irq 6 iomem 0xd0000 iosiz 16384 flags 0xa00000
+device ep0 at isa? port 0x40d0 irq 3
+device fe0 at isa? port 0x00d0 irq 3
+device fe1 at isa? port 0x73d0 irq 5
+device lnc0 at isa? port 0x03d0 irq 6
+#device zp0 at isa? port 0x00d0 irq 10 iomem 0xe0000
 
 options FE_8BIT_SUPPORT		# LAC-98 support
 
