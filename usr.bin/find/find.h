@@ -37,14 +37,16 @@
  *	$FreeBSD$
  */
 
+#include <regex.h>
+
 /* node type */
 enum ntype {
 	N_AND = 1, 				/* must start > 0 */
 	N_AMIN, N_ATIME, N_CLOSEPAREN, N_CMIN, N_CTIME, N_DEPTH, 
 	N_EMPTY, N_EXEC, N_EXECDIR, N_EXPR, N_FLAGS,
 	N_FOLLOW, N_FSTYPE, N_GROUP, N_INUM, N_LINKS, N_LS, N_MMIN, 
-	N_MTIME, N_NAME,
-	N_NEWER, N_NOGROUP, N_NOT, N_NOUSER, N_OK, N_OPENPAREN, N_OR, N_PATH,
+	N_MTIME, N_NAME, N_INAME, N_PATH, N_IPATH, N_REGEX, N_IREGEX,
+	N_NEWER, N_NOGROUP, N_NOT, N_NOUSER, N_OK, N_OPENPAREN, N_OR,
 	N_PERM, N_PRINT, N_PRUNE, N_SIZE, N_TYPE, N_USER, N_XDEV,
 	N_PRINT0, N_DELETE, N_MAXDEPTH, N_MINDEPTH
 };
@@ -85,6 +87,7 @@ typedef struct _plandata {
 		} ex;
 		char *_a_data[2];		/* array of char pointers */
 		char *_c_data;			/* char pointer */
+		regex_t *_re_data;		/* regex */
 	} p_un;
 } PLAN;
 #define	a_data	p_un._a_data
@@ -100,6 +103,7 @@ typedef struct _plandata {
 #define	p_data	p_un._p_data
 #define	t_data	p_un._t_data
 #define	u_data	p_un._u_data
+#define	re_data	p_un._re_data
 #define	e_argv	p_un.ex._e_argv
 #define	e_orig	p_un.ex._e_orig
 #define	e_len	p_un.ex._e_len
