@@ -1235,7 +1235,7 @@ static driver_t cardbus_driver = {
 
 static devclass_t cardbus_devclass;
 
-DRIVER_MODULE(cardbus, pccbb, cardbus_driver, cardbus_devclass, 0, 0);
+DRIVER_MODULE(cardbus, cbb, cardbus_driver, cardbus_devclass, 0, 0);
 MODULE_VERSION(cardbus, 1);
 MODULE_DEPEND(cardbus, exca, 1, 1, 1);
 /*

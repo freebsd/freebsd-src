@@ -1275,9 +1275,10 @@ static driver_t pccard_driver = {
 
 devclass_t	pccard_devclass;
 
+/* Maybe we need to have a slot device? */
 DRIVER_MODULE(pccard, pcic, pccard_driver, pccard_devclass, 0, 0);
 DRIVER_MODULE(pccard, pc98pcic, pccard_driver, pccard_devclass, 0, 0);
-DRIVER_MODULE(pccard, pccbb, pccard_driver, pccard_devclass, 0, 0);
+DRIVER_MODULE(pccard, cbb, pccard_driver, pccard_devclass, 0, 0);
 DRIVER_MODULE(pccard, tcic, pccard_driver, pccard_devclass, 0, 0);
 MODULE_VERSION(pccard, 1);
 /*MODULE_DEPEND(pccard, pcic, 1, 1, 1);*/
