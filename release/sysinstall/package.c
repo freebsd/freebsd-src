@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.38 1996/05/27 22:12:05 jkh Exp $
+ * $Id: package.c,v 1.39 1996/06/25 04:28:23 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -110,7 +110,10 @@ package_extract(Device *dev, char *name, Boolean depended)
 	variable_set2("PKG_TMPDIR", "/usr/tmp");
     }
 
-    sprintf(path, "packages/All/%s%s", name, strstr(name, ".tgz") ? "" : ".tgz");
+    if (!index(name, '/'))
+	sprintf(path, "packages/All/%s%s", name, strstr(name, ".tgz") ? "" : ".tgz");
+    else
+	sprintf(path, "%s%s", name, strstr(name, ".tgz") ? "" : ".tgz");
     fd = dev->get(dev, path, TRUE);
     if (fd >= 0) {
 	int i, tot, pfd[2];

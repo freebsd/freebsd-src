@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.72 1996/06/26 09:09:30 jkh Exp $
+ * $Id: menus.c,v 1.73 1996/06/27 07:03:44 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -1037,6 +1037,8 @@ aspects of your system's network configuration.",
     dmenuVarCheck, dmenuToggleVariable, NULL, "gateway=YES" },
   { "Gated",		"This machine wants to run gated instead of routed",
     dmenuVarCheck, configGated, NULL, "gated" },
+  { "Novell",		"Install the Novell client/server demo package",
+    dmenuVarCheck, configNovell, NULL, "novell" },
   { "Ntpdate",		"Select a clock-syncronization server",
     dmenuVarCheck, dmenuSubmenu, NULL, &MenuNTP, '[', 'X', ']', (int)"ntpdate" },
   { "Routed",		"Set flags for routed (default: -q)",
