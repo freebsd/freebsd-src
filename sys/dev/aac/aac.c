@@ -1002,8 +1002,6 @@ aac_bio_command(struct aac_softc *sc, struct aac_command **cmp)
 	return(0);
 
 fail:
-	if (bp != NULL)
-		aac_enqueue_bio(sc, bp);
 	if (cm != NULL)
 		aac_release_command(cm);
 	return(ENOMEM);
