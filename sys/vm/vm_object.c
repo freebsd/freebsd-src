@@ -1674,22 +1674,22 @@ vm_object_collapse(vm_object_t object)
  *	The object must be locked.
  */
 void
-vm_object_page_remove(vm_object_t object, vm_pindex_t start, vm_pindex_t end, boolean_t clean_only)
+vm_object_page_remove(vm_object_t object, vm_pindex_t start, vm_pindex_t end,
+    boolean_t clean_only)
 {
 	vm_page_t p, next;
-	int all;
 
-	if (object == NULL ||
-	    object->resident_page_count == 0)
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	if (object->resident_page_count == 0)
 		return;
-	all = ((end == 0) && (start == 0));
 
 	/*
 	 * Since physically-backed objects do not use managed pages, we can't
 	 * remove pages from the object (we must instead remove the page
 	 * references, and then destroy the object).
 	 */
-	KASSERT(object->type != OBJT_PHYS, ("attempt to remove pages from a physical object"));
+	KASSERT(object->type != OBJT_PHYS,
+	    ("attempt to remove pages from a physical object"));
 
 	vm_object_pip_add(object, 1);
 again:
@@ -1707,7 +1707,7 @@ again:
 	 * or (2) NULL.
 	 */
 	for (;
-	     p != NULL && (all || p->pindex < end);
+	     p != NULL && p->pindex < end;
 	     p = next) {
 		next = TAILQ_NEXT(p, listq);
 
