@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.53 1996/04/28 00:37:36 jkh Exp $
+ * $Id: sysinstall.h,v 1.54 1996/04/28 01:07:26 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -264,6 +264,7 @@ typedef struct _devPriv {
 
 /*** Externs ***/
 extern int		DebugFD;		/* Where diagnostic output goes			*/
+extern Boolean		Fake;			/* Don't actually modify anything - testing	*/
 extern Boolean		SystemWasInstalled;	/* Did we install it?				*/
 extern Boolean		RunningAsInit;		/* Are we running stand-alone?			*/
 extern Boolean		DialogActive;		/* Is the dialog() stuff up?			*/
