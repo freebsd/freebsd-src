@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: machdep.c,v 1.6 1998/07/12 16:10:52 dfr Exp $
+ *	$Id: machdep.c,v 1.7 1998/07/15 20:16:26 dfr Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -1595,6 +1595,7 @@ ptrace_single_step(struct proc *p)
 		addr[0] = pc + 4;
 		addr[1] = pc + 4 + 4 * ins.branch_format.displacement;
 		count = 2;
+		break;
 
 	default:
 		addr[0] = pc + 4;
