@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\" "
-.Dd April 1, 1996
+.Dd February 24, 2005
 .Os
 .Dt CLOCKS 7
 .Sh NAME
@@ -148,6 +148,13 @@ It can be accessed using the
 .Dv PMIOTSTAMP
 request of
 .Xr perfmon 4 .
+.It
+The ACPI clock.
+This is a real clock/timer with a nominal frequency of 3579545.
+It is accessed via a 24 or 32 bit register.
+Unlike the TSC clock, it maintains a constant tick rate even when the CPU
+sleeps or its clock rate changes.
+It is not available to applications.
 .El
 .Pp
 Summary: if
