@@ -1,5 +1,6 @@
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* def.wseg.h - version 1.0.2 */
+/* $FreeBSD$ */
 
 #ifndef NOWORM
 /* worm structure */
@@ -10,4 +11,4 @@ struct wseg {
 };
 
 #define newseg()	(struct wseg *) alloc(sizeof(struct wseg))
-#endif NOWORM
+#endif /* NOWORM */

@@ -261,7 +261,7 @@ struct monst *mtmp;
 #ifndef NOWORM
 	if(mtmp->wormno)
 		goto not_special;
-#endif NOWORM
+#endif /* NOWORM */
 
 	/* my dog gets a special treatment */
 	if(mtmp->mtame) {
@@ -398,7 +398,7 @@ not_special:
 		}
 #else
 		nearer = (DIST(nx,ny,gx,gy) < DIST(nix,niy,gx,gy));
-#endif STUPID
+#endif /* STUPID */
 		if((appr == 1 && nearer) || (appr == -1 && !nearer) ||
 			!mmoved ||
 			(!appr && !rn2(++chcnt))){
@@ -427,7 +427,7 @@ not_special:
 		mtmp->mtrack[0].y = omy;
 #ifndef NOWORM
 		if(mtmp->wormno) worm_move(mtmp);
-#endif NOWORM
+#endif /* NOWORM */
 	} else {
 		if(msym == 'u' && rn2(2)){
 			rloc(mtmp);
@@ -435,7 +435,7 @@ not_special:
 		}
 #ifndef NOWORM
 		if(mtmp->wormno) worm_nomove(mtmp);
-#endif NOWORM
+#endif /* NOWORM */
 	}
 postmov:
 	if(mmoved == 1) {
@@ -592,7 +592,7 @@ struct monst *mtmp;
 	if(mtmp->isgd) gddead();
 #ifndef NOWORM
 	if(mtmp->wormno) wormdead(mtmp);
-#endif NOWORM
+#endif /* NOWORM */
 	monfree(mtmp);
 }
 
@@ -658,7 +658,7 @@ struct monst *mtmp;
 {
 #ifdef lint
 #define	NEW_SCORING
-#endif lint
+#endif /* lint */
 	int tmp,tmp2,nk,x,y;
 	struct permonst *mdat;
 	extern long newuexp();
@@ -720,7 +720,7 @@ struct monst *mtmp;
 	}
 	/* note: ul is not necessarily the future value of u.ulevel */
 	/* ------- end of recent valuation change ------- */
-#endif NEW_SCORING
+#endif /* NEW_SCORING */
 
 	more_experienced(tmp,0);
 	flags.botl = 1;
@@ -748,7 +748,7 @@ struct monst *mtmp;
 		mksobj_at(WORM_TOOTH, x, y);
 		stackobj(fobj);
 	} else
-#endif	NOWORM
+#endif	/* NOWORM */
 	if(!letter(tmp) || (!index("mw", tmp) && !rn2(3))) tmp = 0;
 
 	if(ACCESSIBLE(levl[x][y].typ))	/* might be mimic in wall or dead eel*/
@@ -791,7 +791,7 @@ struct permonst *mdat;
 	if(mdat == mtmp->data) return(0);	/* still the same monster */
 #ifndef NOWORM
 	if(mtmp->wormno) wormdead(mtmp);	/* throw tail away */
-#endif NOWORM
+#endif /* NOWORM */
 	if (u.ustuck == mtmp) {
 		if (u.uswallow) {
 			u.uswallow = 0;
@@ -815,7 +815,7 @@ struct permonst *mdat;
 #ifndef NOWORM
 	if(mdat->mlet == 'w' && getwn(mtmp)) initworm(mtmp);
 			/* perhaps we should clear mtmp->mtame here? */
-#endif NOWORM
+#endif /* NOWORM */
 	unpmon(mtmp);	/* necessary for 'I' and to force pmon */
 	pmon(mtmp);
 	return(1);

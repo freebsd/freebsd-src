@@ -110,7 +110,7 @@ readnews() {
 	set_whole_screen();
 	return(ret);		/* report whether we did docrt() */
 }
-#endif NEWS
+#endif /* NEWS */
 
 set_pager(mode)
 int mode;	/* 0: open  1: wait+close  2: close */
@@ -320,7 +320,7 @@ boolean silent;
 	}
 	(void) close(fd);
       }
-#else DEF_PAGER
+#else /* DEF_PAGER */
       {
 	FILE *f;			/* free after Robert Viduya */
 
@@ -333,7 +333,7 @@ boolean silent;
 	}
 	page_more(f, 0);
       }
-#endif DEF_PAGER
+#endif /* DEF_PAGER */
 
 	return(1);
 }
@@ -352,7 +352,7 @@ char *str;
 	}
 	return(0);
 }
-#endif SHELL
+#endif /* SHELL */
 
 #ifdef NOWAITINCLUDE
 union wait {		/* used only for the cast  (union wait *) 0  */
@@ -370,8 +370,8 @@ union wait {		/* used only for the cast  (union wait *) 0  */
 #include	<sys/wait.h>
 #else
 #include	<wait.h>
-#endif BSD
-#endif NOWAITINCLUDE
+#endif /* BSD */
+#endif /* NOWAITINCLUDE */
 
 child(wt) {
 	int status;
@@ -384,7 +384,7 @@ child(wt) {
 		setgid(getgid());
 #ifdef CHDIR
 		(void) chdir(getenv("HOME"));
-#endif CHDIR
+#endif /* CHDIR */
 		return(1);
 	}
 	if(f == -1) {	/* cannot fork */
@@ -400,9 +400,9 @@ child(wt) {
 	(void) signal(SIGINT,done1);
 #ifdef WIZARD
 	if(wizard) (void) signal(SIGQUIT,SIG_DFL);
-#endif WIZARD
+#endif /* WIZARD */
 	if(wt) getret();
 	docrt();
 	return(0);
 }
-#endif UNIX
+#endif /* UNIX */
