@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_linker.c,v 1.7 1998/08/12 08:44:21 dfr Exp $
+ *	$Id: kern_linker.c,v 1.8 1998/10/10 00:07:53 peter Exp $
  */
 
 #include "opt_ddb.h"
@@ -685,6 +685,7 @@ linker_preload(void* arg)
 {
     caddr_t		modptr;
     char		*modname;
+    char		*modtype;
     linker_file_t	lf;
     linker_class_t	lc;
     int			error;
@@ -692,15 +693,19 @@ linker_preload(void* arg)
     struct sysinit	**sipp;
     moduledata_t	*moddata;
 
-
     modptr = NULL;
     while ((modptr = preload_search_next_name(modptr)) != NULL) {
 	modname = (char *)preload_search_info(modptr, MODINFO_NAME);
+	modtype = (char *)preload_search_info(modptr, MODINFO_TYPE);
 	if (modname == NULL) {
 	    printf("Preloaded module at 0x%p does not have a name!\n", modptr);
 	    continue;
 	}
-	printf("Preloaded module %s at 0x%p.\n", modname, modptr);
+	if (modtype == NULL) {
+	    printf("Preloaded module at 0x%p does not have a type!\n", modptr);
+	    continue;
+	}
+	printf("Preloaded %s \"%s\" at 0x%p.\n", modtype, modname, modptr);
 	lf = linker_find_file_by_name(modname);
 	if (lf) {
 	    lf->userrefs++;
