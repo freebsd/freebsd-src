@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: asnames.h,v 1.24 1998/08/16 04:18:58 jdp Exp $
+ * $Id: asnames.h,v 1.25 1998/09/19 17:16:48 jdp Exp $
  */
 
 #ifndef _MACHINE_ASNAMES_H_
@@ -156,7 +156,9 @@
 #define _apm_addr			apm_addr
 #define _apm_bios_call			apm_bios_call
 #define _apm_cs16_base			apm_cs16_base
+#define _apm_cs16_limit			apm_cs16_limit
 #define _apm_cs32_base			apm_cs32_base
+#define _apm_cs32_limit			apm_cs32_limit
 #define _apm_cs_entry			apm_cs_entry
 #define _apm_cs_limit			apm_cs_limit
 #define _apm_current_gdt_pdesc		apm_current_gdt_pdesc
