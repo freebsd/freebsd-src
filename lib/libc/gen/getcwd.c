@@ -154,6 +154,7 @@ getcwd(pt, size)
 
 		/* Add trailing slash for next directory. */
 		*bup++ = '/';
+		*bup = '\0';
 
 		/*
 		 * If it's a mount point, have to stat each element because
