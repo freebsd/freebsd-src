@@ -90,6 +90,7 @@ auth_encrypt_user(char *name)
 	UserNameRequested = name ? strdup(name) : 0;
 }
 
+/* ARGSUSED */
 void
 auth_encrypt_connect(int cnt __unused)
 {
