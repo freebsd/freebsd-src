@@ -395,8 +395,12 @@ devfs_getattr(ap)
 	struct cdev *dev;
 
 	de = vp->v_data;
-	if (vp->v_type == VDIR)
+	KASSERT(de != NULL, ("Null dirent in devfs_getattr vp=%p", vp));
+	if (vp->v_type == VDIR) {
 		de = de->de_dir;
+		KASSERT(de != NULL,
+		    ("Null dir dirent in devfs_getattr vp=%p", vp));
+	}
 	bzero((caddr_t) vap, sizeof(*vap));
 	vattr_null(vap);
 	vap->va_uid = de->de_uid;
