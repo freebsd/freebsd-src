@@ -1,6 +1,6 @@
-static char     nic38_id[] = "@(#)$Id: nic3008.c,v 1.5 1995/05/11 19:25:55 rgrimes Exp $";
+static char     nic38_id[] = "@(#)$Id: nic3008.c,v 1.6 1995/05/30 07:57:57 rgrimes Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.5 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.6 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,9 @@ static char     nic38_id[] = "@(#)$Id: nic3008.c,v 1.5 1995/05/11 19:25:55 rgrim
  *
  *******************************************************************************
  * $Log: nic3008.c,v $
+ * Revision 1.6  1995/05/30  07:57:57  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.5  1995/05/11  19:25:55  rgrimes
  * Fix -Wformat warnings from LINT kernel.
  *
@@ -548,7 +551,7 @@ reset_card(struct nic_softc * sc)
  * We forbid all but first open
  */
 int
-nicopen(dev_t dev, int flag)
+nicopen(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	struct nic_softc *sc;
 	u_char          unit;
@@ -579,7 +582,7 @@ nicopen(dev_t dev, int flag)
  * nicclose() Close device
  */
 int
-nicclose(dev_t dev, int flag)
+nicclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	struct nic_softc *sc = &nic_sc[minor(dev)];
 
@@ -588,7 +591,7 @@ nicclose(dev_t dev, int flag)
 }
 
 int
-nicioctl(dev_t dev, int cmd, caddr_t data, int flag)
+nicioctl(dev_t dev, int cmd, caddr_t data, int flags, struct proc *p)
 {
 	int             error;
 	u_char          unit;

@@ -383,9 +383,10 @@ int twclose(dev, flag, mode, p)
   return(0);
 }
 
-int twread(dev, uio)
+int twread(dev, uio, ioflag)
      dev_t dev;
      struct uio *uio;
+     int ioflag;
 {
   u_char buf[3];
   struct tw_sc *sc = &tw_sc[TWUNIT(dev)];
@@ -400,9 +401,10 @@ int twread(dev, uio)
   return(error);
 }
 
-int twwrite(dev, uio)
+int twwrite(dev, uio, ioflag)
      dev_t dev;
      struct uio *uio;
+     int ioflag;
 {
   struct tw_sc *sc;
   int house, key, reps;
