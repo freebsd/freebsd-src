@@ -43,21 +43,8 @@
 /*
  * This structure is used for the management of descriptors.  It may be
  * shared by multiple processes.
- *
- * A process is initially started out with NDFILE descriptors stored within
- * this structure, selected to be enough for typical applications based on
- * the historical limit of 20 open files (and the usage of descriptors by
- * shells).  If these descriptors are exhausted, a larger descriptor table
- * may be allocated, up to a process' resource limit; the internal arrays
- * are then unused.
  */
-#define NDFILE		20
 #define NDSLOTTYPE	u_long
-#define NDSLOTSIZE	sizeof(NDSLOTTYPE)
-#define	NDENTRIES	(NDSLOTSIZE * __CHAR_BIT)
-#define NDSLOT(x)	((x) / NDENTRIES)
-#define NDBIT(x)	((NDSLOTTYPE)1 << ((x) % NDENTRIES))
-#define	NDSLOTS(x)	(((x) + NDENTRIES - 1) / NDENTRIES)
 
 struct filedesc {
 	struct	file **fd_ofiles;	/* file structures for open files */
@@ -78,20 +65,6 @@ struct filedesc {
 	int	fd_holdleaderswakeup;	/* fdfree() needs wakeup */
 };
 
-/*
- * Basic allocation of descriptors:
- * one of the above, plus arrays for NDFILE descriptors.
- */
-struct filedesc0 {
-	struct	filedesc fd_fd;
-	/*
-	 * These arrays are used when the number of open files is
-	 * <= NDFILE, and are then pointed to by the pointers above.
-	 */
-	struct	file *fd_dfiles[NDFILE];
-	char	fd_dfileflags[NDFILE];
-	NDSLOTTYPE fd_dmap[NDSLOTS(NDFILE)];
-};
 
 /*
  * Structure to keep track of (process leader, struct fildedesc) tuples.
@@ -116,11 +89,6 @@ struct filedesc_to_leader {
  * Per-process open flags.
  */
 #define	UF_EXCLOSE 	0x01		/* auto-close on exec */
-
-/*
- * Storage required per open file descriptor.
- */
-#define OFILESIZE (sizeof(struct file *) + sizeof(char))
 
 #ifdef _KERNEL
 
