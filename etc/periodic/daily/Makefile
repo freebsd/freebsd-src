@@ -13,6 +13,7 @@ FILES=	100.clean-disks \
 	330.news \
 	400.status-disks \
 	420.status-network \
+	405.status-ata-raid \
 	430.status-rwho \
 	440.status-mailq \
 	450.status-security \
