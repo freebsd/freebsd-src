@@ -32,7 +32,7 @@
 .\"	@(#)pathconf.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd November 4, 2002
 .Dt PATHCONF 2
 .Os
 .Sh NAME
@@ -97,6 +97,45 @@ system call, otherwise 0.
 Return 1 if file names longer than KERN_NAME_MAX are truncated.
 .It Li _PC_VDISABLE
 Returns the terminal character disabling value.
+.It Li _PC_ASYNC_IO
+Return 1 if asynchronous I/O is supported, otherwise 0.
+.It Li _PC_PRIO_IO
+Returns 1 if prioritised I/O is supported for this file,
+otherwise 0.
+.It Li _PC_SYNC_IO
+Returns 1 if synchronised I/O is supported for this file, otherwise 0.
+.It Li _PC_ALLOC_SIZE_MIN
+Minimum number of bytes of storage allocated for any portion of a file.
+.Ar path .
+.It Li _PC_FILESIZEBITS
+Number of bits needed to represented the maximum file size.
+.It Li _PC_REC_INCR_XFER_SIZE
+Recommended increment for file transfer sizes between
+.Dv _PC_REC_MIN_XFER_SIZE
+and
+.Dv _PC_REC_MAX_XFER_SIZE .
+.It Li _PC_REC_MAX_XFER_SIZE
+Maximum recommended file transfer size.
+.It Li _PC_REC_MIN_XFER_SIZE
+Minimum recommended file transfer size.
+.It Li _PC_REC_XFER_ALIGN
+Recommended file transfer buffer alignment.
+.It Li _PC_SYMLINK_MAX
+Maximum number of bytes in a symbolic link.
+.It Li _PC_ACL_EXTENDED
+Returns 1 if an Access Control List (ACL) can be set on the specified
+file, otherwise 0.
+.It Li _PC_ACL_PATH_MAX
+Maximum number of ACL entries per file.
+.It Li _PC_CAP_PRESENT
+Returns 1 if a capability state can be set on the specified file,
+otherwise 0.
+.It Li _PC_INF_PRESENT
+Returns 1 if an information label can be set on the specified file,
+otherwise 0.
+.It Li _PC_MAC_PRESENT
+Returns 1 if a Mandatory Access Control (MAC) label can be set on the
+specified file, otherwise 0.
 .El
 .Sh RETURN VALUES
 If the call to
