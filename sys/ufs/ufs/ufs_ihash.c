@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_ihash.c	8.7 (Berkeley) 5/17/95
- * $Id: ufs_ihash.c,v 1.10 1997/10/14 18:46:47 phk Exp $
+ * $Id: ufs_ihash.c,v 1.11 1997/10/14 18:51:07 phk Exp $
  */
 
 #include <sys/param.h>
@@ -131,7 +131,7 @@ ufs_ihashins(ip)
 	simple_lock(&ufs_ihash_slock);
 	ipp = INOHASH(ip->i_dev, ip->i_number);
 	LIST_INSERT_HEAD(ipp, ip, i_hash);
-	ip->i_flags |= IN_HASHED;
+	ip->i_flag |= IN_HASHED;
 	simple_unlock(&ufs_ihash_slock);
 }
 
@@ -143,8 +143,8 @@ ufs_ihashrem(ip)
 	struct inode *ip;
 {
 	simple_lock(&ufs_ihash_slock);
-	if (ip->i_flags & IN_HASHED) {
-		ip->i_flags &= ~IN_HASHED;
+	if (ip->i_flag & IN_HASHED) {
+		ip->i_flag &= ~IN_HASHED;
 		LIST_REMOVE(ip, i_hash);
 #ifdef DIAGNOSTIC
 		ip->i_hash.le_next = NULL;
