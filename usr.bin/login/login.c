@@ -54,6 +54,7 @@ static const char rcsid[] =
 #include <sys/copyright.h>
 #include <sys/param.h>
 #include <sys/stat.h>
+#include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/file.h>
@@ -83,6 +84,11 @@ static const char rcsid[] =
 #endif
 
 #include "pathnames.h"
+
+/* wrapper for KAME-special getnameinfo() */
+#ifndef NI_WITHSCOPEID
+#define	NI_WITHSCOPEID	0
+#endif
 
 void	 badlogin __P((char *));
 void	 checknologin __P((void));
@@ -187,15 +193,27 @@ main(argc, argv)
 			trimdomain(optarg, UT_HOSTSIZE);
 
 			if (strlen(optarg) > UT_HOSTSIZE) {
-				struct hostent *hp = gethostbyname(optarg);
+				struct addrinfo hints, *res;
+				int ga_err;
+				
+				memset(&hints, 0, sizeof(hints));
+				hints.ai_family = AF_UNSPEC;
+				ga_err = getaddrinfo(optarg, NULL, &hints,
+						    &res);
+				if (ga_err == 0) {
+					char hostbuf[MAXHOSTNAMELEN];
 
-				if (hp != NULL) {
-					struct in_addr in;
-
-					memmove(&in, hp->h_addr, sizeof(in));
-					optarg = strdup(inet_ntoa(in));
+					getnameinfo(res->ai_addr,
+						    res->ai_addrlen,
+						    hostbuf,
+						    sizeof(hostbuf), NULL, 0,
+						    NI_NUMERICHOST|
+						    NI_WITHSCOPEID);
+					optarg = strdup(hostbuf);
 				} else
 					optarg = "invalid hostname";
+				if (res != NULL)
+					freeaddrinfo(res);
 			}
 			hostname = optarg;
 			break;
@@ -408,15 +426,24 @@ main(argc, argv)
 
 	if (lc != NULL) {
 		if (hostname) {
-			struct hostent *hp = gethostbyname(full_hostname);
+			struct addrinfo hints, *res;
+			int ga_err;
 
-			if (hp == NULL)
+			memset(&hints, 0, sizeof(hints));
+			hints.ai_family = AF_UNSPEC;
+			ga_err = getaddrinfo(full_hostname, NULL, &hints,
+					     &res);
+			if (ga_err == 0) {
+				char hostbuf[MAXHOSTNAMELEN];
+
+				getnameinfo(res->ai_addr, res->ai_addrlen,
+					    hostbuf, sizeof(hostbuf), NULL, 0,
+					    NI_NUMERICHOST|NI_WITHSCOPEID);
+				optarg = strdup(hostbuf);
+			} else
 				optarg = NULL;
-			else {
-				struct in_addr in;
-				memmove(&in, hp->h_addr, sizeof(in));
-				optarg = strdup(inet_ntoa(in));
-			}
+			if (res != NULL)
+				freeaddrinfo(res);
 			if (!auth_hostok(lc, full_hostname, optarg))
 				refused("Permission denied", "HOST", 1);
 		}
