@@ -17,13 +17,13 @@
 .\" 5. Modifications may be freely made to this file providing the above
 .\"    conditions are met.
 .\"
-.\" $Id$
+.\" $Id: login_auth.3,v 1.4 1997/02/22 15:08:17 peter Exp $
 .\"
 .Dd December 29, 1996
 .Os FreeBSD
 .Dt LOGIN_AUTH 3
 .Sh NAME
-.Nm authenticate
+.\" .Nm authenticate
 .Nm auth_script
 .Nm auth_env
 .Nm auth_scan
@@ -32,22 +32,22 @@
 .Nm auth_cat
 .Nm auth_ttyok
 .Nm auth_hostok
-.Nm auth_timesok
+.\" .Nm auth_timesok
 .Nd Authentication style support library for login class capabilities database.
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <login_cap.h>
-.Ft int
-.Fn authenticate "const char *name" "const char *classname" "const char *style" "const char *service"
+.\" .Ft int
+.\". Fn authenticate "const char *name" "const char *classname" "const char *style" "const char *service"
 .Ft int
 .Fn auth_script "const char * path" ...
-.Ft int
+.Ft void
 .Fn auth_env "void"
 .Ft int
 .Fn auth_scan "int ok"
-.Ft int
+.Ft void
 .Fn auth_rmfiles "void"
-.Ft int
+.Ft void
 .Fn auth_checknologin "login_cap_t *lc"
 .Ft int
 .Fn auth_cat "const char *file"
@@ -55,8 +55,8 @@
 .Fn auth_ttyok "login_cap_t *lc" "const char *tty"
 .Ft int
 .Fn auth_hostok "login_cap_t *lc" "const char *hostname" "char const *ip"
-.Ft int
-.Fn auth_timesok "login_cap_t *lc" "time_t now"
+.\" .Ft int
+.\" .Fn auth_timesok "login_cap_t *lc" "time_t now"
 .Sh DESCRIPTION
 This set of functions support the login class authorisation style interface provided
 by
