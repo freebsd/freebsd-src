@@ -557,9 +557,9 @@ udp-server:
 #    ppploop 6671/tcp # loopback ppp daemon
 #
 #  and a line in /etc/inetd.conf:
-#    ppploop stream tcp nowait root /usr/sbin/ppp ppp -direct loop-in
+#    ppploop stream tcp nowait root /usr/sbin/ppp ppp -direct inet-loop-in
 #
-loop:
+inet-loop:
  set timeout 0
  set log phase chat connect lcp ipcp command
  set device localhost:ppploop
@@ -568,7 +568,7 @@ loop:
  set ifaddr 127.0.0.2 127.0.0.3
  set server /var/run/ppp/loop "" 0177
  
-loop-in:
+inet-loop-in:
  set timeout 0
  set log phase lcp ipcp command
  allow mode direct
@@ -580,10 +580,10 @@ loop-in:
 #  You should already have set up ssh using ssh-agent & ssh-add.
 #
 sloop:
- load loop
+ load inet-loop
  # Passive mode allows ssh plenty of time to establish the connection
  set openmode passive
- set device "!ssh whatevermachine /usr/sbin/ppp -direct loop-in"
+ set device "!ssh whatevermachine /usr/sbin/ppp -direct inet-loop-in"
 
 
 # or a better VPN solution (which doesn't run IP over a reliable
@@ -751,3 +751,43 @@ pppoe-in:
  enable chap pap passwdauth			# Force client authentication
  set ifaddr 10.0.0.1 10.0.0.100-10.0.0.199	# Hand out up to 100 IP numbers
  accept dns					# Allow DNS negotiation
+
+# It's possible to run ppp back-to-back with itself.  This is useful
+# for testing.
+#
+# When testing scalability and concurrency, the following profile might
+# be used.
+#
+# Note, you'll have to make some other machine adjustments:
+#
+#  o Bump maxusers in your kernel configuration to about 256 so that there
+#    are enough process table slots.
+#  o Bump system file descriptors with ``sysctl kern.maxfiles=20480''.  You'll
+#    need 3 descriptors per ppp process (assuming no server socket).
+#  o If you're not using DEVFS, create device notes with
+#    ``cd /dev; ./MAKEDEV tun5000''.
+#
+# You can now create 2000 processes (1000 pairs) with:
+#
+#    n=0
+#    while [ $n -lt 1000 ]; do ppp -b loop; n=$(($n + 1)); done
+#
+# If you want to test concurrency, try using ``ppp -dd loop'' instead.
+#
+loop:
+ set timeout 0
+ set log
+ set device "!ppp -direct loop-in"
+ set dial
+ set login
+ set ifaddr 10.0.1.1/0 10.0.10.1-10.0.19.255   
+ disable deflate pred1 mppe
+ deny deflate pred1 mppe
+ 
+loop-in:
+ set timeout 0
+ set log
+ allow mode direct
+ set ifaddr 10.0.10.1/0 10.0.1.1-10.0.9.255
+ disable deflate pred1 mppe
+ deny deflate pred1 mppe
