@@ -358,8 +358,8 @@ smbfs_inactive(ap)
 			}
 		}
 		np->n_flag &= ~NOPEN;
+		smbfs_attr_cacheremove(vp);
 	}
-	smbfs_attr_cacheremove(vp);
 	VOP_UNLOCK(vp, 0, td);
 	return (0);
 }
