@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.7 (Berkeley) 1/21/94
- * $Id: ufs_readwrite.c,v 1.8 1995/04/09 06:03:44 davidg Exp $
+ * $Id: ufs_readwrite.c,v 1.9 1995/04/24 05:13:15 dyson Exp $
  */
 
 #ifdef LFS_READWRITE
@@ -114,7 +114,7 @@ READ(ap)
 		(void)lfs_check(vp, lbn);
 		error = cluster_read(vp, ip->i_size, lbn, size, NOCRED, &bp);
 #else
-		if (lblktosize(fs, nextlbn) > ip->i_size)
+		if (lblktosize(fs, nextlbn) >= ip->i_size)
 			error = bread(vp, lbn, size, NOCRED, &bp);
 		else if (doclusterread)
 			error = cluster_read(vp,
