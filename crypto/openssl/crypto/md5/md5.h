@@ -59,11 +59,13 @@
 #ifndef HEADER_MD5_H
 #define HEADER_MD5_H
 
+#include <openssl/e_os2.h>
+
 #ifdef  __cplusplus
 extern "C" {
 #endif
 
-#ifdef NO_MD5
+#ifdef OPENSSL_NO_MD5
 #error MD5 is disabled.
 #endif
 
@@ -74,9 +76,9 @@ extern "C" {
  * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
  */
 
-#if defined(WIN16) || defined(__LP32__)
+#if defined(OPENSSL_SYS_WIN16) || defined(__LP32__)
 #define MD5_LONG unsigned long
-#elif defined(_CRAY) || defined(__ILP64__)
+#elif defined(OENSSL_SYS_CRAY) || defined(__ILP64__)
 #define MD5_LONG unsigned long
 #define MD5_LONG_LOG2 3
 /*
@@ -102,9 +104,9 @@ typedef struct MD5state_st
 	int num;
 	} MD5_CTX;
 
-void MD5_Init(MD5_CTX *c);
-void MD5_Update(MD5_CTX *c, const void *data, unsigned long len);
-void MD5_Final(unsigned char *md, MD5_CTX *c);
+int MD5_Init(MD5_CTX *c);
+int MD5_Update(MD5_CTX *c, const void *data, unsigned long len);
+int MD5_Final(unsigned char *md, MD5_CTX *c);
 unsigned char *MD5(const unsigned char *d, unsigned long n, unsigned char *md);
 void MD5_Transform(MD5_CTX *c, const unsigned char *b);
 #ifdef  __cplusplus

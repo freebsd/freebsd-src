@@ -7,7 +7,7 @@ my $static = 1;
 my $recurse = 0;
 my $reindex = 0;
 my $dowrite = 0;
-
+my $staticloader = "";
 
 while (@ARGV) {
 	my $arg = $ARGV[0];
@@ -29,6 +29,9 @@ while (@ARGV) {
 	} elsif($arg eq "-nostatic") {
 		$static = 0;
 		shift @ARGV;
+	} elsif($arg eq "-staticloader") {
+		$staticloader = "static ";
+		shift @ARGV;
 	} elsif($arg eq "-write") {
 		$dowrite = 1;
 		shift @ARGV;
@@ -38,7 +41,7 @@ while (@ARGV) {
 }
 
 if($recurse) {
-	@source = (<crypto/*.c>, <crypto/*/*.c>, <rsaref/*.c>, <ssl/*.c>);
+	@source = (<crypto/*.c>, <crypto/*/*.c>, <ssl/*.c>);
 } else {
 	@source = @ARGV;
 }
@@ -79,38 +82,40 @@ while (($hdr, $lib) = each %libinc)
 {
 	next if($hdr eq "NONE");
 	print STDERR "Scanning header file $hdr\n" if $debug; 
-	open(IN, "<$hdr") || die "Can't open Header file $hdr\n";
-	my $line = "", $def= "", $linenr = 0;
-	while(<IN>) {
-	    $linenr++;
-	    print STDERR "line: $linenr\r" if $debug;
+	my $line = "", $def= "", $linenr = 0, $gotfile = 0;
+	if (open(IN, "<$hdr")) {
+	    $gotfile = 1;
+	    while(<IN>) {
+		$linenr++;
+		print STDERR "line: $linenr\r" if $debug;
 
-	    last if(/BEGIN\s+ERROR\s+CODES/);
-	    if ($line ne '') {
-		$_ = $line . $_;
-		$line = '';
-	    }
+		last if(/BEGIN\s+ERROR\s+CODES/);
+		if ($line ne '') {
+		    $_ = $line . $_;
+		    $line = '';
+		}
 
-	    if (/\\$/) {
-		$line = $_;
-		next;
-	    }
+		if (/\\$/) {
+		    $line = $_;
+		    next;
+		}
 
-	    $cpp = 1 if /^#.*ifdef.*cplusplus/;  # skip "C" declaration
-	    if ($cpp) {
-		$cpp = 0 if /^#.*endif/;
-		next;
-	    }
+		$cpp = 1 if /^#.*ifdef.*cplusplus/;  # skip "C" declaration
+		if ($cpp) {
+		    $cpp = 0 if /^#.*endif/;
+		    next;
+		}
 
-	    next if (/^#/);                      # skip preprocessor directives
+		next if (/^\#/);                      # skip preprocessor directives
 
-	    s/\/\*.*?\*\///gs;                   # ignore comments
-	    s/{[^{}]*}//gs;                      # ignore {} blocks
+		s/\/\*.*?\*\///gs;                   # ignore comments
+		s/{[^{}]*}//gs;                      # ignore {} blocks
 
-	    if (/{|\/\*/) { # Add a } so editor works...
-		$line = $_;
-	    } else {
-		$def .= $_;
+		if (/\{|\/\*/) { # Add a } so editor works...
+		    $line = $_;
+		} else {
+		    $def .= $_;
+		}
 	    }
 	}
 
@@ -152,10 +157,12 @@ while (($hdr, $lib) = each %libinc)
 	# Scan function and reason codes and store them: keep a note of the
 	# maximum code used.
 
-	while(<IN>) {
-		if(/^#define\s+(\S+)\s+(\S+)/) {
+	if ($gotfile) {
+	    while(<IN>) {
+		if(/^\#define\s+(\S+)\s+(\S+)/) {
 			$name = $1;
 			$code = $2;
+			next if $name =~ /^${lib}err/;
 			unless($name =~ /^${lib}_([RF])_(\w+)$/) {
 				print STDERR "Invalid error code $name\n";
 				next;
@@ -173,6 +180,7 @@ while (($hdr, $lib) = each %libinc)
 				$fcodes{$name} = $code;
 			}
 		}
+	    }
 	}
 	close IN;
 }
@@ -189,9 +197,11 @@ while (($hdr, $lib) = each %libinc)
 # so all those unreferenced can be printed out.
 
 
+print STDERR "Files loaded: " if $debug;
 foreach $file (@source) {
 	# Don't parse the error source file.
 	next if exists $cskip{$file};
+	print STDERR $file if $debug;
 	open(IN, "<$file") || die "Can't open source file $file\n";
 	while(<IN>) {
 		if(/(([A-Z0-9]+)_F_([A-Z0-9_]+))/) {
@@ -215,6 +225,7 @@ foreach $file (@source) {
 	}
 	close IN;
 }
+print STDERR "\n" if $debug;
 
 # Now process each library in turn.
 
@@ -241,15 +252,74 @@ foreach $lib (keys %csrc)
 
 	# Rewrite the header file
 
-	open(IN, "<$hfile") || die "Can't Open Header File $hfile\n";
-
-	# Copy across the old file
-	while(<IN>) {
+	if (open(IN, "<$hfile")) {
+	    # Copy across the old file
+	    while(<IN>) {
 		push @out, $_;
 		last if (/BEGIN ERROR CODES/);
+	    }
+	    close IN;
+	} else {
+	    push @out,
+"/* ====================================================================\n",
+" * Copyright (c) 2001-2002 The OpenSSL Project.  All rights reserved.\n",
+" *\n",
+" * Redistribution and use in source and binary forms, with or without\n",
+" * modification, are permitted provided that the following conditions\n",
+" * are met:\n",
+" *\n",
+" * 1. Redistributions of source code must retain the above copyright\n",
+" *    notice, this list of conditions and the following disclaimer. \n",
+" *\n",
+" * 2. Redistributions in binary form must reproduce the above copyright\n",
+" *    notice, this list of conditions and the following disclaimer in\n",
+" *    the documentation and/or other materials provided with the\n",
+" *    distribution.\n",
+" *\n",
+" * 3. All advertising materials mentioning features or use of this\n",
+" *    software must display the following acknowledgment:\n",
+" *    \"This product includes software developed by the OpenSSL Project\n",
+" *    for use in the OpenSSL Toolkit. (http://www.openssl.org/)\"\n",
+" *\n",
+" * 4. The names \"OpenSSL Toolkit\" and \"OpenSSL Project\" must not be used to\n",
+" *    endorse or promote products derived from this software without\n",
+" *    prior written permission. For written permission, please contact\n",
+" *    openssl-core\@openssl.org.\n",
+" *\n",
+" * 5. Products derived from this software may not be called \"OpenSSL\"\n",
+" *    nor may \"OpenSSL\" appear in their names without prior written\n",
+" *    permission of the OpenSSL Project.\n",
+" *\n",
+" * 6. Redistributions of any form whatsoever must retain the following\n",
+" *    acknowledgment:\n",
+" *    \"This product includes software developed by the OpenSSL Project\n",
+" *    for use in the OpenSSL Toolkit (http://www.openssl.org/)\"\n",
+" *\n",
+" * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY\n",
+" * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE\n",
+" * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR\n",
+" * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR\n",
+" * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,\n",
+" * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT\n",
+" * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;\n",
+" * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)\n",
+" * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,\n",
+" * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)\n",
+" * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED\n",
+" * OF THE POSSIBILITY OF SUCH DAMAGE.\n",
+" * ====================================================================\n",
+" *\n",
+" * This product includes cryptographic software written by Eric Young\n",
+" * (eay\@cryptsoft.com).  This product includes software written by Tim\n",
+" * Hudson (tjh\@cryptsoft.com).\n",
+" *\n",
+" */\n",
+"\n",
+"#ifndef HEADER_${lib}_ERR_H\n",
+"#define HEADER_${lib}_ERR_H\n",
+"\n",
+"/* BEGIN ERROR CODES */\n";
 	}
-	close IN;
-
 	open (OUT, ">$hfile") || die "Can't Open File $hfile for writing\n";
 
 	print OUT @out;
@@ -258,8 +328,22 @@ foreach $lib (keys %csrc)
 /* The following lines are auto generated by the script mkerr.pl. Any changes
  * made after this point may be overwritten when the script is next run.
  */
-void ERR_load_${lib}_strings(void);
+EOF
+	if($static) {
+		print OUT <<"EOF";
+${staticloader}void ERR_load_${lib}_strings(void);
 
+EOF
+	} else {
+		print OUT <<"EOF";
+${staticloader}void ERR_load_${lib}_strings(void);
+${staticloader}void ERR_unload_${lib}_strings(void);
+${staticloader}void ERR_${lib}_error(int function, int reason, char *file, int line);
+#define ${lib}err(f,r) ERR_${lib}_error((f),(r),__FILE__,__LINE__)
+
+EOF
+	}
+	print OUT <<"EOF";
 /* Error codes for the $lib functions. */
 
 /* Function codes. */
@@ -383,7 +467,7 @@ EOF
 #include $hincf
 
 /* BEGIN ERROR CODES */
-#ifndef NO_ERR
+#ifndef OPENSSL_NO_ERR
 static ERR_STRING_DATA ${lib}_str_functs[]=
 	{
 EOF
@@ -426,14 +510,14 @@ if($static) {
 
 #endif
 
-void ERR_load_${lib}_strings(void)
+${staticloader}void ERR_load_${lib}_strings(void)
 	{
 	static int init=1;
 
 	if (init)
 		{
 		init=0;
-#ifndef NO_ERR
+#ifndef OPENSSL_NO_ERR
 		ERR_load_strings(ERR_LIB_${lib},${lib}_str_functs);
 		ERR_load_strings(ERR_LIB_${lib},${lib}_str_reasons);
 #endif
@@ -457,19 +541,18 @@ static ERR_STRING_DATA ${lib}_lib_name[]=
 #endif
 
 
-int ${lib}_lib_error_code=0;
+static int ${lib}_lib_error_code=0;
+static int ${lib}_error_init=1;
 
-void ERR_load_${lib}_strings(void)
+${staticloader}void ERR_load_${lib}_strings(void)
 	{
-	static int init=1;
-
 	if (${lib}_lib_error_code == 0)
 		${lib}_lib_error_code=ERR_get_next_error_library();
 
-	if (init)
+	if (${lib}_error_init)
 		{
-		init=0;
-#ifndef NO_ERR
+		${lib}_error_init=0;
+#ifndef OPENSSL_NO_ERR
 		ERR_load_strings(${lib}_lib_error_code,${lib}_str_functs);
 		ERR_load_strings(${lib}_lib_error_code,${lib}_str_reasons);
 #endif
@@ -481,7 +564,23 @@ void ERR_load_${lib}_strings(void)
 		}
 	}
 
-void ERR_${lib}_error(int function, int reason, char *file, int line)
+${staticloader}void ERR_unload_${lib}_strings(void)
+	{
+	if (${lib}_error_init == 0)
+		{
+#ifndef OPENSSL_NO_ERR
+		ERR_unload_strings(${lib}_lib_error_code,${lib}_str_functs);
+		ERR_unload_strings(${lib}_lib_error_code,${lib}_str_reasons);
+#endif
+
+#ifdef ${lib}_LIB_NAME
+		ERR_unload_strings(0,${lib}_lib_name);
+#endif
+		${lib}_error_init=1;
+		}
+	}
+
+${staticloader}void ERR_${lib}_error(int function, int reason, char *file, int line)
 	{
 	if (${lib}_lib_error_code == 0)
 		${lib}_lib_error_code=ERR_get_next_error_library();

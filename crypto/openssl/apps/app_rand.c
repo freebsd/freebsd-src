@@ -124,7 +124,7 @@ int app_RAND_load_file(const char *file, BIO *bio_e, int dont_warn)
 	int consider_randfile = (file == NULL);
 	char buffer[200];
 	
-#ifdef WINDOWS
+#ifdef OPENSSL_SYS_WINDOWS
 	BIO_printf(bio_e,"Loading 'screen' into random state -");
 	BIO_flush(bio_e);
 	RAND_screen();
@@ -142,18 +142,21 @@ int app_RAND_load_file(const char *file, BIO *bio_e, int dont_warn)
 		}
 	if (file == NULL || !RAND_load_file(file, -1))
 		{
-		if (RAND_status() == 0 && !dont_warn)
+		if (RAND_status() == 0)
 			{
-			BIO_printf(bio_e,"unable to load 'random state'\n");
-			BIO_printf(bio_e,"This means that the random number generator has not been seeded\n");
-			BIO_printf(bio_e,"with much random data.\n");
-			if (consider_randfile) /* explanation does not apply when a file is explicitly named */
+			if (!dont_warn)
 				{
-				BIO_printf(bio_e,"Consider setting the RANDFILE environment variable to point at a file that\n");
-				BIO_printf(bio_e,"'random' data can be kept in (the file will be overwritten).\n");
+				BIO_printf(bio_e,"unable to load 'random state'\n");
+				BIO_printf(bio_e,"This means that the random number generator has not been seeded\n");
+				BIO_printf(bio_e,"with much random data.\n");
+				if (consider_randfile) /* explanation does not apply when a file is explicitly named */
+					{
+					BIO_printf(bio_e,"Consider setting the RANDFILE environment variable to point at a file that\n");
+					BIO_printf(bio_e,"'random' data can be kept in (the file will be overwritten).\n");
+					}
 				}
+			return 0;
 			}
-		return 0;
 		}
 	seeded = 1;
 	return 1;

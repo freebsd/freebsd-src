@@ -197,7 +197,7 @@ BIO *PKCS7_dataInit(PKCS7 *p7, BIO *bio)
 			goto err;
 		xalg->algorithm = OBJ_nid2obj(EVP_CIPHER_type(evp_cipher));
 		if (ivlen > 0) RAND_pseudo_bytes(iv,ivlen);
-		EVP_CipherInit(ctx, evp_cipher, key, iv, 1);
+		EVP_CipherInit_ex(ctx, evp_cipher, NULL, key, iv, 1);
 
 		if (ivlen > 0) {
 			if (xalg->parameter == NULL) 
@@ -241,7 +241,7 @@ BIO *PKCS7_dataInit(PKCS7 *p7, BIO *bio)
 			M_ASN1_OCTET_STRING_set(ri->enc_key,tmp,jj);
 			}
 		OPENSSL_free(tmp);
-		memset(key, 0, keylen);
+		OPENSSL_cleanse(key, keylen);
 
 		if (out == NULL)
 			out=btmp;
@@ -251,7 +251,7 @@ BIO *PKCS7_dataInit(PKCS7 *p7, BIO *bio)
 		}
 
 	if (bio == NULL) {
-		if (p7->detached)
+		if (PKCS7_is_detached(p7))
 			bio=BIO_new(BIO_s_null());
 		else {
 			if (PKCS7_type_is_signed(p7) ) { 
@@ -430,7 +430,7 @@ BIO *PKCS7_dataDecode(PKCS7 *p7, EVP_PKEY *pkey, BIO *in_bio, X509 *pcert)
 
 		evp_ctx=NULL;
 		BIO_get_cipher_ctx(etmp,&evp_ctx);
-		EVP_CipherInit(evp_ctx,evp_cipher,NULL,NULL,0);
+		EVP_CipherInit_ex(evp_ctx,evp_cipher,NULL,NULL,NULL,0);
 		if (EVP_CIPHER_asn1_to_param(evp_ctx,enc_alg->parameter) < 0)
 			goto err;
 
@@ -446,9 +446,9 @@ BIO *PKCS7_dataDecode(PKCS7 *p7, EVP_PKEY *pkey, BIO *in_bio, X509 *pcert)
 				goto err;
 				}
 		} 
-		EVP_CipherInit(evp_ctx,NULL,tmp,NULL,0);
+		EVP_CipherInit_ex(evp_ctx,NULL,NULL,tmp,NULL,0);
 
-		memset(tmp,0,jj);
+		OPENSSL_cleanse(tmp,jj);
 
 		if (out == NULL)
 			out=etmp;
@@ -458,7 +458,7 @@ BIO *PKCS7_dataDecode(PKCS7 *p7, EVP_PKEY *pkey, BIO *in_bio, X509 *pcert)
 		}
 
 #if 1
-	if (p7->detached || (in_bio != NULL))
+	if (PKCS7_is_detached(p7) || (in_bio != NULL))
 		{
 		bio=in_bio;
 		}
@@ -510,10 +510,9 @@ int PKCS7_dataFinal(PKCS7 *p7, BIO *bio)
 	EVP_MD_CTX *mdc,ctx_tmp;
 	STACK_OF(X509_ATTRIBUTE) *sk;
 	STACK_OF(PKCS7_SIGNER_INFO) *si_sk=NULL;
-	unsigned char *p,*pp=NULL;
-	int x;
 	ASN1_OCTET_STRING *os=NULL;
 
+	EVP_MD_CTX_init(&ctx_tmp);
 	i=OBJ_obj2nid(p7->type);
 	p7->state=PKCS7_S_HEADER;
 
@@ -567,7 +566,7 @@ int PKCS7_dataFinal(PKCS7 *p7, BIO *bio)
 				BIO_get_md_ctx(btmp,&mdc);
 				if (mdc == NULL)
 					{
-					PKCS7err(PKCS7_F_PKCS7_DATASIGN,PKCS7_R_INTERNAL_ERROR);
+					PKCS7err(PKCS7_F_PKCS7_DATASIGN,ERR_R_INTERNAL_ERROR);
 					goto err;
 					}
 				if (EVP_MD_CTX_type(mdc) == j)
@@ -578,8 +577,8 @@ int PKCS7_dataFinal(PKCS7 *p7, BIO *bio)
 			
 			/* We now have the EVP_MD_CTX, lets do the
 			 * signing. */
-			memcpy(&ctx_tmp,mdc,sizeof(ctx_tmp));
-			if (!BUF_MEM_grow(buf,EVP_PKEY_size(si->pkey)))
+			EVP_MD_CTX_copy_ex(&ctx_tmp,mdc);
+			if (!BUF_MEM_grow_clean(buf,EVP_PKEY_size(si->pkey)))
 				{
 				PKCS7err(PKCS7_F_PKCS7_DATASIGN,ERR_R_BIO_LIB);
 				goto err;
@@ -591,8 +590,8 @@ int PKCS7_dataFinal(PKCS7 *p7, BIO *bio)
 			 * attribute and only sign the attributes */
 			if ((sk != NULL) && (sk_X509_ATTRIBUTE_num(sk) != 0))
 				{
-				unsigned char md_data[EVP_MAX_MD_SIZE];
-				unsigned int md_len;
+				unsigned char md_data[EVP_MAX_MD_SIZE], *abuf=NULL;
+				unsigned int md_len, alen;
 				ASN1_OCTET_STRING *digest;
 				ASN1_UTCTIME *sign_time;
 				const EVP_MD *md_tmp;
@@ -609,29 +608,23 @@ int PKCS7_dataFinal(PKCS7 *p7, BIO *bio)
 
 				/* Add digest */
 				md_tmp=EVP_MD_CTX_md(&ctx_tmp);
-				EVP_DigestFinal(&ctx_tmp,md_data,&md_len);
+				EVP_DigestFinal_ex(&ctx_tmp,md_data,&md_len);
 				digest=M_ASN1_OCTET_STRING_new();
 				M_ASN1_OCTET_STRING_set(digest,md_data,md_len);
 				PKCS7_add_signed_attribute(si,
 					NID_pkcs9_messageDigest,
 					V_ASN1_OCTET_STRING,digest);
 
-				/* Now sign the mess */
-				EVP_SignInit(&ctx_tmp,md_tmp);
-				x=i2d_ASN1_SET_OF_X509_ATTRIBUTE(sk,NULL,
-					   i2d_X509_ATTRIBUTE,
-					   V_ASN1_SET,V_ASN1_UNIVERSAL,IS_SET);
-				if (!(pp=(unsigned char *)OPENSSL_malloc(x))) goto err;
-				p=pp;
-				i2d_ASN1_SET_OF_X509_ATTRIBUTE(sk,&p,
-				           i2d_X509_ATTRIBUTE,
-					   V_ASN1_SET,V_ASN1_UNIVERSAL,IS_SET);
-				EVP_SignUpdate(&ctx_tmp,pp,x);
-				OPENSSL_free(pp);
-				pp=NULL;
+				/* Now sign the attributes */
+				EVP_SignInit_ex(&ctx_tmp,md_tmp,NULL);
+				alen = ASN1_item_i2d((ASN1_VALUE *)sk,&abuf,
+							ASN1_ITEM_rptr(PKCS7_ATTR_SIGN));
+				if(!abuf) goto err;
+				EVP_SignUpdate(&ctx_tmp,abuf,alen);
+				OPENSSL_free(abuf);
 				}
 
-#ifndef NO_DSA
+#ifndef OPENSSL_NO_DSA
 			if (si->pkey->type == EVP_PKEY_DSA)
 				ctx_tmp.digest=EVP_dss1();
 #endif
@@ -651,7 +644,7 @@ int PKCS7_dataFinal(PKCS7 *p7, BIO *bio)
 			}
 		}
 
-	if (!p7->detached)
+	if (!PKCS7_is_detached(p7))
 		{
 		btmp=BIO_find_type(bio,BIO_TYPE_MEM);
 		if (btmp == NULL)
@@ -672,11 +665,9 @@ int PKCS7_dataFinal(PKCS7 *p7, BIO *bio)
 			(unsigned char *)buf_mem->data,buf_mem->length);
 #endif
 		}
-	if (pp != NULL) OPENSSL_free(pp);
-	pp=NULL;
-
 	ret=1;
 err:
+	EVP_MD_CTX_cleanup(&ctx_tmp);
 	if (buf != NULL) BUF_MEM_free(buf);
 	return(ret);
 	}
@@ -715,7 +706,11 @@ int PKCS7_dataVerify(X509_STORE *cert_store, X509_STORE_CTX *ctx, BIO *bio,
 		}
 
 	/* Lets verify */
-	X509_STORE_CTX_init(ctx,cert_store,x509,cert);
+	if(!X509_STORE_CTX_init(ctx,cert_store,x509,cert))
+		{
+		PKCS7err(PKCS7_F_PKCS7_DATAVERIFY,ERR_R_X509_LIB);
+		goto err;
+		}
 	X509_STORE_CTX_set_purpose(ctx, X509_PURPOSE_SMIME_SIGN);
 	i=X509_verify_cert(ctx);
 	if (i <= 0) 
@@ -736,12 +731,13 @@ int PKCS7_signatureVerify(BIO *bio, PKCS7 *p7, PKCS7_SIGNER_INFO *si,
 	{
 	ASN1_OCTET_STRING *os;
 	EVP_MD_CTX mdc_tmp,*mdc;
-	unsigned char *pp,*p;
 	int ret=0,i;
 	int md_type;
 	STACK_OF(X509_ATTRIBUTE) *sk;
 	BIO *btmp;
 	EVP_PKEY *pkey;
+
+	EVP_MD_CTX_init(&mdc_tmp);
 
 	if (!PKCS7_type_is_signed(p7) && 
 				!PKCS7_type_is_signedAndEnveloped(p7)) {
@@ -766,7 +762,7 @@ int PKCS7_signatureVerify(BIO *bio, PKCS7 *p7, PKCS7_SIGNER_INFO *si,
 		if (mdc == NULL)
 			{
 			PKCS7err(PKCS7_F_PKCS7_SIGNATUREVERIFY,
-							PKCS7_R_INTERNAL_ERROR);
+							ERR_R_INTERNAL_ERROR);
 			goto err;
 			}
 		if (EVP_MD_CTX_type(mdc) == md_type)
@@ -776,16 +772,16 @@ int PKCS7_signatureVerify(BIO *bio, PKCS7 *p7, PKCS7_SIGNER_INFO *si,
 
 	/* mdc is the digest ctx that we want, unless there are attributes,
 	 * in which case the digest is the signed attributes */
-	memcpy(&mdc_tmp,mdc,sizeof(mdc_tmp));
+	EVP_MD_CTX_copy_ex(&mdc_tmp,mdc);
 
 	sk=si->auth_attr;
 	if ((sk != NULL) && (sk_X509_ATTRIBUTE_num(sk) != 0))
 		{
-		unsigned char md_dat[EVP_MAX_MD_SIZE];
-                unsigned int md_len;
+		unsigned char md_dat[EVP_MAX_MD_SIZE], *abuf = NULL;
+                unsigned int md_len, alen;
 		ASN1_OCTET_STRING *message_digest;
 
-		EVP_DigestFinal(&mdc_tmp,md_dat,&md_len);
+		EVP_DigestFinal_ex(&mdc_tmp,md_dat,&md_len);
 		message_digest=PKCS7_digest_from_attributes(sk);
 		if (!message_digest)
 			{
@@ -810,20 +806,13 @@ for (ii=0; ii<md_len; ii++) printf("%02X",md_dat[ii]); printf(" calc\n");
 			goto err;
 			}
 
-		EVP_VerifyInit(&mdc_tmp,EVP_get_digestbynid(md_type));
-		/* Note: when forming the encoding of the attributes we
-		 * shouldn't reorder them or this will break the signature.
-		 * This is done by using the IS_SEQUENCE flag.
-		 */
-		i=i2d_ASN1_SET_OF_X509_ATTRIBUTE(sk,NULL,i2d_X509_ATTRIBUTE,
-			V_ASN1_SET,V_ASN1_UNIVERSAL, IS_SEQUENCE);
-		if (!(pp=OPENSSL_malloc(i))) goto err;
-		p=pp;
-		i2d_ASN1_SET_OF_X509_ATTRIBUTE(sk,&p,i2d_X509_ATTRIBUTE,
-			V_ASN1_SET,V_ASN1_UNIVERSAL, IS_SEQUENCE);
-		EVP_VerifyUpdate(&mdc_tmp,pp,i);
+		EVP_VerifyInit_ex(&mdc_tmp,EVP_get_digestbynid(md_type), NULL);
 
-		OPENSSL_free(pp);
+		alen = ASN1_item_i2d((ASN1_VALUE *)sk, &abuf,
+						ASN1_ITEM_rptr(PKCS7_ATTR_VERIFY));
+		EVP_VerifyUpdate(&mdc_tmp, abuf, alen);
+
+		OPENSSL_free(abuf);
 		}
 
 	os=si->enc_digest;
@@ -833,7 +822,7 @@ for (ii=0; ii<md_len; ii++) printf("%02X",md_dat[ii]); printf(" calc\n");
 		ret = -1;
 		goto err;
 		}
-#ifndef NO_DSA
+#ifndef OPENSSL_NO_DSA
 	if(pkey->type == EVP_PKEY_DSA) mdc_tmp.digest=EVP_dss1();
 #endif
 
@@ -849,6 +838,7 @@ for (ii=0; ii<md_len; ii++) printf("%02X",md_dat[ii]); printf(" calc\n");
 	else
 		ret=1;
 err:
+	EVP_MD_CTX_cleanup(&mdc_tmp);
 	return(ret);
 	}
 
@@ -890,7 +880,7 @@ static ASN1_TYPE *get_attribute(STACK_OF(X509_ATTRIBUTE) *sk, int nid)
 		xa=sk_X509_ATTRIBUTE_value(sk,i);
 		if (OBJ_cmp(xa->object,o) == 0)
 			{
-			if (xa->set && sk_ASN1_TYPE_num(xa->value.set))
+			if (!xa->single && sk_ASN1_TYPE_num(xa->value.set))
 				return(sk_ASN1_TYPE_value(xa->value.set,0));
 			else
 				return(NULL);

@@ -66,10 +66,8 @@
 #include <openssl/objects.h>
 #include <openssl/x509.h>
 #include <openssl/rand.h>
-#ifndef NO_MD5
-#include <openssl/md5.h>
-#endif
 #include <openssl/pem.h>
+#include <ctype.h>
 
 int set_hex(char *in,unsigned char *out,int size);
 #undef SIZE
@@ -80,17 +78,37 @@ int set_hex(char *in,unsigned char *out,int size);
 #define BSIZE	(8*1024)
 #define	PROG	enc_main
 
+static void show_ciphers(const OBJ_NAME *name,void *bio_)
+	{
+	BIO *bio=bio_;
+	static int n;
+
+	if(!islower((unsigned char)*name->name))
+		return;
+
+	BIO_printf(bio,"-%-25s",name->name);
+	if(++n == 3)
+		{
+		BIO_printf(bio,"\n");
+		n=0;
+		}
+	else
+		BIO_printf(bio," ");
+	}
+
 int MAIN(int, char **);
 
 int MAIN(int argc, char **argv)
 	{
+	ENGINE *e = NULL;
 	static const char magic[]="Salted__";
-	char mbuf[8];	/* should be 1 smaller than magic */
+	char mbuf[sizeof magic-1];
 	char *strbuf=NULL;
 	unsigned char *buff=NULL,*bufsize=NULL;
 	int bsize=BSIZE,verbose=0;
 	int ret=1,inl;
-	unsigned char key[24],iv[MD5_DIGEST_LENGTH];
+	int nopad = 0;
+	unsigned char key[EVP_MAX_KEY_LENGTH],iv[EVP_MAX_IV_LENGTH];
 	unsigned char salt[PKCS5_SALT_LEN];
 	char *str=NULL, *passarg = NULL, *pass = NULL;
 	char *hkey=NULL,*hiv=NULL,*hsalt = NULL;
@@ -101,6 +119,7 @@ int MAIN(int argc, char **argv)
 	BIO *in=NULL,*out=NULL,*b64=NULL,*benc=NULL,*rbio=NULL,*wbio=NULL;
 #define PROG_NAME_SIZE  39
 	char pname[PROG_NAME_SIZE+1];
+	char *engine = NULL;
 
 	apps_startup();
 
@@ -108,8 +127,11 @@ int MAIN(int argc, char **argv)
 		if ((bio_err=BIO_new(BIO_s_file())) != NULL)
 			BIO_set_fp(bio_err,stderr,BIO_NOCLOSE|BIO_FP_TEXT);
 
+	if (!load_config(bio_err, NULL))
+		goto end;
+
 	/* first check the program name */
-	program_name(argv[0],pname,PROG_NAME_SIZE);
+	program_name(argv[0],pname,sizeof pname);
 	if (strcmp(pname,"base64") == 0)
 		base64=1;
 
@@ -141,12 +163,19 @@ int MAIN(int argc, char **argv)
 			if (--argc < 1) goto bad;
 			passarg= *(++argv);
 			}
+		else if (strcmp(*argv,"-engine") == 0)
+			{
+			if (--argc < 1) goto bad;
+			engine= *(++argv);
+			}
 		else if	(strcmp(*argv,"-d") == 0)
 			enc=0;
 		else if	(strcmp(*argv,"-p") == 0)
 			printkey=1;
 		else if	(strcmp(*argv,"-v") == 0)
 			verbose=1;
+		else if	(strcmp(*argv,"-nopad") == 0)
+			nopad=1;
 		else if	(strcmp(*argv,"-salt") == 0)
 			nosalt=0;
 		else if	(strcmp(*argv,"-nosalt") == 0)
@@ -187,7 +216,7 @@ int MAIN(int argc, char **argv)
 				goto bad;
 				}
 			buf[0]='\0';
-			fgets(buf,128,infile);
+			fgets(buf,sizeof buf,infile);
 			fclose(infile);
 			i=strlen(buf);
 			if ((i > 0) &&
@@ -241,78 +270,21 @@ bad:
 			BIO_printf(bio_err,"%-14s key/iv in hex is the next argument\n","-K/-iv");
 			BIO_printf(bio_err,"%-14s print the iv/key (then exit if -P)\n","-[pP]");
 			BIO_printf(bio_err,"%-14s buffer size\n","-bufsize <n>");
+			BIO_printf(bio_err,"%-14s use engine e, possibly a hardware device.\n","-engine e");
 
 			BIO_printf(bio_err,"Cipher Types\n");
-			BIO_printf(bio_err,"des     : 56 bit key DES encryption\n");
-			BIO_printf(bio_err,"des_ede :112 bit key ede DES encryption\n");
-			BIO_printf(bio_err,"des_ede3:168 bit key ede DES encryption\n");
-#ifndef NO_IDEA
-			BIO_printf(bio_err,"idea    :128 bit key IDEA encryption\n");
-#endif
-#ifndef NO_RC4
-			BIO_printf(bio_err,"rc2     :128 bit key RC2 encryption\n");
-#endif
-#ifndef NO_BF
-			BIO_printf(bio_err,"bf      :128 bit key Blowfish encryption\n");
-#endif
-#ifndef NO_RC4
-			BIO_printf(bio_err," -%-5s :128 bit key RC4 encryption\n",
-				LN_rc4);
-#endif
+			OBJ_NAME_do_all_sorted(OBJ_NAME_TYPE_CIPHER_METH,
+					       show_ciphers,
+					       bio_err);
+			BIO_printf(bio_err,"\n");
 
-			BIO_printf(bio_err," -%-12s -%-12s -%-12s -%-12s",
-				LN_des_ecb,LN_des_cbc,
-				LN_des_cfb64,LN_des_ofb64);
-			BIO_printf(bio_err," -%-4s (%s)\n",
-				"des", LN_des_cbc);
-
-			BIO_printf(bio_err," -%-12s -%-12s -%-12s -%-12s",
-				LN_des_ede,LN_des_ede_cbc,
-				LN_des_ede_cfb64,LN_des_ede_ofb64);
-			BIO_printf(bio_err," -desx -none\n");
-
-
-			BIO_printf(bio_err," -%-12s -%-12s -%-12s -%-12s",
-				LN_des_ede3,LN_des_ede3_cbc,
-				LN_des_ede3_cfb64,LN_des_ede3_ofb64);
-			BIO_printf(bio_err," -%-4s (%s)\n",
-				"des3", LN_des_ede3_cbc);
-
-#ifndef NO_IDEA
-			BIO_printf(bio_err," -%-12s -%-12s -%-12s -%-12s",
-				LN_idea_ecb, LN_idea_cbc,
-				LN_idea_cfb64, LN_idea_ofb64);
-			BIO_printf(bio_err," -%-4s (%s)\n","idea",LN_idea_cbc);
-#endif
-#ifndef NO_RC2
-			BIO_printf(bio_err," -%-12s -%-12s -%-12s -%-12s",
-				LN_rc2_ecb, LN_rc2_cbc,
-				LN_rc2_cfb64, LN_rc2_ofb64);
-			BIO_printf(bio_err," -%-4s (%s)\n","rc2", LN_rc2_cbc);
-#endif
-#ifndef NO_BF
-			BIO_printf(bio_err," -%-12s -%-12s -%-12s -%-12s",
-				LN_bf_ecb, LN_bf_cbc,
-				LN_bf_cfb64, LN_bf_ofb64);
-			BIO_printf(bio_err," -%-4s (%s)\n","bf", LN_bf_cbc);
-#endif
-#ifndef NO_CAST
-			BIO_printf(bio_err," -%-12s -%-12s -%-12s -%-12s",
-				LN_cast5_ecb, LN_cast5_cbc,
-				LN_cast5_cfb64, LN_cast5_ofb64);
-			BIO_printf(bio_err," -%-4s (%s)\n","cast", LN_cast5_cbc);
-#endif
-#ifndef NO_RC5
-			BIO_printf(bio_err," -%-12s -%-12s -%-12s -%-12s",
-				LN_rc5_ecb, LN_rc5_cbc,
-				LN_rc5_cfb64, LN_rc5_ofb64);
-			BIO_printf(bio_err," -%-4s (%s)\n","rc5", LN_rc5_cbc);
-#endif
 			goto end;
 			}
 		argc--;
 		argv++;
 		}
+
+        e = setup_engine(bio_err, engine, 0);
 
 	if (bufsize != NULL)
 		{
@@ -418,7 +390,7 @@ bad:
 	if (outf == NULL)
 		{
 		BIO_set_fp(out,stdout,BIO_NOCLOSE);
-#ifdef VMS
+#ifdef OPENSSL_SYS_VMS
 		{
 		BIO *tmpbio = BIO_new(BIO_f_linebuffer());
 		out = BIO_push(tmpbio, out);
@@ -456,6 +428,9 @@ bad:
 
 	if (cipher != NULL)
 		{
+		/* Note that str is NULL if a key was passed on the command
+		 * line, so we get no salt in that case. Is this a bug?
+		 */
 		if (str != NULL)
 			{
 			/* Salt handling: if encrypting generate a salt and
@@ -467,12 +442,12 @@ bad:
 			else {
 				if(enc) {
 					if(hsalt) {
-						if(!set_hex(hsalt,salt,PKCS5_SALT_LEN)) {
+						if(!set_hex(hsalt,salt,sizeof salt)) {
 							BIO_printf(bio_err,
 								"invalid hex salt value\n");
 							goto end;
 						}
-					} else if (RAND_pseudo_bytes(salt, PKCS5_SALT_LEN) < 0)
+					} else if (RAND_pseudo_bytes(salt, sizeof salt) < 0)
 						goto end;
 					/* If -P option then don't bother writing */
 					if((printkey != 2)
@@ -480,14 +455,14 @@ bad:
 							 sizeof magic-1) != sizeof magic-1
 					       || BIO_write(wbio,
 							    (char *)salt,
-							    PKCS5_SALT_LEN) != PKCS5_SALT_LEN)) {
+							    sizeof salt) != sizeof salt)) {
 						BIO_printf(bio_err,"error writing output file\n");
 						goto end;
 					}
 				} else if(BIO_read(rbio,mbuf,sizeof mbuf) != sizeof mbuf
 					  || BIO_read(rbio,
 						      (unsigned char *)salt,
-				    PKCS5_SALT_LEN) != PKCS5_SALT_LEN) {
+				    sizeof salt) != sizeof salt) {
 					BIO_printf(bio_err,"error reading input file\n");
 					goto end;
 				} else if(memcmp(mbuf,magic,sizeof magic-1)) {
@@ -506,11 +481,11 @@ bad:
 			 * bug picked up by
 			 * Larry J. Hughes Jr. <hughes@indiana.edu> */
 			if (str == strbuf)
-				memset(str,0,SIZE);
+				OPENSSL_cleanse(str,SIZE);
 			else
-				memset(str,0,strlen(str));
+				OPENSSL_cleanse(str,strlen(str));
 			}
-		if ((hiv != NULL) && !set_hex(hiv,iv,8))
+		if ((hiv != NULL) && !set_hex(hiv,iv,sizeof iv))
 			{
 			BIO_printf(bio_err,"invalid hex iv value\n");
 			goto end;
@@ -523,7 +498,7 @@ bad:
 			BIO_printf(bio_err, "iv undefined\n");
 			goto end;
 			}
-		if ((hkey != NULL) && !set_hex(hkey,key,24))
+		if ((hkey != NULL) && !set_hex(hkey,key,sizeof key))
 			{
 			BIO_printf(bio_err,"invalid hex key value\n");
 			goto end;
@@ -532,6 +507,12 @@ bad:
 		if ((benc=BIO_new(BIO_f_cipher())) == NULL)
 			goto end;
 		BIO_set_cipher(benc,cipher,key,iv,enc);
+		if (nopad)
+			{
+			EVP_CIPHER_CTX *ctx;
+			BIO_get_cipher_ctx(benc, &ctx);
+			EVP_CIPHER_CTX_set_padding(ctx, 0);
+			}
 		if (debug)
 			{
 			BIO_set_callback(benc,BIO_debug_callback);
@@ -543,7 +524,7 @@ bad:
 			if (!nosalt)
 				{
 				printf("salt=");
-				for (i=0; i<PKCS5_SALT_LEN; i++)
+				for (i=0; i<sizeof salt; i++)
 					printf("%02X",salt[i]);
 				printf("\n");
 				}
@@ -604,7 +585,8 @@ end:
 	if (benc != NULL) BIO_free(benc);
 	if (b64 != NULL) BIO_free(b64);
 	if(pass) OPENSSL_free(pass);
-	EXIT(ret);
+	apps_shutdown();
+	OPENSSL_EXIT(ret);
 	}
 
 int set_hex(char *in, unsigned char *out, int size)

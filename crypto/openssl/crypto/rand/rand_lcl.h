@@ -1,4 +1,4 @@
-/* crypto/rand/md_rand.c */
+/* crypto/rand/rand_lcl.h */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -112,72 +112,46 @@
 #ifndef HEADER_RAND_LCL_H
 #define HEADER_RAND_LCL_H
 
-#define ENTROPY_NEEDED 20  /* require 160 bits = 20 bytes of randomness */
+#define ENTROPY_NEEDED 32  /* require 256 bits = 32 bytes of randomness */
 
 
 #if !defined(USE_MD5_RAND) && !defined(USE_SHA1_RAND) && !defined(USE_MDC2_RAND) && !defined(USE_MD2_RAND)
-#if !defined(NO_SHA) && !defined(NO_SHA1)
+#if !defined(OPENSSL_NO_SHA) && !defined(OPENSSL_NO_SHA1)
 #define USE_SHA1_RAND
-#elif !defined(NO_MD5)
+#elif !defined(OPENSSL_NO_MD5)
 #define USE_MD5_RAND
-#elif !defined(NO_MDC2) && !defined(NO_DES)
+#elif !defined(OPENSSL_NO_MDC2) && !defined(OPENSSL_NO_DES)
 #define USE_MDC2_RAND
-#elif !defined(NO_MD2)
+#elif !defined(OPENSSL_NO_MD2)
 #define USE_MD2_RAND
 #else
 #error No message digest algorithm available
 #endif
 #endif
 
+#include <openssl/evp.h>
+#define MD_Update(a,b,c)	EVP_DigestUpdate(a,b,c)
+#define	MD_Final(a,b)		EVP_DigestFinal_ex(a,b,NULL)
 #if defined(USE_MD5_RAND)
 #include <openssl/md5.h>
 #define MD_DIGEST_LENGTH	MD5_DIGEST_LENGTH
-#define	MD(a,b,c)		MD5(a,b,c)
+#define MD_Init(a)		EVP_DigestInit_ex(a,EVP_md5(), NULL)
+#define	MD(a,b,c)		EVP_Digest(a,b,c,NULL,EVP_md5(), NULL)
 #elif defined(USE_SHA1_RAND)
 #include <openssl/sha.h>
 #define MD_DIGEST_LENGTH	SHA_DIGEST_LENGTH
-#define	MD(a,b,c)		SHA1(a,b,c)
+#define MD_Init(a)		EVP_DigestInit_ex(a,EVP_sha1(), NULL)
+#define	MD(a,b,c)		EVP_Digest(a,b,c,NULL,EVP_sha1(), NULL)
 #elif defined(USE_MDC2_RAND)
 #include <openssl/mdc2.h>
 #define MD_DIGEST_LENGTH	MDC2_DIGEST_LENGTH
-#define	MD(a,b,c)		MDC2(a,b,c)
+#define MD_Init(a)		EVP_DigestInit_ex(a,EVP_mdc2(), NULL)
+#define	MD(a,b,c)		EVP_Digest(a,b,c,NULL,EVP_mdc2(), NULL)
 #elif defined(USE_MD2_RAND)
 #include <openssl/md2.h>
 #define MD_DIGEST_LENGTH	MD2_DIGEST_LENGTH
-#define	MD(a,b,c)		MD2(a,b,c)
-#endif
-#if defined(USE_MD5_RAND)
-#include <openssl/md5.h>
-#define MD_DIGEST_LENGTH	MD5_DIGEST_LENGTH
-#define MD_CTX			MD5_CTX
-#define MD_Init(a)		MD5_Init(a)
-#define MD_Update(a,b,c)	MD5_Update(a,b,c)
-#define	MD_Final(a,b)		MD5_Final(a,b)
-#define	MD(a,b,c)		MD5(a,b,c)
-#elif defined(USE_SHA1_RAND)
-#include <openssl/sha.h>
-#define MD_DIGEST_LENGTH	SHA_DIGEST_LENGTH
-#define MD_CTX			SHA_CTX
-#define MD_Init(a)		SHA1_Init(a)
-#define MD_Update(a,b,c)	SHA1_Update(a,b,c)
-#define	MD_Final(a,b)		SHA1_Final(a,b)
-#define	MD(a,b,c)		SHA1(a,b,c)
-#elif defined(USE_MDC2_RAND)
-#include <openssl/mdc2.h>
-#define MD_DIGEST_LENGTH	MDC2_DIGEST_LENGTH
-#define MD_CTX			MDC2_CTX
-#define MD_Init(a)		MDC2_Init(a)
-#define MD_Update(a,b,c)	MDC2_Update(a,b,c)
-#define	MD_Final(a,b)		MDC2_Final(a,b)
-#define	MD(a,b,c)		MDC2(a,b,c)
-#elif defined(USE_MD2_RAND)
-#include <openssl/md2.h>
-#define MD_DIGEST_LENGTH	MD2_DIGEST_LENGTH
-#define MD_CTX			MD2_CTX
-#define MD_Init(a)		MD2_Init(a)
-#define MD_Update(a,b,c)	MD2_Update(a,b,c)
-#define	MD_Final(a,b)		MD2_Final(a,b)
-#define	MD(a,b,c)		MD2(a,b,c)
+#define MD_Init(a)		EVP_DigestInit_ex(a,EVP_md2(), NULL)
+#define	MD(a,b,c)		EVP_Digest(a,b,c,NULL,EVP_md2(), NULL)
 #endif
 
 

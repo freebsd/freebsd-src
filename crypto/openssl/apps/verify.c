@@ -70,14 +70,15 @@
 #define PROG	verify_main
 
 static int MS_CALLBACK cb(int ok, X509_STORE_CTX *ctx);
-static int check(X509_STORE *ctx, char *file, STACK_OF(X509) *uchain, STACK_OF(X509) *tchain, int purpose);
+static int check(X509_STORE *ctx, char *file, STACK_OF(X509) *uchain, STACK_OF(X509) *tchain, int purpose, ENGINE *e);
 static STACK_OF(X509) *load_untrusted(char *file);
-static int v_verbose=0, issuer_checks = 0;
+static int v_verbose=0, vflags = 0;
 
 int MAIN(int, char **);
 
 int MAIN(int argc, char **argv)
 	{
+	ENGINE *e = NULL;
 	int i,ret=1;
 	int purpose = -1;
 	char *CApath=NULL,*CAfile=NULL;
@@ -85,6 +86,7 @@ int MAIN(int argc, char **argv)
 	STACK_OF(X509) *untrusted = NULL, *trusted = NULL;
 	X509_STORE *cert_ctx=NULL;
 	X509_LOOKUP *lookup=NULL;
+	char *engine=NULL;
 
 	cert_ctx=X509_STORE_new();
 	if (cert_ctx == NULL) goto end;
@@ -97,6 +99,9 @@ int MAIN(int argc, char **argv)
 	if (bio_err == NULL)
 		if ((bio_err=BIO_new(BIO_s_file())) != NULL)
 			BIO_set_fp(bio_err,stderr,BIO_NOCLOSE|BIO_FP_TEXT);
+
+	if (!load_config(bio_err, NULL))
+		goto end;
 
 	argc--;
 	argv++;
@@ -137,10 +142,21 @@ int MAIN(int argc, char **argv)
 				if (argc-- < 1) goto end;
 				trustfile= *(++argv);
 				}
+			else if (strcmp(*argv,"-engine") == 0)
+				{
+				if (--argc < 1) goto end;
+				engine= *(++argv);
+				}
 			else if (strcmp(*argv,"-help") == 0)
 				goto end;
+			else if (strcmp(*argv,"-ignore_critical") == 0)
+				vflags |= X509_V_FLAG_IGNORE_CRITICAL;
 			else if (strcmp(*argv,"-issuer_checks") == 0)
-				issuer_checks=1;
+				vflags |= X509_V_FLAG_CB_ISSUER_CHECK;
+			else if (strcmp(*argv,"-crl_check") == 0)
+				vflags |= X509_V_FLAG_CRL_CHECK;
+			else if (strcmp(*argv,"-crl_check_all") == 0)
+				vflags |= X509_V_FLAG_CRL_CHECK|X509_V_FLAG_CRL_CHECK_ALL;
 			else if (strcmp(*argv,"-verbose") == 0)
 				v_verbose=1;
 			else if (argv[0][0] == '-')
@@ -153,6 +169,8 @@ int MAIN(int argc, char **argv)
 		else
 			break;
 		}
+
+        e = setup_engine(bio_err, engine, 0);
 
 	lookup=X509_STORE_add_lookup(cert_ctx,X509_LOOKUP_file());
 	if (lookup == NULL) abort();
@@ -194,14 +212,14 @@ int MAIN(int argc, char **argv)
 		}
 	}
 
-	if (argc < 1) check(cert_ctx, NULL, untrusted, trusted, purpose);
+	if (argc < 1) check(cert_ctx, NULL, untrusted, trusted, purpose, e);
 	else
 		for (i=0; i<argc; i++)
-			check(cert_ctx,argv[i], untrusted, trusted, purpose);
+			check(cert_ctx,argv[i], untrusted, trusted, purpose, e);
 	ret=0;
 end:
 	if (ret == 1) {
-		BIO_printf(bio_err,"usage: verify [-verbose] [-CApath path] [-CAfile file] [-purpose purpose] cert1 cert2 ...\n");
+		BIO_printf(bio_err,"usage: verify [-verbose] [-CApath path] [-CAfile file] [-purpose purpose] [-crl_check] [-engine e] cert1 cert2 ...\n");
 		BIO_printf(bio_err,"recognized usages:\n");
 		for(i = 0; i < X509_PURPOSE_get_count(); i++) {
 			X509_PURPOSE *ptmp;
@@ -213,42 +231,19 @@ end:
 	if (cert_ctx != NULL) X509_STORE_free(cert_ctx);
 	sk_X509_pop_free(untrusted, X509_free);
 	sk_X509_pop_free(trusted, X509_free);
-	EXIT(ret);
+	apps_shutdown();
+	OPENSSL_EXIT(ret);
 	}
 
-static int check(X509_STORE *ctx, char *file, STACK_OF(X509) *uchain, STACK_OF(X509) *tchain, int purpose)
+static int check(X509_STORE *ctx, char *file, STACK_OF(X509) *uchain, STACK_OF(X509) *tchain, int purpose, ENGINE *e)
 	{
 	X509 *x=NULL;
-	BIO *in=NULL;
 	int i=0,ret=0;
 	X509_STORE_CTX *csc;
 
-	in=BIO_new(BIO_s_file());
-	if (in == NULL)
-		{
-		ERR_print_errors(bio_err);
-		goto end;
-		}
-
-	if (file == NULL)
-		BIO_set_fp(in,stdin,BIO_NOCLOSE);
-	else
-		{
-		if (BIO_read_filename(in,file) <= 0)
-			{
-			perror(file);
-			goto end;
-			}
-		}
-
-	x=PEM_read_bio_X509(in,NULL,NULL,NULL);
+	x = load_cert(bio_err, file, FORMAT_PEM, NULL, e, "certificate file");
 	if (x == NULL)
-		{
-		fprintf(stdout,"%s: unable to load certificate file\n",
-			(file == NULL)?"stdin":file);
-		ERR_print_errors(bio_err);
 		goto end;
-		}
 	fprintf(stdout,"%s: ",(file == NULL)?"stdin":file);
 
 	csc = X509_STORE_CTX_new();
@@ -257,11 +252,14 @@ static int check(X509_STORE *ctx, char *file, STACK_OF(X509) *uchain, STACK_OF(X
 		ERR_print_errors(bio_err);
 		goto end;
 		}
-	X509_STORE_CTX_init(csc,ctx,x,uchain);
+	X509_STORE_set_flags(ctx, vflags);
+	if(!X509_STORE_CTX_init(csc,ctx,x,uchain))
+		{
+		ERR_print_errors(bio_err);
+		goto end;
+		}
 	if(tchain) X509_STORE_CTX_trusted_stack(csc, tchain);
 	if(purpose >= 0) X509_STORE_CTX_set_purpose(csc, purpose);
-	if(issuer_checks)
-		X509_STORE_CTX_set_flags(csc, X509_V_FLAG_CB_ISSUER_CHECK);
 	i=X509_verify_cert(csc);
 	X509_STORE_CTX_free(csc);
 
@@ -275,7 +273,6 @@ end:
 	else
 		ERR_print_errors(bio_err);
 	if (x != NULL) X509_free(x);
-	if (in != NULL) BIO_free(in);
 
 	return(ret);
 	}
@@ -333,7 +330,8 @@ static int MS_CALLBACK cb(int ok, X509_STORE_CTX *ctx)
 	if (!ok)
 		{
 		X509_NAME_oneline(
-				X509_get_subject_name(ctx->current_cert),buf,256);
+				X509_get_subject_name(ctx->current_cert),buf,
+				sizeof buf);
 		printf("%s\n",buf);
 		printf("error %d at %d depth lookup:%s\n",ctx->error,
 			ctx->error_depth,
@@ -349,6 +347,9 @@ static int MS_CALLBACK cb(int ok, X509_STORE_CTX *ctx)
 		if (ctx->error == X509_V_ERR_PATH_LENGTH_EXCEEDED) ok=1;
 		if (ctx->error == X509_V_ERR_INVALID_PURPOSE) ok=1;
 		if (ctx->error == X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT) ok=1;
+		if (ctx->error == X509_V_ERR_CRL_HAS_EXPIRED) ok=1;
+		if (ctx->error == X509_V_ERR_CRL_NOT_YET_VALID) ok=1;
+		if (ctx->error == X509_V_ERR_UNHANDLED_CRITICAL_EXTENSION) ok=1;
 		}
 	if (!v_verbose)
 		ERR_clear_error();

@@ -61,6 +61,7 @@
 #include <string.h>
 #include <openssl/md2.h>
 #include <openssl/opensslv.h>
+#include <openssl/crypto.h>
 
 const char *MD2_version="MD2" OPENSSL_VERSION_PTEXT;
 
@@ -115,19 +116,20 @@ const char *MD2_options(void)
 		return("md2(int)");
 	}
 
-void MD2_Init(MD2_CTX *c)
+int MD2_Init(MD2_CTX *c)
 	{
 	c->num=0;
-	memset(c->state,0,MD2_BLOCK*sizeof(MD2_INT));
-	memset(c->cksm,0,MD2_BLOCK*sizeof(MD2_INT));
-	memset(c->data,0,MD2_BLOCK);
+	memset(c->state,0,sizeof c->state);
+	memset(c->cksm,0,sizeof c->cksm);
+	memset(c->data,0,sizeof c->data);
+	return 1;
 	}
 
-void MD2_Update(MD2_CTX *c, const unsigned char *data, unsigned long len)
+int MD2_Update(MD2_CTX *c, const unsigned char *data, unsigned long len)
 	{
 	register UCHAR *p;
 
-	if (len == 0) return;
+	if (len == 0) return 1;
 
 	p=c->data;
 	if (c->num != 0)
@@ -146,7 +148,7 @@ void MD2_Update(MD2_CTX *c, const unsigned char *data, unsigned long len)
 			memcpy(&(p[c->num]),data,(int)len);
 			/* data+=len; */
 			c->num+=(int)len;
-			return;
+			return 1;
 			}
 		}
 	/* we now can process the input data in blocks of MD2_BLOCK
@@ -159,6 +161,7 @@ void MD2_Update(MD2_CTX *c, const unsigned char *data, unsigned long len)
 		}
 	memcpy(p,data,(int)len);
 	c->num=(int)len;
+	return 1;
 	}
 
 static void md2_block(MD2_CTX *c, const unsigned char *d)
@@ -194,10 +197,10 @@ static void md2_block(MD2_CTX *c, const unsigned char *d)
 		t=(t+i)&0xff;
 		}
 	memcpy(sp1,state,16*sizeof(MD2_INT));
-	memset(state,0,48*sizeof(MD2_INT));
+	OPENSSL_cleanse(state,48*sizeof(MD2_INT));
 	}
 
-void MD2_Final(unsigned char *md, MD2_CTX *c)
+int MD2_Final(unsigned char *md, MD2_CTX *c)
 	{
 	int i,v;
 	register UCHAR *cp;
@@ -219,5 +222,6 @@ void MD2_Final(unsigned char *md, MD2_CTX *c)
 	for (i=0; i<16; i++)
 		md[i]=(UCHAR)(p1[i]&0xff);
 	memset((char *)&c,0,sizeof(c));
+	return 1;
 	}
 
