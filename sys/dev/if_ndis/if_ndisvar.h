@@ -93,6 +93,8 @@ struct ndis_softc {
 	struct mtx		ndis_mtx;
 	struct mtx		ndis_intrmtx;
 	struct task		ndis_intrtask;
+	struct task		ndis_ticktask;
+	struct task		ndis_starttask;
 	device_t		ndis_dev;
 	int			ndis_unit;
 	ndis_miniport_block	ndis_block;
