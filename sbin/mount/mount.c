@@ -508,7 +508,7 @@ void
 prmount(sfp)
 	struct statfs *sfp;
 {
-	int flags;
+	int flags, i;
 	struct opt *o;
 	struct passwd *pw;
 
@@ -535,6 +535,9 @@ prmount(sfp)
 		if (sfp->f_syncreads != 0 || sfp->f_asyncreads != 0)
 			(void)printf(", reads: sync %ld async %ld",
 			    sfp->f_syncreads, sfp->f_asyncreads);
+		printf(", fsid ");
+		for (i = 0; i < sizeof(sfp->f_fsid); i++)
+			printf("%02x", ((u_char *)&sfp->f_fsid)[i]);
 	}
 	(void)printf(")\n");
 }
