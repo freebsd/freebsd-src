@@ -412,6 +412,7 @@ vendor BROADCOM		0x0a5c	Broadcom
 vendor GREENHOUSE	0x0a6b	GREENHOUSE
 vendor GEOCAST		0x0a79	Geocast Network Systems
 vendor NEODIO		0x0aec  Neodio
+vendor VODAFONE		0x0af0	Vodafone
 vendor TODOS		0x0b0c	Todos Data System
 vendor SIIG2		0x0b39	SIIG
 vendor HAL		0x0b41	HAL Corporation
@@ -1416,6 +1417,9 @@ product VISIONEER 6100		0x0231	OneTouch 6100
 product VISIONEER 6200		0x0311	OneTouch 6200
 product VISIONEER 8100		0x0321	OneTouch 8100
 product VISIONEER 8600		0x0331	OneTouch 8600
+
+/* Vodafone products */
+product VODAFONE MC3G		0x5000	Mobile Connect 3G datacard
 
 /* Wacom products */
 product WACOM CT0405U		0x0000	CT-0405-U Tablet
