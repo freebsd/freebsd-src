@@ -214,94 +214,21 @@ If multiple URLs are listed on the command line,
 will attempt to retrieve them each of them in turn, and return zero
 only if they were all successfully retrieved.
 .Sh ENVIRONMENT
-.Bl -tag -width ".Ev FETCH_BIND_ADDRESS"
-.It Ev FETCH_BIND_ADDRESS
-Specifies a hostname or IP address to which sockets used for outgoing
-connections will be bound.
-.It Ev FTP_LOGIN
-Default FTP login if none was provided in the URL.
-.It Ev FTP_PASSIVE_MODE
-If set to anything but
-.Ql no ,
-forces the FTP code to use passive mode.
-.It Ev FTP_PASSWORD
-Default FTP password if the remote server requests one and none was
-provided in the URL.
-.It Ev FTP_PROXY
-URL of the proxy to use for FTP requests.
-The document part is ignored.
-FTP and HTTP proxies are supported; if no scheme is specified, FTP is
-assumed.
-If the proxy is an FTP proxy,
-.Nm fetch
-will send
-.Ql user@host
-as user name to the proxy, where
-.Ql user
-is the real user name, and
-.Ql host
-is the name of the FTP server.
-.Pp
-If this variable is set to an empty string, no proxy will be used for
-FTP requests, even if the
-.Ev HTTP_PROXY
-variable is set.
-.It Ev ftp_proxy
-Same as
-.Ev FTP_PROXY ,
-for compatibility.
-.It Ev HTTP_AUTH
-Specifies HTTP authorization parameters as a colon-separated list of
-items.
-The first and second item are the authorization scheme and realm
-respectively; further items are scheme-dependent.
-Currently, only basic authorization is supported.
-.Pp
-Basic authorization requires two parameters: the user name and
-password, in that order.
-.Pp
-This variable is only used if the server requires authorization and
-no user name or password was specified in the URL.
-.It Ev HTTP_PROXY
-URL of the proxy to use for HTTP requests.
-The document part is ignored.
-Only HTTP proxies are supported for HTTP requests.
-If no port number is specified, the default is 3128.
-.Pp
-Note that this proxy will also be used for FTP documents, unless the
-.Ev FTP_PROXY
-variable is set.
-.It Ev http_proxy
-Same as
-.Ev HTTP_PROXY ,
-for compatibility.
-.It Ev HTTP_PROXY_AUTH
-Specifies authorization parameters for the HTTP proxy in the same
-format as the
-.Ev HTTP_AUTH
-variable.
-.Pp
-This variable is used if and only if connected to an HTTP proxy, and
-is ignored if a user and/or a password were specified in the proxy
-URL.
-.It Ev HTTP_REFERER
-Specifies the referrer URL to use for HTTP requests.
-If set to
-.Dq auto ,
-the document URL will be used as referrer URL.
-.It Ev HTTP_USER_AGENT
-Specifies the User-Agent string to use for HTTP requests.
-This can be useful when working with HTTP origin or proxy servers that
-differentiate between user agents.
-.It Ev NETRC
-Specifies a file to use instead of
-.Pa ~/.netrc
-to look up login names and passwords for FTP sites.
-See
-.Xr ftp 1
-for a description of the file format.
-This feature is experimental.
+.Bl -tag -width HTTP_TIMEOUT
+.It Ev FTP_TIMEOUT
+maximum time, in seconds, to wait before aborting an FTP connection.
+.It Ev HTTP_TIMEOUT
+mum time, in seconds, to wait before aborting an HTTP connection.
 .El
+.Pp
+All environment variables mentioned in the documentation for the
+.Xr fetch 3
+library are supported.  A number of these are quite important to
+the proper operation of
+.Nm ;
+you are strongly encouraged to read 
+.Xr fetch 3
+as well.
 .Sh EXAMPLES
 To access a proxy server on
 .Pa proxy.example.com
