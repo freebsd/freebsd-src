@@ -1,5 +1,5 @@
 #	From: @(#)Makefile.inc	8.3 (Berkeley) 4/16/94
-#	$Id$
+#	$Id: Makefile.inc,v 1.26 1997/02/22 14:57:58 peter Exp $
 
 # machine-independent gen sources
 .PATH: ${.CURDIR}/${MACHINE}/gen ${.CURDIR}/gen
@@ -10,7 +10,8 @@ SRCS+=	alarm.c assert.c clock.c closedir.c config.c confstr.c crypt.c \
 	getcap.c getcwd.c getdomainname.c getgrent.c getgrouplist.c \
 	gethostname.c getloadavg.c getlogin.c getmntinfo.c getnetgrent.c \
 	getosreldate.c getpagesize.c getpass.c getpwent.c getttyent.c \
-	getusershell.c getvfsent.c glob.c initgroups.c isatty.c msgctl.c \
+	getusershell.c getvfsbyname.c getvfsent.c glob.c \
+	initgroups.c isatty.c msgctl.c \
 	msgget.c msgrcv.c msgsnd.c nice.c nlist.c ntp_gettime.c opendir.c \
 	pause.c popen.c psignal.c pwcache.c raise.c readdir.c rewinddir.c \
 	scandir.c seekdir.c semconfig.c semctl.c semget.c semop.c \
