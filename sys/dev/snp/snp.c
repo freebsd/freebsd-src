@@ -15,7 +15,6 @@
  * $FreeBSD$
  */
 
-#include "snp.h"
 #include "opt_compat.h"
 #include <sys/param.h>
 #include <sys/systm.h>
