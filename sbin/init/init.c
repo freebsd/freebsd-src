@@ -1592,7 +1592,7 @@ runshutdown()
 		if (clang == 1) {
 			/* we were waiting for the sub-shell */
 			kill(wpid, SIGTERM);
-			warning("timeout expired for %s on %s: %m; going to single used mode",
+			warning("timeout expired for %s on %s: %m; going to single user mode",
 				_PATH_BSHELL, _PATH_RUNDOWN);
 			return -1;
 		}
