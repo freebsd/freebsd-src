@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.98 1994/10/21 01:10:53 wollman Exp $
+#	$Id: LINT,v 1.99 1994/10/24 22:18:12 sos Exp $
 #
 
 #
@@ -103,6 +103,8 @@ options		KTRACE			#kernel tracing
 #
 options		DIAGNOSTIC
 
+# Enable the dynamic device configuration utility (boot with -c)
+options		USERCONFIG
 
 
 #####################################################################
