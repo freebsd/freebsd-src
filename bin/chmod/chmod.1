@@ -86,7 +86,8 @@ rather than the file that the link points to.
 .It Fl v
 Cause
 .Nm
-to be verbose, showing filenames as the mode is modified.  If the
+to be verbose, showing filenames as the mode is modified.
+If the
 .Fl v
 flag is specified more than once, the old and new modes of the file
 will also be printed, in both octal and symbolic notation.
@@ -126,7 +127,7 @@ and the
 option to
 .Xr mount 8 .
 .It Li 2000
-(the set-group-ID-on-execution bit)  Executable files with this bit set
+(the set-group-ID-on-execution bit) Executable files with this bit set
 will run with effective gid set to the gid of the file owner.
 .It Li 1000
 (the sticky bit)
@@ -139,21 +140,24 @@ Allow read by owner.
 .It Li 0200
 Allow write by owner.
 .It Li 0100
-For files, allow execution by owner.  For directories, allow the owner to
+For files, allow execution by owner.
+For directories, allow the owner to
 search in the directory.
 .It Li 0040
 Allow read by group members.
 .It Li 0020
 Allow write by group members.
 .It Li 0010
-For files, allow execution by group members.  For directories, allow
+For files, allow execution by group members.
+For directories, allow
 group members to search in the directory.
 .It Li 0004
 Allow read by others.
 .It Li 0002
 Allow write by others.
 .It Li 0001
-For files, allow execution by others.  For directories allow others to
+For files, allow execution by others.
+For directories allow others to
 search in the directory.
 .El
 .Pp
