@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.71 1995/03/16 18:12:04 bde Exp $
+ *	$Id: sio.c,v 1.72 1995/03/28 05:39:53 ache Exp $
  */
 
 #include "sio.h"
@@ -1550,7 +1550,7 @@ repeat:
 		 * call overhead).
 		 */
 		if (!(tp->t_iflag & (ICRNL | IGNCR | IMAXBEL | INLCR | ISTRIP
-				   | IXOFF | IXON))
+				   | IXOFF | IXON | IGNBRK | BRKINT | PARMRK))
 		    && !(tp->t_lflag & (ECHO | ECHONL | ICANON | IEXTEN | ISIG
 				   | PENDIN))
 		    && !(tp->t_state & (TS_CNTTB | TS_LNCH))
