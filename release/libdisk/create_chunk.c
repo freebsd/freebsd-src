@@ -15,7 +15,6 @@
 #include <unistd.h>
 #include <string.h>
 #include <sys/types.h>
-#include <sys/queue.h>
 #include <err.h>
 #include "libdisk.h"
 
