@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.125 1998/09/15 22:05:38 gibbs Exp $
+**  $Id: ncr.c,v 1.126 1998/09/16 17:11:59 gibbs Exp $
 **
 **  Device driver for the   NCR 53C8XX   PCI-SCSI-Controller Family.
 **
@@ -1288,7 +1288,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.125 1998/09/15 22:05:38 gibbs Exp $\n";
+	"\n$Id: ncr.c,v 1.126 1998/09/16 17:11:59 gibbs Exp $\n";
 
 static const u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -1616,7 +1616,7 @@ static	struct script script0 = {
 	/*
 	**      Set a time stamp for this selection
 	*/
-	SCR_COPY (sizeof (struct timeval)),
+	SCR_COPY (sizeof (ticks)),
 		KVAR (KVAR_TICKS),
 		NADDR (header.stamp.select),
 	/*
@@ -1798,7 +1798,7 @@ static	struct script script0 = {
 	/*
 	**	... set a timestamp ...
 	*/
-	SCR_COPY (sizeof (struct timeval)),
+	SCR_COPY (sizeof (ticks)),
 		KVAR (KVAR_TICKS),
 		NADDR (header.stamp.command),
 	/*
@@ -1820,7 +1820,7 @@ static	struct script script0 = {
 	/*
 	**	set the timestamp.
 	*/
-	SCR_COPY (sizeof (struct timeval)),
+	SCR_COPY (sizeof (ticks)),
 		KVAR (KVAR_TICKS),
 		NADDR (header.stamp.status),
 	/*
@@ -2125,7 +2125,7 @@ static	struct script script0 = {
 	**	Set a time stamp,
 	**	and count the disconnects.
 	*/
-	SCR_COPY (sizeof (struct timeval)),
+	SCR_COPY (sizeof (ticks)),
 		KVAR (KVAR_TICKS),
 		NADDR (header.stamp.disconnect),
 	SCR_COPY (4),
@@ -2368,7 +2368,7 @@ static	struct script script0 = {
 **
 **	SCR_JUMP ^ IFFALSE (WHEN (SCR_DATA_IN)),
 **		PADDR (no_data),
-**	SCR_COPY (sizeof (struct timeval)),
+**	SCR_COPY (sizeof (ticks)),
 **		KVAR (KVAR_TICKS),
 **		NADDR (header.stamp.data),
 **	SCR_MOVE_TBL ^ SCR_DATA_IN,
@@ -2395,7 +2395,7 @@ static	struct script script0 = {
 **
 **	SCR_JUMP ^ IFFALSE (WHEN (SCR_DATA_OUT)),
 **		PADDR (no_data),
-**	SCR_COPY (sizeof (struct timeval)),
+**	SCR_COPY (sizeof (ticks)),
 **		KVAR (KVAR_TICKS),
 **		NADDR (header.stamp.data),
 **	SCR_MOVE_TBL ^ SCR_DATA_OUT,
@@ -2964,7 +2964,7 @@ void ncr_script_fill (struct script * scr, struct scripth * scrh)
 
 	*p++ =SCR_JUMP ^ IFFALSE (WHEN (SCR_DATA_IN));
 	*p++ =PADDR (no_data);
-	*p++ =SCR_COPY (sizeof (struct timeval));
+	*p++ =SCR_COPY (sizeof (ticks));
 	*p++ =(ncrcmd) KVAR (KVAR_TICKS);
 	*p++ =NADDR (header.stamp.data);
 	*p++ =SCR_MOVE_TBL ^ SCR_DATA_IN;
@@ -2988,7 +2988,7 @@ void ncr_script_fill (struct script * scr, struct scripth * scrh)
 
 	*p++ =SCR_JUMP ^ IFFALSE (WHEN (SCR_DATA_OUT));
 	*p++ =PADDR (no_data);
-	*p++ =SCR_COPY (sizeof (struct timeval));
+	*p++ =SCR_COPY (sizeof (ticks));
 	*p++ =(ncrcmd) KVAR (KVAR_TICKS);
 	*p++ =NADDR (header.stamp.data);
 	*p++ =SCR_MOVE_TBL ^ SCR_DATA_OUT;
@@ -3755,9 +3755,11 @@ ncr_attach (pcici_t config_id, int unit)
 		printf ("\tinterruptless mode: reduced performance.\n");
 
 	/*
-	** Create the device queue.
+	** Create the device queue.  We only allow MAX_START-1 concurrent
+	** transactions so we can be sure to have one element free in our
+	** start queue to reset to the idle loop.
 	*/
-	devq = cam_simq_alloc(MAX_START);
+	devq = cam_simq_alloc(MAX_START - 1);
 	if (devq == NULL)
 		return;
 
@@ -4591,13 +4593,17 @@ ncr_wakeup (ncb_p np, u_long code)
 static void
 ncr_freeze_devq (ncb_p np, struct cam_path *path)
 {
+	nccb_p	cp;
+	int	count;
+	int	i;
 	/*
 	**	Starting at the first nccb and following
 	**	the links, complete all jobs that match
 	**	the passed in path and are in the start queue.
 	*/
 
-	nccb_p cp = np->link_nccb;
+	cp = np->link_nccb;
+	count = 0;
 	while (cp) {
 		switch (cp->host_status) {
 
@@ -4606,9 +4612,8 @@ ncr_freeze_devq (ncb_p np, struct cam_path *path)
 			if ((cp->phys.header.launch.l_paddr
 			    == NCB_SCRIPT_PHYS (np, select))
 			 && (xpt_path_comp(path, cp->ccb->ccb_h.path) >= 0)) {
-				int i;
 
-				/* Remove from the start queue */
+				/* Mark for removal from the start queue */
 				for (i = 0; i < MAX_START; i++) {
 					if (np->squeue[i] == CCB_PHYS(cp, phys))
 						np->squeue[i] =
@@ -4616,12 +4621,39 @@ ncr_freeze_devq (ncb_p np, struct cam_path *path)
 				}
 				cp->host_status=HS_STALL;
 				ncr_complete (np, cp);
+				count++;
 			}
 			break;
 		default:
 			break;
 		}
 		cp = cp->link_nccb;
+	}
+
+	if (count > 0) {
+		int j;
+		int bidx;
+
+		/* Compress the start queue */
+		j = 0;
+		bidx = np->squeueput;
+		for (i = (np->squeueput + 1) % MAX_START;;
+		     i = (i + 1) % MAX_START) {
+
+			bidx = i - j;
+			if (bidx < 0)
+				bidx = MAX_START + bidx;
+			
+			if (np->squeue[i] == NCB_SCRIPT_PHYS (np, skip))
+				j++;
+			else if (j != 0) {
+				np->squeue[bidx] = np->squeue[i];
+				if (np->squeue[bidx]
+				 == NCB_SCRIPT_PHYS(np, idle))
+					break;
+			}
+		}
+		np->squeueput = bidx;
 	}
 }
 
@@ -6258,8 +6290,8 @@ void ncr_int_sir (ncb_p np)
 **--------------------------------------------------------------------
 */
 	case SIR_STALL_QUEUE:
-		cp->xerr_status == XE_OK;
-		cp->host_status == HS_COMPLETE;
+		cp->xerr_status = XE_OK;
+		cp->host_status = HS_COMPLETE;
 		cp->s_status = SCSI_STATUS_QUEUE_FULL;
 		ncr_freeze_devq(np, cp->ccb->ccb_h.path);
 		ncr_complete(np, cp);
