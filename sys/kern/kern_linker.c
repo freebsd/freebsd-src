@@ -1286,7 +1286,7 @@ SYSINIT(preload, SI_SUB_KLD, SI_ORDER_MIDDLE, linker_preload, 0);
  */
 
 static char linker_hintfile[] = "linker.hints";
-static char linker_path[MAXPATHLEN] = "/boot/kernel;/boot/modules/;/modules/";
+static char linker_path[MAXPATHLEN] = "/boot/kernel;/boot/modules;/modules";
 
 SYSCTL_STRING(_kern, OID_AUTO, module_path, CTLFLAG_RW, linker_path,
 	      sizeof(linker_path), "module load search path");
@@ -1310,8 +1310,8 @@ linker_lookup_file(const char *path, int pathlen,
 {
     struct nameidata	nd;
     struct proc		*p = curproc;	/* XXX */
-    char		*result, **cpp;
-    int			error, len, extlen, flags;
+    char		*result, **cpp, *sep;
+    int			error, len, extlen, reclen, flags;
     enum vtype		type;
 
     extlen = 0;
@@ -1321,12 +1321,13 @@ linker_lookup_file(const char *path, int pathlen,
 	    extlen = len;
     }
     extlen++;	/* trailing '\0' */
+    sep = (path[pathlen - 1] != '/') ? "/" : "";
 
-    result = malloc((pathlen + namelen + extlen), M_LINKER, M_WAITOK);
+    reclen = pathlen + strlen(sep) + namelen + extlen + 1;
+    result = malloc(reclen, M_LINKER, M_WAITOK);
     for (cpp = linker_ext_list; *cpp; cpp++) {
-	bcopy(path, result, pathlen);
-	bcopy(name, result + pathlen, namelen);
-	strcpy(result + namelen + pathlen, *cpp);
+	snprintf(result, reclen, "%.*s%s%.*s%s", pathlen, path, sep,
+	    namelen, name, *cpp);
 	/*
 	 * Attempt to open the file, and return the path if we succeed
 	 * and it's a regular file.
@@ -1367,16 +1368,17 @@ linker_hints_lookup(const char *path, int pathlen,
     struct nameidata nd;
     struct vattr vattr, mattr;
     u_char *hints = NULL;
-    u_char *cp, *recptr, *bufend, *result, *best, *pathbuf;
+    u_char *cp, *recptr, *bufend, *result, *best, *pathbuf, *sep;
     int error, ival, bestver, *intp, reclen, found, flags, clen, blen;
 
     result = NULL;
     bestver = found = 0;
 
-    reclen = imax(modnamelen, strlen(linker_hintfile)) + pathlen;
+    sep = (path[pathlen - 1] != '/') ? "/" : "";
+    reclen = imax(modnamelen, strlen(linker_hintfile)) + pathlen +
+        strlen(sep) + 1;
     pathbuf = malloc(reclen, M_LINKER, M_WAITOK);
-    bcopy(path, pathbuf, pathlen);
-    strcpy(pathbuf + pathlen, linker_hintfile);
+    snprintf(pathbuf, reclen, "%.*s%s%s", pathlen, path, sep, linker_hintfile);
 
     NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, pathbuf, p);
     flags = FREAD;
@@ -1463,7 +1465,8 @@ linker_hints_lookup(const char *path, int pathlen,
 	/*
 	 * KLD is newer than hints file. What we should do now ?
 	 */
-	 printf("warning: KLD '%s' is newer than the linker.hints file\n", result);
+	 printf("warning: KLD '%s' is newer than the linker.hints file\n",
+	     result);
     }
 bad:
     if (hints)
