@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.12 1994/11/05 08:49:05 jkh Exp $
+#	$Id: Makefile,v 1.13 1994/11/05 23:05:53 jkh Exp $
 #
 
 FLOPPY=		fd0
@@ -47,6 +47,7 @@ boot.flp:
 	newfs -c 80 -b 4096 -f 512 /dev/r${FLOPPY}
 	mount -o async /dev/${FLOPPY} ${MNT}
 	mkdir ${MNT}/dev ${MNT}/stand ${MNT}/mnt
+	strip -x ${.CURDIR}/../sys/compile/GENERIC/kernel
 	cp ${.CURDIR}/../sys/compile/GENERIC/kernel ${MNT}/kernel
 	cp ${DESTDIR}/usr/mdec/sdboot ${DESTDIR}/usr/mdec/bootsd ${MNT}/stand
 	( cd ${DESTDIR}/dev ; \
