@@ -1,3 +1,4 @@
+/* $Id$ */
 /* Base configuration file for all FreeBSD targets.
    Copyright (C) 1999 Free Software Foundation, Inc.
 
@@ -70,6 +71,11 @@ Boston, MA 02111-1307, USA.  */
    (like the default, except no -lg, and no -p.  */
 #undef LIB_SPEC
 #define LIB_SPEC "%{!shared:%{!pg:%{!pthread:%{!kthread:-lc}%{kthread:-lpthread -lc}}%{pthread:-lc_r}}%{pg:%{!pthread:%{!kthread:-lc_p}%{kthread:-lpthread_p -lc_p}}%{pthread:-lc_r_p}}}"
+
+/* Let gcc locate this for us according to the -m rules */
+#undef LIBGCC_SPEC
+#define LIBGCC_SPEC \
+ "%{!shared:%{!pthread:%{!kthread:libgcc.a%s}}%{pthread|kthread:libgcc_r.a%s}}"
 
 
 /* Code generation parameters.  */
