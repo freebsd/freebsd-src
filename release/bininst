@@ -13,7 +13,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: bininst,v 1.39 1994/11/16 07:51:41 jkh Exp $
+# $Id: bininst,v 1.40 1994/11/17 11:53:11 jkh Exp $
 
 if [ "$_BININST_LOADED_" = "yes" ]; then
 	echo "Error, $0 loaded more than once!"
@@ -28,13 +28,13 @@ TMP=/tmp
 
 
 # Grab the miscellaneous functions.
-. miscfuncs.sh
+. /stand/miscfuncs.sh
 
 # Grab the installation routines
-. instdist.sh
+. /stand/instdist.sh
 
 # Grab the network setup routines
-. netinst.sh
+. /stand/netinst.sh
 
 # Deal with trigger-happy users.
 trap interrupt 1 2 15
