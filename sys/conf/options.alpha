@@ -2,17 +2,20 @@
 
 EV5			opt_global.h
 EV4			opt_global.h
+DEC_KN300		opt_cpu.h
 DEC_KN8AE		opt_cpu.h
 DEC_EB164		opt_cpu.h
 DEC_EB64PLUS		opt_cpu.h
 DEC_KN20AA		opt_cpu.h
 DEC_2100_A50		opt_cpu.h
+DEC_2100_A500		opt_cpu.h
 DEC_ST550		opt_cpu.h
 DEC_ST6600		opt_cpu.h
 DEC_AXPPCI_33		opt_cpu.h
 DEC_3000_300		opt_cpu.h
 DEC_3000_500		opt_cpu.h
 DEC_1000A		opt_cpu.h
+API_UP1000		opt_cpu.h
 
 ATAPI			opt_atapi.h
 ATAPI_STATIC		opt_atapi.h
