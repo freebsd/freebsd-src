@@ -1034,7 +1034,8 @@ diskLabel(Device *dev)
 	    break;
 
 	case 'T':	/* Toggle newfs state */
-	    if (label_chunk_info[here].type == PART_FILESYSTEM) {
+	    if ((label_chunk_info[here].type == PART_FILESYSTEM) &&
+	        (label_chunk_info[here].c->private_data)) {
 		PartInfo *pi = ((PartInfo *)label_chunk_info[here].c->private_data);
 		if (!pi->newfs)
 		    label_chunk_info[here].c->flags |= CHUNK_NEWFS;
