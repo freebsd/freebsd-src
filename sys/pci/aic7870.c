@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7870.c,v 1.11 1995/06/11 19:31:48 rgrimes Exp $
+ *	$Id: aic7870.c,v 1.12 1995/07/04 21:21:33 gibbs Exp $
  */
 
 #include <pci.h>
@@ -38,7 +38,7 @@
 #define PCI_DEVICE_ID_ADAPTEC_3940	0x72789004ul
 #define PCI_DEVICE_ID_ADAPTEC_2940	0x71789004ul
 #define PCI_DEVICE_ID_ADAPTEC_AIC7870	0x70789004ul
-#define PCI_DEVICE_ID_ADAPTEC_AIC7850	0x70759004ul
+#define PCI_DEVICE_ID_ADAPTEC_AIC7850	0x50789004ul
 
 static char* aic7870_probe __P((pcici_t tag, pcidi_t type));
 void aic7870_attach __P((pcici_t config_id, int unit));
