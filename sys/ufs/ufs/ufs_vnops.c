@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.96 1998/07/11 07:46:08 bde Exp $
+ * $Id: ufs_vnops.c,v 1.97 1998/07/27 15:37:00 bde Exp $
  */
 
 #include "opt_quota.h"
@@ -995,7 +995,7 @@ abortit:
 		}
 		ip->i_flag |= IN_RENAME;
 		oldparent = dp->i_number;
-		doingdirectory++;
+		doingdirectory = 1;
 	}
 	VN_POLLEVENT(fdvp, POLLWRITE);
 	vrele(fdvp);
@@ -1143,7 +1143,8 @@ abortit:
 			goto bad;
 		}
 		error = ufs_dirrewrite(dp, xp, ip->i_number,
-		    IFTODT(ip->i_mode), doingdirectory);
+		    IFTODT(ip->i_mode),
+		    (doingdirectory && newparent) ? newparent : doingdirectory);
 		if (error)
 			goto bad;
 		if (doingdirectory) {
