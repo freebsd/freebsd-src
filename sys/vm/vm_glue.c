@@ -120,7 +120,7 @@ kernacc(addr, len, rw)
 	vm_offset_t saddr, eaddr;
 	vm_prot_t prot;
 
-	KASSERT(rw & (~VM_PROT_ALL),
+	KASSERT((rw & (~VM_PROT_ALL)) == 0,
 	    ("illegal ``rw'' argument to kernacc (%x)\n", rw));
 	prot = rw;
 	saddr = trunc_page((vm_offset_t)addr);
@@ -141,7 +141,7 @@ useracc(addr, len, rw)
 	vm_map_t map;
 	vm_map_entry_t save_hint;
 
-	KASSERT(rw & (~VM_PROT_ALL),
+	KASSERT((rw & (~VM_PROT_ALL)) == 0,
 	    ("illegal ``rw'' argument to useracc (%x)\n", rw));
 	prot = rw;
 	/*
