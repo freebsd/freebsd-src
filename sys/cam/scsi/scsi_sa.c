@@ -2984,6 +2984,11 @@ saspace(struct cam_periph *periph, int count, scsi_space_code code)
 	scsi_space(&ccb->csio, 0, sadone, MSG_SIMPLE_Q_TAG, code, count,
 	    SSD_FULL_SIZE, SPACE_TIMEOUT);
 
+	/*
+	 * Clear residual because we will be using it.
+	 */
+	softc->last_ctl_resid = 0;
+
 	softc->dsreg = (count < 0)? MTIO_DSREG_REV : MTIO_DSREG_FWD;
 	error = cam_periph_runccb(ccb, saerror, 0, 0, &softc->device_stats);
 	softc->dsreg = MTIO_DSREG_REST;
@@ -3000,17 +3005,38 @@ saspace(struct cam_periph *periph, int count, scsi_space_code code)
 	 * If the spacing operation was setmarks or to end of recorded data,
 	 * we no longer know our relative position.
 	 *
-	 * We are not managing residuals here (really).
+	 * If the spacing operations was spacing files in reverse, we
+	 * take account of the residual, but still check against less
+	 * than zero- if we've gone negative, we must have hit BOT.
+	 *
+	 * If the spacing operations was spacing records in reverse and
+	 * we have a residual, we've either hit BOT or hit a filemark.
+	 * In the former case, we know our new record number (0). In
+	 * the latter case, we have absolutely no idea what the real
+	 * record number is- we've stopped between the end of the last
+	 * record in the previous file and the filemark that stopped
+	 * our spacing backwards.
 	 */
 	if (error) {
 		softc->fileno = softc->blkno = (daddr_t) -1;
 	} else if (code == SS_SETMARKS || code == SS_EOD) {
 		softc->fileno = softc->blkno = (daddr_t) -1;
 	} else if (code == SS_FILEMARKS && softc->fileno != (daddr_t) -1) {
-		softc->fileno += count;
+		softc->fileno += (count - softc->last_ctl_resid);
+		if (softc->fileno < 0)	/* we must of hit BOT */
+			softc->fileno = 0;
 		softc->blkno = 0;
 	} else if (code == SS_BLOCKS && softc->blkno != (daddr_t) -1) {
-		softc->blkno += count;
+		softc->blkno += (count - softc->last_ctl_resid);
+		if (count < 0) {
+			if (softc->last_ctl_resid || softc->blkno < 0) {
+				if (softc->fileno == 0) {
+					softc->blkno = 0;
+				} else {
+					softc->blkno = (daddr_t) -1;
+				}
+			}
+		}
 	}
 	return (error);
 }
@@ -3020,11 +3046,15 @@ sawritefilemarks(struct cam_periph *periph, int nmarks, int setmarks)
 {
 	union	ccb *ccb;
 	struct	sa_softc *softc;
-	int	error;
+	int	error, nwm = 0;
 
 	softc = (struct sa_softc *)periph->softc;
 
 	ccb = cam_periph_getccb(periph, 1);
+	/*
+	 * Clear residual because we will be using it.
+	 */
+	softc->last_ctl_resid = 0;
 
 	softc->dsreg = MTIO_DSREG_FMK;
 	/* this *must* not be retried */
@@ -3038,14 +3068,12 @@ sawritefilemarks(struct cam_periph *periph, int nmarks, int setmarks)
 	if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
 		cam_release_devq(ccb->ccb_h.path, 0, 0, 0, FALSE);
 
-	/*
-	 * XXXX: Get back the actual number of filemarks written
-	 * XXXX: (there can be a residual).
-	 */
 	if (error == 0 && nmarks) {
 		struct sa_softc *softc = (struct sa_softc *)periph->softc;
-		softc->filemarks += nmarks;
+		nwm = nmarks - softc->last_ctl_resid;
+		softc->filemarks += nwm;
 	}
+
 	xpt_release_ccb(ccb);
 
 	/*
@@ -3054,7 +3082,7 @@ sawritefilemarks(struct cam_periph *periph, int nmarks, int setmarks)
 	if (error) {
 		softc->fileno = softc->blkno = (daddr_t) -1;
 	} else if (softc->fileno != (daddr_t) -1) {
-		softc->fileno += nmarks;
+		softc->fileno += nwm;
 		softc->blkno = 0;
 	}
 	return (error);
