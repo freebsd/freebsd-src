@@ -1885,15 +1885,15 @@ hw.pcic.irq="0"</programlisting>
       このバグは修正されています.
       (セキュリティ勧告 FreeBSD-SA-02:07 参照). &merged;</para>
 
-    <para>An <quote>off-by-one</quote> bug has been fixed in
-      <application>OpenSSH</application>'s multiplexing code.  This bug
-      could have allowed an authenticated remote user to cause
-      &man.sshd.8; to execute arbitrary code with superuser
-      privileges, or allowed a connecting SSH client to execute arbitrary
-      code with the privileges of the client user.  (See security
-      advisory <ulink
-        url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:13.openssh.asc">FreeBSD-SA-02:13</ulink>.)
-      &merged;</para>
+    <para><application>OpenSSH</application> の 多重化コードに
+      含まれる <quote>一つ違い</quote> バグが修正されました.
+      このバグにより, 認証されたリモートユーザが &man.sshd.8;
+      にスーパユーザ権限で任意のコードを実行できます.
+      また, 接続している SSH クライアントにそのクライアントユーザの権限で
+      任意のコードを実行させることができます.
+      (セキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:13.openssh.asc">FreeBSD-SA-02:13</ulink>
+      参照). &merged;</para>
 
   </sect2>
 
