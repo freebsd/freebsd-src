@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.66 1995/12/14 14:35:36 peter Exp $
+ *	$Id: trap.c,v 1.67 1995/12/19 14:30:28 davidg Exp $
  */
 
 /*
@@ -765,7 +765,7 @@ trap_fatal(frame)
  * XXX Note that the current PTD gets replaced by IdlePTD when the
  * task switch occurs. This means that the stack that was active at
  * the time of the double fault is not available at <kstack> unless
- * the machine was idlewhen the double fault occurred. This downside
+ * the machine was idle when the double fault occurred. The downside
  * of this is that "trace <ebp>" in ddb won't work.
  */
 void
