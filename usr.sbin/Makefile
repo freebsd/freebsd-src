@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.20 (Berkeley) 6/12/93
-#	$Id: Makefile,v 1.129 1998/09/15 10:29:18 gibbs Exp $
+#	$Id: Makefile,v 1.130 1998/09/15 11:44:44 phk Exp $
 
 # XXX MISSING:		mkproto
 SUBDIR= ac \
@@ -130,6 +130,18 @@ SUBDIR+=apm \
 	sicontrol \
 	spkrtest \
 	stallion \
+	vidcontrol
+.endif
+
+.if ${MACHINE_ARCH} == "alpha"
+SUBDIR+=kvm_mkdb \
+	natd \
+	kbdcontrol \
+	kbdmap \
+	moused \
+	ncrcontrol \
+	pstat \
+	rtprio \
 	vidcontrol
 .endif
 
