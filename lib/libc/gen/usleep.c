@@ -39,98 +39,16 @@ static char sccsid[] = "@(#)usleep.c	8.1 (Berkeley) 6/4/93";
 #include <sys/time.h>
 #include <signal.h>
 #include <unistd.h>
-#ifdef  _THREAD_SAFE
-#include <pthread.h>
-#include "pthread_private.h"
-#endif
-
-#ifndef _THREAD_SAFE
-static int alarm_termination;
-
-static void
-sleephandler()
-{
-	alarm_termination++;
-}
-#endif	/* _THREAD_SAFE */
-
 
 void
 usleep(useconds)
 	unsigned int useconds;
 {
-#ifdef _THREAD_SAFE
 	struct timespec time_to_sleep;
-	struct timespec time_remaining;
 
 	if (useconds) {
 		time_to_sleep.tv_nsec = (useconds % 1000000) * 1000;
 		time_to_sleep.tv_sec = useconds / 1000000;
-		do {
-			(void)nanosleep(&time_to_sleep, &time_remaining);
-			time_to_sleep = time_remaining;
-		} while ((!errno || errno == EINTR) &&
-			 (time_to_sleep.tv_sec != 0 ||
-			  time_to_sleep.tv_nsec != 0));
+		(void)nanosleep(&time_to_sleep, NULL);
 	}
-#else
-	struct timespec time_to_sleep;
-	struct timespec time_remaining;
-	struct sigaction act, oact;
-	sigset_t mask, omask;
-	int alarm_blocked;
-
-	if (useconds != 0) {
-		time_to_sleep.tv_nsec = (useconds % 1000000) * 1000;
-		time_to_sleep.tv_sec = useconds / 1000000;
-
-		/* Block SIGALRM while fiddling with it */
-		sigemptyset(&mask);
-		sigaddset(&mask, SIGALRM);
-		if (sigprocmask(SIG_BLOCK, &mask, &omask))
-			return;
-
-		alarm_termination = 0;
-
-		/* Was SIGALRM blocked already? */
-		alarm_blocked = sigismember(&omask, SIGALRM);
-
-		if (!alarm_blocked) {
-			/*
-			 * Set up handler to interrupt signanosleep only if
-			 * SIGALRM was unblocked. (Save some syscalls)
-			 */
-			memset(&act, 0, sizeof(act));
-			act.sa_handler = sleephandler;
-			if (sigaction(SIGALRM, &act, &oact)) {
-				(void)sigprocmask(SIG_SETMASK, &omask,
-						  (sigset_t *)0);
-				return;
-			}
-		}
-
-  		/*
-  		 * signanosleep() uses the given mask for the lifetime of
-  		 * the syscall only - it resets on return.  Note that the
-		 * old sleep() explicitly unblocks SIGALRM during the sleep,
-		 * we don't do that now since we don't depend on SIGALRM
-		 * to end the timeout.  If the process blocks SIGALRM, it
-		 * gets what it asks for.
-  		 */
-		do {
-			(void)signanosleep(&time_to_sleep, &time_remaining,
-					   &omask);
-			time_to_sleep = time_remaining;
-		} while (!alarm_termination &&
-			 (!errno || errno == EINTR) &&
-			 (time_to_sleep.tv_sec != 0 ||
-			  time_to_sleep.tv_nsec != 0));
-
-		if (!alarm_blocked) {
-			/* Unwind */
-			(void)sigaction(SIGALRM, &oact, (struct sigaction *)0);
-			(void)sigprocmask(SIG_SETMASK, &omask, (sigset_t *)0);
-		}
-	}
-#endif	/* _THREAD_SAFE */
 }
