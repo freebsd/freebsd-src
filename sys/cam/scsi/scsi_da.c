@@ -420,6 +420,14 @@ static struct da_quirk_entry da_quirk_table[] =
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "HP", "USB CAMERA", "*"},
 		/*quirks*/ DA_Q_NO_6_BYTE
+	},
+	{
+		/*
+		 * Fujitsu-Siemens Memorybird pen drive
+		 * PR: kern/34712
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Fujitsu", "Memorybird", "*"},
+		/*quirks*/ DA_Q_NO_6_BYTE
 	}
 };
 
