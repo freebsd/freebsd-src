@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd April 11, 2004
+.Dd June 14, 2004
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -824,12 +824,18 @@ Messages indicating the specified interface does not exist, the
 requested address is unknown, or the user is not privileged and
 tried to alter an interface's configuration.
 .Sh BUGS
-IPv6 link-local addresses are required for several basic communication
-between IPv6 node.
-If they are deleted by
-.Nm
-manually, the kernel might show very strange behavior.
-So, such manual deletions are strongly discouraged.
+Basic IPv6 node operation requires a link-local address on each
+interface configured for IPv6.
+Normally, such an address is automatically configured by the
+kernel on each interface added to the system; this behaviour may
+be disabled by setting the sysctl MIB variable
+.Em net.inet6.ip6.auto_linklocal
+to 0.
+.Pp
+If you delete such an address using
+.Nm ,
+the kernel may act very oddly.
+Do this at your own risk.
 .Sh SEE ALSO
 .Xr netstat 1 ,
 .Xr netintro 4 ,
