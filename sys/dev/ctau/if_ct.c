@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sockio.h>
 #include <sys/malloc.h>
 #include <sys/socket.h>
+#include <sys/sysctl.h>
 #include <sys/conf.h>
 #include <sys/errno.h>
 #include <sys/tty.h>
@@ -75,6 +76,28 @@ __FBSDID("$FreeBSD$");
 				printf ("%s: ", d->name); printf s;}})
 #define CT_DEBUG2(d,s)	({if (d->chan->debug>1) {\
 				printf ("%s: ", d->name); printf s;}})
+
+#define CT_LOCK_NAME	"ctX"
+
+static	int	ct_mpsafenet = 1;
+TUNABLE_INT("debug.ctau.mpsafenet", &ct_mpsafenet);
+SYSCTL_NODE(_debug, OID_AUTO, ctau, CTLFLAG_RD, 0, "Cronyx Tau-ISA Adapters");
+SYSCTL_INT(_debug_ctau, OID_AUTO, mpsafenet, CTLFLAG_RD, &ct_mpsafenet, 0,
+	"Enable/disable MPSAFE network support for Cronyx Tau-ISA Adapters");
+
+#define CT_LOCK(_bd)		do { \
+				    if (ct_mpsafenet) \
+					mtx_lock (&(_bd)->ct_mtx); \
+				} while (0)
+#define CT_UNLOCK(_bd)		do { \
+				    if (ct_mpsafenet) \
+					mtx_unlock (&(_bd)->ct_mtx); \
+				} while (0)
+#define CT_LOCK_ASSERT(_bd)	do { \
+				    if (ct_mpsafenet) \
+					mtx_assert (&(_bd)->ct_mtx, MA_OWNED); \
+				} while (0)
+
 #define CDEV_MAJOR	99
 
 static void ct_identify		__P((driver_t *, device_t));
@@ -102,6 +125,7 @@ typedef struct _drv_t {
 	char name [8];
 	ct_chan_t *chan;
 	ct_board_t *board;
+	struct _bdrv_t *bd;
 	ct_dma_mem_t dmamem;
 	int running;
 #ifdef NETGRAPH
@@ -112,11 +136,12 @@ typedef struct _drv_t {
 	struct	ifqueue queue;
 	struct	ifqueue hi_queue;
 	short	timeout;
-	struct	callout_handle timeout_handle;
+	struct	callout timeout_handle;
 #else
-	struct sppp pp;
+	struct	ifqueue queue;
+	struct	sppp pp;
 #endif
-	struct cdev *devt;
+	struct	cdev *devt;
 } drv_t;
 
 typedef struct _bdrv_t {
@@ -129,6 +154,7 @@ typedef struct _bdrv_t {
 	int		irq_rid;
 	void		*intrhand;
 	drv_t		channel [NCHAN];
+	struct mtx	ct_mtx;
 } bdrv_t;
 
 static driver_t ct_isa_driver = {
@@ -159,8 +185,8 @@ static void ct_initialize (void *softc);
 
 static ct_board_t *adapter [NCTAU];
 static drv_t *channel [NCTAU*NCHAN];
-static struct callout_handle led_timo [NCTAU];
-static struct callout_handle timeout_handle;
+static struct callout led_timo [NCTAU];
+static struct callout timeout_handle;
 
 /*
  * Print the mbuf chain, for debug purposes only.
@@ -201,28 +227,37 @@ static struct mbuf *makembuf (void *buf, u_int len)
 static void ct_timeout (void *arg)
 {
 	drv_t *d;
-	int s, i;
+	int s, i, k;
 
-	for (i=0; i<NCTAU*NCHAN; ++i) {
-		d = channel[i];
-		if (! d)
+	for (i = 0; i < NCTAU; ++i) {
+		if (adapter[i] == NULL)
 			continue;
-		if (d->chan->mode != M_G703)
-			continue;
-		s = splimp ();
-		ct_g703_timer (d->chan);
-		splx (s);
+		for (k = 0; k < NCHAN; k++) {
+			d = channel[i * NCHAN + k];
+			if (! d)
+				continue;
+			if (d->chan->mode != M_G703)
+				continue;
+			s = splimp ();
+			CT_LOCK ((bdrv_t *)d->bd);
+			ct_g703_timer (d->chan);
+			CT_UNLOCK ((bdrv_t *)d->bd);
+			splx (s);
+		}
 	}
-	timeout_handle = timeout (ct_timeout, 0, hz);
+	
+	callout_reset (&timeout_handle, hz, ct_timeout, 0);
 }
 
 static void ct_led_off (void *arg)
 {
 	ct_board_t *b = arg;
+	bdrv_t *bd = ((drv_t *)b->chan->sys)->bd;
 	int s = splimp ();
 
+	CT_LOCK (bd);
 	ct_led (b, 0);
-	led_timo[b->num].callout = 0;
+	CT_UNLOCK (bd);
 	splx (s);
 }
 
@@ -233,17 +268,35 @@ static void ct_intr (void *arg)
 {
 	bdrv_t *bd = arg;
 	ct_board_t *b = bd->board;
+#ifndef NETGRAPH
+	int i;
+#endif
 	int s = splimp ();
 
+	CT_LOCK (bd);
 	/* Turn LED on. */
 	ct_led (b, 1);
 
 	ct_int_handler (b);
 
 	/* Turn LED off 50 msec later. */
-	if (! led_timo[b->num].callout)
-		led_timo[b->num] = timeout (ct_led_off, b, hz/20);
+	callout_reset (&led_timo[b->num], hz/20, ct_led_off, b);
+	CT_UNLOCK (bd);
 	splx (s);
+
+#ifndef NETGRAPH
+	/* Pass packets in a lock-free state */
+	for (i = 0; i < NCHAN && b->chan[i].type; i++) {
+		drv_t *d = b->chan[i].sys;
+		struct mbuf *m;
+		while (_IF_QLEN(&d->queue)) {
+			IF_DEQUEUE (&d->queue,m);
+			if (!m)
+				continue;
+			sppp_input (&d->pp.pp_if, m);	
+		}
+	}
+#endif
 }
 
 static int probe_irq (ct_board_t *b, int irq)
@@ -500,6 +553,7 @@ static int ct_attach (device_t dev)
 	bdrv_t *bd = device_get_softc (dev);
 	u_long iobase, drq, irq, rescount;
 	int unit = device_get_unit (dev);
+	char *ct_ln = CT_LOCK_NAME;
 	ct_board_t *b;
 	ct_chan_t *c;
 	drv_t *d;
@@ -597,6 +651,8 @@ static int ct_attach (device_t dev)
 
 	bd->board = b;
 	
+	ct_ln[2] = '0' + unit;
+	mtx_init (&bd->ct_mtx, ct_ln, MTX_NETWORK_LOCK, MTX_DEF|MTX_RECURSE);
 	if (! probe_irq (b, irq)) {
 		printf ("ct%d: irq %ld not functional\n", unit, irq);
 		bd->board = 0;
@@ -608,12 +664,15 @@ static int ct_attach (device_t dev)
 			bd->drq_res);
 		bus_release_resource (dev, SYS_RES_IOPORT, bd->base_rid,
 			bd->base_res);
+		mtx_destroy (&bd->ct_mtx);
  		return ENXIO;
 	}
 	
+	callout_init (&led_timo[unit], ct_mpsafenet ? CALLOUT_MPSAFE : 0);
 	s = splimp ();
-	if (bus_setup_intr (dev, bd->irq_res, INTR_TYPE_NET, ct_intr, bd,
-	    &bd->intrhand)) {
+	if (bus_setup_intr (dev, bd->irq_res,
+			   INTR_TYPE_NET|(ct_mpsafenet?INTR_MPSAFE:0),
+			   ct_intr, bd, &bd->intrhand)) {
 		printf ("ct%d: Can't setup irq %ld\n", unit, irq);
 		bd->board = 0;
 		adapter [unit] = 0;
@@ -624,26 +683,30 @@ static int ct_attach (device_t dev)
 			bd->drq_res);
 		bus_release_resource (dev, SYS_RES_IOPORT, bd->base_rid,
 			bd->base_res);
+		mtx_destroy (&bd->ct_mtx);
 		splx (s);
  		return ENXIO;		
 	}
-	
+
+	CT_LOCK (bd);
 	ct_init_board (b, b->num, b->port, irq, drq, b->type, b->osc);
 	ct_setup_board (b, 0, 0, 0);
+	CT_UNLOCK (bd);
 
 	printf ("ct%d: <Cronyx-%s>, clock %s MHz\n", b->num, b->name,
 		b->osc == 20000000 ? "20" : "16.384");
 
-	for (c=b->chan; c<b->chan+NCHAN; ++c) {
+	for (c = b->chan; c < b->chan + NCHAN; ++c) {
 		d = &bd->channel[c->num];
 		d->dmamem.size = sizeof(ct_buf_t);
 		if (! ct_bus_dma_mem_alloc (unit, c->num, &d->dmamem))
 			continue;
-		channel [b->num*NCHAN + c->num] = d;
-		sprintf (d->name, "ct%d.%d", b->num, c->num);
 		d->board = b;
 		d->chan = c;
+		d->bd = bd;
 		c->sys = d;
+		channel [b->num*NCHAN + c->num] = d;
+		sprintf (d->name, "ct%d.%d", b->num, c->num);
 
 #ifdef NETGRAPH
 		if (ng_make_node_common (&typestruct, &d->node) != 0) {
@@ -668,16 +731,21 @@ static int ct_attach (device_t dev)
 		d->hi_queue.ifq_maxlen = IFQ_MAXLEN;
 		mtx_init (&d->queue.ifq_mtx, "ct_queue", NULL, MTX_DEF);
 		mtx_init (&d->hi_queue.ifq_mtx, "ct_queue_hi", NULL, MTX_DEF);		
+		callout_init (&d->timeout_handle,
+			     ct_mpsafenet ? CALLOUT_MPSAFE : 0);
 #else /*NETGRAPH*/
 		d->pp.pp_if.if_softc    = d;
 		if_initname (&d->pp.pp_if, "ct", b->num * NCHAN + c->num);
 		d->pp.pp_if.if_mtu	= PP_MTU;
-		d->pp.pp_if.if_flags	= IFF_POINTOPOINT | IFF_MULTICAST |
-					  IFF_NEEDSGIANT;
+		d->pp.pp_if.if_flags	= IFF_POINTOPOINT | IFF_MULTICAST;
+		if (!ct_mpsafenet)
+			d->pp.pp_if.if_flags |= IFF_NEEDSGIANT;
 		d->pp.pp_if.if_ioctl	= ct_sioctl;
 		d->pp.pp_if.if_start	= ct_ifstart;
 		d->pp.pp_if.if_watchdog	= ct_ifwatchdog;
 		d->pp.pp_if.if_init	= ct_initialize;
+		d->queue.ifq_maxlen	= NBUF;
+		mtx_init (&d->queue.ifq_mtx, "ct_queue", NULL, MTX_DEF);
 		sppp_attach (&d->pp.pp_if);
 		if_attach (&d->pp.pp_if);
 		d->pp.pp_tlf		= ct_tlf;
@@ -686,10 +754,12 @@ static int ct_attach (device_t dev)
 		 * Header size is 4 bytes. */
 		bpfattach (&d->pp.pp_if, DLT_PPP, 4);
 #endif /*NETGRAPH*/
+		CT_LOCK (bd);
 		ct_start_chan (c, d->dmamem.virt, d->dmamem.phys);
 		ct_register_receive (c, &ct_receive);
 		ct_register_transmit (c, &ct_transmit);
 		ct_register_error (c, &ct_error);
+		CT_UNLOCK (bd);
 		d->devt = make_dev (&ct_cdevsw, b->num*NCHAN+c->num, UID_ROOT,
 				GID_WHEEL, 0600, "ct%d", b->num*NCHAN+c->num);
 	}
@@ -703,8 +773,12 @@ static int ct_detach (device_t dev)
 	bdrv_t *bd = device_get_softc (dev);
 	ct_board_t *b = bd->board;
 	ct_chan_t *c;
-	int s = splimp ();
+	int s;
 	
+	KASSERT (mtx_initialized (&bd->ct_mtx), ("ct mutex not initialized"));
+
+	s = splimp ();
+	CT_LOCK (bd);
 	/* Check if the device is busy (open). */
 	for (c = b->chan; c < b->chan + NCHAN; ++c) {
 		drv_t *d = (drv_t*) c->sys;
@@ -713,15 +787,17 @@ static int ct_detach (device_t dev)
 			continue;
 
 		if (d->running) {
+			CT_UNLOCK (bd);
 			splx (s);
 			return EBUSY;
 		}
 	}
 
 	/* Deactivate the timeout routine. */
-	if (led_timo[b->num].callout)
-		untimeout (ct_led_off, b, led_timo[b->num]);
+	callout_stop (&led_timo[b->num]);
 
+	CT_UNLOCK (bd);
+	
 	bus_teardown_intr (dev, bd->irq_res, bd->intrhand);
 	bus_deactivate_resource (dev, SYS_RES_IRQ, bd->irq_rid, bd->irq_res);
 	bus_release_resource (dev, SYS_RES_IRQ, bd->irq_rid, bd->irq_res);
@@ -732,7 +808,9 @@ static int ct_detach (device_t dev)
 	bus_deactivate_resource (dev, SYS_RES_IOPORT, bd->base_rid, bd->irq_res);
 	bus_release_resource (dev, SYS_RES_IOPORT, bd->base_rid, bd->base_res);
 
+	CT_LOCK (bd);
 	ct_close_board (b);
+	CT_UNLOCK (bd);
 
 	/* Detach the interfaces, free buffer memory. */
 	for (c = b->chan; c < b->chan + NCHAN; ++c) {
@@ -752,17 +830,21 @@ static int ct_detach (device_t dev)
 #else
 		/* Detach from the packet filter list of interfaces. */
 		bpfdetach (&d->pp.pp_if);
+
 		/* Detach from the sync PPP list. */
 		sppp_detach (&d->pp.pp_if);
 
 		if_detach (&d->pp.pp_if);
+		IF_DRAIN (&d->queue);
+		mtx_destroy (&d->queue.ifq_mtx);
 #endif		
 		destroy_dev (d->devt);
 	}
 
+	CT_LOCK (bd);
 	ct_led_off (b);
-	if (led_timo[b->num].callout)
-		untimeout (ct_led_off, b, led_timo[b->num]);
+	CT_UNLOCK (bd);
+	callout_drain (&led_timo[b->num]);
 	splx (s);
 	
 	s = splimp ();
@@ -780,6 +862,8 @@ static int ct_detach (device_t dev)
 	free (b, M_DEVBUF);
 	splx (s);
 	
+	mtx_destroy (&bd->ct_mtx);
+
 	return 0;	
 }
 
@@ -787,8 +871,11 @@ static int ct_detach (device_t dev)
 static void ct_ifstart (struct ifnet *ifp)
 {
 	drv_t *d = ifp->if_softc;
-
+	bdrv_t *bd = d->bd;
+	
+	CT_LOCK (bd);
 	ct_start (d);
+	CT_UNLOCK (bd);
 }
 
 static void ct_ifwatchdog (struct ifnet *ifp)
@@ -835,6 +922,7 @@ static void ct_initialize (void *softc)
 static int ct_sioctl (struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	drv_t *d = ifp->if_softc;
+	bdrv_t *bd = d->bd;
 	int error, s, was_up, should_be_up;
 
 	was_up = (ifp->if_flags & IFF_RUNNING) != 0;
@@ -857,6 +945,7 @@ static int ct_sioctl (struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	/* We get here only in case of SIFFLAGS or SIFADDR. */
 	s = splimp ();
+	CT_LOCK (bd);
 	should_be_up = (ifp->if_flags & IFF_RUNNING) != 0;
 	if (! was_up && should_be_up) {
 		/* Interface goes up -- start it. */
@@ -867,6 +956,7 @@ static int ct_sioctl (struct ifnet *ifp, u_long cmd, caddr_t data)
 		/* if ((d->pp.pp_flags & PP_FR) || (ifp->if_flags & PP_CISCO))*/
 		ct_down (d);
 	}
+	CT_UNLOCK (bd);
 	splx (s);
 	return 0;
 }
@@ -983,8 +1073,11 @@ static void ct_start (drv_t *d)
  */
 static void ct_watchdog (drv_t *d)
 {
-	int s = splimp ();
+	bdrv_t *bd = d->bd;
+	int s;
 
+	s = splimp ();
+	CT_LOCK (bd);
 	CT_DEBUG (d, ("device timeout\n"));
 	if (d->running) {
 		ct_setup_chan (d->chan);
@@ -993,7 +1086,7 @@ static void ct_watchdog (drv_t *d)
 		ct_set_rts (d->chan, 1);
 		ct_start (d);
 	}
-
+	CT_UNLOCK (bd);
 	splx (s);
 }
 
@@ -1050,7 +1143,7 @@ static void ct_receive (ct_chan_t *c, char *data, int len)
 	 * If so, hand off the raw packet to bpf. */
 	if (d->pp.pp_if.if_bpf)
 		BPF_TAP (&d->pp.pp_if, data, len);
-	sppp_input (&d->pp.pp_if, m);
+	IF_ENQUEUE (&d->queue, m);
 #endif
 }
 
@@ -1131,18 +1224,23 @@ static int ct_close (struct cdev *dev, int fflag, int devtype, struct thread *td
 static int ct_modem_status (ct_chan_t *c)
 {
 	drv_t *d = c->sys;
+	bdrv_t *bd;
 	int status, s;
 
 	if (!d)
 		return 0;
 
+	bd = d->bd;
+	
 	status = d->running ? TIOCM_LE : 0;
 	s = splimp ();
+	CT_LOCK (bd);
 	if (ct_get_cd  (c)) status |= TIOCM_CD;
 	if (ct_get_cts (c)) status |= TIOCM_CTS;
 	if (ct_get_dsr (c)) status |= TIOCM_DSR;
 	if (c->dtr)	    status |= TIOCM_DTR;
 	if (c->rts)	    status |= TIOCM_RTS;
+	CT_UNLOCK (bd);
 	splx (s);
 	return status;
 }
@@ -1153,6 +1251,7 @@ static int ct_modem_status (ct_chan_t *c)
 static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	drv_t *d = channel [minor (dev)];
+	bdrv_t *bd;
 	ct_chan_t *c;
 	struct serial_statistics *st;
 	struct e1_statistics *opte1;
@@ -1162,6 +1261,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 	if (!d || !d->chan)
 		return 0;
 
+	bd = d->bd;
 	c = d->chan;
 
 	switch (cmd) {
@@ -1244,11 +1344,13 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		if (c->mode == M_HDLC)
 			return EINVAL;
 		s = splimp ();
+		CT_LOCK (bd);
 		switch (*(char*)data) {
 		case 'a': ct_set_config (c->board, CFG_A); break;
 		case 'b': ct_set_config (c->board, CFG_B); break;
 		case 'c': ct_set_config (c->board, CFG_C); break;
 		}
+		CT_UNLOCK (bd);
 		splx (s);
 		return 0;
 
@@ -1341,7 +1443,9 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		if (error)
 			return error;
 		s = splimp ();
+		CT_LOCK (bd);
 		ct_set_baud (c, *(long*)data);
+		CT_UNLOCK (bd);
 		splx (s);
 		return 0;
 
@@ -1355,7 +1459,9 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		if (error)
 			return error;
 		s = splimp ();
+		CT_LOCK (bd);
 		ct_set_loop (c, *(int*)data);
+		CT_UNLOCK (bd);
 		splx (s);
 		return 0;
 
@@ -1373,7 +1479,9 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		if (c->mode == M_E1 || c->mode == M_G703)
 			return EINVAL;
 		s = splimp ();
+		CT_LOCK (bd);
 		ct_set_dpll (c, *(int*)data);
+		CT_UNLOCK (bd);
 		splx (s);
 		return 0;
 
@@ -1391,7 +1499,9 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		if (c->mode == M_E1 || c->mode == M_G703)
 			return EINVAL;
 		s = splimp ();
+		CT_LOCK (bd);
 		ct_set_nrzi (c, *(int*)data);
+		CT_UNLOCK (bd);
 		splx (s);
 		return 0;
 
@@ -1425,7 +1535,9 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		if (error)
 			return error;
 		s = splimp ();
+		CT_LOCK (bd);
 		ct_set_higain (c, *(int*)data);
+		CT_UNLOCK (bd);
 		splx (s);
 		return 0;
 
@@ -1445,7 +1557,9 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		if (error)
 			return error;
 		s = splimp ();
+		CT_LOCK (bd);
 		ct_set_phony (c, *(int*)data);
+		CT_UNLOCK (bd);
 		splx (s);
 		return 0;
 
@@ -1466,6 +1580,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		if (error)
 			return error;
 		s = splimp ();
+		CT_LOCK (bd);
 		switch (*(int*)data) {
 		default:		    ct_set_clk (c, GCLK_INT);   break;
 		case E1CLK_RECEIVE:	    ct_set_clk (c, GCLK_RCV);   break;
@@ -1473,6 +1588,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		case E1CLK_RECEIVE_CHAN1:
 					    ct_set_clk (c, GCLK_RCLKO); break;
 		}
+		CT_UNLOCK (bd);
 		splx (s);
 		return 0;
 
@@ -1488,7 +1604,9 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		if (error)
 			return error;
 		s = splimp ();
+		CT_LOCK (bd);
 		ct_set_ts (c, *(long*)data);
+		CT_UNLOCK (bd);
 		splx (s);
 		return 0;
 
@@ -1504,7 +1622,9 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		if (error)
 			return error;
 		s = splimp ();
+		CT_LOCK (bd);
 		ct_set_subchan (c->board, *(long*)data);
+		CT_UNLOCK (bd);
 		splx (s);
 		return 0;
 
@@ -1530,7 +1650,9 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		if (c->mode == M_E1 || c->mode == M_G703)
 			return EINVAL;
 		s = splimp ();
+		CT_LOCK (bd);
 		ct_set_invtxc (c, *(int*)data);
+		CT_UNLOCK (bd);
 		splx (s);
 		return 0;
 
@@ -1542,7 +1664,9 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		if (c->mode == M_E1 || c->mode == M_G703)
 			return EINVAL;
 		s = splimp ();
+		CT_LOCK (bd);
 		ct_set_invrxc (c, *(int*)data);
+		CT_UNLOCK (bd);
 		splx (s);
 		return 0;
 
@@ -1550,40 +1674,52 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		if (c->mode != M_G703)
 			return EINVAL;
 		s = splimp ();
+		CT_LOCK (bd);
 		*(int*)data = ct_get_lq (c);
+		CT_UNLOCK (bd);
 		splx (s);
 		return 0;
 
 	case TIOCSDTR:	/* Set DTR */
 		s = splimp ();
+		CT_LOCK (bd);
 		ct_set_dtr (c, 1);
+		CT_UNLOCK (bd);
 		splx (s);
 		return 0;
 
 	case TIOCCDTR:	/* Clear DTR */
 		s = splimp ();
+		CT_LOCK (bd);
 		ct_set_dtr (c, 0);
+		CT_UNLOCK (bd);
 		splx (s);
 		return 0;
 
 	case TIOCMSET:	/* Set DTR/RTS */
 		s = splimp ();
+		CT_LOCK (bd);
 		ct_set_dtr (c, (*(int*)data & TIOCM_DTR) ? 1 : 0);
 		ct_set_rts (c, (*(int*)data & TIOCM_RTS) ? 1 : 0);
+		CT_UNLOCK (bd);
 		splx (s);
 		return 0;
 
 	case TIOCMBIS:	/* Add DTR/RTS */
 		s = splimp ();
+		CT_LOCK (bd);
 		if (*(int*)data & TIOCM_DTR) ct_set_dtr (c, 1);
 		if (*(int*)data & TIOCM_RTS) ct_set_rts (c, 1);
+		CT_UNLOCK (bd);
 		splx (s);
 		return 0;
 
 	case TIOCMBIC:	/* Clear DTR/RTS */
 		s = splimp ();
+		CT_LOCK (bd);
 		if (*(int*)data & TIOCM_DTR) ct_set_dtr (c, 0);
 		if (*(int*)data & TIOCM_RTS) ct_set_rts (c, 0);
+		CT_UNLOCK (bd);
 		splx (s);
 		return 0;
 
@@ -1620,6 +1756,8 @@ static int ng_ct_newhook (node_p node, hook_p hook, const char *name)
 	if (!d)
 		return EINVAL;
 		
+	bdrv_t *bd = d->bd;
+	
 	/* Attach debug hook */
 	if (strcmp (name, NG_CT_HOOK_DEBUG) == 0) {
 		NG_HOOK_SET_PRIVATE (hook, NULL);
@@ -1634,7 +1772,9 @@ static int ng_ct_newhook (node_p node, hook_p hook, const char *name)
 	NG_HOOK_SET_PRIVATE (hook, d);
 	d->hook = hook;
 	s = splimp ();
+	CT_LOCK (bd);
 	ct_up (d);
+	CT_UNLOCK (bd);
 	splx (s);
 	return 0;
 }
@@ -1833,6 +1973,7 @@ static int print_e1_stats (char *s, ct_chan_t *c)
 static int print_chan (char *s, ct_chan_t *c)
 {
 	drv_t *d = c->sys;
+	bdrv_t *bd = d->bd;
 	int length = 0;
 
 	length += sprintf (s + length, "ct%d", c->board->num * NCHAN + c->num);
@@ -1876,7 +2017,9 @@ static int print_chan (char *s, ct_chan_t *c)
 		int lq, x;
 
 		x = splimp ();
+		CT_LOCK (bd);
 		lq = ct_get_lq (c);
+		CT_UNLOCK (bd);
 		splx (x);
 		length += sprintf (s + length, " (level=-%.1fdB)", lq / 10.0);
 	}
@@ -1943,12 +2086,14 @@ static int ng_ct_rcvdata (hook_p hook, item_p item)
 	drv_t *d = NG_NODE_PRIVATE (NG_HOOK_NODE(hook));
 	struct mbuf *m;
 	struct ng_tag_prio *ptag;
+	bdrv_t *bd;
 	struct ifqueue *q;
 	int s;
 
 	if (!d)
 		return ENETDOWN;
 		
+	bd = d->bd;
 	NGI_GET_M (item, m);
 	NG_FREE_ITEM (item);
 	if (! NG_HOOK_PRIVATE (hook) || ! d) {
@@ -1964,10 +2109,12 @@ static int ng_ct_rcvdata (hook_p hook, item_p item)
 		q = &d->queue;
 
 	s = splimp ();
+	CT_LOCK (bd);
 	IF_LOCK (q);
 	if (_IF_QFULL (q)) {
 		_IF_DROP (q);
 		IF_UNLOCK (q);
+		CT_UNLOCK (bd);
 		splx (s);
 		NG_FREE_M (m);
 		return ENOBUFS;
@@ -1975,6 +2122,7 @@ static int ng_ct_rcvdata (hook_p hook, item_p item)
 	_IF_ENQUEUE (q, m);
 	IF_UNLOCK (q);
 	ct_start (d);
+	CT_UNLOCK (bd);
 	splx (s);
 	return 0;
 }
@@ -1982,11 +2130,15 @@ static int ng_ct_rcvdata (hook_p hook, item_p item)
 static int ng_ct_rmnode (node_p node)
 {
 	drv_t *d = NG_NODE_PRIVATE (node);
+	bdrv_t *bd;
 
 	CT_DEBUG (d, ("Rmnode\n"));
 	if (d && d->running) {
+		bd = d->bd;
 		int s = splimp ();
+		CT_LOCK (bd);
 		ct_down (d);
+		CT_UNLOCK (bd);
 		splx (s);
 	}
 #ifdef	KLD_MODULE
@@ -2010,7 +2162,7 @@ static void ng_ct_watchdog (void *arg)
 		ct_watchdog (d);
 	if (d->timeout)
 		d->timeout--;
-	d->timeout_handle = timeout (ng_ct_watchdog, d, hz);
+	callout_reset (&d->timeout_handle, hz, ng_ct_watchdog, d);
 }
 
 static int ng_ct_connect (hook_p hook)
@@ -2020,20 +2172,27 @@ static int ng_ct_connect (hook_p hook)
 	if (!d)
 		return 0;
 		
-	d->timeout_handle = timeout (ng_ct_watchdog, d, hz);
+	callout_reset (&d->timeout_handle, hz, ng_ct_watchdog, d);
 	return 0;
 }
 
 static int ng_ct_disconnect (hook_p hook)
 {
 	drv_t *d = NG_NODE_PRIVATE (NG_HOOK_NODE (hook));
-
+	bdrv_t *bd;
+	
 	if (!d)
 		return 0;
-		
+	
+	bd = d->bd;
+	
+	CT_LOCK (bd);
 	if (NG_HOOK_PRIVATE (hook))
 		ct_down (d);
-	untimeout (ng_ct_watchdog, d, d->timeout_handle);
+	CT_UNLOCK (bd);
+	/* If we were wait it than it reasserted now, just stop it. */
+	if (!callout_drain (&d->timeout_handle))
+		callout_stop (&d->timeout_handle);
 	return 0;
 }
 #endif
@@ -2042,6 +2201,14 @@ static int ct_modevent (module_t mod, int type, void *unused)
 {
 	static int load_count = 0;
 
+	if (!debug_mpsafenet && ct_mpsafenet) {
+		printf ("WORNING! Network stack is not MPSAFE. "
+			"Turning off debug.ct.mpsafenet.\n");
+		ct_mpsafenet = 0;
+	}
+	if (ct_mpsafenet)
+		ct_cdevsw.d_flags &= ~D_NEEDGIANT;
+
 	switch (type) {
 	case MOD_LOAD:
 #ifdef NETGRAPH
@@ -2049,7 +2216,8 @@ static int ct_modevent (module_t mod, int type, void *unused)
 			printf ("Failed to register ng_ct\n");
 #endif
 		++load_count;
-		timeout_handle = timeout (ct_timeout, 0, hz*5);
+		callout_init (&timeout_handle, ct_mpsafenet?CALLOUT_MPSAFE:0);
+		callout_reset (&timeout_handle, hz*5, ct_timeout, 0);
 		break;
 	case MOD_UNLOAD:
 		if (load_count == 1) {
@@ -2058,8 +2226,9 @@ static int ct_modevent (module_t mod, int type, void *unused)
 			ng_rmtype (&typestruct);
 #endif			
 		}
-		if (timeout_handle.callout)
-			untimeout (ct_timeout, 0, timeout_handle);
+		/* If we were wait it than it reasserted now, just stop it. */
+		if (!callout_drain (&timeout_handle))
+			callout_stop (&timeout_handle);
 		--load_count;
 		break;
 	case MOD_SHUTDOWN:
@@ -2087,8 +2256,5 @@ MODULE_DEPEND (ng_ct, netgraph, NG_ABI_VERSION, NG_ABI_VERSION, NG_ABI_VERSION);
 #else
 MODULE_DEPEND (ct, sppp, 1, 1, 1);
 #endif
-#ifdef KLD_MODULE
-DRIVER_MODULE (ctmod, isa, ct_isa_driver, ct_devclass, ct_modevent, NULL);
-#else
 DRIVER_MODULE (ct, isa, ct_isa_driver, ct_devclass, ct_modevent, NULL);
-#endif
+MODULE_VERSION (ct, 1);

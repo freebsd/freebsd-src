@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sockio.h>
 #include <sys/malloc.h>
 #include <sys/socket.h>
+#include <sys/sysctl.h>
 #include <sys/conf.h>
 #include <sys/errno.h>
 #include <sys/serial.h>
@@ -80,6 +81,27 @@ __FBSDID("$FreeBSD$");
 #define CX_DEBUG2(d,s)	({if (d->chan->debug>1) {\
 				printf ("%s: ", d->name); printf s;}})
 
+#define CX_LOCK_NAME	"cxX"
+
+static	int	cx_mpsafenet = 1;
+TUNABLE_INT("debug.cx.mpsafenet", &cx_mpsafenet);
+SYSCTL_NODE(_debug, OID_AUTO, cx, CTLFLAG_RD, 0, "Cronyx Sigma Adapters");
+SYSCTL_INT(_debug_cx, OID_AUTO, mpsafenet, CTLFLAG_RD, &cx_mpsafenet, 0,
+	"Enable/disable MPSAFE network support for Cronyx Sigma Adapters");
+
+#define CX_LOCK(_bd)		do { \
+				    if (cx_mpsafenet) \
+					mtx_lock (&(_bd)->cx_mtx); \
+				} while (0)
+#define CX_UNLOCK(_bd)		do { \
+				    if (cx_mpsafenet) \
+					mtx_unlock (&(_bd)->cx_mtx); \
+				} while (0)
+#define CX_LOCK_ASSERT(_bd)	do { \
+				    if (cx_mpsafenet) \
+					mtx_assert (&(_bd)->cx_mtx, MA_OWNED); \
+				} while (0)
+
 typedef struct _async_q {
 	int beg;
 	int end;
@@ -123,7 +145,7 @@ typedef struct _drv_t {
 	cx_board_t *board;
 	cx_dma_mem_t dmamem;
 	struct tty *tty;
-	struct callout_handle dcd_timeout_handle;
+	struct callout dcd_timeout_handle;
 	unsigned callout;
 	unsigned lock;
 	int open_dev;
@@ -137,12 +159,13 @@ typedef struct _drv_t {
 	struct	ifqueue lo_queue;
 	struct	ifqueue hi_queue;
 	short	timeout;
-	struct	callout_handle timeout_handle;
+	struct	callout timeout_handle;
 #else
-	struct sppp pp;
+	struct	ifqueue queue;
+	struct	sppp pp;
 #endif
-	struct cdev *devt;
-	async_q aqueue;
+	struct	cdev *devt;
+	async_q	aqueue;
 #define CX_READ 1
 #define CX_WRITE 2
 	int intr_action;
@@ -159,6 +182,7 @@ typedef struct _bdrv_t {
 	int		irq_rid;
 	void		*intrhand;
 	drv_t		channel [NCHAN];
+	struct mtx	cx_mtx;
 } bdrv_t;
 
 static driver_t cx_isa_driver = {
@@ -203,8 +227,8 @@ static void cx_initialize (void *softc);
 
 static cx_board_t *adapter [NCX];
 static drv_t *channel [NCX*NCHAN];
-static struct callout_handle led_timo [NCX];
-static struct callout_handle timeout_handle;
+static struct callout led_timo [NCX];
+static struct callout timeout_handle;
 extern struct cdevsw cx_cdevsw;
 
 static int MY_SOFT_INTR;
@@ -280,36 +304,45 @@ static struct mbuf *makembuf (void *buf, u_int len)
 static void cx_timeout (void *arg)
 {
 	drv_t *d;
-	int s, i;
+	int s, i, k;
 
-	for (i=0; i<NCX*NCHAN; ++i) {
-		d = channel[i];
-		if (! d)
+	for (i = 0; i < NCX; i++) {
+		if (adapter[i] == NULL)
 			continue;
-		s = splhigh ();
-		if (d->atimeout == 1 && d->tty && d->tty->t_state & TS_BUSY) {
-			d->tty->t_state &= ~TS_BUSY;
-			if (d->tty->t_dev) {
-				d->intr_action |= CX_WRITE;
-				MY_SOFT_INTR = 1;
-				swi_sched (cx_fast_ih, 0);
+		for (k = 0; k < NCHAN; ++k) {
+			d = channel[i * NCHAN + k];
+			if (! d)
+				continue;
+			s = splhigh ();
+			CX_LOCK ((bdrv_t *)d->board->sys);
+			if (d->atimeout == 1 && d->tty && d->tty->t_state & TS_BUSY) {
+				d->tty->t_state &= ~TS_BUSY;
+				if (d->tty->t_dev) {
+					d->intr_action |= CX_WRITE;
+					MY_SOFT_INTR = 1;
+					swi_sched (cx_fast_ih, 0);
+				}
+				CX_DEBUG (d, ("cx_timeout\n"));
 			}
-			CX_DEBUG (d, ("cx_timeout\n"));
+			if (d->atimeout)
+				d->atimeout--;
+			CX_UNLOCK ((bdrv_t *)d->board->sys);
+			splx (s);
 		}
-		if (d->atimeout)
-			d->atimeout--;
-		splx (s);
 	}
-	timeout_handle = timeout (cx_timeout, 0, hz*5);
+	callout_reset (&timeout_handle, hz*5, cx_timeout, 0);
 }
 
 static void cx_led_off (void *arg)
 {
 	cx_board_t *b = arg;
-	int s = splhigh ();
+	bdrv_t *bd = b->sys;
+	int s;
 
+	s = splhigh ();
+	CX_LOCK (bd);
 	cx_led (b, 0);
-	led_timo[b->num].callout = 0;
+	CX_UNLOCK (bd);
 	splx (s);
 }
 
@@ -320,17 +353,35 @@ static void cx_intr (void *arg)
 {
 	bdrv_t *bd = arg;
 	cx_board_t *b = bd->board;
+#ifndef NETGRAPH
+	int i;
+#endif
 	int s = splhigh ();
 
+	CX_LOCK (bd);
 	/* Turn LED on. */
 	cx_led (b, 1);
 
 	cx_int_handler (b);
 
 	/* Turn LED off 50 msec later. */
-	if (! led_timo[b->num].callout)
-		led_timo[b->num] = timeout (cx_led_off, b, hz/20);
+	callout_reset (&led_timo[b->num], hz/20, cx_led_off, b);
+	CX_UNLOCK (bd);
 	splx (s);
+
+#ifndef NETGRAPH
+	/* Pass packets in a lock-free state */
+	for (i = 0; i < NCHAN && b->chan[i].type; i++) {
+		drv_t *d = b->chan[i].sys;
+		struct mbuf *m;
+		while (_IF_QLEN(&d->queue)) {
+			IF_DEQUEUE (&d->queue,m);
+			if (!m)
+				continue;
+			sppp_input (&d->pp.pp_if, m);	
+		}
+	}
+#endif
 }
 
 static int probe_irq (cx_board_t *b, int irq)
@@ -597,6 +648,7 @@ static int cx_attach (device_t dev)
 	bdrv_t *bd = device_get_softc (dev);
 	u_long iobase, drq, irq, rescount;
 	int unit = device_get_unit (dev);
+	char *cx_ln = CX_LOCK_NAME;
 	cx_board_t *b;
 	cx_chan_t *c;
 	drv_t *d;
@@ -694,10 +746,13 @@ static int cx_attach (device_t dev)
 
 	bd->board = b;
 	
+	cx_ln[2] = '0' + unit;
+	mtx_init (&bd->cx_mtx, cx_ln, MTX_NETWORK_LOCK, MTX_DEF|MTX_RECURSE);
 	if (! probe_irq (b, irq)) {
 		printf ("cx%d: irq %ld not functional\n", unit, irq);
 		bd->board = 0;
 		adapter [unit] = 0;
+		mtx_destroy (&bd->cx_mtx);
 		free (b, M_DEVBUF);
 		bus_release_resource (dev, SYS_RES_IRQ, bd->irq_rid,
 			bd->irq_res);
@@ -707,13 +762,17 @@ static int cx_attach (device_t dev)
 			bd->base_res);
  		return ENXIO;
 	}
-	
+	b->sys = bd;
+	callout_init (&led_timo[b->num], cx_mpsafenet ? CALLOUT_MPSAFE : 0);
 	s = splhigh ();
-	if (bus_setup_intr (dev, bd->irq_res, INTR_TYPE_NET, cx_intr, bd,
-	    &bd->intrhand)) {
+	if (bus_setup_intr (dev, bd->irq_res,
+			   INTR_TYPE_NET|(cx_mpsafenet?INTR_MPSAFE:0),
+			   cx_intr, bd, &bd->intrhand)) {
 		printf ("cx%d: Can't setup irq %ld\n", unit, irq);
 		bd->board = 0;
+		b->sys = 0;
 		adapter [unit] = 0;
+		mtx_destroy (&bd->cx_mtx);
 		free (b, M_DEVBUF);
 		bus_release_resource (dev, SYS_RES_IRQ, bd->irq_rid,
 			bd->irq_res);
@@ -725,8 +784,10 @@ static int cx_attach (device_t dev)
  		return ENXIO;		
 	}
 	
+	CX_LOCK (bd);
 	cx_init (b, b->num, b->port, irq, drq);
 	cx_setup_board (b, 0, 0, 0);
+	CX_UNLOCK (bd);
 
 	printf ("cx%d: <Cronyx-Sigma-%s>\n", b->num, b->name);
 
@@ -737,12 +798,12 @@ static int cx_attach (device_t dev)
 		d->dmamem.size = sizeof(cx_buf_t);
 		if (! cx_bus_dma_mem_alloc (unit, c->num, &d->dmamem))
 			continue;
-		channel [b->num*NCHAN + c->num] = d;
-		sprintf (d->name, "cx%d.%d", b->num, c->num);
 		d->board = b;
 		d->chan = c;
 		d->open_dev = 0;
 		c->sys = d;
+		channel [b->num*NCHAN + c->num] = d;
+		sprintf (d->name, "cx%d.%d", b->num, c->num);
 
 		switch (c->type) {
 		case T_SYNC_RS232:
@@ -775,6 +836,8 @@ static int cx_attach (device_t dev)
 		d->hi_queue.ifq_maxlen = IFQ_MAXLEN;
 		mtx_init (&d->lo_queue.ifq_mtx, "cx_queue_lo", NULL, MTX_DEF);
 		mtx_init (&d->hi_queue.ifq_mtx, "cx_queue_hi", NULL, MTX_DEF);
+		callout_init (&d->timeout_handle,
+			     cx_mpsafenet ? CALLOUT_MPSAFE : 0);
 #else /*NETGRAPH*/
 		d->pp.pp_if.if_softc    = d;
 		if_initname (&d->pp.pp_if, "cx", b->num * NCHAN + c->num);
@@ -785,6 +848,8 @@ static int cx_attach (device_t dev)
 		d->pp.pp_if.if_start	= cx_ifstart;
 		d->pp.pp_if.if_watchdog	= cx_ifwatchdog;
 		d->pp.pp_if.if_init	= cx_initialize;
+		d->queue.ifq_maxlen	= 2;
+		mtx_init (&d->queue.ifq_mtx, "cx_queue", NULL, MTX_DEF);
 		sppp_attach (&d->pp.pp_if);
 		if_attach (&d->pp.pp_if);
 		d->pp.pp_tlf		= cx_tlf;
@@ -801,16 +866,20 @@ static int cx_attach (device_t dev)
 		d->tty->t_stop  = cx_stop;
 		d->tty->t_modem  = cx_tmodem;
 		d->tty->t_sc = d;
+		CX_LOCK (bd);
 		cx_start_chan (c, d->dmamem.virt, d->dmamem.phys);
 		cx_register_receive (c, &cx_receive);
 		cx_register_transmit (c, &cx_transmit);
 		cx_register_error (c, &cx_error);
 		cx_register_modem (c, &cx_modem);
+		CX_UNLOCK (bd);
 
 		ttycreate(d->tty, NULL, 0, MINOR_CALLOUT,
 		    "x%r%r", b->num, c->num);
 		d->devt = make_dev (&cx_cdevsw, b->num*NCHAN + c->num + 64, UID_ROOT, GID_WHEEL, 0600, "cx%d", b->num*NCHAN + c->num);
 		d->devt->si_drv1 = d;
+		callout_init (&d->dcd_timeout_handle,
+			     cx_mpsafenet ? CALLOUT_MPSAFE : 0);
 	}
 	splx (s);
 
@@ -822,8 +891,12 @@ static int cx_detach (device_t dev)
 	bdrv_t *bd = device_get_softc (dev);
 	cx_board_t *b = bd->board;
 	cx_chan_t *c;
-	int s = splhigh ();
+	int s;
 	
+	KASSERT (mtx_initialized (&bd->cx_mtx), ("cx mutex not initialized"));
+
+	s = splhigh ();
+	CX_LOCK (bd);
 	/* Check if the device is busy (open). */
 	for (c = b->chan; c < b->chan + NCHAN; ++c) {
 		drv_t *d = (drv_t*) c->sys;
@@ -831,23 +904,25 @@ static int cx_detach (device_t dev)
 		if (!d || d->chan->type == T_NONE)
 			continue;
 		if (d->lock) {
+			CX_UNLOCK (bd);
 			splx (s);
 			return EBUSY;
 		}
 		if (c->mode == M_ASYNC && d->tty && (d->tty->t_state & TS_ISOPEN) &&
 		    (d->open_dev|0x2)) {
+			CX_UNLOCK (bd);
 			splx (s);
 			return EBUSY;
 		}
 		if (d->running) {
+			CX_UNLOCK (bd);
 			splx (s);
 			return EBUSY;
 		}
 	}
 
 	/* Deactivate the timeout routine. And soft interrupt*/
-	if (led_timo[b->num].callout)
-		untimeout (cx_led_off, b, led_timo[b->num]);
+	callout_stop (&led_timo[b->num]);
 
 	for (c = b->chan; c < b->chan + NCHAN; ++c) {
 		drv_t *d = c->sys;
@@ -855,9 +930,9 @@ static int cx_detach (device_t dev)
 		if (!d || d->chan->type == T_NONE)
 			continue;
 
-		if (d->dcd_timeout_handle.callout)
-			untimeout (cx_carrier, c, d->dcd_timeout_handle);
+		callout_stop (&d->dcd_timeout_handle);
 	}
+	CX_UNLOCK (bd);
 	bus_teardown_intr (dev, bd->irq_res, bd->intrhand);
 	bus_deactivate_resource (dev, SYS_RES_IRQ, bd->irq_rid, bd->irq_res);
 	bus_release_resource (dev, SYS_RES_IRQ, bd->irq_rid, bd->irq_res);
@@ -868,6 +943,7 @@ static int cx_detach (device_t dev)
 	bus_deactivate_resource (dev, SYS_RES_IOPORT, bd->base_rid, bd->irq_res);
 	bus_release_resource (dev, SYS_RES_IOPORT, bd->base_rid, bd->base_res);
 
+	CX_LOCK (bd);
 	cx_close_board (b);
 
 	/* Detach the interfaces, free buffer memory. */
@@ -897,13 +973,24 @@ static int cx_detach (device_t dev)
 		sppp_detach (&d->pp.pp_if);
 
 		if_detach (&d->pp.pp_if);
+		/* XXXRIK: check interconnection with irq handler */
+		IF_DRAIN (&d->queue);
+		mtx_destroy (&d->queue.ifq_mtx);
 #endif		
 		destroy_dev (d->devt);
 	}
 
 	cx_led_off (b);
-	if (led_timo[b->num].callout)
-		untimeout (cx_led_off, b, led_timo[b->num]);
+	CX_UNLOCK (bd);
+	callout_drain (&led_timo[b->num]);
+	for (c = b->chan; c < b->chan + NCHAN; ++c) {
+		drv_t *d = c->sys;
+
+		if (!d || d->chan->type == T_NONE)
+			continue;
+
+		callout_drain (&d->dcd_timeout_handle);
+	}
 	splx (s);
 	
 	s = splhigh ();
@@ -920,6 +1007,8 @@ static int cx_detach (device_t dev)
 	adapter [b->num] = 0;
 	free (b, M_DEVBUF);
 	splx (s);
+
+	mtx_destroy (&bd->cx_mtx);
 	
 	return 0;	
 }
@@ -928,8 +1017,11 @@ static int cx_detach (device_t dev)
 static void cx_ifstart (struct ifnet *ifp)
 {
 	drv_t *d = ifp->if_softc;
+	bdrv_t *bd = d->board->sys;
 
+	CX_LOCK (bd);
 	cx_start (d);
+	CX_UNLOCK (bd);
 }
 
 static void cx_ifwatchdog (struct ifnet *ifp)
@@ -976,6 +1068,7 @@ static void cx_initialize (void *softc)
 static int cx_sioctl (struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	drv_t *d = ifp->if_softc;
+	bdrv_t *bd = d->board->sys;
 	int error, s, was_up, should_be_up;
 
 	/* No socket ioctls while the channel is in async mode. */
@@ -1003,6 +1096,7 @@ static int cx_sioctl (struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	/* We get here only in case of SIFFLAGS or SIFADDR. */
 	s = splhigh ();
+	CX_LOCK (bd);
 	should_be_up = (ifp->if_flags & IFF_RUNNING) != 0;
 	if (!was_up && should_be_up) {
 		/* Interface goes up -- start it. */
@@ -1013,6 +1107,7 @@ static int cx_sioctl (struct ifnet *ifp, u_long cmd, caddr_t data)
 		/* if ((d->pp.pp_flags & PP_FR) || (ifp->if_flags & PP_CISCO))*/
 		cx_down (d);
 	}
+	CX_UNLOCK (bd);
 	splx (s);
 	return 0;
 }
@@ -1126,7 +1221,10 @@ static void cx_start (drv_t *d)
  */
 static void cx_watchdog (drv_t *d)
 {
+	bdrv_t *bd = d->board->sys;
+	
 	int s = splhigh ();
+	CX_LOCK (bd);
 	CX_DEBUG (d, ("device timeout\n"));
 	if (d->running) {
 		cx_setup_chan (d->chan);
@@ -1135,6 +1233,7 @@ static void cx_watchdog (drv_t *d)
 		cx_set_rts (d->chan, 1);
 		cx_start (d);
 	}
+	CX_UNLOCK (bd);
 	splx (s);
 }
 
@@ -1176,7 +1275,7 @@ static void cx_receive (cx_chan_t *c, char *data, int len)
 	drv_t *d = c->sys;
 	struct mbuf *m;
 	char *cc = data;
-#if defined NETGRAPH
+#ifdef NETGRAPH
 	int error;
 #endif
 
@@ -1231,7 +1330,7 @@ static void cx_receive (cx_chan_t *c, char *data, int len)
 	 * If so, hand off the raw packet to bpf. */
 	if (d->pp.pp_if.if_bpf)
 		BPF_TAP (&d->pp.pp_if, data, len);
-	sppp_input (&d->pp.pp_if, m);
+	IF_ENQUEUE (&d->queue, m);
 #endif
 }
 
@@ -1351,36 +1450,55 @@ static void cx_error (cx_chan_t *c, int data)
 
 static int cx_topen (struct tty *tp, struct cdev *dev)
 {
+	bdrv_t *bd;
 	drv_t *d;
 
 	d = tp->t_sc;
+	CX_DEBUG2 (d, ("cx_open (serial)\n"));
+
+	bd = d->board->sys;
+
 	if (d->chan->mode != M_ASYNC)
 		return (EBUSY);
+
 	d->open_dev |= 0x2;
+	CX_LOCK (bd);
 	cx_start_chan (d->chan, 0, 0);
 	cx_set_dtr (d->chan, 1);
 	cx_set_rts (d->chan, 1);
 	d->cd = cx_get_cd (d->chan);
-	return (0);
+	CX_UNLOCK (bd);
+
+	CX_DEBUG2 (d, ("cx_open done\n"));
+
+	return 0;
 }
 
 static void cx_tclose (struct tty *tp)
 {
 	drv_t *d;
+	bdrv_t *bd;
 
 	d = tp->t_sc;
+	CX_DEBUG2 (d, ("cx_close\n"));
+	bd = d->board->sys;
+	CX_LOCK (bd);
 	/* Disable receiver.
 	 * Transmitter continues sending the queued data. */
 	cx_enable_receive (d->chan, 0);
+	CX_UNLOCK (bd);
 	d->open_dev &= ~0x2;
 }
 
 static int cx_tmodem (struct tty *tp, int sigon, int sigoff)
 {
 	drv_t *d;
+	bdrv_t *bd;
 
 	d = tp->t_sc;
+	bd = d->board->sys;
 
+	CX_LOCK (bd);
 	if (!sigon && !sigoff) {
 		if (cx_get_dsr (d->chan)) sigon |= SER_DSR;
 		if (cx_get_cd  (d->chan)) sigon |= SER_DCD;
@@ -1398,6 +1516,8 @@ static int cx_tmodem (struct tty *tp, int sigon, int sigoff)
 		cx_set_rts (d->chan, 1);
 	if (sigoff & SER_RTS)
 		cx_set_rts (d->chan, 0);
+	CX_UNLOCK (bd);
+
 	return (0);
 }
 
@@ -1408,10 +1528,14 @@ static int cx_open (struct cdev *dev, int flag, int mode, struct thread *td)
 
 	d = dev->si_drv1;
 	unit = d->chan->num;
+
 	CX_DEBUG2 (d, ("cx_open unit=%d, flag=0x%x, mode=0x%x\n",
 		    unit, flag, mode));
 
 	d->open_dev |= 0x1;
+
+	CX_DEBUG2 (d, ("cx_open done\n"));
+
 	return 0;
 }
 
@@ -1427,8 +1551,9 @@ static int cx_close (struct cdev *dev, int flag, int mode, struct thread *td)
 
 static int cx_modem_status (drv_t *d)
 {
+	bdrv_t *bd = d->board->sys;
 	int status = 0, s = splhigh ();
-
+	CX_LOCK (bd);
 	/* Already opened by someone or network interface is up? */
 	if ((d->chan->mode == M_ASYNC && d->tty && (d->tty->t_state & TS_ISOPEN) &&
 	    (d->open_dev|0x2)) || (d->chan->mode != M_ASYNC && d->running))
@@ -1439,7 +1564,7 @@ static int cx_modem_status (drv_t *d)
 	if (cx_get_cts (d->chan)) status |= TIOCM_CTS;
 	if (d->chan->dtr)	  status |= TIOCM_DTR;
 	if (d->chan->rts)	  status |= TIOCM_RTS;
-
+	CX_UNLOCK (bd);
 	splx (s);
 	return status;
 }
@@ -1447,6 +1572,7 @@ static int cx_modem_status (drv_t *d)
 static int cx_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	drv_t *d;
+	bdrv_t *bd;
 	cx_chan_t *c;
 	struct serial_statistics *st;
 	int error, s;
@@ -1455,6 +1581,8 @@ static int cx_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 	d = dev->si_drv1;
 	c = d->chan;
 		
+	bd = d->board->sys;
+	
 	switch (cmd) {
 	case SERIAL_GETREGISTERED:
 		CX_DEBUG2 (d, ("ioctl: getregistered\n"));
@@ -1468,7 +1596,9 @@ static int cx_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 	case SERIAL_GETPORT:
 		CX_DEBUG2 (d, ("ioctl: getport\n"));
 		s = splhigh ();
+		CX_LOCK (bd);
 		*(int *)data = cx_get_port (c);
+		CX_UNLOCK (bd);
 		splx (s);
 		if (*(int *)data<0)
 			return (EINVAL);
@@ -1483,7 +1613,9 @@ static int cx_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 			return error;
 
 		s = splhigh ();
+		CX_LOCK (bd);
 		cx_set_port (c, *(int *)data);
+		CX_UNLOCK (bd);
 		splx (s);
 		return 0;
 
@@ -1491,9 +1623,11 @@ static int cx_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 	case SERIAL_GETPROTO:
 		CX_DEBUG2 (d, ("ioctl: getproto\n"));
 		s = splhigh ();
+		CX_LOCK (bd);
 		strcpy ((char*)data, (c->mode == M_ASYNC) ? "async" :
 			(d->pp.pp_flags & PP_FR) ? "fr" :
 			(d->pp.pp_if.if_flags & PP_CISCO) ? "cisco" : "ppp");
+		CX_UNLOCK (bd);
 		splx (s);
 		return 0;
 
@@ -1528,7 +1662,9 @@ static int cx_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		    (c->mode == M_ASYNC))
 			return EINVAL;
 		s = splhigh ();
+		CX_LOCK (bd);
 		*(int*)data = (d->pp.pp_flags & PP_KEEPALIVE) ? 1 : 0;
+		CX_UNLOCK (bd);
 		splx (s);
 		return 0;
 
@@ -1542,10 +1678,12 @@ static int cx_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 			(d->pp.pp_if.if_flags & PP_CISCO))
 			return EINVAL;
 		s = splhigh ();
+		CX_LOCK (bd);
 		if (*(int*)data)
 			d->pp.pp_flags |= PP_KEEPALIVE;
 		else
 			d->pp.pp_flags &= ~PP_KEEPALIVE;
+		CX_UNLOCK (bd);
 		splx (s);
 		return 0;
 #endif /*NETGRAPH*/
@@ -1553,8 +1691,10 @@ static int cx_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 	case SERIAL_GETMODE:
 		CX_DEBUG2 (d, ("ioctl: getmode\n"));
 		s = splhigh ();
+		CX_LOCK (bd);
 		*(int*)data = (c->mode == M_ASYNC) ?
 			SERIAL_ASYNC : SERIAL_HDLC;
+		CX_UNLOCK (bd);
 		splx (s);
 		return 0;
 
@@ -1579,6 +1719,7 @@ static int cx_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 			return EBUSY;
 
 		s = splhigh ();
+		CX_LOCK (bd);
 		if (c->mode == M_HDLC && *(int*)data == SERIAL_ASYNC) {
 			cx_set_mode (c, M_ASYNC);
 			cx_enable_receive (c, 0);
@@ -1588,6 +1729,7 @@ static int cx_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 			cx_enable_receive (c, 1);
 			cx_enable_transmit (c, 1);
 		}
+		CX_UNLOCK (bd);
 		splx (s);
 		return 0;
 
@@ -1595,6 +1737,7 @@ static int cx_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		CX_DEBUG2 (d, ("ioctl: getestat\n"));
 		st = (struct serial_statistics*) data;
 		s = splhigh ();
+		CX_LOCK (bd);
 		st->rintr  = c->rintr;
 		st->tintr  = c->tintr;
 		st->mintr  = c->mintr;
@@ -1604,6 +1747,7 @@ static int cx_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		st->obytes = c->obytes;
 		st->opkts  = c->opkts;
 		st->oerrs  = c->oerrs;
+		CX_UNLOCK (bd);
 		splx (s);
 		return 0;
 
@@ -1614,6 +1758,7 @@ static int cx_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		if (error)
 			return error;
 		s = splhigh ();
+		CX_LOCK (bd);
 		c->rintr = 0;
 		c->tintr = 0;
 		c->mintr = 0;
@@ -1623,6 +1768,7 @@ static int cx_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		c->obytes = 0;
 		c->opkts = 0;
 		c->oerrs = 0;
+		CX_UNLOCK (bd);
 		splx (s);
 		return 0;
 
@@ -1631,7 +1777,9 @@ static int cx_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		if (c->mode == M_ASYNC)
 			return EINVAL;
 		s = splhigh ();
+		CX_LOCK (bd);
 		*(long*)data = cx_get_baud(c);
+		CX_UNLOCK (bd);
 		splx (s);
 		return 0;
 
@@ -1644,7 +1792,9 @@ static int cx_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		if (c->mode == M_ASYNC)
 			return EINVAL;
 		s = splhigh ();
+		CX_LOCK (bd);
 		cx_set_baud (c, *(long*)data);
+		CX_UNLOCK (bd);
 		splx (s);
 		return 0;
 
@@ -1653,7 +1803,9 @@ static int cx_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		if (c->mode == M_ASYNC)
 			return EINVAL;
 		s = splhigh ();
+		CX_LOCK (bd);
 		*(int*)data = cx_get_loop (c);
+		CX_UNLOCK (bd);
 		splx (s);
 		return 0;
 
@@ -1666,7 +1818,9 @@ static int cx_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		if (c->mode == M_ASYNC)
 			return EINVAL;
 		s = splhigh ();
+		CX_LOCK (bd);
 		cx_set_loop (c, *(int*)data);
+		CX_UNLOCK (bd);
 		splx (s);
 		return 0;
 
@@ -1675,7 +1829,9 @@ static int cx_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		if (c->mode == M_ASYNC)
 			return EINVAL;
 		s = splhigh ();
+		CX_LOCK (bd);
 		*(int*)data = cx_get_dpll (c);
+		CX_UNLOCK (bd);
 		splx (s);
 		return 0;
 
@@ -1688,7 +1844,9 @@ static int cx_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		if (c->mode == M_ASYNC)
 			return EINVAL;
 		s = splhigh ();
+		CX_LOCK (bd);
 		cx_set_dpll (c, *(int*)data);
+		CX_UNLOCK (bd);
 		splx (s);
 		return 0;
 
@@ -1697,7 +1855,9 @@ static int cx_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		if (c->mode == M_ASYNC)
 			return EINVAL;
 		s = splhigh ();
+		CX_LOCK (bd);
 		*(int*)data = cx_get_nrzi (c);
+		CX_UNLOCK (bd);
 		splx (s);
 		return 0;
 
@@ -1710,14 +1870,18 @@ static int cx_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		if (c->mode == M_ASYNC)
 			return EINVAL;
 		s = splhigh ();
+		CX_LOCK (bd);
 		cx_set_nrzi (c, *(int*)data);
+		CX_UNLOCK (bd);
 		splx (s);
 		return 0;
 
 	case SERIAL_GETDEBUG:
 		CX_DEBUG2 (d, ("ioctl: getdebug\n"));
 		s = splhigh ();
+		CX_LOCK (bd);
 		*(int*)data = c->debug;
+		CX_UNLOCK (bd);
 		splx (s);
 		return 0;
 
@@ -1728,7 +1892,9 @@ static int cx_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		if (error)
 			return error;
 		s = splhigh ();
+		CX_LOCK (bd);
 		c->debug = *(int*)data;
+		CX_UNLOCK (bd);
 		splx (s);
 #ifndef	NETGRAPH
 		if (d->chan->debug)
@@ -1743,38 +1909,48 @@ static int cx_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 	case TIOCSDTR:	/* Set DTR */
 		CX_DEBUG2 (d, ("ioctl: tiocsdtr\n"));
 		s = splhigh ();
+		CX_LOCK (bd);
 		cx_set_dtr (c, 1);
+		CX_UNLOCK (bd);
 		splx (s);
 		return 0;
 
 	case TIOCCDTR:	/* Clear DTR */
 		CX_DEBUG2 (d, ("ioctl: tioccdtr\n"));
 		s = splhigh ();
+		CX_LOCK (bd);
 		cx_set_dtr (c, 0);
+		CX_UNLOCK (bd);
 		splx (s);
 		return 0;
 
 	case TIOCMSET:	/* Set DTR/RTS */
 		CX_DEBUG2 (d, ("ioctl: tiocmset\n"));
 		s = splhigh ();
+		CX_LOCK (bd);
 		cx_set_dtr (c, (*(int*)data & TIOCM_DTR) ? 1 : 0);
 		cx_set_rts (c, (*(int*)data & TIOCM_RTS) ? 1 : 0);
+		CX_UNLOCK (bd);
 		splx (s);
 		return 0;
 
 	case TIOCMBIS:	/* Add DTR/RTS */
 		CX_DEBUG2 (d, ("ioctl: tiocmbis\n"));
 		s = splhigh ();
+		CX_LOCK (bd);
 		if (*(int*)data & TIOCM_DTR) cx_set_dtr (c, 1);
 		if (*(int*)data & TIOCM_RTS) cx_set_rts (c, 1);
+		CX_UNLOCK (bd);
 		splx (s);
 		return 0;
 
 	case TIOCMBIC:	/* Clear DTR/RTS */
 		CX_DEBUG2 (d, ("ioctl: tiocmbic\n"));
 		s = splhigh ();
+		CX_LOCK (bd);
 		if (*(int*)data & TIOCM_DTR) cx_set_dtr (c, 0);
 		if (*(int*)data & TIOCM_RTS) cx_set_rts (c, 0);
+		CX_UNLOCK (bd);
 		splx (s);
 		return 0;
 
@@ -1789,10 +1965,10 @@ static int cx_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 	return ENOTTY;
 }
 
-
 void cx_softintr (void *unused)
 {
 	drv_t *d;
+	bdrv_t *bd;
 	async_q *q;
 	int i, s, ic, k;
 	while (MY_SOFT_INTR) {
@@ -1803,7 +1979,9 @@ void cx_softintr (void *unused)
 			    || d->chan->mode != M_ASYNC || !d->tty
 			    || !d->tty->t_dev)
 				continue;
+			bd = d->board->sys;
 			s = splhigh ();
+			CX_LOCK (bd);
 			if (d->intr_action & CX_READ) {
 				q = &(d->aqueue);
 				if (d->tty->t_state & TS_CAN_BYPASS_L_RINT) {
@@ -1818,9 +1996,11 @@ void cx_softintr (void *unused)
 					while (k>0) {
 						k--;
 						AQ_POP (q, ic);
+						CX_UNLOCK (bd);
 						splx (s);
 						putc (ic, &d->tty->t_rawq);
 						s = splhigh ();
+						CX_LOCK (bd);
 					}
 					ttwakeup(d->tty);
 					if (d->tty->t_state & TS_TTSTOP
@@ -1834,16 +2014,20 @@ void cx_softintr (void *unused)
 				} else {
 					while (q->end != q->beg) {
 						AQ_POP (q, ic);
+						CX_UNLOCK (bd);
 						splx (s);
 						ttyld_rint (d->tty, ic);
 						s = splhigh ();
+						CX_LOCK (bd);
 					}
 				}
 				d->intr_action &= ~CX_READ;
 			}
 			splx (s);
+			CX_UNLOCK (bd);
 
 			s = splhigh ();
+			CX_LOCK (bd);
 			if (d->intr_action & CX_WRITE) {
 				if (d->tty->t_line)
 					ttyld_start (d->tty);
@@ -1851,6 +2035,7 @@ void cx_softintr (void *unused)
 					cx_oproc (d->tty);
 				d->intr_action &= ~CX_WRITE;
 			}
+			CX_UNLOCK (bd);
 			splx (s);
 
 		}
@@ -1864,15 +2049,19 @@ static void cx_oproc (struct tty *tp)
 {
 	int s, k;
 	drv_t *d;
+	bdrv_t *bd;
 	static u_char buf[DMABUFSZ];
 	u_char *p;
 	u_short len = 0, sublen = 0;
 
-	s = splhigh();
-
 	d = tp->t_sc;
-		
+	bd = d->board->sys;
+
 	CX_DEBUG2 (d, ("cx_oproc\n"));
+
+	s = splhigh ();
+	CX_LOCK (bd);
+
 	if (tp->t_cflag & CRTSCTS && (tp->t_state & TS_TBLOCK) && d->chan->rts)
 		cx_set_rts (d->chan, 0);
 	else if (tp->t_cflag & CRTSCTS && ! (tp->t_state & TS_TBLOCK) && ! d->chan->rts)
@@ -1885,6 +2074,7 @@ static void cx_oproc (struct tty *tp)
 		/* Is it busy? */
 		if (! cx_buf_free (d->chan)) {
 			tp->t_state |= TS_BUSY;
+			CX_UNLOCK (bd);
 			splx (s);
 			return;
 		}
@@ -1920,20 +2110,25 @@ static void cx_oproc (struct tty *tp)
 		}
 	}
 	ttwwakeup (tp);
+	CX_UNLOCK (bd);
 	splx (s);
 }
 
 static int cx_param (struct tty *tp, struct termios *t)
 {
 	drv_t *d;
+	bdrv_t *bd;
 	int s, bits, parity;
 
 	d = tp->t_sc;
-		
+	bd = d->board->sys;
+	
 	s = splhigh ();
+	CX_LOCK (bd);
 	if (t->c_ospeed == 0) {
 		/* Clear DTR and RTS. */
 		cx_set_dtr (d->chan, 0);
+		CX_UNLOCK (bd);
 		splx (s);
 		CX_DEBUG2 (d, ("cx_param (hangup)\n"));
 		return 0;
@@ -1942,10 +2137,12 @@ static int cx_param (struct tty *tp, struct termios *t)
 
 	/* Check requested parameters. */
 	if (t->c_ospeed < 300 || t->c_ospeed > 256*1024) {
+		CX_UNLOCK (bd);
 		splx (s);
 		return EINVAL;
 	}
 	if (t->c_ispeed && (t->c_ispeed < 300 || t->c_ispeed > 256*1024)) {
+		CX_UNLOCK (bd);
 		splx (s);
 		return EINVAL;
 	}
@@ -1975,6 +2172,7 @@ static int cx_param (struct tty *tp, struct termios *t)
 		!(t->c_cflag & PARENB), (t->c_cflag & CRTSCTS),
 		(t->c_iflag & IXON), (t->c_iflag & IXANY),
 		t->c_cc[VSTART], t->c_cc[VSTOP]);
+	CX_UNLOCK (bd);
 	splx (s);
 	return 0;
 }
@@ -1985,16 +2183,20 @@ static int cx_param (struct tty *tp, struct termios *t)
 static void cx_stop (struct tty *tp, int flag)
 {
 	drv_t *d;
+	bdrv_t *bd;
 	int s;
 
 	d = tp->t_sc;
+	bd = d->board->sys;
+	
 	s = splhigh ();
-
+	CX_LOCK (bd);
 	if (tp->t_state & TS_BUSY) {
 		/* Stop transmitter */
 		CX_DEBUG2 (d, ("cx_stop\n"));
 		cx_transmitter_ctl (d->chan, 0);
 	}
+	CX_UNLOCK (bd);
 	splx (s);
 }
 
@@ -2004,21 +2206,25 @@ static void cx_stop (struct tty *tp, int flag)
 static void cx_carrier (void *arg)
 {
 	drv_t *d = arg;
+	bdrv_t *bd = d->board->sys;
 	cx_chan_t *c = d->chan;
 	int s, cd;
 
 	s = splhigh ();
+	CX_LOCK (bd);
 	cd = cx_get_cd (c);
 	if (d->cd != cd) {
 		if (cd) {
 			CX_DEBUG (d, ("carrier on\n"));
 			d->cd = 1;
+			CX_UNLOCK (bd);
 			splx (s);
 			if (d->tty)
 				ttyld_modem(d->tty, 1);
 		} else {
 			CX_DEBUG (d, ("carrier loss\n"));
 			d->cd = 0;
+			CX_UNLOCK (bd);
 			splx (s);
 			if (d->tty)
 				ttyld_modem(d->tty, 0);
@@ -2036,10 +2242,9 @@ static void cx_modem (cx_chan_t *c)
 	if (!d || c->mode != M_ASYNC)
 		return;
 	/* Handle carrier detect/loss. */
-	untimeout (cx_carrier, c, d->dcd_timeout_handle);
 	/* Carrier changed - delay processing DCD for a while
 	 * to give both sides some time to initialize. */
-	d->dcd_timeout_handle = timeout (cx_carrier, d, hz/2);
+	callout_reset (&d->dcd_timeout_handle, hz/2, cx_carrier, d);
 }
 
 static struct cdevsw cx_cdevsw = {
@@ -2063,6 +2268,7 @@ static int ng_cx_newhook (node_p node, hook_p hook, const char *name)
 {
 	int s;
 	drv_t *d = NG_NODE_PRIVATE (node);
+	bdrv_t *bd = d->board->sys;
 
 	if (d->chan->mode == M_ASYNC)
 		return EINVAL;
@@ -2081,7 +2287,9 @@ static int ng_cx_newhook (node_p node, hook_p hook, const char *name)
 	NG_HOOK_SET_PRIVATE (hook, d);
 	d->hook = hook;
 	s = splhigh ();
+	CX_LOCK (bd);
 	cx_up (d);
+	CX_UNLOCK (bd);
 	splx (s);
 	return 0;
 }
@@ -2197,6 +2405,7 @@ static int ng_cx_rcvdata (hook_p hook, item_p item)
 	drv_t *d = NG_NODE_PRIVATE (NG_HOOK_NODE(hook));
 	struct mbuf *m;
 	struct ng_tag_prio *ptag;
+	bdrv_t *bd;
 	struct ifqueue *q;
 	int s;
 
@@ -2207,6 +2416,7 @@ static int ng_cx_rcvdata (hook_p hook, item_p item)
 		return ENETDOWN;
 	}
 
+	bd = d->board->sys;
 	/* Check for high priority data */
 	if ((ptag = (struct ng_tag_prio *)m_tag_locate(m, NGM_GENERIC_COOKIE,
 	    NG_TAG_PRIO, NULL)) != NULL && (ptag->priority > NG_PRIO_CUTOFF) )
@@ -2215,10 +2425,12 @@ static int ng_cx_rcvdata (hook_p hook, item_p item)
 		q = &d->lo_queue;
 
 	s = splhigh ();
+	CX_LOCK (bd);
 	IF_LOCK (q);
 	if (_IF_QFULL (q)) {
 		_IF_DROP (q);
 		IF_UNLOCK (q);
+		CX_UNLOCK (bd);
 		splx (s);
 		NG_FREE_M (m);
 		return ENOBUFS;
@@ -2226,6 +2438,7 @@ static int ng_cx_rcvdata (hook_p hook, item_p item)
 	_IF_ENQUEUE (q, m);
 	IF_UNLOCK (q);
 	cx_start (d);
+	CX_UNLOCK (bd);
 	splx (s);
 	return 0;
 }
@@ -2233,11 +2446,15 @@ static int ng_cx_rcvdata (hook_p hook, item_p item)
 static int ng_cx_rmnode (node_p node)
 {
 	drv_t *d = NG_NODE_PRIVATE (node);
+	bdrv_t *bd;
 
 	CX_DEBUG (d, ("Rmnode\n"));
 	if (d && d->running) {
 		int s = splhigh ();
+		bd = d->board->sys;
+		CX_LOCK (bd);
 		cx_down (d);
+		CX_UNLOCK (bd);
 		splx (s);
 	}
 #ifdef	KLD_MODULE
@@ -2258,27 +2475,32 @@ static void ng_cx_watchdog (void *arg)
 		cx_watchdog (d);
 	if (d->timeout)
 		d->timeout--;
-	d->timeout_handle = timeout (ng_cx_watchdog, d, hz);
+	callout_reset (&d->timeout_handle, hz, ng_cx_watchdog, d);
 }
 
 static int ng_cx_connect (hook_p hook)
 {
 	drv_t *d = NG_NODE_PRIVATE (NG_HOOK_NODE (hook));
 
-	d->timeout_handle = timeout (ng_cx_watchdog, d, hz);
+	callout_reset (&d->timeout_handle, hz, ng_cx_watchdog, d);
 	return 0;
 }
 
 static int ng_cx_disconnect (hook_p hook)
 {
 	drv_t *d = NG_NODE_PRIVATE (NG_HOOK_NODE (hook));
+	bdrv_t *bd = d->board->sys;
 	int s;
 
 	s = splhigh ();
+	CX_LOCK (bd);
 	if (NG_HOOK_PRIVATE (hook))
 		cx_down (d);
+	CX_UNLOCK (bd);
 	splx (s);
-	untimeout (ng_cx_watchdog, d, d->timeout_handle);
+	/* If we were wait it than it reasserted now, just stop it. */
+	if (!callout_drain (&d->timeout_handle))
+		callout_stop (&d->timeout_handle);
 	return 0;
 }
 #endif /*NETGRAPH*/
@@ -2287,27 +2509,38 @@ static int cx_modevent (module_t mod, int type, void *unused)
 {
 	static int load_count = 0;
 
+	if (!debug_mpsafenet && cx_mpsafenet) {
+		printf ("WORNING! Network stack is not MPSAFE. "
+			"Turning off debug.cx.mpsafenet.\n");
+		cx_mpsafenet = 0;
+	}
+	if (cx_mpsafenet)
+		cx_cdevsw.d_flags &= ~D_NEEDGIANT;
+
 	switch (type) {
 	case MOD_LOAD:
-#if defined NETGRAPH
+#ifdef NETGRAPH
 		if (ng_newtype (&typestruct))
 			printf ("Failed to register ng_cx\n");
 #endif
 		++load_count;
-		timeout_handle = timeout (cx_timeout, 0, hz*5);
+
+		callout_init (&timeout_handle, cx_mpsafenet?CALLOUT_MPSAFE:0);
+		callout_reset (&timeout_handle, hz*5, cx_timeout, 0);
 		/* Software interrupt. */
-		swi_add(&tty_ithd, "cx", cx_softintr, NULL, SWI_TTY, 0,
-		    &cx_fast_ih);
+		swi_add(&tty_ithd, "cx", cx_softintr, NULL, SWI_TTY,
+		    (cx_mpsafenet?INTR_MPSAFE:0), &cx_fast_ih);
 		break;
 	case MOD_UNLOAD:
 		if (load_count == 1) {
 			printf ("Removing device entry for Sigma\n");
-#if defined NETGRAPH
+#ifdef NETGRAPH
 			ng_rmtype (&typestruct);
 #endif			
 		}
-		if (timeout_handle.callout)
-			untimeout (cx_timeout, 0, timeout_handle);
+		/* If we were wait it than it reasserted now, just stop it. */
+		if (!callout_drain (&timeout_handle))
+			callout_stop (&timeout_handle);
 		ithread_remove_handler (cx_fast_ih);
 		--load_count;
 		break;
@@ -2336,8 +2569,5 @@ MODULE_DEPEND (ng_cx, netgraph, NG_ABI_VERSION, NG_ABI_VERSION, NG_ABI_VERSION);
 #else
 MODULE_DEPEND (isa_cx, sppp, 1, 1, 1);
 #endif
-#ifdef KLD_MODULE
-DRIVER_MODULE (cxmod, isa, cx_isa_driver, cx_devclass, cx_modevent, NULL);
-#else
 DRIVER_MODULE (cx, isa, cx_isa_driver, cx_devclass, cx_modevent, NULL);
-#endif
+MODULE_VERSION (cx, 1);
