@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.90 1995/04/12 20:48:05 wollman Exp $
+ *	$Id: sio.c,v 1.91 1995/04/12 22:00:41 phk Exp $
  */
 
 #include "sio.h"
@@ -1286,24 +1286,18 @@ sioioctl(dev, cmd, data, flag, p)
 	int             s;
 	int		tiocm_xxx;
 	struct tty	*tp;
+	struct termios  *ct;
+#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
 	struct termios  term;
 	int             oldcmd;
+#endif
 
 	mynor = minor(dev);
 	com = com_addr(MINOR_TO_UNIT(mynor));
 	iobase = com->iobase;
 	tp = com->tp;
-	term = tp->t_termios;
-	oldcmd = cmd;
-#if defined (COMPAT_43)
-	if ((error = ttsetcompat(tp, &cmd, data, &term)) != 0)
-		return error;
-	if (cmd != oldcmd)
-		data = (caddr_t)&term;
-#endif
+	ct = NULL;
 	if (mynor & CONTROL_MASK) {
-		struct termios *ct;
-
 		switch (mynor & CONTROL_MASK) {
 		case CONTROL_INIT_STATE:
 			ct = mynor & CALLOUT_MASK ? &com->it_out : &com->it_in;
@@ -1314,6 +1308,16 @@ sioioctl(dev, cmd, data, flag, p)
 		default:
 			return (ENODEV);	/* /dev/nodev */
 		}
+	}
+#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+	term = ct != NULL ? *ct : tp->t_termios;
+	oldcmd = cmd;
+	if ((error = ttsetcompat(tp, &cmd, data, &term)) != 0)
+		return error;
+	if (cmd != oldcmd)
+		data = (caddr_t)&term;
+#endif
+	if (mynor & CONTROL_MASK) {
 		switch (cmd) {
 		case TIOCSETA:
 			error = suser(p->p_ucred, &p->p_acflag);
