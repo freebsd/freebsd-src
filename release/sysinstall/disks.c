@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.31.2.30 1995/11/04 11:21:24 jkh Exp $
+ * $Id: disks.c,v 1.31.2.31 1995/11/04 15:45:20 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -559,8 +559,10 @@ diskPartitionEditor(char *str)
 	else {
 	    if (!dmenuOpenSimple(menu))
 		i = RET_FAIL;
-	    else 
+	    else  {
 		i = RET_SUCCESS;
+		variable_set2(DISK_SELECTED, "yes");
+	    }
 	    free(menu);
 	}
     }

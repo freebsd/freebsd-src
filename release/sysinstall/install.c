@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.70 1995/11/04 15:08:02 jkh Exp $
+ * $Id: install.c,v 1.71.2.71 1995/11/05 00:16:33 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -511,6 +511,25 @@ installCommit(char *str)
 	    msgConfirm("Installation completed successfully.\n\n"
 		       "If you have any network devices you have not yet configured,\n"
 		       "see the Interfaces configuration item on the Configuration menu.");
+	}
+    }
+    else if (!strcmp(str, "novice")) {
+	if (Dists || i == RET_FAIL) {
+	    dialog_clear();
+	    msgConfirm("Installation completed with some errors.  You may wish to\n"
+		       "scroll through the debugging messages on VTY1 with the\n"
+		       "scroll-lock feature.  You can also chose \"No\" at the next\n"
+		       "prompt and go back into the installation menus to try and retry\n"
+		       "whichever operations have failed.");
+	}
+	else {
+	    dialog_clear();
+	    msgConfirm("Congradulations!  You now have FreeBSD installed on your system.\n"
+		       "At this stage, there shouldn't be much left to do from this\n"
+		       "installation utility so if you wish to come up from the hard disk\n"
+		       "now, simply select \"Yes\" at the next prompt to reboot.\n"
+		       "If you wish to re-enter this utility after the system is up, you\n"
+		       "may do so by typing: /stand/sysinstall.");
 	}
     }
     return i;
