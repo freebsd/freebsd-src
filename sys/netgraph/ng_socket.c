@@ -68,6 +68,7 @@
 #endif
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
+#include <netgraph/ng_socketvar.h>
 #include <netgraph/ng_socket.h>
 
 /*
@@ -95,24 +96,6 @@
  *           | struct ng_node |
  *           +----------------+
  */
-
-/* Netgraph protocol control block for each socket */
-struct ngpcb {
-	struct socket	 *ng_socket;	/* the socket */
-	struct ngsock	 *sockdata;	/* netgraph info */
-	LIST_ENTRY(ngpcb) socks;	/* linked list of sockets */
-	int		  type;		/* NG_CONTROL or NG_DATA */
-};
-
-/* Per-node private data */
-struct ngsock {
-	struct ng_node	*node;		/* the associated netgraph node */
-	struct ngpcb	*datasock;	/* optional data socket */
-	struct ngpcb	*ctlsock;	/* optional control socket */
-	int    flags;
-	int    refs;
-};
-#define	NGS_FLAG_NOLINGER	1	/* close with last hook */
 
 /* Netgraph node methods */
 static ng_constructor_t	ngs_constructor;
