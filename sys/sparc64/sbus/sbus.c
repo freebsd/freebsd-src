@@ -985,7 +985,7 @@ sbus_dmamap_unload(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, bus_dmamap_t map)
 
 static void
 sbus_dmamap_sync(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, bus_dmamap_t map,
-    int)
+    int op)
 {
 	struct sbus_softc *sc = (struct sbus_softc *)pdmat->dt_cookie;
 
