@@ -623,6 +623,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       percentage of CPU time to be reserved for userland.  The devices
       initially supporting polling are &man.dc.4;, &man.fxp.4;, and
       &man.sis.4;.</para>
+
+      <para arch="i386">The packet-forwarding performance of certain
+      network drivers (specifically &man.dc.4; and &man.sis.4;) has
+      been enhanced by the elimination of unnecessary buffer
+      copies. &merged;</para>
     </sect3>
 
     <sect3>
