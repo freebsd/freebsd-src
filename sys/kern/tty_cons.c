@@ -381,12 +381,13 @@ static int
 cnclose(dev_t dev, int flag, int mode, struct thread *td)
 {
 	struct cn_device *cnd;
+	struct vnode *vp;
 
 	STAILQ_FOREACH(cnd, &cn_devlist, cnd_next) {
-		if (cnd->cnd_vp == NULL)
+		if ((vp = cnd->cnd_vp) == NULL)
 			continue; 
-		vn_close(cnd->cnd_vp, openflag, td->td_proc->p_ucred, td);
 		cnd->cnd_vp = NULL;
+		vn_close(vp, openflag, td->td_proc->p_ucred, td);
 	}
 	cn_is_open = 0;
 	return (0);
