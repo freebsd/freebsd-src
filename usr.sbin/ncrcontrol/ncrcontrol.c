@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncrcontrol.c,v 1.5 1995/02/03 20:49:10 bde Exp $
+**  $Id: ncrcontrol.c,v 1.6 1995/03/14 21:12:26 se Exp $
 **
 **  Utility for NCR 53C810 device driver.
 **
@@ -1310,7 +1310,7 @@ static void dump_ncr (void)
 	dump_link ("    jump_tcb", &ncr.jump_tcb);
 	printf    ("    register: @ %x (p=%x)\n", ncr.vaddr, ncr.paddr);
 
-	if (strchr (debug_opt, 'r')) {
+	if (wizard && strchr (debug_opt, 'r')) {
 		struct ncr_reg reg;
 
 		if (!KVM_READ (
@@ -1374,7 +1374,7 @@ static void dump_ncr (void)
 	printf ("    lasttime: %s", ctime ((time_t*)&ncr.lasttime));
 	printf ("\n");
 
-	if (strchr (debug_opt, 'd') && ncr.regtime.tv_sec) {
+	if (wizard && strchr (debug_opt, 'd') && ncr.regtime.tv_sec) {
 		printf ("     regdump: %s", ctime (&ncr.regtime.tv_sec));
 		dump_reg (&ncr.regdump);
 	};
@@ -1444,6 +1444,11 @@ do_debug(char * arg)
 	);
 
 	if (strchr (debug_opt, 'n')) dump_ncr ();
+
+	if (!wizard) {
+		fprintf (stderr, "%s: You are NOT a wizard!\n", prog);
+		exit (2);
+	};
 	if (strchr (debug_opt, 'r')) {
 		struct ncr_reg reg;
 		if (!KVM_READ (
@@ -1554,7 +1559,8 @@ void main(argc, argv)
 		break;
 
         case 'w':
-		wizard=1;
+		if(geteuid()==0)
+			wizard=1;
 		break;
 	case 'v':
 		verbose++;
