@@ -1,4 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/8/93
+# $FreeBSD$
 
 FILES1= dot.cshrc dot.login dot.login_conf dot.mailrc dot.profile dot.shrc
 FILES2=	dot.mail_aliases dot.rhosts 
@@ -10,9 +11,9 @@ NOOBJ=	noobj
 all clean cleandir depend lint tags:
 
 install:
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${MODE1} ${FILES1} \
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${MODE1} ${FILES1} \
 	    ${DESTDIR}${BINDIR}/skel
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${MODE2} ${FILES2} \
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${MODE2} ${FILES2} \
 	    ${DESTDIR}${BINDIR}/skel
 
 .include <bsd.prog.mk>

@@ -53,7 +53,7 @@ $f-s: $f
 
 beforeinstall:
 	cd ${DIST_DIR}; \
-	    ${INSTALL} -c -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
+	    ${INSTALL} ${COPY} -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
 	    ${NORMALFILES} ${DESTDIR}${TMACDIR}
 	cd ${.CURDIR}; \
 	    ${INSTALL} ${COPY} -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
@@ -68,7 +68,7 @@ beforeinstall:
 	    $f-s ${DESTDIR}${MDOCDIR}/$f
 .endfor
 .if !exists(${DESTDIR}${TMACDIR}/man.local)
-	${INSTALL} -c -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
+	${INSTALL} ${COPY} -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
 	    ${DIST_DIR}/man.local ${DESTDIR}${TMACDIR}
 .endif
 

@@ -24,7 +24,7 @@ DPADD+= ${LIBNCURSES}
 .if !defined(NOHTML)
 afterinstall:
 .for file in ${EXAMPLES}
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 \
 	      ${.CURDIR}/TESTS/${file} ${DESTDIR}/usr/share/examples/libdialog
 .endfor
 .endif

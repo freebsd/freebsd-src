@@ -33,7 +33,7 @@ beforeinstall:
 	zic -D -d ${DESTDIR}/usr/share/zoneinfo -p ${POSIXRULES} \
 	    -u ${BINOWN} -g ${BINGRP} \
 	    ${LEAPFILE} -y ${YEARISTYPE} ${TZFILES}
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
 	    ${.CURDIR}/zone.tab ${DESTDIR}/usr/share/zoneinfo/
 
 .include <bsd.prog.mk>
