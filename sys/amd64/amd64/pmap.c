@@ -1015,12 +1015,6 @@ pmap_pinit(pmap)
 	static vm_pindex_t color;
 
 	/*
-	 * allocate object for the ptes
-	 */
-	if (pmap->pm_pteobj == NULL)
-		pmap->pm_pteobj = vm_object_allocate(OBJT_DEFAULT, NUPDE + NUPDPE + NUPML4E + 1);
-
-	/*
 	 * allocate the page directory page
 	 */
 	while ((pml4pg = vm_page_alloc(NULL, color++, VM_ALLOC_NOOBJ |
@@ -1068,6 +1062,11 @@ pmap_pinit2(pmap)
 /*
  * this routine is called if the page table page is not
  * mapped correctly.
+ *
+ * Note: If a page allocation fails at page table level two or three,
+ * one or two pages may be held during the wait, only to be released
+ * afterwards.  This conservative approach is easily argued to avoid
+ * race conditions.
  */
 static vm_page_t
 _pmap_allocpte(pmap, ptepindex)
@@ -1075,15 +1074,19 @@ _pmap_allocpte(pmap, ptepindex)
 	vm_pindex_t ptepindex;
 {
 	vm_page_t m, pdppg, pdpg;
-	int is_object_locked;
 
 	/*
-	 * Find or fabricate a new pagetable page
+	 * Allocate a page table page.
 	 */
-	if (!(is_object_locked = VM_OBJECT_LOCKED(pmap->pm_pteobj)))
-		VM_OBJECT_LOCK(pmap->pm_pteobj);
-	m = vm_page_grab(pmap->pm_pteobj, ptepindex,
-	    VM_ALLOC_WIRED | VM_ALLOC_ZERO | VM_ALLOC_RETRY);
+	if ((m = vm_page_alloc(NULL, ptepindex, VM_ALLOC_NOOBJ |
+	    VM_ALLOC_WIRED | VM_ALLOC_ZERO)) == NULL) {
+		VM_WAIT;
+		/*
+		 * Indicate the need to retry.  While waiting, the page table
+		 * page may have been allocated.
+		 */
+		return (NULL);
+	}
 	if ((m->flags & PG_ZERO) == 0)
 		pmap_zero_page(m);
 
@@ -1125,7 +1128,13 @@ _pmap_allocpte(pmap, ptepindex)
 		pml4 = &pmap->pm_pml4[pml4index];
 		if ((*pml4 & PG_V) == 0) {
 			/* Have to allocate a new pdp, recurse */
-			_pmap_allocpte(pmap, NUPDE + NUPDPE + pml4index);
+			if (_pmap_allocpte(pmap, NUPDE + NUPDPE + pml4index) == NULL) {
+				vm_page_lock_queues();
+				vm_page_unhold(m);
+				vm_page_free(m);
+				vm_page_unlock_queues();
+				return (NULL);
+			}
 		} else {
 			/* Add reference to pdp page */
 			pdppg = PHYS_TO_VM_PAGE(*pml4);
@@ -1152,7 +1161,13 @@ _pmap_allocpte(pmap, ptepindex)
 		pml4 = &pmap->pm_pml4[pml4index];
 		if ((*pml4 & PG_V) == 0) {
 			/* Have to allocate a new pd, recurse */
-			_pmap_allocpte(pmap, NUPDE + pdpindex);
+			if (_pmap_allocpte(pmap, NUPDE + pdpindex) == NULL) {
+				vm_page_lock_queues();
+				vm_page_unhold(m);
+				vm_page_free(m);
+				vm_page_unlock_queues();
+				return (NULL);
+			}
 			pdp = (pdp_entry_t *)PHYS_TO_DMAP(*pml4 & PG_FRAME);
 			pdp = &pdp[pdpindex & ((1ul << NPDPEPGSHIFT) - 1)];
 		} else {
@@ -1160,7 +1175,13 @@ _pmap_allocpte(pmap, ptepindex)
 			pdp = &pdp[pdpindex & ((1ul << NPDPEPGSHIFT) - 1)];
 			if ((*pdp & PG_V) == 0) {
 				/* Have to allocate a new pd, recurse */
-				_pmap_allocpte(pmap, NUPDE + pdpindex);
+				if (_pmap_allocpte(pmap, NUPDE + pdpindex) == NULL) {
+					vm_page_lock_queues();
+					vm_page_unhold(m);
+					vm_page_free(m);
+					vm_page_unlock_queues();
+					return (NULL);
+				}
 			} else {
 				/* Add reference to the pd page */
 				pdpg = PHYS_TO_VM_PAGE(*pdp);
@@ -1179,8 +1200,6 @@ _pmap_allocpte(pmap, ptepindex)
 	vm_page_flag_clear(m, PG_ZERO);
 	vm_page_wakeup(m);
 	vm_page_unlock_queues();
-	if (!is_object_locked)
-		VM_OBJECT_UNLOCK(pmap->pm_pteobj);
 
 	return m;
 }
@@ -1196,7 +1215,7 @@ pmap_allocpte(pmap_t pmap, vm_offset_t va)
 	 * Calculate pagetable page index
 	 */
 	ptepindex = pmap_pde_pindex(va);
-
+retry:
 	/*
 	 * Get the page directory entry
 	 */
@@ -1219,13 +1238,16 @@ pmap_allocpte(pmap_t pmap, vm_offset_t va)
 	if (pd != 0 && (*pd & PG_V) != 0) {
 		m = PHYS_TO_VM_PAGE(*pd);
 		m->hold_count++;
-		return m;
+	} else {
+		/*
+		 * Here if the pte page isn't mapped, or if it has been
+		 * deallocated.
+		 */
+		m = _pmap_allocpte(pmap, ptepindex);
+		if (m == NULL)
+			goto retry;
 	}
-	/*
-	 * Here if the pte page isn't mapped, or if it has been deallocated.
-	 */
-	m = _pmap_allocpte(pmap, ptepindex);
-	return m;
+	return (m);
 }
 
 
@@ -1258,8 +1280,6 @@ pmap_release(pmap_t pmap)
 	vm_page_busy(m);
 	vm_page_free(m);
 	vm_page_unlock_queues();
-	KASSERT(TAILQ_EMPTY(&pmap->pm_pteobj->memq),
-	    ("pmap_release: leaking page table pages"));
 }
 
 static int
@@ -1955,6 +1975,7 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_page_t mpte)
 		if (mpte && (mpte->pindex == ptepindex)) {
 			mpte->hold_count++;
 		} else {
+	retry:
 			/*
 			 * Get the page directory entry
 			 */
@@ -1971,6 +1992,8 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_page_t mpte)
 				mpte->hold_count++;
 			} else {
 				mpte = _pmap_allocpte(pmap, ptepindex);
+				if (mpte == NULL)
+					goto retry;
 			}
 		}
 	} else {
