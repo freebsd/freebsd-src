@@ -4,8 +4,6 @@
 
 .PATH:  ${.CURDIR}/../../../contrib/ntp/libntp
 
-CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include -I${.CURDIR}/../
-
 SRCS=	a_md5encrypt.c	adjtime.c	atoint.c \
 	atolfp.c	atouint.c	authencrypt.c	authkeys.c \
 	authparity.c	authreadkeys.c	authusekey.c	binio.c \
@@ -23,6 +21,8 @@ SRCS=	a_md5encrypt.c	adjtime.c	atoint.c \
 	statestr.c	syssignal.c	systime.c \
 	tsftomsu.c	tstotv.c	tvtoa.c	tvtots.c \
 	uglydate.c	uinttoa.c	utvtoa.c	ymd2yd.c 
+
+CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include -I${.CURDIR}/../
 
 NOMAN=			true
 NOPROFILE=		true

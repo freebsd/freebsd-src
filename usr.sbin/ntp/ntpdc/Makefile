@@ -4,16 +4,18 @@
 
 .PATH:	${.CURDIR}/../../../contrib/ntp/ntpdc
 
-CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include -I${.CURDIR}/../
-
-DPADD=	${LIBNTP} ${LIBKVM}
-LDADD=	${LIBNTP} ${LIBKVM}
-
 PROG= ntpdc
-NOMAN= yes
-CLEANFILES+= .version version.c
 
 SRCS= 	ntpdc.c ntpdc_ops.c version.c
+
+CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include -I${.CURDIR}/../
+
+NOMAN= yes
+
+DPADD=	${LIBNTP}
+LDADD=	${LIBNTP}
+
+CLEANFILES+= .version version.c
 
 version.c: 
 	sh -e ${.CURDIR}/../scripts/mkver ntpdc
