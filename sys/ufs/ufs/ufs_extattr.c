@@ -277,7 +277,6 @@ ufs_extattr_lookup(struct vnode *start_dvp, int lockparent, char *dirname,
 		    (lockparent == UE_GETDIR_LOCKPARENT))
 			panic("ufs_extattr_lookup: lockparent but PDIRUNLOCK");
 
-		printf("ufs_extattr_lookup: ufs_lookup failed (%d)\n", error);
 		return (error);
 	}
 /*
