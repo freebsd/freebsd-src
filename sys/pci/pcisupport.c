@@ -1358,6 +1358,12 @@ pci_chip_match(device_t dev)
 	case 0x1978125d:
 		return ("ESS Technology Maestro 2E Audio controller");
 
+	/* Aureal Inc.-- vendor 0x12eb */
+	case 0x000112eb:
+		return ("Aureal Vortex AU8820 Audio controller");
+	case 0x000212eb:
+		return ("Aureal Vortex AU8830 Audio controller");
+
 	/* Lucent -- Vendor 0x11c1 */
 	case 0x044011c1:
 	case 0x044811c1:
