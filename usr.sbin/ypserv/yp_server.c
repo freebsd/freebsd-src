@@ -33,7 +33,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: yp_server.c,v 1.1 1997/11/09 20:54:38 wpaul Exp wpaul $";
+	"$Id: yp_server.c,v 1.26 1998/02/11 19:15:32 wpaul Exp $";
 #endif /* not lint */
 
 #include "yp.h"
@@ -506,12 +506,22 @@ ypproc_all_2_svc(ypreq_nokey *argp, struct svc_req *rqstp)
 	 * block. (Is there a better way to do this? Maybe with
 	 * async socket I/O?)
 	 */
-	if (!debug && children < MAX_CHILDREN && fork()) {
-		children++;
-		forked = 0;
-		return (NULL);
-	} else {
-		forked++;
+	if (!debug) {
+		switch(fork()) {
+		case 0:
+			forked++;
+			break;
+		case -1:
+			yp_error("ypall fork(): %s", strerror(errno));
+			result.ypresp_all_u.val.stat = YP_YPERR;
+			return(&result);
+			break;
+		default:
+			children++;
+			forked = 0;
+			return (NULL);
+			break;
+		}
 	}
 
 	if (yp_select_map(argp->map, argp->domain,
