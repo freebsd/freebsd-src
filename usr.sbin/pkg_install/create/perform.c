@@ -449,13 +449,13 @@ create_from_installed(const char *pkg, const char *suf)
     read_plist(&plist, fp);
     fclose(fp);
 
-    Install = isfile(INSTALL_FNAME) ? INSTALL_FNAME : NULL;
-    PostInstall = isfile(POST_INSTALL_FNAME) ? POST_INSTALL_FNAME : NULL;
-    DeInstall = isfile(DEINSTALL_FNAME) ? DEINSTALL_FNAME : NULL;
-    PostDeInstall = isfile(POST_DEINSTALL_FNAME) ? POST_DEINSTALL_FNAME : NULL;
-    Require = isfile(REQUIRE_FNAME) ? REQUIRE_FNAME : NULL;
-    Display = isfile(DISPLAY_FNAME) ? DISPLAY_FNAME : NULL;
-    Mtree =isfile(MTREE_FNAME) ?  MTREE_FNAME : NULL;
+    (const char *)Install = isfile(INSTALL_FNAME) ? INSTALL_FNAME : NULL;
+    (const char *)PostInstall = isfile(POST_INSTALL_FNAME) ? POST_INSTALL_FNAME : NULL;
+    (const char *)DeInstall = isfile(DEINSTALL_FNAME) ? DEINSTALL_FNAME : NULL;
+    (const char *)PostDeInstall = isfile(POST_DEINSTALL_FNAME) ? POST_DEINSTALL_FNAME : NULL;
+    (const char *)Require = isfile(REQUIRE_FNAME) ? REQUIRE_FNAME : NULL;
+    (const char *)Display = isfile(DISPLAY_FNAME) ? DISPLAY_FNAME : NULL;
+    (const char *)Mtree = isfile(MTREE_FNAME) ?  MTREE_FNAME : NULL;
 
     make_dist(homedir, pkg, suf, &plist);
 
