@@ -182,7 +182,7 @@ main(int ac, char **av)
 	if (tflag)
 		fprintf(out, "%-16s ", "timestamp");
 	if (fflag)
-		fprintf(out, "%-32s ", "file and line");
+		fprintf(out, "%-40s ", "file and line");
 	fprintf(out, "%s", "trace");
 	fprintf(out, "\n");
 
