@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.109 1997/12/13 02:37:21 brian Exp $
+ * $Id: command.c,v 1.110 1997/12/15 20:21:46 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -746,7 +746,8 @@ RunCommand(int argc, char const *const *argv, const char *label)
 
       *buf = '\0';
       if (label) {
-        strcpy(buf, label);
+        strncpy(buf, label, sizeof buf);
+        buf[sizeof(buf)-3] = '\0';
         strcat(buf, ": ");
       }
       n = strlen(buf);

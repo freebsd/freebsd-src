@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.31 1997/12/13 02:37:32 brian Exp $
+ * $Id: route.c,v 1.32 1997/12/15 20:21:15 brian Exp $
  *
  */
 
@@ -202,7 +202,7 @@ p_sockaddr(struct sockaddr *phost, struct sockaddr *pmask, int width)
           break;
 
       net.sin_addr.s_addr = ihost->sin_addr.s_addr & mask->sin_addr.s_addr;
-      sprintf(buf, "%s", inet_ntoa(net.sin_addr));
+      strcpy(buf, inet_ntoa(net.sin_addr));
       for (len = strlen(buf); len > 3; buf[len-=2] = '\0')
         if (strcmp(buf+len-2, ".0"))
           break;
@@ -228,7 +228,7 @@ p_sockaddr(struct sockaddr *phost, struct sockaddr *pmask, int width)
             sprintf(buf+f*3, "%02x:", MAC[f]);
           buf[f*3-1] = '\0';
         } else
-          sprintf(buf, "??:??:??:??:??:??");
+	  strcpy(buf, "??:??:??:??:??:??");
       else
         sprintf(buf, "<IFT type %d>", dl->sdl_type);
     else if (dl->sdl_slen)
