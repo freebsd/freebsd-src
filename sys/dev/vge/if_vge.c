@@ -97,7 +97,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <net/if_media.h>
 #include <net/if_vlan_var.h>
-#include <net/route.h>
 
 #include <net/bpf.h>
 
@@ -1570,19 +1569,15 @@ vge_tick(xsc)
 	if (sc->vge_link) {
 		if (!(mii->mii_media_status & IFM_ACTIVE)) {
 			sc->vge_link = 0;
-#ifdef LINK_STATE_UP
-			sc->arpcom.ac_if.if_link_state = LINK_STATE_UP;
-			rt_ifmsg(&(sc->arpcom.ac_if));
-#endif /* LINK_STATE_UP */
+			if_link_state_change(&sc->arpcom.ac_if,
+			    LINK_STATE_UP);
 		}
 	} else {
 		if (mii->mii_media_status & IFM_ACTIVE &&
 		    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
 			sc->vge_link = 1;
-#ifdef LINK_STATE_DOWN
-			sc->arpcom.ac_if.if_link_state = LINK_STATE_DOWN;
-			rt_ifmsg(&(sc->arpcom.ac_if));
-#endif /* LINK_STATE_DOWN */
+			if_link_state_change(&sc->arpcom.ac_if,
+			    LINK_STATE_DOWN);
 #if __FreeBSD_version < 502114
 			if (ifp->if_snd.ifq_head != NULL)
 #else
