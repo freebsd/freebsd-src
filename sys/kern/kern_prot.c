@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_prot.c	8.6 (Berkeley) 1/21/94
- * $Id: kern_prot.c,v 1.37 1997/11/06 19:29:12 phk Exp $
+ * $Id: kern_prot.c,v 1.38 1997/12/16 17:40:16 eivind Exp $
  */
 
 /*
@@ -52,6 +52,7 @@
 #include <sys/proc.h>
 #include <sys/malloc.h>
 #include <sys/unistd.h>
+#include <sys/pioctl.h>
 
 static MALLOC_DEFINE(M_CRED, "cred", "credentials");
 
@@ -413,8 +414,8 @@ setuid(p, uap)
 		 * Set real uid
 		 */
 		if (uid != pc->p_ruid) {
-			p->p_flag |= P_SUGID;
 			pc->p_ruid = uid;
+			setsugid(p);
 		}
 		/*
 		 * Set saved uid
@@ -424,8 +425,8 @@ setuid(p, uap)
 		 * is important that we should do this.
 		 */
 		if (pc->p_svuid != uid) {
-			p->p_flag |= P_SUGID;
 			pc->p_svuid = uid;
+			setsugid(p);
 		}
 	}
 
@@ -436,7 +437,7 @@ setuid(p, uap)
 	if (pc->pc_ucred->cr_uid != uid) {
 		pc->pc_ucred = crcopy(pc->pc_ucred);
 		pc->pc_ucred->cr_uid = uid;
-		p->p_flag |= P_SUGID;
+		setsugid(p);
 	}
 	return (0);
 }
@@ -468,7 +469,7 @@ seteuid(p, uap)
 	if (pc->pc_ucred->cr_uid != euid) {
 		pc->pc_ucred = crcopy(pc->pc_ucred);
 		pc->pc_ucred->cr_uid = euid;
-		p->p_flag |= P_SUGID;
+		setsugid(p);
 	}
 	return (0);
 }
@@ -526,8 +527,8 @@ setgid(p, uap)
 		 * Set real gid
 		 */
 		if (pc->p_rgid != gid) {
-			p->p_flag |= P_SUGID;
 			pc->p_rgid = gid;
+			setsugid(p);
 		}
 		/*
 		 * Set saved gid
@@ -537,8 +538,8 @@ setgid(p, uap)
 		 * is important that we should do this.
 		 */
 		if (pc->p_svgid != gid) {
-			p->p_flag |= P_SUGID;
 			pc->p_svgid = gid;
+			setsugid(p);
 		}
 	}
 	/*
@@ -548,7 +549,7 @@ setgid(p, uap)
 	if (pc->pc_ucred->cr_groups[0] != gid) {
 		pc->pc_ucred = crcopy(pc->pc_ucred);
 		pc->pc_ucred->cr_groups[0] = gid;
-		p->p_flag |= P_SUGID;
+		setsugid(p);
 	}
 	return (0);
 }
@@ -576,7 +577,7 @@ setegid(p, uap)
 	if (pc->pc_ucred->cr_groups[0] != egid) {
 		pc->pc_ucred = crcopy(pc->pc_ucred);
 		pc->pc_ucred->cr_groups[0] = egid;
-		p->p_flag |= P_SUGID;
+		setsugid(p);
 	}
 	return (0);
 }
@@ -621,7 +622,7 @@ setgroups(p, uap)
 			return (error);
 		pc->pc_ucred->cr_ngroups = ngrp;
 	}
-	p->p_flag |= P_SUGID;
+	setsugid(p);
 	return (0);
 }
 
@@ -652,18 +653,18 @@ setreuid(p, uap)
 	if (euid != (uid_t)-1 && pc->pc_ucred->cr_uid != euid) {
 		pc->pc_ucred = crcopy(pc->pc_ucred);
 		pc->pc_ucred->cr_uid = euid;
-		p->p_flag |= P_SUGID;
+		setsugid(p);
 	}
 	if (ruid != (uid_t)-1 && pc->p_ruid != ruid) {
 		(void)chgproccnt(pc->p_ruid, -1);
 		(void)chgproccnt(ruid, 1);
 		pc->p_ruid = ruid;
-		p->p_flag |= P_SUGID;
+		setsugid(p);
 	}
 	if ((ruid != (uid_t)-1 || pc->pc_ucred->cr_uid != pc->p_ruid) &&
 	    pc->p_svuid != pc->pc_ucred->cr_uid) {
 		pc->p_svuid = pc->pc_ucred->cr_uid;
-		p->p_flag |= P_SUGID;
+		setsugid(p);
 	}
 	return (0);
 }
@@ -695,16 +696,16 @@ setregid(p, uap)
 	if (egid != (gid_t)-1 && pc->pc_ucred->cr_groups[0] != egid) {
 		pc->pc_ucred = crcopy(pc->pc_ucred);
 		pc->pc_ucred->cr_groups[0] = egid;
-		p->p_flag |= P_SUGID;
+		setsugid(p);
 	}
 	if (rgid != (gid_t)-1 && pc->p_rgid != rgid) {
 		pc->p_rgid = rgid;
-		p->p_flag |= P_SUGID;
+		setsugid(p);
 	}
 	if ((rgid != (gid_t)-1 || pc->pc_ucred->cr_groups[0] != pc->p_rgid) &&
 	    pc->p_svgid != pc->pc_ucred->cr_groups[0]) {
 		pc->p_svgid = pc->pc_ucred->cr_groups[0];
-		p->p_flag |= P_SUGID;
+		setsugid(p);
 	}
 	return (0);
 }
@@ -878,4 +879,13 @@ setlogin(p, uap)
 		(void) memcpy(p->p_pgrp->pg_session->s_login, logintmp,
 		    sizeof(logintmp));
 	return (error);
+}
+
+void
+setsugid(p)
+     struct proc *p;
+{
+	p->p_flag |= P_SUGID;
+	if (!(p->p_pfsflags & PF_ISUGID))
+		p->p_stops = 0;
 }

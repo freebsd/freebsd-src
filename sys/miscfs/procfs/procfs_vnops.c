@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.18 (Berkeley) 5/21/95
  *
- *	$Id: procfs_vnops.c,v 1.47 1997/12/12 03:33:43 sef Exp $
+ *	$Id: procfs_vnops.c,v 1.48 1997/12/13 03:13:46 sef Exp $
  */
 
 /*
@@ -224,11 +224,13 @@ procfs_ioctl(ap)
 	struct vop_ioctl_args *ap;
 {
 	struct pfsnode *pfs = VTOPFS(ap->a_vp);
-	struct proc *procp;
+	struct proc *procp, *p;
 	int error;
 	int signo;
 	struct procfs_status *psp;
+	unsigned char flags;
 
+	p = ap->a_p;
 	procp = pfind(pfs->pfs_pid);
 	if (procp == NULL) {
 		return ENOTTY;
@@ -242,7 +244,15 @@ procfs_ioctl(ap)
 	  procp->p_stops &= ~*(unsigned int*)ap->a_data;
 	  break;
 	case PIOCSFL:
-	  procp->p_pfsflags = (unsigned char)*(unsigned int*)ap->a_data;
+	  /*
+	   * NFLAGS is "non-suser flags" -- currently, only
+	   * PFS_ISUGID ("ignore set u/g id");
+	   */
+#define NFLAGS	(PF_ISUGID)
+	  flags = (unsigned char)*(unsigned int*)ap->a_data;
+	  if (flags & NFLAGS && (error = suser(p->p_ucred, &p->p_acflag)))
+	    return error;
+	  procp->p_pfsflags = flags;
 	  break;
 	case PIOCGFL:
 	  *(unsigned int*)ap->a_data = (unsigned int)procp->p_pfsflags;
