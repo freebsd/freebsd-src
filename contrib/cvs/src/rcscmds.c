@@ -148,7 +148,8 @@ call_diff (out)
        The real fix, of course, will be to have the diff library do all
        its output through callbacks (which CVS will supply as cvs_output
        and cvs_outerr).  */
-    sleep (1);
+    /* sleep (1); */
+    usleep (10000);
 
     if (out == RUN_TTY)
 	return diff_run (call_diff_argc, call_diff_argv, NULL);
@@ -171,7 +172,8 @@ call_diff3 (out)
        The real fix, of course, will be to have the diff library do all
        its output through callbacks (which CVS will supply as cvs_output
        and cvs_outerr).  */
-    sleep (1);
+    /* sleep (1); */
+    usleep (10000);
 
     if (out == RUN_TTY)
 	return diff3_run (call_diff_argc, call_diff_argv, NULL);
