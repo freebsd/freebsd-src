@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pcaudio.c,v 1.20 1998/12/30 08:08:05 kato Exp $
+ *	$Id: pcaudio.c,v 1.21 1999/04/28 10:53:57 dt Exp $
  */
 
 #include "pca.h"
@@ -73,7 +73,7 @@ static struct pca_status {
 	unsigned	processed;	/* samples processed */
 	unsigned	volume;		/* volume for pc-speaker */
 	char		encoding;	/* Ulaw, Alaw or linear */
-	char		current;	/* current buffer */
+	u_char		current;	/* current buffer */
 	unsigned char	oldval;		/* old timer port value */
 	char		timer_on;	/* is playback running */
 	struct selinfo	wsel;		/* select/poll status */
@@ -570,7 +570,7 @@ pcapoll(dev_t dev, int events, struct proc *p)
 
  	s = spltty();
 
-	if (events & (POLLOUT | POLLWRNORM))
+	if (events & (POLLOUT | POLLWRNORM)) {
  		if (!pca_status.in_use[0] || !pca_status.in_use[1] ||
  		    !pca_status.in_use[2])
  			revents |= events & (POLLOUT | POLLWRNORM);
@@ -582,7 +582,7 @@ pcapoll(dev_t dev, int events, struct proc *p)
 			else
 				pca_status.wsel.si_pid = p->p_pid;
 		}
-
+	}
 	splx(s);
 	return (revents);
 }
