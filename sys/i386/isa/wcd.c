@@ -13,7 +13,7 @@
  * all derivative works or modified versions.
  *
  * From: Version 1.9, Mon Oct  9 20:27:42 MSK 1995
- * $Id: wcd.c,v 1.56 1998/06/26 18:13:57 phk Exp $
+ * $Id: wcd.c,v 1.57 1998/07/04 22:30:18 julian Exp $
  */
 
 #include "wdc.h"
@@ -1038,7 +1038,7 @@ int wcdioctl (dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 		t->au.port[1].volume = arg->vol[1] & t->aumask.port[1].volume;
 		t->au.port[2].volume = arg->vol[2] & t->aumask.port[2].volume;
 		t->au.port[3].volume = arg->vol[3] & t->aumask.port[3].volume;
-		return wcd_request_wait (t, ATAPI_MODE_SELECT_BIG, 0x10,
+		return wcd_request_wait (t, ATAPI_MODE_SELECT, 0x10,
 			0, 0, 0, 0, 0, sizeof (t->au) >> 8, sizeof (t->au),
 			0, (char*) &t->au, - sizeof (t->au));
 	}
@@ -1174,7 +1174,7 @@ static int wcd_setchan (struct wcd *t,
 	t->au.port[1].channels = c1;
 	t->au.port[2].channels = c2;
 	t->au.port[3].channels = c3;
-	return wcd_request_wait (t, ATAPI_MODE_SELECT_BIG, 0x10,
+	return wcd_request_wait (t, ATAPI_MODE_SELECT, 0x10,
 		0, 0, 0, 0, 0, sizeof (t->au) >> 8, sizeof (t->au),
 		0, (char*) &t->au, - sizeof (t->au));
 }

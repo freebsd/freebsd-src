@@ -112,20 +112,24 @@
  * Mandatory packet commands
  */
 #define ATAPI_TEST_UNIT_READY   0x00    /* check if the device is ready */
+#define ATAPI_REZERO_UNIT   	0x01    /* reinit device */
 #define ATAPI_REQUEST_SENSE     0x03    /* get sense data */
 #define ATAPI_START_STOP        0x1b    /* start/stop the media */
 #define ATAPI_PREVENT_ALLOW     0x1e    /* prevent/allow media removal */
 #define ATAPI_READ_CAPACITY     0x25    /* get volume capacity */
 #define ATAPI_READ_BIG          0x28    /* read data */
 #define ATAPI_WRITE_BIG		0x2a    /* write data */
-#define ATAPI_READ_TOC          0x43    /* get table of contents */
+#define ATAPI_SYNCHRONIZE_CACHE	0x35    /* flush write buf, close write chan */
 #define ATAPI_READ_SUBCHANNEL   0x42    /* get subchannel info */
-#define ATAPI_MODE_SELECT_BIG   0x55    /* set device parameters */
+#define ATAPI_READ_TOC          0x43    /* get table of contents */
+#define ATAPI_READ_TRACK_INFO   0x52    /* get track information structure */
+#define ATAPI_MODE_SELECT	0x55    /* set device parameters */
 #define ATAPI_MODE_SENSE        0x5a    /* get device parameters */
+#define ATAPI_CLOSE_TRACK       0x5b    /* close track/session */
+#define ATAPI_LOAD_UNLOAD       0xa6    /* changer control command */
 #define ATAPI_PLAY_CD           0xb4    /* universal play command */
 #define ATAPI_MECH_STATUS       0xbd    /* get changer mechanism status */
-#define ATAPI_LOAD_UNLOAD       0xa6    /* changer control command */
-
+#define ATAPI_READ_CD           0xbe    /* read data */
 /*
  * Optional packet commands
  */
@@ -241,13 +245,13 @@ struct atapicmd {                       /* ATAPI command block */
 struct atapi {                          /* ATAPI controller data */
 	u_short          port;          /* i/o port base */
 	u_char           ctrlr;         /* physical controller number */
-	u_int            debug : 1;     /* trace enable flag */
-	u_int            cmd16 : 1;     /* 16-byte command flag */
-	u_int            intrcmd : 1;   /* interrupt before cmd flag */
-	u_int            slow : 1;      /* slow reaction device */
-	u_int            accel : 1;     /* accelerated reaction device */
-	u_int            use_dsc : 1;	/* use DSC completition handeling */
-	u_int 		 wait_for_dsc : 1;
+	u_char           debug : 1;     /* trace enable flag */
+	u_char           cmd16 : 1;     /* 16-byte command flag */
+	u_char           intrcmd : 1;   /* interrupt before cmd flag */
+	u_char           slow : 1;      /* slow reaction device */
+	u_char           accel : 1;     /* accelerated reaction device */
+	u_char           use_dsc : 1;	/* use DSC completition handeling */
+	u_char 		 wait_for_dsc : 1;
 	u_int		 dsc_timeout;
 	u_char           attached[2];   /* units are attached to subdrivers */
 	struct atapi_params *params[2]; /* params for units 0,1 */
