@@ -517,7 +517,7 @@ ng_bridge_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 	struct ng_bridge_host *host;
 	struct ng_bridge_link *link;
 	struct ether_header *eh;
-	int error = 0, linkNum;
+	int error = 0, linkNum, linksSeen;
 	int manycast;
 	struct ng_bridge_link *firstLink;
 
@@ -659,7 +659,7 @@ ng_bridge_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 
 	/* Distribute unknown, multicast, broadcast pkts to all other links */
 	firstLink = NULL;
-	for (linkNum = 0; linkNum <= priv->numLinks; linkNum++) {
+	for (linkNum = linksSeen = 0; linksSeen <= priv->numLinks; linkNum++) {
 		struct ng_bridge_link *destLink;
 		meta_p meta2 = NULL;
 		struct mbuf *m2 = NULL;
@@ -668,7 +668,7 @@ ng_bridge_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 		 * If we have checked all the links then now
 		 * send the original on its reserved link
 		 */
-		if (linkNum == priv->numLinks) {
+		if (linksSeen == priv->numLinks) {
 			/* If we never saw a good link, leave. */
 			if (firstLink == NULL) {
 				NG_FREE_DATA(m, meta);
@@ -677,6 +677,8 @@ ng_bridge_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 			destLink = firstLink;
 		} else {
 			destLink = priv->links[linkNum];
+			if (destLink != NULL)
+				linksSeen++;
 			/* Skip incoming link and disconnected links */
 			if (destLink == NULL || destLink == link) {
 				continue;
