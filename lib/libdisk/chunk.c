@@ -15,7 +15,6 @@
 #include <unistd.h>
 #include <string.h>
 #include <sys/types.h>
-#include <err.h>
 #include "libdisk.h"
 
 #define new_chunk() memset(malloc(sizeof(struct chunk)), 0, sizeof(struct chunk))
@@ -97,7 +96,7 @@ Clone_Chunk(struct chunk *c1)
 	if(!c1)
 		return 0;
 	c2 = new_chunk();
-	if (!c2) err(1,"malloc failed");
+	if (!c2) barfout(1,"malloc failed");
 	*c2 = *c1;
 	if (c1->private_data && c1->private_clone)
 		c2->private_data = c2->private_clone(c2->private_data);
@@ -126,7 +125,7 @@ Insert_Chunk(struct chunk *c2, u_long offset, u_long size, const char *name,
 		return __LINE__;
 
 	ct = new_chunk();
-	if (!ct) err(1,"malloc failed");
+	if (!ct) barfout(1,"malloc failed");
 	memset(ct,0,sizeof *ct);
 	ct->disk = c2->disk;
 	ct->offset = offset;
@@ -147,7 +146,7 @@ Insert_Chunk(struct chunk *c2, u_long offset, u_long size, const char *name,
 
 	if(type==freebsd || type==extended) {
 		cs = new_chunk();
-		if (!cs) err(1,"malloc failed");
+		if (!cs) barfout(1,"malloc failed");
 		memset(cs,0,sizeof *cs);
 		cs->disk = c2->disk;
 		cs->offset = offset;
@@ -164,7 +163,7 @@ Insert_Chunk(struct chunk *c2, u_long offset, u_long size, const char *name,
 	/* Make a new chunk for any trailing unused space */
 	if (c2->end > ct->end) {
 		cs = new_chunk();
-		if (!cs) err(1,"malloc failed");
+		if (!cs) barfout(1,"malloc failed");
 		*cs = *c2;
 		cs->disk = c2->disk;
 		cs->offset = ct->end + 1;
@@ -222,10 +221,10 @@ Add_Chunk(struct disk *d, long offset, u_long size, const char *name,
 
 	if (type == whole) {
 		d->chunks = c1 = new_chunk();
-		if (!c1) err(1,"malloc failed");
+		if (!c1) barfout(1,"malloc failed");
 		memset(c1,0,sizeof *c1);
 		c2 = c1->part = new_chunk();
-		if (!c2) err(1,"malloc failed");
+		if (!c2) barfout(1,"malloc failed");
 		memset(c2,0,sizeof *c2);
 		c2->disk = c1->disk = d;
 		c2->offset = c1->offset = offset;
@@ -448,7 +447,7 @@ Collapse_Chunk(struct disk *d, struct chunk *c1)
 	}
 	if(c3->type == unused) {
 		c2 = new_chunk();
-		if (!c2) err(1,"malloc failed");
+		if (!c2) barfout(1,"malloc failed");
 		*c2 = *c1;
 		c1->next = c2;
 		c1->disk = d;
