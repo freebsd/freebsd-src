@@ -4,6 +4,6 @@
 PROG=	strfile
 MAN=	strfile.8
 MLINKS= strfile.8 unstr.8
-WARNS?=	3
+WARNS?=	6
 
 .include <bsd.prog.mk>
