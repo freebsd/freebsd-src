@@ -181,7 +181,6 @@ cpu_startup(void *arg)
 	bufinit();
 	vm_pager_bufferinit();
 
-	intr_init();
 	tick_start(clock, tick_hardclock);
 
 	EVENTHANDLER_REGISTER(shutdown_final, sparc64_shutdown_final, NULL,
@@ -277,18 +276,8 @@ sparc64_init(caddr_t mdp, ofw_vec_t *vec)
 	 */
 	tick_stop();
 
-	/*
-	 * Force trap level 1 and take over the trap table.
-	 */
-	wrpr(tl, 0, 1);
-	wrpr(tba, tl0_base, 0);
-
-	/*
-	 * Map and initialize the message buffer (after setting trap table).
-	 */
-	for (off = 0; off < round_page(MSGBUF_SIZE); off += PAGE_SIZE)
-		pmap_kenter((vm_offset_t)msgbufp + off, msgbuf_phys + off);
-	msgbufinit(msgbufp, MSGBUF_SIZE);
+	/* Initialize the interrupt tables. */
+	intr_init();
 
 	proc_linkup(&proc0);
 	/*
@@ -296,6 +285,7 @@ sparc64_init(caddr_t mdp, ofw_vec_t *vec)
 	 */
 	proc0uarea = (struct user *)uarea0;
 	proc0kstack = (vm_offset_t)kstack0;
+	proc0.p_md.md_utrap = NULL;
 	proc0.p_uarea = proc0uarea;
 	proc0.p_stats = &proc0.p_uarea->u_stats;
 	thread0 = &proc0.p_thread;
@@ -307,12 +297,15 @@ sparc64_init(caddr_t mdp, ofw_vec_t *vec)
 	LIST_INIT(&thread0->td_contested);
 
 	/*
-	 * Setup preloaded globals.
+	 * Force trap level 1 and take over the trap table.
 	 */
-
 	ps = rdpr(pstate);
+	wrpr(pstate, ps, PSTATE_IE);
+	wrpr(tl, 0, 1);
+	wrpr(tba, tl0_base, 0);
 
 	/*
+	 * Setup preloaded globals.
 	 * Normal %g7 points to the per-cpu data structure.
 	 */
 	__asm __volatile("mov %0, %%g7" : : "r" (&__pcpu));
@@ -322,7 +315,7 @@ sparc64_init(caddr_t mdp, ofw_vec_t *vec)
 	 * globals, %g6 points to the current thread's pcb, and %g7 points
 	 * to the per-cpu data structure.
 	 */
-	wrpr(pstate, ps, PSTATE_AG);
+	wrpr(pstate, ps, PSTATE_AG | PSTATE_IE);
 	__asm __volatile("mov %0, %%g5" : : "r"
 	    (&__pcpu.pc_alt_stack[ALT_STACK_SIZE - 1]));
 	__asm __volatile("mov %0, %%g6" : : "r" (thread0->td_pcb));
@@ -332,7 +325,7 @@ sparc64_init(caddr_t mdp, ofw_vec_t *vec)
 	 * Interrupt %g6 points to a per-cpu interrupt queue, %g7 points to
 	 * the interrupt vector table.
 	 */
-	wrpr(pstate, ps, PSTATE_IG);
+	wrpr(pstate, ps, PSTATE_IG | PSTATE_IE);
 	__asm __volatile("mov %0, %%g6" : : "r" (&__pcpu.pc_iq));
 	__asm __volatile("mov %0, %%g7" : : "r" (&intr_vectors));
 
@@ -340,10 +333,17 @@ sparc64_init(caddr_t mdp, ofw_vec_t *vec)
 	 * MMU %g7 points to the user tsb.  Initialize it to something sane
 	 * here to catch invalid use.
 	 */
-	wrpr(pstate, ps, PSTATE_MG);
+	wrpr(pstate, ps, PSTATE_MG | PSTATE_IE);
 	__asm __volatile("mov %%g0, %%g7" : :);
 
 	wrpr(pstate, ps, 0);
+
+	/*
+	 * Map and initialize the message buffer (after setting trap table).
+	 */
+	for (off = 0; off < round_page(MSGBUF_SIZE); off += PAGE_SIZE)
+		pmap_kenter((vm_offset_t)msgbufp + off, msgbuf_phys + off);
+	msgbufinit(msgbufp, MSGBUF_SIZE);
 
 	/*
 	 * Initialize curthread so that mutexes work.
