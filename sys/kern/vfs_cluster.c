@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.33 1996/01/20 23:24:16 dyson Exp $
+ * $Id: vfs_cluster.c,v 1.34 1996/01/28 18:25:54 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -294,7 +294,7 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run)
 	}
 
 	tbp = getblk(vp, lbn, size, 0, 0);
-	if (tbp->b_flags & B_CACHE)
+	if (tbp->b_flags & (B_CACHE|B_MALLOC))
 		return tbp;
 
 	tbp->b_blkno = blkno;
@@ -591,7 +591,7 @@ cluster_wbuild(vp, size, start_lbn, len)
 	 * potentially pull it back up if the cluster was terminated
 	 * prematurely--too much hassle.
 	 */
-		if (((tbp->b_flags & B_CLUSTEROK) != B_CLUSTEROK) ||
+		if (((tbp->b_flags & (B_CLUSTEROK|B_MALLOC)) != B_CLUSTEROK) ||
 			(tbp->b_bcount != tbp->b_bufsize) ||
 			(tbp->b_bcount != size) ||
 			len == 1) {
