@@ -25,6 +25,7 @@
  *
  * Authors:
  *   Gareth Hughes <gareth@valinux.com>
+ *   Eric Anholt <anholt@FreeBSD.org>
  *
  * $FreeBSD$
  */

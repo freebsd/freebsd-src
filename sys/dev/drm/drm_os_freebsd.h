@@ -1,6 +1,36 @@
+/**
+ * \file drm_os_freebsd.h
+ * OS-specific #defines for FreeBSD
+ * 
+ * \author Eric Anholt <anholt@FreeBSD.org>
+ */
+
 /*
+ * Copyright 2003 Eric Anholt
+ * All Rights Reserved.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice (including the next
+ * paragraph) shall be included in all copies or substantial portions of the
+ * Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * VA LINUX SYSTEMS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+ * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
  * $FreeBSD$
  */
+
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/malloc.h>
@@ -27,6 +57,7 @@
 #include <machine/pmap.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
+#include <sys/endian.h>
 #include <sys/mman.h>
 #include <sys/rman.h>
 #include <sys/memrange.h>
@@ -111,10 +142,12 @@
 #define DRM_SUSER(p)		suser(p)
 #define DRM_TASKQUEUE_ARGS	void *arg, int pending
 #define DRM_IRQ_ARGS		void *arg
+typedef void			irqreturn_t;
+#define IRQ_HANDLED		/* nothing */
+#define IRQ_NONE		/* nothing */
 #define DRM_DEVICE		drm_device_t	*dev	= kdev->si_drv1
 #define DRM_MALLOC(size)	malloc( size, DRM(M_DRM), M_NOWAIT )
 #define DRM_FREE(pt,size)		free( pt, DRM(M_DRM) )
-#define DRM_VTOPHYS(addr)	vtophys(addr)
 
 /* Read/write from bus space, with byteswapping to le if necessary */
 #define DRM_READ8(map, offset)		*(volatile u_int8_t *) (((unsigned long)(map)->handle) + (offset))
@@ -206,10 +239,21 @@ while (!condition) {							\
 #define DRM_GET_USER_UNCHECKED(val, uaddr)			\
 	((val) = fuword(uaddr), 0)
 
-#define DRM_WRITEMEMORYBARRIER( map )					\
-	bus_space_barrier((map)->iot, (map)->ioh, 0, (map)->size, 0);
-#define DRM_READMEMORYBARRIER( map )					\
-	bus_space_barrier((map)->iot, (map)->ioh, 0, (map)->size, BUS_SPACE_BARRIER_READ);
+/* DRM_READMEMORYBARRIER() prevents reordering of reads.
+ * DRM_WRITEMEMORYBARRIER() prevents reordering of writes.
+ * DRM_MEMORYBARRIER() prevents reordering of reads and writes.
+ */
+#if defined(__i386__)
+#define DRM_READMEMORYBARRIER()		__asm __volatile( \
+					"lock; addl $0,0(%%esp)" : : : "memory");
+#define DRM_WRITEMEMORYBARRIER()	__asm __volatile("" : : : "memory");
+#define DRM_MEMORYBARRIER()		__asm __volatile( \
+					"lock; addl $0,0(%%esp)" : : : "memory");
+#elif defined(__alpha__)
+#define DRM_READMEMORYBARRIER()		alpha_mb();
+#define DRM_WRITEMEMORYBARRIER()	alpha_wmb();
+#define DRM_MEMORYBARRIER()		alpha_mb();
+#endif
 
 #define PAGE_ALIGN(addr) round_page(addr)
 
@@ -230,7 +274,8 @@ typedef struct drm_chipinfo
 	char *name;
 } drm_chipinfo_t;
 
-#define cpu_to_le32(x) (x)	/* FIXME */
+#define cpu_to_le32(x) htole32(x)
+#define le32_to_cpu(x) le32toh(x)
 
 typedef unsigned long dma_addr_t;
 typedef u_int32_t atomic_t;
@@ -356,14 +401,11 @@ find_first_zero_bit(volatile void *p, int max)
 #endif
 
 #define DRM_SYSCTL_PRINT(fmt, arg...)		\
+do {						\
   snprintf(buf, sizeof(buf), fmt, ##arg);	\
   error = SYSCTL_OUT(req, buf, strlen(buf));	\
-  if (error) return error;
-
-#define DRM_SYSCTL_PRINT_RET(ret, fmt, arg...)	\
-  snprintf(buf, sizeof(buf), fmt, ##arg);	\
-  error = SYSCTL_OUT(req, buf, strlen(buf));	\
-  if (error) { ret; return error; }
+  if (error) return error;			\
+} while (0)
 
 
 #define DRM_FIND_MAP(dest, o)						\
@@ -396,5 +438,7 @@ extern drm_file_t	*DRM(find_file_by_proc)(drm_device_t *dev,
 extern int		DRM(sysctl_init)(drm_device_t *dev);
 extern int		DRM(sysctl_cleanup)(drm_device_t *dev);
 
-/* Memory info sysctl (drm_memory.h) */
+/* Memory info sysctl (drm_memory_debug.h) */
+#ifdef DEBUG_MEMORY
 extern int		DRM(mem_info) DRM_SYSCTL_HANDLER_ARGS;
+#endif

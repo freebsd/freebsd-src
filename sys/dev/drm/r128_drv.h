@@ -149,6 +149,7 @@ extern int r128_do_cleanup_pageflip( drm_device_t *dev );
 				/* r128_state.c */
 extern int r128_cce_clear( DRM_IOCTL_ARGS );
 extern int r128_cce_swap( DRM_IOCTL_ARGS );
+extern int r128_cce_flip( DRM_IOCTL_ARGS );
 extern int r128_cce_vertex( DRM_IOCTL_ARGS );
 extern int r128_cce_indices( DRM_IOCTL_ARGS );
 extern int r128_cce_blit( DRM_IOCTL_ARGS );
@@ -345,13 +346,20 @@ extern int r128_cce_indirect( DRM_IOCTL_ARGS );
 #define R128_CCE_VC_CNTL_PRIM_WALK_RING		0x00000030
 #define R128_CCE_VC_CNTL_NUM_SHIFT		16
 
+#define R128_DATATYPE_VQ		0
+#define R128_DATATYPE_CI4		1
 #define R128_DATATYPE_CI8		2
 #define R128_DATATYPE_ARGB1555		3
 #define R128_DATATYPE_RGB565		4
 #define R128_DATATYPE_RGB888		5
 #define R128_DATATYPE_ARGB8888		6
 #define R128_DATATYPE_RGB332		7
+#define R128_DATATYPE_Y8		8
 #define R128_DATATYPE_RGB8		9
+#define R128_DATATYPE_CI16		10
+#define R128_DATATYPE_YVYU422		11
+#define R128_DATATYPE_VYUY422		12
+#define R128_DATATYPE_AYUV444		14
 #define R128_DATATYPE_ARGB4444		15
 
 /* Constants */
@@ -442,7 +450,7 @@ do {									\
 #if defined(__powerpc__)
 #define r128_flush_write_combine()	(void) GET_RING_HEAD( &dev_priv->ring )
 #else
-#define r128_flush_write_combine()	DRM_WRITEMEMORYBARRIER(dev_priv->ring_rptr)
+#define r128_flush_write_combine()	DRM_WRITEMEMORYBARRIER()
 #endif
 
 

@@ -70,6 +70,7 @@ void DRM(dma_takedown)(drm_device_t *dev)
 
 				/* Clear dma buffers */
 	for (i = 0; i <= DRM_MAX_ORDER; i++) {
+#if __HAVE_PCI_DMA
 		if (dma->bufs[i].seg_count) {
 			DRM_DEBUG("order %d: buf_count = %d,"
 				  " seg_count = %d\n",
@@ -77,22 +78,27 @@ void DRM(dma_takedown)(drm_device_t *dev)
 				  dma->bufs[i].buf_count,
 				  dma->bufs[i].seg_count);
 			for (j = 0; j < dma->bufs[i].seg_count; j++) {
-				DRM(free)((void *)dma->bufs[i].seglist[j],
-						dma->bufs[i].buf_size,
-						DRM_MEM_DMA);
+				if (dma->bufs[i].seglist[j] != NULL)
+					DRM(pci_free)(dev, dma->bufs[i].buf_size,
+					    (void *)dma->bufs[i].seglist[j],
+					    dma->bufs[i].seglist_bus[j]);
 			}
 			DRM(free)(dma->bufs[i].seglist,
 				  dma->bufs[i].seg_count
 				  * sizeof(*dma->bufs[0].seglist),
 				  DRM_MEM_SEGS);
+			DRM(free)(dma->bufs[i].seglist_bus,
+				  dma->bufs[i].seg_count
+				  * sizeof(*dma->bufs[0].seglist_bus),
+				  DRM_MEM_SEGS);
 		}
-	   	if(dma->bufs[i].buf_count) {
-		   	for(j = 0; j < dma->bufs[i].buf_count; j++) {
-			   if(dma->bufs[i].buflist[j].dev_private) {
-			      DRM(free)(dma->bufs[i].buflist[j].dev_private,
+#endif /* __HAVE_PCI_DMA */
+
+	   	if (dma->bufs[i].buf_count) {
+		   	for (j = 0; j < dma->bufs[i].buf_count; j++) {
+				DRM(free)(dma->bufs[i].buflist[j].dev_private,
 					dma->bufs[i].buflist[j].dev_priv_size,
 					DRM_MEM_BUFS);
-			   }
 			}
 		   	DRM(free)(dma->bufs[i].buflist,
 				  dma->bufs[i].buf_count *
@@ -101,17 +107,10 @@ void DRM(dma_takedown)(drm_device_t *dev)
 		}
 	}
 
-	if (dma->buflist) {
-		DRM(free)(dma->buflist,
-			  dma->buf_count * sizeof(*dma->buflist),
-			  DRM_MEM_BUFS);
-	}
-
-	if (dma->pagelist) {
-		DRM(free)(dma->pagelist,
-			  dma->page_count * sizeof(*dma->pagelist),
-			  DRM_MEM_PAGES);
-	}
+	DRM(free)(dma->buflist, dma->buf_count * sizeof(*dma->buflist),
+	    DRM_MEM_BUFS);
+	DRM(free)(dma->pagelist, dma->page_count * sizeof(*dma->pagelist),
+	    DRM_MEM_PAGES);
 	DRM(free)(dev->dma, sizeof(*dev->dma), DRM_MEM_DRIVER);
 	dev->dma = NULL;
 }
@@ -159,6 +158,9 @@ int DRM(irq_install)( drm_device_t *dev, int irq )
 	int retcode;
 
 	if ( !irq )
+		return DRM_ERR(EINVAL);
+
+	if (dev->dev_private == NULL)
 		return DRM_ERR(EINVAL);
 
 	DRM_LOCK;
@@ -215,7 +217,7 @@ int DRM(irq_install)( drm_device_t *dev, int irq )
 	if ( retcode ) {
 #elif defined(__NetBSD__)
 	dev->irqh = pci_intr_establish(&dev->pa.pa_pc, dev->ih, IPL_TTY,
-				      (int (*)(DRM_IRQ_ARGS))DRM(dma_service), dev);
+				      (irqreturn_t (*)(DRM_IRQ_ARGS))DRM(dma_service), dev);
 	if ( !dev->irqh ) {
 #endif
 		DRM_LOCK;

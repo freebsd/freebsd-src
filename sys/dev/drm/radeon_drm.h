@@ -143,7 +143,10 @@
 #define R200_EMIT_PP_CUBIC_OFFSETS_4                70
 #define R200_EMIT_PP_CUBIC_FACES_5                  71
 #define R200_EMIT_PP_CUBIC_OFFSETS_5                72
-#define RADEON_MAX_STATE_PACKETS                    73
+#define RADEON_EMIT_PP_TEX_SIZE_0                   73
+#define RADEON_EMIT_PP_TEX_SIZE_1                   74
+#define RADEON_EMIT_PP_TEX_SIZE_2                   75
+#define RADEON_MAX_STATE_PACKETS                    76
 
 
 /* Commands understood by cmd_buffer ioctl.  More can be added but
@@ -325,12 +328,6 @@ typedef struct {
 
 
 typedef struct {
-	unsigned char next, prev;
-	unsigned char in_use;
-	int age;
-} drm_radeon_tex_region_t;
-
-typedef struct {
 	/* The channel for communication of state information to the
 	 * kernel on firing a vertex buffer with either of the
 	 * obsoleted vertex/index ioctls.
@@ -352,8 +349,8 @@ typedef struct {
 	unsigned int last_dispatch;
 	unsigned int last_clear;
 
-	drm_radeon_tex_region_t tex_list[RADEON_NR_TEX_HEAPS][RADEON_NR_TEX_REGIONS+1];
-	int tex_age[RADEON_NR_TEX_HEAPS];
+	drm_tex_region_t tex_list[RADEON_NR_TEX_HEAPS][RADEON_NR_TEX_REGIONS+1];
+	unsigned int tex_age[RADEON_NR_TEX_HEAPS];
 	int ctx_owner;
         int pfState;                /* number of 3d windows (0,1,2ormore) */
         int pfCurrentPage;	    /* which buffer is being displayed? */
@@ -393,6 +390,8 @@ typedef struct {
 #define DRM_IOCTL_RADEON_INIT_HEAP  DRM_IOW( 0x55, drm_radeon_mem_init_heap_t)
 #define DRM_IOCTL_RADEON_IRQ_EMIT   DRM_IOWR( 0x56, drm_radeon_irq_emit_t)
 #define DRM_IOCTL_RADEON_IRQ_WAIT   DRM_IOW( 0x57, drm_radeon_irq_wait_t)
+/* added by Charl P. Botha - see radeon_cp.c for details */
+#define DRM_IOCTL_RADEON_CP_RESUME  DRM_IO(0x58)
 
 typedef struct drm_radeon_init {
 	enum {
@@ -532,8 +531,10 @@ typedef struct drm_radeon_indirect {
 #define RADEON_PARAM_LAST_FRAME            2
 #define RADEON_PARAM_LAST_DISPATCH         3
 #define RADEON_PARAM_LAST_CLEAR            4
+/* Added with DRM version 1.6. */
 #define RADEON_PARAM_IRQ_NR                5
 #define RADEON_PARAM_AGP_BASE              6 /* card offset of agp base */
+/* Added with DRM version 1.8. */
 #define RADEON_PARAM_REGISTER_HANDLE       7 /* for drmMap() */
 #define RADEON_PARAM_STATUS_HANDLE         8
 #define RADEON_PARAM_SAREA_HANDLE          9

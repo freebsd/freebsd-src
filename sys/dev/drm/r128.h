@@ -49,13 +49,18 @@
 
 #define DRIVER_NAME		"r128"
 #define DRIVER_DESC		"ATI Rage 128"
-#define DRIVER_DATE		"20021029"
+#define DRIVER_DATE		"20030725"
 
 #define DRIVER_MAJOR		2
-#define DRIVER_MINOR		3
+#define DRIVER_MINOR		5
 #define DRIVER_PATCHLEVEL	0
 
-
+/* Interface history:
+ *
+ * ??  - ??
+ * 2.4 - Add support for ycbcr textures (no new ioctls)
+ * 2.5 - Add FLIP ioctl, disable FULLSCREEN.
+ */
 #define DRIVER_IOCTLS							    \
    [DRM_IOCTL_NR(DRM_IOCTL_DMA)]             = { r128_cce_buffers,  1, 0 }, \
    [DRM_IOCTL_NR(DRM_IOCTL_R128_INIT)]       = { r128_cce_init,     1, 1 }, \
@@ -66,6 +71,7 @@
    [DRM_IOCTL_NR(DRM_IOCTL_R128_RESET)]      = { r128_engine_reset, 1, 0 }, \
    [DRM_IOCTL_NR(DRM_IOCTL_R128_FULLSCREEN)] = { r128_fullscreen,   1, 0 }, \
    [DRM_IOCTL_NR(DRM_IOCTL_R128_SWAP)]       = { r128_cce_swap,     1, 0 }, \
+   [DRM_IOCTL_NR(DRM_IOCTL_R128_FLIP)]       = { r128_cce_flip,     1, 0 }, \
    [DRM_IOCTL_NR(DRM_IOCTL_R128_CLEAR)]      = { r128_cce_clear,    1, 0 }, \
    [DRM_IOCTL_NR(DRM_IOCTL_R128_VERTEX)]     = { r128_cce_vertex,   1, 0 }, \
    [DRM_IOCTL_NR(DRM_IOCTL_R128_INDICES)]    = { r128_cce_indices,  1, 0 }, \
@@ -87,7 +93,7 @@
 } while (0)
 
 #define DRIVER_PRETAKEDOWN() do {					\
-	if ( dev->dev_private ) r128_do_cleanup_cce( dev );		\
+	r128_do_cleanup_cce( dev );					\
 } while (0)
 
 /* DMA customization:
