@@ -242,7 +242,7 @@ out:
 	case PROCFS_CTL_STEP:
 		_PHOLD(p);
 		PROC_UNLOCK(p);
-		error = procfs_sstep(&p->p_thread); /* XXXKSE */
+		error = proc_sstep(&p->p_thread); /* XXXKSE */
 		PRELE(p);
 		if (error)
 			return (error);
