@@ -47,7 +47,7 @@ o E-mail addresses and tech support info:
 
 For general questions, please send email to :
 
-        questions@FreeBSD.org
+        freebsd-questions@FreeBSD.org
 
 Please also have patience if your questions are not answered right
 away - this mailing list is staffed purely by volunteers and they also
@@ -63,13 +63,13 @@ changes in status during the life of the bug (or feature request).
 
 Technical comments on this release should be sent (in English!) to:
 
-        hackers@FreeBSD.org
+        freebsd-hackers@FreeBSD.org
 
 Bug reports should be sent using the `send-pr' command or the Web page
 at http://www.freebsd.org/send-pr.html.  If you cannot use either of
 these two methods, you may also send mail to:
 
-        bugs@FreeBSD.org
+        freebsd-bugs@FreeBSD.org
 
 
 PLEASE ALSO BE SURE TO INDICATE WHICH VERSION OF FREEBSD YOU'RE
