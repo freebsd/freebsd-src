@@ -48,8 +48,6 @@
 typedef	__rune_t	rune_t;
 #endif
 
-#define	_PATH_LOCALE	"/usr/share/locale"
-
 #define _INVALID_RUNE   _CurrentRuneLocale->invalid_rune
 
 #define __sgetrune      _CurrentRuneLocale->sgetrune
