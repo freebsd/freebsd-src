@@ -38,7 +38,7 @@
 .Nm leave
 .Nd remind you when you have to leave
 .Sh SYNOPSIS
-.Nm leave
+.Nm
 .Sm off
 .Oo
 .Op Cm \&+
@@ -52,7 +52,7 @@ have to leave.
 You are reminded 5 minutes and 1 minute before the actual
 time, at the time, and every minute thereafter.
 When you log off,
-.Nm leave
+.Nm
 exits just before it would have
 printed the next message.
 .Pp
@@ -78,16 +78,16 @@ from the current time.
 .El
 .Pp
 If no argument is given,
-.Nm leave
+.Nm
 prompts with "When do you
 have to leave?". A reply of newline causes
-.Nm leave
+.Nm
 to exit,
 otherwise the reply is assumed to be a time.
 This form is suitable for inclusion in a
 .Pa .login
 or
-.Pa .profile.
+.Pa .profile .
 .Pp
 Leave ignores interrupts, quits, and terminates.
 To get rid of it you should either log off or use
@@ -97,6 +97,6 @@ giving its process id.
 .Xr calendar 1
 .Sh HISTORY
 The
-.Nm leave
+.Nm
 command appeared in
 .Bx 3.0 .
