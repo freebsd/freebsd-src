@@ -169,7 +169,7 @@ dofileread(td, fp, fd, buf, nbyte, offset, flags)
 	int didktr = 0;
 #endif
 
-	aiov.iov_base = (caddr_t)buf;
+	aiov.iov_base = buf;
 	aiov.iov_len = nbyte;
 	auio.uio_iov = &aiov;
 	auio.uio_iovcnt = 1;
@@ -260,7 +260,7 @@ readv(td, uap)
 	auio.uio_segflg = UIO_USERSPACE;
 	auio.uio_td = td;
 	auio.uio_offset = -1;
-	if ((error = copyin((caddr_t)uap->iovp, (caddr_t)iov, iovlen)))
+	if ((error = copyin(uap->iovp, iov, iovlen)))
 		goto done;
 	auio.uio_resid = 0;
 	for (i = 0; i < uap->iovcnt; i++) {
@@ -277,7 +277,7 @@ readv(td, uap)
 	 */
 	if (KTRPOINT(td, KTR_GENIO))  {
 		MALLOC(ktriov, struct iovec *, iovlen, M_TEMP, M_WAITOK);
-		bcopy((caddr_t)auio.uio_iov, (caddr_t)ktriov, iovlen);
+		bcopy(auio.uio_iov, ktriov, iovlen);
 		ktruio = auio;
 	}
 #endif
@@ -494,7 +494,7 @@ writev(td, uap)
 	auio.uio_segflg = UIO_USERSPACE;
 	auio.uio_td = td;
 	auio.uio_offset = -1;
-	if ((error = copyin((caddr_t)uap->iovp, (caddr_t)iov, iovlen)))
+	if ((error = copyin(uap->iovp, iov, iovlen)))
 		goto done;
 	auio.uio_resid = 0;
 	for (i = 0; i < uap->iovcnt; i++) {
@@ -511,7 +511,7 @@ writev(td, uap)
 	 */
 	if (KTRPOINT(td, KTR_GENIO))  {
 		MALLOC(ktriov, struct iovec *, iovlen, M_TEMP, M_WAITOK);
-		bcopy((caddr_t)auio.uio_iov, (caddr_t)ktriov, iovlen);
+		bcopy(auio.uio_iov, ktriov, iovlen);
 		ktruio = auio;
 	}
 #endif
@@ -620,7 +620,7 @@ ioctl(td, uap)
 
 	memp = NULL;
 	if (size > sizeof (ubuf.stkbuf)) {
-		memp = (caddr_t)malloc((u_long)size, M_IOCTLOPS, M_WAITOK);
+		memp = malloc((u_long)size, M_IOCTLOPS, M_WAITOK);
 		data = memp;
 	} else {
 		data = ubuf.stkbuf;
@@ -781,8 +781,7 @@ select(td, uap)
 		bzero(selbits, nbufbytes / 2);
 
 	if (uap->tv) {
-		error = copyin((caddr_t)uap->tv, (caddr_t)&atv,
-			sizeof (atv));
+		error = copyin(uap->tv, &atv, sizeof (atv));
 		if (error)
 			goto done_nosellock;
 		if (itimerfix(&atv)) {
@@ -1186,7 +1185,7 @@ selwakeup(sip)
 	TAILQ_REMOVE(&td->td_selq, sip, si_thrlist);
 	sip->si_thread = NULL;
 	mtx_lock_spin(&sched_lock);
-	if (td->td_wchan == (caddr_t)&selwait) {
+	if (td->td_wchan == &selwait) {
 		if (td->td_state == TDS_SLP)
 			setrunnable(td);
 		else
