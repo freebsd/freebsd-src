@@ -366,7 +366,7 @@ set_volume_state(int volno, enum volumestate state, enum setstateflags flags)
     if (state == volume_up)				    /* want to come up */
 	update_volume_state(volno);
     else if (state == volume_down) {			    /* want to go down */
-	if ((vol->opencount == 0)			    /* not open */
+	if (((vol->flags & VF_OPEN) == 0)		    /* not open */
 	||((flags & setstate_force) != 0)) {		    /* or we're forcing */
 	    vol->state = volume_down;
 	    log(LOG_INFO,
@@ -471,8 +471,8 @@ update_plex_state(int plexno)
 		 *
 		 * This code assumes that all the other plexes are also
 		 * capable of coming up (i.e. all the sds are up), but
-		 * that's OK: we'll come back to this function for the remaining
-		 * plexes in the volume. 
+		 * that's OK: we'll come back to this function for the
+		 * remaining plexes in the volume. 
 		 */
 		struct volume *vol = &VOL[plex->volno];
 		int plexno;
