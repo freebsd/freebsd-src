@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.5 1993/10/08 20:45:09 rgrimes Exp $
+ *	$Id: locore.s,v 1.6 1993/10/10 06:07:57 rgrimes Exp $
  */
 
 
@@ -69,19 +69,6 @@
  */
 
 	.set	IDXSHIFT,10
-/*
- * note: gas copys sign bit (e.g. arithmetic >>), can't do KERNBASE>>PDRSHIFT! 
- *
- * Okay, gas is broken, here is a gross way around it, a macro that
- * effectively does a logical shift by first doing a 1 bit arithmetic
- * shift, then zero out the sign bit, then finish the shift.
- */
-#define R_SHIFT(val,count)	((((val) >> 1) & (~(1<<31))) >> (count - 1))
-
-	/* Page dir index of System Base */
-	.set	SYSPDROFF,R_SHIFT(KERNBASE,PDRSHIFT)
-	/* Page dir index of System End */
-	.set	SYSPDREND,R_SHIFT(KERNBASE+KERNSIZE,PDRSHIFT)
 
 #define	ALIGN_DATA	.align	2
 #define	ALIGN_TEXT	.align	2,0x90	/* 4-byte boundaries, NOP-filled */
@@ -131,22 +118,21 @@
  * PTmap is recursive pagemap at top of virtual address space.
  * Within PTmap, the page directory can be found (third indirection).
  */
-	.set	PDRPDROFF,0x3F7		/* Page dir index of Page dir */
-	.globl	_PTmap, _PTD, _PTDpde, _Sysmap
-	.set	_PTmap,0xFDC00000
-	.set	_PTD,0xFDFF7000
+	.globl	_PTmap,_PTD,_PTDpde,_Sysmap
+	.set	_PTmap,PTDPTDI << PDRSHIFT
+	.set	_PTD,_PTmap + (PTDPTDI * NBPG)
+	.set	_PTDpde,_PTD + (PTDPTDI * 4)		/* XXX 4=sizeof pte */
+
 	.set	_Sysmap,0xFDFF8000
-	.set	_PTDpde,0xFDFF7000+4*PDRPDROFF
 
 /*
  * APTmap, APTD is the alternate recursive pagemap.
  * It's used when modifying another process's page tables.
  */
-	.set	APDRPDROFF,0x3FE	/* Page dir index of Page dir */
-	.globl	_APTmap, _APTD, _APTDpde
-	.set	_APTmap,0xFF800000
-	.set	_APTD,0xFFBFE000
-	.set	_APTDpde,0xFDFF7000+4*APDRPDROFF
+	.globl	_APTmap,_APTD,_APTDpde
+	.set	_APTmap,APTDPTDI << PDRSHIFT
+	.set	_APTD,_APTmap + (APTDPTDI * NBPG)
+	.set	_APTDpde,_PTD + (APTDPTDI * 4)		/* XXX 4=sizeof pte */
 
 /*
  * Access to each processes kernel stack is via a region of
@@ -166,19 +152,19 @@
 	.globl	_esym
 _esym:	.long	0		/* ptr to end of syms */
 
-	.globl	_boothowto, _bootdev, _curpcb
+	.globl	_boothowto,_bootdev,_curpcb
 
-	.globl	_cpu, _cold, _atdevbase
+	.globl	_cpu,_cold,_atdevbase
 _cpu:	.long	0		/* are we 386, 386sx, or 486 */
 _cold:	.long	1		/* cold till we are not */
 _atdevbase:	.long	0	/* location of start of iomem in virtual */
 _atdevphys:	.long	0	/* location of device mapping ptes (phys) */
 
-	.globl	_IdlePTD, _KPTphys
+	.globl	_IdlePTD,_KPTphys
 _IdlePTD:	.long	0
 _KPTphys:	.long	0
 
-	.globl	_cyloffset, _proc0paddr
+	.globl	_cyloffset,_proc0paddr
 _cyloffset:	.long	0
 _proc0paddr:	.long	0
 
@@ -311,6 +297,12 @@ ENTRY(btext)
 /* physical address of Idle Address space */
 	movl	%esi,_IdlePTD-KERNBASE
 
+/*
+ * fillkpt
+ *	eax = (page frame address | control | status) == pte
+ *	ebx = address of page table
+ *	ecx = how many pages to map
+ */
 #define	fillkpt		\
 1:	movl	%eax,(%ebx)	; \
 	addl	$NBPG,%eax	; /* increment physical address */ \
@@ -348,7 +340,8 @@ ENTRY(btext)
 	movl	$UPAGES,%ecx		/* for this many pte s, */
 	lea	(1*NBPG)(%esi),%eax	/* physical address in proc 0 */
 	lea	(KERNBASE)(%eax),%edx
-	movl	%edx,_proc0paddr-KERNBASE	/* remember VA for 0th process init */
+	movl	%edx,_proc0paddr-KERNBASE
+					/* remember VA for 0th process init */
 	orl	$PG_V|PG_KW,%eax	/*  having these bits set, */
 	lea	(3*NBPG)(%esi),%ebx	/* physical address of stack pt in proc 0 */
 	addl	$(PPTEOFF*4),%ebx
@@ -364,14 +357,14 @@ ENTRY(btext)
 	movl	%eax,(%esi)		/* which is where temp maps! */
 
 	/* kernel pde's */
-	movl	$(SYSPDREND-SYSPDROFF),%ecx	/* for this many pde s, */
-	lea	(SYSPDROFF*4)(%esi),%ebx	/* offset of pde for kernel */
+	movl	$(NKPDE),%ecx			/* for this many pde s, */
+	lea	(KPTDI*4)(%esi),%ebx	/* offset of pde for kernel */
 	fillkpt
 
 	/* install a pde recursively mapping page directory as a page table! */
 	movl	%esi,%eax		/* phys address of ptd in proc 0 */
 	orl	$PG_V|PG_UW,%eax	/* pde entry is valid XXX 06 Aug 92 */
-	movl	%eax,PDRPDROFF*4(%esi)	/* which is where PTmap maps! */
+	movl	%eax,PTDPTDI*4(%esi)	/* which is where PTmap maps! */
 
 	/* install a pde to map kernel stack for proc 0 */
 	lea	(3*NBPG)(%esi),%eax	/* physical address of pt in proc 0 */
@@ -422,7 +415,7 @@ ENTRY(btext)
 	addl	$2*6,%esp
 	popal
 
-	/* load base of page directory, and enable mapping */
+	/* load base of page directory and enable mapping */
 	movl	%esi,%eax		/* phys address of ptd in proc 0 */
 	orl	$I386_CR3PAT,%eax
 	movl	%eax,%cr3		/* load ptd addr into mmu */
@@ -445,9 +438,9 @@ ENTRY(btext)
 
 begin: /* now running relocated at KERNBASE where the system is linked to run */
 
-	.globl _Crtat			/* XXX - locore should not know about */
-	movl	_Crtat,%eax		/* variables of device drivers (pccons)! */
-	subl	$0xfe0a0000,%eax
+	.globl _Crtat		/* XXX - locore should not know about */
+	movl	_Crtat,%eax	/* variables of device drivers (pccons)! */
+	subl	$(KERNBASE+0xA0000),%eax
 	movl	_atdevphys,%edx	/* get pte PA */
 	subl	_KPTphys,%edx	/* remove base of ptes, now have phys offset */
 	shll	$PGSHIFT-2,%edx	/* corresponding to virt offset */
@@ -561,13 +554,12 @@ _szicode:
 	.long	_szicode-_icode
 
 NON_GPROF_ENTRY(sigcode)
-	call	12(%esp)
-	lea	28(%esp),%eax	/* scp (the call may have clobbered the */
-				/* copy at 8(%esp)) */
-				/* XXX - use genassym */
+	call	SIGF_HANDLER(%esp)
+	lea	SIGF_SC(%esp),%eax	/* scp (the call may have clobbered the */
+					/* copy at 8(%esp)) */
 	pushl	%eax
 	pushl	%eax		/* junk to fake return address */
-	movl	$103,%eax	/* sigreturn() */
+	movl	$103,%eax	/* XXX sigreturn() */
 	LCALL(0x7,0)		/* enter kernel with args on stack */
 	hlt			/* never gets here */
 
