@@ -43,8 +43,7 @@ BIN2=	netstart pccard_ether rc.suspend rc.resume
 MTREE=	BSD.include.dist BSD.local.dist BSD.root.dist BSD.usr.dist \
 	BSD.var.dist BSD.x11.dist BSD.x11-4.dist
 NAMEDB= PROTO.localhost.rev named.conf named.root make-localhost
-PPPCNF= ppp.deny ppp.shells.sample
-PPPCF2= ppp.conf
+PPPCNF= ppp.conf
 ETCMAIL=Makefile README mailer.conf access.sample virtusertable.sample \
 	mailertable.sample aliases
 
@@ -117,10 +116,8 @@ distribution:
 	    ${MTREE} ${DESTDIR}/etc/mtree
 	cd ${.CURDIR}/namedb; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 \
 	    ${NAMEDB} ${DESTDIR}/etc/namedb
-	cd ${.CURDIR}/ppp; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 \
-	    ${PPPCNF} ${DESTDIR}/etc/ppp
 	cd ${.CURDIR}/ppp; ${INSTALL} -c -o root -g ${BINGRP} -m 600 \
-	    ${PPPCF2} ${DESTDIR}/etc/ppp
+	    ${PPPCNF} ${DESTDIR}/etc/ppp
 	cd ${.CURDIR}/mail; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 \
 	    ${ETCMAIL} ${DESTDIR}/etc/mail
 	@if [ -d ${DESTDIR}/etc/mail -a -f ${DESTDIR}/etc/mail/aliases -a \
