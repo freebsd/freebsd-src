@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)pstat.c	8.16 (Berkeley) 5/9/95";
 #endif
 static const char rcsid[] =
-	"$Id: pstat.c,v 1.33 1997/11/12 05:42:33 julian Exp $";
+	"$Id: pstat.c,v 1.34 1998/01/06 05:33:28 dyson Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -727,7 +727,8 @@ kinfo_vnodes(avnodes)
 	return ((struct e_vnode *)vbuf);
 }
 
-char hdr[]="  LINE RAW CAN OUT  HWT LWT     COL STATE  SESS      PGID DISC\n";
+char hdr[] =
+"  LINE RAW CAN OUT IHWT LWT OHWT LWT     COL STATE  SESS      PGID DISC\n";
 int ttyspace = 128;
 
 void
@@ -894,8 +895,9 @@ ttyprt(tp, line)
 	else
 		(void)printf("%7s ", name);
 	(void)printf("%2d %3d ", tp->t_rawq.c_cc, tp->t_canq.c_cc);
-	(void)printf("%3d %4d %3d %7d ", tp->t_outq.c_cc,
-		tp->t_hiwat, tp->t_lowat, tp->t_column);
+	(void)printf("%3d %4d %3d %4d %3d %7d ", tp->t_outq.c_cc,
+		tp->t_ihiwat, tp->t_ilowat, tp->t_ohiwat, tp->t_olowat,
+		tp->t_column);
 	for (i = j = 0; ttystates[i].flag; i++)
 		if (tp->t_state&ttystates[i].flag)
 			state[j++] = ttystates[i].val;
