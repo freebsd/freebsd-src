@@ -347,7 +347,7 @@ move_to(room_number)
 			wump_kill();
 			return(1);
 		}
-		if (cave[next_room].has_a_pit)
+		if (cave[next_room].has_a_pit) {
 			if (random() % 12 < 2) {
 				pit_survive();
 				return(0);
@@ -355,6 +355,7 @@ move_to(room_number)
 				pit_kill();
 				return(1);
 			}
+		}
 
 		if (cave[next_room].has_a_bat) {
 			(void)printf(
@@ -389,14 +390,15 @@ shoot(room_list)
 	 */
 	arrow_location = player_loc;
 	for (roomcnt = 1;; ++roomcnt, room_list = NULL) {
-		if (!(p = strtok(room_list, " \t\n")))
+		if (!(p = strtok(room_list, " \t\n"))) {
 			if (roomcnt == 1) {
 				(void)printf(
 			"The arrow falls to the ground at your feet!\n");
 				return(0);
 			} else
 				break;
-		if (roomcnt > 5) {
+		}
+		if (roomcnt > 5)  {
 			(void)printf(
 "The arrow wavers in its flight and and can go no further!\n");
 			break;

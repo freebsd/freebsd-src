@@ -50,7 +50,7 @@ main(argc,argv)
 #ifndef VT100
 	init_term();	/* setup the terminal (find out what type) for termcap */
 #endif VT100
-	if (((ptr = getlogin()) == 0) || (*ptr==0))	/* try to get login name */
+	if (((ptr = getlogin()) == 0) || (*ptr==0)) {	/* try to get login name */
 	  if (pwe=getpwuid(getuid())) /* can we get it from /etc/passwd? */
 		ptr = pwe->pw_name;
 	  else
@@ -60,6 +60,7 @@ main(argc,argv)
 		  noone: write(2, "Can't find your logname.  Who Are You?\n",39);
 				 exit(1);
 		  }
+	}
 	if (ptr==0) goto noone;
 	if (strlen(ptr)==0) goto noone;
 /*
@@ -788,7 +789,7 @@ char *p;
 while (1)
 	{
 	if ((i = whatitem("eat"))=='\33')  return;
-	if (i != '.')
+	if (i != '.') {
 		if (i=='*') showeat(); else
 			{
 			if (iven[i-'a']==OCOOKIE)
@@ -808,6 +809,7 @@ while (1)
 			if (iven[i-'a']==0) { ydhi(i); return; }
 			lprcat("\nYou can't eat that!");  return;
 			}
+		 }
 	}
 }
 

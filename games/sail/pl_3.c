@@ -124,11 +124,12 @@ acceptcombat()
 		else if (temp > 8)
 			temp -= 8;
 		sternrake = temp > 4 && temp < 6;
-		if (rakehim)
+		if (rakehim) {
 			if (!sternrake)
 				Signal("Raking the %s!", closest);
 			else
 				Signal("Stern Rake! %s splintering!", closest);
+		}
 		index = guns;
 		if (target < 3)
 			index += car;
@@ -142,21 +143,24 @@ acceptcombat()
 			hit++;
 		hit += QUAL[index][mc->qual-1];
 		for (n = 0; n < 3 && mf->captured == 0; n++)
-			if (!crew[n])
+			if (!crew[n]) {
 				if (index <= 5)
 					hit--;
 				else
 					hit -= 2;
-		if (ready & R_INITIAL)
+			}
+		if (ready & R_INITIAL) {
 			if (index <= 3)
 				hit++;
 			else
 				hit += 2;
-		if (mf->captured != 0)
+		}
+		if (mf->captured != 0) {
 			if (index <= 1)
 				hit--;
 			else
 				hit -= 2;
+		}
 		hit += AMMO[index][load - 1];
 		if (((temp = mc->class) >= 5 || temp == 1) && windspeed == 5)
 			hit--;

@@ -152,21 +152,23 @@ scorehand(hand, starter, n, crb, do_explain)
 	sorthand(h, n + 1);	/* sort by rank */
 	i = 2 * fifteens(h, n + 1);
 	score += i;
-	if (do_explain)
+	if (do_explain) {
 		if (i > 0) {
 			(void) sprintf(buf, "%d points in fifteens", i);
 			strcat(expl, buf);
 		} else
 			strcat(expl, "No fifteens");
+	}
 	i = pairuns(h, n + 1);
 	score += i;
-	if (do_explain)
+	if (do_explain) {
 		if (i > 0) {
 			(void) sprintf(buf, ", %d points in pairs, %d in runs",
 			    pairpoints, runpoints);
 			strcat(expl, buf);
 		} else
 			strcat(expl, ", No pairs/runs");
+	}
 	return (score);
 }
 

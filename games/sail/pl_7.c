@@ -84,16 +84,18 @@ newturn()
 	movebuf[0] = '\0';
 
 	(void) alarm(0);
-	if (mf->readyL & R_LOADING)
+	if (mf->readyL & R_LOADING) {
 		if (mf->readyL & R_DOUBLE)
 			mf->readyL = R_LOADING;
 		else
 			mf->readyL = R_LOADED;
-	if (mf->readyR & R_LOADING)
+	}
+	if (mf->readyR & R_LOADING) {
 		if (mf->readyR & R_DOUBLE)
 			mf->readyR = R_LOADING;
 		else
 			mf->readyR = R_LOADED;
+	}
 	if (!hasdriver)
 		Write(W_DDEAD, SHIP(0), 0, 0, 0, 0, 0);
 
