@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yppasswd_comm.c,v 1.10 1996/02/03 04:41:59 wpaul Exp $
+ *	$Id: yppasswd_comm.c,v 1.1.1.1 1996/02/12 15:09:01 wpaul Exp $
  */
 
 /*
@@ -73,7 +73,7 @@
 #include "ypxfr_extern.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: yppasswd_comm.c,v 1.10 1996/02/03 04:41:59 wpaul Exp $";
+static const char rcsid[] = "$Id: yppasswd_comm.c,v 1.1.1.1 1996/02/12 15:09:01 wpaul Exp $";
 #endif
 
 char *sockname = "/var/run/ypsock";
@@ -218,6 +218,7 @@ struct master_yppasswd *getdat(sock)
 		break;
 	}
 
+	len = sizeof(us);
 	if ((serv_sock = accept(sock, (struct sockaddr *)&us, &len)) == -1) {
 		yp_error("accept failed: %s", strerror(errno));
 		return(NULL);
