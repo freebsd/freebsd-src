@@ -37,6 +37,8 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/module.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
@@ -129,9 +131,14 @@ log_append_int(lomac_log_t *s, int data) {
 
 void
 log_append_subject_id(lomac_log_t *s, const lomac_subject_t *p_subject) {
+	uid_t uid;
+	pid_t pgid;
 
-	(void)sbuf_printf(s, "p%dg%du%d:%s", p_subject->p_pid,
-	    p_subject->p_pgrp->pg_id, p_subject->p_ucred->cr_uid,
+	PROC_LOCK(p_subject);
+	uid = p_subject->p_ucred->cr_uid;
+	pgid = p_subject->p_pgrp->pg_id;
+	PROC_UNLOCK(p_subject);
+	(void)sbuf_printf(s, "p%dg%du%d:%s", p_subject->p_pid, pgid, uid,
 	    p_subject->p_comm);
 } /* log_append_subject_id() */
 
