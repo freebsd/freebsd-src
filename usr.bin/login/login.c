@@ -833,7 +833,7 @@ timedout(int signo __unused)
 	longjmp(timeout_buf, signo);
 }
 
-void
+static void
 badlogin(char *name)
 {
 
@@ -868,7 +868,7 @@ stypeof(char *ttyid)
 	return (NULL);
 }
 
-void
+static void
 refused(const char *msg, const char *rtype, int lout)
 {
 
@@ -887,7 +887,7 @@ refused(const char *msg, const char *rtype, int lout)
 /*
  * Log a PAM error
  */
-void
+static void
 pam_syslog(const char *msg)
 {
 	syslog(LOG_ERR, "%s: %s", msg, pam_strerror(pamh, pam_err));
@@ -896,7 +896,7 @@ pam_syslog(const char *msg)
 /*
  * Shut down PAM
  */
-void
+static void
 pam_cleanup()
 {
 
