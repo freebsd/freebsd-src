@@ -218,6 +218,11 @@ netinet/tcp_subr.c	optional inet
 netinet/tcp_timer.c	optional inet
 netinet/tcp_usrreq.c	optional inet
 netinet/udp_usrreq.c	optional inet
+netinet/ip_fil.c	optional ipfilter inet
+netinet/fil.c		optional ipfilter inet
+netinet/ip_nat.c	optional ipfilter inet
+netinet/ip_frag.c	optional ipfilter inet
+netinet/ip_state.c	optional ipfilter inet
 netipx/ipx.c		optional ipx
 netipx/ipx_cksum.c	optional ipx
 netipx/ipx_error.c	optional ipx
