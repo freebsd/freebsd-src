@@ -566,8 +566,8 @@ msdosfs_read(ap)
 	if (uio->uio_offset < 0)
 		return (EINVAL);
 
-	if (uio->uio_offset > DOS_FILESIZE_MAX)
-                return (EFBIG);
+	if ((uoff_t)uio->uio_offset > DOS_FILESIZE_MAX)
+                return (0);
 	/*
 	 * If they didn't ask for any data, then we are done.
 	 */
@@ -590,7 +590,10 @@ msdosfs_read(ap)
 		if (isadir) {
 			/* convert cluster # to block # */
 			error = pcbmap(dep, lbn, &lbn, 0, &blsize);
-			if (error)
+			if (error == E2BIG) {
+				error = EINVAL;
+				break;
+			} else if (error)
 				break;
 			error = bread(pmp->pm_devvp, lbn, blsize, NOCRED, &bp);
 		} else {
@@ -676,23 +679,23 @@ msdosfs_write(ap)
 	}
 
 	if (uio->uio_offset < 0)
-		return (EINVAL);
+		return (EFBIG);
 
 	if (uio->uio_resid == 0)
 		return (0);
-
-	if (uio->uio_offset + uio->uio_resid > DOS_FILESIZE_MAX)
-                return (EFBIG);
 
 	/*
 	 * If they've exceeded their filesize limit, tell them about it.
 	 */
 	if (p &&
-	    ((uio->uio_offset + uio->uio_resid) >
+	    ((uoff_t)uio->uio_offset + uio->uio_resid >
 	    p->p_rlimit[RLIMIT_FSIZE].rlim_cur)) {
 		psignal(p, SIGXFSZ);
 		return (EFBIG);
 	}
+
+	if ((uoff_t)uio->uio_offset + uio->uio_resid > DOS_FILESIZE_MAX)
+                return (EFBIG);
 
 	/*
 	 * If the offset we are starting the write at is beyond the end of
