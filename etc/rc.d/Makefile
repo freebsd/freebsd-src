@@ -15,7 +15,7 @@ FILES=	DAEMON LOGIN NETWORKING SERVERS \
 	gbde \
 	hostname \
 	inetd initdiskless initrandom \
-	ip6fw ipfilter ipfs ipfw ipmon \
+	ip6addrctl ip6fw ipfilter ipfs ipfw ipmon \
 	ipnat ipsec ipxrouted isdnd \
 	jail \
 	kadmind kerberos keyserv kldxref kpasswdd \
