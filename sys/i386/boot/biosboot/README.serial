@@ -2,7 +2,7 @@
                          SERIAL CONSOLE USAGE NOTES
 				Written by
                       Bill Paul <wpaul@ctr.columbia.edu>
-                          Revised for 3.0-CURRENT by
+                          	Revised by
             Kazutaka Yokota <yokota@zodiac.mech.utsunomiya-u.ac.jp>
 
 The FreeBSD boot block can now be used to boot FreeBSD on a system with
@@ -64,15 +64,13 @@ To boot FreeBSD in serial console mode, you must do the following:
   NOTE #1:
   The serial port settings are hardcoded to 9600 baud, 8 bits, no parity,
   1 stop bit, by default. If you wish to change the speed, you need to 
-  recompile at least the boot blocks.  Add the following line to
+  recompile the boot blocks and the kernel.  Add the following line to
   /etc/make.conf and compile new boot blocks:
 
 	BOOT_COMCONSOLE_SPEED=115200
 
-  If the serial console is configured in some other way than by booting with
-  -h, or if the serial console used by the kernel is different from the one
-  used by the boot blocks, then you must also add the following option to the
-  kernel configuration file and compile a new kernel:
+  Then add the following option to the kernel configuration file and 
+  compile a new kernel:
 
         options	CONSPEED=115200
 
@@ -89,26 +87,6 @@ To boot FreeBSD in serial console mode, you must do the following:
 
 	options BREAK_TO_DEBUGGER
 	options DDB
-
-
-- MAKE SURE THE CONFIGURATION FILE OF YOUR KERNEL HAS APPROPRIATE FLAGS
-  SET FOR COM1.
-
-  Relevant `flags' are:
-  0x10	enable console support for this unit.  The other console flags
-	are ignored unless this is set.  Currently, at most one unit can 
-	have console support; the first one (in config file order) with
-	this flag set is preferred. This option alone will not make
-	the serial port the console. Set the following flag or use the -h
-	option described below, together with this flag.
-  0x20	force this unit to be the console (unless there is another
-	higher priority console). This replaces the COMCONSOLE option.
-
-  Example:
-  device sio0 at isa? port "IO_COM1" tty flags 0x10 irq 4 vector siointr
-
-  If the flags were not set, you need to run UserConfig (on a different
-  console) or recompile the kernel.
 
 - CREATE THE FILE "boot.config" IN THE ROOT DIRECTORY of the `a' partition
   on the boot drive.  Put the kernel name and options in one line.   The
@@ -134,6 +112,13 @@ To boot FreeBSD in serial console mode, you must do the following:
 
   Use either the -P option to select the console automatically, or the -h
   option to force the serial console.
+
+  NOTE #1:
+  If you want to force the kernel to use the serial console regardless
+  of the state of the -h option above, compile your kernel with the
+  following option:
+
+	options COMCONSOLE
 
 - BOOT THE MACHINE. You'll see a prompt appear on the terminal that looks 
   something like this:
@@ -182,15 +167,14 @@ CAVEATS:
 	  0x2E8). Only COM1 through COM4 can be used; multiport serial
 	  cards will not work. No interrupt setting is needed.
 	o Create a custom kernel configuration file and add appropriate
-	  `flags' for the serial port you want to use. For example, if you
-	  want to make COM2 the console:
+	  options. For example, if you want to make COM2 the console:
 
-	  device sio1 at isa? port "IO_COM2" tty flags 0x10 irq 3 vector siointr
+	  options "CONUNIT=1"
+	  options "CONADDR=0x2F8"
 
-	  The console flags for the other serial ports should not be set.
 	o Recompile both the boot blocks and the kernel.
 	o Install the boot blocks with the disklabel command and boot
 	  from the new kernel.
 
 
-$Id: README.serial,v 1.9 1997/06/16 06:32:51 charnier Exp $
+$Id: README.serial,v 1.5.2.1 1997/07/01 05:55:42 pst Exp $
