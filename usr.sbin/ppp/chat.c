@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chat.c,v 1.57 1999/06/09 08:47:31 brian Exp $
+ *	$Id: chat.c,v 1.58 1999/06/26 02:54:24 brian Exp $
  */
 
 #include <sys/param.h>
@@ -318,7 +318,7 @@ static int
 chat_IsSet(struct descriptor *d, const fd_set *fdset)
 {
   struct chat *c = descriptor2chat(d);
-  return physical_IsSet(&c->physical->desc, fdset);
+  return c->argptr && physical_IsSet(&c->physical->desc, fdset);
 }
 
 static void
