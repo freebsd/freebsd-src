@@ -64,6 +64,7 @@
 #include <sys/vnode.h>
 #include <sys/sysent.h>
 #include <sys/reboot.h>
+#include <sys/sched.h>
 #include <sys/sx.h>
 #include <sys/sysproto.h>
 #include <sys/vmmeter.h>
@@ -315,6 +316,11 @@ proc0_init(void *dummy __unused)
 	td = &thread0;
 	ke = &kse0;
 	kg = &ksegrp0;
+
+	ke->ke_sched = kse0_sched;
+	kg->kg_sched = ksegrp0_sched;
+	p->p_sched = proc0_sched;
+	td->td_sched = thread0_sched;
 
 	/*
 	 * Initialize magic number.
