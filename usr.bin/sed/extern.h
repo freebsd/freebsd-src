@@ -34,7 +34,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)extern.h	8.1 (Berkeley) 6/6/93
+ * From: @(#)extern.h	8.1 (Berkeley) 6/6/93
+ * $FreeBSD$
  */
 
 extern struct s_command *prog;
