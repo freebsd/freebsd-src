@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_compat.c	8.1 (Berkeley) 6/10/93
- * $Id: tty_compat.c,v 1.4 1994/08/25 10:01:00 bde Exp $
+ * $Id: tty_compat.c,v 1.5 1994/10/08 22:33:40 phk Exp $
  */
 
 /* 
@@ -108,7 +108,7 @@ ttcompat(tp, com, data, flag)
 		}
 		sg->sg_erase = cc[VERASE];
 		sg->sg_kill = cc[VKILL];
-		sg->sg_flags = ttcompatgetflags(tp);
+		sg->sg_flags = tp->t_flags = ttcompatgetflags(tp);
 		break;
 	}
 
@@ -205,7 +205,10 @@ ttcompat(tp, com, data, flag)
 		return (ttioctl(tp, TIOCSETA, &term, flag));
 	}
 	case TIOCLGET:
-		*(int *)data = ttcompatgetflags(tp)>>16;
+		tp->t_flags =
+		 (ttcompatgetflags(tp) & 0xffff0000UL) 
+		   | (tp->t_flags & 0xffff);
+		*(int *)data = tp->t_flags>>16;
 		if (ttydebug)
 			printf("CLGET: returning %x\n", *(int *)data);
 		break;
@@ -245,7 +248,12 @@ ttcompatgetflags(tp)
 		flags |= TANDEM;
 	if (iflag&ICRNL || oflag&ONLCR)
 		flags |= CRMOD;
-	if (cflag&PARENB) {
+	if ((cflag&CSIZE) == CS8) {
+		flags |= PASS8;
+		if (iflag&ISTRIP)
+			flags |= ANYP;
+	}
+	else if (cflag&PARENB) {
 		if (iflag&INPCK) {
 			if (cflag&PARODD)
 				flags |= ODDP;
@@ -253,20 +261,18 @@ ttcompatgetflags(tp)
 				flags |= EVENP;
 		} else
 			flags |= EVENP | ODDP;
-	} else {
-		if ((tp->t_flags&LITOUT) && !(oflag&OPOST))
-			flags |= LITOUT;
-		if (tp->t_flags&PASS8)
-			flags |= PASS8;
 	}
 	
 	if ((lflag&ICANON) == 0) {	
 		/* fudge */
-		if (iflag&IXON || lflag&ISIG || lflag&IEXTEN || cflag&PARENB)
+		if (iflag&(INPCK|ISTRIP|IXON) || lflag&(IEXTEN|ISIG)
+		    || cflag&(CSIZE|PARENB) != CS8)
 			flags |= CBREAK;
 		else
 			flags |= RAW;
 	}
+	if (!(flags&RAW) && !(oflag&OPOST) && cflag&(CSIZE|PARENB) == CS8)
+		flags |= LITOUT;
 	if (cflag&MDMBUF)
 		flags |= MDMBUF;
 	if ((cflag&HUPCL) == 0)
@@ -301,12 +307,10 @@ ttcompatsetflags(tp, t)
 	register long cflag = t->c_cflag;
 
 	if (flags & RAW) {
-		iflag &= IXOFF;
-		oflag &= ~OPOST;
+		iflag &= IXOFF|IXANY;
 		lflag &= ~(ECHOCTL|ISIG|ICANON|IEXTEN);
 	} else {
 		iflag |= BRKINT|IXON|IMAXBEL;
-		oflag |= OPOST;
 		lflag |= ISIG|IEXTEN|ECHOCTL;	/* XXX was echoctl on ? */
 		if (flags & XTABS)
 			oflag |= OXTABS;
@@ -329,17 +333,22 @@ ttcompatsetflags(tp, t)
 	else
 		lflag &= ~ECHO;
 		
-	if (flags&(RAW|LITOUT|PASS8)) {
 		cflag &= ~(CSIZE|PARENB);
+	if (flags&(RAW|LITOUT|PASS8)) {
 		cflag |= CS8;
-		if ((flags&(RAW|PASS8)) == 0)
+		if (!(flags&(RAW|PASS8))
+		    || (flags&(RAW|PASS8|ANYP)) == (PASS8|ANYP))
 			iflag |= ISTRIP;
 		else
 			iflag &= ~ISTRIP;
+		if (flags&(RAW|LITOUT))
+			oflag &= ~OPOST;
+		else
+			oflag |= OPOST;
 	} else {
-		cflag &= ~CSIZE;
 		cflag |= CS7|PARENB;
 		iflag |= ISTRIP;
+		oflag |= OPOST;
 	}
 	if ((flags&(EVENP|ODDP)) == EVENP) {
 		iflag |= INPCK;
@@ -349,8 +358,6 @@ ttcompatsetflags(tp, t)
 		cflag |= PARODD;
 	} else 
 		iflag &= ~INPCK;
-	if (flags&LITOUT)
-		oflag &= ~OPOST;	/* move earlier ? */
 	if (flags&TANDEM)
 		iflag |= IXOFF;
 	else
@@ -402,17 +409,30 @@ ttcompatsetlflags(tp, t)
 		cflag |= HUPCL;
 	lflag &= ~(TOSTOP|FLUSHO|PENDIN|NOFLSH);
 	lflag |= flags&(TOSTOP|FLUSHO|PENDIN|NOFLSH);
-	if (flags&(LITOUT|PASS8)) {
-		iflag &= ~ISTRIP;
+
+	/*
+	 * The next if-else statement is copied from above so don't bother
+	 * checking it separately.  We could avoid fiddlling with the
+	 * character size if the mode is already RAW or if neither the
+	 * LITOUT bit or the PASS8 bit is being changed, but the delta of
+	 * the change is not available here and skipping the RAW case would
+	 * make the code different from above.
+	 */
 		cflag &= ~(CSIZE|PARENB);
+	if (flags&(RAW|LITOUT|PASS8)) {
 		cflag |= CS8;
-		if (flags&LITOUT)
-			oflag &= ~OPOST;
-		if ((flags&(PASS8|RAW)) == 0)
+		if (!(flags&(RAW|PASS8))
+		    || (flags&(RAW|PASS8|ANYP)) == (PASS8|ANYP))
 			iflag |= ISTRIP;
-	} else if ((flags&RAW) == 0) {
-		cflag &= ~CSIZE;
+		else
+			iflag &= ~ISTRIP;
+		if (flags&(RAW|LITOUT))
+			oflag &= ~OPOST;
+		else
+			oflag |= OPOST;
+	} else {
 		cflag |= CS7|PARENB;
+		iflag |= ISTRIP;
 		oflag |= OPOST;
 	}
 	t->c_iflag = iflag;
