@@ -74,8 +74,9 @@
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule RussiaAsia 1981	1984	-	Apr	1	0:00	1:00	D
 Rule RussiaAsia 1981	1983	-	Oct	1	0:00	0	K
-Rule RussiaAsia 1984	max	-	Sep	lastSun	2:00s	0	K
+Rule RussiaAsia	1984	1995	-	Sep	lastSun	2:00s	0	K
 Rule RussiaAsia 1985	max	-	Mar	lastSun	2:00s	1:00	D
+Rule RussiaAsia	1996	max	-	Oct	lastSun	2:00s	0	K
 
 # Afghanistan
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
