@@ -5,6 +5,11 @@ directly to him.  See end of file for further details.  For commonly
 done items, please see the end of the file.  Search for 'COMMON
 ITEMS:'
 
+20000622:
+	The license on the softupdates is now a standard 2 clause
+	BSD license.  You may need to remove your symbolic links
+	that used to be required when updating.
+
 20000621:
 	Scott Flatman <sf@aracnet.com> sent in a decent writeup on
 	the config file update procedure.
