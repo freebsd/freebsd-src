@@ -68,6 +68,7 @@ my %CONFIGS	= (
 	'BRANCHES'	=> [ 'CURRENT' ],
 	'TARGETS'	=> [ 'world', 'generic' ],
 	'ARCHES'	=> {
+	    'amd64'	=> [ 'amd64' ],
 	    'powerpc'	=> [ 'powerpc' ],
 	},
 	'ENV'		=> [ 'MAKE_KERBEROS5=YES',
