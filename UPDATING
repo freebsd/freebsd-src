@@ -23,6 +23,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20041018:
+	A major sweep over the tty drivers to elimnate approx 3100
+	lines of copy&pasted code have been performed.  As a part of
+	this change some tty devices have changed names:
+	sio devices are now named:	{tty,cua}d%d[.init,.lock]
+	ucom devices are now named:	{tty,cua}U%d[.init,.lock]
+	For other drivers see the commit logs.
+
 20041007:
 	The FreeBSD keyword is no longer a requirement for a valid
 	rc.d script. The rc(8) and rc.shutdown(8) scripts no longer check
