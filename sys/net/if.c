@@ -986,6 +986,7 @@ if_qflush(struct ifaltq *ifq)
 {
 	struct mbuf *m, *n;
 
+	IFQ_LOCK(ifq);
 #ifdef ALTQ
 	if (ALTQ_IS_ENABLED(ifq))
 		ALTQ_PURGE(ifq);
@@ -998,6 +999,7 @@ if_qflush(struct ifaltq *ifq)
 	ifq->ifq_head = 0;
 	ifq->ifq_tail = 0;
 	ifq->ifq_len = 0;
+	IFQ_UNLOCK(ifq);
 }
 
 /*
