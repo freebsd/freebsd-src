@@ -124,7 +124,8 @@ SYSCTL_INT(_machdep, OID_AUTO, enable_panic_key, CTLFLAG_RW, &enable_panic_key,
 
 #define SC_CONSOLECTL	255
 
-#define VIRTUAL_TTY(sc, x) (SC_DEV((sc), (x))->si_tty)
+#define VIRTUAL_TTY(sc, x) (SC_DEV((sc), (x)) != NULL ?	\
+	SC_DEV((sc), (x))->si_tty : NULL)
 
 static	int		debugger;
 
