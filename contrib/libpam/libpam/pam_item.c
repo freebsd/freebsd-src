@@ -1,9 +1,7 @@
 /* pam_item.c */
 
 /*
- * $Id: pam_item.c,v 1.8 1997/02/15 15:58:49 morgan Exp morgan $
- *
- * $Log: pam_item.c,v $
+ * $Id: pam_item.c,v 1.3 2001/01/22 06:07:28 agmorgan Exp $
  */
 
 #include <ctype.h>
@@ -23,12 +21,13 @@
     }                                  \
 }
 
+/* handy version id */
+
+unsigned int __libpam_version = LIBPAM_VERSION;
+
 /* functions */
 
-int pam_set_item (
-    pam_handle_t *pamh,
-    int item_type,
-    const void *item)
+int pam_set_item (pam_handle_t *pamh, int item_type, const void *item)
 {
     int retval;
 
@@ -39,6 +38,7 @@ int pam_set_item (
     retval = PAM_SUCCESS;
 
     switch (item_type) {
+
     case PAM_SERVICE:
 	/* Setting handlers_loaded to 0 will cause the handlers
 	 * to be reloaded on the next call to a service module.
@@ -51,57 +51,72 @@ int pam_set_item (
 		*tmp = tolower(*tmp);                 /* require lower case */
 	}
 	break;
+
     case PAM_USER:
 	RESET(pamh->user, item);
 	break;
+
     case PAM_USER_PROMPT:
 	RESET(pamh->prompt, item);
 	break;
+
     case PAM_TTY:
 	D(("setting tty to %s", item));
 	RESET(pamh->tty, item);
 	break;
+
     case PAM_RUSER:
 	RESET(pamh->ruser, item);
 	break;
+
     case PAM_RHOST:
 	RESET(pamh->rhost, item);
 	break;
+
     case PAM_AUTHTOK:
-	 /*
-	  * The man page says this is only supposed to be available to
-	  * the module providers.  In order to use this item the app
-	  * has to #include <security/pam_modules.h>. This is something
-	  * it is *not* supposed to do with "Linux-"PAM!  - AGM.
-	  */
-    {
-	char *_TMP_ = pamh->authtok;
-	if (_TMP_ == item)            /* not changed so leave alone */
-	     break;
-	pamh->authtok = (item) ? _pam_strdup(item) : NULL;
-	if (_TMP_) {
-	    _pam_overwrite(_TMP_);
-	    free(_TMP_);
+	/*
+	 * PAM_AUTHTOK and PAM_OLDAUTHTOK are only accessible from
+	 * modules.
+	 */
+	if (__PAM_FROM_MODULE(pamh)) {
+	    char *_TMP_ = pamh->authtok;
+	    if (_TMP_ == item)            /* not changed so leave alone */
+		break;
+	    pamh->authtok = (item) ? _pam_strdup(item) : NULL;
+	    if (_TMP_) {
+		_pam_overwrite(_TMP_);
+		free(_TMP_);
+	    }
+	} else {
+	    retval = PAM_BAD_ITEM;
 	}
+
 	break;
-    }
+
     case PAM_OLDAUTHTOK:
-	 /* See note above. */
-    {
-	char *_TMP_ = pamh->oldauthtok;
-	if (_TMP_ == item)            /* not changed so leave alone */
-	     break;
-	pamh->oldauthtok = (item) ? _pam_strdup(item) : NULL;
-	if (_TMP_) {
-	    _pam_overwrite(_TMP_);
-	    free(_TMP_);
+	/*
+	 * PAM_AUTHTOK and PAM_OLDAUTHTOK are only accessible from
+	 * modules.
+	 */
+	if (__PAM_FROM_MODULE(pamh)) {
+	    char *_TMP_ = pamh->oldauthtok;
+	    if (_TMP_ == item)            /* not changed so leave alone */
+		break;
+	    pamh->oldauthtok = (item) ? _pam_strdup(item) : NULL;
+	    if (_TMP_) {
+		_pam_overwrite(_TMP_);
+		free(_TMP_);
+	    }
+	} else {
+	    retval = PAM_BAD_ITEM;
 	}
+
 	break;
-    }
+
     case PAM_CONV:              /* want to change the conversation function */
 	if (item == NULL) {
-	    pam_system_log(pamh, NULL, LOG_ERR,
-			   "pam_set_item: attempt to set conv() to NULL");
+	    _pam_system_log(LOG_ERR,
+			    "pam_set_item: attempt to set conv() to NULL");
 	    retval = PAM_PERM_DENIED;
 	} else {
 	    struct pam_conv *tconv;
@@ -109,8 +124,8 @@ int pam_set_item (
 	    if ((tconv=
 		 (struct pam_conv *) malloc(sizeof(struct pam_conv))
 		) == NULL) {
-		pam_system_log(pamh, NULL, LOG_CRIT,
-			       "pam_set_item: malloc failed for pam_conv");
+		_pam_system_log(LOG_CRIT,
+				"pam_set_item: malloc failed for pam_conv");
 		retval = PAM_BUF_ERR;
 	    } else {
 		memcpy(tconv, item, sizeof(struct pam_conv));
@@ -119,48 +134,28 @@ int pam_set_item (
 	    }
 	}
         break;
+
     case PAM_FAIL_DELAY:
 	pamh->fail_delay.delay_fn_ptr = item;
 	break;
-    case PAM_LOG_STATE:
-    {
-	char *old_ident = pamh->pam_default_log.ident;
 
-	if (item == NULL) {
-	    /* reset the default state */
-	    pamh->pam_default_log.ident = x_strdup(PAM_LOG_STATE_IDENT);
-	    pamh->pam_default_log.option = PAM_LOG_STATE_OPTION;
-	    pamh->pam_default_log.facility = PAM_LOG_STATE_FACILITY;
-	} else {
-	    const struct pam_log_state *state = item;
-
-	    pamh->pam_default_log.ident = x_strdup(state->ident);
-	    pamh->pam_default_log.option = state->option;
-	    pamh->pam_default_log.facility = state->facility;
-	}
-	_pam_overwrite(old_ident);
-	_pam_drop(old_ident);
-
-	break;
-    }
     default:
 	retval = PAM_BAD_ITEM;
     }
 
-    return (retval);
+    return retval;
 }
 
-int pam_get_item (
-    const pam_handle_t *pamh,
-    int item_type,
-    const void **item)
+int pam_get_item (const pam_handle_t *pamh, int item_type, const void **item)
 {
+    int retval = PAM_SUCCESS;
+
     D(("called."));
-    IF_NO_PAMH("pam_get_item",pamh,PAM_SYSTEM_ERR);
+    IF_NO_PAMH("pam_get_item", pamh, PAM_SYSTEM_ERR);
 
     if (item == NULL) {
-	pam_system_log(pamh, NULL, LOG_ERR,
-		       "pam_get_item: nowhere to place requested item");
+	_pam_system_log(LOG_ERR,
+			"pam_get_item: nowhere to place requested item");
 	return PAM_PERM_DENIED;
     }
 
@@ -168,46 +163,72 @@ int pam_get_item (
     case PAM_SERVICE:
 	*item = pamh->service_name;
 	break;
+
     case PAM_USER:
+	D(("returning user=%s", pamh->user));
 	*item = pamh->user;
 	break;
+
     case PAM_USER_PROMPT:
+	D(("returning userprompt=%s", pamh->user));
 	*item = pamh->prompt;
 	break;
+
     case PAM_TTY:
 	D(("returning tty=%s", pamh->tty));
 	*item = pamh->tty;
 	break;
+
     case PAM_RUSER:
 	*item = pamh->ruser;
 	break;
+
     case PAM_RHOST:
 	*item = pamh->rhost;
 	break;
+
     case PAM_AUTHTOK:
-	*item = pamh->authtok;
+	/*
+	 * PAM_AUTHTOK and PAM_OLDAUTHTOK are only accessible from
+	 * modules.
+	 */
+	if (__PAM_FROM_MODULE(pamh)) {
+	    *item = pamh->authtok;
+	} else {
+	    retval = PAM_BAD_ITEM;
+	}
 	break;
+
     case PAM_OLDAUTHTOK:
-	*item = pamh->oldauthtok;
+	/*
+	 * PAM_AUTHTOK and PAM_OLDAUTHTOK are only accessible from
+	 * modules.
+	 */
+	if (__PAM_FROM_MODULE(pamh)) {
+	    *item = pamh->oldauthtok;
+	} else {
+	    retval = PAM_BAD_ITEM;
+	}
 	break;
+
     case PAM_CONV:
 	*item = pamh->pam_conversation;
 	break;
+
     case PAM_FAIL_DELAY:
 	*item = pamh->fail_delay.delay_fn_ptr;
 	break;
-    case PAM_LOG_STATE:
-	*item = &(pamh->pam_default_log);
-	break;
+
     default:
-	/* XXX - I made this up */
-	return PAM_BAD_ITEM;
+	retval = PAM_BAD_ITEM;
     }
   
-    return PAM_SUCCESS;
+    return retval;
 }
 
-/* added by AGM 1996/3/2 */
+/*
+ * This function is the 'preferred method to obtain the username'.
+ */
 
 int pam_get_user(pam_handle_t *pamh, const char **user, const char *prompt)
 {
@@ -220,14 +241,12 @@ int pam_get_user(pam_handle_t *pamh, const char **user, const char *prompt)
     IF_NO_PAMH("pam_get_user", pamh, PAM_SYSTEM_ERR);
 
     if (pamh->pam_conversation == NULL) {
-	pam_system_log(pamh, NULL, LOG_ERR,
-		       "pam_get_user: no conv element in pamh");
+	_pam_system_log(LOG_ERR, "pam_get_user: no conv element in pamh");
 	return PAM_SERVICE_ERR;
     }
 
     if (user == NULL) {  /* ensure the the module has suplied a destination */
-	pam_system_log(pamh, NULL, LOG_ERR,
-		       "pam_get_user: nowhere to record username");
+	_pam_system_log(LOG_ERR, "pam_get_user: nowhere to record username");
 	return PAM_PERM_DENIED;
     } else
 	*user = NULL;
@@ -251,7 +270,7 @@ int pam_get_user(pam_handle_t *pamh, const char **user, const char *prompt)
     if (pamh->former.want_user) {
 	/* must have a prompt to resume with */
 	if (! pamh->former.prompt) {
-	    	    pam_system_log(pamh, NULL, LOG_ERR,
+	    	    _pam_system_log(LOG_ERR,
 				   "pam_get_user: failed to resume with prompt"
 			);
 	    return PAM_ABORT;
@@ -259,8 +278,8 @@ int pam_get_user(pam_handle_t *pamh, const char **user, const char *prompt)
 
 	/* must be the same prompt as last time */
 	if (strcmp(pamh->former.prompt, use_prompt)) {
-	    pam_system_log(pamh, NULL, LOG_ERR,
-			   "pam_get_user: resumed with different prompt");
+	    _pam_system_log(LOG_ERR,
+			    "pam_get_user: resumed with different prompt");
 	    return PAM_ABORT;
 	}
 
@@ -309,5 +328,6 @@ int pam_get_user(pam_handle_t *pamh, const char **user, const char *prompt)
 	_pam_drop_reply(resp, 1);
     }
 
+    D(("completed"));
     return retval;        /* pass on any error from conversation */
 }

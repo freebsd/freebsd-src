@@ -1,20 +1,7 @@
 /* pam_strerror.c */
 
-/* $Id: pam_strerror.c,v 1.6 1997/01/04 20:12:02 morgan Exp morgan $
- *
- * $Log: pam_strerror.c,v $
- * Revision 1.6  1997/01/04 20:12:02  morgan
- * replaced conditional FAIL_NOW with ABORT
- *
- * Revision 1.5  1996/07/07 23:58:56  morgan
- * corrected "... " to "..."
- *
- * Revision 1.4  1996/06/02 08:03:29  morgan
- * spelling correction
- *
- * Revision 1.3  1996/03/16 23:08:54  morgan
- * PAM --> Linux-PAM ;)
- *
+/*
+ * $Id: pam_strerror.c,v 1.2 2000/12/04 19:02:34 baggins Exp $
  */
 
 #include "pam_private.h"

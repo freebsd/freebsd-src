@@ -1,45 +1,14 @@
 #
-# $Id: Makefile,v 1.19 1997/04/05 06:58:43 morgan Exp morgan $
+# $Id: Makefile,v 1.4 2001/02/10 07:17:53 agmorgan Exp $
 #
-# $Log: Makefile,v $
-# Revision 1.19  1997/04/05 06:58:43  morgan
-# fakeroot
 #
-# Revision 1.18  1997/02/15 15:56:09  morgan
-# inherit major and minor numbers
-#
-# Revision 1.17  1997/01/04 20:03:09  morgan
-# update for .55
-#
-# Revision 1.16  1996/12/01 03:14:13  morgan
-# update for .54
-#
-# Revision 1.15  1996/11/10 20:07:51  morgan
-# updated for .53
-#
-# Revision 1.14  1996/09/05 06:06:53  morgan
-# added local flag for locking, slight reorganization too.
-#
+
+include ../Make.Rules
 
 # need to tell libpam about the default directory for PAMs
 MOREFLAGS=-D"DEFAULT_MODULE_PATH=\"$(SECUREDIR)/\""
 
-# you may uncomment the following to build libpam in modified ways
-
-# lots of debugging information goes to /tmp/pam-debug.log
-#MOREFLAGS += -D"DEBUG"
-
-# pay attention to locked /etc/pam.conf or /etc/pam.d/* files
-#MOREFLAGS += -D"PAM_LOCKING"
-
-# read both the /etc/pam.d/ and pam.conf files specific to the deisred service
-#MOREFLAGS += -D"PAM_READ_BOTH_CONFS"
-
-# make a kludge attempt to be compatible with the old pam_strerror
-# calling convention
-#MOREFLAGS += -D"UGLY_HACK_FOR_PRIOR_BEHAVIOR_SUPPORT"
-
-ifeq ($(DEBUG_REL),yes)
+ifeq ($(WITH_LIBDEBUG),yes)
  LIBNAME=libpamd
 else
  LIBNAME=libpam
@@ -49,12 +18,13 @@ MODIFICATION=.$(MINOR_REL)
 
 # ---------------------------------------------
 
-dummy:
-	@echo "*** This is not a top-level Makefile!"
+dummy: ../Make.Rules all
 
 # ---------------------------------------------
 
-CFLAGS += $(DYNAMIC) $(STATIC) $(MOREFLAGS)
+CFLAGS += $(DYNAMIC) $(STATIC) $(MOREFLAGS) \
+  -DLIBPAM_VERSION_MAJOR=$(MAJOR_REL) \
+  -DLIBPAM_VERSION_MINOR=$(MINOR_REL)
 
 # dynamic library names
 
@@ -67,8 +37,11 @@ LIBPAMFULL = $(LIBPAMNAME)$(MODIFICATION)
 LIBPAMSTATIC = $(LIBNAME).a
 
 ifdef STATIC
+@echo Did you mean to set STATIC\?
 MODULES = $(shell cat ../modules/_static_module_objects)
 STATICOBJ = pam_static.o
+else
+MODULES =
 endif
 
 ifdef MEMORY_DEBUG
@@ -80,15 +53,16 @@ LIBOBJECTS = pam_item.o pam_strerror.o pam_end.o pam_start.o pam_data.o \
 		pam_account.o pam_auth.o pam_session.o pam_password.o \
 		pam_env.o pam_log.o $(EXTRAS)
 
-ifdef DYNAMIC_LIBPAM
+ifeq ($(DYNAMIC_LIBPAM),yes)
+# libpam.so needs -ldl, too.
 DLIBOBJECTS = $(addprefix dynamic/,$(LIBOBJECTS) $(STATICOBJ))
-ifdef STATICOBJ
+ifeq ($(STATICOBJ),yes)
 dynamic/pam_static.o: pam_static.c ../modules/_static_module_objects
 	$(CC) $(CFLAGS) -c pam_static.c -o $@
 endif
 endif
 
-ifdef STATIC_LIBPAM
+ifeq ($(STATIC_LIBPAM),yes)
 SLIBOBJECTS = $(addprefix static/,$(LIBOBJECTS) $(STATICOBJ))
 ifdef STATICOBJ
 static/pam_static.o: pam_static.c ../modules/_static_module_objects
@@ -99,45 +73,46 @@ endif
 # ---------------------------------------------
 ## rules
 
-all: dirs $(LIBPAM) $(LIBPAMSTATIC)
+all: dirs $(LIBPAM) $(LIBPAMSTATIC) ../Make.Rules
 
 dirs:
-ifdef DYNAMIC_LIBPAM
-	mkdir -p dynamic
+ifeq ($(DYNAMIC_LIBPAM),yes)
+	$(MKDIR) dynamic
 endif
-ifdef STATIC_LIBPAM
-	mkdir -p static
+ifeq ($(STATIC_LIBPAM),yes)
+	$(MKDIR) static
 endif
 
 dynamic/%.o : %.c
-	$(CC) $(CFLAGS) $(DYNAMIC) $(CPPFLAGS) $(TARGET_ARCH) -c $< -o $@
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c $< -o $@
 
 static/%.o : %.c
-	$(CC) $(CFLAGS) $(STATIC) $(CPPFLAGS) $(TARGET_ARCH) -c $< -o $@
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c $< -o $@
 
 $(LIBPAM): $(DLIBOBJECTS)
-ifdef DYNAMIC_LIBPAM
+ifeq ($(DYNAMIC_LIBPAM),yes)
     ifeq ($(USESONAME),yes)
-	$(LD_L) $(SOSWITCH) $(LIBPAMNAME) -o $@ $(DLIBOBJECTS) $(MODULES)
+	$(LD_L) $(SOSWITCH) $(LIBPAMNAME) -o $@ $(DLIBOBJECTS) \
+		$(MODULES) $(LINKLIBS)
     else
-	$(LD_L) -o $@ $(DLIBOBJECTS) $(MODULES)
+	$(LD_L) -o $@ $(DLIBOBJECTS) $(MODULES) $(LINKLIBS)
     endif
     ifeq ($(NEEDSONAME),yes)
 	rm -f $(LIBPAMFULL)
-	ln -s $(LIBPAM) $(LIBPAMFULL)
+	ln -sf $(LIBPAM) $(LIBPAMFULL)
 	rm -f $(LIBPAMNAME)
-	ln -s $(LIBPAM) $(LIBPAMNAME)
+	ln -sf $(LIBPAM) $(LIBPAMNAME)
     endif
 endif
 
 $(LIBPAMSTATIC): $(SLIBOBJECTS)
-ifdef STATIC_LIBPAM
-	$(AR) $@ $(SLIBOBJECTS) $(MODULES)
+ifeq ($(STATIC_LIBPAM),yes)
+	ar cr $@ $(SLIBOBJECTS) $(MODULES)
 	$(RANLIB) $@
 endif
 
 install: all
-	$(MKDIR) $(FAKEROOT)$(INCLUDED)
+	$(MKDIR) $(FAKEROOT)$(INCLUDED) $(FAKEROOT)$(libdir)
 	$(INSTALL) -m 644 include/security/pam_appl.h $(FAKEROOT)$(INCLUDED)
 	$(INSTALL) -m 644 include/security/pam_modules.h $(FAKEROOT)$(INCLUDED)
 	$(INSTALL) -m 644 include/security/_pam_macros.h $(FAKEROOT)$(INCLUDED)
@@ -146,15 +121,16 @@ install: all
 ifdef MEMORY_DEBUG
 	$(INSTALL) -m 644 include/security/pam_malloc.h $(FAKEROOT)$(INCLUDED)
 endif
-ifdef DYNAMIC_LIBPAM
-	$(INSTALL) -m $(SHLIBMODE) $(LIBPAM) $(FAKEROOT)$(LIBDIR)/$(LIBPAMFULL)
+ifeq ($(DYNAMIC_LIBPAM),yes)
+	$(INSTALL) -m $(SHLIBMODE) $(LIBPAM) $(FAKEROOT)$(libdir)/$(LIBPAMFULL)
 	$(LDCONFIG)
   ifneq ($(DYNTYPE),"sl")
-	( cd $(FAKEROOT)$(LIBDIR) ; rm -f $(LIBPAM) ; ln -s $(LIBPAMNAME) $(LIBPAM) )
+	( cd $(FAKEROOT)$(libdir) ; rm -f $(LIBPAM) ; \
+	  ln -sf $(LIBPAMNAME) $(LIBPAM) )
   endif
 endif
-ifdef STATIC_LIBPAM
-	$(INSTALL) -m 644 $(LIBPAMSTATIC) $(FAKEROOT)$(LIBDIR)
+ifeq ($(STATIC_LIBPAM),yes)
+	$(INSTALL) -m 644 $(LIBPAMSTATIC) $(FAKEROOT)$(libdir)
 endif
 
 remove:
@@ -163,15 +139,13 @@ remove:
 	rm -f $(FAKEROOT)$(INCLUDED)/pam_appl.h
 	rm -f $(FAKEROOT)$(INCLUDED)/pam_modules.h
 	rm -f $(FAKEROOT)$(INCLUDED)/pam_malloc.h
-	rm -f $(FAKEROOT)$(LIBDIR)/$(LIBPAM).*
-	rm -f $(FAKEROOT)$(LIBDIR)/$(LIBPAM)
+	rm -f $(FAKEROOT)$(libdir)/$(LIBPAM).*
+	rm -f $(FAKEROOT)$(libdir)/$(LIBPAM)
 	$(LDCONFIG)
-	rm -f $(FAKEROOT)$(LIBDIR)/$(LIBPAMSTATIC)
+	rm -f $(FAKEROOT)$(libdir)/$(LIBPAMSTATIC)
 
 clean:
 	rm -f a.out core *~ static/*.o dynamic/*.o
-
-extraclean: clean
-	rm -f *.a *.out *.o *.so ./include/security/*~
+	rm -f *.a *.o *.so ./include/security/*~
 	if [ -d dynamic ]; then rmdir dynamic ; fi
 	if [ -d static ]; then rmdir static ; fi

@@ -1,11 +1,5 @@
-/* $Header: /home/morgan/pam/Linux-PAM-0.53/libpam_misc/RCS/xstrdup.c,v 1.4 1996/11/10 20:10:56 morgan Exp $ */
-
-/*
- * $Log: xstrdup.c,v $
- * Revision 1.4  1996/11/10 20:10:56  morgan
- * modification for stack paranoia
- *
- */
+/* $Id: xstrdup.c,v 1.1.1.1 2000/06/20 22:11:25 agmorgan Exp $ */
+/* $FreeBSD$ */
 
 #include <stdlib.h>
 #include <security/pam_misc.h>

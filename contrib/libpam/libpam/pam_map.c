@@ -1,11 +1,10 @@
 /* pam_map.c - PAM mapping interface
  *
- * $Id$
+ * $Id: pam_map.c,v 1.2 2000/12/04 19:02:34 baggins Exp $
  *
  * This is based on the X/Open XSSO specification of March 1997.
  * It is not implemented as it is going to change... after 1997/9/25.
  *
- * $Log$
  */
 
 #include <stdio.h>

@@ -1,16 +1,16 @@
 /*
  * pam_log.c -- PAM system logging
  *
- * $Id$
+ * $Id: pam_log.c,v 1.2 2000/11/19 23:54:02 agmorgan Exp $
+ * $FreeBSD$
  *
- * $Log$
  */
+
+#include "pam_private.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
-
-#include "pam_private.h"
 
 #ifdef __hpux
 # include <stdio.h>
@@ -342,92 +342,35 @@ vsyslog(priority, fmt, va_alist)
 }
 #endif /* __hpux */
 
-void pam_vsystem_log(const pam_handle_t *pamh,
-		     const struct pam_log_state *log_state,
-		     int priority, const char *format, va_list args)
+/* internal logging function */
+
+void _pam_system_log(int priority, const char *format, ... )
 {
-    const char *ident;
-    int option, facility;
-
-    D(("pam_vsystem_log called"));
-
-#ifndef __FreeBSD__
-    /* make sure we have a log state to use */
-    if (NULL == log_state) {
-	if (NULL != pamh && NULL != pamh->pam_default_log.ident) {
-	    ident = pamh->pam_default_log.ident;
-	    option = pamh->pam_default_log.option;
-	    facility = pamh->pam_default_log.facility;
-	} else {
-	    ident = PAM_LOG_STATE_IDENT;
-	    option = PAM_LOG_STATE_OPTION;
-	    facility = PAM_LOG_STATE_FACILITY;
-	}
-	openlog(ident, option, facility);
-    } else {
-	openlog(log_state->ident, log_state->option, log_state->facility);
-    }
-#endif
-
-    vsyslog(priority, format, args);
-#ifndef __FreeBSD__
-    closelog();
-#endif
-
-    D(("done."));
-}
-
-void pam_system_log(const pam_handle_t *pamh,
-		    const struct pam_log_state *log_state,
-		    int priority, const char *format, ... )
-{
-    const char *ident;
-    int option, facility;
     va_list args;
+    char *eformat;
 
     D(("pam_system_log called"));
 
-#ifndef __FreeBSD__
-    /* make sure we have a log state to use */
-    if (NULL == log_state) {
-	if (NULL != pamh && NULL != pamh->pam_default_log.ident) {
-	    ident = pamh->pam_default_log.ident;
-	    option = pamh->pam_default_log.option;
-	    facility = pamh->pam_default_log.facility;
-	} else {
-	    ident = PAM_LOG_STATE_IDENT;
-	    option = PAM_LOG_STATE_OPTION;
-	    facility = PAM_LOG_STATE_FACILITY;
-	}
-	openlog(ident, option, facility);
-    } else {
-	openlog(log_state->ident, log_state->option, log_state->facility);
+    if (format == NULL) {
+	D(("NULL format to _pam_system_log() call"));
+	return;
     }
-#endif
 
     va_start(args, format);
-    vsyslog(priority, format, args);
+
+    eformat = malloc(sizeof(_PAM_SYSTEM_LOG_PREFIX)+strlen(format));
+    if (eformat != NULL) {
+	strcpy(eformat, _PAM_SYSTEM_LOG_PREFIX);
+	strcpy(eformat + sizeof(_PAM_SYSTEM_LOG_PREFIX) - 1, format);
+	vsyslog(priority, eformat, args);
+	_pam_overwrite(eformat);
+	_pam_drop(eformat);
+    } else {
+	vsyslog(priority, format, args);
+    }
+
     va_end(args);
-#ifndef __FreeBSD__
-    closelog();
-#endif
 
     D(("done."));
 }
 
-/*
- * Recommended #defines to make porting legacy apps easier [Ed. at this
- * point, the syslog() #define is breoken -- suggestions?]
- *
- * #ifdef PAM_LOG_STATE
- * # define openlog(ident, option, facility) { \
- *      struct pam_log_state tmp_state;        \
- *      tmp_state.ident = ident;               \
- *      tmp_state.option = option;             \
- *      tmp_state.facility = facility;         \
- *      (void) pam_set_item(pamh, PAM_LOG_STATE, &tmp_state); \
- *   }
- * # define syslog pam_system_log
- * # define closelog()
- * #endif
- */
