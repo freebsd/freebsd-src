@@ -81,6 +81,8 @@
 
 
 #define PCI_OHCI_VENDORID_ALI		0x10b9
+#define PCI_OHCI_VENDORID_CMDTECH	0x1095
+#define PCI_OHCI_VENDORID_COMPAQ	0x0e11
 #define PCI_OHCI_VENDORID_NEC		0x1033
 #define PCI_OHCI_VENDORID_OPTI		0x1045
 #define PCI_OHCI_VENDORID_SIS		0x1039
@@ -91,6 +93,11 @@ static const char *ohci_device_aladdin_v = "AcerLabs M5237 (Aladdin-V) USB Host 
 static const char *ohci_device_firelink  = "OPTi 82C861 (FireLink) USB Host Controller";
 #define PCI_OHCI_DEVICEID_NEC		0x00351033
 static const char *ohci_device_nec	 = "NEC uPD 9210 USB Host Controller";
+#define PCI_OHCI_DEVICEID_USB0670	0x06701095
+static const char *ohci_device_usb0670	 = "CMD Tech 670 (USB0670) USB Host Controller";
+#define PCI_OHCI_DEVICEID_USB0673	0x06731095
+static const char *ohci_device_usb0673	 = "CMD Tech 673 (USB0673) USB Host Controller";
+
 static const char *ohci_device_generic   = "OHCI (generic) USB Host Controller";
 
 
@@ -118,6 +125,10 @@ ohci_pci_probe(pcici_t config_id, pcidi_t device_id)
 
 	if (device_id == PCI_OHCI_DEVICEID_ALADDIN_V) {
 		return (ohci_device_aladdin_v);
+	} else if (device_id == PCI_OHCI_DEVICEID_USB0670) {
+		return (ohci_device_usb0670);
+	} else if (device_id == PCI_OHCI_DEVICEID_USB0673) {
+		return (ohci_device_usb0673);
 	} else if (device_id == PCI_OHCI_DEVICEID_FIRELINK) {
 		return (ohci_device_firelink);
 	} else if (device_id == PCI_OHCI_DEVICEID_NEC) {
@@ -167,6 +178,10 @@ ohci_pci_attach(pcici_t config_id, int unit)
 	id = pci_conf_read(config_id, PCI_ID_REG);
 	if (PCI_VENDOR(id) == PCI_OHCI_VENDORID_ALI)
 		sprintf(sc->sc_vendor, "AcerLabs");
+	else if (PCI_VENDOR(id) == PCI_OHCI_VENDORID_CMDTECH)
+		sprintf(sc->sc_vendor, "CMDTECH");
+	else if (PCI_VENDOR(id) == PCI_OHCI_VENDORID_COMPAQ)
+		sprintf(sc->sc_vendor, "Compaq");
 	else if (PCI_VENDOR(id) == PCI_OHCI_VENDORID_NEC)
 		sprintf(sc->sc_vendor, "NEC");
 	else if (PCI_VENDOR(id) == PCI_OHCI_VENDORID_OPTI)
@@ -193,6 +208,12 @@ ohci_pci_attach(pcici_t config_id, int unit)
 		break;
 	case PCI_OHCI_DEVICEID_NEC:
 		device_set_desc(sc->sc_bus.bdev, ohci_device_nec);
+		break;
+	case PCI_OHCI_DEVICEID_USB0670:
+		device_set_desc(sc->sc_bus.bdev, ohci_device_usb0670);
+		break;
+	case PCI_OHCI_DEVICEID_USB0673:
+		device_set_desc(sc->sc_bus.bdev, ohci_device_usb0673);
 		break;
 	default:
 		printf("(New OHCI DeviceId=0x%08x)\n", id);
