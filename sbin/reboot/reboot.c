@@ -56,19 +56,18 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-void usage(void);
-u_int get_pageins(void);
+static void usage(void);
+static u_int get_pageins(void);
 
 int dohalt;
 
 int
 main(int argc, char *argv[])
 {
-	struct passwd *pw;
+	const struct passwd *pw;
 	int ch, howto, i, fd, lflag, nflag, qflag, pflag, sverrno;
 	u_int pageins;
-	char *kernel = NULL, *p;
-	const char *user;
+	const char *p, *user, *kernel = NULL;
 
 	if (strstr((p = rindex(*argv, '/')) ? p + 1 : *argv, "halt")) {
 		dohalt = 1;
@@ -203,7 +202,7 @@ restart:
 	/* NOTREACHED */
 }
 
-void
+static void
 usage()
 {
 	(void)fprintf(stderr, "usage: %s [-dnpq] [-k kernel]\n",
@@ -211,7 +210,7 @@ usage()
 	exit(1);
 }
 
-u_int
+static u_int
 get_pageins()
 {
 	u_int pageins;
