@@ -89,11 +89,8 @@ typedef int	bool;
      */
 long	hz;
 
-#ifdef GPROF4
-typedef	int64_t UNIT;
-#else
-typedef	u_short UNIT;		/* unit of profiling */
-#endif
+size_t	histcounter_size;
+int	histcounter_type;
 
 char	*a_outname;
 #define	A_OUTNAME		"a.out"
@@ -207,8 +204,8 @@ int	ncycle;			/* number of cycles discovered */
      *	Backward compatible old style header
      */
 struct ophdr {
-    UNIT	*lpc;
-    UNIT	*hpc;
+    u_short	*lpc;
+    u_short	*hpc;
     int		ncnt;
 };
 
@@ -218,11 +215,11 @@ int	debug;
      * Each discretized pc sample has
      * a count of the number of samples in its range
      */
-UNIT	*samples;
+double	*samples;
 
 unsigned long	s_lowpc;	/* lowpc from the profile file */
 unsigned long	s_highpc;	/* highpc from the profile file */
-unsigned long	lowpc, highpc;	/* range profiled, in UNIT's */
+unsigned long	lowpc, highpc;	/* range profiled, in historical units  */
 unsigned sampbytes;		/* number of bytes of samples */
 int	nsamples;		/* number of samples */
 double	actime;			/* accumulated time thus far for putprofline */
