@@ -60,7 +60,7 @@ DesData ck;
 IdeaData ik;
 
 extern int auth_debug_mode;
-extern char *line;
+extern char line[];
 
 static int sra_valid = 0;
 static int passwd_sent = 0;
