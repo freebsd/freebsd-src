@@ -71,6 +71,19 @@ set to 1 to enable Write Caching, 0 to disable (default is enabled).
 .It Va hw.ata.tags
 set to 1 to enable Tagged Queuing support, 0 to disable (default is disabled).
 (Only IBM DPTA, DTLA, ICxxxxxxAT, ICxxxxxxAV drives support that.)
+.It Va hw.ata.suspend
+sets the disk's automatic standby timer to the specified number of seconds.
+The value 0 (the default) disables the automatic standby timer.
+The precision of the timer specification
+is 5 seconds for values up to 20 minutes,
+and 30 minutes for values up to 5.5 hours.
+Higher values set the timer to a period between 8 and 12 hours.
+Some drives may use a non-standard, vendor-specific encoding scheme for
+the timer value.
+In such a case the driver will log a message to that effect
+(timer value is vendor-specific);
+consult the drive's documentation for the value to use in the 
+tunable parameter.
 .El
 .Sh DESCRIPTION
 This driver provides access to ATA (IDE) and SerialATA disk drives,
