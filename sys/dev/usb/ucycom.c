@@ -65,7 +65,6 @@ __FBSDID("$FreeBSD$");
 
 struct ucycom_softc {
 	device_t		 sc_dev;
-	struct cdev		*sc_cdev;
 	struct tty		*sc_tty;
 	int			 sc_error;
 	unsigned long		 sc_cintr;
@@ -101,34 +100,19 @@ struct ucycom_softc {
 	uint8_t			 sc_ost; /* status flags for next output */
 
 	/* flags */
-	char			 sc_open;
 	char			 sc_dying;
 };
 
 static int ucycom_probe(device_t);
 static int ucycom_attach(device_t);
 static int ucycom_detach(device_t);
-static int ucycom_open(struct cdev *, int, int, struct thread *);
-static int ucycom_close(struct cdev *, int, int, struct thread *);
-static int ucycom_ioctl(struct cdev *, unsigned long, caddr_t, int, struct thread *);
-static int ucycom_read(struct cdev *, struct uio *, int);
-static int ucycom_write(struct cdev *, struct uio *, int);
+static t_open_t ucycom_open;
+static t_close_t ucycom_close;
 static void ucycom_start(struct tty *);
 static void ucycom_stop(struct tty *, int);
 static int ucycom_param(struct tty *, struct termios *);
 static int ucycom_configure(struct ucycom_softc *, uint32_t, uint8_t);
 static void ucycom_intr(usbd_xfer_handle, usbd_private_handle, usbd_status);
-
-static struct cdevsw ucycom_cdevsw = {
-	.d_version =	D_VERSION,
-	.d_open =	ucycom_open,
-	.d_close =	ucycom_close,
-	.d_ioctl =	ucycom_ioctl,
-	.d_read =	ucycom_read,
-	.d_write =	ucycom_write,
-	.d_name =	"ucycom",
-	.d_flags =	D_TTY | D_NEEDGIANT,
-};
 
 static device_method_t ucycom_methods[] = {
 	DEVMETHOD(device_probe, ucycom_probe),
@@ -274,11 +258,13 @@ ucycom_attach(device_t dev)
 	sc->sc_iep = ued->bEndpointAddress;
 
 	/* set up tty */
-	sc->sc_tty = ttymalloc(sc->sc_tty);
+	sc->sc_tty = ttyalloc();
 	sc->sc_tty->t_sc = sc;
 	sc->sc_tty->t_oproc = ucycom_start;
 	sc->sc_tty->t_stop = ucycom_stop;
 	sc->sc_tty->t_param = ucycom_param;
+	sc->sc_tty->t_open = ucycom_open;
+	sc->sc_tty->t_close = ucycom_close;
 
 	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
@@ -298,9 +284,7 @@ ucycom_attach(device_t dev)
 	    "output bytes");
 
 	/* create character device node */
-	sc->sc_cdev = make_dev(&ucycom_cdevsw, device_get_unit(sc->sc_dev),
-	    UID_ROOT, GID_WHEEL, 0640, "%s", device_get_nameunit(sc->sc_dev));
-	sc->sc_cdev->si_drv1 = sc;
+	ttycreate(sc->sc_tty, NULL, 0, 0, "y%r", device_get_unit(sc->sc_dev));
 
 	return (0);
 }
@@ -312,7 +296,7 @@ ucycom_detach(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	destroy_dev(sc->sc_cdev);
+	ttyfree(sc->sc_tty);
 
 	return (0);
 }
@@ -324,27 +308,13 @@ ucycom_detach(device_t dev)
  */
 
 static int
-ucycom_open(struct cdev *cdev, int flags, int type, struct thread *td)
+ucycom_open(struct tty *tp, struct cdev *cdev)
 {
-	struct ucycom_softc *sc = cdev->si_drv1;
+	struct ucycom_softc *sc = tp->t_sc;
 	int error;
-
-	if (sc->sc_open != 0)
-		return (EBUSY);
 
 	/* set default configuration */
 	ucycom_configure(sc, UCYCOM_DEFAULT_RATE, UCYCOM_DEFAULT_CFG);
-
-	/* open tty and line discipline */
-	error = tty_open(cdev, sc->sc_tty);
-	if (error != 0)
-		return (error);
-	error = ttyld_open(sc->sc_tty, cdev);
-	if (error != 0) {
-		tty_close(sc->sc_tty);
-		return (error);
-	}
-	sc->sc_cdev->si_tty = sc->sc_tty;
 
 	/* open interrupt pipe */
 	error = usbd_open_pipe_intr(sc->sc_iface, sc->sc_iep, 0,
@@ -353,8 +323,6 @@ ucycom_open(struct cdev *cdev, int flags, int type, struct thread *td)
 	if (error != 0) {
 		device_printf(sc->sc_dev, "failed to open interrupt pipe: %s\n",
 		    usbd_errstr(error));
-		ttyld_close(sc->sc_tty, 0);
-		tty_close(sc->sc_tty);
 		return (ENXIO);
 	}
 
@@ -364,69 +332,20 @@ ucycom_open(struct cdev *cdev, int flags, int type, struct thread *td)
 		    "can" : "can't");
 
 	/* done! */
-	sc->sc_open = 1;
 	return (0);
 }
 
-static int
-ucycom_close(struct cdev *cdev, int flags, int type, struct thread *td)
+static void
+ucycom_close(struct tty *tp)
 {
-	struct ucycom_softc *sc = cdev->si_drv1;
-
-	if (sc->sc_open == 0)
-		return (0);
+	struct ucycom_softc *sc = tp->t_sc;
 
 	/* stop interrupts and close the interrupt pipe */
 	usbd_abort_pipe(sc->sc_pipe);
 	usbd_close_pipe(sc->sc_pipe);
 	sc->sc_pipe = 0;
 
-	/* close line discipline and tty */
-	ttyld_close(sc->sc_tty, flags);
-	tty_close(sc->sc_tty);
-
-	/* done! */
-	sc->sc_open = 0;
-	return (0);
-}
-
-static int
-ucycom_ioctl(struct cdev *cdev, unsigned long cmd, caddr_t data,
-    int flags, struct thread *td)
-{
-	struct ucycom_softc *sc = cdev->si_drv1;
-	int error;
-
-	(void)sc;
-	error = ttyioctl(cdev, cmd, data, flags, td);
-
-	return (error);
-}
-
-static int
-ucycom_read(struct cdev *cdev, struct uio *uio, int flags)
-{
-	struct ucycom_softc *sc = cdev->si_drv1;
-	int error;
-
-	if (sc->sc_error)
-		return (EIO);
-
-	error = ttyld_read(sc->sc_tty, uio, flags);
-	return (error);
-}
-
-static int
-ucycom_write(struct cdev *cdev, struct uio *uio, int flags)
-{
-	struct ucycom_softc *sc = cdev->si_drv1;
-	int error;
-
-	if (sc->sc_error)
-		return (EIO);
-
-	error = ttyld_write(sc->sc_tty, uio, flags);
-	return (error);
+	return;
 }
 
 /*****************************************************************************
