@@ -178,7 +178,7 @@ chrdev	name		comments
 160	spic		Sony Programmable I/O Controller (jogdial)
 161	swdoc		Sitara networks watchdog device
 162	digi		Digiboard
-163	gdt		ICP Vortex RAID controller
+163	iir		Intel Integrated RAID <boji.t.kannanthanam@intel.com>
 164	src		Intel SRC RAID controller
 165	net		Network drivers <jlemon>
 166	ciss		Compaq SmartArray 5* adapter <msmith>
