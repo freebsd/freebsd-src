@@ -3512,7 +3512,7 @@ The
 .Ar option Ns No s
 are as follows (in this order of preference):
 .Pp
-.Bl -tag
+.Bl -tag -width Ds
 .It auth
 The callee is expected to decide the callback number based on
 authentication.  If
