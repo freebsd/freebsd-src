@@ -13,11 +13,6 @@
 	Some commands may not be available.  Use the '?' command to list
 	most available commands.
 
-	If needed, disable the use of ACPI with:
-
-	unset acpi_load
-	set hint.acpi.0.disabled="1"
-
 ################################################################################
 # T? DList available commands
 
