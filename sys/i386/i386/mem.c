@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.37 1996/07/15 18:22:07 nate Exp $
+ *	$Id: mem.c,v 1.38 1996/09/27 13:25:06 peter Exp $
  */
 
 /*
@@ -169,6 +169,7 @@ mmopen(dev, flags, fmt, p)
 	int fmt;
 	struct proc *p;
 {
+	int error;
 	struct trapframe *fp;
 
 	switch (minor(dev)) {
@@ -179,6 +180,11 @@ mmopen(dev, flags, fmt, p)
 		return ENODEV;
 #endif
 	case 14:
+		error = suser(p->p_ucred, &p->p_acflag);
+		if (error != 0)
+			return (error);
+		if (securelevel > 0)
+			return (EPERM);
 		fp = (struct trapframe *)curproc->p_md.md_regs;
 		fp->tf_eflags |= PSL_IOPL;
 		break;
