@@ -15,7 +15,7 @@
 #define SL10_BOARD	0x01
 #define EN100_BOARD	0x02
 #define SLFIBER_BOARD	0x03
-#define	NI5210_BOARD	0x0055
+#define	NI5210_BOARD	0x55
 
 #define SL_ATTR_WIDTH	0x04	/* bus width: clear -> 8-bit */
 #define SL_ATTR_SPEED	0x08	/* medium speed: clear -> 10 Mbps */
