@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_sysvec.c,v 1.13 1997/04/01 08:39:07 bde Exp $
+ *  $Id: linux_sysvec.c,v 1.14 1997/05/07 20:05:45 peter Exp $
  */
 
 /* XXX we use functions that might not exist. */
@@ -35,7 +35,6 @@
 #include <sys/buf.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
-#include <sys/sysproto.h>
 #include <sys/sysent.h>
 #include <sys/imgact.h>
 #include <sys/imgact_elf.h>
@@ -44,23 +43,12 @@
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_prot.h>
-#include <sys/lock.h>
-#include <vm/vm_kern.h>
-#include <vm/vm_object.h>
 #include <vm/vm_page.h>
-#include <vm/vm_map.h>
-#include <vm/vm_pager.h>
 #include <vm/vm_extern.h>
-#include <sys/user.h>
 #include <sys/exec.h>
 #include <sys/kernel.h>
 #include <machine/cpu.h>
-#include <machine/frame.h>
-#include <machine/reg.h>
-#include <machine/specialreg.h>
 #include <machine/psl.h>
-#include <machine/sysarch.h>
-#include <machine/md_var.h>
 
 #include <i386/linux/linux.h>
 #include <i386/linux/linux_proto.h>

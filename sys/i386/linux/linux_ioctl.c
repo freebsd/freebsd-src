@@ -25,20 +25,18 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_ioctl.c,v 1.18 1997/06/02 06:33:22 msmith Exp $
+ *  $Id: linux_ioctl.c,v 1.19 1997/06/02 10:43:41 dfr Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/proc.h>
-#include <sys/ioctl_compat.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/filio.h>
 #include <sys/tty.h>
-#include <sys/termios.h>
 #include <sys/socket.h>
 #include <net/if.h>
 #include <net/if_dl.h>
