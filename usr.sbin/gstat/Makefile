@@ -4,7 +4,7 @@ PROG=	gstat
 
 SRCS=	gstat.c subr_sbuf.c
 
-.PATH:	${CURDIR}/../../../../sys/kern
+.PATH:	${CURDIR}/../../sys/kern
 
 WARNS?=	5
 
