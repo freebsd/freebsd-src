@@ -309,6 +309,12 @@ int	bus_child_present(device_t child);
 int	bus_child_pnpinfo_str(device_t child, char *buf, size_t buflen);
 int	bus_child_location_str(device_t child, char *buf, size_t buflen);
 
+static __inline struct resource *
+bus_alloc_resource_any(device_t dev, int type, int *rid, u_int flags)
+{
+	return (bus_alloc_resource(dev, type, rid, 0ul, ~0ul, 1, flags));
+}
+
 /*
  * Access functions for device.
  */
