@@ -737,13 +737,13 @@ fill_kinfo_proc(p, kp)
 			kp->ki_pri.pri_level = td->td_priority;
 			kp->ki_pri.pri_native = td->td_base_pri;
 			kp->ki_lastcpu = td->td_lastcpu;
+			kp->ki_oncpu = td->td_oncpu;
 			kp->ki_tdflags = td->td_flags;
 			kp->ki_pcb = td->td_pcb;
 			kp->ki_kstack = (void *)td->td_kstack;
 
 			/* Things in the kse */
 			kp->ki_rqindex = ke->ke_rqindex;
-			kp->ki_oncpu = ke->ke_oncpu;
 			kp->ki_pctcpu = sched_pctcpu(ke);
 		} else {
 			kp->ki_oncpu = -1;

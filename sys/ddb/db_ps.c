@@ -178,7 +178,7 @@ dumpthread(volatile struct proc *p, volatile struct thread *td)
 		db_printf("[RUNQ]");
 		break;
 	case TDS_RUNNING:
-		db_printf("[CPU %d]", td->td_kse->ke_oncpu);
+		db_printf("[CPU %d]", td->td_oncpu);
 		break;
 	default:
 		panic("unknown thread state");

@@ -142,7 +142,7 @@ forward_signal(struct thread *td)
 	if (td == curthread)
 		return;
 
-	id = td->td_kse->ke_oncpu;
+	id = td->td_oncpu;
 	if (id == NOCPU)
 		return;
 	ipi_selected(1 << id, IPI_AST);

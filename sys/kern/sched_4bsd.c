@@ -518,7 +518,7 @@ sched_sleep(struct thread *td, u_char prio)
 void
 sched_switchin(struct thread *td)
 {
-	td->td_kse->ke_oncpu = PCPU_GET(cpuid);
+	td->td_oncpu = PCPU_GET(cpuid);
 }
 
 void
@@ -532,9 +532,9 @@ sched_switchout(struct thread *td)
 
 	KASSERT((ke->ke_state == KES_THREAD), ("mi_switch: kse state?"));
 
-	td->td_lastcpu = ke->ke_oncpu;
+	td->td_lastcpu = td->td_oncpu;
 	td->td_last_kse = ke;
-	ke->ke_oncpu = NOCPU;
+	td->td_oncpu = NOCPU;
 	td->td_flags &= ~TDF_NEEDRESCHED;
 	/*
 	 * At the last moment, if this thread is still marked RUNNING,
