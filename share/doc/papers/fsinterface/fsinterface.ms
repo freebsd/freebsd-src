@@ -755,14 +755,13 @@ struct iovec {
 };
 .DE
 .DS
-.ta .5i +\w'UIO_USERISPACE\0\0\0\0\0'u
+.ta .5i +\w'UIO_USERSPACE\0\0\0\0\0'u
 /*
  * Segment flag values.
  */
 enum	uio_seg {
 	UIO_USERSPACE,		/* from user data space */
 	UIO_SYSSPACE,		/* from system space */
-	UIO_USERISPACE		/* from user I space */
 };
 .DE
 .NH
