@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998,1999,2000,2001 Søren Schmidt
+ * Copyright (c) 1998,1999,2000,2001 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -90,7 +90,6 @@ astattach(struct atapi_softc *atp)
     struct ast_softc *stp;
     struct ast_readposition position;
     dev_t dev;
-    char name[16];
     static int ast_cdev_done = 0;
 
     if (!ast_cdev_done) {
@@ -106,8 +105,7 @@ astattach(struct atapi_softc *atp)
 
     stp->atp = atp;
     stp->lun = ata_get_lun(&ast_lun_map);
-    sprintf(name, "ast%d", stp->lun);
-    ata_set_name(atp->controller, atp->unit, name);
+    ata_set_name(atp->controller, atp->unit, "ast", stp->lun);
     bioq_init(&stp->queue);
 
     if (ast_sense(stp)) {
