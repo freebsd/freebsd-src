@@ -341,11 +341,11 @@ end_final (filename)
 
       ASM_OUTPUT_ALIGN (asm_out_file, align);
 
-      fprintf(asm_out_file,".stabs \"bbset\", 25, 0, 0, LPBX0\n");
-
       ASM_OUTPUT_INTERNAL_LABEL (asm_out_file, "LPBX", 0);
       /* zero word */
       assemble_integer (const0_rtx, UNITS_PER_WORD, 1);
+
+      fprintf(asm_out_file,".stabs \"bbset\", 25, 0, 0, LPBX0\n");
 
       /* address of filename */
       ASM_GENERATE_INTERNAL_LABEL (name, "LPBX", 1);
