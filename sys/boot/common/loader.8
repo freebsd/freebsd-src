@@ -404,6 +404,13 @@ MIB variable.
 Other variables are used to override kernel tunable parameters.
 The following tunables are available:
 .Bl -tag -width Va
+.It Va hw.physmem
+Limit the amount of phyiscal memory the system will use.
+By default the size is in bytes, but the k, K, m, M, g and G suffixes
+are also accepted and indicate kilobytes, megabytes and gigabytes
+respectively.
+An invalid suffix will result in the variable being ignored by the
+kernel.
 .It Va kern.maxusers
 Set the size of a number of statically allocated system tables; see
 .Xr tuning 7
