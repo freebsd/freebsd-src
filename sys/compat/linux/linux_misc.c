@@ -189,7 +189,7 @@ linux_alarm(struct thread *td, struct linux_alarm_args *args)
 		callout_stop(&td->td_proc->p_itcallout);
 	if (it.it_value.tv_sec != 0) {
 		callout_reset(&td->td_proc->p_itcallout, tvtohz(&it.it_value),
-		    realitexpire, td);
+		    realitexpire, td->td_proc);
 		timevaladd(&it.it_value, &tv);
 	}
 	td->td_proc->p_realtimer = it;
