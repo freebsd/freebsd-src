@@ -974,7 +974,7 @@ ata_command(struct ata_device *atadev, u_int8_t command,
 #ifdef ATA_DEBUG
     ata_prtdev(atadev, "ata_command: addr=%04lx, cmd=%02x, "
 	       "lba=%jd, count=%d, feature=%d, flags=%02x\n",
-	       rman_get_start(atadev->channel), 
+	       rman_get_start(atadev->channel->r_io[ATA_DATA].res), 
 	       command, (intmax_t)lba, count, feature, flags);
 #endif
 
