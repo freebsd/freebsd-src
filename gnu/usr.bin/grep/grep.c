@@ -66,7 +66,7 @@ static int filename_mask;
 
 /* Short options.  */
 static char const short_options[] =
-"0123456789A:B:C::EFGHIUVX:abcd:e:f:hiLlnqrsuvwxyZz";
+"0123456789A:B:C::EFGHIRUVX:abcd:e:f:hiLlnqrsuvwxyZz";
 
 /* Non-boolean long options that have no corresponding short equivalents.  */
 enum
