@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.16 1997/08/25 00:29:12 brian Exp $
+ * $Id: fsm.c,v 1.17 1997/08/31 22:59:27 brian Exp $
  *
  *  TODO:
  *		o Refer loglevel for log output
@@ -711,6 +711,7 @@ void
 FsmRecvResetAck(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 {
   LogPrintf(fp->LogLevel, "RecvResetAck\n");
+  Pred1Init(1);			/* Initialize Input part */
   fp->reqid++;
   pfree(bp);
 }
