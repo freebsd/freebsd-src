@@ -244,15 +244,10 @@ static device_method_t ohci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		ohci_pci_probe),
 	DEVMETHOD(device_attach,	ohci_pci_attach),
+	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
-	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
-	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
-	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
-	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 
 	{ 0, 0 }
 };
