@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.105 1998/11/11 21:17:59 dg Exp $
+ * $Id: ip_input.c,v 1.106 1998/11/15 18:10:14 dfr Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -1242,7 +1242,7 @@ ip_srcroute()
 	*(mtod(m, struct in_addr *)) = *p--;
 #ifdef DIAGNOSTIC
 	if (ipprintfs)
-		printf(" hops %x", (int)ntohl(mtod(m, struct in_addr *)->s_addr));
+		printf(" hops %lx", (u_long)ntohl(mtod(m, struct in_addr *)->s_addr));
 #endif
 
 	/*
@@ -1262,7 +1262,7 @@ ip_srcroute()
 	while (p >= ip_srcrt.route) {
 #ifdef DIAGNOSTIC
 		if (ipprintfs)
-			printf(" %x", (int)ntohl(q->s_addr));
+			printf(" %lx", (u_long)ntohl(q->s_addr));
 #endif
 		*q++ = *p--;
 	}
@@ -1272,7 +1272,7 @@ ip_srcroute()
 	*q = ip_srcrt.dst;
 #ifdef DIAGNOSTIC
 	if (ipprintfs)
-		printf(" %x\n", (int)ntohl(q->s_addr));
+		printf(" %lx\n", (u_long)ntohl(q->s_addr));
 #endif
 	return (m);
 }
