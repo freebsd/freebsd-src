@@ -16,14 +16,9 @@
 # include "opt_ipfilter_log.h"
 #endif
 #ifdef  __FreeBSD__
-# if defined(IPFILTER_LKM) || defined(_KERNEL)
-#  if !defined(__FreeBSD_version) 
-#   include <sys/osreldate.h>
-#  endif
-#  if !defined(IPFILTER_LKM)
-#   if defined(__FreeBSD_version) && (__FreeBSD_version >= 300000)
-#    include "opt_ipfilter.h"
-#   endif
+# if defined(_KERNEL) && !defined(IPFILTER_LKM)
+#  if defined(__FreeBSD_version) && (__FreeBSD_version >= 300000)
+#   include "opt_ipfilter.h"
 #  endif
 # else
 #  ifdef KLD_MODULE
