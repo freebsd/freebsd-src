@@ -1204,6 +1204,7 @@ int     _thread_sys_ftruncate(int, off_t);
 int     _thread_sys_pause(void);
 int     _thread_sys_pipe(int *);
 int     _thread_sys_select(int, fd_set *, fd_set *, fd_set *, struct timeval *);
+long    _thread_sys_fpathconf(int, int);
 off_t   _thread_sys_lseek(int, off_t, int);
 pid_t   _thread_sys_fork(void);
 pid_t   _thread_sys_tcgetpgrp(int);
