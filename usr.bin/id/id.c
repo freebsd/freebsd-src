@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)id.c	8.2 (Berkeley) 2/16/94";
 #endif
 static const char rcsid[] =
-	"$Id: id.c,v 1.5 1997/07/15 09:48:49 charnier Exp $";
+	"$Id: id.c,v 1.6 1998/02/18 17:35:16 steve Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -56,6 +56,7 @@ static const char rcsid[] =
 #include <unistd.h>
 
 void	current __P((void));
+void	pline __P((struct passwd *));
 void	pretty __P((struct passwd *));
 void	group __P((struct passwd *, int));
 void	usage __P((void));
@@ -70,13 +71,16 @@ main(argc, argv)
 {
 	struct group *gr;
 	struct passwd *pw;
-	int Gflag, ch, gflag, id, nflag, pflag, rflag, uflag;
+	int Gflag, Pflag, ch, gflag, id, nflag, pflag, rflag, uflag;
 
-	Gflag = gflag = nflag = pflag = rflag = uflag = 0;
-	while ((ch = getopt(argc, argv, "Ggnpru")) != -1)
+	Gflag = Pflag = gflag = nflag = pflag = rflag = uflag = 0;
+	while ((ch = getopt(argc, argv, "PGgnpru")) != -1)
 		switch(ch) {
 		case 'G':
 			Gflag = 1;
+			break;
+		case 'P':
+			Pflag = 1;
 			break;
 		case 'g':
 			gflag = 1;
@@ -100,7 +104,7 @@ main(argc, argv)
 	argc -= optind;
 	argv += optind;
 
-	switch(Gflag + gflag + pflag + uflag) {
+	switch(Gflag + Pflag + gflag + pflag + uflag) {
 	case 1:
 		break;
 	case 0:
@@ -133,6 +137,11 @@ main(argc, argv)
 
 	if (Gflag) {
 		group(pw, nflag);
+		exit(0);
+	}
+
+	if (Pflag) {
+		pline(pw);
 		exit(0);
 	}
 
@@ -313,6 +322,26 @@ who(u)
 	errx(1, "%s: no such user", u);
 	/* NOTREACHED */
 }
+
+void
+pline(pw)
+	struct passwd *pw;
+{
+	struct group *gr;
+	u_int eid, rid;
+	char *login;
+
+	if (!pw) {
+		if ((pw = getpwuid(rid = getuid())) == NULL)
+			err(1, "getpwuid");
+	}
+
+	(void)printf("%s:%s:%d:%d:%s:%d:%d:%s:%s:%s\n", pw->pw_name,
+			pw->pw_passwd, pw->pw_uid, pw->pw_gid, pw->pw_class,
+			pw->pw_change, pw->pw_expire, pw->pw_gecos,
+			pw->pw_dir, pw->pw_shell);
+}
+
 
 void
 usage()
