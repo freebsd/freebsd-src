@@ -190,7 +190,7 @@ _sysinstall=	sysinstall
 
 .if !defined(NOATM)
 _atm=		atm
-#_bsnmpd=	bsnmpd
+_bsnmpd=	bsnmpd
 .endif
 
 .if !defined(NO_BIND)
