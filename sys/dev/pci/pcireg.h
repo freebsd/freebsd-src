@@ -1,10 +1,12 @@
 /**************************************************************************
 **
-**  $Id: pcireg.h,v 1.1 1994/10/12 02:25:03 se Exp $
+**  $Id: pcireg.h,v 1.1 1995/02/01 22:56:50 se Exp $
 **
-**  Declarations for pci bus drivers.
+**  Names for PCI configuration space registers.
 **
-**  386bsd / FreeBSD
+**  Copyright (c) 1994 Charles Hannum.  All rights reserved.
+**
+**  FreeBSD
 **
 **-------------------------------------------------------------------------
 **
@@ -38,271 +40,16 @@
 #ifndef __PCI_REG_H__
 #define __PCI_REG_H__
 
-/*-----------------------------------------------------------------
-**
-**	main pci initialization function.
-**	called at boot time from autoconf.c
-**
-**-----------------------------------------------------------------
-*/
-
-void pci_configure (void);
-
-/*-----------------------------------------------------------------
-**
-**	The pci configuration id describes a pci device on the bus.
-**	It is constructed from: bus, device & function numbers.
-**
-**-----------------------------------------------------------------
-*/
-
-typedef union {
-	u_long	 cfg1;
-        struct {
-		 u_char   enable;
-		 u_char   forward;
-		 u_short  port;
-	       } cfg2;
-	} pcici_t;
-
-/*-----------------------------------------------------------------
-**
-**	Each pci device has an unique device id.
-**	It is used to find a matching driver.
-**
-**-----------------------------------------------------------------
-*/
-
-typedef u_long pcidi_t;
-
-/*-----------------------------------------------------------------
-**
-**	The pci driver structure.
-**
-**	probe:	Checks if the driver can support a device
-**		with this type. The tag may be used to get
-**		more info with pci_read_conf(). See below.
-**		It returns a string with the devices name,
-**		or a NULL pointer, if the driver cannot
-**		support this device.
-**
-**	attach:	Allocate a control structure and prepare
-**		it. This function may use the pci mapping
-**		functions. See below.
-**		(configuration id) or type.
-**
-**	count:	A pointer to a unit counter.
-**		It's used by the pci configurator to
-**		allocate unit numbers.
-**
-**-----------------------------------------------------------------
-*/
-
-struct pci_driver {
-    char*  (*probe ) (pcici_t tag, pcidi_t type);
-    void   (*attach) (pcici_t tag, int     unit);
-    u_long  *count;
-};
-
-/*-----------------------------------------------------------------
-**
-**	The pci-devconf interface.
-**
-**-----------------------------------------------------------------
-*/
-
-struct pci_info {
-        u_short pi_bus;
-        u_short pi_device;
-};  
-   
-#define PCI_EXT_CONF_LEN (16)
-#define PCI_EXTERNAL_LEN (sizeof(struct pci_externalize_buffer))
-
-struct pci_externalize_buffer {
-	struct pci_info	peb_pci_info;
-	u_long		peb_config[PCI_EXT_CONF_LEN];
-};
-
-
-/*-----------------------------------------------------------------
-**
-**	Per device structure.
-**
-**	An array of this structure should be created by the
-**	config utility and live in "ioconf.c".
-**
-**	At the moment it's created by hand and lives in
-**	pci_config.c
-**
-**	pd_driver:
-**		a pointer to the driver structure.
-**
-**	pd_name:
-**		the name of the devices which are supported
-**		by this driver for kernel messages.
-**
-**	pd_flags:
-**		for further study.
-**
-**-----------------------------------------------------------------
-*/
-
-struct pci_device {
-	struct
-	pci_driver*	pd_driver;
-	const char *	pd_name;
-	int		pd_flags;
-};
-
-/*-----------------------------------------------------------------
-**
-**	This table should be generated in file "ioconf.c"
-**	by the config program.
-**	It is used at boot time by the configuration function
-**	pci_configure()
-**
-**-----------------------------------------------------------------
-*/
-
-extern struct pci_device pci_devtab[];
-
-/*-----------------------------------------------------------------
-**
-**	Map a pci device to physical and virtual memory.
-**
-**	The va and pa addresses are "in/out" parameters.
-**	If they are 0 on entry, the function assigns an address.
-**
-**	Entry selects the register in the pci configuration
-**	space, which supplies the size of the region, and
-**	receives the physical address.
-**
-**	If there is any error, a message is written, and
-**	the function returns with zero.
-**	Else it returns with a value different to zero.
-**
-**-----------------------------------------------------------------
-*/
-
-int pci_map_mem (pcici_t tag, u_long entry, u_long  * va, u_long * pa);
-
-/*-----------------------------------------------------------------
-**
-**	Map a pci device to an io port area.
-**
-**	*pa is an "in/out" parameter.
-**	If it's 0 on entry, the function assigns an port number..
-**
-**	Entry selects the register in the pci configuration
-**	space, which supplies the size of the region, and
-**	receives the port number.
-**
-**	If there is any error, a message is written, and
-**	the function returns with zero.
-**	Else it returns with a value different to zero.
-**
-**-----------------------------------------------------------------
-*/
-
-int pci_map_port(pcici_t tag, u_long entry, u_short * pa);
-
-/*-----------------------------------------------------------------
-**
-**	Map a pci interrupt to an isa irq line,
-**	and enable the interrupt.
-**
-**	func is the interrupt handler, arg is the argument
-**	to this function.
-**
-**	The maskptr argument should be  &bio_imask,
-**	&net_imask etc. or NULL.
-**
-**	If there is any error, a message is written, and
-**	the function returns with zero.
-**	Else it returns with a value different to zero.
-**
-**	A word of caution for FreeBSD 2.0:
-**
-**	We use the register_intr() function.
-**
-**	The interrupt line of the selected device is included
-**	into the supplied mask: after the corresponding splXXX
-**	this drivers interrupts are blocked.
-**
-**	But in the interrupt handlers startup code ONLY
-**	the interrupt of the driver is blocked, and NOT
-**	all interrupts of the spl group.
-**
-**	It may be required to additional block the group
-**	interrupts by splXXX() inside the interrupt handler.
-**
-**	In pre 2.0 kernels we emulate the register_intr
-**	function. The emulating function blocks all interrupts
-**	of the group in the interrupt handler prefix code.
-**
-**-----------------------------------------------------------------
-*/
-
-int pci_map_int (pcici_t tag, int (*func)(), void* arg, unsigned * maskptr);
-
-/*-----------------------------------------------------------------
-**
-**	The following functions are provided by the pci bios.
-**	They are used only by the pci configuration.
-**
-**	pci_conf_mode():
-**		Probes for a pci system.
-**		Returns 1 or 2 for pci configuration mechanism.
-**		Returns 0 if no pci system.
-**
-**	pcitag():
-**		Gets a handle for accessing the pci configuration
-**		space.
-**		This handle is given to the mapping functions (see
-**		above) or to the read/write functions.
-**
-**	pci_conf_read():
-**		Read a long word from the pci configuration space.
-**		Requires a tag (from pcitag) and the register
-**		number (should be a long word alligned one).
-**
-**	pci_conf_write():
-**		Writes a long word to the pci configuration space.
-**		Requires a tag (from pcitag), the register number
-**		(should be a long word alligned one), and a value.
-**
-**-----------------------------------------------------------------
-*/
-
-int pci_conf_mode (void);
-
-pcici_t pcitag (unsigned char bus,
-		unsigned char device,
-                unsigned char func);
-
-u_long pci_conf_read  (pcici_t tag, u_long reg		   );
-void   pci_conf_write (pcici_t tag, u_long reg, u_long data);
-
-
-/*------------------------------------------------------------------
-**
-**	Names for PCI configuration space registers.
-**
-**	Copyright (c) 1994 Charles Hannum.  All rights reserved.
-**
-**------------------------------------------------------------------
-*/
 
 /*
- * Device identification register; contains a vendor ID and a device ID.
- * We have little need to distinguish the two parts.
- */
+** Device identification register; contains a vendor ID and a device ID.
+** We have little need to distinguish the two parts.
+*/
 #define	PCI_ID_REG			0x00
 
 /*
- * Command and status register.
- */
+** Command and status register.
+*/
 #define	PCI_COMMAND_STATUS_REG		0x04
 
 #define	PCI_COMMAND_IO_ENABLE		0x00000001
@@ -329,8 +76,8 @@ void   pci_conf_write (pcici_t tag, u_long reg, u_long data);
 #define	PCI_STATUS_PARITY_DETECT	0x80000000
 
 /*
- * Class register; defines basic type of device.
- */
+** Class register; defines basic type of device.
+*/
 #define	PCI_CLASS_REG			0x08
 
 #define	PCI_CLASS_MASK			0xff000000
@@ -388,8 +135,8 @@ void   pci_conf_write (pcici_t tag, u_long reg, u_long data);
 #define	PCI_SUBCLASS_BRIDGE_MISC	0x00800000
 
 /*
- * Mapping registers
- */
+** Mapping registers
+*/
 #define	PCI_MAP_REG_START		0x10
 #define	PCI_MAP_REG_END			0x28
 
@@ -403,9 +150,11 @@ void   pci_conf_write (pcici_t tag, u_long reg, u_long data);
 #define	PCI_MAP_MEMORY_CACHABLE		0x00000008
 #define	PCI_MAP_MEMORY_ADDRESS_MASK	0xfffffff0
 
+#define	PCI_MAP_IO_ADDRESS_MASK         0xfffffffc
+
 /*
- * Interrupt configuration register
- */
+** Interrupt configuration register
+*/
 #define	PCI_INTERRUPT_REG		0x3c
 
 #define	PCI_INTERRUPT_PIN_MASK		0x0000ff00

@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncrreg.h,v 2.3 94/10/09 21:10:34 wolf Oct11 $
+**  $Id: ncrreg.h,v 1.1 1994/10/12 02:21:56 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -123,6 +123,7 @@ struct ncr_reg {
         #define   ILF1    0x80  /* sta: data in SIDL register msb[W]*/
         #define   ORF1    0x40  /* sta: data in SODR register msb[W]*/
         #define   OLF1    0x20  /* sta: data in SODL register msb[W]*/
+        #define   LDSC    0x02  /* sta: disconnect & reconnect      */
 
 /*10*/  u_long    nc_dsa;	/* --> Base page                    */
 

@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.9 1994/11/02 23:47:13 se Exp $
+**  $Id: pci.c,v 1.10 1995/02/02 12:36:18 davidg Exp $
 **
 **  General subroutines for the PCI bus on 80*86 systems.
 **  pci_configure ()
@@ -56,62 +56,38 @@
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/errno.h>
+#include <sys/kernel.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 
-#include <i386/isa/isa.h>
-#include <i386/isa/isa_device.h>
-#include <i386/isa/icu.h>
+#include <pci/pcivar.h>
 #include <pci/pcireg.h>
+#include <pci/pcibus.h>
 
 #ifdef __FreeBSD2__
 #include <sys/devconf.h>
-	
+
 struct pci_devconf {
 	struct kern_devconf pdc_kdc;
 	struct pci_info     pdc_pi;
 };
-#endif
+
+static int
+pci_externalize (struct proc *, struct kern_devconf *, void *, size_t);
+ 
+static int
+pci_internalize (struct proc *, struct kern_devconf *, void *, size_t);
+#else /* __FreeBSD2__ */
 
 /*
 **	Function prototypes missing in system headers
 */
 
-#ifndef __FreeBSD2__
 extern	pmap_t pmap_kernel(void);
 static	vm_offset_t pmap_mapdev (vm_offset_t paddr, vm_size_t vsize);
+#endif /* __FreeBSD2__ */
 
-/*
- * Type of the first (asm) part of an interrupt handler.
- */
-typedef void inthand_t __P((u_int cs, u_int ef, u_int esp, u_int ss));
-
-/*
- * Usual type of the second (C) part of an interrupt handler.  Some bogus
- * ones need the arg to be the interrupt frame (and not a copy of it, which
- * is all that is possible in C).
- */
-typedef void inthand2_t __P((int unit));
-
-/*
-**	XXX	@FreeBSD2@
-**
-**	Unfortunately, the mptr argument is _no_ pointer in 2.0 FreeBSD.
-**	We would prefer a pointer because it enables us to install
-**	new interrupt handlers at any time.
-**	(This is just going to be changed ... <se> :)
-**	In 2.0 FreeBSD later installed interrupt handlers may change
-**	the xyz_imask, but this would not be recognized by handlers
-**	which are installed before.
-*/
-
-static int
-register_intr __P((int intr, int device_id, unsigned int flags,
-		       inthand2_t *handler, unsigned int * mptr, int unit));
-extern unsigned intr_mask[ICU_LEN];
-
-#endif /* !__FreeBSD2__ */
 
 /*========================================================
 **
@@ -137,6 +113,20 @@ extern unsigned intr_mask[ICU_LEN];
 #endif
 
 static	vm_offset_t pci_paddr = PCI_PMEM_START;
+
+/*--------------------------------------------------------
+**
+**	The pci ports can be mapped to any address.
+**	As default we start at 0x400
+**
+**--------------------------------------------------------
+*/
+
+#ifndef PCI_PORT_START
+#define PCI_PORT_START 0x0400
+#endif
+
+static	u_short pci_ioaddr = PCI_PORT_START;
 
 /*--------------------------------------------------------
 **
@@ -172,15 +162,6 @@ static unsigned long pci_seen[NPCI];
 
 static int pci_conf_count;
 
-#ifdef __FreeBSD2__
-static int
-pci_externalize (struct proc *, struct kern_devconf *, void *, size_t);
- 
-static int
-pci_internalize (struct proc *, struct kern_devconf *, void *, size_t);
-
-#endif /* __FreeBSD2__ */
-
 void pci_configure()
 {
 	u_char	device,last_device;
@@ -194,19 +175,28 @@ void pci_configure()
 	int	irq;
 	char*	name=0;
 	vm_offset_t old_addr=pci_paddr;
+	u_short	old_ioaddr=pci_ioaddr;
 
-	struct pci_driver *drp=0;
-	struct pci_device *dvp;
+	int	dvi;
+	struct pci_device *dvp=0;
 
 #ifdef __FreeBSD2__
 	struct pci_devconf *pdcp;
 #endif
 
 	/*
+	**	first check pci bus driver available
+	*/
+
+	if (pcibus_set.ls_length <= 0)
+		return;
+
+#define pcibus (*((struct pcibus*) pcibus_set.ls_items[0]))
+	/*
 	**	check pci bus present
 	*/
 
-	pci_mechanism = pci_conf_mode ();
+	pci_mechanism = pcibus.pb_mode ();
 	if (!pci_mechanism) return;
 	last_device = pci_mechanism==1 ? 31 : 15;
 
@@ -217,16 +207,16 @@ void pci_configure()
 
 	for (bus=0;bus<NPCI;bus++) {
 #ifndef PCI_QUIET
-	    printf ("pci%d: scanning device 0..%d, mechanism=%d.\n",
-		bus, last_device, pci_mechanism);
+	    printf ("%s%d: scanning device 0..%d, mechanism=%d.\n",
+		pcibus.pb_name, bus, last_device, pci_mechanism);
 #endif
 	    for (device=0; device<=last_device; device ++) {
 
 		if (pci_seen[bus] & (1ul << device))
 			continue;
 
-		tag = pcitag (bus, device, 0);
-		type = pci_conf_read (tag, PCI_ID_REG);
+		tag  = pcibus.pb_tag (bus, device, 0);
+		type = pcibus.pb_read (tag, PCI_ID_REG);
 
 		if ((!type) || (type==0xfffffffful)) continue;
 
@@ -234,19 +224,18 @@ void pci_configure()
 		**	lookup device in ioconfiguration:
 		*/
 
-		for (dvp = pci_devtab; dvp->pd_name; dvp++) {
-			drp = dvp->pd_driver;
-			if (!drp)
-				continue;
-			if ((name=(*drp->probe)(tag, type)))
+        	for (dvi=0; dvi<pcidevice_set.ls_length; dvi++) {
+			dvp = (struct pci_device*) pcidevice_set.ls_items[dvi];
+			if ((name=(*dvp->pd_probe)(tag, type)))
 				break;
+			dvp = NULL;
 		};
 
-		if (!dvp->pd_name) {
+		if (dvp==NULL) {
 #ifndef PCI_QUIET
 			if (pci_conf_count)
 				continue;
-			printf("pci%d:%d: ", bus, device);
+			printf("%s%d:%d: ", pcibus.pb_name, bus, device);
 			not_supported (tag, type);
 #endif
 			continue;
@@ -257,7 +246,7 @@ void pci_configure()
 		**	Get and increment the unit.
 		*/
 
-		unit = (*drp->count)++;
+		unit = (*dvp->pd_count)++;
 
 		/*
 		**	ignore device ?
@@ -276,7 +265,7 @@ void pci_configure()
 		**	from the pci configuration space.
 		*/
 
-		data = pci_conf_read (tag, PCI_INTERRUPT_REG);
+		data = pcibus.pb_read (tag, PCI_INTERRUPT_REG);
 		pciint = PCI_INTERRUPT_PIN_EXTRACT(data);
 
 		if (pciint) {
@@ -295,7 +284,7 @@ void pci_configure()
 
 				data = PCI_INTERRUPT_LINE_INSERT(data, irq);
 				printf (" (config)");
-				pci_conf_write (tag, PCI_INTERRUPT_REG, data);
+				pcibus.pb_write (tag, PCI_INTERRUPT_REG, data);
 			};
 
 			irq = PCI_INTERRUPT_LINE_EXTRACT(data);
@@ -315,10 +304,10 @@ void pci_configure()
 		**	enable memory access
 		*/
 
-		data = (pci_conf_read (tag, PCI_COMMAND_STATUS_REG)
+		data = (pcibus.pb_read (tag, PCI_COMMAND_STATUS_REG)
 			& 0xffff) | PCI_COMMAND_MEM_ENABLE;
 
-		pci_conf_write (tag, (u_char) PCI_COMMAND_STATUS_REG, data);
+		pcibus.pb_write (tag, (u_char) PCI_COMMAND_STATUS_REG, data);
 
 		/*
 		**	show pci slot.
@@ -333,7 +322,7 @@ void pci_configure()
 		*/
 
 		pdcp = (struct pci_devconf *)
-                	malloc (sizeof (struct pci_devconf),M_DEVBUF,M_WAITOK);
+			malloc (sizeof (struct pci_devconf),M_DEVBUF,M_WAITOK);
 
 		/*
 		**	Fill in.
@@ -378,7 +367,7 @@ void pci_configure()
 		**	i.e. when installing subdevices.
 		*/
 
-		(*drp->attach) (tag, unit);
+		(*dvp->pd_attach) (tag, unit);
 	    };
 	};
 
@@ -386,8 +375,41 @@ void pci_configure()
 	if (pci_paddr != old_addr)
 		printf ("pci uses physical addresses from 0x%lx to 0x%lx\n",
 			(u_long)PCI_PMEM_START, (u_long)pci_paddr);
+	if (pci_ioaddr != old_ioaddr)
+		printf ("pci devices use ioports from 0x%x to 0x%x\n",
+			(unsigned)PCI_PORT_START, (unsigned)pci_ioaddr);
 #endif
 	pci_conf_count++;
+}
+
+/*-----------------------------------------------------------------
+**
+**	The following functions are provided for the device driver
+**	to read/write the configuration space.
+**
+**	pci_conf_read():
+**		Read a long word from the pci configuration space.
+**		Requires a tag (from pcitag) and the register
+**		number (should be a long word alligned one).
+**
+**	pci_conf_write():
+**		Writes a long word to the pci configuration space.
+**		Requires a tag (from pcitag), the register number
+**		(should be a long word alligned one), and a value.
+**
+**-----------------------------------------------------------------
+*/
+
+u_long
+pci_conf_read  (pcici_t tag, u_long reg)
+{
+	return (pcibus.pb_read (tag, reg));
+}
+
+void
+pci_conf_write (pcici_t tag, u_long reg, u_long data)
+{
+	pcibus.pb_write (tag, reg, data);
 }
 
 /*-----------------------------------------------------------------------
@@ -401,11 +423,78 @@ void pci_configure()
 
 int pci_map_port (pcici_t tag, u_long reg, u_short* pa)
 {
+	u_long	data;
+	u_short	size;
+
 	/*
-	**	@MAPIO@ not yet implemented.
+	**	sanity check
 	*/
-	printf ("pci_map_port failed: not yet implemented\n");
-	return (0);
+
+	if (reg < PCI_MAP_REG_START || reg >= PCI_MAP_REG_END || (reg & 3)) {
+		printf ("pci_map_port failed: bad register=0x%x\n",
+	       		(unsigned)reg);
+		return (0);
+	};
+
+	/*
+	**	get size and type of port
+	**
+	**	type is in the lowest two bits.
+	**	If device requires 2^n bytes, the next
+	**	n-2 bits are hardwired as 0.
+	*/
+
+	pcibus.pb_write (tag, reg, 0xfffffffful);
+	data = pcibus.pb_read (tag, reg);
+
+	switch (data & 0x03) {
+
+	case PCI_MAP_IO:
+		break;
+
+	default:	/* unknown */
+		printf ("pci_map_port failed: bad port type=0x%x\n",
+	       		(unsigned) data);
+		return (0);
+	};
+
+	/*
+	**	get the size
+	*/
+
+	size = -(data &  PCI_MAP_IO_ADDRESS_MASK);
+
+	if (!size) return (0);
+
+	/*
+	**	align physical address to virtual size
+	*/
+
+	if ((data = pci_ioaddr % size))
+		pci_ioaddr += size - data;
+
+#ifndef PCI_QUIET
+	/*
+	**	display values.
+	*/
+
+	printf ("\treg%d: ioaddr=0x%x size=0x%x\n",
+		(unsigned) reg, (unsigned) pci_ioaddr, (unsigned) size);
+#endif
+
+	/*
+	**	return them to the driver
+	*/
+
+	*pa = pci_ioaddr;
+
+	/*
+	**	and don't forget to increment pci_ioaddr
+	*/
+
+	pci_ioaddr += size;
+
+	return (1);
 }
 
 /*-----------------------------------------------------------------------
@@ -427,10 +516,10 @@ int pci_map_mem (pcici_t tag, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 	**	sanity check
 	*/
 
-        if (reg < PCI_MAP_REG_START || reg >= PCI_MAP_REG_END || (reg & 3)) {
-        	printf ("pci_map_mem failed: bad register=0x%x\n",
-               		(unsigned)reg);
-                return (0);
+	if (reg < PCI_MAP_REG_START || reg >= PCI_MAP_REG_END || (reg & 3)) {
+		printf ("pci_map_mem failed: bad register=0x%x\n",
+	       		(unsigned)reg);
+		return (0);
 	};
 
 	/*
@@ -441,8 +530,8 @@ int pci_map_mem (pcici_t tag, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 	**	n-4 bits are read as 0.
 	*/
 
-	pci_conf_write (tag, reg, 0xfffffffful);
-	data = pci_conf_read (tag, reg);
+	pcibus.pb_write (tag, reg, 0xfffffffful);
+	data = pcibus.pb_read (tag, reg);
 
 	switch (data & 0x0f) {
 
@@ -450,9 +539,9 @@ int pci_map_mem (pcici_t tag, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 		break;
 
 	default:	/* unknown */
-                printf ("pci_map_mem failed: bad memory type=0x%x\n",
-               		(unsigned) data);
-                return (0);
+		printf ("pci_map_mem failed: bad memory type=0x%x\n",
+	       		(unsigned) data);
+		return (0);
 	};
 
 	/*
@@ -496,7 +585,7 @@ int pci_map_mem (pcici_t tag, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 	**	set device address
 	*/
 
-	pci_conf_write (tag, reg, pci_paddr);
+	pcibus.pb_write (tag, reg, pci_paddr);
 
 	/*
 	**	and don't forget to increment pci_paddr
@@ -519,29 +608,29 @@ pci_externalize (struct proc *p, struct kern_devconf *kdcp, void *u, size_t l)
 {
 	struct pci_externalize_buffer buffer;
 	struct pci_info * pip = kdcp->kdc_parentdata;
-        pcici_t tag;
+	pcici_t tag;
 	int	i;
 
 	if (l < sizeof buffer) {
-                return ENOMEM;
+		return ENOMEM;
 	};
 
-	tag = pcitag (pip->pi_bus, pip->pi_device, 0);
+	tag = pcibus.pb_tag (pip->pi_bus, pip->pi_device, 0);
 
 	buffer.peb_pci_info	= *pip;
 
 	for (i=0; i<PCI_EXT_CONF_LEN; i++) {
-		buffer.peb_config[i] = pci_conf_read (tag, i*4);
+		buffer.peb_config[i] = pcibus.pb_read (tag, i*4);
 	};
 
-        return copyout(&buffer, u, sizeof buffer);
+	return copyout(&buffer, u, sizeof buffer);
 }
  
  
 static int
 pci_internalize (struct proc *p, struct kern_devconf *kdcp, void *u, size_t s)
 {
-        return EOPNOTSUPP;
+	return EOPNOTSUPP;
 }
 
 /*-----------------------------------------------------------------------
@@ -551,60 +640,24 @@ pci_internalize (struct proc *p, struct kern_devconf *kdcp, void *u, size_t s)
 **-----------------------------------------------------------------------
 */
 
-static	unsigned int	pci_int_mask [16];
-
 int pci_map_int (pcici_t tag, int(*func)(), void* arg, unsigned* maskptr)
 {
-	int irq;
-	unsigned mask;
+	int irq, result;
 
 	irq = PCI_INTERRUPT_LINE_EXTRACT(
-		pci_conf_read (tag, PCI_INTERRUPT_REG));
+		pcibus.pb_read (tag, PCI_INTERRUPT_REG));
 
 	if (irq >= 16 || irq <= 0) {
 		printf ("pci_map_int failed: no int line set.\n");
 		return (0);
 	}
 
-	mask = 1ul << irq;
+	result = pcibus.pb_regint (tag, func, arg, maskptr);
 
-	if (!maskptr)
-		maskptr = &pci_int_mask[irq];
-
-	INTRMASK (*maskptr, mask);
-
-	register_intr(
-		irq,		/* isa irq	*/
-		0,		/* deviced??	*/
-		0,		/* flags?	*/
-		(inthand2_t*) func, /* handler	*/
-		maskptr,	/* mask pointer	*/
-		(int) arg);	/* handler arg	*/
-
-#ifdef __FreeBSD2__
-	/*
-	**	XXX See comment at beginning of file.
-	**
-	**	Have to update all the interrupt masks ... Grrrrr!!!
-	*/
-	{
-		unsigned * mp = &intr_mask[0];
-		/*
-		**	update the isa interrupt masks.
-		*/
-		for (mp=&intr_mask[0]; mp<&intr_mask[ICU_LEN]; mp++)
-			if (*mp & *maskptr)
-				*mp |= mask;
-		/*
-		**	update the pci interrupt masks.
-		*/
-		for (mp=&pci_int_mask[0]; mp<&pci_int_mask[16]; mp++)
-			if (*mp & *maskptr)
-				*mp |= mask;
+	if (!result) {
+		printf ("pci_map_int failed.\n");
+		return (0);
 	};
-#endif
-
-	INTREN (mask);
 
 	return (1);
 }
@@ -659,14 +712,14 @@ void not_supported (pcici_t tag, u_long type)
 
 	printf (", device=0x%lx", type >> 16);
 
-	data = (pci_conf_read(tag, PCI_CLASS_REG) >> 24) & 0xff;
+	data = (pcibus.pb_read(tag, PCI_CLASS_REG) >> 24) & 0xff;
 	if (data < sizeof(majclasses) / sizeof(majclasses[0]))
 		printf(", class=%s", majclasses[data]);
 
 	printf (" [not supported]\n");
 
 	for (reg=PCI_MAP_REG_START; reg<PCI_MAP_REG_END; reg+=4) {
-		data = pci_conf_read (tag, reg);
+		data = pcibus.pb_read (tag, reg);
 		if (!data) continue;
 		switch (data&7) {
 
