@@ -65,3 +65,4 @@ void expari(int);
 int patmatch(char *, char *, int);
 void rmescapes(char *);
 int casematch(union node *, char *);
+int wordexpcmd(int, char **);
