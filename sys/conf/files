@@ -1054,6 +1054,7 @@ net/if_ethersubr.c	optional ether
 net/if_faith.c		optional faith
 net/if_fddisubr.c	optional fddi
 net/if_gif.c		optional gif
+net/if_gre.c		optional gre
 net/if_iso88025subr.c	optional token
 net/if_loop.c		optional loop
 net/if_media.c		standard
@@ -1216,6 +1217,7 @@ netinet/if_ether.c	optional ether
 netinet/igmp.c		optional inet
 netinet/in.c		optional inet
 netinet/in_gif.c	optional gif inet
+netinet/ip_gre.c	optional gre inet
 netinet/ip_id.c		optional inet
 netinet/in_pcb.c	optional inet
 netinet/in_proto.c	optional inet
