@@ -48,6 +48,38 @@ __FBSDID("$FreeBSD$");
 
 #include "bsdtar.h"
 
+/* Fixed size of uname/gname cache. */
+#define gname_cache_size 101
+#define uname_cache_size 101
+
+/* Initial size of link cache. */
+#define links_cache_initial_size 1024
+
+struct archive_dir_entry {
+	struct archive_dir_entry	*next;
+	time_t			 mtime_sec;
+	int			 mtime_nsec;
+	char			*name;
+};
+
+struct archive_dir {
+	struct archive_dir_entry *head, *tail;
+};
+
+struct gname_cache {
+	struct {
+		gid_t id;
+		char *name;
+	} cache[gname_cache_size];
+};
+
+struct links_cache {
+	unsigned long		  number_entries;
+	size_t			  number_buckets;
+	struct links_entry	**buckets;
+	char			  stop_allocating;
+};
+
 struct links_entry {
 	struct links_entry	*next;
 	struct links_entry	*previous;
@@ -57,30 +89,30 @@ struct links_entry {
 	char			*name;
 };
 
-struct archive_dir_entry {
-	struct archive_dir_entry	*next;
-	time_t			 mtime_sec;
-	int			 mtime_nsec;
-	char			*name;
-};
 
+struct uname_cache {
+	struct {
+		uid_t id;
+		char *name;
+	} cache[uname_cache_size];
+};
 
 static void		 add_dir_list(struct bsdtar *bsdtar, const char *path,
 			     time_t mtime_sec, int mtime_nsec);
-void			 archive_names_from_file(struct bsdtar *bsdtar,
+static void		 archive_names_from_file(struct bsdtar *bsdtar,
 			     struct archive *a);
 static void		 create_cleanup(struct bsdtar *);
 static int		 append_archive(struct bsdtar *, struct archive *,
 			     const char *fname);
 static const char *	 lookup_gname(struct bsdtar *bsdtar, gid_t gid);
+static void		 lookup_hardlink(struct bsdtar *,
+			     struct archive_entry *entry, const struct stat *);
 static const char *	 lookup_uname(struct bsdtar *bsdtar, uid_t uid);
 static int		 new_enough(struct bsdtar *, const char *path,
 			     time_t mtime_sec, int mtime_nsec);
-static void		 record_hardlink(struct bsdtar *,
-			     struct archive_entry *entry, const struct stat *);
-void			 setup_acls(struct bsdtar *, struct archive_entry *,
+static void		 setup_acls(struct bsdtar *, struct archive_entry *,
 			     const char *path);
-void			 test_for_append(struct bsdtar *);
+static void		 test_for_append(struct bsdtar *);
 static void		 write_archive(struct archive *, struct bsdtar *);
 static void		 write_entry(struct bsdtar *, struct archive *,
 			     struct stat *, const char *pathname,
@@ -204,6 +236,10 @@ tar_mode_u(struct bsdtar *bsdtar)
 	const char		*filename;
 	int			 format;
 	struct archive_dir_entry	*p;
+	struct archive_dir	 archive_dir;
+
+	bsdtar->archive_dir = &archive_dir;
+	memset(&archive_dir, 0, sizeof(archive_dir));
 
 	filename = NULL;
 	format = ARCHIVE_FORMAT_TAR_PAX_RESTRICTED;
@@ -261,13 +297,13 @@ tar_mode_u(struct bsdtar *bsdtar)
 	close(bsdtar->fd);
 	bsdtar->fd = -1;
 
-	while (bsdtar->archive_dir_head != NULL) {
-		p = bsdtar->archive_dir_head->next;
-		free(bsdtar->archive_dir_head->name);
-		free(bsdtar->archive_dir_head);
-		bsdtar->archive_dir_head = p;
+	while (bsdtar->archive_dir->head != NULL) {
+		p = bsdtar->archive_dir->head->next;
+		free(bsdtar->archive_dir->head->name);
+		free(bsdtar->archive_dir->head);
+		bsdtar->archive_dir->head = p;
 	}
-	bsdtar->archive_dir_tail = NULL;
+	bsdtar->archive_dir->tail = NULL;
 }
 
 
@@ -645,7 +681,7 @@ write_entry(struct bsdtar *bsdtar, struct archive *a, struct stat *st,
 
 	/* If there are hard links, record it for later use */
 	if (!S_ISDIR(st->st_mode) && (st->st_nlink > 1))
-		record_hardlink(bsdtar, entry, st);
+		lookup_hardlink(bsdtar, entry, st);
 
 	/* Non-regular files get archived with zero size. */
 	if (!S_ISREG(st->st_mode))
@@ -778,34 +814,132 @@ write_file_data(struct archive *a, int fd)
 static void
 create_cleanup(struct bsdtar * bsdtar)
 {
-	/* Free inode->name map */
-	while (bsdtar->links_head != NULL) {
-		struct links_entry *lp = bsdtar->links_head->next;
+	struct links_cache *links_cache;
+	struct uname_cache *ucache;
+	struct gname_cache *gcache;
+	size_t i;
 
-		if (bsdtar->option_warn_links)
-			bsdtar_warnc(0, "Missing links to %s",
-			    bsdtar->links_head->name);
 
-		if (bsdtar->links_head->name != NULL)
-			free(bsdtar->links_head->name);
-		free(bsdtar->links_head);
-		bsdtar->links_head = lp;
+	/* Free inode->pathname map used for hardlink detection. */
+	if (bsdtar->links_cache != NULL) {
+		links_cache = bsdtar->links_cache;
+		if (links_cache->buckets != NULL) {
+			for (i = 0; i < links_cache->number_buckets; i++) {
+				while (links_cache->buckets[i] != NULL) {
+					struct links_entry *lp =
+					    links_cache->buckets[i]->next;
+					if (bsdtar->option_warn_links)
+						bsdtar_warnc(0,
+						    "Missing links to %s",
+						    links_cache->buckets[i]->name);
+					if (links_cache->buckets[i]->name != NULL)
+						free(links_cache->buckets[i]->name);
+					free(links_cache->buckets[i]);
+					links_cache->buckets[i] = lp;
+				}
+			}
+			free(links_cache->buckets);
+		}
+		free(bsdtar->links_cache);
+		bsdtar->links_cache = NULL;
 	}
-	cleanup_exclusions(bsdtar);
+
+	if (bsdtar->uname_cache != NULL) {
+		ucache = bsdtar->uname_cache;
+		for(i = 0; i < uname_cache_size; i++) {
+			if (ucache->cache[i].name != NULL)
+				free(ucache->cache[i].name);
+		}
+		free(ucache);
+		bsdtar->uname_cache = NULL;
+	}
+
+	if (bsdtar->gname_cache != NULL) {
+		gcache = bsdtar->gname_cache;
+		for(i = 0; i < gname_cache_size; i++) {
+			if (gcache->cache[i].name != NULL)
+				free(gcache->cache[i].name);
+		}
+		free(gcache);
+		bsdtar->gname_cache = NULL;
+	}
 }
 
 
 static void
-record_hardlink(struct bsdtar *bsdtar, struct archive_entry *entry,
+lookup_hardlink(struct bsdtar *bsdtar, struct archive_entry *entry,
     const struct stat *st)
 {
-	struct links_entry	*le;
+	struct links_cache	*links_cache;
+	struct links_entry	*le, **new_buckets;
+	int			 hash;
+	size_t			 i, new_size;
 
-	/*
-	 * First look in the list of multiply-linked files.  If we've
-	 * already dumped it, convert this entry to a hard link entry.
-	 */
-	for (le = bsdtar->links_head; le != NULL; le = le->next) {
+	/* If necessary, initialize the links cache. */
+	links_cache = bsdtar->links_cache;
+	if (links_cache == NULL) {
+		bsdtar->links_cache = malloc(sizeof(struct links_cache));
+		if (bsdtar->links_cache == NULL)
+			bsdtar_errc(1, ENOMEM,
+			    "No memory for hardlink detection.");
+		links_cache = bsdtar->links_cache;
+		memset(links_cache, 0, sizeof(struct links_cache));
+		links_cache->number_buckets = links_cache_initial_size;
+		links_cache->buckets = malloc(links_cache->number_buckets *
+		    sizeof(links_cache->buckets[0]));
+		if (links_cache->buckets == NULL) {
+			bsdtar_errc(1, ENOMEM,
+			    "No memory for hardlink detection.");
+		}
+		for (i = 0; i < links_cache->number_buckets; i++)
+			links_cache->buckets[i] = NULL;
+	}
+
+	/* If the links cache is getting too full, enlarge the hash table. */
+	if (links_cache->number_entries > links_cache->number_buckets * 2 &&
+	    !links_cache->stop_allocating)
+	{
+		int count;
+
+		new_size = links_cache->number_buckets * 2;
+		new_buckets = malloc(new_size * sizeof(struct links_entry *));
+
+		count = 0;
+
+		if (new_buckets != NULL) {
+			memset(new_buckets, 0,
+			    new_size * sizeof(struct links_entry *));
+			for (i = 0; i < links_cache->number_buckets; i++) {
+				while (links_cache->buckets[i] != NULL) {
+					/* Remove entry from old bucket. */
+					le = links_cache->buckets[i];
+					links_cache->buckets[i] = le->next;
+
+					/* Add entry to new bucket. */
+					hash = (le->dev ^ le->ino) % new_size;
+
+					if (new_buckets[hash] != NULL)
+						new_buckets[hash]->previous =
+						    le;
+					le->next = new_buckets[hash];
+					le->previous = NULL;
+					new_buckets[hash] = le;
+				}
+			}
+			free(links_cache->buckets);
+			links_cache->buckets = new_buckets;
+			links_cache->number_buckets = new_size;
+		} else {
+			links_cache->stop_allocating = 1;
+			bsdtar_warnc(ENOMEM, "No more memory for recording "
+			    "hard links; Remaining hard links will be "
+			    "dumped as full files.");
+		}
+	}
+
+	/* Try to locate this entry in the links cache. */
+	hash = ( st->st_dev ^ st->st_ino ) % links_cache->number_buckets;
+	for (le = links_cache->buckets[hash]; le != NULL; le = le->next) {
 		if (le->dev == st->st_dev && le->ino == st->st_ino) {
 			archive_entry_copy_hardlink(entry, le->name);
 
@@ -822,8 +956,9 @@ record_hardlink(struct bsdtar *bsdtar, struct archive_entry *entry,
 					le->next->previous = le->previous;
 				if (le->name != NULL)
 					free(le->name);
-				if (bsdtar->links_head == le)
-					bsdtar->links_head = le->next;
+				if (links_cache->buckets[hash] == le)
+					links_cache->buckets[hash] = le->next;
+				links_cache->number_entries--;
 				free(le);
 			}
 
@@ -831,12 +966,24 @@ record_hardlink(struct bsdtar *bsdtar, struct archive_entry *entry,
 		}
 	}
 
+	if (links_cache->stop_allocating)
+		return;
+
+	/* Add this entry to the links cache. */
 	le = malloc(sizeof(struct links_entry));
-	if (bsdtar->links_head != NULL)
-		bsdtar->links_head->previous = le;
-	le->next = bsdtar->links_head;
+	if (le == NULL) {
+		links_cache->stop_allocating = 1;
+		bsdtar_warnc(ENOMEM, "No more memory for recording "
+		    "hard links; Remaining hard links will be dumped "
+		    "as full files.");
+		return;
+	}
+	if (links_cache->buckets[hash] != NULL)
+		links_cache->buckets[hash]->previous = le;
+	links_cache->number_entries++;
+	le->next = links_cache->buckets[hash];
 	le->previous = NULL;
-	bsdtar->links_head = le;
+	links_cache->buckets[hash] = le;
 	le->dev = st->st_dev;
 	le->ino = st->st_ino;
 	le->links = st->st_nlink - 1;
@@ -856,9 +1003,10 @@ setup_acls(struct bsdtar *bsdtar, struct archive_entry *entry,
 
 	setup_acl(bsdtar, entry, accpath,
 	    ACL_TYPE_ACCESS, ARCHIVE_ENTRY_ACL_TYPE_ACCESS);
-	/* XXX Don't bother with default for non-directories. XXX */
-	setup_acl(bsdtar, entry, accpath,
-	    ACL_TYPE_DEFAULT, ARCHIVE_ENTRY_ACL_TYPE_DEFAULT);
+	/* Only directories can have default ACLs. */
+	if (S_ISDIR(archive_entry_mode(entry)))
+		setup_acl(bsdtar, entry, accpath,
+		    ACL_TYPE_DEFAULT, ARCHIVE_ENTRY_ACL_TYPE_DEFAULT);
 }
 
 void
@@ -939,15 +1087,24 @@ const char *
 lookup_uname(struct bsdtar *bsdtar, uid_t uid)
 {
 	struct passwd		*pwent;
+	struct uname_cache	*cache;
 	int slot;
 
-	slot = uid % bsdtar_hash_size;
-	if (bsdtar->uname_lookup[slot].uname != NULL) {
-		if (bsdtar->uname_lookup[slot].uid == uid)
-			return (bsdtar->uname_lookup[slot].uname);
 
-		free(bsdtar->uname_lookup[slot].uname);
-		bsdtar->uname_lookup[slot].uname = NULL;
+	if (bsdtar->uname_cache == NULL) {
+		bsdtar->uname_cache = malloc(sizeof(struct uname_cache));
+		memset(bsdtar->uname_cache, 0, sizeof(struct uname_cache));
+	}
+
+	cache = bsdtar->uname_cache;
+
+	slot = uid % uname_cache_size;
+	if (cache->cache[slot].name != NULL) {
+		if (cache->cache[slot].id == uid)
+			return (cache->cache[slot].name);
+
+		free(cache->cache[slot].name);
+		cache->cache[slot].name = NULL;
 	}
 
 	pwent = getpwuid(uid);
@@ -956,8 +1113,8 @@ lookup_uname(struct bsdtar *bsdtar, uid_t uid)
 			bsdtar_warnc(errno, "getpwuid(%d) failed", uid);
 		return (NULL);
 	} else if (pwent->pw_name != NULL && pwent->pw_name[0] != '\0') {
-		bsdtar->uname_lookup[slot].uname = strdup(pwent->pw_name);
-		bsdtar->uname_lookup[slot].uid = uid;
+		cache->cache[slot].name = strdup(pwent->pw_name);
+		cache->cache[slot].id = uid;
 	}
 	return (NULL);
 }
@@ -966,15 +1123,21 @@ const char *
 lookup_gname(struct bsdtar *bsdtar, gid_t gid)
 {
 	struct group		*grent;
+	struct gname_cache	*cache;
 	int slot;
 
-	slot = gid % bsdtar_hash_size;
-	if (bsdtar->gname_lookup[slot].gname != NULL) {
-		if (bsdtar->gname_lookup[slot].gid == gid)
-			return (bsdtar->gname_lookup[slot].gname);
+	if (bsdtar->gname_cache == NULL) {
+		bsdtar->gname_cache = malloc(sizeof(struct gname_cache));
+		memset(bsdtar->gname_cache, 0, sizeof(struct gname_cache));
+	}
 
-		free(bsdtar->gname_lookup[slot].gname);
-		bsdtar->gname_lookup[slot].gname = NULL;
+	cache = bsdtar->gname_cache;
+	slot = gid % gname_cache_size;
+	if (cache->cache[slot].name != NULL) {
+		if (cache->cache[slot].id == gid)
+			return (cache->cache[slot].name);
+		free(cache->cache[slot].name);
+		cache->cache[slot].name = NULL;
 	}
 
 	grent = getgrgid(gid);
@@ -983,8 +1146,8 @@ lookup_gname(struct bsdtar *bsdtar, gid_t gid)
 			bsdtar_warnc(errno, "getgrgid(%d) failed", gid);
 		return (NULL);
 	} else if (grent->gr_name != NULL && grent->gr_name[0] != '\0') {
-		bsdtar->gname_lookup[slot].gname = strdup(grent->gr_name);
-		bsdtar->gname_lookup[slot].gid = gid;
+		cache->cache[slot].name = strdup(grent->gr_name);
+		cache->cache[slot].id = gid;
 	}
 	return (NULL);
 }
@@ -1002,10 +1165,11 @@ new_enough(struct bsdtar *bsdtar, const char *path,
 	if (path[0] == '.' && path[1] == '/' && path[2] != '\0')
 		path += 2;
 
-	if (bsdtar->archive_dir_head == NULL)
+	if (bsdtar->archive_dir == NULL  ||
+	    bsdtar->archive_dir->head == NULL)
 		return (1);
 
-	for (p = bsdtar->archive_dir_head; p != NULL; p = p->next) {
+	for (p = bsdtar->archive_dir->head; p != NULL; p = p->next) {
 		if (strcmp(path, p->name)==0)
 			return (p->mtime_sec < mtime_sec ||
 				(p->mtime_sec == mtime_sec &&
@@ -1028,7 +1192,11 @@ add_dir_list(struct bsdtar *bsdtar, const char *path,
 	if (path[0] == '.' && path[1] == '/' && path[2] != '\0')
 		path += 2;
 
-	p = bsdtar->archive_dir_head;
+	/*
+	 * Search entire list to see if this file has appeared before.
+	 * If it has, override the timestamp data.
+	 */
+	p = bsdtar->archive_dir->head;
 	while (p != NULL) {
 		if (strcmp(path, p->name)==0) {
 			p->mtime_sec = mtime_sec;
@@ -1043,11 +1211,11 @@ add_dir_list(struct bsdtar *bsdtar, const char *path,
 	p->mtime_sec = mtime_sec;
 	p->mtime_nsec = mtime_nsec;
 	p->next = NULL;
-	if (bsdtar->archive_dir_tail == NULL) {
-		bsdtar->archive_dir_head = bsdtar->archive_dir_tail = p;
+	if (bsdtar->archive_dir->tail == NULL) {
+		bsdtar->archive_dir->head = bsdtar->archive_dir->tail = p;
 	} else {
-		bsdtar->archive_dir_tail->next = p;
-		bsdtar->archive_dir_tail = p;
+		bsdtar->archive_dir->tail->next = p;
+		bsdtar->archive_dir->tail = p;
 	}
 }
 
