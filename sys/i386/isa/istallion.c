@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: istallion.c,v 1.20 1998/08/16 01:21:49 bde Exp $
+ * $Id: istallion.c,v 1.21 1998/08/23 08:26:40 bde Exp $
  */
 
 /*****************************************************************************/
@@ -576,8 +576,8 @@ static void	stli_sendcmd(stlibrd_t *brdp, stliport_t *portp,
 static void	stli_mkasyport(stliport_t *portp, asyport_t *pp,
 			struct termios *tiosp);
 static int	stli_memrw(dev_t dev, struct uio *uiop, int flag);
-static int	stli_memioctl(dev_t dev, int cmd, caddr_t data, int flag,
-			struct proc *p);
+static int	stli_memioctl(dev_t dev, unsigned long cmd, caddr_t data,
+			int flag, struct proc *p);
 static int	stli_getbrdstats(caddr_t data);
 static int	stli_getportstats(stliport_t *portp, caddr_t data);
 static int	stli_clrportstats(stliport_t *portp, caddr_t data);
@@ -885,9 +885,9 @@ static int stliprobe(struct isa_device *idp)
 	brdp->paddr = vtophys(idp->id_maddr);
 
 #if DEBUG
-	printf("%s(%d): btype=%x unit=%d brd=%d io=%x mem=%x(%x)\n",
+	printf("%s(%d): btype=%x unit=%d brd=%d io=%x mem=%lx(%p)\n",
 		__file__, __LINE__, btype, brdp->unitid, brdp->brdnr,
-		brdp->iobase, brdp->paddr, brdp->vaddr);
+		brdp->iobase, brdp->paddr, (void *) brdp->vaddr);
 #endif
 
 	stli_stliprobed[idp->id_unit] = brdp->brdnr;
@@ -912,7 +912,7 @@ static int stliattach(struct isa_device *idp)
 	int		brdnr;
 
 #if DEBUG
-	printf("stliattach(idp=%x): unit=%d iobase=%x\n", idp,
+	printf("stliattach(idp=%p): unit=%d iobase=%x\n", (void *) idp,
 		idp->id_unit, idp->id_iobase);
 #endif
 
@@ -1061,7 +1061,8 @@ STATIC int stliclose(dev_t dev, int flag, int mode, struct proc *p)
 	int		x;
 
 #if DEBUG
-	printf("stliclose(dev=%x,flag=%x,mode=%x,p=%x)\n", dev, flag, mode, p);
+	printf("stliclose(dev=%lx,flag=%x,mode=%x,p=%p)\n",
+		(unsigned long) dev, flag, mode, (void *) p);
 #endif
 
 	if (dev & STL_MEMDEV)
@@ -1088,7 +1089,8 @@ STATIC int stliread(dev_t dev, struct uio *uiop, int flag)
 	stliport_t	*portp;
 
 #if DEBUG
-	printf("stliread(dev=%x,uiop=%x,flag=%x)\n", dev, uiop, flag);
+	printf("stliread(dev=%lx,uiop=%p,flag=%x)\n", (unsigned long) dev,
+		(void *) uiop, flag);
 #endif
 
 	if (dev & STL_MEMDEV)
@@ -1144,7 +1146,8 @@ STATIC int stliwrite(dev_t dev, struct uio *uiop, int flag)
 	stliport_t	*portp;
 
 #if DEBUG
-	printf("stliwrite(dev=%x,uiop=%x,flag=%x)\n", dev, uiop, flag);
+	printf("stliwrite(dev=%lx,uiop=%p,flag=%x)\n", (unsigned long) dev,
+		(void *) uiop, flag);
 #endif
 
 	if (dev & STL_MEMDEV)
@@ -1158,7 +1161,8 @@ STATIC int stliwrite(dev_t dev, struct uio *uiop, int flag)
 
 /*****************************************************************************/
 
-STATIC int stliioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
+STATIC int stliioctl(dev_t dev, unsigned long cmd, caddr_t data, int flag,
+		     struct proc *p)
 {
 	struct termios	*newtios, *localtios;
 	struct tty	*tp;
@@ -1168,8 +1172,8 @@ STATIC int stliioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc 
 	int		error, i, x;
 
 #if DEBUG
-	printf("stliioctl(dev=%x,cmd=%x,data=%x,flag=%x,p=%x)\n", dev, cmd,
-		data, flag, p);
+	printf("stliioctl(dev=%lx,cmd=%lx,data=%p,flag=%x,p=%p)\n",
+		(unsigned long) dev, cmd, (void *) data, flag, (void *) p);
 #endif
 
 	dev = minor(dev);
@@ -1224,7 +1228,7 @@ STATIC int stliioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc 
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
 	if (1) {
 		struct termios	tios;
-		int		oldcmd;
+		unsigned long	oldcmd;
 
 		tios = tp->t_termios;
 		oldcmd = cmd;
@@ -1445,8 +1449,8 @@ static int stli_shutdownclose(stliport_t *portp)
 	int		x;
 
 #if DEBUG
-	printf("stli_shutdownclose(portp=%x): brdnr=%d panelnr=%d portnr=%d\n",
-		portp, portp->brdnr, portp->panelnr, portp->portnr);
+	printf("stli_shutdownclose(portp=%p): brdnr=%d panelnr=%d portnr=%d\n",
+		(void *) portp, portp->brdnr, portp->panelnr, portp->portnr);
 #endif
 
 	if ((brdp = stli_brds[portp->brdnr]) == (stlibrd_t *) NULL)
@@ -3606,7 +3610,7 @@ static int stli_getbrdstats(caddr_t data)
 	int		i;
 
 #if DEBUG
-	printf("stli_getbrdstats(data=%x)\n", data);
+	printf("stli_getbrdstats(data=%p)\n", (void *) data);
 #endif
 
 	stli_brdstats = *((combrd_t *) data);
@@ -3814,14 +3818,15 @@ STATIC int stli_memrw(dev_t dev, struct uio *uiop, int flag)
  *	reset it, and start/stop it.
  */
 
-static int stli_memioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
+static int stli_memioctl(dev_t dev, unsigned long cmd, caddr_t data, int flag,
+			 struct proc *p)
 {
 	stlibrd_t	*brdp;
 	int		brdnr, rc;
 
 #if DEBUG
-	printf("stli_memioctl(dev=%x,cmd=%x,data=%x,flag=%x)\n", (int) dev,
-		cmd, (int) data, flag);
+	printf("stli_memioctl(dev=%lx,cmd=%lx,data=%p,flag=%x)\n",
+		(unsigned long) dev, cmd, (void *) data, flag);
 #endif
 
 	brdnr = dev & 0x7;
