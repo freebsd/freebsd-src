@@ -45,19 +45,20 @@
 .Nd Cyclades Cyclom-Y serial driver
 .Sh SYNOPSIS
 .Cd "options CY_PCI_FASTINTR"
-.Cd "device cy 1"
 .Pp
-In
+For one (PCI or ISA) card:
+.Cd "device cy 1"
+For one ISA card, in
 .Pa /boot/device.hints :
 .Cd hint.cy.0.at="isa"
 .Cd hint.cy.0.irq="10"
 .Cd hint.cy.0.maddr="0xd4000"
 .Cd hint.cy.0.msize="0x2000"
 .Pp
-If you have two cards:
-.Cd "options CY_PCI_FASTINTR"
+For two (PCI and/or ISA) cards:
 .Cd "device cy 2"
-.Pp
+For two ISA cards, in
+.Pa /boot/device.hints :
 .Cd hint.cy.0.at="isa"
 .Cd hint.cy.0.irq="10"
 .Cd hint.cy.0.maddr="0xd4000"
