@@ -148,6 +148,7 @@ installPreconfig(char *str)
 
 	if (mount(MOUNT_UFS, "/mnt2", MNT_RDONLY, (caddr_t)&u_args) == -1) {
 	    if (mount(MOUNT_MSDOS, "/mnt2", MNT_RDONLY, (caddr_t)&m_args) == -1) {
+		dialog_clear();
 		if (msgYesNo("Unable to mount the configuration floppy - do you want to try again?"))
 		    break;
 		else
@@ -161,8 +162,9 @@ installPreconfig(char *str)
 	msgDebug("Attempting to open configuration file: %s\n", buf);
 	fd = open(buf, O_RDONLY);
 	if (fd == -1) {
-	    if (msgYesNo("Unable to find the configuration file `%s' - do you want to\n"
-			 "try again?", buf)) {
+	    dialog_clear();
+	    if (msgYesNo("Unable to find the configuration file: %s\n"
+			 "Do you want to try again?", buf)) {
 		unmount("/mnt2", 0);
 		break;
 	    }

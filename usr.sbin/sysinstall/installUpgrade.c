@@ -197,6 +197,7 @@ installUpgrade(char *str)
 
     /* No bin selected?  Not much of an upgrade.. */
     if (!(Dists & DIST_BIN)) {
+	dialog_clear();
 	if (msgYesNo("You didn't select the bin distribution as one of the distributons to load.\n"
 		     "This one is pretty vital to a successful 2.1 upgrade.  Are you SURE you don't\n"
 		     "want to select the bin distribution?  Chose _No_ to bring up the Distributions\n"
@@ -257,6 +258,7 @@ installUpgrade(char *str)
 	while (!saved_etc) {
 	    saved_etc = msgGetInput("/usr/tmp/etc", "Under which directory do you wish to save your current /etc?");
 	    if (!saved_etc || !*saved_etc || Mkdir(saved_etc, NULL)) {
+		dialog_clear();
 		if (msgYesNo("Directory was not specified, was invalid or user selected Cancel.\n\n"
 			     "Doing an upgrade without first backing up your /etc directory is a very\n"
 			     "bad idea!  Do you want to go back and specify the save directory again?"))
@@ -271,10 +273,12 @@ installUpgrade(char *str)
 	}
 	if (file_readable("/kernel")) {
 	    msgNotify("Moving old kernel to /kernel.205");
-	    if (system("chflags noschg /mnt/kernel && mv /mnt/kernel /mnt/kernel.205"))
+	    if (system("chflags noschg /mnt/kernel && mv /mnt/kernel /mnt/kernel.205")) {
+		dialog_clear();
 		if (!msgYesNo("Hmmm!  I couldn't move the old kernel over!  Do you want to\n"
 			      "treat this as a big problem and abort the upgrade?"))
 		    return RET_FAIL;
+	    }
 	}
     }
     msgNotify("Beginning extraction of distributions..");
