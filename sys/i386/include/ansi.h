@@ -48,8 +48,6 @@
  */
 #define	_BSD_CLOCK_T_	unsigned long		/* clock()... */
 #define	_BSD_CLOCKID_T_	int			/* clock_gettime()... */
-#define	_BSD_IN_ADDR_T_	__uint32_t		/* inet(3) functions */	
-#define	_BSD_IN_PORT_T_	__uint16_t	
 #define	_BSD_MBSTATE_T_	__mbstate_t		/* mbstate_t */
 #define	_BSD_PTRDIFF_T_	int			/* ptr1 - ptr2 */
 #define	_BSD_RUNE_T_	_BSD_CT_RUNE_T_		/* rune_t (see below) */

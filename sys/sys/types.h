@@ -124,7 +124,7 @@ typedef	u_int32_t	dev_t;		/* device number */
 
 /*
  * XXX: Deprecated;
- * byteorder(3) functions now defined in <apra/inet.h>.
+ * byteorder(3) functions now defined in <arpa/inet.h>.
  */
 #include <machine/endian.h>
 
@@ -138,16 +138,16 @@ typedef	_BSD_CLOCKID_T_	clockid_t;
 #undef	_BSD_CLOCKID_T_
 #endif
 
-/* XXX: Deprecated; now defined in <apra/inet.h>. */
-#ifdef	_BSD_IN_ADDR_T_
-typedef	_BSD_IN_ADDR_T_	in_addr_t;
-#undef	_BSD_IN_ADDR_T_
+/* XXX: Deprecated; now defined in <arpa/inet.h>. */
+#ifndef _IN_ADDR_T_DECLARED_
+typedef	__uint32_t	in_addr_t;
+#define	_IN_ADDR_T_DECLARED_
 #endif
 
-/* XXX: Deprecated; now defined in <apra/inet.h>. */
-#ifdef	_BSD_IN_PORT_T_
-typedef	_BSD_IN_PORT_T_	in_port_t;
-#undef	_BSD_IN_PORT_T_
+/* XXX: Deprecated; now defined in <arpa/inet.h>. */
+#ifndef _IN_PORT_T_DECLARED_
+typedef	__uint16_t	in_port_t;
+#define	_IN_PORT_T_DECLARED_
 #endif
 
 #ifdef	_BSD_SIZE_T_
