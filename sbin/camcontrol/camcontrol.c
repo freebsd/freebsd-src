@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: camcontrol.c,v 1.9 1999/01/14 05:56:30 gibbs Exp $
+ *	$Id: camcontrol.c,v 1.9.2.1 1999/05/07 00:42:44 ken Exp $
  */
 
 #include <sys/ioctl.h>
@@ -145,6 +145,7 @@ typedef enum {
 } camcontrol_optret;
 
 cam_argmask arglist;
+int bus, target, lun;
 
 
 camcontrol_optret getoption(char *arg, cam_argmask *argnum, char **subopt);
@@ -159,6 +160,8 @@ static int scsidoinquiry(struct cam_device *device, int argc, char **argv,
 static int scsiinquiry(struct cam_device *device, int retry_count, int timeout);
 static int scsiserial(struct cam_device *device, int retry_count, int timeout);
 static int scsixferrate(struct cam_device *device);
+static int parse_btl(char *tstr, int *bus, int *target, int *lun,
+		     cam_argmask *arglist);
 static int dorescan_or_reset(int argc, char **argv, int rescan);
 static int rescan_or_reset_bus(int bus, int rescan);
 static int scanlun_or_reset_dev(int bus, int target, int lun, int scan);
@@ -908,12 +911,52 @@ xferrate_bailout:
 	return(retval);
 }
 
+/*
+ * Parse out a bus, or a bus, target and lun in the following
+ * format:
+ * bus
+ * bus:target
+ * bus:target:lun
+ *
+ * Returns the number of parsed components, or 0.
+ */
+static int
+parse_btl(char *tstr, int *bus, int *target, int *lun, cam_argmask *arglist)
+{
+	char *tmpstr;
+	int convs = 0;
+
+	while (isspace(*tstr) && (*tstr != '\0'))
+		tstr++;
+
+	tmpstr = (char *)strtok(tstr, ":");
+	if ((tmpstr != NULL) && (*tmpstr != '\0')) {
+		*bus = strtol(tmpstr, NULL, 0);
+		*arglist |= CAM_ARG_BUS;
+		convs++;
+		tmpstr = (char *)strtok(NULL, ":");
+		if ((tmpstr != NULL) && (*tmpstr != '\0')) {
+			*target = strtol(tmpstr, NULL, 0);
+			*arglist |= CAM_ARG_TARGET;
+			convs++;
+			tmpstr = (char *)strtok(NULL, ":");
+			if ((tmpstr != NULL) && (*tmpstr != '\0')) {
+				*lun = strtol(tmpstr, NULL, 0);
+				*arglist |= CAM_ARG_LUN;
+				convs++;
+			}
+		}
+	}
+
+	return convs;
+}
+
 static int
 dorescan_or_reset(int argc, char **argv, int rescan)
 {
 	static const char *must =
 		"you must specify a bus, or a bus:target:lun to %s";
-	int error = 0;
+	int rv, error = 0;
 	int bus = -1, target = -1, lun = -1;
 	char *tstr, *tmpstr = NULL;
 
@@ -921,53 +964,19 @@ dorescan_or_reset(int argc, char **argv, int rescan)
 		warnx(must, rescan? "rescan" : "reset");
 		return(1);
 	}
-	/*
-	 * Parse out a bus, or a bus, target and lun in the following
-	 * format:
-	 * bus
-	 * bus:target:lun
-	 * It is an error to specify a bus and target, but not a lun.
-	 */
-	tstr = argv[optind];
-
-	while (isspace(*tstr) && (*tstr != '\0'))
-		tstr++;
-
-	tmpstr = (char *)strtok(tstr, ":");
-	if ((tmpstr != NULL) && (*tmpstr != '\0')){
-		bus = strtol(tmpstr, NULL, 0);
-		arglist |= CAM_ARG_BUS;
-		tmpstr = (char *)strtok(NULL, ":");
-		if ((tmpstr != NULL) && (*tmpstr != '\0')){
-			target = strtol(tmpstr, NULL, 0);
-			arglist |= CAM_ARG_TARGET;
-			tmpstr = (char *)strtok(NULL, ":");
-			if ((tmpstr != NULL) && (*tmpstr != '\0')){
-				lun = strtol(tmpstr, NULL, 0);
-				arglist |= CAM_ARG_LUN;
-			} else {
-				error = 1;
-				warnx(must, rescan? "rescan" : "reset");
-			}
-		}
-	} else {
-		error = 1;
+	rv = parse_btl(argv[optind], &bus, &target, &lun, &arglist);
+	if (rv != 1 && rv != 3) {
 		warnx(must, rescan? "rescan" : "reset");
+		return(1);
 	}
 
+	if ((arglist & CAM_ARG_BUS)
+	    && (arglist & CAM_ARG_TARGET)
+	    && (arglist & CAM_ARG_LUN))
+		error = scanlun_or_reset_dev(bus, target, lun, rescan);
+	else
+		error = rescan_or_reset_bus(bus, rescan);
 
-	if (error == 0) {
-		if ((arglist & CAM_ARG_BUS)
-		 && (arglist & CAM_ARG_TARGET)
-		 && (arglist & CAM_ARG_LUN))
-			error = scanlun_or_reset_dev(bus, target, lun, rescan);
-		else if (arglist & CAM_ARG_BUS)
-			error = rescan_or_reset_bus(bus, rescan);
-		else {
-			error = 1;
-			warnx(must, rescan? "rescan" : "reset");
-		}
-	}
 	return(error);
 }
 
@@ -2575,28 +2584,34 @@ ratecontrol_bailout:
 }
 
 void 
-usage(void)
+usage(int verbose)
 {
 	fprintf(stderr,
-"usage:  camcontrol <command> [ generic args ] [ command args ]\n"
+"usage:  camcontrol <command>  [device id][generic args][command args]\n"
 "        camcontrol devlist    [-v]\n"
-"        camcontrol periphlist [-n dev_name] [-u unit]\n"
-"        camcontrol tur        [generic args]\n"
-"        camcontrol inquiry    [generic args] [-D] [-S] [-R]\n"
-"        camcontrol start      [generic args]\n"
-"        camcontrol stop       [generic args]\n"
-"        camcontrol eject      [generic args]\n"
+"        camcontrol periphlist [dev_id][-n dev_name] [-u unit]\n"
+"        camcontrol tur        [dev_id][generic args]\n"
+"        camcontrol inquiry    [dev_id][generic args] [-D] [-S] [-R]\n"
+"        camcontrol start      [dev_id][generic args]\n"
+"        camcontrol stop       [dev_id][generic args]\n"
+"        camcontrol eject      [dev_id][generic args]\n"
 "        camcontrol rescan     <bus[:target:lun]>\n"
 "        camcontrol reset      <bus[:target:lun]>\n"
-"        camcontrol defects    [generic args] <-f format> [-P][-G]\n"
-"        camcontrol modepage   [generic args] <-m page> [-P pagectl][-e][-d]\n"
-"        camcontrol cmd        [generic args] <-c cmd [args]> \n"
+"        camcontrol defects    [dev_id][generic args] <-f format> [-P][-G]\n"
+"        camcontrol modepage   [dev_id][generic args] <-m page> [-P pagectl]\n"
+"                              [-e][-d]\n"
+"        camcontrol cmd        [dev_id][generic args] <-c cmd [args]>\n"
 "                              [-i len fmt|-o len fmt [args]]\n"
 "        camcontrol debug      [-I][-T][-S][-c] <all|bus[:target[:lun]]|off>\n"
-"        camcontrol tags       [generic args] [-N tags] [-q] [-v]\n"
-"        camcontrol negotiate  [generic args] [-a][-c][-D <enable|disable>]\n"
-"                              [-O offset][-q][-R syncrate][-v]\n"
-"                              [-T <enable|disable>][-U][-W bus_width]\n"
+"        camcontrol tags       [dev_id][generic args] [-N tags] [-q] [-v]\n"
+"        camcontrol negotiate  [dev_id][generic args] [-a][-c]\n"
+"                              [-D <enable|disable>][-O offset][-q]\n"
+"                              [-R syncrate][-v][-T <enable|disable>]\n"
+"                              [-U][-W bus_width]\n"
+"        camcontrol help\n");
+	if (!verbose)
+		return;
+	fprintf(stderr,
 "Specify one of the following options:\n"
 "devlist     list all CAM devices\n"
 "periphlist  list all CAM peripheral drivers attached to a device\n"
@@ -2613,6 +2628,11 @@ usage(void)
 "debug       turn debugging on/off for a bus, target, or lun, or all devices\n"
 "tags        report or set the number of transaction slots for a device\n"
 "negotiate   report or set device negotiation parameters\n"
+"help        this message\n"
+"Device Identifiers:\n"
+"bus:target        specify the bus and target, lun defaults to 0\n"
+"bus:target:lun    specify the bus, target and lun\n"
+"deviceUNIT        specify the device name, like \"da4\" or \"cd2\"\n"
 "Generic arguments:\n"
 "-v                be verbose, print out sense information\n"
 "-t timeout        command timeout in seconds, overrides default timeout\n"
@@ -2673,12 +2693,13 @@ main(int argc, char **argv)
 	char *mainopt = "C:En:t:u:v";
 	char *subopt = NULL;
 	char combinedopt[256];
-	int error = 0;
+	int error = 0, optstart = 2;
+	int devopen = 1;
 
 	arglist = CAM_ARG_NONE;
 
 	if (argc < 2) {
-		usage();
+		usage(0);
 		exit(1);
 	}
 
@@ -2689,11 +2710,11 @@ main(int argc, char **argv)
 
 	if (optreturn == CC_OR_AMBIGUOUS) {
 		warnx("ambiguous option %s", argv[1]);
-		usage();
+		usage(0);
 		exit(1);
 	} else if (optreturn == CC_OR_NOT_FOUND) {
 		warnx("option %s not found", argv[1]);
-		usage();
+		usage(0);
 		exit(1);
 	}
 
@@ -2750,10 +2771,52 @@ main(int argc, char **argv)
 		sprintf(combinedopt, "%s", mainopt);
 
 	/*
-	 * Start getopt processing at argv[2], since we've already accepted
-	 * argv[1] as the command name.
+	 * For these options we do not parse optional device arguments and
+	 * we do not open a passthrough device.
 	 */
-	optind = 2;
+	if (((arglist & CAM_ARG_OPT_MASK) == CAM_ARG_RESCAN)
+	 || ((arglist & CAM_ARG_OPT_MASK) == CAM_ARG_RESET)
+	 || ((arglist & CAM_ARG_OPT_MASK) == CAM_ARG_DEVTREE)
+	 || ((arglist & CAM_ARG_OPT_MASK) == CAM_ARG_USAGE)
+	 || ((arglist & CAM_ARG_OPT_MASK) == CAM_ARG_DEBUG))
+		devopen = 0;
+
+	if ((devopen == 1)
+	 && (argc > 2 && argv[2][0] != '-')) {
+		char name[30];
+		int rv;
+
+		/*
+		 * First catch people who try to do things like:
+		 * camcontrol tur /dev/rsd0.ctl
+		 * camcontrol doesn't take device nodes as arguments.
+		 */
+		if (argv[2][0] == '/') {
+			warnx("%s is not a valid device identifier", argv[2]);
+			errx(1, "please read the camcontrol(8) man page");
+		} else if (isdigit(argv[2][0])) {
+			/* device specified as bus:target[:lun] */
+			rv = parse_btl(argv[2], &bus, &target, &lun, &arglist);
+			if (rv < 2)
+				errx(1, "numeric device specification must "
+				     "be either bus:target, or "
+				     "bus:target:lun");
+			optstart++;
+		} else {
+			if (cam_get_device(argv[2], name, sizeof name, &unit)
+			    == -1)
+				errx(1, "%s", cam_errbuf);
+			device = strdup(name);
+			arglist |= CAM_ARG_DEVICE | CAM_ARG_UNIT;
+			optstart++;
+		}
+	}
+	/*
+	 * Start getopt processing at argv[2/3], since we've already
+	 * accepted argv[1..2] as the command name, and as a possible
+	 * device name.
+	 */
+	optind = optstart;
 
 	/*
 	 * Now we run through the argument list looking for generic
@@ -2811,14 +2874,11 @@ main(int argc, char **argv)
 	 * commands, we don't use a passthrough device at all, just the
 	 * transport layer device.
 	 */
-	if (((arglist & CAM_ARG_OPT_MASK) != CAM_ARG_RESCAN)
-	 && ((arglist & CAM_ARG_OPT_MASK) != CAM_ARG_RESET)
-	 && ((arglist & CAM_ARG_OPT_MASK) != CAM_ARG_DEVTREE)
-	 && ((arglist & CAM_ARG_OPT_MASK) != CAM_ARG_USAGE)
-	 && ((arglist & CAM_ARG_OPT_MASK) != CAM_ARG_DEBUG)) {
-
-		if ((cam_dev = cam_open_spec_device(device,unit,O_RDWR,
-		     NULL))== NULL)
+	if (devopen == 1) {
+		if ((cam_dev = ((arglist & (CAM_ARG_BUS | CAM_ARG_TARGET))?
+				cam_open_btl(bus, target, lun, O_RDWR, NULL) :
+				cam_open_spec_device(device,unit,O_RDWR,NULL)))
+		     == NULL)
 			errx(1,"%s", cam_errbuf);
 	}
 
@@ -2826,7 +2886,7 @@ main(int argc, char **argv)
 	 * Reset optind to 2, and reset getopt, so these routines can parse
 	 * the arguments again.
 	 */
-	optind = 2;
+	optind = optstart;
 	optreset = 1;
 
 	switch(arglist & CAM_ARG_OPT_MASK) {
@@ -2876,8 +2936,11 @@ main(int argc, char **argv)
 			error = ratecontrol(cam_dev, retry_count, timeout,
 					    argc, argv, combinedopt);
 			break;
+		case CAM_ARG_USAGE:
+			usage(1);
+			break;
 		default:
-			usage();
+			usage(0);
 			error = 1;
 			break;
 	}
