@@ -502,7 +502,7 @@ installNovice(dialogMenuItem *self)
 	    break;
     }
 
-    if (!mediaDevice && !dmenuOpenSimple(&MenuMedia, FALSE))
+    if (!mediaDevice && (!dmenuOpenSimple(&MenuMedia, FALSE) || !mediaDevice))
 	return DITEM_FAILURE | DITEM_RECREATE;
 
     if (DITEM_STATUS((i = installCommit(self))) == DITEM_FAILURE) {
@@ -664,8 +664,31 @@ installCommit(dialogMenuItem *self)
     char *str;
     Boolean need_bin = FALSE;
 
-    if (!mediaVerify())
-	return DITEM_FAILURE;
+    if (!Dists) {
+	if (!msgYesNo("No distributions are selected for installation!  Do you\n"
+		      "want to do this now?")) {
+	    if (!dmenuOpenSimple(&MenuDistributions, FALSE) && !Dists)
+		return DITEM_FAILURE | DITEM_RECREATE;
+	}
+	else
+	    return DITEM_FAILURE | DITEM_RESTORE;
+    }
+
+    if (!mediaDevice && !msgYesNo("You need to select a media type first.  Do you want\n"
+				  "to do this now?")) {
+	if (!dmenuOpenSimple(&MenuMedia, FALSE) || !mediaDevice)
+	    return DITEM_FAILURE | DITEM_RESTORE;
+    }
+
+    if (!mediaDevice->init(mediaDevice)) {
+	if (!msgYesNo("Unable to initialize selected media. Would you like to\n"
+		      "adjust your media configuration?")) {
+	    if (!dmenuOpenSimple(&MenuMedia, FALSE) || !mediaDevice)
+		return DITEM_FAILURE | DITEM_RESTORE;
+	}
+	else
+	    return DITEM_FAILURE | DITEM_RESTORE;
+    }
 
     str = variable_get(SYSTEM_STATE);
     if (isDebug())
@@ -682,9 +705,10 @@ installCommit(dialogMenuItem *self)
     if (Dists & DIST_BIN)
 	need_bin = TRUE;
     i = distExtractAll(self);
-    if (DITEM_STATUS(i) != DITEM_FAILURE || !need_bin || !(Dists & DIST_BIN))
-	i = installFixup(self);
-
+    if (DITEM_STATUS(i) == DITEM_SUCCESS) {
+	if (!need_bin || !(Dists & DIST_BIN))
+	    i = installFixup(self);
+    }
     variable_set2(SYSTEM_STATE, DITEM_STATUS(i) == DITEM_FAILURE ? "error-install" : "full-install");
     return i | DITEM_RECREATE;
 }
