@@ -470,6 +470,7 @@ dev/iicbus/if_ic.c	optional ic
 dev/iicbus/iic.c	optional iic
 dev/twe/twe.c			optional twe
 dev/twe/twe_freebsd.c		optional twe
+dev/tx/if_tx.c			optional tx
 dev/txp/if_txp.c		optional txp
 dev/vinum/vinum.c		optional vinum
 dev/vinum/vinumconfig.c		optional vinum
@@ -1055,7 +1056,6 @@ pci/if_sk.c		optional sk
 pci/if_ste.c		optional ste
 pci/if_ti.c		optional ti
 pci/if_tl.c		optional tl
-pci/if_tx.c		optional tx
 pci/if_vr.c		optional vr
 pci/if_wb.c		optional wb
 pci/if_wx.c		optional wx
