@@ -299,6 +299,7 @@ next_cat(s)
 		case '\0':
 			return (NULL);
 		case '\\':
+			s++;
 			break;
 		case ':':
 			return (s);
