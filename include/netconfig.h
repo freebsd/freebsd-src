@@ -81,7 +81,7 @@ typedef struct {
 __BEGIN_DECLS
 void *setnetconfig __P((void));
 struct netconfig *getnetconfig __P((void *));
-struct netconfig *getnetconfigent __P((char *));
+struct netconfig *getnetconfigent __P((const char *));
 void freenetconfigent __P((struct netconfig *));
 int endnetconfig __P((void *));
 
