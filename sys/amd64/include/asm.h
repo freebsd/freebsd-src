@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)DEFS.h	5.1 (Berkeley) 4/23/90
- *	$Id$
+ *	$Id: asm.h,v 1.1 1997/03/09 10:39:15 bde Exp $
  */
 
 #include <sys/cdefs.h>
@@ -117,4 +117,85 @@
 #define	ASENTRY(x)	_START_ENTRY .globl x; .type x,@function; x:
 #define	ALTASENTRY(x)	ASENTRY(x)
 
+#endif
+
+/*
+ * This header is currently only used in lib/msun/i387.
+ * Use it to generate code to select between the generic math functions 
+ * and the i387 ones.
+ */
+#undef ENTRY
+#define	ANAME(x)	CNAME(__CONCAT(__i387_,x))
+#define	ASELNAME(x)	CNAME(__CONCAT(__arch_select_,x))
+#define	AVECNAME(x)	CNAME(__CONCAT(__arch_,x))
+#define	GNAME(x)	CNAME(__CONCAT(__generic_,x))
+
+/* Don't bother profiling this. */
+#ifdef PIC
+#define	ARCH_DISPATCH(x) \
+			_START_ENTRY; \
+			.globl CNAME(x); .type CNAME(x),@function; CNAME(x): ; \
+			PIC_PROLOGUE; \
+			movl PIC_GOT(AVECNAME(x)),%eax; \
+			PIC_EPILOGUE; \
+			jmpl *(%eax)
+
+#define	ARCH_SELECT(x)	_START_ENTRY; \
+			.type ASELNAME(x),@function; \
+			ASELNAME(x): \
+			PIC_PROLOGUE; \
+			call PIC_PLT(CNAME(__get_hw_float)); \
+			testl %eax,%eax; \
+			movl PIC_GOT(ANAME(x)),%eax; \
+			jne 8f; \
+			movl PIC_GOT(GNAME(x)),%eax; \
+			8: \
+			movl PIC_GOT(AVECNAME(x)),%edx; \
+			movl %eax,(%edx); \
+			PIC_EPILOGUE; \
+			jmpl *%eax
+#else /* !PIC */
+#define	ARCH_DISPATCH(x) \
+			_START_ENTRY; \
+			.globl CNAME(x); .type CNAME(x),@function; CNAME(x): ; \
+			jmpl *AVECNAME(x)
+
+#define	ARCH_SELECT(x)	_START_ENTRY; \
+			.type ASELNAME(x),@function; \
+			ASELNAME(x): \
+			call CNAME(__get_hw_float); \
+			testl %eax,%eax; \
+			movl $ANAME(x),%eax; \
+			jne 8f; \
+			movl $GNAME(x),%eax; \
+			8: \
+			movl %eax,AVECNAME(x); \
+			jmpl *%eax
+#endif /* PIC */
+
+#define	ARCH_VECTOR(x)	.data; .align 2; \
+			.globl AVECNAME(x); \
+			.type AVECNAME(x),@object; \
+			.size AVECNAME(x),4; \
+			AVECNAME(x): .long ASELNAME(x)
+
+#ifdef PROF
+
+#define	ALTENTRY(x)	ENTRY(x); jmp 9f
+#define	ENTRY(x)	ARCH_VECTOR(x); ARCH_SELECT(x); ARCH_DISPATCH(x); \
+			_START_ENTRY; \
+			.globl ANAME(x); .type ANAME(x),@function; ANAME(x):; \
+			call HIDENAME(mcount); 9:
+
+#else /* !PROF */
+
+#define	ALTENTRY(x)	ENTRY(x)
+#define	ENTRY(x)	ARCH_VECTOR(x); ARCH_SELECT(x); ARCH_DISPATCH(x); \
+			_START_ENTRY; \
+			.globl ANAME(x); .type ANAME(x),@function; ANAME(x):
+
+#endif /* PROF */
+
+#ifndef RCSID
+#define RCSID(a)
 #endif
