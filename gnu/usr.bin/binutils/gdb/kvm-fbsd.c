@@ -392,7 +392,7 @@ get_kcore_registers (regno)
   /* find the pcb for the current process */
   if (cur_proc == NULL)
     error ("get_kcore_registers no proc");
-  if (kvread (TAILQ_FIRST(&cur_proc->p_threads), &mainthread)) /* XXXKSE */
+  if (kvread (&TAILQ_FIRST(&cur_proc->p_threads), &mainthread)) /* XXXKSE */
     error ("cannot read main thread for proc at %#x", cur_proc);
   if (kvread (&mainthread->td_pcb, &pcbaddr)) /* XXXKSE */
     error ("cannot read pcb pointer for proc at %#x", cur_proc);
