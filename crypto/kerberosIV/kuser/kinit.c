@@ -19,7 +19,7 @@
 
 #include "kuser_locl.h"
 
-RCSID("$Id: kinit.c,v 1.15 1997/03/30 18:58:46 assar Exp $");
+RCSID("$Id$");
 
 #define	LIFE	DEFAULT_TKT_LIFE /* lifetime of ticket in 5-minute units */
 #define CHPASSLIFE 2
@@ -151,6 +151,7 @@ main(int argc, char **argv)
 				lifetime, 0);
     if (vflag) {
 	printf("Kerberos realm %s:\n", realm);
+	printf("Ticket file: %s\n", tkt_string());
 	printf("%s\n", krb_get_err_text(k_errno));
     } else if (k_errno)
 	errx(1, "%s", krb_get_err_text(k_errno));
