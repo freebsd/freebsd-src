@@ -149,6 +149,66 @@ to print out the statistics counters instead of the card settings.
 Encryption keys are only displayed if
 .Nm
 is run as root.
+.It Oo Fl i Oc Ar iface Fl a Ar access_point_density
+Specify the
+access point density
+for a given interface.
+Legal values are
+.Cm 1
+(low),
+.Cm 2
+(medium) and
+.Cm 3
+(high).
+This setting influences some of the radio modem threshold settings.
+.It Oo Fl i Oc Ar iface Fl m Ar mac_address
+Set the station address for the specified interface.
+The
+.Ar mac_address
+is specified as a series of six hexadecimal values separated by colons,
+e.g.,
+.Dq Li 00:60:1d:12:34:56 .
+This programs the new address into the card
+and updates the interface as well.
+.It Oo Fl i Oc Ar iface Fl d Ar max_data_length
+Set the maximum receive and transmit frame size for a specified interface.
+The
+.Ar max_data_length
+can be any number from 350 to 2304.
+The default is 2304.
+.It Oo Fl i Oc Ar iface Fl r Ar RTS_threshold
+Set the RTS/CTS threshold for a given interface.
+This controls the
+number of bytes used for the RTS/CTS handshake boundary.
+The
+.Ar RTS_threshold
+can be any value between 0 and 2347.
+The default is 2347.
+.It Oo Fl i Oc Ar iface Fl Z
+Clear the signal strength cache maintained internally by the
+.Xr wi 4
+driver.
+.It Oo Fl i Oc Ar iface Fl C
+Display the cached signal strength information maintained by the
+.Xr wi 4
+driver.
+The driver retains information about signal strength and
+noise level for packets received from different hosts.
+The signal
+strength and noise level values are displayed in units of dBms.
+The signal quality values is produced by subtracting the noise level
+from the signal strength (i.e. less noise and better signal yields
+better signal quality).
+.El
+.Sh DEPRECATED AND OBSOLETE OPTIONS
+The
+.Nm
+utility has a number of options that are now deprecated or obsolete, as they
+have been overtaken by extensions to
+.Xr ifconfig 8
+and changes to the driver.
+The deprecated and obsolete options are as follows:
+.Bl -tag -width indent
 .It Oo Fl i Oc Ar iface Fl t Ar tx_rate
 This flag is deprecated.
 Use
@@ -297,33 +357,6 @@ Lucent cards have one set of meanings.
 Prism cards have another.
 Symbol cards have a third.
 Do not use this flag.
-.It Oo Fl i Oc Ar iface Fl a Ar access_point_density
-Specify the
-access point density
-for a given interface.
-Legal values are
-.Cm 1
-(low),
-.Cm 2
-(medium) and
-.Cm 3
-(high).
-This setting influences some of the radio modem threshold settings.
-.It Oo Fl i Oc Ar iface Fl m Ar mac_address
-Set the station address for the specified interface.
-The
-.Ar mac_address
-is specified as a series of six hexadecimal values separated by colons,
-e.g.,
-.Dq Li 00:60:1d:12:34:56 .
-This programs the new address into the card
-and updates the interface as well.
-.It Oo Fl i Oc Ar iface Fl d Ar max_data_length
-Set the maximum receive and transmit frame size for a specified interface.
-The
-.Ar max_data_length
-can be any number from 350 to 2304.
-The default is 2304.
 .It Oo Fl i Oc Ar iface Fl e Cm 0 | 1
 This flag is deprecated.
 It has been replaced by the
@@ -398,14 +431,6 @@ Note: Both 128-bit and 64-bit WEP have been broken.
 See the
 .Sx BUGS
 section for details.
-.It Oo Fl i Oc Ar iface Fl r Ar RTS_threshold
-Set the RTS/CTS threshold for a given interface.
-This controls the
-number of bytes used for the RTS/CTS handshake boundary.
-The
-.Ar RTS_threshold
-can be any value between 0 and 2347.
-The default is 2347.
 .It Oo Fl i Oc Ar iface Fl f Ar frequency
 This flag is deprecated.
 Use
@@ -493,21 +518,6 @@ The
 .Ar max_sleep_interval
 is specified in milliseconds.
 The default is 100.
-.It Oo Fl i Oc Ar iface Fl Z
-Clear the signal strength cache maintained internally by the
-.Xr wi 4
-driver.
-.It Oo Fl i Oc Ar iface Fl C
-Display the cached signal strength information maintained by the
-.Xr wi 4
-driver.
-The driver retains information about signal strength and
-noise level for packets received from different hosts.
-The signal
-strength and noise level values are displayed in units of dBms.
-The signal quality values is produced by subtracting the noise level
-from the signal strength (i.e. less noise and better signal yields
-better signal quality).
 .El
 .Sh SEE ALSO
 .Xr awi 4 ,
@@ -517,9 +527,9 @@ better signal quality).
 .Sh BUGS
 There are deprecated flags here that duplicate functionality of
 .Xr ifconfig 8 .
-These flags will be deprecated in
+These flags were deprecated in
 .Fx 5.1
-and removed in a future release.
+and will be removed in a future release.
 .Pp
 The WEP encryption method has been broken so that third parties
 can recover the keys in use relatively quickly at distances that are
