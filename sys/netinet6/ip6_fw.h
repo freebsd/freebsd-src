@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 /*	$KAME: ip6_fw.h,v 1.9 2001/08/01 04:29:57 sumikawa Exp $	*/
 
-/*
+/*-
  * Copyright (C) 1998, 1999, 2000 and 2001 WIDE Project.
  * All rights reserved.
  *
@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  */
 
-/*
+/*-
  * Copyright (c) 1993 Daniel Boulet
  * Copyright (c) 1994 Ugen J.S.Antsilevich
  *
