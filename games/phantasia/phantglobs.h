@@ -57,7 +57,6 @@ extern	char	Somebetter[];
 extern	char	Nobetter[];
 
 /* library functions and system calls */
-extern	long	time();
 extern	char	*getlogin();
 extern	char	*getpass();
 extern	char	*strchr();
