@@ -168,6 +168,7 @@ static const struct device baseudpdevice = {
   udp_Sendto,
   udp_device2iov,
   NULL,
+  NULL,
   NULL
 };
 

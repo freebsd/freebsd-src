@@ -30,17 +30,12 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <termios.h>
 #include <zlib.h>
 
-#include "defs.h"
 #include "mbuf.h"
 #include "log.h"
 #include "timer.h"
 #include "fsm.h"
-#include "lqr.h"
-#include "hdlc.h"
-#include "lcp.h"
 #include "ccp.h"
 #include "deflate.h"
 

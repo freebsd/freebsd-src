@@ -50,7 +50,6 @@
 #include <string.h>
 #include <sys/time.h>
 #include <termios.h>
-#include <ttyent.h>
 #include <unistd.h>
 #include <netdb.h>
 
@@ -470,6 +469,51 @@ radius_Destroy(struct radius *r)
   }
 }
 
+static int
+radius_put_physical_details(struct rad_handle *rad, struct physical *p)
+{
+  int slot, type;
+
+  type = RAD_VIRTUAL;
+  if (p->handler)
+    switch (p->handler->type) {
+      case I4B_DEVICE:
+        type = RAD_ISDN_SYNC;
+        break;
+
+      case TTY_DEVICE:
+        type = RAD_ASYNC;
+        break;
+
+      case ETHER_DEVICE:
+        type = RAD_ETHERNET;
+        break;
+
+      case TCP_DEVICE:
+      case UDP_DEVICE:
+      case EXEC_DEVICE:
+      case ATM_DEVICE:
+      case NG_DEVICE:
+        type = RAD_VIRTUAL;
+        break;
+    }
+
+  if (rad_put_int(rad, RAD_NAS_PORT_TYPE, type) != 0) {
+    log_Printf(LogERROR, "rad_put: rad_put_int: %s\n", rad_strerror(rad));
+    rad_close(rad);
+    return 0;
+  }
+
+  if ((slot = physical_Slot(p)) >= 0)
+    if (rad_put_int(rad, RAD_NAS_PORT, slot) != 0) {
+      log_Printf(LogERROR, "rad_put: rad_put_int: %s\n", rad_strerror(rad));
+      rad_close(rad);
+      return 0;
+    }
+
+  return 1;
+}
+
 /*
  * Start an authentication request to the RADIUS server.
  */
@@ -477,9 +521,8 @@ void
 radius_Authenticate(struct radius *r, struct authinfo *authp, const char *name,
                     const char *key, int klen, const char *challenge, int clen)
 {
-  struct ttyent *ttyp;
   struct timeval tv;
-  int got, slot;
+  int got;
   char hostname[MAXHOSTNAMELEN];
   struct hostent *hp;
   struct in_addr hostaddr;
@@ -594,28 +637,7 @@ radius_Authenticate(struct radius *r, struct authinfo *authp, const char *name,
     }
   }
 
-  if (authp->physical->handler &&
-      authp->physical->handler->type == TTY_DEVICE) {
-    setttyent();
-    for (slot = 1; (ttyp = getttyent()); ++slot)
-      if (!strcmp(ttyp->ty_name, authp->physical->name.base)) {
-        if (rad_put_int(r->cx.rad, RAD_NAS_PORT, slot) != 0) {
-          log_Printf(LogERROR, "rad_put: rad_put_int: %s\n",
-                      rad_strerror(r->cx.rad));
-          rad_close(r->cx.rad);
-          endttyent();
-          return;
-        }
-        break;
-      }
-    endttyent();
-  } else if (rad_put_int(r->cx.rad, RAD_NAS_PORT, 0) != 0) {
-    log_Printf(LogERROR, "rad_put: rad_put_int: %s\n",
-                rad_strerror(r->cx.rad));
-    rad_close(r->cx.rad);
-    return;
-  }
-
+  radius_put_physical_details(r->cx.rad, authp->physical);
 
   r->cx.auth = authp;
   if ((got = rad_init_send_request(r->cx.rad, &r->cx.fd, &tv)))
@@ -639,9 +661,8 @@ radius_Account(struct radius *r, struct radacct *ac, struct datalink *dl,
                int acct_type, struct in_addr *peer_ip, struct in_addr *netmask,
                struct pppThroughput *stats)
 {
-  struct ttyent *ttyp;
   struct timeval tv;
-  int got, slot;
+  int got;
   char hostname[MAXHOSTNAMELEN];
   struct hostent *hp;
   struct in_addr hostaddr;
@@ -729,22 +750,7 @@ radius_Account(struct radius *r, struct radacct *ac, struct datalink *dl,
     }
   }
 
-  if (dl->physical->handler &&
-      dl->physical->handler->type == TTY_DEVICE) {
-    setttyent();
-    for (slot = 1; (ttyp = getttyent()); ++slot)
-      if (!strcmp(ttyp->ty_name, dl->physical->name.base)) {
-        if (rad_put_int(r->cx.rad, RAD_NAS_PORT, slot) != 0) {
-          log_Printf(LogERROR, "rad_put: rad_put_string: %s\n",
-                      rad_strerror(r->cx.rad));
-          rad_close(r->cx.rad);
-          endttyent();
-          return;
-        }
-        break;
-      }
-    endttyent();
-  }
+  radius_put_physical_details(r->cx.rad, dl->physical);
 
   if (rad_put_int(r->cx.rad, RAD_ACCT_STATUS_TYPE, acct_type) != 0 ||
       rad_put_string(r->cx.rad, RAD_ACCT_SESSION_ID, ac->session_id) != 0 || 

@@ -114,6 +114,7 @@ static struct device tcpdevice = {
   NULL,
   NULL,
   NULL,
+  NULL,
   NULL
 };
 

@@ -52,7 +52,6 @@
 #include "iplist.h"
 #include "throughput.h"
 #include "ncpaddr.h"
-#include "ip.h"
 #include "ipcp.h"
 #include "lcp.h"
 #include "ccp.h"

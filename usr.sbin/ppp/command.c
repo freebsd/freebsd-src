@@ -71,7 +71,6 @@
 #include "hdlc.h"
 #include "lcp.h"
 #include "ncpaddr.h"
-#include "ip.h"
 #include "ipcp.h"
 #ifndef NONAT
 #include "nat_cmd.h"
@@ -164,7 +163,7 @@
 #define NEG_MPPE	54
 #define NEG_CHAP81	55
 
-const char Version[] = "3.0.3";
+const char Version[] = "3.0.4";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);

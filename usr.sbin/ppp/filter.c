@@ -30,7 +30,6 @@
 
 #include <sys/param.h>
 #include <netinet/in.h>
-#include <arpa/inet.h>
 #include <netdb.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -39,7 +38,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <strings.h>
+#include <string.h>
 #include <termios.h>
 
 #include "layer.h"
@@ -58,7 +57,6 @@
 #include "link.h"
 #include "slcompress.h"
 #include "ncpaddr.h"
-#include "ip.h"
 #include "ipcp.h"
 #include "filter.h"
 #include "descriptor.h"
