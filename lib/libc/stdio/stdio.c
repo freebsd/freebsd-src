@@ -126,9 +126,15 @@ _swrite(fp, buf, n)
 	int n;
 {
 	int ret;
+	int serrno;
 
-	if (fp->_flags & __SAPP)
-		(void)_sseek(fp, (fpos_t)0, SEEK_END);
+	if (fp->_flags & __SAPP) {
+		serrno = errno;
+		if (_sseek(fp, (fpos_t)0, SEEK_END) == -1 &&
+		    (fp->_flags & __SOPT))
+			return (-1);
+		errno = serrno;
+	}
 	ret = (*fp->_write)(fp->_cookie, buf, n);
 	/* __SOFF removed even on success in case O_APPEND mode is set. */
 	if (ret >= 0) {
@@ -167,7 +173,8 @@ _sseek(fp, offset, whence)
 		if (errret == 0) {
 			fp->_flags |= __SERR;
 			errno = EINVAL;
-		}
+		} else if (errret == ESPIPE)
+			fp->_flags &= ~__SAPP;
 		fp->_flags &= ~__SOFF;
 		ret = -1;
 	} else if (fp->_flags & __SOPT) {
