@@ -54,7 +54,7 @@ usage(void)
 	    "usage:\n"
 	    "  extattrctl start [path]\n"
 	    "  extattrctl stop [path]\n"
-	    "  extattrctl initattr [-p path] [attrsize] [attrfile]\n"
+	    "  extattrctl initattr [-o] [-p path] [attrsize] [attrfile]\n"
 	    "  extattrctl enable [path] [attrname] [attrfile]\n"
 	    "  extattrctl disable [path] [attrname]\n");
 	exit(-1);
@@ -82,11 +82,14 @@ initattr(int argc, char *argv[])
 	char	*fs_path = NULL;
 	char	*zero_buf = NULL;
 	long	loop, num_inodes;
-	int	ch, i, error, chunksize;
+	int	ch, i, error, chunksize, overwrite = 0, flags;
 
 	optind = 0;
-	while ((ch = getopt(argc, argv, "p:r:w:")) != -1)
+	while ((ch = getopt(argc, argv, "op:r:w:")) != -1)
 		switch (ch) {
+		case 'o':
+			overwrite = 1;
+			break;
 		case 'p':
 			fs_path = strdup(optarg);
 			break;
@@ -101,8 +104,13 @@ initattr(int argc, char *argv[])
 	if (argc != 2)
 		usage();
 
+	if (overwrite)
+		flags = O_CREAT | O_WRONLY;
+	else
+		flags = O_CREAT | O_EXCL | O_WRONLY;
+
 	error = 0;
-	if ((i = open(argv[1], O_CREAT | O_EXCL | O_WRONLY, 0600)) != -1) {
+	if ((i = open(argv[1], flags, 0600)) != -1) {
 		uef.uef_magic = UFS_EXTATTR_MAGIC;
 		uef.uef_version = UFS_EXTATTR_VERSION;
 		uef.uef_size = atoi(argv[0]);
