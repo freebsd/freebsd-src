@@ -768,12 +768,8 @@ fork_exit(callout, arg, frame)
 	td->td_oncpu = PCPU_GET(cpuid);
 	p->p_state = PRS_NORMAL;
 	/*
-	 * Finish setting up thread glue.  We need to initialize
-	 * the thread into a td_critnest=1 state.  Some platforms
-	 * may have already partially or fully initialized td_critnest
-	 * and/or td_md.md_savecrit (when applciable).
-	 *
-	 * see <arch>/<arch>/critical.c
+	 * Finish setting up thread glue so that it begins execution in a
+	 * non-nested critical section with sched_lock held but not recursed.
 	 */
 	sched_lock.mtx_lock = (uintptr_t)td;
 	sched_lock.mtx_recurse = 0;
