@@ -3098,7 +3098,7 @@ next_code:
 
 	    case RBT:
 #ifndef SC_DISABLE_REBOOT
-		shutdown_nice();
+		shutdown_nice(0);
 #endif
 		break;
 
