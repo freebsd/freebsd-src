@@ -1,6 +1,6 @@
-<!-- $Id$ -->
+<!-- $Id: ppp.sgml,v 1.4 1997/02/22 13:01:41 peter Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.9 -->
+<!-- Original revision: 1.10 -->
 
 <sect><heading>カーネル PPP の設定<label id="ppp"></heading>
 

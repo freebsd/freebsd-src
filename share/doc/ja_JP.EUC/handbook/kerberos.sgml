@@ -1,6 +1,6 @@
-<!-- $Id$ -->
+<!-- $Id: kerberos.sgml,v 1.4 1997/02/22 13:01:19 peter Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.9 -->
+<!-- Original revision: 1.10 -->
 
 <sect><heading>Kerberos<label id="kerberos"></heading>
 

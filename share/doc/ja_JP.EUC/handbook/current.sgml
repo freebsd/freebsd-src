@@ -1,6 +1,6 @@
-<!-- $Id$ -->
+<!-- $Id: current.sgml,v 1.5 1997/02/22 13:00:47 peter Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.18 -->
+<!-- Original revision: 1.19 -->
 
 <chapt><heading>最新のFreeBSDを追いかける<label id="current"></heading>
 
@@ -12,7 +12,7 @@
 
                         THE FREEBSD CURRENT POLICY 
 
-Last updated: $Date: 1997/01/15 13:16:18 $
+Last updated: $Date: 1997/02/22 13:00:47 $
 
 This document attempts to explain the rationale behind
 FreeBSD-current, what you should expect should you decide to run it,
