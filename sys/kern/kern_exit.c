@@ -124,7 +124,9 @@ exit1(td, rv)
 	struct proc *p = td->td_proc;
 	register struct proc *q, *nq;
 	register struct vmspace *vm;
+#ifdef KTRACE
 	struct vnode *vtmp;
+#endif
 	struct exitlist *ep;
 
 	GIANT_REQUIRED;
