@@ -601,31 +601,26 @@ cbb_attach(device_t brdev)
 		 * machines.
 		 */
 		sockbase = pci_read_config(brdev, rid, 4);
-		if (sockbase < 0x100000 || sockbase >= 0xfffffff0) {
-			pci_write_config(brdev, rid, 0xffffffff, 4);
-			sockbase = pci_read_config(brdev, rid, 4);
-			sockbase = (sockbase & 0xfffffff0) &
-			    -(sockbase & 0xfffffff0);
-			sc->base_res = bus_generic_alloc_resource(
-			    device_get_parent(brdev), brdev, SYS_RES_MEMORY,
-			    &rid, cbb_start_mem, ~0, sockbase,
-			    RF_ACTIVE|rman_make_alignment_flags(sockbase));
-			if (!sc->base_res) {
-				device_printf(brdev,
-				    "Could not grab register memory\n");
-				mtx_destroy(&sc->mtx);
-				cv_destroy(&sc->cv);
-				return (ENOMEM);
-			}
-			sc->flags |= CBB_KLUDGE_ALLOC;
-			pci_write_config(brdev, CBBR_SOCKBASE,
-			    rman_get_start(sc->base_res), 4);
-			DEVPRINTF((brdev, "PCI Memory allocated: %08lx\n",
-			    rman_get_start(sc->base_res)));
-		} else {
-			device_printf(brdev, "Could not map register memory\n");
-			goto err;
+		pci_write_config(brdev, rid, 0xfffffffful, 4);
+		sockbase = pci_read_config(brdev, rid, 4);
+		sockbase = (sockbase & 0xfffffff0ul) &
+		    -(sockbase & 0xfffffff0ul);
+		sc->base_res = bus_generic_alloc_resource(
+		    device_get_parent(brdev), brdev, SYS_RES_MEMORY,
+		    &rid, cbb_start_mem, ~0, sockbase,
+		    RF_ACTIVE|rman_make_alignment_flags(sockbase));
+		if (!sc->base_res) {
+			device_printf(brdev,
+			    "Could not grab register memory\n");
+			mtx_destroy(&sc->mtx);
+			cv_destroy(&sc->cv);
+			return (ENOMEM);
 		}
+		sc->flags |= CBB_KLUDGE_ALLOC;
+		pci_write_config(brdev, CBBR_SOCKBASE,
+		    rman_get_start(sc->base_res), 4);
+		DEVPRINTF((brdev, "PCI Memory allocated: %08lx\n",
+		    rman_get_start(sc->base_res)));
 #endif
 	}
 
@@ -740,8 +735,7 @@ cbb_detach(device_t brdev)
 	bus_release_resource(brdev, SYS_RES_IRQ, 0, sc->irq_res);
 	if (sc->flags & CBB_KLUDGE_ALLOC)
 		bus_generic_release_resource(device_get_parent(brdev),
-		    brdev, SYS_RES_MEMORY, CBBR_SOCKBASE,
-		    sc->base_res);
+		    brdev, SYS_RES_MEMORY, CBBR_SOCKBASE, sc->base_res);
 	else
 		bus_release_resource(brdev, SYS_RES_MEMORY,
 		    CBBR_SOCKBASE, sc->base_res);
@@ -825,45 +819,25 @@ cbb_driver_added(device_t brdev, driver_t *driver)
 {
 	struct cbb_softc *sc = device_get_softc(brdev);
 	device_t *devlist;
+	device_t dev;
 	int tmp;
 	int numdevs;
-	int wake;
-	uint32_t sockstate;
+	int wake = 0;
 
 	DEVICE_IDENTIFY(driver, brdev);
 	device_get_children(brdev, &devlist, &numdevs);
-	wake = 0;
-	sockstate = cbb_get(sc, CBB_SOCKET_STATE);
 	for (tmp = 0; tmp < numdevs; tmp++) {
-		if (device_get_state(devlist[tmp]) == DS_NOTPRESENT &&
-		    device_probe_and_attach(devlist[tmp]) == 0) {
-			if (devlist[tmp] == NULL)
-				/* NOTHING */;
-			else if (strcmp(driver->name, "cardbus") == 0) {
-				sc->cbdev = devlist[tmp];
-				if (((sockstate & CBB_SOCKET_STAT_CD) == 0) &&
-				    (sockstate & CBB_SOCKET_STAT_CB))
-					wake++;
-			} else if (strcmp(driver->name, "pccard") == 0) {
-				sc->pccarddev = devlist[tmp];
-				if (((sockstate & CBB_SOCKET_STAT_CD) == 0) &&
-				    (sockstate & CBB_SOCKET_STAT_16BIT))
-					wake++;
-			} else
-				device_printf(brdev,
-				    "Unsupported child bus: %s\n",
-				    driver->name);
-		}
+		dev = devlist[tmp];
+		if (device_get_state(dev) == DS_NOTPRESENT &&
+		    device_probe_and_attach(dev) == 0)
+			wake++;
 	}
 	free(devlist, M_TEMP);
 
 	if (wake > 0) {
-		if ((cbb_get(sc, CBB_SOCKET_STATE) & CBB_SOCKET_STAT_CD)
-		    == 0) {
-			mtx_lock(&sc->mtx);
-			wakeup(sc);
-			mtx_unlock(&sc->mtx);
-		}
+		mtx_lock(&sc->mtx);
+		cv_signal(&sc->cv);
+		mtx_unlock(&sc->mtx);
 	}
 }
 
@@ -872,13 +846,9 @@ cbb_child_detached(device_t brdev, device_t child)
 {
 	struct cbb_softc *sc = device_get_softc(brdev);
 
-	if (child == sc->cbdev)
-		sc->cbdev = NULL;
-	else if (child == sc->pccarddev)
-		sc->pccarddev = NULL;
-	else
-		device_printf(brdev, "Unknown child detached: %s %p/%p\n",
-		    device_get_nameunit(child), sc->cbdev, sc->pccarddev);
+	if (child != sc->cbdev && child != sc->pccarddev)
+		device_printf(brdev, "Unknown child detached: %s\n",
+		    device_get_nameunit(child));
 }
 
 /************************************************************************/
