@@ -112,8 +112,9 @@ to make initial installation of the system as easy as possible.
 14. If your system has several operating systems, you may want to install
     the Thomas Wolfram's os-bs boot manager for selecting which system to
     boot.  This works well with DOS, OS/2, FreeBSD and other systems.  To
-    install it, boot MS-DOS and insert the dos-floppy of the FreeBSD
-    install suite in floppy drive A:.  Then enter the DOS commands:
+    install it, boot the system with MS-DOS and insert the dos-floppy of
+    the FreeBSD install suite in floppy drive A:.  Then enter the DOS
+    commands:
     > A:
     > os-bs135
     > cd os-bs
@@ -122,9 +123,14 @@ to make initial installation of the system as easy as possible.
     ENTER.  The readme.1st file in the os-bs directory contains
     more information about os-bs.
 
+    If you choose not to install os-bs, then fdisk can be used to change
+    the boot system.  This is done by setting the primary partition for
+    that system active.  FreeBSD has an fdisk command that can be used
+    for this purpose as well.
+
 15. In addition to the FreeBSD  source and binary distributions, many 
     additional packages, such as X11 and TeX, may be obtained from 
     freebsd.cdrom.com - please have a look around!  You may also find 
     this a good time to read the release notes in /usr/src/RELNOTES.FreeBSD.
     
-End of $Id: floppy.install_notes,v 1.5 1993/09/08 22:51:49 jkh Exp $
+End of $Id: floppy.install_notes,v 1.6 1993/09/09 13:52:35 alm Exp $
