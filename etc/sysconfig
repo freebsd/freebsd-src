@@ -4,7 +4,7 @@
 # This is sysconfig - a file full of useful variables that you can set 
 # to change the default startup behavior of your system.
 #
-#	$Id: sysconfig,v 1.45 1996/04/26 20:18:58 mpp Exp $
+#	$Id: sysconfig,v 1.46 1996/05/13 02:21:16 jkh Exp $
 
 ######################### Start Of Local Configuration Section ###########
 
@@ -46,6 +46,24 @@ blanktime=NO
 # Set to screen saver desired: blank, green, snake, star (or NO for none)
 saver=NO
 
+# Set to
+# {microsoft|mousesystems|mmseries|logitech|busmouse|mouseman|ps/2|mmhittab}
+# to activate mouse cursor support (or NO for none)
+mousedtype=NO
+
+############## Next block activated only if mousetype != NO ################
+
+# Set to your mouse port (required)
+mousedport=/dev/cuaa0
+
+# Moused options:
+# -s: 9600 baud mouse
+# -c: enable ChordMiddle
+# see moused usage info for complete options list
+mousedflags=""
+
+######################### End of moused block ##############################
+
 # General Russian setup for example:
 # (koi8-r keyboard with cp866 screen font mapped to koi8-r)
 #
@@ -59,6 +77,9 @@ saver=NO
 # font8x8=cp866-8x8
 # blanktime=600
 # saver=snake
+# mousedtype=mousesystems
+# mousedport=/dev/cuaa0
+# mousedflags=""
 
 ######################### End Of Syscons Section #######################
 
