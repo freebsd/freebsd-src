@@ -586,11 +586,6 @@ ufs_extattr_get(struct vnode *vp, const char *name, struct uio *uio,
 		goto vopunlock_exit;
 	}
 
-	if (ueh.ueh_len < uio->uio_offset) {
-		error = 0;
-		goto vopunlock_exit;
-	}
-
 	/* allow for offset into the attr data */
 	uio->uio_offset = base_offset + sizeof(struct ufs_extattr_header);
 
