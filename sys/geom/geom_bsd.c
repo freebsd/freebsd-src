@@ -142,10 +142,10 @@ g_bsd_modify(struct g_geom *gp, u_char *label)
 			rawoffset = 0;
 	}
 	
-	if (rawoffset != 0 && (off_t)rawoffset * dl.d_secsize != ms->mbroffset)
+	if (rawoffset != 0 && (off_t)rawoffset != ms->mbroffset)
 		printf("WARNING: Expected rawoffset %jd, found %jd\n",
 		    (intmax_t)ms->mbroffset/dl.d_secsize,
-		    (intmax_t)ms->rawoffset);
+		    (intmax_t)rawoffset/dl.d_secsize);
 
 	/* Don't munge open partitions. */
 	for (i = 0; i < dl.d_npartitions; i++) {
