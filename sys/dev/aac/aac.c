@@ -83,7 +83,6 @@ static int	aac_bio_command(struct aac_softc *sc, struct aac_command **cmp);
 static void	aac_bio_complete(struct aac_command *cm);
 static int	aac_wait_command(struct aac_command *cm, int timeout);
 static void	aac_command_thread(struct aac_softc *sc);
-static void	aac_host_response(struct aac_softc *sc);
 
 /* Command Buffer Management */
 static void	aac_map_command_helper(void *arg, bus_dma_segment_t *segs,
@@ -661,7 +660,8 @@ aac_intr(void *arg)
 
 	/* It's not ok to return here because of races with the previous step */
 	if (reason & AAC_DB_RESPONSE_READY)
-		aac_host_response(sc);
+		/* handle completion processing */
+		taskqueue_enqueue(taskqueue_swi, &sc->aac_task_complete);
 
 	/* controller wants to talk to the log */
 	if (reason & AAC_DB_PRINTF) {
@@ -845,43 +845,6 @@ aac_command_thread(struct aac_softc *sc)
 }
 
 /*
- * Handle notification of one or more FIBs completed by the controller
- */
-static void
-aac_host_response(struct aac_softc *sc)
-{
-	struct aac_command *cm;
-	struct aac_fib *fib;
-	u_int32_t fib_size;
-
-	debug_called(2);
-
-	for (;;) {
-		/* look for completed FIBs on our queue */
-		if (aac_dequeue_fib(sc, AAC_HOST_NORM_RESP_QUEUE, &fib_size,
-				    &fib))
-			break;	/* nothing to do */
-	
-		/* get the command, unmap and queue for later processing */
-		cm = (struct aac_command *)fib->Header.SenderData;
-		if (cm == NULL) {
-			AAC_PRINT_FIB(sc, fib);
-		} else {
-			aac_remove_busy(cm);
-			aac_unmap_command(cm);		/* XXX defer? */
-			aac_enqueue_complete(cm);
-		}
-	}
-
-	/* handle completion processing */
-#if __FreeBSD_version >= 500005
-	taskqueue_enqueue(taskqueue_swi, &sc->aac_task_complete);
-#else
-	aac_complete(sc, 0);
-#endif
-}
-
-/*
  * Process completed commands.
  */
 static void
@@ -889,16 +852,29 @@ aac_complete(void *context, int pending)
 {
 	struct aac_softc *sc;
 	struct aac_command *cm;
-	
+	struct aac_fib *fib;
+	u_int32_t fib_size;
+
 	debug_called(2);
 
 	sc = (struct aac_softc *)context;
 
 	/* pull completed commands off the queue */
 	for (;;) {
-		cm = aac_dequeue_complete(sc);
-		if (cm == NULL)
+		/* look for completed FIBs on our queue */
+		if (aac_dequeue_fib(sc, AAC_HOST_NORM_RESP_QUEUE, &fib_size,
+				    &fib))
+			break;	/* nothing to do */
+
+		/* get the command, unmap and queue for later processing */
+		cm = (struct aac_command *)fib->Header.SenderData;
+		if (cm == NULL) {
+			AAC_PRINT_FIB(sc, fib);
 			break;
+		}
+
+		aac_remove_busy(cm);
+		aac_unmap_command(cm);		/* XXX defer? */
 		cm->cm_flags |= AAC_CMD_COMPLETED;
 
 		/* is there a completion handler? */
