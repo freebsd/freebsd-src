@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.9 (Berkeley) 3/30/95
- * $Id: buf.h,v 1.61 1998/11/13 01:01:44 dg Exp $
+ * $Id: buf.h,v 1.62 1999/01/21 08:29:08 dillon Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -365,7 +365,7 @@ void	pbgetvp __P((struct vnode *, struct buf *));
 void	pbrelvp __P((struct buf *));
 int	allocbuf __P((struct buf *bp, int size));
 void	reassignbuf __P((struct buf *, struct vnode *));
-void	bpreassignbuf __P((struct buf *, struct vnode *));
+void	pbreassignbuf __P((struct buf *, struct vnode *));
 struct	buf *trypbuf __P((int *));
 void	vfs_bio_need_satisfy __P((void));
 #endif /* KERNEL */
