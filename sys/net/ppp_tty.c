@@ -70,7 +70,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: ppp_tty.c,v 1.37 1998/06/20 16:39:35 peter Exp $ */
+/* $Id: ppp_tty.c,v 1.38 1999/01/17 20:53:47 peter Exp $ */
 
 #include "ppp.h"
 #if NPPP > 0
@@ -203,7 +203,7 @@ pppopen(dev, tp)
     register struct ppp_softc *sc;
     int error, s;
 
-    if ((error = suser(p->p_ucred, &p->p_acflag)) != 0)
+    if ((error = suser(p)) != 0)
 	return (error);
 
     s = spltty();
@@ -472,7 +472,7 @@ ppptioctl(tp, cmd, data, flag, p)
     error = 0;
     switch (cmd) {
     case PPPIOCSASYNCMAP:
-	if ((error = suser(p->p_ucred, &p->p_acflag)) != 0)
+	if ((error = suser(p)) != 0)
 	    break;
 	sc->sc_asyncmap[0] = *(u_int *)data;
 	break;
@@ -482,7 +482,7 @@ ppptioctl(tp, cmd, data, flag, p)
 	break;
 
     case PPPIOCSRASYNCMAP:
-	if ((error = suser(p->p_ucred, &p->p_acflag)) != 0)
+	if ((error = suser(p)) != 0)
 	    break;
 	sc->sc_rasyncmap = *(u_int *)data;
 	break;
@@ -492,7 +492,7 @@ ppptioctl(tp, cmd, data, flag, p)
 	break;
 
     case PPPIOCSXASYNCMAP:
-	if ((error = suser(p->p_ucred, &p->p_acflag)) != 0)
+	if ((error = suser(p)) != 0)
 	    break;
 	s = spltty();
 	bcopy(data, sc->sc_asyncmap, sizeof(sc->sc_asyncmap));

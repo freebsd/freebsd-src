@@ -1,5 +1,5 @@
 /*-
- *  dgb.c $Id: dgb.c,v 1.43 1999/03/13 13:20:54 joerg Exp $
+ *  dgb.c $Id: dgb.c,v 1.44 1999/04/22 15:19:37 davidn Exp $
  *
  *  Digiboard driver.
  *
@@ -1034,7 +1034,7 @@ open_top:
 			}
 		}
 		if (tp->t_state & TS_XCLUDE &&
-		    suser(p->p_ucred, &p->p_acflag)) {
+		    suser(p)) {
 			error = EBUSY;
 			goto out;
 		}
@@ -1579,7 +1579,7 @@ dgbioctl(dev, cmd, data, flag, p)
 		}
 		switch (cmd) {
 		case TIOCSETA:
-			error = suser(p->p_ucred, &p->p_acflag);
+			error = suser(p);
 			if (error != 0)
 				return (error);
 			*ct = *(struct termios *)data;
@@ -1801,7 +1801,7 @@ dgbioctl(dev, cmd, data, flag, p)
 		break;
 	case TIOCMSDTRWAIT:
 		/* must be root since the wait applies to following logins */
-		error = suser(p->p_ucred, &p->p_acflag);
+		error = suser(p);
 		if (error != 0) {
 			splx(s);
 			return (error);

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)sys_machdep.c	5.5 (Berkeley) 1/19/91
- *	$Id: sys_machdep.c,v 1.3 1998/12/23 11:50:50 dfr Exp $
+ *	$Id: sys_machdep.c,v 1.4 1999/04/23 19:53:38 dt Exp $
  *
  */
 
@@ -109,7 +109,7 @@ alpha_sethae(struct proc *p, char *args)
 	if (securelevel > 0)
 		return (EPERM);
 
-	error = suser(p->p_ucred, &p->p_acflag);
+	error = suser(p);
 	if (error)
 		return (error);
 

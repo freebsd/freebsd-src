@@ -37,7 +37,7 @@
  *
  *	@(#)procfs_mem.c	8.5 (Berkeley) 6/15/94
  *
- *	$Id: procfs_mem.c,v 1.34 1998/07/15 02:32:19 bde Exp $
+ *	$Id: procfs_mem.c,v 1.35 1998/10/28 13:37:00 dg Exp $
  */
 
 /*
@@ -331,7 +331,7 @@ int procfs_kmemaccess(curp)
 	struct ucred *cred;
 
 	cred = curp->p_cred->pc_ucred;
-	if (suser(cred, &curp->p_acflag))
+	if (suser_xxx(cred, &curp->p_acflag))
 		return 1;
 	
 	for (i = 0; i < cred->cr_ngroups; i++)

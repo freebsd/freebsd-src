@@ -1,5 +1,5 @@
 /*-
- *	$Id: dgm.c,v 1.7 1999/01/30 12:17:32 phk Exp $
+ *	$Id: dgm.c,v 1.8 1999/04/11 03:47:24 eivind Exp $
  *
  *  This driver and the associated header files support the ISA PC/Xem
  *  Digiboards.  Its evolutionary roots are described below.
@@ -834,7 +834,7 @@ open_top:
 			}
 		}
 		if (tp->t_state & TS_XCLUDE &&
-		    suser(p->p_ucred, &p->p_acflag)) {
+		    suser(p)) {
 			error = EBUSY;
 			goto out;
 		}
@@ -1378,7 +1378,7 @@ dgmioctl(dev, cmd, data, flag, p)
 		}
 		switch (cmd) {
 		case TIOCSETA:
-			error = suser(p->p_ucred, &p->p_acflag);
+			error = suser(p);
 			if (error != 0)
 				return (error);
 			*ct = *(struct termios *)data;
@@ -1600,7 +1600,7 @@ dgmioctl(dev, cmd, data, flag, p)
 		break;
 	case TIOCMSDTRWAIT:
 		/* must be root since the wait applies to following logins */
-		error = suser(p->p_ucred, &p->p_acflag);
+		error = suser(p);
 		if (error != 0) {
 			splx(s);
 			return (error);

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.c	8.4 (Berkeley) 1/9/95
- *	$Id: in.c,v 1.39 1998/12/07 05:41:10 eivind Exp $
+ *	$Id: in.c,v 1.40 1999/04/24 12:28:51 luigi Exp $
  */
 
 #include <sys/param.h>
@@ -201,7 +201,7 @@ in_control(so, cmd, data, ifp, p)
 	case SIOCSIFADDR:
 	case SIOCSIFNETMASK:
 	case SIOCSIFDSTADDR:
-		if (p && (error = suser(p->p_ucred, &p->p_acflag)) != 0)
+		if (p && (error = suser(p)) != 0)
 			return error;
 
 		if (ifp == 0)
@@ -238,7 +238,7 @@ in_control(so, cmd, data, ifp, p)
 		break;
 
 	case SIOCSIFBRDADDR:
-		if (p && (error = suser(p->p_ucred, &p->p_acflag)) != 0)
+		if (p && (error = suser(p)) != 0)
 			return error;
 		/* FALLTHROUGH */
 

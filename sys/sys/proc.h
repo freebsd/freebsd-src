@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.15 (Berkeley) 5/19/95
- * $Id: proc.h,v 1.77 1999/04/13 19:17:13 peter Exp $
+ * $Id: proc.h,v 1.78 1999/04/23 20:22:42 dt Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -369,6 +369,7 @@ int	roundrobin_interval __P((void));
 void	setrunnable __P((struct proc *));
 void	setrunqueue __P((struct proc *));
 void	sleepinit __P((void));
+int	suser __P((struct proc *));
 void	remrq __P((struct proc *));
 void	cpu_switch __P((struct proc *));
 void	unsleep __P((struct proc *));

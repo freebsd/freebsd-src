@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_shutdown.c,v 1.45 1999/01/30 19:28:30 msmith Exp $
+ * $Id: kern_shutdown.c,v 1.46 1999/01/30 19:29:10 msmith Exp $
  */
 
 #include "opt_ddb.h"
@@ -145,7 +145,7 @@ reboot(p, uap)
 {
 	int error;
 
-	if ((error = suser(p->p_ucred, &p->p_acflag)))
+	if ((error = suser(p)))
 		return (error);
 
 	boot(uap->opt);

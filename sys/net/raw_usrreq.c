@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_usrreq.c	8.1 (Berkeley) 6/10/93
- *	$Id: raw_usrreq.c,v 1.15 1997/09/14 03:10:38 peter Exp $
+ *	$Id: raw_usrreq.c,v 1.16 1997/11/07 08:53:18 phk Exp $
  */
 
 #include <sys/param.h>
@@ -158,7 +158,7 @@ raw_uattach(struct socket *so, int proto, struct proc *p)
 
 	if (rp == 0)
 		return EINVAL;
-	if (p && (error = suser(p->p_ucred, &p->p_acflag)) != 0)
+	if (p && (error = suser(p)) != 0)
 		return error;
 	return raw_attach(so, proto);
 }

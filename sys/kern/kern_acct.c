@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_acct.c	8.1 (Berkeley) 6/14/93
- *	$Id: kern_acct.c,v 1.18 1997/11/06 19:29:07 phk Exp $
+ *	$Id: kern_acct.c,v 1.19 1998/06/05 21:44:19 dg Exp $
  */
 
 #include <sys/param.h>
@@ -119,7 +119,7 @@ acct(a1, uap)
 	int error;
 
 	/* Make sure that the caller is root. */
-	error = suser(p->p_ucred, &p->p_acflag);
+	error = suser(p);
 	if (error)
 		return (error);
 

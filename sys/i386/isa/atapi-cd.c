@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-cd.c,v 1.13 1999/03/31 12:30:58 sos Exp $
+ *	$Id: atapi-cd.c,v 1.14 1999/04/13 19:38:10 peter Exp $
  */
 
 #include "wdc.h"
@@ -678,7 +678,7 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
             			0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0);
 
     case CDIOCRESET:
-        error = suser(p->p_ucred, &p->p_acflag);
+        error = suser(p);
         if (error)
             return (error);
         return acd_request_wait(cdp, ATAPI_TEST_UNIT_READY,

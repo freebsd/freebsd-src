@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.120 1999/03/03 02:35:51 julian Exp $
+ * $Id: vfs_syscalls.c,v 1.121 1999/03/23 14:26:40 phk Exp $
  */
 
 /* For 4.3 integer FS ID compatibility */
@@ -119,20 +119,20 @@ mount(p, uap)
 	struct nameidata nd;
 	char fstypename[MFSNAMELEN];
 
-	if (usermount == 0 && (error = suser(p->p_ucred, &p->p_acflag)))
+	if (usermount == 0 && (error = suser(p)))
 		return (error);
 	/*
 	 * Do not allow NFS export by non-root users.
 	 */
 	if (SCARG(uap, flags) & MNT_EXPORTED) {
-		error = suser(p->p_ucred, &p->p_acflag);
+		error = suser(p);
 		if (error)
 			return (error);
 	}
 	/*
 	 * Silently enforce MNT_NOSUID and MNT_NODEV for non-root users
 	 */
-	if (suser(p->p_ucred, (u_short *)NULL)) 
+	if (suser_xxx(p->p_ucred, (u_short *)NULL)) 
 		SCARG(uap, flags) |= MNT_NOSUID | MNT_NODEV;
 	/*
 	 * Get vnode to be covered
@@ -166,7 +166,7 @@ mount(p, uap)
 		 * permitted to update it.
 		 */
 		if (mp->mnt_stat.f_owner != p->p_ucred->cr_uid &&
-		    (error = suser(p->p_ucred, &p->p_acflag))) {
+		    (error = suser(p))) {
 			vput(vp);
 			return (error);
 		}
@@ -183,7 +183,7 @@ mount(p, uap)
 	 */
 	if ((error = VOP_GETATTR(vp, &va, p->p_ucred, p)) ||
 	    (va.va_uid != p->p_ucred->cr_uid &&
-	     (error = suser(p->p_ucred, &p->p_acflag)))) {
+	     (error = suser(p)))) {
 		vput(vp);
 		return (error);
 	}
@@ -227,7 +227,7 @@ mount(p, uap)
 			return EPERM; 
 		}
 		/* Only load modules for root (very important!) */
-		if ((error = suser(p->p_ucred, &p->p_acflag)) != 0) {
+		if ((error = suser(p)) != 0) {
 			vput(vp);
 			return error;
 		}
@@ -426,7 +426,7 @@ unmount(p, uap)
 	 * permitted to unmount this filesystem.
 	 */
 	if ((mp->mnt_stat.f_owner != p->p_ucred->cr_uid) &&
-	    (error = suser(p->p_ucred, &p->p_acflag))) {
+	    (error = suser(p))) {
 		vput(vp);
 		return (error);
 	}
@@ -631,7 +631,7 @@ statfs(p, uap)
 	if (error)
 		return (error);
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
-	if (suser(p->p_ucred, (u_short *)NULL)) {
+	if (suser_xxx(p->p_ucred, (u_short *)NULL)) {
 		bcopy((caddr_t)sp, (caddr_t)&sb, sizeof(sb));
 		sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
 		sp = &sb;
@@ -671,7 +671,7 @@ fstatfs(p, uap)
 	if (error)
 		return (error);
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
-	if (suser(p->p_ucred, (u_short *)NULL)) {
+	if (suser_xxx(p->p_ucred, (u_short *)NULL)) {
 		bcopy((caddr_t)sp, (caddr_t)&sb, sizeof(sb));
 		sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
 		sp = &sb;
@@ -886,7 +886,7 @@ chroot(p, uap)
 	int error;
 	struct nameidata nd;
 
-	error = suser(p->p_ucred, &p->p_acflag);
+	error = suser(p);
 	if (error)
 		return (error);
 	if (chroot_allow_open_directories == 0 ||
@@ -1076,7 +1076,7 @@ mknod(p, uap)
 	int whiteout = 0;
 	struct nameidata nd;
 
-	error = suser(p->p_ucred, &p->p_acflag);
+	error = suser(p);
 	if (error)
 		return (error);
 	NDINIT(&nd, CREATE, LOCKPARENT, UIO_USERSPACE, SCARG(uap, path), p);
@@ -2977,7 +2977,7 @@ revoke(p, uap)
 	if ((error = VOP_GETATTR(vp, &vattr, p->p_ucred, p)) != 0)
 		goto out;
 	if (p->p_ucred->cr_uid != vattr.va_uid &&
-	    (error = suser(p->p_ucred, &p->p_acflag)))
+	    (error = suser(p)))
 		goto out;
 	if (vp->v_usecount > 1 || (vp->v_flag & VALIASED))
 		VOP_REVOKE(vp, REVOKEALL);

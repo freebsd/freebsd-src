@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: stallion.c,v 1.25 1999/01/30 12:17:34 phk Exp $
+ * $Id: stallion.c,v 1.26 1999/04/24 20:17:04 peter Exp $
  */
 
 /*****************************************************************************/
@@ -830,7 +830,7 @@ stlopen_restart:
 			}
 		}
 		if ((tp->t_state & TS_XCLUDE) &&
-		    suser(p->p_ucred, &p->p_acflag)) {
+		    suser(p)) {
 			error = EBUSY;
 			goto stlopen_end;
 		}
@@ -1013,7 +1013,7 @@ STATIC int stlioctl(dev_t dev, unsigned long cmd, caddr_t data, int flag,
 
 		switch (cmd) {
 		case TIOCSETA:
-			if ((error = suser(p->p_ucred, &p->p_acflag)) == 0)
+			if ((error = suser(p)) == 0)
 				*localtios = *((struct termios *) data);
 			break;
 		case TIOCGETA:
@@ -1131,7 +1131,7 @@ STATIC int stlioctl(dev_t dev, unsigned long cmd, caddr_t data, int flag,
 		*((int *) data) = (stl_getsignals(portp) | TIOCM_LE);
 		break;
 	case TIOCMSDTRWAIT:
-		if ((error = suser(p->p_ucred, &p->p_acflag)) == 0)
+		if ((error = suser(p)) == 0)
 			portp->dtrwait = *((int *) data) * hz / 100;
 		break;
 	case TIOCMGDTRWAIT:

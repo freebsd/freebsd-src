@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)sys_machdep.c	5.5 (Berkeley) 1/19/91
- *	$Id: sys_machdep.c,v 1.38 1998/12/07 21:58:19 archie Exp $
+ *	$Id: sys_machdep.c,v 1.39 1999/01/28 01:59:50 dillon Exp $
  *
  */
 
@@ -185,7 +185,7 @@ i386_set_ioperm(p, args)
 	if ((error = copyin(args, &ua, sizeof(struct i386_ioperm_args))) != 0)
 		return (error);
 
-        if ((error = suser(p->p_ucred, &p->p_acflag)) != 0)
+        if ((error = suser(p)) != 0)
                 return (error);
 	if (securelevel > 0)
 		return (EPERM);

@@ -275,7 +275,7 @@ fd_revoke(p, fd)
 		goto out;
 
 	if (p->p_ucred->cr_uid != vattr.va_uid &&
-	    (error = suser(p->p_ucred, &p->p_acflag)) != 0)
+	    (error = suser(p)) != 0)
 		goto out;
 
 	if (vp->v_usecount > 1 || (vp->v_flag & VALIASED))

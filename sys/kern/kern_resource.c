@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_resource.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_resource.c,v 1.44 1999/03/11 21:53:12 bde Exp $
+ * $Id: kern_resource.c,v 1.45 1999/03/13 19:46:12 bde Exp $
  */
 
 #include "opt_compat.h"
@@ -202,7 +202,7 @@ donice(curp, chgp, n)
 		n = PRIO_MAX;
 	if (n < PRIO_MIN)
 		n = PRIO_MIN;
-	if (n < chgp->p_nice && suser(pcred->pc_ucred, &curp->p_acflag))
+	if (n < chgp->p_nice && suser_xxx(pcred->pc_ucred, &curp->p_acflag))
 		return (EACCES);
 	chgp->p_nice = n;
 	(void)resetpriority(chgp);
@@ -254,7 +254,7 @@ rtprio(curp, uap)
 		    pcred->p_ruid != p->p_ucred->cr_uid)
 		        return (EPERM);
 		/* disallow setting rtprio in most cases if not superuser */
-		if (suser(pcred->pc_ucred, &curp->p_acflag)) {
+		if (suser_xxx(pcred->pc_ucred, &curp->p_acflag)) {
 			/* can't set someone else's */
 			if (uap->pid)
 				return (EPERM);
@@ -387,7 +387,7 @@ dosetrlimit(p, which, limp)
 
 	if (limp->rlim_cur > alimp->rlim_max ||
 	    limp->rlim_max > alimp->rlim_max)
-		if ((error = suser(p->p_ucred, &p->p_acflag)))
+		if ((error = suser(p)))
 			return (error);
 	if (limp->rlim_cur > limp->rlim_max)
 		limp->rlim_cur = limp->rlim_max;

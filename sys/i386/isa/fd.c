@@ -47,7 +47,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.134 1999/04/06 03:06:51 peter Exp $
+ *	$Id: fd.c,v 1.135 1999/04/16 21:22:19 peter Exp $
  *
  */
 
@@ -2299,7 +2299,7 @@ fdioctl(dev, cmd, addr, flag, p)
 
 	case FD_STYPE:                  /* set drive type */
 		/* this is considered harmful; only allow for superuser */
-		if (suser(p->p_ucred, &p->p_acflag) != 0)
+		if (suser(p) != 0)
 			return EPERM;
 		*fd->ft = *(struct fd_type *)addr;
 		break;

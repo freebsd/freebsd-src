@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.85 1999/01/30 12:17:33 phk Exp $
+ *	$Id: cy.c,v 1.86 1999/02/04 15:54:02 bde Exp $
  */
 
 #include "opt_compat.h"
@@ -718,7 +718,7 @@ open_top:
 			}
 		}
 		if (tp->t_state & TS_XCLUDE &&
-		    suser(p->p_ucred, &p->p_acflag)) {
+		    suser(p)) {
 			error = EBUSY;
 			goto out;
 		}
@@ -1623,7 +1623,7 @@ sioioctl(dev, cmd, data, flag, p)
 		}
 		switch (cmd) {
 		case TIOCSETA:
-			error = suser(p->p_ucred, &p->p_acflag);
+			error = suser(p);
 			if (error != 0)
 				return (error);
 			*ct = *(struct termios *)data;
@@ -1722,7 +1722,7 @@ sioioctl(dev, cmd, data, flag, p)
 		break;
 	case TIOCMSDTRWAIT:
 		/* must be root since the wait applies to following logins */
-		error = suser(p->p_ucred, &p->p_acflag);
+		error = suser(p);
 		if (error != 0) {
 			splx(s);
 			return (error);

@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.18 (Berkeley) 5/21/95
  *
- *	$Id: procfs_vnops.c,v 1.63 1999/01/05 03:53:06 peter Exp $
+ *	$Id: procfs_vnops.c,v 1.64 1999/01/27 22:42:07 dillon Exp $
  */
 
 /*
@@ -246,12 +246,12 @@ procfs_ioctl(ap)
 	  break;
 	case PIOCSFL:
 	  /*
-	   * NFLAGS is "non-suser flags" -- currently, only
+	   * NFLAGS is "non-suser_xxx flags" -- currently, only
 	   * PFS_ISUGID ("ignore set u/g id");
 	   */
 #define NFLAGS	(PF_ISUGID)
 	  flags = (unsigned char)*(unsigned int*)ap->a_data;
-	  if (flags & NFLAGS && (error = suser(p->p_ucred, &p->p_acflag)))
+	  if (flags & NFLAGS && (error = suser(p)))
 	    return error;
 	  procp->p_pfsflags = flags;
 	  break;
