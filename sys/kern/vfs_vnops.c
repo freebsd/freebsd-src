@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_vnops.c	8.2 (Berkeley) 1/21/94
- * $Id: vfs_vnops.c,v 1.4 1994/08/18 03:53:38 davidg Exp $
+ * $Id: vfs_vnops.c,v 1.5 1994/10/02 17:35:40 phk Exp $
  */
 
 #include <sys/param.h>
@@ -152,6 +152,30 @@ vn_open(ndp, fmode, cmode)
 		goto bad;
 	if (fmode & FWRITE)
 		vp->v_writecount++;
+	/*
+	 * this is here for VMIO support
+	 */
+	if( vp->v_type == VREG) {
+		vm_object_t object;
+		vm_pager_t pager;
+		if( (vp->v_flag & VVMIO) == 0) {
+			pager = (vm_pager_t) vnode_pager_alloc(vp, 0, 0, 0);
+			object = (vm_object_t) vp->v_vmdata;
+			if( object->pager != pager)
+				panic("ufs_open: pager/object mismatch");
+			(void) vm_object_lookup( pager);
+			pager_cache( object, TRUE);
+			vp->v_flag |= VVMIO;
+		} else {
+			object = (vm_object_t) vp->v_vmdata;
+			if( !object)
+				panic("ufs_open: VMIO object missing");
+			pager = object->pager;
+			if( !pager)
+				panic("ufs_open: VMIO pager missing");
+			(void) vm_object_lookup( pager);
+		}
+	}
 	return (0);
 bad:
 	vput(vp);
@@ -206,6 +230,15 @@ vn_close(vp, flags, cred, p)
 	if (flags & FWRITE)
 		vp->v_writecount--;
 	error = VOP_CLOSE(vp, flags, cred, p);
+	/*
+	 * this code is here for VMIO support, will eventually
+	 * be in vfs code.
+	 */
+	if (vp->v_flag & VVMIO) {
+		if( vp->v_vmdata == NULL)
+			panic("ufs_close: VMIO object missing");
+		vm_object_deallocate( (vm_object_t) vp->v_vmdata);
+	}
 	vrele(vp);
 	return (error);
 }

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.7 (Berkeley) 1/21/94
- * $Id: buf.h,v 1.6 1994/08/18 22:35:40 wollman Exp $
+ * $Id: buf.h,v 1.7 1994/09/25 19:33:59 phk Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -82,7 +82,12 @@ struct buf {
 	void	*b_driver1;		/* for private use by the driver */
 	void	*b_driver2;		/* for private use by the driver */
 	void	*b_spc;
-
+#ifndef VMIO
+	void	*b_pages[(MAXBSIZE + PAGE_SIZE - 1)/PAGE_SIZE];
+#else
+	vm_page_t	b_pages[(MAXBSIZE + PAGE_SIZE - 1)/PAGE_SIZE];
+#endif
+	int		b_npages;
 };
 
 /* Device driver compatibility definitions. */
@@ -122,6 +127,7 @@ struct buf {
 #define	B_WRITE		0x00000000	/* Write buffer (pseudo flag). */
 #define	B_WRITEINPROG	0x01000000	/* Write in progress. */
 #define	B_XXX		0x02000000	/* Debugging flag. */
+#define B_VMIO		0x20000000	/* VMIO flag */
 #define B_CLUSTER	0x40000000	/* pagein op, so swap() can count it */
 #define B_BOUNCE	0x80000000	/* bounce buffer flag */
 

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.9 1994/09/25 19:33:52 phk Exp $
+ * $Id: vfs_subr.c,v 1.10 1994/10/02 17:35:38 phk Exp $
  */
 
 /*
@@ -491,7 +491,10 @@ vinvalbuf(vp, flags, cred, p, slpflag, slptimeo)
 		}
 	}
 
-	pager = (vm_pager_t)vp->v_vmdata;
+	pager = NULL;
+	object = (vm_object_t)vp->v_vmdata;
+	if( object != NULL)
+		pager = object->pager;
 	if (pager != NULL) {
 		object = vm_object_lookup(pager);
 		if (object) {
