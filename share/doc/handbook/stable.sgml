@@ -1,4 +1,4 @@
-<!-- $Id: stable.sgml,v 1.2 1996/05/16 23:18:19 mpp Exp $ -->
+<!-- $Id: stable.sgml,v 1.3 1996/07/04 01:44:32 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 
@@ -10,7 +10,7 @@
 
                         THE FREEBSD STABLE POLICY 
 
-Last updated: $Date: 1996/05/16 23:18:19 $
+Last updated: $Date: 1996/07/04 01:44:32 $
 
 This document attempts to explain the rationale behind
 FreeBSD-stable, what you should expect should you decide to run it,
@@ -69,7 +69,7 @@ next section).
             have a good TCP/IP connection at a flat rate, this is 
             the way to do it.
 
-        <item>  Use the CMU <ref id="sup"> program (Software Update
+        <item>  Use the CMU <ref id="sup" name="sup"> program (Software Update
 	     Protocol).
             This is the second most recommended method, since it allows 
 	    you to grab the entire collection once and then only what has
