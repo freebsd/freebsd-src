@@ -59,6 +59,7 @@ struct ip6_fw {
     u_short fw_number;			/* Rule number */
     u_short fw_flg;			/* Flags word */
 #define IPV6_FW_MAX_PORTS	10	/* A reasonable maximum */
+    u_int fw_ipflg;			/* IP flags word */
     u_short fw_pts[IPV6_FW_MAX_PORTS];	/* Array of port numbers to match */
     u_char fw_ip6opt,fw_ip6nopt;	/* IPv6 options set/unset */
     u_char fw_tcpf,fw_tcpnf;		/* TCP flags set/unset */
@@ -137,6 +138,11 @@ struct ip6_fw_chain {
 
 #define IPV6_FW_F_MASK	0xFFFF	/* All possible flag bits mask		*/
 
+/* 
+ * Flags for the 'fw_ipflg' field, for comparing values of ip and its protocols. */
+#define	IPV6_FW_IF_TCPEST 0x00000020	/* established TCP connection	*/
+#define IPV6_FW_IF_TCPMSK 0x00000020	/* mask of all TCP values */
+
 /*
  * For backwards compatibility with rules specifying "via iface" but
  * not restricted to only "in" or "out" packets, we define this combination
@@ -171,7 +177,6 @@ struct ip6_fw_chain {
 #define IPV6_FW_TCPF_PSH	TH_PUSH
 #define IPV6_FW_TCPF_ACK	TH_ACK
 #define IPV6_FW_TCPF_URG	TH_URG
-#define IPV6_FW_TCPF_ESTAB	0x40
 
 /*
  * Main firewall chains definitions and global var's definitions.

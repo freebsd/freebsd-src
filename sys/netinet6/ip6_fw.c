@@ -149,9 +149,15 @@ tcp6flg_match(struct tcphdr *tcp6, struct ip6_fw *f)
 {
 	u_char		flg_set, flg_clr;
 	
-	if ((f->fw_tcpf & IPV6_FW_TCPF_ESTAB) &&
-	    (tcp6->th_flags & (IPV6_FW_TCPF_RST | IPV6_FW_TCPF_ACK)))
-		return 1;
+	/*
+	 * If an established connection is required, reject packets that
+	 * have only SYN of RST|ACK|SYN set.  Otherwise, fall through to
+	 * other flag requirements.
+	 */
+	if ((f->fw_ipflg & IPV6_FW_IF_TCPEST) &&
+	    ((tcp6->th_flags & (IPV6_FW_TCPF_RST | IPV6_FW_TCPF_ACK |
+	    IPV6_FW_TCPF_SYN)) == IPV6_FW_TCPF_SYN))
+		return 0;
 
 	flg_set = tcp6->th_flags & f->fw_tcpf;
 	flg_clr = tcp6->th_flags & f->fw_tcpnf;
@@ -571,7 +577,9 @@ ip6_fw_chk(struct ip6_hdr **pip6,
 			}
 			PULLUP_TO(off + 14);
 			tcp6 = (struct tcphdr *) ((caddr_t)ip6 + off);
-			if (f->fw_tcpf != f->fw_tcpnf && !tcp6flg_match(tcp6, f))
+			if (((f->fw_tcpf != f->fw_tcpnf) ||
+			   (f->fw_ipflg & IPV6_FW_IF_TCPEST))  &&
+			   !tcp6flg_match(tcp6, f))
 				continue;
 			src_port = ntohs(tcp6->th_sport);
 			dst_port = ntohs(tcp6->th_dport);
