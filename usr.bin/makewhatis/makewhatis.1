@@ -1,0 +1,133 @@
+.\" Copyright (c) 2002 John Rochester
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 12, 2002
+.Dt MAKEWHATIS 1
+.Os
+.Sh NAME
+.Nm makewhatis
+.Nd "create whatis database"
+.Sh SYNOPSIS
+.Nm
+.Op Fl a
+.Op Fl i Ar column
+.Op Fl n Ar name
+.Op Fl o Ar file
+.Op Fl v
+.Op Fl L
+.Op Ar directories ...
+.Sh DESCRIPTION
+The
+.Nm
+utility collects the names and short descriptions from all the unformatted
+man pages in the
+.Ar directories
+and puts them into a file used by the
+.Xr whatis 1
+and
+.Xr apropos 1
+commands.
+Directories may be separated by colons instead of spaces.
+If no
+.Ar directories
+are specified, the contents of the
+.Ev MANPATH
+environment variable will be used, or if that is not set, the default directory
+.Pa /usr/share/man
+will be processed.
+.Pp
+The options are as follows:
+.Bl -tag -width ".Fl i Ar column"
+.It Fl a
+Appends to the output file(s) instead of replacing them.
+The output
+will be sorted with duplicate lines removed, but may have obsolete
+entries.
+.It Fl i Ar column
+Indents the description by
+.Ar column
+characters.
+The default value is 24.
+.It Fl n Ar name
+Uses
+.Ar name
+instead of
+.Pa whatis .
+.It Fl o Ar file
+Outputs all lines to the
+.Ar file
+instead of
+.Pa */man/whatis .
+.It Fl v
+Makes
+.Nm
+more verbose about what it is doing.
+.It Fl L
+Process only localized subdirectories corresponding to the locale specified
+in the standard environment variables.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width ".Ev MANPATH"
+.It Ev LC_ALL , LC_CTYPE , LANG
+These variables control what subdirectories will be processed if the
+.Fl L
+option is used.
+.It Ev MACHINE
+If set, its value is used to override the current
+machine type when searching machine specific subdirectories.
+.It Ev MANPATH
+Determines the set of directories to be processed if none are given on
+the command line.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /usr/share/man" -compact
+.It Pa /usr/share/man
+Default directory to process if the
+.Ev MANPATH
+environment variable is not set.
+.It Pa */man/whatis
+The default output file.
+.El
+.Sh DIAGNOSTICS
+.Ex -std
+.Sh SEE ALSO
+.Xr apropos 1 ,
+.Xr whatis 1
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Fx 2.1 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+program was originally written in Perl and was contributed by
+.An Wolfram Schneider .
+The current version of
+.Nm
+was rewritten in C by
+.An John Rochester .

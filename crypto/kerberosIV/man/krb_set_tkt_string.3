@@ -1,0 +1,42 @@
+.\" $Id: krb_set_tkt_string.3,v 1.2 1996/06/12 21:29:24 bg Exp $
+.\" Copyright 1989 by the Massachusetts Institute of Technology.
+.\"
+.\" For copying and distribution information,
+.\" please see the file <mit-copyright.h>.
+.\"
+.TH KRB_SET_TKT_STRING 3 "Kerberos Version 4.0" "MIT Project Athena"
+.SH NAME
+krb_set_tkt_string \- set Kerberos ticket cache file name
+.SH SYNOPSIS
+.nf
+.nj
+.ft B
+#include <krb.h>
+.PP
+.ft B
+void krb_set_tkt_string(filename)
+char *filename;
+.fi
+.ft R
+.SH DESCRIPTION
+.I krb_set_tkt_string
+sets the name of the file that holds the user's
+cache of Kerberos server tickets and associated session keys.
+.PP
+The string 
+.I filename
+passed in is copied into local storage.
+Only MAXPATHLEN-1 (see <sys/param.h>) characters of the filename are
+copied in for use as the cache file name.
+.PP
+This routine should be called during initialization, before other
+Kerberos routines are called; otherwise the routines which fetch the
+ticket cache file name may be called and return an undesired ticket file
+name until this routine is called.
+.SH FILES
+.TP 20n
+/tmp/tkt[uid]
+default ticket file name, unless the environment variable KRBTKFILE is set.
+[uid] denotes the user's uid, in decimal.
+.SH SEE ALSO
+kerberos(3), setenv(3)

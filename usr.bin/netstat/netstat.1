@@ -1,0 +1,447 @@
+.\" Copyright (c) 1983, 1990, 1992, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)netstat.1	8.8 (Berkeley) 4/18/94
+.\" $FreeBSD$
+.\"
+.Dd September 7, 2001
+.Dt NETSTAT 1
+.Os
+.Sh NAME
+.Nm netstat
+.Nd show network status
+.Sh DESCRIPTION
+The
+.Nm
+command symbolically displays the contents of various network-related
+data structures.
+There are a number of output formats,
+depending on the options for the information presented.
+.Bl -tag -width indent
+.It Xo
+.Bk -words
+.Nm
+.Op Fl AaLlnSW
+.Op Fl f Ar protocol_family | Fl p Ar protocol
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Ek
+.Xc
+Display a list of active sockets
+(protocol control blocks)
+for each network protocol,
+for a particular
+.Ar protocol_family ,
+or for a single
+.Ar protocol .
+If
+.Fl A
+is also present,
+show the address of a protocol control block (PCB)
+associated with a socket; used for debugging.
+If
+.Fl a
+is also present,
+show the state of all sockets;
+normally sockets used by server processes are not shown.
+If
+.Fl L
+is also present,
+show the size of the various listen queues.
+The first count shows the number of unaccepted connections,
+the second count shows the amount of unaccepted incomplete connections,
+and the third count is the maximum number of queued connections.
+If
+.Fl S
+is also present,
+show network addresses as numbers (as with
+.Fl n )
+but show ports symbolically.
+.It Xo
+.Bk -words
+.Nm
+.Fl i | I Ar interface
+.Op Fl abdnt
+.Op Fl f Ar address_family
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Ek
+.Xc
+Show the state of all network interfaces or a single
+.Ar interface
+which have been auto-configured
+(interfaces statically configured into a system, but not
+located at boot time are not shown).
+An asterisk
+.Pq Dq Li *
+after an interface name indicates that the interface is
+.Dq down .
+If
+.Fl a
+is also present, multicast addresses currently in use are shown
+for each Ethernet interface and for each IP interface address.
+Multicast addresses are shown on separate lines following the interface
+address with which they are associated.
+If
+.Fl b
+is also present, show the number of bytes in and out.
+If
+.Fl d
+is also present, show the number of dropped packets.
+If
+.Fl t
+is also present, show the contents of watchdog timers.
+If
+.Fl W
+is also present, print interface names using a wider field size.
+.It Xo
+.Bk -words
+.Nm
+.Fl w Ar wait
+.Op Fl I Ar interface
+.Op Fl d
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Ek
+.Xc
+At intervals of
+.Ar wait
+seconds,
+display the information regarding packet
+traffic on all configured network interfaces
+or a single
+.Ar interface .
+If
+.Fl d
+is also present, show the number of dropped packets.
+.It Xo
+.Bk -words
+.Nm
+.Fl s Op Fl s
+.Op Fl z
+.Op Fl f Ar protocol_family | Fl p Ar protocol
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Ek
+.Xc
+Display system-wide statistics for each network protocol,
+for a particular
+.Ar protocol_family ,
+or for a single
+.Ar protocol .
+If
+.Fl s
+is repeated, counters with a value of zero are suppressed.
+If
+.Fl z
+is also present, reset statistic counters after displaying them.
+.It Xo
+.Bk -words
+.Nm
+.Fl i | I Ar interface Fl s
+.Op Fl f Ar protocol_family | Fl p Ar protocol
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Ek
+.Xc
+Display per-interface statistics for each network protocol,
+for a particular
+.Ar protocol_family ,
+or for a single
+.Ar protocol .
+.It Xo
+.Bk -words
+.Nm
+.Fl m
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Ek
+.Xc
+Show statistics recorded by the memory management routines
+.Pq Xr mbuf 9 .
+The network manages a private pool of memory buffers.
+.It Xo
+.Bk -words
+.Nm
+.Fl r
+.Op Fl AalnW
+.Op Fl f Ar address_family
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Ek
+.Xc
+Display the contents of all routing tables,
+or a routing table for a particular
+.Ar address_family .
+If
+.Fl A
+is also present,
+show the contents of the internal Patricia tree
+structures; used for debugging.
+If
+.Fl a
+is also present,
+show protocol-cloned routes
+(routes generated by an
+.Dv RTF_PRCLONING
+parent route);
+normally these routes are not shown.
+When
+.Fl W
+or
+.Fl l
+is also present,
+show the path MTU
+for each route,
+and print interface
+names with a wider
+field size.
+.It Xo
+.Bk -words
+.Nm
+.Fl rs
+.Op Fl s
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Ek
+.Xc
+Display routing statistics.
+If
+.Fl s
+is repeated, counters with a value of zero are suppressed.
+.It Xo
+.Bk -words
+.Nm
+.Fl g
+.Op Fl lW
+.Op Fl f Ar address_family
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Ek
+.Xc
+Show information related to multicast (group address) routing.
+By default, show the IP Multicast virtual-interface and routing tables.
+.It Xo
+.Bk -words
+.Nm
+.Fl gs
+.Op Fl s
+.Op Fl f Ar address_family
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Ek
+.Xc
+Show multicast routing statistics.
+If
+.Fl s
+is repeated, counters with a value of zero are suppressed.
+.El
+.Pp
+Some options have the general meaning:
+.Bl -tag -width flag
+.It Fl f Ar address_family , Fl p Ar protocol
+Limit display to those records
+of the specified
+.Ar address_family
+or a single
+.Ar protocol .
+The following address families and protocols are recognized:
+.Pp
+.Bl -tag -width ".Cm netgraph , ng Pq Dv AF_NETGRAPH" -compact
+.It Em Family
+.Em Protocols
+.It Cm inet Pq Dv AF_INET
+.Cm bdg , divert , icmp , igmp , ip , ipsec , pim , tcp , udp
+.It Cm inet6 Pq Dv AF_INET6
+.Cm bdg , icmp6 , ip6 , ipsec6 , rip6 , tcp , udp
+.It Cm pfkey Pq Dv PF_KEY
+.Cm pfkey
+.It Cm atalk Pq Dv AF_APPLETALK
+.Cm ddp
+.It Cm netgraph , ng Pq Dv AF_NETGRAPH
+.Cm ctrl , data
+.It Cm ipx Pq Dv AF_IPX
+.Cm ipx , spx
+.\".It Cm ns Pq Dv AF_NS
+.\".Cm idp , ns_err , spp
+.\".It Cm iso Pq Dv AF_ISO
+.\".Cm clnp , cltp , esis , tp
+.It Cm unix Pq Dv AF_UNIX
+.It Cm link Pq Dv AF_LINK
+.El
+.Pp
+The program will complain if
+.Ar protocol
+is unknown or if there is no statistics routine for it.
+.It Fl l
+The
+.Fl l
+option is equivalent to
+.Fl W .
+.It Fl M
+Extract values associated with the name list from the specified core
+instead of the default
+.Pa /dev/kmem .
+.It Fl N
+Extract the name list from the specified system instead of the default,
+which is the kernel image the system has booted from.
+.It Fl n
+Show network addresses and ports as numbers.
+Normally
+.Nm
+attempts to resolve addresses and ports,
+and display them symbolically.
+.It Fl W
+In certain displays, avoid truncating addresses even if this causes
+some fields to overflow.
+.El
+.Pp
+The default display, for active sockets, shows the local
+and remote addresses, send and receive queue sizes (in bytes), protocol,
+and the internal state of the protocol.
+Address formats are of the form
+.Dq host.port
+or
+.Dq network.port
+if a socket's address specifies a network but no specific host address.
+When known, the host and network addresses are displayed symbolically
+according to the databases
+.Xr hosts 5
+and
+.Xr networks 5 ,
+respectively.
+If a symbolic name for an address is unknown, or if
+the
+.Fl n
+option is specified, the address is printed numerically, according
+to the address family.
+For more information regarding
+the Internet IPv4
+.Dq dot format ,
+refer to
+.Xr inet 3 .
+Unspecified,
+or
+.Dq wildcard ,
+addresses and ports appear as
+.Dq Li * .
+.Pp
+The interface display provides a table of cumulative
+statistics regarding packets transferred, errors, and collisions.
+The network addresses of the interface
+and the maximum transmission unit
+.Pq Dq mtu
+are also displayed.
+.Pp
+The routing table display indicates the available routes and their status.
+Each route consists of a destination host or network, and a gateway to use
+in forwarding packets.
+The flags field shows a collection of information about the route stored
+as binary choices.
+The individual flags are discussed in more detail in the
+.Xr route 8
+and
+.Xr route 4
+manual pages.
+The mapping between letters and flags is:
+.Bl -column ".Li W" ".Dv RTF_WASCLONED"
+.It Li 1 Ta Dv RTF_PROTO1 Ta "Protocol specific routing flag #1"
+.It Li 2 Ta Dv RTF_PROTO2 Ta "Protocol specific routing flag #2"
+.It Li 3 Ta Dv RTF_PROTO3 Ta "Protocol specific routing flag #3"
+.It Li B Ta Dv RTF_BLACKHOLE Ta "Just discard pkts (during updates)"
+.It Li b Ta Dv RTF_BROADCAST Ta "The route represents a broadcast address"
+.It Li C Ta Dv RTF_CLONING Ta "Generate new routes on use"
+.It Li c Ta Dv RTF_PRCLONING Ta "Protocol-specified generate new routes on use"
+.It Li D Ta Dv RTF_DYNAMIC Ta "Created dynamically (by redirect)"
+.It Li G Ta Dv RTF_GATEWAY Ta "Destination requires forwarding by intermediary"
+.It Li H Ta Dv RTF_HOST Ta "Host entry (net otherwise)"
+.It Li L Ta Dv RTF_LLINFO Ta "Valid protocol to link address translation"
+.It Li M Ta Dv RTF_MODIFIED Ta "Modified dynamically (by redirect)"
+.It Li R Ta Dv RTF_REJECT Ta "Host or net unreachable"
+.It Li S Ta Dv RTF_STATIC Ta "Manually added"
+.It Li U Ta Dv RTF_UP Ta "Route usable"
+.It Li W Ta Dv RTF_WASCLONED Ta "Route was generated as a result of cloning"
+.It Li X Ta Dv RTF_XRESOLVE Ta "External daemon translates proto to link address"
+.El
+.Pp
+Direct routes are created for each
+interface attached to the local host;
+the gateway field for such entries shows the address of the outgoing interface.
+The refcnt field gives the
+current number of active uses of the route.
+Connection oriented
+protocols normally hold on to a single route for the duration of
+a connection while connectionless protocols obtain a route while sending
+to the same destination.
+The use field provides a count of the number of packets
+sent using that route.
+The interface entry indicates the network interface utilized for the route.
+.Pp
+When
+.Nm
+is invoked with the
+.Fl w
+option and a
+.Ar wait
+interval argument, it displays a running count of statistics related to
+network interfaces.
+An obsolescent version of this option used a numeric parameter
+with no option, and is currently supported for backward compatibility.
+By default, this display summarizes information for all interfaces.
+Information for a specific interface may be displayed with the
+.Fl I
+option.
+.Sh SEE ALSO
+.Xr fstat 1 ,
+.Xr nfsstat 1 ,
+.Xr ps 1 ,
+.Xr sockstat 1 ,
+.Xr inet 4 ,
+.Xr route 4 ,
+.Xr unix 4 ,
+.Xr hosts 5 ,
+.Xr networks 5 ,
+.Xr protocols 5 ,
+.Xr services 5 ,
+.Xr iostat 8 ,
+.Xr route 8 ,
+.Xr trpt 8 ,
+.Xr vmstat 8 ,
+.Xr mbuf 9
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.2 .
+.Pp
+IPv6 support was added by WIDE/KAME project.
+.Sh BUGS
+The notion of errors is ill-defined.

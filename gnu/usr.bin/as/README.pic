@@ -1,0 +1,25 @@
+A few short notes on PIC support.
+
+. References to the symbol "_GLOBAL_OFFSET_TABLE_" are special. These always
+  PC relative to the start of the current instruction. Also, they occur
+  in "complex" expressions in function prologs, eg.
+
+	move	_GLOBAL_OFFSET_TABLE_ + (. - L1 ), %some_register
+
+  The expression parser can't handle these generically, so the expression
+  above is recognised as a special case.
+
+. Some archs have special PIC assembler syntax to reference static and global
+  data. This is handled in targ-cpu.c.
+
+. Correct relocation_info must be output (eg. fields r_jmptable and r_baserel).
+
+. Internal labels must be output in the symbol table if they are referred to
+  by PIC instructions. The linker must allocate a GOT slot for them.
+ 
+. The former meaning of the -k switch ("WORKING_DOT" stuff), has been nuked
+  in favour of enabling PIC code recognition.
+
+
+-pk
+

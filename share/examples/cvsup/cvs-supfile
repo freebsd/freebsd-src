@@ -1,0 +1,188 @@
+# $FreeBSD$
+#
+# This file contains all of the "CVSup collections" that make up the
+# CVS development tree of the FreeBSD system.
+#
+# CVSup (CVS Update Protocol) allows you to download the latest CVS
+# tree (or any branch of development therefrom) to your system easily
+# and efficiently (far more so than with sup, which CVSup is aimed
+# at replacing).  If you're running CVSup interactively, and are
+# currently using an X display server, you should run CVSup as follows
+# to keep your CVS tree up-to-date:
+#
+#	cvsup cvs-supfile
+#
+# If not running X, or invoking cvsup from a non-interactive script, then
+# run it as follows:
+#
+#	cvsup -g -L 2 cvs-supfile
+#
+# You may wish to change some of the settings in this file to better
+# suit your system:
+#
+# host=CHANGE_THIS.FreeBSD.org
+#		This specifies the server host which will supply the
+#		file updates.  You must change it to one of the CVSup
+#		mirror sites listed in the FreeBSD Handbook at
+#		http://www.freebsd.org/doc/handbook/mirrors.html.
+#		You can	override this setting on the command line
+#		with cvsup's "-h host" option.
+#
+# base=/usr
+#		This specifies the root where CVSup will store information
+#		about the collections you have transferred to your system.
+#		A setting of "/usr" will generate this information in
+#		/usr/sup.  Even if you are CVSupping a large number of
+#		collections, you will be hard pressed to generate more than
+#		~1MB of data in this directory.  You can override the
+#		"base" setting on the command line with cvsup's "-b base"
+#		option.  This directory must exist in order to run CVSup.
+#
+# prefix=/home/ncvs
+#		This specifies where to place the requested files.  A
+#		setting of "/home/ncvs" will place all of the files
+#		requested in /home/ncvs (e.g., "/home/ncvs/src/bin",
+#		"/home/ncvs/ports/archivers").  The prefix directory
+#		must exist in order to run CVSup.
+
+# Defaults that apply to all the collections
+#
+# IMPORTANT: Change the next line to use one of the CVSup mirror sites
+# listed at http://www.freebsd.org/doc/handbook/mirrors.html.
+*default host=CHANGE_THIS.FreeBSD.org
+*default base=/usr
+*default prefix=/home/ncvs
+*default release=cvs
+*default delete use-rel-suffix
+
+# If your network link is a T1 or faster, comment out the following line.
+*default compress
+
+## Main Source Tree.
+#
+# The easiest way to get the main source tree is to use the "src-all"
+# mega-collection.  It includes all of the individual "src-*" collections.
+src-all
+
+# These are the individual collections that make up "src-all".  If you
+# use these, be sure to comment out "src-all" above.
+#src-base
+#src-bin
+#src-contrib
+#src-etc
+#src-games
+#src-gnu
+#src-include
+#src-kerberos5
+#src-kerberosIV
+#src-lib
+#src-libexec
+#src-release
+#src-sbin
+#src-share
+#src-sys
+#src-tools
+#src-usrbin
+#src-usrsbin
+# These are the individual collections that make up FreeBSD's crypto
+# collection. They are no longer export-restricted and are a part of
+# src-all
+#src-crypto
+#src-eBones
+#src-secure
+#src-sys-crypto
+
+## Ports Collection.
+#
+# The easiest way to get the ports tree is to use the "ports-all"
+# mega-collection.  It includes all of the individual "ports-*"
+# collections,
+ports-all
+
+# These are the individual collections that make up "ports-all".  If you
+# use these, be sure to comment out "ports-all" above and always include
+# "ports-base" if you use any of the other individual collections below.
+# Your ports may not build correctly without an up-to-date "ports-base".
+#
+#ports-base
+#
+#ports-accessibility
+#ports-arabic
+#ports-archivers
+#ports-astro
+#ports-audio
+#ports-benchmarks
+#ports-biology
+#ports-cad
+#ports-chinese
+#ports-comms
+#ports-converters
+#ports-databases
+#ports-deskutils
+#ports-devel
+#ports-dns
+#ports-editors
+#ports-emulators
+#ports-finance
+#ports-french
+#ports-ftp
+#ports-games
+#ports-german
+#ports-graphics
+#ports-hebrew
+#ports-hungarian
+#ports-irc
+#ports-japanese
+#ports-java
+#ports-korean
+#ports-lang
+#ports-mail
+#ports-math
+#ports-mbone
+#ports-misc
+#ports-multimedia
+#ports-net
+#ports-net-mgmt
+#ports-news
+#ports-palm
+#ports-picobsd
+#ports-polish
+#ports-portuguese
+#ports-print
+#ports-russian
+#ports-science
+#ports-security
+#ports-shells
+#ports-sysutils
+#ports-textproc
+#ports-ukrainian
+#ports-vietnamese
+#ports-www
+#ports-x11
+#ports-x11-clocks
+#ports-x11-fm
+#ports-x11-fonts
+#ports-x11-servers
+#ports-x11-toolkits
+#ports-x11-wm
+
+## Documentation
+#
+# The easiest way to get the doc tree is to use the "doc-all"
+# mega-collection.  It includes all of the individual "doc-*"
+# collections,
+doc-all
+
+## CVSROOT control files
+#
+# This is to get the control files that cvs(1) needs and the commit logs.
+cvsroot-all
+
+# These are the individual collections that make up "cvsroot-all"  If you
+# use these, be sure to comment out "cvsroot-all" above.  "cvsroot-common"
+# is a synthetic CVSROOT that has all the modules from the other CVSROOT-*
+# directories merged into one, and merged commitlogs via symlinks.
+#cvsroot-common
+#cvsroot-src
+#cvsroot-ports
+#cvsroot-doc

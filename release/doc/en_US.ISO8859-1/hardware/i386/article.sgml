@@ -1,0 +1,26 @@
+<!-- $FreeBSD$ -->
+
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
+<!ENTITY % man PUBLIC "-//FreeBSD//ENTITIES DocBook Manual Page Entities//EN">
+%man;
+<!ENTITY % authors PUBLIC  "-//FreeBSD//ENTITIES DocBook Author Entities//EN">
+%authors;
+<!ENTITY % mlists PUBLIC "-//FreeBSD//ENTITIES DocBook Mailing List Entities//EN">
+%mlists;
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
+%release;
+<!ENTITY % sections SYSTEM "../common/hw.ent"> %sections;
+
+<!-- Architecture-specific customization -->
+
+<!ENTITY arch "i386">
+<!ENTITY arch.print "i386">
+
+]>
+
+<article>
+  &artheader;
+  &sect.intro;
+  &sect.proc.i386;
+  &sect.dev;
+</article>

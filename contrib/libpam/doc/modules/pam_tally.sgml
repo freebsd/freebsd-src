@@ -1,0 +1,191 @@
+<!--
+
+   $Id: pam_tally.sgml,v 1.1 2001/02/11 07:52:56 agmorgan Exp $
+   
+   This template file was written by Andrew G. Morgan <morgan@kernel.org>
+   adapted from text provided by Tim Baverstock.
+-->
+
+<sect1>The login counter (tallying) module
+
+<sect2>Synopsis
+
+<p>
+<descrip>
+
+<tag><bf>Module Name:</bf></tag>
+pam_tally
+
+<tag><bf>Author[s]:</bf></tag>
+Tim Baverstock
+
+<tag><bf>Maintainer:</bf></tag>
+
+<tag><bf>Management groups provided:</bf></tag>
+auth; account
+
+<tag><bf>Cryptographically sensitive:</bf></tag>
+	
+<tag><bf>Security rating:</bf></tag>
+
+<tag><bf>Clean code base:</bf></tag>
+
+<tag><bf>System dependencies:</bf></tag>
+A faillog file (default location /var/log/faillog)
+
+<tag><bf>Network aware:</bf></tag>
+
+</descrip>
+
+<sect2>Overview of module
+
+<p>
+This module maintains a count of attempted accesses, can reset count
+on success, can deny access if too many attempts fail.
+
+<p>
+pam_tally comes in two parts: <tt>pam_tally.so</tt> and
+<tt>pam_tally</tt>. The former is the PAM module and the latter, a
+stand-alone program. <tt>pam_tally</tt> is an (optional) application
+which can be used to interrogate and manipulate the counter file. It
+can display users' counts, set individual counts, or clear all
+counts. Setting artificially high counts may be useful for blocking
+users without changing their passwords. For example, one might find it
+useful to clear all counts every midnight from a cron job.
+
+<p>
+The counts file is organized as a binary-word array, indexed by
+uid. You can probably make sense of it with <tt>od</tt>, if you don't
+want to use the supplied appliction.
+
+<p>
+Note, there are some outstanding issues with this module:
+<tt>pam_tally</tt> is very dependant on <tt>getpw*()</tt> - a database
+of usernames would be much more flexible; the `keep a count of current
+logins' bit has been <tt>#ifdef</tt>'d out and you can only reset the
+counter on successful authentication, for now.
+
+<sect3>Generic options accepted by both components
+<p>
+<itemize>
+<item> <tt>onerr=</tt>(<tt>succeed</tt>|<tt>fail</tt>):
+   if something weird happens, such as unable to open the file, how
+   should the module react?
+<item> <tt>file=</tt><em>/where/to/keep/counts</em>:
+   specify the file location for the counts.
+   The default location is <tt>/var/log/faillog</tt>.
+</itemize>
+
+<sect2>Authentication component
+
+<p>
+<descrip>
+
+<tag><bf>Recognized arguments:</bf></tag>
+<tt>onerr=</tt>(<tt>succeed</tt>|<tt>fail</tt>);
+<tt>file=</tt>/where/to/keep/counts;
+<tt>no_magic_root</tt>
+
+<tag><bf>Description:</bf></tag>
+
+<p>
+The authentication component of this module increments the attempted
+login counter.
+
+<p>
+<tag><bf>Examples/suggested usage:</bf></tag>
+
+<p>
+The module argument <tt>no_magic_root</tt> is used to indicate that if
+the module is invoked by a user with uid=0, then the counter is
+incremented. The sys-admin should use this for daemon-launched
+services, like <tt>telnet</tt>/<tt>rsh</tt>/<tt>login</tt>. For user
+launched services, like <tt>su</tt>, this argument should be omitted.
+
+<p>
+By way of more explanation, when a process already running as root
+tries to access some service, the access is <em>magic</em>, and
+bypasses <tt>pam_tally</tt>'s checks: this is handy for <tt>su</tt>ing
+from root into an account otherwise blocked. However, for services
+like <tt>telnet</tt> or <tt>login</tt>, which always effectively run
+from the root account, root (ie everyone) shouldn't be granted this
+magic status, and the flag `no_magic_root' should be set in this
+situation, as noted in the summary above.
+
+</descrip>
+
+<sect2>Account component
+
+<p>
+<descrip>
+
+<tag><bf>Recognized arguments:</bf></tag>
+<tt>onerr=</tt>(<tt>succeed</tt>|<tt>fail</tt>);
+<tt>file=</tt>/where/to/keep/counts;
+<tt>deny=</tt><em>n</em>;
+<tt>no_magic_root</tt>;
+<tt>even_deny_root_account</tt>;
+<tt>reset</tt>;
+<tt>no_reset</tt>;
+<tt>per_user</tt>;
+<tt>no_lock_time</tt>
+
+<tag><bf>Description:</bf></tag>
+
+<p>
+The account component can deny access and/or reset the attempts
+counter. It also checks to make sure that the counts file is a plain
+file and not world writable.
+
+<tag><bf>Examples/suggested usage:</bf></tag>
+
+<p>
+The <tt>deny=</tt><em>n</em> option is used to deny access if tally
+for this user exceeds <em>n</em>. The presence of
+<tt>deny=</tt><em>n</em> changes the default for
+<tt>reset</tt>/<tt>no_reset</tt> to <tt>reset</tt>, unless the user
+trying to gain access is root and the <tt>no_magic_root</tt> option
+has NOT been specified.
+
+<p>
+The <tt>no_magic_root</tt> option ensures that access attempts by root
+DON'T ignore deny.  Use this for daemon-based stuff, like
+<tt>telnet</tt>/<tt>rsh</tt>/<tt>login</tt>.
+
+<p>
+The <tt>even_deny_root_account</tt> option is used to ensure that the
+root account can become unavailable. <bf>Note</bf> that magic root
+trying to gain root bypasses this, but normal users can be locked out.
+
+<p>
+The <tt>reset</tt> option instructs the module to reset count to 0 on
+successful entry, even for magic root. The <tt>no_reset</tt> option is
+used to instruct the module to not reset the count on successful
+entry.  This is the default unless <tt>deny</tt> exists and the user
+attempting access is NOT magic root.
+
+<p>
+If <tt>/var/log/faillog</tt> contains a non-zero <tt>.fail_max</tt>
+field for this user then the <tt>per_user</tt> module argument will
+ensure that the module uses this value and not the global
+<tt>deny=</tt><em>n</em> parameter.
+
+<p>
+The <tt>no_lock_time</tt> option is for ensuring that the module does
+not use the <tt>.fail_locktime</tt> field in /var/log/faillog for this
+user.
+
+<p>
+Normally, failed attempts to access root will <bf>NOT</bf> cause the
+root account to become blocked, to prevent denial-of-service: if your
+users aren't given shell accounts and root may only login via
+<tt>su</tt> or at the machine console (not
+<tt>telnet</tt>/<tt>rsh</tt>, etc), this is safe. If you really want
+root to be blocked for some given service, use
+<tt>even_deny_root_account</tt>.
+
+</descrip>
+
+<!--
+End of sgml insert for this module.
+-->

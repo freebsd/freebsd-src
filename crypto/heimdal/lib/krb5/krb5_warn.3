@@ -1,0 +1,63 @@
+.\" Copyright (c) 1997 Kungliga Tekniska Högskolan
+.\" $Id: krb5_warn.3,v 1.5 2002/08/28 15:30:59 joda Exp $
+.Dd August 8, 1997
+.Dt KRB5_WARN 3
+.Os HEIMDAL
+.Sh NAME
+.Nm krb5_warn ,
+.Nm krb5_warnx ,
+.Nm krb5_vwarn ,
+.Nm krb5_vwarnx ,
+.Nm krb5_err ,
+.Nm krb5_errx ,
+.Nm krb5_verr ,
+.Nm krb5_verrx ,
+.Nm krb5_set_warn_dest
+.Nd Heimdal warning and error functions
+.Sh LIBRARY
+Kerberos 5 Library (libkrb5, -lkrb5)
+.Sh SYNOPSIS
+.Fd #include <krb5.h>
+.Ft krb5_error_code
+.Fn krb5_err "krb5_context context" "int eval" "krb5_error_code code" "const char *format" "..."
+.Ft krb5_error_code
+.Fn krb5_errx "krb5_context context" "int eval" "const char *format" "..."
+.Ft krb5_error_code
+.Fn krb5_verr "krb5_context context" "int eval" "krb5_error_code code" "const char *format" "va_list ap"
+.Ft krb5_error_code
+.Fn krb5_verrx "krb5_context context" "int eval" "const char *format" "va_list ap"
+.Ft krb5_error_code
+.Fn krb5_vwarn "krb5_context context" "krb5_error_code code" "const char *format" "va_list ap"
+.Ft krb5_error_code
+.Fn krb5_vwarnx "krb5_context context" "const char *format" "va_list ap"
+.Ft krb5_error_code
+.Fn krb5_warn "krb5_context context" "krb5_error_code code" "const char *format" "..."
+.Ft krb5_error_code
+.Fn krb5_warnx "krb5_context context" "const char *format" "..."
+.Ft krb5_error_code
+.Fn krb5_set_warn_dest "krb5_context context" "krb5_log_facility *facility"
+.Sh DESCRIPTION
+These functions prints a warning message to some destination.
+.Fa format
+is a printf style format specifying the message to print. The forms not ending in an
+.Dq x
+prints the error string associated with
+.Fa code
+along with the message.
+The
+.Dq err
+functions exits with exit status
+.Fa eval
+after printing the message.
+.Pp
+The
+.Fn krb5_set_warn_func
+function sets the destination for warning messages to the specified
+.Fa facility .
+Messages logged with the
+.Dq warn
+functions have a log level of 1, while the
+.Dq err
+functions logs with level 0.
+.Sh SEE ALSO
+.Xr krb5_openlog 3

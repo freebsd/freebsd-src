@@ -1,0 +1,13 @@
+[1mmount_msdos[m	mount an MS-DOS file system
+
+	Usage:
+
+	mount_msdos [-o options] [-u user] [-g group] [-m mask] bdev dir
+
+	E.g. to mount primary DOS partition of primary IDE drive on /dos:
+
+		mount_msdos /dev/wd0s1 /dos
+
+	To mount first extended partition on /mnt:
+
+		mount_msdos /dev/wd0s5 /mnt

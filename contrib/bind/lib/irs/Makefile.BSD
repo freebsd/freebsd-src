@@ -1,0 +1,25 @@
+#	BSDI $Id: Makefile.BSD,v 1.5 1999/01/18 07:46:47 vixie Exp $
+#
+#	@(#)Makefile	5.12 (Berkeley) 7/15/92
+
+CFLAGS= -g
+
+CC= gcc2
+CFLAGS+= -Wall -Wno-unused
+
+LIB=	irs
+CFLAGS+= -I${.CURDIR}/..
+SRCS=	lcl.c lcl_gr.c lcl_pw.c lcl_sv.c lcl_pr.c lcl_ho.c lcl_nw.c lcl_ng.c \
+	dns.c dns_gr.c dns_pw.c dns_sv.c dns_pr.c dns_ho.c dns_nw.c \
+	nis.c nis_gr.c nis_pw.c nis_sv.c nis_pr.c nis_ho.c nis_nw.c nis_ng.c \
+	gen.c gen_gr.c gen_pw.c gen_sv.c gen_pr.c gen_ho.c gen_nw.c gen_ng.c \
+	getgrent.c getpwent.c getservent.c getprotoent.c gethostent.c \
+	getnetent.c getnetgrent.c \
+	nul_ng.c irs_data.c irp.c irp_gr.c irp_ho.c irp_ng.c irp_nw.c \
+	irp_pr.c irp_pw.c irp_sv.c irpd.c irpmarshall.c \
+	hesiod.c util.c bitncmp.c
+NOMAN=
+
+all: libirs.a
+
+.include <bsd.lib.mk>

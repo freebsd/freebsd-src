@@ -1,0 +1,100 @@
+srcname="Remote GDB server"
+srctrigger=server.c
+gdb_serial_driver=../ser-unix.c
+
+# per-host:
+
+. ${srcdir}/../configure.host
+
+echo "gdbserver/configure.in: host is $host, target is $target"
+
+if [ ! -f ${srcdir}/../config/${gdb_host_cpu}/${gdb_host}.mh ]; then
+	echo '***' "GDB remote does not support host ${host}" 1>&2
+	exit 1
+fi
+
+#  We really shouldn't depend on there being a space after XM_FILE= ...
+hostfile=`awk '$1 == "XM_FILE=" { print $2 }' <${srcdir}/../config/${gdb_host_cpu}/${gdb_host}.mh`
+
+# per-target:
+
+. ${srcdir}/../configure.tgt
+
+echo "gdbserver/configure.in: host_cpu is $host_cpu, target_cpu is $target_cpu"
+
+if [ ! -f ${srcdir}/../config/${gdb_target_cpu}/${gdb_target}.mt ]; then
+	echo '***' "GDB remote does not support target ${target}" 1>&2
+	exit 1
+fi
+
+if [ -z "${removing}" ] ; then
+	cat ${srcdir}/../config/${gdb_host_cpu}/${gdb_host}.mh ${srcdir}/../config/${gdb_target_cpu}/${gdb_target}.mt | awk '$1 == "#msg" {
+		print substr($0,6)}'
+fi
+
+#  We really shouldn't depend on there being a space after TM_FILE= ...
+targetfile=`awk '$1 == "TM_FILE=" { print $2 }' <${srcdir}/../config/${gdb_target_cpu}/${gdb_target}.mt`
+
+if [ "${target}" = "${host}" ] ; then
+	nativefile=`awk '$1 == "NAT_FILE=" { print $2 }' <${srcdir}/../config/${gdb_host_cpu}/${gdb_host}.mh`
+fi
+
+host_makefile_frag=../config/${gdb_host_cpu}/${gdb_host}.mh
+target_makefile_frag=../config/${gdb_target_cpu}/${gdb_target}.mt
+
+# If hostfile (XM_FILE) and/or targetfile (TM_FILE) and/or nativefile
+# (NAT_FILE) is not set in the ?config/* file, we don't make the
+# corresponding links.  But we have to remove the xm.h files and tm.h
+# files anyway, e.g. when switching from "configure host" to
+# "configure none".
+
+files=
+links=
+rm -f xm.h
+rm -f ser-hardwire.c
+if [ "${hostfile}" != "" ]; then
+	if [ -f ${srcdir}/../config/${hostfile} ]; then
+		files="${files} ../config/${hostfile}"
+	else
+		files="${files} ../config/${gdb_host_cpu}/${hostfile}"
+	fi
+	links="${links} xm.h"
+
+#	files="${files} ${gdb_serial_driver}"
+#	links="${links} ser-hardwire.c"
+fi
+rm -f tm.h
+if [ "${targetfile}" != "" ]; then
+	if [ -f ${srcdir}/../config/${targetfile} ]; then
+		files="${files} ../config/${targetfile}"
+	else
+		files="${files} ../config/${gdb_target_cpu}/${targetfile}"
+	fi
+	links="${links} tm.h"
+fi
+rm -f nm.h
+if [ "${nativefile}" != "" ]; then
+	if [ -f ${srcdir}/../config/${nativefile} ]; then
+		files="${files} ../config/${nativefile}"
+	else
+		files="${files} ../config/${gdb_host_cpu}/${nativefile}"
+	fi
+	links="${links} nm.h"
+# temporary scaffolding until all hosts have the host/target/native
+# split in place.
+else
+	files="${files} ../config/nm-empty.h"
+	links="${links} nm.h"
+fi
+
+if [ ${target_cpu} = "sparclite" ]; then
+	configdirs="${configdirs} sparclite"
+fi
+
+# post-target:
+
+if [ "${nativefile}" = "" ] ; then
+	sed -e '/^NATDEPFILES= /s//# NATDEPFILES= /' \
+		< Makefile > Makefile.tem
+	mv -f Makefile.tem Makefile
+fi

@@ -1,0 +1,18 @@
+#------------------------------------------------------------------------------
+# impulse tracker:  file(1) magic for Impulse Tracker data files
+#
+# From <collver1@attbi.com>
+# These are the /etc/magic entries to decode modules, instruments, and
+# samples in Impulse Tracker's native format.
+
+0	string		IMPS		Impulse Tracker Sample
+>18	byte		&2		16 bit
+>18	byte		^2		8 bit
+>18	byte		&4		stereo
+>18	byte		^4		mono
+0	string		IMPI		Impulse Tracker Instrument
+>28	leshort		!0		ITv%x
+>30	byte		!0		%d samples
+0	string		IMPM		Impulse Tracker Module
+>40	leshort		!0		compatible w/ITv%x
+>42	leshort		!0		created w/ITv%x

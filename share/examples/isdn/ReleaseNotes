@@ -1,0 +1,174 @@
+$FreeBSD$
+
+ReleaseNotes for isdn4bsd             last edit-date: [Sun Dec 16 16:15:14 2001]
+================================================================================
+
+ - made ELSA PCC16 attach correctly (again ?)
+
+ - fixed bug in CAPI support (patch from Juha-Matti Liukkonen <jml@cubical.fi>)
+
+ - add support written by Steve Looman for the Compaq Microcom 610 ISDN card
+   (also known as Compaq series PSB2222I).
+
+release 1.01
+--------------------------------------------------------------------------------
+
+ - add experimental support to send messages via the keypad facility to the
+   PBX or exchange office. The messages - if supported - may be used to 
+   configure and maintain optional services offered by the PBX or exchange
+   office such as call deflection mailbox services. Please consult the
+   nice documentation for the exchange you are connected to.
+
+   Currently keypad messages can be send by using the isdnphone utilities
+   "-k" switch on the command line. Don't forget to properly quote the
+   message in case it contains shell meta characters!
+
+ - add keyword "maxconnecttime" to isdnd to prevent a potential telco bill
+   desaster. Caution: use only in conjunction with budgets to limit the number
+   of dials per timeunit otherwise you will get endless redials and reconnects!
+
+release 1.00
+--------------------------------------------------------------------------------
+
+ - CAPI interface driver and AVM B1/T1 driver added. Both were written and
+   contributed by Juha-Matti Liukkonen <jml@cubical.fi> of Cubical Solutions 
+   Ltd, Finnland. To support this, two new keywords were added to isdnd.rc:
+   "firmware" to be used in the controller section and "clone" to be used
+   in the entry section.
+
+
+beta release 0.96
+--------------------------------------------------------------------------------
+
+ - it is now possible to mark an entry as valid for a specified day of week
+   and a specific time range only to take advantage of some new tariff models.
+   Please see the new keywords "valid" and "holidayfile" in isdnd.rc(5).
+   This feature is considered experimental, use at your own risk!
+
+ - keywords budget-callbacksfile and budget-calloutsfile added to isdnd's
+   entry section to write statistics information to a file
+
+ - a driver for the Dynalink IS64PH is now available for FreeBSD 4.x and up
+
+
+beta release 0.95
+--------------------------------------------------------------------------------
+
+ - ITK ix1 micro ISA non-PnP card should now work for FreeBSD >= 4.0
+
+ - setting "dialretries = -1" in isdnd.rc gives an unlimited number
+   of dial retries for that entry.
+
+ - the ELSA PCFpro ISDN card should now work for FreeBSD >= 4.0
+
+ - added new keywords (patch from Stefan Esser) to configure isppp
+   from within isdnd.rc. Documented in isdnd.rc(5), grep for "ppp-"
+
+ - isppp VJ compression negotiation now run-time configurable using
+   keywords "enable-vj" / "disable-vj" with ispppcontrol
+
+ - added new keywords to specify "budgets" for outbound calls in isdnd
+   to limit the number of possible calls within a given time period.
+   Runtime budget information and statistics are available in the isdnd
+   fullscreen menu display.
+
+ - added new "ifpnp" AVM Fritz!Card PnP driver for FreeBSD >= 4.0
+   contributed by Udo Schweigert.
+
+ - added experimental hardware driver from Hans Petter Selasky for the
+   Teles 16.3c card based on the Cologne Chip Designs HFC-S 2BDS0 chip
+   called "ihfc".
+   notes for Teles 16.3c PnP and AcerISDN P10: For optimal performance:
+   	-> please connect the card to the S0-bus before booting the computer.
+   	-> do not change the cable you're using when first booted.
+   Other notes if the card does not work at all:
+   	-> disconnect other isdn equipment on your S0-bus and
+   	   reboot your computer.
+   	-> try changing the CLKDEL/stdel value for your card: 
+   	../i4b/layer1-nb/ihfc/i4b_ihfc_pnp.c or
+   	../i4b/layer1/ihfc/i4b_ihfc_pnp.c
+   	around line 100. The value can be in the range 0x0-0xf.
+
+ - the FreeBSD >= 4.0 AVM Fritz PCI driver was moved to a separate layer 1 
+   driver called "ifpi".
+
+ - the sppp subsystem was integrated into the i4bisppp/isp driver. There
+   is no need to include something like "option sppp" into your kernel
+   config file anymore. The spppcontrol utility is no longer usable to
+   configure the i4bisppp/isp driver, instead use the new ispppcontrol
+   utility!
+
+ - FreeBSD >= 4.0: "iwic" driver for Winbond PCI ISDN chipset (W6692) 
+   added, used i.e. in ASUSCOM P-IN100-ST-D and Dynalink IS64PPH.
+
+ - added more protocol decoding to isdntrace
+
+ - isntrace now adds a time/datestamp to the trace filename, signal USR1
+   behaviour has changed, see manpage.
+ 
+ - ispppcontrol now has a new option of setting the LCP timeout value
+
+ - add directory mpd which contains docs and files on howto interface
+   i4b by using the netgraph subsystem to the multilink ppp daemon, mpd.
+
+ - add i4bing, a raw HDLC B-channel interface to the NetGraph subsystem
+ 
+ - add a V.21 modem emulator written by Poul-Henning Kamp
+ 
+ - a new system configuration keyword "extcallattr" was added to isdnd
+   which allows to configure the display of the extended caller
+   attributes "screening indicator" and "presentation indicator" in
+   isdnd's log file.
+
+
+beta release 0.90
+--------------------------------------------------------------------------------
+
+ - the following cards are no longer supported for FreeBSD 4.0 and up:
+
+	AVM Fritz!Card PnP
+	AVM Fritz!Card PCMCIA
+	Dynalink IS64PH
+	ITK ix1 Micro
+	USRobotics Sportster ISDN TA intern
+
+   The AVM cards, the USR card and perhaps one of the ITK cards are likely
+   to be resurrected in the future, we just ran out of time, docs and/or
+   into programming problems for this release.
+
+ - the rbch driver was enhanced to support the generation of accounting 
+   information in HDLC mode. The bytecount and bps fields in isdnd
+   fullscreen mode now show meaningful information.
+
+ - most of the layer1 drivers have been rewritten to support the new bus 
+   and driver architecture for FreeBSD 4.0.
+
+ - the ipr interfaces now support logging of some of the first ip packets
+   of a new connection and displaying them in the isdnd logs. To enable
+   this, add a line like: "options IPR_LOG=32" to your kernel config
+   file. The parameter to IPR_LOG specifies the number of packets to be
+   logged.
+
+ - support for FreeBSD 2.x and FreeBSD 3.0-RELEASE has been removed. 
+   The last beta release which supports this OS versions is i4b-0.83.
+
+ - isdnd now recognizes two new keywords in the system section, mailto
+   and mailer. mailer is used to configure a mail program and is typically
+   set to /usr/bin/mail and mailto is set to the address of the isdnd
+   administrator. If both are set and a fatal error inside isdnd
+   happenes, mail is sent to the address in mailto with the error 
+   message before isdnd terminates.
+
+ - isdnd.rc now has an optional new "controller" section. This will be 
+   used to specify different D-channel protocols in the future. It looks
+   like this:
+
+	controller
+	protocol = dss1	# dss1 (default) or d64s (leased line)
+
+   Please note that leased line support (d64s) is NOT yet functional!
+
+ - isdnmonitor is now able to be used like isdnd in fullscreen mode from
+   a remote machine.
+
+EOF

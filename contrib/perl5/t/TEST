@@ -1,0 +1,181 @@
+#!./perl
+
+# Last change: Fri Jan 10 09:57:03 WET 1997
+
+# This is written in a peculiar style, since we're trying to avoid
+# most of the constructs we'll be testing for.
+
+$| = 1;
+
+if ($#ARGV >= 0 && $ARGV[0] eq '-v') {
+    $verbose = 1;
+    shift;
+}
+
+chdir 't' if -f 't/TEST';
+
+die "You need to run \"make test\" first to set things up.\n"
+  unless -e 'perl' or -e 'perl.exe';
+
+# check leakage for embedders
+$ENV{PERL_DESTRUCT_LEVEL} = 2 unless exists $ENV{PERL_DESTRUCT_LEVEL};
+
+$ENV{EMXSHELL} = 'sh';        # For OS/2
+
+if ($#ARGV == -1) {
+    @ARGV = split(/[ \n]/,
+      `echo base/*.t comp/*.t cmd/*.t io/*.t; echo op/*.t pragma/*.t lib/*.t`);
+}
+
+%infinite = ( 'comp/require.t', 1, 'op/bop.t', 1, 'lib/hostname.t', 1 ); 
+
+_testprogs('perl', @ARGV);
+_testprogs('compile', @ARGV) if (-e "../testcompile"); 
+
+sub _testprogs {
+    $type = shift @_;
+    @tests = @_;
+
+
+    print <<'EOT' if ($type eq 'compile');
+--------------------------------------------------------------------------------
+TESTING COMPILER
+--------------------------------------------------------------------------------
+EOT
+
+    $bad = 0;
+    $good = 0;
+    $total = @tests;
+    $files  = 0;
+    $totmax = 0;
+    $maxlen = 0;
+    foreach (@tests) {
+	$len = length;
+	$maxlen = $len if $len > $maxlen;
+    }
+    # +3 : we want three dots between the test name and the "ok"
+    # -2 : the .t suffix
+    $dotdotdot = $maxlen + 3 - 2;
+    while ($test = shift @tests) {
+
+	if ( $infinite{$test} && $type eq 'compile' ) {
+	    print STDERR "$test creates infinite loop! Skipping.\n"; 
+            next;
+	}
+	if ($test =~ /^$/) {
+	    next;
+	}
+	$te = $test;
+	chop($te);
+	print "$te" . '.' x ($dotdotdot - length($te));
+
+	open(SCRIPT,"<$test") or die "Can't run $test.\n";
+	$_ = <SCRIPT>;
+	close(SCRIPT);
+	if (/#!.*perl(.*)$/) {
+	    $switch = $1;
+	    if ($^O eq 'VMS') {
+		# Must protect uppercase switches with "" on command line
+		$switch =~ s/-([A-Z]\S*)/"-$1"/g;
+	    }
+	}
+	else {
+	    $switch = '';
+	}
+
+	if ($type eq 'perl') {
+	    open(RESULTS,"./perl$switch $test |") or print "can't run.\n";
+	}
+	else {
+	    open(RESULTS, "./perl -I../lib ../utils/perlcc ./$test "
+	    		 ."-run -verbose dcf -log ../compilelog |")
+		or print "can't compile.\n";
+	}
+
+	$ok = 0;
+	$next = 0;
+	while (<RESULTS>) {
+	    if ($verbose) {
+		print $_;
+	    }
+	    unless (/^#/) {
+		if (/^1\.\.([0-9]+)/) {
+		    $max = $1;
+		    $totmax += $max;
+		    $files += 1;
+		    $next = 1;
+		    $ok = 1;
+		}
+		else {
+		    $next = $1, $ok = 0, last if /^not ok ([0-9]*)/;
+		    if (/^ok (\d+)(\s*#.*)?$/ && $1 == $next) {
+			$next = $next + 1;
+		    }
+		    else {
+			$ok = 0;
+		    }
+		}
+	    }
+	}
+	close RESULTS;
+	$next = $next - 1;
+	if ($ok && $next == $max) {
+	    if ($max) {
+		print "ok\n";
+		$good = $good + 1;
+	    }
+	    else {
+		print "skipping test on this platform\n";
+		$files -= 1;
+	    }
+	}
+	else {
+	    $next += 1;
+	    print "FAILED at test $next\n";
+	    $bad = $bad + 1;
+	    $_ = $test;
+	    if (/^base/) {
+		die "Failed a basic test--cannot continue.\n";
+	    }
+	}
+    }
+
+    if ($bad == 0) {
+	if ($ok) {
+	    print "All tests successful.\n";
+	    # XXX add mention of 'perlbug -ok' ?
+	}
+	else {
+	    die "FAILED--no tests were run for some reason.\n";
+	}
+    }
+    else {
+	$pct = sprintf("%.2f", $good / $total * 100);
+	if ($bad == 1) {
+	    warn "Failed 1 test script out of $total, $pct% okay.\n";
+	}
+	else {
+	    warn "Failed $bad test scripts out of $total, $pct% okay.\n";
+	}
+	warn <<'SHRDLU';
+   ### Since not all tests were successful, you may want to run some
+   ### of them individually and examine any diagnostic messages they
+   ### produce.  See the INSTALL document's section on "make test".
+   ### If you are testing the compiler, then ignore this message 
+   ### and run 
+   ###      ./perl harness
+   ### in the directory ./t.
+SHRDLU
+	warn <<'SHRDLU' if $good / $total > 0.8;
+   ###
+   ### Since most tests were successful, you have a good chance to
+   ### get information with better granularity by running
+   ###     ./perl harness 
+   ### in directory ./t.
+SHRDLU
+    }
+    ($user,$sys,$cuser,$csys) = times;
+    print sprintf("u=%g  s=%g  cu=%g  cs=%g  scripts=%d  tests=%d\n",
+	$user,$sys,$cuser,$csys,$files,$totmax);
+}
+exit ($bad != 0);

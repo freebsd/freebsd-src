@@ -1,0 +1,123 @@
+.\" $Id: pic2graph.man,v 1.3 2002/07/17 04:55:46 wlemb Exp $
+.\" This documentation is released to the public domain.
+.TH PIC2GRAPH @MAN1EXT@ "@MDATE@" "Groff Version @VERSION@"
+.IX pic2graph
+.SH NAME
+pic2graph \- convert a PIC diagram into a cropped image
+.
+.
+.SH SYNOPSIS
+.B pic2graph
+[
+.B \-unsafe
+]
+[
+.BI \-format\  fmt
+]
+[
+.BI \-eqn\  delim
+]
+.
+.
+.SH DESCRIPTION
+Reads a PIC program as input; produces an image file (by default in
+Portable Network Graphics format) suitable for the Web as output.
+Also translates
+.BR @g@eqn (@MAN1EXT@)
+constructs, so it can be used for generating images of mathematical
+formulae.
+.P
+PIC is a rather expressive graphics minilanguage suitable for
+producing box-and-arrow diagrams of the kind frequently used in
+technical papers and textbooks.  The language is sufficiently flexible
+to be quite useful for state charts, Petri-net diagrams, flow charts,
+simple circuit schematics, jumper layouts, and other kinds of
+illustration involving repetitive uses of simple geometric forms and
+splines.  Because PIC descriptions are procedural and object-based,
+they are both compact and easy to modify.
+.P
+The PIC language is fully documented in "\fIMaking Pictures With GNU
+PIC\fP", a document which is part of the
+.BR groff (@MAN1EXT@)
+distribution.
+.P
+Your input PIC code should \fInot\fR be wrapped with the .PS and .PE macros
+that normally guard it within 
+.BR groff (@MAN1EXT@) 
+macros.
+.P
+The output image will be a black-on-white graphic clipped to the
+smallest possible bounding box that contains all the black pixels.
+By specifying command-line options to be passed to 
+.BR convert (1)
+you can give it a border, set the background transparent, set the
+image's pixel density, or perform other useful transformations.
+.P
+This program uses 
+.BR @g@pic (@MAN1EXT@),
+.BR @g@eqn (@MAN1EXT@),
+.BR groff (@MAN1EXT@),
+.BR gs (1),
+and the ImageMagick
+.BR convert (1)
+program.
+These programs must be installed on your system and accessible on your
+$PATH for \fBpic2graph\fR to work.
+.
+.
+.SH OPTIONS
+.TP
+.B \-unsafe
+Run 
+.BR @g@pic (@MAN1EXT@)
+and
+.BR groff (@MAN1EXT@)
+in the `unsafe' mode enabling the PIC macro
+.B sh
+to execute arbitrary commands.  The default is to forbid this.
+.TP
+.BI \-format\  fmt
+Specify an output format; the default is PNG (Portable Network Graphics).
+Any format that
+.BR convert (1)
+can emit is supported.
+.TP
+.BI \-eqn\  delim
+Change the fencepost characters that delimit 
+.BR @g@eqn (@MAN1EXT@)
+directives
+.RB ( $
+and
+.BR $ ,
+by default).  This option requires an argument, but an empty string is
+accepted as a directive to disable
+.BR @g@eqn (@MAN1EXT@)
+processing.
+.PP
+Command-line switches and arguments not listed above are passed to
+.BR convert (1).
+.
+.
+.SH FILES
+.TP \w'\fB@MACRODIR@/eqnrc'u+2n
+.B @MACRODIR@/eqnrc
+The 
+.BR @g@eqn (@MAN1EXT@)
+initialization file.
+.
+.
+.SH "SEE ALSO"
+.BR eqn2graph (@MAN1EXT@),
+.BR @g@pic (@MAN1EXT@),
+.BR @g@eqn (@MAN1EXT@),
+.BR groff (@MAN1EXT@),
+.BR gs (1),
+.BR convert (1).
+.
+.
+.SH AUTHOR
+Eric S. Raymond <esr@thyrsus.com>, based on a recipe by W. Richard Stevens.
+.
+.\" Local Variables:
+.\" mode: nroff
+.\" End:

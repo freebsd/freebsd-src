@@ -1,0 +1,6 @@
+[1mcp[m	copy files
+
+	Usage:
+
+	cp [-R [-H | -L | -P]] [-f | -i] [-p] src target
+	cp [-R [-H | -L | -P]] [-f | -i] [-p] src1 ... srcN directory

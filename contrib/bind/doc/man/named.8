@@ -1,0 +1,445 @@
+.\" ++Copyright++ 1985, 1996
+.\" -
+.\" Copyright (c) 1985, 1996
+.\"    The Regents of the University of California.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\" 	This product includes software developed by the University of
+.\" 	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\" 
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\" -
+.\" Portions Copyright (c) 1993 by Digital Equipment Corporation.
+.\" 
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies, and that
+.\" the name of Digital Equipment Corporation not be used in advertising or
+.\" publicity pertaining to distribution of the document or software without
+.\" specific, written prior permission.
+.\" 
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND DIGITAL EQUIPMENT CORP. DISCLAIMS ALL
+.\" WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS.   IN NO EVENT SHALL DIGITAL EQUIPMENT
+.\" CORPORATION BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+.\" DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+.\" PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
+.\" ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+.\" SOFTWARE.
+.\" -
+.\" --Copyright--
+.\"
+.\"	@(#)named.8	6.6 (Berkeley) 2/14/89
+.\"
+.Dd February 1, 1996
+.Dt @INDOT_U@named @SYS_OPS_EXT_U@ 
+.Os BSD 4
+.Sh NAME
+.Nm @INDOT@named 
+.Nd Internet domain name server (DNS)
+.Sh SYNOPSIS
+.Nm @INDOT@named
+.Op Fl d Ar debuglevel
+.Op Fl p Ar port# 
+.Oo Fl Po 
+.Cm b Ns \&| Ns Cm c
+.Pc
+.Ar config_file
+.Oc
+.Op Fl f q r v
+.Op Fl u Ar user_name
+.Op Fl g Ar group_name
+.Op Fl t Ar directory
+.Op Fl w Ar directory
+.Op Ar config_file
+.Sh DESCRIPTION
+.Ic Named
+is the Internet domain name server.
+See RFC's 1033, 1034, and 1035 for more information on the Internet
+name-domain system.  Without any arguments,
+.Ic named
+will read the default configuration file
+.Pa /etc/named.conf ,
+read any initial data, and listen for queries.  A 
+.Ar config_file
+argument given at the end of the command line will override any
+.Ar config_file
+specified by using the
+.Dq Fl b
+or
+.Dq Fl c
+flags.
+.Pp
+.Sy NOTE :
+Several of 
+.Nm named Ns 's
+options, and much more of its behaviour, can be controlled in the configuration 
+file.  Please refer to the configuration file guide included with this 
+.Sy BIND
+distribution for further information.
+.Pp
+Options are:
+.Bl -tag -width Fl
+.It Fl d Ar debuglevel
+Print debugging information.
+The 
+.Ar debuglevel 
+is a number determines the level of messages printed.  If negative,
+.Ar debuglevel
+is set to 
+.Dq 1 .
+.Pp
+.Sy NOTE :
+The new debugging framework is considerably more sophisticated than it
+was in older versions of 
+.Nm @INDOT@named .
+The configuration file's
+.Dq Li logging
+statement allows for multiple, distinct levels of debugging for each of
+a large set of categories of events (such as queries, transfers in or out,
+etc.).  Please refer to the configuration file guide included with this 
+.Sy BIND
+distribution for further information about these extensive new capabilities.
+.It Fl p Ar port#
+Use the specified remote port number; this is the port number to which 
+.Nm @INDOT@named
+will send queries.  The default value is the standard port number, i.e.,
+the port number returned by 
+.Xr getservbyname @LIB_NETWORK_EXT@ 
+for service 
+.Dq Li domain .
+.Pp
+.Sy NOTE :
+Previously, the syntax
+.Dq Fl p Ar port# Ns Op Ar \&/localport#
+was supported; the first port was that used when contacting 
+.Em remote 
+servers, and the second one was the service port bound by the 
+.Em local 
+instance of
+.Nm @INDOT_U@named .
+The current usage is equivalent to the old usage without the 
+.Ar localport#
+specified; this functionality can be specified with the 
+.Dq Li listen-on
+clause of the configuration file's
+.Dq Li options
+statement.
+.It Xo Fl Po 
+.Cm b Ns \&| Ns Cm c
+.Pc Ar config_file
+.Xc
+Use an alternate 
+.Ar config_file ;
+this argument is overridden by any 
+.Ar config_file
+which is specified at the end of the command line.
+The default value is
+.Pa /etc/named.conf .
+.It Fl f
+Run this process in the foreground; don't 
+.Xr fork @SYSCALL_EXT@
+and daemonize.  (The default is to daemonize.)
+.It Fl q
+Trace all incoming queries if 
+.Nm @INDOT_U@named 
+has been compiled with
+.Li QRYLOG 
+defined.  
+.Pp
+.Sy NOTE :
+This option is deprecated in favor of the
+.Dq Li queries
+.Em logging category 
+of the configuration file's
+.Dq Li logging 
+statement; for more information, please refer to the configuration file guide 
+included with this distribution of 
+.Sy BIND .
+.It Fl r
+Turns recursion off in the server.  Answers can come only from local
+(primary or secondary) zones.  This can be used on root servers.
+The default is to use recursion.
+.Pp
+.Sy NOTE :
+This option can be overridden by and is deprecated in favor of the
+.Dq Li recursion 
+clause of the configuration file's
+.Dq Li options
+statement.
+.It Fl v
+Report the version and exit. 
+.It Fl u Ar user_name
+Specifies the user the server should run as after it initializes.  The value
+specified may be either a username or a numeric user id.  If the
+.Dq Fl g
+flag is not specified, then the group id used will be the primary group of
+the user specified (initgroups() is called, so all of the user's groups will
+be available to the server).
+.Pp
+.It Fl g Ar group_name
+Specifies the group the server should run as after it initializes.  The value
+specified may be either a groupname or a numeric group id.
+.Pp
+.It Fl t Ar directory
+Specifies the directory the server should chroot() into as soon as it is
+finished processing command line arguments.
+.Pp
+.It Fl w Ar directory
+Sets the working directory of the server.  The
+.Dq Li directory 
+clause of the configuration file's
+.Dq Li options
+statement overrides any value specified on the command line.
+The default working directory is the current directory
+.Pq Dq \&. .
+.El
+.Pp
+Any additional argument is taken as the name of the configuration file, for
+compatibility with older implementations; as noted above, this argument
+overrides any
+.Ar config_file
+specified by the use of the
+.Dq Fl b
+or 
+.Dq Fl c
+flags.  If no further argument is given, then the default configuration file
+is used
+.Pq Pa /etc/named.conf .
+.Ss Master File Format
+The master file consists of control information and a list of resource
+records for objects in the zone of the forms:
+.Bd -literal -offset indent
+$INCLUDE <filename> <opt_domain>
+$ORIGIN <domain>
+$TTL <ttl>
+<domain> <opt_ttl> <opt_class> <type> <resource_record_data>
+.Ed
+.Pp
+where:
+.Bl -tag -width "opt_domain  " 
+.It Ar domain
+is 
+.Dq Li .\&
+for root, 
+.Dq Li @ 
+for the current origin, or a standard domain name. If
+.Ar domain
+is a standard domain name that does 
+.Em not 
+end with 
+.Dq Li \&. , 
+the current origin is appended to the domain. Domain names ending with 
+.Dq Li .\&
+are unmodified.
+.It Ar opt_domain
+This field is used to define an origin for the data in an included file.
+It is equivalent to placing an 
+.Li $ORIGIN 
+statement before the first line of the included file.  The field is optional.
+Neither the 
+.Ar opt_domain
+field nor 
+.Li $ORIGIN 
+statements in the included file modify the current origin for this file.
+.It Ar ttl
+A integer number that sets the default time-to-live for future records without
+an explicit ttl.
+.It Ar opt_ttl
+An optional integer number for the time-to-live field.
+If not set the ttl is taken from the last $TTL statement.
+If no $TTL statement has occurred then the SOA minimum value is used and a
+warning is generated.
+.It Ar opt_class
+The object address type; currently only one type is supported,
+.Dv IN ,
+for objects connected to the DARPA Internet. 
+.It Ar type
+This field contains one of the following tokens; the data expected in the
+.Ar resource_record_data
+field is in parentheses:
+.Bl -tag -width "HINFO    "  -offset indent
+.It Dv A
+a host address (dotted-quad IP address)
+.It Dv NS
+an authoritative name server (domain)
+.It Dv MX
+a mail exchanger (domain), preceded by a preference value (0..32767),
+with lower numeric values representing higher logical preferences.
+.It Dv CNAME
+the canonical name for an alias (domain)
+.It Dv SOA
+marks the start of a zone of authority (domain of originating host,
+domain address of maintainer, a serial number and the following
+parameters in seconds: refresh, retry, expire and minimum TTL (see RFC 883
+and RFC 2308)).
+.It Dv NULL
+a null resource record (no format or data)
+.It Dv RP
+a Responsible Person for some domain name (mailbox, TXT-referral)
+.It Dv PTR
+a domain name pointer (domain)
+.It Dv HINFO
+host information (cpu_type OS_type)
+.El
+.El
+.Pp
+Resource records normally end at the end of a line,
+but may be continued across lines between opening and closing parentheses.
+Comments are introduced by semicolons and continue to the end of the line.
+.Pp
+.Sy NOTE :
+There are other resource record types not shown here.  You should
+consult the 
+.Sy BIND 
+Operations Guide 
+.Pq Dq BOG 
+for the complete
+list.  Some resource record types may have been standardized in newer RFC's
+but not yet implemented in this version of 
+.Sy BIND .
+.Ss SOA Record Format
+Each master zone file should begin with an SOA record for the zone.
+An example SOA record is as follows:
+.Bd -literal
+@	IN	SOA	ucbvax.Berkeley.EDU. rwh.ucbvax.Berkeley.EDU. (
+				1989020501	; serial
+				10800	; refresh
+				3600	; retry
+				3600000	; expire
+				86400 )	; minimum
+.Ed
+.Pp
+The SOA specifies a serial number, which should be incremented each time the
+master file is changed.  Note that the serial number can be given as a
+dotted number, but this is a 
+.Em very 
+unwise thing to do since the
+translation to normal integers is via concatenation rather than
+multiplication and addition.  You can spell out the year, month, day of
+month, and 0..99 version number and still fit inside the unsigned 32-bit
+size of this field.  (It's true that we will have to rethink this strategy in
+the year 4294, but we're not worried about it.)
+.Pp
+Secondary servers
+check the serial number at intervals specified by the refresh time in
+seconds; if the serial number changes, a zone transfer will be done to load
+the new data.  If a master server cannot be contacted when a refresh is due,
+the retry time specifies the interval at which refreshes should be attempted.
+If a master server cannot be contacted within the interval given by the
+expire time, all data from the zone is discarded by secondary servers.  The
+minimum value is the cache time-to-live for negative answers (RFC 2308).
+.Sh NOTES
+The boot file directives 
+.Dq Li domain 
+and 
+.Dq Li suffixes 
+have been
+obsoleted by a more useful, resolver-based implementation of
+suffixing for partially-qualified domain names.  The prior mechanisms
+could fail under a number of situations, especially when then local
+nameserver did not have complete information.
+.Pp
+The following signals have the specified effect when sent to the
+server process using the
+.Xr kill @CMD_EXT@
+command:
+.Pp
+.Bl -tag -width "SIGWINCH" 
+.It Dv SIGHUP
+Causes server to read 
+.Pa named.conf 
+and reload the database.  If the server
+is built with the 
+.Li FORCED_RELOAD 
+compile-time option, then 
+.Dv SIGHUP 
+will
+also cause the server to check the serial number on all secondary zones;
+normally, the serial numbers are only checked at the SOA-specified intervals.
+.It Dv SIGINT
+Dumps the current data base and cache to 
+.Dq Pa /var/tmp/named_dump.db 
+or the value of 
+.Dv _PATH_DUMPFILE .
+.It Dv SIGILL
+Dumps statistics data into 
+.Pa named.stats 
+if the server is compiled with 
+.Li -DSTATS .  
+Statistics data is appended to the file.
+.It Dv SIGSYS
+Dumps the profiling data in 
+.Pa /var/tmp 
+if the server is compiled with profiling (server forks, chdirs and exits).
+.It Dv SIGTERM
+Saves any modified dynamic zones to the file system, and shuts down the server.
+.It Dv SIGUSR1
+Turns on debugging; each 
+.Dv SIGUSR1 
+increments debug level.
+.Po
+.Dv SIGEMT
+on older systems without 
+.Dv SIGUSR1 .
+.Pc 
+.It Dv SIGUSR2
+Turns off debugging completely.
+.Po
+.Dv SIGFPE
+on older systems without 
+.Dv SIGUSR2 .
+.Pc
+.It Dv SIGWINCH
+Toggles logging of all incoming queries via 
+.Xr syslog @LIB_C_EXT@
+(requires server to have been built with the 
+.Li QRYLOG 
+option).
+.El
+.Sh FILES
+.Bl -tag -width "/var/tmp/named_dump.db (_PATH_DUMPFILE)   " -compact
+.It Pa /etc/named.conf
+default name server configuration file
+.It Pa /var/run/named.pid Pq Dv _PATH_PIDFILE
+the process id 
+.It Pa /var/tmp/named_dump.db Pq Dv _PATH_DUMPFILE
+dump of the name server database
+.It Pa /var/tmp/named.run Pq file:  Dv _PATH_DEBUG
+debug output
+.It Pa /var/tmp/named.stats Pq file:  Dv _PATH_STATS
+nameserver statistics data
+.El
+.Sh SEE ALSO
+.Xr named.conf @FORMAT_EXT@ ,
+.Xr gethostbyname @LIB_NETWORK_EXT@ ,
+.Xr hostname @DESC_EXT@ ,
+.Xr kill @CMD_EXT@ ,
+.Xr resolver @LIB_NETWORK_EXT@ , 
+.Xr resolver @FORMAT_EXT@ , 
+.Xr signal @LIB_C_EXT@ ,
+RFC 882, RFC 883, RFC 973, RFC 974, RFC 1033, RFC 1034, RFC 1035, RFC 1123,
+RFC 2308
+.Dq Name Server Operations Guide for Sy BIND

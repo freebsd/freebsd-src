@@ -1,0 +1,23 @@
+$FreeBSD$
+
+This protocol implements IPX/SPX over Ethernet_II frame type 0x8137.
+Please note: the SPX implementation may require further work and testing
+to insure proper operation.
+
+Mike Mitchell, Network Engineer
+AMTECH Systems Corporation, Technology and Manufacturing
+8600 Jefferson Street, Albuquerque, New Mexico 87113 (505) 856-8000
+supervisor@alb.asctmd.com
+
+John Hay
+Some Company
+Some Address
+jhay@mikom.csir.co.za
+
+--- Copyright Information ---
+
+Copyright (c) 1984, 1985, 1986, 1987, 1993
+The Regents of the University of California.  All rights reserved.
+
+Modifications Copyright (c) 1995, Mike Mitchell
+Modifications Copyright (c) 1995, John Hay

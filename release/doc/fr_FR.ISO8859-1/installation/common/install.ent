@@ -1,0 +1,22 @@
+<!--
+     The FreeBSD Documentation Project
+     The FreeBSD French Documentation Project
+
+     $Id$
+     $FreeBSD$
+     Original revision: 1.1.2.2
+-->
+<!-- -*- sgml -*- -->
+
+
+<!-- Text constants which probably don't need to be changed.-->
+
+<!-- Files to be included -->
+
+<!ENTITY artheader SYSTEM "artheader.sgml">
+<!ENTITY abstract SYSTEM "abstract.sgml">
+<!ENTITY sect.install SYSTEM "install.sgml">
+<!ENTITY sect.layout SYSTEM "layout.sgml">
+<!ENTITY sect.upgrade SYSTEM "upgrade.sgml">
+<!ENTITY sect.trouble SYSTEM "trouble.sgml">
+

@@ -1,0 +1,1188 @@
+Updating Information for FreeBSD STABLE users
+
+This file is maintained and copyrighted by M. Warner Losh
+<imp@village.org>.  See end of file for further details.  For commonly
+done items, please see the COMMON ITEMS: section later in the file.
+
+A reverse chronology since 4.0 was released is included, followed by
+the common items quick how-tos, followed by entries for versions of
+-current prior to 4.0 Release.
+
+20031028:
+	FreeBSD 4.9-RELEASE.
+
+20031022:
+	Support for HyperThread logical CPUs has now been enabled by
+	default.  As a result, the HTT kernel option no longer exists.
+	Instead, the logical CPUs are always started so that they can
+	handle interrupts.  However, the extra logical CPUs are prevented
+	from executing user processes by default.  To enable the logical
+	CPUs, change the value of the machdep.hlt_logical_cpus from 1 to
+	0.  This value can also be set from the loader as a tunable of
+	the same name.
+
+20030923:
+	Fix a bug in arplookup(), whereby a hostile party on a locally
+	attached network could exhaust kernel memory, and cause a system
+	panic, by sending a flood of spoofed ARP requests. See
+	FreeBSD-SA-03:14.arp.
+
+20030904:
+	If you get errors regarding sendmail.cf files while trying
+	to run mergemaster, you should either install the new version,
+	or run /usr/src/usr.sbin/mergemaster/mergemaster.sh. This is
+	a one-time issue to fix a Makefile compatibility problem.
+
+20030904:
+	Between August 9th and August 30th, a bug existed in the i386
+	virtual memory system which could cause panics under load.
+	Anyone running a kernel built between those dates is advised
+	to update at the earliest possible convenience.
+
+20030806:
+	All current USB quirks in da(4) have been deprecated and will be
+	removed for 4.9.  If this causes failure for your umass(4) devices,
+	enable "options DA_OLD_QUIRKS" in your kernel and send the output of
+	"camcontrol inquiry da0" to scsi@freebsd.org so the quirk can be
+	re-enabled.
+
+20030403:
+	FreeBSD 4.8-RELEASE.
+
+20030214:
+	OpenSSL 0.97 has been imported, and the libcrypto/libssl
+	library versions have been bumped.
+
+20030213:
+	sendmail 8.12.7 has been imported.  It has one important
+	change for IPv6 users.  The default submit.mc now uses
+	'[127.0.0.1]' instead of 'localhost' meaning only IPv4 is
+	used to connect to the MTA.  Users on IPv6-only machines
+	will need to edit /etc/mail/submit.mc appropriately.
+
+20021110:
+	The definitions of the standard file streams (stdin, stdout, and
+	stderr) have changed so that they are no longer compile-time 
+	constants.  Some older binaries may require updated 3.X 
+	compatability libraries (for example, by setting COMPAT3X=yes 
+	for a buildworld/installworld).
+
+20021010:
+	FreeBSD 4.7-RELEASE.
+
+20020807:
+	COPY is being deprecated.  The 20020703 change was reverted, as
+	it causes far more pain than was expected, and to always compare
+	before installing, please use INSTALL="install -C" again.  The
+	-C option is now silently ignored when used with the -d option.
+
+20020704:
+	OpenSSH has been upgraded to 3.4p1 and fully PAMified.  Note
+	that the protocol version now defaults to 2 rather than 1,
+	which means clients might get warnings about unknown host keys
+	their hostfiles only list the ssh1 RSA key.  See ssh_config(5)
+	and sshd_config(5) for more information on configuring ssh and
+	sshd.
+
+20020703:
+	The install(1) utility no longer allows the -d and -C options
+	to be specified together.  "INSTALL=install -C" in make.conf
+	should be replaced with "COPY=-C".
+
+20020615:
+	FreeBSD 4.6-RELEASE.
+
+20020515:
+	The k5su utility installed as part of Kerberos 5 is no longer
+	installed with the set-user-ID bit set by default.  Add
+	ENABLE_SUID_K5SU=yes to /etc/make.conf to have it installed
+	with the set-user-ID bit set.
+
+20020501:
+	The ephemeral port range change that was previously mentioned
+	in this document has been reverted, so any changes it required
+	to your system may be reverted as well.  Those who missed the
+	change should ignore this notice.
+
+20020421:
+	inetd_enable was changed back to YES, to match the defaults
+	earlier in the 4.0-stable branch.  This change restores the
+	daemons that were enabled prior to April 15th.
+
+	When exec'ing set[ug]id executables, the kernel now ensures that the
+	stdio file descriptors (0..2) are open.  See FreeBSD-SA-02:23.stdio.
+
+20020420:
+	sendmail_enable was changed back to YES, to match the
+	defaults earlier in the 4.0-stable branch.
+
+20020415:
+	Many denizens of /etc were MFC'ed. While most of the changes
+	are very benign, some of them have created a bit of a stir.
+	Use the new version of mergemaster to update /etc, either by
+	updating /etc after installworld, or by doing:
+	cd /usr/src/usr.sbin/mergemaster; make -m /usr/src/share/mk all install
+	before you run installworld.
+
+	Then use the new -C option to double-check your rc.conf settings.
+	You should also double-check settings in [defaults/]rc.conf,
+	syslog.conf, newsyslog.conf, and anything else important
+	to your system.
+
+	The two most important changes to note: sendmail and inetd were
+	turned off by default.  If you need them, please turn them back
+	on by adding sendmail_enable=YES and/or inetd_enable=YES to
+	/etc/rc.conf.
+
+20020411:
+	New sendmail startup scripts have been installed to make it
+	easier to use alternative MTAs with FreeBSD.  The rc.conf
+	variable mta_start_script can be set to a script for starting
+	an alternative MTA or to "" to prevent any MTA from being
+	started at boot.
+
+20020404:
+	The sendmail startup code in /etc/rc has been changed to deal
+	with a non-set-user-ID sendmail binary.  Setting the rc.conf
+	variable sendmail_enable to "NO" no longer prevents any sendmail
+	daemons from starting.  Instead, set sendmail_enable to "NONE"
+	to prevent any MTA from being started at boot.
+
+20020404:
+	Due to the import of sendmail 8.12.2 (see 20020325 entry), a new
+	user and group are required in order for sendmail to run as a
+	set-group-ID binary.  A 'make installworld' will use the new user
+	and group to set the owner and group of /var/spool/clientmqueue
+	and will fail if the new user and group do not exist.  The 'smmsp'
+	user and group must be merged from src/etc/group and
+	src/etc/master.passwd before using 'make installworld'.
+	'mergemaster -p' will do this.  You may need to install
+	mergemaster before this will work if you are updating from a
+	very old version of stable.  This can be done with:
+	cd /usr/src/usr.sbin/mergemaster; make -m /usr/src/share/mk all install
+
+20020325:
+	sendmail 8.12.2 has been imported.  The sendmail binary is no
+	longer a set-user-ID root binary and the infrastructure to support
+	command line mail submission has changed.  Be sure to run
+	mergemaster (especially for updating /etc/rc, /etc/defaults/rc.conf,
+	and /etc/mail) and read /etc/mail/README for more details.
+
+20020318:
+	The ata(4) driver has been updated from the version in -CURRENT.  
+	As a result, some device nodes in /dev have changed; it will be 
+	necessary to update MAKEDEV and re-make the device nodes.
+	mergemaster(8) will offer to do this as a part of its upgrade
+	procedure.
+
+20020129:
+	FreeBSD 4.5-RELEASE.
+
+20020105:
+	The locale names have been renamed in -stable to match
+	-current:
+		1. ISO_* -> ISO*
+		2. ru_SU* -> ru_RU*
+		3. DIS_* -> ISO*-15
+		4. *.ASCII -> *.US-ASCII
+
+20011202:
+	A security hole in OpenSSH involving `UseLogin yes' has been
+	patched.
+
+20011110:
+	Some linux module changes, merged from current, require that you
+	clean out the old compile directory.  If you are building with
+	MODULES_WITH_WORLD=yes, then you need to cd to src/sys/modules/linux
+	and run "make cleandir".  If not, then you need to cd
+	src/sys/compile/$KERNCONF and do a make modules-clean.
+
+20011102:
+	ipfw/bridge/dummynet features merged from current.
+
+20011018:
+	The kernel Makefile was enhanced to pass -g to modules builds
+	when it is used for kernel building (eg, when the config file
+	has DEBUG=-g).  People that have enabled debugging kernels
+	will find they need significantly more disk space in their
+	slash (/) partition.
+
+20010928:
+	The OpenSSH `ChallengeResponseAuthentication' option now
+	defaults to `yes'.  This enables S/Key authentication, which
+	can result in users receiving an S/Key challenge when logging
+	in interactively.  To disable this behavior, add a line to
+	your /etc/ssh/sshd_config file:
+	`ChallengeResponseAuthentication no'
+
+20010914:
+	4.4 Released.
+
+20010814:
+	The pci attachment for pcic device was merged from current.  You
+	should update your pccardd at the same time as you update your
+	kernel.
+
+	Note: Interrupts will now be shared between the CardBus bridge
+	and the cards.  This is a change over the hand configuration
+	before.
+
+20010811:
+	isdn4bsd was updated to version 1.00.1. for users of the isp<N>
+	(kernel PPP over ISDN) devices, this means that they now _must_
+	use ispppcontrol instead of spppcontrol to configure and control
+	their isp<N> devices. see /usr/share/examples/isdn for more info.
+
+20010725:
+	The ed driver has been updated.  It now allows mii attachments,
+	which means that you must include the miibus in your kernel if
+	you use the ed driver.
+
+20010724:
+	The gif(4) interface has been converted to use cloning
+	rather then allocating a static number of devices a compile
+	time.  If you use gif interfaces and configure them by any
+	method other then setting standard variables in /etc/rc.conf
+	you will need to update your system to create devices with
+	"ifconfig gifX create" before attempting to configure them.
+	
+	See the ifconfig(8) man page and /etc/rc.network for more
+	information.
+
+20010611:
+	The TCP_RESTRICT_RST option has been removed. You should entirely
+	remove it from your kernel configuration.
+
+	The same functionality is available from the blackhole(4) MIB.
+
+20010531:
+	The wd compat devices were removed from the ata driver.  Kernels
+	after this date will fail to work with /dev/ nodes that you may
+	have on your disk.  /etc/fstab is a common place to find these
+	files hanging out, as are dump devices in /etc/rc.conf.
+
+20010521:
+	Minor repo damange has happened.  This may cause problems
+	with cvsup of ports.  If you get errors, please see
+	http://www.FreeBSD.org/cgi/query-pr.cgi?pr=27495
+	at the bottom for details on a workaround.  The error message
+	is
+Updater failed: Cannot delete "/usr/ports/www/jakarta-tomcat/files": Directory not empty
+
+20010516:
+	Size changes in the cred structures introduced a binary
+	incompatibility for modules using the crhold() macro.  Modules
+	should be recompiled for kernel later than this date.
+
+20010510:
+	The fxp driver from current has been ported to -stable.  This
+	requires kernels that include fxp to also include mii bus devices.
+	See GENERIC for details.
+
+20010421:
+	FreeBSD 4.3 RELEASE
+
+20010402:
+	It appears that PERL_THREADED=true in /etc/make.conf is not
+	compatible with mod_perl.  Not sure the exact date of this problem,
+	but it post dates 4.2 and predates 4.3.
+
+20010202:
+	The KERNEL variable for buildkernel and installkernel has been
+	deprecated in favor of KERNCONF.  make kernel now combines these
+	two steps.
+
+20010117:
+	Linksys Fast Ethernet PCCARD cards supported by the ed driver
+	now require the addition of flag 0x80000 to their config line
+	in pccard.conf(5).  This flag is not optional.  These Linksys
+	cards will not be recognized without it.
+
+20010112:
+	Important new FreeBSD-version stuff: PAM support has been worked
+	in, partially from the "Unix" OpenSSH version.  This requires
+	adding the following in pam.conf:
+  
+	sshd    auth    sufficient      pam_skey.so
+	sshd    auth    required        pam_unix.so         try_first_pass
+	sshd    session required        pam_permit.so
+
+20010109:
+	ipfw interface changed.  Make sure that the userland and kernel match
+	or you won't have the firewall rules you think you do.
+
+20001120:
+	FreeBSD 4.2 RELEASE.
+
+20001020:
+	****************************** WARNING ******************************
+				Sendmail has been updated.
+	****************************** WARNING ******************************
+	o mail.local(8) is no longer installed as a set-user-id binary.
+	o sendmail(8) is now built with STARTTLS support unless NO_OPENSSL
+	  is set.
+	o The default /etc/mail/sendmail.cf disables the SMTP EXPN and VRFY
+	  commands.
+	o Now using sendmail's version of vacation(1).
+	o The sendmail cf building tools (contrib/sendmail/cf) are installed
+	  in /usr/share/sendmail/cf.
+	o sendmail.cw changed to local-host-names
+
+	More details can be found at
+		http://people.freebsd.org/~imp/UPDATING/sendmail-20001010
+
+20001009:
+	The ports tree's new layout is in place.  Be sure to update
+	your entire ports tree, or you will have problems.
+
+20001006:
+	The perl build procedure no longer installs miniperl, nor uses
+	the installed miniperl.  It is recommended that you delete
+	/usr/bin/miniperl.
+
+20000925:
+	FreeBSD 4.1.1 RELEASE.
+
+20000907:
+	Changes to libkvm requires a recompile of the usual suspects.
+	(find /usr/src -name Makefile | xargs egrep -l LIBKVM)
+	This means that your world must match your kernel around this
+	point.
+
+20000904:
+	A new issue with the sendmail upgrade has come to light.
+	/etc/aliases has moved to /etc/mail/aliases.  Mergemaster will 
+	incorrectly install the default aliases in /etc/mail rather than
+	move the old one from /etc.  So you'll need to manually move the
+	file, create a symbolic link, remove the old /etc/aliases.db and
+	run newaliases.  For safety sake, you should stop sendmail
+	while doing this and run the upgrade when locally sourced email
+	is not likely to be generated.
+
+20000827:
+	sendmail has been updated from 8.9.3 to 8.11.0.  Some of the more
+	visible changes that may immediately affect your configuration
+	include:
+	- New default file locations from src/contrib/sendmail/cf/README
+	- newaliases limited to root and trusted users
+	- MSA port (587) turned on by default
+	- New queue file naming system so can't go from 8.11 -> 8.9
+	- FEATURE(`rbl') renamed to FEATURE(`dnsbl')
+	- FEATURE(`nullclient') is more full featured
+	- FEATURE(`nouucp') requires an argument: `reject' or `nospecial'
+	- mail.local FreeBSD-only -b option changed to -B
+	- See src/contrib/sendmail/RELEASE_NOTES for more info
+
+20000803:
+	The "installkernel" target has changed slightly. Now even if
+	you override KERNEL e.g. 'make installkernel KERNEL=MYKERNEL'
+	it will install the MYKERNEL file (built with the buildkernel
+	target) as /kernel rather than /MYKERNEL. Those who have
+	updated their /boot/loader.conf files to point to /MYKERNEL
+	should remove that entry or perform manual rename of /kernel
+	to /MYKERNEL.
+
+20000724:
+	FreeBSD 4.1 RELEASE
+
+20000711:
+	If you use CVSUP or CTM to get CVS trees, AND you used to get 
+	the old crypto files from internat.freebsd.org AND you check
+	out files from the CVS tree with the cvs command, please read
+		http://people.freebsd.org/~imp/internat.txt
+	for details on potential problems that you might have and how
+	to get around them.
+
+	If you are merely a mirror, or don't answer yes to each of the
+	clauses above, you needn't worry.
+
+20000707:
+	We started building modules here.  IF you don't wish to
+	follow the documented procedure for building kernels, then
+	you'll have to install new mk files from src/share/mk, or
+	define NO_MODULES.
+
+20000706:
+	Binutils were updated.  In order to build a kernel after this
+	date, you must follow the updating procedure for building
+	kernels exactly as presented here.  You may be able to get away
+	with doing it the old way, but if it breaks, make sure that you've
+	tried the "To build a kernel" section with a fresh /usr/obj
+	first.
+
+20000622:
+	The license on the softupdates is now a standard 2 clause
+	BSD license.  You may need to remove your symbolic links
+	that used to be required when updating.
+
+20000501:
+	At approximately this date, an incompatible kernel change
+	was made which means that if you update kernels accross
+	this boundary, you also have to update modules, and vice
+	versa.
+
+20000315:
+	FreeBSD 4.0 RELEASE.  Historical entries follow the common
+	items.
+
+****************************** 4.0 RELEASE ******************************
+
+COMMON ITEMS:
+
+	To build a kernel
+	-----------------
+	cd /usr/src
+	# If you have not already done so, please buildworld here
+	# You will also need to update your config file to 4.x.  Usually
+	# people tend to start with GENERIC from 4.x and hack from there.
+	make buildkernel KERNCONF=<YOUR_KERNEL_HERE>
+	make installkernel  KERNCONF=<YOUR_KERNEL_HERE>
+	# Verify that the new kernel works, it will be installed as
+	# /kernel
+
+	To rebuild disk /dev entries
+	----------------------------
+	MAKEDEV should be copied from src/etc/MAKEDEV to /dev before
+	starting the following:
+
+		For N in the list of disks
+			MAKEDEV N			# eg ad0
+			for M in the list of slices
+				MAKEDEV NsMa		# eg ad0s1a
+
+
+	To rebuild everything
+	---------------------
+	make world
+
+	Except when it doesn't work :-)
+
+	To update from 3.x to 4.x stable
+	--------------------------------
+	***********************************************************
+	READ -STABLE ARCHIVES FOR THE LAST WEEK OR TWO BEFORE
+	STARTING THIS PROCESS.  UPDATING MAY LAG BEHIND A LITTLE
+	A GOTCHAS ARE OFTEN REPORTED IN FREEBSD-STABLE@FREEBSD.ORG
+	BEFORE BEING INCLUDED HERE.  IF YOU ARE GOING TO DO REMOTE
+	MACHINES, MAKE SURE THAT THE EXACT VERSION YOU ARE UPDATING
+	THEM TO WORKS ON LOCAL MACHINES BEFORE PROCEEDING.
+	***********************************************************
+	<see notes below>				[3]
+	cd /usr/src
+	<see notes below>				[2]
+	make buildworld -DNOPERL
+	<follow directions to build/install a kernel>
+	cd /usr/src/sbin/mknod
+	make install
+	<follow rebuild disk /dev entries above>	[1]
+	reboot
+	<in single user>				[6]
+	cd /usr/src
+	cd gnu/usr.bin/texinfo/install-info
+	make install
+	cd ../../../..
+	ldconfig -R /usr/obj/usr/src/lib/libc
+	make installworld -DNOPERL			[5]
+	mergemaster					[4]
+	reboot
+	<multi-user>
+
+	[1] You may need to switch from wd to ad ala 19991210.  In
+	addition, you should disable any third party modules such as
+	vmware so that you don't crash your system on reboot.
+	[2] If you have any of the following in your /etc/make.conf,
+	please comment them out before following these instructions
+	and then do a make buildworld + make installworld after you
+	are back to <multi-user> above:
+		MAKE_KERBEROS4
+	[3] Update to 4.x-stable sources.  Make sure that you get all
+	the parts.  If you are using cvsup files that are older than a
+	couple of months, be sure they have all the components listed
+	in /usr/share/examples/cvsup.  Crypto and secure are now
+	required.
+	[4] This step is not optional.  If you fail to do this, you
+	will not have critical system config files updated for their
+	4.x functionality.  This will lead to reduced system
+	functionality, the biggest problem being with /etc/pam.conf
+	not having the entries necessary to allow remote ssh access.
+	[5] Note: This won't upgrade your perl install.  You will
+	need to rebuild the world on 4.x to update perl.
+	[6] From the bootblocks, boot -s, and then do
+		fsck -p
+		mount -u /
+		mount -a
+		cd /usr/src
+		adjkerntz -i		# if CMOS is wall time
+
+	To update from 4.0-RELEASE or later to the most current
+	4.x-STABLE
+	----------
+	make buildworld
+	make buildkernel KERNCONF=YOUR_KERNEL_HERE
+	make installkernel KERNCONF=YOUR_KERNEL_HERE
+	reboot	(in single user) [1]
+	make installworld
+	mergemaster		[2]
+	reboot
+
+	[1] You can often get away without doing this step as the
+	system will be properly updated.  During the running of the
+	installworld, however, system components may break and other
+	oddities may happen.  Don't do this on systems that aren't
+	otherwise quiet as unpredictable results may happen.  If in
+	doubt, reboot into single user.  For remote installs, keep
+	a separate kernel around and use a serial console if at all
+	possible.  See also note [6] above.
+	[2] If you do not run mergemaster, you will likely hit a
+	number of show stopper problems.  The biggest one is that
+	your /etc/pam.conf won't let you log in using ssh.
+
+What follows are older entries for those people upgrading from earlier
+versions of -stable/-current.
+
+20000308:
+	The binary interface of perl to its modules changed.  You
+	will need to recompile any perl moudles after an
+	installworld.  This includes all ports matching the pattern 
+	/usr/ports/*/p5-*.
+
+20000303:
+	CMSG_XXX macros offset in <sys/socket.h> has changed to
+	conform RFC-2292.  All affected applications have been
+	corrected.  The i386 platform's offsets haven't changed, but
+	the alpha's did.  When you build and install new kernel on
+	FreeBSD/alpha, you must also do a make world.
+
+20000225:
+	OpenSSH has been added to FreeBSD.  This may conflict with the
+	ports/security/ssh port since it installs binaries into
+	/usr/bin and the port goes into /usr/local/bin.  Most paths
+	have /usr/bin in the path before /usr/local/bin, so problems
+	may arise.  If you don't want OpenSSH, add NO_OPENSSH=yes to
+	your make.conf.
+
+	You will also need to enable OpenSSH in /etc/rc.conf if you
+	want to run the new servers.  You may need to move your host
+	key and other config files from /usr/local/etc to /etc/ssh.
+
+	OpenSSH's command line parsing, available options and default
+	settings aren't the same as ssh, so some care needs to be
+	taken in its operation.  One should do a full audit of all
+	configuration settings.
+
+20000205:
+	The xinstall problem has kinda sorta been corrected.  The 
+	following is known to work by the author of UPDATING.  It
+	is what he did to update his laptop.  It is likely the same
+	effect as the work around listed in 20000129.
+		make buildworld
+		make installworld	This will fail
+		cd usr.bin/xinstall
+		make clean all install NOSHARED=YES
+		cd ../..
+		make installworld
+	If it doesn't work for you, then I'm sure that there will be
+	another 100 messages in -current.
+
+20000204:
+	libipsec version number changed from 2 to 0.  The original
+	commit of Jan 6 incorrectly set this to 2.  Remove
+	/usr/lib/libipsec.so.2* before the buildworld and rebuild
+	anything that uses libipsec.so after you install the new
+	version.
+
+20000201:
+	The rcmd related functions have been aligned with other BSD
+	implementations.  rlogind and rshd have been changed to use
+	the new API.  A make world is recommended to keep them in sync
+	with the libraries they use.
+
+	http://www.FreeBSD.org/cgi/cvsweb.cgi/src/lib/libc/net/rcmd.c
+	has the details.
+
+20000129:
+	{set,get}flags have been added to the tree for rather dubious
+	reasons.
+
+	IF AND ONLY IF installworld fails:
+		make -k -DNOFSCHG installworld
+		make installworld
+	This issue was resolved Feb 5, 2000.
+
+20000125:
+	rcmd_af() is added for multiple address family support.  rsh
+	and rlogin have been updated to use this to support INET6.  A
+	make world is recommended to keep them in sync with the
+	libraries they use.
+
+20000124:
+	The default way that virtual tables in our default C++
+	compiler has changed.  We used to use THUNKS for virtual
+	inheritance.  Unfortunately there are bugs that The GCC
+	developers thought would be fixed in GCC 2.95.  However it
+	isn't.
+
+	After this change existing applications written in C++ may
+	give errors like below when you try to run them:
+
+/usr/libexec/ld-elf.so.1: /usr/lib/libstdc++.so.3: Undefined symbol "__vt_7filebuf"
+
+	The only fix is to rebuild the application and any C++
+	libraries used.
+
+20000124:
+	The management of next_writeable has been move from the
+	kernel to userspace. This means that the burncd command
+	must be in sync with the kernel. So make world is your
+	friend.
+
+20000117:
+	GNU texinfo upgraded to 4.0.  It is recommended that you use
+	make buildworld to update.
+
+20000117:
+	CAM_VERSION has been increased.  Recompile all programs that
+	depend on it (tosha, camcontrol, etc) when moving to kernels
+	past this date.
+
+20000115:
+	pccard ioctls changed with a commit to have the kernel tell
+	pccardd which device it created, rather than having pccardd
+	dictate it to the kernel.  Recompile kernel and
+	pccardd/pccardc together.  pccardd/pccardc rely on a kernel
+	Makefile that must be installed prior to building them.  Make
+	world will automatically take care of this issue, but you need
+	to know if you are building by hand.
+
+20000109:
+	Your kernel config files need to be changed to s/controller/device/
+	in them.  You will need a new version of config to do this.
+
+20000107:
+	chown & chgrp moved again
+
+	This is a heads up to let you know that you need to 
+		    rm -f /sbin/chown /bin/chgrp
+	after your next `make world'.  Additionally you need to install
+	a new /dev/MAKEDEV (mergemaster(8) will assist you in this).
+
+20000107:
+	SHA-1 password support gone
+
+	As warned yesterday, I've just removed the ability for
+	libcrypt to understand SHA-1 passwords. This was present but
+	undocumented in the tree for the past few months and was
+	removed so it can be reimplemented properly as part of a
+	revamped libcrypt at a later date. Anyone who was actually
+	making use of the feature will have to update their passwords
+	back to MD5 before they reinstall the library.
+
+20000106:
+	ioctl numbers changed for dvdio ioctls.  You will need to recompile
+	anything that uses them.  wormcontrol has been deprecated in
+	favor of burncd.
+
+19991223:
+	Building linux and svr4 compatibility into the kernel now
+	requires /usr/bin/genassym.  Go to /usr/src/usr.bin/genassym,
+	do "make obj ; make clean depend all install" before building
+	your kernel.
+
+19991218:
+	sendmail.cf has moved from /etc/sendmail.cf to
+	/etc/mail/sendmail.cf.  You may need to adjust /etc/rc.conf
+	and /etc/rc to cope as well as moving sendmail.cf.
+
+19991216:
+	ntp 4.0.98 has replaced the ancient xntpd.  The daemon name
+	changed from xntpd to ntpd, so you may need to update your
+	/etc/rc.conf file.  The ntp.conf files are compatible with the
+	old release, unless you are using a local reference clock.
+	Details about ntp4 can be found at http://www.ntp.org/.
+
+	xntpd will be cvs removed from the repo in about a week.
+
+19991213:
+	Soren updated the ata driver.  Please update to at least this
+	version before submitting bug reports.
+
+19991210:
+	The ata driver has become the primary ata/ide/atapi driver in
+	the kernel.  The wd driver is obsolete.  You should upgrade your
+	machine to the new ata driver.  You will need to follow the
+	directions for updating the devices in the 19991205 entry.  You
+	will need to update all occurances of wd to ad in your config files
+	(/etc/rc.conf, /etc/fstab, etc).  A compatibility device exists
+	for wd for the time being, but once you have determined that
+	ata is working for you, transition to the new ad devices.
+
+19991205:
+	Block devices are going away.  You will need to update your /dev
+	tree with a fresh copy of MAKEDEV for things to always work in 
+	the future.  fsck is unable to cope with dirty file systems
+	after this change, so it may work for you or it may not.
+
+	See "To rebuild disk /dev entries" at the end of the file.
+
+	*** All uses of block devices must be converted to char devices.
+	*** Likely the only thing impacted is dumpdev in /etc/rc.conf
+
+19991204:
+	The dc interface has replaced al, ax, dm, pn and mx.  The former
+	have been removed.
+
+19991204:
+	Support for the old 'sd' device names has been removed in
+	favor of 'da'.  Please update your /etc/fstab, /etc/rc.conf
+	and any other places you might have sd names cached.
+	Generally these changes are as simple as s=/dev/sd=/dev/da=g,
+	but be careful to make sure that things are really that
+	simple.  You may also need to create /dev entries for the da
+	devices as well.
+
+	See "To rebuild disk /dev entries" at the end of the file.
+
+19991203:
+	BAD144 support has been removed.  Cope or replace the hardware.
+
+19991129:
+	ALPHA users take note.  All klds will need to be recompiled for
+	kernels build after this date.  It is a good time to update since
+	pal.s will be going away soon.
+
+19991126:
+	MFS_ROOT and MFS_ROOT_SIZE are gone, replaced by MD_ROOT and
+	MD_ROOT_SIZE options in the md driver.  md driver now deals with
+	the hacks.  You should add md driver to kerneles that have
+	MFS_ROOT, et al.  See GENERIC or LINT for details.
+
+19991125:
+	The ep changed a while ago and can no longer be used with hard
+	wired addresses in the config file.
+
+19991122:
+	The bridge drivers for sound cards have been committed.  Please
+	see LINT for instructions for your card, if it still works at
+	all.
+
+19991113:
+	Gcc 2.95.2 is now the default compiler.
+
+19991030:
+	/etc/radius.conf file format has changed.The format change is
+	as follows.  Each server line in the file should now begin
+	with a new field containing either "auth" for RADIUS
+	authentication, or "acct" for RADIUS accounting.  Formerly
+	only authentication was supported.  If the first field isn't
+	"auth" or "acct" then the code assumes that "auth" is
+	intended.  (That's the compatibility hack.)
+
+19991015:
+	PCCARD has been updated to attach pcic to the isa bus.  Therefore
+	you will need to modify kernel config files that have pcic/card
+	in them as follows:
+		controller	pcic0	at isa?
+		controller	pcic1	at isa?
+		controller	card0
+
+19990929:
+	The sigset_t datatype has been changed from an integral type
+	to a compound type and can hold 128 signals. Syscalls directly
+	or indirectly using the new sigset_t have been added as to
+	maintain compatibility with existing binaries. A new kernel must
+	be made and installed and booted with before a make world can
+	be done.
+
+	***************************************************************
+		RECOMPILE AND REINSTALL KERNEL BEFORE MAKEWORLD
+	***************************************************************
+
+19990919:
+	New jail syscall format requires recompilation of jail(8) with
+	fresh headers installed (or a make world will do it for you).
+
+19990914:
+	Matt Dillon checked in many vm related things and sent a heads up
+	to -current urging caution and to report vm problems to him.
+	As of the 19th, no killer problems have been reported, but you
+	have been warned.
+
+19990908:
+	The new miibus has been added to the system.  If you are using
+	the dm, rl, sf, sis, ste, tl, wb or xl drivers, you need to
+	add "controller miibus0" to your config file.
+
+19990905:
+	/var/cron/log has been moved to /var/log/cron to get all the
+	log files in one place.
+
+19990831:
+	tn3270 has been removed from the base system and added as a port.
+
+19990830:
+	User-visible TCP timers are now expressed in units of 1ms, instead
+	of 500ms, so if you've customized any timer values under
+	``net.inet.tcp'', multiply them by 500 to preserve TCP's behavior.
+
+19990828:
+	RCS Id tags changed to FreeBSD.  This will cause huge cvsup
+	updates.
+
+19990821:
+	On 28-May-1999 libreadline was upgraded from readline-2.2 to
+	readline-4.0.  At that time the shared library major version
+	number was bumped from "3" to "4".  It has been deemed that
+	the interface change between readline-2.2 and readline-4.0 was
+	not sufficient to warrant the version number bump.
+
+	Thus I have reverted it back to "3".  You will need to perform
+	the below immediately before your next ``make world'':
+	    cd /usr/lib
+	    ls -l libreadline.so.4
+	        (if you have /usr/lib/libreadline.so.4)
+	    mv libreadline.so.4 libreadline.so.3
+	    rm -f libreadline.so
+	    ln -s libreadline.so.3 libreadline.so
+
+19990801:
+	Changes to the pccardd kernel interface require that you recompile
+	pccardd for new kernel.
+
+19980725:
+	The ipfw interface to the kernel has changed.  You will need to
+	recompile ipfw programs for the new kernel.
+
+19990715:
+	The bpfilter device has been renamed to bpf.  You will need to 
+	change your config files in order to enable this in newer kernels.
+
+19990704:
+	src/contrib/sys/softupdates is moving to
+	src/sys/contrib/softupdates.  Update your symbolic links/etc.
+
+19990702:
+	Major changes have been made to vinum and its interface.  See
+	the man page (vinum(8)) for details.  Look at the concat,
+	mirror and stripe commands, as well as the SIMPLIFIED
+	CONFIGURATION section.
+
+19990628:
+	Newsyslog.conf has had a minor, but potentially dangerous,
+	change to its username/group syntax.  The old syntax was
+	user.group, while the new syntax is user:group.
+
+19990627:
+	Inetd wrapping default has changed.  Please see the updated
+	man page for details.
+
+19990623:
+	Compaq Smart Raid driver committed as ida.
+
+19990622:
+	The second phase of syscons cleanup has happened.  Some
+	functionality has been made optional.  For details, see
+        http://www.freebsd.org/~yokota/sc_update-June.txt
+	Everyone will need to re-config(8) their kernels, but old
+	binaries will work with the new kernel.
+
+19990620:
+	IPFW uid/gid-based filtering support has been committed. This
+	breaks binary compatibility with previous copies of
+	ipfw(8). Any utilities using the ioctl()s of ipfw (especially
+	ipfw(8)) need to be recompiled with the newest headers
+	installed.
+
+19990618:
+	Inetd now wraps all stream-based services, including internals.
+	Syslog "severity" options are honoured. Installed syslog.conf
+	and hosts.allow should be checked.
+
+19990509:
+	Most of the problems with newbus have been corrected, but
+	it is still current and evolving.
+
+	libcam's ABI has changed.  You must recompile the world and
+	any ports that use it.
+
+19990427:
+	Massive changes to SMP went into the tree that should speed
+	things up.  However, if you experience problems with SMP 
+	machines, you can back off to the PRE_SMP_VMSHARE tag in the
+	CVS repository (or run an MP kernel).
+
+19990420:
+	Pccardd and the pccard bus in general seem to be broken or
+	most people.  Soren has patches to make it better for some,
+	but not all people.  Work is underway to make it better for
+	all people.
+
+19990416:
+	new bus changes integrated into -current.  Many problems were
+	initially reported, but most have been fixed.  You'll need a
+	new config and to tweak your kernel config file the way that
+	GENERIC was tweaked.  Keep a copy of your old kernel when
+	upgrading in case your new kernel doesn't work (and report the
+	breakage to current@freebsd.org).
+
+	As of 19990421 the remaining problems/quirks are
+
+	o sio no longer supports pnp nor pccard.  This will be corrected,
+	  but the new pccard code needs to be completed.
+	o Some of the sound drivers broke for some people.  It seems
+	  inconsistent as to who/what/when/where things broke.
+	o Duplicate device entries in your config do not work.  Previously
+	  they were silently ignored.  psm0 seems to be the most common
+	  duplicate choice, although some reports have come in from people
+	  that wired their scsi disk entries.
+	o You must move the keyboard and mouse attachments from the
+	  isa bus to the atkbdc bus.  See GENERIC for details.
+	o Machines with multiple host-pci bridges (Intel 450NX) will not
+	  probe the second pci bus.
+	o Some probe ordering may have changed, so device naming may change
+	  with the new kernel.  If you have multiple devices, please double
+	  check to make sure they didn't move.  This is especially true
+	  for cards on different buses.
+	o The bus attachment for vga0 is always isa0 and never pci0 when
+	  it is in fact a pci card.  It is safe to ignore this.
+	o The format of the boot messages has changed (and is not
+	  guaranteed to be constant for a while) so you may see this
+	  in some shell scripts that diff dmesg from day to day as well
+	  as scripts that parse dmesg output.
+
+19990414:
+	cc -aout sometimes has problems compiling with -g, remove -g
+	from those compilation units affected until this is corrected.
+
+	cc -aout has problems with producing some threaded libraries,
+	so make world -DWANT_AOUT is not functional at this time.
+
+	Since make world for a.out isn't functional, you cannot do
+	make aout-to-elf from a pre-egcs a.out system.  To work around
+	this problem, make aout-to-elf using 3.1-stable first (or a
+	pre egcs -current) and then a simple make world will take you
+	the rest of the way with a -current source base.
+
+19990413:
+	Make -j works again for make world.  As always, use it with
+	care, and be sure to try a make world w/o -j before reporting
+	problems (that is, know if the problem exists w/o -j before
+	reporting the problem with -j).
+
+19990413:
+	Note cc -aout, which had been broken since the conversion to
+	egcs, now supposedly works.  If you have rebuilt things like
+	XFree86 a.out libraries, you should rebuild them again or
+	progams that use them, including netscape, will fail to work.
+
+19990409:
+	NOTE: New c++ compiler cannot be used with c++ binaries from
+	the old compiler and vice versa.
+
+19990408:
+	In recent days egcs has been imported into the tree.  A number
+	of problems have been discussed in -current.  Here is a highlight
+	of a few of the more common ones.  With the exception of make
+	-j n, they have been claimed to have been fixed.
+
+	c++ is broken after make world: This is correct.  Because we
+	changed compilers two make worlds are necessary to get C++
+	working again.  The code generated by the old compiler and new
+	compiler are not compatible, so things wind up being
+	undefined.
+
+	cpp is broken in make world:  There was a window where cpp
+	would be built incorrectly.  The fix for this is
+		cd src/gnu/usr.bin/cc
+		make clean
+		make all
+		make install
+	and this should correct your problems.  See the -current
+	archives for a version of this that does moer cleaning.
+
+	Make -j n doesn't work.  Work contiunes to make this work,
+	I've seen no reports of success as of April 7th.
+
+19990329:
+	Previously, one would define "NOAOUT" to keep from building
+	the legacy a.out bits.  Now one would define "WANT_AOUT" to
+	build them.
+
+19990316:
+	The name of the old wd.c and atapi.c based CDROM driver has
+	been changed back to wcd. So update your config file to use
+	"device wcd" instead of "device acd".
+
+19990314:
+	For those of you using the VN device as a loadable module,
+	please be aware that the new VN device has been committed to
+	-4.x and cannot yet be used as a loadable module.  This will
+	be fixed in the future.
+	
+19990309:
+	New loader.rc mechanism.  Please see src/sys/boot/README for
+	details.
+
+19990225:
+	struct proc size changed.  Recompile kernel and the
+	usual suspects.  Make world if in doubt.
+
+19990214:
+	The nlpt driver has changed names back to be the lpt driver.
+	See ppbus(4) or http://www.freebsd.org/~nsouch/ppbus.html
+	for proper configuration details.
+
+19990210:
+	The 'lpt' driver is now obsolete.  Replace it with the 'nlpt'
+	driver and 'ppbus' controller combination.
+
+19990209:
+	New devstat API requires recompilation of libdevstat, systat,
+	iostat, vmstat and rpc.rstatd.  A new kernel is also required.
+	make world + building a kernel should do all of this.  Any
+	ports that use devstat need to be recompiled as well.
+
+19990125:
+	Linux threads options has gone away (they are now standard in
+	the FreeBSD kernel).  A recompile of all libkvm using programs
+	is in order (or better yet a make world).
+
+19990122:
+	On or about this date there was a small window when the boot
+	blocks had some minor problems which seemed to force one to
+	edit /etc/fstab.  This has been corrected, if you are seeing this
+	problem, please rebuild and reinstall your boot blocks.
+
+19990121:
+	Vinum has changed.  The "vinum read" command has changed.  For
+	updates, please see
+
+http://www.freebsd.org/cgi/getmsg.cgi?fetch=800363+0+current/freebsd-current
+
+	for details.  
+
+	Matt Dillon committed a boatload of VM changes, for
+	information please see
+
+http://www.freebsd.org/cgi/getmsg.cgi?fetch=886676+0+current/freebsd-current
+	or
+http://www.freebsd.org/cgi/getmsg.cgi?fetch=827400+0+current/freebsd-current
+
+	for details.  These changes will likely not impact anybody,
+	but large chagnes to the VM need at least a heads up.
+
+19990120:
+	Stable branch created.  You might want to consider using this
+	branch.  It is tagged with RELENG_3.
+
+19990119:
+	More work on the syscons driver has been committed.  Since
+	files moved around, you will need to reconfigure your kernel,
+	and make clean; make depend before rebuilding the kernel.  No
+	config file changes are needed.
+
+19990111:
+	New keyboard and video card drivers are introduced as the first
+	stage of console driver reorganization.  You are required to
+	update the kernel configuration file and rebuild the kernel.
+	kbdcontrol, vidcontrol, and screen savers also need recompilation.
+	The instruction can be found in
+
+		http://www.freebsd.org/~yokota/sc_update.txt
+
+	It has notes on splash screen too.
+
+19990106:
+	Robert Nordier was kind enough to make this page to enable people to
+	install the new bootblocks:
+
+		http://www.freebsd.org/~rnordier/boot.txt
+
+	When updating to ELF, make sure that you have updated your
+	/etc/rc files which have different ldconfig invocations for
+	elf and aout.  Otherwise things like X will stop working with
+	messages about being unable to find library files.  The
+	mergemaster utility in ports/sysutils/mergemaster helps to
+	keep critical files like this in sync, and its use is
+	recommended.
+
+19990104:
+	Information about ELF day (see 19981230) can be found in
+
+		http://www.freebsd.org/~peter/elfday.html
+
+	about the upcoming change, its motivations and instructions
+	for doing the upgrade.
+
+19981230:
+	You should install new bootblocks now.  The ELF kernel will
+	become default soon.  In addition, you'll need to upgrade
+	your userland programs to ELF before then as well.  Use
+	make aout-to-elf to upgrade your userland programs (old
+	a.out programs in, for example, /usr/local/bin will
+	continue to work, even after the upgrade).  See src/Makefile
+	for more details.
+
+19981224:
+	The old wcd driver has been deleted from the kernel.  The
+	driver that replaces it is named acd.  You'll need to change
+	this in your configuration files.
+
+	Failure to do this will result in "ATAPI CD-ROMs not
+	configured" at boot time.
+
+	The floppy tape driver (ft) has been removed from the kernel,
+	with no replacement driver.
+
+19981202:
+	New groups from 19981201 commented out of mtree, so they
+	aren't strictly needed, but still a good idea to have.
+
+19981201:
+	New user/group added: bind.  From src/etc/master.passwd and
+	src/etc/group:
+		% grep <newstuff> /usr/src/etc/group 
+		bind:*:53:
+		% grep <newstuff> /usr/src/etc/master.passwd 
+		tty:*:4:65533::0:0:Tty Sandbox:/:/sbin/nologin
+		kmem:*:5:65533::0:0:KMem Sandbox:/:/sbin/nologin
+		bind:*:53:53::0:0:Bind Sandbox:/:/sbin/nologin
+
+19981118:
+	PAM integrated into the tree.   Requires new /etc/pam.conf file
+	to silence warnings from authentication programs (login, etc).
+	See src/etc/pam.conf for a sample.
+
+FORMAT:
+
+This file contains a list, in reverse chronologocal order, of major
+breakages in tracking -stable.  Not all things will be listed here,
+and it only starts on November 18, 1998.  If you have an earlier
+version of FreeBSD, you are on your own to get to November 18, 1998.
+
+Please filter your entries through Warner Losh (imp@village.org) so
+that the style, formatting, etc of this file can be maintained.
+
+Copyright information:
+
+Copyright 1998-2002 M. Warner Losh.  All Rights Reserved.
+
+Redistribution, translation and use, with or without modification, in
+full or in part, are permitted provided that the above copyright
+notice is retained.
+
+THIS DOCUMENT IS PROVIDED BY WARNER LOSH ``AS IS'' AND ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED.  IN NO EVENT SHALL WARNER LOSH BE LIABLE FOR ANY DIRECT,
+INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+If you find this document useful, and you want to, you may buy the
+author a beer.
+
+$FreeBSD$

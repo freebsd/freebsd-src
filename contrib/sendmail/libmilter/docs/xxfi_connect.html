@@ -1,0 +1,108 @@
+<html>
+<head><title>xxfi_connect</title></head>
+<body>
+<h1>xxfi_connect</h1>
+
+<table border="0" cellspacing=4 cellpadding=4>
+<!---------- Synopsis ----------->
+<tr><th valign="top" align=left width=150>SYNOPSIS</th><td>
+<pre>
+#include &lt;libmilter/mfapi.h&gt;
+sfsistat (*xxfi_connect)(
+        SMFICTX    *ctx, 
+        char       *hostname,
+        _SOCK_ADDR *hostaddr);
+</pre>
+</td></tr>
+<!----------- Description ---------->
+<tr><th valign="top" align=left>DESCRIPTION</th><td>
+<table border="1" cellspacing=1 cellpadding=4>
+<tr>
+<th valign="top" align=left width=80>Called When</th>
+<td>Once, at the start of each SMTP connection.</td>
+</tr>
+<tr>
+<th valign="top" align=left width=80>Default Behavior</th>
+<td>Do nothing; return SMFIS_CONTINUE.</td>
+</tr>
+</table>
+<!--
+This callback function is invoked on each connection to the mail 
+filter program.  The callback is to be implemented by the Milter
+application developers.  The name of the callback can be any valid
+function name.  The function pointer is to be assigned to the
+smfiDesc.xxfi_connect and the pointer to the smfiDesc structure
+is passed to smfi_register().
+</td></tr>
+-->
+<!----------- Arguments ---------->
+<tr><th valign="top" align=left>ARGUMENTS</th><td>
+    <table border="1" cellspacing=0>
+    <tr bgcolor="#dddddd"><th>Argument</th><th>Description</th></tr>
+    <tr><td>ctx</td>
+	<td>the opaque context structure.
+	</td></tr>
+    <tr><td>hostname</td>
+	<td>the host name of the message sender, as determined by a
+	    reverse lookup on the host address.  If the reverse lookup
+	    fails, hostname will contain the message sender's IP
+	    address enclosed in square brackets (e.g. `[a.b.c.d]').
+	</td></tr>
+    <tr><td>hostaddr</td>
+	<td>the host address, as determined by a getpeername() call on the SMTP socket.
+	 NULL if the type is not supported in the current version or if
+	the SMTP connection is made via stdin.
+	</td></tr>
+    </table>
+</td></tr>
+<!----------- Return values ---------->
+<!--
+<tr>
+<th valign="top" align=left>SPECIAL RETURN VALUES</th>
+<td><table border="1" cellspacing=0>
+  <tr bgcolor="#dddddd"><th>Return value</th><th>Description</th></tr>
+  <tr valign="top">
+     <td>SMFIS_ACCEPT</td>
+     <td>Accept all commands and messages from this client without any
+         further contact with the filter. </td>
+     </td>
+  </tr>
+  <tr valign="top">
+     <td>SMFIS_CONTINUE</td>
+     <td>Continue normal processing. </td>
+  </tr>
+  <tr valign="top">
+     <td>SMFIS_DISCARD</td>
+     <td>Undefined behaviour; do not use. </td>
+  </tr>
+  <tr valign="top">
+     <td>SMFIS_TEMPFAIL</td>
+     <td>Reject all commands and messages from this client with a
+         temporary failure reply code. </td>
+  </tr>
+  <tr valign="top">
+     <td>SMFIS_REJECT</td>
+     <td>Reject all commands and messages from this client with a
+         permanent failure reply code. </td>
+  </tr>
+</table>
+</tr>
+-->
+<!----------- Notes ---------->
+<tr>
+<th valign="top" align=left>NOTES</th> 
+<td>If an earlier filter rejects the connection in its xxfi_connect()
+routine, this filter's xxfi_connect() will not be called.</td>
+</tr>
+</table>
+
+<hr size="1">
+<font size="-1">
+Copyright (c) 2000-2001, 2003 Sendmail, Inc. and its suppliers.
+All rights reserved.
+<br>
+By using this file, you agree to the terms and conditions set
+forth in the LICENSE.
+</font>
+</body>
+</html>

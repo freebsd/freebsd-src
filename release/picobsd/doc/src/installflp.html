@@ -1,0 +1,99 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<!-- $FreeBSD$ -->
+<html>
+  <head>
+    <title>Configuring the PicoBSD install floppy</title>
+  </head>
+
+  <body>
+    <h1>Configuring the PicoBSD install floppy</h1>
+
+    <p>The PicoBSD Install Floppy is engineered to be flexible since every
+    site has their own needs for an automated install solution.  The
+    base package contains tools and frameworks for further
+    customization.  </p>
+
+    <h2>Generating an Install Image</h2>
+    
+    <p>Central to the design of the install floppy is a tarball image of
+    the operating system.  The install floppy downloads and extracts
+    the image from a master server. </p> 
+
+    <p>To generate the install image:</p>
+
+    <ol>
+	<li>Install and configure a machine as it should be
+	installed.  
+	<ul> 
+	  <li><em>Make the template machine as close to the target
+	    machines as possible.</em>  System-specific files such as
+	    <tt>/etc/fstab</tt> can cause problems if they are
+	    specific to a particular disk setup, such as multiple SCSI 
+	    disks in the template vs. single IDE disks in the target.
+	  <li><em>Try to keep the template as small as practical.</em>
+	    The more packages you install on the template, the larger
+	    the image becomes.    
+	</ul>
+      <li>Use tar to create the image.  This shell script is useful
+	for automating the process.
+	<blockquote><pre>
+#!/bin/sh
+TARBALL="/fbsdimage.tgz"
+GZIP="-9"
+
+tar -cpvzf ${TARBALL} --totals --exclude '/proc/*' --exclude '/var/tmp/*' \
+    --exclude '/var/log/*' --exclude '/tmp/*' --exclude '/fbsdimage.tgz' /
+	  </pre></blockquote>
+	<ul>
+	  <li>Use the '--exclude' argument to remove files from the
+	    image. 
+	  <li>Don't forget to exclude the image itself or your tarball 
+	    will be much larger than it should.
+	  <li>The <b>GZIP</b> environment variable sets arguments to the
+	    gzip command called by tar's z option.
+	</ul>
+      <li>Copy the image file to your load server into a public FTP
+	directory.
+    </ol>
+	    
+    <h2>Configuring the Install Floppy</h2>
+    
+    <p>Once the install floppy has been built using the PicoBSD build
+      script, mount the floppy and modify the install
+      script, <tt>/floppy/etc/doinstall</tt>.   <tt>doinstall</tt> is
+      called from rc on startup to install the disk image and perform
+      whatever other setup tasks are necessary.  The script can set
+      network parameters, configure applications, select kernels, or
+      whatever else a shell script can do. A handful of useful
+      utilities is included on the disk to ease automated installation.</p>
+
+    <p>At minumum, set the URL to the FTP server holding the disk
+      image. If you wish, uncomment and modify to taste any of the
+      code blocks provided.</p>
+
+    <p>By default, the install floppy:</p>
+    <ul>
+      <li>Creates one large FreeBSD slice on the first IDE disk (wd0).
+      <li>Creates a 256MB swap partition and the rest for a large
+	root partition.
+      <li>Formats the large partition using <tt>newfs</tt> with
+	default parameters. '
+      <li>Downloads the image via FTP and feeds it directly into
+	<tt>cpio</tt> for extraction.
+    </ul>
+    
+    <P>To modify the disk formatting parameters, modify the
+      <tt>/floppy/etc/prepdisk</tt> script.  <tt>prepdisk</tt> is a
+      simple awk script that feeds directly into <tt>disklabel</tt>.
+      Simply edit the generated partition table to taste.</P>
+      
+    
+
+    <hr>
+    <address><a href="mailto:dwhite@freebsd.org">Doug White</a></address>
+<!-- Created: Thu Oct  7 21:42:17 PDT 1999 -->
+<!-- hhmts start -->
+Last modified: Thu Oct  7 22:18:22 PDT 1999
+<!-- hhmts end -->
+  </body>
+</html>

@@ -1,0 +1,7 @@
+[1mkbdcontrol[m	a utility for manipulating the syscons keyboard driver section
+
+	Usage:
+
+	kbdcontrol [-dFx] [-b  duration.pitch | belltype]
+		[-r delay.repeat | speed] [-l mapfile] [-f # string]
+		[-h size] [-L mapfile]

@@ -1,0 +1,168 @@
+.\" Copyright (c) 1987 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms are permitted
+.\" provided that the above copyright notice and this paragraph are
+.\" duplicated in all such forms and that any documentation,
+.\" advertising materials, and other materials related to such
+.\" distribution and use acknowledge that the software was developed
+.\" by the University of California, Berkeley.  The name of the
+.\" University may not be used to endorse or promote products derived
+.\" from this software without specific prior written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+.\"
+.\"	@(#)hostname.7	6.4 (Berkeley) 1/16/90
+.\"
+.Dd February 16, 1994
+.Dt HOSTNAME @DESC_EXT_U@
+.Os BSD 4
+.Sh NAME
+.Nm hostname 
+.Nd host name resolution description
+.Sh DESCRIPTION
+Hostnames are domains.  A domain is a hierarchical, dot-separated list
+of subdomains.  For example, the machine 
+.Dq Li monet , 
+in the 
+.Dq Li Berkeley
+subdomain of the 
+.Dq Li EDU
+subdomain of the Internet Domain Name System would be represented as
+.Pp
+.Dl monet.Berkeley.EDU
+.Pp
+(with no trailing dot).
+.Pp
+Hostnames are often used with network client and server programs,
+which must generally translate the name to an address for use.
+(This task is usually performed by the library routine
+.Xr gethostbyname  @LIB_NETWORK_EXT@ . )
+The default method for resolving hostnames by the Internet name resolver is
+to follow RFC 1535's security recommendations.  Actions can be taken
+by the administrator to override these recommendations and to have the
+resolver behave the same as earlier, non-RFC 1535 
+resolvers.
+.Pp
+The default method (using RFC 1535 guidelines) follows:
+.Pp
+If the name consists of a single component, i.e. contains no dot, and if the
+environment variable 
+.Dq Ev HOSTALIASES 
+is set to the name of a file,
+that file is searched for a string matching the input hostname.  The file
+should consist of lines made up of two strings separated by white-space, the
+first of which is the hostname alias, and the second of which is the complete
+hostname to be substituted for that alias.  If a case-insensitive match is
+found between the hostname to be resolved and the first field of a line in
+the file, the substituted name is looked up with no further processing.
+.Pp
+If there is at least one dot in the name, then the name is first tried 
+.Dq as-is .  
+The number of dots to cause this action is configurable by setting the
+threshold using the 
+.Dq Li ndots
+option in 
+.Pa /etc/resolv.conf
+(default:  1).  If the name ends with a dot, the trailing dot is
+removed, and the remaining name is looked up (regardless of the setting of
+the 
+.Li ndots 
+option), without further processing. 
+.Pp
+If the input name does not end with a trailing dot, it is looked up by
+searching through a list of domains until a match is found.  If neither the
+search option in the
+.Pa /etc/resolv.conf
+file or the 
+.Dq Ev LOCALDOMAIN 
+environment variable is used, then the
+search list of domains contains only the full domain specified by the 
+.Li domain
+option (in
+.Pa /etc/resolv.conf )
+or the domain used in the local hostname (see 
+.Xr hostname @CMD_EXT@
+and
+.Xr resolver @FORMAT_EXT@ ) .
+For example, if the 
+.Dq Li domain 
+option is set to 
+.Li CS.Berkeley.EDU ,
+then only 
+.Li CS.Berkeley.EDU 
+will be in the search list, and this will be the only
+domain appended to the partial hostname.  For example, if 
+.Dq Li lithium 
+is the name to be resolved, this would make
+.Li lithium.CS.Berkeley.EDU 
+the only name to be tried using the search list.
+.Pp
+If the 
+.Li search 
+option is used in
+.Pa /etc/resolv.conf
+or the environment variable 
+.Dq Ev LOCALDOMAIN 
+is set by the user, then
+the search list will include what is set by these methods.  For
+example, if the 
+.Dq Li search 
+option contained
+.Pp
+.Dl CS.Berkeley.EDU CChem.Berkeley.EDU Berkeley.EDU
+.Pp
+then the partial hostname (e.g., 
+.Dq Li lithium ) 
+will be tried with 
+.Em each
+domain name appended (in the same order specified); the resulting hostnames 
+that would be tried are:
+.Bd -literal -offset indent
+lithium.CS.Berkeley.EDU
+lithium.CChem.Berkeley.EDU
+lithium.Berkeley.EDU
+.Ed
+.Pp
+The environment variable 
+.Dq Ev LOCALDOMAIN 
+overrides the
+.Dq Li search 
+and 
+.Dq Li domain 
+options, and if both 
+.Li search 
+and 
+.Li domain
+options are present in the resolver configuration file, then only the 
+.Em last
+one listed is used (see
+.Xr resolver @FORMAT_EXT@ ) .
+.Pp
+If the name was not previously tried 
+.Dq as-is 
+(i.e., it fell below the
+.Dq Li ndots 
+threshold or did not contain a dot), then the name as
+originally provided is attempted.
+.Sh ENVIRONMENT
+.Bl -tag -width "/etc/resolv.conf  "
+.It Ev LOCALDOMAIN   
+Affects domains appended to partial hostnames.
+.It Ev HOSTALIASES
+Name of file containing
+.Pq Ar host alias , full hostname
+pairs.
+.El
+.Sh FILES
+.Bl -tag -width "/etc/resolv.conf  " -compact
+.It Pa /etc/resolv.conf
+See
+.Xr resolve @FORMAT_EXT@ .
+.El
+.Sh SEE ALSO
+.Xr gethostbyname @LIB_NETWORK_EXT@ ,
+.Xr resolver @FORMAT_EXT@ ,
+.Xr mailaddr @DESC_EXT@ ,
+.Xr @INDOT@named @SYS_OPS_EXT@ .

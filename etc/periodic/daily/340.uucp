@@ -1,0 +1,39 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+# Local cleanup of UUCP files.  This is for backwards compatibility,
+# /etc/uuclean.daily doesn't exist by default.
+#
+
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
+fi
+
+case "$daily_uuclean_enable" in
+    [Yy][Ee][Ss])
+	if [ ! -d /var/spool/uucp ]
+	then
+	    echo '$daily_uuclean_enable is set, but /var/spool/uucp' \
+		"doesn't exist"
+	    rc=2
+	elif [ ! -f /etc/uuclean.daily ]
+	then
+	    echo '$daily_uuclean_enable is set, but /etc/uuclean.daily' \
+		"doesn't exist"
+	    rc=2
+	else
+	    echo ""
+	    echo "Cleaning up UUCP:"
+
+	    echo /etc/uuclean.daily | su -m uucp && rc=0 || rc=3
+	fi;;
+
+    *)  rc=0;;
+esac
+
+exit $rc

@@ -1,0 +1,220 @@
+1. Prerequisites
+----------------
+
+You will need working installations of Zlib and OpenSSL.
+
+Zlib:
+http://www.gzip.org/zlib/ 
+
+OpenSSL 0.9.6 or greater:
+http://www.openssl.org/
+
+(OpenSSL 0.9.5a is partially supported, but some ciphers (SSH protocol 1 
+Blowfish) do not work correctly.)
+
+OpenSSH can utilise Pluggable Authentication Modules (PAM) if your system
+supports it. PAM is standard on Redhat and Debian Linux, Solaris and
+HP-UX 11.
+
+NB. If you operating system supports /dev/random, you should configure 
+OpenSSL to use it. OpenSSH relies on OpenSSL's direct support of 
+/dev/random. If you don't you will have to rely on ssh-rand-helper, which 
+is inferior to a good kernel-based solution.
+
+PAM:
+http://www.kernel.org/pub/linux/libs/pam/
+
+If you wish to build the GNOME passphrase requester, you will need the GNOME
+libraries and headers.
+
+GNOME:
+http://www.gnome.org/
+
+Alternatively, Jim Knoble <jmknoble@jmknoble.cx> has written an excellent X11
+passphrase requester. This is maintained separately at:
+
+http://www.ntrnet.net/~jmknoble/software/x11-ssh-askpass/index.html
+
+PRNGD:
+
+If your system lacks Kernel based random collection, the use of Lutz 
+Jaenicke's PRNGd is recommended.
+
+http://www.aet.tu-cottbus.de/personen/jaenicke/postfix_tls/prngd.html
+
+EGD:
+
+The Entropy Gathering Daemon (EGD) is supported if you have a system which
+lacks /dev/random and don't want to use OpenSSH's internal entropy collection.
+
+http://www.lothar.com/tech/crypto/
+
+S/Key Libraries:
+http://www.sparc.spb.su/solaris/skey/
+
+If you wish to use --with-skey then you will need the above library
+installed.  No other current S/Key library is currently known to be
+supported. 
+
+2. Building / Installation
+--------------------------
+
+To install OpenSSH with default options:
+
+./configure
+make
+make install
+
+This will install the OpenSSH binaries in /usr/local/bin, configuration files
+in /usr/local/etc, the server in /usr/local/sbin, etc. To specify a different
+installation prefix, use the --prefix option to configure:
+
+./configure --prefix=/opt
+make
+make install
+
+Will install OpenSSH in /opt/{bin,etc,lib,sbin}. You can also override 
+specific paths, for example:
+
+./configure --prefix=/opt --sysconfdir=/etc/ssh
+make
+make install
+
+This will install the binaries in /opt/{bin,lib,sbin}, but will place the
+configuration files in /etc/ssh.
+
+If you are using PAM, you may need to manually install a PAM control
+file as "/etc/pam.d/sshd" (or wherever your system prefers to keep
+them).  Note that the service name used to start PAM is __progname,
+which is the basename of the path of your sshd (e.g., the service name
+for /usr/sbin/osshd will be osshd).  If you have renamed your sshd
+executable, your PAM configuration may need to be modified.
+
+A generic PAM configuration is included as "contrib/sshd.pam.generic",
+you may need to edit it before using it on your system. If you are
+using a recent version of Red Hat Linux, the config file in
+contrib/redhat/sshd.pam should be more useful.  Failure to install a
+valid PAM file may result in an inability to use password
+authentication.  On HP-UX 11 and Solaris, the standard /etc/pam.conf
+configuration will work with sshd (sshd will match the other service
+name).
+
+There are a few other options to the configure script:
+
+--with-pam enables PAM support.
+
+--enable-gnome-askpass will build the GNOME passphrase dialog. You
+need a working installation of GNOME, including the development
+headers, for this to work.
+
+--with-prngd-socket=/some/file allows you to enable EGD or PRNGD 
+support and to specify a PRNGd socket. Use this if your Unix lacks 
+/dev/random and you don't want to use OpenSSH's builtin entropy 
+collection support.
+
+--with-prngd-port=portnum allows you to enable EGD or PRNGD support 
+and to specify a EGD localhost TCP port. Use this if your Unix lacks 
+/dev/random and you don't want to use OpenSSH's builtin entropy 
+collection support.
+
+--with-lastlog=FILE will specify the location of the lastlog file. 
+./configure searches a few locations for lastlog, but may not find
+it if lastlog is installed in a different place.
+
+--without-lastlog will disable lastlog support entirely.
+
+--with-sia, --without-sia will enable or disable OSF1's Security 
+Integration Architecture.  The default for OSF1 machines is enable.
+
+--with-kerberos4=PATH will enable Kerberos IV support. You will need
+to have the Kerberos libraries and header files installed for this
+to work. Use the optional PATH argument to specify the root of your
+Kerberos installation.
+
+--with-afs=PATH will enable AFS support. You will need to have the
+Kerberos IV and the AFS libraries and header files installed for this
+to work.  Use the optional PATH argument to specify the root of your
+AFS installation. AFS requires Kerberos support to be enabled.
+
+--with-skey=PATH will enable S/Key one time password support. You will 
+need the S/Key libraries and header files installed for this to work.
+
+--with-tcp-wrappers will enable TCP Wrappers (/etc/hosts.allow|deny)
+support. You will need libwrap.a and tcpd.h installed.
+
+--with-md5-passwords will enable the use of MD5 passwords. Enable this
+if your operating system uses MD5 passwords without using PAM.
+
+--with-utmpx enables utmpx support. utmpx support is automatic for 
+some platforms.
+
+--without-shadow disables shadow password support.
+
+--with-ipaddr-display forces the use of a numeric IP address in the 
+$DISPLAY environment variable. Some broken systems need this.
+
+--with-default-path=PATH allows you to specify a default $PATH for sessions
+started by sshd. This replaces the standard path entirely.
+
+--with-pid-dir=PATH specifies the directory in which the ssh.pid file is
+created.
+
+--with-xauth=PATH specifies the location of the xauth binary
+
+--with-ipv4-default instructs OpenSSH to use IPv4 by default for new
+connections. Normally OpenSSH will try attempt to lookup both IPv6 and
+IPv4 addresses. On Linux/glibc-2.1.2 this causes long delays in name
+resolution. If this option is specified, you can still attempt to 
+connect to IPv6 addresses using the command line option '-6'.
+
+--with-ssl-dir=DIR allows you to specify where your OpenSSL libraries
+are installed.
+
+--with-4in6 Check for IPv4 in IPv6 mapped addresses and convert them to
+real (AF_INET) IPv4 addresses. Works around some quirks on Linux.
+
+--with-opensc=DIR
+--with-sectok=DIR allows for OpenSC or sectok smartcard libraries to
+be used with OpenSSH.  See 'README.smartcard' for more details.
+
+If you need to pass special options to the compiler or linker, you
+can specify these as environment variables before running ./configure.
+For example:
+
+CFLAGS="-O -m486" LDFLAGS="-s" LIBS="-lrubbish" LD="/usr/foo/ld" ./configure
+
+3. Configuration
+----------------
+
+The runtime configuration files are installed by in ${prefix}/etc or 
+whatever you specified as your --sysconfdir (/usr/local/etc by default).
+
+The default configuration should be instantly usable, though you should 
+review it to ensure that it matches your security requirements.
+
+To generate a host key, run "make host-key". Alternately you can do so
+manually using the following commands: 
+
+    ssh-keygen -t rsa1 -f /etc/ssh/ssh_host_key -N ""
+    ssh-keygen -t rsa -f /etc/ssh/ssh_host_rsa_key -N ""
+    ssh-keygen -t dsa -f /etc/ssh/ssh_host_dsa_key -N ""
+
+Replacing /etc/ssh with the correct path to the configuration directory.
+(${prefix}/etc or whatever you specified with --sysconfdir during 
+configuration)
+
+If you have configured OpenSSH with EGD support, ensure that EGD is
+running and has collected some Entropy.
+
+For more information on configuration, please refer to the manual pages 
+for sshd, ssh and ssh-agent.
+
+4. Problems?
+------------
+
+If you experience problems compiling, installing or running OpenSSH. 
+Please refer to the "reporting bugs" section of the webpage at
+http://www.openssh.com/
+
+
+$Id: INSTALL,v 1.55 2002/07/25 04:36:25 djm Exp $

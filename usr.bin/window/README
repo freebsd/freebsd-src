@@ -1,0 +1,199 @@
+/*-
+ * Copyright (c) 1990, 1993
+ *	The Regents of the University of California.  All rights reserved.
+ *
+ * This code is derived from software contributed to Berkeley by
+ *  Edward Wang at The University of California, Berkeley.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
+ * 4. Neither the name of the University nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ *	@(#)README	8.1 (Berkeley) 6/6/93
+ */
+
+Compilation notes:
+
+     Compiler options:
+
+	BYTE_ORDER (used only in ww.h)
+		It should already be defined in machine/endian.h.
+		The code knows about BIG_ENDIAN, LITTLE_ENDIAN, and PDP_ENDIAN.
+		It only cares about byte order in words, so PDP_ENDIAN
+		is the same as LITTLE_ENDIAN.
+	OLD_TTY
+		If you don't have Posix termios, then define this.
+	VMIN_BUG
+		Even if you have Posix termios, define this if the MIN and TIME
+		feature in noncanonical mode doesn't work correctly.
+
+     Ok, there's another one, STR_DEBUG.  It turns on consistency checks
+     in the string allocator.  It's been left on since performace doesn't
+     seem to suffer.  There's an abort() somewhere when an inconsistency
+     is found.  It hasn't happened in years.
+
+     The file local.h contains locally tunable constants.
+
+     The makefile used to be updated with mkmf; it has been changed
+at various times to use cpp -M and, currently, mkdep.  The only library
+it needs is termcap.
+
+     Window, as is, only runs on 4.3 (or later) machines.
+
+     On 4.2 machines, at least these modifications must be done:
+
+	delete uses of window size ioctls: TIOCGWINSZ, TIOCSWINSZ,
+		struct winsize
+	add to ww.h
+		typedef int fd_set;
+		#define FD_ZERO(s) (*(s) = 0)
+		#define FD_SET(b, s) (*(s) |= 1 << (b))
+		#define FD_ISSET(b, s) (*(s) & 1 << (b))
+	add to ww.h
+		#define sigmask(s) (1 << (s) - 1)
+
+
+A few notes about the internals:
+
+     The window package.  Windows are opened by calling wwopen().
+Wwwrite() is the primitive for writing to windows.  Wwputc(), wwputs(),
+and wwprintf() are also supported.  Some of the outputs to windows are
+delayed.  Wwupdate() updates the terminal to match the internal screen
+buffer.  Wwspawn() spawns a child process on the other end of a window,
+with its environment tailored to the window.  Visible windows are
+doubly linked in the order of their overlap.  Wwadd() inserts a window
+into the list at a given place.  Wwdelete() deletes it.  Windows not in
+the list are not visible, though wwwrite() still works.  Window was
+written before the days of X and Sunview, so some of the terminology
+is not standard.
+
+     Most functions return -1 on error.  Wwopen() returns the null
+pointer.  An error number is saved in wwerrno.  Wwerror() returns an
+error string based on wwerrno suitable for printing.
+
+     The terminal drivers perform all output to the physical terminal,
+including special functions like character and line insertion and
+deletion.  The window package keeps a list of known terminals.  At
+initialization time, the terminal type is matched against the list to
+find the right terminal driver to use.  The last driver, the generic
+driver, matches all terminals and uses the termcap database.  The
+interface between the window package the terminal driver is the `tt'
+structure.  It contains pointers to functions to perform special
+functions and terminal output, as well as flags about the
+characteristics of the terminal.  Most of these ideas are borrowed
+from the Maryland window package, which in turn is based on Goslin's
+Emacs.
+
+     The IO system is semi-synchronous.  Terminal input is signal
+driven, and everything else is done synchronously with a single
+select().  It is roughly event-driven, though not in a clean way.
+
+     Normally, in both conversation mode and command mode, window
+sleeps in a select() in wwiomux() waiting for data from the
+pseudo-terminals.  At the same time, terminal input causes SIGIO which
+is caught by wwrint().  The select() returns when at least one of the
+pseudo-terminals becomes ready for reading.
+
+     Wwrint() is the interrupt handler for tty input.  It reads input
+into a linear buffer accessed through four pointers:
+
+	+-------+--------------+----------------+
+	| empty |    data      |   empty	|
+	+-------+--------------+----------------+
+	^	^		^		 ^
+	|	|		|		 |
+       wwib    wwibp	       wwibq		wwibe
+
+Wwrint() appends characters at the end and increments wwibq (*wwibq++
+= c), and characters are taken off the buffer at wwibp using the
+wwgetc() and wwpeekc() macros.  As is the convention in C, wwibq
+and wwibe point to one position beyond the end.  In addition,
+wwrint() will do a longjmp(wwjmpbuf) if wwsetjmp is true.  This is
+used by wwiomux() to interrupt the select() which would otherwise
+resume after the interrupt.  (Actually, I hear this is not true,
+but the longjmp feature is used to avoid a race condition as well.
+Anyway, it means I didn't have to depend on a feature in a
+daily-changing kernel, but that's another story.) The macro
+wwinterrupt() returns true if the input buffer is non-empty.
+Wwupdate(), wwwrite(), and wwiomux() check this condition and will
+return at the first convenient opportunity when it becomes true.
+In the case of wwwrite(), the flag ww_nointr in the window structure
+overrides this.  This feature allows the user to interrupt lengthy
+outputs safely.  The structure of the input buffer is designed to
+avoid race conditions without blocking interrupts.
+
+     Actually, wwsetjmp and wwinterrupt() are part of a software
+interrupt scheme used by the two interrupt catchers wwrint() and
+wwchild().  Asserting the interrupt lets the synchronous parts of
+the program know that there's an interesting asynchronous condition
+(i.e., got a keyboard character, or a child process died) that they
+might want to process before anything else.  The synchronous routines
+can check for this condition with wwinterrupt() or by arranging
+that a longjmp() be done.
+
+     Wwiomux() copies pseudo-terminal output into their corresponding
+windows.  Without anything to do, it blocks in a select(), waiting for
+read ready on pseudo-terminals.  Reads are done into per-window buffers
+in the window structures.  When there is at least one buffer non-empty,
+wwiomux() finds the top most of these windows and writes it using
+wwwrite().  Then the process is repeated.  A non-blocking select() is
+done after a wwwrite() to pick up any output that may have come in
+during the write, which may take a long time.  Specifically, we use
+this to stop output or flush buffer when a pseudo-terminal tells us to
+(we use pty packet mode).  The select() blocks only when all of the
+windows' buffers are empty.  A wwupdate() is done prior to this, which
+is the only time the screen is guaranteed to be completely up to date.
+Wwiomux() loops until wwinterrupt() becomes true.
+
+     The top level routine for all this is mloop().  In conversation
+mode, it simply calls wwiomux(), which only returns when input is
+available.  The input buffer is then written to the pseudo-terminal of
+the current window.  If the escape character is found in the input,
+command mode is entered.  Otherwise, the process is repeated.  In
+command mode, control is transferred to docmd() which returns only when
+conversation mode is reentered.  Docmd() and other command processing
+routines typically wait for input in a loop:
+
+	while (wwpeekc() < 0)
+		wwiomux();
+
+When the loop terminates, wwgetc() is used to read the input buffer.
+
+     Output to the physical terminal is handled by the lowest level
+routines of the window package, in the files ttoutput.c and tt.h.  The
+standard IO package is not used, to get better control over buffering
+and to use non-blocking reads in wwrint().  The buffer size is set to
+approximately one second of output time, based on the baudrate.
+
+     The result of all this complexity is faster response time,
+especially in output stopping and flushing.  Wwwrite() checks
+wwinterrupt() after every line.  It also calls wwupdate() for each line
+it writes.  The output buffer is limited to one second of output time.
+Thus, there is usually only a delay of one to two lines plus one second
+after a ^C or ^S.  Also, commands that produce lengthy output can be
+aborted without actually showing all of it on the terminal.  (Try the
+'?' command followed by escape immediately.)

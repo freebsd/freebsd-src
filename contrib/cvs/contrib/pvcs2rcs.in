@@ -1,0 +1,1150 @@
+#! @PERL@
+# ---------------------------------
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2, or (at your option)
+# any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+###########################################################################
+# FUNCTION:
+# To recursively walk through a PVCS archive directory tree (archives
+# located in VCS/ or vcs/ subdirectories) and convert them to RCS archives.
+# The RCS archive name is the PVCS workfile name with ",v" appended.
+#
+# SYNTAX:
+# pvcs_to_rcs.pl --help
+#
+# where -l indicates the operation is to be performed only in the current
+# directory (no recursion)
+# 
+# EXAMPLE:
+# pvcs_to_rcs
+# Would walk through every VCS or vcs subdir starting at the current directory,
+# and produce corresponding RCS archives one level above the VCS or vcs subdir.
+# (VCS/../RCS/)
+#
+# NOTES:
+# * This script performs little error checking and logging
+#   (i.e. USE AT YOUR OWN RISK)
+# * This script was last tested using ActiveState's port of Perl 5.005_02
+#   (internalcut #507) under Win95, though it does compile under Perl-5.00404
+#   for Solaris 2.4 run on a Solaris 2.6 system.  The script crashed
+#   occasionally under ActiveState's port of Perl 5.003_07 but this stopped
+#   happening with the update so if you are having problems, try updating Perl.
+#   Upgrading to cut #507 also seemed to coincide with a large speed
+#   improvement, so try and keep up, hey?  :)  It was executed from MKS's
+#   UNIX tools version 6.1 for Win32's sh.  ALWAYS redirect your output to
+#   a log!!!
+# * PVCS archives are left intact
+# * RCS archives are created in VCS/../RCS/ (or ./RCS using '-pflat')
+# * Branch labels in this script will be attached to the CVS magic
+#   revision number.  For branch a.b.c of a particular file, this means
+#   the label will be attached to revision a.b.0.c of the converted
+#   file.  If you use the TrunkTip (1.*) label, be aware that it will convert
+#   to RCS revision 0.1, which is useless to RCS and CVS.  You'll probably
+#   have to delete these.
+# * All revisions are saved with correct "metadata" (i.e. check-in date,
+#   author, and log message).  Any blank log message is replaced with
+#   "no comment".  This is because RCS does not allow non-interactive
+#   check in of a new revision without a comment string.
+# * Revision numbers are incremented by 1 during the conversion (since
+#   RCS does not allow revision 1.0).
+# * All converted branch numbers are even (the CVS paradigm)
+# * Version labels are assigned to the appropriate (incremented) revision
+#   numbers.  PVCS allows spaces and periods in version labels while RCS
+#   does not.  A global search and replace converts " " and "." to "_"
+#   There may be other cases that ought to be added.
+# * Any working (checked-out) copies of PVCS archives
+#   within the VCS/../ or vcs/../ (or possibly ./ with '-pflat')
+#   will be deleted (or overwritten) depending on your mode of
+#   operation since the current ./ is used in the checkout of each revision.
+#   I suppose if development continues these files could be redirected to
+#   temp space rather than ./ .
+# * Locks on PVCS archives should be removed (or the workfiles should be
+#   checked-in) prior to conversion, although the script will blaze through
+#   the archive nonetheless (But you would lose any checked out revision(s))
+# * The -kb option is added to the RCS archive for workfiles with the following
+#   extensions: .bin .out .btl .rom .a07 .lib .exe .tco .obj .t8u .c8u .o .lku
+#   .a and a few others.  The %bin_ext variable holds these values in regexp
+#   form.
+# * the --force-binary option can be used to convert binary files which don't
+#   have proper extensions, but I'd *probably* edit the %bin_ext variable.
+# * This script will abort occasionally with the error "invalid revision
+#   number".  This is known to happen when a revision comment has
+#   /^\s*Rev/ (Perl regexp notation) in it.  Fix the comment and start over.
+#   (The directory locks and existance checking make this a fairly quick
+#   process.)
+# * This script writes lockfiles in the RCS/ directories.  It will also not
+#   convert an archive if it finds the RCS Archive existant in the RCS/
+#   directory.  This enables the conversion to quickly pick up where it left
+#   off after errors or interrupts occur.  If you interrupt the script make
+#   sure you delete the last RCS Archive File which was being written.
+#   If you recieve the "Invalid revision number" error, then the RCS archive
+#   file for that particular PVCS file will not have been created yet.
+# * This script will not create lockfiles when processing single
+#   filenames passed into the script, for hopefully obvious reasons.
+#   (lockfiles lock directories - DRP)
+# * Log the output to a file.  That makes it real easy to grep for errors
+#   later.  (grep for "^[ \t]*(rcs|ci):" and be aware I might have missed
+#   a few cases (get?  vcs?) !!!) *** Also note that this script will
+#   exibit some harmless RCS errors.  Namely, it will attempt to lock
+#   branches which haven't been created yet. ***
+# * I tried to keep the error and warning info up to date, but it seems
+#   to mean very little.  This script almost always exits with a warning
+#   or an error that didn't seem to cause any harm.  I didn't trace it
+#   and our imported source checks out and builds...
+#   It is probably happening when trying to convert empty directories
+#   or read files (possibly checked out workfiles ) which are not
+#   pvcs_archives.
+# * You must use the -pflat option when processing single filenames
+#   passed as arguments to the script.  This is probably a bug.
+# * questions, comments, additions can be sent to info-cvs@gnu.org
+#########################################################################
+
+
+
+#
+# USER Configurables
+#
+
+# %bin_ext should be editable from the command line.
+#
+# NOTE:  Each possible binary extension is listed as a Perl regexp
+#
+# The value associated with each regexp key is used to print a log
+# message when a binary file is found.
+my %bin_ext =
+	(
+	'\.(?i)bin$' => "Binary",
+	'\.(?i)out$' => "Default Compiler Output",
+	'\.(?i)btl$' => "",
+	'\.(?i)rom$' => "",
+	'\.(?i)a07$' => "",
+	'\.(?i)lib$' => "DOS/Wintel/Netware Compiler Library",
+	'\.(?i)lif$' => "Netware Binary File",
+	'\.(?i)exe$' => "DOS/Wintel Executable",
+	'\.(?i)tco$' => "",
+	'\.(?i)obj$' => "DOS/Wintel Compiler Object",
+	'\.(?i)res$' => "DOS/Wintel Resource File",
+	'\.(?i)ico$' => "DOS/Wintel Icon File",
+	'\.(?i)nlm$' => "Netware Loadable Module",
+	'\.(?i)t8u$' => "",
+	'\.(?i)c8u$' => "",
+	'\.(?i)lku$' => "",
+	'\.(?i)(bmp|gif|jpg|jpeg|jfif|tif|tiff|xbm)$' => "Image",
+	'\.(?i)dll$' => "DOS/Wintel Dynamically Linked Library",
+	'\.o$' => "UNIX Compiler Object",
+	'\.a$' => "UNIX Compiler Library",
+	'\.so(\.\d+\.\d+)?$' => "UNIX Shared Library"
+	);
+
+# The binaries this script is dependant on:
+my @bin_dependancies = ("vcs", "vlog", "rcs", "ci");
+
+# Where we should put temporary files
+my $tmpdir = $ENV{TMPDIR} ? $ENV{TMPDIR} : "/var/tmp";
+
+# We use these...
+use strict;
+
+use Cwd;
+use File::Path;
+use IO::File;
+use Getopt::Long;
+	$Getopt::Long::bundling = 1;
+#	$Getopt::Long::ignorecase = 0;
+
+my $usage = "\
+usage:  $0 -h
+        $0 [-lt] [-i vcsid] [-r flat|leaf] [-p flat|leaf] [-x rcs_extension]
+		        [-v none|locks|exists] [options] [path...]
+";
+
+my $help = "\
+$usage
+     ----------------------------           -----------------------------------
+     -h | --Help                            Print this text
+
+     General Settings
+     ----------------------------           -----------------------------------
+     --Recurse                              Recurse through directories
+                                            (default)
+     -l | --NORecurse                       Process only .
+     --Errorfiles                           Save a count of conversion errors
+                                            in the RCS archive directory
+                                            (default) (unimplemented)
+     --NOErrorfiles                         Don't save a count of conversion
+                                            errors (unimplemented)
+     ( -m | --Mode ) Convert                Convert PVCS files to RCS files
+                                            (default)
+     ( -m | --Mode ) Verify                 Perform verification ONLY (unimplemented)
+     ( -v | --VERIfy ) None                 Always replace existing RCS files
+     ( -v | --VERIfy ) LOCKS                Same as exists unless a #conv.done
+                                            file exists in the RCS directory.
+                                            In that case, only the #conv.done
+                                            file's existance is verified for
+                                            that directory.  (default)
+     ( -v | --VERIfy ) Exists               Don't replace existing RCS files
+     ( -v | --VERIfy ) LOCKDates            Verify that an existing RCS file's
+                                            last modification date is older
+                                            than that of the lockfile
+                                            (unimplemented)
+     ( -v | --VERIfy ) Revs                 Verify that the PVCS archive files
+                                            and RCS archive file contain the
+                                            same number of corresponding
+                                            revisions.  Add only new revisions
+                                            to the RCS file.  (unimplemented)
+     ( -v | --VERIfy ) Full                 Perform --verify=Revs and confirm
+                                            that the text of the revisions is
+                                            identical.  Add only new revisions
+                                            unless an error is found.  Then
+                                            erase the RCS archive and recreate
+                                            it.  (unimplemented)
+     -t | --Test-binaries                   Use 'which' to check \$PATH for
+                                            the binaries required by this
+                                            script (default)
+     --NOTest-binaries                      Don't check for binaries
+     --VERBose                              Enable verbose output
+     --NOVerbose                            Disable verbose output (default)
+     -w | --Warnings                        Print warning messages (default)
+     --NOWarnings                           Don't print warning messages
+
+     RCS Settings
+     ----------------------------           -----------------------------------
+     ( -r | --RCS-Dirs ) leaf               RCS files stored in ./RCS (default)
+     ( -r | --RCS-Dirs ) flat               RCS files stored in .
+                                            (unimplemented)
+     ( -x | --RCS-Extension )               Set RCS file extension
+                                            (default = ',v')
+     --Force-binary                         Pass '-kb' to 'rcs -i' regardless of
+                                            the file extension
+     --NOForce-binary                       Only use '-kb' when the file has
+                                            a binary extension (default)
+     --Cvs-branch-labels                    Use CVS magic branch revision
+                                            numbers when attaching branch
+                                            labels (default)
+     --NOCvs-branch-labels                  Attach branch labels to RCS branch
+                                            revision numbers (unimplemented)
+
+     PVCS Settings
+     ----------------------------           -----------------------------------
+     ( -p | --Pvcs-dirs ) leaf              PVCS files expected in ./VCS
+                                            (default)
+     ( -p | --Pvcs-dirs ) flat              PVCS files expected in .
+     ( -i | --VCsid ) vcsid                 Use vcsid instead of \$VCSID
+
+     --------------------------------------------------------------------------
+     The optional path argument should contain the name of a file or directory
+     to convert.  If not given, it will default to '.'.
+     --------------------------------------------------------------------------
+";
+
+
+
+#
+# Initialize globals
+#
+
+my ($errors, $warnings) = (0, 0);
+my ($curlevel, $maxlevel);
+my ($rcs_base_command, $ci_base_command);
+my ($donefile_name, $errorfile_name);
+
+# set up the default options
+my %options = (
+	recurse => 1,
+	mode => "convert",
+	errorfiles => 1,
+	'rcs-dirs' => "leaf",
+	'rcs-extension' => ",v",
+	'force-binary' => 0,
+	'cvs-branch-labels' => 1,
+	'pvcs-dirs' => "leaf",
+	verify => "locks",
+	'test-binaries' => 1,
+	vcsid => $ENV{VCSID} || "",
+	verbose => 0,
+	debug => 0,
+	warnings => 1
+	);
+
+
+
+# This is untested except under Solaris 2.4 or 2.6 and
+# may not be portable
+#
+# I think the readline lib or some such has an interface
+# which may enable this now.  The perl installer sure looks
+# like it's testing this kind of thing, anyhow.
+sub hit_any_key
+	{
+	STDOUT->autoflush;
+	system "stty", "-icanon", "min", "1";
+
+	print "Hit any key to continue...";
+	getc;
+
+	system "stty", "icanon", "min", "0";
+	STDOUT->autoflush (0);
+
+	print "\nI always wondered where that key was...\n";
+	}
+
+
+
+# print the usage
+sub print_usage
+	{
+	my $fh = shift;
+	unless (ref $fh)
+		{
+		my $fdn = $fh ? $fh : "STDERR";
+		$fh = new IO::File;
+		$fh->fdopen ($fdn, "w");
+		}
+
+	$fh->print ($usage);
+	}
+
+# print the help
+sub print_help
+	{
+	my $fh = shift;
+	unless (ref $fh)
+		{
+		my $fdn = $fh ? $fh : "STDOUT";
+		$fh = new IO::File;
+		$fh->fdopen ($fdn, "w");
+		}
+
+	$fh->print ($help);
+	}
+
+# print the help and exit $_[0] || 0
+sub exit_help
+	{
+	print_help;
+	exit shift || 0;
+	}
+
+sub error_count
+	{
+	my $type = shift or die "$0:  error - error_count usage:  error_count type [, ref] [, LIST]\n";
+	my $error_count_ref;
+	my $outstring;
+
+	if (ref ($_[0]) && ref ($_[0]) == "SCALAR")
+		{
+		$error_count_ref = shift;
+		}
+	else
+		{
+		$error_count_ref = \$errors;
+		}
+	$$error_count_ref++;
+
+	push @_, "something wrong.\n" unless ( @_ > 0 );
+
+	$outstring = sprintf "$0:  $type - " . join ("", @_);
+	$outstring .= sprintf " - $!\n" unless ($outstring =~ /\n$/);
+
+	print STDERR $outstring;
+
+	if ($options{errorfiles})
+		{
+		my $fh = new IO::File ">>$errorfile_name" or new IO::File ">$errorfile_name";
+		if ($fh)
+			{
+			$fh->print ($$error_count_ref . "\n");
+			$fh->print ($outstring);
+			$fh->close;
+			}
+		else
+			{
+			my $cd = cwd;
+			print STDERR "$0: error - failed to open errorfile $cd/$errorfile_name - $!\n"
+					if ($options{debug});
+			}
+		}
+
+	return $$error_count_ref;
+	}
+
+
+
+# the main procedure that is run once in each directory
+sub execdir
+	{
+	my $dir = shift;
+	my ($errors, $warnings) = (0, 0);					# We return these error counters
+	my $old_dir = cwd;
+
+	local ($_, @_);
+
+	my $i;									# Generic counter
+	my ($pvcsarchive, $workfile, $rcsarchive);				# .??v, checked out file, and ,v files,
+										# respectively
+	my ($rev_count, $first_vl, $last_vl, $description,
+			$rev_index, @rev_num, %checked_in, %author,
+			$relative_comment_index, @comment_string,
+			%comment);
+	my ($num_version_labels, $label_index, @label_revision, $label,
+			@new_label, $rcs_rev);
+	my ($revision, %rcs_rev_num);
+	my ($get_output, $rcs_output, $ci_output, $mv_output);
+	my ($ci_command, $rcs_command, $wtr);
+	my @hits;
+	my ($num_fields);
+	my $skipdirlock;							# if true, don't write conv.out
+										# used only for single file operations
+										# at the moment
+	my $cd;
+
+	my @filenames;
+	# We may have recieved a single file name to process...
+	if ( -d $dir )
+		{
+		# change into the directory to be processed
+		# open the current directory for listing
+		# initialize the list of filenames
+		# and set filenames equal to directory listing
+		unless ( ( chdir $dir ) and ( opendir CURDIR, "." ) and ( @filenames = readdir CURDIR ) )
+			{
+			$cd = cwd;
+			error_count 'error', \$errors, "skipping directory $dir from $cd";
+			chdir $old_dir or die "Failed to restore original directory ($old_dir): ", $!, ", stopped";
+			return ($errors, $warnings);
+			}
+
+		# clean up by closing the directory
+		closedir(CURDIR);
+		}
+	elsif ( -f $dir ) # we recieved a single file
+		{
+		push @filenames, $dir;
+		$skipdirlock = 1;
+		}
+	else
+		{
+		$cd = cwd;
+		error_count 'error', \$errors, "no such directory/file $dir from $cd\n";
+		# chdir $old_dir or die "Failed to restore original directory ($old_dir): ", $!, ", stopped";
+		return ($errors, $warnings);
+		}
+
+	# save the current directory
+	$cd = cwd;
+
+	# increment the global $curlevel variable
+	$curlevel = $curlevel +1;
+
+	# initialize a list for any subdirectories and any files
+	# we need to process
+	my $vcsdir = ""; 
+	my (@subdirs, $fn, $file, @files, @pvcsarchives);
+
+	# print "$cd:  " . join (", ", @filenames) . "\n";
+	# hit_any_key;
+
+	(@files, @pvcsarchives) = ( (), () );
+	# begin a for loop to execute on each filename in the list @filename
+	foreach $fn (@filenames)
+		{
+		# if the file is a directory...
+		if (-d $fn)
+			{
+			# then if we are not expecting a flat arrangement of pvcs files
+			# and we found a vcs directory add its files to @pvcsarchives
+			if (!$options{'pvcs-dirs-flat'} and $fn =~ /^vcs$/i)
+				{
+				if ($options{verify} =~ /^locks$/ ) {
+				if ( -f $donefile_name ) {
+					print "Verified existence of lockfile $cd/$donefile_name."
+							. ( ($options{mode} =~ /^convert$/) ? "  Skipping directory." : "" )
+							. "\n" if ($options{verbose});
+					next;
+				} elsif ( $options{mode} =~ /^verify$/ ) {
+					print "No lockfile found for $cd .\n";
+					next;
+				}
+				}
+
+				# else add the files in the vcs dir to our list of files to process
+				error_count 'warning', \$warnings, "Found two vcs dirs in directory $cd.\n"
+						if ($vcsdir and $options{warnings});
+
+				$vcsdir = $fn;
+
+				unless ( ( opendir VCSDIR, $vcsdir ) and ( @files = readdir VCSDIR ) )
+					{
+					error_count 'error', \$errors, "skipping directory &cd/$fn";
+					next;
+					}
+				closedir VCSDIR;
+
+				# and so we don't need to worry about where these
+				# files came from later...
+				foreach $file (@files)
+					{
+					push @pvcsarchives, "$vcsdir/$file" if (-f "$vcsdir/$file");
+					}
+
+				# don't want recursion here...
+				@pvcsarchives = grep !/^\.\.?$/, @pvcsarchives;
+				}
+			elsif ($fn !~ /^\.\.?$/)
+				{
+				next if (!$options{'rcs-dirs-flat'} and $fn =~ /^rcs$/i);
+				# include it in @subdir if it's not a parent directory
+				push(@subdirs,$fn);
+				}
+			}
+		# else if we are processing a flat arrangement of pvcs files...
+		elsif ($options{'pvcs-dirs-flat'} and -f $fn)
+			{
+			if ($options{verify} =~ /^locks$/) {
+				if ( -f $donefile_name) {
+					print "Found lockfile $cd/$donefile_name."
+						. ( ($options{mode} =~ /^convert$/) ? "  Skipping directory." : "" )
+						. "\n" if ($options{verbose});
+					last;
+				} elsif ($options{mode} =~ /^verify$/) {
+					print "No lockfile found for $cd .\n";
+					last;
+				}
+			}
+			# else add this to the list of files to process
+			push (@pvcsarchives, $fn);
+			}
+		}
+
+	# print "pvcsarchives:  " . join (", ", @pvcsarchives) . "\n";
+	# print "subdirs:  " . join (", ", @subdirs) . "\n";
+	# hit_any_key;
+
+	# for loop of subdirs
+	foreach (@subdirs)
+		{
+		# run execdir on each sub dir
+		if ($maxlevel >= $curlevel)
+			{
+			my ($e, $w) = execdir ($_);
+			$errors += $e;
+			$warnings += $w;
+			}
+		}
+
+	# Print output header for each directory
+	print("Directory: $cd\n");
+
+	# the @files variable should already contain the list of files
+	# we should attempt to process
+	if ( @pvcsarchives && ( $options{mode} =~ /^convert$/ ) )
+		{
+		# create an RCS directory in parent to store RCS files in
+		if ( !( $options{'rcs-dirs-flat'} or (-d "RCS") or mkpath ( "RCS" ) ) )
+			{
+ 			error_count 'error', \$errors, "failed to make directory $cd/RCS - skipping directory $cd";
+			@pvcsarchives = ();
+			# after all, we have nowhere to put them...
+			}
+		}
+
+	# begin a for loop to execute on each filename in the list @files
+	foreach $pvcsarchive (@pvcsarchives)
+		{
+		my $got_workfile = 0;
+		my $got_version_labels = 0;
+		my $got_description = 0;
+		my $got_rev_count = 0;
+
+		my $abs_file = $cd . "/" . $pvcsarchive;
+
+		print("Verifying $abs_file...\n") if ($options{verbose});
+
+		print "vlog $pvcsarchive\n";
+		my $vlog_output = `vlog $pvcsarchive`;
+		$_ = $vlog_output;
+
+		# Split the vcs status output into individual lines
+		my @vlog_strings = split /\n/;
+		my $num_vlog_strings = @vlog_strings;
+		$_ = $vlog_strings[0];
+		if ( /^\s*$/ || /^vlog: warning/ )
+			{
+			error_count 'warning', \$warnings, "$abs_file is NOT a valid PVCS archive!!!\n";
+			next;
+			}
+
+		my $num;
+		# Collect all vlog output into appropriate variables
+		#
+		# This will ignore at the very least the /^\s*Archive:\s*/ field
+		# and maybe more.  This should not be a problem.
+		for ( $num = 0; $num < $num_vlog_strings; $num++ )
+			{
+			# print("$vlog_strings[$num]\n");
+			$_ = $vlog_strings[$num];
+
+			if( ( /^Workfile:\s*/ ) && (!$got_workfile ) )
+				{
+				my $num_fields;
+
+				$got_workfile = 1;
+				# get the string to the right of the above search (with any path stripped)
+				$workfile = $';
+				$_ = $workfile;
+				$num_fields = split /[\/\\]/;
+				if ( $num_fields > 1 ) 
+					{ 
+					$workfile = $_[$num_fields - 1 ];
+					}
+
+				$rcsarchive = $options{'rcs-dirs-flat'} ? "" : "RCS/";
+				$rcsarchive .= $workfile;
+				$rcsarchive .= $options{'rcs-extension'} if ($options{'rcs-extension'});
+				print "Workfile is $workfile\n" if ($options{debug});
+				}
+
+			elsif ( ( /^Rev count:\s*/ ) && (!$got_rev_count ) )
+				{
+				$got_rev_count = 1;
+				# get the string to the right of the above search
+				$rev_count = $';
+				print "Revision count is $rev_count\n";
+				}
+
+			elsif ( ( /^Version labels:\s*/ ) && (!$got_version_labels ) )
+				{
+				$got_version_labels = 1;
+				$first_vl = $num+1;
+				print "Version labels start at $first_vl\n" if ($options{debug});
+				}
+
+			elsif ( ( /^Description:\s*/ ) && (!$got_description ) )
+				{
+				$got_description = 1;
+				$description = "\"" . $vlog_strings[$num+1] . "\"";
+				print "Description is $description\n" if ($options{debug});
+				$last_vl = $num - 1;
+				}
+
+			elsif ( /^Rev\s+/ ) # get all the revision information at once
+				{
+				$rev_index = 0;
+				@rev_num = ();
+				while ( $rev_index < $rev_count )
+					{
+					$_ = $vlog_strings[$num];
+					/^\s*Rev\s+(\d+\.(\d+\.\d+\.)*\d+)$/;
+					$rev_num[$rev_index] = $1;
+					print "Found revision: $rev_num[$rev_index]\n" if ($options{debug});
+					die "Not a valid revision ($rev_num[$rev_index]).\n"
+						if ($rev_num[$rev_index] !~ /^(\d+\.)(\d+\.\d+\.)*\d+$/);
+
+					$_ = $vlog_strings[$num+1];
+					/^\s*Locked\s*/ and $num++;
+
+					$_ = $vlog_strings[$num+1];
+					/^\s*Checked in:\s*/;
+					$checked_in{$rev_num[$rev_index]} = "\"" . $' . "\"";
+					print "Checked in: $checked_in{$rev_num[$rev_index]}\n" if ($options{debug});
+
+					$_ = $vlog_strings[$num+3];
+					/^\s*Author id:\s*/;
+					split;
+					$author{$rev_num[$rev_index]} = "\"" . $_[2] . "\"";
+					print "Author: $author{$rev_num[$rev_index]}\n" if ($options{debug});
+
+					my @branches = ();
+					$_ = $vlog_strings[$num+1];
+					if (/^\s*Branches:\s*/)
+						{ 
+						$num++;
+						@branches = split /\s+/, $';
+						}
+
+					$relative_comment_index = 0;
+					@comment_string = ();
+ 					while( ( ( $num + 4 + $relative_comment_index ) < @vlog_strings)
+							&& ( $vlog_strings[$num+4+$relative_comment_index]
+								!~ /^\s*Rev\s+(\d+\.(\d+\.\d+\.)*\d+)$/ ) )
+						{
+						# We need the \n added for multi-line comments.  There is no effect for
+						# single-line comments since RCS inserts the \n if it doesn't exist already
+						# print "Found commment line: $vlog_strings[$num+4+$relative_comment_index]\n"
+						#	if ($options{debug});
+						push @comment_string, $vlog_strings[$num+4+$relative_comment_index], "\n";
+						$relative_comment_index += 1;
+						}
+					# print "Popped from comment: " . join ("", splice (@comment_string, -2)) 
+					#		. "\n"
+					#	if ($options{debug});
+					# Pop the "-+" or "=+" line from the comment
+					while ( (pop @comment_string) !~ /^-{35}|={35}$/ )
+						{}
+					$comment{$rev_num[$rev_index]} = join "", @comment_string;
+
+					$num += ( 4 + $relative_comment_index );
+					print "Got comment for $rev_num[$rev_index]\n" if ($options{debug});
+					print "comment string: $comment{$rev_num[$rev_index]}\n" if ($options{debug});
+					$rev_index += 1;
+					} # while ( $rev_index < $rev_count )
+				$num -= 1; #although there should be nothing left for this to matter
+				} # Get Rev information
+			} # for ($num = 0; $num < $num_vlog_strings; $num++)
+		# hit_any_key if ($options{debug});
+		# Create RCS revision numbers corresponding to PVCS version numbers
+		foreach $revision (@rev_num)
+			{
+			$rcs_rev_num{ $revision } = &pvcs_to_rcs_rev_number( $revision );
+			print"PVCS revision is $revision; RCS revision is $rcs_rev_num{ $revision }\n"
+					if ($options{debug});
+			}
+
+		# Sort the revision numbers - PVCS and RCS store them in different orders
+		# Clear @_ so we don't pass anything in by accident...
+		@_ = ();
+		@rev_num = sort revisions @rev_num;
+		print "Sorted rev_nums:\n" . join ("\n", @rev_num) . "\n" if ($options{debug});
+		# hit_any_key;
+
+		# Loop through each version label, checking for need to relabel ' ' with '_'.
+		$num_version_labels = $last_vl - $first_vl + 1;
+		print "Version label count is $num_version_labels\n";
+		for( $i = $first_vl; $i <= $last_vl; $i += 1 )
+			{
+			# print("$vlog_strings[$i]\n");
+			$label_index = $i - $first_vl;
+			$_=$vlog_strings[$i];
+			print "Starting with string '$_'\n" if ($options{debug});
+			split /\"/;
+			$label = $_[1];
+			print "Got label '$label'\n" if ($options{debug});
+			split /\s+/, $_[2];
+			$label_revision[$label_index] = $_[2];
+			print "Original label is $label_revision[$label_index]\n" if ($options{debug});
+
+			# Create RCS revision numbers corresponding to PVCS version numbers by
+			# adding 1 to the revision number (# after last .)
+			$label_revision[ $label_index ] = pvcs_to_rcs_rev_number( $label_revision [ $label_index ] );
+			# replace ' ' with '_', if needed
+			$_=$label;
+			$new_label[$label_index] = $label;
+			$new_label[$label_index] =~ s/ /_/g;
+			$new_label[$label_index] =~ s/\./_/g;
+			$new_label[$label_index] = "\"" . $new_label[$label_index] . "\"";
+			print"Label $new_label[$label_index] is for revision $label_revision[$label_index]\n" if ($options{debug});
+			}
+		
+		##########
+		#
+		# See if the RCS archive is up to date with the PVCS archive
+		#
+		##########
+		if ($options{verify} =~ /^locks|exists$/ and -f $rcsarchive)
+			{
+			print "Verified existence of $cd/$rcsarchive."
+					. ( ($options{mode} =~ /^convert$/) ? "  Skipping." : "" )
+					. "\n" if ($options{verbose});
+			next;
+			}
+
+		# Create RCS archive and check in all revisions, then label.
+		my $first_time = 1;
+		foreach $revision (@rev_num)
+			{
+			# print "get -p$revision $pvcsarchive >$workfile\n";
+			print "get -r$revision $pvcsarchive\n";
+			# $vcs_output = `vcs -u -r$revision $pvcsarchive`;
+			# $get_output = `get -p$revision $pvcsarchive >$workfile`;
+			$get_output = `get -r$revision $pvcsarchive`;
+
+			# if this is the first time, delete the rcs archive if it exists
+			# need for $options{verify} == none
+			unlink $rcsarchive if ($first_time and $options{verify} =~ /^none$/ and -f $rcsarchive);
+
+			# Also check here whether this file ought to be "binary"
+			if ( $first_time )
+				{
+				$rcs_command = "$rcs_base_command -i";
+				if ( ( @hits = grep { $workfile =~ /$_/ } keys %bin_ext ) || $options{'force-binary'} )
+					{
+					$rcs_command .= " -kb";
+					$workfile =~ /$hits[0]/ if (@hits);
+					print "Binary attribute -kb added ("
+						. (@hits ? "file type is '$bin_ext{$hits[0]}' for extension '$&'" : "forced")
+						. ")\n";
+					}
+				$first_time and $ci_command .= " -t-$description";
+
+				$rcs_command .= " $workfile";
+
+				# print and execute the rcs archive initialization command
+				print "$rcs_command\n";
+				$wtr = new IO::File "|$rcs_command";
+				$wtr->print ($description);
+				$wtr->print ("\n") unless ($description =~ /\n$/s);
+				$wtr->print (".\n");
+				$wtr->close;
+
+				# $rcs_output = `$rcs_base_command -i -kb $workfile`;
+				}
+
+			# if this isn't the first time, we need to lock the rcs branch
+			#
+			# This is a little messy, but it works.  Some extra locking is attempted.
+			# (This happens the first time a branch is used, at the least)
+			my $branch = "";
+			my @branch;
+			@branch = split /\./, $rcs_rev_num{$revision};
+			pop @branch;
+			$branch = join ".", @branch;
+
+			$rcs_output = `$rcs_base_command -l$branch $workfile` if (!$first_time);
+
+			# If an empty comment is specified, RCS will not check in the file;
+			# check for this case.	(but an empty -t- description is fine - go figure!)
+			# Since RCS will pause and ask for a comment if one is not given,
+			# substitute a dummy comment "no comment".
+			$comment{$revision} =~ /^\s*$/ and $comment{$revision} = "no comment\n";
+
+			$ci_command = $ci_base_command;
+			$ci_command .= " -f -r$rcs_rev_num{$revision} -d$checked_in{$revision}"
+					. " -w$author{$revision}";
+
+			$ci_command .= " $workfile";
+
+			# print and execute the ci command
+			print "$ci_command\n";
+			$wtr = new IO::File "|$ci_command";
+			$wtr->print ($comment{$revision});
+			$wtr->print ("\n") unless ($comment{$revision} =~ /\n$/s);
+			$wtr->print (".\n");
+			$wtr->close;
+			# $ci_output = `$ci_command`;
+			# $ci_output = `cat $tmpdir/ci.out`;
+
+			$first_time = 0 if ($first_time);
+			} # foreach revision
+
+		# Attach version labels
+		for( $i = $num_version_labels - 1; $i >= 0; $i -= 1 )
+			{
+			# print "rcs -x,v -n$new_label[$i]:$label_revision[$i] $workfile\n";
+			$rcs_output = `$rcs_base_command -n$new_label[$i]:$label_revision[$i] $workfile`;
+			print "Version label $new_label[$i] added to revision $label_revision[$i]\n";
+			} # foreach label
+
+		# hit_any_key;
+		} # foreach pvcs archive file
+
+	# We processed a vcs directory, so if there were any files, lock it.
+	# We are guaranteed to have made the attempt at
+	#
+	# $skipdirlock gets set if a single file name was passed to this function to enable
+	# a '$0 *' operation...
+	if ( @pvcsarchives && !$skipdirlock)
+		{
+		my $fh = new IO::File ">>$donefile_name" or new IO::File ">$donefile_name";
+		if ($fh)
+			{
+			$fh->close;
+			}
+		else
+			{
+			error_count 'error', \$errors, "couldn't create lockfile $cd/$donefile_name";
+			}
+		}
+
+	$curlevel = $curlevel - 1;
+
+	chdir $old_dir or die "Failed to restore original directory ($old_dir): ", $!, ", stopped";
+	return ($errors, $warnings);
+	}
+
+
+
+#
+# This function effectively does a cmp between two revision numbers
+# It is intended to be passed into Perl's sort routine.
+#
+# the pvcs_out is not implemented well.  It should probably be
+# returnning $b[0] <=> $a[0] rather than $a[0] <=> $b[0]
+#
+# The @_ argument implementation was going to be used for revision
+# comparison as an aid to remove the /^\sRev/ in revision comment
+# error.  The effort was fruitless at the time.
+sub revisions
+	{
+	my @a = split /\./, (defined $a) ? $a : shift;
+	my @b = split /\./, (defined $b) ? $b : shift;
+	my $function = @_ ? shift : 'rcs_in';
+	my ($i, $ret_val);
+
+	die "Not enough arguments to revisions : a = ", join (".", @a),
+			"; b = ", join (".", @b), ", stopped"
+		unless (@a and @b);
+
+	for ($i = 0; $i < scalar( @a ) && $i < scalar( @b ); $i++)
+		{
+		$a[$i] == $b[$i] or return ($a[$i] <=> $b[$i]);
+		}
+
+	return 0 if (scalar (@a) == scalar (@b));
+
+	if ($function eq 'rcs_in')
+		{
+		return (($i == @b) || -1);
+		}
+	elsif ($function eq 'pvcs_out')
+		{
+		return (($i == @a) || -1);
+		}
+	else
+		{
+		die "error - Invalid function type passed to revisions ($function)", ", stopped";
+		}
+	}
+
+
+
+sub pvcs_to_rcs_rev_number
+	{
+	my($input, $num_fields, @rev_string, $return_rev_num, $i);
+
+	$input = $_[0];
+	$_ = $input;
+	$num_fields = split /\./;
+	@rev_string = @_;
+	# @rev_string[$num_fields-1] += 1;
+
+	for( $i = 1; $i < $num_fields; $i += 1 )
+		{
+		if ( $i % 2 )
+			{
+			# DRP: 10/1
+			# RCS does not allow revision zero
+			$rev_string[ $i ] += 1;
+			}
+		elsif ( $i )
+			{
+			# DRP: 10/1
+			# Branches must have even references for compatibility
+			# with CVS's magic branch numbers.
+			# (Indexes 2, 4, 6...)
+			$rev_string[ $i ] *= 2;
+			}
+		}
+
+	# If this is a branch revision # (PVCS: a.b.c.*) then we want the CVS
+	# revision # instead.  It's okay to do this conversion here since we
+	# never commit to branches.  We'll only get a PVCS revision # in that
+	# form when looking through the revision labels.
+	if ($input =~ /\*$/)
+		{
+		pop @rev_string;
+		push @rev_string, splice (@rev_string, -1, 1, "0");
+		}
+
+	$return_rev_num = join ".", @rev_string;
+	return $return_rev_num;
+	}
+
+
+
+
+
+###
+###
+###
+###
+###
+###   MAIN program: checks to see if there are command line parameters
+###
+###
+###
+###
+###
+
+
+
+
+	
+# and read the options
+die $usage unless GetOptions (\%options, "h|help" => \&exit_help, 
+		"recurse!", "mode|m=s", "errorfiles!", "l", "rcs-dirs|rcs-directories|r=s",
+		"pvcs-dirs|pvcs-directories|p=s", "test-binaries|t!",
+		"rcs-extension=s", "verify|v=s", "vcsid|i=s", "verbose!", "debug!",
+		"force-binary!", "cvs-branch-labels!", "warnings|w!");
+
+
+
+#
+# Special processing for -l !^#%$^@#$%#$
+#
+# At the moment, -l overrides --recurse, regardless of the order the
+# options were passed in
+#
+$options{recurse} = 0 if defined $options{l};
+delete $options{l};
+
+
+
+# Make sure we got acceptable values for rcs-dirs and pvcs-dirs
+my @hits = grep /^$options{'rcs-dirs'}/i, ("leaf", "flat");
+@hits == 1 or die
+		  "$0: $options{'rcs-dirs'} invalid argument to --rcs-dirs or ambiguous\n"
+		. "    abbreviation.\n"
+		. "    Must be one of: 'leaf' or 'flat'.\n"
+		. $usage;
+$options{'rcs-dirs'} = $hits[0];
+$options{'rcs-dirs-flat'} = ($options{'rcs-dirs'} =~ /flat/);
+delete $options{'rcs-dirs'};
+
+@hits = grep /^$options{'pvcs-dirs'}/i, ("leaf", "flat");
+@hits == 1 or die
+		  "$0: $options{'pvcs-dirs'} invalid argument to --pvcs-dirs or ambiguous\n"
+		. "    abbreviation.\n"
+		. "    Must be one of: 'leaf' or 'flat'.\n"
+		. $usage;
+$options{'pvcs-dirs'} = $hits[0];
+$options{'pvcs-dirs-flat'} = ($options{'pvcs-dirs'} =~ /flat/);
+delete $options{'pvcs-dirs'};
+
+# and for verify
+@hits = grep /^$options{verify}/i, ("none", "locks", "exists", "lockdates", "revs", "full");
+@hits == 1 or die
+		  "$0: $options{verify} invalid argument to --verify or ambiguous\n"
+		. "    abbreviation.\n"
+		. "    Must be one of: 'none', 'locks', 'exists', 'lockdates', 'revs',\n"
+		. "    or 'full'.\n"
+		. $usage;
+$options{verify} = $hits[0];
+$options{verify} =~ /^none|locks|exists$/ or die
+		  "$0: --verify=$options{verify} unimplemented.\n"
+		. $usage;
+
+# and mode
+@hits = grep /^$options{mode}/i, ("convert", "verify");
+@hits == 1 or die
+		  "$0: $options{mode} invalid argument to --mode or ambiguous abbreviation.\n"
+		. "    Must be 'convert' or 'verify'.\n"
+		. $usage;
+$options{mode} = $hits[0];
+
+$options{'cvs-branch-labels'} or die
+		  "$0: RCS Branch Labels unimplemented.\n"
+		. $usage;
+
+# export VCSID into th environment for ourselves and our children
+$ENV{VCSID} = $options{vcsid};
+
+
+
+#
+# Verify we have all the binary executables we need to run this script
+#
+# Allowed this feature to be disabled in case which is missing or we are
+# running on a system which does not return error codes properly (e.g. WIN95)
+#
+#      -- i.e. I don't feel like grepping output yet. --
+#
+my @missing_binaries = ();
+if ($options{'test-binaries'})
+	{
+	foreach (@bin_dependancies)
+		{
+		if (system "which", $_)
+			{
+			push @missing_binaries, $_;
+			}
+		}
+
+	if (scalar @missing_binaries)
+		{
+		print STDERR "The following executables were not found in your PATH: "
+			. join ( " ", @missing_binaries )
+			. "\n"
+			. "You must correct this before continuing.\n";
+		exit 1;
+		}
+	}
+delete $options{'test-binaries'};
+
+
+
+#
+# set up our base archive manipulation commands
+#
+
+# set up our rcs_command mods
+$rcs_base_command = "rcs";
+$rcs_base_command .= " -x$options{'rcs-extension'}" if ($options{'rcs-extension'});
+
+# set up our rcs_command mods
+$ci_base_command = "ci";
+$ci_base_command .= " -x$options{'rcs-extension'}" if ($options{'rcs-extension'});
+
+
+
+#
+# So our logs fill in a manner we can monitor with 'tail -f' fairly easily:
+#
+STDERR->autoflush (1);
+STDOUT->autoflush (1);
+
+
+
+# Initialize the globals we use to keep track of recursion
+if ($options{recurse})
+	{
+	$maxlevel = 10000;		# Arbitrary recursion limit
+	}
+else
+	{
+	$maxlevel = 1;
+	}
+delete $options{recurse};
+
+# So we can lock the directories behind us
+$donefile_name = $options{'rcs-dirs-flat'} ? "" : "RCS/";
+$errorfile_name = $donefile_name . "#conv.errors";
+$donefile_name .= "#conv.done";
+
+
+
+#
+# start the whole thing and drop the return code on exit
+#
+push (@ARGV, ".") unless (@ARGV);
+while ($_ = shift)
+	{
+	# reset the recursion level (corresponds to directory depth)
+	# level 0 is the first directory we enter...
+	$curlevel = -1;
+	my ($e, $w) = execdir($_);
+	$errors += $e;
+	$warnings += $w;
+	}
+
+
+
+print STDERR "$0:  " . ($errors ? "Aborted" : "Done") . ".\n";
+print STDERR "$0:  ";
+print STDERR ($errors ? $errors : "No") . " error" . (($errors != 1) ? "s" : "");
+print STDERR ", " . ($warnings ? $warnings : "no") . " warning" . (($warnings != 1) ? "s" : "")
+		if ($options{warnings});
+print STDERR ".\n";
+
+
+
+#
+# Woo-hoo!  We made it!
+#
+exit $errors;

@@ -1,0 +1,22 @@
+$FreeBSD$
+
+--- manual.texi	2002/02/01 16:00:45	1.1
++++ manual.texi	2002/02/01 16:01:11
+@@ -46,8 +46,6 @@
+ find it identical to that contained in the file LICENSE in the 
+ source distribution.
+ 
+-@bf{------------------ START OF THE LICENSE ------------------}
+-
+ This program, @code{bzip2}, 
+ and associated library @code{libbzip2}, are
+ Copyright (C) 1996-2002 Julian R Seward.  All rights reserved.
+@@ -89,8 +87,6 @@
+ @code{jseward@@acm.org}
+ 
+ @code{bzip2}/@code{libbzip2} version 1.0.2 of 30 December 2001.
+-
+-@bf{------------------ END OF THE LICENSE ------------------}
+ 
+ Web sites:
+ 

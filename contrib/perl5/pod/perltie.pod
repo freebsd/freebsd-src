@@ -1,0 +1,879 @@
+=head1 NAME
+
+perltie - how to hide an object class in a simple variable
+
+=head1 SYNOPSIS
+
+ tie VARIABLE, CLASSNAME, LIST
+
+ $object = tied VARIABLE
+
+ untie VARIABLE
+
+=head1 DESCRIPTION
+
+Prior to release 5.0 of Perl, a programmer could use dbmopen()
+to connect an on-disk database in the standard Unix dbm(3x)
+format magically to a %HASH in their program.  However, their Perl was either
+built with one particular dbm library or another, but not both, and
+you couldn't extend this mechanism to other packages or types of variables.
+
+Now you can.
+
+The tie() function binds a variable to a class (package) that will provide
+the implementation for access methods for that variable.  Once this magic
+has been performed, accessing a tied variable automatically triggers
+method calls in the proper class.  The complexity of the class is
+hidden behind magic methods calls.  The method names are in ALL CAPS,
+which is a convention that Perl uses to indicate that they're called
+implicitly rather than explicitly--just like the BEGIN() and END()
+functions.
+
+In the tie() call, C<VARIABLE> is the name of the variable to be
+enchanted.  C<CLASSNAME> is the name of a class implementing objects of
+the correct type.  Any additional arguments in the C<LIST> are passed to
+the appropriate constructor method for that class--meaning TIESCALAR(),
+TIEARRAY(), TIEHASH(), or TIEHANDLE().  (Typically these are arguments
+such as might be passed to the dbminit() function of C.) The object
+returned by the "new" method is also returned by the tie() function,
+which would be useful if you wanted to access other methods in
+C<CLASSNAME>. (You don't actually have to return a reference to a right
+"type" (e.g., HASH or C<CLASSNAME>) so long as it's a properly blessed
+object.)  You can also retrieve a reference to the underlying object
+using the tied() function.
+
+Unlike dbmopen(), the tie() function will not C<use> or C<require> a module
+for you--you need to do that explicitly yourself.
+
+=head2 Tying Scalars
+
+A class implementing a tied scalar should define the following methods:
+TIESCALAR, FETCH, STORE, and possibly DESTROY.
+
+Let's look at each in turn, using as an example a tie class for
+scalars that allows the user to do something like:
+
+    tie $his_speed, 'Nice', getppid();
+    tie $my_speed,  'Nice', $$;
+
+And now whenever either of those variables is accessed, its current
+system priority is retrieved and returned.  If those variables are set,
+then the process's priority is changed!
+
+We'll use Jarkko Hietaniemi <F<jhi@iki.fi>>'s BSD::Resource class (not
+included) to access the PRIO_PROCESS, PRIO_MIN, and PRIO_MAX constants
+from your system, as well as the getpriority() and setpriority() system
+calls.  Here's the preamble of the class.
+
+    package Nice;
+    use Carp;
+    use BSD::Resource;
+    use strict;
+    $Nice::DEBUG = 0 unless defined $Nice::DEBUG;
+
+=over
+
+=item TIESCALAR classname, LIST
+
+This is the constructor for the class.  That means it is
+expected to return a blessed reference to a new scalar
+(probably anonymous) that it's creating.  For example:
+
+    sub TIESCALAR {
+        my $class = shift;
+        my $pid = shift || $$; # 0 means me
+
+        if ($pid !~ /^\d+$/) {
+            carp "Nice::Tie::Scalar got non-numeric pid $pid" if $^W;
+            return undef;
+        }
+
+        unless (kill 0, $pid) { # EPERM or ERSCH, no doubt
+            carp "Nice::Tie::Scalar got bad pid $pid: $!" if $^W;
+            return undef;
+        }
+
+        return bless \$pid, $class;
+    }
+
+This tie class has chosen to return an error rather than raising an
+exception if its constructor should fail.  While this is how dbmopen() works,
+other classes may well not wish to be so forgiving.  It checks the global
+variable C<$^W> to see whether to emit a bit of noise anyway.
+
+=item FETCH this
+
+This method will be triggered every time the tied variable is accessed
+(read).  It takes no arguments beyond its self reference, which is the
+object representing the scalar we're dealing with.  Because in this case
+we're using just a SCALAR ref for the tied scalar object, a simple $$self
+allows the method to get at the real value stored there.  In our example
+below, that real value is the process ID to which we've tied our variable.
+
+    sub FETCH {
+        my $self = shift;
+        confess "wrong type" unless ref $self;
+        croak "usage error" if @_;
+        my $nicety;
+        local($!) = 0;
+        $nicety = getpriority(PRIO_PROCESS, $$self);
+        if ($!) { croak "getpriority failed: $!" }
+        return $nicety;
+    }
+
+This time we've decided to blow up (raise an exception) if the renice
+fails--there's no place for us to return an error otherwise, and it's
+probably the right thing to do.
+
+=item STORE this, value
+
+This method will be triggered every time the tied variable is set
+(assigned).  Beyond its self reference, it also expects one (and only one)
+argument--the new value the user is trying to assign.
+
+    sub STORE {
+        my $self = shift;
+        confess "wrong type" unless ref $self;
+        my $new_nicety = shift;
+        croak "usage error" if @_;
+
+        if ($new_nicety < PRIO_MIN) {
+            carp sprintf
+              "WARNING: priority %d less than minimum system priority %d",
+                  $new_nicety, PRIO_MIN if $^W;
+            $new_nicety = PRIO_MIN;
+        }
+
+        if ($new_nicety > PRIO_MAX) {
+            carp sprintf
+              "WARNING: priority %d greater than maximum system priority %d",
+                  $new_nicety, PRIO_MAX if $^W;
+            $new_nicety = PRIO_MAX;
+        }
+
+        unless (defined setpriority(PRIO_PROCESS, $$self, $new_nicety)) {
+            confess "setpriority failed: $!";
+        }
+        return $new_nicety;
+    }
+
+=item DESTROY this
+
+This method will be triggered when the tied variable needs to be destructed.
+As with other object classes, such a method is seldom necessary, because Perl
+deallocates its moribund object's memory for you automatically--this isn't
+C++, you know.  We'll use a DESTROY method here for debugging purposes only.
+
+    sub DESTROY {
+        my $self = shift;
+        confess "wrong type" unless ref $self;
+        carp "[ Nice::DESTROY pid $$self ]" if $Nice::DEBUG;
+    }
+
+=back
+
+That's about all there is to it.  Actually, it's more than all there
+is to it, because we've done a few nice things here for the sake
+of completeness, robustness, and general aesthetics.  Simpler
+TIESCALAR classes are certainly possible.
+
+=head2 Tying Arrays
+
+A class implementing a tied ordinary array should define the following
+methods: TIEARRAY, FETCH, STORE, FETCHSIZE, STORESIZE and perhaps DESTROY. 
+
+FETCHSIZE and STORESIZE are used to provide C<$#array> and
+equivalent C<scalar(@array)> access.
+    
+The methods POP, PUSH, SHIFT, UNSHIFT, SPLICE are required if the perl
+operator with the corresponding (but lowercase) name is to operate on the
+tied array. The B<Tie::Array> class can be used as a base class to implement
+these in terms of the basic five methods above.  
+
+In addition EXTEND will be called when perl would have pre-extended 
+allocation in a real array.
+
+This means that tied arrays are now I<complete>. The example below needs
+upgrading to illustrate this. (The documentation in B<Tie::Array> is more
+complete.)
+
+For this discussion, we'll implement an array whose indices are fixed at
+its creation.  If you try to access anything beyond those bounds, you'll
+take an exception.  For example:
+
+    require Bounded_Array;
+    tie @ary, 'Bounded_Array', 2;
+    $| = 1;
+    for $i (0 .. 10) {
+        print "setting index $i: ";
+        $ary[$i] = 10 * $i;
+        $ary[$i] = 10 * $i;
+        print "value of elt $i now $ary[$i]\n";
+    }
+
+The preamble code for the class is as follows:
+
+    package Bounded_Array;
+    use Carp;
+    use strict;
+
+=over
+
+=item TIEARRAY classname, LIST
+
+This is the constructor for the class.  That means it is expected to
+return a blessed reference through which the new array (probably an
+anonymous ARRAY ref) will be accessed.
+
+In our example, just to show you that you don't I<really> have to return an
+ARRAY reference, we'll choose a HASH reference to represent our object.
+A HASH works out well as a generic record type: the C<{BOUND}> field will
+store the maximum bound allowed, and the C<{ARRAY}> field will hold the
+true ARRAY ref.  If someone outside the class tries to dereference the
+object returned (doubtless thinking it an ARRAY ref), they'll blow up.
+This just goes to show you that you should respect an object's privacy.
+
+    sub TIEARRAY {
+	my $class = shift;
+	my $bound = shift;
+	confess "usage: tie(\@ary, 'Bounded_Array', max_subscript)"
+	    if @_ || $bound =~ /\D/;
+	return bless {
+	    BOUND => $bound,
+	    ARRAY => [],
+	}, $class;
+    }
+
+=item FETCH this, index
+
+This method will be triggered every time an individual element the tied array
+is accessed (read).  It takes one argument beyond its self reference: the
+index whose value we're trying to fetch.
+
+    sub FETCH {
+      my($self,$idx) = @_;
+      if ($idx > $self->{BOUND}) {
+	confess "Array OOB: $idx > $self->{BOUND}";
+      }
+      return $self->{ARRAY}[$idx];
+    }
+
+As you may have noticed, the name of the FETCH method (et al.) is the same
+for all accesses, even though the constructors differ in names (TIESCALAR
+vs TIEARRAY).  While in theory you could have the same class servicing
+several tied types, in practice this becomes cumbersome, and it's easiest
+to keep them at simply one tie type per class.
+
+=item STORE this, index, value
+
+This method will be triggered every time an element in the tied array is set
+(written).  It takes two arguments beyond its self reference: the index at
+which we're trying to store something and the value we're trying to put
+there.  For example:
+
+    sub STORE {
+      my($self, $idx, $value) = @_;
+      print "[STORE $value at $idx]\n" if _debug;
+      if ($idx > $self->{BOUND} ) {
+        confess "Array OOB: $idx > $self->{BOUND}";
+      }
+      return $self->{ARRAY}[$idx] = $value;
+    }
+
+=item DESTROY this
+
+This method will be triggered when the tied variable needs to be destructed.
+As with the scalar tie class, this is almost never needed in a
+language that does its own garbage collection, so this time we'll
+just leave it out.
+
+=back
+
+The code we presented at the top of the tied array class accesses many
+elements of the array, far more than we've set the bounds to.  Therefore,
+it will blow up once they try to access beyond the 2nd element of @ary, as
+the following output demonstrates:
+
+    setting index 0: value of elt 0 now 0
+    setting index 1: value of elt 1 now 10
+    setting index 2: value of elt 2 now 20
+    setting index 3: Array OOB: 3 > 2 at Bounded_Array.pm line 39
+            Bounded_Array::FETCH called at testba line 12
+
+=head2 Tying Hashes
+
+As the first Perl data type to be tied (see dbmopen()), hashes have the
+most complete and useful tie() implementation.  A class implementing a
+tied hash should define the following methods: TIEHASH is the constructor.
+FETCH and STORE access the key and value pairs.  EXISTS reports whether a
+key is present in the hash, and DELETE deletes one.  CLEAR empties the
+hash by deleting all the key and value pairs.  FIRSTKEY and NEXTKEY
+implement the keys() and each() functions to iterate over all the keys.
+And DESTROY is called when the tied variable is garbage collected.
+
+If this seems like a lot, then feel free to inherit from merely the
+standard Tie::Hash module for most of your methods, redefining only the
+interesting ones.  See L<Tie::Hash> for details.
+
+Remember that Perl distinguishes between a key not existing in the hash,
+and the key existing in the hash but having a corresponding value of
+C<undef>.  The two possibilities can be tested with the C<exists()> and
+C<defined()> functions.
+
+Here's an example of a somewhat interesting tied hash class:  it gives you
+a hash representing a particular user's dot files.  You index into the hash
+with the name of the file (minus the dot) and you get back that dot file's
+contents.  For example:
+
+    use DotFiles;
+    tie %dot, 'DotFiles';
+    if ( $dot{profile} =~ /MANPATH/ ||
+         $dot{login}   =~ /MANPATH/ ||
+         $dot{cshrc}   =~ /MANPATH/    )
+    {
+	print "you seem to set your MANPATH\n";
+    }
+
+Or here's another sample of using our tied class:
+
+    tie %him, 'DotFiles', 'daemon';
+    foreach $f ( keys %him ) {
+	printf "daemon dot file %s is size %d\n",
+	    $f, length $him{$f};
+    }
+
+In our tied hash DotFiles example, we use a regular
+hash for the object containing several important
+fields, of which only the C<{LIST}> field will be what the
+user thinks of as the real hash.
+
+=over 5
+
+=item USER
+
+whose dot files this object represents
+
+=item HOME
+
+where those dot files live
+
+=item CLOBBER
+
+whether we should try to change or remove those dot files
+
+=item LIST
+
+the hash of dot file names and content mappings
+
+=back
+
+Here's the start of F<Dotfiles.pm>:
+
+    package DotFiles;
+    use Carp;
+    sub whowasi { (caller(1))[3] . '()' }
+    my $DEBUG = 0;
+    sub debug { $DEBUG = @_ ? shift : 1 }
+
+For our example, we want to be able to emit debugging info to help in tracing
+during development.  We keep also one convenience function around
+internally to help print out warnings; whowasi() returns the function name
+that calls it.
+
+Here are the methods for the DotFiles tied hash.
+
+=over
+
+=item TIEHASH classname, LIST
+
+This is the constructor for the class.  That means it is expected to
+return a blessed reference through which the new object (probably but not
+necessarily an anonymous hash) will be accessed.
+
+Here's the constructor:
+
+    sub TIEHASH {
+	my $self = shift;
+	my $user = shift || $>;
+	my $dotdir = shift || '';
+	croak "usage: @{[&whowasi]} [USER [DOTDIR]]" if @_;
+	$user = getpwuid($user) if $user =~ /^\d+$/;
+	my $dir = (getpwnam($user))[7]
+		|| croak "@{[&whowasi]}: no user $user";
+	$dir .= "/$dotdir" if $dotdir;
+
+	my $node = {
+	    USER    => $user,
+	    HOME    => $dir,
+	    LIST    => {},
+	    CLOBBER => 0,
+	};
+
+	opendir(DIR, $dir)
+		|| croak "@{[&whowasi]}: can't opendir $dir: $!";
+	foreach $dot ( grep /^\./ && -f "$dir/$_", readdir(DIR)) {
+	    $dot =~ s/^\.//;
+	    $node->{LIST}{$dot} = undef;
+	}
+	closedir DIR;
+	return bless $node, $self;
+    }
+
+It's probably worth mentioning that if you're going to filetest the
+return values out of a readdir, you'd better prepend the directory
+in question.  Otherwise, because we didn't chdir() there, it would
+have been testing the wrong file.
+
+=item FETCH this, key
+
+This method will be triggered every time an element in the tied hash is
+accessed (read).  It takes one argument beyond its self reference: the key
+whose value we're trying to fetch.
+
+Here's the fetch for our DotFiles example.
+
+    sub FETCH {
+	carp &whowasi if $DEBUG;
+	my $self = shift;
+	my $dot = shift;
+	my $dir = $self->{HOME};
+	my $file = "$dir/.$dot";
+
+	unless (exists $self->{LIST}->{$dot} || -f $file) {
+	    carp "@{[&whowasi]}: no $dot file" if $DEBUG;
+	    return undef;
+	}
+
+	if (defined $self->{LIST}->{$dot}) {
+	    return $self->{LIST}->{$dot};
+	} else {
+	    return $self->{LIST}->{$dot} = `cat $dir/.$dot`;
+	}
+    }
+
+It was easy to write by having it call the Unix cat(1) command, but it
+would probably be more portable to open the file manually (and somewhat
+more efficient).  Of course, because dot files are a Unixy concept, we're
+not that concerned.
+
+=item STORE this, key, value
+
+This method will be triggered every time an element in the tied hash is set
+(written).  It takes two arguments beyond its self reference: the index at
+which we're trying to store something, and the value we're trying to put
+there.
+
+Here in our DotFiles example, we'll be careful not to let
+them try to overwrite the file unless they've called the clobber()
+method on the original object reference returned by tie().
+
+    sub STORE {
+	carp &whowasi if $DEBUG;
+	my $self = shift;
+	my $dot = shift;
+	my $value = shift;
+	my $file = $self->{HOME} . "/.$dot";
+	my $user = $self->{USER};
+
+	croak "@{[&whowasi]}: $file not clobberable"
+	    unless $self->{CLOBBER};
+
+	open(F, "> $file") || croak "can't open $file: $!";
+	print F $value;
+	close(F);
+    }
+
+If they wanted to clobber something, they might say:
+
+    $ob = tie %daemon_dots, 'daemon';
+    $ob->clobber(1);
+    $daemon_dots{signature} = "A true daemon\n";
+
+Another way to lay hands on a reference to the underlying object is to
+use the tied() function, so they might alternately have set clobber
+using:
+
+    tie %daemon_dots, 'daemon';
+    tied(%daemon_dots)->clobber(1);
+
+The clobber method is simply:
+
+    sub clobber {
+	my $self = shift;
+	$self->{CLOBBER} = @_ ? shift : 1;
+    }
+
+=item DELETE this, key
+
+This method is triggered when we remove an element from the hash,
+typically by using the delete() function.  Again, we'll
+be careful to check whether they really want to clobber files.
+
+    sub DELETE   {
+	carp &whowasi if $DEBUG;
+
+	my $self = shift;
+	my $dot = shift;
+	my $file = $self->{HOME} . "/.$dot";
+	croak "@{[&whowasi]}: won't remove file $file"
+	    unless $self->{CLOBBER};
+	delete $self->{LIST}->{$dot};
+	my $success = unlink($file);
+	carp "@{[&whowasi]}: can't unlink $file: $!" unless $success;
+	$success;
+    }
+
+The value returned by DELETE becomes the return value of the call
+to delete().  If you want to emulate the normal behavior of delete(),
+you should return whatever FETCH would have returned for this key.
+In this example, we have chosen instead to return a value which tells
+the caller whether the file was successfully deleted.
+
+=item CLEAR this
+
+This method is triggered when the whole hash is to be cleared, usually by
+assigning the empty list to it.
+
+In our example, that would remove all the user's dot files!  It's such a
+dangerous thing that they'll have to set CLOBBER to something higher than
+1 to make it happen.
+
+    sub CLEAR    {
+	carp &whowasi if $DEBUG;
+	my $self = shift;
+	croak "@{[&whowasi]}: won't remove all dot files for $self->{USER}"
+	    unless $self->{CLOBBER} > 1;
+	my $dot;
+	foreach $dot ( keys %{$self->{LIST}}) {
+	    $self->DELETE($dot);
+	}
+    }
+
+=item EXISTS this, key
+
+This method is triggered when the user uses the exists() function
+on a particular hash.  In our example, we'll look at the C<{LIST}>
+hash element for this:
+
+    sub EXISTS   {
+	carp &whowasi if $DEBUG;
+	my $self = shift;
+	my $dot = shift;
+	return exists $self->{LIST}->{$dot};
+    }
+
+=item FIRSTKEY this
+
+This method will be triggered when the user is going
+to iterate through the hash, such as via a keys() or each()
+call.
+
+    sub FIRSTKEY {
+	carp &whowasi if $DEBUG;
+	my $self = shift;
+	my $a = keys %{$self->{LIST}};		# reset each() iterator
+	each %{$self->{LIST}}
+    }
+
+=item NEXTKEY this, lastkey
+
+This method gets triggered during a keys() or each() iteration.  It has a
+second argument which is the last key that had been accessed.  This is
+useful if you're carrying about ordering or calling the iterator from more
+than one sequence, or not really storing things in a hash anywhere.
+
+For our example, we're using a real hash so we'll do just the simple
+thing, but we'll have to go through the LIST field indirectly.
+
+    sub NEXTKEY  {
+	carp &whowasi if $DEBUG;
+	my $self = shift;
+	return each %{ $self->{LIST} }
+    }
+
+=item DESTROY this
+
+This method is triggered when a tied hash is about to go out of
+scope.  You don't really need it unless you're trying to add debugging
+or have auxiliary state to clean up.  Here's a very simple function:
+
+    sub DESTROY  {
+	carp &whowasi if $DEBUG;
+    }
+
+=back
+
+Note that functions such as keys() and values() may return huge lists
+when used on large objects, like DBM files.  You may prefer to use the
+each() function to iterate over such.  Example:
+
+    # print out history file offsets
+    use NDBM_File;
+    tie(%HIST, 'NDBM_File', '/usr/lib/news/history', 1, 0);
+    while (($key,$val) = each %HIST) {
+        print $key, ' = ', unpack('L',$val), "\n";
+    }
+    untie(%HIST);
+
+=head2 Tying FileHandles
+
+This is partially implemented now.
+
+A class implementing a tied filehandle should define the following
+methods: TIEHANDLE, at least one of PRINT, PRINTF, WRITE, READLINE, GETC,
+READ, and possibly CLOSE and DESTROY.
+
+It is especially useful when perl is embedded in some other program,
+where output to STDOUT and STDERR may have to be redirected in some
+special way. See nvi and the Apache module for examples.
+
+In our example we're going to create a shouting handle.
+
+    package Shout;
+
+=over
+
+=item TIEHANDLE classname, LIST
+
+This is the constructor for the class.  That means it is expected to
+return a blessed reference of some sort. The reference can be used to
+hold some internal information.
+
+    sub TIEHANDLE { print "<shout>\n"; my $i; bless \$i, shift }
+
+=item WRITE this, LIST
+
+This method will be called when the handle is written to via the
+C<syswrite> function.
+
+    sub WRITE {
+	$r = shift;
+	my($buf,$len,$offset) = @_;
+	print "WRITE called, \$buf=$buf, \$len=$len, \$offset=$offset";
+    }
+
+=item PRINT this, LIST
+
+This method will be triggered every time the tied handle is printed to
+with the C<print()> function.
+Beyond its self reference it also expects the list that was passed to
+the print function.
+
+    sub PRINT { $r = shift; $$r++; print join($,,map(uc($_),@_)),$\ }
+
+=item PRINTF this, LIST
+
+This method will be triggered every time the tied handle is printed to
+with the C<printf()> function.
+Beyond its self reference it also expects the format and list that was
+passed to the printf function.
+
+    sub PRINTF {
+        shift;
+        my $fmt = shift;
+        print sprintf($fmt, @_)."\n";
+    }
+
+=item READ this, LIST
+
+This method will be called when the handle is read from via the C<read>
+or C<sysread> functions.
+
+    sub READ {
+	my $self = shift;
+	my $$bufref = \$_[0];
+	my(undef,$len,$offset) = @_;
+	print "READ called, \$buf=$bufref, \$len=$len, \$offset=$offset";
+	# add to $$bufref, set $len to number of characters read
+	$len;
+    }
+
+=item READLINE this
+
+This method will be called when the handle is read from via <HANDLE>.
+The method should return undef when there is no more data.
+
+    sub READLINE { $r = shift; "READLINE called $$r times\n"; }
+
+=item GETC this
+
+This method will be called when the C<getc> function is called.
+
+    sub GETC { print "Don't GETC, Get Perl"; return "a"; }
+
+=item CLOSE this
+
+This method will be called when the handle is closed via the C<close>
+function.
+
+    sub CLOSE { print "CLOSE called.\n" }
+
+=item DESTROY this
+
+As with the other types of ties, this method will be called when the
+tied handle is about to be destroyed. This is useful for debugging and
+possibly cleaning up.
+
+    sub DESTROY { print "</shout>\n" }
+
+=back
+
+Here's how to use our little example:
+
+    tie(*FOO,'Shout');
+    print FOO "hello\n";
+    $a = 4; $b = 6;
+    print FOO $a, " plus ", $b, " equals ", $a + $b, "\n";
+    print <FOO>;
+
+=head2 The C<untie> Gotcha
+
+If you intend making use of the object returned from either tie() or
+tied(), and if the tie's target class defines a destructor, there is a
+subtle gotcha you I<must> guard against.
+
+As setup, consider this (admittedly rather contrived) example of a
+tie; all it does is use a file to keep a log of the values assigned to
+a scalar.
+
+    package Remember;
+
+    use strict;
+    use IO::File;
+
+    sub TIESCALAR {
+        my $class = shift;
+        my $filename = shift;
+        my $handle = new IO::File "> $filename"
+                         or die "Cannot open $filename: $!\n";
+
+        print $handle "The Start\n";
+        bless {FH => $handle, Value => 0}, $class;
+    }
+
+    sub FETCH {
+        my $self = shift;
+        return $self->{Value};
+    }
+
+    sub STORE {
+        my $self = shift;
+        my $value = shift;
+        my $handle = $self->{FH};
+        print $handle "$value\n";
+        $self->{Value} = $value;
+    }
+
+    sub DESTROY {
+        my $self = shift;
+        my $handle = $self->{FH};
+        print $handle "The End\n";
+        close $handle;
+    }
+
+    1;
+
+Here is an example that makes use of this tie:
+
+    use strict;
+    use Remember;
+
+    my $fred;
+    tie $fred, 'Remember', 'myfile.txt';
+    $fred = 1;
+    $fred = 4;
+    $fred = 5;
+    untie $fred;
+    system "cat myfile.txt";
+
+This is the output when it is executed:
+
+    The Start
+    1
+    4
+    5
+    The End
+
+So far so good.  Those of you who have been paying attention will have
+spotted that the tied object hasn't been used so far.  So lets add an
+extra method to the Remember class to allow comments to be included in
+the file -- say, something like this:
+
+    sub comment {
+        my $self = shift;
+        my $text = shift;
+        my $handle = $self->{FH};
+        print $handle $text, "\n";
+    }
+
+And here is the previous example modified to use the C<comment> method
+(which requires the tied object):
+
+    use strict;
+    use Remember;
+
+    my ($fred, $x);
+    $x = tie $fred, 'Remember', 'myfile.txt';
+    $fred = 1;
+    $fred = 4;
+    comment $x "changing...";
+    $fred = 5;
+    untie $fred;
+    system "cat myfile.txt";
+
+When this code is executed there is no output.  Here's why:
+
+When a variable is tied, it is associated with the object which is the
+return value of the TIESCALAR, TIEARRAY, or TIEHASH function.  This
+object normally has only one reference, namely, the implicit reference
+from the tied variable.  When untie() is called, that reference is
+destroyed.  Then, as in the first example above, the object's
+destructor (DESTROY) is called, which is normal for objects that have
+no more valid references; and thus the file is closed.
+
+In the second example, however, we have stored another reference to
+the tied object in C<$x>.  That means that when untie() gets called
+there will still be a valid reference to the object in existence, so
+the destructor is not called at that time, and thus the file is not
+closed.  The reason there is no output is because the file buffers
+have not been flushed to disk.
+
+Now that you know what the problem is, what can you do to avoid it?
+Well, the good old C<-w> flag will spot any instances where you call
+untie() and there are still valid references to the tied object.  If
+the second script above is run with the C<-w> flag, Perl prints this
+warning message:
+
+    untie attempted while 1 inner references still exist
+
+To get the script to work properly and silence the warning make sure
+there are no valid references to the tied object I<before> untie() is
+called:
+
+    undef $x;
+    untie $fred;
+
+=head1 SEE ALSO
+
+See L<DB_File> or L<Config> for some interesting tie() implementations.
+
+=head1 BUGS
+
+Tied arrays are I<incomplete>.  They are also distinctly lacking something
+for the C<$#ARRAY> access (which is hard, as it's an lvalue), as well as
+the other obvious array functions, like push(), pop(), shift(), unshift(),
+and splice().
+
+You cannot easily tie a multilevel data structure (such as a hash of
+hashes) to a dbm file.  The first problem is that all but GDBM and
+Berkeley DB have size limitations, but beyond that, you also have problems
+with how references are to be represented on disk.  One experimental
+module that does attempt to address this need partially is the MLDBM
+module.  Check your nearest CPAN site as described in L<perlmodlib> for
+source code to MLDBM.
+
+=head1 AUTHOR
+
+Tom Christiansen
+
+TIEHANDLE by Sven Verdoolaege <F<skimo@dns.ufsia.ac.be>> and Doug MacEachern <F<dougm@osf.org>>

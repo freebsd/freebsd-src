@@ -1,0 +1,249 @@
+'\"	mm -12 M.folio
+.br
+.tl '''May 16, 1980'
+.tl '''T.A.D.'
+.rs
+.sp 3
+.ce
+UNIX User's Manual
+.ce
+Release 3.0
+.tr ~
+.sp 3
+.ce
+.ul
+PRINTING INSTRUCTIONS
+.sp 2
+Print entire manual two-sided; mock-ups of front and back
+cover (together with sizing information), as well as cover
+title and tabs copy are attached.
+.sp
+Total page count (including blank pages) is 704.
+.nf
+.sp 2
+.ce
+.I "FOLIO LIST"
+.sp 2
+.I "Front Matter:"
+.sp
+.ta 5 10 25 34
+.ul
+	No tab:
+		Title page			~~~~1*
+		Trademark page			~~~~2*
+.FS *
+Pages 1 and 2 are
+.I not
+numbered.
+.I All
+other pages
+.I "that carry any text"
+are numbered.
+.FE
+		Acknowledgements			~~~~3
+		     Blank page		~~~~4
+.sp
+.ul
+	Tab "INTRO":
+		Introduction			~~~~5-6 incl.
+		How To Get Started			~~~~7-10 incl.
+.sp
+.ul
+	Tab "CONTENTS":
+		Contents			~~~~1-9 incl.
+		     Blank page	~~~10
+.sp
+.ul
+	Tab "INDEX":
+		Permuted Index		~~~~1-32 incl.
+.bp
+.nf
+.ta 18 +12 +18 +12 +18 +12
+.sp 3
+.ul
+Tab "1":
+'\"	Section 1 goes here
+INTRO(1)  1	DATE(1)  1	JOIN(1)  1
+300(1)  1-2 incl.	DC(1)  1-2 incl.	KAS(1)  1
+4014(1)  1	DD(1)  1-2 incl.	KILL(1)  1
+450(1)  1	DELTA(1)  1-2 incl.	KUN(1)  1
+ACCT(1M)  1-2 incl.	DEROFF(1)  1	LD(1)  1-2 incl.
+ACCTCMS(1M)  1	DEVNM(1M)  1	LEX(1)  1-2 incl.
+ACCTCOM(1)  1-2 incl.	DF(1)  1	LINE(1)  1
+ACCTCON(1M)  1	DIFF(1)  1	LINK(1M)  1
+ACCTMERG(1M)  1	DIFF3(1)  1	LINT(1)  1-2 incl.
+ACCTPRC(1M)  1	DIFFMK(1)  1	LOGIN(1)  1
+ACCTSH(1M)  1-2 incl.	DIRCMP(1)  1	LOGNAME(1)  1
+ADB(1)  1-6 incl.	DPD(1C)  1-2 incl.	LORDER(1)  1
+ADMIN(1)  1-4 incl.	DPR(1C)  1	LPR(1)  1
+AR(1)  1-2 incl.	DU(1)  1	LS(1)  1-2 incl.
+ARCV(1)  1	DUMP(1M)  1	M4(1)  1-3 incl.
+AS.PDP(1)  1	ECHO(1)  1	MAIL(1)  1-2 incl.
+AS.VAX(1)  1	ED(1)  1-8 incl.	MAKE(1)  1-5 incl.
+AWK(1)  1-3 incl.	EFL(1)  1-2 incl.	MAN(1)  1-2 incl.
+BANNER(1)  1	ENV(1)  1	MESG(1)  1
+BASENAME(1)  1	EQN(1)  1-2 incl.	MKDIR(1)  1
+BC(1)  1-2 incl.	ERRDEAD(1M)  1	MKFS(1M)  1-2 incl.
+BCOPY(1M)  1	ERRDEMON(1M)  1	MKNOD(1M)  1
+BDIFF(1)  1	ERRPT(1M)  1	MM(1)  1-2 incl.
+BFS(1)  1-3 incl.	ERRSTOP(1M)  1	MMCHEK(1)  1
+BS(1)  1-9 incl.	EXPR(1)  1-2 incl.	MMT(1)  1
+CAL(1)  1	F77(1)  1-2 incl.	MOUNT(1M)  1
+CALENDAR(1)  1	FACTOR(1)  1	MVDIR(1M)  1
+CAT(1)  1	FGET(1C)  1-2 incl.	NCHECK(1M)  1
+CB(1)  1	FGET.DEMON(1C)  1	NEWGRP(1)  1
+CC(1)  1-2 incl.	FILE(1)  1	NEWS(1)  1
+CD(1)  1	FIND(1)  1-2 incl.	NICE(1)  1
+CDC(1)  1-2 incl.	FSCK(1M)  1-2 incl.	NL(1)  1-2 incl.
+CHMOD(1)  1	FSCV(1M)  1	NM(1)  1
+CHOWN(1)  1	FSDB(1M)  1-3 incl.	NOHUP(1)  1
+CHROOT(1M)  1	FSEND(1C)  1-2 incl.	OD(1)  1
+CLRI(1M)  1	FWTMP(1M)  1	ORJESTAT(1C)  1
+CMP(1)  1	GCAT(1C)  1-2 incl.	PACK(1)  1-2 incl.
+COL(1)  1	GCOSMAIL(1C)  1	PASSWD(1)  1
+COMB(1)  1	GDEV(1G)  1	PASTE(1)  1
+COMM(1)  1	GED(1G)  1-6 incl.	PR(1)  1-2 incl.
+CONFIG(1M)  1-3 incl.	GET(1)  1-5 incl.	PROF(1)  1
+CP(1)  1	GETOPT(1)  1	PROFILER(1M)  1
+CPIO(1)  1-2 incl.	GRAPH(1G)  1	PRS(1)  1-3 incl.
+CRASH(1M)  1-2 incl.	GRAPHICS(1G)  1	PS(1)  1-2 incl.
+CREF(1)  1-2 incl.	GREEK(1)  1	PTX(1)  1
+CRON(1M)  1	GREP(1)  1-2 incl.	PWCK(1M)  1
+CRYPT(1)  1	GUTIL(1G)  1-2 incl.	PWD(1)  1
+CSPLIT(1)  1-2 incl.	HELP(1)  1	RATFOR(1)  1
+CT(1C)  1	HP(1)  1-2 incl.	REFORM(1)  1-3 incl.
+CU(1C)  1-2 incl.	HYPHEN(1)  1	REGCMP(1)  1
+CUT(1)  1	ID(1)  1	RESTOR(1M)  1-2 incl.
+CW(1)  1-3 incl.	INSTALL(1M)  1	RJESTAT(1C)  1
+RM(1)  1	SU(1)  1	UNIQ(1)  1
+RMDEL(1)  1	SUM(1)  1	UNITS(1)  1
+RSH(1)  1	SYNC(1M)  1	UUCLEAN(1M)  1
+RUNACCT(1M)  1-2 incl.	SYSDEF(1M)  1	UUCP(1C)  1-2 incl.
+SACT(1)  1	TABS(1)  1-2 incl.	UUSTAT(1C)  1-2 incl.
+SAG(1M)  1	TAIL(1)  1	UUSUB(1M)  1
+SCC(1)  1	TAR(1)  1-2 incl.	UUTO(1C)  1
+SCCSDIFF(1)  1	TBL(1)  1-2 incl.	UUX(1C)  1
+SDB(1)  1-4 incl.	TC(1)  1	VAL(1)  1-2 incl.
+SDIFF(1)  1	TEE(1)  1	VC(1)  1-3 incl.
+SED(1)  1-3 incl.	TEST(1)  1	VLX(1M)  1
+SEND(1C)  1-6 incl.	TIME(1)  1	VOLCOPY(1M)  1
+SETMNT(1M)  1	TIMEX(1)  1	VPMC(1C)  1-10 incl.
+SH(1)  1-7 incl.	TOC(1G)  1-2 incl.	VPMSTART(1C)  1
+SHUTDOWN(1M)  1	TOUCH(1)  1	VPR(1)  1
+SIZE(1)  1	TP(1)  1-2 incl.	WAIT(1)  1
+SLEEP(1)  1	TPLOT(1G)  1	WALL(1M)  1
+SNO(1)  1	TR(1)  1	WC(1)  1
+SORT(1)  1-2 incl.	TROFF(1)  1-2 incl.	WHAT(1)  1
+SPELL(1)  1	TRUE(1)  1	WHO(1)  1
+SPLINE(1G)  1	TSORT(1)  1	WHODO(1M)  1
+SPLIT(1)  1	TTY(1)  1	WRITE(1)  1
+ST(1M)  1	TYPO(1)  1	XARGS(1)  1-2 incl.
+STAT(1G)  1-3 incl.	UMASK(1)  1	XREF(1)  1
+STRIP(1)  1	UNAME(1)  1	YACC(1)  1
+STTY(1)  1-3 incl.	UNGET(1)  1
+.sp 3
+.ul
+Tab "2":
+'\"	Section 2 goes here
+INTRO(2)  1-5 incl.	GETPID(2)  1	SETUID(2)  1
+ACCESS(2)  1	GETUID(2)  1	SIGNAL(2)  1-3 incl.
+ACCT(2)  1	IOCTL(2)  1	STAT(2)  1-2 incl.
+ALARM(2)  1	KILL(2)  1	STIME(2)  1
+BRK(2)  1	LINK(2)  1	SYNC(2)  1
+CHDIR(2)  1	LSEEK(2)  1	TIME(2)  1
+CHMOD(2)  1	MKNOD(2)  1-2 incl.	TIMES(2)  1
+CHOWN(2)  1	MOUNT(2)  1	ULIMIT(2)  1
+CHROOT(2)  1	NICE(2)  1	UMASK(2)  1
+CLOSE(2)  1	OPEN(2)  1-2 incl.	UMOUNT(2)  1
+CREAT(2)  1	PAUSE(2)  1	UNAME(2)  1
+DUP(2)  1	PIPE(2)  1	UNLINK(2)  1
+EXEC(2)  1-2 incl.	PROFIL(2)  1	USTAT(2)  1
+EXIT(2)  1	PTRACE(2)  1-2 incl.	UTIME(2)  1
+FCNTL(2)  1	READ(2)  1	WAIT(2)  1
+FORK(2)  1	SETPGRP(2)  1	WRITE(2)  1
+				Blank page  1
+.sp 3
+.bp
+.ul
+Tab "3":
+'\"	Section 3 goes here
+INTRO(3)  1	FREXP(3C)  1	PRINTF(3S)  1-3 incl.
+A64L(3C)  1	FSEEK(3S)  1	PUTC(3S)  1
+ABORT(3C)  1	GAMMA(3M)  1	PUTPWENT(3C)  1
+ABS(3C)  1	GETC(3S)  1	PUTS(3S)  1
+ASSERT(3X)  1	GETENV(3C)  1	QSORT(3C)  1
+ATOF(3C)  1	GETGRENT(3C)  1	RAND(3C)  1
+BESSEL(3M)  1	GETLOGIN(3C)  1	REGEX(3X)  1-2 incl.
+BSEARCH(3C)  1	GETOPT(3C)  1-2 incl.	SCANF(3S)  1-3 incl.
+CONV(3C)  1	GETPASS(3C)  1	SETBUF(3S)  1
+CRYPT(3C)  1	GETPW(3C)  1	SETJMP(3C)  1
+CTERMID(3S)  1	GETPWENT(3C)  1	SINH(3M)  1
+CTIME(3C)  1-2 incl.	GETS(3S)  1	SLEEP(3C)  1
+CTYPE(3C)  1	HYPOT(3M)  1	SSIGNAL(3C)  1
+CUSERID(3S)  1	L3TOL(3C)  1	STDIO(3S)  1
+ECVT(3C)  1	LOGNAME(3X)  1	STRING(3C)  1-2 incl.
+END(3C)  1	LSEARCH(3C)  1	SWAB(3C)  1
+EXP(3M)  1	MALLOC(3C)  1	SYSTEM(3S)  1
+FCLOSE(3S)  1	MKTEMP(3C)  1	TMPFILE(3S)  1
+FERROR(3S)  1	MONITOR(3C)  1	TMPNAM(3S)  1
+FLOOR(3M)  1	NLIST(3C)  1	TRIG(3M)  1
+FOPEN(3S)  1	PERROR(3C)  1	TTYNAME(3C)  1
+FPTRAP(3X)  1	PLOT(3X)  1	UNGETC(3S)  1
+FREAD(3S)  1	POPEN(3S)  1
+.sp 3
+.ul
+Tab "4":
+'\"	Section 4 goes here
+INTRO(4)  1	HS(4)  1	RK(4)  1
+CAT(4)  1	HT(4)  1	RL(4)  1
+DJ(4)  1	KL(4)  1	RP(4)  1
+DMC(4)  1	KMC(4)  1	ST(4)  1
+DN(4)  1	LP(4)  1	TM(4)  1
+DQS(4)  1-2 incl.	MEM(4)  1	TRACE(4)  1
+DU(4)  1	NULL(4)  1	TTY(4)  1-8 incl.
+DZ(4)  1	PCL(4)  1	VP(4)  1
+ERR(4)  1	PRF(4)  1	VPM(4)  1-2 incl.
+HP(4)  1	RF(4)  1
+.sp 3
+.ul
+Tab "5":
+'\"	Section 5 goes here
+INTRO(5)  1	ERRFILE(5)  1-2 incl.	MNTTAB(5)  1
+A.OUT(5)  1-4 incl.	FS(5)  1-2 incl.	PASSWD(5)  1
+ACCT(5)  1-2 incl.	FSPEC(5)  1	PLOT(5)  1
+AR(5)  1	GPS(5)  1-2 incl.	PNCH(5)  1
+CHECKLIST(5)  1	GROUP(5)  1	PROFILE(5)  1
+CORE(5)  1	INITTAB(5)  1	SCCSFILE(5)  1-3 incl.
+CPIO(5)  1	INODE(5)  1	TP(5)  1
+DIR(5)  1	MASTER(5)  1-2 incl.	UTMP(5)  1
+DUMP(5)  1-2 incl.
+.sp 3
+.bp
+.ul
+Tab "6":
+'\"	Section 6 goes here
+INTRO(6)  1	CRAPS(6)  1-2 incl.	REVERSI(6)  1
+ARITHMETIC(6)  1	HANGMAN(6)  1	SKY(6)  1
+BACK(6)  1	MAZE(6)  1	TTT(6)  1
+BJ(6)  1	MOO(6)  1	WUMP(6)  1
+CHESS(6)  1	QUIZ(6)  1	Blank page  1
+.sp 3
+.ul
+Tab "7":
+'\"	Section 7 goes here
+INTRO(7)  1	GREEK(7)  1	REGEXP(7)  1-3 incl.
+ASCII(7)  1	MAN(7)  1-2 incl.	STAT(7)  1
+ENVIRON(7)  1	MM(7)  1	TERM(7)  1
+EQNCHAR(7)  1	MV(7)  1	TYPES(7)  1
+FCNTL(7)  1
+.sp 3
+.ul
+Tab "8":
+'\"	Section 8 goes here
+INTRO(8)  1	HASP(8)  1-6 incl.	RP6FMT(8)  1
+70BOOT(8)  1-4 incl.	INIT(8)  1-2 incl.	SAR(8)  1
+CRASH(8)  1-3 incl.	MAKEKEY(8)  1	TAPEBOOT(8)  1
+DISKBOOT(8)  1	MK(8)  1-2 incl.	UNIXBOOT(8)  1
+ETP(8)  1	RC(8)  1	UVAC(8)  1
+FILESAVE(8)  1	RJE(8)  1-4 incl.	VAXOPS(8)  1-4 incl.
+GETTY(8)  1	ROMBOOT(8)  1-2 incl.	Blank page  1

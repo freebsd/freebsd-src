@@ -1,0 +1,391 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 3.0//EN">
+<!--
+  $Id: announce.html,v 1.34 1999/10/23 21:13:11 tom Exp $
+-->
+<HTML>
+<HEAD>
+<TITLE>Announcing ncurses 5.0</TITLE>
+<link rev=made href="mailto:bug-ncurses@gnu.org">
+</HEAD>
+<BODY>
+
+<H1>Announcing ncurses 5.0</H1>
+
+The ncurses (new curses) library is a free software emulation of
+curses in System V Release 4.0, and more.  It uses terminfo format,
+supports pads and color
+and multiple highlights and forms characters and function-key mapping,
+and has all the other SYSV-curses enhancements over BSD curses.<P>
+
+In mid-June 1995, the maintainer of 4.4BSD curses declared that he
+considered 4.4BSD curses obsolete, and is encouraging the keepers of
+Unix releases such as BSD/OS, freeBSD and netBSD to switch over to
+ncurses.<P>
+
+The ncurses code was developed under GNU/Linux.  It should port easily to
+any ANSI/POSIX-conforming UNIX.  It has even been ported to OS/2 Warp!<P>
+
+The distribution includes the library and support utilities, including a
+terminfo compiler tic(1), a decompiler infocmp(1), clear(1), tput(1), tset(1),
+and a termcap conversion tool captoinfo(1).  Full manual pages are provided for
+the library and tools.<P>
+
+The ncurses distribution is available via anonymous FTP at
+the GNU distribution site
+<A HREF="ftp://ftp.gnu.org/pub/gnu/ncurses">ftp://ftp.gnu.org/pub/gnu/ncurses</A>.
+It is also available at
+<A HREF="ftp://ftp.clark.net/pub/dickey/ncurses">ftp://ftp.clark.net/pub/dickey/ncurses</A>.
+
+<H1>Release Notes</H1>
+
+We decided to release ncurses as a new whole number release (5.0) because it
+incorporates several interface changes, including some that would invalidate
+existing shared libraries.  These are the highlights from the change-log
+since ncurses 4.2 release.
+<p>
+Interface changes:
+<ul>
+	<li>The principal source of changes to the interface comes from the
+	  release of X/Open Curses in 1997.  Earlier versions of ncurses (4.0
+	  and before) were based on a draft version of the specification.  The
+	  release version adds parameters to some functions to support the
+	  evolving internationalization of curses.  These summarize the impact:
+<ul>
+	  <li>modified several prototypes to correspond with 1997 version of
+	    X/Open Curses (affects ABI since developers have used attr_get).
+
+	  <li>corrected prototypes for slk_* functions, using chtype rather than
+	    attr_t.
+
+	  <li>the slk_attr_{set,off,on} functions need an additional void*
+	    parameter according to XSI.
+
+	  <li>correct macros for wattr_set, wattr_get, separate wattrset macro from
+	    these to preserve behavior that allows attributes to be combined with
+	    color pair numbers.
+
+	  <li>reviewed/updated curses.h, term.h against X/Open Curses Issue 4
+	    Version 2.  This includes making some parameters NCURSES_CONST
+	    rather than const, e.g., in termcap.h.
+
+	  <li>reviewed/corrected macros in curses.h as per XSI document.
+
+	  <li>add set_a_attributes and set_pglen_inch to terminfo structure, as per
+	    XSI and Solaris 2.5.
+</ul>
+	<li>The newest version of the X/Open Curses is implemented on Solaris
+	  and other vendor's systems.  It adds new features to the terminfo
+	  descriptions:
+<ul>
+	  <li>implement tparm %l format.
+
+	  <li>implement tparm printf-style width and precision for %s, %d, %x, %o
+	    as per XSI.
+</ul>
+	<li>We made additional changes to reduce impact by future interface
+	  changes:
+<ul>
+	  <li>rename key_names[] array to _nc_key_names since it is not part of
+	    the curses interface.
+
+	  <li>move macro winch to a function, to hide details of struct ldat
+</ul>
+	<li>modify configure script to embed ABI in shared libraries for HP-UX
+	  10.x (detailed request by Tim Mooney).
+
+	<li>modify configuration of shared libraries on Digital Unix so that
+	  versioning is embedded in the library, rather than implied by
+	  links (patch by Tim Mooney).
+</ul>
+New features:
+<ul>
+	<li>enable sigwinch handler by default.
+
+	<li>turn on hashmap scrolling code by default
+
+	<li>improved support for termcap applications
+<ul>
+	  <li>modify tput to accept termcap names as an alternative to terminfo
+	    names.
+
+	  <li>provide support for termcap PC variable by copying it from terminfo
+	    data and using it as the padding character in tputs.
+
+	  <li>provide support for termcap ospeed variable by copying it from the
+	    internal cur_term member, and using ospeed as the baudrate
+	    reference for the delay_output and tputs functions.
+
+	  <li>change name-comparisons in lib_termcap to compare no more than 2
+	    characters.
+
+	  <li>add configure option --enable-tcap-names, which essentially
+	    allows users to define new capabilities as in termcap.
+</ul>
+	<li>add mouse support to ncurses menus.
+
+	<li>add mouse and dll support for OS/2 EMX
+
+	<li>modify terminfo parsing to accept octal and hexadecimal constants
+
+	<li>add configure option --enable-no-padding, to allow environment
+	  variable $NCURSES_NO_PADDING to eliminate non-mandatory padding,
+	  thereby making terminal emulators (e.g., for vt100) a little more
+	  efficient.
+
+	<li>modify lib_color.c to eliminate dependency on orig_colors and
+	  orig_pair, since SVr4 curses does not require these either, but
+	  uses them when they are available.
+
+	<li>add -f option to infocmp and tic, which formats the terminfo
+	  if/then/else/endif so that they are readable (with newlines and
+	  tabs).
+
+	<li>modify tic to compile into %'char' form in preference to %{number},
+	  since that is a little more efficient.
+</ul>
+Major bug fixes:
+<ul>
+	<li>modify lib_tstp.c to block SIGTTOU when handling SIGTSTP, fixes a
+	  problem where ncurses applications which were run via a shell script
+	  would hang when given a ^Z.  Also, check if the terminal's process
+	  group is consistent, i.e., a shell has not taken ownership of it,
+	  before deciding to save the current terminal settings in the SIGTSTP
+	  handler.
+
+	<li>suppress sc/rc capabilities from terminal description if they appear
+	  in smcup/rmcup.  This affects only scrolling optimization, to fix a
+	  problem reported by several people with xterm's alternate screen,
+	  though the problem is more general.
+
+	<li>modify relative_move and tputs to avoid an interaction with the
+	  BSD-style padding.  The relative_move function could produce a string
+	  to replace on the screen which began with a numeric character, which
+	  was then interpreted by tputs as padding.
+
+	<li>modify setupterm so that cancelled strings are treated the same as
+	  absent strings, cancelled and absent booleans false (does not affect
+	  tic, infocmp).
+
+	<li>modify lib_vidattr.c to allow for terminal types (e.g., xterm-color)
+	  which may reset all attributes in the 'op' capability, so that colors
+	  are set before turning on bold and other attributes, but still after
+	  turning attributes off.
+
+	<li>use 'access()' to check if ncurses library should be permitted to
+	  open or modify files with fopen/open/link/unlink/remove calls, in
+	  case the calling application is running in setuid mode.
+
+	<li>correction to doupdate, for case where terminal does not support
+	  insert/delete character.  The logic did not check that there was a
+	  difference in alignment of changes to old/new screens before
+	  repainting the whole non-blank portion of the line.  Modified to fall
+	  through into logic that reduces by the portion which does not differ.
+</ul>
+
+<H1>Features of Ncurses</H1>
+
+The ncurses package is fully compatible with SVr4 (System V Release 4) curses:
+
+<UL>
+<LI>All 257 of the SVr4 calls have been implemented (and are documented).
+<LI>Full support for SVr4 curses features including keyboard mapping, color,
+forms-drawing with ACS characters, and automatic recognition of keypad
+and function keys.
+<LI>An emulation of the SVr4 panels library, supporting
+a stack of windows with backing store, is included.
+<LI>An emulation of the SVr4 menus library, supporting
+a uniform but flexible interface for menu programming, is included.
+<LI>An emulation of the SVr4 form library, supporting
+data collection through on-screen forms, is included.
+<LI>Binary terminfo entries generated by the ncurses tic(1) implementation
+are bit-for-bit-compatible with the entry format SVr4 curses uses.
+<LI>The utilities have options to allow you to filter terminfo
+entries for use with less capable <STRONG>curses</STRONG>/<STRONG>terminfo</STRONG>
+versions such as the HP/UX and AIX ports.</UL>
+
+The ncurses package also has many useful extensions over SVr4:
+
+<UL>
+<LI>The API is 8-bit clean and base-level conformant with the X/OPEN curses
+specification, XSI curses (that is, it implements all BASE level features,
+but not all EXTENDED features).  Most EXTENDED-level features not directly
+concerned with wide-character support are implemented, including many
+function calls not supported under SVr4 curses (but portability of all
+calls is documented so you can use the SVr4 subset only).
+<LI>Unlike SVr3 curses, ncurses can write to the rightmost-bottommost corner
+of the screen if your terminal has an insert-character capability.
+<LI>Ada95 and C++ bindings.
+<LI>Support for mouse event reporting with X Window xterm and OS/2 console windows.
+<LI>Extended mouse support via Alessandro Rubini's gpm package.
+<LI>The function <CODE>wresize()</CODE> allows you to resize windows, preserving
+their data.
+<LI>The function <CODE>use_default_colors()</CODE> allows you to
+use the terminal's default colors for the default color pair,
+achieving the effect of transparent colors.
+<LI>The functions <CODE>keyok()</CODE>
+and <CODE>define_key()</CODE> allow
+you to better control the use of function keys,
+e.g., disabling the ncurses KEY_MOUSE,
+or by defining more than one control sequence to map to a given key code.
+<LI>Support for 16-color terminals, such as aixterm and XFree86 xterm.
+<LI>Better cursor-movement optimization.  The package now features a
+cursor-local-movement computation more efficient than either BSD's
+or System V's.
+<LI>Super hardware scrolling support.  The screen-update code incorporates
+a novel, simple, and cheap algorithm that enables it to make optimal
+use of hardware scrolling, line-insertion, and line-deletion
+for screen-line movements.  This algorithm is more powerful than
+the 4.4BSD curses quickch() routine.
+<LI>Real support for terminals with the magic-cookie glitch.  The
+screen-update code will refrain from drawing a highlight if the magic-
+cookie unattributed spaces required just before the beginning and
+after the end would step on a non-space character.  It will
+automatically shift highlight boundaries when doing so would make it
+possible to draw the highlight without changing the visual appearance
+of the screen.
+<LI>It is possible to generate the library with a list of pre-loaded
+fallback entries linked to it so that it can serve those terminal types even
+when no terminfo tree or termcap file is accessible (this may be useful
+for support of screen-oriented programs that must run in single-user mode).
+<LI>The tic(1)/captoinfo utility provided with ncurses has the
+ability to translate many termcaps from the XENIX, IBM and
+AT&amp;T extension sets.
+<LI>A BSD-like tset(1) utility is provided.
+<LI>The ncurses library and utilities will automatically read terminfo
+entries from $HOME/.terminfo if it exists, and compile to that directory
+if it exists and the user has no write access to the system directory.
+This feature makes it easier for users to have personal terminfo entries
+without giving up access to the system terminfo directory.
+<LI>You may specify a path of directories to search for compiled
+descriptions with the environment variable TERMINFO_DIRS (this
+generalizes the feature provided by TERMINFO under stock System V.)
+<LI>In terminfo source files, use capabilities may refer not just to
+other entries in the same source file (as in System V) but also to
+compiled entries in either the system terminfo directory or the user's
+$HOME/.terminfo directory.
+<LI>A script (<STRONG>capconvert</STRONG>) is provided to help BSD users
+transition from termcap to terminfo.  It gathers the information in a
+TERMCAP environment variable and/or a ~/.termcap local entries file
+and converts it to an equivalent local terminfo tree under $HOME/.terminfo.
+<LI>Automatic fallback to the /etc/termcap file can be compiled in
+when it is not possible to build a terminfo tree.  This feature is neither
+fast nor cheap, you don't want to use it unless you have to,
+but it's there.
+<LI>The table-of-entries utility <STRONG>toe</STRONG> makes it easy for users to
+see exactly what terminal types are available on the system.
+<LI>The library meets the XSI requirement that every macro entry
+point have a corresponding function which may be linked (and will be
+prototype-checked) if the macro definition is disabled with
+<CODE>#undef</CODE>.
+<LI>An HTML "Introduction to Programming with NCURSES" document provides
+a narrative introduction to the curses programming interface.
+</UL>
+
+<H1>State of the Package</H1>
+
+Numerous bugs present in earlier versions have been fixed; the
+library is far more reliable than it used to be.  Bounds checking in many
+`dangerous' entry points has been improved.  The code is now type-safe
+according to gcc -Wall.  The library has been checked for malloc leaks and
+arena corruption by the Purify memory-allocation tester.<P>
+
+The ncurses code has been tested with a wide variety of applications
+including (versions starting with those noted):
+<DL>
+<DT> cdk
+<DD> Curses Development Kit
+<A HREF="http://www.vexus.ca/CDK.html">Curses Development Kit</a>
+<A HREF="ftp://ftp.clark.net/pub/dickey/cdk">ftp://ftp.clark.net/pub/dickey/cdk</A>.
+<DT> ded
+<DD> directory-editor
+<A HREF="ftp://ftp.clark.net/pub/dickey/ded">ftp://ftp.clark.net/pub/dickey/ded</A>.
+<DT> dialog
+<DD> the underlying application used in Slackware's setup, and the basis
+for similar applications on GNU/Linux.
+<DT> lynx
+<DD> the character-screen WWW browser
+<DT> Midnight Commander 4.1
+<DD> file manager
+<DT> mutt
+<DD> mail utility
+<DT> ncftp
+<DD> file-transfer utility
+<DT> nvi
+<DD> New vi versions 1.50 are able to use ncurses versions 1.9.7 and later.
+<DT> tin
+<DD> newsreader, supporting color, MIME
+<A HREF="ftp://ftp.akk.uni-karlsruhe.de/pub/news/clients/tin-unoff">ftp://ftp.akk.uni-karlsruhe.de/pub/news/clients/tin-unoff</A>.
+<DT> taper
+<DD> tape archive utility
+<DT> vh-1.6
+<DD> Volks-Hypertext browser for the Jargon File
+</DL>
+as well as some that use ncurses for the terminfo support alone:
+<DL>
+<DT> minicom
+<DD> terminal emulator
+<DT> vile
+<DD> vi-like-emacs
+<A HREF="ftp://ftp.clark.net/pub/dickey/vile">ftp://ftp.clark.net/pub/dickey/vile</A>.
+</DL>
+<P>
+
+The ncurses distribution includes a selection of test programs (including
+a few games).
+
+<H2>Who's Who and What's What</H2>
+
+The original developers of ncurses are <A
+HREF="mailto:zmbenhal@netcom.com">Zeyd Ben-Halim</A> and
+<A HREF="http://www.ccil.org/~esr/home.html">Eric S. Raymond</A>.
+Ongoing work is being done by
+<A HREF="mailto:dickey@clark.net">Thomas Dickey</A>
+and
+<A HREF="mailto:juergen.pfeifer@gmx.net">J&uuml;rgen Pfeifer</A>.
+<A HREF="mailto:dickey@clark.net">Thomas Dickey</A>
+acts as the maintainer for the Free Software Foundation, which holds the
+copyright on ncurses.
+Contact the current maintainers at
+<A HREF="mailto:bug-ncurses@gnu.org">bug-ncurses@gnu.org</A>.
+<P>
+
+To join the ncurses mailing list, please write email to
+<CODE>bug-ncurses-request@gnu.org</CODE> containing the line:
+<PRE>
+             subscribe &lt;name&gt;@&lt;host.domain&gt;
+</PRE>
+
+This list is open to anyone interested in helping with the development and
+testing of this package.<P>
+
+Beta versions of ncurses and patches to the current release are made available at
+<A HREF="ftp://ftp.clark.net/pub/dickey/ncurses">ftp://ftp.clark.net/pub/dickey/ncurses</A>.
+
+<H2>Future Plans</H2>
+<UL>
+<LI>Extended-level XPG4 conformance, with internationalization support.
+<LI>Ports to more systems, including DOS and Windows.
+</UL>
+We need people to help with these projects.  If you are interested in working
+on them, please join the ncurses list.
+
+<H2>Other Related Resources</H2>
+
+The distribution includes and uses a version of the terminfo-format
+terminal description file maintained by Eric Raymond.
+<A HREF="http://earthspace.net/~esr/terminfo">http://earthspace.net/~esr/terminfo</A>.<P>
+
+You can find lots of information on terminal-related topics
+not covered in the terminfo file at
+<A HREF="http://www.cs.utk.edu/~shuford/terminal_index.html">Richard Shuford's
+archive</A>.
+</BODY>
+</HTML>
+<!--
+# The following sets edit modes for GNU EMACS
+# Local Variables:
+# mode:html
+# case-fold-search:nil
+# fill-column:70
+# End:
+-->

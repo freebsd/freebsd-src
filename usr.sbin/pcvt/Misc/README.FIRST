@@ -1,0 +1,291 @@
+================================================================================
+|                                                                              |
+|                  P C V T  -  VT220 Terminal Emulation Driver                 |
+|                  -------------------------------------------                 |
+|                                                                              |
+|                         NetBSD   0.9, 1.0                                    |
+|                         FreeBSD  1.0, 1.1, 1.1.5.1, 2.0                      |
+|                                                                              |
+|                          Release 3.20    April 1995                          |
+|                                                                              |
+|                         ----------------------------                         |
+|                         ========>> BETA 24 <<=======                         |
+|                         ----------------------------                         |
+|                                                                              |
+|                       (c) Copyright 1992,1993,1994,1995 by                   |
+|                                                                              |
+|                              Hellmuth Michaelis                              |
+|                              Eggerstedtstrasse 28                            |
+|                              22765 Hamburg                                   |
+|                              Europe                                          |
+|                                                                              |
+|       For the contributors copyrights which apply to parts of the source     |
+|            see the header sections of the respective source files.           |
+|                                                                              |
+================================================================================
+
+Written by:                 Hellmuth Michaelis                       (hm@hcs.de)
+
+The major contributors to pcvt are Brian and Joerg, pcvt would not be what it
+is without the help, the support and the code from Joerg:
+
+                            Brian Dunford-Shore           (brian@athe.wustl.edu)
+
+                            wrote parts of the EGA/VGA hardware handling and
+                            some of the more ugly aspects of the VT220.
+
+                            Joerg Wunsch        (joerg_wunsch@uriah.heep.sax.de)
+
+                            added ALL support for XFree86, the screensaver sub-
+                            system and support for FreeBSD (and much more ...).
+
+
+I have to thank the following people for their help, for beta-testing, bugfixes,
+code, keymaps, suggestions, hints, patience and too much more to mention:
+
+                            Scott Turner                 (scotty@gagetalker.com)
+                            Peter Galbavy                 (peter@wonderland.org)
+                            Michael Havemester              (tik@abqhh.hanse.de)
+                            Gordon L. Burditt       (gordon@sneaky.lonestar.org)
+                            Bruce Evans                         (bde@runx.oz.au)
+                            Heiko W. Rupp               (hwr@pilhuhn.ka.sub.org)
+                            Carsten Lutz                   (clu@malihh.hanse.de)
+                            Christian Rohrmueller (internal@doitcr.doit.sub.org)
+                            Andy Duplain                  (duplain@rtf.bt.co.uk)
+                            Marko Karppinen              (dreamer@purkki.apu.fi)
+                            Onno van der Linden           (c/o frank@fwi.uva.nl)
+                            Dave Nelson              (dcn@ignatz.acs.depaul.edu)
+                            Mark Weaver                  (Mark_Weaver@brown.edu)
+                            John Brezak                   (brezak@apollo.hp.com)
+                            Jan-Oliver Neumann              (jan@encap.hanse.de)
+                            Kim Andersen                            (kim@dde.dk)
+                            Michael Graff                 (explorer@iastate.edu)
+                            Randy Terbush                   (randyt@cse.unl.edu)
+                            Benjamin Lewis           (blewis@vet.vet.purdue.edu)
+                            Daniel Harris           (daniel@reubio.apana.org.au)
+                            Alistair G. Crooks              (agc@uts.amdahl.com)
+                            Szabolcs Szigeti            (pink@bagira.fsz.bme.hu)
+                            Charles Hannum              (mycroft@gnu.ai.mit.edu)
+                            Thomas Gellekum    (thomas@ghpc8.ihf.rwth-aachen.de)
+                            Matthieu Herrb                    (matthieu@laas.fr)
+                            John A. Perry                     (perry@jpunix.com)
+                            John Kohl                    (jtk@kolvir.blrc.ma.us)
+                            Brian Moore                    (ziff@eecs.umich.edu)
+                            Martin Husemann              (martin@euterpe.owl.de)
+                            Lon Willett                  (willett@math.utah.edu)
+                            Mark Willey               (mwilley@mipos2.intel.com)
+                            Bill Sommerfeld   (sommerfeld@orchard.medford.ma.us)
+                            Rafal Boni                         (r-boni@uiuc.edu)
+                            Thomas Eberhardt   (thomas@mathematik.uni-bremen.de)
+
+
+History                                                 (see also Doc/ChangeLog)
+--------------------------------------------------------------------------------
+
+Release         Changes/Features
+-------------   ----------------------------------------------------------------
+1.00  (08/92)   Released as "pccons_vga" to alt.sources, VT100 emulation
+
+2.00  (01/93)   VT220 emulation, many bugfixes and enhancements
+
+2.10  (03/93)   Fixed bugs, monochrome environments, configuration changes
+
+2.20  (10/93)   never released (experimental internal release)
+
+3.00  (03/94)   Support for XFree86 >= 1.2, support for XFree86 2.0's 
+                syscons/USL model for multiple X servers and/or terminal
+                sessions from Joerg Wunsch (Thank You, Joerg !!!), fixed
+                bugs, (n)curses-based EGA/VGA font editor, memory mapped 
+                screens, full MDA/CGA virtual screen support, 132 columns
+                on some super VGA chipsets, support for NetBSD >= 0.9,
+                support for FreeBSD >= 1.0 and much more ....
+                (posted to comp.sources.misc, Volume 41, Issue 140-152)
+
+3.10  (08/94)   never released (experimental internal release)
+
+3.20            Fast forward/backward scrolling from Michael Havemester,
+                further optimization by Charles Hannum. Keyboard queueing
+                for silo overflow minimization also from Michael.
+                Many bugfixes, cleanups and enhancements.
+                Support for NetBSD 1.0 and FreeBSD 2.0.
+
+
+Features
+--------------------------------------------------------------------------------
+
+The 'pcvt' VT220 emulator driver has:
+
+        - Almost full DEC VT220 (VT100/VT102) Terminal functionality
+        - support for XFree86 >= 1.2 using the pccons model
+        - full multiple virtual screen / multiple X-server support
+          for XFree86 >= 2.0 using the USL-VT/syscons model
+        - Full Support for MDA, CGA, EGA and VGA display adaptors
+        - configurable number of virtual screens on any video board
+        - completely independent virtual terminals for any video board
+        - (24), 25, 28, 40, or 50 lines for each virtual screen on VGA's
+        - (24), 25, 35, or 43 lines for each virtual screen on EGA's
+        - Fully remappable keyboard to support national keyboards
+        - All VT220 character sets plus ISO Latin-1 and DEC Technical supported 
+        - VT220 downloadable character set supported when run on EGA/VGA
+        - VT220 user defined keys for each virtual terminal
+        - Optional function key label support a 'la Hewlett-Packard
+        - Display function codes (0x00-0x1f/0x90-0xaf) functionality
+        - Optional screen-saving feature
+        - 132 column operation on several VGA chipsets:
+                o        Tseng Labs ET3000 and ET4000
+                o        Western Digital WD90C11
+                o        Trident TVGA9000, TVGA8900B, TVGA8900C, TVGA8900CL
+                o        Video 7 1024i
+                o        S3 80C928 (board dependent)
+                o        Cirrus Logic GD542x (board dependent)
+
+What it cannot:
+
+        - No double wide/high characters
+        - No softscroll
+        - No inverse background
+        - No VT220 printer output support
+        - No VT52 support at all
+        - No 8-bit controls
+        - Only limited AT-keyboard (84 keys) support
+        - Help you to make money ....
+
+
+The entire pcvt package consists of:
+
+        - the VT220 emulating driver itself
+        - complete documentation for installation and operation
+        - termcap/terminfo, pcvt.el, rc.local, /etc/ttys, xmodmap examples
+        - cursor: utility to set the cursor size and shape
+        - fed: curses-based EGA/VGA character set editor
+        - fontedit: utility to edit the vt220 downloadable character set
+        - ispcvt: utility to display the drivers compile time configuration
+        - kcon: utility to setup national keyboard layouts and remap keys
+        - keycap: keyboard mapping database library similar to termcap
+        - loadfont: utility to load up to 4/8 fonts into an EGA/VGA board
+        - mcon: utility to control/configure a keyboard based mouse emulator
+        - scon: utility to runtime configure the video part of pcvt
+        - userkeys: utility to set the VT220 user programmable function keys
+        - vttest: VT100 compatibility torture test program
+        - some color- characterset- and attribute demos
+        - vga and keyboard register-level debugging utilities
+        
+
+Tested Operating Systems
+--------------------------------------------------------------------------------
+
+        NetBSD 0.9                      pcvt release 3.20-b2 tested
+
+        NetBSD 1.0                      pcvt release 3.20-b24 tested
+
+        NetBSD-current (post 1.0)       reported to run (end of March '95)
+
+
+        FreeBSD 1.1R                    pcvt release 3.20-b7 tested
+
+        FreeBSD 1.1.5.1R                pcvt release 3.20-b24 tested
+
+        FreeBSD 2.0                     pcvt release 3.20-b24 tested
+
+        FreeBSD-current (post 2.0)      reported to run (end of March '95)
+
+
+
+Installation / Upgrade
+--------------------------------------------------------------------------------
+
+  R E A D (!!!) THE INSTRUCTIONS IN THE Doc/INSTALL.xxxBSD FILES CAREFULLY !
+  ==========================================================================
+
+        Again:  PLEASE  R E A D   T H E M  !!!!!             (Thank You! ;-)
+        ========================================
+
+  If you read them, you should have NO problems installing pcvt on your
+  system, if you don't read them, you'll probably run into problems ...
+
+  If you run into any difficulties, please read Doc/NotesAndHints !
+
+NOTE 1:
+-------
+  It is highly recommended in order to configure the driver into the system,
+  that you remove (and/or backup) your previous kernel compile directory and
+  do a fresh "config" with the new pcvt configuration. This has to be done
+  because the chain "config/make depend/make" obviously does not resolve ALL
+  dependencies!
+
+NOTE 2:
+-------
+  You MUST copy or link the Util/Makefile.inc.X for your flavour of xxx(x)BSD
+  to Util/Makefile.inc . This is because FreeBSD handles manual pages
+  in a differnet way than NetBSD. Also you have to edit Doc/Makefile
+  to make this changes for the pcvt(4) manpage.
+
+NOTE 3:
+-------
+  The driver now (from 2.10 on) DEPENDS on the BIOS video display setting 
+  stored in the RTC CMOS Ram - verify your configuration setting!
+
+NOTE 4:
+-------
+  If you are using the pcvt termcap entry from Etc/Termcap, please reinstall
+  this into /usr/share/misc/termcap if you are upgrading, the entry had bugs
+  in release 3.10 and all earlier releases.
+
+  After doing that, you may need to generate a new termcap database for newer
+  FreeBSD (2.0 and up) and NetBSD (1.0 and up) Releases: 
+             cd to /usr/share/misc and execute 'cap_mkdb termcap'.
+
+NOTE 5:
+-------
+  The default keyboard layout is documented in Doc/Keyboard.HP unless you
+  compiled with PCVT_VT220KEY which is described in Doc/Keyboard.VT. Please
+  note that PCVT_VT220KEYB is not much supported, because i don't use it.
+
+NOTE 6:
+-------
+  When upgrading from a previous version of the driver, you can remove now
+  the directory /usr/share/misc/vgafonts. It was moved in release 3.20 to
+  /usr/share/misc/pcvtfonts.
+
+NOTE 7:
+-------
+  In case you don't like pcvt's white on red kernel messages, have a look at
+  the end of pcvt_conf.h, this is the place to change them.
+
+
+WYSIWYG - What You Share Is What You Get
+--------------------------------------------------------------------------------
+
+PLEASE, if you fix bugs, add features, hack this driver to work on your
+hardware or simply don't get it up and running, get in contact with me!
+
+     Help us to avoid reinventing the wheel over and over again!
+     -----------------------------------------------------------
+
+The code is far from being perfect, YOU are very welcome to enhance it !
+Please mail bug reports/fixes, suggestions, enhancements & diffs to 
+
+                        hm@hcs.de              or
+                        hm@altona.hamburg.com
+
+I will support this driver as my time permits it, feel free to contact me!
+
+Have fun!
+
+Hellmuth
+
+
+@home
+-----
+e-mail:  hm@altona.hamburg.com
+   tel:  +49 / 40 / 384298
+s-mail:  Eggerstedtstr. 28, 22765 Hamburg, Europe
+
+
+@work
+-----
+e-mail:  hm@hcs.de
+   tel:  +49 / 40 / 55903-170
+   fax:  +49 / 40 / 5591486
+s-mail:  GFKT HCS Computertechnik GmbH, Oldesloer Str. 97-99,
+         22457 Hamburg, Europe

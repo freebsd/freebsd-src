@@ -1,0 +1,64 @@
+%A R. J. Enbody
+%A H. C. Du
+%T Dynamic Hashing Schemes
+%J ACM Computing Surveys
+%V 20
+%N 2
+%D June 1988
+%P 85-113
+%K surveys
+
+%A P.-A. Larson
+%T Dynamic Hashing
+%J BIT
+%V 18
+%P 184-201
+%D 1978
+%K dynamic
+
+%A W. Litwin
+%T Linear Hashing: A new tool for file and table addressing
+%J Proceedings of the 6th Conference on Very Large Dabatases (Montreal)
+%I Very Large Database Foundation
+%C Saratoga, Calif.
+%P 212-223
+%D 1980
+%K linear
+
+%A R. Fagin
+%A J. Nievergelt
+%A N. Pippinger
+%A H. R. Strong
+%T Extendible Hashing - A Fast Access Method for Dynamic Files
+%J ACM Trans. Database Syst.
+%V 4
+%N 3
+%D Sept. 1979
+%P 315-344
+%K extend
+
+%A G. N. Martin
+%T Spiral Storage: Incrementally Augmentable Hash Addressed Storage
+%J Technical Report #27
+%I University of Varwick
+%C Coventry, U.K.
+%D 1979
+%K spiral
+
+%A Chris Torek
+%T Re: dbm.a and ndbm.a archives
+%B USENET newsgroup comp.unix
+%D 1987
+%K torek
+
+%A Rich Wales
+%T Discusson of "dbm" data base system
+%B USENET newsgroup unix.wizards
+%D Jan. 1984
+%K rich
+
+
+
+
+
+

@@ -1,0 +1,1335 @@
+2002-05-13  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* stabs.c (s_stab_generic): Fix grammatical error in warning
+	message.
+
+2002-05-11  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* stabs.c (s_stab_generic): Warn about a description field that is
+	too big.
+
+2002-05-11  Daniel Jacobowitz  <drow@mvista.com>
+
+	Merge from mainline:
+	2002-05-11  Nick Clifton  <nickc@cambridge.redhat.com>
+	* config/obj-coff.c: Fix compile time warnings when compiling
+	without BFD_ASSEMBLER defined.
+	Fix formatting.
+
+	* config/tc-sh.c (md_pcrel_from): Define for use with sh-hms
+	target.
+	(md_pcrel_from_section): Use md_pcrel_from().
+
+2002-05-09  Alan Modra  <amodra@bigpond.net.au>
+
+	* config/tc-i386.c (md_estimate_size_before_relax) Don't lose
+	reloc when no_cond_jump_promotion.
+
+	Merge from mainline
+	2002-05-08  Jim Wilson  <wilson@redhat.com>
+	* config/tc-i960.c (md_estimate_size_before_relax): Return size of
+	current variable part of frag.
+
+	2002-05-02  Alan Modra  <amodra@bigpond.net.au>
+	* config/tc-ppc.c (mapping): Map sectoff to BFD_RELOC_16_BASEREL.
+	(ppc_elf_validate_fix): Replace BFD_RELOC_32_BASEREL with
+	BFD_RELOC_16_BASEREL.
+	(md_assemble): Likewise.
+	(md_apply_fix3): Likewise.
+
+	2002-05-01  Andrew Macleod  <amacleod@cygnus.com>
+	* config/tc-i386.c (extra_symbol_chars): Add '[' to the list.
+
+	2002-04-28  Alan Modra  <amodra@bigpond.net.au>
+	* config/tc-i386.c: Formatting fixes, add missing space in error
+	message.
+
+2002-05-03  Alexandre Oliva  <aoliva@redhat.com>
+
+	* config/tc-s390.c (md_gather_operands): Emit dwarf2 line-number
+	information for instructions.
+
+2002-05-02  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* config/tc-arm.c (thumb_add_sub): Do not convert a subtract of
+	zero into an add of zero - it is not the same.
+
+2002-04-27  Alan Modra  <amodra@bigpond.net.au>
+
+	Merge from mainline.
+	2002-04-17  Martin Schwidefsky  <schwidefsky@de.ibm.com>
+	* config/tc-s390.c (tc_s390_fix_adjustable): Prevent adjustments to
+	symbols in merge sections.
+
+	2002-02-19  Martin Schwidefsky  <schwidefsky@de.ibm.com>
+	* config/tc-s390.c (md_parse_option): Add switches -m31 and -m64.
+	Make bit size independent of architecture switch.
+	(md_begin): Add warning for -m64 with -Aesa.
+	(s390_md_end): Use renamed architecture defines.
+
+	2002-02-19  Tom Tromey  <tromey@redhat.com>
+	* config/tc-xstormy16.h (DWARF2_LINE_MIN_INSN_LENGTH): Define.
+
+	Tue Apr  9 16:45:48 2002  J"orn Rennecke <joern.rennecke@superh.com>
+	* config/tc-sh.h (TC_FIX_ADJUSTABLE): Disable adjusting if
+	symbol_used_in_reloc_p is true.
+	* config/tc-sh.c (md_apply_fix3): Don't zero relocations on big
+	endian hosts.
+
+	2002-04-03  Alan Modra  <amodra@bigpond.net.au>
+	* symbols.c (resolve_symbol_value <O_uminus, O_bit_not,
+	O_logical_not>): Derive final_seg from add_symbol.
+	<O_multiply..O_logical_or>: More final_seg twiddles.
+
+2002-04-24  Andreas Schwab  <schwab@suse.de>
+
+	* config/tc-i386.c (output_jump, output_disp)
+	(md_estimate_size_before_relax): Don't set fx_pcrel_adjust any
+	more.
+	(md_apply_fix3): Remember addend value for rela relocations.
+	(tc_gen_reloc): Correctly compute pc-relative relocation addend.
+
+2002-04-10  Alan Modra  <amodra@bigpond.net.au>
+
+	* as.c (parse_args <OPTION_VERSION>): Use VERSION is
+	BFD_VERSION_STRING unavailable.
+	* config/tc-i386.c (INLINE): Define (for non-BFD assembler).
+
+2002-04-04  Alan Modra  <amodra@bigpond.net.au>
+
+	* dep-in.sed: Cope with absolute paths.
+	* Makefile.am (dep.sed): Subst TOPDIR.
+	Run "make dep-am".
+	* Makefile.in: Regenerate.
+
+2002-04-01  Jessica Han  <jessica@cup.hp.com>
+
+	* config/tc-ia64.c (ia64_cons_fix_new): Handle 8 byte iplt reloc
+	in 32-bit mode.
+
+2002-03-28  Alan Modra  <amodra@bigpond.net.au>
+
+	* aclocal.m4: Regenerate.
+	* config.in: Regenerate.
+	* Makefile.am: Run "make dep-am".
+	* Makefile.in: Regenerate.
+	* doc/Makefile.in: Regenerate.
+
+	Merge from mainline.
+	2002-03-12  Andreas Schwab  <schwab@suse.de>
+	* config/tc-ia64.c (fixup_unw_records): Clear region when seeing a
+	body record so that an error is given for misplaced .save
+	pseudo-ops.
+
+	2002-03-09  Alan Modra  <amodra@bigpond.net.au>
+	* config/tc-i386.h (REX_OPCODE): Define.
+	(REX_MODE64, REX_EXTX, REX_EXTY, REX_EXTZ): Define.
+	(rex_byte): typedef to int.
+	* config/tc-i386.c: Group prototypes and vars together.
+	Formatting fixes.  Remove occurrences of "register" keyword.
+	(true): Delete.
+	(false): Delete.
+	(mode_from_disp_size): Add INLINE keyword to prototype.
+	(fits_in_signed_byte): Likewise.
+	(fits_in_unsigned_byte): Likewise.
+	(fits_in_unsigned_word): Likewise.
+	(fits_in_signed_word): Likewise.
+	(fits_in_unsigned_long): Likewise.
+	(fits_in_signed_long): Likewise.
+	(type_names): Constify.
+	(intel_float_operand): Constify param.
+	(add_prefix): Use REX_OPCODE.
+	(md_assemble): Likewise.  Modify for changed rex_byte.
+	(parse_insn): Split out of md_assemble.
+	(parse_operands): Likewise.
+	(swap_operands): Likewise.
+	(optimize_imm): Likewise.
+	(optimize_disp): Likewise.
+	(match_template): Likewise.
+	(check_string): Likewise.
+	(process_suffix): Likewise.
+	(check_byte_reg): Likewise.
+	(check_long_reg): Likewise.
+	(check_qword_reg): Likewise.
+	(check_word_reg): Likewise.
+	(finalize_imm): Likewise.
+	(process_operands): Likewise.
+	(build_modrm_byte): Likewise.
+	(output_insn): Likewise.
+	(output_branch): Likewise.
+	(output_jump): Likewise.
+	(output_interseg_jump): Likewise.
+	(output_disp): Likewise.
+	(output_imm): Likewise.
+
+	2002-03-06  Alan Modra  <amodra@bigpond.net.au>
+	* config/tc-i386.c (tc_gen_reloc): Don't attempt to handle 8 byte
+	relocs except when BFD64.
+	* write.c (number_to_chars_bigendian): Don't abort when N is
+	larger than sizeof (VAL).
+	(number_to_chars_littleendian): Likewise.
+
+	2002-03-05  John David Anglin  <dave@hiauly1.hia.nrc.ca>
+	* config/tc-hppa.c (md_apply_fix3): Add cast.
+	(hppa_fix_adjustable): Adjust list of selectors using e_lrsel and
+	e_rrsel.
+
+	2002-03-04  H.J. Lu <hjl@gnu.org>
+	* config/obj-elf.c (special_section): Add .init_array,
+	.fini_array and .preinit_array.
+	* config/tc-ia64.h (ELF_TC_SPECIAL_SECTIONS): Remove
+	.init_array and .fini_array.
+
+	2002-03-01  Jakub Jelinek  <jakub@redhat.com>
+	* config/obj-elf.c (elf_copy_symbol_attributes): Don't copy
+	visibility.
+	(obj_frob_symbol): Copy visibility.
+
+2002-03-27  Andreas Schwab  <schwab@suse.de>
+
+	* config/tc-i386.c (md_assemble): Set fx_pcrel_adjust to size of
+	field for pc-relative fixups.
+	(md_estimate_size_before_relax): Likewise.
+	(tc_gen_reloc): Subtract fx_pcrel_adjust instead of fx_size for
+	pc-relative fixups in 64bit mode.
+
+2002-03-20  Albert Chin-A-Young  <china@thewrittenword.com>
+
+	* config/tc-arm.c (vfp_dp_reg_required_here): Fix typo
+	(vfp_sp_reg_pos -> vfp_dp_reg_pos).
+
+2002-03-19  Alexandre Oliva  <aoliva@redhat.com>
+
+	* config/tc-mips.c (md_estimate_size_before_relax): Do not modify
+	the EXTENDED bit here; report the estimate according to the
+	current size.
+
+2002-03-17  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* config/tc-mmix.c (md_estimate_size_before_relax): Don't consider
+	a weak symbol in same section to be within reach.
+
+2002-03-07  Daniel Jacobowitz  <drow@mvista.com>
+
+	* doc/as.texinfo: Wrap @menu in @ifnottex, not @ifinfo.
+
+2002-03-07  Daniel Jacobowitz  <drow@mvista.com>
+
+	* NEWS: Mark version 2.12.
+
+2002-02-28  Jakub Jelinek  <jakub@redhat.com>
+
+	* config/tc-alpha.c (s_alpha_text): Use obj_elf_text for OBJ_ELF, not
+	s_text.
+	(s_alpha_data): Use obj_elf_data for OBJ_ELF, not s_data.
+
+2002-02-26  Chris Demetriou  <cgd@broadcom.com>
+
+	* config/tc-mips.c (mips_need_elf_addend_fixup): For embedded-PIC
+	only, undo the changes made on 2001-06-08, with the
+	effect being that common or extern symbols are
+	adjusted for embedded-PIC, but weak symbols are not.
+	(md_estimate_size_before_relax: Likewise, with the effect
+	that extern symbols are treated the same as weak symbols
+	only if not embedded-PIC.
+	(mips_fix_adjustable) Likewise, with the effect that
+	weak or extern symbols are not adjusted for embedded-PIC.
+	(md_apply_fix3): Tweak so that the case where value is zero
+	is handled more correctly for embedded-PIC code.
+
+2002-02-26  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* configure.in (LINGUAS): Add es.po.
+	* configure: Regenerate.
+	* po/es.po: New file.
+
+2002-02-25  Thiemo Seufer <seufer@csv.ica.uni-stuttgart.de>
+
+	* config/tc-mips.c (set_at): Fix handling of 64bit register loads.
+	(macro): Likewise. Fix la/dla address expansions for EMBEDDED_PIC
+	and NO_PIC cases. Code cleanup.
+	(macro2): Fix handling of 64bit register loads.
+
+2002-02-25  Alan Modra  <amodra@bigpond.net.au>
+
+	* doc/c-ppc.texi (PowerPC-Opts): Add -mpower4, -maltivec and -m7400.
+	Remove references to chip manufacturers.
+	* config/tc-ppc.c (md_parse_option): Handle -mpower4 option.
+	Correct comments.
+	(md_show_usage): Remove references to chip manufacturers.  Mention
+	-mpower4.
+	(md_begin): Test power4 opcode flag bits.
+
+2002-02-22  David Mosberger  <davidm@hpl.hp.com>
+
+	* config/tc-ia64.c (dot_restore): Issue error message of epilogue
+	count exceeds prologue count.
+	(md_show_usage): Describe -mconstant-gp and -mauto-pic.
+	(unwind.label_prologue_count): New member.
+
+	Based on a patch by Hans Boehm <hboehm@hpl.hp.com>:
+
+	(get_saved_prologue_count): New function.
+	(save_prologue_count): New function.
+	(free_saved_prologue_count): New function.
+	(dot_label_state): Record state label by calling save_prologue_count().
+	(dot_copy_state): Restore prologue count by calling
+	get_saved_prologue_count().
+	(generate_unwind_image): Free up list of saved prologue
+	counts by calling free_saved_prologue_counts().
+
+2002-02-21  Thiemo Seufer <seufer@csv.ica.uni-stuttgart.de>
+
+	* config/tc-mips.c (md_parse_option): Complain about invalid -mabi
+	option input.
+
+2002-02-18  Daniel Jacobowitz  <drow@mvista.com>
+
+	* config/obj-coff.h: Check !target_big_endian, not shl, for coff-sh.
+
+2002-02-18  John David Anglin  <dave@hiauly1.hia.nrc.ca>
+
+	* config/tc-hppa.c (hppa_fix_adjustable): Don't adjust final types
+	that implicitly use LR and RR selectors.
+
+2002-02-16  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* doc/as.texinfo (Machine Dependencies): Fix typo: MMIX used
+	instead of CRIS.
+
+2002-02-15  Chris Demetriou  <cgd@broadcom.com>
+
+        * config/tc-mips.c (md_estimate_size_before_relax): Really
+	make sure we treat weak like extern only for ELF.  (Fixes
+	patch from 2001-07-25.)
+
+2002-02-15  Ben Elliston  <bje@redhat.com>
+
+	* doc/as.texinfo: Add duplicate directory entry so that "info gas"
+	works as expected.
+
+Fri Feb 15 15:18:51 CET 2002  Jan Hubicka  <jh@suse.cz>
+
+	* i386.c (md_assemble): Support 32bit address prefix.
+	(i386_displacement): Likewise.
+	(i386_index_check): Accept 32bit addressing in 64bit mode.
+
+2002-02-15  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* NEWS: Mention support for MMIX.
+
+2002-02-13  Chris Demetriou  <cgd@broadcom.com>
+
+	* config/tc-mips.c (mips_need_elf_addend_fixup): Restructure into
+	a sequence of indpendent 'if' statements for easier debugging
+	and future modification.
+
+2002-02-13  Matt Fredette  <fredette@netbsd.org>
+
+	* config/tc-m68k.c (md_show_usage): No longer display a
+	hard-coded "68020" for the default CPU, instead display the
+	canonical name of the true, configured default CPU.
+	(m68k_elf_final_processing): Mark objects for sub-68020
+	CPUs with the new EF_M68000 flag.
+
+2002-02-13  Andreas Schwab  <schwab@suse.de>
+
+	* config/tc-i386.c (tc_i386_fix_adjustable): Don't adjust
+	pc-relative relocations to merge sections in 64-bit mode.
+
+2002-02-12  Alexandre Oliva  <aoliva@redhat.com>
+
+	* config/tc-mn10300.c (other_registers): Added `epsw'.  Mark `pc'
+	and `epsw' as available on AM33 and above only.
+	(other_register_name): Add logic to handle machine type encoded in
+	reg_number.
+
+2002-02-11  Tom Rix  <trix@redhat.com>
+
+	* config/tc-ppc.c (md_apply_fix3): Check for insert fop invalid for
+	xcoff64.
+
+2002-02-11  Alexandre Oliva  <aoliva@redhat.com>
+
+	* config/tc-sparc.c (U0x80000000, U0xffffffff): New constants.
+	Use all over.
+
+2002-02-11  Alexandre Oliva  <aoliva@redhat.com>
+
+	* config/tc-sh.c (dot): Removed unused function.
+
+2002-02-10  Richard Henderson  <rth@redhat.com>
+
+	* doc/c-alpha.texi: New file.
+	* doc/Makefile.am (CPU_DOCS): Add it.
+	* doc/all.texi, doc/as.texinfo: Add hooks for Alpha.
+
+2002-02-09  Richard Henderson  <rth@redhat.com>
+
+	* config/tc-alpha.c (O_samegp): New.
+	(USER_RELOC_P): Include it.
+	(alpha_reloc_op_tag, debug_exp, find_macro_match): Add it.
+	(md_apply_fix3): Handle BFD_RELOC_ALPHA_BRSGP.
+	(alpha_force_relocation, alpha_fix_adjustable): Likewise.
+	(alpha_validate_fix): New.
+	* config/tc-alpha.h (TC_VALIDATE_FIX): New.
+
+2002-02-09  Hans-Peter Nilsson  <hp@axis.com>
+
+	* doc/c-cris.texi: New.
+	* doc/all.texi: @set CRIS.
+	* doc/as.texinfo: Ditto.  Add CRIS gas manpage option overview.
+	Include c-cris.texi.
+	* doc/Makefile.am (CPU_DOCS): Add c-cris.texi
+	* doc/Makefile.in: Regenerate.
+
+2002-02-08  Chris Demetriou  <cgd@broadcom.com>
+
+	* config/tc-mips.c (IS_SEXT_32BIT_NUM): New macro to
+	determine if a number is a sign-extended 32-bit number.
+	(load_register): Use IS_SEXT_32BIT_NUM.
+	(macro): Check if load/store macro handling is using a
+	constant 32-bit address on 64-bit address systems, and if
+	so optimize the generation of that address.
+
+2002-02-08  Richard Henderson  <rth@redhat.com>
+
+	* config/tc-alpha.c (alpha_force_relocation): Don't assert that
+	we've eliminated all foreign relocation types yet.
+	(alpha_fix_adjustable): Likewise.
+
+2002-02-08  Alexandre Oliva  <aoliva@redhat.com>
+
+	Contribute sh64-elf.
+	2002-02-08  Alexandre Oliva  <aoliva@redhat.com>
+		    Stephen Clarke <Stephen.Clarke@st.com>
+	* doc/c-sh64.texi: Fix citation of SH64 architecture manual.
+	2002-01-31  Alexandre Oliva  <aoliva@redhat.com>
+	* config/tc-sh.c (md_relax_table): Added default sizes for
+	non-PC-relative UNDEF_MOVI, and relaxation sequences for
+	MOVI_16, MOVI_32 and MOVI_48.
+	* config/tc-sh64.c (shmedia_md_apply_fix3): Fix warning.
+	(shmedia_md_convert_frag): Handle non-PC-relative UNDEF_MOVI
+	and MOVI_16.
+	(shmedia_md_estimate_size_before_relax): Remove redundant
+	blocks.	 Set fragP->fr_var even if relaxation type unchanged.
+	Retain UNDEF_MOVI until expression decays to number.
+	2002-01-24  Alexandre Oliva  <aoliva@redhat.com>
+	* config/tc-sh64.c (shmedia_init_reloc): Handle new SHmedia PIC
+	relocation types.  Take fixP->fx_addnumber into account too.
+	(shmedia_md_apply_fix): Likewise.
+	(shmedia_md_convert_frag): Likewise.
+	(shmedia_build_Mytes): Likewise.
+	(sh64_consume_datalabel): Complain about nested datalabel.
+	Support PIC relocs.  Call sh_parse_name.
+	* config/tc-sh64.h (TC_RELOC_RTSYM_LOC_FIXUP): Extend definition
+	in tc-sh.h to SHmedia reloc types.
+	* config/tc-sh.c (SH64PCRELPLT, MOVI_PLT, MOVI_GOTOFF,
+	MOVI_GOTPC): New relaxation constants.
+	(md_relax_table): Introduce relaxation directives for PIC-related
+	constants.
+	(sh_PIC_related_p): Handle datalabel.
+	(sh_check_fixup): Choose SH5 PIC relocations.
+	(sh_cons_fix_new): Added BDF_RELOC_64.
+	(md_apply_fix3, sh_parse_name): Handle GOTPLT.
+	2002-01-18  Alexandre Oliva  <aoliva@redhat.com>
+	* config/tc-sh64.c (sh64_max_mem_for_rs_align_code): If the
+	current ISA is SHmedia, get 7 bytes.
+	2001-11-28  Nick Clifton  <nickc@cambridge.redhat.com>
+	* config/tc-sh.c (md_apply_fix3): Treat shmedia_md_apply_fix3 as a
+	void function.
+	* config/tc-sh64.c (shmedia_apply_fix): Rename to
+	shmedia_apply_fix3 and make void.
+	2001-05-17  Alexandre Oliva  <aoliva@redhat.com>
+	* config/tc-sh64.c (s_sh64_abi): Remove unused arguments passed to
+	as_bad.
+	2001-04-12  Alexandre Oliva  <aoliva@redhat.com>
+	* config/tc-sh64.h (md_parse_name): Take &c as argument.
+	2001-03-14  DJ Delorie	<dj@redhat.com>
+	* doc/Makefile.am (CPU_DOCS): Added c-sh64.texi
+	* doc/Makefile.in(CPU_DOCS): Ditto.
+	* doc/c-sh64.texi: New file.
+	* doc/as.texinfo: Add SH64 support.
+	2001-03-13  DJ Delorie	<dj@redhat.com>
+	* config/tc-sh64.c (shmedia_get_operands): Rename A_RESV_Fx to
+	A_REUSE_PREV so that its purpose is more obvious.
+	(shmedia_build_Mytes): Ditto.
+	2001-03-07  DJ Delorie	<dj@redhat.com>
+	* config/tc-sh64.c (sh64_vtable_entry): New, strip datalabels
+	before processing.
+	(sh64_vtable_inherit): Ditto.
+	(strip_datalabels): New, strip "datalabel" from given line.
+	* config/tc-sh.c (md_pseudo_table): Add sh64-specific vtable
+	pseudos.
+	2001-03-06  Hans-Peter Nilsson	<hpn@cygnus.com>
+	* config/tc-sh64.c (shmedia_md_assemble): Move dwarf2_emit_insn
+	call ...
+	(shmedia_build_Mytes): ... to here.
+	2001-03-06  DJ Delorie	<dj@redhat.com>
+	* config/tc-sh.c: Remove sh64-specific uaquad now that there
+	is a generic one.
+	2001-01-21  Hans-Peter Nilsson	<hpn@cygnus.com>
+	* config/tc-sh64.h (DWARF2_LINE_MIN_INSN_LENGTH): Override.
+	* config/tc-sh64.c (shmedia_md_assemble): Offset recorded insn
+	address by one in call to dwarf2_emit_insn.
+	2001-01-13  Hans-Peter Nilsson	<hpn@cygnus.com>
+	Implement ".abi" pseudo and correct .cranges descriptors.  Correct
+	alignment handling broken by imported changes.
+	* config/tc-sh64.h (HANDLE_ALIGN): Override definition in tc-sh.h.
+	(sh64_handle_align): Declare.
+	(MAX_MEM_FOR_RS_ALIGN_CODE): Override definition in tc-sh.h.
+	(sh64_max_mem_for_rs_align_code): Declare.
+	(enum sh64_isa_values): Moved here from tc-sh64.c.
+	(md_do_align): Define.
+	(sh64_do_align): Declare.
+	(struct sh64_tc_frag_data): New.
+	(TC_FRAG_TYPE): Change to struct sh64_tc_frag_data.  Users
+	changed.
+	(TC_FRAG_INIT): Change to set new datatype.
+	(struct sh64_segment_info_type): Rename member
+	last_flushed_location to last_contents_mark.  All users changed.
+	(md_elf_section_change_hook, TC_CONS_FIX_NEW): Do not define.
+	(shmedia_elf_new_section, sh64_tc_cons_fix_new): Do not prototype.
+	* config/tc-sh.c (md_pseudo_table): Add ".abi".
+	(sh_elf_cons) [HAVE_SH64]: Call sh64_update_contents_mark instead
+	of unsetting seen_insn.
+	(md_assemble) [HAVE_SH64] <before new SHcompact sequence>: Also
+	call sh64_update_contents_mark.
+	(sh_handle_align): Remove HAVE_SH64-conditioned code.
+	* config/tc-sh64.c (sh64_isa_mode): Correct type from boolean to
+	enum sh64_isa_values.
+	(sh64_set_contents_type): Drop segT parameter.	All callers changed.
+	(emitting_crange): Boolean guard moved to file scope from function
+	scope in sh64_set_contents_type.
+	(s_sh64_abi): New.
+	(sh64_update_contents_mark): New; most split out from
+	sh64_flush_pending_output.
+	(shmedia_md_end): Call sh64_update_contents_mark.  Set
+	sh64_isa_mode to sh64_isa_sh5_guard unless sh64_isa_unspecified.
+	(sh64_do_align): New function.
+	(sh64_max_mem_for_rs_align_code): New function.
+	(sh64_handle_align): Rename from shmedia_do_align.  Make
+	non-static.  Add head comment.	Emit zero bytes for n bytes modulo
+	four.  Change return-type to void.
+	(shmedia_elf_new_section): Remove.
+	(shmedia_md_assemble): Call sh64_update_contents_mark.
+	(s_sh64_mode): Ditto.  Do not call md_flush_pending_output.  Make
+	new frag.  Call sh64_update_contents_mark after making the new
+	frag.
+	(sh64_flush_pending_output): Just call sh64_update_contents_mark
+	and sh_flush_pending_output.
+	(sh64_flag_output): Also call md_flush_pending_output, but add
+	condition on not emitting_crange.
+	(sh64_tc_cons_fix_new): Remove.
+	2001-01-12  Nick Clifton  <nickc@redhat.com>
+	* config/tc-sh64.c (shmedia_do_align): Fix to work with new
+	alignment handling scheme imported from sourceware.
+	2001-01-12  Hans-Peter Nilsson	<hpn@cygnus.com>
+	* config/tc-sh64.h (TARGET_FORMAT): Define.
+	(sh64_target_format): Prototype.
+	* config/tc-sh64.c (sh64_target_mach): New function.
+	2001-01-07  Hans-Peter Nilsson	<hpn@cygnus.com>
+	* config/tc-sh64.c (shmedia_md_end): When equating a symbol, use
+	zero_address_frag instead of copying the frag of the symbol.
+	(shmedia_frob_file_before_adjust): Ditto.
+	(shmedia_md_apply_fix) <case BFD_RELOC_SH_IMM_MEDLOW16>: Cast mask
+	to valueT to remove signedness.
+	(shmedia_md_convert_frag): Add parameter final.	 Rename parameter
+	headers to output_bfd.	Do not evaluate symbols if final is false;
+	do emit fixups.
+	(shmedia_md_estimate_size_before_relax) <case C (MOVI_IMM_32,
+	UNDEF_MOVI) et al>: If symbol cannot be modified to be PC-relative
+	to the current frag, call shmedia_md_convert_frag to emit fixups
+	and make frag_wane neutralize the frag.	 Update comments.
+	* config/tc-sh.c (md_convert_frag): Change caller of
+	shmedia_md_convert_frag.
+	2001-01-06  Hans-Peter Nilsson	<hpn@cygnus.com>
+	* config/tc-sh64.h: Tweak comments and correct formatting.
+	* config/tc-sh64.c: Ditto.
+	(shmedia_md_convert_frag) <PT/PTA/PTB 32, 48 and 64 bit
+	expansion, MOVI pcrel expansion>: Fix thinko calculating offset
+	for the no-relocation case.
+	(shmedia_check_limits): Fix range check being off-by-one for PTA.
+	* config/tc-sh.c: Ditto.  Add proper comments to #ifdef/#ifndef
+	wrappers.
+	(SH64PCREL16_F): Increment for proper max-PTA handling.	 Update
+	comment.
+	(SH64PCREL16_M, MOVI_16_M): Correct range thinko.
+	(SH64PCREL48_M, MOVI_48_M): Similar; don't count in length of
+	expansion.
+	(SH64PCREL32_M, MOVI_32_M): Ditto; handle overflowing expression.
+	Correct comment.
+	2001-01-05  Hans-Peter Nilsson	<hpn@cygnus.com>
+	* config/tc-sh64.c (shmedia_md_apply_fix) <second switch, case
+	BFD_RELOC_SH_PT_16>: Set lowest bit in field to be relocated to 1.
+	(shmedia_md_convert_frag) <case C (SH64PCREL16_32, SH64PCREL16) et
+	al>: Set lowest bit of field to relocate to 1 and rest to empty,
+	if reloc is emitted.
+	2000-12-31  Hans-Peter Nilsson	<hpn@cygnus.com>
+	New options plus bugfixes.
+	* config/tc-sh.c (md_longopts): New options "-no-expand" and
+	"-expand-pt32".
+	(md_parse_option): Handle new options.
+	(md_show_usage): Add blurb for new options.
+	* config/tc-sh64.c (SHMEDIA_BFD_RELOC_PT): New macro.
+	(sh64_expand, sh64_pt32): New variables.
+	(shmedia_init_reloc): Handle BFD_RELOC_SH_PT_16.
+	(shmedia_md_apply_fix): Hold original fixP->fx_r_type in
+	orig_fx_r_type.	 Change SHMEDIA_BFD_RELOC_PT into
+	BFD_RELOC_SH_PT_16.  Handle BFD_RELOC_SH_PT_16 as pc-relative.
+	<resolved previously-pc-relative relocs>: Handle
+	SHMEDIA_BFD_RELOC_PT and BFD_RELOC_SH_PT_16.
+	(shmedia_md_convert_frag) <case C (SH64PCREL16PT_64, SH64PCREL16),
+	case C (SH64PCREL16PT_32, SH64PCREL16)>: Modify to PTB if operand
+	points to SHcompact code.
+	<case C (SH64PCREL16_32, SH64PCREL16), case C (SH64PCREL16_64,
+	SH64PCREL16)>: Check that ISA of what operand points at and
+	PTA/PTB matches, or emit error.
+	(shmedia_check_limits): Handle BFD_RELOC_SH_PT_16 and
+	SHMEDIA_BFD_RELOC_PT.
+	(shmedia_immediate_op): If pcrel, emit fixup also for constant
+	operand.
+	(shmedia_build_Mytes) <case A_IMMS16>: Also check sh64_expand in
+	condition for MOVI expansion.
+	<case A_PCIMMS16BY4>: Handle expansion to 32 bits only, if
+	sh64_pt32.  Emit only a BFD_RELOC_SH_PT_16 fixup if not
+	sh64_expand.
+	<case A_PCIMMS16BY4_PT>: Likewise, but emit a SHMEDIA_BFD_RELOC_PT
+	fixup.
+	(sh64_target_format): Error-check setting of sh64_pt32 and
+	sh64_expand.  Fix typo in check for sh64_shcompact_const_crange.
+	(shmedia_md_pcrel_from_section): Handle BFD_RELOC_SH_PT_16 and
+	SHMEDIA_BFD_RELOC_PT as coming from SHmedia code.
+	2000-12-31  Hans-Peter Nilsson	<hpn@cygnus.com>
+	* config/tc-sh64.c: Improve comments.
+	(shmedia_md_convert_frag): Remove inactive is_pt_variant code.	Do
+	not say the linker will check correctness of PTA/PTB expansion.
+	(shmedia_md_end): Make non-static.
+	* config/tc-sh64.h (md_end): Define to shmedia_md_end.	Add
+	prototype.
+	* config/tc-sh.c (sh_finalize): Remove.
+	* config/tc-sh.h (md_end): Do not define.
+	Remove prototype for sh_finalize.
+	2000-12-30  Hans-Peter Nilsson	<hpn@cygnus.com>
+	* config/tc-sh64.c (shmedia_frob_section_type): Use a struct
+	sh64_section_data container when storing section type in tdata
+	field in elf_section_data.
+	* config/tc-sh.c (sh_elf_final_processing): Change from EF_SH64 to
+	EF_SH5.
+	* Makefile.am: Update dependencies.
+	* Makefile.in: Regenerate.
+	2000-12-22  Hans-Peter Nilsson	<hpn@cygnus.com>
+	* config/tc-sh64.c (shmedia_md_assemble): Don't protect
+	dwarf2_emit_insn call with test on debug_type.
+	2000-12-19  Hans-Peter Nilsson	<hpn@cygnus.com>
+	* config/tc-sh64.c (sh64_set_contents_type): Make contents-type
+	CRT_SH5_ISA32 sticky for 64-bit.
+	2000-12-18  Hans-Peter Nilsson	<hpn@cygnus.com>
+	Generate .crange sections when switching ISA mode or emitting
+	constants in same section as code.
+	* config/tc-sh64.c: Reformat structure definitions.
+	(sh64_end_of_assembly, sh64_mix, sh64_shcompact_const_crange): New
+	variables.
+	(sh64_set_contents_type): Rename from sh64_init_section.  Rewrite
+	to emit a .cranges descriptor when contents type changes.  Only
+	emit error if changing contents type and -no-mix is in effect.
+	(sh64_emit_crange, sh64_flush_last_crange, sh64_flag_output,
+	sh64_flush_pending_output, sh64_tc_cons_fix_new): New functions.
+	(shmedia_md_end): Set sh64_end_of_assembly.  Pass
+	sh64_flush_last_crange over sections.
+	When checking main symbol of datalabel symbol, check for
+	STO_SH5_ISA32, not ISA type of section in definition.
+	(shmedia_frob_file_before_adjust): Check main symbol for
+	STO_SH5_ISA32; don't check ISA type of section in definition.
+	(shmedia_frob_section_type): Adjust for .cranges; set section flag
+	to SHF_SH5_ISA32_MIXED or SHF_SH5_ISA32 according to whether
+	.cranges entries have been output.
+	(shmedia_elf_new_section): Just call md_flush_pending_output.
+	(shmedia_md_assemble): Do not emit a BFD_RELOC_SH_SHMEDIA_CODE
+	fix.  Do not set tc_segment_info_data.in_code for section.  Call
+	sh64_set_contents_type for SHmedia code.
+	(s_sh64_mode): Do not call sh64_init_section or set seen_insn to
+	false.	Call md_flush_pending_output.
+	(sh64_target_format): Check that -no-mix and
+	-shcompact-const-crange are used in sane combination with other
+	options.
+	(shmedia_md_pcrel_from_section): Check type of fix for how to
+	adjust pc-relative.
+	(sh64_consume_datalabel): Check symbol for having STO_SH5_ISA32,
+	not ISA type of section in definition.
+	* config/tc-sh64.h (struct sh64_segment_info_type): Rewrite to
+	hold contents-type state.
+	(md_flush_pending_output): Redefine to sh64_flush_pending_output.
+	(sh64_flush_pending_output): Declare.
+	(TC_CONS_FIX_NEW): Define to sh64_tc_cons_fix_new.
+	(sh64_tc_cons_fix_new): Declare.
+	* config/tc-sh.c (sh_elf_cons) [HAVE_SH64]: Unset seen_insn and
+	call sh64_flag_output.
+	(md_assemble) [HAVE_SH64]: Do not emit BFD_RELOC_SH_CODE.  Just
+	call sh64_set_contents_type to mark SHcompact code and set
+	seen_insn.
+	(md_longopts): New options "-no-mix" and
+	"-shcompact-const-crange".
+	(md_parse_option): Handle new options.
+	(md_show_usage): Add blurb for new options.
+	(md_number_to_chars) [HAVE_SH64]: Call sh64_flag_output.
+	2000-12-15  Hans-Peter Nilsson	<hpn@cygnus.com>
+	* config/tc-sh64.c: Delete investigated and obsolete fixme:s.
+	(sh64_last_insn_frag): New.
+	(shmedia_md_convert_frag): Use tc_frag_data field of incoming frag
+	to get frag for insn opcode for generating fixups; do not assume it
+	is the same frag.
+	(shmedia_build_Mytes): Set sh64_last_insn_frag after growing frag
+	for new insn.
+	* config/tc-sh64.h (ELF_TC_SPECIAL_SECTIONS): Define for .cranges
+	section.
+	(TC_FRAG_TYPE): Define as fragS *.
+	(TC_FRAG_INIT): Define to set tc_frag_data to sh64_last_insn_frag.
+	(sh64_last_insn_frag): Declare.
+	(sh64_consume_datalabel): Fix typo; check for seginfo != NULL,
+	not == NULL before dereferencing.
+	2000-12-12  Hans-Peter Nilsson	<hpn@cygnus.com>
+	Get rid of BFD section flag and EF_SH64_ABI64.
+	* config/tc-sh64.c (shmedia_frob_section_type): Use
+	elf_section_data (sec)->tdata, not a specific BFD section flag, to
+	communicate the section as containing SHmedia code.  Describe why.
+	* config/tc-sh.c (sh_elf_final_processing): Tweak comment.  Set
+	EF_SH64 regardless of ABI.
+	* config/tc-sh64.c (shmedia_md_apply_fix): Decapitalize "invalid"
+	in error message.  Handle resolved expressions for
+	BFD_RELOC_SH_IMMS10, BFD_RELOC_SH_IMMS10BY2,
+	BFD_RELOC_SH_IMMS10BY4 and BFD_RELOC_64.
+	(shmedia_check_limits): Handle BFD_RELOC_64.
+	(sh64_adjust_symtab): Do not decrement the GAS symbol value for
+	a STO_SH5_ISA32 symbol, only the BFD value.
+	2000-12-11  Ben Elliston  <bje@redhat.com>
+	* config/tc-sh64.c: Call dwarf2_emit_insn, not the defunct
+	dwarf2_generate_asm_lineno.
+	2000-12-11  Hans-Peter Nilsson	<hpn@cygnus.com>
+	Handle PC-relative MOVI expansions with assembler relaxation.
+	Generate PC-relative relocs from 16-bit PC-relative expressions.
+	* config/tc-sh64.c (SHMEDIA_MD_PCREL_FROM_FIX): Break out from...
+	(shmedia_md_pcrel_from_section): ...here.
+	(shmedia_md_apply_fix): Handle fixups for 16-bit operands that has
+	turned completely resolved.  Adjust relocation type for 16-bit
+	immediate operands that has turned PC-relative.	 Adjust back for
+	MD_PCREL_FROM_SECTION being applied twice.
+	(shmedia_md_convert_frag): Always emit reloc for expression with
+	global or weak symbol.	Handle relaxation result for PC-relative
+	expressions.
+	(shmedia_md_estimate_size_before_relax): An expression with a weak
+	or global symbol can not be relaxed.  Break out tests for
+	relaxable symbol into variable sym_relaxable.
+	<cases C (MOVI_IMM_64, UNDEF_MOVI) and C (MOVI_IMM_32,
+	UNDEF_MOVI)>: Break out any PC-relative expression and change
+	relaxation type.
+	(shmedia_build_Mytes): CSE &operands->operands[j] into variable
+	opjp.
+	<case A_IMMS16>: Fix typo for initial minor relaxation type of
+	MOVI expansion.	 If X_op_symbol of the immediate expression is
+	set, make an expression symbol for the argument to frag_var.
+	* config/tc-sh.c (MOVI_IMM_32_PCREL, MOVI_IMM_64_PCREL): New
+	relaxations.
+	(END): Adjust for new relaxations.
+	(md_relax_table): Add entries for new relaxations.
+	2000-12-07  Ben Elliston  <bje@redhat.com>
+	* config/tc-sh64.c (shmedia_parse_reg): Initialize variable len.
+	2000-12-07  Hans-Peter Nilsson	<hpn@cygnus.com>
+	* config/tc-sh64.c (shmedia_md_convert_frag): Correct all MOVI and
+	SHORI operand offsets in PT/PTA/PTB expansions.
+	2000-12-05  Hans-Peter Nilsson	<hpn@cygnus.com>
+	Implement DataLabel semantics.
+	* config/tc-sh.c (sh_frob_file) [HAVE_SH64]: Call
+	shmedia_frob_file_before_adjust.
+	* config/tc-sh64.c [! OBJ_ELF]: Emit #error.
+	(DATALABEL_SUFFIX): Define.
+	(shmedia_md_end) <before adjusting STO_SH5_ISA32 symbols>: Walk
+	symbol list to update "datalabel" symbols to their main symbol
+	counterparts.
+	(shmedia_frob_file_before_adjust): New.
+	(sh64_adjust_symtab): For remaining datalabel symbols, set to
+	undefined and set STT_DATALABEL.
+	(sh64_frob_label): Initialize TC symbol field.
+	(sh64_consume_datalabel): Actually implement semantics.	 New
+	parameter operandf, call it instead of expression.
+	(sh64_exclude_symbol): New.
+	* config/tc-sh64.h (md_parse_name): Pass on the function operand
+	to sh64_consume_datalabel.
+	(tc_symbol_new_hook): Define to tc_frob_symbol.
+	(TC_SYMFIELD_TYPE): Define to symbolS *.
+	(tc_frob_symbol): Define to call sh64_exclude_symbol.
+	2000-12-01  Hans-Peter Nilsson	<hpn@cygnus.com>
+	* config/tc-sh64.c (shmedia_init_reloc): Tweak comment for default
+	case.
+	(shmedia_md_assemble): Call dwarf2_generate_asm_lineno if
+	generating dwarf2 debug information.
+	2000-11-30  Hans-Peter Nilsson	<hpn@cygnus.com>
+	* config/tc-sh64.c (sh64_target_format): Use elf64-sh64l and
+	elf64-sh64 for the 64-bit ABI.
+	* config/tc-sh.c (md_show_usage): Tweak usage output for -abi=*
+	option.
+	2000-11-29  Hans-Peter Nilsson	<hpn@cygnus.com>
+	* config/tc-sh.c: Remove conditionalizing on HAVE_SH64 for
+	case-insensitivity.
+	2000-11-27  Hans-Peter Nilsson	<hpn@cygnus.com>
+	* config/tc-sh64.c: Tweak comments, formatting and error messages.
+	(enum sh64_abi_values): New type.
+	(enum sh64_isa_values): New type.
+	(sh64_isa_mode): Replace shmedia_mode.	All referers changed.
+	(seen_shcompact_mode, seen_shmedia_mode): Delete.
+	(sh64_abi): Replace shmedia_64.
+	(shmedia_md_convert_frag) <C (MOVI_IMM_64, MOVI_64),
+	C (MOVI_IMM_32, MOVI_32)>: Correct register number handling.
+	(s_sh64_mode): Check validity for this target.
+	(sh64_target_format): Initialize defaults for ISA and ABI.
+	Fallback to old object format if no SH64 ISA or ABI has been
+	specified.
+	* config/tc-sh.c (md_parse_option): Check combinations for errors.
+	(sh_elf_final_processing): Change to have EF_SH64_ABI64 for 64-bit
+	ABI and EF_SH64 for 32-bit ABI, if SH64 options are specified.
+	* config/tc-sh64.h: Fix typo in comment.
+	2000-11-25  Hans-Peter Nilsson	<hpn@cygnus.com>
+	* config/tc-sh64.c (shmedia_md_estimate_size_before_relax)
+	<PT fixups for absolute values>: Size will be longest, not
+	shortest.
+	(shmedia_md_convert_frag): Disable PTB-warning machinery.  Correct
+	all MOVI and SHORI operand offsets in PT/PTA/PTB expansions.
+	* config/tc-sh.c (parse_reg) [HAVE_SH64]: Add local variables l0
+	and l1 to hold lowercase of two first characters.  Change all
+	remaining TO_LOWER to tolower.
+	* config/tc-sh64.c (TO_LOWER): Delete.
+	(shmedia_find_cooked_opcode): Use tolower, not TO_LOWER.
+	(md_parse_name): Define.
+	(sh64_consume_datalabel): Declare.
+	(DOLLAR_DOT): Define.
+	* config/tc-sh64.c (shmedia_parse_exp): New.
+	(sh64_consume_datalabel): New; just ignoring datalabel semantics.
+	(shmedia_parse_reg): Remove const from src
+	parameter.
+	(shmedia_get_operands): Ditto for args parameter and ptr variable.
+	(shmedia_md_assemble): Ditto for op_end variable.
+	(shmedia_get_operand): Ditto for ptr parameter and src variable.
+	Use shmedia_parse_exp, not parse_exp.
+	* config/tc-sh64.c (shmedia_parse_reg): Add shmedia_arg_type
+	parameter.  All callers changed.
+	(shmedia_get_operand): Add shmedia_arg_type parameter.	All
+	callers changed.
+	(shmedia_parse_reg): Put first two character in local variables.
+	Use tolower, not TO_LOWER.  If no register is found and argtype
+	indicates a control register, scan shmedia_creg_table
+	case-insensitive.
+	2000-11-24  Hans-Peter Nilsson	<hpn@cygnus.com>
+	* Makefile.am (CPU_TYPES): Add sh64.
+	(TARGET_CPU_CFILES): Add config/tc-sh64.c.
+	(TARGET_CPU_HFILES): Add config/tc-sh64.h.
+	Regenerate dependencies.
+	* Makefile.in: Regenerate.
+	* configure.in: Add support for sh64-*-elf*.
+	* configure: Regenerate.
+	* config/tc-sh64.h: New.
+	* config/tc-sh64.c: New.
+	* config/tc-sh.c (md_pseudo_table) [HAVE_SH64]: New pseudos
+	.mode, .isa and .uaquad.
+	[HAVE_SH64] (SH64PCREL16_32, SH64PCREL16_64, SH64PCREL16PT_32,
+	SH64PCREL16PT_64, MOVI_IMM_32, MOVI_IMM_64): Define.
+	[HAVE_SH64] (END): Define as 10.
+	[HAVE_SH64] (UNDEF_SH64PCREL, SH64PCREL16, SH64PCREL32,
+	SH64PCREL48, SH64PCREL64, UNDEF_MOVI, MOVI_16, MOVI_32, MOVI_48,
+	MOVI_64): Define.
+	[HAVE_SH64] (SH64PCREL16_F, SH64PCREL16_M, SH64PCREL16_LENGTH,
+	SH64PCREL32_F, SH64PCREL32_M, SH64PCREL32_LENGTH, SH64PCREL48_F,
+	SH64PCREL48_M, SH64PCREL48_LENGTH, SH64PCREL64_LENGTH,
+	MOVI_16_LENGTH, MOVI_32_LENGTH, MOVI_48_LENGTH, MOVI_64_LENGTH):
+	Define.
+	(md_relax_table) [HAVE_SH64]: Provide relaxations for SHmedia.
+	(md_begin) [HAVE_SH64]: Call shmedia_md_begin.
+	(parse_reg) [HAVE_SH64]: Parse register names case-insensitive.
+	(md_assemble) [HAVE_SH64]: Call shmedia_md_assemble if assembling
+	SHmedia instructions.  Handle state-change after switching to
+	SHcompact.
+	(md_longopts) [HAVE_SH64]: New options --isa=* and --abi=*.
+	(md_parse_option) [HAVE_SH64]: Parse new options.
+	(md_show_usage) [HAVE_SH64]: Show usage of new options.
+	(md_convert_frag) [HAVE_SH64] <default>: Call
+	shmedia_md_convert_frag instead of abort.
+	(sh_force_relocation) [HAVE_SH64]: Also force relocation for
+	BFD_RELOC_SH_SHMEDIA_CODE.
+	(sh_elf_final_processing) [HAVE_SH64]: Set flags identifying
+	SHcompact or SHmedia code.
+	(md_apply_fix) [HAVE_SH64] <default>: Return result from calling
+	shmedia_md_apply_fix instead of abort.
+	(md_estimate_size_before_relax) [HAVE_SH64] <default>: Return
+	result from calling shmedia_md_estimate_size_before_relax instead
+	of calling abort.
+	(sh_do_align) [HAVE_SH64]: If shmedia_mode, let shmedia_do_align
+	do the work.
+	(tc_gen_reloc) [HAVE_SH64]: For unrecognized relocs, call
+	shmedia_init_reloc and do nothing more if it returns non-zero.
+	(sh_finalize) [HAVE_SH64]: Call shmedia_md_end.
+	* po/POTFILES.in: Regenerate.
+	* po/gas.pot: Regenerate.
+
+2002-02-06  Alexandre Oliva  <aoliva@redhat.com>
+
+	* config/tc-sh.c (parse_at): Install the correct version of
+	2002-02-04's patch.
+
+	* config/tc-sh.c (md_apply_fix3) <BFD_RELOC_32_PLT_PCREL>: Don't
+	assume fixP->fx_subsy is non-NULL.
+
+2002-02-04  Alexandre Oliva  <aoliva@redhat.com>
+
+	* config/tc-sh.c (parse_at): Set arg type of @(expr,pc) to
+	A_DISP_PC_ABS, and adjust it by -4.
+	(get_specific): Accept A_DISP_PC_ABS where A_DISP_PC is
+	expected.
+	(build_Mytes): Mark PCRELIMM fix-ups as pc-relative only if
+	the operand type is not A_DISP_PC_ABS.
+
+2002-02-04  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* config/tc-mmix.c (tc_gen_reloc): Don't try and take the value of
+	common and weak symbols.  Handle common and weak symbols as
+	undefined symbols with regards to GREG handling and merging.
+	(mmix_frob_file): Ditto.
+
+2002-02-02  Jason Thorpe  <thorpej@wasabisystems.com>
+
+	* configure.in (hppa-*-netbsd*): New target.
+	* configure: Regenerate.
+	* config/tc-hppa.h: Also define WARN_COMMENTS if TE_NetBSD.
+
+2002-02-02  Alan Modra  <amodra@bigpond.net.au>
+
+	* config/tc-v850.c: Add missing prototypes amd use old-style
+	function definitions.
+	(AREA_ZDA, AREA_SDA, AREA_TDA): Delete.
+	(sdata_section tdata_section, zdata_section, sbss_section,
+	tbss_section, zbss_section, rosdata_section, rozdata_section,
+	scommon_section, tcommon_section, zcommon_section,
+	call_table_data_section, call_table_text_section): Delete.
+	(v850_sdata, v850_tdata, v850_zdata, v850_sbss, v850_tbss,
+	v850_zbss, v850_bss, v850_rosdata, v850_rozdata,
+	v850_call_table_data, v850_call_table_text): Delete.
+	(struct v850_seg_entry): New.
+	(v850_seg_table): New.
+	(SDATA_SECTION TDATA_SECTION, ZDATA_SECTION, SBSS_SECTION,
+	TBSS_SECTION, ZBSS_SECTION, BSS_SECTION, ROSDATA_SECTION,
+	ROZDATA_SECTION, SCOMMON_SECTION, TCOMMON_SECTION, ZCOMMON_SECTION,
+	CALL_TABLE_DATA_SECTION, CALL_TABLE_TEXT_SECTION): Define.
+	(do_v850_seg): New.
+	(v850_seg): New.
+	(v850_comm): Use do_v850_seg and v850_seg_table.  Simplify
+	recording of alignment.
+	(md_pseudo_table): Use v850_seg.
+	(md_begin): Don't init .call_table_data and .call_table_text here.
+	Set v850_seg_table bss entry.
+
+2002-02-01  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	Support on-demand global register allocation by passing on
+	base-plus-offset relocs to the linker.
+	* config/tc-mmix.c: Tweak and fix typos in comments.
+	(allocate_undefined_gregs_in_linker): New variable.
+	(OPTION_LINKER_ALLOCATED_GREGS): New option macro.
+	(md_longopts): Add --linker-allocated-gregs.
+	(md_parse_option) <case 'x'>: Imply --linker-allocated-gregs.
+	<case OPTION_LINKER_ALLOCATED_GREGS>: New.
+	(md_show_usage): Update text for -x.  Add text for
+	--linker-allocated-gregs.
+	(tc_gen_reloc): Derive default value for addend from val and
+	baddsy.  Use addsec and bfd_is_abs_section in more places.  Don't
+	emit error for BFD_RELOC_MMIX_BASE_PLUS_OFFSET without suitable
+	GREG if allocate_undefined_gregs_in_linker.
+	* doc/as.texinfo (Overview) <Target MMIX options>: Add
+	--linker-allocated-gregs.
+	* doc/c-mmix.texi (MMIX-Opts): Add blurb about
+	--linker-allocated-gregs.  Mention that it's implied by -x.
+	(MMIX-Pseudos) <GREG>: Mention when and how a GREG can be omitted.
+	(MMIX-mmixal): Clarify dated comparison and location of MMIXware.
+
+	* config/tc-mmix.h (md_parse_name): Use ISUPPER, not isupper.
+
+2002-02-01  Alan Modra  <amodra@bigpond.net.au>
+
+	* Makefile.am: Run "make dep-am"
+	* Makefile.in: Regenerate.
+
+2002-01-31  Ivan Guzvinec  <ivang@opencores.org>
+
+	* config/tc-or32.c: New file.
+	* config/tc-or32.h: New file.
+	* configure.in: Add support for or32 targets.
+	* configure: Regenerate.
+	* config/obj-coff.c: Add support for or32 targets.
+	* config/obj-coff.h: Add support for or32 targets.
+	* Makefile.am: Add support for or32 targets.
+	* Makefile.in: Regenerate.
+	* NEWS: Mention support for OpenRISC.
+	* doc/Makefile.in: Regenerate.
+	* po/POTFILES.in: Regenerate.
+	* po/gas.pot: Regenerate.
+
+2002-01-30  Richard Sandiford  <rsandifo@redhat.com>
+
+	* config/tc-sh.c (parse_reg): Fix end-of-word check for is, ix, iy
+	and mod.
+
+2002-01-29  Chris Demetriou  <cgd@broadcom.com>
+
+	* config/tc-mips.c (tc_gen_reloc): Arrange for
+	BFD_RELOC_PCREL_HI16_S relocations to be output relative to
+	their LO16 parts, even for ELF.
+
+2002-01-29  Daniel Jacobowitz  <drow@mvista.com>
+
+	* config/tc-i386.c: Protect definitions of true and false
+	from redefinition.
+
+2002-01-28  Jakub Jelinek  <jakub@redhat.com>
+
+	* config/obj-elf.c (elf_frob_file_before_adjust): Remove symbols
+	made because of .weak, if they are neither defined nor used in any
+	way.
+
+2002-01-27  Daniel Jacobowitz  <drow@mvista.com>
+
+	* configure: Regenerated.
+
+2002-01-26  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* doc/Makefile.am (install): Depend on install-info.
+	* doc/Makefile.in: Regenerate.
+
+2002-01-26  Nick Clifton <nick@redhat.com>
+
+	* po/fr.po: Updated version
+
+2002-01-24  Kazu Hirata  <kazu@hxi.com>
+
+	* config/tc-h8300.c (check_operand): Don't print a warning
+	when a valid 24-bit address is given to a 16-bit address
+	operand.
+
+2002-01-24  Alexandre Oliva  <aoliva@redhat.com>
+
+	* config/tc-sh.c (sh_elf_suffix): Removed.
+	(sh_PIC_related_p, sh_check_fixup, sh_cons_fix_new,
+	sh_end_of_match, sh_parse_name): New functions.
+	(sh_elf_cons): Simplify.
+	(parse_exp): Reject misplaced PIC operands.
+	(md_undefined_symbol): Simplify.
+	(sh_fix_adjustable): Let @GOTOFF be adjusted.
+	(md_apply_fix3): Write @PLT and @GOTOFF addends in place.
+	(tc_gen_reloc): Move fixp subsy absolute value into addnumber.
+	Complain if subsy remains at the end.
+	* config/tc-sh.h (sh_parse_name, sh_cons_fix_new): Declare.
+	(md_parse_name, TC_CONS_FIX_NEW, O_PIC_reloc): Define.
+
+2002-01-22  Alexandre Oliva  <aoliva@redhat.com>
+
+	* config/tc-mn10300.c (xr_registers): Move `pc'...
+	(other_registers): ... here.
+
+2002-01-22  Alan Modra  <amodra@bigpond.net.au>
+
+	* Makefile.am: Run "make dep-am".
+	* Makefile.in: Regenerate.
+	* gas/po/POTFILES.in: Regenerate.
+
+2002-01-21  DJ Delorie  <dj@redhat.com>
+
+	* config/obj-coff.c (obj_coff_init_stab_section): Make the
+	stabstr_name allocation permanent, as it will be referenced from
+	the section hash.
+
+2002-01-21  Jason Thorpe  <thorpej@wasabisystems.com>
+
+	* configure.in (ia64-*-netbsd*): New target.
+	* configure: Regenerate.
+
+2002-01-21  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* doc/as.texinfo (Overview) <Target ARM options>: Add missing {}
+	to @dots call.
+	<Detailed description, ARM options>: Ditto.
+	* doc/c-arm.texi (ARM Options): Ditto.
+
+2002-01-18  Richard Earnshaw  <rearnsha@arm.com>
+
+	* tc-arm.c (do_xsc_mia, do_xsc_mar, do_xsc_mra): Renamed from
+	do_mia, do_mar and do_mra respectively.
+	(do_mav_*): Renamed from do_c_*.
+	(mav_reg_required_here, mav_parse_offset): Renamed from
+	cirrus_reg_required_here and cirrus_parse_offset respectively.
+	(MAV_MODE?): Renamed from CIRRUS_MODE?.
+
+2002-01-18  Richard Earnshaw  <rearnsha@arm.com>
+	    Keith Walker  <keith.walker@arm.com>
+
+	* tc-arm.c (ARM_EXT_V5J, ARM_ARCH_V5TEJ): Define.
+	(insns): Add pattern for bxj instruction.
+	(do_bxj): New function.
+	(arm_cpus): Add arm926ej.
+	(arm_archs): Add armv5tej.
+
+2002-01-18  Richard Earnshaw  <rearnsha@arm.com>
+
+	* doc/c-arm.texi: Add new fpe options to list of supported flags.
+
+2002-01-19  Keith Walker  <keith.walker@arm.com>
+
+	* tc-arm.c (arm_fpus): Add fpe2 and fpe3.
+
+2002-01-18  Richard Earnshaw  <rearnsha@arm.com>
+
+	* NEWS: Mention new ARM command-line options and VFP support.
+
+	* config/tc-arm.c (ARM_CEXT_XSCALE): Replaces ARM_EXT_XSCALE.  All
+	uses changed.
+	(ARM_CEXT_MAVERICK): Similarly.
+	(ARM_ANY): Now means any core instruction.
+	(CPU_DEFAULT): Default to ARM_ANY.
+	(uses_apcs_26, atcps, support_interwork, uses_apcs_float)
+	(pic_code): Declare for all object types.  Make type int.
+	(legacy_cpu, legacy_fpu, mcpu_cpu_opt, mcpu_fpu_opt, march_cpu_opt)
+	(march_fpu_opt, mfpu_opt): Declare.
+	(md_longopts): Tidy up conditional definitions.
+	(arm_opts, arm_cpus, arm_archs, arm_fpus, arm_extensions)
+	(arm_long_opts): New tables.
+	(arm_parse_cpu, arm_parse_arch, arm_parse_fpu): New functions.
+	(arm_parse_extension): New function.
+	(md_parse_option): Rewrite using new table-driven system.
+	(md_show_usage): Use new table-driven system.
+	(md_begin): Calculate cpu_variant from command line option data.
+	* doc/as.texinfo (ARM ISA options): Docuement new ARM-specific
+	command-line options.
+	* doc/c-arm.texi: Likewise.
+
+2002-01-18  Andreas Jaeger  <aj@suse.de>
+
+	* as.c (parse_args): Update year.
+
+2002-01-17  Timothy Wall  <twall@alum.mit.edu>
+
+	* config/tc-tic54x.c (encode_address): Add a more informative
+	warning about incorrect syntax.
+
+2002-01-17  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* po/gas.pot: Regenerate.
+
+2002-01-17  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* macro.c (get_any_string): Add no-c-format comment to prevent
+	confusion when translating string.
+	* gasp.c (get_any_string): Add no-c-format comment to prevent
+	confusion when translating string.
+
+2002-01-16  Thiemo Seufer <seufer@csv.ica.uni-stuttgart.de>
+	    Johannes Stezenbach <js@convergence.de>
+	* config/tc-mips.c (percent_op): Ensure longer percent_op's are
+	matched before the shorter ones.
+	(my_getSmallParser): Fix handling of nested parentheses in
+	percent_op's. Code cleanup.
+	(my_getPercentOp): New function, code from my_getSmallParser.
+	(my_getSmallExpression): Fix handling of closing parentheses.
+	Code cleanup. Better comments.
+
+2002-01-16  Nick Clifton <nickc@redhat.com>
+
+	po/tr.po: New file: Turkish translation.
+	configure.in (LINGUAS): Add "tr".
+	configure: Regenerate.
+
+2002-01-15  Richard Earnshaw  <rearnsha@arm.com>
+
+	Support for VFP instructions
+	* tc-arm.c (CP_WB_OK, CP_NO_WB): New defines.
+	(cp_address_required_here): New argument wb_ok.  When false, do not
+	accept write-back forms of addressing.  Change all callers.
+	(FPU_VFP_EXT_NONE, FPU_VFP_EXT_V1xD, FPU_VFP_VFP_V1)
+	(FPU_VFP_EXT_V2): Define.
+	(FPU_ARCH_VFP, FPU_ARCH_VFP_V1xD, FPU_ARCH_VFP_V1, FPU_ARCH_VFP_V2):
+	Define in terms of above.
+	(vfp_dp_reg_pos, vfp_sp_reg_pos, vfp_ldstm_type): New enums.
+	(vfp_reg): New struct.
+	(vfp_regs): New array of registers.
+	(insns): Add VFP instructions.
+	(sn_table): New array of VFP single-precision register names.
+	(dn_table): New array of VFP double-precision register names.
+	(all_reg_maps): Add the new register tables.
+	(arm_reg_type): Add new values for above.  Increase RET_TYPE_MAX.
+	(vfp_sp_reg_required_here, vfp_dp_reg_required_here, do_vfp_sp_monadic)
+	(do_vfp_dp_monadic, do_vfp_sp_dyadic, do_vfp_dp_dyadic)
+	(do_vfp_reg_from_sp, do_vfp_sp_reg2, do_vfp_sp_from_reg)
+	(do_vfp_reg_from_dp, do_vfp_reg2_from_dp, do_vfp_dp_from_reg)
+	(do_vfp_dp_from_reg2, vfp_psr_parse, vfp_psr_required_here)
+	(do_vfp_reg_from_ctrl, do_vfp_ctrl_from_reg, do_vfp_sp_ldst)
+	(do_vfp_dp_ldst, vfp_sp_reg_list, vfp_dp_reg_list, vfp_sp_ldstm)
+	(vfp_dp_ldstm, do_vfp_sp_ldstmia, do_vfp_sp_ldstmdb, do_vfp_ldstmia)
+	(do_vfp_dp_ldstmdb, do_vfp_xp_ldstmia, do_vfp_xp_ldstmdb)
+	(do_vfp_sp_compare_z, do_vfp_dp_compare_z, do_vfp_dp_sp_cvt)
+	(do_vfp_sp_dp_cvt): New functions.
+	(md_begin): Set soft-float flag for appropriate VFP work.
+	(md_atof): Handle VFP-format doubles.
+	(md_parse_option): Handle VFP command-line options.
+	(md_show_usage): Display VFP command-line options.
+
+2002-01-15  Richard Earnshaw  <rearnsha@arm.com>
+
+	* tc-arm.c (md_parse_option): Tidy up setting of cpu_variant for
+	various command line options.
+
+2002-01-15  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* config/tc-xstormy16.c: (xstormy16_fix_adjustable): Do not fix
+	vtinherit relocs.
+	(xstormy16_md_apply_fix3): Do not return a value.
+
+2002-01-14  Richard Earnshaw  <rearnsha@arm.com>
+
+	* tc-arm.c (md_longopts): On targets that aren't bi-endian, support
+	the -EL/-EB option that matches the target's endianness.
+	(md_parse_option): Likewise.
+
+2002-01-14  Richard Earnshaw  <rearnsha@arm.com>
+
+	* tc-arm.c (md_longopts): Fix misplaced #endif -- the -oabi option
+	is not dependent on ARM_BI_ENDIAN.
+
+2002-01-14  Richard Earnshaw  <rearnsha@arm.com>
+
+	* tc-arm.c (all error messages): Normalize capitalization of messages.
+
+	* tc-arm.h (md_operand): Delete define.
+	* tc-arm.c (in_my_get_expression): New static variable.
+	(my_get_expression): Set and clear it.
+	(md_operand): New function.  If called from my_get_expression
+	put the error in inst.error.
+	(output_inst): Now takes argument of instruction being assembled.
+	Print it out with any error message.
+	(do_ldst, do_ldstv4, thumb_load_store): Fault attempt to use a store
+	with '=' syntax.
+	(end_of_line): Don't update inst.error if it is already set.
+
+2002-01-11  Richard Earnshaw  <rearnsha@arm.com>
+
+	* tc-arm.c ((do_ldst): Fix handling an immediate expression pseudo
+	op that can be translated into a mvn instruction.
+
+2002-01-11  Steve Ellcey  <sje@cup.hp.com>
+
+	* gas/config/tc-ia64.h (MD_FLAGS_DEFAULT): New Macro for
+	setting default md.flags.
+	(SHT_INIT_ARRAY): New elf special section used by HP-UX.
+	(SHT_FINI_ARRAY): New elf special section used by HP-UX.
+	* gas/config/tc-ia64.c (setup_unwind_header): Add support
+	for 32 bit unwind info blocks.
+	(generate_unwind_image): Add support for different types
+	of unwind images (32 bits and/or big-endian).
+	(ia64_init): Use MD_FLAGS_DEFAULT to set md.flags.
+	(ia64_target_format): Add support for hpux target formats.
+	(ia64_gen_real_reloc_type): Add support for FUNC_IPLT_RELOC.
+	(ia64_elf_section_type): Add support for SHT_INIT_ARRAY and
+	SHT_FINI_ARRAY elf section types.
+
+2002-01-10  Richard Earnshaw  <rearnsha@arm.com>
+
+	* tc-arm.c (struct reg_entry): Move before prototypes.
+	(int_register, cp_register, fp_register): Delete.
+	(reg_table): Delete.  Replaced with ...
+	(rn_table, cp_table, cn_table, fn_table, mav_mvf_table)
+	(mav_mvd_table, mav_mvfx_table, mav_mvdx_table, mav_mvax_table)
+	(mav_dspsc_table): ... one table per register set.
+	(arm_reg_hsh): Delete.
+	(struct reg_map): New structure.
+	(all_reg_maps): New array.
+	(enum arm_reg_type): New enums.
+	(build_reg_hsh): New function.
+	(insert_reg_alias): Use hash table passed by caller.  Adjust all
+	callers.
+	(create_register_alias): New function, split out from ...
+	(md_assemble): ... here.
+	(md_begin): Build new register hash tables.
+	(arm_reg_parse): New argument for the hash table to search.  Adjust all
+	callers.
+	(arm_reg_parse_any): New function.
+	(co_proc_number): Look up the processor number in the processor hash
+	table.
+	(cirrus_regtype): Delete.
+	(cirrus_register, cirrus_mvf_register, cirrus_mvd_register)
+	(cirrus_mvfx_register, cirrus_mvdx_register, cirrus_mvax_register)
+	(ARM_EXT_MAVERICKsc_register): Delete.
+	(do_c_binops_1, do_c_binops_2, do_c_binops_3): Delete.
+	(do_c_binops_1[a-o], do_c_binops_2[a-c], do_c_binops_3[a-d]): New
+	functions.
+	(do_c_triple_4, do_c_triple_5): Delete.
+	(do_c_triple_4[ab], do_c_triple_5[a-h]): New functions.
+	(do_c_quad_6): Delete.
+	(do_c_quad_6[ab]): New functions.
+	(do_c_binops, do_c_triple, do_c_quad, do_c_shift, do_c_ldst): Rework
+	arguments to use new register parsing methods.
+	(cirrus_reg_required_here): Likewise.
+	(insns): Reclassify cirrus maverick worker functions.
+	(cirrus_valid_reg): Delete.
+
+2002-01-07  Jason Thorpe  <thorpej@wasabisystems.com>
+
+	* configure.in (sh*le): Set cpu_type=sh and endian=little.
+	(sh*-*-netbsdelf*): New target.
+	* configure: Regenerate.
+	* tc-sh.h: Update copyright years.
+	(TARGET_FORMAT): Add version for TE_NetBSD.
+
+2002-01-07  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* read.c (emit_expr): Do not allow 'size' or 'nbytes' to go
+	negative.
+
+2002-01-06  Alan Modra  <amodra@bigpond.net.au>
+
+	* config/tc-m68k.h (md_prepare_relax_scan): Rewrite.
+	* config/tc-m68k.c (md_relax_table): Add md_prepare_relax_scan comment.
+
+2002-01-05  Daniel Jacobowitz  <drow@mvista.com>
+
+	* tc-mips.c (mips_cprestore_valid): New flag.
+	(mips_frame_reg_valid): New flag.
+	(macro) [M_JAL_2]: Check both flags.
+	[M_JAL_A]: Likewise.
+	(s_cprestore): Set mips_cprestore_valid.
+	(tc_get_register): If setting mips_frame_reg, set
+	mips_frame_reg_valid and clear mips_cprestore_valid.
+	(s_mips_ent): Clear both flags.
+	(s_mips_end): Clear both flags.
+
+2002-01-05  Alan Modra  <amodra@bigpond.net.au>
+
+	* write.c (write_object_file): Make use of bfd_section_list_remove.
+	* config/obj-ecoff.c (ecoff_frob_file): Likewise.
+	* config/tc-mmix.c (mmix_frob_file): Likewise.
+
+2002-01-04  Jason Thorpe  <thorpej@wasabisystems.com>
+
+	* configure.in (i386-*-netbsdelf*): Collapse target into...
+	(i386-*-netbsd*): ...this.  Add support for x86-64.
+	* configure: Regenerated.
+
+2002-01-03  matthew green  <mrg@redhat.com>
+
+	* config/tc-ppc.c (md_parse_option): BookE is not Motorola specific.
+
+2002-01-02  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* config/tc-m68k.c (md_estimate_size_before_relax): Test for a
+	NULL frag link.
+
+For older changes see ChangeLog-0001
+
+Local Variables:
+mode: change-log
+left-margin: 8
+fill-column: 74
+version-control: never
+End:

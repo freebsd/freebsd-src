@@ -1,0 +1,625 @@
+.\"	$KAME: setkey.8,v 1.49 2001/05/18 05:49:51 sakane Exp $
+.\"	$FreeBSD$
+.\"
+.\" Copyright (C) 1995, 1996, 1997, 1998, and 1999 WIDE Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the project nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd November 20, 2000
+.Dt SETKEY 8
+.Os
+.\"
+.Sh NAME
+.Nm setkey
+.Nd "manually manipulate the IPsec SA/SP database"
+.\"
+.Sh SYNOPSIS
+.Nm
+.Op Fl dv
+.Fl c
+.Nm
+.Op Fl dv
+.Fl f Ar filename
+.Nm
+.Op Fl adPlv
+.Fl D
+.Nm
+.Op Fl dPv
+.Fl F
+.Nm
+.Op Fl h
+.Fl x
+.\"
+.Sh DESCRIPTION
+The
+.Nm
+utility adds, updates, dumps, or flushes
+Security Association Database (SAD) entries
+as well as Security Policy Database (SPD) entries in the kernel.
+.Pp
+The
+.Nm
+utility takes a series of operations from the standard input
+(if invoked with
+.Fl c )
+or the file named
+.Ar filename
+(if invoked with
+.Fl f Ar filename ) .
+.Bl -tag -width Ds
+.It Fl D
+Dump the SAD entries.
+If with
+.Fl P ,
+the SPD entries are dumped.
+.It Fl F
+Flush the SAD entries.
+If with
+.Fl P ,
+the SPD entries are flushed.
+.It Fl a
+Dead SAD entries are usually not displayed with
+.Fl D .
+If with
+.Fl a ,
+the dead SAD entries will be displayed as well.
+A dead SAD entry means that
+it has been expired but remains
+because it is referenced by SPD entries.
+.It Fl d
+Enable to print debugging messages for command parser,
+without talking to kernel.
+It is not used usually.
+.It Fl x
+Loop forever and dump all the messages transmitted to
+.Dv PF_KEY
+socket.
+.Fl xx
+makes each timestamps unformatted.
+.It Fl h
+Add hexadecimal dump on
+.Fl x
+mode.
+.It Fl l
+Loop forever with short output on
+.Fl D .
+.It Fl v
+Be verbose.
+The program will dump messages exchanged on
+.Dv PF_KEY
+socket, including messages sent from other processes to the kernel.
+.El
+.Pp
+Operations have the following grammar.
+Note that lines starting with
+hashmarks ('#') are treated as comment lines.
+.Bl -tag -width Ds
+.It Xo
+.Li add
+.Ar src Ar dst Ar protocol Ar spi
+.Op Ar extensions
+.Ar algorithm...
+.Li ;
+.Xc
+Add an SAD entry.
+.\"
+.It Xo
+.Li get
+.Ar src Ar dst Ar protocol Ar spi
+.Li ;
+.Xc
+Show an SAD entry.
+.\"
+.It Xo
+.Li delete
+.Ar src Ar dst Ar protocol Ar spi
+.Li ;
+.Xc
+Remove an SAD entry.
+.\"
+.It Xo
+.Li deleteall
+.Ar src Ar dst Ar protocol
+.Li ;
+.Xc
+Remove all SAD entries that match the specification.
+.\"
+.It Xo
+.Li flush
+.Op Ar protocol
+.Li ;
+.Xc
+Clear all SAD entries matched by the options.
+.\"
+.It Xo
+.Li dump
+.Op Ar protocol
+.Li ;
+.Xc
+Dumps all SAD entries matched by the options.
+.\"
+.It Xo
+.Li spdadd
+.Ar src_range Ar dst_range Ar upperspec Ar policy
+.Li ;
+.Xc
+Add an SPD entry.
+.\"
+.It Xo
+.Li spddelete
+.Ar src_range Ar dst_range Ar upperspec Fl P Ar direction
+.Li ;
+.Xc
+Delete an SPD entry.
+.\"
+.It Xo
+.Li spdflush
+.Li ;
+.Xc
+Clear all SPD entries.
+.\"
+.It Xo
+.Li spddump
+.Li ;
+.Xc
+Dumps all SPD entries.
+.El
+.\"
+.Pp
+Meta-arguments are as follows:
+.Pp
+.Bl -tag -compact -width Ds
+.It Ar src
+.It Ar dst
+Source/destination of the secure communication is specified as
+IPv4/v6 address.
+The
+.Nm
+utility does not consult hostname-to-address for arguments
+.Ar src
+and
+.Ar dst .
+They must be in numeric form.
+.\"
+.Pp
+.It Ar protocol
+.Ar protocol
+is one of following:
+.Bl -tag -width Fl -compact
+.It Li esp
+ESP based on rfc2405
+.It Li esp-old
+ESP based on rfc1827
+.It Li ah
+AH based on rfc2402
+.It Li ah-old
+AH based on rfc1826
+.It Li ipcomp
+IPCOMP
+.El
+.\"
+.Pp
+.It Ar spi
+Security Parameter Index (SPI) for the SAD and the SPD.
+It must be decimal number or hexadecimal number
+You cannot use the set of SPI values in the range 0 through 255.
+(with
+.Li 0x
+attached).
+.\"
+.Pp
+.It Ar extensions
+takes some of the following:
+.Bl -tag -width Fl -compact
+.\"
+.It Fl m Ar mode
+Specify a security protocol mode for use.
+.Ar mode
+is one of following:
+.Li transport , tunnel
+or
+.Li any .
+The default value is
+.Li any .
+.\"
+.It Fl r Ar size
+Specify window size of bytes for replay prevention.
+.Ar size
+must be decimal number in 32-bit word.
+If
+.Ar size
+is zero or not specified, replay check don't take place.
+.\"
+.It Fl u Ar id
+Specify the identifier of the policy entry in SPD.
+See
+.Ar policy .
+.\"
+.It Fl f Ar pad_option
+defines the content of the ESP padding.
+.Ar pad_option
+is one of following:
+.Bl -tag -width random-pad -compact
+.It Li zero-pad
+All of the padding are zero.
+.It Li random-pad
+A series of randomized values are set.
+.It Li seq-pad
+A series of sequential increasing numbers started from 1 are set.
+.El
+.\"
+.It Fl f Li nocyclic-seq
+Don't allow cyclic sequence number.
+.\"
+.It Fl lh Ar time
+.It Fl ls Ar time
+Specify hard/soft life time duration of the SA.
+.El
+.\"
+.Pp
+.It Ar algorithm
+.Bl -tag -width Fl -compact
+.It Fl E Ar ealgo Ar key
+Specify an encryption algorithm.
+.It Fl A Ar aalgo Ar key
+Specify an authentication algorithm.
+If
+.Fl A
+is used with
+.Ar protocol Li esp ,
+it will be treated as ESP payload authentication algorithm.
+.It Fl C Ar calgo Op Fl R
+Specify compression algorithm.
+If
+.Fl R
+is not specified with
+.Li ipcomp
+line, the kernel will use well-known IPComp CPI
+(compression parameter index)
+on IPComp CPI field on packets, and
+.Ar spi
+field will be ignored.
+.Ar spi
+field is only for kernel internal use in this case.
+.\"Therefore, compression protocol number will appear on IPComp CPI field.
+If
+.Fl R
+is used,
+the value on
+.Ar spi
+field will appear on IPComp CPI field on outgoing packets.
+.Ar spi
+field needs to be smaller than
+.Li 0x10000
+in this case.
+.El
+.Pp
+.Ar protocol Li esp
+accepts
+.Fl E
+and
+.Fl A .
+.Ar protocol Li esp-old
+accepts
+.Fl E
+only.
+.Ar protocol Li ah
+and
+.Li ah-old
+accept
+.Fl A
+only.
+.Ar protocol Li ipcomp
+accepts
+.Fl C
+only.
+.Pp
+.Ar key
+must be double-quoted character string or series of hexadecimal digits.
+.Pp
+Possible values for
+.Ar ealgo ,
+.Ar aalgo
+and
+.Ar calgo
+are specified in separate section.
+.\"
+.Pp
+.It Ar src_range
+.It Ar dst_range
+These are selections of the secure communication specified as
+IPv4/v6 address or IPv4/v6 address range, and it may accompany
+TCP/UDP port specification.
+This takes the following form:
+.Bd -literal -offset
+.Ar address
+.Ar address/prefixlen
+.Ar address[port]
+.Ar address/prefixlen[port]
+.Ed
+.Pp
+.Ar prefixlen
+and
+.Ar port
+must be decimal number.
+The square bracket around
+.Ar port
+is really necessary.
+They are not manpage metacharacters.
+.Pp
+The
+.Nm
+utility does not consult hostname-to-address for arguments
+.Ar src
+and
+.Ar dst .
+They must be in numeric form.
+.\"
+.Pp
+.It Ar upperspec
+Upper-layer protocol to be used.
+You can use one of words in
+.Pa /etc/protocols
+as
+.Ar upperspec .
+Or
+.Li icmp6 ,
+.Li ip4 ,
+and
+.Li any
+can be specified.
+.Li any
+stands for
+.Dq any protocol .
+Also you can use the protocol number.
+.Pp
+NOTE:
+.Ar upperspec
+does not work against forwarding case at this moment,
+as it requires extra reassembly at forwarding node
+(not implemented at this moment).
+We have many protocols in
+.Pa /etc/protocols ,
+but protocols except of TCP, UDP and ICMP may not be suitable to use with IPsec.
+You have to consider and be careful to use them.
+.Li icmp
+.Li tcp
+.Li udp
+all protocols
+.\"
+.Pp
+.It Ar policy
+.Ar policy
+is the one of following:
+.Bd -literal -offset
+.Xo
+.Fl P Ar direction Li discard
+.Xc
+.Xo
+.Fl P Ar direction Li none
+.Xc
+.Xo
+.Fl P Ar direction Li ipsec Ar protocol/mode/src-dst/level
+.Xc
+.Ed
+.Pp
+You must specify the direction of its policy as
+.Ar direction .
+Either
+.Li out
+or
+.Li in
+are used.
+.Li discard
+means the packet matching indexes will be discarded.
+.Li none
+means that IPsec operation will not take place onto the packet.
+.Li ipsec
+means that IPsec operation will take place onto the packet.
+Either
+.Li ah ,
+.Li esp
+or
+.Li ipcomp
+is to be set as
+.Ar protocol .
+.Ar mode
+is either
+.Li transport
+or
+.Li tunnel .
+If
+.Ar mode
+is
+.Li tunnel ,
+you must specify the end-points addresses of the SA as
+.Ar src
+and
+.Ar dst
+with
+.Sq -
+between these addresses which is used to specify the SA to use.
+If
+.Ar mode
+is
+.Li transport ,
+both
+.Ar src
+and
+.Ar dst
+can be omitted.
+.Ar level
+is to be one of the following:
+.Li default , use , require
+or
+.Li unique .
+If the SA is not available in every level, the kernel will request
+getting SA to the key exchange daemon.
+.Li default
+means the kernel consults to the system wide default against protocol you
+specified, e.g.\&
+.Li esp_trans_deflev
+sysctl variable, when the kernel processes the packet.
+.Li use
+means that the kernel use a SA if it's available,
+otherwise the kernel keeps normal operation.
+.Li require
+means SA is required whenever the kernel sends a packet matched
+with the policy.
+.Li unique
+is the same to require.
+In addition, it allows the policy to bind with the unique out-bound SA.
+If you use the SA by manual keying,
+you can put the decimal number as the policy identifier after
+.Li unique
+separated by colon
+.Sq \:
+like the following;
+.Li unique:number .
+.Li number
+must be between 1 and 32767.
+It corresponds to
+.Ar extensions Fl u .
+.Pp
+Note that
+.Dq Li discard
+and
+.Dq Li none
+are not in the syntax described in
+.Xr ipsec_set_policy 3 .
+There are little differences in the syntax.
+See
+.Xr ipsec_set_policy 3
+for detail.
+.Pp
+.El
+.Pp
+.\"
+.Sh ALGORITHMS
+The following list shows the supported algorithms.
+.Sy protocol
+and
+.Sy algorithm
+are almost orthogonal.
+Followings are the list of authentication algorithms that can be used as
+.Ar aalgo
+in
+.Fl A Ar aalgo
+of
+.Ar protocol
+parameter:
+.Pp
+.Bd -literal -offset indent
+algorithm	keylen (bits)	comment
+hmac-md5	128		ah: rfc2403
+		128		ah-old: rfc2085
+hmac-sha1	160		ah: rfc2404
+		160		ah-old: 128bit ICV (no document)
+keyed-md5	128		ah: 96bit ICV (no document)
+		128		ah-old: rfc1828
+keyed-sha1	160		ah: 96bit ICV (no document)
+		160		ah-old: 128bit ICV (no document)
+null		0 to 2048	for debugging
+hmac-sha2-256	256		ah: 96bit ICV (no document)
+		256		ah-old: 128bit ICV (no document)
+hmac-sha2-384	384		ah: 96bit ICV (no document)
+		384		ah-old: 128bit ICV (no document)
+hmac-sha2-512	512		ah: 96bit ICV (no document)
+		512		ah-old: 128bit ICV (no document)
+.Ed
+.Pp
+Followings are the list of encryption algorithms that can be used as
+.Ar ealgo
+in
+.Fl E Ar ealgo
+of
+.Ar protocol
+parameter:
+.Pp
+.Bd -literal -offset indent
+algorithm	keylen (bits)	comment
+des-cbc		64		esp-old: rfc1829, esp: rfc2405
+3des-cbc	192		rfc2451
+simple		0 to 2048	rfc2410
+blowfish-cbc	40 to 448	rfc2451
+cast128-cbc	40 to 128	rfc2451
+des-deriv	64		ipsec-ciph-des-derived-01 (expired)
+3des-deriv	192		no document
+rijndael-cbc	128/192/256	draft-ietf-ipsec-ciph-aes-cbc-00
+.Ed
+.Pp
+Followings are the list of compression algorithms that can be used as
+.Ar calgo
+in
+.Fl C Ar calgo
+of
+.Ar protocol
+parameter:
+.Pp
+.Bd -literal -offset indent
+algorithm	comment
+deflate		rfc2394
+lzs		rfc2395
+.Ed
+.\"
+.Sh EXAMPLES
+.Bd -literal -offset
+add	3ffe:501:4819::1 3ffe:501:481d::1 esp 123457
+		-E des-cbc "ESP SA!!" ;
+
+add	3ffe:501:4819::1 3ffe:501:481d::1 ah 123456
+		-A hmac-sha1 "AH SA configuration!" ;
+
+add	10.0.11.41 10.0.11.33 esp 0x10001
+		-E des-cbc "ESP with"
+		-A hmac-md5 "authentication!!" ;
+
+get	3ffe:501:4819::1 3ffe:501:481d::1 ah 123456 ;
+
+flush ;
+
+dump esp ;
+
+spdadd	10.0.11.41/32[21] 10.0.11.33/32[any] any
+		-P out ipsec esp/tunnel/192.168.0.1-192.168.1.2/require ;
+
+.Ed
+.\"
+.Sh RETURN VALUES
+The command exits with 0 on success, and non-zero on errors.
+.\"
+.Sh SEE ALSO
+.Xr ipsec_set_policy 3 ,
+.Xr racoon 8 ,
+.Xr sysctl 8
+.\"
+.Sh HISTORY
+The
+.Nm
+utility first appeared in WIDE Hydrangea IPv6 protocol stack kit.
+The command was completely re-designed in June 1998.
+.\"
+.\" .Sh BUGS
