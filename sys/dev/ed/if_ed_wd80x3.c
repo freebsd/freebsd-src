@@ -418,12 +418,6 @@ ed_probe_WD80x3_generic(device_t dev, int flags, uint16_t *intr_vals[])
 		sc->cr_proto = 0;
 	}
 
-	error = ed_clear_memory(dev);
-	if (error) {
-		ed_disable_16bit_access(sc);
-		return (error);
-	}
-
 	/*
 	 * Disable 16bit access to shared memory - we leave it
 	 * disabled so that 1) machines reboot properly when the board
@@ -432,8 +426,9 @@ ed_probe_WD80x3_generic(device_t dev, int flags, uint16_t *intr_vals[])
 	 * shared memory. and 2) so that other 8 bit devices with
 	 * shared memory can be used in this 128k region, too.
 	 */
+	error = ed_clear_memory(dev);
 	ed_disable_16bit_access(sc);
-	return (0);
+	return (error);
 }
 
 int
