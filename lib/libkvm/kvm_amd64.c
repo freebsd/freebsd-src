@@ -102,6 +102,7 @@ _kvm_initvtop(kvm_t *kd) {
 		_kvm_err(kd, kd->program, "bad namelist");
 		return (-1);
 	}
+	vm->PTD = 0
 	vm->IdlePTD = 0;
 	if (KREAD(kd, (u_long)nlist[0].n_value, &vm->IdlePTD)) {
 		_kvm_err(kd, kd->program, "cannot read IdlePTD");
