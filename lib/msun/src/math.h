@@ -207,6 +207,9 @@ double	cbrt(double) __pure2;
 double	erf(double);
 double	erfc(double) __pure2;
 double	expm1(double) __pure2;
+double	fdim(double, double);
+double	fmax(double, double) __pure2;
+double	fmin(double, double) __pure2;
 double	hypot(double, double);
 int	ilogb(double);
 double	lgamma(double);
@@ -314,6 +317,10 @@ float	rintf(float);
 float	scalblnf(float, long);
 float	scalbnf(float, int);
 float	truncf(float);
+
+float	fdimf(float, float);
+float	fmaxf(float, float) __pure2;
+float	fminf(float, float) __pure2;
 #endif
 
 /*
@@ -371,12 +378,14 @@ long double	expl(long double);
 long double	expm1l(long double);
 #endif
 long double	fabsl(long double);
-#if 0
 long double	fdiml(long double, long double);
+#if 0
 long double	floorl(long double);
 long double	fmal(long double, long double, long double);
-long double	fmaxl(long double, long double);
-long double	fminl(long double, long double);
+#endif
+long double	fmaxl(long double, long double) __pure2;
+long double	fminl(long double, long double) __pure2;
+#if 0
 long double	fmodl(long double, long double);
 long double	frexpl(long double	value, int *);
 long double	hypotl(long double, long double);
