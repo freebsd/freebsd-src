@@ -110,6 +110,12 @@ union dinode {
 #define	DIP(dp, field) \
 	((sblock.fs_magic == FS_UFS1_MAGIC) ? \
 	(uint32_t)(dp)->dp1.field : (dp)->dp2.field)
+#define	DIP_SET(dp, field, val) do { \
+	if (sblock.fs_magic == FS_UFS1_MAGIC) \
+		(dp)->dp1.field = (val); \
+	else \
+		(dp)->dp2.field = (val); \
+	} while (0)
 static ufs2_daddr_t 	inoblk;			/* inode block address */
 static char		inobuf[MAXBSIZE];	/* inode block */
 ino_t			maxino;			/* last valid inode */
@@ -2420,7 +2426,7 @@ updrefs(int cg, ino_t in, struct gfs_bpp *bp, int fsi, int fso, unsigned int
 		if (iptr == 0)
 			continue;
 		if (cond_bl_upd(&iptr, bp, fsi, fso, Nflag)) {
-			DIP(ino, di_db[i]) = iptr;
+			DIP_SET(ino, di_db[i], iptr);
 			inodeupdated++;
 		}
 	}
@@ -2434,7 +2440,7 @@ updrefs(int cg, ino_t in, struct gfs_bpp *bp, int fsi, int fso, unsigned int
 		if (iptr == 0)
 			continue;
 		if (cond_bl_upd(&iptr, bp, fsi, fso, Nflag)) {
-			DIP(ino, di_ib[i]) = iptr;
+			DIP_SET(ino, di_ib[i], iptr);
 			inodeupdated++;
 		}
 		indirchk(blksperindir, lbn, iptr, numblks, bp, fsi, fso, Nflag);
