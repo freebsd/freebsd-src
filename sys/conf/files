@@ -422,6 +422,7 @@ scsi/sctarg.c		optional sctarg
 scsi/sd.c		optional sd
 scsi/ssc.c		optional ssc
 scsi/st.c		optional st
+scsi/su.c		optional ssc
 scsi/su.c		optional su
 scsi/uk.c		optional scbus
 scsi/worm.c		optional worm
