@@ -1,5 +1,3 @@
-.\"	$FreeBSD$
-.\"
 .\" Copyright (c) 1996 Matthew R. Green
 .\" All rights reserved.
 .\"
@@ -26,6 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
+.\" $FreeBSD$
 .Dd August 4, 1996
 .Dt PFIL 9
 .Os
@@ -107,7 +106,7 @@ interface first appeared in
 The
 .Nm
 input and output lists were originally implemented as
-.Fd <sys/queue.h>
+.Pa Aq sys/queue.h
 .Dv LIST
 structures;
 however this was changed in
@@ -123,8 +122,8 @@ The
 interface was changed in 1.4T to accept a 3rd parameter to both
 .Fn pfil_add_hook
 and
-.Fn pfil_remove_hook
-, introducing the capability of per-protocol filtering.  This was done
+.Fn pfil_remove_hook ,
+introducing the capability of per-protocol filtering.  This was done
 primarily in order to support filtering of IPv6.
 .Sh BUGS
 The current
