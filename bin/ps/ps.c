@@ -123,12 +123,15 @@ main(int argc, char *argv[])
 	uid_t *uids;
 	int all, ch, flag, i, _fmt, lineno, nentries, dropgid;
 	int prtheader, wflag, what, xflg, uid, nuids;
+	char *cols;
 	char errbuf[_POSIX2_LINE_MAX];
 	const char *nlistf, *memf;
 
 	(void) setlocale(LC_ALL, "");
 
-	if ((ioctl(STDOUT_FILENO, TIOCGWINSZ, (char *)&ws) == -1 &&
+	if ((cols = getenv("COLUMNS")) != NULL && *cols != '\0')
+		termwidth = atoi(cols);
+	else if ((ioctl(STDOUT_FILENO, TIOCGWINSZ, (char *)&ws) == -1 &&
 	     ioctl(STDERR_FILENO, TIOCGWINSZ, (char *)&ws) == -1 &&
 	     ioctl(STDIN_FILENO,  TIOCGWINSZ, (char *)&ws) == -1) ||
 	     ws.ws_col == 0)
