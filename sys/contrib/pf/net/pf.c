@@ -1,4 +1,4 @@
-/*	$OpenBSD: pf.c,v 1.390 2003/09/24 17:18:03 mcbride Exp $ */
+/*	$OpenBSD: pf.c,v 1.389.2.2 2004/03/14 00:13:42 brad Exp $ */
 
 /*
  * Copyright (c) 2001 Daniel Hartmeier
@@ -1897,7 +1897,7 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off, int direction,
 				else
 					PF_POOLMASK(naddr,
 					    &r->src.addr.v.a.addr,
-					    &r->src.addr.v.a.mask, saddr,
+					    &r->src.addr.v.a.mask, daddr,
 					    pd->af);
 				break;
 			}
@@ -2413,8 +2413,10 @@ pf_test_tcp(struct pf_rule **rm, struct pf_state **sm, int direction,
 		}
 		if (th->th_flags & TH_FIN)
 			s->src.seqhi++;
+		s->dst.seqlo = 0;	/* Haven't seen these yet */
 		s->dst.seqhi = 1;
 		s->dst.max_win = 1;
+		s->dst.seqdiff = 0;	/* Defer random generation */
 		s->src.state = TCPS_SYN_SENT;
 		s->dst.state = TCPS_CLOSED;
 		s->creation = time.tv_sec;
@@ -2687,7 +2689,15 @@ pf_test_udp(struct pf_rule **rm, struct pf_state **sm, int direction,
 				s->gwy.port = s->lan.port;
 			}
 		}
+		s->src.seqlo = 0;
+		s->src.seqhi = 0;
+		s->src.seqdiff = 0;
+		s->src.max_win = 0;
 		s->src.state = PFUDPS_SINGLE;
+		s->dst.seqlo = 0;
+		s->dst.seqhi = 0;
+		s->dst.seqdiff = 0;
+		s->dst.max_win = 0;
 		s->dst.state = PFUDPS_NO_TRAFFIC;
 		s->creation = time.tv_sec;
 		s->expire = time.tv_sec;
@@ -2937,6 +2947,16 @@ pf_test_icmp(struct pf_rule **rm, struct pf_state **sm, int direction,
 				PF_ACPY(&s->gwy.addr, &s->lan.addr, af);
 			s->gwy.port = icmpid;
 		}
+		s->src.seqlo = 0;
+		s->src.seqhi = 0;
+		s->src.seqdiff = 0;
+		s->src.max_win = 0;
+		s->src.state = 0;
+		s->dst.seqlo = 0;
+		s->dst.seqhi = 0;
+		s->dst.seqdiff = 0;
+		s->dst.max_win = 0;
+		s->dst.state = 0;
 		s->creation = time.tv_sec;
 		s->expire = time.tv_sec;
 		s->timeout = PFTM_ICMP_FIRST_PACKET;
@@ -3149,20 +3169,34 @@ pf_test_other(struct pf_rule **rm, struct pf_state **sm, int direction,
 		s->af = af;
 		if (direction == PF_OUT) {
 			PF_ACPY(&s->gwy.addr, saddr, af);
+			s->gwy.port = 0;
 			PF_ACPY(&s->ext.addr, daddr, af);
+			s->ext.port = 0;
 			if (nat != NULL)
 				PF_ACPY(&s->lan.addr, &baddr, af);
 			else
 				PF_ACPY(&s->lan.addr, &s->gwy.addr, af);
+			s->lan.port = 0;
 		} else {
 			PF_ACPY(&s->lan.addr, daddr, af);
+			s->lan.port = 0;
 			PF_ACPY(&s->ext.addr, saddr, af);
+			s->ext.port = 0;
 			if (rdr != NULL)
 				PF_ACPY(&s->gwy.addr, &baddr, af);
 			else
 				PF_ACPY(&s->gwy.addr, &s->lan.addr, af);
+			s->gwy.port = 0;
 		}
+		s->src.seqlo = 0;
+		s->src.seqhi = 0;
+		s->src.seqdiff = 0;
+		s->src.max_win = 0;
 		s->src.state = PFOTHERS_SINGLE;
+		s->dst.seqlo = 0;
+		s->dst.seqhi = 0;
+		s->dst.seqdiff = 0;
+		s->dst.max_win = 0;
 		s->dst.state = PFOTHERS_NO_TRAFFIC;
 		s->creation = time.tv_sec;
 		s->expire = time.tv_sec;
@@ -4569,8 +4603,10 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 
 	m1 = m0;
 	error = ip_fragment(m0, ifp, ifp->if_mtu);
-	if (error == EMSGSIZE)
+	if (error) {
+		m0 = NULL;
 		goto bad;
+	}
 
 	for (m0 = m1; m0; m0 = m1) {
 		m1 = m0->m_nextpkt;
