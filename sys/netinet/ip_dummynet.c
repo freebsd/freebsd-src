@@ -205,7 +205,7 @@ heap_init(struct dn_heap *h, int new_size)
 	return 0 ;
     }   
     new_size = (new_size + HEAP_INCREMENT ) & ~HEAP_INCREMENT ;
-    p = malloc(new_size * sizeof(*p), M_DUMMYNET, M_DONTWAIT );
+    p = malloc(new_size * sizeof(*p), M_DUMMYNET, M_NOWAIT);
     if (p == NULL) {
 	printf(" heap_init, resize %d failed\n", new_size );
 	return 1 ; /* error */
@@ -829,7 +829,7 @@ create_queue(struct dn_flow_set *fs, int i)
 	if ( fs->rq[i] != NULL )
 	    return fs->rq[i] ;
     }
-    q = malloc(sizeof(*q), M_DUMMYNET, M_DONTWAIT | M_ZERO);
+    q = malloc(sizeof(*q), M_DUMMYNET, M_NOWAIT | M_ZERO);
     if (q == NULL) {
 	printf("sorry, cannot allocate queue for new flow\n");
 	return NULL ;
@@ -1433,7 +1433,7 @@ config_red(struct dn_flow_set *p, struct dn_flow_set * x)
     }
     x->lookup_depth = red_lookup_depth;
     x->w_q_lookup = (u_int *) malloc(x->lookup_depth * sizeof(int),
-	    M_DUMMYNET, M_DONTWAIT);
+	    M_DUMMYNET, M_NOWAIT);
     if (x->w_q_lookup == NULL) {
 	printf("sorry, cannot allocate red lookup table\n");
 	free(x, M_DUMMYNET);
@@ -1471,7 +1471,7 @@ alloc_hash(struct dn_flow_set *x, struct dn_flow_set *pfs)
     } else                  /* one is enough for null mask */
 	x->rq_size = 1;
     x->rq = malloc((1 + x->rq_size) * sizeof(struct dn_flow_queue *),
-	    M_DUMMYNET, M_DONTWAIT | M_ZERO);
+	    M_DUMMYNET, M_NOWAIT | M_ZERO);
     if (x->rq == NULL) {
 	printf("sorry, cannot allocate queue\n");
 	return ENOSPC;
@@ -1530,7 +1530,7 @@ config_pipe(struct dn_pipe *p)
 		 a = b , b = b->next) ;
 
 	if (b == NULL || b->pipe_nr != p->pipe_nr) { /* new pipe */
-	    x = malloc(sizeof(struct dn_pipe), M_DUMMYNET, M_DONTWAIT | M_ZERO);
+	    x = malloc(sizeof(struct dn_pipe), M_DUMMYNET, M_NOWAIT | M_ZERO);
 	    if (x == NULL) {
 		printf("ip_dummynet.c: no memory for new pipe\n");
 		return ENOSPC;
@@ -1576,7 +1576,7 @@ config_pipe(struct dn_pipe *p)
 	if (b == NULL || b->fs_nr != pfs->fs_nr) { /* new  */
 	    if (pfs->parent_nr == 0)	/* need link to a pipe */
 		return EINVAL ;
-	    x = malloc(sizeof(struct dn_flow_set),M_DUMMYNET,M_DONTWAIT|M_ZERO);
+	    x = malloc(sizeof(struct dn_flow_set), M_DUMMYNET, M_NOWAIT|M_ZERO);
 	    if (x == NULL) {
 		printf("ip_dummynet.c: no memory for new flow_set\n");
 		return ENOSPC;
@@ -1805,7 +1805,7 @@ dummynet_get(struct sockopt *sopt)
     for (set = all_flow_sets ; set ; set = set->next )
 	size += sizeof ( *set ) +
 	    set->rq_elements * sizeof(struct dn_flow_queue);
-    buf = malloc(size, M_TEMP, M_DONTWAIT);
+    buf = malloc(size, M_TEMP, M_NOWAIT);
     if (buf == 0) {
 	splx(s);
 	return ENOBUFS ;
