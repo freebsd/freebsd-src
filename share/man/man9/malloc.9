@@ -240,8 +240,24 @@ of two for requests up to the size of a page of memory.
 For larger requests, one or more pages is allocated.
 While it should not be relied upon, this information may be useful for
 optimizing the efficiency of memory use.
+.Pp
+Malloc flags documented above should
+.Em NOT
+be used with
+.Xr mbuf 9
+routines as it will cause undesired results.
+.Pp
+Any calls to
+.Fn malloc
+or
+.Fn free
+when holding a
+.Xr vnode 9
+interlock, will cause a LOR (Lock Order Reversal) due to the
+interwining of VM Objects and Vnodes.
 .Sh SEE ALSO
 .Xr vmstat 8
+.Xr vnode 9
 .Sh DIAGNOSTICS
 A kernel compiled with the
 .Dv DIAGNOSTIC
