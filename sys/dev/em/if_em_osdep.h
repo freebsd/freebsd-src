@@ -51,8 +51,8 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <machine/clock.h>
-#include <pci/pcivar.h>
-#include <pci/pcireg.h>
+#include <dev/pci/pcivar.h>
+#include <dev/pci/pcireg.h>
 
 
 #define ASSERT(x) if(!(x)) panic("EM: x")

@@ -76,8 +76,8 @@
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_message.h>
 
-#include <pci/pcivar.h>
-#include <pci/pcireg.h>
+#include <dev/pci/pcivar.h>
+#include <dev/pci/pcireg.h>
 #include <dev/amd/amd.h>
 
 #define PCI_DEVICE_ID_AMD53C974 	0x20201022ul

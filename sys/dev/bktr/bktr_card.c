@@ -57,9 +57,10 @@
 
 #if (__FreeBSD_version < 500000)
 #include <machine/clock.h>              /* for DELAY */
-#endif
-
 #include <pci/pcivar.h>
+#else
+#include <dev/pci/pcivar.h>
+#endif
 
 #if (__FreeBSD_version >=300000)
 #include <machine/bus_memio.h>	/* for bus space */

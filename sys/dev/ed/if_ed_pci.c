@@ -36,8 +36,8 @@
 #include <net/if_arp.h>
 #include <net/if_mib.h>
 
-#include <pci/pcireg.h>
-#include <pci/pcivar.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 
 #include <dev/ed/if_edvar.h>
 
