@@ -1,7 +1,7 @@
 # Makefile.i386 -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.124 1998/09/21 06:39:11 bde Exp $
+#	$Id: Makefile.i386,v 1.125 1998/09/30 12:14:39 peter Exp $
 #
 # Makefile for FreeBSD
 #
@@ -126,7 +126,7 @@ SYSTEM_DEP+= $S/i386/conf/kernel.script
 %CLEAN
 
 clean:
-	rm -f *.o *.s eddep errs genassym gensetdefs kernel linterrs \
+	rm -f *.o *.so *.ko *.s eddep errs genassym gensetdefs kernel linterrs \
 	      makelinks param.c setdefs.h symbols.exclude symbols.sort tags \
 	      vers.c vnode_if.c vnode_if.h ${CLEAN}
 
