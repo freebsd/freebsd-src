@@ -60,9 +60,14 @@
 #define	DIR_DECRYPT		1
 #define	DIR_ENCRYPT		2
 
+#include <des.h>
 typedef	unsigned char Block[8];
 typedef unsigned char *BlockT;
+#if 0
 typedef struct { Block __; } Schedule[16];
+#else
+#define Schedule des_key_schedule
+#endif
 
 #define	VALIDKEY(key)	( key[0] | key[1] | key[2] | key[3] | \
 			  key[4] | key[5] | key[6] | key[7])
