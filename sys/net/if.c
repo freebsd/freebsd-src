@@ -418,28 +418,26 @@ if_attach(struct ifnet *ifp)
 	socksize = ROUNDUP(socksize);
 #undef ROUNDUP
 	ifasize = sizeof(*ifa) + 2 * socksize;
-	ifa = (struct ifaddr *)malloc(ifasize, M_IFADDR, M_WAITOK | M_ZERO);
-	if (ifa) {
-		IFA_LOCK_INIT(ifa);
-		sdl = (struct sockaddr_dl *)(ifa + 1);
-		sdl->sdl_len = socksize;
-		sdl->sdl_family = AF_LINK;
-		bcopy(ifp->if_xname, sdl->sdl_data, namelen);
-		sdl->sdl_nlen = namelen;
-		sdl->sdl_index = ifp->if_index;
-		sdl->sdl_type = ifp->if_type;
-		ifaddr_byindex(ifp->if_index) = ifa;
-		ifa->ifa_ifp = ifp;
-		ifa->ifa_rtrequest = link_rtrequest;
-		ifa->ifa_addr = (struct sockaddr *)sdl;
-		sdl = (struct sockaddr_dl *)(socksize + (caddr_t)sdl);
-		ifa->ifa_netmask = (struct sockaddr *)sdl;
-		sdl->sdl_len = masklen;
-		while (namelen != 0)
-			sdl->sdl_data[--namelen] = 0xff;
-		ifa->ifa_refcnt = 1;
-		TAILQ_INSERT_HEAD(&ifp->if_addrhead, ifa, ifa_link);
-	}
+	ifa = malloc(ifasize, M_IFADDR, M_WAITOK | M_ZERO);
+	IFA_LOCK_INIT(ifa);
+	sdl = (struct sockaddr_dl *)(ifa + 1);
+	sdl->sdl_len = socksize;
+	sdl->sdl_family = AF_LINK;
+	bcopy(ifp->if_xname, sdl->sdl_data, namelen);
+	sdl->sdl_nlen = namelen;
+	sdl->sdl_index = ifp->if_index;
+	sdl->sdl_type = ifp->if_type;
+	ifaddr_byindex(ifp->if_index) = ifa;
+	ifa->ifa_ifp = ifp;
+	ifa->ifa_rtrequest = link_rtrequest;
+	ifa->ifa_addr = (struct sockaddr *)sdl;
+	sdl = (struct sockaddr_dl *)(socksize + (caddr_t)sdl);
+	ifa->ifa_netmask = (struct sockaddr *)sdl;
+	sdl->sdl_len = masklen;
+	while (namelen != 0)
+		sdl->sdl_data[--namelen] = 0xff;
+	ifa->ifa_refcnt = 1;
+	TAILQ_INSERT_HEAD(&ifp->if_addrhead, ifa, ifa_link);
 	ifp->if_broadcastaddr = 0; /* reliably crash if used uninitialized */
 
 	if (domains)
