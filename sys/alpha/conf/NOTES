@@ -145,7 +145,7 @@ device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 # Pseudo devices - the number indicates how many units to allocated.
 pseudo-device	loop		# Network loopback
 pseudo-device	ether		# Ethernet support
-pseudo-device	sl	1	# Kernel SLIP
+pseudo-device	sl		# Kernel SLIP
 pseudo-device	ppp	1	# Kernel PPP
 pseudo-device	tun		# Packet tunnel.
 pseudo-device	pty		# Pseudo-ttys (telnet etc)
