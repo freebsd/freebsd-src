@@ -235,6 +235,21 @@ extern pt_entry_t *SMPpt;
 #endif
 static pt_entry_t *PMAP1 = 0, *PMAP2;
 static pt_entry_t *PADDR1 = 0, *PADDR2;
+#ifdef SMP
+static int PMAP1cpu;
+static int PMAP1changedcpu;
+SYSCTL_INT(_debug, OID_AUTO, PMAP1changedcpu, CTLFLAG_RD, 
+	   &PMAP1changedcpu, 0,
+	   "Number of times pmap_pte_quick changed CPU with same PMAP1");
+#endif
+static int PMAP1changed;
+SYSCTL_INT(_debug, OID_AUTO, PMAP1changed, CTLFLAG_RD, 
+	   &PMAP1changed, 0,
+	   "Number of times pmap_pte_quick changed PMAP1");
+static int PMAP1unchanged;
+SYSCTL_INT(_debug, OID_AUTO, PMAP1unchanged, CTLFLAG_RD, 
+	   &PMAP1unchanged, 0,
+	   "Number of times pmap_pte_quick didn't change PMAP1");
 
 static PMAP_INLINE void	free_pv_entry(pv_entry_t pv);
 static pv_entry_t get_pv_entry(void);
@@ -752,6 +767,16 @@ pmap_pte(pmap_t pmap, vm_offset_t va)
 	return (0);
 }
 
+static __inline void
+invlcaddr(void *caddr)
+{
+#ifdef I386_CPU
+	invltlb();
+#else
+	invlpg((u_int)caddr);
+#endif
+}
+
 /*
  * Super fast pmap_pte routine best used when scanning
  * the pv lists.  This eliminates many coarse-grained
@@ -760,7 +785,7 @@ pmap_pte(pmap_t pmap, vm_offset_t va)
  * to do an entire invltlb for checking a single mapping.
  *
  * If the given pmap is not the current pmap, vm_page_queue_mtx
- * must be held.
+ * must be held and curthread pinned to a CPU.
  */
 static pt_entry_t *
 pmap_pte_quick(pmap_t pmap, vm_offset_t va)
@@ -776,11 +801,24 @@ pmap_pte_quick(pmap_t pmap, vm_offset_t va)
 		if (pmap_is_current(pmap))
 			return (vtopte(va));
 		mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+		KASSERT(curthread->td_pinned > 0, ("curthread not pinned"));
 		newpf = *pde & PG_FRAME;
 		if ((*PMAP1 & PG_FRAME) != newpf) {
 			*PMAP1 = newpf | PG_RW | PG_V | PG_A | PG_M;
-			pmap_invalidate_page(kernel_pmap, (vm_offset_t)PADDR1);
-		}
+#ifdef SMP
+			PMAP1cpu = PCPU_GET(cpuid);
+#endif
+			invlcaddr(PADDR1);
+			PMAP1changed++;
+		} else
+#ifdef SMP
+		if (PMAP1cpu != PCPU_GET(cpuid)) {
+			PMAP1cpu = PCPU_GET(cpuid);
+			invlcaddr(PADDR1);
+			PMAP1changedcpu++;
+		} else
+#endif
+			PMAP1unchanged++;
 		return (PADDR1 + (i386_btop(va) & (NPTEPG - 1)));
 	}
 	return (0);
@@ -1711,6 +1749,7 @@ pmap_remove_all(vm_page_t m)
 #endif
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	s = splvm();
+	sched_pin();
 	while ((pv = TAILQ_FIRST(&m->md.pv_list)) != NULL) {
 		pv->pv_pmap->pm_stats.resident_count--;
 		pte = pmap_pte_quick(pv->pv_pmap, pv->pv_va);
@@ -1742,6 +1781,7 @@ pmap_remove_all(vm_page_t m)
 		free_pv_entry(pv);
 	}
 	vm_page_flag_clear(m, PG_WRITEABLE);
+	sched_unpin();
 	splx(s);
 }
 
@@ -2357,16 +2397,6 @@ pagezero(void *page)
 		bzero(page, PAGE_SIZE);
 }
 
-static __inline void
-invlcaddr(void *caddr)
-{
-#ifdef I386_CPU
-	invltlb();
-#else
-	invlpg((u_int)caddr);
-#endif
-}
-
 /*
  *	pmap_zero_page zeros the specified hardware page by mapping 
  *	the page into KVM and using bzero to clear its contents.
@@ -2524,6 +2554,7 @@ pmap_remove_pages(pmap, sva, eva)
 #endif
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	s = splvm();
+	sched_pin();
 	for (pv = TAILQ_FIRST(&pmap->pm_pvlist); pv; pv = npv) {
 
 		if (pv->pv_va >= eva || pv->pv_va < sva) {
@@ -2583,6 +2614,7 @@ pmap_remove_pages(pmap, sva, eva)
 		pmap_unuse_pt(pv->pv_pmap, pv->pv_va, pv->pv_ptem);
 		free_pv_entry(pv);
 	}
+	sched_unpin();
 	splx(s);
 	pmap_invalidate_all(pmap);
 }
@@ -2604,6 +2636,7 @@ pmap_is_modified(vm_page_t m)
 		return FALSE;
 
 	s = splvm();
+	sched_pin();
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 		/*
@@ -2621,10 +2654,12 @@ pmap_is_modified(vm_page_t m)
 #endif
 		pte = pmap_pte_quick(pv->pv_pmap, pv->pv_va);
 		if (*pte & PG_M) {
+			sched_unpin();
 			splx(s);
 			return TRUE;
 		}
 	}
+	sched_unpin();
 	splx(s);
 	return (FALSE);
 }
@@ -2663,6 +2698,7 @@ pmap_clear_ptes(vm_page_t m, int bit)
 		return;
 
 	s = splvm();
+	sched_pin();
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	/*
 	 * Loop over all current mappings setting/clearing as appropos If
@@ -2700,6 +2736,7 @@ pmap_clear_ptes(vm_page_t m, int bit)
 	}
 	if (bit == PG_RW)
 		vm_page_flag_clear(m, PG_WRITEABLE);
+	sched_unpin();
 	splx(s);
 }
 
@@ -2745,6 +2782,7 @@ pmap_ts_referenced(vm_page_t m)
 		return (rtval);
 
 	s = splvm();
+	sched_pin();
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	if ((pv = TAILQ_FIRST(&m->md.pv_list)) != NULL) {
 
@@ -2773,6 +2811,7 @@ pmap_ts_referenced(vm_page_t m)
 			}
 		} while ((pv = pvn) != NULL && pv != pvf);
 	}
+	sched_unpin();
 	splx(s);
 
 	return (rtval);
