@@ -70,9 +70,6 @@ static struct mntopt mopts[] = {
 	MOPT_FORCE,
 	MOPT_SYNC,
 	MOPT_UPDATE,
-#ifdef MSDOSFSMNT_GEMDOSFS
-	{ "gemdosfs", 0, MSDOSFSMNT_GEMDOSFS, 1 },
-#endif
 	{ "shortnames", 0, MSDOSFSMNT_SHORTNAME, 1 },
 	{ "longnames", 0, MSDOSFSMNT_LONGNAME, 1 },
 	{ "nowin95", 0, MSDOSFSMNT_NOWIN95, 1 },
@@ -106,11 +103,6 @@ main(int argc, char **argv)
 	while ((c = getopt(argc, argv, "sl9u:g:m:M:o:L:D:")) != -1) {
 #endif
 		switch (c) {
-#ifdef MSDOSFSMNT_GEMDOSFS
-		case 'G':
-			args.flags |= MSDOSFSMNT_GEMDOSFS;
-			break;
-#endif
 		case 's':
 			args.flags |= MSDOSFSMNT_SHORTNAME;
 			break;
