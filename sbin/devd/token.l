@@ -93,6 +93,7 @@ device-name		{ return DEVICE_NAME; }
 action			{ return ACTION; }
 match			{ return MATCH; }
 nomatch			{ return NOMATCH; }
+notify			{ return NOTIFY; }
 [A-Za-z][A-Za-z0-9_-]*	{
 				yylval.str = strdup(yytext);
 				return ID;
