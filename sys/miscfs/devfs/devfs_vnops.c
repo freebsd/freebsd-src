@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.31 1996/10/17 22:47:23 julian Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.32 1996/10/28 11:36:06 phk Exp $
  *
  * symlinks can wait 'til later.
  */
@@ -1348,7 +1348,8 @@ DBPRINT(("symlink\n"));
 		
 	by.Slnk.name = ap->a_target;
 	by.Slnk.namelen = strlen(ap->a_target);
-	dev_add_entry(	ap->a_cnp->cn_nameptr, dnp, DEV_SLNK, &by, &nm_p);
+	dev_add_entry(	ap->a_cnp->cn_nameptr, dnp, DEV_SLNK, &by,
+		NULL, NULL, &nm_p);
 	if(err = devfs_dntovn(nm_p->dnp,&vp) ) {
 		vput(ap->a_dvp);
 		return err;
@@ -1892,7 +1893,7 @@ static struct vnodeopv_entry_desc dev_spec_vnodeop_entries[] = {
 	{ &vop_vfree_desc, (vop_t *)spec_vfree },	/* vfree */
 	{ &vop_truncate_desc, (vop_t *)spec_truncate },	/* truncate */
 	{ &vop_update_desc, (vop_t *)spec_update },	/* update */
-	{ &vop_bwrite_desc, (vop_t *)spec_bwrite },	/* bwrite */
+	{ &vop_bwrite_desc, (vop_t *)vn_bwrite },	/* bwrite */
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc dev_spec_vnodeop_opv_desc =
