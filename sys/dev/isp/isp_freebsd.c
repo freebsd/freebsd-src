@@ -812,11 +812,12 @@ isp_target_start_ctio(struct ispsoftc *isp, union ccb *ccb)
 			 */
 			ccb->ccb_h.flags &= ~CAM_SEND_SENSE;
 		}
-		if (cto->ct_flags & CAM_SEND_STATUS) {
+		if (cto->ct_flags & CT2_SENDSTATUS) {
 			isp_prt(isp, ISP_LOGTDEBUG2,
 			    "CTIO2[%x] SCSI STATUS 0x%x datalength %u",
 			    cto->ct_rxid, cso->scsi_status, cto->ct_resid);
 		}
+		cto->ct_timeout = 2;
 		hp = &cto->ct_syshandle;
 	} else {
 		ct_entry_t *cto = qe;
@@ -831,12 +832,12 @@ isp_target_start_ctio(struct ispsoftc *isp, union ccb *ccb)
 		cto->ct_tgt = ccb->ccb_h.target_id;
 		cto->ct_lun = ccb->ccb_h.target_lun;
 		cto->ct_fwhandle = cso->tag_id >> 8;
-		if (cso->tag_id && cso->tag_action) {
+		cto->ct_tag_val = cso->tag_id & 0xff;
+		if (cto->ct_tag_val && cso->tag_action) {
 			/*
-			 * We don't specify a tag type for regular SCSI.
-			 * Just the tag value and set the flag.
+			 * We don't specify a tag type for regular SCSI,
+			 * just the tag value and set a flag.
 			 */
-			cto->ct_tag_val = cso->tag_id & 0xff;
 			cto->ct_flags |= CT_TQAE;
 		}
 		if (ccb->ccb_h.flags & CAM_DIS_DISCONNECT) {
@@ -854,11 +855,12 @@ isp_target_start_ctio(struct ispsoftc *isp, union ccb *ccb)
 			cto->ct_scsi_status = cso->scsi_status;
 			cto->ct_resid = cso->resid;
 		}
-		if (cto->ct_flags & CAM_SEND_STATUS) {
+		if (cto->ct_flags & CT_SENDSTATUS) {
 			isp_prt(isp, ISP_LOGTDEBUG2,
 			    "CTIO SCSI STATUS 0x%x resid %d",
 			    cso->scsi_status, cso->resid);
 		}
+		cto->ct_timeout = 2;
 		hp = &cto->ct_syshandle;
 		ccb->ccb_h.flags &= ~CAM_SEND_SENSE;
 	}
