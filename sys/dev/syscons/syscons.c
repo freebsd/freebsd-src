@@ -839,14 +839,20 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
     case VT_SETMODE:    	/* set screen switcher mode */
     {
 	struct vt_mode *mode;
+	struct proc *p1;
 
 	mode = (struct vt_mode *)data;
 	DPRINTF(5, ("sc%d: VT_SETMODE ", sc->unit));
 	if (scp->smode.mode == VT_PROCESS) {
-    	    if (scp->proc == pfind(scp->pid) && scp->proc != p) {
+	    p1 = pfind(scp->pid);
+    	    if (scp->proc == p1 && scp->proc != p) {
+		if (p1)
+		    PROC_UNLOCK(p1);
 		DPRINTF(5, ("error EPERM\n"));
 		return EPERM;
 	    }
+	    if (p1)
+		PROC_UNLOCK(p1);
 	}
 	s = spltty();
 	if (mode->mode == VT_AUTO) {
@@ -2067,6 +2073,7 @@ int
 sc_switch_scr(sc_softc_t *sc, u_int next_scr)
 {
     struct tty *tp;
+    struct proc *p;
     int s;
 
     DPRINTF(5, ("sc0: sc_switch_scr() %d ", next_scr + 1));
@@ -2086,7 +2093,10 @@ sc_switch_scr(sc_softc_t *sc, u_int next_scr)
     if (sc->switch_in_progress
 	&& (sc->cur_scp->smode.mode == VT_PROCESS)
 	&& sc->cur_scp->proc) {
-	if (sc->cur_scp->proc != pfind(sc->cur_scp->pid)) {
+	p = pfind(sc->cur_scp->pid);
+	if (sc->cur_scp->proc != p) {
+	    if (p)
+		PROC_UNLOCK(p);
 	    /* 
 	     * The controlling process has died!!.  Do some clean up.
 	     * NOTE:`cur_scp->proc' and `cur_scp->smode.mode' 
@@ -2119,6 +2129,8 @@ sc_switch_scr(sc_softc_t *sc, u_int next_scr)
 		DPRINTF(5, ("waiting nothing, "));
 	    }
 	} else {
+	    if (p)
+		PROC_UNLOCK(p);
 	    /*
 	     * The controlling process is alive, but not responding... 
 	     * It is either buggy or it may be just taking time.
@@ -2283,8 +2295,12 @@ do_switch_scr(sc_softc_t *sc, int s)
 static int
 vt_proc_alive(scr_stat *scp)
 {
+    struct proc *p;
+
     if (scp->proc) {
-	if (scp->proc == pfind(scp->pid))
+	if ((p = pfind(scp->pid)) != NULL)
+	    PROC_UNLOCK(p);
+	if (scp->proc == p)
 	    return TRUE;
 	scp->proc = NULL;
 	scp->smode.mode = VT_AUTO;

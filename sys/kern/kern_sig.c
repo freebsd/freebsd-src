@@ -898,19 +898,12 @@ killpg1(cp, sig, pgid, all)
 				PROC_UNLOCK(p);
 				continue;
 			}
-			PROC_UNLOCK(p);
-			/*
-			 * XXX: this locking needs work.. specifically the
-			 * session checks..
-			 */
-			if (p_cansignal(cp, p, sig))
-				continue;
-			nfound++;
-			if (sig) {
-				PROC_LOCK(p);
-				psignal(p, sig);
-				PROC_UNLOCK(p);
+			if (p_cansignal(cp, p, sig) == 0) {
+				nfound++;
+				if (sig)
+					psignal(p, sig);
 			}
+			PROC_UNLOCK(p);
 		}
 		sx_sunlock(&allproc_lock);
 	} else {
@@ -930,22 +923,19 @@ killpg1(cp, sig, pgid, all)
 				PROC_UNLOCK(p);
 				continue;
 			}
-			PROC_UNLOCK(p);
 			mtx_lock_spin(&sched_lock);
 			if (p->p_stat == SZOMB) {
 				mtx_unlock_spin(&sched_lock);
+				PROC_UNLOCK(p);
 				continue;
 			}
 			mtx_unlock_spin(&sched_lock);
-			/* XXX: locking b0rked */
-			if (p_cansignal(cp, p, sig))
-				continue;
-			nfound++;
-			if (sig) {
-				PROC_LOCK(p);
-				psignal(p, sig);
-				PROC_UNLOCK(p);
+			if (p_cansignal(cp, p, sig) == 0) {
+				nfound++;
+				if (sig)
+					psignal(p, sig);
 			}
+			PROC_UNLOCK(p);
 		}
 	}
 	return (nfound ? 0 : ESRCH);
@@ -971,14 +961,13 @@ kill(cp, uap)
 		/* kill single process */
 		if ((p = pfind(uap->pid)) == NULL)
 			return (ESRCH);
-		/* XXX: locking b0rked */
-		if (p_cansignal(cp, p, uap->signum))
-			return (EPERM);
-		if (uap->signum) {
-			PROC_LOCK(p);
-			psignal(p, uap->signum);
+		if (p_cansignal(cp, p, uap->signum)) {
 			PROC_UNLOCK(p);
+			return (EPERM);
 		}
+		if (uap->signum)
+			psignal(p, uap->signum);
+		PROC_UNLOCK(p);
 		return (0);
 	}
 	switch (uap->pid) {

@@ -486,8 +486,11 @@ fsetown(pgid, sigiop)
 		 * restrict FSETOWN to the current process or process
 		 * group for maximum safety.
 		 */
-		if (proc->p_session != curproc->p_session)
+		if (proc->p_session != curproc->p_session) {
+			PROC_UNLOCK(proc);
 			return (EPERM);
+		}
+		PROC_UNLOCK(proc);
 
 		pgrp = NULL;
 	} else /* if (pgid < 0) */ {

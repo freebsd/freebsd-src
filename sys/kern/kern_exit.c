@@ -496,11 +496,10 @@ loop:
 					p->p_oppid = 0;
 					proc_reparent(p, t);
 					PROC_UNLOCK(p);
-					PROC_LOCK(t);
 					psignal(t, SIGCHLD);
+					wakeup((caddr_t)t);
 					PROC_UNLOCK(t);
 					sx_xunlock(&proctree_lock);
-					wakeup((caddr_t)t);
 					return (0);
 				}
 			}

@@ -211,14 +211,17 @@ ptrace(curp, uap)
 	int write;
 
 	write = 0;
-	if (uap->req == PT_TRACE_ME)
+	if (uap->req == PT_TRACE_ME) {
 		p = curp;
-	else {
+		PROC_LOCK(p);
+	} else {
 		if ((p = pfind(uap->pid)) == NULL)
 			return ESRCH;
 	}
-	if (p_can(curp, p, P_CAN_SEE, NULL))
+	if (p_can(curp, p, P_CAN_SEE, NULL)) {
+		PROC_UNLOCK(p);
 		return (ESRCH);
+	}
 
 	/*
 	 * Permissions check
@@ -230,19 +233,21 @@ ptrace(curp, uap)
 
 	case PT_ATTACH:
 		/* Self */
-		if (p->p_pid == curp->p_pid)
+		if (p->p_pid == curp->p_pid) {
+			PROC_UNLOCK(p);
 			return EINVAL;
+		}
 
 		/* Already traced */
-		PROC_LOCK(p);
 		if (p->p_flag & P_TRACED) {
 			PROC_UNLOCK(p);
 			return EBUSY;
 		}
-		PROC_UNLOCK(p);
 
-		if ((error = p_can(curp, p, P_CAN_DEBUG, NULL)))
+		if ((error = p_can(curp, p, P_CAN_DEBUG, NULL))) {
+			PROC_UNLOCK(p);
 			return error;
+		}
 
 		/* OK */
 		break;
@@ -276,7 +281,6 @@ ptrace(curp, uap)
 	case PT_SETDBREGS:
 #endif
 		/* not being traced... */
-		PROC_LOCK(p);
 		if ((p->p_flag & P_TRACED) == 0) {
 			PROC_UNLOCK(p);
 			return EPERM;
@@ -296,15 +300,16 @@ ptrace(curp, uap)
 			return EBUSY;
 		}
 		mtx_unlock_spin(&sched_lock);
-		PROC_UNLOCK(p);
 
 		/* OK */
 		break;
 
 	default:
+		PROC_UNLOCK(p);
 		return EINVAL;
 	}
 
+	PROC_UNLOCK(p);
 #ifdef FIX_SSTEP
 	/*
 	 * Single step fixup ala procfs
@@ -374,7 +379,6 @@ ptrace(curp, uap)
 				struct proc *pp;
 
 				pp = pfind(p->p_oppid);
-				PROC_LOCK(p);
 				proc_reparent(p, pp ? pp : initproc);
 			} else
 				PROC_LOCK(p);

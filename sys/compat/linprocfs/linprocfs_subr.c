@@ -199,8 +199,10 @@ linprocfs_rw(ap)
 		p = PFIND(pfs->pfs_pid);
 		if (p == NULL)
 			return (EINVAL);
+		PROC_UNLOCK(p);
 	}
 
+	mp_fixme("pfs_lockowner needs a lock");
 	while (pfs->pfs_lockowner) {
 		tsleep(&pfs->pfs_lockowner, PRIBIO, "pfslck", 0);
 	}

@@ -145,16 +145,18 @@ getpgid(p, uap)
 	struct proc *pt;
 	int error;
 
-	pt = p;
 	if (uap->pid == 0)
-		goto found;
-
-	if ((pt = pfind(uap->pid)) == 0)
-		return ESRCH;
-	if ((error = p_can(p, pt, P_CAN_SEE, NULL)))
-		return (error);
-found:
-	p->p_retval[0] = pt->p_pgrp->pg_id;
+		p->p_retval[0] = p->p_pgrp->pg_id;
+	else {
+		if ((pt = pfind(uap->pid)) == NULL)
+			return ESRCH;
+		if ((error = p_can(p, pt, P_CAN_SEE, NULL))) {
+			PROC_UNLOCK(pt);
+			return (error);
+		}
+		p->p_retval[0] = pt->p_pgrp->pg_id;
+		PROC_UNLOCK(pt);
+	}
 	return 0;
 }
 
@@ -175,16 +177,18 @@ getsid(p, uap)
 	struct proc *pt;
 	int error;
 
-	pt = p;
 	if (uap->pid == 0)
-		goto found;
-
-	if ((pt = pfind(uap->pid)) == 0)
-		return ESRCH;
-	if ((error = p_can(p, pt, P_CAN_SEE, NULL)))
-		return (error);
-found:
-	p->p_retval[0] = pt->p_session->s_sid;
+		p->p_retval[0] = p->p_session->s_sid;
+	else {
+		if ((pt = pfind(uap->pid)) == NULL)
+			return ESRCH;
+		if ((error = p_can(p, pt, P_CAN_SEE, NULL))) {
+			PROC_UNLOCK(pt);
+			return (error);
+		}
+		p->p_retval[0] = pt->p_session->s_sid;
+		PROC_UNLOCK(pt);
+	}
 	return 0;
 }
 
@@ -360,24 +364,42 @@ setpgid(curp, uap)
 	if (uap->pgid < 0)
 		return (EINVAL);
 	if (uap->pid != 0 && uap->pid != curp->p_pid) {
-		if ((targp = pfind(uap->pid)) == 0 || !inferior(targp))
+		if ((targp = pfind(uap->pid)) == NULL || !inferior(targp)) {
+			if (targp)
+				PROC_UNLOCK(targp);
 			return (ESRCH);
-		if ((error = p_can(curproc, targp, P_CAN_SEE, NULL)))
+		}
+		if ((error = p_can(curproc, targp, P_CAN_SEE, NULL))) {
+			PROC_UNLOCK(targp);
 			return (error);
-		if (targp->p_pgrp == NULL ||  targp->p_session != curp->p_session)
+		}
+		if (targp->p_pgrp == NULL ||
+		    targp->p_session != curp->p_session) {
+			PROC_UNLOCK(targp);
 			return (EPERM);
-		if (targp->p_flag & P_EXEC)
+		}
+		if (targp->p_flag & P_EXEC) {
+			PROC_UNLOCK(targp);
 			return (EACCES);
-	} else
+		}
+	} else {
 		targp = curp;
-	if (SESS_LEADER(targp))
+		PROC_LOCK(curp);	/* XXX: not needed */
+	}
+	if (SESS_LEADER(targp)) {
+		PROC_UNLOCK(targp);
 		return (EPERM);
+	}
 	if (uap->pgid == 0)
 		uap->pgid = targp->p_pid;
 	else if (uap->pgid != targp->p_pid)
 		if ((pgrp = pgfind(uap->pgid)) == 0 ||
-	            pgrp->pg_session != curp->p_session)
+	            pgrp->pg_session != curp->p_session) {
+			PROC_UNLOCK(targp);
 			return (EPERM);
+		}
+	/* XXX: We should probably hold the lock across enterpgrp. */
+	PROC_UNLOCK(targp);
 	return (enterpgrp(targp, uap->pgid, 0));
 }
 

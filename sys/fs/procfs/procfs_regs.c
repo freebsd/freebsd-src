@@ -95,10 +95,6 @@ int
 procfs_validregs(p)
 	struct proc *p;
 {
-	int valid;
 
-	PROC_LOCK(p);
-	valid = (p->p_flag & P_SYSTEM) == 0;
-	PROC_UNLOCK(p);
-	return (valid);
+	return ((p->p_flag & P_SYSTEM) == 0);
 }
