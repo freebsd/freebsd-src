@@ -273,6 +273,9 @@ pcic_pci_probe(device_t dev)
 	case PCI_DEVICE_ID_TOSHIBA_TOPIC97:
 		desc = "Toshiba ToPIC97 PCI-CardBus Bridge";
 		break;
+	case PCI_DEVICE_ID_TOSHIBA_TOPIC100:
+		desc = "Toshiba ToPIC100 PCI-CardBus Bridge";
+		break;
  	case PCI_DEVICE_ID_RICOH_RL5C465:
 		desc = "Ricoh RL5C465 PCI-CardBus Bridge";
 		break;
