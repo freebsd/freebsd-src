@@ -710,7 +710,7 @@ at_broadcast( sat )
  * between the two addresses makes its transition.
  * Each of the upper and lower ranges might not exist, or might be 
  * representable by 1 or more netmasks. In addition, if both
- * ranges can be represented by the same netmask, then teh can be merged
+ * ranges can be represented by the same netmask, then they can be merged
  * by using the next higher netmask..
  */
 
