@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ix.c,v 1.17 1995/12/15 00:54:17 bde Exp $
+ *	$Id: if_ix.c,v 1.18 1996/01/26 09:27:27 phk Exp $
  */
 
 #include "ix.h"
@@ -588,6 +588,7 @@ ixattach(struct isa_device *dvp) {
 	 *	allocation, this will have to get revisited.
 	 */
 	bzero(ifp, sizeof(ifp));
+	ifp->if_softc = sc;
 	ifp->if_name = ixdriver.name;
 	ifp->if_unit = unit;
 	ifp->if_mtu = ETHERMTU;
@@ -607,24 +608,9 @@ ixattach(struct isa_device *dvp) {
 #endif /* IXCOUNTERS */
 
 	if_attach(ifp);
+	ether_ifattach(ifp);
 	sc->kdc.kdc_state = DC_IDLE;
 
-	/* Search down the ifa address list looking for the AF_LINK type entry */
- 	ifa = ifp->if_addrlist;
-	while ((ifa != 0) &&
-	       (ifa->ifa_addr != 0) &&
-	       (ifa->ifa_addr->sa_family != AF_LINK)) {
-		ifa = ifa->ifa_next;
-	}
-	/* If we find an AF_LINK type entry, we well fill in the hardware addr */
-	if ((ifa != 0) && (ifa->ifa_addr != 0)) {
-		/* Fill in the link level address for this interface */
-		sdl = (struct sockaddr_dl *)ifa->ifa_addr;
-		sdl->sdl_type = IFT_ETHER;
-		sdl->sdl_alen = ETHER_ADDRESS_LENGTH;
-		sdl->sdl_slen = 0;
-		bcopy(sc->arpcom.ac_enaddr, LLADDR(sdl), ETHER_ADDRESS_LENGTH);
-	}
 	printf("ix%d: address %6D\n", unit, sc->arpcom.ac_enaddr, ":");
 	return(0);
 }
@@ -1326,7 +1312,7 @@ ixintr_fr_free(int unit, rfd_t *rfd) {
 void
 ixstart(struct ifnet *ifp) {
 	int 		unit = ifp->if_unit;
-	ix_softc_t	*sc = &ix_softc[unit];
+	ix_softc_t	*sc = ifp->if_softc;
 	scb_t 		*scb = (scb_t *)BOARDTOKV(SCB_ADDR);
 	cb_t		*cb = sc->cb_head;
 	tbd_t		*tbd;
@@ -1456,7 +1442,7 @@ ixstart_exit:
 int
 ixstop(struct ifnet *ifp) {
 	int		unit = ifp->if_unit;
-	ix_softc_t	*sc = &ix_softc[unit];
+	ix_softc_t	*sc = ifp->if_softc;
 
 	DEBUGBEGIN(DEBUGSTOP)
 	DEBUGDO(printf("ixstop:");)

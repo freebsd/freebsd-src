@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.h	8.1 (Berkeley) 6/10/93
  *
- * $Id: bpf.h,v 1.7 1995/11/04 13:25:03 bde Exp $
+ * $Id: bpf.h,v 1.8 1996/01/30 22:57:38 mpp Exp $
  */
 
 #ifndef _NET_BPF_H_
@@ -89,30 +89,6 @@ struct bpf_version {
 #define BPF_MAJOR_VERSION 1
 #define BPF_MINOR_VERSION 1
 
-/*
- * BPF ioctls
- *
- * The first set is for compatibility with Sun's pcc style
- * header files.  If your using gcc, we assume that you
- * have run fixincludes so the latter set should work.
- */
-#if (defined(sun) || defined(ibm032)) && !defined(__GNUC__)
-#define	BIOCGBLEN	_IOR(B,102, u_int)
-#define	BIOCSBLEN	_IOWR(B,102, u_int)
-#define	BIOCSETF	_IOW(B,103, struct bpf_program)
-#define	BIOCFLUSH	_IO(B,104)
-#define BIOCPROMISC	_IO(B,105)
-#define	BIOCGDLT	_IOR(B,106, u_int)
-#define BIOCGETIF	_IOR(B,107, struct ifreq)
-#define BIOCSETIF	_IOW(B,108, struct ifreq)
-#define BIOCSRTIMEOUT	_IOW(B,109, struct timeval)
-#define BIOCGRTIMEOUT	_IOR(B,110, struct timeval)
-#define BIOCGSTATS	_IOR(B,111, struct bpf_stat)
-#define BIOCIMMEDIATE	_IOW(B,112, u_int)
-#define BIOCVERSION	_IOR(B,113, struct bpf_version)
-#define BIOCGRSIG	_IOR(B,114, u_int)
-#define BIOCSRSIG	_IOW(B,115, u_int)
-#else
 #define	BIOCGBLEN	_IOR('B',102, u_int)
 #define	BIOCSBLEN	_IOWR('B',102, u_int)
 #define	BIOCSETF	_IOW('B',103, struct bpf_program)
@@ -128,7 +104,6 @@ struct bpf_version {
 #define BIOCVERSION	_IOR('B',113, struct bpf_version)
 #define BIOCGRSIG	_IOR('B',114, u_int)
 #define BIOCSRSIG	_IOW('B',115, u_int)
-#endif
 
 /*
  * Structure prepended to each packet.
@@ -239,9 +214,9 @@ struct bpf_insn {
 
 #ifdef KERNEL
 int	 bpf_validate __P((struct bpf_insn *, int));
-void	 bpf_tap __P((caddr_t, u_char *, u_int));
-void	 bpf_mtap __P((caddr_t, struct mbuf *));
-void	 bpfattach __P((caddr_t *, struct ifnet *, u_int, u_int));
+void	 bpf_tap __P((struct ifnet *, u_char *, u_int));
+void	 bpf_mtap __P((struct ifnet *, struct mbuf *));
+void	 bpfattach __P((struct ifnet *, u_int, u_int));
 void	 bpfilterattach __P((int));
 u_int	 bpf_filter __P((struct bpf_insn *, u_char *, u_int, u_int));
 #endif

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.9 1996/01/23 21:47:03 se Exp $
+ *	$Id: if_fxp.c,v 1.10 1996/01/26 09:29:28 phk Exp $
  */
 
 /*
@@ -84,7 +84,6 @@
 
 struct fxp_softc {
 	struct arpcom arpcom;		/* per-interface network data */
-	caddr_t bpf;			/* BPF token */
 	struct fxp_csr *csr;		/* control/status registers */
 	struct fxp_cb_tx *cbl_base;	/* base of TxCB list */
 	struct fxp_cb_tx *cbl_first;	/* first active TxCB in list */
@@ -281,6 +280,7 @@ fxp_attach(config_id, unit)
 	fxp_sc[unit] = sc;
 
 	ifp = &sc->arpcom.ac_if;
+	ifp->if_softc = sc;
 	ifp->if_unit = unit;
 	ifp->if_name = "fxp";
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
@@ -297,8 +297,10 @@ fxp_attach(config_id, unit)
 	 * Attach the interface.
 	 */
 	if_attach(ifp);
+	ether_ifattach(ifp);
+
 #if NBPFILTER > 0
-	bpfattach(&sc->bpf, ifp, DLT_EN10MB, sizeof(struct ether_header));
+	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
 	splx(s);
 	return;
@@ -413,7 +415,7 @@ static void
 fxp_start(ifp)
 	struct ifnet *ifp;
 {
-	struct fxp_softc *sc = (struct fxp_softc *)ifp;
+	struct fxp_softc *sc = ifp->if_softc;
 	struct fxp_csr *csr = sc->csr;
 	struct fxp_cb_tx *txp;
 	struct mbuf *m, *mb_head;
@@ -529,8 +531,8 @@ tbdinit:
 	/*
 	 * Pass packet to bpf if there is a listener.
 	 */
-	if (sc->bpf != NULL)
-		bpf_mtap(sc->bpf, mb_head);
+	if (ifp->if_bpf != NULL)
+		bpf_mtap(ifp, mb_head);
 #endif
 	/*
 	 * Set a 5 second timer just in case we don't hear from the
@@ -624,8 +626,8 @@ rcvloop:
 					    sizeof(struct ether_header);
 					eh = mtod(m, struct ether_header *);
 #if NBPFILTER > 0
-					if (sc->bpf != NULL) {
-						bpf_tap(sc->bpf, mtod(m, caddr_t), total_len);
+					if (ifp->if_bpf != NULL) {
+						bpf_tap(ifp, mtod(m, caddr_t), total_len);
 						/*
 						 * Only pass this packet up if it is for us.
 						 */
@@ -790,7 +792,7 @@ static void
 fxp_init(ifp)
 	struct ifnet *ifp;
 {
-	struct fxp_softc *sc = (struct fxp_softc *)ifp;
+	struct fxp_softc *sc = ifp->if_softc;
 	struct fxp_cb_config *cbp;
 	struct fxp_cb_ias *cb_ias;
 	struct fxp_cb_tx *txp;
@@ -1006,7 +1008,7 @@ fxp_ioctl(ifp, command, data)
 	caddr_t data;
 {
 	struct ifaddr *ifa = (struct ifaddr *) data;
-	struct fxp_softc *sc = (struct fxp_softc *)ifp;
+	struct fxp_softc *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *) data;
 	int s, error = 0;
 

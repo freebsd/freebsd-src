@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_le.c,v 1.28 1996/01/25 23:00:42 joerg Exp $
+ * $Id: if_le.c,v 1.29 1996/01/26 09:27:29 phk Exp $
  */
 
 /*
@@ -233,9 +233,6 @@ struct le_softc {
     u_int le_mcmask;			/* bit mask for CRC-32 for multicast hash */
     le_mcbits_t *le_mctbl;		/* pointer to multicast table */
     const char *le_prodname;		/* product name DE20x-xx */
-#if NBPFILTER > 0
-    caddr_t le_bpf;			/* BPF context */
-#endif
     u_char le_hwaddr[6];		/* local copy of hwaddr */
     unsigned le_scast_drops;		/* singlecast drops */
     unsigned le_mcast_drops;		/* multicast drops */
@@ -395,6 +392,7 @@ le_attach(
     struct ifnet *ifp = &sc->le_if;
     struct ifaddr *ifa = ifp->if_addrlist;
 
+    ifp->if_softc = sc;
     ifp->if_mtu = ETHERMTU;
     printf("%s%d: %s ethernet address %6D\n",
 	   ifp->if_name, ifp->if_unit,
@@ -409,26 +407,13 @@ le_attach(
     ifp->if_hdrlen = 14;
 
 #if NBPFILTER > 0
-    bpfattach(&sc->le_bpf, ifp, DLT_EN10MB, sizeof(struct ether_header));
+    bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
 
     if_attach(ifp);
+    ether_ifattach(ifp);
     kdc_le[dvp->id_unit].kdc_state = DC_IDLE;
 
-    while (ifa && ifa->ifa_addr && ifa->ifa_addr->sa_family != AF_LINK)
-	ifa = ifa->ifa_next;
-
-    if (ifa != NULL && ifa->ifa_addr != NULL) {
-	struct sockaddr_dl *sdl;
-	/*
-	 * Provide our ether address to the higher layers
-	 */
-	sdl = (struct sockaddr_dl *) ifa->ifa_addr;
-	sdl->sdl_type = IFT_ETHER;
-	sdl->sdl_alen = 6;
-	sdl->sdl_slen = 0;
-	MEMCPY(LLADDR(sdl), sc->le_ac.ac_enaddr, 6);
-    }
     return 1;
 }
 
@@ -465,8 +450,8 @@ le_input(
     MEMCPY(&eh, seg1, sizeof(eh));
 
 #if NBPFILTER > 0
-    if (sc->le_bpf != NULL && seg2 == NULL) {
-	bpf_tap(sc->le_bpf, seg1, total_len);
+    if (sc->le_if.if_bpf != NULL && seg2 == NULL) {
+	bpf_tap(&sc->le_if, seg1, total_len);
 	/*
 	 * If this is single cast but not to us
 	 * drop it!
@@ -522,8 +507,8 @@ le_input(
     if (seg2 != NULL)
 	MEMCPY(mtod(m, caddr_t) + len1, seg2, total_len - len1);
 #if NBPFILTER > 0
-    if (sc->le_bpf != NULL && seg2 != NULL) {
-	bpf_mtap(sc->le_bpf, m);
+    if (sc->le_if.if_bpf != NULL && seg2 != NULL) {
+	bpf_mtap(&sc->le_if, m);
 	/*
 	 * If this is single cast but not to us
 	 * drop it!
@@ -556,7 +541,7 @@ le_ioctl(
     int cmd,
     caddr_t data)
 {
-    le_softc_t *sc = &le_softc[ifp->if_unit];
+    le_softc_t *sc = ifp->if_softc;
     int s, error = 0;
 
     if ((sc->le_flags & IFF_UP) == 0)
@@ -1216,8 +1201,8 @@ lemac_start(
 	LE_OUTB(sc, LEMAC_REG_TQ, tx_pg);	/* tell chip to transmit this packet */
 
 #if NBPFILTER > 0
-	if (sc->le_bpf)
-		bpf_mtap(sc->le_bpf, m);
+	if (sc->le_if.if_bpf)
+		bpf_mtap(&sc->le_if, m);
 #endif
 
 	m_freem(m);			/* free the mbuf */

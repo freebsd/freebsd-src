@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.92 1995/12/15 07:31:40 davidg Exp $
+ *	$Id: if_ed.c,v 1.93 1996/01/24 21:06:02 phk Exp $
  */
 
 /*
@@ -113,7 +113,6 @@ struct ed_softc {
 	int     is790;		/* set by the probe code if the card is 790
 				 * based */
 
-	caddr_t bpf;		/* BPF "magic cookie" */
 	caddr_t mem_start;	/* NIC memory start address */
 	caddr_t mem_end;	/* NIC memory end address */
 	u_long  mem_size;	/* total NIC memory size */
@@ -1434,6 +1433,7 @@ ed_attach(isa_dev)
 		/*
 		 * Initialize ifnet structure
 		 */
+		ifp->if_softc = sc;
 		ifp->if_unit = isa_dev->id_unit;
 		ifp->if_name = "ed";
 		ifp->if_output = ether_output;
@@ -1458,6 +1458,7 @@ ed_attach(isa_dev)
 		 * Attach the interface
 		 */
 		if_attach(ifp);
+		ether_ifattach(ifp);
 	}
 	/* device attach does transition from UNCONFIGURED to IDLE state */
 	sc->kdc.kdc_state = DC_IDLE;
@@ -1482,7 +1483,7 @@ ed_attach(isa_dev)
 	 * If BPF is in the kernel, call the attach for it
 	 */
 #if NBPFILTER > 0
-	bpfattach(&sc->bpf, ifp, DLT_EN10MB, sizeof(struct ether_header));
+	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
 	return 1;
 }
@@ -1494,7 +1495,7 @@ static void
 ed_reset(ifp)
 	struct ifnet *ifp;
 {
-	struct ed_softc *sc = (struct ed_softc *)ifp;
+	struct ed_softc *sc = ifp->if_softc;
 	int     s;
 
 	if (sc->gone)
@@ -1542,7 +1543,7 @@ static void
 ed_watchdog(ifp)
 	struct ifnet *ifp;
 {
-	struct ed_softc *sc = (struct ed_softc *)ifp;
+	struct ed_softc *sc = ifp->if_softc;
 
 	if (sc->gone)
 		return;
@@ -1559,7 +1560,7 @@ static void
 ed_init(ifp)
 	struct ifnet *ifp;
 {
-	struct ed_softc *sc = (struct ed_softc *)ifp;
+	struct ed_softc *sc = ifp->if_softc;
 	int     i, s;
 
 	if (sc->gone)
@@ -1769,7 +1770,7 @@ static void
 ed_start(ifp)
 	struct ifnet *ifp;
 {
-	struct ed_softc *sc = (struct ed_softc *)ifp;
+	struct ed_softc *sc = ifp->if_softc;
 	struct mbuf *m0, *m;
 	caddr_t buffer;
 	int     len;
@@ -1904,8 +1905,8 @@ outloop:
 	 * Tap off here if there is a bpf listener.
 	 */
 #if NBPFILTER > 0
-	if (sc->bpf) {
-		bpf_mtap(sc->bpf, m0);
+	if (ifp->if_bpf) {
+		bpf_mtap(ifp, m0);
 	}
 #endif
 
@@ -1924,7 +1925,7 @@ static inline void
 ed_rint(sc)
 	struct ed_softc *sc;
 {
-	struct ifnet *ifp = (struct ifnet *)sc;
+	struct ifnet *ifp = &sc->arpcom.ac_if;
 	u_char  boundry;
 	u_short len;
 	struct ed_ring packet_hdr;
@@ -2264,7 +2265,7 @@ ed_ioctl(ifp, command, data)
 	caddr_t data;
 {
 	register struct ifaddr *ifa = (struct ifaddr *) data;
-	struct ed_softc *sc = (struct ed_softc *)ifp;
+	struct ed_softc *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *) data;
 	int     s, error = 0;
 
@@ -2524,8 +2525,8 @@ ed_get_packet(sc, buf, len, multicast)
 	 * Check if there's a BPF listener on this interface. If so, hand off
 	 * the raw packet to bpf.
 	 */
-	if (sc->bpf) {
-		bpf_mtap(sc->bpf, m);
+	if (sc->arpcom.ac_if.if_bpf) {
+		bpf_mtap(&sc->arpcom.ac_if, m);
 
 		/*
 		 * Note that the interface cannot be in promiscuous mode if

@@ -414,7 +414,6 @@ typedef struct _chan_t {
 	struct ifnet *ifp;              /* network interface data */
 	struct ifnet *master;           /* master interface, or ==ifp */
 	struct _chan_t *slaveq;         /* slave queue pointer, or NULL */
-	caddr_t bpf;                    /* packet filter data */
 	cx_soft_opt_t sopt;             /* software options and state flags */
 	cx_break_t brk;                 /* line break mode */
 #ifdef __bsdi__

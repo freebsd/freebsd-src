@@ -123,9 +123,6 @@ static struct lnc_softc {
 #ifdef DEBUG
 	int lnc_debug;
 #endif
-#if NBPFILTER > 0
-	caddr_t bpf;	/* XXX bpf magic cookie - move to arpcom */
-#endif
 	LNCSTATS_STRUCT
 } lnc_softc[NLNC];
 
@@ -631,8 +628,8 @@ lnc_rint(int unit)
 				eh = (struct ether_header *) head->m_data;
 
 #if NBPFILTER > 0
-				if (sc->bpf)
-					bpf_mtap(sc->bpf, head);
+				if (sc->arpcom.ac_if.if_bpf)
+					bpf_mtap(&sc->arpcom.ac_if, head);
 
 				/* Check this packet is really for us */
 
@@ -1162,6 +1159,7 @@ lnc_attach(struct isa_device * isa_dev)
 
 	/* Fill in arpcom structure entries */
 
+	sc->arpcom.ac_if.if_softc = sc;
 	sc->arpcom.ac_if.if_name = lncdriver.name;
 	sc->arpcom.ac_if.if_unit = isa_dev->id_unit;
 	sc->arpcom.ac_if.if_mtu = ETHERMTU;
@@ -1180,6 +1178,7 @@ lnc_attach(struct isa_device * isa_dev)
 	 */
 
 	if_attach(&sc->arpcom.ac_if);
+	ether_ifattach(&sc->arpcom.ac_if);
 	sc->kdc.kdc_state = DC_IDLE;
 
 	printf("lnc%d: %s, address %6D\n",
@@ -1188,7 +1187,7 @@ lnc_attach(struct isa_device * isa_dev)
 	       sc->arpcom.ac_enaddr, ":");
 
 #if NBPFILTER > 0
-	bpfattach(&sc->bpf, &sc->arpcom.ac_if, DLT_EN10MB, sizeof(struct ether_header));
+	bpfattach(&sc->arpcom.ac_if, DLT_EN10MB, sizeof(struct ether_header));
 #endif
 
 	return (1);
@@ -1500,7 +1499,7 @@ static void
 lnc_start(struct ifnet *ifp)
 {
 
-	struct lnc_softc *sc = &lnc_softc[ifp->if_unit];
+	struct lnc_softc *sc = ifp->if_softc;
 	struct host_ring_entry *desc;
 	int tmp;
 	int end_of_packet;
@@ -1636,8 +1635,8 @@ lnc_start(struct ifnet *ifp)
 		ifp->if_timer = 2;
 
 #if NBPFILTER > 0
-		if (sc->bpf)
-			bpf_mtap(sc->bpf, head);
+		if (sc->arpcom.ac_if.if_bpf)
+			bpf_mtap(&sc->arpcom.ac_if, head);
 #endif
 
 		if (sc->nic.mem_mode != DMA_MBUF)
@@ -1658,7 +1657,7 @@ static int
 lnc_ioctl(struct ifnet * ifp, int command, caddr_t data)
 {
 
-	struct lnc_softc *sc = &lnc_softc[ifp->if_unit];
+	struct lnc_softc *sc = ifp->if_softc;
 	struct ifaddr  *ifa = (struct ifaddr *) data;
 	struct ifreq *ifr = (struct ifreq *) data;
 	int s, error = 0;
