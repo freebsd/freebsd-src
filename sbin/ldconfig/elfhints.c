@@ -57,7 +57,22 @@ static int		 ndirs;
 static void
 add_dir(const char *hintsfile, const char *name)
 {
-	int	i;
+	struct stat 	stbuf;
+	int		i;
+
+	/* Do some security checks */
+	if (stat(name, &stbuf) == -1) {
+		warn("%s", name);
+		return;
+	}
+	if (stbuf.st_uid != 0) {
+		warnx("%s: not owned by root", name);
+		return;
+	}
+	if ((stbuf.st_mode & S_IWOTH) != 0) {
+		warnx("%s: ignoring world-writable directory", name);
+        	return;
+	}
 
 	for (i = 0;  i < ndirs;  i++)
 		if (strcmp(dirs[i], name) == 0)

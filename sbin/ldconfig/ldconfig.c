@@ -259,6 +259,7 @@ int	silent;
 {
 	DIR		*dd;
 	struct dirent	*dp;
+	struct stat	stbuf;
 	char		name[MAXPATHLEN];
 	int		dewey[MAXDEWEY], ndewey;
 
@@ -266,6 +267,20 @@ int	silent;
 		if (silent && errno == ENOENT)	/* Ignore the error */
 			return 0;
 		warn("%s", dir);
+		return -1;
+	}
+
+	/* Do some security checks */
+	if (fstat(dirfd(dd), &stbuf) == -1) {
+		warn("%s", dir);
+		return -1;
+	}
+	if (stbuf.st_uid != 0) {
+		warnx("%s: not owned by root", dir);
+		return -1;
+	}
+	if ((stbuf.st_mode & S_IWOTH) != 0) {
+		warnx("%s: ignoring world-writable directory", dir);
 		return -1;
 	}
 
