@@ -95,29 +95,29 @@ to either
 or
 .Fn mb_initm .
 It has the following fields:
-.Bl -tag -width "mb_count"
+.Bl -tag -width ".Va mb_count"
 .It Va "mb_top"
-.Vt ( "struct mbuf *" )
-a pointer to the top of constructed mbuf chain
+.Pq Vt "struct mbuf *"
+A pointer to the top of constructed mbuf chain.
 .It Va mb_cur
-.Vt ( "struct mbuf *" )
-a pointer to the currently filled mbuf
+.Pq Vt "struct mbuf *"
+A pointer to the currently filled mbuf.
 .It Va mb_mleft
-.Vt ( int )
-number of bytes left in the current mbuf
+.Pq Vt int
+Number of bytes left in the current mbuf.
 .It Va mb_count
-.Vt ( int )
-total number of bytes placed in the mbuf chain
+.Pq Vt int
+Total number of bytes placed in the mbuf chain.
 .It Va mb_copy
-.Vt ( "mb_copy_t *" )
-user-defined function to perform a copy into mbuf;
+.Pq Vt "mb_copy_t *"
+User-defined function to perform a copy into mbuf;
 useful if any unusual
-data conversion is necessary
+data conversion is necessary.
 .It Va mb_udata
-.Vt ( "void *" )
-user-supplied data which can be used in the
+.Pq Vt "void *"
+User-supplied data which can be used in the
 .Va mb_copy
-function
+function.
 .El
 .Pp
 .Fn mb_done
@@ -170,25 +170,25 @@ The
 .Fa type
 argument specifies the method used to perform a copy,
 and can be one of the following:
-.Bl -tag -width "MB_MINLINE"
+.Bl -tag -width ".Dv MB_MINLINE"
 .It Dv MB_MSYSTEM
-use
+Use
 .Fn bcopy
-function
+function.
 .It Dv MB_MUSER
-use
+Use
 .Xr copyin 9
-function
+function.
 .It Dv MB_MINLINE
-use an
+Use an
 .Dq inline
-loop which does not call any function
+loop which does not call any function.
 .It Dv MB_MZERO
-do not copy any data, but just fill the destination with zero bytes
+Do not copy any data, but just fill the destination with zero bytes.
 .It Dv MB_MCUSTOM
-call function specified by the
+Call function specified by the
 .Fa mbp->mb_copy
-field
+field.
 .El
 .Sh RETURN VALUES
 All
