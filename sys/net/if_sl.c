@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.65 1998/01/08 23:41:29 eivind Exp $
+ * $Id: if_sl.c,v 1.66 1998/02/09 06:09:54 eivind Exp $
  */
 
 /*
@@ -196,7 +196,8 @@ static int	slstart __P((struct tty *));
 
 static struct linesw slipdisc = {
 	slopen,		slclose,	l_noread,	l_nowrite,
-	sltioctl,	slinput,	slstart,	ttymodem
+	sltioctl,	slinput,	slstart,	ttymodem,
+	FRAME_END
 };
 
 /*
