@@ -326,11 +326,13 @@ do_sigaction(p, sig, act, oact, old)
 			else
 				SIGADDSET(p->p_sigcatch, sig);
 		}
+#ifdef COMPAT_43
 		if (ps->ps_sigact[_SIG_IDX(sig)] == SIG_IGN ||
 		    ps->ps_sigact[_SIG_IDX(sig)] == SIG_DFL || !old)
 			SIGDELSET(ps->ps_osigset, sig);
 		else
 			SIGADDSET(ps->ps_osigset, sig);
+#endif
 	}
 	PROC_UNLOCK(p);
 	return (0);
