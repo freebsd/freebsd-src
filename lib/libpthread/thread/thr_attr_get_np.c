@@ -29,7 +29,7 @@
 #include <string.h>
 #include <pthread.h>
 #include <pthread_np.h>
-#include "pthread_private.h"
+#include "thr_private.h"
 
 __weak_reference(_pthread_attr_get_np, pthread_attr_get_np);
 
