@@ -3,6 +3,26 @@
 -->
 <sect1 id="proc-ia64">
   <title>Supported Processors and Motherboards</title>
-
-  <para>Need to write this section.</para>
+  <para>Currently supported processors are the 
+    <ulink url="http://www.intel.com/design/itanium/itanium/index.htm">Itanium</ulink>
+    and the <ulink url="http://www.intel.com/design/itanium2/index.htm">Itanium 2</ulink>.</para>
+  <para>Supported chipsets include:</para>
+   <itemizedlist>
+     <listitem>
+       <para>HP zx1 (only on development branch, see the 
+         <ulink url="http://perforce.freebsd.org/">Perforce repository</ulink>)</para>
+     </listitem>
+     <listitem>
+       <para>HP i2000
+     </listitem>
+     <listitem>
+       <para>Intel 460GX</para>
+     </listitem>
+     <listitem>
+       <para>Intel E8870</para>
+     </listitem>
+   </itemizedlist>
+  <para>Both Uniprocessor (UP) and Symmetric Multi-processor (SMP) configurations are under active
+    development.  At this time, the SMP development branch is the less stable of the two. The
+    current priorities are UP fixes to improve stability.</para>
 </sect1>
