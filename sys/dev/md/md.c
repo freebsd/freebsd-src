@@ -374,9 +374,6 @@ g_md_start(struct bio *bp)
 	struct md_s *sc;
 
 	sc = bp->bio_to->geom->softc;
-
-	bp->bio_pblkno = bp->bio_offset / sc->secsize;
-	bp->bio_bcount = bp->bio_length;
 	mtx_lock(&sc->queue_mtx);
 	bioq_disksort(&sc->bio_queue, bp);
 	wakeup(sc);
@@ -393,8 +390,8 @@ mdstart_malloc(struct md_s *sc, struct bio *bp)
 	unsigned secno, nsec, uc;
 	uintptr_t sp, osp;
 
-	nsec = bp->bio_bcount / sc->secsize;
-	secno = bp->bio_pblkno;
+	nsec = bp->bio_length / sc->secsize;
+	secno = bp->bio_offset / sc->secsize;
 	dst = bp->bio_data;
 	error = 0;
 	while (nsec--) {
@@ -457,11 +454,15 @@ static int
 mdstart_preload(struct md_s *sc, struct bio *bp)
 {
 
-	if (bp->bio_cmd == BIO_DELETE) {
-	} else if (bp->bio_cmd == BIO_READ) {
-		bcopy(sc->pl_ptr + (bp->bio_pblkno << DEV_BSHIFT), bp->bio_data, bp->bio_bcount);
-	} else {
-		bcopy(bp->bio_data, sc->pl_ptr + (bp->bio_pblkno << DEV_BSHIFT), bp->bio_bcount);
+	switch (bp->bio_cmd) {
+	case BIO_READ:
+		bcopy(sc->pl_ptr + bp->bio_offset, bp->bio_data,
+		    bp->bio_length);
+		break;
+	case BIO_WRITE:
+		bcopy(bp->bio_data, sc->pl_ptr + bp->bio_offset,
+		    bp->bio_length);
+		break;
 	}
 	bp->bio_resid = 0;
 	return (0);
@@ -486,10 +487,10 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 	bzero(&auio, sizeof(auio));
 
 	aiov.iov_base = bp->bio_data;
-	aiov.iov_len = bp->bio_bcount;
+	aiov.iov_len = bp->bio_length;
 	auio.uio_iov = &aiov;
 	auio.uio_iovcnt = 1;
-	auio.uio_offset = (vm_ooffset_t)bp->bio_pblkno * sc->secsize;
+	auio.uio_offset = (vm_ooffset_t)bp->bio_offset;
 	auio.uio_segflg = UIO_SYSSPACE;
 	if(bp->bio_cmd == BIO_READ)
 		auio.uio_rw = UIO_READ;
@@ -497,7 +498,7 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 		auio.uio_rw = UIO_WRITE;
 	else
 		panic("wrong BIO_OP in mdstart_vnode");
-	auio.uio_resid = bp->bio_bcount;
+	auio.uio_resid = bp->bio_length;
 	auio.uio_td = curthread;
 	/*
 	 * When reading set IO_DIRECT to try to avoid double-caching
