@@ -54,20 +54,16 @@ of the user fails,
 prompts for a user name.
 Authentication of users is done via passwords.
 .Pp
-The options are as follows:
-.Bl -tag -width Ds
+The following options are available:
+.Bl -tag -width indent
 .It Fl f
-The
-.Fl f
-option is used when a user name is specified to indicate that proper
+When a user name is specified, this option indicates that proper
 authentication has already been done and that no password need be
 requested.
 This option may only be used by the super-user or when an already
 logged in user is logging in as themselves.
 .It Fl h
-The
-.Fl h
-option specifies the host from which the connection was received.
+Specify the host from which the connection was received.
 It is used by various daemons such as
 .Xr telnetd  8 .
 This option may only be used by the super-user.
@@ -101,7 +97,7 @@ Immediately after logging a user in,
 displays the system copyright notice, the date and time the user last
 logged in, the message of the day as well as other information.
 If the file
-.Dq Pa .hushlogin
+.Pa .hushlogin
 exists in the user's home directory, all of these messages are suppressed.
 This is to simplify logins for non-human users, such as
 .Xr uucp 1 .
