@@ -43,24 +43,20 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 
 void
-swab(from, to, len)
-	const void *from;
-	void *to;
-	size_t len;
+swab(const void * __restrict from, void * __restrict to, size_t len)
 {
 	unsigned long temp;
 	int n;
 	char *fp, *tp;
 
-	n = (len >> 1) + 1;
+	n = len >> 1;
 	fp = (char *)from;
 	tp = (char *)to;
 #define	STEP	temp = *fp++,*tp++ = *fp++,*tp++ = temp
 	/* round to multiple of 8 */
-	while ((--n) & 07)
+	for (; n & 0x7; --n)
 		STEP;
-	n >>= 3;
-	while (--n >= 0) {
+	for (n >>= 3; n > 0; --n) {
 		STEP; STEP; STEP; STEP;
 		STEP; STEP; STEP; STEP;
 	}
