@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ls.c	8.5 (Berkeley) 4/2/94";
 #else
 static const char rcsid[] =
-	"$Id: ls.c,v 1.16 1997/08/07 22:28:23 steve Exp $";
+	"$Id: ls.c,v 1.17 1997/09/18 06:42:27 sef Exp $";
 #endif
 #endif /* not lint */
 
@@ -88,6 +88,7 @@ int f_longform;			/* long listing format */
 int f_newline;			/* if precede with newline */
 int f_nonprint;			/* show unprintables as ? */
 int f_nosort;			/* don't sort output */
+int f_octal;			/* show unprintables as \xxx */
 int f_recursive;		/* ls subdirectories also */
 int f_reversesort;		/* reverse whatever sort is used */
 int f_sectime;			/* print the real time for all files */
@@ -135,7 +136,7 @@ main(argc, argv)
 		f_listdot = 1;
 
 	fts_options = FTS_PHYSICAL;
-	while ((ch = getopt(argc, argv, "1ACFLRTWacdfgikloqrstu")) != -1) {
+	while ((ch = getopt(argc, argv, "1ACFLRTWabcdfgikloqrstu")) != -1) {
 		switch (ch) {
 		/*
 		 * The -1, -C and -l options all override each other so shell
@@ -199,6 +200,7 @@ main(argc, argv)
 			break;
 		case 'q':
 			f_nonprint = 1;
+			f_octal = 0;
 			break;
 		case 'r':
 			f_reversesort = 1;
@@ -214,6 +216,10 @@ main(argc, argv)
 			break;
 		case 'W':
 			f_whiteout = 1;
+			break;
+		case 'b':
+		        f_octal = 1;
+			f_nonprint = 0;
 			break;
 		default:
 		case '?':
@@ -426,6 +432,10 @@ display(p, list)
 			prcopy(cur->fts_name, cur->fts_name, cur->fts_namelen);
 		if (cur->fts_namelen > maxlen)
 			maxlen = cur->fts_namelen;
+		if (f_octal) {
+		        int t = len_octal(cur->fts_name, cur->fts_namelen);
+			if (t > maxlen) maxlen = t;
+		}		        
 		if (needstats) {
 			sp = cur->fts_statp;
 			if (sp->st_blocks > maxblock)
