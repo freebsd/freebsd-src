@@ -404,7 +404,7 @@ ieee80211_cfgset(struct ifnet *ifp, u_long cmd, caddr_t data)
 		}
 		memset(ic->ic_des_essid, 0, sizeof(ic->ic_des_essid));
 		ic->ic_des_esslen = le16toh(wreq.wi_val[0]) * 2;
-		memcpy(ic->ic_des_essid, &wreq.wi_val[1], len);
+		memcpy(ic->ic_des_essid, &wreq.wi_val[1], ic->ic_des_esslen);
 		error = ENETRESET;
 		break;
 	case WI_RID_CURRENT_BSSID:
