@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: options.c,v 1.58 1999/04/06 08:25:53 jkh Exp $
+ * $Id: options.c,v 1.59 1999/04/27 14:33:28 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -135,6 +135,8 @@ static Option Options[] = {
       OPT_IS_VAR,	TIMEOUT_PROMPT,		VAR_MEDIA_TIMEOUT,	varCheck	},
 { "Package Temp",	"The directory where package temporary files should go",
       OPT_IS_VAR,	PKG_PROMPT,		VAR_PKG_TMPDIR,		varCheck	},
+{ "Config save",	"Whether or not to save installation kernel config changes",
+      OPT_IS_VAR,	NULL,			VAR_KGET,		varCheck	},
 { "Re-scan Devices",	"Re-run sysinstall's initial device probe",
       OPT_IS_FUNC,	deviceRescan },
 { "Use Defaults",	"Reset all values to startup defaults",
