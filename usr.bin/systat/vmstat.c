@@ -283,8 +283,8 @@ labelkre()
 
 	mvprintw(MEMROW + 1, MEMCOL + 31, "Free");
 
-	mvprintw(PAGEROW, PAGECOL,     "        PAGING   SWAPPING ");
-	mvprintw(PAGEROW + 1, PAGECOL, "        in  out   in  out ");
+	mvprintw(PAGEROW, PAGECOL,     "        VN PAGER  SWAP PAGER ");
+	mvprintw(PAGEROW + 1, PAGECOL, "        in  out     in  out ");
 	mvprintw(PAGEROW + 2, PAGECOL, "count");
 	mvprintw(PAGEROW + 3, PAGECOL, "pages");
 
@@ -471,20 +471,20 @@ showkre()
 	PUTRATE(Cnt.v_rev, VMSTATROW + 15, VMSTATCOL, 9);
 	if (LINES - 1 > VMSTATROW + 16)
 		PUTRATE(Cnt.v_intrans, VMSTATROW + 16, VMSTATCOL, 9);
-	PUTRATE(Cnt.v_pageins, PAGEROW + 2, PAGECOL + 5, 5);
-	PUTRATE(Cnt.v_pageouts, PAGEROW + 2, PAGECOL + 10, 5);
-	PUTRATE(Cnt.v_swpin, PAGEROW + 2, PAGECOL + 15, 5);	/* - */
-	PUTRATE(Cnt.v_swpout, PAGEROW + 2, PAGECOL + 20, 5);	/* - */
-	PUTRATE(Cnt.v_pgpgin, PAGEROW + 3, PAGECOL + 5, 5);	/* ? */
-	PUTRATE(Cnt.v_pgpgout, PAGEROW + 3, PAGECOL + 10, 5);	/* ? */
-	PUTRATE(Cnt.v_pswpin, PAGEROW + 3, PAGECOL + 15, 5);	/* - */
-	PUTRATE(Cnt.v_pswpout, PAGEROW + 3, PAGECOL + 20, 5);	/* - */
+	PUTRATE(Cnt.v_vnodein, PAGEROW + 2, PAGECOL + 5, 5);
+	PUTRATE(Cnt.v_vnodeout, PAGEROW + 2, PAGECOL + 10, 5);
+	PUTRATE(Cnt.v_swapin, PAGEROW + 2, PAGECOL + 17, 5);
+	PUTRATE(Cnt.v_swapout, PAGEROW + 2, PAGECOL + 22, 5);
+	PUTRATE(Cnt.v_vnodepgsin, PAGEROW + 3, PAGECOL + 5, 5);
+	PUTRATE(Cnt.v_vnodepgsout, PAGEROW + 3, PAGECOL + 10, 5);
+	PUTRATE(Cnt.v_swappgsin, PAGEROW + 3, PAGECOL + 17, 5);
+	PUTRATE(Cnt.v_swappgsout, PAGEROW + 3, PAGECOL + 22, 5);
 	PUTRATE(Cnt.v_swtch, GENSTATROW + 1, GENSTATCOL, 5);
 	PUTRATE(Cnt.v_trap, GENSTATROW + 1, GENSTATCOL + 5, 5);
 	PUTRATE(Cnt.v_syscall, GENSTATROW + 1, GENSTATCOL + 10, 5);
 	PUTRATE(Cnt.v_intr, GENSTATROW + 1, GENSTATCOL + 15, 5);
 	PUTRATE(Cnt.v_soft, GENSTATROW + 1, GENSTATCOL + 20, 5);
-	PUTRATE(Cnt.v_faults, GENSTATROW + 1, GENSTATCOL + 25, 5);
+	PUTRATE(Cnt.v_vm_faults, GENSTATROW + 1, GENSTATCOL + 25, 5);
 	mvprintw(DISKROW, DISKCOL + 5, "                              ");
 	for (i = 0, c = 0; i < dk_ndrive && c < MAXDRIVES; i++)
 		if (dk_select[i]) {
