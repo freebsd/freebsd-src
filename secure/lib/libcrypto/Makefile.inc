@@ -14,7 +14,7 @@ CFLAGS+= -DL_ENDIAN -DSHA1_ASM -DBN_ASM -DMD5_ASM -DRMD160_ASM
 
 WITH_RSA?= YES
 
-HDRS=	asn1/asn1.h asn1/asn1_mac.h bio/bio.h bf/blowfish.h bn/bn.h \
+HDRS+=	asn1/asn1.h asn1/asn1_mac.h bio/bio.h bf/blowfish.h bn/bn.h \
 	buffer/buffer.h cast/cast.h comp/comp.h conf/conf.h crypto.h \
 	des/des.h dh/dh.h dsa/dsa.h ../e_os.h ../e_os2.h ebcdic.h \
 	err/err.h hmac/hmac.h lhash/lhash.h md2/md2.h \
@@ -53,8 +53,8 @@ openssl/evp.h: ${LCRYPTO_SRC}/evp/evp.h
 	${INSTALL} -C -m 444 ${.OODATE} ${.TARGET}
 .endif
 
-SRCS+=	${HDRS:T:S;^;openssl/;} ${EXTRA_HDRS:T:S;^;openssl/;}
-.for h in ${HDRS:S/^/${LCRYPTO_SRC}\//} ${EXTRA_HDRS}
+SRCS+=	${HDRS:T:S;^;openssl/;}
+.for h in ${HDRS:S/^/${LCRYPTO_SRC}\//}
 openssl/${h:T}: ${h}
 	mkdir -p openssl
 	${INSTALL} -C -m 444 ${h} openssl
