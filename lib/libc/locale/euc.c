@@ -62,8 +62,9 @@ typedef struct {
 } _EucInfo;
 
 typedef struct {
-	int	count;
-	u_char	bytes[MB_LEN_MAX];
+	wchar_t	ch;
+	int	set;
+	int	want;
 } _EucState;
 
 int
@@ -122,7 +123,7 @@ int
 _EUC_mbsinit(const mbstate_t *ps)
 {
 
-	return (ps == NULL || ((const _EucState *)ps)->count == 0);
+	return (ps == NULL || ((const _EucState *)ps)->want == 0);
 }
 
 #define	CEI	((_EucInfo *)(_CurrentRuneLocale->variable))
@@ -144,13 +145,14 @@ _EUC_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
     mbstate_t * __restrict ps)
 {
 	_EucState *es;
-	int len, ocount, remain, set;
+	int i, set, want;
 	wchar_t wc;
-	size_t ncopy;
+	const char *os;
 
 	es = (_EucState *)ps;
 
-	if (es->count < 0 || es->count > sizeof(es->bytes)) {
+	if (es->want < 0 || es->want > MB_CUR_MAX || es->set < 0 ||
+	    es->set > 3) {
 		errno = EINVAL;
 		return ((size_t)-1);
 	}
@@ -161,41 +163,54 @@ _EUC_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 		pwc = NULL;
 	}
 
-	ncopy = MIN(MIN(n, MB_CUR_MAX), sizeof(es->bytes) - es->count);
-	memcpy(es->bytes + es->count, s, ncopy);
-	ocount = es->count;
-	es->count += ncopy;
-	s = (char *)es->bytes;
-	n = es->count;
-
-	if (n == 0 || (size_t)(len = CEI->count[set = _euc_set(*s)]) > n)
+	if (n == 0)
 		/* Incomplete multibyte sequence */
 		return ((size_t)-2);
-	wc = 0;
-	remain = len;
-	switch (set) {
-	case 3:
-	case 2:
-		--remain;
-		++s;
-		/* FALLTHROUGH */
-	case 1:
-	case 0:
-		wc = (unsigned char)*s++;
-		while (--remain > 0) {
+
+	os = s;
+
+	if (es->want == 0) {
+		want = CEI->count[set = _euc_set(*s)];
+		if (set == 2 || set == 3) {
+			--want;
+			if (--n == 0) {
+				/* Incomplete multibyte sequence */
+				es->set = set;
+				es->want = want;
+				es->ch = 0;
+				return ((size_t)-2);
+			}
+			++s;
 			if (*s == '\0') {
 				errno = EILSEQ;
 				return ((size_t)-1);
 			}
-			wc = (wc << 8) | (unsigned char)*s++;
 		}
-		break;
+		wc = (unsigned char)*s++;
+	} else {
+		set = es->set;
+		want = es->want;
+		wc = es->ch;
+	}
+	for (i = (es->want == 0) ? 1 : 0; i < MIN(want, n); i++) {
+		if (*s == '\0') {
+			errno = EILSEQ;
+			return ((size_t)-1);
+		}
+		wc = (wc << 8) | (unsigned char)*s++;
+	}
+	if (i < want) {
+		/* Incomplete multibyte sequence */
+		es->set = set;
+		es->want = want - i;
+		es->ch = wc;
+		return ((size_t)-2);
 	}
 	wc = (wc & ~CEI->mask) | CEI->bits[set];
 	if (pwc != NULL)
 		*pwc = wc;
-	es->count = 0;
-	return (wc == L'\0' ? 0 : len - ocount);
+	es->want = 0;
+	return (wc == L'\0' ? 0 : s - os);
 }
 
 size_t
@@ -207,7 +222,7 @@ _EUC_wcrtomb(char * __restrict s, wchar_t wc, mbstate_t * __restrict ps)
 
 	es = (_EucState *)ps;
 
-	if (es->count != 0) {
+	if (es->want != 0) {
 		errno = EINVAL;
 		return ((size_t)-1);
 	}
