@@ -2406,8 +2406,6 @@ options		AAC_DEBUG	# Debugging levels:
 				#     items in loops, etc.
 
 # Yet more undocumented options for linting.
-# Broken:
-##options 	ASR_MEASURE_PERFORMANCE
 # BKTR_ALLOC_PAGES has no effect except to cause warnings, and
 # BROOKTREE_ALLOC_PAGES hasn't actually been superseded by it, since the
 # driver still mostly spells this option BROOKTREE_ALLOC_PAGES.
