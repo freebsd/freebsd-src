@@ -84,12 +84,12 @@ reset:
 	clr	SCSISIGO		/* De-assert BSY */
 
 p_busfree:
-	or	SXFRCTL0, CLRCHN
 	clr	SCSIRATE		/*
 					 * We don't know the target we will
 					 * connect to, so default to narrow
 					 * transfers to avoid parity problems.
 					 */
+	and	SXFRCTL0, 0xdf		/* ~FAST20*/
 	mvi	SCSISEQ,ENRSELI		/* Always allow reselection */
 	mvi	LASTPHASE, P_BUSFREE
 	and	FLAGS,0x07		/* clear target specific flags */
@@ -291,6 +291,21 @@ select2:
 						 * happens.
 						 */
 /*
+ * Initialize Ultra mode setting and clear the SCSI channel.
+ */
+	or	SXFRCTL0, 0x1a			/* CLRSTCNT|SPIOEN|CLRCHN */
+ultra:
+	mvi	SINDEX, ULTRA_ENB_B
+	test	SAVED_TCL, 0x80		jnz ultra_2	/* Target ID > 7 */
+	test	SBLKCTL, SELBUSB	jnz ultra_2	/* Second channel */
+	dec	SINDEX
+ultra_2:
+	mov     FUNCTION1,SAVED_TCL
+	mov     A,FUNCTION1
+	test	SINDIR, A	jz ndx_dtr
+	or	SXFRCTL0, FAST20
+ 
+/*
  * Initialize SCSIRATE with the appropriate value for this target.
  * The SCSIRATE settings for each target are stored in an array
  * based at TARG_SCRATCH.
@@ -304,23 +319,6 @@ ndx_dtr_2:
 	add	SINDEX,TARG_SCRATCH,A
 	mov	SCSIRATE,SINDIR
 
-/*
- * Initialize Ultra mode setting and clear the SCSI channel.
- */
-ultra:
-	and	DINDEX,0xdf,SXFRCTL0            /* default to Ultra disabled */
-	mvi	SINDEX, ULTRA_ENB_B
-	test	SAVED_TCL, 0x80     jnz ultra_2     /* Target ID > 7 */
-	test	SBLKCTL, SELBUSB jnz ultra_2     /* Second channel device */
-	dec	SINDEX
-ultra_2:
-	mov     FUNCTION1,SAVED_TCL
-	mov     A,FUNCTION1
-	test	SINDIR, A	jz set_sxfrctl0
-	or	DINDEX, ULTRAEN
- 
-set_sxfrctl0:
-	mov	SXFRCTL0,DINDEX
 
 /*
  * Main loop for information transfer phases.  If BSY is false, then
@@ -330,8 +328,8 @@ set_sxfrctl0:
  *
  */
 ITloop:
+	test	SSTAT1,0x9	jz ITloop	/* REQINIT|BUSFREE */
 	test	SSTAT1,BUSFREE	jnz p_busfree
-	test	SSTAT1,REQINIT	jz ITloop
 
 	and	A,PHASE_MASK,SCSISIGI
 	mov	LASTPHASE,A
@@ -405,10 +403,10 @@ data_phase_loop:
  * had an overrun.
  */
 	or	SXFRCTL1,BITBUCKET
-	and	DMAPARAMS, 0xf7		/* Turn off HDMAEN */
-	mvi	STCNT0,0xff
-	mvi	STCNT1,0xff
-	mvi	STCNT2,0xff
+	mvi	HCNT0, 0xff
+	mvi	HCNT1, 0xff
+	mvi	HCNT2, 0xff
+	call	set_stcnt_from_hcnt
 
 data_phase_inbounds:
 /* If we are the last SG block, ensure wideodd is off. */
@@ -420,8 +418,8 @@ data_phase_wideodd:
 /* Go tell the host about any overruns */
 	test	SXFRCTL1,BITBUCKET jnz data_phase_overrun
 
-/* Exit if we had an underrun */
-	test	SSTAT0,SDONE	jz data_phase_finish /* underrun STCNT != 0 */
+/* Exit if we had an underrun.  dma clears SINDEX in this case. */
+	test	SINDEX,0xff	jz data_phase_finish
 
 /*
  * Advance the scatter-gather pointers if needed 
@@ -588,6 +586,7 @@ p_mesgin:
 	cmp	A,MSG_RESTOREPOINTERS	je mesgin_rdptrs
 	cmp	A,MSG_EXTENDED		je mesgin_extended
 	cmp	A,MSG_MESSAGE_REJECT	je mesgin_reject
+	cmp	A,MSG_NOOP		je mesgin_done
 
 rej_mesgin:
 /*
@@ -600,7 +599,7 @@ rej_mesgin:
 	mvi	MSG_MESSAGE_REJECT	call mk_mesg
 
 mesgin_done:
-	call	inb_last			/*ack & turn auto PIO back on*/
+	call	inb_last
 	jmp	ITloop
 
 
@@ -911,6 +910,8 @@ dma:
 dma1:
 	test	SSTAT0,DMADONE	jnz dma3
 	test	SSTAT1,PHASEMIS	jz dma1		/* ie. underrun */
+	test	SSTAT0,SDONE	jnz dma3
+	mov	SINDEX,ALLZEROS			/* Notify caller of phasemiss */
 
 /*
  * We will be "done" DMAing when the transfer count goes to zero, or
@@ -921,7 +922,7 @@ dma1:
  * status.
  */
 dma3:
-	test	SINDEX,DIRECTION	jnz dma5
+	test	DFCNTRL,DIRECTION	jnz dma5
 dma4:
 	test	DFSTATUS,FIFOEMP	jz dma4
 
@@ -933,9 +934,9 @@ dma5:
 	/* Don't clobber an inprogress host data transfer */
 	test	DFSTATUS, MREQPEND	jnz dma5
 	/* disable DMA */
-	and	DFCNTRL, 0xc7		/* ~(SCSIEN|SDMAEN|HDMAEN|DIRECTION) */
+	and	DFCNTRL, 0xc7		/* ~(SCSIEN|SDMAEN|HDMAEN) */
 dma6:
-	test	DFCNTRL, 0x38	jnz dma6  /* (SCSIEN|SDMAEN|HDMAEN|DIRECTION) */
+	test	DFCNTRL, 0x38	jnz dma6  /* (SCSIEN|SDMAEN|HDMAEN) */
 return:
 	ret
 
