@@ -201,7 +201,12 @@ struct pr_usrreqs {
 	int	(*pru_sockaddr) __P((struct socket *so, struct mbuf *nam));
 };
 
+int	pru_accept_notsupp __P((struct socket *so, struct mbuf *nam));
 int	pru_connect2_notsupp __P((struct socket *so1, struct socket *so2));
+int	pru_listen_notsupp __P((struct socket *so));
+int	pru_rcvd_notsupp __P((struct socket *so, int flags));
+int	pru_rcvoob_notsupp __P((struct socket *so, struct mbuf *m, int flags));
+int	pru_sense_null __P((struct socket *so, struct stat *sb));
 
 #define	PRU_OLDSTYLE
 
