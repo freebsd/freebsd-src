@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_disksubr.c	8.5 (Berkeley) 1/21/94
- * $Id: ufs_disksubr.c,v 1.23 1996/04/19 19:34:19 bde Exp $
+ * $Id: ufs_disksubr.c,v 1.24 1996/05/03 15:05:17 phk Exp $
  */
 
 #include <sys/param.h>
@@ -370,7 +370,7 @@ diskerr(bp, dname, what, pri, blkdone, lp)
 	int unit = dkunit(bp->b_dev);
 	int slice = dkslice(bp->b_dev);
 	int part = dkpart(bp->b_dev);
-	register void (*pr) __P((const char *, ...));
+	register int (*pr) __P((const char *, ...));
 	char partname[2];
 	char *sname;
 	int sn;

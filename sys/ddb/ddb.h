@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ddb.h,v 1.9 1995/12/07 12:45:08 davidg Exp $
+ *	$Id: ddb.h,v 1.10 1995/12/10 13:32:43 phk Exp $
  */
 
 /*
@@ -73,7 +73,6 @@ boolean_t	db_map_current __P((struct vm_map *));
 boolean_t	db_map_equal __P((struct vm_map *, struct vm_map *));
 void		db_print_loc_and_inst __P((db_addr_t loc));
 void		db_printf __P((const char *fmt, ...));
-void		db_putchar __P((int c));
 void		db_read_bytes __P((vm_offset_t addr, int size, char *data));
 				/* machine-dependent */
 int		db_readline __P((char *lstart, int lsize));

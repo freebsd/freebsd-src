@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prf.c	8.3 (Berkeley) 1/21/94
- * $Id: subr_prf.c,v 1.34 1996/03/25 17:06:34 jkh Exp $
+ * $Id: subr_prf.c,v 1.35 1996/05/02 09:34:45 phk Exp $
  */
 
 #include "opt_ddb.h"
@@ -267,15 +267,16 @@ logpri(level)
 	msglogchar('>', NULL);
 }
 
-void
+int
 addlog(const char *fmt, ...)
 {
 	register int s;
 	va_list ap;
+	int retval;
 
 	s = splhigh();
 	va_start(ap, fmt);
-	kvprintf(fmt, msglogchar, NULL, 10, ap);
+	retval = kvprintf(fmt, msglogchar, NULL, 10, ap);
 	splx(s);
 	va_end(ap);
 	if (!log_open) {
@@ -287,6 +288,7 @@ addlog(const char *fmt, ...)
 		va_end(ap);
 	}
 	logwakeup();
+	return (retval);
 }
 
 int
