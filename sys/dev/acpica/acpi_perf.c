@@ -70,7 +70,9 @@ struct acpi_perf_softc {
 	device_t	 dev;
 	ACPI_HANDLE	 handle;
 	struct resource	*perf_ctrl;	/* Set new performance state. */
+	int		 perf_ctrl_type; /* Resource type for perf_ctrl. */
 	struct resource	*perf_status;	/* Check that transition succeeded. */
+	int		 perf_sts_type;	/* Resource type for perf_status. */
 	struct acpi_px	*px_states;	/* ACPI perf states. */
 	uint32_t	 px_count;	/* Total number of perf states. */
 	uint32_t	 px_max_avail;	/* Lowest index state available. */
@@ -148,9 +150,35 @@ acpi_perf_identify(driver_t *driver, device_t parent)
 static int
 acpi_perf_probe(device_t dev)
 {
+	ACPI_HANDLE handle;
+	ACPI_OBJECT *pkg;
+	struct resource *res;
+	ACPI_BUFFER buf;
+	int error, rid, type;
 
-	device_set_desc(dev, "ACPI CPU Frequency Control");
-	return (-10);
+	/*
+	 * Check the performance state registers.  If they are of type
+	 * functional fixed hardware, we don't attach to allow a more
+	 * specific hardware driver to manage this CPU.
+	 */
+	error = ENXIO;
+	handle = acpi_get_handle(dev);
+	buf.Pointer = NULL;
+	buf.Length = ACPI_ALLOCATE_BUFFER;
+	if (ACPI_FAILURE(AcpiEvaluateObject(handle, "_PCT", NULL, &buf)))
+		return (error);
+	pkg = (ACPI_OBJECT *)buf.Pointer;
+
+	rid = 0;
+	if (ACPI_PKG_VALID(pkg, 2) &&
+	    acpi_PkgGas(dev, pkg, 0, &type, &rid, &res) == 0) {
+		bus_release_resource(dev, type, rid, res);
+		device_set_desc(dev, "ACPI CPU Frequency Control");
+		error = -10;
+	}
+	AcpiOsFree(buf.Pointer);
+
+	return (error);
 }
 
 static int
@@ -240,16 +268,18 @@ acpi_perf_evaluate(device_t dev)
 		goto out;
 	}
 
-	error = acpi_PkgGas(sc->dev, pkg, 0, &sc->px_rid, &sc->perf_ctrl);
-	if (sc->perf_ctrl == NULL) {
+	error = acpi_PkgGas(sc->dev, pkg, 0, &sc->perf_ctrl_type, &sc->px_rid,
+	    &sc->perf_ctrl);
+	if (error) {
 		if (error != EOPNOTSUPP)
 			device_printf(dev, "failed in PERF_CTL attach\n");
 		goto out;
 	}
 	sc->px_rid++;
 
-	error = acpi_PkgGas(sc->dev, pkg, 1, &sc->px_rid, &sc->perf_status);
-	if (sc->perf_status == NULL) {
+	error = acpi_PkgGas(sc->dev, pkg, 1, &sc->perf_sts_type, &sc->px_rid,
+	    &sc->perf_status);
+	if (error) {
 		if (error != EOPNOTSUPP)
 			device_printf(dev, "failed in PERF_STATUS attach\n");
 		goto out;
