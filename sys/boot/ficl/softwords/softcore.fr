@@ -69,6 +69,8 @@ decimal 32 constant bl
 
 : local  ( name -- )  bl word count (local) ;  immediate
 
+: 2local  ( name -- ) bl word count (2local) ; immediate
+
 : end-locals  ( -- )  0 0 (local) ;  immediate
 
 \ #endif

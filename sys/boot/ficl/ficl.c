@@ -132,6 +132,38 @@ FICL_VM *ficlNewVM(void)
 
 
 /**************************************************************************
+                        f i c l F r e e V M
+** Removes the VM in question from the system VM list and deletes the
+** memory allocated to it. This is an optional call, since ficlTermSystem
+** will do this cleanup for you. This function is handy if you're going to
+** do a lot of dynamic creation of VMs.
+**************************************************************************/
+void ficlFreeVM(FICL_VM *pVM)
+{
+	FICL_VM *pList = vmList;
+
+	assert(pVM != 0);
+
+	if (vmList == pVM)
+	{
+		vmList = vmList->link;
+	}
+	else for (pList; pList != 0; pList = pList->link)
+	{
+		if (pList->link == pVM)
+		{
+			pList->link = pVM->link;
+			break;
+		}
+	}
+
+	if (pList)
+		vmDelete(pVM);
+	return;
+}
+
+
+/**************************************************************************
                         f i c l B u i l d
 ** Builds a word into the dictionary.
 ** Preconditions: system must be initialized, and there must
@@ -151,6 +183,7 @@ int ficlBuild(char *name, FICL_CODE code, char flags)
 	int err = ficlLockDictionary(TRUE);
 	if (err) return err;
 
+	assert(dictCellsAvail(dp) > sizeof (FICL_WORD) / sizeof (CELL));
     dictAppendWord(dp, name, code, flags);
 
 	ficlLockDictionary(FALSE);
@@ -187,9 +220,8 @@ int ficlExecC(FICL_VM *pVM, char *pText, FICL_INT size)
 
     int        except;
     jmp_buf    vmState;
+    jmp_buf   *oldState;
     TIB        saveTib;
-    FICL_VM         VM;
-    FICL_STACK      rStack;
 
     if (!pInterp)
         pInterp = ficlLookup("interpret");
@@ -203,11 +235,9 @@ int ficlExecC(FICL_VM *pVM, char *pText, FICL_INT size)
     vmPushTib(pVM, pText, size, &saveTib);
 
     /*
-    ** Save and restore pVM and pVM->rStack to enable nested calls to ficlExec 
+    ** Save and restore VM's jmp_buf to enable nested calls to ficlExec 
     */
-    memcpy((void*)&VM, (void*)pVM, sizeof(FICL_VM));
-    memcpy((void*)&rStack, (void*)pVM->rStack, sizeof(FICL_STACK));
-
+    oldState = pVM->pState;
     pVM->pState = &vmState; /* This has to come before the setjmp! */
     except = setjmp(vmState);
 
@@ -267,14 +297,11 @@ int ficlExecC(FICL_VM *pVM, char *pText, FICL_INT size)
 #endif
         }
         dictResetSearchOrder(dp);
-        memcpy((void*)pVM, (void*)&VM, sizeof(FICL_VM));
-        memcpy((void*)pVM->rStack, (void*)&rStack, sizeof(FICL_STACK));
-	stackReset(pVM->pStack);
-	pVM->base = 10;
+        vmReset(pVM);
         break;
    }
 
-    pVM->pState = VM.pState;
+    pVM->pState    = oldState;
     vmPopTib(pVM, &saveTib);
     return (except);
 }
@@ -393,7 +420,7 @@ int ficlExecXT(FICL_VM *pVM, FICL_WORD *pWord)
             vmThrow(pVM, except);
         }
         break;
-   }
+    }
 
     pVM->pState    = oldState;
     return (except);
@@ -543,3 +570,5 @@ void ficlTermSystem(void)
 
     return;
 }
+
+
