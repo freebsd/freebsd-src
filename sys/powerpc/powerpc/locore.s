@@ -82,10 +82,6 @@ GLOBAL(tmpstk)
 	.space	8208
 GLOBAL(esym)
 	.long	0			/* end of symbol table */
-GLOBAL(proc0paddr)
-	.long	0			/* proc0 p_addr */
-GLOBAL(PTmap)
-	.long	0			/* PTmap */
 
 GLOBAL(ofmsr)
 	.long	0			/* msr used in Open Firmware */
@@ -174,195 +170,13 @@ __start:
 	lis	4,end@ha
 	addi	4,4,end@l
 	mr	5,4
-	li	9,PAGE_MASK
-	add	4,4,9
-	andc	4,4,9
-	lis	9,OF_buf@ha
-	stw	4,OF_buf@l(9)
-	addi	4,4,PAGE_SIZE
-	lis	9,proc0paddr@ha
-	stw	4,proc0paddr@l(9)
-	addi	4,4,USPACE-FRAMELEN
-	mr	1,4
-	xor	0,0,0
-	stwu	0,-16(1)
 
 	lis	3,kernel_text@ha
 	addi	3,3,kernel_text@l
-#if 0
-	mr	5,6
-#endif
 
 	bl	powerpc_init
 	bl	mi_startup
 	b	OF_exit
-
-#if 0 /* XXX: We may switch back to this in the future. */
-/*
- * OpenFirmware entry point
- */
-ENTRY(openfirmware)
-	mflr	0			/* save return address */
-	stw	0,4(1)
-	stwu	1,-16(1)		/* setup stack frame */
-
-	mfmsr	4			/* save msr */
-	stw	4,8(1)
-
-	lis	4,openfirmware_entry@ha	/* get firmware entry point */
-	lwz	4,openfirmware_entry@l(4)
-	mtlr	4
-
-	li	0,0			/* clear battable translations */
-	mtdbatu	2,0
-	mtdbatu	3,0
-	mtibatu	2,0
-	mtibatu	3,0
-
-	lis	4,ofmsr@ha		/* Open Firmware msr */
-	lwz	4,ofmsr@l(4)
-	mtmsr	4
-	isync
-
-	lis	4,srsave@ha		/* save old SR */
-	addi	4,4,srsave@l
-	li	5,0
-1:	mfsrin	0,5
-	stw	0,0(4)
-	addi	4,4,4
-	addis	5,5,0x10000000@h
-	cmpwi	5,0
-	bne	1b
-
-	lis	4,ofw_pmap@ha		/* load OFW SR */
-	addi	4,4,ofw_pmap@l
-	lwz	0,PM_KERNELSR(4)
-	cmpwi	0,0			/* pm_sr[KERNEL_SR] == 0? */
-	beq	2f			/* then skip (not initialized yet) */
-	li	5,0
-1:	lwz	0,0(4)
-	mtsrin	0,5
-	addi	4,4,4
-	addis	5,5,0x10000000@h
-	cmpwi	5,0
-	bne	1b
-2:
-	blrl				/* call Open Firmware */
-
-	mfmsr	4
-	li	5,PSL_IR|PSL_DR
-	andc 	4,4,5
-	mtmsr	4
-	isync
-
-	lis	4,srsave@ha		/* restore saved SR */
-	addi	4,4,srsave@l
-	li	5,0
-1:	lwz	0,0(4)
-	mtsrin	0,5
-	addi	4,4,4
-	addis	5,5,0x10000000@h
-	cmpwi	5,0
-	bne	1b
-
-	lwz	4,8(1)			/* restore msr */
-	mtmsr	4
-	isync
-
-	lwz	1,0(1)			/* and return */
-	lwz	0,4(1)
-	mtlr	0
-	blr
-#endif
-
-/*
- * Switch to/from OpenFirmware real mode stack
- *
- * Note: has to be called as the very first thing in OpenFirmware interface
- * routines.
- * E.g.:
- * int
- * OF_xxx(arg1, arg2)
- * type arg1, arg2;
- * {
- *	static struct {
- *		char *name;
- *		int nargs;
- *		int nreturns;
- *		char *method;
- *		int arg1;
- *		int arg2;
- *		int ret;
- *	} args = {
- *		"xxx",
- *		2,
- *		1,
- *	};
- *
- *	ofw_stack();
- *	args.arg1 = arg1;
- *	args.arg2 = arg2;
- *	if (openfirmware(&args) < 0)
- *		return -1;
- *	return args.ret;
- * }
- */
-
-	.local	firmstk
-	.comm	firmstk,PAGE_SIZE,8
-
-ENTRY(ofw_stack)
-	mfmsr	8			/* turn off interrupts */
-	andi.	0,8,~(PSL_EE|PSL_RI)@l
-	mtmsr	0
-	stw	8,4(1)			/* abuse return address slot */
-
-	lwz	5,0(1)			/* get length of stack frame */
-	subf	5,1,5
-
-	lis	7,firmstk+PAGE_SIZE-8@ha
-	addi	7,7,firmstk+PAGE_SIZE-8@l
-	lis	6,ofw_back@ha
-	addi	6,6,ofw_back@l
-	subf	4,5,7			/* make room for stack frame on
-					   new stack */
-	stw	6,-4(7)			/* setup return pointer */
-	stwu	1,-8(7)
-	
-	stw	7,-8(4)
-
-	addi	3,1,8
-	addi	1,4,-8
-	subi	5,5,8
-
-	cmpw	3,4
-	beqlr
-
-	mr	0,5
-	addi	5,5,-1
-	cmpwi	0,0
-	beqlr
-
-1:	lwz	0,0(3)
-	stw	0,0(4)
-	addi	3,3,1
-	addi	4,4,1
-	mr	0,5
-	addi	5,5,-1
-	cmpwi	0,0
-	bne	1b
-	blr
-
-ofw_back:
-	lwz	1,0(1)			/* get callers original stack pointer */
-
-	lwz	0,4(1)			/* get saved msr from abused slot */
-	mtmsr	0
-	
-	lwz	1,0(1)			/* return */
-	lwz	0,4(1)
-	mtlr	0
-	blr
 
 /*
  * int setfault()
