@@ -344,12 +344,7 @@ main(argc, argv)
 	 * Yylex returns 0 when ^D or 'exit' is typed. 
 	 */
 
-	printf("> ");
-	fflush(stdout);
-	while(yylex()) {
-	    printf("> ");
-	    fflush(stdout);
-	}
+	while(yylex());
     }
     exit(0);
 }
