@@ -44,7 +44,7 @@ main(int argc, char **argv)
       }
     }
   } else {
-    while (ovfcp = getvfsent()) {
+    while ((ovfcp = getvfsent()) != NULL) {
       printf(FMT, ovfcp->vfc_name, ovfcp->vfc_refcount,
              fmt_flags(ovfcp->vfc_flags));
     }
