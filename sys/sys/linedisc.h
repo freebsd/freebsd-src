@@ -151,6 +151,7 @@ typedef void devfs_remove_t __P((dev_t dev));
 /*
  * Flags for d_flags.
  */
+#define	D_MEMDISK	0x10000		/* memory type disk */
 #define	D_NAGGED	0x20000		/* nagged about missing make_dev() */
 #define	D_CANFREE	0x40000		/* can free blocks */
 #define	D_TRACKCLOSE	0x80000		/* track all closes */

@@ -62,10 +62,6 @@
 
 MALLOC_DEFINE(M_MFSNODE, "MFS node", "MFS vnode private part");
 
-#ifdef MFS_ROOT
-static caddr_t	mfs_rootbase;	/* address of mini-root in kernel virtual memory */
-static u_long	mfs_rootsize;	/* size of mini-root in bytes */
-#endif
 
 static int mfs_minor;		/* used for building internal dev_t */
 
@@ -78,9 +74,6 @@ static int	mfs_start __P((struct mount *mp, int flags, struct proc *p));
 static int	mfs_statfs __P((struct mount *mp, struct statfs *sbp, 
 			struct proc *p));
 static int	mfs_init __P((struct vfsconf *));
-#ifdef MFS_ROOT
-static void	mfs_takeroot __P((void *));
-#endif
 
 static struct cdevsw mfs_cdevsw = {
 	/* open */      noopen,
@@ -119,35 +112,6 @@ static struct vfsops mfs_vfsops = {
 
 VFS_SET(mfs_vfsops, mfs, 0);
 
-#ifdef MFS_ROOT
-
-#ifdef MFS_ROOT_SIZE
-/* Image was already written into mfs_root */
-static u_char mfs_root[MFS_ROOT_SIZE*1024] = "MFS Filesystem goes here";
-static u_char end_mfs_root[] __unused = "MFS Filesystem had better STOP here";
-#endif
-
-u_char *
-mfs_getimage(void)
-{
-#ifdef MFS_ROOT_SIZE
-	/* Get it from compiled-in code */
-	return mfs_root;
-#else
-	caddr_t p;
-	vm_offset_t *q;
-
-	p = preload_search_by_type("mfs_root");
-	if (!p)
-		return NULL;
-	q = (vm_offset_t *)preload_search_info(p, MODINFO_ADDR);
-	if (!q)
-		return NULL;
-	return (u_char *)*q;
-#endif
-}
-
-#endif	/* MFS_ROOT */
 
 /*
  * mfs_mount
@@ -199,9 +163,6 @@ mfs_mount(mp, path, data, ndp, p)
 	struct mfs_args args;
 	struct ufsmount *ump;
 	struct fs *fs;
-#ifdef MFS_ROOT
-	u_char *base;
-#endif
 	struct mfsnode *mfsp;
 	size_t size;
 	int flags, err;
@@ -217,65 +178,8 @@ mfs_mount(mp, path, data, ndp, p)
 		 ***
 		 */
 
-#ifdef MFS_ROOT
-		/* Get it from preload area */
-		base = mfs_getimage();
-		if (!base)
-		    panic("No mfs_root image loaded; can't continue!");
-		fs = (struct fs *)(base + SBOFF);
-		/* check for valid super block */
-		if (fs->fs_magic != FS_MAGIC || fs->fs_bsize > MAXBSIZE ||
-		    fs->fs_bsize < sizeof(struct fs)) {
-			panic("MFS image is invalid!!");
-		}
-
-		mfs_rootbase = base;
-		mfs_rootsize = fs->fs_fsize * fs->fs_size;
-
-		/* remake rootdev, since vfs_mountroot will have it wrong */
-		rootdev = make_dev(&mfs_cdevsw, mfs_minor, 
-		    0, 0, 0, "MFS%d", mfs_minor);
-		rootdev->si_bsize_phys = DEV_BSIZE;
-		rootdev->si_iosize_max = DFLTPHYS;
-		mfs_minor++;
-
-		if ((err = bdevvp(rootdev, &rootvp))) {
-			printf("mfs_mount: can't find rootvp\n");
-			return (err);
-		}
-
-		/*
-		 * FS specific handling
-		 */
-		MALLOC(mfsp, struct mfsnode *, sizeof *mfsp, M_MFSNODE, M_WAITOK);
-		rootvp->v_data = mfsp;
-		rootvp->v_op = mfs_vnodeop_p;
-		rootvp->v_tag = VT_MFS;
-		mfsp->mfs_baseoff = mfs_rootbase;
-		mfsp->mfs_size = mfs_rootsize;
-		mfsp->mfs_vnode = rootvp;
-		mfsp->mfs_pid = p->p_pid;
-		mfsp->mfs_active = 1;
-		bufq_init(&mfsp->buf_queue);
-
-		/* MFS wants to be read/write */
-		mp->mnt_flag &= ~MNT_RDONLY;
-
-		/*
-		 * Attempt mount
-		 */
-		if( (err = ffs_mountfs(rootvp, mp, p, M_MFSNODE)) != 0 ) {
-			/* fs specific cleanup (if any)*/
-			rootvp->v_data = NULL;
-			FREE(mfsp, M_MFSNODE);
-			goto error_1;
-		}
-
-		goto dostatfs;		/* success*/
-#else	/* !MFS_ROOT */
 		/* you loose */
 		panic("mfs_mount: mount MFS as root: not configured!");
-#endif /* MFS_ROOT */
 	}
 
 	/*
@@ -374,9 +278,6 @@ mfs_mount(mp, path, data, ndp, p)
 		goto error_2;
 	}
 
-#ifdef MFS_ROOT
-dostatfs:
-#endif
 	/*
 	 * Initialize FS stat information in mount struct; uses both
 	 * mp->mnt_stat.f_mntonname and mp->mnt_stat.f_mntfromname
@@ -498,25 +399,3 @@ mfs_init(vfsp)
 	return (0);
 }
 
-#ifdef MFS_ROOT
-/*
- * Just before root is mounted, check to see if we are a candidate
- * to supply it.  If we have an image available, override the guessed
- * defaults.
- */
-static void
-mfs_takeroot(junk)
-	void *junk;
-{
-	if (bootverbose)
-		printf("Considering MFS root f/s...");
-	if (mfs_getimage()) {
-		rootdevnames[0] = "mfs:";
-		printf("preloaded filesystem found.\n");
-	} else if (bootverbose) {
-		printf("not found.\n");
-	}
-}
-
-SYSINIT(mfs_root, SI_SUB_MOUNT_ROOT, SI_ORDER_FIRST, mfs_takeroot, NULL);
-#endif

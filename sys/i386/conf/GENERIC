@@ -31,8 +31,8 @@ options 	MATH_EMULATE		#Support for x87 emulation
 options 	INET			#InterNETworking
 options 	FFS			#Berkeley Fast Filesystem
 options 	FFS_ROOT		#FFS usable as root device [keep this!]
+options 	MD_ROOT			#MD is a potential root device
 options 	MFS			#Memory Filesystem
-options 	MFS_ROOT		#MFS usable as root device, "MFS" req'ed
 options 	NFS			#Network Filesystem
 options 	NFS_ROOT		#NFS usable as root device, "NFS" req'ed
 options 	MSDOSFS			#MSDOS Filesystem
@@ -206,6 +206,7 @@ pseudo-device	ppp	1	# Kernel PPP
 pseudo-device	tun		# Packet tunnel.
 pseudo-device	pty		# Pseudo-ttys (telnet etc)
 pseudo-device	gzip		# Exec gzipped a.out's
+pseudo-device	md		# Memory "disks"
 
 # The `bpf' pseudo-device enables the Berkeley Packet Filter.
 # Be aware of the administrative consequences of enabling this!
