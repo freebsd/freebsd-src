@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 #include "md4.h"
 
 typedef unsigned char *POINTER;
+typedef const unsigned char *CONST_POINTER;
 typedef u_int16_t UINT2;
 typedef u_int32_t UINT4;
 
@@ -111,35 +112,35 @@ MD4_CTX *context;                                        /* context */
 const unsigned char *input;                                /* input block */
 unsigned int inputLen;                     /* length of input block */
 {
-  unsigned int i, index, partLen;
+  unsigned int i, idx, partLen;
 
   /* Compute number of bytes mod 64 */
-  index = (unsigned int)((context->count[0] >> 3) & 0x3F);
+  idx = (unsigned int)((context->count[0] >> 3) & 0x3F);
   /* Update number of bits */
   if ((context->count[0] += ((UINT4)inputLen << 3))
       < ((UINT4)inputLen << 3))
     context->count[1]++;
   context->count[1] += ((UINT4)inputLen >> 29);
 
-  partLen = 64 - index;
+  partLen = 64 - idx;
   /* Transform as many times as possible.
    */
   if (inputLen >= partLen) {
     memcpy
-      ((POINTER)&context->buffer[index], (POINTER)input, partLen);
+      ((POINTER)&context->buffer[idx], (CONST_POINTER)input, partLen);
     MD4Transform (context->state, context->buffer);
 
     for (i = partLen; i + 63 < inputLen; i += 64)
       MD4Transform (context->state, &input[i]);
 
-    index = 0;
+    idx = 0;
   }
   else
     i = 0;
 
   /* Buffer remaining input */
   memcpy
-    ((POINTER)&context->buffer[index], (POINTER)&input[i],
+    ((POINTER)&context->buffer[idx], (CONST_POINTER)&input[i],
      inputLen-i);
 }
 
@@ -148,15 +149,15 @@ void MD4Pad (context)
 MD4_CTX *context;                                        /* context */
 {
   unsigned char bits[8];
-  unsigned int index, padLen;
+  unsigned int idx, padLen;
 
   /* Save number of bits */
   Encode (bits, context->count, 8);
 
   /* Pad out to 56 mod 64.
    */
-  index = (unsigned int)((context->count[0] >> 3) & 0x3f);
-  padLen = (index < 56) ? (56 - index) : (120 - index);
+  idx = (unsigned int)((context->count[0] >> 3) & 0x3f);
+  padLen = (idx < 56) ? (56 - idx) : (120 - idx);
   MD4Update (context, PADDING, padLen);
 
   /* Append length (before padding) */
