@@ -314,7 +314,7 @@ digi_init(struct digi_softc *sc)
 
 		for (i = 0; ((sc->pcibus ? PCIPORT : inb(sc->port)) &
 		    FEPMASK) != FEPRST; i++) {
-			if (i > 100) {
+			if (i > hz) {
 				log(LOG_ERR, "digi%d: %s init reset failed\n",
 				    sc->res.unit, sc->name);
 				return (EIO);
@@ -370,7 +370,7 @@ digi_init(struct digi_softc *sc)
 
 	for (i = 0; ((sc->pcibus ? PCIPORT : inb(sc->port)) & FEPMASK)
 	    == resp; i++) {
-		if (i > 100) {
+		if (i > hz) {
 			log(LOG_ERR, "digi%d: BIOS start failed\n",
 			    sc->res.unit);
 			return (EIO);
@@ -381,7 +381,7 @@ digi_init(struct digi_softc *sc)
 	DLOG(DIGIDB_INIT, (sc->dev, "BIOS started after %d us\n", i));
 
 	for (i = 0; vW(ptr) != *(u_short *)"GD"; i++) {
-		if (i > 200) {
+		if (i > 2*hz) {
 			log(LOG_ERR, "digi%d: BIOS boot failed "
 			    "(0x%02x != 0x%02x)\n",
 			    sc->res.unit, vW(ptr), *(u_short *)"GD");
@@ -421,7 +421,7 @@ digi_init(struct digi_softc *sc)
 		outb(sc->port, FEPCLR | FEPMEM);
 
 		for (i = 0; W(ptr); i++) {
-			if (i > 100) {
+			if (i > hz) {
 				log(LOG_ERR, "digi%d: FEP/OS move failed\n",
 				    sc->res.unit);
 				sc->hidewin(sc);
@@ -506,7 +506,7 @@ digi_init(struct digi_softc *sc)
 
 	/* Now wait 'till the FEP/OS has booted */
 	for (i = 0; vW(ptr) != *(u_short *)"OS"; i++) {
-		if (i > 200) {
+		if (i > 2*hz) {
 			log(LOG_ERR, "digi%d: FEP/OS start failed "
 			    "(0x%02x != 0x%02x)\n",
 			    sc->res.unit, vW(ptr), *(u_short *)"OS");
