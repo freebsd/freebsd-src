@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2000,2001 Jonathan Chen.
  * All rights reserved.
  *

@@ -1,4 +1,4 @@
-/*
+/*-
  * Platform (FreeBSD) dependent common attachment code for Qlogic adapters.
  *
  * Copyright (c) 1997, 1998, 1999, 2000, 2001 by Matthew Jacob

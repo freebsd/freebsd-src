@@ -5,7 +5,7 @@
  * \author Eric Anholt <anholt@FreeBSD.org>
  */
 
-/*
+/*-
  * Copyright 2003 Eric Anholt.
  * All Rights Reserved.
  *

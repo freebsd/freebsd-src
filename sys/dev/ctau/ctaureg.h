@@ -1,4 +1,4 @@
-/*
+/*-
  * Defines for Cronyx-Tau adapter, based on Hitachi HD64570 controller.
  *
  * Copyright (C) 1996 Cronyx Engineering.

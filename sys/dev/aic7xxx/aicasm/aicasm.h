@@ -1,4 +1,4 @@
-/*
+/*-
  * Assembler for the sequencer program downloaded to Aic7xxx SCSI host adapters
  *
  * Copyright (c) 1997 Justin T. Gibbs.

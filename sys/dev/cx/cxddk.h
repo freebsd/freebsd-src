@@ -1,4 +1,4 @@
-/*
+/*-
  * Defines for Cronyx-Sigma adapter driver.
  *
  * Copyright (C) 1994-2001 Cronyx Engineering.

@@ -1,4 +1,4 @@
-/*
+/*-
  * Support the ENSONIQ AudioPCI board and Creative Labs SoundBlaster PCI
  * boards based on the ES1370, ES1371 and ES1373 chips.
  *

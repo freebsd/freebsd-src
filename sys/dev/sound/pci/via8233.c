@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2002 Orion Hodson <orion@freebsd.org>
  * Portions of this code derived from via82c686.c:
  * 	Copyright (c) 2000 David Jones <dej@ox.org>

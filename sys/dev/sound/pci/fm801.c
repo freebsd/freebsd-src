@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2000 Dmitry Dicky diwil@dataart.com
  * All rights reserved.
  *

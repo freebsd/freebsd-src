@@ -1,6 +1,6 @@
 /* drm_dma.c -- DMA IOCTL and function support
- * Created: Fri Oct 18 2003 by anholt@FreeBSD.org
- *
+ * Created: Fri Oct 18 2003 by anholt@FreeBSD.org */
+/*-
  * Copyright 2003 Eric Anholt
  * All Rights Reserved.
  *

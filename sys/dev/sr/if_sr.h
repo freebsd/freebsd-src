@@ -1,4 +1,4 @@
-/*
+/*-
  * if_sr.h
  *
  * Copyright (C) 1997-1999 Whistle Communications Inc.

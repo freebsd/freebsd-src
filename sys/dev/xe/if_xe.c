@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-/*
+/*-
  * Portions of this software were derived from Werner Koch's xirc2ps driver
  * for Linux under the terms of the following license (from v1.30 of the
  * xirc2ps driver):

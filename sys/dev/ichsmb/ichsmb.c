@@ -1,5 +1,4 @@
-
-/*
+/*-
  * ichsmb.c
  *
  * Author: Archie Cobbs <archie@freebsd.org>

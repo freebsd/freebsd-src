@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2000 Iwasa Kazmi
  * All rights reserved.
  *
