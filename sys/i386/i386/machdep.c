@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.160 1995/12/16 18:52:08 peter Exp $
+ *	$Id: machdep.c,v 1.161 1995/12/19 14:30:26 davidg Exp $
  */
 
 #include "npx.h"
@@ -1068,7 +1068,7 @@ struct gate_descriptor idt[NIDT];	/* interrupt descriptor table */
 union descriptor ldt[NLDT];		/* local descriptor table */
 
 static struct i386tss dblfault_tss;
-static char dblfault_stack[512];
+static char dblfault_stack[PAGE_SIZE];
 
 extern  struct user *proc0paddr;
 
