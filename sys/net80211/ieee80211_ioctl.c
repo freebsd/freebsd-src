@@ -376,6 +376,43 @@ findrate(struct ieee80211com *ic, enum ieee80211_phymode mode, int rate)
 #undef IEEERATE
 }
 
+/*
+ * Prepare to do a user-initiated scan for AP's.  If no
+ * current/default channel is setup or the current channel
+ * is invalid then pick the first available channel from
+ * the active list as the place to start the scan.
+ */
+static int
+ieee80211_setupscan(struct ieee80211com *ic)
+{
+	u_char *chanlist = ic->ic_chan_active;
+	int i;
+
+	if (ic->ic_ibss_chan == NULL ||
+	    isclr(chanlist, ieee80211_chan2ieee(ic, ic->ic_ibss_chan))) {
+		for (i = 0; i <= IEEE80211_CHAN_MAX; i++)
+			if (isset(chanlist, i)) {
+				ic->ic_ibss_chan = &ic->ic_channels[i];
+				goto found;
+			}
+		return EINVAL;			/* no active channels */
+found:
+		;
+	}
+	if (ic->ic_bss->ni_chan == IEEE80211_CHAN_ANYC ||
+	    isclr(chanlist, ieee80211_chan2ieee(ic, ic->ic_bss->ni_chan)))
+		ic->ic_bss->ni_chan = ic->ic_ibss_chan;
+	/*
+	 * XXX don't permit a scan to be started unless we
+	 * know the device is ready.  For the moment this means
+	 * the device is marked up as this is the required to
+	 * initialize the hardware.  It would be better to permit
+	 * scanning prior to being up but that'll require some
+	 * changes to the infrastructure.
+	 */
+	return (ic->ic_if.if_flags & IFF_UP) ? 0 : ENETRESET;
+}
+
 int
 ieee80211_cfgset(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
@@ -659,8 +696,9 @@ ieee80211_cfgset(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case WI_RID_SCAN_REQ:			/* XXX wicontrol */
 		if (ic->ic_opmode == IEEE80211_M_HOSTAP)
 			break;
-		/* NB: ignore channel list and tx rate parameters */
-		error = ieee80211_new_state(ic, IEEE80211_S_SCAN, -1);
+		error = ieee80211_setupscan(ic);
+		if (error == 0)
+			error = ieee80211_new_state(ic, IEEE80211_S_SCAN, -1);
 		break;
 	case WI_RID_SCAN_APS:
 		if (ic->ic_opmode == IEEE80211_M_HOSTAP)
@@ -692,18 +730,11 @@ ieee80211_cfgset(struct ifnet *ifp, u_long cmd, caddr_t data)
 		}
 		memcpy(ic->ic_chan_active, chanlist,
 		    sizeof(ic->ic_chan_active));
-		if (isclr(chanlist, ieee80211_chan2ieee(ic, ic->ic_ibss_chan))) {
-			for (i = 0; i <= IEEE80211_CHAN_MAX; i++)
-				if (isset(chanlist, i)) {
-					ic->ic_ibss_chan = &ic->ic_channels[i];
-					break;
-				}
-		}
-		if (isclr(chanlist, ieee80211_chan2ieee(ic, ic->ic_bss->ni_chan)))
-			ic->ic_bss->ni_chan = ic->ic_ibss_chan;
-		if (wreq.wi_type == WI_RID_CHANNEL_LIST)
+		error = ieee80211_setupscan(ic);
+		if (wreq.wi_type == WI_RID_CHANNEL_LIST) {
+			/* NB: ignore error from ieee80211_setupscan */
 			error = ENETRESET;
-		else
+		} else if (error == 0)
 			error = ieee80211_new_state(ic, IEEE80211_S_SCAN, -1);
 		break;
 	default:
