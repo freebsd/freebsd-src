@@ -1,12 +1,14 @@
-#	$Id: Makefile,v 1.36 1998/08/30 02:46:35 jb Exp $
+#	$Id: Makefile,v 1.37 1998/09/14 22:49:01 jdp Exp $
 
 PROG = gdb
 
 GDBDIR=	${.CURDIR}/../../../../contrib/gdb
 .if ${OBJFORMAT} == elf
 BFDDIR= ${.CURDIR}/../../binutils/libbfd/${MACHINE_ARCH}
+BINDIR=	/usr/libexec/elf
 .else
 BFDDIR= ${.CURDIR}/../bfd
+BINDIR=	/usr/libexec/aout
 .endif
 .PATH:	${GDBDIR}/gdb
 .PATH:	${GDBDIR}/opcodes
