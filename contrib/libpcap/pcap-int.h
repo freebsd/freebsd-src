@@ -30,7 +30,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * @(#) $Header: pcap-int.h,v 1.18 96/11/27 18:43:09 leres Exp $ (LBL)
+ * $FreeBSD$
+ * @(#) $Header: /tcpdump/master/libpcap/pcap-int.h,v 1.20 1999/11/21 01:10:20 assar Exp $ (LBL)
  */
 
 #ifndef pcap_int_h
@@ -101,6 +102,27 @@ struct pcap {
 	char errbuf[PCAP_ERRBUF_SIZE];
 };
 
+/*
+ * This is a timeval as stored in disk in a dumpfile.
+ * It has to use the same types everywhere, independent of the actual
+ * `struct timeval'
+ */
+
+struct pcap_timeval {
+    bpf_int32 tv_sec;		/* seconds */
+    bpf_int32 tv_usec;		/* microseconds */
+};
+
+/*
+ * How a `pcap_pkthdr' is actually stored in the dumpfile.
+ */
+
+struct pcap_sf_pkthdr {
+    struct pcap_timeval ts;	/* time stamp */
+    bpf_u_int32 caplen;		/* length of portion present */
+    bpf_u_int32 len;		/* length this packet (off wire) */
+};
+
 int	yylex(void);
 
 #ifndef min
@@ -112,7 +134,7 @@ int	pcap_offline_read(pcap_t *, int, pcap_handler, u_char *);
 int	pcap_read(pcap_t *, int cnt, pcap_handler, u_char *);
 
 /* Ultrix pads to make everything line up on a nice boundary */
-#if defined(ultrix) || defined(__alpha)
+#if defined(ultrix) || defined(__alpha) || defined(__NetBSD__)
 #define       PCAP_FDDIPAD 3
 #endif
 
