@@ -311,9 +311,9 @@ main(int argc, char **argv)
 
 	if (dev[0] != '/') {
 		if (isdigit(dev[0]))
-			sprintf(devname, "/dev/uhid%s", dev);
+			snprintf(devname, sizeof(devname), "/dev/uhid%s", dev);
 		else
-			sprintf(devname, "/dev/%s", dev);
+			snprintf(devname, sizeof(devname), "/dev/%s", dev);
 		dev = devname;
 	}
 
