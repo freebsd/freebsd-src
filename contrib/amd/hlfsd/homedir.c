@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2001 Erez Zadok
+ * Copyright (c) 1997-2003 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: homedir.c,v 1.5.2.1 2001/01/10 03:23:36 ezk Exp $
+ * $Id: homedir.c,v 1.5.2.10 2002/12/27 22:45:08 ezk Exp $
  * $FreeBSD$
  *
  * HLFSD was written at Columbia University Computer Science Department, by
@@ -68,34 +68,31 @@ static uid2home_t *lastchild;
 static uid2home_t *pwtab;
 static void delay(uid2home_t *, int);
 static void table_add(int, const char *, const char *);
+static char mboxfile[MAXPATHLEN];
+static char *root_home;		/* root's home directory */
 
 /* GLOBAL FUNCTIONS */
 char *homeof(char *username);
 int uidof(char *username);
 
 /* GLOBALS VARIABLES */
-char mboxfile[MAXPATHLEN];
 username2uid_t *untab;		/* user name table */
-
 
 /*
  * Return the home directory pathname for the user with uid "userid".
  */
 char *
-homedir(int userid)
+homedir(int userid, int groupid)
 {
   static char linkval[MAXPATHLEN + 1];
   static struct timeval tp;
   uid2home_t *found;
   char *homename;
   struct stat homestat;
+  int old_groupid, old_userid;
 
   clock_valid = 0;		/* invalidate logging clock */
 
-  if ((int) userid == 0) {	/* force superuser to use "/" as home */
-    sprintf(linkval, "/%s", home_subdir);
-    return linkval;
-  }
   if ((found = plt_search(userid)) == (uid2home_t *) NULL) {
     return alt_spooldir;	/* use alt spool for unknown uid */
   }
@@ -105,7 +102,10 @@ homedir(int userid)
     found->last_status = 1;
     return alt_spooldir;	/* use alt spool for / or rel. home */
   }
-  sprintf(linkval, "%s/%s", homename, home_subdir);
+  if ((int) userid == 0)	/* force all uid 0 to use root's home */
+    sprintf(linkval, "%s/%s", root_home, home_subdir);
+  else
+    sprintf(linkval, "%s/%s", homename, home_subdir);
 
   if (noverify) {
     found->last_status = 0;
@@ -114,9 +114,9 @@ homedir(int userid)
 
   /*
    * To optimize hlfsd, we don't actually check the validity of the
-   * symlink if it has been in checked in the last N seconds.  It is
+   * symlink if it has been checked in the last N seconds.  It is
    * very likely that the link, machine, and filesystem are still
-   * valid, as long as N is small.  But if N ls large, that may not be
+   * valid, as long as N is small.  But if N is large, that may not be
    * true.  That's why the default N is 5 minutes, but we allow the
    * user to override this value via a command line option.  Note that
    * we do not update the last_access_time each time it is accessed,
@@ -144,13 +144,33 @@ homedir(int userid)
   amuDebug(D_FORK) {
 #endif /* DEBUG */
     /* fork child to process request if none in progress */
-    if (found->child && kill(found->child, 0))
+    if (found->child && kill(found->child, 0) < 0)
       found->child = 0;
 
     if (found->child)
       delay(found, 5);		/* wait a bit if in progress */
-    if (found->child) {		/* better safe than sorry - maybe */
-      found->last_status = 1;
+
+#if defined(DEBUG) && defined(HAVE_WAITPID)
+    if (found->child) {
+      /* perhaps it's a child we lost count of? let's wait on it */
+      int status, child;
+      if ((child = waitpid((pid_t) found->child, &status, WNOHANG)) > 0) {
+	plog(XLOG_ERROR, "found lost child %d", child);
+	found->child = 0;
+	if (WIFEXITED(status))
+	  found->last_status = WEXITSTATUS(status);
+	else if (WIFSIGNALED(status))
+	  found->last_status = -WTERMSIG(status);
+	else {
+	  plog(XLOG_ERROR, "unknown child exit status (%d) ???", status);
+	  found->last_status = 255;
+	}
+      }
+    }
+#endif /* DEBUG && HAVE_WAITPID */
+
+    if (found->child) {
+      found->last_status = 1;	/* better safe than sorry - maybe */
       return alt_spooldir;
     }
     if ((found->child = fork()) < 0) {
@@ -184,21 +204,28 @@ homedir(int userid)
    *
    */
   am_set_mypid();		/* for logging routines */
-  if (seteuid(userid) < 0) {
+  if ((old_groupid = setgid(groupid)) < 0) {
+    plog(XLOG_WARNING, "could not setgid to %d: %m", groupid);
+    return linkval;
+  }
+  if ((old_userid = seteuid(userid)) < 0) {
     plog(XLOG_WARNING, "could not seteuid to %d: %m", userid);
+    setgid(old_groupid);
     return linkval;
   }
   if (hlfsd_stat(linkval, &homestat) < 0) {
     if (errno == ENOENT) {	/* make the spool dir if possible */
       /* don't use recursive mkdirs here */
       if (mkdir(linkval, PERS_SPOOLMODE) < 0) {
-	seteuid(0);
+	seteuid(old_userid);
+	setgid(old_groupid);
 	plog(XLOG_WARNING, "can't make directory %s: %m", linkval);
 	return alt_spooldir;
       }
       /* fall through to testing the disk space / quota */
     } else {			/* the home dir itself must not exist then */
-      seteuid(0);
+      seteuid(old_userid);
+      setgid(old_groupid);
       plog(XLOG_WARNING, "bad link to %s: %m", linkval);
       return alt_spooldir;
     }
@@ -213,11 +240,13 @@ homedir(int userid)
    * We are still seteuid to the user at this point.
    */
   if (hlfsd_diskspace(linkval) < 0) {
-    seteuid(0);
+    seteuid(old_userid);
+    setgid(old_groupid);
     plog(XLOG_WARNING, "no more space in %s: %m", linkval);
     return alt_spooldir;
   } else {
-    seteuid(0);
+    seteuid(old_userid);
+    setgid(old_groupid);
     return linkval;
   }
 }
@@ -295,12 +324,21 @@ interlock(int signum)
   int child;
   uid2home_t *lostchild;
   int status;
+  int max_errors = 10;				/* avoid infinite loops */
 
 #ifdef HAVE_WAITPID
-  while ((child = waitpid((pid_t) -1, &status, WNOHANG)) > 0) {
+  while ((child = waitpid((pid_t) -1, &status, WNOHANG)) != 0) {
 #else /* not HAVE_WAITPID */
-  while ((child = wait3(&status, WNOHANG, (struct rusage *) 0)) > 0) {
+  while ((child = wait3(&status, WNOHANG, (struct rusage *) 0)) != 0) {
 #endif /* not HAVE_WAITPID */
+
+    if (child < 0) {
+      plog(XLOG_WARNING, "waitpid/wait3: %m");
+      if (--max_errors > 0)
+	continue;
+      else
+	break;
+    }
 
     /* high chances this was the last child forked */
     if (lastchild && lastchild->child == child) {
@@ -308,17 +346,33 @@ interlock(int signum)
 
       if (WIFEXITED(status))
 	lastchild->last_status = WEXITSTATUS(status);
+      else if (WIFSIGNALED(status))
+	lastchild->last_status = -WTERMSIG(status);
+      else {
+	plog(XLOG_ERROR, "unknown child exit status (%d) ???", status);
+	lastchild->last_status = 255;
+      }
       lastchild = (uid2home_t *) NULL;
     } else {
       /* and if not, we have to search for it... */
+      int found = 0;
       for (lostchild = pwtab; lostchild < &pwtab[cur_pwtab_num]; lostchild++) {
 	if (lostchild->child == child) {
+	  lostchild->child = 0;
 	  if (WIFEXITED(status))
 	    lostchild->last_status = WEXITSTATUS(status);
-	  lostchild->child = 0;
+	  else if (WIFSIGNALED(status))
+	    lostchild->last_status = -WTERMSIG(status);
+	  else {
+	    plog(XLOG_ERROR, "unknown child exit status (%d) ???", status);
+	    lostchild->last_status = 255;
+	  }
+	  found = 1;
 	  break;
 	}
       }
+      if (!found)
+	plog(XLOG_ERROR, "no record of child %d found???", child);
     }
   }
 }
@@ -411,7 +465,6 @@ mailbox(int uid, char *username)
 
 static int
 plt_compare_fxn(const voidp x, const voidp y)
-
 {
   uid2home_t *i = (uid2home_t *) x;
   uid2home_t *j = (uid2home_t *) y;
@@ -560,6 +613,18 @@ plt_init(void)
   hlfsd_setpwent();			/* prepare to read passwd entries */
   while ((pent_p = hlfsd_getpwent()) != (struct passwd *) NULL) {
     table_add(pent_p->pw_uid, pent_p->pw_dir, pent_p->pw_name);
+    if (STREQ("root", pent_p->pw_name)) {
+      int len;
+      if (root_home)
+	XFREE(root_home);
+      root_home = strdup(pent_p->pw_dir);
+      len = strlen(root_home);
+      /* remove any trailing '/' chars from root's home (even if just one) */
+      while (len > 0 && root_home[len - 1] == '/') {
+	len--;
+	root_home[len] = '\0';
+      }
+    }
   }
   hlfsd_endpwent();
 
@@ -567,6 +632,9 @@ plt_init(void)
 	plt_compare_fxn);
   qsort((char *) untab, cur_pwtab_num, sizeof(username2uid_t),
 	unt_compare_fxn);
+
+  if (!root_home)
+    root_home = strdup("");
 
   plog(XLOG_INFO, "password map read and sorted");
 }
@@ -609,6 +677,9 @@ plt_reset(void)
       untab[i].home = (char *) NULL;	/* only a ptr to pwtab[i].home  */
     }
   cur_pwtab_num = 0;		/* zero current size */
+
+  if (root_home)
+    XFREE(root_home);
 
   return 0;			/* resetting ok */
 }
@@ -735,7 +806,7 @@ plt_print(int signum)
 #else /* not HAVE_MKSTEMP */
   mktemp(dumptmp);
   if (!dumptmp) {
-    plot(XLOG_ERROR, "cannot create temporary dump file");
+    plog(XLOG_ERROR, "cannot create temporary dump file");
     return;
   }
   dumpfd = open(dumptmp, O_RDONLY);

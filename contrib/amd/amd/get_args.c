@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2001 Erez Zadok
+ * Copyright (c) 1997-2003 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: get_args.c,v 1.7.2.1 2001/01/10 03:23:05 ezk Exp $
+ * $Id: get_args.c,v 1.7.2.5 2002/12/27 22:44:34 ezk Exp $
  * $FreeBSD$
  *
  */
@@ -86,7 +86,7 @@ get_version_string(void)
 
   vers = xmalloc(2048 + wire_buf_len);
   sprintf(vers, "%s\n%s\n%s\n%s\n",
-	  "Copyright (c) 1997-2001 Erez Zadok",
+	  "Copyright (c) 1997-2003 Erez Zadok",
 	  "Copyright (c) 1990 Jan-Simon Pendry",
 	  "Copyright (c) 1990 Imperial College of Science, Technology & Medicine",
 	  "Copyright (c) 1990 The Regents of the University of California.");
@@ -128,12 +128,20 @@ get_args(int argc, char *argv[])
 {
   int opt_ch;
   FILE *fp = stdin;
+  char getopt_arguments[] = "+nprvSa:c:d:k:l:o:t:w:x:y:C:D:F:T:O:H";
+  char *getopt_args;
+
+#ifdef HAVE_GNU_GETOPT
+  getopt_args = getopt_arguments;
+#else /* ! HAVE_GNU_GETOPT */
+  getopt_args = &getopt_arguments[1];
+#endif /* HAVE_GNU_GETOPT */
 
   /* if no arguments were passed, try to use /etc/amd.conf file */
   if (argc <= 1)
     use_conf_file = 1;
 
-  while ((opt_ch = getopt(argc, argv, "nprvSa:c:d:k:l:o:t:w:x:y:C:D:F:T:O:H")) != -1)
+  while ((opt_ch = getopt(argc, argv, getopt_args)) != -1)
     switch (opt_ch) {
 
     case 'a':
