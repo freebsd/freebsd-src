@@ -1,0 +1,286 @@
+#
+# $Id$
+#
+
+GPPDIR=	${.CURDIR}/../../../contrib/libg++
+
+.PATH:	${GPPDIR}/libstdc++ ${GPPDIR}/libio ${GPPDIR}/libiberty
+
+LIB=		stdc++
+SHLIB_MAJOR=	2
+SHLIB_MINOR=	0
+CPLUSPLUSLIB=	1	# include c++rt0.o for static constructors
+
+CFLAGS+=	-I${GPPDIR}/include -I/usr/include/g++ -I.
+CXXFLAGS+=	-I${GPPDIR}/include -I${GPPDIR}/libio -I${GPPDIR}/libstdc++
+CXXFLAGS+=	-fno-implicit-templates
+
+DIR=		${GPPDIR}/libstdc++
+
+HDRS=	cassert cctype cerrno cfloat ciso646 climits clocale cmath complex \
+	csetjmp csignal cstdarg cstddef cstdio cstdlib cstring ctime \
+	cwchar cwctype new stddef string exception stdexcept typeinfo \
+	algorithm deque list map queue set stack vector utility functional \
+	iterator memory numeric \
+	complex.h new.h stl.h
+
+SHDRS=	bastring.cc bastring.h cassert.h cctype.h cerrno.h cfloat.h cinst.h \
+	ciso646.h climits.h clocale.h cmath.h complex.h complext.cc \
+	complext.h csetjmp.h csignal.h cstdarg.h cstddef.h cstdio.h \
+	cstdlib.h cstring.h ctime.h cwchar.h cwctype.h dcomplex.h exception.h \
+	fcomplex.h ldcomplex.h new.h sinst.h stddef.h stdexcept.h straits.h \
+	string.h typeinfo.h
+
+STLHDRS=algo.h algobase.h bool.h bvector.h defalloc.h deque.h faralloc.h \
+	fdeque.h flist.h fmap.h fmultmap.h fmultset.h fset.h function.h \
+	hdeque.h heap.h hlist.h hmap.h hmultmap.h hmultset.h hset.h \
+	hugalloc.h hvector.h iterator.h lbvector.h ldeque.h list.h llist.h \
+	lmap.h lmultmap.h lmultset.h lngalloc.h lset.h map.h multimap.h \
+	multiset.h neralloc.h nmap.h nmultmap.h nmultset.h nset.h pair.h \
+	projectn.h set.h stack.h tempbuf.h tree.h vector.h
+
+SRCS+=	newi.cc cstringi.cc stddefi.cc typeinfoi.cc exceptioni.cc \
+	stdexcepti.cc cstdlibi.cc cmathi.cc
+
+# "standard" C parts of libiberty (strerror is a superset of the libc version)
+SRCS+=	insque.c strerror.c
+
+# Headers for iostream
+IHDRS=	PlotFile.h SFile.h builtinbuf.h editbuf.h floatio.h fstream.h \
+	indstream.h iolibio.h iomanip.h iostdio.h iostream.h iostreamP.h \
+	istream.h libio.h libioP.h ostream.h parsestream.h pfstream.h \
+	procbuf.h stdiostream.h stream.h streambuf.h strfile.h strstream.h
+
+# C++ parts of iostream
+SRCS+=	PlotFile.cc SFile.cc builtinbuf.cc editbuf.cc filebuf.cc fstream.cc \
+	indstream.cc ioassign.cc ioextend.cc iomanip.cc iostream.cc \
+	isgetline.cc isgetsb.cc isscan.cc osform.cc parsestream.cc \
+	pfstream.cc procbuf.cc sbform.cc sbgetline.cc sbscan.cc \
+	stdiostream.cc stdstrbufs.cc stdstreams.cc stream.cc streambuf.cc \
+	streambuf.cc strstream.cc
+
+# C parts of iostream
+SRCS+=	cleanup.c filedoalloc.c fileops.c floatconv.c genops.c iofclose.c \
+	iofgetpos.c iofread.c iofscanf.c iofsetpos.c iogetdelim.c iogetline.c \
+	ioignore.c iopadn.c iopopen.c ioprims.c ioprintf.c ioseekoff.c \
+	ioseekpos.c iostrerror.c ioungetc.c iovfprintf.c iovfscanf.c \
+	outfloat.c strops.c
+
+beforedepend:	config.h
+strerror.o:	config.h
+CLEANFILES+=	config.h
+
+config.h:
+	touch config.h
+
+beforeinstall:
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
+		${.CURDIR}/_G_config.h \
+		${HDRS:S;^;${GPPDIR}/libstdc++/;} \
+		${IHDRS:S;^;${GPPDIR}/libio/;} \
+		${STLHDRS:S;^;${GPPDIR}/libstdc++/stl/;} \
+		${DESTDIR}/usr/include/g++
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
+		${SHDRS:S;^;${GPPDIR}/libstdc++/std/;} \
+		${DESTDIR}/usr/include/g++/std
+
+# Lots of special cases
+
+# ======== typeinfoi.o, stdexcepti.o ========
+.for file in typeinfoi stdexcepti
+${file}.o: ${file}.cc
+	${CXX} ${CXXFLAGS} -frtti -c ${DIR}/${file}.cc -o ${.TARGET}
+	@${LD} -O ${.TARGET} -x -r ${.TARGET}
+
+${file}.so: ${file}.cc
+	${CXX} ${PICFLAG} -DPIC ${CXXFLAGS} -frtti -c ${DIR}/${file}.cc -o ${.TARGET}
+	@${LD} -O ${.TARGET} -x -r ${.TARGET}
+
+${file}.po: ${file}.cc
+	${CXX} -p ${CXXFLAGS} -frtti -c ${DIR}/${file}.cc -o ${.TARGET}
+	@${LD} -O ${.TARGET} -X -r ${.TARGET}
+.endfor
+
+# ======== exceptioni.o ========
+.for file in exceptioni
+${file}.o: ${file}.cc
+	${CXX} ${CXXFLAGS} -O0 -frtti -fhandle-exceptions -c ${DIR}/${file}.cc -o ${.TARGET}
+	@${LD} -O ${.TARGET} -x -r ${.TARGET}
+
+${file}.so: ${file}.cc
+	${CXX} ${PICFLAG} -DPIC ${CXXFLAGS} -O0 -frtti -fhandle-exceptions -c ${DIR}/${file}.cc -o ${.TARGET}
+	@${LD} -O ${.TARGET} -x -r ${.TARGET}
+
+${file}.po: ${file}.cc
+	${CXX} -p ${CXXFLAGS} -O0 -frtti -fhandle-exceptions -c ${DIR}/${file}.cc -o ${.TARGET}
+	@${LD} -O ${.TARGET} -X -r ${.TARGET}
+.endfor
+
+# ======== cstrmain.o ========
+CSTRMAIN=	-DC
+.for i in REP MAIN TRAITS ADDSS ADDPS ADDCS ADDSP ADDSC  EQSS EQPS EQSP NESS \
+	NEPS NESP LTSS LTPS LTSP GTSS GTPS GTSP  LESS LEPS LESP GESS GEPS GESP
+CSTRMAIN+=	-D${i}
+.endfor
+
+OBJS+=	cstrmain.o
+
+cstrmain.o:	sinst.cc
+	${CXX} ${CXXFLAGS} ${CSTRMAIN} -c ${.ALLSRC} -o ${.TARGET}
+	@${LD} -O ${.TARGET} -x -r ${.TARGET}
+
+cstrmain.so:	sinst.cc
+	${CXX} ${PICFLAG} -DPIC ${CXXFLAGS} ${CSTRMAIN} -c ${.ALLSRC} -o ${.TARGET}
+	@${LD} -O ${.TARGET} -x -r ${.TARGET}
+
+cstrmain.po:	sinst.cc
+	${CXX} -p ${CXXFLAGS} ${CSTRMAIN} -c ${.ALLSRC} -o ${.TARGET}
+	@${LD} -O ${.TARGET} -X -r ${.TARGET}
+
+# ======== cstrio.o ========
+CSTRIO=	-DC
+.for i in EXTRACT INSERT GETLINE
+CSTRIO+=	-D${i}
+.endfor
+
+OBJS+=	cstrio.o
+
+cstrio.o:	sinst.cc
+	${CXX} ${CXXFLAGS} ${CSTRIO} -c ${.ALLSRC} -o ${.TARGET}
+	@${LD} -O ${.TARGET} -x -r ${.TARGET}
+
+cstrio.so:	sinst.cc
+	${CXX} ${PICFLAG} -DPIC ${CXXFLAGS} ${CSTRIO} -c ${.ALLSRC} -o ${.TARGET}
+	@${LD} -O ${.TARGET} -x -r ${.TARGET}
+
+cstrio.po:	sinst.cc
+	${CXX} -p ${CXXFLAGS} ${CSTRIO} -c ${.ALLSRC} -o ${.TARGET}
+	@${LD} -O ${.TARGET} -X -r ${.TARGET}
+
+# ======== fcomplex.o =======
+FCOMPLEX=	-DF
+.for i in MAIN ADD CC ADDCF ADDFC SUBCC SUBCF SUBFC MULCC MULCF MULFC DIVCC \
+	DIVCF DIVFC PLUS MINUS EQCC EQCF EQFC NECC NECF NEFC ABS ARG POLAR \
+	CONJ NORM COS COSH EXP LOG POWCC POWCF POWCI POWFC SIN SINH SQRT
+FCOMPLEX+=	-D${i}
+.endfor
+
+OBJS+=	fcomplex.o
+
+fcomplex.o:	cinst.cc
+	${CXX} ${CXXFLAGS} ${FCOMPLEX} -c ${.ALLSRC} -o ${.TARGET}
+	@${LD} -O ${.TARGET} -x -r ${.TARGET}
+
+fcomplex.so:	cinst.cc
+	${CXX} ${PICFLAG} -DPIC ${CXXFLAGS} ${FCOMPLEX} -c ${.ALLSRC} -o ${.TARGET}
+	@${LD} -O ${.TARGET} -x -r ${.TARGET}
+
+fcomplex.po:	cinst.cc
+	${CXX} -p ${CXXFLAGS} ${FCOMPLEX} -c ${.ALLSRC} -o ${.TARGET}
+	@${LD} -O ${.TARGET} -X -r ${.TARGET}
+
+# ======== fcomio.o =======
+FCOMIO=	-DF
+.for i in EXTRACT INSERT
+FCOMIO+=-D${i}
+.endfor
+
+OBJS+=	fcomio.o
+
+fcomio.o:	cinst.cc
+	${CXX} ${CXXFLAGS} ${FCOMIO} -c ${.ALLSRC} -o ${.TARGET}
+	@${LD} -O ${.TARGET} -x -r ${.TARGET}
+
+fcomio.so:	cinst.cc
+	${CXX} ${PICFLAG} -DPIC ${CXXFLAGS} ${FCOMIO} -c ${.ALLSRC} -o ${.TARGET}
+	@${LD} -O ${.TARGET} -x -r ${.TARGET}
+
+fcomio.po:	cinst.cc
+	${CXX} -p ${CXXFLAGS} ${FCOMIO} -c ${.ALLSRC} -o ${.TARGET}
+	@${LD} -O ${.TARGET} -X -r ${.TARGET}
+
+# ======== dcomplex.o =======
+DCOMPLEX=	-DD
+.for i in MAIN ADD CC ADDCF ADDFC SUBCC SUBCF SUBFC MULCC MULCF MULFC DIVCC \
+	DIVCF DIVFC PLUS MINUS EQCC EQCF EQFC NECC NECF NEFC ABS ARG POLAR \
+	CONJ NORM COS COSH EXP LOG POWCC POWCF POWCI POWFC SIN SINH SQRT
+DCOMPLEX+=	-D${i}
+.endfor
+
+OBJS+=	dcomplex.o
+
+dcomplex.o:	cinst.cc
+	${CXX} ${CXXFLAGS} ${DCOMPLEX} -c ${.ALLSRC} -o ${.TARGET}
+	@${LD} -O ${.TARGET} -x -r ${.TARGET}
+
+dcomplex.so:	cinst.cc
+	${CXX} ${PICFLAG} -DPIC ${CXXFLAGS} ${DCOMPLEX} -c ${.ALLSRC} -o ${.TARGET}
+	@${LD} -O ${.TARGET} -x -r ${.TARGET}
+
+dcomplex.po:	cinst.cc
+	${CXX} -p ${CXXFLAGS} ${DCOMPLEX} -c ${.ALLSRC} -o ${.TARGET}
+	@${LD} -O ${.TARGET} -X -r ${.TARGET}
+
+# ======== dcomio.o =======
+DCOMIO=	-DD
+.for i in EXTRACT INSERT
+DCOMIO+=-D${i}
+.endfor
+
+OBJS+=	dcomio.o
+
+dcomio.o:	cinst.cc
+	${CXX} ${CXXFLAGS} ${DCOMIO} -c ${.ALLSRC} -o ${.TARGET}
+	@${LD} -O ${.TARGET} -x -r ${.TARGET}
+
+dcomio.so:	cinst.cc
+	${CXX} ${PICFLAG} -DPIC ${CXXFLAGS} ${DCOMIO} -c ${.ALLSRC} -o ${.TARGET}
+	@${LD} -O ${.TARGET} -x -r ${.TARGET}
+
+dcomio.po:	cinst.cc
+	${CXX} -p ${CXXFLAGS} ${DCOMIO} -c ${.ALLSRC} -o ${.TARGET}
+	@${LD} -O ${.TARGET} -X -r ${.TARGET}
+
+# ======== ldcomplex.o =======
+LDCOMPLEX=	-DLD
+.for i in MAIN ADD CC ADDCF ADDFC SUBCC SUBCF SUBFC MULCC MULCF MULFC DIVCC \
+	DIVCF DIVFC PLUS MINUS EQCC EQCF EQFC NECC NECF NEFC ABS ARG POLAR \
+	CONJ NORM COS COSH EXP LOG POWCC POWCF POWCI POWFC SIN SINH SQRT
+LDCOMPLEX+=	-D${i}
+.endfor
+
+OBJS+=	ldcomplex.o
+
+ldcomplex.o:	cinst.cc
+	${CXX} ${CXXFLAGS} ${LDCOMPLEX} -c ${.ALLSRC} -o ${.TARGET}
+	@${LD} -O ${.TARGET} -x -r ${.TARGET}
+
+ldcomplex.so:	cinst.cc
+	${CXX} ${PICFLAG} -DPIC ${CXXFLAGS} ${LDCOMPLEX} -c ${.ALLSRC} -o ${.TARGET}
+	@${LD} -O ${.TARGET} -x -r ${.TARGET}
+
+ldcomplex.po:	cinst.cc
+	${CXX} -p ${CXXFLAGS} ${LDCOMPLEX} -c ${.ALLSRC} -o ${.TARGET}
+	@${LD} -O ${.TARGET} -X -r ${.TARGET}
+
+# ======== ldcomio.o =======
+LDCOMIO=	-DLD
+.for i in EXTRACT INSERT
+LDCOMIO+=-D${i}
+.endfor
+
+OBJS+=	ldcomio.o
+
+ldcomio.o:	cinst.cc
+	${CXX} ${CXXFLAGS} ${LDCOMIO} -c ${.ALLSRC} -o ${.TARGET}
+	@${LD} -O ${.TARGET} -x -r ${.TARGET}
+
+ldcomio.so:	cinst.cc
+	${CXX} ${PICFLAG} -DPIC ${CXXFLAGS} ${LDCOMIO} -c ${.ALLSRC} -o ${.TARGET}
+	@${LD} -O ${.TARGET} -x -r ${.TARGET}
+
+ldcomio.po:	cinst.cc
+	${CXX} -p ${CXXFLAGS} ${LDCOMIO} -c ${.ALLSRC} -o ${.TARGET}
+	@${LD} -O ${.TARGET} -X -r ${.TARGET}
+
+.include <bsd.lib.mk>
