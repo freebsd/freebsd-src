@@ -403,7 +403,6 @@ ipsec_getpolicybyaddr(m, dir, flag, error)
 		if (*error != 0) {
 			DPRINTF(("%s: setpidx failed, dir %u flag %u\n",
 				__func__, dir, flag));
-			bzero(&spidx, sizeof (spidx));
 			return NULL;
 		}
 		spidx.dir = dir;
@@ -1298,6 +1297,7 @@ ipsec_get_reqlevel(isr)
 				level = ah_net_deflev;
 			else
 				level = ah_trans_deflev;
+			break;
 		case IPPROTO_IPCOMP:
 			/*
 			 * we don't really care, as IPcomp document says that
@@ -1890,6 +1890,15 @@ ipsec_dumpmbuf(m)
 		printf("\n");
 	printf("---\n");
 }
+
+static void
+ipsec_attach(void)
+{
+	SECPOLICY_LOCK_INIT(&ip4_def_policy);
+	ip4_def_policy.refcnt = 1;			/* NB: disallow free */
+}
+SYSINIT(ipsec, SI_SUB_PROTO_DOMAIN, SI_ORDER_FIRST, ipsec_attach, NULL)
+
 
 /* XXX this stuff doesn't belong here... */
 
