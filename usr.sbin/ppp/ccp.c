@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.2 1995/02/26 12:17:14 amurai Exp $
+ * $Id: ccp.c,v 1.3 1995/05/30 03:50:27 rgrimes Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -86,7 +86,7 @@ ReportCcpStatus()
   printf("%s [%s]\n", fp->name, StateNames[fp->state]);
   printf("myproto = %s, hisproto = %s\n",
 	cftypes[icp->want_proto], cftypes[icp->his_proto]);
-  printf("Input: %d --> %d,  Output: %d --> %d\n",
+  printf("Input: %ld --> %ld,  Output: %ld --> %ld\n",
 	icp->orgin, icp->compin, icp->orgout, icp->compout);
 }
 
@@ -214,9 +214,6 @@ int plen;
 int mode;
 {
   int type, length;
-  u_long *lp, compproto;
-  struct compreq *pcomp;
-  struct in_addr ipaddr, dstipaddr;
   char tbuff[100];
 
   ackp = AckBuff;

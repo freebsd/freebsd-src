@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.10 1995/09/18 12:41:52 bde Exp $
+ * $Id: main.c,v 1.11 1995/10/08 14:57:29 amurai Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -65,7 +65,7 @@ static void TerminalStop();
 static struct termios oldtio;		/* Original tty mode */
 static struct termios comtio;		/* Command level tty mode */
 static int TermMode;
-static int server, update;
+static int server;
 struct sockaddr_in ifsin;
 char pid_filename[128];
 
@@ -145,7 +145,6 @@ void
 Cleanup(excode)
 int excode;
 {
-  int stat;
 
   OsLinkdown();
   OsCloseLink(1);
@@ -251,7 +250,6 @@ int argc;
 char **argv;
 {
   int tunno;
-  int on = 1;
 
   argc--; argv++;
 

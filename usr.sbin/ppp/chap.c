@@ -17,10 +17,12 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.2 1995/02/26 12:17:17 amurai Exp $
+ * $Id: chap.c,v 1.3 1995/05/30 03:50:28 rgrimes Exp $
  *
  *	TODO:
  */
+#include <sys/types.h>
+#include <time.h>
 #include "fsm.h"
 #include "chap.h"
 #include "lcpproto.h"
@@ -73,7 +75,7 @@ void
 SendChapChallenge(chapid)
 int chapid;
 {
-  int keylen, len, i;
+  int len, i;
   char *cp;
 
   srandom(time(NULL));
