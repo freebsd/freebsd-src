@@ -74,6 +74,7 @@ int sflag = 0;
 int pflag = 0;
 int mflag = 0;			/* print mbuf stats */
 int wflag = 0;			/* repeat every wait seconds */
+int delta = 0 ;
 
 extern char *optarg;
 extern int optind;
@@ -263,6 +264,10 @@ print_routing(char *proto)
 	struct	rt_metrics rm;
 	char	fbuf[50];
 
+	/* keep a copy of statistics here for future use */
+	static unsigned *base_stats = NULL ;
+	static unsigned base_len = 0 ;
+
 	/* Get the routing table */
 	mib[0] = CTL_NET;
 	mib[1] = PF_ROUTE;
@@ -325,6 +330,16 @@ print_routing(char *proto)
 		printf("Name  Mtu   Network       Address            "
 		    "Ipkts Ierrs    Opkts Oerrs  Coll\n");
 	}
+        /* scan the list and store base values */
+	i = 0 ;
+	for (next = if_buf; next < lim; next += ifm->ifm_msglen) {
+		ifm = (struct if_msghdr *)next;
+		i++ ;
+	}
+	if (base_stats == NULL || i != base_len) {
+		base_stats = calloc(i*5, sizeof(unsigned));
+		base_len = i ;
+	}
 	i = 0;
 	for (next = if_buf; next < lim; next += ifm->ifm_msglen) {
 		ifm = (struct if_msghdr *)next;
@@ -334,6 +349,7 @@ print_routing(char *proto)
 		sa = if_table[i];
 		if (iflag && sa->sa_family == AF_LINK) {
 			struct	sockaddr_dl *sdl = (struct sockaddr_dl *)sa;
+			unsigned *bp = &base_stats[i*5];
 
 			printf("%-4s  %-5d <Link>   ",
 			    sock_ntop(if_table[i], if_table[i]->sa_len),
@@ -346,11 +362,18 @@ print_routing(char *proto)
 			} else
 				printf("                    ");
 			printf("%9d%6d%9d%6d%6d\n",
-			    ifm->ifm_data.ifi_ipackets,
-			    ifm->ifm_data.ifi_ierrors,
-			    ifm->ifm_data.ifi_opackets,
-			    ifm->ifm_data.ifi_oerrors,
-			    ifm->ifm_data.ifi_collisions);
+			    ifm->ifm_data.ifi_ipackets - bp[0],
+			    ifm->ifm_data.ifi_ierrors - bp[1],
+			    ifm->ifm_data.ifi_opackets - bp[2],
+			    ifm->ifm_data.ifi_oerrors - bp[3],
+			    ifm->ifm_data.ifi_collisions -bp[4]);
+			if (delta > 0) {
+			    bp[0] = ifm->ifm_data.ifi_ipackets ;
+			    bp[1] = ifm->ifm_data.ifi_ierrors ;
+			    bp[2] = ifm->ifm_data.ifi_opackets ;
+			    bp[3] = ifm->ifm_data.ifi_oerrors ;
+			    bp[4] = ifm->ifm_data.ifi_collisions ;
+			}
 		}
 		i++;
 	}
@@ -863,9 +886,12 @@ main(int argc, char *argv[])
 
 	progname = argv[0];
 
-	while ((c = getopt(argc, argv, "imnrsp:w:")) != -1) {
+	while ((c = getopt(argc, argv, "dimnrsp:w:")) != -1) {
 		have_flags++ ;
 		switch (c) {
+		case 'd': /* print deltas in stats every w seconds */
+			delta++ ;
+			break;
 		case 'w':
 			wflag = atoi(optarg);
 			break;
