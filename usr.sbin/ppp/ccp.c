@@ -299,6 +299,19 @@ ccp_Required(struct ccp *ccp)
   return 0;
 }
 
+/*
+ * Report whether it's possible to increase a packet's size after
+ * compression (and by how much).
+ */
+int
+ccp_MTUOverhead(struct ccp *ccp)
+{
+  if (ccp->fsm.state == ST_OPENED)
+    return algorithm[ccp->out.algorithm]->o.MTUOverhead;
+
+  return 0;
+}
+
 static void
 CcpInitRestartCounter(struct fsm *fp, int what)
 {
@@ -474,7 +487,24 @@ CcpLayerUp(struct fsm *fp)
   /* We're now up */
   struct ccp *ccp = fsm2ccp(fp);
   struct ccp_opt **o;
-  int f;
+  int f, fail;
+
+  for (f = fail = 0; f < NALGORITHMS; f++)
+    if (IsEnabled(ccp->cfg.neg[algorithm[f]->Neg]) &&
+        (*algorithm[f]->Required)(&ccp->fsm) &&
+        (ccp->in.algorithm != f || ccp->out.algorithm != f)) {
+      /* Blow it all away - we haven't negotiated a required algorithm */
+      log_Printf(LogWARN, "%s: Failed to negotiate (required) %s\n",
+                 fp->link->name, protoname(algorithm[f]->id));
+      fail = 1;
+    }
+
+  if (fail) {
+    ccp->his_proto = ccp->my_proto = -1;
+    fsm_Close(fp);
+    fsm_Close(&fp->link->lcp.fsm);
+    return 0;
+  }
 
   log_Printf(LogCCP, "%s: LayerUp.\n", fp->link->name);
 

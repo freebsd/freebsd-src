@@ -276,7 +276,8 @@ bundle_LayerUp(void *v, struct fsm *fp)
     bundle_StartIdleTimer(bundle, 0);
     bundle_Notify(bundle, EX_NORMAL);
     mp_CheckAutoloadTimer(&fp->bundle->ncp.mp);
-  }
+  } else if (fp->proto == PROTO_CCP)
+    bundle_CalculateBandwidth(fp->bundle);	/* Against ccp_MTUOverhead */
 }
 
 static void
@@ -1816,11 +1817,16 @@ void
 bundle_CalculateBandwidth(struct bundle *bundle)
 {
   struct datalink *dl;
-  int sp;
+  int sp, overhead, maxoverhead;
 
   bundle->bandwidth = 0;
   bundle->iface->mtu = 0;
-  for (dl = bundle->links; dl; dl = dl->next)
+  maxoverhead = 0;
+
+  for (dl = bundle->links; dl; dl = dl->next) {
+    overhead = ccp_MTUOverhead(&dl->physical->link.ccp);
+    if (maxoverhead < overhead)
+      maxoverhead = overhead;
     if (dl->state == DATALINK_OPEN) {
       if ((sp = dl->mp.bandwidth) == 0 &&
           (sp = physical_GetSpeed(dl->physical)) == 0)
@@ -1833,13 +1839,17 @@ bundle_CalculateBandwidth(struct bundle *bundle)
         break;
       }
     }
+  }
 
   if(bundle->bandwidth == 0)
     bundle->bandwidth = 115200;		/* Shrug */
 
-  if (bundle->ncp.mp.active)
+  if (bundle->ncp.mp.active) {
     bundle->iface->mtu = bundle->ncp.mp.peer_mrru;
-  else if (!bundle->iface->mtu)
+    overhead = ccp_MTUOverhead(&bundle->ncp.mp.link.ccp);
+    if (maxoverhead < overhead)
+      maxoverhead = overhead;
+  } else if (!bundle->iface->mtu)
     bundle->iface->mtu = DEF_MRU;
 
 #ifndef NORADIUS
@@ -1850,6 +1860,12 @@ bundle_CalculateBandwidth(struct bundle *bundle)
     bundle->iface->mtu = bundle->radius.mtu;
   }
 #endif
+
+  if (maxoverhead) {
+    log_Printf(LogLCP, "Reducing MTU from %d to %d (CCP requirement)\n",
+               bundle->iface->mtu, bundle->iface->mtu - maxoverhead);
+    bundle->iface->mtu -= maxoverhead;
+  }
 
   tun_configure(bundle);
 
