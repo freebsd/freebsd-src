@@ -94,13 +94,15 @@ static d_ioctl_t nfs4dev_ioctl;
 static d_poll_t  nfs4dev_poll;
 
 static struct cdevsw nfs4dev_cdevsw = {
+#if (__FreeBSD_version > 502102)
 	.d_version =	D_VERSION,
 	.d_flags =	D_NEEDGIANT,
+#endif
 	.d_open =	nfs4dev_open,
 	.d_close =	nfs4dev_close,
 	.d_ioctl =	nfs4dev_ioctl,
 	.d_poll =	nfs4dev_poll,
-	.d_name =	NFS4DEV_NAME
+	.d_name =	NFS4DEV_NAME,
 };
 
 static int nfs4dev_reply(caddr_t);
