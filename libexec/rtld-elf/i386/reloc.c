@@ -1,5 +1,5 @@
 /*-
- * Copyright 1996-1998 John D. Polstra.
+ * Copyright 1996, 1997, 1998, 1999 John D. Polstra.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: reloc.c,v 1.2 1999/04/09 00:28:43 jdp Exp $
+ *      $Id: reloc.c,v 1.1.2.2 1999/05/02 09:36:06 brian Exp $
  */
 
 /*
@@ -214,33 +214,29 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 int
 reloc_plt(Obj_Entry *obj, bool bind_now)
 {
-	const Elf_Rel *rellim;
-	const Elf_Rel *rel;
+    const Elf_Rel *rellim;
+    const Elf_Rel *rel;
 
-	/* Process the PLT relocations. */
-	rellim = (const Elf_Rel *) ((caddr_t) obj->pltrel + obj->pltrelsize);
-	if (bind_now) {
-	    /* Fully resolve procedure addresses now */
-	    for (rel = obj->pltrel;  rel < rellim;  rel++) {
-		Elf_Addr *where = (Elf_Addr *)
-		  (obj->relocbase + rel->r_offset);
-		const Elf_Sym *def;
-		const Obj_Entry *defobj;
+    rellim = (const Elf_Rel *)((char *)obj->pltrel + obj->pltrelsize);
+    for (rel = obj->pltrel;  rel < rellim;  rel++) {
+	Elf_Addr *where;
 
-		assert(ELF_R_TYPE(rel->r_info) == R_386_JMP_SLOT);
+	assert(ELF_R_TYPE(rel->r_info) == R_386_JMP_SLOT);
 
-		def = find_symdef(ELF_R_SYM(rel->r_info), obj, &defobj, true);
-		if (def == NULL)
-		    return -1;
+	/* Relocate the GOT slot pointing into the PLT. */
+	where = (Elf_Addr *)(obj->relocbase + rel->r_offset);
+	*where += (Elf_Addr)obj->relocbase;
 
-		*where = (Elf_Addr) (defobj->relocbase + def->st_value);
-	    }
-	} else {	/* Just relocate the GOT slots pointing into the PLT */
-	    for (rel = obj->pltrel;  rel < rellim;  rel++) {
-		Elf_Addr *where = (Elf_Addr *)
-		  (obj->relocbase + rel->r_offset);
-		*where += (Elf_Addr) obj->relocbase;
-	    }
+	if (bind_now) {	/* Fully resolve the procedure address. */
+	    const Elf_Sym *def;
+	    const Obj_Entry *defobj;
+
+	    def = find_symdef(ELF_R_SYM(rel->r_info), obj, &defobj, true);
+	    if (def == NULL)
+		return -1;
+	    reloc_jmpslot(where,
+	      (Elf_Addr)(defobj->relocbase + def->st_value));
 	}
+    }
     return 0;
 }

@@ -1,5 +1,5 @@
 /*-
- * Copyright 1996-1998 John D. Polstra.
+ * Copyright 1996, 1997, 1998, 1999 John D. Polstra.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: rtld.c,v 1.13.2.9 1999/05/02 09:35:57 brian Exp $
+ *      $Id: rtld.c,v 1.13.2.10 1999/06/25 04:51:45 jdp Exp $
  */
 
 /*
@@ -302,14 +302,14 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     return (func_ptr_type) obj_main->entry;
 }
 
-caddr_t
+Elf_Addr
 _rtld_bind(const Obj_Entry *obj, Elf_Word reloff)
 {
     const Elf_Rel *rel;
     const Elf_Sym *def;
     const Obj_Entry *defobj;
     Elf_Addr *where;
-    caddr_t target;
+    Elf_Addr target;
 
     if (obj->pltrel)
 	rel = (const Elf_Rel *) ((caddr_t) obj->pltrel + reloff);
@@ -321,13 +321,13 @@ _rtld_bind(const Obj_Entry *obj, Elf_Word reloff)
     if (def == NULL)
 	die();
 
-    target = (caddr_t) (defobj->relocbase + def->st_value);
+    target = (Elf_Addr)(defobj->relocbase + def->st_value);
 
     dbg("\"%s\" in \"%s\" ==> %p in \"%s\"",
       defobj->strtab + def->st_name, basename(obj->path),
-      target, basename(defobj->path));
+      (void *)target, basename(defobj->path));
 
-    *where = (Elf_Addr) target;
+    reloc_jmpslot(where, target);
     return target;
 }
 
