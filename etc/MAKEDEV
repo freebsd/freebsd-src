@@ -106,7 +106,7 @@
 #	perfmon	CPU performance-monitoring counters
 #	pci	PCI configuration-space access from user mode
 #
-#	$Id: MAKEDEV,v 1.144 1997/12/29 00:03:36 jkh Exp $
+#	$Id: MAKEDEV,v 1.145 1997/12/29 00:10:20 jkh Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -149,8 +149,9 @@ dkminor()
 
 # call mknod with rm -f first.
 mknod() {
-	rm -f $1 || die 1 "error removing $1, errno = $?"
-	/sbin/mknod $* || die 2 "/sbin/mknod $* failed, errno = $?"
+	rm -f "$1" || exit 1
+	/sbin/mknod $* || die 2 "/sbin/mknod $* failed"
+	chown root.wheel "$1"
 }
 
 # Convert the last character of a tty name to a minor number.
@@ -202,22 +203,22 @@ all)
 	sh MAKEDEV apm card0 card1				# cdev, laptop
 	;;
 std)
-	mknod console	c 0 0;	chmod 600 console;	chown root.wheel console
-	mknod drum	c 4 0;	chmod 640 drum;		chown root.kmem drum
-	mknod kmem	c 2 1;	chmod 640 kmem;		chown root.kmem kmem
-	mknod mem	c 2 0;	chmod 640 mem;		chown root.kmem mem
-	mknod null	c 2 2;	chmod 666 null;		chown root.wheel null
-	mknod random	c 2 3;	chmod 644 random;	chown root.wheel random
-	mknod urandom	c 2 4;	chmod 644 urandom;	chown root.wheel urandom
-	mknod zero	c 2 12;	chmod 666 zero;		chown root.wheel zero
-	mknod io	c 2 14;	chmod 600 io;		chown root.wheel io
-	mknod tty	c 1 0;	chmod 666 tty;		chown root.wheel tty
-	mknod klog	c 7 0;	chmod 600 klog;		chown root.wheel klog
-	mknod stdin	c 22 0; chmod 666 stdin;	chown root.wheel stdin
-	mknod stdout	c 22 1; chmod 666 stdout;	chown root.wheel stdout
-	mknod stderr	c 22 2; chmod 666 stderr;	chown root.wheel stderr
-	mknod lkm	c 32 0;	chmod 644 lkm;		chown root.wheel lkm
-	mknod pci	c 78 0; chmod 644 pci;		chown root.wheel pci
+	mknod console	c 0 0;	chmod 600 console
+	mknod drum	c 4 0;	chmod 640 drum;		chgrp kmem drum
+	mknod kmem	c 2 1;	chmod 640 kmem;		chgrp kmem kmem
+	mknod mem	c 2 0;	chmod 640 mem;		chgrp kmem mem
+	mknod null	c 2 2;	chmod 666 null
+	mknod random	c 2 3;	chmod 644 random
+	mknod urandom	c 2 4;	chmod 644 urandom
+	mknod zero	c 2 12;	chmod 666 zero
+	mknod io	c 2 14;	chmod 600 io
+	mknod tty	c 1 0;	chmod 666 tty
+	mknod klog	c 7 0;	chmod 600 klog
+	mknod stdin	c 22 0; chmod 666 stdin
+	mknod stdout	c 22 1; chmod 666 stdout
+	mknod stderr	c 22 2; chmod 666 stderr
+	mknod lkm	c 32 0;	chmod 644 lkm
+	mknod pci	c 78 0; chmod 644 pci
 	mkdir -p fd
 	(cd fd && eval `echo "" | awk ' BEGIN { \
 		for (i = 0; i < 64; i++) \
@@ -254,7 +255,7 @@ wt*)
 #	mknod nrwt${u}e c 10 `expr 44 + $u`
 #	mknod rwt${u}f  c 10 `expr 48 + $u`	# 600 megabytes?
 #	mknod nrwt${u}f c 10 `expr 52 + $u`
-	chown root.operator r[Ww]t$u nr[Ww]t$u r[Ww]t$u[a-f] nr[Ww]t$u[a-f]
+	chgrp operator r[Ww]t$u nr[Ww]t$u r[Ww]t$u[a-f] nr[Ww]t$u[a-f]
 	umask 77
 	;;
 
@@ -535,12 +536,9 @@ pty*)
 			for (i = 0; i < 32; i++) {
 				c = substr("0123456789abcdefghijklmnopqrstuv", i + 1, 1); \
 				printf("mknod tty%s%s c 5 %d; \
-					mknod pty%s%s c 6 %d; \
-					chown root.wheel tty%s%s pty%s%s;", \
-					n, c, n, c, \
+					mknod pty%s%s c 6 %d;", \
 					n, c, b+i, \
-					n, c, b+i, \
-					n, c, n, c); \
+					n, c, b+i); \
 			} \
 		}'`
 		umask 77
@@ -682,14 +680,12 @@ lpt*)
 	unit=`expr $i : 'lpt\(.*\)'`
 	mknod lpt$unit c 16 $unit
 	mknod lpctl$unit c 16 `expr $unit + 128`
-	chown root.wheel lpt$unit
-	chown root.wheel lpctl$unit
 	;;
 
 tw*)
 	unit=`expr $i : 'tw\(.*\)'`
 	mknod tw$unit c 19 $unit
-	chown root.operator tw$unit
+	chgrp operator tw$unit
 	;;
 
 # Use this to create virtual consoles for syscons, pcvt or codrv
@@ -700,21 +696,17 @@ vty*)
 	units=`expr $i : 'vty\(.*\)'`
 	eval `echo ${chr} ${units} | awk ' { c=$1; n=$2 } END {
 		for (i = 0; i < n; i++)
-			printf("mknod ttyv%01x c %d %d; \
-				chown root.wheel ttyv%01x;", \
-				i, i, c, i, i); }'`
+			printf("mknod ttyv%01x c %d %d;", i, i, c); }'`
 	ln -fs ttyv0 vga	# XXX X still needs this pccons relic
 	;;
 
 bpf*)
 	unit=`expr $i : 'bpf\(.*\)'`
 	mknod bpf$unit c 23 $unit
-	chown root.wheel bpf$unit
 	;;
 
 speaker)
 	mknod speaker c 26 0
-	chown root.wheel speaker
 	;;
 
 cuaa?|cua?)
@@ -734,7 +726,6 @@ tty0?|ttyd?|tty?)
 	mknod ttyd$unit c 28 $m
 	mknod ttyid$unit c 28 `expr $m + 32`
 	mknod ttyld$unit c 28 `expr $m + 64`
-	chown root.wheel tty*d$unit
 	;;
 
 cuac?)
@@ -769,7 +760,6 @@ ttyc?)
 		mknod ttyc$name c $major $minor
 		mknod ttyic$name c $major `expr $minor + 32`
 		mknod ttylc$name c $major `expr $minor + 64`
-		chown root.wheel ttyc$name ttyic$name ttylc$name
 	done
 	;;
 
@@ -788,7 +778,6 @@ ttym?)
 	unit=`expr $i : 'tty.*\(.\)$'`
 	m=`ttyminor $unit`
 	mknod ttym$unit c 63 $m
-	chown root.wheel ttym$unit
 	;;
 
 # Specialix SI/XIO.
@@ -802,17 +791,13 @@ ttyA*)
 		minor=`expr $port - 1`
 		name=`expr $port + 1000 | cut -c 3-4` 
 		mknod ttyA$name c $major $minor
-		chown root.wheel ttyA$name
 		mknod ttyiA$name c $major `expr $minor + 65536`
-		chown root.wheel ttyiA$name
 		mknod ttylA$name c $major `expr $minor + 131072`
-		chown root.wheel ttylA$name
 		port=`expr $port + 1`
 	done
 	# For the user-mode control program, 'sicontrol'
 	mknod si_control c 68 262144
 	chmod 600 si_control
-	chown root.wheel si_control
 	;;
 
 cuaA*)
@@ -851,7 +836,6 @@ ttyD?)
 		mknod ttyD$name c $major $minor
 		mknod ttyiD$name c $major `expr $minor + 32`
 		mknod ttylD$name c $major `expr $minor + 64`
-		chown root.wheel tty*D$name
 	done
 	;;
 
@@ -903,7 +887,6 @@ ttyR?)
 	  unit=`expr $unit + 1`
 	  echo " "
 	done
-	chown root.wheel /dev/ttyR*
 	;;
 
 cuaR?)
@@ -942,14 +925,12 @@ mse*)
 	unit=`expr $i : 'mse\(.*\)'`
 	chr=27
 	mknod mse$unit c $chr `expr $unit '*' 2 + 1`	# non-blocking for X11
-	chown root.wheel mse$unit
 	;;
 
 psm*)
 	unit=`expr $i : 'psm\(.*\)'`
 	chr=21
 	mknod psm$unit c $chr `expr $unit '*' 2 + 1`	# non-blocking for X11
-	chown root.wheel psm$unit
 	;;
 
 mouse*)
@@ -963,14 +944,12 @@ mouse*)
 pcaudio)
 	mknod pcaudio c 24 0
 	mknod pcaudioctl c 24 128
-	chown root.wheel pcaudio pcaudioctl
 	;;
 
 socksys)
 	mknod socksys c 41 0
 	mknod spx c 41 1
 	ln -fs socksys nfsd
-	chown root.wheel socksys nfsd spx
 	chmod 666 socksys nfsd spx
 	;;
 
@@ -1016,7 +995,6 @@ snd*)
 
 vat)
 	mknod vatio c 25 128
-	chown root.wheel vatio
 	chmod 660 vatio
 	;;
 
@@ -1027,13 +1005,12 @@ gsc*)
 	mknod gsc${unit}d c 47 $(($unit + 32))
 	mknod gsc${unit}pd c 47 $(($unit + 40))
 	chmod 666 gsc${unit}*
-	chown root.wheel gsc${unit}*
 	;;
 
 apm*)
 	chr=39
 	mknod apm c $chr 0
-	chown root.operator apm
+	chgrp operator apm
 	chmod 660 apm
 	;;
 
@@ -1042,7 +1019,6 @@ card*)
 	chr=50
 	mknod card$unit c $chr $unit
 	chmod 644 card$unit
-	chown root.wheel card$unit
 	;;
 
 ttyx?|ttyy?|ttyz?)
@@ -1062,13 +1038,12 @@ ttyx?|ttyy?|ttyz?)
 
 cronyx)
 	mknod cronyx c 42 63
-	chown root.wheel cronyx
 	;;
 
 joy)
 	mknod joy0 c 51 0
 	mknod joy1 c 51 1
-	chown root.operator joy0 joy1
+	chgrp operator joy0 joy1
 	chmod 640  joy0 joy1
 	;;
 
@@ -1092,7 +1067,6 @@ qcam?)
 meteor?)
 	unit=`expr $i : 'meteor\(.*\)'`
 	mknod meteor$unit c 67 $unit
-	chown root.wheel meteor$unit
 	chmod 444 meteor$unit
 	;;
 
@@ -1100,7 +1074,6 @@ bktr?)
 	unit=`expr $i : 'bktr\(.*\)'`
 	mknod bktr$unit c 79 $unit
 	mknod tuner$unit c 79 $((16 + $unit ))
-	chown root.wheel bktr$unit tuner$unit
 	chmod 444 bktr$unit tuner$unit
 	;;
 
@@ -1117,13 +1090,11 @@ tun*)
 sysmouse)
 	mknod sysmouse c 12 128
 	mknod consolectl c 12 255
-	chown root.wheel sysmouse consolectl
 	;;
 
 snp?)
 	unit=`expr $i : 'snp\(.*\)'`
 	mknod snp$unit c 53 $unit
-	chown root.wheel snp$unit
 	;;
 
 # dufault@hda.com: If I do much more work on other A-D boards
@@ -1173,7 +1144,7 @@ labpc*)
 
 perfmon)
 	mknod perfmon c 2 32
-	chown root.kmem perfmon
+	chgrp kmem perfmon
 	chmod 640 perfmon
 	;;
 
