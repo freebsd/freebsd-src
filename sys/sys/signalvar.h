@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)signalvar.h	8.6 (Berkeley) 2/19/95
- * $Id: signalvar.h,v 1.15 1997/02/22 09:45:54 peter Exp $
+ * $Id: signalvar.h,v 1.16 1997/08/30 11:24:05 peter Exp $
  */
 
 #ifndef	_SYS_SIGNALVAR_H_		/* tmp for user.h */
@@ -148,6 +148,8 @@ static int sigprop[NSIG + 1] = {
 #define	sigcantmask	(sigmask(SIGKILL) | sigmask(SIGSTOP))
 
 #ifdef KERNEL
+struct pgrp;
+
 /*
  * Machine-independent functions:
  */
