@@ -32,7 +32,7 @@
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
 .\" $FreeBSD$
 .\"
-.Dd March 19, 1994
+.Dd July 2, 2004
 .Dt MAKE 1
 .Os
 .Sh NAME
@@ -454,7 +454,7 @@ In addition,
 .Nm
 sets or knows about the following internal variables or environment
 variables:
-.Bl -tag -width MAKEFLAGS
+.Bl -tag -width ".Va MAKEFILE_LIST"
 .It Va \&$
 A single dollar sign
 .Ql \&$ ,
@@ -516,6 +516,19 @@ If they are undefined and
 .Nm
 is unable to change into any of the remaining three directories,
 then the current directory is used.
+.It Va .MAKEFILE_LIST
+As
+.Nm
+reads various makefiles, including the default files and any
+obtained from the command line and
+.Ic .include
+directives, their names will be automatically appended to the
+.Va .MAKEFILE_LIST
+variable.
+They are added right before
+.Nm
+begins to parse them, so that the name of the current makefile is the
+last word in this variable.
 .It Va .MAKEFLAGS
 The environment variable
 .Ev MAKEFLAGS
@@ -1230,6 +1243,10 @@ default
 .Ev MAKEOBJDIRPREFIX
 directory.
 .El
+.Sh EXAMPLES
+List all included makefiles in order visited:
+.Pp
+.Dl "make -V .MAKEFILE_LIST | tr \e\  \e\en"
 .Sh BUGS
 The determination of
 .Va .OBJDIR

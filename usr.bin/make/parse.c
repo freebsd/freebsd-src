@@ -1789,6 +1789,8 @@ ParseDoInclude (file)
 	 * Pop to previous file
 	 */
 	(void) ParseEOF(0);
+    } else {
+	Var_Append(".MAKEFILE_LIST", fullname, VAR_GLOBAL);
     }
 }
 
@@ -1972,6 +1974,8 @@ ParseTraditionalInclude (file)
 	 * Pop to previous file
 	 */
 	(void) ParseEOF(1);
+    } else {
+	Var_Append(".MAKEFILE_LIST", fullname, VAR_GLOBAL);
     }
 }
 #endif
@@ -1998,6 +2002,7 @@ ParseEOF (opened)
     IFile     *ifile;	/* the state on the top of the includes stack */
 
     if (Lst_IsEmpty (includes)) {
+	Var_Append(".MAKEFILE_LIST", "..", VAR_GLOBAL);
 	return (DONE);
     }
 
@@ -2005,8 +2010,10 @@ ParseEOF (opened)
     free ((Address) fname);
     fname = ifile->fname;
     lineno = ifile->lineno;
-    if (opened && curFILE)
+    if (opened && curFILE) {
 	(void) fclose (curFILE);
+	Var_Append(".MAKEFILE_LIST", "..", VAR_GLOBAL);
+    }
     if (curPTR) {
 	free((Address) curPTR->str);
 	free((Address) curPTR);
@@ -2431,6 +2438,8 @@ Parse_File(name, stream)
     curFILE = stream;
     lineno = 0;
     fatals = 0;
+
+    Var_Append(".MAKEFILE_LIST", name, VAR_GLOBAL);
 
     do {
 	while ((line = ParseReadLine ()) != NULL) {
