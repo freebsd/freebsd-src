@@ -180,6 +180,7 @@ extern struct vm_object kmem_object_store;
 					    NULL, MTX_DEF | MTX_DUPOK)
 #define	VM_OBJECT_LOCKED(object)	mtx_owned(&(object)->mtx)
 #define	VM_OBJECT_MTX(object)		(&(object)->mtx)
+#define	VM_OBJECT_TRYLOCK(object)	mtx_trylock(&(object)->mtx)
 #define	VM_OBJECT_UNLOCK(object)	mtx_unlock(&(object)->mtx)
 
 void vm_object_set_flag(vm_object_t object, u_short bits);
