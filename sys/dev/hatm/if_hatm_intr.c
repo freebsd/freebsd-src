@@ -91,6 +91,24 @@ static void hatm_mbuf_page_alloc(struct hatm_softc *sc, u_int group);
 /*
  * Free an external mbuf to a list. We use atomic functions so that
  * we don't need a mutex for the list.
+ *
+ * Note that in general this algorithm is not safe when multiple readers
+ * and writers are present. To cite from a mail from David Schultz
+ * <das@freebsd.org>:
+ *
+ *	It looks like this is subject to the ABA problem.  For instance,
+ *	suppose X, Y, and Z are the top things on the freelist and a
+ *	thread attempts to make an allocation.  You set buf to X and load
+ *	buf->link (Y) into a register.  Then the thread get preempted, and
+ *	another thread allocates both X and Y, then frees X.  When the
+ *	original thread gets the CPU again, X is still on top of the
+ *	freelist, so the atomic operation succeeds.  However, the atomic
+ *	op places Y on top of the freelist, even though Y is no longer
+ *	free.
+ *
+ * We are, however sure that we have only one thread that ever allocates
+ * buffers because the only place we're call from is the interrupt handler.
+ * Under these circumstances the code looks safe.
  */
 __inline void
 hatm_ext_free(struct mbufx_free **list, struct mbufx_free *buf)
