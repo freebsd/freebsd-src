@@ -53,10 +53,7 @@
  *     attempt to perform memory mapped I/O.
  */
 #if 0
-#include "pci.h"
-#if NPCI > 0
 #include <machine/bus_memio.h>
-#endif
 #endif
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
