@@ -54,7 +54,7 @@
 .\"
 .\"	@(#)nslookup.8	5.3 (Berkeley) 6/24/90
 .\"
-.TH NSLOOKUP @SYS_OPS_EXT_U@ "June 24, 1990"
+.TH NSLOOKUP 8 "June 24, 1990"
 .UC 6
 .SH NAME
 nslookup \- query Internet name servers interactively
@@ -177,7 +177,7 @@ When output is directed to a file, hash marks are printed for every
 .sp 1
 .IP "\fBview\fP \fIfilename\fP"
 Sorts and lists the output of previous \fBls\fP command(s) with 
-\fImore\fP(@CMD_EXT@).
+\fImore\fP(1).
 .sp 1
 .ne 4
 .IP "\fBhelp\fP"
@@ -378,7 +378,7 @@ HOSTALIASES	file containing host aliases.
 .br
 LOCALDOMAIN	overrides default domain.
 .SH SEE ALSO
-resolver(@LIB_NETWORK_EXT@), resolver(@FORMAT_EXT@), @INDOT@named(@SYS_OPS_EXT@), 
+resolver(3), resolver(5), named(8), 
 .br
 RFC-1034  ``Domain Names \- Concepts and Facilities''
 .br
