@@ -337,7 +337,9 @@ struct acd_softc {
 	u_int32_t	rellba;
     } subchan;
     struct changer		*changer_info;	/* changer info */
-    int32_t			slot;		/* this lun's slot number */
+    struct acd_softc		**driver;	/* softc's of changer slots */
+    int32_t			slot;		/* this instance slot number */
+    time_t			timestamp;	/* this instance timestamp */
     u_int32_t			block_size;	/* blocksize currently used */
     struct disklabel		disklabel;	/* fake disk label */
     struct devstat		*stats;		/* devstat entry */
