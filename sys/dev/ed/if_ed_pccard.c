@@ -95,7 +95,6 @@ ed_pccard_detach(device_t dev)
 	sc->gone = 1;
 	bus_teardown_intr(dev, sc->irq_res, sc->irq_handle);
 	ed_release_resources(dev);
-	device_printf(dev, "unload\n");
 	return (0);
 }
 
@@ -109,12 +108,12 @@ ed_pccard_probe(device_t dev)
 {
 	int     error;
 
-	error = ed_probe_WD80x3(dev);
+	error = ed_probe_Novell(dev);
 	if (error == 0)
 		goto end;
 	ed_release_resources(dev);
 
-	error = ed_probe_Novell(dev);
+	error = ed_probe_WD80x3(dev);
 	if (error == 0)
 		goto end;
 	ed_release_resources(dev);
