@@ -1573,7 +1573,7 @@ _dns_ghbyaddr(const void *addr, int addrlen, int af, int *errp)
 	querybuf *buf;
 	char qbuf[MAXDNAME+1];
 	char *hlist[2];
-	char *tld6[] = { "ip6.arpa", "ip6.int", NULL };
+	char *tld6[] = { "ip6.arpa", NULL };
 	char *tld4[] = { "in-addr.arpa", NULL };
 	char **tld;
 

@@ -675,12 +675,6 @@ _gethostbydnsaddr(addr, len, af)
 		return (NULL);
 	}
 	n = res_query(qbuf, C_IN, T_PTR, (u_char *)buf->buf, sizeof buf->buf);
-	if (n < 0 && af == AF_INET6) {
-		*qp = '\0';
-		strlcat(qbuf, "ip6.int", sizeof(qbuf));
-		n = res_query(qbuf, C_IN, T_PTR, (u_char *)buf->buf,
-			      sizeof buf->buf);
-	}
 	if (n < 0) {
 		free(buf);
 		dprintf("res_query failed (%d)\n", n);
