@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.101 1997/11/17 01:13:41 brian Exp $
+ * $Id: main.c,v 1.102 1997/11/18 00:19:34 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -600,7 +600,7 @@ ReadTty()
       if (n)
         DecodeCommand(linebuff, n, IsInteractive(0) ? NULL : "Client");
       Prompt();
-    } else if (n < 0)
+    } else if (n <= 0)
       DropClient();
     return;
   }
