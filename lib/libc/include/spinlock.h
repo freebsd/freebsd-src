@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: spinlock.h,v 1.1 1998/03/09 05:05:32 jb Exp $
+ * $Id: spinlock.h,v 1.2 1998/05/05 21:46:30 jb Exp $
  *
  * Lock definitions used in both libc and libpthread.
  *
@@ -38,15 +38,34 @@
 #ifndef _SPINLOCK_H_
 #define _SPINLOCK_H_
 #include <sys/cdefs.h>
+#include <sys/types.h>
+
+/*
+ * Lock structure with room for debugging information.
+ */
+typedef struct {
+	volatile long	access_lock;
+	volatile long	lock_owner;
+	volatile char	*fname;
+	volatile int	lineno;
+} spinlock_t;
+
+#define	_SPINLOCK_INITIALIZER	{ 0, 0, 0, 0 }
+
+#define _SPINUNLOCK(_lck)	(_lck)->access_lock = 0
+#ifdef	_LOCK_DEBUG
+#define	_SPINLOCK(_lck)		_spinlock_debug(_lck, __FILE__, __LINE__)
+#else
+#define	_SPINLOCK(_lck)		_spinlock(_lck)
+#endif
 
 /*
  * Thread function prototype definitions:
  */
 __BEGIN_DECLS
-long	_atomic_lock __P((volatile long *, long));
-long	_atomic_unlock __P((volatile long *));
-void	_spinlock __P((volatile long *));
-void	_spinunlock __P((volatile long *));
+long	_atomic_lock __P((volatile long *));
+void	_spinlock __P((spinlock_t *));
+void	_spinlock_debug __P((spinlock_t *, char *, int));
 __END_DECLS
 
 #endif /* _SPINLOCK_H_ */
