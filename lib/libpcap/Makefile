@@ -1,13 +1,13 @@
 # Makefile for libpcap
-# $Id: Makefile,v 1.17 1997/10/05 09:39:25 jkh Exp $
+# $Id: Makefile,v 1.18 1997/10/10 11:55:42 peter Exp $
 
 LIB=    pcap
-SRCS=	grammar.c tokdefs.h pcap-bpf.c \
+SRCS=	grammar.y tokdefs.h pcap-bpf.c \
         pcap.c inet.c gencode.c optimize.c nametoaddr.c \
 	etherent.c savefile.c bpf_filter.c bpf_image.c \
-        scanner.c
+        scanner.l
 MAN3=	pcap.3
-CLEANFILES+= tokdefs.h grammar.c scanner.c y.tab.c y.tab.h
+CLEANFILES+= tokdefs.h
 
 DEFS=	-DHAVE_SYS_IOCCOM_H=1 -DHAVE_SYS_SOCKIO_H=1 \
 	-DHAVE_ETHER_HOSTTON=1 -DHAVE_STRERROR=1 \
@@ -32,10 +32,7 @@ beforeinstall:
 		${DESTDIR}/usr/include
 .endfor
 
-.ORDER: grammar.c tokdefs.h
-tokdefs.h grammar.c: grammar.y
-	${YACC} ${YACCFLAGS} -d ${PCAP_DISTDIR}/grammar.y
-	mv y.tab.c grammar.c
-	mv y.tab.h tokdefs.h
+tokdefs.h: grammar.h
+	ln -sf grammar.h tokdefs.h
 
 .include <bsd.lib.mk>
