@@ -111,7 +111,7 @@ null_modevent(module_t mod, int type, void *data)
 	switch(type) {
 	case MOD_LOAD:
 		if (bootverbose)
-			printf("nulldev: <null device, zero device>\n");
+			printf("null0: <null device, zero device>\n");
 		zbuf = (void *)malloc(PAGE_SIZE, M_TEMP, M_WAITOK);
 		bzero(zbuf, PAGE_SIZE);
 		zero_dev = make_dev(&zero_cdevsw, ZERO_MINOR, UID_ROOT,
@@ -134,4 +134,4 @@ null_modevent(module_t mod, int type, void *data)
 	}
 }
 
-DEV_MODULE(nulldev, null_modevent, NULL);
+DEV_MODULE(null, null_modevent, NULL);
