@@ -57,7 +57,7 @@ int _callmain();
 #define MAP_ANON	0
 #else
 #ifdef BSD
-#if BSD>=199306
+#if BSD>=199306 && !defined(MAP_FILE)
 #define MAP_FILE	0
 #endif /* BSD>=199306 */
 #endif /* BSD */
@@ -98,19 +98,19 @@ char			*__progname = empty;
 /*
  * We need these system calls, but can't use library stubs
  */
-#define _exit(v)		__syscall(SYS_exit, (v))
-#define open(name, f, m)	__syscall(SYS_open, (name), (f), (m))
-#define close(fd)		__syscall(SYS_close, (fd))
-#define read(fd, s, n)		__syscall(SYS_read, (fd), (s), (n))
-#define write(fd, s, n)		__syscall(SYS_write, (fd), (s), (n))
-#define dup(fd)			__syscall(SYS_dup, (fd))
-#define dup2(fd, fdnew)		__syscall(SYS_dup2, (fd), (fdnew))
+#define _exit(v)		__syscall(SYS_exit, (int)(v))
+#define open(name, f, m)	__syscall(SYS_open, (char *)(name), (int)(f), (int)(m))
+#define close(fd)		__syscall(SYS_close, (int)(fd))
+#define read(fd, s, n)		__syscall(SYS_read, (int)(fd), (void *)(s), (size_t)(n))
+#define write(fd, s, n)		__syscall(SYS_write, (int)(fd), (void *)(s), (size_t)(n))
+#define dup(fd)			__syscall(SYS_dup, (int)(fd))
+#define dup2(fd, fdnew)		__syscall(SYS_dup2, (int)(fd), (int)(fdnew))
 #ifdef sun
 #define mmap(addr, len, prot, flags, fd, off)	\
     __syscall(SYS_mmap, (addr), (len), (prot), _MAP_NEW|(flags), (fd), (off))
 #else
 #define mmap(addr, len, prot, flags, fd, off)	\
-    __syscall(SYS_mmap, (addr), (len), (prot), (flags), (fd), (off))
+    __syscall(SYS_mmap, (caddr_t)(addr), (size_t)(len), (int)(prot), (int)(flags), (int)(fd), (long)0L, (off_t)(off))
 #endif
 
 #define _FATAL(str) \
