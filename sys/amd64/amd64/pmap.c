@@ -384,7 +384,7 @@ create_pagetables(void)
 	/* XXX not fully used, underneath 2M pages */
 	for (i = 0; (i << PAGE_SHIFT) < avail_start; i++) {
 		((pt_entry_t *)KPTphys)[i] = i << PAGE_SHIFT;
-		((pt_entry_t *)KPTphys)[i] |= PG_RW | PG_V;
+		((pt_entry_t *)KPTphys)[i] |= PG_RW | PG_V | PG_G;
 	}
 
 	/* Now map the page tables at their location within PTmap */
@@ -397,7 +397,7 @@ create_pagetables(void)
 	/* This replaces some of the KPTphys entries above */
 	for (i = 0; (i << PDRSHIFT) < avail_start; i++) {
 		((pd_entry_t *)KPDphys)[i] = i << PDRSHIFT;
-		((pd_entry_t *)KPDphys)[i] |= PG_RW | PG_V | PG_PS;
+		((pd_entry_t *)KPDphys)[i] |= PG_RW | PG_V | PG_PS | PG_G;
 	}
 
 	/* And connect up the PD to the PDP */
@@ -410,7 +410,7 @@ create_pagetables(void)
 	/* Now set up the direct map space using 2MB pages */
 	for (i = 0; i < NPDEPG * ndmpdp; i++) {
 		((pd_entry_t *)DMPDphys)[i] = (vm_paddr_t)i << PDRSHIFT;
-		((pd_entry_t *)DMPDphys)[i] |= PG_RW | PG_V | PG_PS;
+		((pd_entry_t *)DMPDphys)[i] |= PG_RW | PG_V | PG_PS | PG_G;
 	}
 
 	/* And the direct map space's PDP */
