@@ -63,6 +63,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <netdb.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -74,17 +75,22 @@
 #define FTP_DEFAULT_TO_ANONYMOUS
 #define FTP_ANONYMOUS_USER	"ftp"
 #define FTP_ANONYMOUS_PASSWORD	"ftp"
+#define FTP_DEFAULT_PORT 21
+
+#define FTP_OPEN_DATA_CONNECTION	150
+#define FTP_OK				200
+#define FTP_PASSIVE_MODE		227
+#define FTP_LOGGED_IN			230
+#define FTP_FILE_ACTION_OK		250
+#define FTP_NEED_PASSWORD		331
+#define FTP_NEED_ACCOUNT		332
 
 #define ENDL "\r\n"
 
 static url_t cached_host;
 static FILE *cached_socket;
 
-#ifndef NDEBUG
-#define TRACE fprintf(stderr, "TRACE on line %d in " __FILE__ "\n", __LINE__);
-#else
-#define TRACE
-#endif
+static char *_ftp_last_reply;
 
 /*
  * Map error code to string
@@ -129,18 +135,23 @@ _ftp_chkerr(FILE *s, int *e)
     char *line;
     size_t len;
 
-    TRACE;
-    
     if (e)
 	*e = 0;
     
     do {
-	if (((line = fgetln(s, &len)) == NULL) || (len < 4))
-	{
+	if (((line = fgetln(s, &len)) == NULL) || (len < 4)) {
 	    _ftp_syserr();
 	    return -1;
 	}
     } while (line[3] == '-');
+
+    _ftp_last_reply = line;
+    
+#ifndef NDEBUG
+    fprintf(stderr, "\033[1m<<< ");
+    fprintf(stderr, "%*.*s", (int)len, (int)len, line);
+    fprintf(stderr, "\033[m");
+#endif
     
     if (!isdigit(line[1]) || !isdigit(line[1])
 	|| !isdigit(line[2]) || (line[3] != ' ')) {
@@ -157,19 +168,25 @@ _ftp_chkerr(FILE *s, int *e)
 }
 
 /*
- * Change remote working directory
+ * Send a command and check reply
  */
 static int
-_ftp_cwd(FILE *s, char *dir)
+_ftp_cmd(FILE *f, char *fmt, ...)
 {
-    TRACE;
+    va_list ap;
+    int e;
+
+    va_start(ap, fmt);
+    vfprintf(f, fmt, ap);
+#ifndef NDEBUG
+    fprintf(stderr, "\033[1m>>> ");
+    vfprintf(stderr, fmt, ap);
+    fprintf(stderr, "\033[m");
+#endif
+    va_end(ap);
     
-    fprintf(s, "CWD %s\n", dir);
-    if (ferror(s)) {
-	_ftp_syserr();
-	return -1;
-    }
-    return _ftp_chkerr(s, NULL); /* expecting 250 */
+    _ftp_chkerr(f, &e);
+    return e;
 }
 
 /*
@@ -178,25 +195,110 @@ _ftp_cwd(FILE *s, char *dir)
 static FILE *
 _ftp_retrieve(FILE *cf, char *file, int pasv)
 {
-    char *p;
-
-    TRACE;
+    struct sockaddr_in sin;
+    int sd = -1, l;
+    char *s;
+    FILE *df;
     
     /* change directory */
-    if (((p = strrchr(file, '/')) != NULL) && (p != file)) {
-	*p = 0;
-	if (_ftp_cwd(cf, file) < 0) {
-	    *p = '/';
+    if (((s = strrchr(file, '/')) != NULL) && (s != file)) {
+	*s = 0;
+	if (_ftp_cmd(cf, "CWD %s" ENDL, file) != FTP_FILE_ACTION_OK) {
+	    *s = '/';
 	    return NULL;
 	}
-	*p++ = '/';
+	*s++ = '/';
     } else {
-	if (_ftp_cwd(cf, "/") < 0)
+	if (_ftp_cmd(cf, "CWD /" ENDL) != FTP_FILE_ACTION_OK)
 	    return NULL;
     }
 
-    /* retrieve file; p now points to file name */
-    fprintf(stderr, "Arrrgh! No! No! I can't do it! Leave me alone!\n");
+    /* s now points to file name */
+
+    /* open data socket */
+    if ((sd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) {
+	_ftp_syserr();
+	return NULL;
+    }
+    
+    if (pasv) {
+	u_char addr[6];
+	char *ln, *p;
+	int i;
+	
+	/* send PASV command */
+	if (_ftp_cmd(cf, "PASV" ENDL) != FTP_PASSIVE_MODE)
+	    goto ouch;
+
+	/* find address and port number. The reply to the PASV command
+           is IMHO the one and only weak point in the FTP protocol. */
+	ln = _ftp_last_reply;
+	for (p = ln + 3; !isdigit(*p); p++)
+	    /* nothing */ ;
+	for (p--, i = 0; i < 6; i++) {
+	    p++; /* skip the comma */
+	    addr[i] = strtol(p, &p, 10);
+	}
+
+	/* construct sockaddr for data socket */
+	l = sizeof(sin);
+	if (getpeername(fileno(cf), (struct sockaddr *)&sin, &l) < 0)
+	    goto sysouch;
+	bcopy(addr, (char *)&sin.sin_addr, 4);
+	bcopy(addr + 4, (char *)&sin.sin_port, 2);	
+
+	/* connect to data port */
+	if (connect(sd, (struct sockaddr *)&sin, sizeof(sin)) < 0)
+	    goto sysouch;
+	
+	/* make the server initiate the transfer */
+	if (_ftp_cmd(cf, "RETR %s" ENDL, s) != FTP_OPEN_DATA_CONNECTION)
+	    goto ouch;
+	
+    } else {
+	u_int32_t a;
+	u_short p;
+	int d;
+	
+	/* find our own address, bind, and listen */
+	l = sizeof(sin);
+	if (getsockname(fileno(cf), (struct sockaddr *)&sin, &l) < 0)
+	    goto sysouch;
+	sin.sin_port = 0;
+	if (bind(sd, (struct sockaddr *)&sin, l) < 0)
+	    goto sysouch;
+	if (listen(sd, 1) < 0)
+	    goto sysouch;
+
+	/* find what port we're on and tell the server */
+	if (getsockname(sd, (struct sockaddr *)&sin, &l) < 0)
+	    goto sysouch;
+	a = ntohl(sin.sin_addr.s_addr);
+	p = ntohs(sin.sin_port);
+	if (_ftp_cmd(cf, "PORT %d,%d,%d,%d,%d,%d" ENDL,
+		     (a >> 24) & 0xff, (a >> 16) & 0xff, (a >> 8) & 0xff, a & 0xff,
+		     (p >> 8) & 0xff, p & 0xff) != FTP_OK)
+	    goto ouch;
+
+	/* make the server initiate the transfer */
+	if (_ftp_cmd(cf, "RETR %s" ENDL, s) != FTP_OPEN_DATA_CONNECTION)
+	    goto ouch;
+	
+	/* accept the incoming connection and go to town */
+	if ((d = accept(sd, NULL, NULL)) < 0)
+	    goto sysouch;
+	close(sd);
+	sd = d;
+    }
+
+    if ((df = fdopen(sd, "r")) == NULL)
+	goto sysouch;
+    return df;
+
+sysouch:
+    _ftp_syserr();
+ouch:
+    close(sd);
     return NULL;
 }
 
@@ -206,7 +308,7 @@ _ftp_retrieve(FILE *cf, char *file, int pasv)
 static FILE *
 _ftp_store(FILE *cf, char *file, int pasv)
 {
-    TRACE;
+    fprintf(stderr, "_ftp_store: not implemented yet.\n");
     
     cf = cf;
     file = file;
@@ -223,8 +325,6 @@ _ftp_connect(char *host, int port, char *user, char *pwd)
     int sd, e;
     FILE *f;
 
-    TRACE;
-    
     /* establish control connection */
     if ((sd = fetchConnect(host, port)) < 0) {
 	_ftp_syserr();
@@ -240,27 +340,20 @@ _ftp_connect(char *host, int port, char *user, char *pwd)
 	goto fouch;
     
     /* send user name and password */
-    fprintf(f, "USER %s" ENDL, user);
-    _ftp_chkerr(f, &e);
-    if (e == 331) {
-	/* server requested a password */
-	fprintf(f, "PASS %s" ENDL, pwd);
-	_ftp_chkerr(f, &e);
-    }
-    if (e == 332) {
-	/* server requested an account */
-    }
-    if (e != 230) /* won't let us near the WaReZ */
+    e = _ftp_cmd(f, "USER %s" ENDL, user);
+    if (e == FTP_NEED_PASSWORD)	/* server requested a password */
+	e = _ftp_cmd(f, "PASS %s" ENDL, pwd);
+    if (e == FTP_NEED_ACCOUNT) /* server requested an account */
+	/* help! */ ;
+    if (e != FTP_LOGGED_IN) /* won't let us near the WaReZ */
 	goto fouch;
 
     /* might as well select mode and type at once */
 #ifdef FTP_FORCE_STREAM_MODE
-    fprintf(f, "MODE S" ENDL);
-    if (_ftp_chkerr(f, NULL) < 0)
+    if (_ftp_cmd(f, "MODE S" ENDL) != FTP_OK)
 	goto ouch;
 #endif
-    fprintf(f, "TYPE I" ENDL);
-    if (_ftp_chkerr(f, NULL) < 0)
+    if (_ftp_cmd(f, "TYPE I" ENDL) != FTP_OK)
 	goto ouch;
 
     /* done */
@@ -280,10 +373,7 @@ fouch:
 static void
 _ftp_disconnect(FILE *f)
 {
-    TRACE;
-    
-    fprintf(f, "QUIT" ENDL);
-    _ftp_chkerr(f, NULL);
+    _ftp_cmd(f, "QUIT" ENDL);
     fclose(f);
 }
 
@@ -293,8 +383,6 @@ _ftp_disconnect(FILE *f)
 static int
 _ftp_isconnected(url_t *url)
 {
-    TRACE;
-    
     return (cached_socket
 	    && (strcmp(url->host, cached_host.host) == 0)
 	    && (strcmp(url->user, cached_host.user) == 0)
@@ -308,8 +396,6 @@ fetchGetFTP(url_t *url, char *flags)
     FILE *cf = NULL;
     int e;
 
-    TRACE;
-    
 #ifdef DEFAULT_TO_ANONYMOUS
     if (!url->user[0]) {
 	strcpy(url->user, FTP_ANONYMOUS_USER);
@@ -319,7 +405,7 @@ fetchGetFTP(url_t *url, char *flags)
 
     /* set default port */
     if (!url->port)
-	url->port = 21;
+	url->port = FTP_DEFAULT_PORT;
     
     /* try to use previously cached connection */
     if (_ftp_isconnected(url)) {
@@ -363,7 +449,7 @@ fetchPutFTP(url_t *url, char *flags)
 
     /* set default port */
     if (!url->port)
-	url->port = 21;
+	url->port = htons(FTP_DEFAULT_PORT);
     
     /* try to use previously cached connection */
     if (_ftp_isconnected(url)) {
