@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1995/06/21 18:30:16 wollman Exp $
+#	$Id: Makefile,v 1.4 1996/06/24 04:25:22 jkh Exp $
 
 PROG=	mtrace
 
@@ -6,9 +6,9 @@ S=	${.CURDIR}/..
 .PATH:	$S
 CFLAGS+=	-I$S
 LDADD+=	-lmrouted
-.if exists($S/common/obj)
-LDDESTDIR+=	-L$S/common/obj
-DPADD+= 	$S/common/obj/libmrouted.a
+.if exists(${.OBJDIR}/../common)
+LDDESTDIR+=	-L${.OBJDIR}/../common
+DPADD+= 	${.OBJDIR}/../common/libmrouted.a
 .else
 LDDESTDIR+=	-L$S/common
 DPADD+=		$S/common/libmrouted.a
@@ -17,6 +17,6 @@ DPADD+=		$S/common/libmrouted.a
 SRCS=	mtrace.c
 MAN8=	${.CURDIR}/../mtrace.8
 BINOWN=	root
-BINMODE=4755
+BINMODE=4555
 
 .include <bsd.prog.mk>

@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: igmp.c,v 1.8 1995/10/07 03:48:44 davidg Exp $
+ * $Id: igmp.c,v 1.11 1996/11/11 03:49:57 fenner Exp $
  */
 
 
@@ -26,6 +26,23 @@ u_int32		dvmrp_group;		     /* DVMRP grp addr in net order */
 u_int32		dvmrp_genid;		     /* IGMP generation id          */
 
 /*
+ * Private variables
+ */
+static char	router_alert[4];	     /* Router Alert IP Option	    */
+#ifndef	IPOPT_RA
+#define	IPOPT_RA		148
+#endif
+#ifdef SUNOS5
+static char	no_op[4];		     /* Null IP Option		    */
+static int ip_addlen = 0;		     /* Workaround for Option bug #2*/	
+#endif
+#define	SEND_RA(x)	(((x) == IGMP_MEMBERSHIP_QUERY) || \
+			 ((x) == IGMP_V1_MEMBERSHIP_REPORT) || \
+			 ((x) == IGMP_V2_MEMBERSHIP_REPORT) || \
+			 ((x) == IGMP_V2_LEAVE_GROUP) || \
+			 ((x) == IGMP_MTRACE))
+
+/*
  * Local function definitions.
  */
 /* u_char promoted to u_int */
@@ -40,6 +57,9 @@ void
 init_igmp()
 {
     struct ip *ip;
+#ifdef SUNOS5
+    u_int32 localhost = htonl(0x7f000001);
+#endif
 
     recv_buf = malloc(RECV_BUF_SIZE);
     send_buf = malloc(RECV_BUF_SIZE);
@@ -63,6 +83,67 @@ init_igmp()
     allhosts_group = htonl(INADDR_ALLHOSTS_GROUP);
     dvmrp_group    = htonl(INADDR_DVMRP_GROUP);
     allrtrs_group  = htonl(INADDR_ALLRTRS_GROUP);
+
+    router_alert[0] = IPOPT_RA;	/* Router Alert */
+    router_alert[1] = 4;	/* 4 bytes */
+    router_alert[2] = 0;
+    router_alert[3] = 0;
+
+#ifdef SUNOS5
+    no_op[0] = IPOPT_NOP;
+    no_op[1] = IPOPT_NOP;
+    no_op[2] = IPOPT_NOP;
+    no_op[3] = IPOPT_NOP;
+
+    setsockopt(igmp_socket, IPPROTO_IP, IP_OPTIONS, no_op, sizeof(no_op));
+    /*
+     * Check if the kernel adds the options length to the packet
+     * length.  Send myself an IGMP packet of type 0 (illegal),
+     * with 4 IPOPT_NOP options, my PID (for collision detection)
+     * and 4 bytes of zero (so that the checksum works whether
+     * the 4 bytes of zero get truncated or not).
+     */
+    bzero(send_buf + MIN_IP_HEADER_LEN + IGMP_MINLEN, 8);
+    *(int *)(send_buf + MIN_IP_HEADER_LEN + IGMP_MINLEN) = getpid();
+    send_igmp(localhost, localhost, 0, 0, 0, 8);
+    while (1) {
+	int recvlen, dummy = 0;
+
+	recvlen = recvfrom(igmp_socket, recv_buf, RECV_BUF_SIZE,
+				0, NULL, &dummy);
+	/* 8 == 4 bytes of options and 4 bytes of PID */
+	if (recvlen >= MIN_IP_HEADER_LEN + IGMP_MINLEN + 8) {
+	    struct ip *ip = (struct ip *)recv_buf;
+	    struct igmp *igmp;
+	    int *p;
+
+	    if (ip->ip_hl != 6 ||
+		ip->ip_p != IPPROTO_IGMP ||
+	        ip->ip_src.s_addr != localhost ||
+		ip->ip_dst.s_addr != localhost)
+		continue;
+
+	    igmp = (struct igmp *)(recv_buf + (ip->ip_hl << 2));
+	    if (igmp->igmp_group.s_addr != 0)
+		continue;
+	    if (igmp->igmp_type != 0 || igmp->igmp_code != 0)
+		continue;
+
+	    p = (int *)((char *)igmp + IGMP_MINLEN);
+	    if (*p != getpid())
+		continue;
+
+	    if (ip->ip_len == IGMP_MINLEN + 4)
+		ip_addlen = 4;
+	    else if (ip->ip_len == IGMP_MINLEN + 8)
+		ip_addlen = 0;
+	    else
+		log(LOG_ERR, 0, "while checking for Solaris bug: Sent %d bytes and got back %d!", IGMP_MINLEN + 8, ip->ip_len);
+
+	    break;
+	}
+    }
+#endif
 }
 
 #define PIM_QUERY        0
@@ -80,8 +161,8 @@ packet_kind(type, code)
 {
     switch (type) {
 	case IGMP_HOST_MEMBERSHIP_QUERY:	return "membership query  ";
-	case IGMP_HOST_MEMBERSHIP_REPORT:	return "membership report ";
-	case IGMP_HOST_NEW_MEMBERSHIP_REPORT:	return "new member report ";
+	case IGMP_HOST_MEMBERSHIP_REPORT:	return "V1 member report  ";
+	case IGMP_HOST_NEW_MEMBERSHIP_REPORT:	return "V2 member report  ";
 	case IGMP_HOST_LEAVE_MESSAGE:           return "leave message     ";
 	case IGMP_DVMRP:
 	  switch (code) {
@@ -94,6 +175,8 @@ packet_kind(type, code)
 	    case DVMRP_PRUNE:			return "prune message     ";
 	    case DVMRP_GRAFT:			return "graft message     ";
 	    case DVMRP_GRAFT_ACK:		return "graft message ack ";
+	    case DVMRP_INFO_REQUEST:		return "info request      ";
+	    case DVMRP_INFO_REPLY:		return "info reply        ";
 	    default:	    			return "unknown DVMRP msg ";
 	  }
  	case IGMP_PIM:
@@ -154,8 +237,8 @@ accept_igmp(recvlen)
     ipdatalen = ip->ip_len;
     if (iphdrlen + ipdatalen != recvlen) {
 	log(LOG_WARNING, 0,
-	    "received packet shorter (%u bytes) than hdr+data length (%u+%u)",
-	    recvlen, iphdrlen, ipdatalen);
+	    "received packet from %s shorter (%u bytes) than hdr+data length (%u+%u)",
+	    inet_fmt(src, s1), recvlen, iphdrlen, ipdatalen);
 	return;
     }
 
@@ -232,6 +315,15 @@ accept_igmp(recvlen)
 		    accept_g_ack(src, dst, (char *)(igmp+1), igmpdatalen);
 		    return;
 
+		case DVMRP_INFO_REQUEST:
+		    accept_info_request(src, dst, (char *)(igmp+1),
+				igmpdatalen);
+		    return;
+
+		case DVMRP_INFO_REPLY:
+		    accept_info_reply(src, dst, (char *)(igmp+1), igmpdatalen);
+		    return;
+
 		default:
 		    log(LOG_INFO, 0,
 		     "ignoring unknown DVMRP message code %u from %s to %s",
@@ -296,14 +388,22 @@ send_igmp(src, dst, type, code, group, datalen)
     u_int32 group;
     int datalen;
 {
-    static struct sockaddr_in sdst;
+    struct sockaddr_in sdst;
     struct ip *ip;
     struct igmp *igmp;
+    int setloop = 0;
+    static int raset = 0;
+    int sendra = 0;
+    int sendlen;
 
     ip                      = (struct ip *)send_buf;
     ip->ip_src.s_addr       = src;
     ip->ip_dst.s_addr       = dst;
     ip->ip_len              = MIN_IP_HEADER_LEN + IGMP_MINLEN + datalen;
+    sendlen		    = ip->ip_len;
+#ifdef SUNOS5
+    ip->ip_len		   += ip_addlen;
+#endif
 
     igmp                    = (struct igmp *)(send_buf + MIN_IP_HEADER_LEN);
     igmp->igmp_type         = type;
@@ -313,9 +413,34 @@ send_igmp(src, dst, type, code, group, datalen)
     igmp->igmp_cksum        = inet_cksum((u_short *)igmp,
 					 IGMP_MINLEN + datalen);
 
-    if (IN_MULTICAST(ntohl(dst))) k_set_if(src);
-    if (dst == allhosts_group || type == IGMP_HOST_MEMBERSHIP_QUERY)
+    if (IN_MULTICAST(ntohl(dst))) {
+	k_set_if(src);
+	if (type != IGMP_DVMRP || dst == allhosts_group) {
+	    setloop = 1;
 	    k_set_loop(TRUE);
+	}
+	if (SEND_RA(type))
+	    sendra = 1;
+    }
+
+    if (sendra && !raset) {
+	setsockopt(igmp_socket, IPPROTO_IP, IP_OPTIONS,
+			router_alert, sizeof(router_alert));
+	raset = 1;
+    } else if (!sendra && raset) {
+#ifdef SUNOS5
+	/*
+	 * SunOS5 < 5.6 cannot properly reset the IP_OPTIONS "socket"
+	 * option.  Instead, set up a string of 4 no-op's.
+	 */
+	setsockopt(igmp_socket, IPPROTO_IP, IP_OPTIONS,
+			no_op, sizeof(no_op));
+#else
+	setsockopt(igmp_socket, IPPROTO_IP, IP_OPTIONS,
+			NULL, 0);
+#endif
+	raset = 0;
+    }
 
     bzero(&sdst, sizeof(sdst));
     sdst.sin_family = AF_INET;
@@ -323,7 +448,7 @@ send_igmp(src, dst, type, code, group, datalen)
     sdst.sin_len = sizeof(sdst);
 #endif
     sdst.sin_addr.s_addr = dst;
-    if (sendto(igmp_socket, send_buf, ip->ip_len, 0,
+    if (sendto(igmp_socket, send_buf, sendlen, 0,
 			(struct sockaddr *)&sdst, sizeof(sdst)) < 0) {
 	if (errno == ENETDOWN)
 	    check_vif_state();
@@ -333,9 +458,10 @@ send_igmp(src, dst, type, code, group, datalen)
 		inet_fmt(dst, s1), inet_fmt(src, s2));
     }
 
-    if (dst == allhosts_group || type == IGMP_HOST_MEMBERSHIP_QUERY)
+    if (setloop)
 	    k_set_loop(FALSE);
 
     log(LOG_DEBUG, 0, "SENT %s from %-15s to %s",
-	packet_kind(type, code), inet_fmt(src, s1), inet_fmt(dst, s2));
+	packet_kind(type, code), src == INADDR_ANY ? "INADDR_ANY" :
+				 inet_fmt(src, s1), inet_fmt(dst, s2));
 }

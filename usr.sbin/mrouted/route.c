@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: route.c,v 1.5 1995/06/28 17:58:44 wollman Exp $
+ * $Id: route.c,v 1.7 1996/11/11 03:50:11 fenner Exp $
  */
 
 
@@ -353,12 +353,12 @@ discard_route(prev_r)
 void
 update_route(origin, mask, metric, src, vifi)
     u_int32 origin, mask;
-    int metric;
+    u_int metric;
     u_int32 src;
     vifi_t vifi;
 {
     register struct rtentry *r;
-    int adj_metric;
+    u_int adj_metric;
 
     /*
      * Compute an adjusted metric, taking into account the cost of the
@@ -462,7 +462,8 @@ update_route(origin, mask, metric, src, vifi)
 	     (r->rt_gateway != 0 &&
 	      (adj_metric < r->rt_metric ||
 	       (adj_metric == r->rt_metric &&
-		r->rt_timer >= ROUTE_SWITCH_TIME)))) {
+		(ntohl(src) < ntohl(r->rt_gateway) ||
+		 r->rt_timer >= ROUTE_SWITCH_TIME))))) {
 	/*
 	 * The report is for an origin we consider reachable; the report
 	 * comes either from one of our own interfaces or from a gateway
@@ -473,10 +474,15 @@ update_route(origin, mask, metric, src, vifi)
 	 * what our routing entry says, update the entry to use the new
 	 * gateway and metric.  We also switch gateways if the reported
 	 * metric is the same as the one in the route entry and the gateway
-	 * associated with the route entry has not been heard from recently.
+	 * associated with the route entry has not been heard from recently,
+	 * or if the metric is the same but the reporting gateway has a lower
+	 * IP address than the gateway associated with the route entry.
 	 * Did you get all that?
 	 */
 	if (r->rt_parent != vifi || adj_metric < r->rt_metric) {
+	    /*
+	     * XXX Why do we do this if we are just changing the metric?
+	     */
 	    r->rt_parent = vifi;
 	    if (init_children_and_leaves(r, vifi)) {
 		update_table_entry(r);
@@ -785,6 +791,12 @@ accept_report(src, dst, p, datalen, level)
 	if ((((u_char *)&mask)[1] = *p++) != 0) width = 2;
 	if ((((u_char *)&mask)[2] = *p++) != 0) width = 3;
 	if ((((u_char *)&mask)[3] = *p++) != 0) width = 4;
+	if (!inet_valid_mask(ntohl(mask))) {
+	    log(LOG_WARNING, 0,
+		"%s reports bogus netmask 0x%08x (%s)",
+		inet_fmt(src, s1), ntohl(mask), inet_fmt(mask, s2));
+	    return;
+	}
 	datalen -= 3;
 
 	do {			/* Loop through (origin, metric) pairs */
@@ -805,6 +817,7 @@ accept_report(src, dst, p, datalen, level)
 	    ++nrt;
 	} while (!(metric & 0x80));
     }
+
     qsort((char*)rt, nrt, sizeof(rt[0]), compare_rts);
     start_route_updates();
     /*
@@ -815,9 +828,16 @@ accept_report(src, dst, p, datalen, level)
 
     log(LOG_DEBUG, 0, "Updating %d routes from %s to %s", nrt,
 		inet_fmt(src, s1), inet_fmt(dst, s2));
-    for (i = 0; i < nrt; ++i)
+    for (i = 0; i < nrt; ++i) {
+	if (i != 0 && rt[i].origin == rt[i-1].origin &&
+		      rt[i].mask == rt[i-1].mask) {
+	    log(LOG_WARNING, 0, "%s reports duplicate route for %s",
+		inet_fmt(src, s1), inet_fmts(rt[i].origin, rt[i].mask, s2));
+	    continue;
+	}
 	update_route(rt[i].origin, rt[i].mask, rt[i].metric, 
 		     src, vifi);
+    }
 
     if (routes_changed && !delay_change_reports)
 	report_to_all_neighbors(CHANGED_ROUTES);
@@ -842,6 +862,8 @@ report(which_routes, vifi, dst)
     u_int32 mask = 0;
     u_int32 src;
     u_int32 nflags;
+    int metric;
+    int admetric = uvifs[vifi].uv_admetric;
 
     src = uvifs[vifi].uv_lcl_addr;
 
@@ -898,9 +920,12 @@ report(which_routes, vifi, dst)
 	for (i = 0; i < width; ++i)
 	    *p++ = ((char *)&(r->rt_origin))[i];
 
-	*p++ = (r->rt_parent == vifi && r->rt_metric != UNREACHABLE) ?
-	    (char)(r->rt_metric + UNREACHABLE) :  /* "poisoned reverse" */
-		(char)(r->rt_metric);
+	metric = r->rt_metric + admetric;
+        if (metric > UNREACHABLE)
+	    metric = UNREACHABLE;
+	*p++ = (r->rt_parent == vifi && metric != UNREACHABLE) ?
+	    (char)(metric + UNREACHABLE) :  /* "poisoned reverse" */
+		(char)(metric);
 
 	datalen += width + 1;
     }
@@ -981,6 +1006,8 @@ report_chunk(start_rt, vifi, dst)
     u_int32 mask = 0;
     u_int32 src;
     u_int32 nflags;
+    int admetric = uvifs[vifi].uv_admetric;
+    int metric;
 
     src = uvifs[vifi].uv_lcl_addr;
     p = send_buf + MIN_IP_HEADER_LEN + IGMP_MINLEN;
@@ -1022,9 +1049,12 @@ report_chunk(start_rt, vifi, dst)
 	for (i = 0; i < width; ++i)
 	    *p++ = ((char *)&(r->rt_origin))[i];
 
-	*p++ = (r->rt_parent == vifi && r->rt_metric != UNREACHABLE) ?
-	    (char)(r->rt_metric + UNREACHABLE) :  /* "poisoned reverse" */
-		(char)(r->rt_metric);
+	metric = r->rt_metric + admetric;
+	if (metric > UNREACHABLE)
+	    metric = UNREACHABLE;
+	*p++ = (r->rt_parent == vifi && metric != UNREACHABLE) ?
+	    (char)(metric + UNREACHABLE) :  /* "poisoned reverse" */
+		(char)(metric);
 	++nrt;
 	datalen += width + 1;
     }
@@ -1098,7 +1128,7 @@ dump_routes(fp)
     FILE *fp;
 {
     register struct rtentry *r;
-    register int i;
+    register vifi_t i;
 
 
     fprintf(fp,

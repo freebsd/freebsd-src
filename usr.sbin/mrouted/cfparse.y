@@ -4,7 +4,7 @@
  *
  * Written by Bill Fenner, NRL, 1994
  *
- * $Id: cfparse.y,v 3.6 1995/06/25 18:49:46 fenner Exp $
+ * $Id: cfparse.y,v 1.4 1996/11/11 03:49:55 fenner Exp $
  */
 #include <stdio.h>
 #ifdef __STDC__
@@ -13,6 +13,7 @@
 #include <varargs.h>
 #endif
 #include "defs.h"
+#include <netdb.h>
 
 /*
  * Local function declarations
@@ -69,14 +70,16 @@ int numbounds = 0;			/* Number of named boundaries */
 
 %token CACHE_LIFETIME PRUNING
 %token PHYINT TUNNEL NAME
-%token DISABLE METRIC THRESHOLD RATE_LIMIT SRCRT BOUNDARY NETMASK ALTNET
+%token DISABLE IGMPV1 SRCRT
+%token METRIC THRESHOLD RATE_LIMIT BOUNDARY NETMASK ALTNET ADVERT_METRIC
+%token SYSNAM SYSCONTACT SYSVERSION SYSLOCATION
 %token <num> BOOLEAN
 %token <num> NUMBER
 %token <ptr> STRING
 %token <addrmask> ADDRMASK
 %token <addr> ADDR
 
-%type <addr> interface
+%type <addr> interface addrname
 %type <addrmask> bound boundary addrmask
 
 %start conf
@@ -109,10 +112,9 @@ stmt	: error
 			    fatal("%s is not a configured interface",
 				inet_fmt($2,s1));
 
-			/*log(LOG_INFO, 0, "phyint: %x\n", v);*/
 					}
 		ifmods
-	| TUNNEL interface ADDR		{
+	| TUNNEL interface addrname	{
 
 			struct ifreq *ifr;
 			struct ifreq ffr;
@@ -155,6 +157,7 @@ stmt	: error
 			v = &uvifs[numvifs];
 			v->uv_flags	= VIFF_TUNNEL;
 			v->uv_metric	= DEFAULT_METRIC;
+			v->uv_admetric  = 0;
 			v->uv_rate_limit= DEFAULT_TUN_RATE_LIMIT;
 			v->uv_threshold	= DEFAULT_THRESHOLD;
 			v->uv_lcl_addr	= $2;
@@ -172,7 +175,6 @@ stmt	: error
 			    v->uv_flags |= VIFF_DOWN;
 			    vifs_down = TRUE;
 			}
-			/*log(LOG_INFO, 0, "tunnel: %x\n", v);*/
 					}
 		tunnelmods
 					{
@@ -195,10 +197,30 @@ stmt	: error
 				      strcpy(boundlist[numbounds].name, $2);
 				      boundlist[numbounds++].bound = $3;
 				    }
+	| SYSNAM STRING    {
+#ifdef SNMP
+			    set_sysName($2);
+#endif /* SNMP */
+			    }
+	| SYSCONTACT STRING {
+#ifdef SNMP
+			    set_sysContact($2);
+#endif /* SNMP */
+			    }
+        | SYSVERSION STRING {
+#ifdef SNMP
+			    set_sysVersion($2);
+#endif /* SNMP */
+			    }
+	| SYSLOCATION STRING {
+#ifdef SNMP
+			    set_sysLocation($2);
+#endif /* SNMP */
+			    }
 	;
 
 tunnelmods	: /* empty */
-	| tunnelmods /*{ log(LOG_INFO, 0, "tunnelmod: %x", v); }*/ tunnelmod
+	| tunnelmods tunnelmod
 	;
 
 tunnelmod	: mod
@@ -206,12 +228,13 @@ tunnelmod	: mod
 	;
 
 ifmods	: /* empty */
-	| ifmods /*{ log(LOG_INFO, 0, "ifmod: %x", v); }*/ ifmod
+	| ifmods ifmod
 	;
 
 ifmod	: mod
 	| DISABLE		{ v->uv_flags |= VIFF_DISABLED; }
-	| NETMASK ADDR		{
+	| IGMPV1		{ v->uv_flags |= VIFF_IGMPV1; }
+	| NETMASK addrname	{
 				  u_int32 subnet, mask;
 
 				  mask = $2;
@@ -221,6 +244,11 @@ ifmod	: mod
 				  v->uv_subnet = subnet;
 				  v->uv_subnetmask = mask;
 				  v->uv_subnetbcast = subnet | ~mask;
+				}
+	| NETMASK		{
+
+		    warn("Expected address after netmask keyword, ignored");
+
 				}
 	| ALTNET addrmask	{
 
@@ -242,6 +270,11 @@ ifmod	: mod
 		    v->uv_addrs = ph;
 
 				}
+	| ALTNET		{
+
+		    warn("Expected address after altnet keyword, ignored");
+
+				}
 	;
 
 mod	: THRESHOLD NUMBER	{ if ($2 < 1 || $2 > 255)
@@ -250,7 +283,7 @@ mod	: THRESHOLD NUMBER	{ if ($2 < 1 || $2 > 255)
 				}
 	| THRESHOLD		{
 
-		    warn("Expected number after threshold keyword");
+		    warn("Expected number after threshold keyword, ignored");
 
 				}
 	| METRIC NUMBER		{ if ($2 < 1 || $2 > UNREACHABLE)
@@ -259,7 +292,16 @@ mod	: THRESHOLD NUMBER	{ if ($2 < 1 || $2 > 255)
 				}
 	| METRIC		{
 
-		    warn("Expected number after metric keyword");
+		    warn("Expected number after metric keyword, ignored");
+
+				}
+	| ADVERT_METRIC NUMBER	{ if ($2 < 0 || $2 > UNREACHABLE - 1)
+				    fatal("Invalid advert_metric %d", $2);
+				  v->uv_admetric = $2;
+				}
+	| ADVERT_METRIC		{
+
+		    warn("Expected number after advert_metric keyword, ignored");
 
 				}
 	| RATE_LIMIT NUMBER	{ if ($2 > MAX_RATE_LIMIT)
@@ -268,7 +310,7 @@ mod	: THRESHOLD NUMBER	{ if ($2 < 1 || $2 > 255)
 				}
 	| RATE_LIMIT		{
 
-		    warn("Expected number after rate_limit keyword");
+		    warn("Expected number after rate_limit keyword, ignored");
 
 				}
 	| BOUNDARY bound	{
@@ -289,7 +331,7 @@ mod	: THRESHOLD NUMBER	{ if ($2 < 1 || $2 > 255)
 				}
 	| BOUNDARY		{
 
-		    warn("Expected boundary spec after boundary keyword");
+		warn("Expected boundary spec after boundary keyword, ignored");
 
 				}
 	;
@@ -301,6 +343,20 @@ interface	: ADDR		{ $$ = $1; }
 					fatal("Invalid interface name %s",$1);
 				}
 	;
+
+addrname	: ADDR		{ $$ = $1; }
+	| STRING		{ struct hostent *hp;
+
+				  if ((hp = gethostbyname($1)) == NULL)
+				    fatal("No such host %s", $1);
+
+				  if (hp->h_addr_list[1])
+				    fatal("Hostname %s does not %s",
+					$1, "map to a unique address");
+
+				  bcopy(hp->h_addr_list[0], &$$,
+					    hp->h_length);
+				}
 
 bound	: boundary		{ $$ = $1; }
 	| STRING		{ int i;
@@ -413,6 +469,15 @@ next_word()
 		continue;
 	    }
 	    q = p;
+#ifdef SNMP
+       if (*p == '"') {
+          p++;
+	       while (*p && *p != '"' && *p != '\n')
+		      p++;		/* find next whitespace */
+          if (*p == '"')
+             p++;
+       } else
+#endif
 	    while (*p && *p != ' ' && *p != '\t' && *p != '\n')
 		p++;		/* find next whitespace */
 	    *p++ = '\0';	/* null-terminate string */
@@ -449,6 +514,8 @@ yylex()
 		return DISABLE;
 	if (!strcmp(q,"metric"))
 		return METRIC;
+	if (!strcmp(q,"advert_metric"))
+		return ADVERT_METRIC;
 	if (!strcmp(q,"threshold"))
 		return THRESHOLD;
 	if (!strcmp(q,"rate_limit"))
@@ -459,10 +526,12 @@ yylex()
 		return BOUNDARY;
 	if (!strcmp(q,"netmask"))
 		return NETMASK;
-	if (!strcmp(q,"name"))
-		return NAME;
+	if (!strcmp(q,"igmpv1"))
+		return IGMPV1;
 	if (!strcmp(q,"altnet"))
 		return ALTNET;
+	if (!strcmp(q,"name"))
+		return NAME;
 	if (!strcmp(q,"on") || !strcmp(q,"yes")) {
 		yylval.num = 1;
 		return BOOLEAN;
@@ -471,8 +540,13 @@ yylex()
 		yylval.num = 0;
 		return BOOLEAN;
 	}
+	if (!strcmp(q,"default")) {
+		yylval.addrmask.mask = 0;
+		yylval.addrmask.addr = 0;
+		return ADDRMASK;
+	}
 	if (sscanf(q,"%[.0-9]/%d%c",s1,&n,s2) == 2) {
-		if ((addr = inet_parse(s1)) != 0xffffffff) {
+		if ((addr = inet_parse(s1,1)) != 0xffffffff) {
 			yylval.addrmask.mask = n;
 			yylval.addrmask.addr = addr;
 			return ADDRMASK;
@@ -480,7 +554,7 @@ yylex()
 		/* fall through to returning STRING */
 	}
 	if (sscanf(q,"%[.0-9]%c",s1,s2) == 1) {
-		if ((addr = inet_parse(s1)) != 0xffffffff &&
+		if ((addr = inet_parse(s1,4)) != 0xffffffff &&
 		    inet_valid_host(addr)) { 
 			yylval.addr = addr;
 			return ADDR;
@@ -494,6 +568,22 @@ yylex()
 		yylval.num = n;
 		return NUMBER;
 	}
+#ifdef SNMP
+	if (!strcmp(q,"sysName"))
+		return SYSNAM;
+	if (!strcmp(q,"sysContact"))
+		return SYSCONTACT;
+	if (!strcmp(q,"sysVersion"))
+		return SYSVERSION;
+	if (!strcmp(q,"sysLocation"))
+		return SYSLOCATION;
+   if (*q=='"') {
+      if (q[ strlen(q)-1 ]=='"')
+         q[ strlen(q)-1 ]='\0'; /* trash trailing quote */
+      yylval.ptr = q+1;
+      return STRING;
+   }
+#endif
 	yylval.ptr = q;
 	return STRING;
 }
