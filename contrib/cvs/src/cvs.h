@@ -539,7 +539,7 @@ void Update_Logfile PROTO((char *repository, char *xmessage, FILE * xlogfp,
 void do_editor PROTO((char *dir, char **messagep,
 		      char *repository, List * changes));
 
-void do_verify PROTO((char *message, char *repository));
+void do_verify PROTO((char **messagep, char *repository));
 
 typedef	int (*CALLBACKPROC)	PROTO((int *pargc, char *argv[], char *where,
 	char *mwhere, char *mfile, int horten, int local_specified,
