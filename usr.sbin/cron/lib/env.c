@@ -16,7 +16,8 @@
  */
 
 #if !defined(lint) && !defined(LINT)
-static char rcsid[] = "$Id$";
+static const char rcsid[] =
+	"$Id: env.c,v 1.5 1997/02/22 16:05:07 peter Exp $";
 #endif
 
 
@@ -192,7 +193,7 @@ env_get(name, envp)
 	register int	len = strlen(name);
 	register char	*p, *q;
 
-	while (p = *envp++) {
+	while ((p = *envp++)) {
 		if (!(q = strchr(p, '=')))
 			continue;
 		if ((q - p) == len && !strncmp(p, name, len))
