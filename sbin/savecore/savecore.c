@@ -553,7 +553,7 @@ check_space()
 		syslog(LOG_ERR, "%s: %m", tkernel);
 		exit(1);
 	}
-	kernelsize = (st.st_blocks * S_BLKSIZE) / 1024;
+	kernelsize = st.st_blocks * S_BLKSIZE;
 
 	if (statfs(dirname, &fsbuf) < 0) {
 		syslog(LOG_ERR, "%s: %m", dirname);
