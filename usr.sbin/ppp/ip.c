@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.64 1999/06/23 16:48:23 brian Exp $
+ * $Id: ip.c,v 1.65 1999/07/27 23:43:59 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -174,6 +174,13 @@ FilterCheck(const struct ip *pip, const struct filter *filter)
 	    break;
 	  case IPPROTO_IGMP:
 	    cproto = P_IGMP;
+	    if (datalen < 8)	/* IGMP uses 8-octet messages */
+	      return (1);
+	    estab = syn = finrst = -1;
+	    sport = ntohs(0);
+	    break;
+	  case IPPROTO_OSPFIGP:
+	    cproto = P_OSPF;
 	    if (datalen < 8)	/* IGMP uses 8-octet messages */
 	      return (1);
 	    estab = syn = finrst = -1;
@@ -347,6 +354,16 @@ PacketCheck(struct bundle *bundle, char *cp, int nb, struct filter *filter)
       loglen += strlen(logbuf + loglen);
       snprintf(logbuf + loglen, sizeof logbuf - loglen,
 	       "%s:%d", inet_ntoa(pip->ip_dst), ntohs(uh->uh_dport));
+      loglen += strlen(logbuf + loglen);
+    }
+    break;
+  case IPPROTO_OSPFIGP:
+    if (logit && loglen < sizeof logbuf) {
+      snprintf(logbuf + loglen, sizeof logbuf - loglen,
+	   "OSPF: %s ---> ", inet_ntoa(pip->ip_src));
+      loglen += strlen(logbuf + loglen);
+      snprintf(logbuf + loglen, sizeof logbuf - loglen,
+	       "%s", inet_ntoa(pip->ip_dst));
       loglen += strlen(logbuf + loglen);
     }
     break;
