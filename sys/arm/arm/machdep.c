@@ -64,8 +64,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/buf.h>
 #include <sys/exec.h>
 #include <sys/sysent.h>
+#include <sys/uio.h>
 #include <machine/reg.h>
 #include <machine/cpu.h>
+#include <machine/trap.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -289,17 +291,68 @@ set_dbregs(struct thread *td, struct dbreg *regs)
 	return (0);
 }
 
+
+static int
+ptrace_read_int(struct thread *td, vm_offset_t addr, u_int32_t *v)
+{
+	struct iovec iov;
+	struct uio uio;
+	iov.iov_base = (caddr_t) v;
+	iov.iov_len = sizeof(u_int32_t);
+	uio.uio_iov = &iov;
+	uio.uio_iovcnt = 1;
+	uio.uio_offset = (off_t)addr;
+	uio.uio_resid = sizeof(u_int32_t);
+	uio.uio_segflg = UIO_SYSSPACE;
+	uio.uio_rw = UIO_READ;
+	uio.uio_td = td;
+	return proc_rwmem(td->td_proc, &uio);
+}
+
+static int
+ptrace_write_int(struct thread *td, vm_offset_t addr, u_int32_t v)
+{
+	struct iovec iov;
+	struct uio uio;
+	iov.iov_base = (caddr_t) &v;
+	iov.iov_len = sizeof(u_int32_t);
+	uio.uio_iov = &iov;
+	uio.uio_iovcnt = 1;
+	uio.uio_offset = (off_t)addr;
+	uio.uio_resid = sizeof(u_int32_t);
+	uio.uio_segflg = UIO_SYSSPACE;
+	uio.uio_rw = UIO_WRITE;
+	uio.uio_td = td;
+	return proc_rwmem(td->td_proc, &uio);
+}
+
 int
 ptrace_single_step(struct thread *td)
 {
-	/* XXX */
-	return (0);
+	int error;
+	
+	KASSERT(td->td_md.md_ptrace_instr == 0,
+	 ("Didn't clear single step"));
+	error = ptrace_read_int(td, td->td_frame->tf_pc + 4, 
+	    &td->td_md.md_ptrace_instr);
+	if (error)
+		return (error);
+	error = ptrace_write_int(td, td->td_frame->tf_pc + 4,
+	    PTRACE_BREAKPOINT);
+	if (error)
+		td->td_md.md_ptrace_instr = 0;
+	td->td_md.md_ptrace_addr = td->td_frame->tf_pc + 4;
+	return (error);
 }
 
 int
 ptrace_clear_single_step(struct thread *td)
 {
-	/* XXX */
+	if (td->td_md.md_ptrace_instr) {
+		ptrace_write_int(td, td->td_md.md_ptrace_addr,
+		    td->td_md.md_ptrace_instr);
+		td->td_md.md_ptrace_instr = 0;
+	}
 	return (0);
 }
 
