@@ -179,6 +179,9 @@ OLTR_NO_BULLSEYE_MAC	opt_oltr.h
 # Defaults to NDGB*16.
 NDGBPORTS		opt_dgb.h
 
+# Temporary options for moving to pnpbios
+PNPBIOS			opt_pnp.h
+
 # -------------------------------
 # EOF
 # -------------------------------
