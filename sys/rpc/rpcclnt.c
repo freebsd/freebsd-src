@@ -836,9 +836,9 @@ tryagain:
 			} while (error == EWOULDBLOCK);
 			if (!error && auio.uio_resid > 0) {
 				log(LOG_INFO,
-				"short receive (%d/%d) from rpc server %s\n",
-				    (int) sizeof(u_int32_t) - auio.uio_resid,
-				    (int) sizeof(u_int32_t),
+				"short receive (%zu/%zu) from rpc server %s\n",
+				    sizeof(u_int32_t) - auio.uio_resid,
+				    sizeof(u_int32_t),
 				    rep->r_rpcclnt->rc_prog->prog_name);
 				error = EPIPE;
 			}
