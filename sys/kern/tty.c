@@ -2798,6 +2798,13 @@ ttymalloc(struct tty *tp)
 	return (tp);
 }
 
+struct tty *
+ttyalloc()
+{
+
+	return (ttymalloc(NULL));
+}
+
 static int
 sysctl_kern_ttys(SYSCTL_HANDLER_ARGS)
 {
