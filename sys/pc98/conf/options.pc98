@@ -1,4 +1,4 @@
-#	$Id: options.pc98,v 1.23 1997/04/29 03:15:32 kato Exp $
+#	$Id: options.pc98,v 1.24 1997/05/08 09:18:11 kato Exp $
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
 MATH_EMULATE		opt_math_emulate.h
@@ -21,6 +21,7 @@ CONSPEED		opt_comconsole.h
 COM_ESP			opt_sio.h
 COM_MULTIPORT		opt_sio.h
 DSI_SOFT_MODEM		opt_sio.h
+WLDEBUG			opt_wavelan.h
 I586_CTR_GUPROF		opt_i586_guprof.h
 I586_PMC_GUPROF		opt_i586_guprof.h
 FAT_CURSOR		opt_pcvt.h
