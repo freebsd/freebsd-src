@@ -58,9 +58,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #ifndef lint
 static const char sccsid[] = "@(#)termcap.c	8.1 (Berkeley) 6/4/93";
@@ -199,6 +200,7 @@ _nc_read_termcap_entry(const char *const name, TERMTYPE *const tp)
 		tcs = pd - 1;
 		for (;;) {
 			while ((tok = strsep(&ps, ":")) != NULL &&
+			       *(tok - 2) != '\\' &&
 			       (*tok == '\0' || *tok == '\\' || !isgraph(*tok)))
 				;
 			if (tok == NULL)
