@@ -474,7 +474,7 @@ acd_describe(struct acd_softc *cdp)
 	else
 	    sprintf(devnum, "%d", cdp->lun);
 
-	printf("acd%s: %s%s <%.40s> at ata%d-%s using %s\n",
+	printf("acd%s: %s%s <%.40s> at ata%d-%s %s\n",
 	       devnum, (cdp->cap.write_dvdr) ? "DVD-R" : 
 			(cdp->cap.write_dvdram) ? "DVD-RAM" : 
 			 (cdp->cap.write_cdrw) ? "CD-RW" :
