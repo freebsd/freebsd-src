@@ -1598,7 +1598,7 @@ device_find_child(device_t dev, const char *classname, int unit)
 		if (child && child->parent == dev)
 			return (child);
 	} else {
-		for (unit = 0; unit < devclass_get_maxunit(dc); unit++) {
+		for (unit = 0; unit <= devclass_get_maxunit(dc); unit++) {
 			child = devclass_get_device(dc, unit);
 			if (child && child->parent == dev)
 				return (child);
