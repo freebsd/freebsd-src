@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.70.2.22 1998/02/01 06:01:00 steve Exp $
+ * $Id: disks.c,v 1.70.2.23 1998/02/13 07:58:45 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -428,11 +428,7 @@ diskPartition(Device *dev)
 	    break;
 
 	case 'W':
-	    if ((cp = variable_get(DISK_LABELLED)) && !strcmp(cp, "written")) {
-		msgConfirm("You've already written this information out - if\n"
-			   "you wish to overwrite it, you'll have to restart.");
-	    }
-	    else if (!msgYesNo("WARNING:  This should only be used when modifying an EXISTING\n"
+	    if (!msgYesNo("WARNING:  This should only be used when modifying an EXISTING\n"
 			       "installation.  If you are installing FreeBSD for the first time\n"
 			       "then you should simply type Q when you're finished here and your\n"
 			       "changes will be committed in one batch automatically at the end of\n"
@@ -594,6 +590,7 @@ diskPartitionWrite(dialogMenuItem *self)
 {
     Device **devs;
     int i;
+    char *cp;
 
     devs = deviceFind(NULL, DEVICE_TYPE_DISK);
     if (!devs) {
@@ -602,7 +599,7 @@ diskPartitionWrite(dialogMenuItem *self)
     }
     if (isDebug())
 	msgDebug("diskPartitionWrite: Examining %d devices\n", deviceCount(devs));
-
+    cp = variable_get(DISK_PARTITIONED);
     for (i = 0; devs[i]; i++) {
 	Chunk *c1;
 	Disk *d = (Disk *)devs[i]->private;
@@ -616,6 +613,11 @@ diskPartitionWrite(dialogMenuItem *self)
 	    msgConfirm("ERROR: Unable to write data to disk %s!", d->name);
 	    return DITEM_FAILURE;
 	}
+
+	/* If we've been through here before, we don't need to do the rest */
+	if (cp && !strcmp(cp, "written"))
+	    return DITEM_SUCCESS;
+
 	/* Now scan for bad blocks, if necessary */
 	for (c1 = d->chunks->part; c1; c1 = c1->next) {
 	    if (c1->flags & CHUNK_BAD144) {
