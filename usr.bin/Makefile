@@ -155,7 +155,6 @@ SUBDIR=	apply \
 	tftp \
 	time \
 	tip \
-	tn3270 \
 	top \
 	touch \
 	tput \
