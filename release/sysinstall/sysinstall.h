@@ -305,7 +305,6 @@ typedef struct _devPriv {
 
 
 /*** Externs ***/
-extern Boolean		AlarmWentOff;		/* Convenience variable for alarm_foo() stuff	*/
 extern int		DebugFD;		/* Where diagnostic output goes			*/
 extern Boolean		Fake;			/* Don't actually modify anything - testing	*/
 extern Boolean		SystemWasInstalled;	/* Did we install it?				*/
@@ -633,7 +632,7 @@ extern int	package_extract(Device *dev, char *name, Boolean depended);
 extern Boolean	package_exists(char *name);
 
 /* system.c */
-extern void	alarm_clear(void);
+extern int	alarm_clear(void);
 extern void	alarm_set(int delay, void (*handler)(int sig));
 extern void	systemInitialize(int argc, char **argv);
 extern void	systemShutdown(int status);
