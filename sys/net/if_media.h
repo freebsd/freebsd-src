@@ -57,8 +57,8 @@
 /*
  * Driver callbacks for media status and change requests.
  */
-typedef	int (*ifm_change_cb_t) __P((struct ifnet *ifp));
-typedef	void (*ifm_stat_cb_t) __P((struct ifnet *ifp, struct ifmediareq *req));
+typedef	int (*ifm_change_cb_t)(struct ifnet *ifp);
+typedef	void (*ifm_stat_cb_t)(struct ifnet *ifp, struct ifmediareq *req);
 
 /*
  * In-kernel representation of a single supported media type.
@@ -84,25 +84,25 @@ struct ifmedia {
 };
 
 /* Initialize an interface's struct if_media field. */
-void	ifmedia_init __P((struct ifmedia *ifm, int dontcare_mask,
-	    ifm_change_cb_t change_callback, ifm_stat_cb_t status_callback));
+void	ifmedia_init(struct ifmedia *ifm, int dontcare_mask,
+	    ifm_change_cb_t change_callback, ifm_stat_cb_t status_callback);
 
 /* Remove all mediums from a struct ifmedia.  */
-void	ifmedia_removeall __P(( struct ifmedia *ifm));
+void	ifmedia_removeall( struct ifmedia *ifm);
 
 /* Add one supported medium to a struct ifmedia. */
-void	ifmedia_add __P((struct ifmedia *ifm, int mword, int data, void *aux));
+void	ifmedia_add(struct ifmedia *ifm, int mword, int data, void *aux);
 
 /* Add an array (of ifmedia_entry) media to a struct ifmedia. */
 void	ifmedia_list_add(struct ifmedia *mp, struct ifmedia_entry *lp,
 	    int count);
 
 /* Set default media type on initialization. */
-void	ifmedia_set __P((struct ifmedia *ifm, int mword));
+void	ifmedia_set(struct ifmedia *ifm, int mword);
 
 /* Common ioctl function for getting/setting media, called by driver. */
-int	ifmedia_ioctl __P((struct ifnet *ifp, struct ifreq *ifr,
-	    struct ifmedia *ifm, u_long cmd));
+int	ifmedia_ioctl(struct ifnet *ifp, struct ifreq *ifr,
+	    struct ifmedia *ifm, u_long cmd);
 
 #endif /*_KERNEL */
 
@@ -121,7 +121,7 @@ int	ifmedia_ioctl __P((struct ifnet *ifp, struct ifreq *ifr,
 /*
  * Ethernet
  */
-#define IFM_ETHER	0x00000020
+#define	IFM_ETHER	0x00000020
 #define	IFM_10_T	3		/* 10BaseT - RJ45 */
 #define	IFM_10_2	4		/* 10Base2 - Thinnet */
 #define	IFM_10_5	5		/* 10Base5 - AUI */
@@ -148,14 +148,14 @@ int	ifmedia_ioctl __P((struct ifnet *ifp, struct ifreq *ifr,
 #define	IFM_TOK_STP16	4		/* Shielded twisted pair 16m - DB9 */
 #define	IFM_TOK_UTP4	5		/* Unshielded twisted pair 4m - RJ45 */
 #define	IFM_TOK_UTP16	6		/* Unshielded twisted pair 16m - RJ45 */
-#define IFM_TOK_STP100  7		/* Shielded twisted pair 100m - DB9 */
-#define IFM_TOK_UTP100  8		/* Unshielded twisted pair 100m - RJ45 */
+#define	IFM_TOK_STP100  7		/* Shielded twisted pair 100m - DB9 */
+#define	IFM_TOK_UTP100  8		/* Unshielded twisted pair 100m - RJ45 */
 #define	IFM_TOK_ETR	0x00000200	/* Early token release */
 #define	IFM_TOK_SRCRT	0x00000400	/* Enable source routing features */
 #define	IFM_TOK_ALLR	0x00000800	/* All routes / Single route bcast */
-#define IFM_TOK_DTR	0x00002000	/* Dedicated token ring */
-#define IFM_TOK_CLASSIC	0x00004000	/* Classic token ring */
-#define IFM_TOK_AUTO	0x00008000	/* Automatic Dedicate/Classic token ring */
+#define	IFM_TOK_DTR	0x00002000	/* Dedicated token ring */
+#define	IFM_TOK_CLASSIC	0x00004000	/* Classic token ring */
+#define	IFM_TOK_AUTO	0x00008000	/* Automatic Dedicate/Classic token ring */
 
 /*
  * FDDI
@@ -163,20 +163,20 @@ int	ifmedia_ioctl __P((struct ifnet *ifp, struct ifreq *ifr,
 #define	IFM_FDDI	0x00000060
 #define	IFM_FDDI_SMF	3		/* Single-mode fiber */
 #define	IFM_FDDI_MMF	4		/* Multi-mode fiber */
-#define IFM_FDDI_UTP	5		/* CDDI / UTP */
-#define IFM_FDDI_DA	0x00000100	/* Dual attach / single attach */
+#define	IFM_FDDI_UTP	5		/* CDDI / UTP */
+#define	IFM_FDDI_DA	0x00000100	/* Dual attach / single attach */
 
 /*
  * IEEE 802.11 Wireless
  */
-#define IFM_IEEE80211		0x00000080
-#define IFM_IEEE80211_FH1	3	/* Frequency Hopping 1Mbps */
-#define IFM_IEEE80211_FH2	4	/* Frequency Hopping 2Mbps */
-#define IFM_IEEE80211_DS1	5	/* Direct Sequence 1Mbps */
-#define IFM_IEEE80211_DS2	6	/* Direct Sequence 2Mbps */
-#define IFM_IEEE80211_DS5	7	/* Direct Sequence 5.5Mbps */
-#define IFM_IEEE80211_DS11	8	/* Direct Sequence 11Mbps */
-#define IFM_IEEE80211_DS22	9	/* Direct Sequence 22Mbps */
+#define	IFM_IEEE80211	0x00000080
+#define	IFM_IEEE80211_FH1	3	/* Frequency Hopping 1Mbps */
+#define	IFM_IEEE80211_FH2	4	/* Frequency Hopping 2Mbps */
+#define	IFM_IEEE80211_DS1	5	/* Direct Sequence 1Mbps */
+#define	IFM_IEEE80211_DS2	6	/* Direct Sequence 2Mbps */
+#define	IFM_IEEE80211_DS5	7	/* Direct Sequence 5.5Mbps */
+#define	IFM_IEEE80211_DS11	8	/* Direct Sequence 11Mbps */
+#define	IFM_IEEE80211_DS22	9	/* Direct Sequence 22Mbps */
 #define IFM_IEEE80211_ODFM6	10	/* ODFM 6Mbps */
 #define IFM_IEEE80211_ODFM9	11	/* ODFM 9Mbps */
 #define IFM_IEEE80211_ODFM12	12	/* ODFM 12Mbps */
@@ -186,8 +186,10 @@ int	ifmedia_ioctl __P((struct ifnet *ifp, struct ifreq *ifr,
 #define IFM_IEEE80211_ODFM48	16	/* ODFM 48Mbps */
 #define IFM_IEEE80211_ODFM54	17	/* ODFM 54Mbps */
 #define IFM_IEEE80211_ODFM72	18	/* ODFM 72Mbps */
-#define IFM_IEEE80211_ADHOC	0x00000100	/* Operate in Adhoc mode */
-#define IFM_IEEE80211_HOSTAP	0x00000200	/* Operate in Host AP mode */
+#define	IFM_IEEE80211_ADHOC	0x00000100	/* Operate in Adhoc mode */
+#define	IFM_IEEE80211_HOSTAP	0x00000200	/* Operate in Host AP mode */
+#define	IFM_IEEE80211_IBSS	0x00000400	/* Operate in IBSS mode */
+#define	IFM_IEEE80211_IBSSMASTER 0x00000800	/* Operate as an IBSS master */
 
 /*
  * Shared media sub-types
@@ -199,11 +201,11 @@ int	ifmedia_ioctl __P((struct ifnet *ifp, struct ifreq *ifr,
 /*
  * Shared options
  */
-#define IFM_FDX		0x00100000	/* Force full duplex */
+#define	IFM_FDX		0x00100000	/* Force full duplex */
 #define	IFM_HDX		0x00200000	/* Force half duplex */
-#define IFM_FLAG0	0x01000000	/* Driver defined flag */
-#define IFM_FLAG1	0x02000000	/* Driver defined flag */
-#define IFM_FLAG2	0x04000000	/* Driver defined flag */
+#define	IFM_FLAG0	0x01000000	/* Driver defined flag */
+#define	IFM_FLAG1	0x02000000	/* Driver defined flag */
+#define	IFM_FLAG2	0x04000000	/* Driver defined flag */
 #define	IFM_LOOP	0x08000000	/* Put hardware in loopback */
 
 /*
@@ -227,16 +229,16 @@ int	ifmedia_ioctl __P((struct ifnet *ifp, struct ifreq *ifr,
  */
 #define	IFM_TYPE(x)         ((x) & IFM_NMASK)
 #define	IFM_SUBTYPE(x)      ((x) & IFM_TMASK)
-#define IFM_TYPE_OPTIONS(x) ((x) & IFM_OMASK)
+#define	IFM_TYPE_OPTIONS(x) ((x) & IFM_OMASK)
 #define	IFM_INST(x)         (((x) & IFM_IMASK) >> IFM_ISHIFT)
-#define IFM_OPTIONS(x)	((x) & (IFM_OMASK|IFM_GMASK))
+#define	IFM_OPTIONS(x)	((x) & (IFM_OMASK|IFM_GMASK))
 
-#define IFM_INST_MAX	IFM_INST(IFM_IMASK)
+#define	IFM_INST_MAX	IFM_INST(IFM_IMASK)
 
 /*
  * Macro to create a media word.
  */
-#define IFM_MAKEWORD(type, subtype, options, instance)			\
+#define	IFM_MAKEWORD(type, subtype, options, instance)			\
 	((type) | (subtype) | (options) | ((instance) << IFM_ISHIFT))
 
 /*
@@ -404,6 +406,8 @@ struct ifmedia_description {
 #define	IFM_SUBTYPE_IEEE80211_OPTION_DESCRIPTIONS {			\
 	{ IFM_IEEE80211_ADHOC, "adhoc" },				\
 	{ IFM_IEEE80211_HOSTAP, "hostap" },				\
+	{ IFM_IEEE80211_IBSS, "ibss" },					\
+	{ IFM_IEEE80211_IBSSMASTER, "ibss-master" },			\
 	{ 0, NULL },							\
 }
 
