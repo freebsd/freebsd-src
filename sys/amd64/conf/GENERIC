@@ -1,7 +1,7 @@
 #
 # GENERIC -- Generic machine with WD/AHx/NCR/BTx family disks
 #
-#	$Id: GENERIC,v 1.69 1996/05/01 03:26:58 bde Exp $
+#	$Id: GENERIC,v 1.70 1996/05/13 04:29:13 nate Exp $
 #
 
 machine		"i386"
@@ -66,7 +66,7 @@ controller	scbus0
 
 device		sd0
 
-device		od0
+device		od0	#See LINT for possible `od' options.
 
 device		st0
 
