@@ -26,6 +26,7 @@
  * $FreeBSD$
  */
 
-extern vm_offset_t	t2_csr_base;
+extern vm_offset_t	sable_lynx_base;
 
 extern void t2_init(void);
+void t2_intr_map(void *);
