@@ -133,7 +133,7 @@ ddp_usrreq( struct socket *so, int req, struct mbuf *m,
 	    }
 	}
 
-	error = ddp_output( ddp, m );
+	error = ddp_output( m, so );
 	m = NULL;
 	if ( addr ) {
 	    at_pcbdisconnect( ddp );
