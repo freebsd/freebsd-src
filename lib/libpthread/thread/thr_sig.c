@@ -932,6 +932,12 @@ _thread_sig_wrapper(void)
 	thread->curframe = NULL;
 	PTHREAD_ASSERT(psf != NULL, "Invalid signal frame in signal handler");
 
+	/*
+	 * We're coming from the kernel scheduler; clear the in
+	 * scheduler flag:
+	 */
+	_thread_kern_in_sched = 0;
+
 	/* Check the threads previous state: */
 	if (psf->saved_state.psd_state != PS_RUNNING) {
 		/*
