@@ -178,7 +178,7 @@ _thread_gc(pthread_addr_t arg)
 			 */
 			if ((ret = pthread_cond_timedwait(&_gc_cond,
 			    &_gc_mutex, &abstime)) != 0 && ret != ETIMEDOUT) {
-				_thread_printf("ret = %d", ret);
+				_thread_printf(STDERR_FILENO, "ret = %d", ret);
 				PANIC("gc cannot wait for a signal");
 			}
 		}
