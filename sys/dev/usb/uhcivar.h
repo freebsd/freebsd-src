@@ -1,4 +1,4 @@
-/*	$NetBSD: uhcivar.h,v 1.21 2000/01/18 20:11:01 augustss Exp $	*/
+/*	$NetBSD: uhcivar.h,v 1.22 2000/01/26 10:04:39 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -163,6 +163,7 @@ typedef struct uhci_softc {
 
 	char sc_isreset;
 	char sc_suspend;
+	char sc_dying;
 
 	LIST_HEAD(, uhci_intr_info) sc_intrhead;
 
