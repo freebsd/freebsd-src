@@ -301,7 +301,7 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 #ifdef PC98
 	/* Allocate bushandle. */
 	rv->r_bushandle =
-	    malloc(sizeof *rv->r_bushandle, M_DEVBUF, M_NOWAIT);
+	    malloc(sizeof *rv->r_bushandle, M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (rv->r_bushandle == 0) {
 		rman_release_resource(rv);
 		return 0;
