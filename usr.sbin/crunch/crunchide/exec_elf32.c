@@ -1,5 +1,3 @@
-/*	$NetBSD: exec_elf32.c,v 1.4 1997/08/12 06:07:24 mikel Exp $	*/
-
 /*
  * Copyright (c) 1997 Christopher G. Demetriou.  All rights reserved.
  *
@@ -32,7 +30,11 @@
 
 #include <sys/cdefs.h>
 #ifndef lint
+#if 0
 __RCSID("$NetBSD: exec_elf32.c,v 1.4 1997/08/12 06:07:24 mikel Exp $");
+#endif
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif
  
 #ifndef ELFSIZE
@@ -53,7 +55,7 @@ __RCSID("$NetBSD: exec_elf32.c,v 1.4 1997/08/12 06:07:24 mikel Exp $");
 #if (defined(NLIST_ELF32) && (ELFSIZE == 32)) || \
     (defined(NLIST_ELF64) && (ELFSIZE == 64))
 
-#include <elf.h>
+#include <machine/elf.h>
 
 #define CONCAT(x,y)     __CONCAT(x,y)
 #define ELFNAME(x)      CONCAT(elf,CONCAT(ELFSIZE,CONCAT(_,x)))

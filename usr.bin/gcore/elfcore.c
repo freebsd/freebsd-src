@@ -29,11 +29,11 @@
 #include <sys/param.h>
 #include <sys/lock.h>
 #include <sys/procfs.h>
+#include <machine/elf.h>
 #include <vm/vm_param.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
-#include <elf.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>

@@ -23,6 +23,7 @@
 #include <sys/disklabel.h>
 #include <sys/dirent.h>
 #include <machine/bootinfo.h>
+#include <machine/elf.h>
 
 #include <ufs/ffs/fs.h>
 #include <ufs/ufs/dinode.h>
@@ -30,7 +31,6 @@
 #include <stdarg.h>
 
 #include <a.out.h>
-#include <elf.h>
 
 #include <btxv86.h>
 
