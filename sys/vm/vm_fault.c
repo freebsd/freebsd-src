@@ -1147,6 +1147,7 @@ vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
 	dst_object = vm_object_allocate(OBJT_DEFAULT,
 	    (vm_size_t) OFF_TO_IDX(dst_entry->end - dst_entry->start));
 
+	VM_OBJECT_LOCK(dst_object);
 	dst_entry->object.vm_object = dst_object;
 	dst_entry->offset = 0;
 
@@ -1168,7 +1169,9 @@ vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
 			dst_m = vm_page_alloc(dst_object,
 				OFF_TO_IDX(dst_offset), VM_ALLOC_NORMAL);
 			if (dst_m == NULL) {
+				VM_OBJECT_UNLOCK(dst_object);
 				VM_WAIT;
+				VM_OBJECT_LOCK(dst_object);
 			}
 		} while (dst_m == NULL);
 
@@ -1180,17 +1183,18 @@ vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
 		VM_OBJECT_LOCK(src_object);
 		src_m = vm_page_lookup(src_object,
 			OFF_TO_IDX(dst_offset + src_offset));
-		VM_OBJECT_UNLOCK(src_object);
 		if (src_m == NULL)
 			panic("vm_fault_copy_wired: page missing");
-
 		pmap_copy_page(src_m, dst_m);
+		VM_OBJECT_UNLOCK(src_object);
 		dst_m->valid = VM_PAGE_BITS_ALL;
+		VM_OBJECT_UNLOCK(dst_object);
 
 		/*
 		 * Enter it in the pmap...
 		 */
 		pmap_enter(dst_map->pmap, vaddr, dst_m, prot, FALSE);
+		VM_OBJECT_LOCK(dst_object);
 		vm_page_lock_queues();
 		vm_page_flag_set(dst_m, PG_WRITEABLE);
 
@@ -1201,6 +1205,7 @@ vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
 		vm_page_wakeup(dst_m);
 		vm_page_unlock_queues();
 	}
+	VM_OBJECT_UNLOCK(dst_object);
 }
 
 
