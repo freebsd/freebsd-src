@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tty.c,v 1.1 1999/05/08 11:07:50 brian Exp $
+ *	$Id: tty.c,v 1.2 1999/05/12 09:49:07 brian Exp $
  */
 
 #include <sys/param.h>
@@ -154,51 +154,53 @@ tty_Unlock(struct physical *p)
     log_Printf(LogALERT, "%s: Can't uu_unlock %s\n", p->link.name, fn);
 }
 
-static void
+static struct device *
 tty_SetupDevice(struct physical *p)
 {
-  struct ttydevice *dev = device2tty(p->handler);
-  struct termios rstio;
+  struct ttydevice *dev;
+  struct termios ios;
   int oldflag;
 
-  tcgetattr(p->fd, &rstio);
-  dev->ios = rstio;
+  if ((dev = malloc(sizeof *dev)) == NULL)
+    return NULL;
+
+  tcgetattr(p->fd, &ios);
+  dev->ios = ios;
 
   log_Printf(LogDEBUG, "%s: tty_SetupDevice: physical (get): fd = %d,"
              " iflag = %lx, oflag = %lx, cflag = %lx\n", p->link.name, p->fd,
-             (u_long)rstio.c_iflag, (u_long)rstio.c_oflag,
-             (u_long)rstio.c_cflag);
+             (u_long)ios.c_iflag, (u_long)ios.c_oflag, (u_long)ios.c_cflag);
 
-  cfmakeraw(&rstio);
+  cfmakeraw(&ios);
   if (p->cfg.rts_cts)
-    rstio.c_cflag |= CLOCAL | CCTS_OFLOW | CRTS_IFLOW;
+    ios.c_cflag |= CLOCAL | CCTS_OFLOW | CRTS_IFLOW;
   else {
-    rstio.c_cflag |= CLOCAL;
-    rstio.c_iflag |= IXOFF;
+    ios.c_cflag |= CLOCAL;
+    ios.c_iflag |= IXOFF;
   }
-  rstio.c_iflag |= IXON;
+  ios.c_iflag |= IXON;
   if (p->type != PHYS_DEDICATED)
-    rstio.c_cflag |= HUPCL;
+    ios.c_cflag |= HUPCL;
 
   if (p->type != PHYS_DIRECT) {
       /* Change tty speed when we're not in -direct mode */
-      rstio.c_cflag &= ~(CSIZE | PARODD | PARENB);
-      rstio.c_cflag |= p->cfg.parity;
-      if (cfsetspeed(&rstio, IntToSpeed(p->cfg.speed)) == -1)
+      ios.c_cflag &= ~(CSIZE | PARODD | PARENB);
+      ios.c_cflag |= p->cfg.parity;
+      if (cfsetspeed(&ios, IntToSpeed(p->cfg.speed)) == -1)
 	log_Printf(LogWARN, "%s: %s: Unable to set speed to %d\n",
 		  p->link.name, p->name.full, p->cfg.speed);
   }
-  tcsetattr(p->fd, TCSADRAIN, &rstio);
+  tcsetattr(p->fd, TCSADRAIN, &ios);
   log_Printf(LogDEBUG, "%s: physical (put): iflag = %lx, oflag = %lx, "
-            "cflag = %lx\n", p->link.name, (u_long)rstio.c_iflag,
-            (u_long)rstio.c_oflag, (u_long)rstio.c_cflag);
+            "cflag = %lx\n", p->link.name, (u_long)ios.c_iflag,
+            (u_long)ios.c_oflag, (u_long)ios.c_cflag);
 
   if (ioctl(p->fd, TIOCMGET, &dev->mbits) == -1) {
     if (p->type != PHYS_DIRECT) {
       log_Printf(LogWARN, "%s: Open: Cannot get physical status: %s\n",
                  p->link.name, strerror(errno));
       physical_Close(p);
-      return;
+      return NULL;
     } else
       dev->mbits = TIOCM_CD;
   }
@@ -210,11 +212,13 @@ tty_SetupDevice(struct physical *p)
     log_Printf(LogWARN, "%s: Open: Cannot get physical flags: %s\n",
                p->link.name, strerror(errno));
     physical_Close(p);
-    return;
+    return NULL;
   } else
     fcntl(p->fd, F_SETFL, oldflag & ~O_NONBLOCK);
 
   physical_SetupStack(p, PHYSICAL_NOFORCE);
+
+  return &dev->dev;
 }
 
 /*
@@ -295,7 +299,7 @@ static int
 tty_Raw(struct physical *p)
 {
   struct ttydevice *dev = device2tty(p->handler);
-  struct termios rstio;
+  struct termios ios;
   int oldflag;
 
   if (physical_IsSync(p))
@@ -307,17 +311,17 @@ tty_Raw(struct physical *p)
     log_Printf(LogDEBUG, "%s: Raw: descriptor = %d, mbits = %x\n",
               p->link.name, p->fd, dev->mbits);
 
-  tcgetattr(p->fd, &rstio);
-  cfmakeraw(&rstio);
+  tcgetattr(p->fd, &ios);
+  cfmakeraw(&ios);
   if (p->cfg.rts_cts)
-    rstio.c_cflag |= CLOCAL | CCTS_OFLOW | CRTS_IFLOW;
+    ios.c_cflag |= CLOCAL | CCTS_OFLOW | CRTS_IFLOW;
   else
-    rstio.c_cflag |= CLOCAL;
+    ios.c_cflag |= CLOCAL;
 
   if (p->type != PHYS_DEDICATED)
-    rstio.c_cflag |= HUPCL;
+    ios.c_cflag |= HUPCL;
 
-  tcsetattr(p->fd, TCSANOW, &rstio);
+  tcsetattr(p->fd, TCSANOW, &ios);
 
   oldflag = fcntl(p->fd, F_GETFL, 0);
   if (oldflag < 0)
@@ -386,12 +390,12 @@ tty_Free(struct physical *p)
 static int
 tty_Speed(struct physical *p)
 {
-  struct termios rstio;
+  struct termios ios;
 
-  if (tcgetattr(p->fd, &rstio) == -1)
+  if (tcgetattr(p->fd, &ios) == -1)
     return 0;
 
-  return SpeedToInt(cfgetispeed(&rstio));
+  return SpeedToInt(cfgetispeed(&ios));
 }
 
 static const char *
@@ -473,22 +477,11 @@ tty_Create(struct physical *p)
       if (tty_Lock(p, p->dl->bundle->unit) == -1) {
         close(p->fd);
         p->fd = -1;
-      } else {
-        struct ttydevice *dev = malloc(sizeof *dev);
-
-        if (dev != NULL)
-          tty_SetupDevice(p);
-
-        return &dev->dev;
-      }
+      } else
+        return tty_SetupDevice(p);
     } else if (tty_Lock(p, p->dl->bundle->unit) != -1) {
-      struct ttydevice *dev = malloc(sizeof *dev);
       log_Printf(LogDEBUG, "%s: Opened %s\n", p->link.name, p->name.full);
-
-      if (dev != NULL)
-        tty_SetupDevice(p);
-
-      return &dev->dev;
+      return tty_SetupDevice(p);
     }
   }
 
