@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.21 1995/04/26 07:43:30 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.22 1995/04/26 15:06:26 jkh Exp $";
 #endif
 
 /*
@@ -318,14 +318,9 @@ pkg_do(char *pkg)
 	if (Verbose)
 	    printf("mtree -u -f %s -d -e -p %s\n", MTREE_FNAME,
 		   p ? p->name : "/");
-	if (!Fake) {
-	    if (vsystem("/usr/sbin/mtree -u -f %s -d -e -p %s",
-			MTREE_FNAME, p ? p->name : "/")) {
-		perror("error in the execution of mtree");
-		unlink(MTREE_FNAME);
-		goto fail;
-	    }
-	}
+	if (!Fake)
+	    vsystem("/usr/sbin/mtree -u -f %s -d -e -p %s",
+		    MTREE_FNAME, p ? p->name : "/"))
 	unlink(MTREE_FNAME);
     }
 
