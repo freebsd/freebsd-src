@@ -166,6 +166,7 @@ acpi_pwr_register_resource(ACPI_HANDLE res)
     rp->ap_resource = res;
 
     /* get the Power Resource object */
+    bzero(&buf, sizeof(buf));
     if ((status = acpi_EvaluateIntoBuffer(res, NULL, NULL, &buf)) != AE_OK) {
 	ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "no power resource object\n"));
 	goto out;
@@ -373,6 +374,7 @@ acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state)
 	if (AcpiGetHandle(consumer, "_PR0", &pr0_handle) != AE_OK) {
 	    goto bad;
 	}
+	bzero(&reslist_buffer, sizeof(reslist_buffer));
 	status = acpi_EvaluateIntoBuffer(pr0_handle, NULL, NULL, &reslist_buffer);
 	if (status != AE_OK) {
 	    goto bad;
@@ -389,6 +391,7 @@ acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state)
      * Check that we can actually fetch the list of power resources
      */
     if (reslist_handle != NULL) {
+	bzero(&reslist_buffer, sizeof(reslist_buffer));
 	if ((status = acpi_EvaluateIntoBuffer(reslist_handle, NULL, NULL, &reslist_buffer)) != AE_OK) {
 	    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "can't evaluate resource list %s\n",
 			      acpi_name(reslist_handle)));
