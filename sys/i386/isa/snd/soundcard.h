@@ -258,7 +258,7 @@ struct seq_event_rec {
  *	Sample loading mechanism for internal synthesizers (/dev/sequencer)
  *	The following patch_info structure has been designed to support
  *	Gravis UltraSound. It tries to be universal format for uploading
- *	sample based patches but is propably too limited.
+ *	sample based patches but is probably too limited.
  */
 
 struct patch_info {
@@ -619,7 +619,8 @@ struct synth_info {	/* Read only */
 #define FM_TYPE_ADLIB			0x00
 #define FM_TYPE_OPL3			0x01
 
-#define SAMPLE_TYPE_GUS			0x10
+#define SAMPLE_TYPE_BASIC		0x10
+#define SAMPLE_TYPE_GUS			SAMPLE_TYPE_BASIC
 
 	int	perc_mode;	/* No longer supported */
 	int	nr_voices;
@@ -816,7 +817,7 @@ typedef struct copr_msg {
  * the devices supported by the particular mixer.
  */
 
-#define SOUND_MIXER_NRDEVICES	17
+#define SOUND_MIXER_NRDEVICES	25
 #define SOUND_MIXER_VOLUME	0
 #define SOUND_MIXER_BASS	1
 #define SOUND_MIXER_TREBLE	2
@@ -840,6 +841,15 @@ typedef struct copr_msg {
 #define SOUND_MIXER_LINE1	14	/* Input source 1  (aux1) */
 #define SOUND_MIXER_LINE2	15	/* Input source 2  (aux2) */
 #define SOUND_MIXER_LINE3	16	/* Input source 3  (line) */
+#define SOUND_MIXER_DIGITAL1    17      /* Digital (input) 1 */
+#define SOUND_MIXER_DIGITAL2    18      /* Digital (input) 2 */
+#define SOUND_MIXER_DIGITAL3    19      /* Digital (input) 3 */
+#define SOUND_MIXER_PHONEIN     20      /* Phone input */
+#define SOUND_MIXER_PHONEOUT    21      /* Phone output */
+#define SOUND_MIXER_VIDEO       22      /* Video/TV (audio) in */
+#define SOUND_MIXER_RADIO       23      /* Radio in */
+#define SOUND_MIXER_MONITOR     24      /* Monitor (usually mic) volume */
+
 
 /*
  * Some on/off settings (SOUND_SPECIAL_MIN - SOUND_SPECIAL_MAX)
@@ -852,16 +862,19 @@ typedef struct copr_msg {
 #define SOUND_MIXER_LOUD	30	/* 0 or 1 */
 
 /* Note!	Number 31 cannot be used since the sign bit is reserved */
+#define SOUND_MIXER_NONE        31
 
 #define SOUND_DEVICE_LABELS	{ \
 	"Vol  ", "Bass ", "Trebl", "Synth", "Pcm  ", "Spkr ", "Line ", \
 	 "Mic  ", "CD   ", "Mix  ", "Pcm2 ", "Rec  ", "IGain", "OGain", \
-	 "Line1", "Line2", "Line3"}
+	"Line1", "Line2", "Line3", "Digital1", "Digital2", "Digital3", \
+	"PhoneIn", "PhoneOut", "Video", "Radio", "Monitor"}
 
 #define SOUND_DEVICE_NAMES	{ \
 	"vol", "bass", "treble", "synth", "pcm", "speaker", "line", \
 	"mic", "cd", "mix", "pcm2", "rec", "igain", "ogain", \
-	"line1", "line2", "line3"}
+	"line1", "line2", "line3", "dig1", "dig2", "dig3", \
+	"phin", "phout", "video", "radio", "monitor"}
 
 /*	Device bitmask identifiers	*/
 
@@ -891,7 +904,16 @@ typedef struct copr_msg {
 #define SOUND_MASK_LINE1	(1 << SOUND_MIXER_LINE1)
 #define SOUND_MASK_LINE2	(1 << SOUND_MIXER_LINE2)
 #define SOUND_MASK_LINE3	(1 << SOUND_MIXER_LINE3)
+#define SOUND_MASK_DIGITAL1     (1 << SOUND_MIXER_DIGITAL1)
+#define SOUND_MASK_DIGITAL2     (1 << SOUND_MIXER_DIGITAL2)
+#define SOUND_MASK_DIGITAL3     (1 << SOUND_MIXER_DIGITAL3)
+#define SOUND_MASK_PHONEIN      (1 << SOUND_MIXER_PHONEIN)
+#define SOUND_MASK_PHONEOUT     (1 << SOUND_MIXER_PHONEOUT)
+#define SOUND_MASK_RADIO        (1 << SOUND_MIXER_RADIO)
+#define SOUND_MASK_VIDEO        (1 << SOUND_MIXER_VIDEO)
+#define SOUND_MASK_MONITOR      (1 << SOUND_MIXER_MONITOR)
 
+/* Obsolete macros */
 #define SOUND_MASK_MUTE		(1 << SOUND_MIXER_MUTE)
 #define SOUND_MASK_ENHANCE	(1 << SOUND_MIXER_ENHANCE)
 #define SOUND_MASK_LOUD		(1 << SOUND_MIXER_LOUD)
@@ -914,6 +936,8 @@ typedef struct copr_msg {
 #define SOUND_MIXER_READ_LINE1		MIXER_READ(SOUND_MIXER_LINE1)
 #define SOUND_MIXER_READ_LINE2		MIXER_READ(SOUND_MIXER_LINE2)
 #define SOUND_MIXER_READ_LINE3		MIXER_READ(SOUND_MIXER_LINE3)
+
+/* Obsolete macros */
 #define SOUND_MIXER_READ_MUTE		MIXER_READ(SOUND_MIXER_MUTE)
 #define SOUND_MIXER_READ_ENHANCE	MIXER_READ(SOUND_MIXER_ENHANCE)
 #define SOUND_MIXER_READ_LOUD		MIXER_READ(SOUND_MIXER_LOUD)

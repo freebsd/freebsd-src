@@ -97,6 +97,8 @@ typedef struct _snd_dbuf {
 	int chan;       /* dma channel */
 	int sample_size ; /* 1, 2, 4 */
 	struct selinfo sel;
+	u_long total;	/* total bytes processed */
+	u_long prev_total; /* copy of the above when GETxPTR called */
 } snd_dbuf ;
 
 /*
@@ -160,8 +162,6 @@ struct _snddev_info {
     int     synth_base ; /* base for the synth */
 
     int     irq ;
-#define dma1 dbuf_out.chan
-#define dma2 dbuf_in.chan
     int bd_id ;     /* used to hold board-id info, eg. sb version,
 		     * mss codec type, etc. etc.
 		     */
@@ -426,6 +426,7 @@ typedef struct mixer_def mixer_tab[32][2];
 
 #ifdef KERNEL
 
+#define FULL_DUPLEX(d) (d->dbuf_out.chan != d->dbuf_in.chan)
 #define MIX_ENT(name, reg_l, pol_l, pos_l, len_l, reg_r, pol_r, pos_r, len_r) \
     {{reg_l, pol_l, pos_l, len_l}, {reg_r, pol_r, pos_r, len_r}}
 #define PMIX_ENT(name, reg_l, pos_l, len_l, reg_r, pos_r, len_r) \
