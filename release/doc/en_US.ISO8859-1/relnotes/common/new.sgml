@@ -137,6 +137,13 @@
       &man.services.5;, and so on to be ignored if it did not end in a newline character,
       has been fixed.</para>
 
+    <para>The &man.jail.8; now supports a new sysctl
+      <varname>security.jail.chflags_allowed</varname>, which controls the
+      behavior of &man.chflags.1; within a jail.
+      If set to <literal>0</literal> (the default), then a jailed root user is
+      treated as an unprivileged user; if set to <literal>1</literal>, then
+      a jailed root user is treated the same as an unjailed root user.  &merged;</para>
+
     <para arch="alpha,amd64,i386">The loader tunable <varname>debug.mpsafevm</varname>
       has been enabled by default.  &merged;</para>
 
@@ -269,9 +276,11 @@
 	added.  It provides methods for various drivers to control CPU
 	power utilization by adjusting the processor speed.  More
 	details can be found in the &man.cpufreq.4; manual page. &merged;
-	Currently supported drivers include acpi_perf (ACPI CPU
-	performance states), ichss (Intel SpeedStep for ICH), and
-	acpi_throttle (ACPI CPU throttling).</para>
+	Currently supported drivers include ichss (Intel SpeedStep for ICH),
+	acpi_perf (ACPI CPU performance states), and acpi_throttle
+	(ACPI CPU throttling), and the last two drivers have been merged into
+	&man.acpi.4;.  These can individually be disabled by setting device
+	hints such as <varname>hint.<replaceable>ichss</replaceable>.0.disabled="1"</varname>.</para>
 
       <para arch="i386">Support for the OLDCARD subsystem has
 	been removed.  The NEWCARD system is now used for all PCCARD
@@ -303,14 +312,17 @@
 
       <para arch="sparc64">The &man.uart.4; driver is now enabled in
 	the <filename>GENERIC</filename> kernel, and is now the
-	default driver for serial ports.  The ofw_console,
-	&man.sab.4;, and zs drivers are now disabled in the
+	default driver for serial ports.  The ofw_console and
+	&man.sab.4; drivers are now disabled in the
 	<filename>GENERIC</filename> kernel. &merged;</para>
 
       <para>The &man.uplcom.4; driver now supports handling of the
 	<literal>CTS</literal> signal.</para>
 
       <para>The &man.ehci.4; driver has been improved.</para>
+
+      <para arch="sparc64">The zs driver has been removed
+	in favor of the &man.uart.4; driver.</para>
 
       <sect4 id="mm">
 	<title>Multimedia Support</title>
@@ -443,6 +455,10 @@
 	network protocol stack and improving the locking
 	strategies.</para>
 
+      <para>A new &man.ng.ipfw.4; NetGraph node provides
+	a simple interface between &man.ipfw.4; and &man.netgraph.4;
+	facilities.</para>
+
       <para>A new &man.ng.netflow.4; NetGraph node allows a router
 	running &os; to do NetFlow version 5 exports. &merged;</para>
 
@@ -519,6 +535,9 @@
       <para>The &man.hptmv.4; driver, which supports the HighPoint
 	RocketRAID 182x series, has been added. &merged;</para>
 
+      <para>The &man.ips.4; driver now supports the kernel crash dump
+	on some modern ServeRAID models.  &merged;</para>
+
       <para>The &man.matcd.4; driver has been removed. &merged;</para>
 
       <para>The default SCSI boot-time probe delay in the
@@ -589,6 +608,24 @@
       utility now supports a <option>-f</option> command-line flag to
       force creation of a GPT even when there is an MBR record on a
       disk. &merged;</para>
+
+    <para>The &man.getaddrinfo.3; function now queries <literal>A</literal>
+      DNS resource records before <literal>AAAA</literal> records
+      when <literal>AF_UNSPEC</literal> is specified.
+      Some broken DNS servers return <literal>NXDOMAIN</literal>
+      against non-existent <literal>AAAA</literal> queries,
+      even when it should return <literal>NOERROR</literal>
+      with empty return records.  This is a problem for an IPv4/IPv6 dual
+      stack node because the <literal>NXDOMAIN</literal> returned
+      by the first query of an <literal>AAAA</literal> record makes
+      the querying server stop attempting to resolve the <literal>A</literal>
+      record if any.  Also, this behavior has been recognized as a potential
+      denial-of-service attack (see <ulink url="http://www.kb.cert.org/vuls/id/714121"></ulink>
+      for more details).
+      Note that although the query order has been changed,
+      the result linked-list of <literal>struct addrinfo</literal>
+      set by &man.getaddrinfo.3; is still in order of
+      <literal>AF_INET6</literal> to <literal>AF_INET</literal>.  &merged;</para>
 
     <para>The gvinum(8) utility now supports
       <command>checkparity</command>,
@@ -714,6 +751,9 @@
 
     <para>The &man.periodic.8; security output now supports the display of
       information about blocked packet counts from &man.pf.4;.  &merged;</para>
+
+    <para>The &man.powerd.8; program for managing power consumption has been
+      added.</para>
 
     <para>The &man.ppp.8; program now implements an
       <option>echo</option> parameter, which allows LCP ECHOs to be
@@ -974,6 +1014,18 @@ moused_ums0_port="/dev/ums0"</programlisting>
       cleanups, both for content and presentation.  Cross-references
       are more correct and consistent, standard section headings are
       now used throughout, and markup has been cleaned up.</para>
+
+    <para>The following manual pages which are derived from RFC
+      and possibly violate the IETF's copyright have been replaced:
+      &man.gai.strerror.3;,
+      &man.getaddrinfo.3;,
+      &man.getnameinfo.3;,
+      &man.inet6.opt.init.3;,
+      &man.inet6.option.space.3;,
+      &man.inet6.rth.space.3;,
+      &man.inet6.rthdr.space.3;,
+      &man.icmp6.4;, and
+      &man.ip6.4;.</para>
 
   </sect2>
 </sect1>
