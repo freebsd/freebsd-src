@@ -126,9 +126,9 @@ confusing.
 Most PCI based Alphas can use ordinary PC-type VGA cards. The SRM contains
 enough smarts to make that work. It does not, however, mean that each and
 every PCI VGA card out on the street will work in an Alpha machine. Things
-like S3 Trio64, Mach64 generally work. Old ET4000 based ISA cards have also
-worked for me. But ask around first before buying. Please note that TGA
-cards are not supported as FreeBSD console display cards. 
+like S3 Trio64, Mach64, and Matrox Millenium generally work. Old ET4000
+based ISA cards have also worked for me. But ask around first before buying.
+Please note that TGA cards are not supported as FreeBSD console display cards.
 
 Most PCI devices from the PC-world will also work in FreeBSD/alpha PCI-based
 machines. Check the /sys/alpha/conf/GENERIC file for the latest word on
@@ -230,8 +230,8 @@ Given the choice, get the PS/2-variant mainboard. Apart from giving you a
 mouse port as bonus it is directly supported by Tru64 Unix in case you ever
 want/need to run it. The "DIN-plug"-variant should work OK for FreeBSD.
 
-The OEM manual is recommended reading. If you did not get one with your
-system/board send me email, I have a Postscript copy.
+The OEM manual is recommended reading.
+See ftp://ftp.digital.com/pub/DEC/axppci/design_guide.ps
 
 The kernel configuration file for a NoName kernel must contain:
 	options         DEC_AXPPCI_33           
@@ -711,7 +711,7 @@ SCSI:
 The SRM can boot from Qlogic 10xx boards or the NCR/Symbios 53C810. 
 53C825[a] will also work as boot adapter. Diamond FirePort, although 
 based on Symbios chips, are not bootable by the PC164SX SRM. 
-PC164SX is reported to boot fine with an NCR875 based card.
+PC164SX is reported to boot fine with NCR825, NCR875 and NCR876 based cards.
 
 SRM quirks:
 PC164 the SRM sometimes seems to loose its variable settings. 
@@ -744,8 +744,8 @@ For the EB164 class machines the kernel config file must contain:
 *
 
 The Digital AlphaStation 200 and 400 series systems are early PCI based
-workstations for the lower end. The 200 series is a desktop box, the 400
-series is a desk-side mini-tower.
+workstations for the lower end. The 200 and 250 series is a desktop box, the
+400 series is a desk-side mini-tower.
 
 Features:
 - 21064 or 21064A CPU
@@ -1310,6 +1310,8 @@ to work by Compaq/DEC for each and every card type out there. When the SRM
 thinks the VGA is acceptable FreeBSD will be able to use it. The console driver
 works just like on a FreeBSD/intel machine. The TGA video graphics which 
 is built-in on for example Multia is reported to be not usable with FreeBSD.
+TGA based PCI cards are also *not* supported. Please note that VESA modes 
+are not supported on Alpha, so that leaves you with 80x25 consoles
 
 - serial ports: the 'PC standard' serial ports found on most Alphas are 
 supported. For TurboChannel machines the serial ports are also supported.
@@ -1319,11 +1321,6 @@ supported. For TurboChannel machines the serial ports are also supported.
 - ISDN (i4b): is not supported on FreeBSD/alpha
 
 - multimedia: is not really supported on FreeBSD/alpha but work is underway
-
-Hardware support due soon
--------------------------
-
-- Support for the AlphaServer 4100 ("Rawhide") machines (post-4.0)
 
 Acknowledgments
 ----------------
@@ -1347,3 +1344,6 @@ People who kindly helped me with creating this document:
 - Peter Jeremy <peter.jeremy@alcatel.com.au>
 - Dolf de Waal <l.j.de.waal@kader.hobby.nl>
 - Wouter Brackman, Compaq
+- Kazutaka YOKOTA <yokota@zodiac.mech.utsunomiya-u.ac.jp>
+- Peter van Dijk <petervd@vuurwerk.nl>
+
