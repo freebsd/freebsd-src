@@ -57,11 +57,7 @@ static void schgdate __P((struct tsp *, char *));
 static void setmaster __P((struct tsp *));
 static void answerdelay __P((void));
 
-#ifdef sgi
-extern void logwtmp __P((struct timeval *, struct timeval *));
-#else
 extern void logwtmp __P((char *, char *, char *));
-#endif /* sgi */
 
 int
 slave()
@@ -258,10 +254,6 @@ loop:
 			/* adjust time for residence on the queue */
 			(void)gettimeofday(&otime, 0);
 			adj_msg_time(msg,&otime);
-#ifdef sgi
-			(void)cftime(newdate, "%D %T", &msg->tsp_time.tv_sec);
-			(void)cftime(olddate, "%D %T", &otime.tv_sec);
-#else
 			/*
 			 * the following line is necessary due to syslog
 			 * calling ctime() which clobbers the static buffer
@@ -269,7 +261,6 @@ loop:
 			(void)strcpy(olddate, date());
 			tsp_time_sec = msg->tsp_time.tv_sec;
 			(void)strcpy(newdate, ctime(&tsp_time_sec));
-#endif /* sgi */
 
 			if (!good_host_name(msg->tsp_name)) {
 				syslog(LOG_NOTICE,
@@ -289,17 +280,9 @@ loop:
 				 */
 				synch(tvtomsround(ntime));
 			} else {
-#ifdef sgi
-				if (0 > settimeofday(&msg->tsp_time, 0)) {
-					syslog(LOG_ERR,"settimeofdate(): %m");
-					break;
-				}
-				logwtmp(&otime, &msg->tsp_time);
-#else
 				logwtmp("|", "date", "");
  				(void)settimeofday(&tmptv, 0);
 				logwtmp("{", "date", "");
-#endif /* sgi */
 				syslog(LOG_NOTICE,
 				       "date changed by %s from %s",
 					msg->tsp_name, olddate);
@@ -358,24 +341,16 @@ loop:
 			break;
 
 		case TSP_SETDATE:
-#ifdef sgi
-			(void)cftime(newdate, "%D %T", &msg->tsp_time.tv_sec);
-#else
 			tsp_time_sec = msg->tsp_time.tv_sec;
 			(void)strcpy(newdate, ctime(&tsp_time_sec));
-#endif /* sgi */
 			schgdate(msg, newdate);
 			break;
 
 		case TSP_SETDATEREQ:
 			if (fromnet->status != MASTER)
 				break;
-#ifdef sgi
-			(void)cftime(newdate, "%D %T", &msg->tsp_time.tv_sec);
-#else
 			tsp_time_sec = msg->tsp_time.tv_sec;
 			(void)strcpy(newdate, ctime(&tsp_time_sec));
-#endif /* sgi */
 			htp = findhost(msg->tsp_name);
 			if (0 == htp) {
 				syslog(LOG_WARNING,
@@ -707,9 +682,6 @@ schgdate(msg, newdate)
 static void
 answerdelay()
 {
-#ifdef sgi
-	sginap(delay1);
-#else
 	struct timeval timeout;
 
 	timeout.tv_sec = 0;
@@ -718,5 +690,4 @@ answerdelay()
 	(void)select(0, (fd_set *)NULL, (fd_set *)NULL, (fd_set *)NULL,
 	    &timeout);
 	return;
-#endif /* sgi */
 }

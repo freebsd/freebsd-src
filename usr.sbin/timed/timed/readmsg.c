@@ -478,13 +478,9 @@ print(msg, addr)
 	case TSP_SETTIME:
 	case TSP_SETDATE:
 	case TSP_SETDATEREQ:
-#ifdef sgi
-		(void)cftime(tm, "%D %T", &msg->tsp_time.tv_sec);
-#else
 		tsp_time_sec = msg->tsp_time.tv_sec;
 		strncpy(tm, ctime(&tsp_time_sec)+3+1, sizeof(tm));
 		tm[15] = '\0';		/* ugh */
-#endif /* sgi */
 		fprintf(fd, "%s %d %-6u %s %-15s %s\n",
 			tsptype[msg->tsp_type],
 			msg->tsp_vers,

@@ -53,16 +53,8 @@
 #include <unistd.h>
 
 #include <protocols/timed.h>
-#ifdef sgi
-#include <bstring.h>
-#include <sys/clock.h>
-/* use the constant HZ instead of the function CLK_TCK */
-#undef CLK_TCK
-#define CLK_TCK HZ
-#else
 #define	SECHR	(60*60)
 #define	SECDAY	(24*SECHR)
-#endif /* sgi */
 
 extern int sock;
 
