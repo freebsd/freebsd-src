@@ -72,7 +72,7 @@ SYSCTL_INT(_vfs_ufs, OID_AUTO, dirhash_maxmem, CTLFLAG_RW, &ufs_dirhashmaxmem,
 static int ufs_dirhashmem;
 SYSCTL_INT(_vfs_ufs, OID_AUTO, dirhash_mem, CTLFLAG_RD, &ufs_dirhashmem,
     0, "current dirhash memory usage");
-static int ufs_dirhashcheck = 1;
+static int ufs_dirhashcheck = 0;
 SYSCTL_INT(_vfs_ufs, OID_AUTO, dirhash_docheck, CTLFLAG_RW, &ufs_dirhashcheck,
     0, "enable extra sanity tests");
 
