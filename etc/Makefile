@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.89 1994/10/17 02:32:36 phk Exp $
+#	$Id: Makefile,v 1.90 1994/10/22 02:11:08 phk Exp $
 
 # disktab may be wrong -- hcx9 is a tahoe, but gets its own.
 # -rw-r--r--
@@ -122,7 +122,9 @@ SCRYPT_LIB=	lib/libcrypt
 DESCRYPT_LIB=	secure/lib/libcrypt
 CRYPT_SRCS=	bin/ed bin/rcp
 CRYPT_SRCS+=	sbin/init
+.if !defined(NOCRYPT)
 CRYPT_SRCS+=	secure/usr.bin/bdes
+.endif
 CRYPT_DIRS=	bin sbin usr usr/bin usr/lib
 
 all depend etc install lint:
@@ -159,9 +161,7 @@ distribution: distrib-dirs
 	pwd_mkdb -p -d ${DESTDIR}/etc ${DESTDIR}/etc/master.passwd; \
 	install -c -o ${BINOWN} -g ${BINGRP} -m 555 \
 	     MAKEDEV.local etc.${MACHINE}/MAKEDEV ${DESTDIR}/dev )
-.if defined(CDROMDIST)
 	(cd ${DESTDIR}/dev; sh MAKEDEV all) ;
-.endif
 	(cd ${.CURDIR}/root; \
 		install -c -o ${BINOWN} -g ${BINGRP} -m 644 dot.cshrc \
 		    ${DESTDIR}/root/.cshrc; \
