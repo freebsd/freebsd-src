@@ -230,7 +230,7 @@ sub passwd_read {
     local($p_username, $pw, $p_uid, $p_gid, $sh, %shlist);
 
     print "Check $etc_passwd\n" if $verbose;
-    open(P, "$etc_passwd") || die "$passwd: $!\n";
+    open(P, "$etc_passwd") || die "$etc_passwd: $!\n";
 
     while(<P>) {
 	chop;
@@ -541,9 +541,10 @@ EOF
 
 # make password database
 sub new_users_pwdmkdb {
-    local($last) = @_;
+    local($last) = shift;
+    local($name) = shift;
 
-    system("$pwd_mkdb $etc_passwd");
+    system("$pwd_mkdb -u $name $etc_passwd");
     if ($?) {
 	warn "$last\n";
 	warn "``$pwd_mkdb'' failed\n";
@@ -716,7 +717,7 @@ sub new_users {
 	    $new_entry = "$name\:" . "$cryptpwd" .
 		"\:$u_id\:$g_id\:$class\:0:0:$fullname:$userhome:$sh";
 	    &append_file($etc_passwd, "$new_entry");
-	    &new_users_pwdmkdb("$new_entry");
+	    &new_users_pwdmkdb("$new_entry", $name);
 	    &new_users_group_update;
 	    &new_users_passwd_update;  print "Added user ``$name''\n";
 	    &new_users_sendmessage;
