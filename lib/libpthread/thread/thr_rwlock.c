@@ -31,7 +31,7 @@
 #include <stdlib.h>
 
 #include <pthread.h>
-#include "pthread_private.h"
+#include "thr_private.h"
 
 /* maximum number of times a read lock may be obtained */
 #define	MAX_READ_LOCKS		(INT_MAX - 1)

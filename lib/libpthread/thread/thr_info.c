@@ -38,7 +38,7 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <errno.h>
-#include "pthread_private.h"
+#include "thr_private.h"
 
 #ifndef NELEMENTS
 #define NELEMENTS(arr)	(sizeof(arr) / sizeof(arr[0]))

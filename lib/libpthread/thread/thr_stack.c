@@ -33,7 +33,7 @@
 #include <sys/user.h>
 #include <stdlib.h>
 #include <pthread.h>
-#include "pthread_private.h"
+#include "thr_private.h"
 
 /* Spare thread stack. */
 struct stack {

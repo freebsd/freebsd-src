@@ -34,7 +34,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <pthread.h>
-#include "pthread_private.h"
+#include "thr_private.h"
 
 __weak_reference(_pthread_attr_destroy, pthread_attr_destroy);
 

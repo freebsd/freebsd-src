@@ -35,7 +35,7 @@
 #include <errno.h>
 #include <string.h>
 #include <pthread.h>
-#include "pthread_private.h"
+#include "thr_private.h"
 
 /*
  * Prototypes

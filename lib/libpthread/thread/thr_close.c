@@ -37,7 +37,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <pthread.h>
-#include "pthread_private.h"
+#include "thr_private.h"
 
 __weak_reference(__close, close);
 

@@ -40,7 +40,7 @@
 #include <sys/time.h>
 #include <machine/reg.h>
 #include <pthread.h>
-#include "pthread_private.h"
+#include "thr_private.h"
 #include "libc_private.h"
 
 static u_int64_t next_uniqueid = 1;

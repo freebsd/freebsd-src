@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:	 ${.CURDIR}/sys ${.CURDIR}/arch/${MACHINE_ARCH}
+.PATH:	 ${.CURDIR}/sys ${.CURDIR}/arch/${MACHINE_ARCH}/${MACHINE_ARCH}
 
-SRCS+=	uthread_error.c _atomic_lock.S
+SRCS+=	thr_error.c _atomic_lock.S
 
