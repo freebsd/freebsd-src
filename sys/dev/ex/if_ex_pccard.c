@@ -67,8 +67,6 @@ static driver_t ex_pccard_driver = {
 	sizeof(struct ex_softc),
 };
 
-extern devclass_t ex_devclass;
-
 DRIVER_MODULE(ex, pccard, ex_pccard_driver, ex_devclass, 0, 0);
 
 static int
