@@ -597,6 +597,7 @@ STATIC u_int32_t         asr_time_delta __P((IN struct timeval start,
                                              IN struct timeval end));
 #endif
 
+#ifdef ASR_VERY_BROKEN
 /*
  * Initialize the dynamic cdevsw hooks.
  */
@@ -635,7 +636,6 @@ asr_drvinit (
 } /* asr_drvinit */
 
 /* Must initialize before CAM layer picks up our HBA driver */
-#ifdef ASR_VERY_BROKEN
 SYSINIT(asrdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,asr_drvinit,NULL)
 #endif
 
