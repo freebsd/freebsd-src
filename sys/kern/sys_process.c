@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sys_process.c,v 1.7 1994/09/25 19:33:49 phk Exp $
+ *	$Id: sys_process.c,v 1.8 1995/01/14 13:19:38 bde Exp $
  */
 
 #include <sys/param.h>
@@ -156,17 +156,13 @@ pwrite (struct proc *procp, unsigned int addr, unsigned int datum) {
 	 * Fault the page in...
 	 */
 
-	rv = vm_fault (map, pageno, VM_PROT_WRITE, FALSE);
+	vm_map_pageable(map, (vm_offset_t) vtopte(kva),
+		(vm_offset_t) vtopte(kva) + PAGE_SIZE, FALSE);
+	rv = vm_fault(map, pageno, VM_PROT_WRITE|VM_PROT_READ, FALSE);
+	vm_map_pageable (map, (vm_offset_t) vtopte(kva),
+		(vm_offset_t) vtopte(kva) + PAGE_SIZE, TRUE);
 	if (rv != KERN_SUCCESS)
 		return EFAULT;
-
-	/*
-	 * The page may need to be faulted in again, it seems.
-	 * This covers COW pages, I believe.
-	 */
-
-	if (!rv)
-		rv = vm_fault (map, pageno, VM_PROT_WRITE, 0);
 
 	/* Find space in kernel_map for the page we're interested in */
 	rv = vm_map_find (kernel_map, object, off, &kva, PAGE_SIZE, 1);
