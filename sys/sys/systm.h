@@ -312,6 +312,7 @@ void	DELAY(int usec);
  */
 struct unrhdr;
 struct unrhdr *new_unrhdr(u_int low, u_int high);
+void delete_unrhdr(struct unrhdr *uh);
 u_int alloc_unr(struct unrhdr *uh);
 void free_unr(struct unrhdr *uh, u_int item);
 
