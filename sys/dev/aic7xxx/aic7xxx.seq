@@ -1624,7 +1624,6 @@ setup_SCB_tagged:
 	call	set_transfer_settings;
 	/* See if the host wants to send a message upon reconnection */
 	test	SCB_CONTROL, MK_MESSAGE jz mesgin_done;
-	and	SCB_CONTROL, ~MK_MESSAGE;
 	mvi	HOST_MSG	call mk_mesg;
 	jmp	mesgin_done;
 

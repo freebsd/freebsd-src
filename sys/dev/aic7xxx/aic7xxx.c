@@ -229,6 +229,15 @@ restart_sequencer(struct ahc_softc *ahc)
 	ahc_outb(ahc, SCSISIGO, 0);		/* De-assert BSY */
 	ahc_outb(ahc, MSG_OUT, MSG_NOOP);	/* No message to send */
 	ahc_outb(ahc, SXFRCTL1, ahc_inb(ahc, SXFRCTL1) & ~BITBUCKET);
+	/*
+	 * Ensure that the sequencer's idea of TQINPOS
+	 * matches our own.  The sequencer increments TQINPOS
+	 * only after it sees a DMA complete and a reset could
+	 * occur before the increment leaving the kernel to believe
+	 * the command arrived but the sequencer to not.
+	 */
+	ahc_outb(ahc, TQINPOS, ahc->tqinfifonext);
+
 	/* Always allow reselection */
 	ahc_outb(ahc, SCSISEQ,
 		 ahc_inb(ahc, SCSISEQ_TEMPLATE) & (ENSELI|ENRSELI|ENAUTOATNP));
@@ -1045,11 +1054,15 @@ void
 ahc_clear_critical_section(struct ahc_softc *ahc)
 {
 	int	stepping;
+	u_int	simode0;
+	u_int	simode1;
 
 	if (ahc->num_critical_sections == 0)
 		return;
 
 	stepping = FALSE;
+	simode0 = 0;
+	simode1 = 0;
 	for (;;) {
 		struct	cs *cs;
 		u_int	seqaddr;
@@ -1068,7 +1081,19 @@ ahc_clear_critical_section(struct ahc_softc *ahc)
 		if (i == ahc->num_critical_sections)
 			break;
 
-		if (!stepping) {
+		if (stepping == FALSE) {
+
+			/*
+			 * Disable all interrupt sources so that the
+			 * sequencer will not be stuck by a pausing
+			 * interrupt condition while we attempt to
+			 * leave a critical section.
+			 */
+			simode0 = ahc_inb(ahc, SIMODE0);
+			ahc_outb(ahc, SIMODE0, 0);
+			simode1 = ahc_inb(ahc, SIMODE1);
+			ahc_outb(ahc, SIMODE1, 0);
+			ahc_outb(ahc, CLRINT, CLRSCSIINT);
 			ahc_outb(ahc, SEQCTL, ahc_inb(ahc, SEQCTL) | STEP);
 			stepping = TRUE;
 		}
@@ -1077,8 +1102,11 @@ ahc_clear_critical_section(struct ahc_softc *ahc)
 			ahc_delay(200);
 		} while (!sequencer_paused(ahc));
 	}
-	if (stepping)
+	if (stepping) {
+		ahc_outb(ahc, SIMODE0, simode0);
+		ahc_outb(ahc, SIMODE1, simode1);
 		ahc_outb(ahc, SEQCTL, ahc_inb(ahc, SEQCTL) & ~STEP);
+	}
 }
 
 /*
@@ -2938,7 +2966,7 @@ ahc_handle_devreset(struct ahc_softc *ahc, struct ahc_devinfo *devinfo,
 			 AHC_TRANS_CUR, /*paused*/TRUE);
 	
 	ahc_send_async(ahc, devinfo->channel, devinfo->target,
-		       CAM_LUN_WILDCARD, AC_TRANSFER_NEG);
+		       CAM_LUN_WILDCARD, AC_SENT_BDR);
 
 	if (message != NULL
 	 && (verbose_level <= bootverbose))
@@ -4818,31 +4846,6 @@ ahc_reset_channel(struct ahc_softc *ahc, char channel, int initiate_reset)
 		if (initiate_reset)
 			ahc_reset_current_bus(ahc);
 		ahc_clear_intstat(ahc);
-
-		/*
-		 * Since we are going to restart the sequencer, avoid
-		 * a race in the sequencer that could cause corruption
-		 * of our Q pointers by starting over from index 1.
-		 */
-		*((uint32_t *)(&ahc->qoutfifo[ahc->qoutfifonext & ~0x3]))
-		    = 0xFFFFFFFF;
-		ahc->qoutfifonext = 0;
-		if ((ahc->features & AHC_QUEUE_REGS) != 0)
-			ahc_outb(ahc, SDSCB_QOFF, 0);
-		else
-			ahc_outb(ahc, QOUTPOS, 0);
-		if ((ahc->flags & AHC_TARGETMODE) != 0) {
-			ahc->tqinfifonext = 1;
-			ahc_outb(ahc, KERNEL_TQINPOS, ahc->tqinfifonext - 1);
-			ahc_outb(ahc, TQINPOS, ahc->tqinfifonext);
-			if ((ahc->features & AHC_HS_MAILBOX) != 0) {
-				u_int hs_mailbox;
-
-				hs_mailbox = ahc_inb(ahc, HS_MAILBOX);
-				hs_mailbox &= ~HOST_TQINPOS;
-				ahc_outb(ahc, HS_MAILBOX, hs_mailbox);
-			}
-		}
 		restart_needed = TRUE;
 	}
 
@@ -4883,7 +4886,7 @@ ahc_reset_channel(struct ahc_softc *ahc, char channel, int initiate_reset)
 #endif
 	/* Notify the XPT that a bus reset occurred */
 	ahc_send_async(ahc, devinfo.channel, CAM_TARGET_WILDCARD,
-		       CAM_LUN_WILDCARD, AC_TRANSFER_NEG);
+		       CAM_LUN_WILDCARD, AC_BUS_RESET);
 
 	/*
 	 * Revert to async/narrow transfers until we renegotiate.
@@ -5122,8 +5125,10 @@ static void
 ahc_loadseq(struct ahc_softc *ahc)
 {
 	struct	cs cs_table[num_critical_sections];
+	u_int	begin_set[num_critical_sections];
+	u_int	end_set[num_critical_sections];
 	struct	patch *cur_patch;
-	u_int	cs_table_size;
+	u_int	cs_count;
 	u_int	cur_cs;
 	u_int	i;
 	int	downloaded;
@@ -5135,8 +5140,10 @@ ahc_loadseq(struct ahc_softc *ahc)
 	 * Start out with 0 critical sections
 	 * that apply to this firmware load.
 	 */
-	cs_table_size = 0;
+	cs_count = 0;
 	cur_cs = 0;
+	memset(begin_set, 0, sizeof(begin_set));
+	memset(end_set, 0, sizeof(end_set));
 
 	/* Setup downloadable constant table */
 	download_consts[QOUTFIFO_OFFSET] = 0;
@@ -5172,32 +5179,34 @@ ahc_loadseq(struct ahc_softc *ahc)
 		 * that might apply to this instruction.
 		 */
 		for (; cur_cs < num_critical_sections; cur_cs++) {
-			if (critical_sections[cur_cs].end >= i) {
-				if (critical_sections[cur_cs].begin == i) {
-					cs_table[cs_table_size].begin =	
-					    downloaded;
+			if (critical_sections[cur_cs].end <= i) {
+				if (begin_set[cs_count] == TRUE
+				 && end_set[cs_count] == FALSE) {
+					cs_table[cs_count].end = downloaded;
+				 	end_set[cs_count] = TRUE;
+					cs_count++;
 				}
-				if (critical_sections[cur_cs].end == i) {
-					cs_table[cs_table_size].end =	
-					    downloaded;
-					cs_table_size++;
-				}
-				break;
+				continue;
 			}
+			if (critical_sections[cur_cs].begin <= i
+			 && begin_set[cs_count] == FALSE) {
+				cs_table[cs_count].begin = downloaded;
+				begin_set[cs_count] = TRUE;
+			}
+			break;
 		}
 		ahc_download_instr(ahc, i, download_consts);
 		downloaded++;
 	}
 
-	ahc->num_critical_sections = cs_table_size;
-	if (cs_table_size != 0) {
+	ahc->num_critical_sections = cs_count;
+	if (cs_count != 0) {
 
-		cs_table_size *= sizeof(struct cs);
-		ahc->critical_sections =
-		    malloc(cs_table_size, M_DEVBUF, M_NOWAIT);
+		cs_count *= sizeof(struct cs);
+		ahc->critical_sections = malloc(cs_count, M_DEVBUF, M_NOWAIT);
 		if (ahc->critical_sections == NULL)
 			panic("ahc_loadseq: Could not malloc");
-		memcpy(ahc->critical_sections, cs_table, cs_table_size);
+		memcpy(ahc->critical_sections, cs_table, cs_count);
 	}
 	ahc_outb(ahc, SEQCTL, PERRORDIS|FAILDIS|FASTMODE);
 	restart_sequencer(ahc);
