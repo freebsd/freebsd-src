@@ -201,17 +201,6 @@ static int acpi_serialize_methods;
 TUNABLE_INT("hw.acpi.serialize_methods", &acpi_serialize_methods);
 
 /*
- * Allow override of whether to support the _OSI method.  This allows us
- * to claim compatibility with various MS OSs without changing the value
- * we report for _OS.  This is enabled by default since it fixes some
- * problems with interrupt routing although it can be disabled if it
- * causes problems.  See the definition of "AcpiGbl_ValidOsiStrings" for
- * a list of systems we claim.
- */
-static int acpi_osi_method = TRUE;
-TUNABLE_INT("hw.acpi.osi_method", &acpi_osi_method);
-
-/*
  * ACPI can only be loaded as a module by the loader; activating it after
  * system bootstrap time is not useful, and can be fatal to the system.
  * It also cannot be unloaded, since the entire system bus heirarchy hangs
@@ -261,11 +250,9 @@ acpi_Startup(void)
 
     /*
      * Set the globals from our tunables.  This is needed because ACPI-CA
-     * uses UINT8 for some values and we have no tunable_uint8.
+     * uses UINT8 for some values and we have no tunable_byte.
      */
-    AcpiGbl_AllMethodsSerialized = acpi_serialize_methods;
-    AcpiGbl_CreateOsiMethod = acpi_osi_method;
-    AcpiGbl_LeaveWakeGpesDisabled = FALSE;
+    AcpiGbl_AllMethodsSerialized = (UINT8)acpi_serialize_methods;
 
     /* Start up the ACPI CA subsystem. */
 #ifdef ACPI_DEBUGGER
@@ -2057,7 +2044,13 @@ acpi_device_enable_wake_event(ACPI_HANDLE h)
 	 * enabled for the wake event.
 	 */
 	gpe_bit = res->Package.Elements[0].Integer.Value;
-	status = AcpiEnableGpe(NULL, gpe_bit, ACPI_EVENT_WAKE_ENABLE);
+	status = AcpiSetGpeType(NULL, gpe_bit, ACPI_GPE_TYPE_WAKE_RUN);
+	if (ACPI_FAILURE(status)) {
+	    printf("wake enable: AcpiSetGpeType failed for %u\n",
+		   gpe_bit);
+	    goto out;
+	}
+	status = AcpiEnableGpe(NULL, gpe_bit, ACPI_NOT_ISR);
 	if (ACPI_FAILURE(status))
 	    printf("wake enable: AcpiEnableGpe failed for %u\n",
 		   gpe_bit);
@@ -2082,7 +2075,13 @@ acpi_device_enable_wake_event(ACPI_HANDLE h)
 	handle = acpi_GetReference(NULL, &res2->Package.Elements[0]);
 	if (handle == NULL || acpi_PkgInt32(res2, 1, &gpe_bit) != 0)
 	    goto out;
-	status = AcpiEnableGpe(handle, gpe_bit, ACPI_EVENT_WAKE_ENABLE);
+	status = AcpiSetGpeType(handle, gpe_bit, ACPI_GPE_TYPE_WAKE_RUN);
+	if (ACPI_FAILURE(status)) {
+	    printf("wake enable: AcpiSetGpeType failed for %u\n",
+		   gpe_bit);
+	    goto out;
+	}
+	status = AcpiEnableGpe(handle, gpe_bit, ACPI_NOT_ISR);
 	if (ACPI_FAILURE(status))
 	    printf("wake enable: AcpiEnableGpe (package) failed for %u\n",
 		   gpe_bit);
