@@ -429,6 +429,7 @@ retry:
 	mtx_lock(&Giant);	
 	PROC_LOCK(p);
 	p->p_xstat = rv;
+	p->p_xlwpid = td->td_tid;
 	*p->p_ru = p->p_stats->p_ru;
 	mtx_lock_spin(&sched_lock);
 	calcru(p, &p->p_ru->ru_utime, &p->p_ru->ru_stime, NULL);
