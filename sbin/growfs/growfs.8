@@ -58,6 +58,11 @@ Before starting
 .Nm
 the disk must be labeled to a bigger size using
 .Xr disklabel 8 .
+If you wish to grow a filesystem beyound the boundary of
+the slice it resides in, you must re-size the slice using
+.Xr fdisk 8
+before running
+.Nm .
 If you are using volumes you must enlarge them by using
 .Xr vinum 8 .
 The
@@ -173,6 +178,7 @@ mode.
 .Sh SEE ALSO
 .Xr disklabel 8 ,
 .Xr dumpfs 8 ,
+.Xr fdisk 8 ,
 .Xr ffsinfo 8 ,
 .Xr fsck 8 ,
 .Xr newfs 8 ,
