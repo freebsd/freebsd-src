@@ -3,7 +3,7 @@
 
 .PATH: ${.CURDIR}/../../../../netgraph/bluetooth/common
 
-CFLAGS+=	-I../../../../netgraph/bluetooth/include
+CFLAGS+=	-I${.CURDIR}/../../../../netgraph/bluetooth/include
 
 KMOD=		ng_bluetooth
 SRCS=		ng_bluetooth.c

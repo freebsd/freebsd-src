@@ -3,8 +3,8 @@
 
 .PATH: ${.CURDIR}/../../../../netgraph/bluetooth/drivers/ubt
 
-CFLAGS+=	-g -I../../../../netgraph/bluetooth/include \
-		-I../../../../netgraph/bluetooth/drivers/ubt \
+CFLAGS+=	-g -I${.CURDIR}/../../../../netgraph/bluetooth/include \
+		-I${.CURDIR}/../../../../netgraph/bluetooth/drivers/ubt \
 		-DINVARIANTS=1 -DINVARIANT_SUPPORT=1 \
 		-DWITNESS=1 -DWITNESS_SKIPSPIN=1
 
