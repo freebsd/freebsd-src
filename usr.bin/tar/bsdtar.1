@@ -185,6 +185,9 @@ target of the link will be archived, not the link itself.
 (c and r mode only)
 Synonym for
 .Fl L .
+.It Fl I
+Synonym for
+.Fl T .
 .It Fl -include Ar pattern ( Fl W Cm include Ns = Ns Ar pattern )
 Process only files or directories that match the specified pattern.
 Note that exclusions specified with
@@ -243,6 +246,18 @@ Do not recursively archive the contents of directories.
 .It Fl -nodump ( Fl W Cm nodump )
 (c and r modes only)
 Honor the nodump file flag by skipping this file.
+.It Fl -null ( Fl W Cm null )
+(use with
+.Fl I ,
+.Fl T ,
+or
+.Fl X )
+Filenames or patterns are separated by null characters,
+not by newlines.
+This is often used to read filenames output by the
+.Fl print0
+option to
+.Xr find 1 .
 .It Fl O
 (x, t modes only)
 In extract (-x) mode, files will be written to standard out rather than
@@ -259,6 +274,9 @@ is specified, and the program is being run by the root user.
 In this case, the file modes and flags from
 the archive will be restored, but ACLs or owner information in
 the archive will be discarded.
+.It Fl -one-file-system ( Fl W Cm one-file-system )
+(c, r, and u modes)
+Do not cross mount points.
 .It Fl P
 Preserve pathnames.
 By default, absolute pathnames (those that begin with a /
@@ -285,14 +303,25 @@ is being run by root, the default is to restore the owner unless the
 .Fl o
 option is also specified.
 .It Fl T Ar filename
-(c mode only)
-Read names to be archived from
+In x or t mode,
+.Nm
+will read the list of names to be extracted from
 .Pa filename .
-Names are terminated by newlines.
+In c mode,
+.Nm
+will read names to be archived from
+.Pa filename .
 The special name
 .Dq -C
-will cause the current directory to be changed to the directory
-specified on the following line.
+on a line by itself will cause the current directory to be changed to
+the directory specified on the following line.
+Names are terminated by newlines unless
+.Fl -null
+is specified.
+Note that
+.Fl -null
+also disables the special handling of lines containing
+.Dq -C .
 .It Fl U
 (x mode only)
 Unlink files before creating them.
