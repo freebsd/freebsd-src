@@ -65,6 +65,16 @@ __FBSDID("$FreeBSD$");
  *	Number of matches in the current invocation of glob.
  */
 
+/*
+ * Some notes on multibyte character support:
+ * 1. Patterns with illegal byte sequences match nothing - even if
+ *    GLOB_NOCHECK is specified.
+ * 2. Illegal byte sequences in filenames are handled by treating them as
+ *    single-byte characters with a value of the first byte of the sequence
+ *    cast to wchar_t.
+ * 3. State-dependent encodings are not currently supported.
+ */
+
 #include <sys/param.h>
 #include <sys/stat.h>
 
@@ -72,11 +82,14 @@ __FBSDID("$FreeBSD$");
 #include <dirent.h>
 #include <errno.h>
 #include <glob.h>
+#include <limits.h>
 #include <pwd.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <wchar.h>
 
 #include "collate.h"
 
@@ -100,26 +113,26 @@ __FBSDID("$FreeBSD$");
 
 #ifndef DEBUG
 
-#define	M_QUOTE		0x8000
-#define	M_PROTECT	0x4000
-#define	M_MASK		0xffff
-#define	M_ASCII		0x00ff
+#define	M_QUOTE		0x8000000000ULL
+#define	M_PROTECT	0x4000000000ULL
+#define	M_MASK		0xffffffffffULL
+#define	M_CHAR		0x00ffffffffULL
 
-typedef u_short Char;
+typedef uint_fast64_t Char;
 
 #else
 
 #define	M_QUOTE		0x80
 #define	M_PROTECT	0x40
 #define	M_MASK		0xff
-#define	M_ASCII		0x7f
+#define	M_CHAR		0x7f
 
 typedef char Char;
 
 #endif
 
 
-#define	CHAR(c)		((Char)((c)&M_ASCII))
+#define	CHAR(c)		((Char)((c)&M_CHAR))
 #define	META(c)		((Char)((c)|M_QUOTE))
 #define	M_ALL		META('*')
 #define	M_END		META(']')
@@ -134,7 +147,7 @@ static int	 compare(const void *, const void *);
 static int	 g_Ctoc(const Char *, char *, u_int);
 static int	 g_lstat(Char *, struct stat *, glob_t *);
 static DIR	*g_opendir(Char *, glob_t *);
-static Char	*g_strchr(Char *, int);
+static Char	*g_strchr(Char *, wchar_t);
 #ifdef notdef
 static Char	*g_strcat(Char *, const Char *);
 #endif
@@ -160,8 +173,11 @@ glob(pattern, flags, errfunc, pglob)
 	glob_t *pglob;
 {
 	const u_char *patnext;
-	int c, limit;
-	Char *bufnext, *bufend, patbuf[MAXPATHLEN];
+	int limit;
+	Char *bufnext, *bufend, patbuf[MAXPATHLEN], prot;
+	mbstate_t mbs;
+	wchar_t wc;
+	size_t clen;
 
 	patnext = (u_char *) pattern;
 	if (!(flags & GLOB_APPEND)) {
@@ -182,21 +198,37 @@ glob(pattern, flags, errfunc, pglob)
 
 	bufnext = patbuf;
 	bufend = bufnext + MAXPATHLEN - 1;
-	if (flags & GLOB_NOESCAPE)
-	    while (bufnext < bufend && (c = *patnext++) != EOS)
-		    *bufnext++ = c;
-	else {
+	if (flags & GLOB_NOESCAPE) {
+		memset(&mbs, 0, sizeof(mbs));
+		while (bufend - bufnext >= MB_CUR_MAX) {
+			clen = mbrtowc(&wc, patnext, MB_LEN_MAX, &mbs);
+			if (clen == (size_t)-1 || clen == (size_t)-2)
+				return (GLOB_NOMATCH);
+			else if (clen == 0)
+				break;
+			*bufnext++ = wc;
+			patnext += clen;
+		}
+	} else {
 		/* Protect the quoted characters. */
-		while (bufnext < bufend && (c = *patnext++) != EOS)
-			if (c == QUOTE) {
-				if ((c = *patnext++) == EOS) {
-					c = QUOTE;
-					--patnext;
+		memset(&mbs, 0, sizeof(mbs));
+		while (bufend - bufnext >= MB_CUR_MAX) {
+			if (*patnext == QUOTE) {
+				if (*++patnext == EOS) {
+					*bufnext++ = QUOTE | M_PROTECT;
+					continue;
 				}
-				*bufnext++ = c | M_PROTECT;
-			}
-			else
-				*bufnext++ = c;
+				prot = M_PROTECT;
+			} else
+				prot = 0;
+			clen = mbrtowc(&wc, patnext, MB_LEN_MAX, &mbs);
+			if (clen == (size_t)-1 || clen == (size_t)-2)
+				return (GLOB_NOMATCH);
+			else if (clen == 0)
+				break;
+			*bufnext++ = wc | prot;
+			patnext += clen;
+		}
 	}
 	*bufnext = EOS;
 
@@ -636,14 +668,27 @@ glob3(pathbuf, pathend, pathend_last, pattern, restpattern, pglob, limit)
 	while ((dp = (*readdirfunc)(dirp))) {
 		u_char *sc;
 		Char *dc;
+		wchar_t wc;
+		size_t clen;
+		mbstate_t mbs;
 
 		/* Initial DOT must be matched literally. */
 		if (dp->d_name[0] == DOT && *pattern != DOT)
 			continue;
+		memset(&mbs, 0, sizeof(mbs));
 		dc = pathend;
 		sc = (u_char *) dp->d_name;
-		while (dc < pathend_last && (*dc++ = *sc++) != EOS)
-			;
+		while (dc < pathend_last) {
+			clen = mbrtowc(&wc, sc, MB_LEN_MAX, &mbs);
+			if (clen == (size_t)-1 || clen == (size_t)-2) {
+				wc = *sc;
+				clen = 1;
+				memset(&mbs, 0, sizeof(mbs));
+			}
+			if ((*dc++ = wc) == EOS)
+				break;
+			sc += clen;
+		}
 		if (!match(pathend, pattern, restpattern)) {
 			*pathend = EOS;
 			continue;
@@ -715,7 +760,7 @@ globextend(path, pglob, limit)
 
 	for (p = path; *p++;)
 		continue;
-	len = (size_t)(p - path);
+	len = MB_CUR_MAX * (size_t)(p - path);	/* XXX overallocation */
 	if ((copy = malloc(len)) != NULL) {
 		if (g_Ctoc(path, copy, len)) {
 			free(copy);
@@ -857,7 +902,7 @@ g_stat(fn, sb, pglob)
 static Char *
 g_strchr(str, ch)
 	Char *str;
-	int ch;
+	wchar_t ch;
 {
 	do {
 		if (*str == ch)
@@ -872,10 +917,19 @@ g_Ctoc(str, buf, len)
 	char *buf;
 	u_int len;
 {
+	mbstate_t mbs;
+	size_t clen;
 
-	while (len--) {
-		if ((*buf++ = *str++) == '\0')
+	memset(&mbs, 0, sizeof(mbs));
+	while (len >= MB_CUR_MAX) {
+		clen = wcrtomb(buf, *str, &mbs);
+		if (clen == (size_t)-1)
+			return (1);
+		if (*str == L'\0')
 			return (0);
+		str++;
+		buf += clen;
+		len -= clen;
 	}
 	return (1);
 }
