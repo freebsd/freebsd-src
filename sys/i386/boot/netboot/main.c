@@ -466,6 +466,7 @@ tftp(name)
 				return(0);
 			}			/* ACK PACKET */
 			if (tr->opcode != ntohs(TFTP_DATA)) return(0);
+			osocket = ntohs(tr->udp.src);
 			tp.opcode = htons(TFTP_ACK);
 			tp.u.ack.block = tr->u.data.block;
 			udp_transmit(arptable[ARP_SERVER].ipaddr, isocket,
