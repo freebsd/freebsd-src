@@ -97,29 +97,12 @@ devfs_mount(mp, path, data, ndp, p)
 
 	fmp->dm_inode = NDEVINO;
 	fmp->dm_root = rvp;
-	fmp->dm_rootdir = devfs_vmkdir();
+
+	fmp->dm_rootdir = devfs_vmkdir("(root)", 6, NULL);
+	fmp->dm_rootdir->de_inode = 2;
 	rvp->v_data = fmp->dm_rootdir;
-	TAILQ_FIRST(&fmp->dm_rootdir->dd_list)->de_vnode = rvp;
-	TAILQ_FIRST(&fmp->dm_rootdir->dd_list)->de_inode = 2;
 
-#ifdef DEVFS_DEVBASE
-	{
-	struct devfs_dirent *de;
-
-	fmp->dm_basedir = devfs_vmkdir();
-	de = devfs_newdirent("dev", 3);
-	de->de_inode = fmp->dm_inode++;
-	de->de_dir = fmp->dm_basedir;
-	TAILQ_FIRST(&de->de_dir->dd_list)->de_inode = de->de_inode;
-	de->de_uid = 0;
-	de->de_gid = 0;
-	de->de_mode = 0755;
-	de->de_dirent->d_type = DT_DIR;
-	TAILQ_INSERT_TAIL(&fmp->dm_rootdir->dd_list, de, de_list);
-	}
-#else
 	fmp->dm_basedir = fmp->dm_rootdir;
-#endif
 
 	if (path != NULL) {
 		(void) copyinstr(path, mp->mnt_stat.f_mntonname, MNAMELEN - 1, &size);

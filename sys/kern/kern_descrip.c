@@ -40,6 +40,7 @@
  */
 
 #include "opt_compat.h"
+#include "opt_devfs.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
@@ -60,6 +61,12 @@
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
+
+#ifdef DEVFS
+#include <sys/ctype.h>
+#include <sys/eventhandler.h>
+#include <fs/devfs/devfs.h>
+#endif
 
 static MALLOC_DEFINE(M_FILEDESC, "file desc", "Open file descriptor table");
 MALLOC_DEFINE(M_FILE, "file", "Open file structure");
@@ -1313,16 +1320,41 @@ SYSCTL_INT(_kern, KERN_MAXFILES, maxfiles, CTLFLAG_RW,
     &maxfiles, 0, "Maximum number of files");
 
 static void
+fildesc_clone(void *arg, char *name, int namelen, dev_t *dev)
+{
+	int u;
+
+	if (*dev != NODEV)
+		return;
+	if (devfs_stdclone(name, NULL, "fd/", &u) != 1)
+		return;
+	if (u <= 2)
+		return;
+	*dev = make_dev(&fildesc_cdevsw, u, UID_BIN, GID_BIN, 0666, name);
+	return;
+}
+
+static void
 fildesc_drvinit(void *unused)
 {
+	dev_t dev;
+
+	dev = make_dev(&fildesc_cdevsw, 0, UID_BIN, GID_BIN, 0666, "fd/0");
+	make_dev_alias(dev, "stdin");
+	dev = make_dev(&fildesc_cdevsw, 1, UID_BIN, GID_BIN, 0666, "fd/1");
+	make_dev_alias(dev, "stdout");
+	dev = make_dev(&fildesc_cdevsw, 2, UID_BIN, GID_BIN, 0666, "fd/2");
+	make_dev_alias(dev, "stderr");
+#ifdef DEVFS
+	EVENTHANDLER_REGISTER(devfs_clone, fildesc_clone, 0, 1000);
+#else
+	{
 	int fd;
 
-	for (fd = 0; fd < NUMFDESC; fd++)
-		make_dev(&fildesc_cdevsw, fd,
-		    UID_BIN, GID_BIN, 0666, "fd/%d", fd);
-	make_dev(&fildesc_cdevsw, 0, UID_ROOT, GID_WHEEL, 0666, "stdin");
-	make_dev(&fildesc_cdevsw, 1, UID_ROOT, GID_WHEEL, 0666, "stdout");
-	make_dev(&fildesc_cdevsw, 2, UID_ROOT, GID_WHEEL, 0666, "stderr");
+	for (fd = 3; fd < NUMFDESC; fd++)
+		make_dev(&fildesc_cdevsw, fd, UID_BIN, GID_BIN, 0666, "fd/%d", fd);
+	}
+#endif
 }
 
 struct fileops badfileops = {
