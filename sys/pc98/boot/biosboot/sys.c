@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:36:34  rpd
- *	$Id: sys.c,v 1.13 1997/06/09 13:44:04 kato Exp $
+ *	$Id: sys.c,v 1.14 1998/04/12 04:48:11 kato Exp $
  */
 
 /*
@@ -292,6 +292,11 @@ openrd(void)
 		dosdev_copy = biosdrive;
 #endif
 		break;
+#ifdef PC98
+	case 6:/* 1.44MB FD */
+		dosdev_copy = (maj << 3) | unit;
+		break;
+#endif
 	default:
 		printf("Unknown device\n");
 		return 1;

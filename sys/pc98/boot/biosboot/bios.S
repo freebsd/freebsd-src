@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:34:26  rpd
- *	$Id: bios.S,v 1.7 1997/05/18 12:28:38 kato Exp $
+ *	$Id: bios.S,v 1.8 1997/07/13 12:13:01 kato Exp $
  */
 
 /*
@@ -123,8 +123,11 @@ ENTRY(biosread)
 	movb	0x08(%ebp), %al		/* DA/UA */
 	movb	$0x06, %ah
 	andb	$0xf0, %al
+	cmpb	$0x30, %al
+	jz	fd
 	cmpb	$0x90, %al
 	jnz	1f
+fd:
 	incb	%dl
 	movb	$0x02, %ch
 	movb	$0xd6, %ah
@@ -357,6 +360,8 @@ ENTRY(get_diskinfo)
 
 	movb	%dl, %al		/* ask for disk info */
 	andb	$0xf0, %al
+	cmpb	$0x30, %al
+	jz	fdd4
 	cmpb	$0x90, %al
 	jz	fdd
 
@@ -370,7 +375,12 @@ ENTRY(get_diskinfo)
 	 * Urk.  Call failed.  It is not supported for floppies by old BIOS's.
 	 * Guess it's a 15-sector floppy.
 	 */
+fdd4:
+	movb	$18, %dl
+	jmp	1f
 fdd:
+	movb	$15, %dl		/* max sector */
+1:
 	subb	%ah, %ah		/* %ax = 0 */
 	movb	%al, %al
 	movb	%ah, %bh		/* %bh = 0 */
@@ -379,7 +389,6 @@ fdd:
 	movb	$79, %ch		/* max track */
 	movb	$1, %cl			/* # floppy drives installed */
 	movb	$2, %dh			/* max head */
-	movb	$15, %dl		/* max sector */
 	/* es:di = parameter table */
 	/* carry = 0 */
 ok:
