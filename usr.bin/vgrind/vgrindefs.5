@@ -54,6 +54,8 @@ The following table names and describes each field.
 .Pp
 .Bl -column Namexxx Tpexxx
 .Sy Name	Type	Description
+.It "ab	str	regular expression for the start of an alternate comment"
+.It "ae	str	regular expression for the end of an alternate comment"
 .It "pb	str	regular expression for start of a procedure"
 .It "bb	str	regular expression for start of a lexical block"
 .It "be	str	regular expression for the end of a lexical block"
@@ -63,11 +65,20 @@ The following table names and describes each field.
 .It "se	str	regular expression for the end of a string"
 .It "lb	str	regular expression for the start of a character constant"
 .It "le	str	regular expression for the end of a character constant"
+.It "nc	str	regular expression for a non-comment (see below)"
 .It "tl	bool	present means procedures are only defined at the top lexical level"
 .It "oc	bool	present means upper and lower case are equivalent"
 .It "kw	str	a list of keywords separated by spaces"
 .El
 .Pp
+Non-comments are required to describe a certain context where a
+sequence that would normally start a comment loses its special
+meaning.  A typical example for this can be found in Perl, where
+comments are normally starting with
+.Ql # ,
+while the string
+.Ql $#
+is an operator on an array.
 .Sh EXAMPLES
 The following entry, which describes the C language, is 
 typical of a language entry.

@@ -263,7 +263,7 @@ expconv()
 	    OCNT(cs) = ccre - cs;		/* offset to next symbol */
 	    break;
 
-	/* reurn from a recursion */
+	/* return from a recursion */
 	case ')':
 	    if (acs != NIL) {
 		do {
