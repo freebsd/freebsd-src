@@ -22,5 +22,6 @@ PRECIOUSLIB=	yes
 
 .include "${.CURDIR}/thread/Makefile.inc"
 .include "${.CURDIR}/sys/Makefile.inc"
+.include "${.CURDIR}/arch/${MACHINE_ARCH}/Makefile.inc"
 
 .include <bsd.lib.mk>
