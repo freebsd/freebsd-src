@@ -582,16 +582,20 @@ p_rtentry(rt)
 	register struct rtentry *rt;
 {
 	static struct ifnet ifnet, *lastif;
+	struct rtentry parent;
 	static char name[16];
 	static char prettyname[9];
 	struct sockaddr *sa;
 	sa_u addr, mask;
 
 	/*
-	 * Don't print cloned routes unless -a.
+	 * Don't print protocol-cloned routes unless -a.
 	 */
-	if (rt->rt_flags & RTF_WASCLONED && !aflag)
-		return;
+	if (rt->rt_flags & RTF_WASCLONED && !aflag) {
+		kget(rt->rt_parent, parent);
+		if (parent.rt_flags & RTF_PRCLONING)
+			return;
+	}
 
 	bzero(&addr, sizeof(addr));
 	if ((sa = kgetsa(rt_key(rt))))
