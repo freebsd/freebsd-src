@@ -46,8 +46,6 @@ _populate_var()
 		/usr/sbin/mtree -deU -f /etc/mtree/BSD.sendmail.dist -p / > /dev/null
 		;;
 	esac
-
-	# XXX: should create spool dirs for lpd
 }
 
 # If we do not have a writable /var, create a memory filesystem for /var
