@@ -389,12 +389,15 @@ assign_io(struct slot *sp)
 
 	/* Now look at I/O. */
 	bzero(&sp->io, sizeof(sp->io));
-	if (cisconf->iospace || (defconf && defconf->iospace)) {
+	if (cisconf->iospace || (defconf && defconf->iospace) 
+	    || sp->card->iosize) {
 		struct cis_config *cp;
+		int iosize;
 
 		cp = cisconf;
 		if (!cisconf->iospace)
 			cp = defconf;
+		iosize = sp->card->iosize;
 		/*
  		* If # of I/O lines decoded == 10, then card does its
  		* own decoding.
@@ -403,16 +406,20 @@ assign_io(struct slot *sp)
  		* If no address (but a length) is available, allocate
  		* from the pool.
  		*/
-		if (cp->io) {
+		if (iosize) {
+			sp->io.addr = 0;
+			sp->io.size = iosize;
+		}
+		else if (cp->io) {
 			sp->io.addr = cp->io->addr;
 			sp->io.size = cp->io->size;
-		} else
+		} else {
 			/*
 			 * No I/O block, assume the address lines
 			 * decode gives the size.
 			 */
 			sp->io.size = 1 << cp->io_addr;
-
+		}
 		if (sp->io.addr == 0) {
 			int     i = bit_fns(io_avail, IOPORTS, sp->io.size);
 
@@ -422,6 +429,7 @@ assign_io(struct slot *sp)
 		}
 		bit_nclear(io_avail, sp->io.addr,
 			   sp->io.addr + sp->io.size - 1);
+		sp->flags |= IO_ASSIGNED;
 
 		/* Set up the size to take into account the decode lines. */
 		sp->io.cardaddr = cp->io_addr;
@@ -444,6 +452,7 @@ assign_io(struct slot *sp)
 #endif
 	}
 	sp->irq = sp->config->irq;
+	sp->flags |= IRQ_ASSIGNED;
 	return (0);
 }
 
@@ -498,8 +507,7 @@ setup_slot(struct slot *sp)
 		lseek(sp->fd, offs + 2, SEEK_SET);
 		write(sp->fd, &c, sizeof(c));
 	}
-	mem.window = 0;
-	if (sp->mem.addr) {
+	if (sp->flags & MEM_ASSIGNED) {
 		mem.window = 0;
 		mem.flags = sp->mem.flags | MDF_ACTIVE | MDF_16BITS;
 		mem.start = (caddr_t) sp->mem.addr;
@@ -511,7 +519,7 @@ setup_slot(struct slot *sp)
 		}
 	}
 	io.window = 0;
-	if (sp->io.size) {
+	if (sp->flags & IO_ASSIGNED) {
 		io.flags = sp->io.flags;
 		io.start = sp->io.addr;
 		io.size = sp->io.size;
@@ -537,14 +545,14 @@ setup_slot(struct slot *sp)
 	drv.unit = drvp->unit;
 	drv.irqmask = 1 << sp->irq;
 	drv.flags = 0x80;
-	if (sp->mem.size) {
+	if (sp->flags & MEM_ASSIGNED) {
 		drv.mem = sp->mem.addr;
 		drv.memsize = sp->mem.size;
 	} else {
 		drv.mem = 0;
 		drv.memsize = 0;
 	}
-	if (sp->io.size)
+	if (sp->flags & IO_ASSIGNED)
 		drv.iobase = sp->io.addr;
 	else
 		drv.iobase = 0;
