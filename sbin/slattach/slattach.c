@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "from: @(#)slattach.c	4.6 (Berkeley) 6/1/90";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: slattach.c,v 1.34 1999/05/29 08:16:34 kris Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -195,7 +195,8 @@ main(int argc, char **argv)
 	}
 	dvname = strrchr(dev, '/'); /* always succeeds */
 	dvname++;                   /* trailing tty pathname component */
-	sprintf(pidfilename, "%sslattach.%s.pid", _PATH_VARRUN, dvname);
+	snprintf(pidfilename, sizeof(pidfilename),
+	    "%sslattach.%s.pid", _PATH_VARRUN, dvname);
 	printf("%s\n",pidfilename);
 
 	if (!foreground)
