@@ -123,6 +123,7 @@ static MALLOC_DEFINE(M_BUS, "bus", "Bus data structures");
 #ifdef BUS_DEBUG
 
 static int bus_debug = 1;
+TUNABLE_INT("bus.debug", &bus_debug);
 SYSCTL_INT(_debug, OID_AUTO, bus_debug, CTLFLAG_RW, &bus_debug, 0,
     "Debug bus code");
 
@@ -2198,6 +2199,8 @@ sysctl_devices(SYSCTL_HANDLER_ARGS)
 		    sizeof(udev.dv_drivername));
 	udev.dv_pnpinfo[0] = '\0';
 	udev.dv_location[0] = '\0';
+	bus_child_pnpinfo_str(dev, udev.dv_pnpinfo, sizeof(udev.dv_pnpinfo));
+	bus_child_location_str(dev, udev.dv_location, sizeof(udev.dv_location));
 	udev.dv_devflags = dev->devflags;
 	udev.dv_flags = dev->flags;
 	udev.dv_state = dev->state;
