@@ -1,0 +1,21 @@
+Some issues left to take care of:
+
+  o sane ~ handling on non-Unix platforms
+
+     Currently on non-Unix, when the glob code encounters a tilde glob
+     (.e.g ~user/foo or ~/.cshrc), it simply returns that pattern
+     without doing any expansion (meaning perl will weed it out since a
+     file of that name isn't likely to exist).
+
+     Please, if you have strong feelings about how tilde expansion
+     should be done on your favorite non-Unix platform(s), submit a
+     patch.
+
+  o path separator handling
+
+     Guido's code contains the assumption that the path separator is one
+     character (byte, probably) in length.  Win32 doesn't object to the
+     true slash as a separator.  I imagine MacPerl could change the SEP
+     cpp #define to ":".  I have no idea what it is for VMS.  Again, if
+     you have ideas and especially patches, please feel free to share
+     them.

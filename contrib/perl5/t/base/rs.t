@@ -24,7 +24,7 @@ $bar = <TESTFILE>;
 if ($bar eq "12\n") {print "ok 2\n";} else {print "not ok 2\n";}
 
 # Try a non line terminator
-$/ = "3";
+$/ = 3;
 $bar = <TESTFILE>;
 if ($bar eq "123") {print "ok 3\n";} else {print "not ok 3\n";}
 
@@ -122,8 +122,7 @@ if ($^O eq 'VMS') {
   if ($bar eq "z\n") {print "ok 14\n";} else {print "not ok 14\n";}
 
   close TESTFILE;
-  unlink "./foo.bar";
-  unlink "./foo.com";  
+  1 while unlink qw(foo.bar foo.com foo.fdl);
 } else {
   # Nobody else does this at the moment (well, maybe OS/390, but they can
   # put their own tests in) so we just punt

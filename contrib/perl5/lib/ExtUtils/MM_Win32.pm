@@ -36,6 +36,49 @@ $NMAKE = 1 if $Config{'make'} =~ /^nmake/i;
 $PERLMAKE = 1 if $Config{'make'} =~ /^pmake/i;
 $OBJ   = 1 if $Config{'ccflags'} =~ /PERL_OBJECT/i;
 
+# a few workarounds for command.com (very basic)
+{
+    package ExtUtils::MM_Win95;
+
+    # the $^O test may be overkill, but we want to be sure Win32::IsWin95()
+    # exists before we try it
+
+    unshift @MM::ISA, 'ExtUtils::MM_Win95'
+	if ($^O =~ /Win32/ && Win32::IsWin95());
+
+    sub xs_c {
+	my($self) = shift;
+	return '' unless $self->needs_linking();
+	'
+.xs.c:
+	$(PERL) -I$(PERL_ARCHLIB) -I$(PERL_LIB) $(XSUBPP) \\
+	    $(XSPROTOARG) $(XSUBPPARGS) $*.xs > $*.c
+	'
+    }
+
+    sub xs_cpp {
+	my($self) = shift;
+	return '' unless $self->needs_linking();
+	'
+.xs.cpp:
+	$(PERL) -I$(PERL_ARCHLIB) -I$(PERL_LIB) $(XSUBPP) \\
+	    $(XSPROTOARG) $(XSUBPPARGS) $*.xs > $*.cpp
+	';
+    }
+
+    # many makes are too dumb to use xs_c then c_o
+    sub xs_o {
+	my($self) = shift;
+	return '' unless $self->needs_linking();
+	'
+.xs$(OBJ_EXT):
+	$(PERL) -I$(PERL_ARCHLIB) -I$(PERL_LIB) $(XSUBPP) \\
+	    $(XSPROTOARG) $(XSUBPPARGS) $*.xs > $*.c
+	$(CCCMD) $(CCCDLFLAGS) -I$(PERL_INC) $(DEFINE) $*.c
+	';
+    }
+}	# end of command.com workarounds
+
 sub dlsyms {
     my($self,%attribs) = @_;
 
@@ -250,12 +293,19 @@ XS_FILES= ".join(" \\\n\t", sort keys %{$self->{XS}})."
 C_FILES = ".join(" \\\n\t", @{$self->{C}})."
 O_FILES = ".join(" \\\n\t", @{$self->{O_FILES}})."
 H_FILES = ".join(" \\\n\t", @{$self->{H}})."
+HTMLLIBPODS    = ".join(" \\\n\t", sort keys %{$self->{HTMLLIBPODS}})."
+HTMLSCRIPTPODS = ".join(" \\\n\t", sort keys %{$self->{HTMLSCRIPTPODS}})."
 MAN1PODS = ".join(" \\\n\t", sort keys %{$self->{MAN1PODS}})."
 MAN3PODS = ".join(" \\\n\t", sort keys %{$self->{MAN3PODS}})."
 ";
 
     for $tmp (qw/
-	      INST_MAN1DIR INSTALLMAN1DIR MAN1EXT INST_MAN3DIR INSTALLMAN3DIR MAN3EXT
+	      INST_HTMLPRIVLIBDIR INSTALLHTMLPRIVLIBDIR
+	      INST_HTMLSITELIBDIR INSTALLHTMLSITELIBDIR
+	      INST_HTMLSCRIPTDIR  INSTALLHTMLSCRIPTDIR
+	      INST_HTMLLIBDIR                    HTMLEXT
+	      INST_MAN1DIR        INSTALLMAN1DIR MAN1EXT
+	      INST_MAN3DIR        INSTALLMAN3DIR MAN3EXT
 	      /) {
 	next unless defined $self->{$tmp};
 	push @m, "$tmp = $self->{$tmp}\n";
@@ -338,7 +388,6 @@ PM_TO_BLIB = }.join(" \\\n\t", %{$self->{PM}}).q{
 
 
 sub path {
-    local $^W = 1;
     my($self) = @_;
     my $path = $ENV{'PATH'} || $ENV{'Path'} || $ENV{'path'};
     my @path = split(';',$path);
@@ -434,6 +483,18 @@ sub dynamic_lib {
     my($inst_dynamic_dep) = $attribs{INST_DYNAMIC_DEP} || "";
     my($ldfrom) = '$(LDFROM)';
     my(@m);
+
+# one thing for GCC/Mingw32:
+# we try to overcome non-relocateable-DLL problems by generating
+#    a (hopefully unique) image-base from the dll's name
+# -- BKS, 10-19-1999
+    if ($GCC) { 
+	my $dllname = $self->{BASEEXT} . "." . $self->{DLEXT};
+	$dllname =~ /(....)(.{0,4})/;
+	my $baseaddr = unpack("n", $1 ^ $2);
+	$otherldflags .= sprintf("-Wl,--image-base,0x%x0000 ", $baseaddr);
+    }
+
     push(@m,'
 # This section creates the dynamically loadable $(INST_DYNAMIC)
 # from $(OBJECT) and possibly $(MYEXTLIB).
@@ -472,11 +533,6 @@ $(INST_DYNAMIC): $(OBJECT) $(MYEXTLIB) $(BOOTSTRAP) $(INST_ARCHAUTODIR)\.exists 
 sub perl_archive
 {
     my ($self) = @_;
-    if($OBJ) {
-        if ($self->{CAPI}) {
-            return '$(PERL_INC)\perlCAPI$(LIB_EXT)';
-        }
-    }
     return '$(PERL_INC)\\'.$Config{'libperl'};
 }
 
@@ -516,7 +572,9 @@ any ordinary, readable file.
 
 sub perl_script {
     my($self,$file) = @_;
+    return $file if -r $file && -f _;
     return "$file.pl" if -r "$file.pl" && -f _;
+    return "$file.bat" if -r "$file.bat" && -f _;
     return;
 }
 
@@ -668,7 +726,7 @@ sub top_targets {
 ';
 
     push @m, '
-all :: pure_all manifypods
+all :: pure_all htmlifypods manifypods
 	'.$self->{NOECHO}.'$(NOOP)
 ' 
 	  unless $self->{SKIPHASH}{'all'};
@@ -690,13 +748,25 @@ config :: $(INST_AUTODIR)\.exists
 	'.$self->{NOECHO}.'$(NOOP)
 ';
 
-    push @m, qq{
-config :: Version_check
+    push @m, $self->dir_target(qw[$(INST_AUTODIR) $(INST_LIBDIR) $(INST_ARCHAUTODIR)]);
+
+    if (%{$self->{HTMLLIBPODS}}) {
+	push @m, qq[
+config :: \$(INST_HTMLLIBDIR)/.exists
 	$self->{NOECHO}\$(NOOP)
 
-} unless $self->{PARENT} or ($self->{PERL_SRC} && $self->{INSTALLDIRS} eq "perl") or $self->{NO_VC};
+];
+	push @m, $self->dir_target(qw[$(INST_HTMLLIBDIR)]);
+    }
 
-    push @m, $self->dir_target(qw[$(INST_AUTODIR) $(INST_LIBDIR) $(INST_ARCHAUTODIR)]);
+    if (%{$self->{HTMLSCRIPTPODS}}) {
+	push @m, qq[
+config :: \$(INST_HTMLSCRIPTDIR)/.exists
+	$self->{NOECHO}\$(NOOP)
+
+];
+	push @m, $self->dir_target(qw[$(INST_HTMLSCRIPTDIR)]);
+    }
 
     if (%{$self->{MAN1PODS}}) {
 	push @m, qq[
@@ -734,9 +804,62 @@ Version_check:
     join('',@m);
 }
 
+=item htmlifypods (o)
+
+Defines targets and routines to translate the pods into HTML manpages
+and put them into the INST_HTMLLIBDIR and INST_HTMLSCRIPTDIR
+directories.
+
+Same as MM_Unix version (changes command-line quoting).
+
+=cut
+
+sub htmlifypods {
+    my($self, %attribs) = @_;
+    return "\nhtmlifypods : pure_all\n\t$self->{NOECHO}\$(NOOP)\n" unless
+	%{$self->{HTMLLIBPODS}} || %{$self->{HTMLSCRIPTPODS}};
+    my($dist);
+    my($pod2html_exe);
+    if (defined $self->{PERL_SRC}) {
+	$pod2html_exe = $self->catfile($self->{PERL_SRC},'pod','pod2html');
+    } else {
+	$pod2html_exe = $self->catfile($Config{scriptdirexp},'pod2html');
+    }
+    unless ($pod2html_exe = $self->perl_script($pod2html_exe)) {
+	# No pod2html but some HTMLxxxPODS to be installed
+	print <<END;
+
+Warning: I could not locate your pod2html program. Please make sure,
+         your pod2html program is in your PATH before you execute 'make'
+
+END
+        $pod2html_exe = "-S pod2html";
+    }
+    my(@m);
+    push @m,
+qq[POD2HTML_EXE = $pod2html_exe\n],
+qq[POD2HTML = \$(PERL) -we "use File::Basename; use File::Path qw(mkpath); %m=\@ARGV;for (keys %m){" \\\n],
+q[-e "next if -e $$m{$$_} && -M $$m{$$_} < -M $$_ && -M $$m{$$_} < -M '],
+ $self->{MAKEFILE}, q[';" \\
+-e "print qq(Htmlifying $$m{$$_}\n);" \\
+-e "$$dir = dirname($$m{$$_}); mkpath($$dir) unless -d $$dir;" \\
+-e "system(qq[$$^X ].q["-I$(PERL_ARCHLIB)" "-I$(PERL_LIB)" $(POD2HTML_EXE) ].qq[$$_>$$m{$$_}])==0 or warn qq(Couldn\\047t install $$m{$$_}\n);" \\
+-e "chmod(oct($(PERM_RW))), $$m{$$_} or warn qq(chmod $(PERM_RW) $$m{$$_}: $$!\n);}"
+];
+    push @m, "\nhtmlifypods : pure_all ";
+    push @m, join " \\\n\t", keys %{$self->{HTMLLIBPODS}}, keys %{$self->{HTMLSCRIPTPODS}};
+
+    push(@m,"\n");
+    if (%{$self->{HTMLLIBPODS}} || %{$self->{HTMLSCRIPTPODS}}) {
+	push @m, "\t$self->{NOECHO}\$(POD2HTML) \\\n\t";
+	push @m, join " \\\n\t", %{$self->{HTMLLIBPODS}}, %{$self->{HTMLSCRIPTPODS}};
+    }
+    join('', @m);
+}
+
 =item manifypods (o)
 
-We don't want manpage process.  XXX add pod2html support later.
+We don't want manpage process.
 
 =cut
 

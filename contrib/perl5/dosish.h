@@ -8,6 +8,7 @@
 #  define BIT_BUCKET "nul"
 #  define OP_BINARY O_BINARY
 #  define PERL_SYS_INIT(c,v) Perl_DJGPP_init(c,v)
+#  define init_os_extras Perl_init_os_extras
 #  include <signal.h>
 #  define HAS_UTIME
 #  define HAS_KILL
@@ -16,21 +17,9 @@
 #    define NO_LOCALECONV_MON_THOUSANDS_SEP
 #  endif
 #  ifdef USE_THREADS
-#    define NEED_PTHREAD_INIT
 #    define OLD_PTHREADS_API
-#    define YIELD pthread_yield(NULL)
-#    define DETACH(t)				\
-       STMT_START {				\
-         if (pthread_detach(&(t)->self)) {	\
-             MUTEX_UNLOCK(&(t)->mutex);		\
-             croak("panic: DETACH");		\
-         }					\
-       } STMT_END
-#    define pthread_mutexattr_default NULL
-#    define pthread_condattr_default NULL
-#    define pthread_addr_t any_t
-#    define PTHREAD_CREATE_JOINABLE (&err)
 #  endif
+#  define PERL_FS_VER_FMT	"%d_%d_%d"
 #else	/* DJGPP */
 #  ifdef WIN32
 #    define PERL_SYS_INIT(c,v)	Perl_win32_init(c,v)
@@ -41,9 +30,8 @@
 #  endif
 #endif	/* DJGPP */
 
-#define PERL_SYS_TERM() MALLOC_TERM
+#define PERL_SYS_TERM() OP_REFCNT_TERM; MALLOC_TERM
 #define dXSUB_SYS
-#define TMPPATH "plXXXXXX"
 
 /*
  * 5.003_07 and earlier keyed on #ifdef MSDOS for determining if we were 
@@ -64,7 +52,7 @@
 
 /* USEMYBINMODE
  *	This symbol, if defined, indicates that the program should
- *	use the routine my_binmode(FILE *fp, char iotype) to insure
+ *	use the routine my_binmode(FILE *fp, char iotype, int mode) to insure
  *	that a file is in "binary" mode -- that is, that no translation
  *	of bytes occurs on read or write operations.
  */
@@ -123,13 +111,4 @@
 #  define HAS_KILL
 #  define HAS_WAIT
 #  define HAS_CHOWN
-/*
- * This provides a layer of functions and macros to ensure extensions will
- * get to use the same RTL functions as the core.
- */
-#  ifndef HASATTRIBUTE
-#    ifndef PERL_OBJECT
-#      include <win32iop.h>
-#    endif
-#  endif
 #endif	/* WIN32 */

@@ -53,7 +53,7 @@ sub stringify {
 	return $_ . "" if ref \$_ eq 'GLOB';
 	$_ = &{'overload::StrVal'}($_) 
 	  if $bareStringify and ref $_ 
-	    and defined %overload:: and defined &{'overload::StrVal'};
+	    and %overload:: and defined &{'overload::StrVal'};
 	
 	if ($tick eq 'auto') {
 	  if (/[\000-\011\013-\037\177]/) {
@@ -125,7 +125,7 @@ sub unwrap {
     if (ref $v) { 
       my $val = $v;
       $val = &{'overload::StrVal'}($v) 
-	if defined %overload:: and defined &{'overload::StrVal'};
+	if %overload:: and defined &{'overload::StrVal'};
       ($address) = $val =~ /(0x[0-9a-f]+)\)$/ ; 
       if (!$dumpReused && defined $address) { 
 	$address{$address}++ ;
@@ -141,6 +141,13 @@ sub unwrap {
 	print "${sp}*DUMPED_GLOB*\n" ; 
 	return ; 
       } 
+    }
+
+    if (ref $v eq 'Regexp') {
+      my $re = "$v";
+      $re =~ s,/,\\/,g;
+      print "$sp-> qr/$re/\n";
+      return;
     }
 
     if ( UNIVERSAL::isa($v, 'HASH') ) { 
@@ -188,8 +195,8 @@ sub unwrap {
 	  if ($#$v >= 0) {
 	    $short = $sp . "0..$#{$v}  " . 
 	      join(" ", 
-		   map {stringify $_} @{$v}[0..$tArrayDepth])
-		. "$shortmore";
+		   map {exists $v->[$_] ? stringify $v->[$_] : "empty"} ($[..$tArrayDepth)
+		  ) . "$shortmore";
 	  } else {
 	    $short = $sp . "empty array";
 	  }
@@ -202,7 +209,11 @@ sub unwrap {
 	for $num ($[ .. $tArrayDepth) {
 	    return if $DB::signal;
 	    print "$sp$num  ";
-	    DumpElem $v->[$num], $s;
+	    if (exists $v->[$num]) {
+	        DumpElem $v->[$num], $s;
+	    } else {
+	    	print "empty slot\n";
+	    }
 	}
 	print "$sp  empty array\n" unless @$v;
 	print "$sp$more" if defined $more ;  
@@ -282,12 +293,12 @@ sub dumpglob {
       print( (' ' x $off) . "\$", &unctrl($key), " = " );
       DumpElem $entry, 3+$off;
     }
-    if (($key !~ /^_</ or $dumpDBFiles) and defined @entry) {
+    if (($key !~ /^_</ or $dumpDBFiles) and @entry) {
       print( (' ' x $off) . "\@$key = (\n" );
       unwrap(\@entry,3+$off) ;
       print( (' ' x $off) .  ")\n" );
     }
-    if ($key ne "main::" && $key ne "DB::" && defined %entry
+    if ($key ne "main::" && $key ne "DB::" && %entry
 	&& ($dumpPackages or $key !~ /::$/)
 	&& ($key !~ /^_</ or $dumpDBFiles)
 	&& !($package eq "dumpvar" and $key eq "stab")) {
@@ -305,18 +316,31 @@ sub dumpglob {
     }
 }
 
+sub CvGV_name_or_bust {
+  my $in = shift;
+  return if $skipCvGV;		# Backdoor to avoid problems if XS broken...
+  $in = \&$in;			# Hard reference...
+  eval {require Devel::Peek; 1} or return;
+  my $gv = Devel::Peek::CvGV($in) or return;
+  *$gv{PACKAGE} . '::' . *$gv{NAME};
+}
+
 sub dumpsub {
     my ($off,$sub) = @_;
+    my $ini = $sub;
+    my $s;
     $sub = $1 if $sub =~ /^\{\*(.*)\}$/;
-    my $subref = \&$sub;
-    my $place = $DB::sub{$sub} || (($sub = $subs{"$subref"}) && $DB::sub{$sub})
-      || ($subdump && ($sub = findsubs("$subref")) && $DB::sub{$sub});
+    my $subref = defined $1 ? \&$sub : \&$ini;
+    my $place = $DB::sub{$sub} || (($s = $subs{"$subref"}) && $DB::sub{$s})
+      || (($s = CvGV_name_or_bust($subref)) && $DB::sub{$s})
+      || ($subdump && ($s = findsubs("$subref")) && $DB::sub{$s});
     $place = '???' unless defined $place;
-    print( (' ' x $off) .  "&$sub in $place\n" );
+    $s = $sub unless defined $s;
+    print( (' ' x $off) .  "&$s in $place\n" );
 }
 
 sub findsubs {
-  return undef unless defined %DB::sub;
+  return undef unless %DB::sub;
   my ($addr, $name, $loc);
   while (($name, $loc) = each %DB::sub) {
     $addr = \&$name;
@@ -341,7 +365,9 @@ sub main::dumpvar {
       return if $DB::signal;
       next if @vars && !grep( matchvar($key, $_), @vars );
       if ($usageOnly) {
-	globUsage(\$val, $key) unless $package eq 'dumpvar' and $key eq 'stab';
+	globUsage(\$val, $key)
+	  if ($package ne 'dumpvar' or $key ne 'stab')
+	     and ref(\$val) eq 'GLOB';
       } else {
 	dumpglob(0,$key, $val);
       }
@@ -388,8 +414,8 @@ sub globUsage {			# glob ref, name
   local *name = *{$_[0]};
   $total = 0;
   $total += scalarUsage $name if defined $name;
-  $total += arrayUsage \@name, $_[1] if defined @name;
-  $total += hashUsage \%name, $_[1] if defined %name and $_[1] ne "main::" 
+  $total += arrayUsage \@name, $_[1] if @name;
+  $total += hashUsage \%name, $_[1] if %name and $_[1] ne "main::" 
     and $_[1] ne "DB::";   #and !($package eq "dumpvar" and $key eq "stab"));
   $total;
 }

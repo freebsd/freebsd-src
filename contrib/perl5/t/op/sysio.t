@@ -2,7 +2,7 @@
 
 print "1..39\n";
 
-chdir('op') || die "sysio.t: cannot look for myself: $!";
+chdir('op') || chdir('t/op') || die "sysio.t: cannot look for myself: $!";
 
 open(I, 'sysio.t') || die "sysio.t: cannot find myself: $!";
 

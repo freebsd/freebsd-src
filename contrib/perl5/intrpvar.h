@@ -8,25 +8,21 @@
  * generated when built with or without MULTIPLICITY.  It is also used
  * to generate the appropriate export list for win32.
  *
- * When building without MULTIPLICITY, these variables will be truly global.
- *
- * Avoid build-specific #ifdefs here, like DEBUGGING.  That way,
- * we can keep binary compatibility of the curinterp structure */
+ * When building without MULTIPLICITY, these variables will be truly global. */
 
 /* pseudo environmental stuff */
 PERLVAR(Iorigargc,	int)
 PERLVAR(Iorigargv,	char **)
 PERLVAR(Ienvgv,		GV *)
-PERLVAR(Isiggv,		GV *)
 PERLVAR(Iincgv,		GV *)
 PERLVAR(Ihintgv,	GV *)
 PERLVAR(Iorigfilename,	char *)
 PERLVAR(Idiehook,	SV *)
 PERLVAR(Iwarnhook,	SV *)
-PERLVAR(Iparsehook,	SV *)
-PERLVAR(Icddir,		char *)		/* switches */
+
+/* switches */
 PERLVAR(Iminus_c,	bool)
-PERLVAR(Ipatchlevel[10],char)
+PERLVAR(Ipatchlevel,	SV *)
 PERLVAR(Ilocalpatches,	char **)
 PERLVARI(Isplitstr,	char *,	" ")
 PERLVAR(Ipreprocess,	bool)
@@ -36,17 +32,25 @@ PERLVAR(Iminus_l,	bool)
 PERLVAR(Iminus_a,	bool)
 PERLVAR(Iminus_F,	bool)
 PERLVAR(Idoswitches,	bool)
-PERLVAR(Idowarn,	bool)
+
+/*
+=for apidoc Amn|bool|PL_dowarn
+
+The C variable which corresponds to Perl's $^W warning variable.
+
+=cut
+*/
+
+PERLVAR(Idowarn,	U8)
+PERLVAR(Iwidesyscalls,	bool)		/* wide system calls */
 PERLVAR(Idoextract,	bool)
 PERLVAR(Isawampersand,	bool)		/* must save all match strings */
-PERLVAR(Isawstudy,	bool)		/* do fbm_instr on all strings */
-PERLVAR(Isawvec,	bool)
 PERLVAR(Iunsafe,	bool)
 PERLVAR(Iinplace,	char *)
 PERLVAR(Ie_script,	SV *)
 PERLVAR(Iperldb,	U32)
 
-/* This value may be raised by extensions for testing purposes */
+/* This value may be set when embedding for full cleanup  */
 /* 0=none, 1=full, 2=full with checks */
 PERLVARI(Iperl_destruct_level,	int,	0)
 
@@ -59,22 +63,20 @@ PERLVARI(Imaxsysfd,	I32,	MAXSYSFD)
 					/* top fd to pass to subprocesses */
 PERLVAR(Imultiline,	int)		/* $*--do strings hold >1 line? */
 PERLVAR(Istatusvalue,	I32)		/* $? */
+PERLVAR(Iexit_flags,	U8)		/* was exit() unexpected, etc. */
 #ifdef VMS
 PERLVAR(Istatusvalue_vms,U32)
 #endif
 
 /* shortcuts to various I/O objects */
 PERLVAR(Istdingv,	GV *)
+PERLVAR(Istderrgv,	GV *)
 PERLVAR(Idefgv,		GV *)
 PERLVAR(Iargvgv,	GV *)
 PERLVAR(Iargvoutgv,	GV *)
+PERLVAR(Iargvout_stack,	AV *)
 
 /* shortcuts to regexp stuff */
-/* XXX these three aren't used anywhere */
-PERLVAR(Ileftgv,	GV *)
-PERLVAR(Iampergv,	GV *)
-PERLVAR(Irightgv,	GV *)
-
 /* this one needs to be moved to thrdvar.h and accessed via
  * find_threadsv() when USE_THREADS */
 PERLVAR(Ireplgv,	GV *)
@@ -85,6 +87,29 @@ PERLVAR(Ierrgv,		GV *)
 /* shortcuts to debugging objects */
 PERLVAR(IDBgv,		GV *)
 PERLVAR(IDBline,	GV *)
+
+/*
+=for apidoc Amn|GV *|PL_DBsub
+When Perl is run in debugging mode, with the B<-d> switch, this GV contains
+the SV which holds the name of the sub being debugged.  This is the C
+variable which corresponds to Perl's $DB::sub variable.  See
+C<PL_DBsingle>.
+
+=for apidoc Amn|SV *|PL_DBsingle
+When Perl is run in debugging mode, with the B<-d> switch, this SV is a
+boolean which indicates whether subs are being single-stepped. 
+Single-stepping is automatically turned on after every step.  This is the C
+variable which corresponds to Perl's $DB::single variable.  See
+C<PL_DBsub>.
+
+=for apidoc Amn|SV *|PL_DBtrace
+Trace variable used when Perl is run in debugging mode, with the B<-d>
+switch.  This is the C variable which corresponds to Perl's $DB::trace
+variable.  See C<PL_DBsingle>.
+
+=cut
+*/
+
 PERLVAR(IDBsub,		GV *)
 PERLVAR(IDBsingle,	SV *)
 PERLVAR(IDBtrace,	SV *)
@@ -98,6 +123,7 @@ PERLVAR(Iglobalstash,	HV *)		/* global keyword overrides imported here */
 PERLVAR(Icurstname,	SV *)		/* name of current package */
 PERLVAR(Ibeginav,	AV *)		/* names of BEGIN subroutines */
 PERLVAR(Iendav,		AV *)		/* names of END subroutines */
+PERLVAR(Icheckav,	AV *)		/* names of CHECK subroutines */
 PERLVAR(Iinitav,	AV *)		/* names of INIT subroutines */
 PERLVAR(Istrtab,	HV *)		/* shared string table */
 PERLVARI(Isub_generation,U32,1)		/* incr to invalidate method cache */
@@ -109,8 +135,6 @@ PERLVAR(Isv_root,	SV*)		/* storage for SVs belonging to interp */
 PERLVAR(Isv_arenaroot,	SV*)		/* list of areas for garbage collection */
 
 /* funky return mechanisms */
-PERLVAR(Ilastspbase,	I32)
-PERLVAR(Ilastsize,	I32)
 PERLVAR(Iforkprocess,	int)		/* so do_open |- can return proc# */
 
 /* subprocess state */
@@ -119,13 +143,6 @@ PERLVAR(Ifdpid,		AV *)		/* keep fd-to-pid mappings for my_popen */
 /* internal state */
 PERLVAR(Itainting,	bool)		/* doing taint checks */
 PERLVARI(Iop_mask,	char *,	NULL)	/* masked operations for safe evals */
-PERLVAR(Ilast_proto, char *)		/* Prototype of last sub seen. */
-
-/* trace state */
-PERLVAR(Idlevel,	I32)
-PERLVARI(Idlmax,	I32,	128)
-PERLVAR(Idebname,	char *)
-PERLVAR(Idebdelim,	char *)
 
 /* current interpreter roots */
 PERLVAR(Imain_cv,	CV *)
@@ -139,15 +156,11 @@ PERLVARI(Icurcopdb,	COP *,	NULL)
 PERLVARI(Icopline,	line_t,	NOLINE)
 
 /* statics moved here for shared library purposes */
-PERLVAR(Istrchop,	SV)		/* return value from chop */
 PERLVAR(Ifilemode,	int)		/* so nextargv() can preserve mode */
 PERLVAR(Ilastfd,	int)		/* what to preserve mode on */
 PERLVAR(Ioldname,	char *)		/* what to preserve mode on */
 PERLVAR(IArgv,		char **)	/* stuff to free from do_aexec, vfork safe */
 PERLVAR(ICmd,		char *)		/* stuff to free from do_aexec, vfork safe */
-PERLVAR(Imystrk,	SV *)		/* temp key string for do_each() */
-PERLVAR(Idumplvl,	I32)		/* indentation level on syntax tree dump */
-PERLVAR(Ioldlastpm,	PMOP *)		/* for saving regexp context in debugger */
 PERLVAR(Igensym,	I32)		/* next symbol for getsym() to define */
 PERLVAR(Ipreambled,	bool)
 PERLVAR(Ipreambleav,	AV *)
@@ -164,6 +177,19 @@ PERLVAR(Iofmt,		char *)		/* output format for numbers $# */
 PERLVARI(Iexitlist,	PerlExitListEntry *, NULL)
 					/* list of exit functions */
 PERLVARI(Iexitlistlen,	I32, 0)		/* length of same */
+
+/*
+=for apidoc Amn|HV*|PL_modglobal
+
+C<PL_modglobal> is a general purpose, interpreter global HV for use by 
+extensions that need to keep information on a per-interpreter basis.
+In a pinch, it can also be used as a symbol table for extensions 
+to share data among each other.  It is a good idea to use keys 
+prefixed by the package name of the extension that owns the data.
+
+=cut
+*/
+
 PERLVAR(Imodglobal,	HV *)		/* per-interp module data */
 
 /* these used to be in global before 5.004_68 */
@@ -187,7 +213,6 @@ PERLVAR(Isys_intern,	struct interp_intern)
 /* more statics moved here */
 PERLVARI(Igeneration,	int,	100)	/* from op.c */
 PERLVAR(IDBcv,		CV *)		/* from perl.c */
-PERLVAR(Iarchpat_auto,	char*)		/* from perl.c */
 
 PERLVARI(Iin_clean_objs,bool,    FALSE)	/* from sv.c */
 PERLVARI(Iin_clean_all,	bool,    FALSE)	/* from sv.c */
@@ -202,18 +227,219 @@ PERLVARI(Ithreadnum,	U32,	0)	/* incremented each thread creation */
 PERLVAR(Istrtab_mutex,	perl_mutex)	/* Mutex for string table access */
 #endif /* USE_THREADS */
 
-PERLVARI(Ibytecode_iv_overflows,int,	0)	/* from bytecode.h */
-PERLVAR(Ibytecode_sv,	SV *)
-PERLVAR(Ibytecode_pv,	XPV)
-PERLVAR(Ibytecode_obj_list,	void **)
-PERLVARI(Ibytecode_obj_list_fill, I32,	-1)
+PERLVAR(Iuid,		Uid_t)		/* current real user id */
+PERLVAR(Ieuid,		Uid_t)		/* current effective user id */
+PERLVAR(Igid,		Gid_t)		/* current real group id */
+PERLVAR(Iegid,		Gid_t)		/* current effective group id */
+PERLVAR(Inomemok,	bool)		/* let malloc context handle nomem */
+PERLVAR(Ian,		U32)		/* malloc sequence number */
+PERLVAR(Icop_seqmax,	U32)		/* statement sequence number */
+PERLVAR(Iop_seqmax,	U16)		/* op sequence number */
+PERLVAR(Ievalseq,	U32)		/* eval sequence number */
+PERLVAR(Iorigenviron,	char **)
+PERLVAR(Iorigalen,	U32)
+PERLVAR(Ipidstatus,	HV *)		/* pid-to-status mappings for waitpid */
+PERLVARI(Imaxo,	int,	MAXO)		/* maximum number of ops */
+PERLVAR(Iosname,	char *)		/* operating system */
+PERLVARI(Ish_path,	char *,	SH_PATH)/* full path of shell */
+PERLVAR(Isighandlerp,	Sighandler_t)
 
-#ifdef PERL_OBJECT
-PERLVARI(piMem,		IPerlMem*,  NULL)
-PERLVARI(piENV,		IPerlEnv*,  NULL)
-PERLVARI(piStdIO,	IPerlStdIO*, NULL)
-PERLVARI(piLIO,		IPerlLIO*,  NULL)
-PERLVARI(piDir,		IPerlDir*,  NULL)
-PERLVARI(piSock,	IPerlSock*, NULL)
-PERLVARI(piProc,	IPerlProc*, NULL)
+PERLVAR(Ixiv_arenaroot,	XPV*)		/* list of allocated xiv areas */
+PERLVAR(Ixiv_root,	IV *)		/* free xiv list--shared by interpreters */
+PERLVAR(Ixnv_root,	NV *)		/* free xnv list--shared by interpreters */
+PERLVAR(Ixrv_root,	XRV *)		/* free xrv list--shared by interpreters */
+PERLVAR(Ixpv_root,	XPV *)		/* free xpv list--shared by interpreters */
+PERLVAR(Ixpviv_root,	XPVIV *)	/* free xpviv list--shared by interpreters */
+PERLVAR(Ixpvnv_root,	XPVNV *)	/* free xpvnv list--shared by interpreters */
+PERLVAR(Ixpvcv_root,	XPVCV *)	/* free xpvcv list--shared by interpreters */
+PERLVAR(Ixpvav_root,	XPVAV *)	/* free xpvav list--shared by interpreters */
+PERLVAR(Ixpvhv_root,	XPVHV *)	/* free xpvhv list--shared by interpreters */
+PERLVAR(Ixpvmg_root,	XPVMG *)	/* free xpvmg list--shared by interpreters */
+PERLVAR(Ixpvlv_root,	XPVLV *)	/* free xpvlv list--shared by interpreters */
+PERLVAR(Ixpvbm_root,	XPVBM *)	/* free xpvbm list--shared by interpreters */
+PERLVAR(Ihe_root,	HE *)		/* free he list--shared by interpreters */
+PERLVAR(Inice_chunk,	char *)		/* a nice chunk of memory to reuse */
+PERLVAR(Inice_chunk_size,	U32)	/* how nice the chunk of memory is */
+
+PERLVARI(Irunops,	runops_proc_t,	MEMBER_TO_FPTR(RUNOPS_DEFAULT))
+
+PERLVARA(Itokenbuf,256,	char)
+
+/*
+=for apidoc Amn|SV|PL_sv_undef
+This is the C<undef> SV.  Always refer to this as C<&PL_sv_undef>.
+
+=for apidoc Amn|SV|PL_sv_no
+This is the C<false> SV.  See C<PL_sv_yes>.  Always refer to this as
+C<&PL_sv_no>.
+
+=for apidoc Amn|SV|PL_sv_yes
+This is the C<true> SV.  See C<PL_sv_no>.  Always refer to this as
+C<&PL_sv_yes>.
+
+=cut
+*/
+
+PERLVAR(Isv_undef,	SV)
+PERLVAR(Isv_no,		SV)
+PERLVAR(Isv_yes,	SV)
+
+#ifdef CSH
+PERLVARI(Icshname,	char *,	CSH)
+PERLVAR(Icshlen,	I32)
+#endif
+
+PERLVAR(Ilex_state,	U32)		/* next token is determined */
+PERLVAR(Ilex_defer,	U32)		/* state after determined token */
+PERLVAR(Ilex_expect,	int)		/* expect after determined token */
+PERLVAR(Ilex_brackets,	I32)		/* bracket count */
+PERLVAR(Ilex_formbrack,	I32)		/* bracket count at outer format level */
+PERLVAR(Ilex_casemods,	I32)		/* casemod count */
+PERLVAR(Ilex_dojoin,	I32)		/* doing an array interpolation */
+PERLVAR(Ilex_starts,	I32)		/* how many interps done on level */
+PERLVAR(Ilex_stuff,	SV *)		/* runtime pattern from m// or s/// */
+PERLVAR(Ilex_repl,	SV *)		/* runtime replacement from s/// */
+PERLVAR(Ilex_op,	OP *)		/* extra info to pass back on op */
+PERLVAR(Ilex_inpat,	OP *)		/* in pattern $) and $| are special */
+PERLVAR(Ilex_inwhat,	I32)		/* what kind of quoting are we in */
+PERLVAR(Ilex_brackstack,char *)		/* what kind of brackets to pop */
+PERLVAR(Ilex_casestack,	char *)		/* what kind of case mods in effect */
+
+/* What we know when we're in LEX_KNOWNEXT state. */
+PERLVARA(Inextval,5,	YYSTYPE)	/* value of next token, if any */
+PERLVARA(Inexttype,5,	I32)		/* type of next token */
+PERLVAR(Inexttoke,	I32)
+
+PERLVAR(Ilinestr,	SV *)
+PERLVAR(Ibufptr,	char *)
+PERLVAR(Ioldbufptr,	char *)
+PERLVAR(Ioldoldbufptr,	char *)
+PERLVAR(Ibufend,	char *)
+PERLVARI(Iexpect,int,	XSTATE)		/* how to interpret ambiguous tokens */
+
+PERLVAR(Imulti_start,	I32)		/* 1st line of multi-line string */
+PERLVAR(Imulti_end,	I32)		/* last line of multi-line string */
+PERLVAR(Imulti_open,	I32)		/* delimiter of said string */
+PERLVAR(Imulti_close,	I32)		/* delimiter of said string */
+
+PERLVAR(Ierror_count,	I32)		/* how many errors so far, max 10 */
+PERLVAR(Isubline,	I32)		/* line this subroutine began on */
+PERLVAR(Isubname,	SV *)		/* name of current subroutine */
+
+PERLVAR(Imin_intro_pending,	I32)	/* start of vars to introduce */
+PERLVAR(Imax_intro_pending,	I32)	/* end of vars to introduce */
+PERLVAR(Ipadix,		I32)		/* max used index in current "register" pad */
+PERLVAR(Ipadix_floor,	I32)		/* how low may inner block reset padix */
+PERLVAR(Ipad_reset_pending,	I32)	/* reset pad on next attempted alloc */
+
+PERLVAR(Ilast_uni,	char *)		/* position of last named-unary op */
+PERLVAR(Ilast_lop,	char *)		/* position of last list operator */
+PERLVAR(Ilast_lop_op,	OPCODE)		/* last list operator */
+PERLVAR(Iin_my,		I32)		/* we're compiling a "my" (or "our") declaration */
+PERLVAR(Iin_my_stash,	HV *)		/* declared class of this "my" declaration */
+#ifdef FCRYPT
+PERLVAR(Icryptseen,	bool)		/* has fast crypt() been initialized? */
+#endif
+
+PERLVAR(Ihints,		U32)		/* pragma-tic compile-time flags */
+
+PERLVAR(Idebug,		VOL U32)	/* flags given to -D switch */
+
+PERLVAR(Iamagic_generation,	long)
+
+#ifdef USE_LOCALE_COLLATE
+PERLVAR(Icollation_ix,	U32)		/* Collation generation index */
+PERLVAR(Icollation_name,char *)		/* Name of current collation */
+PERLVARI(Icollation_standard, bool,	TRUE)
+					/* Assume simple collation */
+PERLVAR(Icollxfrm_base,	Size_t)		/* Basic overhead in *xfrm() */
+PERLVARI(Icollxfrm_mult,Size_t,	2)	/* Expansion factor in *xfrm() */
+#endif /* USE_LOCALE_COLLATE */
+
+#ifdef USE_LOCALE_NUMERIC
+
+PERLVAR(Inumeric_name,	char *)		/* Name of current numeric locale */
+PERLVARI(Inumeric_standard,	bool,	TRUE)
+					/* Assume simple numerics */
+PERLVARI(Inumeric_local,	bool,	TRUE)
+					/* Assume local numerics */
+PERLVAR(Inumeric_radix,		char)
+					/* The radix character if not '.' */
+
+#endif /* !USE_LOCALE_NUMERIC */
+
+/* utf8 character classes */
+PERLVAR(Iutf8_alnum,	SV *)
+PERLVAR(Iutf8_alnumc,	SV *)
+PERLVAR(Iutf8_ascii,	SV *)
+PERLVAR(Iutf8_alpha,	SV *)
+PERLVAR(Iutf8_space,	SV *)
+PERLVAR(Iutf8_cntrl,	SV *)
+PERLVAR(Iutf8_graph,	SV *)
+PERLVAR(Iutf8_digit,	SV *)
+PERLVAR(Iutf8_upper,	SV *)
+PERLVAR(Iutf8_lower,	SV *)
+PERLVAR(Iutf8_print,	SV *)
+PERLVAR(Iutf8_punct,	SV *)
+PERLVAR(Iutf8_xdigit,	SV *)
+PERLVAR(Iutf8_mark,	SV *)
+PERLVAR(Iutf8_toupper,	SV *)
+PERLVAR(Iutf8_totitle,	SV *)
+PERLVAR(Iutf8_tolower,	SV *)
+PERLVAR(Ilast_swash_hv,	HV *)
+PERLVAR(Ilast_swash_klen,	U32)
+PERLVARA(Ilast_swash_key,10,	U8)
+PERLVAR(Ilast_swash_tmps,	U8 *)
+PERLVAR(Ilast_swash_slen,	STRLEN)
+
+/* perly.c globals */
+PERLVAR(Iyydebug,	int)
+PERLVAR(Iyynerrs,	int)
+PERLVAR(Iyyerrflag,	int)
+PERLVAR(Iyychar,	int)
+PERLVAR(Iyyval,		YYSTYPE)
+PERLVAR(Iyylval,	YYSTYPE)
+
+PERLVAR(Iglob_index,	int)
+PERLVAR(Isrand_called,	bool)
+PERLVARA(Iuudmap,256,	char)
+PERLVAR(Ibitcount,	char *)
+
+#ifdef USE_THREADS
+PERLVAR(Isv_mutex,	perl_mutex)	/* Mutex for allocating SVs in sv.c */
+PERLVAR(Ieval_mutex,	perl_mutex)	/* Mutex for doeval */
+PERLVAR(Ieval_cond,	perl_cond)	/* Condition variable for doeval */
+PERLVAR(Ieval_owner,	struct perl_thread *)
+					/* Owner thread for doeval */
+PERLVAR(Inthreads,	int)		/* Number of threads currently */
+PERLVAR(Ithreads_mutex,	perl_mutex)	/* Mutex for nthreads and thread list */
+PERLVAR(Inthreads_cond,	perl_cond)	/* Condition variable for nthreads */
+PERLVAR(Isvref_mutex,	perl_mutex)	/* Mutex for SvREFCNT_{inc,dec} */
+PERLVARI(Ithreadsv_names,char *,	THREADSV_NAMES)
+#ifdef FAKE_THREADS
+PERLVAR(Icurthr,	struct perl_thread *)
+					/* Currently executing (fake) thread */
+#endif
+
+PERLVAR(Icred_mutex,	perl_mutex)	/* altered credentials in effect */
+
+#endif /* USE_THREADS */
+
+PERLVAR(Ipsig_ptr, SV**)
+PERLVAR(Ipsig_name, SV**)
+
+#if defined(PERL_IMPLICIT_SYS)
+PERLVAR(IMem,		struct IPerlMem*)
+PERLVAR(IMemShared,	struct IPerlMem*)
+PERLVAR(IMemParse,	struct IPerlMem*)
+PERLVAR(IEnv,		struct IPerlEnv*)
+PERLVAR(IStdIO,		struct IPerlStdIO*)
+PERLVAR(ILIO,		struct IPerlLIO*)
+PERLVAR(IDir,		struct IPerlDir*)
+PERLVAR(ISock,		struct IPerlSock*)
+PERLVAR(IProc,		struct IPerlProc*)
+#endif
+
+#if defined(USE_ITHREADS)
+PERLVAR(Iptr_table,	PTR_TBL_t*)
 #endif

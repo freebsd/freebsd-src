@@ -81,8 +81,8 @@ C<mkbootstrap>
 
 Mkbootstrap typically gets called from an extension Makefile.
 
-There is no C<*.bs> file supplied with the extension. Instead a
-C<*_BS> file which has code for the special cases, like posix for
+There is no C<*.bs> file supplied with the extension. Instead, there may
+be a C<*_BS> file which has code for the special cases, like posix for
 berkeley db on the NeXT.
 
 This file will get parsed, and produce a maybe empty

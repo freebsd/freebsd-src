@@ -1,15 +1,17 @@
 /* dl_dlopen.xs
  * 
  * Platform:	SunOS/Solaris, possibly others which use dlopen.
- * Author:	Paul Marquess (pmarquess@bfsec.bt.co.uk)
+ * Author:	Paul Marquess (Paul.Marquess@btinternet.com)
  * Created:	10th July 1994
  *
  * Modified:
- * 15th July 1994   - Added code to explicitly save any error messages.
- * 3rd August 1994  - Upgraded to v3 spec.
- * 9th August 1994  - Changed to use IV
- * 10th August 1994 - Tim Bunce: Added RTLD_LAZY, switchable debugging,
- *                    basic FreeBSD support, removed ClearError
+ * 15th July 1994     - Added code to explicitly save any error messages.
+ * 3rd August 1994    - Upgraded to v3 spec.
+ * 9th August 1994    - Changed to use IV
+ * 10th August 1994   - Tim Bunce: Added RTLD_LAZY, switchable debugging,
+ *                      basic FreeBSD support, removed ClearError
+ * 29th Feburary 2000 - Alan Burlison: Added functionality to close dlopen'd
+ *                      files when the interpreter exits
  *
  */
 
@@ -37,6 +39,17 @@
      RTLD_LAZY (==2) on Solaris 2.
 
 
+   dlclose
+   -------
+     int
+     dlclose(handle)
+     void * handle;
+
+     This function takes the handle returned by a previous invocation of
+     dlopen and closes the associated dynamic object file.  It returns zero
+     on success, and non-zero on failure.
+
+
    dlsym
    ------
      void *
@@ -57,7 +70,7 @@
      Returns a null-terminated string which describes the last error
      that occurred with either dlopen or dlsym. After each call to
      dlerror the error message will be reset to a null pointer. The
-     SaveError function is used to save the error as soo as it happens.
+     SaveError function is used to save the error as soon as it happens.
 
 
    Return Types
@@ -131,24 +144,35 @@
 
 
 static void
-dl_private_init()
+dl_private_init(pTHX)
 {
-    (void)dl_generic_private_init();
+    (void)dl_generic_private_init(aTHX);
 }
 
 MODULE = DynaLoader	PACKAGE = DynaLoader
 
 BOOT:
-    (void)dl_private_init();
+    (void)dl_private_init(aTHX);
 
 
 void *
 dl_load_file(filename, flags=0)
     char *	filename
     int		flags
-    PREINIT:
+  PREINIT:
     int mode = RTLD_LAZY;
-    CODE:
+  CODE:
+{
+#if defined(DLOPEN_WONT_DO_RELATIVE_PATHS)
+    char pathbuf[PATH_MAX + 2];
+    if (*filename != '/' && strchr(filename, '/')) {
+	if (getcwd(pathbuf, PATH_MAX - strlen(filename))) {
+	    strcat(pathbuf, "/");
+	    strcat(pathbuf, filename);
+	    filename = pathbuf;
+	}
+    }
+#endif
 #ifdef RTLD_NOW
     if (dl_nonlazy)
 	mode = RTLD_NOW;
@@ -157,16 +181,30 @@ dl_load_file(filename, flags=0)
 #ifdef RTLD_GLOBAL
 	mode |= RTLD_GLOBAL;
 #else
-	warn("Can't make loaded symbols global on this platform while loading %s",filename);
+	Perl_warn(aTHX_ "Can't make loaded symbols global on this platform while loading %s",filename);
 #endif
-    DLDEBUG(1,PerlIO_printf(PerlIO_stderr(), "dl_load_file(%s,%x):\n", filename,flags));
+    DLDEBUG(1,PerlIO_printf(Perl_debug_log, "dl_load_file(%s,%x):\n", filename,flags));
     RETVAL = dlopen(filename, mode) ;
-    DLDEBUG(2,PerlIO_printf(PerlIO_stderr(), " libref=%lx\n", (unsigned long) RETVAL));
+    DLDEBUG(2,PerlIO_printf(Perl_debug_log, " libref=%lx\n", (unsigned long) RETVAL));
     ST(0) = sv_newmortal() ;
     if (RETVAL == NULL)
-	SaveError("%s",dlerror()) ;
+	SaveError(aTHX_ "%s",dlerror()) ;
     else
-	sv_setiv( ST(0), (IV)RETVAL);
+	sv_setiv( ST(0), PTR2IV(RETVAL));
+}
+
+
+int
+dl_unload_file(libref)
+    void *	libref
+  CODE:
+    DLDEBUG(1,PerlIO_printf(Perl_debug_log, "dl_unload_file(%lx):\n", libref));
+    RETVAL = (dlclose(libref) == 0 ? 1 : 0);
+    if (!RETVAL)
+        SaveError(aTHX_ "%s", dlerror()) ;
+    DLDEBUG(2,PerlIO_printf(Perl_debug_log, " retval = %d\n", RETVAL));
+  OUTPUT:
+    RETVAL
 
 
 void *
@@ -175,19 +213,19 @@ dl_find_symbol(libhandle, symbolname)
     char *	symbolname
     CODE:
 #ifdef DLSYM_NEEDS_UNDERSCORE
-    symbolname = form("_%s", symbolname);
+    symbolname = Perl_form_nocontext("_%s", symbolname);
 #endif
-    DLDEBUG(2, PerlIO_printf(PerlIO_stderr(),
+    DLDEBUG(2, PerlIO_printf(Perl_debug_log,
 			     "dl_find_symbol(handle=%lx, symbol=%s)\n",
 			     (unsigned long) libhandle, symbolname));
     RETVAL = dlsym(libhandle, symbolname);
-    DLDEBUG(2, PerlIO_printf(PerlIO_stderr(),
+    DLDEBUG(2, PerlIO_printf(Perl_debug_log,
 			     "  symbolref = %lx\n", (unsigned long) RETVAL));
     ST(0) = sv_newmortal() ;
     if (RETVAL == NULL)
-	SaveError("%s",dlerror()) ;
+	SaveError(aTHX_ "%s",dlerror()) ;
     else
-	sv_setiv( ST(0), (IV)RETVAL);
+	sv_setiv( ST(0), PTR2IV(RETVAL));
 
 
 void
@@ -204,9 +242,11 @@ dl_install_xsub(perl_name, symref, filename="$Package")
     void *		symref 
     char *		filename
     CODE:
-    DLDEBUG(2,PerlIO_printf(PerlIO_stderr(), "dl_install_xsub(name=%s, symref=%lx)\n",
+    DLDEBUG(2,PerlIO_printf(Perl_debug_log, "dl_install_xsub(name=%s, symref=%lx)\n",
 		perl_name, (unsigned long) symref));
-    ST(0)=sv_2mortal(newRV((SV*)newXS(perl_name, (void(*)_((CV *)))symref, filename)));
+    ST(0) = sv_2mortal(newRV((SV*)newXS(perl_name,
+					(void(*)(pTHX_ CV *))symref,
+					filename)));
 
 
 char *

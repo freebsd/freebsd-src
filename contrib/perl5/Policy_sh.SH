@@ -1,4 +1,4 @@
-case $CONFIG in
+case $CONFIGDOTSH in
 '') . ./config.sh ;;
 esac
 echo "Extracting Policy.sh (with variable substitutions)"
@@ -29,11 +29,24 @@ case "\$perladmin" in
 '') perladmin='$perladmin' ;;
 esac
 
-# Installation prefix.  Allow a Configure -D override.  You
+# Installation prefixes.  Allow a Configure -D override.  You
 # may wish to reinstall perl under a different prefix, perhaps
 # in order to test a different configuration.
+# For an explanation of the installation directories, see the
+# INSTALL file section on "Installation Directories".
 case "\$prefix" in
 '') prefix='$prefix' ;;
+esac
+case "\$siteprefix" in
+'') siteprefix='$siteprefix' ;;
+esac
+case "\$vendorprefix" in
+'') vendorprefix='$vendorprefix' ;;
+esac
+
+# Where installperl puts things.
+case "\$installprefix" in
+'') installprefix='$installprefix' ;;
 esac
 
 # Installation directives.  Note that each one comes in three flavors.
@@ -44,7 +57,22 @@ esac
 #     out automatically by Configure, so you don't have to include it here.
 # installprivlib is for systems (such as those running AFS) that
 #     need to distinguish between the place where things
-#     get installed and where they finally will reside.
+#     get installed and where they finally will reside.  As of 5.005_6x,
+#     this too is handled automatically by Configure based on
+#     $installprefix, so it isn't included here either.
+#
+# Note also that there are three broad hierarchies of installation 
+# directories, as discussed in the INSTALL file under 
+# "Installation Directories":
+#
+#  =item Directories for the perl distribution
+#
+#  =item Directories for site-specific add-on files
+#
+#  =item Directories for vendor-supplied add-on files
+#
+#  See Porting/Glossary for the definitions of these names, and see the
+#  INSTALL file for further explanation and some examples.
 # 
 # In each case, if your previous value was the default, leave it commented
 # out.  That way, if you override prefix, all of these will be
@@ -56,13 +84,17 @@ esac
 
 !GROK!THIS!
 
-for var in bin scriptdir privlib archlib \
-	man1dir man3dir sitelib sitearch \
-	installbin installscript installprivlib installarchlib \
-	installman1dir installman3dir installsitelib installsitearch \
-	man1ext man3ext; do
+for var in \
+	bin scriptdir privlib archlib man1dir man3dir html1dir html3dir \
+	sitebin sitescript sitelib sitearch \
+		siteman1 siteman3 sitehtml1 sitehtml3 \
+	vendorbin vendorscript vendorlib vendorarch \
+		vendorman1 vendorman3 vendorhtml1 vendorhtml3
+do
 	
     case "$var" in
+
+    # Directories for the core perl components
     bin)	dflt=$prefix/bin ;;
     # The scriptdir test is more complex, but this is probably usually ok.
     scriptdir)
@@ -78,47 +110,73 @@ for var in bin scriptdir privlib archlib \
 	*)	dflt=$prefix/lib/$package/$version ;;
 	esac
 	;;
-    archlib)	
-	case "$prefix" in
-	*perl*)	dflt=$prefix/lib/$version/$archname ;;
-	*)	dflt=$prefix/lib/$package/$version/$archname ;;
-	esac
-	;;
-    sitelib)
-	case "$prefix" in
-	*perl*)	dflt=$prefix/lib/site_perl/$apiversion ;;
-	*)	dflt=$prefix/lib/$package/site_perl/$apiversion ;;
-	esac
-	;;
-    sitearch)	
-	case "$prefix" in
-	*perl*)	dflt=$prefix/lib/site_perl/$apiversion/$archname ;;
-	*)	dflt=$prefix/lib/$package/site_perl/$apiversion/$archname ;;
-	esac
-	;;
-    man1dir)	dflt="$prefix/man/man1" ;;
-    man3dir)
-	case "$prefix" in
-	*perl*) dflt=`echo $man1dir |
-		    sed -e 's/man1/man3/g' -e 's/man\.1/man\.3/g'` ;;
-	*)	dflt=$privlib/man/man3 ;;
-	esac
-	;;
+    archlib)	dflt="$privlib/$archname" ;;
 
+    man1dir)	dflt="$prefix/man/man1" ;;
+    man3dir)	dflt="$prefix/man/man3" ;;
     # Can we assume all sed's have greedy matching?
     man1ext)	dflt=`echo $man1dir | sed -e 's!.*man!!' -e 's!^\.!!'` ;;
     man3ext)	dflt=`echo $man3dir | sed -e 's!.*man!!' -e 's!^\.!!'` ;;
 
-    # It might be possible to fool these next tests.  Please let
-    # me know if they don't work right for you.
-    installbin)		dflt=`echo $binexp | sed 's#^/afs/#/afs/.#'`;;
-    installscript)	dflt=`echo $scriptdirexp | sed 's#^/afs/#/afs/.#'`;;
-    installprivlib)	dflt=`echo $privlibexp | sed 's#^/afs/#/afs/.#'`;;
-    installarchlib)	dflt=`echo $archlibexp | sed 's#^/afs/#/afs/.#'`;;
-    installsitelib)	dflt=`echo $sitelibexp | sed 's#^/afs/#/afs/.#'`;;
-    installsitearch)	dflt=`echo $sitearchexp | sed 's#^/afs/#/afs/.#'`;;
-    installman1dir)	dflt=`echo $man1direxp | sed 's#^/afs/#/afs/.#'`;;
-    installman3dir)	dflt=`echo $man3direxp | sed 's#^/afs/#/afs/.#'`;;
+    # We don't know what to do with these yet.
+    html1dir)	dflt='' ;;
+    htm31dir)	dflt='' ;;
+
+    # Directories for site-specific add-on files
+    sitebin)	dflt=$siteprefix/bin ;;
+    sitescript)
+	if $test -d $siteprefix/script; then
+	    dflt=$siteprefix/script
+	else
+	    dflt=$sitebin
+	fi
+	;;
+    sitelib)
+	case "$siteprefix" in
+	*perl*)	dflt=$prefix/lib/site_perl/$version ;;
+	*)	dflt=$prefix/lib/$package/site_perl/$version ;;
+	esac
+	;;
+    sitearch)	dflt="$sitelib/$archname" ;;
+
+    siteman1)	dflt="$siteprefix/man/man1" ;;
+    siteman3)	dflt="$siteprefix/man/man3" ;;
+    # We don't know what to do with these yet.
+    sitehtml1)	dflt='' ;;
+    sitehtm31dir)	dflt='' ;;
+    
+    # Directories for vendor-supplied add-on files
+    # These are all usually empty.
+    vendor*)
+	if test X"$vendorprefix" = X""; then
+	    dflt=''
+	else
+	    case "$var" in
+	    vendorbin)	dflt=$vendorprefix/bin ;;
+	    vendorscript)
+		if $test -d $vendorprefix/script; then
+		    dflt=$vendorprefix/script
+		else
+		    dflt=$vendorbin
+		fi
+		;;
+	    vendorlib)
+		case "$vendorprefix" in
+		*perl*)	dflt=$prefix/lib/vendor_perl/$version ;;
+		*)	dflt=$prefix/lib/$package/vendor_perl/$version ;;
+		esac
+		;;
+	    vendorarch)	dflt="$vendorlib/$archname" ;;
+
+	    vendorman1)	dflt="$vendorprefix/man/man1" ;;
+	    vendorman3)	dflt="$vendorprefix/man/man3" ;;
+	    # We don't know what to do with these yet.
+	    vendorhtml1)	dflt='' ;;
+	    vendorhtm3)	dflt='' ;;
+
+	    esac  # End of vendorprefix != ''
+	fi
+	;;
     esac
     
     eval val="\$$var"
@@ -148,6 +206,5 @@ $spitshell <<!GROK!THIS! >>Policy.sh
 #   The original design for this Policy.sh file came from Wayne Davison,
 #   maintainer of trn.
 #   This version for Perl5.004_61 originally written by
-#   Andy Dougherty <doughera@lafcol.lafayette.edu>.
+#   Andy Dougherty <doughera@lafayette.edu>.
 #   This file may be distributed under the same terms as Perl itself.
-

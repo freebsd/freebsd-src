@@ -1,0 +1,108 @@
+  util.c AOK
+ 
+     Illegal octal digit ignored 
+	my $a = oct "029" ;
+
+     Illegal hex digit ignored 
+	my $a = hex "0xv9" ;
+
+     Illegal binary digit ignored
+      my $a = oct "0b9" ;
+     
+     Integer overflow in binary number
+	my $a =  oct "0b111111111111111111111111111111111111111111" ;
+     Binary number > 0b11111111111111111111111111111111 non-portable
+   	$a =  oct "0b111111111111111111111111111111111" ;
+     Integer overflow in octal number
+	my $a =  oct "077777777777777777777777777777" ;
+     Octal number > 037777777777 non-portable
+   	$a =  oct "0047777777777" ;
+     Integer overflow in hexadecimal number
+	my $a =  hex "0xffffffffffffffffffff" ;
+     Hexadecimal number > 0xffffffff non-portable
+   	$a =  hex "0x1ffffffff" ;
+
+__END__
+# util.c
+use warnings 'digit' ;
+my $a = oct "029" ;
+no warnings 'digit' ;
+$a = oct "029" ;
+EXPECT
+Illegal octal digit '9' ignored at - line 3.
+########
+# util.c
+use warnings 'digit' ;
+my $a =  hex "0xv9" ;
+no warnings 'digit' ;
+$a =  hex "0xv9" ;
+EXPECT
+Illegal hexadecimal digit 'v' ignored at - line 3.
+########
+# util.c
+use warnings 'digit' ;
+my $a =  oct "0b9" ;
+no warnings 'digit' ;
+$a =  oct "0b9" ;
+EXPECT
+Illegal binary digit '9' ignored at - line 3.
+########
+# util.c
+use warnings 'overflow' ;
+my $a =  oct "0b11111111111111111111111111111111111111111111111111111111111111111";
+no warnings 'overflow' ;
+$a =  oct "0b11111111111111111111111111111111111111111111111111111111111111111";
+EXPECT
+Integer overflow in binary number at - line 3.
+########
+# util.c
+use warnings 'overflow' ;
+my $a =  hex "0xffffffffffffffffffff" ;
+no warnings 'overflow' ;
+$a =  hex "0xffffffffffffffffffff" ;
+EXPECT
+Integer overflow in hexadecimal number at - line 3.
+########
+# util.c
+use warnings 'overflow' ;
+my $a =  oct "077777777777777777777777777777" ;
+no warnings 'overflow' ;
+$a =  oct "077777777777777777777777777777" ;
+EXPECT
+Integer overflow in octal number at - line 3.
+########
+# util.c
+use warnings 'portable' ;
+my $a =  oct "0b011111111111111111111111111111110" ;
+   $a =  oct "0b011111111111111111111111111111111" ;
+   $a =  oct "0b111111111111111111111111111111111" ;
+no warnings 'portable' ;
+   $a =  oct "0b011111111111111111111111111111110" ;
+   $a =  oct "0b011111111111111111111111111111111" ;
+   $a =  oct "0b111111111111111111111111111111111" ;
+EXPECT
+Binary number > 0b11111111111111111111111111111111 non-portable at - line 5.
+########
+# util.c
+use warnings 'portable' ;
+my $a =  hex "0x0fffffffe" ;
+   $a =  hex "0x0ffffffff" ;
+   $a =  hex "0x1ffffffff" ;
+no warnings 'portable' ;
+   $a =  hex "0x0fffffffe" ;
+   $a =  hex "0x0ffffffff" ;
+   $a =  hex "0x1ffffffff" ;
+EXPECT
+Hexadecimal number > 0xffffffff non-portable at - line 5.
+########
+# util.c
+use warnings 'portable' ;
+my $a =  oct "0037777777776" ;
+   $a =  oct "0037777777777" ;
+   $a =  oct "0047777777777" ;
+no warnings 'portable' ;
+   $a =  oct "0037777777776" ;
+   $a =  oct "0037777777777" ;
+   $a =  oct "0047777777777" ;
+EXPECT
+Octal number > 037777777777 non-portable at - line 5.

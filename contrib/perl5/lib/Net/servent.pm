@@ -1,9 +1,10 @@
 package Net::servent;
 use strict;
 
+use 5.005_64;
+our(@EXPORT, @EXPORT_OK, %EXPORT_TAGS);
 BEGIN {
     use Exporter   ();
-    use vars       qw(@EXPORT @EXPORT_OK %EXPORT_TAGS);
     @EXPORT      = qw(getservbyname getservbyport getservent getserv);
     @EXPORT_OK   = qw( $s_name @s_aliases $s_port $s_proto );
     %EXPORT_TAGS = ( FIELDS => [ @EXPORT_OK, @EXPORT ] );

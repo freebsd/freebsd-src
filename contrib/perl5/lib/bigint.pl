@@ -1,5 +1,13 @@
 package bigint;
-
+#
+# This library is no longer being maintained, and is included for backward
+# compatibility with Perl 4 programs which may require it.
+#
+# In particular, this should not be used as an example of modern Perl
+# programming techniques.
+#
+# Suggested alternative:  Math::BigInt
+#
 # arbitrary size integer math package
 #
 # by Mark Biggar

@@ -43,18 +43,49 @@ ignore_versioned_solibs='y'
 # available via anonymous FTP at tsx-11.mit.edu in
 # /pub/linux/docs/linux-standards/fsstnd.
 # Allow a command line override, e.g. Configure -Dprefix=/foo/bar
-case "$prefix" in
-'') prefix='/usr' ;;
-esac
-
-# gcc-2.6.3 defines _G_HAVE_BOOL to 1, but doesn't actually supply bool.
-ccflags="-Dbool=char -DHAS_BOOL $ccflags"
+#
+#  Addendum for 5.005_57 and beyond:
+#
+# However, most Linux users probably already have a /usr/bin/perl.
+# We can't know whether the current user is intending to *replace*
+# that /usr/bin/perl or whether the user is intending to install
+# a *different* installation.
+#
+# Here is what we used to do:
+# Allow a command line override, e.g. Configure -Dprefix=/foo/bar
+# case "$prefix" in
+# '') prefix='/usr' ;;
+# esac
+#
+# For now, let's assume that most Linux users get their /usr/bin/perl
+# from some packaging system, so that those compiling from source are
+# probably the more experimental folks and hence probably aren't
+# intending to replace /usr/bin/perl (at least just yet).
+# This change makes linux consistent with most other unix platforms
+# in having a default of prefix=/usr/local.
+# These notes can probably safely be removed in 5.005_50 and beyond.
+#
+#	9 April 1999  Andy Dougherty  <doughera@lafayette.edu>
+#
 
 # BSD compatability library no longer needed
 # 'kaffe' has a /usr/lib/libnet.so which is not at all relevent for perl.
 set `echo X "$libswanted "| sed -e 's/ bsd / /' -e 's/ net / /'`
 shift
 libswanted="$*"
+
+# If you have glibc, then report the version for ./myconfig bug reporting.
+# (Configure doesn't need to know the specific version since it just uses
+# gcc to load the library for all tests.)
+# Is this sufficiently robust for libc5 systems as well as
+# glibc-2.1.x systems?
+# We don't use __GLIBC__ and  __GLIBC_MINOR__ because they 
+# are insufficiently precise to distinguish things like
+# libc-2.0.6 and libc-2.0.7.
+if test -L /lib/libc.so.6; then
+    libc=`ls -l /lib/libc.so.6 | awk '{print $NF}'`
+    libc=/lib/$libc
+fi
 
 # Configure may fail to find lstat() since it's a static/inline
 # function in <sys/stat.h>.
@@ -224,6 +255,15 @@ fi
 #'osfmach3ppc') ccdlflags='-Wl,-E' ;;
 #esac
 
+case "`uname -r`" in
+sparc-linux)
+	case "$cccdlflags" in
+	*-fpic*) cccdlflags="`echo $cccdlflags|sed 's/-fpic/-fPIC/'`" ;;
+	*)	 cccdlflags="$cccdlflags -fPIC" ;;
+	esac
+	;;
+esac
+
 # This script UU/usethreads.cbu will get 'called-back' by Configure 
 # after it has prompted the user for whether to use threads.
 cat > UU/usethreads.cbu <<'EOCBU'
@@ -233,6 +273,16 @@ $define|true|[yY]*)
         set `echo X "$libswanted "| sed -e 's/ c / pthread c /'`
         shift
         libswanted="$*"
+	;;
+esac
+EOCBU
+
+cat > UU/uselargefiles.cbu <<'EOCBU'
+# This script UU/uselargefiles.cbu will get 'called-back' by Configure 
+# after it has prompted the user for whether to use large files.
+case "$uselargefiles" in
+''|$define|true|[yY]*)
+	ccflags="$ccflags -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64"
 	;;
 esac
 EOCBU

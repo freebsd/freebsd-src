@@ -20,19 +20,14 @@ die "Must be in root of the perl source tree.\n"
 open PATCHLEVEL,"<patchlevel.h" or die;
 my @patchlevel_h = <PATCHLEVEL>;
 close PATCHLEVEL;
-my $patchlevel_h = join "", grep { /^#define/ } @patchlevel_h;
+my $patchlevel_h = join "", grep { /^#\s*define/ } @patchlevel_h;
 print $patchlevel_h;
-$patchlevel = $1 if $patchlevel_h =~ /PATCHLEVEL\s+(\d+)/;
-$subversion = $1 if $patchlevel_h =~ /SUBVERSION\s+(\d+)/;
+$revision = $1 if $patchlevel_h =~ /PERL_REVISION\s+(\d+)/;
+$patchlevel = $1 if $patchlevel_h =~ /PERL_VERSION\s+(\d+)/;
+$subversion = $1 if $patchlevel_h =~ /PERL_SUBVERSION\s+(\d+)/;
 die "Unable to parse patchlevel.h" unless $subversion >= 0;
-$vers = sprintf("5.%03d", $patchlevel);
-$vms_vers = sprintf("5_%03d", $patchlevel);
-if ($subversion) {
-    $vers.= sprintf( "_%02d", $subversion);
-    $vms_vers.= sprintf( "%02d", $subversion);
-} else {
-    $vms_vers.= "  ";
-}
+$vers = sprintf("%d.%d.%d", $revision, $patchlevel, $subversion);
+$vms_vers = sprintf("%d_%d_%d", $revision, $patchlevel, $subversion);
 
 # fetch list of local patches
 my (@local_patches, @lpatch_tags, $lpatch_tags);
@@ -41,7 +36,7 @@ my (@local_patches, @lpatch_tags, $lpatch_tags);
 @lpatch_tags   = map  {  /^\s*,"(\w+)/ } @local_patches;
 $lpatch_tags   = join "-", @lpatch_tags;
 
-$perl = "perl$vers";
+$perl = "perl-$vers";
 $reldir = "$perl";
 $reldir .= "-$lpatch_tags" if $lpatch_tags;
 
@@ -93,7 +88,6 @@ my @exe = qw(
     installperl
     installman
     keywords.pl
-    myconfig
     opcode.pl
     perly.fixer
     t/TEST
@@ -106,6 +100,27 @@ my @exe = qw(
     Porting/makerel
 );
 system("chmod +x @exe");
+
+my @writables = qw(
+    embed.h
+    embedvar.h
+    ext/B/B/Asmdata.pm
+    ext/ByteLoader/byterun.c
+    ext/ByteLoader/byterun.h
+    global.sym
+    keywords.h
+    lib/warnings.pm
+    objXSUB.h
+    opcode.h
+    pp.sym
+    pp_proto.h
+    regnodes.h
+    warnings.h
+    win32/config_H.bc
+    win32/config_H.gc
+    win32/config_H.vc
+);
+system("chmod +w @writables");
 
 print "Adding CRs to DOSish files...\n";
 my @crlf = qw(

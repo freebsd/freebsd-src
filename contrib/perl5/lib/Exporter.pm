@@ -2,227 +2,60 @@ package Exporter;
 
 require 5.001;
 
-#
-# We go to a lot of trouble not to 'require Carp' at file scope,
-#  because Carp requires Exporter, and something has to give.
-#
-
 $ExportLevel = 0;
-$Verbose = 0 unless $Verbose;
+$Verbose ||= 0;
+$VERSION = '5.562';
 
-sub export {
-
-    # First make import warnings look like they're coming from the "use".
-    local $SIG{__WARN__} = sub {
-	my $text = shift;
-	if ($text =~ s/ at \S*Exporter.pm line \d+.*\n//) {
-	    require Carp;
-	    local $Carp::CarpLevel = 1;	# ignore package calling us too.
-	    Carp::carp($text);
-	}
-	else {
-	    warn $text;
-	}
-    };
-    local $SIG{__DIE__} = sub {
-	require Carp;
-	local $Carp::CarpLevel = 1;	# ignore package calling us too.
-	Carp::croak("$_[0]Illegal null symbol in \@${1}::EXPORT")
-	    if $_[0] =~ /^Unable to create sub named "(.*?)::"/;
-    };
-
-    my($pkg, $callpkg, @imports) = @_;
-    my($type, $sym, $oops);
-    *exports = *{"${pkg}::EXPORT"};
-
-    if (@imports) {
-	if (!%exports) {
-	    grep(s/^&//, @exports);
-	    @exports{@exports} = (1) x @exports;
-	    my $ok = \@{"${pkg}::EXPORT_OK"};
-	    if (@$ok) {
-		grep(s/^&//, @$ok);
-		@exports{@$ok} = (1) x @$ok;
-	    }
-	}
-
-	if ($imports[0] =~ m#^[/!:]#){
-	    my $tagsref = \%{"${pkg}::EXPORT_TAGS"};
-	    my $tagdata;
-	    my %imports;
-	    my($remove, $spec, @names, @allexports);
-	    # negated first item implies starting with default set:
-	    unshift @imports, ':DEFAULT' if $imports[0] =~ m/^!/;
-	    foreach $spec (@imports){
-		$remove = $spec =~ s/^!//;
-
-		if ($spec =~ s/^://){
-		    if ($spec eq 'DEFAULT'){
-			@names = @exports;
-		    }
-		    elsif ($tagdata = $tagsref->{$spec}) {
-			@names = @$tagdata;
-		    }
-		    else {
-			warn qq["$spec" is not defined in %${pkg}::EXPORT_TAGS];
-			++$oops;
-			next;
-		    }
-		}
-		elsif ($spec =~ m:^/(.*)/$:){
-		    my $patn = $1;
-		    @allexports = keys %exports unless @allexports; # only do keys once
-		    @names = grep(/$patn/, @allexports); # not anchored by default
-		}
-		else {
-		    @names = ($spec); # is a normal symbol name
-		}
-
-		warn "Import ".($remove ? "del":"add").": @names "
-		    if $Verbose;
-
-		if ($remove) {
-		   foreach $sym (@names) { delete $imports{$sym} } 
-		}
-		else {
-		    @imports{@names} = (1) x @names;
-		}
-	    }
-	    @imports = keys %imports;
-	}
-
-	foreach $sym (@imports) {
-	    if (!$exports{$sym}) {
-		if ($sym =~ m/^\d/) {
-		    $pkg->require_version($sym);
-		    # If the version number was the only thing specified
-		    # then we should act as if nothing was specified:
-		    if (@imports == 1) {
-			@imports = @exports;
-			last;
-		    }
-		    # We need a way to emulate 'use Foo ()' but still
-		    # allow an easy version check: "use Foo 1.23, ''";
-		    if (@imports == 2 and !$imports[1]) {
-			@imports = ();
-			last;
-		    }
-		} elsif ($sym !~ s/^&// || !$exports{$sym}) {
-                    require Carp;
-		    Carp::carp(qq["$sym" is not exported by the $pkg module]);
-		    $oops++;
-		}
-	    }
-	}
-	if ($oops) {
-	    require Carp;
-	    Carp::croak("Can't continue after import errors");
-	}
-    }
-    else {
-	@imports = @exports;
-    }
-
-    *fail = *{"${pkg}::EXPORT_FAIL"};
-    if (@fail) {
-	if (!%fail) {
-	    # Build cache of symbols. Optimise the lookup by adding
-	    # barewords twice... both with and without a leading &.
-	    # (Technique could be applied to %exports cache at cost of memory)
-	    my @expanded = map { /^\w/ ? ($_, '&'.$_) : $_ } @fail;
-	    warn "${pkg}::EXPORT_FAIL cached: @expanded" if $Verbose;
-	    @fail{@expanded} = (1) x @expanded;
-	}
-	my @failed;
-	foreach $sym (@imports) { push(@failed, $sym) if $fail{$sym} }
-	if (@failed) {
-	    @failed = $pkg->export_fail(@failed);
-	    foreach $sym (@failed) {
-                require Carp;
-		Carp::carp(qq["$sym" is not implemented by the $pkg module ],
-			"on this architecture");
-	    }
-	    if (@failed) {
-		require Carp;
-		Carp::croak("Can't continue after import errors");
-	    }
-	}
-    }
-
-    warn "Importing into $callpkg from $pkg: ",
-		join(", ",sort @imports) if $Verbose;
-
-    foreach $sym (@imports) {
-	# shortcut for the common case of no type character
-	(*{"${callpkg}::$sym"} = \&{"${pkg}::$sym"}, next)
-	    unless $sym =~ s/^(\W)//;
-	$type = $1;
-	*{"${callpkg}::$sym"} =
-	    $type eq '&' ? \&{"${pkg}::$sym"} :
-	    $type eq '$' ? \${"${pkg}::$sym"} :
-	    $type eq '@' ? \@{"${pkg}::$sym"} :
-	    $type eq '%' ? \%{"${pkg}::$sym"} :
-	    $type eq '*' ?  *{"${pkg}::$sym"} :
-	    do { require Carp; Carp::croak("Can't export symbol: $type$sym") };
-    }
+sub export_to_level {
+  require Exporter::Heavy;
+  goto &heavy_export_to_level;
 }
 
-sub export_to_level
-{
-      my $pkg = shift;
-      my ($level, $junk) = (shift, shift);  # need to get rid of first arg
-                                            # we know it already.
-      my $callpkg = caller($level);
-      $pkg->export($callpkg, @_);
+sub export {
+  require Exporter::Heavy;
+  goto &heavy_export;
+}
+
+sub export_tags {
+  require Exporter::Heavy;
+  _push_tags((caller)[0], "EXPORT",    \@_);
+}
+
+sub export_ok_tags {
+  require Exporter::Heavy;
+  _push_tags((caller)[0], "EXPORT_OK", \@_);
 }
 
 sub import {
-    my $pkg = shift;
-    my $callpkg = caller($ExportLevel);
-    export $pkg, $callpkg, @_;
-}
-
-
-
-# Utility functions
-
-sub _push_tags {
-    my($pkg, $var, $syms) = @_;
-    my $nontag;
-    *export_tags = \%{"${pkg}::EXPORT_TAGS"};
-    push(@{"${pkg}::$var"},
-	map { $export_tags{$_} ? @{$export_tags{$_}} : scalar(++$nontag,$_) }
-		(@$syms) ? @$syms : keys %export_tags);
-    if ($nontag and $^W) {
-	# This may change to a die one day
-	require Carp;
-	Carp::carp("Some names are not tags");
+  my $pkg = shift;
+  my $callpkg = caller($ExportLevel);
+  *exports = *{"$pkg\::EXPORT"};
+  # We *need* to treat @{"$pkg\::EXPORT_FAIL"} since Carp uses it :-(
+  *fail = *{"$pkg\::EXPORT_FAIL"};
+  return export $pkg, $callpkg, @_
+    if $Verbose or $Debug or @fail > 1;
+  my $args = @_ or @_ = @exports;
+  
+  if ($args and not %exports) {
+    foreach my $sym (@exports, @{"$pkg\::EXPORT_OK"}) {
+      $sym =~ s/^&//;
+      $exports{$sym} = 1;
     }
-}
-
-sub export_tags    { _push_tags((caller)[0], "EXPORT",    \@_) }
-sub export_ok_tags { _push_tags((caller)[0], "EXPORT_OK", \@_) }
-
-
-# Default methods
-
-sub export_fail {
-    my $self = shift;
-    @_;
-}
-
-sub require_version {
-    my($self, $wanted) = @_;
-    my $pkg = ref $self || $self;
-    my $version = ${"${pkg}::VERSION"};
-    if (!$version or $version < $wanted) {
-	$version ||= "(undef)";
-	my $file = $INC{"$pkg.pm"};
-	$file &&= " ($file)";
-	require Carp;
-	Carp::croak("$pkg $wanted required--this is only version $version$file")
-    }
-    $version;
+  }
+  if ($Verbose or $Debug 
+      or grep {/\W/ or $args and not exists $exports{$_}
+	       or @fail and $_ eq $fail[0]
+	       or (@{"$pkg\::EXPORT_OK"} 
+		   and $_ eq ${"$pkg\::EXPORT_OK"}[0])} @_) {
+    return export $pkg, $callpkg, ($args ? @_ : ());
+  }
+  #local $SIG{__WARN__} = sub {require Carp; goto &Carp::carp};
+  local $SIG{__WARN__} = 
+	sub {require Carp; local $Carp::CarpLevel = 1; &Carp::carp};
+  foreach $sym (@_) {
+    # shortcut for the common case of no type character
+    *{"$callpkg\::$sym"} = \&{"$pkg\::$sym"};
+  }
 }
 
 1;
@@ -285,6 +118,18 @@ C<use> statement for a module. Modules and C<use> are documented
 in L<perlfunc> and L<perlmod>. Understanding the concept of
 modules and how the C<use> statement operates is important to
 understanding the Exporter.
+
+=head2 How to Export
+
+The arrays C<@EXPORT> and C<@EXPORT_OK> in a module hold lists of
+symbols that are going to be exported into the users name space by
+default, or which they can request to be exported, respectively.  The
+symbols can represent functions, scalars, arrays, hashes, or typeglobs.
+The symbols must be given by full name with the exception that the
+ampersand in front of a function is optional, e.g.
+
+    @EXPORT    = qw(afunc $scalar @array);   # afunc is a function
+    @EXPORT_OK = qw(&bfunc %hash *typeglob); # explicit prefix on &bfunc
 
 =head2 Selecting What To Export
 
@@ -364,11 +209,12 @@ Exporter has a special method, 'export_to_level' which is used in situations
 where you can't directly call Export's import method. The export_to_level
 method looks like:
 
-MyPackage->export_to_level($where_to_export, @what_to_export);
+MyPackage->export_to_level($where_to_export, $package, @what_to_export);
 
 where $where_to_export is an integer telling how far up the calling stack
 to export your symbols, and @what_to_export is an array telling what
-symbols *to* export (usually this is @_).
+symbols *to* export (usually this is @_).  The $package argument is
+currently unused.
 
 For example, suppose that you have a module, A, which already has an
 import function:

@@ -1,0 +1,119 @@
+  regexec.c	
+
+  This test generates "bad free" warnings when run under
+  PERL_DESTRUCT_LEVEL.  This file merely serves as a placeholder
+  for investigation.
+
+  Complex regular subexpression recursion limit (%d) exceeded
+
+        $_ = 'a' x (2**15+1); /^()(a\1)*$/ ;
+  Complex regular subexpression recursion limit (%d) exceeded
+
+        $_ = 'a' x (2**15+1); /^()(a\1)*?$/ ;
+
+  (The actual value substituted for %d is masked in the tests so that
+  REG_INFTY configuration variable value does not affect outcome.)
+__END__
+# regexec.c
+print("SKIPPED\n# most systems run into stacksize limits\n"),exit;
+use warnings 'regexp' ;
+$SIG{__WARN__} = sub{local ($m) = shift;
+                 $m =~ s/\(\d+\)/(*MASKED*)/;
+                 print STDERR $m};
+$_ = 'a' x (2**15+1); 
+/^()(a\1)*$/ ;
+#
+# If this test fails with a segmentation violation or similar,
+# you may have to increase the default stacksize limit in your
+# shell.  You may need superuser privileges.
+#
+# Under the sh, ksh, zsh:
+#    $ ulimit -s
+#    8192
+#    $ ulimit -s 16000
+#
+# Under the csh:
+#    % limit stacksize
+#    stacksize        8192 kbytes
+#    % limit stacksize 16000
+#
+EXPECT
+Complex regular subexpression recursion limit (*MASKED*) exceeded at - line 9.
+########
+# regexec.c
+print("SKIPPED\n# most systems run into stacksize limits\n"),exit;
+no warnings 'regexp' ;
+$SIG{__WARN__} = sub{local ($m) = shift;
+                 $m =~ s/\(\d+\)/(*MASKED*)/;
+                 print STDERR $m};
+$_ = 'a' x (2**15+1); 
+/^()(a\1)*$/ ;
+#
+# If this test fails with a segmentation violation or similar,
+# you may have to increase the default stacksize limit in your
+# shell.  You may need superuser privileges.
+#
+# Under the sh, ksh, zsh:
+#    $ ulimit -s
+#    8192
+#    $ ulimit -s 16000
+#
+# Under the csh:
+#    % limit stacksize
+#    stacksize        8192 kbytes
+#    % limit stacksize 16000
+#
+EXPECT
+
+########
+# regexec.c
+print("SKIPPED\n# most systems run into stacksize limits\n"),exit;
+use warnings 'regexp' ;
+$SIG{__WARN__} = sub{local ($m) = shift;
+                 $m =~ s/\(\d+\)/(*MASKED*)/;
+                 print STDERR $m};
+$_ = 'a' x (2**15+1);
+/^()(a\1)*?$/ ;
+#
+# If this test fails with a segmentation violation or similar,
+# you may have to increase the default stacksize limit in your
+# shell.  You may need superuser privileges.
+#
+# Under the sh, ksh, zsh:
+#    $ ulimit -s
+#    8192
+#    $ ulimit -s 16000
+#
+# Under the csh:
+#    % limit stacksize
+#    stacksize        8192 kbytes
+#    % limit stacksize 16000
+#
+EXPECT
+Complex regular subexpression recursion limit (*MASKED*) exceeded at - line 9.
+########
+# regexec.c
+print("SKIPPED\n# most systems run into stacksize limits\n"),exit;
+no warnings 'regexp' ;
+$SIG{__WARN__} = sub{local ($m) = shift;
+                 $m =~ s/\(\d+\)/(*MASKED*)/;
+                 print STDERR $m};
+$_ = 'a' x (2**15+1);
+/^()(a\1)*?$/ ;
+#
+# If this test fails with a segmentation violation or similar,
+# you may have to increase the default stacksize limit in your
+# shell.  You may need superuser privileges.
+#
+# Under the sh, ksh, zsh:
+#    $ ulimit -s
+#    8192
+#    $ ulimit -s 16000
+#
+# Under the csh:
+#    % limit stacksize
+#    stacksize        8192 kbytes
+#    % limit stacksize 16000
+#
+EXPECT
+

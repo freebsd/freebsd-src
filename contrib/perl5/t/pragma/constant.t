@@ -2,10 +2,10 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    @INC = '../lib' if -d '../lib';
+    unshift @INC, '../lib' if -d '../lib';
 }
 
-BEGIN {$^W |= 1}		# Insist upon warnings
+use warnings;
 use vars qw{ @warnings };
 BEGIN {				# ...and save 'em for later
     $SIG{'__WARN__'} = sub { push @warnings, @_ }
@@ -14,9 +14,9 @@ END { print @warnings }
 
 ######################### We start with some black magic to print on failure.
 
-BEGIN { $| = 1; print "1..46\n"; }
+BEGIN { $| = 1; print "1..73\n"; }
 END {print "not ok 1\n" unless $loaded;}
-use constant;
+use constant 1.01;
 $loaded = 1;
 #print "# Version: $constant::VERSION\n";
 print "ok 1\n";
@@ -96,11 +96,8 @@ test 23, length(MESS) == 8;
 
 use constant TRAILING	=> '12 cats';
 {
-    my $save_warn;
-    local $^W;
-    BEGIN { $save_warn = $^W; $^W = 0 }
+    no warnings 'numeric';
     test 24, TRAILING == 12;
-    BEGIN { $^W = $save_warn }
 }
 test 25, TRAILING eq '12 cats';
 
@@ -138,7 +135,7 @@ test 37, @warnings &&
     shift @warnings;
 
 test 38, @warnings == 0, "unexpected warning";
-test 39, $^W & 1, "Who disabled the warnings?";
+test 39, 1;
 
 use constant CSCALAR	=> \"ok 40\n";
 use constant CHASH	=> { foo => "ok 41\n" };
@@ -151,7 +148,83 @@ print CHASH->{foo};
 print CARRAY->[1];
 print CPHASH->{foo};
 eval q{ CPHASH->{bar} };
-test 44, scalar($@ =~ /^No such array/);
+test 44, scalar($@ =~ /^No such pseudo-hash field/);
 print CCODE->(45);
 eval q{ CCODE->{foo} };
 test 46, scalar($@ =~ /^Constant is not a HASH/);
+
+# Allow leading underscore
+use constant _PRIVATE => 47;
+test 47, _PRIVATE == 47;
+
+# Disallow doubled leading underscore
+eval q{
+    use constant __DISALLOWED => "Oops";
+};
+test 48, $@ =~ /begins with '__'/;
+
+# Check on declared() and %declared. This sub should be EXACTLY the
+# same as the one quoted in the docs!
+sub declared ($) {
+    use constant 1.01;              # don't omit this!
+    my $name = shift;
+    $name =~ s/^::/main::/;
+    my $pkg = caller;
+    my $full_name = $name =~ /::/ ? $name : "${pkg}::$name";
+    $constant::declared{$full_name};
+}
+
+test 49, declared 'PI';
+test 50, $constant::declared{'main::PI'};
+
+test 51, !declared 'PIE';
+test 52, !$constant::declared{'main::PIE'};
+
+{
+    package Other;
+    use constant IN_OTHER_PACK => 42;
+    ::test 53, ::declared 'IN_OTHER_PACK';
+    ::test 54, $constant::declared{'Other::IN_OTHER_PACK'};
+    ::test 55, ::declared 'main::PI';
+    ::test 56, $constant::declared{'main::PI'};
+}
+
+test 57, declared 'Other::IN_OTHER_PACK';
+test 58, $constant::declared{'Other::IN_OTHER_PACK'};
+
+@warnings = ();
+eval q{
+    no warnings;
+    use warnings 'constant';
+    use constant 'BEGIN' => 1 ;
+    use constant 'INIT' => 1 ;
+    use constant 'CHECK' => 1 ;
+    use constant 'END' => 1 ;
+    use constant 'DESTROY' => 1 ;
+    use constant 'AUTOLOAD' => 1 ;
+    use constant 'STDIN' => 1 ;
+    use constant 'STDOUT' => 1 ;
+    use constant 'STDERR' => 1 ;
+    use constant 'ARGV' => 1 ;
+    use constant 'ARGVOUT' => 1 ;
+    use constant 'ENV' => 1 ;
+    use constant 'INC' => 1 ;
+    use constant 'SIG' => 1 ;
+};
+
+test 59, @warnings == 14 ;
+test 60, (shift @warnings) =~ /^Constant name 'BEGIN' is a Perl keyword at/;
+test 61, (shift @warnings) =~ /^Constant name 'INIT' is a Perl keyword at/;
+test 62, (shift @warnings) =~ /^Constant name 'CHECK' is a Perl keyword at/;
+test 63, (shift @warnings) =~ /^Constant name 'END' is a Perl keyword at/;
+test 64, (shift @warnings) =~ /^Constant name 'DESTROY' is a Perl keyword at/;
+test 65, (shift @warnings) =~ /^Constant name 'AUTOLOAD' is a Perl keyword at/;
+test 66, (shift @warnings) =~ /^Constant name 'STDIN' is forced into package main:: a/;
+test 67, (shift @warnings) =~ /^Constant name 'STDOUT' is forced into package main:: at/;
+test 68, (shift @warnings) =~ /^Constant name 'STDERR' is forced into package main:: at/;
+test 69, (shift @warnings) =~ /^Constant name 'ARGV' is forced into package main:: at/;
+test 70, (shift @warnings) =~ /^Constant name 'ARGVOUT' is forced into package main:: at/;
+test 71, (shift @warnings) =~ /^Constant name 'ENV' is forced into package main:: at/;
+test 72, (shift @warnings) =~ /^Constant name 'INC' is forced into package main:: at/;
+test 73, (shift @warnings) =~ /^Constant name 'SIG' is forced into package main:: at/;
+@warnings = ();

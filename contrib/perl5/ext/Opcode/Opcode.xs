@@ -1,3 +1,4 @@
+#define PERL_NO_GET_CONTEXT
 #include "EXTERN.h"
 #include "perl.h"
 #include "XSUB.h"
@@ -11,11 +12,11 @@ static SV *opset_all;		/* mask with all bits set		*/
 static IV  opset_len;		/* length of opmasks in bytes		*/
 static int opcode_debug = 0;
 
-static SV  *new_opset _((SV *old_opset));
-static int  verify_opset _((SV *opset, int fatal));
-static void set_opset_bits _((char *bitmap, SV *bitspec, int on, char *opname));
-static void put_op_bitspec _((char *optag,  STRLEN len, SV *opset));
-static SV  *get_op_bitspec _((char *opname, STRLEN len, int fatal));
+static SV  *new_opset (pTHX_ SV *old_opset);
+static int  verify_opset (pTHX_ SV *opset, int fatal);
+static void set_opset_bits (pTHX_ char *bitmap, SV *bitspec, int on, char *opname);
+static void put_op_bitspec (pTHX_ char *optag,  STRLEN len, SV *opset);
+static SV  *get_op_bitspec (pTHX_ char *opname, STRLEN len, int fatal);
 
 
 /* Initialise our private op_named_bits HV.
@@ -27,7 +28,7 @@ static SV  *get_op_bitspec _((char *opname, STRLEN len, int fatal));
  */
 
 static void
-op_names_init(void)
+op_names_init(pTHX)
 {
     int i;
     STRLEN len;
@@ -43,16 +44,16 @@ op_names_init(void)
 	hv_store(op_named_bits, op_names[i], strlen(op_names[i]), sv, 0);
     }
 
-    put_op_bitspec(":none",0, sv_2mortal(new_opset(Nullsv)));
+    put_op_bitspec(aTHX_ ":none",0, sv_2mortal(new_opset(aTHX_ Nullsv)));
 
-    opset_all = new_opset(Nullsv);
+    opset_all = new_opset(aTHX_ Nullsv);
     bitmap = SvPV(opset_all, len);
     i = len-1; /* deal with last byte specially, see below */
     while(i-- > 0)
 	bitmap[i] = 0xFF;
     /* Take care to set the right number of bits in the last byte */
     bitmap[len-1] = (PL_maxo & 0x07) ? ~(0xFF << (PL_maxo & 0x07)) : 0xFF;
-    put_op_bitspec(":all",0, opset_all); /* don't mortalise */
+    put_op_bitspec(aTHX_ ":all",0, opset_all); /* don't mortalise */
 }
 
 
@@ -62,10 +63,10 @@ op_names_init(void)
  */
 
 static void
-put_op_bitspec(char *optag, STRLEN len, SV *mask)
+put_op_bitspec(pTHX_ char *optag, STRLEN len, SV *mask)
 {
     SV **svp;
-    verify_opset(mask,1);
+    verify_opset(aTHX_ mask,1);
     if (!len)
 	len = strlen(optag);
     svp = hv_fetch(op_named_bits, optag, len, 1);
@@ -83,7 +84,7 @@ put_op_bitspec(char *optag, STRLEN len, SV *mask)
  */
 
 static SV *
-get_op_bitspec(char *opname, STRLEN len, int fatal)
+get_op_bitspec(pTHX_ char *opname, STRLEN len, int fatal)
 {
     SV **svp;
     if (!len)
@@ -106,11 +107,11 @@ get_op_bitspec(char *opname, STRLEN len, int fatal)
 
 
 static SV *
-new_opset(SV *old_opset)
+new_opset(pTHX_ SV *old_opset)
 {
     SV *opset;
     if (old_opset) {
-	verify_opset(old_opset,1);
+	verify_opset(aTHX_ old_opset,1);
 	opset = newSVsv(old_opset);
     }
     else {
@@ -125,7 +126,7 @@ new_opset(SV *old_opset)
 
 
 static int
-verify_opset(SV *opset, int fatal)
+verify_opset(pTHX_ SV *opset, int fatal)
 {
     char *err = Nullch;
     if      (!SvOK(opset))              err = "undefined";
@@ -139,7 +140,7 @@ verify_opset(SV *opset, int fatal)
 
 
 static void
-set_opset_bits(char *bitmap, SV *bitspec, int on, char *opname)
+set_opset_bits(pTHX_ char *bitmap, SV *bitspec, int on, char *opname)
 {
     if (SvIOK(bitspec)) {
 	int myopcode = SvIV(bitspec);
@@ -173,14 +174,14 @@ set_opset_bits(char *bitmap, SV *bitspec, int on, char *opname)
 
 
 static void
-opmask_add(SV *opset)	/* THE ONLY FUNCTION TO EDIT PL_op_mask ITSELF	*/
+opmask_add(pTHX_ SV *opset)	/* THE ONLY FUNCTION TO EDIT PL_op_mask ITSELF	*/
 {
     int i,j;
     char *bitmask;
     STRLEN len;
     int myopcode = 0;
 
-    verify_opset(opset,1);			/* croaks on bad opset	*/
+    verify_opset(aTHX_ opset,1);		/* croaks on bad opset	*/
 
     if (!PL_op_mask)		/* caller must ensure PL_op_mask exists	*/
 	croak("Can't add to uninitialised PL_op_mask");
@@ -200,23 +201,23 @@ opmask_add(SV *opset)	/* THE ONLY FUNCTION TO EDIT PL_op_mask ITSELF	*/
 }
 
 static void
-opmask_addlocal(SV *opset, char *op_mask_buf) /* Localise PL_op_mask then opmask_add() */
+opmask_addlocal(pTHX_ SV *opset, char *op_mask_buf) /* Localise PL_op_mask then opmask_add() */
 {
     char *orig_op_mask = PL_op_mask;
-    SAVEPPTR(PL_op_mask);
+    SAVEVPTR(PL_op_mask);
 #if !defined(PERL_OBJECT)
     /* XXX casting to an ordinary function ptr from a member function ptr
      * is disallowed by Borland
      */
     if (opcode_debug >= 2)
-	SAVEDESTRUCTOR((void(CPERLscope(*))_((void*)))warn,"PL_op_mask restored");
+	SAVEDESTRUCTOR((void(*)(void*))Perl_warn,"PL_op_mask restored");
 #endif
     PL_op_mask = &op_mask_buf[0];
     if (orig_op_mask)
 	Copy(orig_op_mask, PL_op_mask, PL_maxo, char);
     else
 	Zero(PL_op_mask, PL_maxo, char);
-    opmask_add(opset);
+    opmask_add(aTHX_ opset);
 }
 
 
@@ -230,7 +231,7 @@ BOOT:
     opset_len = (PL_maxo + 7) / 8;
     if (opcode_debug >= 1)
 	warn("opset_len %ld\n", (long)opset_len);
-    op_names_init();
+    op_names_init(aTHX);
 
 
 void
@@ -244,7 +245,7 @@ PPCODE:
 
     ENTER;
 
-    opmask_addlocal(mask, op_mask_buf);
+    opmask_addlocal(aTHX_ mask, op_mask_buf);
 
     save_aptr(&PL_endav);
     PL_endav = (AV*)sv_2mortal((SV*)newAV()); /* ignore END blocks for now	*/
@@ -252,6 +253,8 @@ PPCODE:
     save_hptr(&PL_defstash);		/* save current default stack	*/
     /* the assignment to global defstash changes our sense of 'main'	*/
     PL_defstash = gv_stashpv(Package, GV_ADDWARN); /* should exist already	*/
+    save_hptr(&PL_curstash);
+    PL_curstash = PL_defstash;
 
     /* defstash must itself contain a main:: so we'll add that now	*/
     /* take care with the ref counts (was cause of long standing bug)	*/
@@ -270,7 +273,10 @@ int
 verify_opset(opset, fatal = 0)
     SV *opset
     int fatal
-
+CODE:
+    RETVAL = verify_opset(aTHX_ opset,fatal);
+OUTPUT:
+    RETVAL
 
 void
 invert_opset(opset)
@@ -279,7 +285,7 @@ CODE:
     {
     char *bitmap;
     STRLEN len = opset_len;
-    opset = sv_2mortal(new_opset(opset));	/* verify and clone opset */
+    opset = sv_2mortal(new_opset(aTHX_ opset));	/* verify and clone opset */
     bitmap = SvPVX(opset);
     while(len-- > 0)
 	bitmap[len] = ~bitmap[len];
@@ -300,7 +306,7 @@ PPCODE:
     int i, j, myopcode;
     char *bitmap = SvPV(opset, len);
     char **names = (desc) ? get_op_descs() : get_op_names();
-    verify_opset(opset,1);
+    verify_opset(aTHX_ opset,1);
     for (myopcode=0, i=0; i < opset_len; i++) {
 	U16 bits = bitmap[i];
 	for (j=0; j < 8 && myopcode < PL_maxo; j++, myopcode++) {
@@ -318,21 +324,21 @@ CODE:
     SV *bitspec, *opset;
     char *bitmap;
     STRLEN len, on;
-    opset = sv_2mortal(new_opset(Nullsv));
+    opset = sv_2mortal(new_opset(aTHX_ Nullsv));
     bitmap = SvPVX(opset);
     for (i = 0; i < items; i++) {
 	char *opname;
 	on = 1;
-	if (verify_opset(ST(i),0)) {
+	if (verify_opset(aTHX_ ST(i),0)) {
 	    opname = "(opset)";
 	    bitspec = ST(i);
 	}
 	else {
 	    opname = SvPV(ST(i), len);
 	    if (*opname == '!') { on=0; ++opname;--len; }
-	    bitspec = get_op_bitspec(opname, len, 1);
+	    bitspec = get_op_bitspec(aTHX_ opname, len, 1);
 	}
-	set_opset_bits(bitmap, bitspec, on, opname);
+	set_opset_bits(aTHX_ bitmap, bitspec, on, opname);
     }
     ST(0) = opset;
 
@@ -357,13 +363,13 @@ CODE:
 	croak("Not a Safe object");
     mask = *hv_fetch((HV*)SvRV(safe), "Mask",4, 1);
     if (ONLY_THESE)	/* *_only = new mask, else edit current	*/
-	sv_setsv(mask, sv_2mortal(new_opset(PERMITING ? opset_all : Nullsv)));
+	sv_setsv(mask, sv_2mortal(new_opset(aTHX_ PERMITING ? opset_all : Nullsv)));
     else
-	verify_opset(mask,1); /* croaks */
+	verify_opset(aTHX_ mask,1); /* croaks */
     bitmap = SvPVX(mask);
     for (i = 1; i < items; i++) {
 	on = PERMITING ? 0 : 1;		/* deny = mask bit on	*/
-	if (verify_opset(ST(i),0)) {	/* it's a valid mask	*/
+	if (verify_opset(aTHX_ ST(i),0)) {	/* it's a valid mask	*/
 	    opname = "(opset)";
 	    bitspec = ST(i);
 	}
@@ -371,9 +377,9 @@ CODE:
 	    opname = SvPV(ST(i), len);
 	    /* invert if op has ! prefix (only one allowed)	*/
 	    if (*opname == '!') { on = !on; ++opname; --len; }
-	    bitspec = get_op_bitspec(opname, len, 1); /* croaks */
+	    bitspec = get_op_bitspec(aTHX_ opname, len, 1); /* croaks */
 	}
-	set_opset_bits(bitmap, bitspec, on, opname);
+	set_opset_bits(aTHX_ bitmap, bitspec, on, opname);
     }
     ST(0) = &PL_sv_yes;
 
@@ -388,10 +394,10 @@ PPCODE:
     char **op_desc = get_op_descs(); 
     /* copy args to a scratch area since we may push output values onto	*/
     /* the stack faster than we read values off it if masks are used.	*/
-    args = (SV**)SvPVX(sv_2mortal(newSVpv((char*)&ST(0), items*sizeof(SV*))));
+    args = (SV**)SvPVX(sv_2mortal(newSVpvn((char*)&ST(0), items*sizeof(SV*))));
     for (i = 0; i < items; i++) {
 	char *opname = SvPV(args[i], len);
-	SV *bitspec = get_op_bitspec(opname, len, 1);
+	SV *bitspec = get_op_bitspec(aTHX_ opname, len, 1);
 	if (SvIOK(bitspec)) {
 	    myopcode = SvIV(bitspec);
 	    if (myopcode < 0 || myopcode >= PL_maxo)
@@ -423,19 +429,19 @@ define_optag(optagsv, mask)
 CODE:
     STRLEN len;
     char *optag = SvPV(optagsv, len);
-    put_op_bitspec(optag, len, mask); /* croaks */
+    put_op_bitspec(aTHX_ optag, len, mask); /* croaks */
     ST(0) = &PL_sv_yes;
 
 
 void
 empty_opset()
 CODE:
-    ST(0) = sv_2mortal(new_opset(Nullsv));
+    ST(0) = sv_2mortal(new_opset(aTHX_ Nullsv));
 
 void
 full_opset()
 CODE:
-    ST(0) = sv_2mortal(new_opset(opset_all));
+    ST(0) = sv_2mortal(new_opset(aTHX_ opset_all));
 
 void
 opmask_add(opset)
@@ -443,6 +449,8 @@ opmask_add(opset)
 PREINIT:
     if (!PL_op_mask)
 	Newz(0, PL_op_mask, PL_maxo, char);
+CODE:
+    opmask_add(aTHX_ opset);
 
 void
 opcodes()
@@ -457,7 +465,7 @@ PPCODE:
 void
 opmask()
 CODE:
-    ST(0) = sv_2mortal(new_opset(Nullsv));
+    ST(0) = sv_2mortal(new_opset(aTHX_ Nullsv));
     if (PL_op_mask) {
 	char *bitmap = SvPVX(ST(0));
 	int myopcode;

@@ -2,19 +2,18 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    @INC = '../lib';
+    unshift @INC, '../lib';
 }
 
 use strict;
+use warnings;
 
 use vars qw{ @warnings };
 
 BEGIN {
-    $^W |= 1;		# Insist upon warnings
-    # ...and save 'em as we go
     $SIG{'__WARN__'} = sub { push @warnings, @_ };
     $| = 1;
-    print "1..7\n";
+    print "1..9\n";
 }
 
 END { print "not ok\n# Uncaught warnings:\n@warnings\n" if @warnings }
@@ -66,6 +65,13 @@ my $ref_msg = '/^Reference found where even-sized list expected/';
     %hash = sub { print "ok" };
     test_warning 6, shift @warnings, $odd_msg;
 
+    my $avhv = [{x=>1,y=>2}];
+    %$avhv = (x=>13,'y');
+    test_warning 7, shift @warnings, $odd_msg;
+
+    %$avhv = 'x';
+    test_warning 8, shift @warnings, $odd_msg;
+
     $_ = { 1..10 };
-    test 7, ! @warnings, "Unexpected warning";
+    test 9, ! @warnings, "Unexpected warning";
 }

@@ -6,7 +6,7 @@ BEGIN {
     require Config; import Config;
 }
 
-print "1..142\n";
+print "1..156\n";
 
 $format = "c2 x5 C C x s d i l a6";
 # Need the expression in here to force ary[5] to be numeric.  This avoids
@@ -19,7 +19,10 @@ print ($#ary == $#ary2 ? "ok 1\n" : "not ok 1\n");
 
 $out1=join(':',@ary);
 $out2=join(':',@ary2);
-print ($out1 eq $out2 ? "ok 2\n" : "not ok 2\n");
+# Using long double NVs may introduce greater accuracy than wanted.
+$out1 =~ s/:9\.87654321097999\d*:/:9.87654321098:/;
+$out2 =~ s/:9\.87654321097999\d*:/:9.87654321098:/;
+print ($out1 eq $out2? "ok 2\n" : "not ok 2\n");
 
 print ($foo =~ /def/ ? "ok 3\n" : "not ok 3\n");
 
@@ -95,7 +98,7 @@ print((unpack("p",pack("p",$test)) == $test ? "ok " : "not ok "),$test++,"\n");
 # temps
 sub foo { my $a = "a"; return $a . $a++ . $a++ }
 {
-  local $^W = 1;
+  use warnings;
   my $last = $test;
   local $SIG{__WARN__} = sub {
 	print "ok ",$test++,"\n" if $_[0] =~ /temporary val/
@@ -208,7 +211,7 @@ EOUU
 print "not " unless unpack('u', $uu) eq $in;
 print "ok ", $test++, "\n";
 
-# 61..72: test the ascii template types (A, a, Z)
+# 61..73: test the ascii template types (A, a, Z)
 
 print "not " unless pack('A*', "foo\0bar\0 ") eq "foo\0bar\0 ";
 print "ok ", $test++, "\n";
@@ -234,10 +237,13 @@ print "ok ", $test++, "\n";
 print "not " unless unpack('a8', "foo\0bar \0") eq "foo\0bar ";
 print "ok ", $test++, "\n";
 
-print "not " unless pack('Z*', "foo\0bar\0 ") eq "foo\0bar\0 ";
+print "not " unless pack('Z*', "foo\0bar\0 ") eq "foo\0bar\0 \0";
 print "ok ", $test++, "\n";
 
 print "not " unless pack('Z11', "foo\0bar\0 ") eq "foo\0bar\0 \0\0";
+print "ok ", $test++, "\n";
+
+print "not " unless pack('Z3', "foo") eq "fo\0";
 print "ok ", $test++, "\n";
 
 print "not " unless unpack('Z*', "foo\0bar \0") eq "foo";
@@ -246,103 +252,101 @@ print "ok ", $test++, "\n";
 print "not " unless unpack('Z8', "foo\0bar \0") eq "foo";
 print "ok ", $test++, "\n";
 
-# 73..78: packing native shorts/ints/longs
+# 74..79: packing native shorts/ints/longs
 
-# integrated from mainline and don't want to change numbers all the way
-# down. native ints are not supported in _0x so comment out checks
-#print "not " unless length(pack("s!", 0)) == $Config{shortsize};
+print "not " unless length(pack("s!", 0)) == $Config{shortsize};
 print "ok ", $test++, "\n";
 
-#print "not " unless length(pack("i!", 0)) == $Config{intsize};
+print "not " unless length(pack("i!", 0)) == $Config{intsize};
 print "ok ", $test++, "\n";
 
-#print "not " unless length(pack("l!", 0)) == $Config{longsize};
+print "not " unless length(pack("l!", 0)) == $Config{longsize};
 print "ok ", $test++, "\n";
 
-#print "not " unless length(pack("s!", 0)) <= length(pack("i!", 0));
+print "not " unless length(pack("s!", 0)) <= length(pack("i!", 0));
 print "ok ", $test++, "\n";
 
-#print "not " unless length(pack("i!", 0)) <= length(pack("l!", 0));
+print "not " unless length(pack("i!", 0)) <= length(pack("l!", 0));
 print "ok ", $test++, "\n";
 
-#print "not " unless length(pack("i!", 0)) == length(pack("i", 0));
+print "not " unless length(pack("i!", 0)) == length(pack("i", 0));
 print "ok ", $test++, "\n";
 
-# 79..138: pack <-> unpack bijectionism
+# 80..139: pack <-> unpack bijectionism
 
-#  79.. 83 c
+#  80.. 84 c
 foreach my $c (-128, -1, 0, 1, 127) {
     print "not " unless unpack("c", pack("c", $c)) == $c;
     print "ok ", $test++, "\n";
 }
 
-#  84.. 88: C
+#  85.. 89: C
 foreach my $C (0, 1, 127, 128, 255) {
     print "not " unless unpack("C", pack("C", $C)) == $C;
     print "ok ", $test++, "\n";
 }
 
-#  89.. 93: s
+#  90.. 94: s
 foreach my $s (-32768, -1, 0, 1, 32767) {
     print "not " unless unpack("s", pack("s", $s)) == $s;
     print "ok ", $test++, "\n";
 }
 
-#  94.. 98: S
+#  95.. 99: S
 foreach my $S (0, 1, 32767, 32768, 65535) {
     print "not " unless unpack("S", pack("S", $S)) == $S;
     print "ok ", $test++, "\n";
 }
 
-#  99..103: i
+#  100..104: i
 foreach my $i (-2147483648, -1, 0, 1, 2147483647) {
     print "not " unless unpack("i", pack("i", $i)) == $i;
     print "ok ", $test++, "\n";
 }
 
-# 104..108: I
+# 105..109: I
 foreach my $I (0, 1, 2147483647, 2147483648, 4294967295) {
     print "not " unless unpack("I", pack("I", $I)) == $I;
     print "ok ", $test++, "\n";
 }
 
-# 109..113: l
+# 110..114: l
 foreach my $l (-2147483648, -1, 0, 1, 2147483647) {
     print "not " unless unpack("l", pack("l", $l)) == $l;
     print "ok ", $test++, "\n";
 }
 
-# 114..118: L
+# 115..119: L
 foreach my $L (0, 1, 2147483647, 2147483648, 4294967295) {
     print "not " unless unpack("L", pack("L", $L)) == $L;
     print "ok ", $test++, "\n";
 }
 
-# 119..123: n
+# 120..124: n
 foreach my $n (0, 1, 32767, 32768, 65535) {
     print "not " unless unpack("n", pack("n", $n)) == $n;
     print "ok ", $test++, "\n";
 }
 
-# 124..128: v
+# 125..129: v
 foreach my $v (0, 1, 32767, 32768, 65535) {
     print "not " unless unpack("v", pack("v", $v)) == $v;
     print "ok ", $test++, "\n";
 }
 
-# 129..133: N
+# 130..134: N
 foreach my $N (0, 1, 2147483647, 2147483648, 4294967295) {
     print "not " unless unpack("N", pack("N", $N)) == $N;
     print "ok ", $test++, "\n";
 }
 
-# 134..138: V
+# 135..139: V
 foreach my $V (0, 1, 2147483647, 2147483648, 4294967295) {
     print "not " unless unpack("V", pack("V", $V)) == $V;
     print "ok ", $test++, "\n";
 }
 
-# 139..142: pack nvNV byteorders
+# 140..143: pack nvNV byteorders
 
 print "not " unless pack("n", 0xdead) eq "\xde\xad";
 print "ok ", $test++, "\n";
@@ -355,3 +359,49 @@ print "ok ", $test++, "\n";
 
 print "not " unless pack("V", 0xdeadbeef) eq "\xef\xbe\xad\xde";
 print "ok ", $test++, "\n";
+
+# 144..152: /
+
+my $z;
+eval { ($x) = unpack '/a*','hello' };
+print 'not ' unless $@; print "ok $test\n"; $test++;
+eval { ($z,$x,$y) = unpack 'a3/A C/a* C/Z', "003ok \003yes\004z\000abc" };
+print $@ eq '' && $z eq 'ok' ? "ok $test\n" : "not ok $test\n"; $test++;
+print $@ eq '' && $x eq 'yes' ? "ok $test\n" : "not ok $test\n"; $test++;
+print $@ eq '' && $y eq 'z' ? "ok $test\n" : "not ok $test\n"; $test++;
+
+eval { ($x) = pack '/a*','hello' };
+print 'not ' unless $@; print "ok $test\n"; $test++;
+$z = pack 'n/a* w/A*','string','etc';
+print 'not ' unless $z eq "\000\006string\003etc"; print "ok $test\n"; $test++;
+
+eval { ($x) = unpack 'a/a*/a*', '212ab345678901234567' };
+print $@ eq '' && $x eq 'ab3456789012' ? "ok $test\n" : "#$x,$@\nnot ok $test\n";
+$test++;
+
+eval { ($x) = unpack 'a/a*/a*', '3012ab345678901234567' };
+print $@ eq '' && $x eq 'ab3456789012' ? "ok $test\n" : "not ok $test\n";
+$test++;
+
+eval { ($x) = unpack 'a/a*/b*', '212ab' };
+my $expected_x = '100001100100';
+if ($Config{ebcdic} eq 'define') { $expected_x = '100000010100'; }
+print $@ eq '' && $x eq $expected_x ? "ok $test\n" : "#$x,$@\nnot ok $test\n";
+$test++;
+
+# 153..156: / with #
+
+eval { ($z,$x,$y) = unpack <<EOU, "003ok \003yes\004z\000abc" };
+ a3/A			# Count in ASCII
+ C/a*			# Count in a C char
+ C/Z			# Count in a C char but skip after \0
+EOU
+print $@ eq '' && $z eq 'ok' ? "ok $test\n" : "not ok $test\n"; $test++;
+print $@ eq '' && $x eq 'yes' ? "ok $test\n" : "not ok $test\n"; $test++;
+print $@ eq '' && $y eq 'z' ? "ok $test\n" : "not ok $test\n"; $test++;
+
+$z = pack <<EOP,'string','etc';
+  n/a*			# Count as network short
+  w/A*			# Count a  BER integer
+EOP
+print 'not ' unless $z eq "\000\006string\003etc"; print "ok $test\n"; $test++;

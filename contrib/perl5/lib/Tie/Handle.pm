@@ -1,22 +1,25 @@
 package Tie::Handle;
 
+use 5.005_64;
+our $VERSION = '1.0';
+
 =head1 NAME
 
-Tie::Handle - base class definitions for tied handles
+Tie::Handle, Tie::StdHandle  - base class definitions for tied handles
 
 =head1 SYNOPSIS
 
     package NewHandle;
     require Tie::Handle;
-     
+
     @ISA = (Tie::Handle);
-     
+
     sub READ { ... }		# Provide a needed method
     sub TIEHANDLE { ... }	# Overrides inherited method
-         
-     
+
+
     package main;
-    
+
     tie *FH, 'NewHandle';
 
 =head1 DESCRIPTION
@@ -24,9 +27,7 @@ Tie::Handle - base class definitions for tied handles
 This module provides some skeletal methods for handle-tying classes. See
 L<perltie> for a list of the functions required in tying a handle to a package.
 The basic B<Tie::Handle> package provides a C<new> method, as well as methods
-C<TIESCALAR>, C<FETCH> and C<STORE>. The C<new> method is provided as a means
-of grandfathering, for classes that forget to provide their own C<TIESCALAR>
-method.
+C<TIEHANDLE>, C<PRINT>, C<PRINTF> and C<GETC>. 
 
 For developers wishing to write their own tied-handle classes, the methods
 are summarized below. The L<perltie> section not only documents these, but
@@ -65,6 +66,32 @@ Read a single line
 
 Get a single character
 
+=item CLOSE this
+
+Close the handle
+
+=item OPEN this, filename
+
+(Re-)open the handle
+
+=item BINMODE this
+
+Specify content is binary
+
+=item EOF this
+
+Test for end of file.
+
+=item TELL this
+
+Return position in the file.
+
+=item SEEK this, offset, whence
+
+Position the file.
+
+Test for end of file.
+
 =item DESTROY this
 
 Free the storage associated with the tied handle referenced by I<this>.
@@ -81,6 +108,7 @@ The L<perltie> section contains an example of tying handles.
 =cut
 
 use Carp;
+use warnings::register;
 
 sub new {
     my $pkg = shift;
@@ -92,8 +120,8 @@ sub new {
 sub TIEHANDLE {
     my $pkg = shift;
     if (defined &{"{$pkg}::new"}) {
-	carp "WARNING: calling ${pkg}->new since ${pkg}->TIEHANDLE is missing"
-	    if $^W;
+	warnings::warn "WARNING: calling ${pkg}->new since ${pkg}->TIEHANDLE is missing"
+	    if warnings::enabled();
 	$pkg->new(@_);
     }
     else {
@@ -117,7 +145,7 @@ sub PRINTF {
     my $self = shift;
     
     if($self->can('WRITE') != \&WRITE) {
-	my $buf = sprintf(@_);
+	my $buf = sprintf(shift,@_);
 	$self->WRITE($buf,length($buf),0);
     }
     else {
@@ -156,6 +184,43 @@ sub WRITE {
 sub CLOSE {
     my $pkg = ref $_[0];
     croak "$pkg doesn't define a CLOSE method";
+} 
+
+package Tie::StdHandle; 
+our @ISA = 'Tie::Handle';       
+use Carp;
+
+sub TIEHANDLE 
+{
+ my $class = shift;
+ my $fh    = do { \local *HANDLE};
+ bless $fh,$class;
+ $fh->OPEN(@_) if (@_);
+ return $fh;
+}         
+
+sub EOF     { eof($_[0]) }
+sub TELL    { tell($_[0]) }
+sub FILENO  { fileno($_[0]) }
+sub SEEK    { seek($_[0],$_[1],$_[2]) }
+sub CLOSE   { close($_[0]) }
+sub BINMODE { binmode($_[0]) }
+
+sub OPEN
+{         
+ $_[0]->CLOSE if defined($_[0]->FILENO);
+ open($_[0],$_[1]);
 }
+
+sub READ     { read($_[0],$_[1],$_[2]) }
+sub READLINE { my $fh = $_[0]; <$fh> }
+sub GETC     { getc($_[0]) }
+
+sub WRITE
+{        
+ my $fh = $_[0];
+ print $fh substr($_[1],0,$_[2])
+}
+
 
 1;

@@ -1,6 +1,6 @@
 /*    gv.h
  *
- *    Copyright (c) 1991-1999, Larry Wall
+ *    Copyright (c) 1991-2000, Larry Wall
  *
  *    You may distribute under the terms of either the GNU General Public
  *    License or the Artistic License, as specified in the README file.
@@ -17,9 +17,9 @@ struct gp {
     GV *	gp_egv;		/* effective gv, if *glob */
     CV *	gp_cv;		/* subroutine value */
     U32		gp_cvgen;	/* generational validity of cached gv_cv */
-    I32		gp_lastexpr;	/* used by nothing_in_common() */
+    U32		gp_flags;	/* XXX unused */
     line_t	gp_line;	/* line first declared at (for -w) */
-    GV *	gp_filegv;	/* file first declared in (for -w) */
+    char *	gp_file;	/* file first declared in (for -w) */
 };
 
 #if defined(CRIPPLED_CC) && (defined(iAPX286) || defined(M_I286) || defined(I80286))
@@ -33,6 +33,14 @@ struct gp {
 #define GvNAMELEN(gv)	(GvXPVGV(gv)->xgv_namelen)
 #define GvSTASH(gv)	(GvXPVGV(gv)->xgv_stash)
 #define GvFLAGS(gv)	(GvXPVGV(gv)->xgv_flags)
+
+/*
+=for apidoc Am|SV*|GvSV|GV* gv
+
+Return the SV from the GV.
+
+=cut
+*/
 
 #define GvSV(gv)	(GvGP(gv)->gp_sv)
 #define GvREFCNT(gv)	(GvGP(gv)->gp_refcnt)
@@ -67,10 +75,11 @@ HV *GvHVn();
 #define GvCVGEN(gv)	(GvGP(gv)->gp_cvgen)
 #define GvCVu(gv)	(GvGP(gv)->gp_cvgen ? Nullcv : GvGP(gv)->gp_cv)
 
-#define GvLASTEXPR(gv)	(GvGP(gv)->gp_lastexpr)
+#define GvGPFLAGS(gv)	(GvGP(gv)->gp_flags)
 
 #define GvLINE(gv)	(GvGP(gv)->gp_line)
-#define GvFILEGV(gv)	(GvGP(gv)->gp_filegv)
+#define GvFILE(gv)	(GvGP(gv)->gp_file)
+#define GvFILEGV(gv)	(gv_fetchfile(GvFILE(gv)))
 
 #define GvEGV(gv)	(GvGP(gv)->gp_egv)
 #define GvENAME(gv)	GvNAME(GvEGV(gv) ? GvEGV(gv) : gv)
@@ -79,6 +88,7 @@ HV *GvHVn();
 #define GVf_INTRO	0x01
 #define GVf_MULTI	0x02
 #define GVf_ASSUMECV	0x04
+#define GVf_IN_PAD	0x08
 #define GVf_IMPORTED	0xF0
 #define GVf_IMPORTED_SV	  0x10
 #define GVf_IMPORTED_AV	  0x20
@@ -117,6 +127,10 @@ HV *GvHVn();
 #define GvIMPORTED_CV_on(gv)	(GvFLAGS(gv) |= GVf_IMPORTED_CV)
 #define GvIMPORTED_CV_off(gv)	(GvFLAGS(gv) &= ~GVf_IMPORTED_CV)
 
+#define GvIN_PAD(gv)		(GvFLAGS(gv) & GVf_IN_PAD)
+#define GvIN_PAD_on(gv)		(GvFLAGS(gv) |= GVf_IN_PAD)
+#define GvIN_PAD_off(gv)	(GvFLAGS(gv) &= ~GVf_IN_PAD)
+
 #define Nullgv Null(GV*)
 
 #define DM_UID   0x003
@@ -128,7 +142,7 @@ HV *GvHVn();
 #define DM_DELAY 0x100
 
 /*
- * symbol creation flags, for use in gv_fetchpv() and perl_get_*v()
+ * symbol creation flags, for use in gv_fetchpv() and get_*v()
  */
 #define GV_ADD		0x01	/* add, if symbol not already there */
 #define GV_ADDMULTI	0x02	/* add, pretending it has been added already */

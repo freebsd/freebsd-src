@@ -11,7 +11,9 @@ use Carp;
 use IO::File;
 
 use B qw(minus_c main_cv main_root main_start comppadlist
-	 class peekop walkoptree svref_2object cstring walksymtable);
+	 class peekop walkoptree svref_2object cstring walksymtable
+	 SVf_POK SVp_POK SVf_IOK SVp_IOK
+	);
 use B::Asmdata qw(@optype @specialsv_name);
 use B::Assembler qw(assemble_fh);
 
@@ -23,11 +25,11 @@ for ($i = 0; $i < @optype; $i++) {
 
 # Following is SVf_POK|SVp_POK
 # XXX Shouldn't be hardwired
-sub POK () { 0x04040000 }
+sub POK () { SVf_POK|SVp_POK }
 
-# Following is SVf_IOK|SVp_OK
+# Following is SVf_IOK|SVp_IOK
 # XXX Shouldn't be hardwired
-sub IOK () { 0x01010000 }
+sub IOK () { SVf_IOK|SVp_IOK }
 
 my ($verbose, $module_only, $no_assemble, $debug_bc, $debug_cv);
 my $assembler_pid;
@@ -191,7 +193,7 @@ sub B::OP::bytecode {
     ldop($ix);
     print "op_next $nextix\n";
     print "op_sibling $sibix\n" unless $strip_syntree;
-    printf "op_type %s\t# %d\n", $op->ppaddr, $type;
+    printf "op_type %s\t# %d\n", "pp_" . $op->name, $type;
     printf("op_seq %d\n", $op->seq) unless $omit_seq;
     if ($type || !$compress_nullops) {
 	printf "op_targ %d\nop_flags 0x%x\nop_private 0x%x\n",
@@ -224,13 +226,11 @@ sub B::SVOP::bytecode {
     $sv->bytecode;
 }
 
-sub B::GVOP::bytecode {
+sub B::PADOP::bytecode {
     my $op = shift;
-    my $gv = $op->gv;
-    my $gvix = $gv->objix;
+    my $padix = $op->padix;
     $op->B::OP::bytecode;
-    print "op_gv $gvix\n";
-    $gv->bytecode;
+    print "op_padix $padix\n";
 }
 
 sub B::PVOP::bytecode {
@@ -241,7 +241,7 @@ sub B::PVOP::bytecode {
     # This would be easy except that OP_TRANS uses a PVOP to store an
     # endian-dependent array of 256 shorts instead of a plain string.
     #
-    if ($op->ppaddr eq "pp_trans") {
+    if ($op->name eq "trans") {
 	my @shorts = unpack("s256", $pv); # assembler handles endianness
 	print "op_pv_tr ", join(",", @shorts), "\n";
     } else {
@@ -256,14 +256,6 @@ sub B::BINOP::bytecode {
     if (($op->type || !$compress_nullops) && !$strip_syntree) {
 	print "op_last $lastix\n";
     }
-}
-
-sub B::CONDOP::bytecode {
-    my $op = shift;
-    my $trueix = $op->true->objix;
-    my $falseix = $op->false->objix;
-    $op->B::UNOP::bytecode;
-    print "op_true $trueix\nop_false $falseix\n";
 }
 
 sub B::LISTOP::bytecode {
@@ -286,26 +278,27 @@ sub B::LOOP::bytecode {
 
 sub B::COP::bytecode {
     my $op = shift;
-    my $stash = $op->stash;
-    my $stashix = $stash->objix;
-    my $filegv = $op->filegv;
-    my $filegvix = $filegv->objix;
+    my $stashpv = $op->stashpv;
+    my $file = $op->file;
     my $line = $op->line;
+    my $warnings = $op->warnings;
+    my $warningsix = $warnings->objix;
     if ($debug_bc) {
-	printf "# line %s:%d\n", $filegv->SV->PV, $line;
+	printf "# line %s:%d\n", $file, $line;
     }
     $op->B::OP::bytecode;
-    printf <<"EOT", pvstring($op->label), $op->cop_seq, $op->arybase;
+    printf <<"EOT", pvstring($op->label), pvstring($stashpv), $op->cop_seq, pvstring($file), $op->arybase;
 newpv %s
 cop_label
-cop_stash $stashix
+newpv %s
+cop_stashpv
 cop_seq %d
-cop_filegv $filegvix
+newpv %s
+cop_file
 cop_arybase %d
 cop_line $line
+cop_warnings $warningsix
 EOT
-    $filegv->bytecode;
-    $stash->bytecode;
 }
 
 sub B::PMOP::bytecode {
@@ -313,7 +306,7 @@ sub B::PMOP::bytecode {
     my $replroot = $op->pmreplroot;
     my $replrootix = $replroot->objix;
     my $replstartix = $op->pmreplstart->objix;
-    my $ppaddr = $op->ppaddr;
+    my $opname = $op->name;
     # pmnext is corrupt in some PMOPs (see misc.t for example)
     #my $pmnextix = $op->pmnext->objix;
 
@@ -321,14 +314,14 @@ sub B::PMOP::bytecode {
 	# OP_PUSHRE (a mutated version of OP_MATCH for the regexp
 	# argument to a split) stores a GV in op_pmreplroot instead
 	# of a substitution syntax tree. We don't want to walk that...
-	if ($ppaddr eq "pp_pushre") {
+	if ($opname eq "pushre") {
 	    $replroot->bytecode;
 	} else {
 	    walkoptree($replroot, "bytecode");
 	}
     }
     $op->B::LISTOP::bytecode;
-    if ($ppaddr eq "pp_pushre") {
+    if ($opname eq "pushre") {
 	printf "op_pmreplrootgv $replrootix\n";
     } else {
 	print "op_pmreplroot $replrootix\nop_pmreplstart $replstartix\n";
@@ -395,7 +388,8 @@ sub B::PVIV::bytecode {
 }
 
 sub B::PVNV::bytecode {
-    my ($sv, $flag) = @_;
+    my $sv = shift;
+    my $flag = shift || 0;
     # The $flag argument is passed through PVMG::bytecode by BM::bytecode
     # and AV::bytecode and indicates special handling. $flag = 1 is used by
     # BM::bytecode and means that we should ensure we save the whole B-M
@@ -469,18 +463,23 @@ sub B::GV::bytecode {
     return if saved($gv);
     my $ix = $gv->objix;
     mark_saved($gv);
+    ldsv($ix);
+    printf <<"EOT", $gv->FLAGS, $gv->GvFLAGS;
+sv_flags 0x%x
+xgv_flags 0x%x
+EOT
+    my $refcnt = $gv->REFCNT;
+    printf("sv_refcnt_add %d\n", $refcnt - 1) if $refcnt > 1;
+    return if $gv->is_empty;
+    printf <<"EOT", $gv->LINE, pvstring($gv->FILE);
+gp_line %d
+newpv %s
+gp_file
+EOT
     my $gvname = $gv->NAME;
     my $name = cstring($gv->STASH->NAME . "::" . $gvname);
     my $egv = $gv->EGV;
     my $egvix = $egv->objix;
-    ldsv($ix);
-    printf <<"EOT", $gv->FLAGS, $gv->GvFLAGS, $gv->LINE;
-sv_flags 0x%x
-xgv_flags 0x%x
-gp_line %d
-EOT
-    my $refcnt = $gv->REFCNT;
-    printf("sv_refcnt_add %d\n", $refcnt - 1) if $refcnt > 1;
     my $gvrefcnt = $gv->GvREFCNT;
     printf("gp_refcnt_add %d\n", $gvrefcnt - 1) if $gvrefcnt > 1;
     if ($gvrefcnt > 1 &&  $ix != $egvix) {
@@ -488,7 +487,7 @@ EOT
     } else {
 	if ($gvname !~ /^([^A-Za-z]|STDIN|STDOUT|STDERR|ARGV|SIG|ENV)$/) {
 	    my $i;
-	    my @subfield_names = qw(SV AV HV CV FILEGV FORM IO);
+	    my @subfield_names = qw(SV AV HV CV FORM IO);
 	    my @subfields = map($gv->$_(), @subfield_names);
 	    my @ixes = map($_->objix, @subfields);
 	    # Reset sv register for $gv
@@ -571,7 +570,7 @@ sub B::CV::bytecode {
     my $ix = $cv->objix;
     $cv->B::PVMG::bytecode;
     my $i;
-    my @subfield_names = qw(ROOT START STASH GV FILEGV PADLIST OUTSIDE);
+    my @subfield_names = qw(ROOT START STASH GV PADLIST OUTSIDE);
     my @subfields = map($cv->$_(), @subfield_names);
     my @ixes = map($_->objix, @subfields);
     # Save OP tree from CvROOT (first element of @subfields)
@@ -584,7 +583,8 @@ sub B::CV::bytecode {
     for ($i = 0; $i < @ixes; $i++) {
 	printf "xcv_%s %d\n", lc($subfield_names[$i]), $ixes[$i];
     }
-    printf "xcv_depth %d\nxcv_flags 0x%x\n", $cv->DEPTH, $cv->FLAGS;
+    printf "xcv_depth %d\nxcv_flags 0x%x\n", $cv->DEPTH, $cv->CvFLAGS;
+    printf "newpv %s\nxcv_file\n", pvstring($cv->FILE);
     # Now save all the subfields (except for CvROOT which was handled
     # above) and CvSTART (now the initial element of @subfields).
     shift @subfields; # bye-bye CvSTART
@@ -653,7 +653,7 @@ sub bytecompile_main {
     walkoptree(main_root, "bytecode");
     warn "done main program, now walking symbol table\n" if $debug_bc;
     my ($pack, %exclude);
-    foreach $pack (qw(B O AutoLoader DynaLoader Config DB VMS strict vars
+    foreach $pack (qw(B O AutoLoader DynaLoader XSLoader Config DB VMS strict vars
 		      FileHandle Exporter Carp UNIVERSAL IO Fcntl Symbol
 		      SelectSaver blib Cwd))
     {
@@ -706,6 +706,10 @@ sub compile {
 	} elsif ($opt eq "o") {
 	    $arg ||= shift @options;
 	    open(OUT, ">$arg") or return "$arg: $!\n";
+	    binmode OUT;
+	} elsif ($opt eq "a") {
+	    $arg ||= shift @options;
+	    open(OUT, ">>$arg") or return "$arg: $!\n";
 	    binmode OUT;
 	} elsif ($opt eq "D") {
 	    $arg ||= shift @options;
@@ -816,6 +820,10 @@ extra arguments, it saves the main program.
 
 Output to filename instead of STDOUT.
 
+=item B<-afilename>
+
+Append output to filename.
+
 =item B<-->
 
 Force end of options.
@@ -889,13 +897,16 @@ C<main_root> and C<curpad> are omitted.
 
 =head1 EXAMPLES
 
-        perl -MO=Bytecode,-O6,-o,foo.plc foo.pl
+    perl -MO=Bytecode,-O6,-o,foo.plc foo.pl
 
-        perl -MO=Bytecode,-S foo.pl > foo.S
-        assemble foo.S > foo.plc
-        byteperl foo.plc
+    perl -MO=Bytecode,-S foo.pl > foo.S
+    assemble foo.S > foo.plc
 
-        perl -MO=Bytecode,-m,-oFoo.pmc Foo.pm
+Note that C<assemble> lives in the C<B> subdirectory of your perl
+library directory. The utility called perlcc may also be used to 
+help make use of this compiler.
+
+    perl -MO=Bytecode,-m,-oFoo.pmc Foo.pm
 
 =head1 BUGS
 

@@ -1,4 +1,5 @@
 #include "EXTERN.h"
+#define PERL_IN_UNIVERSAL_C
 #include "perl.h"
 
 /*
@@ -7,7 +8,7 @@
  */
 
 STATIC SV *
-isa_lookup(HV *stash, char *name, int len, int level)
+S_isa_lookup(pTHX_ HV *stash, const char *name, int len, int level)
 {
     AV* av;
     GV* gv;
@@ -21,7 +22,7 @@ isa_lookup(HV *stash, char *name, int len, int level)
 	return &PL_sv_yes;
 
     if (level > 100)
-	croak("Recursive inheritance detected in package '%s'", HvNAME(stash));
+	Perl_croak(aTHX_ "Recursive inheritance detected in package '%s'", HvNAME(stash));
 
     gvp = (GV**)hv_fetch(stash, "::ISA::CACHE::", 14, FALSE);
 
@@ -53,8 +54,10 @@ isa_lookup(HV *stash, char *name, int len, int level)
 		SV* sv = *svp++;
 		HV* basestash = gv_stashsv(sv, FALSE);
 		if (!basestash) {
-		    if (PL_dowarn)
-			warn("Can't locate package %s for @%s::ISA",
+		    dTHR;
+		    if (ckWARN(WARN_MISC))
+			Perl_warner(aTHX_ WARN_SYNTAX,
+		             "Can't locate package %s for @%s::ISA",
 			    SvPVX(sv), HvNAME(stash));
 		    continue;
 		}
@@ -70,10 +73,19 @@ isa_lookup(HV *stash, char *name, int len, int level)
     return boolSV(strEQ(name, "UNIVERSAL"));
 }
 
+/*
+=for apidoc sv_derived_from
+
+Returns a boolean indicating whether the SV is derived from the specified
+class.  This is the function that implements C<UNIVERSAL::isa>.  It works
+for class names as well as for objects.
+
+=cut
+*/
+
 bool
-sv_derived_from(SV *sv, char *name)
+Perl_sv_derived_from(pTHX_ SV *sv, const char *name)
 {
-    SV *rv;
     char *type;
     HV *stash;
   
@@ -97,12 +109,21 @@ sv_derived_from(SV *sv, char *name)
             (stash && isa_lookup(stash, name, strlen(name), 0) == &PL_sv_yes)
         ? TRUE
         : FALSE ;
- 
 }
 
-#ifdef PERL_OBJECT
-#define NO_XSLOCKS
-#endif  /* PERL_OBJECT */
+void XS_UNIVERSAL_isa(pTHXo_ CV *cv);
+void XS_UNIVERSAL_can(pTHXo_ CV *cv);
+void XS_UNIVERSAL_VERSION(pTHXo_ CV *cv);
+
+void
+Perl_boot_core_UNIVERSAL(pTHX)
+{
+    char *file = __FILE__;
+
+    newXS("UNIVERSAL::isa",             XS_UNIVERSAL_isa,         file);
+    newXS("UNIVERSAL::can",             XS_UNIVERSAL_can,         file);
+    newXS("UNIVERSAL::VERSION", 	XS_UNIVERSAL_VERSION, 	  file);
+}
 
 #include "XSUB.h"
 
@@ -114,9 +135,16 @@ XS(XS_UNIVERSAL_isa)
     STRLEN n_a;
 
     if (items != 2)
-	croak("Usage: UNIVERSAL::isa(reference, kind)");
+	Perl_croak(aTHX_ "Usage: UNIVERSAL::isa(reference, kind)");
 
     sv = ST(0);
+
+    if (SvGMAGICAL(sv))
+	mg_get(sv);
+
+    if (!SvOK(sv) || !(SvROK(sv) || (SvPOK(sv) && SvCUR(sv))))
+	XSRETURN_UNDEF;
+
     name = (char *)SvPV(ST(1),n_a);
 
     ST(0) = boolSV(sv_derived_from(sv, name));
@@ -133,9 +161,16 @@ XS(XS_UNIVERSAL_can)
     STRLEN n_a;
 
     if (items != 2)
-	croak("Usage: UNIVERSAL::can(object-ref, method)");
+	Perl_croak(aTHX_ "Usage: UNIVERSAL::can(object-ref, method)");
 
     sv = ST(0);
+
+    if (SvGMAGICAL(sv))
+	mg_get(sv);
+
+    if (!SvOK(sv) || !(SvROK(sv) || (SvPOK(sv) && SvCUR(sv))))
+	XSRETURN_UNDEF;
+
     name = (char *)SvPV(ST(1),n_a);
     rv = &PL_sv_undef;
 
@@ -166,12 +201,11 @@ XS(XS_UNIVERSAL_VERSION)
     GV *gv;
     SV *sv;
     char *undef;
-    double req;
 
-    if(SvROK(ST(0))) {
+    if (SvROK(ST(0))) {
         sv = (SV*)SvRV(ST(0));
-        if(!SvOBJECT(sv))
-            croak("Cannot find version of an unblessed reference");
+        if (!SvOBJECT(sv))
+            Perl_croak(aTHX_ "Cannot find version of an unblessed reference");
         pkg = SvSTASH(sv);
     }
     else {
@@ -180,7 +214,7 @@ XS(XS_UNIVERSAL_VERSION)
 
     gvp = pkg ? (GV**)hv_fetch(pkg,"VERSION",7,FALSE) : Null(GV**);
 
-    if (gvp && (gv = *gvp) != (GV*)&PL_sv_undef && (sv = GvSV(gv))) {
+    if (gvp && isGV(gv = *gvp) && SvOK(sv = GvSV(gv))) {
         SV *nsv = sv_newmortal();
         sv_setsv(nsv, sv);
         sv = nsv;
@@ -191,29 +225,58 @@ XS(XS_UNIVERSAL_VERSION)
         undef = "(undef)";
     }
 
-    if (items > 1 && (undef || (req = SvNV(ST(1)), req > SvNV(sv)))) {
-	STRLEN n_a;
-	croak("%s version %s required--this is only version %s",
-	      HvNAME(pkg), SvPV(ST(1),n_a), undef ? undef : SvPV(sv,n_a));
+    if (items > 1) {
+	STRLEN len;
+	SV *req = ST(1);
+
+	if (undef)
+	    Perl_croak(aTHX_ "%s does not define $%s::VERSION--version check failed",
+		       HvNAME(pkg), HvNAME(pkg));
+
+	if (!SvNIOK(sv) && SvPOK(sv)) {
+	    char *str = SvPVx(sv,len);
+	    while (len) {
+		--len;
+		/* XXX could DWIM "1.2.3" here */
+		if (!isDIGIT(str[len]) && str[len] != '.' && str[len] != '_')
+		    break;
+	    }
+	    if (len) {
+		if (SvNIOKp(req) && SvPOK(req)) {
+		    /* they said C<use Foo v1.2.3> and $Foo::VERSION
+		     * doesn't look like a float: do string compare */
+		    if (sv_cmp(req,sv) == 1) {
+			Perl_croak(aTHX_ "%s v%vd required--"
+				   "this is only v%vd",
+				   HvNAME(pkg), req, sv);
+		    }
+		    goto finish;
+		}
+		/* they said C<use Foo 1.002_003> and $Foo::VERSION
+		 * doesn't look like a float: force numeric compare */
+		(void)SvUPGRADE(sv, SVt_PVNV);
+		SvNVX(sv) = str_to_version(sv);
+		SvPOK_off(sv);
+		SvNOK_on(sv);
+	    }
+	}
+	/* if we get here, we're looking for a numeric comparison,
+	 * so force the required version into a float, even if they
+	 * said C<use Foo v1.2.3> */
+	if (SvNIOKp(req) && SvPOK(req)) {
+	    NV n = SvNV(req);
+	    req = sv_newmortal();
+	    sv_setnv(req, n);
+	}
+
+	if (SvNV(req) > SvNV(sv))
+	    Perl_croak(aTHX_ "%s version %s required--this is only version %s",
+		  HvNAME(pkg), SvPV(req,len), SvPV(sv,len));
     }
 
+finish:
     ST(0) = sv;
 
     XSRETURN(1);
 }
 
-#ifdef PERL_OBJECT
-#undef  boot_core_UNIVERSAL
-#define boot_core_UNIVERSAL CPerlObj::Perl_boot_core_UNIVERSAL
-#define pPerl this
-#endif
-
-void
-boot_core_UNIVERSAL(void)
-{
-    char *file = __FILE__;
-
-    newXS("UNIVERSAL::isa",             XS_UNIVERSAL_isa,         file);
-    newXS("UNIVERSAL::can",             XS_UNIVERSAL_can,         file);
-    newXS("UNIVERSAL::VERSION", 	XS_UNIVERSAL_VERSION, 	  file);
-}

@@ -1,6 +1,6 @@
 =head1 NAME
 
-perlfaq - frequently asked questions about Perl ($Date: 1999/01/08 05:54:52 $)
+perlfaq - frequently asked questions about Perl ($Date: 1999/05/23 20:38:02 $)
 
 =head1 DESCRIPTION
 
@@ -199,6 +199,8 @@ miscellaneous data issues.
 
 =item * How do I find the week-of-the-year/day-of-the-year?
 
+=item * How do I find the current century or millennium?
+
 =item * How can I compare two dates and find the difference?
 
 =item * How can I take a string and turn it into epoch seconds?
@@ -248,13 +250,13 @@ miscellaneous data issues.
 
 =item * What's wrong with always quoting "$vars"?
 
-=item * Why don't my E<lt>E<lt>HERE documents work?
+=item * Why don't my <<HERE documents work?
 
 =item * What is the difference between a list and an array?
 
 =item * What is the difference between $array[1] and @array[1]?
 
-=item * How can I extract just the unique elements of an array?
+=item * How can I remove duplicate elements from a list or array?
 
 =item * How can I tell whether a list or array contains a certain element?
 
@@ -359,11 +361,11 @@ I/O and the "f" issues: filehandles, flushing, formats and footers.
 
 =item * How come when I open a file read-write it wipes it out?
 
-=item * Why do I sometimes get an "Argument list too long" when I use E<lt>*E<gt>?
+=item * Why do I sometimes get an "Argument list too long" when I use <*>?
 
 =item * Is there a leak/bug in glob()?
 
-=item * How can I open a file with a leading "E<gt>" or trailing blanks?
+=item * How can I open a file with a leading ">" or trailing blanks?
 
 =item * How can I reliably rename a file?
 
@@ -380,6 +382,8 @@ I/O and the "f" issues: filehandles, flushing, formats and footers.
 =item * How do I set a file's timestamp in perl?
 
 =item * How do I print to more than one file at once?
+
+=item * How can I read in an entire file all at once?
 
 =item * How can I read in a file by paragraphs?
 
@@ -426,7 +430,7 @@ Pattern matching and regular expressions.
 
 =item * How can I match a locale-smart version of C</[a-zA-Z]/>?
 
-=item * How can I quote a variable to use in a regexp?
+=item * How can I quote a variable to use in a regex?
 
 =item * What is C</o> really for?
 
@@ -434,7 +438,7 @@ Pattern matching and regular expressions.
 
 =item * Can I use Perl regular expressions to match balanced text?
 
-=item * What does it mean that regexps are greedy?  How can I get around it?
+=item * What does it mean that regexes are greedy?  How can I get around it?
 
 =item * How do I process each word on each line?
 
@@ -450,7 +454,7 @@ Pattern matching and regular expressions.
 
 =item * What good is C<\G> in a regular expression?
 
-=item * Are Perl regexps DFAs or NFAs?  Are they POSIX compliant?
+=item * Are Perl regexes DFAs or NFAs?  Are they POSIX compliant?
 
 =item * What's wrong with using grep or map in a void context?
 
@@ -470,7 +474,7 @@ other sections.
 
 =item * Can I get a BNF/yacc/RE for the Perl language?
 
-=item * What are all these $@%* punctuation signs, and how do I know when to use them?
+=item * What are all these $@%&* punctuation signs, and how do I know when to use them?
 
 =item * Do I always/never have to quote my strings or use semicolons and commas?
 
@@ -494,7 +498,7 @@ other sections.
 
 =item * What is variable suicide and how can I prevent it?
 
-=item * How can I pass/return a {Function, FileHandle, Array, Hash, Method, Regexp}?
+=item * How can I pass/return a {Function, FileHandle, Array, Hash, Method, Regex}?
 
 =item * How do I create a static variable?
 
@@ -504,7 +508,7 @@ other sections.
 
 =item * What's the difference between deep and shallow binding?
 
-=item * Why doesn't "my($foo) = E<lt>FILEE<gt>;" work right?
+=item * Why doesn't "my($foo) = <FILE>;" work right?
 
 =item * How do I redefine a builtin function, operator, or method?
 
@@ -521,6 +525,8 @@ other sections.
 =item * How can I comment out a large block of perl code?
 
 =item * How do I clear a package?
+
+=item * How can I use a variable as a variable name?
 
 =back
 
@@ -620,7 +626,7 @@ Interprocess communication (IPC), control over the user-interface
 
 =item * How do I open a file without blocking?
 
-=item * How do I install a CPAN module?
+=item * How do I install a module from CPAN?
 
 =item * What's the difference between require and use?
 
@@ -758,6 +764,15 @@ in respect of this information or its use.
 
 =over 4
 
+=item 23/May/99
+
+Extensive updates from the net in preparation for 5.6 release.
+
+=item 13/April/99
+
+More minor touch-ups.  Added new question at the end
+of perlfaq7 on variable names within variables.
+
 =item 7/January/99
 
 Small touchups here and there.  Added all questions in this 
@@ -816,4 +831,3 @@ This is the initial release of version 3 of the FAQ; consequently there
 have been no changes since its initial release.
 
 =back
-

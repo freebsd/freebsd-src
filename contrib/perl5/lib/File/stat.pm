@@ -1,9 +1,11 @@
 package File::stat;
 use strict;
 
+use 5.005_64;
+our(@EXPORT, @EXPORT_OK, %EXPORT_TAGS);
+
 BEGIN { 
     use Exporter   ();
-    use vars       qw(@EXPORT @EXPORT_OK %EXPORT_TAGS);
     @EXPORT      = qw(stat lstat);
     @EXPORT_OK   = qw( $st_dev	   $st_ino    $st_mode 
 		       $st_nlink   $st_uid    $st_gid 
@@ -13,7 +15,7 @@ BEGIN {
 		    );
     %EXPORT_TAGS = ( FIELDS => [ @EXPORT_OK, @EXPORT ] );
 }
-use vars      @EXPORT_OK;
+use vars @EXPORT_OK;
 
 # Class::Struct forbids use of @ISA
 sub import { goto &Exporter::import }

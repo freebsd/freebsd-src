@@ -1,6 +1,6 @@
 # hints/solaris_2.sh
-# Last modified:  Wed May 27 13:04:45 EDT 1998
-# Andy Dougherty  <doughera@lafcol.lafayette.edu>
+# Last modified:  Tue Apr 13 13:12:49 EDT 1999
+# Andy Dougherty  <doughera@lafayette.edu>
 # Based on input from lots of folks, especially
 # Dean Roehrich <roehrich@ironwood-fddi.cray.com>
 
@@ -9,7 +9,10 @@
 # way to do that is to invoke Configure with
 # 
 #     sh Configure -Dcc='gcc -B/usr/ccs/bin/'
-# 
+#
+#  (Note that the trailing slash is *required*.)
+#  gcc will occasionally emit warnings about "unused prefix", but
+#  these ought to be harmless.  See below for more details.
  
 # See man vfork.
 usevfork=false
@@ -42,15 +45,51 @@ case "$archname" in
     ;;
 esac
 
+test -z "`${cc:-cc} -V 2>&1|grep -i workshop`" || ccisworkshop="$define"
+test -z "`${cc:-cc} -v 2>&1|grep -i gcc`"      || ccisgcc="$define"
+
+cat >UU/workshoplibpth.cbu<<'EOCBU'
+case "$workshoplibpth_done" in
+'')	case "$use64bitall" in
+	"$define"|true|[yY]*)
+            loclibpth="$loclibpth /usr/lib/sparcv9"
+            if test -n "$workshoplibs"; then
+                loclibpth=`echo $loclibpth | sed -e "s% $workshoplibs%%" `
+                for lib in $workshoplibs; do
+                    # Logically, it should be sparcv9.
+                    # But the reality fights back, it's v9.
+                    loclibpth="$loclibpth $lib/sparcv9 $lib/v9"
+                done
+            fi 
+	    ;;
+	*)  loclibpth="$loclibpth $workshoplibs"  
+	    ;;
+	esac
+	workshoplibpth_done="$define"
+	;;
+esac
+EOCBU
+
+case "$ccisworkshop" in
+"$define")
+	cat >try.c <<EOF
+#include <sunmath.h>
+int main() { return(0); }
+EOF
+	workshoplibs=`cc -### try.c -lsunmath -o try 2>&1|grep " -Y "|sed 's%.* -Y "P,\(.*\)".*%\1%'|tr ':' '\n'|grep '/SUNWspro/'`
+	. ./UU/workshoplibpth.cbu
+	;;
+esac
+
 ######################################################
 # General sanity testing.  See below for excerpts from the Solaris FAQ.
-
+#
 # From roehrich@ironwood-fddi.cray.com Wed Sep 27 12:51:46 1995
 # Date: Thu, 7 Sep 1995 16:31:40 -0500
 # From: Dean Roehrich <roehrich@ironwood-fddi.cray.com>
 # To: perl5-porters@africa.nicoh.com
 # Subject: Re: On perl5/solaris/gcc
-
+#
 # Here's another draft of the perl5/solaris/gcc sanity-checker. 
 
 case `type ${cc:-cc}` in
@@ -140,6 +179,19 @@ cat > UU/cc.cbu <<'EOSH'
 #
 # Watch out in case they have not set $cc.
 
+# Perl compiled with some combinations of GNU as and ld may not 
+# be able to perform dynamic loading of extensions.  If you have a
+# problem with dynamic loading, be sure that you are using the Solaris
+# /usr/ccs/bin/as and /usr/ccs/bin/ld.  You can do that with
+#  		sh Configure -Dcc='gcc -B/usr/ccs/bin/'
+# (note the trailing slash is required). 
+# Combinations that are known to work with the following hints:
+#
+#  gcc-2.7.2, GNU as 2.7, GNU ld 2.7
+#  egcs-1.0.3, GNU as 2.9.1 and GNU ld 2.9.1
+#	--Andy Dougherty  <doughera@lafayette.edu>  
+#	Tue Apr 13 17:19:43 EDT 1999
+
 # Get gcc to share its secrets.
 echo 'main() { return 0; }' > try.c
 	# Indent to avoid propagation to config.sh
@@ -149,7 +201,6 @@ if echo "$verbose" | grep '^Reading specs from' >/dev/null 2>&1; then
 	#
 	# Using gcc.
 	#
-	#echo Using gcc
 
 	tmp=`echo "$verbose" | grep '^Reading' |
 		awk '{print $NF}'  | sed 's/specs$/include/'`
@@ -157,67 +208,76 @@ if echo "$verbose" | grep '^Reading specs from' >/dev/null 2>&1; then
 	# Determine if the fixed-includes look like they'll work.
 	# Doesn't work anymore for gcc-2.7.2.
 
-	# See if as(1) is GNU as(1).  GNU as(1) won't work for this job.
+	# See if as(1) is GNU as(1).  GNU as(1) might not work for this job.
 	if echo "$verbose" | grep ' /usr/ccs/bin/as ' >/dev/null 2>&1; then
 	    :
 	else
 	    cat <<END >&2
 
-NOTE: You are using GNU as(1).  GNU as(1) will not build Perl.
-I'm arranging to use /usr/ccs/bin/as by including -B/usr/ccs/bin/
+NOTE: You are using GNU as(1).  GNU as(1) might not build Perl.  If you
+have trouble, you can use /usr/ccs/bin/as by including -B/usr/ccs/bin/
 in your ${cc:-cc} command.  (Note that the trailing "/" is required.)
 
 END
-	    cc="${cc:-cc} -B/usr/ccs/bin/"
+	    # Apparently not needed, at least for as 2.7 and later.
+	    # cc="${cc:-cc} -B/usr/ccs/bin/"
 	fi
 
-	# See if ld(1) is GNU ld(1).  GNU ld(1) won't work for this job.
+	# See if ld(1) is GNU ld(1).  GNU ld(1) might not work for this job.
 	# Recompute $verbose since we may have just changed $cc.
 	verbose=`${cc:-cc} -v -o try try.c 2>&1 | grep ld 2>&1`
+
 	if echo "$verbose" | grep ' /usr/ccs/bin/ld ' >/dev/null 2>&1; then
+	    # Ok, gcc directly calls the Solaris /usr/ccs/bin/ld.
+	    :
+	elif echo "$verbose" | grep "ld: Software Generation Utilities" >/dev/null 2>&1; then
+	    # Hmm.  gcc doesn't call /usr/ccs/bin/ld directly, but it
+	    # does appear to be using it eventually.  egcs-1.0.3's ld
+	    # wrapper does this.
+	    # All Solaris versions of ld I've seen contain the magic
+	    # string used in the grep.
 	    :
 	else
-        # It's not /usr/ccs/bin/ld - but it might be egcs's ld wrapper,
-        # which calls /usr/ccs/bin/ld in turn. Passing -V to it will
-        # make it show its true colors.
+	    # No evidence yet of /usr/ccs/bin/ld.  Some versions
+	    # of egcs's ld wrapper call /usr/ccs/bin/ld in turn but
+	    # apparently don't reveal that unless you pass in -V.
+	    # (This may all depend on local configurations too.)
 
 	    myld=`echo $verbose| grep ld | awk '/\/ld/ {print $1}'`
-            # This assumes that gcc's output will not change, and that
-            # /full/path/to/ld will be the first word of the output.
+	    # This assumes that gcc's output will not change, and that
+	    # /full/path/to/ld will be the first word of the output.
+	    # Thus myld is something like opt/gnu/sparc-sun-solaris2.5/bin/ld
 
-            # all Solaris versions of ld I've seen contain the magic
-            # string used in the grep below.
-            if $myld -V 2>&1 | grep "ld: Software Generation Utilities" >/dev/null 2>&1; then
-                cat <<END >&2
+	    if $myld -V 2>&1 | grep "ld: Software Generation Utilities" >/dev/null 2>&1; then
+		# Ok, /usr/ccs/bin/ld eventually does get called.
+		:
+	    else
+		cat <<END >&2
 
-Aha. You're using egcs and /usr/ccs/bin/ld.
-
-END
-
-            else
-	    cat <<END >&2
-
-NOTE: You are using GNU ld(1).  GNU ld(1) will not build Perl.
-I'm arranging to use /usr/ccs/bin/ld by including -B/usr/ccs/bin/
+NOTE: You are using GNU ld(1).  GNU ld(1) might not build Perl.  If you
+have trouble, you can use /usr/ccs/bin/ld by including -B/usr/ccs/bin/
 in your ${cc:-cc} command.  (Note that the trailing "/" is required.)
 
+I will try to use GNU ld by passing in the -Wl,-E flag, but if that
+doesn't work, you should use -B/usr/ccs/bin/ instead.
+
 END
-	    cc="${cc:-cc} -B/usr/ccs/bin/"
-            fi
+		ccdlflags="$ccdlflags -Wl,-E"
+		lddlflags="$lddlflags -W,l-E -G"
+	    fi
 	fi
 
 else
 	#
 	# Not using gcc.
 	#
-	#echo Not using gcc
 
-	# See if as(1) is GNU as(1).  GNU as(1) won't work for this job.
+	# See if as(1) is GNU as(1).  GNU might not work for this job.
 	case `as --version < /dev/null 2>&1` in
 	*GNU*)
 		cat <<END >&2
 
-NOTE: You are using GNU as(1).  GNU as(1) will not build Perl.
+NOTE: You are using GNU as(1).  GNU as(1) might not build Perl.
 You must arrange to use /usr/ccs/bin/as, perhaps by adding /usr/ccs/bin
 to the beginning of your PATH.
 
@@ -225,7 +285,7 @@ END
 		;;
 	esac
 
-	# See if ld(1) is GNU ld(1).  GNU ld(1) won't work for this job.
+	# See if ld(1) is GNU ld(1).  GNU ld(1) might not work for this job.
 	# ld --version doesn't properly report itself as a GNU tool,
 	# as of ld version 2.6, so we need to be more strict. TWP 9/5/96
 	gnu_ld=false
@@ -245,8 +305,8 @@ END
 	if $gnu_ld ; then
 		cat <<END >&2
 
-NOTE: You are apparently using GNU ld(1).  GNU ld(1) will not build Perl.
-You must arrange to use /usr/ccs/bin/ld, perhaps by adding /usr/ccs/bin
+NOTE: You are apparently using GNU ld(1).  GNU ld(1) might not build Perl.
+You should arrange to use /usr/ccs/bin/ld, perhaps by adding /usr/ccs/bin
 to the beginning of your PATH.
 
 END
@@ -261,9 +321,9 @@ rm -f core
 # XXX
 EOSH
 
+cat > UU/usethreads.cbu <<'EOCBU'
 # This script UU/usethreads.cbu will get 'called-back' by Configure 
 # after it has prompted the user for whether to use threads.
-cat > UU/usethreads.cbu <<'EOCBU'
 case "$usethreads" in
 $define|true|[yY]*)
         ccflags="-D_REENTRANT $ccflags"
@@ -308,6 +368,135 @@ EOM
 	;;
 esac
 EOCBU
+
+cat > UU/uselargefiles.cbu <<'EOCBU'
+# This script UU/uselargefiles.cbu will get 'called-back' by Configure 
+# after it has prompted the user for whether to use large files.
+case "$uselargefiles" in
+''|$define|true|[yY]*)
+    ccflags="$ccflags `getconf LFS_CFLAGS 2>/dev/null`"
+    ldflags="$ldflags `getconf LFS_LDFLAGS 2>/dev/null`"
+    libswanted="$libswanted `getconf LFS_LIBS 2>/dev/null|sed -e 's@^-l@@' -e 's@ -l@ @g`"
+    ;;
+esac
+EOCBU
+
+cat > UU/use64bitint.cbu <<'EOCBU'
+# This script UU/use64bitint.cbu will get 'called-back' by Configure 
+# after it has prompted the user for whether to use 64 bit integers.
+case "$use64bitint" in
+"$define"|true|[yY]*)
+	    case "`uname -r`" in
+	    2.[1-6])
+		cat >&4 <<EOM
+Solaris `uname -r` does not support 64-bit integers.
+You should upgrade to at least Solaris 2.7.
+EOM
+		exit 1
+		;;
+	    esac
+	    ;;
+esac
+EOCBU
+
+cat > UU/use64bitall.cbu <<'EOCBU'
+# This script UU/use64bitall.cbu will get 'called-back' by Configure 
+# after it has prompted the user for whether to be maximally 64 bitty.
+case "$use64bitall-$use64bitall_done" in
+"$define-"|true-|[yY]*-)
+	    libc='/usr/lib/sparcv9/libc.so'
+	    if test ! -f $libc; then
+		cat >&4 <<EOM
+
+I do not see the 64-bit libc, $libc.
+Cannot continue, aborting.
+
+EOM
+		exit 1
+	    fi 
+	    . ./UU/workshoplibpth.cbu
+	    case "$cc -v 2>/dev/null" in
+	    *gcc*)
+		echo 'main() { return 0; }' > try.c
+		if ${cc:-cc} -mcpu=v9 -m64 -S try.c 2>&1 | grep -e \
+		    '-m64 is not supported by this configuration'; then
+		    cat >&4 <<EOM
+
+Full 64-bit build not supported by this configuration.
+Cannot continue, aborting.
+
+EOM
+		    exit 1
+		fi
+		ccflags="$ccflags -mcpu=v9 -m64"
+		if test X`getconf XBS5_LP64_OFF64_CFLAGS 2>/dev/null` != X; then
+		    ccflags="$ccflags -Wa,`getconf XBS5_LP64_OFF64_CFLAGS 2>/dev/null`"
+		fi
+		# no changes to ld flags, as (according to man ld):
+		#
+   		# There is no specific option that tells ld to link 64-bit
+		# objects; the class of the first object that gets processed
+		# by ld determines whether it is to perform a 32-bit or a
+		# 64-bit link edit.
+		;;
+	    *)
+		ccflags="$ccflags `getconf XBS5_LP64_OFF64_CFLAGS 2>/dev/null`"
+		ldflags="$ldflags `getconf XBS5_LP64_OFF64_LDFLAGS 2>/dev/null`"
+		lddlflags="$lddlflags -G `getconf XBS5_LP64_OFF64_LDFLAGS 2>/dev/null`"
+		;;
+	    esac	
+	    libscheck='case "`/usr/bin/file $xxx`" in
+*64-bit*|*SPARCV9*) ;;
+*) xxx=/no/64-bit$xxx ;;
+esac'
+	    use64bitall_done=yes
+	    ;;
+esac
+EOCBU
+ 
+# Actually, we want to run this already now, if so requested,
+# because we need to fix up things right now.
+case "$use64bitall" in
+"$define"|true|[yY]*)
+	. ./UU/use64bitall.cbu
+	;;
+esac
+
+cat > UU/uselongdouble.cbu <<'EOCBU'
+# This script UU/uselongdouble.cbu will get 'called-back' by Configure 
+# after it has prompted the user for whether to use long doubles.
+case "$uselongdouble-$uselongdouble_done" in
+"$define-"|true-|[yY]*-)
+	case "$ccisworkshop" in
+	'')	cat >&4 <<EOM
+
+I do not see the Sun Workshop compiler; therefore I do not see
+the libsunmath; therefore I do not know how to do long doubles, sorry.
+I'm disabling the use of long doubles.
+EOM
+		uselongdouble="$undef"
+		;;
+	*)	libswanted="$libswanted sunmath"
+		loclibpth="$loclibpth /opt/SUNWspro/lib"
+		;;
+	esac
+	uselongdouble_done=yes
+	;;
+esac
+EOCBU
+
+# Actually, we want to run this already now, if so requested,
+# because we need to fix up things right now.
+case "$uselongdouble" in
+"$define"|true|[yY]*)
+	. ./UU/uselongdouble.cbu
+	;;
+esac
+
+rm -f try.c try.o try
+# keep that leading tab
+	ccisworkshop=''
+	ccisgcc=''
 
 # This is just a trick to include some useful notes.
 cat > /dev/null <<'End_of_Solaris_Notes'
@@ -439,6 +628,52 @@ Date: 25 Jul 1995 12:20:18 GMT
     Don't include -ldbm, -lmalloc and -lucb.
 
     Perl 5 compiled out of the box.
+
+7.0) 64-bitness, from Alan Burlison (added by jhi 2000-02-21)
+
+  You need a machine running Solaris 2.7 or above.
+
+  Here's some rules:
+  
+  1. Solaris 2.7 and above will run in either 32 bit or 64 bit mode,
+     via a reboot.
+  2. You can build 64 bit apps whilst running 32 bit mode and vice-versa.
+  3. 32 bit apps will run under Solaris running in either 32 or 64 bit mode.
+  4. 64 bit apps require Solaris to be running 64 bit mode
+  5. It is possible to select the appropriate 32 or 64 bit version of an
+     app at run-time using isaexec(3).
+  6. You can detect the OS mode using "isainfo -v", e.g.
+      fubar$ isainfo -v   # Ultra 30 in 64 bit mode
+      64-bit sparcv9 applications
+      32-bit sparc applications
+  7. To compile 64 bit you need to use the flag "-xarch=v9".
+     getconf(1) will tell you this, e.g.
+      fubar$ getconf -a | grep v9
+      XBS5_LP64_OFF64_CFLAGS:         -xarch=v9
+      XBS5_LP64_OFF64_LDFLAGS:        -xarch=v9
+      XBS5_LP64_OFF64_LINTFLAGS:      -xarch=v9
+      XBS5_LPBIG_OFFBIG_CFLAGS:       -xarch=v9
+      XBS5_LPBIG_OFFBIG_LDFLAGS:      -xarch=v9
+      XBS5_LPBIG_OFFBIG_LINTFLAGS:    -xarch=v9
+      _XBS5_LP64_OFF64_CFLAGS:        -xarch=v9
+      _XBS5_LP64_OFF64_LDFLAGS:       -xarch=v9
+      _XBS5_LP64_OFF64_LINTFLAGS:     -xarch=v9
+      _XBS5_LPBIG_OFFBIG_CFLAGS:      -xarch=v9
+      _XBS5_LPBIG_OFFBIG_LDFLAGS:     -xarch=v9
+      _XBS5_LPBIG_OFFBIG_LINTFLAGS:   -xarch=v9
+
+  > > Now, what should we do, then?  Should -Duse64bits in a v9 box cause
+  > > Perl to compiled in v9 mode?  Or should we for compatibility stick
+  > > with 32 bit builds and let the people in the know to add the -xarch=v9
+  > > to ccflags (and ldflags?)?
+
+  > I think the second (explicit) mechanism should be the default.  Unless
+  > you want to allocate more than ~ 4Gb of memory inside Perl, you don't
+  > need Perl to be a 64-bit app.  Put it this way, on a machine running
+  > Solaris 8, there are 463 executables under /usr/bin, but only 15 of
+  > those require 64 bit versions - mainly because they invade the kernel
+  > address space, e.g. adb, kgmon etc.  Certainly we don't recommend users
+  > to build 64 bit apps unless they need the address space.
 
 End_of_Solaris_Notes
 

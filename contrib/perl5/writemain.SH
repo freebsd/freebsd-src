@@ -1,4 +1,4 @@
-case $CONFIG in
+case $CONFIGDOTSH in
 '')
 	if test -f config.sh; then TOP=.;
 	elif test -f ../config.sh; then TOP=..;
@@ -37,7 +37,11 @@ $spitshell >>writemain <<'!NO!SUBS!'
 orig="$*"
 args=''
 : Remove any .a suffixes and any leading path components
-for file in `echo $orig | sed 's/\.a//g'` ; do
+for file in $orig ; do
+        case "$file" in
+           *.a)  file=`echo $file | sed 's/\.a//g'`
+                 ;;
+        esac
 	case "$file" in
 	ext/*)	file=`echo $file | sed 's:ext/\(.*\)/[^/]*:\1:'`
 		;;
@@ -61,14 +65,14 @@ if test X"$args" != "X" ; then
 mname=`echo $ext   | sed 's!/!::!g'`
 cname=`echo $mname | sed 's!:!_!g'`
 
-echo "EXTERN_C void boot_${cname} _((CV* cv));"
+echo "EXTERN_C void boot_${cname} (pTHX_ CV* cv);"
     done
 fi
 
 cat << 'EOP'
 
 static void
-xs_init()
+xs_init(pTHX)
 {
 EOP
 

@@ -79,7 +79,7 @@ your scripts.
 Before Perl 5.004, C<AUTOLOAD> functions were looked up as methods
 (using the C<@ISA> hierarchy), even when the function to be autoloaded
 was called as a plain function (e.g. C<Foo::bar()>), not a method
-(e.g. C<Foo-E<gt>bar()> or C<$obj-E<gt>bar()>).
+(e.g. C<< Foo->bar() >> or C<< $obj->bar() >>).
 
 Perl 5.005 will use method lookup only for methods' C<AUTOLOAD>s.
 However, there is a significant base of existing code that may be using
@@ -266,11 +266,11 @@ A subroutine reference may now be suffixed with an arrow and a
 (possibly empty) parameter list.  This syntax denotes a call of the
 referenced subroutine, with the given parameters (if any).
 
-This new syntax follows the pattern of S<C<$hashref-E<gt>{FOO}>> and
-S<C<$aryref-E<gt>[$foo]>>: You may now write S<C<&$subref($foo)>> as
-S<C<$subref-E<gt>($foo)>>.  All of these arrow terms may be chained;
-thus, S<C<&{$table-E<gt>{FOO}}($bar)>> may now be written
-S<C<$table-E<gt>{FOO}-E<gt>($bar)>>.
+This new syntax follows the pattern of S<C<< $hashref->{FOO} >>> and
+S<C<< $aryref->[$foo] >>>: You may now write S<C<&$subref($foo)>> as
+S<C<< $subref->($foo) >>>.  All these arrow terms may be chained;
+thus, S<C<< &{$table->{FOO}}($bar) >>> may now be written
+S<C<< $table->{FOO}->($bar) >>>.
 
 =back
 
@@ -758,7 +758,7 @@ details on how to get started with building this port.
 
 There is also support for building perl under the Cygwin32 environment.
 Cygwin32 is a set of GNU tools that make it possible to compile and run
-many UNIX programs under Windows NT by providing a mostly UNIX-like 
+many Unix programs under Windows NT by providing a mostly Unix-like 
 interface for compilation and execution.  See F<README.cygwin32> in the
 perl distribution for more details on this port and how to obtain the
 Cygwin32 toolkit.
@@ -936,7 +936,7 @@ requested with the ":flock" tag (e.g. C<use Fcntl ':flock'>).
 
 =head2 IO
 
-The IO module provides a simple mechanism to load all of the IO modules at one
+The IO module provides a simple mechanism to load all the IO modules at one
 go.  Currently this includes:
 
      IO::Handle
@@ -1290,7 +1290,7 @@ likely to eliminate these arbitrary limitations.
 
 (F) A carriage return character was found in the input.  This is an
 error, and not a warning, because carriage return characters can break
-multi-line strings, including here documents (e.g., C<print E<lt>E<lt>EOF;>).
+multi-line strings, including here documents (e.g., C<print <<EOF;>).
 
 =item Illegal switch in PERL5OPT: %s
 
@@ -1312,7 +1312,7 @@ architecture. On a 32-bit architecture the largest octal literal is
 =item internal error: glob failed
 
 (P) Something went wrong with the external program(s) used for C<glob>
-and C<E<lt>*.cE<gt>>.  This may mean that your csh (C shell) is
+and C<< <*.c> >>.  This may mean that your csh (C shell) is
 broken.  If so, you should change all of the csh-related variables in
 config.sh:  If you have tcsh, make the variables refer to it as if it
 were csh (e.g. C<full_csh='/usr/bin/tcsh'>); otherwise, make them all

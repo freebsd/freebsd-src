@@ -1,7 +1,7 @@
 package AnyDBM_File;
 
-use vars qw(@ISA);
-@ISA = qw(NDBM_File DB_File GDBM_File SDBM_File ODBM_File) unless @ISA;
+use 5.005_64;
+our @ISA = qw(NDBM_File DB_File GDBM_File SDBM_File ODBM_File) unless @ISA;
 
 my $mod;
 for $mod (@ISA) {
@@ -87,6 +87,6 @@ By default, but can be redefined.
 
 =head1 SEE ALSO
 
-dbm(3), ndbm(3), DB_File(3)
+dbm(3), ndbm(3), DB_File(3), L<perldbmfilter>
 
 =cut

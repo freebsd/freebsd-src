@@ -309,7 +309,7 @@ discussed above.  We decided to try that instead of the above faulty
 locale "En_US"--and in Cshish shells (B<csh>, B<tcsh>)
 
 	setenv LC_ALL en_US.ISO8859-1
-	
+
 If you do not know what shell you have, consult your local
 helpdesk or the equivalent.
 
@@ -332,9 +332,9 @@ Second, if using the listed commands you see something B<exactly>
 (prefix matches do not count and case usually counts) like "En_US"
 without the quotes, then you should be okay because you are using a
 locale name that should be installed and available in your system.
-In this case, see L<Permanently fixing system locale configuration>.
+In this case, see L<Permanently fixing your system's locale configuration>.
 
-=head2 Permanently fixing your locale configuration
+=head2 Permanently fixing your system's locale configuration
 
 This is when you see something like:
 
@@ -608,8 +608,12 @@ obeys the current C<LC_TIME> locale.
 
 The remaining locale category, C<LC_MESSAGES> (possibly supplemented
 by others in particular implementations) is not currently used by
-Perl--except possibly to affect the behavior of library functions called
-by extensions outside the standard Perl distribution.
+Perl--except possibly to affect the behavior of library functions
+called by extensions outside the standard Perl distribution and by the
+operating system and its utilities.  Note especially that the string
+value of C<$!> and the error messages given by external utilities may
+be changed by C<LC_MESSAGES>.  If you want to have portable error
+codes, use C<%!>.  See L<Errno>.
 
 =head1 SECURITY
 
@@ -637,11 +641,12 @@ case-mapping table is in effect.
 
 =item *
 
-If the decimal point character in the C<LC_NUMERIC> locale is
-surreptitiously changed from a dot to a comma, C<sprintf("%g",
-0.123456e3)> produces a string result of "123,456". Many people would
-interpret this as one hundred and twenty-three thousand, four hundred
-and fifty-six.
+Some systems are broken in that they allow the "C" locale to be
+overridden by users.  If the decimal point character in the
+C<LC_NUMERIC> category of the "C" locale is surreptitiously changed
+from a dot to a comma, C<sprintf("%g", 0.123456e3)> produces a
+string result of "123,456".  Many people would interpret this as
+one hundred and twenty-three thousand, four hundred and fifty-six.
 
 =item *
 
@@ -709,10 +714,6 @@ operand of C<=~> becomes tainted when C<use locale> in effect
 if modified as a result of a substitution based on a regular
 expression match involving C<\w>, C<\W>, C<\s>, or C<\S>; or of
 case-mapping with C<\l>, C<\L>,C<\u> or C<\U>.
-
-=item B<In-memory formatting function> (sprintf()):
-
-Result is tainted if C<use locale> is in effect.
 
 =item B<Output formatting functions> (printf() and write()):
 

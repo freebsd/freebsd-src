@@ -28,21 +28,25 @@ which take an argument don't care whether there is a space between the
 switch and the argument.
 
 Note that, if your code is running under the recommended C<use strict
-'vars'> pragma, it may be helpful to declare these package variables
-via C<use vars> perhaps something like this:
+'vars'> pragma, you will need to declare these package variables
+with "our":
 
-    use vars qw/ $opt_foo $opt_bar /;
+    our($opt_foo, $opt_bar);
 
-For those of you who don't like additional variables being created, getopt()
+For those of you who don't like additional global variables being created, getopt()
 and getopts() will also accept a hash reference as an optional second argument. 
 Hash keys will be x (where x is the switch name) with key values the value of
 the argument or 1 if no argument is specified.
+
+To allow programs to process arguments that look like switches, but aren't,
+both functions will stop processing switches when they see the argument
+C<-->.  The C<--> will be removed from @ARGV.
 
 =cut
 
 @ISA = qw(Exporter);
 @EXPORT = qw(getopt getopts);
-$VERSION = $VERSION = '1.01';
+$VERSION = '1.02';
 
 # Process single-character switches with switch clustering.  Pass one argument
 # which is a string containing all switches that take an argument.  For each
@@ -60,6 +64,10 @@ sub getopt ($;$) {
 
     while (@ARGV && ($_ = $ARGV[0]) =~ /^-(.)(.*)/) {
 	($first,$rest) = ($1,$2);
+	if (/^--$/) {	# early exit if --
+	    shift @ARGV;
+	    last;
+	}
 	if (index($argumentative,$first) >= 0) {
 	    if ($rest ne '') {
 		shift(@ARGV);
@@ -68,22 +76,22 @@ sub getopt ($;$) {
 		shift(@ARGV);
 		$rest = shift(@ARGV);
 	    }
-          if (ref $hash) {
-              $$hash{$first} = $rest;
-          }
-          else {
-              ${"opt_$first"} = $rest;
-              push( @EXPORT, "\$opt_$first" );
-          }
+	    if (ref $hash) {
+	        $$hash{$first} = $rest;
+	    }
+	    else {
+	        ${"opt_$first"} = $rest;
+	        push( @EXPORT, "\$opt_$first" );
+	    }
 	}
 	else {
-          if (ref $hash) {
-              $$hash{$first} = 1;
-          }
-          else {
-              ${"opt_$first"} = 1;
-              push( @EXPORT, "\$opt_$first" );
-          }
+	    if (ref $hash) {
+	        $$hash{$first} = 1;
+	    }
+	    else {
+	        ${"opt_$first"} = 1;
+	        push( @EXPORT, "\$opt_$first" );
+	    }
 	    if ($rest ne '') {
 		$ARGV[0] = "-$rest";
 	    }
@@ -111,31 +119,35 @@ sub getopts ($;$) {
     @args = split( / */, $argumentative );
     while(@ARGV && ($_ = $ARGV[0]) =~ /^-(.)(.*)/) {
 	($first,$rest) = ($1,$2);
+	if (/^--$/) {	# early exit if --
+	    shift @ARGV;
+	    last;
+	}
 	$pos = index($argumentative,$first);
-	if($pos >= 0) {
-	    if(defined($args[$pos+1]) and ($args[$pos+1] eq ':')) {
+	if ($pos >= 0) {
+	    if (defined($args[$pos+1]) and ($args[$pos+1] eq ':')) {
 		shift(@ARGV);
-		if($rest eq '') {
+		if ($rest eq '') {
 		    ++$errs unless @ARGV;
 		    $rest = shift(@ARGV);
 		}
-              if (ref $hash) {
-                  $$hash{$first} = $rest;
-              }
-              else {
-                  ${"opt_$first"} = $rest;
-                  push( @EXPORT, "\$opt_$first" );
-              }
+		if (ref $hash) {
+		    $$hash{$first} = $rest;
+		}
+		else {
+		    ${"opt_$first"} = $rest;
+		    push( @EXPORT, "\$opt_$first" );
+		}
 	    }
 	    else {
-              if (ref $hash) {
-                  $$hash{$first} = 1;
-              }
-              else {
-                  ${"opt_$first"} = 1;
-                  push( @EXPORT, "\$opt_$first" );
-              }
-		if($rest eq '') {
+		if (ref $hash) {
+		    $$hash{$first} = 1;
+		}
+		else {
+		    ${"opt_$first"} = 1;
+		    push( @EXPORT, "\$opt_$first" );
+		}
+		if ($rest eq '') {
 		    shift(@ARGV);
 		}
 		else {
@@ -146,7 +158,7 @@ sub getopts ($;$) {
 	else {
 	    warn "Unknown option: $first\n";
 	    ++$errs;
-	    if($rest ne '') {
+	    if ($rest ne '') {
 		$ARGV[0] = "-$rest";
 	    }
 	    else {
@@ -162,4 +174,3 @@ sub getopts ($;$) {
 }
 
 1;
-

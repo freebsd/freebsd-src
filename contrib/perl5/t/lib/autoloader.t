@@ -3,10 +3,10 @@
 BEGIN {
     chdir 't' if -d 't';
     $dir = "auto-$$";
-    @INC = ("./$dir", "../lib");
+    unshift @INC, ("./$dir", "../lib");
 }
 
-print "1..9\n";
+print "1..11\n";
 
 # First we must set up some autoloader files
 mkdir $dir, 0755            or die "Can't mkdir $dir: $!";
@@ -88,12 +88,33 @@ print "ok 8\n";
 print "not " unless $foo->bazmarkhianish($1) eq 'foo';
 print "ok 9\n";
 
+# test recursive autoloads
+open(F, ">$dir/auto/Foo/a.al") or die;
+print F <<'EOT';
+package Foo;
+BEGIN { b() }
+sub a { print "ok 11\n"; }
+1;
+EOT
+close(F);
+
+open(F, ">$dir/auto/Foo/b.al") or die;
+print F <<'EOT';
+package Foo;
+sub b { print "ok 10\n"; }
+1;
+EOT
+close(F);
+Foo::a();
+
 # cleanup
 END {
 return unless $dir && -d $dir;
 unlink "$dir/auto/Foo/foo.al";
 unlink "$dir/auto/Foo/bar.al";
 unlink "$dir/auto/Foo/bazmarkhian.al";
+unlink "$dir/auto/Foo/a.al";
+unlink "$dir/auto/Foo/b.al";
 rmdir "$dir/auto/Foo";
 rmdir "$dir/auto";
 rmdir "$dir";

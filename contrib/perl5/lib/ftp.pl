@@ -1,4 +1,13 @@
 #-*-perl-*-
+#
+# This library is no longer being maintained, and is included for backward
+# compatibility with Perl 4 programs which may require it.
+#
+# In particular, this should not be used as an example of modern Perl
+# programming techniques.
+#
+# Suggested alternative: Net::FTP
+#
 # This is a wrapper to the chat2.pl routines that make life easier
 # to do ftp type work.
 # Mostly by Lee McLoughlin <lmjm@doc.ic.ac.uk>

@@ -1,4 +1,4 @@
-case $CONFIG in
+case $CONFIGDOTSH in
 '')
     if test ! -f config.sh; then
 	ln ../config.sh . || \

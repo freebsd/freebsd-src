@@ -42,6 +42,7 @@ INIT
 LE
 LT
 NE
+CHECK
 abs
 accept
 alarm
@@ -166,6 +167,7 @@ open
 opendir
 or
 ord
+our
 pack
 package
 pipe

@@ -1,5 +1,13 @@
 ;# getopts.pl - a better getopt.pl
-
+#
+# This library is no longer being maintained, and is included for backward
+# compatibility with Perl 4 programs which may require it.
+#
+# In particular, this should not be used as an example of modern Perl
+# programming techniques.
+#
+# Suggested alternatives: Getopt::Long  or  Getopt::Std
+#
 ;# Usage:
 ;#      do Getopts('a:bc');  # -a takes arg. -b & -c not. Sets opt_* as a
 ;#                           #  side effect.

@@ -1,0 +1,22 @@
+    This file tries to demonstrate a simple =include directive for pods. It
+    is used as follows:
+
+       =include filename
+
+    where "filename" is expected to be an absolute pathname, or else reside
+    be relative to the directory in which the current processed podfile
+    resides, or be relative to the current directory.
+
+    Lets try it out with the file "included.t" shall we.
+
+    ***THIS TEXT IS IMMEDIATELY BEFORE THE INCLUDE***
+
+###### begin =include included.t #####
+    This is the text of the included file named "included.t". It should
+    appear in the final pod document from pod2xxx
+
+###### end =include included.t #####
+    ***THIS TEXT IS IMMEDIATELY AFTER THE INCLUDE***
+
+    So how did we do???
+

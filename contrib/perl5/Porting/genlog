@@ -12,7 +12,7 @@
 #
 # Outputs the changelist to stdout.
 #
-# Gurusamy Sarathy <gsar@umich.edu>
+# Gurusamy Sarathy <gsar@activestate.com>
 #
 
 use Text::Wrap;
@@ -107,8 +107,9 @@ EOT
 		my $files = $files{$branch}{$kind};
 		# don't show large branches and integrations
 		$files = ["($kind " . scalar(@$files) . ' files)']
-		    if (@$files > 25
-		        && ( $kind eq 'integrate' || $kind eq 'branch'));
+		    if (@$files > 25 && ($kind eq 'integrate'
+		    			 || $kind eq 'branch'))
+		       || @$files > 100;
 	        print wrap(sprintf("%12s ", $editkind{$kind}),
 			   sprintf("%12s ", $editkind{$kind}),
 			   "@$files\n");

@@ -2,9 +2,8 @@ package Safe;
 
 use 5.003_11;
 use strict;
-use vars qw($VERSION);
 
-$VERSION = "2.06";
+our $VERSION = "2.06";
 
 use Carp;
 
@@ -235,7 +234,7 @@ sub rdo {
 
 1;
 
-__DATA__
+__END__
 
 =head1 NAME
 

@@ -1,7 +1,9 @@
 use ExtUtils::MakeMaker;
+use Config;
 WriteMakefile(
-    NAME	=> 'Socket',
+    NAME	 => 'Socket',
     VERSION_FROM => 'Socket.pm',
-    MAN3PODS 	=> {}, 	# Pods will be built by installman.
-    XSPROTOARG => '-noprototypes', 		# XXX remove later?
+   ($Config{libs} =~ /(-lsocks\S*)/ ? (LIBS => [ "$1" ] ) : ()),
+    MAN3PODS  	 => {}, 	# Pods will be built by installman.
+    XSPROTOARG   => '-noprototypes', 		# XXX remove later?
 );

@@ -116,13 +116,9 @@ Malcolm Beattie, mbeattie@sable.ox.ac.uk.
 =cut
 
 use strict;
-use B qw(walkoptree_slow main_root walksymtable svref_2object parents);
-
-# Constants (should probably be elsewhere)
-sub G_ARRAY () { 1 }
-sub OPf_LIST () { 1 }
-sub OPf_KNOW () { 2 }
-sub OPf_STACKED () { 64 }
+use B qw(walkoptree_slow main_root walksymtable svref_2object parents
+         OPf_WANT_LIST OPf_WANT OPf_STACKED G_ARRAY
+        );
 
 my $file = "unknown";		# shadows current filename
 my $line = 0;			# shadows current line number
@@ -133,8 +129,8 @@ my %check;
 my %implies_ok_context;
 BEGIN {
     map($implies_ok_context{$_}++,
-	qw(pp_scalar pp_av2arylen pp_aelem pp_aslice pp_helem pp_hslice
-	   pp_keys pp_values pp_hslice pp_defined pp_undef pp_delete));
+	qw(scalar av2arylen aelem aslice helem hslice
+	   keys values hslice defined undef delete));
 }
 
 # Lint checks turned on by default
@@ -165,8 +161,8 @@ sub warning {
 sub gimme {
     my $op = shift;
     my $flags = $op->flags;
-    if ($flags & OPf_KNOW) {
-	return(($flags & OPf_LIST) ? 1 : 0);
+    if ($flags & OPf_WANT) {
+	return(($flags & OPf_WANT_LIST) ? 1 : 0);
     }
     return undef;
 }
@@ -175,8 +171,8 @@ sub B::OP::lint {}
 
 sub B::COP::lint {
     my $op = shift;
-    if ($op->ppaddr eq "pp_nextstate") {
-	$file = $op->filegv->SV->PV;
+    if ($op->name eq "nextstate") {
+	$file = $op->file;
 	$line = $op->line;
 	$curstash = $op->stash->NAME;
     }
@@ -184,24 +180,24 @@ sub B::COP::lint {
 
 sub B::UNOP::lint {
     my $op = shift;
-    my $ppaddr = $op->ppaddr;
-    if ($check{context} && ($ppaddr eq "pp_rv2av" || $ppaddr eq "pp_rv2hv")) {
+    my $opname = $op->name;
+    if ($check{context} && ($opname eq "rv2av" || $opname eq "rv2hv")) {
 	my $parent = parents->[0];
-	my $pname = $parent->ppaddr;
+	my $pname = $parent->name;
 	return if gimme($op) || $implies_ok_context{$pname};
 	# Two special cases to deal with: "foreach (@foo)" and "delete $a{$b}"
 	# null out the parent so we have to check for a parent of pp_null and
 	# a grandparent of pp_enteriter or pp_delete
-	if ($pname eq "pp_null") {
-	    my $gpname = parents->[1]->ppaddr;
-	    return if $gpname eq "pp_enteriter" || $gpname eq "pp_delete";
+	if ($pname eq "null") {
+	    my $gpname = parents->[1]->name;
+	    return if $gpname eq "enteriter" || $gpname eq "delete";
 	}
 	warning("Implicit scalar context for %s in %s",
-		$ppaddr eq "pp_rv2av" ? "array" : "hash", $parent->desc);
+		$opname eq "rv2av" ? "array" : "hash", $parent->desc);
     }
-    if ($check{private_names} && $ppaddr eq "pp_method") {
+    if ($check{private_names} && $opname eq "method") {
 	my $methop = $op->first;
-	if ($methop->ppaddr eq "pp_const") {
+	if ($methop->name eq "const") {
 	    my $method = $methop->sv->PV;
 	    if ($method =~ /^_/ && !defined(&{"$curstash\::$method"})) {
 		warning("Illegal reference to private method name $method");
@@ -213,14 +209,12 @@ sub B::UNOP::lint {
 sub B::PMOP::lint {
     my $op = shift;
     if ($check{implicit_read}) {
-	my $ppaddr = $op->ppaddr;
-	if ($ppaddr eq "pp_match" && !($op->flags & OPf_STACKED)) {
+	if ($op->name eq "match" && !($op->flags & OPf_STACKED)) {
 	    warning('Implicit match on $_');
 	}
     }
     if ($check{implicit_write}) {
-	my $ppaddr = $op->ppaddr;
-	if ($ppaddr eq "pp_subst" && !($op->flags & OPf_STACKED)) {
+	if ($op->name eq "subst" && !($op->flags & OPf_STACKED)) {
 	    warning('Implicit substitution on $_');
 	}
     }
@@ -229,34 +223,35 @@ sub B::PMOP::lint {
 sub B::LOOP::lint {
     my $op = shift;
     if ($check{implicit_read} || $check{implicit_write}) {
-	my $ppaddr = $op->ppaddr;
-	if ($ppaddr eq "pp_enteriter") {
+	if ($op->name eq "enteriter") {
 	    my $last = $op->last;
-	    if ($last->ppaddr eq "pp_gv" && $last->gv->NAME eq "_") {
+	    if ($last->name eq "gv" && $last->gv->NAME eq "_") {
 		warning('Implicit use of $_ in foreach');
 	    }
 	}
     }
 }
 
-sub B::GVOP::lint {
+sub B::SVOP::lint {
     my $op = shift;
-    if ($check{dollar_underscore} && $op->ppaddr eq "pp_gvsv"
+    if ($check{dollar_underscore} && $op->name eq "gvsv"
 	&& $op->gv->NAME eq "_")
     {
 	warning('Use of $_');
     }
     if ($check{private_names}) {
-	my $ppaddr = $op->ppaddr;
-	my $gv = $op->gv;
-	if (($ppaddr eq "pp_gv" || $ppaddr eq "pp_gvsv")
-	    && $gv->NAME =~ /^_./ && $gv->STASH->NAME ne $curstash)
-	{
-	    warning('Illegal reference to private name %s', $gv->NAME);
+	my $opname = $op->name;
+	if ($opname eq "gv" || $opname eq "gvsv") {
+	    my $gv = $op->gv;
+	    if ($gv->NAME =~ /^_./ && $gv->STASH->NAME ne $curstash) {
+		warning('Illegal reference to private name %s', $gv->NAME);
+	    }
 	}
     }
     if ($check{undefined_subs}) {
-	if ($op->ppaddr eq "pp_gv" && $op->next->ppaddr eq "pp_entersub") {
+	if ($op->name eq "gv"
+	    && $op->next->name eq "entersub")
+	{
 	    my $gv = $op->gv;
 	    my $subname = $gv->STASH->NAME . "::" . $gv->NAME;
 	    no strict 'refs';
@@ -266,7 +261,7 @@ sub B::GVOP::lint {
 	    }
 	}
     }
-    if ($check{regexp_variables} && $op->ppaddr eq "pp_gvsv") {
+    if ($check{regexp_variables} && $op->name eq "gvsv") {
 	my $name = $op->gv->NAME;
 	if ($name =~ /^[&'`]$/) {
 	    warning('Use of regexp variable $%s', $name);

@@ -2,7 +2,7 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    @INC = '../lib' if -d '../lib';
+    unshift @INC, '../lib' if -d '../lib';
     require Config; import Config;
     if ($Config{'extensions'} !~ /\bSocket\b/ && 
         !(($^O eq 'VMS') && $Config{d_socket})) {
@@ -13,7 +13,7 @@ BEGIN {
 	
 use Socket;
 
-print "1..6\n";
+print "1..8\n";
 
 if (socket(T,PF_INET,SOCK_STREAM,6)) {
   print "ok 1\n";
@@ -74,3 +74,14 @@ else {
 	print "# $!\n";
 	print "not ok 4\n";
 }
+
+# warnings
+$SIG{__WARN__} = sub {
+    ++ $w if $_[0] =~ /^6-ARG sockaddr_in call is deprecated/ ;
+} ;
+$w = 0 ;
+sockaddr_in(1,2,3,4,5,6) ;
+print ($w == 1 ? "not ok 7\n" : "ok 7\n") ;
+use warnings 'Socket' ;
+sockaddr_in(1,2,3,4,5,6) ;
+print ($w == 1 ? "ok 8\n" : "not ok 8\n") ;

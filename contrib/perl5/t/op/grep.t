@@ -4,7 +4,7 @@
 # grep() and map() tests
 #
 
-print "1..3\n";
+print "1..27\n";
 
 $test = 1;
 
@@ -29,3 +29,71 @@ sub ok {
    $test++;
 }
 
+{
+   print map({$_} ("ok $test\n"));
+   $test++;
+   print map
+            ({$_} ("ok $test\n"));
+   $test++;
+   print((map({a => $_}, ("ok $test\n")))[0]->{a});
+   $test++;
+   print((map
+            ({a=>$_},
+	     ("ok $test\n")))[0]->{a});
+   $test++;
+   print map { $_ } ("ok $test\n");
+   $test++;
+   print map
+            { $_ } ("ok $test\n");
+   $test++;
+   print((map {a => $_}, ("ok $test\n"))[0]->{a});
+   $test++;
+   print((map
+            {a=>$_},
+	     ("ok $test\n"))[0]->{a});
+   $test++;
+   my $x = "ok \xFF\xFF\n";
+   print map($_&$x,("ok $test\n"));
+   $test++;
+   print map
+            ($_ & $x, ("ok $test\n"));
+   $test++;
+   print map { $_ & $x } ("ok $test\n");
+   $test++;
+   print map
+             { $_&$x } ("ok $test\n");
+   $test++;
+
+   print grep({$_} ("ok $test\n"));
+   $test++;
+   print grep
+            ({$_} ("ok $test\n"));
+   $test++;
+   print grep({a => $_}->{a}, ("ok $test\n"));
+   $test++;
+   print grep
+	     ({a => $_}->{a},
+	     ("ok $test\n"));
+   $test++;
+   print grep { $_ } ("ok $test\n");
+   $test++;
+   print grep
+             { $_ } ("ok $test\n");
+   $test++;
+   print grep {a => $_}->{a}, ("ok $test\n");
+   $test++;
+   print grep
+	     {a => $_}->{a},
+	     ("ok $test\n");
+   $test++;
+   print grep($_&"X",("ok $test\n"));
+   $test++;
+   print grep
+            ($_&"X", ("ok $test\n"));
+   $test++;
+   print grep { $_ & "X" } ("ok $test\n");
+   $test++;
+   print grep
+             { $_ & "X" } ("ok $test\n");
+   $test++;
+}

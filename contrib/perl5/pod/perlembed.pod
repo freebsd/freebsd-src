@@ -12,7 +12,7 @@ Do you want to:
 
 =item B<Use C from Perl?>
 
-Read L<perlxstut>, L<perlxs>, L<h2xs>, and L<perlguts>.
+Read L<perlxstut>, L<perlxs>, L<h2xs>, L<perlguts>, and L<perlapi>.
 
 =item B<Use a Unix program from Perl?>
 
@@ -200,9 +200,9 @@ calling I<perl_run>.
 
 =head2 Calling a Perl subroutine from your C program
 
-To call individual Perl subroutines, you can use any of the B<perl_call_*>
+To call individual Perl subroutines, you can use any of the B<call_*>
 functions documented in L<perlcall>.
-In this example we'll use C<perl_call_argv>.
+In this example we'll use C<call_argv>.
 
 That's shown below, in a program I'll call I<showtime.c>.
 
@@ -221,7 +221,7 @@ That's shown below, in a program I'll call I<showtime.c>.
 
         /*** skipping perl_run() ***/
 
-        perl_call_argv("showtime", G_DISCARD | G_NOARGS, args);
+        call_argv("showtime", G_DISCARD | G_NOARGS, args);
 
         perl_destruct(my_perl);
         perl_free(my_perl);
@@ -257,7 +257,7 @@ and package C<END {}> blocks.
 
 If you want to pass arguments to the Perl subroutine, you can add
 strings to the C<NULL>-terminated C<args> list passed to
-I<perl_call_argv>.  For other data types, or to examine return values,
+I<call_argv>.  For other data types, or to examine return values,
 you'll need to manipulate the Perl stack.  That's demonstrated in the
 last section of this document: L<Fiddling with the Perl stack from
 your C program>.
@@ -265,7 +265,7 @@ your C program>.
 =head2 Evaluating a Perl statement from your C program
 
 Perl provides two API functions to evaluate pieces of Perl code.
-These are L<perlguts/perl_eval_sv> and L<perlguts/perl_eval_pv>.
+These are L<perlapi/eval_sv> and L<perlapi/eval_pv>.
 
 Arguably, these are the only routines you'll ever need to execute
 snippets of Perl code from within your C program.  Your code can be as
@@ -273,44 +273,44 @@ long as you wish; it can contain multiple statements; it can employ
 L<perlfunc/use>, L<perlfunc/require>, and L<perlfunc/do> to
 include external Perl files.
 
-I<perl_eval_pv> lets us evaluate individual Perl strings, and then
+I<eval_pv> lets us evaluate individual Perl strings, and then
 extract variables for coercion into C types.  The following program,
 I<string.c>, executes three Perl strings, extracting an C<int> from
 the first, a C<float> from the second, and a C<char *> from the third.
 
    #include <EXTERN.h>
    #include <perl.h>
-   
+
    static PerlInterpreter *my_perl;
-   
+
    main (int argc, char **argv, char **env)
    {
        STRLEN n_a;
        char *embedding[] = { "", "-e", "0" };
-   
+
        my_perl = perl_alloc();
        perl_construct( my_perl );
-   
+
        perl_parse(my_perl, NULL, 3, embedding, NULL);
        perl_run(my_perl);
-   
+
        /** Treat $a as an integer **/
-       perl_eval_pv("$a = 3; $a **= 2", TRUE);
-       printf("a = %d\n", SvIV(perl_get_sv("a", FALSE)));
-   
+       eval_pv("$a = 3; $a **= 2", TRUE);
+       printf("a = %d\n", SvIV(get_sv("a", FALSE)));
+
        /** Treat $a as a float **/
-       perl_eval_pv("$a = 3.14; $a **= 2", TRUE);
-       printf("a = %f\n", SvNV(perl_get_sv("a", FALSE)));
-   
+       eval_pv("$a = 3.14; $a **= 2", TRUE);
+       printf("a = %f\n", SvNV(get_sv("a", FALSE)));
+
        /** Treat $a as a string **/
-       perl_eval_pv("$a = 'rekcaH lreP rehtonA tsuJ'; $a = reverse($a);", TRUE);
-       printf("a = %s\n", SvPV(perl_get_sv("a", FALSE), n_a));
-   
+       eval_pv("$a = 'rekcaH lreP rehtonA tsuJ'; $a = reverse($a);", TRUE);
+       printf("a = %s\n", SvPV(get_sv("a", FALSE), n_a));
+
        perl_destruct(my_perl);
        perl_free(my_perl);
    }
 
-All of those strange functions with I<sv> in their names help convert Perl scalars to C types.  They're described in L<perlguts>.
+All of those strange functions with I<sv> in their names help convert Perl scalars to C types.  They're described in L<perlguts> and L<perlapi>.
 
 If you compile and run I<string.c>, you'll see the results of using
 I<SvIV()> to create an C<int>, I<SvNV()> to create a C<float>, and
@@ -323,11 +323,11 @@ I<SvPV()> to create a string:
 In the example above, we've created a global variable to temporarily
 store the computed value of our eval'd expression.  It is also
 possible and in most cases a better strategy to fetch the return value
-from I<perl_eval_pv()> instead.  Example:
+from I<eval_pv()> instead.  Example:
 
    ...
    STRLEN n_a;
-   SV *val = perl_eval_pv("reverse 'rekcaH lreP rehtonA tsuJ'", TRUE);
+   SV *val = eval_pv("reverse 'rekcaH lreP rehtonA tsuJ'", TRUE);
    printf("%s\n", SvPV(val,n_a));
    ...
 
@@ -336,7 +336,7 @@ variables and we've simplified our code as well.
 
 =head2 Performing Perl pattern matches and substitutions from your C program
 
-The I<perl_eval_sv()> function lets us evaluate strings of Perl code, so we can
+The I<eval_sv()> function lets us evaluate strings of Perl code, so we can
 define some functions that use it to "specialize" in matches and
 substitutions: I<match()>, I<substitute()>, and I<matches()>.
 
@@ -364,51 +364,51 @@ been wrapped here):
 
  #include <EXTERN.h>
  #include <perl.h>
- 
- /** my_perl_eval_sv(code, error_check)
- ** kinda like perl_eval_sv(), 
+
+ /** my_eval_sv(code, error_check)
+ ** kinda like eval_sv(), 
  ** but we pop the return value off the stack 
  **/
- SV* my_perl_eval_sv(SV *sv, I32 croak_on_error)
+ SV* my_eval_sv(SV *sv, I32 croak_on_error)
  {
      dSP;
      SV* retval;
      STRLEN n_a;
- 
+
      PUSHMARK(SP);
-     perl_eval_sv(sv, G_SCALAR);
- 
+     eval_sv(sv, G_SCALAR);
+
      SPAGAIN;
      retval = POPs;
      PUTBACK;
- 
+
      if (croak_on_error && SvTRUE(ERRSV))
  	croak(SvPVx(ERRSV, n_a));
- 
+
      return retval;
  }
- 
+
  /** match(string, pattern)
  **
  ** Used for matches in a scalar context.
  **
  ** Returns 1 if the match was successful; 0 otherwise.
  **/
- 
+
  I32 match(SV *string, char *pattern)
  {
      SV *command = NEWSV(1099, 0), *retval;
      STRLEN n_a;
- 
+
      sv_setpvf(command, "my $string = '%s'; $string =~ %s",
  	      SvPV(string,n_a), pattern);
- 
-     retval = my_perl_eval_sv(command, TRUE);
+
+     retval = my_eval_sv(command, TRUE);
      SvREFCNT_dec(command);
- 
+
      return SvIV(retval);
  }
- 
+
  /** substitute(string, pattern)
  **
  ** Used for =~ operations that modify their left-hand side (s/// and tr///)
@@ -416,22 +416,22 @@ been wrapped here):
  ** Returns the number of successful matches, and
  ** modifies the input string if there were any.
  **/
- 
+
  I32 substitute(SV **string, char *pattern)
  {
      SV *command = NEWSV(1099, 0), *retval;
      STRLEN n_a;
- 
+
      sv_setpvf(command, "$string = '%s'; ($string =~ %s)",
  	      SvPV(*string,n_a), pattern);
- 
-     retval = my_perl_eval_sv(command, TRUE);
+
+     retval = my_eval_sv(command, TRUE);
      SvREFCNT_dec(command);
- 
-     *string = perl_get_sv("string", FALSE);
+
+     *string = get_sv("string", FALSE);
      return SvIV(retval);
  }
- 
+
  /** matches(string, pattern, matches)
  **
  ** Used for matches in an array context.
@@ -439,25 +439,25 @@ been wrapped here):
  ** Returns the number of matches,
  ** and fills in **matches with the matching substrings
  **/
- 
+
  I32 matches(SV *string, char *pattern, AV **match_list)
  {
      SV *command = NEWSV(1099, 0);
      I32 num_matches;
      STRLEN n_a;
- 
+
      sv_setpvf(command, "my $string = '%s'; @array = ($string =~ %s)",
  	      SvPV(string,n_a), pattern);
- 
-     my_perl_eval_sv(command, TRUE);
+
+     my_eval_sv(command, TRUE);
      SvREFCNT_dec(command);
- 
-     *match_list = perl_get_av("array", FALSE);
+
+     *match_list = get_av("array", FALSE);
      num_matches = av_len(*match_list) + 1; /** assume $[ is 0 **/
- 
+
      return num_matches;
  }
- 
+
  main (int argc, char **argv, char **env)
  {
      PerlInterpreter *my_perl = perl_alloc();
@@ -466,30 +466,30 @@ been wrapped here):
      I32 num_matches, i;
      SV *text = NEWSV(1099,0);
      STRLEN n_a;
- 
+
      perl_construct(my_perl);
      perl_parse(my_perl, NULL, 3, embedding, NULL);
- 
+
      sv_setpv(text, "When he is at a convenience store and the bill comes to some amount like 76 cents, Maynard is aware that there is something he *should* do, something that will enable him to get back a quarter, but he has no idea *what*.  He fumbles through his red squeezey changepurse and gives the boy three extra pennies with his dollar, hoping that he might luck into the correct amount.  The boy gives him back two of his own pennies and then the big shiny quarter that is his prize. -RICHH");
- 
+
      if (match(text, "m/quarter/")) /** Does text contain 'quarter'? **/
  	printf("match: Text contains the word 'quarter'.\n\n");
      else
  	printf("match: Text doesn't contain the word 'quarter'.\n\n");
- 
+
      if (match(text, "m/eighth/")) /** Does text contain 'eighth'? **/
  	printf("match: Text contains the word 'eighth'.\n\n");
      else
  	printf("match: Text doesn't contain the word 'eighth'.\n\n");
- 
+
      /** Match all occurrences of /wi../ **/
      num_matches = matches(text, "m/(wi..)/g", &match_list);
      printf("matches: m/(wi..)/g found %d matches...\n", num_matches);
- 
+
      for (i = 0; i < num_matches; i++)
  	printf("match: %s\n", SvPV(*av_fetch(match_list, i, FALSE),n_a));
      printf("\n");
- 
+
      /** Remove all vowels from text **/
      num_matches = substitute(&text, "s/[aeiou]//gi");
      if (num_matches) {
@@ -497,12 +497,12 @@ been wrapped here):
  	       num_matches);
  	printf("Now text is: %s\n\n", SvPV(text,n_a));
      }
- 
+
      /** Attempt a substitution **/
      if (!substitute(&text, "s/Perl/C/")) {
  	printf("substitute: s/Perl/C...No substitution made.\n\n");
      }
- 
+
      SvREFCNT_dec(text);
      PL_perl_destruct_level = 1;
      perl_destruct(my_perl);
@@ -539,7 +539,7 @@ results--the return value of your Perl subroutine--off the stack.
 
 First you'll need to know how to convert between C types and Perl
 types, with newSViv() and sv_setnv() and newAV() and all their
-friends.  They're described in L<perlguts>.
+friends.  They're described in L<perlguts> and L<perlapi>.
 
 Then you'll need to know how to manipulate the Perl stack.  That's
 described in L<perlcall>.
@@ -576,7 +576,7 @@ deep breath...
       XPUSHs(sv_2mortal(newSViv(a))); /* push the base onto the stack  */
       XPUSHs(sv_2mortal(newSViv(b))); /* push the exponent onto stack  */
       PUTBACK;                      /* make local stack pointer global */
-      perl_call_pv("expo", G_SCALAR); /* call the function             */
+      call_pv("expo", G_SCALAR);      /* call the function             */
       SPAGAIN;                        /* refresh stack pointer         */
                                     /* pop the return value from stack */
       printf ("%d to the %dth power is %d.\n", a, b, POPi);
@@ -638,7 +638,7 @@ the filename into a guaranteed-unique package name, and then compile
 the code into that package using L<perlfunc/eval>.  In the example
 below, each file will only be compiled once.  Or, the application
 might choose to clean out the symbol table associated with the file
-after it's no longer needed.  Using L<perlcall/perl_call_argv>, We'll
+after it's no longer needed.  Using L<perlapi/call_argv>, We'll
 call the subroutine C<Embed::Persistent::eval_file> which lives in the
 file C<persistent.pl> and pass the filename and boolean cleanup/cache
 flag as arguments.
@@ -656,7 +656,7 @@ with L<perlfunc/my> whenever possible.
  #persistent.pl
 
  use strict;
- use vars '%Cache';
+ our %Cache;
  use Symbol qw(delete_package);
 
  sub valid_package_name {
@@ -750,7 +750,7 @@ with L<perlfunc/my> whenever possible.
 
             /* call the subroutine, passing it the filename as an argument */
             args[0] = filename;
-            perl_call_argv("Embed::Persistent::eval_file",
+            call_argv("Embed::Persistent::eval_file",
                            G_DISCARD | G_EVAL, args);
 
             /* check $@ */
@@ -901,10 +901,10 @@ to see how Perl does this:
  #  define EXTERN_C extern
  #endif
 
- static void xs_init _((void));
+ static void xs_init (void);
 
- EXTERN_C void boot_DynaLoader _((CV* cv));
- EXTERN_C void boot_Socket _((CV* cv));
+ EXTERN_C void boot_DynaLoader (CV* cv);
+ EXTERN_C void boot_Socket (CV* cv);
 
 
  EXTERN_C void
@@ -953,7 +953,7 @@ B<ExtUtils::Embed> can also automate writing the I<xs_init> glue code.
  % cc -c interp.c  `perl -MExtUtils::Embed -e ccopts`
  % cc -o interp perlxsi.o interp.o `perl -MExtUtils::Embed -e ldopts`
 
-Consult L<perlxs> and L<perlguts> for more details.
+Consult L<perlxs>, L<perlguts>, and L<perlapi> for more details.
 
 =head1 Embedding Perl under Win32
 

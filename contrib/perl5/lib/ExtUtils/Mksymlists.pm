@@ -1,10 +1,12 @@
 package ExtUtils::Mksymlists;
+
+use 5.005_64;
 use strict qw[ subs refs ];
 # no strict 'vars';  # until filehandles are exempted
 
 use Carp;
 use Exporter;
-use vars qw( @ISA @EXPORT $VERSION );
+our(@ISA, @EXPORT, $VERSION);
 @ISA = 'Exporter';
 @EXPORT = '&Mksymlists';
 $VERSION = substr q$Revision: 1.17 $, 10;
@@ -76,12 +78,19 @@ sub _write_os2 {
         ($data->{DLBASE} = $data->{NAME}) =~ s/.*:://;
         $data->{DLBASE} = substr($data->{DLBASE},0,7) . '_';
     }
+    my $distname = $data->{DISTNAME} || $data->{NAME};
+    $distname = "Distribution $distname";
+    my $comment = "Perl (v$Config::Config{version}$threaded) module $data->{NAME}";
+    if ($data->{INSTALLDIRS} and $data->{INSTALLDIRS} eq 'perl') {
+	$distname = 'perl5-porters@perl.org';
+	$comment = "Core $comment";
+    }
     rename "$data->{FILE}.def", "$data->{FILE}_def.old";
 
     open(DEF,">$data->{FILE}.def")
         or croak("Can't create $data->{FILE}.def: $!\n");
     print DEF "LIBRARY '$data->{DLBASE}' INITINSTANCE TERMINSTANCE\n";
-    print DEF "DESCRIPTION 'Perl (v$]$threaded) module $data->{NAME} v$data->{VERSION}'\n";
+    print DEF "DESCRIPTION '\@#$distname:$data->{VERSION}#\@ $comment'\n";
     print DEF "CODE LOADONCALL\n";
     print DEF "DATA LOADONCALL NONSHARED MULTIPLE\n";
     print DEF "EXPORTS\n  ";
@@ -148,7 +157,7 @@ sub _write_vms {
     require Config; # a reminder for once we do $^O
     require ExtUtils::XSSymSet;
 
-    my($isvax) = $Config::Config{'arch'} =~ /VAX/i;
+    my($isvax) = $Config::Config{'archname'} =~ /VAX/i;
     my($set) = new ExtUtils::XSSymSet;
     my($sym);
 
@@ -164,6 +173,8 @@ sub _write_vms {
     # We don't do anything to preserve order, so we won't relax
     # the GSMATCH criteria for a dynamic extension
 
+    print OPT "case_sensitive=yes\n"
+        if $Config::Config{d_vms_case_sensitive_symbols};
     foreach $sym (@{$data->{FUNCLIST}}) {
         my $safe = $set->addsym($sym);
         if ($isvax) { print OPT "UNIVERSAL=$safe\n" }
