@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installUpgrade.c,v 1.11 1995/10/26 08:55:49 jkh Exp $
+ * $Id: installUpgrade.c,v 1.12 1995/10/27 03:59:38 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -320,20 +320,11 @@ installUpgrade(char *str)
 	}
     }
     
-    if (installNetworking("upgrade") == RET_FAIL) {
-	dialog_clear();
-	msgConfirm("Some of the networking configuration stuff evidently failed, but\n"
-		   "the first stage of the upgrade should otherwise be considered a\n"
-		   "success!\n\n"
-		   "Next comes stage 2, where we attempt to resurrect your /etc\n"
-		   "directory!");
-    }
-    else {
-	dialog_clear();
-	msgConfirm("First stage of upgrade completed successfully!\n\n"
-		   "Next comes stage 2, where we attempt to resurrect your /etc\n"
-		   "directory!");
-    }
+    dialog_clear();
+    msgConfirm("First stage of upgrade completed successfully!\n\n"
+	       "Next comes stage 2, where we attempt to resurrect your /etc\n"
+	       "directory!");
+
     if (chdir(saved_etc)) {
 	dialog_clear();
 	msgConfirm("Unable to go to your saved /etc directory in %s?!  Argh!\n"
