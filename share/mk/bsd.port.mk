@@ -1,7 +1,7 @@
 #-*- mode: Fundamental; tab-width: 4; -*-
 # ex:ts=4
 #
-#	$Id: bsd.port.mk,v 1.227.2.37 1998/05/19 13:48:39 thepish Exp $
+#	$Id: bsd.port.mk,v 1.227.2.38 1998/05/30 22:40:59 jkh Exp $
 #	$NetBSD: $
 #
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
@@ -577,6 +577,7 @@ MASTER_SITE_SUNSITE+=	\
 	ftp://ftp.funet.fi/pub/mirrors/sunsite.unc.edu/pub/Linux/%SUBDIR%/
 
 MASTER_SITE_KDE+=	\
+	ftp://ftp.us.kde.org/pub/kde/%SUBDIR%/ \
 	ftp://ftp.kde.org/pub/kde/%SUBDIR%/ \
 	ftp://ftp.tuniv.szczecin.pl/pub/kde/%SUBDIR%/ \
 	ftp://ftp.fu-berlin.de/pub/unix/X11/gui/kde/%SUBDIR%/ \
