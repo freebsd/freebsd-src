@@ -664,6 +664,7 @@ product HAGIWARA FG		0x0005  FlashGate
 
 /* Handspring, Inc. */
 product HANDSPRING VISOR	0x0100	Handspring Visor
+product HANDSPRING TREO		0x0200	Handspring Treo
 
 /* Hauppauge Computer Works */
 product HAUPPAUGE WINTV_USB_FM	0x4d12	WinTV USB FM
@@ -942,7 +943,12 @@ product PALM SERIAL		0x0080	USB Serial Adaptor
 product PALM M500		0x0001	Palm m500
 product PALM M505		0x0002	Palm m505
 product PALM M515		0x0003	Palm m515
+product PALM I705		0x0020	Palm i705
+product PALM TUNGSTEN_Z		0x0031	Palm Tungsten Z
 product PALM M125		0x0040	Palm m125
+product PALM M130		0x0050	Palm m130
+product PALM TUNGSTEN_T		0x0060	Palm Tungsten T
+product PALM ZIRE		0x0070	Palm Zire
 
 /* Panasonic products */
 product PANASONIC SDCAAE	0x1b00	MultiMediaCard Adapter
@@ -1087,9 +1093,13 @@ product SOLIDYEAR KEYBOARD	0x2101	Solid Year USB keyboard
 product SONY DSC		0x0010	DSC cameras
 product SONY MSACUS1		0x002d	Memorystick MSAC-US1
 product SONY MSC		0x0032	MSC memory stick slot
+product SONY CLIE_35		0x0038	Sony Clie v3.5
 product SONY CLIE_40		0x0066	Sony Clie v4.0
+product SONY CLIE_40_MS		0x006d	Sony Clie v4.0 Memory Stick slot
+product SONY CLIE_S360		0x0095	Sony Clie s360
+product SONY CLIE_41_MS		0x0099	Sony Clie v4.1 Memory Stick slot
 product SONY CLIE_41		0x009a	Sony Clie v4.1
-product SONY CLIE_50		0x00da	Sony Clie v5.0
+product SONY CLIE_NX60		0x00da	Sony Clie nx60
 
 /* STMicroelectronics products */
 product STMICRO COMMUNICATOR	0x7554	USB Communicator
