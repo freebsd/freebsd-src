@@ -17,9 +17,24 @@
 #define BOOT1 "/stand/sdboot"
 #define BOOT2 "/stand/bootsd"
 
-#define MAXFS	25
+#define MAX_NO_DISKS	10
+#define MAX_NO_FS	30
+#define MAXFS	MAX_NO_FS
 
-#define MAX_NO_DISKS 10
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <ncurses.h>
+#include <string.h>
+#include <errno.h>
+#include <dialog.h>
+#include <ctype.h>
+
+#include <sys/types.h>
+#include <sys/ioctl.h>
+#include <sys/dkbad.h>
+#include <sys/disklabel.h>
+
 #define SCRATCHSIZE 1024
 #define ERRMSGSIZE 256
 #define DEFROOTSIZE 16
@@ -38,11 +53,25 @@
 #  define EXTERN extern
 #endif
 
-EXTERN char *devicename[MAXFS+1];
-EXTERN char *mountpoint[MAXFS+1];
+/* All this "disk" stuff */
+EXTERN int Ndisk;
+EXTERN struct disklabel *Dlbl[MAX_NO_DISKS];
+EXTERN char *Dname[MAX_NO_DISKS];
+EXTERN int Dfd[MAX_NO_DISKS];
+
+EXTERN int MP[MAX_NO_DISKS][MAXPARTITIONS];
+
+/* All this "filesystem" stuff */
+EXTERN int Nfs;
+EXTERN char *Fname[MAX_NO_FS+1];
+EXTERN char *Fmount[MAX_NO_FS+1];
+EXTERN char *Ftype[MAX_NO_FS+1];
+EXTERN u_long Fsize[MAX_NO_FS+1];
+
 EXTERN int dialog_active;
 EXTERN char selection[];
 EXTERN int debug_fd;
+
 
 extern unsigned char **avail_disknames;
 extern int no_disks;
@@ -67,6 +96,7 @@ void	AskAbort __P((char *fmt, ...));
 void	MountUfs __P((char *device, char *mountpoint, int do_mkdir,int flags));
 void	Mkdir __P((char *path));
 void	CopyFile __P((char *p1, char *p2));
+u_long	PartMb(struct disklabel *lbl,int part);
 
 /* exec.c */
 int	exec __P((int magic, char *cmd, char *args, ...));
@@ -95,3 +125,13 @@ int	set_termcap __P((void));
 
 /* makedevs.c */
 int	makedevs __P((void));
+
+/* outcurses.c */
+int	edit_line __P((WINDOW *window, int y, int x, char *field, int width, int maxlen));
+int AskEm __P((WINDOW *w,char *prompt, char *answer, int len));
+
+/* bootarea.c */
+void	enable_label __P((int fd));
+void	disable_label __P((int fd));
+int	write_bootblocks __P((int fd, struct disklabel *lbl));
+int	build_bootblocks __P((int dfd,struct disklabel *label,struct dos_partition *dospart));

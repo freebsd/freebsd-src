@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: main.c,v 1.8 1994/10/26 02:53:09 phk Exp $
+ * $Id: main.c,v 1.9 1994/10/29 10:01:34 phk Exp $
  *
  */
 
@@ -29,36 +29,10 @@
 jmp_buf	jmp_restart;
 
 /*
- * This is the overall plan:  (phk's version)
- *  
- * If (pid == 1)
- *	reopen stdin, stdout, stderr, and do various other magic.
- *
- * If (file exists /this_is_boot.flp)
- *	stage0:
- *		present /README
- *      stage1:
- *		Ask about diskallocation and do the fdisk/disklabel stunt.
- *	stage2:
- *		Do newfs, mount and copy over a minimal world.
- *		make /mnt/etc/fstab.  Install ourself as /mnt/sbin/init
- * Else
- *	stage3:
- *		Read cpio.flp and fiddle around with the bits a bit.
- *	stage4:
- *		Read bin-tarballs:
- *			Using ftp
- *			Using NFS (?)
- *			Using floppy
- *			Using tape
- *			Using shell-prompt
- *	stage5:
- *		Extract bin-tarballs
- *	stage6:
- *		Ask various questions and collect answers into system-config
- *		files.
- *	stage7:
- *		execl("/sbin/init");
+ * XXX: utils: Mkdir must do "-p".
+ * XXX: stage2: do mkdir for msdos-mounts.
+ * XXX: label: Import dos-slice.
+ * XXX: mbr: edit geometry
  */
 
 extern int alloc_memory();
@@ -77,8 +51,11 @@ main(int argc, char **argv)
 		i = 1;
 		ioctl(0,TIOCSPGRP,&i);
 		setlogin("root");
+		debug_fd = open("/dev/ttyv1",O_WRONLY);
+	} else {
+		debug_fd = open("sysinstall.debug",
+			O_WRONLY|O_CREAT|O_TRUNC,0644);
 	}
-	debug_fd = open("/dev/ttyv1",O_WRONLY);
 	if (set_termcap() == -1) {
 		Fatal("Can't find terminal entry\n");
 	}
