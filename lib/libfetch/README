@@ -8,8 +8,6 @@ items:
 
   * The man page needs work. Really. I mean it. Now.
 
-  * ftp.c is not even half-written.
-
   * HTTP authentication doesn't work. I'm not sure if I bungled http.c
     or fubared base64.c (which was ripped from MIT fetch(1)).
 
