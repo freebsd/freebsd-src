@@ -8,13 +8,12 @@ GDBSRCS=	blockframe.c breakpoint.c command.c copying.c core.c \
 		remote-sl.c source.c stack.c symmisc.c symtab.c \
 		utils.c valarith.c valops.c valprint.c values.c \
 		version.c
-READLINESRCS=	funmap.c history.c keymaps.c readline.c
-SRCS=		$(CONFIGSRCS) $(GDBSRCS) $(READLINESRCS) init.c
-CFLAGS+=	-I. -I$(.CURDIR) -I$(.CURDIR)/config -I$(.CURDIR)/readline \
-		-DHAVE_VPRINTF -DVI_MODE -DKERNELDEBUG -DNEWVM
-LDADD=		-ltermcap
+SRCS=           $(CONFIGSRCS) $(GDBSRCS) init.c
+CFLAGS+=        -I. -I$(.CURDIR) -I$(.CURDIR)/config \
+		-DHAVE_VPRINTF -DKERNELDEBUG -DNEWVM
+LDADD=          -lreadline -ltermcap
 YFLAGS=
-.PATH: $(.CURDIR)/config $(.CURDIR)/readline
+.PATH: $(.CURDIR)/config
 
 depend:
 
@@ -29,9 +28,7 @@ $(OBJS):	param.h
 init.c:		$(CONFIGSRCS) $(GDBSRCS) $(READLINESRCS)
 	-((cd $(.CURDIR)/config; \
 		egrep -h '^_initialize_[^ ]* *\(\)' $(CONFIGSRCS)); \
-	  (cd $(.CURDIR); egrep -h '^_initialize_[^ ]* *\(\)' $(GDBSRCS)); \
-	  (cd $(.CURDIR)/readline; \
-		egrep -h '^_initialize_[^ ]* *\(\)' $(READLINESRCS))) | \
+	  (cd $(.CURDIR); egrep -h '^_initialize_[^ ]* *\(\)' $(GDBSRCS))) | \
 	(echo 'void initialize_all_files () {'; sed -e 's/$$/;/'; echo '}') \
 		> init.c
 
