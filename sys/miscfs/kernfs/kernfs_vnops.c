@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs_vnops.c	8.6 (Berkeley) 2/10/94
- * $Id: kernfs_vnops.c,v 1.8 1995/05/25 01:35:16 davidg Exp $
+ * $Id: kernfs_vnops.c,v 1.9 1995/07/31 08:52:02 mpp Exp $
  */
 
 /*
@@ -669,7 +669,7 @@ kernfs_pathconf(ap)
 }
 
 /*
- * Print out the contents of a /dev/fd vnode.
+ * Print out the contents of a kernfs vnode.
  */
 /* ARGSUSED */
 int
@@ -697,7 +697,7 @@ kernfs_vfree(ap)
 }
 
 /*
- * /dev/fd vnode unsupported operation
+ * Kernfs vnode unsupported operation
  */
 int
 kernfs_enotsupp()
@@ -707,7 +707,7 @@ kernfs_enotsupp()
 }
 
 /*
- * /dev/fd "should never get here" operation
+ * Kernfs "should never get here" operation
  */
 int
 kernfs_badop()
