@@ -138,10 +138,22 @@ gv_set_sd_state(struct gv_sd *s, int newstate, int flags)
 
 		case GV_SD_STALE:
 			/*
-			 * A stale subdisk can't be brought up directly, it
-			 * needs to be revived or initialized first.
+			 * A stale subdisk can be brought up only if it's part
+			 * of a concat or striped plex that's the only one in a
+			 * volume, or if the subdisk isn't attached to a plex.
+			 * Otherwise it needs to be revived or initialized
+			 * first.
 			 */
-			/* FALLTHROUGH */
+			p = s->plex_sc;
+			if (p == NULL)
+				break;
+
+			if ((p->org != GV_PLEX_RAID5) &&
+			    (p->vol_sc->plexcount == 1))
+				break;
+			else
+				return (-1);
+
 		default:
 			return (-1);
 		}
