@@ -1128,7 +1128,7 @@
     Ethernet NICs (&man.sis.4; driver)
       <itemizedlist>
 	<listitem>
-	  <para>SiS 635 and 735 motherboard chipsets</para>
+	  <para>SiS 630, 635 and 735 motherboard chipsets</para>
 	</listitem>
       </itemizedlist>
     </para>
