@@ -22,3 +22,11 @@ i386 boot[012]	jhb	Pre-commit review preferred.  Robert Nordier would
 cdboot		jhb	Pre-commit review requested.
 pxeboot		jhb	Pre-commit review requested.
 witness		jhb	Pre-commit review requested.
+geom		phk	Pre-commit review requested.
+specinfo/dev_t	phk	Pre-commit review requested.
+struct disk	phk	Pre-commit review requested.
+specfs		phk	Pre-commit review requested.
+devfs		phk	Pre-commit review requested.
+geom		phk	Pre-commit review requested.
+timekeeping	phk	Pre-commit review requested.
+md(4)		phk	Pre-commit review requested.
