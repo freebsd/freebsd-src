@@ -81,11 +81,15 @@ rtermcap:	${.CURDIR}/rtermcap.c
 .if ${MACHINE} == "pc98"
 KEYMAPS= jp.pc98 jp.pc98.iso
 .else
-KEYMAPS= be.iso br275.iso danish.iso finnish.iso fr.iso \
-	german.iso hr.iso hu.iso2.101keys it.iso icelandic.iso jp.106 \
-	norwegian.iso pl_PL.ISO_8859-2 pt.iso ru.koi8-r si.iso \
-	spanish.iso swedish.iso swissfrench.iso swissgerman.iso ua.koi8-u \
-	ua.koi8-u.shift.alt uk.iso us.dvorak us.iso
+KEYMAPS= be.iso br275.cp850 br275.iso danish.cp865 danish.iso estonian.iso \
+	estonian.iso15 estonian.cp850 finnish.cp850 finnish.iso fr.iso \
+	fr.iso.acc german.cp850 german.iso hr.iso hu.iso2.101keys \
+	hu.iso2.102keys it.iso icelandic.iso icelandic.iso.acc jp.106 \
+	lat-amer norwegian.iso pt.iso pt.iso.acc ru.koi8-r si.iso spanish.iso \
+	spanish.iso.acc swedish.cp850 swedish.iso swissfrench.cp850 \
+	swissfrench.iso swissgerman.cp850 swissgerman.iso swissgerman.iso.acc \
+	ua.koi8-u ua.koi8-u.shift.alt uk.cp850 uk.iso us.dvorak us.emacs \
+	us.iso us.pc-ctrl us.unix
 .endif
 
 keymap.h:
