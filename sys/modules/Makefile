@@ -143,7 +143,7 @@ SUBDIR=	${_3dfx} \
 	${_ncp} \
 	${_ncv} \
 	${_ndis} \
-	${_netgraph} \
+	netgraph \
 	nfsclient \
 	nfsserver \
 	nge \
@@ -308,7 +308,6 @@ _lnc=		lnc
 _ncp=		ncp
 _ncv=		ncv
 _ndis=		ndis
-_netgraph=	netgraph
 _nsp=		nsp
 _nwfs=		nwfs
 _oltr=		oltr
@@ -403,7 +402,6 @@ _fe=		fe
 _hfa=		hfa
 _iir=		iir
 _mly=		mly
-_netgraph=	netgraph
 _pccard=	pccard
 _ray=		ray
 _scsi_low=	scsi_low
