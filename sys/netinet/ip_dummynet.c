@@ -10,7 +10,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_dummynet.c,v 1.4 1999/01/11 11:08:07 luigi Exp $
+ *	$Id: ip_dummynet.c,v 1.5 1999/01/12 12:27:54 eivind Exp $
  */
 
 /*
@@ -239,8 +239,9 @@ dn_move(struct dn_pipe *pipe, int immediate)
  * this is the periodic task that moves packets between the R-
  * and the P- queue
  */
+/*ARGSUSED*/
 void
-dummynet(void * __attribute__((unused)) unused )
+dummynet(void * __unused unused)
 {
     struct dn_pipe *p ;
     int s ;
