@@ -27,7 +27,7 @@ pflog_prestart()
 {
 	# load pflog kernel module if needed
 	if ! kldstat -v | grep -q pflog\$; then
-		if kldload pflog; then
+		if kldload pf; then
 			info 'pflog module loaded.'
 		else
 			err 1 'pflog module failed to load.'
@@ -39,7 +39,7 @@ pflog_prestart()
 		warn 'pflog: COULD NOT SET UP pflog0'
 	fi
 
-	# check for pf rules
+	# check for pflogd binary
 	if [ ! -x "${pflog_program:-/sbin/pflogd}" ]
 	then
 		warn 'pflog: NO PFLOGD BINARY FOUND'
