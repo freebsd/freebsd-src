@@ -50,7 +50,7 @@
  * that thread.  When a thread blocks on a lock, if it is the first thread
  * to block, it lends its turnstile to the lock.  If the lock already has
  * a turnstile, then it gives its turnstile to the lock's turnstile's free
- * list.  When a thread is woken up, it takes a thread from the free list
+ * list.  When a thread is woken up, it takes a turnstile from the free list
  * if there are any other waiters.  If it is the only thread blocked on the
  * lock, then it reclaims the turnstile associated with the lock and removes
  * it from the hash table.
