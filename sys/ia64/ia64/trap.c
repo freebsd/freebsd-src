@@ -46,8 +46,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 #include <sys/vmmeter.h>
 #include <sys/sysent.h>
+#include <sys/signalvar.h>
 #include <sys/syscall.h>
 #include <sys/pioctl.h>
+#include <sys/ptrace.h>
 #include <sys/sysctl.h>
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
@@ -968,6 +970,8 @@ syscall(struct trapframe *tf)
 
 	STOPEVENT(p, S_SCE, (callp->sy_narg & SYF_ARGMASK));
 
+	PTRACESTOP_SC(p, td, S_PT_SCE);
+
 	error = (*callp->sy_call)(td, args);
 
 	if (error != EJUSTRETURN) {
@@ -1009,6 +1013,8 @@ syscall(struct trapframe *tf)
 	 * is not the case, this code will need to be revisited.
 	 */
 	STOPEVENT(p, S_SCX, code);
+
+	PTRACESTOP_SC(p, td, S_PT_SCX);
 
 #ifdef DIAGNOSTIC
 	cred_free_thread(td);
