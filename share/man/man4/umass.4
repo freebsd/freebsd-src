@@ -37,7 +37,7 @@
 .Nm umass
 .Nd USB Mass Storage Devices Driver
 .Sh SYNOPSIS
-.Cd "controller umass0"
+.Cd "device umass0"
 .Sh DESCRIPTION
 The
 .Nm
@@ -55,8 +55,8 @@ must be configured in the kernel as well. Last but not least, support for
 SCSI drives,
 .Nm da
 .Sh EXAMPLE
-.Dl controller umass0
-.Dl controller scbus0
+.Dl device umass0
+.Dl device scbus0
 .Dl device da0
 .Dl device pass0
 .Pp
