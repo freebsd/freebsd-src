@@ -591,7 +591,7 @@ g_insert_geom(char *class, struct g_consumer *cp)
 	mp = g_class_by_name(class);
 	if (mp == NULL)
 		return (NULL);
-	if (mp->create_geom == NULL)
+	if (mp->config == NULL)
 		return (NULL);
 	pp = cp->provider;
 	gp = mp->taste(mp, pp, G_TF_TRANSPARENT);
