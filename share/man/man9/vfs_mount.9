@@ -36,7 +36,13 @@
 .In sys/param.h
 .In sys/mount.h
 .Ft int
-.Fn vfs_mount "struct thread *td" "char *fstype" "char *fspath" "int fsflags" "void *fsdata"
+.Fo vfs_mount
+.Fa "struct thread *td"
+.Fa "const char *fstype"
+.Fa "char *fspath"
+.Fa "int fsflags"
+.Fa "void *fsdata"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn vfs_mount
