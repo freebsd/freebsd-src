@@ -303,7 +303,12 @@ iface_inAdd(struct iface *iface, struct in_addr ifa, struct in_addr mask,
        * the IP number as a destination.
        */
       if (chg == slot && iface->in_addr[chg].mask.s_addr == mask.s_addr) {
-        nochange = 1;
+        if (brd.s_addr == iface->in_addr[slot].brd.s_addr)
+          nochange = 1;
+        /*
+         * If only the destination address has changed, the SIOCAIFADDR
+         * we do after the current loop will change it.
+         */
         continue;
       }
       if (s == -1 && (s = ID0socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
