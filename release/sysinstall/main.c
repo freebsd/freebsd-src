@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: main.c,v 1.28.2.5 1997/01/19 09:59:33 jkh Exp $
+ * $Id: main.c,v 1.28.2.6 1997/01/29 01:11:25 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -81,10 +81,10 @@ main(int argc, char **argv)
     if (OnVTY) {
 	for (curr = 0; curr < 25; curr++)
 	    putchar('\n');
-	/* Move stderr aside */
-	if (DebugFD)
-	    dup2(DebugFD, 2);
     }
+    /* Move stderr aside */
+    if (DebugFD)
+	dup2(DebugFD, 2);
 
     /* Probe for all relevant devices on the system */
     deviceGetAll();
