@@ -84,8 +84,8 @@ memory which is not accessible to the device.
 One such facility is provided by the
 .Nm busdma
 interface.
-Device drivers which do not make affordances for such devices will not work
-reliably in a system with more than 4 gigabytes of memory when the
+Device drivers which do not account for such devices will not work reliably
+in a system with more than 4 gigabytes of memory when the
 .Nm
 option is used,
 and may cause data corruption.
