@@ -849,6 +849,10 @@ vr_attach(dev)
 	ifp->if_init = vr_init;
 	ifp->if_baudrate = 10000000;
 	ifp->if_snd.ifq_maxlen = VR_TX_LIST_CNT - 1;
+#ifdef DEVICE_POLLING
+	ifp->if_capabilities |= IFCAP_POLLING;
+#endif
+	ifp->if_capenable = ifp->if_capabilities;
 
 	/*
 	 * Do MII setup.
@@ -1265,6 +1269,10 @@ vr_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	struct vr_softc *sc = ifp->if_softc;
 
 	VR_LOCK(sc);
+	if (!(ifp->if_capenable & IFCAP_POLLING)) {
+		ether_poll_deregister(ifp);
+		cmd = POLL_DEREGISTER;
+	}
 	if (cmd == POLL_DEREGISTER) { /* final call, enable interrupts */
 		CSR_WRITE_2(sc, VR_IMR, VR_INTRS);
 		goto done;
@@ -1343,7 +1351,8 @@ vr_intr(arg)
 #ifdef DEVICE_POLLING
 	if (ifp->if_flags & IFF_POLLING)
 		goto done;
-	if (ether_poll_register(vr_poll, ifp)) { /* ok, disable interrupts */
+	if ((ifp->if_capenable & IFCAP_POLLING) &&
+	    ether_poll_register(vr_poll, ifp)) { /* ok, disable interrupts */
 		CSR_WRITE_2(sc, VR_IMR, 0x0000);
 		vr_poll(ifp, 0, 1);
 		goto done;
@@ -1720,6 +1729,9 @@ vr_ioctl(ifp, command, data)
 	case SIOCSIFMEDIA:
 		mii = device_get_softc(sc->vr_miibus);
 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
+		break;
+	case SIOCSIFCAP:
+		ifp->if_capenable = ifr->ifr_reqcap;
 		break;
 	default:
 		error = ether_ioctl(ifp, command, data);
