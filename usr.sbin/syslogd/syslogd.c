@@ -79,6 +79,7 @@ static const char rcsid[] =
 #include <sys/wait.h>
 #include <sys/socket.h>
 #include <sys/msgbuf.h>
+#include <sys/queue.h>
 #include <sys/uio.h>
 #include <sys/un.h>
 #include <sys/time.h>
@@ -144,6 +145,10 @@ struct filed {
 			struct sockaddr_in	f_addr;
 		} f_forw;		/* forwarding address */
 		char	f_fname[MAXPATHLEN];
+		struct {
+			char	f_pname[MAXPATHLEN];
+			pid_t	f_pid;
+		} f_pipe;
 	} f_un;
 	char	f_prevline[MAXSVLINE];		/* last message logged */
 	char	f_lasttime[16];			/* time of last occurrence */
@@ -153,6 +158,30 @@ struct filed {
 	int	f_prevcount;			/* repetition cnt of prevline */
 	int	f_repeatcount;			/* number of "repeated" msgs */
 };
+
+/*
+ * Queue of about-to-be dead processes we should watch out for.
+ */
+
+TAILQ_HEAD(stailhead, deadq_entry) deadq_head;
+struct stailhead *deadq_headp;
+
+struct deadq_entry {
+	pid_t				dq_pid;
+	int				dq_timeout;
+	TAILQ_ENTRY(deadq_entry)	dq_entries;
+};
+
+/*
+ * The timeout to apply to processes waiting on the dead queue.  Unit
+ * of measure is `mark intervals', i.e. 20 minutes by default.
+ * Processes on the dead queue will be terminated after that time.
+ */
+
+#define DQ_TIMO_INIT	2
+
+typedef struct deadq_entry *dq_t;
+
 
 /*
  * Intervals at which we flush out "message repeated" messages,
@@ -174,10 +203,11 @@ int	repeatinterval[] = { 30, 120, 600 };	/* # of secs before flush */
 #define F_FORW		4		/* remote machine */
 #define F_USERS		5		/* list of users */
 #define F_WALL		6		/* everyone logged on */
+#define F_PIPE		7		/* pipe to program */
 
-char	*TypeNames[7] = {
+char	*TypeNames[8] = {
 	"UNUSED",	"FILE",		"TTY",		"CONSOLE",
-	"FORW",		"USERS",	"WALL"
+	"FORW",		"USERS",	"WALL",		"PIPE"
 };
 
 struct	filed *Files;
@@ -199,6 +229,7 @@ char	bootfile[MAXLINE+1];	/* booted kernel file */
 
 void	cfline __P((char *, struct filed *, char *));
 char   *cvthname __P((struct sockaddr_in *));
+void	deadq_enter __P((pid_t));
 int	decode __P((const char *, CODE *));
 void	die __P((int));
 void	domark __P((int));
@@ -208,6 +239,7 @@ void	logerror __P((const char *));
 void	logmsg __P((int, char *, char *, int));
 void	printline __P((char *, char *));
 void	printsys __P((char *));
+int	p_open __P((char *, pid_t *));
 void	reapchild __P((int));
 char   *ttymsg __P((struct iovec *, int, char *, int));
 void	usage __P((void));
@@ -274,6 +306,7 @@ main(argc, argv)
 	(void)signal(SIGQUIT, Debug ? die : SIG_IGN);
 	(void)signal(SIGCHLD, reapchild);
 	(void)signal(SIGALRM, domark);
+	(void)signal(SIGPIPE, SIG_IGN);	/* We'll catch EPIPE instead. */
 	(void)alarm(TIMERINTVL);
 
 #ifndef SUN_LEN
@@ -298,6 +331,8 @@ main(argc, argv)
 		finet = socket(AF_INET, SOCK_DGRAM, 0);
 	else
 		finet = -1;
+
+	TAILQ_INIT(&deadq_head);
 
 	inetm = 0;
 	if (finet >= 0) {
@@ -638,6 +673,7 @@ fprintlog(f, flags, msg)
 	int l;
 	char line[MAXLINE + 1], repbuf[80], greetings[200];
 	char *msgret;
+	dq_t q;
 
 	v = iov;
 	if (f->f_type == F_WALL) {
@@ -715,6 +751,29 @@ fprintlog(f, flags, msg)
 			logerror(f->f_un.f_fname);
 		} else if (flags & SYNC_FILE)
 			(void)fsync(f->f_file);
+		break;
+
+	case F_PIPE:
+		dprintf(" %s\n", f->f_un.f_pipe.f_pname);
+		v->iov_base = "\n";
+		v->iov_len = 1;
+		if (f->f_un.f_pipe.f_pid == 0) {
+			if ((f->f_file = p_open(f->f_un.f_pipe.f_pname,
+						&f->f_un.f_pipe.f_pid)) < 0) {
+				f->f_type = F_UNUSED;
+				logerror(f->f_un.f_pipe.f_pname);
+				break;
+			}
+		}
+		if (writev(f->f_file, iov, 6) < 0) {
+			int e = errno;
+			(void)close(f->f_file);
+			if (f->f_un.f_pipe.f_pid > 0)
+				deadq_enter(f->f_un.f_pipe.f_pid);
+			f->f_un.f_pipe.f_pid = 0;
+			errno = e;
+			logerror(f->f_un.f_pipe.f_pname);
+		}
 		break;
 
 	case F_CONSOLE:
@@ -808,10 +867,52 @@ void
 reapchild(signo)
 	int signo;
 {
-	int status;
+	int status, code;
+	pid_t pid;
+	struct filed *f;
+	char buf[256];
+	const char *reason;
+	dq_t q;
 
-	while (wait3(&status, WNOHANG, (struct rusage *)NULL) > 0)
-		;
+	while ((pid = wait3(&status, WNOHANG, (struct rusage *)NULL)) > 0) {
+		if (!Initialized)
+			/* Don't tell while we are initting. */
+			continue;
+
+		/* First, look if it's a process from the dead queue. */
+		for (q = TAILQ_FIRST(&deadq_head); q != NULL; q = TAILQ_NEXT(q, dq_entries))
+			if (q->dq_pid == pid) {
+				TAILQ_REMOVE(&deadq_head, q, dq_entries);
+				free(q);
+				goto oncemore;
+			}
+
+		/* Now, look in list of active processes. */
+		for (f = Files; f; f = f->f_next)
+			if (f->f_type == F_PIPE &&
+			    f->f_un.f_pipe.f_pid == pid) {
+				(void)close(f->f_file);
+
+				errno = 0; /* Keep strerror() stuff out of logerror messages. */
+				f->f_un.f_pipe.f_pid = 0;
+				if (WIFSIGNALED(status)) {
+					reason = "due to signal";
+					code = WTERMSIG(status);
+				} else {
+					reason = "with status";
+					code = WEXITSTATUS(status);
+					if (code == 0)
+						goto oncemore; /* Exited OK. */
+				}
+				(void)snprintf(buf, sizeof buf,
+				"Logging subprocess %d (%s) exited %s %d.",
+					       pid, f->f_un.f_pipe.f_pname,
+					       reason, code);
+				logerror(buf);
+				break;
+			}
+	  oncemore:
+	}
 }
 
 /*
@@ -847,6 +948,7 @@ domark(signo)
 	int signo;
 {
 	struct filed *f;
+	dq_t q;
 
 	now = time((time_t *)NULL);
 	MarkSeq += TIMERINTVL;
@@ -864,6 +966,29 @@ domark(signo)
 			BACKOFF(f);
 		}
 	}
+
+	/* Walk the dead queue, and see if we should signal somebody. */
+	for (q = TAILQ_FIRST(&deadq_head); q != NULL; q = TAILQ_NEXT(q, dq_entries))
+		switch (q->dq_timeout) {
+		case 0:
+			/* Already signalled once, try harder now. */
+			kill(q->dq_pid, SIGKILL);
+			break;
+
+		case 1:
+			/*
+			 * Timed out on dead queue, send terminate
+			 * signal.  Note that we leave the removal
+			 * from the dead queue to reapchild(), which
+			 * will also log the event.
+			 */
+			kill(q->dq_pid, SIGTERM);
+			/* FALLTROUGH */
+
+		default:
+			q->dq_timeout--;
+		}
+
 	(void)alarm(TIMERINTVL);
 }
 
@@ -874,7 +999,7 @@ void
 logerror(type)
 	const char *type;
 {
-	char buf[100];
+	char buf[512];
 
 	if (errno)
 		(void)snprintf(buf,
@@ -893,10 +1018,13 @@ die(signo)
 	struct filed *f;
 	char buf[100];
 
+	Initialized = 0;	/* Don't log SIGCHLDs. */
 	for (f = Files; f != NULL; f = f->f_next) {
 		/* flush any pending output */
 		if (f->f_prevcount)
 			fprintlog(f, 0, (char *)NULL);
+		if (f->f_type == F_PIPE)
+			(void)close(f->f_file);
 	}
 	if (signo) {
 		dprintf("syslogd: exiting on signal %d\n", signo);
@@ -940,6 +1068,12 @@ init(signo)
 		case F_CONSOLE:
 		case F_TTY:
 			(void)close(f->f_file);
+			break;
+		case F_PIPE:
+			(void)close(f->f_file);
+			if (f->f_un.f_pipe.f_pid > 0)
+				deadq_enter(f->f_un.f_pipe.f_pid);
+			f->f_un.f_pipe.f_pid = 0;
 			break;
 		}
 		next = f->f_next;
@@ -1029,6 +1163,10 @@ init(signo)
 
 			case F_FORW:
 				printf("%s", f->f_un.f_forw.f_hname);
+				break;
+
+			case F_PIPE:
+				printf("%s", f->f_un.f_pipe.f_pname);
 				break;
 
 			case F_USERS:
@@ -1177,6 +1315,12 @@ cfline(line, f, prog)
 		}
 		break;
 
+	case '|':
+		f->f_un.f_pipe.f_pid = 0;
+		(void)strcpy(f->f_un.f_pipe.f_pname, p + 1);
+		f->f_type = F_PIPE;
+		break;
+
 	case '*':
 		f->f_type = F_WALL;
 		break;
@@ -1298,4 +1442,104 @@ timedout(sig)
 		errx(1, "timed out waiting for child");
 	else
 		exit(0);
+}
+
+/*
+ * Fairly similar to popen(3), but returns an open descriptor, as
+ * opposed to a FILE *.
+ */
+int
+p_open(prog, pid)
+	char *prog;
+	pid_t *pid;
+{
+	int pfd[2], nulldesc, i;
+	sigset_t omask, mask;
+	char *argv[4]; /* sh -c cmd NULL */
+	char errmsg[200];
+
+	if (pipe(pfd) == -1)
+		return -1;
+	if ((nulldesc = open(_PATH_DEVNULL, O_RDWR)) == -1)
+		/* we are royally screwed anyway */
+		return -1;
+
+	mask = sigmask(SIGALRM) | sigmask(SIGHUP);
+	sigprocmask(SIG_BLOCK, &omask, &mask);
+	switch ((*pid = fork())) {
+	case -1:
+		sigprocmask(SIG_SETMASK, 0, &omask);
+		close(nulldesc);
+		return -1;
+
+	case 0:
+		argv[0] = "sh";
+		argv[1] = "-c";
+		argv[2] = prog;
+		argv[3] = NULL;
+
+		alarm(0);
+		(void)setsid();	/* Avoid catching SIGHUPs. */
+
+		/*
+		 * Throw away pending signals, and reset signal
+		 * behaviour to standard values.
+		 */
+		signal(SIGALRM, SIG_IGN);
+		signal(SIGHUP, SIG_IGN);
+		sigprocmask(SIG_SETMASK, 0, &omask);
+		signal(SIGPIPE, SIG_DFL);
+		signal(SIGQUIT, SIG_DFL);
+		signal(SIGALRM, SIG_DFL);
+		signal(SIGHUP, SIG_DFL);
+
+		dup2(pfd[0], STDIN_FILENO);
+		dup2(nulldesc, STDOUT_FILENO);
+		dup2(nulldesc, STDERR_FILENO);
+		for (i = getdtablesize(); i > 2; i--)
+			(void) close(i);
+
+		(void) execvp(_PATH_BSHELL, argv);
+		_exit(255);
+	}
+
+	sigprocmask(SIG_SETMASK, 0, &omask);
+	close(nulldesc);
+	close(pfd[0]);
+	/*
+	 * Avoid blocking on a hung pipe.  With O_NONBLOCK, we are
+	 * supposed to get an EWOULDBLOCK on writev(2), which is
+	 * caught by the logic above anyway, which will in turn close
+	 * the pipe, and fork a new logging subprocess if necessary.
+	 * The stale subprocess will be killed some time later unless
+	 * it terminated itself due to closing its input pipe (so we
+	 * get rid of really dead puppies).
+	 */
+	if (fcntl(pfd[1], F_SETFL, O_NONBLOCK) == -1) {
+		/* This is bad. */
+		(void)snprintf(errmsg, sizeof errmsg,
+			       "Warning: cannot change pipe to PID %d to "
+			       "non-blocking behaviour.",
+			       (int)*pid);
+		logerror(errmsg);
+	}
+	return pfd[1];
+}
+
+void
+deadq_enter(pid)
+	pid_t pid;
+{
+	dq_t p;
+
+	p = malloc(sizeof(struct deadq_entry));
+	if (p == 0) {
+		errno = 0;
+		logerror("panic: out of virtual memory!");
+		exit(1);
+	}
+
+	p->dq_pid = pid;
+	p->dq_timeout = DQ_TIMO_INIT;
+	TAILQ_INSERT_TAIL(&deadq_head, p, dq_entries);
 }
