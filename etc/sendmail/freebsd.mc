@@ -43,13 +43,14 @@ divert(-1)
 #
 
 divert(0)dnl
-VERSIONID(`@(#)freebsd.mc	$Revision: 1.5 $')
+VERSIONID(`@(#)freebsd.mc	$Revision: 1.4.2.1 $')
 OSTYPE(bsd4.4)dnl
 DOMAIN(generic)dnl
 FEATURE(relay_based_on_MX)dnl
 FEATURE(mailertable, `hash -o /etc/mail/mailertable')dnl
 FEATURE(access_db, `hash -o /etc/mail/access')dnl
 FEATURE(blacklist_recipients)dnl
+FEATURE(accept_unresolvable_domains)dnl
 FEATURE(virtusertable, `hash -o /etc/mail/virtusertable')dnl
 dnl Uncomment to activate Realtime Blackhole List (recommended!)
 dnl FEATURE(rbl)dnl
