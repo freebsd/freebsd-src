@@ -2424,7 +2424,7 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 			mtx_unlock(&fdesc_mtx);
 			continue;
 		}
-		FILEDESC_LOCK(fdp);
+		FILEDESC_LOCK_FAST(fdp);
 		for (n = 0; n < fdp->fd_nfiles; ++n) {
 			if ((fp = fdp->fd_ofiles[n]) == NULL)
 				continue;
@@ -2441,7 +2441,7 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 			if (error)
 				break;
 		}
-		FILEDESC_UNLOCK(fdp);
+		FILEDESC_UNLOCK_FAST(fdp);
 		mtx_unlock(&fdesc_mtx);
 		if (error)
 			break;
