@@ -70,6 +70,7 @@ struct fixup_entry {
 #define	FIXUP_FFLAGS	4
 
 struct extract {
+	mode_t			 umask;
 	struct archive_string	 mkdirpath;
 	struct fixup_entry	*fixup_list;
 };
@@ -149,6 +150,7 @@ archive_read_extract(struct archive *a, struct archive_entry *entry, int flags)
 		memset(a->extract, 0, sizeof(*a->extract));
 	}
 	extract = a->extract;
+	umask(extract->umask = umask(0)); /* Read the current umask. */
 
 	restore_pwd = -1;
 
@@ -221,12 +223,10 @@ void archive_extract_cleanup(struct archive *a)
 {
 	struct fixup_entry *next, *p;
 	struct extract *extract;
-	mode_t mask;
 
 	/* Sort dir list so directories are fixed up in depth-first order. */
 	extract = a->extract;
 	p = sort_dir_list(extract->fixup_list);
-	umask(mask = umask(0)); /* Read the current umask. */
 
 	while (p != NULL) {
 		if (p->fixup & FIXUP_TIMES) {
@@ -238,7 +238,7 @@ void archive_extract_cleanup(struct archive *a)
 			utimes(p->name, times);
 		}
 		if (p->fixup & FIXUP_MODE)
-			chmod(p->name, p->mode & ~mask);
+			chmod(p->name, p->mode);
 
 		if (p->fixup & FIXUP_FFLAGS)
 			set_fflags(a, p->name, p->mode, p->fflags_set, 0);
@@ -453,7 +453,7 @@ mkdirpath_recursive(struct archive *a, char *path, const struct stat *st,
 		le->name = strdup(path);
 
 		if (mode != writable_mode) {
-			le->mode = mode;
+			le->mode = mode & ~extract->umask;
 			le->fixup |= FIXUP_MODE;
 			mode = writable_mode;
 		}
@@ -466,6 +466,11 @@ mkdirpath_recursive(struct archive *a, char *path, const struct stat *st,
 		}
 	}
 
+	/*
+	 * Try to make the longest dir first.  Most archives are
+	 * written in a reasonable order, so this will almost always
+	 * save us from having to inspect the parent dirs.
+	 */
 	if (mkdir(path, mode) == 0)
 		return (ARCHIVE_OK);
 	/*
@@ -509,7 +514,22 @@ mkdirpath_recursive(struct archive *a, char *path, const struct stat *st,
 		*p = '/';	/* Restore the '/' we just overwrote. */
 		if (r != ARCHIVE_OK)
 			return (r);
+		/* Parent exists now; let's create the last component. */
+		p++;
+		/* Of course, "", ".", and ".." are easy. */
+		if (p[0] == '\0')
+			return (ARCHIVE_OK);
+		if (p[0] == '.' && p[1] == '\0')
+			return (ARCHIVE_OK);
+		if (p[0] == '.' && p[1] == '.' && p[2] == '\0')
+			return (ARCHIVE_OK);
 		if (mkdir(path, mode) == 0)
+			return (ARCHIVE_OK);
+		/*
+		 * Without the following check, a/b/../b/c/d fails at
+		 * the second visit to 'b', so 'd' can't be created.
+		 */
+		if (stat(path, &sb) == 0 && S_ISDIR(sb.st_mode))
 			return (ARCHIVE_OK);
 	}
 	archive_set_error(a, errno, "Failed to create dir '%s'", path);
@@ -762,11 +782,14 @@ set_time(struct archive *a, struct archive_entry *entry, int flags)
 static int
 set_perm(struct archive *a, struct archive_entry *entry, int mode, int flags)
 {
+	struct extract *extract;
 	const char *name;
 
 	if ((flags & ARCHIVE_EXTRACT_PERM) == 0)
 		return (ARCHIVE_OK);
 
+	extract = a->extract;
+	mode &= ~extract->umask; /* Enforce umask. */
 	name = archive_entry_pathname(entry);
 #ifdef HAVE_LCHMOD
 	if (lchmod(name, mode) != 0) {
