@@ -1,4 +1,4 @@
-<!-- $Id: hw.sgml,v 1.54 1996/12/26 05:56:20 jkh Exp $ -->
+<!-- $Id: hw.sgml,v 1.55 1996/12/27 07:14:11 obrien Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -305,6 +305,13 @@ Slippery when wet.  Beware of dog.
 		stepping - you have an A2 stepping if the 82439HX chip has a
 		marking of "SU102".  You have an A1 stepping if it's not
 		marked with an S-number or if the number is "SU087".
+
+	      <tag>430VX <em>(often mistakenly called Triton-III)</em>:</tag>
+	        The 430VX is a low cost design alternative to the 430HX, it
+		is designed for use with video cards that use main memory
+		rather than their own onboard memory.  It also has a memory
+		space restriction of 128MB, though it does add support for
+		SDRAM.  However, it will not cache memory above 64MB.
 		
 	      <tag>Orion:</tag> Early versions of this chipset suffered from
 	 	a PCI write-posting bug which can cause noticeable performance
@@ -368,10 +375,11 @@ Slippery when wet.  Beware of dog.
       hardware.
 
 <sect1><heading>* Memory</heading>
-  <p>The mininum amount of memory you must have to install FreeBSD is 5 MB.
+  <p>The mininum amount of memory you must have to install FreeBSD is 8 MB.
     Once your system is up and running you can <ref id="kernelconfig:building"
-    name="build a custom kernel"> that will use less memory.
-    If you use the boot4.flp you can get away with having only 4 MB.
+    name="build a custom kernel"> that will use less memory.  For FreeBSD
+    2.1, 2.1.5, and 2.1.6 the required mininum amount of memory is 5 MB.
+    If you use the boot4.flp you can install with only 4 MB.
 
 <sect1><heading>* BIOS</heading>
 
