@@ -137,6 +137,9 @@ struct vm_map_entry {
 #define MAP_ENTRY_NEEDS_WAKEUP		0x0200	/* waiters in transition */
 #define MAP_ENTRY_NOCOREDUMP		0x0400	/* don't include in a core */
 
+#define	MAP_ENTRY_GROWS_DOWN		0x1000	/* Top-down stacks */
+#define	MAP_ENTRY_GROWS_UP		0x2000	/* Bottom-up stacks */
+
 #ifdef	_KERNEL
 static __inline u_char   
 vm_map_entry_behavior(vm_map_entry_t entry)
