@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: libc_private.h,v 1.1 1998/04/11 06:57:33 jb Exp $
  *
  * Private definitions for libc, libc_r and libpthread.
  *
@@ -53,7 +53,7 @@ extern int	__isthreaded;
 #ifdef	_FLOCK_DEBUG
 #define _FLOCKFILE(x)	_flockfile_debug(x, __FILE__, __LINE__)
 #else
-#define _FLOCKFILE(x)	_flockfile(x)
+#define _FLOCKFILE(x)	flockfile(x)
 #endif
 
 /*
@@ -61,6 +61,6 @@ extern int	__isthreaded;
  * process is threaded to avoid locking when not required.
  */
 #define	FLOCKFILE(fp)		if (__isthreaded) _FLOCKFILE(fp)
-#define	FUNLOCKFILE(fp)		if (__isthreaded) _funlockfile(fp)
+#define	FUNLOCKFILE(fp)		if (__isthreaded) funlockfile(fp)
 
 #endif /* _LIBC_PRIVATE_H_ */
