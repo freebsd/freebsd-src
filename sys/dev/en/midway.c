@@ -3284,7 +3284,8 @@ done:
 
 #define END_BITS "\20\7SWSL\6DRQ\5DTQ\4RX\3TX\2MREGS\1STATS"
 
-static int en_dump(unit, level)
+/* Do not staticize - meant for calling from DDB! */
+int en_dump(unit, level)
 
 int unit, level;
 
@@ -3451,7 +3452,8 @@ int unit, level;
  * en_dumpmem: dump the memory
  */
 
-static int en_dumpmem(unit, addr, len)
+/* Do not staticize - meant for calling from DDB! */
+int en_dumpmem(unit, addr, len)
 
 int unit, addr, len;
 
