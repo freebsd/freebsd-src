@@ -73,6 +73,14 @@ extern void hardclock_device_poll(void);
 #endif /* DEVICE_POLLING */
 
 /*
+ * a large step happens on boot.  This constant detects such
+ * a steps.  It is relatively small so that ntp_update_second gets called
+ * enough in the typical 'missed a couple of seconds' case, but doesn't
+ * loop forever when the time step is large.
+ */
+#define LARGE_STEP      200
+ 
+/*
  * Number of timecounters used to implement stable storage
  */
 #ifndef NTIMECOUNTER
@@ -797,6 +805,7 @@ tco_forward(int force)
 {
 	struct timecounter *tc, *tco;
 	struct timeval tvt;
+	time_t t;
 
 	tco = timecounter;
 	tc = sync_other_counter();
@@ -828,8 +837,6 @@ tco_forward(int force)
 	while (tc->tc_offset_nano >= 1000000000ULL << 32) {
 		tc->tc_offset_nano -= 1000000000ULL << 32;
 		tc->tc_offset_sec++;
-		ntp_update_second(tc);	/* XXX only needed if xntpd runs */
-		tco_setscales(tc);
 		force++;
 	}
 
@@ -847,6 +854,15 @@ tco_forward(int force)
 		tc->tc_nanotime.tv_nsec -= 1000000000;
 		tc->tc_microtime.tv_usec -= 1000000;
 		tc->tc_nanotime.tv_sec++;
+	}
+	t = tc->tc_nanotime.tv_sec - time_second;
+	if (t > LARGE_STEP)
+	    t = 2;
+	while (t-- > 0) {
+		time_second = tc->tc_nanotime.tv_sec;
+		ntp_update_second(tc);
+		tc->tc_offset_sec += tc->tc_nanotime.tv_sec - time_second;
+		tco_setscales(tc);
 	}
 	time_second = tc->tc_microtime.tv_sec = tc->tc_nanotime.tv_sec;
 
