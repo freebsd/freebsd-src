@@ -1104,5 +1104,14 @@ const struct puc_device_description puc_devices[] = {
 	    PUC_ILR_TYPE_DIGI, { 0x07, 0x47 },
 	},
 
+	{   "Sunix SUN1889",
+	    {	0x0009,	0x7168,	0,	0	},
+	    {	0xffff,	0xffff,	0,	0	},
+	    {
+		{ PUC_PORT_TYPE_COM, 0x10, 0x00, COM_FREQ * 8 },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x08, COM_FREQ * 8 },
+	    },
+	},
+
 	{ 0 }
 };
