@@ -371,6 +371,8 @@ static device_method_t pcic_isa_methods[] = {
 
 	/* Bus Interface */
 	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
+	DEVMETHOD(bus_alloc_resource,	pcic_alloc_resource),
+	DEVMETHOD(bus_release_resource,	pcic_release_resource),
 	DEVMETHOD(bus_activate_resource, pcic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, pcic_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,	pcic_setup_intr),
