@@ -218,7 +218,7 @@ ifs_create(ap)
 	    ap->a_dvp, ap->a_vpp, ap->a_cnp);
 	if (error)
 		return (error);
-	VN_POLLEVENT(ap->a_dvp, POLLWRITE);
+	VN_KNOTE(ap->a_dvp, NOTE_WRITE);
 	return (0);
 }
 
@@ -313,13 +313,13 @@ ifs_remove(ap)
 
 	ip = VTOI(vp);
 	if ((ip->i_flags & (NOUNLINK | IMMUTABLE | APPEND)) ||
-	    (VTOI(dvp)->i_flags & APPEND)) {
-		error = EPERM;
-		goto out;
-	}
+	    (VTOI(dvp)->i_flags & APPEND))
+		return (EPERM);
 	error = ifs_dirremove(dvp, ip, ap->a_cnp->cn_flags, 0);
-	VN_POLLEVENT(vp, POLLNLINK);
-out:
+	if (error == 0) {
+		VN_KNOTE(vp, NOTE_DELETE);
+		VN_KNOTE(dvp, NOTE_WRITE);
+	}
 	return (error);
 }
 
