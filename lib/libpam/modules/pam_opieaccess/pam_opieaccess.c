@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 
 #define _BSD_SOURCE
 
+#include <sys/types.h>
 #include <opie.h>
 #include <pwd.h>
 #include <unistd.h>
