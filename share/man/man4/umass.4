@@ -86,34 +86,38 @@ Last but not least, support for
 SCSI drives,
 .Nm da
 .Sh EXAMPLES
-.Dl device umass
-.Dl device scbus
-.Dl device da
-.Dl device pass
+.Bd -literal -offset indent
+device umass
+device scbus
+device da
+device pass
+.Ed
 .Pp
 Add the
 .Nm
 driver to the kernel.
 .Pp
-.Dl camcontrol rescan 0
+.Dl "camcontrol rescan 0"
 .Pp
 Rescan a Zip drive that was added after boot.
 The command above
 assumes that the Zip drive is the first SCSI bus in the system.
-.Pp
-.Dl camcontrol rescan 0:0:0
-.Dl camcontrol rescan 0:0:1
-.Dl camcontrol rescan 0:0:2
-.Dl camcontrol rescan 0:0:3
+.Bd -literal -offset indent
+camcontrol rescan 0:0:0
+camcontrol rescan 0:0:1
+camcontrol rescan 0:0:2
+camcontrol rescan 0:0:3
+.Ed
 .Pp
 Rescan all slots on a multi-slot flash reader, where the slots map to separate
-LUNs on a single SCSI ID.  Typically only the first slot will be enabled at
-boot time.  Again, this assumes that the flash reader is the first SCSI bus in
-the system.
-.Pp
-.Dl disklabel -w -r da0 zip100
-.Dl newfs da0c
-.Dl mount -t ufs /dev/da0c /mnt
+LUNs on a single SCSI ID.
+Typically only the first slot will be enabled at boot time.
+Again, this assumes that the flash reader is the first SCSI bus in the system.
+.Bd -literal -offset indent
+disklabel -w -r da0 zip100
+newfs da0c
+mount -t ufs /dev/da0c /mnt
+.Ed
 .Pp
 Write a disklabel to the Zip drive (see
 .Nm vpo
@@ -121,7 +125,7 @@ for the
 .Nm disktab
 entry), creates the file system and mounts the new file system on /mnt.
 .Pp
-.Dl newfs_msdos /dev/da0
+.Dl "newfs_msdos /dev/da0"
 .Pp
 Create a new FAT type file system.
 .Sh SEE ALSO
