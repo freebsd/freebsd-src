@@ -41,7 +41,7 @@
 .Nm netgroup
 .Sh DESCRIPTION
 The
-.Nm netgroup
+.Nm
 file
 specifies ``netgroups'', which are sets of
 .Sy (host, user, domain)
@@ -55,6 +55,7 @@ of a tuple as follows:
 .Bd -literal -offset indent
 (host, user, domain)
 .Ed
+.Pp
 where the
 .Sy host ,
 .Sy user ,
@@ -69,43 +70,56 @@ line continuation. Lines are limited to 1024 characters.
 The functions specified in
 .Xr getnetgrent 3
 should normally be used to access the
-.Nm netgroup
+.Nm
 database.
 .Pp
 Lines that begin with a # are treated as comments.
 .Sh NIS/YP INTERACTION
 On most other platforms,
-.Nm netgroups
+.Nm Ns s
 are only used in conjunction with
-NIS and local
+.Tn NIS
+and local
 .Pa /etc/netgroup
-files are ignored. With FreeBSD,
-.Nm netgroups
-can be used with either NIS or local files, but there are certain
+files are ignored. With
+.Bx Free ,
+.Nm Ns s
+can be used with either
+.Tn NIS
+or local files, but there are certain
 caveats to consider. The existing
-.Nm netgroup
+.Nm
 system is extremely inefficient where
 .Fn innetgr 3
 lookups are concerned since
-.Nm netgroup
-memberships are computed on the fly. By contrast, the NIS
-.Nm netgroup
+.Nm
+memberships are computed on the fly. By contrast, the
+.Tn NIS
+.Nm
 database consists of three separate maps (netgroup, netgroup.byuser
 and netgroup.byhost) that are keyed to allow
 .Fn innetgr 3
-lookups to be done quickly. The FreeBSD
-.Nm netgroup
-system can interact with the NIS
-.Nm netgroup
+lookups to be done quickly. The
+.Bx Free
+.Nm
+system can interact with the
+.Tn NIS
+.Nm
 maps in the following ways:
 .Bl -bullet -offset indent
 .It
 If the
 .Pa /etc/netgroup
 file does not exist, or it exists and is empty, or
-it exists and contains only a '+', and NIS is running,
-.Nm netgroup
-lookups will be done exclusively through NIS, with
+it exists and contains only a
+.Sq + ,
+and
+.Tn NIS
+is running,
+.Nm
+lookups will be done exclusively through
+.Tn NIS ,
+with
 .Fn innetgr 3
 taking advantage of the netgroup.byuser and
 netgroup.byhost maps to speed up searches. (This
@@ -115,18 +129,28 @@ similar platforms.)
 If the
 .Pa /etc/netgroup
 exists and contains only local 
-.Nm netgroup
-information (with no NIS '+' token), then only the local
-.Nm netgroup
-information will be processed (and NIS will be ignored).
+.Nm
+information (with no
+.Tn NIS
+.Sq +
+token), then only the local
+.Nm
+information will be processed (and
+.Tn NIS
+will be ignored).
 .It
 If
 .Pa /etc/netgroup
 exists and contains both local netgroup data
 .Pa and
-the NIS '+' token, the local data and the NIS netgroup
+the
+.Tn NIS
+.Sq +
+token, the local data and the
+.Tn NIS
+netgroup
 map will be processed as a single combined
-.Nm netgroup
+.Nm
 database. While this configuration is the most flexible, it
 is also the least efficient: in particular,
 .Fn innetgr 3
@@ -136,7 +160,7 @@ database is large.
 .Sh FILES
 .Bl -tag -width /etc/netgroup -compact
 .It Pa /etc/netgroup
-the netgroup database.
+the netgroup database
 .El
 .Sh SEE ALSO
 .Xr getnetgrent 3 ,
@@ -148,10 +172,12 @@ appears that not all vendors use an identical format.
 The interpretation of access restrictions based on the member tuples of a
 netgroup is left up to the various network applications.
 Also, it is not obvious how the domain specification
-applies to the BSD environment.
+applies to the
+.Bx 
+environment.
 .Pp
 The
-.Nm netgroup
+.Nm
 database should be stored in the form of a
 hashed
 .Xr db 3
