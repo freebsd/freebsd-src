@@ -1633,6 +1633,7 @@ device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 device		de		# DEC/Intel DC21x4x (``Tulip'')
 device		txp		# 3Com 3cR990 (``Typhoon'')
 device		vx		# 3Com 3c590, 3c595 (``Vortex'')
+device		my		# Myson controllers
 
 # PCI Gigabit & FDDI NICs.
 device		bge
