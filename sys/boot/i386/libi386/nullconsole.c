@@ -1,6 +1,7 @@
-/*
+/*-
  * nullconsole.c
  *
+ * Author: Doug Ambrisko <ambrisko@whistle.com>
  * Copyright (c) 2000 Whistle Communications, Inc.
  * All rights reserved.
  * 
@@ -32,11 +33,10 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF WHISTLE COMMUNICATIONS IS ADVISED OF THE POSSIBILITY
  * OF SUCH DAMAGE.
- *
- * Author: Doug Ambrisko <ambrisko@whistle.com>
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <stand.h>
 #include <bootstrap.h>

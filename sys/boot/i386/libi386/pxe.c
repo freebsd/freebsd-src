@@ -1,8 +1,6 @@
-/*
+/*-
  * Copyright (c) 2000 Alfred Perlstein <alfred@freebsd.org>
- * All rights reserved.
  * Copyright (c) 2000 Paul Saab <ps@freebsd.org>
- * All rights reserved.
  * Copyright (c) 2000 John Baldwin <jhb@freebsd.org>
  * All rights reserved.
  *
@@ -26,9 +24,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <stand.h>
 #include <string.h>
