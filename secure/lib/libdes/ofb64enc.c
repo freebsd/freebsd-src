@@ -60,7 +60,7 @@ des_cblock (*ivec);
 int *num;
 	{
 	register DES_LONG v0,v1,t;
-	register int n=*num;
+	register int n= *num;
 	register long l=length;
 	des_cblock d;
 	register char *dp;
@@ -86,7 +86,7 @@ int *num;
 			t=ti[1]; l2c(t,dp);
 			save++;
 			}
-		*(out++)=*(in++)^d[n];
+		*(out++)= *(in++)^d[n];
 		n=(n+1)&0x07;
 		}
 	if (save)
