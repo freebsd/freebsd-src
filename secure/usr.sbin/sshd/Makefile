@@ -41,8 +41,7 @@ CFLAGS+= -DXAUTH_PATH=\"${X11BASE}/bin/xauth\"
 LDADD+=	-lssh -lcrypt -lcrypto -lutil -lz -lwrap ${MINUSLPAM}
 DPADD+=	${LIBSSH} ${LIBCRYPT} ${LIBCRYPTO} ${LIBUTIL} ${LIBZ} ${LIBWRAP} ${LIBPAM}
 
-.if defined(OPENSSH_USE_POSIX_THREADS) && \
-    !defined(NOLIBC_R) && ${MACHINE_ARCH} != ia64 && ${MACHINE_ARCH} != sparc64
+.if defined(OPENSSH_USE_POSIX_THREADS) && !defined(NOLIBC_R)
 CFLAGS+=-DUSE_POSIX_THREADS
 LDADD+= -lc_r
 DPADD+= ${LIBC_R}
