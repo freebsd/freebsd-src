@@ -482,6 +482,7 @@ kvm_open (efile, cfile, sfile, perm, errout)
 {
   struct stat stb;
   int cfd;
+  CORE_ADDR paddr;
 
   if ((cfd = open (cfile, perm, 0)) < 0)
     return (cfd);
@@ -501,9 +502,11 @@ kvm_open (efile, cfile, sfile, perm, errout)
 
   found_pcb = 1; /* for vtophys */
   if (!devmem)
-    read_pcb (cfd, ksym_lookup ("dumppcb") - KERNOFF);
+    paddr = ksym_lookup ("dumppcb") - KERNOFF;
   else
-    read_pcb (cfd, kvtophys (cfd, curpcb));
+    paddr = kvtophys (cfd, curpcb);
+  read_pcb (cfd, paddr);
+  printf ("initial pcb at %x\n", paddr);
 
   return (cfd);
 }
@@ -812,7 +815,6 @@ read_pcb (fd, uaddr)
       error ("cannot read pcb at %x\n", uaddr);
       return (-1);
     }
-  printf ("current pcb at %x\n", uaddr);
 
   /*
    * get the register values out of the sys pcb and
@@ -833,10 +835,10 @@ read_pcb (fd, uaddr)
   supply_register (6, (char *)&pcb.pcb_esi);
   supply_register (7, (char *)&pcb.pcb_edi);
   supply_register (PC_REGNUM, (char *)&pcb.pcb_eip);
-  for (i = 9; i < 14; ++i)		/* eflags, cs, ss, ds, es */
+  for (i = 9; i < 13; ++i)		/* eflags, cs, ss, ds, es */
     supply_register (i, (char *)&noreg);
-  supply_register (15, (char *)&pcb.pcb_fs);
-  supply_register (16, (char *)&pcb.pcb_gs);
+  supply_register (14, (char *)&pcb.pcb_fs);
+  supply_register (15, (char *)&pcb.pcb_gs);
 
   /* XXX 80387 registers? */
 }
