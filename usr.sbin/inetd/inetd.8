@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     from: @(#)inetd.8	8.3 (Berkeley) 4/13/94
-.\"	$Id: inetd.8,v 1.14 1997/09/19 06:26:30 charnier Exp $
+.\"	$Id: inetd.8,v 1.15 1997/10/27 22:03:44 ache Exp $
 .\"
 .Dd February 7, 1996
 .Dt INETD 8
@@ -101,7 +101,7 @@ service name
 socket type
 protocol
 {wait|nowait}[/max-child]
-user[/login-class]
+user[:group][/login-class]
 server program
 server program arguments
 .Ed
@@ -114,7 +114,7 @@ service, the entry would contain these fields:
 service name/version
 socket type
 rpc/protocol
-user[/login-class]
+user[:group][/login-class]
 server program
 server program arguments
 .Ed
@@ -275,9 +275,14 @@ The
 .Em user
 entry should contain the user name of the user as whom the server
 should run.  This allows for servers to be given less permission
-than root. Optional
+than root.
+Optional
+.Em group
+part separated by ``:'' allows to specify group name different
+than default group for this user.
+Optional
 .Em login-class
-suffix separated by ``/'' allows to specify login class different
+part separated by ``/'' allows to specify login class different
 than default ``daemon'' login class.
 .Pp
 The
