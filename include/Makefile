@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.44 1996/09/20 13:42:26 bde Exp $
+#	$Id: Makefile,v 1.45 1996/10/17 18:44:56 jkh Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -39,10 +39,11 @@ LUDIR=	ufs
 UDIRS=	ufs/ffs ufs/lfs ufs/mfs ufs/ufs
 
 # Define SHARED to indicate whether you want symbolic links to the system
-# source (``symlinks''), or a separate copy (``copies''); (latter useful
-# in environments where it's not possible to keep /sys publicly readable)
-# SHARED=	copies
-SHARED?=	symlinks
+# source (``symlinks''), or a separate copy (``copies'').  ``symlinks'' is
+# probably only useful for developers and should be avoided if you do not
+# wish to tie your /usr/include and /usr/src together.
+#SHARED=	symlinks
+SHARED?=	copies
 
 beforeinstall: ${SHARED}
 	cd ${.CURDIR}; \
