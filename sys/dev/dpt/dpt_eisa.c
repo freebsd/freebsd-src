@@ -59,13 +59,30 @@
 #include <dev/dpt/dpt.h>
 
 #include <i386/eisa/eisaconf.h>
-#include <i386/eisa/dpt_eisa.h>
 
 #include <machine/clock.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
+
+#define DPT_EISA_IOSIZE			0x100
+#define DPT_EISA_SLOT_OFFSET		0x0c00
+#define DPT_EISA_EATA_REG_OFFSET	0x0088
+
+#define	DPT_EISA_DPT2402		0x12142402
+#define	DPT_EISA_DPTA401		0x1214A401
+#define	DPT_EISA_DPTA402		0x1214A402
+#define	DPT_EISA_DPTA410		0x1214A410
+#define	DPT_EISA_DPTA411		0x1214A411
+#define	DPT_EISA_DPTA412		0x1214A412
+#define	DPT_EISA_DPTA420		0x1214A420
+#define	DPT_EISA_DPTA501		0x1214A501
+#define	DPT_EISA_DPTA502		0x1214A502
+#define	DPT_EISA_DPTA701		0x1214A701
+#define	DPT_EISA_DPTBC01		0x1214BC01
+#define	DPT_EISA_NEC8200		0x12148200
+#define	DPT_EISA_ATT2408		0x12142408
 
 /* Function Prototypes */
 
@@ -74,49 +91,26 @@ static const char	*dpt_eisa_match(eisa_id_t);
 static int
 dpt_eisa_probe(device_t dev)
 {
-	const char	    *desc;
-	u_int32_t	    io_base;
-	u_int		    intdef;
-	u_int		    irq;
-	int	 	    shared;
+	const char *	desc;
+	u_int32_t	io_base;
+	dpt_conf_t *	conf;
 
 	desc = dpt_eisa_match(eisa_get_id(dev));
 	if (!desc)
 		return (ENXIO);
 	device_set_desc(dev, desc);
 
-	io_base = (eisa_get_slot(dev) * EISA_SLOT_SIZE)
-	    + DPT_EISA_SLOT_OFFSET;
+	io_base = (eisa_get_slot(dev) * EISA_SLOT_SIZE) + DPT_EISA_SLOT_OFFSET;
+
+	conf = dpt_pio_get_conf(io_base + DPT_EISA_EATA_REG_OFFSET);
+	if (!conf) {
+		printf("dpt: dpt_pio_get_conf() failed.\n");
+		return (ENXIO);
+	}
 
 	eisa_add_iospace(dev, io_base, DPT_EISA_IOSIZE, RESVADDR_NONE);
-
-	outb((DPT_EISA_CFENABLE + io_base), 0xf8);
-	
-	intdef = inb(DPT_EISA_INTDEF + io_base);
-
-	irq = intdef & DPT_EISA_INT_NUM_MASK;
-	shared = (intdef & DPT_EISA_INT_LEVEL)
-			? EISA_TRIGGER_LEVEL : EISA_TRIGGER_EDGE;
-	switch (irq) {
-	case DPT_EISA_INT_NUM_11:
-	    irq = 11;
-	    break;
-	case DPT_EISA_INT_NUM_15:
-	    irq = 15;
-	    break;
-	case DPT_EISA_INT_NUM_14:
-	    irq = 14;
-	    break;
-	default:
-	    device_printf(dev, "dpt at slot %d: illegal irq setting %d\n",
-		   eisa_get_slot(dev), irq);
-	    irq = 0;
-	    break;
-	}
-	if (irq == 0)
-	    return (ENXIO);
-
-	eisa_add_intr(dev, irq, shared);
+	eisa_add_intr(dev, conf->IRQ,
+		      (conf->IRQ_TR ? EISA_TRIGGER_LEVEL : EISA_TRIGGER_EDGE));
 
 	return 0;
 }
