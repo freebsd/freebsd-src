@@ -653,9 +653,6 @@ options 	ZERO_COPY_SOCKETS
 # ATM_UNI includes support for the `uni30' and `uni31' signalling managers,
 #	which run the ATM Forum UNI 3.x signalling protocols.
 #
-# The `hea' driver provides support for the Efficient Networks, Inc.
-# ENI-155p ATM PCI Adapter.
-#
 # The `hfa' driver provides support for the FORE Systems, Inc.
 # PCA-200E ATM PCI Adapter.
 #
@@ -667,7 +664,6 @@ options 	ATM_SIGPVC		#SIGPVC signalling manager
 options 	ATM_SPANS		#SPANS signalling manager
 options 	ATM_UNI			#UNI signalling manager
 
-device		hea			#Efficient ENI-155p ATM PCI
 device		hfa			#FORE PCA-200E ATM PCI
 device		harp			#Pseudo-interface for NATM
 
