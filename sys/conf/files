@@ -501,6 +501,8 @@ dev/ppbus/ppi.c		optional ppi
 dev/ppbus/pps.c		optional pps
 dev/ppbus/vpo.c		optional vpo
 dev/ppbus/vpoio.c	optional vpo
+dev/puc/puc.c		optional puc pci
+dev/puc/pucdata.c	optional puc pci
 dev/random/harvest.c	standard
 dev/random/randomdev.c	optional random
 dev/random/yarrow.c	optional random

@@ -120,8 +120,6 @@ dev/kbd/kbd.c			optional	sc
 dev/kbd/kbd.c			optional	ukbd
 dev/kbd/kbd.c			optional	vt
 dev/lnc/if_lnc_isa.c		optional	lnc isa
-dev/puc/puc.c			optional	puc
-dev/puc/pucdata.c		optional	puc
 dev/sbni/if_sbni.c		optional	sbni
 dev/sbni/if_sbni_isa.c		optional	sbni isa
 dev/sbni/if_sbni_pci.c		optional	sbni pci
@@ -130,7 +128,7 @@ dev/sio/sio_isa.c		optional	sio isa
 dev/sio/sio_pccard.c		optional	sio card
 dev/sio/sio_pccard.c		optional	sio pccard
 dev/sio/sio_pci.c		optional	sio pci
-dev/sio/sio_puc.c		optional	sio puc
+dev/sio/sio_puc.c		optional	sio puc pci
 dev/sr/if_sr_isa.c		optional	sr isa
 dev/syscons/apm/apm_saver.c	optional	apm_saver apm
 dev/syscons/schistory.c		count		sc

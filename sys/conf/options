@@ -86,6 +86,7 @@ NODEVFS		opt_devfs.h
 NTIMECOUNTER	opt_ntp.h
 NSWAPDEV	opt_swap.h
 PPS_SYNC	opt_ntp.h
+PUC_FASTINTR	opt_puc.h
 QUOTA
 SPX_HACK
 SUIDDIR		opt_suiddir.h
