@@ -87,10 +87,18 @@ ufs_inactive(ap)
 		ufs_extattr_vnode_inactive(ap->a_vp, ap->a_p);
 #endif
 		error = UFS_TRUNCATE(vp, (off_t)0, 0, NOCRED, p);
+		/*
+		 * Setting the mode to zero needs to wait for the inode
+		 * to be written just as does a change to the link count.
+		 * So, rather than creating a new entry point to do the
+		 * same thing, we just use softdep_change_linkcnt().
+		 */
 		ip->i_rdev = 0;
 		mode = ip->i_mode;
 		ip->i_mode = 0;
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
+		if (DOINGSOFTDEP(vp))
+			softdep_change_linkcnt(ip);
 		UFS_VFREE(vp, ip->i_number, mode);
 	}
 	if (ip->i_flag & (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) {
