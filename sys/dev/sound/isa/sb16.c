@@ -299,6 +299,7 @@ static const struct sb16_mixent sb16_mixtab[32] = {
     	[SOUND_MIXER_OGAIN]	= { 0x41, 2, 6, 1 },
 	[SOUND_MIXER_TREBLE]	= { 0x44, 4, 4, 1 },
     	[SOUND_MIXER_BASS]	= { 0x46, 4, 4, 1 },
+	[SOUND_MIXER_LINE1]	= { 0x52, 5, 3, 1 }
 };
 
 static int
@@ -308,11 +309,11 @@ sb16mix_init(struct snd_mixer *m)
 
 	mix_setdevs(m, SOUND_MASK_SYNTH | SOUND_MASK_PCM | SOUND_MASK_SPEAKER |
      		       SOUND_MASK_LINE | SOUND_MASK_MIC | SOUND_MASK_CD |
-     		       SOUND_MASK_IGAIN | SOUND_MASK_OGAIN |
+     		       SOUND_MASK_IGAIN | SOUND_MASK_OGAIN | SOUND_MASK_LINE1 |
      		       SOUND_MASK_VOLUME | SOUND_MASK_BASS | SOUND_MASK_TREBLE);
 
 	mix_setrecdevs(m, SOUND_MASK_SYNTH | SOUND_MASK_LINE |
-			  SOUND_MASK_MIC | SOUND_MASK_CD);
+			  SOUND_MASK_LINE1 | SOUND_MASK_MIC | SOUND_MASK_CD);
 
 	sb_setmixer(sb, 0x3c, 0x1f); /* make all output active */
 
@@ -368,6 +369,12 @@ sb16mix_setrecsrc(struct snd_mixer *m, u_int32_t src)
 
 	sb_setmixer(sb, SB16_IMASK_L, recdev);
 	sb_setmixer(sb, SB16_IMASK_R, recdev);
+
+	/* Switch on/off FM tuner source */
+	if (src & SOUND_MASK_LINE1)
+		sb_setmixer(sb, 0x4a, 0x0c);
+	else
+		sb_setmixer(sb, 0x4a, 0x00);
 
 	/*
 	 * since the same volume controls apply to the input and
