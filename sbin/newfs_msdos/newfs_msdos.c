@@ -27,7 +27,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: newfs_msdos.c,v 1.1.1.1 1998/07/06 20:01:34 rnordier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -40,7 +40,6 @@ static const char rcsid[] =
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <limits.h>
 #include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -895,30 +894,12 @@ setstr(u_int8_t *dest, const char *src, size_t len)
 static void
 usage(void)
 {
-    fprintf(stderr,
-	    "usage: newfs_msdos [ -options ] special [disktype]\n");
-    fprintf(stderr, "where the options are:\n");
-    fprintf(stderr, "\t-N don't create file system: "
-	    "just print out parameters\n");
-    fprintf(stderr, "\t-B get bootstrap from file\n");
-    fprintf(stderr, "\t-F FAT type (12, 16, or 32)\n");
-    fprintf(stderr, "\t-I volume ID\n");
-    fprintf(stderr, "\t-L volume label\n");
-    fprintf(stderr, "\t-O OEM string\n");
-    fprintf(stderr, "\t-S bytes/sector\n");
-    fprintf(stderr, "\t-a sectors/FAT\n");
-    fprintf(stderr, "\t-b block size\n");
-    fprintf(stderr, "\t-c sectors/cluster\n");
-    fprintf(stderr, "\t-e root directory entries\n");
-    fprintf(stderr, "\t-f standard format\n");
-    fprintf(stderr, "\t-h drive heads\n");
-    fprintf(stderr, "\t-i file system info sector\n");
-    fprintf(stderr, "\t-k backup boot sector\n");
-    fprintf(stderr, "\t-m media descriptor\n");
-    fprintf(stderr, "\t-n number of FATs\n");
-    fprintf(stderr, "\t-o hidden sectors\n");
-    fprintf(stderr, "\t-r reserved sectors\n");
-    fprintf(stderr, "\t-s file system size (sectors)\n");
-    fprintf(stderr, "\t-u sectors/track\n");
+    fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n",
+"usage: newfs_msdos [-N] [-B boot] [-F FAT-type] [-I volid] [-L label]",
+"                   [-O OEM] [-S sector-size] [-a FAT-size] [-b block-size]",
+"                   [-c cluster-size] [-e dirents] [-f format] [-h heads]",
+"                   [-i info] [-k backup] [-m media] [-n FATs] [-o hidden]",
+"                   [-r reserved] [-s total] [-u track-size]",
+"                   special [disktype]");
     exit(1);
 }
