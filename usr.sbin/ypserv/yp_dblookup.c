@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_dblookup.c,v 1.10 1996/12/22 22:30:52 wpaul Exp $
+ *	$Id: yp_dblookup.c,v 1.9.2.1 1997/01/14 01:33:55 wpaul Exp $
  *
  */
 #include <stdio.h>
@@ -47,7 +47,7 @@
 #include "yp_extern.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: yp_dblookup.c,v 1.10 1996/12/22 22:30:52 wpaul Exp $";
+static const char rcsid[] = "$Id: yp_dblookup.c,v 1.9.2.1 1997/01/14 01:33:55 wpaul Exp $";
 #endif
 
 int ypdb_debug = 0;
@@ -600,8 +600,13 @@ int yp_next_record(dbp,key,data,all,allow)
 		rval = yp_first_record(dbp,key,data,allow);
 		if (rval == YP_NOKEY)
 			return(YP_NOMORE);
-		else
+		else {
+#ifdef DB_CACHE
+			qhead.cqh_first->dbptr->key = key->data;
+			qhead.cqh_first->dbptr->size = key->size;
+#endif
 			return(rval);
+		}
 	}
 
 	if (ypdb_debug)
