@@ -431,7 +431,8 @@ ums_intr(xfer, addr, status)
 
 	DPRINTFN(5, ("ums_intr: sc=%p status=%d\n", sc, status));
 	DPRINTFN(5, ("ums_intr: data = %02x %02x %02x %02x %02x %02x\n",
-		     sc->sc_ibuf[0], sc->sc_ibuf[1], sc->sc_ibuf[2], sc->sc_ibuf[3], sc->sc_ibuf[4], sc->sc_ibuf[5]));
+		     sc->sc_ibuf[0], sc->sc_ibuf[1], sc->sc_ibuf[2],
+		     sc->sc_ibuf[3], sc->sc_ibuf[4], sc->sc_ibuf[5]));
 
 	if (status == USBD_CANCELLED)
 		return;
@@ -445,31 +446,43 @@ ums_intr(xfer, addr, status)
 	}
 
 	ibuf = sc->sc_ibuf;
-	if (sc->sc_iid) {
-		ibuf++;
-	}
-
-	/* The M$ Wireless Intellimouse 2.0 sends 1 extra leading byte of
+	/*
+	 * The M$ Wireless Intellimouse 2.0 sends 1 extra leading byte of
 	 * data compared to most USB mice. This byte frequently switches
 	 * from 0x01 (usual state) to 0x02. I assume it is to allow
 	 * extra, non-standard, reporting (say battery-life). However
 	 * at the same time it generates a left-click message on the button
 	 * byte which causes spurious left-click's where there shouldn't be.
-	 * This should sort that. */
-	if ((sc->sc_ibuf != ibuf) && (sc->sc_ibuf[0] == 0x02)) 
-		return;
+	 * This should sort that.
+	 * Currently it's the only user of UMS_T so use it as an identifier.
+	 * We probably should switch to some more official quirk.
+	 */
+	if (sc->flags & UMS_T) {
+		if (sc->sc_iid) {
+			if (*ibuf++ == 0x02)
+				return;
+		}
+	} else {
+		if (sc->sc_iid) {
+			if (*ibuf++ != sc->sc_iid)
+				return;
+		}
+	}
 
 	dx =  hid_get_data(ibuf, &sc->sc_loc_x);
 	dy = -hid_get_data(ibuf, &sc->sc_loc_y);
 	dz = -hid_get_data(ibuf, &sc->sc_loc_z);
-	dt = -hid_get_data(ibuf, &sc->sc_loc_t);
+	if (sc->flags & UMS_T)
+		dt = -hid_get_data(ibuf, &sc->sc_loc_t);
+	else
+		dt = 0;
 	for (i = 0; i < sc->nbuttons; i++)
 		if (hid_get_data(ibuf, &sc->sc_loc_btn[i]))
 			buttons |= (1 << UMS_BUT(i));
 
 	if (dx || dy || dz || dt || (sc->flags & UMS_Z)
 	    || buttons != sc->status.button) {
-		DPRINTFN(5, ("ums_intr: x:%d y:%d z:%d aa:%d buttons:0x%x\n",
+		DPRINTFN(5, ("ums_intr: x:%d y:%d z:%d t:%d buttons:0x%x\n",
 			dx, dy, dz, dt, buttons));
 
 		sc->status.button = buttons;
