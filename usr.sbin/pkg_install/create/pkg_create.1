@@ -14,21 +14,35 @@
 .\" Jordan K. Hubbard
 .\"
 .\"
-.\"     @(#)pkg_create.1
+.\"     @(#)pkg_create.8
+.\"	$Id: pkg_create.8,v 1.8 1994/11/26 19:12:17 jtk Exp $	
+.\" hacked up by John Kohl for NetBSD--fixed a few bugs, extended keywords,
+.\" added dependency tracking, etc.
 .\"
-.TH pkg_create 1 "July 18, 1993" "" "FreeBSD"
-
-.SH NAME
-pkg_create - a utility for creating software package distributions.
-.SH SYNOPSIS
-.na
-.B pkg_create
-.RB [options]
-.RB pkg-name
-
-.SH DESCRIPTION
+.Dd November 25, 1994
+.Dt pkg_create 8
+.Os NetBSD 1.0
+.Sh NAME
+.Nm pkg_create
+.Nd a utility for creating software package distributions.
+.Sh SYNOPSIS
+.Nm
+.Op Fl YNhv
+.Op Fl p Ar prefix
+.Op Fl f Ar contents
+.Op Fl i Ar iscript
+.Op Fl k Ar dscript
+.Op Fl r Ar rscript
+.Op Fl t Ar template
+.Op Fl X Ar excludefile
+.Op Fl D Ar displayfile
+.Op Fl m Ar mtreefile
+.Fl d Ar description
+.Fl f Ar packlist
+.Ar pkg-name
+.Sh DESCRIPTION
 The
-.B pkg_create
+.Nm
 command is used to create packages that will subsequently be fed to
 one of the package extraction/info utilities.  The input description
 and command line arguments for the creation of a package are not
@@ -36,118 +50,134 @@ really meant to be human-generated, though it is easy enough to
 do so.  It is more expected that you will use a front-end tool for
 the job rather than muddling through it yourself. Nonetheless, a short
 description of the input syntax is included in this document.
-
-.SH OPTIONS
-.TP
+.Sh OPTIONS
 The following command line options are supported.
-.TP
-.B \-Y
-Assume a default answer of `Yes' for any questions asked.
-.B "Optional."
-.TP
-.B \-N
-Assume a default answer of `No' for any questions asked.
-.B "Optional."
-.TP
-.B \-v
-Turns on verbose output.
-.B "Optional."
-.TP
-.BI "\-c\ " [-]desc
-Fetch package "one line description" from file
-.I desc
-or, if preceeded by
-.B -
-, the argument itself.  This string should also
+.Bl -tag -width indent
+.It Fl f Ar packinglist
+Fetch ``packing list'' for package from the file
+.Ar packinglist
+or
+.Cm stdin
+if
+.Ar packinglist
+is a
+.Cm -
+(dash).
+.Em "Mandatory."
+.It Fl c Ar [-]desc
+Fetch package ``one line description'' from file
+.Ar desc
+or, if preceded by
+.Cm - ,
+the argument itself.  This string should also
 give some idea of which version of the product (if any) the package
 represents.
-.B "Mandatory."
-.TP
-.BI "\-d\ " [-]desc
+.Em "Mandatory."
+.It Fl d Ar [-]desc
 Fetch long description for package from file
-.I desc
-or, if preceeded by
-.B -
-, the argument itself.
-.B "Mandatory."
-.TP
-.BI "\-f\ " file
-Fetch "packing list" for package from
-.I file
-or
-.B stdin
-if
-.I file
-is a
-.B -
-(dash).
-.B "Mandatory."
-.TP
-.B -h
+.Ar desc
+or, if preceded by
+.Cm - ,
+the argument itself.
+.Em "Mandatory."
+.It Fl Y
+Assume a default answer of `Yes' for any questions asked.
+.Em "Optional."
+.It Fl N
+Assume a default answer of `No' for any questions asked.
+.Em "Optional."
+.It Fl v
+Turns on verbose output.
+.Em "Optional."
+.It Fl h
 Forces tar to follow symbolic links, so that the files they point to
 are dumped, rather than the links themselves.
-.TP
-.BI "\-i\ " script
+.It Fl i Ar iscript
 Sets
-.I script
+.Ar iscript
 to be the install procedure for the package.  This can be any
 executable program (or shell script).  It will be invoked automatically
 when the package is later installed.
-.B "Optional."
-.TP
-.BI "\-p\ " prefix
+.Em "Optional."
+.It Fl p Ar prefix
 Sets
-.I prefix
-As the initial directory "base" to start from in selecting files for
+.Ar prefix
+as the initial directory ``base'' to start from in selecting files for
 the package.
-.B "Optional."
-.TP
-.BI "\-k\ " script
+.Em "Optional."
+.It Fl k Ar dscript
 Sets
-.I script
+.Ar dscript
 to be the de-install procedure for the package.  This can be any
 executable program (or shell script).  It will be invoked automatically
 when the package is later (if ever) de-installed.
-.B "Optional."
-.TP
-.BI "\-r\ " script
+.Em "Optional."
+.It Fl r Ar rscript
 Sets
-.I script
-to be the "requirements" procedure for the package.  This can be any
+.Ar rscript
+to be the ``requirements'' procedure for the package.  This can be any
 executable program (or shell script).  It will be invoked automatically
 at installation/deinstallation time to determine whether or not
 installation/deinstallation should proceed.
-.B "Optional."
-.TP
-.BI "\-t\ " template
+.Em "Optional."
+.It Fl t Ar template
 Use
-.I template
-as the input to mktemp(3).  By default, this is the string
-.B /tmp/instmp.XXXXXX,
+.Ar template
+as the input to 
+.Xr mktemp 3 .
+By default, this is the string
+.Pa /tmp/instmp.XXXXXX ,
 but it may be necessary to override it in the situation where
 space in your
-.B /tmp
+.Pa /tmp
 directory is limited.  Be sure to leave some number of `X' characters
-for mktemp(3) to fill in with a unique ID.
-.B "Optional."
-.TP
-.BI "\-X\ " file
+for
+.Xr mktemp 3
+ to fill in with a unique ID.
+.Em "Optional."
+.It Fl X Ar excludefile
 Pass
-.I file
+.Ar excludefile
 as a
-.B \-exclude-from
+.Fl exclude-from
 argument to
-.B tar
+.Cm tar
 when creating final package.  See
-.B tar
+.Cm tar
 man page (or run
-.B tar
+.Cm tar
 with
-.B --help
+.Fl -help
 flag) for further information on using this flag.
-.PP
-.SH "TECHNICAL DETAILS"
-The "packing list" format (see \fB-f\fR) is fairly simple, being
+.It Fl D Ar displayfile
+Display the file (using
+.Xr more 1 ) 
+after installing the package.  Useful for things like
+legal notices on almost-free software, etc.
+.It Fl m Ar mtreefile
+Run
+.Xr mtree 8
+with input from mtreefile before the package is installed.  
+Mtree is invoked as
+.Cm mtree
+.Fl u 
+.Fl f 
+.Ar mtreefile
+.Fl d
+.Fl e 
+.Fl p 
+.Pa prefix ,
+where
+.Pa prefix
+is the name of the first directory named by a
+.Cm @cwd
+directive.
+.El
+.Pp
+.Sh PACKING LIST DETAILS
+The ``packing list'' format (see
+.Fl f )
+is fairly simple, being
 nothing more than a single column of filenames to include in the
 package.  However, since absolute pathnames are generally a bad idea
 for a package that could be installed potentially anywhere, there is
@@ -155,126 +185,178 @@ another method of specifying where things are supposed to go
 and, optionally, what ownership and mode information they should be
 installed with.  This is done by imbeding specialized command sequences
 in the packing list. Briefly described, these sequences are:
-.TP
-.BI "@cwd\ " directory
+.Bl -tag -width indent -compact
+.It Cm @cwd Ar directory
 Sets the internal directory pointer to point to
-.I directory.
+.Ar directory .
 All subsequent filenames will be assumed relative to this directory.
 Note:
-.BI @cd
+.Cm @cd
 is also an alias for this command.
-.TP
-.BI "@srcdir\ " directory
+.It Cm @srcdir Ar directory
 Sets the internal directory pointer for _creation only_ to
-.I directory.
+.Ar directory .
 That is to say that it overrides
-.I @cwd
+.Cm @cwd
 for package creation but not extraction.
-.TP
-.BI "@exec\ " command
+.It Cm @exec Ar command
 Execute
-.I command
+.Ar command
 as part of the unpacking process.  If
-.I command
+.Ar command
 contains a any of the following sequences somewhere in it, they will
 be expanded inline.  For the following examples, assume that
-.B @cwd
+.Cm @cwd
 is set to
-.B /usr/local
+.Pa /usr/local
 and the last extracted file was
-.B bin/emacs.
-.TP
-.I "%F"
+.Pa bin/emacs .
+.Bl -tag -width indent -compact
+.It Cm "%F"
 Expands to the last filename extracted (as specified), in the example case
-.B bin/emacs
-.TP
-.I "%D"
+.Pa bin/emacs
+.It Cm "%D"
 Expands to the current directory prefix, as set with
-.B @cwd,
+.Cm @cwd ,
 in the example case
-.B /usr/local.
-.TP
-.I "%B"
-Expands to the "basename" of the fully qualified filename, that
+.Pa /usr/local .
+.It Cm "%B"
+Expands to the ``basename'' of the fully qualified filename, that
 is the current directory prefix, plus the last filespec, minus
 the trailing filename.  In the example case, that would be
-.B /usr/local/bin.
-.TP
-.I "%f"
-Expands to the "filename" part of the fully qualified name, or
+.Pa /usr/local/bin .
+.It Cm "%f"
+Expands to the ``filename'' part of the fully qualified name, or
 the converse of
-.B %B
-, being in the example case,
-.B emacs.
-.TP
-.BI "@unexec\ " command
+.Cm %B ,
+being in the example case,
+.Pa emacs .
+.El
+.It Cm @unexec Ar command
 Execute
-.I command
+.Ar command
 as part of the deinstallation process.  Expansion of special
-.B %
+.Cm %
 sequences is the same as for
-.B @exec.
+.Cm @exec .
 This command is not executed during the package add, as
-.B @exec
+.Cm @exec
 is, but rather when the package is deleted.  This is useful
 for creating links and other ancillary files that were created
 as a result of adding the package, but not directly known to
 the package's table of contents (and hence not automatically
 removable).  The advantage of using
-.B @unexec
-over a deinstallation script is that you can use the "special
-sequence expansion" to get at files regardless of where they've
+.Cm @unexec
+over a deinstallation script is that you can use the ``special
+sequence expansion'' to get at files regardless of where they've
 been potentially redirected (see
-.B -p)
-.TP
-.BI "@mode\ " mode
+.Fl p )
+.It Cm @mode Ar mode
 Sets default permission for all subsequently extracted files to
-.I mode.
+.Ar mode .
 Format is the same as that used by the
-.B chmod
+.Cm chmod
 command (well, considering that it's later handed off to it, that's
 no surprise).  Use without an arg to set back to default (extraction)
 permissions.
-.TP
-.BI "@owner\ " user
+.It Cm @owner Ar user
 Sets default ownership for all subsequently extracted files to
-.I user.
+.Ar user .
 Use without an arg to set back to default (extraction)
 ownership.
-.TP
-.BI "@group\ " group
+.It Cm @group Ar group
 Sets default group ownership for all subsequently extracted files to
-.I group.
+.Ar group .
 Use without an arg to set back to default (extraction)
 group ownership.
-.TP
-.BI "@comment\ " string
+.It Cm @comment Ar string
 Imbed a comment in the packing list.  Useful in
 trying to document some particularly hairy sequence that
 may trip someone up later.
-.TP
-.BI "@ignore\ " file
+.It Cm @ignore
 Used internally to tell extraction to ignore the next file (don't
-copy it anywhere), as it's used for some special purpose.  Also useful
-if you want to pack some specialized datafiles in with a distribution
-for your install script (or something) and want to have the installer
-ignore it.
-.TP
-.BI "@name\ " name
+copy it anywhere), as it's used for some special purpose. 
+.It Cm @ignore_inst
+Similar to
+.Cm @ignore ,
+but the ignoring of the next file is delayed one evaluation cycle.  This
+makes it possible to use this directive in the 
+.Ar packinglist
+file, so you can pack a
+specialized datafile in with a distribution for your install script (or
+something) yet have the installer ignore it.
+.It Cm @name Ar name
 Sets the name of the package.  This is mandatory and is usually
 put at the top.  This name is potentially different than the name of
 the file it came in, and is used when keeping track of the package
 for later deinstallation.  Note that
-.B pkg_create
+.Nm
 will derive this field from the package name and add it automatically
 if none is given.
-
-.SH BUGS
-Sure to be some.
-.SH "SEE ALSO"
-.BR pkg_add "(" 1 "),"
-.BR pkg_info "(" 1 "),"
-.BR pkg_delete "(" 1 "),"
-.SH AUTHORS
-Jordan Hubbard
-
+.It Cm @dirrm Ar name
+Declare directory
+.Pa name
+to be deleted at deinstall time.  By default, directories created by a
+package installation are not deleted when the package is deinstalled;
+this provides an explicit directory cleanup method.  This directive
+should appear at the end of the package list.  If more than one
+.Cm @dirrm
+directives are used, the directories are removed in the order specified.
+The
+.Pa name
+directory will not be removed unless it is empty.
+.It Cm @mtree Ar name
+Declare
+.Pa name
+as an
+.Xr mtree 8
+input file to be used at install time (see 
+.Fl m
+above).  Only the first
+.Cm @mtree
+directive is honored. 
+.It Cm @display Ar name
+Declare
+.Pa name
+as the file to be displayed at install time (see 
+.Fl D
+above).
+.It Cm @pkgdep Ar pkgname
+Declares a dependency on the
+.Ar pkgname
+package.  The
+.Ar pkgname
+package must be installed before this package may be
+installed, and this package must be deinstalled before the
+.Ar pkgname
+package is deinstalled.  Multiple
+.Cm @pkgdep
+directives may be used if hte package depends on multiple other packages.
+.El
+.Sh SEE ALSO
+.Xr pkg_add 8 ,
+.Xr pkg_info 1 ,
+.Xr sysconf 3 ,
+.Xr pkg_delete 8 .
+.Sh HISTORY
+The
+.Nm
+command first appeared in FreeBSD.
+.Sh AUTHORS
+.Bl -tag -width indent -compact
+.It "Jordan Hubbard"
+most of the work
+.It "John Kohl"
+refined it for NetBSD
+.El
+.Sh BUGS
+Hard links between files in a distribution must be bracketed by
+.Cm @cwd
+directives in order to be preserved as hard links when the package is
+extracted.  They additionally must not end up being split between
+.Cm tar
+invocations due to exec argument-space limitations (this depends on the
+value returned by
+.Xr sysconf _SC_ARG_MAX ).
+.Pp
+Sure to be others.
