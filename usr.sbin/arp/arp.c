@@ -312,7 +312,7 @@ tryagain:
 		    (rtm->rtm_flags & RTF_LLINFO) &&
 		    !(rtm->rtm_flags & RTF_GATEWAY)) switch (sdl->sdl_type) {
 		case IFT_ETHER: case IFT_FDDI: case IFT_ISO88023:
-		case IFT_ISO88024: case IFT_ISO88025:
+		case IFT_ISO88024: case IFT_ISO88025: case IFT_L2VLAN:
 			goto overwrite;
 		}
 		if (doing_proxy == 0) {
@@ -399,7 +399,7 @@ tryagain:
 		    (rtm->rtm_flags & RTF_LLINFO) &&
 		    !(rtm->rtm_flags & RTF_GATEWAY)) switch (sdl->sdl_type) {
 		case IFT_ETHER: case IFT_FDDI: case IFT_ISO88023:
-		case IFT_ISO88024: case IFT_ISO88025:
+		case IFT_ISO88024: case IFT_ISO88025: case IFT_L2VLAN:
 			goto delete;
 		}
 	}
@@ -509,6 +509,9 @@ print_entry(struct sockaddr_dl *sdl,
             case IFT_ISO88025:
                 printf(" [token-ring]");
                 break;
+	    case IFT_L2VLAN:
+		printf(" [vlan]");
+		break;
             default:
         }
 	if (sdl->sdl_rcf != NULL) {
