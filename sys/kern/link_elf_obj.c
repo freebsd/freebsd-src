@@ -1188,6 +1188,16 @@ link_elf_get_gp(linker_file_t lf)
 }
 #endif
 
+const Elf_Sym *
+elf_get_sym(linker_file_t lf, Elf_Word symidx)
+{
+	elf_file_t ef = (elf_file_t)lf;
+
+	if (symidx >= ef->nchains)
+		return (NULL);
+	return (ef->symtab + symidx);
+}
+
 /*
  * Symbol lookup function that can be used when the symbol index is known (ie
  * in relocations). It uses the symbol index instead of doing a fully fledged

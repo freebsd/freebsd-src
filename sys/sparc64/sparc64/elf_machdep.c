@@ -131,10 +131,10 @@ static int reloc_target_flags[] = {
 	_RF_S|_RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(0),		/* DISP_32 */
 	_RF_S|_RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(2),		/* WDISP_30 */
 	_RF_S|_RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(2),		/* WDISP_22 */
-	      _RF_A|	  _RF_B|_RF_SZ(32) | _RF_RS(10),	/* HI22 */
+	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(10),	/* HI22 */
 	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* 22 */
 	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* 13 */
-	      _RF_A|	  _RF_B|_RF_SZ(32) | _RF_RS(0),		/* LO10 */
+	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* LO10 */
 	_RF_G|			_RF_SZ(32) | _RF_RS(0),		/* GOT10 */
 	_RF_G|			_RF_SZ(32) | _RF_RS(0),		/* GOT13 */
 	_RF_G|			_RF_SZ(32) | _RF_RS(10),	/* GOT22 */
@@ -144,8 +144,8 @@ static int reloc_target_flags[] = {
 				_RF_SZ(32) | _RF_RS(0),		/* COPY */
 	_RF_S|_RF_A|		_RF_SZ(64) | _RF_RS(0),		/* GLOB_DAT */
 				_RF_SZ(32) | _RF_RS(0),		/* JMP_SLOT */
-	      _RF_A|	  _RF_B|_RF_SZ(64) | _RF_RS(0),		/* RELATIVE */
-	_RF_S|_RF_A|	  _RF_U|_RF_SZ(32) | _RF_RS(0),		/* UA_32 */
+	      _RF_A|	_RF_B|	_RF_SZ(64) | _RF_RS(0),		/* RELATIVE */
+	_RF_S|_RF_A|	_RF_U|	_RF_SZ(32) | _RF_RS(0),		/* UA_32 */
 
 	      _RF_A|		_RF_SZ(32) | _RF_RS(0),		/* PLT32 */
 	      _RF_A|		_RF_SZ(32) | _RF_RS(10),	/* HIPLT22 */
@@ -180,6 +180,22 @@ static int reloc_target_flags[] = {
 	_RF_S|_RF_A|	_RF_U|	_RF_SZ(64) | _RF_RS(0),		/* UA64 */
 	_RF_S|_RF_A|	_RF_U|	_RF_SZ(16) | _RF_RS(0),		/* UA16 */
 };
+
+#if 0
+static const char *reloc_names[] = {
+	"NONE", "RELOC_8", "RELOC_16", "RELOC_32", "DISP_8",
+	"DISP_16", "DISP_32", "WDISP_30", "WDISP_22", "HI22",
+	"22", "13", "LO10", "GOT10", "GOT13",
+	"GOT22", "PC10", "PC22", "WPLT30", "COPY",
+	"GLOB_DAT", "JMP_SLOT", "RELATIVE", "UA_32", "PLT32",
+	"HIPLT22", "LOPLT10", "LOPLT10", "PCPLT22", "PCPLT32",
+	"10", "11", "64", "OLO10", "HH22",
+	"HM10", "LM22", "PC_HH22", "PC_HM10", "PC_LM22", 
+	"WDISP16", "WDISP19", "GLOB_JMP", "7", "5", "6",
+	"DISP64", "PLT64", "HIX22", "LOX10", "H44", "M44", 
+	"L44", "REGISTER", "UA64", "UA16"
+};
+#endif
 
 #define RELOC_RESOLVE_SYMBOL(t)		((reloc_target_flags[t] & _RF_S) != 0)
 #define RELOC_PC_RELATIVE(t)		((reloc_target_flags[t] & _RF_P) != 0)
@@ -224,6 +240,7 @@ int
 elf_reloc(linker_file_t lf, const void *data, int type)
 {
 	const Elf_Rela *rela;
+	const Elf_Sym *sym;
 	Elf_Addr relocbase;
 	Elf_Half *where32;
 	Elf_Addr *where;
@@ -255,10 +272,24 @@ elf_reloc(linker_file_t lf, const void *data, int type)
 	value = rela->r_addend;
 
 	if (RELOC_RESOLVE_SYMBOL(rtype)) {
-		addr = elf_lookup(lf, symidx, 1);
-		if (addr == 0)
-			return (-1);
-		value += addr;
+		/*
+		 * Work around what appears to be confusion between binutils
+		 * and the v9 ABI.  LO10 and HI22 relocations are listed as
+		 * S + A, but for STB_LOCAL symbols it seems that the value
+		 * in the Elf_Sym refered to by the symbol index is wrong,
+		 * instead the value is in the addend field of the Elf_Rela
+		 * record.  So if the symbol is local don't look it up, just
+		 * use the addend as its value and add in the relocbase.
+		 */
+		sym = elf_get_sym(lf, symidx);
+		if (ELF_ST_BIND(sym->st_info) == STB_LOCAL)
+			value += relocbase;
+		else {
+			addr = elf_lookup(lf, symidx, 1);
+			if (addr == 0)
+				return (-1);
+			value += addr;
+		}
 	}
 
 	if (RELOC_PC_RELATIVE(rtype))
