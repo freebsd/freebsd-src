@@ -187,7 +187,7 @@ static int vesa_bios_load_palette2(int start, int colors, u_char *r, u_char *g,
 #define STATE_REG	(1<<3)
 #define STATE_MOST	(STATE_HW | STATE_DATA | STATE_REG)
 #define STATE_ALL	(STATE_HW | STATE_DATA | STATE_DAC | STATE_REG)
-#define STATE_MAXSIZE	(2 * PAGE_SIZE)
+#define STATE_MAXSIZE	PAGE_SIZE
 static int vesa_bios_state_buf_size(void);
 static int vesa_bios_save_restore(int code, void *p, size_t size);
 static int vesa_bios_get_line_length(void);
@@ -805,8 +805,6 @@ vesa_bios_init(void)
 	if (!has_vesa_bios)
 		return (1);
 
-	/* Get a second page to support STATE_MAXSIZE. */
-	(void)vm86_addpage(&vesa_vmcontext, 2, 0);
 	return (0);
 }
 
