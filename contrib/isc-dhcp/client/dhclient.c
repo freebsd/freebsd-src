@@ -41,7 +41,7 @@
 
 #ifndef lint
 static char ocopyright[] =
-"$Id: dhclient.c,v 1.129.2.12 2002/11/07 23:26:38 dhankins Exp $ Copyright (c) 1995-2002 Internet Software Consortium.  All rights reserved.\n";
+"$Id: dhclient.c,v 1.129.2.16 2003/04/26 21:51:39 dhankins Exp $ Copyright (c) 1995-2002 Internet Software Consortium.  All rights reserved.\n";
 #endif /* not lint */
 
 #include "dhcpd.h"
@@ -192,6 +192,8 @@ int main (argc, argv, envp)
 			if (++i == argc)
 				usage ();
 			relay = argv [i];
+		} else if (!strcmp (argv [i], "-nw")) {
+			nowait = 1;
 		} else if (!strcmp (argv [i], "-n")) {
 			/* do not start up any interfaces */
 			interfaces_requested = 1;
@@ -212,8 +214,6 @@ int main (argc, argv, envp)
 		} else if (!strcmp (argv [i], "--version")) {
 			log_info ("isc-dhclient-%s", DHCP_VERSION);
 			exit (0);
-		} else if (!strcmp (argv [i], "-nw")) {
-			nowait = 1;
  		} else if (argv [i][0] == '-') {
  		    usage ();
 		} else {
@@ -252,15 +252,24 @@ int main (argc, argv, envp)
 
 	/* first kill of any currently running client */
 	if (release_mode) {
-	        /* XXX inelegant hack to prove concept */
-		char command[1024];
+		FILE *pidfd;
+		pid_t oldpid;
+		long temp;
+		int e;
 
-#if !defined (NO_SNPRINTF)
-		snprintf (command, 1024, "kill `cat %s`", path_dhclient_pid);
-#else
-		sprintf (command, "kill `cat %s`", path_dhclient_pid);
-#endif
-		system (command);
+		oldpid = 0;
+		if ((pidfd = fopen(path_dhclient_pid, "r")) != NULL) {
+			e = fscanf(pidfd, "%ld\n", &temp);
+			oldpid = (pid_t)temp;
+
+			if (e != 0 && e != EOF) {
+				if (oldpid) {
+					if (kill(oldpid, SIGTERM) == 0)
+						unlink(path_dhclient_pid);
+				}
+			}
+			fclose(pidfd);
+		}
 	}
 
 	if (!quiet) {
@@ -1869,10 +1878,17 @@ void make_discover (client, lease)
 	/* Set up the option buffer... */
 	client -> packet_length =
 		cons_options ((struct packet *)0, &client -> packet,
-			      (struct lease *)0, client, 0,
-			      (struct option_state *)0, options,
-			      &global_scope, 0, 0, 0, (struct data_string *)0,
+			      (struct lease *)0, client,
+			      /* maximum packet size */1500,
+			      (struct option_state *)0,
+			      options,
+			      /* scope */ &global_scope,
+			      /* overload */ 0,
+			      /* terminate */0,
+			      /* bootpp    */0,
+			      (struct data_string *)0,
 			      client -> config -> vendor_space_name);
+
 	option_state_dereference (&options, MDL);
 	if (client -> packet_length < BOOTP_MIN_LEN)
 		client -> packet_length = BOOTP_MIN_LEN;
@@ -1936,10 +1952,17 @@ void make_request (client, lease)
 	/* Set up the option buffer... */
 	client -> packet_length =
 		cons_options ((struct packet *)0, &client -> packet,
-			      (struct lease *)0, client, 0,
-			      (struct option_state *)0, client -> sent_options,
-			      &global_scope, 0, 0, 0, (struct data_string *)0,
+			      (struct lease *)0, client,
+			      /* maximum packet size */1500,
+			      (struct option_state *)0,
+			      client -> sent_options, 
+			      /* scope */ &global_scope,
+			      /* overload */ 0,
+			      /* terminate */0,
+			      /* bootpp    */0,
+			      (struct data_string *)0,
 			      client -> config -> vendor_space_name);
+
 	option_state_dereference (&client -> sent_options, MDL);
 	if (client -> packet_length < BOOTP_MIN_LEN)
 		client -> packet_length = BOOTP_MIN_LEN;
@@ -2065,10 +2088,17 @@ void make_release (client, lease)
 	/* Set up the option buffer... */
 	client -> packet_length =
 		cons_options ((struct packet *)0, &client -> packet,
-			      (struct lease *)0, client, 0,
-			      (struct option_state *)0, options,
-			      &global_scope, 0, 0, 0, (struct data_string *)0,
+			      (struct lease *)0, client,
+			      /* maximum packet size */1500,
+			      (struct option_state *)0,
+			      options,
+			      /* scope */ &global_scope,
+			      /* overload */ 0,
+			      /* terminate */0,
+			      /* bootpp    */0,
+			      (struct data_string *)0,
 			      client -> config -> vendor_space_name);
+
 	if (client -> packet_length < BOOTP_MIN_LEN)
 		client -> packet_length = BOOTP_MIN_LEN;
 	option_state_dereference (&options, MDL);
