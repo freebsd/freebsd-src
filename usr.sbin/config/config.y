@@ -9,15 +9,17 @@
 %token	CONFIG
 %token	CPU
 %token	DEVICE
+%token	NODEVICE
 %token	ENV
 %token	EQUALS
 %token	HINTS
 %token	IDENT
 %token	MAXUSERS
-%token	NODEVICE
 %token	PROFILE
 %token	OPTIONS
+%token	NOOPTION
 %token	MAKEOPTIONS
+%token	NOMAKEOPTION 
 %token	SEMICOLON
 %token	INCLUDE
 
@@ -136,8 +138,12 @@ Config_spec:
 	      } |
 	OPTIONS Opt_list
 		|
+	NOOPTION Save_id
+	      = { rmopt(&opt, $2); } |
 	MAKEOPTIONS Mkopt_list
 		|
+	NOMAKEOPTION Save_id
+	      = { rmopt(&mkopt, $2); } |
 	IDENT ID
 	      = { ident = $2; } |
 	System_spec
@@ -248,7 +254,10 @@ Device_spec:
 		} |
 	NODEVICE Dev
 	      = {
-		rmopt(&opt, devopt($2));
+		char *s = devopt($2);
+
+		rmopt(&opt, s);
+		free(s);
 		/* and the device part */
 		rmdev($2);
 		} ;
