@@ -558,7 +558,7 @@ extern Boolean	checkLabels(Boolean whinge, Chunk **rdev, Chunk **sdev, Chunk **u
 extern int	installCommit(dialogMenuItem *self);
 extern int	installCustomCommit(dialogMenuItem *self);
 extern int	installExpress(dialogMenuItem *self);
-extern int	installNovice(dialogMenuItem *self);
+extern int	installStandard(dialogMenuItem *self);
 extern int	installFixitHoloShell(dialogMenuItem *self);
 extern int	installFixitCDROM(dialogMenuItem *self);
 extern int	installFixitFloppy(dialogMenuItem *self);

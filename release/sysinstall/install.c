@@ -459,14 +459,14 @@ installExpress(dialogMenuItem *self)
     return i;
 }
 
-/* Novice mode installation */
+/* Standard mode installation */
 int
-installNovice(dialogMenuItem *self)
+installStandard(dialogMenuItem *self)
 {
     int i, tries = 0;
     Device **devs;
 
-    variable_set2(SYSTEM_STATE, "novice", 0);
+    variable_set2(SYSTEM_STATE, "standard", 0);
     dialog_clear_norefresh();
 #ifndef __alpha__
     msgConfirm("In the next menu, you will need to set up a DOS-style (\"fdisk\") partitioning\n"
@@ -579,7 +579,7 @@ nodisks:
     }
 
     dialog_clear_norefresh();
-    if (!msgYesNo("The FreeBSD package collection is a collection of hundreds of ready-to-run\n"
+    if (!msgYesNo("The FreeBSD package collection is a collection of thousands of ready-to-run\n"
 		  "applications, from text editors to games to WEB servers and more.  Would you\n"
 		  "like to browse the collection now?")) {
 	(void)configPackages(self);
@@ -1050,6 +1050,7 @@ installVarDefaults(dialogMenuItem *self)
     else
 	variable_set2(SYSTEM_STATE,		"init", 0);
     variable_set2(VAR_NEWFS_ARGS,		"-b 8192 -f 1024", 0);
+    variable_set2(VAR_MOUSED_PORT,		"/dev/psm0", 0);
     return DITEM_SUCCESS;
 }
 
