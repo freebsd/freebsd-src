@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.63 1994/09/15 10:52:46 davidg Exp $
+ *	$Id: machdep.c,v 1.64 1994/09/16 01:00:38 ache Exp $
  */
 
 #include "npx.h"
@@ -93,6 +93,7 @@ extern vm_offset_t avail_start, avail_end;
 
 #include <i386/isa/isa.h>
 #include <i386/isa/rtc.h>
+#include <ether.h>
 
 static void identifycpu(void);
 static void initcpu(void);
@@ -199,7 +200,9 @@ cpu_startup()
 	 */
 #define DONET(isr, n) do { extern void isr(void); netisrs[n] = isr; } while(0)
 #ifdef INET
+#if NETHER > 0
 	DONET(arpintr, NETISR_ARP);
+#endif
 	DONET(ipintr, NETISR_IP);
 #endif
 #ifdef NS
