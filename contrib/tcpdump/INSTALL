@@ -1,0 +1,116 @@
+@(#) $Header: INSTALL,v 1.25 96/07/21 04:02:01 leres Exp $ (LBL)
+
+If you have not built libpcap, do so first.  See the README
+file in this directory for the ftp location.
+
+You will need an ANSI C compiler to build tcpdump. The configure script
+will abort if your compiler is not ANSI compliant. If this happens, use
+the GNU C compiler, available via anonymous ftp:
+
+	ftp://prep.ai.mit.edu/pub/gnu/gcc-*.tar.gz
+
+After libpcap has been built (either install it with "make install" and
+"make install-incl" or make sure both the libpcap and tcpdump source
+trees are in the same directory), edit the BINDEST and MANDEST paths in
+Makefile.in and run ./configure (a shell script).  "configure" will
+determine your system attributes and generate an appropriate Makefile
+from Makefile.in.  Now build tcpdump by running "make".
+
+If everything builds ok, su and type "make install" (and optionally
+"make install-man). This will install tcpdump and the manual entry. By
+default, tcpdump is installed with group execute permissions. The group
+used depends on your os. In addition, BPF packet access is controlled
+by permissions to /dev/bpf0. In any case, DO NOT give untrusted users
+the capability of running tcpdump. Tcpdump can capture any traffic on
+your net, including passwords.
+
+Note that tcpdump is shipped with some systems, for example, DEC/OSF
+and BSD/386.  Remember to remove or rename the installed binary
+when upgrading.
+
+If your system is not one which we have tested tcpdump on, you may have
+to modify the configure script and Makefile.in. Please send us patches
+for any modifications you need to make. However, we are not interested
+in ascii packet printer patches. We believe adding this feature would
+make it too easy for crackers who do not have the programming skills
+needed to write a password sniffer to grab clear text passwords.
+
+FILES
+-----
+CHANGES         - description of differences between releases
+FILES		- list of files exported as part of the distribution
+INSTALL         - this file
+Makefile.in	- compilation rules (input to the configure script)
+README		- description of distribution
+VERSION		- version of this release
+aclocal.m4	- autoconf macros
+addrtoname.c	- address to hostname routines
+addrtoname.h	- address to hostname definitions
+appletalk.h	- AppleTalk definitions
+atime.awk	- tcp ack awk script
+bootp.h		- BOOTP definitions
+bpf_dump.c	- bpf instruction pretty-printer routine
+config.guess	- autoconf support
+config.sub	- autoconf support
+configure	- configure script (run this first)
+configure.in	- configure script source
+decnet.h	- DECnet definitions
+ethertype.h	- ethernet definitions
+extract.h	- alignment definitions
+fddi.h		- FDDI definitions
+igrp.h		- Interior Gateway Routing Protoco definitions
+install-sh	- BSD style install script
+interface.h	- globals, prototypes and definitions
+ipx.h		- IPX definitions
+lbl/gnuc.h	- gcc macros and defines
+lbl/os-*.h	- os dependent defines and prototypes
+llc.h		- LLC definitions
+machdep.c	- machine dependent routines
+machdep.h	- machine dependent definitions
+makemib		- mib to header script
+mib.h		- mib definitions
+mkdep		- construct Makefile dependency list
+netbios.h	- NETBIOS definitions
+nfsfh.h		- NFS file handle definitions
+nfsv2.h		- NFS V2 definitions
+ntp.h		- NTP definitions
+ospf.h		- OSPF definitions
+packetdat.awk	- tcp chunk summary awk script
+parsenfsfh.c	- NFS file parser routines
+print-arp.c	- ARP printer routines
+print-atalk.c	- AppleTalk printer routines
+print-atm.c	- atm printer routines
+print-bootp.c	- BOOTP printer routines
+print-decnet.c	- DECnet printer routines
+print-domain.c	- Domain Name System printer routines
+print-egp.c	- EGP printer routines
+print-ether.c	- ethernet printer routines
+print-fddi.c	- FDDI printer routines
+print-icmp.c	- ICMP printer routines
+print-igrp.c	- Interior Gateway Routing Protoco printer routines
+print-ip.c	- ip printer routines
+print-ipx.c	- IPX printer routines
+print-isoclns.c	- isoclns printer routines
+print-krb.c	- Kerberos printer routines
+print-llc.c	- llc printer routines
+print-netbios.c	- netbios printer routines
+print-nfs.c	- NFS printer routines
+print-ntp.c	- NTP printer routines
+print-null.c	- null printer routines
+print-ospf.c	- ospf printer routines
+print-pim.c	- Protocol Independent Multicast printer routines
+print-ppp.c	- PPP printer routines
+print-rip.c	- RIP printer routines
+print-sl.c	- CSLIP printer routines
+print-snmp.c	- SNMP printer routines
+print-sunrpc.c	- Sun RPC printer routines
+print-tcp.c	- TCP printer routines
+print-tftp.c	- TFTP printer routines
+print-udp.c	- UDP printer routines
+print-wb.c	- white board printer routines
+send-ack.awk	- unidirectional tcp send/ack awk script
+stime.awk	- tcp send awk script
+tcpdump.1	- manual entry
+tcpdump.c	- main program
+util.c		- utility routines
+vfprintf.c	- emulation routine
