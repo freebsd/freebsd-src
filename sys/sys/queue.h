@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)queue.h	8.5 (Berkeley) 8/20/94
- * $Id: queue.h,v 1.24 1999/01/07 22:27:53 n_hibma Exp $
+ * $Id: queue.h,v 1.25 1999/04/20 22:37:17 n_hibma Exp $
  */
 
 #ifndef _SYS_QUEUE_H_
@@ -241,7 +241,7 @@ struct name {								\
 	struct type *lh_first;	/* first element */			\
 }
 
-#define LIST_HEAD_INITIALIZER(head)					\
+#define LIST_HEAD_INITIALIZER						\
 	{ NULL }
 
 #define LIST_ENTRY(type)						\
