@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mptable.c,v 1.2 1997/04/30 23:54:55 fsmp Exp $
+ *	$Id: mptable.c,v 1.3 1997/05/10 17:46:57 fsmp Exp $
  */
 
 /*
@@ -31,7 +31,7 @@
 
 #define VMAJOR			2
 #define VMINOR			0
-#define VDELTA			10
+#define VDELTA			11
 
 /*
  * this will cause the raw mp table to be dumped to /tmp/mpdump
@@ -1128,10 +1128,11 @@ doOptionList( void )
     printf( "#options		SMP_AUTOSTART\t\t# start the additional CPUs during boot\n" );
 
     printf( "\n# Optional (built-in defaults will work in most cases):\n" );
-    printf( "options		NCPU=%d\t\t\t# number of CPUs\n", ncpu );
-    printf( "options		NBUS=%d\t\t\t# number of busses\n", nbus );
-    printf( "options		NAPIC=%d\t\t\t# number of IO APICs\n", napic );
-    printf( "options		NINTR=%d\t\t# number of INTs\n", 24 /**nintr*/ );
+    printf( "#options		NCPU=%d\t\t\t# number of CPUs\n", ncpu );
+    printf( "#options		NBUS=%d\t\t\t# number of busses\n", nbus );
+    printf( "#options		NAPIC=%d\t\t\t# number of IO APICs\n", napic );
+    printf( "#options		NINTR=%d\t\t# number of INTs\n",
+		(nintr < 24) ? 24 : nintr );
 
     printf( "\n# Currently broken:\n" );
     printf( "#options		SMP_PRIVPAGES\t\t# BROKEN, DO NOT use!\n" );
