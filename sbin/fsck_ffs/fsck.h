@@ -211,7 +211,7 @@ struct	dinode zino;
 
 /* dir.c */
 void	adjust __P((struct inodesc *idesc, short lcnt));
-int	allocdir __P((ino_t parent, ino_t request, int mode));
+ino_t	allocdir __P((ino_t parent, ino_t request, int mode));
 int	changeino __P((ino_t dir, char *name, ino_t newnum));
 void	direrror __P((ino_t ino, char *errmesg));
 int	dirscan __P((struct inodesc *idesc));
