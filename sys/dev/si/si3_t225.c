@@ -28,6 +28,10 @@
  * $FreeBSD$
  */
 
+#include <sys/param.h>
+#include <sys/bus.h>
+#include <dev/si/sivar.h>
+
 /* SI3_T225.C Version, Bootstrap and Download Code Arrays... */
 
 /* SI3_T225 embedded version... 

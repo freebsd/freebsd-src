@@ -28,6 +28,10 @@
  * $FreeBSD$
  */
 
+#include <sys/param.h>
+#include <sys/bus.h>
+#include <dev/si/sivar.h>
+
 /* SI2_Z280.C Version, Bootstrap and Download Code Arrays... */
 
 /* SI2_Z280 embedded version... 
