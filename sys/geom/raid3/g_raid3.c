@@ -50,7 +50,7 @@ static MALLOC_DEFINE(M_RAID3, "raid3 data", "GEOM_RAID3 Data");
 
 SYSCTL_DECL(_kern_geom);
 SYSCTL_NODE(_kern_geom, OID_AUTO, raid3, CTLFLAG_RW, 0, "GEOM_RAID3 stuff");
-u_int g_raid3_debug = 1;
+u_int g_raid3_debug = 0;
 SYSCTL_UINT(_kern_geom_raid3, OID_AUTO, debug, CTLFLAG_RW, &g_raid3_debug, 0,
     "Debug level");
 static u_int g_raid3_timeout = 8;
