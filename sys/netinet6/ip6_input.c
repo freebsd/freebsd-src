@@ -309,7 +309,7 @@ ip6_input(m)
 	 * in the list may have previously cleared it.
 	 */
 	m0 = m;
-	pfh = pfil_hook_get(PFIL_IN, &inetsw[ip_protox[IPPROTO_IPV6]].pr_pfh);
+	pfh = pfil_hook_get(PFIL_IN, &inet6sw[ip6_protox[IPPROTO_IPV6]].pr_pfh);
 	for (; pfh; pfh = pfh->pfil_link.tqe_next)
 		if (pfh->pfil_func) {
 			rv = pfh->pfil_func(ip6, sizeof(*ip6),

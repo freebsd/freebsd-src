@@ -110,6 +110,8 @@
 #include <netinet6/ip6_fw.h>
 #endif
 
+#include <netinet6/ip6protosw.h>
+
 static MALLOC_DEFINE(M_IPMOPTS, "ip6_moptions", "internet multicast options");
 
 struct ip6_exthdrs {
@@ -129,6 +131,9 @@ static int ip6_insertfraghdr __P((struct mbuf *, struct mbuf *, int,
 				  struct ip6_frag **));
 static int ip6_insert_jumboopt __P((struct ip6_exthdrs *, u_int32_t));
 static int ip6_splithdr __P((struct mbuf *, struct ip6_exthdrs *));
+
+extern struct ip6protosw inet6sw[];
+extern u_char ip6_protox[IPPROTO_MAX];
 
 /*
  * IP6 output. The packet in mbuf chain m contains a skeletal IP6
@@ -854,7 +859,7 @@ skip_ipsec2:;
 	 * Run through list of hooks for output packets.
 	 */
 	m1 = m;
-	pfh = pfil_hook_get(PFIL_OUT, &inetsw[ip_protox[IPPROTO_IPV6]].pr_pfh);
+	pfh = pfil_hook_get(PFIL_OUT, &inet6sw[ip6_protox[IPPROTO_IPV6]].pr_pfh);
 	for (; pfh; pfh = pfh->pfil_link.tqe_next)
 		if (pfh->pfil_func) {
 			rv = pfh->pfil_func(ip6, sizeof(*ip6), ifp, 1, &m1);
