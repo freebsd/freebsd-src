@@ -593,7 +593,7 @@ get_type(prefixp, typep, dkind)
 		(void) peekscan(TOK_INT, &tok);
 		break;
 	case TOK_HYPER:
-		*typep = "longlong_t";
+		*typep = "int64_t";
 		(void) peekscan(TOK_INT, &tok);
 		break;
 
@@ -642,7 +642,7 @@ unsigned_dec(typep)
 		break;
 	case TOK_HYPER:
 		get_token(&tok);
-		*typep = "ulonglong_t";
+		*typep = "u_int64_t";
 		(void) peekscan(TOK_INT, &tok);
 		break;
 	case TOK_INT:
