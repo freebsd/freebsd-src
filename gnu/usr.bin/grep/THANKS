@@ -1,5 +1,6 @@
 Aharon Robbins        <arnold@gnu.org>
-Andreas Schwab        <schwab@issan.informatik.uni-dortmund.de>
+Alain Magloire        <alainm@rcsm.ece.mcgill.ca>
+Andreas Schwab        <schwab@suse.de>
 Andreas Ley           <andy@rz.uni-karlsruhe.de>
 Ben Elliston          <bje@cygnus.com>
 David J MacKenzie     <djm@catapult.va.pubnix.com>
@@ -8,6 +9,7 @@ Florian La Roche      <florian@knorke.saar.de>
 Franc,ois Pinard      <pinard@IRO.UMontreal.CA>
 Grant McDorman        <grant@isgtec.com>
 Harald Hanche-Olsen   <hanche@math.ntnu.no>
+Jeff Bailey           <jbailey@nisa.net>
 Jim Hand              <jhand@austx.tandem.com>
 Jim Meyering          <meyering@asic.sc.ti.com>
 Jochen Hein           <jochen.hein@delphi.central.de>
@@ -27,6 +29,7 @@ Miles Bader           <miles@ccs.mt.nec.co.jp>
 Olaf Kirch            <okir@ns.lst.de>
 Paul Eggert           <eggert@twinsun.com>
 Paul Kimoto           <kimoto@spacenet.tn.cornell.edu>
+Phillip C. Brisco     <phillip.craig.brisco@ccmail.census.gov>
 Philippe Defert       <Philippe.Defert@cern.ch>
 Philippe De Muyter    <phdm@info.ucl.ac.be>
 Roland Roberts        <rroberts@muller.com>
@@ -37,6 +40,7 @@ Sydoruk Stepan        <step@unitex.kiev.ua>
 Tom 'moof' Spindler   <dogcow@ccs.neu.edu>
 Tom Tromey            <tromey@creche.cygnus.com>
 Ulrich Drepper        <drepper@cygnus.com>
+UEBAYASHI Masao       <masao@nf.enveng.titech.ac.jp>
 Volker Borchert       <bt@teknon.de>
 Wichert Akkerman      <wakkerma@wi.leidenuniv.nl>
 William Bader         <william@nscs.fast.net>
