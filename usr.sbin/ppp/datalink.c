@@ -249,13 +249,14 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
   result = 0;
   switch (dl->state) {
     case DATALINK_CLOSED:
-      if ((dl->physical->type &
-           (PHYS_DIRECT|PHYS_DEDICATED|PHYS_BACKGROUND|PHYS_DDIAL)) &&
+      if ((dl->physical->type & (PHYS_DIRECT|PHYS_DEDICATED|PHYS_BACKGROUND|
+                                 PHYS_FOREGROUND|PHYS_DDIAL)) &&
           !dl->bundle->CleaningUp)
         /*
          * Our first time in - DEDICATED & DDIAL never come down, and
-         * DIRECT & BACKGROUND get deleted when they enter DATALINK_CLOSED.
-         * Go to DATALINK_OPENING via datalink_Up() and fall through.
+         * DIRECT, FOREGROUND & BACKGROUND get deleted when they enter
+         * DATALINK_CLOSED.  Go to DATALINK_OPENING via datalink_Up()
+         * and fall through.
          */
         datalink_Up(dl, 1, 1);
       else
@@ -1410,7 +1411,8 @@ datalink_SetMode(struct datalink *dl, int mode)
     dl->script.run = 0;
   if (dl->physical->type == PHYS_DIRECT)
     dl->reconnect_tries = 0;
-  if (mode & (PHYS_DDIAL|PHYS_BACKGROUND) && dl->state <= DATALINK_READY)
+  if (mode & (PHYS_DDIAL|PHYS_BACKGROUND|PHYS_FOREGROUND) &&
+      dl->state <= DATALINK_READY)
     datalink_Up(dl, 1, 1);
   return 1;
 }

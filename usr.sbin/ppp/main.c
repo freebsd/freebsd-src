@@ -245,9 +245,6 @@ ProcessArgs(int argc, char **argv, struct switches *sw)
         } else if (strcmp(cp, "quiet") == 0) {
           sw->quiet = 1;
           optc--;			/* this option isn't exclusive */
-        } else if (strcmp(cp, "foreground") == 0) {
-          sw->mode = PHYS_BACKGROUND;	/* Kinda like background mode */
-          sw->fg = 1;
         } else
           Usage();
         break;
@@ -258,6 +255,8 @@ ProcessArgs(int argc, char **argv, struct switches *sw)
 
       default:
         sw->mode = newmode;
+        if (newmode == PHYS_FOREGROUND)
+          sw->fg = 1;
     }
   }
 
