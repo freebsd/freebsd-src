@@ -9,7 +9,7 @@
 # under the terms and conditions stated by the XFree86 Project, Inc.
 # copyright, which should also be in the file COPYRIGHT in this distribution.
 #
-# $Id: extract_xf86311.sh,v 1.2 1995/02/02 14:21:46 jkh Exp $
+# $Id: extract_xf86311.sh,v 1.3 1995/02/02 14:30:36 jkh Exp $
 
 # Handle the return value from a dialog, doing some pre-processing
 # so that each client doesn't have to.
@@ -97,11 +97,10 @@ dialog --title "XFree86 3.1.1 Installation" --menu \
 Please chose one of the following options.  It is also \n\
 recommended that choices be followed in order on this menu,\n\
 XFree86 3.1.1 having a pleasantly linear setup and configuration." \
--1 -1 8 \
+-1 -1 7 \
   "COPYRIGHT" "Read the XFree86 Project, Inc.'s copyright notice" \
   "README" "General README file on XFree86 - recommended" \
   "FreeBSD" "XFree86 information specific to FreeBSD" \
-  "Select" "Select the components of XFree86 you wish to install" \
   "Install" "Install selected components of XFree86" \
   "Configure" "Configure a newly installed XFree86" \
   "startx" "Try to run startx and bring X up all the way" \
@@ -115,8 +114,7 @@ XFree86 3.1.1 having a pleasantly linear setup and configuration." \
    COPYRIGHT) dialog --title "COPYRIGHT NOTICE" --textbox COPYRIGHT 20 78 ;;
    README) dialog --title "README" --textbox README 20 78 ;;
    FreeBSD) dialog --title "XFree86 and FreeBSD" --textbox README.FreeBSD 20 78 ;;
-   Select) do_select_menu ;;
-   Install) do_selected_install ;;
+   Install) do_select_menu; do_selected_install ;;
    Configure) do_configure ;;
    startx)
 	if [ -x /usr/X11R6/bin/startx ]; then
