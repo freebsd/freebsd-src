@@ -26,8 +26,8 @@
  * $FreeBSD$
  *
  */
-#ifndef _SYS_ALD_H_
-#define	_SYS_ALD_H_
+#ifndef _SYS_ALQ_H_
+#define	_SYS_ALQ_H_
 
 /*
  * Opaque type for the Async. Logging Queue
@@ -114,4 +114,4 @@ struct ale *alq_get(struct alq *alq, int waitok);
  */
 void alq_post(struct alq *, struct ale *);
 
-#endif	/* _SYS_ALD_H_ */
+#endif	/* _SYS_ALQ_H_ */
