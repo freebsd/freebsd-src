@@ -365,7 +365,6 @@ pc98/i386/busiosubr.c		standard
 pc98/i386/machdep.c		standard
 pc98/pc98/atapi.c		optional	wdc
 pc98/pc98/clock.c		standard
-pc98/pc98/diskslice_machdep.c	standard
 pc98/pc98/fd.c			optional	fdc
 pc98/pc98/isa_dma.c		optional	isa
 pc98/pc98/mse.c			optional	mse
