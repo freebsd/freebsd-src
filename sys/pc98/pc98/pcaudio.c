@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pcaudio.c,v 1.27 1996/03/28 14:28:47 scrappy Exp $
+ *	$Id: pcaudio.c,v 1.1.1.1 1996/06/14 10:04:45 asami Exp $
  */
 
 #include "pca.h"
@@ -183,6 +183,9 @@ pca_init()
 static int
 pca_start(void)
 {
+	int x = splhigh();
+	int rv = 0;
+
 	/* use the first buffer */
 	pca_status.current  = 0;
 	pca_status.index = 0;
@@ -195,28 +198,31 @@ pca_start(void)
 #endif
         /* acquire the timers */
 #ifdef PC98
-	if (acquire_timer1(TIMER_LSB|TIMER_ONESHOT)) {
+	if (acquire_timer1(TIMER_LSB|TIMER_ONESHOT))
 #else
-	if (acquire_timer2(TIMER_LSB|TIMER_ONESHOT)) {
+	if (acquire_timer2(TIMER_LSB|TIMER_ONESHOT))
 #endif
-		return -1;
-	}
-	if (acquire_timer0(INTERRUPT_RATE, pcaintr)) {
+		rv = -1;
+	else if (acquire_timer0(INTERRUPT_RATE, pcaintr)) {
 #ifdef PC98
 		release_timer1();
 #else
 		release_timer2();
 #endif
-		return -1;
-	}
-	pca_status.timer_on = 1;
-	return 0;
+		rv =  -1;
+	} else
+		pca_status.timer_on = 1;
+
+	splx(x);
+	return rv;
 }
 
 
 static void
 pca_stop(void)
 {
+	int x = splhigh();
+
 	/* release the timers */
 	release_timer0();
 #ifdef PC98
@@ -231,12 +237,15 @@ pca_stop(void)
 	pca_status.current = 0;
 	pca_status.buffer = pca_status.buf[pca_status.current];
 	pca_status.timer_on = 0;
+	splx(x);
 }
 
 
 static void
 pca_pause()
 {
+	int x = splhigh();
+
 	release_timer0();
 #ifdef PC98
 	release_timer1();
@@ -244,12 +253,15 @@ pca_pause()
 	release_timer2();
 #endif
 	pca_status.timer_on = 0;
+	splx(x);
 }
 
 
 static void
 pca_continue()
 {
+	int x = splhigh();
+
 #ifdef PC98
         pca_status.oldval = inb(IO_PPI) & ~0x08;
 	acquire_timer1(TIMER_LSB|TIMER_ONESHOT);
@@ -259,18 +271,24 @@ pca_continue()
 #endif
 	acquire_timer0(INTERRUPT_RATE, pcaintr);
 	pca_status.timer_on = 1;
+	splx(x);
 }
 
 
 static int
 pca_wait(void)
 {
-	int error;
+	int error, x;
+
+	if (!pca_status.timer_on)
+		return 0;
 
 	while (pca_status.in_use[0] || pca_status.in_use[1]) {
+		x = spltty();
 		pca_sleep = 1;
 		error = tsleep(&pca_sleep, PZERO|PCATCH, "pca_drain", 0);
 		pca_sleep = 0;
+		splx(x);
 		if (error != 0 && error != ERESTART) {
 			pca_stop();
 			return error;
@@ -396,7 +414,7 @@ pcaclose(dev_t dev, int flags, int fmt, struct proc *p)
 static	int
 pcawrite(dev_t dev, struct uio *uio, int flag)
 {
-	int count, error, which;
+	int count, error, which, x;
 
 	/* only audio device can be written */
 	if (minor(dev) > 0)
@@ -404,9 +422,11 @@ pcawrite(dev_t dev, struct uio *uio, int flag)
 
 	while ((count = min(BUF_SIZE, uio->uio_resid)) > 0) {
 		if (pca_status.in_use[0] && pca_status.in_use[1]) {
+			x = spltty();
 			pca_sleep = 1;
 			error = tsleep(&pca_sleep, PZERO|PCATCH, "pca_wait", 0);
 			pca_sleep = 0;
+			splx(x);
 			if (error != 0 && error != ERESTART) {
 				pca_stop();
 				return error;
@@ -488,9 +508,11 @@ pcaioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		return 0;
 
 	case AUDIO_DRAIN:
+	case AUDIO_COMPAT_DRAIN:
 		return pca_wait();
 
 	case AUDIO_FLUSH:
+	case AUDIO_COMPAT_FLUSH:
 		pca_stop();
 		return 0;
 
@@ -531,10 +553,8 @@ pcaintr(struct clockframe *frame)
 		pca_status.in_use[pca_status.current] = 0;
 		pca_status.current ^= 1;
 		pca_status.buffer = pca_status.buf[pca_status.current];
-                if (pca_sleep) {
+                if (pca_sleep)
 			wakeup(&pca_sleep);
-			pca_sleep = 0;
-		}
 		if (pca_status.wsel.si_pid) {
 			selwakeup((struct selinfo *)&pca_status.wsel.si_pid);
 			pca_status.wsel.si_pid = 0;

@@ -38,7 +38,7 @@
  */
 
 /*
- *  $Id: if_ep.c,v 1.44 1996/05/24 15:22:36 gibbs Exp $
+ *  $Id: if_ep.c,v 1.1.1.1 1996/06/14 10:04:44 asami Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -48,6 +48,12 @@
  *          Serge Babkin
  *          Chelindbank (Chelyabinsk, Russia)
  *          babkin@hq.icb.chel.su
+ */
+
+/*
+ * Pccard support for 3C589 by:
+ *		HAMADA Naoki
+ *		nao@tom-yam.or.jp
  */
 
 #include "ep.h"
@@ -103,14 +109,10 @@
 #endif
 
 #ifdef PC98
-#include <pc98/pc98/pc98.h>
 #include <pc98/pc98/pc98_device.h>
-#include <pc98/pc98/icu.h>
 #include <pc98/pc98/if_epreg.h>
 #else
-#include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
-#include <i386/isa/icu.h>
 #include <i386/isa/if_epreg.h>
 #endif
 #include <i386/isa/elink.h>
@@ -146,7 +148,9 @@ static	void epstart __P((struct ifnet *));
 static	void epstop __P((struct ep_softc *));
 static	void epwatchdog __P((struct ifnet *));
 
+#if 0
 static	int send_ID_sequence __P((int));
+#endif
 static	int get_eeprom_data __P((int, int));
 
 static	struct ep_softc* ep_softc[NEP];
@@ -184,6 +188,179 @@ static struct kern_devconf kdc_isa_ep = {
     "3Com 3C509 Ethernet adapter",
     DC_CLS_NETIF		/* class */
 };
+
+#include "crd.h"
+
+#if NCRD > 0
+#include "apm.h"
+#include <sys/select.h>
+#include <pccard/card.h>
+#include <pccard/driver.h>
+#include <pccard/slot.h>
+
+/*
+ * PC-Card (PCMCIA) specific code.
+ */
+static int card_intr __P((struct pccard_dev *));
+static void ep_unload __P((struct pccard_dev *));
+static void ep_suspend __P((struct pccard_dev *));
+static int ep_pccard_init __P((struct pccard_dev *, int));
+static int ep_pccard_attach  __P((struct pccard_dev *));
+
+static struct pccard_drv ep_info = {
+    "ep",
+    card_intr,
+    ep_unload,
+    ep_suspend,
+    ep_pccard_init,
+    0,                      /* Attributes - presently unused */
+    &net_imask
+};
+
+/* Resume is done by executing ep_pccard_init(dp, 0). */
+static void
+ep_suspend(dp)
+    struct pccard_dev *dp;
+{
+    struct ep_softc *sc = ep_softc[dp->isahd.id_unit];
+
+    printf("ep%d: suspending\n", dp->isahd.id_unit);
+    sc->gone = 1;
+}
+
+/*
+ * 
+ */
+static int
+ep_pccard_init(dp, first)
+    struct pccard_dev *dp;
+    int first;
+{
+#ifdef PC98
+    struct pc98_device *is = &dp->isahd;
+#else
+    struct isa_device *is = &dp->isahd;
+#endif
+    struct ep_softc *sc = ep_softc[is->id_unit];
+    struct ep_board *epb;
+    int i;
+
+    epb = &ep_board[is->id_unit];
+
+    if (sc == 0) {
+	if ((sc = ep_alloc(is->id_unit, epb)) == 0) {
+	    return (ENXIO);
+	}
+	ep_unit++;
+        ep_isa_registerdev(sc, is);
+    }
+
+    /* get_e() requires these. */
+    sc->ep_io_addr = is->id_iobase;
+    sc->unit = is->id_unit;
+
+    epb->epb_addr = is->id_iobase;
+    epb->epb_used = 1;
+    epb->prod_id = get_e(sc, EEPROM_PROD_ID);
+
+    if (epb->prod_id != 0x9058) {	/* 3C589's product id */
+	if (first) {
+	    printf("ep%d: failed to come ready.\n", is->id_unit);
+	} else {
+	    printf("ep%d: failed to resume.\n", is->id_unit);
+	}
+	return (ENXIO);
+    }
+
+    epb->res_cfg = get_e(sc, EEPROM_RESOURCE_CFG);
+    for (i = 0; i < 3; i++) {
+        sc->epb->eth_addr[i] = get_e(sc, EEPROM_NODE_ADDR_0 + i);
+    }
+
+    if (first) {
+	if (ep_pccard_attach(dp) == 0) {
+	    return (ENXIO);
+	}
+	sc->arpcom.ac_if.if_snd.ifq_maxlen = ifqmaxlen;
+    }
+
+    if (!first) {
+	sc->kdc->kdc_state = DC_IDLE;
+	sc->gone = 0;
+	printf("ep%d: resumed.\n", is->id_unit);
+	epinit(sc);
+    }
+
+    return (0);
+}
+
+static int
+ep_pccard_attach(dp)
+    struct pccard_dev *dp;
+{
+#ifdef PC98
+    struct pc98_device *is = &dp->isahd;
+#else
+    struct isa_device *is = &dp->isahd;
+#endif
+    struct ep_softc *sc = ep_softc[is->id_unit];
+    u_short config;
+
+    sc->ep_connectors = 0;
+    config = inw(IS_BASE + EP_W0_CONFIG_CTRL);
+    if (config & IS_BNC) {
+	sc->ep_connectors |= BNC;
+    }
+    if (config & IS_UTP) {
+	sc->ep_connectors |= UTP;
+    }
+    if (!(sc->ep_connectors & 7))
+	printf("no connectors!");
+    sc->ep_connector = inw(BASE + EP_W0_ADDRESS_CFG) >> ACF_CONNECTOR_BITS;
+
+    /* ROM size = 0, ROM base = 0 */
+    /* For now, ignore AUTO SELECT feature of 3C589B and later. */
+    outw(BASE + EP_W0_ADDRESS_CFG, get_e(sc, EEPROM_ADDR_CFG) & 0xc000);
+
+    /* Fake IRQ must be 3 */
+    outw(BASE + EP_W0_RESOURCE_CFG, (sc->epb->res_cfg & 0x0fff) | 0x3000);
+
+    outw(BASE + EP_W0_PRODUCT_ID, sc->epb->prod_id);
+
+    ep_attach(sc);
+
+    return 1;
+}
+
+static void
+ep_unload(dp)
+    struct pccard_dev *dp;
+{
+    struct ep_softc *sc = ep_softc[dp->isahd.id_unit];
+
+    if (sc->kdc->kdc_state == DC_UNCONFIGURED) {
+        printf("ep%d: already unloaded\n", dp->isahd.id_unit);
+	return;
+    }
+    sc->kdc->kdc_state = DC_UNCONFIGURED;
+    sc->arpcom.ac_if.if_flags &= ~IFF_RUNNING;
+    sc->gone = 1;
+    printf("ep%d: unload\n", dp->isahd.id_unit);
+}
+
+/*
+ * card_intr - Shared interrupt called from
+ * front end of PC-Card handler.
+ */
+static int
+card_intr(dp)
+    struct pccard_dev *dp;
+{
+    epintr(dp->isahd.id_unit);
+    return(1);
+}
+
+#endif /* NCRD > 0 */
 
 static void
 ep_isa_registerdev(sc, id)
@@ -229,7 +406,7 @@ ep_look_for_board_at(is)
     struct isa_device *is;
 #endif
 {
-    int data, i, j, io_base, id_port = ELINK_ID_PORT;
+    int data, i, j, id_port = ELINK_ID_PORT;
     int count = 0;
 
     if (ep_current_tag == (EP_LAST_TAG + 1)) {
@@ -401,7 +578,10 @@ ep_isa_probe(is)
     struct ep_softc *sc;
     struct ep_board *epb;
     u_short k;
-    int i;
+
+#if NCRD > 0
+    pccard_add_driver(&ep_info);
+#endif /* NCRD > 0 */
 
     if(( epb=ep_look_for_board_at(is) )==0)
 	return (0);
@@ -493,7 +673,7 @@ ep_isa_attach(is)
     GO_WINDOW(0);
     if(irq == 9)
 	irq = 2;
-    outw(BASE + EP_W0_RESOURCE_CFG, SET_IRQ(irq));
+    SET_IRQ(BASE, irq);
 
     ep_attach(sc);
     return 1;
@@ -508,6 +688,10 @@ ep_attach(sc)
     struct sockaddr_dl *sdl;
     u_short *p;
     int i;
+    int attached;
+
+    sc->gone = 0;
+    attached = (ifp->if_softc != 0);
 
     printf("ep%d: ", sc->unit);
     /*
@@ -550,8 +734,10 @@ ep_attach(sc)
     ifp->if_ioctl = epioctl;
     ifp->if_watchdog = epwatchdog;
 
+    if (!attached) {
     if_attach(ifp);
     ether_ifattach(ifp);
+    }
 
     /* device attach does transition from UNCONFIGURED to IDLE state */
     sc->kdc->kdc_state=DC_IDLE;
@@ -599,7 +785,9 @@ ep_attach(sc)
     sc->top = sc->mcur = 0;
 
 #if NBPFILTER > 0
+    if (!attached) {
     bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
+    }
 #endif
     return 0;
 }
@@ -615,6 +803,9 @@ epinit(sc)
 {
     register struct ifnet *ifp = &sc->arpcom.ac_if;
     int s, i, j;
+
+    if (sc->gone)
+	return;
 
 	/*
     if (ifp->if_addrlist == (struct ifaddr *) 0)
@@ -682,39 +873,40 @@ epinit(sc)
 	  *
 	  */
 
+    /* Set the xcvr. */
     if(ifp->if_flags & IFF_LINK0 && sc->ep_connectors & AUI) {
-	/* nothing */
+	i = ACF_CONNECTOR_AUI;
     } else if(ifp->if_flags & IFF_LINK1 && sc->ep_connectors & BNC) {
-	outw(BASE + EP_COMMAND, START_TRANSCEIVER);
-	DELAY(1000);
+	i = ACF_CONNECTOR_BNC;
     } else if(ifp->if_flags & IFF_LINK2 && sc->ep_connectors & UTP) {
-	GO_WINDOW(4);
-	outw(BASE + EP_W4_MEDIA_TYPE, ENABLE_UTP);
-	GO_WINDOW(1);
+	i = ACF_CONNECTOR_UTP;
     } else {
-	GO_WINDOW(1);
-	switch(sc->ep_connector) {
-	    case ACF_CONNECTOR_UTP:
-		if(sc->ep_connectors & UTP) {
-		    GO_WINDOW(4);
-		    outw(BASE + EP_W4_MEDIA_TYPE, ENABLE_UTP);
-		    GO_WINDOW(1);
-		}
-		break;
-	    case ACF_CONNECTOR_BNC:
-		if(sc->ep_connectors & BNC) {
-		    outw(BASE + EP_COMMAND, START_TRANSCEIVER);
-		    DELAY(1000);
-		}
-		break;
-	    case ACF_CONNECTOR_AUI:
-		/* nothing to do */
-		break;
-	    default:
-		printf("ep%d: strange connector type in EEPROM: assuming AUI\n",
-		    sc->unit);
-		break;
+	i = sc->ep_connector;
+    }
+    GO_WINDOW(0);
+    j = inw(BASE + EP_W0_ADDRESS_CFG) & 0x3fff;
+    outw(BASE + EP_W0_ADDRESS_CFG, j | (i << ACF_CONNECTOR_BITS));
+
+    switch(i) {
+      case ACF_CONNECTOR_UTP:
+	if(sc->ep_connectors & UTP) {
+	    GO_WINDOW(4);
+	    outw(BASE + EP_W4_MEDIA_TYPE, ENABLE_UTP);
 	}
+	break;
+      case ACF_CONNECTOR_BNC:
+	if(sc->ep_connectors & BNC) {
+	    outw(BASE + EP_COMMAND, START_TRANSCEIVER);
+	    DELAY(1000);
+	}
+	break;
+      case ACF_CONNECTOR_AUI:
+	/* nothing to do */
+	break;
+      default:
+	printf("ep%d: strange connector type in EEPROM: assuming AUI\n",
+	       sc->unit);
+	break;
     }
 
     outw(BASE + EP_COMMAND, RX_ENABLE);
@@ -759,6 +951,7 @@ epinit(sc)
     sc->next_mb = 0;
     epmbuffill((caddr_t) sc, 0);
 
+    GO_WINDOW(1);
     epstart(ifp);
 
     splx(s);
@@ -775,6 +968,10 @@ epstart(ifp)
     register struct mbuf *m;
     struct mbuf *top;
     int s, pad;
+
+    if (sc->gone) {
+	return;
+    }
 
     s = splimp();
     if (ifp->if_flags & IFF_OACTIVE) {
@@ -814,7 +1011,7 @@ startagain:
     }
     IF_DEQUEUE(&ifp->if_snd, m);
 
-    outw(BASE + EP_W1_TX_PIO_WR_1, len);
+    outw(BASE + EP_W1_TX_PIO_WR_1, len | 0x8000); /* XXX */
     outw(BASE + EP_W1_TX_PIO_WR_1, 0x0);	/* Second dword meaningless */
 
     /* compute the Tx start threshold for this packet */
@@ -890,6 +1087,11 @@ epintr(unit)
     int unit;
 {
     register struct ep_softc *sc = ep_softc[unit];
+
+    if (sc->gone) {
+	return;
+    }
+
     ep_intr(sc);
 }
 
@@ -1389,12 +1591,18 @@ static void
 epwatchdog(ifp)
     struct ifnet *ifp;
 {
+    struct ep_softc *sc = ifp->if_softc;
+
     /*
     printf("ep: watchdog\n");
 
     log(LOG_ERR, "ep%d: watchdog\n", ifp->if_unit);
     ifp->if_oerrors++;
     */
+
+    if (sc->gone) {
+	return;
+    }
 
     ifp->if_flags &= ~IFF_OACTIVE;
     epstart(ifp);
@@ -1405,6 +1613,10 @@ static void
 epstop(sc)
     struct ep_softc *sc;
 {
+    if (sc->gone) {
+	return;
+    }
+
     outw(BASE + EP_COMMAND, RX_DISABLE);
     outw(BASE + EP_COMMAND, RX_DISCARD_TOP_PACK);
     while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
@@ -1419,6 +1631,7 @@ epstop(sc)
 }
 
 
+#if 0
 static int
 send_ID_sequence(port)
     int port;
@@ -1433,6 +1646,7 @@ send_ID_sequence(port)
     }
     return (1);
 }
+#endif
 
 
 /*

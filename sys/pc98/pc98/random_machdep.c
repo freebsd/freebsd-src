@@ -1,7 +1,7 @@
 /*
  * random_machdep.c -- A strong random number generator
  *
- * $Id: random_machdep.c,v 1.7 1996/06/08 08:18:00 bde Exp $
+ * $Id: random_machdep.c,v 1.1.1.1 1996/06/14 10:04:45 asami Exp $
  *
  * Version 0.95, last modified 18-Oct-95
  * 
@@ -53,10 +53,12 @@
 #include <machine/random.h>
 
 #ifdef PC98
+#include <pc98/pc98/icu.h>
 #include <pc98/pc98/pc98.h>
 #include <pc98/pc98/pc98_device.h>
 #include <pc98/pc98/timerreg.h>
 #else
+#include <i386/isa/icu.h>
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/timerreg.h>
@@ -108,7 +110,9 @@ static u_int32_t random_pool[POOLWORDS];
 static struct timer_rand_state keyboard_timer_state;
 static struct timer_rand_state extract_timer_state;
 static struct timer_rand_state irq_timer_state[ICU_LEN];
+#ifdef notyet
 static struct timer_rand_state blkdev_timer_state[MAX_BLKDEV];
+#endif
 static struct wait_queue *random_wait;
 
 inthand2_t *sec_intr_handler[ICU_LEN];

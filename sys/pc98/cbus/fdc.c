@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.89 1996/05/03 20:15:11 phk Exp $
+ *	$Id: fd.c,v 1.1.1.1 1996/06/14 10:04:43 asami Exp $
  *
  */
 
@@ -430,7 +430,7 @@ static int fdformat(dev_t, struct fd_formb *, struct proc *);
 #define	IOTIMEDOUT	11
 
 #ifdef	DEBUG
-char *fdstates[] =
+static char const * const fdstates[] =
 {
 "DEVIDLE",
 "FINDWORK",
@@ -447,7 +447,7 @@ char *fdstates[] =
 };
 
 /* CAUTION: fd_debug causes huge amounts of logging output */
-int	fd_debug = 0;
+static int volatile fd_debug = 0;
 #define TRACE0(arg) if(fd_debug) printf(arg)
 #define TRACE1(arg1, arg2) if(fd_debug) printf(arg1, arg2)
 #else /* DEBUG */
@@ -786,7 +786,10 @@ fdattach(struct isa_device *dev)
 	fdcu_t	fdcu = dev->id_unit;
 	fdc_p	fdc = fdc_data + fdcu;
 	fd_p	fd;
-	int	fdsu, st0, st3, i, unithasfd;
+	int	fdsu, st0, st3, i;
+#if NFT > 0
+	int	unithasfd;
+#endif
 #ifdef PC98
 	struct pc98_device *fdup;
 #else

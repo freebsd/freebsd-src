@@ -96,7 +96,6 @@
 #define MAXSIMUL	8
 #define SBIC_RESET_TIMEOUT	2000	/* time to wait for reset */
 
-extern int dma_init_flag;
 extern short dmapageport[];
 
 
@@ -904,15 +903,6 @@ sbic_dmastart(int flags, int phys, unsigned nbytes, unsigned chan)
 #ifdef CYRIX_5X86
 	asm("wbinvd");	/* wbinvd (WB cache flush) */
 #endif
-	if (!dma_init_flag) {
-		dma_init_flag = 1;
-		outb(0x439, (inb(0x439) & 0xfb)); /* DMA Accsess Control over 1MB */
-		outb(0x29, (0x0c | 0));	/* Bank Mode Reg. 16M mode */
-		outb(0x29, (0x0c | 1));	/* Bank Mode Reg. 16M mode */
-		outb(0x29, (0x0c | 2));	/* Bank Mode Reg. 16M mode */
-		outb(0x29, (0x0c | 3));	/* Bank Mode Reg. 16M mode */
-		outb(0x11, 0x50);	/* PC98 must be 0x40 */
-	}
 
 	/* mask channel */
 	mskport =  IO_DMA + 0x14;	/* 0x15 */

@@ -17,7 +17,7 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *
  *  ft.c - QIC-40/80 floppy tape driver
- *  $Id: ft.c,v 1.25 1995/12/15 00:53:58 bde Exp $
+ *  $Id: ft.c,v 1.1.1.1 1996/06/14 10:04:43 asami Exp $
  *
  *  01/19/95 ++sg
  *  Cleaned up recalibrate/seek code at attach time for FreeBSD 2.x.
@@ -86,13 +86,11 @@
 #include <pc98/pc98/pc98_device.h>
 #include <pc98/pc98/fdreg.h>
 #include <pc98/pc98/fdc.h>
-#include <pc98/pc98/icu.h>
 #include <pc98/pc98/ftreg.h>
 #else
 #include <i386/isa/isa_device.h>
 #include <i386/isa/fdreg.h>
 #include <i386/isa/fdc.h>
-#include <i386/isa/icu.h>
 #include <i386/isa/rtc.h>
 #include <i386/isa/ftreg.h>
 #endif

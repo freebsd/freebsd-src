@@ -35,13 +35,10 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.192 1996/06/08 11:03:01 bde Exp $
+ *	$Id: machdep.c,v 1.1.1.1 1996/06/14 10:04:41 asami Exp $
  */
 
 #include "npx.h"
-#ifndef PC98
-#include "isa.h"
-#endif
 #include "opt_sysvipc.h"
 #include "opt_ddb.h"
 #include "opt_bounce.h"
@@ -117,10 +114,9 @@
 #endif
 
 #ifdef PC98
-#include <pc98/pc98/pc98.h>
 #include <pc98/pc98/pc98_device.h>
+#include <pc98/pc98/pc98_machdep.h>
 #else
-#include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/rtc.h>
 #endif
@@ -132,31 +128,12 @@ extern int ptrace_single_step __P((struct proc *p));
 extern int ptrace_write_u __P((struct proc *p, vm_offset_t off, int data));
 extern void dblfault_handler __P((void));
 
-extern void i486_bzero	__P((void *, size_t));
-extern void i586_bzero	__P((void *, size_t));
-extern void i686_bzero	__P((void *, size_t));
+extern void identifycpu(void);	/* XXX header file */
+extern void earlysetcpuclass(void);	/* same header file */
 
 static void cpu_startup __P((void *));
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
 
-static void identifycpu(void);
-
-char machine[] = "i386";
-SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, machine, 0, "");
-
-static char cpu_model[128];
-SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD, cpu_model, 0, "");
-
-struct kern_devconf kdc_cpu0 = {
-	0, 0, 0,		/* filled in by dev_attach */
-	"cpu", 0, { MDDT_CPU },
-	0, 0, 0, CPU_EXTERNALLEN,
-	0,			/* CPU has no parent */
-	0,			/* no parentdata */
-	DC_BUSY,		/* the CPU is always busy */
-	cpu_model,		/* no sense in duplication */
-	DC_CLS_CPU		/* class */
-};
 
 #ifndef PANIC_REBOOT_WAIT_TIME
 #define PANIC_REBOOT_WAIT_TIME 15 /* default to 15 seconds */
@@ -206,8 +183,6 @@ int boothowto = 0, bootverbose = 0, Maxmem = 0;
 static int	badpages = 0;
 #ifdef PC98
 int Maxmem_under16M = 0;
-extern pt_entry_t *panic_kwin_pte;
-extern caddr_t panic_kwin;
 #endif
 long dumplo;
 extern int bootdev;
@@ -216,8 +191,6 @@ vm_offset_t phys_avail[10];
 
 /* must be 2 less so 0 0 can signal end of chunks */
 #define PHYS_AVAIL_ARRAY_END ((sizeof(phys_avail) / sizeof(vm_offset_t)) - 2)
-
-int cpu_class = CPUCLASS_386;	/* smallest common denominator */
 
 static void dumpsys __P((void));
 static void setup_netisrs __P((struct linker_set *)); /* XXX declare elsewhere */
@@ -258,9 +231,12 @@ cpu_startup(dummy)
 	 * Good {morning,afternoon,evening,night}.
 	 */
 	printf(version);
-	cpu_class = i386_cpus[cpu].cpu_class;
+	earlysetcpuclass();
 	startrtclock();
 	identifycpu();
+#ifdef PERFMON
+	perfmon_init();
+#endif
 	printf("real memory  = %d (%dK bytes)\n", ptoa(Maxmem), ptoa(Maxmem) / 1024);
 	/*
 	 * Display any holes after the first chunk of extended memory.
@@ -499,176 +475,6 @@ setup_netisrs(ls)
 	}
 }
 
-static struct cpu_nameclass i386_cpus[] = {
-	{ "Intel 80286",	CPUCLASS_286 },		/* CPU_286   */
-	{ "i386SX",		CPUCLASS_386 },		/* CPU_386SX */
-	{ "i386DX",		CPUCLASS_386 },		/* CPU_386   */
-	{ "i486SX",		CPUCLASS_486 },		/* CPU_486SX */
-	{ "i486DX",		CPUCLASS_486 },		/* CPU_486   */
-	{ "Pentium",		CPUCLASS_586 },		/* CPU_586   */
-	{ "Cy486DLC",		CPUCLASS_486 },		/* CPU_486DLC */
-	{ "Pentium Pro",	CPUCLASS_686 },		/* CPU_686 */
-};
-
-static void
-identifycpu()
-{
-	printf("CPU: ");
-	strncpy(cpu_model, i386_cpus[cpu].cpu_name, sizeof cpu_model);
-
-#if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
-	if (!strcmp(cpu_vendor,"GenuineIntel")) {
-		if ((cpu_id & 0xf00) > 3) {
-			cpu_model[0] = '\0';
-
-			switch (cpu_id & 0x3000) {
-			case 0x1000:
-				strcpy(cpu_model, "Overdrive ");
-				break;
-			case 0x2000:
-				strcpy(cpu_model, "Dual ");
-				break;
-			}
-
-			switch (cpu_id & 0xf00) {
-			case 0x400:
-				strcat(cpu_model, "i486 ");
-				break;
-			case 0x500:
-				strcat(cpu_model, "Pentium"); /* nb no space */
-				break;
-			case 0x600:
-				strcat(cpu_model, "Pentium Pro");
-				break;
-			default:
-				strcat(cpu_model, "unknown");
-				break;
-			}
-
-			switch (cpu_id & 0xff0) {
-			case 0x400:
-				strcat(cpu_model, "DX"); break;
-			case 0x410:
-				strcat(cpu_model, "DX"); break;
-			case 0x420:
-				strcat(cpu_model, "SX"); break;
-			case 0x430:
-				strcat(cpu_model, "DX2"); break;
-			case 0x440:
-				strcat(cpu_model, "SL"); break;
-			case 0x450:
-				strcat(cpu_model, "SX2"); break;
-			case 0x470:
-				strcat(cpu_model, "DX2 Write-Back Enhanced");
-				break;
-			case 0x480:
-				strcat(cpu_model, "DX4"); break;
-				break;
-			}
-		}
-	}
-#endif
-	printf("%s (", cpu_model);
-	switch(cpu_class) {
-	case CPUCLASS_286:
-		printf("286");
-		break;
-#if defined(I386_CPU)
-	case CPUCLASS_386:
-		printf("386");
-		break;
-#endif
-#if defined(I486_CPU)
-	case CPUCLASS_486:
-		printf("486");
-		bzero = i486_bzero;
-		break;
-#endif
-#if defined(I586_CPU)
-	case CPUCLASS_586:
-		printf("%d.%02d-MHz ",
-		       ((100 * i586_ctr_rate) >> I586_CTR_RATE_SHIFT) / 100,
-		       ((100 * i586_ctr_rate) >> I586_CTR_RATE_SHIFT) % 100);
-		printf("586");
-		break;
-#endif
-#if defined(I686_CPU)
-	case CPUCLASS_686:
-		printf("%d.%02d-MHz ",
-		       ((100 * i586_ctr_rate) >> I586_CTR_RATE_SHIFT) / 100,
-		       ((100 * i586_ctr_rate) >> I586_CTR_RATE_SHIFT) % 100);
-		printf("686");
-		break;
-#endif
-	default:
-		printf("unknown");	/* will panic below... */
-	}
-	printf("-class CPU)\n");
-#if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
-	if(*cpu_vendor)
-		printf("  Origin = \"%s\"",cpu_vendor);
-	if(cpu_id)
-		printf("  Id = 0x%lx",cpu_id);
-
-	if (!strcmp(cpu_vendor, "GenuineIntel")) {
-		printf("  Stepping=%ld", cpu_id & 0xf);
-		if (cpu_high > 0) {
-			printf("\n  Features=0x%b", cpu_feature, 
-			"\020"
-			"\001FPU"
-			"\002VME"
-			"\003DE"
-			"\004PSE"
-			"\005TSC"
-			"\006MSR"
-			"\007PAE"
-			"\010MCE"
-			"\011CX8"
-			"\012APIC"
-			"\013<b10>"
-			"\014<b11>"
-			"\015MTRR"
-			"\016PGE"
-			"\017MCA"
-			"\020CMOV"
-			);
-		}
-	}
-	/* Avoid ugly blank lines: only print newline when we have to. */
-	if (*cpu_vendor || cpu_id)
-		printf("\n");
-#endif
-	/*
-	 * Now that we have told the user what they have,
-	 * let them know if that machine type isn't configured.
-	 */
-	switch (cpu_class) {
-	case CPUCLASS_286:	/* a 286 should not make it this far, anyway */
-#if !defined(I386_CPU) && !defined(I486_CPU) && !defined(I586_CPU) && !defined(I686_CPU)
-#error This kernel is not configured for one of the supported CPUs
-#endif
-#if !defined(I386_CPU)
-	case CPUCLASS_386:
-#endif
-#if !defined(I486_CPU)
-	case CPUCLASS_486:
-#endif
-#if !defined(I586_CPU)
-	case CPUCLASS_586:
-#endif
-#if !defined(I686_CPU)
-	case CPUCLASS_686:
-#endif
-		panic("CPU class not configured");
-	default:
-		break;
-	}
-#ifdef PERFMON
-	perfmon_init();
-#endif
-	dev_attach(&kdc_cpu0);
-}
-
 /*
  * Send an interrupt to process.
  *
@@ -884,66 +690,6 @@ sigreturn(p, uap, retval)
 	return(EJUSTRETURN);
 }
 
-#ifdef PC98
-/*
- * disable screen saver
- */
-extern int scrn_blanked;
-extern void (*current_saver)(int blank);
-
-static void pc98_disable_screen_saver(void)
-{
-    if (scrn_blanked)
-	(*current_saver)(FALSE);
-}
-
-
-/*
- * change ralay on video card
- */
-static void pc98_change_relay(void)
-{
-	/* mode register 2 */
-	outb(0x6a, 0x07);	/* enable to change FF */
-	outb(0x6a, 0x8e);
-	outb(0x6a, 0x06);	/* disable to change FF */
-	outb(0x7c, 0);
-	outb(0x68, 0x0f);	/* display */
-
-	/* PWLB */
-	*(int *)panic_kwin_pte = (0xf0c00000 & PG_FRAME) | PG_V | PG_RW ;
-	pmap_update();
-	*(long *)panic_kwin = 0;
-	/* PowerWindow(C-Bus) */
-	outb(0x0dc | 0x600, 0);		/* XXX */
-	/* PCHKB & PCSKB4 */
-	outb(0x6e68, 0);
-	/* PCSKB */
-	outb(0x6ee8, 0);
-	/* NEC-S3, Cirrus (local bus) */
-	outb(0xfaa, 3);
-	outb(0xfab, 1);
-	outb(0xfaa, 6);
-	outb(0xfab, 0xff);
-	outb(0xfaa, 7);
-	outb(0xfab, 0);
-	/* NEC-S3 (C-bus) */
-	outb(0xfa2, 3);
-	outb(0xfa3, 0);
-	/* GA-NB */
-	outb(0x40e1, 0xc2);
-	/* WAB-S & WAP */
-	outb(0x40e1, 0xfa);
-
-	/* stop G-GDC */
-	outb(0xa2, 0x0c);
-	/* XXX start T-GDC (which is true?)*/
-	outb(0x62, 0x69);
-	outb(0x62, 0x0d);
-}
-#endif
-
-
 static int	waittime = -1;
 struct pcb dumppcb;
 
@@ -955,10 +701,6 @@ boot(howto)
 		register struct buf *bp;
 		int iter, nbusy;
 
-#ifdef PC98
-		pc98_change_relay();
-		pc98_disable_screen_saver();
-#endif
 		waittime = 0;
 		printf("\nsyncing disks... ");
 
@@ -1051,7 +793,7 @@ die:
  * exported (symorder) and used at least by savecore(8)
  *
  */
-u_long		dumpmag = 0x8fca0101UL;	
+static u_long const	dumpmag = 0x8fca0101UL;	
 
 static int	dumpsize = 0;		/* also for savecore */
 
@@ -1406,6 +1148,13 @@ init386(first)
 	 */
 	cninit();
 
+#ifdef PC98
+	/*
+	 * Initialize DMAC
+	 */
+	init_pc98_dmac();
+#endif
+
 	/*
 	 * make gdt memory segments, the code segment goes up to end of the
 	 * page with etext in it, the data segment goes to the end of
@@ -1507,56 +1256,7 @@ init386(first)
 
 #ifdef PC98
 #ifdef EPSON_MEMWIN
-	if (pc98_machine_type & M_EPSON_PC98) {
-		if (Maxmem > 3840) {
-			if (Maxmem == Maxmem_under16M) {
-				Maxmem = 3840;
-				Maxmem_under16M = 3840;
-			} else if (Maxmem_under16M > 3840) {
-				Maxmem_under16M = 3840;
-			}
-		}
-
-		/* Disable 15MB-16MB caching */
-		switch (epson_machine_id) {
-		case 0x34:	/* PC486HX */
-		case 0x35:	/* PC486HG */
-		case 0x3B:	/* PC486HA */
-			/* Cache control start */
-			outb(0x43f, 0x42);
-			outw(0xc40, 0x0033);
-
-			/* Disable 0xF00000-0xFFFFFF */
-			outb(0xc48, 0x49); outb(0xc4c, 0x00);
-			outb(0xc48, 0x48); outb(0xc4c, 0xf0);
-			outb(0xc48, 0x4d); outb(0xc4c, 0x00);
-			outb(0xc48, 0x4c); outb(0xc4c, 0xff);
-			outb(0xc48, 0x4f); outb(0xc4c, 0x00);
-
-			/* Cache control end */
-			outb(0x43f, 0x40);
-			break;
-
-		case 0x2B:	/* PC486GR/GF */
-		case 0x30:	/* PC486P */
-		case 0x31:	/* PC486GRSuper */
-		case 0x32:	/* PC486GR+ */
-		case 0x37:	/* PC486SE */
-		case 0x38:	/* PC486SR */
-			/* Disable 0xF00000-0xFFFFFF */
-			outb(0x43f, 0x42);
-			outb(0x467, 0xe0);
-			outb(0x567, 0xd8);
-
-			outb(0x43f, 0x40);
-			outb(0x467, 0xe0);
-			outb(0x567, 0xe0);
-			break;
-		}
-
-		/* Disable 15MB-16MB RAM and enable memory window */
-		outb(0x43b, inb(0x43b) & 0xfd);	/* clear bit1 */
-	}
+	init_epson_memwin();
 #endif
 	biosbasemem = 640;                      /* 640KB */
 	biosextmem = (Maxmem * PAGE_SIZE - 0x100000)/1024;   /* extent memory */
@@ -1623,7 +1323,8 @@ init386(first)
 
 	/*
 	 * Maxmem isn't the "maximum memory", it's one larger than the
-	 * highest page of of the physical address space. It
+	 * highest page of the physical address space.  It should be
+	 * called something like "Maxphyspage".
 	 */
 	Maxmem = pagesinext + 0x100000/PAGE_SIZE;
 
@@ -1654,76 +1355,9 @@ init386(first)
 	}
 
 #ifdef PC98
-	/*
-	 * Certain 'CPU accelerator' supports over 16MB memory on
-	 * the machines whose BIOS doesn't store true size.  
-	 * To support this, we don't trust BIOS values if Maxmem < 4096.
-	 */
-	if (Maxmem < 4096) {
-		for (target_page = ptoa(4096);		/* 16MB */
-			 target_page < ptoa(32768);		/* 128MB */
-			 target_page += 256 * PAGE_SIZE	/* 1MB step */) {
-			int tmp, page_bad = FALSE, OrigMaxmem = Maxmem;
-
-			*(int *)CMAP1 = PG_V | PG_RW | PG_N | target_page;
-			pmap_update();
-
-			tmp = *(int *)CADDR1;
-			/*
-			 * Test for alternating 1's and 0's
-			 */
-			*(volatile int *)CADDR1 = 0xaaaaaaaa;
-			if (*(volatile int *)CADDR1 != 0xaaaaaaaa) {
-				page_bad = TRUE;
-			}
-			/*
-			 * Test for alternating 0's and 1's
-			 */
-			*(volatile int *)CADDR1 = 0x55555555;
-			if (*(volatile int *)CADDR1 != 0x55555555) {
-				page_bad = TRUE;
-			}
-			/*
-			 * Test for all 1's
-			 */
-			*(volatile int *)CADDR1 = 0xffffffff;
-			if (*(volatile int *)CADDR1 != 0xffffffff) {
-				page_bad = TRUE;
-			}
-			/*
-			 * Test for all 0's
-			 */
-			*(volatile int *)CADDR1 = 0x0;
-			if (*(volatile int *)CADDR1 != 0x0) {
-				/*
-				 * test of page failed
-				 */
-				page_bad = TRUE;
-			}
-			/*
-			 * Restore original value.
-			 */
-			*(int *)CADDR1 = tmp;
-			if (page_bad == TRUE) {
-				if (target_page > ptoa(4096))
-					Maxmem = atop(target_page);
-				else
-					Maxmem = OrigMaxmem;
-
-				break;
-			}
-		}
-		*(int *)CMAP1 = 0;
-		pmap_update();
-
-		/* XXX */
-		if (Maxmem > 3840) {
-			Maxmem_under16M = 3840;
-			if (Maxmem < 4096) {
-				Maxmem = 3840;
-			}
-		}
-	}
+#ifdef notyet
+	init_cpu_accel_mem();
+#endif
 #endif
 
 	for (target_page = avail_start; target_page < ptoa(Maxmem); target_page += PAGE_SIZE) {
