@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: apache.c,v 1.20 1996/04/28 01:07:20 jkh Exp $
+ * $Id: apache.c,v 1.21 1996/04/28 03:26:44 jkh Exp $
  *
  * Copyright (c) 1995
  *	Coranth Gryphon.  All rights reserved.
@@ -402,7 +402,8 @@ configApache(dialogMenuItem *self)
     
     /* Be optimistic */
     i = DITEM_SUCCESS;
-    
+
+    dialog_clear();
     msgConfirm("Since you elected to install the WEB server, we'll now add the\n"
 	       "Apache HTTPD package and set up a few configuration files.");
     i = package_add(APACHE_PACKAGE);
@@ -411,7 +412,7 @@ configApache(dialogMenuItem *self)
 		   "package.  You may wish to fetch and configure it by hand by looking\n"
 		   "in /usr/ports/net/apache (in the ports collection) or looking for the\n"
 		   "precompiled apache package in packages/networking/%s.", APACHE_PACKAGE);
-        return i;
+        return i | DITEM_RESTORE;
     }
 
     dialog_clear();

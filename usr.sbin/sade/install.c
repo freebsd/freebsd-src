@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.90 1996/04/28 20:54:00 jkh Exp $
+ * $Id: install.c,v 1.91 1996/04/29 06:47:09 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -52,6 +52,8 @@
 static void	create_termcap(void);
 
 #define TERMCAP_FILE	"/usr/share/misc/termcap"
+
+static void	installConfigure(void);
 
 static Boolean
 checkLabels(Chunk **rdev, Chunk **sdev, Chunk **udev)
@@ -168,12 +170,13 @@ installInitial(void)
 	variable_set2(DISK_PARTITIONED, "yes");
 
     /* If we refuse to proceed, bail. */
+    dialog_clear();
     if (msgYesNo("Last Chance!  Are you SURE you want continue the installation?\n\n"
 		 "If you're running this on a disk with data you wish to save\n"
 		 "then WE STRONGLY ENCOURAGE YOU TO MAKE PROPER BACKUPS before\n"
 		 "proceeding!\n\n"
 		 "We can take no responsibility for lost disk contents!"))
-	return DITEM_FAILURE;
+	return DITEM_FAILURE | DITEM_RESTORE;
 
     if (DITEM_STATUS(diskLabelCommit(NULL)) != DITEM_SUCCESS) {
 	msgConfirm("Couldn't make filesystems properly.  Aborting.");
@@ -284,12 +287,14 @@ installFixitFloppy(dialogMenuItem *self)
 int
 installExpress(dialogMenuItem *self)
 {
+    int i;
+
     variable_set2(SYSTEM_STATE, "express");
-    if (DITEM_STATUS(diskPartitionEditor(self)) == DITEM_FAILURE)
-	return DITEM_FAILURE;
+    if (DITEM_STATUS((i = diskPartitionEditor(self))) == DITEM_FAILURE)
+	return i;
     
-    if (DITEM_STATUS(diskLabelEditor(self)) == DITEM_FAILURE)
-	return DITEM_FAILURE;
+    if (DITEM_STATUS((i = diskLabelEditor(self))) == DITEM_FAILURE)
+	return i;
 
     if (!Dists) {
 	if (!dmenuOpenSimple(&MenuDistributions) && !Dists)
@@ -301,16 +306,21 @@ installExpress(dialogMenuItem *self)
 	    return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
     }
 
-    if (DITEM_STATUS(installCommit(self)) == DITEM_FAILURE)
-	return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
-
-    return DITEM_LEAVE_MENU | DITEM_RESTORE | DITEM_RECREATE;
+    if (DITEM_STATUS((i = installCommit(self))) == DITEM_SUCCESS) {
+	i |= DITEM_LEAVE_MENU;
+	/* Give user the option of one last configuration spree, then write changes */
+	installConfigure();
+    }
+    return i | DITEM_RESTORE | DITEM_RECREATE;
 }
 
 /* Novice mode installation */
 int
 installNovice(dialogMenuItem *self)
 {
+    int i;
+    extern int cdromMounted;
+
     variable_set2(SYSTEM_STATE, "novice");
     dialog_clear();
     msgConfirm("In the next menu, you will need to set up a DOS-style (\"fdisk\") partitioning\n"
@@ -347,21 +357,105 @@ installNovice(dialogMenuItem *self)
 	    break;
     }
 
+    dialog_clear();
     if (!mediaDevice) {
-	dialog_clear();
 	msgConfirm("Finally, you must specify an installation medium.");
 	if (!dmenuOpenSimple(&MenuMedia) || !mediaDevice)
 	    return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
     }
 
-    if (DITEM_STATUS(installCommit(self)) == DITEM_FAILURE)
-	return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
+    if (DITEM_STATUS((i = installCommit(self))) == DITEM_FAILURE) {
+	msgConfirm("Installation completed with some errors.  You may wish to\n"
+		   "scroll through the debugging messages on VTY1 with the\n"
+		   "scroll-lock feature.  You can also chose \"No\" at the next\n"
+		   "prompt and go back into the installation menus to try and retry\n"
+		   "whichever operations have failed.");
+	return i | DITEM_RESTORE | DITEM_RECREATE;
+
+    }
+    else
+	msgConfirm("Congradulations!  You now have FreeBSD installed on your system.\n"
+		   "We will now move on to the final configuration questions.\n"
+		   "For any option you do not wish to configure, simply select\n"
+		   "Cancel.\n\n"
+		   "If you wish to re-enter this utility after the system is up, you\n"
+		   "may do so by typing: /stand/sysinstall.");
+    variable_set2(SYSTEM_STATE, DITEM_STATUS(i) == DITEM_FAILURE ? "error-install" : "full-install");
+
+    if (mediaDevice->type != DEVICE_TYPE_FTP && mediaDevice->type != DEVICE_TYPE_NFS) {
+	if (!msgYesNo("Would you like to configure this machine's network interfaces?")) {
+	    Device *save = mediaDevice;
+
+	    /* This will also set the media device, which we don't want */
+	    tcpDeviceSelect();
+	    mediaDevice = save;
+	}
+    }
+
+    if (!msgYesNo("Would you like to configure Samba for connecting NETBUI clients to this\n"
+		  "machine?  Windows 95, Windows NT and Windows for Workgroups\n"
+		  "machines can use NETBUI transport for disk and printer sharing."))
+	configSamba(self);
+
+    if (!msgYesNo("Will this machine be an IP gateway (e.g. will it forward packets\n"
+		  "between interfaces)?"))
+	variable_set2("gateway", "YES");
+
+    if (!msgYesNo("Do you want to allow anonymous FTP connections to this machine?"))
+	configAnonFTP(self);
+
+    if (!msgYesNo("Do you want to configure this machine as an NFS server?"))
+	configNFSServer(self);
+
+    if (!msgYesNo("Do you want to configure this machine as an NFS client?"))
+	variable_set2("nfs_client", "YES");
+
+    if (!msgYesNo("Do you want to configure this machine as a WEB server?"))
+	configApache(self);
+
+    if (!msgYesNo("Would you like to customize your system console settings?"))
+	dmenuOpenSimple(&MenuSyscons);
+
+    if (!msgYesNo("Would you like to set this machine's time zone now?")) {
+	WINDOW *w = savescr();
+
+	dialog_clear();
+	systemExecute("rm -f /etc/wall_cmos_clock /etc/localtime; tzsetup");
+	restorescr(w);
+    }
+
+    if (!msgYesNo("Does this system have a mouse attached to it?"))
+	dmenuOpenSimple(&MenuMouse);
+
+    if (directory_exists("/usr/X11R6")) {
+	if (!msgYesNo("Would you like to configure your X server at this time?"))
+	    configXFree86(self);
+    }
+
+    if (cdromMounted) {
+	if (!msgYesNo("Would you like to link to the ports tree on your CDROM?\n\n"
+		      "This will require that you have your FreeBSD CD in the CDROM\n"
+		      "drive to use the ports collection, but at a substantial savings\n"
+		      "in disk space (NOTE:  This may take as long as 15 or 20 minutes\n"
+		      "depending on the speed of your CDROM drive)."))
+	    configPorts(self);
+    }
+
+    if (!msgYesNo("The FreeBSD package collection is a collection of over 300 ready-to-run\n"
+		  "applications, from text editors to games to WEB servers.  Would you like\n"
+		  "to browse the collection now?"))
+	configPackages(self);
+
+    /* XXX Put whatever other nice configuration questions you'd like to ask the user here XXX */
+
+    /* Give user the option of one last configuration spree, then write changes */
+    installConfigure();
 
     return DITEM_LEAVE_MENU | DITEM_RESTORE | DITEM_RECREATE;
 }
 
 /*
- * What happens when we select "Commit" in the custom installation menu.
+ * What happens when we finally "Commit" to going ahead with the installation.
  *
  * This is broken into multiple stages so that the user can do a full installation but come back here
  * again to load more distributions, perhaps from a different media type.  This would allow, for
@@ -372,21 +466,21 @@ int
 installCommit(dialogMenuItem *self)
 {
     int i;
-    extern int cdromMounted;
     char *str;
 
     if (!mediaVerify())
 	return DITEM_FAILURE;
 
     str = variable_get(SYSTEM_STATE);
-    i = DITEM_LEAVE_MENU;
     if (isDebug())
 	msgDebug("installCommit: System state is `%s'\n", str);
+
     if (RunningAsInit) {
-	if (DITEM_STATUS(installInitial()) == DITEM_FAILURE)
-	    return DITEM_FAILURE;
-	if (DITEM_STATUS(configFstab()) == DITEM_FAILURE)
-	    return DITEM_FAILURE;
+	/* Do things we wouldn't do to a multi-user system */
+	if (DITEM_STATUS((i = installInitial())) == DITEM_FAILURE)
+	    return i;
+	if (DITEM_STATUS((i = configFstab())) == DITEM_FAILURE)
+	    return i;
 	if (!rootExtract()) {
 	    msgConfirm("Failed to load the ROOT distribution.  Please correct\n"
 		       "this problem and try again.");
@@ -394,95 +488,13 @@ installCommit(dialogMenuItem *self)
 	}
     }
 
-    if (DITEM_STATUS(distExtractAll(self)) == DITEM_FAILURE)
-	i = DITEM_FAILURE;
+    i = distExtractAll(self);
+    if (DITEM_STATUS(i) == DITEM_FAILURE)
+    	(void)installFixup(self);
+    else
+    	i = installFixup(self);
 
-    if (DITEM_STATUS(installFixup(self)) == DITEM_FAILURE)
-	i = DITEM_FAILURE;
-
-    if (DITEM_STATUS(i) != DITEM_FAILURE && !strcmp(str, "novice")) {
-	msgConfirm("Since you're running the novice installation, a few post-configuration\n"
-		   "questions will be asked at this point.  For any option you do not wish\n"
-		   "to configure, select Cancel.");
-
-	if (mediaDevice->type != DEVICE_TYPE_FTP && mediaDevice->type != DEVICE_TYPE_NFS) {
-	    if (!msgYesNo("Would you like to configure this machine's network interfaces?")) {
-		Device *save = mediaDevice;
-
-		/* This will also set the media device, which we don't want */
-		tcpDeviceSelect();
-		mediaDevice = save;
-	    }
-	}
-
-	if (!msgYesNo("Would you like to configure Samba for connecting NETBUI clients to this\n"
-		      "machine?  Windows 95, Windows NT and Windows for Workgroups\n"
-		      "machines can use NETBUI transport for disk and printer sharing."))
-	    configSamba(self);
-
-	if (!msgYesNo("Will this machine be an IP gateway (e.g. will it forward packets\n"
-		      "between interfaces)?"))
-	    variable_set2("gateway", "YES");
-
-	if (!msgYesNo("Do you want to allow anonymous FTP connections to this machine?"))
-	    configAnonFTP(self);
-
-	if (!msgYesNo("Do you want to configure this machine as an NFS server?"))
-	    configNFSServer(self);
-
-	if (!msgYesNo("Do you want to configure this machine as an NFS client?"))
-	    variable_set2("nfs_client", "YES");
-
-	if (!msgYesNo("Do you want to configure this machine as a WEB server?"))
-	    configApache(self);
-
-	if (!msgYesNo("Would you like to customize your system console settings?"))
-	    dmenuOpenSimple(&MenuSyscons);
-
-	if (!msgYesNo("Would you like to set this machine's time zone now?")) {
-	    WINDOW *w = savescr();
-
-	    dialog_clear();
-	    systemExecute("rm -f /etc/wall_cmos_clock /etc/localtime; tzsetup");
-	    restorescr(w);
-	}
-
-	if (!msgYesNo("Does this system have a mouse attached to it?"))
-	    dmenuOpenSimple(&MenuMouse);
-
-	if (directory_exists("/usr/X11R6")) {
-	    if (!msgYesNo("Would you like to configure your X server at this time?"))
-		configXFree86(self);
-	}
-
-	if (cdromMounted) {
-	    if (!msgYesNo("Would you like to link to the ports tree on your CDROM?\n\n"
-			  "This will require that you have your FreeBSD CD in the CDROM\n"
-			  "drive to use the ports collection, but at a substantial savings\n"
-			  "in disk space (NOTE:  This may take as long as 15 or 20 minutes\n"
-			  "depending on the speed of your CDROM drive)."))
-		configPorts(self);
-	}
-
-	if (!msgYesNo("The FreeBSD package collection is a collection of over 300 ready-to-run\n"
-		      "applications, from text editors to games to WEB servers.  Would you like\n"
-		      "to browse the collection now?"))
-	    configPackages(self);
-
-	/* XXX Put whatever other nice configuration questions you'd like to ask the user here XXX */
-	
-    }
-
-    /* Final menu of last resort */
-    if (!msgYesNo("Would you like to go to the general configuration menu for a chance to set\n"
-		  "any last options?"))
-	dmenuOpenSimple(&MenuConfigure);
-
-    /* Write out any changes .. */
-    configResolv();
-    configSysconfig();
-
-    /* Don't print this if we're express or novice installing */
+    /* Don't print this if we're express or novice installing - they have their own error reporting */
     if (strcmp(str, "express") && strcmp(str, "novice")) {
 	if (Dists || DITEM_STATUS(i) == DITEM_FAILURE)
 	    msgConfirm("Installation completed with some errors.  You may wish to\n"
@@ -493,26 +505,20 @@ installCommit(dialogMenuItem *self)
 		       "If you have any network devices you have not yet configured,\n"
 		       "see the Interfaces configuration item on the Configuration menu.");
     }
-    else if (!strcmp(str, "novice")) {
-	if (Dists || DITEM_STATUS(i) == DITEM_FAILURE) {
-	    msgConfirm("Installation completed with some errors.  You may wish to\n"
-		       "scroll through the debugging messages on VTY1 with the\n"
-		       "scroll-lock feature.  You can also chose \"No\" at the next\n"
-		       "prompt and go back into the installation menus to try and retry\n"
-		       "whichever operations have failed.");
-	}
-	else {
-	    msgConfirm("Congradulations!  You now have FreeBSD installed on your system.\n"
-		       "At this stage, there shouldn't be much left to do from this\n"
-		       "installation utility so if you wish to come up from the hard disk\n"
-		       "now, simply select \"Yes\" at the next prompt to reboot.\n"
-		       "If you wish to re-enter this utility after the system is up, you\n"
-		       "may do so by typing: /stand/sysinstall.");
-	}
-    }
-    variable_set2(SYSTEM_STATE, DITEM_STATUS(i) == DITEM_FAILURE ? "error-install" : "full-install");
-
     return i | DITEM_RESTORE | DITEM_RECREATE;
+}
+
+static void
+installConfigure(void)
+{
+    /* Final menu of last resort */
+    if (!msgYesNo("Visit the general configuration menu for a chance to set\n"
+		  "any last options?"))
+	dmenuOpenSimple(&MenuConfigure);
+
+    /* Write out any changes .. */
+    configResolv();
+    configSysconfig();
 }
 
 int
