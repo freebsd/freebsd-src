@@ -37,7 +37,7 @@
 #include "pthread_private.h"
 
 int
-pthread_attr_setschedparam(pthread_attr_t *attr, struct sched_param *param)
+pthread_attr_setschedparam(pthread_attr_t *attr, const struct sched_param *param)
 {
 	int ret = 0;
 
