@@ -63,15 +63,14 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-#ifndef lint
 #if 0
-static char sccsid[] = "from: @(#)inet.c	8.4 (Berkeley) 4/20/94";
-#else
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
+#ifndef lint
+static char sccsid[] = "@(#)inet.c	8.5 (Berkeley) 5/24/95";
 #endif /* not lint */
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/queue.h>

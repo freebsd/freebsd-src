@@ -31,13 +31,14 @@
  * SUCH DAMAGE.
  */
 
+#if 0
 #ifndef lint
-/*
 static char sccsid[] = "@(#)inet.c	8.5 (Berkeley) 5/24/95";
-*/
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/queue.h>
@@ -142,7 +143,7 @@ protopr(u_long proto,		/* for sysctl version we pass proto # */
 		return;
 	}
 	if ((buf = malloc(len)) == 0) {
-		warn("malloc %lu bytes", (u_long)len);
+		warnx("malloc %lu bytes", (u_long)len);
 		return;
 	}
 	if (sysctlbyname(mibvar, buf, &len, 0, 0) < 0) {

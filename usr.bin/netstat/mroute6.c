@@ -64,8 +64,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)mroute.c	8.2 (Berkeley) 4/28/95
- *	$FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #ifdef INET6
 #include <sys/param.h>
