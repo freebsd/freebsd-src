@@ -41,7 +41,7 @@
  *
  *	@(#)subr_autoconf.c	8.1 (Berkeley) 6/10/93
  *
- * $Id: subr_autoconf.c,v 1.7 1998/12/04 22:54:51 archie Exp $
+ * $Id: subr_autoconf.c,v 1.8 1999/01/08 17:31:11 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -395,7 +395,7 @@ config_intrhook_establish(hook)
 	}
 	TAILQ_INSERT_TAIL(&intr_config_hook_list, hook, ich_links);
 	if (cold == 0)
-		/* XXX Sufficient for LKMs loaded after initial config??? */
+		/* XXX Sufficient for modules loaded after initial config??? */
 		run_interrupt_driven_config_hooks(NULL);	
 	return (0);
 }

@@ -253,7 +253,7 @@ static moduledata_t pcic_mod = {
 DECLARE_MODULE(pcic, pcic_mod, SI_SUB_CONFIGURE, SI_ORDER_MIDDLE);
 
 /*
- *	pcic_unload - Called when unloading a LKM.
+ *	pcic_unload - Called when unloading a kernel module.
  *	Disables interrupts and resets PCIC.
  */
 static int
