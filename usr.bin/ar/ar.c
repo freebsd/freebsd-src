@@ -205,8 +205,8 @@ main(argc, argv)
 		usage();
 	}
 
-	/* -dmqr require a list of archive elements. */
-	if (options & (AR_D|AR_M|AR_Q|AR_R) && !*argv) {
+	/* -dmr require a list of archive elements. */
+	if (options & (AR_D|AR_M|AR_R) && !*argv) {
 		warnx("no archive members specified");
 		usage();
 	}
