@@ -47,6 +47,7 @@ static const char sccsid[] = "@(#)utilities.c	8.3 (Berkeley) 5/30/95";
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <ctype.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 #include "general.h"

@@ -44,6 +44,7 @@ static const char sccsid[] = "@(#)network.c	8.2 (Berkeley) 12/15/93";
 #include <sys/time.h>
 
 #include <errno.h>
+#include <stdlib.h>
 
 #include <arpa/telnet.h>
 #include <unistd.h>
