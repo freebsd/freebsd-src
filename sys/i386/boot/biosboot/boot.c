@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.39 1995/04/20 23:05:23 julian Exp $
+ *	$Id: boot.c,v 1.40 1995/04/20 23:15:08 joerg Exp $
  */
 
 
@@ -65,6 +65,9 @@ char namebuf[NAMEBUF_LEN];
 struct exec head;
 struct bootinfo bootinfo;
 int loadflags;
+
+static void getbootdev(char *ptr, int *howto);
+static void loadprog(void);
 
 /* NORETURN */
 void
@@ -120,13 +123,7 @@ loadstart:
 	       ouraddr, bootinfo.bi_basemem, bootinfo.bi_extmem,
 	       devs[maj], unit, name);
 
-	/*
-	 * Be paranoid and make doubly sure that the input
-	 * buffer is empty.
-	 */
-	if (loadflags & RB_SERIAL)
-		init_serial();
-	getbootdev(&loadflags);
+	getbootdev(namebuf, &loadflags);
 	ret = openrd();
 	if (ret != 0) {
 		if (ret > 0)
@@ -136,12 +133,12 @@ loadstart:
 /*	if (inode.i_mode&IEXEC)
 		loadflags |= RB_KDB;
 */
-	loadprog(loadflags);
+	loadprog();
 	goto loadstart;
 }
 
-void
-loadprog(int howto)
+static void
+loadprog(void)
 {
 	long int startaddr;
 	long int addr;	/* physical address.. not directly useable */
@@ -224,7 +221,7 @@ loadprog(int howto)
 	/********************************************************/
 	/* Copy the symbol table size				*/
 	/********************************************************/
-	pcpy((void *)&head.a_syms, (void *)addr, sizeof(head.a_syms));
+	pcpy(&head.a_syms, (void *)addr, sizeof(head.a_syms));
 	addr += sizeof(head.a_syms);
 
 	/********************************************************/
@@ -239,7 +236,7 @@ loadprog(int howto)
 	/* Load the string table size				*/
 	/********************************************************/
 	read((void *)&i, sizeof(int));
-	pcpy((void *)&i, (void *)addr, sizeof(int));
+	pcpy(&i, (void *)addr, sizeof(int));
 	i -= sizeof(int);
 	addr += sizeof(int);
 
@@ -263,52 +260,63 @@ loadprog(int howto)
 	bootinfo.bi_nfs_diskless = NULL;
 	bootinfo.bi_size = sizeof(bootinfo);
 	printf("total=0x%x entry point=0x%x\n", (int)addr, (int)startaddr);
-	startprog((int)startaddr, howto | RB_BOOTINFO, bootdev,
+	startprog((int)startaddr, loadflags | RB_BOOTINFO, bootdev,
 		  (int)&bootinfo + ouraddr);
 }
 
 void
-getbootdev(int *howto)
+getbootdev(char *ptr, int *howto)
 {
-	char c, *ptr = namebuf;
-	if (gets(namebuf)) {
-		while (c=*ptr) {
-			while (c==' ')
-				c = *++ptr;
-			if (!c)
-				return;
-			if (c=='-')
-				while ((c = *++ptr) && c!=' ') {
-					if (c == 'C')
-					    { *howto |= RB_CDROM; continue; }
-					if (c == 'a')
-					    { *howto |= RB_ASKNAME; continue; }
-					if (c == 'b')
-					    { *howto |= RB_HALT; continue; }
-					if (c == 'c')
-					    { *howto |= RB_CONFIG; continue; }
-					if (c == 'd')
-					    { *howto |= RB_KDB; continue; }
-					if (c == 'r')
-					    { *howto |= RB_DFLTROOT; continue;}
-					if (c == 's')
-					    { *howto |= RB_SINGLE; continue;}
-					if (c == 'v')
-					    { *howto |= RB_VERBOSE; continue;}
-					if (c == 'h') {
-						*howto ^= RB_SERIAL;
-						if (*howto & RB_SERIAL)
-							init_serial();
-						continue;
-					}
+	char c;
+
+	/*
+	 * Be paranoid and make doubly sure that the input buffer is empty.
+	 */
+	if (*howto & RB_SERIAL)
+		init_serial();
+
+	if (!gets(ptr)) {
+		putchar('\n');
+		return;
+	}
+	while ((c = *ptr) != '\0') {
+nextarg:
+		while (c == ' ')
+			c = *++ptr;
+		if (c == '-')
+			while ((c = *++ptr) != '\0') {
+				if (c == ' ')
+					goto nextarg;
+				if (c == 'C')
+					*howto |= RB_CDROM;
+				if (c == 'a')
+					*howto |= RB_ASKNAME;
+				if (c == 'b')
+					*howto |= RB_HALT;
+				if (c == 'c')
+					*howto |= RB_CONFIG;
+				if (c == 'd')
+					*howto |= RB_KDB;
+				if (c == 'h') {
+					*howto ^= RB_SERIAL;
+					if (*howto & RB_SERIAL)
+						init_serial();
 				}
-			else {
-				name = ptr;
-				while ((c = *++ptr) && c!=' ');
-				if (c)
-					*ptr++ = 0;
+				if (c == 'r')
+					*howto |= RB_DFLTROOT;
+				if (c == 's')
+					*howto |= RB_SINGLE;
+				if (c == 'v')
+					*howto |= RB_VERBOSE;
+			}
+		if (c == '\0')
+			return;
+		name = ptr;
+		while (*++ptr != '\0') {
+			if (*ptr == ' ') {
+				*ptr++ = '\0';
+				break;
 			}
 		}
-	} else
-		printf("\n");
+	}
 }
