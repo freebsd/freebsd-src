@@ -724,59 +724,6 @@ getnetconf_cached(const char *netid) {
 	return (p->nconf);
 }
 
-/*
- * xdr routines for mount rpc's
- */
-int
-xdr_dir(xdrsp, dirp)
-	XDR *xdrsp;
-	char *dirp;
-{
-	return (xdr_string(xdrsp, &dirp, RPCMNT_PATHLEN));
-}
-
-int
-xdr_fh(xdrsp, np)
-	XDR *xdrsp;
-	struct nfhret *np;
-{
-	int i;
-	long auth, authcnt, authfnd = 0;
-
-	if (!xdr_u_long(xdrsp, &np->stat))
-		return (0);
-	if (np->stat)
-		return (1);
-	switch (np->vers) {
-	case 1:
-		np->fhsize = NFSX_V2FH;
-		return (xdr_opaque(xdrsp, (caddr_t)np->nfh, NFSX_V2FH));
-	case 3:
-		if (!xdr_long(xdrsp, &np->fhsize))
-			return (0);
-		if (np->fhsize <= 0 || np->fhsize > NFSX_V3FHMAX)
-			return (0);
-		if (!xdr_opaque(xdrsp, (caddr_t)np->nfh, np->fhsize))
-			return (0);
-		if (!xdr_long(xdrsp, &authcnt))
-			return (0);
-		for (i = 0; i < authcnt; i++) {
-			if (!xdr_long(xdrsp, &auth))
-				return (0);
-			if (auth == np->auth)
-				authfnd++;
-		}
-		/*
-		 * Some servers, such as DEC's OSF/1 return a nil authenticator
-		 * list to indicate RPCAUTH_UNIX.
-		 */
-		if (!authfnd && (authcnt > 0 || np->auth != RPCAUTH_UNIX))
-			np->stat = EAUTH;
-		return (1);
-	};
-	return (0);
-}
-
 void
 usage()
 {
