@@ -174,7 +174,7 @@ Note 13: This driver was developed by Martin Husemann, please contact him
 
 Note 14: This driver was developed by Gary Jennejohn who develops under
 	FreeBSD only. In case of problems with this driver, please contact
-	him directly at garyj@muc.de.
+	him directly at garyj@jennejohn.org.
 
 Note 15: The driver for the Siemens I-Surf 2.0 was developed by Udo Schweigert 
 	(ust@cert.siemens.de) who develops under FreeBSD only.
