@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_read.c,v 1.4 1998/04/29 09:59:10 jb Exp $
+ * $Id: uthread_read.c,v 1.5 1998/06/09 23:20:53 jb Exp $
  *
  */
 #include <sys/types.h>
@@ -45,6 +45,7 @@ ssize_t
 read(int fd, void *buf, size_t nbytes)
 {
 	int	ret;
+	int	type;
 
 	/* POSIX says to do just this: */
 	if (nbytes == 0)
@@ -52,6 +53,17 @@ read(int fd, void *buf, size_t nbytes)
 
 	/* Lock the file descriptor for read: */
 	if ((ret = _FD_LOCK(fd, FD_READ, NULL)) == 0) {
+		/* Get the read/write mode type: */
+		type = _thread_fd_table[fd]->flags & O_ACCMODE;
+
+		/* Check if the file is not open for read: */
+		if (type != O_RDONLY && type != O_RDWR) {
+			/* File is not open for read: */
+			errno = EBADF;
+			_FD_UNLOCK(fd, FD_READ);
+			return (-1);
+		}
+
 		/* Perform a non-blocking read syscall: */
 		while ((ret = _thread_sys_read(fd, buf, nbytes)) < 0) {
 			if ((_thread_fd_table[fd]->flags & O_NONBLOCK) == 0 &&
