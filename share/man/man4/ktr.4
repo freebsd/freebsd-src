@@ -98,7 +98,7 @@ It can also be examined and set after booting via the
 .Va debug.ktr.cpumask
 sysctl.
 By default events on all CPUs are enabled.
-.Ss Verbose mode
+.Ss Verbose Mode
 By default, events are only logged to the internal buffer for examination
 later, but if the verbose flag is set then they are dumped to the kernel
 console as well.
@@ -137,50 +137,57 @@ modifier is specified, then they are displayed in addition to the normal
 output.
 Note that the events are displayed in reverse chronological order.
 That is, the most recent events are displayed first.
-.Ss Logging ktr to disk
+.Ss Logging ktr to Disk
 The
 .Dv KTR_ALQ
-option can be used to log ktr entries to disk for post analysis using the
+option can be used to log
+.Nm
+entries to disk for post analysis using the
 .Xr ktrdump 8
 utility.
 Due to the potentially high volume of trace messages the trace mask should be
 selected carefully.
 This feature is configured through a group of sysctls.
-.Pp
-.Va debug.ktr.alq_file
-displays or sets the file that ktr will log to.  By default its value is
-"/tmp/ktr.out".
-If the file name is changed while ktr is enabled it will not take effect until
+.Bl -tag -width ".Va debug.ktr.alq_enable"
+.It Va debug.ktr.alq_file
+displays or sets the file that
+.Nm
+will log to.
+By default its value is
+.Pa /tmp/ktr.out .
+If the file name is changed while
+.Nm
+is enabled it will not take effect until
 the next invocation.
-.Pp
-.Va debug.ktr.alq_enable
-enables logging of ktr entries to disk if it is set to one.
+.It Va debug.ktr.alq_enable
+enables logging of
+.Nm
+entries to disk if it is set to one.
 Setting this to 0 will terminate logging.
-.Pp
-.Va debug.ktr.alq_max
+.It Va debug.ktr.alq_max
 is the maximum number of entries that will be recorded to disk, or 0 for
 infinite.
 This is helpful for limiting the number of particularly high frequency entries
 that are recorded.
-.Pp
-.Va debug.ktr.alq_depth
+.It Va debug.ktr.alq_depth
 determines the number of entries in the write buffer.
 This is the buffer that holds entries before they are written to disk and
 defaults to the value of the
 .Dv KTR_ENTRIES
 option.
-.Pp
-.Va debug.ktr.alq_failed
+.It Va debug.ktr.alq_failed
 records the number of times we failed to write an entry due to overflowing the
 write buffer.
-This may happen if the frequency of the logged ktr messages outpaces the depth
+This may happen if the frequency of the logged
+.Nm
+messages outpaces the depth
 of the queue.
-.Pp
-.Va debug.ktr.alq_cnt
+.It Va debug.ktr.alq_cnt
 records the number of entries that have currently been written to disk.
+.El
 .Sh SEE ALSO
-.Xr ktr 9 ,
-.Xr ktrdump 8
+.Xr ktrdump 8 ,
+.Xr ktr 9
 .Sh HISTORY
 The KTR kernel tracing facility first appeared in
 .Bsx 3.0

@@ -101,9 +101,11 @@ the uma subsystem at the time of the call to
 .Fn uma_zalloc
 and
 .Fn uma_zfree
-respectively.  Their purpose is to provide hooks for initializing or
+respectively.
+Their purpose is to provide hooks for initializing or
 destroying things that need to be done at the time of the allocation
-or release of a resource.  A good useage for the
+or release of a resource.
+A good useage for the
 .Fa ctor
 and
 .Fa dtor
@@ -115,13 +117,20 @@ The
 and
 .Fa fini
 arguments are used to optimize the allocation of
-objects from the zone.  They are called by the uma subsystem whenever
+objects from the zone.
+They are called by the uma subsystem whenever
 it needs to allocate or free several items to satisfy requests or memory
-pressure.  A good use for the uminit and fini callbacks might be to
-initialize and destroy mutexes contained within the object.  This would
+pressure.
+A good use for the
+.Fa uminit
+and
+.Fa fini
+callbacks might be to
+initialize and destroy mutexes contained within the object.
+This would
 allow one to re-use already initialized mutexes when an object is returned
-from the uma subsystem's object cache.  They are not called on each call
-to
+from the uma subsystem's object cache.
+They are not called on each call to
 .Fn uma_zalloc
 and
 .Fn uma_zfree

@@ -106,8 +106,10 @@ but the introduction of
 led to massive confusion
 by program writers so today programs haphazardly use one or the
 other and thus no real distinction can be made between the two.
-So it makes sense to have just one temporary directory and  
-softlink to it from the other tmp directory locations.
+So it makes sense to have just one temporary directory and
+softlink to it from the other
+.Pa tmp
+directory locations.
 However you handle
 .Pa /tmp ,
 the one thing you do not want to do is leave it sitting
@@ -272,7 +274,7 @@ We recommend enabling softupdates on most filesystems; however, there
 are two limitations to softupdates that you should be aware of when
 determining whether to use it on a filesystem.
 First, softupdates guarantees filesystem consistency in the
-case of a crash but could very easily be several seconds (even a minute!)
+case of a crash but could very easily be several seconds (even a minute!\&)
 behind on pending write to the physical disk.
 If you crash you may lose more work
 than otherwise.
@@ -283,7 +285,8 @@ close to full, doing a major update of it, e.g.\&
 .Dq Li "make installworld" ,
 can run it out of space and cause the update to fail.
 For this reason, softupdates will not be enabled on the root filesystem
-during a typical install.  There is no loss of performance since the root
+during a typical install.
+There is no loss of performance since the root
 filesystem is rarely written to.
 .Pp
 A number of run-time
@@ -525,72 +528,99 @@ TCP session disconnections.
 .Pp
 The
 .Va net.inet.tcp.delayed_ack
-TCP feature is largly misunderstood.  Historically speaking this feature
+TCP feature is largly misunderstood.
+Historically speaking, this feature
 was designed to allow the acknowledgement to transmitted data to be returned
-along with the response.  For example, when you type over a remote shell
+along with the response.
+For example, when you type over a remote shell,
 the acknowledgement to the character you send can be returned along with the
-data representing the echo of the character.   With delayed acks turned off
-the acknowledgement may be sent in its own packet before the remote service
-has a chance to echo the data it just received.  This same concept also
-applies to any interactive protocol (e.g. SMTP, WWW, POP3) and can cut the
-number of tiny packets flowing across the network in half.   The FreeBSD
-delayed-ack implementation also follows the TCP protocol rule that
+data representing the echo of the character.
+With delayed acks turned off,
+the acknowledgement may be sent in its own packet, before the remote service
+has a chance to echo the data it just received.
+This same concept also
+applies to any interactive protocol (e.g. SMTP, WWW, POP3), and can cut the
+number of tiny packets flowing across the network in half.
+The
+.Fx
+delayed ACK implementation also follows the TCP protocol rule that
 at least every other packet be acknowledged even if the standard 100ms
-timeout has not yet passed.  Normally the worst a delayed ack can do is
+timeout has not yet passed.
+Normally the worst a delayed ACK can do is
 slightly delay the teardown of a connection, or slightly delay the ramp-up
-of a slow-start TCP connection.  While we aren't sure we believe that
+of a slow-start TCP connection.
+While we are not sure we believe that
 the several FAQs related to packages such as SAMBA and SQUID which advise
-turning off delayed acks may be refering to the slow-start issue.  In FreeBSD
+turning off delayed acks may be refering to the slow-start issue.
+In
+.Fx ,
 it would be more beneficial to increase the slow-start flightsize via
 the
 .Va net.inet.tcp.slowstart_flightsize
-sysctl rather then disable delayed acks.
+sysctl rather than disable delayed acks.
 .Pp
 The
 .Va net.inet.tcp.inflight_enable
 sysctl turns on bandwidth delay product limiting for all TCP connections.
 The system will attempt to calculate the bandwidth delay product for each
 connection and limit the amount of data queued to the network to just the
-amount required to maintain optimum throughput.  This feature is useful
+amount required to maintain optimum throughput.
+This feature is useful
 if you are serving data over modems, GigE, or high speed WAN links (or
 any other link with a high bandwidth*delay product), especially if you are
-also using window scaling or have configured a large send window.  If
-you enable this option you should also be sure to set
+also using window scaling or have configured a large send window.
+If you enable this option, you should also be sure to set
 .Va net.inet.tcp.inflight_debug
 to 0 (disable debugging), and for production use setting
 .Va net.inet.tcp.inflight_min
-to at least 6144 may be beneficial.  Note, however, that setting high
+to at least 6144 may be beneficial.
+Note however, that setting high
 minimums may effectively disable bandwidth limiting depending on the link.
 The limiting feature reduces the amount of data built up in intermediate
 router and switch packet queues as well as reduces the amount of data built
-up in the local host's interface queue.  With fewer packets queued up,
+up in the local host's interface queue.
+With fewer packets queued up,
 interactive connections, especially over slow modems, will also be able
-to operate with lower round trip times.  However, note that this feature
-only effects data transmission (uploading / server-side).  It does not
+to operate with lower round trip times.
+However, note that this feature
+only effects data transmission (uploading / server-side).
+It does not
 effect data reception (downloading).
 .Pp
 The
 .Va net.inet.ip.portrange.*
 sysctls control the port number ranges automatically bound to TCP and UDP
-sockets.  There are three ranges:  A low range, a default range, and a
-high range, selectable via an IP_PORTRANGE setsockopt() call.  Most 
+sockets.
+There are three ranges: a low range, a default range, and a
+high range, selectable via the
+.Dv IP_PORTRANGE
+.Xr setsockopt 2
+call.
+Most
 network programs use the default range which is controlled by
 .Va net.inet.ip.portrange.first
 and
 .Va net.inet.ip.portrange.last ,
-which defaults to 1024 and 5000 respectively.  Bound port ranges are
-used for outgoing connections and it is possible to run the system out
-of ports under certain circumstances.  This most commonly occurs when you are
-running a heavily loaded web proxy.  The port range is not an issue
-when running serves which handle mainly incoming connections such as a
-normal web server, or has a limited number of outgoing connections such
-as a mail relay.  For situations where you may run yourself out of
-ports we recommend increasing
+which default to 1024 and 5000, respectively.
+Bound port ranges are
+used for outgoing connections, and it is possible to run the system out
+of ports under certain circumstances.
+This most commonly occurs when you are
+running a heavily loaded web proxy.
+The port range is not an issue
+when running serves which handle mainly incoming connections, such as a
+normal web server, or has a limited number of outgoing connections, such
+as a mail relay.
+For situations where you may run yourself out of
+ports, we recommend increasing
 .Va net.inet.ip.portrange.last
-modestly.  A value of 10000 or 20000 or 30000 may be reasonable.  You should
-also consider firewall effects when changing the port range.  Some firewalls
+modestly.
+A value of 10000 or 20000 or 30000 may be reasonable.
+You should also consider firewall effects when changing the port range.
+Some firewalls
 may block large ranges of ports (usually low-numbered ports) and expect systems
-to use higher ranges of ports for outgoing connections.  For this reason
+to use higher ranges of ports for outgoing connections.
+For this reason,
 we do not recommend that
 .Va net.inet.ip.portrange.first
 be lowered.
@@ -638,7 +668,7 @@ This gives a helping hand
 to the pageout daemon.
 Do not turn this option on unless you need it,
 because the tradeoff you are making is to essentially pre-page memory sooner
-rather then later, eating more swap and disk bandwidth.
+rather than later, eating more swap and disk bandwidth.
 In a small system
 this option will have a detrimental effect but in a large system that is
 already doing moderate paging this option allows the VM system to stage
@@ -855,7 +885,7 @@ For example, in
 we describe a firewall protecting internal hosts with a topology where
 the externally visible hosts are not routed through it.
 Use 100BaseT rather
-than 10BaseT, or use 1000BaseT rather then 100BaseT, depending on your needs.
+than 10BaseT, or use 1000BaseT rather than 100BaseT, depending on your needs.
 Most bottlenecks occur at the WAN link (e.g.\&
 modem, T1, DSL, whatever).
 If expanding the link is not an option it may be possible to use the

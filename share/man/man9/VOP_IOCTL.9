@@ -64,7 +64,9 @@ The file should not be locked on entry.
 .Sh RETURN VALUES
 If successful, zero is returned, otherwise an appropriate error code.
 .Pp
-If the ioctl is not recognized or not handled, ENOTTY should be returned.
+If the ioctl is not recognized or not handled,
+.Er ENOTTY
+should be returned.
 .Sh PSEUDOCODE
 .Bd -literal
 int
