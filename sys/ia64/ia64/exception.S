@@ -1094,15 +1094,15 @@ ENTRY(exception_save, 0)
 (p2)	mov	r16=ar.k5		// kernel backing store
 	mov	rRNAT=ar.rnat
 	;; 
+(p1)	mov	r16=rBSPSTORE		// so we can figure out ndirty
 (p2)	mov	ar.bspstore=r16		// switch bspstore
 	st8	[r2]=rRSC,16		// r2=&tf_cr_ifs
 	;; 
 	st8	[r1]=rPFS,16		// r1=&tf_ar_bspstore
 	st8	[r2]=rIFS,16		// r2=&tf_ar_rnat
-(p2)	mov	r17=ar.bsp
+	mov	r17=ar.bsp
 	;;
-(p2)	sub	r17=r17,r16		// ndirty (in bytes)
-(p1)	mov	r17=r0
+	sub	r17=r17,r16		// ndirty (in bytes)
 	;; 
 	st8	[r1]=rBSPSTORE,16	// r1=&tf_ndirty
 	st8	[r2]=rRNAT,16		// r2=&tf_ar_unat
