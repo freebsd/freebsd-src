@@ -276,6 +276,8 @@ void	getnanotime __P((struct timespec *tv));
 void	init_timecounter __P((struct timecounter *tc));
 int	itimerdecr __P((struct itimerval *itp, int usec));
 int	itimerfix __P((struct timeval *tv));
+int	ppsratecheck __P((struct timeval *, int *, int));
+int	ratecheck __P((struct timeval *, const struct timeval *));
 void	microuptime __P((struct timeval *tv));
 void	microtime __P((struct timeval *tv));
 void	nanouptime __P((struct timespec *ts));
