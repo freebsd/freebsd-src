@@ -203,8 +203,8 @@ i4biprattach(void *dummy)
 
 		sc->sc_if.if_softc = sc;
 		sc->sc_state = ST_IDLE;
-		sc->sc_if.if_name = "ipr";
-		sc->sc_if.if_unit = i;
+		if_initname(&sc->sc_if, "ipr", i);
+
 
 #ifdef	IPR_VJ
 		sc->sc_if.if_flags = IFF_POINTOPOINT | IFF_SIMPLEX | IPR_AUTOCOMP;
@@ -287,8 +287,8 @@ i4biproutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	
 	s = SPLI4B();
 
-	unit = ifp->if_unit;
 	sc = ifp->if_softc;
+	unit = ifp->if_dunit;
 
 	/* check for IP */
 	
@@ -435,7 +435,8 @@ i4biprioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				if(sc->sc_if.if_flags & IFF_RUNNING)
 				{
 					/* disconnect ISDN line */
-					i4b_l4_drvrdisc(BDRV_IPR, ifp->if_unit);
+					i4b_l4_drvrdisc(BDRV_IPR,
+					    ifp->if_dunit);
 					sc->sc_if.if_flags &= ~IFF_RUNNING;
 				}
 
@@ -513,7 +514,7 @@ iprclearqueues(struct ipr_softc *sc)
 static void
 iprwatchdog(struct ifnet *ifp)
 {
-	int unit = ifp->if_unit;
+	int unit = ifp->if_dunit;
 	struct ipr_softc *sc = ifp->if_softc;
 	bchan_statistics_t bs;
 	
@@ -560,7 +561,7 @@ i4bipr_connect_startio(struct ipr_softc *sc)
 	if(sc->sc_state == ST_CONNECTED_W)
 	{
 		sc->sc_state = ST_CONNECTED_A;
-		ipr_tx_queue_empty(sc->sc_if.if_unit);
+		ipr_tx_queue_empty(sc->sc_if.if_dunit);
 	}
 
 	splx(s);

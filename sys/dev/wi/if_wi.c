@@ -300,8 +300,7 @@ wi_attach(device_t dev)
 	wi_read_nicid(sc);
 
 	ifp->if_softc = sc;
-	ifp->if_unit = sc->sc_unit;
-	ifp->if_name = "wi";
+	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = wi_ioctl;
 	ifp->if_start = wi_start;

@@ -116,6 +116,8 @@
  *			---		---		---
  *	FreeBSD 2	no		old standard	if_name+unit
  *	FreeBSD 3	yes		strange		if_name+unit
+ *	FreeBSD 4	yes		strange		if_name+unit
+ *	FreeBSD 5	yes		strange		if_xname
  *	OpenBSD		yes		standard	if_xname
  *	NetBSD		yes		standard	if_xname
  *	BSDI [34]	no		old standard	if_name+unit

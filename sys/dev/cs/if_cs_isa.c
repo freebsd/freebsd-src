@@ -90,7 +90,6 @@ static int
 cs_isa_attach(device_t dev)
 {
         struct cs_softc *sc = device_get_softc(dev);
-        int flags = device_get_flags(dev);
         int error;
         
 	cs_alloc_port(dev, 0, CS_89x0_IO_PORTS);
@@ -106,7 +105,7 @@ cs_isa_attach(device_t dev)
                 return (error);
         }              
 
-        return (cs_attach(sc, device_get_unit(dev), flags));
+        return (cs_attach(dev));
 }
 
 static device_method_t cs_isa_methods[] = {

@@ -171,8 +171,8 @@ ddp_route( struct mbuf *m, struct route *ro)
 
     if ( aa == NULL ) {
 #ifdef NETATALK_DEBUG
-	printf( "ddp_route: no atalk address found for %s%d\n", 
-	    ifp->if_name, ifp->if_unit);
+	printf( "ddp_route: no atalk address found for %s\n", 
+	    ifp->if_xname);
 #endif
 	m_freem( m );
 	return( ENETUNREACH );
@@ -220,14 +220,14 @@ ddp_route( struct mbuf *m, struct route *ro)
     ro->ro_rt->rt_use++;
 
 #ifdef NETATALK_DEBUG
-    printf ("ddp_route: from %d.%d to %d.%d, via %d.%d (%s%d)\n",
+    printf ("ddp_route: from %d.%d to %d.%d, via %d.%d (%s)\n",
 	ntohs(satosat(&aa->aa_addr)->sat_addr.s_net),
 	satosat(&aa->aa_addr)->sat_addr.s_node,
 	ntohs(satosat(&ro->ro_dst)->sat_addr.s_net),
 	satosat(&ro->ro_dst)->sat_addr.s_node,
 	ntohs(gate.sat_addr.s_net),
 	gate.sat_addr.s_node,
-	ifp->if_name, ifp->if_unit);
+	ifp->if_xname);
 #endif
 
     /* short-circuit the output if we're sending this to ourself */

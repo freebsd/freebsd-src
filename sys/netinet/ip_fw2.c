@@ -407,12 +407,14 @@ iface_match(struct ifnet *ifp, ipfw_insn_if *cmd)
 		return 0;
 	/* Check by name or by IP address */
 	if (cmd->name[0] != '\0') { /* match by name */
-		/* Check unit number (-1 is wildcard) */
-		if (cmd->p.unit != -1 && cmd->p.unit != ifp->if_unit)
-			return(0);
 		/* Check name */
-		if (!strncmp(ifp->if_name, cmd->name, IFNAMSIZ))
-			return(1);
+		if (cmd->p.glob) {
+			if (fnmatch(cmd->name, ifp->if_xname, 0) == 0)
+				return(1);
+		} else {
+			if (strncmp(ifp->if_xname, cmd->name, IFNAMSIZ) == 0)
+				return(1);
+		}
 	} else {
 		struct ifaddr *ia;
 
@@ -648,11 +650,10 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ether_header *eh,
 	}
 	if (oif || m->m_pkthdr.rcvif)
 		log(LOG_SECURITY | LOG_INFO,
-		    "ipfw: %d %s %s %s via %s%d%s\n",
+		    "ipfw: %d %s %s %s via %s%s\n",
 		    f ? f->rulenum : -1,
 		    action, proto, oif ? "out" : "in",
-		    oif ? oif->if_name : m->m_pkthdr.rcvif->if_name,
-		    oif ? oif->if_unit : m->m_pkthdr.rcvif->if_unit,
+		    oif ? oif->if_xname : m->m_pkthdr.rcvif->if_xname,
 		    fragment);
 	else
 		log(LOG_SECURITY | LOG_INFO,

@@ -1639,13 +1639,11 @@ static int
 hatm_attach(device_t dev)
 {
 	struct hatm_softc *sc;
-	int unit;
 	int error;
 	uint32_t v;
 	struct ifnet *ifp;
 
 	sc = device_get_softc(dev);
-	unit = device_get_unit(dev);
 
 	sc->dev = dev;
 	sc->ifatm.mib.device = ATM_DEVICE_HE155;
@@ -1760,8 +1758,7 @@ hatm_attach(device_t dev)
 
 	ifp = &sc->ifatm.ifnet;
 	ifp->if_softc = sc;
-	ifp->if_unit = unit;
-	ifp->if_name = "hatm";
+	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 
 	/*
 	 * Make the sysctl tree

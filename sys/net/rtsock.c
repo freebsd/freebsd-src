@@ -898,8 +898,7 @@ rt_ifannouncemsg(struct ifnet *ifp, int what)
 		return;
 	ifan = mtod(m, struct if_announcemsghdr *);
 	ifan->ifan_index = ifp->if_index;
-	snprintf(ifan->ifan_name, sizeof(ifan->ifan_name),
-	    "%s%d", ifp->if_name, ifp->if_unit);
+	strlcpy(ifan->ifan_name, ifp->if_xname, sizeof(ifan->ifan_name));
 	ifan->ifan_what = what;
 	rt_dispatch(m, NULL);
  }

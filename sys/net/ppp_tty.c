@@ -1092,7 +1092,7 @@ ppplogchar(sc, c)
 	sc->sc_rawin[sc->sc_rawin_count++] = c;
     if (sc->sc_rawin_count >= sizeof(sc->sc_rawin)
 	|| (c < 0 && sc->sc_rawin_count > 0)) {
-	printf("ppp%d input: %*D", sc->sc_if.if_unit,
+	printf("%s input: %*D", sc->sc_if.if_xname,
 		sc->sc_rawin_count, sc->sc_rawin, " ");
 	sc->sc_rawin_count = 0;
     }

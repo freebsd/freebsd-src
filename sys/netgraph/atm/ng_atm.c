@@ -866,8 +866,7 @@ text_status(node_p node, char *arg, u_int len)
 	mib = (const struct ifatm_mib *)(priv->ifp->if_linkmib);
 
 	sbuf_new(&sbuf, arg, len, SBUF_FIXEDLEN);
-	sbuf_printf(&sbuf, "interface: %s%d\n", priv->ifp->if_name,
-	    priv->ifp->if_unit);
+	sbuf_printf(&sbuf, "interface: %s\n", priv->ifp->if_xname);
 
 	if (mib->device >= sizeof(devices) / sizeof(devices[0]))
 		sbuf_printf(&sbuf, "device=unknown\nvendor=unknown\n");
@@ -940,8 +939,7 @@ ng_atm_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				error = ENOMEM;
 				break;
 			}
-			snprintf(resp->data, IFNAMSIZ + 1, "%s%d",
-			    priv->ifp->if_name, priv->ifp->if_unit);
+			strlcpy(resp->data, priv->ifp->if_xname, IFNAMSIZ + 1);
 			break;
 
 		  case NGM_ATM_GET_CONFIG:
@@ -1265,7 +1263,7 @@ ng_atm_attach(struct ifnet *ifp)
 
 	KASSERT(IFP2NG(ifp) == 0, ("%s: node alreay exists?", __FUNCTION__));
 
-	snprintf(name, sizeof(name), "%s%d", ifp->if_name, ifp->if_unit);
+	strlcpy(name, ifp->if_xname, sizeof(name));
 
 	if (ng_make_node_common(&ng_atm_typestruct, &node) != 0) {
 		log(LOG_ERR, "%s: can't create node for %s\n",

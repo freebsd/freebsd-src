@@ -170,10 +170,10 @@ tunmodevent(module_t mod, int type, void *data)
 		while (tunhead != NULL) {
 			KASSERT((tunhead->tun_flags & TUN_OPEN) == 0,
 			    ("tununits is out of sync - unit %d",
-			    tunhead->tun_if.if_unit));
+			    tunhead->tun_if.if_dunit));
 			tp = tunhead;
 			dev = makedev(tun_cdevsw.d_maj,
-			    unit2minor(tp->tun_if.if_unit));
+			    unit2minor(tp->tun_if.if_dunit));
 			KASSERT(dev->si_drv1 == tp, ("Bad makedev result"));
 			tunhead = tp->next;
 			bpfdetach(&tp->tun_if);
@@ -232,8 +232,7 @@ tuncreate(dev_t dev)
 	tunhead = sc;
 
 	ifp = &sc->tun_if;
-	ifp->if_unit = dev2unit(dev);
-	ifp->if_name = TUNNAME;
+	if_initname(ifp, TUNNAME, dev2unit(dev));
 	ifp->if_mtu = TUNMTU;
 	ifp->if_ioctl = tunifioctl;
 	ifp->if_output = tunoutput;
@@ -296,7 +295,7 @@ tunclose(dev_t dev, int foo, int bar, struct thread *td)
 	tp = dev->si_drv1;
 	ifp = &tp->tun_if;
 
-	KASSERT(tp->tun_unit, ("Unit %d not marked open", ifp->if_unit));
+	KASSERT(tp->tun_unit, ("Unit %d not marked open", tp->tun_if.if_dunit));
 	tp->tun_flags &= ~TUN_OPEN;
 	tp->tun_pid = 0;
 
@@ -329,7 +328,7 @@ tunclose(dev_t dev, int foo, int bar, struct thread *td)
 
 	TUNDEBUG (ifp, "closed\n");
 	err = rman_release_resource(tp->tun_unit);
-	KASSERT(err == 0, ("Unit %d failed to release", ifp->if_unit));
+	KASSERT(err == 0, ("Unit %d failed to release", tp->tun_if.if_dunit));
 
 	return (0);
 }

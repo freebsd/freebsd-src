@@ -595,8 +595,7 @@ rdp_attach(struct isa_device *isa_dev)
 	 * Initialize ifnet structure
 	 */
 	ifp->if_softc = sc;
-	ifp->if_unit = unit;
-	ifp->if_name = "rdp";
+	if_initname(ifp, "rdp", unit);
 	ifp->if_start = rdp_start;
 	ifp->if_ioctl = rdp_ioctl;
 	ifp->if_watchdog = rdp_watchdog;
@@ -668,7 +667,7 @@ static void
 rdp_watchdog(struct ifnet *ifp)
 {
 
-	log(LOG_ERR, "rdp%d: device timeout\n", ifp->if_unit);
+	log(LOG_ERR, "%s: device timeout\n", ifp->if_xname);
 	ifp->if_oerrors++;
 
 	rdp_reset(ifp);

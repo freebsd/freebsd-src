@@ -474,8 +474,8 @@ outofseq:
 	if (m)
 		m_freem(m);
 
-	log(LOG_INFO,"%s%d: got out of seq. packet: %s\n",
-	    ifp->if_name, ifp->if_unit, s);
+	log(LOG_INFO,"%s: got out of seq. packet: %s\n",
+	    ifp->if_xname, s);
 
 	return NULL;
 }
@@ -648,8 +648,8 @@ arc_ifattach(ifp, lla)
 	ac->ac_seqid = (time_second) & 0xFFFF; /* try to make seqid unique */
 	if (lla == 0) {
 		/* XXX this message isn't entirely clear, to me -- cgd */
-		log(LOG_ERR,"%s%d: link address 0 reserved for broadcasts.  Please change it and ifconfig %s%d down up\n",
-		   ifp->if_name, ifp->if_unit, ifp->if_name, ifp->if_unit);
+		log(LOG_ERR,"%s: link address 0 reserved for broadcasts.  Please change it and ifconfig %s down up\n",
+		   ifp->if_xname, ifp->if_xname);
 	}
 	arc_storelladdr(ifp, lla);
 

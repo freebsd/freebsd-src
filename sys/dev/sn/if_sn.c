@@ -203,8 +203,7 @@ sn_attach(device_t dev)
 	}
 	printf(" MAC address %6D\n", sc->arpcom.ac_enaddr, ":");
 	ifp->if_softc = sc;
-	ifp->if_unit = device_get_unit(dev);
-	ifp->if_name = "sn";
+	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_output = ether_output;

@@ -503,8 +503,7 @@ ray_attach(device_t dev)
 	bcopy((char *)&ep->e_station_addr,
 	    (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 	ifp->if_softc = sc;
-	ifp->if_name = "ray";
-	ifp->if_unit = device_get_unit(dev);
+	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_timer = 0;
 	ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
 	ifp->if_hdrlen = sizeof(struct ieee80211_frame) + 

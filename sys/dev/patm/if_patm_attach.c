@@ -192,8 +192,7 @@ patm_attach(device_t dev)
 
 	ifp = &sc->ifatm.ifnet;
 	ifp->if_softc = sc;
-	ifp->if_unit = device_get_unit(dev);
-	ifp->if_name = "patm";
+	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_flags = IFF_SIMPLEX;
 	ifp->if_watchdog = NULL;
 	ifp->if_init = patm_init;

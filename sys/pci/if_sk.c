@@ -1394,8 +1394,7 @@ sk_attach(dev)
 
 	ifp = &sc_if->arpcom.ac_if;
 	ifp->if_softc = sc_if;
-	ifp->if_unit = sc_if->sk_unit; 
-	ifp->if_name = "sk";
+	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = sk_ioctl;

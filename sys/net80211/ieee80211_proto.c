@@ -103,7 +103,7 @@ ieee80211_proto_attach(struct ifnet *ifp)
 	ic->ic_fragthreshold = 2346;		/* XXX not used yet */
 	ic->ic_fixed_rate = -1;			/* no fixed rate */
 
-	mtx_init(&ic->ic_mgtq.ifq_mtx, ifp->if_name, "mgmt send q", MTX_DEF);
+	mtx_init(&ic->ic_mgtq.ifq_mtx, ifp->if_xname, "mgmt send q", MTX_DEF);
 
 	/* protocol state change handler */
 	ic->ic_newstate = ieee80211_newstate;

@@ -274,10 +274,10 @@ cm_release_resources(dev)
 }
 
 int
-cm_attach(sc, unit)
-	struct cm_softc *sc;
-	int unit;
+cm_attach(dev)
+	device_t dev;
 {
+	struct cm_softc *sc = device_get_softc(dev);
 	struct ifnet *ifp = &sc->sc_arccom.ac_if;
 	int s;
 	u_int8_t linkaddress;
@@ -313,8 +313,7 @@ cm_attach(sc, unit)
 	cm_stop(sc);
 
 	ifp->if_softc = sc;
-	ifp->if_unit = unit;
-	ifp->if_name = "cm";
+	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_output = arc_output;
 	ifp->if_start = cm_start;
 	ifp->if_ioctl = cm_ioctl;
@@ -841,8 +840,8 @@ cmintr(arg)
 			 */
 			PUTREG(CMCMD, CM_CLR(CLR_POR));
 			log(LOG_WARNING,
-			    "%s%d: intr: got spurious power on reset int\n",
-			    ifp->if_name, ifp->if_unit);
+			    "%s: intr: got spurious power on reset int\n",
+			    ifp->if_xname);
 		}
 
 		if (maskedisr & CM_RECON) {
@@ -872,9 +871,9 @@ cmintr(arg)
 			if ((newsec - sc->sc_recontime <= 2) &&
 			    (++sc->sc_reconcount == ARC_EXCESSIVE_RECONS)) {
 				log(LOG_WARNING,
-				    "%s%d: excessive token losses, "
+				    "%s: excessive token losses, "
 				    "cable problem?\n",
-				    ifp->if_name, ifp->if_unit);
+				    ifp->if_xname);
 			}
 			sc->sc_recontime = newsec;
 			callout_reset(&sc->sc_recon_ch, 15 * hz,
@@ -895,8 +894,8 @@ cmintr(arg)
 				 * configured sender)
 				 */
 				log(LOG_WARNING,
-				    "%s%d: spurious RX interupt or sender 0 "
-				    " (ignored)\n", ifp->if_name, ifp->if_unit);
+				    "%s: spurious RX interupt or sender 0 "
+				    " (ignored)\n", ifp->if_xname);
 				/*
 				 * restart receiver on same buffer.
 				 * XXX maybe better reset interface?
@@ -958,8 +957,8 @@ cm_reconwatch(arg)
 
 	if (sc->sc_reconcount >= ARC_EXCESSIVE_RECONS) {
 		sc->sc_reconcount = 0;
-		log(LOG_WARNING, "%s%d: token valid again.\n",
-		    ifp->if_name, ifp->if_unit);
+		log(LOG_WARNING, "%s: token valid again.\n",
+		    ifp->if_xname);
 	}
 	sc->sc_reconcount = 0;
 }

@@ -101,7 +101,7 @@ ed_pci_attach(device_t dev)
                 return (error);
         }
 
-	error = ed_attach(sc, device_get_unit(dev), flags);
+	error = ed_attach(dev);
 
 	return (error);
 }

@@ -292,8 +292,7 @@ ep_attach(struct ep_softc *sc)
 	attached = (ifp->if_softc != 0);
 
 	ifp->if_softc = sc;
-	ifp->if_unit = sc->unit;
-	ifp->if_name = "ep";
+	if_initname(ifp, device_get_name(sc->dev), device_get_unit(sc->dev));
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_output = ether_output;

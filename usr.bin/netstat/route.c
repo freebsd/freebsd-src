@@ -329,12 +329,9 @@ size_cols_rtentry(struct rtentry *rt)
 	}
 	if (rt->rt_ifp) {
 		if (rt->rt_ifp != lastif) {
-			len = snprintf(buffer, sizeof(buffer), "%d",
-				       ifnet.if_unit);
 			kget(rt->rt_ifp, ifnet);
-			kread((u_long)ifnet.if_name, buffer, sizeof(buffer));
 			lastif = rt->rt_ifp;
-			len += strlen(buffer);
+			len = strlen(ifnet.if_xname);
 			wid_if = MAX(len, wid_if);
 		}
 		if (rt->rt_rmx.rmx_expire) {
@@ -750,10 +747,8 @@ p_rtentry(struct rtentry *rt)
 	if (rt->rt_ifp) {
 		if (rt->rt_ifp != lastif) {
 			kget(rt->rt_ifp, ifnet);
-			kread((u_long)ifnet.if_name, buffer, sizeof(buffer));
 			lastif = rt->rt_ifp;
-			snprintf(prettyname, sizeof(prettyname),
-				 "%s%d", buffer, ifnet.if_unit);
+			strlcpy(prettyname, ifnet.if_xname, sizeof(prettyname));
 		}
 		printf("%*.*s", wid_if, wid_if, prettyname);
 		if (rt->rt_rmx.rmx_expire) {

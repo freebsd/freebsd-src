@@ -150,9 +150,7 @@ char *ifname(ifp)
 	char ifnamebuf[IFNAMSIZ];
 
 	KREAD(ifp, &ifnet, struct ifnet);
-	KREAD(ifnet.if_name, ifnamebuf, sizeof(ifnamebuf));
-	snprintf(buf, sizeof(buf), "%s%d", ifnamebuf,
-		 ifnet.if_unit); /* does snprintf allow overlap copy?? */
+	strlcpy(buf, ifnet.if_xname, sizeof(buf));
 	return buf;
 }
 

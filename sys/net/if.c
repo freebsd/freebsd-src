@@ -325,7 +325,7 @@ if_findindex(struct ifnet *ifp)
 		eaddr[0] = '\0';
 		break;
 	}
-	snprintf(devname, 32, "%s%d", ifp->if_name, ifp->if_unit);
+	strlcpy(devname, ifp->if_xname, sizeof(devname));
 	name = net_cdevsw.d_name;
 	i = 0;
 	while ((resource_find_dev(&i, name, &unit, NULL, NULL)) == 0) {
@@ -364,7 +364,6 @@ if_attach(struct ifnet *ifp)
 {
 	unsigned socksize, ifasize;
 	int namelen, masklen;
-	char workbuf[64];
 	struct sockaddr_dl *sdl;
 	struct ifaddr *ifa;
 
@@ -399,18 +398,17 @@ if_attach(struct ifnet *ifp)
 
 	ifnet_byindex(ifp->if_index) = ifp;
 	ifdev_byindex(ifp->if_index) = make_dev(&net_cdevsw, ifp->if_index,
-	    UID_ROOT, GID_WHEEL, 0600, "%s/%s%d",
-	    net_cdevsw.d_name, ifp->if_name, ifp->if_unit);
+	    UID_ROOT, GID_WHEEL, 0600, "%s/%s",
+	    net_cdevsw.d_name, ifp->if_xname);
 	make_dev_alias(ifdev_byindex(ifp->if_index), "%s%d",
 	    net_cdevsw.d_name, ifp->if_index);
 
-	mtx_init(&ifp->if_snd.ifq_mtx, ifp->if_name, "if send queue", MTX_DEF);
+	mtx_init(&ifp->if_snd.ifq_mtx, ifp->if_xname, "if send queue", MTX_DEF);
 
 	/*
 	 * create a Link Level name for this device
 	 */
-	namelen = snprintf(workbuf, sizeof(workbuf),
-	    "%s%d", ifp->if_name, ifp->if_unit);
+	namelen = strlen(ifp->if_xname);
 #define _offsetof(t, m) ((int)((caddr_t)&((t *)0)->m))
 	masklen = _offsetof(struct sockaddr_dl, sdl_data[0]) + namelen;
 	socksize = masklen + ifp->if_addrlen;
@@ -425,7 +423,7 @@ if_attach(struct ifnet *ifp)
 		sdl = (struct sockaddr_dl *)(ifa + 1);
 		sdl->sdl_len = socksize;
 		sdl->sdl_family = AF_LINK;
-		bcopy(workbuf, sdl->sdl_data, namelen);
+		bcopy(ifp->if_xname, sdl->sdl_data, namelen);
 		sdl->sdl_nlen = namelen;
 		sdl->sdl_index = ifp->if_index;
 		sdl->sdl_type = ifp->if_type;
@@ -881,8 +879,7 @@ if_clone_list(struct if_clonereq *ifcr)
 
 	for (ifc = LIST_FIRST(&if_cloners); ifc != NULL && count != 0;
 	     ifc = LIST_NEXT(ifc, ifc_list), count--, dst += IFNAMSIZ) {
-		strncpy(outbuf, ifc->ifc_name, IFNAMSIZ);
-		outbuf[IFNAMSIZ - 1] = '\0';	/* sanity */
+		strlcpy(outbuf, ifc->ifc_name, IFNAMSIZ);
 		error = copyout(outbuf, dst, IFNAMSIZ);
 		if (error)
 			break;
@@ -1643,8 +1640,8 @@ ifpromisc(struct ifnet *ifp, int pswitch)
 	ifr.ifr_flagshigh = ifp->if_flags >> 16;
 	error = (*ifp->if_ioctl)(ifp, SIOCSIFFLAGS, (caddr_t)&ifr);
 	if (error == 0) {
-		log(LOG_INFO, "%s%d: promiscuous mode %s\n",
-		    ifp->if_name, ifp->if_unit,
+		log(LOG_INFO, "%s: promiscuous mode %s\n",
+		    ifp->if_xname,
 		    (ifp->if_flags & IFF_PROMISC) ? "enabled" : "disabled");
 		rt_ifmsg(ifp);
 	} else {
@@ -1673,18 +1670,14 @@ ifconf(u_long cmd, caddr_t data)
 	ifrp = ifc->ifc_req;
 	IFNET_RLOCK();		/* could sleep XXX */
 	TAILQ_FOREACH(ifp, &ifnet, if_link) {
-		char workbuf[64];
-		int ifnlen, addrs;
+		int addrs;
 
 		if (space < sizeof(ifr))
 			break;
-		ifnlen = snprintf(workbuf, sizeof(workbuf),
-		    "%s%d", ifp->if_name, ifp->if_unit);
-		if(ifnlen + 1 > sizeof ifr.ifr_name) {
+		if (strlcpy(ifr.ifr_name, ifp->if_xname, sizeof(ifr.ifr_name))
+		    >= sizeof(ifr.ifr_name)) {
 			error = ENAMETOOLONG;
 			break;
-		} else {
-			strcpy(ifr.ifr_name, workbuf);
 		}
 
 		addrs = 0;
@@ -2019,13 +2012,30 @@ ifmaof_ifpforaddr(struct sockaddr *sa, struct ifnet *ifp)
 	return ifma;
 }
 
+/*
+ * The name argument must be a pointer to storage which will last as
+ * long as the interface does.  For physical devices, the result of
+ * device_get_name(dev) is a good choice and for pseudo-devices a
+ * static string works well.
+ */
+void
+if_initname(struct ifnet *ifp, const char *name, int unit)
+{
+	ifp->if_dname = name;
+	ifp->if_dunit = unit;
+	if (unit != IF_DUNIT_NONE)
+		snprintf(ifp->if_xname, IFNAMSIZ, "%s%d", name, unit);
+	else
+		strlcpy(ifp->if_xname, name, IFNAMSIZ);
+}
+
 int
 if_printf(struct ifnet *ifp, const char * fmt, ...)
 {
 	va_list ap;
 	int retval;
 
-	retval = printf("%s%d: ", ifp->if_name, ifp->if_unit);
+	retval = printf("%s: ", ifp->if_xname);
 	va_start(ap, fmt);
 	retval += vprintf(fmt, ap);
 	va_end(ap);

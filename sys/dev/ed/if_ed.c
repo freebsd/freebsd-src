@@ -1700,11 +1700,10 @@ ed_release_resources(dev)
  * Install interface into kernel networking data structures
  */
 int
-ed_attach(sc, unit, flags)
-	struct ed_softc *sc;
-	int unit;
-	int flags;
+ed_attach(dev)
+	device_t dev;
 {
+	struct ed_softc *sc = device_get_softc(dev);
 	struct ifnet *ifp = &sc->arpcom.ac_if;
 
 	callout_handle_init(&sc->tick_ch);
@@ -1717,8 +1716,7 @@ ed_attach(sc, unit, flags)
 	 * Initialize ifnet structure
 	 */
 	ifp->if_softc = sc;
-	ifp->if_unit = unit;
-	ifp->if_name = "ed";
+	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_output = ether_output;
 	ifp->if_start = ed_start;
 	ifp->if_ioctl = ed_ioctl;
@@ -1745,7 +1743,7 @@ ed_attach(sc, unit, flags)
 	 * tranceiver for AUI operation), based on compile-time 
 	 * config option.
 	 */
-	if (flags & ED_FLAGS_DISABLE_TRANCEIVER)
+	if (device_get_flags(dev) & ED_FLAGS_DISABLE_TRANCEIVER)
 		ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX | 
 		    IFF_MULTICAST | IFF_ALTPHYS);
 	else
@@ -1846,7 +1844,7 @@ ed_watchdog(ifp)
 
 	if (sc->gone)
 		return;
-	log(LOG_ERR, "ed%d: device timeout\n", ifp->if_unit);
+	log(LOG_ERR, "%s: device timeout\n", ifp->if_xname);
 	ifp->if_oerrors++;
 
 	ed_reset(ifp);
@@ -2349,8 +2347,8 @@ ed_rint(sc)
 			 * Really BAD. The ring pointers are corrupted.
 			 */
 			log(LOG_ERR,
-			    "ed%d: NIC memory corrupt - invalid packet length %d\n",
-			    ifp->if_unit, len);
+			    "%s: NIC memory corrupt - invalid packet length %d\n",
+			    ifp->if_xname, len);
 			ifp->if_ierrors++;
 			ed_reset(ifp);
 			return;
@@ -2554,8 +2552,8 @@ edintr(arg)
 				ifp->if_ierrors++;
 #ifdef DIAGNOSTIC
 				log(LOG_WARNING,
-				    "ed%d: warning - receiver ring buffer overrun\n",
-				    ifp->if_unit);
+				    "%s: warning - receiver ring buffer overrun\n",
+				    ifp->if_xname);
 #endif
 
 				/*
@@ -3057,8 +3055,8 @@ ed_pio_write_mbufs(sc, m, dst)
 	while (((ed_nic_inb(sc, ED_P0_ISR) & ED_ISR_RDC) != ED_ISR_RDC) && --maxwait);
 
 	if (!maxwait) {
-		log(LOG_WARNING, "ed%d: remote transmit DMA failed to complete\n",
-		    ifp->if_unit);
+		log(LOG_WARNING, "%s: remote transmit DMA failed to complete\n",
+		    ifp->if_xname);
 		ed_reset(ifp);
 		return(0);
 	}
