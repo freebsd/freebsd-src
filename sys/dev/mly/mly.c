@@ -2031,6 +2031,7 @@ mly_cam_rescan_btl(struct mly_softc *sc, int bus, int target)
     if (xpt_create_path(&sc->mly_cam_path, xpt_periph, 
 			cam_sim_path(sc->mly_cam_sim[bus]), target, 0) != CAM_REQ_CMP) {
 	mly_printf(sc, "rescan failed (can't create path)\n");
+	free(ccb, M_TEMP);
 	return;
     }
     xpt_setup_ccb(&ccb->ccb_h, sc->mly_cam_path, 5/*priority (low)*/);
