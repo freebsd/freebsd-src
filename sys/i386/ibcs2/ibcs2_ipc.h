@@ -27,12 +27,22 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: ibcs2_ipc.h,v 1.3 1997/02/22 09:33:20 peter Exp $
+ * $Id: ibcs2_ipc.h,v 1.4 1999/02/07 19:35:40 guido Exp $
  */
 
 
+struct ibcs2_ipc_perm {
+	ushort	uid;	/* user id */
+	ushort	gid;	/* group id */
+	ushort	cuid;	/* creator user id */
+	ushort	cgid;	/* creator group id */
+	ushort	mode;	/* r/w permission */
+	ushort	seq;	/* sequence # (to generate unique msg/sem/shm id) */
+	key_t	key;	/* user specified msg/sem/shm key */
+};
+
 struct ibcs2_msqid_ds {
-	struct ipc_perm msg_perm;
+	struct ibcs2_ipc_perm msg_perm;
 	struct msg *msg_first;
 	struct msg *msg_last;
 	u_short msg_cbytes;
@@ -46,7 +56,7 @@ struct ibcs2_msqid_ds {
 };
 
 struct ibcs2_semid_ds {
-        struct ipc_perm sem_perm;
+        struct ibcs2_ipc_perm sem_perm;
 	struct ibcs2_sem *sem_base;
 	u_short sem_nsems;
 	ibcs2_time_t sem_otime;
@@ -61,7 +71,7 @@ struct ibcs2_sem {
 };
 
 struct ibcs2_shmid_ds {
-        struct ipc_perm shm_perm;
+        struct ibcs2_ipc_perm shm_perm;
 	int shm_segsz;
 	int pad1;
 	char pad2[4];
