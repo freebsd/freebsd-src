@@ -126,13 +126,6 @@ static struct cdevsw i4brbch_cdevsw = {
 static void i4brbchattach(void *);
 PSEUDO_SET(i4brbchattach, i4b_rbch);
 
-#if __FreeBSD_version >= 501113
-#ifndef TTIPRI
-/* don't want to include tty.h just to get this */
-#define TTIPRI (PSOCK + 1)
-#endif
-#endif
-
 /*===========================================================================*
  *			DEVICE DRIVER ROUTINES
  *===========================================================================*/
@@ -263,7 +256,7 @@ i4brbchread(dev_t dev, struct uio *uio, int ioflag)
 			NDBGL4(L4_RBCHDBG, "unit %d, wait read init", unit);
 		
 			if((error = tsleep( &rbch_softc[unit],
-					   TTIPRI | PCATCH,
+					   I4BPRI | PCATCH,
 					   "rrrbch", 0 )) != 0)
 			{
 				CRIT_END;
@@ -284,7 +277,7 @@ i4brbchread(dev_t dev, struct uio *uio, int ioflag)
 			NDBGL4(L4_RBCHDBG, "unit %d, wait read data", unit);
 		
 			if((error = tsleep( &isdn_linktab[unit]->rx_queue,
-					   TTIPRI | PCATCH,
+					   I4BPRI | PCATCH,
 					   "rrbch", 0 )) != 0)
 			{
 				CRIT_END;
@@ -358,7 +351,7 @@ i4brbchwrite(dev_t dev, struct uio * uio, int ioflag)
 			NDBGL4(L4_RBCHDBG, "unit %d, write wait init", unit);
 		
 			error = tsleep( &rbch_softc[unit],
-						   TTIPRI | PCATCH,
+						   I4BPRI | PCATCH,
 						   "wrrbch", 0 );
 			if(error == ERESTART) {
 				CRIT_END;
@@ -376,7 +369,7 @@ i4brbchwrite(dev_t dev, struct uio * uio, int ioflag)
 				NDBGL4(L4_RBCHDBG, "unit %d, error %d tsleep init", unit, error);
 				return(error);
 			}
-			tsleep( &rbch_softc[unit], TTIPRI | PCATCH, "xrbch", (hz*1));
+			tsleep( &rbch_softc[unit], I4BPRI | PCATCH, "xrbch", (hz*1));
 		}
 
 		while(_IF_QFULL(isdn_linktab[unit]->tx_queue) && (sc->sc_devstate & ST_ISOPEN))
@@ -386,7 +379,7 @@ i4brbchwrite(dev_t dev, struct uio * uio, int ioflag)
 			NDBGL4(L4_RBCHDBG, "unit %d, write queue full", unit);
 		
 			if ((error = tsleep( &isdn_linktab[unit]->tx_queue,
-					    TTIPRI | PCATCH,
+					    I4BPRI | PCATCH,
 					    "wrbch", 0)) != 0) {
 				sc->sc_devstate &= ~ST_WRWAITEMPTY;
 				if(error == ERESTART)
@@ -745,7 +738,7 @@ rbch_rx_data_rdy(int unit)
 	{
 		NDBGL4(L4_RBCHDBG, "unit %d, NO wakeup", unit);
 	}
-	selwakeuppri(&rbch_softc[unit].selp, TTIPRI);
+	selwakeuppri(&rbch_softc[unit].selp, I4BPRI);
 }
 
 /*---------------------------------------------------------------------------*
@@ -778,7 +771,7 @@ rbch_activity(int unit, int rxtx)
 {
 	if (rbch_softc[unit].sc_cd)
 		rbch_softc[unit].sc_cd->last_active_time = SECOND;
-	selwakeuppri(&rbch_softc[unit].selp, TTIPRI);
+	selwakeuppri(&rbch_softc[unit].selp, I4BPRI);
 }
 
 /*---------------------------------------------------------------------------*
