@@ -817,8 +817,11 @@ sysctl_old_kernel(struct sysctl_req *req, const void *p, size_t l)
 
 	if (req->oldptr) {
 		i = l;
-		if (i > req->oldlen - req->oldidx)
-			i = req->oldlen - req->oldidx;
+		if (req->oldlen <= req->oldidx)
+			i = 0;
+		else
+			if (i > req->oldlen - req->oldidx)
+				i = req->oldlen - req->oldidx;
 		if (i > 0)
 			bcopy(p, (char *)req->oldptr + req->oldidx, i);
 	}
@@ -914,8 +917,11 @@ sysctl_old_user(struct sysctl_req *req, const void *p, size_t l)
 	}
 	if (req->oldptr) {
 		i = l;
-		if (i > req->oldlen - req->oldidx)
-			i = req->oldlen - req->oldidx;
+		if (req->oldlen <= req->oldidx)
+			i = 0;
+		else
+			if (i > req->oldlen - req->oldidx)
+				i = req->oldlen - req->oldidx;
 		if (i > 0)
 			error = copyout(p, (char *)req->oldptr + req->oldidx,
 					i);
