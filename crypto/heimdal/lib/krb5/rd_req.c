@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001, 2003 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include <krb5_locl.h>
 
-RCSID("$Id: rd_req.c,v 1.47 2001/06/18 02:48:18 assar Exp $");
+RCSID("$Id: rd_req.c,v 1.47.8.3 2003/10/21 20:10:33 lha Exp $");
 
 static krb5_error_code
 decrypt_tkt_enc_part (krb5_context context,
@@ -129,6 +129,32 @@ krb5_decode_ap_req(krb5_context context,
     return 0;
 }
 
+static krb5_error_code
+check_transited(krb5_context context, Ticket *ticket, EncTicketPart *enc)
+{
+    char **realms;
+    int num_realms;
+    krb5_error_code ret;
+	    
+    if(enc->transited.tr_type != DOMAIN_X500_COMPRESS)
+	return KRB5KDC_ERR_TRTYPE_NOSUPP;
+
+    if(enc->transited.contents.length == 0)
+	return 0;
+
+    ret = krb5_domain_x500_decode(context, enc->transited.contents, 
+				  &realms, &num_realms, 
+				  enc->crealm,
+				  ticket->realm);
+    if(ret)
+	return ret;
+    ret = krb5_check_transited(context, enc->crealm, 
+			       ticket->realm, 
+			       realms, num_realms, NULL);
+    free(realms);
+    return ret;
+}
+
 krb5_error_code
 krb5_decrypt_ticket(krb5_context context,
 		    Ticket *ticket,
@@ -160,6 +186,14 @@ krb5_decrypt_ticket(krb5_context context,
 	    free_EncTicketPart(&t);
 	    krb5_clear_error_string (context);
 	    return KRB5KRB_AP_ERR_TKT_EXPIRED;
+	}
+	
+	if(!t.flags.transited_policy_checked) {
+	    ret = check_transited(context, ticket, &t);
+	    if(ret) {
+		free_EncTicketPart(&t);
+		return ret;
+	    }
 	}
     }
     
@@ -209,29 +243,6 @@ out:
     return ret;
 }
 
-#if 0
-static krb5_error_code
-check_transited(krb5_context context,
-		krb5_ticket *ticket)
-{
-    char **realms;
-    int num_realms;
-    krb5_error_code ret;
-
-    if(ticket->ticket.transited.tr_type != DOMAIN_X500_COMPRESS)
-	return KRB5KDC_ERR_TRTYPE_NOSUPP;
-
-    ret = krb5_domain_x500_decode(ticket->ticket.transited.contents, 
-				  &realms, &num_realms, 
-				  ticket->client->realm,
-				  ticket->server->realm);
-    if(ret)
-	return ret;
-    ret = krb5_check_transited_realms(context, realms, num_realms, NULL);
-    free(realms);
-    return ret;
-}
-#endif
 
 krb5_error_code
 krb5_verify_ap_req(krb5_context context,
@@ -488,9 +499,15 @@ krb5_rd_req(krb5_context context,
 				     ap_req.ticket.realm);
 	server = service;
     }
+    if (ap_req.ap_options.use_session_key &&
+	(*auth_context)->keyblock == NULL) {
+	krb5_set_error_string(context, "krb5_rd_req: user to user auth "
+			      "without session key given");
+	ret = KRB5KRB_AP_ERR_NOKEY;
+	goto out;
+    }
 
-    if(ap_req.ap_options.use_session_key == 0 || 
-       (*auth_context)->keyblock == NULL){
+    if((*auth_context)->keyblock == NULL){
 	ret = get_key_from_keytab(context, 
 				  auth_context, 
 				  &ap_req,
@@ -499,8 +516,13 @@ krb5_rd_req(krb5_context context,
 				  &keyblock);
 	if(ret)
 	    goto out;
+    } else {
+	ret = krb5_copy_keyblock(context,
+				 (*auth_context)->keyblock,
+				 &keyblock);
+	if (ret)
+	    goto out;
     }
-	
 
     ret = krb5_verify_ap_req(context,
 			     auth_context,

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2003 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "iprop.h"
 
-RCSID("$Id: ipropd_slave.c,v 1.27 2002/10/21 15:51:44 joda Exp $");
+RCSID("$Id: ipropd_slave.c,v 1.27.2.1 2003/08/15 16:45:15 lha Exp $");
 
 static krb5_log_facility *log_facility;
 
@@ -301,12 +301,14 @@ receive_everything (krb5_context context, int fd,
 
     krb5_data_free (&data);
 
-    ret = mydb->close (context, mydb);
-    if (ret)
-	krb5_err (context, 1, ret, "db->close");
     ret = mydb->rename (context, mydb, server_context->db->name);
     if (ret)
 	krb5_err (context, 1, ret, "db->rename");
+
+    ret = mydb->close (context, mydb);
+    if (ret)
+	krb5_err (context, 1, ret, "db->close");
+
     ret = mydb->destroy (context, mydb);
     if (ret)
 	krb5_err (context, 1, ret, "db->destroy");

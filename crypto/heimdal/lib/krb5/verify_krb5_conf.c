@@ -35,7 +35,7 @@
 #include <getarg.h>
 #include <parse_bytes.h>
 #include <err.h>
-RCSID("$Id: verify_krb5_conf.c,v 1.17.2.1 2003/09/22 18:46:58 lha Exp $");
+RCSID("$Id: verify_krb5_conf.c,v 1.17.2.2 2004/02/13 16:19:44 lha Exp $");
 
 /* verify krb5.conf */
 
@@ -156,10 +156,7 @@ check_host(krb5_context context, const char *path, char *data)
     hostname[strcspn(hostname, "/")] = '\0';
     ret = getaddrinfo(hostname, "telnet" /* XXX */, NULL, &ai);
     if(ret != 0) {
-	if(ret == EAI_NODATA)
-	    krb5_warnx(context, "%s: host not found (%s)", path, hostname);
-	else
-	    krb5_warnx(context, "%s: %s (%s)", path, gai_strerror(ret), hostname);
+	krb5_warnx(context, "%s: %s (%s)", path, gai_strerror(ret), hostname);
 	return 1;
     }
     return 0;

@@ -1,8 +1,8 @@
-dnl $Id: broken-getnameinfo.m4,v 1.2 2000/12/05 09:09:00 joda Exp $
+dnl $Id: broken-getnameinfo.m4,v 1.2.12.1 2004/04/01 07:27:32 joda Exp $
 dnl
 dnl test for broken AIX getnameinfo
 
-AC_DEFUN(rk_BROKEN_GETNAMEINFO,[
+AC_DEFUN([rk_BROKEN_GETNAMEINFO],[
 AC_CACHE_CHECK([if getnameinfo is broken], ac_cv_func_getnameinfo_broken,
 AC_TRY_RUN([[#include <stdio.h>
 #include <sys/types.h>

@@ -1,4 +1,4 @@
-# $Id: Makefile.am,v 1.53.4.1 2003/05/12 15:20:46 joda Exp $
+# $Id: Makefile.am,v 1.53.4.2 2003/10/14 16:13:14 joda Exp $
 
 include $(top_srcdir)/Makefile.am.common
 
@@ -20,7 +20,7 @@ LDADD = libhdb.la \
 	$(LIB_roken)
 
 lib_LTLIBRARIES = libhdb.la
-libhdb_la_LDFLAGS = -version-info 7:6:0
+libhdb_la_LDFLAGS = -version-info 7:7:0
 
 libhdb_la_SOURCES =				\
 	common.c				\

@@ -1,3 +1,15 @@
+Changes in release 0.6.1
+
+ * Fixed ARCFOUR suppport
+
+ * Cross realm vulnerability
+
+ * kdc: fix denial of service attack
+
+ * kdc: stop clients from renewing tickets into the future
+
+ * bug fixes
+	
 Changes in release 0.6
 
 * The DES3 GSS-API mechanism has been changed to inter-operate with

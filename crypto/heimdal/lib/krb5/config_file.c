@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2003 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,7 +32,7 @@
  */
 
 #include "krb5_locl.h"
-RCSID("$Id: config_file.c,v 1.46 2002/09/10 19:04:55 joda Exp $");
+RCSID("$Id: config_file.c,v 1.46.4.2 2003/10/13 13:46:10 lha Exp $");
 
 #ifndef HAVE_NETINFO
 
@@ -113,12 +113,12 @@ parse_section(char *p, krb5_config_section **s, krb5_config_section **parent,
  * Store the error message in `error_message'.
  */
 
-static int
+static krb5_error_code
 parse_list(FILE *f, unsigned *lineno, krb5_config_binding **parent,
 	   const char **error_message)
 {
     char buf[BUFSIZ];
-    int ret;
+    krb5_error_code ret;
     krb5_config_binding *b = NULL;
     unsigned beg_lineno = *lineno;
 
@@ -152,14 +152,14 @@ parse_list(FILE *f, unsigned *lineno, krb5_config_binding **parent,
  *
  */
 
-static int
+static krb5_error_code
 parse_binding(FILE *f, unsigned *lineno, char *p,
 	      krb5_config_binding **b, krb5_config_binding **parent,
 	      const char **error_message)
 {
     krb5_config_binding *tmp;
     char *p1, *p2;
-    int ret = 0;
+    krb5_error_code ret = 0;
 
     p1 = p;
     while (*p && *p != '=' && !isspace((unsigned char)*p))
@@ -250,6 +250,11 @@ krb5_config_parse_file_debug (const char *fname,
 	    ret = EINVAL;	/* XXX */
 	    goto out;
 	} else if(*p != '\0') {
+	    if (s == NULL) {
+		*error_message = "binding before section";
+		ret = EINVAL;
+		goto out;
+	    }
 	    ret = parse_binding(f, lineno, p, &b, &s->u.list, error_message);
 	    if (ret)
 		goto out;

@@ -1,9 +1,9 @@
-dnl $Id: have-type.m4,v 1.6 2000/07/15 18:10:00 joda Exp $
+dnl $Id: have-type.m4,v 1.6.12.1 2004/04/01 07:27:33 joda Exp $
 dnl
 dnl check for existance of a type
 
 dnl AC_HAVE_TYPE(TYPE,INCLUDES)
-AC_DEFUN(AC_HAVE_TYPE, [
+AC_DEFUN([AC_HAVE_TYPE], [
 AC_REQUIRE([AC_HEADER_STDC])
 cv=`echo "$1" | sed 'y%./+- %__p__%'`
 AC_MSG_CHECKING(for $1)

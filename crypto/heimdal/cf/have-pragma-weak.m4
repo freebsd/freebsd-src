@@ -1,6 +1,6 @@
-dnl $Id: have-pragma-weak.m4,v 1.3 1999/03/01 11:55:25 joda Exp $
+dnl $Id: have-pragma-weak.m4,v 1.3.34.1 2004/04/01 07:27:33 joda Exp $
 dnl
-AC_DEFUN(AC_HAVE_PRAGMA_WEAK, [
+AC_DEFUN([AC_HAVE_PRAGMA_WEAK], [
 if test "${enable_shared}" = "yes"; then
 AC_MSG_CHECKING(for pragma weak)
 AC_CACHE_VAL(ac_have_pragma_weak, [

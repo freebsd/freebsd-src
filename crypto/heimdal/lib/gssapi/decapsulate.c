@@ -33,7 +33,7 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: decapsulate.c,v 1.7 2001/08/23 04:35:54 assar Exp $");
+RCSID("$Id: decapsulate.c,v 1.7.6.1 2003/09/18 22:00:41 lha Exp $");
 
 OM_uint32
 gssapi_krb5_verify_header(u_char **str,
@@ -73,6 +73,56 @@ gssapi_krb5_verify_header(u_char **str,
     return GSS_S_COMPLETE;
 }
 
+static ssize_t
+gssapi_krb5_get_mech (const u_char *ptr,
+		      size_t total_len,
+		      const u_char **mech_ret)
+{
+    size_t len, len_len, mech_len, foo;
+    const u_char *p = ptr;
+    int e;
+
+    if (total_len < 1)
+	return -1;
+    if (*p++ != 0x60)
+	return -1;
+    e = der_get_length (p, total_len - 1, &len, &len_len);
+    if (e || 1 + len_len + len != total_len)
+	return -1;
+    p += len_len;
+    if (*p++ != 0x06)
+	return -1;
+    e = der_get_length (p, total_len - 1 - len_len - 1,
+			&mech_len, &foo);
+    if (e)
+	return -1;
+    p += foo;
+    *mech_ret = p;
+    return mech_len;
+}
+
+OM_uint32
+_gssapi_verify_mech_header(u_char **str,
+			   size_t total_len)
+{
+    const u_char *p;
+    ssize_t mech_len;
+
+    mech_len = gssapi_krb5_get_mech (*str, total_len, &p);
+    if (mech_len < 0)
+	return GSS_S_DEFECTIVE_TOKEN;
+
+    if (mech_len != GSS_KRB5_MECHANISM->length)
+	return GSS_S_BAD_MECH;
+    if (memcmp(p,
+	       GSS_KRB5_MECHANISM->elements,
+	       GSS_KRB5_MECHANISM->length) != 0)
+	return GSS_S_BAD_MECH;
+    p += mech_len;
+    *str = (char *)p;
+    return GSS_S_COMPLETE;
+}
+
 /*
  * Remove the GSS-API wrapping from `in_token' giving `out_data.
  * Does not copy data, so just free `in_token'.
@@ -102,4 +152,33 @@ gssapi_krb5_decapsulate(
 	(p - (u_char *)input_token_buffer->value);
     out_data->data   = p;
     return GSS_S_COMPLETE;
+}
+
+/*
+ * Verify padding of a gss wrapped message and return its length.
+ */
+
+OM_uint32
+_gssapi_verify_pad(gss_buffer_t wrapped_token, 
+		   size_t datalen,
+		   size_t *padlen)
+{
+    u_char *pad;
+    size_t padlength;
+    int i;
+
+    pad = (u_char *)wrapped_token->value + wrapped_token->length - 1;
+    padlength = *pad;
+
+    if (padlength > datalen)
+	return GSS_S_BAD_MECH;
+
+    for (i = padlength; i > 0 && *pad == padlength; i--, pad--)
+	;
+    if (i != 0)
+	return GSS_S_BAD_MIC;
+
+    *padlen = padlength;
+
+    return 0;
 }

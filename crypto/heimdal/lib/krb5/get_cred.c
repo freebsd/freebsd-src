@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2004 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include <krb5_locl.h>
 
-RCSID("$Id: get_cred.c,v 1.91 2002/09/04 21:12:46 joda Exp $");
+RCSID("$Id: get_cred.c,v 1.91.4.3 2004/01/09 00:47:17 lha Exp $");
 
 /*
  * Take the `body' and encode it into `padata' using the credentials
@@ -225,26 +225,37 @@ init_tgs_req (krb5_context context,
 
     {
 	krb5_auth_context ac;
-	krb5_keyblock *key;
+	krb5_keyblock *key = NULL;
 
 	ret = krb5_auth_con_init(context, &ac);
 	if(ret)
 	    goto fail;
-	ret = krb5_generate_subkey (context, &krbtgt->session, &key);
-	if (ret) {
-	    krb5_auth_con_free (context, ac);
-	    goto fail;
-	}
-	ret = krb5_auth_con_setlocalsubkey(context, ac, key);
-	if (ret) {
-	    krb5_free_keyblock (context, key);
-	    krb5_auth_con_free (context, ac);
-	    goto fail;
+
+	if (krb5_config_get_bool_default(context, NULL, FALSE,
+					 "realms",
+					 krbtgt->server->realm,
+					 "tgs_require_subkey",
+					 NULL))
+	{
+	    ret = krb5_generate_subkey (context, &krbtgt->session, &key);
+	    if (ret) {
+		krb5_auth_con_free (context, ac);
+		goto fail;
+	    }
+
+	    ret = krb5_auth_con_setlocalsubkey(context, ac, key);
+	    if (ret) {
+		if (key)
+		    krb5_free_keyblock (context, key);
+		krb5_auth_con_free (context, ac);
+		goto fail;
+	    }
 	}
 
 	ret = set_auth_data (context, &t->req_body, &in_creds->authdata, key);
 	if (ret) {
-	    krb5_free_keyblock (context, key);
+	    if (key)
+		krb5_free_keyblock (context, key);
 	    krb5_auth_con_free (context, ac);
 	    goto fail;
 	}
@@ -256,7 +267,8 @@ init_tgs_req (krb5_context context,
 			      krbtgt,
 			      usage);
 	if(ret) {
-	    krb5_free_keyblock (context, key);
+	    if (key)
+		krb5_free_keyblock (context, key);
 	    krb5_auth_con_free(context, ac);
 	    goto fail;
 	}
@@ -265,22 +277,27 @@ init_tgs_req (krb5_context context,
 	krb5_auth_con_free(context, ac);
     }
 fail:
-    if (ret)
-	/* XXX - don't free addresses? */
+    if (ret) {
+	t->req_body.addresses = NULL;
 	free_TGS_REQ (t);
+    }
     return ret;
 }
 
-static krb5_error_code
-get_krbtgt(krb5_context context,
-	   krb5_ccache  id,
-	   krb5_realm realm,
-	   krb5_creds **cred)
+krb5_error_code
+_krb5_get_krbtgt(krb5_context context,
+		 krb5_ccache  id,
+		 krb5_realm realm,
+		 krb5_creds **cred)
 {
     krb5_error_code ret;
     krb5_creds tmp_cred;
 
     memset(&tmp_cred, 0, sizeof(tmp_cred));
+
+    ret = krb5_cc_get_principal(context, id, &tmp_cred.client);
+    if (ret)
+	return ret;
 
     ret = krb5_make_principal(context, 
 			      &tmp_cred.server,
@@ -288,13 +305,16 @@ get_krbtgt(krb5_context context,
 			      KRB5_TGS_NAME,
 			      realm,
 			      NULL);
-    if(ret)
+    if(ret) {
+	krb5_free_principal(context, tmp_cred.client);
 	return ret;
+    }
     ret = krb5_get_credentials(context,
 			       KRB5_GC_CACHED,
 			       id,
 			       &tmp_cred,
 			       cred);
+    krb5_free_principal(context, tmp_cred.client);
     krb5_free_principal(context, tmp_cred.server);
     if(ret)
 	return ret;
@@ -467,7 +487,7 @@ get_cred_kdc_usage(krb5_context context,
 	krb5_clear_error_string(context);
     }
     krb5_data_free(&resp);
-out:
+ out:
     if(subkey){
 	krb5_free_keyblock_contents(context, subkey);
 	free(subkey);
@@ -537,10 +557,10 @@ krb5_get_kdc_cred(krb5_context context,
 	krb5_set_error_string(context, "malloc: out of memory");
 	return ENOMEM;
     }
-    ret = get_krbtgt (context,
-		      id,
-		      in_creds->server->realm,
-		      &krbtgt);
+    ret = _krb5_get_krbtgt (context,
+			    id,
+			    in_creds->server->realm,
+			    &krbtgt);
     if(ret) {
 	free(*out_creds);
 	return ret;
@@ -635,8 +655,16 @@ get_cred_from_kdc_flags(krb5_context context,
     if(ret)
 	return ret;
 
-    try_realm = krb5_config_get_string(context, NULL, "libdefaults",
-				       "capath", server_realm, NULL);
+    try_realm = krb5_config_get_string(context, NULL, "capaths", 
+				       client_realm, server_realm, NULL);
+    
+#if 1
+    /* XXX remove in future release */
+    if(try_realm == NULL)
+	try_realm = krb5_config_get_string(context, NULL, "libdefaults", 
+					   "capath", server_realm, NULL);
+#endif
+
     if (try_realm == NULL)
 	try_realm = client_realm;
 
@@ -644,7 +672,7 @@ get_cred_from_kdc_flags(krb5_context context,
 			      &tmp_creds.server,
 			      try_realm,
 			      KRB5_TGS_NAME,
-			      server_realm,
+			      server_realm, 
 			      NULL);
     if(ret){
 	krb5_free_principal(context, tmp_creds.client);

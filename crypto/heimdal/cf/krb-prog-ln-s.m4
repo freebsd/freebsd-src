@@ -1,10 +1,10 @@
-dnl $Id: krb-prog-ln-s.m4,v 1.1 1997/12/14 15:59:01 joda Exp $
+dnl $Id: krb-prog-ln-s.m4,v 1.1.42.1 2004/04/01 07:27:34 joda Exp $
 dnl
 dnl
 dnl Better test for ln -s, ln or cp
 dnl
 
-AC_DEFUN(AC_KRB_PROG_LN_S,
+AC_DEFUN([AC_KRB_PROG_LN_S],
 [AC_MSG_CHECKING(for ln -s or something else)
 AC_CACHE_VAL(ac_cv_prog_LN_S,
 [rm -f conftestdata

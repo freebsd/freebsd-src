@@ -51,6 +51,7 @@ file transfer program
 .Op Fl g
 .Op Fl p
 .Op Fl l
+.Op Fl -no-gss-bindings
 .Op Ar host
 .Sh DESCRIPTION
 .Nm Ftp
@@ -97,6 +98,8 @@ Turn on passive mode.
 Enables debugging.
 .It Fl g
 Disables file name globbing.
+.It Fl -no-gss-bindings
+use GSS-API bindings when talking to peer (ie make sure IP addresses match).
 .It Fl l
 Disables command line editing.
 .El
@@ -115,7 +118,7 @@ from the user.
 When
 .Nm ftp
 is awaiting commands from the user the prompt
-.Ql ftp>
+.Ql ftp\*[Gt]
 is provided to the user.
 The following commands are recognized
 by
@@ -233,7 +236,7 @@ When debugging is on,
 .Nm ftp
 prints each command sent to the remote machine, preceded
 by the string
-.Ql \-\->
+.Ql \-\-\*[Gt]
 .It Xo
 .Ic dir
 .Op Ar remote-directory
@@ -569,7 +572,7 @@ the output filename "myfile.data" for input filenames "myfile.data" and
 "myfile.myfile" for the input filename ".myfile".
 Spaces may be included in
 .Ar outpattern  ,
-as in the example: `nmap $1 sed "s/  *$//" > $1' .
+as in the example: `nmap $1 sed "s/  *$//" \*[Gt] $1' .
 Use the `\e' character to prevent special treatment
 of the `$','[','[', and `,' characters.
 .It Ic ntrans Op Ar inchars Op Ar outchars
@@ -955,7 +958,7 @@ processing.
 If the remote server does not support the
 .Dv ABOR
 command, an
-.Ql ftp>
+.Ql ftp\*[Gt]
 prompt will not appear until the remote server has completed
 sending the requested file.
 .Pp

@@ -1,10 +1,10 @@
-dnl $Id: have-struct-field.m4,v 1.6 1999/07/29 01:44:32 assar Exp $
+dnl $Id: have-struct-field.m4,v 1.6.22.1 2004/04/01 07:27:33 joda Exp $
 dnl
 dnl check for fields in a structure
 dnl
 dnl AC_HAVE_STRUCT_FIELD(struct, field, headers)
 
-AC_DEFUN(AC_HAVE_STRUCT_FIELD, [
+AC_DEFUN([AC_HAVE_STRUCT_FIELD], [
 define(cache_val, translit(ac_cv_type_$1_$2, [A-Z ], [a-z_]))
 AC_CACHE_CHECK([for $2 in $1], cache_val,[
 AC_TRY_COMPILE([$3],[$1 x; x.$2;],

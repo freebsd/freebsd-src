@@ -1,3 +1,9 @@
+2004-03-22  Love Hörnquist Åstrand  <lha@it.su.se>
+
+        * telnetd/telnetd.c: call setprogname to make libvers happy
+
+        * telnet/main.c: call setprogname to make libvers happy
+
 2002-09-02  Johan Danielsson  <joda@pdc.kth.se>
 
 	* libtelnet/kerberos5.c: set AP_OPTS_USE_SUBKEY

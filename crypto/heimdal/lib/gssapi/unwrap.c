@@ -33,7 +33,7 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: unwrap.c,v 1.22 2003/03/16 17:54:43 lha Exp $");
+RCSID("$Id: unwrap.c,v 1.22.2.1 2003/09/18 22:05:22 lha Exp $");
 
 OM_uint32
 gss_krb5_get_remotekey(const gss_ctx_id_t context_handle,
@@ -406,6 +406,11 @@ OM_uint32 gss_unwrap
       ret = unwrap_des3 (minor_status, context_handle,
 			 input_message_buffer, output_message_buffer,
 			 conf_state, qop_state, key);
+      break;
+  case KEYTYPE_ARCFOUR:
+      ret = _gssapi_unwrap_arcfour (minor_status, context_handle,
+				    input_message_buffer, output_message_buffer,
+				    conf_state, qop_state, key);
       break;
   default :
       *minor_status = KRB5_PROG_ETYPE_NOSUPP;
