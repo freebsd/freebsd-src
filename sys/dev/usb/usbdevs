@@ -213,6 +213,7 @@ vendor EXTENDED		0x08e9	Extended Systems, Inc.
 vendor AUTHENTEC	0x08ff	AuthenTec, Inc.
 vendor ALATION		0x0910	Alation Systems, Inc.
 vendor BIOMETRIC	0x0929	American Biometric Company
+vendor YANO		0x094f	Yano
 vendor BLUEWATER	0x0956	BlueWater Systems, Inc.
 vendor AGILENT		0x0957	Agilent Technologies, Inc.
 vendor ADIRONDACK	0x0976	Adirondack Wire & Cable
@@ -401,6 +402,7 @@ product ENTREGA CENTRONICS	0x0006	Centronics connector
 product ENTREGA 1S9		0x0093	1S9 serial connector
 product ENTREGA EZUSB		0x8000	EZ-USB
 /*product ENTREGA SERIAL	0x8001	DB25 Serial connector*/
+product ENTREGA 2U4S		0x8004	2 USB + 4 serial ports
 /*product ENTREGA SERIAL_DB9	0x8093	DB9 Serial connector*/
 
 /* e-TEK Labs products */
@@ -703,6 +705,9 @@ product WACOM INTUOSA5		0x0021	Intuos A5
  
 /* Y-E Data products */
 product YEDATA FLASHBUSTERU	0x0000	Flashbuster-U
+
+/* Yano products */
+product YANO U640MO		0x0101	U640MO-03
 
 /* Zoom Telephonics, Inc. products */
 product ZOOM 2986L		0x9700	2986L Fax modem
