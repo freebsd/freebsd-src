@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)malloc.h	8.5 (Berkeley) 5/3/95
- * $Id: malloc.h,v 1.33 1997/12/05 05:36:49 dyson Exp $
+ * $Id: malloc.h,v 1.34 1997/12/05 18:58:13 bde Exp $
  */
 
 #ifndef _SYS_MALLOC_H_
@@ -46,25 +46,26 @@
 #define	M_NOWAIT	0x0001
 #define M_KERNEL	0x0002
 
-#define M_MAGIC		877983977	/* time when first defined :-) */
+#define	M_MAGIC		877983977	/* time when first defined :-) */
 
 struct malloc_type {
-	struct malloc_type *ks_next; /* Next pointer */
+	struct malloc_type *ks_next;	/* next in list */
 	long 	ks_memuse;	/* total memory held in bytes */
 	long	ks_limit;	/* most that are allowed to exist */
 	long	ks_size;	/* sizes of this thing that are allocated */
 	long	ks_inuse;	/* # of packets of this type currently in use */
 	long	ks_calls;	/* total packets of this type ever allocated */
 	long	ks_maxused;	/* maximum number ever used */
-	u_long	ks_magic;	/* If if's not magic, don't touch it */
-	const char * const ks_shortdesc;	/* Short description */
+	u_long	ks_magic;	/* if it's not magic, don't touch it */
+	const char *ks_shortdesc;	/* short description */
 	u_short	ks_limblocks;	/* number of times blocked for hitting limit */
 	u_short	ks_mapblocks;	/* number of times blocked for kernel map */
 };
 
 #define	MALLOC_DEFINE(type, shortdesc, longdesc) \
-	struct malloc_type type[1] = { { NULL, 0, 0, 0, 0, 0, 0, \
-					 M_MAGIC, shortdesc, 0, 0 } }; \
+	struct malloc_type type[1] = { \
+		{ NULL, 0, 0, 0, 0, 0, 0, M_MAGIC, shortdesc, 0, 0 } \
+	}; \
 	struct __hack
 
 #define	MALLOC_DECLARE(type) \
@@ -72,11 +73,11 @@ struct malloc_type {
 	struct __hack
 
 #ifdef MALLOC_INSTANTIATE
-#define MALLOC_MAKE_TYPE(type, shortdesc, longdesc) \
-	MALLOC_DEFINE(type, shortdesc, longdesc);
+#define	MALLOC_MAKE_TYPE(type, shortdesc, longdesc) \
+	MALLOC_DEFINE(type, shortdesc, longdesc)
 #else
-#define MALLOC_MAKE_TYPE(type, shortdesc, longdesc) \
-	MALLOC_DECLARE(type);
+#define	MALLOC_MAKE_TYPE(type, shortdesc, longdesc) \
+	MALLOC_DECLARE(type)
 #endif
 
 MALLOC_MAKE_TYPE(M_CACHE, "namecache", "Dynamically allocated cache entries");
