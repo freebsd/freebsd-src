@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.34 1995/03/01 22:24:39 dufault Exp $
+ *      $Id: cd.c,v 1.35 1995/03/04 20:50:42 dufault Exp $
  */
 
 #define SPLCD splbio
@@ -196,11 +196,11 @@ cdattach(struct scsi_link *sc_link)
 	 */
 	cd_get_parms(unit, SCSI_NOSLEEP | SCSI_NOMASK);
 	if (dp->disksize) {
-		printf("cd present.[%ld x %ld byte records]\n",
+		printf("cd present.[%ld x %ld byte records]",
 		    cd->params.disksize,
 		    cd->params.blksize);
 	} else {
-		printf("drive empty\n");
+		printf("drive empty");
 	}
 	cd->flags |= CDINIT;
 	cd_registerdev(unit);

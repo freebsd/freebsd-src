@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.28 1995/03/01 22:24:46 dufault Exp $
+ * $Id: st.c,v 1.29 1995/03/04 20:51:05 dufault Exp $
  */
 
 /*
@@ -334,7 +334,7 @@ stattach(struct scsi_link *sc_link)
 	 * request must specify this.
 	 */
 	if (st_mode_sense(unit, SCSI_NOSLEEP | SCSI_NOMASK | SCSI_SILENT)) {
-		printf("drive offline\n");
+		printf("drive offline");
 	} else {
 		printf("density code 0x%x, ", st->media_density);
 		if (!scsi_test_unit_ready(sc_link, SCSI_NOSLEEP | SCSI_NOMASK | SCSI_SILENT)) {
@@ -343,10 +343,10 @@ stattach(struct scsi_link *sc_link)
 			} else {
 				printf("variable");
 			}
-			printf(" blocks, write-%s\n",
+			printf(" blocks, write-%s",
 			    (st->flags & ST_READONLY) ? "protected" : "enabled");
 		} else {
-			printf(" drive empty\n");
+			printf(" drive empty");
 		}
 	}
 	/*
