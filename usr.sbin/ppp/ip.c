@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.33 1997/12/24 09:29:01 brian Exp $
+ * $Id: ip.c,v 1.34 1997/12/28 02:46:22 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -86,11 +86,15 @@ IdleTimeout(void *v)
 void
 StartIdleTimer()
 {
+  static time_t IdleStarted;
+
   if (!(mode & (MODE_DEDICATED | MODE_DDIAL))) {
     StopTimer(&IdleTimer);
     IdleTimer.func = IdleTimeout;
     IdleTimer.load = VarIdleTimeout * SECTICKS;
     IdleTimer.state = TIMER_STOPPED;
+    time(&IdleStarted);
+    IdleTimer.arg = (void *)&IdleStarted;
     StartTimer(&IdleTimer);
   }
 }
@@ -108,6 +112,15 @@ StopIdleTimer()
   StopTimer(&IdleTimer);
 }
 
+int
+RemainingIdleTime()
+{
+  if (VarIdleTimeout == 0 || IdleTimer.state != TIMER_RUNNING ||
+      IdleTimer.arg == NULL)
+    return -1;
+  return VarIdleTimeout - (time(NULL) - *(time_t *)IdleTimer.arg);
+}
+
 /*
  *  If any IP layer traffic is detected, refresh IdleTimer.
  */
@@ -115,8 +128,8 @@ static void
 RestartIdleTimer(void)
 {
   if (!(mode & (MODE_DEDICATED | MODE_DDIAL)) && ipKeepAlive) {
+    time((time_t *)IdleTimer.arg);
     StartTimer(&IdleTimer);
-    ipIdleSecs = 0;
   }
 }
 
