@@ -37,8 +37,9 @@
 .Op Fl d
 .Op Fl f Ar printcap
 .Sh DESCRIPTION
-.Nm Chkprintcap
-scans a
+The
+.Nm
+utility scans a
 .Xr printcap 5
 database
 (named by the
@@ -60,8 +61,9 @@ No two printers share the same spool directory
 capability).
 .El
 .Pp
-.Nm Chkprintcap
-exits with a status equal to the number of errors encountered before
+The
+.Nm
+utility exits with a status equal to the number of errors encountered before
 processing stopped.  (In some cases, processing can stop before the
 entire file is scanned.)
 .Pp
@@ -84,7 +86,7 @@ capability in the database (default 1, which corresponds to user
 .Sh AUTHORS
 The
 .Nm
-command was written by
+utility was written by
 .An Garrett A. Wollman Aq wollman@lcs.mit.edu .
 .Sh BUGS
 Not enough sanity-checking is done.  At a minimum, the ownership and
