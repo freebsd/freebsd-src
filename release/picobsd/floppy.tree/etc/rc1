@@ -37,7 +37,6 @@ if [ -f /etc/rc.network ]; then
 	network_pass1
 fi
 mount -a -t nfs
-chmod 666 /dev/tty[pqrsPQRS]*
 # clean up left-over files
 (cd /var/run && { cp /dev/null utmp; chmod 644 utmp; })
 
