@@ -78,13 +78,20 @@
  *
  *	Note, the above diagram is for the state.  On suspend, the laststate
  * gets set to suspend to tell pccardd what happened.  Also the nil state
- * means that when the no state change has happened.
+ * means that when the no state change has happened.  Note: if you eject
+ * while suspended in the inactive state, you will return to the
+ * empty state if you do not insert a new card and to the inactive state
+ * if you do insert a new card.
  *
  * Some might argue that inactive should be sticky forever and
  * eject/insert shouldn't take it out of that state.  They might be
  * right.  On the other hand, some would argue that eject resets all
  * state.  They might be right.  They both can't be right.  The above
  * represents a reasonable compromise between the two.
+ *
+ * Some bridges allow one to query to see if the card was changed while
+ * we were suspended.  Others do not.  We make no use of this functionality
+ * at this time.
  */
 
 enum cardstate { noslot, empty, suspend, filled, inactive };
