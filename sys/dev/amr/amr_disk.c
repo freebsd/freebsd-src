@@ -157,9 +157,9 @@ amrd_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t l
 
     dp = arg;
     amrd_sc = (struct amrd_softc *)dp->d_drv1;
-    amr_sc  = (struct amr_softc *)amrd_sc->amrd_controller;
-    if (!amrd_sc || !amr_sc)
+    if (amrd_sc == NULL)
 	return(ENXIO);
+    amr_sc  = (struct amr_softc *)amrd_sc->amrd_controller;
 
     if (length > 0) {
 	int	driveno = amrd_sc->amrd_drive - amr_sc->amr_drive;
