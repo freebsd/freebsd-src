@@ -13,10 +13,4 @@ SUBDIR=	title contents 01.setup 02.config 03.fsck 04.quotas 05.fastfs \
 	06.nfs 07.lpd 08.sendmailop 09.sendmail 10.named 11.timedop \
 	12.timed 18.net
 
-.if	${MACHINE} == "tahoe"
-SUBDIR+=01.setup
-.elif	${MACHINE} == "vax"
-SUBDIR+=01.setup
-.endif
-
 .include <bsd.subdir.mk>
