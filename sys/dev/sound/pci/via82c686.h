@@ -59,40 +59,26 @@
 #define         VIA_PCICONF_ACSB       0x01     /* SB enab */
 #define VIA_PCICONF_FUNC_EN	0x42
 
-#define VIA_PLAY_BASE		    0x00
-#define VIA_REC_BASE		    0x10
-
-#define VIA_RP_STAT                 0x00
+#define VIA_PLAY_STAT                 0x00
+#define VIA_RECORD_STAT               0x10
 #define         VIA_RPSTAT_INTR               0x03
-
-#define VIA_RP_CONTROL              0x01
+#define VIA_PLAY_CONTROL              0x01
+#define VIA_RECORD_CONTROL            0x11
 #define         VIA_RPCTRL_START              0x80
 #define         VIA_RPCTRL_TERMINATE          0x40
-#define		VIA_RPCTRL_AUTOSTART	      0x20
-/* The following are 8233 specific */
-#define		VIA_RPCTRL_I_STOP	      0x04
-#define		VIA_RPCTRL_I_EOL	      0x02
-#define		VIA_RPCTRL_I_FLAG	      0x01
-
-#define VIA_RP_MODE                 0x02
+#define VIA_PLAY_MODE                 0x02
+#define VIA_RECORD_MODE               0x12
 #define         VIA_RPMODE_INTR_FLAG          0x01
 #define         VIA_RPMODE_INTR_EOL           0x02
 #define         VIA_RPMODE_STEREO             0x10
 #define         VIA_RPMODE_16BIT              0x20
 #define         VIA_RPMODE_AUTOSTART          0x80
+#define VIA_PLAY_DMAOPS_BASE          0x04
+#define VIA_RECORD_DMAOPS_BASE        0x14
+#define VIA_PLAY_DMAOPS_COUNT         0x0C
+#define VIA_RECORD_DMAOPS_COUNT       0x1C
 
-#define VIA_RP_DMAOPS_BASE          0x04
-
-#define VIA8233_RP_DXS_LVOL	      0x02
-#define VIA8233_RP_DXS_RVOL	      0x03
-#define VIA8233_RP_RATEFMT	      0x08
-#define 	VIA8233_RATEFMT_48K	      0xfffff
-#define		VIA8233_RATEFMT_STEREO	      0x00100000
-#define		VIA8233_RATEFMT_16BIT	      0x00200000
-
-#define VIA_RP_DMAOPS_COUNT         0x0C
-
-#define VIA_CODEC_CTL               0x80
+#define VIA_CODEC_CTL                 0x80
 #define         VIA_CODEC_READ                0x00800000
 #define         VIA_CODEC_BUSY                0x01000000
 #define         VIA_CODEC_PRIVALID            0x02000000
