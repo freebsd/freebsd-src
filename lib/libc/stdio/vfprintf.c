@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)vfprintf.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-		"$Id: vfprintf.c,v 1.15 1997/12/24 23:02:43 ache Exp $";
+		"$Id: vfprintf.c,v 1.16 1997/12/25 00:32:17 ache Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /*
@@ -457,7 +457,7 @@ vfprintf(fp, fmt0, ap)
 		for (cp = fmt; (ch = *fmt) != '\0' && ch != '%'; fmt++)
 			/* void */;
 		if ((n = fmt - cp) != 0) {
-			if ((size_t)ret + n > INT_MAX) {
+			if ((unsigned)ret + n > INT_MAX) {
 				ret = EOF;
 				goto error;
 			}
@@ -786,7 +786,7 @@ number:			if ((dprec = prec) >= 0)
 			realsz += 2;
 
 		prsize = width > realsz ? width : realsz;
-		if ((size_t)ret + prsize > INT_MAX) {
+		if ((unsigned)ret + prsize > INT_MAX) {
 			ret = EOF;
 			goto error;
 		}
