@@ -113,7 +113,6 @@ main(argc, argv)
 	int c;
 
 	/* revoke */
-	setegid(getgid());
 	setgid(getgid());
 
 #ifdef DEBUG
