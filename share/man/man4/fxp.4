@@ -25,24 +25,46 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 19, 1997
+.Dd May 9, 2004
 .Dt FXP 4
 .Os
 .Sh NAME
 .Nm fxp
-.Nd Intel EtherExpress Pro/100B ethernet device driver
+.Nd Intel EtherExpress PRO/100 Ethernet device driver
 .Sh SYNOPSIS
 .Cd "device miibus"
 .Cd "device fxp"
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for the EtherExpress Pro/10, InBusiness
-10/100, Pro/100 B, Pro/100+, Pro/100 VE, Pro/100 M, and Pro/100 S
-PCI Fast Ethernet adapters based on the Intel i82557, i82558, i82559,
-i82550, or i82562 Ethernet chips.
-Many on-board network interfaces on Intel motherboards use these chips
-and are also supported.
+driver provides support for Ethernet adapters based on the Intel
+i82557, i82558, i82559, i82550, and i82562 chips.
+This includes the following adapters:
+.Pp
+.Bl -bullet -compact
+.It
+Intel EtherExpress PRO/10
+.It
+Intel InBusiness 10/100
+.It
+Intel PRO/100B / EtherExpressPRO/100 B PCI Adapter
+.It
+Intel PRO/100+ Management Adapter
+.It
+Intel PRO/100 VE Desktop Adapter
+.It
+Intel PRO/100 M Desktop Adapter
+.It
+Intel PRO/100 S Desktop, Server and Dual\-Port Server Adapters
+.It
+Contec C-NET(PI)\-100TX (PC98)
+.It
+NEC PC-9821Ra20, Rv20, Xv13, Xv20 internal 100Base\-TX (PC98)
+.It
+NEC PC-9821X\-B06 (PC98)
+.It
+Many on\-board network interfaces on Intel motherboards.
+.El
 .Pp
 The
 .Nm
@@ -54,7 +76,7 @@ Enable autoselection of the media type and options
 .It 10baseT/UTP
 Set 10Mbps operation
 .It 100baseTX
-Set 100Mbps (fast ethernet) operation
+Set 100Mbps (Fast Ethernet) operation
 .El
 .Pp
 The
