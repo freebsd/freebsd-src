@@ -590,7 +590,7 @@ nodisks:
 	msgConfirm("Installation completed with some errors.  You may wish to\n"
 		   "scroll through the debugging messages on VTY1 with the\n"
 		   "scroll-lock feature.  You can also choose \"No\" at the next\n"
-		   "prompt and go back into the installation menus to try and retry\n"
+		   "prompt and go back into the installation menus to retry\n"
 		   "whichever operations have failed.");
 	return i;
 
