@@ -755,7 +755,7 @@ fill_default_options(Options * options)
 	if (options->rhosts_rsa_authentication == -1)
 		options->rhosts_rsa_authentication = 1;
 	if (options->fallback_to_rsh == -1)
-		options->fallback_to_rsh = 1;
+		options->fallback_to_rsh = 0;
 	if (options->use_rsh == -1)
 		options->use_rsh = 0;
 	if (options->batch_mode == -1)
