@@ -98,7 +98,7 @@ main(int argc, char **argv)
 	if (argv[optind + 1] == NULL) { /* confstr or sysconf */
 		if ((valid = find_limit(name, &limitval)) != 0) {
 			if (valid > 0)
-				printf("%jd\n", limitval);
+				printf("%" PRIdMAX "\n", limitval);
 			else
 				printf("undefined\n");
 
