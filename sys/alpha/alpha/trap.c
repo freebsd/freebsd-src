@@ -42,7 +42,6 @@
 #include <sys/exec.h>
 #include <sys/lock.h>
 #include <sys/vmmeter.h>
-#include <sys/buf.h>
 #include <sys/sysent.h>
 #include <sys/syscall.h>
 #include <sys/pioctl.h>
