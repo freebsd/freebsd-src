@@ -327,8 +327,11 @@ isnow(endp, monthp, dayp, varp)
 			day = v2;
 		    
 		    /* set to yesterday */
-		    else 
+		    else {
 			day = tp->tm_mday - 1;
+			if (day == 0)
+			    return (0);
+		    }
 		} 
 
 		/* first, second ... +1 ... +5 */
@@ -344,8 +347,11 @@ isnow(endp, monthp, dayp, varp)
 			day = v2;
 
 		    /* set to yesterday */
-		    else 
+		    else {
 			day = tp->tm_mday - 1;
+			if (day == 0)
+			    return (0);
+		    }
 		}
 	    }
 
