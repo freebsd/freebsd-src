@@ -33,6 +33,7 @@
 
 #include "opt_ddb.h"
 #include <sys/param.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
@@ -79,12 +80,12 @@ AcpiOsSignal(UINT32 Function, void *Info)
 	fatal = (ACPI_SIGNAL_FATAL_INFO *)Info;
 	printf("ACPI fatal signal, type 0x%x  code 0x%x  argument 0x%x",
 	      fatal->Type, fatal->Code, fatal->Argument);
-	Debugger("AcpiOsSignal");
+	kdb_enter("AcpiOsSignal");
 	break;
 	
     case ACPI_SIGNAL_BREAKPOINT:
 	message = (char *)Info;
-	Debugger(message);
+	kdb_enter(message);
 	break;
 
     default:
