@@ -294,7 +294,7 @@ define y
 echo Check your .gdbinit, it contains a y command\n
 end
 
-# kldstat(1) lookalike
+# kldstat(8) lookalike
 define kldstat
    set $file = linker_files.tqh_first
    printf "Id Refs Address    Size     Name\n"
@@ -309,7 +309,7 @@ define kldstat
    end
 end
 document kldstat
-Equivalent of the kldstat(9) command, without options.
+Equivalent of the kldstat(8) command, without options.
 end
 
 # msgbuf: print msgbuf.  Can take forever.
