@@ -600,12 +600,14 @@ unp_bind(unp, nam, td)
 
 	if (unp->unp_vnode != NULL)
 		return (EINVAL);
+
 	namelen = soun->sun_len - offsetof(struct sockaddr_un, sun_path);
 	if (namelen <= 0)
 		return EINVAL;
-	buf = malloc(SOCK_MAXADDRLEN, M_TEMP, M_WAITOK);
-	strncpy(buf, soun->sun_path, namelen);
-	buf[namelen] = 0;	/* null-terminate the string */
+
+	buf = malloc(namelen + 1, M_TEMP, M_WAITOK);
+	strlcpy(buf, soun->sun_path, namelen + 1);
+
 restart:
 	NDINIT(&nd, CREATE, NOFOLLOW | LOCKPARENT | SAVENAME, UIO_SYSSPACE,
 	    buf, td);
@@ -680,8 +682,7 @@ unp_connect(so, nam, td)
 	len = nam->sa_len - offsetof(struct sockaddr_un, sun_path);
 	if (len <= 0)
 		return EINVAL;
-	strncpy(buf, soun->sun_path, len);
-	buf[len] = 0;
+	strlcpy(buf, soun->sun_path, len + 1);
 
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE, buf, td);
 	error = namei(&nd);
