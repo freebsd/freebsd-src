@@ -56,6 +56,8 @@ __FBSDID("$FreeBSD$");
 #include <main.h>
 #include <target.h>
 #include <top.h>
+#include <bfd.h>
+#include <gdbcore.h>
 
 extern void (*init_ui_hook)(char *);
 
@@ -166,18 +168,50 @@ out:
 }
 
 static void
+kgdb_init_target(void)
+{
+	bfd *kern_bfd;
+	int kern_desc;
+
+	kern_desc = open(kernel, O_RDONLY);
+	if (kern_desc == -1)
+		errx(1, "couldn't open a kernel image");
+
+	kern_bfd = bfd_fdopenr(kernel, gnutarget, kern_desc);
+	if (kern_bfd == NULL) {
+		close(kern_desc);
+		errx(1, "\"%s\": can't open to probe ABI: %s.", kernel,
+			bfd_errmsg (bfd_get_error ()));
+	}
+	bfd_set_cacheable(kern_bfd, 1);
+
+	if (!bfd_check_format (kern_bfd, bfd_object)) {
+		bfd_close(kern_bfd);
+		errx(1, "\"%s\": not in executable format: %s", kernel,
+			bfd_errmsg(bfd_get_error()));
+        }
+
+	set_gdbarch_from_file (kern_bfd);
+	bfd_close(kern_bfd);
+
+	symbol_file_add_main (kernel, 0);
+	if (remote)
+		push_remote_target (remote, 0);
+	else
+		kgdb_target();
+}
+
+static void
 kgdb_interp_command_loop(void *data)
 {
 	static int once = 0;
 
 	if (!once) {
 		once = 1;
-		symbol_file_add_main (kernel, 0);
-		if (remote)
-			push_remote_target (remote, 0);
-		else
-			kgdb_target();
-		print_stack_frame(get_current_frame(), -1, 0);
+		kgdb_init_target();
+		kgdb_target();
+		print_stack_frame (get_selected_frame (),
+                	frame_relative_level (get_selected_frame ()), 1);
 	}
 	command_loop();
 }
