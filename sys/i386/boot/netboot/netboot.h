@@ -49,8 +49,23 @@ Author: Martin Renters
 #define NULL	((void *)0)
 #endif
 
+#define TRUE		1
+#define FALSE		0
+
 #define ETHER_ADDR_SIZE		6	/* Size of Ethernet address */
 #define ETHER_HDR_SIZE		14	/* Size of ethernet header */
+#define ETH_MIN_PACKET		64
+#define ETH_MAX_PACKET		1518
+
+#define VENDOR_NONE	0
+#define VENDOR_WD	1
+#define VENDOR_NOVELL	2
+#define VENDOR_3COM	3
+#define VENDOR_3C509	4
+
+#define FLAG_PIO	0x01
+#define FLAG_16BIT	0x02
+#define FLAG_790	0x04
 
 #define ARP_CLIENT	0
 #define ARP_SERVER	1
