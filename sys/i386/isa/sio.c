@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.203 1998/05/31 10:53:55 bde Exp $
+ *	$Id: sio.c,v 1.204 1998/06/03 09:43:38 bde Exp $
  */
 
 #include "opt_comconsole.h"
@@ -616,7 +616,8 @@ sioprobe(dev)
 		if (idev == NULL) {
 			printf("sio%d: master device %d not configured\n",
 			       dev->id_unit, COM_MPMASTER(dev));
-			return (0);
+			dev->id_irq = 0;
+			idev = dev;
 		}
 		if (!COM_NOTAST4(dev)) {
 			outb(idev->id_iobase + com_scr,
@@ -735,7 +736,7 @@ sioprobe(dev)
 		}
 		outb(iobase + com_cfcr, CFCR_8BITS);
 		enable_intr();
-		return( result );
+		return (iobase == siocniobase ? IO_COMSIZE : result);
 	}
 
 	/*
@@ -799,7 +800,7 @@ sioprobe(dev)
 			}
 			break;
 		}
-	return (result);
+	return (iobase == siocniobase ? IO_COMSIZE : result);
 }
 
 #ifdef COM_ESP
