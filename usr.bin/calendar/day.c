@@ -170,7 +170,7 @@ isnow(endp, monthp, dayp, varp)
 
 	/* Easter or Easter depending days */
 	if (flags & F_EASTER) 
-	    day = v1;
+	    day = v1 - 1; /* days since January 1 [0-365] */
 
 	 /* 
 	  * 1. {Weekday,Day} XYZ ... 
@@ -281,7 +281,7 @@ isnow(endp, monthp, dayp, varp)
 	}
 	   
 #if DEBUG 
-	fprintf(stderr, "day2: yday %d %d\n", day, tp->tm_yday); 
+	fprintf(stderr, "day2: day %d yday %d\n", day, tp->tm_yday); 
 #endif
 	if (!(flags & F_EASTER)) {
 	    *monthp = month;
@@ -292,7 +292,7 @@ isnow(endp, monthp, dayp, varp)
 	    for (v1 = 0; day > cumdays[v1]; v1++)
 		;
 	    *monthp = v1 - 1;
-	    *dayp = day - cumdays[v1 - 1] - 1;
+	    *dayp = day - cumdays[v1 - 1];
 	    *varp = 1;
 	}
 
