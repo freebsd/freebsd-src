@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from:@(#)syscons.c	1.3 940129
- *	$Id: syscons.c,v 1.28 1994/02/01 08:30:45 ache Exp $
+ *	$Id: syscons.c,v 1.29 1994/02/01 10:43:02 ache Exp $
  *
  */
 
@@ -1228,19 +1228,19 @@ static void scrn_saver(int test)
 
 	if (test) {
 		if (!scrn_blanked) {
-			bcopy(Crtat, scp->scr, 
-			      scp->max_posx * scp->max_posy * 2);
+			bcopy(Crtat, scp->scr_buf,
+			      scp->xsize * scp->ysize * 2);
 			fillw((FG_LIGHTGREY|BG_BLACK)<<8 | scr_map[0x20],
-			      Crtat, scp->max_posx * scp->max_posy);
+			      Crtat, scp->xsize * scp->ysize);
 			set_border(0);
-			dirx = (scp->posx ? 1 : -1);
-			diry = (scp->posy ? 
-				scp->max_posx : -scp->max_posx);
+			dirx = (scp->xpos ? 1 : -1);
+			diry = (scp->ypos ?
+				scp->xsize : -scp->xsize);
 			for (f=0; f< sizeof(saves)-1; f++)
 				savs[f] = (u_char *)Crtat + 2 *
-				          (scp->posx+scp->posy*scp->max_posx);
+					  (scp->xpos+scp->ypos*scp->xsize);
 			*(savs[0]) = scr_map[*saves];
-			f = scp->max_posy * scp->max_posx + 5;
+			f = scp->ysize * scp->xsize + 5;
 			outb(crtc_addr, 14);
 			outb(crtc_addr+1, f >> 8);
 			outb(crtc_addr, 15);
@@ -1254,12 +1254,12 @@ static void scrn_saver(int test)
 		for (f=sizeof(saves)-2; f > 0; f--)
 			savs[f] = savs[f-1];
 		f = (savs[0] - (u_char *)Crtat) / 2;
-		if ((f % scp->max_posx) == 0 ||
-		    (f % scp->max_posx) == scp->max_posx - 1 ||
+		if ((f % scp->xsize) == 0 ||
+		    (f % scp->xsize) == scp->xsize - 1 ||
 		    (rand() % 50) == 0)
 			dirx = -dirx;
-		if ((f / scp->max_posx) == 0 || 
-		    (f / scp->max_posx) == scp->max_posy - 1 ||
+		if ((f / scp->xsize) == 0 ||
+		    (f / scp->xsize) == scp->ysize - 1 ||
 		    (rand() % 20) == 0)
 			diry = -diry;
 		savs[0] += 2*dirx + 2*diry;
@@ -1268,8 +1268,8 @@ static void scrn_saver(int test)
 	}
 	else {
 		if (scrn_blanked) {
-			bcopy(scp->scr, Crtat, 
-			      scp->max_posx * scp->max_posy * 2);
+			bcopy(scp->scr_buf, Crtat,
+			      scp->xsize * scp->ysize * 2);
 			cur_cursor_pos = -1;
 			set_border(scp->border);
 			scrn_blanked = 0;
