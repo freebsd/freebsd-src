@@ -1,8 +1,8 @@
 /* opie.h: Data structures and values for the OPIE authentication
 	system that a program might need.
 
-%%% portions-copyright-cmetz
-Portions of this software are Copyright 1996 by Craig Metz, All Rights
+%%% portions-copyright-cmetz-96
+Portions of this software are Copyright 1996-1997 by Craig Metz, All Rights
 Reserved. The Inner Net License Version 2 applies to these portions of
 the software.
 You should have received a copy of the license with this software. If
@@ -15,6 +15,7 @@ License Agreement applies to this software.
 
 	History:
 
+	Modified by cmetz for OPIE 2.31. Removed active attack protection.
 	Modified by cmetz for OPIE 2.3. Renamed PTR to VOIDPTR. Added
 		re-init key and extension file fields to struct opie. Added
 		opie_ prefix on struct opie members. Added opie_flags field
@@ -32,7 +33,7 @@ License Agreement applies to this software.
 		(skey.h).
 */
 #ifndef _OPIE_H
-#define _OPIE_H
+#define _OPIE_H 1
 
 #if _OPIE
 
@@ -116,9 +117,6 @@ struct opie {
   char *opie_seed;
   char *opie_val;
   long opie_recstart;
-  char opie_extbuf[129]; /* > OPIE_PRINCIPAL_MAX + 1 + 16 + 2 + 1 */
-  long opie_extrecstart;
-  char *opie_reinitkey;
 };
 
 #define __OPIE_FLAGS_RW 1

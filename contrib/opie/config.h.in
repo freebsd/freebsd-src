@@ -42,9 +42,9 @@
 /* If using the C implementation of alloca, define if you know the
    direction of stack growth for your system; otherwise it will be
    automatically deduced at run-time.
-	STACK_DIRECTION > 0 => grows toward higher addresses
-	STACK_DIRECTION < 0 => grows toward lower addresses
-	STACK_DIRECTION = 0 => direction of growth unknown
+ STACK_DIRECTION > 0 => grows toward higher addresses
+ STACK_DIRECTION < 0 => grows toward lower addresses
+ STACK_DIRECTION = 0 => direction of growth unknown
  */
 #undef STACK_DIRECTION
 
@@ -79,6 +79,15 @@
 
 /* The path to the mail spool, if we know it */
 #undef PATH_MAIL
+
+/* The path to the utmp file, if we know it */
+#undef PATH_UTMP_AC
+
+/* The path to the wtmp file, if we know it */
+#undef PATH_WTMP_AC
+
+/* The path to the wtmpx file, if we know it */
+#undef PATH_WTMPX_AC
 
 /* Defined if the system's profile (/etc/profile) displays
    the motd file */
@@ -140,6 +149,36 @@
 /* Define if there is a ut_host field in struct utmp */
 #undef HAVE_UT_HOST
 
+/* Define if the system has getutline() */
+#undef HAVE_GETUTLINE
+
+/* Defined if the system has SunOS C2 security shadow passwords */
+#undef HAVE_SUNOS_C2_SHADOW
+
+/* Defined if you want to disable utmp support */
+#undef DISABLE_UTMP
+
+/* Defined if you want to allow users to override the insecure checks */
+#undef INSECURE_OVERRIDE
+
+/* Defined to the default hash value, always defined */
+#undef MDX
+
+/* Defined if new-style prompts are to be used */
+#undef NEW_PROMPTS
+
+/* Defined to the path of the OPIE lock directory */
+#undef OPIE_LOCK_DIR
+
+/* Defined if users are to be asked to re-type secret pass phrases */
+#undef RETYPE
+
+/* Defined if su should not switch to disabled accounts */
+#undef SU_STAR_CHECK
+
+/* Defined if user locking is to be used */
+#undef USER_LOCKING
+
 /* Define if you have the bcopy function.  */
 #undef HAVE_BCOPY
 
@@ -161,14 +200,17 @@
 /* Define if you have the gethostname function.  */
 #undef HAVE_GETHOSTNAME
 
-/* Define if you have the getspent function.  */
-#undef HAVE_GETSPENT
+/* Define if you have the getspnam function.  */
+#undef HAVE_GETSPNAM
 
 /* Define if you have the gettimeofday function.  */
 #undef HAVE_GETTIMEOFDAY
 
 /* Define if you have the getttynam function.  */
 #undef HAVE_GETTTYNAM
+
+/* Define if you have the getusershell function.  */
+#undef HAVE_GETUSERSHELL
 
 /* Define if you have the getutxline function.  */
 #undef HAVE_GETUTXLINE
@@ -182,17 +224,14 @@
 /* Define if you have the lstat function.  */
 #undef HAVE_LSTAT
 
+/* Define if you have the on_exit function.  */
+#undef HAVE_ON_EXIT
+
 /* Define if you have the pututxline function.  */
 #undef HAVE_PUTUTXLINE
 
 /* Define if you have the rindex function.  */
 #undef HAVE_RINDEX
-
-/* Define if you have the setegid function.  */
-#undef HAVE_SETEGID
-
-/* Define if you have the seteuid function.  */
-#undef HAVE_SETEUID
 
 /* Define if you have the setgroups function.  */
 #undef HAVE_SETGROUPS
@@ -218,8 +257,14 @@
 /* Define if you have the setvbuf function.  */
 #undef HAVE_SETVBUF
 
+/* Define if you have the sigaddset function.  */
+#undef HAVE_SIGADDSET
+
 /* Define if you have the sigblock function.  */
 #undef HAVE_SIGBLOCK
+
+/* Define if you have the sigemptyset function.  */
+#undef HAVE_SIGEMPTYSET
 
 /* Define if you have the sigsetmask function.  */
 #undef HAVE_SIGSETMASK
@@ -227,17 +272,23 @@
 /* Define if you have the socket function.  */
 #undef HAVE_SOCKET
 
+/* Define if you have the strerror function.  */
+#undef HAVE_STRERROR
+
 /* Define if you have the strftime function.  */
 #undef HAVE_STRFTIME
+
+/* Define if you have the strncasecmp function.  */
+#undef HAVE_STRNCASECMP
 
 /* Define if you have the strstr function.  */
 #undef HAVE_STRSTR
 
-/* Define if you have the sysconf function.  */
-#undef HAVE_SYSCONF
-
 /* Define if you have the ttyslot function.  */
 #undef HAVE_TTYSLOT
+
+/* Define if you have the usleep function.  */
+#undef HAVE_USLEEP
 
 /* Define if you have the <crypt.h> header file.  */
 #undef HAVE_CRYPT_H
@@ -289,6 +340,9 @@
 
 /* Define if you have the <sys/param.h> header file.  */
 #undef HAVE_SYS_PARAM_H
+
+/* Define if you have the <sys/select.h> header file.  */
+#undef HAVE_SYS_SELECT_H
 
 /* Define if you have the <sys/signal.h> header file.  */
 #undef HAVE_SYS_SIGNAL_H

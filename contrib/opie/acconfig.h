@@ -1,7 +1,7 @@
 /* acconfig.h: Extra commentary for Autoheader
 
-%%% portions-copyright-cmetz
-Portions of this software are Copyright 1996 by Craig Metz, All Rights
+%%% portions-copyright-cmetz-96
+Portions of this software are Copyright 1996-1997 by Craig Metz, All Rights
 Reserved. The Inner Net License Version 2 applies to these portions of
 the software.
 You should have received a copy of the license with this software. If
@@ -116,3 +116,36 @@ you didn't get a copy, you may request one from <license@inner.net>.
 
 /* Define if there is a ut_host field in struct utmp */
 #undef HAVE_UT_HOST
+
+/* Define if the system has getutline() */
+#undef HAVE_GETUTLINE
+
+/* Defined if the system has SunOS C2 security shadow passwords */
+#undef HAVE_SUNOS_C2_SHADOW
+
+/* Defined if you want to disable utmp support */
+#undef DISABLE_UTMP
+
+/* Defined if you want to disable wtmp support */
+#undef DISABLE_WTMP
+
+/* Defined if you want to allow users to override the insecure checks */
+#undef INSECURE_OVERRIDE
+
+/* Defined to the default hash value, always defined */
+#undef MDX
+
+/* Defined if new-style prompts are to be used */
+#undef NEW_PROMPTS
+
+/* Defined to the path of the OPIE lock directory */
+#undef OPIE_LOCK_DIR
+
+/* Defined if users are to be asked to re-type secret pass phrases */
+#undef RETYPE
+
+/* Defined if su should not switch to disabled accounts */
+#undef SU_STAR_CHECK
+
+/* Defined if user locking is to be used */
+#undef USER_LOCKING

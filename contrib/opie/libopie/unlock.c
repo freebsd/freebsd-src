@@ -1,7 +1,7 @@
 /* unlock.c: The opieunlock() library function.
 
-%%% portions-copyright-cmetz
-Portions of this software are Copyright 1996 by Craig Metz, All Rights
+%%% portions-copyright-cmetz-96
+Portions of this software are Copyright 1996-1997 by Craig Metz, All Rights
 Reserved. The Inner Net License Version 2 applies to these portions of
 the software.
 You should have received a copy of the license with this software. If
@@ -14,6 +14,7 @@ License Agreement applies to this software.
 
         History:
 
+	Modified by cmetz for OPIE 2.31. Bug fix.
 	Modified by cmetz for OPIE 2.3. Do refcounts whether or not
             we actually lock. Fixed USER_LOCKING=0 case.
 	Modified by cmetz for OPIE 2.22. Added reference count support.
@@ -77,8 +78,7 @@ int opieunlock FUNCTION_NOARGS
   if (!(t = atoi(c)))
     goto unlockret;
 
-  if ((pid != getpid()) && (time(NULL) + OPIE_LOCK_TIMEOUT <= t) && 
-    (!kill(pid, 0))) { 
+  if ((pid != getpid()) && (time(0) <= OPIE_LOCK_TIMEOUT + t) && (!kill(pid, 0))) { 
     rval = 1;
     goto unlockret1;
   }

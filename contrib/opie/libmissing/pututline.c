@@ -1,13 +1,15 @@
 /* pututline.c: A replacement for the pututline() function
 
-%%% copyright-cmetz
-This software is Copyright 1996 by Craig Metz, All Rights Reserved.
+%%% copyright-cmetz-96
+This software is Copyright 1996-1997 by Craig Metz, All Rights Reserved.
 The Inner Net License Version 2 applies to this software.
 You should have received a copy of the license with this software. If
 you didn't get a copy, you may request one from <license@inner.net>.
 
         History:
 
+	Modified by cmetz for OPIE 2.31. If the OS won't tell us where
+		_PATH_UTMP is, use Autoconf-discovered values.
 	Created by cmetz for OPIE 2.3.
 */
 
@@ -15,6 +17,10 @@ you didn't get a copy, you may request one from <license@inner.net>.
 #include <stdio.h>
 #include <utmp.h>
 #include "opie.h"
+
+#ifndef _PATH_UTMP
+#define _PATH_UTMP	PATH_UTMP_AC
+#endif /* _PATH_UTMP */
 
 void pututline FUNCTION((utmp), struct utmp *utmp)
 {

@@ -1,13 +1,16 @@
 /* verify.c: The opieverify() library function.
 
-%%% copyright-cmetz
-This software is Copyright 1996 by Craig Metz, All Rights Reserved.
+%%% copyright-cmetz-96
+This software is Copyright 1996-1997 by Craig Metz, All Rights Reserved.
 The Inner Net License Version 2 applies to this software.
 You should have received a copy of the license with this software. If
 you didn't get a copy, you may request one from <license@inner.net>.
 
 	History:
 
+	Modified by cmetz for OPIE 2.31. Renamed "init" and "RESPONSE_INIT"
+		to "init-hex" and "RESPONSE_INIT_HEX". Removed active attack
+		protection support.
 	Created by cmetz for OPIE 2.3 using the old verify.c as a guide.
 */
 
@@ -20,7 +23,7 @@ you didn't get a copy, you may request one from <license@inner.net>.
 #define RESPONSE_STANDARD  0
 #define RESPONSE_WORD      1
 #define RESPONSE_HEX       2
-#define RESPONSE_INIT      3
+#define RESPONSE_INIT_HEX  3
 #define RESPONSE_INIT_WORD 4
 #define RESPONSE_UNKNOWN   5
 
@@ -32,7 +35,7 @@ struct _rtrans {
 static struct _rtrans rtrans[] = {
   { RESPONSE_WORD, "word" },
   { RESPONSE_HEX, "hex" },
-  { RESPONSE_INIT, "init" },
+  { RESPONSE_INIT_HEX, "init-hex" },
   { RESPONSE_INIT_WORD, "init-word" },
   { RESPONSE_STANDARD, "" },
   { RESPONSE_UNKNOWN, NULL }
@@ -119,11 +122,11 @@ int opieverify FUNCTION((opie, response), struct opie *opie AND char *response)
       i = memcmp(fkey, lastkey, sizeof(key));
     }
     break;
-  case RESPONSE_INIT:
+  case RESPONSE_INIT_HEX:
   case RESPONSE_INIT_WORD:
     {
       char *c2;
-      char newkey[8], ckxor[8], ck[8], cv[8], cvc[8];
+      char newkey[8];
       char buf[OPIE_SEED_MAX + 48 + 1];
 
       if (!(c2 = strchr(c, ':')))
@@ -131,7 +134,7 @@ int opieverify FUNCTION((opie, response), struct opie *opie AND char *response)
 
       *(c2++) = 0;
 
-      if (i == RESPONSE_INIT) {
+      if (i == RESPONSE_INIT_HEX) {
 	if (!opieatob8(key, c))
 	  goto verret;
       } else {
@@ -173,56 +176,13 @@ int opieverify FUNCTION((opie, response), struct opie *opie AND char *response)
 
       *(c2++) = 0;
 
-      if (i == RESPONSE_INIT) {
+      if (i == RESPONSE_INIT_HEX) {
 	if (!opieatob8(newkey, c))
 	  goto verret;
       } else {
 	if (opieetob(newkey, c) != 1)
 	  goto verret;
       }
-
-      if (!opie->opie_reinitkey || (opie->opie_reinitkey[0] == '*'))
-	goto verwrt;
-
-      if (!(c2 = strchr(c = c2, ':')))
-	goto verret;
-
-      *(c2++) = 0;
-
-      if (i == RESPONSE_INIT) {
-	if (!opieatob8(ckxor, c))
-	  goto verret;
-	if (!opieatob8(cv, c2))
-	  goto verret;
-      } else {
-	if (opieetob(ckxor, c) != 1)
-	  goto verret;
-	if (opieetob(cv, c2) != 1)
-	  goto verret;
-      }
-
-      if (!opieatob8(ck, opie->opie_reinitkey))
-	goto verret;
-
-      c = buf;
-      memcpy(c, ck, sizeof(ck)); c += sizeof(ck);
-      memcpy(c, key, sizeof(key)); c += sizeof(key);
-      c += sprintf(c, "%s 499 %s", algids[MDX], opie->opie_seed);
-      memcpy(c, newkey, sizeof(newkey)); c += sizeof(newkey);
-      memcpy(c, ckxor, sizeof(ckxor)); c += sizeof(ckxor);
-      memcpy(c, ck, sizeof(ck)); c += sizeof(ck);
-      opiehashlen(MDX, buf, cvc, (unsigned int)c - (unsigned int)buf);
-
-      if (memcmp(cv, cvc, sizeof(cv)))
-	goto verret;
-
-      for (i = 0; i < 8; i++)
-	ck[i] ^= ckxor[i];
-
-      if (!opiebtoa8(opie->opie_reinitkey, ck))
-	goto verret;
-
-      memcpy(key, newkey, sizeof(key));
     }
     goto verwrt;
   case RESPONSE_UNKNOWN:
