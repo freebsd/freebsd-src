@@ -100,6 +100,7 @@ __END_DECLS
 #else /* !_KERNEL */
 
 #include <sys/kobj.h>
+#include <sys/module.h>			/* can't avoid that */
 #include <sys/queue.h>			/* can't avoid that */
 #include <sys/sysctl.h>			/* can't avoid that */
 
