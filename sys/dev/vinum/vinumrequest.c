@@ -392,7 +392,7 @@ launch_requests(struct request *rq, int reviveok)
 		drive = &DRIVE[rqe->driveno];		    /* look at drive */
 		while ((drive->active >= DRIVE_MAXACTIVE)   /* it has too much to do already, */
 		||(vinum_conf.active >= VINUM_MAXACTIVE))   /* or too many requests globally */
-		    tsleep(&launch_requests, PRIBIO | PCATCH, "vinbuf", 0); /* wait for it to subside */
+		    tsleep(&launch_requests, PRIBIO, "vinbuf", 0); /* wait for it to subside, XXX: should PCATCH */
 		drive->active++;
 		if (drive->active >= drive->maxactive)
 		    drive->maxactive = drive->active;
