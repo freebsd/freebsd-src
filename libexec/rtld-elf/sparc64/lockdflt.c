@@ -46,8 +46,6 @@
 #include <stdlib.h>
 #include <time.h>
 
-#include <machine/atomic.h>
-
 #include "debug.h"
 #include "rtld.h"
 #include "rtld_machdep.h"
