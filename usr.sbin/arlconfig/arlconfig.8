@@ -158,7 +158,7 @@ mode.
 Chose 
 .Ar country , channel , freq
  parameters that depend on the
-.Ar contry 
+.Ar country 
 according to the following table:
 .Bl -column ".Em Country" ".Em Channel" ".Em MHz" -offset indent indent
 .Em "Country      	Ch_Set	MHz"
@@ -190,24 +190,24 @@ Set device operating bitrate or spread.
 .It Ar iface Cm priority Ar priority ( Cm normal, high, highest )
 Use the
 .Ar priority
-parameter to set the priority of the Atlan 655 Radio Media Access Control 
+parameter to set the priority of the Arlan 655 Radio Media Access Control 
 the values are 
 .Cm normal , high
 or
-.Cm higest .
-The higher the priority set, the more likely this unit wil be first 
+.Cm highest .
+The higher the priority set, the more likely this unit will be first 
 to successfully transmit a packet when multiple units are trying 
 to transmit at the same time.
 .Pp
-The percentage of units on your network that you set to other than
+The percentage of units on your network that you set to values other than
 .Dq normal
 should be kept small - 10 percent or less.  
 .It Ar iface Cm stat
 Print internal Arlan 655 statistics block.
 .It Ar iface Cm quality
-Display the cached signal level and quality mantained by the
+Display the cached signal level and quality maintained by the
 .Xr arl 4
-driver . The driver retains information about quality and level for packets received from different hosts. Also driver extract values from ACK packets.
+driver . The driver retains information about quality and level for packets received from different hosts. Also the driver extracts values from ACK packets.
 .El
 .Sh EXAMPLES
 .Bd -literal -offset indent
@@ -216,7 +216,7 @@ arlconfig arl0 quality
 arlconfig arl0 stat
 arlconfig arl0
 .Pp
-You can configure Arlan 655 card from /etc/start_if.arl0. For example: 
+You can configure the Arlan 655 card from /etc/start_if.arl0. For example: 
 .Pp
 #!/bin/sh
 /sbin/arlconfig arl0 sid 0x000002 freq 2412 spread 2000 mode 640 
@@ -236,5 +236,5 @@ The
 .Nm
 utility was written by
 .Aq ran@styx.aic.net .
-Manpage was written by 
+This manpage was written by 
 .An Yuri Kurenkov Aq y.kurenkov@init.ru .  
