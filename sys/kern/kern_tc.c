@@ -15,6 +15,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
+#include <sys/syslog.h>
 #include <sys/systm.h>
 #include <sys/timepps.h>
 #include <sys/timetc.h>
@@ -95,6 +96,10 @@ SYSCTL_STRUCT(_kern, KERN_BOOTTIME, boottime, CTLFLAG_RD,
     &boottime, timeval, "System boottime");
 
 SYSCTL_NODE(_kern, OID_AUTO, timecounter, CTLFLAG_RW, 0, "");
+
+static int timestepwarnings;
+SYSCTL_INT(_kern_timecounter, OID_AUTO, stepwarnings, CTLFLAG_RW,
+    &timestepwarnings, 0, "");
 
 #define TC_STATS(foo) \
 	static u_int foo; \
@@ -334,26 +339,30 @@ tc_getfrequency(void)
 
 /*
  * Step our concept of UTC.  This is done by modifying our estimate of
- * when we booted.  XXX: needs further work.
+ * when we booted.
+ * XXX: not locked.
  */
 void
 tc_setclock(struct timespec *ts)
 {
 	struct timespec ts2;
+	struct bintime bt, bt2;
 
 	nsetclock++;
-	nanouptime(&ts2);
-	boottime.tv_sec = ts->tv_sec - ts2.tv_sec;
-	/* XXX boottime should probably be a timespec. */
-	boottime.tv_usec = (ts->tv_nsec - ts2.tv_nsec) / 1000;
-	if (boottime.tv_usec < 0) {
-		boottime.tv_usec += 1000000;
-		boottime.tv_sec--;
-	}
-	timeval2bintime(&boottime, &boottimebin);
+	binuptime(&bt2);
+	timespec2bintime(ts, &bt);
+	bintime_sub(&bt, &bt2);
+	bintime_add(&bt2, &boottimebin);
+	boottimebin = bt;
+	bintime2timeval(&bt, &boottime);
 
 	/* XXX fiddle all the little crinkly bits around the fiords... */
 	tc_windup();
+	if (timestepwarnings) {
+		bintime2timespec(&bt2, &ts2);
+		log(LOG_INFO, "Time stepped from %d.%09ld to %d.%09ld\n",
+		    ts2.tv_sec, ts2.tv_nsec, ts->tv_sec, ts->tv_nsec);
+	}
 }
 
 /*
