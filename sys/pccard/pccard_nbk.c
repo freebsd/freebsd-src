@@ -55,8 +55,6 @@
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
-#include <sys/fcntl.h>
-#include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/queue.h>
 #include <sys/select.h>
@@ -69,8 +67,6 @@
 
 #include <i386/isa/isa_device.h>
 #include <pccard/cardinfo.h>
-#include <pccard/driver.h>
-#include <pccard/pcic.h>
 #include <pccard/slot.h>
 #include <pccard/pccard_nbk.h>
 

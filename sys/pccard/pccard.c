@@ -44,11 +44,8 @@
 #include <sys/module.h>
 #include <sys/uio.h>
 #include <sys/poll.h>
-#include <sys/interrupt.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
-#include <sys/rman.h>
-#include <machine/resource.h>
 
 #include <i386/isa/isa_device.h>
 #include <i386/isa/icu.h>
