@@ -842,11 +842,9 @@ in6_losing(in6p)
 		info.rti_info[RTAX_GATEWAY] = rt->rt_gateway;
 		info.rti_info[RTAX_NETMASK] = rt_mask(rt);
 		rt_missmsg(RTM_LOSING, &info, rt->rt_flags, 0);
-		if (rt->rt_flags & RTF_DYNAMIC) {
-			RT_UNLOCK(rt);		/* XXX refcnt? */
-			(void)rtrequest1(RTM_DELETE, &info, NULL);
-		} else
-			rtfree(rt);
+		if (rt->rt_flags & RTF_DYNAMIC)
+			rtexpunge(rt);
+		RTFREE_LOCKED(rt);
 		/*
 		 * A new route can be allocated
 		 * the next time output is attempted.

@@ -230,7 +230,16 @@ rtfree(struct rtentry *rt)
 	 */
 	if (--rt->rt_refcnt > 0)
 		goto done;
-	/* XXX refcount==0? */
+
+	/*
+	 * On last reference give the "close method" a chance
+	 * to cleanup private state.  This also permits (for
+	 * IPv4 and IPv6) a chance to decide if the routing table
+	 * entry should be purged immediately or at a later time.
+	 * When an immediate purge is to happen the close routine
+	 * typically calls rtexpunge which clears the RTF_UP flag
+	 * on the entry so that the code below reclaims the storage.
+	 */
 	if (rt->rt_refcnt == 0 && rnh->rnh_close)
 		rnh->rnh_close((struct radix_node *)rt, rnh);
 
@@ -524,6 +533,95 @@ rt_getifa(struct rt_addrinfo *info)
 	return (error);
 }
 
+/*
+ * Expunges references to a route that's about to be reclaimed.
+ * The route must be locked.
+ */
+int
+rtexpunge(struct rtentry *rt)
+{
+	struct radix_node *rn;
+	struct radix_node_head *rnh;
+	struct ifaddr *ifa;
+	int error = 0;
+
+	RT_LOCK_ASSERT(rt);
+#if 0
+	/*
+	 * We cannot assume anything about the reference count
+	 * because protocols call us in many situations; often
+	 * before unwinding references to the table entry.
+	 */
+	KASSERT(rt->rt_refcnt <= 1, ("bogus refcnt %ld", rt->rt_refcnt));
+#endif
+	/*
+	 * Find the correct routing tree to use for this Address Family
+	 */
+	rnh = rt_tables[rt_key(rt)->sa_family];
+	if (rnh == 0)
+		return (EAFNOSUPPORT);
+
+	RADIX_NODE_HEAD_LOCK(rnh);
+
+	/*
+	 * Remove the item from the tree; it should be there,
+	 * but when callers invoke us blindly it may not (sigh).
+	 */
+	rn = rnh->rnh_deladdr(rt_key(rt), rt_mask(rt), rnh);
+	if (rn == 0) {
+		error = ESRCH;
+		goto bad;
+	}
+	KASSERT((rn->rn_flags & (RNF_ACTIVE | RNF_ROOT)) == 0,
+		("unexpected flags 0x%x", rn->rn_flags));
+	KASSERT(rt == (struct rtentry *)rn,
+		("lookup mismatch, rt %p rn %p", rt, rn));
+
+	rt->rt_flags &= ~RTF_UP;
+
+	/*
+	 * Now search what's left of the subtree for any cloned
+	 * routes which might have been formed from this node.
+	 */
+	if ((rt->rt_flags & (RTF_CLONING | RTF_PRCLONING)) && rt_mask(rt))
+		rnh->rnh_walktree_from(rnh, rt_key(rt), rt_mask(rt),
+				       rt_fixdelete, rt);
+
+	/*
+	 * Remove any external references we may have.
+	 * This might result in another rtentry being freed if
+	 * we held its last reference.
+	 */
+	if (rt->rt_gwroute) {
+		struct rtentry *gwrt = rt->rt_gwroute;
+		RTFREE(gwrt);
+		rt->rt_gwroute = 0;
+	}
+
+	/*
+	 * Give the protocol a chance to keep things in sync.
+	 */
+	if ((ifa = rt->rt_ifa) && ifa->ifa_rtrequest) {
+		struct rt_addrinfo info;
+
+		bzero((caddr_t)&info, sizeof(info));
+		info.rti_flags = rt->rt_flags;
+		info.rti_info[RTAX_DST] = rt_key(rt);
+		info.rti_info[RTAX_GATEWAY] = rt->rt_gateway;
+		info.rti_info[RTAX_NETMASK] = rt_mask(rt);
+		ifa->ifa_rtrequest(RTM_DELETE, rt, &info);
+	}
+
+	/*
+	 * one more rtentry floating around that is not
+	 * linked to the routing table.
+	 */
+	rttrash++;
+bad:
+	RADIX_NODE_HEAD_UNLOCK(rnh);
+	return (error);
+}
+
 int
 rtrequest1(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt)
 {
@@ -684,12 +782,8 @@ rtrequest1(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt)
 			 */
 			rt2 = rtalloc1(dst, 0, RTF_PRCLONING);
 			if (rt2 && rt2->rt_parent) {
-				RT_UNLOCK(rt2);		/* XXX recursive lock */
-				rtrequest(RTM_DELETE,
-					  rt_key(rt2),
-					  rt2->rt_gateway,
-					  rt_mask(rt2), rt2->rt_flags, 0);
-				RTFREE(rt2);
+				rtexpunge(rt2);
+				RT_UNLOCK(rt2);
 				rn = rnh->rnh_addaddr(ndst, netmask,
 						      rnh, rt->rt_nodes);
 			} else if (rt2) {
@@ -936,8 +1030,7 @@ rt_setgate(struct rtentry *rt, struct sockaddr *dst, struct sockaddr *gate)
 		 * or a routing redirect, so try to delete it.
 		 */
 		if (rt_key(rt))
-			rtrequest(RTM_DELETE, rt_key(rt),
-			    rt->rt_gateway, rt_mask(rt), rt->rt_flags, 0);
+			rtexpunge(rt);
 		return EADDRNOTAVAIL;
 	}
 
@@ -995,6 +1088,7 @@ rt_setgate(struct rtentry *rt, struct sockaddr *dst, struct sockaddr *gate)
 	 * This is obviously mandatory when we get rt->rt_output().
 	 */
 	if (rt->rt_flags & RTF_GATEWAY) {
+		/* XXX LOR here */
 		rt->rt_gwroute = rtalloc1(gate, 1, RTF_PRCLONING);
 		if (rt->rt_gwroute == rt) {
 			RTFREE_LOCKED(rt->rt_gwroute);
@@ -1015,6 +1109,7 @@ rt_setgate(struct rtentry *rt, struct sockaddr *dst, struct sockaddr *gate)
 
 		arg.rnh = rnh;
 		arg.rt0 = rt;
+		/* XXX LOR here */
 		RADIX_NODE_HEAD_LOCK(rnh);
 		rnh->rnh_walktree_from(rnh, rt_key(rt), rt_mask(rt),
 				       rt_fixchange, &arg);

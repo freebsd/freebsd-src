@@ -125,17 +125,12 @@ in_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 			    rt2->rt_flags & RTF_HOST &&
 			    rt2->rt_gateway &&
 			    rt2->rt_gateway->sa_family == AF_LINK) {
-				/* NB: must unlock to avoid recursion */
-				RT_UNLOCK(rt2);
-				rtrequest(RTM_DELETE,
-					  (struct sockaddr *)rt_key(rt2),
-					  rt2->rt_gateway, rt_mask(rt2),
-					  rt2->rt_flags, 0);
+				rtexpunge(rt2);
+				RTFREE_LOCKED(rt2);
 				ret = rn_addroute(v_arg, n_arg, head,
 						  treenodes);
-				RT_LOCK(rt2);
-			}
-			RTFREE_LOCKED(rt2);
+			} else
+				RTFREE_LOCKED(rt2);
 		}
 	}
 
@@ -211,13 +206,7 @@ in_clsroute(struct radix_node *rn, struct radix_node_head *head)
 		rt->rt_flags |= RTPRF_OURS;
 		rt->rt_rmx.rmx_expire = time_second + rtq_reallyold;
 	} else {
-		/* NB: must unlock to avoid recursion */
-		RT_UNLOCK(rt);
-		rtrequest(RTM_DELETE,
-			  (struct sockaddr *)rt_key(rt),
-			  rt->rt_gateway, rt_mask(rt),
-			  rt->rt_flags, 0);
-		RT_LOCK(rt);
+		rtexpunge(rt);
 	}
 }
 
@@ -385,8 +374,8 @@ in_ifadownkill(struct radix_node *rn, void *xap)
 {
 	struct in_ifadown_arg *ap = xap;
 	struct rtentry *rt = (struct rtentry *)rn;
-	int err;
 
+	RT_LOCK(rt);
 	if (rt->rt_ifa == ap->ifa &&
 	    (ap->del || !(rt->rt_flags & RTF_STATIC))) {
 		/*
@@ -397,15 +386,11 @@ in_ifadownkill(struct radix_node *rn, void *xap)
 		 * the routes that rtrequest() would have in any case,
 		 * so that behavior is not needed there.
 		 */
-		RT_LOCK(rt);
 		rt->rt_flags &= ~(RTF_CLONING | RTF_PRCLONING);
+		rtexpunge(rt);
+		RTFREE_LOCKED(rt);
+	} else
 		RT_UNLOCK(rt);
-		err = rtrequest(RTM_DELETE, (struct sockaddr *)rt_key(rt),
-				rt->rt_gateway, rt_mask(rt), rt->rt_flags, 0);
-		if (err) {
-			log(LOG_WARNING, "in_ifadownkill: error %d\n", err);
-		}
-	}
 	return 0;
 }
 
