@@ -200,9 +200,6 @@ The
 .Nm
 utility exits with a value of 1 if an error occurred, 0 otherwise.
 Duplicate objects are not considered errors.
-.Sh SEE ALSO
-.Xr ex 1 ,
-.Xr vi 1
 .Sh COMPATIBILITY
 The
 .Fl t
@@ -210,6 +207,14 @@ option is a no-op for compatibility with previous versions of
 .Nm
 that did not create tags for typedefs, enums, structs and unions
 by default.
+.Sh SEE ALSO
+.Xr ex 1 ,
+.Xr vi 1
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Bx 3.0 .
 .Sh BUGS
 Recognition of functions, subroutines and procedures
 for Fortran and Pascal is done in a very simpleminded way.
@@ -242,8 +247,3 @@ the searching pattern.
 The last line of multiple line
 .Li typedef Ns 's
 will similarly be noted.
-.Sh HISTORY
-The
-.Nm
-utility appeared in
-.Bx 3.0 .
