@@ -105,9 +105,7 @@ __FBSDID("$FreeBSD$");
 #define BIG_NEWFS_CPG    64U
 
 #if defined(__i386__)
-#define	NUMBOOT	2
 #elif defined(__alpha__)
-#define	NUMBOOT	1
 #else
 #error	I do not know about this architecture, and shall probably not be compiled for it.
 #endif
@@ -125,7 +123,6 @@ char	*word(char *);
 int	getasciilabel(FILE *, struct disklabel *);
 int	getasciipartspec(char *, struct disklabel *, int, int);
 int	checklabel(struct disklabel *);
-void	setbootflag(struct disklabel *);
 void	Warning(const char *, ...) __printflike(1, 2);
 void	usage(void);
 struct disklabel *getvirginlabel(void);
@@ -150,12 +147,8 @@ char    part_offset_type[MAX_NUM_PARTS];
 int     part_set[MAX_NUM_PARTS];
 
 int	installboot;	/* non-zero if we should install a boot program */
-char	*bootbuf;	/* pointer to buffer with remainder of boot prog */
-int	bootsize;	/* size of remaining boot program */
 char	*xxboot;	/* primary boot */
-char	*bootxx;	/* secondary boot */
 char	boot0[MAXPATHLEN];
-char	boot1[MAXPATHLEN];
 
 enum	{
 	UNSPEC, EDIT, READ, RESTORE, WRITE, WRITEBOOT
@@ -182,11 +175,6 @@ main(int argc, char *argv[])
 			case 'b':
 				xxboot = optarg;
 				break;
-#if NUMBOOT > 1
-			case 's':
-				bootxx = optarg;
-				break;
-#endif
 			case 'n':
 				disable_write = 1;
 				break;
@@ -221,7 +209,7 @@ main(int argc, char *argv[])
 	} else {
 		if (op == UNSPEC)
 			op = READ;
-		xxboot = bootxx = 0;
+		xxboot = 0;
 	}
 	if (argc < 1)
 		usage();
@@ -354,7 +342,6 @@ writelabel(int f, const char *boot, struct disklabel *lp)
 		return (0);
 	}
 
-	setbootflag(lp);
 	lp->d_magic = DISKMAGIC;
 	lp->d_magic2 = DISKMAGIC;
 	lp->d_checksum = 0;
@@ -393,13 +380,6 @@ writelabel(int f, const char *boot, struct disklabel *lp)
 	if (write(f, boot, lp->d_bbsize) != (int)lp->d_bbsize) {
 		warn("write");
 		return (1);
-	}
-	/*
-	 * Output the remainder of the disklabel
-	 */
-	if (bootbuf && write(f, bootbuf, bootsize) != bootsize) {
-		warn("write");
-		return(1);
 	}
 	return (0);
 }
@@ -483,7 +463,7 @@ makebootarea(char *boot, struct disklabel *dp, int f)
 #endif
 #ifdef __i386__
 	char *tmpbuf;
-	int i, found;
+	int i, found, dps;
 #endif
 
 	/* XXX */
@@ -511,7 +491,7 @@ makebootarea(char *boot, struct disklabel *dp, int f)
 	 * We are installing a boot program.  Determine the name(s) and
 	 * read them into the appropriate places in the boot area.
 	 */
-	if (!xxboot || !bootxx) {
+	if (!xxboot) {
 		dkbasename = np;
 		if ((p = rindex(dkname, '/')) == NULL)
 			p = dkname;
@@ -522,36 +502,22 @@ makebootarea(char *boot, struct disklabel *dp, int f)
 		*np++ = '\0';
 
 		if (!xxboot) {
-			(void)sprintf(boot0, "%s/boot1", _PATH_BOOTDIR);
+			(void)sprintf(boot0, "%s/boot", _PATH_BOOTDIR);
 			xxboot = boot0;
 		}
-#if NUMBOOT > 1
-		if (!bootxx) {
-			(void)sprintf(boot1, "%s/boot2", _PATH_BOOTDIR);
-			bootxx = boot1;
-		}
-#endif
 	}
 
-	/*
-	 * Strange rules:
-	 * 1. One-piece bootstrap (hp300/hp800)
-	 * 1. One-piece bootstrap (alpha)
-	 *	up to d_bbsize bytes of ``xxboot'' go in bootarea, the rest
-	 *	is remembered and written later following the bootarea.
-	 * 2. Two-piece bootstraps (i386)
-	 *	up to d_secsize bytes of ``xxboot'' go in first d_secsize
-	 *	bytes of bootarea, remaining d_bbsize-d_secsize filled
-	 *	from ``bootxx''.
-	 */
 	b = open(xxboot, O_RDONLY);
 	if (b < 0)
 		err(4, "%s", xxboot);
-#if NUMBOOT > 1
+	if (fstat(b, &sb) != 0)
+		err(4, "%s", xxboot);
 #ifdef __i386__
+	if (sb.st_size > BBSIZE)
+		errx(4, "%s too large", xxboot);
 	/*
 	 * XXX Botch alert.
-	 * The i386 has the so-called fdisk table embedded into the
+	 * The i386/PC98 has the so-called fdisk table embedded into the
 	 * primary bootstrap.  We take care to not clobber it, but
 	 * only if it does already contain some data.  (Otherwise,
 	 * the xxboot provides a template.)
@@ -559,75 +525,45 @@ makebootarea(char *boot, struct disklabel *dp, int f)
 	if ((tmpbuf = (char *)malloc((int)dp->d_secsize)) == 0)
 		err(4, "%s", xxboot);
 	memcpy((void *)tmpbuf, (void *)boot, (int)dp->d_secsize);
-#endif /* __i386__ */
-	if (read(b, boot, (int)dp->d_secsize) < 0)
+
+	if (read(b, boot, BBSIZE) < 0)
 		err(4, "%s", xxboot);
-	(void)close(b);
+
+	/* XXX: rely on some very precise overlaps in definitions */
 #ifdef PC98
+	dps = sizeof(struct pc98_partition);
+#else
+	dps = sizeof(struct dos_partition);
+#endif
 	for (i = DOSPARTOFF, found = 0;
-	     !found && i < (int)(DOSPARTOFF + NDOSPART * sizeof(struct pc98_partition));
+	     !found && i < (int)(DOSPARTOFF + NDOSPART * dps);
 	     i++)
 		found = tmpbuf[i] != 0;
 	if (found)
 		memcpy((void *)&boot[DOSPARTOFF],
 		       (void *)&tmpbuf[DOSPARTOFF],
-		       NDOSPART * sizeof(struct pc98_partition));
-	free(tmpbuf);
-#elif defined(__i386__)
-	for (i = DOSPARTOFF, found = 0;
-	     !found && i < (int)(DOSPARTOFF + NDOSPART*sizeof(struct dos_partition));
-	     i++)
-		found = tmpbuf[i] != 0;
-	if (found)
-		memcpy((void *)&boot[DOSPARTOFF],
-		       (void *)&tmpbuf[DOSPARTOFF],
-		       NDOSPART * sizeof(struct dos_partition));
+		       NDOSPART * dps);
 	free(tmpbuf);
 #endif /* __i386__ */
-	b = open(bootxx, O_RDONLY);
-	if (b < 0)
-		err(4, "%s", bootxx);
-	if (fstat(b, &sb) != 0)
-		err(4, "%s", bootxx);
-	if (dp->d_secsize + sb.st_size > dp->d_bbsize)
-		errx(4, "%s too large", bootxx);
-	if (read(b, &boot[dp->d_secsize],
-		 (int)(dp->d_bbsize-dp->d_secsize)) < 0)
-		err(4, "%s", bootxx);
-#else /* !(NUMBOOT > 1) */
+
 #ifdef __alpha__
+	if (sb.st_size > BBSIZE - dp->d_secsize)
+		errx(4, "%s too large", xxboot);
 	/*
 	 * On the alpha, the primary bootstrap starts at the
 	 * second sector of the boot area.  The first sector
 	 * contains the label and must be edited to contain the
 	 * size and location of the primary bootstrap.
 	 */
-	n = read(b, boot + dp->d_secsize, (int)dp->d_bbsize);
+	n = read(b, boot + dp->d_secsize, BBSIZE - dp->d_secsize);
 	if (n < 0)
 		err(4, "%s", xxboot);
 	bootinfo = (u_long *)(boot + 480);
 	bootinfo[0] = (n + dp->d_secsize - 1) / dp->d_secsize;
 	bootinfo[1] = 1;	/* start at sector 1 */
 	bootinfo[2] = 0;	/* flags (must be zero) */
-#else /* !__alpha__ */
-	if (read(b, boot, (int)dp->d_bbsize) < 0)
-		err(4, "%s", xxboot);
 #endif /* __alpha__ */
-	if (fstat(b, &sb) != 0)
-		err(4, "%s", xxboot);
-	bootsize = (int)sb.st_size - dp->d_bbsize;
-	if (bootsize > 0) {
-		/* XXX assume d_secsize is a power of two */
-		bootsize = (bootsize + dp->d_secsize-1) & ~(dp->d_secsize-1);
-		bootbuf = (char *)malloc((size_t)bootsize);
-		if (bootbuf == 0)
-			err(4, "%s", xxboot);
-		if (read(b, bootbuf, bootsize) < 0) {
-			free(bootbuf);
-			err(4, "%s", xxboot);
-		}
-	}
-#endif /* NUMBOOT > 1 */
+
 	(void)close(b);
 	/*
 	 * Make sure no part of the bootstrap is written in the area
@@ -1549,47 +1485,6 @@ getvirginlabel(void)
 	return (&loclab);
 }
 
-/*
- * If we are installing a boot program that doesn't fit in d_bbsize
- * we need to mark those partitions that the boot overflows into.
- * This allows newfs to prevent creation of a file system where it might
- * clobber bootstrap code.
- */
-void
-setbootflag(struct disklabel *lp)
-{
-	struct partition *pp;
-	int i, errors = 0;
-	char part;
-	u_long boffset;
-
-	if (bootbuf == 0)
-		return;
-	boffset = bootsize / lp->d_secsize;
-	for (i = 0; i < lp->d_npartitions; i++) {
-		part = 'a' + i;
-		pp = &lp->d_partitions[i];
-		if (pp->p_size == 0)
-			continue;
-		if (boffset <= pp->p_offset) {
-			if (pp->p_fstype == FS_BOOT)
-				pp->p_fstype = FS_UNUSED;
-		} else if (pp->p_fstype != FS_BOOT) {
-			if (pp->p_fstype != FS_UNUSED) {
-				fprintf(stderr,
-					"boot overlaps used partition %c\n",
-					part);
-				errors++;
-			} else {
-				pp->p_fstype = FS_BOOT;
-				Warning("boot overlaps partition %c, %s",
-					part, "marked as FS_BOOT");
-			}
-		}
-	}
-	if (errors)
-		errx(4, "cannot install boot program");
-}
 
 /*VARARGS1*/
 void
@@ -1616,21 +1511,12 @@ usage(void)
 		"\t\t(to edit label)",
 		"       disklabel -R [-r] [-n] disk protofile",
 		"\t\t(to restore label with existing boot program)",
-#if NUMBOOT > 1
-		"       disklabel -B [-n] [ -b boot1 [ -s boot2 ] ] disk [ type ]",
-		"\t\t(to install boot program with existing label)",
-		"       disklabel -w -B [-n] [ -b boot1 [ -s boot2 ] ] disk type [ packid ]",
-		"\t\t(to write label and boot program)",
-		"       disklabel -R -B [-n] [ -b boot1 [ -s boot2 ] ] disk protofile [ type ]",
-		"\t\t(to restore label and boot program)"
-#else
 		"       disklabel -B [-n] [ -b bootprog ] disk [ type ]",
 		"\t\t(to install boot program with existing on-disk label)",
 		"       disklabel -w -B [-n] [ -b bootprog ] disk type [ packid ]",
 		"\t\t(to write label and install boot program)",
 		"       disklabel -R -B [-n] [ -b bootprog ] disk protofile [ type ]",
 		"\t\t(to restore label and install boot program)"
-#endif
 	);
 	exit(1);
 }
