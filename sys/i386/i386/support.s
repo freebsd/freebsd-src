@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.16 1994/09/04 10:24:22 davidg Exp $
+ *	$Id: support.s,v 1.17 1994/09/12 11:38:09 davidg Exp $
  */
 
 #include "assym.s"				/* system definitions */
@@ -59,19 +59,6 @@ ENTRY(__divsi3)
 	/*
 	 * I/O bus instructions via C
 	 */
-ENTRY(inb)					/* val = inb(port) */
-	movl	4(%esp),%edx
-	subl	%eax,%eax
-	inb	%dx,%al
-	NOP
-	ret
-
-ENTRY(inw)					/* val = inw(port) */
-	movl	4(%esp),%edx
-	subl	%eax,%eax
-	inw	%dx,%ax
-	NOP
-	ret
 
 ENTRY(insb)					/* insb(port, addr, cnt) */
 	pushl	%edi
@@ -118,20 +105,6 @@ ENTRY(rtcin)					/* rtcin(val) */
 	NOP
 	xorl	%eax,%eax
 	inb	$0x71,%al
-	NOP
-	ret
-
-ENTRY(outb)					/* outb(port, val) */
-	movl	4(%esp),%edx
-	movl	8(%esp),%eax
-	outb	%al,%dx
-	NOP
-	ret
-
-ENTRY(outw)					/* outw(port, val) */
-	movl	4(%esp),%edx
-	movl	8(%esp),%eax
-	outw	%ax,%dx
 	NOP
 	ret
 

@@ -77,8 +77,6 @@
 #include "i386/isa/icu.h"
 #include "i386/isa/if_zereg.h"
 
-#include "i386/include/pio.h"
-
  
 
 /*****************************************************************************

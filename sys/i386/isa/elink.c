@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: elink.c,v 1.1 1994/05/25 20:06:40 ats Exp $
+ *	$Id: elink.c,v 1.1 1994/08/24 22:32:41 ats Exp $
  */
 
 /*
@@ -35,7 +35,6 @@
 
 #include <sys/types.h>
 #include <sys/cdefs.h>
-#include <machine/pio.h>
 #include <i386/isa/elink.h>
 
 /*

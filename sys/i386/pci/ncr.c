@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 2.0.0.23 94/09/15 21:35:44 wolf Exp $
+**  $Id: ncr.c,v 1.3 1994/09/16 00:22:29 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -1247,33 +1247,6 @@ static  int	ncr_intr        (int dev);
 #else /* !__NetBSD__ */
 
 #include <i386/isa/isa.h>
-#ifdef ANCIENT
-/*
-**	Doch das ist alles nur geklaut ..
-**	aus:  386bsd:/sys/i386/include/pio.h
-**
-** Mach Operating System
-** Copyright (c) 1990 Carnegie-Mellon University
-** All rights reserved.  The CMU software License Agreement specifies
-** the terms and conditions for use and redistribution.
-*/
-
-#undef inb
-#define inb(port) \
-({ unsigned char data; \
-	__asm __volatile("inb %1, %0": "=a" (data): "d" ((u_short)(port))); \
-	data; })
-
-#undef outb
-#define outb(port, data) \
-{__asm __volatile("outb %0, %1"::"a" ((u_char)(data)), "d" ((u_short)(port)));}
-
-#define disable_intr() \
-{__asm __volatile("cli");}
-
-#define enable_intr() \
-{__asm __volatile("sti");}
-#endif /* ANCIENT */
 
 /*------------------------------------------------------------------
 **
@@ -1323,7 +1296,7 @@ static	u_long	getirr (void)
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 2.0.0.23 94/09/15 21:35:44 wolf Exp $\n";
+	"\n$Id: ncr.c,v 1.3 1994/09/16 00:22:29 se Exp $\n";
 
 u_long	ncr_version = NCR_VERSION
 	+ (u_long) sizeof (struct ncb)
@@ -3379,7 +3352,7 @@ static	int ncr_attach (pcici_t config_id)
 		ncr_name (np));
 	DELAY (1000000);
 #endif
-	printf ("%s scanning for targets 0..%d ($Revision: 2.0.0.23 $)\n",
+	printf ("%s scanning for targets 0..%d ($Revision: 1.3 $)\n",
 		ncr_name (np), MAX_TARGET-1);
 
 	/*

@@ -61,7 +61,6 @@
 #include <vnode.h>
 
 #include <i386/include/mouse.h>
-#include <i386/include/pio.h>		/* Julian's fast IO macros */
 #include <i386/isa/isa_device.h>
 
 #ifdef 0
