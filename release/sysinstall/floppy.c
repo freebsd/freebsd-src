@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: floppy.c,v 1.16.2.4 1997/01/24 21:05:52 jkh Exp $
+ * $Id: floppy.c,v 1.16.2.5 1997/03/21 04:49:52 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -66,50 +66,6 @@ floppyChoiceHook(dialogMenuItem *self)
     if (devs)
 	floppyDev = devs[0];
     return devs ? DITEM_LEAVE_MENU : DITEM_FAILURE;
-}
-
-/* Our last-ditch routine for getting ROOT from a floppy */
-int
-getRootFloppy(void)
-{
-    int fd = -1;
-
-    if (mediaDevice->type == DEVICE_TYPE_FLOPPY)
-	floppyDev = mediaDevice;
-    else {
-	Device **devs;
-	int cnt;
-
-	devs = deviceFind(NULL, DEVICE_TYPE_FLOPPY);
-	cnt = deviceCount(devs);
-	if (!cnt) {
-	    msgConfirm("No floppy devices found!  Something is seriously wrong!");
-	    return -1;
-	}
-	else if (cnt == 1)
-	    floppyDev = devs[0];
-	else {
-	    DMenu *menu;
-	    int ret;
-	    WINDOW *save = savescr();
-
-	    menu = deviceCreateMenu(&MenuMediaFloppy, DEVICE_TYPE_FLOPPY, floppyChoiceHook, NULL);
-	    menu->title = "Please insert the ROOT floppy";
-	    ret = dmenuOpenSimple(menu, FALSE);
-	    restorescr(save);
-	    if (!ret)
-		return -1;
-	}
-    }
-    while (fd == -1) {
-	msgConfirm("Please insert the ROOT floppy in %s and press [ENTER]", floppyDev->description);
-	fd = open(floppyDev->devname, O_RDONLY);
-	if (isDebug())
-	    msgDebug("getRootFloppy on %s yields fd of %d\n", floppyDev->devname, fd);
-	if (fd == -1 && msgYesNo("Couldn't open the floppy - do you want to try again?") != 0)
-	    break;
-    }
-    return fd;
 }
 
 Boolean
