@@ -1377,6 +1377,10 @@ getvirginlabel(void)
 	strncpy(loclab.d_typename, "amnesiac",
 	    sizeof(loclab.d_typename));
 
+	dp = &loclab.d_partitions[0];
+	dp->p_offset = BBSIZE / secsize;
+	dp->p_size = loclab.d_secperunit - dp->p_offset;
+
 	dp = &loclab.d_partitions[RAW_PART];
 	dp->p_size = loclab.d_secperunit;
 	loclab.d_checksum = dkcksum(&loclab);
