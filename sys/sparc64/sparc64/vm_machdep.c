@@ -61,6 +61,8 @@
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
 #include <vm/vm_param.h>
+#include <vm/uma.h>
+#include <vm/uma_int.h>
 
 #include <machine/cache.h>
 #include <machine/cpu.h>
@@ -68,6 +70,7 @@
 #include <machine/frame.h>
 #include <machine/md_var.h>
 #include <machine/ofw_machdep.h>
+#include <machine/tlb.h>
 #include <machine/tstate.h>
 
 void
@@ -296,6 +299,55 @@ swi_vm(void *v)
 	 * Nothing to do here yet - busdma bounce buffers are not yet
 	 * implemented.
 	 */
+}
+
+void *
+uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
+{
+	static vm_pindex_t color;
+	vm_offset_t pa;
+	vm_page_t m;
+	int pflags;
+	void *va;
+
+	*flags = UMA_SLAB_PRIV;
+
+	if ((wait & (M_NOWAIT|M_USE_RESERVE)) == M_NOWAIT)
+		pflags = VM_ALLOC_INTERRUPT;
+	else
+		pflags = VM_ALLOC_SYSTEM;
+
+	if (wait & M_ZERO)
+		pflags |= VM_ALLOC_ZERO;
+
+	m = vm_page_alloc(NULL, color++, pflags | VM_ALLOC_NOOBJ);
+
+	if (m) {
+		pa = VM_PAGE_TO_PHYS(m);
+		if (m->md.color != DCACHE_COLOR(pa)) {
+			KASSERT(m->md.colors[0] == 0 && m->md.colors[1] == 0,
+			    ("uma_small_alloc: free page still has mappings!"));
+			m->md.color = DCACHE_COLOR(pa);
+			dcache_page_inval(pa);
+		}
+		va = (void *)TLB_PHYS_TO_DIRECT(pa);
+		if ((m->flags & PG_ZERO) == 0)
+			bzero(va, PAGE_SIZE);
+		return (va);
+	}
+
+	return (NULL);	
+}
+
+void
+uma_small_free(void *mem, int size, u_int8_t flags)
+{
+	vm_page_t m;
+
+	m = PHYS_TO_VM_PAGE(TLB_DIRECT_TO_PHYS((vm_offset_t)mem));
+	vm_page_lock_queues();
+	vm_page_free(m);
+	vm_page_unlock_queues();
 }
 
 /*
