@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id$
+ *	$Id: db_trap.c,v 1.11 1997/02/22 09:28:31 peter Exp $
  */
 
 /*
@@ -43,6 +43,10 @@
 #include <ddb/db_command.h>
 #include <ddb/db_break.h>
 
+#include <setjmp.h>
+
+extern jmp_buf	db_jmpbuf;
+
 void
 db_trap(type, code)
 	int	type, code;
@@ -58,17 +62,15 @@ db_trap(type, code)
 		db_printf("After %d instructions (%d loads, %d stores),\n",
 			  db_inst_count, db_load_count, db_store_count);
 	    }
+	    if (bkpt)
+		db_printf("Breakpoint at\t");
+	    else if (watchpt)
+		db_printf("Watchpoint at\t");
+	    else
+		db_printf("Stopped at\t");
 	    db_dot = PC_REGS(DDB_REGS);
-	    if(db_dot) {
-		if (bkpt)
-		    db_printf("Breakpoint at\t");
-		else if (watchpt)
-		    db_printf("Watchpoint at\t");
-		else
-		    db_printf("Stopped at\t");
-
+	    if (setjmp(db_jmpbuf) == 0)
 		db_print_loc_and_inst(db_dot);
-		}
 
 	    db_command_loop();
 	}
