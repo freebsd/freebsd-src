@@ -1,0 +1,123 @@
+.\" Copyright (c) 1985, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)lgamma.3	8.2 (Berkeley) 12/11/93
+.\"
+.Dd December 11, 1993
+.Dt LGAMMA 3
+.Os BSD 4.3
+.Sh NAME
+.Nm lgamma
+.Nm gamma
+.Nd log gamma function, gamma function
+.Sh SYNOPSIS
+.Fd #include <math.h>
+.Ft extern int
+.Fa signgam ;
+.sp
+.Ft double
+.Fn lgamma "double x"
+.Ft double
+.Fn gamma "double x"
+.Sh DESCRIPTION
+.Fn Lgamma x
+.if t \{\
+returns ln\||\(*G(x)| where
+.Bd -unfilled -offset indent
+\(*G(x) = \(is\d\s8\z0\s10\u\u\s8\(if\s10\d t\u\s8x\-1\s10\d e\u\s8\-t\s10\d dt	for x > 0 and
+.br
+\(*G(x) = \(*p/(\(*G(1\-x)\|sin(\(*px))	for x < 1.
+.Ed
+.\}
+.if n \
+returns ln\||\(*G(x)|.
+.Pp
+The external integer
+.Fa signgam
+returns the sign of \(*G(x).
+.Pp
+.Fn Gamma x
+returns \(*G(x), with no effect on
+.Fa signgam .
+.Sh IDIOSYNCRASIES
+Do not use the expression
+.Dq Li signgam\(**exp(lgamma(x))
+to compute g := \(*G(x).
+Instead use a program like this (in C):
+.Bd -literal -offset indent
+lg = lgamma(x); g = signgam\(**exp(lg);
+.Ed
+.Pp
+Only after
+.Fn lgamma
+has returned can signgam be correct.
+.Pp
+For arguments in its range,
+.Fn gamma
+is preferred, as for positive arguments
+it is accurate to within one unit in the last place.
+Exponentiation of
+.Fn lgamma
+will lose up to 10 significant bits.
+.Sh RETURN VALUES
+.Fn Gamma
+and
+.Fn lgamma
+return appropriate values unless an argument is out of range.
+Overflow will occur for sufficiently large positive values, and
+non-positive integers.
+On the
+.Tn VAX,
+the reserved operator is returned,
+and
+.Va errno
+is set to
+.Er ERANGE
+For large non-integer negative values,
+.Fn gamma
+will underflow.
+.Sh SEE ALSO
+.Xr math 3 ,
+.Xr infnan 3
+.Sh HISTORY
+The
+.Nm lgamma
+function appeared in 
+.Bx 4.3 .
+The
+.Nm gamma
+function appeared in
+.Bx 4.4 .
+The name
+.Fn gamma
+was originally dedicated to the
+.Fn lgamma
+function, so some old code may no longer be compatible.
