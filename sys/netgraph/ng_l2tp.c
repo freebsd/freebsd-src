@@ -55,6 +55,7 @@
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
 #include <sys/errno.h>
+#include <sys/libkern.h>
 
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
@@ -295,9 +296,8 @@ NETGRAPH_INIT(l2tp, &ng_l2tp_typestruct);
 #define L2TP_SEQ_CHECK(x)	do { } while (0)
 #endif
 
-/* mem*() macros */
+/* memmove macro */
 #define memmove(d, s, l)	ovbcopy(s, d, l)
-#define memset(d, z, l)		bzero(d, l)		/* XXX */
 
 /* Whether to use m_copypacket() or m_dup() */
 #define L2TP_COPY_MBUF		m_copypacket
@@ -955,7 +955,7 @@ ng_l2tp_recv_ctrl(node_p node, item_p item)
 	}
 
 	/* Copy packet */
-	if ((m = L2TP_COPY_MBUF(seq->xwin[i], M_NOWAIT)) == NULL) {
+	if ((m = L2TP_COPY_MBUF(seq->xwin[i], M_DONTWAIT)) == NULL) {
 		priv->stats.memoryFailures++;
 		return (ENOBUFS);
 	}
@@ -1219,7 +1219,7 @@ ng_l2tp_seq_recv_nr(priv_p priv, u_int16_t nr)
 	 */
 	while ((i = L2TP_SEQ_DIFF(seq->ns, seq->rack)) < seq->cwnd
 	    && seq->xwin[i] != NULL) {
-		if ((m = L2TP_COPY_MBUF(seq->xwin[i], M_NOWAIT)) == NULL)
+		if ((m = L2TP_COPY_MBUF(seq->xwin[i], M_DONTWAIT)) == NULL)
 			priv->stats.memoryFailures++;
 		else
 			ng_l2tp_xmit_ctrl(priv, m, seq->ns);
@@ -1361,7 +1361,7 @@ ng_l2tp_seq_rack_timeout(void *arg)
 	seq->acks = 0;
 
 	/* Retransmit oldest unack'd packet */
-	if ((m = L2TP_COPY_MBUF(seq->xwin[0], M_NOWAIT)) == NULL)
+	if ((m = L2TP_COPY_MBUF(seq->xwin[0], M_DONTWAIT)) == NULL)
 		priv->stats.memoryFailures++;
 	else
 		ng_l2tp_xmit_ctrl(priv, m, seq->rack);

@@ -882,7 +882,7 @@ add_dyn_rule(struct ipfw_flow_id *id, u_int8_t dyn_type, struct ip_fw *rule)
     }
     i = hash_packet(id);
 
-    r = malloc(sizeof *r, M_IPFW, M_DONTWAIT | M_ZERO);
+    r = malloc(sizeof *r, M_IPFW, M_NOWAIT | M_ZERO);
     if (r == NULL) {
 	printf ("sorry cannot allocate state\n");
 	return NULL ;
@@ -1695,7 +1695,7 @@ add_entry(struct ip_fw_head *head, struct ip_fw *rule)
 	u_short nbr = 0;
 	int s;
 
-	ftmp = malloc(sizeof *ftmp, M_IPFW, M_DONTWAIT | M_ZERO);
+	ftmp = malloc(sizeof *ftmp, M_IPFW, M_NOWAIT | M_ZERO);
 	if (!ftmp)
 		return (ENOSPC);
 	bcopy(rule, ftmp, sizeof(*ftmp));
