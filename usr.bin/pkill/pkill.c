@@ -72,8 +72,9 @@ __FBSDID("$FreeBSD$");
 #define	MIN_PID	5
 #define	MAX_PID	99999
 
-/* Check for system-processes which should always be ignored. */
-#define	IS_KERNPROC(kp)	((kp)->ki_flag & P_KTHREAD)
+/* Ignore system-processes (if '-S' flag is not specified) and myself. */
+#define	PSKIP(kp)	((kp)->ki_pid == mypid ||			\
+			 (!kthreads && ((kp)->ki_flag & P_KTHREAD) != 0))
 
 enum listtype {
 	LT_GENERIC,
@@ -102,6 +103,7 @@ int	inverse;
 int	longfmt;
 int	matchargs;
 int	fullmatch;
+int	kthreads;
 int	cflags = REG_EXTENDED;
 kvm_t	*kd;
 pid_t	mypid;
@@ -175,7 +177,7 @@ main(int argc, char **argv)
 	pidfromfile = -1;
 	execf = coref = _PATH_DEVNULL;
 
-	while ((ch = getopt(argc, argv, "DF:G:M:N:P:U:d:fg:ij:lns:t:u:vx")) != -1)
+	while ((ch = getopt(argc, argv, "DF:G:M:N:P:SU:d:fg:ij:lns:t:u:vx")) != -1)
 		switch (ch) {
 		case 'D':
 			debug_opt++;
@@ -197,6 +199,11 @@ main(int argc, char **argv)
 		case 'P':
 			makelist(&ppidlist, LT_GENERIC, optarg);
 			criteria = 1;
+			break;
+		case 'S':
+			if (!pgrep)
+				usage();
+			kthreads = 1;
 			break;
 		case 'U':
 			makelist(&ruidlist, LT_USER, optarg);
@@ -295,17 +302,15 @@ main(int argc, char **argv)
 		}
 
 		for (i = 0, kp = plist; i < nproc; i++, kp++) {
-			if (IS_KERNPROC(kp) != 0) {
+			if (PSKIP(kp)) {
 				if (debug_opt > 0)
 				    fprintf(stderr, "* Skipped %5d %3d %s\n",
 					kp->ki_pid, kp->ki_uid, kp->ki_comm);
 				continue;
 			}
 
-			if (matchargs) {
-				if ((pargv = kvm_getargv(kd, kp, 0)) == NULL)
-					continue;
-
+			if (matchargs &&
+			    (pargv = kvm_getargv(kd, kp, 0)) != NULL) {
 				jsz = 0;
 				while (jsz < sizeof(buf) && *pargv != NULL) {
 					jsz += snprintf(buf + jsz,
@@ -314,7 +319,6 @@ main(int argc, char **argv)
 					    pargv[0]);
 					pargv++;
 				}
-
 				mstr = buf;
 			} else
 				mstr = kp->ki_comm;
@@ -345,7 +349,7 @@ main(int argc, char **argv)
 	}
 
 	for (i = 0, kp = plist; i < nproc; i++, kp++) {
-		if (IS_KERNPROC(kp) != 0)
+		if (PSKIP(kp))
 			continue;
 
 		if (pidfromfile >= 0 && kp->ki_pid != pidfromfile) {
@@ -457,17 +461,13 @@ main(int argc, char **argv)
 	 * Take the appropriate action for each matched process, if any.
 	 */
 	for (i = 0, rv = 0, kp = plist; i < nproc; i++, kp++) {
-		if (kp->ki_pid == mypid)
+		if (PSKIP(kp))
 			continue;
 		if (selected[i]) {
 			if (inverse)
 				continue;
 		} else if (!inverse)
 			continue;
-
-		if (IS_KERNPROC(kp) != 0)
-			continue;
-
 		rv = 1;
 		(*action)(kp);
 	}
@@ -481,7 +481,7 @@ usage(void)
 	const char *ustr;
 
 	if (pgrep)
-		ustr = "[-filnvx] [-d delim]";
+		ustr = "[-Sfilnvx] [-d delim]";
 	else
 		ustr = "[-signal] [-finvx]";
 
@@ -507,10 +507,8 @@ grepact(struct kinfo_proc *kp)
 {
 	char **argv;
 
-	if (longfmt && matchargs) {
-		if ((argv = kvm_getargv(kd, kp, 0)) == NULL)
-			return;
-
+	if (longfmt && matchargs &&
+	    (argv = kvm_getargv(kd, kp, 0)) != NULL) {
 		printf("%d ", (int)kp->ki_pid);
 		for (; *argv != NULL; argv++) {
 			printf("%s", *argv);
