@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.62 1997/09/05 09:09:55 peter Exp $
+#	$Id: bsd.lib.mk,v 1.63 1997/09/05 11:45:12 peter Exp $
 #
 
 .if exists(${.CURDIR}/../Makefile.inc)
@@ -33,7 +33,9 @@ CFLAGS+= ${DEBUG_FLAGS}
 STRIP?=	-s
 .endif
 
+.if ${BINFORMAT} != aout || make(checkdpadd)
 .include <bsd.libnames.mk>
+.endif
 
 .MAIN: all
 
@@ -194,10 +196,10 @@ llib-l${LIB}.ln: ${SRCS}
 
 .if !target(clean)
 clean:	_SUBDIR
-	rm -f a.out Errs errs mklog ${CLEANFILES} ${OBJS}
-	rm -f lib${LIB}.a llib-l${LIB}.ln
-	rm -f ${POBJS} profiled/*.o lib${LIB}_p.a
-	rm -f ${SOBJS} shared/*.o
+	rm -f a.out ${OBJS} ${CLEANFILES}
+	rm -f lib${LIB}.a # llib-l${LIB}.ln
+	rm -f ${POBJS} lib${LIB}_p.a
+	rm -f ${SOBJS}
 	rm -f lib${LIB}.so.*.* lib${LIB}_pic.a
 .if defined(CLEANDIRS) && !empty(CLEANDIRS)
 	rm -rf ${CLEANDIRS}
@@ -218,7 +220,7 @@ _EXTRADEPEND::
 	    `${LDDESTDIRENV} ${CC} -shared -Wl,-f ${LDDESTDIR} ${LDADD}` \
 	    >> ${DEPENDFILE}
 .else
-.if defined(DPADD) && ${DPADD} != ""
+.if defined(DPADD) && !empty(DPADD)
 	echo lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}: \
 	    ${DPADD} >> ${DEPENDFILE}
 .endif
