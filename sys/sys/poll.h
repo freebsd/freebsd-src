@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: poll.h,v 1.1 1997/09/14 02:20:56 peter Exp $
  */
 
 #ifndef _SYS_POLL_H_
@@ -69,6 +69,12 @@ struct pollfd {
 #define	POLLERR		0x0008		/* some poll error occurred */
 #define	POLLHUP		0x0010		/* file descriptor was "hung up" */
 #define	POLLNVAL	0x0020		/* requested events "invalid" */
+
+/*
+ * Request that poll wait forever.
+ * XXX this is in stropts.h in SYSV, and not #included by poll.h
+ */
+#define INFTIM (-1)
 
 /* XXX: logically, this should be in <poll.h>, but SVR4 at least has it here */
 #ifndef KERNEL
