@@ -1441,6 +1441,7 @@ netinet6/ah_core.c	optional ipsec
 netinet6/ah_input.c	optional ipsec
 netinet6/ah_output.c	optional ipsec
 netinet6/dest6.c	optional inet6
+netinet6/esp_aesctr.c	optional ipsec ipsec_esp
 netinet6/esp_core.c	optional ipsec ipsec_esp
 netinet6/esp_input.c	optional ipsec ipsec_esp
 netinet6/esp_output.c	optional ipsec ipsec_esp

@@ -184,6 +184,7 @@ cast128-cbc	{ PREPROC; yylval.num = SADB_X_EALG_CAST128CBC; return(ALG_ENC); }
 des-deriv	{ PREPROC; yylval.num = SADB_EALG_DESCBC; return(ALG_ENC_DESDERIV); }
 des-32iv	{ PREPROC; yylval.num = SADB_EALG_DESCBC; return(ALG_ENC_DES32IV); }
 rijndael-cbc	{ PREPROC; yylval.num = SADB_X_EALG_RIJNDAELCBC; return(ALG_ENC); }
+aes-ctr		{ PREPROC; yylval.num = SADB_X_EALG_AESCTR; return(ALG_ENC); }
 
 	/* compression algorithms */
 {hyphen}C	{ PREPROC; return(F_COMP); }

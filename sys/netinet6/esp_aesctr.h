@@ -1,8 +1,7 @@
-/*	$FreeBSD$	*/
-/*	$KAME: esp_rijndael.h,v 1.1 2000/09/20 18:15:22 itojun Exp $	*/
+/*	$KAME: esp_aesctr.h,v 1.2 2003/07/20 00:29:38 itojun Exp $	*/
 
 /*
- * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
+ * Copyright (C) 1995, 1996, 1997, 1998 and 2003 WIDE Project.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,12 +27,16 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-size_t esp_rijndael_schedlen __P((const struct esp_algorithm *));
-int esp_rijndael_schedule __P((const struct esp_algorithm *,
+extern int esp_aesctr_mature __P((struct secasvar *));
+extern size_t esp_aesctr_schedlen __P((const struct esp_algorithm *));
+extern int esp_aesctr_schedule __P((const struct esp_algorithm *,
 	struct secasvar *));
-int esp_rijndael_blockdecrypt __P((const struct esp_algorithm *,
-	struct secasvar *, u_int8_t *, u_int8_t *));
-int esp_rijndael_blockencrypt __P((const struct esp_algorithm *,
-	struct secasvar *, u_int8_t *, u_int8_t *));
+extern int esp_aesctr_decrypt __P((struct mbuf *, size_t,
+	struct secasvar *, const struct esp_algorithm *, int));
+extern int esp_aesctr_encrypt __P((struct mbuf *, size_t, size_t,
+	struct secasvar *, const struct esp_algorithm *, int));
+
