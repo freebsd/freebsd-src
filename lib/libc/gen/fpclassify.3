@@ -31,7 +31,7 @@
 .Nm fpclassify , isfinite , isinf , isnan , isnormal
 .Nd "classify a floating-point number"
 .Sh LIBRARY
-.Lb libc
+.Lb libm
 .Sh SYNOPSIS
 .In math.h
 .Ft int
@@ -125,6 +125,3 @@ functions, which accepted
 .Vt double
 arguments; these have been superseded by the macros
 described above.
-.Sh BUGS
-By default, the DEC Alpha architecture does not support IEEE rounding.
-See the compiler documentation for additional details.
