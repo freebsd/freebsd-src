@@ -71,10 +71,11 @@
 #define	ST_FIX_ALIGNMENT		6
 #define	ST_INTEGER_OVERFLOW		7
 #define	ST_SYSCALL			9
+#define	ST_FP_RESTORE			10
 
 #define	UTH_NOCHANGE			(-1)
 
-#if 0
+#ifndef __ASM__
 
 typedef	int utrap_entry_t;
 typedef void *utrap_handler_t;
