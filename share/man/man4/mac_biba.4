@@ -36,8 +36,18 @@
 .Nm mac_biba
 .Nd Biba data integrity policy
 .Sh SYNOPSIS
+To compile Biba into your kernel, place the following lines in your kernel
+configuration file:
 .Cd "options MAC"
-.Li "kldload mac_biba"
+.Cd "options MAC_BIBA"
+.Pp
+Alternately, to load the Biba module at boot time, place the following line
+in your kernel configuration file:
+.Cd "options MAC"
+.Pp
+and in
+.Xr loader.conf 5 :
+.Cd mac_biba_load= Ns \&"YES"
 .Sh DESCRIPTION
 The
 .Nm
@@ -165,7 +175,11 @@ Multi-Level Security (MLS) protects the confentiality, rather than the
 integrity, of subjects and objects.
 .Sh SEE ALSO
 .Xr LOMAC 4 ,
+.Xr mac_bsdextended 4 ,
 .Xr mac_mls 4 ,
+.Xr mac_none 4 ,
+.Xr mac_seeotheruids 4 ,
+.Xr mac_test 4 ,
 .Xr mac 9
 .Sh HISTORY
 The
