@@ -14,7 +14,7 @@
  * Turned inside out. Now returns xfers as new file ids, not as a special
  * `state' of FTP_t
  *
- * $Id: ftpio.c,v 1.10 1996/08/21 01:12:10 jkh Exp $
+ * $Id: ftpio.c,v 1.11 1996/08/21 01:23:33 jkh Exp $
  *
  */
 
@@ -467,7 +467,7 @@ get_a_line(FTP_t ftp)
 		continue;
 	    buf[i] = '\0';
 	    if (ftp->is_verbose == TRUE)
-		printf("%s\n",buf+4);
+		fprintf(stderr, "%s\n",buf+4);
 	    return buf;
 	}
 	i++;
