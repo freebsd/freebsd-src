@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: zs_tlsb.c,v 1.10 1999/05/08 21:58:54 dfr Exp $
+ *	$Id: zs_tlsb.c,v 1.11 1999/05/09 13:00:30 phk Exp $
  */
 /*
  * This driver is a hopeless hack to get the SimOS console working.  A real
@@ -91,7 +91,7 @@ static void	zs_cnpollc __P((dev_t, int));
 
 struct consdev zs_cons = {
 	NULL, NULL, zs_cngetc, NULL, zs_cnputc,
-	NULL, makedev(CDEV_MAJOR, 0), CN_NORMAL,
+	NULL, 0, CN_NORMAL,
 };
 
 static caddr_t zs_console_addr;
@@ -213,6 +213,7 @@ zs_cnattach(vm_offset_t base, vm_offset_t offset)
     zs_console_addr = (caddr_t) ALPHA_PHYS_TO_K0SEG(base + offset);
     zs_console = 1;
 
+    zs_cons.cn_dev = makedev(CDEV_MAJOR, 0);
     cn_tab = &zs_cons;
     return 0;
 }

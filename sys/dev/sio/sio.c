@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sio.c,v 1.239 1999/05/09 16:56:38 peter Exp $
+ *	$Id: sio.c,v 1.240 1999/05/09 20:35:02 peter Exp $
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
  *	from: i386/isa sio.c,v 1.234
  */
@@ -2862,7 +2862,7 @@ siocnprobe(cp)
 
 struct consdev siocons = {
 	NULL, NULL, siocngetc, siocncheckc, siocnputc,
-	NULL, makedev(CDEV_MAJOR, 0), CN_NORMAL,
+	NULL, 0, CN_NORMAL,
 };
 
 extern struct consdev *cn_tab;
@@ -2901,6 +2901,7 @@ siocnattach(port, speed)
 	siocnopen(&sp, siocniobase, comdefaultrate);
 	splx(s);
 
+	siocons.cn_dev = makedev(CDEV_MAJOR, 0);
 	cn_tab = &siocons;
 	return 0;
 }
