@@ -79,7 +79,10 @@ The device has stopped responding to the network, or there is a problem with
 the network connection (cable).
 .It "fxp%d: Ethernet address ff:ff:ff:ff:ff:ff"
 In some Alpha's (AXPpci and Multia) you must tell the driver to use (slower)
-I/O rather than memory to access the card. Add ``fxp_iomap=1'' to
+I/O rather than memory to access the card.
+Add
+.Dq Li fxp_iomap=1
+to
 .Pa /boot/loader.rc .
 .El
 .Sh SEE ALSO
