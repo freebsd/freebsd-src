@@ -83,7 +83,9 @@
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
 
+#include <machine/clock.h>
 #include <machine/frame.h>
+#include <machine/intr_machdep.h>
 #include <machine/pcb.h>
 #include <machine/pv.h>
 #include <machine/trap.h>
@@ -123,6 +125,7 @@ const char *trap_msg[] = {
 	"fast instruction access mmu miss",
 	"fast data access mmu miss",
 	"fast data access protection",
+	"clock",
 	"bad spill",
 	"bad fill",
 	"breakpoint",
@@ -133,20 +136,25 @@ trap(struct trapframe *tf)
 {
 	u_quad_t sticks;
 	struct proc *p;
+	int error;
 	int ucode;
+	int type;
 	int sig;
 
 	KASSERT(PCPU_GET(curproc) != NULL, ("trap: curproc NULL"));
 	KASSERT(PCPU_GET(curpcb) != NULL, ("trap: curpcb NULL"));
 
 	p = PCPU_GET(curproc);
-	ucode = tf->tf_type;	/* XXX */
+	type = T_TYPE(tf->tf_type);
+	ucode = type;	/* XXX */
 
-	mtx_lock_spin(&sched_lock);
-	sticks = p->p_sticks;
-	mtx_unlock_spin(&sched_lock);
+	if ((type & T_KERNEL) == 0) {
+		mtx_lock_spin(&sched_lock);
+		sticks = p->p_sticks;
+		mtx_unlock_spin(&sched_lock);
+	}
 
-	switch (tf->tf_type) {
+	switch (type) {
 	case T_FP_DISABLED:
 		if (fp_enable_proc(p))
 			goto user;
@@ -155,6 +163,18 @@ trap(struct trapframe *tf)
 			goto trapsig;
 		}
 		break;
+	case T_IMMU_MISS:
+	case T_DMMU_MISS:
+	case T_DMMU_PROT:
+		mtx_lock(&Giant);
+		error = trap_mmu_fault(p, tf);
+		mtx_unlock(&Giant);
+		if (error == 0)
+			goto user;
+		break;
+	case T_INTR:
+		intr_dispatch(T_LEVEL(tf->tf_type), tf);
+		goto user;
 #ifdef DDB
 	case T_BREAKPOINT | T_KERNEL:
 		if (kdb_trap(tf) != 0)
@@ -163,19 +183,25 @@ trap(struct trapframe *tf)
 #endif
 	case T_DMMU_MISS | T_KERNEL:
 	case T_DMMU_PROT | T_KERNEL:
-		if (trap_mmu_fault(p, tf) == 0)
+		mtx_lock(&Giant);
+		error = trap_mmu_fault(p, tf);
+		mtx_unlock(&Giant);
+		if (error == 0)
 			goto out;
 		break;
+	case T_INTR | T_KERNEL:
+		intr_dispatch(T_LEVEL(tf->tf_type), tf);
+		goto out;
 	default:
 		break;
 	}
-	panic("trap: %s", trap_msg[tf->tf_type & ~T_KERNEL]);
+	panic("trap: %s", trap_msg[type & ~T_KERNEL]);
 
 trapsig:
 	mtx_lock(&Giant);
 	/* Translate fault for emulators. */
 	if (p->p_sysent->sv_transtrap != NULL)
-		sig = (p->p_sysent->sv_transtrap)(sig, tf->tf_type);
+		sig = (p->p_sysent->sv_transtrap)(sig, type);
 
 	trapsignal(p, sig, ucode);
 	mtx_unlock(&Giant);
@@ -194,24 +220,35 @@ trap_mmu_fault(struct proc *p, struct trapframe *tf)
 	struct vmspace *vm;
 	vm_offset_t va;
 	vm_prot_t type;
-	int flags;
 	int rv;
 
 	KASSERT(p->p_vmspace != NULL, ("trap_dmmu_miss: vmspace NULL"));
 
+	type = 0;
 	rv = KERN_FAILURE;
 	mf = tf->tf_arg;
 	va = TLB_TAR_VA(mf->mf_tar);
 	switch (tf->tf_type) {
 	case T_DMMU_MISS | T_KERNEL:
 		/*
-		 * If the context is not nucleus, this is a fault on
-		 * non-kernel virtual memory.
+		 * If the context is nucleus this is a soft fault on kernel
+		 * memory, just fault in the pages.
 		 */
-		if (TLB_TAR_CTX(mf->mf_tar) != TLB_CTX_KERNEL &&
-		    PCPU_GET(curpcb)->pcb_onfault == NULL)
+		if (TLB_TAR_CTX(mf->mf_tar) == TLB_CTX_KERNEL) {
+			rv = vm_fault(kernel_map, va, VM_PROT_READ,
+			    VM_FAULT_NORMAL);
 			break;
+		}
 
+		/*
+		 * Don't allow kernel mode faults on user memory unless
+		 * pcb_onfault is set.
+		 */
+		if (PCPU_GET(curpcb)->pcb_onfault == NULL)
+			break;
+		/* Fallthrough. */
+	case T_IMMU_MISS:
+	case T_DMMU_MISS:
 		/*
 		 * First try the tsb.  The primary tsb was already searched.
 		 */
@@ -225,11 +262,10 @@ trap_mmu_fault(struct proc *p, struct trapframe *tf)
 		 * Not found, call the vm system.
 		 */
 
-		/*
-		 * XXX!!!
-		 */
-		type = VM_PROT_READ;
-		flags = VM_FAULT_NORMAL;
+		if (tf->tf_type == T_IMMU_MISS)
+			type = VM_PROT_EXECUTE | VM_PROT_READ;
+		else
+			type = VM_PROT_READ;
 
 		/*
 		 * Keep the process from being swapped out at this critical
@@ -248,7 +284,7 @@ trap_mmu_fault(struct proc *p, struct trapframe *tf)
 		if (vm_map_growstack(p, va) != KERN_SUCCESS)
 			rv = KERN_FAILURE;
 		else
-			rv = vm_fault(&vm->vm_map, va, type, flags);
+			rv = vm_fault(&vm->vm_map, va, type, VM_FAULT_NORMAL);
 
 		/*
 		 * Now the process can be swapped again.
@@ -259,13 +295,19 @@ trap_mmu_fault(struct proc *p, struct trapframe *tf)
 		break;
 	case T_DMMU_PROT | T_KERNEL:
 		/*
-		 * If the context is not nucleus, this is a fault on
-		 * non-kernel virtual memory.
+		 * Protection faults should not happen on kernel memory.
 		 */
-		if (TLB_TAR_CTX(mf->mf_tar) != TLB_CTX_KERNEL &&
-		    PCPU_GET(curpcb)->pcb_onfault == NULL)
+		if (TLB_TAR_CTX(mf->mf_tar) == TLB_CTX_KERNEL)
 			break;
 
+		/*
+		 * Don't allow kernel mode faults on user memory unless
+		 * pcb_onfault is set.
+		 */
+		if (PCPU_GET(curpcb)->pcb_onfault == NULL)
+			break;
+		/* Fallthrough. */
+	case T_DMMU_PROT:
 		/*
 		 * Only look in the tsb.  Write access to an unmapped page
 		 * causes a miss first, so the page must have already been
@@ -283,8 +325,9 @@ trap_mmu_fault(struct proc *p, struct trapframe *tf)
 	if (rv == KERN_SUCCESS)
 		return (0);
 	if (tf->tf_type & T_KERNEL) {
-		if (PCPU_GET(curpcb)->pcb_onfault != NULL) {
-			tf->tf_tpc = PCPU_GET(curpcb)->pcb_onfault;
+		if (PCPU_GET(curpcb)->pcb_onfault != NULL &&
+		    TLB_TAR_CTX(mf->mf_tar) != TLB_CTX_KERNEL) {
+			tf->tf_tpc = (u_long)PCPU_GET(curpcb)->pcb_onfault;
 			tf->tf_tnpc = tf->tf_tpc + 4;
 			return (0);
 		}
