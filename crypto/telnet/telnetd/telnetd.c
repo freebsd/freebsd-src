@@ -42,7 +42,7 @@ static const char copyright[] =
 static const char sccsid[] = "@(#)telnetd.c	8.4 (Berkeley) 5/30/95";
 #endif
 static const char rcsid[] =
-	"$Id: telnetd.c,v 1.4 1998/02/16 12:09:27 markm Exp $";
+	"$Id: telnetd.c,v 1.9 1999/04/08 21:39:34 brian Exp $";
 #endif /* not lint */
 
 #include "telnetd.h"
@@ -59,6 +59,9 @@ static const char rcsid[] =
 
 #include <err.h>
 #include <arpa/inet.h>
+
+#include <libutil.h>
+#include <utmp.h>
 
 #if	defined(_SC_CRAY_SECURE_SYS)
 #include <sys/sysv.h>
@@ -90,7 +93,8 @@ int	auth_level = 0;
 int	require_SecurID = 0;
 #endif
 
-extern	int utmp_len;
+char	remote_hostname[MAXHOSTNAMELEN];
+int	utmp_len = sizeof(remote_hostname) - 1;
 int	registerd_host_only = 0;
 
 #ifdef	STREAMSPTY
@@ -383,6 +387,10 @@ main(argc, argv)
 
 		case 'u':
 			utmp_len = atoi(optarg);
+			if (utmp_len < 0)
+				utmp_len = -utmp_len;
+			if (utmp_len >= sizeof(remote_hostname))
+				utmp_len = sizeof(remote_hostname) - 1;
 			break;
 
 		case 'U':
@@ -803,7 +811,6 @@ terminaltypeok(s)
 
 char *hostname;
 char host_name[MAXHOSTNAMELEN];
-char remote_host_name[MAXHOSTNAMELEN];
 
 extern void telnet P((int, int, char *));
 
@@ -816,8 +823,6 @@ char user_name[256];
 doit(who)
 	struct sockaddr_in *who;
 {
-	char *host = NULL;
-	struct hostent *hp;
 	int ptynum;
 
 	/*
@@ -860,32 +865,23 @@ doit(who)
 #endif	/* _SC_CRAY_SECURE_SYS */
 
 	/* get name of connected client */
-	hp = gethostbyaddr((char *)&who->sin_addr, sizeof (struct in_addr),
-		who->sin_family);
-
-	if (hp == NULL && registerd_host_only) {
+	if (realhostname(remote_hostname, sizeof(remote_hostname) - 1,
+	    &who->sin_addr) == HOSTNAME_INVALIDADDR && registerd_host_only)
 		fatal(net, "Couldn't resolve your address into a host name.\r\n\
 	 Please contact your net administrator");
-	} else if (hp &&
-	    (strlen(hp->h_name) <= (unsigned int)((utmp_len < 0) ? -utmp_len
-								 : utmp_len))) {
-		host = hp->h_name;
-	} else {
-		host = inet_ntoa(who->sin_addr);
-	}
-	/*
-	 * We must make a copy because Kerberos is probably going
-	 * to also do a gethost* and overwrite the static data...
-	 */
-	strncpy(remote_host_name, host, sizeof(remote_host_name)-1);
-	remote_host_name[sizeof(remote_host_name)-1] = 0;
-	host = remote_host_name;
+	remote_hostname[sizeof(remote_hostname) - 1] = '\0';
 
-	(void) gethostname(host_name, sizeof (host_name));
+	trimdomain(remote_hostname, UT_HOSTSIZE);
+	if (!isdigit(remote_hostname[0]) && strlen(remote_hostname) > utmp_len)
+		strncpy(remote_hostname, inet_ntoa(who->sin_addr),
+			sizeof(remote_hostname) - 1);
+
+	(void) gethostname(host_name, sizeof(host_name) - 1);
+	host_name[sizeof(host_name) - 1] = '\0';
 	hostname = host_name;
 
 #if	defined(AUTHENTICATION) || defined(ENCRYPTION)
-	auth_encrypt_init(hostname, host, "TELNETD", 1);
+	auth_encrypt_init(hostname, remote_hostname, "TELNETD", 1);
 #endif
 
 	init_env();
@@ -905,7 +901,7 @@ doit(who)
 	}
 #endif	/* _SC_CRAY_SECURE_SYS */
 
-	telnet(net, pty, host);		/* begin server process */
+	telnet(net, pty, remote_hostname);	/* begin server process */
 
 	/*NOTREACHED*/
 }  /* end of doit */
