@@ -146,6 +146,7 @@ struct mount {
 	struct netexport *mnt_export;		/* export list */
 	struct label	mnt_mntlabel;		/* MAC label for the mount */
 	struct label	mnt_fslabel;		/* MAC label for the fs */
+	int		mnt_nvnodelistsize;	/* # of vnodes on this mount */
 };
 #endif /* _KERNEL */
 

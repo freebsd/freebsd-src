@@ -674,12 +674,13 @@ vattr_null(vap)
  * you set kern.maxvnodes to.  Do not set kern.maxvnodes too low.
  */
 static int
-vlrureclaim(struct mount *mp, int count)
+vlrureclaim(struct mount *mp)
 {
 	struct vnode *vp;
 	int done;
 	int trigger;
 	int usevnodes;
+	int count;
 
 	/*
 	 * Calculate the trigger point, don't allow user
@@ -695,6 +696,7 @@ vlrureclaim(struct mount *mp, int count)
 
 	done = 0;
 	mtx_lock(&mntvnode_mtx);
+	count = mp->mnt_nvnodelistsize / 10 + 1;
 	while (count && (vp = TAILQ_FIRST(&mp->mnt_nvnodelist)) != NULL) {
 		TAILQ_REMOVE(&mp->mnt_nvnodelist, vp, v_nmntvnodes);
 		TAILQ_INSERT_TAIL(&mp->mnt_nvnodelist, vp, v_nmntvnodes);
@@ -731,7 +733,7 @@ vnlru_proc(void)
 {
 	struct mount *mp, *nmp;
 	int s;
-	int done, take;
+	int done;
 	struct proc *p = vnlruproc;
 	struct thread *td = FIRST_THREAD_IN_PROC(p);	/* XXXKSE */
 
@@ -754,16 +756,12 @@ vnlru_proc(void)
 		mtx_unlock(&vnode_free_list_mtx);
 		done = 0;
 		mtx_lock(&mountlist_mtx);
-		take = 0;
-		TAILQ_FOREACH(mp, &mountlist, mnt_list)
-			take++;
-		take = desiredvnodes / (take * 10);
 		for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
 			if (vfs_busy(mp, LK_NOWAIT, &mountlist_mtx, td)) {
 				nmp = TAILQ_NEXT(mp, mnt_list);
 				continue;
 			}
-			done += vlrureclaim(mp, take);
+			done += vlrureclaim(mp);
 			mtx_lock(&mountlist_mtx);
 			nmp = TAILQ_NEXT(mp, mnt_list);
 			vfs_unbusy(mp, td);
@@ -1041,8 +1039,12 @@ insmntque(vp, mp)
 	/*
 	 * Delete from old mount point vnode list, if on one.
 	 */
-	if (vp->v_mount != NULL)
+	if (vp->v_mount != NULL) {
+		KASSERT(vp->v_mount->mnt_nvnodelistsize > 0,
+			("bad mount point vnode list size"));
 		TAILQ_REMOVE(&vp->v_mount->mnt_nvnodelist, vp, v_nmntvnodes);
+		vp->v_mount->mnt_nvnodelistsize--;
+	}
 	/*
 	 * Insert into list of vnodes for the new mount point, if available.
 	 */
@@ -1051,6 +1053,7 @@ insmntque(vp, mp)
 		return;
 	}
 	TAILQ_INSERT_TAIL(&mp->mnt_nvnodelist, vp, v_nmntvnodes);
+	mp->mnt_nvnodelistsize++;
 	mtx_unlock(&mntvnode_mtx);
 }
 
