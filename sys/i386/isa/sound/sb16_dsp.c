@@ -511,7 +511,7 @@ sb16_dsp_detect (struct address_info *hw_config)
   struct address_info *sb_config;
 
   if (sb16_dsp_ok)
-    return 1;			/* Can't drive two cards */
+    return 0;                   /* Can't drive two cards */
 
   if (!(sb_config = sound_getconf (SNDCARD_SB)))
     {
@@ -530,6 +530,7 @@ sb16_dsp_detect (struct address_info *hw_config)
     return 0;			/* Not a SB16 */
 
   hw_config->io_base = sb_config->io_base;
+  hw_config->irq = sb_config->irq;
 #ifdef PC98
   hw_config->dma = sb_config->dma;
 #else
@@ -557,7 +558,7 @@ sb16_dsp_detect (struct address_info *hw_config)
      * dsp_showmessage(0xe3,99);
    */
   sb16_dsp_ok = 1;
-  return 1;
+  return 0x10;
 }
 
 void
