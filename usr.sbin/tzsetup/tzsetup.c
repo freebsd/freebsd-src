@@ -34,7 +34,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: tzsetup.c,v 1.12 1999/02/02 20:26:31 wollman Exp $";
+	"$Id: tzsetup.c,v 1.13 1999/06/23 03:31:36 mharo Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -510,8 +510,8 @@ install_zone_file(const char *filename)
 
 			unlink(_PATH_LOCALTIME);
 			fd2 = open(_PATH_LOCALTIME, 
-				   O_CREAT | O_EXCL | O_WRONLY,
-				   0444);
+				   O_CREAT|O_EXCL|O_WRONLY,
+				   S_IRUSR|S_IRGRP|S_IROTH);
 			if (fd2 < 0) {
 				asprintf(&msg, "Could not open "
 					 _PATH_LOCALTIME ": %s", 
@@ -527,7 +527,7 @@ install_zone_file(const char *filename)
 			if (len == -1) {
 				asprintf(&msg, "Error copying %s to "
 					 _PATH_LOCALTIME ": %s",
-					 strerror(errno));
+					 filename, strerror(errno));
 				dialog_mesgbox("Error", msg, 8, 72);
 				free(msg);
 				/* Better to leave none than a corrupt one. */
@@ -647,6 +647,9 @@ main(int argc, char **argv)
 	if (argc - optind > 1)
 		usage();
 
+	/* Override the user-supplied umask. */
+	(void)umask(S_IWGRP|S_IWOTH);
+
 	read_iso3166_table();
 	read_zones();
 	sort_countries();
@@ -661,7 +664,8 @@ main(int argc, char **argv)
 	} else {
 		if (reallydoit) {
 			fd = open(_PATH_WALL_CMOS_CLOCK,
-				  O_WRONLY|O_CREAT|O_TRUNC, 0666);
+				  O_WRONLY|O_CREAT|O_TRUNC,
+				  S_IRUSR|S_IRGRP|S_IROTH);
 			if (fd < 0)
 				err(1, "create %s", _PATH_WALL_CMOS_CLOCK);
 			close(fd);
