@@ -78,7 +78,7 @@ VarHead (const char *word, Boolean addSpace, Buffer buf, void *dummy __unused)
 	    Buf_AddByte (buf, (Byte)' ');
 	}
 	*slash = '\0';
-	Buf_AddBytes (buf, strlen (word), (Byte *)word);
+	Buf_AddBytes (buf, strlen (buffer), (Byte *)buffer);
 	free(buffer);
 	return (TRUE);
     } else {
