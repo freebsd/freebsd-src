@@ -4,7 +4,7 @@
 #
 #	  Written by Toshiharu OHNO
 #
-# $Id: ppp.conf.sample,v 1.5.2.8 1997/08/25 01:08:33 brian Exp $
+# $Id: ppp.conf.sample,v 1.5.2.9 1997/09/01 22:22:08 brian Exp $
 #
 #################################################################
 
@@ -14,7 +14,6 @@ default:
  set device /dev/cuaa1
  set speed 115200
  set log Phase Chat Connect Carrier hdlc LCP IPCP CCP tun
- disable lqr
  deny lqr
  set dial "ABORT BUSY ABORT NO\\sCARRIER TIMEOUT 5 \"\" ATE1Q0 OK-AT-OK \\dATDT\\T TIMEOUT 40 CONNECT"
 
@@ -126,12 +125,16 @@ direct-client:
  set login "TIMEOUT 5 ogin:--ogin: ppp word: ppp HELLO"
  set ifaddr 10.0.4.2 10.0.4.1
  add 10.0.4.2 255.255.255.255 127.0.0.1
+ enable lqr
+ accept lqr
  
 direct-server:
  set timeout 900 10 3
  set log Phase LQM
  set ifaddr 10.0.4.1 10.0.4.2
  add 10.0.4.1 255.255.255.255 127.0.0.1
+ enable lqr
+ accept lqr
 
 # Example to validate incoming user with CHAP
 #  Invoke as ``ppp -direct users'' from login script. User's system name
