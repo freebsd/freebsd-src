@@ -127,6 +127,7 @@ rts_attach(struct socket *so, int proto, struct proc *p)
 	rp = sotorawcb(so);
 	if (error) {
 		splx(s);
+		so->so_pcb = NULL;
 		free(rp, M_PCB);
 		return error;
 	}
