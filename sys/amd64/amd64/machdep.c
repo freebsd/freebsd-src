@@ -259,7 +259,7 @@ sendsig(catcher, sig, mask, code)
 		p->p_sigstk.ss_flags |= SS_ONSTACK;
 #endif
 	} else
-		sp = (char *)regs->tf_rsp - sizeof(struct sigframe);
+		sp = (char *)regs->tf_rsp - sizeof(struct sigframe) - 128;
 	/* Align to 16 bytes. */
 	sfp = (struct sigframe *)((unsigned long)sp & ~0xF);
 	PROC_UNLOCK(p);
