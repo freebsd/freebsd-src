@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pw_user.c,v 1.9 1996/12/23 02:27:29 davidn Exp $
+ *	$Id: pw_user.c,v 1.10 1996/12/30 11:52:34 davidn Exp $
  */
 
 #include <unistd.h>
@@ -148,19 +148,36 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		if (stat(cnf->home, &st) == -1) {
 			char	dbuf[MAXPATHLEN];
 
+			/*
+			 * This is a kludge especially for Joerg :)
+			 * If the home directory would be created in the root partition, then
+			 * we really create it under /usr which is likely to have more space.
+			 * But we create a symlink from cnf->home -> "/usr" -> cnf->home
+			 */
+			if (strchr(cnf->home+1, '/') == NULL) {
+				strcpy(dbuf, "/usr");
+				strncat(dbuf, cnf->home, MAXPATHLEN-5);
+				if (mkdir(dbuf, 0755) != -1 || errno == EEXIST) {
+					chown(dbuf, 0, 0);
+					symlink(dbuf, cnf->home);
+				}
+				/* If this falls, fall back to old method */
+			}
 			p = strncpy(dbuf, cnf->home, sizeof dbuf);
 			dbuf[MAXPATHLEN-1] = '\0';
-			while ((p = strchr(++p, '/')) != NULL) {
-				*p = '\0';
-				if (stat(dbuf, &st) == -1) {
-					if (mkdir(dbuf, 0755) == -1)
-						goto direrr;
-					chown(dbuf, 0, 0);
-				} else if (!S_ISDIR(st.st_mode))
-					cmderr(EX_OSFILE, "'%s' (root home parent) is not a directory\n", dbuf);
-				*p = '/';
+			if (stat(dbuf, &st) == -1) {
+				while ((p = strchr(++p, '/')) != NULL) {
+					*p = '\0';
+					if (stat(dbuf, &st) == -1) {
+						if (mkdir(dbuf, 0755) == -1)
+							goto direrr;
+						chown(dbuf, 0, 0);
+					} else if (!S_ISDIR(st.st_mode))
+						cmderr(EX_OSFILE, "'%s' (root home parent) is not a directory\n", dbuf);
+					*p = '/';
+				}
 			}
-			if (stat(dbuf, &st) == -1) {	/* Should not be strictly necessary */
+			if (stat(dbuf, &st) == -1) {
 				if (mkdir(dbuf, 0755) == -1) {
 				direrr:	cmderr(EX_OSFILE, "mkdir '%s': %s\n", dbuf, strerror(errno));
 				}
