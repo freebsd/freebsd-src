@@ -29,7 +29,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	global.pl		14-Apr-97
+#	global.pl		21-Apr-97
 #
 sub getcwd {
 	local($dir);
@@ -51,7 +51,9 @@ while ($ARGV[0] =~ /^-/) {
 }
 if (@ARGV == 0) {
 	die($usage) if (! $cflag);
-} elsif ($ARGV[0] =~ /[][.*\^\$+?|(){}\\]/) {	# include regular expression ?
+}
+$ARGV[0] =~ s/^[ \t]+//;			# remove leading blanks
+if ($ARGV[0] =~ /[][.*\^\$+?|(){}\\]/) {	# include regular expression ?
 	$regex = 1;
 }
 if ($cflag) {
@@ -100,6 +102,23 @@ $downpath = '\\.\\./' x @step;
 push(@com, "-e 's!\\./!$downpath!'");
 foreach $step (@step) {
 	push(@com, "-e 's!\\.\\./$step/!!'");
+}
+#
+# recognize format version of GTAGS. 'format version record' is saved as a
+# META record in GTAGS and GRTAGS. if 'format version record' is not found,
+# it's assumed version 1.
+	$support_version = 1;		# accept this format version
+#
+open(GTAGS, "btreeop -K ' __.VERSION' $dbpath/$gtagsname |") || die("$com: GTAGS not found.\n");
+$rec = <GTAGS>;
+close(GTAGS);
+if ($rec =~ /^ __\.VERSION[ \t]+([0-9]+)$/) {
+	$format_version = $1;
+} else {
+	$format_version = 1;
+}
+if ($format_version > $support_version) {
+	die("$com: GTAGS seems new format. Please install the latest GLOBAL.\n");
 }
 #
 # complete function name
