@@ -1,7 +1,7 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/8/93
 # $FreeBSD$
 
-FILES=	ascii birthtoken bsd-family-tree eqnchar flowers init.ee inter.phone \
+FILES=	ascii birthtoken bsd-family-tree eqnchar flowers init.ee \
 	iso3166 iso639 man.template mdoc.template operator scsi_modes
 NOOBJ=	noobj
 
