@@ -21,7 +21,7 @@ static char copyright[] =
 #endif /* ! lint */
 
 #ifndef lint
-static char id[] = "@(#)$Id: smrsh.c,v 8.31.4.8 2001/01/22 19:00:26 gshapiro Exp $";
+static char id[] = "@(#)$Id: smrsh.c,v 8.31.4.9 2001/04/24 04:11:51 ca Exp $";
 #endif /* ! lint */
 
 /* $FreeBSD$ */
@@ -175,7 +175,6 @@ main(argc, argv)
 	*/
 
 	prg = argv[0];
-	par = argv[2];
 
 	if (argc != 3 || strcmp(argv[1], "-c") != 0)
 	{
@@ -185,6 +184,8 @@ main(argc, argv)
 #endif /* ! DEBUG */
 		exit(EX_USAGE);
 	}
+
+	par = argv[2];
 
 	/*
 	**  Disallow special shell syntax.  This is overly restrictive,

@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: conf.c,v 8.646.2.2.2.69 2001/02/27 19:50:11 gshapiro Exp $";
+static char id[] = "@(#)$Id: conf.c,v 8.646.2.2.2.86 2001/05/17 18:18:40 ca Exp $";
 #endif /* ! lint */
 
 /* $FreeBSD$ */
@@ -978,7 +978,7 @@ switch_map_find(service, maptype, mapreturn)
 
 				st = stab(buf, ST_SERVICE, ST_ENTER);
 				if (st->s_service[0] != NULL)
-					free((void *) st->s_service[0]);
+					sm_free((void *) st->s_service[0]);
 				p = newstr(p);
 				for (svcno = 0; svcno < MAXMAPSTACK; )
 				{
@@ -1228,6 +1228,10 @@ checkcompat(to, e)
 **  SETSIGNAL -- set a signal handler
 **
 **	This is essentially old BSD "signal(3)".
+**
+**	NOTE:	THIS CAN BE CALLED FROM A SIGNAL HANDLER.  DO NOT ADD
+**		ANYTHING TO THIS ROUTINE UNLESS YOU KNOW WHAT YOU ARE
+**		DOING.
 */
 
 sigfunc_t
@@ -1235,14 +1239,16 @@ setsignal(sig, handler)
 	int sig;
 	sigfunc_t handler;
 {
+# if defined(SA_RESTART) || (!defined(SYS5SIGNALS) && !defined(BSD4_3))
+	struct sigaction n, o;
+# endif /* defined(SA_RESTART) || (!defined(SYS5SIGNALS) && !defined(BSD4_3)) */
+
 	/*
 	**  First, try for modern signal calls
 	**  and restartable syscalls
 	*/
 
 # ifdef SA_RESTART
-	struct sigaction n, o;
-
 	memset(&n, '\0', sizeof n);
 #  if USE_SA_SIGACTION
 	n.sa_sigaction = (void(*)(int, siginfo_t *, void *)) handler;
@@ -1274,8 +1280,6 @@ setsignal(sig, handler)
 	**  go for a default
 	*/
 
-	struct sigaction n, o;
-
 	memset(&n, '\0', sizeof n);
 	n.sa_handler = handler;
 	if (sigaction(sig, &n, &o) < 0)
@@ -1283,6 +1287,73 @@ setsignal(sig, handler)
 	return o.sa_handler;
 #  endif /* defined(SYS5SIGNALS) || defined(BSD4_3) */
 # endif /* SA_RESTART */
+}
+/*
+**  ALLSIGNALS -- act on all signals
+**
+**	Parameters:
+**		block -- whether to block or release all signals.
+**
+**	Returns:
+**		none.
+*/
+
+void
+allsignals(block)
+	bool block;
+{
+# ifdef BSD4_3
+#  ifndef sigmask
+#   define sigmask(s)	(1 << ((s) - 1))
+#  endif /* ! sigmask */
+	if (block)
+	{
+		int mask = 0;
+
+		mask |= sigmask(SIGALRM);
+		mask |= sigmask(SIGCHLD);
+		mask |= sigmask(SIGHUP);
+		mask |= sigmask(SIGINT);
+		mask |= sigmask(SIGTERM);
+		mask |= sigmask(SIGUSR1);
+
+		(void) sigblock(mask);
+	}
+	else
+		sigsetmask(0);
+# else /* BSD4_3 */
+#  ifdef ALTOS_SYSTEM_V
+	if (block)
+	{
+		(void) sigset(SIGALRM, SIG_HOLD);
+		(void) sigset(SIGCHLD, SIG_HOLD);
+		(void) sigset(SIGHUP, SIG_HOLD);
+		(void) sigset(SIGINT, SIG_HOLD);
+		(void) sigset(SIGTERM, SIG_HOLD);
+		(void) sigset(SIGUSR1, SIG_HOLD);
+	}
+	else
+	{
+		(void) sigset(SIGALRM, SIG_DFL);
+		(void) sigset(SIGCHLD, SIG_DFL);
+		(void) sigset(SIGHUP, SIG_DFL);
+		(void) sigset(SIGINT, SIG_DFL);
+		(void) sigset(SIGTERM, SIG_DFL);
+		(void) sigset(SIGUSR1, SIG_DFL);
+	}
+#  else /* ALTOS_SYSTEM_V */
+	sigset_t sset;
+
+	(void) sigemptyset(&sset);
+	(void) sigaddset(&sset, SIGALRM);
+	(void) sigaddset(&sset, SIGCHLD);
+	(void) sigaddset(&sset, SIGHUP);
+	(void) sigaddset(&sset, SIGINT);
+	(void) sigaddset(&sset, SIGTERM);
+	(void) sigaddset(&sset, SIGUSR1);
+	(void) sigprocmask(block ? SIG_BLOCK : SIG_UNBLOCK, &sset, NULL);
+#  endif /* ALTOS_SYSTEM_V */
+# endif /* BSD4_3 */
 }
 /*
 **  BLOCKSIGNAL -- hold a signal to prevent delivery
@@ -2443,7 +2514,7 @@ setproctitle(fmt, va_alist)
 #  if SPT_TYPE == SPT_SCO
 	off_t seek_off;
 	static int kmem = -1;
-	static int kmempid = -1;
+	static pid_t kmempid = -1;
 	struct user u;
 #  endif /* SPT_TYPE == SPT_SCO */
 
@@ -2621,6 +2692,10 @@ waitfor(pid)
 **	Side Effects:
 **		Picks up extant zombies.
 **		Control socket exits may restart/shutdown daemon.
+**
+**	NOTE:	THIS CAN BE CALLED FROM A SIGNAL HANDLER.  DO NOT ADD
+**		ANYTHING TO THIS ROUTINE UNLESS YOU KNOW WHAT YOU ARE
+**		DOING.
 */
 
 /* ARGSUSED0 */
@@ -2631,32 +2706,30 @@ reapchild(sig)
 	int save_errno = errno;
 	int st;
 	pid_t pid;
-#if HASWAITPID
+# if HASWAITPID
 	auto int status;
 	int count;
+# else /* HASWAITPID */
+#  ifdef WNOHANG
+	union wait status;
+#  else /* WNOHANG */
+	auto int status;
+#  endif /* WNOHANG */
+# endif /* HASWAITPID */
 
+# if HASWAITPID
 	count = 0;
 	while ((pid = waitpid(-1, &status, WNOHANG)) > 0)
 	{
 		st = status;
 		if (count++ > 1000)
-		{
-			if (LogLevel > 0)
-				sm_syslog(LOG_ALERT, NOQID,
-					"reapchild: waitpid loop: pid=%d, status=%x",
-					pid, status);
 			break;
-		}
-#else /* HASWAITPID */
-# ifdef WNOHANG
-	union wait status;
-
+# else /* HASWAITPID */
+#  ifdef WNOHANG
 	while ((pid = wait3(&status, WNOHANG, (struct rusage *) NULL)) > 0)
 	{
 		st = status.w_status;
-# else /* WNOHANG */
-	auto int status;
-
+#  else /* WNOHANG */
 	/*
 	**  Catch one zombie -- we will be re-invoked (we hope) if there
 	**  are more.  Unreliable signals probably break this, but this
@@ -2667,8 +2740,8 @@ reapchild(sig)
 	if ((pid = wait(&status)) > 0)
 	{
 		st = status;
-# endif /* WNOHANG */
-#endif /* HASWAITPID */
+#  endif /* WNOHANG */
+# endif /* HASWAITPID */
 		/* Drop PID and check if it was a control socket child */
 		if (proc_list_drop(pid) == PROC_CONTROL &&
 		    WIFEXITED(st))
@@ -2676,21 +2749,17 @@ reapchild(sig)
 			/* if so, see if we need to restart or shutdown */
 			if (WEXITSTATUS(st) == EX_RESTART)
 			{
-				/* emulate a SIGHUP restart */
-				sighup(0);
-				/* NOTREACHED */
+				RestartRequest = "control socket";
 			}
 			else if (WEXITSTATUS(st) == EX_SHUTDOWN)
 			{
 				/* emulate a SIGTERM shutdown */
-				intsig(0);
+				ShutdownRequest = "control socket";
 				/* NOTREACHED */
 			}
 		}
 	}
-#ifdef SYS5SIGNALS
-	(void) setsignal(SIGCHLD, reapchild);
-#endif /* SYS5SIGNALS */
+	FIX_SYSV_SIGNAL(sig, reapchild);
 	errno = save_errno;
 	return SIGFUNC_RETURN;
 }
@@ -2755,18 +2824,14 @@ putenv(str)
 	 */
 	if (first)
 	{
-		newenv = (char **) malloc(sizeof(char *) * (envlen + 2));
-		if (newenv == NULL)
-			return -1;
-
+		newenv = (char **) xalloc(sizeof(char *) * (envlen + 2));
 		first = FALSE;
 		(void) memcpy(newenv, environ, sizeof(char *) * envlen);
 	}
 	else
 	{
-		newenv = (char **) realloc((char *)environ, sizeof(char *) * (envlen + 2));
-		if (newenv == NULL)
-			return -1;
+		newenv = (char **) xrealloc((char *)environ,
+					    sizeof(char *) * (envlen + 2));
 	}
 
 	/* actually add in the new entry */
@@ -4329,7 +4394,7 @@ strstr(big, little)
 **	Support IPv6 as well as IPv4.
 */
 
-#if NETINET6 && NEEDSGETIPNODE && __RES < 19990909
+#if NETINET6 && NEEDSGETIPNODE
 
 # ifndef AI_DEFAULT
 #  define AI_DEFAULT	0	/* dummy */
@@ -4396,7 +4461,7 @@ freehostent(h)
 	return;
 }
 # endif /* _FFR_FREEHOSTENT */
-#endif /* NEEDSGETIPNODE && NETINET6 && __RES < 19990909 */
+#endif /* NEEDSGETIPNODE && NETINET6 */
 
 struct hostent *
 sm_gethostbyname(name, family)
@@ -4584,8 +4649,8 @@ sm_gethostbyaddr(addr, len, type)
 # else /* NETINET6 */
 	hp = gethostbyaddr(addr, len, type);
 # endif /* NETINET6 */
-	return hp;
 #endif /* (SOLARIS > 10000 && SOLARIS < 20400) || (defined(SOLARIS) && SOLARIS < 204) */
+	return hp;
 }
 /*
 **  SM_GETPW{NAM,UID} -- wrapper for getpwnam and getpwuid
@@ -4871,7 +4936,7 @@ load_if_names()
 		if (tTd(0, 4))
 			dprintf("SIOCGLIFCONF failed: %s\n", errstring(errno));
 		(void) close(s);
-		free(lifc.lifc_buf);
+		sm_free(lifc.lifc_buf);
 		return;
 	}
 
@@ -4905,7 +4970,7 @@ load_if_names()
 		s = socket(af, SOCK_DGRAM, 0);
 		if (s == -1)
 		{
-			free(lifc.lifc_buf);
+			sm_free(lifc.lifc_buf);
 			return;
 		}
 
@@ -5020,7 +5085,7 @@ load_if_names()
 #   endif /* SIOCGLIFFLAGS */
 		(void) add_hostnames(sa);
 	}
-	free(lifc.lifc_buf);
+	sm_free(lifc.lifc_buf);
 	(void) close(s);
 #else /* NETINET6 && defined(SIOCGLIFCONF) */
 # if defined(SIOCGIFCONF) && !SIOCGIFCONF_IS_BROKEN
@@ -5060,7 +5125,7 @@ load_if_names()
 		if (tTd(0, 4))
 			dprintf("SIOCGIFCONF failed: %s\n", errstring(errno));
 		(void) close(s);
-		free(ifc.ifc_buf);
+		sm_free(ifc.ifc_buf);
 		return;
 	}
 
@@ -5203,7 +5268,7 @@ load_if_names()
 
 		(void) add_hostnames(sa);
 	}
-	free(ifc.ifc_buf);
+	sm_free(ifc.ifc_buf);
 	(void) close(s);
 #  undef IFRFREF
 # endif /* defined(SIOCGIFCONF) && !SIOCGIFCONF_IS_BROKEN */
@@ -5377,7 +5442,7 @@ sm_syslog(level, id, fmt, va_alist)
 		/* String too small, redo with correct size */
 		bufsize += SnprfOverflow + 1;
 		if (buf != buf0)
-			free(buf);
+			sm_free(buf);
 		buf = xalloc(bufsize * sizeof (char));
 	}
 	if ((strlen(buf) + idlen + 1) < SYSLOG_BUFSIZE)
@@ -5534,6 +5599,9 @@ local_hostname_length(hostname)
 
 char	*CompileOptions[] =
 {
+#if EGD
+	"EGD",
+#endif /* EGD */
 #ifdef HESIOD
 	"HESIOD",
 #endif /* HESIOD */
