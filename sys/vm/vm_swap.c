@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id: vm_swap.c,v 1.38 1996/03/28 15:40:17 bde Exp $
+ * $Id: vm_swap.c,v 1.39 1996/07/12 04:12:25 bde Exp $
  */
 
 #include <sys/param.h>
@@ -282,9 +282,23 @@ swaponvp(p, vp, dev, nblks)
 		vm_swap_size += blk;
 	}
 
-	if (!swapdev_vp && bdevvp(swapdev, &swapdev_vp))
-		panic("Cannot get vnode for swapdev");
+	if (!swapdev_vp) {
+		struct vnode *vp;
+		struct vnode *nvp;
 
+		error = getnewvnode(VT_NON, (struct mount *) 0,
+		    spec_vnodeop_p, &nvp);
+		if (error)
+			panic("Cannot get vnode for swapdev");
+		vp = nvp;
+		vp->v_type = VBLK;
+		if ((nvp = checkalias(vp, swapdev,
+		    (struct mount *) 0))) {
+			vput(vp);
+			vp = nvp;
+		}
+		swapdev_vp = vp;
+	}
 	return (0);
 }
 
