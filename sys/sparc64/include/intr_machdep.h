@@ -47,6 +47,8 @@
 #define	PIL_FAST	13	/* fast interrupts */
 #define	PIL_TICK	14
 
+struct trapframe;
+
 typedef	void ih_func_t(struct trapframe *);
 typedef	void iv_func_t(void *);
 
