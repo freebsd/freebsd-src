@@ -67,7 +67,7 @@ static struct timehands th3 = { NULL, 0, 0, 0, {0, 0}, {0, 0}, {0, 0}, 1, &th4};
 static struct timehands th2 = { NULL, 0, 0, 0, {0, 0}, {0, 0}, {0, 0}, 1, &th3};
 static struct timehands th1 = { NULL, 0, 0, 0, {0, 0}, {0, 0}, {0, 0}, 1, &th2};
 static struct timehands th0 =
-	{ &dummy_timecounter, 0, 0, 0, {0, 0}, {0, 0}, {0, 0}, 1, &th1};
+	{ &dummy_timecounter, 0, 18446744073709ULL, 0, {1, 0}, {0, 0}, {0, 0}, 1, &th1};
 
 static struct timehands *volatile timehands = &th0;
 struct timecounter *timecounter = &dummy_timecounter;
