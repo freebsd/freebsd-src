@@ -391,9 +391,17 @@ ip6_input(m)
 	if (IN6_IS_ADDR_LOOPBACK(&ip6->ip6_src) ||
 	    IN6_IS_ADDR_LOOPBACK(&ip6->ip6_dst)) {
 		if (m->m_pkthdr.rcvif->if_flags & IFF_LOOPBACK) {
-			ours = 1;
-			deliverifp = m->m_pkthdr.rcvif;
-			goto hbhcheck;
+			if (ip6_forward_rt.ro_rt != NULL &&
+			    (ip6_forward_rt.ro_rt->rt_flags & RTF_UP) != 0 &&
+	    		    IN6_ARE_ADDR_EQUAL(&ip6->ip6_dst, &ip6_forward_rt.ro_dst.sin6_addr)) {
+				struct in6_ifaddr *ia6 =
+					(struct in6_ifaddr *)ip6_forward_rt.ro_rt->rt_ifa;
+				ia6->ia_ifa.if_ipackets++;
+				ia6->ia_ifa.if_ibytes += m->m_pkthdr.len;
+				ours = 1;
+				deliverifp = m->m_pkthdr.rcvif;
+				goto hbhcheck;
+			}
 		} else {
 			ip6stat.ip6s_badscope++;
 			in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_addrerr);
@@ -423,9 +431,17 @@ ip6_input(m)
 	 */
 	if ((m->m_pkthdr.rcvif->if_flags & IFF_LOOPBACK) != 0) {
 		if (IN6_IS_ADDR_LINKLOCAL(&ip6->ip6_dst)) {
-			ours = 1;
-			deliverifp = m->m_pkthdr.rcvif;
-			goto hbhcheck;
+			if (ip6_forward_rt.ro_rt != NULL &&
+			    (ip6_forward_rt.ro_rt->rt_flags & RTF_UP) != 0 &&
+	    		    IN6_ARE_ADDR_EQUAL(&ip6->ip6_dst, &ip6_forward_rt.ro_dst.sin6_addr)) {
+				struct in6_ifaddr *ia6 =
+					(struct in6_ifaddr *)ip6_forward_rt.ro_rt->rt_ifa;
+				ia6->ia_ifa.if_ipackets++;
+				ia6->ia_ifa.if_ibytes += m->m_pkthdr.len;
+				ours = 1;
+				deliverifp = m->m_pkthdr.rcvif;
+				goto hbhcheck;
+			}
 		}
 	}
 
