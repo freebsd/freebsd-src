@@ -1,4 +1,4 @@
-OPIE Software Distribution, Release 2.31                  Important Information
+OPIE Software Distribution, Release 2.32                  Important Information
 ========================================                  =====================
 
 Introduction
@@ -74,6 +74,13 @@ original Bellcore S/Key(tm) Version 1 software:
 
 A Glance at What's New
 ======================
+
+	2.32 January 1, 1998.
+
+	Indicate support for extended responses in challenges and check for
+	such indication before generating any extended responses.
+
+	Lots of portability and bug fixes.
 
 	2.31 March 20, 1997.
 
@@ -225,6 +232,10 @@ it easier to coordinate bug hunting.
 Gotchas
 =======
 
+	Solaris 2.x is just a lose. It does a lot of nonstandard and downright
+broken things. If you want OPIE to be reliable on your box, upgrade to NetBSD
+or Linux.
+
 	While an almost universal "feature", most people remain unaware that
 an intruder can log into a system, then log in again by running the "login"
 command from a shell. Because the second login is from the local host, the
@@ -324,9 +335,7 @@ and reasonable getty sources (try sunsite.unc.edu:/pub/Linux/system/Serial, at
 least one of agetty, mingetty, and getty_ps should work) and replacing the
 Solaris versions with these. OPIE should work *much* more happily with these
 programs than the ones that come with Solaris. However, there could be negative
-side effects -- this is not a procedure recommended for the faint of heart. An
-even more drastic solution more likely to make OPIE happy is to install Linux
-or NetBSD on your box ;)
+side effects -- this is not a procedure recommended for the faint of heart.
 
 	OPIE is a lot more fussy than it used to be about lock files and where
 it puts them. The lock file directory must be a directory used only for OPIE
@@ -387,22 +396,31 @@ community effort. These contributors include:
 	Mowgli Assor
 	Lawrie Brown
 	Andrew Davis
+	Dennis Glatting
+        Ben Golding
 	Axel Grewe
 	"Hobbit"
 	Kojima Hajime
 	Darren Hosking
+        Matt Hucke
+	Charles Karney
+	Jeff Kletsky
 	Martijn Koster
 	Osamu Kurati
 	Ayamura Kikuchi
+	Ronald van der Meer
         Hiroshi Nakano
 	Ikuo Nakagawa
 	Angelo Neri
 	C. R. Oldham
 	D. Jason Penney
 	John Perkins
+	Steve Price
 	Jim Simmons
+	Steve Simmons
 	Brad Smith
 	Werner Wiethege
+	Ken-ichi Yamasaki
 	Wietse Venema
 
 	OPIE development at NRL was sponsored by the Information Security
@@ -427,7 +445,7 @@ trademarked by anyone.
 Copyrights
 ==========
 %%% portions-copyright-cmetz-96
-Portions of this software are Copyright 1996-1997 by Craig Metz, All Rights
+Portions of this software are Copyright 1996-1998 by Craig Metz, All Rights
 Reserved. The Inner Net License Version 2 applies to these portions of
 the software.
 You should have received a copy of the license with this software. If

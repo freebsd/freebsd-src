@@ -1,7 +1,7 @@
 /* opielogin.c: The infamous /bin/login
 
 %%% portions-copyright-cmetz-96
-Portions of this software are Copyright 1996-1997 by Craig Metz, All Rights
+Portions of this software are Copyright 1996-1998 by Craig Metz, All Rights
 Reserved. The Inner Net License Version 2 applies to these portions of
 the software.
 You should have received a copy of the license with this software. If
@@ -14,6 +14,10 @@ License Agreement applies to this software.
 
 	History:
 
+	Modified by cmetz for OPIE 2.32. Partially handle environment
+		variables on the command line (a better implementation is
+		coming soon). Handle failure to issue a challenge more
+		gracefully.
 	Modified by cmetz for OPIE 2.31. Use _PATH_NOLOGIN. Move Solaris
 	        drain bamage kluge after rflag check; it breaks rlogin.
 		Use TCSAFLUSH instead of TCSANOW (except where it flushes
@@ -638,7 +642,8 @@ int main FUNCTION((argc, argv), int argc AND char *argv[])
   int i;
   char *p;
   char opieprompt[OPIE_CHALLENGE_MAX + 1];
-  int pwok, otpok, af_pwok;
+  int af_pwok;
+  int authsok;
   char *pp;
   char buf[256];
   int uid;
@@ -700,111 +705,104 @@ int main FUNCTION((argc, argv), int argc AND char *argv[])
   }
 #endif /* DEBUG */
 
-/* Some OSs pass environment variables on the command line. All of them except
-   for TERM get eaten. */
-
-  i = argc;
-  while (--i)
-    if (strchr(argv[i], '=')) {
-#ifdef DEBUG
-      syslog(LOG_DEBUG, "eating %s", argv[i]);
-#endif /* DEBUG */
-      argc--;
-      if (!strncmp(argv[i], "TERM=", 5)) {
-	strncpy(term, &(argv[i][5]), sizeof(term));
-	term[sizeof(term) - 1] = 0;
-#ifdef DEBUG
-	syslog(LOG_DEBUG, "passed TERM=%s, ouroptind = %d", term, i);
-#endif /* DEBUG */
-      }
-    }
 /* Implement our own getopt()-like functionality, but do so in a much more
    strict manner to prevent security problems. */
   for (ouroptind = 1; ouroptind < argc; ouroptind++) {
-    i = 0;
-    if (argv[ouroptind])
-      if (argv[ouroptind][0] == '-')
-	if (i = argv[ouroptind][1])
-	  if (!argv[ouroptind][2])
-	    switch (i) {
-	    case 'd':
-	      if (++ouroptind == argc)
-		exit(1);
+    if (!argv[ouroptind])
+      continue;
+
+    if (argv[ouroptind][0] == '-') {
+      char *c = argv[ouroptind] + 1;
+
+      while(*c) {
+	switch(*(c++)) {
+	  case 'd':
+	    if (*c || (++ouroptind == argc))
+	      exit(1);
+
 /*    The '-d' option is apparently a performance hack to get around
    ttyname() being slow. The potential does exist for it to be used
    for malice, and it does not seem to be strictly necessary, so we
    will just eat it. */
-	      break;
+	    break;
 
-	    case 'r':
+	  case 'r':
+	    if (rflag || hflag || fflag) {
+	      fprintf(stderr, "Other options not allowed with -r\n");
+	      exit(1);
+	    }
+
+	    if (*c || (++ouroptind == argc))
+	      exit(1);
+
+	    if (!(ouroptarg = argv[ouroptind]))
+	      exit(1);
+
+	    rflag = -1;
+	    if (!doremotelogin(ouroptarg))
+	      rflag = 1;
+	    
+	    strncpy(host, ouroptarg, sizeof(host));
+	    break;
+
+	  case 'h':
+	    if (!getuid()) {
 	      if (rflag || hflag || fflag) {
-		printf("Other options not allowed with -r\n");
+		fprintf(stderr, "Other options not allowed with -h\n");
 		exit(1);
 	      }
-	      if (++ouroptind == argc)
+	      hflag = 1;
+
+	      if (*c || (++ouroptind == argc))
 		exit(1);
 
-	      ouroptarg = argv[ouroptind];
-
-	      if (!ouroptarg)
+	      if (!(ouroptarg = argv[ouroptind]))
 		exit(1);
-
-	      rflag = -1;
-	      if (!doremotelogin(ouroptarg))
-		rflag = 1;
-
+	      
 	      strncpy(host, ouroptarg, sizeof(host));
-	      break;
+	    }
+	    break;
 
-	    case 'h':
-	      if (!getuid()) {
-		if (rflag || hflag || fflag) {
-		  printf("Other options not allowed with -h\n");
-		  exit(1);
-		}
-		hflag = 1;
+	  case 'f':
+	    if (rflag) {
+	      fprintf(stderr, "Only one of -r and -f allowed\n");
+	      exit(1);
+	    }
+	    fflag = 1;
 
-		if (++ouroptind == argc)
-		  exit(1);
+	    if (*c || (++ouroptind == argc))
+	      exit(1);
 
-		ouroptarg = argv[ouroptind];
+	    if (!(ouroptarg = argv[ouroptind]))
+	      exit(1);
 
-		if (!ouroptarg)
-		  exit(1);
-		
-		strncpy(host, ouroptarg, sizeof(host));
-	      }
-	      break;
+	    strncpy(name, ouroptarg, sizeof(name));
+	    break;
+	  case 'p':
+	    pflag = 1;
+	    break;
+	};
+      };
+      continue;
+    };
 
-	    case 'f':
-	      if (rflag) {
-		printf("Only one of -r and -f allowed\n");
-		exit(1);
-	      }
-	      fflag = 1;
+    if (strchr(argv[ouroptind], '=')) {
+      if (!strncmp(argv[ouroptind], "TERM=", 5)) {
+	strncpy(term, &(argv[ouroptind][5]), sizeof(term));
+	term[sizeof(term) - 1] = 0;
+#ifdef DEBUG
+	syslog(LOG_DEBUG, "passed TERM=%s, ouroptind = %d", term, ouroptind);
+#endif /* DEBUG */
+      } else {
+#ifdef DEBUG
+	syslog(LOG_DEBUG, "eating %s, ouroptind = %d", argv[ouroptind], ouroptind);
+#endif /* DEBUG */
+      };
+      continue;
+    };
 
-	      if (++ouroptind == argc)
-		exit(1);
-
-	      ouroptarg = argv[ouroptind];
-
-	      if (!ouroptarg)
-		exit(1);
-
-	      strncpy(name, ouroptarg, sizeof(name));
-	      break;
-
-	    case 'p':
-	      pflag = 1;
-	      break;
-	  } else
-	    i = 0;
-    if (!i) {
-      ouroptarg = argv[ouroptind++];
-      strncpy(name, ouroptarg, sizeof(name));
-      break;
-    }
-  }
+    strncpy(name, argv[ouroptind], sizeof(name));
+  };
 
 #ifdef TIOCNXCL
   /* BSDism:  not sure how to rewrite for POSIX.  rja */
@@ -1063,6 +1061,7 @@ completeness, but these are set within appropriate defines for portability. */
     if (invalid && !name[0]) {
       getloginname();
       invalid = lookupuser();
+      authsok = 0;
     }
 #ifdef DEBUG
     syslog(LOG_DEBUG, "login name is +%s+, of length %d, [0] = %d", name, strlen(name), name[0]);
@@ -1092,11 +1091,9 @@ completeness, but these are set within appropriate defines for portability. */
 
       if ((i < 0) || (i > 1)) {
         syslog(LOG_ERR, "error: opiechallenge() returned %d, errno=%d!\n", i, errno);
-        fprintf(stderr, "System error; can't issue challenge!\n");
-	otpok = 0;
       } else {
         printf("%s\n", opieprompt);
-        otpok = 1;
+	authsok |= 1;
       }
 
       if (!memcmp(&thisuser, &nouser, sizeof(thisuser)))
@@ -1107,28 +1104,29 @@ completeness, but these are set within appropriate defines for portability. */
 	  syslog(LOG_WARNING, "Invalid login attempt for %s on %s.",
 		 name, tty);
 
-      pwok = af_pwok && opiealways(thisuser.pw_dir);
+      if (af_pwok && opiealways(thisuser.pw_dir))
+	authsok |= 2;
+
 #if DEBUG
-      syslog(LOG_DEBUG, "af_pwok = %d, pwok = %d", af_pwok, pwok);
+      syslog(LOG_DEBUG, "af_pwok = %d, authsok = %d", af_pwok, authsok);
 #endif /* DEBUG */
 
-      if (!pwok && !otpok) {
-        fprintf(stderr, "Can't authenticate %s!\n", name);
-        exit(1);
-      }
+      if (!authsok)
+	syslog(LOG_ERR, "no authentication methods are available for %s!", name);
 
 #if NEW_PROMPTS
-      if (otpok)
+      if ((authsok & 1) || !authsok)
         printf("Response");
-      if (otpok && pwok)
+      if (((authsok & 3) == 3) || !authsok)
         printf(" or ");
-      if (pwok)
+      if ((authsok & 2) || !authsok)
         printf("Password");
       printf(": ");
-      if (!opiereadpass(buf, sizeof(buf), !pwok))
+      fflush(stdout);
+      if (!opiereadpass(buf, sizeof(buf), !(authsok & 2)))
         invalid = TRUE;
 #else /* NEW_PROMPTS */
-      if (!pwok)
+      if (!(authsok & 1) && authsok)
 	printf("(OTP response required)\n");
       printf("Password:");
       fflush(stdout);
@@ -1136,8 +1134,8 @@ completeness, but these are set within appropriate defines for portability. */
         invalid = TRUE;
 #endif /* NEW_PROMPTS */
 
-      if (!buf[0] && otpok) {
-        pwok = 0;
+      if (!buf[0] && (authsok & 1)) {
+        authsok &= ~2;
 	/* Null line entered, so display appropriate prompt & flush current
 	   data. */
 #if NEW_PROMPTS
@@ -1149,7 +1147,7 @@ completeness, but these are set within appropriate defines for portability. */
           invalid = TRUE;
       }
 
-      if (otpok) {
+      if (authsok & 1) {
         i = opiegetsequence(&opie);
         opiepassed = !opieverify(&opie, buf);
 
@@ -1159,7 +1157,7 @@ completeness, but these are set within appropriate defines for portability. */
       }
 
       if (!invalid) {
-        if (otpok && opiepassed) {
+        if ((authsok & 1) && opiepassed) {
 	  if (i < 10) {
 	    printf("Warning: Re-initialize your OTP information");
             if (i < 5)
@@ -1167,7 +1165,7 @@ completeness, but these are set within appropriate defines for portability. */
             printf("\n");
 	  }
         } else {
-	  if (pwok) {
+	  if (authsok & 2) {
 	    pp = crypt(buf, thisuser.pw_passwd);
 	    invalid = strcmp(pp, thisuser.pw_passwd);
 	  } else
