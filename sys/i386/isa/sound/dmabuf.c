@@ -357,6 +357,7 @@ DMAbuf_getrdbuffer (int dev, char **buf, int *len, int dontblock)
       if (TIMED_OUT (dev_sleeper[dev], dev_sleep_flag[dev]))
 	{
 	  printk ("Sound: DMA timed out - IRQ/DRQ config error?\n");
+	  dma_reset (dev);
 	  err = EIO;
 	  SET_ABORT_FLAG (dev_sleeper[dev], dev_sleep_flag[dev]);
 	}
@@ -607,6 +608,7 @@ DMAbuf_getwrbuffer (int dev, char **buf, int *size, int dontblock)
       if (TIMED_OUT (dev_sleeper[dev], dev_sleep_flag[dev]))
 	{
 	  printk ("Sound: DMA timed out - IRQ/DRQ config error?\n");
+	  dma_reset (dev);
 	  err = EIO;
 	  abort = 1;
 	  SET_ABORT_FLAG (dev_sleeper[dev], dev_sleep_flag[dev]);
