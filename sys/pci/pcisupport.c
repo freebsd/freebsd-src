@@ -1202,7 +1202,7 @@ chip_match(device_t dev)
 
 	/* NeoMagic -- vendor 0x10c8 */
 	case 0x800510c8:
-		return ("NeoMagic MagicMedia 256ZX Audio controller");
+		return ("NeoMagic MagicMedia 256AX Audio controller");
 	case 0x800610c8:
 		return ("NeoMagic MagicMedia 256ZX Audio controller");
 
