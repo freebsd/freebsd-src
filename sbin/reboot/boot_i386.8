@@ -36,7 +36,7 @@
 .\"
 .\"     @(#)boot_i386.8	8.2 (Berkeley) 4/19/94
 .\"
-.\" $Id: boot_i386.8,v 1.14 1998/09/23 06:54:14 yokota Exp $
+.\" $Id: boot_i386.8,v 1.15 1999/01/06 14:19:09 rnordier Exp $
 .\"
 .Dd April 19, 1994
 .Dt BOOT 8 i386
@@ -52,23 +52,19 @@ An automatic consistency check of the file systems will be performed,
 and unless this fails, the system will resume multi-user operations.
 .Pp
 .Sy Cold starts.
-Most 386
-.Tn "PC AT"
-clones attempt to boot the floppy disk drive 0 (otherwise known as
-drive A:) first, and failing that, attempt to boot the hard disk
-drive 0 (otherwise known as drive C:,
-or (confusingly) hard disk drive 1, or drive 0x80 in the BIOS).
-Some BIOSes let you change this default sequence or may include a CD-ROM
+Most i386 PCs attempt to boot first from floppy disk drive 0 (sometimes
+known as drive A:) and, failing that, from hard disk drive 0 (sometimes
+known as drive C:, or as drive 0x80 to the BIOS).  Some BIOSes allow
+you to change this default sequence, and may also include a CD-ROM
 drive as a boot device.
 .Pp
 By default, a three-stage bootstrap is employed, and control is
 automatically passed from the boot blocks (bootstrap stages one and
 two) to a separate third-stage bootstrap program,
 .Pa /boot/loader .
-This third stage provides considerably more sophisticated control
-over the booting process than it is possible to achieve in the boot
-blocks, which are constrained by occupying limited fixed space on a
-given disk or slice.
+This third stage provides more sophisticated control over the booting
+process than it is possible to achieve in the boot blocks, which are
+constrained by occupying limited fixed space on a given disk or slice.
 .Pp
 However, it is possible to dispense with the third stage altogether,
 either by specifying a kernel name in the boot block parameter
@@ -87,7 +83,7 @@ third stage cannot be loaded.
 .Pp
 The remainder of this subsection deals only with the boot blocks.
 At present, documentation of the third stage is chiefly
-available though online help in the
+available through online help in the
 .Pa /boot/loader
 program itself.
 .Pp
@@ -96,11 +92,8 @@ you should see a prompt similar to the following:
 .Bd -literal
 >> FreeBSD/i386 BOOT
 Default: 0:wd(0,a)/kernel
-
 boot:
 .Ed
-.Pp
-(You may see some tips printed on the screen too.)
 .Pp
 The automatic boot will attempt to load
 .Pa /kernel
@@ -118,7 +111,8 @@ boot device, as a hint about available boot files.  (A
 .Dv \&?
 may also be specified as the last segment of a path, in which case
 the listing will be of the relevant subdirectory.)
-.It Op bios_drive:interface(unit,part) Op filename Op Fl aCcDdghPrsv
+.Pp
+.It bios_drive:interface(unit,part) filename Op Fl aCcDdghPrsv
 Specify boot file and flags.
 .Bl -tag -width 10x -compact
 .It bios_drive
@@ -152,7 +146,7 @@ By convention, only partition
 contains a bootable image.  If sliced disks are used
 .Pq Dq fdisk partitions ,
 any slice can be booted from, with the default being the active slice
-or, otherwise, the first slice.
+or, otherwise, the first FreeBSD slice.
 .It filename
 The pathname of the file to boot (relative to the root directory
 on the specified partition).  Defaults to
@@ -227,22 +221,15 @@ be verbose during device probing (and later).
 .El
 .Pp
 You may put a BIOS drive number, a controller type, a unit number,
-a partition, a kernel file name and the 
-.Fl D,
-.Fl h
-or
-.Fl P
-options in 
+a partition, a kernel file name, and any valid option in
 .Pa /boot.config
-to set defaults.  Write them in one line just as you type at the
+to set defaults.  Enter them in one line just as you type at the
 .Ql boot:
 prompt.
 .Sh FILES
 .Bl -tag -width /kernel.old.config -compact
 .It Pa /boot.config
 parameters for the boot blocks (optional)
-.It Pa /boot.help
-help messages (optional)
 .It Pa /boot/loader
 third-stage bootstrap
 .It Pa /kernel
@@ -253,6 +240,7 @@ typical non-default kernel (optional)
 .Sh SEE ALSO
 .Xr ddb 4 ,
 .Xr ttys 5 ,
+.Xr btxld 8 ,
 .Xr config 8 ,
 .Xr disklabel 8 ,
 .Xr halt 8 ,
@@ -264,4 +252,4 @@ The disklabel format used by this version of
 is quite
 different from that of other architectures.
 .Pp
-Some features are, as yet, undocumented.
+Some features are not yet documented.
