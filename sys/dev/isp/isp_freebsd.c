@@ -319,11 +319,10 @@ create_lun_state(struct ispsoftc *isp, struct cam_path *path, tstate_t **rslt)
 	if (is_lun_enabled(isp, lun)) {
 		return (CAM_LUN_ALRDY_ENA);
 	}
-	new = (tstate_t *) malloc(sizeof (tstate_t), M_DEVBUF, M_NOWAIT);
+	new = (tstate_t *) malloc(sizeof (tstate_t), M_DEVBUF, M_NOWAIT|M_ZERO);
 	if (new == NULL) {
 		return (CAM_RESRC_UNAVAIL);
 	}
-	bzero(new, sizeof (tstate_t));
 
 	status = xpt_create_path(&new->owner, NULL, xpt_path_path_id(path),
 	    xpt_path_target_id(path), xpt_path_lun_id(path));
