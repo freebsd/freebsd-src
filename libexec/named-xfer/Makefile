@@ -21,6 +21,8 @@ LIBISC:=	${LIBISCDIR}/libisc.a
 DPADD+=		${LIBISC}
 LDADD+=		${LIBISC}
 
+NOSHARED?=	YES
+
 MAN=	named-xfer.8
 
 .include <bsd.prog.mk>
