@@ -124,6 +124,48 @@ daemon.
 Run
 .Xr devd 8
 to handle device added, removed or unknown events from the kernel.
+.It Va kldxref_enable
+.Pq Vt bool
+Set to
+.Dq Li NO
+by default.
+Set to
+.Dq Li YES
+to automatically rebuild
+.Pa linker.hints
+files with
+.Xr kldxref 8
+at boot time.
+.It Va kldxref_clobber
+.Pq Vt bool
+Set to
+.Dq Li NO
+by default.
+If
+.Va kldxref_enable
+is true,
+setting to
+.Dq Li YES
+will overwrite existing
+.Pa linker.hints
+files at boot time.
+Otherwise,
+only missing
+.Pa linker.hints
+files are generated.
+.It Va kldxref_module_path
+.Pq Vt str
+Empty by default.
+A semi-colon
+.Pq Dq \;
+delimited list of paths containing
+.Xr kld 4
+modules.
+If empty,
+the contents of the
+.Em kern.module_path
+.Xr sysctl 8
+are used.
 .It Va pccard_enable
 .Pq Vt bool
 If set to
@@ -2247,6 +2289,7 @@ values.)
 .Xr kbdcontrol 1 ,
 .Xr makewhatis 1 ,
 .Xr vidcontrol 1 ,
+.Xr kld 4 ,
 .Xr tcp 4 ,
 .Xr udp 4 ,
 .Xr exports 5 ,
@@ -2262,6 +2305,7 @@ values.)
 .Xr inetd 8 ,
 .Xr isdnd 8 ,
 .Xr isdntrace 8 ,
+.Xr kldxref 8 ,
 .Xr lpd 8 ,
 .Xr mdconfig 8 ,
 .Xr moused 8 ,
