@@ -96,6 +96,7 @@ enum ipfw_opcodes {		/* arguments (4 byte each)	*/
 
 	O_VERREVPATH,		/* none				*/
 	O_VERSRCREACH,		/* none				*/
+	O_ANTISPOOF,		/* none				*/
 
 	O_PROBE_STATE,		/* none				*/
 	O_KEEP_STATE,		/* none				*/
