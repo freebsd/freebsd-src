@@ -48,6 +48,7 @@
 #	md*	Memory (or malloc) disk
 #	mlx*	Mylex DAC960 RAID controllers
 #	mlxd*   Mylex DAC960 RAID disk volumes
+#	mly*	Mylex RAID controllers (newer models)
 #	scd*	Sony CD-ROM disks
 #	vn*	vnode disks
 #	wd*	"Winchester" disk drives (ST506,IDE,ESDI,RLL,...)
@@ -1660,6 +1661,11 @@ aac*)
 mlx*)
 	unit=`expr $i : 'mlx\(.*\)'`
 	mknod mlx$unit c 130 `unit2minor $unit`
+	;;
+
+mly*)
+	unit=`expr $i : 'mlx\(.*\)'`
+	mknod mlx$unit c 158 `unit2minor $unit`
 	;;
 
 amr*)
