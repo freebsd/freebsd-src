@@ -68,7 +68,7 @@
 
 #define	HANDLE_LOOPSTATE_IN_OUTER_LAYERS	1
 
-typedef void ispfwfunc __P((int, int, int, u_int16_t **));
+typedef void ispfwfunc(int, int, int, u_int16_t **);
 
 #ifdef	ISP_TARGET_MODE
 #define	ISP_TARGET_FUNCTIONS	1
@@ -114,6 +114,10 @@ struct isposinfo {
 	int			islocked;
 	int			splsaved;
 	struct proc		*kproc;
+	bus_dma_tag_t		cdmat;
+	bus_dmamap_t		cdmap;
+#define	isp_cdmat		isp_osinfo.cdmat
+#define	isp_cdmap		isp_osinfo.cdmap
 #ifdef	ISP_TARGET_MODE
 #define	TM_WANTED		0x80
 #define	TM_BUSY			0x40
@@ -124,7 +128,7 @@ struct isposinfo {
 	u_int16_t		rollinfo;
 	tstate_t		tsdflt[2];	/* two busses */
 	tstate_t		*lun_hash[LUN_HASH_SIZE];
-	atio_private_data_t 	atpdp[ATPDPSIZE];
+	atio_private_data_t	atpdp[ATPDPSIZE];
 #endif
 };
 
@@ -145,7 +149,7 @@ struct isposinfo {
 
 #define	INLINE			__inline
 
-#define	ISP2100_SCRLEN		0x400
+#define	ISP2100_SCRLEN		0x800
 
 #define	MEMZERO			bzero
 #define	MEMCPY(dst, src, amt)	bcopy((src), (dst), (amt))

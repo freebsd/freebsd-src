@@ -54,7 +54,7 @@
 #endif
 
 #define	ISP_CORE_VERSION_MAJOR	2
-#define	ISP_CORE_VERSION_MINOR	5
+#define	ISP_CORE_VERSION_MINOR	6
 
 /*
  * Vector for bus specific code to provide specific services.
@@ -149,8 +149,12 @@ struct ispmdvec {
 #define	QENTRY_LEN			64
 /* Both request and result queue length must be a power of two */
 #define	RQUEST_QUEUE_LEN(x)		MAXISPREQUEST(x)
+#ifdef	ISP_TARGET_MODE
+#define	RESULT_QUEUE_LEN(x)		MAXISPREQUEST(x)
+#else
 #define	RESULT_QUEUE_LEN(x)		\
 	(((MAXISPREQUEST(x) >> 2) < 64)? 64 : MAXISPREQUEST(x) >> 2)
+#endif
 #define	ISP_QUEUE_ENTRY(q, idx)		((q) + ((idx) * QENTRY_LEN))
 #define	ISP_QUEUE_SIZE(n)		((n) * QENTRY_LEN)
 #define	ISP_NXT_QENTRY(idx, qlen)	(((idx) + 1) & ((qlen)-1))
@@ -242,6 +246,11 @@ typedef struct {
 #define	FC_PORT_ID		0x7f	/* Fabric Controller Special ID */
 #define	FC_SNS_ID		0x80	/* SNS Server Special ID */
 
+/* #define	ISP_USE_GA_NXT	1 */	/* Use GA_NXT with switches */
+#ifndef	GA_NXT_MAX
+#define	GA_NXT_MAX	256
+#endif
+
 typedef struct {
 	u_int32_t		isp_fwoptions	: 16,
 				isp_gbspeed	: 2,
@@ -276,9 +285,12 @@ typedef struct {
 	 * to move around.
 	 */
 	struct lportdb {
-		u_int
+		u_int32_t
+					port_type	: 8,
+							: 4,
+					fc4_type	: 4,
 					loopid		: 8,
-							: 1,
+					last_fabric_dev	: 1,
 					force_logout	: 1,
 					was_fabric_dev	: 1,
 					fabric_dev	: 1,
