@@ -47,7 +47,7 @@ state for use, if permitted.
 .Pp
 A variety of functions are provided for manipulating and managing
 process capability state and working store state:
-.Bl -tag -width cap_from_textXX
+.Bl -tag -width indent
 .It Fn cap_init
 This function is described in
 .Xr cap_init 3 ,
@@ -100,7 +100,7 @@ a particular aspect of the system policy.
 Each capability in a capability set has three flags, indicating the
 status of the capability with respect to the file or process it is
 associated with.
-.Bl -tag -width CAP_INHERITABLEXX
+.Bl -tag -width indent
 .It Dv CAP_EFFECTIVE
 If true, the capability will be used as necessary during accesses by
 the process.
@@ -137,7 +137,7 @@ X represents a global bounding set, currently un-implemented.
 The following capabilities are defined and implemented in
 .Fx 5.0 :
 .Pp
-.Bl -tag -width CAP_MAC_RELABEL_SUBJ
+.Bl -tag -width indent
 .It Dv CAP_CHOWN
 This capability overrides the restriction that a process cannot change the
 user ID of a file it owns, and the restriction that the group ID supplied in
@@ -240,6 +240,8 @@ For example, this capability, when effective, can be used by a process to
 bind a port number below 1024 in the IPv4 or IPv6 port spaces.
 .It Dv CAP_NET_BROADCAST
 .It Dv CAP_NET_ADMIN
+This capability overrides the restriction that a process cannot
+modify network interface data.
 .It Dv CAP_NET_RAW
 This capability overrides the restriction that a process cannot create a
 raw socket.
@@ -249,6 +251,9 @@ raw socket.
 This capability overrides the restriction that a process cannot load or
 unload kernel modules.
 .It Dv CAP_SYS_RAWIO
+This capability overrides the restriction that a process cannot
+read or write directly to
+.Pa /dev/mem .
 .It Dv CAP_SYS_CHROOT
 This capability overrides the restriction that a process cannot invoke the
 .Xr chroot 2
@@ -265,6 +270,8 @@ real and effective user IDs.
 This capability overrides the restriction that a process cannot enable,
 configure, or disable system process accounting.
 .It Dv CAP_SYS_ADMIN
+This capability overrides the restriction that a process cannot
+perform system administrative tasks.
 .It Dv CAP_SYS_BOOT
 This capability overrides the restriction that a process cannot invoke
 the
@@ -282,6 +289,8 @@ soft and hard resource limits.
 This capability overrides the restriction that a process may not modify the
 system date and time.
 .It Dv CAP_SYS_TTY_CONFIG
+This capability overrides the restriction that a process may not
+modify TTY configuration settings.
 .It Dv CAP_MKNOD
 This capability overrides the restriction that a process may not create
 device nodes.
