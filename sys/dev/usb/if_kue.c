@@ -559,6 +559,7 @@ kue_rxstart(struct ifnet *ifp)
 		printf("%s: no memory for rx list "
 		    "-- packet dropped!\n", USBDEVNAME(sc->kue_dev));
 		ifp->if_ierrors++;
+		KUE_UNLOCK(sc);
 		return;
 	}
 
