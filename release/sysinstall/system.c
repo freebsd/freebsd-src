@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.66 1996/10/01 12:13:29 jkh Exp $
+ * $Id: system.c,v 1.67 1996/12/09 06:02:32 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -82,6 +82,13 @@ systemInitialize(int argc, char **argv)
 	setenv("PATH", "/stand:/bin:/sbin:/usr/sbin:/usr/bin:/mnt/bin:/mnt/sbin:/mnt/usr/sbin:/mnt/usr/bin:/usr/X11R6/bin", 1);
 	setbuf(stdin, 0);
 	setbuf(stderr, 0);
+    }
+    else {
+	char hname[256];
+
+	/* Initalize various things for a multi-user environment */
+	if (!gethostname(hname, sizeof hname))
+	    variable_set2(VAR_HOSTNAME, hname);
     }
 
     if (set_termcap() == -1) {
@@ -292,12 +299,14 @@ systemCreateHoloshell(void)
 	    struct termios foo;
 	    extern int login_tty(int);
 	    
+	    ioctl(0, TIOCNOTTY, NULL);
 	    for (i = getdtablesize(); i; i--)
 		close(i);
-	    DebugFD = fd = open("/dev/ttyv3", O_RDWR);
+	    fd = open("/dev/ttyv3", O_RDWR);
 	    ioctl(0, TIOCSCTTY, &fd);
 	    dup2(0, 1);
 	    dup2(0, 2);
+	    DebugFD = 2;
 	    if (login_tty(fd) == -1)
 		msgDebug("Doctor: I can't set the controlling terminal.\n");
 	    signal(SIGTTOU, SIG_IGN);
