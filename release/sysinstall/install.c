@@ -973,6 +973,16 @@ installVarDefaults(dialogMenuItem *self)
     return DITEM_SUCCESS;
 }
 
+/* Load the environment up from various system configuration files */
+void
+installEnvironment(void)
+{
+    if (file_readable("/etc/sysconfig"))
+	configEnvironmentSysconfig("/etc/sysconfig");
+    if (file_readable("/etc/resolv.conf"))
+	configEnvironmentResolv("/etc/resolv.conf");
+}
+
 /* Copy the boot floppy contents into /stand */
 Boolean
 copySelf(void)
