@@ -266,20 +266,6 @@ ffs_omount(struct mount *mp, char *path, caddr_t data, struct thread *td)
 				}
 				VOP_UNLOCK(devvp, 0, td);
 			}
-			DROP_GIANT();
-			g_topology_lock();
-			/*
-			 * If we're the root device, we may not have an E count
-			 * yet, get it now.
-			 */
-			if (ump->um_cp->ace == 0)
-				error = g_access(ump->um_cp, 0, 1, 1);
-			else
-				error = g_access(ump->um_cp, 0, 1, 0);
-			g_topology_unlock();
-			PICKUP_GIANT();
-			if (error)
-				return (error);
 			fs->fs_flags &= ~FS_UNCLEAN;
 			if (fs->fs_clean == 0) {
 				fs->fs_flags |= FS_UNCLEAN;
@@ -295,6 +281,20 @@ ffs_omount(struct mount *mp, char *path, caddr_t data, struct thread *td)
 					return (EPERM);
 				}
 			}
+			DROP_GIANT();
+			g_topology_lock();
+			/*
+			 * If we're the root device, we may not have an E count
+			 * yet, get it now.
+			 */
+			if (ump->um_cp->ace == 0)
+				error = g_access(ump->um_cp, 0, 1, 1);
+			else
+				error = g_access(ump->um_cp, 0, 1, 0);
+			g_topology_unlock();
+			PICKUP_GIANT();
+			if (error)
+				return (error);
 			if ((error = vn_start_write(NULL, &mp, V_WAIT)) != 0)
 				return (error);
 			fs->fs_ronly = 0;
