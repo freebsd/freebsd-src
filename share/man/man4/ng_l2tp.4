@@ -37,7 +37,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 22, 2002
+.Dd August 2, 2004
 .Dt NG_L2TP 4
 .Os
 .Sh NAME
@@ -273,6 +273,22 @@ The corresponding session hook must be connected.
 Same as
 .Dv NGM_L2TP_GET_STATS ,
 but also atomically clears the statistics as well.
+.It Dv NGM_L2TP_SET_SEQ
+This command sets the sequence numbers of a not yet enabled node.
+It takes a
+.Vt "struct ng_l2tp_seq_config"
+as argument, where
+.Va xack
+and
+.Va nr
+respectively
+.Va ns
+and
+.Va rack
+must be the same.
+This option is particularly useful if one receives and processes
+the first packet entirely in userspace and wants to hand over further
+processing to the node.
 .El
 .Sh SHUTDOWN
 This node shuts down upon receipt of a

@@ -45,7 +45,7 @@
 
 /* Node type name and magic cookie */
 #define NG_L2TP_NODE_TYPE	"l2tp"
-#define NGM_L2TP_COOKIE		1011392401
+#define NGM_L2TP_COOKIE		1091448040
 
 /* Hook names */
 #define NG_L2TP_HOOK_CTRL	"ctrl"		/* control channel hook */
@@ -54,6 +54,21 @@
 /* Session hooks: prefix plus hex session ID, e.g., "session_3e14" */
 #define NG_L2TP_HOOK_SESSION_P	"session_"	/* session data hook (prefix) */
 #define NG_L2TP_HOOK_SESSION_F	"session_%04x"	/* session data hook (format) */
+
+/* Set intial sequence numbers to not yet enabled node. */
+struct ng_l2tp_seq_config {
+	u_int16_t	ns;		/* sequence number to send next */
+	u_int16_t	nr;		/* sequence number to be recved next */
+	u_int16_t	rack;		/* last 'nr' received */
+	u_int16_t	xack;		/* last 'nr' sent */
+};
+
+/* Keep this in sync with the above structure definition. */
+#define	NG_L2TP_SEQ_CONFIG_TYPE_INFO	{			\
+	  { "ns",		&ng_parse_uint16_type	},	\
+	  { "nr",		&ng_parse_uint16_type	},	\
+	  { NULL }						\
+}
 
 /* Configuration for a node */
 struct ng_l2tp_config {
@@ -156,6 +171,7 @@ enum {
 	NGM_L2TP_CLR_STATS,		/* clears stats */
 	NGM_L2TP_GETCLR_STATS,		/* returns & clears stats */
 	NGM_L2TP_ACK_FAILURE,		/* sent *from* node after ack timeout */
+	NGM_L2TP_SET_SEQ		/* supply a struct ng_l2tp_seq_config */
 };
 
 #endif /* _NETGRAPH_NG_L2TP_H_ */
