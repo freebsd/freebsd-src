@@ -61,6 +61,8 @@ static const char rcsid[] =
 #include <sysexits.h>
 #include <unistd.h>
 
+char	*getflags __P((u_long, char *));
+
 int dflag, eval, fflag, iflag, Pflag, vflag, Wflag, stdin_ok;
 uid_t uid;
 
