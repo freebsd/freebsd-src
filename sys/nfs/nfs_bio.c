@@ -928,7 +928,15 @@ again:
 		}
 
 		error = uiomove((char *)bp->b_data + on, n, uio);
-		bp->b_flags &= ~B_NEEDCOMMIT;
+
+		/*
+		 * Since this block is being modified, it must be written
+		 * again and not just committed.  Since write clustering does
+		 * not work for the stage 1 data write, only the stage 2
+		 * commit rpc, we have to clear B_CLUSTEROK as well.
+		 */
+		bp->b_flags &= ~(B_NEEDCOMMIT | B_CLUSTEROK);
+
 		if (error) {
 			bp->b_flags |= B_ERROR;
 			brelse(bp);
@@ -949,12 +957,6 @@ again:
 			}
 			vfs_bio_set_validclean(bp, on, n);
 		}
-
-		/*
-		 * Since this block is being modified, it must be written
-		 * again and not just committed.
-		 */
-		bp->b_flags &= ~B_NEEDCOMMIT;
 
 		/*
 		 * If the lease is non-cachable or IO_SYNC do bwrite().
@@ -986,10 +988,18 @@ again:
 
 /*
  * Get an nfs cache block.
+ *
  * Allocate a new one if the block isn't currently in the cache
  * and return the block marked busy. If the calling process is
  * interrupted by a signal for an interruptible mount point, return
  * NULL.
+ *
+ * The caller must carefully deal with the possible B_INVAL state of
+ * the buffer.  nfs_doio() clears B_INVAL (and nfs_asyncio() clears it
+ * indirectly), so synchronous reads can be issued without worrying about
+ * the B_INVAL state.  We have to be a little more careful when dealing
+ * with writes (see comments in nfs_write()) when extending a file past
+ * its EOF.
  */
 static struct buf *
 nfs_getcacheblk(vp, bn, size, p)
@@ -1359,7 +1369,7 @@ nfs_doio(bp, cr, p)
 		    bp->b_flags &= ~B_WRITEINPROG;
 		    if (retv == 0) {
 			    bp->b_dirtyoff = bp->b_dirtyend = 0;
-			    bp->b_flags &= ~B_NEEDCOMMIT;
+			    bp->b_flags &= ~(B_NEEDCOMMIT | B_CLUSTEROK);
 			    bp->b_resid = 0;
 			    biodone(bp);
 			    return (0);
@@ -1397,7 +1407,13 @@ nfs_doio(bp, cr, p)
 		 * When setting B_NEEDCOMMIT also set B_CLUSTEROK to try
 		 * to cluster the buffers needing commit.  This will allow
 		 * the system to submit a single commit rpc for the whole
-		 * cluster.
+		 * cluster.  We can do this even if the buffer is not 100% 
+		 * dirty (relative to the NFS blocksize), so we optimize the
+		 * append-to-file-case.
+		 *
+		 * (when clearing B_NEEDCOMMIT, B_CLUSTEROK must also be
+		 * cleared because write clustering only works for commit
+		 * rpc's, not for the data portion of the write).
 		 */
 
 		if (!error && iomode == NFSV3WRITE_UNSTABLE) {
@@ -1406,7 +1422,7 @@ nfs_doio(bp, cr, p)
 			&& bp->b_dirtyend == bp->b_bcount)
 			bp->b_flags |= B_CLUSTEROK;
 		} else {
-		    bp->b_flags &= ~B_NEEDCOMMIT;
+		    bp->b_flags &= ~(B_NEEDCOMMIT | B_CLUSTEROK);
 		}
 		bp->b_flags &= ~B_WRITEINPROG;
 

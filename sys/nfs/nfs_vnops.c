@@ -2924,7 +2924,7 @@ again:
 		 */
 		for (i = 0; i < bvecpos; i++) {
 			bp = bvec[i];
-			bp->b_flags &= ~(B_NEEDCOMMIT | B_WRITEINPROG);
+			bp->b_flags &= ~(B_NEEDCOMMIT | B_WRITEINPROG | B_CLUSTEROK);
 			if (retv) {
 				/*
 				 * Error, leave B_DELWRI intact
@@ -2988,7 +2988,7 @@ loop:
 		if (passone || !commit)
 		    bp->b_flags |= B_ASYNC;
 		else
-		    bp->b_flags |= (B_ASYNC | B_WRITEINPROG | B_NEEDCOMMIT);
+		    bp->b_flags |= B_ASYNC | B_WRITEINPROG;
 		splx(s);
 		VOP_BWRITE(bp->b_vp, bp);
 		goto loop;
@@ -3127,30 +3127,6 @@ nfs_writebp(bp, force, procp)
 	splx(s);
 
 	vfs_busy_pages(bp, 1);
-#if 0
-	/*
-	 * XXX removed, moved to nfs_doio XXX
-	 */
-	/*
-	 * If B_NEEDCOMMIT is set, a commit rpc may do the trick. If not
-	 * an actual write will have to be scheduled via. VOP_STRATEGY().
-	 * If B_WRITEINPROG is already set, then push it with a write anyhow.
-	 */
-	if ((oldflags & (B_NEEDCOMMIT | B_WRITEINPROG)) == B_NEEDCOMMIT) {
-		off = ((u_quad_t)bp->b_blkno) * DEV_BSIZE + bp->b_dirtyoff;
-		bp->b_flags |= B_WRITEINPROG;
-		retv = nfs_commit(bp->b_vp, off, bp->b_dirtyend-bp->b_dirtyoff,
-			bp->b_wcred, procp);
-		bp->b_flags &= ~B_WRITEINPROG;
-		if (!retv) {
-			bp->b_dirtyoff = bp->b_dirtyend = 0;
-			bp->b_flags &= ~B_NEEDCOMMIT;
-			biodone(bp);
-		} else if (retv == NFSERR_STALEWRITEVERF) {
-			nfs_clearcommit(bp->b_vp->v_mount);
-		}
-	}
-#endif
 	if (force)
 		bp->b_flags |= B_WRITEINPROG;
 	BUF_KERNPROC(bp);
