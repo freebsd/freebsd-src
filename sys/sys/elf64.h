@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: elf64.h,v 1.3 1998/07/07 23:32:57 jdp Exp $
+ *      $Id: elf64.h,v 1.4 1998/08/16 03:03:38 jdp Exp $
  */
 
 #ifndef _SYS_ELF64_H_
@@ -36,11 +36,12 @@
  */
 
 typedef u_int64_t	Elf64_Addr;
-typedef u_int16_t	Elf64_Half;
+typedef u_int32_t	Elf64_Half;
 typedef u_int64_t	Elf64_Off;
-typedef int32_t		Elf64_Sword;
-typedef u_int32_t	Elf64_Word;
+typedef int64_t		Elf64_Sword;
+typedef u_int64_t	Elf64_Word;
 typedef u_int64_t	Elf64_Size;
+typedef u_int16_t	Elf64_Quarter;
 
 /*
  * ELF header.
@@ -48,19 +49,19 @@ typedef u_int64_t	Elf64_Size;
 
 typedef struct {
 	unsigned char	e_ident[EI_NIDENT];	/* File identification. */
-	Elf64_Half	e_type;		/* File type. */
-	Elf64_Half	e_machine;	/* Machine architecture. */
-	Elf64_Word	e_version;	/* ELF format version. */
+	Elf64_Quarter	e_type;		/* File type. */
+	Elf64_Quarter	e_machine;	/* Machine architecture. */
+	Elf64_Half	e_version;	/* ELF format version. */
 	Elf64_Addr	e_entry;	/* Entry point. */
 	Elf64_Off	e_phoff;	/* Program header file offset. */
 	Elf64_Off	e_shoff;	/* Section header file offset. */
-	Elf64_Word	e_flags;	/* Architecture-specific flags. */
-	Elf64_Half	e_ehsize;	/* Size of ELF header in bytes. */
-	Elf64_Half	e_phentsize;	/* Size of program header entry. */
-	Elf64_Half	e_phnum;	/* Number of program header entries. */
-	Elf64_Half	e_shentsize;	/* Size of section header entry. */
-	Elf64_Half	e_shnum;	/* Number of section header entries. */
-	Elf64_Half	e_shstrndx;	/* Section name strings section. */
+	Elf64_Half	e_flags;	/* Architecture-specific flags. */
+	Elf64_Quarter	e_ehsize;	/* Size of ELF header in bytes. */
+	Elf64_Quarter	e_phentsize;	/* Size of program header entry. */
+	Elf64_Quarter	e_phnum;	/* Number of program header entries. */
+	Elf64_Quarter	e_shentsize;	/* Size of section header entry. */
+	Elf64_Quarter	e_shnum;	/* Number of section header entries. */
+	Elf64_Quarter	e_shstrndx;	/* Section name strings section. */
 } Elf64_Ehdr;
 
 /*
@@ -68,15 +69,15 @@ typedef struct {
  */
 
 typedef struct {
-	Elf64_Word	sh_name;	/* Section name (index into the
+	Elf64_Half	sh_name;	/* Section name (index into the
 					   section header string table). */
-	Elf64_Word	sh_type;	/* Section type. */
+	Elf64_Half	sh_type;	/* Section type. */
 	Elf64_Size	sh_flags;	/* Section flags. */
 	Elf64_Addr	sh_addr;	/* Address in memory image. */
 	Elf64_Off	sh_offset;	/* Offset in file. */
 	Elf64_Size	sh_size;	/* Size in bytes. */
-	Elf64_Word	sh_link;	/* Index of a related section. */
-	Elf64_Word	sh_info;	/* Depends on section type. */
+	Elf64_Half	sh_link;	/* Index of a related section. */
+	Elf64_Half	sh_info;	/* Depends on section type. */
 	Elf64_Size	sh_addralign;	/* Alignment in bytes. */
 	Elf64_Size	sh_entsize;	/* Size of each entry in section. */
 } Elf64_Shdr;
@@ -86,8 +87,8 @@ typedef struct {
  */
 
 typedef struct {
-	Elf64_Word	p_type;		/* Entry type. */
-	Elf64_Word	p_flags;	/* Access permission flags. */
+	Elf64_Half	p_type;		/* Entry type. */
+	Elf64_Half	p_flags;	/* Access permission flags. */
 	Elf64_Off	p_offset;	/* File offset of contents. */
 	Elf64_Addr	p_vaddr;	/* Virtual address in memory image. */
 	Elf64_Addr	p_paddr;	/* Physical address (not used). */
@@ -126,7 +127,7 @@ typedef struct {
 } Elf64_Rela;
 
 /* Macros for accessing the fields of r_info. */
-#define ELF64_R_SYM(info)	((info) >> 8)
+#define ELF64_R_SYM(info)	((info) >> 32)
 #define ELF64_R_TYPE(info)	((unsigned char)(info))
 
 /* Macro for constructing r_info from field values. */
@@ -137,10 +138,10 @@ typedef struct {
  */
 
 typedef struct {
-	Elf64_Word	st_name;	/* String table index of name. */
+	Elf64_Half	st_name;	/* String table index of name. */
 	unsigned char	st_info;	/* Type and binding information. */
 	unsigned char	st_other;	/* Reserved (not used). */
-	Elf64_Half	st_shndx;	/* Section index of symbol. */
+	Elf64_Quarter	st_shndx;	/* Section index of symbol. */
 	Elf64_Addr	st_value;	/* Symbol value. */
 	Elf64_Size	st_size;	/* Size of associated object. */
 } Elf64_Sym;
