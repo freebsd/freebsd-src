@@ -78,13 +78,19 @@
 
 /* prototypes */
 static int32_t ata_probe(int32_t, int32_t, int32_t, device_t, int32_t *);
+static void ata_attach(void *);
+static int32_t ata_getparam(struct ata_softc *, int32_t, u_int8_t);
 static void ataintr(void *);
 static int8_t *active2str(int32_t);
+static void bswap(int8_t *, int32_t);
+static void btrim(int8_t *, int32_t);
+static void bpack(int8_t *, int8_t *, int32_t);
 
 /* local vars */
 static int32_t atanlun = 2;
-struct ata_softc *atadevices[MAXATA];
+static struct intr_config_hook *ata_attach_hook = NULL;
 static devclass_t ata_devclass;
+struct ata_softc *atadevices[MAXATA];
 MALLOC_DEFINE(M_ATA, "ATA generic", "ATA driver generic layer");
 
 #if NISA > 0
@@ -592,6 +598,23 @@ ata_probe(int32_t ioaddr, int32_t altioaddr, int32_t bmaddr,
     *unit = scp->lun;
     scp->dev = dev;
     atadevices[scp->lun] = scp;
+
+    /* register callback for when interrupts are enabled */
+    if (!ata_attach_hook) {
+	if (!(ata_attach_hook = (struct intr_config_hook *)
+				malloc(sizeof(struct intr_config_hook),
+				M_TEMP, M_NOWAIT))) {
+            printf("ata: ERROR malloc attach_hook failed\n");
+            return 0;
+	}
+	bzero(ata_attach_hook, sizeof(struct intr_config_hook));
+
+	ata_attach_hook->ich_func = ata_attach;
+	if (config_intrhook_establish(ata_attach_hook) != 0) {
+            printf("ata: config_intrhook_establish failed\n");
+            free(ata_attach_hook, M_TEMP);
+	}
+    }
 #if NAPM > 0
     scp->resume_hook.ah_fun = (void *)ata_reinit;
     scp->resume_hook.ah_arg = scp;
@@ -600,6 +623,96 @@ ata_probe(int32_t ioaddr, int32_t altioaddr, int32_t bmaddr,
     apm_hook_establish(APM_HOOK_RESUME, &scp->resume_hook);
 #endif
     return ATA_IOSIZE;
+}
+
+void 
+ata_attach(void *dummy)
+{
+    int32_t ctlr;
+
+    /*
+     * run through atadevices[] and look for real ATA & ATAPI devices
+     * using the hints we found in the early probe to avoid probing
+     * of non-exsistent devices and thereby long delays
+     */
+    for (ctlr=0; ctlr<MAXATA; ctlr++) {
+	if (!atadevices[ctlr]) continue;
+
+	if (atadevices[ctlr]->devices & ATA_ATA_SLAVE)
+	    if (ata_getparam(atadevices[ctlr], ATA_SLAVE, ATA_C_ATA_IDENTIFY))
+		atadevices[ctlr]->devices &= ~ATA_ATA_SLAVE;
+	if (atadevices[ctlr]->devices & ATA_ATAPI_SLAVE)
+	    if (ata_getparam(atadevices[ctlr], ATA_SLAVE, ATA_C_ATAPI_IDENTIFY))
+		atadevices[ctlr]->devices &= ~ATA_ATAPI_SLAVE;
+	if (atadevices[ctlr]->devices & ATA_ATA_MASTER)
+	    if (ata_getparam(atadevices[ctlr], ATA_MASTER, ATA_C_ATA_IDENTIFY))
+		atadevices[ctlr]->devices &= ~ATA_ATA_MASTER;
+	if (atadevices[ctlr]->devices & ATA_ATAPI_MASTER)
+	    if (ata_getparam(atadevices[ctlr], ATA_MASTER,ATA_C_ATAPI_IDENTIFY))
+		atadevices[ctlr]->devices &= ~ATA_ATAPI_MASTER;
+    }
+
+    /* now we know whats there, do the real attach, first the ATA disks */
+    for (ctlr=0; ctlr<MAXATA; ctlr++) {
+	if (!atadevices[ctlr]) continue;
+	if (atadevices[ctlr]->devices & ATA_ATA_MASTER)
+	    ad_attach(atadevices[ctlr], ATA_MASTER);
+	if (atadevices[ctlr]->devices & ATA_ATA_SLAVE)
+	    ad_attach(atadevices[ctlr], ATA_SLAVE);
+    }
+    /* then the atapi devices */
+    for (ctlr=0; ctlr<MAXATA; ctlr++) {
+	if (!atadevices[ctlr]) continue;
+	if (atadevices[ctlr]->devices & ATA_ATAPI_MASTER)
+	    atapi_attach(atadevices[ctlr], ATA_MASTER);
+	if (atadevices[ctlr]->devices & ATA_ATAPI_SLAVE)
+	    atapi_attach(atadevices[ctlr], ATA_SLAVE);
+    }
+    if (ata_attach_hook) {
+	config_intrhook_disestablish(ata_attach_hook);
+	free(ata_attach_hook, M_ATA);
+	ata_attach_hook = NULL;
+    }
+}
+
+static int32_t
+ata_getparam(struct ata_softc *scp, int32_t device, u_int8_t command)
+{
+    struct ata_params *ata_parm;
+    int8_t buffer[DEV_BSIZE];
+
+    /* select drive */
+    outb(scp->ioaddr + ATA_DRIVE, ATA_D_IBM | device);
+    DELAY(1);
+    if (ata_command(scp, device, command, 0, 0, 0, 0, 0, ATA_WAIT_INTR)) {
+	printf("ata%d-%s: identify failed\n",
+	       scp->lun, (device == ATA_MASTER) ? "master" : "slave ");
+	return -1;
+    }
+    if (ata_wait(scp, device, ATA_S_READY|ATA_S_DSC|ATA_S_DRQ)) {
+	printf("ata%d-%s: drive wont come ready after identify\n",
+	       scp->lun, (device == ATA_MASTER) ? "master" : "slave ");
+        return -1;
+    }
+    insw(scp->ioaddr + ATA_DATA, buffer, sizeof(buffer)/sizeof(int16_t));
+    ata_parm = malloc(sizeof(struct ata_params), M_ATA, M_NOWAIT);
+    if (!ata_parm) {
+	printf("ata%d-%s: malloc for ata_param failed\n",
+	       scp->lun, (device == ATA_MASTER) ? "master" : "slave ");
+        return -1;
+    }
+    bcopy(buffer, ata_parm, sizeof(struct ata_params));   
+    if (command == ATA_C_ATA_IDENTIFY ||
+	!((ata_parm->model[0] == 'N' && ata_parm->model[1] == 'E') ||
+          (ata_parm->model[0] == 'F' && ata_parm->model[1] == 'X')))
+        bswap(ata_parm->model, sizeof(ata_parm->model));
+    btrim(ata_parm->model, sizeof(ata_parm->model));
+    bpack(ata_parm->model, ata_parm->model, sizeof(ata_parm->model));
+    bswap(ata_parm->revision, sizeof(ata_parm->revision));
+    btrim(ata_parm->revision, sizeof(ata_parm->revision));
+    bpack(ata_parm->revision, ata_parm->revision, sizeof(ata_parm->revision));
+    scp->dev_param[(device == ATA_MASTER) ? 0 : 1] = ata_parm;
+    return 0;
 }
 
 static void
@@ -992,7 +1105,41 @@ active2str(int32_t active)
     }
 }
 
-void
+int32_t
+ata_pmode(struct ata_params *ap)
+{
+    if (ap->atavalid & ATA_FLAG_64_70) {
+	if (ap->apiomodes & 2) return 4;
+	if (ap->apiomodes & 1) return 3;
+    }	
+    return -1; 
+} 
+
+int32_t
+ata_wmode(struct ata_params *ap)
+{
+    if (ap->atavalid & ATA_FLAG_64_70) {
+	if (ap->wdmamodes & 4) return 2;
+	if (ap->wdmamodes & 2) return 1;
+	if (ap->wdmamodes & 1) return 0;
+    }
+    return -1;
+}
+
+int32_t
+ata_umode(struct ata_params *ap)
+{
+    if (ap->atavalid & ATA_FLAG_88) {
+	if (ap->udmamodes & 0x10) return (ap->cblid ? 4 : 2);
+	if (ap->udmamodes & 0x08) return (ap->cblid ? 3 : 2);
+	if (ap->udmamodes & 0x04) return 2;
+	if (ap->udmamodes & 0x02) return 1;
+	if (ap->udmamodes & 0x01) return 0;
+    }
+    return -1;
+}
+
+static void
 bswap(int8_t *buf, int32_t len) 
 {
     u_int16_t *p = (u_int16_t*)(buf + len);
@@ -1001,7 +1148,7 @@ bswap(int8_t *buf, int32_t len)
 	*p = ntohs(*p);
 } 
 
-void
+static void
 btrim(int8_t *buf, int32_t len)
 { 
     int8_t *p;
@@ -1013,7 +1160,7 @@ btrim(int8_t *buf, int32_t len)
 	*p = 0;
 }
 
-void
+static void
 bpack(int8_t *src, int8_t *dst, int32_t len)
 {
     int32_t i, j, blank;
