@@ -1,5 +1,12 @@
 #
-#	$Id: Makefile,v 1.154 1997/10/07 11:32:05 bde Exp $
+#	$Id: Makefile,v 1.155 1997/10/10 13:02:36 asami Exp $
+#
+# While porting to the Alpha architecture include the bootstrap instead
+# of the normal build.
+#
+.if ${MACHINE} == "alpha"
+.include "Makefile.alpha"
+.else
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -484,7 +491,9 @@ includes:
 .else
 	cd ${.CURDIR}/lib/libtelnet &&		${MAKE} beforeinstall
 .endif
-	cd ${.CURDIR}/lib/csu/i386 &&		${MAKE} beforeinstall
+.if exists(${.CURDIR}/lib/csu/${MACHINE})
+	cd ${.CURDIR}/lib/csu/${MACHINE} &&	${MAKE} beforeinstall
+.endif
 	cd ${.CURDIR}/lib/libalias &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libc &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libcurses &&		${MAKE} beforeinstall
@@ -544,8 +553,8 @@ lib-tools:
 # libraries - build and install the libraries
 #
 libraries:
-.if exists(lib/csu/i386)
-	cd ${.CURDIR}/lib/csu/i386 && ${MAKE} depend && \
+.if exists(lib/csu/${MACHINE})
+	cd ${.CURDIR}/lib/csu/${MACHINE} && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all && \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 .endif
@@ -683,5 +692,7 @@ ${entry}.${__target}__D: .PHONY
 .endfor
 par-${__target}: ${SUBDIR:S/$/.${__target}__D/}
 .endfor
+
+.endif
 
 .include <bsd.subdir.mk>
