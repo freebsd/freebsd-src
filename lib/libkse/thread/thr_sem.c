@@ -139,19 +139,23 @@ _sem_init(sem_t *sem, int pshared, unsigned int value)
 int
 _sem_wait(sem_t *sem)
 {
+	struct pthread *curthread;
 	int retval;
 
 	if (sem_check_validity(sem) != 0)
 		return (-1);
 
-	pthread_testcancel();
-
-	if ((*sem)->syssem != 0)
+	if ((*sem)->syssem != 0) {
+		curthread = _get_curthread();
+		_thr_cancel_enter(curthread);
 		retval = ksem_wait((*sem)->semid);
+		_thr_cancel_leave(curthread, retval != 0);
+	}
 	else {
+		pthread_testcancel();
 		_pthread_mutex_lock(&(*sem)->lock);
 
-		while ((*sem)->count == 0) {
+		while ((*sem)->count <= 0) {
 			(*sem)->nwaiters++;
 			pthread_cleanup_push(decrease_nwaiters, sem);
 			pthread_cond_wait(&(*sem)->gtzero, &(*sem)->lock);
@@ -164,23 +168,26 @@ _sem_wait(sem_t *sem)
 
 		retval = 0;
 	}
- 	return (retval);
+	return (retval);
 }
 
 int
 _sem_timedwait(sem_t * __restrict sem,
     struct timespec * __restrict abs_timeout)
 {
+	struct pthread *curthread;
 	int retval;
 	int timeout_invalid;
 
 	if (sem_check_validity(sem) != 0)
 		return (-1);
 
-	pthread_testcancel();
-
-	if ((*sem)->syssem != 0)
+	if ((*sem)->syssem != 0) {
+		curthread = _get_curthread();
+		_thr_cancel_enter(curthread);
 		retval = ksem_timedwait((*sem)->semid, abs_timeout);
+		_thr_cancel_leave(curthread, retval != 0);
+	}
 	else {
 		/*
 		 * The timeout argument is only supposed to
@@ -189,11 +196,12 @@ _sem_timedwait(sem_t * __restrict sem,
 		 * segfault on an invalid address doesn't end
 		 * up leaving the mutex locked.
 		 */
+		pthread_testcancel();
 		timeout_invalid = (abs_timeout->tv_nsec >= 1000000000) ||
 		    (abs_timeout->tv_nsec < 0);
 		_pthread_mutex_lock(&(*sem)->lock);
 
-		if ((*sem)->count == 0) {
+		if ((*sem)->count <= 0) {
 			if (timeout_invalid) {
 				_pthread_mutex_unlock(&(*sem)->lock);
 				errno = EINVAL;
@@ -218,7 +226,7 @@ _sem_timedwait(sem_t * __restrict sem,
 		_pthread_mutex_unlock(&(*sem)->lock);
 	}
 
- 	return (retval);
+	return (retval);
 }
 
 int
