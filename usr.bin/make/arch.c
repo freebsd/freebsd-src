@@ -263,10 +263,10 @@ Arch_ParseArchive(char **linePtr, Lst *nodeLst, GNode *ctxt)
 	 * later.
 	 */
 	if (doSubst) {
-	    char    *buf;
-	    char    *sacrifice;
-	    char    *oldMemName = memName;
-	    size_t   sz;
+	    char	*buf;
+	    char	*sacrifice;
+	    char	*oldMemName = memName;
+	    size_t	sz;
 
 	    memName = Var_Subst(NULL, memName, ctxt, TRUE);
 
