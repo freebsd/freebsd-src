@@ -36,11 +36,10 @@
 .Os
 .Sh NAME
 .Nm kvm_getloadavg
-.Nd get error message on kvm descriptor
+.Nd get load average of the system
 .Sh SYNOPSIS
 .Fd #include <sys/resource.h>
 .Fd #include <kvm.h>
-.br
 .Ft int
 .Fn kvm_getloadavg "kvm_t *kd" "double loadavg[]" "int nelem"
 .Sh DESCRIPTION
