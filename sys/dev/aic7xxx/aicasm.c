@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id$
+ *      $Id: aic7xxx_asm.c,v 1.12.6.1 1997/03/16 07:21:30 gibbs Exp $
  */
 #include <sys/types.h>
 #include <sys/mman.h>
@@ -46,7 +46,10 @@
 static void usage __P((void));
 static void back_patch __P((void));
 static void output_code __P((FILE *ofile));
-static void output_listing __P((FILE *listfile, char *ifilename));
+static void output_listing __P((FILE *listfile, char *ifilename,
+				char *options));
+static struct patch *next_patch __P((struct patch *cur_patch, int options,
+				     int instrptr));
 
 struct path_list search_path;
 int includes_search_curdir;
@@ -79,6 +82,7 @@ main(argc, argv)
 	FILE *regfile;
 	char *listfilename;
 	FILE *listfile;
+	char *options;
 
 	SLIST_INIT(&search_path);
 	STAILQ_INIT(&seq_program);
@@ -88,10 +92,11 @@ main(argc, argv)
 	appname = *argv;
 	regfile = NULL;
 	listfile = NULL;
+	options = NULL;
 #if DEBUG
 	yy_flex_debug = 0;
 #endif
-	while ((ch = getopt(argc, argv, "d:l:n:o:r:I:")) != EOF) {
+	while ((ch = getopt(argc, argv, "d:l:n:o:r:I:O:")) != EOF) {
 		switch(ch) {
 		case 'd':
 #if DEBUG
@@ -127,6 +132,10 @@ main(argc, argv)
 				stop(NULL, EX_CANTCREAT);
 			}
 			ofilename = optarg;
+			break;
+		case 'O':
+			/* Patches to include in the listing */
+			options = optarg;
 			break;
 		case 'r':
 			if ((regfile = fopen(optarg, "w")) == NULL) {
@@ -199,7 +208,7 @@ main(argc, argv)
 		if (regfile != NULL)
 			symtable_dump(regfile);
 		if (listfile != NULL)
-			output_listing(listfile, inputfilename);
+			output_listing(listfile, inputfilename, options);
 	}
 
 	stop(NULL, 0);
@@ -211,8 +220,11 @@ static void
 usage()
 {
 
-	(void)fprintf(stderr, "usage: %s [-I directory] [-o output_file] "
-			      "input_file\n", appname);
+	(void)fprintf(stderr,
+"usage: %-16s [-nostdinc] [-I-] [-I directory] [-o output_file]
+			[-r register_output_file] [-l program_list_file]
+			[-O option_name[|options_name2]] input_file\n",
+			appname);
 	exit(EX_USAGE);
 }
 
@@ -285,7 +297,6 @@ output_code(ofile)
 		fprintf(ofile, "#define\t%-16s\t0x%x\n", cur_node->symbol->name,
 			cur_node->symbol->info.condinfo->value);
 	}
-	symlist_free(&patch_options);
 
 	fprintf(ofile,
 "struct patch {
@@ -310,41 +321,104 @@ output_code(ofile)
 }
 
 void
-output_listing(listfile, ifilename)
+output_listing(listfile, ifilename, patches)
 	FILE *listfile;
 	char *ifilename;
+	char *patches;
 {
 	FILE *ifile;
 	int line;
 	struct instruction *cur_instr;
 	int instrcount;
+	int instrptr;
 	char buf[1024];
+	patch_t *cur_patch;
+	char *option_spec;
+	int options;
 
 	instrcount = 0;
+	instrptr = 0;
 	line = 1;
+	options = 1; /* All code outside of patch blocks */
 	if ((ifile = fopen(ifilename, "r")) == NULL) {
 		perror(ifilename);
 		stop(NULL, EX_DATAERR);
 	}
+
+	/*
+	 * Determine which options to apply to this listing.
+	 */
+	while ((option_spec = strsep(&patches, "|")) != NULL) {
+		symbol_t *symbol;
+
+		symbol = symtable_get(option_spec);
+		if (symbol->type != CONDITIONAL) {
+			stop("Invalid option specified in patch list for "
+			     "program listing", EX_USAGE);
+			/* NOTREACHED */
+		}
+		options |= symbol->info.condinfo->value;
+	}
+
+	cur_patch = patch_list.stqh_first;
 	for(cur_instr = seq_program.stqh_first;
 	    cur_instr != NULL;
-	    cur_instr = cur_instr->links.stqe_next) {
+	    cur_instr = cur_instr->links.stqe_next,instrcount++) {
+
+		cur_patch = next_patch(cur_patch, options, instrcount);
+		if (cur_patch
+		 && cur_patch->begin <= instrcount
+		 && cur_patch->end > instrcount)
+			/* Don't count this instruction as it is in a patch
+			 * that was removed.
+			 */
+                        continue;
+
 		while (line < cur_instr->srcline) {
 			fgets(buf, sizeof(buf), ifile);
 				fprintf(listfile, "\t\t%s", buf);
 				line++;
 		}
-		fprintf(listfile, "%03x %02x%02x%02x%02x", instrcount,
+		fprintf(listfile, "%03x %02x%02x%02x%02x", instrptr,
 			cur_instr->format.bytes[0],
 			cur_instr->format.bytes[1],
 			cur_instr->format.bytes[2],
 			cur_instr->format.bytes[3]);
 		fgets(buf, sizeof(buf), ifile);
-		fprintf(listfile, "%s", buf);
+		fprintf(listfile, "\t%s", buf);
 		line++;
-		instrcount++;
+		instrptr++;
 	}
+	/* Dump the remainder of the file */
+	while(fgets(buf, sizeof(buf), ifile) != NULL)
+		fprintf(listfile, "\t\t%s", buf);
+
 	fclose(ifile);
+}
+
+static struct patch *
+next_patch(cur_patch, options, instrptr)
+	struct patch *cur_patch;
+	int	options;
+	int	instrptr;
+{
+	while(cur_patch != NULL) {
+		if (((cur_patch->options & options) != 0
+		   && cur_patch->negative == FALSE)
+		 || ((cur_patch->options & options) == 0
+		   && cur_patch->negative == TRUE)
+		 || (instrptr >= cur_patch->end)) {
+			/*
+			 * Either we want to keep this section of code,
+			 * or we have consumed this patch. Skip to the
+			 * next patch.
+			 */
+			cur_patch = cur_patch->links.stqe_next;
+		} else
+			/* Found an okay patch */
+			break;
+	}
+	return (cur_patch);
 }
 
 /*
@@ -374,6 +448,7 @@ stop(string, err_code)
 		}
 	}
 
+	symlist_free(&patch_options);
 	symtable_close();
 
 	exit(err_code);
