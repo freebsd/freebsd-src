@@ -38,7 +38,7 @@
  * from: Utah Hdr: vn.c 1.13 94/04/02
  *
  *	from: @(#)vn.c	8.6 (Berkeley) 4/1/94
- *	$Id: vn.c,v 1.59 1998/05/06 22:14:38 julian Exp $
+ *	$Id: vn.c,v 1.60 1998/06/07 17:09:50 dfr Exp $
  */
 
 /*
@@ -937,7 +937,7 @@ nvsclose(void *private, int flags, int mode, struct proc *p)
 #endif
 
 static int
-nvsioctl( void *private, int cmd, caddr_t addr, int flag, struct proc *p)
+nvsioctl( void *private, u_long cmd, caddr_t addr, int flag, struct proc *p)
 {
 	struct vn_softc *vn;
 
