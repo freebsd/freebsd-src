@@ -48,7 +48,7 @@ If a connection to
 is causing congestion on a network link, one can drop the TCP session
 in charge:
 .Bd -literal -offset indent
-# sockstat | grep '.*httpd.*[0-9]$'
+# sockstat -c | grep httpd
 www      httpd      16525 3  tcp4 \e
 	192.168.5.41:80      192.168.5.1:26747
 .Ed
