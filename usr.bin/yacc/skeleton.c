@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: skeleton.c,v 1.13 1997/04/28 03:36:13 steve Exp $
+ *	$Id: skeleton.c,v 1.14 1997/04/29 03:07:45 steve Exp $
  */
 
 #ifndef lint
@@ -68,14 +68,6 @@ char *banner[] =
     "#define yyclearin (yychar=(YYEMPTY))",
     "#define yyerrok (yyerrflag=0)",
     "#define YYRECOVERING (yyerrflag!=0)",
-    "#if defined(c_plusplus) || defined(__cplusplus)",
-    /* Declaring standard functions is too painful for C++. */
-    "#include <stdlib.h>",
-    "#else",
-    /* Declare standard functions to avoid depending on <stdlib.h>. */
-    "extern char *getenv();",
-    "extern void *realloc();",
-    "#endif",
 #if 0
     "extern int yylex();",
     "extern int yyparse();",
