@@ -30,6 +30,7 @@ static int pkg_do(char *);
 static int find_pkg(const char *, struct which_head *);
 static int cmp_path(const char *, const char *, const char *);
 static char *abspath(const char *);
+static int find_pkgs_by_origin(const char *, const char *);
 
 int
 pkg_perform(char **pkgs)
@@ -52,6 +53,8 @@ pkg_perform(char **pkgs)
 	/* Not reached */
     } else if (!TAILQ_EMPTY(whead)) {
 	return find_pkg(tmp, whead);
+    } else if (LookUpOrigin != NULL) {
+	return find_pkgs_by_origin(tmp, LookUpOrigin);
     }
 
     if (MatchType != MATCH_EXACT) {
@@ -410,5 +413,63 @@ find_pkg(const char *db_dir, struct which_head *which_list)
     }
 
     free(which_list);
+    return 0;
+}
+
+/* 
+ * Look through package dbs in db_dir and find which
+ * packages have the given origin. Don't use read_plist()
+ * because this increases time necessary for lookup by 40
+ * times, as we don't really have to parse all plist to
+ * get origin.
+ */
+static int 
+find_pkgs_by_origin(const char *db_dir, const char *origin)
+{
+    char **installed;
+    int errcode, i;
+
+    installed = matchinstalled(MATCH_ALL, NULL, &errcode);
+    if (installed == NULL)
+        return errcode;
+ 
+    if (!Quiet)
+	printf("The following installed package(s) has %s origin:\n", origin);
+    for (i = 0; installed[i] != NULL; i++) {
+     	FILE *fp;
+     	char *cp, tmp[PATH_MAX];
+     	int cmd;
+
+	snprintf(tmp, PATH_MAX, "%s/%s/%s", db_dir, installed[i],
+		 CONTENTS_FNAME);
+	fp = fopen(tmp, "r");
+	if (fp == NULL) {
+	    warn("%s", tmp);
+	    return 1;
+	}
+
+	cmd = -1;
+	while (fgets(tmp, sizeof(tmp), fp)) {
+	    int len = strlen(tmp);
+
+	    while (len && isspace(tmp[len - 1]))
+		tmp[--len] = '\0';
+	    if (!len)
+		continue;
+	    cp = tmp;
+	    if (tmp[0] != CMD_CHAR)
+		continue;
+	    cmd = plist_cmd(tmp + 1, &cp);
+	    if (cmd == PLIST_ORIGIN) {
+		if (strcmp(origin, cp) == 0)
+		    puts(installed[i]);
+		break;
+	    }
+	}
+	if (cmd != PLIST_ORIGIN)
+	    warnx("package %s has no origin recorded", installed[i]);
+	fclose(fp);
+    }
+
     return 0;
 }
