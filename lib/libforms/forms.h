@@ -50,6 +50,7 @@ struct input_field {
 	int lbl_flag;
 	char *label;
 	char *input;
+	int limit;
 };
 
 struct menu_field {
@@ -65,7 +66,6 @@ struct field {
 	int type;
 	int y;
 	int x;
-	int disp_width;
 	int width;
 	int attr;
 	int next;
