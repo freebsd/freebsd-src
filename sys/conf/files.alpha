@@ -35,7 +35,6 @@ ukbdmap.h			optional	ukbd_dflt_keymap	\
 	no-obj no-implicit-rule before-depend				\
 	clean		"ukbdmap.h"
 #
-alpha/alpha/alpha-gdbstub.c	optional	ddb
 alpha/alpha/api_up1000.c	optional	api_up1000
 alpha/alpha/atomic.s		standard
 alpha/alpha/autoconf.c		standard
@@ -67,6 +66,7 @@ alpha/alpha/elf_machdep.c	standard
 alpha/alpha/exception.s		standard
 alpha/alpha/fp_emulate.c	standard
 alpha/alpha/ieee_float.c	standard
+alpha/alpha/gdb_machdep.c	optional	gdb
 alpha/alpha/in_cksum.c		optional	inet
 alpha/alpha/interrupt.c		standard
 alpha/alpha/locore.s		standard	no-obj
