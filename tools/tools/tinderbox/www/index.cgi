@@ -93,8 +93,7 @@ MAIN:{
 
     <table border=\"1\" cellpadding=\"3\">
       <tr>
-        <th>Architecture</th>
-        <th>Machine</th>
+        <th>Platform</th>
 ";
     foreach my $branch (sort(keys(%BRANCHES))) {
 	print("        <th>$branch</th>\n");
@@ -104,8 +103,7 @@ MAIN:{
     foreach my $arch (sort(keys(%ARCHES))) {
 	foreach my $machine (sort(keys(%{$ARCHES{$arch}}))) {
 	    my $html =  "      <tr>
-        <td>$arch</td>
-        <td>$machine</td>
+        <td>$arch/$machine</td>
 ";
 	    foreach my $branch (sort(keys(%BRANCHES))) {
 		my $log = "tinderbox-$branch-$arch-$machine";
