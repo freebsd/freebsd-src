@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.177 1998/10/13 08:24:39 dg Exp $
+ *	$Id: wd.c,v 1.178 1998/10/22 05:58:41 bde Exp $
  */
 
 /* TODO:
@@ -664,16 +664,16 @@ wdstrategy(register struct buf *bp)
 	/* queue transfer on drive, activate drive and controller if idle */
 	s = splbio();
 
-	bufqdisksort(&drive_queue[lunit], bp);
-
-	if (wdutab[lunit].b_active == 0)
-		wdustart(du);	/* start drive */
-
 	/* Pick up changes made by readdisklabel(). */
 	if (du->dk_flags & DKFL_LABELLING && du->dk_state > RECAL) {
 		wdsleep(du->dk_ctrlr, "wdlab");
 		du->dk_state = WANTOPEN;
 	}
+
+	bufqdisksort(&drive_queue[lunit], bp);
+
+	if (wdutab[lunit].b_active == 0)
+		wdustart(du);	/* start drive */
 
 #ifdef CMD640
 	if (wdtab[du->dk_ctrlr_cmd640].b_active == 0)
