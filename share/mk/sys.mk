@@ -1,5 +1,5 @@
 #	from: @(#)sys.mk	8.2 (Berkeley) 3/21/94
-#	$Id: sys.mk,v 1.16 1996/06/02 17:04:08 phk Exp $
+#	$Id: sys.mk,v 1.17 1996/11/03 03:25:50 steve Exp $
 
 unix		?=	We run FreeBSD, not UNIX.
 
@@ -103,10 +103,10 @@ YFLAGS		?=	-d
 
 # SINGLE SUFFIX RULES
 .c:
-	$(CC) $(CFLAGS) $(LDFLAGS) -o ${.TARGET} ${.IMPSRC}
+	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.IMPSRC}
 
 .f:
-	$(FC) $(FFLAGS) $(LDFLAGS) -o ${.TARGET} ${.IMPSRC}
+	${FC} ${FFLAGS} ${LDFLAGS} -o ${.TARGET} ${.IMPSRC}
 
 .sh:
 	cp ${.IMPSRC} ${.TARGET}
@@ -115,39 +115,39 @@ YFLAGS		?=	-d
 # DOUBLE SUFFIX RULES
 
 .c.o:
-	$(CC) $(CFLAGS) -c ${.IMPSRC}
+	${CC} ${CFLAGS} -c ${.IMPSRC}
 
 .f.o:
-	$(FC) $(FFLAGS) -c ${.IMPSRC}
+	${FC} ${FFLAGS} -c ${.IMPSRC}
 
 .y.o:
-	$(YACC) $(YFLAGS) ${.IMPSRC}
-	$(CC) $(CFLAGS) -c y.tab.c
+	${YACC} ${YFLAGS} ${.IMPSRC}
+	${CC} ${CFLAGS} -c y.tab.c
 	rm -f y.tab.c
 	mv y.tab.o ${.TARGET}
 
 .l.o:
-	$(LEX) $(LFLAGS) ${.IMPSRC}
-	$(CC) $(CFLAGS) -c lex.yy.c
+	${LEX} ${LFLAGS} ${.IMPSRC}
+	${CC} ${CFLAGS} -c lex.yy.c
 	rm -f lex.yy.c
 	mv lex.yy.o ${.TARGET}
 
 .y.c:
-	$(YACC) $(YFLAGS) ${.IMPSRC}
+	${YACC} ${YFLAGS} ${.IMPSRC}
 	mv y.tab.c ${.TARGET}
 
 .l.c:
-	$(LEX) $(LFLAGS) ${.IMPSRC}
+	${LEX} ${LFLAGS} ${.IMPSRC}
 	mv lex.yy.c ${.TARGET}
 
 .c.a:
-	$(CC) -c $(CFLAGS) ${.IMPSRC}
-	$(AR) $(ARFLAGS) ${.TARGET} ${.PREFIX}.o
+	${CC} ${CFLAGS} -c ${.IMPSRC}
+	${AR} ${ARFLAGS} ${.TARGET} ${.PREFIX}.o
 	rm -f ${.PREFIX}.o
 
 .f.a:
-	$(FC) -c $(FFLAGS) ${.IMPSRC}
-	$(AR) $(ARFLAGS) ${.TARGET} ${.PREFIX}.o
+	${FC} ${FFLAGS} -c ${.IMPSRC}
+	${AR} ${ARFLAGS} ${.TARGET} ${.PREFIX}.o
 	rm -f ${.PREFIX}.o
 
 .else
