@@ -633,6 +633,7 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp)
 #endif
 	kp->ki_fd = p->p_fd;
 	kp->ki_vmspace = p->p_vmspace;
+	kp->ki_flag = p->p_flag;
 	cred = p->p_ucred;
 	if (cred) {
 		kp->ki_uid = cred->cr_uid;
@@ -644,6 +645,9 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp)
 		    kp->ki_ngroups * sizeof(gid_t));
 		kp->ki_rgid = cred->cr_rgid;
 		kp->ki_svgid = cred->cr_svgid;
+		/* If jailed(cred), emulate the old P_JAILED flag. */
+		if (jailed(cred))
+			kp->ki_flag |= P_JAILED;
 	}
 	ps = p->p_sigacts;
 	if (ps) {
@@ -792,10 +796,6 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp)
 	kp->ki_sigmask = td->td_sigmask;
 	kp->ki_xstat = p->p_xstat;
 	kp->ki_acflag = p->p_acflag;
-	kp->ki_flag = p->p_flag;
-	/* If jailed(p->p_ucred), emulate the old P_JAILED flag. */
-	if (jailed(p->p_ucred))
-		kp->ki_flag |= P_JAILED;
 	kp->ki_lock = p->p_lock;
 	if (p->p_pptr)
 		kp->ki_ppid = p->p_pptr->p_pid;
