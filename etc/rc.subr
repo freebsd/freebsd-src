@@ -43,6 +43,10 @@
 #	Operating System dependent/independent variables
 #
 
+if [ -z "${_rc_subr_loaded}" ]; then
+
+_rc_subr_loaded="YES"
+
 SYSCTL="/sbin/sysctl"
 SYSCTL_N="${SYSCTL} -n"
 CMD_OSTYPE="${SYSCTL_N} kern.ostype"
@@ -1286,3 +1290,5 @@ mount_md() {
 	fi
 	/sbin/mdmfs $bpi -s $1 -M md $2
 }
+
+fi
