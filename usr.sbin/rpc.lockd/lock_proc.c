@@ -197,6 +197,8 @@ get_client(host_addr, vers)
 	const char *netid;
 	struct netconfig *nconf;
 	char host[NI_MAXHOST];
+	uid_t old_euid;
+	int clnt_fd;
 
 	gettimeofday(&time_now, NULL);
 
@@ -270,6 +272,22 @@ get_client(host_addr, vers)
 		syslog(LOG_ERR, "Unable to return result to %s", host);
 		return NULL;
 	}
+
+	/* Get the FD of the client, for bindresvport. */ 
+	clnt_control(client, CLGET_FD, &clnt_fd);
+
+	/* Regain root privileges, for bindresvport. */
+	old_euid = geteuid();
+	seteuid(0);
+
+	/*
+	 * Bind the client FD to a reserved port.
+	 * Some NFS servers reject any NLM request from a non-reserved port. 
+	 */ 
+	bindresvport(clnt_fd, NULL);
+
+	/* Drop root privileges again. */
+	seteuid(old_euid);
 
 	/* Success - update the cache entry */
 	clnt_cache_ptr[clnt_cache_next_to_use] = client;
