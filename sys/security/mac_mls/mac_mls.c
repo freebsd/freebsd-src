@@ -1681,15 +1681,15 @@ mac_mls_check_vnode_open(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_mls_check_vnode_poll(struct ucred *cred, struct vnode *vp,
-    struct label *label)
+mac_mls_check_vnode_poll(struct ucred *active_cred, struct ucred *file_cred,
+    struct vnode *vp, struct label *label)
 {
 	struct mac_mls *subj, *obj;
 
 	if (!mac_mls_enabled || !mac_mls_revocation_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(&active_cred->cr_label);
 	obj = SLOT(label);
 
 	if (!mac_mls_dominate_single(subj, obj))
@@ -1699,15 +1699,15 @@ mac_mls_check_vnode_poll(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_mls_check_vnode_read(struct ucred *cred, struct vnode *vp,
-    struct label *label)
+mac_mls_check_vnode_read(struct ucred *active_cred, struct ucred *file_cred,
+    struct vnode *vp, struct label *label)
 {
 	struct mac_mls *subj, *obj;
 
 	if (!mac_mls_enabled || !mac_mls_revocation_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(&active_cred->cr_label);
 	obj = SLOT(label);
 
 	if (!mac_mls_dominate_single(subj, obj))
@@ -1967,15 +1967,15 @@ mac_mls_check_vnode_setutimes(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_mls_check_vnode_stat(struct ucred *cred, struct vnode *vp,
-    struct label *vnodelabel)
+mac_mls_check_vnode_stat(struct ucred *active_cred, struct ucred *file_cred,
+    struct vnode *vp, struct label *vnodelabel)
 {
 	struct mac_mls *subj, *obj;
 
 	if (!mac_mls_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(&active_cred->cr_label);
 	obj = SLOT(vnodelabel);
 
 	if (!mac_mls_dominate_single(subj, obj))
@@ -1985,15 +1985,15 @@ mac_mls_check_vnode_stat(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_mls_check_vnode_write(struct ucred *cred, struct vnode *vp,
-    struct label *label)
+mac_mls_check_vnode_write(struct ucred *active_cred, struct ucred *file_cred,
+    struct vnode *vp, struct label *label)
 {
 	struct mac_mls *subj, *obj;
 
 	if (!mac_mls_enabled || !mac_mls_revocation_enabled)
 		return (0);
 
-	subj = SLOT(&cred->cr_label);
+	subj = SLOT(&active_cred->cr_label);
 	obj = SLOT(label);
 
 	if (!mac_mls_dominate_single(obj, subj))

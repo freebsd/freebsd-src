@@ -734,7 +734,7 @@ open(td, uap)
 		vat.va_size = 0;
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 #ifdef MAC
-		error = mac_check_vnode_write(td->td_ucred, vp);
+		error = mac_check_vnode_write(td->td_ucred, fp->f_cred, vp);
 		if (error == 0)
 #endif
 			error = VOP_SETATTR(vp, &vat, td->td_ucred, td);
@@ -2367,7 +2367,8 @@ truncate(td, uap)
 	if (vp->v_type == VDIR)
 		error = EISDIR;
 #ifdef MAC
-	else if ((error = mac_check_vnode_write(td->td_ucred, vp))) {}
+	else if ((error = mac_check_vnode_write(td->td_ucred, NOCRED, vp))) {
+	}
 #endif
 	else if ((error = vn_writechk(vp)) == 0 &&
 	    (error = VOP_ACCESS(vp, VWRITE, td->td_ucred, td)) == 0) {
@@ -2424,7 +2425,9 @@ ftruncate(td, uap)
 	if (vp->v_type == VDIR)
 		error = EISDIR;
 #ifdef MAC
-	else if ((error = mac_check_vnode_write(td->td_ucred, vp))) {}
+	else if ((error = mac_check_vnode_write(td->td_ucred, fp->f_cred,
+	    vp))) {
+	}
 #endif
 	else if ((error = vn_writechk(vp)) == 0) {
 		VATTR_NULL(&vattr);
@@ -3342,7 +3345,11 @@ fhopen(td, uap)
 		VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);	/* XXX */
 #ifdef MAC
-		error = mac_check_vnode_write(td->td_ucred, vp);
+		/*
+		 * We don't yet have fp->f_cred, so use td->td_ucred, which
+		 * should be right.
+		 */
+		error = mac_check_vnode_write(td->td_ucred, td->td_ucred, vp);
 		if (error == 0) {
 #endif
 			VATTR_NULL(vap);

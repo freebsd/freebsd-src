@@ -1804,7 +1804,8 @@ mac_check_vnode_open(struct ucred *cred, struct vnode *vp, mode_t acc_mode)
 }
 
 int
-mac_check_vnode_poll(struct ucred *cred, struct vnode *vp)
+mac_check_vnode_poll(struct ucred *active_cred, struct ucred *file_cred,
+    struct vnode *vp)
 {
 	int error;
 
@@ -1813,17 +1814,19 @@ mac_check_vnode_poll(struct ucred *cred, struct vnode *vp)
 	if (!mac_enforce_fs)
 		return (0);
 
-	error = vn_refreshlabel(vp, cred);
+	error = vn_refreshlabel(vp, active_cred);
 	if (error)
 		return (error);
 
-	MAC_CHECK(check_vnode_poll, cred, vp, &vp->v_label);
+	MAC_CHECK(check_vnode_poll, active_cred, file_cred, vp,
+	    &vp->v_label);
 
 	return (error);
 }
 
 int
-mac_check_vnode_read(struct ucred *cred, struct vnode *vp)
+mac_check_vnode_read(struct ucred *active_cred, struct ucred *file_cred,
+    struct vnode *vp)
 {
 	int error;
 
@@ -1832,11 +1835,12 @@ mac_check_vnode_read(struct ucred *cred, struct vnode *vp)
 	if (!mac_enforce_fs)
 		return (0);
 
-	error = vn_refreshlabel(vp, cred);
+	error = vn_refreshlabel(vp, active_cred);
 	if (error)
 		return (error);
 
-	MAC_CHECK(check_vnode_read, cred, vp, &vp->v_label);
+	MAC_CHECK(check_vnode_read, active_cred, file_cred, vp,
+	    &vp->v_label);
 
 	return (error);
 }
@@ -2076,7 +2080,8 @@ mac_check_vnode_setutimes(struct ucred *cred, struct vnode *vp,
 }
 
 int
-mac_check_vnode_stat(struct ucred *cred, struct vnode *vp)
+mac_check_vnode_stat(struct ucred *active_cred, struct ucred *file_cred,
+    struct vnode *vp)
 {
 	int error;
 
@@ -2085,16 +2090,18 @@ mac_check_vnode_stat(struct ucred *cred, struct vnode *vp)
 	if (!mac_enforce_fs)
 		return (0);
 
-	error = vn_refreshlabel(vp, cred);
+	error = vn_refreshlabel(vp, active_cred);
 	if (error)
 		return (error);
 
-	MAC_CHECK(check_vnode_stat, cred, vp, &vp->v_label);
+	MAC_CHECK(check_vnode_stat, active_cred, file_cred, vp,
+	    &vp->v_label);
 	return (error);
 }
 
 int
-mac_check_vnode_write(struct ucred *cred, struct vnode *vp)
+mac_check_vnode_write(struct ucred *active_cred, struct ucred *file_cred,
+    struct vnode *vp)
 {
 	int error;
 
@@ -2103,11 +2110,12 @@ mac_check_vnode_write(struct ucred *cred, struct vnode *vp)
 	if (!mac_enforce_fs)
 		return (0);
 
-	error = vn_refreshlabel(vp, cred);
+	error = vn_refreshlabel(vp, active_cred);
 	if (error)
 		return (error);
 
-	MAC_CHECK(check_vnode_write, cred, vp, &vp->v_label);
+	MAC_CHECK(check_vnode_write, active_cred, file_cred, vp,
+	    &vp->v_label);
 
 	return (error);
 }

@@ -301,9 +301,11 @@ struct mac_policy_ops {
 		    struct vnode *vp, struct label *label, int newmapping);
 	int	(*mpo_check_vnode_open)(struct ucred *cred, struct vnode *vp,
 		    struct label *label, mode_t acc_mode);
-	int	(*mpo_check_vnode_poll)(struct ucred *cred, struct vnode *vp,
+	int	(*mpo_check_vnode_poll)(struct ucred *active_cred,
+		    struct ucred *file_cred, struct vnode *vp,
 		    struct label *label);
-	int	(*mpo_check_vnode_read)(struct ucred *cred, struct vnode *vp,
+	int	(*mpo_check_vnode_read)(struct ucred *active_cred,
+		    struct ucred *file_cred, struct vnode *vp,
 		    struct label *label);
 	int	(*mpo_check_vnode_readdir)(struct ucred *cred,
 		    struct vnode *dvp, struct label *dlabel);
@@ -337,9 +339,11 @@ struct mac_policy_ops {
 	int	(*mpo_check_vnode_setutimes)(struct ucred *cred,
 		    struct vnode *vp, struct label *label,
 		    struct timespec atime, struct timespec mtime);
-	int	(*mpo_check_vnode_stat)(struct ucred *cred, struct vnode *vp,
+	int	(*mpo_check_vnode_stat)(struct ucred *active_cred,
+		    struct ucred *file_cred, struct vnode *vp,
 		    struct label *label);
-	int	(*mpo_check_vnode_write)(struct ucred *cred, struct vnode *vp,
+	int	(*mpo_check_vnode_write)(struct ucred *active_cred,
+		    struct ucred *file_cred, struct vnode *vp,
 		    struct label *label);
 };
 
