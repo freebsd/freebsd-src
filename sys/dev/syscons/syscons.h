@@ -25,8 +25,15 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: syscons.h,v 1.1 1995/02/22 13:40:21 sos Exp $
  */
+
+/*
+ * The APM stuff is -not- under conditional compilation because we don't want
+ * the size of the scr_stat structure to vary depending upon if APM has been
+ * compiled in or not,  that can cause utilities and lkms to crash!
+ */
+#include <machine/apm_bios.h>
 
 /* vm things */
 #define	ISMAPPED(pa, width) \
@@ -140,9 +147,7 @@ typedef struct scr_stat {
 	u_short		*history_pos;		/* position shown on screen */
 	u_short		*history_save;		/* save area index */
 	int		history_size;		/* size of history buffer */
-#if NAPM > 0
 	struct apmhook  r_hook;			/* reconfiguration support */
-#endif
 } scr_stat;
 
 typedef struct default_attr {

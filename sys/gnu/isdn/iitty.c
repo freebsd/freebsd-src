@@ -1,6 +1,6 @@
-static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.1 1995/02/14 15:00:32 jkh Exp $";
+static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.2 1995/02/15 06:28:28 jkh Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.1 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.2 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,9 @@ static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.1 1995/02/14 15:00:32 jkh Exp 
  *
  *******************************************************************************
  * $Log: iitty.c,v $
+ * Revision 1.2  1995/02/15  06:28:28  jkh
+ * Fix up include paths, nuke some warnings.
+ *
  * Revision 1.1  1995/02/14  15:00:32  jkh
  * An ISDN driver that supports the EDSS1 and the 1TR6 ISDN interfaces.
  * EDSS1 is the "Euro-ISDN", 1TR6 is the soon obsolete german ISDN Interface.
@@ -321,10 +324,24 @@ itystop(struct tty *tp, int flag)
 	splx(s);
 }
 
+struct tty *
+itydevtotty(dev_t dev)
+{
+	register int unit = UNIT(dev);
+	if (unit >= next_if)
+		return (NULL);
+
+	return (&ity_tty[unit]);
+}
+
 int
 ityselect(dev_t dev, int rw, struct proc *p)
 {
-	return (ttselect(dev, rw, p));
+	register int unit = UNIT(dev);
+	if (unit >= next_if)
+		return (ENXIO);
+
+	return (ttyselect(&ity_tty[unit], rw, p));
 }
 
 #endif

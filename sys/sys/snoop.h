@@ -33,11 +33,11 @@
  */
 
 struct snoop {
-	int	snp_unit;		/* Pty unit number to snoop on */
-	int	snp_type;		/* Type same as st_type later  */
-	u_long 	snp_len,snp_base;	/* Buffer data len and base    */
+	dev_t	snp_target;		/* major/minor number of device*/
+	u_long 	snp_len;		/* buffer data length	       */
+	u_long	snp_base;		/* buffer data base	       */
 	u_long	snp_blen;		/* Overall buffer len	       */
-	char	*snp_buf;		/* Data buffer		       */
+	caddr_t	snp_buf;		/* Data buffer		       */
 	int 	snp_flags;		/* Flags place		       */
 #define SNOOP_NBIO		0x0001
 #define SNOOP_ASYNC		0x0002
@@ -48,22 +48,6 @@ struct snoop {
 	struct selinfo	snp_sel;	/* Selection info	       */
 };
 
-
-
-/*
- * This is structure to be passed
- * to ioctl() so we can define different
- * types of tty's..
- */
-struct snptty {
-	int	st_unit;
-	int	st_type;
-#define ST_PTY		0	/* Regular Pty       */
-#define	ST_VTY		1	/* Vty for SysCons.. */
-#define ST_SIO		2	/* Serial lines	     */
-#define ST_MAXTYPE	2
-};
-
 /*
  * Theese are snoop io controls
  * SNPSTTY accepts 'struct snptty' as input.
@@ -71,8 +55,8 @@ struct snptty {
  * detached from it's current tty.
  */
 
-#define SNPSTTY       _IOW('T', 90, struct snptty)
-#define SNPGTTY       _IOR('T', 89, struct snptty)
+#define SNPSTTY       _IOW('T', 90, dev_t)
+#define SNPGTTY       _IOR('T', 89, dev_t)
 
 /*
  * Theese values would be returned by FIONREAD ioctl
@@ -84,4 +68,3 @@ struct snptty {
 #define SNP_DETACH		-3
 
 #endif
-

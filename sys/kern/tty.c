@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.28 1995/02/15 22:25:51 ache Exp $
+ * $Id: tty.c,v 1.31 1995/02/24 02:36:01 ache Exp $
  */
 
 #include "snp.h"
@@ -233,7 +233,7 @@ ttyclose(tp)
 /*-
  * TODO:
  *	o Fix races for sending the start char in ttyflush().
- *	o Handle inter-byte timeout for "MIN > 0, TIME > 0" in ttselect().
+ *	o Handle inter-byte timeout for "MIN > 0, TIME > 0" in ttyselect().
  *	  With luck, there will be MIN chars before select() returns().
  *	o Handle CLOCAL consistently for ptys.  Perhaps disallow setting it.
  *	o Don't allow input in TS_ZOMBIE case.  It would be visible through
@@ -956,15 +956,15 @@ ttioctl(tp, cmd, data, flag)
 }
 
 int
-ttselect(device, rw, p)
-	dev_t device;
+ttyselect(tp, rw, p)
+	struct tty *tp;
 	int rw;
 	struct proc *p;
 {
-	register struct tty *tp;
 	int nread, s;
 
-	tp = &cdevsw[major(device)].d_ttys[minor(device)];
+	if (tp == NULL)
+		return (ENXIO);
 
 	s = spltty();
 	switch (rw) {
@@ -2144,9 +2144,8 @@ ttysleep(tp, chan, pri, wmesg, timo)
 }
 
 /*
- * XXX this is usable but not useful or used.  ttselect() requires an array
- * of tty structs.  Most tty drivers have ifdefs for using ttymalloc() but
- * assume a different interface.
+ * XXX this is usable not useful or used.  Most tty drivers have
+ * ifdefs for using ttymalloc() but assume a different interface.
  */
 /*
  * Allocate a tty struct.  Clists in the struct will be allocated by
