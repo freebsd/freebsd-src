@@ -256,13 +256,4 @@
 #ifdef _KERNEL
 void	panic __P((const char *, ...)) __dead2 __printflike(1, 2);
 #endif
-
-/*
- * Stop people from using memset/memcpy in the kernel
- */
-#ifdef _KERNEL
-double memset __P((int dont_use_memset_in_kernel, int a, int b, int c));
-#endif
-
-
 #endif	/* _SYS_PARAM_H_ */
