@@ -545,7 +545,7 @@ msdosfs_read(ap)
 	} */ *ap;
 {
 	int error = 0;
-	int diff;
+	off_t diff;
 	int blsize;
 	int isadir;
 	int orig_resid;
@@ -575,12 +575,12 @@ msdosfs_read(ap)
 
 	isadir = dep->de_Attributes & ATTR_DIRECTORY;
 	do {
+		if (uio->uio_offset >= dep->de_FileSize)
+			break;
 		lbn = de_cluster(pmp, uio->uio_offset);
 		on = uio->uio_offset & pmp->pm_crbomask;
 		n = min((u_long) (pmp->pm_bpcluster - on), uio->uio_resid);
 		diff = dep->de_FileSize - uio->uio_offset;
-		if (diff <= 0)
-			break;
 		if (diff < n)
 			n = diff;
 		/* convert cluster # to block # if a directory */
