@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.54 1998/03/24 09:51:55 jkh Exp $
+ * $Id: index.c,v 1.55 1998/09/23 12:13:47 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -79,6 +79,7 @@ static char *descrs[] = {
     "databases", "Database software.",
     "devel", "Software development utilities and libraries.",
     "development", "Software development utilities and libraries.",
+    "deskutils", "Various Desktop utilities.",
     "documentation", "Document preparation utilities.",
     "editors", "Common text editors.",
     "emulation", "Utilities for emulating other OS types.",
@@ -128,6 +129,11 @@ static char *descrs[] = {
     "vietnamese", "Ported software for the Vietnamese market.",
     "www", "WEB utilities (browers, HTTP servers, etc).",
     "x11", "X Window System based utilities.",
+    "x11-clocks", "X Window System based clocks.",
+    "x11-fm", "X Window System based file managers.",
+    "x11-fonts", "X Window System fonts.",
+    "x11-toolkits", "X Window System based development toolkits.",
+    "x11-wm", "X Window System Window Managers.",
     NULL, NULL,
 };
 
