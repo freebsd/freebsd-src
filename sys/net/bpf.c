@@ -1398,7 +1398,6 @@ bpf_drvinit(unused)
 
 	mtx_init(&bpf_mtx, "bpf global lock", NULL, MTX_DEF);
 	EVENTHANDLER_REGISTER(dev_clone, bpf_clone, 0, 1000);
-	cdevsw_add(&bpf_cdevsw);
 }
 
 SYSINIT(bpfdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,bpf_drvinit,NULL)
