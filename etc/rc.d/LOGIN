@@ -8,8 +8,8 @@
 # REQUIRE: DAEMON
 # KEYWORD: FreeBSD NetBSD
 
-#	This is a dummy dependancy to ensure user services such as xdm,
-#	inetd, cron and kerberos are started after everything else, incase
+#	This is a dummy dependency to ensure user services such as xdm,
+#	inetd, cron and kerberos are started after everything else, in case
 #	the administrator has increased the system security level and
 #	wants to delay user logins until the system is (almost) fully
 #	operational.
