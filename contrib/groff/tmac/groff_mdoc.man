@@ -1398,15 +1398,25 @@ the declaration for the next function.
 .Pp
 The
 .Ql .In
-.Li ( #include
-statement)
-macro is the short form of the above example.
+macro, while in the
+.Sx SYNOPSIS
+section, represents the
+.Li #include
+statement, and is the short form of the above example.
 It specifies the C\~header file as being included in a C\~program.
-It also causes a line break, and is neither callable nor parsed.
+It also causes a line break.
+.Pp
+While not in the
+.Sx SYNOPSIS
+section, it represents the header file enclosed in angle brackets.
 .Pp
 .Dl Usage: .In Ao header file Ac
 .Pp
 .Bl -tag -width ".Li .In\ stdio.h" -compact -offset 15n
+.nr in-synopsis-section 1
+.It Li ".In stdio.h"
+.In stdio.h
+.nr in-synopsis-section 0
 .It Li ".In stdio.h"
 .In stdio.h
 .El
