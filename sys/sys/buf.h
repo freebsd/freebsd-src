@@ -487,7 +487,6 @@ void	bdwrite __P((struct buf *));
 void	bawrite __P((struct buf *));
 void	bdirty __P((struct buf *));
 void	bundirty __P((struct buf *));
-int	bowrite __P((struct buf *));
 void	brelse __P((struct buf *));
 void	bqrelse __P((struct buf *));
 int	vfs_bio_awrite __P((struct buf *));
