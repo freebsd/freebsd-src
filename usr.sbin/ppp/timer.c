@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: timer.c,v 1.28 1998/05/21 21:48:46 brian Exp $
+ * $Id: timer.c,v 1.29 1998/06/15 19:06:56 brian Exp $
  *
  *  TODO:
  */
@@ -38,7 +38,6 @@
 static struct pppTimer *TimerList = NULL;
 
 static void StopTimerNoBlock(struct pppTimer *);
-static void InitTimerService(void);
 
 static const char *
 tState2Nam(u_int state)
@@ -99,7 +98,7 @@ timer_Start(struct pppTimer * tp)
   if (pt) {
     pt->next = tp;
   } else {
-    InitTimerService();
+    timer_InitService();
     TimerList = tp;
   }
   if (t)
@@ -225,8 +224,8 @@ timer_Show(int LogLevel, struct prompt *prompt)
     log_Printf(LogLevel, "---- End of Timer Service List ---\n");
 }
 
-static void 
-InitTimerService()
+void 
+timer_InitService()
 {
   struct itimerval itimer;
 
