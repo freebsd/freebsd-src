@@ -255,7 +255,6 @@ doadump(void)
 static void
 boot(int howto)
 {
-	static int first_buf_printf = 1;
 
 	/* collect extra flags that shutdown_nice might have set */
 	howto |= shutdown_howto;
@@ -282,7 +281,18 @@ boot(int howto)
 		int subiter;
 #endif
 
+		for (nbusy = 0, bp = &buf[nbuf]; --bp >= buf; )
+			if (((bp->b_flags & B_INVAL) == 0 &&
+			    BUF_REFCNT(bp) > 0) ||
+			    ((bp->b_flags & (B_DELWRI|B_INVAL)) == B_DELWRI))
+				nbusy++;
+		if (nbusy == 0) {
+			printf("Skipping final sync, no buffers remaining\n");
+			goto unmountall;
+		}
+
 		waittime = 0;
+		printf("Syncing disks, buffers remaining... ");
 
 		sync(&thread0, NULL);
 
@@ -305,10 +315,6 @@ boot(int howto)
 			}
 			if (nbusy == 0)
 				break;
-			if (first_buf_printf) {
-				printf("syncing disks, buffers remaining... ");
-				first_buf_printf = 0;
-			}
 			printf("%d ", nbusy);
 			if (nbusy < pbusy)
 				iter = 0;
@@ -338,6 +344,7 @@ boot(int howto)
 			PICKUP_GIANT();
 #endif
 		}
+		printf("\n");
 
 		/*
 		 * Count only busy local buffers to prevent forcing 
@@ -373,6 +380,7 @@ boot(int howto)
 			/*
 			 * Unmount filesystems
 			 */
+unmountall:
 			if (panicstr == 0)
 				vfs_unmountall();
 		}
