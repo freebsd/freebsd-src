@@ -1,4 +1,4 @@
-$Id: majors.i386,v 1.64 1999/01/14 03:47:55 msmith Exp $
+$Id: majors.i386,v 1.65 1999/01/20 03:29:52 msmith Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -159,5 +159,6 @@ chrdev	name		comments
 112	kbd		keyboard
 113	ulpt		USB Printer (nick.hibma@jrc.it)
 114	ugen		USB Generic device (nick.hibma@jrc.it)
+115	dag		University of Waikato DAG network capture boards
 200	??		entries from 200-255 are reserved for local use
 255	??		entries from 200-255 are reserved for local use
