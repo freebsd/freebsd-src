@@ -25,14 +25,6 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
- 
-#if __FreeBSD_version >= 500000
-#   define NCTAU 1
-#else
-#   include "ctau.h"
-#endif
-
-#if NCTAU > 0
 #include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -55,13 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpufunc.h>
 #include <machine/cserial.h>
 #include <machine/clock.h>
-#if __FreeBSD_version < 500000
-#   include <i386/isa/isa_device.h>
-#endif
 #include <machine/resource.h>
-#if __FreeBSD_version <= 501000
-#   include <i386/isa/intr_machdep.h>
-#endif
 #include <dev/cx/machdep.h>
 #include <dev/ctau/ctddk.h>
 #include <dev/cx/cronyxfw.h>
@@ -73,20 +59,12 @@ __FBSDID("$FreeBSD$");
 #   include <dev/ctau/ng_ct.h>
 #else
 #   include <net/if_types.h>
-#   if __FreeBSD_version < 500000
-#   include "sppp.h"
-#   if NSPPP <= 0
-#	error The device ctau requires sppp or netgraph.
-#   endif
-#   endif
 #   include <net/if_sppp.h>
 #   define PP_CISCO IFF_LINK2
-#   if __FreeBSD_version < 500000
-#	include <bpf.h>
-#   endif
 #   include <net/bpf.h>
-#   define NBPFILTER NBPF
 #endif
+ 
+#define NCTAU 1
 
 /* If we don't have Cronyx's sppp version, we don't have fr support via sppp */
 #ifndef PP_FR
@@ -116,10 +94,8 @@ typedef struct _ct_dma_mem_t {
 	unsigned long	phys;
 	void		*virt;
 	size_t		size;
-#if __FreeBSD_version >= 500000
 	bus_dma_tag_t	dmat;
 	bus_dmamap_t	mapp;
-#endif
 } ct_dma_mem_t;
 
 typedef struct _drv_t {
@@ -459,7 +435,6 @@ static int ct_probe (device_t dev)
 
 extern struct cdevsw ct_cdevsw;
 
-#if __FreeBSD_version >= 500000
 static void
 ct_bus_dmamap_addr (void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
@@ -516,28 +491,6 @@ ct_bus_dma_mem_free (ct_dma_mem_t *dmem)
 	bus_dmamem_free (dmem->dmat, dmem->virt, dmem->mapp);
 	bus_dma_tag_destroy (dmem->dmat);
 }
-#else
-static int
-ct_bus_dma_mem_alloc (int bnum, int cnum, ct_dma_mem_t *dmem)
-{
-	dmem->virt = contigmalloc (dmem->size, M_DEVBUF, M_WAITOK,
-				   0x100000, 0x1000000, 16, 0);
-	if (dmem->virt == NULL) {
-		if (cnum >= 0)	printf ("ct%d-%d: ", bnum, cnum);
-		else		printf ("ct%d: ", bnum);
-		printf ("couldn't allocate memory for dma memory\n", unit);
- 		return 0;
-	}
-	dmem->phys = vtophys (dmem->virt);
-	return 1;
-}
-
-static void
-ct_bus_dma_mem_free (ct_dma_mem_t *dmem)
-{
-	contigfree (dmem->virt, dmem->size, M_DEVBUF);
-}
-#endif
 
 /*
  * The adapter is present, initialize the driver structures.
@@ -700,21 +653,12 @@ static int ct_attach (device_t dev)
 			ct_bus_dma_mem_free (&d->dmamem);
 			continue;
 		}
-#if __FreeBSD_version >= 500000
 		NG_NODE_SET_PRIVATE (d->node, d);
-#else
-		d->node->private = d;
-#endif
 		sprintf (d->nodename, "%s%d", NG_CT_NODE_TYPE,
 			 c->board->num*NCHAN + c->num);
 		if (ng_name_node (d->node, d->nodename)) {
 			printf ("%s: cannot name node\n", d->nodename);
-#if __FreeBSD_version >= 500000
 			NG_NODE_UNREF (d->node);
-#else
-			ng_rmnode (d->node);
-			ng_unref (d->node);
-#endif
 			channel [b->num*NCHAN + c->num] = 0;
 			c->sys = 0;		
 			ct_bus_dma_mem_free (&d->dmamem);
@@ -722,18 +666,11 @@ static int ct_attach (device_t dev)
 		}
 		d->queue.ifq_maxlen = IFQ_MAXLEN;
 		d->hi_queue.ifq_maxlen = IFQ_MAXLEN;
-#if __FreeBSD_version >= 500000
 		mtx_init (&d->queue.ifq_mtx, "ct_queue", NULL, MTX_DEF);
 		mtx_init (&d->hi_queue.ifq_mtx, "ct_queue_hi", NULL, MTX_DEF);		
-#endif
 #else /*NETGRAPH*/
 		d->pp.pp_if.if_softc    = d;
-#if __FreeBSD_version > 501000
 		if_initname (&d->pp.pp_if, "ct", b->num * NCHAN + c->num);
-#else
-		d->pp.pp_if.if_unit	= b->num * NCHAN + c->num;
-		d->pp.pp_if.if_name	= "ct";
-#endif
 		d->pp.pp_if.if_mtu	= PP_MTU;
 		d->pp.pp_if.if_flags	= IFF_POINTOPOINT | IFF_MULTICAST |
 					  IFF_NEEDSGIANT;
@@ -805,7 +742,6 @@ static int ct_detach (device_t dev)
 			continue;
 
 #ifdef NETGRAPH
-#if __FreeBSD_version >= 500000
 		if (d->node) {
 			ng_rmnode_self (d->node);
 			NG_NODE_UNREF (d->node);
@@ -814,14 +750,8 @@ static int ct_detach (device_t dev)
 		mtx_destroy (&d->queue.ifq_mtx);
 		mtx_destroy (&d->hi_queue.ifq_mtx);
 #else
-		ng_rmnode (d->node);
-		d->node = 0;
-#endif	
-#else
-#if __FreeBSD_version >= 410000 && NBPFILTER > 0
 		/* Detach from the packet filter list of interfaces. */
 		bpfdetach (&d->pp.pp_if);
-#endif
 		/* Detach from the sync PPP list. */
 		sppp_detach (&d->pp.pp_if);
 
@@ -1001,11 +931,7 @@ static void ct_send (drv_t *d)
 			return;
 #ifndef NETGRAPH
 		if (d->pp.pp_if.if_bpf)
-#if __FreeBSD_version >= 500000
 			BPF_MTAP (&d->pp.pp_if, m);
-#else
-			bpf_mtap (&d->pp.pp_if, m);
-#endif
 #endif
 		len = m->m_pkthdr.len;
 		if (! m->m_next)
@@ -1097,7 +1023,7 @@ static void ct_receive (ct_chan_t *c, char *data, int len)
 {
 	drv_t *d = c->sys;
 	struct mbuf *m;
-#if __FreeBSD_version >= 500000 && defined NETGRAPH
+#ifdef NETGRAPH
 	int error;
 #endif
 
@@ -1116,22 +1042,14 @@ static void ct_receive (ct_chan_t *c, char *data, int len)
 		printmbuf (m);
 #ifdef NETGRAPH
 	m->m_pkthdr.rcvif = 0;
-#if __FreeBSD_version >= 500000
 	NG_SEND_DATA_ONLY (error, d->hook, m);
-#else
-	ng_queue_data (d->hook, m, 0);
-#endif
 #else
 	++d->pp.pp_if.if_ipackets;
 	m->m_pkthdr.rcvif = &d->pp.pp_if;
 	/* Check if there's a BPF listener on this interface.
 	 * If so, hand off the raw packet to bpf. */
 	if (d->pp.pp_if.if_bpf)
-#if __FreeBSD_version >= 500000
 		BPF_TAP (&d->pp.pp_if, data, len);
-#else
-		bpf_tap (&d->pp.pp_if, data, len);
-#endif
 	sppp_input (&d->pp.pp_if, m);
 #endif
 }
@@ -1188,11 +1106,7 @@ static void ct_error (ct_chan_t *c, int data)
 	}
 }
 
-#if __FreeBSD_version < 500000
-static int ct_open (dev_t dev, int oflags, int devtype, struct proc *p)
-#else
 static int ct_open (struct cdev *dev, int oflags, int devtype, struct thread *td)
-#endif
 {
 	drv_t *d;
 
@@ -1203,11 +1117,7 @@ static int ct_open (struct cdev *dev, int oflags, int devtype, struct thread *td
 	return 0;
 }
 
-#if __FreeBSD_version < 500000
-static int ct_close (dev_t dev, int fflag, int devtype, struct proc *p)
-#else
 static int ct_close (struct cdev *dev, int fflag, int devtype, struct thread *td)
-#endif
 {
 	drv_t *d = channel [minor(dev)];
 
@@ -1240,11 +1150,7 @@ static int ct_modem_status (ct_chan_t *c)
 /*
  * Process an ioctl request on /dev/cronyx/ctauN.
  */
-#if __FreeBSD_version < 500000
-static int ct_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
-#else
 static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
-#endif
 {
 	drv_t *d = channel [minor (dev)];
 	ct_chan_t *c;
@@ -1275,11 +1181,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 	case SERIAL_SETPROTO:
 		/* Only for superuser! */
-#if __FreeBSD_version < 500000
-		error = suser (p);
-#else /* __FreeBSD_version >= 500000 */
 		error = suser (td);
-#endif /* __FreeBSD_version >= 500000 */
 		if (error)
 			return error;
 		if (d->pp.pp_if.if_flags & IFF_RUNNING)
@@ -1307,11 +1209,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 	case SERIAL_SETKEEPALIVE:
 		/* Only for superuser! */
-#if __FreeBSD_version < 500000
-		error = suser (p);
-#else /* __FreeBSD_version >= 500000 */
 		error = suser (td);
-#endif /* __FreeBSD_version >= 500000 */
 		if (error)
 			return error;
 		if ((d->pp.pp_flags & PP_FR) ||
@@ -1340,11 +1238,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 	case SERIAL_SETCFG:
 		/* Only for superuser! */
-#if __FreeBSD_version < 500000
-		error = suser (p);
-#else /* __FreeBSD_version >= 500000 */
 		error = suser (td);
-#endif /* __FreeBSD_version >= 500000 */
 		if (error)
 			return error;
 		if (c->mode == M_HDLC)
@@ -1420,11 +1314,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 	case SERIAL_CLRSTAT:
 		/* Only for superuser! */
-#if __FreeBSD_version < 500000
-		error = suser (p);
-#else /* __FreeBSD_version >= 500000 */
 		error = suser (td);
-#endif /* __FreeBSD_version >= 500000 */
 		if (error)
 			return error;
 		c->rintr = 0;
@@ -1447,11 +1337,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 	case SERIAL_SETBAUD:
 		/* Only for superuser! */
-#if __FreeBSD_version < 500000
-		error = suser (p);
-#else /* __FreeBSD_version >= 500000 */
 		error = suser (td);
-#endif /* __FreeBSD_version >= 500000 */
 		if (error)
 			return error;
 		s = splimp ();
@@ -1465,11 +1351,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 	case SERIAL_SETLOOP:
 		/* Only for superuser! */
-#if __FreeBSD_version < 500000
-		error = suser (p);
-#else /* __FreeBSD_version >= 500000 */
 		error = suser (td);
-#endif /* __FreeBSD_version >= 500000 */
 		if (error)
 			return error;
 		s = splimp ();
@@ -1485,11 +1367,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 	case SERIAL_SETDPLL:
 		/* Only for superuser! */
-#if __FreeBSD_version < 500000
-		error = suser (p);
-#else /* __FreeBSD_version >= 500000 */
 		error = suser (td);
-#endif /* __FreeBSD_version >= 500000 */
 		if (error)
 			return error;
 		if (c->mode == M_E1 || c->mode == M_G703)
@@ -1507,11 +1385,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 	case SERIAL_SETNRZI:
 		/* Only for superuser! */
-#if __FreeBSD_version < 500000
-		error = suser (p);
-#else /* __FreeBSD_version >= 500000 */
 		error = suser (td);
-#endif /* __FreeBSD_version >= 500000 */
 		if (error)
 			return error;
 		if (c->mode == M_E1 || c->mode == M_G703)
@@ -1527,11 +1401,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 	case SERIAL_SETDEBUG:
 		/* Only for superuser! */
-#if __FreeBSD_version < 500000
-		error = suser (p);
-#else /* __FreeBSD_version >= 500000 */
 		error = suser (td);
-#endif /* __FreeBSD_version >= 500000 */
 		if (error)
 			return error;
 		c->debug = *(int*)data;
@@ -1551,11 +1421,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 	case SERIAL_SETHIGAIN:
 		/* Only for superuser! */
-#if __FreeBSD_version < 500000
-		error = suser (p);
-#else /* __FreeBSD_version >= 500000 */
 		error = suser (td);
-#endif /* __FreeBSD_version >= 500000 */
 		if (error)
 			return error;
 		s = splimp ();
@@ -1575,11 +1441,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		if (c->mode != M_E1)
 			return EINVAL;
 		/* Only for superuser! */
-#if __FreeBSD_version < 500000
-		error = suser (p);
-#else /* __FreeBSD_version >= 500000 */
 		error = suser (td);
-#endif /* __FreeBSD_version >= 500000 */
 		if (error)
 			return error;
 		s = splimp ();
@@ -1600,11 +1462,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 	case SERIAL_SETCLK:
 		/* Only for superuser! */
-#if __FreeBSD_version < 500000
-		error = suser (p);
-#else /* __FreeBSD_version >= 500000 */
 		error = suser (td);
-#endif /* __FreeBSD_version >= 500000 */
 		if (error)
 			return error;
 		s = splimp ();
@@ -1626,11 +1484,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 	case SERIAL_SETTIMESLOTS:
 		/* Only for superuser! */
-#if __FreeBSD_version < 500000
-		error = suser (p);
-#else /* __FreeBSD_version >= 500000 */
 		error = suser (td);
-#endif /* __FreeBSD_version >= 500000 */
 		if (error)
 			return error;
 		s = splimp ();
@@ -1646,11 +1500,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 	case SERIAL_SETSUBCHAN:
 		/* Only for superuser! */
-#if __FreeBSD_version < 500000
-		error = suser (p);
-#else /* __FreeBSD_version >= 500000 */
 		error = suser (td);
-#endif /* __FreeBSD_version >= 500000 */
 		if (error)
 			return error;
 		s = splimp ();
@@ -1674,11 +1524,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 	case SERIAL_SETINVCLK:
 	case SERIAL_SETINVTCLK:
 		/* Only for superuser! */
-#if __FreeBSD_version < 500000
-		error = suser (p);
-#else /* __FreeBSD_version >= 500000 */
 		error = suser (td);
-#endif /* __FreeBSD_version >= 500000 */
 		if (error)
 			return error;
 		if (c->mode == M_E1 || c->mode == M_G703)
@@ -1690,11 +1536,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 	case SERIAL_SETINVRCLK:
 		/* Only for superuser! */
-#if __FreeBSD_version < 500000
-		error = suser (p);
-#else /* __FreeBSD_version >= 500000 */
 		error = suser (td);
-#endif /* __FreeBSD_version >= 500000 */
 		if (error)
 			return error;
 		if (c->mode == M_E1 || c->mode == M_G703)
@@ -1752,45 +1594,6 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 	return ENOTTY;
 }
 
-#if __FreeBSD_version < 500000
-static struct cdevsw ct_cdevsw = {
-	ct_open,	ct_close,	noread,		nowrite,
-	ct_ioctl,	nopoll,		nommap,		nostrategy,
-	"ct",		CDEV_MAJOR,	nodump,		nopsize,
-	D_NAGGED,	-1
-};
-#elif __FreeBSD_version == 500000
-static struct cdevsw ct_cdevsw = {
-	ct_open,	ct_close,	noread,		nowrite,
-	ct_ioctl,	nopoll,		nommap,		nostrategy,
-	"ct",		CDEV_MAJOR,	nodump,		nopsize,
-	D_NAGGED,
-	};
-#elif __FreeBSD_version <= 501000
-static struct cdevsw ct_cdevsw = {
-	.d_open     = ct_open,
-	.d_close    = ct_close,
-	.d_read     = noread,
-	.d_write    = nowrite,
-	.d_ioctl    = ct_ioctl,
-	.d_poll     = nopoll,
-	.d_mmap	    = nommap,
-	.d_strategy = nostrategy,
-	.d_name     = "ct",
-	.d_maj      = CDEV_MAJOR,
-	.d_dump     = nodump,
-	.d_flags    = D_NAGGED,
-};
-#elif __FreeBSD_version < 502103
-static struct cdevsw ct_cdevsw = {
-	.d_open     = ct_open,
-	.d_close    = ct_close,
-	.d_ioctl    = ct_ioctl,
-	.d_name     = "ct",
-	.d_maj      = CDEV_MAJOR,
-	.d_flags    = D_NAGGED,
-};
-#else /* __FreeBSD_version >= 502103 */
 static struct cdevsw ct_cdevsw = {
 	.d_version  = D_VERSION,
 	.d_open     = ct_open,
@@ -1800,18 +1603,11 @@ static struct cdevsw ct_cdevsw = {
 	.d_maj      = CDEV_MAJOR,
 	.d_flags    = D_NEEDGIANT,
 };
-#endif /* __FreeBSD_version > 501000 */
 
 #ifdef NETGRAPH
-#if __FreeBSD_version >= 500000
 static int ng_ct_constructor (node_p node)
 {
 	drv_t *d = NG_NODE_PRIVATE (node);
-#else
-static int ng_ct_constructor (node_p *node)
-{
-	drv_t *d = (*node)->private;
-#endif
 	CT_DEBUG (d, ("Constructor\n"));
 	return EINVAL;
 }
@@ -1819,22 +1615,14 @@ static int ng_ct_constructor (node_p *node)
 static int ng_ct_newhook (node_p node, hook_p hook, const char *name)
 {
 	int s;
-#if __FreeBSD_version >= 500000
 	drv_t *d = NG_NODE_PRIVATE (node);
-#else
-	drv_t *d = node->private;
-#endif
 
 	if (!d)
 		return EINVAL;
 		
 	/* Attach debug hook */
 	if (strcmp (name, NG_CT_HOOK_DEBUG) == 0) {
-#if __FreeBSD_version >= 500000
 		NG_HOOK_SET_PRIVATE (hook, NULL);
-#else
-		hook->private = 0;
-#endif
 		d->debug_hook = hook;
 		return 0;
 	}
@@ -1843,11 +1631,7 @@ static int ng_ct_newhook (node_p node, hook_p hook, const char *name)
 	if (strcmp (name, NG_CT_HOOK_RAW) != 0)
 		return EINVAL;
 
-#if __FreeBSD_version >= 500000
 	NG_HOOK_SET_PRIVATE (hook, d);
-#else
-	hook->private = d;
-#endif
 	d->hook = hook;
 	s = splimp ();
 	ct_up (d);
@@ -2100,17 +1884,10 @@ static int print_chan (char *s, ct_chan_t *c)
 	return length;
 }
 
-#if __FreeBSD_version >= 500000
 static int ng_ct_rcvmsg (node_p node, item_p item, hook_p lasthook)
 {
 	drv_t *d = NG_NODE_PRIVATE (node);
 	struct ng_mesg *msg;
-#else
-static int ng_ct_rcvmsg (node_p node, struct ng_mesg *msg,
-	const char *retaddr, struct ng_mesg **rptr)
-{
-	drv_t *d = node->private;
-#endif
 	struct ng_mesg *resp = NULL;
 	int error = 0;
 
@@ -2118,9 +1895,7 @@ static int ng_ct_rcvmsg (node_p node, struct ng_mesg *msg,
 		return EINVAL;
 		
 	CT_DEBUG (d, ("Rcvmsg\n"));
-#if __FreeBSD_version >= 500000
 	NGI_GET_MSG (item, msg);
-#endif
 	switch (msg->header.typecookie) {
 	default:
 		error = EINVAL;
@@ -2142,75 +1917,42 @@ static int ng_ct_rcvmsg (node_p node, struct ng_mesg *msg,
 			int l = 0;
 			int dl = sizeof (struct ng_mesg) + 730;
 
-#if __FreeBSD_version >= 500000	
 			NG_MKRESPONSE (resp, msg, dl, M_NOWAIT);
 			if (! resp) {
 				error = ENOMEM;
 				break;
 			}
-#else
-			MALLOC (resp, struct ng_mesg *, dl,
-				M_NETGRAPH, M_NOWAIT);
-			if (! resp) {
-				error = ENOMEM;
-				break;
-			}
-			bzero (resp, dl);
-#endif
 			s = (resp)->data;
 			l += print_chan (s + l, d->chan);
 			l += print_stats (s + l, d->chan, 1);
 			l += print_modems (s + l, d->chan, 1);
 			l += print_e1_stats (s + l, d->chan);
-#if __FreeBSD_version < 500000
-			(resp)->header.version = NG_VERSION;
-			(resp)->header.arglen = strlen (s) + 1;
-			(resp)->header.token = msg->header.token;
-			(resp)->header.typecookie = NGM_CT_COOKIE;
-			(resp)->header.cmd = msg->header.cmd;
-#endif
 			strncpy ((resp)->header.cmdstr, "status", NG_CMDSTRLEN);
 			}
 			break;
 		}
 		break;
 	}
-#if __FreeBSD_version >= 500000
 	NG_RESPOND_MSG (error, node, item, resp);
 	NG_FREE_MSG (msg);
-#else
-	*rptr = resp;
-	FREE (msg, M_NETGRAPH);
-#endif
 	return error;
 }
 
-#if __FreeBSD_version >= 500000
 static int ng_ct_rcvdata (hook_p hook, item_p item)
 {
 	drv_t *d = NG_NODE_PRIVATE (NG_HOOK_NODE(hook));
 	struct mbuf *m;
 	struct ng_tag_prio *ptag;
-#else
-static int ng_ct_rcvdata (hook_p hook, struct mbuf *m, meta_p meta)
-{
-	drv_t *d = hook->node->private;
-#endif
 	struct ifqueue *q;
 	int s;
 
 	if (!d)
 		return ENETDOWN;
 		
-#if __FreeBSD_version >= 500000
 	NGI_GET_M (item, m);
 	NG_FREE_ITEM (item);
 	if (! NG_HOOK_PRIVATE (hook) || ! d) {
 		NG_FREE_M (m);
-#else
-	if (! hook->private || ! d) {
-		NG_FREE_DATA (m,meta);
-#endif
 		return ENETDOWN;
 	}
 
@@ -2222,7 +1964,6 @@ static int ng_ct_rcvdata (hook_p hook, struct mbuf *m, meta_p meta)
 		q = &d->queue;
 
 	s = splimp ();
-#if __FreeBSD_version >= 500000
 	IF_LOCK (q);
 	if (_IF_QFULL (q)) {
 		_IF_DROP (q);
@@ -2233,15 +1974,6 @@ static int ng_ct_rcvdata (hook_p hook, struct mbuf *m, meta_p meta)
 	}
 	_IF_ENQUEUE (q, m);
 	IF_UNLOCK (q);
-#else
-	if (IF_QFULL (q)) {
-		IF_DROP (q);
-		splx (s);
-		NG_FREE_DATA (m, meta);
-		return ENOBUFS;
-	}
-	IF_ENQUEUE (q, m);
-#endif
 	ct_start (d);
 	splx (s);
 	return 0;
@@ -2249,7 +1981,6 @@ static int ng_ct_rcvdata (hook_p hook, struct mbuf *m, meta_p meta)
 
 static int ng_ct_rmnode (node_p node)
 {
-#if __FreeBSD_version >= 500000
 	drv_t *d = NG_NODE_PRIVATE (node);
 
 	CT_DEBUG (d, ("Rmnode\n"));
@@ -2264,25 +1995,6 @@ static int ng_ct_rmnode (node_p node)
 		NG_NODE_UNREF (node);
 	}
 	NG_NODE_REVIVE(node);		/* Persistant node */
-#endif
-#else /* __FreeBSD_version < 500000 */
-	drv_t *d = node->private;
-	int s;
-
-	if (!d)
-		return 0;
-		
-	s = splimp ();
-	ct_down (d);
-	splx (s);
-	node->flags |= NG_INVALID;
-	ng_cutlinks (node);
-#ifdef	KLD_MODULE
-	ng_unname (node);
-	ng_unref (node);
-#else
-	node->flags &= ~NG_INVALID;
-#endif
 #endif
 	return 0;
 }
@@ -2303,11 +2015,7 @@ static void ng_ct_watchdog (void *arg)
 
 static int ng_ct_connect (hook_p hook)
 {
-#if __FreeBSD_version >= 500000
 	drv_t *d = NG_NODE_PRIVATE (NG_HOOK_NODE (hook));
-#else
-	drv_t *d = hook->node->private;
-#endif
 
 	if (!d)
 		return 0;
@@ -2318,20 +2026,12 @@ static int ng_ct_connect (hook_p hook)
 
 static int ng_ct_disconnect (hook_p hook)
 {
-#if __FreeBSD_version >= 500000
 	drv_t *d = NG_NODE_PRIVATE (NG_HOOK_NODE (hook));
-#else
-	drv_t *d = hook->node->private;
-#endif
 
 	if (!d)
 		return 0;
 		
-#if __FreeBSD_version >= 500000
 	if (NG_HOOK_PRIVATE (hook))
-#else
-	if (hook->private)
-#endif
 		ct_down (d);
 	untimeout (ng_ct_watchdog, d, d->timeout_handle);
 	return 0;
@@ -2344,23 +2044,17 @@ static int ct_modevent (module_t mod, int type, void *unused)
 
 	switch (type) {
 	case MOD_LOAD:
-#if __FreeBSD_version >= 500000 && defined NETGRAPH
+#ifdef NETGRAPH
 		if (ng_newtype (&typestruct))
 			printf ("Failed to register ng_ct\n");
 #endif
 		++load_count;
-#if __FreeBSD_version <= 500000
-		cdevsw_add (&ct_cdevsw);
-#endif
 		timeout_handle = timeout (ct_timeout, 0, hz*5);
 		break;
 	case MOD_UNLOAD:
 		if (load_count == 1) {
 			printf ("Removing device entry for Tau-ISA\n");
-#if __FreeBSD_version <= 500000
-			cdevsw_remove (&ct_cdevsw);
-#endif
-#if __FreeBSD_version >= 500000 && defined NETGRAPH
+#ifdef NETGRAPH
 			ng_rmtype (&typestruct);
 #endif			
 		}
@@ -2388,7 +2082,6 @@ static struct ng_type typestruct = {
 };
 #endif /*NETGRAPH*/
 
-#if __FreeBSD_version >= 500000
 #ifdef NETGRAPH
 MODULE_DEPEND (ng_ct, netgraph, NG_ABI_VERSION, NG_ABI_VERSION, NG_ABI_VERSION);
 #else
@@ -2399,11 +2092,3 @@ DRIVER_MODULE (ctmod, isa, ct_isa_driver, ct_devclass, ct_modevent, NULL);
 #else
 DRIVER_MODULE (ct, isa, ct_isa_driver, ct_devclass, ct_modevent, NULL);
 #endif
-#elif __FreeBSD_version >= 400000
-#ifdef NETGRAPH
-DRIVER_MODULE(ct, isa, ct_isa_driver, ct_devclass, ng_mod_event, &typestruct);
-#else
-DRIVER_MODULE(ct, isa, ct_isa_driver, ct_devclass, ct_modevent, 0);
-#endif
-#endif /* __FreeBSD_version >= 400000 */
-#endif /* NCTAU */
