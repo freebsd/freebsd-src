@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: modload.8,v 1.4 1994/09/18 04:12:12 davidg Exp $
+.\"	$Id: modload.8,v 1.5 1994/09/22 22:35:50 wollman Exp $
 .\"
 .Dd September 22, 1994
 .Dt MODLOAD 8
@@ -73,7 +73,7 @@ This is passed by
 to
 .Xr ld 1
 when the module is linked.
-The default module entry point name is `xxxinit'.
+The default module entry point name is the module name with `_mod' appended.
 .It Fl p Ar postinstall
 Specify the name of a shell script or program that will
 be executed if the module is successfully loaded. It
