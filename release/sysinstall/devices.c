@@ -82,6 +82,7 @@ static struct _devname {
     { DEVICE_TYPE_DISK, 	"aacd%d",	"Adaptec FSA RAID array", 151, 65538, 8, 4			},
     { DEVICE_TYPE_FLOPPY,	"fd%d",		"floppy drive unit A",	9, 0, 64, 4				},
     { DEVICE_TYPE_NETWORK,	"aue",		"ADMtek USB ethernet adapter"					},
+    { DEVICE_TYPE_NETWORK,	"bge",		"Broadcom BCM570x gigabit ethernet card"			},
     { DEVICE_TYPE_NETWORK,	"cue",		"CATC USB ethernet adapter"					},
     { DEVICE_TYPE_NETWORK,	"fpa",		"DEC DEFPA PCI FDDI card"					},
     { DEVICE_TYPE_NETWORK,	"sr",		"SDL T1/E1 sync serial PCI card"				},

@@ -1711,6 +1711,11 @@ device		pci
 # The `amd' device provides support for the AMD 53C974 SCSI host
 # adapter chip as found on devices such as the Tekram DC-390(T).
 #
+# The `bge' device provides support for gigabit ethernet adapters
+# based on the Broadcom BCM570x familiy of controllers, including the
+# 3Com 3c996-T, the SysKonnect SK-9D21 and SK-9D41, and the embedded
+# gigE NICs on Dell PowerEdge 2550 servers.
+#
 # The `ncr' device provides support for the NCR 53C810 and 53C825
 # self-contained SCSI host adapters.
 #
@@ -1934,8 +1939,11 @@ device		txp		# 3Com 3cR990 (``Typhoon'')
 device		vx		# 3Com 3c590, 3c595 (``Vortex'')
 
 # Gigabit Ethernet NICs.
-device		sk
-device		ti
+device		bge		# Broadcom BCM570x (``Tigon III'')
+device		lge		# Level 1 LXT1001 (``Mercury'')
+device		nge		# NatSemi DP83820 and DP83821
+device		sk		# SysKonnect GEnesis
+device		ti		# Alteon (``Tigon I'', ``Tigon II'')
 device		wx
 
 

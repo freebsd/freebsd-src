@@ -70,6 +70,8 @@
  * ring.
  */
 
+#include "vlan.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
@@ -87,8 +89,10 @@
 
 #include <net/bpf.h>
 
+#if NVLAN > 0
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
+#endif
 
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
@@ -114,8 +118,6 @@
 #include <dev/bge/if_bgereg.h>
 
 #define BGE_CSUM_FEATURES	(CSUM_IP | CSUM_TCP | CSUM_UDP | CSUM_IP_FRAGS)
-
-MODULE_DEPEND(bge, miibus, 1, 1, 1);
 
 /* "controller miibus0" required.  See GENERIC if you get errors here. */
 #include "miibus_if.h"
@@ -180,7 +182,8 @@ static void bge_handle_events	__P((struct bge_softc *));
 static int bge_alloc_jumbo_mem	__P((struct bge_softc *));
 static void bge_free_jumbo_mem	__P((struct bge_softc *));
 static void *bge_jalloc		__P((struct bge_softc *));
-static void bge_jfree		__P((caddr_t, void *));
+static void bge_jfree		__P((caddr_t, u_int));
+static void bge_jref		__P((caddr_t, u_int));
 static int bge_newbuf_std	__P((struct bge_softc *, int, struct mbuf *));
 static int bge_newbuf_jumbo	__P((struct bge_softc *, int, struct mbuf *));
 static int bge_init_rx_ring_std	__P((struct bge_softc *));
@@ -594,14 +597,23 @@ bge_alloc_jumbo_mem(sc)
 
 	/*
 	 * Now divide it up into 9K pieces and save the addresses
-	 * in an array.
+	 * in an array. Note that we play an evil trick here by using
+	 * the first few bytes in the buffer to hold the the address
+	 * of the softc structure for this interface. This is because
+	 * bge_jfree() needs it, but it is called by the mbuf management
+	 * code which will not pass it to us explicitly.
 	 */
 	ptr = sc->bge_cdata.bge_jumbo_buf;
 	for (i = 0; i < BGE_JSLOTS; i++) {
-		sc->bge_cdata.bge_jslots[i] = ptr;
-		ptr += BGE_JLEN;
+		u_int64_t		**aptr;
+		aptr = (u_int64_t **)ptr;
+		aptr[0] = (u_int64_t *)sc;
+		ptr += sizeof(u_int64_t);
+		sc->bge_cdata.bge_jslots[i].bge_buf = ptr;
+		sc->bge_cdata.bge_jslots[i].bge_inuse = 0;
+		ptr += (BGE_JLEN - sizeof(u_int64_t));
 		entry = malloc(sizeof(struct bge_jpool_entry), 
-		    M_DEVBUF, M_NOWAIT);
+			       M_DEVBUF, M_NOWAIT);
 		if (entry == NULL) {
 			contigfree(sc->bge_cdata.bge_jumbo_buf,
 			    BGE_JMEM, M_DEVBUF);
@@ -654,41 +666,93 @@ bge_jalloc(sc)
 
 	SLIST_REMOVE_HEAD(&sc->bge_jfree_listhead, jpool_entries);
 	SLIST_INSERT_HEAD(&sc->bge_jinuse_listhead, entry, jpool_entries);
-	return(sc->bge_cdata.bge_jslots[entry->slot]);
+	sc->bge_cdata.bge_jslots[entry->slot].bge_inuse = 1;
+	return(sc->bge_cdata.bge_jslots[entry->slot].bge_buf);
+}
+
+/*
+ * Adjust usage count on a jumbo buffer.
+ */
+static void
+bge_jref(buf, size)
+	caddr_t			buf;
+	u_int			size;
+{
+	struct bge_softc		*sc;
+	u_int64_t		**aptr;
+	register int		i;
+
+	/* Extract the softc struct pointer. */
+	aptr = (u_int64_t **)(buf - sizeof(u_int64_t));
+	sc = (struct bge_softc *)(aptr[0]);
+
+	if (sc == NULL)
+		panic("bge_jref: can't find softc pointer!");
+
+	if (size != BGE_JUMBO_FRAMELEN)
+		panic("bge_jref: adjusting refcount of buf of wrong size!");
+
+	/* calculate the slot this buffer belongs to */
+
+	i = ((vm_offset_t)aptr 
+	     - (vm_offset_t)sc->bge_cdata.bge_jumbo_buf) / BGE_JLEN;
+
+	if ((i < 0) || (i >= BGE_JSLOTS))
+		panic("bge_jref: asked to reference buffer "
+		    "that we don't manage!");
+	else if (sc->bge_cdata.bge_jslots[i].bge_inuse == 0)
+		panic("bge_jref: buffer already free!");
+	else
+		sc->bge_cdata.bge_jslots[i].bge_inuse++;
+
+	return;
 }
 
 /*
  * Release a jumbo buffer.
  */
 static void
-bge_jfree(buf, args)
-	caddr_t buf;
-	void *args;
+bge_jfree(buf, size)
+	caddr_t			buf;
+	u_int			size;
 {
-	struct bge_jpool_entry *entry;
-	struct bge_softc *sc;
-	int i;
+	struct bge_softc		*sc;
+	u_int64_t		**aptr;
+	int		        i;
+	struct bge_jpool_entry   *entry;
 
 	/* Extract the softc struct pointer. */
-	sc = (struct bge_softc *)args;
+	aptr = (u_int64_t **)(buf - sizeof(u_int64_t));
+	sc = (struct bge_softc *)(aptr[0]);
 
 	if (sc == NULL)
 		panic("bge_jfree: can't find softc pointer!");
 
+	if (size != BGE_JUMBO_FRAMELEN)
+		panic("bge_jfree: freeing buffer of wrong size!");
+
 	/* calculate the slot this buffer belongs to */
 
-	i = ((vm_offset_t)buf
+	i = ((vm_offset_t)aptr 
 	     - (vm_offset_t)sc->bge_cdata.bge_jumbo_buf) / BGE_JLEN;
 
 	if ((i < 0) || (i >= BGE_JSLOTS))
 		panic("bge_jfree: asked to free buffer that we don't manage!");
-
-	entry = SLIST_FIRST(&sc->bge_jinuse_listhead);
-	if (entry == NULL)
-		panic("bge_jfree: buffer not in use!");
-	entry->slot = i;
-	SLIST_REMOVE_HEAD(&sc->bge_jinuse_listhead, jpool_entries);
-	SLIST_INSERT_HEAD(&sc->bge_jfree_listhead, entry, jpool_entries);
+	else if (sc->bge_cdata.bge_jslots[i].bge_inuse == 0)
+		panic("bge_jfree: buffer already free!");
+	else {
+		sc->bge_cdata.bge_jslots[i].bge_inuse--;
+		if(sc->bge_cdata.bge_jslots[i].bge_inuse == 0) {
+			entry = SLIST_FIRST(&sc->bge_jinuse_listhead);
+			if (entry == NULL)
+				panic("bge_jfree: buffer not in use!");
+			entry->slot = i;
+			SLIST_REMOVE_HEAD(&sc->bge_jinuse_listhead, 
+					  jpool_entries);
+			SLIST_INSERT_HEAD(&sc->bge_jfree_listhead, 
+					  entry, jpool_entries);
+		}
+	}
 
 	return;
 }
@@ -773,10 +837,12 @@ bge_newbuf_jumbo(sc, i, m)
 		}
 
 		/* Attach the buffer to the mbuf. */
-		m_new->m_data = (void *) buf;
-		m_new->m_len = m_new->m_pkthdr.len = BGE_JUMBO_FRAMELEN;
-		MEXTADD(m_new, buf, BGE_JUMBO_FRAMELEN, bge_jfree,
-		    (struct bge_softc *)sc, 0, EXT_NET_DRV);
+		m_new->m_data = m_new->m_ext.ext_buf = (void *)buf;
+		m_new->m_flags |= M_EXT;
+		m_new->m_len = m_new->m_pkthdr.len =
+		    m_new->m_ext.ext_size = BGE_JUMBO_FRAMELEN;
+		m_new->m_ext.ext_free = bge_jfree;
+		m_new->m_ext.ext_ref = bge_jref;
 	} else {
 		m_new = m;
 		m_new->m_data = m_new->m_ext.ext_buf;
@@ -953,7 +1019,8 @@ bge_setmulti(sc)
 		CSR_WRITE_4(sc, BGE_MAR0 + (i * 4), 0);
 
 	/* Now program new ones. */
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	for (ifma = ifp->if_multiaddrs.lh_first;
+	    ifma != NULL; ifma = ifma->ifma_link.le_next) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		h = bge_crc(LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
@@ -976,6 +1043,8 @@ bge_chipinit(sc)
 {
 	u_int32_t		cachesize;
 	int			i;
+
+	sc->arpcom.ac_if.if_hwassist = BGE_CSUM_FEATURES;
 
 	/* Set endianness before we access any non-PCI registers. */
 #if BYTE_ORDER == BIG_ENDIAN
@@ -1489,8 +1558,9 @@ bge_attach(dev)
 	/*
 	 * Map control/status registers.
 	 */
-	pci_enable_busmaster(dev);
-	pci_enable_io(dev, SYS_RES_MEMORY);
+	command = pci_read_config(dev, PCIR_COMMAND, 4);
+	command |= (PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
+	pci_write_config(dev, PCIR_COMMAND, command, 4);
 	command = pci_read_config(dev, PCIR_COMMAND, 4);
 
 	if (!(command & PCIM_CMD_MEMEN)) {
@@ -1621,9 +1691,6 @@ bge_attach(dev)
 	ifp->if_init = bge_init;
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_snd.ifq_maxlen = BGE_TX_RING_CNT - 1;
-	ifp->if_hwassist = BGE_CSUM_FEATURES;
-	ifp->if_capabilities = IFCAP_HWCSUM;
-	ifp->if_capenable = ifp->if_capabilities;
 
 	/* The SysKonnect SK-9D41 is a 1000baseSX card. */
 	if ((pci_read_config(dev, BGE_PCI_SUBSYS, 4) >> 16) == SK_SUBSYSID_9D41)
@@ -1834,8 +1901,10 @@ bge_rxeof(sc)
 		u_int32_t		rxidx;
 		struct ether_header	*eh;
 		struct mbuf		*m = NULL;
+#if NVLAN > 0
 		u_int16_t		vlan_tag = 0;
 		int			have_tag = 0;
+#endif
 
 		cur_rx =
 	    &sc->bge_rdata->bge_rx_return_ring[sc->bge_rx_saved_considx];
@@ -1843,10 +1912,12 @@ bge_rxeof(sc)
 		rxidx = cur_rx->bge_idx;
 		BGE_INC(sc->bge_rx_saved_considx, BGE_RETURN_RING_CNT);
 
+#if NVLAN > 0
 		if (cur_rx->bge_flags & BGE_RXBDFLAG_VLAN_TAG) {
 			have_tag = 1;
 			vlan_tag = cur_rx->bge_vlan_tag;
 		}
+#endif
 
 		if (cur_rx->bge_flags & BGE_RXBDFLAG_JUMBO_RING) {
 			BGE_INC(sc->bge_jumbo, BGE_JUMBO_RX_RING_CNT);
@@ -1901,16 +1972,17 @@ bge_rxeof(sc)
 			}
 		}
 
+#if NVLAN > 0
 		/*
 		 * If we received a packet with a vlan tag, pass it
 		 * to vlan_input() instead of ether_input().
 		 */
 		if (have_tag) {
-			VLAN_INPUT_TAG(ifp, eh, m, vlan_tag);
+			vlan_input_tag(eh, m, vlan_tag);
 			have_tag = vlan_tag = 0;
 			continue;
 		}
-
+#endif
 		ether_input(ifp, eh, m);
 	}
 
@@ -2045,15 +2117,18 @@ bge_tick(xsc)
 	mii = device_get_softc(sc->bge_miibus);
 	mii_tick(mii);
  
-	if (!sc->bge_link && mii->mii_media_status & IFM_ACTIVE &&
-	    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
-		sc->bge_link++;
-		if (IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_TX ||
-		    IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_SX)
-			printf("bge%d: gigabit link up\n",
-			   sc->bge_unit);
-		if (ifp->if_snd.ifq_head != NULL)
-			bge_start(ifp);
+	if (!sc->bge_link) {
+		mii_pollstat(mii);
+		if (mii->mii_media_status & IFM_ACTIVE &&
+		    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
+			sc->bge_link++;
+			if (IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_TX ||
+			    IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_SX)
+				printf("bge%d: gigabit link up\n",
+				   sc->bge_unit);
+			if (ifp->if_snd.ifq_head != NULL)
+				bge_start(ifp);
+		}
 	}
 
 	splx(s);
@@ -2106,12 +2181,14 @@ bge_encap(sc, m_head, txidx)
 	struct mbuf		*m;
 	u_int32_t		frag, cur, cnt = 0;
 	u_int16_t		csum_flags = 0;
+#if NVLAN > 0
 	struct ifvlan		*ifv = NULL;
 
 	if ((m_head->m_flags & (M_PROTO1|M_PKTHDR)) == (M_PROTO1|M_PKTHDR) &&
 	    m_head->m_pkthdr.rcvif != NULL &&
-	    m_head->m_pkthdr.rcvif->if_type == IFT_L2VLAN)
+	    m_head->m_pkthdr.rcvif->if_type == IFT_8021_VLAN)
 		ifv = m_head->m_pkthdr.rcvif->if_softc;
+#endif
 
 	m = m_head;
 	cur = frag = *txidx;
@@ -2126,7 +2203,6 @@ bge_encap(sc, m_head, txidx)
 		else if (m_head->m_flags & M_FRAG)
 			csum_flags |= BGE_TXBDFLAG_IP_FRAG;
 	}
-
 	/*
  	 * Start packing the mbufs in this chain into
 	 * the fragment pointers. Stop when we run out
@@ -2141,12 +2217,14 @@ bge_encap(sc, m_head, txidx)
 			   vtophys(mtod(m, vm_offset_t));
 			f->bge_len = m->m_len;
 			f->bge_flags = csum_flags;
+#if NVLAN > 0
 			if (ifv != NULL) {
 				f->bge_flags |= BGE_TXBDFLAG_VLAN_TAG;
 				f->bge_vlan_tag = ifv->ifv_tag;
 			} else {
 				f->bge_vlan_tag = 0;
 			}
+#endif
 			/*
 			 * Sanity check: avoid coming within 16 descriptors
 			 * of the end of the ring.
@@ -2472,7 +2550,7 @@ bge_ioctl(ifp, command, data)
 {
 	struct bge_softc *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *) data;
-	int s, mask, error = 0;
+	int s, error = 0;
 	struct mii_data *mii;
 
 	s = splimp();
@@ -2538,16 +2616,6 @@ bge_ioctl(ifp, command, data)
 			error = ifmedia_ioctl(ifp, ifr,
 			    &mii->mii_media, command);
 		}
-		break;
-        case SIOCSIFCAP:
-		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
-		if (mask & IFCAP_HWCSUM) {
-			if (IFCAP_HWCSUM & ifp->if_capenable)
-				ifp->if_capenable &= ~IFCAP_HWCSUM;
-			else
-				ifp->if_capenable |= IFCAP_HWCSUM;
-		}
-		error = 0;
 		break;
 	default:
 		error = EINVAL;
