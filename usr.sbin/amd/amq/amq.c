@@ -53,7 +53,7 @@ char copyright[] = "\
 static char sccsid[] = "@(#)amq.c	8.1 (Berkeley) 6/7/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: amq.c,v 1.2.6.3 1997/09/03 06:27:08 charnier Exp $";
 #endif /* not lint */
 
 #include "am.h"
@@ -293,7 +293,7 @@ char *argv[];
 	/*
 	 * Parse arguments
 	 */
-	while ((opt_ch = getopt(argc, argv, "fh:l:msuvx:D:M:")) !=  -1)
+	while ((opt_ch = getopt(argc, argv, "fh:l:msuvx:D:M:")) != -1)
 	switch (opt_ch) {
 	case 'f':
 		flush_flag = 1;
