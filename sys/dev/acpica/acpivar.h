@@ -385,7 +385,14 @@ extern int	acpi_cmbat_get_battinfo(int, struct acpi_battinfo *);
 
 extern int	acpi_acad_get_acline(int *);
 
-#if defined(ACPI_MAX_THREADS) && ACPI_MAX_THREADS > 0
+#ifndef ACPI_MAX_THREADS
+#define ACPI_MAX_THREADS	3
+#endif
+#if ACPI_MAX_THREADS > 0
+#define ACPI_USE_THREADS
+#endif
+
+#ifdef ACPI_USE_THREADS
 /*
  * ACPI task kernel thread initialization.
  */
