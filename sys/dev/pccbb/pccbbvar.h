@@ -65,9 +65,10 @@ struct pccbb_softc {
 	struct mtx	mtx;
 	struct cv	cv;
 	u_int32_t	flags;
-#define	PCCBB_16BIT_CARD	0x02000000
-#define	PCCBB_KTHREAD_RUNNING	0x04000000
-#define	PCCBB_KTHREAD_DONE	0x08000000
+#define	PCCBB_KLUDGE_ALLOC	0x10000000
+#define	PCCBB_16BIT_CARD	0x20000000
+#define	PCCBB_KTHREAD_RUNNING	0x40000000
+#define	PCCBB_KTHREAD_DONE	0x80000000
 	int		chipset;		/* chipset id */
 #define	CB_UNKNOWN	0		/* NOT Cardbus-PCI bridge */
 #define	CB_TI113X	1		/* TI PCI1130/1131 */
