@@ -133,7 +133,7 @@ CLEANFILES+=kadm5_err.h kadm5_err.c kadm5_err.et
 beforeinstall: ${INCLUDES}
 .for INC in ${INCLUDES}
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${INC} ${DESTDIR}/usr/include/${INC}
+		${INC} ${DESTDIR}/usr/include
 .endfor
 .endif
 

@@ -1,5 +1,5 @@
 # $FreeBSD$
 
-SUBDIR=	kadmin kstash ktutil
+SUBDIR=	k5stash ktutil
 
 .include <bsd.subdir.mk>

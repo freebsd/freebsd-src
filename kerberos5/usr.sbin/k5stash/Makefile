@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PROG=		kstash
+PROG=		k5stash
 SRCS=		kstash.c hdb_err.h
 CFLAGS+=	-I${KRB5DIR}/include \
 		-I${KRB5DIR}/lib/roken \

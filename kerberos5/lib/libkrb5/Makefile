@@ -30,7 +30,9 @@ SRCS=	add_et_list.c addr_families.c address.c aname_to_localname.c \
 	verify_init.c verify_user.c version.c warn.c write_message.c \
 	krb5_err.c krb5_err.h heim_err.c heim_err.h \
 	rc4_enc.c rc4_skey.c
-INCLUDES=krb5.h
+
+INCLUDES=${KRB5DIR}/lib/krb5/krb5.h ${.CURDIR}/../../include/krb5-types.h \
+	${KRB5DIR}/lib/krb5/krb5-protos.h heim_err.h krb5_err.h 
 
 .include <bsd.lib.mk>
 
