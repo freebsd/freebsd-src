@@ -1,7 +1,7 @@
 /*
  * dumptab.c - handles dumping the database
  *
- *	$Id$
+ *	$Id: dumptab.c,v 1.4 1997/02/22 14:21:04 peter Exp $
  */
 
 #include <sys/types.h>
@@ -61,7 +61,7 @@ dumptab(filename)
 	int n;
 	struct host *hp;
 	FILE *fp;
-	long t;
+	time_t t;
 	/* Print symbols in alphabetical order for reader's convenience. */
 	static char legend[] = "#\n# Legend:\t(see bootptab.5)\n\
 #\tfirst field -- hostname (not indented)\n\
@@ -152,7 +152,7 @@ dump_host(fp, hp)
 			if (hp->flags.bootsize_auto) {
 				fprintf(fp, "auto:");
 			} else {
-				fprintf(fp, "%d:", hp->bootsize);
+				fprintf(fp, "%lu:", (u_long)hp->bootsize);
 			}
 		}
 		if (hp->flags.cookie_server) {
@@ -220,10 +220,10 @@ dump_host(fp, hp)
 			fprintf(fp, ":");
 		}
 		if (hp->flags.msg_size) {
-			fprintf(fp, "\\\n\t:ms=%d:", hp->msg_size);
+			fprintf(fp, "\\\n\t:ms=%lu:", (u_long)hp->msg_size);
 		}
 		if (hp->flags.min_wait) {
-			fprintf(fp, "\\\n\t:mw=%d:", hp->min_wait);
+			fprintf(fp, "\\\n\t:mw=%lu:", (u_long)hp->min_wait);
 		}
 		if (hp->flags.name_server) {
 			fprintf(fp, "\\\n\t:ns=");
