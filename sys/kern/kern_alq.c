@@ -428,6 +428,8 @@ alq_get(struct alq *alq, int waitok)
 		aln = ale->ae_next;
 		if ((aln->ae_flags & AE_VALID) == 0)
 			alq->aq_entfree = aln;
+		else
+			alq->aq_entfree = NULL;
 	} else
 		ALQ_UNLOCK(alq);
 
