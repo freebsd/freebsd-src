@@ -81,7 +81,7 @@ Keep entries for existing NFS filesystems. Compare the NFS filesystems from
 the mounttab against the kernel mountlist and do not send the RPC to
 existing mount entries. Useful during startup of the system. It may be
 possible that there are already mounted NFS filesystems, so calling
-RPC UMNTALL isn't a good idea. This is the case if the user has rebooted
+RPC UMOUNT isn't a good idea. This is the case if the user has rebooted
 to 'single user mode' and starts up the system again.
 .It Fl p Ar path
 Only remove the specific mount-path. Send a UMOUNT RPC to the NFS server.
