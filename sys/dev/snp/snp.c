@@ -40,7 +40,7 @@ static	d_poll_t	snppoll;
 
 static struct cdevsw snp_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
+	.d_flags =	D_PSEUDO | D_NEEDGIANT,
 	.d_open =	snpopen,
 	.d_close =	snpclose,
 	.d_read =	snpread,
@@ -48,7 +48,6 @@ static struct cdevsw snp_cdevsw = {
 	.d_ioctl =	snpioctl,
 	.d_poll =	snppoll,
 	.d_name =	"snp",
-	.d_flags =	D_PSEUDO,
 };
 
 static struct linesw snpdisc = {
