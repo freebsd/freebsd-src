@@ -76,6 +76,15 @@ Find_Mother_Chunk(struct chunk *chunks, daddr_t offset, daddr_t end,
 					return c2;
 		}
 		return 0;
+#ifdef __powerpc__
+	case apple:
+		for (c1 = chunks->part; c1; c1 = c1->next) {
+			if (c1->type == type)
+				if (Chunk_Inside(c1, &ct))
+					return c1;
+		}
+		return 0;
+#endif
 	default:
 		warn("Unsupported mother type in Find_Mother_Chunk");
 		return 0;
@@ -150,7 +159,7 @@ Insert_Chunk(struct chunk *c2, daddr_t offset, daddr_t size, const char *name,
 		return __LINE__;
 	}
 
-	if (type == freebsd || type == extended) {
+	if ((type == freebsd || type == extended || type == apple)) {
 		cs = New_Chunk();
 		if (cs == NULL)
 			return __LINE__;
@@ -303,6 +312,18 @@ Add_Chunk(struct disk *d, daddr_t offset, daddr_t size, const char *name,
 			return(-1);
 		}
 		break;
+	case p_ppc:
+		switch (type) {
+		case apple:
+			c1 = Find_Mother_Chunk(d->chunks, offset, end, whole);
+			break;
+		case part:
+			c1 = Find_Mother_Chunk(d->chunks, offset, end, apple);
+			break;
+		default:
+			return (-1);
+		}
+		break;
 	default:
 		return (-1);
 	}
@@ -438,6 +459,11 @@ Delete_Chunk2(struct disk *d, struct chunk *c, int rflags)
 		if (c1 == NULL)
 			c1 = Find_Mother_Chunk(d->chunks, c->offset, c->end,
 			    whole);
+#endif
+#ifdef __powerpc__
+		if (c1 == NULL)
+			c1 = Find_Mother_Chunk(d->chunks, c->offset, c->end,
+			    apple);
 #endif
 		break;
 	default:
