@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.286.2.6 1996/12/21 02:10:51 se Exp $
+#	$Id: LINT,v 1.286.2.7 1996/12/22 20:25:52 dyson Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -57,8 +57,8 @@ options		OPEN_MAX=128
 # max, and explicitly set the maximum with a shell command for processes
 # that regularly exceed the limit like INND.
 #
-options		"MAXDSIZ='(256*1024*1024)'"
-options		"DFLDSIZ='(256*1024*1024)'"
+options		"MAXDSIZ=(256*1024*1024)"
+options		"DFLDSIZ=(256*1024*1024)"
 
 #
 # Under some circumstances it is useful to have an extra number of
