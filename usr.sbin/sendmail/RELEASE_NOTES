@@ -1,10 +1,314 @@
 			SENDMAIL RELEASE NOTES
-	     @(#)RELEASE_NOTES	8.8.5.3 (Berkeley) 1/21/97
+	     @(#)RELEASE_NOTES	8.8.6.11 (Berkeley) 6/14/97
 
 
 This listing shows the version of the sendmail binary, the version
 of the sendmail configuration files, the date of release, and a
 summary of the changes in that release.
+
+8.8.6/8.8.6	97/06/14
+	    *************************************************************
+	    * The extensive assistance of Gregory Neil Shapiro of WPI	*
+	    * in preparing this release is gratefully appreciated.	*
+	    * Sun Microsystems has also provided resources toward	*
+	    * continued sendmail development.				*
+	    *************************************************************
+	SECURITY: A few systems allow an open with the O_EXCL|O_CREAT open
+		mode bits set to create a file that is a symbolic link that
+		points nowhere.  This makes it possible to create a root
+		owned file in an arbitrary directory by inserting the symlink
+		into a writable directory after the initial lstat(2) check
+		determined that the file did not exist.  The only verified
+		example of a system having these odd semantics for O_EXCL
+		and symbolic links was HP-UX prior to version 9.07.  Most
+		systems do not have the problem, since a exclusive create
+		of a file disallows symbolic links.  Systems that have been
+		verified to NOT have the problem include AIX 3.x, *BSD,
+		DEC OSF/1, HP-UX 9.07 and higher, Linux, SunOS, Solaris,
+		and Ultrix.  This is a potential exposure on systems that
+		have this bug and which do not have a MAILER-DAEMON alias
+		pointing at a legitimate account, since this will cause old
+		mail to be dropped in /var/tmp/dead.letter.
+	SECURITY: Problems can occur on poorly managed systems, specifically,
+		if maps or alias files are in world writable directories.
+		If your system has alias maps in writable directories, it
+		is potentially possible for an attacker to replace the .db
+		(or .dir and .pag) files by symbolic links pointing at
+		another database; this can be used either to expose
+		information (e.g., by pointing an alias file at /etc/spwd.db
+		and probing for accounts), or as a denial-of-service attack
+		(by trashing the password database).  The fix disallows
+		symbolic links entirely when rebuilding alias files or on
+		maps that are in writable directories, and always warns on
+		writable directories; 8.9 will probably consider writable
+		directories to be fatal errors.  This does not represent an
+		exposure on systems that have alias files in unwritable
+		system directories.
+	SECURITY: disallow .forward or :include: files that are links (hard
+		or soft) if the parent directory (or any directory in the
+		path) is writable by anyone other than the owner.  This is
+		similar to the previous case for user files.  This change
+		should not affect most systems, but is necessary to prevent
+		an attacker who can write the directory from pointing such
+		files at other files that are readable only by the owner.
+	SECURITY: Tighten safechown rules: many systems will say that they
+		have a safe (restricted to root) chown even on files that
+		are mounted from another system that allows owners to give
+		away files.  The new rules are very strict, trusting file
+		ownership only in those few cases where the system has
+		been verified to be at least as paranoid as necessary.
+		However, it is possible to relax the rules to partially
+		trust the ownership if the directory path is not world or
+		group writable.  This might allow someone who has a legitimate
+		:include: file (referenced directly from /etc/aliases) to
+		become another non-root user if the :include: file is in a
+		non-writable directory on an NFS-mounted filesystem where
+		the local system says that giveaway is denied but it is
+		actually permitted.  I believe this to be a very small set
+		of cases.  If in doubt, do not point :include: aliases at
+		NFS-mounted filesystems.
+	SECURITY: When setting a numeric group id using the RunAsUser option
+		(e.g., "O RunAsUser=10:20", the group id would not be set.
+		Implicit group ids (e.g., "O RunAsUser=mailnull") or alpha
+		group ids (e.g., "O RunAsUser=mailuser:mailgrp") worked fine.
+		The user id was still set properly.  Problem noted by Uli
+		Pralle of the Technical University of Berlin.
+	Save the initial gid set for use when checking for if the
+		PrivacyOptions=restrictmailq option is set.  Problem reported
+		by Wolfgang Ley of DFN-CERT.
+	Make 55x reply codes to the SMTP DATA-"." be non-sticky (i.e., a
+		failure on one message won't affect future messages to the
+		same host).
+	IP source route printing had an "off by one" error that would
+		affect any options that came after the route option.  Patch
+		from Theo de Raadt.
+	The "Message is too large" error didn't successfully bounce the error
+		back to the sender.  Problem reported by Stephen More of
+		PSI; patch from Gregory Neil Shapiro of WPI.
+	Change SMTP status code 553 to map into Extended code 5.1.0 (instead
+		of 5.1.3); it apparently gets used in multiple ways.
+		Suggested by John Myers of Portola Communications.
+	Fix possible extra null byte generated during collection if errors
+		occur at the beginning of the stream.  Patch contributed by
+		Andrey A. Chernov and Gregory Neil Shapiro.
+	Code changes to avoid possible reentrant call of malloc/free within
+		a signal handler.  Problem noted by John Beck of Sun
+		Microsystems.
+	Move map initialization to be earlier so that check_relay ruleset
+		will have the latest version of the map data.  Problem noted
+		by Paul Forgey of Metainfo; patch from Gregory Neil Shapiro.
+	If there are fatal errors during the collection phase (e.g., message
+		too large) don't send the bogus message.
+	Avoid "cannot open xfAAA00000" messages when sending to aliases that
+		have errors and have owner- aliases.  Problem noted by Michael
+		Barber of MTU; fix from Gregory Neil Shapiro of WPI.
+	Avoid null pointer dereference on illegal Boundary= parameters in
+		multipart/mixed Content-Type: header.  Problem noted by
+		Richard Muirden of RMIT University.
+	Always print error messages during newaliases (-bi) even if the
+		ErrorMode is not set to "print".  Fix from Gregory Neil
+		Shapiro.
+	Test mode could core dump if you did a /map lookup in an optional map
+		that could not be opened.  Based on a fix from John Beck of
+		Sun Microsystems.
+	If DNS is misconfigured so that the last MX record tried points to
+		a host that does not have an A record, but other MX records
+		pointed to something reasonable, don't bounce the message
+		with a "host unknown" error.  Note that this should really
+		be fixed in the zone file for the domain.  Problem noted by
+		Joe Rhett of Navigist, Inc.
+	If a map fails (e.g., DNS times out) on all recipient addresses, mark
+		the message as having been tried; otherwise the next queue
+		run will not realize that this is a second attempt and will
+		retry immediately.  Problem noted by Bryan Costales of
+		Mercury Mail.
+	If the clock is set backwards, and a MinQueueAge is set, no jobs
+		will be run until the later setting of the clock is reached.
+		"Problem" (I use the term loosely) noted by Eric Hagberg of
+		Morgan Stanley.
+	If the load average rises above the cutoff threshold (above which
+		sendmail will not process the queue at all) during a queue
+		run, abort the queue run immediately.  Problem noted by
+		Bryan Costales of Mercury Mail.
+	The variable queue processing algorithm (based on the message size,
+		number of recipients, message precedence, and job age) was
+		non-functional -- either the entire queue was processed or
+		none of the queue was processed.  The updated algorithm
+		does no queue run if a single recipient zero size job will
+		not be run.
+	If there is a fatal ("panic") message that will cause sendmail to
+		die immediately, never hold the error message for future
+		printing.
+	Force ErrorMode=print in -bt mode so that all errors are printed
+		regardless of the setting of the ErrorMode option in the
+		configuration file.  Patch from Gregory Neil Shapiro.
+	New compile flag HASSTRERROR says that this OS has the strerror(3)
+		routine available in one of the libraries.  Use it in conf.h.
+	The -m (match only) flag now works on host class maps.
+	If class hash or btree maps are rebuilt, sendmail will now detect
+		this and reopen the map.  Previously, they could give
+		erroneous results during a single message processing
+		(but would recover when the next message was received).
+	Don't delete zero length queue files when doing queue runs until the
+		files are at least ten minutes old.  This avoids a potential
+		race condition: the creator creates the qf file, getting back
+		a file descriptor.  The queue runner locks it and deletes it
+		because it is zero length.  The creator then writes the
+		descriptor that is now for a disconnected file, and the
+		job goes away.  Based on a suggestion by Bryan Costales.
+	When determining the "validated" host name ($_ macro), do a forward
+		(A) DNS lookup on the result of the PTR lookup and compare
+		results.  If they differ or if the PTR lookup fails, tag the
+		address as "may be forged".
+	Log null connections (i.e., hosts that connect but do not do any
+		substantive activity on the connection before disconnecting;
+		"substantive" is defined to be MAIL, EXPN, VRFY, or ETRN.
+	Always permit "writes" to /dev/null regardless of the link count.
+		This is safe because /dev/null is special cased, and no open
+		or write is ever actually attempted.  Patch from Villy Kruse
+		of TwinCom.
+	If a message cannot be sent because of a 552 (exceeded storage
+		allocation) response to the MAIL FROM:<>, and a SIZE= parameter
+		was given, don't return the body in the bounce, since there
+		is a very good chance that the message will double-bounce.
+	Fix possible line truncation if a quoted-printable had an =00 escape
+		in the body.  Problem noted by Charles Karney of the Princeton
+		Plasma Physics Laboratory.
+	Notify flags (e.g., -NSUCCESS) were lost on user+detail addresses.
+		Problem noted by Kari Hurtta of the Finnish Meteorological
+		Institute.
+	The MaxDaemonChildren option wasn't applying to queue runs as
+		documented.  Note that this increases the potential denial
+		of service problems with this option: an attacker can
+		connect many times, and thereby lock out queue runs as well
+		as incoming connections.  If you use this option, you should
+		run the "sendmail -bd" and "sendmail -q30m" jobs separately
+		to avoid this attack.  Failure to limit noted by Matthew
+		Dillon of BEST Internet Communications.
+	Always give a message in newaliases if alias files cannot be
+		opened instead of failing silently.  Suggested by Gregory
+		Neil Shapiro.  This change makes the code match the O'Reilly
+		book (2nd edition).
+	Some older versions of the resolver could return with h_errno == -1
+		if no name server could be reached, causing mail to bounce
+		instead of queueing.  Treat this like TRY_AGAIN.  Fix from
+		John Beck of SunSoft.
+	If a :include: file is owned by a user that does not have an entry
+		in the passwd file, sendmail could dereference a null pointer.
+		Problem noted by Satish Mynam of Sun Microsystems.
+	Take precautions to make sure that the SMTP protocol cannot get out
+		of sync if (for example) an alias file cannot be opened.
+	Fix a possible race condition that can cause a SIGALRM to come in
+		immediately after a SIGHUP, causing the new sendmail to die.
+	Avoid possible hang on SVr3 systems when doing child reaping.  Patch
+		from Villy Kruse of TwinCom.
+	Ignore improperly formatted SMTP reply codes.  Previously these were
+		partially processed, which could cause confusing error
+		returns.
+	Fix possible bogus pointer dereference when doing ldapx map lookups
+		on some architectures.
+	Portability:
+		A/UX: from Jim Jagielski of NASA/GSFC.
+		glibc: SOCK_STREAM was changed from a #define to an enum,
+			thus breaking #ifdef SOCK_STREAM.  Only option seems
+			to be to assume SOCK_STREAM if __GNU_LIBRARY__ is
+			defined.  Problem reported by A Sun of the University
+			of Washington.
+		Solaris: use SIOCGIFNUM to get the number of interfaces on
+			the system rather than guessing at compile time.
+			Patch contributed by John Beck of Sun Microsystems.
+		Intel Paragon: from Wendy Lin of Purdue University.
+		GNU Hurd: from Miles Bader of the GNU project.
+		RISC/os 4.50 from Harlan Stenn of PFCS Corporation.
+		ISC Unix: wait never returns if SIGCLD signals are blocked.
+			Unfortunately releasing them opens a race condition,
+			but there appears to be no fix for this.  Patch from
+			Gregory Neil Shapiro.
+		BIND 8.1 for IPv6 compatibility from John Kennedy.
+		Solaris: a bug in strcasecmp caused characters with the
+			high order bit set to apparently randomly match
+			letters -- for example, $| (0233) matches "i" and "I".
+			Problem noted by John Gregson of the University of
+			Cambridge.
+		IRIX 6.x: make Makefile.IRIX.6.2 apply to all 6.x.  From
+			Kari Hurtta.
+		IRIX 6.x: Create Makefiles for systems that claim to be
+			IRIX64 but are 6.2 or higher (so use the regular
+			IRIX Makefile).
+		IRIX 6.x: Fix load average computation on 64 bit kernels.
+			Problem noted by Eric Hagberg of Morgan Stanley.
+	CONFIG: Some canonification was still done for UUCP-like addresses
+		even if FEATURE(nocanonify) was set.  Problem pointed out by
+		Brian Candler.
+	CONFIG: In some cases UUCP mailers wouldn't properly recognize all
+		local names as local.  Problem noted by Jeff Polk of BSDI;
+		fix provided by Gregory Neil Shapiro.
+	CONFIG: The "local:user" syntax entries in mailertables and other
+		"mailer:user" syntax locations returned an incorrect value
+		for the $h macro.  Problem noted by Gregory Neil Shapiro.
+	CONFIG: Retain "+detail" information when forwarding mail to a
+		MAIL_HUB, LUSER_RELAY, or LOCAL_RELAY.  Patch from Philip
+		Guenther of Gustavus Adolphus College.
+	CONFIG: Make sure user+detail works for FEATURE(virtusertable);
+		rules are the same as for aliasing.  Based on a patch from
+		Gregory Neil Shapiro.
+	CONFIG: Break up parsing rules into several pieces; this should
+		have no functional change in this release, but makes it
+		possible to have better anti-spam rulesets in the future.
+	CONFIG: Disallow double dots in host names to avoid having the
+		HostStatusDirectory store status under the wrong name.
+		In some cases this can be used as a denial-of-service attack.
+		Problem noted by Ron Jarrell of Virginia Tech, patch from
+		Gregory Neil Shapiro.
+	CONFIG: Don't use F=m (multiple recipients per invocation) for
+		MAILER(procmail), but do pass F=Pn9 (include Return-Path:,
+		don't include From_, and convert to 8-bit).  Suggestions
+		from Kimmo Suominen and Roderick Schertler.
+	CONFIG: Domains under $=M (specified with MASQUERADE_DOMAIN) where
+		being masqueraded as though FEATURE(masquerade_entire_domain)
+		was specified, even when it wasn't.
+	MAIL.LOCAL: Solaris 2.6 has snprintf.  From John Beck of SunSoft.
+	MAIL.LOCAL: SECURITY: check to make sure that an attacker doesn't
+		"slip in" a symbolic link between the lstat(2) call and the
+		exclusive open.  This is only a problem on System V derived
+		systems that allow an exclusive create on files that are
+		symbolic links pointing nowhere.
+	MAIL.LOCAL: If the final mailbox close() failed, the user id was
+		not reset back to root, which on some systems would cause
+		later mailboxes to fail.  Also, any partial message would
+		not be truncated, which could result in repeated deliveries.
+		Problem noted by Bruce Evans via Peter Wemm (FreeBSD
+		developers).
+	MAKEMAP: Handle cases where O_EXLOCK is #defined to be 0.  A similar
+		change to the sendmail map code was made in 8.8.3.  Problem
+		noted by Gregory Neil Shapiro.
+	MAKEMAP: Give warnings on file problems such as map files that are
+		symbolic links; although makemap is not setuid root, it is
+		often run as root and hence has the potential for the same
+		sorts of problems as alias rebuilds.
+	MAKEMAP: Change compilation so that it will link properly on
+		NEXTSTEP.
+	CONTRIB: etrn.pl: search for Cw as well as Fw lines in sendmail.cf.
+		Accept an optional list of arguments following the server
+		name for the ETRN arguments to use (instead of $=w).  Other
+		miscellaneous bug fixes.  From Christian von Roques via
+		John Beck of Sun Microsystems.
+	CONTRIB: Add passwd-to-alias.pl, contributed by Kari Hurtta.  This
+		Perl script converts GECOS information in the /etc/passwd
+		file into aliases, allowing for faster access to full name
+		lookups; it is also clever about adding aliases (to root)
+		for system accounts.
+	NEW FILES:
+		src/safefile.c
+		cf/ostype/gnuhurd.m4
+		cf/ostype/irix6.m4
+		contrib/passwd-to-alias.pl
+		test/t_exclopen.c
+		src/Makefiles/Makefile.IRIX64.6.1
+		src/Makefiles/Makefile.IRIX64.6.x
+	RENAMED FILES:
+		src/Makefiles/Makefile.IRIX.6.2 =>	Makefile.IRIX.6.x
+		src/Makefiles/Makefile.IRIX64 =>	Makefile.IRIX64.6.0
 
 8.8.5/8.8.5	97/01/21
 	SECURITY: Clear out group list during startup.  Without this, sendmail
@@ -101,8 +405,7 @@ summary of the changes in that release.
 	Give better diagnostics on long alias lines.  Based on code contributed
 		by Patrick Gosling of the University of Cambridge.
 	Increase the number of virtual interfaces that will be probed for
-		alternate names.  Problem noted by Gregory Neil Shapiro of
-		WPI.
+		alternate names.  Problem noted by Amy Rich of Shore.Net.
 	PORTABILITY:
 		UXP/DS V20L10 for Fujitsu DS/90: Makefile patches from
 			Toshiaki Nomura of Fujitsu Limited.
@@ -138,8 +441,7 @@ summary of the changes in that release.
 		to the named user on the local machine.  ``local:user@host''
 		is equivalent to ``local:user'' (the host is ignored).  In
 		all cases, the original user@host is passed in $@ (i.e., the
-		detail information).  Inspired by a report from Michael Fuhr
-		of Dimensional Communications, L.L.C.
+		detail information).  Inspired by a report from Michael Fuhr.
 	CONFIG: Strip quotes from the first word of an "error:" host
 		indication.  This lets you set (for example) the LUSER_RELAY
 		to be ``error:\"5.1.1\" Your Message Here''.  Note the use
@@ -837,8 +1139,7 @@ summary of the changes in that release.
 	Add new RunAsUser option; this causes sendmail to do a setuid to that
 		user early in processing to avoid potential security problems.
 		However, this means that all .forward and :include: files must
-		be readable by that user, and on systems that don't support the
-		saved uid bit properly, all files to be written must be
+		be readable by that user, and all files to be written must be
 		writable by that user and all programs will be executed by that
 		user.  It is also incompatible with the SafeFileEnvironment
 		option.  In other words, it may not actually add much to
@@ -1407,7 +1708,7 @@ summary of the changes in that release.
 		``/mx host'' returns the MX records for ``host''.
 		``/parse address'' will parse address, returning the value of
 			crackaddr (essentially, the comment information)
-			and the parsed address (the same as -bv).
+			and the parsed address.
 		``/try mailer address'' will rewrite address into the form
 			it will have when presented to the indicated mailer.
 		``/tryflags flags'' will set flags used by parsing.  The
