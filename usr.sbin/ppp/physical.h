@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.h,v 1.10 1999/05/12 09:48:58 brian Exp $
+ *  $Id: physical.h,v 1.11 1999/05/24 16:39:14 brian Exp $
  *
  */
 
@@ -66,7 +66,7 @@ struct physical {
   } input;
 
   struct {
-    char full[40];             /* Our current device name */
+    char full[DEVICE_LEN];     /* Our current device name */
     char *base;
   } name;
 
