@@ -213,12 +213,11 @@ hid_get_item_raw(hid_data_t s, hid_item_t *h)
 			dval = 0;
 			break;
 		case 1:
-			dval = (int8_t)*data++;
+			dval = *data++;
 			break;
 		case 2:
 			dval = *data++;
 			dval |= *data++ << 8;
-			dval = (int16_t)dval;
 			break;
 		case 4:
 			dval = *data++;
