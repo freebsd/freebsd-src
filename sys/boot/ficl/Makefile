@@ -17,6 +17,7 @@ LIB=			ficl
 INTERNALLIB=		yes
 INTERNALSTATICLIB=	yes
 NOPROFILE=		yes
+SRCS+=			loader.c
 .include <bsd.lib.mk>
 .endif
 
@@ -27,7 +28,7 @@ SOFTWORDS=	softcore.fr jhlocal.fr marker.fr freebsd.fr ficllocal.fr \
 #SOFTWORDS+=	oo.fr classes.fr
 
 .PATH:		${.CURDIR}/softwords
-CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/${MACHINE_ARCH} -DFICL_TRACE
+CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/${MACHINE_ARCH} -I${.CURDIR}/../common -DFICL_TRACE
 
 softcore.c:	${SOFTWORDS} softcore.awk
 	(cd ${.CURDIR}/softwords; cat ${SOFTWORDS} | awk -f softcore.awk) > ${.TARGET}
