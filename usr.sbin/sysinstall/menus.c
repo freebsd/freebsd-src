@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.70 1996/06/17 19:31:34 jkh Exp $
+ * $Id: menus.c,v 1.71 1996/06/17 19:33:27 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -240,7 +240,7 @@ DMenu MenuIndex = {
       { "Install, Express",	"An express system installation.",	NULL, installExpress },
       { "Install, Custom",	"The custom installation menu",		NULL, dmenuSubmenu, NULL, &MenuInstallCustom },
       { "Label",		"The disk Label editor",		NULL, diskLabelEditor },
-      { "Media, All",		"Top level media selection menu.",	NULL, dmenuSubmenu, NULL, &MenuMedia },
+      { "Media",		"Top level media selection menu.",	NULL, dmenuSubmenu, NULL, &MenuMedia },
       { "Media, Tape",		"Select tape installation media.",	NULL, mediaSetTape },
       { "Media, NFS",		"Select NFS installation media.",	NULL, mediaSetNFS },
       { "Media, Floppy",	"Select floppy installation media.",	NULL, mediaSetFloppy },

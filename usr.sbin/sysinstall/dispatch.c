@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dispatch.c,v 1.1 1996/05/16 11:47:27 jkh Exp $
+ * $Id: dispatch.c,v 1.2 1996/06/08 09:08:38 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -107,12 +107,16 @@ int
 dispatchCommand(char *str)
 {
     int i;
+    char *cp;
 
     if (!str || !*str) {
 	msgConfirm("Null or zero-length string passed to dispatchCommand");
 	return DITEM_FAILURE;
     }
-    else if (index(str, '=')) {
+    /* A command might be a pathname if it's encoded in argv[0], as we also support */
+    if ((cp = index(str, '/')) != NULL)
+	str = cp + 1;
+    if (index(str, '=')) {
 	variable_set(str);
 	return DITEM_SUCCESS;
     }
