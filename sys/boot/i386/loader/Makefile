@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.27 1999/01/11 05:52:28 msmith Exp $
+# $Id: Makefile,v 1.28 1999/01/18 19:05:27 msmith Exp $
 
 BASE=		loader
 PROG=		${BASE}
@@ -32,7 +32,7 @@ CFLAGS+=	-I${.CURDIR}/../../.. -I.
 CLEANFILES+=	vers.c vers.o ${BASE}.list ${BASE}.bin ${BASE}.sym ${BASE}.help
 
 CFLAGS+=	-Wall
-LDFLAGS=	-nostdlib -static -Ttext 0x1000
+LDFLAGS=	-nostdlib -static -Ttext 0x0
 
 # i386 standalone support library
 LIBI386=	${.OBJDIR}/../libi386/libi386.a
