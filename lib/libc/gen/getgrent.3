@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)getgrent.3	8.2 (Berkeley) 4/19/94
-.\"	$Id$
+.\"	$Id: getgrent.3,v 1.2 1994/09/20 22:02:20 wollman Exp $
 .\"
 .Dd September 29, 1994
 .Dt GETGRENT 3
@@ -45,6 +45,7 @@
 .Nm endgrent
 .Nd group database operations
 .Sh SYNOPSIS
+.Fd #include <sys/types.h>
 .Fd #include <grp.h>
 .Ft struct group *
 .Fn getgrent void

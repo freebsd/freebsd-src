@@ -1,4 +1,4 @@
-.\"	$Id: getvfsent.3,v 1.1 1994/09/25 01:38:30 wollman Exp $
+.\"	$Id: getvfsent.3,v 1.2 1996/02/15 20:06:47 mpp Exp $
 .\"	Written by Garrett A. Wollman, September 1994.
 .\"	This manual page is in the public domain.
 .\"
@@ -15,6 +15,7 @@
 .Nm vfsload
 .Nd manage virtual filesystem modules
 .Sh SYNOPSIS
+.Fd #include <sys/param.h>
 .Fd #include <sys/mount.h>
 .Ft struct vfsconf *
 .Fn getvfsbyname "const char *name"
