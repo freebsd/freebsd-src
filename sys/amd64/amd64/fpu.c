@@ -299,7 +299,7 @@ npx_probe(dev)
 		irq_num = 13;
 #endif
 	irq_rid = 0;
-	irq_res = bus_alloc_resource(dev, SYS_RES_IRQ, &ioport_rid, irq_num,
+	irq_res = bus_alloc_resource(dev, SYS_RES_IRQ, &irq_rid, irq_num,
 	    irq_num, 1, RF_ACTIVE);
 	if (irq_res == NULL)
 		panic("npx: can't get IRQ");
