@@ -4,7 +4,7 @@
 #
 #	  Originally written by Toshiharu OHNO
 #
-# $Id: ppp.conf.sample,v 1.28.2.7 1998/05/21 01:12:38 brian Exp $
+# $Id: ppp.conf.sample,v 1.30 1998/05/21 21:45:44 brian Exp $
 #
 #################################################################
 
@@ -340,9 +340,9 @@ loop-in:
  set log phase lcp ipcp command
  allow mode direct
 
-# If you wish to connect to a server that will dial back, take advantage
-# of the fact that ppp doesn't look for carrier 'till `set login' is
-# complete:
+# If you wish to connect to a server that will dial back *without* using
+# the ppp callback facility (rfc1570), take advantage of the fact that
+# ppp doesn't look for carrier 'till `set login' is complete:
 #
 # Here, we expect the server to say DIALBACK then disconnect after
 # we've authenticated ourselves.  When this has happened, we wait
@@ -353,6 +353,28 @@ dialback:
            ATDT\\T TIMEOUT 60 CONNECT"
  set login "TIMEOUT 5 ogin:--ogin: ppp word: ppp TIMEOUT 15 DIALBACK \
            \"\" NO\\sCARRIER \"\" TIMEOUT 60 RING ATA CONNECT"
+
+# Alternatively, if the peer is using the PPP callback protocol, use
+# normal dial and login scripts and add
+#
+ set callback auth cbcp e.164 1234567
+ set cbcp 1234567
+
+# If we're running a ppp server that wants to only call back microsoft
+# clients on numbers configured in /etc/ppp/ppp.secret (the 5th field):
+#
+ set callback cbcp
+ set cbcp
+ set log +cbcp
+ set redial 3 1
+ set device /dev/cuaa0
+ set speed 115200
+ set dial "TIMEOUT 10 \"\" AT OK-AT-OK ATDT\\T CONNECT"
+
+# Or if we want to allow authenticated clients to specify their own
+# callback number, use this ``set cbcp'' line instead:
+#
+ set cbcp *
 
 # Multilink mode is available (rfc1990).
 # To enable multilink capabilities, you must specify a MRRU.  1500 is
