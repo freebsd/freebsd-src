@@ -678,6 +678,8 @@ main(int argc, char **argv)
 	Var_Set(".CURDIR", curdir, VAR_GLOBAL);
 	Var_Set(".OBJDIR", objdir, VAR_GLOBAL);
 
+	if (getenv("MAKE_JOBS_FIFO") != NULL)
+		forceJobs = TRUE;
 	/*
 	 * Be compatible if user did not specify -j and did not explicitly
 	 * turned compatibility on

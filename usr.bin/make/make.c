@@ -637,7 +637,7 @@ MakeStartJobs (void)
 {
     GNode	*gn;
 
-    while (!Job_Full() && !Lst_IsEmpty (toBeMade)) {
+    while (!Lst_IsEmpty (toBeMade) && !Job_Full()) {
 	gn = (GNode *) Lst_DeQueue (toBeMade);
 	DEBUGF(MAKE, ("Examining %s...", gn->name));
 	/*
@@ -840,7 +840,7 @@ Make_Run (Lst targs)
      * keepgoing flag was given.
      */
     while (!Job_Empty ()) {
-	Job_CatchOutput ();
+	Job_CatchOutput (!Lst_IsEmpty (toBeMade));
 	Job_CatchChildren (!usePipes);
 	(void)MakeStartJobs();
     }
