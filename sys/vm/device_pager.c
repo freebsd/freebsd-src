@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)device_pager.c	8.1 (Berkeley) 6/11/93
- * $Id: device_pager.c,v 1.4 1994/10/02 17:48:58 phk Exp $
+ * $Id: device_pager.c,v 1.5 1995/01/09 16:05:29 davidg Exp $
  */
 
 /*
@@ -177,7 +177,7 @@ top:
 		 */
 		object = devp->devp_object = vm_object_allocate(0);
 		vm_object_enter(object, pager);
-		vm_object_setpager(object, pager, (vm_offset_t) foff, FALSE);
+		object->pager = pager;
 		/*
 		 * Finally, put it on the managed list so other can find it.
 		 * First we re-lookup in case someone else beat us to this
@@ -199,8 +199,7 @@ top:
 #endif
 	} else {
 		/*
-		 * vm_object_lookup() gains a reference and also removes the
-		 * object from the cache.
+		 * Gain a reference to the object.
 		 */
 		object = vm_object_lookup(pager);
 #ifdef DIAGNOSTIC
