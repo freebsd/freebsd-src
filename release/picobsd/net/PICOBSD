@@ -52,7 +52,7 @@ options         ATA_STATIC_ID           #Static device numbering
 device	atkbdc0	at isa? port IO_KBD
 device		atkbd0	at atkbdc? irq 1
 
-device		vga0	at isa? conflicts
+device		vga0	at isa?
 
 # syscons is the default console driver, resembling an SCO console
 device		sc0	at isa?
