@@ -648,7 +648,7 @@ dumpabort(signo)
 	Exit(X_ABORT);
 }
 
-__dead void
+void
 Exit(status)
 	int status;
 {

@@ -97,7 +97,7 @@ void	settrace __P((int, char **));
 void	setverbose __P((int, char **));
 void	status __P((int, char **));
 
-static __dead void command __P((void));
+static void command __P((void)) __dead2;
 
 static void getusage __P((char *));
 static void makeargv __P((void));
@@ -589,7 +589,7 @@ tail(filename)
 /*
  * Command parser.
  */
-static __dead void
+static void
 command()
 {
 	register struct cmd *c;
