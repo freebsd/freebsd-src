@@ -47,22 +47,14 @@ static void (*reap)(struct timespec *, u_int64_t, u_int, u_int, u_int) = NULL;
 void
 random_init_harvester(void (*reaper)(struct timespec *, u_int64_t, u_int, u_int, u_int))
 {
-	intrmask_t mask;
-
-	mask = splhigh();
 	reap = reaper;
-	splx(mask);
 }
 
 /* Deinitialise the harvester at unload time */
 void
 random_deinit_harvester(void)
 {
-	intrmask_t mask;
-
-	mask = splhigh();
 	reap = NULL;
-	splx(mask);
 }
 
 /* Entropy harvesting routine. This is supposed to be fast; do */
