@@ -143,6 +143,8 @@ struct mixerctl {
 	u_int		mul;
 #if defined(__FreeBSD__) /* XXXXX */
 	unsigned	ctl;
+#define MAX_SELECTOR_INPUT_PIN 256
+	u_int8_t	slctrtype[MAX_SELECTOR_INPUT_PIN];
 #endif
 	u_int8_t	class;
 #if !defined(__FreeBSD__)
@@ -1009,24 +1011,34 @@ uaudio_add_mixer(struct uaudio_softc *sc, const struct io_terminal *iot, int id)
 Static void
 uaudio_add_selector(struct uaudio_softc *sc, const struct io_terminal *iot, int id)
 {
-#if !defined(__FreeBSD__) || defined(USB_DEBUG)
 	const struct usb_audio_selector_unit *d = iot[id].d.su;
-#endif
-#if !defined(__FreeBSD__)
 	struct mixerctl mix;
+#if !defined(__FreeBSD__)
 	int i, wp;
+#else
+	int i;
+	struct mixerctl dummy;
 #endif
 
 	DPRINTFN(2,("uaudio_add_selector: bUnitId=%d bNrInPins=%d\n",
 		    d->bUnitId, d->bNrInPins));
-#if defined(__FreeBSD__)
-	printf("uaudio_add_selector: NOT IMPLEMENTED\n");
-#else
 	mix.wIndex = MAKE(d->bUnitId, sc->sc_ac_iface);
 	mix.wValue[0] = MAKE(0, 0);
 	uaudio_determine_class(&iot[id], &mix);
 	mix.nchan = 1;
 	mix.type = MIX_SELECTOR;
+#if defined(__FreeBSD__)
+	mix.ctl = SOUND_MIXER_NRDEVICES;	/* XXXXX */
+	mix.minval = 1;
+	mix.maxval = d->bNrInPins;
+	mix.mul = mix.maxval - mix.minval;
+	for (i = 0; i < MAX_SELECTOR_INPUT_PIN; i++) {
+		mix.slctrtype[i] = SOUND_MIXER_NRDEVICES;
+	}
+	for (i = mix.minval; i <= mix.maxval; i++) {
+		mix.slctrtype[i - 1] = uaudio_feature_name(&iot[d->baSourceId[i - 1]], &dummy);
+	}
+#else
 	mix.ctlunit = "";
 	mix.minval = 1;
 	mix.maxval = d->bNrInPins;
@@ -1038,8 +1050,8 @@ uaudio_add_selector(struct uaudio_softc *sc, const struct io_terminal *iot, int 
 		if (wp > MAX_AUDIO_DEV_LEN - 1)
 			break;
 	}
-	uaudio_mixer_add_ctl(sc, &mix);
 #endif
+	uaudio_mixer_add_ctl(sc, &mix);
 }
 
 #ifdef USB_DEBUG
@@ -4071,6 +4083,39 @@ uaudio_query_mix_info(device_t dev)
 	return mask;
 }
 
+u_int32_t
+uaudio_query_recsrc_info(device_t dev)
+{
+	int i, rec_selector_id;
+	u_int32_t mask = 0;
+	struct uaudio_softc *sc;
+	struct mixerctl *mc;
+
+	sc = device_get_softc(dev);
+	rec_selector_id = -1;
+	for (i=0; i < sc->sc_nctls; i++) {
+		mc = &sc->sc_ctls[i];
+		if (mc->ctl == SOUND_MIXER_NRDEVICES && 
+		    mc->type == MIX_SELECTOR && mc->class == UAC_RECORD) {
+			if (rec_selector_id == -1) {
+				rec_selector_id = i;
+			} else {
+				printf("There are many selectors.  Can't recognize which selector is a record source selector.\n");
+				return mask;
+			}
+		}
+	}
+	if (rec_selector_id == -1)
+		return mask;
+	mc = &sc->sc_ctls[rec_selector_id];
+	for (i = mc->minval; i <= mc->maxval; i++) {
+		if (mc->slctrtype[i - 1] == SOUND_MIXER_NRDEVICES)
+			continue;
+		mask |= 1 << mc->slctrtype[i - 1];
+	}
+	return mask;
+}
+
 void
 uaudio_mixer_set(device_t dev, unsigned type, unsigned left, unsigned right)
 {
@@ -4091,6 +4136,39 @@ uaudio_mixer_set(device_t dev, unsigned type, unsigned left, unsigned right)
 		}
 	}
 	return;
+}
+
+u_int32_t
+uaudio_mixer_setrecsrc(device_t dev, u_int32_t src)
+{
+	int i, rec_selector_id;
+	struct uaudio_softc *sc;
+	struct mixerctl *mc;
+
+	sc = device_get_softc(dev);
+	rec_selector_id = -1;
+	for (i=0; i < sc->sc_nctls; i++) {
+		mc = &sc->sc_ctls[i];
+		if (mc->ctl == SOUND_MIXER_NRDEVICES && 
+		    mc->type == MIX_SELECTOR && mc->class == UAC_RECORD) {
+			if (rec_selector_id == -1) {
+				rec_selector_id = i;
+			} else {
+				return src; /* Can't recognize which selector is record source selector */
+			}
+		}
+	}
+	if (rec_selector_id == -1)
+		return src;
+	mc = &sc->sc_ctls[rec_selector_id];
+	for (i = mc->minval; i <= mc->maxval; i++) {
+		if (src != (1 << mc->slctrtype[i - 1]))
+			continue;
+		uaudio_ctl_set(sc, SET_CUR, mc, 0, i);
+		return (1 << mc->slctrtype[i - 1]);
+	}
+	uaudio_ctl_set(sc, SET_CUR, mc, 0, mc->minval);
+	return (1 << mc->slctrtype[mc->minval - 1]);
 }
 
 Static int
