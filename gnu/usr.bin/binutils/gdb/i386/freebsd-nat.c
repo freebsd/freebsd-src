@@ -135,7 +135,11 @@ fetch_core_registers (core_reg_sect, core_reg_size, which, reg_addr)
       error ("Register %s not found in core file.", gdb_register_names[bad_reg]);
     }
 
+#if __FreeBSD_version >= 440000
+  addr = offsetof (struct user, u_pcb) + offsetof (struct pcb, pcb_save);
+#else
   addr = offsetof (struct user, u_pcb) + offsetof (struct pcb, pcb_savefpu);
+#endif
   memcpy (&pcb_savefpu, core_reg_sect + addr, sizeof pcb_savefpu);
 }
 
@@ -165,7 +169,11 @@ extern void print_387_control_word ();		/* i387-tdep.h */
 extern void print_387_status_word ();
 
 #define	fpstate		save87
+#if __FreeBSD_version >= 440000
+#define	U_FPSTATE(u)	u.u_pcb.pcb_save.sv_87
+#else
 #define	U_FPSTATE(u)	u.u_pcb.pcb_savefpu
+#endif
 
 static void
 i387_to_double (from, to)
