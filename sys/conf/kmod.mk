@@ -11,8 +11,6 @@
 #
 # DISTRIBUTION  Name of distribution. [bin]
 #
-# KERN		Main Kernel source directory. [${.CURDIR}/../../sys/kern]
-#
 # KMOD          The name of the kernel module to build.
 #
 # KMODDIR	Base path for kernel modules (see kld(4)). [/modules]
@@ -174,26 +172,23 @@ all: objwarn ${PROG} all-man _SUBDIR
 
 beforedepend ${OBJS}: ${_ILINKS}
 
-# The search for the link targets works best if we are in a normal src
-# tree, and not too deeply below src/sys/modules.  If we are near "/", then
-# we may find /sys - this is harmless.  Other abnormal "sys" directories
-# found in the search are likely to cause problems.  If nothing is found,
-# then the links default to /usr/include and /usr/include/machine.
+# Search for kernel source tree in standard places.
+.for _dir in ${.CURDIR}/../.. ${.CURDIR}/../../.. /sys /usr/src/sys
+.if !defined(SYSDIR) && exists(${_dir}/kern/)
+SYSDIR=	${_dir}
+.endif
+.endfor
+.if !defined(SYSDIR) || !exists(${SYSDIR}/kern/)
+.error "can't find kernel source tree"
+.endif
+
 ${_ILINKS}:
-	@set +x; for up in ../.. ../../.. ; do \
-		case ${.TARGET} in \
-		machine) \
-			testpath=${.CURDIR}/$$up/${MACHINE_ARCH}/include ; \
-			path=${.CURDIR}/$$up/${MACHINE_ARCH}/include ; \
-			defaultpath=/usr/include/machine ;; \
-		@) \
-			testpath=${.CURDIR}/$$up/sys ; \
-			path=${.CURDIR}/$$up ; \
-			defaultpath=/usr/include ;; \
-		esac ; \
-		if [ -d $$testpath ] ; then break ; fi ; \
-		path=$$defaultpath ; \
-	done ; \
+	@case ${.TARGET} in \
+	machine) \
+		path=${SYSDIR}/${MACHINE_ARCH}/include ;; \
+	@) \
+		path=${SYSDIR} ;; \
+	esac ; \
 	path=`(cd $$path && /bin/pwd)` ; \
 	${ECHO} ${.TARGET} "->" $$path ; \
 	ln -s $$path ${.TARGET}
@@ -257,19 +252,13 @@ distribute: _SUBDIR
 .endif
 
 .if !target(load)
-load:	${PROG} install
-	${KMODLOAD} ${KMOD}
+load:	${PROG}
+	${KMODLOAD} -v ./${KMOD}
 .endif
 
 .if !target(unload)
 unload:
-	${KMODUNLOAD} ${KMOD}
-.endif
-
-.if exists(${.CURDIR}/../../kern)
-KERN=	${.CURDIR}/../../kern
-.else
-KERN=	${.CURDIR}/../../sys/kern
+	${KMODUNLOAD} -v ${KMOD}
 .endif
 
 .for _src in ${SRCS:Mopt_*.h}
