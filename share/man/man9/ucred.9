@@ -34,6 +34,7 @@
 .Nm crget ,
 .Nm crhold ,
 .Nm crfree ,
+.Nm crshared ,
 .Nm crcopy ,
 .Nm crdup
 .Nd "functions related to user credentials"
@@ -46,8 +47,10 @@
 .Fn crhold "struct ucred *cr"
 .Ft void
 .Fn crfree "struct ucred *cr"
-.Ft "struct ucred *"
-.Fn crcopy "struct ucred *cr"
+.Ft int
+.Fn crshared "struct ucred *cr"
+.Ft void
+.Fn crcopy "struct ucred *dest" "struct ucred *src"
 .Ft "struct ucred *"
 .Fn crdup "struct ucred *cr"
 .Sh DESCRIPTION
@@ -73,30 +76,33 @@ function decreases the reference count on the credential.
 If the count drops to 0, the storage for the structure is freed.
 .Pp
 The
+.Fn crshared
+function returns true if the credential is shared.
+A credential is considered to be shared if its reference
+count is greater than one.
+.Pp
+The
 .Fn crcopy
-function calls
-.Fn crdup
-to create a new structure, and copies the old credentials,
-if the reference count is greater than 1;
-otherwise, the original is returned.
+function copies the contents of the source (template)
+credential into the destination template.
+The
+.Vt uidinfo
+structure within the destination is referenced
+by calling
+.Xr uihold 9 .
 .Pp
 The
 .Fn crdup
-function allocates memory for a new structure,
-copies the contents of the original structure
-into it, references the
-.Va cr_uidinfo
-and
-.Va cr_ruidinfo
-fields, sets the reference count
-to 1, and then returns the new structure.
+function allocates memory for a new structure and copies the
+contents of
+.Fa cr
+into it.
+The actual copying is performed by
+.Fn crcopy .
 .Sh RETURN VALUES
 The functions that return values all return a pointer to a
 .Vt ucred
 structure.
-In the case of
-.Fn crcopy ,
-the return value may be the same structure you passed to it.
 .Sh SEE ALSO
 .Xr uihold 9
 .Sh AUTHORS

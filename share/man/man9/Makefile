@@ -219,7 +219,7 @@ MLINKS+=BUS_SETUP_INTR.9 BUS_TEARDOWN_INTR.9
 MLINKS+=BUS_SETUP_INTR.9 bus_teardown_intr.9
 MLINKS+=bus_generic_read_ivar.9 bus_generic_write_ivar.9
 MLINKS+=ucred.9 crget.9 ucred.9 crhold.9 ucred.9 crfree.9
-MLINKS+=ucred.9 crcopy.9 ucred.9 crdup.9
+MLINKS+=ucred.9 crshared.9 ucred.9 crcopy.9 ucred.9 crdup.9
 
 MLINKS+=mbchain.9 mb_init.9
 MLINKS+=mbchain.9 mb_initm.9
