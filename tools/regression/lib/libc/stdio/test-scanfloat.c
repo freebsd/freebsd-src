@@ -123,7 +123,7 @@ main(int argc, char *argv[])
 
 #if LDBL_MANT_DIG > DBL_MANT_DIG
 	sscanf("  0X.0123456789abcdefffp-3g", "%Le%s", &ld, buf);
-	assert(ld == 0x.0123456789abcdefffp-3L);
+	assert(ld == 0x0.0123456789abcdefffp-3L);
 	assert(strcmp(buf, "g") == 0);
 #endif
 
