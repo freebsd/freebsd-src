@@ -300,7 +300,7 @@ product FUJITSU WL110		0x2003 PEGA-WL110 Wireless LAN
 product GEMPLUS GPR400		0x3004 GPR400 Smartcard Reader
 
 /* Grey Cell Systems, Ltd */
-product GREY_CELL DMF560TX	0xc0ab D-Link DMF-650TX
+product GREY_CELL DMF650TX	0xc0ab D-Link DMF-650TX
 
 /* Home Wireless Networks */
 product HWN AIRWAY80211		0x0002 HWN Airway Wireless PCMCIA Card
