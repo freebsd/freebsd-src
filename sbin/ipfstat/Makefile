@@ -4,7 +4,7 @@
 
 PROG=	ipfstat
 MAN8=	ipfstat.8
-SRCS=	fils.c parse.c opt.c kmem.c facpri.c
+SRCS=	fils.c parse.c opt.c kmem.c facpri.c common.c
 CFLAGS+=-DIPL_NAME=\"/dev/ipl\" -I- -I${.CURDIR}/../../sys/netinet -I${.CURDIR}/../../sys -I${.CURDIR}/../../contrib/ipfilter
 
 MAINTAINER=	guido@freebsd.org
