@@ -274,7 +274,7 @@ adlink_open(dev_t dev, int oflags, int devtype, struct thread *td)
 	/* Sample CH0 only */
 	bus_space_write_4(sc->t1, sc->h1, 0x00, 1);
 
-	/* Divide clock by ten */
+	/* Divide clock by four */
 	bus_space_write_4(sc->t1, sc->h1, 0x04, 4);
 
 	/* Software trigger mode: software */
