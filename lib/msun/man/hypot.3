@@ -49,24 +49,27 @@
 .Fn hypot "double x" "double y"
 .Ft float
 .Fn hypotf "float x" "float y"
-.Vt struct {double x, y;} z ;
+.In complex.h
 .Ft double
-.Fn cabs z
-.Vt struct {float x, y;} z ;
+.Fn cabs "double complex z"
 .Ft float
-.Fn cabsf z
+.Fn cabsf "float complex z"
 .Sh DESCRIPTION
 The
-.Fn hypot ,
-.Fn hypotf ,
-.Fn cabs
+.Fn hypot
 and
-.Fn cabsf
+.Fn hypotf
 functions
 compute the
 sqrt(x*x+y*y)
 in such a way that underflow will not happen, and overflow
 occurs only if the final result deserves it.
+The
+.Fn cabs
+and
+.Fn cabsf
+functions compute the complex absolute value of
+.Ar z .
 .Pp
 .Fn hypot "\*(If" "v"
 =
