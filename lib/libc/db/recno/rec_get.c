@@ -35,6 +35,10 @@
 static char sccsid[] = "@(#)rec_get.c	8.9 (Berkeley) 8/18/94";
 #endif /* LIBC_SCCS and not lint */
 
+#if !defined(lint)
+static char rcsid[] = "@(#)$FreeBSD$";
+#endif
+
 #include <sys/types.h>
 
 #include <errno.h>
@@ -181,7 +185,7 @@ __rec_vpipe(t, top)
 {
 	DBT data;
 	recno_t nrec;
-	indx_t len;
+	size_t len;
 	size_t sz;
 	int bval, ch;
 	u_char *p;
