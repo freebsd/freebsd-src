@@ -1066,7 +1066,7 @@ restore_sigs()
  * 1 for success and 0 for failure.
  */
 int
-make_cat_file (path, man_file, cat_file)
+make_cat_file (path, man_file, cat_file, manid)
      register char *path;
      register char *man_file;
      register char *cat_file;
@@ -1108,16 +1108,34 @@ make_cat_file (path, man_file, cat_file)
 	fprintf (stderr, "\ntrying command: %s\n", command);
       else {
 
+#ifdef SETREUID
+	if (manid) {
+	  setreuid(-1, ruid);
+	  setregid(-1, rgid);
+	}
+#endif
 	if ((pp = popen(command, "r")) == NULL) {
 	  s = errno;
 	  fprintf(stderr, "Failed.\n");
 	  errno = s;
 	  perror("popen");
+#ifdef SETREUID
+	  if (manid) {
+	    setreuid(-1, euid);
+	    setregid(-1, egid);
+	  }
+#endif
 	  unlink(temp);
 	  restore_sigs();
 	  fclose(fp);
 	  return 0;
 	}
+#ifdef SETREUID
+	if (manid) {
+	  setreuid(-1, euid);
+	  setregid(-1, egid);
+	}
+#endif
 
 	while ((s = getc(pp)) != EOF)
 	  putc(s, fp);
@@ -1255,10 +1273,10 @@ format_and_display (path, man_file, cat_file)
 #ifdef SETREUID
 	      setreuid(-1, euid);
 	      setregid(-1, egid);
+	      found = make_cat_file (path, man_file, cat_file, 1);
+#else
+	      found = make_cat_file (path, man_file, cat_file, 0);
 #endif
-
-	      found = make_cat_file (path, man_file, cat_file);
-
 #ifdef SETREUID
 	      setreuid(-1, ruid);
 	      setregid(-1, rgid);
@@ -1270,7 +1288,7 @@ format_and_display (path, man_file, cat_file)
 		       effective group (user) ID == real group (user) ID
 		     except for the call above, I believe the problems
 		     of reading private man pages is avoided.  */
-		  found = make_cat_file (path, man_file, cat_file);
+		  found = make_cat_file (path, man_file, cat_file, 0);
 	        }
 #endif
 #ifdef SECURE_MAN_UID
@@ -1289,7 +1307,7 @@ format_and_display (path, man_file, cat_file)
 		   */
 		  setuid (getuid ());
 
-		  found = make_cat_file (path, man_file, cat_file);
+		  found = make_cat_file (path, man_file, cat_file, 0);
 		}
 #endif
 	      if (found)
