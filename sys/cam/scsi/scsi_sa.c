@@ -2765,8 +2765,10 @@ retry:
 	/* set the speed to the current value */
 	mode_hdr->dev_spec = current_speed;
 
-	/* set single-initiator buffering mode */
-	mode_hdr->dev_spec |= SMH_SA_BUF_MODE_SIBUF;
+	/* if set, set single-initiator buffering mode */
+	if (softc->buffer_mode == SMH_SA_BUF_MODE_SIBUF) {
+		mode_hdr->dev_spec |= SMH_SA_BUF_MODE_SIBUF;
+	}
 
 	if (mode_blk)
 		mode_hdr->blk_desc_len = sizeof(struct scsi_mode_blk_desc);
