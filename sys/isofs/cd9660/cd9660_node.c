@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_node.c	8.2 (Berkeley) 1/23/94
- * $Id: cd9660_node.c,v 1.4 1994/09/15 19:45:59 bde Exp $
+ * $Id: cd9660_node.c,v 1.5 1994/09/22 19:37:43 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -178,14 +178,14 @@ iso_iget(xp, ino, relocated, ipp, isodir)
 	struct mount *mntp = ITOV(xp)->v_mount;
 	register struct iso_node *ip, *iq;
 	register struct vnode *vp;
+#ifdef	ISODEVMAP
 	register struct iso_dnode *dp;
+#endif
 	struct vnode *nvp;
 	struct buf *bp = NULL, *bp2 = NULL;
 	union iso_ihead *ih;
-	union iso_dhead *dh;
-	int i, error, result;
+	int error, result;
 	struct iso_mnt *imp;
-	ino_t defino;
 	
 	ih = &iso_ihead[INOHASH(dev, ino)];
 loop:
@@ -207,7 +207,7 @@ loop:
 	/*
 	 * Allocate a new vnode/iso_node.
 	 */
-	if (error = getnewvnode(VT_ISOFS, mntp, cd9660_vnodeop_p, &nvp)) {
+	if ((error = getnewvnode(VT_ISOFS, mntp, cd9660_vnodeop_p, &nvp))) {
 		*ipp = 0;
 		return error;
 	}
@@ -243,7 +243,7 @@ loop:
 		 * read the `.' entry out of a dir.
 		 */
 		ip->iso_start = ino >> imp->im_bshift;
-		if (error = iso_blkatoff(ip,0,&bp)) {
+		if ((error = iso_blkatoff(ip,0,&bp))) {
 			vrele(ip->i_devvp);
 			remque(ip);
 			ip->i_forw = ip;
@@ -302,7 +302,7 @@ loop:
 			ip->inode.iso_rdev = dp->d_dev;
 #endif
 		vp->v_op = cd9660_specop_p;
-		if (nvp = checkalias(vp, ip->inode.iso_rdev, mntp)) {
+		if ((nvp = checkalias(vp, ip->inode.iso_rdev, mntp))) {
 			/*
 			 * Reinitialize aliased inode.
 			 */
@@ -361,7 +361,7 @@ cd9660_inactive(ap)
 {
 	struct vnode *vp = ap->a_vp;
 	register struct iso_node *ip = VTOI(vp);
-	int mode, error = 0;
+	int error = 0;
 	
 	if (prtactive && vp->v_usecount != 0)
 		vprint("cd9660_inactive: pushing active", vp);
@@ -387,7 +387,6 @@ cd9660_reclaim(ap)
 {
 	register struct vnode *vp = ap->a_vp;
 	register struct iso_node *ip = VTOI(vp);
-	int i;
 	
 	if (prtactive && vp->v_usecount != 0)
 		vprint("cd9660_reclaim: pushing active", vp);
@@ -558,7 +557,6 @@ cd9660_tstamp_conv7(pi,pu)
 char *pi;
 struct timespec *pu;
 {
-	int i;
 	int crtime, days;
 	int y, m, d, hour, minute, second, tz;
 	
