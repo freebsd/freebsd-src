@@ -89,7 +89,7 @@ struct twa_driver_packet {
 struct twa_ioctl_9k {
 	struct twa_driver_packet	twa_drvr_pkt;
 	void				*pdata; /* points to data_buf */
-	int8_t				padding[484];
+	int8_t				padding[488 - sizeof(void *)];
 	struct twa_command_packet	twa_cmd_pkt;
 	int8_t				data_buf[1];
 } __attribute__ ((packed));
@@ -106,7 +106,7 @@ struct twa_ioctl_9k {
 typedef struct twa_ioctl_no_data_buf {
 	struct twa_driver_packet	twa_drvr_pkt;
 	void				*pdata; /* points to data_buf */
-	int8_t				padding[484];
+	int8_t				padding[488 - sizeof(void *)];
 	struct twa_command_packet	twa_cmd_pkt;
 }  __attribute__ ((packed)) TWA_IOCTL_NO_DATA_BUF;
 #pragma pack()
