@@ -841,6 +841,7 @@ dev/pcm/feeder.c	optional pcm
 dev/pcm/fake.c		optional pcm
 dev/pcm/mixer.c		optional pcm
 dev/pcm/isa/ad1816.c	optional pcm isa
+dev/pcm/isa/es1888.c	optional pcm isa
 dev/pcm/isa/mss.c	optional pcm isa
 dev/pcm/isa/sb.c	optional pcm isa
 dev/pcm/pci/es1370.c	optional pcm pci
