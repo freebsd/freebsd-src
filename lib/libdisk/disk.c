@@ -22,6 +22,7 @@
 #include <sys/ioctl.h>
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
+#include <paths.h>
 #include "libdisk.h"
 
 #define DOSPTYP_EXTENDED        5
@@ -67,7 +68,7 @@ Int_Open_Disk(const char *name, u_long size)
 #endif
 	u_long offset = 0;
 
-	strcpy(device,"/dev/");
+	strcpy(device,_PATH_DEV);
 	strcat(device,name);
 
 	d = (struct disk *)malloc(sizeof *d);
@@ -236,7 +237,7 @@ Int_Open_Disk(const char *name, u_long size)
 		char pname[20];
 		int j,k;
 
-		strcpy(pname,"/dev/");
+		strcpy(pname,_PATH_DEV);
 		strcat(pname,sname);
 		j = open(pname,O_RDONLY);
 		if (j < 0) {
@@ -301,7 +302,7 @@ Int_Open_Disk(const char *name, u_long size)
 		char pname[20];
 		int j,k;
 
-		strcpy(pname,"/dev/");
+		strcpy(pname,_PATH_DEV);
 		strcat(pname,name);
 		j = open(pname,O_RDONLY);
 		if (j < 0) {
@@ -479,7 +480,7 @@ Disk_Names()
 	for (j = 0; device_list[j]; j++) {
 		for (i = 0; i < MAX_NO_DISKS; i++) {
 			sprintf(diskname, "%s%d", device_list[j], i);
-			sprintf(disk, "/dev/%s", diskname);
+			sprintf(disk, _PATH_DEV"%s", diskname);
 			if (stat(disk, &st) || !(st.st_mode & S_IFCHR))
 				continue;
 			if ((fd = open(disk, O_RDWR)) == -1)
