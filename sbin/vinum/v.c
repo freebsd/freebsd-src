@@ -78,9 +78,7 @@ int inerror;						    /* set to 1 to exit after end of config file */
 
 /* flags */
 
-#if VINUMDEBUG
 int debug = 0;						    /* debug flag, usage varies */
-#endif
 int force = 0;						    /* set to 1 to force some dangerous ops */
 int interval = 0;					    /* interval in ms between init/revive */
 int vflag = 0;						    /* set verbose operation or verify */
@@ -157,33 +155,7 @@ main(int argc, char *argv[], char *envp[])
 	no_devfs = 0;
     superdev = open(VINUM_SUPERDEV_NAME, O_RDWR);	    /* open vinum superdevice */
     if (superdev < 0) {					    /* no go */
-	if (errno == ENODEV) {				    /* not configured, */
-	    superdev = open(VINUM_WRONGSUPERDEV_NAME, O_RDWR); /* do we have a debug mismatch? */
-	    if (superdev >= 0) {			    /* yup! */
-#if VINUMDEBUG
-		fprintf(stderr,
-		    "This program is compiled with debug support, but the kernel module does\n"
-		    "not have debug support.  This program must be matched with the kernel\n"
-		    "module.  Please alter /usr/src/sbin/" VINUMMOD "/Makefile and remove\n"
-		    "the option -DVINUMDEBUG from the CFLAGS definition, or alternatively\n"
-		    "edit /usr/src/sys/modules/" VINUMMOD "/Makefile and add the option\n"
-		    "-DVINUMDEBUG to the CFLAGS definition.  Then rebuild the component\n"
-		    "of your choice with 'make clean all install'.  If you rebuild the kernel\n"
-		    "module, you must stop " VINUMMOD " and restart it\n");
-#else
-		fprintf(stderr,
-		    "This program is compiled without debug support, but the kernel module\n"
-		    "includes debug support.  This program must be matched with the kernel\n"
-		    "module.  Please alter /usr/src/sbin/" VINUMMOD "/Makefile and add\n"
-		    "the option -DVINUMDEBUG to the CFLAGS definition, or alternatively\n"
-		    "edit /usr/src/sys/modules/" VINUMMOD "/Makefile and remove the option\n"
-		    "-DVINUMDEBUG from the CFLAGS definition.  Then rebuild the component\n"
-		    "of your choice with 'make clean all install'.  If you rebuild the kernel\n"
-		    "module, you must stop " VINUMMOD " and restart it\n");
-#endif
-		return 1;
-	    }
-	} else if ((errno == ENOENT) && no_devfs)	    /* we don't have our node, */
+	if ((errno == ENOENT) && no_devfs)		    /* we don't have our node, */
 	    make_devices();				    /* create them first */
 	if (superdev < 0) {
 	    perror("Can't open " VINUM_SUPERDEV_NAME);
@@ -308,9 +280,7 @@ struct funkey {
 
     FUNKEY(create),
 	FUNKEY(read),
-#ifdef VINUMDEBUG
 	FUNKEY(debug),
-#endif
 	FUNKEY(modify),
 	FUNKEY(list),
 	FUNKEY(ld),
@@ -389,11 +359,9 @@ parseline(int args, char *argv[])
     for (i = 1; (i < args) && (argv[i][0] == '-'); i++) {   /* while we have flags */
 	for (j = 1; j < strlen(argv[i]); j++)
 	    switch (argv[i][j]) {
-#if VINUMDEBUG
 	    case 'd':					    /* -d: debug */
 		debug = 1;
 		break;
-#endif
 
 	    case 'f':					    /* -f: force */
 		force = 1;
@@ -586,10 +554,6 @@ make_devices(void)
 	    makedev(VINUM_CDEV_MAJOR, VINUM_SUPERDEV)) < 0)
 	fprintf(stderr, "Can't create %s: %s\n", VINUM_SUPERDEV_NAME, strerror(errno));
 
-    if (mknod(VINUM_WRONGSUPERDEV_NAME,
-	    S_IRUSR | S_IWUSR | S_IFCHR,		    /* user only */
-	    makedev(VINUM_CDEV_MAJOR, VINUM_WRONGSUPERDEV)) < 0)
-	fprintf(stderr, "Can't create %s: %s\n", VINUM_WRONGSUPERDEV_NAME, strerror(errno));
 
     superdev = open(VINUM_SUPERDEV_NAME, O_RDWR);	    /* open the super device */
     if (superdev < 0) {
