@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_inode.c	8.9 (Berkeley) 5/14/95
- * $Id: ufs_inode.c,v 1.11 1997/02/22 09:47:48 peter Exp $
+ * $Id: ufs_inode.c,v 1.12 1997/03/22 06:53:44 bde Exp $
  */
 
 #include "opt_quota.h"
@@ -104,7 +104,7 @@ out:
 	 * so that it can be reused immediately.
 	 */
 	if (ip->i_mode == 0)
-		vrecycle(vp, (struct simplelock *)0, p);
+		vp->v_flag |= VAGE;
 	return (error);
 }
 
