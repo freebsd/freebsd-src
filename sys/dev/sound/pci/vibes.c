@@ -711,7 +711,7 @@ sv_attach(device_t dev) {
 	struct sc_info	*sc;
 	u_int32_t	data;
 	char		status[SND_STATUSLEN];
-	u_long		midi_start, games_start, count, sdmaa, sdmac;
+	u_long		midi_start, games_start, count, sdmaa, sdmac, ml, mu;
 
 	d = device_get_softc(dev);
 
@@ -797,13 +797,25 @@ sv_attach(device_t dev) {
 	bus_get_resource(dev, SYS_RES_IOPORT, SV_PCI_MIDI, &midi_start, &count);
 	bus_get_resource(dev, SYS_RES_IOPORT, SV_PCI_GAMES, &games_start, &count);
 
-	/* Check assumptions about space availability and alignment. */
-	if ((midi_start - games_start != 0x200) || midi_start & 0xff) {
-		device_printf(dev, "sv_attach: resource assumptions not met\n");
+	if (games_start < midi_start) {
+		ml = games_start;
+		mu = midi_start;
+	} else {
+		ml = midi_start;
+		mu = games_start;
+	}
+	/* Check assumptions about space availability and
+           alignment. How driver loaded can determine whether
+           games_start > midi_start or vice versa */
+	if ((mu - ml >= 0x800)  ||
+	    ((mu - ml) % 0x200)) {
+		device_printf(dev, "sv_attach: resource assumptions not met "
+			      "(midi 0x%08lx, games 0x%08lx)\n",
+			      midi_start, games_start);
 		goto fail;
 	}
 
-	sdmaa = games_start + 0x40;
+	sdmaa = ml + 0x40;
 	sdmac = sdmaa + 0x40;
 
 	/* Add resources to list of pci resources for this device - from here on
