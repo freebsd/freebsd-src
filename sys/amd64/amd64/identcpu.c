@@ -129,9 +129,9 @@ printcpuinfo(void)
 		 * (also describes ``Features'' encodings.
 		 */
 		strcpy(cpu_model, "AMD ");
-		switch (cpu_id & 0xFF0) {
+		switch (cpu_id & 0xF00) {
 		case 0xf00:
-			strcat(cpu_model, "Hammer");
+			strcat(cpu_model, "AMD64 Processor");
 			break;
 		default:
 			strcat(cpu_model, "Unknown");
