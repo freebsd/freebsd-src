@@ -1,4 +1,5 @@
-/* $FreeBSD$ */
+/* $Id: $ */
+/* ispvar.h 1.21 */
 /*
  * Soft Definitions for for Qlogic ISP SCSI adapters.
  *
@@ -47,7 +48,7 @@
 #endif
 
 #define	ISP_CORE_VERSION_MAJOR	1
-#define	ISP_CORE_VERSION_MINOR	3
+#define	ISP_CORE_VERSION_MINOR	4
 
 /*
  * Vector for MD code to provide specific services.
@@ -77,6 +78,7 @@ struct ispmdvec {
 
 #define	MAX_TARGETS	16
 #define	MAX_FC_TARG	126
+#define	DEFAULT_LOOPID	113
 
 /* queue length must be a power of two */
 #define	QENTRY_LEN			64
@@ -175,6 +177,7 @@ typedef struct {
 #define	FW_REINIT		0x0006
 #define	FW_NON_PART		0x0007
 
+
 /*
  * Soft Structure per host adapter
  */
@@ -190,7 +193,7 @@ struct ispsoftc {
 	struct ispmdvec *	isp_mdvec;
 
 	/*
-	 * State, debugging, etc..
+	 * Mostly nonvolatile state, debugging, etc..
 	 */
 
 	u_int				: 8,
@@ -243,6 +246,7 @@ struct ispsoftc {
 	volatile caddr_t	isp_result;
 	u_int32_t		isp_rquest_dma;
 	u_int32_t		isp_result_dma;
+
 };
 
 /*
