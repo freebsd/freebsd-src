@@ -15,7 +15,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.71 1998/06/03 01:59:32 msmith Exp $
+ *	$Id: apm.c,v 1.72 1998/06/07 17:09:55 dfr Exp $
  */
 
 #include "opt_devfs.h"
@@ -202,13 +202,13 @@ apm_getevent(void)
 
 /* suspend entire system */
 static int
-apm_suspend_system(void)
+apm_suspend_system(int state)
 {
 	u_long eax, ebx, ecx, edx;
 
 	eax = (APM_BIOS << 8) | APM_SETPWSTATE;
 	ebx = PMDV_ALLDEV;
-	ecx = PMST_SUSPEND;
+	ecx = state;
 	edx = 0;
 
 	if (apm_int(&eax, &ebx, &ecx, &edx)) {
@@ -427,7 +427,7 @@ static void apm_processevent(void);
  */
 
 void
-apm_suspend(void)
+apm_suspend(int state)
 {
 	struct apm_softc *sc = &apm_softc;
 
@@ -436,7 +436,7 @@ apm_suspend(void)
 
 	if (sc->initialized) {
 		apm_execute_hook(hook[APM_HOOK_SUSPEND]);
-		if (apm_suspend_system() == 0)
+		if (apm_suspend_system(state) == 0)
 			apm_processevent();
 		else
 			/* Failure, 'resume' the system again */
@@ -472,7 +472,7 @@ apm_get_info(apm_info_t aip)
 	if (apm_int(&eax, &ebx, &ecx, &edx))
 		return 1;
 
-	aip->ai_infoversion = 0;
+	aip->ai_infoversion = 1;
 	aip->ai_acline      = (ebx >> 8) & 0xff;
 	aip->ai_batt_stat   = ebx & 0xff;
 	aip->ai_batt_life   = ecx & 0xff;
@@ -486,6 +486,19 @@ apm_get_info(apm_info_t aip)
 		aip->ai_batt_time = (edx & 0x7fff) * 60;
 	else			/* Time is in seconds */
 		aip->ai_batt_time = edx;
+
+	eax = (APM_BIOS << 8) | APM_GETCAPABILITIES;
+	ebx = 0;
+	ecx = 0;
+	edx = 0;
+	if (apm_int(&eax, &ebx, &ecx, &edx)) {
+		aip->ai_batteries = -1;	/* Unknown */
+		aip->ai_capabilities = 0xff00; /* Unknown, with no bits set */
+	} else {
+		aip->ai_batteries = ebx & 0xff;
+		aip->ai_capabilities = ecx & 0xf;
+	}
+
 	bzero(aip->ai_spare, sizeof aip->ai_spare);
 
 	return 0;
@@ -719,16 +732,16 @@ apm_processevent(void)
 		apm_event = apm_getevent();
 		switch (apm_event) {
 		    OPMEV_DEBUGMESSAGE(PMEV_STANDBYREQ);
-			apm_suspend();
+			apm_suspend(PMST_STANDBY);
 			break;
 		    OPMEV_DEBUGMESSAGE(PMEV_SUSPENDREQ);
-			apm_suspend();
+			apm_suspend(PMST_SUSPEND);
 			break;
 		    OPMEV_DEBUGMESSAGE(PMEV_USERSUSPENDREQ);
-			apm_suspend();
+			apm_suspend(PMST_SUSPEND);
 			break;
 		    OPMEV_DEBUGMESSAGE(PMEV_CRITSUSPEND);
-			apm_suspend();
+			apm_suspend(PMST_SUSPEND);
 			break;
 		    OPMEV_DEBUGMESSAGE(PMEV_NORMRESUME);
 			apm_resume();
@@ -741,7 +754,7 @@ apm_processevent(void)
 			break;
 		    OPMEV_DEBUGMESSAGE(PMEV_BATTERYLOW);
 			apm_battery_low();
-			apm_suspend();
+			apm_suspend(PMST_SUSPEND);
 			break;
 		    OPMEV_DEBUGMESSAGE(PMEV_POWERSTATECHANGE);
 			break;
@@ -930,11 +943,19 @@ apmioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 #endif
 	switch (cmd) {
 	case APMIO_SUSPEND:
-		if ( sc->active)
-			apm_suspend();
+		if (sc->active)
+			apm_suspend(PMST_SUSPEND);
 		else
 			error = EINVAL;
 		break;
+
+	case APMIO_STANDBY:
+		if (sc->active)
+			apm_suspend(PMST_STANDBY);
+		else
+			error = EINVAL;
+		break;
+
 	case APMIO_GETINFO_OLD:
 		{
 			struct apm_info info;
@@ -973,8 +994,8 @@ apmioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 			error = ENXIO;
 		break;
 	case APMIO_BIOS:
-		if (apm_bios_call((struct apm_bios_arg*)addr))
-			error = EIO;
+		if (apm_bios_call((struct apm_bios_arg*)addr) == 0)
+			((struct apm_bios_arg*)addr)->eax &= 0xff;
 		break;
 	default:
 		error = EINVAL;
