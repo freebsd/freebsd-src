@@ -64,13 +64,13 @@ extern db_regs_t	ddb_regs;	/* register state */
 #define	IS_BREAKPOINT_TRAP(type, code)	(type == IA64_VEC_BREAK)
 #define	IS_WATCHPOINT_TRAP(type, code)	0
 
-#define	inst_trap_return(ins)	0
-#define	inst_return(ins)	0
-#define	inst_call(ins)		0
-#define	inst_branch(ins)	0
-#define	inst_load(ins)		0
-#define	inst_store(ins)		0
-#define	inst_unconditional_flow_transfer(ins) 0
+#define	inst_trap_return(ins)	(ins & 0)
+#define	inst_return(ins)	(ins & 0)
+#define	inst_call(ins)		(ins & 0)
+#define	inst_branch(ins)	(ins & 0)
+#define	inst_load(ins)		(ins & 0)
+#define	inst_store(ins)		(ins & 0)
+#define	inst_unconditional_flow_transfer(ins) (ins & 0)
 				
 #define	branch_taken(ins, pc, regs) pc
 
