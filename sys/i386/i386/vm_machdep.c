@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.41 1995/07/29 11:38:53 bde Exp $
+ *	$Id: vm_machdep.c,v 1.42 1995/09/03 20:39:22 dyson Exp $
  */
 
 #include "npx.h"
@@ -876,7 +876,7 @@ vm_page_zero_idle() {
 		enable_intr();
 		pmap_zero_page(VM_PAGE_TO_PHYS(m));
 		disable_intr();
-		TAILQ_INSERT_TAIL(&vm_page_queue_zero, m, pageq);
+		TAILQ_INSERT_HEAD(&vm_page_queue_zero, m, pageq);
 		return 1;
 	}
 	return 0;
