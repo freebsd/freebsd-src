@@ -70,7 +70,7 @@
 #
 # just following tradition...
 # %Y년 %b월 %e일 %a요일 %X
-%a %b %e %H:%M:%S %Y
+%a %Ex %H:%M:%S %Y
 #
 # am
 #
@@ -87,3 +87,22 @@ PM
 # date_fmt
 #
 %Y년 %b월 %e일 %a요일 %X %Z
+#
+# Long months names (alternative)
+#
+1월
+2월
+3월
+4월
+5월
+6월
+7월
+8월
+9월
+10월
+11월
+12월
+#
+# Ex_fmt
+#
+%b %e

@@ -63,7 +63,7 @@ sábado
 #
 # c_fmt
 #
-%a %e %b %X %Y
+%a %Ex %X %Y
 #
 # am
 #
@@ -76,3 +76,22 @@ PM
 # date_fmt
 #
 %A, %e de %B de %Y, %X %Z
+#
+# Long months names (alternative)
+#
+enero
+febrero
+marzo
+abril
+mayo
+junio
+julio
+agosto
+septiembre
+octubre
+noviembre
+diciembre
+#
+# Ex_fmt
+#
+%e %b

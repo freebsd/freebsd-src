@@ -63,7 +63,7 @@ laugardagur
 #
 # c_fmt
 #
-%a %b %e %X %Y
+%a %Ex %X %Y
 #
 # am
 #
@@ -75,4 +75,23 @@ eh
 #
 # date_fmt
 #
-%a %e %b %Y %X %Z
+%a %Ex %Y %X %Z
+#
+# Long months names (alternative)
+#
+janúar
+febrúar
+mars
+apríl
+maí
+júní
+júlí
+ágúst
+september
+október
+nóvember
+desember
+#
+# Ex_fmt
+#
+%e %b

@@ -63,7 +63,7 @@ Subota
 #
 # c_fmt
 #
-%a %e %b %X %Y
+%a %Ex %X %Y
 #
 # am
 #
@@ -75,4 +75,23 @@ pm
 #
 # date_fmt
 #
-%a %e %b %Y %X %Z
+%a %Ex %Y %X %Z
+#
+# Long months names (alternative)
+#
+Sijeèanj
+Veljaèa
+O¾ujak
+Travanj
+Svibanj
+Lipanj
+Srpanj
+Kolovoz
+Rujan
+Listopad
+Studeni
+Prosinac
+#
+# Ex_fmt
+#
+%e %b
