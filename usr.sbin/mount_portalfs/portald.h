@@ -80,3 +80,6 @@ extern int portal_tcplisten(struct portal_cred *,
 extern void activate(qelem *q, int so);
 extern char **conf_match(qelem *q, char *key);
 extern void conf_read(qelem *q, char *conf);
+extern int set_user_credentials(struct portal_cred *user,
+    struct portal_cred *save_area);
+extern int restore_credentials(struct portal_cred *save_area);

@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 PROG=	mount_portalfs
-SRCS=	mount_portalfs.c activate.c conf.c getmntopts.c pt_conf.c \
+SRCS=	mount_portalfs.c activate.c conf.c cred.c getmntopts.c pt_conf.c \
 	pt_exec.c pt_file.c pt_pipe.c pt_tcp.c pt_tcplisten.c
 MAN=	mount_portalfs.8
 
