@@ -80,7 +80,7 @@ struct ray_softc {
     struct resource*	irq_res;	/* Resource for irq */
     void *		irq_handle;	/* Handle for irq handler */
 
-    u_char		gone;		/* 1 = Card bailed out		*/
+    u_char		sc_gone;	/* 1 = Card bailed out		*/
 
     int			framing;	/* Packet framing types		*/
 
