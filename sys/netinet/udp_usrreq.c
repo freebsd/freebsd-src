@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_usrreq.c	8.6 (Berkeley) 5/23/95
- *	$Id: udp_usrreq.c,v 1.23 1996/04/27 18:19:12 ache Exp $
+ *	$Id: udp_usrreq.c,v 1.24 1996/05/02 05:31:13 fenner Exp $
  */
 
 #include <sys/param.h>
@@ -280,7 +280,7 @@ udp_input(m, iphlen)
 	}
 	if (inp == NULL) {
 		if (log_in_vain) {
-			char buf[4*sizeof "123."];
+			char buf[4*sizeof "123"];
 
 			strcpy(buf, inet_ntoa(ip->ip_dst));
 			log(LOG_INFO, "Connection attempt to UDP %s:%d"
