@@ -6,19 +6,18 @@
 # even correct.
 #
 # The default gettytab entry, used to set defaults for all other
-# entries, and in cases where getty is called with no table name
+# entries, and in cases where getty is called with no table name.
 #
 # cb, ce and ck are desirable on most crt's.  The non-crt entries need to
-# be changed to turn them off (cb@:ce@:ck@:).
+# be changed to turn them off (:cb@:ce@:ck@:).
 #
 # lc should always be on; it's a remainder of some stone age when there
 # have been terminals around not being able of handling lower-case
 # characters. Those terminals aren't supported any longer, but getty is
 # `smart' about them by default.
 #
-# Parity defaults to even.  There ought to be more alternative entries with
-# no parity.  The Pc entry already has no parity..  The different parities
-# are:
+# Parity defaults to even, but the Pc entry and all the `std' entries
+# specify no parity.   The different parities are:
 #     (none): same as even except -inpck instead of inpck for login.
 #     ep:     getty will use raw mode (cs8 -parenb) (unless rw is set) and
 #             fake parity.  login will use even parity (cs7 parenb -parodd).
