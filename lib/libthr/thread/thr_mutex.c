@@ -379,6 +379,9 @@ retry:
 			goto out;
 	}
 
+	if ((*mutex)->m_type == PTHREAD_MUTEX_RECURSIVE)
+		(*mutex)->m_data.m_count++;
+
 	/*
 	 * The mutex is now owned by curthread.
 	 */
@@ -644,14 +647,9 @@ mutex_self_lock(pthread_mutex_t mutex, int noblock)
 		PANIC("Shouldn't resume here?\n");
 		break;
 
-	case PTHREAD_MUTEX_RECURSIVE:
-		/* Increment the lock count: */
-		mutex->m_data.m_count++;
-		break;
-
 	default:
-		/* Trap invalid mutex types; */
-		return (EINVAL);
+		/* Do Nothing */
+		break;
 	}
 	return (0);
 }
