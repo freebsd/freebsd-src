@@ -85,7 +85,7 @@ __stdcall static uint32_t ntoskrnl_waitforobjs(uint32_t,
 	int64_t *, wait_block *);
 static void ntoskrnl_wakeup(void *);
 static void ntoskrnl_timercall(void *);
-static void ntoskrnl_timersched(void *);
+static void ntoskrnl_run_dpc(void *);
 __stdcall static void ntoskrnl_writereg_ushort(uint16_t *, uint16_t);
 __stdcall static uint16_t ntoskrnl_readreg_ushort(uint16_t *);
 __stdcall static void ntoskrnl_writereg_ulong(uint32_t *, uint32_t);
@@ -1641,31 +1641,14 @@ ntoskrnl_debugger(void)
 	return;
 }
 
-/*
- * We run all timer callouts in the ndis swi thread to take
- * advantage of its larger stack size. If we don't do this,
- * the callout will run in the clock ithread context.
- */
-
-static void
-ntoskrnl_timersched(arg)
-	void			*arg;
-{
-	ndis_sched(ntoskrnl_timercall, arg, NDIS_SWI);
-	return;
-}
-
 static void
 ntoskrnl_timercall(arg)
 	void			*arg;
 {
 	ktimer			*timer;
-	__stdcall kdpc_func	timerfunc;
-	kdpc			*dpc;
 	struct timeval		tv;
 
         timer = arg;
-	dpc = timer->k_dpc;
 
 	/*
 	 * If this is a periodic timer, re-arm it
@@ -1680,14 +1663,11 @@ ntoskrnl_timercall(arg)
 		tv.tv_sec = 0;
 		tv.tv_usec = timer->k_period * 1000;
 		timer->k_handle =
-		    timeout(ntoskrnl_timersched, timer, tvtohz(&tv));
+		    timeout(ntoskrnl_timercall, timer, tvtohz(&tv));
 	}
 
-	if (dpc != NULL) {
-        	timerfunc = (kdpc_func)dpc->k_deferedfunc;
-        	timerfunc(dpc, dpc->k_deferredctx,
-		    dpc->k_sysarg1, dpc->k_sysarg2);
-	}
+	if (timer->k_dpc != NULL)
+		ntoskrnl_queue_dpc(timer->k_dpc, NULL, NULL);
 
 	ntoskrnl_wakeup(&timer->k_header);
 
@@ -1727,6 +1707,25 @@ ntoskrnl_init_timer_ex(timer, type)
 	return;
 }
 
+/*
+ * This is a wrapper for Windows deferred procedure calls that
+ * have been placed on an NDIS thread work queue. We need it
+ * since the DPC could be a _stdcall function.
+ */
+static void
+ntoskrnl_run_dpc(arg)
+	void			*arg;
+{
+	__stdcall kdpc_func	dpcfunc;
+	kdpc			*dpc;
+
+	dpc = arg;
+	dpcfunc = (kdpc_func)dpc->k_deferedfunc;
+	dpcfunc(dpc, dpc->k_deferredctx, dpc->k_sysarg1, dpc->k_sysarg2);
+
+	return;
+}
+
 __stdcall void
 ntoskrnl_init_dpc(dpc, dpcfunc, dpcctx)
 	kdpc			*dpc;
@@ -1740,6 +1739,30 @@ ntoskrnl_init_dpc(dpc, dpcfunc, dpcctx)
 	dpc->k_deferredctx = dpcctx;
 
 	return;
+}
+
+__stdcall uint8_t
+ntoskrnl_queue_dpc(dpc, sysarg1, sysarg2)
+	kdpc			*dpc;
+	void			*sysarg1;
+	void			*sysarg2;
+{
+	dpc->k_sysarg1 = sysarg1;
+	dpc->k_sysarg2 = sysarg2;
+	if (ndis_sched(ntoskrnl_run_dpc, dpc, NDIS_SWI))
+		return(FALSE);
+
+	return(TRUE);
+}
+
+__stdcall uint8_t
+ntoskrnl_dequeue_dpc(dpc)
+	kdpc			*dpc;
+{
+	if (ndis_unsched(ntoskrnl_run_dpc, dpc, NDIS_SWI))
+		return(FALSE);
+
+	return(TRUE);
 }
 
 __stdcall uint8_t
@@ -1758,7 +1781,7 @@ ntoskrnl_set_timer_ex(timer, duetime, period, dpc)
 
 	if (timer->k_handle.callout != NULL &&
 	    callout_pending(timer->k_handle.callout)) {
-		untimeout(ntoskrnl_timersched, timer, timer->k_handle);
+		untimeout(ntoskrnl_timercall, timer, timer->k_handle);
 		pending = TRUE;
 	} else
 		pending = FALSE;
@@ -1783,7 +1806,7 @@ ntoskrnl_set_timer_ex(timer, duetime, period, dpc)
 		}
 	}
 
-	timer->k_handle = timeout(ntoskrnl_timersched, timer, tvtohz(&tv));
+	timer->k_handle = timeout(ntoskrnl_timercall, timer, tvtohz(&tv));
 
 	return(pending);
 }
@@ -1812,7 +1835,7 @@ ntoskrnl_cancel_timer(timer)
 	else
 		pending = FALSE;
 
-	untimeout(ntoskrnl_timersched, timer, timer->k_handle);
+	untimeout(ntoskrnl_timercall, timer, timer->k_handle);
 
 	return(pending);
 }
@@ -1925,11 +1948,13 @@ image_patch_table ntoskrnl_functbl[] = {
 	{ "KeReadStateEvent",		(FUNC)ntoskrnl_read_event },
 	{ "KeInitializeTimer",		(FUNC)ntoskrnl_init_timer },
 	{ "KeInitializeTimerEx",	(FUNC)ntoskrnl_init_timer_ex },
-	{ "KeInitializeDpc",		(FUNC)ntoskrnl_init_dpc },
 	{ "KeSetTimer",			(FUNC)ntoskrnl_set_timer },
 	{ "KeSetTimerEx",		(FUNC)ntoskrnl_set_timer_ex },
 	{ "KeCancelTimer",		(FUNC)ntoskrnl_cancel_timer },
 	{ "KeReadStateTimer",		(FUNC)ntoskrnl_read_timer },
+	{ "KeInitializeDpc",		(FUNC)ntoskrnl_init_dpc },
+	{ "KeInsertQueueDpc",		(FUNC)ntoskrnl_queue_dpc },
+	{ "KeRemoveQueueDpc",		(FUNC)ntoskrnl_dequeue_dpc },
 	{ "ObReferenceObjectByHandle",	(FUNC)ntoskrnl_objref },
 	{ "ObfDereferenceObject",	(FUNC)ntoskrnl_objderef },
 	{ "ZwClose",			(FUNC)ntoskrnl_zwclose },
