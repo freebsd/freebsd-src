@@ -275,12 +275,14 @@ card_inserted(struct slot *sp)
 {
 struct card *cp;
 
+	sleep(5);
 	sp->cis = readcis(sp->fd);
 	if (sp->cis == 0)
 		{
 		log_1s("Error reading CIS on %s\n", sp->name);
 		return;
 		}
+	dumpcis(sp->cis);
 	for (cp = cards; cp; cp = cp->next)
 		if (strcmp(cp->manuf, sp->cis->manuf) == 0 &&
 			strcmp(cp->version, sp->cis->vers) == 0)
@@ -291,7 +293,8 @@ struct card *cp;
  */
 	if (cp == 0)
 		{
-		log_1s("No card in database for %s", sp->cis->manuf);
+		log_1s("No card in database for \"%s\"", sp->cis->manuf);
+		log_1s("vers: \"%s\"", sp->cis->vers);
 		return;
 		}
 	if (cp->ether)
@@ -339,6 +342,9 @@ unsigned char net_addr[12];
 	sp->eaddr[3] = net_addr[6];
 	sp->eaddr[4] = net_addr[8];
 	sp->eaddr[5] = net_addr[10];
+	printf("Ether=%02x:%02x:%02x:%02x:%02x:%02x\n",
+		sp->eaddr[0], sp->eaddr[1], sp->eaddr[2],
+		sp->eaddr[3], sp->eaddr[4], sp->eaddr[5]);
 }
 /*
  *	assign_driver - Assign driver to card.
@@ -491,6 +497,7 @@ struct cis_config *cisconf, *defconf;
 #ifdef	DEBUG
 		fprintf(stderr, "Using mem addr 0x%x, size %d, card addr 0x%x\n",
 			sp->mem.addr, sp->mem.cardaddr, sp->mem.size);
+		sp->mem.cardaddr = 0x4000;
 #endif /* DEBUG */
 		}
 /*
@@ -614,10 +621,13 @@ int	rw_flags;
 #endif
 		}
 	mem.window = 0;
-	if (sp->mem.size)
+#ifdef DEBUG
+		printf("Mem@ %x %d %x\n",sp->mem.addr, sp->mem.size, sp->mem.cardaddr);
+#endif
+	if (sp->mem.addr)
 		{
 		mem.window = 0;
-		mem.flags = sp->mem.flags;
+		mem.flags = sp->mem.flags | MDF_ACTIVE;
 		mem.start = (caddr_t)sp->mem.addr;
 		mem.card = sp->mem.cardaddr;
 		mem.size = sp->mem.size;
@@ -656,7 +666,6 @@ int	rw_flags;
 	strcpy(drv.name, drvp->kernel);
 	drv.unit = drvp->unit;
 	drv.irqmask = 1 << sp->irq;
-	drv.irqmask = 0;
 	drv.flags = 0x80;
 	if (sp->mem.size)
 		{
@@ -680,6 +689,7 @@ int	rw_flags;
  *	If the driver fails to be connected to the device,
  *	then it may mean that the driver did not recognise it.
  */
+	memcpy(drv.misc,sp->eaddr,6);
 	if (ioctl(sp->fd, PIOCSDRV, &drv))
 		{
 #ifdef	DEBUG
