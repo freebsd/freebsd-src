@@ -933,7 +933,6 @@ adv_init(struct adv_softc *adv)
 	}
 
 	if (adv_test_external_lram(adv) == 0) {
-		printf("No external RAM\n");
 		if ((adv->type & (ADV_PCI|ADV_ULTRA)) == (ADV_PCI|ADV_ULTRA)) {
 			eeprom_config.max_total_qng =
 			    ADV_MAX_PCI_ULTRA_INRAM_TOTAL_QNG;
