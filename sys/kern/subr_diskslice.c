@@ -43,7 +43,7 @@
  *	from: wd.c,v 1.55 1994/10/22 01:57:12 phk Exp $
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: subr_diskslice.c,v 1.38 1997/09/16 10:11:49 bde Exp $
+ *	$Id: subr_diskslice.c,v 1.39 1997/11/07 09:20:38 phk Exp $
  */
 
 #include <sys/param.h>
@@ -500,7 +500,7 @@ dsioctl(dname, dev, cmd, data, flags, sspp, strat, setgeom)
 		return (0);
 
 	default:
-		return (-1);
+		return (ENOIOCTL);
 	}
 }
 
