@@ -50,24 +50,22 @@ static const char rcsid[] =
 #include "config.h"
 #include "y.tab.h"
 
-static void do_header __P((char *, int));
-static void do_count __P((char *));
-static char *toheader __P((char *));
-static char *tomacro __P((char *));
+static void do_header(char *, int);
+static void do_count(char *);
+static char *toheader(char *);
+static char *tomacro(char *);
 
 void
-headers()
+headers(void)
 {
-	register struct file_list *fl;
+	struct file_list *fl;
 	struct device *dp;
 
 	for (fl = ftab; fl != 0; fl = fl->f_next) {
 		if (fl->f_needs != 0) {
 			for (dp = dtab; dp != 0; dp = dp->d_next) {
 				if (eq(dp->d_name, fl->f_needs)) {
-					if ((dp->d_type & TYPEMASK) == PSEUDO_DEVICE)
-						dp->d_type |= DEVDONE;
-					else if ((dp->d_type & TYPEMASK) == DEVICE)
+					if ((dp->d_type & TYPEMASK) == DEVICE)
 						dp->d_type |= DEVDONE;
 				}
 			}
@@ -76,11 +74,6 @@ headers()
 		}
 	}
 	for (dp = dtab; dp != 0; dp = dp->d_next) {
-		if ((dp->d_type & TYPEMASK) == PSEUDO_DEVICE) {
-			if (!(dp->d_type & DEVDONE))
-				printf("Warning: pseudo-device \"%s\" is unknown\n",
-				       dp->d_name);
-		}
 		if ((dp->d_type & TYPEMASK) == DEVICE) {
 			if (!(dp->d_type & DEVDONE))
 				printf("Warning: device \"%s\" is unknown\n",
@@ -94,11 +87,10 @@ headers()
  * whatever the device is connected to
  */
 static void
-do_count(dev)
-	register char *dev;
+do_count(char *dev)
 {
-	register struct device *dp;
-	register int count, hicount;
+	struct device *dp;
+	int count, hicount;
 
 	/*
 	 * After this loop, "count" will be the actual number of units,
@@ -106,29 +98,17 @@ do_count(dev)
 	 * must use this higher of these values.
 	 */
 	for (hicount = count = 0, dp = dtab; dp != 0; dp = dp->d_next) {
-		if (dp->d_unit != -1 && eq(dp->d_name, dev)) {
-			if ((dp->d_type & TYPEMASK) == PSEUDO_DEVICE) {
-				count =
-				    dp->d_count != UNKNOWN ? dp->d_count : 1;
-				break;
-			}
-			count++;
-			/*
-			 * Allow holes in unit numbering,
-			 * assumption is unit numbering starts
-			 * at zero.
-			 */
-			if (dp->d_unit + 1 > hicount)
-				hicount = dp->d_unit + 1;
+		if (eq(dp->d_name, dev)) {
+			count =
+			    dp->d_count != UNKNOWN ? dp->d_count : 1;
+			break;
 		}
 	}
-	do_header(dev, count > hicount ? count : hicount);
+	do_header(dev, count);
 }
 
 static void
-do_header(dev, count)
-	char *dev;
-	int count;
+do_header(char *dev, int count)
 {
 	char *file, *name, *inw;
 	struct file_list *fl, *fl_head, *tflp;
@@ -207,8 +187,7 @@ do_header(dev, count)
  * convert a dev name to a .h file name
  */
 static char *
-toheader(dev)
-	char *dev;
+toheader(char *dev)
 {
 	static char hbuf[80];
 
@@ -221,11 +200,10 @@ toheader(dev)
  * convert a dev name to a macro name
  */
 static char *
-tomacro(dev)
-	register char *dev;
+tomacro(char *dev)
 {
 	static char mbuf[20];
-	register char *cp;
+	char *cp;
 
 	cp = mbuf;
 	*cp++ = 'N';

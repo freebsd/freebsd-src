@@ -25,6 +25,8 @@ cpu		I686_CPU
 ident		GENERIC
 maxusers	32
 
+hints		"GENERIC.hints"
+
 #makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 
 options 	PC98			#PC98
@@ -72,18 +74,10 @@ options 	COMPAT_OLDISA		# Old ISA driver shims
 options 	COMPAT_OLDPCI		# Old PCI driver shims
 
 # Floppy drives
-device		fdc0	at isa? port IO_FD1 irq 11 drq 2
-device		fd0	at fdc0 drive 0
-device		fd1	at fdc0 drive 1
-device		fd2	at fdc0 drive 2
-device		fd3	at fdc0 drive 3
+device		fdc
 
 # IDE controller and disks
-device		wdc0	at isa? port IO_WD1 irq 9
-device		wd0	at wdc0 drive 0
-#device		wd1	at wdc0 drive 1
-#device		wd2	at wdc0 drive 2
-#device		wd3	at wdc0 drive 3
+device		wdc
 
 # ATAPI devices on wdc
 device		wcd		#IDE CD-ROM
@@ -104,21 +98,48 @@ device		sym		# NCR/Symbios Logic (newer chipsets)
 
 options	BS_TARG_SAFEMODE
 
+device bs
 # PC-9801-92
-device bs0 at isa? port IO_SCSI irq 5 drq 3 flags 0
+#hint.bs.0.at="isa"
+#hint.bs.0.port="0xCC0"
+#hint.bs.0.irq="5"
+#hint.bs.0.drq="3"
+#hint.bs.0.flags="0"
 # SC-98
-# device bs0 at isa? port IO_SCSI irq 5 drq 3 flags 0x10000
+#hint.bs.0.at="isa"
+#hint.bs.0.port="0xCC0"
+#hint.bs.0.irq="5"
+#hint.bs.0.drq="3"
+#hint.bs.0.flags="0x10000"
 # HA-55BS2 and later
-#device bs0 at isa? port IO_SCSI irq 5 drq 3 flags 0x20000
+#hint.bs.0.at="isa"
+#hint.bs.0.port="0xCC0"
+#hint.bs.0.irq="5"
+#hint.bs.0.drq="3"
+#hint.bs.0.flags="0x20000"
 # ELECOM type
-#device bs0 at isa? port IO_SCSI irq 5 drq 3 flags 0x30000
+#hint.bs.0.at="isa"
+#hint.bs.0.port="0xCC0"
+#hint.bs.0.irq="5"
+#hint.bs.0.drq="3"
+#hint.bs.0.flags="0x30000"
 # SMIT
-#device bs0 at isa? port IO_SCSI irq 5 drq 3 iomem 0xdd000 iosiz 0x1000 flags 0x40000
+#hint.bs.0.at="isa"
+#hint.bs.0.port="0xCC0"
+#hint.bs.0.irq="5"
+#hint.bs.0.drq="3"
+#hint.bs.0.iomem="0xdd000"
+#hint.bs.0.iosiz="0x1000"
+#hint.bs.0.flags="0x40000"
 # Logitec LHA-20x
-#device bs0 at isa? port IO_SCSI irq 5 drq 3 flags 0x50000
+#hint.bs.0.at="isa"
+#hint.bs.0.port="0xCC0"
+#hint.bs.0.irq="5"
+#hint.bs.0.drq="3"
+#hint.bs.0.flags="0x50000"
 
 # PC-9801-100
-device	aic0	at isa? port 0x1840 irq 5 flags 0x10000
+device	aic
 
 # SCSI peripherals
 device		scbus		# SCSI bus (required)
@@ -133,59 +154,92 @@ device		amr		# AMI MegaRAID
 device		mlx		# Mylex DAC960 family
 
 # keyboard driver
-device		pckbd0	at isa? port IO_KBD irq 1
+device		pckbd
 
-device		gdc0	at isa?
+device		gdc
 
 # splash screen/screen saver
-pseudo-device	splash
+device		splash
 
 # syscons is the default console driver, resembling an SCO console
-device		sc0	at isa?
+device		sc	1
 
 # Floating point support - do not disable.
-device		npx0	at nexus? port IO_NPX irq 8
+device		npx
 
 # Power management support (see LINT for more options)
-#device		apm0    at nexus? disable flags 0x20 # Advanced Power Management
+#device		apm
 
 # PCCARD (PCMCIA) support
 device		card
-device		pcic0	at isa? irq 6 port 0x3e0
+device		pcic
 
 # Serial (COM) ports
 #
 options 	COM_MULTIPORT
 #
 # COM1
-device		sio0	at isa? port IO_COM1 irq 4
+device		sio
 # COM2 (2nd CCU)
-device		sio1	at isa? port 0x238 irq 5 flags 0x12000010
+#hint.sio.1.at="isa"
+#hint.sio.1.port="0x238"
+#hint.sio.1.irq="5"
+#hint.sio.1.flags="0x12000010"
 # PC-9861K, PC-9801-101, MDC-926Rs
-#device		sio1	at isa? port IO_COM2 irq 5 flags 0x01000000
-#device		sio2	at isa? port IO_COM3 irq 6 flags 0x02000000
+#hint.sio.1.at="isa"
+#hint.sio.1.port="0x0B1"
+#hint.sio.1.irq="5"
+#hint.sio.1.flags="0x01000000"
+#hint.sio.2.at="isa"
+#hint.sio.2.port="0x0B9"
+#hint.sio.2.irq="6"
+#hint.sio.2.flags="0x02000000"
 # PC-9801-120 (PnP off)
-#device		sio1	at isa? port 0x8b0 irq 5 flags 0x11000000
+#hint.sio.1.at="isa"
+#hint.sio.1.port="0x8b0"
+#hint.sio.1.irq="5"
+#hint.sio.1.flags="0x11000000"
 # MC-16550II, MC-RS98
-#device		sio1	at isa? port 0xd2 irq 5 flags 0x14000101
-#device		sio2	at isa? port 0x8d2 flags 0x14000101
+#hint.sio.1.at="isa"
+#hint.sio.1.port="0xd2"
+#hint.sio.1.irq="5"
+#hint.sio.1.flags="0x14000101"
+#hint.sio.2.at="isa"
+#hint.sio.2.port="0x8d2"
+#hint.sio.2.flags="0x14000101"
 # RSB-2000, RSB-3000, B98-02
-#device		sio1	at isa? port 0xb0 flags 0x15000101
-#device		sio2	at isa? port 0xb1 flags 0x15000101
+#hint.sio.1.at="isa"
+#hint.sio.1.port="0xb0"
+#hint.sio.1.flags="0x15000101"
+#hint.sio.2.at="isa"
+#hint.sio.2.port="0xb1"
+#hint.sio.2.flags="0x15000101"
 # RSB-384
-#device		sio1	at isa? port 0xb0 flags 0x16000000
-#device		sio2	at isa? port 0xb1 flags 0x16000000
+#hint.sio.1.at="isa"
+#hint.sio.1.port="0xb0"
+#hint.sio.1.flags="0x16000000"
+#hint.sio.2.at="isa"
+#hint.sio.2.port="0xb1"
+#hint.sio.2.flags="0x16000000"
 # RSA-98III
-#device		sio1	at isa? port 0x50e0 irq 5 flags 0x18000101
-#device		sio2	at isa? port 0x51e0 flags 0x18000101
+#hint.sio.1.at="isa"
+#hint.sio.1.port="0x50e0"
+#hint.sio.1.irq="5"
+#hint.sio.1.flags="0x18000101"
+#hint.sio.2.at="isa"
+#hint.sio.2.port="0x51e0"
+#hint.sio.2.flags="0x18000101"
 # ESP98
 #options 	COM_ESP
-#device		sio1	at isa? port 0x18b0 irq 5 flags 0x19000000
+#hint.sio.1.at="isa"
+#hint.sio.1.port="0x18b0"
+#hint.sio.1.irq="5"
+#hint.sio.1.flags="0x19000000"
 
-device		mse0	at isa? port IO_MSE irq 13
+device		mse
 
 # NEW Parallel port
-device		ppc0	at isa? irq 14
+device		ppc
 device		ppbus		# Parallel port bus (required)
 device		lpt		# Printer
 device		plip		# TCP/IP over parallel
@@ -193,7 +247,7 @@ device		ppi		# Parallel port interface device
 #device		vpo		# Requires scbus and da
 # OLD Parallel port
 # Please stay olpt driver after ppc driver
-device		olpt0	at isa? port IO_LPT
+device		olpt
 
 
 # PCI Ethernet NICs.
@@ -232,6 +286,7 @@ device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 # ed10: EC/EP-98X
 # ed11: SIU-98-D
 #
+# XXX convert to hints
 #device ed0 at isa? port 0x00d0 irq 6
 ##device ed0 at isa? port 0x10d0 irq 6 iomem 0xc8000    # SMC EtherEZ98
 #device ed5 at isa? port 0x00d0 irq 6 iomem 0xd0000 iosiz 16384 flags 0x600000
@@ -254,11 +309,10 @@ device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 # FE_8BIT_SUPPORT is needed to support LAC-98
 #
 options 	FE_8BIT_SUPPORT		# LAC-98 support
-device		fe0	at isa? port 0x00d0 irq 3
-device		fe1	at isa? port 0x73d0 irq 5
+device		fe
 
-device		ep0	at isa? port 0x40d0 irq 3
-device		lnc0	at isa? port 0x03d0 irq 6
+device		ep
+device		lnc
 device		sn
 
 # WaveLAN/IEEE 802.11 wireless NICs. Note: the WaveLAN/IEEE really
@@ -278,41 +332,41 @@ device		xe
 
 
 #device	snd
-#device	sb0	at isa? port 0x20d2 irq 10 drq 3
-#device	sbxvi0 	at isa? drq 3
-#device	sbmidi0	at isa? port 0x80d2
-#device	opl0	at isa? port 0x28d2
-#device	nss0	at isa? port 0xa460 irq 12
-#device	mss0	at isa? port 0xf40 irq 12 drq 1
-#device	mpu0	at isa? port 0xe0d0 irq 6
+#device	sb
+#device	sbxvi
+#device	sbmidi
+#device	opl
+#device	nss
+#device	mss
+#device	mpu
 
-#device	joy0	at isa? port 0x04d2
+#device	joy
 
 # The newpcm driver (use INSTEAD of snd0 and all VOXWARE drivers!).
 #
 # Windows Sound System
-#device	pcm0	at isa? port 0xf40 irq 12 drq 1 flags 0x10000
+#device	pcm
 #
 # Sound Blaster 16 (This device need the bridge driver.)
 #device	pcm
-#device	sbc0	at isa? port 0x20d2 irq 10 drq 3
+#device	sbc
 
 # Pseudo devices - the number indicates how many units to allocated.
-pseudo-device	loop		# Network loopback
-pseudo-device	ether		# Ethernet support
-pseudo-device	sl	1	# Kernel SLIP
-pseudo-device	ppp	1	# Kernel PPP
-pseudo-device	tun		# Packet tunnel.
-pseudo-device	pty		# Pseudo-ttys (telnet etc)
-pseudo-device	md		# Memory "disks"
-pseudo-device	gif	4	# IPv6 and IPv4 tunneling
-pseudo-device	faith	1	# IPv6-to-IPv4 relaying (translation)
+device		loop		# Network loopback
+device		ether		# Ethernet support
+device		sl	1	# Kernel SLIP
+device		ppp	1	# Kernel PPP
+device		tun		# Packet tunnel.
+device		pty		# Pseudo-ttys (telnet etc)
+device		md		# Memory "disks"
+device		gif	4	# IPv6 and IPv4 tunneling
+device		faith	1	# IPv6-to-IPv4 relaying (translation)
 
-# The `bpf' pseudo-device enables the Berkeley Packet Filter.
+# The `bpf' device enables the Berkeley Packet Filter.
 # Be aware of the administrative consequences of enabling this!
-pseudo-device	bpf		# Berkeley packet filter
+device		bpf		# Berkeley packet filter
 
-#pseudo-device	compat_atdisk	#IBM-PC HDD support
+#device		compat_atdisk	#IBM-PC HDD support
 
 # USB support
 #device		uhci		# UHCI PCI->USB interface

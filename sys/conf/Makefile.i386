@@ -17,7 +17,7 @@
 #
 
 # Which version of config(8) is required.
-%VERSREQ=	500001
+%VERSREQ=	500002
 
 # Can be overridden by makeoptions or /etc/make.conf
 KERNEL?=	kernel
@@ -81,10 +81,10 @@ GEN_CFILES= $S/$M/$M/genassym.c
 # omitted from SYSTEM_CFILES.  They include setdefs.h, a header which
 # is generated from all of ${OBJS}.  We don't want to have to compile
 # everything just to do a make depend.
-SYSTEM_CFILES= ioconf.c param.c vnode_if.c config.c
+SYSTEM_CFILES= param.c vnode_if.c hints.c config.c
 SYSTEM_SFILES= $S/$M/$M/locore.s
 SYSTEM_DEP= Makefile ${SYSTEM_OBJS}
-SYSTEM_OBJS= locore.o setdef0.o vnode_if.o ${OBJS} ioconf.o param.o config.o \
+SYSTEM_OBJS= locore.o setdef0.o vnode_if.o ${OBJS} param.o hints.o config.o \
 	setdef1.o hack.So
 SYSTEM_LD= @${LD} ${FMT} -Bdynamic -T $S/conf/ldscript.$M \
 	-export-dynamic -dynamic-linker /red/herring \
@@ -149,7 +149,7 @@ kernel-clean:
 
 #lint: /tmp param.c
 #	@lint -hbxn -DGENERIC -Dvolatile= ${COPTS} \
-#	  $S/$M/$M/Locore.c ${CFILES} ioconf.c param.c | \
+#	  $S/$M/$M/Locore.c ${CFILES} param.c | \
 #	    grep -v 'struct/union .* never defined' | \
 #	    grep -v 'possible pointer alignment problem'
 
@@ -273,9 +273,6 @@ modules-reinstall modules-reinstall.debug:
 config.o:
 	${NORMAL_C}
 
-ioconf.o:
-	${NORMAL_C}
-
 param.c: $S/conf/param.c
 	-rm -f param.c
 	cp $S/conf/param.c .
@@ -289,6 +286,9 @@ vers.c: $S/conf/newvers.sh $S/sys/param.h ${SYSTEM_DEP}
 # XXX strictly, everything depends on Makefile because changes to ${PROF}
 # only appear there, but we don't handle that.
 vers.o:
+	${NORMAL_C}
+
+hints.o:	hints.c
 	${NORMAL_C}
 
 vnode_if.c: $S/kern/vnode_if.pl $S/kern/vnode_if.src
