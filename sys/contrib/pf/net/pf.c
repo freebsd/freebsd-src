@@ -5161,7 +5161,11 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 		if ((m0 = m_copym2(*m, 0, M_COPYALL, M_NOWAIT)) == NULL)
 #endif
 			return;
+#ifdef __FreeBSD__
+		if ((mtag = m_tag_copy(mtag, M_DONTWAIT)) == NULL)
+#else
 		if ((mtag = m_tag_copy(mtag)) == NULL)
+#endif
 			goto bad;
 		m_tag_prepend(m0, mtag);
 	} else {
@@ -5444,7 +5448,11 @@ pf_route6(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 		if ((m0 = m_copym2(*m, 0, M_COPYALL, M_NOWAIT)) == NULL)
 #endif
 			return;
+#ifdef __FreeBSD__
+		if ((mtag = m_tag_copy(mtag, M_DONTWAIT)) == NULL)
+#else
 		if ((mtag = m_tag_copy(mtag)) == NULL)
+#endif
 			goto bad;
 		m_tag_prepend(m0, mtag);
 	} else {
