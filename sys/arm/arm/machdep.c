@@ -86,7 +86,6 @@ __FBSDID("$FreeBSD$");
 
 uint32_t cpu_reset_address = 0;
 int cold = 1;
-int astpending = 0;
 vm_offset_t vector_page;
 
 static void *
