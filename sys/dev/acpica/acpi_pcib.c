@@ -38,8 +38,8 @@
 #include <dev/acpica/acpi_pcibvar.h>
 
 #include <machine/pci_cfgreg.h>
-#include <pci/pcivar.h>
-#include <pci/pcib_private.h>
+#include <dev/pci/pcivar.h>
+#include <dev/pci/pcib_private.h>
 #include "pcib_if.h"
 
 /*
