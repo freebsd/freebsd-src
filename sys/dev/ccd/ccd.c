@@ -191,8 +191,6 @@ static void printiinfo(struct ccdiinfo *);
 #endif
 
 /* Non-private for the benefit of libkvm. */
-struct ccdbuf *ccdfreebufs;
-static int numccdfreebufs;
 
 /*
  * getccdbuf() -	Allocate and zero a ccd buffer.
@@ -206,15 +204,7 @@ getccdbuf(struct ccdbuf *cpy)
 {
 	struct ccdbuf *cbp;
 
-	/*
-	 * Allocate from freelist or malloc as necessary
-	 */
-	if ((cbp = ccdfreebufs) != NULL) {
-		ccdfreebufs = cbp->cb_freenext;
-		--numccdfreebufs;
-	} else {
-		cbp = malloc(sizeof(struct ccdbuf), M_DEVBUF, M_WAITOK);
-	}
+	cbp = malloc(sizeof(struct ccdbuf), M_CCD, M_WAITOK);
 
 	/*
 	 * Used by mirroring code
@@ -242,13 +232,7 @@ void
 putccdbuf(struct ccdbuf *cbp)
 {
 
-	if (numccdfreebufs < NCCDFREEHIWAT) {
-		cbp->cb_freenext = ccdfreebufs;
-		ccdfreebufs = cbp;
-		++numccdfreebufs;
-	} else {
-		free((caddr_t)cbp, M_DEVBUF);
-	}
+	free((caddr_t)cbp, M_CCD);
 }
 
 
@@ -385,7 +369,7 @@ ccdinit(struct ccd_s *cs, char **cpaths, struct thread *td)
 
 	/* Allocate space for the component info. */
 	cs->sc_cinfo = malloc(cs->sc_nccdisks * sizeof(struct ccdcinfo),
-	    M_DEVBUF, M_WAITOK);
+	    M_CCD, M_WAITOK);
 
 	/*
 	 * Verify that each component piece exists and record
@@ -393,7 +377,7 @@ ccdinit(struct ccd_s *cs, char **cpaths, struct thread *td)
 	 */
 	maxsecsize = 0;
 	minsize = 0;
-	tmppath = malloc(MAXPATHLEN, M_DEVBUF, M_WAITOK);
+	tmppath = malloc(MAXPATHLEN, M_CCD, M_WAITOK);
 	for (ix = 0; ix < cs->sc_nccdisks; ix++) {
 		vp = cs->sc_vpp[ix];
 		ci = &cs->sc_cinfo[ix];
@@ -411,7 +395,7 @@ ccdinit(struct ccd_s *cs, char **cpaths, struct thread *td)
 #endif
 			goto fail;
 		}
-		ci->ci_path = malloc(ci->ci_pathlen, M_DEVBUF, M_WAITOK);
+		ci->ci_path = malloc(ci->ci_pathlen, M_CCD, M_WAITOK);
 		bcopy(tmppath, ci->ci_path, ci->ci_pathlen);
 
 		ci->ci_dev = vn_todev(vp);
@@ -470,7 +454,7 @@ ccdinit(struct ccd_s *cs, char **cpaths, struct thread *td)
 		cs->sc_size += size;
 	}
 
-	free(tmppath, M_DEVBUF);
+	free(tmppath, M_CCD);
 	tmppath = NULL;
 
 	/*
@@ -558,11 +542,11 @@ ccdinit(struct ccd_s *cs, char **cpaths, struct thread *td)
 fail:
 	while (ci > cs->sc_cinfo) {
 		ci--;
-		free(ci->ci_path, M_DEVBUF);
+		free(ci->ci_path, M_CCD);
 	}
 	if (tmppath != NULL)
-		free(tmppath, M_DEVBUF);
-	free(cs->sc_cinfo, M_DEVBUF);
+		free(tmppath, M_CCD);
+	free(cs->sc_cinfo, M_CCD);
 	return (error);
 }
 
@@ -588,7 +572,7 @@ ccdinterleave(struct ccd_s *cs, int unit)
 	 * Chances are this is too big, but we don't care.
 	 */
 	size = (cs->sc_nccdisks + 1) * sizeof(struct ccdiinfo);
-	cs->sc_itable = (struct ccdiinfo *)malloc(size, M_DEVBUF,
+	cs->sc_itable = (struct ccdiinfo *)malloc(size, M_CCD,
 	    M_WAITOK | M_ZERO);
 
 	/*
@@ -603,7 +587,7 @@ ccdinterleave(struct ccd_s *cs, int unit)
 
 		for (ix = 0; ix < cs->sc_nccdisks; ix++) {
 			/* Allocate space for ii_index. */
-			ii->ii_index = malloc(sizeof(int), M_DEVBUF, M_WAITOK);
+			ii->ii_index = malloc(sizeof(int), M_CCD, M_WAITOK);
 			ii->ii_ndisk = 1;
 			ii->ii_startblk = bn;
 			ii->ii_startoff = 0;
@@ -630,7 +614,7 @@ ccdinterleave(struct ccd_s *cs, int unit)
 		 * we use.
 		 */
 		ii->ii_index = malloc((sizeof(int) * cs->sc_nccdisks),
-		    M_DEVBUF, M_WAITOK);
+		    M_CCD, M_WAITOK);
 
 		/*
 		 * Locate the smallest of the remaining components
@@ -1354,15 +1338,15 @@ ccdioctltoo(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 		 * componet pathnames and device numbers.
 		 */
 		cpp = malloc(ccio->ccio_ndisks * sizeof(char *),
-		    M_DEVBUF, M_WAITOK);
+		    M_CCD, M_WAITOK);
 		vpp = malloc(ccio->ccio_ndisks * sizeof(struct vnode *),
-		    M_DEVBUF, M_WAITOK);
+		    M_CCD, M_WAITOK);
 
 		error = copyin((caddr_t)ccio->ccio_disks, (caddr_t)cpp,
 		    ccio->ccio_ndisks * sizeof(char **));
 		if (error) {
-			free(vpp, M_DEVBUF);
-			free(cpp, M_DEVBUF);
+			free(vpp, M_CCD);
+			free(cpp, M_CCD);
 			ccdunlock(cs);
 			return (error);
 		}
@@ -1383,8 +1367,8 @@ ccdioctltoo(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 				for (j = 0; j < lookedup; ++j)
 					(void)vn_close(vpp[j], FREAD|FWRITE,
 					    td->td_ucred, td);
-				free(vpp, M_DEVBUF);
-				free(cpp, M_DEVBUF);
+				free(vpp, M_CCD);
+				free(cpp, M_CCD);
 				ccdunlock(cs);
 				return (error);
 			}
@@ -1408,8 +1392,8 @@ ccdioctltoo(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 			 * destroy it when it is safe to do so.
 			 */
 			cs->sc_flags &= (CCDF_WANTED | CCDF_LOCKED);
-			free(vpp, M_DEVBUF);
-			free(cpp, M_DEVBUF);
+			free(vpp, M_CCD);
+			free(cpp, M_CCD);
 			ccdunlock(cs);
 			return (error);
 		}
@@ -1461,17 +1445,17 @@ ccdioctltoo(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 #endif
 			(void)vn_close(cs->sc_cinfo[i].ci_vp, FREAD|FWRITE,
 			    td->td_ucred, td);
-			free(cs->sc_cinfo[i].ci_path, M_DEVBUF);
+			free(cs->sc_cinfo[i].ci_path, M_CCD);
 		}
 
 		/* Free interleave index. */
 		for (i = 0; cs->sc_itable[i].ii_ndisk; ++i)
-			free(cs->sc_itable[i].ii_index, M_DEVBUF);
+			free(cs->sc_itable[i].ii_index, M_CCD);
 
 		/* Free component info and interleave table. */
-		free(cs->sc_cinfo, M_DEVBUF);
-		free(cs->sc_itable, M_DEVBUF);
-		free(cs->sc_vpp, M_DEVBUF);
+		free(cs->sc_cinfo, M_CCD);
+		free(cs->sc_itable, M_CCD);
+		free(cs->sc_vpp, M_CCD);
 
 		/* And remove the devstat entry. */
 		devstat_remove_entry(&cs->device_stats);
