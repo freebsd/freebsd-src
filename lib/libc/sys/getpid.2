@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)getpid.2	8.1 (Berkeley) 6/4/93
-.\"	$Id$
+.\"	$Id: getpid.2,v 1.6 1997/02/22 15:03:51 peter Exp $
 .\"
 .Dd June 4, 1993
 .Dt GETPID 2
@@ -40,6 +40,7 @@
 .Nm getppid
 .Nd get parent or calling process identification
 .Sh SYNOPSIS
+.Fd #include <sys/types.h>
 .Fd #include <unistd.h>
 .Ft pid_t
 .Fn getpid void
