@@ -670,16 +670,22 @@ progressmeter(flag)
 	if (bytes <= 0 || elapsed <= 0.0 || cursize > filesize) {
 		n = snprintf(buf + len, sizeof(buf) - len,
 		    "   --:-- ETA");
+		if (n > 0 && n < sizeof(buf) - len)
+			len += n;
 	} else if (wait.tv_sec >= STALLTIME) {
 		n = snprintf(buf + len, sizeof(buf) - len,
 		    " - stalled -");
+		if (n > 0 && n < sizeof(buf) - len)
+			len += n;
 	} else {
 		remaining = 
 		    ((filesize - restart_point) / (bytes / elapsed) - elapsed);
-		if (remaining >= 100 * SECSPERHOUR)
+		if (remaining >= 100 * SECSPERHOUR) {
 			n = snprintf(buf + len, sizeof(buf) - len,
 			    "   --:-- ETA");
-		else {
+			if (n > 0 && n < sizeof(buf) - len)
+				len += n;
+		} else {
 			i = remaining / SECSPERHOUR;
 			if (i)
 				n = snprintf(buf + len, sizeof(buf) - len,
@@ -694,8 +700,6 @@ progressmeter(flag)
 			    "%02d:%02d ETA", i / 60, i % 60);
 		}
 	}
-	if (n > 0 && n < sizeof(buf) - len)
-		len += n;
 	(void)write(STDOUT_FILENO, buf, len);
 
 	if (flag == -1) {
