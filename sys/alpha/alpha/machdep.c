@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: machdep.c,v 1.12 1998/08/22 10:32:38 dfr Exp $
+ *	$Id: machdep.c,v 1.13 1998/09/14 22:43:19 jdp Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -235,7 +235,7 @@ cpu_startup(dummy)
 #ifdef PERFMON
 	perfmon_init();
 #endif
-	printf("real memory  = %d (%dK bytes)\n", alpha_ptob(Maxmem), alpha_ptob(Maxmem) / 1024);
+	printf("real memory  = %ld (%ldK bytes)\n", alpha_ptob(Maxmem), alpha_ptob(Maxmem) / 1024);
 
 	/*
 	 * Display any holes after the first chunk of extended memory.
@@ -386,7 +386,7 @@ again:
 	}
 #endif
 
-	printf("avail memory = %d (%dK bytes)\n", ptoa(cnt.v_free_count),
+	printf("avail memory = %ld (%ldK bytes)\n", ptoa(cnt.v_free_count),
 	    ptoa(cnt.v_free_count) / 1024);
 
 	/*
@@ -680,7 +680,7 @@ alpha_init(pfn, ptb, bim, bip, biv)
 	 * find out this system's page size
 	 */
 	if (hwrpb->rpb_page_size != PAGE_SIZE)
-		panic("page size %d != 8192?!", hwrpb->rpb_page_size);
+		panic("page size %ld != 8192?!", hwrpb->rpb_page_size);
 
 
 	/*
@@ -718,7 +718,7 @@ alpha_init(pfn, ptb, bim, bip, biv)
 	mddtweird = 0;
 	if (mddtp->mddt_cluster_cnt < 2) {
 		mddtweird = 1;
-		printf("WARNING: weird number of mem clusters: %d\n",
+		printf("WARNING: weird number of mem clusters: %ld\n",
 		       mddtp->mddt_cluster_cnt);
 	}
 
@@ -870,7 +870,7 @@ alpha_init(pfn, ptb, bim, bip, biv)
 
 		/* warn if the message buffer had to be shrunk */
 		if (sz != round_page(MSGBUFSIZE))
-			printf("WARNING: %d bytes not available for msgbuf in last cluster (%d used)\n",
+			printf("WARNING: %ld bytes not available for msgbuf in last cluster (%ld used)\n",
 			    round_page(MSGBUFSIZE), sz);
 
 	}
