@@ -346,8 +346,6 @@ nqnfs_lease_check(vp, p, cred, flag)
 		p, (struct mbuf *)0, &cache, &frev, cred);
 }
 
-#endif /* NFS_NOSERVER */
-
 int
 nqnfs_vop_lease_check(ap)
 	struct vop_lease_args /* {
@@ -365,6 +363,8 @@ nqnfs_vop_lease_check(ap)
 	    NQLOCALSLP, ap->a_p, (struct mbuf *)0, &cache, &frev, ap->a_cred);
 	return (0);
 }
+
+#endif /* NFS_NOSERVER */
 
 /*
  * Add a host to an nqhost structure for a lease.
