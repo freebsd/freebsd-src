@@ -1,0 +1,8 @@
+   Note:  Just for clarification, this version of `gperf' is written in
+portable K&R C.  The `gperf' supplied in the top-level libg++ directory on
+this distribution tape is written in C++.  Either will generate output for
+C or C++, so which one to compile is up to you.
+
+--Noah Friedman, GNU tape distribution maintainer.  
+  friedman@prep.ai.mit.edu
+  December 24, 1991
