@@ -1639,7 +1639,13 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 					 /*getcount_only*/0);
 	}
 
-	if (error != 0 && bootverbose) {
+	/*
+	 * If we have and error and are booting verbosely, whine
+	 * *unless* this was a non-retryable selection timeout.
+	 */
+	if (error != 0 && bootverbose &&
+	    !(status == CAM_SEL_TIMEOUT && (camflags & CAM_RETRY_SELTO) == 0)) {
+
 
 		if (action_string == NULL)
 			action_string = "Unretryable Error";
