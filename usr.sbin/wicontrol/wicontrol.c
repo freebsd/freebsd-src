@@ -1036,6 +1036,7 @@ main(int argc, char *argv[])
 			exit(0);
 			break;
 		case 'c':
+			warnx("c obsolete, use ifconfig mediaopt");
 			wi_setword(iface, WI_RID_CREATE_IBSS, atoi(optarg));
 			exit(0);
 			break;
@@ -1044,10 +1045,12 @@ main(int argc, char *argv[])
 			exit(0);
 			break;
 		case 'e':
+			warnx("e obsolete, use ifconfig wepmode");
 			wi_setword(iface, WI_RID_ENCRYPTION, atoi(optarg));
 			exit(0);
 			break;
 		case 'f':
+			warnx("f obsolete, use ifconfig channel");
 			wi_setword(iface, WI_RID_OWN_CHNL, atoi(optarg));
 			exit(0);
 			break;
@@ -1056,6 +1059,7 @@ main(int argc, char *argv[])
 			exit(0);
 			break;
  		case 'k':
+			warnx("k obsolete, use ifconfig wepkey");
  			key = optarg;
 			break;
 		case 'L':
@@ -1066,6 +1070,7 @@ main(int argc, char *argv[])
 			exit(0);
 			break;
 		case 'p':
+			warnx("p obsolete, use ifconfig mediaopt");
 			wi_setword(iface, WI_RID_PORTTYPE, atoi(optarg));
 			exit(0);
 			break;
@@ -1074,14 +1079,17 @@ main(int argc, char *argv[])
 			exit(0);
 			break;
 		case 't':
+			warnx("t obsolete, use ifconfig meidaopt");
 			wi_setword(iface, WI_RID_TX_RATE, atoi(optarg));
 			exit(0);
 			break;
 		case 'n':
+			warnx("n obsolete, use ifconfig ssid");
 			wi_setstr(iface, WI_RID_DESIRED_SSID, optarg);
 			exit(0);
 			break;
 		case 's':
+			warnx("s obsolete, use ifconfig stationname");
 			wi_setstr(iface, WI_RID_NODENAME, optarg);
 			exit(0);
 			break;
@@ -1093,19 +1101,23 @@ main(int argc, char *argv[])
 			quiet = 1;
 			break;
 		case 'q':
+			warnx("q obsolete, use ifconfig ssid");
 			wi_setstr(iface, WI_RID_OWN_SSID, optarg);
 			exit(0);
 			break;
 		case 'S':
+			warnx("S obsolete, use ifconfig powersleep");
 			wi_setword(iface, WI_RID_MAX_SLEEP, atoi(optarg));
 			exit(0);
 			break;
 		case 'T':
+			warnx("T obsolete, use ifconfig weptxkey");
 			wi_setword(iface,
 			    WI_RID_TX_CRYPT_KEY, atoi(optarg) - 1);
 			exit(0);
 			break;
 		case 'P':
+			warnx("P obsolete, use ifconfig powersave");
 			wi_setword(iface, WI_RID_PM_ENABLED, atoi(optarg));
 			exit(0);
 			break;
