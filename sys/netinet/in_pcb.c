@@ -80,8 +80,8 @@ struct	in_addr zeroin_addr;
  */
 int	ipport_lowfirstauto  = IPPORT_RESERVED - 1;	/* 1023 */
 int	ipport_lowlastauto = IPPORT_RESERVEDSTART;	/* 600 */
-int	ipport_firstauto = IPPORT_RESERVED;		/* 1024 */
-int	ipport_lastauto  = IPPORT_USERRESERVED;		/* 5000 */
+int	ipport_firstauto = IPPORT_HIFIRSTAUTO;		/* 49152 */
+int	ipport_lastauto  = IPPORT_HILASTAUTO;		/* 65535 */
 int	ipport_hifirstauto = IPPORT_HIFIRSTAUTO;	/* 49152 */
 int	ipport_hilastauto  = IPPORT_HILASTAUTO;		/* 65535 */
 
