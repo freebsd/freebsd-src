@@ -204,7 +204,8 @@ make:
 	@echo " Upgrading the installed make"
 	@echo "--------------------------------------------------------------"
 	@cd ${.CURDIR}/usr.bin/make; \
-		make obj && make depend && make all && make install
+		make obj && make -D_UPGRADING depend && \
+		make -D_UPGRADING all && make install
 
 #
 # Define the upgrade targets. These are listed here in alphabetical
