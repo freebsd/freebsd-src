@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.58 1996/04/29 18:06:07 jkh Exp $
+ * $Id: menus.c,v 1.59 1996/05/05 21:54:23 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -828,8 +828,8 @@ this operation.  If you are attempting to install a boot partition\n\
 on a drive other than the first one or have multiple operating\n\
 systems on your machine, you will have the option to install a boot\n\
 manager later.  To select a drive, use the arrow keys to move to it\n\
-and press [SPACE].\n\n\
-When you're finished, select Cancel to go on to the next step.",
+and press [SPACE].  To de-select it, press [SPACE] again.\n\n\
+Select OK or Cancel to leave this menu.",
     "Press F1 for important information regarding disk geometry!",
     "drives",
     { { NULL } },

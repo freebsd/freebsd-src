@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: floppy.c,v 1.10 1996/04/13 13:31:34 jkh Exp $
+ * $Id: floppy.c,v 1.11 1996/04/23 01:29:20 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -74,7 +74,9 @@ getRootFloppy(void)
 {
     int fd = -1;
 
-    while (floppyDev == NULL || fd == -1) {
+    if (mediaDevice->type == DEVICE_TYPE_FLOPPY)
+	floppyDev = mediaDevice;
+    else {
 	Device **devs;
 	int cnt;
 
@@ -84,23 +86,28 @@ getRootFloppy(void)
 	    msgConfirm("No floppy devices found!  Something is seriously wrong!");
 	    return -1;
 	}
-	else if (cnt == 1) {
+	else if (cnt == 1)
 	    floppyDev = devs[0];
-	    msgConfirm("Please insert the ROOT floppy in %s and press [ENTER]", floppyDev->description);
-	}
-	else  {
+	else {
 	    DMenu *menu;
+	    int ret;
+	    WINDOW *save = savescr();
 
 	    menu = deviceCreateMenu(&MenuMediaFloppy, DEVICE_TYPE_FLOPPY, floppyChoiceHook, NULL);
 	    menu->title = "Please insert the ROOT floppy";
-	    if (!dmenuOpenSimple(menu))
+	    ret = dmenuOpenSimple(menu);
+	    restorescr(save);
+	    if (!ret)
 		return -1;
 	}
-	if (!floppyDev)
-	    continue;
+    }
+    while (fd == -1) {
+	msgConfirm("Please insert the ROOT floppy in %s and press [ENTER]", floppyDev->description);
 	fd = open(floppyDev->devname, O_RDONLY);
 	if (isDebug())
 	    msgDebug("getRootFloppy on %s yields fd of %d\n", floppyDev->devname, fd);
+	if (fd == -1 && msgYesNo("Couldn't open the floppy - do you want to try again?"))
+	    break;
     }
     return fd;
 }
