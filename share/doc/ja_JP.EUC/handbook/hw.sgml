@@ -1,4 +1,4 @@
-<!-- $Id: hw.sgml,v 1.12 1997/03/21 09:22:21 hanai Exp $ -->
+<!-- $Id: hw.sgml,v 1.13 1997/03/24 02:56:52 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
 <!-- Original revision: 1.66 -->
 
@@ -180,7 +180,7 @@ name="FreeBSD POWERED hardwares">
     ることができるのなら, 特に IDE を選ぶ理由はないでしょう.
 
   <sect2><heading>CD-R (CD Recordable: WORM) ドライブ<label
-     id="hw:worm">/heading> 
+     id="hw:worm"></heading> 
     <p>この原稿を書いている時点で, FreeBSDは 3種類の CDRドライブ
     (私は これらすべては結局は Phillips社のドライブであるのではない
     かと考えているのですが) をサポートしています : Phillips CDD 522
