@@ -44,8 +44,9 @@ static const char rcsid[] =
 
 #include "namespace.h"
 #include <sys/types.h>
-#include <stdio.h>
 #include <errno.h>
+#include <limits.h>
+#include <stdio.h>
 #include "un-namespace.h"
 #include "local.h"
 #include "libc_private.h"
@@ -58,8 +59,9 @@ ftell(fp)
 	register FILE *fp;
 {
 	register off_t rv;
+
 	rv = ftello(fp);
-	if ((long)rv != rv) {
+	if (rv > LONG_MAX) {
 		errno = EOVERFLOW;
 		return (-1);
 	}
@@ -74,10 +76,11 @@ ftello(fp)
 	register FILE *fp;
 {
 	register fpos_t pos;
+	size_t n;
 
 	if (fp->_seek == NULL) {
 		errno = ESPIPE;			/* historic practice */
-		return (-1L);
+		return (-1);
 	}
 
 	FLOCKFILE(fp);
@@ -91,7 +94,7 @@ ftello(fp)
 		pos = (*fp->_seek)(fp->_cookie, (fpos_t)0, SEEK_CUR);
 		if (pos == -1) {
 			FUNLOCKFILE(fp);
-			return (pos);
+			return (-1);
 		}
 	}
 	if (fp->_flags & __SRD) {
@@ -101,15 +104,38 @@ ftello(fp)
 		 * smaller than that in the underlying object.
 		 */
 		pos -= fp->_r;
-		if (HASUB(fp))
+		if (pos < 0) {
+			if (HASUB(fp)) {
+				fp->_p -= pos;
+				fp->_r += pos;
+				pos = 0;
+			} else {
+				errno = EBADF;
+				FUNLOCKFILE(fp);
+				return (-1);
+			}
+		}
+		if (HASUB(fp)) {
 			pos -= fp->_ur;
-	} else if (fp->_flags & __SWR && fp->_p != NULL) {
+			if (pos < 0) {
+				errno = EBADF;
+				FUNLOCKFILE(fp);
+				return (-1);
+			}
+		}
+	} else if ((fp->_flags & __SWR) && fp->_p != NULL) {
 		/*
 		 * Writing.  Any buffered characters cause the
 		 * position to be greater than that in the
 		 * underlying object.
 		 */
-		pos += fp->_p - fp->_bf._base;
+		n = fp->_p - fp->_bf._base;
+		if (pos > OFF_MAX - n) {
+			FUNLOCKFILE(fp);
+			errno = EOVERFLOW;
+			return (-1);
+		}
+		pos += n;
 	}
 	FUNLOCKFILE(fp);
 	return (pos);

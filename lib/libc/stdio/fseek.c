@@ -114,7 +114,7 @@ _fseeko(fp, offset, whence, ltest)
 	 */
 	if ((seekfn = fp->_seek) == NULL) {
 		errno = ESPIPE;		/* historic practice */
-		return (EOF);
+		return (-1);
 	}
 
 	/*
@@ -134,38 +134,56 @@ _fseeko(fp, offset, whence, ltest)
 		else {
 			curoff = (*seekfn)(fp->_cookie, (fpos_t)0, SEEK_CUR);
 			if (curoff == -1)
-				return (EOF);
+				return (-1);
 		}
 		if (fp->_flags & __SRD) {
 			curoff -= fp->_r;
-			if (HASUB(fp))
+			if (curoff < 0) {
+				if (HASUB(fp)) {
+					fp->_p -= curoff;
+					fp->_r += curoff;
+					curoff = 0;
+				} else {
+					errno = EBADF;
+					return (-1);
+				}
+			}
+			if (HASUB(fp)) {
 				curoff -= fp->_ur;
-		} else if (fp->_flags & __SWR && fp->_p != NULL)
-			curoff += fp->_p - fp->_bf._base;
-
+				if (curoff < 0) {
+					errno = EBADF;
+					return (-1);
+				}
+			}
+		} else if ((fp->_flags & __SWR) && fp->_p != NULL) {
+			n = fp->_p - fp->_bf._base;
+			if (curoff > OFF_MAX - n) {
+				errno = EOVERFLOW;
+				return (-1);
+			}
+			curoff += n;
+		}
 		if (offset > 0 && curoff > OFF_MAX - offset) {
 			errno = EOVERFLOW;
-			return (EOF);
+			return (-1);
 		}
 		offset += curoff;
-		/* Disallow negative seeks per POSIX */
 		if (offset < 0) {
 			errno = EINVAL;
-			return (EOF);
+			return (-1);
 		}
 		if (ltest && offset > LONG_MAX) {
 			errno = EOVERFLOW;
-			return (EOF);
+			return (-1);
 		}
 		whence = SEEK_SET;
 		havepos = 1;
 		break;
 
 	case SEEK_SET:
-		/* Disallow negative seeks per POSIX */
 		if (offset < 0) {
 			errno = EINVAL;
-			return (EOF);
+			return (-1);
 		}
 	case SEEK_END:
 		curoff = 0;		/* XXX just to keep gcc quiet */
@@ -174,7 +192,7 @@ _fseeko(fp, offset, whence, ltest)
 
 	default:
 		errno = EINVAL;
-		return (EOF);
+		return (-1);
 	}
 
 	/*
@@ -211,17 +229,16 @@ _fseeko(fp, offset, whence, ltest)
 			goto dumb;
 		if (offset > 0 && st.st_size > OFF_MAX - offset) {
 			errno = EOVERFLOW;
-			return (EOF);
+			return (-1);
 		}
 		target = st.st_size + offset;
-		/* Disallow negative seeks per POSIX */
 		if ((off_t)target < 0) {
 			errno = EINVAL;
-			return (EOF);
+			return (-1);
 		}
 		if (ltest && (off_t)target > LONG_MAX) {
 			errno = EOVERFLOW;
-			return (EOF);
+			return (-1);
 		}
 	}
 
@@ -234,8 +251,23 @@ _fseeko(fp, offset, whence, ltest)
 				goto dumb;
 		}
 		curoff -= fp->_r;
-		if (HASUB(fp))
+		if (curoff < 0) {
+			if (HASUB(fp)) {
+				fp->_p -= curoff;
+				fp->_r += curoff;
+				curoff = 0;
+			} else {
+				errno = EBADF;
+				return (-1);
+			}
+		}
+		if (HASUB(fp)) {
 			curoff -= fp->_ur;
+			if (curoff < 0) {
+				errno = EBADF;
+				return (-1);
+			}
+		}
 	}
 
 	/*
@@ -245,6 +277,8 @@ _fseeko(fp, offset, whence, ltest)
 	 * file offset for the first byte in the current input buffer.
 	 */
 	if (HASUB(fp)) {
+		if (curoff > OFF_MAX - fp->_r)
+			goto abspos;
 		curoff += fp->_r;	/* kill off ungetc */
 		n = fp->_extra->_up - fp->_bf._base;
 		curoff -= n;
@@ -254,6 +288,7 @@ _fseeko(fp, offset, whence, ltest)
 		curoff -= n;
 		n += fp->_r;
 	}
+	/* curoff can be negative at this point. */
 
 	/*
 	 * If the target offset is within the current buffer,
@@ -262,8 +297,10 @@ _fseeko(fp, offset, whence, ltest)
 	 * skip this; see fgetln.c.)
 	 */
 	if ((fp->_flags & __SMOD) == 0 &&
-	    target >= curoff && target < curoff + n) {
-		register int o = target - curoff;
+	    target >= curoff &&
+	    (curoff <= 0 || curoff <= OFF_MAX - n) &&
+	    target < curoff + n) {
+		size_t o = target - curoff;
 
 		fp->_p = fp->_bf._base + o;
 		fp->_r = n - o;
@@ -273,6 +310,7 @@ _fseeko(fp, offset, whence, ltest)
 		return (0);
 	}
 
+abspos:
 	/*
 	 * The place we want to get to is not within the current buffer,
 	 * but we can still be kind to the kernel copyout mechanism.
@@ -305,11 +343,10 @@ _fseeko(fp, offset, whence, ltest)
 dumb:
 	if (__sflush(fp) ||
 	    (*seekfn)(fp->_cookie, (fpos_t)offset, whence) == POS_ERR)
-		return (EOF);
-	/* POSIX require long type resulting offset for fseek() */
-	if (ltest && fp->_offset != (long)fp->_offset)  {
+		return (-1);
+	if (ltest && fp->_offset > LONG_MAX) {
 		errno = EOVERFLOW;
-		return (EOF);
+		return (-1);
 	}
 	/* success: clear EOF indicator and discard ungetc() data */
 	if (HASUB(fp))
