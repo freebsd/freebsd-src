@@ -668,7 +668,12 @@ Suff_EndTransform(gnp, dummy)
     {
 	Suff	*s, *t;
 
-	(void)SuffParseTransform(gn->name, &s, &t);
+	/*
+	 * SuffParseTransform() may fail for special rules which are not
+	 * actual transformation rules (e.g., .DEFAULT).
+	 */
+	if (!SuffParseTransform(gn->name, &s, &t))
+	    return (0);
 
 	if (DEBUG(SUFF)) {
 	    printf("deleting transformation from `%s' to `%s'\n",
