@@ -65,6 +65,7 @@ static const char rcsid[] =
 #include <fcntl.h>
 #include <limits.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 #include <unistd.h>
 #include <ufs/ufs/dinode.h>
@@ -107,10 +108,10 @@ union dinode {
 };
 #define	DIP(dp, field) \
 	((sblock.fs_magic == FS_UFS1_MAGIC) ? \
-	(dp)->dp1.field : (dp)->dp2.field)
+	(uint32_t)(dp)->dp1.field : (dp)->dp2.field)
 static ufs2_daddr_t 	inoblk;			/* inode block address */
 static char		inobuf[MAXBSIZE];	/* inode block */
-static int		maxino;			/* last valid inode */
+ino_t			maxino;			/* last valid inode */
 static int		unlabeled;     /* unlabeled partition, e.g. vinum volume etc. */
 
 /*
@@ -366,8 +367,8 @@ initcg(int cylno, time_t utime, int fso, unsigned int Nflag)
 {
 	DBG_FUNC("initcg")
 	static caddr_t iobuf;
-	long i, d, dlower, dupper, blkno, start;
-	ufs2_daddr_t cbase, dmax;
+	long d, dlower, dupper, blkno, start;
+	ufs2_daddr_t i, cbase, dmax;
 	struct ufs1_dinode *dp1;
 	struct ufs2_dinode *dp2;
 	struct csum *cs;
@@ -628,9 +629,9 @@ cond_bl_upd(ufs2_daddr_t *block, struct gfs_bpp *field, int fsi, int fso,
 		fragnum = fragnum(&sblock, src);
 		*block = dst + fragnum;
 		f->found++;
-		DBG_PRINT3("scg (%d->%d)[%d] reference updated\n",
-		    f->old,
-		    f->new,
+		DBG_PRINT3("scg (%jd->%jd)[%d] reference updated\n",
+		    (intmax_t)f->old,
+		    (intmax_t)f->new,
 		    fragnum);
 
 		/*
@@ -751,10 +752,12 @@ updjcg(int cylno, time_t utime, int fsi, int fso, unsigned int Nflag)
 	DBG_PRINT2("jcg dbg: %d %u",
 	    cylno,
 	    sblock.fs_ncg);
+#ifdef FS_DEBUG
 	if (sblock.fs_magic == FS_UFS1_MAGIC)
 		DBG_PRINT2("%d %u",
 		    acg.cg_old_ncyl,
 		    sblock.fs_old_cpg);
+#endif
 	DBG_PRINT0("\n");
 	acg.cg_ndblk = dmax - cbase;
 	sblock.fs_dsize += acg.cg_ndblk-aocg.cg_ndblk;
@@ -1030,8 +1033,8 @@ updcsloc(time_t utime, int fsi, int fso, unsigned int Nflag)
 		 */
 		d--;
 
-		DBG_PRINT1("d=%d\n",
-		    d);
+		DBG_PRINT1("d=%jd\n",
+		    (intmax_t)d);
 		if((d+1)%sblock.fs_frag) {
 			/*
 			 * The end of the cylinder summary is not a complete
@@ -1040,8 +1043,8 @@ updcsloc(time_t utime, int fsi, int fso, unsigned int Nflag)
 			DBG_TRC;
 			frag_adjust(d%sblock.fs_fpg, -1);
 			for(; (d+1)%sblock.fs_frag; d--) {
-				DBG_PRINT1("d=%d\n",
-				    d);
+				DBG_PRINT1("d=%jd\n",
+				    (intmax_t)d);
 				setbit(cg_blksfree(&acg), d%sblock.fs_fpg);
 				acg.cg_cs.cs_nffree++;
 				sblock.fs_cstotal.cs_nffree++;
@@ -1055,7 +1058,7 @@ updcsloc(time_t utime, int fsi, int fso, unsigned int Nflag)
 
 			if(isblock(&sblock, cg_blksfree(&acg),
 			    (d%sblock.fs_fpg)/sblock.fs_frag)) {
-				DBG_PRINT1("d=%d\n", d);
+				DBG_PRINT1("d=%jd\n", (intmax_t)d);
 				acg.cg_cs.cs_nffree-=sblock.fs_frag;
 				acg.cg_cs.cs_nbfree++;
 				sblock.fs_cstotal.cs_nffree-=sblock.fs_frag;
@@ -1080,11 +1083,11 @@ updcsloc(time_t utime, int fsi, int fso, unsigned int Nflag)
 			d--;
 		}
 
-		DBG_PRINT1("d=%d\n", d);
+		DBG_PRINT1("d=%jd\n", (intmax_t)d);
 		for(d=rounddown(d, sblock.fs_frag); d >= osblock.fs_csaddr;
 		    d-=sblock.fs_frag) {
 			DBG_TRC;
-			DBG_PRINT1("d=%d\n", d);
+			DBG_PRINT1("d=%jd\n", (intmax_t)d);
 			setblock(&sblock, cg_blksfree(&acg),
 			    (d%sblock.fs_fpg)/sblock.fs_frag);
 			acg.cg_cs.cs_nbfree++;
@@ -1256,8 +1259,8 @@ updcsloc(time_t utime, int fsi, int fso, unsigned int Nflag)
 	ind=0;
 	frag_adjust(odupper, -1);
 	for(d=odupper; ((d<dupper)&&(d%sblock.fs_frag)); d++) {
-		DBG_PRINT1("scg first frag check loop d=%d\n",
-		    d);
+		DBG_PRINT1("scg first frag check loop d=%jd\n",
+		    (intmax_t)d);
 		if(isclr(cg_blksfree(&acg), d)) {
 			if (!ind) {
 				bp[ind].old=d/sblock.fs_frag;
@@ -1286,8 +1289,8 @@ updcsloc(time_t utime, int fsi, int fso, unsigned int Nflag)
 	 * Handle all needed complete blocks here.
 	 */
 	for(; d+sblock.fs_frag<=dupper; d+=sblock.fs_frag) {
-		DBG_PRINT1("scg block check loop d=%d\n",
-		    d);
+		DBG_PRINT1("scg block check loop d=%jd\n",
+		    (intmax_t)d);
 		if(!isblock(&sblock, cg_blksfree(&acg), d/sblock.fs_frag)) {
 			for(f=d; f<d+sblock.fs_frag; f++) {
 				if(isset(cg_blksfree(&aocg), f)) {
@@ -1355,8 +1358,8 @@ updcsloc(time_t utime, int fsi, int fso, unsigned int Nflag)
 		}
 
 		for(; d<dupper; d++) {
-			DBG_PRINT1("scg second frag check loop d=%d\n",
-			    d);
+			DBG_PRINT1("scg second frag check loop d=%jd\n",
+			    (intmax_t)d);
 			if(isclr(cg_blksfree(&acg), d)) {
 				bp[ind].old=d/sblock.fs_frag;
 				bp[ind].flags|=GFS_FL_LAST;
@@ -1468,9 +1471,9 @@ updcsloc(time_t utime, int fsi, int fso, unsigned int Nflag)
 			    "copied full block",
 			    (unsigned char *)&ablk);
 
-			DBG_PRINT2("scg (%d->%d) block relocated\n",
-			    bp[i].old,
-			    bp[i].new);
+			DBG_PRINT2("scg (%jd->%jd) block relocated\n",
+			    (intmax_t)bp[i].old,
+			    (intmax_t)bp[i].new);
 		}
 
 		/*
@@ -1493,8 +1496,8 @@ updcsloc(time_t utime, int fsi, int fso, unsigned int Nflag)
 		 */
 		for(i=0; i<ind; i++) {
 			if(!bp[i].found || (bp[i].found>sblock.fs_frag)) {
-				warnx("error: %d refs found for block %d.",
-				    bp[i].found, bp[i].old);
+				warnx("error: %jd refs found for block %jd.",
+				    (intmax_t)bp[i].found, (intmax_t)bp[i].old);
 			}
 
 		}
@@ -1539,11 +1542,11 @@ rdfs(ufs2_daddr_t bno, size_t size, void *bf, int fsi)
 	DBG_ENTER;
 
 	if (lseek(fsi, (off_t)bno * DEV_BSIZE, 0) < 0) {
-		err(33, "rdfs: seek error: %ld", (long)bno);
+		err(33, "rdfs: seek error: %jd", (intmax_t)bno);
 	}
 	n = read(fsi, bf, size);
 	if (n != (ssize_t)size) {
-		err(34, "rdfs: read error: %ld", (long)bno);
+		err(34, "rdfs: read error: %jd", (intmax_t)bno);
 	}
 
 	DBG_LEAVE;
@@ -2046,6 +2049,7 @@ main(int argc, char **argv)
 	 */
 	cp=device+strlen(device)-1;
 	lp = get_disklabel(fsi);
+	pp = NULL;
     if (lp != NULL) {
         if (isdigit(*cp)) {
             pp = &lp->d_partitions[2];
@@ -2076,7 +2080,7 @@ main(int argc, char **argv)
 		     (osblock.fs_magic == FS_UFS2_MAGIC &&
 		      osblock.fs_sblockloc == sblock_try[i])) &&
 		    osblock.fs_bsize <= MAXBSIZE &&
-		    osblock.fs_bsize >= sizeof(struct fs))
+		    osblock.fs_bsize >= (int32_t) sizeof(struct fs))
 			break;
 	}
 	if (sblock_try[i] == -1) {
@@ -2106,8 +2110,8 @@ main(int argc, char **argv)
 	 * Are we really growing ?
 	 */
 	if(osblock.fs_size >= sblock.fs_size) {
-		errx(1, "we are not growing (%d->%d)", osblock.fs_size,
-		    sblock.fs_size);
+		errx(1, "we are not growing (%jd->%jd)",
+		    (intmax_t)osblock.fs_size, (intmax_t)sblock.fs_size);
 	}
 
 
@@ -2140,7 +2144,7 @@ main(int argc, char **argv)
 		}
 	}
 
-	printf("new file systemsize is: %d frags\n", sblock.fs_size);
+	printf("new file systemsize is: %jd frags\n", (intmax_t)sblock.fs_size);
 
 	/*
 	 * Try to access our new last block in the file system. Even if we
@@ -2182,8 +2186,8 @@ main(int argc, char **argv)
 		sblock.fs_ncg--;
 		if (sblock.fs_magic == FS_UFS1_MAGIC)
 			sblock.fs_old_ncyl = sblock.fs_ncg * sblock.fs_old_cpg;
-		printf("Warning: %d sector(s) cannot be allocated.\n",
-		    fsbtodb(&sblock, sblock.fs_size % sblock.fs_fpg));
+		printf("Warning: %jd sector(s) cannot be allocated.\n",
+		    (intmax_t)fsbtodb(&sblock, sblock.fs_size % sblock.fs_fpg));
 		sblock.fs_size = sblock.fs_ncg * sblock.fs_fpg;
 	}
 
@@ -2387,7 +2391,7 @@ updrefs(int cg, ino_t in, struct gfs_bpp *bp, int fsi, int fso, unsigned int
 		DBG_LEAVE;
 		return; /* only check DIR, FILE, LINK */
 	}
-	if (mode == IFLNK && DIP(ino, di_size) < sblock.fs_maxsymlinklen) {
+	if (mode == IFLNK && DIP(ino, di_size) < (u_int64_t) sblock.fs_maxsymlinklen) {
 		DBG_LEAVE;
 		return;	/* skip short symlinks */
 	}
