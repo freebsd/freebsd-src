@@ -24,6 +24,6 @@ typedef enum {
     FP_RM=1,			/* round toward negative infinity */
     FP_RN=2,			/* round to nearest representable number */
     FP_RP=3			/* round toward positive infinity */
-} fp_rnd;
+} fp_rnd_t;
 
 #endif /* _ALPHA_IEEEFP_H_ */

@@ -36,7 +36,7 @@
 #include <ieeefp.h>
 #include <machine/fpu.h>
 
-fp_rnd
+fp_rnd_t
 fpgetround()
 {
 	double fpcrval;
