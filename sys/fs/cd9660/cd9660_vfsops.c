@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vfsops.c	8.3 (Berkeley) 1/31/94
- * $Id: cd9660_vfsops.c,v 1.4 1994/08/20 03:48:45 davidg Exp $
+ * $Id: cd9660_vfsops.c,v 1.5 1994/08/20 16:03:07 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -50,13 +50,13 @@
 #include <sys/buf.h>
 #include <sys/file.h>
 #include <sys/dkbad.h>
-#include <sys/disklabel.h>
 #include <sys/ioctl.h>
 #include <sys/errno.h>
 #include <sys/malloc.h>
 
 #include <isofs/cd9660/iso.h>
 #include <isofs/cd9660/cd9660_node.h>
+#include <isofs/cd9660/iso_rrip.h>
 
 struct vfsops cd9660_vfsops = {
 	cd9660_mount,
@@ -79,7 +79,8 @@ struct vfsops cd9660_vfsops = {
  */
 #define ROOTNAME	"root_device"
 
-static iso_mountfs();
+static int iso_mountfs __P((struct vnode *devvp, struct mount *mp,
+			    struct proc *p, struct iso_args *argp));
 
 int
 cd9660_mountroot()
