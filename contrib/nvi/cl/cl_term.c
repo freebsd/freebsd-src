@@ -51,6 +51,7 @@ static TKLIST const c_tklist[] = {	/* Command mappings. */
 	{"kel",		"D",	"delete to eol"},
 	{"kind",     "\004",	"scroll down"},			/* ^D */
 	{"kll",		"$",	"go to eol"},
+	{"kend",	"$",	"go to eol"},
 	{"khome",	"^",	"go to sol"},
 	{"kich1",	"i",	"insert at cursor"},
 	{"kdl1",       "dd",	"delete line"},
