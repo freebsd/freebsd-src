@@ -37,7 +37,7 @@
  * Author: Archie Cobbs <archie@whistle.com>
  *
  * $FreeBSD$
- * $Whistle: ng_async.c,v 1.15 1999/01/28 23:54:52 julian Exp $
+ * $Whistle: ng_async.c,v 1.17 1999/11/01 09:24:51 julian Exp $
  */
 
 /*
@@ -97,13 +97,12 @@ typedef struct private *sc_p;
 #define ERROUT(x)		do { error = (x); goto done; } while (0)
 
 /* Netgraph methods */
-static int	nga_constructor(node_p *node);
-static int	nga_rcvdata(hook_p hook, struct mbuf *m, meta_p meta);
-static int	nga_rcvmsg(node_p node, struct ng_mesg *msg,
-		    const char *rtn, struct ng_mesg **resp);
-static int	nga_shutdown(node_p node);
-static int	nga_newhook(node_p node, hook_p hook, const char *name);
-static int	nga_disconnect(hook_p hook);
+static ng_constructor_t	nga_constructor;
+static ng_rcvdata_t		nga_rcvdata;
+static ng_rcvmsg_t		nga_rcvmsg;
+static ng_shutdown_t		nga_shutdown;
+static ng_newhook_t		nga_newhook;
+static ng_disconnect_t		nga_disconnect;
 
 /* Helper stuff */
 static int	nga_rcv_sync(const sc_p sc, struct mbuf *m, meta_p meta);

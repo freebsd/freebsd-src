@@ -37,7 +37,7 @@
  * Author: Julian Elischer <julian@whistle.com>
  *
  * $FreeBSD$
- * $Whistle: ng_UI.c,v 1.11 1999/01/28 23:54:52 julian Exp $
+ * $Whistle: ng_UI.c,v 1.14 1999/11/01 09:24:51 julian Exp $
  */
 
 #include <sys/param.h>
@@ -74,13 +74,12 @@ struct private {
 typedef struct private *priv_p;
 
 /* Netgraph node methods */
-static int  ng_UI_constructor(node_p *nodep);
-static int  ng_UI_rcvmsg(node_p node, struct ng_mesg *msg,
-	     const char *retaddr, struct ng_mesg **resp);
-static int  ng_UI_rmnode(node_p node);
-static int  ng_UI_newhook(node_p node, hook_p hook, const char *name);
-static int  ng_UI_rcvdata(hook_p hook, struct mbuf *m, meta_p meta);
-static int  ng_UI_disconnect(hook_p hook);
+static ng_constructor_t	ng_UI_constructor;
+static ng_rcvmsg_t	ng_UI_rcvmsg;
+static ng_shutdown_t	ng_UI_rmnode;
+static ng_newhook_t	ng_UI_newhook;
+static ng_rcvdata_t	ng_UI_rcvdata;
+static ng_disconnect_t	ng_UI_disconnect;
 
 /* Node type descriptor */
 static struct ng_type typestruct = {

@@ -37,7 +37,7 @@
  * Author: Julian Elischer <julian@whistle.com>
  *
  * $FreeBSD$
- * $Whistle: ng_lmi.c,v 1.35 1999/01/28 23:54:53 julian Exp $
+ * $Whistle: ng_lmi.c,v 1.38 1999/11/01 09:24:52 julian Exp $
  */
 
 /*
@@ -89,13 +89,12 @@
 /*
  * Netgraph node methods and type descriptor
  */
-static int	nglmi_constructor(node_p *node);
-static int	nglmi_rcvmsg(node_p node, struct ng_mesg *msg,
-		    const char *retaddr, struct ng_mesg **resp);
-static int	nglmi_rmnode(node_p node);
-static int	nglmi_newhook(node_p node, hook_p hook, const char *name);
-static int	nglmi_rcvdata(hook_p hook, struct mbuf *m, meta_p meta);
-static int	nglmi_disconnect(hook_p hook);	/* notify on disconnect */
+static ng_constructor_t	nglmi_constructor;
+static ng_rcvmsg_t	nglmi_rcvmsg;
+static ng_shutdown_t	nglmi_rmnode;
+static ng_newhook_t	nglmi_newhook;
+static ng_rcvdata_t	nglmi_rcvdata;
+static ng_disconnect_t	nglmi_disconnect;
 static int	nglmi_checkdata(hook_p hook, struct mbuf *m, meta_p meta);
 
 static struct ng_type typestruct = {
