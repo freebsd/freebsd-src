@@ -13,7 +13,7 @@
 #define _GLIBCPP_USE_LONG_LONG 1
 
 // Define if C99 features such as lldiv_t, llabs, lldiv should be exposed.
-/* #undef _GLIBCPP_USE_C99 */
+#define _GLIBCPP_USE_C99 1
 
 // Define if code specialized for wchar_t should be used.
 /* #undef _GLIBCPP_USE_WCHAR_T */
@@ -561,10 +561,10 @@
 /* #undef HAVE_SQRTL */
 
 /* Define if you have the strtof function.  */
-/* #undef HAVE_STRTOF */
+#define HAVE_STRTOF 1
 
 /* Define if you have the strtold function.  */
-/* #undef HAVE_STRTOLD */
+#define HAVE_STRTOLD 1
 
 /* Define if you have the swprintf function.  */
 #define HAVE_SWPRINTF 1
@@ -660,7 +660,7 @@
 #define HAVE_WCSTOD 1
 
 /* Define if you have the wcstof function.  */
-/* #undef HAVE_WCSTOF */
+#define HAVE_WCSTOF 1
 
 /* Define if you have the wcstok function.  */
 #define HAVE_WCSTOK 1
