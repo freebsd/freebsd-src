@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: pc98.c,v 1.45 1997/12/01 09:37:26 kato Exp $
+ *	$Id: pc98.c,v 1.46 1998/01/31 14:48:52 kato Exp $
  */
 
 /*
@@ -46,6 +46,8 @@
  * mode DMA count compution and reorganized DMA setup code in
  * isa_dmastart()
  */
+
+#include "opt_diagnostic.h"
 
 /*
  * modified for PC9801 by A.Kojima F.Ukai M.Ishii 
