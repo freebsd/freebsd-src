@@ -24,6 +24,9 @@ static char rcsid[] = "$FreeBSD$";
  * with *exp=0.
  */
 
+#include <sys/cdefs.h>
+#include <float.h>
+
 #include "math.h"
 #include "math_private.h"
 
@@ -49,3 +52,7 @@ frexp(double x, int *eptr)
 	SET_HIGH_WORD(x,hx);
 	return x;
 }
+
+#if (LDBL_MANT_DIG == 53)
+__strong_reference(frexp, frexpl);
+#endif
