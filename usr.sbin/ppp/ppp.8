@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.53 1997/08/19 11:27:00 danny Exp $
+.\" $Id: ppp.8,v 1.54 1997/08/20 23:47:51 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -1644,6 +1644,19 @@ in the initial IPCP negotiation.  However, only an address in the
 .Dq myaddr
 range will be accepted.
 
+.It set loopback on|off
+When set to
+.Dq on
+(the default),
+.Nm
+will automatically loop back packets being sent
+out with a destination address equal to that of the ppp interface.
+If set to
+.Dq off ,
+.Nm
+will send the packet, probably resulting in an ICMP redirect from
+the other end.
+
 .It set log [+|-]value...
 This command allows the adjustment of the current log level.  Please
 refer to the Logging Facility section for further details.
@@ -1821,6 +1834,9 @@ Show the current IPCP statistics.
 
 .It show lcp
 Show the current LCP statistics.
+
+.It show loopback
+Show the current loopback status.
 
 .It show log
 Show the current log values.
