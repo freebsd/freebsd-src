@@ -567,15 +567,6 @@ vop_setextattr {
 };
 
 #
-#% createvobject	vp	L L L
-#
-vop_createvobject {
-	IN struct vnode *vp;
-	IN struct ucred *cred;
-	IN struct thread *td;
-};
-
-#
 #% destroyvobject	vp	L L L
 #
 vop_destroyvobject {
