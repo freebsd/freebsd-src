@@ -172,19 +172,14 @@ static struct cdevsw targ_cdevsw = {
 	/* read */	targread,
 	/* write */	targwrite,
 	/* ioctl */	targioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	targpoll,
 	/* mmap */	nommap,
 	/* strategy */	targstrategy,
 	/* name */	"targ",
-	/* parms */	noparms,
 	/* maj */	TARG_CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* maxio */	0,
 	/* bmaj */	-1
 };
 

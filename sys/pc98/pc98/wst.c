@@ -57,19 +57,14 @@ static struct cdevsw wst_cdevsw = {
 	/* read */	physread,
 	/* write */	physwrite,
 	/* ioctl */	wstioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	nopoll,
 	/* mmap */	nommap,
 	/* strategy */	wststrategy,
 	/* name */	"wst",
-	/* parms */	noparms,
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* maxio */	0,
 	/* bmaj */	-1
 };
 

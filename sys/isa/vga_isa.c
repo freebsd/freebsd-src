@@ -96,19 +96,14 @@ static struct cdevsw isavga_cdevsw = {
 	/* read */	isavga_read,
 	/* write */	isavga_write,
 	/* ioctl */	isavga_ioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	nopoll,
 	/* mmap */	isavga_mmap,
 	/* strategy */	nostrategy,
 	/* name */	VGA_DRIVER_NAME,
-	/* parms */	noparms,
 	/* maj */	-1,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* maxio */	0,
 	/* bmaj */	-1
 };
 

@@ -189,19 +189,14 @@ static struct cdevsw i4btel_cdevsw = {
 	/* read */	i4btelread,
 	/* write */	i4btelwrite,
 	/* ioctl */	i4btelioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	POLLFIELD,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	"i4btel",
-	/* parms */	noparms,
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* maxio */	0,
 	/* bmaj */	-1
 };
 #else

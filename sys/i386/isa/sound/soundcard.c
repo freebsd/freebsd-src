@@ -24,7 +24,9 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
+ *
+ * $FreeBSD$
+ *
  */
 #include <i386/isa/sound/sound_config.h>
 #if NSND > 0	/* from "snd.h" */
@@ -92,19 +94,14 @@ static struct cdevsw snd_cdevsw = {
 	/* read */	sndread,
 	/* write */	sndwrite,
 	/* ioctl */	sndioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	sndpoll,
 	/* mmap */	sndmmap,
 	/* strategy */	nostrategy,
 	/* name */	driver_name,
-	/* parms */	noparms,
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* maxio */	0,
 	/* bmaj */	-1
 };
 

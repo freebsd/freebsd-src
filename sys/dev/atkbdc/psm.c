@@ -327,19 +327,14 @@ static struct cdevsw psm_cdevsw = {
 	/* read */	psmread,
 	/* write */	nowrite,
 	/* ioctl */	psmioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	psmpoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	"psm",
-	/* parms */	noparms,
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* maxio */	0,
 	/* bmaj */	-1
 };
 

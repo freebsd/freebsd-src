@@ -61,19 +61,14 @@ static struct cdevsw acd_cdevsw = {
 	/* read */	physread,
 	/* write */	physwrite,
 	/* ioctl */	acdioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	nopoll,
 	/* mmap */	nommap,
 	/* strategy */	acdstrategy,
 	/* name */	"acd",
-	/* parms */	noparms,
 	/* maj */	117,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	D_DISK,
-	/* maxio */	0,
 	/* bmaj */	31
 };
 

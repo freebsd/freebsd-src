@@ -71,19 +71,14 @@ static struct cdevsw codadevsw = {
 	/* read */	vc_nb_read,
 	/* write */	vc_nb_write,
 	/* ioctl */	vc_nb_ioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	vc_nb_poll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	"Coda",
-	/* parms */	noparms,
 	/* maj */	VC_DEV_NO,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* maxio */	0,
 	/* bmaj */	-1
 };
 

@@ -193,19 +193,14 @@ static struct cdevsw asc_cdevsw = {
 	/* read */	ascread,
 	/* write */	nowrite,
 	/* ioctl */	ascioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	ascpoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	"asc",
-	/* parms */	noparms,
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* maxio */	0,
 	/* bmaj */	-1
 };
 

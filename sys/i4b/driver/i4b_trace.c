@@ -131,19 +131,14 @@ static struct cdevsw i4btrc_cdevsw = {
 	/* read */	i4btrcread,
 	/* write */	nowrite,
 	/* ioctl */	i4btrcioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	POLLFIELD,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	"i4btrc",
-	/* parms */	noparms,
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* maxio */	0,
 	/* bmaj */	-1
 };
 #else

@@ -77,19 +77,14 @@ static struct cdevsw id_cdevsw = {
 	/* read */	physread,
 	/* write */	physwrite,
 	/* ioctl */	idioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	nopoll,
 	/* mmap */	nommap,
 	/* strategy */	idstrategy,
 	/* name */ 	"id",
-	/* parms */	noparms,
 	/* maj */	ID_CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */ 	idsize,
 	/* flags */	D_DISK,
-	/* maxio */	0,
 	/* bmaj */	ID_BDEV_MAJOR
 };
 static struct cdevsw stolen_cdevsw;

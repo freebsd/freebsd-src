@@ -121,19 +121,14 @@ struct cdevsw usb_cdevsw = {
 	/* read */	noread,
 	/* write */	nowrite,
 	/* ioctl */	usbioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	usbpoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	"usb",
-	/* parms */	noparms,
 	/* maj */	USB_CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* maxio */	0,
 	/* bmaj */	-1
 };
 #endif

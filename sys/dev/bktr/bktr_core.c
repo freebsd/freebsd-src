@@ -6951,19 +6951,14 @@ static struct cdevsw bktr_cdevsw = {
 	/* read */	bktr_read,
 	/* write */	bktr_write,
 	/* ioctl */	bktr_ioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	bktr_poll,
 	/* mmap */	bktr_mmap,
 	/* strategy */	nostrategy,
 	/* name */	"bktr",
-	/* parms */	noparms,
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* maxio */	0,
 	/* bmaj */	-1
 };
 

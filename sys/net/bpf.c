@@ -140,19 +140,14 @@ static struct cdevsw bpf_cdevsw = {
 	/* read */	bpfread,
 	/* write */	bpfwrite,
 	/* ioctl */	bpfioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	bpfpoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	"bpf",
-	/* parms */	noparms,
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* maxio */	0,
 	/* bmaj */	-1
 };
 

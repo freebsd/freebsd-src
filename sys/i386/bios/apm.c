@@ -108,19 +108,14 @@ static struct cdevsw apm_cdevsw = {
 	/* read */	noread,
 	/* write */	apmwrite,
 	/* ioctl */	apmioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	apmpoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	"apm",
-	/* parms */	noparms,
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* maxio */	0,
 	/* bmaj */	-1
 };
 

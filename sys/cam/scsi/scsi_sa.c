@@ -349,19 +349,14 @@ static struct cdevsw sa_cdevsw = {
 	/* read */	physread,
 	/* write */	physwrite,
 	/* ioctl */	saioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	nopoll,
 	/* mmap */	nommap,
 	/* strategy */	sastrategy,
 	/* name */	"sa",
-	/* parms */	noparms,
 	/* maj */	SA_CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	D_TAPE,
-	/* maxio */	0,
 	/* bmaj */	-1
 };
 
