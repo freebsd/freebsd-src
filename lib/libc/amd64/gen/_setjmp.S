@@ -54,7 +54,6 @@
 #include "DEFS.h"
 
 ALTENTRY(_setjmp)
-ALTENTRY(_libc__setjmp)
 ENTRY(___setjmp)
 	movl	4(%esp),%eax
 	movl	0(%esp),%edx
@@ -68,8 +67,9 @@ ENTRY(___setjmp)
 	xorl	%eax,%eax
 	ret
 
+#ifndef _THREAD_SAFE
 ALTENTRY(_longjmp)
-ALTENTRY(_libc__longjmp)
+#endif
 ENTRY(___longjmp)
 	movl	4(%esp),%edx
 	movl	8(%esp),%eax

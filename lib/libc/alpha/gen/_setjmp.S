@@ -45,7 +45,6 @@
 	.set	noreorder
 
 XLEAF(_setjmp, 1)
-XLEAF(_libc__setjmp, 1)
 LEAF(___setjmp, 1)
 	LDGP(pv)
 	stq	ra, (2 * 8)(a0)			/* sc_pc = return address */
@@ -89,8 +88,9 @@ LEAF(___setjmp, 1)
 	RET
 END(___setjmp)
 
+#ifndef _THREAD_SAFE
 XLEAF(_longjmp, 2)
-XLEAF(_libc__longjmp, 2)
+#endif
 LEAF(___longjmp, 2)
 	LDGP(pv)
 	ldq	t0, ((31 + 4) * 8)(a0)		/* magic in sc_regs[31] */
