@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)shutdown.8	8.1 (Berkeley) 6/5/93
+.\"	$Id$
 .\"
 .Dd June 5, 1993
 .Dt SHUTDOWN 8
@@ -50,14 +51,14 @@ to nicely notify users when the system is shutting down,
 saving them from system administrators, hackers, and gurus, who
 would otherwise not bother with such niceties.
 .Pp
-Available friendlinesses:
-.Bl -tag -width time
+The following options are available:
+.Bl -tag -width indent
 .It Fl h
 The system is halted at the specified
 .Ar time
 when
-.Nm shutdown
-execs
+.Nm
+executes
 .Xr halt 8 .
 .It Fl k
 Kick every body off.
@@ -72,14 +73,14 @@ Prevent the normal
 before stopping.
 .It Fl r 
 .Nm Shutdown
-execs
+executes
 .Xr reboot 8
 at the specified
 .Ar time .
 .It Ar time
 .Ar Time
 is the time at which
-.Nm shutdown
+.Nm
 will bring the system down and
 may be the word
 .Ar now
@@ -114,14 +115,14 @@ log in,
 .Xr login 1
 prints its contents and exits.  The file is
 removed just before
-.Nm shutdown
+.Nm
 exits.
 .Pp
 At shutdown time a message is written in the system log, containing the
 time of shutdown, who initiated the shutdown and the reason.
 A terminate
 signal is then sent to
-.Xr init
+.Xr init 8
 to bring the system down to single-user state (depending on above
 options).
 The time of the shutdown and the warning message
