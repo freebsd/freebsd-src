@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_log.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: subr_log.c,v 1.20 1997/02/22 09:39:16 peter Exp $
  */
 
 /*
@@ -45,7 +45,7 @@
 #include <sys/vnode.h>
 #include <sys/ioctl.h>
 #include <sys/msgbuf.h>
-#include <sys/file.h>
+#include <sys/fcntl.h>
 #include <sys/signalvar.h>
 #include <sys/kernel.h>
 #ifdef DEVFS

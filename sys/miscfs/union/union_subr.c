@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_subr.c	8.20 (Berkeley) 5/20/95
- * $Id$
+ * $Id: union_subr.c,v 1.14 1997/02/22 09:40:40 peter Exp $
  */
 
 #include <sys/param.h>
@@ -45,7 +45,7 @@
 #include <sys/vnode.h>
 #include <sys/namei.h>
 #include <sys/malloc.h>
-#include <sys/file.h>
+#include <sys/fcntl.h>
 #include <sys/filedesc.h>
 #include <sys/queue.h>
 #include <sys/mount.h>

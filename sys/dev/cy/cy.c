@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: cy.c,v 1.45 1997/02/22 09:36:03 peter Exp $
  */
 
 #include "cy.h"
@@ -76,7 +76,7 @@
 #include <sys/proc.h>
 #include <sys/conf.h>
 #include <sys/dkstat.h>
-#include <sys/file.h>
+#include <sys/fcntl.h>
 #include <sys/uio.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>

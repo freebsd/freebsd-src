@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_quota.c	8.5 (Berkeley) 5/20/95
- * $Id: ufs_quota.c,v 1.11 1997/02/22 09:47:50 peter Exp $
+ * $Id: ufs_quota.c,v 1.12 1997/03/09 06:10:34 mpp Exp $
  */
 
 #include "opt_quota.h"		/* not really necessary... */
@@ -44,7 +44,7 @@
 #include <sys/systm.h>
 #include <sys/namei.h>
 #include <sys/malloc.h>
-#include <sys/file.h>
+#include <sys/fcntl.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>

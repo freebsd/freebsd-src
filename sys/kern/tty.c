@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.91 1997/02/22 09:39:23 peter Exp $
+ * $Id: tty.c,v 1.92 1997/03/22 06:52:58 bde Exp $
  */
 
 /*-
@@ -77,7 +77,7 @@
 #define	TTYDEFCHARS
 #include <sys/tty.h>
 #undef	TTYDEFCHARS
-#include <sys/file.h>
+#include <sys/fcntl.h>
 #include <sys/conf.h>
 #include <sys/dkstat.h>
 #include <sys/uio.h>

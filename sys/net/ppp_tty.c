@@ -70,7 +70,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id$ */
+/* $Id: ppp_tty.c,v 1.13 1997/02/22 09:41:11 peter Exp $ */
 /* from Id: ppp_tty.c,v 1.3 1995/08/16 01:36:40 paulus Exp */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 
@@ -87,7 +87,7 @@
 #include <sys/dkstat.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
-#include <sys/file.h>
+#include <sys/fcntl.h>
 #include <sys/tty.h>
 #include <sys/kernel.h>
 #include <sys/conf.h>

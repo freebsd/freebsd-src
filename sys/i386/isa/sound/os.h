@@ -23,7 +23,7 @@
 #include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/conf.h>
-#include <sys/file.h>
+#include <sys/fcntl.h>
 #include <sys/filio.h>
 #include <sys/uio.h>
 #include <sys/kernel.h>

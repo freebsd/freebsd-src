@@ -31,14 +31,14 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket.c	8.3 (Berkeley) 4/15/94
- *	$Id: uipc_socket.c,v 1.23 1997/02/22 09:39:28 peter Exp $
+ *	$Id: uipc_socket.c,v 1.24 1997/02/24 20:30:56 wollman Exp $
  */
 
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
-#include <sys/file.h>
+#include <sys/fcntl.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/domain.h>
