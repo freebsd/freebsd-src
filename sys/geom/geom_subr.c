@@ -57,6 +57,7 @@ struct class_list_head g_classes = LIST_HEAD_INITIALIZER(g_classes);
 static struct g_tailq_head geoms = TAILQ_HEAD_INITIALIZER(geoms);
 char *g_wait_event, *g_wait_up, *g_wait_down, *g_wait_sim;
 
+static int g_valid_obj(void const *ptr);
 
 struct g_hh00 {
 	struct g_class	*mp;
@@ -343,6 +344,14 @@ g_new_provider_event(void *arg, int flag)
 			continue;
 		mp->taste(mp, pp, 0);
 		g_topology_assert();
+		/*
+		 * XXX: Bandaid for 5.2-RELEASE
+		 * XXX: DO NOT REPLICATE THIS CODE!
+		 */
+		if (!g_valid_obj(pp)) {
+			printf("g_provider %p disappeared while tasting\n", pp);
+			return;
+		}
 	}
 }
 
@@ -780,6 +789,35 @@ g_getattr__(const char *attr, struct g_consumer *cp, void *var, int len)
 	if (i != len)
 		return (EINVAL);
 	return (0);
+}
+
+/*
+ * XXX: Bandaid for 5.2.
+ * XXX: DO NOT EVEN THINK ABOUT CALLING THIS FUNCTION!
+ */
+static int
+g_valid_obj(void const *ptr)
+{
+	struct g_class *mp;
+	struct g_geom *gp;
+	struct g_consumer *cp;
+	struct g_provider *pp;
+
+	LIST_FOREACH(mp, &g_classes, class) {
+		if (ptr == mp)
+			return (1);
+		LIST_FOREACH(gp, &mp->geom, geom) {
+			if (ptr == gp)
+				return (1);
+			LIST_FOREACH(cp, &gp->consumer, consumer)
+				if (ptr == cp)
+					return (1);
+			LIST_FOREACH(pp, &gp->provider, provider)
+				if (ptr == pp)
+					return (1);
+		}
+	}
+	return(0);
 }
 
 /*
