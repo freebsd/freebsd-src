@@ -18,12 +18,13 @@
  *		Columbus, OH  43221
  *		(614)451-1883
  *
- * $Id$
+ * $Id: chat.h,v 1.4 1997/02/22 16:10:07 peter Exp $
  *
  */
 #ifndef _CHAT_H_
 #define	_CHAT_H_
 #include "cdefs.h"
 extern char * ExpandString __P((char *, char *, int, int));
-extern int MakeArgs __P((char *, char **));
+extern int MakeArgs __P((char *, char **, int));
+#define	VECSIZE(v)	(sizeof(v) / sizeof(v[0]))
 #endif
