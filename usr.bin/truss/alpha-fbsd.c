@@ -44,6 +44,14 @@ static const char rcsid[] =
  * This file is almost nothing more than a slightly-edited i386-fbsd.c.
  */
 
+#include <sys/types.h>
+#include <sys/ioctl.h>
+#include <sys/pioctl.h>
+#include <sys/syscall.h>
+
+#include <machine/reg.h>
+#include <machine/psl.h>
+
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -52,11 +60,6 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/ioctl.h>
-#include <sys/pioctl.h>
-#include <machine/reg.h>
-#include <machine/psl.h>
-#include <sys/syscall.h>
 
 #include "syscall.h"
 
