@@ -59,13 +59,16 @@ struct specinfo {
 #define SI_ALIAS	0x0002	/* carrier of alias name */
 #define SI_NAMED	0x0004	/* make_dev{_alias} has been called */
 #define SI_CHEAPCLONE	0x0008	/* can be removed_dev'ed when vnode reclaims */
+#define SI_CHILD	0x0010	/* child of another dev_t */
 	struct timespec	si_atime;
 	struct timespec	si_ctime;
 	struct timespec	si_mtime;
 	udev_t		si_udev;
 	LIST_ENTRY(specinfo)	si_hash;
 	SLIST_HEAD(, vnode)	si_hlist;
-	LIST_HEAD(, specinfo)	si_names;
+	LIST_HEAD(, specinfo)	si_children;
+	LIST_ENTRY(specinfo)	si_siblings;
+	dev_t		si_parent;
 	struct snaphead	si_snapshots;
 	int		(*si_copyonwrite)(struct vnode *, struct buf *);
 	u_int		si_inode;
@@ -294,6 +297,7 @@ int	count_dev __P((dev_t dev));
 void	destroy_dev __P((dev_t dev));
 struct cdevsw *devsw __P((dev_t dev));
 const char *devtoname __P((dev_t dev));
+void	dev_depends __P((dev_t pdev, dev_t cdev));
 void	freedev __P((dev_t dev));
 int	iszerodev __P((dev_t dev));
 dev_t	makebdev __P((int maj, int min));

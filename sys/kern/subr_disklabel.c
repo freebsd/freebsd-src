@@ -352,8 +352,6 @@ diskerr(bp, what, blkdone, lp)
 	int blkdone;
 	register struct disklabel *lp;
 {
-	int unit = dkunit(bp->bio_dev);
-	int slice = dkslice(bp->bio_dev);
 	int part = dkpart(bp->bio_dev);
 	char partname[2];
 	char *sname;

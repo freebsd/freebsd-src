@@ -177,9 +177,10 @@ allocdev(void)
 		LIST_REMOVE(si, si_hash);
 	} else {
 		si = devt_stash + stashed++;
-		si->si_flags |= SI_STASHED;
+		bzero(si, sizeof *si);
+	si->si_flags |= SI_STASHED;
 	}
-	LIST_INIT(&si->si_names);
+	LIST_INIT(&si->si_children);
 	TAILQ_INIT(&si->si_snapshots);
 	return (si);
 }
@@ -208,7 +209,6 @@ makedev(int x, int y)
 void
 freedev(dev_t dev)
 {
-	dev_t adev;
 
 	if (!free_devt)
 		return;
@@ -216,14 +216,10 @@ freedev(dev_t dev)
 		return;
 	if (dev->si_devsw || dev->si_drv1 || dev->si_drv2)
 		return;
-	while (!LIST_EMPTY(&dev->si_names)) {
-		adev = LIST_FIRST(&dev->si_names);
-		adev->si_drv1 = NULL;
-		freedev(adev);
-	}
 	LIST_REMOVE(dev, si_hash);
 	if (dev->si_flags & SI_STASHED) {
 		bzero(dev, sizeof(*dev));
+		dev->si_flags |= SI_STASHED;
 		LIST_INSERT_HEAD(&dev_free, dev, si_hash);
 	} else {
 		FREE(dev, M_DEVT);
@@ -304,6 +300,15 @@ make_dev(struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms, char 
 	return (dev);
 }
 
+void
+dev_depends(dev_t pdev, dev_t cdev)
+{
+
+	cdev->si_parent = pdev;
+	cdev->si_flags |= SI_CHILD;
+	LIST_INSERT_HEAD(&pdev->si_children, cdev, si_siblings);
+}
+
 dev_t
 make_dev_alias(dev_t pdev, char *fmt, ...)
 {
@@ -314,9 +319,7 @@ make_dev_alias(dev_t pdev, char *fmt, ...)
 	dev = allocdev();
 	dev->si_flags |= SI_ALIAS;
 	dev->si_flags |= SI_NAMED;
-	dev->si_drv1 = pdev;
-	LIST_INSERT_HEAD(&pdev->si_names, dev, si_hash);
-
+	dev_depends(pdev, dev);
 	va_start(ap, fmt);
 	i = kvprintf(fmt, NULL, dev->si_name, 32, ap);
 	dev->si_name[i] = '\0';
@@ -339,6 +342,12 @@ destroy_dev(dev_t dev)
 		
 	if (devfs_destroy_hook)
 		devfs_destroy_hook(dev);
+	if (dev->si_flags & SI_CHILD) {
+		LIST_REMOVE(dev, si_siblings);
+		dev->si_flags &= ~SI_CHILD;
+	}
+	while (!LIST_EMPTY(&dev->si_children))
+		destroy_dev(LIST_FIRST(&dev->si_children));
 	dev->si_drv1 = 0;
 	dev->si_drv2 = 0;
 	dev->si_devsw = 0;

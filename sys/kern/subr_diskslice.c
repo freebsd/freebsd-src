@@ -648,7 +648,6 @@ dsopen(dev, mode, flags, sspp, lp)
 	struct disklabel *lp1;
 	char	*msg;
 	u_char	mask;
-	bool_t	need_init;
 	int	part;
 	char	partname[2];
 	int	slice;
@@ -671,10 +670,9 @@ dsopen(dev, mode, flags, sspp, lp)
 	 * on the unit.  This should only be done if the media has changed.
 	 */
 	ssp = *sspp;
-	need_init = !dsisopen(ssp);
-	if (ssp != NULL && need_init)
-		dsgone(sspp);
-	if (need_init) {
+	if (!dsisopen(ssp)) {
+		if (ssp != NULL)
+			dsgone(sspp);
 		/*
 		 * Allocate a minimal slices "struct".  This will become
 		 * the final slices "struct" if we don't want real slices
@@ -730,9 +728,12 @@ dsopen(dev, mode, flags, sspp, lp)
 		    )
 			continue;
 		dev1 = dkmodslice(dkmodpart(dev, RAW_PART), slice);
-		if (dev1->si_devsw == NULL)
-			dev1->si_devsw = dev->si_devsw;
+#if 0
 		sname = dsname(dev, unit, slice, RAW_PART, partname);
+#else
+		*partname='\0';
+		sname = dev1->si_name;
+#endif
 		/*
 		 * XXX this should probably only be done for the need_init
 		 * case, but there may be a problem with DIOCSYNCSLICEINFO.
