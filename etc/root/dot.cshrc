@@ -1,29 +1,36 @@
-#	$Id: dot.cshrc,v 1.14 1995/09/18 19:53:42 nate Exp $
-#
-alias mail Mail
-set history=1000
-set savehist=1000
-set path=(/sbin /usr/sbin /bin /usr/bin /usr/local/bin)
+#csh .cshrc file
 
-# directory stuff: cdpath/cd/back
-set cdpath=(/sys/{i386,compile,} /usr/src/{bin,sbin,usr.{bin,sbin},lib,libexec,share,contrib,etc,games,include,} /usr/src/gnu/{games,include,lib,libexec,usr.bin,usr.sbin,})
-alias	cd	'set old=$cwd; chdir \!*'
-alias	h	history
-alias	j	jobs -l
-alias	ll	ls -lo
-alias	ls	ls -o -k
-alias	back	'set back=$old; set old=$cwd; cd $back; unset back; dirs'
+alias h		history 25
+alias j		jobs -l
+alias la	ls -a
+alias lf	ls -FA
+alias ll	ls -lA
 
-alias	z	suspend
-alias	x	exit
-alias	pd	pushd
-alias	pd2	pushd +2
-alias	pd3	pushd +3
-alias	pd4	pushd +4
-alias	tset	'set noglob histchars=""; eval `\tset -s \!*`; unset noglob histchars'
+setenv	EDITOR	/stand/ee
+setenv	PAGER	more
+setenv	BLOCKSIZE	K
 
 if ($?prompt) then
-	set prompt="`hostname -s`# "
+	# An interactive shell -- set some stuff up
+	
+	set noglob; eval `tset -s`; unset noglob
+	stty -istrip
+	
 	set filec
+	set history = 100
+	set savehist = 100
+	set mail = (/var/mail/$USER)
+
+	# customize prompt - works with tcsh only
+	set machine = `hostname -s`
+	if ("$TERM" == xterm) then
+		alias cwdcmd 'echo -n "]0;${USER}@${machine}: `dirs`"'
+		set prompt = "> "
+	else
+		alias cwdcmd 'set prompt = "${USER}@${machine}:${cwd}> "'
+	endif
+	cwdcmd
+
+	# fix broken prompt after su
+	alias su 'su \!* ; cwdcmd'
 endif
-setenv BLOCKSIZE K
