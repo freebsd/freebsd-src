@@ -36,11 +36,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.h	7.2 (Berkeley) 5/9/91
- *	$Id$
+ *	$Id: cons.h,v 1.15 1997/02/22 09:32:11 peter Exp $
  */
 
 #ifndef _MACHINE_CONS_H_
-#define _MACHINE_CONS_H_ 1
+#define	_MACHINE_CONS_H_
 
 struct consdev;
 typedef	void	cn_probe_t __P((struct consdev *));
@@ -95,23 +95,18 @@ struct consdev {
 #define CN_INTERNAL	2	/* "internal" bit-mapped display */
 #define CN_REMOTE	3	/* serial interface with remote bit set */
 
-/* XXX */
-#define	CONSMAJOR	0
-
 #ifdef KERNEL
 extern	struct consdev constab[];
 extern	struct consdev *cn_tab;
 extern	int cons_unavail;
 
-struct proc; struct uio;
-
-/* other kernel entry points */
-extern void cninit(void);
-extern void cninit_finish(void);
-extern int cngetc(void);
-extern int cncheckc(void);
-extern void cnputc(int);
-extern int pg(const char *, ...);
+/* Other kernel entry points. */
+int	cncheckc __P((void));
+int	cngetc __P((void));
+void	cninit __P((void));
+void	cninit_finish __P((void));
+void	cnputc __P((int));
 
 #endif /* KERNEL */
-#endif /* _MACHINE_CONS_H_ */
+
+#endif /* !_MACHINE_CONS_H_ */
