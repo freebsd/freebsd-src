@@ -88,14 +88,11 @@ hesiod_init(context)
 {
 	struct hesiod_p	*ctx;
 	const char	*p, *configname;
-	int		 trust;
-
-	trust = geteuid() == getuid() && getegid() == getgid(); 
 
 	ctx = malloc(sizeof(struct hesiod_p));
 	if (ctx) {
 		*context = ctx;
-		if (trust)
+		if (!issetugid())
 			configname = getenv("HESIOD_CONFIG");
 		else
 			configname = NULL;
@@ -106,7 +103,7 @@ hesiod_init(context)
 			 * The default rhs can be overridden by an
 			 * environment variable.
 			 */
-			if (trust)
+			if (!issetugid())
 				p = getenv("HES_DOMAIN");
 			else
 				p = NULL;
