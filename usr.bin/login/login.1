@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)login.1	8.2 (Berkeley) 5/5/94
-.\"	$Id: login.1,v 1.4.2.2 1997/05/10 21:20:14 davidn Exp $
+.\"	$Id: login.1,v 1.9 1997/07/22 07:39:42 charnier Exp $
 .\"
 .Dd May 5, 1994
 .Dt LOGIN 1
@@ -105,6 +105,15 @@ exists,
 changes the protection and ownership of certain devices specified in this
 file.
 .Pp
+If the file
+.Pa /etc/skeykeys
+exists, 
+.Nm
+will offer S/key password validation if the user has an entry in the file.
+.Pa /etc/skey.access
+controls from which hosts and/or networks the use of S/key passwords are
+obligated.
+.Pp
 Immediately after logging a user in,
 .Nm
 displays the system copyright notice, the date and time the user last
@@ -145,14 +154,18 @@ utility.
 .Bl -tag -width /var/mail/userXXX -compact
 .It Pa /etc/fbtab
 changes device protections
+.It Pa /etc/login.access
+login access control table
 .It Pa /etc/login.conf
 login class capabilities database
 .It Pa /etc/motd
 message-of-the-day
 .It Pa /etc/nologin
 disallows logins
-.It Pa /etc/login.access
-login access control table
+.It Pa /etc/skey.access
+skey password control table
+.It Pa /etc/skeykeys
+skey password database
 .It Pa /var/run/utmp
 current logins
 .It Pa /var/log/lastlog
@@ -168,10 +181,12 @@ makes login quieter
 .Xr chpass 1 ,
 .Xr passwd 1 ,
 .Xr rlogin 1 ,
+.Xr skey 1 ,
 .Xr getpass 3 ,
 .Xr fbtab 5 ,
 .Xr login.access 5 ,
 .Xr login.conf 5 ,
+.Xr skey.access 5 ,
 .Xr utmp 5 ,
 .Xr environ 7 ,
 .Xr nologin 8
