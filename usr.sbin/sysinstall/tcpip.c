@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.19 1995/05/26 21:16:02 jkh Exp $
+ * $Id: tcpip.c,v 1.20 1995/05/26 21:37:53 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -469,7 +469,6 @@ tcpStartPPP(Device *devp)
     FILE *fp;
     char *val;
     char myaddr[16], provider[16];
-    char netmask[16];
 
     fd = open("/dev/ttyv2", O_RDWR);
     if (fd == -1)
