@@ -2,7 +2,11 @@
 
 PROG=	watch
 MAN=	watch.8
-LDADD+=	-ltermcap
-DPADD+=	${LIBTERMCAP}
+
+WARNS?=	2
+NO_WERROR=	yes
+
+LDADD=	-ltermcap
+DPADD=	${LIBTERMCAP}
 
 .include <bsd.prog.mk>
