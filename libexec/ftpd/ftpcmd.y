@@ -106,7 +106,7 @@ static	int cmd_form;
 static	int cmd_bytesz;
 static	int state;
 char	cbuf[512];
-char	*fromname = (char *) 0;
+char	*fromname = NULL;
 
 extern int epsvall;
 
@@ -159,7 +159,7 @@ cmd_list
 		{
 			if (fromname)
 				free(fromname);
-			fromname = (char *) 0;
+			fromname = NULL;
 			restart_point = 0;
 		}
 	| cmd_list rcmd
@@ -455,7 +455,7 @@ cmd
 			if (noretr || (guest && noguestretr))
 				reply(500, "RETR command is disabled");
 			else if ($2 && $4 != NULL)
-				retrieve((char *) 0, $4);
+				retrieve(NULL, $4);
 
 			if ($4 != NULL)
 				free($4);
@@ -522,7 +522,7 @@ cmd
 				if (fromname) {
 					renamecmd(fromname, $4);
 					free(fromname);
-					fromname = (char *) 0;
+					fromname = NULL;
 				} else {
 					reply(503, "Bad sequence of commands.");
 				}
@@ -550,7 +550,7 @@ cmd
 		}
 	| HELP CRLF
 		{
-			help(cmdtab, (char *) 0);
+			help(cmdtab, NULL);
 		}
 	| HELP SP STRING CRLF
 		{
@@ -563,7 +563,7 @@ cmd
 				if (*cp)
 					help(sitetab, cp);
 				else
-					help(sitetab, (char *) 0);
+					help(sitetab, NULL);
 			} else
 				help(cmdtab, $3);
 			free($3);
@@ -598,7 +598,7 @@ cmd
 		}
 	| SITE SP HELP CRLF
 		{
-			help(sitetab, (char *) 0);
+			help(sitetab, NULL);
 		}
 	| SITE SP HELP SP STRING CRLF
 		{
@@ -771,7 +771,7 @@ rcmd
 			if ($2 && $4) {
 				if (fromname)
 					free(fromname);
-				fromname = (char *) 0;
+				fromname = NULL;
 				if (renamefrom($4))
 					fromname = $4;
 				else
@@ -785,7 +785,7 @@ rcmd
 			if ($2) {
 				if (fromname)
 					free(fromname);
-				fromname = (char *) 0;
+				fromname = NULL;
 				restart_point = $4.o;
 				reply(350, "Restarting at %jd. %s",
 				    (intmax_t)restart_point,
@@ -1556,7 +1556,7 @@ help(struct tab *ctab, char *s)
 	}
 	upper(s);
 	c = lookup(ctab, s);
-	if (c == (struct tab *)0) {
+	if (c == NULL) {
 		reply(502, "Unknown command %s.", s);
 		return;
 	}

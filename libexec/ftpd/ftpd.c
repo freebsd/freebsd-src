@@ -1910,7 +1910,7 @@ dataconn(char *name, off_t size, char *mode)
 		if ((flags = fcntl(pdata, F_GETFL, 0)) == -1 ||
 		    fcntl(pdata, F_SETFL, flags | O_NONBLOCK) == -1)
 			goto pdata_err;
-		if (select(pdata+1, &set, (fd_set *) 0, (fd_set *) 0, &timeout) <= 0 ||
+		if (select(pdata+1, &set, NULL, NULL, &timeout) <= 0 ||
 		    (s = accept(pdata, (struct sockaddr *) &from, &fromlen)) < 0)
 			goto pdata_err;
 		(void) close(pdata);
