@@ -1,5 +1,7 @@
 /*
  * LOCALE_CTYPE for Russian koi8-r character set (RFC1489)
+ *
+ * $FreeBSD$
  */
 ENCODING	"NONE"
 VARIABLE        Russian koi8-r character set by ache@astral.msk.su

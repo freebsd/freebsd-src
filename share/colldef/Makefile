@@ -16,9 +16,9 @@ LOCALES=	cs_CZ.ISO_8859-2 \
 		la_LN.ISO_8859-2 \
 		la_LN.ISO_8859-4 \
 		lt_LT.ISO_8859-4 \
-		ru_SU.CP866 \
-		ru_SU.ISO_8859-5 \
-		ru_SU.KOI8-R \
+		ru_RU.CP866 \
+		ru_RU.ISO_8859-5 \
+		ru_RU.KOI8-R \
 		sv_SE.DIS_8859-15 \
 		sv_SE.ISO_8859-1 \
 		uk_UA.KOI8-U
@@ -57,9 +57,9 @@ la_LN.DIS_8859-15.out:  map.DIS_8859-15
 la_LN.ISO_8859-1.out:   map.ISO_8859-1
 la_LN.ISO_8859-4.out:   map.ISO_8859-4
 lt_LT.ISO_8859-4.out:   map.ISO_8859-4
-ru_SU.CP866.out:        map.CP866
-ru_SU.ISO_8859-5.out:   map.ISO_8859-5
-ru_SU.KOI8-R.out:       map.KOI8-R
+ru_RU.CP866.out:        map.CP866
+ru_RU.ISO_8859-5.out:   map.ISO_8859-5
+ru_RU.KOI8-R.out:       map.KOI8-R
 sv_SE.DIS_8859-15.out:  map.DIS_8859-15
 sv_SE.ISO_8859-1.out:   map.ISO_8859-1
 uk_UA.KOI8-U.out:       map.KOI8-U
