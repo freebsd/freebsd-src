@@ -102,6 +102,7 @@ SUBDIR=	IPXrouted \
 	sliplogin \
 	slstat \
 	spray \
+	sysinstall \
 	syslogd \
 	tcpdchk \
 	tcpdmatch \
@@ -126,10 +127,6 @@ SUBDIR=	IPXrouted \
 	ypserv \
 	ypset \
 	zic
-
-.if ${MACHINE_ARCH} == ${TARGET_ARCH}
-SUBDIR+=sysinstall
-.endif
 
 .if !defined(NOLIBC_R) && ${MACHINE_ARCH} != "ia64"
 SUBDIR+=pppctl
