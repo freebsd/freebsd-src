@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.67 1998/12/17 08:42:10 kato Exp $
+ *	$Id: wd.c,v 1.68 1998/12/25 09:05:17 kato Exp $
  */
 
 /* TODO:
@@ -381,9 +381,11 @@ wdprobe(struct isa_device *dvp)
 	    }
 	}
 	du->dk_altport = du->dk_port + wd_ctlr;
+#if 0
 	if ((PC98_SYSTEM_PARAMETER(0x55d) & 3) == 0) {
 		goto nodevice;
 	}
+#endif
 	outb(0x432,(du->dk_unit)%2);
 #else /* IBM-PC */
 	outb(du->dk_port + wd_sdh, WDSD_IBM);   /* set unit 0 */
@@ -407,11 +409,31 @@ wdprobe(struct isa_device *dvp)
 	if (inb(du->dk_port + wd_cyl_lo) == 0x14 &&
 	    inb(du->dk_port + wd_cyl_hi) == 0xeb)
 		goto reset_ok;
+#ifdef PC98
+	du->dk_unit = 2;
+#else
 	du->dk_unit = 1;
+#endif
 	outb(du->dk_port + wd_sdh, WDSD_IBM | 0x10); /* slave */
 	if (inb(du->dk_port + wd_cyl_lo) == 0x14 &&
 	    inb(du->dk_port + wd_cyl_hi) == 0xeb)
 		goto reset_ok;
+#ifdef PC98
+	du->dk_unit = 1;
+	outb(0x432,(du->dk_unit)%2);
+	if (wdreset(du) == 0)
+	        goto reset_ok;
+	/* test for ATAPI signature */
+	outb(du->dk_port + wd_sdh, WDSD_IBM);           /* master */
+	if (inb(du->dk_port + wd_cyl_lo) == 0x14 &&
+	    inb(du->dk_port + wd_cyl_hi) == 0xeb)
+		goto reset_ok;
+	du->dk_unit = 3;
+	outb(du->dk_port + wd_sdh, WDSD_IBM | 0x10); /* slave */
+	if (inb(du->dk_port + wd_cyl_lo) == 0x14 &&
+	    inb(du->dk_port + wd_cyl_hi) == 0xeb)
+		goto reset_ok;
+#endif
 #endif
 	DELAY(RECOVERYTIME);
 	if (wdreset(du) != 0) {
