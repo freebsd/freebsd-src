@@ -376,6 +376,7 @@ XBONEHACK
 # option below. Each type has its own man page, e.g. ng_async(4).
 NETGRAPH
 NETGRAPH_ASYNC		opt_netgraph.h
+NETGRAPH_ATMLLC		opt_netgraph.h
 NETGRAPH_BPF		opt_netgraph.h
 NETGRAPH_BRIDGE		opt_netgraph.h
 NETGRAPH_CISCO		opt_netgraph.h
