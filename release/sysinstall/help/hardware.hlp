@@ -1,11 +1,11 @@
-Hardware Documentation Guide:  $Id: hardware.hlp,v 1.1.2.1 1995/10/14 19:14:18 jkh Exp $
+Hardware Documentation Guide:  $Id: hardware.hlp,v 1.1.2.2 1995/10/15 14:53:49 jkh Exp $
 
 Table of Contents
 -----------------
 
 0.  Document Conventions
-1.  Using UserConfig to change FreeBSD kernel settings
-2.  Default Configuration (GENERIC kernel)
+1.  Default Configuration (GENERIC kernel)
+2.  Using UserConfig to change FreeBSD kernel settings
 3.  LINT - other possible configurations.
 4.  Known Hardware Problems.
 
@@ -14,11 +14,112 @@ Table of Contents
 0.      Document Conventions
 --      --------------------
 
-We have `underlined' text which represents user input with `-'
-symbols throughout this document to differentiate it from
-the machine output.
+We have `underlined' text which represents user input with `-' symbols
+throughout this document to differentiate it from the machine output.
 
-1.      Using UserConfig to change FreeBSD kernel settings
+1.      Default (GENERIC) Configuration
+--      -------------------------------
+
+The following table contains a list of all of the devices that are
+present in the GENERIC kernel, that being the kernel (the operating
+system) that was placed in your root partition during the FreeBSD
+installation process.  (A compressed version of the GENERIC kernel is
+also used on this installation floppy diskette or DOS boot image.)
+
+The table describes the various parameters used by the driver to
+communicate with the hardware in your system.  There are four
+parameters in the table, but not all are used by each device.  They
+are:
+
+   Port   The starting I/O port used by the device, shown in hexadecimal.
+
+   IOMem  The lowest (or starting) memory address used by the device,
+          also shown in hexadecimal.
+
+   IRQ    The interrupt the device uses to alert the driver to an event,
+          given in decimal.
+
+   DRQ    The DMA (direct memory access) channel the device uses to move
+          data to and from main memory, also given in decimal.
+
+If an entry in the table has `n/a' for the value, it means that the
+parameter does not apply to that device.  A value of `dyn' means that
+the correct value should be determined automatically by the kernel
+when the system boots.
+
+
+FreeBSD GENERIC kernel:
+
+        Port    IRQ     DRQ     IOMem   Description
+        ----    ---     ---     -----   ---------------------------------
+fdc0    3f0     6       2       n/a     Floppy disk controller
+wdc0    1f0     14      n/a     n/a     IDE/MFM/RLL disk controller
+wdc1    170     15      n/a     n/a     IDE/MFM/RLL disk controller
+
+ncr0    n/a     n/a     n/a     n/a     NCR PCI SCSI controller
+ahc0    n/a     n/a     n/a     n/a     Adaptec 294x PCI SCSI controller
+bt0     330     dyn     dyn     dyn     Buslogic SCSI controller
+uha0    330     dyn     6       dyn     Ultrastore 14f
+ahc1    dyn     dyn     dyn     dyn     Adaptec 274x/284x SCSI controller
+ahb0    dyn     dyn     dyn     dyn     Adaptec 174x SCSI controller
+aha0    330     dyn     5       dyn     Adaptec 154x SCSI controller
+aic0    340     11      dyn     dyn     Adaptec 152x/AIC-6360 SCSI
+                                        controller
+nca0    1f88    10      dyn     dyn     ProAudioSpectrum cards
+nca1    350     5       dyn     dyn     ProAudioSpectrum cards
+sea0    dyn     5       dyn     c8000   Seagate ST01/02 8 bit controller
+
+wt0     300     5       1       dyn     Wangtek and Archive QIC-02/QIC-36
+
+mcd0    300     10      n/a     n/a     Mitsumi CD-ROM
+mcd1    340     11      n/a     n/a     Mitsumi CD-ROM
+
+matcd0  dyn     n/a     n/a     n/a     Matsushita/Panasonic CD-ROM
+
+scd0    230     n/a     n/a     n/a     Sony CD-ROM
+
+sio0    3f8     4       n/a     n/a     Serial Port 0 (COM1)
+sio1    2f8     3       n/a     n/a     Serial Port 1 (COM2)
+sio2    3e8     5       n/a     n/a     Serial Port 2 (COM3)
+sio3    2e8     9       n/a     n/a     Serial Port 3 (COM4)
+
+lpt0    dyn     7       n/a     n/a     Printer Port 0
+lpt1    dyn     dyn     n/a     n/a     Printer Port 1
+lpt2    dyn     dyn     n/a     n/a     Printer Port 2
+
+de0                                     DEC DC21x40 PCI based cards
+                                        (including 21140 100bT cards)
+ed0     280     5       dyn     d8000   WD & SMC 80xx; Novell NE1000 &
+                                        NE2000; 3Com 3C503
+ed1     300     5       dyn     d8000   Same as ed0
+eg0     310     5       dyn     dyn     3Com 3C505
+ep0     300     10      dyn     dyn     3Com 3C509
+ie0     360     7       dyn     d0000   AT&T StarLAN 10 and EN100;
+                                        3Com 3C507; NI5210
+ix0     300     10      dyn     d0000   Intel EtherExpress cards
+le0     300     5       dyn     d0000   Digital Equipment EtherWorks
+                                        2 and EtherWorks 3
+lnc0    280     10      n/a     dyn     Lance/PCnet cards
+                                        (Isolan, Novell NE2100, NE32-VL)
+lnc1    300     10      n/a     dyn     See lnc0
+ze0     300     5       dyn     d8000   IBM/National Semiconductor
+                                        PCMCIA Ethernet Controller
+zp0     300     10      dyn     d8000   3Com PCMCIA Etherlink III
+                                        Ethernet Controller
+--- End of table ---
+
+
+If the hardware in your computer is not set to the same settings as
+those shown in this table and the item is not marked 'dyn', you will 
+have to either reconfigure your hardware, or use UserConfig ('-c' boot
+option) to reconfigure the kernel to match the way your hardware is
+currently set (see section 1.0).   
+
+If the settings do not match, the kernel may be unable to locate
+or reliably access the devices in your system.
+
+
+2.      Using UserConfig to change FreeBSD kernel settings
 --      --------------------------------------------------
 
 The UserConfig utility allows you to override various settings of
@@ -143,109 +244,6 @@ custom kernel that contains only the device drivers which your system
 really needs (see section 6.0 of the FreeBSD.FAQ).  If your system has
 sufficient free disk space to store and compile the kernel sources,
 this is the option we most highly recommend.
-
-
-
-2.      Default (GENERIC) Configuration
---      -------------------------------
-
-The following table contains a list of all of the devices that are present
-in the GENERIC kernel, which is the kernel (the operating system) that was
-placed on your computer during the FreeBSD installation process.
-(A compressed version of the GENERIC kernel is also used on the
-installation floppy diskettes.)
-
-The table describes the various parameters used by the driver to communicate
-with the hardware in your system.  There are four parameters in the
-table, but not all are used by each device.  They are:
-
-   Port   the starting I/O port used by the device, shown in hexadecimal.
-
-   IOMem  the lowest (or starting) memory address used by the device,
-          also shown in hexadecimal.
-
-   IRQ    the interrupt the device uses to alert the driver to an event,
-          given in decimal.
-
-   DRQ    the DMA (direct memory access) channel the device uses to move
-          data to and from main memory, also given in decimal.
-
-If an entry in the table has `n/a' for the value, it means that the
-parameter does not apply to that device.  A value of `dyn' means that the
-correct value should be  determined automatically by the kernel when the
-system boots.
-
-
-FreeBSD GENERIC kernel:
-
-        Port    IRQ     DRQ     IOMem   Description
-        ----    ---     ---     -----   ---------------------------------
-fdc0    3f0     6       2       n/a     Floppy disk controller
-wdc0    1f0     14      n/a     n/a     IDE/MFM/RLL disk controller
-wdc1    170     15      n/a     n/a     IDE/MFM/RLL disk controller
-
-ncr0    n/a     n/a     n/a     n/a     NCR PCI SCSI controller
-ahc0    n/a     n/a     n/a     n/a     Adaptec 294x PCI SCSI controller
-bt0     330     dyn     dyn     dyn     Buslogic SCSI controller
-uha0    330     dyn     6       dyn     Ultrastore 14f
-ahc1    dyn     dyn     dyn     dyn     Adaptec 274x/284x SCSI controller
-ahb0    dyn     dyn     dyn     dyn     Adaptec 174x SCSI controller
-aha0    330     dyn     5       dyn     Adaptec 154x SCSI controller
-aic0    340     11      dyn     dyn     Adaptec 152x/AIC-6360 SCSI
-                                        controller
-nca0    1f88    10      dyn     dyn     ProAudioSpectrum cards
-nca1    350     5       dyn     dyn     ProAudioSpectrum cards
-sea0    dyn     5       dyn     c8000   Seagate ST01/02 8 bit controller
-
-wt0     300     5       1       dyn     Wangtek and Archive QIC-02/QIC-36
-
-mcd0    300     10      n/a     n/a     Mitsumi CD-ROM
-mcd1    340     11      n/a     n/a     Mitsumi CD-ROM
-
-matcd0  dyn     n/a     n/a     n/a     Matsushita/Panasonic CD-ROM
-
-scd0    230     n/a     n/a     n/a     Sony CD-ROM
-
-sio0    3f8     4       n/a     n/a     Serial Port 0 (COM1)
-sio1    2f8     3       n/a     n/a     Serial Port 1 (COM2)
-sio2    3e8     5       n/a     n/a     Serial Port 2 (COM3)
-sio3    2e8     9       n/a     n/a     Serial Port 3 (COM4)
-
-lpt0    dyn     7       n/a     n/a     Printer Port 0
-lpt1    dyn     dyn     n/a     n/a     Printer Port 1
-lpt2    dyn     dyn     n/a     n/a     Printer Port 2
-
-de0                                     DEC DC21x40 PCI based cards
-                                        (including 21140 100bT cards)
-ed0     280     5       dyn     d8000   WD & SMC 80xx; Novell NE1000 &
-                                        NE2000; 3Com 3C503
-ed1     300     5       dyn     d8000   Same as ed0
-eg0     310     5       dyn     dyn     3Com 3C505
-ep0     300     10      dyn     dyn     3Com 3C509
-ie0     360     7       dyn     d0000   AT&T StarLAN 10 and EN100;
-                                        3Com 3C507; NI5210
-ix0     300     10      dyn     d0000   Intel EtherExpress cards
-le0     300     5       dyn     d0000   Digital Equipment EtherWorks
-                                        2 and EtherWorks 3
-lnc0    280     10      n/a     dyn     Lance/PCnet cards
-                                        (Isolan, Novell NE2100, NE32-VL)
-lnc1    300     10      n/a     dyn     See lnc0
-ze0     300     5       dyn     d8000   IBM/National Semiconductor
-                                        PCMCIA Ethernet Controller
-zp0     300     10      dyn     d8000   3Com PCMCIA Etherlink III
-                                        Ethernet Controller
---- End of table ---
-
-
-If the hardware in your computer is not set to the same settings as
-those shown in this table and the item is not marked 'dyn', you will 
-have to either reconfigure your hardware, or use UserConfig ('-c' boot
-option) to reconfigure the kernel to match the way your hardware is
-currently set (see section 1.0).   
-
-If the settings do not match, the kernel may be unable to locate
-or reliably access the devices in your system.
-
 
 
 3.      LINT - other possible configurations

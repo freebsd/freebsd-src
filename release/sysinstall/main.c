@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: main.c,v 1.13.2.6 1995/10/18 00:12:18 jkh Exp $
+ * $Id: main.c,v 1.13.2.7 1995/10/19 15:55:11 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -65,7 +65,7 @@ main(int argc, char **argv)
     deviceGetAll();
 
     /* Set default flag and variable values */
-    installVarDefaults();
+    installVarDefaults(NULL);
 
     /* Begin user dialog at outer menu */
     while (1) {

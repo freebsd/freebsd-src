@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.32.2.15 1995/10/18 00:12:15 jkh Exp $
+ * $Id: label.c,v 1.32.2.16 1995/10/19 15:55:07 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -175,7 +175,7 @@ diskLabelCommit(char *str)
     /* The routine will guard against redundant writes, just as this one does */
     else if (diskPartitionWrite(NULL) != RET_SUCCESS)
 	i = RET_FAIL;
-    else if (installFilesystems() != RET_SUCCESS)
+    else if (installFilesystems(NULL) != RET_SUCCESS)
 	i = RET_FAIL;
     else {
 	msgInfo("All filesystem information written successfully.");

@@ -54,12 +54,14 @@ FTP username: Specify username and password instead of anonymous.
     anonymous user.  If you wish to log in as someone else,
     specify the username and password with this option.
 
+
 Tape Blocksize: Specify block size in 512 byte blocks of tape.
 
     This defaults to 10 blocks, which should work with most
     tape drive + tar combinations.  It may not allow your particular
     drive to win any records for speed, however, and the more
     adventurous among you might try experimenting with larger sizes.
+
 
 Detail Level:  How to show filenames on debug screen as they're extracted.
 
@@ -69,11 +71,13 @@ Detail Level:  How to show filenames on debug screen as they're extracted.
     the "medium" detail level.  If you want nothing to be printed
     on the debugging screen during extraction, select "low".
 
+
 Release Name:  Which release to attempt to load from installation media.
 
     You should only change this option if you're really sure you know
     what you are doing!  This will change the release name used by
     sysinstall when fetching components of any distributions.
+
 
 Browser Package:  Which package to load for an HTML browser.
 
@@ -82,17 +86,33 @@ Browser Package:  Which package to load for an HTML browser.
     to an X based browser, you will not be able to use it if you're running
     in text mode! :)
 
+
 Browser Exec:  Which binary to run for the HTML browser.
 
     The full pathname to the main executable in Browser Package
+
 
 Config File:  Name of default configuration file for Load command.
 
     This version of sysinstall has the ability to pre-initialize its
     variables by reading a configuration file of `name=value' pairs.
     This is read off of a standard UFS or DOS diskette which is assumed
-    to be in drive A.
+    to be in drive A when this option is chosen.
 
-Use Defaults:  Use default calues.
+    It is actually possible to write configuration files that will cause
+    the Express Installation option to skip entire sections of user input
+    when it finds that values have already been set, or even to call
+    sections of the install directly (function calls as well as variable
+    settings can be done from config files).  This is, to say the least,
+    a "power user" function and is aimed at users who install many FreeBSD
+    machines at a time or want the option of being able to create custom,
+    automated installation floppies for academic computing clusters, etc.
+
+    More information on how this works is probably best derived from
+    reading the sources for this installation program in
+    /usr/src/release/sysinstall.
+
+
+Use Defaults:  Use default values.
 
     Reset all options back to their default values.

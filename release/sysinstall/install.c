@@ -42,6 +42,7 @@
  */
 
 #include "sysinstall.h"
+#include <ctype.h>
 #include <sys/disklabel.h>
 #include <sys/errno.h>
 #include <sys/ioctl.h>
@@ -303,6 +304,8 @@ installFixit(char *str)
 int
 installExpress(char *str)
 {
+    char *cp;
+
     msgConfirm("In the next menu, you will need to set up a DOS-style (\"fdisk\") partitioning\n"
 	       "scheme for your hard disk.  If you simply wish to devote all disk space\n"
 	       "to FreeBSD (overwritting anything else that might be on the disk(s) selected)\n"
@@ -322,23 +325,37 @@ installExpress(char *str)
 
     if (diskLabelEditor("express") == RET_FAIL)
 	return RET_FAIL;
-    
-    msgConfirm("Now it is time to select an installation subset.  There are a number of canned\n"
-	       "distributions, ranging from minimal installation sets to full X developer\n"
-	       "oriented configurations.  You can also select a custom software set if none\n"
-	       "of the provided configurations are suitable.");
-    while (1) {
-	if (!dmenuOpenSimple(&MenuDistributions))
-	    return RET_FAIL;
 
-	if (Dists || !msgYesNo("No distributions selected.  Are you sure you wish to continue?"))
-	    break;
+    /* If this is set, we have a power installation setup here.. */
+    cp = variable_get(DIST_SETS);
+    if (cp) {
+	/* These *ALL* have to be set at once.  Like I said - power installation setup */
+	if (sscanf(cp, "%x %x %x %x %x %x",
+		   &Dists, &DESDists, &SrcDists, &XF86Dists, &XF86ServerDists, &XF86FontDists) != 6)
+	    msgConfirm("Warning:  A %s variable was configured which did not set all\n"
+		       "distributions explicitly.  Some distributions will default to\n"
+		       "unselected as a result.", DIST_SETS);
     }
-    
-    msgConfirm("Finally, you must specify an installation medium.");
-    if (!dmenuOpenSimple(&MenuMedia))
-	return RET_FAIL;
-    
+    else {
+	msgConfirm("Now it is time to select an installation subset.  There are a number of canned\n"
+		   "distributions, ranging from minimal installation sets to full X developer\n"
+		   "oriented configurations.  You can also select a custom software set if none\n"
+		   "of the provided configurations are suitable.");
+	while (1) {
+	    if (!dmenuOpenSimple(&MenuDistributions))
+		return RET_FAIL;
+
+	    if (Dists || !msgYesNo("No distributions selected.  Are you sure you wish to continue?"))
+		break;
+	}
+    }
+
+    if (!mediaDevice) {
+	msgConfirm("Finally, you must specify an installation medium.");
+	if (!dmenuOpenSimple(&MenuMedia) || !mediaDevice)
+	    return RET_FAIL;
+    }
+
     if (installCommit("express") == RET_FAIL)
 	return RET_FAIL;
 
@@ -394,17 +411,17 @@ installCommit(char *str)
     if (i != RET_FAIL && distExtractAll(NULL) == RET_FAIL)
 	i = RET_FAIL;
 
-    if (i != RET_FAIL && installFixup() == RET_FAIL)
+    if (i != RET_FAIL && installFixup(NULL) == RET_FAIL)
 	i = RET_FAIL;
 
-    if (i != RET_FAIL && installFinal() == RET_FAIL)
+    if (i != RET_FAIL && installFinal(NULL) == RET_FAIL)
 	i = RET_FAIL;
 
     /* Write out any changes to /etc/sysconfig */
     if (RunningAsInit)
 	configSysconfig();
 
-    variable_set2(SYSTEM_INSTALLED, i == RET_FAIL ? "errors" : "yes");
+    variable_set2(SYSTEM_STATE, i == RET_FAIL ? "installed+errors" : "installed");
     dialog_clear();
     /* Don't print this if we're express installing */
     if (strcmp(str, "express")) {
@@ -421,7 +438,7 @@ installCommit(char *str)
 }
 
 int
-installFixup(void)
+installFixup(char *str)
 {
     Device **devs;
     int i;
@@ -472,21 +489,20 @@ installFixup(void)
 		}
 	    }
 	}
+	/* XXX Do all the last ugly work-arounds here which we'll try and excise someday right?? XXX */
+	/* BOGON #1:  XFree86 extracting /usr/X11R6 with root-only perms */
+	if (directoryExists("/usr/X11R6"))
+	    chmod("/usr/X11R6", 0755);
+
+	/* BOGON #2: We leave /etc in a bad state */
+	chmod("/etc", 0755);
     }
-
-    /* XXX Do all the last ugly work-arounds here which we'll try and excise someday right?? XXX */
-    /* BOGON #1:  XFree86 extracting /usr/X11R6 with root-only perms */
-    if (directoryExists("/usr/X11R6"))
-	chmod("/usr/X11R6", 0755);
-
-    /* BOGON #2: We leave /etc in a bad state */
-    chmod("/etc", 0755);
     return RET_SUCCESS;
 }
 
 /* Go newfs and/or mount all the filesystems we've been asked to */
 int
-installFilesystems(void)
+installFilesystems(char *str)
 {
     int i;
     Disk *disk;
@@ -497,18 +513,18 @@ installFilesystems(void)
     extern int MakeDevChunk(Chunk *c, char *n);
     Boolean upgrade = FALSE;
 
-    if (!checkLabels(&rootdev, &swapdev, &usrdev))
+    if (!(str && !strcmp(str, "script")) && !checkLabels(&rootdev, &swapdev, &usrdev))
 	return RET_FAIL;
 
     root = (PartInfo *)rootdev->private;
     command_clear();
-    upgrade = !strcmp(variable_get(SYSTEM_INSTALLED), "upgrade") ? TRUE : FALSE;
+    upgrade = str && !strcmp(str, "upgrade");
 
     /* First, create and mount the root device */
     sprintf(dname, "/dev/%s", rootdev->name);
     if (!MakeDevChunk(rootdev, "/dev") || !file_readable(dname)) {
 	msgConfirm("Unable to make device node for %s in /dev!\n"
-		   "The installation will be aborted.", rootdev->name);
+		   "The writing of filesystems will be aborted.", rootdev->name);
 	return RET_FAIL;
     }
 
@@ -606,6 +622,64 @@ installFilesystems(void)
     return RET_SUCCESS;
 }
 
+static struct _word {
+    char *name;
+    int (*handler)(char *str);
+} resWords[] = {
+    { "diskPartitionEditor",	diskPartitionEditor	},
+    { "diskPartitionWrite",	diskPartitionWrite	},
+    { "diskLabelEditor",	diskLabelEditor		},
+    { "diskLabelCommit",	diskLabelCommit		},
+    { "distReset",		distReset		},
+    { "distSetDeveloper",	distSetDeveloper	},
+    { "distSetXDeveloper",	distSetXDeveloper	},
+    { "distSetKernDeveloper",	distSetKernDeveloper	},
+    { "distSetMinimum",		distSetMinimum		},
+    { "distSetEverything",	distSetEverything	},
+    { "distSetDES",		distSetDES		},
+    { "distSetSrc",		distSetSrc		},
+    { "distSetXF86",		distSetXF86		},
+    { "distExtractAll",		distExtractAll		},
+    { "docBrowser",		docBrowser		},
+    { "docShowDocument",	docShowDocument		},
+    { "installCommit",		installCommit		},
+    { "installExpress",		installExpress		},
+    { "installUpgrade",		installUpgrade		},
+    { "installPreconfig",	installPreconfig	},
+    { "installFixup",		installFixup		},
+    { "installFinal",		installFinal		},
+    { "installFilesystems",	installFilesystems	},
+    { "mediaSetCDROM",		mediaSetCDROM		},
+    { "mediaSetFloppy",		mediaSetFloppy		},
+    { "mediaSetDOS",		mediaSetDOS		},
+    { "mediaSetTape",		mediaSetTape		},
+    { "mediaSetFTP",		mediaSetFTP		},
+    { "mediaSetFTPActive",	mediaSetFTPActive	},
+    { "mediaSetFTPPassive",	mediaSetFTPPassive	},
+    { "mediaSetUFS",		mediaSetUFS		},
+    { "mediaSetNFS",		mediaSetNFS		},
+    { "mediaSetFtpUserPass",	mediaSetFtpUserPass	},
+    { "mediaSetCPIOVerbosity",	mediaSetCPIOVerbosity	},
+    { "mediaGetType",		mediaGetType		},
+    { NULL, NULL },
+};
+
+static int
+call_possible_resword(char *name, char *value, int *status)
+{
+    int i, rval;
+
+    rval = 0;
+    for (i = 0; resWords[i].name; i++) {
+	if (!strcmp(name, resWords[i].name)) {
+	    *status = resWords[i].handler(value);
+	    rval = 1;
+	    break;
+	}
+    }
+    return rval;
+}
+
 /* From the top menu - try to mount the floppy and read a configuration file from it */
 int
 installPreconfig(char *str)
@@ -664,8 +738,17 @@ installPreconfig(char *str)
 	    if (attr_parse(cattr, fd) == RET_FAIL)
 		msgConfirm("Cannot parse configuration file %s!  Please verify your media.", cfg_file);
 	    else {
-		for (j = 0; cattr[j].name[0]; j++)
-		    variable_set2(cattr[j].name, cattr[j].value);
+		for (j = 0; cattr[j].name[0]; j++) {
+		    int status;
+
+		    if (call_possible_resword(cattr[j].name, cattr[j].value, &status)) {
+			if (status != RET_SUCCESS)
+			    msgDebug("macro call to %s(%s) returns %d status!\n", cattr[j].name,
+				     cattr[j].value, status);
+		    }
+		    else
+			variable_set2(cattr[j].name, cattr[j].value);
+		}
 		i = RET_SUCCESS;
 		msgConfirm("Configuration file %s loaded successfully!\n"
 			   "Some parameters may now have new default values.", cfg_file);
@@ -679,8 +762,8 @@ installPreconfig(char *str)
     return i;
 }
 
-void
-installVarDefaults(void)
+int
+installVarDefaults(char *unused)
 {
     /* Set default startup options */
     OptFlags = OPT_DEFAULT_FLAGS;
@@ -692,8 +775,11 @@ installVarDefaults(void)
     variable_set2(BROWSER_PACKAGE,	"lynx-2.4.2");
     variable_set2(BROWSER_BINARY,	"/usr/local/bin/lynx");
     variable_set2(CONFIG_FILE,		"freebsd.cfg");
-    if (getpid() != 1 && !variable_get(SYSTEM_INSTALLED))
-	variable_set2(SYSTEM_INSTALLED, "update");
+    if (getpid() != 1)
+	variable_set2(SYSTEM_STATE, "update");
+    else
+	variable_set2(SYSTEM_STATE, "init");
+    return RET_SUCCESS;
 }
 
 /* Copy the boot floppy contents into /stand */

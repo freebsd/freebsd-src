@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.25.2.12 1995/10/19 18:37:47 jkh Exp $
+ * $Id: media.c,v 1.25.2.13 1995/10/20 07:02:40 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -252,14 +252,17 @@ mediaSetFTP(char *str)
     static Device ftpDevice;
     char *cp;
 
-    if (!dmenuOpenSimple(&MenuMediaFTP))
-	return RET_FAIL;
-    cp = variable_get(FTP_PATH);
+    if (!(str && !strcmp(str, "script") && (cp = variable_get(FTP_PATH)))) {
+	if (!dmenuOpenSimple(&MenuMediaFTP))
+	    return RET_FAIL;
+	else
+	    cp = variable_get(FTP_PATH);
+    }
     if (!cp) {
-	msgConfirm("%s not set!  Please try again.", FTP_PATH);
+	msgConfirm("%s not set!  Not setting an FTP installation path, OK?", FTP_PATH);
 	return RET_FAIL;
     }
-    if (!strcmp(cp, "other")) {
+    else if (!strcmp(cp, "other")) {
 	variable_set2(FTP_PATH, "ftp://");
 	cp = variable_get_value(FTP_PATH, "Please specify the URL of a FreeBSD distribution on a\n"
 				"remote ftp site.  This site must accept either anonymous\n"
@@ -271,14 +274,13 @@ mediaSetFTP(char *str)
 	if (!cp || !*cp)
 	    return RET_FAIL;
     }
-    if (!cp || strncmp("ftp://", cp, 6))
+    if (strncmp("ftp://", cp, 6)) {
+	msgConfirm("Sorry, %s is an invalid URL!", cp);
 	return RET_FAIL;
+    }
     strcpy(ftpDevice.name, cp);
 
-    /* XXX hack: if str == NULL, we were called by an ftp strategy routine and don't need to reinit all */
-    if (!str)
-	return RET_DONE;
-    if (!tcpDeviceSelect())
+    if (!variable_get(VAR_IPADDR) && !tcpDeviceSelect())
 	return RET_FAIL;
 
     ftpDevice.type = DEVICE_TYPE_FTP;
@@ -311,10 +313,12 @@ mediaSetUFS(char *str)
     static Device ufsDevice;
     char *val;
 
-    val = msgGetInput(NULL, "Enter a fully qualified pathname for the directory\n"
-		      "containing the FreeBSD distribution files:");
-    if (!val)
-	return RET_FAIL;
+    if (!(str && !strcmp(str, "script") && (val = variable_get(UFS_PATH)))) {
+	val = variable_get_value(UFS_PATH, "Enter a fully qualified pathname for the directory\n"
+				 "containing the FreeBSD distribution files:");
+	if (!val)
+	    return RET_FAIL;
+    }
     strcpy(ufsDevice.name, "ufs");
     ufsDevice.type = DEVICE_TYPE_UFS;
     ufsDevice.init = dummyInit;
@@ -332,13 +336,15 @@ mediaSetNFS(char *str)
     static Device nfsDevice;
     char *cp;
 
-    cp = variable_get_value(NFS_PATH, "Please enter the full NFS file specification for the remote\n"
-			    "host and directory containing the FreeBSD distribution files.\n"
-			    "This should be in the format:  hostname:/some/freebsd/dir");
-    if (!cp)
-	return RET_FAIL;
+    if (!(str && !strcmp(str, "script") && (cp = variable_get(NFS_PATH)))) {
+	cp = variable_get_value(NFS_PATH, "Please enter the full NFS file specification for the remote\n"
+				"host and directory containing the FreeBSD distribution files.\n"
+				"This should be in the format:  hostname:/some/freebsd/dir");
+	if (!cp)
+	    return RET_FAIL;
+    }
     strncpy(nfsDevice.name, cp, DEV_NAME_MAX);
-    if (!tcpDeviceSelect())
+    if (!variable_get(VAR_IPADDR) && !tcpDeviceSelect())
 	return RET_FAIL;
     nfsDevice.type = DEVICE_TYPE_NFS;
     nfsDevice.init = mediaInitNFS;
@@ -492,7 +498,7 @@ mediaExtractDist(char *dir, int fd)
 }
 
 int
-mediaGetType(void)
+mediaGetType(char *unused)
 {
     if (!dmenuOpenSimple(&MenuMedia))
 	return RET_FAIL;
@@ -506,7 +512,7 @@ mediaVerify(void)
     if (!mediaDevice) {
 	msgConfirm("Media type not set!  Please select a media type\n"
 		   "from the Installation menu before proceeding.");
-	return mediaGetType() == RET_SUCCESS;
+	return mediaGetType(NULL) == RET_SUCCESS;
     }
     return TRUE;
 }
