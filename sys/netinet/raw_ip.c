@@ -36,6 +36,7 @@
 
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
+#include "opt_mac.h"
 #include "opt_random_ip_id.h"
 
 #include <sys/param.h>
@@ -144,16 +145,27 @@ rip_input(m, off)
 			continue;
 		if (last) {
 			struct mbuf *n = m_copy(m, 0, (int)M_COPYALL);
+			int policyfail = 0;
 
-#ifdef IPSEC
-			/* check AH/ESP integrity. */
-			if (n && ipsec4_in_reject_so(n, last->inp_socket)) {
-				m_freem(n);
-				ipsecstat.in_polvio++;
-				/* do not inject data to pcb */
-			} else
+			if (n != NULL) {
+#ifdef IPSSEC
+				/* check AH/ESP integrity. */
+				if (ipsec4_in_reject_so(n, last->inp_socket)) {
+					policyfail = 1;
+					ipsecstat.in_polvio++;
+					/* do not inject data to pcb */
+				}
 #endif /*IPSEC*/
-			if (n) {
+#ifdef MAC
+				if (policyfail == 0 &&
+				    mac_check_socket_receive(last->inp_socket,
+				    n) != 0)
+					policyfail = 1;
+#endif
+			}
+			if (policyfail)
+				m_freem(n);
+			else if (n) {
 				if (last->inp_flags & INP_CONTROLOPTS ||
 				    last->inp_socket->so_options & SO_TIMESTAMP)
 				    ip_savecontrol(last, &opts, ip, n);
@@ -171,16 +183,24 @@ rip_input(m, off)
 		}
 		last = inp;
 	}
-#ifdef IPSEC
-	/* check AH/ESP integrity. */
-	if (last && ipsec4_in_reject_so(m, last->inp_socket)) {
-		m_freem(m);
-		ipsecstat.in_polvio++;
-		ipstat.ips_delivered--;
-		/* do not inject data to pcb */
-	} else
-#endif /*IPSEC*/
 	if (last) {
+#ifdef IPSEC
+		/* check AH/ESP integrity. */
+		if (ipsec4_in_reject_so(m, last->inp_socket)) {
+			m_freem(m);
+			ipsecstat.in_polvio++;
+			ipstat.ips_delivered--;
+			/* do not inject data to pcb */
+			return;
+		}
+#endif /*IPSEC*/
+#ifdef MAC
+		if (mac_check_socket_receive(last->inp_socket, m) != 0) {
+			m_freem(m);
+			ipstat.ips_delivered--;
+			return;
+		}
+#endif
 		if (last->inp_flags & INP_CONTROLOPTS ||
 		    last->inp_socket->so_options & SO_TIMESTAMP)
 			ip_savecontrol(last, &opts, ip, m);
@@ -211,6 +231,10 @@ rip_output(m, so, dst)
 	register struct ip *ip;
 	register struct inpcb *inp = sotoinpcb(so);
 	int flags = (so->so_options & SO_DONTROUTE) | IP_ALLOWBROADCAST;
+
+#ifdef MAC
+	mac_create_mbuf_from_socket(so, m);
+#endif
 
 	/*
 	 * If the user handed us a complete IP packet, use it.
