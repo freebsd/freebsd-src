@@ -399,7 +399,7 @@ osf1_getrlimit(p, uap)
 {
 	struct __getrlimit_args /* {
 		syscallarg(u_int) which;
-		syscallarg(struct orlimit *) rlp;
+		syscallarg(struct rlimit *) rlp;
 	} */ a;
 
 	if (SCARG(uap, which) >= OSF1_RLIMIT_NLIMITS)
@@ -411,7 +411,7 @@ osf1_getrlimit(p, uap)
 		SCARG(&a, which) = RLIMIT_NOFILE;
 	else
 		return (0);
-	SCARG(&a, rlp) = (struct orlimit *)SCARG(uap, rlp);
+	SCARG(&a, rlp) = (struct rlimit *)SCARG(uap, rlp);
 
 	return getrlimit(p, &a);
 }
@@ -424,7 +424,7 @@ osf1_setrlimit(p, uap)
 {
 	struct __setrlimit_args /* {
 		syscallarg(u_int) which;
-		syscallarg(struct orlimit *) rlp;
+		syscallarg(struct rlimit *) rlp;
 	} */ a;
 
 	if (SCARG(uap, which) >= OSF1_RLIMIT_NLIMITS)
@@ -436,7 +436,7 @@ osf1_setrlimit(p, uap)
 		SCARG(&a, which) = RLIMIT_NOFILE;
 	else
 		return (0);
-	SCARG(&a, rlp) = (struct orlimit *)SCARG(uap, rlp);
+	SCARG(&a, rlp) = (struct rlimit *)SCARG(uap, rlp);
 
 	return setrlimit(p, &a);
 }
