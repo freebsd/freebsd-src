@@ -17,10 +17,6 @@ MLINKS=	bsdlabel.8 disklabel.8
 DPADD=	${LIBGEOM}
 LDADD=	-lgeom
 
-.if ${MACHINE} == "pc98"
-CFLAGS+=-DPC98
-.endif
-
 .include <bsd.prog.mk>
 
 test: ${PROG}
