@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: ctm_dequeue.c,v 1.1 1996/07/01 20:53:55 gpalmer Exp $
  */
 
 /* 
@@ -116,7 +116,7 @@ main(int argc, char **argv)
 	while(((!ISFILE) || (IGNORE)) && (HASNEXT))
 	    ftsent = ftsent->fts_link;
 
-	if ((!ISFILE) || (IGNORE) || (!HASNEXT))
+	if ((!ISFILE) || (IGNORE))
 	{
 	    err("No more chunks to mail");
 	    exit(0);
@@ -159,12 +159,21 @@ main(int argc, char **argv)
 
 	munmap(buffer, ftsent->fts_statp->st_size);
 	close(fp);
+
+	if (unlink(filename) < 0)
+	{
+	    err("unlink of `%s' failed", filename);
+	    exit(1);
+	}
 	
 	err("sent file `%s'", ftsent->fts_name);
 
 	if (ftsent->fts_link != NULL)
 	    ftsent = ftsent->fts_link;
+	else
+	    break;
     }
+
     err("exiting normally");
     return(0);
 }
