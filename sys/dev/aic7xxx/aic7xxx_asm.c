@@ -43,7 +43,7 @@
  * are token separators.
  *
  *-M*************************************************************************/
-static char id[] = "$Id: aic7xxx_asm.c,v 1.9 1995/05/30 07:57:33 rgrimes Exp $";
+static char id[] = "$Id: aic7xxx_asm.c,v 1.11 1996/01/05 01:48:07 gibbs Exp $";
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>
@@ -679,7 +679,7 @@ main(int argc, char **argv)
 			}
 			close(ifile);
 		}
-		execl("/usr/bin/cpp", "/usr/bin/cpp", "-P", "-", "-");
+		execl("/usr/bin/cpp", "/usr/bin/cpp", "-P", "-", "-", NULL);
 	}
 	return(EXIT_SUCCESS);
 }
