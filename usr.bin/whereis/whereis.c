@@ -114,20 +114,16 @@ scanopts(int argc, char **argv)
 			dirlist = &sourcedirs;
 		  dolist:
 			i = 0;
+			*dirlist = realloc(*dirlist, (i + 1) * sizeof(char *));
+			(*dirlist)[i] = NULL;
 			while (optind < argc &&
 			       strcmp(argv[optind], "-f") != 0 &&
 			       strcmp(argv[optind], "-B") != 0 &&
 			       strcmp(argv[optind], "-M") != 0 &&
 			       strcmp(argv[optind], "-S") != 0) {
-				*dirlist = realloc(*dirlist,
-						   (i + 2) * sizeof(char *));
-				if (*dirlist == NULL)
-					abort();
-				(*dirlist)[i] = argv[optind];
-				i++;
+				decolonify(argv[optind], dirlist, &i);
 				optind++;
 			}
-			(*dirlist)[i] = NULL;
 			break;
 
 		case 'b':
