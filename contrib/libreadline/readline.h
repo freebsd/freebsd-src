@@ -102,7 +102,7 @@ extern int
   rl_noninc_forward_search_again (), rl_noninc_reverse_search_again ();
 
 /* Things for vi mode. Not available unless readline is compiled -DVI_MODE. */
-extern int rl_vi_check (), rl_vi_textmod_command ();
+extern int rl_vi_check ();
 extern int
   rl_vi_undo (), rl_vi_redo (), rl_vi_tilde_expand (),
   rl_vi_movement_mode (), rl_vi_insertion_mode (), rl_vi_arg_digit (),
@@ -236,6 +236,10 @@ extern char *rl_library_version;
    whatever was in argv[0].  It is used when parsing conditionals. */
 extern char *rl_readline_name;
 
+/* The prompt readline uses.  This is set from the argument to
+   readline (), and should not be assigned to directly. */
+extern char *rl_prompt;
+
 /* The line buffer that is in use. */
 extern char *rl_line_buffer;
 
@@ -247,6 +251,11 @@ extern int rl_mark;
 extern int rl_done;
 
 extern int rl_pending_input;
+
+/* Non-zero if we called this function from _rl_dispatch().  It's present
+   so functions can find out whether they were called from a key binding
+   or directly from an application. */
+int rl_dispatching;
 
 /* The name of the terminal to use. */
 extern char *rl_terminal_name;
@@ -369,6 +378,14 @@ extern int rl_completion_type;
 /* Character appended to completed words when at the end of the line.  The
    default is a space.  Nothing is added if this is '\0'. */
 extern int rl_completion_append_character;
+
+/* Up to this many items will be displayed in response to a
+   possible-completions call.  After that, we ask the user if she
+   is sure she wants to see them all.  The default value is 100. */
+extern int rl_completion_query_items;
+
+/* If non-zero, then disallow duplicates in the matches. */
+extern int rl_ignore_completion_duplicates;
 
 /* If this is non-zero, completion is (temporarily) inhibited, and the
    completion character will be inserted as any other. */
