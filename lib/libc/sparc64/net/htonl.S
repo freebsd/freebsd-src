@@ -57,5 +57,5 @@
         .set CNAME(htonl),CNAME(__htonl)
 ENTRY(__htonl)
 	retl
-	 srl	%o0, 0, %o0	/* zero extend -- or do we sign extend? */
+	 srl	%o0, 0, %o0	/* zero extend */
 END(__htonl)
