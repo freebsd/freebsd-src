@@ -20,10 +20,6 @@ Revision History
 
 --*/
 
-//
-//
-//
-
 #define EFI_PARTITION   0xef
 #define MBR_SIZE        512
 
@@ -46,7 +42,7 @@ typedef struct {
 
 #define MBR_SIGNATURE           0xaa55
 #define MIN_MBR_DEVICE_SIZE     0x80000
-#define MBR_ERRATA_PAD          0x40000 // 128 MB
+#define MBR_ERRATA_PAD          0x40000	/* 128 MB */
 
 #define MAX_MBR_PARTITIONS  4   
 typedef struct {
