@@ -1,4 +1,4 @@
-<!-- $Id: synching.sgml,v 1.4 1996/12/16 22:38:07 mpp Exp $ -->
+<!-- $Id: synching.sgml,v 1.5 1996/12/19 20:24:37 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Synchronizing source trees over the Internet<label id="synching"></heading>
@@ -7,7 +7,7 @@
 
 <!--
 
-Last updated: $Date: 1996/12/16 22:38:07 $
+Last updated: $Date: 1996/12/19 20:24:37 $
 
 This document tries to describe the various ways in which a user may
 use the internet to keep development sources in synch.
@@ -19,10 +19,10 @@ or all areas, depending on what interests you.  The primary
 services we offer are CVSup and CTM.
 
 <p><bf>CVSup</bf> is the new kid on the block, it does everything that sup
-did and more, doing it also far more effeciently in terms of its demands
+did and more, doing it also far more efficiently in terms of its demands
 on server disk space and network resources.  Because of this, CVSup has
 largely replaced <ref id="sup"> in the FreeBSD Project.  Like sup, it also
-operates on a <em>pull</em> syncronization model.
+operates on a <em>pull</em> synchronization model.
 
 <p><bf>CTM</bf>, on the other hand, does not interactively compare
 the sources you have with those on the master archive.  Instead, a script
