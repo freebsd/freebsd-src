@@ -403,7 +403,8 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 			 */
 			if ((tbp = incore(vp, lbn + i)) != NULL &&
 			    (tbp->b_flags & B_INVAL) == 0) {
-				if (BUF_LOCK(tbp, LK_EXCLUSIVE | LK_NOWAIT))
+				if (BUF_LOCK(tbp,
+				    LK_EXCLUSIVE | LK_NOWAIT, NULL))
 					break;
 				BUF_UNLOCK(tbp);
 
@@ -794,7 +795,7 @@ cluster_wbuild(vp, size, start_lbn, len)
 		 */
 		if (((tbp = incore(vp, start_lbn)) == NULL) ||
 		  ((tbp->b_flags & (B_LOCKED | B_INVAL | B_DELWRI)) != B_DELWRI) ||
-		  BUF_LOCK(tbp, LK_EXCLUSIVE | LK_NOWAIT)) {
+		  BUF_LOCK(tbp, LK_EXCLUSIVE | LK_NOWAIT, NULL)) {
 			++start_lbn;
 			--len;
 			splx(s);
@@ -884,7 +885,8 @@ cluster_wbuild(vp, size, start_lbn, len)
 				    (bp->b_flags & (B_VMIO | B_NEEDCOMMIT))) ||
 				    (tbp->b_flags & B_LOCKED) ||
 				    tbp->b_wcred != bp->b_wcred ||
-				    BUF_LOCK(tbp, LK_EXCLUSIVE | LK_NOWAIT)) {
+				    BUF_LOCK(tbp, LK_EXCLUSIVE | LK_NOWAIT,
+				    NULL)) {
 					splx(s);
 					break;
 				}

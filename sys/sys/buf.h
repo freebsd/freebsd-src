@@ -273,7 +273,6 @@ struct buf {
 /*
  * Buffer locking
  */
-extern struct mtx buftimelock;		/* Interlock on setting prio and timo */
 extern const char *buf_wmesg;		/* Default buffer lock message */
 #define BUF_WMESG "bufwait"
 #include <sys/proc.h>			/* XXX for curthread */
@@ -288,37 +287,39 @@ extern const char *buf_wmesg;		/* Default buffer lock message */
  *
  * Get a lock sleeping non-interruptably until it becomes available.
  */
-static __inline int BUF_LOCK(struct buf *, int);
+static __inline int BUF_LOCK(struct buf *, int, struct mtx *);
 static __inline int
-BUF_LOCK(struct buf *bp, int locktype)
+BUF_LOCK(struct buf *bp, int locktype, struct mtx *interlock)
 {
 	int s, ret;
 
 	s = splbio();
-	mtx_lock(&buftimelock);
-	locktype |= LK_INTERLOCK;
+	mtx_lock(bp->b_lock.lk_interlock);
+	locktype |= LK_INTERNAL;
 	bp->b_lock.lk_wmesg = buf_wmesg;
 	bp->b_lock.lk_prio = PRIBIO + 4;
-	ret = lockmgr(&(bp)->b_lock, locktype, &buftimelock, curthread);
+	ret = lockmgr(&(bp)->b_lock, locktype, interlock, curthread);
 	splx(s);
 	return ret;
 }
 /*
  * Get a lock sleeping with specified interruptably and timeout.
  */
-static __inline int BUF_TIMELOCK(struct buf *, int, char *, int, int);
+static __inline int BUF_TIMELOCK(struct buf *, int, struct mtx *,
+    char *, int, int);
 static __inline int
-BUF_TIMELOCK(struct buf *bp, int locktype, char *wmesg, int catch, int timo)
+BUF_TIMELOCK(struct buf *bp, int locktype, struct mtx *interlock,
+    char *wmesg, int catch, int timo)
 {
 	int s, ret;
 
 	s = splbio();
-	mtx_lock(&buftimelock);
-	locktype |= LK_INTERLOCK | LK_TIMELOCK;
+	mtx_lock(bp->b_lock.lk_interlock);
+	locktype |= LK_INTERNAL | LK_TIMELOCK;
 	bp->b_lock.lk_wmesg = wmesg;
 	bp->b_lock.lk_prio = (PRIBIO + 4) | catch;
 	bp->b_lock.lk_timo = timo;
-	ret = lockmgr(&(bp)->b_lock, (locktype), &buftimelock, curthread);
+	ret = lockmgr(&(bp)->b_lock, (locktype), interlock, curthread);
 	splx(s);
 	return ret;
 }
