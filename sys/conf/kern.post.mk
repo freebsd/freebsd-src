@@ -1,8 +1,7 @@
-# kern.post.mk
-#
-# Unified Makefile for building kenrels.  This includes all the definitions
-# that need to be included after all the % directives, except %RULES and
-# things that act like they are part of %RULES
+
+# Part of unified Makefile for building kenrels.  This includes all
+# the definitions that need to be included after all the % directives,
+# except %RULES and things that act like they are part of %RULES
 #
 # Most make variables should not be defined in this file.  Instead, they
 # should be defined in the kern.pre.mk so that port makefiles can
@@ -11,17 +10,19 @@
 # $FreeBSD$
 #
 
+# XXX why are only some phony targets marked phony?
 .PHONY:	all modules
 
-depend: kernel-depend
 clean:  kernel-clean
 cleandepend:  kernel-cleandepend
 clobber: kernel-clobber
-tags:  kernel-tags
-install: kernel-install
+depend: kernel-depend
+# XXX "make install.debug" seems to install kernels twice.
 install.debug: kernel-install.debug
-reinstall: kernel-reinstall
+install: kernel-install
 reinstall.debug: kernel-reinstall.debug
+reinstall: kernel-reinstall
+tags:  kernel-tags
 
 .if !defined(DEBUG)
 FULLKERNEL=	${KERNEL_KO}
@@ -78,6 +79,8 @@ hack.So: Makefile
 assym.s: $S/kern/genassym.sh genassym.o
 	NM=${NM} OBJFORMAT=elf sh $S/kern/genassym.sh genassym.o > ${.TARGET}
 
+# XXX used to force -elf after CFLAGS to work around breakage of cc -aout
+# (genassym.sh makes some assumptions and cc stopped satisfying them).
 genassym.o: $S/$M/$M/genassym.c
 	${CC} -c ${CFLAGS:N-fno-common} $S/$M/$M/genassym.c
 
@@ -164,16 +167,16 @@ kernel-reinstall kernel-reinstall.debug:
 
 .if !defined(MODULES_WITH_WORLD) && !defined(NO_MODULES) && exists($S/modules)
 all:	modules
-depend: modules-depend
 clean:  modules-clean
 cleandepend:  modules-cleandepend
 cleandir:  modules-cleandir
 clobber:  modules-clobber
-tags:  modules-tags
-install: modules-install
+depend: modules-depend
 install.debug: modules-install.debug
-reinstall: modules-reinstall
+install: modules-install
 reinstall.debug: modules-reinstall.debug
+reinstall: modules-reinstall
+tags:  modules-tags
 .endif
 
 modules:
@@ -181,22 +184,22 @@ modules:
 	cd $S/modules ; ${MKMODULESENV} ${MAKE} obj ; \
 	    ${MKMODULESENV} ${MAKE} all
 
-modules-depend:
-	@mkdir -p ${.OBJDIR}/modules
-	cd $S/modules ; ${MKMODULESENV} ${MAKE} obj ; \
-	    ${MKMODULESENV} ${MAKE} depend
-
 modules-clean:
 	cd $S/modules ; ${MKMODULESENV} ${MAKE} clean
 
 modules-cleandepend:
 	cd $S/modules ; ${MKMODULESENV} ${MAKE} cleandepend
 
+modules-cleandir:
+	cd $S/modules ; ${MKMODULESENV} ${MAKE} cleandir
+
 modules-clobber:	modules-clean
 	rm -rf ${MKMODULESENV}
 
-modules-cleandir:
-	cd $S/modules ; ${MKMODULESENV} ${MAKE} cleandir
+modules-depend:
+	@mkdir -p ${.OBJDIR}/modules
+	cd $S/modules ; ${MKMODULESENV} ${MAKE} obj ; \
+	    ${MKMODULESENV} ${MAKE} depend
 
 modules-tags:
 	cd $S/modules ; ${MKMODULESENV} ${MAKE} tags
@@ -207,7 +210,16 @@ modules-install modules-reinstall:
 modules-install.debug modules-reinstall.debug:
 	cd $S/modules ; ${MKMODULESENV} ${MAKE} install.debug
 
+modules-tags:
+	cd $S/modules ; env ${MKMODULESENV} ${MAKE} tags
+
 config.o:
+	${NORMAL_C}
+
+env.o:	env.c
+	${NORMAL_C}
+
+hints.o:	hints.c
 	${NORMAL_C}
 
 vers.c: $S/conf/newvers.sh $S/sys/param.h ${SYSTEM_DEP}
@@ -216,12 +228,6 @@ vers.c: $S/conf/newvers.sh $S/sys/param.h ${SYSTEM_DEP}
 # XXX strictly, everything depends on Makefile because changes to ${PROF}
 # only appear there, but we don't handle that.
 vers.o:
-	${NORMAL_C}
-
-hints.o:	hints.c
-	${NORMAL_C}
-
-env.o:	env.c
 	${NORMAL_C}
 
 vnode_if.c: $S/tools/vnode_if.awk $S/kern/vnode_if.src
