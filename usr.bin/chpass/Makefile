@@ -27,8 +27,8 @@ COPTS+=	-DYP -I. -I${.CURDIR}/../../libexec/ypxfr \
 #Some people need this, uncomment to activate
 #COPTS+= -DRESTRICT_FULLNAME_CHANGE
 
-DPADD=	${LIBRPCSVC} ${LIBCRYPT} ${LIBMD}
-LDADD+=	-lrpcsvc -lcrypt -lmd
+DPADD=	${LIBRPCSVC} ${LIBCRYPT}
+LDADD+=	-lrpcsvc -lcrypt
 
 CLEANFILES= ${GENSRCS}
 
