@@ -92,6 +92,7 @@ extern int __mb_cur_max;
 #define	MB_CUR_MAX	__mb_cur_max
 
 __BEGIN_DECLS
+void	 _Exit(int) __dead2;
 void	 abort(void) __dead2;
 int	 abs(int) __pure2;
 int	 atexit(void (*)(void));
@@ -181,9 +182,9 @@ long long
 lldiv_t	 lldiv(long long, long long) __pure2;
 #endif
 int	 mergesort(void *, size_t, size_t, int (*)(const void *, const void *));
+void	 qsort_r(void *, size_t, size_t, void *,
+	    int (*)(void *, const void *, const void *));
 int	 radixsort(const unsigned char **, int, const unsigned char *,
-	    unsigned);
-int	 sradixsort(const unsigned char **, int, const unsigned char *,
 	    unsigned);
 int	 rand_r(unsigned *);
 long	 random(void);
@@ -191,6 +192,8 @@ void    *reallocf(void *, size_t);
 char	*realpath(const char *, char resolved_path[]);
 void	 setprogname(const char *);
 char	*setstate(char *);
+int	 sradixsort(const unsigned char **, int, const unsigned char *,
+	    unsigned);
 void	 sranddev(void);
 void	 srandom(unsigned long);
 void	 srandomdev(void);
