@@ -88,11 +88,10 @@ static int	flushbuflist(struct bufv *bufv, int flags, struct bufobj *bo,
 		    int slpflag, int slptimeo);
 static void	syncer_shutdown(void *arg, int howto);
 static int	vtryrecycle(struct vnode *vp);
-static void	vx_lock(struct vnode *vp);
-static void	vx_unlock(struct vnode *vp);
 static void	vbusy(struct vnode *vp);
 static void	vdropl(struct vnode *vp);
 static void	vholdl(struct vnode *);
+static void	vinactive(struct vnode *, struct thread *);
 
 /*
  * Enable Giant pushdown based on whether or not the vm is mpsafe in this
@@ -545,6 +544,7 @@ vlrureclaim(struct mount *mp)
 	trigger = cnt.v_page_count * 2 / usevnodes;
 
 	done = 0;
+	vn_start_write(NULL, &mp, V_WAIT);
 	MNT_ILOCK(mp);
 	count = mp->mnt_nvnodelistsize / 10 + 1;
 	while (count && (vp = TAILQ_FIRST(&mp->mnt_nvnodelist)) != NULL) {
@@ -554,11 +554,19 @@ vlrureclaim(struct mount *mp)
 		if (vp->v_type != VNON &&
 		    vp->v_type != VBAD &&
 		    VI_TRYLOCK(vp)) {
-			if (VMIGHTFREE(vp) &&           /* critical path opt */
+			/* critical path opt */
+			if (LIST_EMPTY(&(vp)->v_cache_src) &&
+			    !(vp)->v_usecount &&
 			    (vp->v_object == NULL ||
 			    vp->v_object->resident_page_count < trigger)) {
+				struct thread *td;
+
+				td = curthread;
 				MNT_IUNLOCK(mp);
-				vgonel(vp, curthread);
+				VOP_LOCK(vp, LK_INTERLOCK|LK_EXCLUSIVE, td);
+				if ((vp->v_iflag & VI_DOOMED) == 0)
+					vgone(vp);
+				VOP_UNLOCK(vp, 0, td);
 				done++;
 				MNT_ILOCK(mp);
 			} else
@@ -567,6 +575,7 @@ vlrureclaim(struct mount *mp)
 		--count;
 	}
 	MNT_IUNLOCK(mp);
+	vn_finished_write(mp);
 	return done;
 }
 
@@ -636,7 +645,6 @@ static struct kproc_desc vnlru_kp = {
 };
 SYSINIT(vnlru, SI_SUB_KTHREAD_UPDATE, SI_ORDER_FIRST, kproc_start, &vnlru_kp)
 
-
 /*
  * Routines having to do with the management of the vnode table.
  */
@@ -653,18 +661,13 @@ vtryrecycle(struct vnode *vp)
 	struct mount *vnmp;
 	int error;
 
-	/* Don't recycle if we can't get the interlock */
-	if (!VI_TRYLOCK(vp))
-		return (EWOULDBLOCK);
-	if (!VCANRECYCLE(vp)) {
-		VI_UNLOCK(vp);
-		return (EBUSY);
-	}
+	ASSERT_VI_LOCKED(vp, "vtryrecycle");
+	error = 0;
 	/*
 	 * This vnode may found and locked via some other list, if so we
 	 * can't recycle it yet.
 	 */
-	if (vn_lock(vp, LK_INTERLOCK | LK_EXCLUSIVE | LK_NOWAIT, td) != 0)
+	if (VOP_LOCK(vp, LK_INTERLOCK | LK_EXCLUSIVE | LK_NOWAIT, td) != 0)
 		return (EWOULDBLOCK);
 	/*
 	 * Don't recycle if its filesystem is being suspended.
@@ -733,14 +736,18 @@ vtryrecycle(struct vnode *vp)
 	TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
 	vp->v_iflag &= ~VI_FREE;
 	mtx_unlock(&vnode_free_list_mtx);
-	vp->v_iflag |= VI_DOOMED;
-	if ((vp->v_type != VBAD) || (vp->v_data != NULL)) {
-		VOP_UNLOCK(vp, 0, td);
+	if ((vp->v_iflag & VI_DOOMED) == 0) {
+		vp->v_iflag |= VI_DOOMED;
 		vgonel(vp, td);
-	} else
-		VOP_UNLOCK(vp, LK_INTERLOCK, td);
-	vn_finished_write(vnmp);
-	return (0);
+		VI_LOCK(vp);
+	}
+	/*
+	 * If someone ref'd the vnode while we were cleaning, we have to
+	 * free it once the last ref is dropped.
+	 */
+	if (vp->v_usecount || vp->v_holdcnt)
+		error = EBUSY;
+	VI_UNLOCK(vp);
 done:
 	VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(vnmp);
@@ -788,16 +795,30 @@ getnewvnode(tag, mp, vops, vpp)
 		int error;
 		int count;
 
-		for (count = 0; count < freevnodes; count++) {
+		for (count = 0; count < freevnodes; vp = NULL, count++) {
 			vp = TAILQ_FIRST(&vnode_free_list);
+			/*
+			 * The list can be modified while the free_list_mtx
+			 * has been dropped and vp could be NULL here.
+			 */
+			if (!vp)
+				break;
 			TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
 			TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
+			/*
+			 * Don't recycle if we can't get the interlock.
+			 */
+			if (!VI_TRYLOCK(vp))
+				continue;
+			if (!VCANRECYCLE(vp)) {
+				VI_UNLOCK(vp);
+				continue;
+			}
 			mtx_unlock(&vnode_free_list_mtx);
 			error = vtryrecycle(vp);
 			mtx_lock(&vnode_free_list_mtx);
 			if (error == 0)
 				break;
-			vp = NULL;
 		}
 	}
 	if (vp) {
@@ -1783,49 +1804,52 @@ vget(vp, flags, td)
 {
 	int error;
 
+	error = 0;
+	if ((flags & LK_INTERLOCK) == 0)
+		VI_LOCK(vp);
 	/*
 	 * If the vnode is in the process of being cleaned out for
 	 * another use, we wait for the cleaning to finish and then
 	 * return failure. Cleaning is determined by checking that
-	 * the VI_XLOCK flag is set.
+	 * the VI_DOOMED flag is set.
 	 */
-	if ((flags & LK_INTERLOCK) == 0)
-		VI_LOCK(vp);
-	if (vp->v_iflag & VI_XLOCK && vp->v_vxthread != curthread) {
-		if ((flags & LK_NOWAIT) == 0) {
-			vx_waitl(vp);
-			VI_UNLOCK(vp);
-			return (ENOENT);
-		}
+	if (vp->v_iflag & VI_DOOMED && vp->v_vxthread != td &&
+	    (flags & LK_NOWAIT)) {
 		VI_UNLOCK(vp);
 		return (EBUSY);
 	}
-
 	v_incr_usecount(vp, 1);
 
 	if (VSHOULDBUSY(vp))
 		vbusy(vp);
-	if (flags & LK_TYPE_MASK) {
-		if ((error = vn_lock(vp, flags | LK_INTERLOCK, td)) != 0) {
-			/*
-			 * must expand vrele here because we do not want
-			 * to call VOP_INACTIVE if the reference count
-			 * drops back to zero since it was never really
-			 * active. We must remove it from the free list
-			 * before sleeping so that multiple processes do
-			 * not try to recycle it.
-			 */
-			VI_LOCK(vp);
-			v_incr_usecount(vp, -1);
-			if (VSHOULDFREE(vp))
-				vfree(vp);
-			else
-				vlruvp(vp);
-			VI_UNLOCK(vp);
-		}
+	if ((flags & LK_TYPE_MASK) == 0) {
+		if (vp->v_iflag & VI_DOOMED)
+			error = ENOENT;
+		VI_UNLOCK(vp);
 		return (error);
 	}
-	VI_UNLOCK(vp);
+	if ((error = vn_lock(vp, flags | LK_INTERLOCK, td)) != 0) {
+		/*
+		 * must expand vrele here because we do not want
+		 * to call VOP_INACTIVE if the reference count
+		 * drops back to zero since it was never really
+		 * active. We must remove it from the free list
+		 * before sleeping so that multiple processes do
+		 * not try to recycle it.
+		 */
+		VI_LOCK(vp);
+		v_incr_usecount(vp, -1);
+		if (VSHOULDFREE(vp))
+			vfree(vp);
+		else
+			vlruvp(vp);
+		VI_UNLOCK(vp);
+		return (error);
+	}
+	if (vp->v_iflag & VI_DOOMED && vp->v_vxthread != td) {
+		VOP_UNLOCK(vp, 0, td);
+		return (ENOENT);
+	}
 	return (0);
 }
 
@@ -1897,15 +1921,8 @@ vrele(vp)
 		 */
 		if (vn_lock(vp, LK_EXCLUSIVE | LK_INTERLOCK, td) == 0) {
 			VI_LOCK(vp);
-			VNASSERT((vp->v_iflag & VI_DOINGINACT) == 0, vp,
-			    ("vrele: recursed on VI_DOINGINACT"));
-			vp->v_iflag |= VI_DOINGINACT;
-			VI_UNLOCK(vp);
-			VOP_INACTIVE(vp, td);
-			VI_LOCK(vp);
-			VNASSERT(vp->v_iflag & VI_DOINGINACT, vp,
-			    ("vrele: lost VI_DOINGINACT"));
-			vp->v_iflag &= ~VI_DOINGINACT;
+			vinactive(vp, td);
+			VOP_UNLOCK(vp, 0, td);
 		} else
 			VI_LOCK(vp);
 		if (VSHOULDFREE(vp))
@@ -1949,20 +1966,8 @@ vput(vp)
 
 	if (vp->v_usecount == 1) {
 		v_incr_usecount(vp, -1);
-		/*
-		 * We must call VOP_INACTIVE with the node locked, so
-		 * we just need to release the vnode mutex. Mark as
-		 * as VI_DOINGINACT to avoid recursion.
-		 */
-		VNASSERT((vp->v_iflag & VI_DOINGINACT) == 0, vp,
-		    ("vput: recursed on VI_DOINGINACT"));
-		vp->v_iflag |= VI_DOINGINACT;
-		VI_UNLOCK(vp);
-		VOP_INACTIVE(vp, td);
-		VI_LOCK(vp);
-		VNASSERT(vp->v_iflag & VI_DOINGINACT, vp,
-		    ("vput: lost VI_DOINGINACT"));
-		vp->v_iflag &= ~VI_DOINGINACT;
+		vinactive(vp, td);
+		VOP_UNLOCK(vp, 0, td);
 		if (VSHOULDFREE(vp))
 			vfree(vp);
 		else
@@ -2022,6 +2027,22 @@ vdropl(struct vnode *vp)
 		vfree(vp);
 	else
 		vlruvp(vp);
+}
+
+static void
+vinactive(struct vnode *vp, struct thread *td)
+{
+	ASSERT_VOP_LOCKED(vp, "vinactive");
+	ASSERT_VI_LOCKED(vp, "vinactive");
+	VNASSERT((vp->v_iflag & VI_DOINGINACT) == 0, vp,
+	    ("vinactive: recursed on VI_DOINGINACT"));
+	vp->v_iflag |= VI_DOINGINACT;
+	VI_UNLOCK(vp);
+	VOP_INACTIVE(vp, td);
+	VI_LOCK(vp);
+	VNASSERT(vp->v_iflag & VI_DOINGINACT, vp,
+	    ("vinactive: lost VI_DOINGINACT"));
+	vp->v_iflag &= ~VI_DOINGINACT;
 }
 
 /*
@@ -2109,19 +2130,16 @@ loop:
 			}
 		} else
 			VI_LOCK(vp);
-
-		VOP_UNLOCK(vp, 0, td);
-
 		/*
 		 * With v_usecount == 0, all we need to do is clear out the
 		 * vnode data structures and we are done.
 		 */
 		if (vp->v_usecount == 0) {
 			vgonel(vp, td);
+			VOP_UNLOCK(vp, 0, td);
 			MNT_ILOCK(mp);
 			continue;
 		}
-
 		/*
 		 * If FORCECLOSE is set, forcibly close the vnode. For block
 		 * or character devices, revert to an anonymous device. For
@@ -2131,9 +2149,11 @@ loop:
 			VNASSERT(vp->v_type != VCHR && vp->v_type != VBLK, vp,
 			    ("device VNODE %p is FORCECLOSED", vp));
 			vgonel(vp, td);
+			VOP_UNLOCK(vp, 0, td);
 			MNT_ILOCK(mp);
 			continue;
 		}
+		VOP_UNLOCK(vp, 0, td);
 #ifdef DIAGNOSTIC
 		if (busyprt)
 			vprint("vflush: busy vnode", vp);
@@ -2154,7 +2174,9 @@ loop:
 		    ("vflush: usecount %d < rootrefs %d",
 		     rootvp->v_usecount, rootrefs));
 		if (busy == 1 && rootvp->v_usecount == rootrefs) {
-			vgonel(rootvp, td);
+			VOP_LOCK(rootvp, LK_EXCLUSIVE|LK_INTERLOCK, td);
+			vgone(rootvp);
+			VOP_UNLOCK(rootvp, 0, td);
 			busy = 0;
 		} else
 			VI_UNLOCK(rootvp);
@@ -2187,60 +2209,6 @@ vlruvp(struct vnode *vp)
 #endif
 }
 
-static void
-vx_lock(struct vnode *vp)
-{
-
-	ASSERT_VI_LOCKED(vp, "vx_lock");
-
-	/*
-	 * Prevent the vnode from being recycled or brought into use while we
-	 * clean it out.
-	 */
-	if (vp->v_iflag & VI_XLOCK)
-		panic("vx_lock: deadlock");
-	vp->v_iflag |= VI_XLOCK;
-	vp->v_vxthread = curthread;
-}
-
-static void
-vx_unlock(struct vnode *vp)
-{
-	ASSERT_VI_LOCKED(vp, "vx_unlock");
-	vp->v_iflag &= ~VI_XLOCK;
-	vp->v_vxthread = NULL;
-	if (vp->v_iflag & VI_XWANT) {
-		vp->v_iflag &= ~VI_XWANT;
-		wakeup(vp);
-	}
-}
-
-int
-vx_wait(struct vnode *vp)
-{
-	int locked;
-
-	ASSERT_VI_UNLOCKED(vp, "vx_wait");
-	VI_LOCK(vp);
-	locked = vx_waitl(vp);
-	VI_UNLOCK(vp);
-	return (locked);
-}
-
-int
-vx_waitl(struct vnode *vp)
-{
-	int locked = 0;
-
-	ASSERT_VI_LOCKED(vp, "vx_wait");
-	while (vp->v_iflag & VI_XLOCK) {
-		locked = 1;
-		vp->v_iflag |= VI_XWANT;
-		msleep(vp, VI_MTX(vp), PINOD, "vxwait", 0);
-	}
-	return (locked);
-}
-
 /*
  * Recycle an unused vnode to the front of the free list.
  * Release the passed interlock if the vnode will be recycled.
@@ -2249,6 +2217,7 @@ int
 vrecycle(struct vnode *vp, struct thread *td)
 {
 
+	ASSERT_VOP_LOCKED(vp, "vrecycle");
 	VI_LOCK(vp);
 	if (vp->v_usecount == 0) {
 		vgonel(vp, td);
@@ -2266,6 +2235,7 @@ void
 vgone(struct vnode *vp)
 {
 	struct thread *td = curthread;	/* XXX */
+	ASSERT_VOP_LOCKED(vp, "vgone");
 
 	VI_LOCK(vp);
 	vgonel(vp, td);
@@ -2278,18 +2248,10 @@ void
 vgonel(struct vnode *vp, struct thread *td)
 {
 	int active;
+	int doomed;
 
-	/*
-	 * If a vgone (or vclean) is already in progress,
-	 * wait until it is done and return.
-	 */
+	ASSERT_VOP_LOCKED(vp, "vgonel");
 	ASSERT_VI_LOCKED(vp, "vgonel");
-	if (vx_waitl(vp)) {
-		VI_UNLOCK(vp);
-		return;
-	}
-
-	vx_lock(vp);
 
 	/*
 	 * Check to see if the vnode is in use. If so we have to reference it
@@ -2300,13 +2262,13 @@ vgonel(struct vnode *vp, struct thread *td)
 		v_incr_usecount(vp, 1);
 
 	/*
-	 * Even if the count is zero, the VOP_INACTIVE routine may still
-	 * have the object locked while it cleans it out. The VOP_LOCK
-	 * ensures that the VOP_INACTIVE routine is done with its work.
-	 * For active vnodes, it ensures that no other activity can
-	 * occur while the underlying object is being cleaned out.
+	 * See if we're already doomed, if so, this is coming from a
+	 * successful vtryrecycle();
 	 */
-	VOP_LOCK(vp, LK_DRAIN | LK_INTERLOCK, td);
+	doomed = (vp->v_iflag & VI_DOOMED);
+	vp->v_iflag |= VI_DOOMED;
+	vp->v_vxthread = curthread;
+	VI_UNLOCK(vp);
 
 	/*
 	 * Clean out any buffers associated with the vnode.
@@ -2318,71 +2280,35 @@ vgonel(struct vnode *vp, struct thread *td)
 		vinvalbuf(vp, 0, td, 0, 0);
 
 	/*
-	 * Any other processes trying to obtain this lock must first
-	 * wait for VXLOCK to clear, then call the new lock operation.
-	 */
-	VOP_UNLOCK(vp, 0, td);
-
-	/*
 	 * If purging an active vnode, it must be closed and
-	 * deactivated before being reclaimed. Note that the
-	 * VOP_INACTIVE will unlock the vnode.
+	 * deactivated before being reclaimed.
 	 */
 	if (active) {
 		VOP_CLOSE(vp, FNONBLOCK, NOCRED, td);
 		VI_LOCK(vp);
-		if ((vp->v_iflag & VI_DOINGINACT) == 0) {
-			VNASSERT((vp->v_iflag & VI_DOINGINACT) == 0, vp,
-			    ("vclean: recursed on VI_DOINGINACT"));
-			vp->v_iflag |= VI_DOINGINACT;
-			VI_UNLOCK(vp);
-			if (vn_lock(vp, LK_EXCLUSIVE | LK_NOWAIT, td) != 0)
-				panic("vclean: cannot relock.");
-			VOP_INACTIVE(vp, td);
-			VI_LOCK(vp);
-			VNASSERT(vp->v_iflag & VI_DOINGINACT, vp,
-			    ("vclean: lost VI_DOINGINACT"));
-			vp->v_iflag &= ~VI_DOINGINACT;
-		}
+		if ((vp->v_iflag & VI_DOINGINACT) == 0)
+			vinactive(vp, td);
 		VI_UNLOCK(vp);
 	}
 	/*
 	 * Reclaim the vnode.
 	 */
 	if (VOP_RECLAIM(vp, td))
-		panic("vclean: cannot reclaim");
+		panic("vgone: cannot reclaim");
 
 	VNASSERT(vp->v_object == NULL, vp,
 	    ("vop_reclaim left v_object vp=%p, tag=%s", vp, vp->v_tag));
 
-	if (active) {
-		/*
-		 * Inline copy of vrele() since VOP_INACTIVE
-		 * has already been called.
-		 */
-		VI_LOCK(vp);
-		v_incr_usecount(vp, -1);
-		if (vp->v_usecount <= 0) {
-#ifdef INVARIANTS
-			if (vp->v_usecount < 0 || vp->v_writecount != 0) {
-				vprint("vclean: bad ref count", vp);
-				panic("vclean: ref cnt");
-			}
-#endif
-			if (VSHOULDFREE(vp))
-				vfree(vp);
-		}
-		VI_UNLOCK(vp);
-	}
 	/*
 	 * Delete from old mount point vnode list.
 	 */
 	delmntque(vp);
 	cache_purge(vp);
 	VI_LOCK(vp);
-	if (VSHOULDFREE(vp))
-		vfree(vp);
-
+	if (active) {
+		v_incr_usecount(vp, -1);
+		VNASSERT(vp->v_usecount >= 0, vp, ("vgone: bad ref count"));
+	}
 	/*
 	 * Done with purge, reset to the standard lock and
 	 * notify sleepers of the grim news.
@@ -2390,14 +2316,8 @@ vgonel(struct vnode *vp, struct thread *td)
 	vp->v_vnlock = &vp->v_lock;
 	vp->v_op = &dead_vnodeops;
 	vp->v_tag = "none";
-
-	VI_UNLOCK(vp);
-
-	/*
-	 * If special device, remove it from special device alias list
-	 * if it is on one.
-	 */
-	VI_LOCK(vp);
+	vp->v_type = VBAD;
+	vp->v_vxthread = NULL;
 
 	/*
 	 * If it is on the freelist and not already at the head,
@@ -2409,7 +2329,7 @@ vgonel(struct vnode *vp, struct thread *td)
 	 * incremented first, vgone would (incorrectly) try to
 	 * close the previous instance of the underlying object.
 	 */
-	if (vp->v_usecount == 0 && !(vp->v_iflag & VI_DOOMED)) {
+	if (vp->v_usecount == 0 && vp->v_holdcnt == 0 && !doomed) {
 		mtx_lock(&vnode_free_list_mtx);
 		if (vp->v_iflag & VI_FREE) {
 			TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
@@ -2420,9 +2340,6 @@ vgonel(struct vnode *vp, struct thread *td)
 		TAILQ_INSERT_HEAD(&vnode_free_list, vp, v_freelist);
 		mtx_unlock(&vnode_free_list_mtx);
 	}
-
-	vp->v_type = VBAD;
-	vx_unlock(vp);
 	VI_UNLOCK(vp);
 }
 
@@ -2483,10 +2400,6 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 		strcat(buf, "|VV_TEXT");
 	if (vp->v_vflag & VV_SYSTEM)
 		strcat(buf, "|VV_SYSTEM");
-	if (vp->v_iflag & VI_XLOCK)
-		strcat(buf, "|VI_XLOCK");
-	if (vp->v_iflag & VI_XWANT)
-		strcat(buf, "|VI_XWANT");
 	if (vp->v_iflag & VI_DOOMED)
 		strcat(buf, "|VI_DOOMED");
 	if (vp->v_iflag & VI_FREE)
@@ -2495,7 +2408,9 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 	if (mtx_owned(VI_MTX(vp)))
 		printf(" VI_LOCKed");
 	if (vp->v_object != NULL);
-		printf("    v_object %p\n", vp->v_object);
+		printf("    v_object %p ref %d pages %d\n",
+		    vp->v_object, vp->v_object->ref_count,
+		    vp->v_object->resident_page_count);
 	printf("    ");
 	lockmgr_printinfo(vp->v_vnlock);
 	printf("\n");
@@ -2795,11 +2710,6 @@ loop:
 		}
 
 		VI_LOCK(vp);
-		if (vp->v_iflag & VI_XLOCK) {
-			VI_UNLOCK(vp);
-			continue;
-		}
-
 		if ((vp->v_iflag & VI_OBJDIRTY) &&
 		    (flags == MNT_WAIT || VOP_ISLOCKED(vp, NULL) == 0)) {
 			MNT_IUNLOCK(mp);
@@ -2844,14 +2754,15 @@ vfree(struct vnode *vp)
 	ASSERT_VI_LOCKED(vp, "vfree");
 	mtx_lock(&vnode_free_list_mtx);
 	VNASSERT((vp->v_iflag & VI_FREE) == 0, vp, ("vnode already free"));
-	if (vp->v_iflag & VI_AGE) {
+	VNASSERT(VSHOULDFREE(vp), vp, ("vfree: freeing when we shouldn't"));
+	if (vp->v_iflag & (VI_AGE|VI_DOOMED)) {
 		TAILQ_INSERT_HEAD(&vnode_free_list, vp, v_freelist);
 	} else {
 		TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
 	}
 	freevnodes++;
 	mtx_unlock(&vnode_free_list_mtx);
-	vp->v_iflag &= ~VI_AGE;
+	vp->v_iflag &= ~(VI_AGE|VI_DOOMED);
 	vp->v_iflag |= VI_FREE;
 }
 
@@ -3061,7 +2972,6 @@ sync_inactive(ap)
 	} */ *ap;
 {
 
-	VOP_UNLOCK(ap->a_vp, 0, ap->a_td);
 	vgone(ap->a_vp);
 	return (0);
 }
@@ -3376,8 +3286,7 @@ void
 assert_vop_locked(struct vnode *vp, const char *str)
 {
 
-	if (vp && !IGNORE_LOCK(vp) && VOP_ISLOCKED(vp, NULL) == 0 &&
-	  !((vp->v_iflag & VI_XLOCK) && vp->v_vxthread == curthread))
+	if (vp && !IGNORE_LOCK(vp) && VOP_ISLOCKED(vp, NULL) == 0)
 		vfs_badlock("is not locked but should be", str, vp);
 }
 
@@ -3515,11 +3424,6 @@ vop_lock_pre(void *ap)
 {
 	struct vop_lock_args *a = ap;
 
-	if (a->a_vp->v_iflag & VI_XLOCK &&
-	    a->a_vp->v_vxthread != curthread) {
-		vprint("vop_lock_pre:", a->a_vp);
-		panic("vop_lock_pre: locked while xlock held.\n");
-	}
 	if ((a->a_flags & LK_INTERLOCK) == 0)
 		ASSERT_VI_UNLOCKED(a->a_vp, "VOP_LOCK");
 	else
