@@ -313,27 +313,6 @@ password file, with passwords intact
 .Xr db 3 Ns -format
 password database, with passwords intact
 .El
-.Sh SEE ALSO
-.Xr chpass 1 ,
-.Xr login 1 ,
-.Xr passwd 1 ,
-.Xr getpwent 3 ,
-.Xr login.conf 5 ,
-.Xr netgroup 5 ,
-.Xr adduser 8 ,
-.Xr pwd_mkdb 8 ,
-.Xr vipw 8 ,
-.Xr yp 8
-.Pp
-.%T "Managing NFS and NIS"
-(O'Reilly & Associates)
-.Sh BUGS
-User information should (and eventually will) be stored elsewhere.
-.Pp
-Placing
-.Sq compat
-exclusions in the file after any inclusions will have
-unexpected results.
 .Sh COMPATIBILITY
 The password file format has changed since
 .Bx 4.3 .
@@ -352,6 +331,20 @@ of offset you want.
 BEGIN { FS = ":"}
 { print $1 ":" $2 ":" $3 ":" $4 "::0:0:" $5 ":" $6 ":" $7 }
 .Ed
+.Sh SEE ALSO
+.Xr chpass 1 ,
+.Xr login 1 ,
+.Xr passwd 1 ,
+.Xr getpwent 3 ,
+.Xr login.conf 5 ,
+.Xr netgroup 5 ,
+.Xr adduser 8 ,
+.Xr pwd_mkdb 8 ,
+.Xr vipw 8 ,
+.Xr yp 8
+.Pp
+.%T "Managing NFS and NIS"
+(O'Reilly & Associates)
 .Sh HISTORY
 A
 .Nm
@@ -369,3 +362,10 @@ It was imported from the
 .Nx
 Project, where it first appeared in
 .Nx 1.4 .
+.Sh BUGS
+User information should (and eventually will) be stored elsewhere.
+.Pp
+Placing
+.Sq compat
+exclusions in the file after any inclusions will have
+unexpected results.

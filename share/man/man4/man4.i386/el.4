@@ -50,13 +50,6 @@ The valid I/O ports are in the range 0x280-0x3f0.
 The
 .Nm
 driver supports the 3Com 3c501 8bit ISA Ethernet card.
-.Sh BUGS
-The driver assumes the card is configured for the same IRQ as the kernel.
-No probing or checking is done to determine if this is the case.
-.Pp
-Does not currently support DMA.
-.Pp
-Does not currently support multicasts.
 .Sh SEE ALSO
 .Xr ed 4 ,
 .Xr ep 4 ,
@@ -65,3 +58,10 @@ Does not currently support multicasts.
 .Xr le 4 ,
 .Xr ng_ether 4 ,
 .Xr ifconfig 8
+.Sh BUGS
+The driver assumes the card is configured for the same IRQ as the kernel.
+No probing or checking is done to determine if this is the case.
+.Pp
+Does not currently support DMA.
+.Pp
+Does not currently support multicasts.

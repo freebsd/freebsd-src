@@ -118,15 +118,6 @@ The
 .Dv NGM_SHUTDOWN
 control message is not valid, and always returns the error
 .Er EOPNOTSUPP .
-.Sh BUGS
-The serial driver code also has a notion of a
-.Dq hot character .
-Unfortunately, this value is statically defined in terms of the
-line discipline and cannot be changed.
-Therefore, if a hot character other than 0x7e (the default) is set for the
-.Nm
-node, the node has no way to convey this information to the
-serial driver, and sub-optimal performance may result.
 .Sh SEE ALSO
 .Xr ioctl 2 ,
 .Xr netgraph 4 ,
@@ -140,3 +131,12 @@ node type was implemented in
 .Fx 4.0 .
 .Sh AUTHORS
 .An Archie Cobbs Aq archie@FreeBSD.org
+.Sh BUGS
+The serial driver code also has a notion of a
+.Dq hot character .
+Unfortunately, this value is statically defined in terms of the
+line discipline and cannot be changed.
+Therefore, if a hot character other than 0x7e (the default) is set for the
+.Nm
+node, the node has no way to convey this information to the
+serial driver, and sub-optimal performance may result.

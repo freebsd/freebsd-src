@@ -466,6 +466,23 @@ before starting the daemon.
 .Pp
 Following tradition, all startup files reside in
 .Pa /etc .
+.Sh FILES
+.Bl -tag -compact
+.It Pa /etc/rc
+.It Pa /etc/rc.conf
+.It Pa /etc/rc.conf.local
+.It Pa /etc/rc.d/
+.It Pa /etc/rc.firewall
+.It Pa /etc/rc.local
+.It Pa /etc/rc.shutdown
+.It Pa /etc/rc.subr
+.It Pa /var/run/dmesg.boot
+.Xr dmesg 1
+results soon after the
+.Nm
+process begins.
+Useful when dmesg buffer in the kernel no longer has this information.
+.El
 .Sh EXAMPLES
 The following is a minimal
 .Nm rc.d/
@@ -546,23 +563,6 @@ As all processes are killed by
 at shutdown, the explicit
 .Xr kill 1
 is unnecessary, but is often included.
-.Sh FILES
-.Bl -tag -compact
-.It Pa /etc/rc
-.It Pa /etc/rc.conf
-.It Pa /etc/rc.conf.local
-.It Pa /etc/rc.d/
-.It Pa /etc/rc.firewall
-.It Pa /etc/rc.local
-.It Pa /etc/rc.shutdown
-.It Pa /etc/rc.subr
-.It Pa /var/run/dmesg.boot
-.Xr dmesg 1
-results soon after the
-.Nm
-process begins.
-Useful when dmesg buffer in the kernel no longer has this information.
-.El
 .Sh SEE ALSO
 .Xr kill 1 ,
 .Xr rc.conf 5 ,

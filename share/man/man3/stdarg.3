@@ -196,6 +196,13 @@ void foo(char *fmt, ...)
 	va_end(ap);
 }
 .Ed
+.Sh COMPATIBILITY
+These macros are
+.Em not
+compatible with the historic macros they replace.
+A backward compatible version can be found in the include
+file
+.In varargs.h .
 .Sh STANDARDS
 The
 .Fn va_start ,
@@ -205,13 +212,6 @@ and
 .Fn va_end
 macros conform to
 .St -isoC-99 .
-.Sh COMPATIBILITY
-These macros are
-.Em not
-compatible with the historic macros they replace.
-A backward compatible version can be found in the include
-file
-.In varargs.h .
 .Sh BUGS
 Unlike the
 .Em varargs

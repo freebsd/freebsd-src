@@ -45,6 +45,11 @@ function is used to quickly determine if the page
 exists in the physical map
 .Fa pmap .
 It is typically called from the VM paging code.
+.Sh IMPLEMENTATION NOTES
+The PV count used above may be changed upwards or downwards in future;
+it is only necessary that
+.Dv TRUE
+be returned for a small subset of pmaps for proper page aging.
 .Sh RETURN VALUES
 The
 .Fn pmap_page_exists_quick
@@ -54,11 +59,6 @@ only if the PV entry for the physical map
 .Fa pmap
 is one of the first 16 PVs linked from the page
 .Fa m .
-.Sh IMPLEMENTATION NOTES
-The PV count used above may be changed upwards or downwards in future;
-it is only necessary that
-.Dv TRUE
-be returned for a small subset of pmaps for proper page aging.
 .Sh SEE ALSO
 .Xr pmap 9
 .Sh AUTHORS

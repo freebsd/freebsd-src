@@ -75,6 +75,11 @@ In order to retrieve printer info from /dev/lpt0, just apply the
 command to the device.
 If the printer supports IEEE1284 nibble mode and has
 data to send to the host, you'll get it.
+.Sh FILES
+.Bl -tag -width Pa -compact
+.It Pa /dev/lpt0
+first parallel port driver
+.El
 .Sh SEE ALSO
 .Xr ppbus 4 ,
 .Xr ppc 4 ,
@@ -82,11 +87,6 @@ data to send to the host, you'll get it.
 .Sh HISTORY
 This driver replaces the functionality of the lpa
 driver, which is now defunct.
-.Sh FILES
-.Bl -tag -width Pa -compact
-.It Pa /dev/lpt0
-first parallel port driver
-.El
 .Sh BUGS
 There are lots of them, especially in cheap parallel port implementations.
 .Pp

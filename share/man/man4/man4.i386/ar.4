@@ -83,12 +83,6 @@ Connecting to this hook enables the transmission of raw HDLC frames.
 The node will have the same name as the device with ``sync_''
 prepended, e.g.,
 .Dv sync_ar0 .
-.Sh DIAGNOSTICS
-.Bl -diag
-.It "ar%d: Warning illegal interrupt %d."
-The card cannot use the specified interrupt.
-Choose a different one.
-.El
 .Sh FILES
 .Bl -tag -width /sys/i386/isa/ic/hd64570.h -compact
 .It Pa /sys/i386/isa/ic/hd64570.h
@@ -97,15 +91,12 @@ Choose a different one.
 .It Pa /sys/i386/isa/if_ar.h
 .It Pa /sys/pci/if_ar_p.c
 .El
-.Sh BUGS
-At the moment only the V.35 and X.21 interfaces are tested.
-The others
-may need tweaks to the clock selection code.
-.Pp
-The code can probably stand some optimizing.
-.Pp
-Please report bugs to
-.Aq jhay@FreeBSD.org .
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "ar%d: Warning illegal interrupt %d."
+The card cannot use the specified interrupt.
+Choose a different one.
+.El
 .Sh SEE ALSO
 .Xr cx 4 ,
 .Xr netgraph 4 ,
@@ -125,3 +116,12 @@ device driver was written by
 .An John Hay Aq jhay@FreeBSD.org .
 Netgraph support was added by
 .An Julian Elischer Aq julian@FreeBSD.org .
+.Sh BUGS
+At the moment only the V.35 and X.21 interfaces are tested.
+The others
+may need tweaks to the clock selection code.
+.Pp
+The code can probably stand some optimizing.
+.Pp
+Please report bugs to
+.Aq jhay@FreeBSD.org .

@@ -164,6 +164,9 @@ that was not associated with any interface.
 .Xr sendto 2 ,
 .Xr socket 2 ,
 .Xr ipfw 8
+.Sh AUTHORS
+.An Archie Cobbs Aq archie@FreeBSD.org ,
+Whistle Communications Corp.
 .Sh BUGS
 This is an attempt to provide a clean way for user mode processes
 to implement various IP tricks like address translation, but it
@@ -177,6 +180,3 @@ packet destined for another machine don't get routed through the
 local machine, the packet is lost.
 This should probably be
 a settable socket option in any case.
-.Sh AUTHORS
-.An Archie Cobbs Aq archie@FreeBSD.org ,
-Whistle Communications Corp.

@@ -48,6 +48,14 @@ If successful, the
 function will return zero.
 Otherwise an error number will be returned
 to indicate the error.
+.Sh ERRORS
+The
+.Fn pthread_rwlockattr_init
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er ENOMEM
+Insufficient memory exists to initialize the attribute object.
+.El
 .Sh SEE ALSO
 .Xr pthread_rwlockattr_destroy 3 ,
 .Xr pthread_rwlockattr_getpshared 3 ,
@@ -58,14 +66,6 @@ The
 .Fn pthread_rwlockattr_init
 function is expected to conform to
 .St -susv2 .
-.Sh ERRORS
-The
-.Fn pthread_rwlockattr_init
-function will fail if:
-.Bl -tag -width Er
-.It Bq Er ENOMEM
-Insufficient memory exists to initialize the attribute object.
-.El
 .Sh HISTORY
 The
 .Fn pthread_rwlockattr_init

@@ -86,18 +86,6 @@ cannot fail when the arguments
 and
 .Fa dce
 are less than or equal to 0.
-.Sh ERRORS
-Possible errors:
-.Bl -tag -width Er
-.It Bq Er EPERM
-The function is trying to open a provider with an exclusive access count, but
-it is already open for writing.
-.It Bq Er EPERM
-The function is trying to open a provider for writing, but it is already
-exclusively open.
-.El
-.Pp
-Any other error that can be returned by the provider's access method.
 .Sh EXAMPLES
 Create a consumer, attach it to a given provider, gain read access and
 read first sector.
@@ -147,6 +135,18 @@ some_function(struct g_geom *mygeom, struct g_provider *pp)
 	g_destroy_consumer(cp);
 }
 .Ed
+.Sh ERRORS
+Possible errors:
+.Bl -tag -width Er
+.It Bq Er EPERM
+The function is trying to open a provider with an exclusive access count, but
+it is already open for writing.
+.It Bq Er EPERM
+The function is trying to open a provider for writing, but it is already
+exclusively open.
+.El
+.Pp
+Any other error that can be returned by the provider's access method.
 .Sh SEE ALSO
 .Xr geom 4 ,
 .Xr DECLARE_GEOM_CLASS 9 ,

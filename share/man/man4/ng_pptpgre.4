@@ -160,11 +160,6 @@ control message, or when both hooks have been disconnected.
 .%T "Generic Routing Encapsulation over IPv4 networks"
 .%O RFC 1702
 .Re
-.Sh BUGS
-The node should not expect incoming GRE packets to have an IP header.
-This behavior is inherited from the (converse) behavior of raw IP sockets.
-An intermediate node that strips IP headers in one direction
-should be used instead.
 .Sh HISTORY
 The
 .Nm
@@ -172,3 +167,8 @@ node type was implemented in
 .Fx 4.0 .
 .Sh AUTHORS
 .An Archie Cobbs Aq archie@FreeBSD.org
+.Sh BUGS
+The node should not expect incoming GRE packets to have an IP header.
+This behavior is inherited from the (converse) behavior of raw IP sockets.
+An intermediate node that strips IP headers in one direction
+should be used instead.

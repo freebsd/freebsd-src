@@ -94,16 +94,6 @@ mostly in spurious warnings.
 The performance of this driver is somewhat limited by the fact that it uses
 only polled-mode I/O and does not make use of the bus-mastering capability
 of the cards.
-.Sh BUGS
-The
-.Nm
-driver is known not to reset the adapter correctly following a warm boot
-on some systems.
-.Pp
-The
-.Nm
-driver has not been exhaustively tested with all the models of cards that it
-claims to support.
 .Sh SEE ALSO
 .Xr arp 4 ,
 .Xr netintro 4 ,
@@ -126,3 +116,13 @@ device driver and this manual page were written by
 based on the work of
 .An Herb Peyerl
 and with the assistance of numerous others.
+.Sh BUGS
+The
+.Nm
+driver is known not to reset the adapter correctly following a warm boot
+on some systems.
+.Pp
+The
+.Nm
+driver has not been exhaustively tested with all the models of cards that it
+claims to support.

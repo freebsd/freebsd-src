@@ -219,10 +219,6 @@ Both the splash screen and the screen saver work with
 only.
 They are not available for the alternative console driver
 .Xr pcvt 4 .
-.Sh BUGS
-If you load a screen saver while another screen saver has already
-been loaded, the first screen saver will not be automatically unloaded
-and will remain in memory, wasting kernel memory space.
 .Sh SEE ALSO
 .Xr vidcontrol 1 ,
 .Xr syscons 4 ,
@@ -255,3 +251,7 @@ module was written by
 based on the
 .Pa splash_bmp
 code.
+.Sh BUGS
+If you load a screen saver while another screen saver has already
+been loaded, the first screen saver will not be automatically unloaded
+and will remain in memory, wasting kernel memory space.
