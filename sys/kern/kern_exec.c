@@ -747,9 +747,9 @@ exec_map_first_page(imgp)
 	}
 
 	VOP_GETVOBJECT(imgp->vp, &object);
-
+	VM_OBJECT_LOCK(object);
 	ma[0] = vm_page_grab(object, 0, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
-
+	VM_OBJECT_UNLOCK(object);
 	if ((ma[0]->valid & VM_PAGE_BITS_ALL) != VM_PAGE_BITS_ALL) {
 		initial_pagein = VM_INITIAL_PAGEIN;
 		if (initial_pagein > object->size)
