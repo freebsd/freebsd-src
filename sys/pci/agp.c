@@ -423,7 +423,9 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 		m = vm_page_grab(mem->am_obj, OFF_TO_IDX(i),
 				 VM_ALLOC_ZERO | VM_ALLOC_RETRY);
 		AGP_DPF("found page pa=%#x\n", VM_PAGE_TO_PHYS(m));
+		vm_page_lock_queues();
 		vm_page_wire(m);
+		vm_page_unlock_queues();
 
 		/*
 		 * Install entries in the GATT, making sure that if
