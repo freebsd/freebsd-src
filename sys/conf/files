@@ -151,6 +151,7 @@ dev/buslogic/bt_eisa.c	optional bt eisa
 dev/buslogic/bt_pci.c	optional bt pci
 dev/ccd/ccd.c		optional ccd
 dev/ciss/ciss.c		optional ciss
+dev/cm/smc90cx6.c	optional cm
 dev/cs/if_cs.c		optional cs
 dev/cs/if_cs_isa.c	optional cs isa
 dev/cs/if_cs_pccard.c	optional cs card
@@ -665,6 +666,7 @@ net/bridge.c		optional bridge
 net/bsd_comp.c		optional ppp_bsdcomp
 #net/hostcache.c		standard
 net/if.c		standard
+net/if_arcsubr.c	optional arcnet
 net/if_atmsubr.c	optional atm
 net/if_disc.c		optional disc
 net/if_ef.c		optional ef

@@ -350,6 +350,7 @@ static DEV_INFO device_info[] = {
 {"ad",		"ATA/ATAPI compatible storage device",	FLG_INVISIBLE,	CLS_STORAGE},	
 {"fd",		"Floppy disk device",			FLG_INVISIBLE,	CLS_STORAGE},
 
+{"cm",		"SMC COM90Cx6-based Arcnet adapters",	0,		CLS_NETWORK},
 {"cs",          "IBM EtherJet, CS89x0-based Ethernet adapters",0,	CLS_NETWORK},
 {"ed",          "NE1000,NE2000,3C503,WD/SMC80xx Ethernet adapters",0,	CLS_NETWORK},
 {"el",          "3C501 Ethernet adapter",		0,		CLS_NETWORK},
