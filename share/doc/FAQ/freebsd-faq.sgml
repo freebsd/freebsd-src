@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.36 1996/02/22 23:34:13 joerg Exp $
+<date> $Id: freebsd-faq.sgml,v 1.37 1996/02/28 20:08:48 jfieber Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -2248,6 +2248,155 @@ domain foo.bar.edu
 	  that the search order does not go beyond the ``boundary
 	  between local and public administration'', as RFC 1535
 	  calls ist.
+
+      </sect1>
+
+      <sect1>
+        <heading>Now that I've got all through my UUCP setup, how do I convince sendmail to use it for mail delivery?</heading>
+
+        <p>
+          The sendmail configuration that ships with FreeBSD is
+          suited for sites that connect directly to the Internet.
+          Sites that wish to exchange their mail via UUCP must install
+          another sendmail configuration file.
+
+        <p>
+          Tweaking <tt>/etc/sendmail.cf</tt> manually is considered
+          something for purists.  Sendmail version 8 comes with a
+          new approach of generating config files via some <tt>m4</tt>
+          preprocessing, where the actual hand-crafted configuration
+          is on a higher abstraction level.  You should use the
+          configuration files under
+
+<verb>
+     /usr/src/usr.sbin/sendmail/cf
+</verb>
+
+          If you don't have installed your system with full sources,
+          this won't be a problem.  The sendmail config stuff has been
+          broken out into a separate source distribution tarball just
+          for you.  Assuming you've got your CD-ROM mounted, do:
+
+<verb>
+     cd /usr/src
+     tar -xvzf /cdrom/dists/src/ssmailcf.aa
+</verb>
+
+          Don't bother, this is only a few hundred kilobytes in size.
+          The file <tt>README</tt> in the <tt>cf</tt> directory can
+          serve as a basic introduction into the m4 configuration.
+
+        <p>
+          For UUCP delivery, you will go best by using the
+          <em>mailertable</em> feature.  This constitutes a database
+          that sendmail can use to base its routing decision upon.
+
+        <p>
+	  First, you have to create your <tt>.mc</tt> file.  The
+          directory <tt>/usr/src/usr.sbin/sendmail/cf/cf</tt> is the
+          home of these files.  Look around, there are already a few
+          examples.  Assuming you have named your file <tt>foo.mc</tt>,
+          all you need to do in order to convert it into a valid
+          <tt>sendmail.cf</tt> is:
+
+<verb>
+     cd /usr/src/usr.sbin/sendmail/cf/cf
+     make foo.cf
+     cp foo.cf /etc/sendmail.cf
+</verb>
+
+          A typical <tt>.mc</tt> file might look like:
+
+<verb>
+     include(`../m4/cf.m4')
+     VERSIONID(`Your version number')
+     OSTYPE(bsd4.4)
+
+     FEATURE(nodns)
+     FEATURE(nocanonify)
+     FEATURE(mailertable)
+
+     define(`UUCP_RELAY', your.uucp.relay)
+     define(`UUCP_MAX_SIZE', 200000)
+
+     MAILER(local)
+     MAILER(smtp)
+     MAILER(uucp)
+
+     Cw    your.alias.host.name
+     Cw    youruucpnodename.UUCP
+</verb>
+
+          The <em>nodns</em> and <em>nocanonify</em> features will
+          prevent any usage of the DNS during mail delivery.  The
+          <em>UUCP_RELAY</em> clause is needed for bizarre reasons,
+          don't ask.  Simply put an Internet hostname there that
+          is able to handle .UUCP pseudo-domain addresses; most likely,
+          you will enter the mail relay of your ISP there.
+
+        <p>
+          Once you've got this, you need this file called
+          <tt>/etc/mailertable</tt>.  A typical example of this
+          gender again:
+
+<verb>
+     #
+     # makemap hash /etc/mailertable.db < /etc/mailertable
+     #
+     horus.interface-business.de   uucp-dom:horus
+     .interface-business.de        uucp-dom:if-bus
+     interface-business.de         uucp-dom:if-bus
+     .heep.sax.de                  smtp8:%1
+     horus.UUCP                    uucp-dom:horus
+     if-bus.UUCP                   uucp-dom:if-bus
+     .                             uucp-dom:sax
+</verb>
+
+          As you can see, this is part of a real-life file.  The first
+          three lines handle special cases where domain-addressed mail
+          should not be sent out to the default route, but instead to
+          some UUCP neighbour in order to ``shortcut'' the delivery
+          path.  The next line handles mail to the local Ethernet
+          domain that can be delivered using SMTP.  Finally, the UUCP
+          neighbours are mentioned in the .UUCP pseudo-domain notation,
+          to allow for a ``uucp-neighbour!recipient'' override of the
+          default rules.  The last line is always a single dot, matching
+          everything else, with UUCP delivery to a UUCP neighbour that
+          serves as your universal mail gateway to the world.  All of
+          the node names behind the <tt>uucp-dom:</tt> keyword must
+          be valid UUCP neighbours, as you could verify using the
+          command <tt>uuname</tt>.
+
+        <p>
+          As a reminder that this file needs to be converted into a
+          DBM database file before being usable, the command line to
+          accomplish this is best placed as a comment at the top of
+          the mailertable.  You always have to execute this command
+          each time you change your mailertable.
+
+        <p>
+          Final hint: if you are uncertain whether some particular
+          mail routing would work, remember the <tt>-bt</tt> option to
+          sendmail.  It starts sendmail in <em>address test mode</em>,
+          simply enter ``0 '', followed by the address you wish to
+          test for the mail routing.  The last line tells you the used
+          internal mail agent, the destination host this agent will be
+          called with, and the (possibly translated) address.  Leave
+          this mode by typing Control-D.
+
+<verb>
+     j@uriah 191% sendmail -bt
+     ADDRESS TEST MODE (ruleset 3 NOT automatically invoked)
+     Enter <ruleset> <address>
+     > 0 foo@interface-business.de 
+     rewrite: ruleset  0   input: foo @ interface-business . de
+     ...
+     rewrite: ruleset  0 returns: $# uucp-dom $@ if-bus $: foo \
+     < @ interface-business . de >
+     > ^D
+     j@uriah 192% 
+</verb>
+
 
       </sect1>
 
