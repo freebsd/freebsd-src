@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys_generic.c	8.5 (Berkeley) 1/21/94
- * $Id: sys_generic.c,v 1.37 1998/04/05 10:03:52 ache Exp $
+ * $Id: sys_generic.c,v 1.38 1998/05/17 11:52:51 phk Exp $
  */
 
 #include "opt_ktrace.h"
@@ -392,7 +392,8 @@ ioctl(p, uap)
 {
 	register struct file *fp;
 	register struct filedesc *fdp;
-	register int com, error;
+	register u_long com;
+	int error;
 	register u_int size;
 	caddr_t data, memp;
 	int tmp;
