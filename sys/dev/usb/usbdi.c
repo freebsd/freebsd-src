@@ -62,8 +62,8 @@
 #endif
 
 #ifdef USB_DEBUG
-#define DPRINTF(x)	if (usbdebug) printf x
-#define DPRINTFN(n,x)	if (usbdebug>(n)) printf x
+#define DPRINTF(x)	if (usbdebug) logprintf x
+#define DPRINTFN(n,x)	if (usbdebug>(n)) logprintf x
 extern int usbdebug;
 #else
 #define DPRINTF(x)
@@ -85,6 +85,33 @@ static SIMPLEQ_HEAD(, usbd_request) usbd_free_requests;
 
 extern struct cdevsw usb_cdevsw;
 #endif
+
+#ifdef USB_DEBUG
+char *usbd_error_strs[USBD_ERROR_MAX] = {
+	"NORMAL_COMPLETION",
+	"IN_PROGRESS",
+	"PENDING_REQUESTS",
+	"NOT_STARTED",
+	"INVAL",
+	"IS_IDLE",
+	"NOMEM",
+	"CANCELLED",
+	"BAD_ADDRESS",
+	"IN_USE",
+	"INTERFACE_NOT_ACTIVE",
+	"NO_ADDR",
+	"SET_ADDR_FAILED",
+	"NO_POWER",
+	"TOO_DEEP",
+	"IOERROR",
+	"NOT_CONFIGURED",
+	"TIMEOUT",
+	"SHORT_XFER",
+	"STALLED",
+	"XXX",
+};
+#endif
+
 
 usbd_status 
 usbd_open_pipe(iface, address, flags, pipe)
@@ -1302,3 +1329,21 @@ usbd_devname(bdevice *bdev)
 }
 
 #endif
+
+char *
+usbd_errstr(usbd_status err)
+{
+	static char buffer[5];		/* XXX static buffer */
+
+#ifdef  USB_DEBUG
+	if ( err < USBD_ERROR_MAX ) {
+		return usbd_error_strs[err];
+	} else {
+		snprintf(buffer, 4, "%d", err);
+		return buffer;
+	}
+#else
+	snprintf(buffer, 4, "%d", err);
+	return buffer;
+#endif
+}

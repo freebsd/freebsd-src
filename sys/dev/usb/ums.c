@@ -74,9 +74,9 @@
 #include <machine/mouse.h>
 #endif
 
-#ifdef USB_DEBUG
-#define DPRINTF(x)	if (umsdebug) printf x
-#define DPRINTFN(n,x)	if (umsdebug>(n)) printf x
+#ifdef UMS_DEBUG
+#define DPRINTF(x)	if (umsdebug) logprintf x
+#define DPRINTFN(n,x)	if (umsdebug>(n)) logprintf x
 int	umsdebug = 1;
 #else
 #define DPRINTF(x)
@@ -307,7 +307,7 @@ USB_ATTACH(ums)
 	sc->sc_disconnected = 0;
 	free(desc, M_TEMP);
 
-#ifdef USB_DEBUG
+#ifdef UMS_DEBUG
 	DPRINTF(("ums_attach: sc=%p\n", sc));
 	DPRINTF(("ums_attach: X\t%d/%d\n", 
 		 sc->sc_loc_x.pos, sc->sc_loc_x.size));
@@ -495,7 +495,7 @@ ums_intr(reqh, addr, status)
 
 		sc->qhead += sc->mode.packetsize;
 		sc->qcount += sc->mode.packetsize;
-#ifdef USB_DEBUG
+#ifdef UMS_DEBUG
 		if (sc->qhead > sizeof(sc->qbuf))
 			DPRINTF(("Buffer overrun! %d %d\n", 
 				 sc->qhead, sizeof(sc->qbuf)));
@@ -566,7 +566,7 @@ ums_disable(v)
 
 	sc->sc_enabled = 0;
 
-#if defined(USBVERBOSE) && defined(__FreeBSD__)
+#if defined(__FreeBSD__)
 	if (sc->qcount != 0)
 		DPRINTF(("Discarded %d bytes in queue\n", sc->qcount));
 #endif
