@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_examine.c,v 1.5 1994/08/13 03:49:17 wollman Exp $
+ *	$Id: db_examine.c,v 1.6 1994/08/18 22:34:22 wollman Exp $
  */
 
 /*
@@ -108,16 +108,9 @@ db_examine(addr, fmt, count)
 			break;
 		    default:
 			if (db_print_position() == 0) {
-			    /* If we hit a new symbol, print it */
-			    char *	name;
-			    db_expr_t	off;
-
-			    db_find_sym_and_offset(addr, &name, &off);
-			    if (off == 0)
-				db_printf("%s:\t", name);
-			    else
-				db_printf("\t\t");
-
+			    /* Print the address. */
+			    db_printsym(addr, DB_STGY_ANY);
+			    db_printf(":\t");
 			    db_prev = addr;
 			}
 
