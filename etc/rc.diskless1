@@ -119,6 +119,14 @@ for i in ${iflist} ; do
         break
     fi
 done
+# Insert the directories passed with the T134 bootp cookie
+# in the list of paths used for templates.
+#
+bootp_cookie="`/sbin/sysctl -n kern.bootp_cookie`"
+if [ "${bootp_cookie}" != "" ] ; then
+    bootp_ipbca="${bootp_ipbca} ${bootp_cookie}"
+fi
+
 echo "Interface ${bootp_ifc} IP-Address ${bootp_ipa} Broadcast ${bootp_ipbca}"
 
 # Figure out our NFS root path
@@ -179,14 +187,14 @@ done
 #   archive.  Support dir.remove files containing a list of relative
 #   paths to remove.
 #
-# TODO:
-#   + find a way to assign a 'group' identifier to a machine
-#	so we can use group-specific configurations;
+# The dir.cpio.gz form is there to make the copy process more efficient,
+# so if the cpio archive is present, it prevents the files from dir/
+# from being copied.
 
 for i in base default ${bootp_ipbca} ${bootp_ipa} ; do
     for j in /conf/$i/* ; do
 	subdir=${j##*/}
-	if [ -d $j ]; then
+	if [ -d $j -a ! -f $j.cpio.gz  ]; then
 	    create_md $subdir
 	    cp -Rp $j/* /$subdir
 	fi
