@@ -113,7 +113,7 @@ nfsclnt(struct thread *td, struct nfsclnt_args *uap)
 
 	if ((uap->flag & NFSCLNT_LOCKDANS) != 0) {
 		error = copyin(uap->argp, &la, sizeof(la));
-		return (error != 0 ? error : nfslockdans(td->td_proc, &la));
+		return (error != 0 ? error : nfslockdans(td, &la));
 	}
 	return EINVAL;
 }

@@ -230,8 +230,9 @@ nfs_dolock(struct vop_advlock_args *ap)
  *      NFS advisory byte-level locks answer from the lock daemon.
  */
 int
-nfslockdans(struct proc *p, struct lockd_ans *ansp)
+nfslockdans(struct thread *td, struct lockd_ans *ansp)
 {
+	struct proc *targetp;
 	int error;
 
 	/* Let root, or someone who once was root (lockd generally
@@ -240,7 +241,8 @@ nfslockdans(struct proc *p, struct lockd_ans *ansp)
 	 *
 	 * XXX This authorization check is probably not right.
 	 */
-	if ((error = suser(p)) != 0 && p->p_ucred->cr_svuid != 0)
+	if ((error = suser(td->td_proc)) != 0 &&
+	    td->td_proc->p_ucred->cr_svuid != 0)
 		return (error);
 
 	/* the version should match, or we're out of sync */
@@ -248,7 +250,7 @@ nfslockdans(struct proc *p, struct lockd_ans *ansp)
 		return (EINVAL);
 
 	/* Find the process, set its return errno and wake it up. */
-	if ((p = pfind(ansp->la_msg_ident.pid)) == NULL)
+	if ((targetp = pfind(ansp->la_msg_ident.pid)) == NULL)
 		return (ESRCH);
 
 	/* verify the pid hasn't been reused (if we can), and it isn't waiting
@@ -256,21 +258,21 @@ nfslockdans(struct proc *p, struct lockd_ans *ansp)
 	 * the match fails, because we've already used ESRCH above, and this
 	 * is sort of like writing on a pipe after the reader has closed it.
 	 */
-	if (p->p_nlminfo == NULL ||
+	if (targetp->p_nlminfo == NULL ||
 	    ((ansp->la_msg_ident.msg_seq != -1) &&
-	      (timevalcmp(&p->p_nlminfo->pid_start,
+	      (timevalcmp(&targetp->p_nlminfo->pid_start,
 			&ansp->la_msg_ident.pid_start, !=) ||
-	       p->p_nlminfo->msg_seq != ansp->la_msg_ident.msg_seq))) {
-		PROC_UNLOCK(p);
+	       targetp->p_nlminfo->msg_seq != ansp->la_msg_ident.msg_seq))) {
+		PROC_UNLOCK(targetp);
 		return (EPIPE);
 	}
 
-	p->p_nlminfo->retcode = ansp->la_errno;
-	p->p_nlminfo->set_getlk_pid = ansp->la_set_getlk_pid;
-	p->p_nlminfo->getlk_pid = ansp->la_getlk_pid;
+	targetp->p_nlminfo->retcode = ansp->la_errno;
+	targetp->p_nlminfo->set_getlk_pid = ansp->la_set_getlk_pid;
+	targetp->p_nlminfo->getlk_pid = ansp->la_getlk_pid;
 
-	(void)wakeup((void *)p->p_nlminfo);
+	(void)wakeup((void *)targetp->p_nlminfo);
 
-	PROC_UNLOCK(p);
+	PROC_UNLOCK(targetp);
 	return (0);
 }
