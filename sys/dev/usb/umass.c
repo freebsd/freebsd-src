@@ -1811,7 +1811,6 @@ umass_cbi_state(usbd_xfer_handle xfer, usbd_private_handle priv,
 
 		if (sc->proto & PROTO_CBI_I) {
 			sc->transfer_state = TSTATE_CBI_STATUS;
-			memset(&sc->sbl, 0, sizeof(sc->sbl));
 			if (umass_setup_transfer(sc, sc->intrin_pipe,
 				    &sc->sbl, sizeof(sc->sbl),
 				    0,	/* fixed length transfer */
@@ -1867,7 +1866,10 @@ umass_cbi_state(usbd_xfer_handle xfer, usbd_private_handle priv,
 			else
 				status = STATUS_CMD_FAILED;
 
-			/* No sense, command successfull */
+			sc->transfer_state = TSTATE_IDLE;
+			sc->transfer_cb(sc, sc->transfer_priv,
+				sc->transfer_datalen - sc->transfer_actlen,
+				status);
 		} else {
 			/* Command Interrupt Data Block */
 			DPRINTF(UDMASS_CBI, ("%s: type=0x%02x, value=0x%02x\n",
@@ -1891,8 +1893,8 @@ umass_cbi_state(usbd_xfer_handle xfer, usbd_private_handle priv,
 
 				sc->transfer_state = TSTATE_IDLE;
 				sc->transfer_cb(sc, sc->transfer_priv,
-						sc->transfer_datalen,
-						err);
+				       sc->transfer_datalen-sc->transfer_actlen,
+				       err);
 			}
 		}
 		return;
