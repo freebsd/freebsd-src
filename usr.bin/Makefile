@@ -75,7 +75,6 @@ SUBDIR=	apply \
 	keylogout \
 	killall \
 	ktrace \
-	kzip \
 	lam \
 	last \
 	lastcomm \
