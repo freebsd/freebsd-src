@@ -62,8 +62,8 @@ static const char rcsid[] =
 #include <sys/filedesc.h>
 #include <sys/queue.h>
 #include <sys/pipe.h>
-#include <sys/conf.h>
 #define	_KERNEL
+#include <sys/conf.h>
 #include <sys/file.h>
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
