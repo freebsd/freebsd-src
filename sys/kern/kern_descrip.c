@@ -602,7 +602,7 @@ do_dup(td, type, old, new, retval)
 		if (fdp->fd_ofiles[new] == NULL)
 			fdused(fdp, new);
 	} else {
-		if ((error = fdalloc(td, &new)) != 0) {
+		if ((error = fdalloc(td, new, &new)) != 0) {
 			FILEDESC_UNLOCK(fdp);
 			fdrop(fp, td);
 			return (error);
@@ -1205,7 +1205,7 @@ fdgrowtable(struct filedesc *fdp, int nfd)
  * Allocate a file descriptor for the process.
  */
 int
-fdalloc(struct thread *td, int *result)
+fdalloc(struct thread *td, int minfd, int *result)
 {
 	struct proc *p = td->td_proc;
 	struct filedesc *fdp = p->p_fd;
@@ -1222,7 +1222,7 @@ fdalloc(struct thread *td, int *result)
 	 * may drop the filedesc lock, so we're in a race.
 	 */
 	for (;;) {
-		fd = fd_first_free(fdp, fdp->fd_freefile, fdp->fd_nfiles);
+		fd = fd_first_free(fdp, minfd, fdp->fd_nfiles);
 		if (fd >= maxfd)
 			return (EMFILE);
 		if (fd < fdp->fd_nfiles)
@@ -1326,7 +1326,7 @@ falloc(td, resultfp, resultfd)
 		LIST_INSERT_HEAD(&filehead, fp, f_list);
 	}
 	sx_xunlock(&filelist_lock);
-	if ((error = fdalloc(td, &i))) {
+	if ((error = fdalloc(td, 0, &i))) {
 		FILEDESC_UNLOCK(p->p_fd);
 		fdrop(fp, td);
 		if (resultfp)
