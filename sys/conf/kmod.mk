@@ -188,6 +188,9 @@ ${FULLPROG}: ${OBJS}
 .endif
 
 _ILINKS=@ machine
+.if ${MACHINE} != ${MACHINE_ARCH}
+_ILINKS+=${MACHINE_ARCH}
+.endif
 
 all: objwarn ${PROG}
 
@@ -213,8 +216,10 @@ SYSDIR=	${_dir}
 
 ${_ILINKS}:
 	@case ${.TARGET} in \
-	machine) \
+	${MACHINE_ARCH}) \
 		path=${SYSDIR}/${MACHINE_ARCH}/include ;; \
+	machine) \
+		path=${SYSDIR}/${MACHINE}/include ;; \
 	@) \
 		path=${SYSDIR} ;; \
 	esac ; \
