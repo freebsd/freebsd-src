@@ -182,7 +182,7 @@ USB_ATTACH(uhub)
 	usbd_devinfo(dev, 1, devinfo);
 	USB_ATTACH_SETUP;
 
-	if (UHUB_IS_HIGH_SPEED(sc)) {
+	if (dev->depth > 0 && UHUB_IS_HIGH_SPEED(sc)) {
 		printf("%s: %s transaction translator%s\n",
 		    USBDEVNAME(sc->sc_dev),
 		    UHUB_IS_SINGLE_TT(sc) ? "single" : "multiple",
