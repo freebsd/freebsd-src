@@ -15,11 +15,11 @@ typedef struct elf_file {
 	void*		ef_fpage;		/* First block of the file */
 	int		ef_fplen;		/* length of first block */
 	Elf_Dyn*	ef_dyn;			/* Symbol table etc. */
-	Elf_Off		ef_nbuckets;
-	Elf_Off		ef_nchains;
-	Elf_Off*	ef_buckets;
-	Elf_Off*	ef_chains;
-	Elf_Off*	ef_hashtab;
+	Elf_Hashelt	ef_nbuckets;
+	Elf_Hashelt	ef_nchains;
+	Elf_Hashelt*	ef_buckets;
+	Elf_Hashelt*	ef_chains;
+	Elf_Hashelt*	ef_hashtab;
 	Elf_Off		ef_stroff;
 	caddr_t		ef_strtab;
 	int		ef_strsz;

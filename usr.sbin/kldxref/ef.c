@@ -148,7 +148,7 @@ int
 ef_parse_dynamic(elf_file_t ef)
 {
 	Elf_Dyn *dp;
-	Elf_Off hashhdr[2];
+	Elf_Hashelt hashhdr[2];
 /*	int plttype = DT_REL;*/
 	int error;
 
@@ -165,7 +165,7 @@ ef_parse_dynamic(elf_file_t ef)
 			ef->ef_nbuckets = hashhdr[0];
 			ef->ef_nchains = hashhdr[1];
 			error = ef_read_entry(ef, -1, 
-			    (hashhdr[0] + hashhdr[1]) * sizeof(Elf_Off),
+			    (hashhdr[0] + hashhdr[1]) * sizeof(Elf_Hashelt),
 			    (void**)&ef->ef_hashtab);
 			if (error) {
 				warnx("can't read hash table");
