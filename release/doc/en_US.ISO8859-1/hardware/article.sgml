@@ -3088,6 +3088,10 @@
 	  <para>AMD-756</para>
 	</listitem>
         <listitem arch="i386,alpha">
+	  <para>Belkin USB 2.0 High Speed Host Controller
+	    (&man.ehci.4; driver)</para>
+	</listitem>
+        <listitem arch="i386,alpha">
 	  <para>CMD Tech 670 & 673</para>
 	</listitem>
         <listitem arch="i386,alpha">
@@ -3109,7 +3113,7 @@
 	  <para>Intel 82443MX</para>
 	</listitem>
         <listitem arch="i386,alpha">
-	  <para>NEC uPD 9210</para>
+	  <para>NEC uPD 9210 (&man.ehci.4; driver)</para>
 	</listitem>
         <listitem arch="i386,alpha">
 	  <para>OPTi 82C861 (FireLink)</para>
