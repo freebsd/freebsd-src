@@ -1485,11 +1485,12 @@ fwohci_irxbuf_enable(struct firewire_comm *fc, int dmach)
 	struct fwohci_softc *sc = (struct fwohci_softc *)fc;
 	int err = 0;
 	unsigned short tag, ich;
-	tag = (sc->ir[dmach].xferq.flag >> 6) & 3;
-	ich = sc->ir[dmach].xferq.flag & 0x3f;
-	OWRITE(sc, OHCI_IRMATCH(dmach), tagbit[tag] | ich);
 
 	if(!(sc->ir[dmach].xferq.flag & FWXFERQ_RUNNING)){
+		tag = (sc->ir[dmach].xferq.flag >> 6) & 3;
+		ich = sc->ir[dmach].xferq.flag & 0x3f;
+		OWRITE(sc, OHCI_IRMATCH(dmach), tagbit[tag] | ich);
+
 		sc->ir[dmach].xferq.queued = 0;
 		sc->ir[dmach].ndb = sc->ir[dmach].xferq.bnpacket *
 				sc->ir[dmach].xferq.bnchunk;
@@ -1539,8 +1540,8 @@ fwohci_irxbuf_enable(struct firewire_comm *fc, int dmach)
 		OWRITE(sc, OHCI_IRCMD(dmach),
 			vtophys(((struct fwohcidb_tr *)(sc->ir[dmach].xferq.stdma->start))->db) | sc->ir[dmach].ndesc);
 		OWRITE(sc, OHCI_IRCTL(dmach), OHCI_CNTL_DMA_RUN);
+		OWRITE(sc, FWOHCI_INTMASK, OHCI_INT_DMA_IR);
 	}
-	OWRITE(sc, FWOHCI_INTMASK, OHCI_INT_DMA_IR);
 	return err;
 }
 
@@ -1922,6 +1923,7 @@ fwohci_rbuf_update(struct fwohci_softc *sc, int dmach)
 		fwohci_irx_enable(&sc->fc, dmach);
 		break;
 	default:
+		device_printf(sc->fc.dev, "Isochronous receive err %02x\n", stat);
 		break;
 	}
 }
