@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_lock.c	8.18 (Berkeley) 5/21/95
- * $Id: kern_lock.c,v 1.5 1997/03/25 17:11:30 peter Exp $
+ * $Id: kern_lock.c,v 1.1 1997/08/04 17:46:51 smp Exp smp $
  */
 
 #include <sys/param.h>
@@ -156,7 +156,7 @@ lockstatus(lkp)
  */
 int
 lockmgr(lkp, flags, interlkp, p)
-	__volatile struct lock *lkp;
+	struct lock *lkp;
 	u_int flags;
 	struct simplelock *interlkp;
 	struct proc *p;
@@ -466,7 +466,7 @@ simple_lock_init(alp)
 
 void
 _simple_lock(alp, id, l)
-	__volatile struct simplelock *alp;
+	struct simplelock *alp;
 	const char *id;
 	int l;
 {
@@ -494,7 +494,7 @@ _simple_lock(alp, id, l)
 
 int
 _simple_lock_try(alp, id, l)
-	__volatile struct simplelock *alp;
+	struct simplelock *alp;
 	const char *id;
 	int l;
 {
@@ -511,7 +511,7 @@ _simple_lock_try(alp, id, l)
 
 void
 _simple_unlock(alp, id, l)
-	__volatile struct simplelock *alp;
+	struct simplelock *alp;
 	const char *id;
 	int l;
 {
