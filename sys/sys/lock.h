@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lock.h	8.12 (Berkeley) 5/19/95
- * $Id: lock.h,v 1.2 1997/07/23 18:34:21 smp Exp smp $
+ * $Id: lock.h,v 1.5 1997/07/23 20:40:52 fsmp Exp $
  */
 
 #ifndef	_LOCK_H_
@@ -47,8 +47,7 @@
  * can be gained. The simple locks are defined in <machine/param.h>.
  */
 struct lock {
-	struct	simplelock lk_interlock __attribute__ ((aligned (4)));
-					/* lock on remaining fields */
+	struct	simplelock lk_interlock; /* lock on remaining fields */
 	u_int	lk_flags;		/* see below */
 	int	lk_sharecount;		/* # of accepted shared locks */
 	int	lk_waitcount;		/* # of processes sleeping for lock */
