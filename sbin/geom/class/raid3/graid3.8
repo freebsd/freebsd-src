@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Aug 22, 2004
+.Dd August 22, 2004
 .Dt GRAID3 8
 .Os
 .Sh NAME
@@ -35,15 +35,11 @@
 .Cm label
 .Op Fl hnrvw
 .Ar name
-.Ar prov
-.Ar prov
-.Ar prov
-.Op Ar prov Op Ar ...
+.Ar prov prov prov ...
 .Nm
 .Cm clear
 .Op Fl v
-.Ar prov
-.Op Ar prov Op Ar ...
+.Ar prov ...
 .Nm
 .Cm configure
 .Op Fl adhnrRvwW
@@ -67,11 +63,10 @@
 .Nm
 .Cm stop
 .Op Fl fv
-.Ar name
-.Op Ar name Op Ar ...
+.Ar name ...
 .Nm
 .Cm list
-.Op Ar name Op Ar ...
+.Op Ar name ...
 .Nm
 .Cm load
 .Op Fl v
@@ -99,7 +94,7 @@ indicates an action to be performed:
 Create a RAID3 device.
 The last given component will contain parity data, whilst the others
 will all contain regular data.
-The number of components must be equal to 3, 5, 9, 17, etc\&. (2^n + 1).
+The number of components must be equal to 3, 5, 9, 17, etc.\& (2^n + 1).
 .Pp
 Additional options include:
 .Bl -tag -width ".Fl h"
@@ -203,7 +198,7 @@ Create a file system, mount it, then unmount it and stop device:
 graid3 label -v -r data da0 da1 da2
 newfs /dev/raid3/data
 mount /dev/raid3/data /mnt
-[...]
+\&...
 umount /mnt
 graid3 stop data
 graid3 unload
@@ -241,4 +236,6 @@ utility appeared in
 .Sh BUGS
 There should be a section with an implementation description.
 .Pp
-Documentation for sysctls kern.geom.raid3.* is missing.
+Documentation for sysctls
+.Va kern.geom.raid3.*
+is missing.

@@ -36,39 +36,31 @@
 .Op Fl v
 .Op Fl s Ar stripesize
 .Ar name
-.Ar prov
-.Ar prov
-.Op Ar prov Op Ar ...
+.Ar prov prov ...
 .Nm
 .Cm destroy
 .Op Fl fv
-.Ar name
-.Op Ar name Op Ar ...
+.Ar name ...
 .Nm
 .Cm label
 .Op Fl hv
 .Op Fl s Ar stripesize
 .Ar name
-.Ar prov
-.Ar prov
-.Op Ar prov Op Ar ...
+.Ar prov prov ...
 .Nm
 .Cm stop
 .Op Fl fv
-.Ar name
-.Op Ar name Op Ar ...
+.Ar name ...
 .Nm
 .Cm clear
 .Op Fl v
-.Ar prov
-.Op Ar prov Op Ar ...
+.Ar prov ...
 .Nm
 .Cm dump
-.Ar prov
-.Op Ar prov Op Ar ...
+.Ar prov ...
 .Nm
 .Cm list
-.Op Ar name Op Ar ...
+.Op Ar name ...
 .Nm
 .Cm load
 .Op Fl v
@@ -103,7 +95,7 @@ Set up a striped device from the given devices with specified
 This is the
 .Dq manual
 method and the stripe will not exist after a reboot (see
-.Cm DESCRIPTION
+.Sx DESCRIPTION
 above).
 The kernel module
 .Pa geom_stripe.ko
@@ -168,14 +160,14 @@ Debug level of the
 GEOM class.
 This can be set to a number between 0 and 3 inclusive.
 If set to 0 minimal debug information is printed, and if set to 3 the
-maximum amount of debug information in printed.
+maximum amount of debug information is printed.
 .It Va kern.geom.stripe.fast : No 1
 If set to a non-zero value enable
 .Dq "fast mode"
 instead of the normal
 .Dq "economic mode" .
 Compared to
-.Dq "economic mode"
+.Dq "economic mode" ,
 .Dq "fast mode"
 uses more memory, but it is much faster for smaller stripe sizes.
 If enough memory cannot be allocated,
@@ -215,18 +207,23 @@ gstripe unload
 .Sh DIAGNOSTICS
 Exit status is 0 on success, and 1 if the command fails.
 .Sh COMPATIBILITY
+The
 .Nm
 interleave is in number of bytes,
 unlike
 .Xr ccdconfig 8
 and
 .Xr atacontrol 8
-which uses number of sectors.
-A a
+which use the number of sectors.
+A
 .Xr ccdconfig 8
 .Ar ileave
-of `128' is 64 KB (128 512B sectors).
-The same stripe interleave would be specified as '65536' for
+of
+.Ql 128
+is 64 KB (128 512B sectors).
+The same stripe interleave would be specified as
+.Ql 65536
+for
 .Nm .
 .Sh SEE ALSO
 .Xr geom 4 ,

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Jul 9, 2004
+.Dd July 9, 2004
 .Dt GMIRROR 8
 .Os
 .Sh NAME
@@ -37,13 +37,11 @@
 .Op Fl b Ar balance
 .Op Fl s Ar slice
 .Ar name
-.Ar prov
-.Op Ar prov Op Ar ...
+.Ar prov ...
 .Nm
 .Cm clear
 .Op Fl v
-.Ar prov
-.Op Ar prov Op Ar ...
+.Ar prov ...
 .Nm
 .Cm configure
 .Op Fl adhnv
@@ -54,46 +52,39 @@
 .Cm rebuild
 .Op Fl v
 .Ar name
-.Ar prov
-.Op Ar prov Op Ar ...
+.Ar prov ...
 .Nm
 .Cm insert
 .Op Fl hiv
 .Op Fl p Ar priority
 .Ar name
-.Ar prov
-.Op Ar prov Op Ar ...
+.Ar prov ...
 .Nm
 .Cm remove
 .Op Fl v
 .Ar name
-.Ar prov
-.Op Ar prov Op Ar ...
+.Ar prov ...
 .Nm
 .Cm activate
 .Op Fl v
 .Ar name
-.Ar prov
-.Op Ar prov Op Ar ...
+.Ar prov ...
 .Nm
 .Cm deactivate
 .Op Fl v
 .Ar name
-.Ar prov
-.Op Ar prov Op Ar ...
+.Ar prov ...
 .Nm
 .Cm forget
 .Op Fl v
-.Ar name
-.Op Ar name Op Ar ...
+.Ar name ...
 .Nm
 .Cm stop
 .Op Fl fv
-.Ar name
-.Op Ar name Op Ar ...
+.Ar name ...
 .Nm
 .Cm list
-.Op Ar name Op Ar ...
+.Op Ar name ...
 .Nm
 .Cm load
 .Op Fl v
@@ -131,14 +122,14 @@ Additional options include:
 .Bl -tag -width ".Fl b Ar balance"
 .It Fl b Ar balance
 Specifies balance algorithm to use, one of:
-.Bl -tag -width "round-robin"
-.It load
+.Bl -tag -width ".Cm round-robin"
+.It Cm load
 Read from the component with the lowest load.
-.It prefer
+.It Cm prefer
 Read from the component with the biggest priority.
-.It round-robin
+.It Cm round-robin
 Use round-robin algorithm when choosing component to read.
-.It split
+.It Cm split
 Split read requests, which are bigger than or equal to slice size on N pieces,
 where N is the number of active components.
 .El
@@ -148,7 +139,7 @@ Hardcode providers' names in metadata.
 Turn off autosynchronization of stale components.
 .It Fl s Ar slice
 When using the
-.Nm split
+.Cm split
 balance algorithm and an I/O READ request is bigger than or equal to this value,
 the I/O request will be split into N pieces, where N is the number of active
 component.
@@ -172,7 +163,7 @@ Hardcode providers' names in metadata.
 Turn off autosynchronization of stale components.
 .It Fl s Ar slice
 Specifies slice size for
-.Nm split
+.Cm split
 balance algorithm.
 .El
 .It Cm rebuild
@@ -200,7 +191,7 @@ Mark the given component(s) as inactive, so it will not be automatically
 connected to the mirror.
 .It Cm forget
 Forget about components which are not connected.
-This command is useful when a disk has failed and can not be reconnected, preventing the
+This command is useful when a disk has failed and cannot be reconnected, preventing the
 .Cm remove
 command from being used to remove it.
 .It Cm stop
@@ -230,20 +221,23 @@ Additional options include:
 Be more verbose.
 .El
 .Sh EXAMPLES
-Use 3 disks to setup a mirror. Choose split balance algorithm, split only
-requests which are bigger than or equal to 2kB. Create file system,
+Use 3 disks to setup a mirror.
+Choose split balance algorithm, split only
+requests which are bigger than or equal to 2kB.
+Create file system,
 mount it, then unmount it and stop device:
 .Bd -literal -offset indent
 gmirror label -v -b split -s 2048 data da0 da1 da2
 newfs /dev/mirror/data
 mount /dev/mirror/data /mnt
-[...]
+\&...
 umount /mnt
 gmirror stop data
 gmirror unload
 .Ed
 .Pp
-Create a mirror on disk with valid data. Add another disk to this mirror,
+Create a mirror on disk with valid data.
+Add another disk to this mirror,
 so it will be synchronized with existing disk:
 .Bd -literal -offset indent
 gmirror label -v -b round-robin data da0
@@ -258,7 +252,8 @@ gmirror insert data da2
 gmirror rebuild data da2
 .Ed
 .Pp
-One disk failed. Replace it with a brand new one:
+One disk failed.
+Replace it with a brand new one:
 .Bd -literal -offset indent
 gmirror forget data
 gmirror insert data da1
@@ -294,4 +289,6 @@ There should be a way to change a component's priority inside a running mirror.
 .Pp
 There should be a section with an implementation description.
 .Pp
-Documentation for sysctls kern.geom.mirror.* is missing.
+Documentation for sysctls
+.Va kern.geom.mirror.*
+is missing.
