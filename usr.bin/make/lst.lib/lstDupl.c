@@ -67,11 +67,11 @@ __FBSDID("$FreeBSD$");
  *	A new list is created.
  *-----------------------------------------------------------------------
  */
-Lst
-Lst_Duplicate(Lst list, DuplicateProc *copyProc)
+Lst *
+Lst_Duplicate(Lst *list, DuplicateProc *copyProc)
 {
-    Lst 	nl;
-    LstNode  	ln;
+    Lst *nl;
+    LstNode *ln;
 
     if (!Lst_Valid(list)) {
 	return (NULL);

@@ -164,9 +164,9 @@ __FBSDID("$FreeBSD$");
  *	in a cache for when Dir_MTime was actually called.
  */
 
-Lst dirSearchPath;		/* main search path */
+Lst *dirSearchPath;		/* main search path */
 
-static Lst openDirectories;	/* the list of all open directories */
+static Lst *openDirectories;	/* the list of all open directories */
 
 /*
  * Variables for gathering statistics on the efficiency of the hashing
@@ -229,7 +229,7 @@ Dir_Init(void)
 void
 Dir_InitDot(void)
 {
-	LstNode ln;
+	LstNode *ln;
 
 	Dir_AddDir(openDirectories, ".");
 	if ((ln = Lst_Last(openDirectories)) == NULL)
@@ -352,7 +352,7 @@ Dir_HasWildcards(const char *name)
  *-----------------------------------------------------------------------
  */
 static int
-DirMatchFiles(const char *pattern, const Path *p, Lst expansions)
+DirMatchFiles(const char *pattern, const Path *p, Lst *expansions)
 {
 	Hash_Search search;   	/* Index into the directory's table */
 	Hash_Entry *entry;   	/* Current entry in the table */
@@ -400,7 +400,7 @@ DirMatchFiles(const char *pattern, const Path *p, Lst expansions)
  *-----------------------------------------------------------------------
  */
 static void
-DirExpandCurly(const char *word, const char *brace, Lst path, Lst expansions)
+DirExpandCurly(const char *word, const char *brace, Lst *path, Lst *expansions)
 {
 	const char *end;	/* Character after the closing brace */
 	const char *cp;		/* Current position in brace clause */
@@ -504,9 +504,9 @@ DirExpandCurly(const char *word, const char *brace, Lst path, Lst expansions)
  *-----------------------------------------------------------------------
  */
 static void
-DirExpandInt(const char *word, Lst path, Lst expansions)
+DirExpandInt(const char *word, Lst *path, Lst *expansions)
 {
-	LstNode ln;	    /* Current node */
+	LstNode *ln;	    /* Current node */
 	Path *p;	    /* Directory in the node */
 
 	if (Lst_Open(path) == SUCCESS) {
@@ -556,7 +556,7 @@ DirPrintWord(void *word, void *dummy __unused)
  *-----------------------------------------------------------------------
  */
 void
-Dir_Expand(char *word, Lst path, Lst expansions)
+Dir_Expand(char *word, Lst *path, Lst *expansions)
 {
 	char *cp;
 
@@ -677,11 +677,11 @@ Dir_Expand(char *word, Lst path, Lst expansions)
  *-----------------------------------------------------------------------
  */
 char *
-Dir_FindFile(char *name, Lst path)
+Dir_FindFile(char *name, Lst *path)
 {
 	char *p1;		/* pointer into p->name */
 	char *p2;		/* pointer into name */
-	LstNode ln;		/* a list element */
+	LstNode *ln;		/* a list element */
 	char *file;		/* the current filename to check */
 	Path *p;		/* current path member */
 	char *cp;		/* final component of the name */
@@ -1012,9 +1012,9 @@ Dir_MTime(GNode *gn)
  *-----------------------------------------------------------------------
  */
 void
-Dir_AddDir(Lst path, char *name)
+Dir_AddDir(Lst *path, char *name)
 {
-	LstNode ln;		/* node in case Path structure is found */
+	LstNode *ln;		/* node in case Path structure is found */
 	Path *p;		/* pointer to new Path structure */
 	DIR *d;			/* for reading directory */
 	struct dirent *dp;	/* entry in directory */
@@ -1111,11 +1111,11 @@ Dir_CopyDir(void *p)
  *-----------------------------------------------------------------------
  */
 char *
-Dir_MakeFlags(char *flag, Lst path)
+Dir_MakeFlags(char *flag, Lst *path)
 {
 	char *str;	/* the string which will be returned */
 	char *tstr;	/* the current directory preceded by 'flag' */
-	LstNode ln;	/* the node of the current directory */
+	LstNode *ln;	/* the node of the current directory */
 	Path *p;	/* the structure describing the current directory */
 
 	str = estrdup("");
@@ -1155,7 +1155,7 @@ Dir_Destroy(void *pp)
 	p->refCount -= 1;
 
 	if (p->refCount == 0) {
-		LstNode	ln;
+		LstNode *ln;
 
 		ln = Lst_Member(openDirectories, p);
 		Lst_Remove(openDirectories, ln);
@@ -1181,7 +1181,7 @@ Dir_Destroy(void *pp)
  *-----------------------------------------------------------------------
  */
 void
-Dir_ClearPath(Lst path)
+Dir_ClearPath(Lst *path)
 {
 	Path *p;
 
@@ -1207,9 +1207,9 @@ Dir_ClearPath(Lst path)
  *-----------------------------------------------------------------------
  */
 void
-Dir_Concat(Lst path1, Lst path2)
+Dir_Concat(Lst *path1, Lst *path2)
 {
-	LstNode ln;
+	LstNode *ln;
 	Path *p;
 
 	for (ln = Lst_First(path2); ln != NULL; ln = Lst_Succ(ln)) {
@@ -1225,7 +1225,7 @@ Dir_Concat(Lst path1, Lst path2)
 void
 Dir_PrintDirectories(void)
 {
-	LstNode ln;
+	LstNode *ln;
 	Path *p;
 
 	printf("#*** Directory Cache:\n");
@@ -1254,7 +1254,7 @@ DirPrintDir(void *p, void *dummy __unused)
 }
 
 void
-Dir_PrintPath(Lst path)
+Dir_PrintPath(Lst *path)
 {
 
 	Lst_ForEach(path, DirPrintDir, (void *)NULL);

@@ -73,7 +73,7 @@ __FBSDID("$FreeBSD$");
  *-----------------------------------------------------------------------
  */
 Boolean
-Lst_IsAtEnd(Lst list)
+Lst_IsAtEnd(Lst *list)
 {
 
     return (!Lst_Valid(list) || !list->isOpen ||

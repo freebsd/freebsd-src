@@ -70,7 +70,7 @@ __FBSDID("$FreeBSD$");
  *-----------------------------------------------------------------------
  */
 void
-Lst_Close(Lst list)
+Lst_Close(Lst *list)
 {
 
     if (Lst_Valid(list) == TRUE) {

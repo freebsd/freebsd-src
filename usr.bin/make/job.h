@@ -96,7 +96,7 @@ typedef struct Job {
     char	tfile[sizeof(TMPPAT)];
 			    /* Temporary file to use for job */
     GNode    	*node;      /* The target the child is making */
-    LstNode 	tailCmds;   /* The node of the first command to be
+    LstNode 	*tailCmds;  /* The node of the first command to be
 			     * saved when the job has been run */
     FILE 	*cmdFILE;   /* When creating the shell script, this is
 			     * where the commands go */

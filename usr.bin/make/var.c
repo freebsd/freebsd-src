@@ -124,7 +124,7 @@ static char	varNoError[] = "";
 GNode          *VAR_GLOBAL;   /* variables from the makefile */
 GNode          *VAR_CMD;      /* variables defined on the command-line */
 
-static Lst	allVars;      /* List of all variables */
+static Lst	*allVars;      /* List of all variables */
 
 #define	FIND_CMD	0x1   /* look in VAR_CMD when searching */
 #define	FIND_GLOBAL	0x2   /* look in VAR_GLOBAL as well */
@@ -207,7 +207,7 @@ static Var *
 VarFind(char *name, GNode *ctxt, int flags)
 {
     Boolean		localCheckEnvFirst;
-    LstNode         	var;
+    LstNode         	*var;
     Var		  	*v;
 
 	/*
@@ -379,7 +379,7 @@ VarDelete(void *vp)
 void
 Var_Delete(char *name, GNode *ctxt)
 {
-    LstNode 	  ln;
+    LstNode *ln;
 
     DEBUGF(VAR, ("%s:delete %s\n", ctxt->name, name));
     ln = Lst_Find(ctxt->context, name, VarCmp);

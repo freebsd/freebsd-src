@@ -62,10 +62,10 @@ __FBSDID("$FreeBSD$");
  *
  *-----------------------------------------------------------------------
  */
-Lst
+Lst *
 Lst_Init(void)
 {
-    Lst	nList;
+    Lst *nList;
 
     nList = emalloc(sizeof(*nList));
 
