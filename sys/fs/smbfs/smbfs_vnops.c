@@ -241,6 +241,8 @@ smbfs_close(ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct thread *td = ap->a_td;
+	struct smbnode *np = VTOSMB(vp);
+	struct smb_cred scred;
 	int dolock;
 
 	VI_LOCK(vp);
@@ -249,7 +251,12 @@ smbfs_close(ap)
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY | LK_INTERLOCK, td);
 	else
 		VI_UNLOCK(vp);
-	/* Nothing. */
+	if (vp->v_type == VDIR && (np->n_flag & NOPEN) != 0 &&
+	    np->n_dirseq != NULL) {
+		smb_makescred(&scred, td, ap->a_cred);
+		smbfs_findclose(np->n_dirseq, &scred);
+		np->n_dirseq = NULL;
+	}
 	if (dolock)
 		VOP_UNLOCK(vp, 0, td);
 	return 0;
