@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.23 1997/02/22 13:55:43 peter Exp $
+#	$Id: Makefile,v 1.24 1999/06/24 09:45:26 sheldonh Exp $
 #
 # Doing a make install builds /usr/share/examples
 
@@ -31,6 +31,8 @@ symlinks::
 .endfor
 
 etc-examples:
+.if ${SHARED} != "symlinks"
 	(cd ${.CURDIR}/../../etc; ${MAKE} etc-examples)
+.endif
 
 .include <bsd.prog.mk>
