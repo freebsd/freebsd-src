@@ -43,7 +43,7 @@
  *	from: wd.c,v 1.55 1994/10/22 01:57:12 phk Exp $
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: subr_diskslice.c,v 1.20 1996/03/27 18:50:01 bde Exp $
+ *	$Id: subr_diskslice.c,v 1.21 1996/04/01 21:03:07 scrappy Exp $
  */
 
 #include <sys/param.h>
@@ -958,12 +958,12 @@ set_ds_labeldevs(dname, dev, ssp)
 			continue;
 		if (part == RAW_PART && sp->ds_bdev != NULL) {
 			sp->ds_bdevs[part] =
-				dev_linkf(sp->ds_bdev, "%s%s",
+				devfs_link(sp->ds_bdev, "%s%s",
 					 dsname(dname, dkunit(dev), slice, 
 						part, partname),
 		 			 partname);
 			sp->ds_cdevs[part] =
-				dev_linkf(sp->ds_cdev, "r%s%s",
+				devfs_link(sp->ds_cdev, "r%s%s",
 					 dsname(dname, dkunit(dev), slice, 
 						part, partname),
 		 			 partname);
