@@ -185,8 +185,6 @@ enum asm_oper_type {
 /* Operand */
 struct asm_oper {
 	enum asm_oper_type	o_type;
-	int			o_read:1;
-	int			o_write:1;
 	uint64_t		o_value;
 };
 
