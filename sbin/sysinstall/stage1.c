@@ -98,11 +98,11 @@ alloc_memory()
 	    return(-1);
     }
 
-    mbr = (struct mbr *) malloc(sizeof(struct mbr));
+    mbr = (struct mbr *)malloc(sizeof(struct mbr));
     if (!mbr)
 	return(-1);
 
-    bootblocks = (char *) malloc(BBSIZE);
+    bootblocks = (char *)malloc(BBSIZE);
     if (!bootblocks)
 	return(-1);
 
