@@ -86,7 +86,7 @@
 #define MD5_RESULTLEN	16
 #include <crypto/sha1.h>
 #include <crypto/sha2/sha2.h>
-#include <crypto/ripemd160/rmd160.h>
+#include <opencrypto/rmd160.h>
 #define RIPEMD160_RESULTLEN	20
 
 #include <net/net_osdep.h>
