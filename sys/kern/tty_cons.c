@@ -44,9 +44,9 @@
 #include <sys/conf.h>
 #include <sys/cons.h>
 #include <sys/kernel.h>
+#include <sys/proc.h>
 #include <sys/reboot.h>
 #include <sys/sysctl.h>
-#include <sys/proc.h>
 #include <sys/tty.h>
 #include <sys/uio.h>
 
@@ -353,6 +353,7 @@ cnwrite(dev, uio, flag)
 		dev = constty->t_dev;
 	else
 		dev = cn_tab->cn_dev;
+	log_console(uio);
 	return ((*devsw(dev)->d_write)(dev, uio, flag));
 }
 

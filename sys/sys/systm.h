@@ -115,6 +115,7 @@ int	kvprintf __P((char const *, void (*)(int, void*), void *, int,
 		      _BSD_VA_LIST_)) __printflike(1, 0);
 int	log __P((int, const char *, ...)) __printflike(2, 3);
 void	logwakeup __P((void));
+void	log_console __P((struct uio *));
 int	printf __P((const char *, ...)) __printflike(1, 2);
 int	snprintf __P((char *, size_t, const char *, ...)) __printflike(3, 4);
 int	sprintf __P((char *buf, const char *, ...)) __printflike(2, 3);

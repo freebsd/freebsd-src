@@ -363,7 +363,6 @@ diskerr(bp, what, pri, blkdone, lp)
 	int unit = dkunit(bp->b_dev);
 	int slice = dkslice(bp->b_dev);
 	int part = dkpart(bp->b_dev);
-	int (*pr) __P((const char *, ...));
 	char partname[2];
 	char *sname;
 	daddr_t sn;
