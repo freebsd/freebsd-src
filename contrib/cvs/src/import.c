@@ -260,7 +260,11 @@ import (argc, argv)
     tmpfile = cvs_temp_name ();
     if ((logfp = CVS_FOPEN (tmpfile, "w+")) == NULL)
 	error (1, errno, "cannot create temporary file `%s'", tmpfile);
-    (void) CVS_UNLINK (tmpfile);		/* to be sure it goes away */
+    /* On systems where we can unlink an open file, do so, so it will go
+       away no matter how we exit.  FIXME-maybe: Should be checking for
+       errors but I'm not sure which error(s) we get if we are on a system
+       where one can't unlink open files.  */
+    (void) CVS_UNLINK (tmpfile);
     (void) fprintf (logfp, "\nVendor Tag:\t%s\n", argv[1]);
     (void) fprintf (logfp, "Release Tags:\t");
     for (i = 2; i < argc; i++)
@@ -320,11 +324,13 @@ import (argc, argv)
     (void) addnode (ulist, p);
     Update_Logfile (repository, message, logfp, ulist);
     dellist (&ulist);
-    (void) fclose (logfp);
+    if (fclose (logfp) < 0)
+	error (0, errno, "error closing %s", tmpfile);
 
     /* Make sure the temporary file goes away, even on systems that don't let
        you delete a file that's in use.  */
-    CVS_UNLINK (tmpfile);
+    if (CVS_UNLINK (tmpfile) < 0 && !existence_error (errno))
+	error (0, errno, "cannot remove %s", tmpfile);
     free (tmpfile);
 
     if (message)
@@ -491,7 +497,7 @@ process_import_file (message, vfile, vtag, targc, targv)
 		/* Reading all the entries for each file is fairly silly, and
 		   probably slow.  But I am too lazy at the moment to do
 		   anything else.  */
-		entries = Entries_Open (0);
+		entries = Entries_Open (0, NULL);
 		node = findnode_fn (entries, vfile);
 		if (node != NULL)
 		{
@@ -977,6 +983,7 @@ add_rcs_file (message, rcs, user, add_vhead, key_opt,
     char *userfile;
     char *local_opt = key_opt;
     char *free_opt = NULL;
+    mode_t file_type;
 
     if (noexec)
 	return (0);
@@ -1004,18 +1011,39 @@ add_rcs_file (message, rcs, user, add_vhead, key_opt,
        which does not depend on what the client or server OS is, as
        documented in cvsclient.texi), but as long as the server just
        runs on unix it is a moot point.  */
-    fpuser = CVS_FOPEN (userfile,
-			((local_opt != NULL && strcmp (local_opt, "b") == 0)
-			 ? "rb"
-			 : "r")
-			);
-    if (fpuser == NULL)
+
+    /* If PreservePermissions is set, then make sure that the file
+       is a plain file before trying to open it.  Longstanding (although
+       often unpopular) CVS behavior has been to follow symlinks, so we
+       maintain that behavior if PreservePermissions is not on.
+
+       NOTE: this error message used to be `cannot fstat', but is now
+       `cannot lstat'.  I don't see a way around this, since we must
+       stat the file before opening it. -twp */
+
+    if (CVS_LSTAT (userfile, &sb) < 0)
+	error (1, errno, "cannot lstat %s", user);
+    file_type = sb.st_mode & S_IFMT;
+
+    fpuser = NULL;
+    if (!preserve_perms || file_type == S_IFREG)
     {
-	/* not fatal, continue import */
-	fperror (add_logfp, 0, errno, "ERROR: cannot read file %s", userfile);
-	error (0, errno, "ERROR: cannot read file %s", userfile);
-	goto read_error;
+	fpuser = CVS_FOPEN (userfile,
+			    ((local_opt != NULL && strcmp (local_opt, "b") == 0)
+			     ? "rb"
+			     : "r")
+	    );
+	if (fpuser == NULL)
+	{
+	    /* not fatal, continue import */
+	    if (add_logfp != NULL)
+		fperror (add_logfp, 0, errno,
+			 "ERROR: cannot read file %s", userfile);
+	    error (0, errno, "ERROR: cannot read file %s", userfile);
+	    goto read_error;
+	}
     }
+
     fprcs = CVS_FOPEN (rcs, "w+b");
     if (fprcs == NULL)
     {
@@ -1082,10 +1110,6 @@ add_rcs_file (message, rcs, user, add_vhead, key_opt,
     if (fprintf (fprcs, "\012") < 0)
       goto write_error;
 
-    /* Get information on modtime and mode.  */
-    if (fstat (fileno (fpuser), &sb) < 0)
-	error (1, errno, "cannot fstat %s", user);
-
     /* Write the revision(s), with the date and author and so on
        (that is "delta" rather than "deltatext" from rcsfile(5)).  */
     if (add_vhead != NULL)
@@ -1118,13 +1142,102 @@ add_rcs_file (message, rcs, user, add_vhead, key_opt,
 
 	if (fprintf (fprcs, "next     ;\012") < 0)
 	    goto write_error;
+
+#ifdef PRESERVE_PERMISSIONS_SUPPORT
+	/* Store initial permissions if necessary. */
+	if (preserve_perms)
+	{
+	    if (file_type == S_IFLNK)
+	    {
+		char *link = xreadlink (userfile);
+		if (fprintf (fprcs, "symlink\t@") < 0 ||
+		    expand_at_signs (link, strlen (link), fprcs) < 0 ||
+		    fprintf (fprcs, "@;\012") < 0)
+		    goto write_error;
+		free (link);
+	    }
+	    else
+	    {
+		if (fprintf (fprcs, "owner\t%u;\012", sb.st_uid) < 0)
+		    goto write_error;
+		if (fprintf (fprcs, "group\t%u;\012", sb.st_gid) < 0)
+		    goto write_error;
+		if (fprintf (fprcs, "permissions\t%o;\012",
+			     sb.st_mode & 07777) < 0)
+		    goto write_error;
+		switch (file_type)
+		{
+		    case S_IFREG: break;
+		    case S_IFCHR:
+		    case S_IFBLK:
+			if (fprintf (fprcs, "special\t%s %lu;\012",
+				     (file_type == S_IFCHR
+				      ? "character"
+				      : "block"),
+				     (unsigned long) sb.st_rdev) < 0)
+			    goto write_error;
+			break;
+		    default:
+			error (0, 0,
+			       "can't import %s: unknown kind of special file",
+			       userfile);
+		}
+	    }
+	}
+#endif
+
 	if (add_vbranch != NULL)
 	{
 	    if (fprintf (fprcs, "\012%s.1\012", add_vbranch) < 0 ||
 		fprintf (fprcs, "date     %s;  author %s;  state Exp;\012",
 			 altdate1, author) < 0 ||
 		fprintf (fprcs, "branches ;\012") < 0 ||
-		fprintf (fprcs, "next     ;\012\012") < 0)
+		fprintf (fprcs, "next     ;\012") < 0)
+		goto write_error;
+
+#ifdef PRESERVE_PERMISSIONS_SUPPORT
+	    /* Store initial permissions if necessary. */
+	    if (preserve_perms)
+	    {
+		if (file_type == S_IFLNK)
+		{
+		    char *link = xreadlink (userfile);
+		    if (fprintf (fprcs, "symlink\t@") < 0 ||
+			expand_at_signs (link, strlen (link), fprcs) < 0 ||
+			fprintf (fprcs, "@;\012") < 0)
+			goto write_error;
+		    free (link);
+		}
+		else
+		{
+		    if (fprintf (fprcs, "owner\t%u;\012", sb.st_uid) < 0 ||
+			fprintf (fprcs, "group\t%u;\012", sb.st_gid) < 0 ||
+			fprintf (fprcs, "permissions\t%o;\012",
+				 sb.st_mode & 07777) < 0)
+			goto write_error;
+	    
+		    switch (file_type)
+		    {
+			case S_IFREG: break;
+			case S_IFCHR:
+			case S_IFBLK:
+			    if (fprintf (fprcs, "special\t%s %lu;\012",
+					 (file_type == S_IFCHR
+					  ? "character"
+					  : "block"),
+					 (unsigned long) sb.st_rdev) < 0)
+				goto write_error;
+			    break;
+			default:
+			    error (0, 0,
+			      "cannot import %s: special file of unknown type",
+			       userfile);
+		    }
+		}
+	    }
+#endif
+
+	    if (fprintf (fprcs, "\012") < 0)
 		goto write_error;
 	}
     }
@@ -1170,7 +1283,9 @@ add_rcs_file (message, rcs, user, add_vhead, key_opt,
 	    goto write_error;
 	}
 
-	/* Now copy over the contents of the file, expanding at signs.  */
+	/* Now copy over the contents of the file, expanding at signs.
+	   If preserve_perms is set, do this only for regular files. */
+	if (!preserve_perms || file_type == S_IFREG)
 	{
 	    char buf[8192];
 	    unsigned int len;
@@ -1208,7 +1323,12 @@ add_rcs_file (message, rcs, user, add_vhead, key_opt,
 	ierrno = errno;
 	goto write_error_noclose;
     }
-    (void) fclose (fpuser);
+    /* Close fpuser only if we opened it to begin with. */
+    if (fpuser != NULL)
+    {
+	if (fclose (fpuser) < 0)
+	    error (0, errno, "cannot close %s", user);
+    }
 
     /*
      * Fix the modes on the RCS files.  The user modes of the original
@@ -1224,8 +1344,9 @@ add_rcs_file (message, rcs, user, add_vhead, key_opt,
     if (chmod (rcs, mode) < 0)
     {
 	ierrno = errno;
-	fperror (add_logfp, 0, ierrno,
-		 "WARNING: cannot change mode of file %s", rcs);
+	if (add_logfp != NULL)
+	    fperror (add_logfp, 0, ierrno,
+		     "WARNING: cannot change mode of file %s", rcs);
 	error (0, ierrno, "WARNING: cannot change mode of file %s", rcs);
 	err++;
     }
@@ -1238,15 +1359,20 @@ add_rcs_file (message, rcs, user, add_vhead, key_opt,
 
 write_error:
     ierrno = errno;
-    (void) fclose (fprcs);
+    if (fclose (fprcs) < 0)
+	error (0, errno, "cannot close %s", rcs);
 write_error_noclose:
-    (void) fclose (fpuser);
-    fperror (add_logfp, 0, ierrno, "ERROR: cannot write file %s", rcs);
+    if (fclose (fpuser) < 0)
+	error (0, errno, "cannot close %s", user);
+    if (add_logfp != NULL)
+	fperror (add_logfp, 0, ierrno, "ERROR: cannot write file %s", rcs);
     error (0, ierrno, "ERROR: cannot write file %s", rcs);
     if (ierrno == ENOSPC)
     {
-	(void) CVS_UNLINK (rcs);
-	fperror (add_logfp, 0, 0, "ERROR: out of space - aborting");
+	if (CVS_UNLINK (rcs) < 0)
+	    error (0, errno, "cannot remove %s", rcs);
+	if (add_logfp != NULL)
+	    fperror (add_logfp, 0, 0, "ERROR: out of space - aborting");
 	error (1, 0, "ERROR: out of space - aborting");
     }
 read_error:
@@ -1271,20 +1397,27 @@ expand_at_signs (buf, size, fp)
     off_t size;
     FILE *fp;
 {
-    char *cp, *end;
+    register char *cp, *next;
 
-    errno = 0;
-    for (cp = buf, end = buf + size; cp < end; cp++)
+    cp = buf;
+    while ((next = memchr (cp, '@', size)) != NULL)
     {
-	if (*cp == '@')
-	{
-	    if (putc ('@', fp) == EOF && errno != 0)
-		return EOF;
-	}
-	if (putc (*cp, fp) == EOF && errno != 0)
-	    return (EOF);
+	int len;
+
+	++next;
+	len = next - cp;
+	if (fwrite (cp, 1, len, fp) != len)
+	    return EOF;
+	if (putc ('@', fp) == EOF)
+	    return EOF;
+	cp = next;
+	size -= len;
     }
-    return (1);
+
+    if (fwrite (cp, 1, size, fp) != size)
+	return EOF;
+
+    return 1;
 }
 
 /*
