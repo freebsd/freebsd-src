@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cdefs.h	8.8 (Berkeley) 1/9/95
- * $Id: cdefs.h,v 1.15 1997/12/13 20:39:14 pst Exp $
+ * $Id: cdefs.h,v 1.11.2.1 1998/01/03 08:51:53 obrien Exp $
  */
 
 #ifndef	_SYS_CDEFS_H_
@@ -42,7 +42,7 @@
 
 #if defined(__cplusplus)
 #define	__BEGIN_DECLS	extern "C" {
-#define	__END_DECLS	};
+#define	__END_DECLS	}
 #else
 #define	__BEGIN_DECLS
 #define	__END_DECLS
