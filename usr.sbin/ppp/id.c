@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: id.c,v 1.5 1997/12/27 19:23:12 brian Exp $
+ *	$Id: id.c,v 1.6 1998/01/21 02:15:16 brian Exp $
  */
 
 #include <sys/types.h>
@@ -61,7 +61,7 @@ ID0setuser(void)
 {
   if (seteuid(uid) == -1) {
     LogPrintf(LogERROR, "ID0setuser: Unable to seteuid!\n");
-    Cleanup(EX_NOPERM);
+    AbortProgram(EX_NOPERM);
   }
 }
 
@@ -76,7 +76,7 @@ ID0set0(void)
 {
   if (seteuid(euid) == -1) {
     LogPrintf(LogERROR, "ID0set0: Unable to seteuid!\n");
-    Cleanup(EX_NOPERM);
+    AbortProgram(EX_NOPERM);
   }
 }
 

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.12 1998/02/07 22:22:43 brian Exp $
+ * $Id: main.c,v 1.121.2.13 1998/02/08 11:05:01 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -189,7 +189,12 @@ Cleanup(int excode)
     bundle_Close(SignalBundle, NULL);
     return;
   }
+  AbortProgram(excode);
+}
 
+void
+AbortProgram(int excode)
+{
   DropClient(1);
   ServerClose();
   ID0unlink(pid_filename);
@@ -206,7 +211,6 @@ Cleanup(int excode)
   TtyOldMode();
   link_Destroy(physical2link(SignalBundle->physical));
   LogClose();
-
   exit(excode);
 }
 
@@ -565,8 +569,9 @@ main(int argc, char **argv)
     DoLoop(bundle);
   while (mode & MODE_DEDICATED);
 
-  Cleanup(EX_DONE);
-  return 0;
+  AbortProgram(EX_NORMAL);
+
+  return EX_NORMAL;
 }
 
 /*
