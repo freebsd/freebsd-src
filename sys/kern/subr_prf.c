@@ -665,6 +665,7 @@ reswitch:	switch (ch = (u_char)*fmt++) {
 			base = 10;
 			goto nosign;
 		case 'x':
+		case 'X':
 			if (qflag)
 				uq = va_arg(ap, u_quad_t);
 			else if (lflag)
