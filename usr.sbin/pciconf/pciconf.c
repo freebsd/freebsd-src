@@ -162,7 +162,7 @@ list_devs(void)
 			close(fd);
 			return;
 		} else if (pc.status ==  PCI_GETCONF_ERROR) {
-			warnx("Error returned from PCIOCGETCONF ioctl");
+			warnx("error returned from PCIOCGETCONF ioctl");
 			exitstatus = 1;
 			close(fd);
 			return;
