@@ -795,7 +795,7 @@
 	  <para>Promise SuperTrak SX6000 ATA RAID controller</para>
 	</listitem>
       </itemizedlist>
-    <para>
+    </para>
 
     <para arch="i386,alpha,pc98,sparc64">LSI Logic Fusion/MP
 	architecture Fiber Channel controllers (mpt driver)
@@ -807,7 +807,7 @@
 	  <para>LSI 53c1020, 53c1030</para>
 	</listitem>
       </itemizedlist>
-    <para>
+    </para>
 
     <para arch="i386">PCI SCSI host adapters using the Tekram
 	TRM-S1040 SCSI chipset (trm driver)
@@ -819,7 +819,7 @@
 	  <para>Tekram DC315U</para>
 	</listitem>
       </itemizedlist>
-    <para>
+    </para>
 
     <para>With all supported SCSI controllers, full support is
     provided for SCSI-I, SCSI-II, and SCSI-III peripherals, including
