@@ -11,6 +11,7 @@ INSTALL_ONLY_COMPRESSED?=
 SRCS+=	article.sgml
 SRCS+=	../common/relnotes.ent
 SRCS+=	../common/artheader.sgml
+SRCS+=	../common/intro.sgml
 SRCS+=	../common/new.sgml
 SRCS+=	../common/upgrading.sgml
 
