@@ -1,4 +1,4 @@
-/*	$NetBSD: uhcireg.h,v 1.9 1999/11/20 00:57:09 augustss Exp $	*/
+/*	$NetBSD: usb/uhcireg.h,v 1.12 2000/07/23 19:43:38 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -117,12 +117,13 @@
 
 typedef u_int32_t uhci_physaddr_t;
 #define UHCI_PTR_T		0x00000001
-#define UHCI_PTR_Q		0x00000002
+#define UHCI_PTR_TD		0x00000000
+#define UHCI_PTR_QH		0x00000002
 #define UHCI_PTR_VF		0x00000004
 
 /*
- * The Queue Heads and Transfer Descriptors and accessed
- * by both the CPU and the USB controller which runs
+ * The Queue Heads and Transfer Descriptors are accessed
+ * by both the CPU and the USB controller which run
  * concurrently.  This means that they have to be accessed
  * with great care.  As long as the data structures are
  * not linked into the controller's frame list they cannot
