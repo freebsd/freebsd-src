@@ -1,0 +1,13 @@
+#	@(#)Dynix	8.7	(Berkeley)	2/26/98
+define(`confCC', `gcc')
+define(`confOPTIMIZE', `-O -g')
+define(`confLIBS', `-lseq')
+define(`confMBINDIR', `/usr/lib')
+define(`confSBINDIR', `/usr/etc')
+define(`confUBINDIR', `/usr/ucb')
+define(`confEBINDIR', `/usr/lib')
+define(`confSBINGRP', `staff # no kmem group,')
+define(`confSTDIR', `/usr/lib')
+define(`confHFDIR', `/usr/lib')
+define(`confOBJADD', `strtol.o')
+define(`confDEPEND_TYPE', `CC-M')

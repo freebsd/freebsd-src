@@ -1,0 +1,11 @@
+#	@(#)CRAYT3E.2.0.x	8.1	(Berkeley)	4/21/98
+define(`confMAPDEF', `-DNDBM')
+define(`confENVDEF', `-DUNICOS ')
+define(`confOPTIMIZE', `-O')
+define(`confINSTALL', `cpset')
+define(`confMBINDIR', `/usr/lib')
+define(`confSBINDIR', `/usr/etc')
+define(`confUBINDIR', `/usr/bin')
+define(`confEBINDIR', `/usr/lib')
+define(`confSTDIR', ` //usr/spool/mqueue')
+define(`confHFDIR', ` /usr/lib')

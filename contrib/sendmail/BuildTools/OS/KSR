@@ -1,0 +1,7 @@
+#	@(#)KSR	8.4	(Berkeley)	3/12/98
+define(`confMAPDEF', `-DNDBM -DNIS')
+define(`confLIBDIRS', `-L/usr/shlib -L/usr/lib')
+define(`confLIBS', `-ldbm')
+define(`confSTDIR', `/var/adm/sendmail')
+define(`confHFDIR', `/usr/share/lib')
+define(`confINSTALL', `installbsd')

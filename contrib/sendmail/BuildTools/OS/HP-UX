@@ -1,0 +1,12 @@
+#	@(#)HP-UX	8.9	(Berkeley)	3/14/98
+define(`confCC', `cc -Aa -D_HPUX_SOURCE')
+define(`confMAPDEF', `-DNDBM -DNIS -DMAP_REGEX')
+define(`confOPTIMIZE', `+O1')
+define(`confLIBS', `-lndbm')
+define(`confMBINDIR', `/usr/lib')
+define(`confSBINDIR', `/usr/etc')
+define(`confEBINDIR', `/usr/lib')
+define(`confSBINGRP', `mail')
+define(`confSTDIR', `/usr/lib')
+define(`confHFDIR', `/usr/lib')
+define(`confINSTALL', `${BUILDBIN}/install.sh')
