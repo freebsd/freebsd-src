@@ -25,10 +25,11 @@ data.o:
 	file2c 'const unsigned char boot2[] = {' '};' \
                 < ${BOOTS}/boot2 >> tmp.c
 	cc ${CFLAGS} -o data.o -c tmp.c
+	rm -f tmp.c
 
 tst01:	${OBJS}
 	#cc ${CFLAGS} -DREADLINE -static -o tst01 ${OBJS} -lreadline -ltermcap 
 	cc ${CFLAGS} -static -o tst01 ${OBJS}
 
 clean:
-	rm -f *.o *.core tst01
+	rm -f *.o *.core tst01 tmp.c

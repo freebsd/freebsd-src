@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: disk.c,v 1.7 1995/04/30 07:30:43 phk Exp $
+ * $Id: disk.c,v 1.8 1995/04/30 11:04:13 phk Exp $
  *
  */
 
@@ -99,10 +99,6 @@ Int_Open_Disk(char *name, u_long size)
 	if (Add_Chunk(d, 0, size, name,whole,0,0))
 		warn("Failed to add 'whole' chunk");
 
-	if (ds.dss_slices[COMPATIBILITY_SLICE].ds_offset)
-		if (Add_Chunk(d, 0, 1, "-",reserved,0,0))
-			warn("Failed to add MBR chunk");
-	
 	for(i=BASE_SLICE;i<ds.dss_nslices;i++) {
 		char sname[20];
 		chunk_e ce;
@@ -131,10 +127,7 @@ Int_Open_Disk(char *name, u_long size)
 		if (Add_Chunk(d,ds.dss_slices[i].ds_offset,
 			ds.dss_slices[i].ds_size, sname,ce,subtype,flags))
 			warn("failed to add chunk for slice %d",i - 1);
-		if (ce == extended)
-			if (Add_Chunk(d,ds.dss_slices[i].ds_offset,
-				1, "-",reserved, subtype, flags))
-				warn("failed to add MBR chunk for slice %d",i - 1);
+
 		if (ds.dss_slices[i].ds_type != 0xa5)
 			continue;
 		{
@@ -288,9 +281,13 @@ Set_Boot_Mgr(struct disk *d, u_char *b)
 {
 	if (d->bootmgr)
 		free(d->bootmgr);	
-	d->bootmgr = malloc(DOSPARTOFF);
-	if(!d->bootmgr) err(1,"malloc failed");
-	memcpy(d->bootmgr,b,DOSPARTOFF);
+	if (!b) {
+		d->bootmgr = 0;
+	} else {
+		d->bootmgr = malloc(DOSPARTOFF);
+		if(!d->bootmgr) err(1,"malloc failed");
+		memcpy(d->bootmgr,b,DOSPARTOFF);
+	}
 }
 
 void
