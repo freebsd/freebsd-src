@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_var.h	8.1 (Berkeley) 6/10/93
- * $Id: udp_var.h,v 1.7 1995/11/16 09:51:07 bde Exp $
+ * $Id: udp_var.h,v 1.8 1995/12/16 02:14:22 bde Exp $
  */
 
 #ifndef _NETINET_UDP_VAR_H_
@@ -66,6 +66,7 @@ struct	udpstat {
 	u_long	udps_noportbcast;	/* of above, arrived as broadcast */
 	u_long	udps_fullsock;		/* not delivered, input socket full */
 	u_long	udpps_pcbcachemiss;	/* input packets missing pcb cache */
+	u_long	udpps_pcbhashmiss;	/* input packets not for hashed pcb */
 				/* output statistics: */
 	u_long	udps_opackets;		/* total output packets */
 };
