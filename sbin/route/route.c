@@ -201,7 +201,7 @@ flushroutes(argc, argv)
 	char *argv[];
 {
 	size_t needed;
-	int mib[6], rlen, seqno;
+	int mib[6], rlen, seqno, count = 0;
 	char *buf, *next, *lim;
 	struct rt_msghdr *rtm;
 
@@ -232,6 +232,7 @@ flushroutes(argc, argv)
 		} else
 bad:			usage(*argv);
 	}
+retry:
 	mib[0] = CTL_NET;
 	mib[1] = PF_ROUTE;
 	mib[2] = 0;		/* protocol */
@@ -242,8 +243,15 @@ bad:			usage(*argv);
 		err(EX_OSERR, "route-sysctl-estimate");
 	if ((buf = malloc(needed)) == NULL)
 		errx(EX_OSERR, "malloc failed");
-	if (sysctl(mib, 6, buf, &needed, NULL, 0) < 0)
+	if (sysctl(mib, 6, buf, &needed, NULL, 0) < 0) {
+		if (errno == ENOMEM && count++ < 10) {
+			warnx("Routing table grew, retrying");  
+			sleep(1);
+			free(buf);
+			goto retry;
+		}
 		err(EX_OSERR, "route-sysctl-get");
+	}
 	lim = buf + needed;
 	if (verbose)
 		(void) printf("Examining routing table from sysctl\n");
@@ -268,6 +276,8 @@ bad:			usage(*argv);
 		if (rlen < (int)rtm->rtm_msglen) {
 			warn("write to routing socket");
 			(void) printf("got only %d for rlen\n", rlen);
+			free(buf);
+			goto retry;
 			break;
 		}
 		seqno++;
@@ -1105,9 +1115,10 @@ interfaces()
 {
 	size_t needed;
 	int mib[6];
-	char *buf, *lim, *next;
+	char *buf, *lim, *next, count = 0;
 	struct rt_msghdr *rtm;
 
+retry2:
 	mib[0] = CTL_NET;
 	mib[1] = PF_ROUTE;
 	mib[2] = 0;		/* protocol */
@@ -1118,8 +1129,15 @@ interfaces()
 		err(EX_OSERR, "route-sysctl-estimate");
 	if ((buf = malloc(needed)) == NULL)
 		errx(EX_OSERR, "malloc failed");
-	if (sysctl(mib, 6, buf, &needed, NULL, 0) < 0)
+	if (sysctl(mib, 6, buf, &needed, NULL, 0) < 0) {
+		if (errno == ENOMEM && count++ < 10) {
+			warnx("Routing table grew, retrying");
+			sleep(1);
+			free(buf);
+			goto retry2;
+		}
 		err(EX_OSERR, "actual retrieval of interface table");
+	}
 	lim = buf + needed;
 	for (next = buf; next < lim; next += rtm->rtm_msglen) {
 		rtm = (struct rt_msghdr *)next;
