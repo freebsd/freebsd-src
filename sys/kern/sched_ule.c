@@ -344,10 +344,10 @@ static struct kse *kseq_steal(struct kseq *kseq, int stealidle);
  */
 #ifdef __i386__
 #define	KSE_CAN_MIGRATE(ke, class)					\
-    ((ke)->ke_thread->td_pinned == 0 && ((ke)->ke_flags & KEF_BOUND) == 0)
+    ((ke)->ke_pinned == 0 && ((ke)->ke_flags & KEF_BOUND) == 0)
 #else /* !__i386__ */
 #define	KSE_CAN_MIGRATE(ke, class)					\
-    ((class) != PRI_ITHD && (ke)->ke_thread->td_pinned == 0 &&		\
+    ((class) != PRI_ITHD && (ke)->ke_pinned == 0 &&		\
     ((ke)->ke_flags & KEF_BOUND) == 0)
 #endif /* !__i386__ */
 #endif
@@ -1912,7 +1912,7 @@ sched_pin(void)
  void
 sched_unpin(void)
 {  
-	curthread->td_sched->td_pinned--;
+	curthread->td_sched->ke_pinned--;
 }
 
 #ifdef INVARIANTS
