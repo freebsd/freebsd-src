@@ -89,7 +89,7 @@
 #include <vm/vm_extern.h>
 #include <vm/vm_pageout.h>
 #include <vm/vm_pager.h>
-#include <vm/vm_zone.h>
+#include <vm/uma.h>
 
 #include <machine/cache.h>
 #include <machine/frame.h>
@@ -543,17 +543,10 @@ pmap_init(vm_offset_t phys_start, vm_offset_t phys_end)
 			panic("pmap_init: vm_map_find");
 	}
 
-#if 0
-	pvzone = &pvzone_store;
-	pvinit = (struct pv_entry *)kmem_alloc(kernel_map,
-	    vm_page_array_size * sizeof (struct pv_entry));
-	zbootinit(pvzone, "PV ENTRY", sizeof (struct pv_entry), pvinit,
-	    vm_page_array_size);
-#else
-	pvzone = zinit("PV ENTRY", sizeof (struct pv_entry), 0, 0, 0);
+	pvzone = uma_zcreate("PV ENTRY", sizeof (struct pv_entry),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	uma_zone_set_allocf(pvzone, pv_allocf);
 	uma_prealloc(pvzone, vm_page_array_size);
-#endif
 	pmap_initialized = TRUE;
 }
 
@@ -571,11 +564,7 @@ pmap_init2(void)
 	TUNABLE_INT_FETCH("vm.pmap.shpgperproc", &shpgperproc);
 	pv_entry_max = shpgperproc * maxproc + vm_page_array_size;
 	pv_entry_high_water = 9 * (pv_entry_max / 10);
-#if 0
-	zinitna(pvzone, &pvzone_obj, NULL, 0, pv_entry_max, ZONE_INTERRUPT, 1);
-#else
 	uma_zone_set_obj(pvzone, &pvzone_obj, pv_entry_max);
-#endif
 }
 
 /*
