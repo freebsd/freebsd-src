@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: md_var.h,v 1.2 1998/07/12 16:32:09 dfr Exp $
+ *	$Id: md_var.h,v 1.3 1998/09/14 22:43:24 jdp Exp $
  */
 
 #ifndef _MACHINE_MD_VAR_H_
@@ -42,6 +42,7 @@ extern	void	(*netisrs[32]) __P((void));
 struct fpreg;
 struct proc;
 struct reg;
+struct cam_sim;
 
 void	cpu_power_down __P((void));
 void	cpu_halt __P((void));
@@ -53,5 +54,6 @@ int	fill_regs __P((struct proc *, struct reg *));
 int	set_regs __P((struct proc *, struct reg *));
 int	fill_fpregs __P((struct proc *, struct fpreg *));
 int	set_fpregs __P((struct proc *, struct fpreg *));
+void	alpha_register_pci_scsi __P((int bus, int slot, struct cam_sim *sim));
 
 #endif /* !_MACHINE_MD_VAR_H_ */
