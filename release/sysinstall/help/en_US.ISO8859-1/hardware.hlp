@@ -1,4 +1,4 @@
-Hardware Documentation Guide:  $Id: hardware.hlp,v 1.7 1995/06/05 23:57:36 jkh Exp $
+Hardware Documentation Guide:  $Id: hardware.hlp,v 1.8 1995/06/06 00:55:25 jkh Exp $
 
 Table of Contents
 -----------------
@@ -316,17 +316,26 @@ A: Your card is probably on a different IRQ from what is specified in the
    `-1' in UserConfig or `?' in your kernel config file.  This will
    tell the kernel to use the soft configuration.
 
+   Another possibility is that your card is at IRQ 9, which is shared
+   by IRQ 2 and frequently a cause of problems (especially when you
+   have a VGA card using 2! :).  You should not use IRQ 2 or 9 if at
+   all possible.
+
 
 Q: I go to boot from the hard disk for the first time after installing
    FreeBSD, but the Boot Manger prompt just prints `F?' and the boot menu
-   each time and the system won't go any further.
+   each time but the boot won't go any further.
 
 A: The hard disk geometry was set incorrectly in the Partition editor when
    you installed FreeBSD.  Go back into the partition editor and specify
    the actual geometry of your hard disk.  You must reinstall FreeBSD
-   again from the beginning.
+   again from the beginning with the correct geometry.
 
-   << XXX Hints here about determining correct geometry? XXX >>
+   If you are failing entirely in figuring out the correct geometry for
+   your machine, here's a tip:  Install a small DOS partition at the
+   beginning of the disk and install FreeBSD after that.  The install
+   program will see the DOS partition and try to infer the correct
+   geometry from it, which usually works.
 
 
 Q: I have a Matsushita/Panasonic CD-ROM drive but it isn't recognized
