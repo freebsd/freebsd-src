@@ -65,6 +65,7 @@
  */
 	
 	LEAF(suword, 1)
+	XLEAF(suword64, 1)
 	LDGP(pv)
 
 	ldiq	t0, VM_MAXUSER_ADDRESS /* verify address validity */
@@ -110,6 +111,7 @@
 	END(subyte)
 
 	LEAF(fuword, 1)
+	XLEAF(fuword64, 1)
 	LDGP(pv)
 
 	ldiq	t0, VM_MAXUSER_ADDRESS /* verify address validity */
