@@ -106,6 +106,13 @@ DOMINIMALDOCPORTS=	YES
 .include "Makefile.inc.docports"
 .endif
 
+# Make changing names of disc1 CD possible.  Usually disc1 directory
+# contents is used for creating both miniinst and disc1.
+DISC1_LABEL?=	fbsd_miniinst
+DISC1_NAME?=	miniinst
+DISC2_LABEL?=	fbsd_livefs
+DISC2_NAME?=	disc2
+
 # Helper variable
 .if defined(NOPORTS)
 .if !defined(DOMINIMALDOCPORTS) || ${DOMINIMALDOCPORTS} != "YES"
@@ -363,6 +370,10 @@ rerelease release:
 	BOOT_CONFIG \
 	BUILDNAME \
 	CD_EXTRA_BITS \
+	DISC1_LABEL \
+	DISC1_NAME \
+	DISC2_LABEL \
+	DISC2_NAME \
 	DISTRIBUTIONS \
 	DOC_LANG \
 	DOMINIMALDOCPORTS \
@@ -811,9 +822,9 @@ iso.1:
 	@if [ -r ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh ]; then \
 		echo "Creating ISO images..."; \
 		sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh ${BOOTABLE} \
-		  fbsd_miniinst ${CD}/${BUILDNAME}-${TARGET}-miniinst.iso ${CD_DISC1}; \
+		  ${DISC1_LABEL} ${CD}/${BUILDNAME}-${TARGET}-${DISC1_NAME}.iso ${CD_DISC1}; \
 		sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh ${BOOTABLE} \
-		  fbsd_livefs ${CD}/${BUILDNAME}-${TARGET}-disc2.iso ${CD_DISC2}; \
+		  ${DISC2_LABEL} ${CD}/${BUILDNAME}-${TARGET}-${DISC2_NAME}.iso ${CD_DISC2}; \
 		if [ "x${CD_EXTRA_BITS}" != "x" ]; then \
 			sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh ${BOOTABLE} \
 			  fbsd_boot ${CD}/${BUILDNAME}-${TARGET}-disc1.iso ${CD_DISC1} ${CD_EXTRA_BITS}; \
