@@ -135,22 +135,6 @@ static u_int pmap_context_base;
 static vm_offset_t CADDR1;
 static vm_offset_t CADDR2;
 
-static __inline int
-pmap_track_modified(vm_offset_t va)
-{
-	return ((va < clean_sva) || (va >= clean_eva));
-}
-
-/*
- * Manipulate tte bits of all virtual to physical mappings for the given page.
- */
-static void pmap_bit_clear(vm_page_t m, u_long bits);
-static void pmap_bit_set(vm_page_t m, u_long bits);
-static int pmap_bit_test(vm_page_t m, u_long bits);
-
-static void pmap_local_remove_all(vm_page_t m);
-static void pmap_global_remove_all(vm_page_t m);
-
 /*
  * Allocate and free hardware context numbers.
  */
@@ -251,12 +235,12 @@ pmap_bootstrap(vm_offset_t skpa, vm_offset_t ekva)
 	 * Allocate physical memory for the heads of the stte alias chains.
 	 */
 	sz = round_page(((avail_end - avail_start) >> PAGE_SHIFT) *
-	    sizeof (vm_offset_t));
+	    sizeof(struct pv_head));
 	pv_table = pmap_bootstrap_alloc(sz);
 	/* XXX */
 	avail_start += sz;
-	for (i = 0; i < sz; i += sizeof(vm_offset_t))
-		stxp(pv_table + i, 0);
+	for (i = 0; i < sz; i += sizeof(struct pv_head))
+		pvh_set_first(pv_table + i, 0);
 
 	/*
 	 * Set the start and end of kva.  The kernel is loaded at the first
@@ -573,9 +557,9 @@ pmap_page_protect(vm_page_t m, vm_prot_t prot)
 	if (m->flags & PG_FICTITIOUS || prot & VM_PROT_WRITE)
 		return;
 	if (prot & (VM_PROT_READ | VM_PROT_EXECUTE))
-		pmap_bit_clear(m, TD_W);
+		pv_bit_clear(m, TD_W);
 	else
-		pmap_global_remove_all(m);
+		pv_global_remove_all(m);
 }
 
 void
@@ -584,157 +568,7 @@ pmap_clear_modify(vm_page_t m)
 
 	if (m->flags & PG_FICTITIOUS)
 		return;
-	pmap_bit_clear(m, TD_MOD);
-}
-
-static void
-pmap_bit_clear(vm_page_t m, u_long bits)
-{
-	vm_offset_t pstp;
-	vm_offset_t pvh;
-	vm_offset_t pa;
-	vm_offset_t va;
-	struct tte tte;
-
-	pa = VM_PAGE_TO_PHYS(m);
-	pvh = pv_lookup(pa);
-	PV_LOCK();
-#ifdef notyet
-restart:
-#endif
-	for (pstp = pv_get_first(pvh); pstp != 0;  pstp = pv_get_next(pstp)) {
-		tte = pv_get_tte(pstp);
-		KASSERT(TD_PA(tte.tte_data) == pa,
-		    ("pmap_bit_clear: corrupt alias chain"));
-		if ((tte.tte_data & bits) == 0)
-			continue;
-		va = tte_get_va(tte);
-		if (bits == TD_W && !pmap_track_modified(va))
-			continue;	
-		if (bits == TD_W && tte.tte_data & TD_MOD) {
-			vm_page_dirty(m);
-			bits |= TD_MOD;
-		}
-		pv_bit_clear(pstp, bits);
-#ifdef notyet
-		generation = pv_generation;
-		PV_UNLOCK();
-		/* XXX pass function and parameter to ipi call */
-		ipi_all(IPI_TLB_PAGE_DEMAP);
-		PV_LOCK();
-		if (generation != pv_generation)
-			goto restart;
-#else
-		tlb_page_demap(TLB_DTLB, tte_get_ctx(tte), va);
-#endif
-	}
-	PV_UNLOCK();
-}
-
-static void
-pmap_bit_set(vm_page_t m, u_long bits)
-{
-	vm_offset_t pstp;
-	vm_offset_t pvh;
-	vm_offset_t pa;
-	struct tte tte;
-
-	pa = VM_PAGE_TO_PHYS(m);
-	pvh = pv_lookup(pa);
-	PV_LOCK();
-#ifdef notyet
-restart:
-#endif
-	for (pstp = pv_get_first(pvh); pstp != 0; pstp = pv_get_next(pstp)) {
-		tte = pv_get_tte(pstp);
-		KASSERT(TD_PA(tte.tte_data) == pa,
-		    ("pmap_bit_set: corrupt alias chain"));
-		if (tte.tte_data & bits)
-			continue;
-		pv_bit_set(pstp, bits);
-#ifdef notyet
-		generation = pv_generation;
-		PV_UNLOCK();
-		/* XXX pass function and parameter to ipi call */
-		ipi_all(IPI_TLB_PAGE_DEMAP);
-		PV_LOCK();
-		if (generation != pv_generation)
-			goto restart;
-#else
-		tlb_page_demap(TLB_DTLB, tte_get_ctx(tte), tte_get_va(tte));
-#endif
-	}
-	PV_UNLOCK();
-}
-
-static int
-pmap_bit_test(vm_page_t m, u_long bits)
-{
-	vm_offset_t pstp;
-	vm_offset_t pvh;
-	vm_offset_t pa;
-
-	pa = VM_PAGE_TO_PHYS(m);
-	pvh = pv_lookup(pa);
-	PV_LOCK();
-	for (pstp = pv_get_first(pvh); pstp != 0; pstp = pv_get_next(pstp)) {
-		if (pv_bit_test(pstp, bits)) {
-			PV_UNLOCK();
-			return (1);
-		}
-	}
-	PV_UNLOCK();
-	return (0);
-}
-
-static void
-pmap_global_remove_all(vm_page_t m)
-{
-	vm_offset_t pstp;
-	vm_offset_t pvh;
-	vm_offset_t pa;
-
-	printf("pmap_global_remove_all\n");
-	pa = VM_PAGE_TO_PHYS(m);
-	pvh = pv_lookup(pa);
-	pv_dump(pvh);
-	PV_LOCK();
-	printf("pmap_global_remove_all: for\n");
-	for (pstp = pv_get_first(pvh); pstp != 0; pstp = pv_get_next(pstp))
-		pv_bit_clear(pstp, TD_V);
-	printf("pmap_global_remove_all: done for\n");
-	PV_UNLOCK();
-	pmap_local_remove_all(m);
-	pv_dump(pvh);
-	PV_LOCK();
-	printf("pmap_global_remove_all: while\n");
-	while ((pstp = pv_get_first(pvh)) != 0) {
-		pv_dump(pvh);
-		pv_remove_phys(pstp);
-	}
-	printf("pmap_global_remove_all: done while\n");
-	PV_UNLOCK();
-	printf("pmap_global_remove_all: done\n");
-}
-
-static void
-pmap_local_remove_all(vm_page_t m)
-{
-	vm_offset_t pstp;
-	vm_offset_t pvh;
-	vm_offset_t pa;
-	struct tte tte;
-
-	pa = VM_PAGE_TO_PHYS(m);
-	pvh = pv_lookup(pa);
-	PV_LOCK();
-	printf("pmap_local_remove_all: for\n");
-	for (pstp = pv_get_first(pvh); pstp != 0; pstp = pv_get_next(pstp)) {
-		tte = pv_get_tte(pstp);
-		tsb_tte_local_remove(&tte);
-	}
-	printf("pmap_local_remove_all: done for\n");
-	PV_UNLOCK();
+	pv_bit_clear(m, TD_MOD);
 }
 
 void
