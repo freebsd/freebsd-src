@@ -6,7 +6,7 @@
  *
  * Questions, comments, bug reports and fixes to kimmel@cs.umass.edu.
  * 
- * $Id: if_el.c,v 1.7 1994/10/21 01:19:06 wollman Exp $
+ * $Id: if_el.c,v 1.8 1994/10/23 21:27:17 wollman Exp $
  */
 /* Except of course for the portions of code lifted from other FreeBSD
  * drivers (mainly elread, elget and el_ioctl)
@@ -562,47 +562,21 @@ void elintr(int unit)
 	return;
 }
 
-/* Pass a packet up to the higher levels.  Deal with trailer protocol. */
+/* Pass a packet up to the higher levels. */
 static inline void elread(struct el_softc *sc,caddr_t buf,int len)
 {
 	register struct ether_header *eh;
 	struct mbuf *m;
-	int off, resid;
 
-	/* Deal with trailer protocol: if type is trailer type
-	 * get true type from first 16-bit word past data.
-	 * Remember that type was trailer by setting off.
-	 */
 	eh = (struct ether_header *)buf;
-	eh->ether_type = ntohs((u_short)eh->ether_type);
-#define eldataaddr(eh,off,type)	((type)(((caddr_t)((eh)+1)+(off))))
-	if(eh->ether_type >= ETHERTYPE_TRAIL &&
-	   eh->ether_type < ETHERTYPE_TRAIL+ETHERTYPE_NTRAILER) {
-		off = (eh->ether_type - ETHERTYPE_TRAIL) * 512;
-		if(off >= ETHERMTU)
-			return;
-		eh->ether_type = ntohs(*eldataaddr(eh,off,u_short *));
-		resid = ntohs(*(eldataaddr(eh,off+2,u_short *)));
-		if((off+resid) > len)
-			return;
-		len = off + resid;
-	}
-	else
-		off = 0;
-
-	if(len <= 0)
-		return;
 
 #if NBPFILTER > 0
 	/*
 	 * Check if there's a bpf filter listening on this interface.
-	 * If so, hand off the raw packet to bpf, which must deal with
-	 * trailers in its own way.
+	 * If so, hand off the raw packet to bpf.
 	 */
 	if(sc->bpf) {
-		eh->ether_type = htons((u_short)eh->ether_type);
 		bpf_tap(sc->bpf,buf,len+sizeof(struct ether_header));
-		eh->ether_type = ntohs((u_short)eh->ether_type);
 
 		/*
 		 * Note that the interface cannot be in promiscuous mode if
@@ -621,12 +595,9 @@ static inline void elread(struct el_softc *sc,caddr_t buf,int len)
 #endif
 
 	/*
-	 * Pull packet off interface.  Off is nonzero if packet
-	 * has trailing header; neget will then force this header
-	 * information to be at the front, but we still have to drop
-	 * the type and length which are at the front of any trailer data.
+	 * Pull packet off interface.
 	 */
-	m = elget(buf,len,off,&sc->arpcom.ac_if);
+	m = elget(buf,len,0,&sc->arpcom.ac_if);
 	if(m == 0)
 		return;
 
@@ -636,11 +607,6 @@ static inline void elread(struct el_softc *sc,caddr_t buf,int len)
 /*
  * Pull read data off a interface.
  * Len is length of data, with local net header stripped.
- * Off is non-zero if a trailer protocol was used, and
- * gives the offset of the trailer information.
- * We copy the trailer information and then all the normal
- * data into mbufs.  When full cluster sized units are present
- * we copy into clusters.
  */
 struct mbuf *
 elget(buf, totlen, off0, ifp)

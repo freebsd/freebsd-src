@@ -52,10 +52,6 @@
  *   used while working on this driver and the program that displays this
  *   information (epstat).
  *   
- *   NB 2: About trailers, I didn't care if this implementation was OK, I just
- *   adapted it to have the same behaviour as in the original driver (donne
- *   just for epread()).
- * 
  * 
  * Some driver statistics can be viewed with the epstat utility.  In order to 
  * use this, you have to compile if_ep.c with
@@ -812,62 +808,7 @@ startagain:
 
 #if NBPFILTER > 0
     if (sc->bpf) {
-	u_short etype;
-	int off, datasize, resid;
-	struct ether_header *eh;
-	struct trailer_header {
-	    u_short ether_type;
-	    u_short ether_residual;
-	} trailer_header;
-	char ether_packet[ETHER_MAX_LEN];
-	char *ep;
-
-	ep = ether_packet;
-
-	/*
-	 * We handle trailers below: Copy ether header first, then residual
-	 * data, then data. Put all this in a temporary buffer 'ether_packet'
-	 * and send off to bpf. Since the system has generated this packet,
-	 * we assume that all of the offsets in the packet are correct; if
-	 * they're not, the system will almost certainly crash in m_copydata.
-	 * We make no assumptions about how the data is arranged in the mbuf
-	 * chain (i.e. how much data is in each mbuf, if mbuf clusters are
-	 * used, etc.), which is why we use m_copydata to get the ether
-	 * header rather than assume that this is located in the first mbuf.
-	 */
-	/* copy ether header */
-	m_copydata(top, 0, sizeof(struct ether_header), ep);
-	eh = (struct ether_header *) ep;
-	ep += sizeof(struct ether_header);
-	eh->ether_type = etype = ntohs(eh->ether_type);
-	if (etype >= ETHERTYPE_TRAIL &&
-	    etype < ETHERTYPE_TRAIL + ETHERTYPE_NTRAILER) {
-	    datasize = ((etype - ETHERTYPE_TRAIL) << 9);
-	    off = datasize + sizeof(struct ether_header);
-
-	    /* copy trailer_header into a data structure */
-	    m_copydata(top, off, sizeof(struct trailer_header),
-		       (caddr_t) & trailer_header.ether_type);
-
-	    /* copy residual data */
-	    resid = trailer_header.ether_residual -
-		sizeof(struct trailer_header);
-	    resid = ntohs(resid);
-	    m_copydata(top, off + sizeof(struct trailer_header),
-		       resid, ep);
-	    ep += resid;
-
-	    /* copy data */
-	    m_copydata(top, sizeof(struct ether_header),
-		       datasize, ep);
-	    ep += datasize;
-
-	    /* restore original ether packet type */
-	    eh->ether_type = trailer_header.ether_type;
-
-	    bpf_tap(sc->bpf, ether_packet, ep - ether_packet);
-	} else
-	    bpf_mtap(sc->bpf, top);
+	bpf_mtap(sc->bpf, top);
     }
 #endif
 
@@ -998,12 +939,7 @@ epread(sc)
     short rx_fifo2, status;
     register short delta;
     register short rx_fifo;
-    u_short etype;
 
-    /*
-     * XXX I have just adapted the code for the protocol trailing processing
-     * as programed in the original driver. FreeBSD 1.1.5.1 release
-     */
     status = inw(BASE + EP_W1_RX_STATUS);
 
 read_again:
@@ -1050,34 +986,6 @@ read_again:
 	top->m_len = sizeof(struct ether_header);
 	rx_fifo -= sizeof(struct ether_header);
 	sc->cur_len = rx_fifo2;
-
-	/*
-	 * Test for trailers.
-	 * I didn't care if this implementation was OK, I just adapted it to
-	 * have the same behaviour as in the original driver
-	 */
-	eh = mtod(top, struct ether_header *);
-	etype = eh->ether_type = ntohs((u_short) eh->ether_type);
-	if (etype >= ETHERTYPE_TRAIL &&
-	    etype < ETHERTYPE_TRAIL + ETHERTYPE_NTRAILER) {
-	    if ((etype - ETHERTYPE_TRAIL) * 512 >= ETHERMTU)
-		goto out;
-	    m->m_data = m->m_dat;	/* Convert back to regular mbuf.  */
-	    m->m_flags = 0;	/* This sucks but non-trailers are the norm */
-	    m->m_data += 2 * sizeof(u_short);	/* Get rid of type & len */
-
-	    sc->cur_len = sizeof(struct ether_header);
-	    ep_fset(F_RX_TRAILER);
-
-	    /* in the case of trailers, we prefer to have the packet complete */
-	    if (status & ERR_RX_INCOMPLETE) {
-		ep_frst(F_RX_FIRST);
-		outw(BASE + EP_COMMAND, SET_RX_EARLY_THRESH | 2032);	/* disable */
-		return;
-	    } else
-		/* We don't read the trailer, next we are reading the data */
-		rx_fifo -= sizeof(struct ether_header);
-	}
     } else {
 	/* come here if we didn't have a complete packet last time */
 	top = sc->top;
