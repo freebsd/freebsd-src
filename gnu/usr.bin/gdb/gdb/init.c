@@ -1,4 +1,3 @@
-#include "defs.h"			/* for KERNEL_DEBUG */
 /* Do not modify this file.  */
 /* It is created automatically by the Makefile.  */
 void initialize_all_files () {
@@ -8,6 +7,7 @@ void initialize_all_files () {
   {extern void _initialize_thread (); _initialize_thread ();}
   {extern void _initialize_source (); _initialize_source ();}
   {extern void _initialize_values (); _initialize_values ();}
+  {extern void _initialize_valops (); _initialize_valops ();}
   {extern void _initialize_valarith (); _initialize_valarith ();}
   {extern void _initialize_valprint (); _initialize_valprint ();}
   {extern void _initialize_printcmd (); _initialize_printcmd ();}
@@ -19,21 +19,22 @@ void initialize_all_files () {
   {extern void _initialize_command (); _initialize_command ();}
   {extern void _initialize_gdbtypes (); _initialize_gdbtypes ();}
   {extern void _initialize_copying (); _initialize_copying ();}
+  {extern void _initialize_i386_tdep (); _initialize_i386_tdep ();}
   {extern void _initialize_solib (); _initialize_solib ();}
   {extern void _initialize_ser_hardwire (); _initialize_ser_hardwire ();}
-  {extern void _initialize_exec (); _initialize_exec ();}
   {extern void _initialize_kernel_u_addr (); _initialize_kernel_u_addr ();}
+  {extern void _initialize_infptrace (); _initialize_infptrace ();}
   {extern void _initialize_inftarg (); _initialize_inftarg ();}
   {extern void _initialize_corelow (); _initialize_corelow ();}
-#ifdef KERNEL_DEBUG
+  {extern void _initialize_core_aout (); _initialize_core_aout ();}
   {extern void _initialize_kcorelow (); _initialize_kcorelow ();}
-#endif
   {extern void _initialize_remote (); _initialize_remote ();}
+  {extern void _initialize_dcache (); _initialize_dcache ();}
   {extern void _initialize_sr_support (); _initialize_sr_support ();}
-  {extern void _initialize_targets (); _initialize_targets ();}
   {extern void _initialize_parse (); _initialize_parse ();}
   {extern void _initialize_language (); _initialize_language ();}
   {extern void _initialize_buildsym (); _initialize_buildsym ();}
+  {extern void _initialize_exec (); _initialize_exec ();}
   {extern void _initialize_maint_cmds (); _initialize_maint_cmds ();}
   {extern void _initialize_demangler (); _initialize_demangler ();}
   {extern void _initialize_dbxread (); _initialize_dbxread ();}
@@ -43,12 +44,16 @@ void initialize_all_files () {
   {extern void _initialize_core (); _initialize_core ();}
   {extern void _initialize_c_language (); _initialize_c_language ();}
   {extern void _initialize_chill_language (); _initialize_chill_language ();}
+  {extern void _initialize_f_language (); _initialize_f_language ();}
   {extern void _initialize_m2_language (); _initialize_m2_language ();}
+  {extern void _initialize_scheme_language (); _initialize_scheme_language ();}
   {extern void _initialize_complaints (); _initialize_complaints ();}
   {extern void _initialize_typeprint (); _initialize_typeprint ();}
   {extern void _initialize_cp_valprint (); _initialize_cp_valprint ();}
+  {extern void _initialize_f_valprint (); _initialize_f_valprint ();}
+  {extern void _initialize_nlmread (); _initialize_nlmread ();}
   {extern void _initialize_serial (); _initialize_serial ();}
   {extern void _initialize_mdebugread (); _initialize_mdebugread ();}
-  {extern void _initialize_utils (); _initialize_utils ();}
+  {extern void _initialize_annotate (); _initialize_annotate ();}
   {extern void _initialize_inflow (); _initialize_inflow ();}
 }
