@@ -272,6 +272,7 @@ device		fe1	at isa? port 0x73d0 irq 5
 
 device		ep0	at isa? port 0x40d0 irq 3
 device		lnc0	at isa? port 0x03d0 irq 6
+device		snc0	at isa? port 0x888  irq 6 iomem 0xc0000
 
 # WaveLAN/IEEE 802.11 wireless NICs. Note: the WaveLAN/IEEE really
 # exists only as a PCMCIA device, so there is no ISA attatement needed
