@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: malloc.c,v 1.37 1998/04/29 09:10:58 jb Exp $
+ * $Id: malloc.c,v 1.38 1998/06/09 08:30:32 jb Exp $
  *
  */
 
@@ -380,6 +380,7 @@ malloc_init ()
 {
     char *p, b[64];
     int i, j;
+    int errnosave;
 
     INIT_MMAP();
 
@@ -389,7 +390,9 @@ malloc_init ()
 
     for (i = 0; i < 3; i++) {
 	if (i == 0) {
+	    errnosave = errno;
 	    j = readlink("/etc/malloc.conf", b, sizeof b - 1);
+	    errno = errnosave;
 	    if (j <= 0)
 		continue;
 	    b[j] = '\0';
