@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,16 +33,18 @@
 
 #include "test_locl.h"
 
-RCSID("$Id: common.c,v 1.9 1999/12/16 10:29:18 assar Exp $");
+RCSID("$Id: common.c,v 1.10 2000/02/12 21:30:47 assar Exp $");
 
 static int help_flag;
 static int version_flag;
 static char *port_str;
 char *service = SERVICE;
+int fork_flag;
 
 static struct getargs args[] = {
     { "port", 'p', arg_string, &port_str, "port to listen to", "port" },
     { "service", 's', arg_string, &service, "service to use", "service" },
+    { "fork", 'f', arg_flag, &fork_flag, "do fork" },
     { "help", 'h', arg_flag, &help_flag },
     { "version", 0, arg_flag, &version_flag }
 };

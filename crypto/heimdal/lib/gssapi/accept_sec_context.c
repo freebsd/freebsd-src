@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: accept_sec_context.c,v 1.15 1999/12/26 18:32:08 assar Exp $");
+RCSID("$Id: accept_sec_context.c,v 1.17 2000/02/12 21:24:08 assar Exp $");
 
 static krb5_keytab gss_keytab;
 
@@ -53,7 +53,8 @@ gsskrb5_register_acceptor_identity (char *identity)
     return GSS_S_COMPLETE;
 }
 
-OM_uint32 gss_accept_sec_context
+OM_uint32
+gss_accept_sec_context
            (OM_uint32 * minor_status,
             gss_ctx_id_t * context_handle,
             const gss_cred_id_t acceptor_cred_handle,
@@ -151,6 +152,14 @@ OM_uint32 gss_accept_sec_context
     goto failure;
   }
 
+  kret = krb5_copy_principal (gssapi_krb5_context,
+			      ticket->server,
+			      &(*context_handle)->target);
+  if (kret) {
+    ret = GSS_S_FAILURE;
+    goto failure;
+  }
+
   if (src_name) {
     kret = krb5_copy_principal (gssapi_krb5_context,
 				ticket->client,
@@ -181,6 +190,8 @@ OM_uint32 gss_accept_sec_context
 	  goto failure;
       }
   }
+
+  flags |= GSS_C_TRANS_FLAG;
 
   if (ret_flags)
     *ret_flags = flags;

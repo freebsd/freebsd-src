@@ -1,11 +1,11 @@
-# $Id: Makefile.am,v 1.67 2000/02/07 03:32:15 assar Exp $
+# $Id: Makefile.am,v 1.69 2000/02/13 20:34:03 assar Exp $
 
 include $(top_srcdir)/Makefile.am.common
 
 CLEANFILES = roken.h make-roken.c print_version.h
 
 lib_LTLIBRARIES = libroken.la
-libroken_la_LDFLAGS = -version-info 6:0:1
+libroken_la_LDFLAGS = -version-info 7:0:2
 
 noinst_PROGRAMS = make-roken make-print-version
 
@@ -32,6 +32,7 @@ libroken_la_SOURCES =		\
 	erealloc.c		\
 	estrdup.c		\
 	ewrite.c		\
+	getaddrinfo_hostspec.c	\
 	get_default_username.c	\
 	get_window_size.c	\
 	getarg.c		\

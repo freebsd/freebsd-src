@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,11 @@
 
 #include "kdc_locl.h"
 
-RCSID("$Id: connect.c,v 1.68 1999/12/02 17:04:58 joda Exp $");
+RCSID("$Id: connect.c,v 1.69 2000/02/11 17:45:45 assar Exp $");
+
+/*
+ * a tuple describing on what to listen
+ */
 
 struct port_desc{
     int family;
@@ -41,8 +45,14 @@ struct port_desc{
     int port;
 };
 
+/* the current ones */
+
 static struct port_desc *ports;
 static int num_ports;
+
+/*
+ * add `family, port, protocol' to the list with duplicate suppresion.
+ */
 
 static void
 add_port(int family, int port, const char *protocol)
@@ -63,11 +73,18 @@ add_port(int family, int port, const char *protocol)
 	    return;
     }
     ports = realloc(ports, (num_ports + 1) * sizeof(*ports));
+    if (ports == NULL)
+	krb5_err (context, 1, errno, "realloc");
     ports[num_ports].family = family;
     ports[num_ports].type   = type;
     ports[num_ports].port   = port;
     num_ports++;
 }
+
+/*
+ * add a triple but with service -> port lookup
+ * (this prints warnings for stuff that does not exist)
+ */
 
 static void
 add_port_service(int family, const char *service, int port,
@@ -76,6 +93,11 @@ add_port_service(int family, const char *service, int port,
     port = krb5_getportbyname (context, service, protocol, port);
     add_port (family, port, protocol);
 }
+
+/*
+ * add the port with service -> port lookup or string -> number
+ * (no warning is printed)
+ */
 
 static void
 add_port_string (int family, const char *port_str, const char *protocol)
@@ -96,6 +118,10 @@ add_port_string (int family, const char *port_str, const char *protocol)
     add_port (family, port, protocol);
 }
 
+/*
+ * add the standard collection of ports for `family'
+ */
+
 static void
 add_standard_ports (int family)
 {
@@ -112,6 +138,12 @@ add_standard_ports (int family)
 	add_port_service(family, "afs3-kaserver", 7004, "udp");
 #endif
 }
+
+/*
+ * parse the set of space-delimited ports in `str' and add them.
+ * "+" => all the standard ones
+ * otherwise it's port|service[/protocol]
+ */
 
 static void
 parse_ports(const char *str)
@@ -150,6 +182,10 @@ parse_ports(const char *str)
     free (str_copy);
 }
 
+/*
+ * every socket we listen on
+ */
+
 struct descr {
     int s;
     int type;
@@ -176,7 +212,7 @@ init_socket(struct descr *d, krb5_address *a, int family, int type, int port)
 
     ret = krb5_addr2sockaddr (a, sa, &sa_size, port);
     if (ret) {
-	krb5_warn(context, ret, "krb5_anyaddr");
+	krb5_warn(context, ret, "krb5_addr2sockaddr");
 	close(d->s);
 	d->s = -1;
 	return;
@@ -200,14 +236,23 @@ init_socket(struct descr *d, krb5_address *a, int family, int type, int port)
     d->type = type;
 
     if(bind(d->s, sa, sa_size) < 0){
-	krb5_warn(context, errno, "bind(%d)", ntohs(port));
+	char a_str[256];
+	size_t len;
+
+	krb5_print_address (a, a_str, sizeof(a_str), &len);
+	krb5_warn(context, errno, "bind %s/%d", a_str, ntohs(port));
 	close(d->s);
 	d->s = -1;
 	return;
     }
     if(type == SOCK_STREAM && listen(d->s, SOMAXCONN) < 0){
-	krb5_warn(context, errno, "listen");
+	char a_str[256];
+	size_t len;
+
+	krb5_print_address (a, a_str, sizeof(a_str), &len);
+	krb5_warn(context, errno, "listen %s/%d", a_str, ntohs(port));
 	close(d->s);
+	d->s = -1;
 	return;
     }
 }
@@ -226,9 +271,13 @@ init_sockets(struct descr **desc)
     int num = 0;
     krb5_addresses addresses;
 
-    ret = krb5_get_all_server_addrs (context, &addresses);
-    if (ret)
-	krb5_err (context, 1, ret, "krb5_get_all_server_addrs");
+    if (explicit_addresses.len) {
+	addresses = explicit_addresses;
+    } else {
+	ret = krb5_get_all_server_addrs (context, &addresses);
+	if (ret)
+	    krb5_err (context, 1, ret, "krb5_get_all_server_addrs");
+    }
     parse_ports(port_str);
     d = malloc(addresses.len * num_ports * sizeof(*d));
     if (d == NULL)
@@ -262,7 +311,11 @@ init_sockets(struct descr **desc)
     return num;
 }
 
-    
+/*
+ * handle the request in `buf, len', from `addr' (or `from' as a string),
+ * sending a reply in `reply'.
+ */
+
 static int
 process_request(unsigned char *buf, 
 		size_t len, 
@@ -711,7 +764,8 @@ loop(void)
 	case 0:
 	    break;
 	case -1:
-	    krb5_warn(context, errno, "select");
+	    if (errno != EINTR)
+		krb5_warn(context, errno, "select");
 	    break;
 	default:
 	    for(i = 0; i < ndescr; i++)

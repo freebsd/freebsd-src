@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -34,7 +34,52 @@
 #include "test_locl.h"
 #include <gssapi.h>
 #include "gss_common.h"
-RCSID("$Id: gssapi_client.c,v 1.10 1999/12/04 18:15:50 assar Exp $");
+RCSID("$Id: gssapi_client.c,v 1.12 2000/02/12 21:33:17 assar Exp $");
+
+static int
+do_trans (int sock, gss_ctx_id_t context_hdl)
+{
+    OM_uint32 maj_stat, min_stat;
+    gss_buffer_desc real_input_token, real_output_token;
+    gss_buffer_t input_token = &real_input_token,
+	output_token = &real_output_token;
+
+    /* get_mic */
+
+    input_token->length = 3;
+    input_token->value  = strdup("hej");
+
+    maj_stat = gss_get_mic(&min_stat,
+			   context_hdl,
+			   GSS_C_QOP_DEFAULT,
+			   input_token,
+			   output_token);
+    if (GSS_ERROR(maj_stat))
+	gss_err (1, min_stat, "gss_get_mic");
+
+    write_token (sock, input_token);
+    write_token (sock, output_token);
+
+    /* wrap */
+
+    input_token->length = 7;
+    input_token->value  = "hemligt";
+
+
+    maj_stat = gss_wrap (&min_stat,
+			 context_hdl,
+			 1,
+			 GSS_C_QOP_DEFAULT,
+			 input_token,
+			 NULL,
+			 output_token);
+    if (GSS_ERROR(maj_stat))
+	gss_err (1, min_stat, "gss_wrap");
+
+    write_token (sock, output_token);
+
+    return 0;
+}
 
 static int
 proto (int sock, const char *hostname, const char *service)
@@ -44,8 +89,9 @@ proto (int sock, const char *hostname, const char *service)
 
     int context_established = 0;
     gss_ctx_id_t context_hdl = GSS_C_NO_CONTEXT;
-    gss_buffer_t input_token, output_token;
     gss_buffer_desc real_input_token, real_output_token;
+    gss_buffer_t input_token = &real_input_token,
+	output_token = &real_output_token;
     OM_uint32 maj_stat, min_stat;
     gss_name_t server;
     gss_buffer_desc name_token;
@@ -70,9 +116,6 @@ proto (int sock, const char *hostname, const char *service)
     if (getpeername (sock, (struct sockaddr *)&remote, &addrlen) < 0
 	|| addrlen != sizeof(remote))
 	err (1, "getpeername(%s)", hostname);
-
-    input_token = &real_input_token;
-    output_token = &real_output_token;
 
     input_token->length = 0;
     output_token->length = 0;
@@ -110,42 +153,42 @@ proto (int sock, const char *hostname, const char *service)
 	}
 
     }
+    if (fork_flag) {
+	pid_t pid;
+	int pipefd[2];
 
-    /* get_mic */
+	if (pipe (pipefd) < 0)
+	    err (1, "pipe");
 
-    input_token->length = 3;
-    input_token->value  = strdup("hej");
+	pid = fork ();
+	if (pid < 0)
+	    err (1, "fork");
+	if (pid != 0) {
+	    gss_buffer_desc buf;
 
-    maj_stat = gss_get_mic(&min_stat,
-			   context_hdl,
-			   GSS_C_QOP_DEFAULT,
-			   input_token,
-			   output_token);
-    if (GSS_ERROR(maj_stat))
-	gss_err (1, min_stat, "gss_get_mic");
+	    maj_stat = gss_export_sec_context (&min_stat,
+					       &context_hdl,
+					       &buf);
+	    if (GSS_ERROR(maj_stat))
+		gss_err (1, min_stat, "gss_export_sec_context");
+	    write_token (pipefd[1], &buf);
+	    exit (0);
+	} else {
+	    gss_ctx_id_t context_hdl;
+	    gss_buffer_desc buf;
 
-    write_token (sock, input_token);
-    write_token (sock, output_token);
-
-    /* wrap */
-
-    input_token->length = 7;
-    input_token->value  = "hemligt";
-
-
-    maj_stat = gss_wrap (&min_stat,
-			 context_hdl,
-			 1,
-			 GSS_C_QOP_DEFAULT,
-			 input_token,
-			 NULL,
-			 output_token);
-    if (GSS_ERROR(maj_stat))
-	gss_err (1, min_stat, "gss_wrap");
-
-    write_token (sock, output_token);
-
-    return 0;
+	    close (pipefd[1]);
+	    read_token (pipefd[0], &buf);
+	    close (pipefd[0]);
+	    maj_stat = gss_import_sec_context (&min_stat, &buf, &context_hdl);
+	    if (GSS_ERROR(maj_stat))
+		gss_err (1, min_stat, "gss_import_sec_context");
+	    gss_release_buffer (&min_stat, &buf);
+	    return do_trans (sock, context_hdl);
+	}
+    } else {
+	return do_trans (sock, context_hdl);
+    }
 }
 
 int

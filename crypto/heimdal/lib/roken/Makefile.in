@@ -10,7 +10,7 @@
 # even the implied warranty of MERCHANTABILITY or FITNESS FOR A
 # PARTICULAR PURPOSE.
 
-# $Id: Makefile.am,v 1.67 2000/02/07 03:32:15 assar Exp $
+# $Id: Makefile.am,v 1.69 2000/02/13 20:34:03 assar Exp $
 
 
 # $Id: Makefile.am.common,v 1.3 1999/04/01 14:58:43 joda Exp $
@@ -176,7 +176,7 @@ CHECK_LOCAL = $(PROGRAMS)
 CLEANFILES = roken.h make-roken.c print_version.h
 
 lib_LTLIBRARIES = libroken.la
-libroken_la_LDFLAGS = -version-info 6:0:1
+libroken_la_LDFLAGS = -version-info 7:0:2
 
 noinst_PROGRAMS = make-roken make-print-version
 
@@ -189,7 +189,7 @@ strpftime_test_SOURCES = strpftime-test.c strftime.c strptime.c snprintf.c
 
 @KRB4_TRUE@@KRB5_TRUE@make_print_version_LDADD =  $(LIB_krb4) -ldes
 
-libroken_la_SOURCES =  	base64.c			concat.c			emalloc.c			eread.c				erealloc.c			estrdup.c			ewrite.c			get_default_username.c		get_window_size.c		getarg.c			getnameinfo_verified.c		issuid.c			k_getpwnam.c			k_getpwuid.c			mini_inetd.c			net_read.c			net_write.c			parse_bytes.c			parse_time.c			parse_units.c			print_version.c			resolve.c			roken_gethostby.c		signal.c			simple_exec.c			snprintf.c			socket.c			strcollect.c			tm2time.c			verify.c			warnerr.c			xdbm.h
+libroken_la_SOURCES =  	base64.c			concat.c			emalloc.c			eread.c				erealloc.c			estrdup.c			ewrite.c			getaddrinfo_hostspec.c		get_default_username.c		get_window_size.c		getarg.c			getnameinfo_verified.c		issuid.c			k_getpwnam.c			k_getpwuid.c			mini_inetd.c			net_read.c			net_write.c			parse_bytes.c			parse_time.c			parse_units.c			print_version.c			resolve.c			roken_gethostby.c		signal.c			simple_exec.c			snprintf.c			socket.c			strcollect.c			tm2time.c			verify.c			warnerr.c			xdbm.h
 
 
 EXTRA_libroken_la_SOURCES =  	chown.c				copyhostent.c			daemon.c			err.c				err.h				errx.c				fchown.c			flock.c				fnmatch.c			fnmatch.h			freeaddrinfo.c			freehostent.c			gai_strerror.c			getaddrinfo.c			getdtablesize.c			getegid.c			geteuid.c			getgid.c			gethostname.c			getipnodebyaddr.c		getipnodebyname.c		getnameinfo.c			getopt.c			gettimeofday.c			getuid.c			getusershell.c			glob.h				hstrerror.c			inet_aton.c			inet_ntop.c			inet_pton.c			initgroups.c			innetgr.c			iruserok.c			lstat.c				memmove.c			mkstemp.c			putenv.c			rcmd.c				readv.c				recvmsg.c			sendmsg.c			setegid.c			setenv.c			seteuid.c			strcasecmp.c			strdup.c			strerror.c			strftime.c			strlcat.c			strlcpy.c			strlwr.c			strncasecmp.c			strndup.c			strnlen.c			strptime.c			strsep.c			strtok_r.c			strupr.c			swab.c				unsetenv.c			verr.c				verrx.c				vsyslog.c			vwarn.c				vwarnx.c			warn.c				warnx.c				writev.c
@@ -226,12 +226,13 @@ X_EXTRA_LIBS = @X_EXTRA_LIBS@
 X_PRE_LIBS = @X_PRE_LIBS@
 libroken_la_DEPENDENCIES =  @LTLIBOBJS@
 libroken_la_OBJECTS =  base64.lo concat.lo emalloc.lo eread.lo \
-erealloc.lo estrdup.lo ewrite.lo get_default_username.lo \
-get_window_size.lo getarg.lo getnameinfo_verified.lo issuid.lo \
-k_getpwnam.lo k_getpwuid.lo mini_inetd.lo net_read.lo net_write.lo \
-parse_bytes.lo parse_time.lo parse_units.lo print_version.lo resolve.lo \
-roken_gethostby.lo signal.lo simple_exec.lo snprintf.lo socket.lo \
-strcollect.lo tm2time.lo verify.lo warnerr.lo
+erealloc.lo estrdup.lo ewrite.lo getaddrinfo_hostspec.lo \
+get_default_username.lo get_window_size.lo getarg.lo \
+getnameinfo_verified.lo issuid.lo k_getpwnam.lo k_getpwuid.lo \
+mini_inetd.lo net_read.lo net_write.lo parse_bytes.lo parse_time.lo \
+parse_units.lo print_version.lo resolve.lo roken_gethostby.lo signal.lo \
+simple_exec.lo snprintf.lo socket.lo strcollect.lo tm2time.lo verify.lo \
+warnerr.lo
 check_PROGRAMS =  parse_bytes-test$(EXEEXT) strpftime-test$(EXEEXT) \
 getaddrinfo-test$(EXEEXT)
 noinst_PROGRAMS =  make-roken$(EXEEXT) make-print-version$(EXEEXT)

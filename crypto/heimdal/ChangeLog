@@ -1,3 +1,43 @@
+2000-02-14  Assar Westerlund  <assar@sics.se>
+
+	* Release 0.2o
+
+2000-02-13  Assar Westerlund  <assar@sics.se>
+
+	* lib/krb5/Makefile.am: set version to 9:0:0
+
+	* kdc/kaserver.c (do_authenticate): return the kvno of the server
+	and not the client.  Thanks to Brandon S. Allbery KF8NH
+	<allbery@kf8nh.apk.net> and Chaskiel M Grundman
+	<cg2v@andrew.cmu.edu> for debugging.
+
+	* kdc/kerberos4.c (do_version4): if an tgs-req is received with an
+	old kvno, return an error reply and write a message in the log.
+	
+2000-02-12  Assar Westerlund  <assar@sics.se>
+
+	* appl/test/gssapi_server.c (proto): with `--fork', create a child
+	and send over/receive creds with export/import_sec_context
+	* appl/test/gssapi_client.c (proto): with `--fork', create a child
+	and send over/receive creds with export/import_sec_context
+	* appl/test/common.c: add `--fork' / `-f' (only used by gssapi)
+
+2000-02-11  Assar Westerlund  <assar@sics.se>
+
+	* kdc/kdc_locl.h: remove keyfile add explicit_addresses
+	* kdc/connect.c (init_sockets): pay attention to
+	explicit_addresses some more comments.  better error messages.
+	* kdc/config.c: add some comments.
+	remove --key-file.
+	add --addresses.
+
+	* lib/krb5/context.c (krb5_set_extra_addresses): const-ize and use
+	proper abstraction
+
+2000-02-07  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/krb5/changepw.c: use roken_getaddrinfo_hostspec
+
 2000-02-07  Assar Westerlund  <assar@sics.se>
 
 	* Release 0.2n
