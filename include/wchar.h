@@ -208,6 +208,7 @@ int	wcwidth(wchar_t);
 #endif
 
 #if __BSD_VISIBLE
+wchar_t	*fgetwln(struct __sFILE * __restrict, size_t * __restrict);
 size_t	wcslcat(wchar_t *, const wchar_t *, size_t);
 size_t	wcslcpy(wchar_t *, const wchar_t *, size_t);
 #endif
