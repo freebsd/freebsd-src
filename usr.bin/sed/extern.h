@@ -50,7 +50,7 @@ extern char *fname;
 void	 cfclose __P((struct s_command *, struct s_command *));
 void	 compile __P((void));
 void	 cspace __P((SPACE *, char *, size_t, enum e_spflag));
-char	*cu_fgets __P((char *, int));
+char	*cu_fgets __P((char *, int, int *));
 int	 mf_fgets __P((SPACE *, enum e_spflag));
 void	 process __P((void));
 char	*strregerror __P((int, regex_t *));
