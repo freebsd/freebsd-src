@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: if_fxpreg.h,v 1.1 1995/11/28 23:55:26 davidg Exp $
  */
 
 #define FXP_VENDORID_INTEL	0x8086
@@ -177,7 +177,7 @@ struct fxp_cb_tx {
 	/*
 	 * The following isn't actually part of the TxCB.
 	 */
-	volatile struct fxp_tbd tbd[13];
+	volatile struct fxp_tbd tbd[29];
 	struct mbuf *mb_head;
 	struct fxp_cb_tx *next;
 };
