@@ -111,6 +111,25 @@ references to a single lock.  If a process holding a lock on a file
 forks and the child explicitly unlocks the file, the parent will
 lose its lock.
 .Pp
+The
+.Fn flock ,
+.Xr fcntl 2 ,
+and
+.Xr lockf 3
+locks are compatible.
+Processes using different locking interfaces can cooperate
+over the same file safely.
+However, only one of such interfaces should be used within
+the same process.
+If a file is locked by a process through
+.Fn flock ,
+any record within the file will be seen as locked
+from the viewpoint of another process using
+.Xr fcntl 2
+or
+.Xr lockf 3 ,
+and vice versa.
+.Pp
 Processes blocked awaiting a lock may be awakened by signals.
 .Sh RETURN VALUES
 .Rv -std flock
@@ -140,8 +159,10 @@ refers to an object that does not support file locking.
 .Xr close 2 ,
 .Xr dup 2 ,
 .Xr execve 2 ,
+.Xr fcntl 2 ,
 .Xr fork 2 ,
-.Xr open 2
+.Xr open 2 ,
+.Xr lockf 3
 .Sh HISTORY
 The
 .Fn flock
