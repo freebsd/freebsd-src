@@ -78,15 +78,14 @@ main(int argc, char *argv[])
 		usage();
 
 	for (errors = 0; *argv; argv++) {
-		if (pflag) {
-			errors |= rm_path(*argv);
+		if (rmdir(*argv) < 0) {
+			warn("%s", *argv);
+			errors = 1;
 		} else {
-			if (rmdir(*argv) < 0) {
-				warn("%s", *argv);
-				errors = 1;
-			}
 			if (vflag)
 				printf("%s\n", *argv);
+			if (pflag)
+				errors |= rm_path(*argv);
 		}
 	}
 
@@ -104,9 +103,11 @@ rm_path(char *path)
 	*++p = '\0';
 	while ((p = strrchr(path, '/')) != NULL) {
 		/* Delete trailing slashes. */
-		while (--p > path && *p == '/')
+		while (--p >= path && *p == '/')
 			;
 		*++p = '\0';
+		if (p == path)
+			break;
 
 		if (rmdir(path) < 0) {
 			warn("%s", path);
