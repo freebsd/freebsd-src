@@ -124,6 +124,7 @@ device		dpt		# DPT Smartcache III, IV - See NOTES for options
 device		iir		# Intel Integrated RAID
 device		ips		# IBM (Adaptec) ServeRAID
 device		mly		# Mylex AcceleRAID/eXtremeRAID
+device		twa		# 3ware 9000 series PATA/SATA RAID
 
 # RAID controllers
 device		aac		# Adaptec FSA RAID
