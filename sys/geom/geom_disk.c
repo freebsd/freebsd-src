@@ -265,7 +265,6 @@ g_disk_start(struct bio *bp)
 					bp->bio_error = ENOMEM;
 			}
 			bp2->bio_done = g_disk_done;
-			bp2->bio_blkno = bp2->bio_offset >> DEV_BSHIFT;
 			bp2->bio_pblkno = bp2->bio_offset / dp->d_sectorsize;
 			bp2->bio_bcount = bp2->bio_length;
 			bp2->bio_disk = dp;
