@@ -102,6 +102,7 @@ static int	acpi_modevent(struct module *mod, int event, void *junk);
 static void	acpi_identify(driver_t *driver, device_t parent);
 static int	acpi_probe(device_t dev);
 static int	acpi_attach(device_t dev);
+static int	acpi_shutdown(device_t dev);
 static void	acpi_quirks_set(void);
 static device_t	acpi_add_child(device_t bus, int order, const char *name,
 			int unit);
@@ -151,8 +152,8 @@ static device_method_t acpi_methods[] = {
     DEVMETHOD(device_identify,		acpi_identify),
     DEVMETHOD(device_probe,		acpi_probe),
     DEVMETHOD(device_attach,		acpi_attach),
+    DEVMETHOD(device_shutdown,		acpi_shutdown),
     DEVMETHOD(device_detach,		bus_generic_detach),
-    DEVMETHOD(device_shutdown,		bus_generic_shutdown),
     DEVMETHOD(device_suspend,		bus_generic_suspend),
     DEVMETHOD(device_resume,		bus_generic_resume),
 
@@ -610,6 +611,15 @@ acpi_attach(device_t dev)
  out:
     ACPI_UNLOCK;
     return_VALUE (error);
+}
+
+static int
+acpi_shutdown(device_t dev)
+{
+
+    /* Disable all wake GPEs not appropriate for reboot/poweroff. */
+    acpi_wake_limit_walk(ACPI_STATE_S5);
+    return (0);
 }
 
 static void
@@ -1152,9 +1162,6 @@ acpi_shutdown_pre_sync(void *arg, int howto)
     struct acpi_softc *sc = arg;
 
     ACPI_ASSERTLOCK;
-
-    /* Disable all wake GPEs not appropriate for this state. */
-    acpi_wake_limit_walk(ACPI_STATE_S5);
 
     /*
      * Disable all ACPI events before soft off, otherwise the system
