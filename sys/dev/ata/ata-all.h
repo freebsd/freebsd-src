@@ -308,7 +308,6 @@ struct ata_softc {
 #define		ATA_USE_16BIT		0x04
 #define		ATA_ATTACHED		0x08
 #define		ATA_QUEUED		0x10
-#define		ATA_RAID		0x20
 
     int				devices;	/* what is present */
 #define		ATA_ATA_MASTER		0x01
