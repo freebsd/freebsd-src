@@ -64,6 +64,9 @@ Support for Intel's Wired for Management 2.0 (PXE) was added to
 the FreeBSD boot loader.  Due to API differences, the older PXE
 versions are not supported.  This allow network booting using DHCP.
 
+POSIX.1b Shared Memory Objects are now supported.  The implementation
+uses regular files, but automatically enables the MAP_NOSYNC flag
+when they are mmap(2)ed.
 
 1.2. SECURITY FIXES
 -------------------
