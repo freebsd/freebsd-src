@@ -8,9 +8,12 @@ SRCS+=	creat.c gethostid.c getwd.c killpg.c sethostid.c setpgrp.c \
 	setrgid.c setruid.c sigcompat.c
 
 .if ${LIB} == "c"
-MAN2+=	creat.2 killpg.2 sigblock.2 sigpause.2 sigsetmask.2 sigvec.2
+MAN2+=	creat.2 killpg.2 sigpause.2 sigsetmask.2 sigvec.2
 MAN3+=	gethostid.3 setruid.3
 
 MLINKS+=gethostid.3 sethostid.3
 MLINKS+=setruid.3 setrgid.3
+
+MLINKS+=sigsetmask.2 sigblock.2
+MLINKS+=sigsetmask.2 sigmask.2
 .endif
