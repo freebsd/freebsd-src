@@ -218,6 +218,7 @@ pci_cfgintr(int bus, int device, int pin)
     int			i, irq;
     struct bios_regs	args;
     u_int16_t		v;
+    int already = 0;
     
     v = pcibios_get_version();
     if (v < 0x0210) {
@@ -238,18 +239,15 @@ pci_cfgintr(int bus, int device, int pin)
 	    continue;
 
 	irq = pci_cfgintr_linked(pe, pin);
-	if (irq != 255) {
-	    PRVERB(("pci_cfgintr: %d:%d INT%c already routed to irq %d\n",
-	      bus, device, 'A' + pin - 1, irq));
-	    return(irq);
-	}
-	irq = pci_cfgintr_unique(pe, pin);
+	if (irq != 255)
+	     already = 1;
+	if (irq == 255)
+	    irq = pci_cfgintr_unique(pe, pin);
 	if (irq == 255)
 	    irq = pci_cfgintr_virgin(pe, pin);
-	
+
 	if (irq == 255)
 	    break;
-	
 
 	/*
 	 * Ask the BIOS to route the interrupt
@@ -257,18 +255,17 @@ pci_cfgintr(int bus, int device, int pin)
 	args.eax = PCIBIOS_ROUTE_INTERRUPT;
 	args.ebx = (bus << 8) | (device << 3);
 	args.ecx = (irq << 8) | (0xa + pin - 1);	/* pin value is 0xa - 0xd */
-	if (bios32(&args, PCIbios.ventry, GSEL(GCODE_SEL, SEL_KPL))) {
+	if (bios32(&args, PCIbios.ventry, GSEL(GCODE_SEL, SEL_KPL)) && !already) {
 	    /*
 	     * XXX if it fails, we should try to smack the router
 	     * hardware directly.
 	     * XXX Also, there may be other choices that we can try that
 	     * will work.
 	     */
-	    PRVERB(("pci_cfgintr: ROUTE_INTERRUPT failured.\n"));
+	    PRVERB(("pci_cfgintr: ROUTE_INTERRUPT failed.\n"));
 	    return(255);
 	}
-	printf("pci_cfgintr: %d:%d INT%c routed to irq %d\n", 
-	       bus, device, 'A' + pin - 1, irq);
+	printf("pci_cfgintr: %d:%d INT%c routed to irq %d\n", bus, device, 'A' + pin - 1, irq);
 	return(irq);
     }
 
