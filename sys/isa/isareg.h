@@ -157,7 +157,15 @@
 #define	IO_GSCSIZE	8		/* GeniScan GS-4500G hand scanner */
 #define	IO_ICUSIZE	16		/* 8259A interrupt controllers */
 #define	IO_KBDSIZE	16		/* 8042 Keyboard controllers */
-#define	IO_LPTSIZE	8		/* LPT controllers, some use only 4 */
+
+/* The following line was changed to support more architectures (simpler
+   chipsets (like those for Alpha) only use 4, but more complex controllers
+   (usually modern i386's) can use an additional 4; the probe to see if
+   the additional 4 can be used by the specific chipset is now done in the ppc
+   code by ppc_probe()... */
+
+#define IO_LPTSIZE	4		/* LPT controllers, Alpha only uses 4 */
+
 #define	IO_MDASIZE	12		/* Monochrome display controllers */
 #define	IO_NPXSIZE	16		/* 80387/80487 NPX registers */
 #define	IO_PMPSIZE	2		/* 82347 power management peripheral */
