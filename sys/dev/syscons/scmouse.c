@@ -45,6 +45,14 @@
 
 #include <dev/syscons/syscons.h>
 
+#ifdef SC_TWOBUTTON_MOUSE
+#define SC_MOUSE_PASTEBUTTON	MOUSE_BUTTON3DOWN	/* right button */
+#define SC_MOUSE_EXTENDBUTTON	MOUSE_BUTTON2DOWN	/* not really used */
+#else
+#define SC_MOUSE_PASTEBUTTON	MOUSE_BUTTON2DOWN	/* middle button */
+#define SC_MOUSE_EXTENDBUTTON	MOUSE_BUTTON3DOWN	/* right button */
+#endif /* SC_TWOBUTTON_MOUSE */
+
 #define SC_WAKEUP_DELTA		20
 
 /* for backward compatibility */
@@ -919,7 +927,7 @@ sc_mouse_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
 		    break;
 		}
 		break;
-	    case MOUSE_BUTTON2DOWN:
+	    case SC_MOUSE_PASTEBUTTON:
 	        switch (mouse->u.event.value) {
 		case 0:	/* up */
 		    break;
@@ -928,7 +936,7 @@ sc_mouse_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
 		    break;
 		}
 		break;
-	    case MOUSE_BUTTON3DOWN:
+	    case SC_MOUSE_EXTENDBUTTON:
 	        switch (mouse->u.event.value) {
 		case 0:	/* up */
 		    if (!(cur_scp->mouse_buttons & MOUSE_BUTTON1DOWN))
