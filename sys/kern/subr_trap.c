@@ -123,7 +123,7 @@ ast(framep)
 	struct proc *p = td->td_proc;
 	struct kse *ke = td->td_kse;
 	u_int prticks, sticks;
-	critical_t s;
+	register_t s;
 	int sflag;
 	int flags;
 #if defined(DEV_NPX) && !defined(SMP)
@@ -137,9 +137,9 @@ ast(framep)
 #endif
 	mtx_assert(&Giant, MA_NOTOWNED);
 	prticks = 0;		/* XXX: Quiet warning. */
-	s = cpu_critical_enter();
+	s = intr_disable();
 	while ((ke->ke_flags & (KEF_ASTPENDING | KEF_NEEDRESCHED)) != 0) {
-		cpu_critical_exit(s);
+		intr_restore(s);
 		td->td_frame = framep;
 		/*
 		 * This updates the p_sflag's for the checks below in one
@@ -190,13 +190,13 @@ ast(framep)
 #ifdef DIAGNOSTIC
 		cred_free_thread(td);
 #endif
-		s = cpu_critical_enter();
+		s = intr_disable();
 	}
 	mtx_assert(&Giant, MA_NOTOWNED);
 	/*
 	 * We need to keep interrupts disabled so that if any further AST's
 	 * come in, the interrupt they come in on will be delayed until we
 	 * finish returning to userland.  We assume that the return to userland
-	 * will perform the equivalent of cpu_critical_exit().
+	 * will perform the equivalent of intr_restore().
 	 */
 }
