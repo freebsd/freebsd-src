@@ -2480,9 +2480,7 @@ static int set_device_enable(CmdParm *);
 static int set_device_disable(CmdParm *);
 static int quitfunc(CmdParm *);
 static int helpfunc(CmdParm *);
-#if defined(INTRO_USERCONFIG)
 static int introfunc(CmdParm *);
-#endif
 
 #if NPNP > 0
 static int lspnp(void);
@@ -2543,9 +2541,7 @@ static Cmd CmdList[] = {
     { "ex", 	quitfunc, 		NULL },		/* exit (quit)	*/
     { "f",	set_device_flags,	int_parms },	/* flags dev mask */
     { "h", 	helpfunc, 		NULL },		/* help		*/
-#if defined(INTRO_USERCONFIG)
     { "intro", 	introfunc, 		NULL },		/* intro screen	*/
-#endif
     { "iom",	set_device_mem,		addr_parms },	/* iomem dev addr */
     { "ios",	set_device_iosize,	int_parms },	/* iosize dev size */
     { "ir",	set_device_irq,		int_parms },	/* irq dev #	*/
@@ -2978,8 +2974,6 @@ helpfunc(CmdParm *parms)
     return 0;
 }
 
-#if defined(INTRO_USERCONFIG) 
-
 #if defined (VISUAL_USERCONFIG)
 static void
 center(int y, char *str)
@@ -3124,7 +3118,6 @@ introfunc(CmdParm *parms)
     }
 #endif
 }
-#endif
 
 #if NPNP > 0
 static int
