@@ -26,7 +26,7 @@
  *  A <label> is an <undef-sym> ending in a colon.  Spaces, tabs, and commas
  *  are token separators.
  *	
- *	$Id: aic7xxx.c,v 1.4 1995/01/16 16:31:20 gibbs Exp $
+ *	$Id: aic7xxx.c,v 1.5 1995/01/22 00:46:52 gibbs Exp $
  */
 
 /* #define _POSIX_SOURCE	1 */
@@ -199,7 +199,7 @@ void output(FILE *fp)
 char **getl(int *n)
 {
 	int i;
-	char *p;
+	char *p, *quote;
 	static char buf[MAXLINE];
 	static char *a[MAXTOKEN];
 
@@ -215,12 +215,30 @@ char **getl(int *n)
 		p = strchr(buf, '#');
 		if (p)
 			*p = '\0';
-
-		for (p = strtok(buf, ", \t\n"); p; p = strtok(NULL, ", \t\n"))
+		p = buf;
+rescan:
+		quote = strchr(p, '\"');
+		if (quote)
+			*quote = '\0';
+		for (p = strtok(p, ", \t\n"); p; p = strtok(NULL, ", \t\n"))
 			if (i < MAXTOKEN-1)
 				a[i++] = p;
 			else
 				error("too many tokens");
+		if (quote) {
+			quote++; 
+			p = strchr(quote, '\"');
+			if (!p)
+				error("unterminated string constant");
+			else if (i < MAXTOKEN-1) {
+				a[i++] = quote;
+				*p = '\0';
+				p++;
+			}
+			else
+				error("too many tokens");
+			goto rescan;
+		}		
 		if (i) {
 			*n = i;
 			return(a);
