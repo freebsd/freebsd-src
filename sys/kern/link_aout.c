@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: link_aout.c,v 1.12 1998/09/11 08:45:32 dfr Exp $
+ *	$Id: link_aout.c,v 1.13 1998/10/09 23:49:28 peter Exp $
  */
 
 #ifndef __alpha__
@@ -108,6 +108,7 @@ link_aout_init(void* arg)
 	af = malloc(sizeof(struct aout_file), M_LINKER, M_NOWAIT);
 	if (af == NULL)
 	    panic("link_aout_init: Can't create linker structures for kernel");
+	bzero(af, sizeof(*af));
 
 	af->address = 0;
 	af->dynamic = dp;
@@ -150,6 +151,7 @@ link_aout_load_module(const char* filename, linker_file_t* result)
 
     /* Looks like we can handle this one */
     af = malloc(sizeof(struct aout_file), M_LINKER, M_WAITOK);
+    bzero(af, sizeof(*af));
     af->address = baseptr;
 
     /* Assume _DYNAMIC is the first data item. */
@@ -216,6 +218,7 @@ link_aout_load_file(const char* filename, linker_file_t* result)
      * We have an a.out file, so make some space to read it in.
      */
     af = malloc(sizeof(struct aout_file), M_LINKER, M_WAITOK);
+    bzero(af, sizeof(*af));
     af->address = malloc(header.a_text + header.a_data + header.a_bss,
 			 M_LINKER, M_WAITOK);
     
