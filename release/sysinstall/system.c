@@ -24,6 +24,8 @@
 #include <sys/fcntl.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/sysctl.h>
 
 
 /* Where we stick our temporary expanded doc file */
