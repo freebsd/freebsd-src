@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: os.c,v 1.4 1996/01/11 17:48:55 phk Exp $
+ * $Id: os.c,v 1.5 1996/05/11 20:48:37 phk Exp $
  *
  */
 #include "fsm.h"
@@ -285,6 +285,7 @@ int *ptun;
     fprintf(stderr, "No tunnel device is available.\n");
     return(-1);
   }
+  *ptun = unit;
 
   /*
    * At first, name the interface.
