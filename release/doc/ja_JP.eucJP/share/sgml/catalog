@@ -5,5 +5,8 @@
 
 PUBLIC "-//FreeBSD//DOCUMENT Release Notes DocBook Stylesheet//EN"
        "release.dsl"
+PUBLIC "-//FreeBSD//ENTITIES Auto Generated Device Lists//JA"
+       "dev-auto-ja.sgml"
+
 
 
