@@ -1091,6 +1091,7 @@ netinet/tcp_debug.c	optional tcpdebug
 netinet/tcp_input.c	optional inet
 netinet/tcp_output.c	optional inet
 netinet/tcp_subr.c	optional inet
+netinet/tcp_syncache.c	optional inet
 netinet/tcp_timer.c	optional inet
 netinet/tcp_usrreq.c	optional inet
 netinet/udp_usrreq.c	optional inet

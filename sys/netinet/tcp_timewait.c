@@ -117,11 +117,11 @@ SYSCTL_INT(_net_inet_tcp, TCPCTL_RTTDFLT, rttdflt, CTLFLAG_RW,
     &tcp_rttdflt , 0, "Default maximum TCP Round Trip Time");
 #endif
 
-static int	tcp_do_rfc1323 = 1;
+int	tcp_do_rfc1323 = 1;
 SYSCTL_INT(_net_inet_tcp, TCPCTL_DO_RFC1323, rfc1323, CTLFLAG_RW, 
     &tcp_do_rfc1323 , 0, "Enable rfc1323 (high performance TCP) extensions");
 
-static int	tcp_do_rfc1644 = 0;
+int	tcp_do_rfc1644 = 0;
 SYSCTL_INT(_net_inet_tcp, TCPCTL_DO_RFC1644, rfc1644, CTLFLAG_RW, 
     &tcp_do_rfc1644 , 0, "Enable rfc1644 (TTCP) extensions");
 
@@ -224,6 +224,8 @@ tcp_init()
 	if (max_linkhdr + TCP_MINPROTOHDR > MHLEN)
 		panic("tcp_init");
 #undef TCP_MINPROTOHDR
+
+	syncache_init();
 }
 
 /*
@@ -710,18 +712,6 @@ tcp_close(tp)
 			tcpstat.tcps_cachedssthresh++;
 		}
 	}
-	rt = inp->inp_route.ro_rt;
-	if (rt) {
-		/* 
-		 * mark route for deletion if no information is
-		 * cached.
-		 */
-		if ((tp->t_flags & TF_LQ_OVERFLOW) &&
-		    ((rt->rt_rmx.rmx_locks & RTV_RTT) == 0)){
-			if (rt->rt_rmx.rmx_rtt == 0)
-				rt->rt_flags |= RTF_DELCLONE;
-		}
-	}
     no_valid_rt:
 	/* free the reassembly queue, if any */
 	while((q = LIST_FIRST(&tp->t_segq)) != NULL) {
@@ -1047,6 +1037,17 @@ tcp_ctlinput(cmd, sa, vip)
 			if (SEQ_GEQ(icmp_seq, tp->snd_una) &&
 			    SEQ_LT(icmp_seq, tp->snd_max))
 				(*notify)(inp, inetctlerrmap[cmd]);
+		} else {
+			struct in_conninfo inc;
+
+			inc.inc_fport = th->th_dport;
+			inc.inc_lport = th->th_sport;
+			inc.inc_faddr = faddr;
+			inc.inc_laddr = ip->ip_src;
+#ifdef INET6
+			inc.inc_isipv6 = 0;
+#endif
+			syncache_unreach(&inc, th);
 		}
 		splx(s);
 	} else
@@ -1099,6 +1100,7 @@ tcp6_ctlinput(cmd, sa, d)
 	}
 
 	if (ip6) {
+		struct in_conninfo inc;
 		/*
 		 * XXX: We assume that when IPV6 is non NULL,
 		 * M and OFF are valid.
@@ -1114,6 +1116,13 @@ tcp6_ctlinput(cmd, sa, d)
 		in6_pcbnotify(&tcb, sa, th.th_dport,
 		    (struct sockaddr *)ip6cp->ip6c_src,
 		    th.th_sport, cmd, notify);
+
+		inc.inc_fport = th.th_dport;
+		inc.inc_lport = th.th_sport;
+		inc.inc6_faddr = ((struct sockaddr_in6 *)sa)->sin6_addr;
+		inc.inc6_laddr = ip6cp->ip6c_src->sin6_addr;
+		inc.inc_isipv6 = 1;
+		syncache_unreach(&inc, &th);
 	} else
 		in6_pcbnotify(&tcb, sa, 0, (struct sockaddr *)sa6_src,
 			      0, cmd, notify);
@@ -1271,10 +1280,10 @@ tcp_mtudisc(inp, errno)
 	if (tp) {
 #ifdef INET6
 		if (isipv6)
-			rt = tcp_rtlookup6(inp);
+			rt = tcp_rtlookup6(&inp->inp_inc);
 		else
 #endif /* INET6 */
-		rt = tcp_rtlookup(inp);
+		rt = tcp_rtlookup(&inp->inp_inc);
 		if (!rt || !rt->rt_rmx.rmx_mtu) {
 			tp->t_maxopd = tp->t_maxseg =
 #ifdef INET6
@@ -1351,21 +1360,21 @@ tcp_mtudisc(inp, errno)
  * to get the interface MTU.
  */
 struct rtentry *
-tcp_rtlookup(inp)
-	struct inpcb *inp;
+tcp_rtlookup(inc)
+	struct in_conninfo *inc;
 {
 	struct route *ro;
 	struct rtentry *rt;
 
-	ro = &inp->inp_route;
+	ro = &inc->inc_route;
 	rt = ro->ro_rt;
 	if (rt == NULL || !(rt->rt_flags & RTF_UP)) {
 		/* No route yet, so try to acquire one */
-		if (inp->inp_faddr.s_addr != INADDR_ANY) {
+		if (inc->inc_faddr.s_addr != INADDR_ANY) {
 			ro->ro_dst.sa_family = AF_INET;
 			ro->ro_dst.sa_len = sizeof(struct sockaddr_in);
 			((struct sockaddr_in *) &ro->ro_dst)->sin_addr =
-				inp->inp_faddr;
+			    inc->inc_faddr;
 			rtalloc(ro);
 			rt = ro->ro_rt;
 		}
@@ -1375,23 +1384,20 @@ tcp_rtlookup(inp)
 
 #ifdef INET6
 struct rtentry *
-tcp_rtlookup6(inp)
-	struct inpcb *inp;
+tcp_rtlookup6(inc)
+	struct in_conninfo *inc;
 {
 	struct route_in6 *ro6;
 	struct rtentry *rt;
 
-	ro6 = &inp->in6p_route;
+	ro6 = &inc->inc6_route;
 	rt = ro6->ro_rt;
 	if (rt == NULL || !(rt->rt_flags & RTF_UP)) {
 		/* No route yet, so try to acquire one */
-		if (!IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr)) {
-			struct sockaddr_in6 *dst6;
-
-			dst6 = (struct sockaddr_in6 *)&ro6->ro_dst;
-			dst6->sin6_family = AF_INET6;
-			dst6->sin6_len = sizeof(*dst6);
-			dst6->sin6_addr = inp->in6p_faddr;
+		if (!IN6_IS_ADDR_UNSPECIFIED(&inc->inc6_faddr)) {
+			ro6->ro_dst.sin6_family = AF_INET6;
+			ro6->ro_dst.sin6_len = sizeof(struct sockaddr_in6);
+			ro6->ro_dst.sin6_addr = inc->inc6_faddr;
 			rtalloc((struct route *)ro6);
 			rt = ro6->ro_rt;
 		}
@@ -1450,17 +1456,17 @@ ipsec_hdrsiz_tcp(tp)
  * the route metrics.
  */
 struct rmxp_tao *
-tcp_gettaocache(inp)
-	struct inpcb *inp;
+tcp_gettaocache(inc)
+	struct in_conninfo *inc;
 {
 	struct rtentry *rt;
 
 #ifdef INET6
-	if ((inp->inp_vflag & INP_IPV6) != 0)
-		rt = tcp_rtlookup6(inp);
+	if (inc->inc_isipv6)
+		rt = tcp_rtlookup6(inc);
 	else
 #endif /* INET6 */
-	rt = tcp_rtlookup(inp);
+	rt = tcp_rtlookup(inc);
 
 	/* Make sure this is a host route and is up. */
 	if (rt == NULL ||
