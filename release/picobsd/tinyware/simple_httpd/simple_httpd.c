@@ -191,14 +191,12 @@ log_line(char *req)
  */
 http_request()
 {
-	int             fd, lg, ld, i; 
+	int             fd, lg, i; 
 	int             cmd = 0;
-	int             http1 = 0;
 	char           *p, *par;
 	char           *filename, *c;
 	struct stat     file_status;
 	char            req[1024];
-        char            msg[1024];
 	char            buff[8192];
 
 	lg = read(con_sock, req, 1024);
@@ -351,8 +349,7 @@ main(int argc, char *argv[])
 {
         extern char *optarg;
         extern int optind;
-        int bflag, ch, fd, ld;
-        int             lg;
+        int ch, ld;
 	int             httpd_group = 65534;
         pid_t server_pid;
   
