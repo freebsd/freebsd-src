@@ -163,6 +163,14 @@ static int	mtx_cur_cnt;
 static int	mtx_max_cnt;
 
 /*
+ * Couple of strings for KTR_LOCK tracing in order to avoid duplicates.
+ */
+char	STR_mtx_lock_slp[] = "GOT (sleep) %s [%p] r=%d at %s:%d";
+char	STR_mtx_unlock_slp[] = "REL (sleep) %s [%p] r=%d at %s:%d";
+char	STR_mtx_lock_spn[] = "GOT (spin) %s [%p] r=%d at %s:%d";
+char	STR_mtx_unlock_spn[] = "REL (spin) %s [%p] r=%d at %s:%d";
+
+/*
  * Prototypes for non-exported routines.
  *
  * NOTE: Prototypes for witness routines are placed at the bottom of the file. 
@@ -302,12 +310,13 @@ _mtx_trylock(struct mtx *m, int opts, const char *file, int line)
 {
 	int rval;
 
-	KASSERT(CURPROC != NULL, ("curproc is NULL in _mtx_trylock"));
+	MPASS(CURPROC != NULL);
 
 	/*
 	 * _mtx_trylock does not accept MTX_NOSWITCH option.
 	 */
-	MPASS((opts & MTX_NOSWITCH) == 0);
+	KASSERT((opts & MTX_NOSWITCH) == 0,
+	    ("mtx_trylock() called with invalid option flag(s) %d", opts));
 
 	rval = _obtain_lock(m, CURTHD);
 
@@ -317,7 +326,8 @@ _mtx_trylock(struct mtx *m, int opts, const char *file, int line)
 		 * We do not handle recursion in _mtx_trylock; see the
 		 * note at the top of the routine.
 		 */
-		MPASS(!mtx_recursed(m));
+		KASSERT(!mtx_recursed(m),
+		    ("mtx_trylock() called on a recursed mutex"));
 		witness_try_enter(m, (opts | m->mtx_flags), file, line);
 	}
 #endif	/* WITNESS */
@@ -344,13 +354,13 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 		m->mtx_recurse++;
 		atomic_set_ptr(&m->mtx_lock, MTX_RECURSED);
 		if ((opts & MTX_QUIET) == 0)
-			CTR1(KTR_LOCK, "_mtx_lock_sleep: %p recurse", m);
+			CTR1(KTR_LOCK, "_mtx_lock_sleep: %p recursing", m);
 		return;
 	}
 
 	if ((opts & MTX_QUIET) == 0)
-		CTR3(KTR_LOCK, "mtx_lock: %p contested (lock=%p) [%p]", m,
-		    (void *)m->mtx_lock, (void *)RETIP(m));
+		CTR3(KTR_LOCK, "_mtx_lock_sleep: %p contested (lock=%p) [%p]",
+		    m, (void *)m->mtx_lock, (void *)RETIP(m));
 
 	/*
 	 * Save our priority. Even though p_nativepri is protected by
@@ -383,8 +393,7 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 		 */
 		if (v == MTX_CONTESTED) {
 			p1 = TAILQ_FIRST(&m->mtx_blocked);
-			KASSERT(p1 != NULL,
-			    ("contested mutex has no contesters"));
+			MPASS(p1 != NULL);
 			m->mtx_lock = (uintptr_t)p | MTX_CONTESTED;
 
 			if (p1->p_priority < p->p_priority)
@@ -421,7 +430,7 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 			if (it->it_interrupted) {
 				if ((opts & MTX_QUIET) == 0)
 					CTR2(KTR_LOCK,
-					    "mtx_lock: 0x%x interrupted 0x%x",
+				    "_mtx_lock_sleep: 0x%x interrupted 0x%x",
 					    it, it->it_interrupted);
 				intr_thd_fixup(it);
 			}
@@ -486,7 +495,7 @@ _mtx_lock_spin(struct mtx *m, int opts, u_int mtx_intr, const char *file,
 	int i = 0;
 
 	if ((opts & MTX_QUIET) == 0)
-		CTR1(KTR_LOCK, "mtx_lock_spin: %p spinning", m);
+		CTR1(KTR_LOCK, "_mtx_lock_spin: %p spinning", m);
 
 	for (;;) {
 		if (_obtain_lock(m, CURPROC))
@@ -529,10 +538,6 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 
 	p = CURPROC;
 	MPASS4(mtx_owned(m), "mtx_owned(mpp)", file, line);
-
-	if ((opts & MTX_QUIET) == 0)
-		CTR5(KTR_LOCK, "REL %s [%p] r=%d at %s:%d", m->mtx_description,
-		    m, m->mtx_recurse, file, line);
 
 	if (mtx_recursed(m)) {
 		if (--(m->mtx_recurse) == 0)
