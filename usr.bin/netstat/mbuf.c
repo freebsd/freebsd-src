@@ -109,13 +109,13 @@ mbpr(mbaddr)
 			printf("\t%u mbufs allocated to <mbuf type %d>\n",
 			    mbstat.m_mtypes[i], i);
 		}
-	printf("%u/%u mbuf clusters in use\n",
+	printf("%lu/%lu mbuf clusters in use\n",
 		mbstat.m_clusters - mbstat.m_clfree, mbstat.m_clusters);
 	totmem = totmbufs * MSIZE + mbstat.m_clusters * MCLBYTES;
 	totfree = mbstat.m_clfree * MCLBYTES;
 	printf("%u Kbytes allocated to network (%d%% in use)\n",
 		totmem / 1024, (totmem - totfree) * 100 / totmem);
-	printf("%u requests for memory denied\n", mbstat.m_drops);
-	printf("%u requests for memory delayed\n", mbstat.m_wait);
-	printf("%u calls to protocol drain routines\n", mbstat.m_drain);
+	printf("%lu requests for memory denied\n", mbstat.m_drops);
+	printf("%lu requests for memory delayed\n", mbstat.m_wait);
+	printf("%lu calls to protocol drain routines\n", mbstat.m_drain);
 }

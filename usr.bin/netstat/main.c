@@ -133,7 +133,7 @@ struct nlist nl[] = {
 	{ "_spx_istat"},
 #define N_IPXERR	34
 	{ "_ipx_errstat"},
-	"",
+	{ "" },
 };
 
 struct protox {
@@ -226,9 +226,8 @@ main(argc, argv)
 	int ch;
 	char *nlistf = NULL, *memf = NULL;
 	char buf[_POSIX2_LINE_MAX];
-	char buf2[_POSIX2_LINE_MAX];
 
-	if (cp = rindex(argv[0], '/'))
+	if ((cp = rindex(argv[0], '/')))
 		prog = cp + 1;
 	else
 		prog = argv[0];
@@ -419,7 +418,7 @@ main(argc, argv)
 		setprotoent(1);
 		setservent(1);
 		/* ugh, this is O(MN) ... why do we do this? */
-		while (p = getprotoent()) {
+		while ((p = getprotoent())) {
 			for (tp = protox; tp->pr_name; tp++)
 				if (strcmp(tp->pr_name, p->p_name) == 0)
 					break;
@@ -533,11 +532,11 @@ name2protox(name)
 	 * Try to find the name in the list of "well-known" names. If that
 	 * fails, check if name is an alias for an Internet protocol.
 	 */
-	if (tp = knownname(name))
+	if ((tp = knownname(name)))
 		return (tp);
 
 	setprotoent(1);			/* make protocol lookup cheaper */
-	while (p = getprotoent()) {
+	while ((p = getprotoent())) {
 		/* assert: name not same as p->name */
 		for (alias = p->p_aliases; *alias; alias++)
 			if (strcmp(name, *alias) == 0) {
