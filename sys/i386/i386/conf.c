@@ -41,7 +41,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.45 1994/12/11 23:05:18 bde Exp $
+ *	$Id: conf.c,v 1.46 1994/12/17 08:06:10 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -172,6 +172,40 @@ d_psize_t mcdsize;
 #define	mcdsize		(d_psize_t *)0
 #endif
 
+#include "scd.h"
+#if NSCD > 0
+d_open_t scdopen;
+d_close_t scdclose;
+d_strategy_t scdstrategy;
+d_ioctl_t scdioctl;
+d_psize_t scdsize;
+#define	scddump		(d_dump_t *)enxio
+#else
+#define	scdopen		(d_open_t *)enxio
+#define	scdclose	(d_close_t *)enxio
+#define	scdstrategy	(d_strategy_t *)enxio
+#define	scdioctl	(d_ioctl_t *)enxio
+#define	scddump		(d_dump_t *)enxio
+#define	scdsize		(d_psize_t *)0
+#endif
+
+#include "pcd.h"
+#if NPCD > 0
+d_open_t pcdopen;
+d_close_t pcdclose;
+d_strategy_t pcdstrategy;
+d_ioctl_t pcdioctl;
+d_psize_t pcdsize;
+#define	pcddump		(d_dump_t *)enxio
+#else
+#define	pcdopen		(d_open_t *)enxio
+#define	pcdclose	(d_close_t *)enxio
+#define	pcdstrategy	(d_strategy_t *)enxio
+#define	pcdioctl	(d_ioctl_t *)enxio
+#define	pcddump		(d_dump_t *)enxio
+#define	pcdsize		(d_psize_t *)0
+#endif
+
 #include "ch.h"
 #if NCH > 0
 d_open_t chopen;
@@ -277,7 +311,11 @@ struct bdevsw	bdevsw[] =
 	  (d_strategy_t *)enxio,	(d_ioctl_t *)enxio,		/*14*/
 	  (d_dump_t *)enxio,		(d_psize_t *)0,		NULL },
 	{ vnopen,	vnclose,	vnstrategy,	vnioctl,	/*15*/
-	  vndump,	vnsize,		0 }
+	  vndump,	vnsize,		0 },
+	{ scdopen,	scdclose,	scdstrategy,	scdioctl,	/*16*/
+	  scddump,	scdsize,	0 },
+	{ pcdopen,	pcdclose,	pcdstrategy,	pcdioctl,	/*17*/
+	  pcddump,	pcdsize,	0 }
 /*
  * If you need a bdev major number for a driver that you intend to donate
  * back to the group or release publically, please contact the FreeBSD team
@@ -804,6 +842,12 @@ struct cdevsw	cdevsw[] =
 	{ gpopen,	gpclose,	noread,		gpwrite,	/*44*/
 	  gpioctl,	nostop,		nullreset,	NULL,   /* GPIB */
           seltrue,	nommap,		NULL },                 
+	{ scdopen,	scdclose,	rawread,	nowrite,	/*45*/
+	  scdioctl,	nostop,		nullreset,	NULL,	/* sony cd */
+	  seltrue,	nommap,		scdstrategy },
+	{ pcdopen,	pcdclose,	rawread,	nowrite,	/*46*/
+	  pcdioctl,	nostop,		nullreset,	NULL,	/* panasonic cd */
+	  seltrue,	nommap,		pcdstrategy },
 };
 int	nchrdev = sizeof (cdevsw) / sizeof (cdevsw[0]);
 
