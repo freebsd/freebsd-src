@@ -499,6 +499,7 @@ vfs_root_t		vfs_stdroot;
 vfs_quotactl_t		vfs_stdquotactl;
 vfs_statfs_t		vfs_stdstatfs;
 vfs_sync_t		vfs_stdsync;
+vfs_sync_t		vfs_stdnosync;
 vfs_vget_t		vfs_stdvget;
 vfs_fhtovp_t		vfs_stdfhtovp;
 vfs_checkexp_t		vfs_stdcheckexp;

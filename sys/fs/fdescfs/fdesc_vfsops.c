@@ -213,7 +213,7 @@ static struct vfsops fdesc_vfsops = {
 	fdesc_root,
 	vfs_stdquotactl,
 	fdesc_statfs,
-	vfs_stdsync,
+	vfs_stdnosync,
 	vfs_stdvget,
 	vfs_stdfhtovp,
 	vfs_stdcheckexp,

@@ -502,7 +502,7 @@ static struct vfsops union_vfsops = {
 	union_root,
 	vfs_stdquotactl,
 	union_statfs,
-	vfs_stdsync,    /* XXX assumes no cached data on union level */
+	vfs_stdnosync,    /* XXX assumes no cached data on union level */
 	vfs_stdvget,
 	vfs_stdfhtovp,
 	vfs_stdcheckexp,

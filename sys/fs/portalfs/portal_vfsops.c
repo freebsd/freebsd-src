@@ -249,7 +249,7 @@ static struct vfsops portal_vfsops = {
 	portal_root,
 	vfs_stdquotactl,
 	portal_statfs,
-	vfs_stdsync,
+	vfs_stdnosync,
 	vfs_stdvget,
 	vfs_stdfhtovp,
 	vfs_stdcheckexp,
