@@ -8,7 +8,7 @@
  * file.
  *
  * Written by Julian Elischer (julian@dialix.oz.au)
- *      $Id: scsi_base.c,v 1.53 1997/12/20 00:28:47 bde Exp $
+ *      $Id: scsi_base.c,v 1.54 1998/02/20 13:37:39 bde Exp $
  */
 
 #include "opt_bounce.h"
@@ -20,6 +20,7 @@
 #include <sys/systm.h>
 #include <sys/buf.h>
 #include <sys/malloc.h>
+#include <sys/proc.h>
 
 #include <machine/clock.h>
 
@@ -469,6 +470,8 @@ scsi_scsi_cmd(sc_link, scsi_cmd, cmdlen, data_addr, datalen,
 	struct scsi_xfer *xs;
 	errval  retval;
 	u_int32_t s;
+	struct proc *p = curproc;
+	int iskstack = 0;	/* 0 = "ok", 1 = copied from kernel stack */
 
 	/*
 	 * Illegal command lengths will wedge host adapter software.
@@ -477,21 +480,26 @@ scsi_scsi_cmd(sc_link, scsi_cmd, cmdlen, data_addr, datalen,
 	 */
 	if ((flags & (SCSI_RESET | SCSI_ESCAPE)) == 0)
 	{
-		if (cmdlen == 0)
-			return EFAULT;
-		else
-		{
+		if (cmdlen == 0) {
+			retval = EFAULT;
+			goto bad_with_biodone;
+		} else {
 			static u_int8_t sizes[] = {6, 10, 10, 0, 0, 12, 0, 0 };
 			u_int8_t size = sizes[((scsi_cmd->opcode) >> 5)];
-			if (size && (size != cmdlen))
-				return EIO;
+			if (size && (size != cmdlen)) {
+				retval = EIO;
+				goto bad_with_biodone;
+			}
 		}
 	}
 
 	SC_DEBUG(sc_link, SDEV_DB2, ("scsi_cmd\n"));
 
 	xs = get_xs(sc_link, flags);
-	if (!xs) return (ENOMEM);
+	if (!xs) {
+		retval = ENOMEM;
+		goto bad_with_biodone;
+	}
 	/*
 	 * Fill out the scsi_xfer structure.  We don't know whose context
 	 * the cmd is in, so copy it.
@@ -508,7 +516,27 @@ scsi_scsi_cmd(sc_link, scsi_cmd, cmdlen, data_addr, datalen,
  	xs->resid = 0;
 	xs->bp = bp;
 /*XXX*/ /*use constant not magic number */
-	if (datalen && ((caddr_t) data_addr < (caddr_t) KERNBASE)) {
+	if (datalen && (caddr_t) data_addr < (caddr_t) KERNBASE) {
+		/* XXX: should panic */
+		printf("scsi_scsi_cmd(): data target is user space!\n");
+#ifdef	SCSIDEBUG
+		show_scsi_cmd(xs);
+#endif	/* SCSIDEBUG */
+		retval = EFAULT;
+		goto bad;
+	}
+	/* XXX theoretically.. in !BOUNCE_BUFFERS, we can still get to all
+	 * process's kstack's, *BUT* we can swap a process.  We really don't
+	 * need to take a fault in that situation.  Besides, the permanent
+	 * KVM space will go away and only the current process will be
+	 * reachable once the kthreading is finished.
+	 */
+	if (datalen && p != NULL &&
+	    (caddr_t)data_addr > (caddr_t)p->p_addr &&
+	    (caddr_t)data_addr < (caddr_t)p->p_addr + UPAGES * PAGE_SIZE)
+			iskstack = 1; 
+	/* if we are doing a scsi command to/from per-proc kstack, copy it.. */
+	if (iskstack) {
 		if (bp) {
 			printf("Data buffered space not in kernel context\n");
 #ifdef	SCSIDEBUG
@@ -597,7 +625,7 @@ retry:
 	 * then do the other half (copy it back or whatever)
 	 * and free the memory buffer
 	 */
-	if (datalen && (xs->data != data_addr)) {
+	if (iskstack) {
 		switch ((int)(flags & (SCSI_DATA_IN | SCSI_DATA_OUT))) {
 		case 0:
 		case SCSI_DATA_IN | SCSI_DATA_OUT:	/* weird */
@@ -605,6 +633,7 @@ retry:
 			bcopy(xs->data, data_addr, datalen);
 			break;
 		}
+bad_with_alloc:
 #ifdef BOUNCE_BUFFERS
 		vm_bounce_kva_alloc_free((vm_offset_t) xs->data,
 					 btoc(datalen));
@@ -620,6 +649,7 @@ bad:
 	s = splbio();
 	free_xs(xs, sc_link, flags);	/* includes the 'start' op */
 	splx(s);
+bad_with_biodone:
 	if (bp && retval) {
 		bp->b_error = retval;
 		bp->b_flags |= B_ERROR;
