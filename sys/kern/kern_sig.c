@@ -468,12 +468,9 @@ freebsd4_sigaction(td, uap)
 		if (error)
 			return (error);
 	}
-	mtx_lock(&Giant);
 	error = kern_sigaction(td, uap->sig, actp, oactp, KSA_FREEBSD4);
-	mtx_unlock(&Giant);
-	if (oactp && !error) {
+	if (oactp && !error)
 		error = copyout(oactp, uap->oact, sizeof(oact));
-	}
 	return (error);
 }
 #endif	/* COMAPT_FREEBSD4 */
