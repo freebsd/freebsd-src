@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.1.2.105
+    Original revision: 1.1.2.106
 -->
 
 <!-- 
@@ -144,6 +144,16 @@
       &os; &release.current; では新しいバージョンの
       <application>sendmail</application> を統合して修正されました。
       しかしながら、この変更はリリース文書に記載されていないかもしれません。</para>
+
+    <para>&man.realpath.3; 関数の実装に
+      1 バイトのバッファオーバフローを引き起こすバグがありました。
+      この問題は、&man.realpath.3; を利用するアプリケーションと
+      他の要因に依存してさまざまな影響を発生する可能性があります。
+      このバグは &release.prev; セキュリティブランチと
+      &release.branch; 開発ブランチで修正されました。
+      詳細は、セキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:08.realpath.asc">FreeBSD-SA-03:08</ulink>
+      をご覧ください。</para>
 
 ]]>
   </sect1>
