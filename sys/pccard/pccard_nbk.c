@@ -297,7 +297,7 @@ pccard_release_resource(device_t bus, device_t child, int type, int rid,
 }
 
 static int
-pccard_read_ivar(device_t bus, device_t child, int which, u_char *result)
+pccard_read_ivar(device_t bus, device_t child, int which, uintptr_t *result)
 {
 	struct pccard_devinfo *devi = PCCARD_DEVINFO(child);
 	
