@@ -135,6 +135,10 @@
 
 #define	KSTACK_SLOP	1024
 
+/*
+ * Sanity check the kernel stack and bail out if its wrong.
+ * XXX: doesn't handle being on the panic stack.
+ */
 #define	KSTACK_CHECK \
 	dec	16, ASP_REG ; \
 	stx	%g1, [ASP_REG + 0] ; \
@@ -206,8 +210,7 @@ ENTRY(tl1_kstack_fault)
 	wrpr	%g0, 0, %otherwin
 	wrpr	%g0, WSTATE_KERNEL, %wstate
 
-	SET(panic_stack + PANIC_STACK_PAGES * PAGE_SIZE, %g2, %g1)
-	sub	%g1, SPOFF + CCFSZ, %sp
+	sub	ASP_REG, SPOFF + CCFSZ, %sp
 	clr	%fp
 
 	rdpr	%pil, %o1
