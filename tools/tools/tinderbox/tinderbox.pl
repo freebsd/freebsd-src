@@ -485,13 +485,11 @@ MAIN:{
 
 	'TARGET'		=> $machine,
 	'TARGET_ARCH'		=> $arch,
-
-	'CFLAGS'		=> "-O -pipe",
     );
 
     # Kernel-specific variables
     if ($cmds{'generic'} || $cmds{'lint'} || $cmds{'release'}) {
-	$ENV{'COPTFLAGS'} = "-O -pipe";
+	# None at the moment
     }
 
     # Release-specific variables
@@ -523,6 +521,18 @@ MAIN:{
 	    $ENV{$key} = $userenv{$key};
 	}
     }
+
+    # Defaults for overridable variables
+    if (!exists($ENV{'CFLAGS'})) {
+	$ENV{'CFLAGS'} = "-O -pipe";
+    }
+    if ($cmds{'generic'} || $cmds{'lint'} || $cmds{'release'}) {
+	if (!exists($ENV{'COPTFLAGS'})) {
+	    $ENV{'COPTFLAGS'} = "-O -pipe";
+	}
+    }
+
+    # List the environment when verbose
     if ($verbose && $verbose > 1) {
 	foreach my $key (sort(keys(%ENV))) {
 	    message("$key=$ENV{$key}\n");
