@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.10 1995/08/29 19:48:10 wollman Exp $
+#	$Id: Makefile,v 1.12 1996/08/19 21:55:56 pst Exp $
 
 PROG=	tcpdump
 CFLAGS+=-DHAVE_FCNTL_H=1 -DHAVE_NET_SLIP_H=1 -DTIME_WITH_SYS_TIME=1 \
@@ -20,7 +20,7 @@ CLEANFILES+=	version.c
 DPADD+=	${LIBL} ${LIBPCAP}
 LDADD+=	-ll -lpcap
 
-DISTDIR?= ${.CURDIR}/../../contrib/tcpdump
+DISTDIR?= ${.CURDIR}/../../../contrib/tcpdump
 CFLAGS+= -I${DISTDIR}/lbl
 .PATH:	${DISTDIR}
 
