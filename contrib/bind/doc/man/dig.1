@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-.\" $Id: dig.1,v 8.8 2001/09/24 15:21:29 marka Exp $
+.\" $Id: dig.1,v 8.9 2002/06/18 01:53:43 marka Exp $
 .\"
 .\" ++Copyright++ 1993
 .\" -
@@ -96,7 +96,7 @@ will take the form:
 where:
 .Bl -tag -width Fl
 .It Ar server
-may be either a domain name or a dot-notation
+may be either a domain name or a raw (IPv4 / IPv6)
 Internet address. If this optional field is omitted, 
 .Ic dig
 will attempt to use the default name server for your machine.
@@ -145,7 +145,7 @@ See the
 .Fl x 
 option (documented in the
 .Sx OTHER OPTIONS 
-subsection of this section) for convenient way to specify inverse address
+subsection of this section) for convenient way to specify reverse address
 query.
 .It Ar query-type
 is the type of information (DNS query type) that
@@ -240,9 +240,15 @@ available (although not guaranteed to be useful):
 .It Fl x Ar dot-notation-address
 Convenient form to specify inverse address mapping.
 Instead of 
-.Dq Ic dig 32.0.9.128.in-addr.arpa , 
+.Dq Ic dig 32.0.9.28.in-addr.arpa , 
 one can simply 
-.Dq Ic dig -x 128.9.0.32 .
+.Dq Ic dig -x 28.9.0.32 .
+.It Fl x Ar IPv6-address
+Convenient form to specify inverse address mapping.
+Instead of 
+.Dq Ic dig 1.0.0.0.0.0.0.0.0.0.0.0. 0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.ip6.arpa ,
+one can simply 
+.Dq Ic dig -x ::1 .
 .It Fl f Ar file
 File for 
 .Ic dig
