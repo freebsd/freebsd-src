@@ -1252,7 +1252,7 @@ struct thr_create_args {
 	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
 };
 struct thr_exit_args {
-	register_t dummy;
+	char state_l_[PADL_(long *)]; long * state; char state_r_[PADR_(long *)];
 };
 struct thr_self_args {
 	char id_l_[PADL_(long *)]; long * id; char id_r_[PADR_(long *)];
