@@ -126,8 +126,10 @@ main(int argc, char *argv[])
 
 	for (g = grouplist; g; g = g->next) {
 		grp = getgrnam(g->name);
-		if (grp)
+		if (grp != NULL)
 			g->gid = grp->gr_gid;
+		else
+			warnx("%s: no such group", g->name);
 	}
 
 	makemsg(*argv);
@@ -170,7 +172,7 @@ main(int argc, char *argv[])
 static void
 usage()
 {
-	(void)fprintf(stderr, "usage: wall [file]\n");
+	(void)fprintf(stderr, "usage: wall [-g group] [file]\n");
 	exit(1);
 }
 
