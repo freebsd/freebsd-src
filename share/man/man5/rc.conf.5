@@ -68,7 +68,7 @@ See the
 option below.
 .Pp
 The following list provides a name and short description for each
-variable you can set in the
+variable that can be set in the
 .Nm
 file:
 .Bl -tag -width Ar
@@ -153,20 +153,22 @@ List of directories to search for startup script files.
 The field separator to use for breaking down the list of startup script files
 into individual filenames.
 The default is a space.
-You do not need to change this unless you have startup scripts with names
+It isn't necessary to change this unless there are startup scripts with names
 containing spaces.
 .It Va hostname
 .Pq Vt str
-The Fully Qualified Domain Name of your host on the network.
+The Fully Qualified Domain Name of this computer on the network.
 This should almost certainly be set to something meaningful, even if
-you are not connected to a network.  If you are using
+there is no network connection.
+If
 .Xr dhclient 8
-to set your hostname via DHCP, this variable should be set to an empty string.
+is used to set the hostname via DHCP,
+this variable should be set to an empty string.
 .It Va nisdomainname
 .Pq Vt str
-The NIS domainname of your host, or
+The NIS domain name of this computer, or
 .Dq NO
-if you are not running NIS.
+if NIS is not used.
 .It Va dhcp_program
 .Pq Vt str
 Path to the DHCP client program
@@ -182,13 +184,9 @@ page for a description of the command line options available.
 .It Va firewall_enable
 .Pq Vt bool
 Set to
-.Dq NO
-if you do not want have firewall rules loaded at startup, or
 .Dq YES
-if you do.
-If set to
-.Dq YES ,
-and the kernel was not built with
+to load firewall rules at startup.
+If the kernel was not built with
 .Dv IPFIREWALL ,
 the ipfw
 kernel module will be loaded.
@@ -196,9 +194,9 @@ See also
 .Va ipfilter_enable .
 .It Va firewall_script
 .Pq Vt str
-If you want to run a firewall script other than
-.Pa /etc/rc.firewall ,
-set this variable to the full path to that script.
+This variable specifies the full path to the firewall script to run.
+The default is
+.Pa /etc/rc.firewall .
 .It Va firewall_type
 .Pq Vt str
 Names the firewall type from the selection in
@@ -250,7 +248,7 @@ must also be set to
 .Dq YES ,
 and
 .Xr divert 4
-sockets must be enabled in your kernel.
+sockets must be enabled in the kernel.
 .It Va natd_interface
 .Pq Vt str
 This is the name of the public interface on which natd should run.  It
@@ -375,7 +373,7 @@ by default.
 This variable contains flags appended to the filter command
 after the rule definition filename.
 The default setting will initialize an on demand loaded ipf module.
-When compiling ipfilter directly into your kernel (as is recommended)
+When compiling ipfilter directly into the kernel (as is recommended)
 the variable should be empty to not initialize
 the code more than once.
 See
@@ -500,11 +498,11 @@ Setting this to NO disables certain TCP options as described by
 .Rs
 .%T RFC 1323
 .Re
-If you have problems with connections
-randomly hanging or other weird behavior of such nature, you might
-try setting this to
+Setting this to
 .Dq NO
-and seeing if that helps.  Some hardware/software out there is known
+might help remedy such problems with connections as randomly hanging
+or other weird behavior.
+Some hardware/software out there is known
 to be broken with respect to these options.
 .It Va log_in_vain
 .Pq Vt bool
@@ -547,19 +545,23 @@ by default.
 Setting to YES will cause the kernel to log ICMP REDIRECT packets.
 Note that
 the log messages are not rate-limited, so this option should only be used
-for troubleshooting your own network.
+for troubleshooting networks.
 .It Va network_interfaces
 .Pq Vt str
 Set to the list of network interfaces to configure on this host.
-For example, if you had a loopback device (standard) and an SMC Elite
-Ultra NIC, you might have this set to
+For example, if the only network devices in the system are the loopback
+device
+.Pq lo0
+and a NIC using the ed0 driver,
+this could be set to
 .Dq "lo0 ed0"
-for the two interfaces.  An
+An
 .No ifconfig_ Ns Em interface
 variable is also assumed to exist for each value of
 .Em interface .
-It is also possible to add IP alias entries here in cases where you
-want a single interface to have multiple IP addresses registered against
+It is also possible to add IP alias entries here in cases where it is
+desired for a
+single interface to have multiple IP addresses registered against
 it.
 Assuming that the interface in question was ed0, it might look
 something like this:
@@ -574,8 +576,8 @@ For each
 entry that is found,
 its contents are passed to
 .Xr ifconfig 8 .
-Execution stops at the first unsuccessful access, so if you
-had something like:
+Execution stops at the first unsuccessful access, so if
+something like this is present:
 .Bd -literal
 ifconfig_ed0_alias0="inet 127.0.0.251 netmask 0xffffffff"
 ifconfig_ed0_alias1="inet 127.0.0.252 netmask 0xffffffff"
@@ -588,12 +590,12 @@ Then note that alias4 would
 be added since the search would
 stop with the missing alias3 entry.
 .Pp
-You can bring up an interface with DHCP by setting the
+It is possible to bring up an interface with DHCP by setting the
 .No ifconfig_ Ns Em interface
 variable to
 .Dq DHCP .
-For instance, to initialize your ed0 device via DHCP,
-you might have something like:
+For instance, to initialize the ed0 device via DHCP,
+it is possible to use something like:
 .Bd -literal
 ifconfig_ed0="DHCP"
 .Ed
@@ -726,14 +728,14 @@ these are the flags to pass to
 .Pq Vt bool
 Set to
 .Dq YES
-if you want to run a Kerberos authentication server
+to start a Kerberos authentication server
 at boot time.
 .It Va kadmind_server_enable
 .Pq Vt bool
 Set to
 .Dq YES
-if you want to run
-.Xr kadmind 8
+to start
+.Xr kadmind 8 ,
 the Kerberos Administration Daemon); set to
 .Dq NO
 on a slave server.
@@ -1112,12 +1114,12 @@ daemon.
 .Pq Vt str
 If not set to
 .Dq NO
-then create a default route to this host name or IP address (use IP
-address value if you also require this router to get to a name
-server!)
+then create a default route to this host name or IP address
+(use an IP address if this router is also required to get to the
+name server!).
 .It Va static_routes
 .Pq Vt str
-Set to the list of static routes you would like to add at system
+Set to the list of static routes that are to be added at system
 boot time.  If not set to
 .Dq NO
 then for each whitespace separated
@@ -1306,7 +1308,7 @@ daemons.  This variable is only applicable if
 is defined.
 .It Va atm_pvcs
 .Pq Vt str
-Set to the list of ATM PVCs you would like to add at system
+Set to the list of ATM PVCs to be added at system
 boot time.  For each whitespace separated
 .Em element
 in the value, an
@@ -1317,7 +1319,7 @@ will be passed as the parameters of an
 command.
 .It Va atm_arps
 .Pq Vt str
-Set to the list of permanent ATM ARP entries you would like to add
+Set to the list of permanent ATM ARP entries to be added
 at system boot time.  For each whitespace separated
 .Em element
 in the value, an
@@ -1411,7 +1413,7 @@ the
 daemon is started for doing cut/paste selection on the console.
 .It Va moused_type
 .Pq Vt str
-This is the protocol type of mouse you would like to use.
+This is the protocol type of mouse connected to this computer.
 This variable must be set if
 .Va moused_enable
 is set to
@@ -1420,26 +1422,25 @@ The
 .Xr moused 8
 daemon
 is able to detect the appropriate mouse type automatically in many cases.
-You can set this variable to
+Set this variable to
 .Dq auto
 to let the daemon detect it, or
 select one from the following list if the automatic detection fails.
 .Pp
-If your mouse is attached to the PS/2 mouse port, you should
-always choose
+If the mouse is attached to the PS/2 mouse port, choose
 .Dq auto
 or
 .Dq ps/2 ,
-regardless of the brand and model of the mouse.  Likewise, if your
+regardless of the brand and model of the mouse.  Likewise, if the
 mouse is attached to the bus mouse port, choose
 .Dq auto
 or
 .Dq busmouse .
 All other protocols are for serial mice and will not work with
 the PS/2 and bus mice.
-If you have a USB mouse,
+If this is a USB mouse,
 .Dq auto
-is the only protocol type which works with the USB mouse.
+is the only protocol type which will work.
 .Bd -literal
 microsoft        Microsoft mouse (serial)
 intellimouse     Microsoft IntelliMouse (serial)
@@ -1456,7 +1457,7 @@ x10mouseremote   X10 MouseRemote (serial)
 versapad         Interlink VersaPad (serial)
 .Ed
 .Pp
-Even if your mouse is not in the above list, it may be compatible
+Even if the mouse is not in the above list, it may be compatible
 with one in the list.
 Refer to the man page for
 .Xr moused 8
@@ -1504,7 +1505,7 @@ to
 .Ar value
 character, see
 .Xr vidcontrol 1 .
-Use if the default range is occupied in your language code table.
+Use if the default range is occupied in the language code table.
 .It Va allscreens_flags
 .Pq Vt str
 If set,
@@ -1621,7 +1622,7 @@ daemon.
 .Pq Vt bool
 Set to
 .Dq YES
-if you want to start
+to start
 .Xr diskcheckd 8
 at system boot time.
 .It Va diskcheckd_flags
@@ -1658,21 +1659,21 @@ command.
 .Pq Vt bool
 Set to
 .Dq YES
-if you want to enable user disk quota checking via the
+to enable user disk quota checking via the
 .Xr quotacheck 8
 command.
 .It Va accounting_enable
 .Pq Vt bool
 Set to
 .Dq YES
-if you wish to enable system accounting through the
+to enable system accounting through the
 .Xr accton 8
 facility.
 .It Va ibcs2_enable
 .Pq Vt bool
 Set to
 .Dq YES
-if you wish to enable iBCS2 (SCO) binary emulation at system initial boot
+to enable iBCS2 (SCO) binary emulation at system initial boot
 time.
 .It Va ibcs2_loaders
 .Pq Vt str
@@ -1687,22 +1688,22 @@ this specifies a list of additional iBCS2 loaders to enable.
 .Pq Vt bool
 Set to
 .Dq YES
-if you wish to enable Linux/ELF binary emulation at system initial
+to enable Linux/ELF binary emulation at system initial
 boot time.
 .It Va osf1_enable
 .Pq Vt bool
 Set to
 .Dq YES
-if you wish to enable OSF/1 (Digital UNIX) binary emulation at system
+to enable OSF/1 (Digital UNIX) binary emulation at system
 initial boot time.
 (alpha)
 .It Va clear_tmp_enable
 .Pq Vt bool
 Set to
 .Dq YES
-if you want
+to have
 .Pa /tmp
-to be cleaned at startup.
+cleaned at startup.
 .It Va ldconfig_paths
 .Pq Vt str
 Set to the list of shared library paths to use with
@@ -1718,12 +1719,12 @@ utility normally refuses to use directories
 which are writable by anyone except root.
 Set this variable to
 .Dq YES
-if you want to disable that security check during system startup.
+to disable that security check during system startup.
 .It Va kern_securelevel_enable
 .Pq Vt bool
 Set to
 .Dq YES
-if you wish to set the kernel security level at system startup.
+to set the kernel security level at system startup.
 .It Va kern_securelevel
 .Pq Vt int
 The kernel security level to set at startup.
@@ -1738,7 +1739,7 @@ on system operation.
 .Pq Vt bool
 Set to
 .Dq YES
-if you want to start
+to start
 .Xr vinum 8
 at system boot time.
 .It Va sshd_program
@@ -1750,7 +1751,7 @@ is the default).
 .Pq Vt bool
 Set to
 .Dq YES
-if you want to start
+to start
 .Xr sshd 8
 at system boot time.
 .It Va sshd_flags
