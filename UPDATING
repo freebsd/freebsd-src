@@ -6,6 +6,11 @@ earlier version of FreeBSD, you are on your own to get to November 18,
 1998.
 
 19980106:
+	Robert was kind enough to make this page to enable people to
+	install the new bootblocks:
+		http://www.freebsd.org/~rnordier/boot.txt
+
+19980106:
 	When updating to ELF, make sure that you have updated your
 	/etc/rc files which have different ldconfig invocations for
 	elf and aout.  Otherwise things like X will stop working with
@@ -59,4 +64,4 @@ earlier version of FreeBSD, you are on your own to get to November 18,
 YYYYMMDD:
 	What happened and what you need to do.
 
-$Id: UPDATING,v 1.6 1999/01/05 07:45:10 imp Exp $
+$Id: UPDATING,v 1.7 1999/01/06 07:06:38 imp Exp $
