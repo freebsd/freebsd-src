@@ -90,7 +90,7 @@
  * messy at times, but hey, we'll do anything to save a page :-)
  */
 
-#define VM_MAX_KERNEL_ADDRESS	VADDR(KPTDI+NKPDE, 0)
+#define VM_MAX_KERNEL_ADDRESS	VADDR(KPTDI+NKPDE-1, NPTEPG-1)
 #define VM_MIN_KERNEL_ADDRESS	VADDR(PTDPTDI, PTDPTDI)
 
 #define	KERNBASE		VADDR(KPTDI, 0)
