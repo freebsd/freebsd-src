@@ -25,7 +25,7 @@
 # 		put the stuff into the right "distribution".
 #
 #	afterinstall, all, all-man, beforeinstall, checkdpadd,
-#	clean, cleandepend, cleandir, depend, install, lint,
+#	clean, cleandepend, cleandir, depend, install, lint, maninstall,
 #	obj, objlink, realinstall, regress, tags
 #
 
@@ -58,7 +58,7 @@ ${SUBDIR}::
 
 
 .for __target in all all-man checkdpadd clean cleandepend cleandir \
-    depend distribute lint \
+    depend distribute lint maninstall \
     obj objlink realinstall regress tags
 ${__target}: _SUBDIR
 .endfor
