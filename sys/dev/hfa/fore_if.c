@@ -89,7 +89,9 @@ fore_atm_ioctl(code, data, arg)
 	Fore_unit		*fup;
 	caddr_t			buf = aip->air_buf_addr;
 	struct air_vinfo_rsp	*avr;
-	int			count, len, buf_len = aip->air_buf_len;
+	size_t count;
+	size_t len;
+	size_t buf_len = aip->air_buf_len;
 	int			err = 0;
 	char			ifname[2*IFNAMSIZ];
  
@@ -165,7 +167,7 @@ fore_atm_ioctl(code, data, arg)
 		/*
 		 * Record amount we're returning as vendor info...
 		 */
-		if ((err = copyout(&count, &avr->avsp_len, sizeof(int))) != 0)
+		if ((err = copyout(&count, &avr->avsp_len, sizeof(count))) != 0)
 			break;
 
 		/*
