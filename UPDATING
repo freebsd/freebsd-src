@@ -5,6 +5,18 @@ directly to him.  See end of file for further details.  For commonly
 done items, please see the end of the file.  Search for 'COMMON
 ITEMS:'
 
+20000911:
+	The random device has been turned into a (pseudo-)device,
+	rather than an option. The supplied kernel config files have
+	been updated. You will need to do something similar in your
+	own kernel config file.
+	Remove:
+		options		RANDOMDEV
+	Add:
+		device		random
+	If you prefer to load the loadable module, you need to do
+	nothing.
+
 20000909:
 	The random device module has been renamed from randomdev.ko to
 	random.ko. You will need to edit your /boot/loader.conf to
