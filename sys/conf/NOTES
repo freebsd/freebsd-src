@@ -1577,7 +1577,8 @@ hint.sio.0.irq="4"
 # Options for serial drivers that support consoles (only for sio now):
 options 	BREAK_TO_DEBUGGER	#a BREAK on a comconsole goes to
 					#DDB, if available.
-options 	CONSPEED=9600		#default speed for serial console (default 9600)
+options 	CONSPEED=115200		# speed for serial console
+					# (default 9600)
 
 # Solaris implements a new BREAK which is initiated by a character
 # sequence CR ~ ^b which is similar to a familiar pattern used on
