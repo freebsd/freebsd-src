@@ -62,6 +62,7 @@ void*	gpt_read(int, off_t, size_t);
 int	gpt_write(int, map_t *);
 void	unicode16(short *, const wchar_t *, size_t);
 
+int	cmd_create(int, char *[]);
 int	cmd_destroy(int, char *[]);
 int	cmd_migrate(int, char *[]);
 int	cmd_recover(int, char *[]);
