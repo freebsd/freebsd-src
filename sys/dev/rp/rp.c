@@ -292,15 +292,15 @@ int sInitChan(	CONTROLLER_T *CtlP,
    rp_writech1(ChP,_CMD_REG,(Byte_t)ChanNum | RESRXFCNT); /* apply reset Rx FIFO count */
    rp_writech1(ChP,_CMD_REG,(Byte_t)ChanNum);  /* remove reset Rx FIFO count */
    rp_writech2(ChP,_INDX_ADDR,ChP->RxFIFOPtrs); /* clear Rx out ptr */
-   rp_writech2(ChP,_INDX_ADDR,0);
+   rp_writech2(ChP,_INDX_DATA,0);
    rp_writech2(ChP,_INDX_ADDR,ChP->RxFIFOPtrs + 2); /* clear Rx in ptr */
-   rp_writech2(ChP,_INDX_ADDR,0);
+   rp_writech2(ChP,_INDX_DATA,0);
    ChP->TxPrioCnt = ChOff + _TXP_CNT;
    rp_writech2(ChP,_INDX_ADDR,ChP->TxPrioCnt);
-   rp_writech1(ChP,_INDX_ADDR,0);
+   rp_writech1(ChP,_INDX_DATA,0);
    ChP->TxPrioPtr = ChOff + _TXP_PNTR;
    rp_writech2(ChP,_INDX_ADDR,ChP->TxPrioPtr);
-   rp_writech1(ChP,_INDX_ADDR,0);
+   rp_writech1(ChP,_INDX_DATA,0);
    ChP->TxPrioBuf = ChOff + _TXP_BUF;
    sEnRxProcessor(ChP); 	       /* start the Rx processor */
 
@@ -674,8 +674,9 @@ static _INLINE_ void rp_do_receive(struct rp_port *rp, struct tty *tp,
 	After emtying FIFO in status mode, turn off status mode
 */
 
-		if(sGetRxCnt(cp) == 0)
+		if(sGetRxCnt(cp) == 0) {
 			sDisRxStatusMode(cp);
+		}
 	} else {
 		/*
 		 * Avoid the grotesquely inefficient lineswitch routine
