@@ -96,8 +96,6 @@ main(int argc, char *argv[])
 			oflag = 1; /* output to the specified file */
 			sflag = 1; /* do not strip pathnames for output */
 			outfile = optarg; /* set the output filename */
-			if (strcmp(outfile, "/dev/stdout") == 0)
-				pflag = 1;
 			break;
 		case 'p':
 			if (oflag)
@@ -163,6 +161,7 @@ decode2(int flag)
 	char buffn[MAXPATHLEN+1]; /* file name buffer */
 	char *mode, *s;
 	void *mode_handle;
+	struct stat st;
 
 	base64 = ignore = 0;
 	/* search for header line */
@@ -242,8 +241,9 @@ decode2(int flag)
 		if (iflag && !access(buf, F_OK)) {
 			(void)fprintf(stderr, "not overwritten: %s\n", buf);
 			ignore++;
-		} else if (!freopen(buf, "w", stdout) ||
-		    fchmod(fileno(stdout), getmode(mode_handle, 0) & 0666)) {
+		} else if (freopen(buf, "w", stdout) == NULL ||
+		    stat(buf, &st) < 0 || (S_ISREG(st.st_mode) &&
+		    fchmod(fileno(stdout), getmode(mode_handle, 0) & 0666))) {
 			warn("%s: %s", buf, filename);
 			return(1);
 		}
