@@ -279,7 +279,7 @@
       to limit the scope of the current operation to the ARP entries
       on a particular interface.  This option applies to the display
       operations only.  It should be useful on routers with numerous
-      network interfaces.</para>
+      network interfaces. &merged;</para>
 
     <para>&man.chroot.8; now allows the optional setting of a user,
       primary group, or group list to use inside the chroot
