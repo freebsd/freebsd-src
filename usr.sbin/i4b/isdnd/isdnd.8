@@ -208,11 +208,14 @@ file option
 .Sh INTERACTION WITH THE KERNEL
 .Nm Isdnd
 communicates with the kernel part of isdn4bsd by receiving status and
-event messages (
-.Xr read 2
-from device /dev/i4b ) and by transmitting commands and responses (
-.Xr ioctl 2
-from device /dev/i4b ).
+event messages
+.Xr ( read 2
+from device
+.Pa /dev/i4b )
+and by transmitting commands and responses
+.Xr ( ioctl 2
+from device
+.Pa /dev/i4b ) .
 .Pp
 The messages and message parameters are documented in the include
 file
