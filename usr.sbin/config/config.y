@@ -9,6 +9,7 @@
 %token	ANY
 %token	ARGS
 %token	AT
+%token	AUTO
 %token	BIO
 %token	BUS
 %token	COMMA
@@ -37,6 +38,7 @@
 %token	MINUS
 %token	NET
 %token	NEXUS
+%token	NONE
 %token	ON
 %token	OPTIONS
 %token	MAKEOPTIONS
@@ -118,6 +120,7 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <err.h>
+#include <string.h>
 
 struct	device cur;
 struct	device *curp = 0;
@@ -183,6 +186,7 @@ Config_spec:
 	      = {
 		struct cputype *cp =
 		    (struct cputype *)malloc(sizeof (struct cputype));
+		memset(cp, 0, sizeof(*cp));
 		cp->cpu_name = ns($2);
 		cp->cpu_next = cputype;
 		cputype = cp;
@@ -389,15 +393,23 @@ Option:
 	Save_id
 	      = {
 		struct opt *op = (struct opt *)malloc(sizeof (struct opt));
+		char *s;
+		memset(op, 0, sizeof(*op));
 		op->op_name = ns($1);
 		op->op_next = opt;
 		op->op_value = 0;
 		opt = op;
+		if (s = strchr(op->op_name, '=')) {
+			/* AARGH!!!! Old-style bogon */
+			*s = '\0';
+			op->op_value = ns(s + 1);
+		}
 		free(temp_id);
 	      } |
 	Save_id EQUALS Opt_value
 	      = {
 		struct opt *op = (struct opt *)malloc(sizeof (struct opt));
+		memset(op, 0, sizeof(*op));
 		op->op_name = ns($1);
 		op->op_next = opt;
 		op->op_value = ns($3);
@@ -432,7 +444,9 @@ Mkoption:
 	Save_id EQUALS Opt_value
 	      = {
 		struct opt *op = (struct opt *)malloc(sizeof (struct opt));
+		memset(op, 0, sizeof(*op));
 		op->op_name = ns($1);
+		op->op_ownfile = 0;	/* for now */
 		op->op_next = mkopt;
 		op->op_value = ns($3);
 		mkopt = op;
@@ -607,6 +621,10 @@ Info:
 	      = { cur.d_port = ns($2); } |
 	PORT NUMBER
 	      = { cur.d_portn = $2; } |
+	PORT AUTO
+	      = { cur.d_portn = -1; } |
+	PORT NONE
+	      = { cur.d_portn = -2; } |
 	TTY 
 	      = { cur.d_mask = "tty"; } |
 	BIO 
@@ -630,11 +648,13 @@ Id_list:
 	Save_id
 	      = {
 		struct idlst *a = (struct idlst *)malloc(sizeof(struct idlst));
+		memset(a, 0, sizeof(*a));
 		a->id = $1; a->id_next = 0; $$ = a;
 		} |
 	Save_id Id_list =
 		{
 		struct idlst *a = (struct idlst *)malloc(sizeof(struct idlst));
+		memset(a, 0, sizeof(*a));
 	        a->id = $1; a->id_next = $2; $$ = a;
 		};
 
@@ -670,6 +690,7 @@ newdev(dp)
 	register struct device *np;
 
 	np = (struct device *) malloc(sizeof *np);
+	memset(np, 0, sizeof(*np));
 	*np = *dp;
 	np->d_next = 0;
 	if (curp == 0)
@@ -688,6 +709,7 @@ mkconf(sysname)
 	register struct file_list *fl, **flp;
 
 	fl = (struct file_list *) malloc(sizeof *fl);
+	memset(fl, 0, sizeof(*fl));
 	fl->f_type = SYSTEMSPEC;
 	fl->f_needs = sysname;
 	fl->f_rootdev = NODEV;
@@ -705,6 +727,7 @@ newflist(ftype)
 	u_char ftype;
 {
 	struct file_list *fl = (struct file_list *)malloc(sizeof (*fl));
+	memset(fl, 0, sizeof(*fl));
 
 	fl->f_type = ftype;
 	fl->f_next = 0;
@@ -763,6 +786,7 @@ mkcomp(dp)
 	char buf[80];
 
 	fl = (struct file_list *) malloc(sizeof *fl);
+	memset(fl, 0, sizeof(*fl));
 	fl->f_type = COMPDEVICE;
 	fl->f_compinfo = dp->d_unit;
 	fl->f_fn = ns(dp->d_name);

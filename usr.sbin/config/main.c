@@ -59,6 +59,7 @@ static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/6/93";
 
 static char *PREFIX;
 static int no_config_clobber = FALSE;
+int old_config_present;
 
 /*
  * Config builds a set of files for building a UNIX
@@ -135,6 +136,9 @@ usage:		fputs("usage: config [-gpn] sysname\n", stderr);
 		}
 	}
 #endif
+	else
+		old_config_present++;
+
 	loadaddress = -1;
 	dtab = NULL;
 	confp = &conf_list;
@@ -188,6 +192,7 @@ usage:		fputs("usage: config [-gpn] sysname\n", stderr);
 	(void) sprintf(xxx, "../../%s/include", machinename);
 	(void) symlink(xxx, path("machine"));
 	}
+	options();			/* make options .h files */
 	makefile();			/* build Makefile */
 	headers();			/* make a lot of .h files */
 	swapconf();			/* swap config files */
