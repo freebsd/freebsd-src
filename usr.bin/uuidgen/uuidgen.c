@@ -37,20 +37,22 @@ __FBSDID("$FreeBSD$");
 static void
 usage(void)
 {
-	(void)fprintf(stderr, "usage: uuidgen [-1] [-n count]\n");
+	(void)fprintf(stderr, "usage: uuidgen [-1] [-n count] [-o filename]\n");
 	exit(1);
 }
 
 int
 main(int argc, char *argv[])
 {
+	FILE *fp;
 	uuid_t *store, *uuid;
 	char *p;
 	int ch, count, i, iterate;
 
 	count = -1;	/* no count yet */
+	fp = stdout;	/* default output file */
 	iterate = 0;	/* not one at a time */
-	while ((ch = getopt(argc, argv, "1n:")) != -1)
+	while ((ch = getopt(argc, argv, "1n:o:")) != -1)
 		switch (ch) {
 		case '1':
 			iterate = 1;
@@ -61,6 +63,13 @@ main(int argc, char *argv[])
 			count = strtol(optarg, &p, 10);
 			if (*p != 0 || count < 1)
 				usage();
+			break;
+		case 'o':
+			if (fp != stdout)
+				errx(1, "multiple output files not allowed");
+			fp = fopen(optarg, "w");
+			if (fp == NULL)
+				err(1, "fopen");
 			break;
 		default:
 			usage();
@@ -93,10 +102,12 @@ main(int argc, char *argv[])
 	uuid = store;
 	while (count--) {
 		uuid_to_string(uuid++, &p, NULL);
-		printf("%s\n", p);
+		fprintf(fp, "%s\n", p);
 		free(p);
 	}
 
 	free(store);
+	if (fp != stdout)
+		fclose(fp);
 	return (0);
 }
