@@ -54,9 +54,11 @@
  * derivative of this code cannot be changed.  i.e. this code cannot simply be
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
+ * 
+ * $FreeBSD$
  */
 
-OPENSSL_GLOBAL const DES_LONG des_SPtrans[8][64]={
+const DES_LONG des_SPtrans[8][64]={
 {
 /* nibble 0 */
 0x02080800L, 0x00080000L, 0x02000002L, 0x02080802L,

@@ -54,6 +54,8 @@
  * derivative of this code cannot be changed.  i.e. this code cannot simply be
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
+ * 
+ * $FreeBSD$
  */
 
 #ifndef HEADER_DES_LOCL_H
@@ -68,16 +70,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <openssl/opensslconf.h>
-
-#ifndef MSDOS
-#if !defined(VMS) || defined(__DECC)
-#include OPENSSL_UNISTD
-#include <math.h>
-#endif
-#endif
-#include <openssl/des.h>
-
 #ifdef MSDOS		/* Visual C++ 2.1 (Windows NT/95) */
 #include <stdlib.h>
 #include <errno.h>
@@ -88,6 +80,8 @@
 #if defined(__STDC__) || defined(VMS) || defined(M_XENIX) || defined(MSDOS)
 #include <string.h>
 #endif
+
+#include "des.h"
 
 #define ITERATIONS 16
 #define HALF_ITERATIONS 8
@@ -401,7 +395,7 @@
 	PERM_OP(l,r,tt, 4,0x0f0f0f0fL); \
 	}
 
-OPENSSL_EXTERN const DES_LONG des_SPtrans[8][64];
+extern const DES_LONG des_SPtrans[8][64];
 
 void fcrypt_body(DES_LONG *out,des_key_schedule ks,
 	DES_LONG Eswap0, DES_LONG Eswap1);

@@ -3,9 +3,10 @@
 	/* Which is a perl program used to generate the x86 assember for */
 	/* any of elf, a.out, Win32, or Solaris */
 	/* It can be found in SSLeay 0.6.5+ or in libdes 3.26+ */
-	/* eric <eay@mincom.oz.au> */
+	/* eric <eay@cryptsoft.com> */
 	/* The inner loop instruction sequence and the IP/FP modifications */
 	/* are from Svend Olaf Mikkelsen <svolaf@inet.uni-c.dk> */
+	/* $FreeBSD$ */
 
 	.file	"dx86xxxx.s"
 	.version	"01.01"

@@ -54,6 +54,8 @@
  * derivative of this code cannot be changed.  i.e. this code cannot simply be
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
+ * 
+ * $FreeBSD$
  */
 
 #ifndef HEADER_DES_H
@@ -67,13 +69,17 @@ extern "C" {
 #error DES is disabled.
 #endif
 
-#ifdef _KERBEROS_DES_H
-#error <openssl/des.h> replaces <kerberos/des.h>.
+/* If this is set to 'unsigned int' on a DEC Alpha, this gives about a
+ * %20 speed up (longs are 8 bytes, int's are 4). */
+#ifndef DES_LONG
+#if defined(__alpha) || defined(__sparcv9)
+#define DES_LONG unsigned int
+#else /* Not a 64 bit machine */
+#define DES_LONG unsigned long
+#endif
 #endif
 
 #include <stdio.h>
-#include <openssl/opensslconf.h> /* DES_LONG */
-#include <openssl/e_os2.h>	/* OPENSSL_EXTERN */
 
 typedef unsigned char des_cblock[8];
 typedef /* const */ unsigned char const_des_cblock[8];
@@ -115,9 +121,16 @@ typedef struct des_ks_struct
 #define des_ede2_ofb64_encrypt(i,o,l,k1,k2,iv,n) \
 	des_ede3_ofb64_encrypt((i),(o),(l),(k1),(k2),(k1),(iv),(n))
 
-OPENSSL_EXTERN int des_check_key;	/* defaults to false */
-OPENSSL_EXTERN int des_rw_mode;		/* defaults to DES_PCBC_MODE */
-OPENSSL_EXTERN int des_set_weak_key_flag; /* set the weak key flag */
+extern int des_check_key;	/* defaults to false */
+extern int des_rw_mode;		/* defaults to DES_PCBC_MODE */
+extern int des_set_weak_key_flag; /* set the weak key flag */
+
+#define C_Block des_cblock
+#define Key_schedule des_key_schedule
+#ifdef KERBEROS
+#define ENCRYPT DES_ENCRYPT
+#define DECRYPT DES_DECRYPT
+#endif
 
 const char *des_options(void);
 void des_ecb3_encrypt(const_des_cblock *input, des_cblock *output,
@@ -187,6 +200,8 @@ DES_LONG des_quad_cksum(const unsigned char *input,des_cblock output[],
 			long length,int out_count,des_cblock *seed);
 void des_random_seed(des_cblock *key);
 void des_random_key(des_cblock *ret);
+void des_init_random_number_generator(des_cblock *seed);
+void des_rand_data(unsigned char *data, int size);
 int des_read_password(des_cblock *key,const char *prompt,int verify);
 int des_read_2passwords(des_cblock *key1,des_cblock *key2,
 			const char *prompt,int verify);
@@ -205,6 +220,7 @@ void des_ofb64_encrypt(const unsigned char *in,unsigned char *out,long length,
 int des_read_pw(char *buf,char *buff,int size,const char *prompt,int verify);
 
 /* Extra functions from Mark Murray <mark@grondar.za> */
+int des_new_random_key(des_cblock *key);
 void des_cblock_print_file(const_des_cblock *cb, FILE *fp);
 
 /* The following definitions provide compatibility with the MIT Kerberos

@@ -54,8 +54,9 @@
  * derivative of this code cannot be changed.  i.e. this code cannot simply be
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
+ * 
+ * $FreeBSD$
  */
 
-#include <openssl/e_os2.h>
-OPENSSL_EXTERN char *DES_version;	/* SSLeay version string */
-OPENSSL_EXTERN char *libdes_version;	/* old libdes version string */
+extern char *DES_version;	/* SSLeay version string */
+extern char *libdes_version;	/* old libdes version string */
