@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.157 1995/05/10 09:30:09 asami Exp $
+# $Id: bsd.port.mk,v 1.158 1995/05/12 07:32:59 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -951,6 +951,7 @@ do-package:
 			fi; \
 		else \
 			${MAKE} ${.MAKEFLAGS} delete-package; \
+			exit 1; \
 		fi; \
 	fi
 .endif
