@@ -56,7 +56,7 @@ static const char rcsid[] =
  * @(#)mille.c	1.3 (Berkeley) 5/10/83
  */
 
-static void usage __P((void));
+static void usage(void);
 
 int
 main(ac, av)

@@ -48,8 +48,8 @@ static const char rcsid[] =
 # define	COMP_STRT	20
 # define	CARD_STRT	2
 
-static void show_card __P((int, int, CARD, CARD *));
-static void show_score __P((int, int, int, int *));
+static void show_card(int, int, CARD, CARD *);
+static void show_score(int, int, int, int *);
 
 void
 prboard() {

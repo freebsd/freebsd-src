@@ -60,10 +60,10 @@ const char	*Movenames[] = {
 		"M_DISCARD", "M_DRAW", "M_PLAY", "M_ORDER"
 	};
 
-static void check_go __P((void));
-static void getmove __P((void));
-static int haspicked __P((PLAY *));
-static bool playcard __P((PLAY *));
+static void check_go(void);
+static void getmove(void);
+static int haspicked(PLAY *);
+static bool playcard(PLAY *);
 
 void
 domove()

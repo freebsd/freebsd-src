@@ -53,8 +53,8 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-void pigout __P((char *, int));
-void usage __P((void));
+void pigout(char *, int);
+void usage(void);
 
 int
 main(argc, argv)
