@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.43 1995/09/05 22:37:59 se Exp $
+**  $Id: ncr.c,v 1.44 1995/09/07 20:53:40 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -157,6 +157,11 @@
 **==========================================================
 */
 
+#ifdef __NetBSD__
+#ifdef _KERNEL
+#define KERNEL
+#endif
+#endif
 #include <stddef.h>
 
 #include <sys/types.h>
@@ -188,9 +193,9 @@
 extern PRINT_ADDR();
 #else
 #include <sys/device.h>
-#include <i386/pci/ncr_reg.h>
-#include <i386/pci/pcivar.h>
-#include <i386/pci/pcireg.h>
+#include <dev/pci/ncr_reg.h>
+#include <dev/pci/pcivar.h>
+#include <dev/pci/pcireg.h>
 #define DELAY(x)	delay(x)
 #endif /* __NetBSD */
 
@@ -399,11 +404,11 @@ extern PRINT_ADDR();
 	#define U_INT32   u_int
 	#define TIMEOUT   (void*)
 #else  /*__NetBSD__*/
-	#define PRINT_ADDR(xp) sc_print_addr(xp->sc_link)
 	#define INT32     int32
 	#define U_INT32   u_int32
 	#define TIMEOUT   (timeout_func_t)
 #endif /*__NetBSD__*/
+#define PRINT_ADDR(xp) sc_print_addr(xp->sc_link)
 
 /*==========================================================
 **
@@ -923,7 +928,7 @@ struct ccb {
 struct ncb {
 #ifdef __NetBSD__
 	struct device sc_dev;
-	struct intrhand sc_ih;
+	void *sc_ih;
 #else /* !__NetBSD__ */
 	int	unit;
 #endif /* __NetBSD__ */
@@ -1181,7 +1186,11 @@ static	void	ncr_getclock	(ncb_p np);
 static	ccb_p	ncr_get_ccb	(ncb_p np, u_long flags, u_long t,u_long l);
 static  U_INT32 ncr_info	(int unit);
 static	void	ncr_init	(ncb_p np, char * msg, u_long code);
+#ifdef __NetBSD__
+static	int     ncr_intr        (void *);
+#else	/* !__NetBSD__ */
 static	int	ncr_intr	(ncb_p np);
+#endif	/* __NetBSD__ */	
 static	void	ncr_int_ma	(ncb_p np);
 static	void	ncr_int_sir	(ncb_p np);
 static  void    ncr_int_sto     (ncb_p np);
@@ -1208,7 +1217,7 @@ static	void	ncr_usercmd	(ncb_p np);
 static  void    ncr_wakeup      (ncb_p np, u_long code);
 
 #ifdef __NetBSD__
-static	int	ncr_probe	(struct device *, struct device *, void *);
+static	int	ncr_probe	(struct device *, void *, void *);
 static	void	ncr_attach	(struct device *, struct device *, void *);
 #else /* !__NetBSD */
 static  char*	ncr_probe       (pcici_t tag, pcidi_t type);
@@ -1228,7 +1237,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.43 1995/09/05 22:37:59 se Exp $\n";
+	"\n$Id: ncr.c,v 1.44 1995/09/07 20:53:40 se Exp $\n";
 
 u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -1241,7 +1250,7 @@ u_long	ncr_version = NCR_VERSION	* 11
 #ifndef __NetBSD__
 u_long		nncr=MAX_UNITS;
 ncb_p		ncrp [MAX_UNITS];
-#endif
+#endif /* !__NetBSD__ */
 
 static int ncr_debug = SCSI_DEBUG_FLAGS;
 
@@ -1288,8 +1297,10 @@ struct scsi_adapter ncr_switch =
 	ncr_min_phys,
 	0,
 	0,
+#ifndef __NetBSD__
 	ncr_info,
 	"ncr",
+#endif /* !__NetBSD__ */
 };
 
 struct scsi_device ncr_dev =
@@ -1298,7 +1309,9 @@ struct scsi_device ncr_dev =
 	NULL,			/* have a queue, served by this */
 	NULL,			/* have no async handler */
 	NULL,			/* Use default 'done' routine */
+#ifndef __NetBSD__
 	"ncr",
+#endif /* !__NetBSD__ */
 };
 
 #ifdef __NetBSD__
@@ -3112,15 +3125,17 @@ U_INT32 ncr_info (int unit)
 #ifdef __NetBSD__
 
 int
-ncr_probe(parent, self, aux)
-	struct device *parent, *self;
-	void *aux;
+ncr_probe(parent, match, aux)
+	struct device *parent;
+	void *match, *aux;
 {
-	struct cfdata *cf = self->dv_cfdata;
+	struct cfdata *cf = match;
 	struct pci_attach_args *pa = aux;
 
+#ifdef 0
 	if (!pci_targmatch(cf, pa))
 		return 0;
+#endif
 	if (pa->pa_id != NCR_810_ID &&
 	    pa->pa_id != NCR_815_ID &&
 	    pa->pa_id != NCR_825_ID)
@@ -3195,13 +3210,10 @@ ncr_attach(parent, self, aux)
 	if (retval)
 		return;
 
-	np->sc_ih.ih_fun = ncr_intr;
-	np->sc_ih.ih_arg = np;
-	np->sc_ih.ih_level = IPL_BIO;
-
-	retval = pci_map_int(pa->pa_tag, &np->sc_ih);
-	if (retval)
+	np->sc_ih = pci_map_int(pa->pa_tag, PCI_IPL_BIO, ncr_intr, np);
+	if (np->sc_ih == NULL)
 		return;
+
 
 #else /* !__NetBSD__ */
 
@@ -3258,9 +3270,9 @@ static	void ncr_attach (pcici_t config_id, int unit)
 
 #ifdef __NetBSD__
 	switch (pa->pa_id) {
-#else
+#else /* !__NetBSD__ */
 	switch (pci_conf_read (config_id, PCI_ID_REG)) {
-#endif
+#endif /* __NetBSD__ */
 	case NCR_825_ID:
 		np->maxwide = 1;
 		break;
@@ -3321,7 +3333,7 @@ static	void ncr_attach (pcici_t config_id, int unit)
 		int reg;
 #ifdef __NetBSD__
 		u_long config_id = pa->pa_tag;
-#endif
+#endif /* __NetBSD__ */
 		for (reg=0; reg<256; reg+=4) {
 			if (reg%16==0) printf ("reg[%2x]", reg);
 			printf (" %08x", (int)pci_conf_read (config_id, reg));
@@ -3355,7 +3367,7 @@ static	void ncr_attach (pcici_t config_id, int unit)
 
 	if (!pci_map_int (config_id, ncr_intr, np, &bio_imask))
 		printf ("\tinterruptless mode: reduced performance.\n");
-#endif
+#endif /* __NetBSD__ */
 
 	/*
 	**	After SCSI devices have been opened, we cannot
@@ -3381,10 +3393,12 @@ static	void ncr_attach (pcici_t config_id, int unit)
 
 #ifdef __NetBSD__
 	np->sc_link.adapter_softc = np;
+	np->sc_link.adapter_target = np->myaddr;
+	np->sc_link.openings = 1;
 #else /* !__NetBSD__ */
 	np->sc_link.adapter_unit = unit;
-#endif /* !__NetBSD__ */
 	np->sc_link.adapter_targ = np->myaddr;
+#endif /* !__NetBSD__ */
 	np->sc_link.adapter      = &ncr_switch;
 	np->sc_link.device       = &ncr_dev;
 	np->sc_link.flags	 = 0;
@@ -3447,10 +3461,18 @@ static	void ncr_attach (pcici_t config_id, int unit)
 **==========================================================
 */
 
+#ifdef __NetBSD__
+int
+ncr_intr(arg)
+        void *arg;
+{               
+        ncb_p np = arg;
+#else /* !__NetBSD__ */
 int
 ncr_intr(np)
 	ncb_p np;
 {
+#endif /* __NetBSD__ */
 	int n = 0;
 	int oldspl = splbio();
 
@@ -3530,7 +3552,7 @@ static INT32 ncr_start (struct scsi_xfer * xp)
 		(xp->sc_link->lun    >= MAX_LUN   ) ||
 		(flags    & SCSI_DATA_UIO)) {
 		xp->error = XS_DRIVER_STUFFUP;
-		return(HAD_ERROR);
+		return(COMPLETE);
 	};
 
 	/*---------------------------------------------
@@ -3549,7 +3571,7 @@ static INT32 ncr_start (struct scsi_xfer * xp)
 			PRINT_ADDR(xp);
 			printf ("access to partial disk block refused.\n");
 			xp->error = XS_DRIVER_STUFFUP;
-			return(HAD_ERROR);
+			return(COMPLETE);
 		};
 	};
 
@@ -3805,7 +3827,7 @@ static INT32 ncr_start (struct scsi_xfer * xp)
 		xp->error = XS_DRIVER_STUFFUP;
 		ncr_free_ccb(np, cp, flags);
 		splx(oldspl);
-		return(HAD_ERROR);
+		return(COMPLETE);
 	};
 
 	/*----------------------------------------------------
@@ -3940,7 +3962,11 @@ static INT32 ncr_start (struct scsi_xfer * xp)
 	**	Command is successfully queued.
 	*/
 
+#ifdef __NetBSD__
+        if (!(flags & SCSI_POLL)) {
+#else /* !__NetBSD__ */ 
 	if (!(flags & SCSI_NOMASK)) {
+#endif /* __NetBSD__ */
 		if (np->lasttime) {
 			if(DEBUG_FLAGS & DEBUG_TINY) printf ("Q");
 			return(SUCCESSFULLY_QUEUED);
@@ -3989,13 +4015,17 @@ static INT32 ncr_start (struct scsi_xfer * xp)
 		printf ("%s: result: %x %x.\n",
 			ncr_name (np), cp->host_status, cp->scsi_status);
 	};
+#ifdef __NetBSD__
+        if (!(flags & SCSI_POLL)) 
+#else /* !__NetBSD__ */ 
 	if (!(flags & SCSI_NOMASK))
+#endif /* __NetBSD__ */
 		return (SUCCESSFULLY_QUEUED);
 	switch (xp->error) {
 	case  0     : return (COMPLETE);
 	case XS_BUSY: return (TRY_AGAIN_LATER);
 	};
-	return (HAD_ERROR);
+	return (COMPLETE);
 }
 
 /*==========================================================
@@ -4084,6 +4114,14 @@ void ncr_complete (ncb_p np, ccb_p cp)
 	/*
 	**	Check the status.
 	*/
+#ifdef __NetBSD__
+	if (xp->error != XS_NOERROR) { 
+                                
+                /*              
+                **      Don't override the error value.
+                */
+	} else                        
+#endif /* __NetBSD__ */
 	if (   (cp->host_status == HS_COMPLETE)
 		&& (cp->scsi_status == S_GOOD)) {
 
@@ -4143,14 +4181,14 @@ void ncr_complete (ncb_p np, ccb_p cp)
 
 		tp->bytes     += xp->datalen;
 		tp->transfers ++;
-
+#ifndef __NetBSD__
 	} else if (xp->flags & SCSI_ERR_OK) {
 
 		/*
 		**   Not correct, but errors expected.
 		*/
 		xp->resid = 0;
-
+#endif /* !__NetBSD__ */
 	} else if ((cp->host_status == HS_COMPLETE)
 		&& (cp->scsi_status == (S_SENSE|S_GOOD))) {
 
@@ -4339,10 +4377,14 @@ void ncr_init (ncb_p np, char * msg, u_long code)
 	**	Init chip.
 	*/
 
+#ifndef __NetBSD__
 	if (pci_max_burst_len < 4) {
 		static u_char tbl[4]={0,0,0x40,0x80};
 		burstlen = tbl[pci_max_burst_len];
 	} else burstlen = 0xc0;
+#else /* !__NetBSD__ */
+	burstlen = 0xc0;
+#endif /* __NetBSD__ */
 
 	OUTB (nc_istat,  0      );      /*  Remove Reset, abort ...	     */
 	OUTB (nc_scntl0, 0xca   );      /*  full arb., ena parity, par->ATN  */
@@ -6270,10 +6312,17 @@ static void ncr_opennings (ncb_p np, lcb_p lp, struct scsi_xfer * xp)
 
 		if (!diff) return;
 
+#ifdef __NetBSD__
+		if (diff > xp->sc_link->openings)
+			diff = xp->sc_link->openings;
+
+		xp->sc_link->openings	-= diff;
+#else /* !__NetBSD__ */
 		if (diff > xp->sc_link->opennings)
 			diff = xp->sc_link->opennings;
 
 		xp->sc_link->opennings	-= diff;
+#endif /* __NetBSD__ */
 		lp->actlink		-= diff;
 		if (DEBUG_FLAGS & DEBUG_TAGS)
 			printf ("%s: actlink: diff=%d, new=%d, req=%d\n",
@@ -6287,7 +6336,11 @@ static void ncr_opennings (ncb_p np, lcb_p lp, struct scsi_xfer * xp)
 	if (lp->reqlink > lp->actlink) {
 		u_char diff = lp->reqlink - lp->actlink;
 
+#ifdef __NetBSD__
+		xp->sc_link->openings	+= diff;
+#else /* !__NetBSD__ */
 		xp->sc_link->opennings	+= diff;
+#endif /* __NetBSD__ */
 		lp->actlink		+= diff;
 		wakeup ((caddr_t) xp->sc_link);
 		if (DEBUG_FLAGS & DEBUG_TAGS)
