@@ -135,6 +135,18 @@ record.
 The type specific records are defined in the
 .In sys/ktrace.h
 include file.
+.Sh SYSCTL TUNABLES
+The following
+.Xr sysctl 8
+tunables influence the behaviour of
+.Fn ktrace :
+.Bl -tag -width indent
+.It Va kern.ktrace.geniosize
+bounds the amount of data a traced I/O request will log
+to the trace file.
+.It Va kern.ktrace.request_pool
+bounds the number of trace events being logged at a time.
+.El
 .Sh RETURN VALUES
 .Rv -std ktrace
 .Sh ERRORS
@@ -162,7 +174,7 @@ The kernel was not compiled with
 support.
 .El
 .Pp
-A thread may be unable to post one or more tracing requests due to a
+A thread may be unable to log one or more tracing events due to a
 temporary shortage of resources.
 This condition is remembered by the kernel, and the next tracing request
 that succeeds will have the flag
@@ -173,7 +185,8 @@ field.
 .Sh SEE ALSO
 .Xr kdump 1 ,
 .Xr ktrace 1 ,
-.Xr utrace 2
+.Xr utrace 2 ,
+.Xr sysctl 8
 .Sh HISTORY
 The
 .Fn ktrace
