@@ -863,8 +863,8 @@ bdg_forward(struct mbuf *m0, struct ether_header *const eh, struct ifnet *dst)
 
 	int i;
 
-	if (args.rule != NULL) /* packet already partially processed */
-	    goto forward; /* HACK! I should obey the fw_one_pass */
+	if (args.rule != NULL && fw_one_pass)
+	    goto forward; /* packet already partially processed */
 	/*
 	 * i need some amt of data to be contiguous, and in case others need
 	 * the packet (shared==1) also better be in the first mbuf.
