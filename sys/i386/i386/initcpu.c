@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *		$Id: initcpu.c,v 1.13 1998/05/16 14:38:10 kato Exp $
+ *		$Id: initcpu.c,v 1.14 1998/10/06 13:16:23 kato Exp $
  */
 
 #include "opt_cpu.h"
@@ -661,7 +661,8 @@ DB_SHOW_COMMAND(cyrixreg, cyrixreg)
 {
 	u_long	eflags;
 	u_int	cr0;
-	u_char	ccr0, ccr1, ccr2, ccr3, ccr4, ccr5, pcr0;
+	u_char	ccr1, ccr2, ccr3;
+	u_char	ccr0 = 0, ccr4 = 0, ccr5 = 0, pcr0 = 0;
 
 	cr0 = rcr0();
 	if (strcmp(cpu_vendor,"CyrixInstead") == 0) {
