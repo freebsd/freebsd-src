@@ -1,3 +1,99 @@
+1998-02-20  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* regex.c: Partial merge with version from emacs 20.2.  Brings
+	over some trivial changes (whitespace and so on) (most such
+	changes I didn't bother with, for this time).  Don't cast to int
+	before comparing old_regend[r] to regstart[r] (this is the point
+	of bothering; the old code was broken for 64 bit machines.
+	Reported by Paul Vixie).
+
+Tue Feb 17 18:33:26 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* memmove.c: New file, resurrecting the old one.
+	* Makefile.in (SOURCES): Add memmove.c.
+
+1998-02-03  Tim Pierce  <twp@skepsis.com>
+
+	* system.h (CVS_LSTAT): New macro.
+
+Sat Feb  7 17:33:39 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* getline.h (getstr): Declare.
+
+13 Jan 1998  Jim Kingdon
+
+	* fncase.c: Include config.h before system.h.
+
+	* system.h: Just include string.h unconditionally.  We already
+	include it unconditionally elsewhere.
+
+Tue Jan 13 16:51:59 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* fncase.c: New file, taken from windows-NT/filesubr.c.
+	* system.h: If __CYGWIN32__ or WIN32 are defined, define
+	FOLD_FN_CHAR, FILENAMES_CASE_INSENSITIVE, and ISDIRSEP, and
+	declare fncmp and fnfold.  Taken from windows-NT/config.h.
+	* Makefile.in (SOURCES): Add fncase.c.
+
+Sat Jan 10 10:51:26 1998  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* getline.c (getstr): Make sure to set errno when appropriate.  I
+	didn't test the error case for the new code but inspection shows
+	the old code was rather broken.
+
+Sat Nov 29 22:03:39 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	getwd and getcwd were a big big mess.  Although Jim's fix might
+	indeed be fixing a typo, the code is so tangled that I would guess
+	it probably breaks some system.  So clean this up:
+	* xgetwd.c: Always assume we have getcwd (we had been anyway,
+	before Jim's change).
+	* getwd.c: Removed.
+	* Makefile.in: Remove getwd.c
+	* system.h: Remove declarations of getwd and getcwd.  Move getcwd
+	declaration to the !HAVE_UNISTD_H section.
+
+1997-11-29  Jim Meyering  <meyering@na-net.ornl.gov>
+
+	* xgetwd.c: Fix typo s/ifndef/ifdef/ in test of HAVE_GETWD.
+
+Wed Nov 26 10:12:33 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* system.h: Always use "rb" and "wb".  Check for O_BINARY with an
+	#ifdef, not the error-prone LINES_CRLF_TERMINATED.
+
+Thu Sep 25 10:57:39 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* getdate.y (get_date): If gmtime returns NULL, try to cope.
+	* getdate.c: Regenerated using byacc.
+
+	* getdate.y: Remove comment about sending email concerning this file
+	to Rich Salz.
+	* getdate.c: Regenerated using byacc.
+
+Wed Sep 24 10:35:38 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* Makefile.in (OBJECTS): Add regex.o.
+
+Wed Sep 17 16:37:17 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* getdate.y (ToSeconds): For am or pm, a hour of "12" really means 0.
+	* getdate.c: Regenerated using byacc (not bison per comment).
+
+Tue Sep  9 20:51:45 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* build_lib.com: Add vasprintf.c and vasprintf.obj.
+
+	* build_lib.com: Remove strippath.obj from library/create command.
+
+Sun Sep  7 17:35:27 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* system.h: Replace comment referring to ChangeLog with a
+	comment based on the ChangeLog entries.
+
+	* strdup.c: Removed, per change to ../configure.in
+	* Makefile.in (SOURCES): Remove strdup.c.
+
 Mon Jun 16 18:59:50 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
 	* system.h: Add CVS_FNMATCH.

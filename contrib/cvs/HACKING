@@ -28,6 +28,12 @@ foo (arg)
 	bar (arg);
 	baz (arg);
     }
+    switch (c)
+    {
+	case 'A':
+	    aflag = 1;
+	    break;
+    }
 }
 
 The file cvs-format.el contains settings for emacs and the NEWS file
@@ -64,12 +70,13 @@ but we want to fix that code.  Of course, bad input data, a corrupt
 repository, bad options, etc., should always print a real error
 message instead.
 
-We realize that CVS contains many arbitrary limits (such as PATH_MAX).
-Do not do this in new code; we are trying to *fix* those arbitrary
-limits.  In particular, it should be possible to pass very long
-arguments (e.g. from a WWW cgi script) to CVS without having it
-overrun any buffers (which might create a security hole in the WWW
-example).
+Do not use arbitrary limits (such as PATH_MAX) except perhaps when the
+operating system or some external interface requires it.  We spent a
+lot of time getting rid of them, and we don't want to put them back.
+If you find any that we missed, please report it as with other bugs.
+In most cases such code will create security holes (for example, for
+anonymous readonly access via the CVS protocol, or if a WWW cgi script
+passes client-supplied arguments to CVS).
 
 Although this is a long-term goal, it also would be nice to move CVS
 in the direction of reentrancy.  This reduces the size of the data
@@ -145,7 +152,7 @@ context diffs or unidiffs for patches.
 
 Note that all submitted changes may be distributed under the terms of
 the GNU Public License, so if you don't like this, don't submit them.
-Submit changes to bug-cvs@prep.ai.mit.edu.
+Submit changes to bug-cvs@gnu.org.
 
 Generally speaking if you follow the guidelines in this file you can
 expect a yes or no answer about whether your patch is accepted.  But
@@ -185,7 +192,7 @@ test-results.
 
 One other list related to CVS development is bug-cvs.  This is the
 list which users are requested to send bug reports to.  Anyone can
-subscribe; to do so send mail to bug-cvs-request@prep.ai.mit.edu.
+subscribe; to do so send mail to bug-cvs-request@gnu.org.
 
 Other CVS discussions take place on the info-cvs mailing list
 (send mail to info-cvs-request@prep.ai.mit.edu to subscribe) or on

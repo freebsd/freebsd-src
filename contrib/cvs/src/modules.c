@@ -3,7 +3,7 @@
  *    Copyright (c) 1989-1992, Brian Berliner
  *
  *    You may distribute under the terms of the GNU General Public License
- *    as specified in the README file that comes with the CVS 1.4 kit.
+ *    as specified in the README file that comes with the CVS source distribution.
  *
  * Modules
  *
@@ -36,8 +36,15 @@
 
 struct sortrec
 {
+    /* Name of the module, malloc'd.  */
     char *modname;
+    /* If Status variable is set, this is either def_status or the malloc'd
+       name of the status.  If Status is not set, the field is left
+       uninitialized.  */
     char *status;
+    /* Pointer to a malloc'd array which contains (1) the raw contents
+       of the options and arguments, excluding comments, (2) a '\0',
+       and (3) the storage for the "comment" field.  */
     char *rest;
     char *comment;
 };
@@ -127,7 +134,7 @@ do_module (db, mname, m_type, msg, callback_proc, where,
 
 #ifdef SERVER_SUPPORT
     int restore_server_dir = 0;
-    char *server_dir_to_restore;
+    char *server_dir_to_restore = NULL;
     if (trace)
     {
 	char *buf;
@@ -268,6 +275,11 @@ do_module (db, mname, m_type, msg, callback_proc, where,
 		}
 		is_found = 1;
 	    }
+	    else
+	    {
+		/* This initialization suppresses a warning from gcc -Wall.  */
+	        value = NULL;
+	    }
 	}
 	free (attic_file);
 	free (file);
@@ -384,24 +396,10 @@ do_module (db, mname, m_type, msg, callback_proc, where,
 	    {
 		char *nullrepos;
 
-		nullrepos = xmalloc (strlen (CVSroot_directory)
-				     + sizeof (CVSROOTADM)
-				     + sizeof (CVSNULLREPOS)
-				     + 10);
-		(void) sprintf (nullrepos, "%s/%s/%s", CVSroot_directory,
-				CVSROOTADM, CVSNULLREPOS);
-		if (!isfile (nullrepos))
-		{
-		    mode_t omask;
-		    omask = umask (cvsumask);
-		    (void) CVS_MKDIR (nullrepos, 0777);
-		    (void) umask (omask);
-		}
-		if (!isdir (nullrepos))
-		    error (1, 0, "there is no repository %s", nullrepos);
+		nullrepos = emptydir_name ();
 
 		Create_Admin (".", dir,
-			      nullrepos, (char *) NULL, (char *) NULL, 0);
+			      nullrepos, (char *) NULL, (char *) NULL, 0, 0);
 		if (!noexec)
 		{
 		    FILE *fp;
@@ -439,7 +437,7 @@ do_module (db, mname, m_type, msg, callback_proc, where,
     (void) sprintf (line, "%s %s", "XXX", value);
 
     /* turn the line into an argv[] array */
-    line2argv (&xmodargc, &xmodargv, line);
+    line2argv (&xmodargc, &xmodargv, line, " \t");
     free (line);
     modargc = xmodargc;
     modargv = xmodargv;
@@ -538,6 +536,15 @@ do_module (db, mname, m_type, msg, callback_proc, where,
 				  where, shorten, local_specified,
 				  run_module_prog, extra_arg);
 	}
+	goto do_module_return;
+    }
+
+    if (mfile != NULL && modargc > 1)
+    {
+	error (0, 0, "\
+module `%s' is a request for a file in a module which is not a directory",
+	       mname);
+	++err;
 	goto do_module_return;
     }
 
@@ -698,7 +705,8 @@ do_module (db, mname, m_type, msg, callback_proc, where,
 	    expanded_path = expand_path (prog, "modules", 0);
 	    if (expanded_path != NULL)
 	    {
-		run_setup ("%s %s", expanded_path, real_where);
+		run_setup (expanded_path);
+		run_arg (real_where);
 
 		if (extra_arg)
 		    run_arg (extra_arg);
@@ -849,15 +857,19 @@ save_d (k, ks, d, ds)
     {
 	s_rec->status = def_status;
 
-	/* Minor kluge, but general enough to maintain */
 	for (cp = s_rec->rest; (cp2 = strchr (cp, '-')) != NULL; cp = ++cp2)
 	{
 	    if (*(cp2 + 1) == 's' && *(cp2 + 2) == ' ')
 	    {
-		s_rec->status = (cp2 += 3);
-		while (*cp2 != ' ')
+		char *status_start;
+
+		cp2 += 3;
+		status_start = cp2;
+		while (*cp2 != ' ' && *cp2 != '\0')
 		    cp2++;
-		*cp2++ = '\0';
+		s_rec->status = xmalloc (cp2 - status_start + 1);
+		strncpy (s_rec->status, status_start, cp2 - status_start);
+		s_rec->status[cp2 - status_start] = '\0';
 		cp = cp2;
 		break;
 	    }
@@ -934,15 +946,13 @@ cat_module (status)
 	    line = xmalloc (strlen (s_h->status) + 15);
 	    sprintf (line, " %-11s", s_h->status);
 	    cvs_output (line, 0);
-	    if (s_h->status != def_status)
-		*(s_h->status + strlen (s_h->status)) = ' ';
 	    free (line);
 	}
 
 	line = xmalloc (strlen (s_h->modname) + strlen (s_h->rest) + 15);
 	/* Parse module file entry as command line and print options */
 	(void) sprintf (line, "%s %s", s_h->modname, s_h->rest);
-	line2argv (&moduleargc, &moduleargv, line);
+	line2argv (&moduleargc, &moduleargv, line, " \t");
 	free (line);
 	argc = moduleargc;
 	argv = moduleargv;
@@ -1032,5 +1042,11 @@ cat_module (status)
 	}
 
 	free_names(&moduleargc, moduleargv);
+	/* FIXME-leak: here is where we would free s_h->modname, s_h->rest,
+	   and if applicable, s_h->status.  Not exactly a memory leak,
+	   in the sense that we are about to exit(), but may be worth
+	   noting if we ever do a multithreaded server or something of
+	   the sort.  */
     }
+    /* FIXME-leak: as above, here is where we would free s_head.  */
 }

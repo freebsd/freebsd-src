@@ -184,6 +184,19 @@ expand_path (name, file, line)
 	    t = get_homedir ();
 	else
 	{
+#ifdef GETPWNAM_MISSING
+	    for (; *p!='/' && *p; p++)
+		;
+	    *p = 0;
+	    if (line != 0)
+		error (0, 0,
+		       "%s:%d:tilde expansion not supported on this system",
+		       file, line);
+	    else
+		error (0, 0, "%s:tilde expansion not supported on this system",
+		       file);
+	    return NULL;
+#else
 	    struct passwd *ps;
 	    for (; *p!='/' && *p; p++)
 		;
@@ -199,6 +212,7 @@ expand_path (name, file, line)
 		return NULL;
 	    }
 	    t = ps->pw_dir;
+#endif
 	}
 	doff = d - buf;
 	expand_string (&buf, &buf_size, doff + 1);
@@ -256,8 +270,11 @@ expand_variable (name, file, line)
 {
     if (strcmp (name, CVSROOT_ENV) == 0)
 	return CVSroot_original;
-    else if (strcmp (name, RCSBIN_ENV)  == 0)
-	return Rcsbin;
+    else if (strcmp (name, "RCSBIN") == 0)
+    {
+	error (0, 0, "RCSBIN internal variable is no longer supported");
+	return NULL;
+    }
     else if (strcmp (name, EDITOR1_ENV) == 0)
 	return Editor;
     else if (strcmp (name, EDITOR2_ENV) == 0)

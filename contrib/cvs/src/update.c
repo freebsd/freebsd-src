@@ -3,7 +3,7 @@
  * Copyright (c) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.4 kit.
+ * specified in the README file that comes with the CVS source distribution.
  * 
  * "update" updates the version in the present directory with respect to the RCS
  * repository.  The present version must have been created by "checkout". The
@@ -42,9 +42,14 @@
 #include "fileattr.h"
 #include "edit.h"
 #include "getline.h"
+#include "buffer.h"
+#include "hardlink.h"
 
 static int checkout_file PROTO ((struct file_info *finfo, Vers_TS *vers_ts,
-				 int adding));
+				 int adding, int merging, int update_server));
+#ifdef SERVER_SUPPORT
+static void checkout_to_buffer PROTO ((void *, const char *, size_t));
+#endif
 #ifdef SERVER_SUPPORT
 static int patch_file PROTO ((struct file_info *finfo,
 			      Vers_TS *vers_ts, 
@@ -64,12 +69,11 @@ static int update_fileproc PROTO ((void *callerdat, struct file_info *));
 static int update_filesdone_proc PROTO ((void *callerdat, int err,
 					 char *repository, char *update_dir,
 					 List *entries));
-static int write_letter PROTO((char *file, int letter, char *update_dir));
-#ifdef SERVER_SUPPORT
-static void join_file PROTO ((struct file_info *finfo, Vers_TS *vers_ts));
-#else
-static void join_file PROTO ((struct file_info *finfo, Vers_TS *vers_ts));
+#ifdef PRESERVE_PERMISSIONS_SUPPORT
+static int get_linkinfo_proc PROTO ((void *callerdat, struct file_info *));
 #endif
+static void write_letter PROTO ((struct file_info *finfo, int letter));
+static void join_file PROTO ((struct file_info *finfo, Vers_TS *vers_ts));
 
 static char *options = NULL;
 static char *tag = NULL;
@@ -82,6 +86,10 @@ static char *date = NULL;
    call.  */
 static int rewrite_tag;
 static int nonbranch;
+
+/* If we set the tag or date for a subdirectory, we use this to undo
+   the setting.  See update_dirent_proc.  */
+static char *tag_update_dir;
 
 static char *join_rev1, *date_rev1;
 static char *join_rev2, *date_rev2;
@@ -113,6 +121,7 @@ static const char *const update_usage[] =
     "\t-j rev\tMerge in changes made between current revision and rev.\n",
     "\t-I ign\tMore files to ignore (! to reset).\n",
     "\t-W spec\tWrappers specification line.\n",
+    "(Specify the --help global option for a list of other help options)\n",
     NULL
 };
 
@@ -259,16 +268,18 @@ update (argc, argv)
 
 	    /* If the server supports the command "update-patches", that means
 	       that it knows how to handle the -u argument to update, which
-	       means to send patches instead of complete files.  */
+	       means to send patches instead of complete files.
+
+	       We don't send -u if failed_patches != NULL, so that the
+	       server doesn't try to send patches which will just fail
+	       again.  At least currently, the client also clobbers the
+	       file and tells the server it is lost, which also will get
+	       a full file instead of a patch, but it seems clean to omit
+	       -u.  */
 	    if (failed_patches == NULL)
 	    {
-#ifndef DONT_USE_PATCH
-		/* Systems which don't have the patch program ported to them
-		   will want to define DONT_USE_PATCH; then CVS won't try to
-		   invoke patch.  */
 		if (supported_request ("update-patches"))
 		    send_arg ("-u");
-#endif
 	    }
 
 	    if (failed_patches == NULL)
@@ -438,6 +449,32 @@ do_update (argc, argv, xoptions, xtag, xdate, xforce, local, xbuild, xaflag,
     else
 	date_rev2 = (char *) NULL;
 
+#ifdef PRESERVE_PERMISSIONS_SUPPORT
+    if (preserve_perms)
+    {
+	/* We need to do an extra recursion, bleah.  It's to make sure
+	   that we know as much as possible about file linkage. */
+	hardlist = getlist();
+	working_dir = xgetwd();		/* save top-level working dir */
+
+	/* FIXME-twp: the arguments to start_recursion make me dizzy.  This
+	   function call was copied from the update_fileproc call that
+	   follows it; someone should make sure that I did it right. */
+	err = start_recursion (get_linkinfo_proc, (FILESDONEPROC) NULL,
+			       (DIRENTPROC) NULL, (DIRLEAVEPROC) NULL, NULL,
+			       argc, argv, local, which, aflag, 1,
+			       preload_update_dir, 1);
+	if (err)
+	    return (err);
+
+	/* FIXME-twp: at this point we should walk the hardlist
+	   and update the `links' field of each hardlink_info struct
+	   to list the files that are linked on dist.  That would make
+	   it easier & more efficient to compare the disk linkage with
+	   the repository linkage (a simple strcmp). */
+    }
+#endif
+
     /* call the recursion processor */
     err = start_recursion (update_fileproc, update_filesdone_proc,
 			   update_dirent_proc, update_dirleave_proc, NULL,
@@ -456,6 +493,50 @@ do_update (argc, argv, xoptions, xtag, xdate, xforce, local, xbuild, xaflag,
 
     return (err);
 }
+
+#ifdef PRESERVE_PERMISSIONS_SUPPORT
+/*
+ * The get_linkinfo_proc callback adds each file to the hardlist
+ * (see hardlink.c).
+ */
+
+static int
+get_linkinfo_proc (callerdat, finfo)
+    void *callerdat;
+    struct file_info *finfo;
+{
+    char *fullpath;
+    Node *linkp;
+    struct hardlink_info *hlinfo;
+
+    /* Get the full pathname of the current file. */
+    fullpath = xmalloc (strlen(working_dir) +
+			strlen(finfo->fullname) + 2);
+    sprintf (fullpath, "%s/%s", working_dir, finfo->fullname);
+
+    /* To permit recursing into subdirectories, files
+       are keyed on the full pathname and not on the basename. */
+    linkp = lookup_file_by_inode (fullpath);
+    if (linkp == NULL)
+    {
+	/* The file isn't on disk; we are probably restoring
+	   a file that was removed. */
+	return 0;
+    }
+    
+    /* Create a new, empty hardlink_info node. */
+    hlinfo = (struct hardlink_info *)
+	xmalloc (sizeof (struct hardlink_info));
+
+    hlinfo->status = (Ctype) 0;	/* is this dumb? */
+    hlinfo->checked_out = 0;
+    hlinfo->links = NULL;
+
+    linkp->data = (char *) hlinfo;
+
+    return 0;
+}
+#endif
 
 /*
  * This is the callback proc for update.  It is called for each file in each
@@ -491,7 +572,7 @@ update_fileproc (callerdat, finfo)
 	&& tag != NULL
 	&& finfo->rcs != NULL)
     {
-	char *rev = RCS_getversion (finfo->rcs, tag, NULL, 1, NULL);
+	char *rev = RCS_getversion (finfo->rcs, tag, date, 1, NULL);
 	if (rev != NULL
 	    && !RCS_nodeisbranch (finfo->rcs, tag))
 	    nonbranch = 1;
@@ -527,7 +608,7 @@ update_fileproc (callerdat, finfo)
 #ifdef SERVER_SUPPORT
 	    case T_PATCH:		/* needs patch */
 #endif
-		retval = checkout_file (finfo, vers, 0);
+		retval = checkout_file (finfo, vers, 0, 0, 0);
 		break;
 
 	    default:			/* can't ever happen :-) */
@@ -548,44 +629,17 @@ update_fileproc (callerdat, finfo)
 		break;
 	    case T_CONFLICT:		/* old punt-type errors */
 		retval = 1;
-		(void) write_letter (finfo->file, 'C', finfo->update_dir);
+		write_letter (finfo, 'C');
 		break;
 	    case T_NEEDS_MERGE:		/* needs merging */
 		if (noexec)
 		{
 		    retval = 1;
-		    (void) write_letter (finfo->file, 'C', finfo->update_dir);
+		    write_letter (finfo, 'C');
 		}
 		else
 		{
-		    if (wrap_merge_is_copy (finfo->file))
-#if 0
-			/* Look, we can't clobber the user's file.  We
-			   know it is modified and we're going to
-			   overwrite their mod?  Puh-leeze.  The
-			   correct behavior is probably something like
-			   what merge_file does for -kb, which is to
-			   give the users both files and tell them
-			   what the two filenames are.  Of course, -m
-			   in wrappers needs to be documented *much*
-			   better.  Anyway, until then, make this a
-			   fatal error.  */
-
-			/* Should we be warning the user that we are
-			 * overwriting the user's copy of the file?  */
-			retval =
-			  checkout_file (finfo, vers, 0);
-#else
-		    {
-		        error (0, 0, "A -m 'COPY' wrapper is specified");
-			error (0, 0, "but file %s needs merge",
-			       finfo->fullname);
-			error (1, 0, "\
-You probably want to avoid -m 'COPY' wrappers");
-#endif
-		    }
-		    else
-			retval = merge_file (finfo, vers);
+		    retval = merge_file (finfo, vers);
 		}
 		break;
 	    case T_MODIFIED:		/* locally modified */
@@ -622,7 +676,7 @@ You probably want to avoid -m 'COPY' wrappers");
 
 		    if (!retcode)
 		    {
-			(void) write_letter (finfo->file, 'C', finfo->update_dir);
+			write_letter (finfo, 'C');
 			retval = 1;
 		    }
 		    else
@@ -634,7 +688,10 @@ You probably want to avoid -m 'COPY' wrappers");
 		    }
 		}
 		if (!retval)
-		    retval = write_letter (finfo->file, 'M', finfo->update_dir);
+		{
+		    write_letter (finfo, 'M');
+		    retval = 0;
+		}
 		break;
 #ifdef SERVER_SUPPORT
 	    case T_PATCH:		/* needs patch */
@@ -654,30 +711,26 @@ You probably want to avoid -m 'COPY' wrappers");
 					    (rcs_diff_patches
 					     ? SERVER_RCS_DIFF
 					     : SERVER_PATCHED),
-					    &file_info, checksum);
+					    file_info.st_mode, checksum,
+					    (struct buffer *) NULL);
 			break;
 		    }
 		}
-		/* Fall through.  */
 		/* If we're not running as a server, just check the
-		   file out.  It's simpler and faster than starting up
-		   two new processes (diff and patch).  */
+		   file out.  It's simpler and faster than producing
+		   and applying patches.  */
 		/* Fall through.  */
 #endif
 	    case T_CHECKOUT:		/* needs checkout */
-		retval = checkout_file (finfo, vers, 0);
-#ifdef SERVER_SUPPORT
-		if (server_active && retval == 0)
-		    server_updated (finfo, vers,
-				    SERVER_UPDATED, (struct stat *) NULL,
-				    (unsigned char *) NULL);
-#endif
+		retval = checkout_file (finfo, vers, 0, 0, 1);
 		break;
 	    case T_ADDED:		/* added but not committed */
-		retval = write_letter (finfo->file, 'A', finfo->update_dir);
+		write_letter (finfo, 'A');
+		retval = 0;
 		break;
 	    case T_REMOVED:		/* removed but not committed */
-		retval = write_letter (finfo->file, 'R', finfo->update_dir);
+		write_letter (finfo, 'R');
+		retval = 0;
 		break;
 	    case T_REMOVE_ENTRY:	/* needs to be un-registered */
 		retval = scratch_file (finfo);
@@ -687,8 +740,9 @@ You probably want to avoid -m 'COPY' wrappers");
 		    if (vers->ts_user == NULL)
 			server_scratch_entry_only ();
 		    server_updated (finfo, vers,
-				    SERVER_UPDATED, (struct stat *) NULL,
-				    (unsigned char *) NULL);
+				    SERVER_UPDATED, (mode_t) -1,
+				    (unsigned char *) NULL,
+				    (struct buffer *) NULL);
 		}
 #endif
 		break;
@@ -727,7 +781,23 @@ update_ignproc (file, dir)
     char *file;
     char *dir;
 {
-    (void) write_letter (file, '?', dir);
+    struct file_info finfo;
+
+    memset (&finfo, 0, sizeof (finfo));
+    finfo.file = file;
+    finfo.update_dir = dir;
+    if (dir[0] == '\0')
+	finfo.fullname = xstrdup (file);
+    else
+    {
+	finfo.fullname = xmalloc (strlen (file) + strlen (dir) + 10);
+	strcpy (finfo.fullname, dir);
+	strcat (finfo.fullname, "/");
+	strcat (finfo.fullname, file);
+    }
+
+    write_letter (&finfo, '?');
+    free (finfo.fullname);
 }
 
 /* ARGSUSED */
@@ -808,16 +878,37 @@ update_dirent_proc (callerdat, dir, repository, update_dir, entries)
 	if (noexec)
 	{
 	    /* ignore the missing dir if -n is specified */
-	    error (0, 0, "New directory `%s' -- ignored", dir);
+	    error (0, 0, "New directory `%s' -- ignored", update_dir);
 	    return (R_SKIP_ALL);
 	}
 	else
 	{
 	    /* otherwise, create the dir and appropriate adm files */
+
+	    /* If no tag or date were specified on the command line,
+               and we're not using -A, we want the subdirectory to use
+               the tag and date, if any, of the current directory.
+               That way, update -d will work correctly when working on
+               a branch.
+
+	       We use TAG_UPDATE_DIR to undo the tag setting in
+	       update_dirleave_proc.  If we did not do this, we would
+	       not correctly handle a working directory with multiple
+	       tags (and maybe we should prohibit such working
+	       directories, but they work now and we shouldn't make
+	       them stop working without more thought).  */
+	    if ((tag == NULL && date == NULL) && ! aflag)
+	    {
+		ParseTag (&tag, &date, &nonbranch);
+		if (tag != NULL || date != NULL)
+		    tag_update_dir = xstrdup (update_dir);
+	    }
+
 	    make_directory (dir);
 	    Create_Admin (dir, update_dir, repository, tag, date,
 			  /* This is a guess.  We will rewrite it later
 			     via WriteTag.  */
+			  0,
 			  0);
 	    rewrite_tag = 1;
 	    nonbranch = 0;
@@ -904,6 +995,27 @@ update_dirleave_proc (callerdat, dir, err, update_dir, entries)
 {
     FILE *fp;
 
+    /* If we set the tag or date for a new subdirectory in
+       update_dirent_proc, and we're now done with that subdirectory,
+       undo the tag/date setting.  Note that we know that the tag and
+       date were both originally NULL in this case.  */
+    if (tag_update_dir != NULL && strcmp (update_dir, tag_update_dir) == 0)
+    {
+	if (tag != NULL)
+	{
+	    free (tag);
+	    tag = NULL;
+	}
+	if (date != NULL)
+	{
+	    free (date);
+	    date = NULL;
+	}
+	nonbranch = 0;
+	free (tag_update_dir);
+	tag_update_dir = NULL;
+    }
+
     /* run the update_prog if there is one */
     /* FIXME: should be checking for errors from CVS_FOPEN and printing
        them if not existence_error.  */
@@ -920,7 +1032,8 @@ update_dirleave_proc (callerdat, dir, err, update_dir, entries)
 	{
 	    if ((cp = strrchr (line, '\n')) != NULL)
 		*cp = '\0';
-	    run_setup ("%s %s", line, repository);
+	    run_setup (line);
+	    run_arg (repository);
 	    cvs_output (program_name, 0);
 	    cvs_output (" ", 1);
 	    cvs_output (command_name, 0);
@@ -1022,7 +1135,7 @@ isemptydir (dir, might_not_exist)
 
 		if (CVS_CHDIR (dir) < 0)
 		    error (1, errno, "cannot change directory to %s", dir);
-		l = Entries_Open (0);
+		l = Entries_Open (0, NULL);
 		files_removed = walklist (l, isremoved, 0);
 		Entries_Close (l);
 
@@ -1069,19 +1182,29 @@ scratch_file (finfo)
  * Check out a file.
  */
 static int
-checkout_file (finfo, vers_ts, adding)
+checkout_file (finfo, vers_ts, adding, merging, update_server)
     struct file_info *finfo;
     Vers_TS *vers_ts;
     int adding;
+    int merging;
+    int update_server;
 {
     char *backup;
     int set_time, retval = 0;
-    int retcode = 0;
     int status;
     int file_is_dead;
+    struct buffer *revbuf;
 
-    /* don't screw with backup files if we're going to stdout */
-    if (!pipeout)
+    backup = NULL;
+    revbuf = NULL;
+
+    /* Don't screw with backup files if we're going to stdout, or if
+       we are the server.  */
+    if (!pipeout
+#ifdef SERVER_SUPPORT
+	&& ! server_active
+#endif
+	)
     {
 	backup = xmalloc (strlen (finfo->file)
 			  + sizeof (CVSADM)
@@ -1091,9 +1214,19 @@ checkout_file (finfo, vers_ts, adding)
 	if (isfile (finfo->file))
 	    rename_file (finfo->file, backup);
 	else
+	{
 	    /* If -f/-t wrappers are being used to wrap up a directory,
 	       then backup might be a directory instead of just a file.  */
-	    (void) unlink_file_dir (backup);
+	    if (unlink_file_dir (backup) < 0)
+	    {
+		/* Not sure if the existence_error check is needed here.  */
+		if (!existence_error (errno))
+		    /* FIXME: should include update_dir in message.  */
+		    error (0, errno, "error removing %s", backup);
+	    }
+	    free (backup);
+	    backup = NULL;
+	}
     }
 
     file_is_dead = RCS_isdead (vers_ts->srcfile, vers_ts->vn_rcs);
@@ -1121,22 +1254,64 @@ VERS: ", 0);
 	    }
 	}
 
-	status = RCS_checkout (vers_ts->srcfile,
-			       pipeout ? NULL : finfo->file,
-			       vers_ts->vn_rcs, vers_ts->vn_tag,
-			       vers_ts->options, RUN_TTY,
-			       (RCSCHECKOUTPROC) NULL, (void *) NULL);
+#ifdef SERVER_SUPPORT
+	if (update_server
+	    && server_active
+	    && ! pipeout
+	    && ! file_gzip_level
+	    && ! joining ()
+	    && ! wrap_name_has (finfo->file, WRAP_FROMCVS))
+	{
+	    revbuf = buf_nonio_initialize ((BUFMEMERRPROC) NULL);
+	    status = RCS_checkout (vers_ts->srcfile, (char *) NULL,
+				   vers_ts->vn_rcs, vers_ts->vn_tag,
+				   vers_ts->options, RUN_TTY,
+				   checkout_to_buffer, revbuf);
+	}
+	else
+#endif
+	    status = RCS_checkout (vers_ts->srcfile,
+				   pipeout ? NULL : finfo->file,
+				   vers_ts->vn_rcs, vers_ts->vn_tag,
+				   vers_ts->options, RUN_TTY,
+				   (RCSCHECKOUTPROC) NULL, (void *) NULL);
     }
     if (file_is_dead || status == 0)
     {
+	mode_t mode;
+
+	mode = (mode_t) -1;
+
 	if (!pipeout)
 	{
 	    Vers_TS *xvers_ts;
 
-	    if (cvswrite == TRUE
+	    if (revbuf != NULL)
+	    {
+		struct stat sb;
+
+		/* FIXME: We should have RCS_checkout return the mode.  */
+		if (stat (vers_ts->srcfile->path, &sb) < 0)
+		    error (1, errno, "cannot stat %s",
+			   vers_ts->srcfile->path);
+		mode = sb.st_mode &~ (S_IWRITE | S_IWGRP | S_IWOTH);
+	    }
+
+	    if (cvswrite
 		&& !file_is_dead
 		&& !fileattr_get (finfo->file, "_watched"))
-		xchmod (finfo->file, 1);
+	    {
+		if (revbuf == NULL)
+		    xchmod (finfo->file, 1);
+		else
+		{
+		    /* We know that we are the server here, so
+                       although xchmod checks umask, we don't bother.  */
+		    mode |= (((mode & S_IRUSR) ? S_IWUSR : 0)
+			     | ((mode & S_IRGRP) ? S_IWGRP : 0)
+			     | ((mode & S_IROTH) ? S_IWOTH : 0));
+		}
+	    }
 
 	    {
 		/* A newly checked out file is never under the spell
@@ -1155,13 +1330,11 @@ VERS: ", 0);
 	    }
 
 	    /* set the time from the RCS file iff it was unknown before */
-	    if (vers_ts->vn_user == NULL ||
-		strncmp (vers_ts->ts_rcs, "Initial", 7) == 0)
-	    {
-		set_time = 1;
-	    }
-	    else
-		set_time = 0;
+	    set_time =
+		(!noexec
+		 && (vers_ts->vn_user == NULL ||
+		     strncmp (vers_ts->ts_rcs, "Initial", 7) == 0)
+		 && !file_is_dead);
 
 	    wrap_fromcvs_process_file (finfo->file);
 
@@ -1169,6 +1342,27 @@ VERS: ", 0);
 				   force_tag_match, set_time);
 	    if (strcmp (xvers_ts->options, "-V4") == 0)
 		xvers_ts->options[0] = '\0';
+
+	    if (revbuf != NULL)
+	    {
+		/* If we stored the file data into a buffer, then we
+                   didn't create a file at all, so xvers_ts->ts_user
+                   is wrong.  The correct value is to have it be the
+                   same as xvers_ts->ts_rcs, meaning that the working
+                   file is unchanged from the RCS file.
+
+		   FIXME: We should tell Version_TS not to waste time
+		   statting the nonexistent file.
+
+		   FIXME: Actually, I don't think the ts_user value
+		   matters at all here.  The only use I know of is
+		   that it is printed in a trace message by
+		   Server_Register.  */
+
+		if (xvers_ts->ts_user != NULL)
+		    free (xvers_ts->ts_user);
+		xvers_ts->ts_user = xstrdup (xvers_ts->ts_rcs);
+	    }
 
 	    (void) time (&last_register_time);
 
@@ -1178,7 +1372,7 @@ VERS: ", 0);
 		{
 		    error (0, 0,
 			   "warning: %s is not (any longer) pertinent",
-			   finfo->fullname);
+ 			   finfo->fullname);
 		}
 		Scratch_Entry (finfo->entries, finfo->file);
 #ifdef SERVER_SUPPORT
@@ -1222,33 +1416,65 @@ VERS: ", 0);
 
 	    if (!really_quiet && !file_is_dead)
 	    {
-		write_letter (finfo->file, 'U', finfo->update_dir);
+		write_letter (finfo, 'U');
 	    }
 	}
+
+#ifdef SERVER_SUPPORT
+	if (update_server && server_active)
+	    server_updated (finfo, vers_ts,
+			    merging ? SERVER_MERGED : SERVER_UPDATED,
+			    mode, (unsigned char *) NULL, revbuf);
+#endif
     }
     else
     {
-	int old_errno = errno;		/* save errno value over the rename */
-
-	if (!pipeout && isfile (backup))
+	if (backup != NULL)
+	{
 	    rename_file (backup, finfo->file);
+	    free (backup);
+	    backup = NULL;
+	}
 
-	error (retcode == -1 ? 1 : 0, retcode == -1 ? old_errno : 0,
-	       "could not check out %s", finfo->fullname);
+	error (0, 0, "could not check out %s", finfo->fullname);
 
-	retval = retcode;
+	retval = status;
     }
 
-    if (!pipeout)
+    if (backup != NULL)
     {
 	/* If -f/-t wrappers are being used to wrap up a directory,
 	   then backup might be a directory instead of just a file.  */
-	(void) unlink_file_dir (backup);
+	if (unlink_file_dir (backup) < 0)
+	{
+	    /* Not sure if the existence_error check is needed here.  */
+	    if (!existence_error (errno))
+		/* FIXME: should include update_dir in message.  */
+		error (0, errno, "error removing %s", backup);
+	}
 	free (backup);
     }
 
     return (retval);
 }
+
+#ifdef SERVER_SUPPORT
+
+/* This function is used to write data from a file being checked out
+   into a buffer.  */
+
+static void
+checkout_to_buffer (callerdat, data, len)
+     void *callerdat;
+     const char *data;
+     size_t len;
+{
+    struct buffer *buf = (struct buffer *) callerdat;
+
+    buf_output (buf, data, len);
+}
+
+#endif /* SERVER_SUPPORT */
 
 #ifdef SERVER_SUPPORT
 
@@ -1301,6 +1527,35 @@ patch_file (finfo, vers_ts, docheckout, file_info, checksum)
     /* If this file has been marked as being binary, then never send a
        patch.  */
     if (strcmp (vers_ts->options, "-kb") == 0)
+    {
+	*docheckout = 1;
+	return 0;
+    }
+
+    /* First check that the first revision exists.  If it has been nuked
+       by cvs admin -o, then just fall back to checking out entire
+       revisions.  In some sense maybe we don't have to do this; after
+       all cvs.texinfo says "Make sure that no-one has checked out a
+       copy of the revision you outdate" but then again, that advice
+       doesn't really make complete sense, because "cvs admin" operates
+       on a working directory and so _someone_ will almost always have
+       _some_ revision checked out.  */
+    {
+	char *rev;
+
+	rev = RCS_gettag (finfo->rcs, vers_ts->vn_user, 1, NULL);
+	if (rev == NULL)
+	{
+	    *docheckout = 1;
+	    return 0;
+	}
+	else
+	    free (rev);
+    }
+
+    /* If the revision is dead, let checkout_file handle it rather
+       than duplicating the processing here.  */
+    if (RCS_isdead (vers_ts->srcfile, vers_ts->vn_rcs))
     {
 	*docheckout = 1;
 	return 0;
@@ -1382,7 +1637,7 @@ patch_file (finfo, vers_ts, docheckout, file_info, checksum)
     retcode = 0;
     if (! fail)
     {
-	const char *diff_options;
+	char *diff_options;
 
 	/* FIXME: It might be better to come up with a diff library
            which can be shared with the diffutils.  */
@@ -1400,21 +1655,22 @@ patch_file (finfo, vers_ts, docheckout, file_info, checksum)
 	}
 	else
 	{
-	    /* FIXME: We should use -a if diff supports it.  We should
-               probably just copy over most or all of the diff
-               handling in the RCS configure script.  */
-	    /* IMHO, we shouldn't copy over anything which even
-	       vaguely resembles the RCS configure script.  That kind of
-	       thing tends to be ugly, slow, and fragile.  It also is a
-	       a support headache for CVS to behave differently in subtle
-	       ways based on whether it was installed correctly.  Instead we
-	       should come up with a diff library.  -kingdon, Apr 1997.  */
+	    /* Now that diff is librarified, we could be passing -a if
+	       we wanted to.  However, it is unclear to me whether we
+	       would want to.  Does diff -a, in any significant
+	       percentage of cases, produce patches which are smaller
+	       than the files it is patching?  I guess maybe text
+	       files with character sets which diff regards as
+	       'binary'.  Conversely, do they tend to be much larger
+	       in the bad cases?  This needs some more
+	       thought/investigation, I suspect.  */
+
 	    diff_options = "-n";
 	}
-	run_setup ("%s %s %s %s", DIFF, diff_options, file1, file2);
+	retcode = diff_exec (file1, file2, diff_options, finfo->file);
 
 	/* A retcode of 0 means no differences.  1 means some differences.  */
-	if ((retcode = run_exec (RUN_TTY, finfo->file, RUN_TTY, RUN_NORMAL)) != 0
+	if (retcode != 0
 	    && retcode != 1)
 	{
 	    fail = 1;
@@ -1434,7 +1690,7 @@ patch_file (finfo, vers_ts, docheckout, file_info, checksum)
 		       file_info->st_mode & ~(S_IWRITE | S_IWGRP | S_IWOTH))
 		< 0)
 		error (0, errno, "cannot change mode of file %s", finfo->file);
-	    if (cvswrite == TRUE
+	    if (cvswrite
 		&& !fileattr_get (finfo->file, "_watched"))
 		xchmod (finfo->file, 1);
 
@@ -1482,7 +1738,7 @@ patch_file (finfo, vers_ts, docheckout, file_info, checksum)
 
 	if (!really_quiet)
 	{
-	    write_letter (finfo->file, 'P', finfo->update_dir);
+	    write_letter (finfo, 'P');
 	}
     }
     else
@@ -1528,7 +1784,7 @@ patch_file_write (callerdat, buffer, len)
     data->final_nl = (buffer[len - 1] == '\n');
 
     if (data->compute_checksum)
-	MD5Update (&data->context, buffer, len);
+	MD5Update (&data->context, (unsigned char *) buffer, len);
 }
 
 #endif /* SERVER_SUPPORT */
@@ -1537,27 +1793,45 @@ patch_file_write (callerdat, buffer, len)
  * Several of the types we process only print a bit of information consisting
  * of a single letter and the name.
  */
-static int
-write_letter (file, letter, update_dir)
-    char *file;
+static void
+write_letter (finfo, letter)
+    struct file_info *finfo;
     int letter;
-    char *update_dir;
 {
     if (!really_quiet)
     {
-	char buf[2];
+	char *tag = NULL;
+	/* Big enough for "+updated" or any of its ilk.  */
+	char buf[80];
+
+	switch (letter)
+	{
+	    case 'U':
+		tag = "updated";
+		break;
+	    default:
+		/* We don't yet support tagged output except for "U".  */
+		break;
+	}
+
+	if (tag != NULL)
+	{
+	    sprintf (buf, "+%s", tag);
+	    cvs_output_tagged (buf, NULL);
+	}
 	buf[0] = letter;
 	buf[1] = ' ';
-	cvs_output (buf, 2);
-	if (update_dir[0])
+	buf[2] = '\0';
+	cvs_output_tagged ("text", buf);
+	cvs_output_tagged ("fname", finfo->fullname);
+	cvs_output_tagged ("newline", NULL);
+	if (tag != NULL)
 	{
-	    cvs_output (update_dir, 0);
-	    cvs_output ("/", 1);
+	    sprintf (buf, "-%s", tag);
+	    cvs_output_tagged (buf, NULL);
 	}
-	cvs_output (file, 0);
-	cvs_output ("\n", 1);
     }
-    return (0);
+    return;
 }
 
 /*
@@ -1590,30 +1864,42 @@ merge_file (finfo, vers)
     copy_file (finfo->file, backup);
     xchmod (finfo->file, 1);
 
-    if (strcmp (vers->options, "-kb") == 0)
+    if (strcmp (vers->options, "-kb") == 0
+	|| wrap_merge_is_copy (finfo->file)
+	|| special_file_mismatch (finfo, NULL, vers->vn_rcs))
     {
-	/* For binary files, a merge is always a conflict.  We give the
+	/* For binary files, a merge is always a conflict.  Same for
+	   files whose permissions or linkage do not match.  We give the
 	   user the two files, and let them resolve it.  It is possible
 	   that we should require a "touch foo" or similar step before
 	   we allow a checkin.  */
-	status = checkout_file (finfo, vers, 0);
+
+	/* TODO: it may not always be necessary to regard a permission
+	   mismatch as a conflict.  The working file and the RCS file
+	   have a common ancestor `A'; if the working file's permissions
+	   match A's, then it's probably safe to overwrite them with the
+	   RCS permissions.  Only if the working file, the RCS file, and
+	   A all disagree should this be considered a conflict.  But more
+	   thought needs to go into this, and in the meantime it is safe
+	   to treat any such mismatch as an automatic conflict. -twp */
+
 #ifdef SERVER_SUPPORT
-	/* Send the new contents of the file before the message.  If we
-	   wanted to be totally correct, we would have the client write
-	   the message only after the file has safely been written.  */
 	if (server_active)
-	{
 	    server_copy_file (finfo->file, finfo->update_dir,
 			      finfo->repository, backup);
-	    server_updated (finfo, vers, SERVER_MERGED,
-			    (struct stat *) NULL, (unsigned char *) NULL);
-	}
 #endif
-	error (0, 0, "binary file needs merge");
+
+	status = checkout_file (finfo, vers, 0, 1, 1);
+
+	/* Is there a better term than "nonmergeable file"?  What we
+	   really mean is, not something that CVS cannot or does not
+	   want to merge (there might be an external manual or
+	   automatic merge process).  */
+	error (0, 0, "nonmergeable file needs merge");
 	error (0, 0, "revision %s from repository is now in %s",
 	       vers->vn_rcs, finfo->fullname);
 	error (0, 0, "file from working directory is now in %s", backup);
-	write_letter (finfo->file, 'C', finfo->update_dir);
+	write_letter (finfo, 'C');
 
 	history_write ('C', finfo->update_dir, vers->vn_rcs, finfo->file,
 		       finfo->repository);
@@ -1621,7 +1907,7 @@ merge_file (finfo, vers)
 	goto out;
     }
 
-    status = RCS_merge(vers->srcfile->path, 
+    status = RCS_merge(finfo->rcs, vers->srcfile->path, finfo->file,
 		       vers->options, vers->vn_user, vers->vn_rcs);
     if (status != 0 && status != 1)
     {
@@ -1665,7 +1951,8 @@ merge_file (finfo, vers)
         server_copy_file (finfo->file, finfo->update_dir, finfo->repository,
 			  backup);
 	server_updated (finfo, vers, SERVER_MERGED,
-			(struct stat *) NULL, (unsigned char *) NULL);
+			(mode_t) -1, (unsigned char *) NULL,
+			(struct buffer *) NULL);
     }
 #endif
 
@@ -1684,7 +1971,7 @@ merge_file (finfo, vers)
 	if (!noexec)
 	    error (0, 0, "conflicts found in %s", finfo->fullname);
 
-	write_letter (finfo->file, 'C', finfo->update_dir);
+	write_letter (finfo, 'C');
 
 	history_write ('C', finfo->update_dir, vers->vn_rcs, finfo->file, finfo->repository);
 
@@ -1696,7 +1983,7 @@ merge_file (finfo, vers)
     }
     else
     {
-	write_letter (finfo->file, 'M', finfo->update_dir);
+	write_letter (finfo, 'M');
 	history_write ('G', finfo->update_dir, vers->vn_rcs, finfo->file,
 		       finfo->repository);
     }
@@ -1730,14 +2017,6 @@ join_file (finfo, vers)
     jrev2 = join_rev2;
     jdate1 = date_rev1;
     jdate2 = date_rev2;
-
-    if (wrap_merge_is_copy (finfo->file))
-    {
-	error (0, 0,
-	       "Cannot merge %s because it is a merge-by-copy file.",
-	       finfo->fullname);
-	return;
-    }
 
     /* Determine if we need to do anything at all.  */
     if (vers->srcfile == NULL ||
@@ -1907,8 +2186,8 @@ join_file (finfo, vers)
 	if (server_active)
 	{
 	    server_scratch (finfo->file);
-	    server_updated (finfo, vers, SERVER_UPDATED, (struct stat *) NULL,
-			    (unsigned char *) NULL);
+	    server_updated (finfo, vers, SERVER_UPDATED, (mode_t) -1,
+			    (unsigned char *) NULL, (struct buffer *) NULL);
 	}
 #endif
 	mrev = xmalloc (strlen (vers->vn_user) + 2);
@@ -1961,14 +2240,7 @@ join_file (finfo, vers)
 
 	    /* FIXME: If checkout_file fails, we should arrange to
                return a non-zero exit status.  */
-	    status = checkout_file (finfo, xvers, 1);
-
-#ifdef SERVER_SUPPORT
-	    if (server_active && status == 0)
-		server_updated (finfo, xvers,
-				SERVER_UPDATED, (struct stat *) NULL,
-				(unsigned char *) NULL);
-#endif
+	    status = checkout_file (finfo, xvers, 1, 0, 1);
 
 	    freevers_ts (&xvers);
 
@@ -2030,11 +2302,11 @@ join_file (finfo, vers)
 				(char *) NULL, RUN_TTY,
 				(RCSCHECKOUTPROC) NULL, (void *) NULL);
 	if (retcode != 0)
-	    error (1, retcode == -1 ? errno : 0,
+	    error (1, 0,
 		   "failed to check out %s file", finfo->fullname);
     }
 #endif
-    
+
     /*
      * The users currently modified file is moved to a backup file name
      * ".#filename.version", so that it will stay around for a few days
@@ -2053,14 +2325,98 @@ join_file (finfo, vers)
     xchmod (finfo->file, 1);
 
     options = vers->options;
-#ifdef HAVE_RCS5
 #if 0
     if (*options == '\0')
 	options = "-kk";		/* to ignore keyword expansions */
 #endif
-#endif
 
-    status = RCS_merge (vers->srcfile->path, options, rev1, rev2);
+    /* If the source of the merge is the same as the working file
+       revision, then we can just RCS_checkout the target (no merging
+       as such).  In the text file case, this is probably quite
+       similar to the RCS_merge, but in the binary file case,
+       RCS_merge gives all kinds of trouble.  */
+    if (vers->vn_user != NULL
+	&& strcmp (rev1, vers->vn_user) == 0
+	/* See comments above about how No_Difference has already been
+	   called.  */
+	&& vers->ts_user != NULL
+	&& strcmp (vers->ts_user, vers->ts_rcs) == 0
+
+	/* This is because of the worry below about $Name.  If that
+	   isn't a problem, I suspect this code probably works for
+	   text files too.  */
+	&& (strcmp (options, "-kb") == 0
+	    || wrap_merge_is_copy (finfo->file)))
+    {
+	/* FIXME: what about nametag?  What does RCS_merge do with
+	   $Name?  */
+	if (RCS_checkout (finfo->rcs, finfo->file, rev2, NULL, options,
+			  RUN_TTY, (RCSCHECKOUTPROC)0, NULL) != 0)
+	    status = 2;
+	else
+	    status = 0;
+
+	/* OK, this is really stupid.  RCS_checkout carefully removes
+	   write permissions, and we carefully put them back.  But
+	   until someone gets around to fixing it, that seems like the
+	   easiest way to get what would seem to be the right mode.
+	   I don't check CVSWRITE or _watched; I haven't thought about
+	   that in great detail, but it seems like a watched file should
+	   be checked out (writable) after a merge.  */
+	xchmod (finfo->file, 1);
+
+	/* Traditionally, the text file case prints a whole bunch of
+	   scary looking and verbose output which fails to tell the user
+	   what is really going on (it gives them rev1 and rev2 but doesn't
+	   indicate in any way that rev1 == vn_user).  I think just a
+	   simple "U foo" is good here; it seems analogous to the case in
+	   which the file was added on the branch in terms of what to
+	   print.  */
+	write_letter (finfo, 'U');
+    }
+    else if (strcmp (options, "-kb") == 0
+	     || wrap_merge_is_copy (finfo->file)
+	     || special_file_mismatch (finfo, rev1, rev2))
+    {
+	/* We are dealing with binary files, or files with a
+	   permission/linkage mismatch, and real merging would
+	   need to take place.  This is a conflict.  We give the user
+	   the two files, and let them resolve it.  It is possible
+	   that we should require a "touch foo" or similar step before
+	   we allow a checkin.  */
+	if (RCS_checkout (finfo->rcs, finfo->file, rev2, NULL, options,
+			  RUN_TTY, (RCSCHECKOUTPROC)0, NULL) != 0)
+	    status = 2;
+	else
+	    status = 0;
+
+	/* OK, this is really stupid.  RCS_checkout carefully removes
+	   write permissions, and we carefully put them back.  But
+	   until someone gets around to fixing it, that seems like the
+	   easiest way to get what would seem to be the right mode.
+	   I don't check CVSWRITE or _watched; I haven't thought about
+	   that in great detail, but it seems like a watched file should
+	   be checked out (writable) after a merge.  */
+	xchmod (finfo->file, 1);
+
+	/* Hmm.  We don't give them REV1 anywhere.  I guess most people
+	   probably don't have a 3-way merge tool for the file type in
+	   question, and might just get confused if we tried to either
+	   provide them with a copy of the file from REV1, or even just
+	   told them what REV1 is so they can get it themself, but it
+	   might be worth thinking about.  */
+	/* See comment in merge_file about the "nonmergeable file"
+	   terminology.  */
+	error (0, 0, "nonmergeable file needs merge");
+	error (0, 0, "revision %s from repository is now in %s",
+	       rev2, finfo->fullname);
+	error (0, 0, "file from working directory is now in %s", backup);
+	write_letter (finfo, 'C');
+    }
+    else
+	status = RCS_merge (finfo->rcs, vers->srcfile->path, finfo->file,
+			    options, rev1, rev2);
+
     if (status != 0 && status != 1)
     {
 	error (0, status == -1 ? errno : 0,
@@ -2101,10 +2457,316 @@ join_file (finfo, vers)
 	server_copy_file (finfo->file, finfo->update_dir, finfo->repository,
 			  backup);
 	server_updated (finfo, vers, SERVER_MERGED,
-			(struct stat *) NULL, (unsigned char *) NULL);
+			(mode_t) -1, (unsigned char *) NULL,
+			(struct buffer *) NULL);
     }
 #endif
     free (backup);
+}
+
+/*
+ * Report whether revisions REV1 and REV2 of FINFO agree on:
+ *   . file ownership
+ *   . permissions
+ *   . major and minor device numbers
+ *   . symbolic links
+ *   . hard links
+ *
+ * If either REV1 or REV2 is NULL, the working copy is used instead.
+ *
+ * Return 1 if the files differ on these data.
+ */
+
+int
+special_file_mismatch (finfo, rev1, rev2)
+    struct file_info *finfo;
+    char *rev1;
+    char *rev2;
+{
+#ifdef PRESERVE_PERMISSIONS_SUPPORT
+    struct stat sb;
+    RCSVers *vp;
+    Node *n;
+    uid_t rev1_uid, rev2_uid;
+    gid_t rev1_gid, rev2_gid;
+    mode_t rev1_mode, rev2_mode;
+    unsigned long dev_long;
+    dev_t rev1_dev, rev2_dev;
+    char *rev1_symlink = NULL;
+    char *rev2_symlink = NULL;
+    char *rev1_hardlinks = NULL;
+    char *rev2_hardlinks = NULL;
+    int check_uids, check_gids, check_modes;
+    int result;
+
+    /* If we don't care about special file info, then
+       don't report a mismatch in any case. */
+    if (!preserve_perms)
+	return 0;
+
+    /* When special_file_mismatch is called from No_Difference, the
+       RCS file has been only partially parsed.  We must read the
+       delta tree in order to compare special file info recorded in
+       the delta nodes.  (I think this is safe. -twp) */
+    if (finfo->rcs->flags & PARTIAL)
+	RCS_reparsercsfile (finfo->rcs, NULL, NULL);
+
+    check_uids = check_gids = check_modes = 1;
+
+    /* Obtain file information for REV1.  If this is null, then stat
+       finfo->file and use that info. */
+    /* If a revision does not know anything about its status,
+       then presumably it doesn't matter, and indicates no conflict. */
+
+    if (rev1 == NULL)
+    {
+	if (islink (finfo->file))
+	    rev1_symlink = xreadlink (finfo->file);
+	else
+	{
+	    if (CVS_LSTAT (finfo->file, &sb) < 0)
+		error (1, errno, "could not get file information for %s",
+		       finfo->file);
+	    rev1_uid = sb.st_uid;
+	    rev1_gid = sb.st_gid;
+	    rev1_mode = sb.st_mode;
+	    if (S_ISBLK (rev1_mode) || S_ISCHR (rev1_mode))
+		rev1_dev = sb.st_rdev;
+	}
+	rev1_hardlinks = list_files_linked_to (finfo->file);
+    }
+    else
+    {
+	n = findnode (finfo->rcs->versions, rev1);
+	vp = (RCSVers *) n->data;
+
+	n = findnode (vp->other_delta, "symlink");
+	if (n != NULL)
+	    rev1_symlink = xstrdup (n->data);
+	else
+	{
+	    n = findnode (vp->other_delta, "owner");
+	    if (n == NULL)
+		check_uids = 0;	/* don't care */
+	    else
+		rev1_uid = strtoul (n->data, NULL, 10);
+
+	    n = findnode (vp->other_delta, "group");
+	    if (n == NULL)
+		check_gids = 0;	/* don't care */
+	    else
+		rev1_gid = strtoul (n->data, NULL, 10);
+
+	    n = findnode (vp->other_delta, "permissions");
+	    if (n == NULL)
+		check_modes = 0;	/* don't care */
+	    else
+		rev1_mode = strtoul (n->data, NULL, 8);
+
+	    n = findnode (vp->other_delta, "special");
+	    if (n == NULL)
+		rev1_mode |= S_IFREG;
+	    else
+	    {
+		/* If the size of `ftype' changes, fix the sscanf call also */
+		char ftype[16];
+		if (sscanf (n->data, "%16s %lu", ftype,
+			    &dev_long) < 2)
+		    error (1, 0, "%s:%s has bad `special' newphrase %s",
+			   finfo->file, rev1, n->data);
+		rev1_dev = dev_long;
+		if (strcmp (ftype, "character") == 0)
+		    rev1_mode |= S_IFCHR;
+		else if (strcmp (ftype, "block") == 0)
+		    rev1_mode |= S_IFBLK;
+		else
+		    error (0, 0, "%s:%s unknown file type `%s'",
+			   finfo->file, rev1, ftype);
+	    }
+
+	    n = findnode (vp->other_delta, "hardlinks");
+	    if (n == NULL)
+		rev1_hardlinks = xstrdup ("");
+	    else
+		rev1_hardlinks = xstrdup (n->data);
+	}
+    }
+
+    /* Obtain file information for REV2. */
+    if (rev2 == NULL)
+    {
+	if (islink (finfo->file))
+	    rev2_symlink = xreadlink (finfo->file);
+	else
+	{
+	    if (CVS_LSTAT (finfo->file, &sb) < 0)
+		error (1, errno, "could not get file information for %s",
+		       finfo->file);
+	    rev2_uid = sb.st_uid;
+	    rev2_gid = sb.st_gid;
+	    rev2_mode = sb.st_mode;
+	    if (S_ISBLK (rev2_mode) || S_ISCHR (rev2_mode))
+		rev2_dev = sb.st_rdev;
+	}
+	rev2_hardlinks = list_files_linked_to (finfo->file);
+    }
+    else
+    {
+	n = findnode (finfo->rcs->versions, rev2);
+	vp = (RCSVers *) n->data;
+
+	n = findnode (vp->other_delta, "symlink");
+	if (n != NULL)
+	    rev2_symlink = xstrdup (n->data);
+	else
+	{
+	    n = findnode (vp->other_delta, "owner");
+	    if (n == NULL)
+		check_uids = 0;	/* don't care */
+	    else
+		rev2_uid = strtoul (n->data, NULL, 10);
+
+	    n = findnode (vp->other_delta, "group");
+	    if (n == NULL)
+		check_gids = 0;	/* don't care */
+	    else
+		rev2_gid = strtoul (n->data, NULL, 10);
+
+	    n = findnode (vp->other_delta, "permissions");
+	    if (n == NULL)
+		check_modes = 0;	/* don't care */
+	    else
+		rev2_mode = strtoul (n->data, NULL, 8);
+
+	    n = findnode (vp->other_delta, "special");
+	    if (n == NULL)
+		rev2_mode |= S_IFREG;
+	    else
+	    {
+		/* If the size of `ftype' changes, fix the sscanf call also */
+		char ftype[16];
+		if (sscanf (n->data, "%16s %lu", ftype,
+			    &dev_long) < 2)
+		    error (1, 0, "%s:%s has bad `special' newphrase %s",
+			   finfo->file, rev2, n->data);
+		rev2_dev = dev_long;
+		if (strcmp (ftype, "character") == 0)
+		    rev2_mode |= S_IFCHR;
+		else if (strcmp (ftype, "block") == 0)
+		    rev2_mode |= S_IFBLK;
+		else
+		    error (0, 0, "%s:%s unknown file type `%s'",
+			   finfo->file, rev2, ftype);
+	    }
+
+	    n = findnode (vp->other_delta, "hardlinks");
+	    if (n == NULL)
+		rev2_hardlinks = xstrdup ("");
+	    else
+		rev2_hardlinks = xstrdup (n->data);
+	}
+    }
+
+    /* Check the user/group ownerships and file permissions, printing
+       an error for each mismatch found.  Return 0 if all characteristics
+       matched, and 1 otherwise. */
+
+    result = 0;
+
+    /* Compare symlinks first, since symlinks are simpler (don't have
+       any other characteristics). */
+    if (rev1_symlink != NULL && rev2_symlink == NULL)
+    {
+	error (0, 0, "%s is a symbolic link",
+	       (rev1 == NULL ? "working file" : rev1));
+	result = 1;
+    }
+    else if (rev1_symlink == NULL && rev2_symlink != NULL)
+    {
+	error (0, 0, "%s is a symbolic link",
+	       (rev2 == NULL ? "working file" : rev2));
+	result = 1;
+    }
+    else if (rev1_symlink != NULL)
+	result = (strcmp (rev1_symlink, rev2_symlink) == 0);
+    else
+    {
+	/* Compare user ownership. */
+	if (check_uids && rev1_uid != rev2_uid)
+	{
+	    error (0, 0, "%s: owner mismatch between %s and %s",
+		   finfo->file,
+		   (rev1 == NULL ? "working file" : rev1),
+		   (rev2 == NULL ? "working file" : rev2));
+	    result = 1;
+	}
+
+	/* Compare group ownership. */
+	if (check_gids && rev1_gid != rev2_gid)
+	{
+	    error (0, 0, "%s: group mismatch between %s and %s",
+		   finfo->file,
+		   (rev1 == NULL ? "working file" : rev1),
+		   (rev2 == NULL ? "working file" : rev2));
+	    result = 1;
+	}
+    
+	/* Compare permissions. */
+	if (check_modes &&
+	    (rev1_mode & 07777) != (rev2_mode & 07777))
+	{
+	    error (0, 0, "%s: permission mismatch between %s and %s",
+		   finfo->file,
+		   (rev1 == NULL ? "working file" : rev1),
+		   (rev2 == NULL ? "working file" : rev2));
+	    result = 1;
+	}
+
+	/* Compare device file characteristics. */
+	if ((rev1_mode & S_IFMT) != (rev2_mode & S_IFMT))
+	{
+	    error (0, 0, "%s: %s and %s are different file types",
+		   finfo->file,
+		   (rev1 == NULL ? "working file" : rev1),
+		   (rev2 == NULL ? "working file" : rev2));
+	    result = 1;
+	}
+	else if (S_ISBLK (rev1_mode))
+	{
+	    if (rev1_dev != rev2_dev)
+	    {
+		error (0, 0, "%s: device numbers of %s and %s do not match",
+		       finfo->file,
+		       (rev1 == NULL ? "working file" : rev1),
+		       (rev2 == NULL ? "working file" : rev2));
+		result = 1;
+	    }
+	}
+
+	/* Compare hard links. */
+	if (strcmp (rev1_hardlinks, rev2_hardlinks) != 0)
+	{
+	    error (0, 0, "%s: hard linkage of %s and %s do not match",
+		   finfo->file,
+		   (rev1 == NULL ? "working file" : rev1),
+		   (rev2 == NULL ? "working file" : rev2));
+	    result = 1;
+	}
+    }
+
+    if (rev1_symlink != NULL)
+	free (rev1_symlink);
+    if (rev2_symlink != NULL)
+	free (rev2_symlink);
+    if (rev1_hardlinks != NULL)
+	free (rev1_hardlinks);
+    if (rev2_hardlinks != NULL)
+	free (rev2_hardlinks);
+
+    return result;
+#else
+    return 0;
+#endif
 }
 
 int

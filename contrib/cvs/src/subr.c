@@ -3,7 +3,7 @@
  * Copyright (c) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.4 kit.
+ * specified in the README file that comes with the CVS source distribution.
  * 
  * Various useful functions for the CVS support code.
  */
@@ -30,7 +30,8 @@ xmalloc (bytes)
 
     cp = malloc (bytes);
     if (cp == NULL)
-	error (1, 0, "can not allocate %lu bytes", (unsigned long) bytes);
+	error (1, 0, "out of memory; can not allocate %lu bytes",
+	       (unsigned long) bytes);
     return (cp);
 }
 
@@ -181,16 +182,17 @@ free_names (pargc, argv)
     *pargc = 0;				/* and set it to zero when done */
 }
 
-/* Convert LINE into arguments separated by space and tab.  Set *ARGC
+/* Convert LINE into arguments separated by SEPCHARS.  Set *ARGC
    to the number of arguments found, and (*ARGV)[0] to the first argument,
    (*ARGV)[1] to the second, etc.  *ARGV is malloc'd and so are each of
    (*ARGV)[0], (*ARGV)[1], ...  Use free_names() to return the memory
    allocated here back to the free pool.  */
 void
-line2argv (pargc, argv, line)
+line2argv (pargc, argv, line, sepchars)
     int *pargc;
     char ***argv;
     char *line;
+    char *sepchars;
 {
     char *cp;
     /* Could make a case for size_t or some other unsigned type, but
@@ -205,7 +207,7 @@ line2argv (pargc, argv, line)
     *argv = (char **) xmalloc (argv_allocated * sizeof (**argv));
 
     *pargc = 0;
-    for (cp = strtok (line, " \t"); cp; cp = strtok ((char *) NULL, " \t"))
+    for (cp = strtok (line, sepchars); cp; cp = strtok ((char *) NULL, sepchars))
     {
 	if (*pargc == argv_allocated)
 	{
@@ -234,20 +236,67 @@ numdots (s)
     return (dots);
 }
 
+/* Compare revision numbers REV1 and REV2 by consecutive fields.
+   Return negative, zero, or positive in the manner of strcmp.  The
+   two revision numbers must have the same number of fields, or else
+   compare_revnums will return an inaccurate result. */
+int
+compare_revnums (rev1, rev2)
+    const char *rev1;
+    const char *rev2;
+{
+    const char *s, *sp;
+    const char *t, *tp;
+    char *snext, *tnext;
+    int result = 0;
+
+    sp = s = rev1;
+    tp = t = rev2;
+    while (result == 0)
+    {
+	result = strtoul (sp, &snext, 10) - strtoul (tp, &tnext, 10);
+	if (*snext == '\0' || *tnext == '\0')
+	    break;
+	sp = snext + 1;
+	tp = tnext + 1;
+    }
+
+    return result;
+}
+
+char *
+increment_revnum (rev)
+    const char *rev;
+{
+    char *newrev, *p;
+    int lastfield;
+    size_t len = strlen (rev);
+
+    newrev = (char *) xmalloc (len + 2);
+    memcpy (newrev, rev, len + 1);
+    p = strrchr (newrev, '.');
+    if (p == NULL)
+    {
+	free (newrev);
+	return NULL;
+    }
+    lastfield = atoi (++p);
+    sprintf (p, "%d", lastfield + 1);
+
+    return newrev;
+}
+
 /* Return the username by which the caller should be identified in
    CVS, in contexts such as the author field of RCS files, various
-   logs, etc.
-
-   Returns a pointer to storage that we manage; it is good until the
-   next call to getcaller () (provided that the caller doesn't call
-   getlogin () or some such themself).  */
+   logs, etc.  */
 char *
 getcaller ()
 {
-    static char uidname[20];
+#ifndef SYSTEM_GETCALLER
+    static char *cache;
     struct passwd *pw;
-    char *name;
     uid_t uid;
+#endif
 
     /* If there is a CVS username, return it.  */
 #ifdef AUTH_SERVER_SUPPORT
@@ -255,24 +304,40 @@ getcaller ()
 	return CVS_Username;
 #endif
 
+#ifdef SYSTEM_GETCALLER
+    return SYSTEM_GETCALLER ();
+#else
     /* Get the caller's login from his uid.  If the real uid is "root"
        try LOGNAME USER or getlogin(). If getlogin() and getpwuid()
        both fail, return the uid as a string.  */
 
+    if (cache != NULL)
+	return cache;
+
     uid = getuid ();
     if (uid == (uid_t) 0)
     {
+	char *name;
+
 	/* super-user; try getlogin() to distinguish */
 	if (((name = getlogin ()) || (name = getenv("LOGNAME")) ||
 	     (name = getenv("USER"))) && *name)
-	    return (name);
+	{
+	    cache = xstrdup (name);
+	    return cache;
+	}
     }
     if ((pw = (struct passwd *) getpwuid (uid)) == NULL)
     {
+	char uidname[20];
+
 	(void) sprintf (uidname, "uid%lu", (unsigned long) uid);
-	return (uidname);
+	cache = xstrdup (uidname);
+	return cache;
     }
-    return (pw->pw_name);
+    cache = xstrdup (pw->pw_name);
+    return cache;
+#endif
 }
 
 #ifdef lint
@@ -296,12 +361,12 @@ get_date (date, now)
 
 char *
 gca (rev1, rev2)
-    char *rev1;
-    char *rev2;
+    const char *rev1;
+    const char *rev2;
 {
     int dots;
     char *gca;
-    char *p[2];
+    const char *p[2];
     int j[2];
     char *retval;
 
@@ -370,7 +435,7 @@ gca (rev1, rev2)
 	/* revisions differ in trunk major number.  */
 
 	char *q;
-	char *s;
+	const char *s;
 
 	s = (j[0] < j[1]) ? p[0] : p[1];
 
@@ -408,29 +473,80 @@ gca (rev1, rev2)
     return retval;
 }
 
+/* Give fatal error if REV is numeric and ARGC,ARGV imply we are
+   planning to operate on more than one file.  The current directory
+   should be the working directory.  Note that callers assume that we
+   will only be checking the first character of REV; it need not have
+   '\0' at the end of the tag name and other niceties.  Right now this
+   is only called from admin.c, but if people like the concept it probably
+   should also be called from diff -r, update -r, get -r, and log -r.  */
+
+void
+check_numeric (rev, argc, argv)
+    const char *rev;
+    int argc;
+    char **argv;
+{
+    if (rev == NULL || !isdigit (*rev))
+	return;
+
+    /* Note that the check for whether we are processing more than one
+       file is (basically) syntactic; that is, we don't behave differently
+       depending on whether a directory happens to contain only a single
+       file or whether it contains more than one.  I strongly suspect this
+       is the least confusing behavior.  */
+    if (argc != 1
+	|| (!wrap_name_has (argv[0], WRAP_TOCVS) && isdir (argv[0])))
+    {
+	error (0, 0, "while processing more than one file:");
+	error (1, 0, "attempt to specify a numeric revision");
+    }
+}
+
 /*
  *  Sanity checks and any required fix-up on message passed to RCS via '-m'.
  *  RCS 5.7 requires that a non-total-whitespace, non-null message be provided
- *  with '-m'.  Returns the original argument or a pointer to readonly
- *  static storage.
+ *  with '-m'.  Returns a newly allocated, non-empty buffer with whitespace
+ *  stripped from end of lines and end of buffer.
+ *
+ *  TODO: We no longer use RCS to manage repository files, so maybe this
+ *  nonsense about non-empty log fields can be dropped.
  */
 char *
 make_message_rcslegal (message)
      char *message;
 {
-    if ((message == NULL) || (*message == '\0') || isspace (*message))
+    char *dst, *dp, *mp;
+
+    if (message == NULL) message = "";
+
+    /* Strip whitespace from end of lines and end of string. */
+    dp = dst = (char *) xmalloc (strlen (message) + 1);
+    for (mp = message; *mp != '\0'; ++mp)
     {
-        char *t;
-
-	if (message)
-	    for (t = message; *t; t++)
-	        if (!isspace (*t))
-		    return message;
-
-	return "*** empty log message ***\n";
+	if (*mp == '\n')
+	{
+	    /* At end-of-line; backtrack to last non-space. */
+	    while (dp > dst && (dp[-1] == ' ' || dp[-1] == '\t'))
+		--dp;
+	}
+	*dp++ = *mp;
     }
 
-    return message;
+    /* Backtrack to last non-space at end of string, and truncate. */
+    while (dp > dst && isspace (dp[-1]))
+	--dp;
+    *dp = '\0';
+
+    /* After all that, if there was no non-space in the string,
+       substitute a non-empty message. */
+    if (*dst == '\0')
+    {
+	free (dst);
+	dst = xstrdup ("*** empty log message ***");
+    }
+
+    return dst;
 }
 
 /* Does the file FINFO contain conflict markers?  The whole concept
@@ -440,7 +556,7 @@ make_message_rcslegal (message)
    is what we do.  */
 int
 file_has_markers (finfo)
-    struct file_info *finfo;
+    const struct file_info *finfo;
 {
     FILE *fp;
     char *line = NULL;
@@ -467,4 +583,104 @@ out:
     if (line != NULL)
 	free (line);
     return result;
+}
+
+/* Read the entire contents of the file NAME into *BUF.
+   If NAME is NULL, read from stdin.  *BUF
+   is a pointer returned from malloc (or NULL), pointing to *BUFSIZE
+   bytes of space.  The actual size is returned in *LEN.  On error,
+   give a fatal error.  The name of the file to use in error messages
+   (typically will include a directory if we have changed directory)
+   is FULLNAME.  MODE is "r" for text or "rb" for binary.  */
+
+void
+get_file (name, fullname, mode, buf, bufsize, len)
+    const char *name;
+    const char *fullname;
+    const char *mode;
+    char **buf;
+    size_t *bufsize;
+    size_t *len;
+{
+    struct stat s;
+    size_t nread;
+    char *tobuf;
+    FILE *e;
+    size_t filesize;
+
+    if (name == NULL)
+    {
+	e = stdin;
+	filesize = 100;	/* force allocation of minimum buffer */
+    }
+    else
+    {
+	if (CVS_LSTAT (name, &s) < 0)
+	    error (1, errno, "can't stat %s", fullname);
+
+	/* Don't attempt to read special files or symlinks. */
+	if (!S_ISREG (s.st_mode))
+	{
+	    *len = 0;
+	    return;
+	}
+
+	/* Convert from signed to unsigned.  */
+	filesize = s.st_size;
+
+	e = open_file (name, mode);
+    }
+
+    if (*bufsize < filesize)
+    {
+	*bufsize = filesize;
+	*buf = xrealloc (*buf, *bufsize);
+    }
+
+    tobuf = *buf;
+    nread = 0;
+    while (1)
+    {
+	size_t got;
+
+	got = fread (tobuf, 1, *bufsize - (tobuf - *buf), e);
+	if (ferror (e))
+	    error (1, errno, "can't read %s", fullname);
+	nread += got;
+	tobuf += got;
+
+	if (feof (e))
+	    break;
+
+	/* It's probably paranoid to think S.ST_SIZE might be
+	   too small to hold the entire file contents, but we
+	   handle it just in case.  */
+	if (tobuf == *buf + *bufsize)
+	{
+	    int c;
+	    long off;
+
+	    c = getc (e);
+	    if (c == EOF)
+		break;
+	    off = tobuf - *buf;
+	    expand_string (buf, bufsize, *bufsize + 100);
+	    tobuf = *buf + off;
+	    *tobuf++ = c;
+	    ++nread;
+	}
+    }
+
+    if (e != stdin && fclose (e) < 0)
+	error (0, errno, "cannot close %s", fullname);
+
+    *len = nread;
+
+    /* Force *BUF to be large enough to hold a null terminator. */
+    if (*buf != NULL)
+    {
+	if (nread == *bufsize)
+	    expand_string (buf, bufsize, *bufsize + 1);
+	(*buf)[nread] = '\0';
+    }
 }

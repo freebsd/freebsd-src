@@ -1,4 +1,4 @@
-It would be nice for the RCS file format (which is implemented by a
+It would be nice if the RCS file format (which is implemented by a
 great many tools, both free and non-free, both by calling GNU RCS and
 by reimplementing access to RCS files) were documented in some
 standard separate from any one tool.  But as far as I know no such
@@ -31,6 +31,10 @@ rcsfile.5 also showed the order of the revisions (and the "next" and
 "branch" fields and anything else where it would be useful to have an
 example of how a revision tree is represented in an RCS file).
 
+The rcsfile.5 grammar shows the {num} after "next" as optional; if it
+is omitted then there is no next delta node (for example 1.1 or the
+head of a branch will typically have no next).
+
 There is one case where CVS uses CVS-specific, non-compatible changes
 to the RCS file format, and this is magic branches.  See cvs.texinfo
 for more information on them.  CVS also sets the RCS state to "dead"
@@ -54,8 +58,9 @@ rules.
    namespace    RCS library done at Silicon Graphics Inc. (SGI) in 1996
                 (a modified RCS 5.7--not sure it has any other name).
    dead         A set of RCS patches developed by Rich Pixley at
-                Cygnus.  These were for CVS, and predated the current
-                CVS death support, which does not require RCS changes.
+                Cygnus about 1992.  These were for CVS, and predated
+                the current CVS death support, which uses a state "dead"
+                rather than a "dead" newphrase.
 
 The rules regarding keyword expansion are not documented along with
 the rest of the RCS file format; they are documented in the co(1)
@@ -65,6 +70,9 @@ special behavior if the log prefix for the $Log keyword is /* or (*.
 RCS 5.7 produces a warning whenever it behaves that way, and current
 versions of CVS do not handle this case in a special way (CVS 1.9 and
 earlier invoke RCS to perform keyword expansion).
+
+Note that if the "expand" keyword is omitted from the RCS file, the
+default is "kv".
 
 Note that the "comment {string};" syntax from rcsfile.5 specifies a
 comment leader, which affects expansion of the $Log keyword for old

@@ -3,7 +3,7 @@
  * Copyright (c) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.4 kit.
+ * specified in the README file that comes with the CVS source distribution.
  * 
  * Status Information
  */
@@ -26,6 +26,7 @@ static const char *const status_usage[] =
     "\t-v\tVerbose format; includes tag information for the file\n",
     "\t-l\tProcess this directory only (not recursive).\n",
     "\t-R\tProcess directories recursively.\n",
+    "(Specify the --help global option for a list of other help options)\n",
     NULL
 };
 
@@ -77,13 +78,21 @@ status (argc, argv)
 	send_arg("-l");
 
       send_file_names (argc, argv, SEND_EXPAND_WILD);
-      /* Note that by setting SEND_NO_CONTENTS, we do prevent the
+
+      /* For a while, we tried setting SEND_NO_CONTENTS here so this
+	 could be a fast operation.  That prevents the
 	 server from updating our timestamp if the timestamp is
-	 unchanged and the file is unmodified.  And I think it is a
-	 user-visible thing in that case (shows "locally modified"
-	 instead of "up to date" I would think).  But the speed seems
-	 to be worth it.  */
-      send_files (argc, argv, local, 0, SEND_NO_CONTENTS);
+	 changed but the file is unmodified.  Worse, it is user-visible
+	 (shows "locally modified" instead of "up to date" if
+	 timestamp is changed but file is not).  And there is no good
+	 workaround (you might not want to run "cvs update"; "cvs -n
+	 update" doesn't update CVS/Entries; "cvs diff --brief" or
+	 something perhaps could be made to work but somehow that
+	 seems nonintuitive to me even if so).  Given that timestamps
+	 seem to have the potential to get munged for any number of
+	 reasons, it seems better to not rely too much on them.  */
+
+      send_files (argc, argv, local, 0, 0);
 
       send_to_server ("status\012", 0);
       err = get_responses_and_close ();
@@ -243,7 +252,7 @@ status_fileproc (callerdat, finfo)
 		{
 		    char *branch = NULL;
 
-		    if (RCS_isbranch (finfo->rcs, edata->tag))
+		    if (RCS_nodeisbranch (finfo->rcs, edata->tag))
 			branch = RCS_whatbranch(finfo->rcs, edata->tag);
 
 		    cvs_output ("   Sticky Tag:\t\t", 0);
@@ -328,7 +337,7 @@ tag_list_proc (p, closure)
     char *branch = NULL;
     char *buf;
 
-    if (RCS_isbranch (xrcsnode, p->key))
+    if (RCS_nodeisbranch (xrcsnode, p->key))
 	branch = RCS_whatbranch(xrcsnode, p->key) ;
 
     buf = xmalloc (80 + strlen (p->key)

@@ -27,8 +27,14 @@
 #undef S_ISNWK
 #endif
 
-/* Not all systems have S_IFMT, but we probably want to use it if we
-   do.  See ChangeLog for a more detailed discussion. */
+/* Not all systems have S_IFMT, but we want to use it if we have it.
+   The S_IFMT code below looks right (it masks and compares).  The
+   non-S_IFMT code looks bogus (are there really systems on which
+   S_IFBLK, S_IFLNK, &c, each have their own bit?  I suspect it was
+   written for OS/2 using the IBM C/C++ Tools 2.01 compiler).
+
+   Of course POSIX systems will have S_IS*, so maybe the issue is
+   semi-moot.  */
 
 #if !defined(S_ISBLK) && defined(S_IFBLK)
 # if defined(S_IFMT)
@@ -147,6 +153,7 @@
 #include <limits.h>
 #else
 off_t lseek ();
+char *getcwd ();
 #endif
 
 #if TIME_WITH_SYS_TIME
@@ -276,16 +283,7 @@ int utime ();
 #  endif
 #endif
 
-#if STDC_HEADERS || HAVE_STRING_H
-#  include <string.h>
-   /* An ANSI string.h and pre-ANSI memory.h might conflict. */
-#  if !STDC_HEADERS && HAVE_MEMORY_H
-#    include <memory.h>
-#  endif /* not STDC_HEADERS and HAVE_MEMORY_H */
-#else /* not STDC_HEADERS and not HAVE_STRING_H */
-#  include <strings.h>
-   /* memory.h and strings.h conflict on some systems. */
-#endif /* not STDC_HEADERS and not HAVE_STRING_H */
+#include <string.h>
 
 #ifndef ERRNO_H_MISSING
 #include <errno.h>
@@ -327,12 +325,6 @@ extern int errno;
 /* SunOS4 apparently does not define this in stdlib.h.  */
 #ifndef EXIT_FAILURE
 #define EXIT_FAILURE 1
-#endif
-
-#if defined(USG) || defined(POSIX)
-char *getcwd ();
-#else
-char *getwd ();
 #endif
 
 /* check for POSIX signals */
@@ -461,6 +453,13 @@ char *getwd ();
 #define CVS_STAT stat
 #endif
 
+/* Open question: should CVS_STAT be lstat by default?  We need
+   to use lstat in order to handle symbolic links correctly with
+   the PreservePermissions option. -twp */
+#ifndef CVS_LSTAT
+#define CVS_LSTAT lstat
+#endif
+
 #ifndef CVS_UNLINK
 #define CVS_UNLINK unlink
 #endif
@@ -469,6 +468,31 @@ char *getwd ();
 #ifndef CVS_FNMATCH
 #define CVS_FNMATCH fnmatch
 #endif
+
+#if defined (__CYGWIN32__) || defined (WIN32)
+
+/* Under Windows NT, filenames are case-insensitive, and both / and \
+   are path component separators.  */
+
+#define FOLD_FN_CHAR(c) (WNT_filename_classes[(unsigned char) (c)])
+extern unsigned char WNT_filename_classes[];
+#define FILENAMES_CASE_INSENSITIVE 1
+
+/* Is the character C a path name separator?  Under
+   Windows NT, you can use either / or \.  */
+#define ISDIRSEP(c) (FOLD_FN_CHAR(c) == '/')
+
+/* Like strcmp, but with the appropriate tweaks for file names.
+   Under Windows NT, filenames are case-insensitive but case-preserving,
+   and both \ and / are path element separators.  */
+extern int fncmp (const char *n1, const char *n2);
+
+/* Fold characters in FILENAME to their canonical forms.  
+   If FOLD_FN_CHAR is not #defined, the system provides a default
+   definition for this.  */
+extern void fnfold (char *FILENAME);
+
+#endif /* defined (__CYGWIN32__) || defined (WIN32) */
 
 /* Some file systems are case-insensitive.  If FOLD_FN_CHAR is
    #defined, it maps the character C onto its "canonical" form.  In a
@@ -488,21 +512,22 @@ char *getwd ();
 #endif
 
 
-/* On some systems, lines in text files should be terminated with CRLF,
-   not just LF, and the read and write routines do this translation
-   for you.  LINES_CRLF_TERMINATED is #defined on such systems.
-   - OPEN_BINARY is the flag to pass to the open function for
-     untranslated I/O.
-   - FOPEN_BINARY_READ is the string to pass to fopen to get
-     untranslated reading.
-   - FOPEN_BINARY_WRITE is the string to pass to fopen to get
-     untranslated writing.  */
-#if LINES_CRLF_TERMINATED
-#define OPEN_BINARY (O_BINARY)
+/* On some systems, we have to be careful about writing/reading files
+   in text or binary mode (so in text mode the system can handle CRLF
+   vs. LF, VMS text file conventions, &c).  We decide to just always
+   be careful.  That way we don't have to worry about whether text and
+   binary differ on this system.  We just have to worry about whether
+   the system has O_BINARY and "rb".  The latter is easy; all ANSI C
+   libraries have it, SunOS4 has it, and CVS has used it unguarded
+   some places for a while now without complaints (e.g. "rb" in
+   server.c (server_updated), since CVS 1.8).  The former is just an
+   #ifdef.  */
+
 #define FOPEN_BINARY_READ ("rb")
 #define FOPEN_BINARY_WRITE ("wb")
+
+#ifdef O_BINARY
+#define OPEN_BINARY (O_BINARY)
 #else
 #define OPEN_BINARY (0)
-#define FOPEN_BINARY_READ ("r")
-#define FOPEN_BINARY_WRITE ("w")
 #endif

@@ -426,4 +426,197 @@ compress_buffer_shutdown_output (closure)
     return buf_shutdown (cb->buf);
 }
 
+
+
+/* Here is our librarified gzip implementation.  It is very minimal
+   but attempts to be RFC1952 compliant.  */
+/* Note that currently only the client uses the gzip library.  If we
+   make the server use it too (which should be straightforward), then
+   filter_stream_through_program, filter_through_gzip, and
+   filter_through_gunzip can go away.  */
+
+/* BUF should contain SIZE bytes of gzipped data (RFC1952/RFC1951).
+   We are to uncompress the data and write the result to the file
+   descriptor FD.  If something goes wrong, give an error message
+   mentioning FULLNAME as the name of the file for FD (and make it a
+   fatal error if we can't recover from it).  */
+
+void
+gunzip_and_write (fd, fullname, buf, size)
+    int fd;
+    char *fullname;
+    unsigned char *buf;
+    size_t size;
+{
+    size_t pos;
+    z_stream zstr;
+    int zstatus;
+    unsigned char outbuf[32768];
+    unsigned long crc;
+
+    if (buf[0] != 31 || buf[1] != 139)
+	error (1, 0, "gzipped data does not start with gzip identification");
+    if (buf[2] != 8)
+	error (1, 0, "only the deflate compression method is supported");
+
+    /* Skip over the fixed header, and then skip any of the variable-length
+       fields.  */
+    pos = 10;
+    if (buf[3] & 4)
+	pos += buf[pos] + (buf[pos + 1] << 8) + 2;
+    if (buf[3] & 8)
+	pos += strlen (buf + pos) + 1;
+    if (buf[3] & 16)
+	pos += strlen (buf + pos) + 1;
+    if (buf[3] & 2)
+	pos += 2;
+
+    memset (&zstr, 0, sizeof zstr);
+    /* Passing a negative argument tells zlib not to look for a zlib
+       (RFC1950) header.  This is an undocumented feature; I suppose if
+       we wanted to be anal we could synthesize a header instead,
+       but why bother?  */
+    zstatus = inflateInit2 (&zstr, -15);
+
+    if (zstatus != Z_OK)
+	compress_error (1, zstatus, &zstr, fullname);
+
+    /* I don't see why we should have to include the 8 byte trailer in
+       avail_in.  But I see that zlib/gzio.c does, and it seemed to fix
+       a fairly rare bug in which we'd get a Z_BUF_ERROR for no obvious
+       reason.  */
+    zstr.avail_in = size - pos;
+    zstr.next_in = buf + pos;
+
+    crc = crc32 (0, NULL, 0);
+
+    do
+    {
+	zstr.avail_out = sizeof (outbuf);
+	zstr.next_out = outbuf;
+	zstatus = inflate (&zstr, Z_NO_FLUSH);
+	if (zstatus != Z_STREAM_END && zstatus != Z_OK)
+	    compress_error (1, zstatus, &zstr, fullname);
+	if (write (fd, outbuf, sizeof (outbuf) - zstr.avail_out) < 0)
+	    error (1, errno, "writing decompressed file %s", fullname);
+	crc = crc32 (crc, outbuf, sizeof (outbuf) - zstr.avail_out);
+    } while (zstatus != Z_STREAM_END);
+    zstatus = inflateEnd (&zstr);
+    if (zstatus != Z_OK)
+	compress_error (0, zstatus, &zstr, fullname);
+
+    if (crc != (buf[zstr.total_in + 10]
+		+ (buf[zstr.total_in + 11] << 8)
+		+ (buf[zstr.total_in + 12] << 16)
+		+ (buf[zstr.total_in + 13] << 24)))
+	error (1, 0, "CRC error uncompressing %s", fullname);
+
+    if (zstr.total_out != (buf[zstr.total_in + 14]
+			   + (buf[zstr.total_in + 15] << 8)
+			   + (buf[zstr.total_in + 16] << 16)
+			   + (buf[zstr.total_in + 17] << 24)))
+	error (1, 0, "invalid length uncompressing %s", fullname);
+}
+
+/* Read all of FD and put the gzipped data (RFC1952/RFC1951) into *BUF,
+   replacing previous contents of *BUF.  *BUF is malloc'd and *SIZE is
+   its allocated size.  Put the actual number of bytes of data in
+   *LEN.  If something goes wrong, give an error message mentioning
+   FULLNAME as the name of the file for FD (and make it a fatal error
+   if we can't recover from it).  LEVEL is the compression level (1-9).  */
+
+void
+read_and_gzip (fd, fullname, buf, size, len, level)
+    int fd;
+    char *fullname;
+    unsigned char **buf;
+    size_t *size;
+    size_t *len;
+    int level;
+{
+    z_stream zstr;
+    int zstatus;
+    unsigned char inbuf[8192];
+    int nread;
+    unsigned long crc;
+
+    if (*size < 1024)
+    {
+	*size = 1024;
+	*buf = (unsigned char *) xrealloc (*buf, *size);
+    }
+    (*buf)[0] = 31;
+    (*buf)[1] = 139;
+    (*buf)[2] = 8;
+    (*buf)[3] = 0;
+    (*buf)[4] = (*buf)[5] = (*buf)[6] = (*buf)[7] = 0;
+    /* Could set this based on level, but why bother?  */
+    (*buf)[8] = 0;
+    (*buf)[9] = 255;
+
+    memset (&zstr, 0, sizeof zstr);
+    zstatus = deflateInit2 (&zstr, level, Z_DEFLATED, -15, 8,
+			    Z_DEFAULT_STRATEGY);
+    crc = crc32 (0, NULL, 0);
+    if (zstatus != Z_OK)
+	compress_error (1, zstatus, &zstr, fullname);
+    zstr.avail_out = *size;
+    zstr.next_out = *buf + 10;
+
+    while (1)
+    {
+	int finish = 0;
+
+	nread = read (fd, inbuf, sizeof inbuf);
+	if (nread < 0)
+	    error (1, errno, "cannot read %s", fullname);
+	else if (nread == 0)
+	    /* End of file.  */
+	    finish = 1;
+	crc = crc32 (crc, inbuf, nread);
+	zstr.next_in = inbuf;
+	zstr.avail_in = nread;
+
+	do
+	{
+	    size_t offset;
+
+	    /* I don't see this documented anywhere, but deflate seems
+	       to tend to dump core sometimes if we pass it Z_FINISH and
+	       a small (e.g. 2147 byte) avail_out.  So we insist on at
+	       least 4096 bytes (that is what zlib/gzio.c uses).  */
+
+	    if (zstr.avail_out < 4096)
+	    {
+		offset = zstr.next_out - *buf;
+		*size *= 2;
+		*buf = xrealloc (*buf, *size);
+		zstr.next_out = *buf + offset;
+		zstr.avail_out = *size - offset;
+	    }
+
+	    zstatus = deflate (&zstr, finish ? Z_FINISH : 0);
+	    if (zstatus == Z_STREAM_END)
+		goto done;
+	    else if (zstatus != Z_OK)
+		compress_error (0, zstatus, &zstr, fullname);
+	} while (zstr.avail_out == 0);
+    }
+ done:
+    *(*buf + zstr.total_out + 10) = crc & 0xff;
+    *(*buf + zstr.total_out + 11) = (crc >> 8) & 0xff;
+    *(*buf + zstr.total_out + 12) = (crc >> 16) & 0xff;
+    *(*buf + zstr.total_out + 13) = (crc >> 24) & 0xff;
+
+    *(*buf + zstr.total_out + 14) = zstr.total_in & 0xff;
+    *(*buf + zstr.total_out + 15) = (zstr.total_in >> 8) & 0xff;
+    *(*buf + zstr.total_out + 16) = (zstr.total_in >> 16) & 0xff;
+    *(*buf + zstr.total_out + 17) = (zstr.total_in >> 24) & 0xff;
+
+    *len = zstr.total_out + 18;
+
+    zstatus = deflateEnd (&zstr);
+    if (zstatus != Z_OK)
+	compress_error (0, zstatus, &zstr, fullname);
+}
 #endif /* defined (SERVER_SUPPORT) || defined (CLIENT_SUPPORT) */

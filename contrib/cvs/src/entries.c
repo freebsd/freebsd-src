@@ -3,7 +3,7 @@
  * Copyright (c) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.4 kit.
+ * specified in the README file that comes with the CVS source distribution.
  * 
  * Entries file to Files file
  * 
@@ -117,7 +117,26 @@ write_entries (list)
 
     /* open the new one and walk the list writing entries */
     entfilename = CVSADM_ENTBAK;
-    entfile = open_file (entfilename, "w+");
+    entfile = CVS_FOPEN (entfilename, "w+");
+    if (entfile == NULL)
+    {
+	/* Make this a warning, not an error.  For example, one user might
+	   have checked out a working directory which, for whatever reason,
+	   contains an Entries.Log file.  A second user, without write access
+	   to that working directory, might want to do a "cvs log".  The
+	   problem rewriting Entries shouldn't affect the ability of "cvs log"
+	   to work, although the warning is probably a good idea so that
+	   whether Entries gets rewritten is not an inexplicable process.  */
+	/* FIXME: should be including update_dir in message.  */
+	error (0, errno, "cannot rewrite %s", entfilename);
+
+	/* Now just return.  We leave the Entries.Log file around.  As far
+	   as I know, there is never any data lying around in 'list' that
+	   is not in Entries.Log at this time (if there is an error writing
+	   Entries.Log that is a separate problem).  */
+	return;
+    }
+
     (void) walklist (list, write_ent_proc, (void *) &sawdir);
     if (! sawdir)
     {
@@ -262,6 +281,9 @@ freesdt (p)
     free ((char *) sdtp);
 }
 
+/* Return the next real Entries line.  On end of file, returns NULL.
+   On error, prints an error message and returns NULL.  */
+
 static Entnode *
 fgetentent(fpin, cmd, sawdir)
     FILE *fpin;
@@ -275,12 +297,13 @@ fgetentent(fpin, cmd, sawdir)
     enum ent_type type;
     char *l, *user, *vn, *ts, *options;
     char *tag_or_date, *tag, *date, *ts_conflict;
+    int line_length;
 
     line = NULL;
     line_chars_allocated = 0;
 
     ent = NULL;
-    while (getline (&line, &line_chars_allocated, fpin) > 0)
+    while ((line_length = getline (&line, &line_chars_allocated, fpin)) > 0)
     {
 	l = line;
 
@@ -375,6 +398,9 @@ fgetentent(fpin, cmd, sawdir)
 	break;
     }
 
+    if (line_length < 0 && !feof (fpin))
+	error (0, errno, "cannot read entries file");
+
     free (line);
     return ent;
 }
@@ -424,12 +450,15 @@ fputentent(fp, p)
 }
 
 
-/*
- * Read the entries file into a list, hashing on the file name.
- */
+/* Read the entries file into a list, hashing on the file name.
+
+   UPDATE_DIR is the name of the current directory, for use in error
+   messages, or NULL if not known (that is, noone has gotten around
+   to updating the caller to pass in the information).  */
 List *
-Entries_Open (aflag)
+Entries_Open (aflag, update_dir)
     int aflag;
+    char *update_dir;
 {
     List *entries;
     struct stickydirtag *sdtp = NULL;
@@ -466,7 +495,11 @@ Entries_Open (aflag)
 
     fpin = CVS_FOPEN (CVSADM_ENT, "r");
     if (fpin == NULL)
+    {
+	if (update_dir != NULL)
+	    error (0, 0, "in directory %s:", update_dir);
 	error (0, errno, "cannot open %s for reading", CVSADM_ENT);
+    }
     else
     {
 	while ((ent = fgetentent (fpin, (char *) NULL, &sawdir)) != NULL) 
@@ -668,7 +701,10 @@ WriteTag (dir, tag, date, nonbranch, update_dir, repository)
 
    If it does not exist, or contains something unrecognized by this
    version of CVS, set *DATEP and *TAGP to NULL and *NONBRANCHP to
-   an unspecified value.  */
+   an unspecified value.
+
+   If there is an error, print an error message, set *DATEP and *TAGP
+   to NULL, and return.  */
 void
 ParseTag (tagp, datep, nonbranchp)
     char **tagp;
@@ -724,9 +760,25 @@ ParseTag (tagp, datep, nonbranchp)
 		    break;
 	    }
 	}
-	(void) fclose (fp);
+
+	if (line_length < 0)
+	{
+	    /* FIXME-update-dir: should include update_dir in messages.  */
+	    if (feof (fp))
+		error (0, 0, "cannot read %s: end of file", CVSADM_TAG);
+	    else
+		error (0, errno, "cannot read %s", CVSADM_TAG);
+	}
+
+	if (fclose (fp) < 0)
+	    /* FIXME-update-dir: should include update_dir in message.  */
+	    error (0, errno, "cannot close %s", CVSADM_TAG);
+
 	free (line);
     }
+    else if (!existence_error (errno))
+	/* FIXME-update-dir: should include update_dir in message.  */
+	error (0, errno, "cannot open %s", CVSADM_TAG);
 }
 
 /*
@@ -752,9 +804,22 @@ Subdirs_Known (entries)
 	if (!noexec)
 	{
 	    /* Create Entries.Log so that Entries_Close will do something.  */
-	    fp = open_file (CVSADM_ENTLOG, "a");
-	    if (fclose (fp) == EOF)
-		error (1, errno, "cannot close %s", CVSADM_ENTLOG);
+	    fp = CVS_FOPEN (CVSADM_ENTLOG, "a");
+	    if (fp == NULL)
+	    {
+		int save_errno = errno;
+
+		/* As in subdir_record, just silently skip the whole thing
+		   if there is no CVSADM directory.  */
+		if (! isdir (CVSADM))
+		    return;
+		error (1, save_errno, "cannot open %s", entfilename);
+	    }
+	    else
+	    {
+		if (fclose (fp) == EOF)
+		    error (1, errno, "cannot close %s", CVSADM_ENTLOG);
+	    }
 	}
     }
 }
@@ -886,4 +951,231 @@ Subdir_Deregister (entries, parent, dir)
 	if (p != NULL)
 	    delnode (p);
     }
+}
+
+
+
+/* OK, the following base_* code tracks the revisions of the files in
+   CVS/Base.  We do this in a file CVS/Baserev.  Separate from
+   CVS/Entries because it needs to go in separate data structures
+   anyway (the name in Entries must be unique), so this seemed
+   cleaner.  The business of rewriting the whole file in
+   base_deregister and base_register is the kind of thing we used to
+   do for Entries and which turned out to be slow, which is why there
+   is now the Entries.Log machinery.  So maybe from that point of
+   view it is a mistake to do this separately from Entries, I dunno.
+
+   We also need something analogous for:
+
+   1. CVS/Template (so we can update the Template file automagically
+   without the user needing to check out a new working directory).
+   Updating would probably print a message (that part might be
+   optional, although probably it should be visible because not all
+   cvs commands would make the update happen and so it is a
+   user-visible behavior).  Constructing version number for template
+   is a bit hairy (base it on the timestamp on the server?  Or see if
+   the template is in checkoutlist and if yes use its versioning and
+   if no don't version it?)....
+
+   2.  cvsignore (need to keep a copy in the working directory to do
+   "cvs release" on the client side; see comment at src/release.c
+   (release).  Would also allow us to stop needing Questionable.  */
+
+enum base_walk {
+    /* Set the revision for FILE to *REV.  */
+    BASE_REGISTER,
+    /* Get the revision for FILE and put it in a newly malloc'd string
+       in *REV, or put NULL if not mentioned.  */
+    BASE_GET,
+    /* Remove FILE.  */
+    BASE_DEREGISTER
+};
+
+static void base_walk PROTO ((enum base_walk, struct file_info *, char **));
+
+/* Read through the lines in CVS/Baserev, taking the actions as documented
+   for CODE.  */
+
+static void
+base_walk (code, finfo, rev)
+    enum base_walk code;
+    struct file_info *finfo;
+    char **rev;
+{
+    FILE *fp;
+    char *line;
+    size_t line_allocated;
+    FILE *newf;
+    char *baserev_fullname;
+    char *baserevtmp_fullname;
+
+    line = NULL;
+    line_allocated = 0;
+    newf = NULL;
+
+    /* First compute the fullnames for the error messages.  This
+       computation probably should be broken out into a separate function,
+       as recurse.c does it too and places like Entries_Open should be
+       doing it.  */
+    baserev_fullname = xmalloc (sizeof (CVSADM_BASEREV)
+				+ strlen (finfo->update_dir)
+				+ 2);
+    baserev_fullname[0] = '\0';
+    baserevtmp_fullname = xmalloc (sizeof (CVSADM_BASEREVTMP)
+				   + strlen (finfo->update_dir)
+				   + 2);
+    baserevtmp_fullname[0] = '\0';
+    if (finfo->update_dir[0] != '\0')
+    {
+	strcat (baserev_fullname, finfo->update_dir);
+	strcat (baserev_fullname, "/");
+	strcat (baserevtmp_fullname, finfo->update_dir);
+	strcat (baserevtmp_fullname, "/");
+    }
+    strcat (baserev_fullname, CVSADM_BASEREV);
+    strcat (baserevtmp_fullname, CVSADM_BASEREVTMP);
+
+    fp = CVS_FOPEN (CVSADM_BASEREV, "r");
+    if (fp == NULL)
+    {
+	if (!existence_error (errno))
+	{
+	    error (0, errno, "cannot open %s for reading", baserev_fullname);
+	    goto out;
+	}
+    }
+
+    switch (code)
+    {
+	case BASE_REGISTER:
+	case BASE_DEREGISTER:
+	    newf = CVS_FOPEN (CVSADM_BASEREVTMP, "w");
+	    if (newf == NULL)
+	    {
+		error (0, errno, "cannot open %s for writing",
+		       baserevtmp_fullname);
+		goto out;
+	    }
+	    break;
+	case BASE_GET:
+	    *rev = NULL;
+	    break;
+    }
+
+    if (fp != NULL)
+    {
+	while (getline (&line, &line_allocated, fp) >= 0)
+	{
+	    char *linefile;
+	    char *p;
+	    char *linerev;
+
+	    if (line[0] != 'B')
+		/* Ignore, for future expansion.  */
+		continue;
+
+	    linefile = line + 1;
+	    p = strchr (linefile, '/');
+	    if (p == NULL)
+		/* Syntax error, ignore.  */
+		continue;
+	    linerev = p + 1;
+	    p = strchr (linerev, '/');
+	    if (p == NULL)
+		continue;
+
+	    linerev[-1] = '\0';
+	    if (fncmp (linefile, finfo->file) == 0)
+	    {
+		switch (code)
+		{
+		case BASE_REGISTER:
+		case BASE_DEREGISTER:
+		    /* Don't copy over the old entry, we don't want it.  */
+		    break;
+		case BASE_GET:
+		    *p = '\0';
+		    *rev = xstrdup (linerev);
+		    *p = '/';
+		    goto got_it;
+		}
+	    }
+	    else
+	    {
+		linerev[-1] = '/';
+		switch (code)
+		{
+		case BASE_REGISTER:
+		case BASE_DEREGISTER:
+		    if (fprintf (newf, "%s\n", line) < 0)
+			error (0, errno, "error writing %s",
+			       baserevtmp_fullname);
+		    break;
+		case BASE_GET:
+		    break;
+		}
+	    }
+	}
+	if (ferror (fp))
+	    error (0, errno, "cannot read %s", baserev_fullname);
+    }
+ got_it:
+
+    if (code == BASE_REGISTER)
+    {
+	if (fprintf (newf, "B%s/%s/\n", finfo->file, *rev) < 0)
+	    error (0, errno, "error writing %s",
+		   baserevtmp_fullname);
+    }
+
+ out:
+
+    if (line != NULL)
+	free (line);
+
+    if (fp != NULL)
+    {
+	if (fclose (fp) < 0)
+	    error (0, errno, "cannot close %s", baserev_fullname);
+    }
+    if (newf != NULL)
+    {
+	if (fclose (newf) < 0)
+	    error (0, errno, "cannot close %s", baserevtmp_fullname);
+	rename_file (CVSADM_BASEREVTMP, CVSADM_BASEREV);
+    }
+
+    free (baserev_fullname);
+    free (baserevtmp_fullname);
+}
+
+/* Return, in a newly malloc'd string, the revision for FILE in CVS/Baserev,
+   or NULL if not listed.  */
+
+char *
+base_get (finfo)
+    struct file_info *finfo;
+{
+    char *rev;
+    base_walk (BASE_GET, finfo, &rev);
+    return rev;
+}
+
+/* Set the revision for FILE to REV.  */
+
+void
+base_register (finfo, rev)
+    struct file_info *finfo;
+    char *rev;
+{
+    base_walk (BASE_REGISTER, finfo, &rev);
+}
+
+/* Remove FILE.  */
+
+void
+base_deregister (finfo)
+    struct file_info *finfo;
+{
+    base_walk (BASE_DEREGISTER, finfo, NULL);
 }

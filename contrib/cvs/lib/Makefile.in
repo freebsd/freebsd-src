@@ -25,6 +25,7 @@ exec_prefix = @exec_prefix@
 SOURCES = \
 	argmatch.c \
 	dup2.c \
+	fncase.c \
 	fnmatch.c \
 	ftruncate.c \
 	getdate.c \
@@ -32,15 +33,14 @@ SOURCES = \
 	getline.c \
 	getopt.c \
 	getopt1.c \
-	getwd.c \
 	hostname.c \
 	md5.c \
+	memmove.c \
 	mkdir.c \
 	regex.c \
 	rename.c \
 	savecwd.c \
 	sighandle.c \
-	strdup.c \
 	strstr.c \
 	strerror.c \
 	stripslash.c \
@@ -53,6 +53,7 @@ SOURCES = \
 
 HEADERS = getline.h getopt.h fnmatch.h regex.h system.h wait.h md5.h savecwd.h
 
+# See long comment in ../configure.in concerning inclusion of regex.o.
 OBJECTS = \
     @LIBOBJS@ \
     argmatch.o \
@@ -60,6 +61,7 @@ OBJECTS = \
     getopt.o \
     getopt1.o \
     md5.o \
+    regex.o \
     savecwd.o \
     sighandle.o \
     stripslash.o \
@@ -142,7 +144,6 @@ getdate.c: getdate.y
 fnmatch.o: fnmatch.h
 getopt1.o: getopt.h
 regex.o: regex.h
-getwd.o: system.h
 md5.o: md5.h
 
 xlint:

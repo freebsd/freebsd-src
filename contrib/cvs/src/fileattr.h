@@ -115,6 +115,17 @@ extern char *fileattr_modify PROTO ((char *list, const char *attrname,
 extern void fileattr_set PROTO ((const char *filename, const char *attrname,
 				 const char *attrval));
 
+/* Get all the attributes for file FILENAME.  They are returned as malloc'd
+   data in an unspecified format which is guaranteed only to be good for
+   passing to fileattr_setall, or NULL if no attributes.  If FILENAME is
+   NULL, get default attributes.  */
+extern char *fileattr_getall PROTO ((const char *filename));
+
+/* Set the attributes for file FILENAME to ATTRS, overwriting all previous
+   attributes for that file.  ATTRS was obtained from a previous call to
+   fileattr_getall (malloc'd data or NULL).  */
+extern void fileattr_setall PROTO ((const char *filename, const char *attrs));
+
 /* Set the attributes for file FILENAME in whatever manner is appropriate
    for a newly created file.  */
 extern void fileattr_newfile PROTO ((const char *filename));

@@ -1,5 +1,30 @@
 Changes since 1.9:
 
+* One can now authenticate and encrypt using the GSSAPI network
+security interface.  For details see the description of :gserver: in
+CVSROOT, and the -a global option.
+
+* All access to RCS files is now implemented internally rather than by
+calling RCS programs.  The main user-visible consequence of this is
+that there is no need to worry about making sure that CVS finds the
+correct version of RCS.  The -b global option and the RCSBIN setting
+in CVSROOT/config are still accepted but don't do anything.  The
+$RCSBIN internal variable in administrative files is no longer
+accepted.
+
+* There is a new syntax, "cvs admin -orev1::rev2", which collapses the
+revisions between rev1 and rev2 without deleting rev1 or rev2
+themselves.
+
+* There is a new administrative file CVSROOT/config which allows one
+to specify miscellaneous aspects of CVS configuration.  Currently
+supported here:
+
+  - SystemAuth, allows you to prevent pserver from checking for system
+  usernames/passwords.
+
+For more information see the "config" section of cvs.texinfo.
+
 * When setting up the pserver server, one now must specify the
 allowable CVSROOT directories in inetd.conf.  See the Password
 authentication server section of cvs.texinfo for details.  Note that
@@ -21,10 +46,9 @@ repository from the cvspass file.
 password-authenticated server (other access methods are just governed
 by Unix file permissions, since they require login access to the
 repository machine anyway).  See the "Repository" section of
-cvs.texinfo for details.  Note that the security cautions in
-cvs.texinfo ("Password authentication security"), and the requirement
-that read-only users be able to create locks and write the history
-file, both apply.
+cvs.texinfo for details, including a discussion of security issues.
+Note that the requirement that read-only users be able to create locks
+and write the history file still applies.
 
 * The "checkout" command now creates a CVS directory at the top level
 of the new working directory, in addition to CVS directories created

@@ -1,3 +1,8 @@
+1998-01-03  Jim Blandy  <jimb@totoro.red-bean.com>
+
+	* (cvs-changelog-ours-p): Recognize Emacs 20-style ChangeLog
+	entries.
+
 Mon Oct 14 19:19:17 1996  Jim Blandy  <jimb@totoro.cyclic.com>
 
 	* pcl-cvs.el (cvs-parse-stderr): Ignore messages about patch hunks

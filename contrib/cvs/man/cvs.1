@@ -2,7 +2,6 @@
 .ds Rv \\$3
 .ds Dt \\$4
 ..
-.Id $Id: cvs.1,v 1.15 1996/11/30 19:49:56 kingdon Exp $
 .TH CVS 1 "\*(Dt"
 .\" Full space in nroff; half space in troff
 .de SP
@@ -27,7 +26,7 @@ cvs \- Concurrent Versions System
 .SH "NOTE"
 This manpage is a summary of some of the features of
 .B cvs
-but for more in-depth documentation, consult cvs.texinfo (as
+but for more in-depth documentation, consult the Cederqvist manual (as
 described in the SEE ALSO section of this manpage).
 .SH "DESCRIPTION"
 .IX "revision control system" "\fLcvs\fR"
@@ -1327,7 +1326,7 @@ names associated with
 administration, or with other common source control systems; common
 names for patch files, object files, archive files, and editor backup
 files; and other names that are usually artifacts of assorted utilities.
-For an up to date list of ignored file names, see cvs.texinfo (as
+For an up to date list of ignored file names, see the Cederqvist manual (as
 described in the SEE ALSO section of this manpage).
 .SP
 The outside source is saved in a first-level
@@ -1888,7 +1887,7 @@ Use \fB\-I\fP \fIname\fP to ignore files whose names match \fIname\fP
 \fB\-I\fP more than once on the command line to specify several files
 to ignore.  By default,
 \fBupdate\fP ignores files whose names match certain patterns; for
-an up to date list of ignored file names, see cvs.texinfo (as
+an up to date list of ignored file names, see the Cederqvist manual (as
 described in the SEE ALSO section of this manpage).
 .SP
 Use
@@ -2152,12 +2151,20 @@ module and vendor branch support and author of the
 shell script (the ancestor of
 .` "cvs import").
 .SH "SEE ALSO"
-The most comprehensive manual for CVS is cvs.texinfo, also known as
-Version Management with CVS by Per Cederqvist et al.  For more
-information about the formats which this manual is in or can be
-converted to (info, postscript, etc.), see the README file in the CVS
-distribution.
-
+The most comprehensive manual for CVS is
+Version Management with CVS by Per Cederqvist et al.  Depending on
+your system, you may be able to get it with the
+.B info cvs
+command or it may be available as cvs.ps (postscript), cvs.texinfo
+(texinfo source), or cvs.html.
+.SP
+For CVS updates, more information on documentation, software related
+to CVS, development of CVS, and more, see:
+.in +1i
+.B http://www.cyclic.com
+.B http://www.loria.fr/~molli/cvs-index.html
+.in -1i
+.SP
 .BR ci ( 1 ),
 .BR co ( 1 ),
 .BR cvs ( 5 ),
@@ -2168,4 +2175,4 @@ distribution.
 .BR rcs ( 1 ),
 .BR rcsdiff ( 1 ),
 .BR rcsmerge ( 1 ),
-.BR rlog ( 1 ),
+.BR rlog ( 1 ).

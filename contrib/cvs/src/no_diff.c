@@ -3,7 +3,7 @@
  * Copyright (c) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.4 kit.
+ * specified in the README file that comes with the CVS source distribution.
  * 
  * No Difference
  * 
@@ -35,6 +35,13 @@ No_Difference (finfo, vers)
 
     if (!vers->srcfile || !vers->srcfile->path)
 	return (-1);			/* different since we couldn't tell */
+
+#ifdef PRESERVE_PERMISSIONS_SUPPORT
+    /* If special files are in use, then any mismatch of file metadata
+       information also means that the files should be considered different. */
+    if (preserve_perms && special_file_mismatch (finfo, vers->vn_user, NULL))
+	return 1;
+#endif
 
     if (vers->entdata && vers->entdata->options)
 	options = xstrdup (vers->entdata->options);

@@ -10,8 +10,8 @@ dnl It is possible that we should just change the above required version
 dnl to 2.10; it seems like everyone is using 2.10 anyway, and there is
 dnl at least some sentiment that we should be using a version which has
 dnl --bindir (and correspondingly, using @bindir@ and friends in our
-dnl Makefile.in files.  I'm not sure exactly what version of autoconf
-dnl introduced --bindir but I know 2.10 has it.
+dnl Makefile.in files.  Rumor has it that autoconf 2.7
+dnl introduced --bindir but the point is that 2.10 has it.
 AC_CONFIG_HEADER(config.h src/options.h)
 
 AC_PROG_CC
@@ -50,6 +50,7 @@ fi
 
 AC_HEADER_STDC
 AC_CHECK_HEADERS(errno.h unistd.h string.h memory.h utime.h fcntl.h ndbm.h \
+		 limits.h sys/file.h \
                  sys/param.h sys/select.h sys/time.h sys/timeb.h \
                  io.h direct.h sys/bsdtypes.h sys/resource.h)
 AC_HEADER_SYS_WAIT
@@ -61,8 +62,33 @@ AC_TYPE_UID_T
 AC_TYPE_MODE_T
 AC_TYPE_SIZE_T
 AC_TYPE_PID_T
-AC_REPLACE_FUNCS(getwd mkdir rename strdup strstr dup2 strerror valloc waitpid vasprintf strtoul)
-AC_CHECK_FUNCS(fchmod fsync ftime mktemp putenv vfork vprintf ftruncate timezone getpagesize initgroups fchdir sigaction sigprocmask sigvec sigsetmask sigblock tempnam tzset readlink wait3)
+AC_STRUCT_ST_BLKSIZE
+AC_REPLACE_FUNCS(mkdir rename strstr dup2 strerror valloc waitpid memmove vasprintf strtoul)
+AC_CHECK_FUNCS(fchmod fsync ftime mktemp putenv vprintf ftruncate timezone getpagesize initgroups fchdir sigaction sigprocmask sigvec sigsetmask sigblock tempnam tzset readlink wait3)
+
+dnl
+dnl The CVS coding standard (as specified in HACKING) is that if it exists
+dnl in SunOS4 and ANSI, we use it.  CVS itself, of course, therefore doesn't
+dnl need HAVE_* defines for such functions, but diff wants them.
+dnl
+AC_DEFINE(HAVE_STRCHR)
+AC_DEFINE(HAVE_MEMCHR)
+
+dnl
+dnl AC_FUNC_VFORK is rather baroque.  It seems to be rather more picky
+dnl than, say, the Single Unix Specification (version 2), which simplifies
+dnl a lot of cases by saying that the child process can't set any variables
+dnl (thus avoiding problems with register allocation) or call any functions
+dnl (thus avoiding problems with whether file descriptors are shared).
+dnl It would be nice if we could just write to the Single Unix Specification.
+dnl I think the only way to do redirection this way is by doing it in the
+dnl parent, and then undoing it afterwards (analogous to windows-NT/run.c).
+dnl That would appear to have a race condition if the user hits ^C (or
+dnl some other signal) at the wrong time, as main_cleanup will try to use
+dnl stdout/stderr.  So maybe we are stuck with AC_FUNC_VFORK.
+dnl
+AC_FUNC_VFORK
+AC_FUNC_CLOSEDIR_VOID
 
 dnl
 dnl Look for shadow password files before we go ahead and set getspnam.
@@ -84,7 +110,24 @@ else
 fi
 AC_MSG_RESULT([$found])
 
-AC_CHECK_FUNC(re_exec, :, LIBOBJS="$LIBOBJS regex.o")
+dnl We always use CVS's regular expression matcher.
+dnl This is because:
+dnl (1) If memory serves, the syntax of the regular expressions
+dnl handled by re_exec is not consistent from system to system, which
+dnl is a Bad Thing because CVS passes this syntax out to the user.
+dnl We might have better luck with the POSIX interface, if we really
+dnl want to look for a system-supplied matcher.
+dnl (2) It is necessary to make _sure_ that we get a regex.h and regex.c
+dnl that match each other.  In particular, rx and the CVS/emacs
+dnl regex.c have a different "struct re_pattern_buffer" and so using
+dnl the system regex.h and our regex.c, or vice versa, will tend to
+dnl cause a core dump.
+dnl (3) Just as a random data point, CVS uses re_exec (a BSD interface);
+dnl libdiff uses re_compile_pattern (a GNU interface, I think).  Diff
+dnl should probably be fixed to have the caller (CVS) supply the regexp
+dnl matching.
+dnl
+dnl AC_CHECK_FUNC(re_exec, :, LIBOBJS="$LIBOBJS regex.o")
 AC_FUNC_UTIME_NULL
 AC_SYS_LONG_FILE_NAMES
 
@@ -139,6 +182,10 @@ fi])
 dnl
 dnl set $(KRB4) from --with-krb4=value -- WITH_KRB4
 dnl
+dnl If you change this, keep in mind that some systems have a bogus
+dnl libkrb in the system libraries, so --with-krb4=value needs to
+dnl override the system -lkrb.
+dnl
 KRB4=/usr/kerberos
 define(WITH_KRB4,[
 AC_ARG_WITH([krb4],
@@ -151,15 +198,19 @@ WITH_KRB4
 
 krb_h=
 AC_MSG_CHECKING([for krb.h])
-AC_TRY_LINK([#include <krb.h>],[int i;],
-  [krb_h=yes krb_incdir=],
-  [if test "$cross_compiling" != yes && test -r $KRB4/include/krb.h; then
-     hold_cflags=$CFLAGS
-     CFLAGS="$CFLAGS -I$KRB4/include"
-     AC_TRY_LINK([#include <krb.h>],[int i;],
-       [krb_h=yes krb_incdir=$KRB4/include])
-     CFLAGS=$hold_cflags
-   fi])
+if test "$cross_compiling" != yes && test -r $KRB4/include/krb.h; then
+   hold_cflags=$CFLAGS
+   CFLAGS="$CFLAGS -I$KRB4/include"
+   AC_TRY_LINK([#include <krb.h>],[int i;],
+          [krb_h=yes krb_incdir=$KRB4/include],
+          [CFLAGS=$hold_cflags
+           AC_TRY_LINK([#include <krb.h>],[int i;],
+             [krb_h=yes krb_incdir=])])
+   CFLAGS=$hold_cflags
+else
+   AC_TRY_LINK([#include <krb.h>],[int i;],
+             [krb_h=yes krb_incdir=])
+fi
 if test -z "$krb_h"; then
   AC_TRY_LINK([#include <krb.h>],[int i;],
     [krb_h=yes krb_incdir=],
@@ -173,12 +224,22 @@ if test -z "$krb_h"; then
 fi
 AC_MSG_RESULT($krb_h)
 
+includeopt=
+AC_SUBST(includeopt)
 if test -n "$krb_h"; then
   krb_lib=
-  AC_CHECK_LIB(krb,printf,[krb_lib=yes krb_libdir=],
-    [if test "$cross_compiling" != yes && test -r $KRB4/lib/libkrb.a; then
-       krb_lib=yes krb_libdir=$KRB4/lib
-     fi])
+  if test "$cross_compiling" != yes && test -r $KRB4/lib/libkrb.a; then
+       hold_ldflags=$LDFLAGS
+       LDFLAGS="-L${KRB4}/lib $LDFLAGS"
+       AC_CHECK_LIB(krb,printf,[krb_lib=yes krb_libdir=${KRB4}/lib],
+           [LDFLAGS=$hold_ldflags
+            # Using open here instead of printf so we don't
+            # get confused by the cached value for printf from above.
+            AC_CHECK_LIB(krb,open,[krb_lib=yes krb_libdir=])])
+       LDFLAGS=$hold_ldflags
+  else
+       AC_CHECK_LIB(krb,printf,[krb_lib=yes krb_libdir=])
+  fi
   if test -n "$krb_lib"; then
     AC_DEFINE(HAVE_KERBEROS)
     test -n "${krb_libdir}" && LIBS="${LIBS} -L${krb_libdir}"
@@ -192,11 +253,35 @@ if test -n "$krb_h"; then
     LDFLAGS=$hold_ldflags
     if test -n "$krb_incdir"; then
       includeopt="${includeopt} -I$krb_incdir"
-      AC_SUBST(includeopt)
     fi
   fi
 fi
 AC_CHECK_FUNCS(krb_get_err_text)
+
+dnl
+dnl Use --with-gssapi=DIR to enable GSSAPI support.
+dnl
+GSSAPI=/usr/cygnus/kerbnet
+define(WITH_GSSAPI,[
+AC_ARG_WITH([gssapi],
+  [  --with-gssapi=value     GSSAPI directory],
+  [GSSAPI=$withval],
+)dnl
+echo "default place for GSSAPI is $GSSAPI"
+AC_SUBST(GSSAPI)])dnl
+WITH_GSSAPI
+
+AC_MSG_CHECKING([for gssapi.h])
+hold_cppflags=$CPPFLAGS
+CPPFLAGS="$CPPFLAGS -I$GSSAPI/include "
+AC_CHECK_HEADER(gssapi/gssapi.h,
+  [AC_DEFINE(HAVE_GSSAPI)
+   LIBS="$LIBS -L$GSSAPI/lib -lgssapi_krb5 -lkrb5 -lcrypto -lcom_err"
+   includeopt="${includeopt} -I$GSSAPI/include"
+   # This is necessary on Irix 5.3, in order to link against libkrb5 --
+   # there, an_to_ln.o refers to things defined only in -lgen.
+   AC_CHECK_LIB(gen, compile)])
+CPPFLAGS=$hold_cppflags
 
 dnl
 dnl Use --with-encryption to turn on encryption support
@@ -255,6 +340,35 @@ if test "$ac_cv_func_crypt" = yes; then
 fi
 fi # enable_server
 
+dnl For the moment we will assume that all systems which have
+dnl the unixyness to run configure are unixy enough to do the
+dnl PreservePermissions stuff.  I have this sinking feeling that
+dnl things won't be that simple, before long.
+AC_DEFINE(PRESERVE_PERMISSIONS_SUPPORT)
+
+dnl On cygwin32, we configure like a Unix system, but we use the
+dnl Windows support code in lib/fncase.c to handle the case
+dnl insensitive file system.  We also need some support libraries.  We
+dnl do this at the end so that the new libraries are added at the end
+dnl of LIBS.
+AC_CACHE_CHECK(for cygwin32, ccvs_cv_sys_cygwin32,
+[AC_TRY_COMPILE([], [return __CYGWIN32__;],
+ccvs_cv_sys_cygwin32=yes, ccvs_cv_sys_cygwin32=no)])
+if test $ccvs_cv_sys_cygwin32 = yes; then
+  LIBOBJS="$LIBOBJS fncase.o"
+  LIBS="$LIBS -ladvapi32"
+
+  dnl On Windows you can only change file times if you can write to
+  dnl the file.  cygwin32 should really handle this for us, but as of
+  dnl January 1998 it doesn't.
+  AC_DEFINE(UTIME_EXPECTS_WRITABLE)
+
+  dnl On Windows we must use setmode to change between binary and text
+  dnl mode.
+  AC_DEFINE(USE_SETMODE_STDOUT)
+  AC_DEFINE(HAVE_SETMODE)
+fi
+
 test -f src/options.h && (
   AC_MSG_WARN(saving ./src/options.h in ./src/options.h-SAVED)
   AC_MSG_WARN(You may wish to check that local options have not been lost.)
@@ -262,7 +376,7 @@ test -f src/options.h && (
   cp ./src/options.h ./src/options.h-SAVED
 )
 
-AC_OUTPUT(Makefile lib/Makefile src/Makefile zlib/Makefile doc/Makefile \
+AC_OUTPUT(Makefile lib/Makefile src/Makefile zlib/Makefile diff/Makefile doc/Makefile \
 	  man/Makefile tools/Makefile tools/pcl-cvs/Makefile \
 	  contrib/Makefile contrib/elib/Makefile \
 	  windows-NT/Makefile windows-NT/SCC/Makefile \

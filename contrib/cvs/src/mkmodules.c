@@ -204,15 +204,15 @@ static const char *const checkoutlist_contents[] = {
 };
 
 static const char *const cvswrappers_contents[] = {
-    "# This file describes wrappers and other binary files to CVS.\n",
+    "# This file affects handling of files based on their names.\n",
     "#\n",
-    "# Wrappers are the concept where directories of files are to be\n",
-    "# treated as a single file.  The intended use is to wrap up a wrapper\n",
-    "# into a single tar such that the tar archive can be treated as a\n",
-    "# single binary file in CVS.\n",
+    "# The -t/-f options allow one to treat directories of files\n",
+    "# as a single file, or to transform a file in other ways on\n",
+    "# its way in and out of CVS.\n",
     "#\n",
-    "# To solve the problem effectively, it was also necessary to be able to\n",
-    "# prevent rcsmerge from merging these files.\n",
+    "# The -m option specifies whether CVS attempts to merge files.\n",
+    "#\n",
+    "# The -k option specifies keyword expansion (e.g. -kb for binary).\n",
     "#\n",
     "# Format of wrapper file ($CVSROOT/CVSROOT/cvswrappers or .cvswrappers)\n",
     "#\n",
@@ -222,10 +222,11 @@ static const char *const cvswrappers_contents[] = {
     "#  -f		from cvs filter		value: path to filter\n",
     "#  -t		to cvs filter		value: path to filter\n",
     "#  -m		update methodology	value: MERGE or COPY\n",
+    "#  -k		expansion mode		value: b, o, kkv, &c\n",
     "#\n",
     "#  and value is a single-quote delimited value.\n",
-    "#\n",
     "# For example:\n",
+    "#*.gif -k 'b'\n",
     NULL
 };
 
@@ -275,6 +276,16 @@ static const char *const modules_contents[] = {
     NULL
 };
 
+static const char *const config_contents[] = {
+    "# Set this to \"no\" if pserver shouldn't check system users/passwords\n",
+    "#SystemAuth=no\n",
+    "\n",
+    "# Set `PreservePermissions' to `yes' to save file status information\n",
+    "# in the repository.\n",
+    "#PreservePermissions=no\n",
+    NULL
+};
+
 static const struct admin_file filelist[] = {
     {CVSROOTADM_LOGINFO, 
 	"no logging of 'cvs commit' messages is done without a %s file",
@@ -316,14 +327,27 @@ static const struct admin_file filelist[] = {
     {CVSROOTADM_WRITERS,
 	"a %s file specifies read/write users",
 	NULL},
-    /* Some have suggested listing CVSROOTADM_PASSWD here too.  The
-       security implications of transmitting hashed passwords over the
-       net are no worse than transmitting cleartext passwords which pserver
-       does, so this isn't a problem.  But I'm worried about the implications
-       of storing old passwords--if someone used a password in the past
-       they might be using it elsewhere, using a similar password, etc,
-       and so it doesn't seem to me like we should be saving old passwords,
-       even hashed.  */
+
+    /* Some have suggested listing CVSROOTADM_PASSWD here too.  This
+       would mean that CVS commands which operate on the
+       CVSROOTADM_PASSWD file would transmit hashed passwords over the
+       net.  This might seem to be no big deal, as pserver normally
+       transmits cleartext passwords, but the difference is that
+       CVSROOTADM_PASSWD contains *all* passwords, not just the ones
+       currently being used.  For example, it could be too easy to
+       accidentally give someone readonly access to CVSROOTADM_PASSWD
+       (e.g. via anonymous CVS or cvsweb), and then if there are any
+       guessable passwords for read/write access (usually there will be)
+       they get read/write access.
+
+       Another worry is the implications of storing old passwords--if
+       someone used a password in the past they might be using it
+       elsewhere, using a similar password, etc, and so saving old
+       passwords, even hashed, is probably not a good idea.  */
+
+    {CVSROOTADM_CONFIG,
+	 "a %s file configures various behaviors",
+	 config_contents},
     {NULL, NULL}
 };
 
@@ -518,7 +542,7 @@ checkout_file (file, temp)
 			    (RCSCHECKOUTPROC) NULL, (void *) NULL);
     if (retcode != 0)
     {
-	error (0, retcode == -1 ? errno : 0, "failed to check out %s file",
+	error (0, 0, "failed to check out %s file",
 	       file);
     }
     freercsnode (&rcsnode);
@@ -694,6 +718,7 @@ rename_rcsfile (temp, real)
 
 const char *const init_usage[] = {
     "Usage: %s %s\n",
+    "(Specify the --help global option for a list of other help options)\n",
     NULL
 };
 
@@ -785,8 +810,12 @@ init (argc, argv)
 	       "initial checkin" but I fail to see the point as we know what
 	       file it is from the name.  */
 	    retcode = add_rcs_file ("initial checkin", info_v,
-				    fileptr->filename, "1.1", NULL, NULL,
-				    0, NULL, NULL);
+				    fileptr->filename, "1.1", NULL,
+
+				    /* No vendor branch.  */
+				    NULL, NULL, 0, NULL,
+
+				    NULL, 0, NULL);
 	    if (retcode != 0)
 		/* add_rcs_file already printed an error message.  */
 		err = 1;

@@ -13,11 +13,12 @@ lib/getdate.c
 tools/pcl-cvs/*.ps
 tools/pcl-cvs/*.aux
 tools/pcl-cvs/texinfo.tex
-cvsnt.mak
+cvsnt.*
 cvs.spec
 build.com
 src/build_src.com
 lib/build_lib.com
+diff/build_diff.com
 README.VMS
 
 The following non-freebsd-specific directories were deleted:

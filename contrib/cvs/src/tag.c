@@ -3,7 +3,7 @@
  * Copyright (c) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.4 kit.
+ * specified in the README file that comes with the CVS source distribution.
  * 
  * Tag
  * 
@@ -63,11 +63,13 @@ static const char *const tag_usage[] =
     "\t-l\tLocal directory only, not recursive.\n",
     "\t-R\tProcess directories recursively.\n",
     "\t-d\tDelete the given tag.\n",
-    "\t-[rD]\tExisting tag or date.\n",
+    "\t-r rev\tExisting revision/tag.\n",
+    "\t-D\tExisting date.\n",
     "\t-f\tForce a head revision if specified tag not found.\n",
     "\t-b\tMake the tag a \"branch\" tag, allowing concurrent development.\n",
     "\t-F\tMove tag if it already exists.\n",
     "\t-c\tCheck that working files are unmodified.\n",
+    "(Specify the --help global option for a list of other help options)\n",
     NULL
 };
 
@@ -370,11 +372,10 @@ pretag_proc(repository, filter)
         }
         free(s);
     }
-    run_setup("%s %s %s %s",
-              filter,
-              symtag,
-              delete_flag ? "del" : force_tag_move ? "mov" : "add",
-              repository);
+    run_setup (filter);
+    run_arg (symtag);
+    run_arg (delete_flag ? "del" : force_tag_move ? "mov" : "add");
+    run_arg (repository);
     walklist(tlist, pretag_list_proc, NULL);
     return (run_exec(RUN_TTY, RUN_TTY, RUN_TTY, RUN_NORMAL|RUN_REALLY));
 }
@@ -480,7 +481,7 @@ tag_fileproc (callerdat, finfo)
 	}
 	free (version);
 
-	if ((retcode = RCS_deltag(vers->srcfile, symtag, 1)) != 0) 
+	if ((retcode = RCS_deltag(vers->srcfile, symtag)) != 0) 
 	{
 	    if (!quiet)
 		error (0, retcode == -1 ? errno : 0,
@@ -489,6 +490,7 @@ tag_fileproc (callerdat, finfo)
 	    freevers_ts (&vers);
 	    return (1);
 	}
+	RCS_rewrite (vers->srcfile, NULL, NULL);
 
 	/* warm fuzzies */
 	if (!really_quiet)
@@ -554,7 +556,7 @@ tag_fileproc (callerdat, finfo)
 			       (int *) NULL);
     if (oversion != NULL)
     {
-	int isbranch = RCS_isbranch (finfo->rcs, symtag);
+	int isbranch = RCS_nodeisbranch (finfo->rcs, symtag);
 
 	/*
 	 * if versions the same and neither old or new are branches don't have 
@@ -598,6 +600,7 @@ tag_fileproc (callerdat, finfo)
 	freevers_ts (&vers);
 	return (1);
     }
+    RCS_rewrite (vers->srcfile, NULL, NULL);
 
     /* more warm fuzzies */
     if (!really_quiet)
@@ -751,6 +754,11 @@ Numeric tag %s contains characters other than digits and '.'", name);
     if (strcmp (name, TAG_BASE) == 0
 	|| strcmp (name, TAG_HEAD) == 0)
 	return;
+
+    /* FIXME: This routine doesn't seem to do any locking whatsoever
+       (and it is called from places which don't have locks in place).
+       If two processes try to write val-tags at the same time, it would
+       seem like we are in trouble.  */
 
     mytag.dptr = name;
     mytag.dsize = strlen (name);

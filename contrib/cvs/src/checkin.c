@@ -3,7 +3,7 @@
  * Copyright (c) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.4 kit.
+ * specified in the README file that comes with the CVS source distribution.
  * 
  * Check In
  * 
@@ -29,7 +29,6 @@ Checkin (type, finfo, rcs, rev, tag, options, message)
     char *options;
     char *message;
 {
-    char *fname;
     Vers_TS *vers;
     int set_time;
     char *tocvsPath = NULL;
@@ -42,72 +41,63 @@ Checkin (type, finfo, rcs, rev, tag, options, message)
     cvs_output (finfo->fullname, 0);
     cvs_output (";\n", 0);
 
-    fname = xmalloc (strlen (finfo->file) + 80);
-    (void) sprintf (fname, "%s/%s%s", CVSADM, CVSPREFIX, finfo->file);
-
-    /*
-     * Move the user file to a backup file, so as to preserve its
-     * modification times, then place a copy back in the original file name
-     * for the checkin and checkout.
-     */
-
     tocvsPath = wrap_tocvs_process_file (finfo->file);
-
     if (!noexec)
     {
         if (tocvsPath)
 	{
-            copy_file (tocvsPath, fname);
 	    if (unlink_file_dir (finfo->file) < 0)
 		if (! existence_error (errno))
 		    error (1, errno, "cannot remove %s", finfo->fullname);
-	    copy_file (tocvsPath, finfo->file);
-	}
-	else
-	{
-	    copy_file (finfo->file, fname);
+	    rename_file (tocvsPath, finfo->file);
 	}
     }
 
-    switch (RCS_checkin (rcs, NULL, message, rev, 0))
+    if (finfo->rcs == NULL)
+	finfo->rcs = RCS_parse (finfo->file, finfo->repository);
+
+    switch (RCS_checkin (finfo->rcs, NULL, message, rev, RCS_FLAGS_KEEPFILE))
     {
 	case 0:			/* everything normal */
 
-	    /*
-	     * The checkin succeeded, so now check the new file back out and
-	     * see if it matches exactly with the one we checked in. If it
-	     * does, just move the original user file back, thus preserving
-	     * the modes; otherwise, we have no recourse but to leave the
-	     * newly checkout file as the user file and remove the old
-	     * original user file.
-	     */
+	    /* The checkin succeeded.  If checking the file out again
+               would not cause any changes, we are done.  Otherwise,
+               we need to check out the file, which will change the
+               modification time of the file.
+
+	       The only way checking out the file could cause any
+	       changes is if the file contains RCS keywords.  So we if
+	       we are not expanding RCS keywords, we are done.  */
 
 	    if (strcmp (options, "-V4") == 0) /* upgrade to V5 now */
 		options[0] = '\0';
 
-	    /* Reparse the RCS file, so that we can safely call
-               RCS_checkout.  FIXME: We could probably calculate
-               all the changes.  */
-	    freercsnode (&finfo->rcs);
-	    finfo->rcs = RCS_parse (finfo->file, finfo->repository);
-
-	    /* FIXME: should be checking for errors.  */
-	    (void) RCS_checkout (finfo->rcs, finfo->file, rev,
-				 (char *) NULL, options, RUN_TTY,
-				 (RCSCHECKOUTPROC) NULL, (void *) NULL);
-
-	    xchmod (finfo->file, 1);
-	    if (xcmp (finfo->file, fname) == 0)
+	    /* FIXME: If PreservePermissions is on, RCS_cmp_file is
+               going to call RCS_checkout into a temporary file
+               anyhow.  In that case, it would be more efficient to
+               call RCS_checkout here, compare the resulting files
+               using xcmp, and rename if necessary.  I think this
+               should be fixed in RCS_cmp_file.  */
+	    if ((! preserve_perms
+		 && options != NULL
+		 && (strcmp (options, "-ko") == 0
+		     || strcmp (options, "-kb") == 0))
+		|| RCS_cmp_file (finfo->rcs, rev, options, finfo->file) == 0)
 	    {
-		rename_file (fname, finfo->file);
-		/* the time was correct, so leave it alone */
+		/* The existing file is correct.  We don't have to do
+                   anything.  */
 		set_time = 0;
 	    }
 	    else
 	    {
-		if (unlink_file (fname) < 0)
-		    error (0, errno, "cannot remove %s", fname);
-		/* sync up with the time from the RCS file */
+		/* The existing file is incorrect.  We need to check
+                   out the correct file contents.  */
+		if (RCS_checkout (finfo->rcs, finfo->file, rev, (char *) NULL,
+				  options, RUN_TTY, (RCSCHECKOUTPROC) NULL,
+				  (void *) NULL) != 0)
+		    error (1, 0, "failed when checking out new copy of %s",
+			   finfo->fullname);
+		xchmod (finfo->file, 1);
 		set_time = 1;
 	    }
 
@@ -117,7 +107,7 @@ Checkin (type, finfo, rcs, rev, tag, options, message)
 	     * If we want read-only files, muck the permissions here, before
 	     * getting the file time-stamp.
 	     */
-	    if (cvswrite == FALSE || fileattr_get (finfo->file, "_watched"))
+	    if (!cvswrite || fileattr_get (finfo->file, "_watched"))
 		xchmod (finfo->file, 0);
 
 	    /* Re-register with the new data.  */
@@ -143,25 +133,19 @@ Checkin (type, finfo, rcs, rev, tag, options, message)
 	    if (!noexec)
 		error (1, errno, "could not check in %s -- fork failed",
 		       finfo->fullname);
-	    free (fname);
 	    return (1);
 
 	default:			/* ci failed */
 
-	    /*
-	     * The checkin failed, for some unknown reason, so we restore the
-	     * original user file, print an error, and return an error
-	     */
+	    /* The checkin failed, for some unknown reason, so we
+	       print an error, and return an error.  We assume that
+	       the original file has not been touched.  */
 	    if (tocvsPath)
 		if (unlink_file_dir (tocvsPath) < 0)
 		    error (0, errno, "cannot remove %s", tocvsPath);
 
 	    if (!noexec)
-	    {
-		rename_file (fname, finfo->file);
 		error (0, 0, "could not check in %s", finfo->fullname);
-	    }
-	    free (fname);
 	    return (1);
     }
 
@@ -173,6 +157,7 @@ Checkin (type, finfo, rcs, rev, tag, options, message)
     if (rev)
     {
 	(void) RCS_unlock (finfo->rcs, NULL, 1);
+	RCS_rewrite (finfo->rcs, NULL, NULL);
     }
 
 #ifdef SERVER_SUPPORT
@@ -181,7 +166,8 @@ Checkin (type, finfo, rcs, rev, tag, options, message)
 	if (set_time)
 	    /* Need to update the checked out file on the client side.  */
 	    server_updated (finfo, vers, SERVER_UPDATED,
-			    NULL, NULL);
+			    (mode_t) -1, (unsigned char *) NULL,
+			    (struct buffer *) NULL);
 	else
 	    server_checked_in (finfo->file, finfo->update_dir, finfo->repository);
     }
@@ -190,6 +176,5 @@ Checkin (type, finfo, rcs, rev, tag, options, message)
 	mark_up_to_date (finfo->file);
 
     freevers_ts (&vers);
-    free (fname);
     return (0);
 }
