@@ -8,6 +8,8 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <sys/types.h>
 #include <regex.h>
+#include <wchar.h>
+#include <wctype.h>
 
 #include "utils.h"
 #include "regex2.h"
@@ -26,10 +28,8 @@ FILE *d;
 	int i;
 	int c;
 	int last;
-	int nincat[NC];
 
-	fprintf(d, "%ld states, %d categories", (long)g->nstates,
-							g->ncategories);
+	fprintf(d, "%ld states", (long)g->nstates);
 	fprintf(d, ", first %ld last %ld", (long)g->firststate,
 						(long)g->laststate);
 	if (g->iflags&USEBOL)
@@ -49,41 +49,6 @@ FILE *d;
 		fprintf(d, ", nplus %ld", (long)g->nplus);
 	fprintf(d, "\n");
 	s_print(g, d);
-	for (i = 0; i < g->ncategories; i++) {
-		nincat[i] = 0;
-		for (c = CHAR_MIN; c <= CHAR_MAX; c++)
-			if (g->categories[c] == i)
-				nincat[i]++;
-	}
-	fprintf(d, "cc0#%d", nincat[0]);
-	for (i = 1; i < g->ncategories; i++)
-		if (nincat[i] == 1) {
-			for (c = CHAR_MIN; c <= CHAR_MAX; c++)
-				if (g->categories[c] == i)
-					break;
-			fprintf(d, ", %d=%s", i, regchar(c));
-		}
-	fprintf(d, "\n");
-	for (i = 1; i < g->ncategories; i++)
-		if (nincat[i] != 1) {
-			fprintf(d, "cc%d\t", i);
-			last = -1;
-			for (c = CHAR_MIN; c <= CHAR_MAX+1; c++)	/* +1 does flush */
-				if (c <= CHAR_MAX && g->categories[c] == i) {
-					if (last < 0) {
-						fprintf(d, "%s", regchar(c));
-						last = c;
-					}
-				} else {
-					if (last >= 0) {
-						if (last != c-1)
-							fprintf(d, "-%s",
-								regchar(c-1));
-						last = -1;
-					}
-				}
-			fprintf(d, "\n");
-		}
 }
 
 /*
@@ -148,6 +113,7 @@ FILE *d;
 			break;
 		case OANYOF:
 			fprintf(d, "[(%ld)", (long)opnd);
+#if 0
 			cs = &g->sets[opnd];
 			last = -1;
 			for (i = 0; i < g->csetsize+1; i++)	/* +1 flushes */
@@ -164,6 +130,7 @@ FILE *d;
 						last = -1;
 					}
 				}
+#endif
 			fprintf(d, "]");
 			break;
 		case OBACK_:
