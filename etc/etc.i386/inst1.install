@@ -438,7 +438,7 @@ sync
 verified_install=""
 while [ ! "$verified_install" ]; do	# Begin of Big Loop
 
-rotdelay=""
+rotdelay="-d 0 -n 1"
 drivename=wd0
 drivetype=wd
 sect_fwd=""
@@ -465,13 +465,11 @@ e*|E*|st*|ST*)
 	;;
 i*|I*)
 	type=ST506
-	rotdelay="-d 0"
 	;;
 sc*|SC*)
 	drivename=sd0
 	drivetype=sd
 	type=SCSI
-	rotdelay="-d 0"
 	DEFSECT=32
 	DEFHEAD=64
 	;;
