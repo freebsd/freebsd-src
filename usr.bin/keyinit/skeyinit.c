@@ -1,15 +1,16 @@
 /*   change password or add user to S/KEY authentication system.
  *   S/KEY is a tradmark of Bellcore  */
 
-#include <stdio.h>
-#include <string.h>
+#include <ctype.h>
+#include <err.h>
 #include <pwd.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <time.h>
 
 #include <skey.h>
-
-extern int optind;
-extern char *optarg;
+#include <unistd.h>
 
 #define NAMELEN 2
 
@@ -163,10 +164,8 @@ char *argv[];
 	strcpy(seed,defaultseed);
 
 	/* Crunch seed and password into starting key */
-	if(keycrunch(key,seed,passwd) != 0){
-		fprintf(stderr,"%s: key crunch failed\n",argv[0]);
-		return 1;
-	}
+	if(keycrunch(key,seed,passwd) != 0)
+		errx(1, "key crunch failed");
 	nn = n;
 	while(nn-- != 0)
 		f(key);
