@@ -63,19 +63,18 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility reads space, tab, newline and end-of-file delimited arguments
-from the standard input and executes the specified
+utility reads space, tab, newline and end-of-file delimited strings
+from the standard input and executes
 .Ar utility
-with them as
+with the strings as
 arguments.
 .Pp
-The utility and any arguments specified on the command line are given
-to the
+Any arguments specified on the command line are given to
 .Ar utility
 upon each invocation, followed by some number of the arguments read
-from standard input.
-The
-.Ar utility
+from the standard input of
+.Nm .
+The utility
 is repeatedly executed until standard input is exhausted.
 .Pp
 Spaces, tabs and newlines may be embedded in arguments using single
@@ -176,7 +175,8 @@ then
 will be called with the available lines.
 .It Fl n Ar number
 Set the maximum number of arguments taken from standard input for each
-invocation of the utility.
+invocation of
+.Ar utility .
 An invocation of
 .Ar utility
 will use less than
@@ -236,9 +236,9 @@ to terminate immediately if a command line containing
 arguments will not fit in the specified (or default) command line length.
 .El
 .Pp
-If no
+If
 .Ar utility
-is specified,
+is omitted,
 .Xr echo 1
 is used.
 .Pp
@@ -251,8 +251,12 @@ The
 utility exits immediately (without processing any further input) if a
 command line cannot be assembled,
 .Ar utility
-cannot be invoked, an invocation of the utility is terminated by a signal
-or an invocation of the utility exits with a value of 255.
+cannot be invoked, an invocation of
+.Ar utility
+is terminated by a signal,
+or an invocation of
+.Ar utility
+exits with a value of 255.
 .Sh DIAGNOSTICS
 The
 .Nm
