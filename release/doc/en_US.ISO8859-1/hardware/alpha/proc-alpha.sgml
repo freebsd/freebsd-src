@@ -54,6 +54,14 @@
       Lower case input is also acceptable to SRM. Upper case is used for
       clarity.
     </note>
+
+    <note>
+      <para>Compaq has put information on the Web for Linux developers
+      that is also very useful for &os; users. Please check at
+      <ulink url="http://www.support.compaq.com/alpha-tools/">Linux Alpha
+      Power tools</ulink>.</para>
+    </note>
+     
   </sect2>
 
   <sect2>
@@ -98,7 +106,7 @@
 	  <para>Digital XLT series</para>
 	</listitem>
 	<listitem>
-	  <para>Samsung PC164UX</para>
+	  <para>Samsung PC164UX (<quote>Ruffian</quote>)</para>
 	</listitem>
 	<listitem>
 	  <para>Samsung 164B</para>
@@ -106,6 +114,23 @@
       </itemizedlist>
     </para>
 
+    <para>Machines that have SRM but are not supported by &os; are:
+       <itemizedlist>
+	 <listitem>
+           <para>DECpc 150 (<quote>Jensen</quote>)</para>
+         </listitem>
+	 <listitem>
+           <para>DEC 2000/300 (<quote>Jensen</quote>)</para>
+         </listitem>
+	 <listitem>
+           <para>DEC 2000/500 (<quote>Culzean</quote>)</para>
+         </listitem>
+	 <listitem>
+           <para>AXPvme series (<quote>Medulla</quote>)</para>
+         </listitem>
+       </itemizedlist>
+    </para>
+    
     <para>To complicate things a bit further: Digital used to have so
     called <quote>white-box</quote> Alpha machines destined as NT-only
     and <quote>blue-box</quote> Alpha machines destined for OpenVMS
@@ -230,7 +255,7 @@
     original Alpha design is the 21064. It was produced in a chip
     process called MOS4, chips made in this process are nicknamed
     EV4. Newer CPUs are 21164, 21264 etc. You will see designations
-    like EV4S, EV45, EV5, EV56, EV6, EV67.  The EVs with double digit
+    like EV4S, EV45, EV5, EV56, EV6, EV67, EV68.  The EVs with double digit
     numbers are slightly improved versions. For example EV45 has an
     improved FPU and 16 kByte on-chip separate I &amp; D caches compared
     to the EV4 on which it is based. Rule of thumb: the higher the
@@ -820,6 +845,10 @@ device	sbc</programlisting>
       in a decrease from 149 Mbytes/sec to 115 Mbytes/sec. Something
       to keep in mind when doing really high speed things with 64
       bit PCI adapters.</para>
+
+      <para>Moving to a faster CPU is quite simple, swap out the
+      CPU chip and set the clock multiplier dipswitch to the speed of
+      the new CPU.</para>
 
       <para>If you experience SRM errors like</para>
 
@@ -1687,7 +1716,7 @@ cpu	EV5</programlisting>
 
     <sect3>
       <title>AlphaServer 1000 (<quote>Mikasa</quote>), 
-      1000A (<quote>Noritake</quote>) and 800</title>
+      1000A (<quote>Noritake</quote>) and 800(<quote>Corelle</quote>)</title>
 
       <para>The AlphaServer 1000 and 800 range of machines are intended as 
       departmental servers. They come in quite some variations in packaging 
@@ -1890,7 +1919,8 @@ cpu	EV5		# depends on the CPU model installed</programlisting>
       has its own builtin help.</para>
 
       <para>Webbrick is shipped in a desktop-style case similar to the older 
-      21164 <quote>Maverick</quote> workstations but this case offers much better access 
+      21164 <quote>Maverick</quote> workstations but this case 
+      offers much better access 
       to the components. If you intend to build a farm you can rackmount them 
       in a 19-inch rack; they are 3U high. Slate is 1U high but has only 
       one PCI slot.</para>
