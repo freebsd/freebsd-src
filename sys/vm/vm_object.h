@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.h,v 1.18 1995/05/02 05:57:11 davidg Exp $
+ * $Id: vm_object.h,v 1.19 1995/07/13 08:48:36 davidg Exp $
  */
 
 /*
@@ -99,11 +99,9 @@ struct vm_object {
 	vm_offset_t paging_offset;	/* Offset into paging space */
 	struct vm_object *backing_object; /* object that I'm a shadow of */
 	vm_offset_t backing_object_offset;/* Offset in backing object */
-	struct vm_object *copy;		/* Object that holds copies of my changed pages */
 	vm_offset_t last_read;		/* last read in object -- detect seq behavior */
 	TAILQ_ENTRY(vm_object) pager_object_list; /* list of all objects of this pager type */
 	void *handle;
-	void *pg_data;
 	union {
 		struct {
 			vm_size_t vnp_size; /* Current size of file */
@@ -111,6 +109,12 @@ struct vm_object {
 		struct {
 			TAILQ_HEAD(, vm_page) devp_pglist; /* list of pages allocated */
 		} devp;
+		struct {
+			int swp_nblocks;
+			int swp_allocsize;
+			struct swblock *swp_blocks;
+			short swp_poip;
+		} swp;
 	} un_pager;
 };
 
