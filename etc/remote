@@ -36,5 +36,5 @@ dial1200|1200 Baud Hayes attributes:\
         :dv=/dev/tty19:br#1200:cu=/dev/tty19:at=hayes:du:
 
 # Hardwired line
-com1c|com1:dv=/dev/com1:br#9600:
-com1b:dv=/dev/com1:br#2400:
+com00c|com0c:dv=/dev/com00:br#9600
+com00b|com0b:dv=/dev/com00:br#2400
