@@ -245,7 +245,7 @@ ppp_modevent(module_t mod, int type, void *data)
 	case MOD_LOAD: 
 		if_clone_attach(&ppp_cloner);
 
-		register_netisr(NETISR_PPP, pppintr);
+		netisr_register(NETISR_PPP, (netisr_t *)pppintr, NULL);
 		/*
 		 * XXX layering violation - if_ppp can work over any lower
 		 * level transport that cares to attach to it.
@@ -256,7 +256,7 @@ ppp_modevent(module_t mod, int type, void *data)
 		/* XXX: layering violation */
 		pppasyncdetach();
 
-		unregister_netisr(NETISR_PPP);
+		netisr_unregister(NETISR_PPP);
 
 		if_clone_detach(&ppp_cloner);
 
@@ -1305,7 +1305,7 @@ ppp_inproc(sc, m)
     struct mbuf *m;
 {
     struct ifnet *ifp = &sc->sc_if;
-    struct ifqueue *inq;
+    int isr;
     int s, ilen = 0, xlen, proto, rv;
     u_char *cp, adrs, ctrl;
     struct mbuf *mp, *dmp = NULL;
@@ -1520,7 +1520,7 @@ ppp_inproc(sc, m)
     /* See if bpf wants to look at the packet. */
     BPF_MTAP(&sc->sc_if, m);
 
-    rv = 0;
+    isr = -1;
     switch (proto) {
 #ifdef INET
     case PPP_IP:
@@ -1538,8 +1538,7 @@ ppp_inproc(sc, m)
 	m->m_len -= PPP_HDRLEN;
 	if (ipflow_fastforward(m))
 	    return;
-	schednetisr(NETISR_IP);
-	inq = &ipintrq;
+	isr = NETISR_IP;
 	break;
 #endif
 #ifdef IPX
@@ -1556,8 +1555,7 @@ ppp_inproc(sc, m)
 	m->m_pkthdr.len -= PPP_HDRLEN;
 	m->m_data += PPP_HDRLEN;
 	m->m_len -= PPP_HDRLEN;
-	schednetisr(NETISR_IPX);
-	inq = &ipxintrq;
+	isr = NETISR_IPX;
 	sc->sc_last_recv = time_second;	/* update time of last pkt rcvd */
 	break;
 #endif
@@ -1566,15 +1564,14 @@ ppp_inproc(sc, m)
 	/*
 	 * Some other protocol - place on input queue for read().
 	 */
-	inq = &sc->sc_inq;
-	rv = 1;
 	break;
     }
 
-    /*
-     * Put the packet on the appropriate input queue.
-     */
-    if (! IF_HANDOFF(inq, m, NULL)) {
+    if (isr == -1)
+      rv = IF_HANDOFF(&sc->sc_inq, m, NULL);
+    else
+      rv = netisr_queue(isr, m);
+    if (rv) {
 	if (sc->sc_flags & SC_DEBUG)
 	    if_printf(ifp, "input queue full\n");
 	ifp->if_iqdrops++;
@@ -1584,7 +1581,7 @@ ppp_inproc(sc, m)
     ifp->if_ibytes += ilen;
     getmicrotime(&ifp->if_lastchange);
 
-    if (rv)
+    if (isr == -1)
 	(*sc->sc_ctlp)(sc);
 
     return;

@@ -161,7 +161,6 @@ idpip_input(m, ifp)
 {
 	register struct ip *ip;
 	register struct idp *idp;
-	register struct ifqueue *ifq = &nsintrq;
 	int len, s;
 
 	if (nsip_hold_input) {
@@ -220,9 +219,7 @@ idpip_input(m, ifp)
 	/*
 	 * Deliver to NS
 	 */
-	if (IF_HANDOFF(ifq, m, NULL))
-		schednetisr(NETISR_NS);
-	return;
+	netisr_dispatch(NETISR_NS, m);
 }
 
 /* ARGSUSED */

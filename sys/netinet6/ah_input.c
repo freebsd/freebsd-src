@@ -454,13 +454,12 @@ ah4_input(m, off)
 			goto fail;
 		}
 
-		if (! IF_HANDOFF(&ipintrq, m, NULL)) {
+		if (! netisr_queue(NETISR_IP, m)) {
 			ipsecstat.in_inval++;
 			m = NULL;
 			goto fail;
 		}
 		m = NULL;
-		schednetisr(NETISR_IP);	/* can be skipped but to make sure */
 		nxt = IPPROTO_DONE;
 	} else {
 		/*
@@ -852,13 +851,12 @@ ah6_input(mp, offp, proto)
 			goto fail;
 		}
 
-		if (! IF_HANDOFF(&ip6intrq, m, NULL)) {
+		if (! netisr_queue(NETISR_IPV6, m)) {
 			ipsec6stat.in_inval++;
 			m = NULL;
 			goto fail;
 		}
 		m = NULL;
-		schednetisr(NETISR_IPV6); /* can be skipped but to make sure */
 		nxt = IPPROTO_DONE;
 	} else {
 		/*

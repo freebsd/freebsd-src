@@ -47,9 +47,8 @@
 #endif
 
 static void netisr_poll(void);		/* the two netisr handlers      */
-void netisr_pollmore(void);
+static void netisr_pollmore(void);
 
-void init_device_poll(void);		/* init routine			*/
 void hardclock_device_poll(void);	/* hook from hardclock		*/
 void ether_poll(int);			/* polling while in trap	*/
 
@@ -183,14 +182,15 @@ struct pollrec {
 
 static struct pollrec pr[POLL_LIST_LEN];
 
-/*
- * register relevant netisr. Called from kern_clock.c:
- */
-void
+static void
 init_device_poll(void)
 {
-	register_netisr(NETISR_POLL, netisr_poll);
+
+	netisr_register(NETISR_POLL, (netisr_t *)netisr_poll, NULL);
+	netisr_register(NETISR_POLLMORE, (netisr_t *)netisr_pollmore, NULL);
 }
+SYSINIT(device_poll, SI_SUB_CLOCKS, SI_ORDER_MIDDLE, init_device_poll, NULL)
+
 
 /*
  * Hook from hardclock. Tries to schedule a netisr, but keeps track
@@ -236,7 +236,7 @@ hardclock_device_poll(void)
 		if (phase != 0)
 			suspect++;
 		phase = 1;
-		schednetisr(NETISR_POLL);
+		schednetisrbits(1 << NETISR_POLL | 1 << NETISR_POLLMORE);
 		phase = 2;
 	}
 	if (pending_polls++ > 0)
@@ -289,9 +289,9 @@ netisr_pollmore()
 
 	phase = 5;
 	if (residual_burst > 0) {
-		schednetisr(NETISR_POLL);
+		schednetisrbits(1 << NETISR_POLL | 1 << NETISR_POLLMORE);
 		/* will run immediately on return, followed by netisrs */
-		return ;
+		return;
 	}
 	/* here we can account time spent in netisr's in this tick */
 	microuptime(&t);
@@ -318,7 +318,7 @@ netisr_pollmore()
 		poll_burst -= (poll_burst / 8);
 		if (poll_burst < 1)
 			poll_burst = 1;
-		schednetisr(NETISR_POLL);
+		schednetisrbits(1 << NETISR_POLL | 1 << NETISR_POLLMORE);
 		phase = 6;
 	}
 }

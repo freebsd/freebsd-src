@@ -202,7 +202,6 @@ faithoutput(ifp, m, dst, rt)
 	struct rtentry *rt;
 {
 	int isr;
-	struct ifqueue *ifq = 0;
 
 	if ((m->m_flags & M_PKTHDR) == 0)
 		panic("faithoutput no HDR");
@@ -243,13 +242,11 @@ faithoutput(ifp, m, dst, rt)
 	switch (dst->sa_family) {
 #ifdef INET
 	case AF_INET:
-		ifq = &ipintrq;
 		isr = NETISR_IP;
 		break;
 #endif
 #ifdef INET6
 	case AF_INET6:
-		ifq = &ip6intrq;
 		isr = NETISR_IPV6;
 		break;
 #endif
@@ -263,8 +260,7 @@ faithoutput(ifp, m, dst, rt)
 	m->m_pkthdr.rcvif = ifp;
 	ifp->if_ipackets++;
 	ifp->if_ibytes += m->m_pkthdr.len;
-	(void) IF_HANDOFF(ifq, m, NULL);
-	schednetisr(isr);
+	netisr_dispatch(isr, m);
 	return (0);
 }
 

@@ -50,7 +50,6 @@
 #include <net/route.h>
 #include <net/raw_cb.h>
 #include <net/netisr.h>
-#include <net/intrq.h>
 
 #include <netns/ns.h>
 #include <netns/ns_if.h>
@@ -71,6 +70,7 @@ struct sockaddr_ns ns_netmask, ns_hostmask;
 
 static u_short allones[] = {-1, -1, -1};
 
+static struct ifqueue nsintrq;
 struct nspcb nspcb;
 struct nspcb nsrawpcb;
 
@@ -87,16 +87,15 @@ ns_init()
 	ns_broadnet = * (union ns_net *) allones;
 	nspcb.nsp_next = nspcb.nsp_prev = &nspcb;
 	nsrawpcb.nsp_next = nsrawpcb.nsp_prev = &nsrawpcb;
-	nsintrq.ifq_maxlen = nsqmaxlen;
-	mtx_init(&nsintrq.ifq_mtx, "ns_inq", NULL, MTX_DEF);
-	nsintrq_present = 1;
 	ns_pexseq = time.tv_usec;
 	ns_netmask.sns_len = 6;
 	ns_netmask.sns_addr.x_net = ns_broadnet;
 	ns_hostmask.sns_len = 12;
 	ns_hostmask.sns_addr.x_net = ns_broadnet;
 	ns_hostmask.sns_addr.x_host = ns_broadhost;
-	register_netisr(NETISR_NS, nsintr);
+	nsintrq.ifq_maxlen = nsqmaxlen;
+	mtx_init(&nsintrq.ifq_mtx, "ns_inq", NULL, MTX_DEF);
+	netisr_register(NETISR_NS, nsintr, &nsintrq);
 }
 
 /*
@@ -105,30 +104,23 @@ ns_init()
 int nsintr_getpck = 0;
 int nsintr_swtch = 0;
 void
-nsintr(void)
+nsintr(struct mbuf *m)
 {
 	register struct idp *idp;
-	register struct mbuf *m;
 	register struct nspcb *nsp;
 	register int i;
 	int len, s, error;
 	char oddpacketp;
 
-next:
 	/*
 	 * Get next datagram off input queue and get IDP header
 	 * in first mbuf.
 	 */
-	s = splimp();
-	IF_DEQUEUE(&nsintrq, m);
-	splx(s);
 	nsintr_getpck++;
-	if (m == 0)
-		return;
 	if ((m->m_flags & M_EXT || m->m_len < sizeof (struct idp)) &&
 	    (m = m_pullup(m, sizeof (struct idp))) == 0) {
 		idpstat.idps_toosmall++;
-		goto next;
+		return;
 	}
 
 	/*
@@ -173,7 +165,7 @@ next:
 			else
 				error = NS_ERR_BADSUM_T;
 			ns_error(m, error, 0);
-			goto next;
+			return;
 		}
 	}
 	/*
@@ -196,7 +188,7 @@ next:
 			 */
 			if (idp->idp_tc < NS_MAXHOPS) {
 				idp_forward(m);
-				goto next;
+				return;
 			}
 		}
 	/*
@@ -204,7 +196,7 @@ next:
 	 */
 	} else if (!ns_hosteqnh(ns_thishost,idp->idp_dna.x_host)) {
 		idp_forward(m);
-		goto next;
+		return;
 	}
 	/*
 	 * Locate pcb for datagram.
@@ -223,21 +215,21 @@ next:
 
 			    case NSPROTO_SPP:
 				    spp_input(m, nsp);
-				    goto next;
+				    return;
 
 			    case NSPROTO_ERROR:
 				    ns_err_input(m);
-				    goto next;
+				    return;
 			}
 		idp_input(m, nsp);
 	} else {
 		ns_error(m, NS_ERR_NOSOCK, 0);
 	}
-	goto next;
+	return;
 
 bad:
 	m_freem(m);
-	goto next;
+	return;
 }
 
 u_char nsctlerrmap[PRC_NCMDS] = {

@@ -460,7 +460,6 @@ do {								\
 	}							\
 } while (0)
 
-extern struct ifqueue ip6intrq;		/* IP6 packet input queue */
 extern struct in6_addr zeroin6_addr;
 extern u_char inet6ctlerrmap[];
 extern unsigned long in6_maxmtu;

@@ -393,7 +393,7 @@ iso88025_input(ifp, th, m)
 	struct iso88025_header *th;
 	struct mbuf *m;
 {
-	struct ifqueue *inq;
+	int isr;
 	struct llc *l;
 
 	if ((ifp->if_flags & IFF_UP) == 0) {
@@ -425,8 +425,7 @@ iso88025_input(ifp, th, m)
 
 		th->iso88025_shost[0] &= ~(TR_RII); 
 		m_adj(m, 3);
-		schednetisr(NETISR_IPX);
-		inq = &ipxintrq;
+		isr = NETISR_IPX;
 		break;
 #endif	/* IPX */
 	case LLC_SNAP_LSAP: {
@@ -448,30 +447,26 @@ iso88025_input(ifp, th, m)
 			th->iso88025_shost[0] &= ~(TR_RII); 
 			if (ipflow_fastforward(m))
 				return;
-			schednetisr(NETISR_IP);
-			inq = &ipintrq;
+			isr = NETISR_IP;
 			break;
 
 		case ETHERTYPE_ARP:
 			if (ifp->if_flags & IFF_NOARP)
 				goto dropanyway;
-			schednetisr(NETISR_ARP);
-			inq = &arpintrq;
+			isr = NETISR_ARP;
 			break;
 #endif	/* INET */
 #ifdef IPX_SNAP	/* XXX: Not supported! */
 		case ETHERTYPE_IPX:
 			th->iso88025_shost[0] &= ~(TR_RII); 
-			schednetisr(NETISR_IPX);
-			inq = &ipxintrq;
+			isr = NETISR_IPX;
 			break;
 #endif	/* IPX_SNAP */
 #ifdef NOT_YET
 #ifdef INET6
 		case ETHERTYPE_IPV6:
 			th->iso88025_shost[0] &= ~(TR_RII); 
-			schednetisr(NETISR_IPV6);
-			inq = &ip6intrq;
+			isr = NETISR_IPV6;
 			break;
 #endif	/* INET6 */
 #endif	/* NOT_YET */
@@ -543,7 +538,5 @@ iso88025_input(ifp, th, m)
 		m_freem(m);
 		return;
 	}
-
-	if (! IF_HANDOFF(inq, m, NULL))
-                printf("iso88025_input: Packet dropped (Queue full).\n");
+	netisr_dispatch(isr, m);
 }

@@ -614,8 +614,6 @@ in_stf_input(m, off)
 	struct ip *ip;
 	struct ip6_hdr *ip6;
 	u_int8_t otos, itos;
-	int len, isr;
-	struct ifqueue *ifq = NULL;
 	struct ifnet *ifp;
 
 	proto = mtod(m, struct ip *)->ip_p;
@@ -708,15 +706,9 @@ in_stf_input(m, off)
 	 * See net/if_gif.c for possible issues with packet processing
 	 * reorder due to extra queueing.
 	 */
-	ifq = &ip6intrq;
-	isr = NETISR_IPV6;
-
-	len = m->m_pkthdr.len;
-	if (! IF_HANDOFF(ifq, m, NULL))
-		return;
-	schednetisr(isr);
 	ifp->if_ipackets++;
-	ifp->if_ibytes += len;
+	ifp->if_ibytes += m->m_pkthdr.len;
+	netisr_dispatch(NETISR_IPV6, m);
 }
 
 /* ARGSUSED */

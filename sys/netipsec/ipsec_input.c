@@ -396,7 +396,7 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
 	/*
 	 * Re-dispatch via software interrupt.
 	 */
-	if (!IF_HANDOFF(&ipintrq, m, NULL)) {
+	if (!netisr_queue(NETISR_IP, m)) {
 		IPSEC_ISTAT(sproto, espstat.esps_qfull, ahstat.ahs_qfull,
 			    ipcompstat.ipcomps_qfull);
 
@@ -404,7 +404,6 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
 			"proto %u packet dropped\n", sproto));
 		return ENOBUFS;
 	}
-	schednetisr(NETISR_IP);
 	return 0;
 bad:
 	m_freem(m);

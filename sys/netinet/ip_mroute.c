@@ -33,6 +33,7 @@
 #include <sys/systm.h>
 #include <sys/time.h>
 #include <net/if.h>
+#include <net/netisr.h>
 #include <net/route.h>
 #include <netinet/in.h>
 #include <netinet/igmp.h>
@@ -554,13 +555,17 @@ mroute_encap_input(struct mbuf *m, int off)
 
     m->m_pkthdr.rcvif = last_encap_vif->v_ifp;
 
-    (void) IF_HANDOFF(&ipintrq, m, NULL);
+    netisr_queue(NETISR_IP, m);
     /*
      * normally we would need a "schednetisr(NETISR_IP)"
      * here but we were called by ip_input and it is going
      * to loop back & try to dequeue the packet we just
      * queued as soon as we return so we avoid the
      * unnecessary software interrrupt.
+     *
+     * XXX
+     * This no longer holds - we may have direct-dispatched the packet,
+     * or there may be a queue processing limit.
      */
 }
 

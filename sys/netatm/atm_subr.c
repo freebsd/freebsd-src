@@ -45,7 +45,6 @@
 #include <sys/socketvar.h>
 #include <net/if.h>
 #include <net/netisr.h>
-#include <net/intrq.h>
 #include <netatm/port.h>
 #include <netatm/queue.h>
 #include <netatm/atm.h>
@@ -77,6 +76,7 @@ int			atm_dev_print = 0;
 int			atm_print_data = 0;
 int			atm_version = ATM_VERSION;
 struct timeval		atm_debugtime = {0, 0};
+struct ifqueue		atm_intrq;
 
 uma_zone_t atm_attributes_zone;
 
@@ -84,6 +84,7 @@ uma_zone_t atm_attributes_zone;
  * Local functions
  */
 static KTimeout_ret	atm_timexp(void *);
+static void 		atm_intr(struct mbuf *);
 
 /*
  * Local variables
@@ -115,10 +116,6 @@ atm_initialize()
 		return;
 	atm_init = 1;
 
-	atm_intrq.ifq_maxlen = ATM_INTRQ_MAX;
-	mtx_init(&atm_intrq.ifq_mtx, "atm_inq", NULL, MTX_DEF);
-	atmintrq_present = 1;
-
 	atm_attributes_zone = uma_zcreate("atm attributes",
 	    sizeof(Atm_attributes), NULL, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, 0);
@@ -132,7 +129,9 @@ atm_initialize()
 		panic("atm_initialize: unable to create stackq zone");
 	uma_zone_set_max(atm_stackq_zone, 10);
 
-	register_netisr(NETISR_ATM, atm_intr);
+	atm_intrq.ifq_maxlen = ATM_INTRQ_MAX;
+	mtx_init(&atm_intrq.ifq_mtx, "atm_inq", NULL, MTX_DEF);
+	netisr_register(NETISR_ATM, atm_intr, &atm_intrq);
 
 	/*
 	 * Initialize subsystems
@@ -541,51 +540,37 @@ atm_stack_drain()
  *	none
  *
  */
-void
-atm_intr()
+static void
+atm_intr(struct mbuf *m)
 {
-	KBuffer		*m;
 	caddr_t		cp;
 	atm_intr_func_t	func;
 	void		*token;
-	int		s;
 
-	for (; ; ) {
-		/*
-		 * Get next buffer from queue
-		 */
-		s = splimp();
-		IF_DEQUEUE(&atm_intrq, m);
-		(void) splx(s);
-		if (m == NULL)
-			break;
-
-		/*
-		 * Get function to call and token value
-		 */
-		KB_DATASTART(m, cp, caddr_t);
-		func = *(atm_intr_func_t *)cp;
-		cp += sizeof(func);
-		token = *(void **)cp;
-		KB_HEADADJ(m, -(sizeof(func) + sizeof(token)));
-		if (KB_LEN(m) == 0) {
-			KBuffer		*m1;
-			KB_UNLINKHEAD(m, m1);
-			m = m1;
-		}
-
-		/*
-		 * Call processing function
-		 */
-		(*func)(token, m);
-
-		/*
-		 * Drain any deferred calls
-		 */
-		STACK_DRAIN();
+	/*
+	 * Get function to call and token value
+	 */
+	KB_DATASTART(m, cp, caddr_t);
+	func = *(atm_intr_func_t *)cp;
+	cp += sizeof(func);
+	token = *(void **)cp;
+	KB_HEADADJ(m, -(sizeof(func) + sizeof(token)));
+	if (KB_LEN(m) == 0) {
+		KBuffer		*m1;
+		KB_UNLINKHEAD(m, m1);
+		m = m1;
 	}
-}
 
+	/*
+	 * Call processing function
+	 */
+	(*func)(token, m);
+
+	/*
+	 * Drain any deferred calls
+	 */
+	STACK_DRAIN();
+}
 
 /*
  * Print a pdu buffer chain
