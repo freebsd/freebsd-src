@@ -133,7 +133,7 @@ MACHINE=`[ -f /bin/machine ] && /bin/machine`
 
 COMMAND=`echo $0 | sed -e 's,.*/,,'`
 USAGE="Usage: $COMMAND [-PVL] [-t address] [-f filename] [-s severity]
-       [-c address] [--version]"
+       [-c address] [-a file] [--version]"
 REMOVE=
 BATCH=
 CC=
@@ -165,6 +165,24 @@ while [ $# -gt 0 ]; do
     -l | -CL | --lisp) FORMAT=lisp ;;
     -h | --help) echo "$USAGE"; exit 0 ;;
     -V | --version) echo "$VERSION"; exit 0 ;;
+    -a | --attach) if [ -z "$2" ]; then
+	  echo "$USAGE" ; exit 1; 
+	fi
+	if [ -e "$2" -a ! -d "$2" ]; then
+	  if file $2 | grep "text" >/dev/null 2>/dev/null ; then
+	    ATTACHED_FILES="$ATTACHED_FILES
+--- $2 begins here ---
+`cat \"$2\"`
+--- $2 ends here ---
+"
+	  else
+	    ATTACHED_FILES="$ATTACHED_FILES
+`uuencode \"$2\" < \"$2\"`
+"
+	  fi
+	  shift;
+	fi;
+	;;
     -*) echo "$USAGE" ; exit 1 ;;
     *) if [ -z "$USER_GNATS_SITE" ]; then
 	 if [ ! -r "$DATADIR/gnats/$1" ]; then
@@ -334,6 +352,8 @@ X-GNATS-Notify:
 >Fix:
 
 	$FIX_C
+$ATTACHED_FILES
+
 __EOF__
 
     done
