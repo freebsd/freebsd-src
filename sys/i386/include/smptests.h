@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smptests.h,v 1.15 1997/07/18 19:47:48 smp Exp smp $
+ *	$Id: smptests.h,v 1.12 1997/07/18 21:26:09 fsmp Exp $
  */
 
 #ifndef _MACHINE_SMPTESTS_H_
@@ -41,6 +41,14 @@
 #define POST_ADDR		0x80
  */
 
+
+/*
+ * Use 'regular Int' method to connect external 8254 timer via IO APIC pin 0.
+ * See "Intel I486 Microprocessors and Related Products", page 4-292:
+ *       82489DX/8259A DUAL MODE CONNECTION
+ *
+ */
+#define APIC_PIN0_TIMER
 
 /*
  * Use non 'ExtInt' method of external (non-conected) 8254 timer
