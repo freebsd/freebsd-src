@@ -53,6 +53,7 @@
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/filio.h>
+#include <sys/sx.h>
 #include <sys/ttycom.h>
 #include <sys/conf.h>
 #include <sys/syslog.h>
