@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.17 1994/10/13 21:01:39 davidg Exp $
+ * $Id: vm_pageout.c,v 1.18 1994/10/15 13:33:08 davidg Exp $
  */
 
 /*
@@ -361,6 +361,7 @@ vm_pageout_object_deactivate_pages(map, object, count)
 	p = object->memq.tqh_first;
 	while (p && (rcount-- > 0)) {
 		next = p->listq.tqe_next;
+		cnt.v_pdpages++;
 		vm_page_lock_queues();
 		/*
 		 * if a page is active, not wired and is in the processes pmap,
@@ -614,6 +615,7 @@ rescan1:
 		(cnt.v_free_count < desired_free) ) {
 		vm_page_t	next;
 
+		cnt.v_pdpages++;
 		next = m->pageq.tqe_next;
 
 		if( (m->flags & PG_INACTIVE) == 0) {
@@ -727,6 +729,7 @@ rescan1:
 	m = vm_page_queue_active.tqh_first;
 	while (m && maxscan-- && (page_shortage > 0)) {
 
+		cnt.v_pdpages++;
 		next = m->pageq.tqe_next;
 
 		/*
@@ -836,6 +839,7 @@ vm_pageout()
 */
 		
 		tsleep((caddr_t) &vm_pages_needed, PVM, "psleep", 0);
+		cnt.v_pdwakeups++;
 	
 		vm_pager_sync();
 		/*
@@ -848,7 +852,6 @@ vm_pageout()
 		vm_pager_sync();
 		if( force_wakeup)
 			wakeup( (caddr_t) &cnt.v_free_count);
-		cnt.v_scan++;
 		wakeup((caddr_t) kmem_map);
 	}
 }
