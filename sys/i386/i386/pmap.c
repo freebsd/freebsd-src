@@ -1036,6 +1036,7 @@ pmap_new_thread(struct thread *td)
 			panic("pmap_new_thread: kstack allocation failed");
 		td->td_kstack = ks;
 	}
+	ptek = vtopte(ks);
 #endif
 	for (i = 0; i < KSTACK_PAGES; i++) {
 		/*
