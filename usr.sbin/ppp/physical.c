@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.c,v 1.13 1999/05/18 01:37:46 brian Exp $
+ *  $Id: physical.c,v 1.14 1999/05/24 16:39:12 brian Exp $
  *
  */
 
@@ -529,10 +529,10 @@ iov2physical(struct datalink *dl, struct iovec *iov, int *niov, int maxiov,
   p->type = PHYS_DIRECT;
   p->dl = dl;
   len = strlen(_PATH_DEV);
-  p->name.base = strncmp(p->name.full, _PATH_DEV, len) ?
-                        p->name.full : p->name.full + len;
   p->out = NULL;
   p->connect_count = 1;
+
+  physical_SetDevice(p, p->name.full);
 
   p->link.lcp.fsm.bundle = dl->bundle;
   p->link.lcp.fsm.link = &p->link;
@@ -804,8 +804,10 @@ physical_SetDevice(struct physical *p, const char *name)
 {
   int len = strlen(_PATH_DEV);
 
-  strncpy(p->name.full, name, sizeof p->name.full - 1);
-  p->name.full[sizeof p->name.full - 1] = '\0';
+  if (name != p->name.full) {
+    strncpy(p->name.full, name, sizeof p->name.full - 1);
+    p->name.full[sizeof p->name.full - 1] = '\0';
+  }
   p->name.base = *p->name.full == '!' ?  p->name.full + 1 :
                  strncmp(p->name.full, _PATH_DEV, len) ?
                  p->name.full : p->name.full + len;
