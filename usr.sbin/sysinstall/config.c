@@ -537,6 +537,52 @@ configOSF1(dialogMenuItem *self)
 #endif
 
 int
+configSecurelevel(dialogMenuItem *self)
+{
+    WINDOW *w = savescr();
+
+    dialog_clear_norefresh();
+    dmenuOpenSimple(&MenuSecurelevel, FALSE);
+    restorescr(w);
+    return DITEM_SUCCESS;
+}
+
+int
+configSecurelevelDisabled(dialogMenuItem *self)
+{
+
+    variable_set2("kern_securelevel_enable", "NO", 1);
+    return DITEM_SUCCESS;
+}
+
+int
+configSecurelevelSecure(dialogMenuItem *self)
+{
+
+    variable_set2("kern_securelevel_enable", "YES", 1);
+    variable_set2("kern_securelevel", "1", 1);
+    return DITEM_SUCCESS;
+}
+
+int
+configSecurelevelHighlySecure(dialogMenuItem *self)
+{
+
+    variable_set2("kern_securelevel_enable", "YES", 1);
+    variable_set2("kern_securelevel", "2", 1);
+    return DITEM_SUCCESS;
+}
+
+int
+configSecurelevelNetworkSecure(dialogMenuItem *self)
+{
+
+    variable_set2("kern_securelevel_enable", "YES", 1);
+    variable_set2("kern_securelevel", "3", 1);
+    return DITEM_SUCCESS;
+}
+
+int
 configSecurity(dialogMenuItem *self)
 {
     WINDOW *w = savescr();
