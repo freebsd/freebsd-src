@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)pstat.c	8.16 (Berkeley) 5/9/95";
 #endif
 static const char rcsid[] =
-	"$Id: pstat.c,v 1.38 1999/01/21 08:08:55 dillon Exp $";
+	"$Id: pstat.c,v 1.39 1999/01/22 10:36:48 dillon Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -1043,7 +1043,7 @@ swapmode(void)
 	    kd, 
 	    kswap,
 	    sizeof(kswap)/sizeof(kswap[0]),
-	    (swapflag > 1) ? SWIF_DUMP_TREE : 0
+	    ((swapflag > 1) ? SWIF_DUMP_TREE : 0) | SWIF_DEV_PREFIX
 	);
 
 #define CONVERT(v)	((int)((quad_t)(v) * pagesize / blocksize))
@@ -1056,7 +1056,7 @@ swapmode(void)
 
 		for (i = 0; i < n; ++i) {
 			(void)printf(
-			    "/dev/%-6s %*d ",
+			    "%-11s %*d ",
 			    kswap[i].ksw_devname,
 			    hlen,
 			    CONVERT(kswap[i].ksw_total)
