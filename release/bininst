@@ -13,7 +13,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: bininst,v 1.42 1994/11/18 11:01:22 jkh Exp $
+# $Id: bininst,v 1.43 1994/11/18 12:54:37 jkh Exp $
 
 if [ "$_BININST_LOADED_" = "yes" ]; then
 	echo "Error, $0 loaded more than once!"
@@ -60,7 +60,7 @@ hard disk partition or floppies).  If you're installing over a network,
 make sure your cables are plugged in and ready to go.  If you're
 installing from tape, CD or floppies, now would be a good time to
 remember where you put the distribution media! :-)  If you're set and
-ready to go, please press return!" -1 -1
+ready to go, please remove the cpio floppy from the drive and press return!" -1 -1
 }
 
 do_last_config()
