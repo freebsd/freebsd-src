@@ -1,11 +1,11 @@
 # $FreeBSD$
 
 .PATH: ${.CURDIR}/../../dev/random
-.PATH: ${.CURDIR}/../../crypto/blowfish
+.PATH: ${.CURDIR}/../../crypto/rijndael
 
 KMOD=	random
 SRCS=	randomdev.c yarrow.c hash.c
-SRCS+=	bf_cbc.c bf_skey.c bf_enc.c
+SRCS+=	rijndael-alg-fst.c rijndael-api-fst.c
 SRCS+=	bus_if.h device_if.h vnode_if.h
 NOMAN=	yes
 
