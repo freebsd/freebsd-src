@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-all.c,v 1.2 1999/03/03 21:10:29 sos Exp $
+ *	$Id: atapi-all.c,v 1.3 1999/03/05 09:43:30 sos Exp $
  */
 
 #include "ata.h"
@@ -49,7 +49,7 @@
 
 /* prototypes */
 static void atapi_attach(void *);
-static int32_t atapi_get_param(struct atapi_softc *);
+static int32_t atapi_getparam(struct atapi_softc *);
 static int8_t *atapi_type(int32_t);
 #ifdef ATAPI_DEBUG
 static int8_t *atapi_cmd2str(u_int8_t);
@@ -85,7 +85,7 @@ atapi_attach(void *notused)
                 bzero(atp, sizeof(struct atapi_softc));
                 atp->controller = atadevices[ctlr];
                 atp->unit = (dev) ? ATA_SLAVE : ATA_MASTER;
-                if (atapi_get_param(atp)) {
+                if (atapi_getparam(atp)) {
                     free(atp, M_DEVBUF);
                     continue;
                 }
@@ -110,7 +110,6 @@ atapi_attach(void *notused)
 #endif
 notfound:
 		default:
-		    free(atp, M_DEVBUF);
 	            bpack(atp->atapi_parm->model, model_buf, sizeof(model_buf));
 		    bpack(atp->atapi_parm->revision, revision_buf, 
 		          sizeof(revision_buf));
@@ -120,6 +119,7 @@ notfound:
 		           atapi_type(atp->atapi_parm->device_type),
 		           ctlr,
 		           (dev) ? "slave" : "master ");
+		    free(atp, M_DEVBUF);
 		}
             }
 	}
@@ -128,7 +128,7 @@ notfound:
 }
 
 static int32_t
-atapi_get_param(struct atapi_softc *atp)
+atapi_getparam(struct atapi_softc *atp)
 {
     struct atapi_params	*atapi_parm;
     int8_t buffer[DEV_BSIZE];
@@ -157,7 +157,7 @@ atapi_get_param(struct atapi_softc *atp)
 
 int32_t   
 atapi_queue_cmd(struct atapi_softc *atp, int8_t *ccb, void *data, 
-		int32_t count, int32_t flags,
+		int32_t count, int32_t flags, /*timeout,*/
 		atapi_callback_t callback, void *driver, struct buf *bp)
 {
     struct atapi_request *request;
@@ -191,7 +191,7 @@ atapi_queue_cmd(struct atapi_softc *atp, int8_t *ccb, void *data,
         ata_start(atp->controller);
     if (!callback) {
     	/* wait for command to complete */
-    	if (tsleep((caddr_t)request, PRIBIO, "atprq", 100))
+    	if (tsleep((caddr_t)request, PRIBIO, "atprq", 0/*timeout*/))
 	    error = 0xf0;
 	else
     	    error = request->result;
@@ -239,7 +239,7 @@ atapi_transfer(struct atapi_request *request)
     if (timeout <= 0) {
 	atp->controller->error = inb(atp->controller->ioaddr + ATA_ERROR);
 	printf("atapi_transfer: bad command phase\n");
-	/* now what ?? SOS atapi-done & again */
+	/* now what ?? done & again ?? SOS */
     }
 
     /* this seems to be needed for some (slow) devices */
@@ -250,7 +250,7 @@ atapi_transfer(struct atapi_request *request)
 	  request->ccbsize / sizeof(int16_t));
 }
 
-void
+int32_t
 atapi_interrupt(struct atapi_request *request)
 {
     struct atapi_softc *atp;
@@ -266,7 +266,7 @@ printf("atapi_interrupt: enter\n");
     if (atapi_wait(atp->controller, 0) < 0) {
         printf("atapi_interrupt: timeout waiting for status");
 	/* maybe check sense code ??  SOS */
-	return;
+	return ATA_OP_FINISHED;
     }
     atp->controller->status = inb(atp->controller->ioaddr + ATA_STATUS); 
     atp->controller->error = inb(atp->controller->ioaddr + ATA_ERROR);
@@ -289,7 +289,7 @@ printf("atapi_interrupt: length=%d reason=0x%02x\n", length, reason);
 	else
     	    outsw(atp->controller->ioaddr + ATA_DATA, request->ccb,
                   request->ccbsize / sizeof(int16_t));
-	return;
+	return ATA_OP_CONTINUES;
 	
     case ATAPI_P_WRITE:
 	if (request->flags & A_READ) {
@@ -312,7 +312,7 @@ printf("atapi_interrupt: length=%d reason=0x%02x\n", length, reason);
 	}
 	request->bytecount -= length;
 	request->data += length;
-	return;
+	return ATA_OP_CONTINUES;
 	
     case ATAPI_P_READ:
         if (!(request->flags & A_READ)) {
@@ -335,7 +335,7 @@ printf("atapi_interrupt: length=%d reason=0x%02x\n", length, reason);
         }
 	request->bytecount -= length;
 	request->data += length;
-        return;
+        return ATA_OP_CONTINUES;
 
     case ATAPI_P_ABORT:
     case ATAPI_P_DONE:
@@ -353,7 +353,7 @@ printf("atapi_interrupt: length=%d reason=0x%02x\n", length, reason);
 #endif
 	break;
     default:
-	printf("atapi_interrupt: unknown transfer phase\n");
+	printf("atapi_interrupt: unknown transfer phase %d\n", reason);
     }
 
     TAILQ_REMOVE(&atp->controller->atapi_queue, request, chain);
@@ -366,8 +366,7 @@ printf("atapi_interrupt: error=0x%02x\n", request->result);
     }
     else
 	wakeup((caddr_t)request);	
-    atp->controller->active = ATA_IDLE;
-    ata_start(atp->controller);
+    return ATA_OP_FINISHED;
 }
 
 void 
@@ -459,6 +458,7 @@ atapi_wait(struct ata_softc *scp, u_int8_t mask)
         status = inb(scp->ioaddr + ATA_STATUS);
         if ((status == 0xff) && (scp->flags & ATA_F_SLAVE_ONLY)) {
             outb(scp->ioaddr + ATA_DRIVE, ATA_D_IBM | ATA_SLAVE);
+	    DELAY(1);
             status = inb(scp->ioaddr + ATA_STATUS);
         }
 
