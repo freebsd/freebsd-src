@@ -32,7 +32,7 @@
 .\"     From: @(#)mtree.8	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd February 26, 1999
+.Dd January 11, 2004
 .Dt MTREE 8
 .Os
 .Sh NAME
@@ -40,7 +40,7 @@
 .Nd map a directory hierarchy
 .Sh SYNOPSIS
 .Nm
-.Op Fl LPUcdeinqrux
+.Op Fl LPUcdeinqruxw
 .Bk -words
 .Op Fl f Ar spec
 .Ek
@@ -79,8 +79,8 @@ Follow all symbolic links in the file hierarchy.
 Don't follow symbolic links in the file hierarchy, instead consider
 the symbolic link itself in any comparisons. This is the default.
 .It Fl U
-Modify the owner, group, permissions, and modification time of existing 
-files to match the specification and create any missing directories or 
+Modify the owner, group, permissions, and modification time of existing
+files to match the specification and create any missing directories or
 symbolic links.
 User, group and permissions must all be specified for missing directories
 to be created.
