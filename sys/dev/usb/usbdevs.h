@@ -122,6 +122,7 @@
 #define	USB_VENDOR_STMICRO	0x0483		/* STMicroelectronics */
 #define	USB_VENDOR_YAMAHA	0x0499		/* YAMAHA */
 #define	USB_VENDOR_COMPAQ	0x049f		/* Compaq Computers */
+#define	USB_VENDOR_HITACHI	0x04a4		/* Hitachi, Ltd. */
 #define	USB_VENDOR_ACERP	0x04a5		/* Acer Peripherals */
 #define	USB_VENDOR_VISIONEER	0x04a7		/* Visioneer */
 #define	USB_VENDOR_CANON	0x04a9		/* Canon */
@@ -273,6 +274,7 @@
 #define	USB_VENDOR_COREGA	0x07aa		/* Corega */
 #define	USB_VENDOR_FREECOM	0x07ab		/* Freecom */
 #define	USB_VENDOR_MICROTECH	0x07af		/* Microtech */
+#define	USB_VENDOR_GENERALINSTMNTS	0x07b2		/* General Instruments (Motorola) */
 #define	USB_VENDOR_OLYMPUS	0x07b4		/* Olympus */
 #define	USB_VENDOR_ABOCOM	0x07b8		/* AboCom Systems */
 #define	USB_VENDOR_KEISOKUGIKEN	0x07c1		/* Keisokugiken */
@@ -462,6 +464,7 @@
 
 /* Asahi Optical products */
 #define	USB_PRODUCT_ASAHIOPTICAL_OPTIO230	0x0004		/* Digital camera */
+#define	USB_PRODUCT_ASAHIOPTICAL_OPTIO330	0x0006		/* Digital camera */
 
 /* ASIX Electronics products */
 #define	USB_PRODUCT_ASIX_AX88172	0x1720		/* USB 2.0 10/100 ethernet controller */
@@ -499,9 +502,11 @@
 #define	USB_PRODUCT_BTC_BTC7932	0x6782		/* Keyboard with mouse port */
 
 /* Canon, Inc. products */
-#define	USB_PRODUCT_CANON_N656U	0x2206		/* CANOSCAN N656U */
+#define	USB_PRODUCT_CANON_N656U	0x2206		/* CanoScan N656U */
+#define	USB_PRODUCT_CANON_N1240U	0x220e		/* CanoScan N1240U */
 #define	USB_PRODUCT_CANON_S10	0x3041		/* PowerShot S10 */
 #define	USB_PRODUCT_CANON_S100	0x3045		/* PowerShot S100 */
+#define	USB_PRODUCT_CANON_S200	0x3065		/* PowerShot S200 */
 
 /* CATC products */
 #define	USB_PRODUCT_CATC_NETMATE	0x000a		/* Netmate ethernet adapter */
@@ -612,10 +617,11 @@
 #define	USB_PRODUCT_EPSON_1600	0x0107		/* Expression 1600 scanner */
 #define	USB_PRODUCT_EPSON_1640	0x010a		/* Perfection 1640SU scanner */
 #define	USB_PRODUCT_EPSON_1240	0x010b		/* Perfection 1240U / 1240Photo scanner */
-#define	USB_PRODUCT_EPSON_1250	0x010f		/* Perfection 1250U / 1250Photo scanner */
 #define	USB_PRODUCT_EPSON_640U	0x010c		/* Perfection 640U scanner */
+#define	USB_PRODUCT_EPSON_1250	0x010f		/* Perfection 1250U / 1250Photo scanner */
 #define	USB_PRODUCT_EPSON_1650	0x0110		/* Perfection 1650 scanner */
 #define	USB_PRODUCT_EPSON_GT9700F	0x0112		/* GT-9700F scanner */
+#define	USB_PRODUCT_EPSON_GT9300UF	0x011b		/* GT-9300UF scanner */
 #define	USB_PRODUCT_EPSON_1260	0x011d		/* Perfection 1260 scanner */
 #define	USB_PRODUCT_EPSON_1660	0x011e		/* Perfection 1660 scanner */
 
@@ -650,6 +656,9 @@
 /* Fujitsu protducts */
 #define	USB_PRODUCT_FUJITSU_AH_F401U	0x105b		/* AH-F401U Air H device */
 
+/* General Instruments (Motorola) products */
+#define	USB_PRODUCT_GENERALINSTMNTS_SB5100	0x5100		/* SURFboard SB5100 Cable modem */
+
 /* Genesys Logic products */
 #define	USB_PRODUCT_GENESYS_GL650	0x0604		/* GL650 Hub */
 #define	USB_PRODUCT_GENESYS_GL641USB	0x0700		/* GL641USB CompactFlash Card Reader */
@@ -665,6 +674,9 @@
 
 /* Hauppauge Computer Works */
 #define	USB_PRODUCT_HAUPPAUGE_WINTV_USB_FM	0x4d12		/* WinTV USB FM */
+
+/* Hitachi, Ltd. products */
+#define	USB_PRODUCT_HITACHI_DVDCAM_USB	0x001e		/* DVDCAM USB HS Interface */
 
 /* HP products */
 #define	USB_PRODUCT_HP_895C	0x0004		/* DeskJet 895C */
@@ -817,6 +829,7 @@
 #define	USB_PRODUCT_LOGITECH_WMJOY	0xc281		/* WingMan Force joystick */
 #define	USB_PRODUCT_LOGITECH_RK53	0xc501		/* Cordless mouse */
 #define	USB_PRODUCT_LOGITECH_RB6	0xc503		/* Cordless keyboard */
+#define	USB_PRODUCT_LOGITECH_MX700	0xc506		/* Cordless optical mouse */
 #define	USB_PRODUCT_LOGITECH_QUICKCAMPRO2	0xd001		/* QuickCam Pro */
 
 /* Lucent products */
@@ -850,8 +863,9 @@
 #define	USB_PRODUCT_MICROSOFT_NATURALKBD	0x000b		/* Natural Keyboard Elite */
 #define	USB_PRODUCT_MICROSOFT_DDS80	0x0014		/* Digital Sound System 80 */
 #define	USB_PRODUCT_MICROSOFT_SIDEWINDER	0x001a		/* Sidewinder Precision Racing Wheel */
+#define	USB_PRODUCT_MICROSOFT_INETPRO	0x001c		/* Internet Keyboard Pro */
 #define	USB_PRODUCT_MICROSOFT_INTELLIEYE	0x0025		/* IntelliEye mouse */
-#define	USB_PRODUCT_MICROSOFT_INETPRO	0x002b		/* Internet Keyboard Pro */
+#define	USB_PRODUCT_MICROSOFT_INETPRO2	0x002b		/* Internet Keyboard Pro */
 
 /* Microtech products */
 #define	USB_PRODUCT_MICROTECH_SCSIDB25	0x0004		/* USB-SCSI-DB25 */
@@ -1041,6 +1055,7 @@
 #define	USB_PRODUCT_SHUTTLE_EUSCSI_B	0x000b		/* eUSCSI Bridge */
 #define	USB_PRODUCT_SHUTTLE_EUSCSI_C	0x000c		/* eUSCSI Bridge */
 #define	USB_PRODUCT_SHUTTLE_CDRW	0x0101		/* CD-RW Device */
+#define	USB_PRODUCT_SHUTTLE_EUSBORCA	0x0325		/* eUSB ORCA Quad Reader */
 
 /* Siemens products */
 #define	USB_PRODUCT_SIEMENS_SPEEDSTREAM	0x1001		/* SpeedStream USB */
@@ -1158,6 +1173,7 @@
 #define	USB_PRODUCT_WACOM_CT0405U	0x0000		/* CT-0405-U Tablet */
 #define	USB_PRODUCT_WACOM_GRAPHIRE	0x0010		/* Graphire */
 #define	USB_PRODUCT_WACOM_INTUOSA5	0x0021		/* Intuos A5 */
+#define	USB_PRODUCT_WACOM_GD0912U	0x0022		/* Intuos 9x12 Graphics Tablet */
  
 /* Xirlink products */
 #define	USB_PRODUCT_XIRLINK_PCCAM	0x8080		/* IBM PC Camera */

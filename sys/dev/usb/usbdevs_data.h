@@ -394,6 +394,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    "Digital camera",
 	},
 	{
+	    USB_VENDOR_ASAHIOPTICAL, USB_PRODUCT_ASAHIOPTICAL_OPTIO330,
+	    0,
+	    "Asahi Optical",
+	    "Digital camera",
+	},
+	{
 	    USB_VENDOR_ASIX, USB_PRODUCT_ASIX_AX88172,
 	    0,
 	    "ASIX Electronics",
@@ -505,7 +511,13 @@ struct usb_knowndev usb_knowndevs[] = {
 	    USB_VENDOR_CANON, USB_PRODUCT_CANON_N656U,
 	    0,
 	    "Canon",
-	    "CANOSCAN N656U",
+	    "CanoScan N656U",
+	},
+	{
+	    USB_VENDOR_CANON, USB_PRODUCT_CANON_N1240U,
+	    0,
+	    "Canon",
+	    "CanoScan N1240U",
 	},
 	{
 	    USB_VENDOR_CANON, USB_PRODUCT_CANON_S10,
@@ -518,6 +530,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    0,
 	    "Canon",
 	    "PowerShot S100",
+	},
+	{
+	    USB_VENDOR_CANON, USB_PRODUCT_CANON_S200,
+	    0,
+	    "Canon",
+	    "PowerShot S200",
 	},
 	{
 	    USB_VENDOR_CATC, USB_PRODUCT_CATC_NETMATE,
@@ -910,16 +928,16 @@ struct usb_knowndev usb_knowndevs[] = {
 	    "Perfection 1240U / 1240Photo scanner",
 	},
 	{
-	    USB_VENDOR_EPSON, USB_PRODUCT_EPSON_1250,
-	    0,
-	    "Seiko Epson",
-	    "Perfection 1250U / 1250Photo scanner",
-	},
-	{
 	    USB_VENDOR_EPSON, USB_PRODUCT_EPSON_640U,
 	    0,
 	    "Seiko Epson",
 	    "Perfection 640U scanner",
+	},
+	{
+	    USB_VENDOR_EPSON, USB_PRODUCT_EPSON_1250,
+	    0,
+	    "Seiko Epson",
+	    "Perfection 1250U / 1250Photo scanner",
 	},
 	{
 	    USB_VENDOR_EPSON, USB_PRODUCT_EPSON_1650,
@@ -932,6 +950,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    0,
 	    "Seiko Epson",
 	    "GT-9700F scanner",
+	},
+	{
+	    USB_VENDOR_EPSON, USB_PRODUCT_EPSON_GT9300UF,
+	    0,
+	    "Seiko Epson",
+	    "GT-9300UF scanner",
 	},
 	{
 	    USB_VENDOR_EPSON, USB_PRODUCT_EPSON_1260,
@@ -1012,6 +1036,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    "AH-F401U Air H device",
 	},
 	{
+	    USB_VENDOR_GENERALINSTMNTS, USB_PRODUCT_GENERALINSTMNTS_SB5100,
+	    0,
+	    "General Instruments (Motorola)",
+	    "SURFboard SB5100 Cable modem",
+	},
+	{
 	    USB_VENDOR_GENESYS, USB_PRODUCT_GENESYS_GL650,
 	    0,
 	    "Genesys Logic",
@@ -1058,6 +1088,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    0,
 	    "Hauppauge Computer Works",
 	    "WinTV USB FM",
+	},
+	{
+	    USB_VENDOR_HITACHI, USB_PRODUCT_HITACHI_DVDCAM_USB,
+	    0,
+	    "Hitachi, Ltd.",
+	    "DVDCAM USB HS Interface",
 	},
 	{
 	    USB_VENDOR_HP, USB_PRODUCT_HP_895C,
@@ -1684,6 +1720,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    "Cordless keyboard",
 	},
 	{
+	    USB_VENDOR_LOGITECH, USB_PRODUCT_LOGITECH_MX700,
+	    0,
+	    "Logitech",
+	    "Cordless optical mouse",
+	},
+	{
 	    USB_VENDOR_LOGITECH, USB_PRODUCT_LOGITECH_QUICKCAMPRO2,
 	    0,
 	    "Logitech",
@@ -1798,13 +1840,19 @@ struct usb_knowndev usb_knowndevs[] = {
 	    "Sidewinder Precision Racing Wheel",
 	},
 	{
+	    USB_VENDOR_MICROSOFT, USB_PRODUCT_MICROSOFT_INETPRO,
+	    0,
+	    "Microsoft",
+	    "Internet Keyboard Pro",
+	},
+	{
 	    USB_VENDOR_MICROSOFT, USB_PRODUCT_MICROSOFT_INTELLIEYE,
 	    0,
 	    "Microsoft",
 	    "IntelliEye mouse",
 	},
 	{
-	    USB_VENDOR_MICROSOFT, USB_PRODUCT_MICROSOFT_INETPRO,
+	    USB_VENDOR_MICROSOFT, USB_PRODUCT_MICROSOFT_INETPRO2,
 	    0,
 	    "Microsoft",
 	    "Internet Keyboard Pro",
@@ -2488,6 +2536,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    "CD-RW Device",
 	},
 	{
+	    USB_VENDOR_SHUTTLE, USB_PRODUCT_SHUTTLE_EUSBORCA,
+	    0,
+	    "Shuttle Technology",
+	    "eUSB ORCA Quad Reader",
+	},
+	{
 	    USB_VENDOR_SIEMENS, USB_PRODUCT_SIEMENS_SPEEDSTREAM,
 	    0,
 	    "Siemens",
@@ -2860,6 +2914,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    "Intuos A5",
 	},
 	{
+	    USB_VENDOR_WACOM, USB_PRODUCT_WACOM_GD0912U,
+	    0,
+	    "WACOM",
+	    "Intuos 9x12 Graphics Tablet",
+	},
+	{
 	    USB_VENDOR_XIRLINK, USB_PRODUCT_XIRLINK_PCCAM,
 	    0,
 	    "Xirlink",
@@ -3181,6 +3241,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    USB_VENDOR_COMPAQ, 0,
 	    USB_KNOWNDEV_NOPROD,
 	    "Compaq Computers",
+	    NULL,
+	},
+	{
+	    USB_VENDOR_HITACHI, 0,
+	    USB_KNOWNDEV_NOPROD,
+	    "Hitachi, Ltd.",
 	    NULL,
 	},
 	{
@@ -4087,6 +4153,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    USB_VENDOR_MICROTECH, 0,
 	    USB_KNOWNDEV_NOPROD,
 	    "Microtech",
+	    NULL,
+	},
+	{
+	    USB_VENDOR_GENERALINSTMNTS, 0,
+	    USB_KNOWNDEV_NOPROD,
+	    "General Instruments (Motorola)",
 	    NULL,
 	},
 	{
