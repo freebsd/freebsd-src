@@ -64,11 +64,12 @@
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
  *
- * $Id: swap_pager.c,v 1.122 1999/08/17 04:02:32 alc Exp $
+ * $Id: swap_pager.c,v 1.123 1999/08/17 05:56:00 alc Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/buf.h>
@@ -131,7 +132,7 @@ SYSCTL_INT(_vm, OID_AUTO, swap_async_max,
 #define NOBJLISTS		8
 
 #define NOBJLIST(handle)	\
-	(&swap_pager_object_list[((int)(long)handle >> 4) & (NOBJLISTS-1)])
+	(&swap_pager_object_list[((int)(intptr_t)handle >> 4) & (NOBJLISTS-1)])
 
 static struct pagerlst	swap_pager_object_list[NOBJLISTS];
 struct pagerlst		swap_pager_un_object_list;
@@ -1175,9 +1176,9 @@ swap_pager_getpages(object, m, count, reqpage)
 		if (tsleep(mreq, PSWP, "swread", hz*20)) {
 			printf(
 			    "swap_pager: indefinite wait buffer: device:"
-				" %#lx, blkno: %ld, size: %ld\n",
-			    (u_long)bp->b_dev, (long)bp->b_blkno,
-			    (long)bp->b_bcount
+				" %s, blkno: %ld, size: %ld\n",
+			    devtoname(bp->b_dev), (long)bp->b_blkno,
+			    bp->b_bcount
 			);
 		}
 	}
@@ -1712,7 +1713,7 @@ swp_pager_hash(vm_object_t object, daddr_t index)
 	struct swblock *swap;
 
 	index &= ~SWAP_META_MASK;
-	pswap = &swhash[(index ^ (int)(long)object) & swhash_mask];
+	pswap = &swhash[(index ^ (int)(intptr_t)object) & swhash_mask];
 
 	while ((swap = *pswap) != NULL) {
 		if (swap->swb_object == object &&
