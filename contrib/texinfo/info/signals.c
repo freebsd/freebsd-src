@@ -66,7 +66,7 @@ typedef RETSIGTYPE signal_handler ();
 
 static RETSIGTYPE info_signal_handler ();
 static signal_handler *old_TSTP, *old_TTOU, *old_TTIN;
-static signal_handler *old_WINCH, *old_INT;
+static signal_handler *old_WINCH, *old_INT, *old_CONT;
 
 void
 initialize_info_signal_handler ()
@@ -79,6 +79,9 @@ initialize_info_signal_handler ()
 
 #if defined (SIGWINCH)
   old_WINCH = (signal_handler *) signal (SIGWINCH, info_signal_handler);
+#if defined (SIGCONT)
+  old_CONT = (signal_handler *) signal (SIGCONT, info_signal_handler);
+#endif /* SIGCONT */
 #endif
 
 #if defined (SIGINT)
@@ -146,6 +149,15 @@ info_signal_handler (sig)
       break;
 
 #if defined (SIGWINCH)
+#if defined(SIGCONT)
+    case SIGCONT:
+      if (old_CONT)
+	(void)(old_CONT)(sig);
+      /* pretend a SIGWINCH in case the terminal window size has changed
+	 while we've been asleep */
+      /* FALLTROUGH */
+#endif /* defined(SIGCONT) */
+
     case SIGWINCH:
       {
         /* Turn off terminal IO, tell our parent that the window has changed,
