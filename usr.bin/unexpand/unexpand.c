@@ -32,24 +32,33 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1980, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)unexpand.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
  * unexpand - put tabs into a file replacing blanks
  */
+#include <err.h>
 #include <stdio.h>
 
 char	genbuf[BUFSIZ];
 char	linebuf[BUFSIZ];
 int	all;
 
+static void usage __P((void));
+void tabify __P((char));
+
+void
 main(argc, argv)
 	int argc;
 	char *argv[];
@@ -58,19 +67,15 @@ main(argc, argv)
 
 	argc--, argv++;
 	if (argc > 0 && argv[0][0] == '-') {
-		if (strcmp(argv[0], "-a") != 0) {
-			fprintf(stderr, "usage: unexpand [ -a ] file ...\n");
-			exit(1);
-		}
+		if (strcmp(argv[0], "-a") != 0)
+			usage();
 		all++;
 		argc--, argv++;
 	}
 	do {
 		if (argc > 0) {
-			if (freopen(argv[0], "r", stdin) == NULL) {
-				perror(argv[0]);
-				exit(1);
-			}
+			if (freopen(argv[0], "r", stdin) == NULL)
+				err(1, "%s", argv[0]);
 			argc--, argv++;
 		}
 		while (fgets(genbuf, BUFSIZ, stdin) != NULL) {
@@ -85,6 +90,14 @@ main(argc, argv)
 	exit(0);
 }
 
+static void
+usage()
+{
+	fprintf(stderr, "usage: unexpand [-a] file ...\n");
+	exit(1);
+}
+
+void
 tabify(c)
 	char c;
 {
