@@ -4,7 +4,7 @@
 
      $Id$
      $FreeBSD$
-     Original revision: 1.22.2.301
+     Original revision: 1.22.2.303
 -->
 
 <articleinfo>
@@ -143,7 +143,12 @@
     <sect3>
       <title>Disques et Stockage</title>
 
-      <para></para>
+      <para arch="i386,pc98">Le gestionnaire de p&eacute;riph&eacute;rique
+      &man.matcd.4; a &eacute;t&eacute; retir&eacute; du &agrave; des
+      probl&egrave;mes de license. (Ceci est intervenu dans
+      &release.prev;, mais n'a pas &eacute;t&eacute; mentionn&eacute;
+      dans les notes de version.)</para>
+
 
     </sect3>
 
@@ -196,7 +201,8 @@
     <sect3>
       <title>Logiciels externes</title>
 
-      <para></para>
+      <para><application>cvs</application> a &eacute;t&eacute; mis
+      &agrave; jour en version 1.11.2.</para>
 
     </sect3>
 
