@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 # -*- perl -*-
-# Copyright 1995, 1996 Guy Helmer, Madison, South Dakota 57042.
+# Copyright 1995, 1996, 1997 Guy Helmer, Ames, Iowa 50014.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -28,9 +28,9 @@
 #
 # rmuser - Perl script to remove users
 #
-# Guy Helmer <ghelmer@alpha.dsu.edu>, 07/17/96
+# Guy Helmer <ghelmer@cs.iastate.edu>, 02/23/97
 #
-#	$Id: removeuser.perl,v 1.2 1996/08/11 13:03:25 wosch Exp $
+#	$Id: rmuser.perl,v 1.1 1996/11/17 03:51:33 wosch Exp $
 
 sub LOCK_SH {0x01;}
 sub LOCK_EX {0x02;}
@@ -48,6 +48,7 @@ $new_group_file = "${group_file}.new.$$";
 $mail_dir = "/var/mail";
 $crontab_dir = "/var/cron/tabs";
 $atjob_dir = "/var/at/jobs";
+$affirm = 0;
 
 #$debug = 1;
 
@@ -72,7 +73,7 @@ sub lockpw {
     fcntl(MASTER_PW, &F_SETFD, 1);
     # Apply an advisory lock the password file
     if (!flock(MASTER_PW, &LOCK_EX|&LOCK_NB)) {
-	print STDERR "Couldn't lock ${passwd_file}: $!\n";
+	print STDERR "${whoami}: Error: Couldn't lock ${passwd_file}: $!\n";
 	exit(1);
     }
 }
@@ -86,8 +87,13 @@ $SIG{'QUIT'} = 'cleanup';
 $SIG{'HUP'} = 'cleanup';
 $SIG{'TERM'} = 'cleanup';
 
+if ($#ARGV == 1 && $ARGV[0] eq '-y') {
+    shift @ARGV;
+    $affirm = 1;
+}
+
 if ($#ARGV > 0) {
-    print STDERR "usage: ${whoami} [username]\n";
+    print STDERR "usage: ${whoami} [-y] [username]\n";
     exit(1);
 }
 
@@ -101,7 +107,14 @@ if ($< != 0) {
 if ($#ARGV == 0) {
     # Username was given as a parameter
     $login_name = pop(@ARGV);
+    die "Sorry, login name must contain alphanumeric characters only.\n"
+	if ($login_name !~ /^[a-z0-9_][a-z0-9_\-]*$/);
 } else {
+    if ($affirm) {
+	print STDERR "${whoami}: Error: -y option given without username!\n";
+	&unlockpw;
+	exit 1;
+    }
     # Get the user name from the user
     $login_name = &get_login_name;
 }
@@ -116,19 +129,21 @@ if (($pw_ent = &check_login_name($login_name)) eq '0') {
  $shell) = split(/:/, $pw_ent);
 
 if ($uid == 0) {
-    print "${whoami}: Sorry, I'd rather not remove a user with a uid of 0.\n";
+    print "${whoami}: Error: I'd rather not remove a user with a uid of 0.\n";
     &unlockpw;
     exit 1;
 }
 
-print "Matching password entry:\n\n$pw_ent\n\n";
+if (! $affirm) {
+    print "Matching password entry:\n\n$pw_ent\n\n";
 
-$ans = &get_yn("Is this the entry you wish to remove? ");
+    $ans = &get_yn("Is this the entry you wish to remove? ");
 
-if ($ans eq 'N') {
-    print "User ${login_name} not removed.\n";
-    &unlockpw;
-    exit 0;
+    if ($ans eq 'N') {
+	print "${whoami}: Informational: User ${login_name} not removed.\n";
+	&unlockpw;
+	exit 0;
+    }
 }
 
 #
@@ -147,21 +162,24 @@ if (-l $home_dir) {
 # If home_dir is a symlink and points to something that isn't a directory,
 # or if home_dir is not a symlink and is not a directory, don't remove
 # home_dir -- seems like a good thing to do, but probably isn't necessary...
+
 if (((-l $home_dir) && ((-e $real_home_dir) && !(-d $real_home_dir))) ||
     (!(-l $home_dir) && !(-d $home_dir))) {
-    print STDERR "${whoami}: Home ${home_dir} is not a directory, so it won't be removed\n";
+    print STDERR "${whoami}: Informational: Home ${home_dir} is not a directory, so it won't be removed\n";
     $remove_directory = 0;
 }
 
 if (length($real_home_dir) && -d $real_home_dir) {
     $dir_owner = (stat($real_home_dir))[4]; # UID
     if ($dir_owner != $uid) {
-	print STDERR "${whoami}: Home dir ${real_home_dir} is not owned by ${login_name} (uid ${dir_owner})\n";
+	print STDERR "${whoami}: Informational: Home dir ${real_home_dir} is" .
+	    " not owned by ${login_name} (uid ${dir_owner})\n," .
+		"\tso it won't be removed\n";
 	$remove_directory = 0;
     }
 }
 
-if ($remove_directory) {
+if ($remove_directory && ! $affirm) {
     $ans = &get_yn("Remove user's home directory ($home_dir)? ");
     if ($ans eq 'N') {
 	$remove_directory = 0;
@@ -187,6 +205,11 @@ if (-e "$crontab_dir/$login_name") {
 &remove_at_jobs($login_name, $uid);
 
 #
+# Kill all the user's processes
+
+&kill_users_processes($login_name, $uid);
+
+#
 # Copy master password file to new file less removed user's entry
 
 &update_passwd_file;
@@ -206,14 +229,38 @@ if ($remove_directory) {
 }
 
 #
-# Remove the user's incoming mail file
+# Remove files related to the user from the mail directory
 
-if (-e "$mail_dir/$login_name" || -l "$mail_dir/$login_name") {
-    print STDERR "Removing user's incoming mail file ($mail_dir/$login_name):";
-    unlink "$mail_dir/$login_name" ||
-	print STDERR "\n${whoami}: warning: unlink on $mail_dir/$login_name failed ($!) - continuing\n";
+#&remove_files_from_dir($mail_dir, $login_name, $uid);
+$file = "$mail_dir/$login_name";
+if (-e $file || -l $file) {
+    print STDERR "Removing user's incoming mail file ${file}:";
+    unlink $file ||
+	print STDERR "\n${whoami}: Warning: unlink on $file failed ($!) - continuing\n";
     print STDERR " done.\n";
 }
+
+#
+# Remove some pop daemon's leftover file
+
+$file = "$mail_dir/.${login_name}.pop";
+if (-e $file || -l $file) {
+    print STDERR "Removing pop daemon's temporary mail file ${file}:";
+    unlink $file ||
+	print STDERR "\n${whoami}: Warning: unlink on $file failed ($!) - continuing\n";
+    print STDERR " done.\n";
+}
+
+#
+# Remove files belonging to the user from the directories /tmp, /var/tmp,
+# and /var/tmp/vi.recover.  Note that this doesn't take care of the
+# problem where a user may have directories or symbolic links in those
+# directories -- only regular files are removed.
+
+&remove_files_from_dir('/tmp', $login_name, $uid);
+&remove_files_from_dir('/var/tmp', $login_name, $uid);
+&remove_files_from_dir('/var/tmp/vi.recover', $login_name, $uid)
+    if (-e '/var/tmp/vi.recover');
 
 #
 # All done!
@@ -229,7 +276,7 @@ sub get_login_name {
 	print "Enter login name for user to remove: ";
 	$login_name = <>;
 	chop $login_name;
-	if (!($login_name =~ /[A-Za-z0-9_]/)) {
+	if (!($login_name =~ /^[a-z0-9_][a-z0-9_\-]*$/)) {
 	    print STDERR "Sorry, login name must contain alphanumeric characters only.\n";
 	} elsif (length($login_name) > 8 || length($login_name) == 0) {
 	    print STDERR "Sorry, login name must be eight characters or less.\n";
@@ -294,7 +341,7 @@ sub update_passwd_file {
     open(NEW_PW, ">$new_passwd_file") ||
 	die "\n${whoami}: Error: Couldn't open file ${new_passwd_file}:\n $!\n";
     chmod(0600, $new_passwd_file) ||
-	print STDERR "\n${whoami}: warning: couldn't set mode of $new_passwd_file to 0600 ($!)\n\tcontinuing, but please check mode of /etc/master.passwd!\n";
+	print STDERR "\n${whoami}: Warning: couldn't set mode of $new_passwd_file to 0600 ($!)\n\tcontinuing, but please check mode of /etc/master.passwd!\n";
     $skipped = 0;
     while ($i = <MASTER_PW>) {
 	if ($i =~ /\n$/) {
@@ -313,7 +360,7 @@ sub update_passwd_file {
     if ($skipped == 0) {
 	print STDERR "\n${whoami}: Whoops! Didn't find ${login_name}'s entry second time around!\n";
 	unlink($new_passwd_file) ||
-	    print STDERR "\n${whoami}: warning: couldn't unlink $new_passwd_file ($!)\n\tPlease investigate, as this file should not be left in the filesystem\n";
+	    print STDERR "\n${whoami}: Warning: couldn't unlink $new_passwd_file ($!)\n\tPlease investigate, as this file should not be left in the filesystem\n";
 	&unlockpw;
 	exit 1;
     }
@@ -331,9 +378,10 @@ sub update_passwd_file {
 sub update_group_file {
     local($login_name) = @_;
 
-    local($i, $j, $grmember_list, $new_grent);
+    local($i, $j, $grmember_list, $new_grent, $changes);
     local($grname, $grpass, $grgid, $grmember_list, @grmembers);
 
+    $changes = 0;
     print STDERR "Updating group file:";
     open(GROUP, $group_file) ||
 	die "\n${whoami}: Error: couldn't open ${group_file}: $!\n";
@@ -346,9 +394,9 @@ sub update_group_file {
     open(NEW_GROUP, ">$new_group_file") ||
 	die "\n${whoami}: Error: couldn't open ${new_group_file}: $!\n";
     chmod($group_perms, $new_group_file) ||
-	printf STDERR "\n${whoami}: warning: could not set permissions of new group file to %o ($!)\n\tContinuing, but please check permissions of $group_file!\n", $group_perms;
+	printf STDERR "\n${whoami}: Warning: could not set permissions of new group file to %o ($!)\n\tContinuing, but please check permissions of $group_file!\n", $group_perms;
     chown($group_uid, $group_gid, $new_group_file) ||
-	print STDERR "\n${whoami}: warning: could not set owner/group of new group file to ${group_uid}/${group_gid} ($!)\n\rContinuing, but please check ownership of $group_file!\n";
+	print STDERR "\n${whoami}: Warning: could not set owner/group of new group file to ${group_uid}/${group_gid} ($!)\n\rContinuing, but please check ownership of $group_file!\n";
     while ($i = <GROUP>) {
 	if (!($i =~ /$login_name/)) {
 	    # Line doesn't contain any references to the user, so just add it
@@ -366,14 +414,16 @@ sub update_group_file {
 	    local(@new_grmembers);
 	    foreach $j (@grmembers) {
 		if ($j ne $login_name) {
-		    push(new_grmembers, $j);
-		} elsif ($debug) {
-		    print STDERR "Removing $login_name from group $grname\n";
+		    push(@new_grmembers, $j);
+		} else {
+		    print STDERR " $grname";
+		    $changes = 1;
 		}
 	    }
 	    if ($grname eq $login_name && $#new_grmembers == -1) {
 		# Remove a user's personal group if empty
-		print STDERR "Removing group $grname -- personal group is empty\n";
+		print STDERR " (removing group $grname -- personal group is empty)";
+		$changes = 1;
 	    } else {
 		$grmember_list = join(',', @new_grmembers);
 		$new_grent = join(':', $grname, $grpass, $grgid, $grmember_list);
@@ -383,8 +433,9 @@ sub update_group_file {
     }
     close(NEW_GROUP);
     rename($new_group_file, $group_file) || # Replace old group file with new
-	die "\n${whoami}: error: couldn't rename $new_group_file to $group_file ($!)\n";
+	die "\n${whoami}: Error: couldn't rename $new_group_file to $group_file ($!)\n";
     close(GROUP);			# File handle is worthless now
+    print STDERR " (no changes)" if (! $changes);
     print STDERR " done.\n";
 }
 
@@ -412,6 +463,36 @@ sub remove_dir {
 	return;
     }
     system('/bin/rm', '-rf', $dir);
+}
+
+sub remove_files_from_dir {
+    local($dir, $login_name, $uid) = @_;
+    local($path, $i, $owner);
+
+    print STDERR "Removing files belonging to ${login_name} from ${dir}:";
+
+    if (!opendir(DELDIR, $dir)) {
+	print STDERR "\n${whoami}: Warning: couldn't open directory ${dir} ($!)\n";
+	return;
+    }
+    while ($i = readdir(DELDIR)) {
+	next if $i eq '.';
+	next if $i eq '..';
+
+	$owner = (stat("$dir/$i"))[4]; # UID
+	if ($uid == $owner) {
+	    if (-f "$dir/$i") {
+		print STDERR " $i";
+		unlink "$dir/$i" ||
+		    print STDERR "\n${whoami}: Warning: unlink on ${dir}/${i} failed ($!) - continuing\n";
+	    } else {
+		print STDERR " ($i not a regular file - skipped)";
+	    }
+	}
+    }
+    closedir(DELDIR);
+
+    printf STDERR " done.\n";
 }
 
 sub remove_at_jobs {
@@ -459,4 +540,37 @@ sub resolvelink {
 	}
     }
     return $path;
+}
+
+sub kill_users_processes {
+    local($login_name, $uid) = @_;
+    local($pid, $result);
+
+    #
+    # Do something a little complex: fork a child that changes its
+    # real and effective UID to that of the removed user, then issues
+    # a "kill(9, -1)" to kill all processes of the same uid as the sender
+    # (see kill(2) for details).
+    # The parent waits for the exit of the child and then returns.
+
+    if ($pid = fork) {
+	# Parent process
+	waitpid($pid, 0);
+    } elsif (defined $pid) {
+	# Child process
+	$< = $uid;
+	$> = $uid;
+	if ($< != $uid || $> != $uid) {
+	    print STDERR "${whoami}: Error (kill_users_processes):\n" .
+		"\tCouldn't reset uid/euid to ${uid}: current uid/euid's are $< and $>\n";
+	    exit 1;
+	}
+	$result = kill(9, -1);
+	print STDERR "Killed process(es) belonging to $login_name.\n"
+	    if $result;
+	exit 0;
+    } else {
+	# Couldn't fork!
+	print STDERR "${whoami}: Error: couldn't fork to kill ${login_name}'s processes - continuing\n";
+    }
 }
