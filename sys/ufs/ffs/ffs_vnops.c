@@ -178,14 +178,7 @@ ffs_fsync(ap)
 	ufs_lbn_t lbn;
 
 	wait = (ap->a_waitfor == MNT_WAIT);
-	if (vn_isdisk(vp, NULL)) {
-		lbn = INT_MAX;
-		if (vp->v_rdev->si_mountpoint != NULL &&
-		    (vp->v_rdev->si_mountpoint->mnt_flag & MNT_SOFTDEP))
-			softdep_fsync_mountdev(vp);
-	} else {
-		lbn = lblkno(ip->i_fs, (ip->i_size + ip->i_fs->fs_bsize - 1));
-	}
+	lbn = lblkno(ip->i_fs, (ip->i_size + ip->i_fs->fs_bsize - 1));
 
 	/*
 	 * Flush all dirty buffers associated with a vnode.
@@ -225,8 +218,6 @@ loop:
 		VI_UNLOCK(vp);
 		if ((bp->b_flags & B_DELWRI) == 0)
 			panic("ffs_fsync: not dirty");
-		if (vp != bp->b_vp)
-			panic("ffs_fsync: vp != vp->b_vp");
 		/*
 		 * If this is a synchronous flush request, or it is not a
 		 * file or device, start the write on this buffer immediatly.
@@ -1212,7 +1203,7 @@ ffs_close_ea(struct vnode *vp, int commit, struct ucred *cred, struct thread *td
 }
 
 /*
- * Vnode extattr strategy routine for special devices and fifos.
+ * Vnode extattr strategy routine for fifos.
  *
  * We need to check for a read or write of the external attributes.
  * Otherwise we just fall through and do the usual thing.

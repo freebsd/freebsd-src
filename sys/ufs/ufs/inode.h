@@ -123,6 +123,7 @@ struct inode {
 #define	IN_SPACECOUNTED	0x0080		/* Blocks to be freed in free count. */
 
 #define i_devvp i_ump->um_devvp
+#define i_umbufobj i_ump->um_bo
 #define i_dirhash i_un.dirhash
 #define i_snapblklist i_un.snapblklist
 #define i_din1 dinode_u.din1
