@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact_aout.c,v 1.49 1999/04/03 22:20:01 jdp Exp $
+ *	$Id: imgact_aout.c,v 1.50 1999/05/09 16:04:06 peter Exp $
  */
 
 #include <sys/param.h>
@@ -190,7 +190,7 @@ exec_aout_imgact(imgp)
 		file_offset,
 		virtual_offset, text_end,
 		VM_PROT_READ | VM_PROT_EXECUTE, VM_PROT_ALL,
-		MAP_COPY_NEEDED | MAP_COPY_ON_WRITE);
+		MAP_COPY_ON_WRITE);
 	if (error) {
 		vm_map_unlock(map);
 		return (error);
@@ -202,7 +202,7 @@ exec_aout_imgact(imgp)
 			file_offset + a_out->a_text,
 			text_end, data_end,
 			VM_PROT_ALL, VM_PROT_ALL,
-			MAP_COPY_NEEDED | MAP_COPY_ON_WRITE);
+			MAP_COPY_ON_WRITE);
 		if (error) {
 			vm_map_unlock(map);
 			return (error);

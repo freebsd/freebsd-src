@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.159 1999/03/27 23:46:04 alc Exp $
+ * $Id: vm_map.c,v 1.160 1999/04/04 07:11:02 alc Exp $
  */
 
 /*
@@ -462,11 +462,9 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		return (KERN_NO_SPACE);
 
 	protoeflags = 0;
-	if (cow & MAP_COPY_NEEDED)
-		protoeflags |= MAP_ENTRY_NEEDS_COPY;
 
 	if (cow & MAP_COPY_ON_WRITE)
-		protoeflags |= MAP_ENTRY_COW;
+		protoeflags |= MAP_ENTRY_COW|MAP_ENTRY_NEEDS_COPY;
 
 	if (cow & MAP_NOFAULT)
 		protoeflags |= MAP_ENTRY_NOFAULT;
@@ -2806,7 +2804,7 @@ vm_uiomove(mapa, srcobject, cp, cnta, uaddra, npages)
 			ooffset = cp;
 
 			rv = vm_map_insert(map, object, ooffset, start, tend,
-				VM_PROT_ALL, VM_PROT_ALL, MAP_COPY_ON_WRITE|MAP_COPY_NEEDED);
+				VM_PROT_ALL, VM_PROT_ALL, MAP_COPY_ON_WRITE);
 
 			if (rv != KERN_SUCCESS)
 				panic("vm_uiomove: could not insert new entry: %d", rv);
