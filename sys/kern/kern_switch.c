@@ -220,8 +220,6 @@ kse_reassign(struct kse *ke)
 		kg->kg_last_assigned = td;
 		td->td_kse = ke;
 		ke->ke_thread = td;
-		if (td->td_proc->p_sflag & PS_NEEDSIGCHK)
-			td->td_flags |= TDF_ASTPENDING;
 		sched_add(ke);
 		CTR2(KTR_RUNQ, "kse_reassign: ke%p -> td%p", ke, td);
 		return;
