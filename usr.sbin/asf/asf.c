@@ -99,7 +99,7 @@ usage(char *myname)
 	"Usage:\n"
 	"%s [-a] [-k] [-t] [modules-path [outfile]]\n\n"
 	"\t-a\tappend to outfile)\n"
-	"\t-k\ttake input from kldstat(8)\n",
+	"\t-k\ttake input from kldstat(8)\n"
 	"\t-x\tdon't append \".debug\" to module name\n",
 	myname);
 }
