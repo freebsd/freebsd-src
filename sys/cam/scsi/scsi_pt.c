@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_pt.c,v 1.10 1999/05/31 11:24:07 phk Exp $
+ *      $Id: scsi_pt.c,v 1.11 1999/08/17 20:25:47 billf Exp $
  */
 
 #include <sys/param.h>
@@ -37,6 +37,7 @@
 #include <sys/devicestat.h>
 #include <sys/malloc.h>
 #include <sys/conf.h>
+#include <sys/ptio.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
@@ -48,6 +49,8 @@
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_message.h>
 #include <cam/scsi/scsi_pt.h>
+
+#include "opt_pt.h"
 
 typedef enum {
 	PT_STATE_PROBE,
@@ -79,6 +82,7 @@ struct pt_softc {
 	pt_state state;
 	pt_flags flags;	
 	union	 ccb saved_ccb;
+	int	 io_timeout;
 };
 
 static	d_open_t	ptopen;
@@ -93,6 +97,7 @@ static	periph_dtor_t	ptdtor;
 static	periph_start_t	ptstart;
 static	void		ptdone(struct cam_periph *periph,
 			       union ccb *done_ccb);
+static	d_ioctl_t	ptioctl;
 static  int		pterror(union ccb *ccb, u_int32_t cam_flags,
 				u_int32_t sense_flags);
 
@@ -117,7 +122,7 @@ static struct cdevsw pt_cdevsw = {
 	/* close */	ptclose,
 	/* read */	physread,
 	/* write */	physwrite,
-	/* ioctl */	noioctl,
+	/* ioctl */	ptioctl,
 	/* stop */	nostop,
 	/* reset */	noreset,
 	/* devtotty */	nodevtotty,
@@ -135,6 +140,10 @@ static struct cdevsw pt_cdevsw = {
 };
 
 static struct extend_array *ptperiphs;
+
+#ifndef SCSI_PT_DEFAULT_TIMEOUT
+#define SCSI_PT_DEFAULT_TIMEOUT		60
+#endif
 
 static int
 ptopen(dev_t dev, int flags, int fmt, struct proc *p)
@@ -338,6 +347,8 @@ ptctor(struct cam_periph *periph, void *arg)
 	LIST_INIT(&softc->pending_ccbs);
 	softc->state = PT_STATE_NORMAL;
 	bufq_init(&softc->buf_queue);
+
+	softc->io_timeout = SCSI_PT_DEFAULT_TIMEOUT * 1000;
 
 	periph->softc = softc;
 	
@@ -543,7 +554,7 @@ ptstart(struct cam_periph *periph, union ccb *start_ccb)
 				  bp->b_bcount,
 				  bp->b_data,
 				  /*sense_len*/SSD_FULL_SIZE,
-				  /*timeout*/10000);
+				  /*timeout*/softc->io_timeout);
 
 		start_ccb->ccb_h.ccb_state = PT_CCB_BUFFER_IO;
 
@@ -692,6 +703,58 @@ pterror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 
 	return(cam_periph_error(ccb, cam_flags, sense_flags,
 				&softc->saved_ccb));
+}
+
+static int
+ptioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
+{
+	struct cam_periph *periph;
+	struct pt_softc *softc;
+	int unit;
+	int error;
+
+	unit = minor(dev);
+	periph = cam_extend_get(ptperiphs, unit);
+
+	if (periph == NULL)
+		return(ENXIO);
+
+	softc = (struct pt_softc *)periph->softc;
+
+	if ((error = cam_periph_lock(periph, PRIBIO|PCATCH)) != 0) {
+		return (error); /* error code from tsleep */
+	}	
+
+	switch(cmd) {
+	case PTIOCGETTIMEOUT:
+		if (softc->io_timeout >= 1000)
+			*(int *)addr = softc->io_timeout / 1000;
+		else
+			*(int *)addr = 0;
+		break;
+	case PTIOCSETTIMEOUT:
+	{
+		int s;
+
+		if (*(int *)addr < 1) {
+			error = EINVAL;
+			break;
+		}
+
+		s = splsoftcam();
+		softc->io_timeout = *(int *)addr * 1000;
+		splx(s);
+
+		break;
+	}
+	default:
+		error = cam_periph_ioctl(periph, cmd, addr, pterror);
+		break;
+	}
+
+	cam_periph_unlock(periph);
+
+	return(error);
 }
 
 void
