@@ -899,21 +899,15 @@ int
 yield(struct thread *td, struct yield_args *uap)
 {
 	struct ksegrp *kg = td->td_ksegrp;
-	td->td_retval[0] = 0;
 
-	mtx_lock_spin(&sched_lock);
 	mtx_assert(&Giant, MA_NOTOWNED);
-#if 0
-	DROP_GIANT_NOSWITCH();
-#endif
+	mtx_lock_spin(&sched_lock);
 	kg->kg_pri.pri_level = PRI_MAX_TIMESHARE;
 	setrunqueue(td);
 	kg->kg_proc->p_stats->p_ru.ru_nvcsw++;
 	mi_switch();
 	mtx_unlock_spin(&sched_lock);
-#if 0
-	PICKUP_GIANT();
-#endif
+	td->td_retval[0] = 0;
 
 	return (0);
 }
