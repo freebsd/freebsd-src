@@ -159,8 +159,8 @@
 	END(fusufault)
 	
 LEAF(fswintrberr, 0)
-XLEAF(fuswintr, 2)				/* XXX what is a 'word'? */
-XLEAF(suswintr, 2)				/* XXX what is a 'word'? */
+XLEAF(fuswintr, 2)			/* XXX 16 bit short for profiling */
+XLEAF(suswintr, 2)			/* XXX 16 bit short for profiling */
 	LDGP(pv)
 	ldiq	v0, -1
 	RET
