@@ -1,10 +1,10 @@
 # Swedish/DIS 8859-15 (backward compatible with ASCII)
 #
-# (Based on the German de_DE.DIS_8859-15)
+# (Based on the German de_DE.ISO_8859-15)
 #
 # $FreeBSD$
 #
-charmap map.DIS_8859-15
+charmap map.ISO_8859-15
 order \
 # controls
 	<NU>;...;<US>;<PA>;...;<AC>;\
