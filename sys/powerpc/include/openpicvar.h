@@ -33,6 +33,7 @@ struct openpic_softc {
 	char		*sc_version;
 	u_int		sc_ncpu;
 	u_int		sc_nirq;
+	int             sc_psim;
 	struct		rman sc_rman;
 };
 
