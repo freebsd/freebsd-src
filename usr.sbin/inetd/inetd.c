@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: inetd.c	8.4 (Berkeley) 4/13/94";
 #endif
 static const char rcsid[] =
-	"$Id: inetd.c,v 1.56 1999/06/30 23:47:46 sheldonh Exp $";
+	"$Id: inetd.c,v 1.57 1999/07/02 16:21:13 sheldonh Exp $";
 #endif /* not lint */
 
 /*
@@ -147,7 +147,7 @@ static const char rcsid[] =
 #endif
 
 #define ISWRAP(sep)	\
-	   ( ((wrap && !(sep)->se_bi) || (wrap_bi && (sep)->se_bi)) \
+	   ( ((wrap_ex && !(sep)->se_bi) || (wrap_bi && (sep)->se_bi)) \
 	&& ( ((sep)->se_accept && (sep)->se_socktype == SOCK_STREAM) \
 	    || (sep)->se_socktype == SOCK_DGRAM))
 
@@ -181,7 +181,7 @@ static const char rcsid[] =
 
 int	allow_severity;
 int	deny_severity;
-int	wrap = 0;
+int	wrap_ex = 0;
 int	wrap_bi = 0;
 int	debug = 0;
 int	log = 0;
@@ -373,7 +373,7 @@ main(argc, argv, envp)
 	openlog("inetd", LOG_PID | LOG_NOWAIT, LOG_DAEMON);
 
 	bind_address.s_addr = htonl(INADDR_ANY);
-	while ((ch = getopt(argc, argv, "dlwR:a:c:C:p:")) != -1)
+	while ((ch = getopt(argc, argv, "dlwWR:a:c:C:p:")) != -1)
 		switch(ch) {
 		case 'd':
 			debug = 1;
@@ -405,14 +405,15 @@ main(argc, argv, envp)
 			pid_file = optarg;
 			break;
 		case 'w':
-			if (wrap++)
-				wrap_bi++;
+			wrap_ex++;
+			break;
+		case 'W':
+			wrap_bi++;
 			break;
 		case '?':
 		default:
 			syslog(LOG_ERR,
-				"usage: inetd [-dl] [-w [-w]] [-a address]"
-				" [-R rate]"
+				"usage: inetd [-dlwW] [-a address] [-R rate]"
 				" [-c maximum] [-C rate]"
 				" [-p pidfile] [conf-file]");
 			exit(EX_USAGE);
