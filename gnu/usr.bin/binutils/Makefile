@@ -3,7 +3,7 @@
 #
 
 SUBDIR=		libiberty libbfd libopcodes libbinutils \
-		addr2line ar as ld nm objcopy objdump ranlib \
+		addr2line ar as gasp ld nm objcopy objdump ranlib \
 		size strings strip doc
 
 # Maybe should be unconditional but I don't want to get in the
