@@ -69,12 +69,12 @@ static SPACE HS, PS, SS;
 #define	hs		HS.space
 #define	hsl		HS.len
 
-static inline int	 applies __P((struct s_command *));
-static void		 flush_appends __P((void));
-static void		 lputs __P((char *));
-static inline int	 regexec_e __P((regex_t *, const char *, int, int, size_t));
-static void		 regsub __P((SPACE *, char *, char *));
-static int		 substitute __P((struct s_command *));
+static inline int	 applies(struct s_command *);
+static void		 flush_appends(void);
+static void		 lputs(char *);
+static inline int	 regexec_e(regex_t *, const char *, int, int, size_t);
+static void		 regsub(SPACE *, char *, char *);
+static int		 substitute(struct s_command *);
 
 struct s_appends *appends;	/* Array of pointers to strings to append. */
 static int appendx;		/* Index into appends array. */
@@ -87,7 +87,7 @@ static regex_t *defpreg;
 size_t maxnsub;
 regmatch_t *match;
 
-#define OUT(s) { fwrite(s, sizeof(u_char), psl, stdout); }
+#define OUT(s) { fwrite(s, sizeof(u_char), psl, stdout); putchar('\n'); }
 
 void
 process()
@@ -96,8 +96,6 @@ process()
 	SPACE tspace;
 	size_t len, oldpsl = 0;
 	char *p;
-
-	p = NULL;
 
 	for (linenum = 0; mf_fgets(&PS, REPLACE);) {
 		pd = 0;
@@ -152,14 +150,14 @@ redirect:
 				cspace(&PS, hs, hsl, REPLACE);
 				break;
 			case 'G':
-				if (hs == NULL)
-					cspace(&HS, "\n", 1, REPLACE);
+				cspace(&PS, "\n", 1, 0);
 				cspace(&PS, hs, hsl, 0);
 				break;
 			case 'h':
 				cspace(&HS, ps, psl, REPLACE);
 				break;
 			case 'H':
+				cspace(&HS, "\n", 1, 0);
 				cspace(&HS, ps, psl, 0);
 				break;
 			case 'i':
@@ -178,6 +176,7 @@ redirect:
 				break;
 			case 'N':
 				flush_appends();
+				cspace(&PS, "\n", 1, 0);
 				if (!mf_fgets(&PS, 0)) {
 					if (!nflag && !pd)
 						OUT(ps)
@@ -195,7 +194,7 @@ redirect:
 				if (psl != 0 &&
 				    (p = memchr(ps, '\n', psl - 1)) != NULL) {
 					oldpsl = psl;
-					psl = (p + 1) - ps;
+					psl = p - ps;
 				}
 				OUT(ps)
 				if (p != NULL)
@@ -234,12 +233,11 @@ redirect:
 				    O_WRONLY|O_APPEND|O_CREAT|O_TRUNC,
 				    DEFFILEMODE)) == -1)
 					err(1, "%s", cp->t);
-				if (write(cp->u.fd, ps, psl) != psl)
+				if (write(cp->u.fd, ps, psl) != psl ||
+				    write(cp->u.fd, "\n", 1) != 1)
 					err(1, "%s", cp->t);
 				break;
 			case 'x':
-				if (hs == NULL)
-					cspace(&HS, "\n", 1, REPLACE);
 				tspace = PS;
 				PS = HS;
 				HS = tspace;
@@ -363,6 +361,9 @@ substitute(cp)
 				s += match[0].rm_eo;
 				slen -= match[0].rm_eo;
 				lastempty = 0;
+			} else if (match[0].rm_so == slen) {
+				s += match[0].rm_so;
+				slen = 0;
 			} else {
 				if (match[0].rm_so == 0)
 					cspace(&SS, s, match[0].rm_so + 1,
@@ -419,7 +420,8 @@ substitute(cp)
 		if (cp->u.s->wfd == -1 && (cp->u.s->wfd = open(cp->u.s->wfile,
 		    O_WRONLY|O_APPEND|O_CREAT|O_TRUNC, DEFFILEMODE)) == -1)
 			err(1, "%s", cp->u.s->wfile);
-		if (write(cp->u.s->wfd, ps, psl) != psl)
+		if (write(cp->u.s->wfd, ps, psl) != psl ||
+		    write(cp->u.s->wfd, "\n", 1) != 1)
 			err(1, "%s", cp->u.s->wfile);
 	}
 	return (1);
@@ -447,7 +449,7 @@ flush_appends()
 			 * Read files probably shouldn't be cached.  Since
 			 * it's not an error to read a non-existent file,
 			 * it's possible that another program is interacting
-			 * with the sed script through the file system.  It
+			 * with the sed script through the filesystem.  It
 			 * would be truly bizarre, but possible.  It's probably
 			 * not that big a performance win, anyhow.
 			 */
@@ -465,15 +467,15 @@ flush_appends()
 
 static void
 lputs(s)
-	register char *s;
+	char *s;
 {
-	register int count;
-	register char *escapes, *p;
+	int count;
+	char *escapes, *p;
 	struct winsize win;
 	static int termwidth = -1;
 
 	if (termwidth == -1) {
-		if ((p = getenv("COLUMNS")))
+		if ((p = getenv("COLUMNS")) && *p != '\0')
 			termwidth = atoi(p);
 		else if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &win) == 0 &&
 		    win.ws_col > 0)
@@ -483,18 +485,22 @@ lputs(s)
 	}
 
 	for (count = 0; *s; ++s) {
-		if (count >= termwidth) {
+		if (count + 5 >= termwidth) {
 			(void)printf("\\\n");
 			count = 0;
 		}
 		if (isprint((unsigned char)*s) && *s != '\\') {
 			(void)putchar(*s);
 			count++;
+		} else if (*s == '\n') {
+			(void)putchar('$');
+			(void)putchar('\n');
+			count = 0;
 		} else {
-			escapes = "\\\a\b\f\n\r\t\v";
+			escapes = "\\\a\b\f\r\t\v";
 			(void)putchar('\\');
 			if ((p = strchr(escapes, *s))) {
-				(void)putchar("\\abfnrtv"[p - escapes]);
+				(void)putchar("\\abfrtv"[p - escapes]);
 				count += 2;
 			} else {
 				(void)printf("%03o", *(u_char *)s);
@@ -523,9 +529,7 @@ regexec_e(preg, string, eflags, nomatch, slen)
 	} else
 		defpreg = preg;
 
-	/* Set anchors, discounting trailing newline (if any). */
-	if (slen > 0 && string[slen - 1] == '\n')
-		slen--;
+	/* Set anchors */
 	match[0].rm_so = 0;
 	match[0].rm_eo = slen;
 
@@ -550,8 +554,8 @@ regsub(sp, string, src)
 	SPACE *sp;
 	char *string, *src;
 {
-	register int len, no;
-	register char c, *dst;
+	int len, no;
+	char c, *dst;
 
 #define	NEEDSP(reqlen)							\
 	if (sp->len >= sp->blen - (reqlen) - 1) {			\
@@ -624,7 +628,7 @@ cspace(sp, p, len, spflag)
  */
 void
 cfclose(cp, end)
-	register struct s_command *cp, *end;
+	struct s_command *cp, *end;
 {
 
 	for (; cp != end; cp = cp->next)

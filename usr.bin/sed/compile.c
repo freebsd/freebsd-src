@@ -67,22 +67,22 @@ static struct labhash {
 	int	lh_ref;
 } *labels[LHSZ];
 
-static char	 *compile_addr __P((char *, struct s_addr *));
-static char	 *compile_ccl __P((char **, char *));
-static char	 *compile_delimited __P((char *, char *));
-static char	 *compile_flags __P((char *, struct s_subst *));
-static char	 *compile_re __P((char *, regex_t **));
-static char	 *compile_subst __P((char *, struct s_subst *));
-static char	 *compile_text __P((void));
-static char	 *compile_tr __P((char *, char **));
+static char	 *compile_addr(char *, struct s_addr *);
+static char	 *compile_ccl(char **, char *);
+static char	 *compile_delimited(char *, char *);
+static char	 *compile_flags(char *, struct s_subst *);
+static char	 *compile_re(char *, regex_t **);
+static char	 *compile_subst(char *, struct s_subst *);
+static char	 *compile_text(void);
+static char	 *compile_tr(char *, char **);
 static struct s_command
-		**compile_stream __P((struct s_command **));
-static char	 *duptoeol __P((char *, char *));
-static void	  enterlabel __P((struct s_command *));
+		**compile_stream(struct s_command **);
+static char	 *duptoeol(char *, const char *);
+static void	  enterlabel(struct s_command *);
 static struct s_command
-		 *findlabel __P((char *));
-static void	  fixuplabel __P((struct s_command *, struct s_command *));
-static void	  uselabel __P((void));
+		 *findlabel(char *);
+static void	  fixuplabel(struct s_command *, struct s_command *);
+static void	  uselabel(void);
 
 /*
  * Command specification.  This is used to drive the command parser.
@@ -157,7 +157,7 @@ static struct s_command **
 compile_stream(link)
 	struct s_command **link;
 {
-	register char *p;
+	char *p;
 	static char lbuf[_POSIX2_LINE_MAX + 1];	/* To save stack */
 	struct s_command *cmd, *cmd2, *stack;
 	struct s_format *fp;
@@ -465,7 +465,8 @@ compile_subst(p, s)
 	struct s_subst *s;
 {
 	static char lbuf[_POSIX2_LINE_MAX + 1];
-	int asize, ref, size;
+	int asize, size;
+	u_char ref;
 	char c, *text, *op, *sp;
 	int more = 1, sawesc = 0;
 
@@ -742,8 +743,8 @@ compile_addr(p, a)
  */
 static char *
 duptoeol(s, ctype)
-	register char *s;
-	char *ctype;
+	char *s;
+	const char *ctype;
 {
 	size_t len;
 	int ws;
@@ -804,9 +805,9 @@ static void
 enterlabel(cp)
 	struct s_command *cp;
 {
-	register struct labhash **lhp, *lh;
-	register u_char *p;
-	register u_int h, c;
+	struct labhash **lhp, *lh;
+	u_char *p;
+	u_int h, c;
 
 	for (h = 0, p = (u_char *)cp->t; (c = *p) != 0; p++)
 		h = (h << 5) + h + c;
@@ -831,9 +832,9 @@ static struct s_command *
 findlabel(name)
 	char *name;
 {
-	register struct labhash *lh;
-	register u_char *p;
-	register u_int h, c;
+	struct labhash *lh;
+	u_char *p;
+	u_int h, c;
 
 	for (h = 0, p = (u_char *)name; (c = *p) != 0; p++)
 		h = (h << 5) + h + c;
@@ -853,8 +854,8 @@ findlabel(name)
 static void
 uselabel()
 {
-	register struct labhash *lh, *next;
-	register int i;
+	struct labhash *lh, *next;
+	int i;
 
 	for (i = 0; i < LHSZ; i++) {
 		for (lh = labels[i]; lh != NULL; lh = next) {

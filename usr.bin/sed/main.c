@@ -49,7 +49,10 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
+#include <sys/param.h>
 #include <sys/types.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
 
 #include <err.h>
 #include <errno.h>
@@ -96,18 +99,21 @@ static struct s_flist *files, **fl_nextp = &files;
 
 int aflag, eflag, nflag;
 int rflags = 0;
+static int rval;		/* Exit status */
 
 /*
  * Current file and line number; line numbers restart across compilation
  * units, but span across input files.
  */
-char *fname;			/* File name. */
+const char *fname;		/* File name. */
+const char *inplace;		/* Inplace edit file extension. */
 u_long linenum;
 int lastline;			/* TRUE on the last line of the last file */
 
-static void add_compunit __P((enum e_cut, char *));
-static void add_file __P((char *));
-static void usage __P((void));
+static void add_compunit(enum e_cut, char *);
+static void add_file(char *);
+static int inplace_edit(char **);
+static void usage(void);
 
 int
 main(argc, argv)
@@ -120,7 +126,9 @@ main(argc, argv)
 	(void) setlocale(LC_ALL, "");
 
 	fflag = 0;
-	while ((c = getopt(argc, argv, "Eae:f:n")) != -1)
+	inplace = NULL;
+
+	while ((c = getopt(argc, argv, "Eae:f:i:n")) != -1)
 		switch (c) {
 		case 'E':
 			rflags = REG_EXTENDED;
@@ -139,6 +147,9 @@ main(argc, argv)
 		case 'f':
 			fflag = 1;
 			add_compunit(CU_FILE, optarg);
+			break;
+		case 'i':
+			inplace = optarg;
 			break;
 		case 'n':
 			nflag = 1;
@@ -168,15 +179,15 @@ main(argc, argv)
 	cfclose(prog, NULL);
 	if (fclose(stdout))
 		err(1, "stdout");
-	exit (0);
+	exit(rval);
 }
 
 static void
 usage()
 {
 	(void)fprintf(stderr, "%s\n%s\n",
-		"usage: sed script [-Ean] [file ...]",
-		"       sed [-an] [-e script] ... [-f script_file] ... [file ...]");
+		"usage: sed script [-Ean] [-i extension] [file ...]",
+		"       sed [-an] [-i extension] [-e script] ... [-f script_file] ... [file ...]");
 	exit(1);
 }
 
@@ -292,36 +303,59 @@ mf_fgets(sp, spflag)
 	size_t len;
 	char *p;
 	int c;
+	static int firstfile;
 
-	if (f == NULL)
-		/* Advance to first non-empty file */
-		for (;;) {
-			if (files == NULL) {
-				lastline = 1;
-				return (0);
-			}
-			if (files->fname == NULL) {
-				f = stdin;
-				fname = "stdin";
-			} else {
-				fname = files->fname;
-				if ((f = fopen(fname, "r")) == NULL)
-					err(1, "%s", fname);
-			}
-			if ((c = getc(f)) != EOF) {
-				(void)ungetc(c, f);
-				break;
-			}
-			(void)fclose(f);
-			files = files->next;
+	if (f == NULL) {
+		/* stdin? */
+		if (files->fname == NULL) {
+			if (inplace != NULL)
+				errx(1, "-i may not be used with stdin");
+			f = stdin;
+			fname = "stdin";
 		}
-
-	if (lastline) {
-		sp->len = 0;
-		return (0);
+		firstfile = 1;
 	}
 
+	for (;;) {
+		if (f != NULL && (c = getc(f)) != EOF) {
+			(void)ungetc(c, f);
+			break;
+		}
+		/* If we are here then either eof or no files are open yet */
+		if (f == stdin) {
+			sp->len = 0;
+			lastline = 1;
+			return (0);
+		}
+		if (f != NULL) {
+			fclose(f);
+		}
+		if (firstfile == 0) {
+			files = files->next;
+		} else
+			firstfile = 0;
+		if (files == NULL) {
+			sp->len = 0;
+			lastline = 1;
+			return (0);
+		}
+		if (inplace != NULL) {
+			if (inplace_edit(&files->fname) == -1)
+				continue;
+		}
+		fname = files->fname;
+		if ((f = fopen(fname, "r")) == NULL) {
+			warn("%s", fname);
+			rval = 1;
+			continue;
+		}
+		if (inplace != NULL && *inplace == '\0')
+			unlink(fname);
+	}
 	/*
+	 * We are here only when f is open and we still have something to
+	 * read from it.
+	 *
 	 * Use fgetln so that we can handle essentially infinite input data.
 	 * Can't use the pointer into the stdio buffer as the process space
 	 * because the ungetc() can cause it to move.
@@ -329,27 +363,19 @@ mf_fgets(sp, spflag)
 	p = fgetln(f, &len);
 	if (ferror(f))
 		errx(1, "%s: %s", fname, strerror(errno ? errno : EIO));
+	if (len != 0 && p[len - 1] == '\n')
+		len--;
 	cspace(sp, p, len, spflag);
 
 	linenum++;
-	/* Advance to next non-empty file */
-	while ((c = getc(f)) == EOF) {
-		(void)fclose(f);
-		files = files->next;
-		if (files == NULL) {
-			lastline = 1;
-			return (1);
-		}
-		if (files->fname == NULL) {
-			f = stdin;
-			fname = "stdin";
+	if (files->next == NULL) {
+		if ((c = getc(f)) != EOF) {
+			(void)ungetc(c, f);
 		} else {
-			fname = files->fname;
-			if ((f = fopen(fname, "r")) == NULL)
-				err(1, "%s", fname);
+			lastline = 1;
 		}
 	}
-	(void)ungetc(c, f);
+
 	return (1);
 }
 
@@ -387,4 +413,57 @@ add_file(s)
 	*fl_nextp = fp;
 	fp->fname = s;
 	fl_nextp = &fp->next;
+}
+
+/*
+ * Modify a pointer to a filename for inplace editing and reopen stdout
+ */
+static int
+inplace_edit(filename)
+	char **filename;
+{
+	struct stat orig;
+	int input, output;
+	char backup[MAXPATHLEN];
+	char *buffer;
+
+	if (lstat(*filename, &orig) == -1)
+		err(1, "lstat");
+	if ((orig.st_mode & S_IFREG) == 0) {
+		warnx("cannot inplace edit %s, not a regular file", *filename);
+		return -1;
+	}
+
+	if (*inplace == '\0') {
+		char template[] = "/tmp/sed.XXXXXXXXXX";
+
+		output = mkstemp(template);
+		if (output == -1)
+			err(1, "mkstemp");
+		strlcpy(backup, template, MAXPATHLEN);
+	} else {
+		strlcpy(backup, *filename, MAXPATHLEN);
+		strlcat(backup, inplace, MAXPATHLEN);
+		output = open(backup, O_WRONLY | O_CREAT | O_TRUNC);
+		if (output == -1)
+			err(1, "open(%s)", backup);
+	}
+
+	input = open(*filename, O_RDONLY);
+	if (input == -1)
+		err(1, "open(%s)", *filename);
+	if (fchmod(output, orig.st_mode & ~S_IFMT) == -1)
+		err(1, "chmod");
+	buffer = (char *)mmap(0, orig.st_size, PROT_READ, MAP_SHARED, input, 0);
+	if (buffer == MAP_FAILED)
+		err(1, "mmap(%s)", *filename);
+	if (write(output, buffer, orig.st_size) == -1)
+		err(1, "write(%s)", backup);
+	if (munmap(buffer, orig.st_size) == -1)
+		err(1, "munmap(%s)", *filename);
+	close(input);
+	close(output);
+	freopen(*filename, "w", stdout);
+	*filename = strdup(backup);
+	return 0;
 }
