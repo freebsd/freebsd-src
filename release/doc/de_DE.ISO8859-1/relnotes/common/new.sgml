@@ -1,8 +1,8 @@
-<articleinfo>
 <!--
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.18 2002/04/12 17:58:38 ue Exp $
-  basiert auf: 1.317
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.27 2002/04/21 17:43:21 ue Exp $
+  basiert auf: 1.327
 -->
+<articleinfo>
   <title>&os;/&arch; &release.current; Release Notes</title>
 
   <corpauthor>The FreeBSD Project</corpauthor>
@@ -309,7 +309,8 @@
 
     <para arch="i386">Der neue Treiber &man.spic.4; unterst&uuml;tzt
       den Zugriff auf das <literal>jog dial</literal>, das in einigen
-      Sony Laptops verwendet wird.</para>
+      Sony Laptops verwendet wird.  &man.moused.8; unterst&uuml;tzt
+      dieses Ger&auml;t jetzt ebenfalls.  &merged;</para>
 
     <para>&man.syscons.4; unterst&uuml;tzt jetzt das Einf&uuml;gen vom
       Clipboard via Tastatur, die Funktion liegt
@@ -324,9 +325,9 @@
       (auf der Alpha) immer noch eine AT-Tastatur, wenn Sie keine
       serielle Konsole verwenden.  &merged;</para>
 
-    <para arch="i386">Der neue Treiber umodem unterst&uuml;tzt USB Modems,
-      zur Zeit werden das 3Com 5605 and Metricom Ricochet GS wireless
-      unterst&uuml;tzt. &merged;</para>
+    <para arch="i386">Der neue Treiber &man.umodem.4; unterst&uuml;tzt
+      USB Modems, zur Zeit werden das 3Com 5605 and Metricom Ricochet
+      GS wireless unterst&uuml;tzt. &merged;</para>
 
     <para arch="i386">Der neue Treiber &man.uscanner.4; bietet
       zusammen mit SANE grundlegende Unterst&uuml;tzung f&uuml;r USB
@@ -336,16 +337,21 @@
       die Modelle HP ScanJet 4100C, 5200C und 6300C erhalten.
       &merged;</para>
 
-    <para>Der neue Treiber ucom unterst&uuml;tzt USB Modems, serielle
-      Schnittstellen und andere Programme, die sich wie ein TTY
-      verhalten sollen.  Die beiden neuen Treiber uplcom und uvscom
-      bauen darauf auf und unterst&uuml;tzen den Prolific PL-2303 bzw.
-      den Slipper U VS-10U.</para>
+    <para>Der neue Treiber &man.ucom.4; unterst&uuml;tzt USB Modems,
+      serielle Schnittstellen und andere Programme, die sich wie ein
+      TTY verhalten sollen.  Die beiden neuen Treiber &man.uplcom.4;
+      und &man.uvscom.4; bauen darauf auf und unterst&uuml;tzen den
+      Prolific PL-2303 bzw.  den Slipper U VS-10U.</para>
 
     <para>Bei der Konfiguration des Kernels kann die Option
       <literal>UCONSOLE</literal> nicht mehr verwendet werden;
       dadurch wurden einige Sicherheitsl&uuml;cken
       geschlossen.</para>
+
+    <para arch="i386">Mit UserConfig konnten ISA Ger&auml;te
+      aktiviert, deaktiviert und konfiguriert werden.  Dieses Tool
+      wurde durch die Kernel Hints in
+      <filename>/boot/device.hints</filename> ersetzt.</para>
 
     <para>Die Kernel-Option <literal>USER_LDT</literal> ist ab jetzt
       standardm&auml;&szlig;ig aktiviert.</para>
@@ -354,7 +360,7 @@
       framebuffer.</para>
 
     <para arch="i386">Der neue Treiber &man.viapm.4; unterst&uuml;tzt
-      die VIA SMBus Kontroller f&uuml;r Power Management.</para>
+      die VIA SMBus Kontroller f&uuml;r Power Management.  &merged;</para>
 
     <!-- Above this line, sort kernel changes by manpage/keyword-->
 
@@ -757,6 +763,9 @@
         Hardware-seitige Filtern von VLANs allerdings nicht.
         &merged;</para>
 
+      <para>Der neue Treiber my unterst&uuml;tzt Fast Ethernet und
+	Gigabit Ethernet Karten der Firma Myson.  &merged;</para>
+
       <para>Der neue Treiber &man.nge.4; unterst&uuml;tzt PCI Gigabit
         Ethernet Karten mit den National Semiconductor DP83820 and
         DP83821 Gigabit Ethernet Chips&auml;tzen.  Dazu geh&ouml;ren
@@ -950,8 +959,8 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       <para>Wenn bei einem TCP Segment das ECN Bit gesetzt ist,
         filtert &man.ipfw.4; jetzt richtig.  &merged;</para>
 
-      <para>Die neue Netgraph Node &man.ng.eth.4; erlaubt es,
-        Ethernet-Pakete nach Ihren Ethertype zu sortieren.</para>
+      <para>Die neue Netgraph Node &man.ng.etf.4; erlaubt es,
+        Ethernet-Pakete nach Typ zu sortieren.  &merged;</para>
 
       <para>Die beiden neuen Netgraph Nodes &man.ng.gif.4; und
         &man.ng.gif.demux.4; k&ouml;nnen f&uuml;r &man.gif.4;
@@ -1090,8 +1099,8 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       <para>Die <quote>ephemeral port range</quote> f&uuml;r TCP und
 	UDP liegt jetzt bei 49152&ndash;65535 (der alte Standardwert
 	war 1024&ndash;5000).  Dadurch erh&ouml;ht sich die Anzahl der
-	gleichzeitig m&ouml;glichen ausgehen
-	Verbindungen/Datenstr&ouml;me.</para>
+	gleichzeitig m&ouml;glichen ausgehenden
+	Verbindungen.  &merged;</para>
     </sect3>
 
     <sect3>
@@ -1382,6 +1391,12 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
         diese jetzt beim Systemstart korrekt behandelt, die
         Dateisysteme werden erst gemountet, nachdem das Netzwerk
         komplett initialisiert wurde.</para>
+
+      <para>Das Universal Disk Format (UDF) wird jetzt f&uuml;r
+	lesenden Zugriff unterst&uuml;tzt.  Dieses Format wird auf
+	Packet-Written CD-RWs und den meisten kommerziellen DVD-Videos
+	verwendet.  Diese Medien k&ouml;nnen mit &man.mount.udf.8;
+	gemountet werden.</para>
     </sect3>
 
     <sect3>
@@ -1887,6 +1902,23 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       beseitigen k&ouml;nnen, finden Sie in <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:18.zlib.asc">FreeBSD-SA-02:18</ulink>.
       &merged;</para>
+
+    <para>Durch Fehler in den TCP SYN Cache (<quote>syncache</quote>)
+      und SYN Cookie (<quote>syncookie</quote>) Routinen war es
+      m&ouml;glich, da&szlig;  normale TCP/IP Datenpakete das System
+      abst&uuml;rzen lie&szlig;en.  Die Routinen wurden mittlerweile
+      beseitigt; Informationen, wie Sie die Problem umgehen bzw.
+      beseitigen k&ouml;nnen, finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:20.syncache.asc">FreeBSD-SA-02:20</ulink>.
+      &merged;</para>
+
+    <para>In den Routinen zur Behandlung der Routing-Tabelle wurde ein
+      Speicherleck gestopft, durch das ein Angreifer den gesamten
+      Speicher eines System verbrauchen konnte.  Informationen, wie
+      Sie die Problem umgehen bzw.  beseitigen k&ouml;nnen, finden Sie
+      in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:21.tcpip.asc">FreeBSD-SA-02:21</ulink>.
+      &merged;</para>
   </sect2>
 
   <sect2 id="userland">
@@ -2276,6 +2308,16 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
     <para>&man.inetd.8; kann jetzt UNIX-domain sockets verwalten.
       &merged;</para>
 
+    <para>Beim Start des Systems wird &man.inetd.8; nicht mehr
+      standardm&auml;&szlig;ig von &man.rc.8; gestartet, allerdings
+      bietet &man.sysinstall.8; bei der Installation die
+      M&ouml;glichkeit, dies zu &auml;ndern.  Sie
+      k&ouml;nnen &man.inetd.8; ebenfalls aktivieren, wenn Sie die
+      folgende Zeile in die Datei <filename>/etc/rc.conf</filename>
+      eintragen:</para>
+
+    <programlisting>inetd_enable="YES"</programlisting>
+
     <para>&man.install.1; wurde in vielen Punkten erweitert.  Bei
       Verwendung der neuen Optionen <option>-b</option> und
       <option>-B</option> wird eine Sicherheitskopie der Zieldatei
@@ -2325,6 +2367,10 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
 
     <para>&man.keyinfo.1; ist jetzt ein C-Programm und kein
       Perl-Skript mehr.  &merged;</para>
+
+    <para>Das Programm &man.kget.8; wurde entfernt. Es wurde nur
+      f&uuml;r UserConfig gebraucht und dieses Programm gibt es in
+      &os; &release.current; nicht mehr.</para>
 
     <para>&man.killall.1; ist jetzt ein C-Programm und kein
       Perl-Skript mehr.  Eine Konsequenz dieser &Auml;nderung ist,
@@ -2400,7 +2446,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
 
     <para><filename>libstand</filename> unterst&uuml;tzt jetzt
       gro&szlig;e Kernel und Module, die &uuml;ber mehrere Medien
-      verteilt sind.</para>
+      verteilt sind.  &merged;</para>
 
     <para><filename>libfetch</filename> benutzt jetzt
       standardm&auml;&szlig;ig einen anderen Portbereich f&uuml;r
@@ -2526,6 +2572,19 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       Benutzer auf notwendige Aktionen (wie z.B. den Start von
       <command>newaliases</command>) hin, wenn diese erforderlich
       sind. &merged;</para>
+
+    <para>Es gibt zwei neue Optionen f&uuml;r &man.mergemaster.8;.
+      Mit <option>-p</option> wird der
+      <quote>pre-<literal>buildworld</literal></quote> Modus f&uuml;r
+      die Dateien aktiviert, von denen bekannt ist, da&szlig; sie
+      Einflu&szlig; auf den Erfolg der Schritte
+      <literal>buildworld</literal> und
+      <literal>installworld</literal> haben.  Nach einem erfolgreichen
+      Lauf von &man.mergemaster.8; kann <option>-C</option> genutzt
+      werden, um die Einstellungen in
+      <filename>/etc/rc.conf</filename> mit den Standardwerten in
+      <filename>/etc/defaults/rc.conf</filename> zu vergleichen.
+      &merged;</para>
 
     <para>Bei &man.moused.8; kann jetzt mit <option>-a</option> die
       Beschleunigung der Mausbewegung eingestellt werden.
@@ -3188,7 +3247,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
         &man.rc.conf.5; unterst&uuml;tzt. &merged;</para>
 
       <para>Der <application>ISC DHCP</application> Client wurde auf
-        Version 3.0.1RC8 aktualisiert.</para>
+        Version 3.0.1RC8 aktualisiert.  &merged;</para>
 
       <para><application>Kerberos IV</application> wurde auf Version
         1.0.5 aktualisiert. &merged;</para>
@@ -3231,7 +3290,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       wurden auf Version 4.1.0 aktualisiert. &merged;</para>
 
       <para><application>OpenPAM</application>
-        (<quote>Centaury</quote> Release) wird jetzt statt
+        (<quote>Cineraria</quote> Release) wird jetzt statt
         <application>Linux-PAM</application> verwendet.</para>
 
       <para>Die Programmsammlung <application>OPIE</application>
@@ -3248,11 +3307,6 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       <para arch="i386">Die Version 1.4.3 der
         <application>smbfs</application> Benutzerprogramme wurde
         importiert.  &merged;</para>
-
-      <para>Die <application>NetBSD</application>-Version von
-	&man.sort.1; (mit Stand vom 22. M&auml;rz 2002) wird jetzt als
-	Sortierprogramm genutzt und ersetzt damit <application>GNU
-	sort</application>.</para>
 
       <para><application>tcpdump</application> 
         wurde auf Version
@@ -3575,6 +3629,31 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
           Datei einf&uuml;gen:</para>
 
         <programlisting>define(`confDEF_USER_ID', `daemon')</programlisting>
+	
+	<para>Seit dem Import von <application>sendmail</application>
+	  8.12.2 startet &man.rc.8; mehrere
+	  <application>sendmail</application> Daemonen (einige von
+	  Ihnen sind f&uuml;r den Versand von Mails zust&auml;ndig),
+	  auch wenn die Variable <varname>sendmail_enable</varname>
+	  auf <literal>NO</literal> gesetzt wurde.  Um
+	  <application>sendmail</application> komplett zu
+	  deaktivieren, mu&szlig; <varname>sendmail_enable</varname>
+	  auf <literal>NONE</literal>.  Auf Systemen, auf denen ein
+	  anderer MTA benutzt wird, kann alternativ auch der Wert der
+	  Variablen <varname>mta_start_script</varname> ge&auml;ndert
+	  werden.  Weitere Informationen finden Sie in der Manualpage
+	  &man.rc.sendmail.8;.  &merged;</para>
+
+	<para>Beim Start des System wird
+	  <application>sendmail</application> nicht mehr
+	  standardm&auml;&szlig;ig von &man.rc.8; gestartet, um
+	  ankommende SMTP Verbindungen anzunehmen.  Diese Einstellung
+	  kann von &man.sysinstall.8; je nach gew&auml;hltem
+	  Sicherheitsprofil &uuml;berschrieben werden.  Alternativ
+	  k&ouml;nnen Sie auch die folgenden Zeile in die Datei
+	  <filename>/etc/rc.conf</filename> eintragen:</para>
+
+	<programlisting>sendmail_enable="YES"</programlisting>
       </sect4>
     </sect3>
 
