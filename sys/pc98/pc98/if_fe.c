@@ -21,7 +21,7 @@
  */
 
 /*
- * $Id: if_fe.c,v 1.31 1998/06/08 08:55:44 kato Exp $
+ * $Id: if_fe.c,v 1.32 1998/06/22 08:03:52 kato Exp $
  *
  * Device driver for Fujitsu MB86960A/MB86965A based Ethernet cards.
  * To be used with FreeBSD 2.x
@@ -253,6 +253,7 @@ static int	fe_probe_re1000	( DEVICE *, struct fe_softc * );
 static int	fe_probe_re1000p( DEVICE *, struct fe_softc * );
 static int	fe_probe_cnet9ne ( DEVICE *, struct fe_softc * );
 static int	fe_probe_cnet98p2( DEVICE *, struct fe_softc * );
+static int	fe_probe_pc85152 ( DEVICE *, struct fe_softc * );
 #else
 static int	fe_probe_fmv	( DEVICE *, struct fe_softc * );
 static int	fe_probe_ati	( DEVICE *, struct fe_softc * );
@@ -448,6 +449,8 @@ static u_short const fe_cnet9ne_addr [] =
 static u_short const fe_cnet98p2_addr [] =
 	{ 0x03D0, 0x13D0, 0x23D0, 0x33D0, 0x43D0, 0x53D0, 0x63D0,
 	  0x73D0, 0x83D0, 0x93D0, 0xA3D0, 0xB3D0, 0xC3D0, 0xD3D0, 0 };
+static u_short const fe_pc85152_addr [] =
+	{ 0x00D0, 0x04D0, 0x08D0, 0x0CD0, 0x10D0, 0x14D0, 0x18D0, 0x1CD0, 0};
 #else
 static u_short const fe_fmv_addr [] =
 	{ 0x220, 0x240, 0x260, 0x280, 0x2A0, 0x2C0, 0x300, 0x340, 0 };
@@ -463,6 +466,7 @@ static struct fe_probe_list const fe_probe_list [] =
 	/* XXX: We must probe C-NET(98)P2 after C-NET(9N)E. */
 	{ fe_probe_cnet9ne, fe_cnet9ne_addr },
 	{ fe_probe_cnet98p2, fe_cnet98p2_addr },
+	{ fe_probe_pc85152, fe_pc85152_addr },
 #else
 	{ fe_probe_fmv, fe_fmv_addr },
 	{ fe_probe_ati, fe_ati_addr },
@@ -1191,6 +1195,7 @@ static int
 fe_probe_cnet98p2 ( DEVICE * isa_dev, struct fe_softc * sc )
 {
 	int	i;
+	const u_short	*p;
 	u_char	duplex;
 	u_char	eeprom[FE_EEPROM_SIZE];
 	static u_short const irqmap [] =
@@ -1198,6 +1203,16 @@ fe_probe_cnet98p2 ( DEVICE * isa_dev, struct fe_softc * sc )
 		{ NO_IRQ, NO_IRQ, NO_IRQ, IRQ3, NO_IRQ, IRQ5, IRQ6, NO_IRQ,
 		  NO_IRQ, IRQ9, IRQ10, NO_IRQ, IRQ12, IRQ13, NO_IRQ, NO_IRQ };
 		/*        INT3  INT4           INT5   INT6		*/
+
+	/*
+	 * See if the specified address is possible for C-NET(98)P2.
+	 */
+	for ( p = fe_cnet98p2_addr; *p != 0; p++ ) {
+		if ( *p == sc->iobase )	break;
+	}
+	if ( *p == 0 ) {
+		return 0;
+	}
 
 #if FE_DEBUG >= 3
 	log( LOG_INFO, "fe%d: probe (0x%x) for C-NET(98)P2\n", sc->sc_unit, sc->iobase );
@@ -1326,6 +1341,152 @@ fe_probe_cnet98p2 ( DEVICE * isa_dev, struct fe_softc * sc )
 
 	/*
 	 * That's all.  C-NET(98)P2 occupies 16 I/O addresses, as always.
+	 */
+	return 16;
+}
+
+/*
+ * Probe and initialization for Ungermann-Bass Access/PC N98C+ (PC85152)
+ * (from NetBSD/pc98 port)
+ *
+ * Ungermann-Bass Access/PC N98C+ (PC85152) use Fujitsu MB86960 as
+ * Ethernet Controller.
+ */
+
+/* TODO: Should be in "if_fereg.h" */
+#define FE_PC85152_IRQ          0x14    /* IRQ configuration */
+#define FE_PC85152_ADDR         0x18    /* Station address. (offset 24-29) */
+#define FE_PC85152_CKSUM        0x1e    /* Station address checksum. */
+
+static int
+fe_probe_pc85152 ( DEVICE * dev, struct fe_softc * sc )
+{
+	int	i, irq;
+	u_char	sum, dlcr7;
+
+	static struct fe_simple_probe_struct probe_table [] = {
+		{ FE_DLCR2, 0x70, 0x00 },
+		{ FE_DLCR4, 0x08, 0x00 },
+	    /*  { FE_DLCR5, 0x80, 0x00 },	Doesn't work.	*/
+		{ 0 }
+	};
+	static u_char irq_conf [] = {
+	/*  irq          3     5  6                12          */
+		0, 0, 0, 1, 0, 2, 4, 0, 0, 0, 0, 0, 8, 0, 0, 0
+	};
+
+#if FE_DEBUG >= 3
+	log( LOG_INFO, "fe%d: probe (0x%x) for Access/PC N98C+\n"
+	, sc->sc_unit, sc->iobase );
+#endif
+
+	/*
+	 * We need explicit IRQ.
+	 */
+	irq = ffs(dev->id_irq) - 1;
+	if ( irq_conf[irq] == 0 ) {
+#if FE_DEBUG >= 3
+		log( LOG_INFO, "fe%d: invalid irq configuration(%d)\n"
+		, sc->sc_unit, irq );
+#endif
+		return 0;
+	}
+
+	/* Setup an I/O address mapping table.  */
+	for ( i = 0; i < 16; i++ ) {
+		sc->ioaddr[i] = sc->iobase + i;
+	}
+	for ( ; i < MAXREGISTERS; i++ ) {
+		sc->ioaddr[i] = sc->iobase + 0x200 - 16 + i;
+	}
+
+#if FE_DEBUG >= 3
+	fe_dump( LOG_INFO, sc, NULL );
+#endif
+
+	/* See if the card is on its address.  */
+	if ( !fe_simple_probe( sc, probe_table ) ) {
+#if FE_DEBUG >= 3
+		log( LOG_INFO, "fe%d: fe_simple_probe NG\n", sc->sc_unit );
+#endif
+		return 0;
+	}
+
+	/* Get our station address from EEPROM and calculate checksum.  */
+	sum = inb( sc->ioaddr[FE_PC85152_CKSUM] );
+	for ( i = 0; i < ETHER_ADDR_LEN; i++ ) {
+		sum ^= (sc->sc_enaddr[i] = inb( sc->ioaddr[FE_PC85152_ADDR + i] ));
+	}
+
+	/*
+	 * Make sure we got a valid Ethernet address.
+	 */
+	if ( ( sc->sc_enaddr[0] & 0x03 ) != 0x00	/* Multicast or Local address. */
+	||   ( sc->sc_enaddr[0] | sc->sc_enaddr[1] | sc->sc_enaddr[2] ) == 0x00 ) {
+#if FE_DEBUG >= 3
+		log( LOG_INFO, "fe%d: invalid MAC adrs(%6D)\n", sc->sc_unit
+		, sc->sc_enaddr, ":" );
+#endif
+		return 0;
+	}
+
+	/* Verify checksum.  */
+	if ( sum != 0 ) {
+#if FE_DEBUG >= 3
+		log( LOG_INFO, "fe%d: checksum mismatch(sum = 0x%x)\n"
+		, sc->sc_unit, sum );
+#endif
+		return 0;
+	}
+	sc->typestr = "Access/PC N98C+";
+
+	/*
+	 * Program the 86960 as follows:
+	 *      SRAM: 32KB, byte-wide access.
+	 *      Transmission buffer: 4KB x 2.
+	 *      System bus interface: 16 bits.
+	 *      Encoder/Decoder mode: Normal NICE.
+	 *
+	 * 86960 manual says that SRAM access-time can't be configured.
+	 * (must be 1)
+	 */
+	sc->proto_dlcr4 = FE_D4_LBC_DISABLE | FE_D4_CNTRL;
+	sc->proto_dlcr5 = FE_D5_RMTRST; /* reserved bit(must be 1) */
+	sc->proto_dlcr6 = FE_D6_BUFSIZ_32KB | FE_D6_TXBSIZ_2x4KB
+		| FE_D6_BBW_BYTE | FE_D6_SBW_WORD | FE_D6_SRAM;
+	sc->proto_dlcr7 = FE_D7_BYTSWP_LH | FE_D7_ENDEC_NORMAL_NICE;
+	sc->proto_bmpr13 = FE_B13_TPTYPE_UTP | FE_B13_PORT_AUTO; /* FIXME */
+
+	sc->stop = sc->init = NULL;
+
+#if FE_DEBUG >= 3
+	fe_dump( LOG_INFO, sc, "Access/PC N98C+ found" );
+#endif
+
+	/*
+	 * Assign irq to chip/board.
+	 */
+	/* Save current DLCR7 value for safe.  */
+	dlcr7 = inb( sc->ioaddr[FE_DLCR7] );
+	/* Select the BMPR bank for runtime register access.  */
+	outb( sc->ioaddr[FE_DLCR7], sc->proto_dlcr7 | FE_D7_RBS_BMPR | FE_D7_POWER_UP );
+	/* Assign irq to board.  */
+	outb( sc->ioaddr[FE_PC85152_IRQ], irq_conf[irq] );
+	/* Restore DLCR7 value.  */
+	outb( sc->ioaddr[FE_DLCR7], dlcr7 );
+
+	/* Minimal initialization of 86960.  */
+	DELAY( 200 );
+	outb( sc->ioaddr[FE_DLCR6], sc->proto_dlcr6 | FE_D6_DLC_DISABLE );
+	DELAY( 200 );
+
+	/* Disable all interrupts.  */
+	outb( sc->ioaddr[FE_DLCR2], 0 );
+	outb( sc->ioaddr[FE_DLCR3], 0 );
+
+	/*
+	 * XXX: The I/O address range is fragmented in the Access/PC N98C+.
+	 *      "16" is the number of regs at iobase.
 	 */
 	return 16;
 }
