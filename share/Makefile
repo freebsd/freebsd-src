@@ -3,7 +3,11 @@
 
 # Do not include `info' in the SUBDIR list, it is handled separately.
 
-SUBDIR= colldef dict doc examples isdn man me misc mk mklocale skel \
+SUBDIR= colldef dict examples isdn man me misc mk mklocale skel \
 	syscons tabset termcap timedef zoneinfo
+
+.if !defined(NO_SHAREDOCS)
+SUBDIR+= doc
+.endif
 
 .include <bsd.subdir.mk>
