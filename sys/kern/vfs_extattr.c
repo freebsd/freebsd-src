@@ -2596,7 +2596,7 @@ cvtnstat(sb, nsb)
 	struct stat *sb;
 	struct nstat *nsb;
 {
-	bzero(nsb, sizeof nsb);
+	bzero(nsb, sizeof *nsb);
 	nsb->st_dev = sb->st_dev;
 	nsb->st_ino = sb->st_ino;
 	nsb->st_mode = sb->st_mode;
