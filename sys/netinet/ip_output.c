@@ -766,7 +766,7 @@ pass:
 			goto bad;
 		}
 	} else {
-		/* nobody uses ia beyond here */
+		ia = ifatoia(ro->ro_rt->rt_ifa);
 		ifp = ro->ro_rt->rt_ifp;
 	}
 
