@@ -42,11 +42,11 @@
 
 
 __BEGIN_DECLS
+void	 abort_q(struct printer *_pp);
 void	 clean_q(struct printer *_pp);
-void	 disable(struct printer *_pp);
-void	 doabort(struct printer *_pp);
+void	 disable_q(struct printer *_pp);
 void	 down(int _argc, char *_argv[]);
-void	 enable(struct printer *_pp);
+void	 enable_q(struct printer *_pp);
 void	 generic(void (*_specificrtn)(struct printer *_pp),
 	    void (*_initcmd)(int _argc, char *_argv[]),
 	    int _argc, char *_argv[]);
@@ -54,12 +54,19 @@ void	 help(int _argc, char *_argv[]);
 void	 init_clean(int _argc, char *_argv[]);
 void	 init_tclean(int _argc, char *_argv[]);
 void	 quit(int _argc, char *_argv[]);
-void	 restart(struct printer *_pp);
-void	 startcmd(struct printer *_pp);
+void	 restart_q(struct printer *_pp);
+void	 start_q(struct printer *_pp);
 void	 status(struct printer *_pp);
-void	 stop(struct printer *_pp);
+void	 stop_q(struct printer *_pp);
 void	 topq(int _argc, char *_argv[]);
-void	 up(struct printer *_pp);
+void	 up_q(struct printer *_pp);
+void	 disable(struct printer *_pp);		/* X-version */
+void	 doabort(struct printer *_pp);		/* X-version */
+void	 enable(struct printer *_pp);		/* X-version */
+void	 restart(struct printer *_pp);		/* X-version */
+void	 startcmd(struct printer *_pp);		/* X-version */
+void	 stop(struct printer *_pp);		/* X-version */
+void	 up(struct printer *_pp);		/* X-version */
 __END_DECLS
 
 extern int NCMDS;
