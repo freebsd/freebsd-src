@@ -296,10 +296,9 @@ whois(const char *query, const char *hostname, int flags)
 				}
 				s_asprintf(&nhost, "%.*s",
 				     (int)(buf + len - host), host);
-			}
-		        else if ((host =  strnstr(buf, WHOIS_ORG_SERVER_ID, len)) 
-                           != NULL) {
-                        	host += sizeof(WHOIS_ORG_SERVER_ID) - 1;
+			} else if ((host =
+			    strnstr(buf, WHOIS_ORG_SERVER_ID, len)) != NULL) {
+				host += sizeof(WHOIS_ORG_SERVER_ID) - 1;
 				for (p = host; p < buf + len; p++) {
 					if (!ishost(*p)) {
 						*p = '\0';
@@ -307,9 +306,8 @@ whois(const char *query, const char *hostname, int flags)
 					}
 				}
 				s_asprintf(&nhost, "%.*s",
-				     (int)(buf + len - host), host);
-                        } 
-                        else if (strcmp(hostname, ANICHOST) == 0) {
+				    (int)(buf + len - host), host);
+			} else if (strcmp(hostname, ANICHOST) == 0) {
 				for (c = 0; c <= len; c++)
 					buf[c] = tolower((int)buf[c]);
 				for (i = 0; ip_whois[i] != NULL; i++) {
