@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm_pass3.c,v 1.5 1994/11/26 08:57:42 phk Exp $
+ * $Id: ctm_pass3.c,v 1.6 1994/11/27 16:01:29 bde Exp $
  *
  */
 
@@ -158,17 +158,20 @@ Pass3(FILE *fd)
 	    continue;
 	} 
 	if(!strcmp(sp->Key,"FR")) {
-	    if (0 == unlink(name))
-		continue;
+	    if (0 != unlink(name)) {
+		fprintf(stderr,"<%s> unlink failed\n",name);
+		WRONG
+	    }
+	    continue;
 	} 
 	if(!strcmp(sp->Key,"DR")) { 
-	    if (0 == rmdir(name))
-		continue;
-#ifdef NOTDEF
+	    /*
+	     * We cannot use rmdir() because we do not get the directories
+	     * in '-depth' order (cvs-cur.0018.gz for examples)
+	     */
 	    sprintf(buf,"rm -rf %s",name);
 	    system(buf);
 	    continue;
-#endif
 	} 
 	WRONG
     }
