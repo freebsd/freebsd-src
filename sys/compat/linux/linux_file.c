@@ -128,7 +128,7 @@ linux_open(struct proc *p, struct linux_open_args *args)
 	struct file *fp = fdp->fd_ofiles[p->p_retval[0]];
 
 	if (fp->f_type == DTYPE_VNODE)
-	    (fp->f_ops->fo_ioctl)(fp, TIOCSCTTY, (caddr_t) 0, p);
+	    fo_ioctl(fp, TIOCSCTTY, (caddr_t) 0, p);
     }
 #ifdef DEBUG
     printf("Linux-emul(%d): open returns error %d\n", 

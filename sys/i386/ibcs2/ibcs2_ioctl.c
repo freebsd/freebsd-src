@@ -24,6 +24,8 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #include <sys/param.h>
@@ -338,7 +340,6 @@ ibcs2_ioctl(p, uap)
 {
 	struct filedesc *fdp = p->p_fd;
 	struct file *fp;
-	int (*ctl) __P((struct file *, u_long, caddr_t, struct proc *));
 	int error;
 
 	if (SCARG(uap, fd) < 0 || SCARG(uap, fd) >= fdp->fd_nfiles ||
@@ -353,8 +354,6 @@ ibcs2_ioctl(p, uap)
 		return EBADF;
 	}
 
-	ctl = fp->f_ops->fo_ioctl;
-
 	switch (SCARG(uap, cmd)) {
 	case IBCS2_TCGETA:
 	case IBCS2_XCGETA:
@@ -364,7 +363,7 @@ ibcs2_ioctl(p, uap)
 		struct ibcs2_termios sts;
 		struct ibcs2_termio st;
 	
-		if ((error = (*ctl)(fp, TIOCGETA, (caddr_t)&bts, p)) != 0)
+		if ((error = fo_ioctl(fp, TIOCGETA, (caddr_t)&bts, p)) != 0)
 			return error;
 	
 		btios2stios (&bts, &sts);
@@ -400,7 +399,7 @@ ibcs2_ioctl(p, uap)
 		}
 
 		/* get full BSD termios so we don't lose information */
-		if ((error = (*ctl)(fp, TIOCGETA, (caddr_t)&bts, p)) != 0) {
+		if ((error = fo_ioctl(fp, TIOCGETA, (caddr_t)&bts, p)) != 0) {
 			DPRINTF(("ibcs2_ioctl(%d): TCSET ctl failed fd %d ",
 				 p->p_pid, SCARG(uap, fd)));
 			return error;
@@ -414,7 +413,7 @@ ibcs2_ioctl(p, uap)
 		stio2stios(&st, &sts);
 		stios2btios(&sts, &bts);
 
-		return (*ctl)(fp, SCARG(uap, cmd) - IBCS2_TCSETA + TIOCSETA,
+		return fo_ioctl(fp, SCARG(uap, cmd) - IBCS2_TCSETA + TIOCSETA,
 			      (caddr_t)&bts, p);
 	    }
 
@@ -430,7 +429,7 @@ ibcs2_ioctl(p, uap)
 			return error;
 		}
 		stios2btios (&sts, &bts);
-		return (*ctl)(fp, SCARG(uap, cmd) - IBCS2_XCSETA + TIOCSETA,
+		return fo_ioctl(fp, SCARG(uap, cmd) - IBCS2_XCSETA + TIOCSETA,
 			      (caddr_t)&bts, p);
 	    }
 
@@ -446,7 +445,7 @@ ibcs2_ioctl(p, uap)
 			return error;
 		}
 		stios2btios (&sts, &bts);
-		return (*ctl)(fp, SCARG(uap, cmd) - IBCS2_OXCSETA + TIOCSETA,
+		return fo_ioctl(fp, SCARG(uap, cmd) - IBCS2_OXCSETA + TIOCSETA,
 			      (caddr_t)&bts, p);
 	    }
 
@@ -462,9 +461,9 @@ ibcs2_ioctl(p, uap)
 			DPRINTF(("ibcs2_ioctl(%d): TCXONC ", p->p_pid));
 			return ENOSYS;
 		case 2:
-			return (*ctl)(fp, TIOCSTOP, (caddr_t)0, p);
+			return fo_ioctl(fp, TIOCSTOP, (caddr_t)0, p);
 		case 3:
-			return (*ctl)(fp, TIOCSTART, (caddr_t)1, p);
+			return fo_ioctl(fp, TIOCSTART, (caddr_t)1, p);
 		default:
 			return EINVAL;
 		}
@@ -487,7 +486,7 @@ ibcs2_ioctl(p, uap)
 		default:
 			return EINVAL;
 		}
-		return (*ctl)(fp, TIOCFLUSH, (caddr_t)&arg, p);
+		return fo_ioctl(fp, TIOCFLUSH, (caddr_t)&arg, p);
 	    }
 
 	case IBCS2_TIOCGWINSZ:

@@ -288,9 +288,9 @@ struct uio;
  * File operations on sockets.
  */
 int	soo_read __P((struct file *fp, struct uio *uio, struct ucred *cred,
-	    int flags));
+	    int flags, struct proc *p));
 int	soo_write __P((struct file *fp, struct uio *uio, struct ucred *cred,
-	    int flags));
+	    int flags, struct proc *p));
 int	soo_close __P((struct file *fp, struct proc *p));
 int	soo_ioctl __P((struct file *fp, u_long cmd, caddr_t data,
 	    struct proc *p));

@@ -57,11 +57,11 @@ static int vn_closefile __P((struct file *fp, struct proc *p));
 static int vn_ioctl __P((struct file *fp, u_long com, caddr_t data, 
 		struct proc *p));
 static int vn_read __P((struct file *fp, struct uio *uio, 
-		struct ucred *cred, int flags));
+		struct ucred *cred, int flags, struct proc *p));
 static int vn_poll __P((struct file *fp, int events, struct ucred *cred,
 		struct proc *p));
 static int vn_write __P((struct file *fp, struct uio *uio, 
-		struct ucred *cred, int flags));
+		struct ucred *cred, int flags, struct proc *p));
 
 struct 	fileops vnops =
 	{ vn_read, vn_write, vn_ioctl, vn_poll, vn_closefile };
@@ -274,16 +274,19 @@ vn_rdwr(rw, vp, base, len, offset, segflg, ioflg, cred, aresid, p)
  * File table vnode read routine.
  */
 static int
-vn_read(fp, uio, cred, flags)
+vn_read(fp, uio, cred, flags, p)
 	struct file *fp;
 	struct uio *uio;
 	struct ucred *cred;
+	struct proc *p;
 	int flags;
 {
-	struct vnode *vp = (struct vnode *)fp->f_data;
-	struct proc *p = uio->uio_procp;
+	struct vnode *vp;
 	int error, ioflag;
 
+	KASSERT(uio->uio_procp == p, ("uio_procp %p is not p %p",
+	    uio->uio_procp, p));
+	vp = (struct vnode *)fp->f_data;
 	ioflag = 0;
 	if (fp->f_flag & FNONBLOCK)
 		ioflag |= IO_NDELAY;
@@ -330,16 +333,18 @@ vn_read(fp, uio, cred, flags)
  * File table vnode write routine.
  */
 static int
-vn_write(fp, uio, cred, flags)
+vn_write(fp, uio, cred, flags, p)
 	struct file *fp;
 	struct uio *uio;
 	struct ucred *cred;
+	struct proc *p;
 	int flags;
 {
 	struct vnode *vp;
-	struct proc *p = uio->uio_procp;
 	int error, ioflag;
 
+	KASSERT(uio->uio_procp == p, ("uio_procp %p is not p %p",
+	    uio->uio_procp, p));
 	vp = (struct vnode *)fp->f_data;
 	if (vp->v_type == VREG)
 		bwillwrite();
