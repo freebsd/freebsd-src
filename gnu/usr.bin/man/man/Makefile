@@ -1,9 +1,10 @@
 # $FreeBSD$
 #
 
+MAN_LIBZ=YES
+
 PROG=	man
 SRCS=	man.c manpath.c glob.c
-MAN1=   man.1
 BINOWN= man
 BINMODE=4555
 INSTALLFLAGS+= -fschg
@@ -12,12 +13,19 @@ CFLAGS+= -I${LIBDESTDIR}
 DPADD=	${LIBMAN}
 LDADD=	${LIBMAN}
 
+.if defined(MAN_LIBZ) && !empty(MAN_LIBZ)
+DPADD+=	${LIBZ}
+LDADD+=	-lz
+CFLAGS+=-DHAVE_LIBZ=1
+.endif
+
 CFLAGS+= -I${.CURDIR}/../lib -DSTDC_HEADERS -DPOSIX -DHAS_TROFF
 CFLAGS+= -DDO_COMPRESS -DALT_SYSTEMS -DSETREUID -DCATMODE=0644
 CLEANFILES+=	${MAN1}
-MANDEPEND+=	${MAN1}
 
 .PATH:	${.CURDIR}/../manpath
+
+.include <bsd.prog.mk>
 
 ${MAN1}: ${.CURDIR}/man.man
 	@${ECHO} echo Making ${.TARGET:T} from ${.ALLSRC:T}; \
@@ -26,5 +34,3 @@ ${MAN1}: ${.CURDIR}/man.man
 	    -e 's,%manpath_config_file%,${manpath_config_file},' \
 	    -e 's,%compress%,${compress},' \
 	${.CURDIR}/man.man > ${MAN1}
-
-.include <bsd.prog.mk>

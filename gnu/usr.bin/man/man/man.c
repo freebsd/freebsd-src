@@ -29,6 +29,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <signal.h>
+#if HAVE_LIBZ > 0
+#include <zlib.h>
+#endif
 #include "config.h"
 #include "gripes.h"
 #include "version.h"
@@ -919,8 +922,13 @@ parse_roff_directive (cp, file, buf, bufsize)
   int bufsize;
 {
   char c;
+  char *exp;
   int first = 1;
-  int tbl_found = 0;
+  int preproc_found = 0;
+  int use_col = 0;
+
+  if ((exp = get_expander(file)) != NULL)
+	add_directive (&first, exp, file, buf, bufsize);
 
   while ((c = *cp++) != '\0')
     {
@@ -931,6 +939,7 @@ parse_roff_directive (cp, file, buf, bufsize)
 	  if (debug)
 	    fprintf (stderr, "found eqn(1) directive\n");
 
+	  preproc_found++;
 	  if (troff)
 	    add_directive (&first, EQN, file, buf, bufsize);
 	  else {
@@ -952,6 +961,7 @@ parse_roff_directive (cp, file, buf, bufsize)
 	  if (debug)
 	    fprintf (stderr, "found grap(1) directive\n");
 
+	  preproc_found++;
 	  add_directive (&first, GRAP, file, buf, bufsize);
 
 	  break;
@@ -961,6 +971,7 @@ parse_roff_directive (cp, file, buf, bufsize)
 	  if (debug)
 	    fprintf (stderr, "found pic(1) directive\n");
 
+	  preproc_found++;
 	  add_directive (&first, PIC, file, buf, bufsize);
 
 	  break;
@@ -970,7 +981,8 @@ parse_roff_directive (cp, file, buf, bufsize)
 	  if (debug)
 	    fprintf (stderr, "found tbl(1) directive\n");
 
-	  tbl_found++;
+	  preproc_found++;
+	  use_col++;
 	  add_directive (&first, TBL, file, buf, bufsize);
 	  break;
 
@@ -1004,41 +1016,40 @@ parse_roff_directive (cp, file, buf, bufsize)
 
  done:
 
-  if (first)
-    return 1;
-
 #ifdef HAS_TROFF
   if (troff)
-    {
-      strncat (buf, " | ", bufsize-strlen(buf)-1); 
-      strncat (buf, TROFF, bufsize-strlen(buf)-1);
-    }
+    add_directive (&first, TROFF, file, buf, bufsize);
   else
 #endif
     {
-      strncat (buf, " | ", bufsize-strlen(buf)-1); 
-      strncat (buf, NROFF, bufsize-strlen(buf)-1);
 #ifdef __FreeBSD__
-      if (locale_opts != NULL)
-	strncat (buf, locale_opts, bufsize-strlen(buf)-1);
-      else
-#endif
-      strncat (buf, " -Tascii", bufsize-strlen(buf)-1);
-    }
-  if (tbl_found && !troff && strcmp (COL, "") != 0)
-    {
-      strncat (buf, " | ", bufsize-strlen(buf)-1); 
-      strncat (buf, COL, bufsize-strlen(buf)-1);
-    }
+      char lbuf[FILENAME_MAX];
 
-  return 0;
+      snprintf(lbuf, sizeof(lbuf), "%s%s", NROFF,
+	       locale_opts == NULL ? " -Tascii" : locale_opts);
+	    add_directive (&first, lbuf, file, buf, bufsize);
+#else
+      add_directive (&first, NROFF " -Tascii", file, buf, bufsize);
+#endif
+    }
+  if (use_col && !troff)
+      add_directive (&first, COL, file, buf, bufsize);
+
+  if (preproc_found)
+    return 0;
+  else
+    return 1;
 }
 
 char *
 make_roff_command (file)
      char *file;
 {
+#if HAVE_LIBZ > 0
+  gzFile fp;
+#else
   FILE *fp;
+#endif
   char line [BUFSIZ];
   static char buf [BUFSIZ];
   int status;
@@ -1058,11 +1069,20 @@ make_roff_command (file)
 	gripe_roff_command_from_command_line (file);
     }
 
+#if HAVE_LIBZ > 0
+  if ((fp = gzopen (file, "r")) != NULL)
+#else
   if ((fp = fopen (file, "r")) != NULL)
+#endif
     {
       cp = line;
+#if HAVE_LIBZ > 0
+      gzgets (fp, line, BUFSIZ);
+      gzclose(fp);
+#else
       fgets (line, BUFSIZ, fp);
       fclose(fp);
+#endif
       if (*cp++ == '\'' && *cp++ == '\\' && *cp++ == '"' && *cp++ == ' ')
 	{
 	  if (debug)
@@ -1104,51 +1124,11 @@ make_roff_command (file)
   if (debug)
     fprintf (stderr, "using default preprocessor sequence\n");
 
-  if ((cp = get_expander(file)) == NULL)
-    cp = "/bin/cat";
-  snprintf(buf, sizeof(buf), "%s %s | ", cp, file);
-#ifdef HAS_TROFF
-  if (troff)
-    {
-      if (strcmp (TBL, "") != 0)
-	{
-	  strncat(buf, TBL, sizeof(buf)-strlen(buf)-1);
-	  strncat(buf, " | ", sizeof(buf)-strlen(buf)-1);
-	  strncat(buf, TROFF, sizeof(buf)-strlen(buf)-1);
-	}
-      else
-	{
-	  strncat(buf, TROFF, sizeof(buf)-strlen(buf)-1);
-	}
-    }
-  else
-#endif
-    {
-      if (strcmp (TBL, "") != 0)
-	{
-	  strncat(buf, TBL, sizeof(buf)-strlen(buf)-1);
-	  strncat(buf, " | ", sizeof(buf)-strlen(buf)-1);
-	  strncat(buf, NROFF, sizeof(buf)-strlen(buf)-1);
-	}
-      else
-	{
-	  strncpy (buf, NROFF, sizeof(buf));
-	}
-
-#ifdef __FreeBSD__
-      if (locale_opts != NULL)
-	strncat (buf, locale_opts, sizeof(buf)-strlen(buf)-1);
-      else
-#endif
-      strncat (buf, " -Tascii", sizeof(buf)-strlen(buf)-1);
-
-      if (strcmp (COL, "") != 0)
-	{
-	  strncat (buf, " | ", sizeof(buf)-strlen(buf)-1);
-	  strncat (buf, COL, sizeof(buf)-strlen(buf)-1);
-	}
-    }
-  return buf;
+  status = parse_roff_directive ("t", file, buf, sizeof(buf));
+  if (status >= 0)
+    return buf;
+  else		/* can't happen */
+    return NULL;
 }
 
 sig_t ohup, oint, oquit, oterm;
