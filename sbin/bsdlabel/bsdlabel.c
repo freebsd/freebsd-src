@@ -113,7 +113,7 @@ struct disklabel * getvirginlabel __P((void));
 
 char	*dkname;
 char	*specname;
-char	tmpfil[] = _PATH_TMP;
+char	tmpfil[] = PATH_TMPFILE;
 
 char	namebuf[BBSIZE], *np = namebuf;
 struct	disklabel lab;
