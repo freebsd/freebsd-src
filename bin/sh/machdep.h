@@ -33,129 +33,20 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)nodes.c.pat	8.2 (Berkeley) 5/4/95
+ *	@(#)machdep.h	8.2 (Berkeley) 5/4/95
  * $FreeBSD$
  */
 
-#include <stdlib.h>
 /*
- * Routine for dealing with parsed shell commands.
+ * Most machines require the value returned from malloc to be aligned
+ * in some way.  The following macro will get this right on many machines.
  */
 
-#include "shell.h"
-#include "nodes.h"
-#include "memalloc.h"
-#include "machdep.h"
-#include "mystring.h"
+#ifndef ALIGN
+union align {
+	int i;
+	char *cp;
+};
 
-
-int     funcblocksize;		/* size of structures in function */
-int     funcstringsize;		/* size of strings in node */
-pointer funcblock;		/* block to allocate function from */
-char   *funcstring;		/* block to allocate strings from */
-
-%SIZES
-
-
-STATIC void calcsize(union node *);
-STATIC void sizenodelist(struct nodelist *);
-STATIC union node *copynode(union node *);
-STATIC struct nodelist *copynodelist(struct nodelist *);
-STATIC char *nodesavestr(char *);
-
-
-
-/*
- * Make a copy of a parse tree.
- */
-
-union node *
-copyfunc(union node *n)
-{
-	if (n == NULL)
-		return NULL;
-	funcblocksize = 0;
-	funcstringsize = 0;
-	calcsize(n);
-	funcblock = ckmalloc(funcblocksize + funcstringsize);
-	funcstring = (char *)funcblock + funcblocksize;
-	return copynode(n);
-}
-
-
-
-STATIC void
-calcsize(union node *n)
-{
-	%CALCSIZE
-}
-
-
-
-STATIC void
-sizenodelist(struct nodelist *lp)
-{
-	while (lp) {
-		funcblocksize += ALIGN(sizeof(struct nodelist));
-		calcsize(lp->n);
-		lp = lp->next;
-	}
-}
-
-
-
-STATIC union node *
-copynode(union node *n)
-{
-	union node *new;
-
-	%COPY
-	return new;
-}
-
-
-STATIC struct nodelist *
-copynodelist(struct nodelist *lp)
-{
-	struct nodelist *start;
-	struct nodelist **lpp;
-
-	lpp = &start;
-	while (lp) {
-		*lpp = funcblock;
-		funcblock = (char *)funcblock + ALIGN(sizeof(struct nodelist));
-		(*lpp)->n = copynode(lp->n);
-		lp = lp->next;
-		lpp = &(*lpp)->next;
-	}
-	*lpp = NULL;
-	return start;
-}
-
-
-
-STATIC char *
-nodesavestr(char *s)
-{
-	char *p = s;
-	char *q = funcstring;
-	char   *rtn = funcstring;
-
-	while ((*q++ = *p++) != '\0')
-		continue;
-	funcstring = q;
-	return rtn;
-}
-
-
-
-/*
- * Free a parse tree.
- */
-
-void
-freefunc(union node *n)
-{
-	if (n)
-		ckfree(n);
-}
+#define ALIGN(nbytes)	(((nbytes) + sizeof(union align) - 1) & ~(sizeof(union align) - 1))
+#endif
