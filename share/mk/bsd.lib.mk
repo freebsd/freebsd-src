@@ -354,7 +354,7 @@ afterinstall: maninstall
 .endif
 .endif
 
-DISTRIBUTION?=	bin
+DISTRIBUTION?=	base
 .if !target(distribute)
 distribute:
 .for dist in ${DISTRIBUTION}

@@ -12,5 +12,5 @@ echo "You are about to extract the base distribution into ${DESTDIR:-/} - are yo
 echo -n "you want to do this over your installed system (y/n)? "
 read ans 
 if [ "$ans" = "y" ]; then
-	cat bin.?? | tar --unlink -xpzf - -C ${DESTDIR:-/}
+	cat base.?? | tar --unlink -xpzf - -C ${DESTDIR:-/}
 fi

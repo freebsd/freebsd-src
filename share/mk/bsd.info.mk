@@ -159,7 +159,7 @@ ${x:S/$/-install/}: ${DESTDIR}${INFODIR}/${INFODIRFILE}
 
 .PHONY: ${INSTALLINFODIRS}
 
-DISTRIBUTION?=	bin
+DISTRIBUTION?=	base
 
 .if !target(distribute)
 distribute:

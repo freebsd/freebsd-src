@@ -156,7 +156,7 @@ checkDistXUser(dialogMenuItem *self)
 static int
 checkDistMinimum(dialogMenuItem *self)
 {
-    return Dists == (DIST_BIN | DIST_CRYPTO);
+    return Dists == (DIST_BASE | DIST_CRYPTO);
 }
 
 static int
@@ -776,7 +776,7 @@ DMenu MenuSubDistributions = {
     DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
     "Select the distributions you wish to install.",
     "Please check off the distributions you wish to install.  At the\n"
-    "very minimum, this should be \"bin\".",
+    "very minimum, this should be \"base\".",
     NULL,
     NULL,
     { { "X Exit", "Exit this menu (returning to previous)",
@@ -785,8 +785,8 @@ DMenu MenuSubDistributions = {
 	NULL, distSetEverything, NULL, NULL, ' ', ' ', ' ' },
       { "Reset",	"Reset all of the below",
 	NULL, distReset, NULL, NULL, ' ', ' ', ' ' },
-      { " bin",		"Binary base distribution (required)",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_BIN },
+      { " base",	"Binary base distribution (required)",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_BASE },
 #ifdef __i386__
       { " compat1x",	"FreeBSD 1.x binary compatibility",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_COMPAT1X },

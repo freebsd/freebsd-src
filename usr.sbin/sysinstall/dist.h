@@ -4,7 +4,7 @@
 #define _DIST_H_INCLUDE
 
 /* Bitfields for distributions - hope we never have more than 32! :-) */
-#define DIST_BIN		0x00001
+#define DIST_BASE		0x00001
 #define DIST_GAMES		0x00002
 #define DIST_MANPAGES		0x00004
 #define DIST_PROFLIBS		0x00008
@@ -120,7 +120,7 @@
 
 /* Canned distribution sets */
 #define _DIST_USER \
-	( DIST_BIN | DIST_DOC | DIST_MANPAGES | DIST_DICT | DIST_CRYPTO )
+	( DIST_BASE | DIST_DOC | DIST_MANPAGES | DIST_DICT | DIST_CRYPTO )
 
 #define _DIST_DEVELOPER \
 	( _DIST_USER | DIST_PROFLIBS | DIST_INFO | DIST_SRC )

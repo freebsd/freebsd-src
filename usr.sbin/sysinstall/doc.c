@@ -119,7 +119,7 @@ docShowDocument(dialogMenuItem *self)
     }
     else {
 	msgConfirm("Hmmmmm!  I can't seem to access the documentation you selected!\n"
-		   "Have you loaded the bin distribution?  Is your network connected?");
+		   "Have you loaded the base distribution?  Is your network connected?");
 	return DITEM_FAILURE;
     }
 }

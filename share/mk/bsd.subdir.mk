@@ -12,7 +12,7 @@
 #
 # +++ variables +++
 #
-# DISTRIBUTION	Name of distribution. [bin]
+# DISTRIBUTION	Name of distribution. [base]
 #
 # SUBDIR	A list of subdirectories that should be built as well.
 #		Each of the targets will execute the same target in the
@@ -75,7 +75,7 @@ afterinstall: realinstall
 realinstall: beforeinstall
 .endif
 
-DISTRIBUTION?=	bin
+DISTRIBUTION?=	base
 .if !target(afterdistribute)
 afterdistribute:
 .endif
