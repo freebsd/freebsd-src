@@ -1,5 +1,5 @@
 .ig \"-*- nroff -*-
-Copyright (C) 1989-1995 Free Software Foundation, Inc.
+Copyright (C) 1989-1999 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -47,7 +47,7 @@ the original English.
 .ie \\n(.$-1 .RI "[\ \fB\\$1\fP" "\\$2" "\ ]"
 .el .RB "[\ " "\\$1" "\ ]"
 ..
-.OP \-abivzCER
+.OP \-abivzCERU
 .OP \-w name
 .OP \-W name
 .OP \-d cs
@@ -80,7 +80,9 @@ approximation of the typeset output.
 .B \-b
 Print a backtrace with each warning or error message.  This backtrace
 should help track down the cause of the error.  The line numbers given
-in the backtrace may not always correct: troff's idea of line numbers
+in the backtrace may not always be correct:
+.B troff 's
+idea of line numbers
 gets confused by
 .B as
 or 
@@ -140,6 +142,14 @@ as the default font family.
 Read in the file
 .BI tmac. name\fR.
 Normally this will be searched for in @MACRODIR@.
+By default is used the 
+.I safer
+macro (reverted using -U ).
+.TP
+.B \-U
+Unsafe option, avoids default use of 
+.I safer
+macro.
 .TP
 .B \-R
 Don't load
@@ -2046,6 +2056,7 @@ of device
 .BR grops (@MAN1EXT@),
 .BR grodvi (@MAN1EXT@),
 .BR grotty (@MAN1EXT@),
+.BR grohtml (@MAN1EXT@),
 .BR groff_font (@MAN5EXT@),
 .BR groff_out (@MAN5EXT@),
 .BR groff_char (@MAN7EXT@)

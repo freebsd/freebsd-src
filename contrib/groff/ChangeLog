@@ -1,3 +1,426 @@
+Version 1.15 released
+=====================
+
+1999-12-28  Werner LEMBERG  <wl@gnu.org>
+
+	* NEWS, VERSION: Changed to 1.15
+
+1999-12-27  Paul Eggert  <eggert@twinsun.com>
+
+	* nroff/nroff.man: -S is safer, not safe.
+
+	* groff/groff.cc (main): Use `safer', not `safe', in variable
+	names.  This does not change the behavior.
+
+	* troff/input.cc (main): Likewise.
+
+	* nroff/nroff.sh: Likewise.
+
+	* troff/input.cc (prepend_string): New function.
+	(main): Prepend -msafer, so that we check macro libraries for
+	safety.
+
+	* PROBLEMS: Report problem with Sun C++ 5.0 and 5.1.
+
+Version 1.14 released
+=====================
+
+1999-12-26  Werner LEMBERG  <wl@gnu.org>
+
+	* NEWS, VERSION: Changed to 1.14.
+
+1999-12-24  Werner LEMBERG  <wl@gnu.org>
+
+	* refer/refer.cc: Fixing the last fix.
+
+Version 1.13 released
+=====================
+
+1999-12-23  Werner LEMBERG  <wl@gnu.org>
+
+	* tmac/tmac.an: A typo (`.if' instead of `.ie') made the page
+	number disappear.
+
+	* NEWS: Updated.
+
+	* tmac/tmac.safer: Forgot to remove `so' from the `rm' request.
+
+	* VERSION: Changed to 1.13 -- to be compliant with the Adobe 3.0
+	document conventions, the version number must be a real.
+
+Version 1.12.1 released
+=======================
+
+1999-12-22  Werner LEMBERG  <wl@gnu.org>
+
+	* VERSION: Changed to 1.12.1.
+
+1999-12-22  Alan Rooks  <arooks@istar.ca>
+
+	* refer/refer.cc (do_file): Slight modification to satisfy the
+	`Standard system CC - C++ Compilation System 3.1 03/03/99' on SCO
+	UnixWare 7.1.
+
+1999-12-20  Werner LEMBERG  <wl@gnu.org>
+
+	* changed prep.ai.mit.edu -> ftp.gnu.org; updated copyright
+	notices.
+
+	* tmac/tmac.safer, tmac/groff_msafer.man: Remove `so' (again) from
+	list of unsafe requests.
+
+	* pic/pic.man: Fixed a typo.
+
+	* man/groff_out.man: Fixed a typo.
+
+1999-12-18  Werner LEMBERG  <wl@gnu.org>
+
+	* Makefile.in: Doc fixes.
+
+1999-12-17  Fabrizio Polacco  <fab@prosa.it>
+
+	* groff/groff.cc: Missing `U' option added to getopt().
+
+	* troff/troff.man: Missing `U' option added to synopsis.
+
+Version 1.12 released
+=====================
+
+1999-12-14  Werner LEMBERG  <wl@gnu.org>
+
+	* troff/input.cc (usage), groff/groff.cc (synopsis): Added -U flag
+	to the synopsis.
+
+	* nroff/nroff.sh, nroff/nroff.man: Replaced `secure', `unsecure'
+	with the more appropriate terms `safer' and `unsafe'.
+
+	* libgroff/strerror.c, aclocal.m4, configure.in: Added checks for
+	sys_nerr and sys_errlist[].
+
+	* pic/pic.h, aclocal.m4, configure.in: Added check for hypot().
+
+	* pic/pic.y, pic/pic.cc: Added check for fmod().
+
+1999-12-13  Werner LEMBERG  <wl@gnu.org>
+
+	* VERSION: Changed to 1.12.
+
+	Here some patches from various sources; most of them taken from
+	the Debian distribution.
+
+	* tmac/groff_mdoc.man, tmac/groff_mdoc.samples.man,
+	tmac/Makefile.sub: New files copied directly from the NetBSD
+	distribution.  Probably, some additional adaptation later on is
+	necessary...
+
+	* tmac/tmac.safer, tmac/groff_msafer.man: Added `so' to the list
+	of unsafe requests.
+
+	* groff/groff.cc, groff/groff.man, nroff/nroff.sh,
+	nroff/nroff.man, pic/main.cc, pic/pic.man, troff/input.cc,
+	troff/troff.man: Added option `-U' for unsafe mode.  Safe mode
+	(`-S') is now the default.
+
+	* README, NEWS: Updated.
+
+1999-12-09  Werner LEMBERG  <wl@gnu.org>
+
+	* doc/groff.texinfo: Regenerated nodes and menus with emacs.
+
+	* doc/Makefile (clean): Added cleaning commands for groff.texinfo.
+
+1999-12-06  Werner LEMBERG  <wl@gnu.org>
+
+	* configure.in: Removed AC_PREFIX_PROGRAM since it causes more
+	grief than relief today.  Additionally, it is against the GNU
+	coding standards.
+
+	* configure: Recreated.
+
+1999-12-05  Werner LEMBERG  <wl@gnu.org>
+
+	* configure.in: Added GROFF_LIBM.
+
+	* configure: Recreated.
+
+	* aclocal.m4 (GROFF_LIBM): New function which tests whether -lm is
+	necessary.
+
+	* Makefile.in: Added definition of $(LIBM).
+
+	* Makefile.comm (LIBM): Removed.
+
+	* pfbtops/Makefile.sub: On AIX, -lm is needed also.
+
+1999-12-03  Gaius Mulley <gaius@glam.ac.uk>
+
+	* doc/Makefile: Added rule for generation pic.html.
+
+	(clean): Files produced by grohtml will be removed also.
+
+	* doc/pic.ms: Small fix.
+
+	* tmac/tmac.html: Fixed suppression of headers.
+
+1999-11-16  Gaius Mulley <gaius@glam.ac.uk>
+
+	* tmac/tmac.html: Fixing horizontal arrows.
+
+	Turning off hyphenation.
+
+	* tmac/tmac.an: Improved support for grohtml; better indentation,
+	no footers/headers.
+
+1999-10-31  Gaius Mulley <gaius@glam.ac.uk>
+
+	* tmac/tmac.arkup: Added CDFTP macro
+
+	* tmac/tmac.html: All headers are turned off for ms, me, and mm
+	macros.
+
+	* tmac/troffrc: Some additions for HTML stuff.
+
+1999-10-06  Gaius Mulley <gaius@glam.ac.uk>
+
+	* tmac/tmac.html: Small changes.
+
+1999-09-26  Werner LEMBERG  <wl@gnu.org>
+
+	* doc/groff.texinfo: Minor fixes.
+
+1999-09-26  Gaius Mulley <gaius@glam.ac.uk>
+
+	* devhtml/TR: Changed spacewidth to 3.
+
+	* tmac/Makefile.sub (NORMALFILES): Added tmac.arkup.
+
+	* tmac/tmac.html: Moved markup macros to tmap.arkup.
+
+	* tmac/tmac.arkup: New file.
+
+	* grohtml/ChangeLog: New file.
+
+1999-09-16  Werner LEMBERG  <wl@gnu.org>
+
+	* doc/groff.texinfo (Common Features): Added Copying chapter.
+	Changed format to @smallbook.
+
+1999-09-15  Werner LEMBERG  <wl@gnu.org>
+
+	* NEWS: Added info about groff.texinfo.
+
+	* doc/groff.texinfo: Will now compile (using texi2dvi) without
+	warning messages.
+
+1999-09-14  Werner LEMBERG  <wl@gnu.org>
+
+	* groff/groff.man: More updates.
+
+1999-09-13  Werner LEMBERG  <wl@gnu.org>
+
+	* doc/groff.texinfo: New file.  This manual is still very
+	rudimentary.  It has been originally contributed by Trent
+	A. Fisher <trent@gnurd.portland.or.us> with first corrections and
+	additions by me.
+
+	* INSTALL: Added information about the `doc' subdir
+
+	* troff/troff.man: Minor fixes.
+
+	* groff/groff.man: Added missing `-L arg' to SYNOPSIS section;
+	reordered options.
+
+	* troff/input.cc (usage): Added missing `-ffam' to usage message.
+
+	* Makefile.in (dist): groff-$(version).tar.gz must be removed
+	also, otherwise it is included itself in another call of `make
+	dist'.
+
+	* groff/groff.cc (synopsis): Removed superfluous space.
+
+	* PROJECTS, PROBLEMS, NEWS: Updated.
+
+	* xditview/Makefile: Removed.
+
+	* VERSION: Updated to 1.12beta.
+
+	* BUG-REPORT: Some cosmetic fixes.  Corrected email address.
+
+	* README: Updated: Included documentation about CVS repository,
+	mailing lists, and daily snapshots.
+
+	* tmac/Makefile.sub: Fixed $(tmap_wrap) finally.
+
+1999-09-12  Bjarni Ingi Gislason  <bjarniig@rhi.hi.is>
+
+	* tmac/tmac.an: If the tag didn't fit into the space that the
+	macro `TP' specifies, the rest of the tag went into the space for
+	the next line.
+
+1999-09-12  Jeffrey Copeland  <jeff@opennt.com> 
+
+	* grolj4/lj4.cc: Added duplex printing (option `-d').
+
+	* grolj4/grolj4.man: Document duplex printing.
+
+1999-09-12  Werner LEMBERG  <wl@gnu.org>
+
+	* doc/Makefile (pic.ps): Fixed rule which caused problems with
+	non-GNUish sed programs.
+
+	* tmac/doc-syms: Removed extra space from -iso8802-3 macro
+	definition.
+
+	* configure.in (LIBS): Added `-lc'
+
+	* Makefile.comm (.man.n): Added substitution for @TMAC_AN_PREFIX@.
+
+	* pic/tex.cc (solid_arc): Casting M_PI to double.
+
+	* libgroff/putenv.c (putenv): Changed function header to ANSI C.
+
+	* groff/groff.man, tmac/Makefile.sub (MAN7), tmac/groff_msafer.man
+	(new file), tmac/msafer.man (deleted), tmac/groff_me.man (new
+	file), tmac/me.man (deleted): {me,msafer} -> groff_{me,msafer}.
+
+	* groff/groff_man.man: New file.  This manual page was originally
+	written for the Debian GNU/Linux system by Susan G. Kleinmann
+	<sgk@debian.org>.
+
+	* eqn/list.cc (list_box::compute_metrics,
+	list_box::compute_sublist_width): Removed variable declaration to
+	avoid shadowing warnings.
+
+	* grops/psrm.cc (resource_manager::process_file): Ditto.
+
+	* tfmtodit/tfmtodit.cc (main): Ditto.
+
+	* libgroff/font.cc (font::load_desc): Renamed auxiliary variable
+	to avoid shadowing warnings.
+
+	* tbl/table.cc (block_entry::do_divert, table::do_row): Renamed
+	shadowing loop variable.
+
+	* groff/groff.man, troff/troff.man: Added doc about grohtml.
+
+1999-09-12  Gaius Mulley  <gaius@glam.ac.uk>
+
+	New grohtml frontend to convert groff input to html.
+
+	* Makefile.in (CCPROGDIRS, DEVDIRS): Added html device.
+
+	* tmac/Makefile.sub (NORMALFILES): Added tmac.html.
+
+	* tmac/eqnrc: Added html device.
+
+	* tmac/tmac.html: New file.
+
+	* eqn/main.cc (do_file, inline_equation), pic/troff.cc
+	(troff_output::start_picture, troff_output::finish_picture),
+	tbl/main.cc (process_input_file):
+	Surrounded output with `graphics_start' and `graphics_end' so that
+	the html driver can identify non-text portions.
+
+	* grodvi/dvi.cc (dvi_printer::set_char), grolj4/lj4.cc
+	(lj4_printer::set_char), grops/ps.cc (ps_printer::set_char),
+	grotty/tty.ps (tty_printer::set_char): Additional parameter
+	`name'.
+
+	* include/printer.h: Class printer: New function
+	set_char_and_width; new variables (is_char_named, is_named_set,
+	named_command, named_char_s, named_char_n) to hold information
+	about named characters -- needed by the html driver.
+
+	* libdriver/printer.cc (printer::set_ascii_char,
+	printer::set_special_char): Use set_char_and_width.
+
+	* devhtml/*: New device files for html driver.
+
+	* grohtml/*: New driver grohtml.
+
+1999-09-11  Wilfredo Sanchez  <wsanchez@apple.com>
+
+	* tmac/doc-common, tmac/tmac.an: Removed the word `UNIX' in
+	default strings.
+
+1999-09-11  Luke Mewburn  <lukem@netbsd.org>
+
+	* libgroff/string.cc (search): Small fix to test against NULL
+	pointer.
+
+1999-09-11  Jeff Conrad  <jeff_conrad@msn.com>
+
+	* troff/node.cc (copy): The characters in a bracket escape (e.g.,
+	\b'abc') were stacked in reverse order when processed in a
+	diversion.
+
+	* troff/node.h: Added `*last' to struct `node' to make the above
+	fix work.
+
+	* troff/input.cc (read_draw_node), libdriver/input.cc (do_file):
+	The default scale for the 'f' and 't' graphics functions were 'm'
+	rather than 'u' (i.e., no scaling).
+
+1999-09-11  Peter Miller  <peterm@jna.com.au>
+
+	* groff/groff.cc (main), groff.man, soelim/soelim.cc (main,
+	do_file), soelim/soelim.man: Added `-I file' option to soelim,
+	defining include paths.
+
+	* soelim/soelim.cc (include_path_append): New function.
+
+1999-09-11  Larry Jones  <larry.jones@sdrc.com>
+
+	* tbl/main.cc (process_options): Unix (at least Documenter's
+	Workbench) tbl allows arbitrary non-alpha characters between
+	options.
+
+1999-09-11  Paul Eggert  <eggert@twinsun.com>
+
+	Y2k fixes.  Don't assume that the current year precedes 2000.
+
+	* doc/meref.me: Add \n(y2, \n(y4.
+
+	* tmac/doc-common (Yr): New number register.
+	(Dd): Don't assume current year precedes 2000.
+
+	* tmac/tmac.e (td): Likewise.
+	(y2, y4): New number registers.
+
+	* pic/pic.man: Update reference for pic paper to May, 1991
+	version.
+
+1999-09-11  Werner LEMBERG  <wl@gnu.org>
+
+	* tmac/Makefile.sub (install_data, stamp-wrap, uninstall_sub):
+	Removed quotation marks which prevented correct expansion of
+	$(tmac_wrap).
+
+	* devlj4/Makefile.sub (LJ4RES): Fixed value (600 instead of 300).
+
+1999-09-10  Werner LEMBERG  <wl@gnu.org>
+
+	* Makefile.sub (DISTCLEANFILES): Added `config.log' and
+	`config.cache'.
+
+	* Removed configure.old.
+
+1999-08-31  Werner LEMBERG  <wl@gnu.org>
+
+	* VERSION: Updated to 1.11.1
+
+1999-05-27  Werner LEMBERG  <wl@gnu.org>
+
+	* doc/Makefile: changed `.PS' postfix to `.ps' for consistency.
+
+	* tmac/Makefile.sub (install_data, stamp-wrap, uninstall_sub):
+	added quotations around $(tmac_wrap) to avoid syntax error if
+	variable is empty.
+
+	* configure: Newly generated using autoconf 2.13.
+
+	* Makefile.in (LDFLAGS): Set variable to @LDFLAGS@.
+
 Fri Aug 15 08:51:47 1997  Eric S. Raymond  <esr@snark.thyrsus.com>
 
 	* README, PROJECTS, NEWS, INSTALL, VERSION, 

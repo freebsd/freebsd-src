@@ -13,10 +13,11 @@
 .do ds troffrc!ascii tmac.tty
 .do ds troffrc!latin1 tmac.tty
 .do ds troffrc!lj4 tmac.lj4
+.do ds troffrc!html tmac.html
 .do if d troffrc!\*[.T] \
 .	do mso \*[troffrc!\*[.T]]
 .do rm troffrc!ps troffrc!Xps troffrc!dvi troffrc!X75 troffrc!X75-12 \
-troffrc!X100 troffrc!X100-12 troffrc!lj4
+troffrc!X100 troffrc!X100-12 troffrc!lj4 troffrc!html
 .do tr \[char160]
 .\" Set the hyphenation language to `us'.
 .do hla us

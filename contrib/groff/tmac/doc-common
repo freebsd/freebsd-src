@@ -118,6 +118,7 @@
 .nr Xc 3
 .nr Xo 1
 .nr Xr 10n
+.nr Yr \n(yr+1900
 .ds sV \& \&
 .ds hV \&\ \&
 .ds iV \& \&
@@ -157,9 +158,9 @@
 .	ds cH \\$2
 .\" .	if "\\$3"" \{\
 .		if \\$2>=1 .if \\$2<=8 \{\
-.			ds vT UNIX Reference Manual
-.			if \\$2>1 .if \\$2<6 .ds vT UNIX Programmer's Manual
-.			if "\\$2"8" .ds vT UNIX System Manager's Manual
+.			ds vT System Reference Manual
+.			if \\$2>1 .if \\$2<6 .ds vT System Programmer's Manual
+.			if "\\$2"8" .ds vT System Manager's Manual
 .			nr sN \\$2
 .		\}
 .		if "\\$2"unass"  .ds vT DRAFT
@@ -168,17 +169,17 @@
 .\" .	\}
 .\}
 .if !"\\$3"" \{\
-.	if "\\$3"USD"   .ds vT UNIX User's Supplementary Documents
-.	if "\\$3"PS1"   .ds vT UNIX Programmers's Supplementary Documents
-.	if "\\$3"AMD"   .ds vT UNIX Ancestral Manual Documents
-.	if "\\$3"SMM"   .ds vT UNIX System Manager's Manual
-.	if "\\$3"URM"   .ds vT UNIX Reference Manual
-.	if "\\$3"PRM"   .ds vT UNIX Programmers's Manual
-.	if "\\$3"IND"   .ds vT UNIX Manual Master Index
-.\" .	if "\\$3"CON"   .ds vT UNIX Contributed Software Manual
-.\" .	if "\\$3"IMP"	.ds vT UNIX Implementation Notes
-.\" .	if "\\$3"HOW"	.ds vT UNIX How Pocket Manual
-.	if "\\$3"LOCAL" .ds vT UNIX Local Manual
+.	if "\\$3"USD"   .ds vT User's Supplementary Documents
+.	if "\\$3"PS1"   .ds vT Programmers's Supplementary Documents
+.	if "\\$3"AMD"   .ds vT Ancestral Manual Documents
+.	if "\\$3"SMM"   .ds vT System Manager's Manual
+.	if "\\$3"URM"   .ds vT Reference Manual
+.	if "\\$3"PRM"   .ds vT Programmers's Manual
+.	if "\\$3"IND"   .ds vT Manual Master Index
+.\" .	if "\\$3"CON"   .ds vT Contributed Software Manual
+.\" .	if "\\$3"IMP"	.ds vT Implementation Notes
+.\" .	if "\\$3"HOW"	.ds vT How Pocket Manual
+.	if "\\$3"LOCAL" .ds vT Local Manual
 .	if "\\$3"tahoe" .as vT \ (Tahoe Architecture)
 .	if "\\$3"vax" .as vT \ (VAX Architecture)
 .	if "\\$3"hp300" .as vT \ (HP300 Architecture)
@@ -245,7 +246,7 @@
 .		if "\\n(mo"10" .ds dD October
 .		if "\\n(mo"11" .ds dD November
 .		if "\\n(mo"12" .ds dD December
-.		as dD \&\ \\n(dy, 19\\n(yr
+.		as dD \&\ \\n(dy, \\n(Yr
 .	\}
 .\}
 .el \{\

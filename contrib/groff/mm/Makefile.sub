@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.sub,v 1.27 1995/04/24 05:37:46 jh Exp $
+# $Id: Makefile.sub,v 1.32 1999/09/03 05:33:12 jh Exp $
 #
 MAN7=groff_mm.n groff_mmse.n
 FILES=0.MT 5.MT 4.MT ms.cov se_ms.cov 
@@ -20,10 +20,10 @@ install_mm: install_m
 
 install_m:
 	-test -d $(tmacdir) || mkdir $(tmacdir)
-	-rm -f $(tmacdir)/tmac.$(tmac_m_prefix)m
-	$(INSTALL_DATA) $(srcdir)/tmac.m $(tmacdir)/tmac.$(tmac_m_prefix)m
-	@sed -e "s;^.mso tmac.m;.mso $(tmac_m_prefix)m;g" $(srcdir)/tmac.mse \
-		> $(tmacdir)/tmac.$(tmac_m_prefix)mse
+	-rm -f $(tmacdir)/tmac.$(tmac_m)
+	$(INSTALL_DATA) $(srcdir)/tmac.m $(tmacdir)/tmac.$(tmac_m)
+	@sed -e "s;^.mso tmac.m;.mso $(tmac_m);g" $(srcdir)/tmac.mse \
+		> $(tmacdir)/tmac.$(tmac_m)se
 
 
 
@@ -32,6 +32,6 @@ uninstall_sub:
 	-for f in $(LOCALE); do \
 	test -s $(tmacdir)/mm/$$f || rm -f $(tmacdir)/mm/$$f; \
 	done
-	-rm -f $(tmacdir)/tmac.$(tmac_m_prefix)m
-	-rm -f $(tmacdir)/tmac.$(tmac_m_prefix)mse
+	-rm -f $(tmacdir)/tmac.$(tmac_m)
+	-rm -f $(tmacdir)/tmac.$(tmac_m)se
 	-rmdir $(tmacdir)/mm

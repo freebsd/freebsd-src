@@ -202,7 +202,7 @@ DisposeFontSizes (dw, fs)
 		next = fs->next;
 		if (fs->x_name)
 			XtFree (fs->x_name);
-		if (fs->font) {
+		if (fs->font && fs->font != dw->dvi.default_font) {
 			XUnloadFont (XtDisplay (dw), fs->font->fid);
 			XFree ((char *)fs->font);
 		}

@@ -1,3 +1,5 @@
+Replace Imakefile with a configure script.
+
 Better error handling.
 
 Resource and command-line option to specify font path.

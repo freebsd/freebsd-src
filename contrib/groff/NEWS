@@ -1,17 +1,81 @@
 This file describes recent user-visible changes in groff.  Bug fixes
 are not described.  There are more details in the man pages.
 
-VERSION 1.11
+VERSION 1.13, 1.14, 1.15
+========================
+
+Bug fixes only; no user-visible changes.
+
+VERSION 1.12
 ============
 
-James Clark has written (11 Aug 1997):
->Frankly I don't known when I'm going to be able to do another groff
->release. At the moment, I have no time, no Unix machine, and not a lot
->of interest in doing it.  If anybody else wants to take over groff
->maintenance, that would be fine with me.  Last time I asked in
->gnu.groff.bug, nobody volunteered.
+Finally, there are new maintainers for groff.  Mailing lists and a CVS
+repository are available also.  See the file README for details.  Not
+all reported bug could be fixed, so please send mails again if
+something is still not working.
 
-This means groff is an orphan.  It is looking for a maintainer.
+Most of the installation problems should have vanished now (most
+notably the $(tmac_wrap) bug).
+
+There is now a man page called groff_man.man which documents the
+basics of the -man macros.  It has been originally written by Susan
+G. Kleinmann <sgk@debian.org>.
+
+A (still incomplete) groff reference manual in texinfo format
+originally contributed by Trent A. Fisher <trent@gnurd.portland.or.us>.
+
+me.man and msafer.man have been renamed to groff_me.man
+resp. groff_msafer.man for consistency.
+
+Default strings for macros in doc-common resp. tmac.an no longer
+contain the word `UNIX'.
+
+groff should now be Y2k safe (fixes contributed by Paul Eggert
+<eggert@twinsun.com>).
+
+Following the GNU standards, groff will now use the prefix
+`/usr/local/' as the default instead of replacing an existent groff
+binary.
+
+groff, troff, nroff, and pic now support the -U flag to activate unsafe
+behaviour (without -msafer); the -S flag for using the -msafer macros
+is now the default.
+
+Grohtml
+-------
+
+This is a new output device for producing HTML output contributed by
+Gaius Mulley <gaius@glam.ac.uk>.  It is still very alpha but has been
+included into the distribution so that a lot of people have a chance
+to test it.  Bug reports are highly welcome.
+
+Grolj4
+------
+
+Duplex printing support has been contributed by Jeffrey Copeland
+<jeff@opennt.com>.
+
+Soelim
+------
+
+Added -I option for defining include paths (patch contributed by Peter
+Miller <peterm@jna.com.au>).
+
+Gxditview
+---------
+
+Fallback resources added (patch contributed by Larry Jones
+<larry.jones@sdrc.com>).
+
+Will now support 8 gray levels.
+
+mm
+--
+
+New version 1.32 (contributed by Joergen Haegg <jh@axis.com>).
+
+VERSION 1.11
+============
 
 Complete documentation for pic is now in the file doc/pic.ms.  It was
 contributed by Eric S. Raymond, <esr@thyrsus.com>, who is emphatically

@@ -1,4 +1,4 @@
-DISTCLEANFILES=config.status Makefile
+DISTCLEANFILES=config.status config.log config.cache Makefile
 CLEANADD=Makefile.cfg conftest*
 
 distfiles: configure

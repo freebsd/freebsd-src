@@ -1,3 +1,60 @@
+1999-12-21  Werner LEMBERG  <wl@gnu.org>
+
+	* README: Fixed ftp GNU address.
+
+1999-12-13  Werner LEMBERG  <wl@gnu.org>
+
+	* device.c: Use extern declarations of strtok(), strchr(), and
+	getenv() only if not defined as macros.
+
+1999-11-18  Larry Jones  <larry.jones@sdrc.com>
+
+	* xditview.c: Add fallback_resources to allow running without
+	access to the app-defaults file.
+
+	* Imakefile: Added rule to create app-defaults to a C header file.
+
+	* GXditview-ad.h: New file containing fallback default resources.
+
+	* ad2c: New file to do the app-defaults -> C header file
+	conversion.
+
+1999-10-27  Larry Jones  <larry.jones@sdrc.com>
+
+	* font.c (DisposeFontSizes): If there's a problem loading a font,
+	xditview will fall-back and use the default font, but it hasn't
+	checked before unloading fonts which could result in unloading the
+	default font (possibly multiple times) and then X errors.
+
+1999-09-13  Werner LEMBERG  <wl@gnu.org>
+
+	* Imakefile (extraclean): Added Makefile.
+
+	* xditview.c (main, MakePrompt): Fixing compilation warnings.
+
+	* TODO: Imakefile should be replaced with a configure script.
+
+1999-09-12  Werner LEMBERG  <wl@gnu.org>
+
+	* Imakefile (GROFF_FONTPATH): Another addition.
+
+	* device.c (FONTPATH): Update to match current groff version.
+
+1999-09-11  Larry Jones  <larry.jones@sdrc.com>
+
+	* Imakefile (GROFF_LIBDIR, GROFF_FONTPATH): Update to match
+	current groff version.
+
+	* Dvi.c (Realize, Destroy), DviP.h, draw.c (setFillGC), gray*.bm:
+	Allow 8 levels of gray rather than just 1.
+
+	* draw.c (DrawFilledCircle, DrawFilledEllipse, DrawFilledPolygon):
+	Draw outlines to prevent gaps between abutting figures.
+
+1999-05-27  Werner LEMBERG  <wl@gnu.org>
+
+	* xtotroff.c (usage): Fixed typo.
+
 Mon Sep 11 10:40:33 1995  James Clark  <jjc@jclark.com>
 
 	* device.c (INT_MIN, INT_MAX): Don't define if already defined.

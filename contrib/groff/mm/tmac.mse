@@ -1,10 +1,11 @@
-.\" $Id: tmac.mse,v 1.27 1995/04/24 05:37:46 jh Exp $
+.\" $Id: tmac.mse,v 1.32 1999/09/03 05:33:12 jh Exp $
 .\"
 .\" swedish version of mm
 .\" See tmac.m for version-information.
-.mso tmac.m
 .ds @language se
+.mso tmac.m
 .\"
+.ds App Bilaga
 .ds Lf Figurer
 .ds Lt Tabeller
 .ds Lx Uppställningar
@@ -44,7 +45,7 @@
 .ds Letns!4 Atts.
 .ds Letns!5 Enc.
 .ds Letns!6 Encs.
-.ds Letns!7 Under separate cover
+.ds Letns!7 Annat försättsblad
 .ds Letns!8 Brev till
 .ds Letns!9 Dokument till
 .ds Letns!10 Kopia (med atts.) till
@@ -65,8 +66,8 @@
 .ds MO10 oktober
 .ds MO11 november
 .ds MO12 december
-.ie \\n[yr]<50 .ds cov*new-date \\n[dy] \\*[MO\\n[mo]] 20\\n[yr]
-.el .ds cov*new-date \\n[dy] \\*[MO\\n[mo]] 19\\n[yr]
+.nr cov*year 1900+\n[yr]
+.ds cov*new-date \n[dy] \*[MO\n[mo]] \n[cov*year]
 .nr pg*footer-size 4\"                  1v+footer+even/odd footer+1v
 .\"------------------------------------------------
 .\" Dokumentnamn
