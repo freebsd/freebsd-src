@@ -75,9 +75,10 @@ struct consdev {
 
 /* values for cn_pri - reflect our policy for console selection */
 #define	CN_DEAD		0	/* device doesn't exist */
-#define CN_NORMAL	1	/* device exists but is nothing special */
-#define CN_INTERNAL	2	/* "internal" bit-mapped display */
-#define CN_REMOTE	3	/* serial interface with remote bit set */
+#define CN_LOW		1	/* device is a last restort only */
+#define CN_NORMAL	2	/* device exists but is nothing special */
+#define CN_INTERNAL	3	/* "internal" bit-mapped display */
+#define CN_REMOTE	4	/* serial interface with remote bit set */
 
 #ifdef _KERNEL
 extern int cons_unavail;
