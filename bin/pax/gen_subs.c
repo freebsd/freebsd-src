@@ -106,17 +106,13 @@ ls_list(arcn, now)
 	sbp = &(arcn->sb);
 	strmode(sbp->st_mode, f_mode);
 
-	if (ltmfrmt == NULL) {
-		/*
-		 * no locale specified format. time format based on age
-		 * compared to the time pax was started.
-		 */
-		if ((sbp->st_mtime + SIXMONTHS) <= now)
-			timefrmt = OLDFRMT;
-		else
-			timefrmt = CURFRMT;
-	} else
-		timefrmt = ltmfrmt;
+	/*
+	 * time format based on age compared to the time pax was started.
+	 */
+	if ((sbp->st_mtime + SIXMONTHS) <= now)
+		timefrmt = OLDFRMT;
+	else
+		timefrmt = CURFRMT;
 
 	/*
 	 * print file mode, link count, uid, gid and time
@@ -178,16 +174,10 @@ ls_tty(arcn)
 	char f_mode[MODELEN];
 	char *timefrmt;
 
-	if (ltmfrmt == NULL) {
-		/*
-		 * no locale specified format
-		 */
-		if ((arcn->sb.st_mtime + SIXMONTHS) <= time((time_t *)NULL))
-			timefrmt = OLDFRMT;
-		else
-			timefrmt = CURFRMT;
-	} else
-		timefrmt = ltmfrmt;
+	if ((arcn->sb.st_mtime + SIXMONTHS) <= time((time_t *)NULL))
+		timefrmt = OLDFRMT;
+	else
+		timefrmt = CURFRMT;
 
 	/*
 	 * convert time to string, and print
