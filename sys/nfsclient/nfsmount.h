@@ -77,6 +77,8 @@ struct	nfsmount {
 	int	nm_bufqiods;		/* number of iods processing queue */
 	u_int64_t nm_maxfilesize;	/* maximum file size */
 	struct nfs_rpcops *nm_rpcops;
+	int	nm_tprintf_initial_delay;	/* initial delay */
+	int	nm_tprintf_delay;		/* interval for messages */
 
 	/* NFSv4 */
 	uint64_t nm_clientid;
@@ -90,6 +92,14 @@ struct	nfsmount {
  * Convert mount ptr to nfsmount ptr.
  */
 #define VFSTONFS(mp)	((struct nfsmount *)((mp)->mnt_data))
+
+#ifndef NFS_TPRINTF_INITIAL_DELAY
+#define NFS_TPRINTF_INITIAL_DELAY       12
+#endif
+
+#ifndef NFS_TPRINTF_DELAY
+#define NFS_TPRINTF_DELAY               30
+#endif
 
 #endif
 

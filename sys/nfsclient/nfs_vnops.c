@@ -439,8 +439,8 @@ nfs_open(struct vop_open_args *ap)
 	 * Get a valid lease. If cached data is stale, flush it.
 	 */
 	if (np->n_flag & NMODIFIED) {
-		if ((error = nfs_vinvalbuf(vp, V_SAVE, ap->a_cred,
-			ap->a_td, 1)) == EINTR)
+		error = nfs_vinvalbuf(vp, V_SAVE, ap->a_cred, ap->a_td, 1);
+		if (error == EINTR || error == EIO)
 			return (error);
 		np->n_attrstamp = 0;
 		if (vp->v_type == VDIR)
@@ -456,8 +456,9 @@ nfs_open(struct vop_open_args *ap)
 		if (np->n_mtime != vattr.va_mtime.tv_sec) {
 			if (vp->v_type == VDIR)
 				np->n_direofoffset = 0;
-			if ((error = nfs_vinvalbuf(vp, V_SAVE,
-				ap->a_cred, ap->a_td, 1)) == EINTR)
+			error = nfs_vinvalbuf(vp, V_SAVE,
+				ap->a_cred, ap->a_td, 1);
+			if (error == EINTR || error == EIO)
 				return (error);
 			np->n_mtime = vattr.va_mtime.tv_sec;
 		}
@@ -669,7 +670,7 @@ nfs_setattr(struct vop_setattr_args *ap)
 		vap->va_atime.tv_sec != VNOVAL) && (np->n_flag & NMODIFIED) &&
 		vp->v_type == VREG &&
   		(error = nfs_vinvalbuf(vp, V_SAVE, ap->a_cred,
-		 ap->a_td, 1)) == EINTR)
+		 ap->a_td, 1)) != 0 && (error == EINTR || error == EIO))
 		return (error);
 	error = nfs_setattrrpc(vp, vap, ap->a_cred, ap->a_td);
 	if (error && vap->va_size != VNOVAL) {
@@ -1447,7 +1448,7 @@ nfs_remove(struct vop_remove_args *ap)
 		 */
 		error = nfs_vinvalbuf(vp, 0, cnp->cn_cred, cnp->cn_thread, 1);
 		/* Do the rpc */
-		if (error != EINTR)
+		if (error != EINTR && error != EIO)
 			error = nfs_removerpc(dvp, cnp->cn_nameptr,
 				cnp->cn_namelen, cnp->cn_cred, cnp->cn_thread);
 		/*
@@ -2824,10 +2825,9 @@ loop:
 				panic("nfs_fsync: inconsistent lock");
 			if (error == ENOLCK)
 				goto loop;
-			if (nfs_sigintr(nmp, NULL, td)) {
-				error = EINTR;
+			error = nfs_sigintr(nmp, NULL, td);
+			if (error)
 				goto done;
-			}
 			if (slpflag == PCATCH) {
 				slpflag = 0;
 				slptimeo = 2 * hz;
@@ -2863,10 +2863,9 @@ loop:
 				slpflag | (PRIBIO + 1), "nfsfsync", slptimeo);
 			if (error) {
 			    VI_UNLOCK(vp);
-			    if (nfs_sigintr(nmp, NULL, td)) {
-				error = EINTR;
+			    error = nfs_sigintr(nmp, NULL, td);
+			    if (error)
 				goto done;
-			    }
 			    if (slpflag == PCATCH) {
 				slpflag = 0;
 				slptimeo = 2 * hz;

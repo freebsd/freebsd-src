@@ -92,6 +92,8 @@
 #define	NFSSTA_WANTSND		0x02000000  /* Want above */
 #define	NFSSTA_RCVLOCK		0x04000000  /* Rcv socket lock */
 #define	NFSSTA_WANTRCV		0x08000000  /* Want above */
+#define	NFSSTA_TIMEO		0x10000000  /* Experiencing a timeout */
+
 
 /*
  * XXX to allow amd to include nfs.h without nfsproto.h
@@ -170,7 +172,8 @@ struct nameidata;
  * For now, ignore them all
  */
 #define	NFSIGNORE_SOERROR(s, e) \
-		((e) != EINTR && (e) != ERESTART && (e) != EWOULDBLOCK && \
+		((e) != EINTR && (e) != EIO && \
+		 (e) != ERESTART && (e) != EWOULDBLOCK && \
 		((s) & PR_CONNREQUIRED) == 0)
 
 /*
@@ -191,6 +194,7 @@ struct nfsreq {
 	int		r_timer;	/* tick counter on reply */
 	u_int32_t	r_procnum;	/* NFS procedure number */
 	int		r_rtt;		/* RTT for rpc */
+	int		r_lastmsg;	/* last tprintf */
 	struct thread	*r_td;		/* Proc that did I/O system call */
 };
 
@@ -203,7 +207,7 @@ extern TAILQ_HEAD(nfs_reqq, nfsreq) nfs_reqq;
 #define R_TIMING	0x01		/* timing request (in mntp) */
 #define R_SENT		0x02		/* request has been sent */
 #define	R_SOFTTERM	0x04		/* soft mnt, too many retries */
-#define	R_INTR		0x08		/* intr mnt, signal pending */
+#define	R_RESENDERR	0x08		/* Resend failed */
 #define	R_SOCKERR	0x10		/* Fatal error on socket */
 #define	R_TPRINTFMSG	0x20		/* Did a tprintf msg. */
 #define	R_MUSTRESEND	0x40		/* Must resend request */
@@ -247,6 +251,9 @@ struct nfs_rpcops {
 #define HEXSTRTOI(p) \
 	((HEXTOC(p[0]) << 4) + HEXTOC(p[1]))
 
+/* nfs_sigintr() helper, when 'rep' has all we need */
+#define NFS_SIGREP(rep)		nfs_sigintr((rep)->r_nmp, (rep), (rep)->r_td)
+
 #ifdef NFS_DEBUG
 
 extern int nfs_debug;
@@ -287,6 +294,10 @@ int	nfs_readdirrpc(struct vnode *, struct uio *, struct ucred *);
 int	nfs_nfsiodnew(void);
 int	nfs_asyncio(struct buf *, struct ucred *, struct thread *);
 int	nfs_doio(struct buf *, struct ucred *, struct thread *);
+void    nfs_up(struct nfsreq *, struct nfsmount *, struct thread *,
+	    const char *, int);
+void	nfs_down(struct nfsreq *, struct nfsmount *, struct thread *,
+	    const char *, int, int);
 int	nfs_readlinkrpc(struct vnode *, struct uio *, struct ucred *);
 int	nfs_sigintr(struct nfsmount *, struct nfsreq *, struct thread *);
 int	nfs_readdirplusrpc(struct vnode *, struct uio *, struct ucred *);
