@@ -354,9 +354,9 @@ If the parameter is ommitted, 64 is used.
 .\" for
 .\" .Tn AFI
 .\" 37 type addresses.
-.It Cm range
+.It Cm range Ar netrange
 Under appletalk, set the interface to respond to a 
-.Em netrange.
+.Em netrange
 of the form startnet-endnet.
 Appletalk uses this scheme instead of 
 netmasks though
@@ -401,7 +401,7 @@ media list will be included in the output.
 .Pp
 If
 .Fl L
-flag is supplied, address lifetime is dislayed for IPv6 addresses,
+flag is supplied, address lifetime is displayed for IPv6 addresses,
 as time offset string.
 .Pp
 Optionally, the
