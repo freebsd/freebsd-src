@@ -754,7 +754,8 @@ fe_attach (device_t dev)
 	/*
 	 * Set fixed interface flags.
 	 */
- 	sc->sc_if.if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
+ 	sc->sc_if.if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
+	    IFF_NEEDSGIANT;
 
 #if 1
 	/*
