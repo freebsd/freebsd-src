@@ -13,8 +13,6 @@ feed_dev_random()
 	fi
 }
 
-entropy_file="/entropy"
-
 soft_random_generator=`sysctl kern.random 2>/dev/null`
 
 if [ -n "${soft_random_generator}" ] ; then
@@ -31,15 +29,9 @@ if [ -n "${soft_random_generator}" ] ; then
 
 	# First pass at reseeding /dev/random.
 	#
-	case ${entropy_file} in
-	[Nn][Oo] | '')
-		;;
-	*)
-		if [ -w /dev/random ]; then
-			feed_dev_random "${entropy_file}"
-		fi
-		;;
-	esac
+	if [ -w /dev/random ]; then
+		feed_dev_random "/entropy"
+	fi
 
 	echo -n ' kickstart'
 
