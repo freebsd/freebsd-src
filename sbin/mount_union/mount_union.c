@@ -108,7 +108,7 @@ main(argc, argv)
 		err(EX_OSERR, "%s", target);
 
 	if (realpath(argv[1], source) == 0)
-		err(EX_OSERR, "%s", target);
+		err(EX_OSERR, "%s", source);
 
 	if (subdir(target, source) || subdir(source, target))
 		errx(EX_USAGE, "%s (%s) and %s (%s) are not distinct paths",
