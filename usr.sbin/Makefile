@@ -199,6 +199,10 @@ _nslookup=	nslookup
 _nsupdate=	nsupdate
 .endif
 
+.if !defined(NO_BLUETOOTH)
+_bluetooth=	bluetooth
+.endif
+
 .if !defined(NOCRYPT) && !defined(NO_OPENSSL)
 _keyserv=	keyserv
 .endif
@@ -245,9 +249,6 @@ _acpi=		acpi
 _apm=		apm
 _apmd=		apmd
 _asf=		asf
-.if !defined(NO_BLUETOOTH)
-_bluetooth=	bluetooth
-.endif
 .if ${MACHINE} == "i386"
 _arlcontrol=	arlcontrol
 _boot0cfg=	boot0cfg
