@@ -40,7 +40,7 @@ extern int si3_t225_bsize;
 
 struct si_softc {
 	int 		sc_type;	/* adapter type */
-	char 		*sc_typename;	/* adapter type string */
+	const char	*sc_typename;	/* adapter type string */
 
 	struct si_port	*sc_ports;	/* port structures for this card */
 
@@ -67,6 +67,9 @@ void	si_dprintf(struct si_port *pp, int flags, const char *fmt, ...);
 
 #define DPRINT(x)	si_dprintf x
 
+/*
+ * Extensive debugging stuff - manipulated using siconfig(8)
+ */
 #define	DBG_ENTRY		0x00000001
 #define	DBG_DRAIN		0x00000002
 #define	DBG_OPEN		0x00000004
