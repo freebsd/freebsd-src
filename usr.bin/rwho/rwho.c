@@ -162,7 +162,7 @@ main(argc, argv)
 	mp = myutmp;
 	for (i = 0; i < nusers; i++) {
 		char buf[BUFSIZ], cbuf[80];
-		time_t t = int_to_time(mp->myutmp.out_time);
+		time_t t = _int_to_time(mp->myutmp.out_time);
 
 		strftime(cbuf, sizeof(cbuf),
 			 d_first ? "%e %b %R" : "%b %e %R",

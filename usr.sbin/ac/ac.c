@@ -473,7 +473,7 @@ ac(fp)
 		if (!FirstTime)
 			FirstTime = usr.ut_time;
 		if (Flags & AC_D) {
-			time_t t = int_to_time(usr.ut_time);
+			time_t t = _int_to_time(usr.ut_time);
 			ltm = localtime(&t);
 			if (day >= 0 && day != ltm->tm_yday) {
 				day = ltm->tm_yday;
@@ -525,7 +525,7 @@ ac(fp)
 	(void)strcpy(usr.ut_line, "~");
 
 	if (Flags & AC_D) {
-		time_t t = int_to_time(usr.ut_time);
+		time_t t = _int_to_time(usr.ut_time);
 		ltm = localtime(&t);
 		if (day >= 0 && day != ltm->tm_yday) {
 			/*
