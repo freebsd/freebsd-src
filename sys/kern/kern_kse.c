@@ -341,12 +341,24 @@ kse_release(struct thread *td, struct kse_release_args *uap)
 	struct proc *p;
 
 	p = td->td_proc;
-	/* KSE-enabled processes only, please. */
-	if (p->p_flag & P_KSES) {
+	/* KSE-enabled processes only */ 
+	if (!(p->p_flag & P_KSES))
+		return (EINVAL);
+	/*
+	 * Must be a bound thread. And kse must have a mailbox ready,
+	 * if not, the kse would can not generate an upcall.
+	 */
+	if (!(td->td_flags & TDF_UNBOUND) && (td->td_kse->ke_mailbox != NULL)) {
 		PROC_LOCK(p);
 		mtx_lock_spin(&sched_lock);
-		thread_exit();
-		/* NOTREACHED */
+		/* prevent last thread from exiting */
+		if (p->p_numthreads > 1) {
+			thread_exit();
+			/* NOTREACHED */
+		} else {
+			mtx_unlock_spin(&sched_lock);
+			PROC_UNLOCK(p);
+		}
 	}
 	return (EINVAL);
 }
