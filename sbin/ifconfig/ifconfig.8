@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
-.\"	$Id: ifconfig.8,v 1.6 1996/02/06 20:35:51 wollman Exp $
+.\"	$Id: ifconfig.8,v 1.7 1996/02/13 17:30:26 wollman Exp $
 .\"
 .Dd February 13, 1996
 .Dt IFCONFIG 8
@@ -108,7 +108,8 @@ Since an interface can receive transmissions in differing protocols
 with different naming schemes, specifying the address family is recommended.
 The address or protocol families currently
 supported are
-.Dq inet
+.Dq inet ,
+.Dq atalk ,
 .\" .Dq iso ,
 and
 .Dq ipx .
