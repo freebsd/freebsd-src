@@ -1,0 +1,186 @@
+.\" Copyright (c) 2000, 2001 Ben Smithurst <ben@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 30, 2000
+.Dt DISKCHECKD 8
+.Os FreeBSD
+.Sh NAME
+.Nm diskcheckd
+.Nd daemon to check for disk read errors
+.Sh SYNOPSIS
+.Nm
+.Op Fl d
+.Op Fl f Ar conf_file
+.Op Fl o Ar save_file
+.Sh DESCRIPTION
+.Nm
+is a daemon which runs in the background,
+reading entire disks to find any read errors on those disks.
+The disks which should be scanned,
+and the rates at which they should be scanned,
+must be specified in the configuration file,
+which is
+.Pa /etc/diskcheckd.conf
+by default.
+.Pp
+Any blank lines or lines starting with a
+.Ql #
+character in this file are ignored.
+Each non-comment line of this file should contain four white space separated
+fields,
+which are the full pathname of the disk device,
+the size of that disk,
+the frequency in days at which to check that disk,
+and the rate in kilobytes per second at which to check this disk.
+Naturally,
+it would be contradictory to specify both the frequency and the rate,
+so only one of these should be specified.
+Additionally,
+the size of the disk should not be specified if the rate is specified,
+as this information is unnecessary.
+.Pp
+If the disk is specified as
+.Dq * ,
+then
+.Nm
+will apply the given settings to all disks in the system,
+obtained using the
+.Va kern.disks
+sysctl variable.
+If the size is specified as
+.Dq *
+(recommended),
+then the size of the disk will be automatically determined from the
+disklabel,
+if possible.
+Fields which are not specified should contain a single
+.Dq *
+character.
+.Pp
+Note that any rate specified will be rounded to the nearest power of 2,
+and will be forced into the range 512 bytes to 128 kilobytes,
+inclusive.
+Any rate calculated from the frequency and size information will be rounded
+in the same way,
+so if you specify the third field (days for complete scan) it is unlikely
+that a complete scan will actually take exactly this many days.
+.Pp
+To run
+.Nm
+automatically at boot time,
+the
+.Ar diskcheckd_enable
+variable in
+.Xr rc.conf 5
+should be set to
+.Dq YES .
+.Pp
+When
+.Nm
+receives a
+.Dv SIGTERM
+or
+.Dv SIGINT
+signal,
+it saves its current state information to a file,
+so that after a reboot
+.Nm
+can resume reading from where it left off,
+rather than starting from the beginning of the disk again.
+The information saved to this file consists of the device filename and the
+current offset into that device.
+.Pp
+.Nm
+can be instructed to reload the configuration file by sending it a
+.Dv SIGHUP
+signal.
+.Pp
+.Nm
+accepts the following command line options:
+.Pp
+.Bl -tag -width Fl
+.It Fl d
+If this flag is specified,
+.Nm
+will not fork into the background and detach from its controlling terminal
+to become a daemon.
+This flag is primarily used for debugging.
+.It Fl f
+Specify the configuration file to use,
+instead of the default
+.Pa /etc/diskcheckd.conf .
+.It Fl o
+Specify the file to save disk offsets to,
+instead of the default
+.Pa /var/db/diskcheckd.offsets .
+.El
+.Sh FILES
+.Bl -tag -width /var/db/diskcheckd.offsets -compact
+.It Pa /etc/diskcheckd.conf
+Default configuration file.
+.It Pa /var/db/diskcheckd.offsets
+Default location of saved offsets.
+.El
+.Sh EXAMPLES
+To check all of
+.Pa /dev/ad0
+for errors once every two weeks,
+use this entry in
+.Pa diskcheckd.conf :
+.Pp
+.Bd -literal -offset indent
+/dev/ad0	*	14	*
+.Ed
+.Pp
+To check the first SCSI disk for errors at approximately 64KB/s,
+use the following entry:
+.Pp
+.Bd -literal -offset indent
+/dev/da0	*	*	64
+.Ed
+.Pp
+To check all disks once every four weeks:
+.Pp
+.Bd -literal -offset indent
+*	*	28	*
+.Ed
+.Sh DIAGNOSTICS
+If any errors occur,
+they will be written to
+.Xr syslogd 8 .
+.Sh HISTORY
+.Nm
+first appeared in
+.Fx 5.0 .
+.Sh AUTHORS
+.Nm
+and this manual page were written by
+.An Ben Smithurst Aq ben@FreeBSD.org ,
+with input from
+.An Poul-Henning Kamp Aq phk@FreeBSD.org .
+.Sh BUGS
+.Nm
+assumes all disks have 512 byte sectors.
