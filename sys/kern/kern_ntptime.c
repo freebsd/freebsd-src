@@ -480,6 +480,7 @@ ntp_update_second(int64_t *adjustment, time_t *newsec)
 		else if ((*newsec) % 86400 == 0) {
 			(*newsec)--;
 			time_state = TIME_OOP;
+			time_tai++;
 		}
 		break;
 
@@ -500,7 +501,6 @@ ntp_update_second(int64_t *adjustment, time_t *newsec)
 		 * Insert second in progress.
 		 */
 		case TIME_OOP:
-			time_tai++;
 			time_state = TIME_WAIT;
 		break;
 
