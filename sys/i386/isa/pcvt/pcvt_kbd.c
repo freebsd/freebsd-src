@@ -935,10 +935,9 @@ loop:
 	/* see if there is data from the keyboard available either from */
 	/* the keyboard fifo or from the 8042 keyboard controller	*/
 
-	if ((noblock && pcvt_kbd_count) ||
-	    ((!noblock || kbd_polling) && (inb(CONTROLLER_CTRL) & STATUS_OUTPBF)))
+	if (pcvt_kbd_count || (inb(CONTROLLER_CTRL) & STATUS_OUTPBF))
 	{
-		if (!noblock || kbd_polling)	/* source = 8042 */
+		if (!pcvt_kbd_count)	/* source = 8042 */
 		{
 			PCVT_KBD_DELAY();	/* 7 us delay */
 			dt = inb(CONTROLLER_DATA);	/* get from obuf */
@@ -1245,8 +1244,7 @@ no_mouse_event:
 	/* see if there is data from the keyboard available either from */
 	/* the keyboard fifo or from the 8042 keyboard controller	*/
 
-	if ((noblock && pcvt_kbd_count) ||
-	    ((!noblock || kbd_polling) && (inb(CONTROLLER_CTRL) & STATUS_OUTPBF)))
+	if (pcvt_kbd_count || (inb(CONTROLLER_CTRL) & STATUS_OUTPBF))
 	{
 		if (!noblock || kbd_polling)	/* source = 8042 */
 		{
