@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.19 1996/01/20 15:27:36 joerg Exp $
+ *      $Id: worm.c,v 1.20 1996/01/27 17:48:12 joerg Exp $
  */
 
 /* XXX This is PRELIMINARY.
@@ -144,6 +144,7 @@ static	d_open_t	wormopen;
 static	d_close_t	wormclose;
 static	d_ioctl_t	wormioctl;
 static	d_strategy_t	wormstrategy;
+static	void		worminit (void);
 
 #define CDEV_MAJOR 62
 static struct cdevsw worm_cdevsw = 
@@ -153,7 +154,8 @@ static struct cdevsw worm_cdevsw =
 
 
 static int
-wormunit(dev_t dev) {
+wormunit(dev_t dev)
+{
 	return (minor(dev) & ~(SCSI_FIXED_MASK|SCSI_CONTROL_MASK));
 }
 
@@ -493,7 +495,7 @@ worm_open(dev_t dev, int flags, int fmt, struct proc *p,
 }
 
 static int
-worm_close(dev_t dev, int flag, int fmt, struct proc *p,
+worm_close(dev_t dev, int flags, int fmt, struct proc *p,
 	   struct scsi_link *sc_link)
 {
 	errval error;
