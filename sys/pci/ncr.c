@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.8 1994/10/12 04:17:24 se Exp $
+**  $Id: ncr.c,v 1.9 1994/10/13 01:11:13 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -1228,7 +1228,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 2.12 94/10/12 18:30:05 wolf Exp $\n";
+	"\n$Id: ncr.c,v 1.9 1994/10/13 01:11:13 se Exp $\n";
 
 u_long	ncr_version = NCR_VERSION
 	+ (u_long) sizeof (struct ncb)
@@ -3333,7 +3333,7 @@ static	void ncr_attach (pcici_t config_id, int unit)
 		ncr_name (np));
 	DELAY (1000000);
 #endif
-	printf ("%s scanning for targets 0..%d ($Revision: 2.12 $)\n",
+	printf ("%s scanning for targets 0..%d ($Revision: 1.9 $)\n",
 		ncr_name (np), MAX_TARGET-1);
 
 	/*
@@ -4309,7 +4309,7 @@ void ncr_init (ncb_p np, char * msg, u_long code)
 	OUTB (nc_scid  , 0x40|np->myaddr);/*  host adapter SCSI address      */
 	OUTW (nc_respid, 1ul<<np->myaddr);/*  id to respond to               */
 	OUTB (nc_istat , SIGP	);	/*  Signal Process                   */
-	OUTB (nc_dmode , 0xc	);	/*  Burst length = 16 transfer       */
+	OUTB (nc_dmode , 0xc0	);	/*  Burst length = 16 transfer       */
 	OUTB (nc_dcntl , NOCOM	);	/*  no single step mode, protect SFBR*/
 	OUTB (nc_ctest4, 0x08	);	/*  enable master parity checking    */
 	OUTB (nc_stest2, EXT    );	/*  Extended Sreq/Sack filtering     */
