@@ -38,6 +38,7 @@ static const char rcsid[] =
 
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <grp.h>
 #include <paths.h>
@@ -136,6 +137,8 @@ main(int argc, char **argv)
 		free((char *) q);
 		q = p;
 	}
+	while (wait(NULL) > 0 || errno == EINTR)
+		;
 	return (0);
 }
 
