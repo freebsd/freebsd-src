@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.8.2.1 1996/12/04 16:01:19 phk Exp $
+ *	$Id: npx.c,v 1.8.2.2 1997/01/05 02:49:13 kato Exp $
  */
 
 #include "npx.h"
@@ -49,7 +49,9 @@
 #include <sys/file.h>
 #include <sys/proc.h>
 #include <sys/ioctl.h>
+#ifdef NPX_DEBUG
 #include <sys/syslog.h>
+#endif
 #include <sys/signalvar.h>
 
 #include <machine/cpu.h>
@@ -455,20 +457,22 @@ npxexit(p)
 
 	if (p == npxproc)
 		npxsave(&curpcb->pcb_savefpu);
+#ifdef NPX_DEBUG
 	if (npx_exists) {
 		u_int	masked_exceptions;
 
 		masked_exceptions = curpcb->pcb_savefpu.sv_env.en_cw
 				    & curpcb->pcb_savefpu.sv_env.en_sw & 0x7f;
 		/*
-		 * Overflow, divde by 0, and invalid operand would have
-		 * caused a trap in 1.1.5.
+		 * Log exceptions that would have trapped with the old
+		 * control word (overflow, divide by 0, and invalid operand).
 		 */
 		if (masked_exceptions & 0x0d)
 			log(LOG_ERR,
 	"pid %d (%s) exited with masked floating point exceptions 0x%02x\n",
 			    p->p_pid, p->p_comm, masked_exceptions);
 	}
+#endif
 }
 
 /*
