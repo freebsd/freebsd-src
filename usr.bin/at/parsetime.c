@@ -31,14 +31,13 @@
  *     |MIDNIGHT                   | |[DAY OF WEEK]                       |
  *     \TEATIME                    / |NUMBER [SLASH NUMBER [SLASH NUMBER]]|
  *                                   \PLUS NUMBER MINUTES|HOURS|DAYS|WEEKS/
- *
- *	$Id$
  */
 
 /* System Headers */
 
 
 #include <sys/types.h>
+#include <err.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -49,7 +48,6 @@
 #ifndef __FreeBSD__
 #include <getopt.h>
 #endif
-#include <err.h>
 
 /* Local headers */
 
@@ -133,7 +131,7 @@ static size_t sc_len;   /* scanner - lenght of token buffer */
 static int sc_tokid;	/* scanner - token id */
 static int sc_tokplur;	/* scanner - is token plural? */
 
-static char rcsid[] = "$Id: parsetime.c,v 1.9 1997/02/22 19:54:07 peter Exp $";
+static char rcsid[] = "$Id: parsetime.c,v 1.10 1997/06/23 06:44:18 charnier Exp $";
 
 /* Local functions */
 
