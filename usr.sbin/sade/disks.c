@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.15 1995/05/10 09:25:49 jkh Exp $
+ * $Id: disks.c,v 1.16 1995/05/11 06:10:48 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -184,10 +184,12 @@ get_mountpoint(struct chunk *c)
 		    msgConfirm("This region cannot be used for your root partition as\nit is past the 1024'th cylinder mark and the system would not be\nable to boot from it.  Please pick another location for your\nroot partition and try again!");
 		    return NULL;
 		}
+#if 0	/* This never seems to be set */
 		else if (!(c->flags & CHUNK_BSD_COMPAT)) {
 		    msgConfirm("This region cannot be used for your root partition as\nthe FreeBSD boot code cannot deal with a root partition created in\nsuch a region.  Please choose another partition for this.");
 		    return NULL;
 		}
+#endif
 		else
 		    c->flags |= CHUNK_IS_ROOT;
 	    }
