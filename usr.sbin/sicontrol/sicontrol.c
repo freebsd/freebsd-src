@@ -29,21 +29,25 @@
  * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
- *
- *	$Id: sicontrol.c,v 1.3 1995/08/22 00:41:05 peter Exp $
  */
 
-#include <stdio.h>
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
 #include <ctype.h>
+#include <err.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <sys/device.h>
 #include <sys/tty.h>
-#include <fcntl.h>
-#include <string.h>
-#include <stdlib.h>
 
 #include <machine/si.h>
 
@@ -51,52 +55,64 @@ struct lv {
 	char	*lv_name;
 	int 	lv_bit;
 } lv[] = {
-	"entry",	DBG_ENTRY,
-	"open",		DBG_OPEN,
-	"close",	DBG_CLOSE,
-	"read",		DBG_READ,
-	"write",	DBG_WRITE,
-	"param",	DBG_PARAM,
-	"modem",	DBG_MODEM,
-	"select",	DBG_SELECT,
-	"optim",	DBG_OPTIM,
-	"intr",		DBG_INTR,
-	"start",	DBG_START,
-	"lstart",	DBG_LSTART,
-	"ioctl",	DBG_IOCTL,
-	"fail",		DBG_FAIL,
-	"autoboot",	DBG_AUTOBOOT,
-	"download",	DBG_DOWNLOAD,
-	"drain",	DBG_DRAIN,
-	"poll",		DBG_POLL,
-	0,		0
+	{"entry",	DBG_ENTRY},
+	{"open",	DBG_OPEN},
+	{"close",	DBG_CLOSE},
+	{"read",	DBG_READ},
+	{"write",	DBG_WRITE},
+	{"param",	DBG_PARAM},
+	{"modem",	DBG_MODEM},
+	{"select",	DBG_SELECT},
+	{"optim",	DBG_OPTIM},
+	{"intr",	DBG_INTR},
+	{"start",	DBG_START},
+	{"lstart",	DBG_LSTART},
+	{"ioctl",	DBG_IOCTL},
+	{"fail",	DBG_FAIL},
+	{"autoboot",	DBG_AUTOBOOT},
+	{"download",	DBG_DOWNLOAD},
+	{"drain",	DBG_DRAIN},
+	{"poll",	DBG_POLL},
+	{0,		0}
 };
 
 static int alldev = 0;
-int getnum(char *str);
 
-int debug(), rxint(), txint();
-int mstate(), nport();
-int ccb_stat(), tty_stat();
+void ccb_stat __P((int, char **));
+void debug  __P((int, char **));
+void dostat __P((void));
+int getnum __P((char *));
+int islevel __P((char *));
+int lvls2bits __P((char *));
+void mstate __P((int, char **));
+void nport __P((int, char **));
+void onoff __P((int, char **, int, char *, char *, int));
+int opencontrol __P((void));
+void prlevels __P((int));
+void prusage __P((int, int));
+void rxint  __P((int, char **));
+void tty_stat __P((int, char **));
+void txint  __P((int, char **));
+
 struct opt {
 	char	*o_name;
-	int	(*o_func)();
+	void	(*o_func)();
 } opt[] = {
-	"debug",		debug,
-	"rxint_throttle",	rxint,
-	"int_throttle",		txint,
-	"nport",		nport,
-	"mstate",		mstate,
-	"ccbstat",		ccb_stat,
-	"ttystat",		tty_stat,
-	0,			0,
+	{"debug",		debug},
+	{"rxint_throttle",	rxint},
+	{"int_throttle",	txint},
+	{"nport",		nport},
+	{"mstate",		mstate},
+	{"ccbstat",		ccb_stat},
+	{"ttystat",		tty_stat},
+	{0,			0}
 };
 
 struct stat_list {
-	int (*st_func)();
+	void (*st_func)();
 } stat_list[] = {
-	mstate,
-	0
+	{mstate},
+	{0}
 };
 
 #define	U_DEBUG		0
@@ -124,11 +140,12 @@ int ctlfd;
 char *Devname;
 struct si_tcsi tc;
 
+int
 main(argc, argv)
 	char **argv;
 {
 	struct opt *op;
-	int (*func)() = NULL;
+	void (*func)() = NULL;
 
 	if (argc < 2)
 		prusage(U_ALL, 1);
@@ -145,10 +162,8 @@ main(argc, argv)
 			strcat(acp, Devname);
 			Devname = acp;
 		}
-		if (stat(Devname, &st) < 0) {
-			fprintf(stderr, "can't stat %s\n", Devname);
-			exit(1);
-		}
+		if (stat(Devname, &st) < 0)
+			errx(1, "can't stat %s", Devname);
 		dev.sid_card = SI_CARD(minor(st.st_rdev));
 		dev.sid_port = SI_PORT(minor(st.st_rdev));
 		tc.tc_dev = dev;
@@ -175,16 +190,14 @@ main(argc, argv)
 	exit(0);
 }
 
+int
 opencontrol()
 {
 	int fd;
 
 	fd = open(CONTROLDEV, O_RDWR|O_NDELAY);
-	if (fd < 0) {
-		fprintf(stderr, "open on %s - ", CONTROLDEV);
-		perror("");
-		exit(1);
-	}
+	if (fd < 0)
+		err(1, "open on %s", CONTROLDEV);
 	return(fd);
 }
 
@@ -192,33 +205,34 @@ opencontrol()
  * Print a usage message - this relies on U_DEBUG==0 and U_BOOT==1.
  * Don't print the DEBUG usage string unless explicity requested.
  */
+void
 prusage(strn, eflag)
 	int strn, eflag;
 {
 	char **cp;
 
 	if (strn == U_ALL) {
-		fprintf(stderr, "Usage: sicontrol - %s", usage[1]);
-		fprintf(stderr, "       sicontrol - %s", usage[2]);
-		fprintf(stderr, "       sicontrol - %s", usage[3]);
+		fprintf(stderr, "usage: sicontrol %s", usage[1]);
+		fprintf(stderr, "       sicontrol %s", usage[2]);
+		fprintf(stderr, "       sicontrol %s", usage[3]);
 		fprintf(stderr, "       sicontrol devname %s", usage[4]);
 		for (cp = &usage[5]; *cp; cp++)
 			fprintf(stderr, "       sicontrol devname %s", *cp);
 	}
 	else if (strn >= 0 && strn <= U_MAX)
-		fprintf(stderr, "Usage: sicontrol devname %s", usage[strn]);
+		fprintf(stderr, "usage: sicontrol devname %s", usage[strn]);
 	else
 		fprintf(stderr, "sicontrol: usage ???\n");
 	exit(eflag);
 }
 
 /* print port status */
+void
 dostat()
 {
 	char *av[1], *acp;
 	struct stat_list *stp;
 	struct si_tcsi stc;
-	int (*func)();
 	int donefirst = 0;
 
 	printf("%s: ", alldev ? "ALL" : Devname);
@@ -241,20 +255,20 @@ dostat()
  * debug
  * debug [[set|add|del debug_lvls] | [off]]
  */
+void
 debug(ac, av)
 	char **av;
 {
-	int level, cmd;
-	char *str;
+	int level;
 
 	if (ac > 2)
 		prusage(U_DEBUG, 1);
 	if (alldev) {
 		if (ioctl(ctlfd, TCSIGDBG_ALL, &tc.tc_dbglvl) < 0)
-			Perror("TCSIGDBG_ALL on %s", Devname);
+			err(1, "TCSIGDBG_ALL on %s", Devname);
 	} else {
 		if (ioctl(ctlfd, TCSIGDBG_LEVEL, &tc) < 0)
-			Perror("TCSIGDBG_LEVEL on %s", Devname);
+			err(1, "TCSIGDBG_LEVEL on %s", Devname);
 	}
 
 	switch (ac) {
@@ -282,13 +296,14 @@ debug(ac, av)
 	}
 	if (alldev) {
 		if (ioctl(ctlfd, TCSISDBG_ALL, &tc.tc_dbglvl) < 0)
-			Perror("TCSISDBG_ALL on %s", Devname);
+			err(1, "TCSISDBG_ALL on %s", Devname);
 	} else {
 		if (ioctl(ctlfd, TCSISDBG_LEVEL, &tc) < 0)
-			Perror("TCSISDBG_LEVEL on %s", Devname);
+			err(1, "TCSISDBG_LEVEL on %s", Devname);
 	}
 }
 
+void
 rxint(ac, av)
 	char **av;
 {
@@ -298,7 +313,7 @@ rxint(ac, av)
 		printf("%s: ", Devname);
 	case -1:
 		if (ioctl(ctlfd, TCSIGRXIT, &tc) < 0)
-			Perror("TCSIGRXIT");
+			err(1, "TCSIGRXIT");
 		printf("RX interrupt throttle: %d msec\n", tc.tc_int*10);
 		break;
 	case 1:
@@ -306,13 +321,15 @@ rxint(ac, av)
 		if (tc.tc_int == 0)
 			tc.tc_int = 1;
 		if (ioctl(ctlfd, TCSIRXIT, &tc) < 0)
-			Perror("TCSIRXIT on %s at %d msec", Devname, tc.tc_int*10);
+			err(1, "TCSIRXIT on %s at %d msec",
+				Devname, tc.tc_int*10);
 		break;
 	default:
 		prusage(U_RXINT, 1);
 	}
 }
 
+void
 txint(ac, av)
 	char **av;
 {
@@ -323,19 +340,20 @@ txint(ac, av)
 		printf("%s: ", Devname);
 	case -1:
 		if (ioctl(ctlfd, TCSIGIT, &tc) < 0)
-			Perror("TCSIGIT");
+			err(1, "TCSIGIT");
 		printf("aggregate interrupt throttle: %d\n", tc.tc_int);
 		break;
 	case 1:
 		tc.tc_int = getnum(av[0]);
 		if (ioctl(ctlfd, TCSIIT, &tc) < 0)
-			Perror("TCSIIT on %s at %d", Devname, tc.tc_int);
+			err(1, "TCSIIT on %s at %d", Devname, tc.tc_int);
 		break;
 	default:
 		prusage(U_TXINT, 1);
 	}
 }
 
+void
 onoff(ac, av, cmd, cmdstr, prstr, usage)
 	char **av, *cmdstr, *prstr;
 	int ac, cmd, usage;
@@ -352,7 +370,7 @@ onoff(ac, av, cmd, cmdstr, prstr, usage)
 	} else
 		tc.tc_int = -1;
 	if (ioctl(ctlfd, cmd, &tc) < 0)
-		Perror("%s on %s", cmdstr, Devname);
+		err(1, "%s on %s", cmdstr, Devname);
 	switch (ac) {
 	case 0:
 		printf("%s: ", Devname);
@@ -365,11 +383,10 @@ onoff(ac, av, cmd, cmdstr, prstr, usage)
 	}
 }
 
+void
 mstate(ac, av)
 	char **av;
 {
-	u_char state;
-
 	switch (ac) {
 	case 0:
 		printf("%s: ", Devname);
@@ -379,7 +396,7 @@ mstate(ac, av)
 		prusage(U_MSTATE, 1);
 	}
 	if (ioctl(ctlfd, TCSISTATE, &tc) < 0)
-		Perror("TCSISTATE on %s", Devname);
+		err(1, "TCSISTATE on %s", Devname);
 	printf("modem bits state - (0x%x)", tc.tc_int);
 	if (tc.tc_int & IP_DCD)	printf(" DCD");
 	if (tc.tc_int & IP_DTR)	printf(" DTR");
@@ -387,6 +404,7 @@ mstate(ac, av)
 	printf("\n");
 }
 
+void
 nport(ac, av)
 	char **av;
 {
@@ -395,10 +413,11 @@ nport(ac, av)
 	if (ac != 0)
 		prusage(U_NPORT, 1);
 	if (ioctl(ctlfd, TCSIPORTS, &ports) < 0)
-		Perror("TCSIPORTS on %s", Devname);
+		err(1, "TCSIPORTS on %s", Devname);
 	printf("SLXOS: total of %d ports\n", ports);
 }
 
+void
 ccb_stat(ac, av)
 char **av;
 {
@@ -406,10 +425,10 @@ char **av;
 #define	CCB	sip.tc_ccb
 
 	if (ac != 0)
-		prusage(U_STAT_CCB);
+		prusage(U_STAT_CCB, 1);
 	sip.tc_dev = tc.tc_dev;
 	if (ioctl(ctlfd, TCSI_CCB, &sip) < 0)
-		Perror("TCSI_CCB on %s", Devname);
+		err(1, "TCSI_CCB on %s", Devname);
 	printf("%s: ", Devname);
 
 							/* WORD	next - Next Channel */
@@ -449,9 +468,9 @@ char **av;
 							/* BYTE	hi_txbuf[SLXOS_BUFFERSIZE] - */
 							/* BYTE	hi_rxbuf[SLXOS_BUFFERSIZE] - */
 							/* BYTE	res1[0xA0] - */
-
 }
 
+void
 tty_stat(ac, av)
 char **av;
 {
@@ -459,10 +478,10 @@ char **av;
 #define	TTY	sip.tc_tty
 
 	if (ac != 0)
-		prusage(U_STAT_TTY);
+		prusage(U_STAT_TTY, 1);
 	sip.tc_dev = tc.tc_dev;
 	if (ioctl(ctlfd, TCSI_TTY, &sip) < 0)
-		Perror("TCSI_TTY on %s", Devname);
+		err(1, "TCSI_TTY on %s", Devname);
 	printf("%s: ", Devname);
 
 	printf("\tt_outq.c_cc %d.\n", TTY.t_outq.c_cc);	/* struct clist t_outq */
@@ -478,9 +497,9 @@ char **av;
 	printf("\tt_cc 0x%x\n", TTY.t_cc);		/* t_cc */
 	printf("\tt_termios.c_ispeed 0x%x\n", TTY.t_termios.c_ispeed);	/* t_termios.c_ispeed */
 	printf("\tt_termios.c_ospeed 0x%x\n", TTY.t_termios.c_ospeed);	/* t_termios.c_ospeed */
-
 }
 
+int
 islevel(tk)
 	char *tk;
 {
@@ -500,6 +519,7 @@ islevel(tk)
  * Convert a string consisting of tokens separated by white space, commas
  * or `|' into a bitfield - flag any unrecognised tokens.
  */
+int
 lvls2bits(str)
 	char *str;
 {
@@ -514,7 +534,7 @@ lvls2bits(str)
 		if (strcmp(token, "all") == 0)
 			return(0xffffffff);
 		if ((i = islevel(token)) == 0) {
-			fprintf(stderr, "sicontrol: unknown token '%s'\n", token);
+			warnx("unknown token '%s'", token);
 			errflag++;
 		} else
 			bits |= i;
@@ -533,10 +553,8 @@ getnum(char *str)
 
 	x = 0;
 	while (*acp) {
-		if (!isdigit(*acp)) {
-			error("%s is not a number\n", str);
-			exit(1);
-		}
+		if (!isdigit(*acp))
+			errx(1, "%s is not a number", str);
 		x *= 10;
 		x += (*acp - '0');
 		acp++;
@@ -544,6 +562,7 @@ getnum(char *str)
 	return(x);
 }
 
+void
 prlevels(x)
 	int x;
 {
@@ -564,21 +583,3 @@ prlevels(x)
 	}
 }
 
-/* VARARGS */
-Perror(str, a1, a2, a3, a4, a5)
-	char *str;
-	int a1, a2, a3, a4, a5;
-{
-	fprintf(stderr, str, a1, a2, a3, a4, a5);
-	perror(" ");
-	exit(1);
-}
-
-/* VARARGS */
-error(str, a1, a2, a3, a4, a5)
-	char *str;
-	int a1, a2, a3, a4, a5;
-{
-	fprintf(stderr, str, a1, a2, a3, a4, a5);
-	exit(1);
-}
