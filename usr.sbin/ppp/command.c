@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.115 1997/12/19 18:11:05 brian Exp $
+ * $Id: command.c,v 1.116 1997/12/21 03:16:09 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -766,7 +766,7 @@ RunCommand(int argc, char const *const *argv, const char *label)
 
       *buf = '\0';
       if (label) {
-        strncpy(buf, label, sizeof buf);
+        strncpy(buf, label, sizeof(buf) - 3);
         buf[sizeof(buf)-3] = '\0';
         strcat(buf, ": ");
       }
@@ -999,7 +999,7 @@ SetServer(struct cmdargs const *arg)
     if (passwd == NULL)
       VarHaveLocalAuthKey = 0;
     else {
-      strncpy(VarLocalAuthKey, passwd, sizeof VarLocalAuthKey);
+      strncpy(VarLocalAuthKey, passwd, sizeof(VarLocalAuthKey) - 1);
       VarLocalAuthKey[sizeof VarLocalAuthKey - 1] = '\0';
       VarHaveLocalAuthKey = 1;
     }
@@ -1360,7 +1360,7 @@ SetVariable(struct cmdargs const *arg)
   case VAR_PHONE:
     strncpy(VarPhoneList, argp, sizeof(VarPhoneList) - 1);
     VarPhoneList[sizeof(VarPhoneList) - 1] = '\0';
-    strncpy(VarPhoneCopy, VarPhoneList, sizeof(VarPhoneCopy));
+    strncpy(VarPhoneCopy, VarPhoneList, sizeof(VarPhoneCopy) - 1);
     VarPhoneCopy[sizeof(VarPhoneCopy) - 1] = '\0';
     VarNextPhone = VarPhoneCopy;
     VarAltPhone = NULL;
