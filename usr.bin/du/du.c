@@ -165,8 +165,8 @@ main(int argc, char *argv[])
 				valp = vals_base2;
 				break;
 			case 'k':
-				if (!hflag)
-					putenv("BLOCKSIZE=1024");
+				hflag = 0;
+				putenv("BLOCKSIZE=1024");
 				break;
 			case 'r':		 /* Compatibility. */
 				break;
