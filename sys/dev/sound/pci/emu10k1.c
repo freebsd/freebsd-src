@@ -158,7 +158,7 @@ static u_int32_t emu_pfmt[] = {
 	0
 };
 
-static pcmchan_caps emu_playcaps = {48000, 48000, emu_pfmt, 0};
+static pcmchan_caps emu_playcaps = {4000, 48000, emu_pfmt, 0};
 
 static int adcspeed[8] = {48000, 44100, 32000, 24000, 22050, 16000, 11025, 8000};
 
