@@ -29,6 +29,8 @@
 #ifndef _SYS_GPT_H_
 #define	_SYS_GPT_H_
 
+#include <sys/uuid.h>
+
 struct gpt_hdr {
 	char		hdr_sig[8];
 #define	GPT_HDR_SIG		"EFI PART"
@@ -63,7 +65,7 @@ struct gpt_ent {
 	uint64_t	ent_lba_end;
 	uint64_t	ent_attr;
 #define	GPT_ENT_ATTR_PLATFORM		(1ULL << 0)
-	short		ent_name[36];		/* UNICODE!!! */
+	short		ent_name[36];		/* UNICODE-16. */
 };
 
 #define	GPT_ENT_TYPE_UNUSED		\
