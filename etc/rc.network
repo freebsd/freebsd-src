@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.network,v 1.1.2.9 1997/07/06 00:32:00 pst Exp $
+#	$Id: rc.network,v 1.1.2.10 1997/09/14 23:35:26 danny Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
@@ -58,7 +58,7 @@ network_pass1() {
     # Initialize IP filtering using ipfw
     echo ""
     /sbin/ipfw -q flush > /dev/null 2>&1
-    if [ $? ] ; then
+    if [ $? = 1 ] ; then
 	firewall_in_kernel=0
     else 
 	firewall_in_kernel=1
