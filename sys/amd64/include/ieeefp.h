@@ -31,17 +31,15 @@
  * SUCH DAMAGE.
  *
  * 	from: @(#) ieeefp.h 	1.0 (Berkeley) 9/23/93
- *	$Id: ieeefp.h,v 1.2 1993/10/16 17:16:52 rgrimes Exp $
+ *	$Id: ieeefp.h,v 1.1 1994/08/04 19:16:37 wollman Exp $
  */
 
 /*
  *	IEEE floating point type and constant definitions.
  */
 
-#ifndef _IEEEFP_H_
-#define _IEEEFP_H_
-
-#ifdef __i386__
+#ifndef _MACHINE_IEEEFP_H_
+#define _MACHINE_IEEEFP_H_
 
 /*
  * FP rounding modes
@@ -99,6 +97,4 @@ typedef enum {
 #define FP_RND_OFF	10	/* round control offset */
 #define FP_STKY_OFF	0	/* sticky flags offset */
 
-#endif /* __i386__ */
-
-#endif /* !_IEEEFP_H_ */
+#endif /* !_MACHINE_IEEEFP_H_ */
