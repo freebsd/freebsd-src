@@ -11,7 +11,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.h,v 1.40 1999/08/01 16:57:16 green Exp $
+ *	$Id: ip_fw.h,v 1.41 1999/08/11 15:34:46 luigi Exp $
  */
 
 #ifndef _IP_FW_H
@@ -168,7 +168,7 @@ struct ip_fw_chain {
 
 #define IP_FW_F_UID	0x00200000	/* filter by uid			*/
 
-#define IP_FW_F_GID	0x00400000	/* filter by uid			*/
+#define IP_FW_F_GID	0x00400000	/* filter by gid			*/
 
 #define IP_FW_F_RND_MATCH 0x00800000	/* probabilistic rule match		*/
 
