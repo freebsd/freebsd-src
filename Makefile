@@ -223,11 +223,20 @@ universe:
 	cd ${.CURDIR} && make buildkernels TARGET_ARCH=${arch} JFLAG="${JFLAG}"
 	@printf ">> ${arch} ended on `LC_ALL=C date`\n"
 .endfor
+	@printf ">> pc98 started on `LC_ALL=C date`\n"
 	-cd ${.CURDIR} && make buildworld TARGET=pc98 TARGET_ARCH=i386 \
 		__MAKE_CONF=/dev/null \
 		> _.pc98.buildworld 2>&1
+	@printf ">> pc98 buildworld ended on `LC_ALL=C date`\n"
+.if exists(${.CURDIR}/sys/pc98/conf/NOTES)
+	-cd ${.CURDIR}/sys/pc98/conf && make LINT \
+		> _.pc98.makeLINT 2>&1
+.endif
+	cd ${.CURDIR} && make buildkernels TARGET=pc98 TARGET_ARCH=i386 \
+		JFLAG="${JFLAG}"
+	@printf ">> pc98 ended on `LC_ALL=C date`\n"
 	@echo "--------------------------------------------------------------"
-	@printf ">>> make universe completed on `LC_ALL=C date`\n                       (started ${STARTTIME})\n"
+	@printf ">>> make universe completed on `LC_ALL=C date`\n                      (started ${STARTTIME})\n"
 	@echo "--------------------------------------------------------------"
 
 KERNCONFS !=	echo ${.CURDIR}/sys/${TARGET_ARCH}/conf/[A-Z]*
