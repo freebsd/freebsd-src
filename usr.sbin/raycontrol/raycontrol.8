@@ -138,15 +138,13 @@ The
 NICs support a maximum transmit rate of 2Mbps.
 The following table shows the
 legal transmit rate settings and the corresponding transmit speeds:
-.Bd -filled -offset indent
-.Bl -column "TX rate " "NIC speed "
+.Bl -column "TX rate " "NIC speed " -offset indent
 .Em "TX rate	NIC speed"
 1	Very Low (0.5Mbps)
 2	Low (1Mbps)
 3	Medium (1.5Mbps)
 4	High (2Mbps)
 .El
-.Ed
 .Pp
 The version 4 firmware may ignore this setting. Note, that the IEEE802.11
 standard
@@ -214,8 +212,7 @@ The
 hopset varies both the number of RF channels and their frequencies
 and is dependent on radio regulations specified
 by regional authorities.
-.Bd -filled -offset indent
-.Bl -column "Hopset ID " "Country "
+.Bl -column "Hopset ID " "Country " -offset indent
 .Em "Hopset ID	Country"
 1	USA
 2	Europe
@@ -227,7 +224,6 @@ by regional authorities.
 8	Australia
 9	Japan Test
 .El
-.Ed
 .Pp
 Whilst the card can be programmed to work with any hopset it makes
 sense to use the hopset for your own region to avoid interference from

@@ -242,7 +242,7 @@ If the package contains a
 file (see 
 .Xr pkg_create 1 ) ,
 then execute it with the following arguments:
-.Bd -filled -offset indent -compact
+.Bd -ragged -offset indent -compact
 .Ar pkg-name
 .Ar INSTALL
 .Ed
@@ -257,7 +257,7 @@ If a
 .Ar pre-install
 script exists for the package, it is then executed with the following
 arguments:
-.Bd -filled -offset indent -compact
+.Bd -ragged -offset indent -compact
 .Cm script
 .Ar pkg-name
 .Ar PRE-INSTALL
@@ -292,7 +292,7 @@ If the package contains an
 file (see
 .Xr pkg_create 1 ) ,
 then mtree is invoked as:
-.Bd -filled -offset indent -compact
+.Bd -ragged -offset indent -compact
 .Cm mtree
 .Fl u 
 .Fl f 
@@ -315,7 +315,7 @@ directive within this package.
 If a
 .Ar post-install
 script exists for the package, it is then executed as 
-.Bd -filled -offset indent -compact
+.Bd -ragged -offset indent -compact
 .Cm script
 .Ar pkg-name
 .Ar POST-INSTALL 

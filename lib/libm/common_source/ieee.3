@@ -227,7 +227,7 @@ proposed
 standard p854, namely that
 .Fn logb x
 satisfy 
-.Bd -filled -offset indent
+.Bd -ragged -offset indent
 1 \(<=
 .Fn scalb \\*(Bax\\*(Ba \-logb(x)
 <
@@ -261,7 +261,7 @@ similar in spirit to the
 reserved operand, but very
 different in important details.  Since the sign bit of a
 reserved operand makes it look negative,  
-.Bd -filled -offset indent
+.Bd -ragged -offset indent
 .Fn copysign x "reserved operand"
 =
 .Pf \- Fa x ;
