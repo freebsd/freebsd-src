@@ -629,7 +629,7 @@ If
 .Fa addr\->sin_port
 is zero, then it is set to the actual port that the remote
 program is listening on (the remote
-.Xr portmap 8
+.Xr rpcbind 8
 service is consulted for this information).
 The parameter
 .Fa sockp
@@ -681,7 +681,7 @@ If
 .Fa addr\->sin_port
 is zero, then it is set to actual port that the remote
 program is listening on (the remote
-.Xr portmap 8
+.Xr rpcbind 8
 service is consulted for this information).
 The parameter
 .Fa sockp
@@ -736,7 +736,7 @@ If
 .Fa addr\->sin_port
 is zero, then it is set to actual port that the remote
 program is listening on (the remote
-.Xr portmap 8
+.Xr rpcbind 8
 service is consulted for this information).
 The parameter
 .Fa sockp
@@ -784,7 +784,7 @@ Returns zero on success, non-zero on failure.
 .Xc
 .Pp
 A user interface to the
-.Xr portmap 8
+.Xr rpcbind 8
 service, which returns a list of the current
 .Tn RPC
 program\-to\-port mappings
@@ -811,7 +811,7 @@ uses this routine.
 .Xc
 .Pp
 A user interface to the
-.Xr portmap 8
+.Xr rpcbind 8
 service, which returns the port number
 on which waits a service that supports program number
 .Fa prognum ,
@@ -830,7 +830,7 @@ or that
 the
 .Tn RPC
 system failed to contact the remote
-.Xr portmap 8
+.Xr rpcbind 8
 service.
 In the latter case, the global variable
 .Va rpc_createerr
@@ -857,9 +857,9 @@ status.
 .Xc
 .Pp
 A user interface to the
-.Xr portmap 8
+.Xr rpcbind 8
 service, which instructs
-.Xr portmap 8
+.Xr rpcbind 8
 on the host at
 .Tn IP
 address
@@ -890,13 +890,13 @@ See also
 .Xc
 .Pp
 A user interface to the
-.Xr portmap 8
+.Xr rpcbind 8
 service, which establishes a mapping between the triple
 .Pq Fa prognum , versnum , protocol
 and
 .Fa port
 on the machine's
-.Xr portmap 8
+.Xr rpcbind 8
 service.
 The value of
 .Fa protocol
@@ -914,13 +914,13 @@ Automatically done by
 .Xc
 .Pp
 A user interface to the
-.Xr portmap 8
+.Xr rpcbind 8
 service, which destroys all mapping between the triple
 .Pq Fa prognum , versnum , *
 and
 .Fa ports
 on the machine's
-.Xr portmap 8
+.Xr rpcbind 8
 service.
 This routine returns one if it succeeds, zero
 otherwise.
@@ -1136,7 +1136,7 @@ with the service dispatch procedure,
 If
 .Fa protocol
 is zero, the service is not registered with the
-.Xr portmap 8
+.Xr rpcbind 8
 service.
 If
 .Fa protocol
@@ -1145,7 +1145,7 @@ is non-zero, then a mapping of the triple
 to
 .Fa xprt\->xp_port
 is established with the local
-.Xr portmap 8
+.Xr rpcbind 8
 service (generally
 .Fa protocol
 is zero,
@@ -1495,7 +1495,7 @@ package.
 .Xc
 .Pp
 Used for describing parameters to various
-.Xr portmap 8
+.Xr rpcbind 8
 procedures, externally.
 This routine is useful for users who wish to generate
 these parameters without using the
