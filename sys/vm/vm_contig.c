@@ -91,12 +91,16 @@ vm_contig_launder(int queue)
 {
 	vm_object_t object;
 	vm_page_t m, m_tmp, next;
+	struct vnode *vp;
 
 	for (m = TAILQ_FIRST(&vm_page_queues[queue].pl); m != NULL; m = next) {
 		next = TAILQ_NEXT(m, pageq);
 		KASSERT(m->queue == queue,
 		    ("vm_contig_launder: page %p's queue is not %d", m, queue));
+		if (!VM_OBJECT_TRYLOCK(m->object))
+			continue;
 		if (vm_page_sleep_if_busy(m, TRUE, "vpctw0")) {
+			VM_OBJECT_UNLOCK(m->object);
 			vm_page_lock_queues();
 			return (TRUE);
 		}
@@ -105,22 +109,25 @@ vm_contig_launder(int queue)
 			object = m->object;
 			if (object->type == OBJT_VNODE) {
 				vm_page_unlock_queues();
-				vn_lock(object->handle,
-				    LK_EXCLUSIVE | LK_RETRY, curthread);
+				vp = object->handle;
+				VM_OBJECT_UNLOCK(object);
+				vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, curthread);
 				VM_OBJECT_LOCK(object);
 				vm_object_page_clean(object, 0, 0, OBJPC_SYNC);
 				VM_OBJECT_UNLOCK(object);
-				VOP_UNLOCK(object->handle, 0, curthread);
+				VOP_UNLOCK(vp, 0, curthread);
 				vm_page_lock_queues();
 				return (TRUE);
 			} else if (object->type == OBJT_SWAP ||
 				   object->type == OBJT_DEFAULT) {
 				m_tmp = m;
-				vm_pageout_flush(&m_tmp, 1, 0, FALSE);
+				vm_pageout_flush(&m_tmp, 1, 0);
+				VM_OBJECT_UNLOCK(object);
 				return (TRUE);
 			}
 		} else if (m->busy == 0 && m->hold_count == 0)
 			vm_page_cache(m);
+		VM_OBJECT_UNLOCK(m->object);
 	}
 	return (FALSE);
 }

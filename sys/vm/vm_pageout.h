@@ -108,6 +108,6 @@ void vm_proc_swapin_all(struct swdevt *);
 #endif	/* !NO_SWAPPING */
 
 #ifdef _KERNEL
-int vm_pageout_flush(vm_page_t *, int, int, int is_object_locked);
+int vm_pageout_flush(vm_page_t *, int, int);
 #endif
 #endif	/* _VM_VM_PAGEOUT_H_ */
