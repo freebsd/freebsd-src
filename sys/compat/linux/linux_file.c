@@ -44,9 +44,9 @@
 #include <sys/conf.h>
 #include <sys/tty.h>
 
-#include <i386/linux/linux.h>
-#include <i386/linux/linux_proto.h>
-#include <i386/linux/linux_util.h>
+#include <machine/../linux/linux.h>
+#include <machine/../linux/linux_proto.h>
+#include <compat/linux/linux_util.h>
 
 int
 linux_creat(struct proc *p, struct linux_creat_args *args)
@@ -730,26 +730,6 @@ linux_symlink(struct proc *p, struct linux_symlink_args *args)
 	bsd.link = args->to;
 
 	return symlink(p, &bsd);
-}
-
-int
-linux_execve(struct proc *p, struct linux_execve_args *args)
-{
-	struct execve_args bsd;
-	caddr_t sg;
-
-	sg = stackgap_init();
-	CHECKALTEXIST(p, &sg, args->path);
-
-#ifdef DEBUG
-        printf("Linux-emul(%d): execve(%s)\n", 
-	    p->p_pid, args->path);
-#endif
-	bsd.fname = args->path;
-	bsd.argv = args->argp;
-	bsd.envv = args->envp;
-
-	return execve(p, &bsd);
 }
 
 int
