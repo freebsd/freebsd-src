@@ -1,3 +1,12 @@
-Richard Stallman, Brian Fox, Bob Chassell, Noah Friedman, Paul Rubin,
-Karl Berry, Eli Zaretskii, and many others.
+$Id: AUTHORS,v 1.4 2002/10/09 22:23:44 karl Exp $
+Texinfo authors.
 
+  Copying and distribution of this file, with or without modification,
+  are permitted in any medium without royalty provided the copyright
+  notice and this notice are preserved.
+
+Richard Stallman, Brian Fox, Bob Chassell, Noah Friedman, Paul Rubin,
+Karl Berry, Eli Zaretskii, Philippe Martin, and many others.
+
+Please see http://www.iro.umontreal.ca/contrib/po/HTML/team-LL.html for
+the translation teams for a given language LL.

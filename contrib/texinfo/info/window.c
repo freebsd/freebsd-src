@@ -1,7 +1,8 @@
 /* window.c -- windows in Info.
-   $Id: window.c,v 1.16 2002/03/08 21:41:44 karl Exp $
+   $Id: window.c,v 1.1 2002/08/25 23:38:38 karl Exp $
 
-   Copyright (C) 1993, 97, 98, 2001, 02 Free Software Foundation, Inc.
+   Copyright (C) 1993, 1997, 1998, 2001, 2002 Free Software Foundation,
+   Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
