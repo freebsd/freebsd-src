@@ -177,6 +177,8 @@ cttypoll(dev, events, p)
 
 static void ctty_clone __P((void *arg, char *name, int namelen, dev_t *dev));
 
+static dev_t ctty;
+
 static void
 ctty_clone(void *arg, char *name, int namelen, dev_t *dev)
 {
@@ -187,9 +189,11 @@ ctty_clone(void *arg, char *name, int namelen, dev_t *dev)
 	if (strcmp(name, "tty"))
 		return;
 	vp = cttyvp(curproc);
-	if (vp == NULL)
-		return;
-	*dev = vp->v_rdev;
+	if (vp == NULL) {
+		if (ctty)
+			*dev = ctty;
+	} else
+		*dev = vp->v_rdev;
 }
 
 
@@ -201,6 +205,7 @@ ctty_drvinit(unused)
 
 	if (devfs_present) {
 		EVENTHANDLER_REGISTER(dev_clone, ctty_clone, 0, 1000);
+		ctty = make_dev(&ctty_cdevsw, 0, 0, 0, 0666, "ctty");
 	} else {
 		make_dev(&ctty_cdevsw, 0, 0, 0, 0666, "tty");
 	}
