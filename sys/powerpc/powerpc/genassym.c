@@ -57,10 +57,6 @@
 #include <vm/vm_map.h>
 #include <net/if.h>
 #include <netinet/in.h>
-#include <nfs/nfsproto.h>
-#include <nfs/rpcv2.h>
-#include <nfsclient/nfs.h>
-#include <nfsclient/nfsdiskless.h>
 #include <machine/pcb.h>
 #include <machine/pmap.h>
 
