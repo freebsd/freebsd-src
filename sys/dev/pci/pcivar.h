@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pcivar.h,v 1.30 1999/05/09 20:25:01 peter Exp $
+ * $Id: pcivar.h,v 1.31 1999/05/11 07:55:32 peter Exp $
  *
  */
 
@@ -177,7 +177,6 @@ const char *ide_pci_match(struct device *dev);
 
 /* low level PCI config register functions provided by pcibus.c */
 
-int pci_cfgopen (void);
 int pci_cfgread (pcicfgregs *cfg, int reg, int bytes);
 void pci_cfgwrite (pcicfgregs *cfg, int reg, int data, int bytes);
 #ifdef __alpha__

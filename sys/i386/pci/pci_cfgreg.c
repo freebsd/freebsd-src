@@ -23,12 +23,14 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pcibus.c,v 1.40 1997/07/20 14:10:08 bde Exp $
+ * $Id: pcibus.c,v 1.41 1997/12/20 09:04:25 se Exp $
  *
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/kernel.h>
 
 #include <pci/pcivar.h>
 #include <i386/isa/pcibus.h>
@@ -184,7 +186,7 @@ pci_cfgcheck(int maxdev)
 	return (0);
 }
 
-int
+static int
 pci_cfgopen(void)
 {
 	unsigned long mode1res,oldval1;
@@ -263,3 +265,45 @@ pci_cfgopen(void)
 	devmax = 0;
 	return (cfgmech);
 }
+
+static devclass_t	pcib_devclass;
+
+static int
+nexus_pcib_probe(device_t dev)
+{
+	if (pci_cfgopen() != 0) {
+		device_set_desc(dev, "PCI host bus adapter");
+
+		device_add_child(dev, "pci", 0, 0);
+		return 0;
+	}
+	return ENXIO;
+}
+
+static device_method_t nexus_pcib_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		nexus_pcib_probe),
+	DEVMETHOD(device_attach,	bus_generic_attach),
+	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+	DEVMETHOD(device_suspend,	bus_generic_suspend),
+	DEVMETHOD(device_resume,	bus_generic_resume),
+
+	/* Bus interface */
+	DEVMETHOD(bus_print_child,	bus_generic_print_child),
+	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
+	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
+	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+
+	{ 0, 0 }
+};
+
+static driver_t nexus_pcib_driver = {
+	"pcib",
+	nexus_pcib_methods,
+	1,
+};
+
+DRIVER_MODULE(pcib, nexus, nexus_pcib_driver, pcib_devclass, 0, 0);
