@@ -715,7 +715,9 @@ SCSI:
 The SRM can boot from Qlogic 10xx boards or the NCR/Symbios 53C810. 
 53C825[a] will also work as boot adapter. Diamond FirePort, although 
 based on Symbios chips, is not bootable by the PC164SX SRM. 
-PC164SX is reported to boot fine with NCR825, NCR875 and NCR876 based cards.
+PC164SX is reported to boot fine with Symbios825, Symbios875 and Symbios876 
+based cards.  Cards like the Tekram DC-390F (Symbios875 based) have been
+confirmed to work fine on the PC164.
 
 SRM quirks:
 PC164 the SRM sometimes seems to loose its variable settings. 
