@@ -375,8 +375,8 @@ g_md_start(struct bio *bp)
 	sc = bp->bio_to->geom->softc;
 	mtx_lock(&sc->queue_mtx);
 	bioq_disksort(&sc->bio_queue, bp);
-	wakeup(sc);
 	mtx_unlock(&sc->queue_mtx);
+	wakeup(sc);
 }
 
 
