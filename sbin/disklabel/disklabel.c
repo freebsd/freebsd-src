@@ -133,14 +133,13 @@ enum	{
 	UNSPEC, EDIT, NOWRITE, READ, RESTORE, WRITE, WRITEABLE, WRITEBOOT
 } op = UNSPEC;
 
-int	mflag;
 int	rflag;
 
 #ifdef DEBUG
 int	debug;
-#define OPTIONS	"BNRWb:demrs:w"
+#define OPTIONS	"BNRWb:ders:w"
 #else
-#define OPTIONS	"BNRWb:emrs:w"
+#define OPTIONS	"BNRWb:ers:w"
 #endif
 
 int
@@ -187,9 +186,6 @@ main(argc, argv)
 				if (op != UNSPEC)
 					usage();
 				op = EDIT;
-				break;
-			case 'm':
-				++mflag;
 				break;
 			case 'r':
 				++rflag;
