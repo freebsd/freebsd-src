@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.6 1995/05/30 08:28:38 rgrimes Exp $
+ * $Id: ftp_strat.c,v 1.6.2.1 1995/06/01 05:41:47 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -80,7 +80,7 @@ mediaInitFTP(Device *dev)
 {
     int i;
     char *cp, *hostname, *dir;
-    char *my_name, *login_name, password[BUFSIZ], url[BUFSIZ];
+    char *login_name, password[80], url[BUFSIZ];
     Device *netDevice = (Device *)dev->private;
 
     if (ftpInitted)
@@ -98,9 +98,9 @@ mediaInitFTP(Device *dev)
     cp = getenv("ftp");
     if (!cp)
 	return FALSE;
-    my_name = getenv(VAR_HOSTNAME);
+    hostname = getenv(VAR_HOSTNAME);
     if (strncmp("ftp://", cp, 6) != NULL) {
-	msgConfirm("Invalid URL (`%s') passed to FTP routines!\n(must start with `ftp://')", url);
+	msgConfirm("Invalid URL `%s' passed to FTP routines!\n(must start with `ftp://')", cp);
 	return FALSE;
     }
     strncpy(url, cp, BUFSIZ);
@@ -109,7 +109,6 @@ mediaInitFTP(Device *dev)
     hostname = url + 6;
     if ((dir = index(hostname, '/')) != NULL)
 	*(dir++) = '\0';
-    strcpy(dev->name, hostname);
     if (isDebug()) {
 	msgDebug("hostname = `%s'\n", hostname);
 	msgDebug("dir = `%s'\n", dir ? dir : "/");
@@ -120,16 +119,14 @@ mediaInitFTP(Device *dev)
 	return FALSE;
     }
     if (!getenv(FTP_USER)) {
-	snprintf(password, BUFSIZ, "installer@%s", my_name);
-	if (isDebug())
-	    msgDebug("Using fake e-mail `%s'\n", password);
+	snprintf(password, BUFSIZ, "installer@%s", hostname);
 	login_name = "anonymous";
     }
     else {
 	login_name = getenv(FTP_USER);
 	strcpy(password, getenv(FTP_PASS) ? getenv(FTP_PASS) : login_name);
     }
-    msgNotify("Logging in as %s.", login_name);
+    msgNotify("Logging in as %s..", login_name);
     if ((i = FtpOpen(ftp, hostname, login_name, password)) != 0) {
 	msgConfirm("Couldn't open FTP connection to %s: %s (%u)\n", hostname, strerror(i), i);
 	return FALSE;

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.41.2.8 1995/06/01 05:48:57 jkh Exp $
+ * $Id: menus.c,v 1.41.2.9 1995/06/01 09:52:01 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -254,7 +254,7 @@ To specify a URL not in this list, chose \"other\".",
       { "UK #2", "src.doc.ic.ac.uk",
 	DMENU_SET_VARIABLE,	"ftp=ftp://src.doc.ic.ac.uk/packages/unix/FreeBSD/2.0.5-ALPHA", 0, 0		},
       { "UK #3", "unix.hensa.ac.uk",
-	DMENU_SET_VARIABLE,	"ftp=ftp://unix.hensa.ac.uk/pub/walnut.creek/FreeBSD/2.0.5-ALPHA", 0, 0		},
+	DMENU_SET_VARIABLE,	"ftp=ftp://unix.hensa.ac.uk/mirrors/walnut.creek/FreeBSD/2.0.5-ALPHA", 0, 0		},
       { "USA", "ref.tfs.com",
 	DMENU_SET_VARIABLE,	"ftp=ftp://ref.tfs.com/pub/FreeBSD/2.0.5-ALPHA", 0, 0				},
       { "USA #2", "ftp.dataplex.net",

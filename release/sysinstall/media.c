@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.24 1995/05/30 08:28:47 rgrimes Exp $
+ * $Id: media.c,v 1.24.2.1 1995/05/31 10:17:37 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -256,8 +256,6 @@ mediaSetFTP(char *str)
 	else
 	    variable_set2("ftp", cp);
     }
-    if (!tcpDeviceSelect())
-	return 0;
     strcpy(ftpDevice.name, cp);
     ftpDevice.type = DEVICE_TYPE_FTP;
     ftpDevice.init = mediaInitFTP;
@@ -265,6 +263,8 @@ mediaSetFTP(char *str)
     ftpDevice.close = mediaCloseFTP;
     ftpDevice.shutdown = mediaShutdownFTP;
     ftpDevice.private = mediaDevice;
+    if (!tcpDeviceSelect())
+	return 0;
     mediaDevice = &ftpDevice;
     return 1;
 }

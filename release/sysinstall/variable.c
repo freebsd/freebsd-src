@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: variable.c,v 1.5 1995/05/30 08:29:06 rgrimes Exp $
+ * $Id: variable.c,v 1.5.2.1 1995/06/01 09:42:32 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -54,6 +54,7 @@ make_variable(char *var, char *value)
     for (newvar = VarHead; newvar; newvar = newvar->next) {
 	if (!strcmp(newvar->name, var)) {
 	    strncpy(newvar->value, value, VAR_VALUE_MAX);
+	    setenv(var, value, 1);
 	    return;
 	}
     }
@@ -64,6 +65,8 @@ make_variable(char *var, char *value)
     newvar->next = VarHead;
     VarHead = newvar;
     setenv(newvar->name, newvar->value, 1);
+    if (isDebug())
+	msgDebug("Setting variable %s to %s\n", newvar->name, newvar->value);
 }
 
 void
