@@ -20,7 +20,9 @@ SRCS=	vnode_if.h \
 
 NOMAN=true
 
+.if exists(${.CURDIR}/../../crypto/des/des.h)
 NETSMBCRYPTO=yes
+.endif
 
 .if defined(NETSMBCRYPTO)
 SRCS+=	des_ecb.c des_setkey.c
