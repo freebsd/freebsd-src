@@ -5,6 +5,15 @@ directly to him.  See end of file for further details.  For commonly
 done items, please see the end of the file.  Search for 'COMMON
 ITEMS:'
 
+20000914:
+	The new pmtimer device is necessary for laptops.  Failure to
+	include the device will cause suspended laptops losing time
+	when they resume.  Include
+		device		pmtimer
+	in your config file and
+		hints.pmtimer.0.at="isa"
+	to your /boot/device.hints file.
+
 20000911:
 	The random device has been turned into a (pseudo-)device,
 	rather than an option. The supplied kernel config files have
