@@ -24,7 +24,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ipcs.c,v 1.6 1994/06/18 22:05:08 cgd Exp $
+ *	$Id: ipcs.c,v 1.2 1994/09/13 16:59:29 dfr Exp $
  */
 
 #include <stdio.h>
@@ -45,6 +45,10 @@
 #include <sys/sem.h>
 #include <sys/shm.h>
 #include <sys/msg.h>
+
+struct shminfo	shminfo;
+struct seminfo	seminfo;
+struct msginfo	msginfo;
 
 int	semconfig __P((int,...));
 void	usage __P((void));
