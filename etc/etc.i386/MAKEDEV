@@ -108,7 +108,7 @@
 #	pci	PCI configuration-space access from user mode
 #	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
 #
-#	$Id: MAKEDEV,v 1.167 1998/08/10 10:17:46 phk Exp $
+#	$Id: MAKEDEV,v 1.168 1998/08/14 06:21:34 phk Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -196,7 +196,7 @@ all)
 	sh MAKEDEV od0					# bdev, optical disk
 	sh MAKEDEV wfd0					# bdev, LS-120 floppy
 	sh MAKEDEV vn0					# bdev, virtual disk
-	sh MAKEDEV cd0 matcd0 mcd0 scd0 wcd0		# bdev, cdrom
+	sh MAKEDEV cd0 matcd0 mcd0 scd0 wcd0 wst0	# bdev, cdrom
 	sh MAKEDEV ft0 st0 wt0				# bdev, tape
 	sh MAKEDEV vty4					# cdev, virtual tty
 	sh MAKEDEV cuaa0 cuaa1 cuaa2 cuaa3		# cdev, serial tty
@@ -684,7 +684,7 @@ wcd*)
 	blk=19
 	chr=69
 	case $unit in
-	0|1|2|3)
+	0|1|2|3|4|5|6|7)
 		mknod wcd${unit}a  b $blk `expr $unit '*' 8 + 0`
 		mknod rwcd${unit}a c $chr `expr $unit '*' 8 + 0`
 		mknod wcd${unit}c  b $blk `expr $unit '*' 8 + 2`
@@ -694,6 +694,20 @@ wcd*)
 		;;
 	*)
 		echo bad unit for disk in: $i
+		;;
+	esac
+	umask 77
+	;;
+
+wst*)
+	umask 2 ;
+	unit=`expr $i : '...\(.*\)'`
+	chr=90
+	case $unit in
+	0|1|2|3)
+		mknod rwst${unit} c $chr `expr $unit '*' 8 + 0`
+		chgrp operator rwst${unit}
+		chmod 640 rwst${unit}
 		;;
 	esac
 	umask 77
