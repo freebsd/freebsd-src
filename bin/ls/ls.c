@@ -166,7 +166,7 @@ main(argc, argv)
 		f_listdot = 1;
 
 	fts_options = FTS_PHYSICAL;
-	while ((ch = getopt(argc, argv, "1ABCFGHLPRTWZabcdfghiklnoqrstu")) != -1) {
+ 	while ((ch = getopt(argc, argv, "1ABCFGHLPRTWZabcdfghiklnoqrstuw")) != -1) {
 		switch (ch) {
 		/*
 		 * The -1, -C and -l options all override each other so shell
@@ -274,6 +274,11 @@ main(argc, argv)
 			f_nonprint = 0;
 			f_octal = 0;
 			f_octal_escape = 1;
+			break;
+		case 'w':
+			f_nonprint = 0;
+			f_octal = 0;
+			f_octal_escape = 0;
 			break;
 		case 'Z':
 			f_lomac = 1;
