@@ -255,6 +255,7 @@ amrd_attach(device_t dev)
 {
     struct amrd_softc	*sc = (struct amrd_softc *)device_get_softc(dev);
     device_t		parent;
+    char		*state;
     
     debug("called");
 
@@ -264,9 +265,26 @@ amrd_attach(device_t dev)
     sc->amrd_drive = device_get_ivars(dev);
     sc->amrd_dev = dev;
 
-    device_printf(dev, "%uMB (%u sectors), state 0x%x properties 0x%x\n",
+    switch(sc->amrd_drive->al_state) {
+    case AMRD_OFFLINE:
+	state = "offline";
+	break;
+    case AMRD_DEGRADED:
+	state = "degraded";
+	break;
+    case AMRD_OPTIMAL:
+	state = "optimal";
+	break;
+    case AMRD_DELETED:
+	state = "deleted";
+	break;
+    default:
+	state = "unknown state";
+    }
+
+    device_printf(dev, "%uMB (%u sectors) RAID %d (%s)\n",
 		  sc->amrd_drive->al_size / ((1024 * 1024) / AMR_BLKSIZE),
-		  sc->amrd_drive->al_size, sc->amrd_drive->al_state, sc->amrd_drive->al_properties);
+		  sc->amrd_drive->al_size, sc->amrd_drive->al_properties & 0xf, state);
 
     devstat_add_entry(&sc->amrd_stats, "amrd", sc->amrd_unit, AMR_BLKSIZE,
 		      DEVSTAT_NO_ORDERED_TAGS,
