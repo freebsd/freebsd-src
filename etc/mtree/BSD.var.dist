@@ -74,22 +74,6 @@
             lpd
             ..
         ..
-/set gname=wheel
-/set uname=uucp gname=uucp mode=0775
-        uucp
-            .Preserve
-            ..
-            .Sequence
-            ..
-            .Status
-            ..
-            .Temp
-            ..
-            .Xqtdir
-            ..
-        ..
-        uucppublic      mode=0777
-        ..
 /set uname=root gname=wheel mode=0755
     ..
     tmp             mode=01777
