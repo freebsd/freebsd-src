@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.17 1999/08/11 13:29:48 marcel Exp $
+	$Id: syscalls.master,v 1.18 1999/08/12 19:51:03 marcel Exp $
 
 ;	@(#)syscalls.master	8.1 (Berkeley) 7/19/93
 ; System call name/number master file (or rather, slave, from LINUX).
@@ -248,8 +248,14 @@
 171	UNIMPL	LINUX	getresgid
 172	UNIMPL	LINUX	prctl
 173	UNIMPL	LINUX	rt_sigreturn
-174	UNIMPL	LINUX	rt_sigaction
-175	UNIMPL	LINUX	rt_sigprocmask
+174	STD	LINUX	{ int linux_rt_sigaction(int sig, \
+				struct linux_new_sigaction *act, \
+				struct linux_new_sigaction *oact, \
+				size_t sigsetsize); }
+175	STD	LINUX	{ int linux_rt_sigprocmask(int how, \
+				struct linux_new_sigset *mask, \
+				struct linux_new_sigset *omask, \
+				size_t sigsetsize); }
 176	UNIMPL	LINUX	rt_sigpending
 177	UNIMPL	LINUX	rt_sigtimedwait
 178	UNIMPL	LINUX	rt_sigqueueinfo
