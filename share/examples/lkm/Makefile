@@ -36,7 +36,7 @@
 # SUCH DAMAGE.
 #
 
-SUBDIR=	syscall vfs misc
+SUBDIR=	syscall misc
 
 .include <bsd.subdir.mk>
 
