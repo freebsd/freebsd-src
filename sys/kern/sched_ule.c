@@ -151,7 +151,7 @@ struct td_sched *thread0_sched = &td_sched;
  * INTERACT_MAX:	Maximum interactivity value.  Smaller is better.
  * INTERACT_THRESH:	Threshhold for placement on the current runq.
  */
-#define	SCHED_SLP_RUN_MAX	((hz / 4) << 10)
+#define	SCHED_SLP_RUN_MAX	((hz * 2) << 10)
 #define	SCHED_SLP_RUN_THROTTLE	(2)
 #define	SCHED_INTERACT_MAX	(100)
 #define	SCHED_INTERACT_HALF	(SCHED_INTERACT_MAX / 2)
@@ -231,6 +231,7 @@ struct kseq	kseq_cpu;
 static void sched_slice(struct kse *ke);
 static void sched_priority(struct ksegrp *kg);
 static int sched_interact_score(struct ksegrp *kg);
+static void sched_interact_update(struct ksegrp *kg);
 void sched_pctcpu_update(struct kse *ke);
 int sched_pickcpu(void);
 
@@ -618,15 +619,18 @@ sched_slice(struct kse *ke)
 	 * in the kg.  This will cause us to forget old interactivity
 	 * while maintaining the current ratio.
 	 */
-	if ((kg->kg_runtime + kg->kg_slptime) >  SCHED_SLP_RUN_MAX) {
-		kg->kg_runtime /= SCHED_SLP_RUN_THROTTLE;
-		kg->kg_slptime /= SCHED_SLP_RUN_THROTTLE;
-	}
-	CTR4(KTR_ULE, "Slp vs Run(2) %p (Slp %d, Run %d, Score %d)",
-	    ke, kg->kg_slptime >> 10, kg->kg_runtime >> 10,
-	    sched_interact_score(kg));
+	sched_interact_update(kg);
 
 	return;
+}
+
+static void
+sched_interact_update(struct ksegrp *kg)
+{
+	if ((kg->kg_runtime + kg->kg_slptime) >  SCHED_SLP_RUN_MAX) {
+		kg->kg_runtime = (kg->kg_runtime / 5) * 4;
+		kg->kg_slptime = (kg->kg_slptime / 5) * 4;
+	}
 }
 
 static int
@@ -836,7 +840,10 @@ sched_wakeup(struct thread *td)
 		kg = td->td_ksegrp;
 		hzticks = ticks - td->td_slptime;
 		kg->kg_slptime += hzticks << 10;
+		sched_interact_update(kg);
 		sched_priority(kg);
+		if (td->td_kse)
+			sched_slice(td->td_kse);
 		CTR2(KTR_ULE, "wakeup kse %p (%d ticks)",
 		    td->td_kse, hzticks);
 		td->td_slptime = 0;
@@ -885,18 +892,10 @@ sched_fork_ksegrp(struct ksegrp *kg, struct ksegrp *child)
 	PROC_LOCK_ASSERT(child->kg_proc, MA_OWNED);
 	/* XXX Need something better here */
 
-#if 1
 	child->kg_slptime = kg->kg_slptime;
 	child->kg_runtime = kg->kg_runtime;
-#else
-	if (kg->kg_slptime > kg->kg_runtime) {
-		child->kg_slptime = SCHED_DYN_RANGE;
-		child->kg_runtime = kg->kg_slptime / SCHED_DYN_RANGE;
-	} else {
-		child->kg_runtime = SCHED_DYN_RANGE;
-		child->kg_slptime = kg->kg_runtime / SCHED_DYN_RANGE;
-	}
-#endif
+	kg->kg_runtime += tickincr << 10;
+	sched_interact_update(kg);
 
 	child->kg_user_pri = kg->kg_user_pri;
 	child->kg_nice = kg->kg_nice;
@@ -956,12 +955,9 @@ sched_exit_kse(struct kse *ke, struct kse *child)
 void
 sched_exit_ksegrp(struct ksegrp *kg, struct ksegrp *child)
 {
-	kg->kg_slptime += child->kg_slptime;
+	/* kg->kg_slptime += child->kg_slptime; */
 	kg->kg_runtime += child->kg_runtime;
-	if ((kg->kg_runtime + kg->kg_slptime) >  SCHED_SLP_RUN_MAX) {
-		kg->kg_runtime /= SCHED_SLP_RUN_THROTTLE;
-		kg->kg_slptime /= SCHED_SLP_RUN_THROTTLE;
-	}
+	sched_interact_update(kg);
 }
 
 void
@@ -1042,6 +1038,7 @@ sched_clock(struct kse *ke)
 	 * interactivity.
 	 */
 	kg->kg_runtime += tickincr << 10;
+	sched_interact_update(kg);
 
 	/*
 	 * We used up one time slice.
