@@ -206,18 +206,12 @@ if [ "X${accounting_enable}" = X"YES" -a -d /var/account ]; then
 	accton /var/account/acct
 fi
 
-# If we have an ld.so.conf file, let it do the job.  It is expected
-# to contain /usr/lib and other important system library locations
-# as well as those local to the site!
-if [ -f /etc/ld.so.conf ]; then
-	_LDC=/etc/ld.so.conf
-else
-	# Leave /usr/lib first when adding entries or you may come to grief.
-	_LDC=/usr/lib
-	if [ -d /usr/lib/compat ]; then _LDC="${_LDC} /usr/lib/compat" ; fi
-	if [ -d /usr/X11R6/lib ]; then _LDC="${_LDC} /usr/X11R6/lib" ; fi
-	if [ -d /usr/local/lib ]; then _LDC="${_LDC} /usr/local/lib" ; fi
-fi
+# Make shared lib searching a little faster.  Leave /usr/lib first if you
+# add your own entries or you may come to grief.
+_LDC=/usr/lib
+if [ -d /usr/lib/compat ]; then _LDC="${_LDC} /usr/lib/compat" ; fi
+if [ -d /usr/X11R6/lib ]; then _LDC="${_LDC} /usr/X11R6/lib" ; fi
+if [ -d /usr/local/lib ]; then _LDC="${_LDC} /usr/local/lib" ; fi
 echo 'setting ldconfig path:' ${_LDC}
 ldconfig ${_LDC}
 
@@ -290,7 +284,7 @@ fi
 
 # for each valid dir in $local_startup, search for init scripts matching *.sh
 if [ "X${local_startup}" != X"NO" ]; then
-	echo -n 'Local package startup:'
+	echo -n 'Local package initialization:'
 	for dir in ${local_startup}; do
 		[ -d ${dir} ] && for script in ${dir}/*.sh; do
 			[ -x ${script} ] && ${script} start
