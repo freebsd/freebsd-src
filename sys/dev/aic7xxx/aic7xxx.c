@@ -36,7 +36,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.22 1999/04/19 21:28:15 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.23 1999/04/23 23:27:29 gibbs Exp $
  */
 /*
  * A few notes on features of the driver.
@@ -3847,9 +3847,6 @@ ahc_init(struct ahc_softc *ahc)
 	/* All of our queues are empty */
 	for (i = 0; i < 256; i++)
 		ahc->qoutfifo[i] = SCB_LIST_NULL;
-	ahc_outb(ahc, KERNEL_QINPOS, 0);
-	ahc_outb(ahc, QINPOS, 0);
-	ahc_outb(ahc, QOUTPOS, 0);
 
 	if ((ahc->flags & AHC_TARGETMODE) != 0) {
 		ahc->targetcmds = (struct target_cmd *)&ahc->untagged_scbs[256];
@@ -3861,38 +3858,6 @@ ahc_init(struct ahc_softc *ahc)
 		ahc_outb(ahc, TQINPOS, 0);
 	}
 
-	/*
-	 * Tell the sequencer where it can find the our arrays in memory.
-	 */
-	physaddr = ahc->scb_data->hscb_busaddr;
-	ahc_outb(ahc, HSCB_ADDR, physaddr & 0xFF);
-	ahc_outb(ahc, HSCB_ADDR + 1, (physaddr >> 8) & 0xFF);
-	ahc_outb(ahc, HSCB_ADDR + 2, (physaddr >> 16) & 0xFF);
-	ahc_outb(ahc, HSCB_ADDR + 3, (physaddr >> 24) & 0xFF);
-
-	physaddr = ahc->shared_data_busaddr;
-	ahc_outb(ahc, SCBID_ADDR, physaddr & 0xFF);
-	ahc_outb(ahc, SCBID_ADDR + 1, (physaddr >> 8) & 0xFF);
-	ahc_outb(ahc, SCBID_ADDR + 2, (physaddr >> 16) & 0xFF);
-	ahc_outb(ahc, SCBID_ADDR + 3, (physaddr >> 24) & 0xFF);
-
-	/* Target mode incomding command fifo */
-	physaddr += 3 * 256 * sizeof(u_int8_t);
-	ahc_outb(ahc, TMODE_CMDADDR, physaddr & 0xFF);
-	ahc_outb(ahc, TMODE_CMDADDR + 1, (physaddr >> 8) & 0xFF);
-	ahc_outb(ahc, TMODE_CMDADDR + 2, (physaddr >> 16) & 0xFF);
-	ahc_outb(ahc, TMODE_CMDADDR + 3, (physaddr >> 24) & 0xFF);
-
-	/* Initialize the group code to command length table */
-	ahc_outb(ahc, CMDSIZE_TABLE, 5);
-	ahc_outb(ahc, CMDSIZE_TABLE + 1, 9);
-	ahc_outb(ahc, CMDSIZE_TABLE + 2, 9);
-	ahc_outb(ahc, CMDSIZE_TABLE + 3, 0);
-	ahc_outb(ahc, CMDSIZE_TABLE + 4, 15);
-	ahc_outb(ahc, CMDSIZE_TABLE + 5, 11);
-	ahc_outb(ahc, CMDSIZE_TABLE + 6, 0);
-	ahc_outb(ahc, CMDSIZE_TABLE + 7, 0);
-		
 	/*
 	 * Allocate a tstate to house information for our
 	 * initiator presence on the bus as well as the user
@@ -4089,10 +4054,8 @@ ahc_init(struct ahc_softc *ahc)
 						    (ultraenb & mask)
 						   ? AHC_SYNCRATE_ULTRA
 						   : AHC_SYNCRATE_FAST);
-				if ((scsirate & SOFS) != 0
-				 && tinfo->user.period != 0) {
+				if (tinfo->user.period != 0)
 					tinfo->user.offset = ~0;
-				}
 			}
 			if ((scsirate & WIDEXFER) != 0
 			 && (ahc->features & AHC_WIDE) != 0)
@@ -4102,6 +4065,47 @@ ahc_init(struct ahc_softc *ahc)
 		tstate->discenable = discenable;
 		tstate->tagenable = tagenable;
 	}
+
+	/*
+	 * Tell the sequencer where it can find the our arrays in memory.
+	 */
+	physaddr = ahc->scb_data->hscb_busaddr;
+	ahc_outb(ahc, HSCB_ADDR, physaddr & 0xFF);
+	ahc_outb(ahc, HSCB_ADDR + 1, (physaddr >> 8) & 0xFF);
+	ahc_outb(ahc, HSCB_ADDR + 2, (physaddr >> 16) & 0xFF);
+	ahc_outb(ahc, HSCB_ADDR + 3, (physaddr >> 24) & 0xFF);
+
+	physaddr = ahc->shared_data_busaddr;
+	ahc_outb(ahc, SCBID_ADDR, physaddr & 0xFF);
+	ahc_outb(ahc, SCBID_ADDR + 1, (physaddr >> 8) & 0xFF);
+	ahc_outb(ahc, SCBID_ADDR + 2, (physaddr >> 16) & 0xFF);
+	ahc_outb(ahc, SCBID_ADDR + 3, (physaddr >> 24) & 0xFF);
+
+	/* Target mode incomding command fifo */
+	physaddr += 3 * 256 * sizeof(u_int8_t);
+	ahc_outb(ahc, TMODE_CMDADDR, physaddr & 0xFF);
+	ahc_outb(ahc, TMODE_CMDADDR + 1, (physaddr >> 8) & 0xFF);
+	ahc_outb(ahc, TMODE_CMDADDR + 2, (physaddr >> 16) & 0xFF);
+	ahc_outb(ahc, TMODE_CMDADDR + 3, (physaddr >> 24) & 0xFF);
+
+	/*
+	 * Initialize the group code to command length table.
+	 * This overrides the values in TARG_SCSIRATE, so only
+	 * setup the table after we have processed that information.
+	 */
+	ahc_outb(ahc, CMDSIZE_TABLE, 5);
+	ahc_outb(ahc, CMDSIZE_TABLE + 1, 9);
+	ahc_outb(ahc, CMDSIZE_TABLE + 2, 9);
+	ahc_outb(ahc, CMDSIZE_TABLE + 3, 0);
+	ahc_outb(ahc, CMDSIZE_TABLE + 4, 15);
+	ahc_outb(ahc, CMDSIZE_TABLE + 5, 11);
+	ahc_outb(ahc, CMDSIZE_TABLE + 6, 0);
+	ahc_outb(ahc, CMDSIZE_TABLE + 7, 0);
+		
+	/* Tell the sequencer of our initial queue positions */
+	ahc_outb(ahc, KERNEL_QINPOS, 0);
+	ahc_outb(ahc, QINPOS, 0);
+	ahc_outb(ahc, QOUTPOS, 0);
 
 #ifdef AHC_DEBUG
 	if (ahc_debug & AHC_SHOWMISC)
