@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncrcontrol.c,v 1.3 1994/10/15 00:03:32 se Exp $
+**  $Id: ncrcontrol.c,v 1.4 1994/10/26 19:23:02 se Exp $
 **
 **  Utility for NCR 53C810 device driver.
 **
@@ -56,7 +56,7 @@
 #include <paths.h>
 #include <limits.h>
 #include <kvm.h>
-#include <i386/pci/ncr.c>
+#include <pci/ncr.c>
 
 /*
 **	used external functions
