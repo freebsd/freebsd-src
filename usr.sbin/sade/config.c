@@ -376,11 +376,14 @@ configSysconfig(char *config)
 
     /* Now do variable substitutions */
     for (v = VarHead; v; v = v->next) {
+	char line[512];
+
 	for (i = 0; i < nlines; i++) {
 	    /* Skip the comments & non-variable settings */
 	    if (lines[i][0] == '#' || !(cp = index(lines[i], '=')))
 		continue;
-	    if (!strncmp(lines[i], v->name, cp - lines[i])) {
+	    sstrncpy(line, lines[i], cp - lines[i]);
+	    if (!strcmp(line, v->name)) {
 		free(lines[i]);
 		lines[i] = (char *)malloc(strlen(v->name) + strlen(v->value) + 5);
 		sprintf(lines[i], "%s=\"%s\"\n", v->name, v->value);
