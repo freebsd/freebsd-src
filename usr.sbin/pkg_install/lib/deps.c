@@ -82,29 +82,98 @@ sortdeps(char **pkgs)
 int
 chkifdepends(char *pkgname1, char *pkgname2)
 {
-    FILE *fp;
-    char fname[FILENAME_MAX];
-    char fbuf[FILENAME_MAX];
-    char *tmp;
-    int retval;
+    char pkgdir[FILENAME_MAX];
+    int errcode;
+    struct reqr_by_entry *rb_entry;
+    struct reqr_by_head *rb_list;
 
-    sprintf(fname, "%s/%s/%s", LOG_DIR, pkgname2, REQUIRED_BY_FNAME);
+    /* Check that pkgname2 is actually installed */
+    snprintf(pkgdir, sizeof(pkgdir), "%s/%s", LOG_DIR, pkgname2);
+    if (!isdir(pkgdir))
+	return 0;
+
+    errcode = requiredby(pkgname2, &rb_list, FALSE, TRUE);
+    if (errcode < 0)
+	return errcode;
+
+    STAILQ_FOREACH(rb_entry, rb_list, link)
+	if (strcmp(rb_entry->pkgname, pkgname1) == 0)	/* match */
+	    return 1;
+
+    return 0;
+}
+
+/*
+ * Load +REQUIRED_BY file and return a list with names of
+ * packages that require package reffered to by `pkgname'.
+ *
+ * Optionally check that packages listed there are actually
+ * installed and filter out those that don't (filter == TRUE).
+ *
+ * strict argument controls whether the caller want warnings
+ * to be emitted when there are some non-fatal conditions,
+ * i.e. package doesn't have +REQUIRED_BY file or some packages
+ * listed in +REQUIRED_BY don't exist.
+ *
+ * Result returned in the **list, while return value is equal
+ * to the number of entries in the resulting list. Print error
+ * message and return -1 on error.
+ */
+int
+requiredby(const char *pkgname, struct reqr_by_head **list, Boolean strict, Boolean filter)
+{
+    FILE *fp;
+    char fbuf[FILENAME_MAX], fname[FILENAME_MAX], pkgdir[FILENAME_MAX];
+    int retval;
+    struct reqr_by_entry *rb_entry;
+    static struct reqr_by_head rb_list = STAILQ_HEAD_INITIALIZER(rb_list);
+
+    *list = &rb_list;
+    /* Deallocate any previously allocated space */
+    while (!STAILQ_EMPTY(&rb_list)) {
+	rb_entry = STAILQ_FIRST(&rb_list);
+	STAILQ_REMOVE_HEAD(&rb_list, link);
+	free(rb_entry);
+    }
+
+    snprintf(fname, sizeof(fname), "%s/%s", LOG_DIR, pkgname);
+    if (!isdir(fname)) {
+	if (strict == TRUE)
+	    warnx("no such package '%s' installed", pkgname);
+	return -1;
+    }
+
+    snprintf(fname, sizeof(fname), "%s/%s", fname, REQUIRED_BY_FNAME);
     fp = fopen(fname, "r");
     if (fp == NULL) {
-	/* Probably pkgname2 doesn't have any packages that depend on it */
+	/* Probably pkgname doesn't have any packages that depend on it */
+	if (strict == TRUE)
+	    warnx("couldn't open dependency file '%s'", fname);
 	return 0;
     }
 
     retval = 0;
     while (fgets(fbuf, sizeof(fbuf), fp) != NULL) {
-	if (fbuf[strlen(fbuf)-1] == '\n')
-	    fbuf[strlen(fbuf)-1] = '\0';
-	if (strcmp(fbuf, pkgname1) == 0) {	/* match */
-	    retval = 1;
+	if (fbuf[strlen(fbuf) - 1] == '\n')
+	    fbuf[strlen(fbuf) - 1] = '\0';
+	snprintf(pkgdir, sizeof(pkgdir), "%s/%s", LOG_DIR, fbuf);
+	if (filter == TRUE && !isdir(pkgdir)) {
+	    if (strict == TRUE)
+		warnx("package '%s' is recorded in the '%s' but isn't "
+		      "actually installed", fbuf, fname);
+	    continue;
+	}
+	retval++;
+	rb_entry = malloc(sizeof(*rb_entry));
+	if (rb_entry == NULL) {
+	    warnx("%s(): malloc() failed", __FUNCTION__);
+	    retval = -1;
 	    break;
 	}
+	strlcpy(rb_entry->pkgname, fbuf, sizeof(rb_entry->pkgname));
+	STAILQ_INSERT_TAIL(&rb_list, rb_entry, link);
     }
-
     fclose(fp);
+
     return retval;
 }

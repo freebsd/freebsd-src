@@ -27,6 +27,7 @@
 #include <sys/param.h>
 #include <sys/file.h>
 #include <sys/stat.h>
+#include <sys/queue.h>
 #include <ctype.h>
 #include <dirent.h>
 #include <stdarg.h>
@@ -111,6 +112,12 @@ struct _pack {
 };
 typedef struct _pack Package;
 
+struct reqr_by_entry {
+    STAILQ_ENTRY(reqr_by_entry) link;
+    char pkgname[PATH_MAX];
+};
+STAILQ_HEAD(reqr_by_head, reqr_by_entry);
+                
 /* Prototypes */
 /* Misc */
 int		vsystem(const char *, ...);
@@ -186,6 +193,7 @@ char		**matchinstalled(match_t, char **, int *);
 /* Dependencies */
 int		sortdeps(char **);
 int		chkifdepends(char *, char *);
+int		requiredby(const char *, struct reqr_by_head **, Boolean, Boolean);
 
 /* Externs */
 extern Boolean	Verbose;

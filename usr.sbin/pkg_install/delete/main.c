@@ -30,12 +30,13 @@ static const char rcsid[] =
 #include "lib.h"
 #include "delete.h"
 
-static char Options[] = "adDfGhinp:vx";
+static char Options[] = "adDfGhinp:rvx";
 
 char	*Prefix		= NULL;
 Boolean	CleanDirs	= FALSE;
 Boolean	Interactive	= FALSE;
 Boolean	NoDeInstall	= FALSE;
+Boolean	Recursive	= FALSE;
 match_t	MatchType	= MATCH_GLOB;
 
 static void usage __P((void));
@@ -93,6 +94,10 @@ main(int argc, char **argv)
 	    Interactive = TRUE;
 	    break;
 
+	case 'r':
+	    Recursive = TRUE;
+	    break;
+
 	case 'h':
 	case '?':
 	default:
@@ -148,7 +153,7 @@ static void
 usage()
 {
     fprintf(stderr, "%s\n%s\n",
-	"usage: pkg_delete [-dDfGinvx] [-p prefix] pkg-name ...",
+	"usage: pkg_delete [-dDfGinrvx] [-p prefix] pkg-name ...",
 	"       pkg_delete -a [flags]");
     exit(1);
 }

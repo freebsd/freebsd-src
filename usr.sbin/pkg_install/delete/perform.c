@@ -36,10 +36,11 @@ static char LogDir[FILENAME_MAX];
 int
 pkg_perform(char **pkgs)
 {
-    char **matched;
-    int i;
+    char **matched, **rb, **rbtmp;
+    int errcode, i, j;
     int err_cnt = 0;
-    int errcode;
+    struct reqr_by_entry *rb_entry;
+    struct reqr_by_head *rb_list;
 
     if (MatchType != MATCH_EXACT) {
 	matched = matchinstalled(MatchType, pkgs, &errcode);
@@ -65,6 +66,40 @@ pkg_perform(char **pkgs)
 
     err_cnt += sortdeps(pkgs);
     for (i = 0; pkgs[i]; i++) {
+	if (Recursive == TRUE) {
+	    errcode = requiredby(pkgs[i], &rb_list, FALSE, TRUE);
+	    if (errcode < 0) {
+		err_cnt++;
+	    } else if (errcode > 0) {
+		/*
+		 * Copy values from the rb_list queue into argv-like NULL
+		 * terminated list because requiredby() uses some static
+		 * storage, while pkg_do() below will call this function,
+		 * thus blowing our rb_list away.
+		 */
+		rbtmp = rb = alloca((errcode + 1) * sizeof(*rb));
+		if (rb == NULL) {
+		    warnx("%s(): alloca() failed", __FUNCTION__);
+		    err_cnt++;
+		    continue;
+		}
+		STAILQ_FOREACH(rb_entry, rb_list, link) {
+		    *rbtmp = alloca(strlen(rb_entry->pkgname) + 1);
+		    if (*rbtmp == NULL) {
+			warnx("%s(): alloca() failed", __FUNCTION__);
+			err_cnt++;
+			continue;
+		    }
+		    strcpy(*rbtmp, rb_entry->pkgname);
+		    rbtmp++;
+		}
+		*rbtmp = NULL;
+
+		err_cnt += sortdeps(rb);
+		for (j = 0; rb[j]; j++)
+		    err_cnt += pkg_do(rb[j]);
+	    }
+	}
 	err_cnt += pkg_do(pkgs[i]);
     }
 
@@ -80,13 +115,14 @@ pkg_do(char *pkg)
     FILE *cfile;
     char home[FILENAME_MAX];
     PackingList p;
-    char *tmp;
     int len;
     /* support for separate pre/post install scripts */
     int new_m = 0;
     char pre_script[FILENAME_MAX] = DEINSTALL_FNAME;
     char post_script[FILENAME_MAX];
     char pre_arg[FILENAME_MAX], post_arg[FILENAME_MAX];
+    struct reqr_by_entry *rb_entry;
+    struct reqr_by_head *rb_list;
 
     if (!pkg || !(len = strlen(pkg)))
 	return 1;
@@ -127,18 +163,14 @@ pkg_do(char *pkg)
 	    /* Not reached */
     }
 
-    if (!isemptyfile(REQUIRED_BY_FNAME)) {
-	char buf[512];
-	warnx("package `%s' is required by these other packages\n"
-		"and may not be deinstalled%s:",
-		pkg, Force ? " (but I'll delete it anyway)" : "" );
-	cfile = fopen(REQUIRED_BY_FNAME, "r");
-	if (cfile) {
-	    while (fgets(buf, sizeof(buf), cfile))
-		fprintf(stderr, "%s", buf);
-	    fclose(cfile);
-	} else
-	    warnx("cannot open requirements file `%s'", REQUIRED_BY_FNAME);
+    if (requiredby(pkg, &rb_list, FALSE, TRUE) < 0)
+	return 1;
+    if (!STAILQ_EMPTY(rb_list)) {
+	warnx("package '%s' is required by these other packages\n"
+	      "and may not be deinstalled%s:",
+	      pkg, Force ? " (but I'll delete it anyway)" : "");
+	STAILQ_FOREACH(rb_entry, rb_list, link)
+	    fprintf(stderr, "%s\n", rb_entry->pkgname);
 	if (!Force)
 	    return 1;
     }
@@ -283,54 +315,44 @@ cleanup(int sig)
 static void
 undepend(PackingList p, char *pkgname)
 {
-     char fname[FILENAME_MAX], ftmp[FILENAME_MAX];
-     char fbuf[FILENAME_MAX];
-     FILE *fp, *fpwr;
-     char *tmp;
-     int s;
+    char fname[FILENAME_MAX], ftmp[FILENAME_MAX];
+    FILE *fpwr;
+    int s;
+    struct reqr_by_entry *rb_entry;
+    struct reqr_by_head *rb_list;
 
-     sprintf(fname, "%s/%s/%s", LOG_DIR, p->name, REQUIRED_BY_FNAME);
-     fp = fopen(fname, "r");
-     if (fp == NULL) {
-	 warnx("couldn't open dependency file `%s'", fname);
-	 return;
-     }
-     sprintf(ftmp, "%s.XXXXXX", fname);
-     s = mkstemp(ftmp);
-     if (s == -1) {
-	 fclose(fp);
-	 warnx("couldn't open temp file `%s'", ftmp);
-	 return;
-     }
-     fpwr = fdopen(s, "w");
-     if (fpwr == NULL) {
-	 close(s);
-	 fclose(fp);
-	 warnx("couldn't fdopen temp file `%s'", ftmp);
-	 remove(ftmp);
-	 return;
-     }
-     while (fgets(fbuf, sizeof(fbuf), fp) != NULL) {
-	 if (fbuf[strlen(fbuf)-1] == '\n')
-	     fbuf[strlen(fbuf)-1] = '\0';
-	 if (strcmp(fbuf, pkgname))		/* no match */
-	     fputs(fbuf, fpwr), putc('\n', fpwr);
-     }
-     (void) fclose(fp);
-     if (fchmod(s, 0644) == FAIL) {
-	 warnx("error changing permission of temp file `%s'", ftmp);
-	 fclose(fpwr);
-	 remove(ftmp);
-	 return;
-     }
-     if (fclose(fpwr) == EOF) {
-	 warnx("error closing temp file `%s'", ftmp);
-	 remove(ftmp);
-	 return;
-     }
-     if (rename(ftmp, fname) == -1)
-	 warnx("error renaming `%s' to `%s'", ftmp, fname);
-     remove(ftmp);			/* just in case */
-     return;
+
+    if (requiredby(p->name, &rb_list, Verbose, FALSE) <= 0)
+	return;
+    snprintf(fname, sizeof(fname), "%s/%s/%s", LOG_DIR, p->name,
+	     REQUIRED_BY_FNAME);
+    snprintf(ftmp, sizeof(ftmp), "%s.XXXXXX", fname);
+    s = mkstemp(ftmp);
+    if (s == -1) {
+	warnx("couldn't open temp file '%s'", ftmp);
+	return;
+    }
+    fpwr = fdopen(s, "w");
+    if (fpwr == NULL) {
+	close(s);
+	warnx("couldn't fdopen temp file '%s'", ftmp);
+	goto cleanexit;
+    }
+    STAILQ_FOREACH(rb_entry, rb_list, link)
+	if (strcmp(rb_entry->pkgname, pkgname))		/* no match */
+	    fputs(rb_entry->pkgname, fpwr), putc('\n', fpwr);
+    if (fchmod(s, 0644) == FAIL) {
+	warnx("error changing permission of temp file '%s'", ftmp);
+	fclose(fpwr);
+	goto cleanexit;
+    }
+    if (fclose(fpwr) == EOF) {
+	warnx("error closing temp file '%s'", ftmp);
+	goto cleanexit;
+    }
+    if (rename(ftmp, fname) == -1)
+	warnx("error renaming '%s' to '%s'", ftmp, fname);
+cleanexit:
+    remove(ftmp);
+    return;
 }
-
