@@ -16,8 +16,7 @@
 +=====================================================================+
 
 Author:         Jordan K. Hubbard
-Last updated:   Fri Dec 22 12:59:18 PST 2000
-By:		Wilko Bulte
+Last updated:   Fri Mar 16 14:47:31 PST 2001
 
 0.0     Quick Start
 ---     -----------
@@ -128,7 +127,7 @@ CDROM, FTP, NFS and UFS partitions as installation media, further tips
 on installing from each type of media listed below.
 
 Once the install procedure has finished, you will be able to start
-FreeBSD/alpha by typeing something like this to the SRM prompt:
+FreeBSD/alpha by typing something like this to the SRM prompt:
 
 	>>>boot dkc0
 
@@ -401,33 +400,43 @@ installation can continue over NFS or FTP.
         If you are installing from some other FTP site not listed in
         this menu, or you are having troubles getting your name server
         configured properly, you can also specify your own URL by
-        selecting the ``Other'' choice in that menu.  A URL can
+        selecting the ``URL'' choice in that menu.  A URL can
         contain a hostname or an IP address, so the following would
         work in the absence of a name server:
 
-                ftp://192.216.191.11/pub/FreeBSD/3.2-RELEASE
+                ftp://192.216.191.11/pub/FreeBSD
 
-        There are two FTP installation modes you can use:
+        There are three FTP installation modes you can use:
 
            o FTP:
 
-             For all FTP transfers, use the standard "Active" mode for
-             transfers.  This will not work through most firewalls but
-             will often work best with older ftp servers that do not
-             support passive mode.  If your connection hangs with
+             This method uses the standard "Active" mode for file
+             transfers which allows the server to initiate a connection
+             to the client.  This will not work through most firewalls
+             but will often work best with older FTP servers that do
+             not support passive mode.  If your connection hangs with
              passive mode, try this one!
 
            o FTP Passive:
 
-             For all FTP transfers, use "Passive" mode.  This allows
-             the user to pass through firewalls that do not allow
-             incoming connections on random port addresses.
+             This sets the FTP "Passive" mode which prevents the
+             server from opening connections to the client.  This
+             option is best for users to pass through firewalls that
+             do not allow incoming connections on random port
+             addresses.
 
-        NOTE: ACTIVE AND PASSIVE MODES ARE NOT THE SAME AS A `PROXY'
-        CONNECTIONS, WHERE A PROXY FTP SERVER IS LISTENING ON A
-        DIFFERENT PORT!
+           o FTP via an HTTP proxy:
 
-        In such instances, you should specify the URL as something like:
+             This option instructs FreeBSD to use HTTP to connect to a
+             proxy for all FTP operations.  The proxy will translate
+             the requests and send them to the FTP server.  This
+             allows the user to pass through firewalls that do not
+             allow FTP at all, but offer an HTTP proxy.  You must
+             specify the hostname of the proxy in addition to the FTP
+             server.
+
+        In the rare case that you have an FTP proxy that does not go
+        through HTTP, you can specify the URL as something like :
 
                 ftp://foo.bar.com:1234/pub/FreeBSD
 

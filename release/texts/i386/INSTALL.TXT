@@ -24,7 +24,7 @@
 +=====================================================================+
 
 Author:         Jordan K. Hubbard
-Last updated:   Tue May 4 16:05:41 PST 1999
+Last updated:   Fri Mar 16 14:47:31 PST 2001
 
 0.0     Quick Start
 ---     -----------
@@ -337,7 +337,9 @@ Your system administrator can tell you which values are appropriate to
 your particular network setup.  If you will be referring to other
 hosts by name rather than IP address, you'll also need a name server
 and possibly the address of a gateway (if you're using PPP, it's your
-provider's IP address) to use in talking to it.
+provider's IP address) to use in talking to it.  If you want to install
+by FTP via an HTTP proxy (see below), you will also need the proxy's
+address.
 
 If you do not know the answers to these questions then you should
 really probably talk to your system administrator _first_ before
@@ -395,27 +397,37 @@ installation can continue over NFS or FTP.
 
                 ftp://192.216.191.11/pub/FreeBSD
 
-        There are two FTP installation modes you can use:
+        There are three FTP installation modes you can use:
 
            o FTP:
 
-             For all FTP transfers, use the standard "Active" mode for
-             transfers.  This will not work through most firewalls but
-             will often work best with older ftp servers that do not
-             support passive mode.  If your connection hangs with
+             This method uses the standard "Active" mode for file
+             transfers which allows the server to initiate a connection
+             to the client.  This will not work through most firewalls
+             but will often work best with older FTP servers that do
+             not support passive mode.  If your connection hangs with
              passive mode, try this one!
 
            o FTP Passive:
 
-             For all FTP transfers, use "Passive" mode.  This allows
-             the user to pass through firewalls that do not allow
-             incoming connections on random port addresses.
+             This sets the FTP "Passive" mode which prevents the
+             server from opening connections to the client.  This
+             option is best for users to pass through firewalls that
+             do not allow incoming connections on random port
+             addresses.
 
-        NOTE: ACTIVE AND PASSIVE MODES ARE NOT THE SAME AS A `PROXY'
-        CONNECTIONS, WHERE A PROXY FTP SERVER IS LISTENING ON A
-        DIFFERENT PORT!
+           o FTP via an HTTP proxy:
 
-        In such instances, you should specify the URL as something like:
+             This option instructs FreeBSD to use HTTP to connect to a
+             proxy for all FTP operations.  The proxy will translate
+             the requests and send them to the FTP server.  This
+             allows the user to pass through firewalls that do not
+             allow FTP at all, but offer an HTTP proxy.  You must
+             specify the hostname of the proxy in addition to the FTP
+             server.
+
+        In the rare case that you have an FTP proxy that does not go
+        through HTTP, you can specify the URL as something like :
 
                 ftp://foo.bar.com:1234/pub/FreeBSD
 
