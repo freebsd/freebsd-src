@@ -592,6 +592,10 @@ fetch(char *URL, const char *path)
 		goto failure;
 	}
 
+	/* timeout / interrupt before connection completley established? */
+	if (f == NULL)
+		goto failure;
+
 	if (!sigalrm) {
 		/* check the status of our files */
 		if (ferror(f))
