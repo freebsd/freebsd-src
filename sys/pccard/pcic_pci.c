@@ -73,11 +73,20 @@ SYSCTL_INT(_hw_pcic, OID_AUTO, ignore_function_1, CTLFLAG_RD,
  * routing doesn't work.  It is purposely vague and undocumented
  * at the moment.
  */
-static int pcic_interrupt_route = (int) pci_parallel;
-TUNABLE_INT("hw.pcic.interrupt_route", &pcic_interrupt_route);
-SYSCTL_INT(_hw_pcic, OID_AUTO, interrupt_route, CTLFLAG_RD,
-    &pcic_interrupt_route, (int) pci_parallel,
-    "Interrupt routing type for pci cardbus bridges.");
+static int pcic_intr_path = (int) pcic_iw_pci;
+TUNABLE_INT("hw.pcic.intr_path", &pcic_intr_path);
+SYSCTL_INT(_hw_pcic, OID_AUTO, intr_path, CTLFLAG_RD,
+    &pcic_intr_path, (int) pcic_iw_pci,
+    "Which path to send the interrupts over. 1 -- isa, 2 -- pci");
+
+static int pcic_init_routing = 0;
+TUNABLE_INT("hw.pcic.init_routing", &pcic_init_routing);
+SYSCTL_INT(_hw_pcic, OID_AUTO, init_routing, CTLFLAG_RD,
+    &pcic_init_routing, 0,
+    "Force the interrupt routing to be initialized on those bridges where\n\
+doing so will cause probelms.  Often when no interrupts appear to be routed\n\
+setting this tunable to 1 will resolve the problem.  PCI Cards will almost\n\
+always require this, while builtin bridges need it less often");
 
 struct pcic_pci_table
 {
@@ -239,19 +248,19 @@ pcic_pci_pd683x_init(device_t dev)
 	 */
 	bcr = pci_read_config(dev, CB_PCI_BRIDGE_CTRL, 2);
 	if (device_id == PCI_DEVICE_ID_PCIC_CLPD6832) {
-		if (sc->csc_route >= pci_parallel)
+		if (sc->csc_route == pcic_iw_pci)
 			bcr &= ~CLPD6832_BCR_MGMT_IRQ_ENA;
 		else
 			bcr |= CLPD6832_BCR_MGMT_IRQ_ENA;
 	}
-	if (sc->func_route >= pci_parallel)
+	if (sc->func_route == pcic_iw_pci)
 		bcr &= ~CB_BCR_INT_EXCA;
 	else
 		bcr |= CB_BCR_INT_EXCA;
 	pci_write_config(dev, CB_PCI_BRIDGE_CTRL, bcr, 2);
 	if (device_id == PCI_DEVICE_ID_PCIC_CLPD6833) {
 		cm1 = pci_read_config(dev, CLPD6833_CFG_MISC_1, 4);
-		if (sc->csc_route >= pci_parallel)
+		if (sc->csc_route == pcic_iw_pci)
 			cm1 &= ~CLPD6833_CM1_MGMT_EXCA_ENA;
 		else
 			cm1 |= CLPD6833_CM1_MGMT_EXCA_ENA;
@@ -287,13 +296,13 @@ pcic_pci_ti_init(device_t dev)
 		 * newer cards also use offset 0x3e (the Bridge Control
 		 * register).
 		 */
-		if (sc->func_route >= pci_parallel) {
+		if (sc->func_route == pcic_iw_pci) {
 			cardcntl |= TI113X_CARDCNTL_PCI_IRQ_ENA;
 			cardcntl &= ~TI113X_CARDCNTL_PCI_IREQ;
 		} else {
 			cardcntl |= TI113X_CARDCNTL_PCI_IREQ;
 		}
-		if (sc->csc_route >= pci_parallel)
+		if (sc->csc_route == pcic_iw_pci)
 			cardcntl |= TI113X_CARDCNTL_PCI_CSC;
 		else
 			cardcntl &= ~TI113X_CARDCNTL_PCI_CSC;
@@ -309,8 +318,9 @@ pcic_pci_ti_init(device_t dev)
 		device_printf(dev, "TI12XX PCI Config Reg: ");
 
 		/*
-		 * Set the "use 0 to route card status change events to pci"
-		 * bit in the misnamed idagnostic register.
+		 * Turn on async CSC interrupts.  This appears to
+		 * be the default, but the old, pre pci-aware, code
+		 * did this and it appears PAO does as well.
 		 */
 		diagctl = pci_read_config(dev, TI12XX_PCI_DIAGNOSTIC, 1);
 		diagctl |= TI12XX_DIAG_CSC_INTR;
@@ -332,13 +342,15 @@ pcic_pci_ti_init(device_t dev)
 	 * 7 of Bridge Control Register(Offset:0x3e,0x13e).  
 	 * Takeshi Shibagaki(shiba@jp.freebsd.org)
 	 */
-	if (sc->func_route >= pci_parallel) {
-#ifdef	PCI_CARDBUS_CARD
-		devcntl &= ~TI113X_DEVCNTL_INTR_MASK;
-		pci_write_config(dev, TI113X_PCI_DEVICE_CONTROL, devcntl, 1);
-		devcntl = pci_read_config(dev, TI113X_PCI_DEVICE_CONTROL, 1);
-		syscntl |= TI113X_SYSCNTL_INTRTIE;
-#endif
+	if (sc->func_route == pcic_iw_pci) {
+		if (pcic_init_routing) {
+			devcntl &= ~TI113X_DEVCNTL_INTR_MASK;
+			pci_write_config(dev, TI113X_PCI_DEVICE_CONTROL,
+			    devcntl, 1);
+			devcntl = pci_read_config(dev,
+			    TI113X_PCI_DEVICE_CONTROL, 1);
+			syscntl |= TI113X_SYSCNTL_INTRTIE;
+		}
 		syscntl &= ~TI113X_SYSCNTL_SMIENB;
 		pci_write_config(dev, TI113X_PCI_SYSTEM_CONTROL, syscntl, 1);
 	}
@@ -374,8 +386,8 @@ pcic_pci_cardbus_init(device_t dev)
 
 	unit = device_get_unit(dev);
 
-	if (sc->func_route >= pci_parallel) {
-		/* Use INTA for routing interrupts via pci bus */
+	if (sc->func_route == pcic_iw_pci) {
+		/* Use INTA for routing function interrupts via pci bus */
 		brgcntl = pci_read_config(dev, CB_PCI_BRIDGE_CTRL, 2);
 		brgcntl &= ~CB_BCR_INT_EXCA;
 		brgcntl |= CB_BCR_WRITE_POST_EN | CB_BCR_MASTER_ABORT;
@@ -515,15 +527,6 @@ pcic_pci_intr(void *arg)
 	 * in the CD change.
 	 */
 	sp->getb(sp, PCIC_STAT_CHG);
-
-	/*
-	 * If we have a card in the slot with an interrupt handler, then
-	 * call it.  Note: This means that each card can have at most one
-	 * interrupt handler for it.  Since multifunction cards aren't
-	 * supported, this shouldn't cause a problem in practice.
-	 */
-	if (sc->cd_present && sp->intr != NULL)
-		sp->intr(sp->argp);
 }
 
 /*
@@ -582,7 +585,7 @@ pcic_pci_probe(device_t dev)
 	 * We only need to route interrupts when we're doing pci
 	 * parallel interrupt routing.
 	 */
-	if (pcic_interrupt_route >= pci_parallel) {
+	if (pcic_intr_path == pcic_iw_pci) {
 		rid = 0;
 		res = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
 		    RF_ACTIVE);
@@ -666,8 +669,8 @@ pcic_pci_attach(device_t dev)
 	}
 	sp->slt = (struct slot *) 1;
 	sc->dev = dev;
-	sc->csc_route = pcic_interrupt_route;
-	sc->func_route = pcic_interrupt_route;
+	sc->csc_route = pcic_intr_path;
+	sc->func_route = pcic_intr_path;
 
 	switch (device_id) {
 	case PCI_DEVICE_ID_RICOH_RL5C465:
@@ -714,7 +717,7 @@ pcic_pci_attach(device_t dev)
 		break;
 	}
 
-	if (sc->csc_route >= pci_parallel) {
+	if (sc->csc_route == pcic_iw_pci) {
 		start = 0;
 		end = ~0;
 	} else {
@@ -784,36 +787,6 @@ pcic_pci_get_memory(device_t dev)
 	return (0);
 }
 
-static int
-pcic_pci_setup_intr(device_t dev, device_t child, struct resource *irq,
-    int flags, driver_intr_t *intr, void *arg, void **cookiep)
-{
-	struct pcic_softc *sc = (struct pcic_softc *) device_get_softc(dev);
-	struct pcic_slot *sp = &sc->slots[0];
-	
-	if (sp->intr) {
-		device_printf(dev,
-"Interrupt already established, possible multiple attach bug.\n");
-		return (EINVAL);
-	}
-	sp->intr = intr;
-	sp->argp = arg;
-	*cookiep = sc;
-	return (0);
-}
-
-static int
-pcic_pci_teardown_intr(device_t dev, device_t child, struct resource *irq,
-    void *cookie)
-{
-	struct pcic_softc *sc = (struct pcic_softc *) device_get_softc(dev);
-	struct pcic_slot *sp = &sc->slots[0];
-
-	sp->intr = NULL;
-	sp->argp = NULL;
-	return (0);
-}
-
 static device_method_t pcic_pci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pcic_pci_probe),
@@ -829,8 +802,8 @@ static device_method_t pcic_pci_methods[] = {
 	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
 	DEVMETHOD(bus_activate_resource, pcic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, pcic_deactivate_resource),
-	DEVMETHOD(bus_setup_intr,	pcic_pci_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	pcic_pci_teardown_intr),
+	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 
 	/* Card interface */
 	DEVMETHOD(card_set_res_flags,	pcic_set_res_flags),
