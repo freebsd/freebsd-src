@@ -27,7 +27,7 @@
  *	i4b_isic_pci.c - PCI bus interface
  *	==================================
  *
- *	$Id: i4b_isic_pci.c,v 1.11 1999/02/17 14:31:42 hm Exp $
+ *	$Id: i4b_isic_pci.c,v 1.3 1999/03/07 16:08:16 hm Exp $
  *
  *      last edit-date: [Wed Feb 17 15:19:44 1999]
  *
@@ -102,7 +102,11 @@ static struct pci_device i4b_pci_driver = {
 	NULL
 };
 
+#ifndef COMPAT_PCI_DRIVER
 DATA_SET (pcidevice_set, i4b_pci_driver);
+#else
+COMPAT_PCI_DRIVER (isic_pci, i4b_pci_driver);
+#endif /* COMPAT_PCI_DRIVER */
 
 static void isic_pci_intr_sc(struct isic_softc *sc);
 
