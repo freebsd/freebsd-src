@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.44 1999/05/14 09:36:04 brian Exp $
+ * $Id: fsm.c,v 1.45 1999/06/02 15:58:57 brian Exp $
  *
  *  TODO:
  */
@@ -861,6 +861,13 @@ FsmRecvProtoRej(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
       }
       /* See above */
       /* (*fp->parent->LayerFinish)(fp->parent->object, fp); */
+    }
+    break;
+  case PROTO_IPCP:
+    if (fp->proto == PROTO_LCP) {
+      log_Printf(LogPHASE, "%s: IPCP protocol reject closes IPCP !\n",
+                fp->link->name);
+      fsm_Close(&fp->bundle->ncp.ipcp.fsm);
     }
     break;
   case PROTO_MP:
