@@ -437,9 +437,9 @@ wi_get_id(sc)
 		memset(&sver, 0, sizeof(sver));
 		sver.wi_type = WI_RID_SYMBOL_IDENTITY;
 		sver.wi_len = 7;
-		/* value should be "V2.00-11" */
+		/* value should be the format like "V2.00-11" */
 		if (wi_read_record(sc, (struct wi_ltv_gen *)&sver) == 0 &&
-		    *(p = (char *)sver.wi_str) == 'V' &&
+		    *(p = (char *)sver.wi_str) >= 'A' &&
 		    p[2] == '.' && p[5] == '-' && p[8] == '\0') {
 			sc->sc_firmware_type = WI_SYMBOL;
 			sc->sc_sta_firmware_ver = (p[1] - '0') * 10000 +
@@ -1008,6 +1008,16 @@ wi_read_record(sc, ltv)
 			p2ltv.wi_len = 2;
 			ltv = &p2ltv;
 			break;
+		case WI_RID_ROAMING_MODE:
+			if (sc->sc_firmware_type == WI_INTERSIL)
+				break;
+			/* not supported */
+			ltv->wi_len = 1;
+			return 0;
+		case WI_RID_MICROWAVE_OVEN:
+			/* not supported */
+			ltv->wi_len = 1;
+			return 0;
 		}
 	}
 
@@ -1162,6 +1172,14 @@ wi_write_record(sc, ltv)
 				p2ltv.wi_val = htole16(0x02);
 			ltv = &p2ltv;
 			break;
+		case WI_RID_ROAMING_MODE:
+			if (sc->sc_firmware_type == WI_INTERSIL)
+				break;
+			/* not supported */
+			return 0;
+		case WI_RID_MICROWAVE_OVEN:
+			/* not supported */
+			return 0;
 		}
 	} else {
 		/* LUCENT */
