@@ -326,6 +326,7 @@ thread_free(struct thread *td)
 int
 thread_export_context(struct thread *td)
 {
+	struct proc *p = td->td_proc;
 	struct ksegrp *kg;
 	uintptr_t mbx;
 	void *addr;
@@ -346,7 +347,9 @@ thread_export_context(struct thread *td)
 
 	}
 	if (error) {
-		psignal(td->td_proc, SIGSEGV);
+		PROC_LOCK(p);
+		psignal(p, SIGSEGV);
+		PROC_UNLOCK(p);
 		return (error);
 	}
 	/* get address in latest mbox of list pointer */
@@ -364,16 +367,18 @@ thread_export_context(struct thread *td)
 	for (;;) {
 		mbx = (uintptr_t)kg->kg_completed;
 		if (suword(addr, mbx)) {
-			psignal(kg->kg_proc, SIGSEGV);
+			PROC_LOCK(p);
+			psignal(p, SIGSEGV);
+			PROC_UNLOCK(p);
 			return (EFAULT);
 		}
-		PROC_LOCK(kg->kg_proc);
+		PROC_LOCK(p);
 		if (mbx == (uintptr_t)kg->kg_completed) {
 			kg->kg_completed = td->td_mailbox;
-			PROC_UNLOCK(kg->kg_proc);
+			PROC_UNLOCK(p);
 			break;
 		}
-		PROC_UNLOCK(kg->kg_proc);
+		PROC_UNLOCK(p);
 	}
 	return (0);
 }
@@ -385,6 +390,7 @@ thread_export_context(struct thread *td)
 static int
 thread_link_mboxes(struct ksegrp *kg, struct kse *ke)
 {
+	struct proc *p = kg->kg_proc;
 	void *addr;
 	uintptr_t mbx;
 
@@ -397,17 +403,19 @@ thread_link_mboxes(struct ksegrp *kg, struct kse *ke)
 	for (;;) {
 		mbx = (uintptr_t)kg->kg_completed;
 		if (suword(addr, mbx)) {
-			psignal(kg->kg_proc, SIGSEGV);
+			PROC_LOCK(p);
+			psignal(p, SIGSEGV);
+			PROC_UNLOCK(p);
 			return (EFAULT);
 		}
 		/* XXXKSE could use atomic CMPXCH here */
-		PROC_LOCK(kg->kg_proc);
+		PROC_LOCK(p);
 		if (mbx == (uintptr_t)kg->kg_completed) {
 			kg->kg_completed = NULL;
-			PROC_UNLOCK(kg->kg_proc);
+			PROC_UNLOCK(p);
 			break;
 		}
-		PROC_UNLOCK(kg->kg_proc);
+		PROC_UNLOCK(p);
 	}
 	return (0);
 }
