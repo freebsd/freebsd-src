@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.8 1994/05/25 17:59:54 asami Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.9 1994/10/04 16:07:43 jkh Exp $";
 #endif
 
 /*
@@ -57,7 +57,6 @@ pkg_do(char *pkg)
 {
     char pkg_fullname[FILENAME_MAX];
     FILE *cfile;
-    char *home;
     int code = 0;
     PackingList p;
     struct stat sb;
@@ -78,6 +77,11 @@ pkg_do(char *pkg)
 	read_plist(&Plist, stdin);
     }
     else {
+	char home[FILENAME_MAX];
+
+	if (!getcwd(home, FILENAME_MAX))
+	    upchuck("getcwd"); 
+
 	if (pkg[0] == '/')	/* full pathname? */
 	    strcpy(pkg_fullname, pkg);
 	else
@@ -89,14 +93,14 @@ pkg_do(char *pkg)
 	/*
 	 * Apply a crude heuristic to see how much space the package will
 	 * take up once it's unpacked.  I've noticed that most packages
-	 * compress an average of 65%.
+	 * compress an average of 75%, so multiply by 4 for good measure.
 	 */
 	if (stat(pkg_fullname, &sb) == FAIL) {
 	    whinge("Can't stat package file '%s'.", pkg_fullname);
 	    return 1;
 	}
-	sb.st_size *= 1.65;
-	home = make_playpen(PlayPen, sb.st_size);
+	sb.st_size *= 4;
+	(void)make_playpen(PlayPen, sb.st_size);
 	if (unpack(pkg_fullname, NULL))
 	    return 1;
 
