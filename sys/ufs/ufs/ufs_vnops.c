@@ -2026,7 +2026,7 @@ ufs_vinit(mntp, specops, fifoops, vpp)
 	struct vnode **vpp;
 {
 	struct inode *ip;
-	struct vnode *vp, *nvp;
+	struct vnode *vp;
 	struct timeval tv;
 
 	vp = *vpp;
