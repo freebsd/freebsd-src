@@ -200,6 +200,7 @@ s/\$//g
 		}
 		if ($2 == "NODEF") {
 			funcname=$4
+			argssize = "AS(" $6 ")"
 			return
 		}
 		if ($f != "{")
@@ -282,12 +283,15 @@ s/\$//g
 					    argname[i], argtype[i]) > sysarg
 				printf("};\n") > sysarg
 			}
-			else if($2 != "NOARGS" && $2 != "NOPROTO")
+			else if ($2 != "NOARGS" && $2 != "NOPROTO" && \
+			    $2 != "NODEF")
 				printf("struct\t%s {\n\tregister_t dummy;\n};\n",
 				    argalias) > sysarg
 		}
-		if ($2 != "NOPROTO" && (!nosys || funcname != "nosys") && \
-		    (!lkmnosys || funcname != "lkmnosys")) {
+		if (($2 != "NOPROTO" && $2 != "NODEF" && \
+		    (funcname != "nosys" || !nosys)) || \
+		    (funcname == "lkmnosys" && !lkmnosys) || \
+		    funcname == "lkmressys") {
 			printf("%s\t%s __P((struct proc *, struct %s *))",
 			    rettype, funcname, argalias) > sysdcl
 			printf(";\n") > sysdcl
