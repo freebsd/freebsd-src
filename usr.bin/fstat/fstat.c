@@ -585,8 +585,8 @@ ufs_filestat(vp, fsp)
 		return 0;
 	}
 	/*
-	 * The st_dev from stat(2) is a udev_t. These kernel structures
-	 * contain dev_t structures. We need to convert to udev to make
+	 * The st_dev from stat(2) is a dev_t. These kernel structures
+	 * contain cdev pointers. We need to convert to dev_t to make
 	 * comparisons
 	 */
 	fsp->fsid = dev2udev(inode.i_dev);
@@ -875,10 +875,10 @@ bad:
 
 
 /*
- * Read the cdev structure in the kernel (as pointed to by a dev_t)
- * in order to work out the associated udev_t
+ * Read the cdev structure in the kernel in order to work out the
+ * associated dev_t
  */
-udev_t
+dev_t
 dev2udev(dev)
 	struct cdev *dev;
 {
@@ -887,7 +887,7 @@ dev2udev(dev)
 	if (KVM_READ(dev, &si, sizeof si)) {
 		return si.si_udev;
 	} else {
-		dprintf(stderr, "can't convert dev_t %x to a udev_t\n", dev);
+		dprintf(stderr, "can't convert cdev *%x to a dev_t\n", dev);
 		return -1;
 	}
 }

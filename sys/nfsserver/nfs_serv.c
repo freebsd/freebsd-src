@@ -2060,7 +2060,7 @@ nfsrv_mknod(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		tl = nfsm_dissect(u_int32_t *, 2 * NFSX_UNSIGNED);
 		major = fxdr_unsigned(u_int32_t, *tl++);
 		minor = fxdr_unsigned(u_int32_t, *tl);
-		vap->va_rdev = makeudev(major, minor);
+		vap->va_rdev = makedev(major, minor);
 	}
 
 	/*

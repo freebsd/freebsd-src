@@ -522,7 +522,7 @@ vinum_clone(void *arg, char *name, int namelen, struct cdev ** dev)
     struct volume *vol;
     int i;
 
-    if (*dev != NODEV)
+    if (*dev != NULL)
 	return;
     if (strncmp(name, "vinum/", sizeof("vinum/") - 1) != 0)
 	return;

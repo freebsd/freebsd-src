@@ -476,7 +476,7 @@ get_empty_drive(void)
     bzero(drive, sizeof(struct drive));
     drive->driveno = driveno;				    /* put number in structure */
     drive->flags |= VF_NEWBORN;				    /* newly born drive */
-    drive->dev = NODEV;
+    drive->dev = NULL;
     strcpy(drive->devicename, "unknown");		    /* and make the name ``unknown'' */
     return driveno;					    /* return the index */
 }
@@ -595,7 +595,7 @@ free_drive(struct drive *drive)
 	close_locked_drive(drive);			    /* close it */
     if (drive->freelist)
 	Free(drive->freelist);
-    if (drive->dev != NODEV)
+    if (drive->dev != NULL)
 	dev_rel(drive->dev);
     bzero(drive, sizeof(struct drive));			    /* this also sets drive_unallocated */
     unlockdrive(drive);

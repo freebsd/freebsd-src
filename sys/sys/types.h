@@ -131,9 +131,7 @@ typedef	__critical_t	critical_t;	/* Critical section value */
 typedef	__int64_t	daddr_t;	/* disk address */
 
 #ifndef _DEV_T_DECLARED
-#ifndef _KERNEL
 typedef	__dev_t		dev_t;		/* device number or struct cdev */
-#endif
 #define	_DEV_T_DECLARED
 #endif
 
@@ -235,7 +233,6 @@ typedef	__timer_t	timer_t;
 #endif
 
 typedef	__u_register_t	u_register_t;
-typedef	__udev_t	udev_t;		/* device number */
 
 #ifndef _UID_T_DECLARED
 typedef	__uid_t		uid_t;		/* user id */
@@ -292,8 +289,9 @@ typedef	struct vm_page	*vm_page_t;
  */
 #define major(x)        ((int)(((u_int)(x) >> 8)&0xff)) /* major number */
 #define minor(x)        ((int)((x)&0xffff00ff))         /* minor number */
-#define makedev(x,y)    ((dev_t)(((x) << 8) | (y)))     /* create dev_t */
 #endif /* !_KERNEL */
+
+#define makedev(x,y)    ((dev_t)(((x) << 8) | (y)))     /* create dev_t */
 
 /*
  * These declarations belong elsewhere, but are repeated here and in

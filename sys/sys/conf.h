@@ -64,7 +64,7 @@ struct cdev {
 	struct timespec	si_atime;
 	struct timespec	si_ctime;
 	struct timespec	si_mtime;
-	udev_t		si_udev;
+	dev_t		si_udev;
 	int		si_refcount;
 	LIST_ENTRY(cdev)	si_list;
 	LIST_ENTRY(cdev)	si_clone;

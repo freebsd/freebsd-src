@@ -495,7 +495,7 @@ nfs_loadattrcache(struct vnode **vpp, struct mbuf **mdp, caddr_t *dposp,
 	if (v3) {
 		vtyp = nfsv3tov_type(fp->fa_type);
 		vmode = fxdr_unsigned(u_short, fp->fa_mode);
-		rdev = makeudev(fxdr_unsigned(int, fp->fa3_rdev.specdata1),
+		rdev = makedev(fxdr_unsigned(int, fp->fa3_rdev.specdata1),
 			fxdr_unsigned(int, fp->fa3_rdev.specdata2));
 		fxdr_nfsv3time(&fp->fa3_mtime, &mtime);
 	} else {

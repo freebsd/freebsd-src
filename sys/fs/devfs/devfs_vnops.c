@@ -140,7 +140,7 @@ loop:
 		if (dev == NULL)
 			return (ENOENT);
 	} else {
-		dev = NODEV;
+		dev = NULL;
 	}
 	error = getnewvnode("devfs", mp, devfs_vnodeop_p, &vp);
 	if (error != 0) {
@@ -382,9 +382,9 @@ devfs_lookupx(ap)
 	if (pname == NULL)
 		goto notfound;
 
-	cdev = NODEV;
+	cdev = NULL;
 	EVENTHANDLER_INVOKE(dev_clone, pname, strlen(pname), &cdev);
-	if (cdev == NODEV)
+	if (cdev == NULL)
 		goto notfound;
 
 	devfs_populate(dmp);
@@ -660,7 +660,7 @@ devfs_reclaim(ap)
 	if (de != NULL)
 		de->de_vnode = NULL;
 	vp->v_data = NULL;
-	if (vp->v_rdev != NODEV && vp->v_rdev != NULL) {
+	if (vp->v_rdev != NULL && vp->v_rdev != NULL) {
 		i = vcount(vp);
 		if ((vp->v_rdev->si_flags & SI_CHEAPCLONE) && i == 0 &&
 		    (vp->v_rdev->si_flags & SI_NAMED))

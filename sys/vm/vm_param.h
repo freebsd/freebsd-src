@@ -107,7 +107,7 @@
 #define XSWDEV_VERSION	1
 struct xswdev {
 	u_int	xsw_version;
-	udev_t	xsw_dev;
+	dev_t	xsw_dev;
 	int	xsw_flags;
 	int	xsw_nblks;
 	int     xsw_used;

@@ -53,7 +53,6 @@ typedef	__uint8_t	__sa_family_t;
 typedef	__uint32_t	__socklen_t;
 typedef	long		__suseconds_t;	/* microseconds (signed) */
 typedef	__int32_t	__timer_t;	/* timer_gettime()... */
-typedef	__uint32_t	__udev_t;	/* device number */
 typedef	__uint32_t	__uid_t;
 typedef	unsigned int	__useconds_t;	/* microseconds (unsigned) */
 
@@ -80,9 +79,7 @@ typedef	__ct_rune_t	__rune_t;	/* rune_t (see above) */
 typedef	__ct_rune_t	__wchar_t;	/* wchar_t (see above) */
 typedef	__ct_rune_t	__wint_t;	/* wint_t (see above) */
 
-#ifndef _KERNEL
-typedef	__udev_t	__dev_t;	/* device number */
-#endif
+typedef	__uint32_t	__dev_t;	/* device number */
 
 typedef	__uint32_t	__fixpt_t;	/* fixed point number */
 

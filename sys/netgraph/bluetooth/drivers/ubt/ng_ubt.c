@@ -408,7 +408,7 @@ USB_ATTACH(ubt)
 	sc->sc_hook = NULL;
 
 	/* Device part */
-	sc->sc_ctrl_dev = sc->sc_intr_dev = sc->sc_bulk_dev = NODEV;
+	sc->sc_ctrl_dev = sc->sc_intr_dev = sc->sc_bulk_dev = NULL;
 	sc->sc_refcnt = sc->sc_dying = 0;
 
 	/*
@@ -1903,8 +1903,8 @@ ng_ubt_newhook(node_p node, hook_p hook, char const *name)
 	ubt_softc_p	sc = (ubt_softc_p) NG_NODE_PRIVATE(node);
 
 	/* Refuse to create new hook if device interface is active */
-	if (sc->sc_ctrl_dev != NODEV || sc->sc_intr_dev != NODEV ||
-	    sc->sc_bulk_dev != NODEV)
+	if (sc->sc_ctrl_dev != NULL || sc->sc_intr_dev != NULL ||
+	    sc->sc_bulk_dev != NULL)
 		return (EBUSY);
 
 	if (strcmp(name, NG_UBT_HOOK) != 0)
@@ -1929,8 +1929,8 @@ ng_ubt_connect(hook_p hook)
 	usbd_status	status;
 
 	/* Refuse to connect hook if device interface is active */
-	if (sc->sc_ctrl_dev != NODEV || sc->sc_intr_dev != NODEV ||
-	    sc->sc_bulk_dev != NODEV)
+	if (sc->sc_ctrl_dev != NULL || sc->sc_intr_dev != NULL ||
+	    sc->sc_bulk_dev != NULL)
 		return (EBUSY);
 
 	NG_HOOK_FORCE_QUEUE(NG_HOOK_PEER(hook));
@@ -2658,14 +2658,14 @@ ubt_create_device_nodes(ubt_softc_p sc)
 "%s: %s - hook != NULL!\n", __func__, USBDEVNAME(sc->sc_dev)));
 
 	/* Control device */
-	if (sc->sc_ctrl_dev == NODEV)
+	if (sc->sc_ctrl_dev == NULL)
 		sc->sc_ctrl_dev = make_dev(&ubt_cdevsw,
 					UBT_MINOR(USBDEVUNIT(sc->sc_dev), 0),
 					UID_ROOT, GID_OPERATOR, 0644,
 					"%s", USBDEVNAME(sc->sc_dev));
 
 	/* Interrupt device */
-	if (sc->sc_intr_dev == NODEV && sc->sc_intr_ep != -1) {
+	if (sc->sc_intr_dev == NULL && sc->sc_intr_ep != -1) {
 		ep = UE_GET_ADDR(sc->sc_intr_ep);
 		sc->sc_intr_dev = make_dev(&ubt_cdevsw,
 					UBT_MINOR(USBDEVUNIT(sc->sc_dev), ep),
@@ -2679,7 +2679,7 @@ ubt_create_device_nodes(ubt_softc_p sc)
 	 * XXX note that address of the in and out endpoint should be the same
 	 */
 
-	if (sc->sc_bulk_dev == NODEV && 
+	if (sc->sc_bulk_dev == NULL && 
 	    sc->sc_bulk_in_ep != -1 && sc->sc_bulk_out_ep != -1 &&
 	    UE_GET_ADDR(sc->sc_bulk_in_ep) == UE_GET_ADDR(sc->sc_bulk_out_ep)) {
 		ep = UE_GET_ADDR(sc->sc_bulk_in_ep);
@@ -2712,19 +2712,19 @@ ubt_destroy_device_nodes(ubt_softc_p sc)
 	sc->sc_refcnt = 0;
 
 	/* Destroy device nodes */
-	if (sc->sc_bulk_dev != NODEV) {
+	if (sc->sc_bulk_dev != NULL) {
 		destroy_dev(sc->sc_bulk_dev);
-		sc->sc_bulk_dev = NODEV;
+		sc->sc_bulk_dev = NULL;
 	}
 
-	if (sc->sc_intr_dev != NODEV) {
+	if (sc->sc_intr_dev != NULL) {
 		destroy_dev(sc->sc_intr_dev);
-		sc->sc_intr_dev = NODEV;
+		sc->sc_intr_dev = NULL;
 	}
 
-	if (sc->sc_ctrl_dev != NODEV) {
+	if (sc->sc_ctrl_dev != NULL) {
 		destroy_dev(sc->sc_ctrl_dev);
-		sc->sc_ctrl_dev = NODEV;
+		sc->sc_ctrl_dev = NULL;
 	}
 } /* ubt_destroy_device_nodes */
 

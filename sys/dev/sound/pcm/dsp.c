@@ -1123,7 +1123,7 @@ dsp_clone(void *arg, char *name, int namelen, struct cdev **dev)
 	int devtypes[3] = {SND_DEV_DSP, SND_DEV_DSP16, SND_DEV_AUDIO};
 	char *devnames[3] = {"dsp", "dspW", "audio"};
 
-	if (*dev != NODEV)
+	if (*dev != NULL)
 		return;
 	if (pcm_devclass == NULL)
 		return;

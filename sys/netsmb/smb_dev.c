@@ -103,7 +103,7 @@ nsmb_dev_clone(void *arg, char *name, int namelen, struct cdev **dev)
 {
 	int u;
 
-	if (*dev != NODEV)
+	if (*dev != NULL)
 		return;
 	if (dev_stdclone(name, NULL, NSMB_NAME, &u) != 1)
 		return;
@@ -397,7 +397,7 @@ smb_dev2share(int fd, int mode, struct smb_cred *scred,
 		return EBADF;
 	}
 	dev = vn_todev(vp);
-	if (dev == NODEV) {
+	if (dev == NULL) {
 		fdrop(fp, curthread);
 		return EBADF;
 	}

@@ -52,7 +52,7 @@ typedef	struct	{
 	uid_t		iso_uid;	/* owner user id */
 	gid_t		iso_gid;	/* owner group id */
 	short		iso_links;	/* links of file */
-	udev_t		iso_rdev;	/* Major/Minor number for special */
+	dev_t		iso_rdev;	/* Major/Minor number for special */
 } ISO_RRIP_INODE;
 
 

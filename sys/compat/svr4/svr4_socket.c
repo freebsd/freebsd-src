@@ -67,7 +67,7 @@ struct sockaddr_un *
 svr4_find_socket(td, fp, dev, ino)
 	struct thread *td;
 	struct file *fp;
-	udev_t dev;
+	dev_t dev;
 	ino_t ino;
 {
 	struct svr4_sockcache_entry *e;

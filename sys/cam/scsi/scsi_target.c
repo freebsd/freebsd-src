@@ -1035,7 +1035,7 @@ targclone(void *arg, char *name, int namelen, struct cdev **dev)
 {
 	int u;
 
-	if (*dev != NODEV)
+	if (*dev != NULL)
 		return;
 	if (dev_stdclone(name, NULL, "targ", &u) != 1)
 		return;

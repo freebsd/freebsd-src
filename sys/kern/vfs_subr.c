@@ -367,7 +367,7 @@ vfs_getnewfsid(mp)
 	tfsid.val[1] = mtype;
 	mtype = (mtype & 0xFF) << 24;
 	for (;;) {
-		tfsid.val[0] = makeudev(255,
+		tfsid.val[0] = makedev(255,
 		    mtype | ((mntid_base & 0xFF00) << 8) | (mntid_base & 0xFF));
 		mntid_base++;
 		if (vfs_getvfs(&tfsid) == NULL)
@@ -1744,7 +1744,7 @@ bdevvp(dev, vpp)
 	struct vnode *nvp;
 	int error;
 
-	if (dev == NODEV) {
+	if (dev == NULL) {
 		*vpp = NULLVP;
 		return (ENXIO);
 	}
@@ -1786,7 +1786,7 @@ v_incr_usecount(struct vnode *vp, int delta)
 struct vnode *
 addaliasu(nvp, nvp_rdev)
 	struct vnode *nvp;
-	udev_t nvp_rdev;
+	dev_t nvp_rdev;
 {
 	struct vnode *ovp;
 	vop_t **ops;
@@ -1796,8 +1796,8 @@ addaliasu(nvp, nvp_rdev)
 		return (nvp);
 	if (nvp->v_type != VCHR)
 		panic("addaliasu on non-special vnode");
-	dev = udev2dev(nvp_rdev);
-	if (dev == NODEV)
+	dev = findcdev(nvp_rdev);
+	if (dev == NULL)
 		return (nvp);
 	/*
 	 * Check to see if we have a bdevvp vnode with no associated
@@ -1836,7 +1836,7 @@ addaliasu(nvp, nvp_rdev)
 }
 
 /* This is a local helper function that do the same as addaliasu, but for a
- * struct cdev *instead of an udev_t. */
+ * struct cdev *instead of an dev_t. */
 static void
 addalias(nvp, dev)
 	struct vnode *nvp;
@@ -2581,7 +2581,7 @@ vgonel(vp, td)
 	 * if it is on one.
 	 */
 	VI_LOCK(vp);
-	if (vp->v_type == VCHR && vp->v_rdev != NODEV) {
+	if (vp->v_type == VCHR && vp->v_rdev != NULL) {
 		mtx_lock(&spechash_mtx);
 		SLIST_REMOVE(&vp->v_rdev->si_hlist, vp, vnode, v_specnext);
 		vp->v_rdev->si_usecount -= vp->v_usecount;
@@ -3407,7 +3407,7 @@ vn_todev(vp)
 {
 
 	if (vp->v_type != VCHR)
-		return (NODEV);
+		return (NULL);
 	return (vp->v_rdev);
 }
 

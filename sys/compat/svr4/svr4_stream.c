@@ -1873,7 +1873,7 @@ svr4_do_putmsg(td, uap, fp)
 		}
 		else {
 			/* Maybe we've been given a device/inode pair */
-			udev_t *dev = SVR4_ADDROF(&sc);
+			dev_t *dev = SVR4_ADDROF(&sc);
 			ino_t *ino = (ino_t *) &dev[1];
 			skp = svr4_find_socket(td, fp, *dev, *ino);
 			if (skp == NULL) {

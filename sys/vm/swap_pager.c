@@ -154,7 +154,7 @@ struct swdevt {
 	int	sw_flags;
 	int	sw_nblks;
 	int     sw_used;
-	udev_t	sw_udev;
+	dev_t	sw_dev;
 	struct vnode *sw_vp;
 	void	*sw_id;
 	swblk_t	sw_first;
@@ -2079,7 +2079,7 @@ done2:
 }
 
 static void
-swaponsomething(struct vnode *vp, void *id, u_long nblks, sw_strategy_t *strategy, sw_close_t *close, udev_t udev)
+swaponsomething(struct vnode *vp, void *id, u_long nblks, sw_strategy_t *strategy, sw_close_t *close, dev_t dev)
 {
 	struct swdevt *sp, *tsp;
 	swblk_t dvbase;
@@ -2107,7 +2107,7 @@ swaponsomething(struct vnode *vp, void *id, u_long nblks, sw_strategy_t *strateg
 	sp = malloc(sizeof *sp, M_VMPGDATA, M_WAITOK | M_ZERO);
 	sp->sw_vp = vp;
 	sp->sw_id = id;
-	sp->sw_udev = udev;
+	sp->sw_dev = dev;
 	sp->sw_flags = 0;
 	sp->sw_nblks = nblks;
 	sp->sw_used = 0;
@@ -2293,7 +2293,7 @@ sysctl_vm_swap_info(SYSCTL_HANDLER_ARGS)
 		if (n == *name) {
 			mtx_unlock(&sw_dev_mtx);
 			xs.xsw_version = XSWDEV_VERSION;
-			xs.xsw_dev = sp->sw_udev;
+			xs.xsw_dev = sp->sw_dev;
 			xs.xsw_flags = sp->sw_flags;
 			xs.xsw_nblks = sp->sw_nblks;
 			xs.xsw_used = sp->sw_used;
@@ -2533,7 +2533,7 @@ swapdev_strategy(struct buf *bp, struct swdevt *sp)
 	int s;
 	struct vnode *vp, *vp2;
 
-	bp->b_dev = NODEV;
+	bp->b_dev = NULL;
 	bp->b_blkno = ctodb(bp->b_blkno - sp->sw_first);
 
 	vp2 = sp->sw_id;
@@ -2598,6 +2598,6 @@ swaponvp(struct thread *td, struct vnode *vp, u_long nblks)
 		return (error);
 
 	swaponsomething(vp, vp, nblks, swapdev_strategy, swapdev_close,
-	    NOUDEV);
+	    NODEV);
 	return (0);
 }

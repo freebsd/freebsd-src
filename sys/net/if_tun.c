@@ -138,7 +138,7 @@ tunclone(void *arg, char *name, int namelen, struct cdev **dev)
 {
 	int u, i;
 
-	if (*dev != NODEV)
+	if (*dev != NULL)
 		return;
 
 	if (strcmp(name, TUNNAME) == 0) {
