@@ -40,14 +40,14 @@
 .Nd get or set kernel state
 .Sh SYNOPSIS
 .Nm
-.Op Fl bn
+.Op Fl bNn
 .Ar name ...
 .Nm
-.Op Fl bn
+.Op Fl bNn
 .Fl w
 .Ar name=value ...
 .Nm
-.Op Fl bn
+.Op Fl bNn
 .Fl aAX
 .Sh DESCRIPTION
 The
@@ -73,6 +73,8 @@ few bytes is dumped in hex.
 Same as
 .Fl A
 except the entire value of opaque variables is hexdumped.
+.It Fl N
+Show only variable names, not their values.
 .It Fl n
 Specify that the printing of the field name should be
 suppressed and that only its value should be output.
