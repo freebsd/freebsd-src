@@ -207,6 +207,7 @@ extern Char *MALLOC ANSI((size_t));
 
 #define INFNAN_CHECK
 #define USE_LOCALE
+#define Honor_FLT_ROUNDS
 
 #undef IEEE_Arith
 #undef Avoid_Underflow
