@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.178 1998/10/22 05:58:41 bde Exp $
+ *	$Id: wd.c,v 1.179 1998/11/15 13:54:31 bde Exp $
  */
 
 /* TODO:
@@ -67,6 +67,7 @@
 #include "opt_atapi.h"
 #include "opt_devfs.h"
 #include "opt_hw_wdog.h"
+#include "opt_ide_delay.h"
 #include "opt_wd.h"
 #include "pci.h"
 
@@ -106,7 +107,11 @@
 
 extern void wdstart(int ctrlr);
 
+#ifdef IDE_DELAY
+#define TIMEOUT		IDE_DELAY
+#else
 #define TIMEOUT		10000
+#endif
 #define	RETRIES		5	/* number of retries before giving up */
 #define RECOVERYTIME	500000	/* usec for controller to recover after err */
 #define	MAXTRANSFER	255	/* max size of transfer in sectors */
