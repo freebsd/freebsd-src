@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: wlconfig.c,v 1.1.1.1 1997/05/22 08:58:18 msmith Exp $
+ * $Id: wlconfig.c,v 1.2 1997/05/23 21:46:50 trost Exp $
  *
  */
 /*
@@ -81,6 +81,10 @@ extern struct ether_addr *ether_aton(char *a);
 static int irqvals[16] = { 
     0, 0, 0, 0x01, 0x02, 0x04, 0, 0x08, 0, 0, 0x10, 0x20, 0x40, 0, 0, 0x80 
 };
+
+/* cache */
+static int w_sigitems;	/* count of valid items */
+static struct w_sigcache wsc[MAXCACHEITEMS];
 
 int
 wlirq(int irqval)
@@ -211,8 +215,86 @@ syntax(char *pname)
     fprintf(stderr,"     macsel		soft or default\n");
     fprintf(stderr,"     nwid		default NWID (0x0-0xffff)\n");
     fprintf(stderr,"     currnwid       current NWID (0x0-0xffff) or 'get'\n");
+    fprintf(stderr,"     cache          signal strength cache\n");
+    fprintf(stderr,"     cache values = { raw, scale, zero }\n");
     exit(1);
 }
+
+
+void
+get_cache(int sd, struct ifreq *ifr) 
+{
+    /* get the cache count */
+    if (ioctl(sd, SIOCGWLCITEM, (caddr_t)ifr)) {
+	perror("SIOCGWLCITEM - get cache count");
+	exit(1);
+    }
+    w_sigitems = (int) ifr->ifr_data;
+
+    ifr->ifr_data = (caddr_t) &wsc;
+    /* get the cache */
+    if (ioctl(sd, SIOCGWLCACHE, (caddr_t)ifr)) {
+	perror("SIOCGWLCACHE - get cache count");
+	exit(1);
+    }
+}
+
+static int
+scale_value(int value, int max)
+{
+	double dmax = (double) max;
+	if (value > max)
+		return(100);
+	return((value/dmax) * 100);
+}
+
+static void
+dump_cache(int rawFlag)
+{
+	int i;
+	int signal, silence, quality; 
+
+	if (rawFlag)
+		printf("signal range 0..63: silence 0..63: quality 0..15\n");
+	else
+		printf("signal range 0..100: silence 0..100: quality 0..100\n");
+
+	/* after you read it, loop through structure,i.e. wsc
+         * print each item:
+	 */
+	for(i = 0; i < w_sigitems; i++) {
+		printf("[%d:%d]>\n", i+1, w_sigitems);
+        	printf("\tip: %d.%d.%d.%d,",((wsc[i].ipsrc >> 0) & 0xff),
+				        ((wsc[i].ipsrc >> 8) & 0xff),
+				        ((wsc[i].ipsrc >> 16) & 0xff),
+				        ((wsc[i].ipsrc >> 24) & 0xff));
+		printf(" mac: %02x:%02x:%02x:%02x:%02x:%02x\n",
+		  		    	wsc[i].macsrc[0]&0xff,
+		  		    	wsc[i].macsrc[1]&0xff,
+		   		    	wsc[i].macsrc[2]&0xff,
+		   			wsc[i].macsrc[3]&0xff,
+		   			wsc[i].macsrc[4]&0xff,
+		   			wsc[i].macsrc[5]&0xff);
+		if (rawFlag) {
+			signal = wsc[i].signal;
+			silence = wsc[i].silence;
+			quality = wsc[i].quality;
+		}
+		else {
+			signal = scale_value(wsc[i].signal, 63);
+			silence = scale_value(wsc[i].silence, 63);
+			quality = scale_value(wsc[i].quality, 15);
+		}
+		printf("\tsignal: %d, silence: %d, quality: %d, ",
+		   			signal,
+		   			silence,
+		   			quality);
+		printf("snr: %d\n", signal - silence);
+	}
+}
+
+#define raw_cache()	dump_cache(1)
+#define scale_cache()	dump_cache(0)
 
 void
 main(int argc, char *argv[])
@@ -313,6 +395,31 @@ main(int argc, char *argv[])
 	    work = 1;	
 	    continue;
 	}
+	if (!strcasecmp(param,"cache")) {
+
+            /* raw cache dump
+	    */
+	    if (!strcasecmp(value,"raw")) {
+	    	get_cache(sd, &ifr);
+		raw_cache();
+		continue;
+	    }
+            /* scaled cache dump
+	    */
+	    else if (!strcasecmp(value,"scale")) {
+	    	get_cache(sd, &ifr);
+		scale_cache();
+		continue;
+	    }
+	    /* zero out cache
+	    */
+	    else if (!strcasecmp(value,"zero")) {
+		if (ioctl(sd, SIOCDWLCACHE, (caddr_t)&ifr))
+		    err(1,"Zero cache");
+		continue;
+	    }
+	    errx(1,"Unknown value '%s'", value);
+ 	}
 	errx(1,"Unknown parameter '%s'",param);
     }
     if (work) {
@@ -321,7 +428,3 @@ main(int argc, char *argv[])
 	    err(1,"Set PSA");
     }
 }
-
-    
-    
-
