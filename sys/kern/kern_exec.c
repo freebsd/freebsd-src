@@ -60,6 +60,7 @@
 #include <vm/vm_object.h>
 #include <vm/vm_pager.h>
 
+#include <machine/mutex.h>
 #include <machine/reg.h>
 
 MALLOC_DEFINE(M_PARGS, "proc-args", "Process arguments");

@@ -62,6 +62,8 @@
 #include <sys/aio.h>
 #include <sys/jail.h>
 
+#include <machine/mutex.h>
+
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <sys/lock.h>
