@@ -85,6 +85,8 @@ struct cu_data {
 	u_int		   cu_sendsz;
 	char		   *cu_outbuf;
 	u_int		   cu_recvsz;
+	int		   cu_connect;		/* Use connect(). */
+	int		   cu_connected;	/* Have done connect(). */
 	char		   cu_inbuf[1];
 };
 
@@ -159,6 +161,8 @@ clntudp_bufcreate(raddr, program, version, wait, sockp, sendsz, recvsz)
 	cu->cu_total.tv_usec = -1;
 	cu->cu_sendsz = sendsz;
 	cu->cu_recvsz = recvsz;
+	cu->cu_connect = FALSE;
+	cu->cu_connected = FALSE;
 	call_msg.rm_xid = (++disrupt) ^ getpid() ^ now.tv_sec ^ now.tv_usec;
 	call_msg.rm_direction = CALL;
 	call_msg.rm_call.cb_rpcvers = RPC_MSG_VERSION;
@@ -225,6 +229,7 @@ clntudp_call(cl, proc, xargs, argsp, xresults, resultsp, utimeout)
 	register XDR *xdrs;
 	register int outlen;
 	register int inlen;
+	struct sockaddr *sa;
 	int fromlen;
 	fd_set *fds, readfds;
 	struct sockaddr_in from;
@@ -234,6 +239,7 @@ clntudp_call(cl, proc, xargs, argsp, xresults, resultsp, utimeout)
 	bool_t ok;
 	int nrefreshes = 2;	/* number of times to refresh cred */
 	struct timeval timeout;
+	socklen_t salen;
 
 	if (cu->cu_total.tv_usec == -1)
 		timeout = utimeout;     /* use supplied timeout */
@@ -251,6 +257,23 @@ clntudp_call(cl, proc, xargs, argsp, xresults, resultsp, utimeout)
 		FD_ZERO(fds);
 	}
 
+	if (cu->cu_connect && !cu->cu_connected) {
+		if (connect(cu->cu_sock, (struct sockaddr *)&cu->cu_raddr,
+		    cu->cu_rlen) < 0) {
+			cu->cu_error.re_errno = errno;
+			if (fds != &readfds)
+				free(fds);
+			return (cu->cu_error.re_status = RPC_CANTSEND);
+		}
+		cu->cu_connected = 1;
+	}
+	if (cu->cu_connected) {
+		sa = NULL;
+		salen = 0;
+	} else {
+		sa = (struct sockaddr *)&cu->cu_raddr;
+		salen = cu->cu_rlen;
+	}
 	timerclear(&time_waited);
 
 call_again:
@@ -271,8 +294,8 @@ call_again:
 	outlen = (int)XDR_GETPOS(xdrs);
 
 send_again:
-	if (sendto(cu->cu_sock, cu->cu_outbuf, outlen, 0,
-	    (struct sockaddr *)&(cu->cu_raddr), cu->cu_rlen) != outlen) {
+	if (sendto(cu->cu_sock, cu->cu_outbuf, outlen, 0, sa, salen)
+	    != outlen) {
 		cu->cu_error.re_errno = errno;
 		if (fds != &readfds)
 			free(fds);
@@ -541,6 +564,9 @@ clntudp_control(cl, request, info)
 		len = sizeof(struct sockaddr);
 		if (getsockname(cu->cu_sock, (struct sockaddr *)info, &len) <0)
 			return(FALSE);
+		break;
+	case CLSET_CONNECT:
+		cu->cu_connect = *(int *)(void *)info;
 		break;
 	case CLGET_SVC_ADDR:
 	case CLSET_SVC_ADDR:
