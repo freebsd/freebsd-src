@@ -926,13 +926,14 @@ rescan0:
 			 */
 			if (object->type == OBJT_VNODE) {
 				vp = object->handle;
-
 				mp = NULL;
 				if (vp->v_type == VREG)
 					vn_start_write(vp, &mp, V_NOWAIT);
 				vm_page_unlock_queues();
+				VI_LOCK(vp);
 				VM_OBJECT_UNLOCK(object);
-				if (vget(vp, LK_EXCLUSIVE|LK_TIMELOCK, curthread)) {
+				if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK |
+				    LK_TIMELOCK, curthread)) {
 					VM_OBJECT_LOCK(object);
 					vm_page_lock_queues();
 					++pageout_lock_miss;
