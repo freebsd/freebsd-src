@@ -41,9 +41,10 @@ static const char copyright[] =
 #if 0
 static char sccsid[] = "@(#)tty.c	8.1 (Berkeley) 6/6/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -52,9 +53,7 @@ static const char rcsid[] =
 static void usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char *argv[])
 {
 	int ch, sflag;
 	char *t;
@@ -77,7 +76,7 @@ main(argc, argv)
 }
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr, "usage: tty [-s]\n");
 	exit(2);
