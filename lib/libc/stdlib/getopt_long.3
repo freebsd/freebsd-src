@@ -331,25 +331,25 @@ returns
 .Fn getopt
 does).
 .El
-.It
-Handling of
-.Ql --a
-in getopt:
-.Bl -tag -width ".Bx"
-.It Tn GNU
-parses this as option
-.Ql - ,
-option
-.Ql a .
-.It Bx
-parses this as
-.Ql -- ,
-and returns \-1 (ignoring the
-.Ql a ) .
-(Because the original
-.Fn getopt
-does.)
-.El
+.\" .It
+.\" Handling of
+.\" .Ql --a
+.\" in getopt:
+.\" .Bl -tag -width ".Bx"
+.\" .It Tn GNU
+.\" parses this as option
+.\" .Ql - ,
+.\" option
+.\" .Ql a .
+.\" .It Bx
+.\" parses this as
+.\" .Ql -- ,
+.\" and returns \-1 (ignoring the
+.\" .Ql a ) .
+.\" (Because the original
+.\" .Fn getopt
+.\" does.)
+.\" .El
 .It
 Setting of
 .Va optopt
@@ -370,23 +370,23 @@ to 0 (since
 .Va val
 would never be returned).
 .El
-.It
-Handling of
-.Ql -W
-with
-.Ql W;
-in option string in
-.Fn getopt
-(not
-.Fn getopt_long ) :
-.Bl -tag -width ".Bx"
-.It Tn GNU
-causes a segfault.
-.It Bx
-no special handling is done;
-.Ql W;
-is interpreted as two separate options, neither of which take an argument.
-.El
+.\" .It
+.\" Handling of
+.\" .Ql -W
+.\" with
+.\" .Ql W;
+.\" in option string in
+.\" .Fn getopt
+.\" (not
+.\" .Fn getopt_long ) :
+.\" .Bl -tag -width ".Bx"
+.\" .It Tn GNU
+.\" causes a segfault.
+.\" .It Bx
+.\" no special handling is done;
+.\" .Ql W;
+.\" is interpreted as two separate options, neither of which take an argument.
+.\" .El
 .It
 Setting of
 .Va optarg
