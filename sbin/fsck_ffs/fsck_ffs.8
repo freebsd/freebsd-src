@@ -34,10 +34,11 @@
 .\" $FreeBSD$
 .\"
 .Dd November 15, 1996
-.Dt FSCK 8
+.Dt FSCK_FFS 8
 .Os BSD 4
 .Sh NAME
-.Nm fsck
+.Nm fsck_ffs ,
+.Nm fsck_ufs
 .Nd filesystem consistency check and interactive repair
 .Sh SYNOPSIS
 .Nm
@@ -329,6 +330,7 @@ are fully enumerated and explained in Appendix A of
 .Sh SEE ALSO
 .Xr fs 5 ,
 .Xr fstab 5 ,
+.Xr fsck 8 ,
 .Xr fsdb 8 ,
 .Xr newfs 8 ,
 .Xr reboot 8
