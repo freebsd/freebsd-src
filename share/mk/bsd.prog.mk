@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.12 1994/11/13 21:05:27 phk Exp $
+#	$Id: bsd.prog.mk,v 1.13 1994/11/14 04:28:44 bde Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -90,6 +90,8 @@ SRCS=	${PROG}.c
 ${PROG}: ${DPSRCS} ${SRCS} ${LIBC} ${DPADD}
 	${CC} ${LDFLAGS} ${CFLAGS} -o ${.TARGET} ${.CURDIR}/${SRCS} \
 		${LDDESTDIR} ${LDADD}
+
+MKDEP=	-p
 .else
 # Always make an intermediate object file because:
 # - it saves time rebuilding when only the library has changed
@@ -100,8 +102,6 @@ OBJS=	${PROG}.o
 ${PROG}: ${DPSRCS} ${OBJS} ${LIBC} ${DPADD}
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDDESTDIR} ${LDADD}
 .endif
-
-MKDEP=	-p
 
 .endif
 
