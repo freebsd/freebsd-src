@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_nqlease.c	8.9 (Berkeley) 5/20/95
- * $Id: nfs_nqlease.c,v 1.27 1997/08/16 19:15:55 wollman Exp $
+ * $Id: nfs_nqlease.c,v 1.28 1997/09/02 01:19:30 bde Exp $
  */
 
 
@@ -75,6 +75,8 @@
 #include <nfs/nqnfs.h>
 #include <nfs/nfsnode.h>
 #include <nfs/nfsmount.h>
+
+MALLOC_DEFINE(M_NQMHOST, "NQNFS Host", "Nqnfs host address table");
 
 time_t nqnfsstarttime = (time_t)0;
 int nqsrv_clockskew = NQ_CLOCKSKEW;
