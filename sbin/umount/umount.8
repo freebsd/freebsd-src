@@ -121,17 +121,17 @@ Verbose, additional information is printed out as each file system
 is unmounted.
 .El
 .Sh ENVIRONMENT
-.Bl -tag -width PATH_FSTAB
-.It Pa PATH_FSTAB
+.Bl -tag -width ".Ev PATH_FSTAB"
+.It Ev PATH_FSTAB
 If the environment variable
-.Pa PATH_FSTAB
-is set all operations are performed against the specified file.
-.Pa PATH_FSTAB
+.Ev PATH_FSTAB
+is set, all operations are performed against the specified file.
+.Ev PATH_FSTAB
 will not be honored if the process environment or memory address space is
 considred
 .Dq tainted .
 (See
-.Fn issetugid
+.Xr issetugid 2
 for more information.)
 .El
 .Sh FILES
