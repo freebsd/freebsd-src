@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.95 1998/07/06 09:10:56 julian Exp $
+ * $Id: ip_input.c,v 1.96 1998/07/08 08:49:51 dg Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -1113,7 +1113,7 @@ nosourcerouting:
 			ipt = (struct ip_timestamp *)cp;
 			if (ipt->ipt_len < 5)
 				goto bad;
-			if (ipt->ipt_ptr > ipt->ipt_len - sizeof (long)) {
+			if (ipt->ipt_ptr > ipt->ipt_len - sizeof(int32_t)) {
 				if (++ipt->ipt_oflw == 0)
 					goto bad;
 				break;
