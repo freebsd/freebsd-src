@@ -93,7 +93,7 @@ By default, only the first eight virtual terminals are activated in
 .Pa /etc/ttys .
 .Pp
 You press the
-.Em Alt
+.Dv Alt
 key and a switch key to switch between 
 virtual terminals.
 The following table summarizes the correspondence between the switch
@@ -108,12 +108,12 @@ Alt-F6   ttyv5      Alt-F12  ttyv11     Shift-Alt-F6   ttyv15
 .Ed
 .Pp
 You can also use the ``nscr'' key (usually the
-.Em PrintScreen
+.Dv PrintScreen
 key on the AT Enhanced keyboard) to cycle available virtual terminals.
 .Pp
 The default number of available virtual terminals is 16.
 This can be changed by the kernel configuration option
-.Em MAXCONS
+.Dv MAXCONS
 (see below).
 .Pp
 Note that the X server usually requires a virtual terminal for display
@@ -169,7 +169,7 @@ when the system starts up.
 .Pp
 Optionally you can make a particular font file as the default font.
 See the
-.Em SC_DFLT_FONT
+.Dv SC_DFLT_FONT
 option below.
 .Ss Screen Map
 If your video card does not support software font, you may still be able
@@ -196,7 +196,7 @@ at the cursor position by your pressing the button 2 (usually the
 middle button) as many times as you like.
 .Pp
 If your mouse has only two buttons, you may want to use the
-.Em SC_TWOBUTTON_MOUSE
+.Dv SC_TWOBUTTON_MOUSE
 option below to make the right button to paste the text.
 Alternatively you can make the mouse daemon
 to emulate the middle button.
@@ -210,23 +210,23 @@ driver allows the user to browse the output which has ``scrolled off''
 from the top of the screen.
 .Pp
 Press the ``slock'' key (usually 
-.Em ScrllLock 
+.Dv ScrllLock 
 and/or 
-.Em Pause 
+.Dv Pause 
 keys on many AT Enhanced keyboards) and the terminal is 
 in the ``back scrolling'' mode.
 It is indicated by the 
-.Em Scroll Lock
+.Dv Scroll Lock
 LED.
 Use arrow keys, 
-.Em Page Up/Down 
+.Dv Page Up/Down 
 keys and 
-.Em Home/End 
+.Dv Home/End 
 keys to scroll buffered terminal output.
 Press the ``slock'' key again to get back to the normal terminal mode.
 .Pp
 The size of the back-scroll buffer can be set by the
-.Em SC_HISTORY_SIZE
+.Dv SC_HISTORY_SIZE
 option below.
 .Ss Screen Saver
 The
@@ -245,42 +245,43 @@ The following kernel configuration options control the
 .Nm
 driver.
 .Bl -tag -width MOUSE
-.It Em MAXCONS=N
+.It Dv MAXCONS=N
 This option sets the number of virtual terminals to
 .Fa N .
 The default value is 16.
-.It Em SC_ALT_MOUSE_IMAGE
+.It Dv SC_ALT_MOUSE_IMAGE
 This option selects the alternative way of displaying the mouse cursor
 in the virtual terminal.
 It may be vastly costly for some video cards to draw the arrow-shaped
 cursor and you may want to try this option.
 However, the appearance of the alternative mouse cursor may not be
-very appealing.  Note that if you use the
-.Em SC_NO_FONT_LOADING
+very appealing.
+Note that if you use the
+.Dv SC_NO_FONT_LOADING
 option then you must also use this option if you wish to be able to use
 the mouse.
-.It Em SC_DISABLE_DDBKEY
+.It Dv SC_DISABLE_DDBKEY
 This option disables the ``debug'' key (by default, it is 
-.Em Alt-Esc ,
+.Dv Alt-Esc ,
 or
-.Em Ctl-PrintScreen
+.Dv Ctl-PrintScreen
 ).
 It will prevent the user from
 entering the kernel debugger DDB by pressing the key combination.  
 DDB will still be invoked when the kernel panics or hits a break point 
 if it is included in the kernel.
-.It Em SC_DISABLE_REBOOT
+.It Dv SC_DISABLE_REBOOT
 This option disables the ``reboot'' key (by default, it is 
-.Em Ctl-Alt-Del
+.Dv Ctl-Alt-Del
 ), so that the casual user may not accidentally reboot the system.
-.It Em SC_HISTORY_SIZE=N
+.It Dv SC_HISTORY_SIZE=N
 Sets the size of back scroll buffer to 
 .Fa N
 lines.
 The default value is 100.
-.It Em SC_MOUSE_CHAR=C
+.It Dv SC_MOUSE_CHAR=C
 Unless the
-.Em SC_ALT_MOUSE_IMAGE
+.Dv SC_ALT_MOUSE_IMAGE
 option above is specified, the
 The
 .Nm
@@ -291,31 +292,31 @@ This option specifies the first character code to
 to be used for this purpose.
 The default value is 0xd0.
 A good candidate is 0x03.
-.It Em SC_PIXEL_MODE
+.It Dv SC_PIXEL_MODE
 Adds support for pixel (raster) mode console.
 This mode is useful on some laptop computers, but less so on
 most other systems, and it adds substantial amount of code to syscons.
 If the this option is NOT defined, you can reduce the kernel size a lot.
 See the
-.Em VESA800X600
+.Dv VESA800X600
 flag below.
-.It Em SC_TWOBUTTON_MOUSE
+.It Dv SC_TWOBUTTON_MOUSE
 If you have a two button mouse, you may want to add this option 
 to use the right button of the mouse to paste text.
 See
 .Sx Mouse Support and Copy-and-Paste
 above.
-.It Em SC_NORM_ATTR=_attribute_
-.It Em SC_NORM_REV_ATTR=_attribute_
-.It Em SC_KERNEL_CONS_ATTR=_attribute_
-.It Em SC_KERNEL_CONS_REV_ATTR=_attribute_
+.It Dv SC_NORM_ATTR=_attribute_
+.It Dv SC_NORM_REV_ATTR=_attribute_
+.It Dv SC_KERNEL_CONS_ATTR=_attribute_
+.It Dv SC_KERNEL_CONS_REV_ATTR=_attribute_
 These options will set the default colors.
 Available colors are defined in
 .Pa /usr/include/machine/pc/display.h .
 See
 .Sx EXAMPLE
 below.
-.It Em SC_DFLT_FONT
+.It Dv SC_DFLT_FONT
 This option will specify the default font.
 Available fonts are: iso, iso2, koi8-r, cp437, cp850, cp865 and cp866.
 16-line, 14-line and 8-line font data will be compiled in.  
@@ -332,21 +333,22 @@ The following options will remove some features from the
 .Nm
 driver and save kernel memory.
 .Bl -tag -width MOUSE
-.It Em SC_NO_CUTPASTE
+.It Dv SC_NO_CUTPASTE
 This option disables ``copy and paste'' operation in virtual
 terminals.
-.It Em SC_NO_FONT_LOADING
+.It Dv SC_NO_FONT_LOADING
 The
 .Nm
 driver can load software font on some video cards.
-This option removes this feature.  Note that if you still wish to use
+This option removes this feature.
+Note that if you still wish to use
 the mouse with this option then you must also use the
-.Em SC_ALT_MOUSE_IMAGE
+.Dv SC_ALT_MOUSE_IMAGE
 option.
-.It Em SC_NO_HISTORY
+.It Dv SC_NO_HISTORY
 This option disables back-scrolling in virtual terminals.
-.\".It Em SC_NO_PALETTE_LOADING
-.It Em SC_NO_SYSMOUSE
+.\".It Dv SC_NO_PALETTE_LOADING
+.It Dv SC_NO_SYSMOUSE
 This option removes mouse support in the
 .Nm
 driver.
@@ -354,7 +356,7 @@ The mouse daemon
 .Xr moused 8
 will fail if this option is defined.
 This option implies the
-.Em SC_NO_CUTPASTE
+.Dv SC_NO_CUTPASTE
 option too.
 .El
 .Ss Driver Flags
@@ -374,13 +376,13 @@ time
 .\"This option specifies the cursor appearance.
 .\"Possible values are:
 .\".Bl -tag -width TYPE -compact
-.\".It Em 0
+.\".It Dv 0
 .\"normal block cursor
-.\".It Em 2
+.\".It Dv 2
 .\"blinking block cursor
-.\".It Em 4
+.\".It Dv 4
 .\"underline cursor
-.\".It Em 6
+.\".It Dv 6
 .\"blinking underline (aka destructive) cursor
 .\".El
 .\".It bit 6 (QUIET_BELL)
@@ -393,7 +395,7 @@ It may be useful for laptop computers for which the 800x600 mode
 is otherwise unsupported by the X server.
 Note that in order for this flag to work, the kernel must be 
 compiled with the
-.Em SC_PIXEL_MODE
+.Dv SC_PIXEL_MODE
 option explained above.
 .\"Note also that the ``copy-and-paste'' function is not currently supported 
 .\"in this mode and the mouse pointer will not be displayed.
