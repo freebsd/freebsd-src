@@ -439,6 +439,7 @@ vendor ASANTE		0x10bd	Asante
 vendor JRC		0x1145	Japan Radio Company
 vendor DELORME		0x1163	DeLorme Publishing
 vendor ACERCM		0x1189	Acer Communications & Multimedia Inc.
+vendor TWINMOS		0x126f	TwinMOS
 vendor BELKIN2		0x1293	Belkin Components
 vendor AINCOMM		0x12fd	Ain Communication Technology
 vendor MOBILITY		0x1342	Mobility
@@ -1399,6 +1400,9 @@ product TREK THUMBDRIVE_8MB	0x9988	ThumbDrive_8MB
 
 /* Trumpion products */
 product TRUMPION C3310		0x1100	Comotron C3310 MP3 player
+
+/* TwinMOS */
+product TWINMOS MDIV		0x1325	Memory Disk IV
 
 /* Ultima products */
 product ULTIMA 1200UBPLUS	0x4002	1200 UB Plus scanner
