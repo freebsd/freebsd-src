@@ -185,15 +185,19 @@ main(argc, argv)
 	    strtabsize - sizeof(int))
 		badfmt("corrupted string table");
 
-	newtab = (struct nlist *)malloc(n);
-	if (newtab == (struct nlist *)NULL)
-		error(NULL);
-	memset(newtab, 0, n);
-
 	i = n / sizeof(struct nlist);
-	reorder(symtab, newtab, i);
-	free((void *)symtab);
-	symtab = newtab;
+	if (!clean) {
+		newtab = (struct nlist *)malloc(n);
+		if (newtab == (struct nlist *)NULL)
+			error(NULL);
+		memset(newtab, 0, n);
+
+		reorder(symtab, newtab, i);
+		free((void *)symtab);
+		symtab = newtab;
+	} else {
+		symfound = symkept = i;
+	}
 
 	newstrings = malloc(strtabsize);
 	if (newstrings == NULL)
