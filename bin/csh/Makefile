@@ -7,12 +7,10 @@
 
 PROG=	csh
 DFLAGS=-DBUILTIN -DFILEC -DNLS -DSHORT_STRINGS
-#CFLAGS+=-g
-#CFLAGS+=-Wall -ansi -pedantic
 CFLAGS+=-I${.CURDIR} -I. ${DFLAGS}
 SRCS=	alloc.c char.c const.c csh.c dir.c dol.c err.c exec.c exp.c file.c \
 	func.c glob.c hist.c init.c lex.c misc.c parse.c printf.c proc.c \
-	sem.c set.c str.c time.c
+	sem.c set.c str.c time.c const.h err.h
 .PATH:	${.CURDIR}/../../usr.bin/printf
 
 MAN1=	csh.1
@@ -38,9 +36,5 @@ const.h: const.c
 	${CC} -E ${CFLAGS} ${.CURDIR}/$*.c | egrep 'Char STR' | \
 	    sed -e 's/Char \([a-zA-Z0-9_]*\)\(.*\)/extern Char \1[];/' | \
 	    sort >> $@
-
-./const.h: const.h
-./err.h: err.h
-.depend: const.h err.h 
 
 .include <bsd.prog.mk>
