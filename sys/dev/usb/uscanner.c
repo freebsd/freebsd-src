@@ -459,7 +459,7 @@ uscanner_do_read(sc, uio, flag)
 
 		err = usbd_bulk_transfer(
 			sc->sc_bulkin_xfer, sc->sc_bulkin_pipe,
-			sc->sc_state & USBD_SHORT_XFER_OK, USBD_NO_TIMEOUT,
+			USBD_SHORT_XFER_OK, USBD_NO_TIMEOUT,
 			sc->sc_bulkin_buffer, &tn,
 			"uscannerrb");
 		if (err) {
