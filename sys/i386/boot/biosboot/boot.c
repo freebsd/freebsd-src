@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.55 1996/08/28 18:29:51 ache Exp $
+ *	$Id: boot.c,v 1.57 1996/09/05 21:12:06 julian Exp $
  */
 
 
@@ -65,7 +65,6 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 char *dflt_name;
 #endif
 char namebuf[NAMEBUF_LEN];
-struct exec head;
 struct bootinfo bootinfo;
 int loadflags;
 
@@ -169,6 +168,7 @@ loadstart:
 static void
 loadprog(void)
 {
+	struct exec head;
 	long int startaddr;
 	long int addr;	/* physical address.. not directly useable */
 	long int bootdev;
@@ -331,6 +331,7 @@ nextarg:
 					*howto ^= RB_SERIAL;
 					if (*howto & RB_SERIAL)
 						init_serial();
+					continue;
 				}
 				if (c == 'g')
 					*howto |= RB_GDB;
