@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.7 (Berkeley) 1/21/94
- * $Id: buf.h,v 1.10 1994/10/18 06:55:57 davidg Exp $
+ * $Id: buf.h,v 1.11 1995/01/09 16:05:12 davidg Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -44,6 +44,18 @@
 #include <sys/queue.h>
 
 #define NOLIST ((struct buf *)0x87654321)
+
+struct buf;
+
+struct iodone_chain {
+	long	ic_prev_flags;
+	void	(*ic_prev_iodone) __P((struct buf *));
+	void	*ic_prev_iodone_chain;
+	struct {
+		long	ia_long;
+		void	*ia_ptr;
+	}	ic_args[5];
+};
 
 /*
  * The buffer header describes an I/O operation in the kernel.
@@ -69,6 +81,8 @@ struct buf {
 	daddr_t	b_blkno;		/* Underlying physical block number. */
 					/* Function to call upon completion. */
 	void	(*b_iodone) __P((struct buf *));
+					/* For nested b_iodone's. */
+	struct	iodone_chain *b_iodone_chain;
 	struct	vnode *b_vp;		/* Device vnode. */
 	int	b_pfcent;		/* Center page when swapping cluster. */
 	int	b_dirtyoff;		/* Offset in buffer of dirty region. */
