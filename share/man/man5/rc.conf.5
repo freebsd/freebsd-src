@@ -225,6 +225,48 @@ based cards.
 .Pq Vt str
 List of removable network interfaces to be supported by
 .Pa /etc/pccard_ether .
+.It Va tmpmfs
+Controls the creation of an mfs
+.Pa /tmp
+file system.
+Always happens if set to
+.Dq Li YES
+and never happens if set to 
+.Dq Li NO .
+If set anything else, a memory file system is created if
+.Pa /tmp
+is not writable.
+.It Va tmpsize
+Controls the size of a created mfm
+.Pa /tmp .
+.It Va varmfs
+Controls the creation of an mfs
+.Pa /var
+file system.
+Always happens if set to
+.Dq Li YES
+and never happens if set to 
+.Dq Li NO .
+If set anything else, a memory file system is created if
+.Pa /var
+is not writable.
+.It Va varsize
+Controls the size of a created mfm
+.Pa /var .
+.It Va populate_var
+Controls the automatic population of the
+.Pa /var
+file system.
+Always happens if set to
+.Dq Li YES
+and never happens if set to 
+.Dq Li NO .
+If set anything else, a memory file system is created if /tmp is not writable.
+Note that this process requires access to certain commands in
+.Pa /usr
+before
+.Pa /usr
+is mounted on normal systems.
 .It Va local_startup
 .Pq Vt str
 List of directories to search for startup script files.
