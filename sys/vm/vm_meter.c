@@ -145,8 +145,10 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 	/*
 	 * Mark all objects as inactive.
 	 */
+	mtx_lock(&vm_mtx);
 	TAILQ_FOREACH(object, &vm_object_list, object_list)
 		vm_object_clear_flag(object, OBJ_ACTIVE);
+	mtx_unlock(&vm_mtx);
 	/*
 	 * Calculate process statistics.
 	 */
@@ -197,6 +199,7 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 		 * Note active objects.
 		 */
 		paging = 0;
+		mtx_lock(&vm_mtx);
 		for (map = &p->p_vmspace->vm_map, entry = map->header.next;
 		    entry != &map->header; entry = entry->next) {
 			if ((entry->eflags & MAP_ENTRY_IS_SUB_MAP) ||
@@ -205,6 +208,7 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 			vm_object_set_flag(entry->object.vm_object, OBJ_ACTIVE);
 			paging |= entry->object.vm_object->paging_in_progress;
 		}
+		mtx_unlock(&vm_mtx);
 		if (paging)
 			totalp->t_pw++;
 	}
@@ -212,6 +216,7 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 	/*
 	 * Calculate object memory usage statistics.
 	 */
+	mtx_lock(&vm_mtx);
 	TAILQ_FOREACH(object, &vm_object_list, object_list) {
 		/*
 		 * devices, like /dev/mem, will badly skew our totals
@@ -235,6 +240,7 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 		}
 	}
 	totalp->t_free = cnt.v_free_count + cnt.v_cache_count;
+	mtx_unlock(&vm_mtx);
 	return (sysctl_handle_opaque(oidp, totalp, sizeof total, req));
 }
 

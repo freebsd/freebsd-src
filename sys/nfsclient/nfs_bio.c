@@ -124,8 +124,13 @@ nfs_getpages(ap)
 	}
 
 	if ((nmp->nm_flag & NFSMNT_NFSV3) != 0 &&
-	    (nmp->nm_state & NFSSTA_GOTFSINFO) == 0)
+	    (nmp->nm_state & NFSSTA_GOTFSINFO) == 0) {
+		mtx_unlock(&vm_mtx);
+		mtx_lock(&Giant);
 		(void)nfs_fsinfo(nmp, vp, cred, p);
+		mtx_unlock(&Giant);
+		mtx_lock(&vm_mtx);
+	}
 
 	npages = btoc(count);
 
@@ -168,7 +173,11 @@ nfs_getpages(ap)
 	uio.uio_rw = UIO_READ;
 	uio.uio_procp = p;
 
+	mtx_unlock(&vm_mtx);
+	mtx_lock(&Giant);
 	error = nfs_readrpc(vp, &uio, cred);
+	mtx_unlock(&Giant);
+	mtx_lock(&vm_mtx);
 	pmap_qremove(kva, npages);
 
 	relpbuf(bp, &nfs_pbuf_freecnt);
@@ -280,8 +289,13 @@ nfs_putpages(ap)
 	offset = IDX_TO_OFF(pages[0]->pindex);
 
 	if ((nmp->nm_flag & NFSMNT_NFSV3) != 0 &&
-	    (nmp->nm_state & NFSSTA_GOTFSINFO) == 0)
+	    (nmp->nm_state & NFSSTA_GOTFSINFO) == 0) {
+		mtx_unlock(&vm_mtx);
+		mtx_lock(&Giant);
 		(void)nfs_fsinfo(nmp, vp, cred, p);
+		mtx_unlock(&Giant);
+		mtx_lock(&vm_mtx);
+	}
 
 	for (i = 0; i < npages; i++) {
 		rtvals[i] = VM_PAGER_AGAIN;
@@ -321,7 +335,11 @@ nfs_putpages(ap)
 	else
 	    iomode = NFSV3WRITE_FILESYNC;
 
+	mtx_unlock(&vm_mtx);
+	mtx_lock(&Giant);
 	error = nfs_writerpc(vp, &uio, cred, &iomode, &must_commit);
+	mtx_unlock(&Giant);
+	mtx_lock(&vm_mtx);
 
 	pmap_qremove(kva, npages);
 	relpbuf(bp, &nfs_pbuf_freecnt);
@@ -332,8 +350,13 @@ nfs_putpages(ap)
 			rtvals[i] = VM_PAGER_OK;
 			vm_page_undirty(pages[i]);
 		}
-		if (must_commit)
+		if (must_commit) {
+			mtx_unlock(&vm_mtx);
+			mtx_lock(&Giant);
 			nfs_clearcommit(vp->v_mount);
+			mtx_unlock(&Giant);
+			mtx_lock(&vm_mtx);
+		}
 	}
 	return rtvals[0];
 }
@@ -1076,7 +1099,9 @@ again:
 				bp->b_dirtyoff = on;
 				bp->b_dirtyend = on + n;
 			}
+			mtx_lock(&vm_mtx);
 			vfs_bio_set_validclean(bp, on, n);
+			mtx_unlock(&vm_mtx);
 		}
 
 		/*

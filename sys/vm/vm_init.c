@@ -73,6 +73,7 @@
 #include <sys/lock.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
+#include <sys/mutex.h>
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>
@@ -96,16 +97,20 @@ SYSINIT(vm_mem, SI_SUB_VM, SI_ORDER_FIRST, vm_mem_init, NULL)
  *	The start and end address of physical memory is passed in.
  */
 
+struct mtx vm_mtx;
+
 /* ARGSUSED*/
 static void
 vm_mem_init(dummy)
 	void *dummy;
 {
+
 	/*
 	 * Initializes resident memory structures. From here on, all physical
 	 * memory is accounted for, and we use only virtual addresses.
 	 */
-
+	mtx_init(&vm_mtx, "vm", MTX_DEF);
+	mtx_lock(&vm_mtx);
 	vm_set_page_size();
 	virtual_avail = vm_page_startup(avail_start, avail_end, virtual_avail);
 	
@@ -118,4 +123,5 @@ vm_mem_init(dummy)
 	kmem_init(virtual_avail, virtual_end);
 	pmap_init(avail_start, avail_end);
 	vm_pager_init();
+	mtx_unlock(&vm_mtx);
 }

@@ -49,6 +49,9 @@
 #include <sys/sysproto.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/systm.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -93,6 +96,7 @@ obreak(p, uap)
 		return EINVAL;
 	}
 
+	mtx_lock(&vm_mtx);
 	if (new > old) {
 		vm_size_t diff;
 
@@ -100,16 +104,19 @@ obreak(p, uap)
 		rv = vm_map_find(&vm->vm_map, NULL, 0, &old, diff, FALSE,
 			VM_PROT_ALL, VM_PROT_ALL, 0);
 		if (rv != KERN_SUCCESS) {
+			mtx_unlock(&vm_mtx);
 			return (ENOMEM);
 		}
 		vm->vm_dsize += btoc(diff);
 	} else if (new < old) {
 		rv = vm_map_remove(&vm->vm_map, new, old);
 		if (rv != KERN_SUCCESS) {
+			mtx_unlock(&vm_mtx);
 			return (ENOMEM);
 		}
 		vm->vm_dsize -= btoc(old - new);
 	}
+	mtx_unlock(&vm_mtx);
 	return (0);
 }
 

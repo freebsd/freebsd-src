@@ -43,6 +43,7 @@
 #include <sys/shm.h>
 #include <sys/proc.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
@@ -314,14 +315,17 @@ shmat(p, uap)
 	}
 
 	shm_handle = shmseg->shm_internal;
+	mtx_lock(&vm_mtx);
 	vm_object_reference(shm_handle->shm_object);
 	rv = vm_map_find(&p->p_vmspace->vm_map, shm_handle->shm_object,
 		0, &attach_va, size, (flags & MAP_FIXED)?0:1, prot, prot, 0);
 	if (rv != KERN_SUCCESS) {
+		mtx_unlock(&vm_mtx);
 		return ENOMEM;
 	}
 	vm_map_inherit(&p->p_vmspace->vm_map,
 		attach_va, attach_va + size, VM_INHERIT_SHARE);
+	mtx_unlock(&vm_mtx);
 
 	shmmap_s->va = attach_va;
 	shmmap_s->shmid = uap->shmid;
@@ -549,6 +553,7 @@ shmget_allocate_segment(p, uap, mode)
 	 * We make sure that we have allocated a pager before we need
 	 * to.
 	 */
+	mtx_lock(&vm_mtx);
 	if (shm_use_phys) {
 		shm_handle->shm_object =
 		    vm_pager_allocate(OBJT_PHYS, 0, size, VM_PROT_DEFAULT, 0);
@@ -558,6 +563,7 @@ shmget_allocate_segment(p, uap, mode)
 	}
 	vm_object_clear_flag(shm_handle->shm_object, OBJ_ONEMAPPING);
 	vm_object_set_flag(shm_handle->shm_object, OBJ_NOSPLIT);
+	mtx_unlock(&vm_mtx);
 
 	shmseg->shm_internal = shm_handle;
 	shmseg->shm_perm.cuid = shmseg->shm_perm.uid = cred->cr_uid;

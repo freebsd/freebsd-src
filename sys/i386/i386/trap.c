@@ -330,9 +330,7 @@ restart:
 			 */
 			eva = rcr2();
 			enable_intr();
-			mtx_lock(&Giant);
 			i = trap_pfault(&frame, TRUE, eva);
-			mtx_unlock(&Giant);
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
 			if (i == -2) {
 				/*
@@ -443,9 +441,7 @@ restart:
 			 */
 			eva = rcr2();
 			enable_intr();
-			mtx_lock(&Giant);
 			(void) trap_pfault(&frame, FALSE, eva);
-			mtx_unlock(&Giant);
 			goto out;
 
 		case T_DNA:
@@ -887,7 +883,9 @@ nogo:
 			frame->tf_eip = (int)PCPU_GET(curpcb)->pcb_onfault;
 			return (0);
 		}
+		mtx_lock(&Giant);
 		trap_fatal(frame, eva);
+		mtx_unlock(&Giant);
 		return (-1);
 	}
 
@@ -1147,14 +1145,17 @@ syscall(frame)
 
 	/*
 	 * Try to run the syscall without the MP lock if the syscall
-	 * is MP safe.  We have to obtain the MP lock no matter what if 
-	 * we are ktracing
+	 * is MP safe.
 	 */
 	if ((callp->sy_narg & SYF_MPSAFE) == 0) {
 		mtx_lock(&Giant);
 	}
 
 #ifdef KTRACE
+	/*
+	 * We have to obtain the MP lock no matter what if 
+	 * we are ktracing
+	 */
 	if (KTRPOINT(p, KTR_SYSCALL)) {
 		if (!mtx_owned(&Giant))
 			mtx_lock(&Giant);

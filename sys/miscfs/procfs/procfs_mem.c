@@ -48,6 +48,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/ptrace.h>
 #include <sys/user.h>
@@ -88,8 +89,14 @@ procfs_rwmem(curp, p, uio)
 	 * usage in that process can be messed up.
 	 */
 	vm = p->p_vmspace;
-	if ((p->p_flag & P_WEXIT) || (vm->vm_refcnt < 1))
+	if ((p->p_flag & P_WEXIT))
 		return EFAULT;
+
+	mtx_lock(&vm_mtx);
+	if (vm->vm_refcnt < 1) {
+		mtx_unlock(&vm_mtx);
+		return EFAULT;
+	}
 	++vm->vm_refcnt;
 	/*
 	 * The map we want...
@@ -207,7 +214,9 @@ procfs_rwmem(curp, p, uio)
 		/*
 		 * Now do the i/o move.
 		 */
+		mtx_unlock(&vm_mtx);
 		error = uiomove((caddr_t)(kva + page_offset), len, uio);
+		mtx_lock(&vm_mtx);
 
 		pmap_kremove(kva);
 
@@ -226,6 +235,7 @@ procfs_rwmem(curp, p, uio)
 
 	kmem_free(kernel_map, kva, PAGE_SIZE);
 	vmspace_free(vm);
+	mtx_unlock(&vm_mtx);
 	return (error);
 }
 

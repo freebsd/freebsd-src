@@ -80,7 +80,6 @@
 #include <sys/sysctl.h>
 #include <sys/blist.h>
 #include <sys/lock.h>
-#include <sys/sx.h>
 #include <sys/vmmeter.h>
 
 #ifndef MAX_PAGEOUT_CLUSTER
@@ -119,6 +118,7 @@ static int nsw_wcount_sync;	/* limit write buffers / synchronous	*/
 static int nsw_wcount_async;	/* limit write buffers / asynchronous	*/
 static int nsw_wcount_async_max;/* assigned maximum			*/
 static int nsw_cluster_max;	/* maximum VOP I/O allowed		*/
+static int sw_alloc_interlock;	/* swap pager allocation interlock	*/
 
 struct blist *swapblist;
 static struct swblock **swhash;
@@ -145,7 +145,6 @@ SYSCTL_INT(_vm, OID_AUTO, swap_async_max,
 #define NOBJLIST(handle)	\
 	(&swap_pager_object_list[((int)(intptr_t)handle >> 4) & (NOBJLISTS-1)])
 
-static struct sx sw_alloc_sx;	/* prevent concurrant creation */
 static struct mtx sw_alloc_mtx;	/* protect list manipulation */ 
 static struct pagerlst	swap_pager_object_list[NOBJLISTS];
 struct pagerlst		swap_pager_un_object_list;
@@ -233,6 +232,8 @@ static daddr_t swp_pager_meta_ctl __P((vm_object_t, vm_pindex_t, int));
 static __inline void
 swp_sizecheck()
 {
+
+	mtx_assert(&vm_mtx, MA_OWNED);
 	if (vm_swap_size < nswap_lowat) {
 		if (swap_pager_almost_full == 0) {
 			printf("swap_pager: out of swap space\n");
@@ -264,7 +265,6 @@ swap_pager_init()
 	for (i = 0; i < NOBJLISTS; ++i)
 		TAILQ_INIT(&swap_pager_object_list[i]);
 	TAILQ_INIT(&swap_pager_un_object_list);
-	sx_init(&sw_alloc_sx, "swap_pager create");
 	mtx_init(&sw_alloc_mtx, "swap_pager list", MTX_DEF);
 
 	/*
@@ -389,7 +389,10 @@ swap_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 		 * of the handle.
 		 */
 
-		sx_xlock(&sw_alloc_sx);
+		while (sw_alloc_interlock) {
+			sw_alloc_interlock = -1;
+			msleep(&sw_alloc_interlock, &vm_mtx, PVM, "swpalc", 0);
+		}
 
 		object = vm_pager_object_lookup(NOBJLIST(handle), handle);
 
@@ -403,7 +406,9 @@ swap_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 			swp_pager_meta_build(object, 0, SWAPBLK_NONE);
 		}
 
-		sx_xunlock(&sw_alloc_sx);
+		if (sw_alloc_interlock < 0)
+			wakeup(&sw_alloc_interlock);
+		sw_alloc_interlock = 0;
 	} else {
 		object = vm_object_allocate(OBJT_DEFAULT,
 			OFF_TO_IDX(offset + PAGE_MASK + size));
@@ -478,6 +483,7 @@ swap_pager_dealloc(object)
  *
  *	This routine may not block
  *	This routine must be called at splvm().
+ *	vm_mtx should be held
  */
 
 static __inline daddr_t
@@ -486,6 +492,7 @@ swp_pager_getswapspace(npages)
 {
 	daddr_t blk;
 
+	mtx_assert(&vm_mtx, MA_OWNED);
 	if ((blk = blist_alloc(swapblist, npages)) == SWAPBLK_NONE) {
 		if (swap_pager_full != 2) {
 			printf("swap_pager_getswapspace: failed\n");
@@ -514,6 +521,7 @@ swp_pager_getswapspace(npages)
  *
  *	This routine may not block
  *	This routine must be called at splvm().
+ *	vm_mtx should be held
  */
 
 static __inline void
@@ -521,6 +529,8 @@ swp_pager_freeswapspace(blk, npages)
 	daddr_t blk;
 	int npages;
 {
+
+	mtx_assert(&vm_mtx, MA_OWNED);
 	blist_free(swapblist, blk, npages);
 	vm_swap_size += npages;
 	/* per-swap area stats */
@@ -551,6 +561,9 @@ swap_pager_freespace(object, start, size)
 	vm_size_t size;
 {
 	int s = splvm();
+	
+	mtx_assert(&vm_mtx, MA_OWNED);
+
 	swp_pager_meta_free(object, start, size);
 	splx(s);
 }
@@ -634,6 +647,8 @@ swap_pager_copy(srcobject, dstobject, offset, destroysource)
 	int s;
 
 	s = splvm();
+
+	mtx_assert(&vm_mtx, MA_OWNED);
 
 	/*
 	 * If destroysource is set, we remove the source object from the 
@@ -881,7 +896,9 @@ swap_pager_strategy(vm_object_t object, struct bio *bp)
 		 * FREE PAGE(s) - destroy underlying swap that is no longer
 		 *		  needed.
 		 */
+		mtx_lock(&vm_mtx);
 		swp_pager_meta_free(object, start, count);
+		mtx_unlock(&vm_mtx);
 		splx(s);
 		bp->bio_resid = 0;
 		biodone(bp);
@@ -892,6 +909,7 @@ swap_pager_strategy(vm_object_t object, struct bio *bp)
 	 * Execute read or write
 	 */
 
+	mtx_lock(&vm_mtx);
 	while (count > 0) {
 		daddr_t blk;
 
@@ -954,7 +972,9 @@ swap_pager_strategy(vm_object_t object, struct bio *bp)
 			bp->bio_resid -= PAGE_SIZE;
 		} else {
 			if (nbp == NULL) {
+				mtx_unlock(&vm_mtx);
 				nbp = getchainbuf(bp, swapdev_vp, B_ASYNC);
+				mtx_lock(&vm_mtx);
 				nbp->b_blkno = blk;
 				nbp->b_bcount = 0;
 				nbp->b_data = data;
@@ -985,6 +1005,7 @@ swap_pager_strategy(vm_object_t object, struct bio *bp)
 		/* nbp = NULL; */
 	}
 
+	mtx_unlock(&vm_mtx);
 	/*
 	 * Wait for completion.
 	 */
@@ -1281,6 +1302,7 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 		 * at this time.
 		 */
 		s = splvm();
+		mtx_unlock(&vm_mtx);
 		mtx_lock(&pbuf_mtx);
 		n -= nsw_wcount_async_max;
 		if (nsw_wcount_async + n >= 0) {
@@ -1289,6 +1311,7 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 			wakeup(&nsw_wcount_async);
 		}
 		mtx_unlock(&pbuf_mtx);
+		mtx_lock(&vm_mtx);
 		splx(s);
 	}
 
@@ -1399,6 +1422,8 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 		swapdev_vp->v_numoutput++;
 
 		splx(s);
+		mtx_unlock(&vm_mtx);
+		mtx_lock(&Giant);
 
 		/*
 		 * asynchronous
@@ -1410,9 +1435,12 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 			bp->b_iodone = swp_pager_async_iodone;
 			BUF_KERNPROC(bp);
 			BUF_STRATEGY(bp);
+			mtx_unlock(&Giant);
+			mtx_lock(&vm_mtx);
 
 			for (j = 0; j < n; ++j)
 				rtvals[i+j] = VM_PAGER_PEND;
+			/* restart outter loop */
 			continue;
 		}
 
@@ -1445,6 +1473,8 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 		 * normal async completion, which frees everything up.
 		 */
 
+		mtx_unlock(&Giant);
+		mtx_lock(&vm_mtx);
 		swp_pager_async_iodone(bp);
 
 		splx(s);
@@ -1732,7 +1762,8 @@ swp_pager_hash(vm_object_t object, vm_pindex_t index)
  *
  *	This routine must be called at splvm(), except when used to convert
  *	an OBJT_DEFAULT object into an OBJT_SWAP object.
-
+ *
+ *	Requires vm_mtx.
  */
 
 static void
@@ -1744,6 +1775,7 @@ swp_pager_meta_build(
 	struct swblock *swap;
 	struct swblock **pswap;
 
+	mtx_assert(&vm_mtx, MA_OWNED);
 	/*
 	 * Convert default object to swap object if necessary
 	 */
@@ -1830,12 +1862,16 @@ retry:
  *	out.  This routine does *NOT* operate on swap metadata associated
  *	with resident pages.
  *
+ * 	mv_mtx must be held
  *	This routine must be called at splvm()
  */
 
 static void
 swp_pager_meta_free(vm_object_t object, vm_pindex_t index, daddr_t count)
 {
+
+	mtx_assert(&vm_mtx, MA_OWNED);
+
 	if (object->type != OBJT_SWAP)
 		return;
 
@@ -1875,6 +1911,7 @@ swp_pager_meta_free(vm_object_t object, vm_pindex_t index, daddr_t count)
  *	an object.
  *
  *	This routine must be called at splvm()
+ *	Requires vm_mtx.
  */
 
 static void
@@ -1882,6 +1919,8 @@ swp_pager_meta_free_all(vm_object_t object)
 {
 	daddr_t index = 0;
 
+	mtx_assert(&vm_mtx, MA_OWNED);
+	
 	if (object->type != OBJT_SWAP)
 		return;
 
@@ -1930,6 +1969,7 @@ swp_pager_meta_free_all(vm_object_t object)
  *	busy page.
  *
  *	This routine must be called at splvm().
+ *	Requires vm_mtx.
  *
  *	SWM_FREE	remove and free swap block from metadata
  *	SWM_POP		remove from meta data but do not free.. pop it out
@@ -2032,18 +2072,24 @@ vm_pager_chain_iodone(struct buf *nbp)
  *	Obtain a physical buffer and chain it to its parent buffer.  When
  *	I/O completes, the parent buffer will be B_SIGNAL'd.  Errors are
  *	automatically propagated to the parent
+ *
+ *	vm_mtx can't be held
  */
 
 struct buf *
 getchainbuf(struct bio *bp, struct vnode *vp, int flags)
 {
-	struct buf *nbp = getpbuf(NULL);
-	u_int *count = (u_int *)&(bp->bio_caller1);
+	struct buf *nbp;
+	u_int *count;
+
+	mtx_assert(&vm_mtx, MA_NOTOWNED);
+	nbp = getpbuf(NULL);
+	count = (u_int *)&(bp->bio_caller1);
 
 	nbp->b_caller1 = bp;
 	++(*count);
 
-	if (*count > 4) 
+	if (*count > 4)
 		waitchainbuf(bp, 4, 0);
 
 	nbp->b_iocmd = bp->bio_cmd;
@@ -2063,6 +2109,9 @@ getchainbuf(struct bio *bp, struct vnode *vp, int flags)
 void
 flushchainbuf(struct buf *nbp)
 {
+	
+	mtx_unlock(&vm_mtx);
+	mtx_lock(&Giant);
 	if (nbp->b_bcount) {
 		nbp->b_bufsize = nbp->b_bcount;
 		if (nbp->b_iocmd == BIO_WRITE)
@@ -2072,14 +2121,19 @@ flushchainbuf(struct buf *nbp)
 	} else {
 		bufdone(nbp);
 	}
+	mtx_unlock(&Giant);
+	mtx_lock(&vm_mtx);
 }
 
-void
+static void
 waitchainbuf(struct bio *bp, int limit, int done)
 {
  	int s;
-	u_int *count = (u_int *)&(bp->bio_caller1);
+	u_int *count;
 
+	mtx_assert(&vm_mtx, MA_NOTOWNED);
+	mtx_lock(&Giant);
+	count = (u_int *)&(bp->bio_caller1);
 	s = splbio();
 	while (*count > limit) {
 		bp->bio_flags |= BIO_FLAG1;
@@ -2092,6 +2146,7 @@ waitchainbuf(struct bio *bp, int limit, int done)
 		}
 		biodone(bp);
 	}
+	mtx_unlock(&Giant);
 	splx(s);
 }
 
