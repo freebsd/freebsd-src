@@ -315,7 +315,7 @@ pca_continue(void)
 	pca_status.oldval = inb(IO_PPI) & ~0x08;
 	acquire_timer1(TIMER_LSB|TIMER_ONESHOT);
 #else
-	pca_status.oldval = inb(IO_PPI) | 0x03;
+        pca_status.oldval = inb(IO_PPI) | 0x03;
 	acquire_timer2(TIMER_LSB|TIMER_ONESHOT);
 #endif
 	acquire_timer0(INTERRUPT_RATE, pcaintr);
@@ -359,10 +359,7 @@ pcaprobe(device_t dev)
 	int error;
 
 	/* Check isapnp ids */
-	error = ISA_PNP_PROBE(device_get_parent(dev), dev, pca_ids);
-	if (error == ENXIO)
-		return ENXIO;
-	return 0;
+	return(ISA_PNP_PROBE(device_get_parent(dev), dev, pca_ids));
 }
 
 
@@ -605,7 +602,6 @@ static int
 pcapoll(dev_t dev, int events, struct thread *td)
 {
  	int s;
- 	struct proc *p1;
 	int revents = 0;
 
  	s = spltty();
@@ -614,14 +610,8 @@ pcapoll(dev_t dev, int events, struct thread *td)
  		if (!pca_status.in_use[0] || !pca_status.in_use[1] ||
  		    !pca_status.in_use[2])
  			revents |= events & (POLLOUT | POLLWRNORM);
- 		else {
-			if (pca_status.wsel.si_pid &&
-			    (p1=pfind(pca_status.wsel.si_pid))
-			    && p1->p_wchan == (caddr_t)&selwait)
-				pca_status.wsel.si_flags = SI_COLL;
-			else
-				pca_status.wsel.si_pid = td->p_pid;
-		}
+ 		else
+			selrecord(td, &pca_status.wsel);
 	}
 	splx(s);
 	return (revents);
