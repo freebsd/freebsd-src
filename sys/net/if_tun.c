@@ -66,7 +66,6 @@
 int	tundebug = 0;
 
 struct tun_softc tunctl[NTUN];
-extern int ifqmaxlen;
 
 d_open_t tunopen;
 d_close_t tunclose;

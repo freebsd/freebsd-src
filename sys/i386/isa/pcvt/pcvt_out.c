@@ -66,6 +66,9 @@
 
 #include "pcvt_hdr.h"		/* global include */
 
+extern u_short csd_ascii[];	/* pcvt_tbl.h */
+extern u_short csd_supplemental[];
+
 static void check_scroll ( struct video_state *svsp );
 static void hp_entry ( U_char ch, struct video_state *svsp );
 static void vt_coldinit ( void );
@@ -889,9 +892,6 @@ sput (u_char *s, U_char kernel, int len, int page)
 static void
 vt_coldinit(void)
 {
-	extern u_short csd_ascii[];		/* pcvt_tbl.h */
-	extern u_short csd_supplemental[];
-
 	u_short volatile *cp = Crtat + (CGA_BUF-MONO_BUF)/CHR;
 	u_short was;
 	int nscr, charset;

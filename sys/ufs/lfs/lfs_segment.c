@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_segment.c	8.5 (Berkeley) 1/4/94
- * $Id: lfs_segment.c,v 1.11 1995/05/30 08:15:22 rgrimes Exp $
+ * $Id: lfs_segment.c,v 1.12 1995/07/29 11:43:07 bde Exp $
  */
 
 #include <sys/param.h>
@@ -828,7 +828,6 @@ lfs_writeseg(fs, sp)
 	struct lfs *fs;
 	struct segment *sp;
 {
-	extern int locked_queue_count;
 	struct buf **bpp, *bp, *cbp;
 	SEGUSE *sup;
 	SEGSUM *ssp;

@@ -42,6 +42,7 @@
 #undef SB_TEST_IRQ
 
 extern int      sbc_base;
+extern int      sbc_major;
 extern int      Jazz16_detected;
 
 static int      mixer_initialized = 0;
@@ -110,7 +111,6 @@ detect_mixer (void)
 
 #endif
   int             retcode = 1;
-  extern int      sbc_major;
 
   /*
    * Detect the mixer by changing parameters of two volume channels. If the
