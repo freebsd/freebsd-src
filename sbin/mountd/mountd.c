@@ -43,7 +43,7 @@ static char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "From: @(#)mountd.c	8.8 (Berkeley) 2/20/94";*/
 static const char rcsid[] =
-	"$Id: mountd.c,v 1.7.2.1 1995/06/08 04:34:11 davidg Exp $";
+	"$Id: mountd.c,v 1.8 1995/06/11 19:30:46 rgrimes Exp $";
 #endif /*not lint*/
 
 #include <sys/param.h>
@@ -205,7 +205,7 @@ struct ucred def_anon = {
 	1,
 	{ (gid_t) -2 }
 };
-int root_only = 1;
+int resvport_only = 1;
 int opt_flags;
 /* Bits for above */
 #define	OP_MAPROOT	0x01
@@ -257,7 +257,7 @@ main(argc, argv)
 			debug = debug ? 0 : 1;
 			break;
 		case 'n':
-			root_only = 0;
+			resvport_only = 0;
 			break;
 		default:
 			fprintf(stderr, "Usage: mountd [-n] [export_file]\n");
@@ -329,6 +329,7 @@ mntsrv(rqstp, transp)
 	struct statfs fsb;
 	struct hostent *hp;
 	u_long saddr;
+	u_short sport;
 	char rpcpath[RPCMNT_PATHLEN+1], dirpath[MAXPATHLEN];
 	int bad = ENOENT, omask, defset;
 	uid_t uid = -2;
@@ -345,6 +346,7 @@ mntsrv(rqstp, transp)
 	}
 
 	saddr = transp->xp_raddr.sin_addr.s_addr;
+	sport = ntohs(transp->xp_raddr.sin_port);
 	hp = (struct hostent *)NULL;
 	switch (rqstp->rq_proc) {
 	case NULLPROC:
@@ -352,7 +354,7 @@ mntsrv(rqstp, transp)
 			syslog(LOG_ERR, "Can't send reply");
 		return;
 	case RPCMNT_MOUNT:
-		if ((uid != 0 && root_only) || uid == -2) {
+		if (sport >= IPPORT_RESERVED && resvport_only) {
 			svcerr_weakauth(transp);
 			return;
 		}
@@ -421,7 +423,7 @@ mntsrv(rqstp, transp)
 			syslog(LOG_ERR, "Can't send reply");
 		return;
 	case RPCMNT_UMOUNT:
-		if ((uid != 0 && root_only) || uid == -2) {
+		if (sport >= IPPORT_RESERVED && resvport_only) {
 			svcerr_weakauth(transp);
 			return;
 		}
@@ -437,7 +439,7 @@ mntsrv(rqstp, transp)
 		del_mlist(inet_ntoa(transp->xp_raddr.sin_addr), dirpath);
 		return;
 	case RPCMNT_UMNTALL:
-		if ((uid != 0 && root_only) || uid == -2) {
+		if (sport >= IPPORT_RESERVED && resvport_only) {
 			svcerr_weakauth(transp);
 			return;
 		}
