@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cpu.h	5.4 (Berkeley) 5/9/91
- *	$Id: cpu.h,v 1.38 1999/02/02 09:08:23 bde Exp $
+ *	$Id: cpu.h,v 1.39 1999/04/23 20:22:44 dt Exp $
  */
 
 #ifndef _MACHINE_CPU_H_
@@ -69,11 +69,11 @@
  * problem at 100 Hz but it is serious at 16000 Hz for pcaudio.  softclock()
  * can take more than 62.5 usec so clock interrupts are lost.)  It doesn't
  * check for pending interrupts being unmasked.  clkintr() and Xintr0()
- * assume that the ipl is high when hardclock() returns.  Our SWI_AST
+ * assume that the ipl is high when hardclock() returns.  Our SWI_CLOCK
  * handling is efficient enough that little is gained by calling
  * softclock() directly.
  */
-#define	CLKF_BASEPRI(framep)	(((framep)->cf_ppl & ~SWI_AST_MASK) == 0)
+#define	CLKF_BASEPRI(framep)	((framep)->cf_ppl == 0)
 #else
 #define	CLKF_BASEPRI(framep)	(0)
 #endif
@@ -102,7 +102,7 @@
  */
 #define	signotify(p)	aston()
 
-#define aston()	setsoftast()
+#define	aston()			do { astpending = 1; } while (0)
 #define astoff()
 
 /*
@@ -125,6 +125,7 @@
 }
 
 #ifdef KERNEL
+extern int	astpending;
 extern char	btext[];
 extern char	etext[];
 extern u_char	intr_nesting_level;

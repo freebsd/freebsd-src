@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.83 1999/07/03 06:33:24 alc Exp $
+ *	$Id: swtch.s,v 1.84 1999/07/09 04:15:42 jlemon Exp $
  */
 
 #include "npx.h"
@@ -310,10 +310,6 @@ _idle:
 	 *
 	 * XXX: we had damn well better be sure we had it before doing this!
 	 */
-	CPL_LOCK			/* XXX */
-	MPLOCKED andl	$~SWI_AST_MASK, _ipending 			/* XXX */
-	movl	$0, _cpl	/* XXX Allow ASTs on other CPU */
-	CPL_UNLOCK			/* XXX */
 	movl	$FREE_LOCK, %eax
 	movl	%eax, _mp_lock
 
@@ -357,18 +353,12 @@ idle_loop:
 3:
 	movl	$LOPRIO_LEVEL, lapic_tpr	/* arbitrate for INTs */
 	call	_get_mplock
-	CPL_LOCK					/* XXX */
-	movl	$SWI_AST_MASK, _cpl	/* XXX Disallow ASTs on other CPU */
-	CPL_UNLOCK					/* XXX */
 	cmpl	$0,_whichrtqs			/* real-time queue */
 	CROSSJUMP(jne, sw1a, je)
 	cmpl	$0,_whichqs			/* normal queue */
 	CROSSJUMP(jne, nortqr, je)
 	cmpl	$0,_whichidqs			/* 'idle' queue */
 	CROSSJUMP(jne, idqr, je)
-	CPL_LOCK				/* XXX */
-	movl	$0, _cpl		/* XXX Allow ASTs on other CPU */
-	CPL_UNLOCK				/* XXX */
 	call	_rel_mplock
 	jmp	idle_loop
 

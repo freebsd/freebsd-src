@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ipl_funcs.c,v 1.20 1999/05/09 23:40:29 peter Exp $
+ *	$Id: ipl_funcs.c,v 1.21 1999/06/30 03:39:29 alc Exp $
  */
 
 #include <sys/types.h>
@@ -55,7 +55,6 @@ void setdelayed(void)
 }
 #endif /* !SMP */
 
-DO_SETBITS(setsoftast,   &ipending, SWI_AST_PENDING)
 DO_SETBITS(setsoftcamnet,&ipending, SWI_CAMNET_PENDING)
 DO_SETBITS(setsoftcambio,&ipending, SWI_CAMBIO_PENDING)
 DO_SETBITS(setsoftclock, &ipending, SWI_CLOCK_PENDING)
@@ -106,8 +105,8 @@ GENSPL(splvm, cpl |= net_imask | bio_imask | cam_imask)
 void
 spl0(void)
 {
-	cpl = SWI_AST_MASK;
-	if (ipending & ~SWI_AST_MASK)
+	cpl = 0;
+	if (ipending)
 		splz();
 }
 
@@ -281,6 +280,12 @@ spl0(void)
 	for (;;) {
 		IFCPL_LOCK();
 		POSTCODE_HI(0xc);
+		/*
+		 * XXX SWI_AST_MASK in ipending has moved to 1 in astpending,
+		 * so the following code is dead, but just removing it may
+		 * not be right.
+		 */
+#if 0
 		if (cil & SWI_AST_MASK) {	/* not now */
 			IFCPL_UNLOCK();		/* allow cil to change */
 			SPIN_RESET;
@@ -288,14 +293,15 @@ spl0(void)
 				SPIN_SPL
 			continue;		/* try again */
 		}
+#endif
 		break;
 	}
 #else /* INTR_SPL */
 	IFCPL_LOCK();
 #endif /* INTR_SPL */
 
-	cpl = SWI_AST_MASK;
-	unpend = ipending & ~SWI_AST_MASK;
+	cpl = 0;
+	unpend = ipending;
 	IFCPL_UNLOCK();
 
 	if (unpend && !inside_intr)
