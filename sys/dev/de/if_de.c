@@ -53,10 +53,9 @@
 #include <sys/bus.h>
 #include <sys/rman.h>
 
-#include "opt_inet.h"
-#include "opt_ipx.h"
-
 #include <net/if.h>
+#include <net/if_arp.h>
+#include <net/ethernet.h>
 #include <net/if_media.h>
 #include <net/if_dl.h>
 #ifdef TULIP_USE_SOFTINTR
@@ -68,16 +67,6 @@
 #ifdef INET
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
-#endif
-
-#ifdef IPX
-#include <netipx/ipx.h>
-#include <netipx/ipx_if.h>
-#endif
-
-#ifdef NS
-#include <netns/ns.h>
-#include <netns/ns_if.h>
 #endif
 
 #include <vm/vm.h>
@@ -125,6 +114,7 @@ static void tulip_mii_autonegotiate(tulip_softc_t * const sc, const unsigned phy
 static void tulip_intr_shared(void *arg);
 static void tulip_intr_normal(void *arg);
 static void tulip_init(tulip_softc_t * const sc);
+static void tulip_ifinit(void *);
 static void tulip_reset(tulip_softc_t * const sc);
 static void tulip_ifstart_one(struct ifnet *ifp);
 static void tulip_ifstart(struct ifnet *ifp);
@@ -3297,6 +3287,14 @@ tulip_reset(
     tulip_addr_filter(sc);
 }
 
+
+static void
+tulip_ifinit(
+    void * sc)
+{
+	tulip_init((tulip_softc_t *)sc);
+}
+
 static void
 tulip_init(
     tulip_softc_t * const sc)
@@ -4552,7 +4550,6 @@ tulip_ifioctl(
 {
     TULIP_PERFSTART(ifioctl)
     tulip_softc_t * const sc = (tulip_softc_t *)ifp->if_softc;
-    struct ifaddr *ifa = (struct ifaddr *)data;
     struct ifreq *ifr = (struct ifreq *) data;
     int s;
     int error = 0;
@@ -4563,65 +4560,9 @@ tulip_ifioctl(
     s = splimp();
 #endif
     switch (cmd) {
-	case SIOCSIFADDR: {
-	    ifp->if_flags |= IFF_UP;
-	    switch(ifa->ifa_addr->sa_family) {
-#ifdef INET
-		case AF_INET: {
-		    tulip_init(sc);
-		    arp_ifinit(&(sc)->tulip_ac, ifa);
-		    break;
-		}
-#endif /* INET */
-
-#ifdef IPX
-		case AF_IPX: {
-		    struct ipx_addr *ina = &(IA_SIPX(ifa)->sipx_addr);
-		    if (ipx_nullhost(*ina)) {
-			ina->x_host = *(union ipx_host *)(sc->tulip_enaddr);
-		    } else {
-			ifp->if_flags &= ~IFF_RUNNING;
-			bcopy((caddr_t)ina->x_host.c_host,
-			      (caddr_t)sc->tulip_enaddr,
-			      sizeof(sc->tulip_enaddr));
-		    }
-		    tulip_init(sc);
-		    break;
-		}
-#endif /* IPX */
-
-#ifdef NS
-		/*
-		 * This magic copied from if_is.c; I don't use XNS,
-		 * so I have no way of telling if this actually
-		 * works or not.
-		 */
-		case AF_NS: {
-		    struct ns_addr *ina = &(IA_SNS(ifa)->sns_addr);
-		    if (ns_nullhost(*ina)) {
-			ina->x_host = *(union ns_host *)(sc->tulip_enaddr);
-		    } else {
-			ifp->if_flags &= ~IFF_RUNNING;
-			bcopy((caddr_t)ina->x_host.c_host,
-			      (caddr_t)sc->tulip_enaddr,
-			      sizeof(sc->tulip_enaddr));
-		    }
-		    tulip_init(sc);
-		    break;
-		}
-#endif /* NS */
-
-		default: {
-		    tulip_init(sc);
-		    break;
-		}
-	    }
-	    break;
-	}
+	case SIOCSIFADDR:
 	case SIOCGIFADDR: {
-	    bcopy((caddr_t) sc->tulip_enaddr,
-		  (caddr_t) ((struct sockaddr *)&ifr->ifr_data)->sa_data,
-		  6);
+	    error = ether_ioctl(ifp, cmd, data);
 	    break;
 	}
 
@@ -4843,6 +4784,7 @@ tulip_attach(
     ifp->if_watchdog = tulip_ifwatchdog;
     ifp->if_timer = 1;
     ifp->if_output = ether_output;
+    ifp->if_init = tulip_ifinit;
   
     printf("%s%d: %s%s pass %d.%d%s\n",
 	   sc->tulip_name, sc->tulip_unit,
