@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.184 1998/12/14 02:01:22 dillon Exp $
+#	$Id: Makefile,v 1.185 1999/01/10 14:30:41 hm Exp $
 
 SUBDIR=	sendmail
 
@@ -62,7 +62,6 @@ distribution:
 	( cd ${.CURDIR}/../usr.sbin/rmt; ${MAKE} etc-rmt ); \
 	( cd ${.CURDIR}/sendmail; ${MAKE} etc-sendmail.cf ); \
 	( cd ${.CURDIR}/isdn; ${MAKE} install );\
-	( cd ${.CURDIR}/../sys/i386/boot/biosboot; ${MAKE} install-boothelp ); \
 	pwd_mkdb -p -d ${DESTDIR}/etc ${DESTDIR}/etc/master.passwd; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 555 \
 	     MAKEDEV.local etc.${MACHINE_ARCH}/MAKEDEV ${DESTDIR}/dev )
