@@ -268,7 +268,7 @@ smp_start_secondary(int cpuid)
 void
 globaldata_register(struct globaldata *globaldata)
 {
-	cpuid_to_globaldata[globaldata->cpuid] = globaldata;
+	cpuid_to_globaldata[globaldata->gd_cpuid] = globaldata;
 }
 
 struct globaldata *
@@ -912,32 +912,13 @@ smp_ipi_self(u_int64_t ipi)
 	smp_ipi_selected(1 << PCPU_GET(cpuid), ipi);
 }
 
-static u_int64_t
-atomic_readandclear(u_int64_t* p)
-{
-    u_int64_t v, temp;
-    __asm__ __volatile__ (
-	"wmb\n"			/* ensure pending writes have drained */
-	"1:\tldq_l %0,%3\n\t"	/* load current value, asserting lock */
-	"ldiq %1,0\n\t"		/* value to store */
-	"stq_c %1,%2\n\t"	/* attempt to store */
-	"beq %1,2f\n\t"		/* if the store failed, spin */
-	"br 3f\n"		/* it worked, exit */
-	"2:\tbr 1b\n"		/* *p not updated, loop */
-	"3:\tmb\n"		/* it worked */
-	: "=&r"(v), "=&r"(temp), "=m" (*p)
-	: "m"(*p)
-	: "memory");
-    return v;
-}
-
 /*
  * Handle an IPI sent to this processor.
  */
 void
 smp_handle_ipi(struct trapframe *frame)
 {
-	u_int64_t ipis = atomic_readandclear(PCPU_PTR(pending_ipis));
+	u_int64_t ipis = atomic_readandclear_64(PCPU_PTR(pending_ipis));
 	u_int64_t ipi;
 	int cpumask;
 
@@ -970,12 +951,15 @@ smp_handle_ipi(struct trapframe *frame)
 		case IPI_CHECKSTATE:
 			CTR0(KTR_SMP, "IPI_CHECKSTATE");
 			if (frame->tf_regs[FRAME_PS] & ALPHA_PSL_USERMODE)
-				checkstate_cpustate[cpuid] = CHECKSTATE_USER;
+				checkstate_cpustate[PCPU_GET(cpuid)] =
+				    CHECKSTATE_USER;
 			else if (curproc->p_intr_nesting_level == 1)
-				checkstate_cpustate[cpuid] = CHECKSTATE_SYS;
+				checkstate_cpustate[PCPU_GET(cpuid)] =
+				    CHECKSTATE_SYS;
 			else
-				checkstate_cpustate[cpuid] = CHECKSTATE_INTR;
-			checkstate_curproc[cpuid] = PCPU_GET(curproc);
+				checkstate_cpustate[PCPU_GET(cpuid)] =
+				    CHECKSTATE_INTR;
+			checkstate_curproc[PCPU_GET(cpuid)] = curproc;
 			atomic_set_int(&checkstate_probed_cpus, cpumask);
 			break;
 
@@ -999,39 +983,3 @@ smp_handle_ipi(struct trapframe *frame)
 		alpha_mb();
 	}
 }
-
-#if 0
-
-/*
- * Atomically compare the value stored at *p with cmpval and if the
- * two values are equal, update the value of *p with newval. Returns
- * zero if the compare failed, nonzero otherwise.
- */
-u_int64_t
-atomic_cmpset_64(volatile u_int64_t* p, u_int64_t cmpval, u_int64_t newval)
-{
-	u_int64_t ret, temp;
-
-
-	printf("atomic_cmpset_64: *p=%lx, cmpval=%lx, newval=%lx\n",
-	       *p, cmpval, newval);
-	__asm __volatile (
-		"1:\tldq_l %1, %5\n\t"		/* load old value */
-		"cmpeq %1, %3, %0\n\t"		/* compare */
-		"beq %0, 2f\n\t"		/* exit if not equal */
-		"mov %4, %1\n\t"		/* value to store */
-		"stq_c %1, %2\n\t"		/* attempt to store */
-		"beq %1, 3f\n\t"		/* if it failed, spin */
-		"2:\n"				/* done */
-		".section .text3,\"ax\"\n"	/* improve branch prediction */
-		"3:\tbr 1b\n"			/* try again */
-		".previous\n"
-		: "=&r" (ret), "=r" (temp), "=m" (*p)
-		: "r" (cmpval), "r" (newval), "m" (*p)
-		: "memory");
-	printf("atomic_cmpset_64: *p=%lx\n", *p);
-
-	return ret;
-}
-
-#endif
