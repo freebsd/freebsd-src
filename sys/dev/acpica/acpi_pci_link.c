@@ -131,12 +131,16 @@ acpi_pci_link_probe(device_t dev)
 }
 
 static ACPI_STATUS
-acpi_count_resources(ACPI_RESOURCE *res, void *context)
+acpi_count_irq_resources(ACPI_RESOURCE *res, void *context)
 {
 	int *count;
 
 	count = (int *)context;
-	(*count)++;
+	switch (res->Id) {
+	case ACPI_RSTYPE_IRQ:
+	case ACPI_RSTYPE_EXT_IRQ:
+		(*count)++;
+	}
 	return (AE_OK);
 }
 
@@ -148,11 +152,13 @@ link_add_crs(ACPI_RESOURCE *res, void *context)
 
 	ACPI_SERIAL_ASSERT(pci_link);
 	req = (struct link_res_request *)context;
-	link = &req->sc->pl_links[req->count];
-	req->count++;
 	switch (res->Id) {
 	case ACPI_RSTYPE_IRQ:
 	case ACPI_RSTYPE_EXT_IRQ:
+		KASSERT(req->count < req->sc->pl_num_links,
+			("link_add_crs: array boundary violation"));
+		link = &req->sc->pl_links[req->count];
+		req->count++;
 		if (res->Id == ACPI_RSTYPE_IRQ) {
 			if (res->Data.Irq.NumberOfInterrupts > 0) {
 				KASSERT(res->Data.Irq.NumberOfInterrupts == 1,
@@ -188,11 +194,13 @@ link_add_prs(ACPI_RESOURCE *res, void *context)
 
 	ACPI_SERIAL_ASSERT(pci_link);
 	req = (struct link_res_request *)context;
-	link = &req->sc->pl_links[req->count];
-	req->count++;
 	switch (res->Id) {
 	case ACPI_RSTYPE_IRQ:
 	case ACPI_RSTYPE_EXT_IRQ:
+		KASSERT(req->count < req->sc->pl_num_links,
+			("link_add_prs: array boundary violation"));
+		link = &req->sc->pl_links[req->count];
+		req->count++;
 
 		/*
 		 * Stash a copy of the resource for later use when doing
@@ -220,7 +228,7 @@ link_add_prs(ACPI_RESOURCE *res, void *context)
 		    M_PCI_LINK, M_WAITOK | M_ZERO);
 		for (i = 0; i < link->l_num_irqs; i++) {
 			link->l_irqs[i] = irqs[i];
-			if (irqs[1] >= NUM_ISA_INTERRUPTS)
+			if (irqs[i] >= NUM_ISA_INTERRUPTS)
 				link->l_isa_irq = 0;
 		}
 		break;
@@ -283,6 +291,7 @@ acpi_pci_link_attach(device_t dev)
 	struct link_res_request req;
 	ACPI_STATUS status;
 	int i;
+	int prslinks;
 
 	sc = device_get_softc(dev);
 	ACPI_SERIAL_BEGIN(pci_link);
@@ -292,11 +301,24 @@ acpi_pci_link_attach(device_t dev)
 	 * a link array to allocate.
 	 */
 	status = AcpiWalkResources(acpi_get_handle(dev), "_CRS",
-	    acpi_count_resources, &sc->pl_num_links);
+	    acpi_count_irq_resources, &sc->pl_num_links);
 	if (ACPI_FAILURE(status))
 		return (ENXIO);
 	if (sc->pl_num_links == 0)
 		return (0);
+
+	/*
+	 * Try to make the number of resources sufficiently large
+	 * for traversal of both _PRS and _CRS.
+	 *
+	 * XXX Temporary fix for out-of-bounds access in prs_add_links().
+	 * We really need to handle these in separate arrays.  -- njl
+	 */
+	prslinks = 0;
+	status = AcpiWalkResources(acpi_get_handle(dev), "_PRS",
+	    acpi_count_irq_resources, &prslinks);
+	if (prslinks > sc->pl_num_links)
+		sc->pl_num_links = prslinks;
 	sc->pl_links = malloc(sizeof(struct link) * sc->pl_num_links,
 	    M_PCI_LINK, M_WAITOK | M_ZERO);
 
