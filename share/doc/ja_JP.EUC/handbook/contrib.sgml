@@ -1,6 +1,6 @@
-<!-- $Id: contrib.sgml,v 1.35 1997/02/25 09:31:39 hanai Exp $ -->
+<!-- $Id: contrib.sgml,v 1.36 1997/02/27 05:07:34 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.219 -->
+<!-- Original revision: 1.222 -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
      in sync with the list of FreeBSD Developers -->
@@ -286,6 +286,7 @@
 	  <item>Ikuo Nakagawa &lt;ikuo@isl.intec.co.jp&gt;
 	  <item>IMAMURA Tomoaki &lt;tomoak-i@is.aist-nara.ac.jp&gt;
 	  <item>Ishii Masahiro &lt;?&gt;
+          <item>Itsuro Saito &lt;saito@miv.t.u-tokyo.ac.jp&gt;
 	  <item>J.T. Conklin &lt;jtc@cygnus.com&gt;
 	  <item>James Clark &lt;jjc@jclark.com&gt;
 	  <item>James da Silva &lt;jds@cs.umd.edu&gt; et al
@@ -319,9 +320,11 @@
 	  <item>Lars Koeller &lt;Lars_Koeller@odie.physik2.uni-rostock.de&gt;
 	  <item>Lucas James &lt;Lucas.James@ldjpc.apana.org.au&gt;
 	  <item>Luigi Rizzo &lt;luigi@iet.unipi.it&gt;
+          <item>Makoto Matsushita &lt;matusita@ics.es.osaka-u.ac.jp&gt;
 	  <item>Manu Iyengar &lt;iyengar@grunthos.pscwa.psca.com&gt;
 	  <item>Marc Frajola &lt;marc@dev.com&gt;
-	  <item>Marc Ramirez &lt;mrami@mramirez.sy.yale.edu
+	  <item>Marc Ramirez &lt;mrami@mramirez.sy.yale.edu&gt;
+          <item>Marc Slemko &lt;marcs@znep.com&gt;
 	  <item>Marc van Kempen &lt;wmbfmk@urc.tue.nl&gt;
 	  <item>Mark Huizer &lt;xaa@stack.nl&gt;
 	  <item>Mark J. Taylor &lt;mtaylor@cybernet.com&gt;
@@ -378,6 +381,7 @@
 	  <item>Scott Blachowicz &lt;scott@sabami.seaslug.org&gt;
 	  <item>Serge V. Vakulenko &lt;vak@zebub.msk.su&gt;
 	  <item>Simon Marlow &lt;simonm@dcs.gla.ac.uk&gt;
+          <item>Slaven Rezi (Tomi) &lt;eserte@cs.tu-berlin.de&gt;
 	  <item>Soren Dayton &lt;csdayton@midway.uchicago.edu&gt;
 	  <item>Stefan Moeding &lt;moeding@bn.DeTeMobil.de&gt;
 	  <item>Steve Gerakines &lt;steve2@genesis.tiac.net&gt;
