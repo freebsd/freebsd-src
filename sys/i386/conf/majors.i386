@@ -1,4 +1,4 @@
-$Id: majors.i386,v 1.54 1998/12/02 21:26:11 jkh Exp $
+$Id: majors.i386,v 1.55 1998/12/03 08:32:49 jkh Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -32,7 +32,7 @@ blkdev	name		comments
 16	scd		Sony CDROM interface
 17	matcd		Matsushita/Panasonic/Creative(SB) CDROM interface
 18	ata		"device independent" ATA/IDE driver
-19	wcdb		ATAPI CDROM client of "ata"
+19	acdb		ATAPI CDROM client of "ata"
 21	ccd		concatenated disk
 22	gd		Geometry disk.
 24	wstb		ATAPI tape client of "ata"
