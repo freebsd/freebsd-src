@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.64 1996/09/08 22:09:06 roberto Exp $
+<date> $Id: freebsd-faq.sgml,v 1.65 1996/09/08 22:12:40 roberto Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -1116,6 +1116,7 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
               NE2000 and 1000<newline>
               WD/SMC 8003, 8013 and Elite Ultra (8216)<newline>
               3Com 3c503 <newline>
+              HP 27247B and 27252A <newline>
               And clones of the above <newline>
             <tag/``le'' driver/
               DEC EtherWORKS II and EtherWORKS III controllers. <newline>
