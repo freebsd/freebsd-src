@@ -458,7 +458,8 @@ startup()
 			 j++) {
 			if (strcmp(spooldir, spooldirs[j]) == 0) {
 				syslog(LOG_ERR,
-					"startup: duplicate spool directories");
+					"startup: duplicate spool directories: %s",
+					spooldir);
 				mcleanup(0);
 			}
 		}
