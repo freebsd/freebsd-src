@@ -1,4 +1,8 @@
 INFO = gdb gdbint stabs annotate
-MAKEINFOFLAGS += -I ${.CURDIR}/../../../../contrib/libreadline/doc
+
+INFOSECTION= "Gdb Documentation"
+INFOENTRY_annotate= "* GDB annotation: (annotate).	Annotations for the GNU Debugger (GDB)."
+
+MAKEINFOFLAGS += -I ${.CURDIR}/../../../lib/libreadline/doc
 
 .include <bsd.info.mk>
