@@ -92,7 +92,7 @@ null_ioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct thread *td)
 	int error;
 
 	if (cmd != DIOCSKERNELDUMP)
-		return (noioctl(dev, cmd, data, flags, td));
+		return (ENOIOCTL);
 	error = suser(td);
 	if (error)
 		return (error);
