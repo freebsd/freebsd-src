@@ -230,8 +230,8 @@ dev_pager_getpages(object, m, count, reqpage)
 		 * If the passed in reqpage page is a fake page, update it with
 		 * the new physical address.
 		 */
-		dev_pager_updatefake(m[reqpage], paddr);
 		VM_OBJECT_LOCK(object);
+		dev_pager_updatefake(m[reqpage], paddr);
 		if (count > 1) {
 			vm_page_lock_queues();
 			for (i = 0; i < count; i++) {
@@ -323,4 +323,5 @@ dev_pager_updatefake(m, paddr)
 	if (!(m->flags & PG_FICTITIOUS))
 		panic("dev_pager_updatefake: bad page");
 	m->phys_addr = paddr;
+	m->valid = VM_PAGE_BITS_ALL;
 }
