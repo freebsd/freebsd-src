@@ -178,6 +178,8 @@ chrdev	name		comments
 160	spic		Sony Programmable I/O Controller (jogdial)
 161	swdoc		Sitara networks watchdog device
 162	digi		Digiboard
+163	gdt		ICP Vortex RAID controller
+164	src		Intel SRC RAID controller
 200	??		entries from 200-252 are reserved for local use
 252	??		entries from 200-252 are reserved for local use
 254	internal	Used internally by the kernel
