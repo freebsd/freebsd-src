@@ -107,7 +107,7 @@ cardbus_add_map(device_t cbdev, device_t child, int reg)
 	uint32_t testval;
 	int type;
 
-	SLIST_FOREACH(rle, &dinfo->pci.resources, link) {
+	STAILQ_FOREACH(rle, &dinfo->pci.resources, link) {
 		if (rle->rid == reg)
 			return;
 	}
@@ -179,7 +179,7 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 	int rid, flags;
 
 	count = 0;
-	SLIST_FOREACH(rle, &dinfo->pci.resources, link) {
+	STAILQ_FOREACH(rle, &dinfo->pci.resources, link) {
 		count++;
 	}
 	if (count == 0)
@@ -187,7 +187,7 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 	barlist = malloc(sizeof(struct resource_list_entry*) * count, M_DEVBUF,
 	    M_WAITOK);
 	count = 0;
-	SLIST_FOREACH(rle, &dinfo->pci.resources, link) {
+	STAILQ_FOREACH(rle, &dinfo->pci.resources, link) {
 		barlist[count] = rle;
 		if (rle->type == SYS_RES_IOPORT) {
 			io_size += rle->count;
@@ -561,7 +561,7 @@ cardbus_release_all_resources(device_t cbdev, struct cardbus_devinfo *dinfo)
 	struct resource_list_entry *rle;
 
 	/* Free all allocated resources */
-	SLIST_FOREACH(rle, &dinfo->pci.resources, link) {
+	STAILQ_FOREACH(rle, &dinfo->pci.resources, link) {
 		if (rle->res) {
 			if (rman_get_device(rle->res) != cbdev)
 				device_printf(cbdev, "release_all_resource: "
