@@ -338,6 +338,7 @@ g_raid3_ctl_insert(struct gctl_req *req, struct g_class *mp)
 	struct g_consumer *cp;
 	const char *name;
 	u_char *sector;
+	off_t compsize;
 	intmax_t *no;
 	int *hardcode, *nargs, error;
 
@@ -390,15 +391,22 @@ g_raid3_ctl_insert(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "Invalid provider.");
 		return;
 	}
-	if ((sc->sc_mediasize / (sc->sc_ndisks - 1)) > pp->mediasize) {
-		gctl_error(req, "Provider %s too small.", pp->name);
-		return;
-	}
 	if (((sc->sc_sectorsize / (sc->sc_ndisks - 1)) % pp->sectorsize) != 0) {
 		gctl_error(req,
 		    "Cannot insert provider %s, because of its sector size.",
 		    pp->name);
 		return;
+	}
+	compsize = sc->sc_mediasize / (sc->sc_ndisks - 1);
+	if (compsize > pp->mediasize - pp->sectorsize) {
+		gctl_error(req, "Provider %s too small.", pp->name);
+		return;
+	}
+	if (compsize < pp->mediasize - pp->sectorsize) {
+		gctl_error(req,
+		    "warning: %s: only %jd bytes from %jd bytes used.",
+		    pp->name, (intmax_t)compsize,
+		    (intmax_t)(pp->mediasize - pp->sectorsize));
 	}
 	gp = g_new_geomf(mp, "raid3:insert");
 	gp->orphan = g_raid3_ctl_insert_orphan;
