@@ -82,7 +82,7 @@ options 	ATA_STATIC_ID		#Static device numbering
 # SCSI Controllers
 device		ahb		# EISA AHA1742 family
 device		ahc		# AHA2940 and onboard AIC7xxx devices
-device		amd		# AMD 53C974 (Teckram DC-390(T))
+device		amd		# AMD 53C974 (Tekram DC-390(T))
 device		isp		# Qlogic family
 device		ncr		# NCR/Symbios Logic
 device		sym		# NCR/Symbios Logic (newer chipsets)
@@ -192,14 +192,14 @@ device		ex
 device		ep
 device		fe0	at isa? port 0x300
 # WaveLAN/IEEE 802.11 wireless NICs. Note: the WaveLAN/IEEE really
-# exists only as a PCMCIA device, so there is no ISA attatement needed
+# exists only as a PCMCIA device, so there is no ISA attachment needed
 # and resources will always be dynamically assigned by the pccard code.
 device		wi
 # Aironet 4500/4800 802.11 wireless NICs. Note: the declaration below will
 # work for PCMCIA and PCI cards, as well as ISA cards set to ISA PnP
 # mode (the factory default). If you set the switches on your ISA
 # card for a manually chosen I/O address and IRQ, you must specify
-# those paremeters here.
+# those parameters here.
 device		an
 # Xircom Ethernet
 device		xe
@@ -210,7 +210,7 @@ device		lnc0	at isa? port 0x280 irq 10 drq 0
 device		cs0	at isa? port 0x300
 device		sn0	at isa? port 0x300 irq 10
 
-# Pseudo devices - the number indicates how many units to allocated.
+# Pseudo devices - the number indicates how many units to allocate.
 pseudo-device	loop		# Network loopback
 pseudo-device	ether		# Ethernet support
 pseudo-device	sl	1	# Kernel SLIP
