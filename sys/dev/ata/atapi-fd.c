@@ -413,14 +413,10 @@ afd_eject(struct afd_softc *fdp, int close)
 static int
 afd_start_stop(struct afd_softc *fdp, int start)
 {
-    int8_t ccb[16] = { ATAPI_START_STOP, 0x01, 0, 0, start,
+    int8_t ccb[16] = { ATAPI_START_STOP, 0, 0, 0, start,
 		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-    int error;
 
-    error = atapi_queue_cmd(fdp->atp, ccb, NULL, 0, 0, 10, NULL, NULL);
-    if (error)
-	return error;
-    return atapi_wait_ready(fdp->atp, 30);
+    return atapi_queue_cmd(fdp->atp, ccb, NULL, 0, 0, 30, NULL, NULL);
 }
 
 static int
