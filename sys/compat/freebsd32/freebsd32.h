@@ -75,6 +75,8 @@ struct rusage32 {
 	int32_t	ru_nivcsw;
 };
 
+#define FREEBSD32_MNAMELEN        (88 - 2 * sizeof(int32_t)) /* size of on/from name bufs */
+
 struct statfs32 {
 	int32_t	f_spare2;
 	int32_t	f_bsize;
@@ -91,12 +93,12 @@ struct statfs32 {
 	int32_t	f_syncwrites;
 	int32_t	f_asyncwrites;
 	char	f_fstypename[MFSNAMELEN];
-	char	f_mntonname[MNAMELEN];
+	char	f_mntonname[FREEBSD32_MNAMELEN];
 	int32_t	f_syncreads;
 	int32_t	f_asyncreads;
 	int16_t	f_spares1;
-	char	f_mntfromname[MNAMELEN];
-	int16_t	f_spares2;
+	char	f_mntfromname[FREEBSD32_MNAMELEN];
+	int16_t	f_spares2 __packed;
 	int32_t f_spare[2];
 };
 
