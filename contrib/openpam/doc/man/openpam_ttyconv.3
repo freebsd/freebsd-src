@@ -31,9 +31,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/openpam/doc/man/openpam_ttyconv.3#9 $
+.\" $P4: //depot/projects/openpam/doc/man/openpam_ttyconv.3#10 $
 .\"
-.Dd May 2, 2002
+.Dd May 24, 2002
 .Dt OPENPAM_TTYCONV 3
 .Os
 .Sh NAME
@@ -47,7 +47,19 @@
 .Ft int
 .Fn openpam_ttyconv "int n" "const struct pam_message **msg" "struct pam_response **resp" "void *data"
 .Sh DESCRIPTION
-No description available.
+The
+.Nm
+function is a standard conversation function
+suitable for use on TTY devices.  It should be adequate for the needs
+of most text-based interactive programs.
+.Pp
+The
+.Nm
+function allows the application to specify a
+timeout for user input by setting the global variable
+.Va openpam_ttyconv_timeout
+to the length of the timeout in seconds.
+.Pp
 .Sh RETURN VALUES
 The
 .Nm
@@ -61,8 +73,11 @@ Conversation failure.
 System error.
 .El
 .Sh SEE ALSO
+.Xr openpam_nullconv 3 ,
 .Xr pam 3 ,
-.Xr pam_strerror 3
+.Xr pam_prompt 3 ,
+.Xr pam_strerror 3 ,
+.Xr pam_vprompt 3
 .Sh STANDARDS
 The
 .Nm
