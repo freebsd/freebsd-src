@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: os.c,v 1.3 1995/05/30 03:50:52 rgrimes Exp $
+ * $Id: os.c,v 1.3.4.1 1996/02/05 17:03:14 dfr Exp $
  *
  */
 #include "fsm.h"
@@ -92,8 +92,10 @@ int updown;
     /*
      * If given addresses are alreay set, then ignore this request.
      */
-    if (oldmine.s_addr == myaddr.s_addr && oldhis.s_addr == hisaddr.s_addr)
+    if (oldmine.s_addr == myaddr.s_addr && oldhis.s_addr == hisaddr.s_addr) {
+      close(s);
       return(0);
+    }
     /*
      * If different address has been set, then delete it first.
      */
