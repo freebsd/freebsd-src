@@ -507,8 +507,8 @@ iface_Show(struct cmdargs const *arg)
                     if_flags[f].value);
       flags &= ~if_flags[f].flag;
     }
-  prompt_Printf(arg->prompt, "> has %d address%s:\n", iface->in_addrs,
-                iface->in_addrs == 1 ? "" : "es");
+  prompt_Printf(arg->prompt, "> mtu %d has %d address%s:\n", arg->bundle->mtu,
+                iface->in_addrs, iface->in_addrs == 1 ? "" : "es");
 
   for (f = 0; f < iface->in_addrs; f++) {
     prompt_Printf(arg->prompt, "  %s", inet_ntoa(iface->in_addr[f].ifa));
