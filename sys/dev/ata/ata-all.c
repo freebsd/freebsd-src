@@ -276,6 +276,8 @@ ata_pci_match(device_t dev)
 	    return "VIA 82C596 ATA66 controller";
 	if (ata_find_dev(dev, 0x05961106, 0))
 	    return "VIA 82C596 ATA33 controller";
+	if (ata_find_dev(dev, 0x06861106, 0x40))
+	    return "VIA 82C686 ATA100 controller";
 	if (ata_find_dev(dev, 0x06861106, 0))
 	    return "VIA 82C686 ATA66 controller";
 	return "VIA Apollo ATA controller";
@@ -450,6 +452,7 @@ ata_pci_attach(device_t dev)
 
     case 0x05711106:
     case 0x74091022: /* VIA 82C586, 82C596, 82C686 & AMD 756 default setup */
+
 	/* set prefetch, postwrite */
 	pci_write_config(dev, 0x41, pci_read_config(dev, 0x41, 1) | 0xf0, 1);
 
