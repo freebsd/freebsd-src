@@ -725,9 +725,9 @@ VarGetPattern(VarParser *vp, int delim, int *flags, VarPattern *patt)
 					vp->ptr++;
 				}
 			} else {
-				char   *cp;
-				size_t  len;
-				Boolean freeIt;
+				char   *rval;
+				size_t  rlen;
+				Boolean rfree;
 
 				/*
 				 * If unescaped dollar sign not
@@ -735,12 +735,12 @@ VarGetPattern(VarParser *vp, int delim, int *flags, VarPattern *patt)
 				 * a variable substitution and
 				 * recurse.
 				 */
-				len = 0;
-				cp = Var_Parse(vp->ptr, vp->ctxt, vp->err, &len, &freeIt);
-				Buf_Append(buf, cp);
-				if (freeIt)
-					free(cp);
-				vp->ptr += len;
+				rlen = 0;
+				rval = Var_Parse(vp->ptr, vp->ctxt, vp->err, &rlen, &rfree);
+				Buf_Append(buf, rval);
+				if (rfree)
+					free(rval);
+				vp->ptr += rlen;
 			}
 		} else if (vp->ptr[0] == '&' && patt != NULL) {
 			Buf_AppendBuf(buf, patt->lhs);
@@ -1516,8 +1516,7 @@ VarParseLong(VarParser *vp, Boolean *freeResult)
 			char	*rval;
 
 			rlen = 0;
-			rval = Var_Parse(vp->ptr, vp->ctxt, vp->err,
-			    &rlen, &rfree);
+			rval = Var_Parse(vp->ptr, vp->ctxt, vp->err, &rlen, &rfree);
 			if (rval == var_Error) {
 				Fatal("Error expanding embedded variable.");
 			}
@@ -1662,7 +1661,7 @@ Var_Parse(const char input[], GNode *ctxt, Boolean err,
  *-----------------------------------------------------------------------
  * Var_Subst  --
  *	Substitute for all variables in the given string in the given context
- *	If undefErr is TRUE, Parse_Error will be called when an undefined
+ *	If err is TRUE, Parse_Error will be called when an undefined
  *	variable is encountered.
  *
  * Results:
@@ -1673,7 +1672,7 @@ Var_Parse(const char input[], GNode *ctxt, Boolean err,
  *-----------------------------------------------------------------------
  */
 Buffer *
-Var_Subst(const char *var, const char *str, GNode *ctxt, Boolean undefErr)
+Var_Subst(const char *var, const char *str, GNode *ctxt, Boolean err)
 {
 	Boolean errorReported;
 	Buffer *buf;		/* Buffer for forming things */
@@ -1698,9 +1697,9 @@ Var_Subst(const char *var, const char *str, GNode *ctxt, Boolean undefErr)
 			str += 2;
 
 		} else if (str[0] == '$') {
-			char   *val;	/* Value to substitute for a variable */
-			size_t  length;	/* Length of the variable invocation */
-			Boolean doFree;	/* Set true if val should be freed */
+			char	*rval;
+			size_t	rlen;
+			Boolean	rfree;
 
 			/*
 			 * Variable invocation.
@@ -1771,8 +1770,8 @@ Var_Subst(const char *var, const char *str, GNode *ctxt, Boolean undefErr)
 				if (!expand)
 					continue;
 			}
-			length = 0;
-			val = Var_Parse(str, ctxt, undefErr, &length, &doFree);
+			rlen = 0;
+			rval = Var_Parse(str, ctxt, err, &rlen, &rfree);
 
 			/*
 			 * When we come down here, val should either point to
@@ -1781,7 +1780,7 @@ Var_Subst(const char *var, const char *str, GNode *ctxt, Boolean undefErr)
 			 * potential variable invocation (from $ to end
 			 * character...)
 			 */
-			if (val == var_Error || val == varNoError) {
+			if (rval == var_Error || rval == varNoError) {
 				/*
 				 * If performing old-time variable
 				 * substitution, skip over the variable and
@@ -1790,8 +1789,8 @@ Var_Subst(const char *var, const char *str, GNode *ctxt, Boolean undefErr)
 				 * we continue with the string...
 				 */
 				if (oldVars) {
-					str += length;
-				} else if (undefErr) {
+					str += rlen;
+				} else if (err) {
 					/*
 					 * If variable is undefined, complain
 					 * and skip the variable. The
@@ -1800,9 +1799,9 @@ Var_Subst(const char *var, const char *str, GNode *ctxt, Boolean undefErr)
 					 */
 					if (!errorReported) {
 						Parse_Error(PARSE_FATAL,
-							    "Undefined variable \"%.*s\"", length, str);
+							    "Undefined variable \"%.*s\"", rlen, str);
 					}
-					str += length;
+					str += rlen;
 					errorReported = TRUE;
 				} else {
 					Buf_AddByte(buf, (Byte)*str);
@@ -1814,15 +1813,15 @@ Var_Subst(const char *var, const char *str, GNode *ctxt, Boolean undefErr)
 				 * store in. But first, advance the string
 				 * pointer.
 				 */
-				str += length;
+				str += rlen;
 
 				/*
 				 * Copy all the characters from the variable
 				 * value straight into the new string.
 				 */
-				Buf_Append(buf, val);
-				if (doFree) {
-					free(val);
+				Buf_Append(buf, rval);
+				if (rfree) {
+					free(rval);
 				}
 			}
 		} else {
