@@ -81,9 +81,12 @@
 #define	MIN(a,b)	(((a)<(b))?(a):(b))
 #endif
 
+#if !defined(__FreeBSD_version) || (__FreeBSD_version < 220000)
 extern	int	lkmenodev __P((void));
-
+#endif
+#if defined(__FreeBSD_version) && (__FreeBSD_version < 220000)
 int	xxxinit __P((struct lkm_table *, int, int));
+#endif
 
 #ifdef  SYSCTL_INT
 SYSCTL_DECL(_net_inet);
