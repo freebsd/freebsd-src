@@ -163,13 +163,6 @@ struct vnode {
 
 /* XXX: These are temporary to avoid a source sweep at this time */
 #define v_object	v_bufobj.bo_object
-#define v_cleanblkhd	v_bufobj.bo_clean.bv_hd
-#define v_cleanblkroot	v_bufobj.bo_clean.bv_root
-#define v_cleanbufcnt	v_bufobj.bo_clean.bv_cnt
-#define v_dirtyblkhd	v_bufobj.bo_dirty.bv_hd
-#define v_dirtyblkroot	v_bufobj.bo_dirty.bv_root
-#define v_dirtybufcnt	v_bufobj.bo_dirty.bv_cnt
-#define v_numoutput	v_bufobj.bo_numoutput
 
 /*
  * Userland version of struct vnode, for sysctl.

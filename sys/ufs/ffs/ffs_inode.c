@@ -483,8 +483,8 @@ done:
 	VI_LOCK(ovp);
 	if (length == 0 &&
 	    (fs->fs_magic != FS_UFS2_MAGIC || oip->i_din2->di_extsize == 0) &&
-	    (!TAILQ_EMPTY(&ovp->v_dirtyblkhd) ||
-	     !TAILQ_EMPTY(&ovp->v_cleanblkhd)))
+	    (vp->v_bufobj.bo_dirty.bv_cnt > 0 ||
+	     vp->v_bufobj.bo_clean.bv_cnt > 0))
 		panic("ffs_truncate3");
 	VI_UNLOCK(ovp);
 #endif /* DIAGNOSTIC */

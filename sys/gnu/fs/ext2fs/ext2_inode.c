@@ -326,8 +326,8 @@ done:
 		if (newblks[i] != oip->i_db[i])
 			panic("itrunc2");
 	VI_LOCK(ovp);
-	if (length == 0 && (!TAILQ_EMPTY(&ovp->v_dirtyblkhd) ||
-			    !TAILQ_EMPTY(&ovp->v_cleanblkhd)))
+	if (length == 0 && (ovp->v_bufobj.bo_dirty.bv_cnt != 0 ||
+	    ovp->v_bufobj.bo_clean.bv_cnt != 0))
 		panic("itrunc3");
 	VI_UNLOCK(ovp);
 #endif /* DIAGNOSTIC */

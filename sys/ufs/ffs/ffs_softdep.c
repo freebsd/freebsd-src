@@ -2068,7 +2068,7 @@ softdep_setup_freeblocks(ip, length, flags)
 	VI_LOCK(vp);
 	drain_output(vp, 1);
 restart:
-	TAILQ_FOREACH(bp, &vp->v_dirtyblkhd, b_bobufs) {
+	TAILQ_FOREACH(bp, &vp->v_bufobj.bo_dirty.bv_hd, b_bobufs) {
 		if (((flags & IO_EXT) == 0 && (bp->b_xflags & BX_ALTDATA)) ||
 		    ((flags & IO_NORMAL) == 0 &&
 		      (bp->b_xflags & BX_ALTDATA) == 0))
@@ -4924,8 +4924,7 @@ softdep_fsync_mountdev(vp)
 		panic("softdep_fsync_mountdev: vnode not a disk");
 	ACQUIRE_LOCK(&lk);
 	VI_LOCK(vp);
-	for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
-		nbp = TAILQ_NEXT(bp, b_bobufs);
+	TAILQ_FOREACH_SAFE(bp, &vp->v_bufobj.bo_dirty.bv_hd, b_bobufs, nbp) {
 		/* 
 		 * If it is already scheduled, skip to the next buffer.
 		 */
@@ -4956,7 +4955,7 @@ softdep_fsync_mountdev(vp)
 		 * to start from a known point.
 		 */
 		VI_LOCK(vp);
-		nbp = TAILQ_FIRST(&vp->v_dirtyblkhd);
+		nbp = TAILQ_FIRST(&vp->v_bufobj.bo_dirty.bv_hd);
 	}
 	drain_output(vp, 1);
 	VI_UNLOCK(vp);
@@ -5030,7 +5029,7 @@ top:
 	 */
 	VI_LOCK(vp);
 	drain_output(vp, 1);
-	bp = getdirtybuf(&TAILQ_FIRST(&vp->v_dirtyblkhd),
+	bp = getdirtybuf(&TAILQ_FIRST(&vp->v_bufobj.bo_dirty.bv_hd),
 	    VI_MTX(vp), MNT_WAIT);
 	if (bp == NULL) {
 		VI_UNLOCK(vp);
@@ -5217,7 +5216,7 @@ loop:
 	 */
 	VI_LOCK(vp);
 	drain_output(vp, 1);
-	if (TAILQ_FIRST(&vp->v_dirtyblkhd) == NULL) {
+	if (vp->v_bufobj.bo_dirty.bv_cnt == 0) {
 		VI_UNLOCK(vp);
 		FREE_LOCK(&lk);
 		return (0);
