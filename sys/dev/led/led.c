@@ -52,7 +52,7 @@ led_timeout(void *p)
 			sc->count--;
 			continue;
 		}
-		sc->func(sc->private, sc->ptr[0] >= 'a' ? 1 : 0);
+		sc->func(sc->private, sc->ptr[0] >= 'a' ? 0 : 1);
 		sc->count = sc->ptr[0] & 0xf;
 		if (*(++sc->ptr) == '\0')
 			sc->ptr = sc->str;
@@ -121,7 +121,7 @@ led_write(dev_t dev, struct uio *uio, int ioflag)
 				i = s[1] - '1';
 			else
 				i = 0;
-			sbuf_printf(sb, "%c%c", 'a' + i, 'A' + i);
+			sbuf_printf(sb, "%c%c", 'A' + i, 'a' + i);
 			break;
 		/*
 		 * Digits, flashes out numbers.
@@ -135,15 +135,15 @@ led_write(dev_t dev, struct uio *uio, int ioflag)
 				if (i == 0)
 					i = 10;
 				for (; i > 1; i--) 
-					sbuf_cat(sb, "aA");
-				sbuf_cat(sb, "aJ");
+					sbuf_cat(sb, "Aa");
+				sbuf_cat(sb, "Aj");
 			}
-			sbuf_cat(sb, "JJ");
+			sbuf_cat(sb, "jj");
 			break;
 		/*
 		 * String, roll your own.
-		 * 'A-J' gives "off" for n/10 sec.
-		 * 'a-j' gives "on" for n/10 sec.
+		 * 'a-j' gives "off" for n/10 sec.
+		 * 'A-J' gives "on" for n/10 sec.
 		 * no delay before repeat
 		 * 'sAaAbBa' becomes _-_--__-
 		 */
@@ -168,15 +168,15 @@ led_write(dev_t dev, struct uio *uio, int ioflag)
 		case 'm':
 			for(s++; *s; s++) {
 				if (*s == '.')
-					sbuf_cat(sb, "Aa");
+					sbuf_cat(sb, "aA");
 				else if (*s == '-')
-					sbuf_cat(sb, "Ac");
+					sbuf_cat(sb, "aC");
 				else if (*s == ' ')
-					sbuf_cat(sb, "B");
+					sbuf_cat(sb, "b");
 				else if (*s == '\n')
-					sbuf_cat(sb, "D");
+					sbuf_cat(sb, "d");
 			}
-			sbuf_cat(sb, "J");
+			sbuf_cat(sb, "j");
 			break;
 		default:
 			break;
