@@ -623,7 +623,7 @@ options 	NFS			#Network File System
 options 	CD9660			#ISO 9660 filesystem
 options 	FDESC			#File descriptor filesystem
 options 	KERNFS			#Kernel filesystem
-options 	MSDOSFS			#MS DOS File System
+options 	MSDOSFS			#MS DOS File System (FAT, FAT32)
 options 	NTFS			#NT File System
 options 	NULLFS			#NULL filesystem
 options 	NWFS			#NetWare filesystem
@@ -644,8 +644,8 @@ options 	DEVFS			#devices filesystem
 # to copyright restraints on the code that implement it.
 #
 # Read ../../ufs/ffs/README.softupdates to learn what you need to
-# do to enable this.  ../../contrib/softupdates/README gives
-# more details on how they actually work.
+# do to enable this.  ../../ufs/ffs/README gives more details on how they
+# actually work.
 #
 #options 	SOFTUPDATES
 
