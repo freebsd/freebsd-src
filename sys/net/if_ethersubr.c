@@ -1082,6 +1082,9 @@ ngether_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 
 	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING))
 		senderr(ENETDOWN);
+	/* drop in the MAC address */
+	eh = mtod(m, struct ether_header *);
+	bcopy(IFP2AC(ifp)->ac_enaddr, eh->ether_shost, 6);
 	/*
 	 * If a simplex interface, and the packet is being sent to our
 	 * Ethernet address or a broadcast address, loopback a copy.
@@ -1092,7 +1095,6 @@ ngether_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 	 * reasons and compatibility with the original behavior.
 	 */
 	if (ifp->if_flags & IFF_SIMPLEX) {
-		eh = mtod(m, struct ether_header *);
 		if (m->m_flags & M_BCAST) {
 			struct mbuf *n = m_copy(m, 0, (int)M_COPYALL);
 
