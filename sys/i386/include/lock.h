@@ -22,24 +22,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: lock.h,v 1.4 1997/09/01 07:37:58 smp Exp smp $
+ *	$Id: lock.h,v 1.7 1997/09/05 20:20:31 smp Exp smp $
  */
 
 
 #ifndef _MACHINE_LOCK_H_
 #define _MACHINE_LOCK_H_
-
-/*
- * XXX some temp debug control of cpl locks
- */
-#define REAL_ECPL	/* exception.s:		SCPL_LOCK/SCPL_UNLOCK */
-#define REAL_ICPL	/* ipl.s:		CPL_LOCK/CPL_UNLOCK/FAST */
-#define REAL_AICPL	/* apic_ipl.s:		SCPL_LOCK/SCPL_UNLOCK */
-#define REAL_AVCPL	/* apic_vector.s:	CPL_LOCK/CPL_UNLOCK */
-
-#define REAL_IFCPL	/* ipl_funcs.c:		SCPL_LOCK/SCPL_UNLOCK */
-
-#define REAL_MCPL_NOT	/* microtime.s:		CPL_LOCK/movl $0,_cpl_lock */
 
 
 #ifdef LOCORE
@@ -88,9 +76,9 @@
  * Variations of CPL_LOCK protect spl updates as a critical region.
  * Items within this 'region' include:
  *  cpl
+ *  cml
  *  cil
  *  ipending
- *  ???
  */
 
 /*
@@ -148,8 +136,13 @@
 /*
  * Locks regions protected in UP kernel via cli/sti.
  */
+#ifdef USE_MPINTRLOCK
 #define MPINTR_LOCK()	s_lock(&mpintr_lock)
 #define MPINTR_UNLOCK()	s_unlock(&mpintr_lock)
+#else
+#define MPINTR_LOCK()
+#define MPINTR_UNLOCK()
+#endif /* USE_MPINTRLOCK */
 
 /*
  * Protects cpl/cml/cil/ipending data as a critical region.
@@ -163,7 +156,10 @@
 #define SCPL_LOCK() 	ss_lock(&cpl_lock)	/* INT safe: top end */
 #define SCPL_UNLOCK() 	ss_unlock(&cpl_lock)
 
-/* sio/cy lock */
+/*
+ * sio/cy lock.
+ * XXX should rc (RISCom/8) use this?
+ */
 #ifdef USE_COMLOCK
 #define COM_LOCK() 	s_lock(&com_lock)
 #define COM_UNLOCK() 	s_unlock(&com_lock)
@@ -178,7 +174,10 @@
 #define COM_ENABLE_INTR()	enable_intr()
 #endif /* USE_COMLOCK */
 
-/* clock hardware/struct lock */
+/* 
+ * Clock hardware/struct lock.
+ * XXX pcaudio and friends still need this lock installed.
+ */
 #ifdef USE_CLOCKLOCK
 #define CLOCK_LOCK()	s_lock(&clock_lock)
 #define CLOCK_UNLOCK()	s_unlock(&clock_lock)

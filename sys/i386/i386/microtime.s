@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: Steve McCanne's microtime code
- *	$Id: microtime.s,v 1.31 1997/09/01 07:45:37 fsmp Exp $
+ *	$Id: microtime.s,v 1.10 1997/09/07 21:50:13 smp Exp smp $
  */
 
 #include "opt_cpu.h"
@@ -44,7 +44,7 @@
 #include <i386/isa/timerreg.h>
 
 #ifdef SMP
-#include <machine/smptests.h>			/** USE_CLOCKLOCK */
+#include <machine/smptests.h>		/** USE_CLOCKLOCK, REAL_MCPL */
 #endif
 
 ENTRY(microtime)
@@ -122,14 +122,14 @@ ENTRY(microtime)
 	movl	_timer0_max_count, %edx	/* prepare for 2 uses */
 
 #ifdef APIC_IO
-#if defined(REAL_MCPL)			/* XXX do we need this??? */
+#ifdef REAL_MCPL			/* XXX do we need this??? */
 	pushl	%ecx			/* s_lock destroys %eax, %ecx */
 	CPL_LOCK			/* MP-safe, INTs disabled above */
 	popl	%ecx			/* restore %ecx */
 	movl	_ipending, %eax
 	movl	$0, _cpl_lock		/* s_unlock would destroy %eax */
 	testl	%eax, _mask8254		/* is soft timer interrupt pending? */
-#else /* REAL_MCPL */
+#else
 	/** XXX FIXME: take our chances with a race, is this OK? */
 	movl	_ipending, %eax
 	testl	%eax, _mask8254		/* is soft timer interrupt pending? */

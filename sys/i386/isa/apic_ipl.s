@@ -22,21 +22,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: apic_ipl.s,v 1.32 1997/08/29 18:39:36 smp Exp smp $
+ *	$Id: apic_ipl.s,v 1.35 1997/09/07 19:23:45 smp Exp smp $
  */
 
-
-#ifdef REAL_AICPL
-
-#define AICPL_LOCK	SCPL_LOCK
-#define AICPL_UNLOCK	SCPL_UNLOCK
-
-#else /* REAL_AICPL */
-
-#define AICPL_LOCK
-#define AICPL_UNLOCK
-
-#endif /* REAL_AICPL */
 
 	.data
 	ALIGN_DATA
@@ -59,7 +47,15 @@ _Xintr8254:
 _mask8254:
 	.long	0
 
-/*  */
+/*
+ * Routines used by splz_unpend to build an interrupt frame from a
+ * trap frame.  The _vec[] routines build the proper frame on the stack,
+ * then call one of _Xintr0 thru _XintrNN.
+ *
+ * used by:
+ *   i386/isa/apic_ipl.s (this file):	splz_unpend JUMPs to HWIs.
+ *   i386/isa/clock.c:			setup _vec[clock] to point at _vec8254.
+ */
 	.globl _vec
 _vec:
 	.long	 vec0,  vec1,  vec2,  vec3,  vec4,  vec5,  vec6,  vec7
@@ -111,7 +107,7 @@ ENTRY(splz)
 	 */
 	AICPL_LOCK
 	movl	_cpl,%eax
-#ifdef INTR_SIMPLELOCK
+#ifdef CPL_AND_CML
 	orl	_cml, %eax		/* add cml to cpl */
 #endif
 splz_next:
@@ -130,14 +126,19 @@ splz_next:
 splz_unpend:
 	bsfl	%ecx,%ecx
 	lock
-	btrl %ecx, _ipending
+	btrl	%ecx, _ipending
 	jnc	splz_next
+	/*
+	 * HWIs: will JUMP thru *_vec[], see comments below.
+	 * SWIs: setup CALL of swi_tty, swi_net, _softclock, swi_ast.
+	 */
 	movl	ihandlers(,%ecx,4),%edx
 	testl	%edx,%edx
 	je	splz_next		/* "can't happen" */
 	cmpl	$NHWI,%ecx
 	jae	splz_swi
 	AICPL_UNLOCK
+
 	/*
 	 * We would prefer to call the intr handler directly here but that
 	 * doesn't work for badly behaved handlers that want the interrupt
@@ -146,7 +147,7 @@ splz_unpend:
 	 * determined at config time.
 	 *
 	 * The vec[] routines build the proper frame on the stack,
-	 * then call one of _Xintr0 thru _Xintr23
+	 * then call one of _Xintr0 thru _XintrNN.
 	 */
 	jmp	*_vec(,%ecx,4)
 
@@ -169,6 +170,8 @@ splz_swi:
  * of from here, so that system profiling works.
  * XXX do this more generally (for all vectors; look up the C entry point).
  * XXX frame bogusness stops us from just jumping to the C entry point.
+ * We have to clear iactive since this is an unpend call, and it will be
+ * set from the time of the original INT.
  */
 
 /*
