@@ -597,21 +597,8 @@ do_rlogin(dest)
 		return (-1);
 	/* XXX why don't we syslog() failure? */
 
-	af = dest->su_family;
-	switch (af) {
-	case AF_INET:
-		addr = (char *)&dest->su_sin.sin_addr;
-		break;
-#ifdef INET6
-	case AF_INET6:
-		addr = (char *)&dest->su_sin6.sin6_addr;
-		break;
-#endif
-	default:
-		return -1;	/*EAFNOSUPPORT*/
-	}
-	
-	return (iruserok_af(addr, pwd->pw_uid == 0, rusername, lusername, af));
+	return (iruserok_sa(dest, dest->su_len, pwd->pw_uid == 0, rusername,
+			    lusername));
 }
 
 void

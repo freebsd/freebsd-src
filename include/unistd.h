@@ -150,7 +150,7 @@ char	*getusershell __P((void));
 char	*getwd __P((char *));			/* obsoleted by getcwd() */
 int	 initgroups __P((const char *, int));
 int	 iruserok __P((unsigned long, int, const char *, const char *));
-int	 iruserok_af __P((void *, int, const char *, const char *, int));
+int	 iruserok_sa __P((const void *, int, int, const char *, const char *));
 int	 issetugid __P((void));
 int	 lchown __P((const char *, uid_t, gid_t));
 int	 lockf __P((int, int, off_t));
@@ -177,7 +177,6 @@ pid_t	 rfork __P((int));
 int	 rresvport __P((int *));
 int	 rresvport_af __P((int *, int));
 int	 ruserok __P((const char *, int, const char *, const char *));
-int	 ruserok_af __P((const char *, int, const char *, const char *, int));
 char	*sbrk __P((int));
 int	 select __P((int, fd_set *, fd_set *, fd_set *, struct timeval *));
 int	 setdomainname __P((const char *, int));
