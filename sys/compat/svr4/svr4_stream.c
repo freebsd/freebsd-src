@@ -1784,7 +1784,7 @@ svr4_sys_putmsg(p, uap)
 				 * on it, so I'm making a guess that this
 				 * is how it works. newton@atdot.dotat.org XXX
 				 */
-				DPRINTF(("sending expedited data (???)\n"));
+				DPRINTF(("sending expedited data (??)\n"));
 				SCARG(&wa, fd) = SCARG(uap, fd);
 				SCARG(&wa, buf) = dat.buf;
 				SCARG(&wa, nbyte) = dat.len;
