@@ -144,6 +144,7 @@ outlined as follows:
 .It "Functions (library routines)" .
 .It "Function Types" .
 .\" .It "Header File (including source code)" .
+.It "Library name" .
 .It "Interactive Commands" .
 .It "Names" .
 .It "Options" .
@@ -1226,6 +1227,56 @@ without arguments.
 The
 .Ql \&.Ic
 macro is parsed and is callable.
+.Ss Library Name
+The
+.Ql \&.Lb
+macro is used to specify library where that function is compiled in.
+It does not accept any parameters.
+.Pp
+.Dl Usage: .Lb argument ... \*(Pu
+.Pp
+Available arguments to
+.Ql \&.Lb 
+macro and its results are:
+.Pp
+.Bl -tag -width "libnetgraph" -compact -offset indent
+.It Li "libc"
+.Lb libc
+.It Li "libc_r"
+.Lb libc_r
+.It Li "libcalendar"
+.Lb libcalendar
+.It Li "libcam"
+.Lb libcam
+.It Li "libcrypt"
+.Lb libcrypt
+.It Li "libdevstat"
+.Lb libdevstat
+.It Li "libdisk"
+.Lb libdisk
+.It Li "libedit"
+.Lb libedit
+.It Li "libfetch"
+.Lb libfetch
+.It Li "libipx"
+.Lb libipx
+.It Li "libkvm"
+.Lb libkvm
+.It Li "libm"
+.Lb libm
+.It Li "libmd"
+.Lb libmd
+.It Li "libnetgraph"
+.Lb libnetgraph
+.It Li "libposix1e"
+.Lb libposix1e
+.It Li "libskey"
+.Lb libskey
+.It Li "libutil"
+.Lb libutil
+.It Li "libvgl"
+.Lb libvgl
+.El
 .Ss Name Macro
 The
 .Ql \&.Nm

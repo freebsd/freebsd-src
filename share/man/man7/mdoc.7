@@ -93,6 +93,11 @@ or
 and the
 .Ql \&.Nd
 macros.
+.It Ar LIBRARY
+Library where that function is compiled in.
+Should include
+.Ql \&.Lb
+macro only.
 .It Ar SYNOPSIS
 Usage.
 .It Ar DESCRIPTION
@@ -301,6 +306,10 @@ Produces
 .It Li \&Fd Ta Yes Ta Yes Ta "Function declaration."
 .It Li \&Fn Ta Yes Ta Yes Ta "Function call (also .Fo and .Fc)."
 .It Li \&Ic Ta Yes Ta Yes Ta "Interactive command."
+.It Li \&Lb Ta \&No Ta \&No Ta "Library name; see"
+.Xr mdoc.samples 7 ,
+.Sx Standards
+section for complete list of known libraries.
 .It Li \&Li Ta Yes Ta Yes Ta "Literal text."
 .It Li \&Nm Ta Yes Ta Yes Ta "Command name."
 .It Li \&Op Ta Yes Ta Yes Ta "Option (also .Oo and .Oc)."
