@@ -1927,9 +1927,8 @@ dc_attach(device_t dev)
 		sc->dc_type = DC_TYPE_DM9102;
 		sc->dc_flags |= DC_TX_COALESCE | DC_TX_INTR_ALWAYS;
 		sc->dc_flags |= DC_REDUCED_MII_POLL | DC_TX_STORENFWD;
+		sc->dc_flags |= DC_TX_ALIGN;
 		sc->dc_pmode = DC_PMODE_MII;
-		if (revision >= DC_REVISION_DM9102A)
-			sc->dc_flags |= DC_TX_ALIGN;
 		/* Increase the latency timer value. */
 		command = pci_read_config(dev, DC_PCI_CFLT, 4);
 		command &= 0xFFFF00FF;
