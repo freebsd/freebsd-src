@@ -100,30 +100,30 @@ stage1()
 	    mvprintw(j++, 50, "|Load cpio floppy");
 	    mvprintw(j++, 50, "|Choose stand-alone shell");
 	    mvprintw(j++, 50, "|");
-	    mvprintw(j++, 50, "|Your kernel and /etc/fstab");
-	    mvprintw(j++, 50, "|are backed up and /sbin/init");
-	    mvprintw(j++, 50, "|is renamed");
+	    mvprintw(j++, 50, "|Your old kernel, /etc/fstab");
+	    mvprintw(j++, 50, "|and /sbin/init files are");
+	    mvprintw(j++, 50, "|renamed since the kernel and);
+	    mvprintw(j++, 50, "|/etc/fstab are replaced from");
+	    mvprintw(j++, 50, "|this floppy.");
 	} else {
-	    mvprintw(j++, 50, "|You must assign some space");
-	    mvprintw(j++, 50, "|to a root (/), swap, and");
-	    mvprintw(j++, 50, "|optionally a /usr partition"); 
-	    mvprintw(j++, 50, "|");
-	    mvprintw(j++, 50, "|Root should be a minimum of");
-	    mvprintw(j++, 50, "|18MB with a 30MB /usr, or");
-	    mvprintw(j++, 50, "|50MB without a /usr."); 
-	    mvprintw(j++, 50, "|");
+	    mvprintw(j++, 50, "|You should now assign some");
+	    mvprintw(j++, 50, "|space to root, swap, and");
+	    mvprintw(j++, 50, "|(optionally) /usr partitions"); 
+	    mvprintw(j++, 50, "|Root (/) should be a minimum");
+	    mvprintw(j++, 50, "|of 18MB with a 30MB /usr");
+	    mvprintw(j++, 50, "|or 50MB without a /usr."); 
 	    mvprintw(j++, 50, "|Swap space should be a");
-	    mvprintw(j++, 50, "|minimum of 12MB or MEM * 2");
-	    mvprintw(j++, 50, "|Also be sure to Assign");
-	    mvprintw(j++, 50, "|mount points to each or");
-	    mvprintw(j++, 50, "|they will NOT be enabled."); 
+	    mvprintw(j++, 50, "|minimum of 12MB or RAM * 2");
+	    mvprintw(j++, 50, "|Be sure to also (A)ssign a");
+	    mvprintw(j++, 50, "|mount point to each one or");
+	    mvprintw(j++, 50, "|it will NOT be enabled."); 
 	    mvprintw(j++, 50, "|");
 	    mvprintw(j++, 50, "|We suggest that you invoke");
-	    mvprintw(j++, 50, "|(F)disk, then (D)isklabel");
+	    mvprintw(j++, 50, "|(F)disk then (D)isklabel");
 	    mvprintw(j++, 50, "|in setting up your disk.");
 	    mvprintw(j++, 50, "|If installing on a drive");
 	    mvprintw(j++, 50, "|other than 0, read the");
-	    mvprintw(j++, 50, "|troubleshooting doc first");
+	    mvprintw(j++, 50, "|TROUBLESHOOTING doc first");
 	}
 
 	j = 0;
