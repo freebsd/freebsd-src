@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)queue.h	8.5 (Berkeley) 8/20/94
- * $Id: queue.h,v 1.16 1997/05/07 14:38:11 dfr Exp $
+ * $Id: queue.h,v 1.17 1997/08/25 20:21:54 phk Exp $
  */
 
 #ifndef _SYS_QUEUE_H_
@@ -297,6 +297,9 @@ struct name {								\
 	struct type *tqh_first;	/* first element */			\
 	struct type **tqh_last;	/* addr of last next element */		\
 }
+
+#define TAILQ_HEAD_INITIALIZER(head)					\
+	{ NULL, &(head).tqh_first }
 
 #define TAILQ_ENTRY(type)						\
 struct {								\
