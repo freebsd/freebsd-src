@@ -5,7 +5,7 @@
 MAINTAINER=peter@FreeBSD.org
 
 LIB=		z
-MAN3=           zlib.3
+MAN=		zlib.3
 
 #CFLAGS+=	-DMAX_WBITS=14 -DMAX_MEM_LEVEL=7
 #CFLAGS+=	-g -DDEBUG

@@ -10,7 +10,7 @@
 LIB=		stand
 NOPROFILE=	YES
 NOPIC=		YES
-MAN3=		libstand.3
+MAN=		libstand.3
 
 # Mostly OK, some of the libc imports are a bit noisy
 CFLAGS+=	-Wall

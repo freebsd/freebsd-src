@@ -17,7 +17,7 @@ SRCS+=	_flock_stub.c \
 	vsscanf.c wbuf.c wsetup.c
 
 .if ${LIB} == "c"
-MAN3+=	fclose.3 ferror.3 fflush.3 fgetln.3 fgets.3 fopen.3 fputs.3 \
+MAN+=	fclose.3 ferror.3 fflush.3 fgetln.3 fgets.3 fopen.3 fputs.3 \
 	fread.3 fseek.3 funopen.3 getc.3 mktemp.3 printf.3 putc.3 remove.3 \
 	scanf.3 setbuf.3 stdio.3 tmpnam.3 ungetc.3
 

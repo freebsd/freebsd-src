@@ -15,7 +15,7 @@ NOPROFILE=	yes
 NOSHARED=	yes
 NOPIC=		yes
 
-MAN3=		libdisk.3
+MAN=		libdisk.3
 MLINKS+=	libdisk.3 Open_Disk.3 \
 		libdisk.3 Clone_Disk.3 \
 		libdisk.3 Free_Disk.3 \

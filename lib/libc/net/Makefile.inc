@@ -27,7 +27,7 @@ CFLAGS+=-DINET6
 .include "${.CURDIR}/../libc/${MACHINE_ARCH}/net/Makefile.inc"
 
 .if ${LIB} == "c"
-MAN3+=	addr2ascii.3 byteorder.3 ethers.3 getaddrinfo.3 gethostbyname.3 \
+MAN+=	addr2ascii.3 byteorder.3 ethers.3 getaddrinfo.3 gethostbyname.3 \
 	getifaddrs.3 getipnodebyname.3 \
 	getnameinfo.3 getnetent.3 getprotoent.3 getservent.3 if_indextoname.3 \
 	inet.3 inet6_option_space.3 inet6_rthdr_space.3 linkaddr.3 \

@@ -128,7 +128,7 @@ SRCS+=	atan2.s cabs.s cbrt.s sqrt.s sincos.s tan.s argred.s support.s \
 
 .endif
 
-MAN3+=	common_source/acos.3 common_source/acosh.3 common_source/asin.3 \
+MAN+=	common_source/acos.3 common_source/acosh.3 common_source/asin.3 \
 	common_source/asinh.3 common_source/atan.3 common_source/atan2.3 \
 	common_source/atanh.3 common_source/ceil.3 common_source/cos.3 \
 	common_source/cosh.3 common_source/erf.3 common_source/exp.3 \

@@ -6,7 +6,7 @@ LIB=	cam
 SRCS=	camlib.c scsi_cmdparse.c scsi_all.c scsi_da.c scsi_sa.c cam.c
 INCS=	camlib.h
 
-MAN3=	cam.3 cam_cdbparse.3
+MAN=	cam.3 cam_cdbparse.3
 
 
 MLINKS+=cam.3 cam_open_device.3 \

@@ -11,7 +11,7 @@ SRCS+=	acl_delete.c			\
 	acl_to_text.c			\
 	acl_valid.c
 
-MAN3=	acl.3				\
+MAN=	acl.3				\
 	acl_delete.3			\
 	acl_dup.3			\
 	acl_free.3			\

@@ -37,6 +37,6 @@ LDADD+=		-lradius
 INTERNALLIB=    yes
 INTERNALSTATICLIB=yes
 
-MAN8=		pam_radius.8
+MAN=		pam_radius.8
 
 .include <bsd.lib.mk>
