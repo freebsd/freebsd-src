@@ -138,8 +138,9 @@ typedef union ccb *ahc_io_ctx_t;
 #define ahc_dmamap_unload(ahc, tag, map)				\
 	bus_dmamap_unload(tag, map)
 
-#define ahc_dmamap_sync(ahc, dma_tag, dmamap, op)			\
-	bus_dmamap_sync(dma_tag_dmamap, op)
+/* XXX Need to update Bus DMA for partial map syncs */
+#define ahc_dmamap_sync(ahc, dma_tag, dmamap, offset, len, op)		\
+	bus_dmamap_sync(dma_tag, dmamap, op)
 
 /************************ Tunable Driver Parameters  **************************/
 /*

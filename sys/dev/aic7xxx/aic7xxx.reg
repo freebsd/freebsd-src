@@ -28,10 +28,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/src/aic7xxx/aic7xxx.reg#17 $
- *
  * $FreeBSD$
  */
+VERSION = "$Id: //depot/src/aic7xxx/aic7xxx.reg#19 $"
 
 /*
  * This file is processed by the aic7xxx_asm utility for use in assembling
@@ -683,8 +682,16 @@ register DSCOMMAND0 {
 	bit	CIOPARCKEN	0x01	/* Internal bus parity error enable */
 }
 
+register DSCOMMAND1 {
+	address			0x085
+	access_mode RW
+	mask	DSLATT		0xfc	/* PCI latency timer (non-ultra2) */
+	bit	HADDLDSEL1	0x02	/* Host Address Load Select Bits */
+	bit	HADDLDSEL0	0x01
+}
+
 /*
- * Bus On/Off Time (p. 3-44)
+ * Bus On/Off Time (p. 3-44) aic7770 only
  */
 register BUSTIME {
 	address			0x085
@@ -781,7 +788,13 @@ register INTSTAT {
 	mask	NO_IDENT	0x20|SEQINT	/* no IDENTIFY after reconnect*/
 	mask	NO_MATCH	0x30|SEQINT	/* no cmd match for reconnect */
 	mask	IGN_WIDE_RES	0x40|SEQINT	/* Complex IGN Wide Res Msg */
-	mask	RESIDUAL	0x50|SEQINT	/* Residual byte count != 0 */
+	mask	PDATA_REINIT	0x50|SEQINT	/*
+						 * Returned to data phase
+						 * that requires data
+						 * transfer pointers to be
+						 * recalculated from the
+						 * transfer residual.
+						 */
 	mask	HOST_MSG_LOOP	0x60|SEQINT	/*
 						 * The bus is ready for the
 						 * host to perform another
