@@ -309,8 +309,6 @@ _libpthread_init(struct pthread *curthread)
 	_kcb_set(_thr_initial->kse->k_kcb);
 	_tcb_set(_thr_initial->kse->k_kcb, _thr_initial->tcb);
 	_thr_initial->kse->k_flags |= KF_INITIALIZED;
-
-	_thr_rtld_init();
 }
 
 /*

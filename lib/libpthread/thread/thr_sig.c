@@ -1050,13 +1050,10 @@ thr_sigframe_save(struct pthread *thread, struct pthread_sigframe *psf)
 void
 _thr_signal_init(void)
 {
-	sigset_t sigset;
 	struct sigaction act;
 	__siginfohandler_t *sigfunc;
 	int i;
 
-	SIGFILLSET(sigset);
-	__sys_sigprocmask(SIG_SETMASK, &sigset, &_thr_initial->sigmask);
 	/* Enter a loop to get the existing signal status: */
 	for (i = 1; i <= _SIG_MAXSIG; i++) {
 		/* Check for signals which cannot be trapped: */
@@ -1078,7 +1075,8 @@ _thr_signal_init(void)
 		    ((__sighandler_t *)sigfunc) != SIG_IGN) {
 		    	act = _thread_sigact[i - 1];
 			act.sa_flags |= SA_SIGINFO;
-			act.sa_sigaction = (__siginfohandler_t *)_thr_sig_handler;
+			act.sa_sigaction =
+				(__siginfohandler_t *)_thr_sig_handler;
 			__sys_sigaction(i, &act, NULL);
 		}
 	}
@@ -1097,21 +1095,13 @@ _thr_signal_init(void)
 		 */
 		PANIC("Cannot initialize signal handler");
 	}
-#ifdef SYSTEM_SCOPE_ONLY
-	__sys_sigprocmask(SIG_SETMASK, &_thr_initial->sigmask, NULL);
-#endif
 }
 
 void
 _thr_signal_deinit(void)
 {
-	struct pthread *curthread = _get_curthread();
-	sigset_t tmpmask;
 	int i;
 
-	SIGFILLSET(tmpmask);
-	SIG_CANTMASK(tmpmask);
-	__sys_sigprocmask(SIG_SETMASK, &tmpmask, NULL);
 	/* Enter a loop to get the existing signal status: */
 	for (i = 1; i <= _SIG_MAXSIG; i++) {
 		/* Check for signals which cannot be trapped: */
@@ -1119,7 +1109,8 @@ _thr_signal_deinit(void)
 		}
 
 		/* Set the signal handler details: */
-		else if (__sys_sigaction(i, &_thread_sigact[i - 1], NULL) != 0) {
+		else if (__sys_sigaction(i, &_thread_sigact[i - 1],
+			 NULL) != 0) {
 			/*
 			 * Abort this process if signal
 			 * initialisation fails:
@@ -1127,6 +1118,5 @@ _thr_signal_deinit(void)
 			PANIC("Cannot set signal handler info");
 		}
 	}
-	__sys_sigprocmask(SIG_SETMASK, &curthread->sigmask, NULL);
 }
 
