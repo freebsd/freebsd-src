@@ -939,8 +939,8 @@ installFilesystems(dialogMenuItem *self)
     if (swapdev && RunningAsInit) {
 	/* As the very first thing, try to get ourselves some swap space */
 	sprintf(dname, "/dev/%s", swapdev->name);
-	if (!Fake && (!MakeDevChunk(swapdev, "/dev") || !file_readable(dname))) {
-	    msgConfirm("Unable to make device node for %s in /dev!\n"
+	if (!Fake && !file_readable(dname)) {
+	    msgConfirm("Unable to find device node for %s in /dev!\n"
 		       "The creation of filesystems will be aborted.", dname);
 	    return DITEM_FAILURE;
 	}
@@ -961,7 +961,7 @@ installFilesystems(dialogMenuItem *self)
     if (rootdev && RunningAsInit) {
 	/* Next, create and/or mount the root device */
 	sprintf(dname, "/dev/%s", rootdev->name);
-	if (!Fake && (!MakeDevChunk(rootdev, "/dev") || !file_readable(dname))) {
+	if (!Fake && !file_readable(dname)) {
 	    msgConfirm("Unable to make device node for %s in /dev!\n"
 		       "The creation of filesystems will be aborted.", dname);
 	    return DITEM_FAILURE | DITEM_RESTORE;
