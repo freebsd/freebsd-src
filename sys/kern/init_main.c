@@ -242,14 +242,6 @@ restart:
  ****
  ***************************************************************************
  */
-#ifdef OMIT
-/*
- * Handled by vfs_mountroot (bad idea) at this time... should be
- * done the same as 4.4Lite2.
- */
-SYSINIT(swapinit, SI_SUB_SWAP, SI_ORDER_FIRST, swapinit, NULL)
-#endif	/* OMIT*/
-
 static void print_caddr_t __P((void *data));
 static void
 print_caddr_t(data)
@@ -445,16 +437,6 @@ SYSINIT(p0post, SI_SUB_INTRINSIC_POST, SI_ORDER_FIRST, proc0_post, NULL)
  ****
  ***************************************************************************
  */
-
-/* ARGSUSED */
-static void root_conf __P((void *dummy));
-static void
-root_conf(dummy)
-	void *dummy;
-{
-	cpu_rootconf();
-}
-SYSINIT(root_conf, SI_SUB_ROOT_CONF, SI_ORDER_FIRST, root_conf, NULL)
 
 /* ARGSUSED*/
 static void xxx_vfs_root_fdtab __P((void *dummy));
