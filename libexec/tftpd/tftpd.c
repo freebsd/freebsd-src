@@ -79,10 +79,11 @@ static const char rcsid[] =
 #include "tftpsubs.h"
 
 #define	TIMEOUT		5
+#define	MAX_TIMEOUTS	5
 
 int	peer;
 int	rexmtval = TIMEOUT;
-int	maxtimeout = 5*TIMEOUT;
+int	max_rexmtval = 2*TIMEOUT;
 
 #define	PKTSIZE	SEGSIZE+4
 char	buf[PKTSIZE];
@@ -110,6 +111,7 @@ static int	ipchroot;
 
 static char *errtomsg __P((int));
 static void  nak __P((int));
+static void  oack __P(());
 
 int
 main(argc, argv)
@@ -311,6 +313,21 @@ struct formats {
 	{ 0 }
 };
 
+struct options {
+	char	*o_type;
+	char	*o_request;
+	int	o_reply;	/* turn into union if need be */
+} options[] = {
+	{ "tsize" },		/* OPT_TSIZE */
+	{ "timeout" },		/* OPT_TIMEOUT */
+	{ NULL }
+};
+
+enum opt_enum {
+	OPT_TSIZE = 0,
+	OPT_TIMEOUT,
+};
+
 /*
  * Handle initial connection protocol.
  */
@@ -320,9 +337,9 @@ tftp(tp, size)
 	int size;
 {
 	register char *cp;
-	int first = 1, ecode;
+	int i, first = 1, has_options = 0, ecode;
 	register struct formats *pf;
-	char *filename, *mode;
+	char *filename, *mode, *option, *ccp;
 
 	filename = cp = tp->th_stuff;
 again:
@@ -350,7 +367,40 @@ again:
 		nak(EBADOP);
 		exit(1);
 	}
+	while (++cp < buf + size) {
+		for (i = 2, ccp = cp; i > 0; ccp++) {
+			if (ccp >= buf + size) {
+				nak(EBADOP);
+				exit(1);
+			} else if (*ccp == '\0')
+				i--;
+		}
+		for (option = cp; *cp; cp++)
+			if (isupper(*cp))
+				*cp = tolower(*cp);
+		for (i = 0; options[i].o_type != NULL; i++)
+			if (strcmp(option, options[i].o_type) == 0) {
+				options[i].o_request = ++cp;
+				has_options = 1;
+			}
+		cp = ccp-1;
+	}
+
+	if (options[OPT_TIMEOUT].o_request) {
+		int to = atoi(options[OPT_TIMEOUT].o_request);
+		if (to < 1 || to > 255) {
+			nak(EBADOP);
+			exit(1);
+		}
+		else if (to <= max_rexmtval)
+			options[OPT_TIMEOUT].o_reply = rexmtval = to;
+		else
+			options[OPT_TIMEOUT].o_request = NULL;
+	}
+
 	ecode = (*pf->f_validate)(&filename, tp->th_opcode);
+	if (has_options)
+		oack();
 	if (logging) {
 		char host[MAXHOSTNAMELEN];
 
@@ -468,6 +518,14 @@ validate_access(filep, mode)
 			return (err);
 		*filep = filename = pathname;
 	}
+	if (options[OPT_TSIZE].o_request) {
+		if (mode == RRQ) 
+			options[OPT_TSIZE].o_reply = stbuf.st_size;
+		else
+			/* XXX Allows writes of all sizes. */
+			options[OPT_TSIZE].o_reply =
+				atoi(options[OPT_TSIZE].o_request);
+	}
 	fd = open(filename, mode == RRQ ? O_RDONLY : O_WRONLY|O_TRUNC);
 	if (fd < 0)
 		return (errno + 100);
@@ -478,15 +536,13 @@ validate_access(filep, mode)
 	return (0);
 }
 
-int	timeout;
+int	timeouts;
 jmp_buf	timeoutbuf;
 
 void
 timer()
 {
-
-	timeout += rexmtval;
-	if (timeout >= maxtimeout)
+	if (++timeouts > MAX_TIMEOUTS)
 		exit(1);
 	longjmp(timeoutbuf, 1);
 }
@@ -515,7 +571,7 @@ xmitfile(pf)
 		}
 		dp->th_opcode = htons((u_short)DATA);
 		dp->th_block = htons((u_short)block);
-		timeout = 0;
+		timeouts = 0;
 		(void)setjmp(timeoutbuf);
 
 send_data:
@@ -578,7 +634,7 @@ recvfile(pf)
 	ap = (struct tftphdr *)ackbuf;
 	block = 0;
 	do {
-		timeout = 0;
+		timeouts = 0;
 		ap->th_opcode = htons((u_short)ACK);
 		ap->th_block = htons((u_short)block);
 		block++;
@@ -651,6 +707,7 @@ struct errmsg {
 	{ EBADID,	"Unknown transfer ID" },
 	{ EEXISTS,	"File already exists" },
 	{ ENOUSER,	"No such user" },
+	{ EOPTNEG,	"Option negotiation" },
 	{ -1,		0 }
 };
 
@@ -699,4 +756,58 @@ nak(error)
 	length += 5;
 	if (send(peer, buf, length, 0) != length)
 		syslog(LOG_ERR, "nak: %m");
+}
+
+/*
+ * Send an oack packet (option acknowledgement).
+ */
+static void
+oack()
+{
+	struct tftphdr *tp, *ap;
+	int size, i, n;
+	char *bp;
+
+	tp = (struct tftphdr *)buf;
+	bp = buf + 2;
+	size = sizeof(buf) - 2;
+	tp->th_opcode = htons((u_short)OACK);
+	for (i = 0; options[i].o_type != NULL; i++) {
+		if (options[i].o_request) {
+			n = snprintf(bp, size, "%s%c%d", options[i].o_type,
+				     0, options[i].o_reply);
+			bp += n+1;
+			size -= n+1;
+			if (size < 0) {
+				syslog(LOG_ERR, "oack: buffer overflow");
+				exit(1);
+			}
+		}
+	}
+	size = bp - buf;
+	ap = (struct tftphdr *)ackbuf;
+	signal(SIGALRM, timer);
+	timeouts = 0;
+
+	(void)setjmp(timeoutbuf);
+	if (send(peer, buf, size, 0) != size) {
+		syslog(LOG_INFO, "oack: %m");
+		exit(1);
+	}
+
+	for (;;) {
+		alarm(rexmtval);
+		n = recv(peer, ackbuf, sizeof (ackbuf), 0);
+		alarm(0);
+		if (n < 0) {
+			syslog(LOG_ERR, "recv: %m");
+			exit(1);
+		}
+		ap->th_opcode = ntohs((u_short)ap->th_opcode);
+		ap->th_block = ntohs((u_short)ap->th_block);
+		if (ap->th_opcode == ERROR)
+			exit(1);
+		if (ap->th_opcode == ACK && ap->th_block == 0)
+			break;
+	}
 }
