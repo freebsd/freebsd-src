@@ -8,7 +8,4 @@ MOUNT=	${.CURDIR}/../mount
 CFLAGS+= -I${.CURDIR}/../../sys -I${MOUNT}
 .PATH:	${MOUNT}
 
-BINOWN= root
-BINMODE=4555
-
 .include <bsd.prog.mk>
