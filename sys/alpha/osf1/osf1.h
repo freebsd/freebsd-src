@@ -44,11 +44,14 @@ extern int bsd_to_osf1_errno[];
 #define	OSF1_IOC_DIRMASK	0xe0000000	/* mask for IN/OUT/VOID */
 #define	OSF1_IOCCMD(x)		((x) & 0xff)
 
-/* for get/set sysinfo */
-#define	OSF_SET_IEEE_FP_CONTROL  14
+/* for get sysinfo */
+#define OSF_GET_MAX_UPROCS	  2
 #define	OSF_GET_IEEE_FP_CONTROL  45
 #define	OSF_GET_PROC_TYPE	 60
 #define	OSF_GET_HWRPB		101
+
+/* for set sysinfo */
+#define	OSF_SET_IEEE_FP_CONTROL  14
 
 /* for rlimit */
 #define	OSF1_RLIMIT_LASTCOMMON	5		/* last one that's common */
