@@ -44,7 +44,6 @@
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
-#include <vm/vm_zone.h>
 
 #include <netncp/ncp.h>
 #include <netncp/ncp_conn.h>

@@ -39,7 +39,6 @@
 
 #include <i386/linux/linux_util.h>
 
-#include <vm/vm_zone.h>
 
 const char      linux_emul_path[] = "/compat/linux";
 

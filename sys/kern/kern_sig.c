@@ -63,7 +63,6 @@
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
 
-#include <vm/vm_zone.h>
 
 #include <machine/ipl.h>
 #include <machine/cpu.h>

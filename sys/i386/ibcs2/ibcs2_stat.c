@@ -47,7 +47,6 @@
 #include <i386/ibcs2/ibcs2_util.h>
 #include <i386/ibcs2/ibcs2_utsname.h>
 
-#include <vm/vm_zone.h>
 
 static void bsd_stat2ibcs_stat __P((struct stat *, struct ibcs2_stat *));
 static int  cvt_statfs         __P((struct statfs *, caddr_t, int));

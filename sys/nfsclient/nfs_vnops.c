@@ -64,7 +64,6 @@
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
-#include <vm/vm_zone.h>
 
 #include <miscfs/fifofs/fifo.h>
 
