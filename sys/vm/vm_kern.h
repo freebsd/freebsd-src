@@ -74,7 +74,6 @@ extern vm_map_t kmem_map;
 extern vm_map_t mb_map;
 extern int mb_map_full;
 extern vm_map_t clean_map;
-extern vm_map_t phys_map;
 extern vm_map_t exec_map;
 
 extern vm_offset_t kernel_vm_end;
