@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.373 1998/09/04 06:31:34 jkh Exp $
+#	$Id: Makefile,v 1.374 1998/09/04 08:22:59 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -225,17 +225,8 @@ rerelease release:
 	echo "export PATH=${BOOTSTRAPDIR}:$${PATH}:${LOCALDIR}" >> ${CHROOTDIR}/mk
 	echo "cd /usr/src"			>> ${CHROOTDIR}/mk
 .if make(release)
-	# This eases bootstrapping from a more recent hosting environment:
-	echo "mkdir -p /usr/lib/compat"		>> ${CHROOTDIR}/mk
-	echo "chflags noschg /usr/lib/lib*.so.*" >> ${CHROOTDIR}/mk
-	echo "mv /usr/lib/lib*.so.* /usr/lib/compat" >> ${CHROOTDIR}/mk
-	echo "(cd include; make all install)"   >> ${CHROOTDIR}/mk
 	echo "(cd etc; make distrib-dirs distribution)" >> ${CHROOTDIR}/mk
 	echo "make world"			>> ${CHROOTDIR}/mk
-	echo "(cd etc; make distribution)"	>> ${CHROOTDIR}/mk
-	# Now we've got our own shared libs, remove the bootstrapping
-	# libs again.
-	echo "rm -f /usr/lib/compat/*"		>> ${CHROOTDIR}/mk
 .endif
 .if make(rerelease)
 	echo "make all install"			>> ${CHROOTDIR}/mk
