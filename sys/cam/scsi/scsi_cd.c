@@ -2632,7 +2632,7 @@ cdreadsubchannel(struct cam_periph *periph, u_int32_t mode,
 static int
 cdgetmode(struct cam_periph *periph, struct cd_mode_data *data, u_int32_t page)
 {
-	struct scsi_mode_sense_6 *scsi_cmd;
+	struct scsi_mode_sense_10 *scsi_cmd;
         struct ccb_scsiio *csio;
 	union ccb *ccb;
 	int error;
@@ -2650,15 +2650,16 @@ cdgetmode(struct cam_periph *periph, struct cd_mode_data *data, u_int32_t page)
 		      /* data_ptr */ (u_int8_t *)data,
 		      /* dxfer_len */ sizeof(*data),
 		      /* sense_len */ SSD_FULL_SIZE,
-		      sizeof(struct scsi_mode_sense_6),
+		      sizeof(struct scsi_mode_sense_10),
  		      /* timeout */ 50000);
 
-	scsi_cmd = (struct scsi_mode_sense_6 *)&csio->cdb_io.cdb_bytes;
+	scsi_cmd = (struct scsi_mode_sense_10 *)&csio->cdb_io.cdb_bytes;
 	bzero (scsi_cmd, sizeof(*scsi_cmd));
 
 	scsi_cmd->page = page;
-	scsi_cmd->length = sizeof(*data) & 0xff;
-	scsi_cmd->opcode = MODE_SENSE;
+	scsi_cmd->length[0] = (sizeof(*data)) >> 8;
+	scsi_cmd->length[1] = (sizeof(*data)) & 0xff;
+	scsi_cmd->opcode = MODE_SENSE_10;
 
 	error = cdrunccb(ccb, cderror, /*cam_flags*/CAM_RETRY_SELTO,
 			 /*sense_flags*/SF_RETRY_UA);
@@ -2671,7 +2672,7 @@ cdgetmode(struct cam_periph *periph, struct cd_mode_data *data, u_int32_t page)
 static int
 cdsetmode(struct cam_periph *periph, struct cd_mode_data *data)
 {
-	struct scsi_mode_select_6 *scsi_cmd;
+	struct scsi_mode_select_10 *scsi_cmd;
         struct ccb_scsiio *csio;
 	union ccb *ccb;
 	int error;
@@ -2690,15 +2691,16 @@ cdsetmode(struct cam_periph *periph, struct cd_mode_data *data)
 		      /* data_ptr */ (u_int8_t *)data,
 		      /* dxfer_len */ sizeof(*data),
 		      /* sense_len */ SSD_FULL_SIZE,
-		      sizeof(struct scsi_mode_select_6),
+		      sizeof(struct scsi_mode_select_10),
  		      /* timeout */ 50000);
 
-	scsi_cmd = (struct scsi_mode_select_6 *)&csio->cdb_io.cdb_bytes;
+	scsi_cmd = (struct scsi_mode_select_10 *)&csio->cdb_io.cdb_bytes;
 
 	bzero(scsi_cmd, sizeof(*scsi_cmd));
 	scsi_cmd->opcode = MODE_SELECT;
 	scsi_cmd->byte2 |= SMS_PF;
-	scsi_cmd->length = sizeof(*data) & 0xff;
+	scsi_cmd->length[0] = (sizeof(*data)) >> 8;
+	scsi_cmd->length[1] = (sizeof(*data)) & 0xff;
 	data->header.data_length = 0;
 	/*
 	 * SONY drives do not allow a mode select with a medium_type
