@@ -392,7 +392,7 @@ draw:
 		    delwin(save);
 		    if (status & DITEM_CONTINUE)
 			continue;
-		    else if (status & DITEM_RECREATE || !(status & DITEM_LEAVE_MENU)) {
+		    else if (status & DITEM_RECREATE && !(status & DITEM_LEAVE_MENU)) {
 			delwin(menu);
 			delwin(dialog);
 			goto draw;
