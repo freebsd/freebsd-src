@@ -267,7 +267,6 @@ void	dev_lock(void);
 void	dev_unlock(void);
 int	unit2minor(int _unit);
 void	setconf(void);
-struct cdev *getdiskbyname(char *_name);
 
 void devfs_create(struct cdev *dev);
 void devfs_destroy(struct cdev *dev);
