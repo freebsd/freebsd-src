@@ -66,7 +66,7 @@ SUBDIR+= kerberos5
 .if exists(${.CURDIR}/libexec)
 SUBDIR+= libexec
 .endif
-.if exists(${.CURDIR}/rescue) && !defined(NO_RESCUE)
+.if exists(${.CURDIR}/rescue) && defined(RESCUE)
 SUBDIR+= rescue
 .endif
 .if exists(${.CURDIR}/sbin)
