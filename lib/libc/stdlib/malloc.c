@@ -465,6 +465,13 @@ malloc_init ()
 	}
     }
 
+    /*
+     * Sensitive processes, somewhat arbitrarily defined here as setuid,
+     * setgid, root and wheel cannot afford to have malloc mistakes.
+     */
+    if (issetugid() || getuid() == 0 || getgid() == 0)
+	    malloc_abort = 1;
+
     UTRACE(0, 0, 0);
 
     /*
