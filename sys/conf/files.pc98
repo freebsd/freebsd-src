@@ -111,6 +111,8 @@ dev/kbd/kbd.c			optional	pckbd
 dev/lnc/if_lnc_cbus.c		optional	lnc isa
 dev/io/iodev.c			optional	io
 dev/mem/memutil.c		optional	mem
+dev/mse/mse.c			optional	mse
+dev/mse/mse_cbus.c		optional	mse isa
 dev/ppc/ppc_puc.c		optional	ppc puc pci
 dev/sbni/if_sbni.c		optional	sbni
 dev/sbni/if_sbni_pci.c		optional	sbni pci
@@ -332,7 +334,6 @@ pc98/pc98/clock.c		standard
 pc98/pc98/fd.c			optional	fdc
 pc98/pc98/fdc_cbus.c		optional	fdc isa
 pc98/pc98/isa_dma.c		optional	isa
-pc98/pc98/mse.c			optional	mse
 pc98/pc98/nmi.c			standard
 pc98/pc98/olpt.c		optional	olpt
 pc98/pc98/pc98gdc.c		optional	gdc
