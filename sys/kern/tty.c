@@ -2254,6 +2254,7 @@ ttyinfo(tp)
 			if (proc_compare(pick, p))
 				pick = p;
 
+		mtx_enter(&sched_lock, MTX_SPIN);
 		ttyprintf(tp, " cmd: %s %d [%s] ", pick->p_comm, pick->p_pid,
 		    pick->p_stat == SRUN ? "running" :
 		    pick->p_wmesg ? pick->p_wmesg : "iowait");
@@ -2278,6 +2279,7 @@ ttyinfo(tp)
 		    pick->p_stat == SIDL || pick->p_stat == SWAIT ||
 		    pick->p_stat == SZOMB ? 0 :
 		    (long)pgtok(vmspace_resident_count(pick->p_vmspace)));
+		mtx_exit(&sched_lock, MTX_SPIN);
 	}
 	tp->t_rocount = 0;	/* so pending input will be retyped if BS */
 }
@@ -2308,15 +2310,20 @@ proc_compare(p1, p2)
 
 	if (p1 == NULL)
 		return (1);
+
+	mtx_enter(&sched_lock, MTX_SPIN);
 	/*
 	 * see if at least one of them is runnable
 	 */
 	switch (TESTAB(ISRUN(p1), ISRUN(p2))) {
 	case ONLYA:
+		mtx_exit(&sched_lock, MTX_SPIN);
 		return (0);
 	case ONLYB:
+		mtx_exit(&sched_lock, MTX_SPIN);
 		return (1);
 	case BOTH:
+		mtx_exit(&sched_lock, MTX_SPIN);
 		/*
 		 * tie - favor one with highest recent cpu utilization
 		 */
@@ -2331,12 +2338,17 @@ proc_compare(p1, p2)
 	 */
 	switch (TESTAB(p1->p_stat == SZOMB, p2->p_stat == SZOMB)) {
 	case ONLYA:
+		mtx_exit(&sched_lock, MTX_SPIN);
 		return (1);
 	case ONLYB:
+		mtx_exit(&sched_lock, MTX_SPIN);
 		return (0);
 	case BOTH:
+		mtx_exit(&sched_lock, MTX_SPIN);
 		return (p2->p_pid > p1->p_pid); /* tie - return highest pid */
 	}
+	mtx_exit(&sched_lock, MTX_SPIN);
+
 	/*
 	 * pick the one with the smallest sleep time
 	 */
