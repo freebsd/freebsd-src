@@ -298,7 +298,7 @@ err1:		(void)close(mbfd);
 		return;
 	}
 
-#ifdef EXTRA_SAFETY
+#ifndef DONT_FSYNC
 	/* Flush to disk, don't wait for update. */
 	if (fsync(mbfd)) {
 		e_to_sys(errno);
