@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.156 1998/03/16 01:55:22 dyson Exp $
+ * $Id: vfs_bio.c,v 1.157 1998/03/17 08:41:28 kato Exp $
  */
 
 /*
@@ -1461,11 +1461,17 @@ loop1:
 			if ((bp->b_flags & B_VMIO) && (size <= bp->b_kvasize)) {
 				allocbuf(bp, size);
 			} else {
-				bp->b_flags |= B_NOCACHE;
 				if (bp->b_flags & B_DELWRI) {
+					bp->b_flags |= B_NOCACHE;
 					VOP_BWRITE(bp);
 				} else {
-					brelse(bp);
+					if (bp->b_flags & B_VMIO) {
+						bp->b_flags |= B_RELBUF;
+						brelse(bp);
+					} else {
+						bp->b_flags |= B_NOCACHE;
+						VOP_BWRITE(bp);
+					}
 				}
 				goto loop;
 			}
