@@ -236,11 +236,13 @@ isa_release_resource(device_t bus, device_t child, int type, int rid,
 	 */
 	int	i;
 
-	for (i = 1; i < r->r_bushandle->bsh_ressz; i++)
-		resource_list_release(rl, bus, child, type, rid + i,
-				      r->r_bushandle->bsh_res[i]);
-	if (r->r_bushandle->bsh_res != NULL)
-		free(r->r_bushandle->bsh_res, M_DEVBUF);
+	if (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT) {
+		for (i = 1; i < r->r_bushandle->bsh_ressz; i++)
+			resource_list_release(rl, bus, child, type, rid + i,
+					      r->r_bushandle->bsh_res[i]);
+		if (r->r_bushandle->bsh_res != NULL)
+			free(r->r_bushandle->bsh_res, M_DEVBUF);
+	}
 #endif
 	return resource_list_release(rl, bus, child, type, rid, r);
 }
