@@ -428,18 +428,16 @@ acpi_print_fadt(struct FADTbody *fadt)
 	printf("ACPI_DISABLE=0x%x, ", fadt->acpi_disable);
 	printf("S4BIOS_REQ=0x%x\n", fadt->s4biosreq);
 	printf("\tPSTATE_CNT=0x%x\n", fadt->pstate_cnt);
-	if (fadt->pm1a_evt_blk != 0)
-		printf("\tPM1a_EVT_BLK=0x%x-0x%x\n",
-		       fadt->pm1a_evt_blk,
-		       fadt->pm1a_evt_blk + fadt->pm1_evt_len - 1);
+	printf("\tPM1a_EVT_BLK=0x%x-0x%x\n",
+	       fadt->pm1a_evt_blk,
+	       fadt->pm1a_evt_blk + fadt->pm1_evt_len - 1);
 	if (fadt->pm1b_evt_blk != 0)
 		printf("\tPM1b_EVT_BLK=0x%x-0x%x\n",
 		       fadt->pm1b_evt_blk,
 		       fadt->pm1b_evt_blk + fadt->pm1_evt_len - 1);
-	if (fadt->pm1a_cnt_blk != 0)
-		printf("\tPM1a_CNT_BLK=0x%x-0x%x\n",
-		       fadt->pm1a_cnt_blk,
-		       fadt->pm1a_cnt_blk + fadt->pm1_cnt_len - 1);
+	printf("\tPM1a_CNT_BLK=0x%x-0x%x\n",
+	       fadt->pm1a_cnt_blk,
+	       fadt->pm1a_cnt_blk + fadt->pm1_cnt_len - 1);
 	if (fadt->pm1b_cnt_blk != 0)
 		printf("\tPM1b_CNT_BLK=0x%x-0x%x\n",
 		       fadt->pm1b_cnt_blk,
@@ -448,10 +446,9 @@ acpi_print_fadt(struct FADTbody *fadt)
 		printf("\tPM2_CNT_BLK=0x%x-0x%x\n",
 		       fadt->pm2_cnt_blk,
 		       fadt->pm2_cnt_blk + fadt->pm2_cnt_len - 1);
-	if (fadt->pm_tmr_blk != 0)
-		printf("\tPM2_TMR_BLK=0x%x-0x%x\n",
-		       fadt->pm_tmr_blk,
-		       fadt->pm_tmr_blk + fadt->pm_tmr_len - 1);
+	printf("\tPM_TMR_BLK=0x%x-0x%x\n",
+	       fadt->pm_tmr_blk,
+	       fadt->pm_tmr_blk + fadt->pm_tmr_len - 1);
 	if (fadt->gpe0_blk != 0)
 		printf("\tGPE0_BLK=0x%x-0x%x\n",
 		       fadt->gpe0_blk,
@@ -512,22 +509,32 @@ acpi_print_fadt(struct FADTbody *fadt)
 	if (addr_size == 8) {
 		printf("\tX_FACS=0x%08lx, ", (u_long)fadt->x_facs_ptr);
 		printf("X_DSDT=0x%08lx\n", (u_long)fadt->x_dsdt_ptr);
-		printf("\tX_PM1A_EVT_BLK=");
+		printf("\tX_PM1a_EVT_BLK=");
 		acpi_print_gas(&fadt->x_pm1a_evt_blk);
-		printf("\n\tX_PM1B_EVT_BLK=");
-		acpi_print_gas(&fadt->x_pm1b_evt_blk);
-		printf("\n\tX_PM1A_CNT_BLK=");
+		if (fadt->x_pm1b_evt_blk.address != 0) {
+			printf("\n\tX_PM1b_EVT_BLK=");
+			acpi_print_gas(&fadt->x_pm1b_evt_blk);
+		}
+		printf("\n\tX_PM1a_CNT_BLK=");
 		acpi_print_gas(&fadt->x_pm1a_cnt_blk);
-		printf("\n\tX_PM1B_CNT_BLK=");
-		acpi_print_gas(&fadt->x_pm1b_cnt_blk);
-		printf("\n\tX_PM2_CNT_BLK=");
-		acpi_print_gas(&fadt->x_pm2_cnt_blk);
+		if (fadt->x_pm1b_cnt_blk.address != 0) {
+			printf("\n\tX_PM1b_CNT_BLK=");
+			acpi_print_gas(&fadt->x_pm1b_cnt_blk);
+		}
+		if (fadt->x_pm1b_cnt_blk.address != 0) {
+			printf("\n\tX_PM2_CNT_BLK=");
+			acpi_print_gas(&fadt->x_pm2_cnt_blk);
+		}
 		printf("\n\tX_PM_TMR_BLK=");
 		acpi_print_gas(&fadt->x_pm_tmr_blk);
-		printf("\n\tX_GPE0_BLK=");
-		acpi_print_gas(&fadt->x_gpe0_blk);
-		printf("\n\tX_GPE1_BLK=");
-		acpi_print_gas(&fadt->x_gpe1_blk);
+		if (fadt->x_gpe0_blk.address != 0) {
+			printf("\n\tX_GPE0_BLK=");
+			acpi_print_gas(&fadt->x_gpe0_blk);
+		}
+		if (fadt->x_gpe1_blk.address != 0) {
+			printf("\n\tX_GPE1_BLK=");
+			acpi_print_gas(&fadt->x_gpe1_blk);
+		}
 		printf("\n");
 	}
 
