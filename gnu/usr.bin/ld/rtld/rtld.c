@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rtld.c,v 1.27 1995/09/27 23:17:33 nate Exp $
+ *	$Id: rtld.c,v 1.28 1995/10/21 14:52:48 ache Exp $
  */
 
 #include <sys/param.h>
@@ -264,14 +264,12 @@ struct _dynamic		*dp;
 
 	if (careful) {
 		unsetenv("LD_LIBRARY_PATH");
-		unsetenv("LD_NOSTD_PATH");
 		unsetenv("LD_PRELOAD");
 	}
 
 	/* Setup directory search */
 	add_search_path(getenv("LD_LIBRARY_PATH"));
-	if (getenv("LD_NOSTD_PATH") == NULL)
-		std_search_path();
+	std_search_path();
 
 	anon_open();
 	/* Load required objects into the process address space */
