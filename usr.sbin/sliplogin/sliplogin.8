@@ -274,38 +274,31 @@ unit
 was successfully attached.
 .El
 .Sh FILES
-.Ar /etc/sliphome/slip.hosts
+.Bl -tag -width indent
+.It Pa /etc/sliphome/slip.hosts
 list of host login names and parameters.
-.Pp
-.Ar /etc/sliphome/slip.login
+.It Pa /etc/sliphome/slip.login
 script executed when a connection is made.
-.Pp
-.Ar /etc/sliphome/slip.login.loginname
+.It Pa /etc/sliphome/slip.login. Ns Ar loginname
 script executed when a connection is made by
 .Ar loginname .
-.Pp
-.Ar /etc/sliphome/slip.logout
+.It Pa /etc/sliphome/slip.logout
 script executed when a connection is lost.
-.Pp
-.Ar /etc/sliphome/slip.logout.loginname
+.It Pa /etc/sliphome/slip.logout. Ns Ar loginname
 script executed when a connection is lost by
 .Ar loginname .
-.Pp
-.Ar /etc/sliphome/slip.slparms
+.It Pa /etc/sliphome/slip.slparms
 extra parameters file.
-.Pp
-.Ar /etc/sliphome/slip.slparms.loginname
+.It Pa /etc/sliphome/slip.slparms. Ns Ar loginname
 extra parameters file for
 .Ar loginname .
-.Pp
-.Ar /var/run/ttyXn.if
+.It Pa /var/run/ Ns Ar ttyXn Ns Pa .if
 contains the name of the network interface used by the sliplogin process on
 .Ar ttyXn .
-.Pp
-.Ar /var/run/slX.pid
+.It Pa /var/run/ Ns Ar slX Ns Pa .pid
 contains the PID of the sliplogin process which is using interface
 .Ar slX .
-.Pp
+.El
 .Sh SEE ALSO
 .Xr slattach 8 ,
 .Xr syslogd 8 ,

@@ -47,7 +47,7 @@
 .Op Fl W
 .Op Fl c Ar maximum
 .Op Fl C Ar rate
-.Op Fl a Ar address|hostname
+.Op Fl a Ar address | hostname
 .Op Fl p Ar filename
 .Op Fl R Ar rate
 .Op Ar configuration file
@@ -455,7 +455,9 @@ If the real
 service is disabled,
 return this username for every request.
 This is primarily useful when running this service on a NAT machine.
-.It Fl t Ar sec[.usec]
+.It Fl t Xo
+.Ar sec Ns Op . Ns Ar usec
+.Xc
 Specify a timeout for the service.
 The default timeout is 10.0 seconds.
 .It Fl r

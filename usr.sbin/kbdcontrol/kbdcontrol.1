@@ -22,8 +22,14 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl dFKix
-.Op Fl b Ar duration.pitch | Ar belltype
-.Op Fl r Ar delay.repeat | Ar speed
+.Oo
+.Fl b
+.Ar duration . Ns Ar pitch | Ar belltype
+.Oc
+.Oo
+.Fl r
+.Ar delay . Ns Ar repeat | Ar speed
+.Oc
 .Op Fl l Ar keymap_file
 .Op Fl f Ar # Ar string
 .Op Fl h Ar size
@@ -47,7 +53,9 @@ below.
 .Pp
 The following command line options are supported:
 .Bl -tag -width indent
-.It Fl b Ar duration.pitch | Ar belltype
+.It Fl b Xo
+.Ar duration . Ns Ar pitch | Ar belltype
+.Xc
 Set the bell duration in milliseconds and pitch in hertz. 
 If a 
 .Ar belltype
@@ -63,7 +71,9 @@ If
 is preceded by the word
 .Cm quiet. ,
 the bell will not be rung when the ringing process is in the background vty.
-.It Fl r Ar delay.repeat | Ar speed
+.It Fl r Xo
+.Ar delay . Ns Ar repeat | Ar speed
+.Xc
 Set keyboard
 .Ar delay
 (250, 500, 750, 1000)
