@@ -284,7 +284,7 @@ pam_respond(void *ctx, u_int num, char **resp)
 	debug2(__func__);
 	switch (ctxt->pam_done) {
 	case 1:
-		return (0);	
+		return (0);
 	case 0:
 		break;
 	default:
