@@ -130,10 +130,10 @@ ipx_control(so, cmd, data, ifp, p)
 	case SIOCSIFDSTADDR:
 		if (ia == NULL) {
 			oia = (struct ipx_ifaddr *)
-				malloc(sizeof(*ia), M_IFADDR, M_WAITOK);
+				malloc(sizeof(*ia), M_IFADDR,
+				M_WAITOK | M_ZERO);
 			if (oia == NULL)
 				return (ENOBUFS);
-			bzero((caddr_t)oia, sizeof(*oia));
 			if ((ia = ipx_ifaddr) != NULL) {
 				for ( ; ia->ia_next != NULL; ia = ia->ia_next)
 					;
