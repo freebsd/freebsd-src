@@ -391,15 +391,13 @@ isp_pci_attach(device_t dev)
 	}
 
 	/*
-	 * Figure out which we should try first - memory mapping or i/o mapping?
+	 * Which we should try first - memory mapping or i/o mapping?
+	 *
+	 * We used to try memory first followed by i/o on alpha, otherwise
+	 * the reverse, but we should just try memory first all the time now.
 	 */
-#ifdef	__alpha__
 	m1 = PCIM_CMD_MEMEN;
 	m2 = PCIM_CMD_PORTEN;
-#else
-	m1 = PCIM_CMD_PORTEN;
-	m2 = PCIM_CMD_MEMEN;
-#endif
 
 	tval = 0;
         if (resource_int_value(device_get_name(dev), device_get_unit(dev),
@@ -1081,7 +1079,7 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 	caddr_t base;
 	u_int32_t len;
 	int i, error, ns;
-	bus_size_t alim, slim;
+	bus_size_t alim, slim, xlim;
 	struct imush im;
 
 	/*
@@ -1093,8 +1091,9 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 
 #ifdef	ISP_DAC_SUPPORTED
 	alim = BUS_SPACE_UNRESTRICTED;
+	xlim = BUS_SPACE_MAXADDR_32BIT;
 #else
-	alim = BUS_SPACE_MAXADDR_32BIT;
+	xlim = alim = BUS_SPACE_MAXADDR_32BIT;
 #endif
 	if (IS_ULTRA2(isp) || IS_FC(isp) || IS_1240(isp)) {
 		slim = BUS_SPACE_MAXADDR_32BIT;
@@ -1150,7 +1149,7 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 	}
 
 	ns = (len / PAGE_SIZE) + 1;
-	if (bus_dma_tag_create(pcs->dmat, QENTRY_LEN, slim+1, alim, alim,
+	if (bus_dma_tag_create(pcs->dmat, QENTRY_LEN, slim+1, xlim, xlim,
 	    NULL, NULL, len, ns, slim, 0, busdma_lock_mutex, &Giant,
 	    &isp->isp_cdmat)) {
 		isp_prt(isp, ISP_LOGERR,
@@ -1628,6 +1627,9 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 static void dma2(void *, bus_dma_segment_t *, int, int);
 
 #ifdef	PAE
+#define	LOWD(x)		((uint32_t) x)
+#define	HIWD(x)		((uint32_t) (x >> 32))
+
 static void
 dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 {
@@ -1664,7 +1666,6 @@ dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	} else {
 		bus_dmamap_sync(pcs->dmat, *dp, BUS_DMASYNC_PREWRITE);
 	}
-
 	datalen = XS_XFRLEN(csio);
 
 	/*
@@ -1678,6 +1679,7 @@ dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	 */
 
 	if (IS_FC(isp)) {
+		rq->req_header.rqs_entry_type = RQSTYPE_T3RQS;
 		seglim = ISP_RQDSEG_T3;
 		((ispreqt3_t *)rq)->req_totalcnt = datalen;
 		if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
@@ -1686,6 +1688,7 @@ dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			((ispreqt3_t *)rq)->req_flags |= REQFLAG_DATA_OUT;
 		}
 	} else {
+		rq->req_header.rqs_entry_type = RQSTYPE_A64;
 		if (csio->cdb_len > 12) {
 			seglim = 0;
 		} else {
@@ -1704,14 +1707,18 @@ dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		if (IS_FC(isp)) {
 			ispreqt3_t *rq3 = (ispreqt3_t *)rq;
 			rq3->req_dataseg[rq3->req_seg_count].ds_base =
-			    dm_segs->ds_addr;
+			    LOWD(dm_segs->ds_addr);
+			rq3->req_dataseg[rq3->req_seg_count].ds_basehi =
+			    HIWD(dm_segs->ds_addr);
 			rq3->req_dataseg[rq3->req_seg_count].ds_count =
 			    dm_segs->ds_len;
 		} else {
 			rq->req_dataseg[rq->req_seg_count].ds_base =
-				dm_segs->ds_addr;
+			    LOWD(dm_segs->ds_addr);
+			rq->req_dataseg[rq->req_seg_count].ds_basehi =
+			    HIWD(dm_segs->ds_addr);
 			rq->req_dataseg[rq->req_seg_count].ds_count =
-				dm_segs->ds_len;
+			    dm_segs->ds_len;
 		}
 		datalen -= dm_segs->ds_len;
 		rq->req_seg_count++;
@@ -1738,7 +1745,9 @@ dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		seglim = 0;
 		while (datalen > 0 && seglim < ISP_CDSEG64 && dm_segs != eseg) {
 			crq->req_dataseg[seglim].ds_base =
-			    dm_segs->ds_addr;
+			    LOWD(dm_segs->ds_addr);
+			crq->req_dataseg[seglim].ds_basehi =
+			    HIWD(dm_segs->ds_addr);
 			crq->req_dataseg[seglim].ds_count =
 			    dm_segs->ds_len;
 			rq->req_seg_count++;
