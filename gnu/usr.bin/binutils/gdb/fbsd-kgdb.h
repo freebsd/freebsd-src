@@ -8,7 +8,6 @@
 extern int kernel_debugging;
 extern int kernel_writablecore;
 
-#if __FreeBSD_version >= 500032
 #define ADDITIONAL_OPTIONS \
        {"kernel", no_argument, &kernel_debugging, 1}, \
        {"k", no_argument, &kernel_debugging, 1}, \
@@ -30,6 +29,5 @@ extern int kernel_writablecore;
 #define START_PROGRESS(STR,N) \
   if (!strcmp(STR, "kgdb")) \
      kernel_debugging = 1;
-#endif
 
 #endif /* FBSD_KGDB_H */
