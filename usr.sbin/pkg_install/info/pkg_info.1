@@ -29,6 +29,7 @@
 .Op Fl e Ar package
 .Op Fl l Ar prefix
 .Op Fl t Ar template
+.Op Fl W Ar filename
 .Op Ar pkg-name ...
 .Nm
 .Fl a
@@ -105,6 +106,14 @@ when selecting packages to be displayed (by default
 .Nm
 automatically expands shell glob patterns in the
 .Ar pkg-name ) .
+.It Fl W
+For the specified
+.Ar filename
+argument show which package it belongs to.  If the file is not in the
+current directory, and does not have an absolute path, then the 
+.Ev PATH
+is searched using
+.Xr which 1 .
 .It Fl x
 Treat the
 .Ar pkg-name
