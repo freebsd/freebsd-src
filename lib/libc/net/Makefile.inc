@@ -40,7 +40,7 @@ nslexer.c: nslexer.l nsparser.h
 .endif
 
 MAN+=	addr2ascii.3 byteorder.3 ethers.3 eui64.3 \
-	getaddrinfo.3 gethostbyname.3 \
+	getaddrinfo.3 gai_strerror.3 gethostbyname.3 \
 	getifaddrs.3 getifmaddrs.3 getipnodebyname.3 \
 	getnameinfo.3 getnetent.3 getprotoent.3 getservent.3 hesiod.3 \
 	if_indextoname.3 \
@@ -56,7 +56,7 @@ MLINKS+=ethers.3 ether_aton.3 ethers.3 ether_hostton.3 ethers.3 ether_line.3 \
 	ethers.3 ether_ntoa.3 ethers.3 ether_ntohost.3
 MLINKS+=eui64.3 eui64_aton.3 eui64.3 eui64_hostton.3 \
 	eui64.3 eui64_ntoa.3 eui64.3 eui64_ntohost.3
-MLINKS+=getaddrinfo.3 freeaddrinfo.3 getaddrinfo.3 gai_strerror.3
+MLINKS+=getaddrinfo.3 freeaddrinfo.3 getaddrinfo.3 
 MLINKS+=gethostbyname.3 endhostent.3 gethostbyname.3 gethostbyaddr.3 \
 	gethostbyname.3 gethostbyname2.3 gethostbyname.3 gethostent.3 \
 	gethostbyname.3 herror.3 gethostbyname.3 hstrerror.3 \
