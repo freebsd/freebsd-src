@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.17 2001/11/11 23:52:28 imp Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.18 2001/11/15 07:50:09 imp Exp 
  */
 /* $NetBSD: pcmciadevs,v 1.144 2001/10/27 08:05:21 ichiro Exp $ */
 
@@ -548,6 +548,7 @@
 #define	PCMCIA_VENDOR_ICOM	-1	/* ICOM Inc */
 #define	PCMCIA_VENDOR_INTERSIL	-1	/* Intersil */
 #define	PCMCIA_VENDOR_NAKAGAWAMETAL	-1	/* NAKAGAWA METAL */
+#define	PCMCIA_VENDOR_NDC	-1	/* NDC */
 #define	PCMCIA_VENDOR_PLANET	-1	/* Planet */
 #define	PCMCIA_VENDOR_PLANEX	-1	/* Planex Communications Inc */
 #define	PCMCIA_VENDOR_PREMAX	-1	/* Premax */
