@@ -79,12 +79,17 @@ static int ata_via_chipinit(device_t);
 static void ata_via_family_setmode(struct ata_device *, int);
 static void ata_via_southbridge_fixup(device_t);
 static int ata_promise_chipinit(device_t);
+static int ata_promise_mio_allocate(device_t, struct ata_channel *);
 static void ata_promise_old_intr(void *);
 static void ata_promise_tx2_intr(void *);
+static void ata_promise_mio_intr(void *);
 static void ata_promise_setmode(struct ata_device *, int);
 static int ata_promise_old_dmainit(struct ata_channel *);
 static int ata_promise_old_dmastart(struct ata_channel *, caddr_t, int32_t,int);
 static int ata_promise_old_dmastop(struct ata_channel *);
+static int ata_promise_mio_dmainit(struct ata_channel *);
+static int ata_promise_mio_dmastart(struct ata_channel *, caddr_t, int32_t,int);
+static int ata_promise_mio_dmastop(struct ata_channel *);
 static int ata_serverworks_chipinit(device_t);
 static void ata_serverworks_setmode(struct ata_device *, int);
 static int ata_sii_chipinit(device_t);
@@ -939,6 +944,18 @@ ata_promise_ident(device_t dev)
      { ATA_PDC20275,  0, PRTX,  0x00,	ATA_UDMA6, "Promise PDC20275" },
      { ATA_PDC20276,  0, PRTX,  PRSX6K, ATA_UDMA6, "Promise PDC20276" },
      { ATA_PDC20277,  0, PRTX,  0x00,	ATA_UDMA6, "Promise PDC20277" },
+     { ATA_PDC20318,  0, PRMIO, PRSATA,	ATA_UDMA6, "Promise PDC20318" },
+     { ATA_PDC20319,  0, PRMIO, PRSATA,	ATA_UDMA6, "Promise PDC20319" },
+     { ATA_PDC20371,  0, PRMIO, PRSATA,	ATA_UDMA6, "Promise PDC20371" },
+     { ATA_PDC20375,  0, PRMIO, PRSATA,	ATA_UDMA6, "Promise PDC20375" },
+     { ATA_PDC20376,  0, PRMIO, PRSATA,	ATA_UDMA6, "Promise PDC20376" },
+     { ATA_PDC20377,  0, PRMIO, PRSATA,	ATA_UDMA6, "Promise PDC20377" },
+     { ATA_PDC20378,  0, PRMIO, PRSATA,	ATA_UDMA6, "Promise PDC20378" },
+     { ATA_PDC20379,  0, PRMIO, PRSATA,	ATA_UDMA6, "Promise PDC20379" },
+     { ATA_PDC20617,  0, PRMIO, PRDUAL,	ATA_UDMA6, "Promise PDC20617" },
+     { ATA_PDC20618,  0, PRMIO, PRDUAL,	ATA_UDMA6, "Promise PDC20618" },
+     { ATA_PDC20619,  0, PRMIO, PRDUAL,	ATA_UDMA6, "Promise PDC20619" },
+     { ATA_PDC20620,  0, PRMIO, PRDUAL,	ATA_UDMA6, "Promise PDC20620" },
      { 0, 0, 0, 0, 0, 0}};
     char *desc, buffer[64];
     uintptr_t devid = 0;
@@ -1015,8 +1032,64 @@ ata_promise_chipinit(device_t dev)
 	    return ENXIO;
 	}
 	break;
+
+    case PRMIO:
+	rid = 0x1c;
+	if (!(ctlr->r_io2 = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
+					       0, ~0, 1, RF_ACTIVE)))
+	    return ENXIO;
+
+	ctlr->dmainit = ata_promise_mio_dmainit;
+	ctlr->allocate = ata_promise_mio_allocate;
+
+	if (ctlr->chip->cfg2 & PRDUAL) {
+	    ctlr->channels = ((ATA_INL(ctlr->r_io2, 0x48) & 0x01) > 0) +
+			     ((ATA_INL(ctlr->r_io2, 0x48) & 0x02) > 0) + 2;
+	}
+	else if (ctlr->chip->cfg2 & PRSATA) {
+	    ATA_OUTL(ctlr->r_io2, 0x06c, 0x00ff0033);
+	    ctlr->channels = ((ATA_INL(ctlr->r_io2, 0x48) & 0x02) > 0) + 3;
+	}
+	else
+	    ctlr->channels = 4;
+
+	if ((bus_setup_intr(dev, ctlr->r_irq, INTR_TYPE_BIO | INTR_ENTROPY,
+			    ata_promise_mio_intr, ctlr, &ctlr->handle))) {
+	    device_printf(dev, "unable to setup interrupt\n");
+	    return ENXIO;
+	}
+	break;
     }
     ctlr->setmode = ata_promise_setmode;
+    return 0;
+}
+
+static int
+ata_promise_mio_allocate(device_t dev, struct ata_channel *ch)
+{
+    struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
+    int i;
+
+    for (i = ATA_DATA; i <= ATA_STATUS; i++) {
+	ch->r_io[i].res = ctlr->r_io2;
+	ch->r_io[i].offset = 0x200 + (i << 2) + (ch->unit << 7);
+    }
+    ch->r_io[ATA_ALTSTAT].res = ctlr->r_io2;
+    ch->r_io[ATA_ALTSTAT].offset = 0x238 + (ch->unit << 7);
+    ch->r_io[ATA_BMCTL_PORT].res = ctlr->r_io2;
+    ch->r_io[ATA_BMCTL_PORT].offset = 0x260 + (ch->unit << 7);
+    ch->r_io[ATA_BMDTP_PORT].res = ctlr->r_io2;
+    ch->r_io[ATA_BMDTP_PORT].offset = 0x244 + (ch->unit << 7);
+    ch->r_io[ATA_BMDEVSPEC_0].res = ctlr->r_io2;
+    ch->r_io[ATA_BMDEVSPEC_0].offset = (ch->unit << 2);
+    ch->r_io[ATA_IDX_ADDR].res = ctlr->r_io2;
+
+    ATA_IDX_OUTL(ch, ATA_BMCMD_PORT,
+		 (ATA_IDX_INL(ch, ATA_BMCMD_PORT) & ~0x00000f8f) | ch->unit);
+    ATA_IDX_OUTL(ch, ATA_BMDEVSPEC_0, 0x00000001);
+
+    ch->flags |= ATA_NO_SLAVE;
+    ctlr->dmainit(ch);
     return 0;
 }
 
@@ -1072,6 +1145,24 @@ ata_promise_tx2_intr(void *data)
 }
 
 static void
+ata_promise_mio_intr(void *data)
+{
+    struct ata_pci_controller *ctlr = data;
+    struct ata_channel *ch;
+    u_int32_t irq_vector;
+    int	unit;
+
+    irq_vector = ATA_INL(ctlr->r_io2, 0x0040);
+    for (unit = 0; unit < ctlr->channels; unit++) {
+	if (irq_vector & (1 << unit)) {
+	    if ((ch = ctlr->interrupt[unit].argument))
+	    	ctlr->interrupt[unit].function(ch);
+	    ATA_IDX_OUTL(ch, ATA_BMDEVSPEC_0, 0x00000001);
+	}
+    }
+}
+
+static void
 ata_promise_setmode(struct ata_device *atadev, int mode)
 {
     device_t parent = device_get_parent(atadev->channel->dev);
@@ -1098,18 +1189,7 @@ ata_promise_setmode(struct ata_device *atadev, int mode)
 
     mode = ata_limit_mode(atadev, mode, ctlr->chip->max_dma);
 
-    /* is this a TX2 or later chip ? */
     switch (ctlr->chip->cfg1) {
-    case PRTX:
-	ATA_IDX_OUTB(atadev->channel, ATA_BMDEVSPEC_0, 0x0b);
-	if (mode > ATA_UDMA2 &&
-	    ATA_IDX_INB(atadev->channel, ATA_BMDEVSPEC_1) & 0x04) {
-	    ata_prtdev(atadev,
-		       "DMA limited to UDMA33, non-ATA66 cable or device\n");
-	    mode = ATA_UDMA2;
-	}
-	break;
-   
     case PROLD:
     case PRNEW:
 	if (mode > ATA_UDMA2 && (pci_read_config(parent, 0x50, 2) &
@@ -1120,6 +1200,26 @@ ata_promise_setmode(struct ata_device *atadev, int mode)
 	}
 	if (ATAPI_DEVICE(atadev) && mode > ATA_PIO_MAX)
 	    mode = ata_limit_mode(atadev, mode, ATA_PIO_MAX);
+	break;
+
+    case PRTX:
+	ATA_IDX_OUTB(atadev->channel, ATA_BMDEVSPEC_0, 0x0b);
+	if (mode > ATA_UDMA2 &&
+	    ATA_IDX_INB(atadev->channel, ATA_BMDEVSPEC_1) & 0x04) {
+	    ata_prtdev(atadev,
+		       "DMA limited to UDMA33, non-ATA66 cable or device\n");
+	    mode = ATA_UDMA2;
+	}
+	break;
+   
+    case PRMIO:
+    	if (mode > ATA_UDMA2 &&
+	    (ATA_IDX_INL(atadev->channel, ATA_BMCTL_PORT) & 0x01000000)) {
+	    ata_prtdev(atadev,
+		       "DMA limited to UDMA33, non-ATA66 cable or device\n");
+	    mode = ATA_UDMA2;
+	}
+	break;
     }
 
     error = ata_command(atadev, ATA_C_SETFEATURES, 0, mode, 
@@ -1194,6 +1294,43 @@ ata_promise_old_dmastop(struct ata_channel *ch)
     ATA_IDX_OUTB(ch, ATA_BMSTAT_PORT, ATA_BMSTAT_INTERRUPT | ATA_BMSTAT_ERROR); 
     ata_dmastop(ch);
     return error;
+}
+
+static int
+ata_promise_mio_dmainit(struct ata_channel *ch)
+{
+    int error;
+
+    if ((error = ata_dmainit(ch)))
+	return error;
+
+    ch->dma->start = ata_promise_mio_dmastart;
+    ch->dma->stop = ata_promise_mio_dmastop;
+    return 0;
+}
+
+static int
+ata_promise_mio_dmastart(struct ata_channel *ch,
+			 caddr_t data, int32_t count, int dir)
+{
+    int error;
+
+    if ((error = ata_dmastart(ch, data, count, dir)))
+	return error;
+
+    ATA_IDX_OUTL(ch, ATA_BMDTP_PORT, ch->dma->mdmatab);
+    ATA_IDX_OUTL(ch, ATA_BMCTL_PORT,
+		 (ATA_IDX_INL(ch, ATA_BMCTL_PORT) & ~0x000000c0) |
+		 ((dir) ? 0x00000080 : 0x000000c0));
+    return error;
+}
+
+static int
+ata_promise_mio_dmastop(struct ata_channel *ch)
+{
+    ATA_IDX_OUTL(ch, ATA_BMCTL_PORT,
+		 ATA_IDX_INL(ch, ATA_BMCTL_PORT) & ~0x00000080);
+    return ata_dmastop(ch);
 }
 
 /*
