@@ -57,6 +57,7 @@ struct kt {
 	{ "bus",	BUS },
 	{ "cam",	CAM },		/* XXX going away */
 	{ "conflicts",	CONFLICTS },
+	{ "config",	CONFIG },
 	{ "controller",	CONTROLLER },
 	{ "cpu",	CPU },
 	{ "device",	DEVICE },
