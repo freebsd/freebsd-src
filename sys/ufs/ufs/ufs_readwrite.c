@@ -468,10 +468,19 @@ WRITE(ap)
 		if (uio->uio_offset + xfersize > ip->i_size)
 			vnode_pager_setsize(vp, uio->uio_offset + xfersize);
 
+		/*      
+		 * Avoid a data-consistency race between write() and mmap()
+		 * by ensuring that newly allocated blocks are zerod.  The
+		 * race can occur even in the case where the write covers
+		 * the entire block.
+		 */
+		flags |= B_CLRBUF;
+#if 0
 		if (fs->fs_bsize > xfersize)
 			flags |= B_CLRBUF;
 		else
 			flags &= ~B_CLRBUF;
+#endif
 /* XXX is uio->uio_offset the right thing here? */
 		error = VOP_BALLOC(vp, uio->uio_offset, xfersize,
 		    ap->a_cred, flags, &bp);
