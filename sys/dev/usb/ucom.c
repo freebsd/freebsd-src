@@ -1,7 +1,7 @@
 /*	$NetBSD: ucom.c,v 1.40 2001/11/13 06:24:54 lukem Exp $	*/
 
 /*-
- * Copyright (c) 2001-2002, Shunsuke Akiyama <akiyama@jp.FreeBSD.org>.
+ * Copyright (c) 2001-2003, 2005 Shunsuke Akiyama <akiyama@jp.FreeBSD.org>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -951,6 +951,7 @@ ucomstop(struct tty *tp, int flag)
 	if (flag & FREAD) {
 		DPRINTF(("ucomstop: read\n"));
 		ucomstopread(sc);
+		ucomstartread(sc);
 	}
 
 	if (flag & FWRITE) {
@@ -963,6 +964,8 @@ ucomstop(struct tty *tp, int flag)
 		}
 		splx(s);
 	}
+
+	ucomstart(tp);
 
 	DPRINTF(("ucomstop: done\n"));
 }
@@ -1141,6 +1144,7 @@ ucom_cleanup(struct ucom_softc *sc)
 
 	ucom_shutdown(sc);
 	if (sc->sc_bulkin_pipe != NULL) {
+		sc->sc_state |= UCS_RXSTOP;
 		usbd_abort_pipe(sc->sc_bulkin_pipe);
 		usbd_close_pipe(sc->sc_bulkin_pipe);
 		sc->sc_bulkin_pipe = NULL;
