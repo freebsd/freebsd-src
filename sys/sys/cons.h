@@ -88,6 +88,7 @@ extern int cons_unavail;
 
 /* Other kernel entry points. */
 void	cninit(void);
+void	cninit_finish(void);
 int	cnadd(struct consdev *);
 void	cnremove(struct consdev *);
 void	cnselect(struct consdev *);
