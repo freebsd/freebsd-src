@@ -89,7 +89,6 @@
 /*
  * Config offsets for the AMD 751 chipset.
  */
-#define AGP_AMD751_APBASE	0x10
 #define AGP_AMD751_REGISTERS	0x14
 #define AGP_AMD751_APCTRL	0xac
 #define AGP_AMD751_MODECTRL	0xb0
