@@ -140,6 +140,8 @@ device		sc	1
 #options 	XSERVER			# support for X server on a vt console
 #options 	FAT_CURSOR		# start with block cursor
 
+device		agp		# support several AGP chipsets
+
 # Floating point support - do not disable.
 device		npx
 
