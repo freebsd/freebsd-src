@@ -357,6 +357,7 @@ void	 ttyflush(struct tty *tp, int rw);
 void	 ttyfree(struct tty *tp);
 void	 ttygone(struct tty *tp);
 void	 ttyinfo(struct tty *tp);
+void	 ttyinitmode(struct tty *tp, int echo, int speed);
 int	 ttyinput(int c, struct tty *tp);
 int	 ttylclose(struct tty *tp, int flag);
 void	 ttyldoptim(struct tty *tp);

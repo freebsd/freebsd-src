@@ -148,12 +148,7 @@ sscopen(struct cdev *dev, int flag, int mode, struct thread *td)
 	tp->t_dev = dev;
 	if ((tp->t_state & TS_ISOPEN) == 0) {
 		tp->t_state |= TS_CARR_ON;
-		ttychars(tp);
-		tp->t_iflag = TTYDEF_IFLAG;
-		tp->t_oflag = TTYDEF_OFLAG;
-		tp->t_cflag = TTYDEF_CFLAG|CLOCAL;
-		tp->t_lflag = TTYDEF_LFLAG;
-		tp->t_ispeed = tp->t_ospeed = TTYDEF_SPEED;
+		ttyconsolemode(tp, 0);
 		ttsetwater(tp);
 
 		setuptimeout = 1;

@@ -2845,11 +2845,7 @@ ttymalloc(struct tty *tp)
 	tp->t_timeout = -1;
 	tp->t_dtr_wait = 3 * hz;
 
-	tp->t_init_in.c_iflag = TTYDEF_IFLAG;
-	tp->t_init_in.c_oflag = TTYDEF_OFLAG;
-	tp->t_init_in.c_cflag = TTYDEF_CFLAG;
-	tp->t_init_in.c_lflag = TTYDEF_LFLAG;
-	tp->t_init_in.c_ispeed = tp->t_init_in.c_ospeed = TTYDEF_SPEED;
+	ttyinitmode(tp, 0, 0);
 	bcopy(ttydefchars, tp->t_init_in.c_cc, sizeof tp->t_init_in.c_cc);
 
 	/* Make callout the same as callin */
@@ -3365,23 +3361,44 @@ ttysioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 }
 
 /*
+ * Initialize a tty to sane modes.
+ */
+void
+ttyinitmode(struct tty *tp, int echo, int speed)
+{
+
+	if (speed == 0)
+		speed = TTYDEF_SPEED;
+	tp->t_init_in.c_iflag = TTYDEF_IFLAG;
+	tp->t_init_in.c_oflag = TTYDEF_OFLAG;
+	tp->t_init_in.c_cflag = TTYDEF_CFLAG;
+	if (echo)
+		tp->t_init_in.c_lflag = TTYDEF_LFLAG_ECHO;
+	else
+		tp->t_init_in.c_lflag = TTYDEF_LFLAG;
+
+	tp->t_init_in.c_ispeed = tp->t_init_in.c_ospeed = speed;
+	termioschars(&tp->t_init_in);
+	tp->t_init_out = tp->t_init_in;
+	tp->t_termios = tp->t_init_in;
+}
+
+/*
  * Use more "normal" termios paramters for consoles.
  */
 void
 ttyconsolemode(struct tty *tp, int speed)
 {
 
-	tp->t_init_in.c_iflag = TTYDEF_IFLAG;
-	tp->t_init_in.c_oflag = TTYDEF_OFLAG;
-	tp->t_init_in.c_cflag = TTYDEF_CFLAG | CLOCAL;
-	tp->t_init_in.c_lflag = TTYDEF_LFLAG_ECHO;
-	tp->t_lock_out.c_cflag = tp->t_lock_in.c_cflag = CLOCAL;
 	if (speed == 0)
 		speed = TTYDEF_SPEED;
+	ttyinitmode(tp, 1, speed);
+	tp->t_init_in.c_cflag |= CLOCAL;
+	tp->t_lock_out.c_cflag = tp->t_lock_in.c_cflag = CLOCAL;
 	tp->t_lock_out.c_ispeed = tp->t_lock_out.c_ospeed =
-	tp->t_lock_in.c_ispeed = tp->t_lock_in.c_ospeed =
-	tp->t_init_in.c_ispeed = tp->t_init_in.c_ospeed = speed;
+	tp->t_lock_in.c_ispeed = tp->t_lock_in.c_ospeed = speed;
 	tp->t_init_out = tp->t_init_in;
+	tp->t_termios = tp->t_init_in;
 }
 
 /*
