@@ -20,7 +20,8 @@ MAN9=	CONDSPLASSERT.9 DECLARE_MODULE.9 DELAY.9 KASSERT.9 MD5.9 SPLASSERT.9 \
 	get_cyclecounter.9 \
 	ifnet.9 inittodr.9 intro.9 ithread.9 \
 	kernacc.9 kthread.9 \
-	malloc.9 make_dev.9 mbuf.9 microseq.9 microtime.9 microuptime.9 \
+	malloc.9 make_dev.9 mbuf.9 mbchain.9 mdchain.9 \
+	microseq.9 microtime.9 microuptime.9 \
 	mi_switch.9 module.9 mutex.9 \
 	namei.9 \
 	panic.9 pfil.9 physio.9 posix4.9 psignal.9 \
@@ -166,6 +167,41 @@ MLINKS+=BUS_SETUP_INTR.9 bus_setup_intr.9
 MLINKS+=BUS_SETUP_INTR.9 BUS_TEARDOWN_INTR.9
 MLINKS+=BUS_SETUP_INTR.9 bus_teardown_intr.9
 MLINKS+=bus_generic_read_ivar.9 bus_generic_write_ivar.9
+
+MLINKS+=mbchain.9 mb_init.9
+MLINKS+=mbchain.9 mb_initm.9
+MLINKS+=mbchain.9 mb_done.9
+MLINKS+=mbchain.9 mb_detach.9
+MLINKS+=mbchain.9 mb_fixhdr.9
+MLINKS+=mbchain.9 mb_reserve.9
+MLINKS+=mbchain.9 mb_put_uint8.9
+MLINKS+=mbchain.9 mb_put_uint16be.9
+MLINKS+=mbchain.9 mb_put_uint16le.9
+MLINKS+=mbchain.9 mb_put_uint32be.9
+MLINKS+=mbchain.9 mb_put_uint32le.9
+MLINKS+=mbchain.9 mb_put_int64be.9
+MLINKS+=mbchain.9 mb_put_int64le.9
+MLINKS+=mbchain.9 mb_put_mem.9
+MLINKS+=mbchain.9 mb_put_mbuf.9
+MLINKS+=mbchain.9 mb_put_uio.9
+
+MLINKS+=mdchain.9 md_initm.9
+MLINKS+=mdchain.9 md_done.9
+MLINKS+=mdchain.9 md_append_record.9
+MLINKS+=mdchain.9 md_next_record.9
+MLINKS+=mdchain.9 md_get_uint8.9
+MLINKS+=mdchain.9 md_get_uint16.9
+MLINKS+=mdchain.9 md_get_uint16be.9
+MLINKS+=mdchain.9 md_get_uint16le.9
+MLINKS+=mdchain.9 md_get_uint32.9
+MLINKS+=mdchain.9 md_get_uint32be.9
+MLINKS+=mdchain.9 md_get_uint32le.9
+MLINKS+=mdchain.9 md_get_int64.9
+MLINKS+=mdchain.9 md_get_int64be.9
+MLINKS+=mdchain.9 md_get_int64le.9
+MLINKS+=mdchain.9 md_get_mem.9
+MLINKS+=mdchain.9 md_get_mbuf.9
+MLINKS+=mdchain.9 md_get_uio.9
 
 MLINKS+=microtime.9 getmicrotime.9 microtime.9 nanotime.9
 MLINKS+=microtime.9 getnanotime.9
