@@ -1,3 +1,14 @@
+2001-04-21  Johan Danielsson  <joda@pdc.kth.se>
+
+	* rcp.c: convert to use getarg
+
+	* rcp.c: do a better job of supporting files larger than 2GB
+
+2001-02-07  Assar Westerlund  <assar@sics.se>
+
+	* rcp.c: add -F for forwarding ticket, from Ake Sandgren
+	<ake@cs.umu.se>
+
 2001-01-29  Assar Westerlund  <assar@sics.se>
 
 	* util.c (roundup): add fallback definition

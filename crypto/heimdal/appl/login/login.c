@@ -39,7 +39,7 @@
 #include <sys/capability.h>
 #endif
 
-RCSID("$Id: login.c,v 1.46 2001/01/29 02:18:03 assar Exp $");
+RCSID("$Id: login.c,v 1.47 2001/02/20 01:44:45 assar Exp $");
 
 static int login_timeout = 60;
 
@@ -650,7 +650,7 @@ main(int argc, char **argv)
     int ask = 1;
     struct sigaction sa;
     
-    set_progname(argv[0]);
+    setprogname(argv[0]);
 
 #ifdef KRB5
     {

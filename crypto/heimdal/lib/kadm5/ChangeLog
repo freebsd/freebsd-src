@@ -1,3 +1,13 @@
+2001-02-19  Johan Danielsson  <joda@pdc.kth.se>
+
+	* replay_log.c: add --{start-end}-version flags to replay just
+	part of the log
+
+2001-02-15  Assar Westerlund  <assar@sics.se>
+
+	* ipropd_master.c (main): fix select-loop to decrement ret
+	correctly.  from "Brandon S. Allbery KF8NH" <allbery@ece.cmu.edu>
+
 2001-01-30  Assar Westerlund  <assar@sics.se>
 
 	* Makefile.am: bump versions

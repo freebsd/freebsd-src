@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "kadmin_locl.h"
 
-RCSID("$Id: ext.c,v 1.5 2000/01/02 03:58:02 assar Exp $");
+RCSID("$Id: ext.c,v 1.6 2001/05/07 05:31:12 assar Exp $");
 
 struct ext_keytab_data {
     krb5_keytab keytab;
@@ -107,10 +107,9 @@ ext_keytab(int argc, char **argv)
     argv += optind;
 
     for(i = 0; i < argc; i++) 
-	foreach_principal(argv[i], do_ext_keytab, &data);
+	foreach_principal(argv[i], do_ext_keytab, "ext", &data);
 
     krb5_kt_close(context, data.keytab);
 
     return 0;
 }
-

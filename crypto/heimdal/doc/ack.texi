@@ -1,6 +1,6 @@
-@c $Id: ack.texi,v 1.13 2001/01/30 01:57:31 assar Exp $
+@c $Id: ack.texi,v 1.14 2001/02/24 05:09:23 assar Exp $
 
-@node  Acknowledgments, , Windows 2000 compatability, Top
+@node  Acknowledgments, , Migration, Top
 @comment  node-name,  next,  previous,  up
 @appendix Acknowledgments
 

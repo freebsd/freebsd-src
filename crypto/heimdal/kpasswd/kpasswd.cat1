@@ -1,0 +1,20 @@
+
+KPASSWD(1)                   UNIX Reference Manual                  KPASSWD(1)
+
+NNAAMMEE
+     kkppaasssswwdd - Kerberos 5 password changing program
+
+SSYYNNOOPPSSIISS
+     kkppaasssswwdd [_p_r_i_n_c_i_p_a_l]
+
+DDEESSCCRRIIPPTTIIOONN
+     kkppaasssswwdd is the client for changing passwords.
+
+DDIIAAGGNNOOSSTTIICCSS
+     If the password quality check fails or some other error occurs, an expla-
+     nation is printed.
+
+SSEEEE AALLSSOO
+     kpasswdd(8)
+
+ HEIMDAL                         Aug 27, 1997                                1

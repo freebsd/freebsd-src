@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,17 +33,20 @@
 
 #include <krb5_locl.h>
 
-RCSID("$Id: changepw.c,v 1.30 2000/12/10 23:10:10 assar Exp $");
+RCSID("$Id: changepw.c,v 1.32 2001/05/14 22:49:55 assar Exp $");
 
 static krb5_error_code
 get_kdc_address (krb5_context context,
 		 krb5_realm realm,
-		 struct addrinfo **ai)
+		 struct addrinfo **ai,
+		 char **ret_host)
 {
     krb5_error_code ret;
     char **hostlist;
     int port = 0;
     int error;
+    char *host;
+    int save_errno;
 
     ret = krb5_get_krb_changepw_hst (context,
 				     &realm,
@@ -51,12 +54,23 @@ get_kdc_address (krb5_context context,
     if (ret)
 	return ret;
 
-    port = ntohs(krb5_getportbyname (context, "kpasswd", "udp", KPASSWD_PORT));
-    error = roken_getaddrinfo_hostspec2(*hostlist, SOCK_DGRAM, port, ai);
+    host = strdup(*hostlist);
+    krb5_free_krbhst(context, hostlist);
+    if (host == NULL) {
+	krb5_set_error_string (context, "malloc: out of memory");
+	return ENOMEM;
+    }
 
-    krb5_free_krbhst (context, hostlist);
-    if(error)
-	return krb5_eai_to_heim_errno(error);
+    port = ntohs(krb5_getportbyname (context, "kpasswd", "udp", KPASSWD_PORT));
+    error = roken_getaddrinfo_hostspec2(host, SOCK_DGRAM, port, ai);
+
+    if(error) {
+	save_errno = errno;
+	krb5_set_error_string(context, "resolving %s: %s",
+			      host, gai_strerror(error));
+	return krb5_eai_to_heim_errno(error, save_errno);
+    }
+    *ret_host = host;
     return 0;
 }
 
@@ -67,7 +81,8 @@ send_request (krb5_context context,
 	      int sock,
 	      struct sockaddr *sa,
 	      int sa_size,
-	      char *passwd)
+	      char *passwd,
+	      const char *host)
 {
     krb5_error_code ret;
     krb5_data ap_req_data;
@@ -129,8 +144,10 @@ send_request (krb5_context context,
     iov[2].iov_base    = krb_priv_data.data;
     iov[2].iov_len     = krb_priv_data.length;
 
-    if (sendmsg (sock, &msghdr, 0) < 0)
+    if (sendmsg (sock, &msghdr, 0) < 0) {
 	ret = errno;
+	krb5_set_error_string(context, "sendmsg %s: %s", host, strerror(ret));
+    }
 
     krb5_data_free (&krb_priv_data);
 out2:
@@ -161,17 +178,23 @@ process_reply (krb5_context context,
 	       int sock,
 	       int *result_code,
 	       krb5_data *result_code_string,
-	       krb5_data *result_string)
+	       krb5_data *result_string,
+	       const char *host)
 {
     krb5_error_code ret;
     u_char reply[BUFSIZ];
     size_t len;
     u_int16_t pkt_len, pkt_ver;
     krb5_data ap_rep_data;
+    int save_errno;
 
     ret = recvfrom (sock, reply, sizeof(reply), 0, NULL, NULL);
-    if (ret < 0)
-	return errno;
+    if (ret < 0) {
+	save_errno = errno;
+	krb5_set_error_string(context, "recvfrom %s: %s",
+			      host, strerror(save_errno));
+	return save_errno;
+    }
 
     len = ret;
     pkt_len = (reply[0] << 8) | (reply[1]);
@@ -243,7 +266,7 @@ process_reply (krb5_context context,
 	}
 	if (error.e_data->length < 2) {
 	    krb5_warnx (context, "too short e_data to print anything usable");
-	    return 1;
+	    return 1;		/* XXX */
 	}
 
 	p = error.e_data->data;
@@ -254,6 +277,12 @@ process_reply (krb5_context context,
 	return 0;
     }
 }
+
+/*
+ * change the password using the credentials in `creds' (for the
+ * principal indicated in them) to `newpw', storing the result of
+ * the operation in `result_*' and an error code or 0.
+ */
 
 krb5_error_code
 krb5_change_password (krb5_context	context,
@@ -269,12 +298,13 @@ krb5_change_password (krb5_context	context,
     int i;
     struct addrinfo *ai, *a;
     int done = 0;
+    char *host = NULL;
 
     ret = krb5_auth_con_init (context, &auth_context);
     if (ret)
 	return ret;
 
-    ret = get_kdc_address (context, creds->client->realm, &ai);
+    ret = get_kdc_address (context, creds->client->realm, &ai, &host);
     if (ret)
 	goto out;
 
@@ -297,7 +327,8 @@ krb5_change_password (krb5_context	context,
 				    sock,
 				    a->ai_addr,
 				    a->ai_addrlen,
-				    newpw);
+				    newpw,
+				    host);
 		if (ret) {
 		    close(sock);
 		    goto out;
@@ -305,6 +336,7 @@ krb5_change_password (krb5_context	context,
 	    }
 	    
 	    if (sock >= FD_SETSIZE) {
+		krb5_set_error_string(context, "fd %d too large", sock);
 		ret = ERANGE;
 		close (sock);
 		goto out;
@@ -326,7 +358,8 @@ krb5_change_password (krb5_context	context,
 				     sock,
 				     result_code,
 				     result_code_string,
-				     result_string);
+				     result_string,
+				     host);
 		if (ret == 0)
 		    done = 1;
 		else if (i > 0 && ret == KRB5KRB_AP_ERR_MUT_FAIL)
@@ -341,8 +374,16 @@ krb5_change_password (krb5_context	context,
 
 out:
     krb5_auth_con_free (context, auth_context);
+    free (host);
     if (done)
 	return 0;
-    else
+    else {
+	if (ret == KRB5_KDC_UNREACH)
+	    krb5_set_error_string(context,
+				  "failed to reach kpasswd server %s "
+				  "in realm %s",
+				  host, creds->client->realm);
+
 	return ret;
+    }
 }

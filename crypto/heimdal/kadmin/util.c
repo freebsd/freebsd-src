@@ -34,7 +34,7 @@
 #include "kadmin_locl.h"
 #include <parse_units.h>
 
-RCSID("$Id: util.c,v 1.30 2001/01/11 23:07:29 assar Exp $");
+RCSID("$Id: util.c,v 1.32 2001/05/14 06:17:20 assar Exp $");
 
 /*
  * util.c - functions for parsing, unparsing, and editing different
@@ -461,6 +461,7 @@ is_expression(const char *string)
 int
 foreach_principal(const char *exp, 
 		  int (*func)(krb5_principal, void*), 
+		  const char *funcname,
 		  void *data)
 {
     char **princs;
@@ -498,19 +499,8 @@ foreach_principal(const char *exp,
 	    continue;
 	}
 	ret = (*func)(princ_ent, data);
-	if(ret) {
-	    char *tmp;
-	    krb5_error_code ret2;
-
-	    ret2 = krb5_unparse_name(context, princ_ent, &tmp);
-	    if(ret2) {
-		krb5_warn(context, ret2, "krb5_unparse_name");
-		krb5_warn(context, ret, "<unknown principal>");
-	    } else {
-		krb5_warn(context, ret, "%s", tmp);
-		free(tmp);
-	    }
-	}
+	if(ret)
+	    krb5_warn(context, ret, "%s %s", funcname, princs[i]);
 	krb5_free_principal(context, princ_ent);
     }
     kadm5_free_name_list(kadm_handle, princs, &num_princs);

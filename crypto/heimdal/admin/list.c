@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "ktutil_locl.h"
 
-RCSID("$Id: list.c,v 1.3 2000/06/29 08:21:40 joda Exp $");
+RCSID("$Id: list.c,v 1.8 2001/05/11 00:54:01 assar Exp $");
 
 static int help_flag;
 static int list_keys;
@@ -56,13 +56,13 @@ struct key_info {
     struct key_info *next;
 };
 
-int
-kt_list(int argc, char **argv)
+static int
+do_list(const char *keytab_string)
 {
     krb5_error_code ret;
-    krb5_kt_cursor cursor;
+    krb5_keytab keytab;
     krb5_keytab_entry entry;
-    int optind = 0;
+    krb5_kt_cursor cursor;
     struct key_info *ki, **kie = &ki, *kp;
 
     int max_version = sizeof("Vno") - 1;
@@ -71,27 +71,30 @@ kt_list(int argc, char **argv)
     int max_timestamp = sizeof("Date") - 1;
     int max_key = sizeof("Key") - 1;
 
-    if(verbose_flag)
-	list_timestamp = 1;
-
-    if(getarg(args, num_args, argc, argv, &optind)){
-	arg_printusage(args, num_args, "ktutil list", "");
-	return 1;
-    }
-    if(help_flag){
-	arg_printusage(args, num_args, "ktutil list", "");
+    ret = krb5_kt_resolve(context, keytab_string, &keytab);
+    if (ret) {
+	krb5_warn(context, ret, "resolving keytab %s", keytab_string);
 	return 0;
     }
 
     ret = krb5_kt_start_seq_get(context, keytab, &cursor);
     if(ret){
 	krb5_warn(context, ret, "krb5_kt_start_seq_get %s", keytab_string);
-	return 1;
+	goto out;
     }
+
+    printf ("%s:\n\n", keytab_string);
+	
     while((ret = krb5_kt_next_entry(context, keytab, &entry, &cursor)) == 0){
 #define CHECK_MAX(F) if(max_##F < strlen(kp->F)) max_##F = strlen(kp->F)
 
 	kp = malloc(sizeof(*kp));
+	if (kp == NULL) {
+	    krb5_kt_free_entry(context, &entry);
+	    krb5_kt_end_seq_get(context, keytab, &cursor);
+	    krb5_warn(context, ret, "malloc failed");
+	    goto out;
+	}
 
 	asprintf(&kp->version, "%d", entry.vno);
 	CHECK_MAX(version);
@@ -100,7 +103,7 @@ kt_list(int argc, char **argv)
 	if (ret != 0) 
 	    asprintf(&kp->etype, "unknown (%d)", entry.keyblock.keytype);
 	CHECK_MAX(etype);
-	krb5_unparse_name_short(context, entry.principal, &kp->principal);
+	krb5_unparse_name(context, entry.principal, &kp->principal);
 	CHECK_MAX(principal);
 	if (list_timestamp) {
 	    char tstamp[256];
@@ -158,6 +161,37 @@ kt_list(int argc, char **argv)
 	ki = kp;
 	kp = kp->next;
 	free(ki);
+    }
+out:
+    krb5_kt_close(context, keytab);
+    return 0;
+}
+
+int
+kt_list(int argc, char **argv)
+{
+    int optind = 0;
+
+    if(verbose_flag)
+	list_timestamp = 1;
+
+    if(getarg(args, num_args, argc, argv, &optind)){
+	arg_printusage(args, num_args, "ktutil list", "");
+	return 1;
+    }
+    if(help_flag){
+	arg_printusage(args, num_args, "ktutil list", "");
+	return 0;
+    }
+
+    if (keytab_string == NULL) {
+	do_list("FILE:/etc/krb5.keytab");
+#ifdef KRB4
+	printf ("\n");
+	do_list("krb4:/etc/srvtab");
+#endif
+    } else {
+	do_list(keytab_string);
     }
     return 0;
 }

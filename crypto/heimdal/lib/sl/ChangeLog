@@ -1,3 +1,19 @@
+2001-05-17  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: bump versions to 1:2:1 and 1:4:1
+
+2001-05-06  Assar Westerlund  <assar@sics.se>
+
+	* roken_rename.h (strdup): add
+
+2001-03-06  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: re do the roken-renaming properly
+
+2001-02-13  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: add more functions to rename
+
 2001-01-26  Johan Danielsson  <joda@pdc.kth.se>
 
 	* sl.h: proto

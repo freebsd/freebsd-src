@@ -34,7 +34,7 @@
 #define PRINTOPTIONS
 #include "telnetd.h"
 
-RCSID("$Id: utility.c,v 1.23 2000/10/08 13:34:27 assar Exp $");
+RCSID("$Id: utility.c,v 1.25 2001/05/17 00:34:42 assar Exp $");
 
 /*
  * utility functions performing io related tasks
@@ -363,12 +363,18 @@ void fatal(int f, char *msg)
 }
 
 void
-fatalperror(int f, const char *msg)
+fatalperror_errno(int f, const char *msg, int error)
 {
     char buf[BUFSIZ];
     
-    snprintf(buf, sizeof(buf), "%s: %s", msg, strerror(errno));
+    snprintf(buf, sizeof(buf), "%s: %s", msg, strerror(error));
     fatal(f, buf);
+}
+
+void
+fatalperror(int f, const char *msg)
+{
+    fatalperror_errno(f, msg, errno);
 }
 
 char editedhost[32];

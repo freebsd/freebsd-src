@@ -33,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: getifaddrs.c,v 1.4 2001/01/28 23:02:46 assar Exp $");
+RCSID("$Id: getifaddrs.c,v 1.5 2001/04/17 08:27:47 joda Exp $");
 #endif
 #include "roken.h"
 
@@ -170,9 +170,11 @@ getifaddrs2(struct ifaddrs **ifap,
 	
     }
     *ifap = start;
+    close(fd);
     free(buf);
     return 0;
   error_out:
+    close(fd);
     free(buf);
     errno = ret;
     return -1;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include <krb5_locl.h>
 
-RCSID("$Id: mk_req.c,v 1.22 2000/11/15 06:50:53 assar Exp $");
+RCSID("$Id: mk_req.c,v 1.23 2001/05/14 06:14:49 assar Exp $");
 
 krb5_error_code
 krb5_mk_req_exact(krb5_context context,

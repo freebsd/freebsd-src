@@ -1,4 +1,4 @@
-.\" $Id: krb5.conf.5,v 1.12 2001/01/19 04:53:24 assar Exp $
+.\" $Id: krb5.conf.5,v 1.17 2001/05/31 13:58:34 assar Exp $
 .\"
 .Dd April 11, 1999
 .Dt KRB5.CONF 5
@@ -46,6 +46,35 @@ name:
 consists of one or more non-white space characters.
 Currently recognised sections and bindings are:
 .Bl -tag -width "xxx" -offset indent
+.It Li [appdefaults]
+Specifies the default values to be used for Kerberos applications.
+You can specify defaults per application, realm, or a combination of
+these.  The preference order is:
+.Bl -enum -compact
+.It
+.Va application Va realm Va option
+.It
+.Va application Va option
+.It
+.Va realm Va option
+.It
+.Va option
+.El
+.Pp
+The supported options are:
+.Bl -tag -width "xxx" -offset indent
+.It Li forwardable = Va boolean
+When obtaining initial credentials, make the credentials forwardable.
+.It Li proxiable = Va boolean
+When obtaining initial credentials, make the credentials proxiable.
+.It Li no-addresses = Va boolean
+When obtaining initial credentials, request them for an empty set of
+addresses, making the tickets valid from any address.
+.It Li ticket_life = Va time
+Default ticket lifetime.
+.It Li renew_lifetime = Va time
+Default renewable ticket lifetime.
+.El
 .It Li [libdefaults]
 .Bl -tag -width "xxx" -offset indent
 .It Li default_realm = Va REALM
@@ -97,6 +126,12 @@ The max number of times to try to contact each KDC.
 Default ticket lifetime.
 .It Li renew_lifetime = Va time
 Default renewable ticket lifetime.
+.It Li forwardable = Va boolean
+When obtaining initial credentials, make the credentials forwardable.
+This option is also valid in the [realms] section.
+.It Li proxiable = Va boolean
+When obtaining initial credentials, make the credentials proxiable.
+This option is also valid in the [realms] section.
 .It Li verify_ap_req_nofail = Va boolean
 Enable to make a failure to verify obtained credentials
 non-fatal. This can be useful if there is no keytab on a host.
@@ -111,8 +146,25 @@ A list of addresses to get tickets for along with all local addresses.
 .It Li time_format = Va string
 How to print time strings in logs, this string is passed to
 .Xr strftime 3 .
+.It Li date_format = Va string
+How to print date strings in logs, this string is passed to
+.Xr strftime 3 .
 .It Li log_utc = Va boolean
 Write log-entries using UTC instead of your local time zone.
+.It Li srv_lookup = Va boolean
+Use DNS SRV records to lookup realm configuration information.
+.It Li srv_try_txt = Va boolean
+If a SRV lookup fails, try looking up the same info in a DNS TXT record.
+.It Li scan_interfaces = Va boolean
+Scan all network interfaces for addresses, as opposed to simply using
+the address associated with the system's host name.
+.It Li fcache_version = Va int
+Use file credential cache format version specified.
+.It Li krb4_get_tickets = Va boolean
+Also get Kerberos 4 tickets in
+.Nm kinit
+and other programs.
+This option is also valid in the [realms] section.
 .El
 .It Li [domain_realm]
 This is a list of mappings from DNS domain to Kerberos realm. Each
@@ -255,8 +307,8 @@ and is only left for backwards compatability.
 points to the configuration file to read.
 .Sh EXAMPLE
 .Bd -literal -offset indent
-[lib_defaults]
-	default_domain = FOO.SE
+[libdefaults]
+	default_realm = FOO.SE
 [domain_realm]
 	.foo.se = FOO.SE
 	.bar.se = FOO.SE
@@ -294,4 +346,5 @@ actually used and thus cannot warn about unknown or misspelt ones.
 .Xr krb5_openlog 3 ,
 .Xr krb5_425_conv_principal 3 ,
 .Xr strftime 3 ,
+.Xr kinit 1 ,
 .Xr Source tm

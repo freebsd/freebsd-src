@@ -21,6 +21,12 @@
  * krb5_dfs_pag()
  */
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
+RCSID("$Id: k5dfspag.c,v 1.4 2001/02/07 06:14:46 assar Exp $");
+
 #include <krb5.h>
 
 #ifdef DCE

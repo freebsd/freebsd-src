@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: add_oid_set_member.c,v 1.6 2000/07/02 04:44:11 assar Exp $");
+RCSID("$Id: add_oid_set_member.c,v 1.7 2001/02/18 03:39:08 assar Exp $");
 
 OM_uint32 gss_add_oid_set_member (
             OM_uint32 * minor_status,
@@ -55,8 +55,10 @@ OM_uint32 gss_add_oid_set_member (
 
   n = (*oid_set)->count + 1;
   tmp = realloc ((*oid_set)->elements, n * sizeof(gss_OID_desc));
-  if (tmp == NULL)
+  if (tmp == NULL) {
+    *minor_status = ENOMEM;
     return GSS_S_FAILURE;
+  }
   (*oid_set)->elements = tmp;
   (*oid_set)->count = n;
   (*oid_set)->elements[n-1] = *member_oid;

@@ -1,3 +1,17 @@
+2001-03-26  Assar Westerlund  <assar@sics.se>
+
+	* broken-glob.m4: also test for GLOB_LIMIT
+	* krb-ipv6.m4: restore CFLAGS if v6 is not detected
+
+2001-02-20  Assar Westerlund  <assar@sics.se>
+
+	* roken-frag.m4: check for getprogname, setprogname
+
+2001-02-07  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am.common (LIB_kdfs): set.  use it.  from Ake Sandgren
+ 	<ake@cs.umu.se>
+
 2000-12-26  Assar Westerlund  <assar@sics.se>
 
 	* krb-ipv6.m4: remove some dnl that weren't the correct with

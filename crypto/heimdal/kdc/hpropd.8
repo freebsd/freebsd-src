@@ -1,4 +1,4 @@
-.\" $Id: hpropd.8,v 1.5 2000/11/12 15:37:33 joda Exp $
+.\" $Id: hpropd.8,v 1.7 2001/06/08 21:35:32 joda Exp $
 .\"
 .Dd August 27, 1997
 .Dt HPROPD 8
@@ -9,14 +9,16 @@
 .Sh SYNOPSIS
 .Nm
 .Oo Fl d Ar file \*(Ba Xo
-.Fl -database= Ns Ar file Oc
+.Fl -database= Ns Ar file
 .Xc
+.Oc
 .Op Fl n | Fl -stdin
 .Op Fl -print
 .Op Fl i | Fl -no-inetd
 .Oo Fl k Ar keytab \*(Ba Xo
-.Fl -keytab= Ns Ar keytab Oc
+.Fl -keytab= Ns Ar keytab
 .Xc
+.Oc
 .Op Fl 4 | Fl -v4dump
 .Sh DESCRIPTION
 .Nm

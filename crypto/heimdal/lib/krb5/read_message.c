@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: read_message.c,v 1.7 2000/07/21 22:54:09 joda Exp $");
+RCSID("$Id: read_message.c,v 1.8 2001/05/14 06:14:51 assar Exp $");
 
 krb5_error_code
 krb5_read_message (krb5_context context,
@@ -45,8 +45,11 @@ krb5_read_message (krb5_context context,
     u_int8_t buf[4];
 
     ret = krb5_net_read (context, p_fd, buf, 4);
-    if(ret == -1)
-	return errno;
+    if(ret == -1) {
+	ret = errno;
+	krb5_clear_error_string (context);
+	return ret;
+    }
     if(ret < 4) {
 	data->length = 0;
 	return HEIM_ERR_EOF;
@@ -56,8 +59,10 @@ krb5_read_message (krb5_context context,
     if (ret)
 	return ret;
     if (krb5_net_read (context, p_fd, data->data, len) != len) {
+	ret = errno;
 	krb5_data_free (data);
-	return errno;
+	krb5_clear_error_string (context);
+	return ret;
     }
     return 0;
 }
@@ -76,8 +81,6 @@ krb5_read_priv_message(krb5_context context,
 	return ret;
     ret = krb5_rd_priv (context, ac, &packet, data, NULL);
     krb5_data_free(&packet);
-    if(ret)
-	return ret;
     return ret;
 }
 
@@ -95,7 +98,5 @@ krb5_read_safe_message(krb5_context context,
 	return ret;
     ret = krb5_rd_safe (context, ac, &packet, data, NULL);
     krb5_data_free(&packet);
-    if(ret)
-	return ret;
     return ret;
 }

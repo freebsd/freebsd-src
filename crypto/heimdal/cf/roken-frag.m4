@@ -1,4 +1,4 @@
-dnl $Id: roken-frag.m4,v 1.19 2000/12/15 14:29:54 assar Exp $
+dnl $Id: roken-frag.m4,v 1.21 2001/05/11 13:58:21 joda Exp $
 dnl
 dnl some code to get roken working
 dnl
@@ -72,6 +72,7 @@ AC_CHECK_HEADERS([\
 	rpcsvc/dbm.h				\
 	rpcsvc/ypclnt.h				\
 	shadow.h				\
+	sys/bswap.h				\
 	sys/ioctl.h				\
 	sys/param.h				\
 	sys/proc.h				\
@@ -163,8 +164,10 @@ AC_CHECK_FUNCS([				\
 	asprintf				\
 	cgetent					\
 	getconfattr				\
+	getprogname				\
 	getrlimit				\
 	getspnam				\
+	setprogname				\
 	strsvis					\
 	strunvis				\
 	strvis					\
@@ -240,6 +243,16 @@ AC_NEED_PROTO([
 #include <string.h>],
 vasnprintf)dnl
 fi
+
+AC_FIND_FUNC_NO_LIBS(bswap16,,
+[#ifdef HAVE_SYS_BSWAP_H
+#include <sys/bswap.h>
+#endif],0)
+
+AC_FIND_FUNC_NO_LIBS(bswap32,,
+[#ifdef HAVE_SYS_BSWAP_H
+#include <sys/bswap.h>
+#endif],0)
 
 AC_FIND_FUNC_NO_LIBS(pidfile,util,
 [#ifdef HAVE_UTIL_H

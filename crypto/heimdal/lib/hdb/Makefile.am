@@ -1,4 +1,4 @@
-# $Id: Makefile.am,v 1.43 2001/01/30 01:49:16 assar Exp $
+# $Id: Makefile.am,v 1.44 2001/05/16 23:50:57 assar Exp $
 
 include $(top_srcdir)/Makefile.am.common
 
@@ -21,7 +21,7 @@ LDADD = libhdb.la \
 	$(DBLIB)
 
 lib_LTLIBRARIES = libhdb.la
-libhdb_la_LDFLAGS = -version-info 7:0:0
+libhdb_la_LDFLAGS = -version-info 7:1:0
 
 libhdb_la_SOURCES =				\
 	common.c				\

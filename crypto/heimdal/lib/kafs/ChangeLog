@@ -1,3 +1,11 @@
+2001-05-18  Johan Danielsson  <joda@pdc.kth.se>
+
+	* Makefile.am: only build resolve.c if doing renaming
+
+2001-02-12  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am, roken_rename.h: add rename of dns functions
+
 2000-12-11  Assar Westerlund  <assar@sics.se>
 
 	* Makefile.am (libkafs_la_LDFLAGS): set version to 2:3:2
