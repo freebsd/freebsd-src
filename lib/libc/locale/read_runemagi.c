@@ -9,7 +9,6 @@ _Read_RuneMagi(fp)
 	FILE *fp;
 {
 	char *data;
-	void *np;
 	void *lastp;
 	_RuneLocale *rl;
 	_RuneEntry *rr;
