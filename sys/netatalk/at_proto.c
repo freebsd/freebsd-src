@@ -59,6 +59,7 @@ struct protosw		atalksw[] = {
 	NULL,
 	/* utility routines. */
 	ddp_init,	0,		0,		0,
+	&ddp_usrreqs
     },
 };
 

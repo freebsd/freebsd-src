@@ -57,6 +57,7 @@ struct at_aliasreq {
 #define AFA_PHASE2	0x0004
 
 #ifdef KERNEL
+extern struct	pr_usrreqs ddp_usrreqs;
 struct at_ifaddr	*at_ifaddr;
 struct ifqueue		atintrq1, atintrq2;
 int			atdebug;
