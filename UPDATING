@@ -11,12 +11,20 @@ the common items quick how-tos, followed by entries for versions of
 
 20020409:
 	The default ephemeral port range has changed from [1024-5000] to
-	[49152-65535].  Although unlikely, this change may conflict with some
-	strict firewalls.  If this is the case, you may switch back to using
-	the [1024-5000] range by entering:
+	[49152-65535].  This may cause conflicts with some configurations
+	of ipnat; please ensure that you are not overlapping port ranges.
+	It is also possible that the new port range may be blocked by some
+	strict firewalls.  If either of these things are the case, you
+	may switch back to using the [1024-5000] range by entering:
 
 	sysctl net.inet.ip.portrange.first=1024
 	sysctl net.inet.ip.portrange.last=5000
+
+	or adding the following lines to rc.conf if you wish the
+	change to be permanent.  (Rebooting will be required in this case.)
+
+	ip_portrange_first=1024
+	ip_portrange_last=5000
 
 20020404:
 	The sendmail startup code in /etc/rc has been changed to deal
