@@ -790,6 +790,17 @@ DoLoop()
 #ifndef SIGALRM
     usleep(TICKUNIT);
     TimerService();
+#else
+    if( TimerServiceRequest > 0 ) {
+#ifdef DEBUG
+       logprintf( "Invoking TimerService before select()\n" );
+#endif
+       /* Maybe a bit cautious.... */
+       TimerServiceRequest = -1;
+       TimerService();
+       TimerServiceRequest = 0;
+       continue;
+    }
 #endif
 
     /* If there are aren't many packets queued, look for some more. */
@@ -823,18 +834,23 @@ DoLoop()
         continue;
     }
 
+    if( TimerServiceRequest > 0 ) {
+       /* we want to service any SIGALRMs even if we got it before calling 
+          select. */
+       int rem_errno = errno;
+#ifdef DEBUG
+       logprintf( "Invoking TimerService\n" );
+#endif
+       /* Maybe a bit cautious.... */
+       TimerServiceRequest = -1;
+       TimerService();
+       TimerServiceRequest = 0;
+       errno = rem_errno;
+    }
+
     if ( i < 0 ) {
        if ( errno == EINTR ) {
-          if( TimerServiceRequest > 0 ) {
-#ifdef DEBUG
-             logprintf( "Invoking TimerService\n" );
-#endif
-             /* Maybe a bit cautious.... */
-             TimerServiceRequest = -1;
-             TimerService();
-             TimerServiceRequest = 0;
-          }
-          continue;            /* Got SIGALRM, Do check a queue for dialing */
+          continue;            /* Got a signal - should have been dealt with */
        }
        perror("select");
        break;
