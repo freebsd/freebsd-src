@@ -35,7 +35,7 @@
 .Sh SYNOPSIS
 .In pthread_np.h
 .Ft int
-.Fn pthread_attr_get_np "pthread_t *pid" "pthread_attr_t *dst"
+.Fn pthread_attr_get_np "pthread_t pid" "pthread_attr_t *dst"
 .Sh DESCRIPTION
 The
 .Fn pthread_attr_get_np
@@ -62,7 +62,7 @@ my_thread_stack_size(pthread_t pid)
     size_t size;
 
     pthread_attr_init(&attr);
-    pthread_attr_get_np(&pid, &attr);
+    pthread_attr_get_np(pid, &attr);
     pthread_attr_getstacksize(&attr, &size);
     pthread_attr_destroy(&attr);
     return(size);
