@@ -617,7 +617,7 @@ fetch_url(const char *url, const char *proxyenv, char *proxyauth, char *wwwauth)
 
 		memset(&hints, 0, sizeof(hints));
 		hints.ai_flags = 0;
-		hints.ai_family = AF_UNSPEC;
+		hints.ai_family = family;
 		hints.ai_socktype = SOCK_STREAM;
 		hints.ai_protocol = 0;
 		error = getaddrinfo(host, NULL, &hints, &res0);

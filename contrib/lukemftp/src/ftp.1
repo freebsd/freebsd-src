@@ -77,7 +77,7 @@
 Internet file transfer program
 .Sh SYNOPSIS
 .Nm ""
-.Op Fl AadefginpRtvV
+.Op Fl 46AadefginpRtvV
 .Bk -words
 .Op Fl o Ar output
 .Ek
@@ -146,6 +146,14 @@ below for more information.
 Options may be specified at the command line, or to the
 command interpreter.
 .Bl -tag -width "port   "
+.It Fl 4
+Forces
+.Nm
+to only use IPv4 addresses.
+.It Fl 6
+Forces
+.Nm
+to only use IPv6 addresses.
 .It Fl A
 Force active mode ftp.
 By default,
