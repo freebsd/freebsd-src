@@ -64,19 +64,21 @@ static pt_entry_t *
 rom_lev1map()
 {
 	struct alpha_pcb *apcb;
+	struct pcb *cpcb;
 
 	/*
 	 * We may be called before the first context switch
 	 * after alpha_init(), in which case we just need
 	 * to use the kernel Lev1map.
 	 */
-	if (curpcb == 0)
+	if (PCPU_GET(curpcb) == 0)
 		return (Lev1map);
 
 	/*
 	 * Find the level 1 map that we're currently running on.
 	 */
-	apcb = (struct alpha_pcb *)ALPHA_PHYS_TO_K0SEG((vm_offset_t) curpcb);
+	cpcb = PCPU_GET(curpcb);
+	apcb = (struct alpha_pcb *)ALPHA_PHYS_TO_K0SEG((vm_offset_t)cpcb);
 
 	return ((pt_entry_t *)ALPHA_PHYS_TO_K0SEG(alpha_ptob(apcb->apcb_ptbr)));
 }
@@ -198,12 +200,12 @@ enter_prom()
 		/*
 		 * SimOS console uses floating point.
 		 */
-		if (curproc != fpcurproc) {
+		if (curproc != PCPU_GET(fpcurproc)) {
 			alpha_pal_wrfen(1);
-			if (fpcurproc)
-				savefpstate(&fpcurproc->p_addr->u_pcb.pcb_fp);
-			fpcurproc = curproc;
-			restorefpstate(&fpcurproc->p_addr->u_pcb.pcb_fp);
+			if (PCPU_GET(fpcurproc))
+				savefpstate(&PCPU_GET(fpcurproc)->p_addr->u_pcb.pcb_fp);
+			PCPU_SET(fpcurproc, curproc);
+			restorefpstate(&PCPU_GET(fpcurproc)->p_addr->u_pcb.pcb_fp);
 		}
 #endif
 		if (!pmap_uses_prom_console())

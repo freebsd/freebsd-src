@@ -252,12 +252,12 @@ set_user_ldt(struct pcb *pcb)
 {
 	struct pcb_ldt *pcb_ldt;
 
-	if (pcb != curpcb)
+	if (pcb != PCPU_GET(curpcb))
 		return;
 
 	pcb_ldt = pcb->pcb_ldt;
 #ifdef SMP
-	gdt[cpuid * NGDT + GUSERLDT_SEL].sd = pcb_ldt->ldt_sd;
+	gdt[PCPU_GET(cpuid) * NGDT + GUSERLDT_SEL].sd = pcb_ldt->ldt_sd;
 #else
 	gdt[GUSERLDT_SEL].sd = pcb_ldt->ldt_sd;
 #endif
@@ -308,7 +308,7 @@ user_ldt_free(struct pcb *pcb)
 	if (pcb_ldt == NULL)
 		return;
 
-	if (pcb == curpcb) {
+	if (pcb == PCPU_GET(curpcb)) {
 		lldt(_default_ldt);
 		PCPU_SET(currentldt, _default_ldt);
 	}

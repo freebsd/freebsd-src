@@ -931,7 +931,7 @@ usbd_do_request_flags(dev, req, data, flags, actlen)
 
 #ifdef DIAGNOSTIC
 #if defined(__i386__) && defined(__FreeBSD__)
-	KASSERT(intr_nesting_level == 0,
+	KASSERT(PCPU_GET(intr_nesting_level) == 0,
 	       	("usbd_do_request: in interrupt context"));
 #endif
 	if (dev->bus->intr_context) {

@@ -78,7 +78,7 @@ static u_int schedclk2;
 void
 interrupt(u_int64_t vector, struct trapframe *framep)
 {
-	atomic_add_int(&PCPU_GET(intr_nesting_level), 1);
+	atomic_add_int(PCPU_PTR(intr_nesting_level), 1);
 
 	switch (vector) {
 	case 240:	/* clock interrupt */
@@ -104,7 +104,7 @@ interrupt(u_int64_t vector, struct trapframe *framep)
 		panic("unexpected interrupt: vec %ld\n", vector);
 		/* NOTREACHED */
 	}
-	atomic_subtract_int(&PCPU_GET(intr_nesting_level), 1);
+	atomic_subtract_int(PCPU_PTR(intr_nesting_level), 1);
 }
 
 

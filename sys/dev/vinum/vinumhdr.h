@@ -86,7 +86,7 @@ caddr_t MMalloc (int size, char *, int);
 void FFree (void *mem, char *, int);
 #define LOCKDRIVE(d) lockdrive (d, __FILE__, __LINE__)
 #else
-#define Malloc(x)  malloc((x), M_DEVBUF, intr_nesting_level == 0)
+#define Malloc(x)  malloc((x), M_DEVBUF, PCPU_GET(intr_nesting_level) == 0)
 #define Free(x)    free((x), M_DEVBUF)
 #define LOCKDRIVE(d) lockdrive (d)
 #endif

@@ -305,8 +305,8 @@ exit1(p, rv)
 	 * directly.  Set it now so that the rest of the exit time gets
 	 * counted somewhere if possible.
 	 */
-	microuptime(&switchtime);
-	switchticks = ticks;
+	microuptime(PCPU_PTR(switchtime));
+	PCPU_SET(switchticks, ticks);
 
 	/*
 	 * notify interested parties of our demise.

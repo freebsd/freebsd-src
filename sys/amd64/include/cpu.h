@@ -62,7 +62,7 @@
 #define	CLKF_USERMODE(framep) \
 	((ISPL((framep)->cf_cs) == SEL_UPL) || (framep->cf_eflags & PSL_VM))
 
-#define CLKF_INTR(framep)	(intr_nesting_level >= 2)
+#define CLKF_INTR(framep)	(PCPU_GET(intr_nesting_level) >= 2)
 #define	CLKF_PC(framep)		((framep)->cf_eip)
 
 /*
@@ -82,7 +82,7 @@
 #define	need_resched() do {						\
 	PCPU_SET(astpending, AST_RESCHED|AST_PENDING);			\
 } while (0)
-#define	resched_wanted()	(astpending & AST_RESCHED)
+#define	resched_wanted()	(PCPU_GET(astpending) & AST_RESCHED)
 
 /*
  * Arrange to handle pending profiling ticks before returning to user mode.
@@ -105,7 +105,7 @@
  */
 #define	signotify(p)	aston()
 #define	aston() do {							\
-	PCPU_SET(astpending, astpending | AST_PENDING);			\
+	PCPU_SET(astpending, PCPU_GET(astpending) | AST_PENDING);	\
 } while (0)
 #define astoff()
 

@@ -844,7 +844,7 @@ witness_enter(struct mtx *m, int flags, const char *file, int line)
 		if (m->mtx_recurse != 0)
 			return;
 		mtx_enter(&w_mtx, MTX_SPIN | MTX_QUIET);
-		i = witness_spin_check;
+		i = PCPU_GET(witness_spin_check);
 		if (i != 0 && w->w_level < i) {
 			mtx_exit(&w_mtx, MTX_SPIN | MTX_QUIET);
 			panic("mutex_enter(%s:%x, MTX_SPIN) out of order @"
@@ -977,7 +977,8 @@ witness_exit(struct mtx *m, int flags, const char *file, int line)
 		if (m->mtx_recurse != 0)
 			return;
 		mtx_enter(&w_mtx, MTX_SPIN | MTX_QUIET);
-		PCPU_SET(witness_spin_check, witness_spin_check & ~w->w_level);
+		PCPU_SET(witness_spin_check,
+		    PCPU_GET(witness_spin_check) & ~w->w_level);
 		mtx_exit(&w_mtx, MTX_SPIN | MTX_QUIET);
 		return;
 	}
@@ -1011,7 +1012,8 @@ witness_try_enter(struct mtx *m, int flags, const char *file, int line)
 		if (m->mtx_recurse != 0)
 			return;
 		mtx_enter(&w_mtx, MTX_SPIN | MTX_QUIET);
-		PCPU_SET(witness_spin_check, witness_spin_check | w->w_level);
+		PCPU_SET(witness_spin_check,
+		    PCPU_GET(witness_spin_check) | w->w_level);
 		mtx_exit(&w_mtx, MTX_SPIN | MTX_QUIET);
 		w->w_file = file;
 		w->w_line = line;

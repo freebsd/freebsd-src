@@ -61,7 +61,7 @@
 #endif
 
 #ifdef SMP
-#define KTR_CPU		cpuid
+#define KTR_CPU		PCPU_GET(cpuid)
 #else
 #define KTR_CPU		0
 #endif

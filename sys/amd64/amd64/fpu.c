@@ -493,8 +493,8 @@ npxinit(control)
 	npxsave(&dummy);
 	stop_emulating();
 	fldcw(&control);
-	if (curpcb != NULL)
-		fnsave(&curpcb->pcb_savefpu);
+	if (PCPU_GET(curpcb) != NULL)
+		fnsave(&PCPU_GET(curpcb)->pcb_savefpu);
 	start_emulating();
 }
 
@@ -506,14 +506,14 @@ npxexit(p)
 	struct proc *p;
 {
 
-	if (p == npxproc)
-		npxsave(&curpcb->pcb_savefpu);
+	if (p == PCPU_GET(npxproc))
+		npxsave(&PCPU_GET(curpcb)->pcb_savefpu);
 #ifdef NPX_DEBUG
 	if (npx_exists) {
 		u_int	masked_exceptions;
 
-		masked_exceptions = curpcb->pcb_savefpu.sv_env.en_cw
-				    & curpcb->pcb_savefpu.sv_env.en_sw & 0x7f;
+		masked_exceptions = PCPU_GET(curpcb)->pcb_savefpu.sv_env.en_cw
+		    &PCPU_GET(curpcb)->pcb_savefpu.sv_env.en_sw & 0x7f;
 		/*
 		 * Log exceptions that would have trapped with the old
 		 * control word (overflow, divide by 0, and invalid operand).
@@ -722,19 +722,19 @@ npx_intr(dummy)
 	u_short control;
 	struct intrframe *frame;
 
-	if (npxproc == NULL || !npx_exists) {
+	if (PCPU_GET(npxproc) == NULL || !npx_exists) {
 		printf("npxintr: npxproc = %p, curproc = %p, npx_exists = %d\n",
-		       npxproc, curproc, npx_exists);
+		       PCPU_GET(npxproc), curproc, npx_exists);
 		panic("npxintr from nowhere");
 	}
-	if (npxproc != curproc) {
+	if (PCPU_GET(npxproc) != curproc) {
 		printf("npxintr: npxproc = %p, curproc = %p, npx_exists = %d\n",
-		       npxproc, curproc, npx_exists);
+		       PCPU_GET(npxproc), curproc, npx_exists);
 		panic("npxintr from non-current process");
 	}
 
 	outb(0xf0, 0);
-	fnstsw(&curpcb->pcb_savefpu.sv_ex_sw);
+	fnstsw(&PCPU_GET(curpcb)->pcb_savefpu.sv_ex_sw);
 	fnstcw(&control);
 	fnclex();
 
@@ -760,8 +760,8 @@ npx_intr(dummy)
 		 * this exception.
 		 */
 		code = 
-		    fpetable[(curpcb->pcb_savefpu.sv_ex_sw & ~control & 0x3f) |
-			(curpcb->pcb_savefpu.sv_ex_sw & 0x40)];
+		    fpetable[(PCPU_GET(curpcb)->pcb_savefpu.sv_ex_sw & ~control & 0x3f) |
+			(PCPU_GET(curpcb)->pcb_savefpu.sv_ex_sw & 0x40)];
 		trapsignal(curproc, SIGFPE, code);
 	} else {
 		/*
@@ -794,9 +794,9 @@ npxdna()
 {
 	if (!npx_exists)
 		return (0);
-	if (npxproc != NULL) {
+	if (PCPU_GET(npxproc) != NULL) {
 		printf("npxdna: npxproc = %p, curproc = %p\n",
-		       npxproc, curproc);
+		       PCPU_GET(npxproc), curproc);
 		panic("npxdna");
 	}
 	stop_emulating();
@@ -804,7 +804,7 @@ npxdna()
 	 * Record new context early in case frstor causes an IRQ13.
 	 */
 	PCPU_SET(npxproc, CURPROC);
-	curpcb->pcb_savefpu.sv_ex_sw = 0;
+	PCPU_GET(curpcb)->pcb_savefpu.sv_ex_sw = 0;
 	/*
 	 * The following frstor may cause an IRQ13 when the state being
 	 * restored has a pending error.  The error will appear to have been
@@ -817,7 +817,7 @@ npxdna()
 	 * fnsave are broken, so our treatment breaks fnclex if it is the
 	 * first FPU instruction after a context switch.
 	 */
-	frstor(&curpcb->pcb_savefpu);
+	frstor(&PCPU_GET(curpcb)->pcb_savefpu);
 
 	return (1);
 }
