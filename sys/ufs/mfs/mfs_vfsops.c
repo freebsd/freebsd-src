@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.4 (Berkeley) 4/16/94
- * $Id: mfs_vfsops.c,v 1.12 1995/08/28 09:19:14 julian Exp $
+ * $Id: mfs_vfsops.c,v 1.13 1995/08/30 01:34:28 bde Exp $
  */
 
 #include <sys/param.h>
@@ -67,7 +67,7 @@ u_long	mfs_rootsize;	/* size of mini-root in bytes */
 
 static	int mfs_minor;	/* used for building internal dev_t */
 
-extern int (**mfs_vnodeop_p)();
+extern vop_t **mfs_vnodeop_p;
 
 /*
  * mfs vfs operations.

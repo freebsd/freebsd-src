@@ -31,10 +31,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)fifo.h	8.2 (Berkeley) 2/2/94
- * $Id: fifo.h,v 1.4 1995/02/14 06:30:18 phk Exp $
+ * $Id: fifo.h,v 1.5 1995/03/16 18:13:13 bde Exp $
  */
 
-extern int	(**fifo_vnodeop_p)();
+extern vop_t **fifo_vnodeop_p;
 
 /*
  * Prototypes for fifo operations on vnodes.

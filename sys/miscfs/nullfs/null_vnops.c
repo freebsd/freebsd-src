@@ -35,7 +35,7 @@
  *
  *	@(#)null_vnops.c	8.1 (Berkeley) 6/10/93
  *
- * $Id: null_vnops.c,v 1.7 1995/03/19 14:28:54 davidg Exp $
+ * $Id: null_vnops.c,v 1.8 1995/05/30 08:07:03 rgrimes Exp $
  */
 
 /*
@@ -441,19 +441,19 @@ null_bwrite(ap)
 /*
  * Global vfs data structures
  */
-int (**null_vnodeop_p)();
+vop_t **null_vnodeop_p;
 struct vnodeopv_entry_desc null_vnodeop_entries[] = {
-	{ &vop_default_desc, null_bypass },
+	{ &vop_default_desc, (vop_t *)null_bypass },
 
-	{ &vop_getattr_desc, null_getattr },
-	{ &vop_inactive_desc, null_inactive },
-	{ &vop_reclaim_desc, null_reclaim },
-	{ &vop_print_desc, null_print },
+	{ &vop_getattr_desc, (vop_t *)null_getattr },
+	{ &vop_inactive_desc, (vop_t *)null_inactive },
+	{ &vop_reclaim_desc, (vop_t *)null_reclaim },
+	{ &vop_print_desc, (vop_t *)null_print },
 
-	{ &vop_strategy_desc, null_strategy },
-	{ &vop_bwrite_desc, null_bwrite },
+	{ &vop_strategy_desc, (vop_t *)null_strategy },
+	{ &vop_bwrite_desc, (vop_t *)null_bwrite },
 
-	{ (struct vnodeop_desc*)NULL, (int(*)())NULL }
+	{ NULL, NULL }
 };
 struct vnodeopv_desc null_vnodeop_opv_desc =
 	{ &null_vnodeop_p, null_vnodeop_entries };

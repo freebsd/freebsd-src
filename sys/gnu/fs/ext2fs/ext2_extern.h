@@ -131,10 +131,10 @@ void	ext2_checkoverlap __P((struct buf *, struct inode *));
 #endif
 __END_DECLS
 
-extern int (**ext2_vnodeop_p)();
-extern int (**ext2_specop_p)();
+extern vop_t **ext2_vnodeop_p;
+extern vop_t **ext2_specop_p;
 #ifdef FIFO
-extern int (**ext2_fifoop_p)();
+extern vop_t **ext2_fifoop_p;
 #define EXT2_FIFOOPS ext2_fifoop_p
 #else
 #define EXT2_FIFOOPS NULL

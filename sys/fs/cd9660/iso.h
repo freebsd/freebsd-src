@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso.h	8.2 (Berkeley) 1/23/94
- * $Id: iso.h,v 1.6 1995/07/25 21:50:50 bde Exp $
+ * $Id: iso.h,v 1.7 1995/10/31 12:13:49 phk Exp $
  */
 
 #define ISODCL(from, to) (to - from + 1)
@@ -223,7 +223,7 @@ int iso_ilock __P((struct iso_node *ip));
 int iso_iunlock __P((struct iso_node *ip));
 int cd9660_mountroot __P((void));
 
-extern int (**cd9660_vnodeop_p)();
+extern vop_t **cd9660_vnodeop_p;
 
 static inline int
 isonum_711(p)

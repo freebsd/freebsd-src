@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)specdev.h	8.2 (Berkeley) 2/2/94
- * $Id: specdev.h,v 1.3 1995/07/29 11:40:32 bde Exp $
+ * $Id: specdev.h,v 1.4 1995/10/23 02:22:51 dyson Exp $
  */
 
 /*
@@ -73,7 +73,7 @@ extern	struct vnode *speclisth[SPECHSZ];
 /*
  * Prototypes for special file operations on vnodes.
  */
-extern	int (**spec_vnodeop_p)();
+extern	vop_t **spec_vnodeop_p;
 struct	nameidata;
 struct	componentname;
 struct	ucred;

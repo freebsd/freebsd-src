@@ -7,7 +7,7 @@
 /*
  * Written by Julian Elischer (julian@DIALIX.oz.au)
  *
- * $Header: /home/ncvs/src/sys/miscfs/devfs/devfsdefs.h,v 1.6 1995/09/06 23:15:55 julian Exp $
+ * $Header: /home/ncvs/src/sys/miscfs/devfs/devfsdefs.h,v 1.7 1995/10/04 11:05:09 julian Exp $
  */
 
 /* first a couple of defines for compatibility with inodes */
@@ -68,8 +68,8 @@
 #define DEV_SLNK 6
 
 
-extern int (**devfs_vnodeop_p)(void *);	/* our own vector array for dirs */
-extern int (**dev_spec_vnodeop_p)(void *);	/* our own vector array for devs */
+extern vop_t **devfs_vnodeop_p;		/* our own vector array for dirs */
+extern vop_t **dev_spec_vnodeop_p;	/* our own vector array for devs */
 
 typedef struct dev_name *devnm_p;
 typedef	struct devnode	*dn_p;

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs.h	8.4 (Berkeley) 1/21/94
- * $Id$
+ * $Id: kernfs.h,v 1.2 1994/08/02 07:44:59 davidg Exp $
  */
 
 #define	_PATH_KERNFS	"/kern"		/* Default mountpoint */
@@ -51,7 +51,7 @@ struct kernfs_node {
 #define VFSTOKERNFS(mp)	((struct kernfs_mount *)((mp)->mnt_data))
 #define	VTOKERN(vp) ((struct kernfs_node *)(vp)->v_data)
 
-extern int (**kernfs_vnodeop_p)();
+extern vop_t **kernfs_vnodeop_p;
 extern struct vfsops kernfs_vfsops;
 extern struct vnode *rrootvp;
 #endif /* KERNEL */

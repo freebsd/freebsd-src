@@ -36,7 +36,7 @@
  *
  *	@(#)procfs.h	8.6 (Berkeley) 2/3/94
  *
- *	$Id: procfs.h,v 1.5 1995/05/25 01:35:22 davidg Exp $
+ *	$Id: procfs.h,v 1.6 1995/11/07 13:39:29 phk Exp $
  */
 
 /*
@@ -137,7 +137,7 @@ extern int procfs_dostatus __P((struct proc *, struct proc *, struct pfsnode *pf
 #define PROCFS_LOCKED	0x01
 #define PROCFS_WANT	0x02
 
-extern int (**procfs_vnodeop_p)();
+extern vop_t **procfs_vnodeop_p;
 extern struct vfsops procfs_vfsops;
 
 int	procfs_root __P((struct mount *, struct vnode **));
