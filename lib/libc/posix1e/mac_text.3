@@ -63,49 +63,9 @@ and sets
 .Fa *len_p
 to the length of the returned string.
 .Pp
-.Fx
-uses the following format
-for MAC policy text representations:
-.Pp
-.Dl Sy policy Ns No / Ns Sy qualifier
-.Pp
-Where
-.Sy policy
-can be one of
-.Dq biba ,
-.Dq mls ,
-or
-.Dq te .
-.Pp
-Valid labels can have the following arguments for
-.Sy qualifier ,
-depending on the value of
-.Sy policy .
-.Bl -tag -width "Policy" -offset indent
-.It Em Policy
-.Em Qualifier
-.It biba
-.Dq high ,
-.Dq low ,
-.Dq equal ,
-or a numeric grade.
-.It mls
-.Dq high ,
-.Dq low ,
-.Dq equal ,
-or a numeric level.
-.It te
-Types for
-.Dq te
-consist of a type name which must
-neither be empty nor exceed the length limit for the label.
-.El
-.Pp
-All policies must be present
-in a comma-separated list,
-but may be in any order
-(see
-.Sx EXAMPLES ) .
+Refer to
+.Xr maclabel 7
+for the MAC label format.
 .Sh RETURN VALUES
 The
 .Fn mac_from_text
@@ -130,13 +90,6 @@ upon success, and
 upon failure, setting
 .Va errno
 to indicate the error.
-.Sh EXAMPLES
-The following are valid MAC labels:
-.Bd -literal -offset indent
-biba/high,mls/low,te/none
-biba/low,mls/low,te/none
-biba/low,mls/3,te/none
-.Ed
 .Sh COMPATIBILITY
 POSIX.1e does not define
 a text format for text representations
@@ -158,7 +111,8 @@ to allocate internal storage.
 .Xr mac 3 ,
 .Xr mac_free 3 ,
 .Xr mac_get 3 ,
-.Xr mac_set 3
+.Xr mac_set 3 ,
+.Xr maclabel 7
 .Sh STANDARDS
 POSIX.1e is described in IEEE POSIX.1e draft 17.
 Discussion of the draft
