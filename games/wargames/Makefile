@@ -1,9 +1,10 @@
 #	@(#)Makefile	8.1 (Berkeley) 5/31/93
+#	$FreeBSD$
 
 NOOBJ=	noobj
-all wargames clean cleandir depend lint tags:
+MAN6=	wargames.6
 
-install:
+beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} wargames.sh \
 	    ${DESTDIR}${BINDIR}/wargames
 
