@@ -120,6 +120,7 @@ write_pid()
 	}
 }
 
+int doverbose = 0;
 /*
  *	mainline code for cardd
  */
@@ -128,7 +129,6 @@ main(int argc, char *argv[])
 {
 	struct slot *slots, *sp;
 	int count, dodebug = 0;
-	int doverbose = 0;
 	int delay = 0;
 	int irq_arg[16];
 	int irq_specified = 0;
