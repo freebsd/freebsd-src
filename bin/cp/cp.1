@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)cp.1	8.3 (Berkeley) 4/18/94
-.\"	$Id: cp.1,v 1.9 1997/02/22 14:01:32 peter Exp $
+.\"	$Id: cp.1,v 1.10 1998/05/06 06:50:19 charnier Exp $
 .\"
 .Dd April 18, 1994
 .Dt CP 1
@@ -143,13 +143,15 @@ be preserved, the set group ID bit is not preserved
 in the copy's permissions.
 If the source file has both its set user ID and set group ID bits on,
 and either the user ID or group ID cannot be preserved, neither
-the set user ID or set group ID bits are preserved in the copy's
+the set user ID nor set group ID bits are preserved in the copy's
 permissions.
 .El
 .Pp
 For each destination file that already exists, its contents are
-overwritten if permissions allow, but its mode, user ID, and group
-ID are unchanged.
+overwritten if permissions allow.  Its mode, user ID, and group
+ID are unchanged unless the
+.Fl p
+option was specified.
 .Pp
 In the second synopsis form, 
 .Ar target_directory 
