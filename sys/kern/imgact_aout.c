@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact_aout.c,v 1.18 1995/12/02 16:31:59 bde Exp $
+ *	$Id: imgact_aout.c,v 1.19 1995/12/07 12:46:33 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -57,7 +57,8 @@ exec_aout_imgact(imgp)
 {
 	struct exec *a_out = (struct exec *) imgp->image_header;
 	struct vmspace *vmspace = imgp->proc->p_vmspace;
-	unsigned long vmaddr, virtual_offset, file_offset;
+	unsigned long vmaddr, virtual_offset;
+	unsigned long file_offset;
 	unsigned long bss_size;
 	int error;
 

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_init.c,v 1.10 1995/12/02 17:11:20 bde Exp $
+ * $Id: vm_init.c,v 1.11 1995/12/07 12:48:12 davidg Exp $
  */
 
 /*
@@ -113,7 +113,7 @@ vm_mem_init(dummy)
 	/*
 	 * Initialize other VM packages
 	 */
-	vm_object_init(virtual_end - VM_MIN_KERNEL_ADDRESS);
+	vm_object_init();
 	vm_map_startup();
 	kmem_init(virtual_avail, virtual_end);
 	pmap_init(avail_start, avail_end);

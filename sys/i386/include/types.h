@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)types.h	8.3 (Berkeley) 1/5/94
- * $Id$
+ * $Id: types.h,v 1.4 1994/08/02 07:39:13 davidg Exp $
  */
 
 #ifndef	_MACHTYPES_H_
@@ -47,8 +47,10 @@ typedef struct label_t {
 } label_t;
 #endif
 
-typedef	unsigned long	vm_offset_t;
+typedef	unsigned long vm_offset_t;
 typedef	unsigned long	vm_size_t;
+typedef	long long	vm_ooffset_t;
+typedef	unsigned long	vm_pindex_t;
 
 /*
  * Basic integral types.  Omit the typedef if

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.98 1995/12/08 23:20:52 phk Exp $
+ *	$Id: wd.c,v 1.99 1995/12/10 15:54:58 bde Exp $
  */
 
 /* TODO:
@@ -223,9 +223,9 @@ struct diskgeom {
 struct disk {
 	long	dk_bc;		/* byte count left */
 	short	dk_skip;	/* blocks already transferred */
-	char	dk_ctrlr;	/* physical controller number */
-	char	dk_unit;	/* physical unit number */
-	char	dk_lunit;	/* logical unit number */
+	int	dk_ctrlr;	/* physical controller number */
+	int	dk_unit;	/* physical unit number */
+	int	dk_lunit;	/* logical unit number */
 	char	dk_state;	/* control state */
 	u_char	dk_status;	/* copy of status reg. */
 	u_char	dk_error;	/* copy of error reg. */
@@ -560,7 +560,6 @@ next:   }
 void
 wdstrategy(register struct buf *bp)
 {
-	register struct buf *dp;
 	struct disk *du;
 	int	lunit = dkunit(bp->b_dev);
 	int	s;
@@ -705,7 +704,6 @@ wdstart(int ctrlr)
 	register struct disk *du;
 	register struct buf *bp;
 	struct diskgeom *lp;	/* XXX sic */
-	struct buf *dp;
 	long	blknum;
 	long	secpertrk, secpercyl;
 	int	lunit;
@@ -938,7 +936,7 @@ void
 wdintr(int unit)
 {
 	register struct	disk *du;
-	register struct buf *bp, *dp;
+	register struct buf *bp;
 
 	if (wdtab[unit].b_active == 2)
 		return;		/* intr in wdflushirq() */
@@ -1141,9 +1139,6 @@ wdopen(dev_t dev, int flags, int fmt, struct proc *p)
 	register unsigned int lunit;
 	register struct disk *du;
 	int	error;
-	int	part = dkpart(dev), mask = 1 << part;
-	struct partition *pp;
-	char	*msg;
 
 	lunit = dkunit(dev);
 	if (lunit >= NWD || dktype(dev) != 0)
@@ -1652,11 +1647,11 @@ failed:
 		du->dk_multi = 1;
 	}
 
-#ifdef NOTYET
+/* #ifdef NOTYET */
 /* set read caching and write caching */
 	wdcommand(du, 0, 0, 0, WDFEA_RCACHE, WDCC_FEATURES);
 	wdcommand(du, 0, 0, 0, WDFEA_WCACHE, WDCC_FEATURES);
-#endif
+/* #endif */
 
 	return (0);
 }

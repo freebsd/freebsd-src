@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.60 1995/11/20 12:19:26 phk Exp $
+ * $Id: vm_pageout.c,v 1.61 1995/12/07 12:48:24 davidg Exp $
  */
 
 /*
@@ -140,7 +140,7 @@ extern int vfs_update_wakeup;
 
 #define MAXLAUNDER (cnt.v_page_count > 1800 ? 32 : 16)
 
-#define VM_PAGEOUT_PAGE_COUNT 8
+#define VM_PAGEOUT_PAGE_COUNT 16
 int vm_pageout_page_count = VM_PAGEOUT_PAGE_COUNT;
 
 int vm_page_max_wired;		/* XXX max # of wired pages system-wide */
@@ -173,7 +173,7 @@ vm_pageout_clean(m, sync)
 	vm_page_t mc[2*VM_PAGEOUT_PAGE_COUNT];
 	int pageout_count;
 	int i, forward_okay, backward_okay, page_base;
-	vm_offset_t offset = m->offset;
+	vm_pindex_t pindex = m->pindex;
 
 	object = m->object;
 
@@ -203,7 +203,7 @@ vm_pageout_clean(m, sync)
 	pageout_count = 1;
 	page_base = VM_PAGEOUT_PAGE_COUNT;
 	forward_okay = TRUE;
-	if (offset != 0)
+	if (pindex != 0)
 		backward_okay = TRUE;
 	else
 		backward_okay = FALSE;
@@ -228,11 +228,11 @@ vm_pageout_clean(m, sync)
 			/*
 			 * Stop forward scan at end of object.
 			 */
-			if ((offset + i * PAGE_SIZE) > object->size) {
+			if ((pindex + i) > object->size) {
 				forward_okay = FALSE;
 				goto do_backward;
 			}
-			p = vm_page_lookup(object, offset + i * PAGE_SIZE);
+			p = vm_page_lookup(object, pindex + i);
 			if (p) {
 				if ((p->flags & (PG_BUSY|PG_CACHE)) || p->busy) {
 					forward_okay = FALSE;
@@ -263,10 +263,10 @@ do_backward:
 			/*
 			 * Stop backward scan at beginning of object.
 			 */
-			if ((offset - i * PAGE_SIZE) == 0) {
+			if ((pindex - i) == 0) {
 				backward_okay = FALSE;
 			}
-			p = vm_page_lookup(object, offset - i * PAGE_SIZE);
+			p = vm_page_lookup(object, pindex - i);
 			if (p) {
 				if ((p->flags & (PG_BUSY|PG_CACHE)) || p->busy) {
 					backward_okay = FALSE;
@@ -672,6 +672,7 @@ rescan1:
 			 * scanning again
 			 */
 			if ((next->flags & PG_INACTIVE) == 0) {
+				vm_pager_sync();
 				goto rescan1;
 			}
 		}
@@ -710,11 +711,13 @@ rescan1:
 			TAILQ_REMOVE(&vm_page_queue_active, m, pageq);
 			TAILQ_INSERT_TAIL(&vm_page_queue_active, m, pageq);
 			m = next;
+			/* printf("busy: s: %d, f: 0x%x, h: %d\n",
+				m->busy, m->flags, m->hold_count); */
 			continue;
 		}
-		if (m->object->ref_count && ((m->flags & (PG_REFERENCED|PG_WANTED)) ||
+		if (m->object->ref_count &&
+			((m->flags & (PG_REFERENCED|PG_WANTED)) ||
 			pmap_is_referenced(VM_PAGE_TO_PHYS(m)))) {
-
 			pmap_clear_reference(VM_PAGE_TO_PHYS(m));
 			m->flags &= ~PG_REFERENCED;
 			if (m->act_count < ACT_MAX) {

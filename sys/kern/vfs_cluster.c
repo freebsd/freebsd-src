@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.28 1995/11/20 04:53:45 dyson Exp $
+ * $Id: vfs_cluster.c,v 1.29 1995/12/07 12:47:03 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -134,6 +134,7 @@ cluster_read(vp, filesize, lblkno, size, cred, bpp)
 	 */
 	origlblkno = lblkno;
 	*bpp = bp = getblk(vp, lblkno, size, 0, 0);
+
 	seq = ISSEQREAD(vp, lblkno);
 	/*
 	 * if it is in the cache, then check to see if the reads have been
@@ -146,7 +147,8 @@ cluster_read(vp, filesize, lblkno, size, cred, bpp)
 			vp->v_ralen >>= RA_SHIFTDOWN;
 			return 0;
 		} else if( vp->v_maxra > lblkno) {
-			if ( (vp->v_maxra + (vp->v_ralen / RA_MULTIPLE_SLOW)) >= (lblkno + vp->v_ralen)) {
+			if ( (vp->v_maxra + (vp->v_ralen / RA_MULTIPLE_SLOW)) >=
+					(lblkno + vp->v_ralen)) {
 				if ((vp->v_ralen + 1) < RA_MULTIPLE_FAST*(MAXPHYS / size))
 					++vp->v_ralen;
 				return 0;
@@ -190,13 +192,8 @@ cluster_read(vp, filesize, lblkno, size, cred, bpp)
 		 */
 		for (i = 0; i < vp->v_ralen; i++) {
 			rablkno = lblkno + i;
-			alreadyincore = (int) incore(vp, rablkno);
+			alreadyincore = (int) gbincore(vp, rablkno);
 			if (!alreadyincore) {
-				if (inmem(vp, rablkno)) {
-					if (vp->v_maxra < rablkno)
-						vp->v_maxra = rablkno + 1;
-					continue;
-				}
 				if (rablkno < vp->v_maxra) {
 					vp->v_maxra = rablkno;
 					vp->v_ralen >>= RA_SHIFTDOWN;
@@ -213,7 +210,7 @@ cluster_read(vp, filesize, lblkno, size, cred, bpp)
 	 */
 	rbp = NULL;
 	if (!alreadyincore &&
-	    (rablkno + 1) * size <= filesize &&
+	    ((u_quad_t)(rablkno + 1) * size) <= filesize &&
 	    !(error = VOP_BMAP(vp, rablkno, NULL, &blkno, &num_ra, NULL)) &&
 	    blkno != -1) {
 		if (num_ra > vp->v_ralen)
@@ -289,8 +286,12 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run)
 		panic("cluster_rbuild: size %d != filesize %d\n",
 		    size, vp->v_mount->mnt_stat.f_iosize);
 #endif
-	if (size * (lbn + run) > filesize)
+	/*
+	 * avoid a division
+	 */
+	while ((u_quad_t) size * (lbn + run) > filesize) {
 		--run;
+	}
 
 	tbp = getblk(vp, lbn, size, 0, 0);
 	if (tbp->b_flags & B_CACHE)
@@ -321,11 +322,13 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run)
 	inc = btodb(size);
 	for (bn = blkno, i = 0; i < run; ++i, bn += inc) {
 		if (i != 0) {
-			if ((bp->b_npages * PAGE_SIZE) + size > MAXPHYS)
+			if ((bp->b_npages * PAGE_SIZE) +
+				round_page(size) > MAXPHYS)
 				break;
 
-			if (incore(vp, lbn + i))
+			if (gbincore(vp, lbn + i))
 				break;
+
 			tbp = getblk(vp, lbn + i, size, 0, 0);
 
 			if ((tbp->b_flags & B_CACHE) ||
@@ -350,7 +353,7 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run)
 			}
 
 			tbp->b_flags |= B_READ | B_ASYNC;
-			if( tbp->b_blkno == tbp->b_lblkno) {
+			if (tbp->b_blkno == tbp->b_lblkno) {
 				tbp->b_blkno = bn;
 			} else if (tbp->b_blkno != bn) {
 				brelse(tbp);
@@ -462,7 +465,7 @@ cluster_write(bp, filesize)
 			 */
 			cursize = vp->v_lastw - vp->v_cstart + 1;
 #if 1
-			if ((lbn + 1) * lblocksize != filesize ||
+			if (((u_quad_t)(lbn + 1) * lblocksize) != filesize ||
 				lbn != vp->v_lastw + 1 ||
 				vp->v_clen <= cursize) {
 				if (!async)
@@ -513,7 +516,7 @@ cluster_write(bp, filesize)
 		 * cluster as large as possible, otherwise find size of
 		 * existing cluster.
 		 */
-		if ((lbn + 1) * lblocksize != filesize &&
+		if (((u_quad_t) (lbn + 1) * lblocksize) != filesize &&
 		    (bp->b_blkno == bp->b_lblkno) &&
 		    (VOP_BMAP(vp, lbn, NULL, &bp->b_blkno, &maxclen, NULL) ||
 		     bp->b_blkno == -1)) {
@@ -527,7 +530,10 @@ cluster_write(bp, filesize)
 		vp->v_clen = maxclen;
 		if (!async && maxclen == 0) {	/* I/O not contiguous */
 			vp->v_cstart = lbn + 1;
-			bawrite(bp);
+			if (!async)
+				bawrite(bp);
+			else
+				bdwrite(bp);
 		} else {	/* Wait for rest of cluster */
 			vp->v_cstart = lbn;
 			bdwrite(bp);
@@ -557,7 +563,7 @@ cluster_write(bp, filesize)
  * performed.  Check to see that it doesn't fall in the middle of
  * the current block (if last_bp == NULL).
  */
-void
+int
 cluster_wbuild(vp, size, start_lbn, len)
 	struct vnode *vp;
 	long size;
@@ -566,26 +572,22 @@ cluster_wbuild(vp, size, start_lbn, len)
 {
 	struct buf *bp, *tbp;
 	int i, j, s;
+	int totalwritten = 0;
 	int dbsize = btodb(size);
-	int origlen = len;
+	while (len > 0) {
+		s = splbio();
+		if ( ((tbp = gbincore(vp, start_lbn)) == NULL) ||
+			((tbp->b_flags & (B_INVAL|B_BUSY|B_DELWRI)) != B_DELWRI)) {
+			++start_lbn;
+			--len;
+			splx(s);
+			continue;
+		}
+		bremfree(tbp);
+		tbp->b_flags |= B_BUSY;
+		tbp->b_flags &= ~B_DONE;
+		splx(s);
 
-redo:
-	if (len == 0)
-		return;
-	if ( ((tbp = incore(vp, start_lbn)) == NULL) ||
-		((tbp->b_flags & (B_INVAL|B_BUSY|B_DELWRI)) != B_DELWRI)) {
-		++start_lbn;
-		--len;
-		goto redo;
-	}
-
-	tbp = getblk(vp, start_lbn, size, 0, 0);
-	if ((tbp->b_flags & B_DELWRI) == 0) {
-		++start_lbn;
-		--len;
-		brelse(tbp);
-		goto redo;
-	}
 	/*
 	 * Extra memory in the buffer, punt on this buffer. XXX we could
 	 * handle this in most cases, but we would have to push the extra
@@ -593,88 +595,93 @@ redo:
 	 * potentially pull it back up if the cluster was terminated
 	 * prematurely--too much hassle.
 	 */
-	if (((tbp->b_flags & (B_VMIO|B_CLUSTEROK)) != (B_VMIO|B_CLUSTEROK)) ||
-		(tbp->b_bcount != tbp->b_bufsize) ||
-		len == 1) {
-		bawrite(tbp);
-		++start_lbn;
-		--len;
-		goto redo;
-	}
+		if (((tbp->b_flags & B_CLUSTEROK) != B_CLUSTEROK) ||
+			(tbp->b_bcount != tbp->b_bufsize) ||
+			(tbp->b_bcount != size) ||
+			len == 1) {
+			totalwritten += tbp->b_bufsize;
+			bawrite(tbp);
+			++start_lbn;
+			--len;
+			continue;
+		}
 
-	bp = trypbuf();
-	if (bp == NULL) {
-		bawrite(tbp);
-		++start_lbn;
-		--len;
-		goto redo;
-	}
+		bp = trypbuf();
+		if (bp == NULL) {
+			totalwritten += tbp->b_bufsize;
+			bawrite(tbp);
+			++start_lbn;
+			--len;
+			continue;
+		}
 
-	TAILQ_INIT(&bp->b_cluster.cluster_head);
-	bp->b_bcount = 0;
-	bp->b_bufsize = 0;
-	bp->b_npages = 0;
+		TAILQ_INIT(&bp->b_cluster.cluster_head);
+		bp->b_bcount = 0;
+		bp->b_bufsize = 0;
+		bp->b_npages = 0;
 
-	bp->b_blkno = tbp->b_blkno;
-	bp->b_lblkno = tbp->b_lblkno;
-	(vm_offset_t) bp->b_data |= ((vm_offset_t) tbp->b_data) & PAGE_MASK;
-	bp->b_flags |= B_CALL | B_BUSY | B_CLUSTER;
-	bp->b_iodone = cluster_callback;
-	pbgetvp(vp, bp);
+		bp->b_blkno = tbp->b_blkno;
+		bp->b_lblkno = tbp->b_lblkno;
+		(vm_offset_t) bp->b_data |= ((vm_offset_t) tbp->b_data) & PAGE_MASK;
+		bp->b_flags |= B_CALL | B_BUSY | B_CLUSTER | (tbp->b_flags & B_VMIO);
+		bp->b_iodone = cluster_callback;
+		pbgetvp(vp, bp);
 
-	for (i = 0; i < len; ++i, ++start_lbn) {
-		if (i != 0) {
+		for (i = 0; i < len; ++i, ++start_lbn) {
+			if (i != 0) {
+				s = splbio();
+				if ((tbp = gbincore(vp, start_lbn)) == NULL) {
+					splx(s);
+					break;
+				}
+
+				if ((tbp->b_flags & (B_VMIO|B_CLUSTEROK|B_INVAL|B_BUSY|B_DELWRI)) != (B_DELWRI|B_CLUSTEROK|(bp->b_flags & B_VMIO))) {
+					splx(s);
+					break;
+				}
+
+				if ((tbp->b_bcount != size) ||
+					((bp->b_blkno + dbsize * i) != tbp->b_blkno) ||
+					((tbp->b_npages + bp->b_npages) > (MAXPHYS / PAGE_SIZE))) {
+					splx(s);
+					break;
+				}
+				bremfree(tbp);
+				tbp->b_flags |= B_BUSY;
+				tbp->b_flags &= ~B_DONE;
+				splx(s);
+			}
+			for (j = 0; j < tbp->b_npages; j += 1) {
+				vm_page_t m;
+				m = tbp->b_pages[j];
+				++m->busy;
+				++m->object->paging_in_progress;
+				if ((bp->b_npages == 0) ||
+					(bp->b_pages[bp->b_npages - 1] != m)) {
+					bp->b_pages[bp->b_npages] = m;
+					bp->b_npages++;
+				}
+			}
+			bp->b_bcount += size;
+			bp->b_bufsize += size;
+
+			tbp->b_flags &= ~(B_READ | B_DONE | B_ERROR | B_DELWRI);
+			tbp->b_flags |= B_ASYNC;
 			s = splbio();
-			if ((tbp = incore(vp, start_lbn)) == NULL) {
-				splx(s);
-				break;
-			}
-
-			if ((tbp->b_flags & (B_CLUSTEROK|B_INVAL|B_BUSY|B_DELWRI)) != (B_DELWRI|B_CLUSTEROK)) {
-				splx(s);
-				break;
-			}
-
-			if ((tbp->b_bcount != size) ||
-				((bp->b_blkno + dbsize * i) != tbp->b_blkno) ||
-				((tbp->b_npages + bp->b_npages) > (MAXPHYS / PAGE_SIZE))) {
-				splx(s);
-				break;
-			}
-			bremfree(tbp);
-			tbp->b_flags |= B_BUSY;
-			tbp->b_flags &= ~B_DONE;
+			reassignbuf(tbp, tbp->b_vp);	/* put on clean list */
+			++tbp->b_vp->v_numoutput;
 			splx(s);
+			TAILQ_INSERT_TAIL(&bp->b_cluster.cluster_head,
+				tbp, b_cluster.cluster_entry);
 		}
-		for (j = 0; j < tbp->b_npages; j += 1) {
-			vm_page_t m;
-			m = tbp->b_pages[j];
-			++m->busy;
-			++m->object->paging_in_progress;
-			if ((bp->b_npages == 0) ||
-				(bp->b_pages[bp->b_npages - 1] != m)) {
-				bp->b_pages[bp->b_npages] = m;
-				bp->b_npages++;
-			}
-		}
-		bp->b_bcount += size;
-		bp->b_bufsize += size;
+		pmap_qenter(trunc_page((vm_offset_t) bp->b_data),
+			(vm_page_t *) bp->b_pages, bp->b_npages);
+		totalwritten += bp->b_bufsize;
+		bawrite(bp);
 
-		tbp->b_flags &= ~(B_READ | B_DONE | B_ERROR | B_DELWRI);
-		tbp->b_flags |= B_ASYNC;
-		s = splbio();
-		reassignbuf(tbp, tbp->b_vp);	/* put on clean list */
-		++tbp->b_vp->v_numoutput;
-		splx(s);
-		TAILQ_INSERT_TAIL(&bp->b_cluster.cluster_head,
-			tbp, b_cluster.cluster_entry);
+		len -= i;
 	}
-	pmap_qenter(trunc_page((vm_offset_t) bp->b_data),
-		(vm_page_t *) bp->b_pages, bp->b_npages);
-	bawrite(bp);
-
-	len -= i;
-	goto redo;
+	return totalwritten;
 }
 
 #if 0

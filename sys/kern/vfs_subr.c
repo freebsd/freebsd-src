@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.46 1995/12/06 13:27:39 phk Exp $
+ * $Id: vfs_subr.c,v 1.47 1995/12/07 12:47:04 davidg Exp $
  */
 
 /*
@@ -1332,7 +1332,6 @@ again:
 SYSCTL_PROC(_kern, KERN_VNODE, vnode, CTLTYPE_OPAQUE|CTLFLAG_RD,
 	0, 0, sysctl_vnode, "S,vnode", "");
 
-
 /*
  * Check to see if a filesystem is mounted on a block device.
  */
@@ -1521,14 +1520,13 @@ vfs_export_lookup(mp, nep, nam)
  */
 void
 vfs_msync(struct mount *mp, int flags) {
-	struct vnode *vp;
+	struct vnode *vp, *nvp;
 loop:
-	for (vp = mp->mnt_vnodelist.lh_first;
-	     vp != NULL;
-	     vp = vp->v_mntvnodes.le_next) {
+	for (vp = mp->mnt_vnodelist.lh_first; vp != NULL; vp = nvp) {
 
 		if (vp->v_mount != mp)
 			goto loop;
+		nvp = vp->v_mntvnodes.le_next;
 		if (VOP_ISLOCKED(vp) && (flags != MNT_WAIT))
 			continue;
 		if (vp->v_object &&

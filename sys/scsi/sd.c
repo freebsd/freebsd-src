@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.78 1995/12/09 20:42:35 phk Exp $
+ *      $Id: sd.c,v 1.79 1995/12/10 01:47:33 bde Exp $
  */
 
 #define SPLSD splbio
@@ -445,7 +445,12 @@ sd_strategy(struct buf *bp, struct scsi_link *sc_link)
 	/*
 	 * Place it in the queue of disk activities for this disk
 	 */
+#define SDDISKSORT
+#ifdef SDDISKSORT
+	tqdisksort(&sd->buf_queue, bp);
+#else
 	TAILQ_INSERT_TAIL(&sd->buf_queue, bp, b_act);
+#endif
 
 	/*
 	 * Tell the device to get going on the transfer if it's

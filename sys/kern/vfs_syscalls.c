@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.41 1995/11/18 11:35:05 bde Exp $
+ * $Id: vfs_syscalls.c,v 1.42 1995/12/07 12:47:06 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -682,6 +682,7 @@ open(p, uap, retval)
 	}
 	p->p_dupfd = 0;
 	vp = nd.ni_vp;
+		
 	fp->f_flag = flags & FMASK;
 	fp->f_type = DTYPE_VNODE;
 	fp->f_ops = &vnops;

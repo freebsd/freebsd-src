@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.37 1995/11/20 12:19:53 phk Exp $
+ * $Id: vm_fault.c,v 1.38 1995/12/07 12:48:10 davidg Exp $
  */
 
 /*
@@ -129,10 +129,10 @@ vm_fault(map, vaddr, fault_type, change_wiring)
 	boolean_t change_wiring;
 {
 	vm_object_t first_object;
-	vm_offset_t first_offset;
+	vm_pindex_t first_pindex;
 	vm_map_entry_t entry;
 	register vm_object_t object;
-	register vm_offset_t offset;
+	register vm_pindex_t pindex;
 	vm_page_t m;
 	vm_page_t first_m;
 	vm_prot_t prot;
@@ -192,7 +192,7 @@ RetryFault:;
 
 	if ((result = vm_map_lookup(&map, vaddr,
 		fault_type, &entry, &first_object,
-		&first_offset, &prot, &wired, &su)) != KERN_SUCCESS) {
+		&first_pindex, &prot, &wired, &su)) != KERN_SUCCESS) {
 		return (result);
 	}
 
@@ -248,14 +248,14 @@ RetryFault:;
 	 */
 
 	object = first_object;
-	offset = first_offset;
+	pindex = first_pindex;
 
 	/*
 	 * See whether this page is resident
 	 */
 
 	while (TRUE) {
-		m = vm_page_lookup(object, offset);
+		m = vm_page_lookup(object, pindex);
 		if (m != NULL) {
 			/*
 			 * If the page is being brought in, wait for it and
@@ -297,7 +297,7 @@ RetryFault:;
 		if (((object->type != OBJT_DEFAULT) && (!change_wiring || wired))
 		    || (object == first_object)) {
 
-			if (offset >= object->size) {
+			if (pindex >= object->size) {
 				UNLOCK_AND_DEALLOCATE;
 				return (KERN_PROTECTION_FAILURE);
 			}
@@ -305,7 +305,7 @@ RetryFault:;
 			/*
 			 * Allocate a new page for this object/offset pair.
 			 */
-			m = vm_page_alloc(object, offset,
+			m = vm_page_alloc(object, pindex,
 				vp?VM_ALLOC_NORMAL:(VM_ALLOC_NORMAL|VM_ALLOC_ZERO));
 
 			if (m == NULL) {
@@ -357,7 +357,7 @@ readrest:
 				 * is responsible for disposition of old page
 				 * if moved.
 				 */
-				m = vm_page_lookup(object, offset);
+				m = vm_page_lookup(object, pindex);
 				if( !m) {
 					UNLOCK_AND_DEALLOCATE;
 					goto RetryFault;
@@ -416,7 +416,7 @@ readrest:
 		 * unlocking the current one.
 		 */
 
-		offset += object->backing_object_offset;
+		pindex += OFF_TO_IDX(object->backing_object_offset);
 		next_object = object->backing_object;
 		if (next_object == NULL) {
 			/*
@@ -427,7 +427,7 @@ readrest:
 				vm_object_pip_wakeup(object);
 
 				object = first_object;
-				offset = first_offset;
+				pindex = first_pindex;
 				m = first_m;
 			}
 			first_m = NULL;
@@ -521,7 +521,7 @@ readrest:
 			cnt.v_cow_faults++;
 			m = first_m;
 			object = first_object;
-			offset = first_offset;
+			pindex = first_pindex;
 
 			/*
 			 * Now that we've gotten the copy out of the way,
@@ -545,7 +545,7 @@ readrest:
 
 	if (!lookup_still_valid) {
 		vm_object_t retry_object;
-		vm_offset_t retry_offset;
+		vm_pindex_t retry_pindex;
 		vm_prot_t retry_prot;
 
 		/*
@@ -562,7 +562,7 @@ readrest:
 		 * and will merely take another fault.
 		 */
 		result = vm_map_lookup(&map, vaddr, fault_type & ~VM_PROT_WRITE,
-		    &entry, &retry_object, &retry_offset, &retry_prot, &wired, &su);
+		    &entry, &retry_object, &retry_pindex, &retry_prot, &wired, &su);
 
 		/*
 		 * If we don't need the page any longer, put it on the active
@@ -578,7 +578,7 @@ readrest:
 		lookup_still_valid = TRUE;
 
 		if ((retry_object != first_object) ||
-		    (retry_offset != first_offset)) {
+		    (retry_pindex != first_pindex)) {
 			RELEASE_PAGE(m);
 			UNLOCK_AND_DEALLOCATE;
 			goto RetryFault;
@@ -655,7 +655,7 @@ readrest:
 	}
 
 	if ((m->flags & PG_BUSY) == 0)
-		printf("page not busy: %d\n", m->offset);
+		printf("page not busy: %d\n", m->pindex);
 	/*
 	 * Unlock everything, and return
 	 */
@@ -773,8 +773,8 @@ vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
 {
 	vm_object_t dst_object;
 	vm_object_t src_object;
-	vm_offset_t dst_offset;
-	vm_offset_t src_offset;
+	vm_ooffset_t dst_offset;
+	vm_ooffset_t src_offset;
 	vm_prot_t prot;
 	vm_offset_t vaddr;
 	vm_page_t dst_m;
@@ -792,7 +792,7 @@ vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
 	 * actually shadow anything - we copy the pages directly.)
 	 */
 	dst_object = vm_object_allocate(OBJT_DEFAULT,
-	    (vm_size_t) (dst_entry->end - dst_entry->start));
+	    (vm_size_t) OFF_TO_IDX(dst_entry->end - dst_entry->start));
 
 	dst_entry->object.vm_object = dst_object;
 	dst_entry->offset = 0;
@@ -812,7 +812,8 @@ vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
 		 * Allocate a page in the destination object
 		 */
 		do {
-			dst_m = vm_page_alloc(dst_object, dst_offset, VM_ALLOC_NORMAL);
+			dst_m = vm_page_alloc(dst_object,
+				OFF_TO_IDX(dst_offset), VM_ALLOC_NORMAL);
 			if (dst_m == NULL) {
 				VM_WAIT;
 			}
@@ -823,7 +824,8 @@ vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
 		 * (Because the source is wired down, the page will be in
 		 * memory.)
 		 */
-		src_m = vm_page_lookup(src_object, dst_offset + src_offset);
+		src_m = vm_page_lookup(src_object,
+			OFF_TO_IDX(dst_offset + src_offset));
 		if (src_m == NULL)
 			panic("vm_fault_copy_wired: page missing");
 
@@ -871,20 +873,21 @@ vm_fault_additional_pages(m, rbehind, rahead, marray, reqpage)
 {
 	int i;
 	vm_object_t object;
-	vm_offset_t offset, startoffset, endoffset, toffset, size;
+	vm_pindex_t pindex, startpindex, endpindex, tpindex;
+	vm_offset_t size;
 	vm_page_t rtm;
 	int treqpage;
 	int cbehind, cahead;
 
 	object = m->object;
-	offset = m->offset;
+	pindex = m->pindex;
 
 	/*
 	 * if the requested page is not available, then give up now
 	 */
 
 	if (!vm_pager_has_page(object,
-		object->paging_offset + offset, &cbehind, &cahead))
+		OFF_TO_IDX(object->paging_offset) + pindex, &cbehind, &cahead))
 		return 0;
 
 	if ((cbehind == 0) && (cahead == 0)) {
@@ -916,45 +919,45 @@ vm_fault_additional_pages(m, rbehind, rahead, marray, reqpage)
 	 * scan backward for the read behind pages -- in memory or on disk not
 	 * in same object
 	 */
-	toffset = offset - PAGE_SIZE;
-	if (toffset < offset) {
-		if (rbehind * PAGE_SIZE > offset)
-			rbehind = offset / PAGE_SIZE;
-		startoffset = offset - rbehind * PAGE_SIZE;
-		while (toffset >= startoffset) {
-			if (vm_page_lookup( object, toffset)) {
-				startoffset = toffset + PAGE_SIZE;
+	tpindex = pindex - 1;
+	if (tpindex < pindex) {
+		if (rbehind > pindex)
+			rbehind = pindex;
+		startpindex = pindex - rbehind;
+		while (tpindex >= startpindex) {
+			if (vm_page_lookup( object, tpindex)) {
+				startpindex = tpindex + 1;
 				break;
 			}
-			if (toffset == 0)
+			if (tpindex == 0)
 				break;
-			toffset -= PAGE_SIZE;
+			tpindex -= 1;
 		}
 	} else {
-		startoffset = offset;
+		startpindex = pindex;
 	}
 
 	/*
 	 * scan forward for the read ahead pages -- in memory or on disk not
 	 * in same object
 	 */
-	toffset = offset + PAGE_SIZE;
-	endoffset = offset + (rahead + 1) * PAGE_SIZE;
-	if (endoffset > object->size)
-		endoffset = object->size;
-	while (toffset < endoffset) {
-		if ( vm_page_lookup(object, toffset)) {
+	tpindex = pindex + 1;
+	endpindex = pindex + (rahead + 1);
+	if (endpindex > object->size)
+		endpindex = object->size;
+	while (tpindex <  endpindex) {
+		if ( vm_page_lookup(object, tpindex)) {
 			break;
 		}	
-		toffset += PAGE_SIZE;
+		tpindex += 1;
 	}
-	endoffset = toffset;
+	endpindex = tpindex;
 
 	/* calculate number of bytes of pages */
-	size = (endoffset - startoffset) / PAGE_SIZE;
+	size = endpindex - startpindex;
 
 	/* calculate the page offset of the required page */
-	treqpage = (offset - startoffset) / PAGE_SIZE;
+	treqpage = pindex - startpindex;
 
 	/* see if we have space (again) */
 	if ((cnt.v_free_count + cnt.v_cache_count) >
@@ -965,7 +968,7 @@ vm_fault_additional_pages(m, rbehind, rahead, marray, reqpage)
 		for (i = 0; i < size; i++) {
 			if (i != treqpage) {
 				rtm = vm_page_alloc(object,
-					startoffset + i * PAGE_SIZE,
+					startpindex + i,
 					VM_ALLOC_NORMAL);
 				if (rtm == NULL) {
 					if (i < treqpage) {
