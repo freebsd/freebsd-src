@@ -1,97 +1,323 @@
-#	$Id: BSD.usr.dist,v 1.38 1995/04/30 14:45:00 ache Exp $
+#	$Id: BSD.usr.dist,v 1.39 1995/05/09 23:06:59 jfieber Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
 .               uname=root gname=wheel
-    bin            
+    bin
     ..
 /set type=dir uname=games gname=bin mode=0700
     games           uname=bin mode=0755
-        hide           
+        hide
         ..
     ..
 /set type=dir uname=bin gname=bin mode=0755
-    include        
+    include
     ..
-    lib            
+    lib
     ..
-    libexec        
-        lpr            
+    libexec
+        lpr
         ..
-        uucp           
+        uucp
         ..
     ..
-    local          
+    local
     ..
-    mdec           
+    mdec
     ..
-    obj            
+    obj
     ..
-    sbin           
+    sbin
     ..
-    share          
-        calendar       
+    share
+        FAQ
+            FreeBSD-1.X
+            ..
+            Text
+            ..
+            extras
+            ..
         ..
-        dict           
+        calendar
         ..
-	isdn
-	..
-        examples       
+        dict
+        ..
+        doc
+            papers
+            ..
+            psd
+                12.make
+                ..
+                18.gprof
+                ..
+                19.curses
+                ..
+                20.ipctut
+                ..
+                21.ipc
+                ..
+                22.rpcgen
+                ..
+                23.rpc
+                ..
+                24.xdr
+                ..
+                25.xdrrfc
+                ..
+                26.rpcrfc
+                ..
+                27.nfsrfc
+                ..
+            ..
+            smm
+                01.setup
+                ..
+                02.config
+                ..
+                03.fsck
+                ..
+                04.quotas
+                ..
+                05.fastfs
+                ..
+                06.nfs
+                ..
+                07.lpd
+                ..
+                08.sendmailop
+                ..
+                09.sendmail
+                ..
+                11.timedop
+                ..
+                12.timed
+                ..
+                18.net
+                ..
+            ..
+            usd
+                04.csh
+                ..
+                07.mail
+                ..
+                10.exref
+                ..
+                11.edit
+                ..
+                12.vi
+                ..
+                13.viref
+                ..
+                18.msdiffs
+                ..
+                19.memacros
+                ..
+                20.meref
+                ..
+                30.rogue
+                ..
+                31.trek
+                ..
+            ..
+        ..
+        examples
             FreeBSD_version
             ..
-            cvs            
+            cvs
             ..
-            etc            
+            etc
             ..
             ibcs2
-	    ..
-	    lkm            
             ..
-            sunrpc         
+            lkm
+                misc
+                    module
+                    ..
+                    test
+                    ..
+                ..
+                syscall
+                    module
+                    ..
+                    test
+                    ..
+                ..
             ..
-	    syscons
-	    ..
+            sunrpc
+                dir
+                ..
+                msg
+                ..
+                sort
+                ..
+            ..
+            syscons
+            ..
         ..
 /set type=dir uname=games gname=bin mode=0755
         games           uname=bin
-            atc            
+            atc
             ..
-            boggle         
+            boggle
             ..
-            fortune        
+            fortune
             ..
-            larn           
+            larn
             ..
             quiz.db
-	    ..
+            ..
         ..
 /set type=dir uname=bin gname=bin mode=0755
-        groff_font     
-            devX100        
+        groff_font
+            devX100
             ..
-            devX100-12     
+            devX100-12
             ..
-            devX75         
+            devX75
             ..
-            devX75-12      
+            devX75-12
             ..
-            devascii       
+            devascii
             ..
-            devdvi         
-                generate       
+            devdvi
+                generate
                 ..
             ..
-	    devkoi8-r
+            devkoi8-r
             ..
-            devlatin1      
+            devlatin1
             ..
-            devps          
-                generate       
+            devps
+                generate
                 ..
             ..
         ..
-	info
-	..
+        info
+        ..
+        isdn
+        ..
+        locale
+            ja_JP.EUC
+            ..
+            lt_LN.ISO8859-1
+            ..
+            ru_SU.CP866
+            ..
+            ru_SU.KOI8-R
+            ..
+        ..
+/set type=dir uname=man gname=bin mode=0755
+        man             uname=bin
+            cat1
+            ..
+            cat2
+            ..
+            cat3
+            ..
+            cat4
+                i386
+                ..
+            ..
+            cat5
+            ..
+            cat6
+            ..
+            cat7
+            ..
+            cat8
+                i386
+                ..
+            ..
+            man1            uname=bin
+            ..
+            man2            uname=bin
+            ..
+            man3            uname=bin
+            ..
+/set type=dir uname=bin gname=bin mode=0755
+            man4
+                i386
+                ..
+            ..
+            man5
+            ..
+            man6
+            ..
+            man7
+            ..
+            man8
+                i386
+                ..
+            ..
+        ..
+        me
+        ..
+        misc
+            fonts
+            ..
+            pcvtfonts
+            ..
+            pkg_manage
+            ..
+        ..
+        mk
+        ..
+        nls
+            da_DK.ISO8859-1
+            ..
+            de_AT.ISO8859-1
+            ..
+            de_CH.ISO8859-1
+            ..
+            de_DE.ISO8859-1
+            ..
+            en_AU.ISO8859-1
+            ..
+            en_CA.ISO8859-1
+            ..
+            en_GB.ISO8859-1
+            ..
+            en_US.ISO8859-1
+            ..
+            es_ES.ISO8859-1
+            ..
+            fi_FI.ISO8859-1
+            ..
+            fr_BE.ISO8859-1
+            ..
+            fr_CA.ISO8859-1
+            ..
+            fr_CH.ISO8859-1
+            ..
+            fr_FR.ISO8859-1
+            ..
+            is_IS.ISO8859-1
+            ..
+            it_CH.ISO8859-1
+            ..
+            it_IT.ISO8859-1
+            ..
+            ja_JP.EUC
+            ..
+            lt_LN.ISO8859-1
+            ..
+            nl_BE.ISO8859-1
+            ..
+            nl_NL.ISO8859-1
+            ..
+            no_NO.ISO8859-1
+            ..
+            pt_PT.ISO8859-1
+            ..
+            ru_SU.KOI8-R
+            ..
+            sv_SE.ISO8859-1
+            ..
+        ..
+        perl
+            sys
+            ..
+        ..
         sgml
             FreeBSD
                 dtd
@@ -102,185 +328,45 @@
                 ..
             ..
         ..
-	locale
-		ja_JP.EUC
-		..
-		lt_LN.ISO8859-1
-		..
-		da_DK.ISO8859-1	type=link link=lt_LN.ISO8859-1
-		de_AT.ISO8859-1	type=link link=lt_LN.ISO8859-1
-		de_CH.ISO8859-1	type=link link=lt_LN.ISO8859-1
-		de_DE.ISO8859-1	type=link link=lt_LN.ISO8859-1
-		en_AU.ISO8859-1	type=link link=lt_LN.ISO8859-1
-		en_CA.ISO8859-1	type=link link=lt_LN.ISO8859-1
-		en_GB.ISO8859-1	type=link link=lt_LN.ISO8859-1
-		en_US.ISO8859-1	type=link link=lt_LN.ISO8859-1
-		es_ES.ISO8859-1	type=link link=lt_LN.ISO8859-1
-		fi_FI.ISO8859-1	type=link link=lt_LN.ISO8859-1
-		fr_BE.ISO8859-1	type=link link=lt_LN.ISO8859-1
-		fr_CA.ISO8859-1	type=link link=lt_LN.ISO8859-1
-		fr_CH.ISO8859-1	type=link link=lt_LN.ISO8859-1
-		fr_FR.ISO8859-1	type=link link=lt_LN.ISO8859-1
-		is_IS.ISO8859-1	type=link link=lt_LN.ISO8859-1
-		it_CH.ISO8859-1	type=link link=lt_LN.ISO8859-1
-		it_IT.ISO8859-1	type=link link=lt_LN.ISO8859-1
-		nl_BE.ISO8859-1	type=link link=lt_LN.ISO8859-1
-		nl_NL.ISO8859-1	type=link link=lt_LN.ISO8859-1
-		no_NO.ISO8859-1	type=link link=lt_LN.ISO8859-1
-		pt_PT.ISO8859-1	type=link link=lt_LN.ISO8859-1
-		sv_SE.ISO8859-1	type=link link=lt_LN.ISO8859-1
-		ru_SU.CP866
-		..
-		ru_SU.KOI8-R
-		..
-	..
-/set type=dir uname=man gname=bin mode=0755
-        man             uname=bin
-            cat1           
+        skel
+        ..
+        syscons
+            fonts
             ..
-            cat2           
+            keymaps
             ..
-            cat3           
-            ..
-            cat4           
-                i386           
-                ..
-            ..
-            cat5           
-            ..
-            cat6           
-            ..
-            cat7           
-            ..
-            cat8           
-                i386           
-                ..
-            ..
-            man1            uname=bin
-            ..
-            man2            uname=bin
-            ..
-            man3            uname=bin
-            ..
-/set type=dir uname=bin gname=bin mode=0755
-            man4           
-                i386           
-                ..
-            ..
-            man5           
-            ..
-            man6           
-            ..
-            man7           
-            ..
-            man8           
-                i386           
-                ..
+            scrnmaps
             ..
         ..
-        me             
+        tabset
         ..
-        misc           
-	    pkg_manage
-	    ..
-            fonts          
+        tmac
+            mdoc
             ..
-        ..
-        mk             
-        ..
-	nls
-		ja_JP.EUC
-		..
-		lt_LN.ISO8859-1
-		..
-		da_DK.ISO8859-1
-		..
-		de_AT.ISO8859-1
-		..
-		de_CH.ISO8859-1
-		..
-		de_DE.ISO8859-1
-		..
-		en_AU.ISO8859-1
-		..
-		en_CA.ISO8859-1
-		..
-		en_GB.ISO8859-1
-		..
-		en_US.ISO8859-1
-		..
-		es_ES.ISO8859-1
-		..
-		fi_FI.ISO8859-1
-		..
-		fr_BE.ISO8859-1
-		..
-		fr_CA.ISO8859-1
-		..
-		fr_CH.ISO8859-1
-		..
-		fr_FR.ISO8859-1
-		..
-		is_IS.ISO8859-1
-		..
-		it_CH.ISO8859-1
-		..
-		it_IT.ISO8859-1
-		..
-		nl_BE.ISO8859-1
-		..
-		nl_NL.ISO8859-1
-		..
-		no_NO.ISO8859-1
-		..
-		pt_PT.ISO8859-1
-		..
-		sv_SE.ISO8859-1
-		..
-		ru_SU.KOI8-R
-		..
-        ..
-	perl
-            sys
-            ..
-	..
-        skel           
-        ..
-        syscons        
-            fonts          
-            ..
-            keymaps        
-            ..
-            scrnmaps       
-            ..
-        ..
-        tabset         
-        ..
-        tmac           
-	    mdoc
-            ..
-            mm             
+            mm
             ..
         ..
 /set type=dir uname=bin gname=bin mode=0555
         zoneinfo        mode=0755
-            Africa         
+            Africa
             ..
-            America        
+            America
             ..
-            Asia           
+            Asia
             ..
-            Atlantic       
+            Atlantic
             ..
-            Australia      
+            Australia
             ..
-            Etc            
+            Etc
             ..
-            Europe         
+            Europe
             ..
-            Pacific        
+            Indian
             ..
-            SystemV        
+            Pacific
+            ..
+            SystemV
             ..
         ..
     ..
