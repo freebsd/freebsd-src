@@ -208,6 +208,7 @@ hup_handler(s)
 {
 	char logoutfile[MAXPATHLEN];
 
+	seteuid(0);
 	(void)sprintf(logoutfile, "%s.%s", _PATH_LOGOUT, loginname);
 	if (access(logoutfile, R_OK|X_OK) != 0)
 		(void)strcpy(logoutfile, _PATH_LOGOUT);
@@ -256,7 +257,7 @@ main(argc, argv)
 #ifdef POSIX
 		if (fork() > 0)
 			exit(0);
-		if (setsid() != 0)
+		if (setsid() == -1)
 			perror("setsid");
 #else
 		if ((fd = open("/dev/tty", O_RDONLY, 0)) >= 0) {
@@ -281,7 +282,7 @@ main(argc, argv)
 				close(fd);
 		}
 #ifdef TIOCSCTTY
-		if (ioctl(0, TIOCSCTTY, (caddr_t)0) != 0)
+		if (ioctl(0, TIOCSCTTY, (caddr_t)0) == -1)
 			perror("ioctl (TIOCSCTTY)");
 #endif
 	} else {
@@ -373,6 +374,8 @@ main(argc, argv)
 		exit(6);
 	}
 
+	/* reset uid to users' to allow the user to give a signal. */
+	seteuid(uid);
 	/* twiddle thumbs until we get a signal */
 	while (1)
 		sigpause(0);
