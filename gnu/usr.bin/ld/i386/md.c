@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: md.c,v 1.2 1993/10/27 00:54:58 pk Exp $
+ *	$Id: md.c,v 1.2 1993/11/09 04:19:16 paul Exp $
  */
 
 #include <sys/param.h>
@@ -96,7 +96,10 @@ md_init_header(hp, magic, flags)
 struct exec	*hp;
 int		magic, flags;
 {
-	N_SETMAGIC((*hp), magic, MID_I386, flags);
+	if (oldmagic)
+		hp->a_midmag = oldmagic;
+	else
+		N_SETMAGIC((*hp), magic, MID_I386, flags);
 
 	/* TEXT_START depends on the value of outheader.a_entry.  */
 	if (!(link_mode & SHAREABLE)) /*WAS: if (entry_symbol) */
