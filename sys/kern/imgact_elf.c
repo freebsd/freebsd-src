@@ -571,11 +571,12 @@ exec_elf_imgact(struct image_params *imgp)
 		}
 	}
 
-	/* XXX: lock the vm_mtx when twiddling vmspace? */
+	mtx_lock(&vm_mtx);
 	vmspace->vm_tsize = text_size >> PAGE_SHIFT;
 	vmspace->vm_taddr = (caddr_t)(uintptr_t)text_addr;
 	vmspace->vm_dsize = data_size >> PAGE_SHIFT;
 	vmspace->vm_daddr = (caddr_t)(uintptr_t)data_addr;
+	mtx_unlock(&vm_mtx);
 
 	addr = ELF_RTLD_ADDR(vmspace);
 
