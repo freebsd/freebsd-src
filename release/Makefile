@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.193.2.8 1995/07/26 03:09:16 jkh Exp $
+#	$Id: Makefile,v 1.193.2.9 1995/07/27 01:37:09 jkh Exp $
 #
 # How to roll a release:
 #
@@ -11,8 +11,8 @@
 # that on a 14.4 line just yet...
 #
 # SET THIS !!!
-BUILDNAME=2.1.0-950726-SNAP
-#CHROOTDIR=/a/release
+BUILDNAME=2.1.0-950818-SNAP
+CHROOTDIR=/a/release
 # If this is a RELEASE, then set
 RELEASETAG=RELENG_2_1_0
 
@@ -51,7 +51,7 @@ ZIPNSPLIT=		gzip --no-name -9 -c | split -b 240640 -
 # Size of the mfs to put in the kernel we boot.
 # You want to keep this as small as possible, it costs dearly in RAM.
 BOOTMFSSIZE=		1075
-MFSINODE=		80000
+MFSINODE=		70000
 
 # Things which will get you into trouble if you change them
 DISTRIBUTIONS=		bin ${EXTRA_DISTS}
@@ -357,12 +357,9 @@ release.8: write_mfs_in_kernel
 	echo "ftp             21/tcp"		>> ${RD}/mfsfd/stand/etc/services
 	echo "domain          53/tcp          nameserver" >> ${RD}/mfsfd/stand/etc/services
 	echo "domain          53/udp          nameserver" >> ${RD}/mfsfd/stand/etc/services
-	rm -rf ${.CURDIR}/sysinstall/help/ja_JP.JIS
 	tar --exclude CVS -cf - -C ${.CURDIR}/sysinstall help | \
 		tar xvf - -C ${RD}/mfsfd/stand
-	install -c ${.CURDIR}/../COPYRIGHT ${RD}/mfsfd/stand/help/en_US.ISO8859-1/COPYRIGHT
-	(cd ${RD}/mfsfd/stand/help && tar cf - * | gzip -9 > ../help.tgz)
-	(cd ${RD}/mfsfd/stand && rm -rf help)
+	install -c ${.CURDIR}/../COPYRIGHT ${RD}/mfsfd/stand/help/COPYRIGHT.hlp
 	( 								\
 	a=`expr ${BOOTMFSSIZE} \* 2` &&					\
 	echo &&								\
