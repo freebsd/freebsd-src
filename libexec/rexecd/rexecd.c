@@ -115,7 +115,6 @@ doit(f, fromp)
 	char cmdbuf[NCARGS+1], *cp, *namep;
 #ifdef SKEY
 	char *skey_crypt();
-	int permit_passwd = authfile(inet_ntoa(fromp->sin_addr));
 	char user[16], pass[100];
 #else /* SKEY */
 	char user[16], pass[16];
@@ -176,7 +175,8 @@ doit(f, fromp)
 	endpwent();
 	if (*pwd->pw_passwd != '\0') {
 #ifdef SKEY
-		namep = skey_crypt(pass, pwd->pw_passwd, pwd, permit_passwd);
+		namep = skey_crypt(pass, pwd->pw_passwd, pwd,
+				   skeyaccess(user, NULL, remote));
 #else /* SKEY */
 		namep = crypt(pass, pwd->pw_passwd);
 #endif /* SKEY */
