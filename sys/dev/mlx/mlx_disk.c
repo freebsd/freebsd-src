@@ -212,8 +212,7 @@ mlxd_intr(void *data)
     else
 	bp->bio_resid = 0;
 
-    devstat_end_transaction_bio(&sc->mlxd_stats, bp);
-    biodone(bp);
+    biofinish(bp, &sc->mlxd_stats, 0);
 }
 
 static int

@@ -200,8 +200,7 @@ amrd_intr(void *data)
 	bio->bio_resid = 0;
     }
 
-    devstat_end_transaction_bio(&sc->amrd_stats, bio);
-    biodone(bio);
+    biofinish(bio, &sc->amrd_stats, 0);
 }
 
 static int

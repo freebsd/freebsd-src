@@ -437,9 +437,7 @@ acdstrategy(struct bio *bp)
 #ifdef NOTYET
     /* allow write only on CD-R/RW media */   /* all for now SOS */
     if ((bp->bio_cmd == BIO_WRITE) && !(writeable_media)) {
-        bp->bio_error = EROFS;
-        bp->bio_flags |= BIO_ERROR;
-        biodone(bp);
+        biofinish(bp, NULL, EROFS);
         return;
     }
 #endif
@@ -474,9 +472,7 @@ acd_start(struct acd *cdp)
 
     /* Should reject all queued entries if media have changed. */
     if (cdp->flags & F_MEDIA_CHANGED) {
-        bp->bio_error = EIO;
-        bp->bio_flags |= BIO_ERROR;
-        biodone(bp);
+        biofinish(bp, NULL, EIO);
         return;
     }
 
@@ -486,9 +482,7 @@ acd_start(struct acd *cdp)
         if ((cdp->flags & F_TRACK_PREPED) == 0) {
             if ((cdp->flags & F_TRACK_PREP) == 0) {
                 printf("wcd%d: sequence error\n", cdp->lun);
-                bp->bio_error = EIO;
-                bp->bio_flags |= BIO_ERROR;
-                biodone(bp);
+                biofinish(bp, NULL, EIO);
                 return;
             } else {
                 if (acd_open_track(cdp, &cdp->preptrack) != 0) {
@@ -540,8 +534,7 @@ acd_done(struct acd *cdp, struct bio *bp, int resid, struct atapires result)
         if (bp->bio_cmd == BIO_WRITE)
             cdp->flags |= F_WRITTEN;
     }
-    devstat_end_transaction_bio(cdp->device_stats, bp);
-    biodone(bp);
+    biofinish(bp, cdp->device_stats, 0);
     acd_start(cdp);
 }
 

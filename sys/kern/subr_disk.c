@@ -300,9 +300,7 @@ diskstrategy(struct bio *bp)
 		inherit_raw(pdev, bp->bio_dev);
 
 	if (!dp) {
-		bp->bio_error = ENXIO;
-		bp->bio_flags |= BIO_ERROR;
-		biodone(bp);
+		biofinish(bp, NULL, ENXIO);
 		return;
 	}
 

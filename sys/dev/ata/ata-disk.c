@@ -228,15 +228,11 @@ ad_detach(struct ad_softc *adp, int flush)
 	if (request->device != adp)
 	    continue;
 	TAILQ_REMOVE(&adp->controller->ata_queue, request, chain);
-	request->bp->bio_error = ENXIO;
-	request->bp->bio_flags |= BIO_ERROR;
-	biodone(request->bp);
+	biofinish(request->bp, NULL, ENXIO);
 	ad_free(request);
     }
     while ((bp = bioq_first(&adp->queue))) {
-	bp->bio_error = ENXIO;
-	bp->bio_flags |= BIO_ERROR;
-	biodone(bp);
+	biofinish(bp, NULL, ENXIO);
     }
     disk_invalidate(&adp->disk);
     disk_destroy(adp->dev);
@@ -269,9 +265,7 @@ adstrategy(struct bio *bp)
     int s;
 
     if (adp->flags & AD_F_DETACHING) {
-	bp->bio_error = ENXIO;
-	bp->bio_flags |= BIO_ERROR;
-	biodone(bp);
+	biofinish(bp, NULL, ENXIO);
 	return;
     }
 
@@ -580,8 +574,7 @@ transfer_failed:
 	request->bp->bio_error = EIO;
 	request->bp->bio_flags |= BIO_ERROR;
 	request->bp->bio_resid = request->bytecount;
-	devstat_end_transaction_bio(&adp->stats, request->bp);
-	biodone(request->bp);
+	biofinish(request->bp, &adp->stats, 0);
 	ad_free(request);
     }
     ata_reinit(adp->controller);
@@ -714,8 +707,7 @@ ad_interrupt(struct ad_request *request)
     }
 #endif
 finish:
-    devstat_end_transaction_bio(&adp->stats, request->bp);
-    biodone(request->bp);
+    biofinish(request->bp, &adp->stats, 0);
     ad_free(request);
     adp->outstanding--;
 
@@ -905,8 +897,7 @@ ad_timeout(struct ad_request *request)
 	/* retries all used up, return error */
 	request->bp->bio_error = EIO;
 	request->bp->bio_flags |= BIO_ERROR;
-	devstat_end_transaction_bio(&adp->stats, request->bp);
-	biodone(request->bp);
+	biofinish(request->bp, &adp->stats, 0);
 	ad_free(request);
     }
     ata_reinit(adp->controller);
