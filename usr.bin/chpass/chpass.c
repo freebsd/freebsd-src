@@ -173,7 +173,8 @@ main(argc, argv)
 #else
 		case 0:
 			if (!(pw = getpwuid(uid)))
-				errx(1, "unknown user: uid %u", uid);
+				errx(1, "unknown user: uid %lu",
+				    (unsigned long)uid);
 			break;
 		case 1:
 			if (!(pw = getpwnam(*argv)))

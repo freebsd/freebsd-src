@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef lint
@@ -64,8 +66,8 @@ pw_copy(ffd, tfd, pw)
 	char chgstr[20];
 	char expstr[20];
 
-	snprintf(uidstr, sizeof(uidstr), "%d", pw->pw_uid);
-	snprintf(gidstr, sizeof(gidstr), "%d", pw->pw_gid);
+	snprintf(uidstr, sizeof(uidstr), "%lu", (unsigned long)pw->pw_uid);
+	snprintf(gidstr, sizeof(gidstr), "%lu", (unsigned long)pw->pw_gid);
 	snprintf(chgstr, sizeof(chgstr), "%ld", (long)pw->pw_change);
 	snprintf(expstr, sizeof(expstr), "%ld", (long)pw->pw_expire);
 
