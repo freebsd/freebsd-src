@@ -14,10 +14,10 @@
 #
 # Per usare la mappatura dare i seguenti comandi:
 #
-#  vidcontrol -f 8x16 iso-8x16.fnt
+#  vidcontrol -f 8x16 iso15-8x16.fnt
 #  kbdcontrol -l it.iso.kbd
-#  setenv LANG it_IT.ISO8859-1
-#  setenv MM_CHARSET iso-8859-1
+#  setenv LANG it_IT.ISO8859-15
+#  setenv MM_CHARSET iso-8859-15
 #  setenv TERM cons25l1
 #
 # Per l'utilizzo della stessa in modo permanente e/o  
