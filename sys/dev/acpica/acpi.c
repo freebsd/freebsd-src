@@ -314,7 +314,7 @@ acpi_attach(device_t dev)
     ACPI_STATUS		status;
     int			error;
     UINT32		flags;
-    
+    char		*env;
 #ifdef ACPI_DEBUGGER
     char		*debugpoint;
 #endif
@@ -431,7 +431,11 @@ acpi_attach(device_t dev)
     sc->acpi_s4bios = 1;
     if (bootverbose)
 	sc->acpi_verbose = 1;
-    
+    if ((env = getenv("hw.acpi.verbose")) && strcmp(env, "0")) {
+	sc->acpi_verbose = 1;
+	freeenv(env);
+    }
+
     /*
      * Dispatch the default sleep state to devices.
      * TBD: should be configured from userland policy manager.
