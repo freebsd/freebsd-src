@@ -567,5 +567,5 @@
 392	STD	BSD	{ int uuidgen(struct uuid *store, int count); }
 393	MSTD	BSD	{ int sendfile(int fd, int s, off_t offset, size_t nbytes, \
 				struct sf_hdtr *hdtr, off_t *sbytes, int flags); }
-394	MNOIMPL	BSD	{ int mac_syscall(const char *policy, int call, \
+394	MSTD	BSD	{ int mac_syscall(const char *policy, int call, \
 				void *arg); }
