@@ -1,5 +1,5 @@
 /* $FreeBSD$ */
-/* $Id: isp_freebsd.c,v 1.4 1998/04/15 17:36:08 mjacob Exp $ */
+/* $Id: isp_freebsd.c,v 1.1 1998/04/22 17:54:50 mjacob Exp $ */
 /*
  * Platform (FreeBSD) dependent common attachment code for Qlogic adapters.
  *
@@ -111,7 +111,6 @@ ispminphys(bp)
 	if (bp->b_bcount >= (1 << 24)) {
 		bp->b_bcount = (1 << 24);
 	}
-	minphys(bp);
 }
 
 static u_int32_t
