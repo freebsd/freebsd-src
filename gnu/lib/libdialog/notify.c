@@ -27,34 +27,16 @@ dialog_notify(char *msg)
  * Desc: display an error message
  */
 {
-    int li, co, mco;
-    char *p;
     WINDOW *w;
 
-    /* determine # of lines in msg and max colwidth */
-    li = 0;
-    co = 0;
-    mco = 0;
-    p = msg;
-    while (*p) {
-	if (*p == '\n') {
-	    li++;
-	    if (co > mco) mco = co;
-	    co = 0;
-	}
-	p++;
-	co++;
+    w = dupwin(newscr);
+    if (w == NULL) {
+	endwin();
+	fprintf(stderr, "\ndupwin(newscr) failed, malloc memory corrupted\n");
+	exit(1);
     }
-    if (co < mco) co = mco;
-
-    li += 5;
-    if (li > LINES) li = LINES;
-    co += 4;
-    if (co < 20) co = 20;
-    if (co > COLS) co = COLS;
-
-    w = dupwin(curscr);
-    dialog_msgbox("Message", msg, li, co, TRUE);
+    dialog_msgbox("Message", msg, -1, -1, TRUE);
+    touchwin(w);
     wrefresh(w);
     delwin(w);
 
