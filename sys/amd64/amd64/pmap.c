@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.80 1996/03/11 05:55:56 hsu Exp $
+ *	$Id: pmap.c,v 1.81 1996/03/13 00:39:45 dyson Exp $
  */
 
 /*
@@ -50,13 +50,6 @@
  * space, and to reduce the cost of memory to each process.
  *
  *	Derived from: hp300/@(#)pmap.c	7.1 (Berkeley) 12/5/90
- */
-/*
- * Major modifications by John S. Dyson primarily to support
- * pageable page tables, eliminating pmap_attributes,
- * discontiguous memory pages, and using more efficient string
- * instructions. Jan 13, 1994.  Further modifications on Mar 2, 1994,
- * general clean-up and efficiency mods.
  */
 
 /*
@@ -131,8 +124,8 @@ static void	init_pv_entries __P((int));
 #define pmap_pte_u(pte)		((*(int *)pte & PG_U) != 0)
 #define pmap_pte_v(pte)		((*(int *)pte & PG_V) != 0)
 
-#define pmap_pte_set_w(pte, v)		((v)?(*(int *)pte |= PG_W):(*(int *)pte &= ~PG_W))
-#define pmap_pte_set_prot(pte, v)	((*(int *)pte &= ~PG_PROT), (*(int *)pte |= (v)))
+#define pmap_pte_set_w(pte, v) ((v)?(*(int *)pte |= PG_W):(*(int *)pte &= ~PG_W))
+#define pmap_pte_set_prot(pte, v) ((*(int *)pte &= ~PG_PROT), (*(int *)pte |= (v)))
 
 /*
  * Given a map and a machine independent protection code,
@@ -179,6 +172,7 @@ static void	pmap_enter_quick __P((pmap_t pmap, vm_offset_t va,
 				      vm_offset_t pa));
 static int	pmap_is_managed __P((vm_offset_t pa));
 static void	pmap_remove_all __P((vm_offset_t pa));
+static void pmap_remove_page __P((struct pmap *pmap, vm_offset_t va));
 static __inline void pmap_remove_entry __P((struct pmap *pmap, pv_entry_t pv,
 					vm_offset_t va));
 static int pmap_remove_pte __P((struct pmap *pmap, pt_entry_t *ptq,
@@ -318,7 +312,7 @@ pmap_is_managed(pa)
 		return 0;
 
 	for (i = 0; phys_avail[i + 1]; i += 2) {
-		if (pa >= phys_avail[i] && pa < phys_avail[i + 1])
+		if (pa < phys_avail[i + 1] && pa >= phys_avail[i])
 			return 1;
 	}
 	return 0;
@@ -551,7 +545,9 @@ pmap_getpdir() {
 		--nfreepdir;
 		pdir = pdirlist;
 		pdirlist = (caddr_t *) *pdir;
+#if 0 /* Not needed anymore */
 		bzero( (caddr_t) pdir, PAGE_SIZE);
+#endif
 	} else {
 		pdir = (caddr_t *) kmem_alloc(kernel_map, PAGE_SIZE);
 	}
@@ -564,6 +560,24 @@ pmap_freepdir(void *pdir) {
 	if (nfreepdir > NFREEPDIR) {
 		kmem_free(kernel_map, (vm_offset_t) pdir, PAGE_SIZE);
 	} else {
+		int i;
+		pt_entry_t *s;
+		s = (pt_entry_t *) pdir;
+
+		/*
+		 * remove wired in kernel mappings
+		 */
+		bzero(s + KPTDI, nkpt * PTESIZE);
+		s[APTDPTDI] = 0;
+		s[PTDPTDI] = 0;
+
+#if defined(PMAP_DIAGNOSTIC)
+		for(i=0;i<PAGE_SIZE/4;i++,s++) {
+			if (*s) {
+				printf("pmap_freepdir: index %d not zero: %lx\n", i, *s);
+			}
+		}
+#endif
 		* (caddr_t *) pdir = (caddr_t) pdirlist;
 		pdirlist = (caddr_t *) pdir;
 		++nfreepdir;
@@ -892,6 +906,9 @@ pmap_remove_entry(pmap, pv, va)
 	splx(s);
 }
 
+/*
+ * pmap_remove_pte: do the things to unmap a page to mapped into a process
+ */
 static int
 pmap_remove_pte(pmap, ptq, sva)
 	struct pmap *pmap;
@@ -932,6 +949,49 @@ pmap_remove_pte(pmap, ptq, sva)
 }
 
 /*
+ * Scan pmap for non-null entry up to the entry pointed to
+ * by pdnxt.  Return the va corresponding to the entry.
+ */
+static __inline vm_offset_t
+pmap_scan( vm_offset_t sva, vm_offset_t pdnxt, pt_entry_t *ptp) {
+	pt_entry_t *ptt, *ptnxt;
+
+	ptnxt = &ptp[pdnxt];
+	ptt = &ptp[sva];
+
+loop:
+	if ((ptt != ptnxt) && (*ptt == 0)) {
+		ptt++;
+		goto loop;
+	}
+	return ptt - ptp;
+}
+
+/*
+ * Remove a single page from a process address space
+ */
+static __inline void
+pmap_remove_page(pmap, va)
+	struct pmap *pmap;
+	register vm_offset_t va;
+{
+	register pt_entry_t *ptp, *ptq;
+	/*
+	 * if there is no pte for this address, just skip it!!!
+	 */
+	if (*pmap_pde(pmap, va) == 0)
+		return;
+	/*
+	 * get a local va for mappings for this pmap.
+	 */
+	ptp = get_pt_entry(pmap);
+	ptq = ptp + i386_btop(va);
+	if ( *ptq && pmap_remove_pte( pmap, ptq, va))
+		pmap_update_1pg(va);
+	return;
+}
+	
+/*
  *	Remove the given range of addresses from the specified map.
  *
  *	It is assumed that the start and end are properly
@@ -959,21 +1019,7 @@ pmap_remove(pmap, sva, eva)
 	 * code.
 	 */
 	if ((sva + PAGE_SIZE) == eva) {
-		pt_entry_t *ptq;
-
-		/*
-		 * if there is no pte for this address, just skip it!!!
-		 */
-		if (*pmap_pde(pmap, sva) == 0)
-			return;
-
-		/*
-		 * get a local va for mappings for this pmap.
-		 */
-		ptp = get_pt_entry(pmap);
-		ptq = ptp + i386_btop(sva);
-		if ( *ptq && pmap_remove_pte( pmap, ptq, sva))
-			pmap_update_1pg(sva);
+		pmap_remove_page(pmap, sva);
 		return;
 	}
 
@@ -1037,7 +1083,7 @@ pmap_remove(pmap, sva, eva)
 		/*
 		 * if the pte isn't wired or held, just skip it.
 		 */
-		if ((*wc == 0) && (*hc == 0)) {
+		if ((*hc == 0) && (*wc == 0)) {
 			sva = pdnxt;
 			continue;
 		}
@@ -1052,33 +1098,19 @@ pmap_remove(pmap, sva, eva)
 		}
 
 		/*
-		 * this makes more efficient code
+		 * get get the ptp only if we need to
 		 */
-		sva--;
-
 		if (ptp == NULL)
 			ptp = get_pt_entry(pmap);
 quickloop:
-		/*
-		 * This is a very quick scan for a populated page table page
-		 * entry or the end of the page table page.  This code works
-		 * best when compiled with -O, -fomit-frame-pointer on GCC.
-		 * -O with frame pointer is a little worse, and -O2 makes this
-		 * code worse yet.  This should probably be made into an inline
-		 * asm, but for now this works pretty well.
-		 */
-		do {
-			sva++;
-
-			if (sva == pdnxt)
-				goto endmainloop;
-
-		} while (*(ptp + sva) == 0);
-
+		sva = pmap_scan(sva, pdnxt, ptp);
+		if (sva == pdnxt)
+			goto endmainloop;
 		/*
 		 * Remove the found entry.
 		 */
 		va = i386_ptob(sva);
+quickloop1:
 		if (pmap_remove_pte( pmap, ptp + sva, va))
 			update_needed = 1;
 
@@ -1086,8 +1118,16 @@ quickloop:
 		 * If the wire count and the hold count for the page table page
 		 * are both zero, then we are done.
 		 */
-		if ((*hc != 0) || (*wc != 0))
+		if ((*hc != 0) || (*wc != 0)) {
+			++sva;
+			if (pdnxt == sva)
+				goto endmainloop;
+			if (ptp[sva]) {
+				va += PAGE_SIZE;
+				goto quickloop1;
+			}
 			goto quickloop;
+		}
 
 		/*
 		 * We are done with the current page table page if we get here
@@ -1261,46 +1301,28 @@ pmap_protect(pmap, sva, eva, prot)
 			pdnxt = eva;
 		}
 
-		/*
-		 * search for page table entries
-		 */
-		while ((sva != pdnxt) && (*(ptp + sva) == 0))
-			++sva;
-
+quickloop:
+		sva = pmap_scan( sva, pdnxt, ptp);
 		if (sva == pdnxt) {
 			continue;
 		}
 
 		pte = ptp + sva;
-
-		va = i386_ptob(sva);
-		i386prot = pte_prot(pmap, prot);
-		if (va < UPT_MAX_ADDRESS) {
-			i386prot |= PG_u;
-			if (va >= UPT_MIN_ADDRESS)
-				i386prot |= PG_RW;
-		}
-
 		pbits = *(int *)pte;
-#if defined(PMAP_DIAGNOSTIC)
-		if (pmap_nw_modified((pt_entry_t) pbits)) {
-			printf("pmap_protect: modified page not writable: va: 0x%lx, pte: 0x%lx\n", va, pbits);
-		}
-#endif
-		if (pbits & PG_M) {
-			vm_page_t m;
-			vm_offset_t pa = pbits & PG_FRAME;
-			m = PHYS_TO_VM_PAGE(pa);
-			m->dirty = VM_PAGE_BITS_ALL;
-			*(int *)pte &= ~PG_M;
-			anychanged = 1;
-		}
-		pprot = pbits & PG_PROT;
-		if (pprot != i386prot) {
-			pmap_pte_set_prot(pte, i386prot);
-			anychanged = 1;
+
+		if (pbits & PG_RW) {
+			if (pbits & PG_M) {
+				vm_page_t m;
+				vm_offset_t pa = pbits & PG_FRAME;
+				m = PHYS_TO_VM_PAGE(pa);
+				m->dirty = VM_PAGE_BITS_ALL;
+			}
+			*(int *)pte &= ~(PG_M|PG_RW);
+			anychanged=1;
 		}
 		++sva;
+		if ( sva < pdnxt)
+			goto quickloop;
 	}
 	if (anychanged)
 		pmap_update();
@@ -1341,6 +1363,7 @@ pmap_enter(pmap, va, pa, prot, wired)
 	if (va > VM_MAX_KERNEL_ADDRESS)
 		panic("pmap_enter: toobig");
 
+#ifdef NO_HANDLE_LOCKED_PTES
 	/*
 	 * Page Directory table entry not valid, we need a new PT page
 	 */
@@ -1350,6 +1373,33 @@ pmap_enter(pmap, va, pa, prot, wired)
 			pmap->pm_pdir[PTDPTDI], va);
 		panic("invalid kernel page directory");
 	}
+#else
+	/*
+	 * This is here in the case that a page table page is not
+	 * resident, but we are inserting a page there.
+	 */
+	if ((va < VM_MIN_KERNEL_ADDRESS) &&
+		(curproc != NULL) &&
+		(pmap == &curproc->p_vmspace->vm_pmap)) {
+		vm_offset_t v;
+		v = (vm_offset_t) vtopte(va);
+
+		/* Fault the pte only if needed: */
+		if (*((int *)vtopte(v)) == 0) 
+			(void) vm_fault(&curproc->p_vmspace->vm_map,
+				trunc_page(v), VM_PROT_WRITE, FALSE);
+	}
+		
+	/*
+	 * Page Directory table entry not valid, we need a new PT page
+	 */
+	pte = pmap_pte(pmap, va);
+	if (pte == NULL) {
+		printf("kernel page directory invalid pdir=%p, va=0x%lx\n",
+			pmap->pm_pdir[PTDPTDI], va);
+		panic("invalid kernel page directory");
+	}
+#endif
 
 	origpte = *(vm_offset_t *)pte;
 	opa = origpte & PG_FRAME;
@@ -1393,7 +1443,7 @@ pmap_enter(pmap, va, pa, prot, wired)
 	 * handle validating new mapping.
 	 */
 	if (opa) {
-		pmap_remove(pmap, va, va + PAGE_SIZE);
+		pmap_remove_page(pmap, va);
 		opa = 0;
 		origpte = 0;
 	}
@@ -1582,7 +1632,7 @@ pmap_enter_quick(pmap, va, pa)
 	pte = vtopte(va);
 	/* a fault on the page table might occur here */
 	if (*pte) {
-		pmap_remove(pmap, va, va + PAGE_SIZE);
+		pmap_remove_page(pmap, va);
 	}
 
 	pv = pa_to_pvh(pa);
@@ -1623,7 +1673,7 @@ pmap_enter_quick(pmap, va, pa)
 	return;
 }
 
-#define MAX_INIT_PT (512)
+#define MAX_INIT_PT (96)
 /*
  * pmap_object_init_pt preloads the ptes for a given object
  * into the specified pmap.  This eliminates the blast of soft
@@ -1708,6 +1758,7 @@ pmap_object_init_pt(pmap, addr, object, pindex, size)
 			}
 		}
 	}
+	return;
 }
 
 /*
@@ -1794,6 +1845,7 @@ pmap_prefault(pmap, addra, entry, object)
 			m->flags |= PG_MAPPED;
 			pmap_enter_quick(pmap, addr, VM_PAGE_TO_PHYS(m));
 			vm_page_unhold(m);
+
 		}
 	}
 }
