@@ -43,7 +43,6 @@
 #define PLEXINITSIZE 65536				    /* init in this size chunks */
 #define MAXPLEXINITSIZE 65536				    /* max chunk size to use for init */
 #define MAXDATETEXT 128					    /* date text in history (far too much) */
-#define VINUMDEBUG					    /* for including kernel headers */
 
 enum {
     KILOBYTE = 1024,
