@@ -8,7 +8,7 @@
  *	of this software, nor does the author assume any responsibility
  *	for damages incurred with its use.
  *
- *	$Id: ctx.c,v 1.14 1995/12/10 13:38:25 phk Exp $
+ *	$Id: ctx.c,v 1.15 1995/12/15 00:29:28 bde Exp $
  */
 
 /*
@@ -138,7 +138,8 @@ static int     waitvb(short);
 
 #define   UNIT(x) ((x) & 0x07)
 
-static int     ctxprobe(), ctxattach();
+static int	ctxprobe __P((struct isa_device *devp));
+static int	ctxattach __P((struct isa_device *devp));
 struct isa_driver ctxdriver = {ctxprobe, ctxattach, "ctx"};
 
 static	d_open_t	ctxopen;

@@ -11,7 +11,7 @@
  * this software for any purpose.  It is provided "as is"
  * without express or implied warranty.
  *
- * $Id: mse.c,v 1.22 1995/12/10 13:39:00 phk Exp $
+ * $Id: mse.c,v 1.23 1995/12/15 00:29:30 bde Exp $
  */
 /*
  * Driver for the Logitech and ATI Inport Bus mice for use with 386bsd and
@@ -94,9 +94,9 @@ static struct mse_softc {
 	int	sc_mousetype;
 	struct	selinfo sc_selp;
 	u_int	sc_port;
-	void	(*sc_enablemouse)();
-	void	(*sc_disablemouse)();
-	void	(*sc_getmouse)();
+	void	(*sc_enablemouse) __P((u_int port));
+	void	(*sc_disablemouse) __P((u_int port));
+	void	(*sc_getmouse) __P((u_int port, int *dx, int *dy, int *but));
 	int	sc_deltax;
 	int	sc_deltay;
 	int	sc_obuttons;
@@ -163,8 +163,10 @@ static struct mse_softc {
 #define	MSE_DISINTR	0x10
 #define MSE_INTREN	0x00
 
-static int mse_probelogi();
-static void mse_enablelogi(), mse_disablelogi(), mse_getlogi();
+static int mse_probelogi __P((struct isa_device *idp));
+static void mse_disablelogi __P((u_int port));
+static void mse_getlogi __P((u_int port, int *dx, int *dy, int *but));
+static void mse_enablelogi __P((u_int port));
 
 /*
  * ATI Inport mouse definitions
@@ -177,8 +179,10 @@ static void mse_enablelogi(), mse_disablelogi(), mse_getlogi();
 #define	MSE_INPORT_HOLD		0x20
 #define	MSE_INPORT_INTREN	0x09
 
-static int mse_probeati();
-static void mse_enableati(), mse_disableati(), mse_getati();
+static int mse_probeati __P((struct isa_device *idp));
+static void mse_enableati __P((u_int port));
+static void mse_disableati __P((u_int port));
+static void mse_getati __P((u_int port, int *dx, int *dy, int *but));
 
 #define	MSEPRI	(PZERO + 3)
 
@@ -189,10 +193,14 @@ static void mse_enableati(), mse_disableati(), mse_getati();
  */
 static struct mse_types {
 	int	m_type;		/* Type of bus mouse */
-	int	(*m_probe)();	/* Probe routine to test for it */
-	void	(*m_enable)();	/* Start routine */
-	void	(*m_disable)();	/* Disable interrupts routine */
-	void	(*m_get)();	/* and get mouse status */
+	int	(*m_probe) __P((struct isa_device *idp));
+				/* Probe routine to test for it */
+	void	(*m_enable) __P((u_int port));
+				/* Start routine */
+	void	(*m_disable) __P((u_int port));
+				/* Disable interrupts routine */
+	void	(*m_get) __P((u_int port, int *dx, int *dy, int *but));
+				/* and get mouse status */
 } mse_types[] = {
 	{ MSE_ATIINPORT, mse_probeati, mse_enableati, mse_disableati, mse_getati },
 	{ MSE_LOGITECH, mse_probelogi, mse_enablelogi, mse_disablelogi, mse_getlogi },

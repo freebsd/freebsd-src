@@ -764,7 +764,7 @@ void atapi_request_callback (struct atapi *ata, int unit,
 	u_char cmd, u_char a1, u_char a2, u_char a3, u_char a4,
 	u_char a5, u_char a6, u_char a7, u_char a8, u_char a9,
 	u_char a10, u_char a11, u_char a12, u_char a13, u_char a14, u_char a15,
-	char *addr, int count, void (*done)(), void *x, void *y)
+	char *addr, int count, atapi_callback_t *done, void *x, void *y)
 {
 	struct atapicmd *ac;
 
@@ -925,13 +925,18 @@ void (*atapi_request_callback_ptr) (struct atapi *ata, int unit,
 	u_char cmd, u_char a1, u_char a2, u_char a3, u_char a4,
 	u_char a5, u_char a6, u_char a7, u_char a8, u_char a9,
 	u_char a10, u_char a11, u_char a12, u_char a13, u_char a14, u_char a15,
-	char *addr, int count, void (*done)(), void *x, void *y);
+	char *addr, int count, atapi_callback_t *done, void *x, void *y);
 struct atapires (*atapi_request_immediate_ptr) (struct atapi *ata, int unit,
 	u_char cmd, u_char a1, u_char a2, u_char a3, u_char a4,
 	u_char a5, u_char a6, u_char a7, u_char a8, u_char a9,
 	u_char a10, u_char a11, u_char a12, u_char a13, u_char a14, u_char a15,
 	char *addr, int count);
 
+extern int atapi_lock (int ctlr);
+/*
+ * XXX "ioconf.h" is not included by <sys/conf.h> for lkms, so we need this
+ * misplaced declaration.
+ */
 extern void wdintr (int);
 
 /*
