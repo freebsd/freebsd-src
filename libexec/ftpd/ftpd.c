@@ -79,7 +79,6 @@ static const char rcsid[] =
 #include <pwd.h>
 #include <grp.h>
 #include <opie.h>
-#include <setjmp.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -125,7 +124,6 @@ union sockunion pasv_addr;
 
 int	daemon_mode;
 int	data;
-jmp_buf	errcatch, urgcatch;
 int	logged_in;
 struct	passwd *pw;
 int	ftpdebug;
@@ -150,6 +148,7 @@ int	noepsv=0;		/* EPSV command is disabled.	*/
 int	noretr=0;		/* RETR command is disabled.	*/
 int	noguestretr=0;		/* RETR command is disabled for anon users. */
 
+static volatile sig_atomic_t recvurg;
 sig_atomic_t transflag;
 off_t	file_size;
 off_t	byte_count;
@@ -243,7 +242,8 @@ static void	 inithosts __P((void));
 static void	selecthost __P((union sockunion *));
 #endif
 static void	 ack __P((char *));
-static void	 myoob __P((int));
+static void	 sigurg __P((int));
+static void	 myoob __P((void));
 static int	 checkuser __P((char *, char *, int));
 static FILE	*dataconn __P((char *, off_t, char *));
 static void	 dolog __P((struct sockaddr *));
@@ -252,8 +252,9 @@ static void	 end_login __P((void));
 static FILE	*getdatasock __P((char *));
 static char	*gunique __P((char *));
 static void	 lostconn __P((int));
+static void	 sigquit __P((int));
 static int	 receive_data __P((FILE *, FILE *));
-static void	 send_data __P((FILE *, FILE *, off_t, off_t, int));
+static int	 send_data __P((FILE *, FILE *, off_t, off_t, int));
 static struct passwd *
 		 sgetpwnam __P((char *));
 static char	*sgetsave __P((char *));
@@ -286,8 +287,11 @@ main(argc, argv, envp)
 	char	*bindname = NULL;
 	int	family = AF_UNSPEC;
 	int	enable_v4 = 0;
+	struct sigaction sa;
 
 	tzset();		/* in case no timezone database in ~ftp */
+	sigemptyset(&sa.sa_mask);
+	sa.sa_flags = SA_RESTART;
 
 #ifdef OLD_SETPROCTITLE
 	/*
@@ -419,7 +423,8 @@ main(argc, argv, envp)
 			syslog(LOG_ERR, "failed to become a daemon");
 			exit(1);
 		}
-		(void) signal(SIGCHLD, reapchild);
+		sa.sa_handler = reapchild;
+		(void)sigaction(SIGCHLD, &sa, NULL);
 		/* init bind_sa */
 		memset(&hints, 0, sizeof(hints));
 
@@ -522,10 +527,23 @@ main(argc, argv, envp)
 		}
 	}
 
-	(void) signal(SIGCHLD, SIG_IGN);
-	(void) signal(SIGPIPE, lostconn);
-	if (signal(SIGURG, myoob) == SIG_ERR)
-		syslog(LOG_ERR, "signal: %m");
+	sa.sa_handler = SIG_DFL;
+	(void)sigaction(SIGCHLD, &sa, NULL);
+
+	sa.sa_handler = sigurg;
+	sa.sa_flags = 0;		/* don't restart syscalls for SIGURG */
+	(void)sigaction(SIGURG, &sa, NULL);
+
+	sigfillset(&sa.sa_mask);	/* block all signals in handler */
+	sa.sa_flags = SA_RESTART;
+	sa.sa_handler = sigquit;
+	(void)sigaction(SIGHUP, &sa, NULL);
+	(void)sigaction(SIGINT, &sa, NULL);
+	(void)sigaction(SIGQUIT, &sa, NULL);
+	(void)sigaction(SIGTERM, &sa, NULL);
+
+	sa.sa_handler = lostconn;
+	(void)sigaction(SIGPIPE, &sa, NULL);
 
 	addrlen = sizeof(ctrl_addr);
 	if (getsockname(0, (struct sockaddr *)&ctrl_addr, &addrlen) < 0) {
@@ -610,7 +628,6 @@ main(argc, argv, envp)
 	hostname[MAXHOSTNAMELEN - 1] = '\0';
 #endif
 	reply(220, "%s FTP server (%s) ready.", hostname, version);
-	(void) setjmp(errcatch);
 	for (;;)
 		(void) yyparse();
 	/* NOTREACHED */
@@ -623,6 +640,15 @@ lostconn(signo)
 
 	if (ftpdebug)
 		syslog(LOG_DEBUG, "lost connection");
+	dologout(1);
+}
+
+static void
+sigquit(signo)
+	int signo;
+{
+
+	syslog(LOG_ERR, "got signal %d", signo);
 	dologout(1);
 }
 
@@ -1770,7 +1796,7 @@ pdata_err:
  *
  * NB: Form isn't handled.
  */
-static void
+static int
 send_data(instr, outstr, blksize, filesize, isreg)
 	FILE *instr, *outstr;
 	off_t blksize;
@@ -1783,14 +1809,12 @@ send_data(instr, outstr, blksize, filesize, isreg)
 	off_t cnt;
 
 	transflag++;
-	if (setjmp(urgcatch)) {
-		transflag = 0;
-		return;
-	}
 	switch (type) {
 
 	case TYPE_A:
 		while ((c = getc(instr)) != EOF) {
+			if (recvurg)
+				goto got_oob;
 			byte_count++;
 			if (c == '\n') {
 				if (ferror(outstr))
@@ -1799,6 +1823,8 @@ send_data(instr, outstr, blksize, filesize, isreg)
 			}
 			(void) putc(c, outstr);
 		}
+		if (recvurg)
+			goto got_oob;
 		fflush(outstr);
 		transflag = 0;
 		if (ferror(instr))
@@ -1806,7 +1832,7 @@ send_data(instr, outstr, blksize, filesize, isreg)
 		if (ferror(outstr))
 			goto data_err;
 		reply(226, "Transfer complete.");
-		return;
+		return (0);
 
 	case TYPE_I:
 	case TYPE_L:
@@ -1828,6 +1854,8 @@ send_data(instr, outstr, blksize, filesize, isreg)
 			while (err != -1 && cnt < filesize) {
 				err = sendfile(filefd, netfd, offset, len,
 					(struct sf_hdtr *) NULL, &cnt, 0);
+				if (recvurg)
+					goto got_oob;
 				byte_count += cnt;
 				offset += cnt;
 				len -= cnt;
@@ -1841,14 +1869,14 @@ send_data(instr, outstr, blksize, filesize, isreg)
 			}
 
 			reply(226, "Transfer complete.");
-			return;
+			return (0);
 		}
 
 oldway:
 		if ((buf = malloc((u_int)blksize)) == NULL) {
 			transflag = 0;
 			perror_reply(451, "Local resource failure: malloc");
-			return;
+			return (-1);
 		}
 
 		while ((cnt = read(filefd, buf, (u_int)blksize)) > 0 &&
@@ -1862,21 +1890,28 @@ oldway:
 			goto data_err;
 		}
 		reply(226, "Transfer complete.");
-		return;
+		return (0);
 	default:
 		transflag = 0;
 		reply(550, "Unimplemented TYPE %d in send_data", type);
-		return;
+		return (-1);
 	}
 
 data_err:
 	transflag = 0;
 	perror_reply(426, "Data connection");
-	return;
+	return (-1);
 
 file_err:
 	transflag = 0;
 	perror_reply(551, "Error on input file");
+	return (-1);
+
+got_oob:
+	myoob();
+	recvurg = 0;
+	transflag = 0;
+	return (-1);
 }
 
 /*
@@ -1894,11 +1929,6 @@ receive_data(instr, outstr)
 	char buf[BUFSIZ];
 
 	transflag++;
-	if (setjmp(urgcatch)) {
-		transflag = 0;
-		return (-1);
-	}
-
 	bare_lfs = 0;
 
 	switch (type) {
@@ -1906,10 +1936,14 @@ receive_data(instr, outstr)
 	case TYPE_I:
 	case TYPE_L:
 		while ((cnt = read(fileno(instr), buf, sizeof(buf))) > 0) {
+			if (recvurg)
+				goto got_oob;
 			if (write(fileno(outstr), buf, cnt) != cnt)
 				goto file_err;
 			byte_count += cnt;
 		}
+		if (recvurg)
+			goto got_oob;
 		if (cnt < 0)
 			goto data_err;
 		transflag = 0;
@@ -1922,6 +1956,8 @@ receive_data(instr, outstr)
 
 	case TYPE_A:
 		while ((c = getc(instr)) != EOF) {
+			if (recvurg)
+				goto got_oob;
 			byte_count++;
 			if (c == '\n')
 				bare_lfs++;
@@ -1937,6 +1973,8 @@ receive_data(instr, outstr)
 			(void) putc(c, outstr);
 	contin2:	;
 		}
+		if (recvurg)
+			goto got_oob;
 		fflush(outstr);
 		if (ferror(instr))
 			goto data_err;
@@ -1964,6 +2002,12 @@ data_err:
 file_err:
 	transflag = 0;
 	perror_reply(452, "Error writing file");
+	return (-1);
+
+got_oob:
+	myoob();
+	recvurg = 0;
+	transflag = 0;
 	return (-1);
 }
 
@@ -2384,8 +2428,15 @@ dologout(status)
 }
 
 static void
-myoob(signo)
+sigurg(signo)
 	int signo;
+{
+
+	recvurg = 1;
+}
+
+static void
+myoob()
 {
 	char *cp;
 
@@ -2402,7 +2453,6 @@ myoob(signo)
 		tmpline[0] = '\0';
 		reply(426, "Transfer aborted. Data connection closed.");
 		reply(226, "Abort successful");
-		longjmp(urgcatch, 1);
 	}
 	if (strcmp(cp, "STAT\r\n") == 0) {
 		tmpline[0] = '\0';
@@ -2718,10 +2768,6 @@ send_file_list(whichf)
 		simple = 1;
 	}
 
-	if (setjmp(urgcatch)) {
-		transflag = 0;
-		goto out;
-	}
 	while ((dirname = *dirlist++)) {
 		if (stat(dirname, &st) < 0) {
 			/*
@@ -2762,6 +2808,13 @@ send_file_list(whichf)
 
 		while ((dir = readdir(dirp)) != NULL) {
 			char nbuf[MAXPATHLEN];
+
+			if (recvurg) {
+				myoob();
+				recvurg = 0;
+				transflag = 0;
+				goto out;
+			}
 
 			if (dir->d_name[0] == '.' && dir->d_namlen == 1)
 				continue;
