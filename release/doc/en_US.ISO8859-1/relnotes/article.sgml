@@ -1336,7 +1336,7 @@
     the entire message buffer, including &man.syslogd.8; records and
     <filename>/dev/console</filename> output. &merged;</para>
 
-    <para>&man.cdcontrol.1; now uses the <literal>CDROM</literal>
+    <para>&man.cdcontrol.1; now uses the <envar>CDROM</envar>
     environment variable to pick a default device. &merged;</para>
 
     <para>&man.cdcontrol.1; now supports <literal>next</literal> and
@@ -1457,7 +1457,7 @@
     as <application>OpenSSL</application>. &merged;</para>
 
     <para>The default value for &man.cvs.1;'s
-    <varname>CVS_RSH</varname> variable is now <literal>ssh</literal>,
+    <envar>CVS_RSH</envar> variable is now <literal>ssh</literal>,
     rather than <literal>rsh</literal>. &merged;</para>
 
     <para>&man.ipfstat.8; now supports the <option>-t</option> option
@@ -1532,7 +1532,7 @@
     authentication callback.</para>
 
     <para><filename>libfetch</filename> now has support for a
-    <varname>HTTP_USER_AGENT</varname> environment variable. &merged;</para>
+    <envar>HTTP_USER_AGENT</envar> environment variable. &merged;</para>
 
     <para>&man.atacontrol.8; has been added to control various aspects
     of the &man.ata.4; driver.</para>
@@ -1751,7 +1751,7 @@
       &merged;</para>
 
       <para>&man.gcc.1; now supports the environment variable
-      <varname>GCC_OPTIONS</varname>, which can hold a set of default
+      <envar>GCC_OPTIONS</envar>, which can hold a set of default
       options for <application>GCC</application>. &merged;</para>
 
       <para><application>GNATS</application> has been updated to
