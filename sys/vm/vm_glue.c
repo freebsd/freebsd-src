@@ -59,8 +59,10 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.54 1996/10/15 03:16:44 dyson Exp $
+ * $Id: vm_glue.c,v 1.55 1996/10/17 02:58:20 dyson Exp $
  */
+
+#include "opt_rlimit.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

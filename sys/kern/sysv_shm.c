@@ -1,4 +1,4 @@
-/*	$Id: sysv_shm.c,v 1.22 1996/09/07 03:24:44 dyson Exp $ */
+/*	$Id: sysv_shm.c,v 1.24 1996/09/10 22:35:25 dyson Exp $ */
 /*	$NetBSD: sysv_shm.c,v 1.23 1994/07/04 23:25:12 glass Exp $	*/
 
 /*
@@ -32,6 +32,7 @@
  */
 
 #include "opt_sysvipc.h"
+#include "opt_rlimit.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
