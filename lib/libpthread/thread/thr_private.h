@@ -888,7 +888,7 @@ do {									\
 	_pq_insert_tail(&(thrd)->kseg->kg_schedq.sq_runq, thrd)
 #define THR_RUNQ_REMOVE(thrd)		\
 	_pq_remove(&(thrd)->kseg->kg_schedq.sq_runq, thrd)
-#define THR_RUNQ_FIRST()		\
+#define THR_RUNQ_FIRST(thrd)		\
 	_pq_first(&(thrd)->kseg->kg_schedq.sq_runq)
 
 /*
@@ -947,6 +947,9 @@ do {									\
 	(void)_kse_critical_enter();			\
 	KSE_SCHED_LOCK((curthr)->kse, (curthr)->kseg);	\
 } while (0)
+#define	THR_UNLOCK_SWITCH(curthr) do {			\
+	KSE_SCHED_UNLOCK((curthr)->kse, (curthr)->kseg);\
+} while (0)
 
 #define	THR_CRITICAL_ENTER(thr)		(thr)->critical_count++
 #define	THR_CRITICAL_LEAVE(thr)	do {		\
@@ -989,7 +992,7 @@ SCLASS struct pthread_attr _pthread_attr_default
     SCLASS_PRESET({
 	SCHED_RR, 0, TIMESLICE_USEC, THR_DEFAULT_PRIORITY,
 	THR_CREATE_RUNNING,	PTHREAD_CREATE_JOINABLE, NULL,
-	NULL, NULL, THR_STACK_DEFAULT
+	NULL, NULL, THR_STACK_DEFAULT, /* guardsize */0
     });
 
 /* Default mutex attributes: */
