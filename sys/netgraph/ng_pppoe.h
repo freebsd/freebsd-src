@@ -74,6 +74,7 @@ enum cmd {
 	NGM_PPPOE_SUCCESS  = 5,	/* State machine connected */
 	NGM_PPPOE_FAIL     = 6,	/* State machine could not connect */
 	NGM_PPPOE_CLOSE    = 7,	/* Session closed down */
+	NGM_PPPOE_SERVICE  = 8,	/* additional Service to advertise (in PADO) */
 	NGM_PPPOE_GET_STATUS
 };
 
@@ -92,7 +93,7 @@ struct ngpppoestat {
  * The session sends out a PADI request for the named service.
  *
  *
- * When this structure is accepted by the NGM_PPPOE_WAIT command.
+ * When this structure is accepted by the NGM_PPPOE_LISTEN command.
  * If no service is given this is assumed to accept ALL PADI requests.
  * This may at some time take a regexp expression, but not yet.
  * Matching PADI requests will be passed up the named hook.
