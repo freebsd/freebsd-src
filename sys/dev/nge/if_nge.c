@@ -1286,17 +1286,34 @@ static void nge_rxeof(sc)
 		 * only gigE chip I know of with alignment constraints
 		 * on receive buffers. RX buffers must be 64-bit aligned.
 		 */
-		m0 = m_devget(mtod(m, char *), total_len, ETHER_ALIGN, ifp,
-		    NULL);
-		nge_newbuf(sc, cur_rx, m);
-		if (m0 == NULL) {
-			printf("nge%d: no receive buffers "
-			    "available -- packet dropped!\n",
-			    sc->nge_unit);
-			ifp->if_ierrors++;
-			continue;
+#ifdef __i386__
+		/*
+		 * By popular demand, ignore the alignment problems
+		 * on the Intel x86 platform. The performance hit
+		 * incurred due to unaligned accesses is much smaller
+		 * than the hit produced by forcing buffer copies all
+		 * the time, especially with jumbo frames. We still
+		 * need to fix up the alignment everywhere else though.
+		 */
+		if (nge_newbuf(sc, cur_rx, NULL) == ENOBUFS) {
+#endif
+			m0 = m_devget(mtod(m, char *), total_len,
+			    ETHER_ALIGN, ifp, NULL);
+			nge_newbuf(sc, cur_rx, m);
+			if (m0 == NULL) {
+				printf("nge%d: no receive buffers "
+				    "available -- packet dropped!\n",
+				    sc->nge_unit);
+				ifp->if_ierrors++;
+				continue;
+			}
+			m = m0;
+#ifdef __i386__
+		} else {
+			m->m_pkthdr.rcvif = ifp;
+			m->m_pkthdr.len = m->m_len = total_len;
 		}
-		m = m0;
+#endif
 
 		ifp->if_ipackets++;
 		eh = mtod(m, struct ether_header *);
@@ -1784,6 +1801,14 @@ static void nge_init(xsc)
 	 */
 	NGE_SETBIT(sc, NGE_CFG, NGE_CFG_PHYINTR_SPD|
 	    NGE_CFG_PHYINTR_LNK|NGE_CFG_PHYINTR_DUP|NGE_CFG_EXTSTS_ENB);
+
+	/*
+	 * Configure interrupt holdoff (moderation). We can
+	 * have the chip delay interrupt delivery for a certain
+	 * period. Units are in 100us, and the max setting
+	 * is 25500us (0xFF x 100us). Default is a 100us holdoff.
+	 */
+	CSR_WRITE_4(sc, NGE_IHR, 0x01);
 
 	/*
 	 * Enable interrupts.
