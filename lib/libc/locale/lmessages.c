@@ -55,14 +55,14 @@ __messages_load_locale(const char *name) {
 	ret = __part_load_locale(name, &_messages_using_locale,
 		messages_locale_buf, "LC_MESSAGES", LCMESSAGES_SIZE_FULL,
 		(const char **)&_messages_locale);
-	if (!ret) {
+	if (ret == 0) {
 		/* Assume that we have incomplete locale file (without
 		 * "yesstr" and "nostr" declared. Try it also.
 		 */
 		ret = __part_load_locale(name, &_messages_using_locale,
 			messages_locale_buf, "LC_MESSAGES", LCMESSAGES_SIZE_MIN,
 			(const char **)&_messages_locale);
-		if (!ret) {
+		if (ret == 0) {
 			_messages_locale.yesstr = empty;
 			_messages_locale.nostr = empty;
 		}
