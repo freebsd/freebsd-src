@@ -440,13 +440,15 @@ ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst,
 	*m0 = m;
 	*rule = args.rule;
 
-	if ( (i & IP_FW_PORT_DENY_FLAG) || m == NULL) /* drop */
+	if (i == IP_FW_DENY) /* drop */
 		return 0;
 
-	if (i == 0) /* a PASS rule.  */
+	KASSERT(m != NULL, ("ether_ipfw_chk: m is NULL"));
+
+	if (i == IP_FW_PASS) /* a PASS rule.  */
 		return 1;
 
-	if (DUMMYNET_LOADED && (i & IP_FW_PORT_DYNT_FLAG)) {
+	if (DUMMYNET_LOADED && (i == IP_FW_DUMMYNET)) {
 		/*
 		 * Pass the pkt to dummynet, which consumes it.
 		 * If shared, make a copy and keep the original.
@@ -462,7 +464,7 @@ ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst,
 			 */
 			*m0 = NULL ;
 		}
-		ip_dn_io_ptr(m, (i & 0xffff),
+		ip_dn_io_ptr(m, args.cookie,
 			dst ? DN_TO_ETH_OUT: DN_TO_ETH_DEMUX, &args);
 		return 0;
 	}

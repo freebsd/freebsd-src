@@ -82,6 +82,7 @@ ipfw_check_in(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
 	struct m_tag *dn_tag;
 	int ipfw = 0;
 	int divert;
+	int tee;
 #ifdef IPFIREWALL_FORWARD
 	struct m_tag *fwd_tag;
 #endif
@@ -108,35 +109,17 @@ again:
 	args.inp = inp;
 	ipfw = ipfw_chk(&args);
 	*m0 = args.m;
+	tee = 0;
 
-	if ((ipfw & IP_FW_PORT_DENY_FLAG) || *m0 == NULL)
-		goto drop;
+	KASSERT(*m0 != NULL || ipfw == IP_FW_DENY, ("%s: m0 is NULL",
+	    __func__));
 
-	if (ipfw == 0 && args.next_hop == NULL)
-		goto pass;
-
-	if (DUMMYNET_LOADED && (ipfw & IP_FW_PORT_DYNT_FLAG) != 0) {
-		ip_dn_io_ptr(*m0, ipfw & 0xffff, DN_TO_IP_IN, &args);
-		*m0 = NULL;
-		return 0;		/* packet consumed */
-	}
-
-	if (ipfw != 0 && (ipfw & IP_FW_PORT_DYNT_FLAG) == 0) {
-		if ((ipfw & IP_FW_PORT_TEE_FLAG) != 0)
-			divert = ipfw_divert(m0, DIV_DIR_IN, 1);
-		else
-			divert = ipfw_divert(m0, DIV_DIR_IN, 0);
-
-		/* tee should continue again with the firewall. */
-		if (divert) {
-			*m0 = NULL;
-			return 0;	/* packet consumed */
-		} else
-			goto again;	/* continue with packet */
-	}
+	switch (ipfw) {
+	case IP_FW_PASS:
+		if (args.next_hop == NULL)
+			goto pass;
 
 #ifdef IPFIREWALL_FORWARD
-	if (ipfw == 0 && args.next_hop != NULL) {
 		fwd_tag = m_tag_get(PACKET_TAG_IPFORWARD,
 				sizeof(struct sockaddr_in), M_NOWAIT);
 		if (fwd_tag == NULL)
@@ -147,8 +130,35 @@ again:
 		if (in_localip(args.next_hop->sin_addr))
 			(*m0)->m_flags |= M_FASTFWD_OURS;
 		goto pass;
-	}
 #endif
+		break;			/* not reached */
+
+	case IP_FW_DENY:
+		goto drop;
+		break;			/* not reached */
+
+	case IP_FW_DUMMYNET:
+		if (!DUMMYNET_LOADED)
+			goto drop;
+		ip_dn_io_ptr(*m0, args.cookie, DN_TO_IP_IN, &args);
+		*m0 = NULL;
+		return 0;		/* packet consumed */
+
+	case IP_FW_TEE:
+		tee = 1;
+		/* fall through */
+
+	case IP_FW_DIVERT:
+		divert = ipfw_divert(m0, DIV_DIR_IN, tee);
+		if (divert) {
+			*m0 = NULL;
+			return 0;	/* packet consumed */
+		} else
+			goto again;	/* continue with packet */
+
+	default:
+		KASSERT(0, ("%s: unknown retval", __func__));
+	}
 
 drop:
 	if (*m0)
@@ -167,6 +177,7 @@ ipfw_check_out(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
 	struct m_tag *dn_tag;
 	int ipfw = 0;
 	int divert;
+	int tee;
 #ifdef IPFIREWALL_FORWARD
 	struct m_tag *fwd_tag;
 #endif
@@ -194,34 +205,16 @@ again:
 	args.inp = inp;
 	ipfw = ipfw_chk(&args);
 	*m0 = args.m;
+	tee = 0;
 
-	if ((ipfw & IP_FW_PORT_DENY_FLAG) || *m0 == NULL)
-		goto drop;
+	KASSERT(*m0 != NULL || ipfw == IP_FW_DENY, ("%s: m0 is NULL",
+	    __func__));
 
-	if (ipfw == 0 && args.next_hop == NULL)
-		goto pass;
-
-	if (DUMMYNET_LOADED && (ipfw & IP_FW_PORT_DYNT_FLAG) != 0) {
-		ip_dn_io_ptr(*m0, ipfw & 0xffff, DN_TO_IP_OUT, &args);
-		*m0 = NULL;
-		return 0;		/* packet consumed */
-	}
-
-	if (ipfw != 0 && (ipfw & IP_FW_PORT_DYNT_FLAG) == 0) {
-		if ((ipfw & IP_FW_PORT_TEE_FLAG) != 0)
-			divert = ipfw_divert(m0, DIV_DIR_OUT, 1);
-		else
-			divert = ipfw_divert(m0, DIV_DIR_OUT, 0);
-
-		if (divert) {
-			*m0 = NULL;
-			return 0;	/* packet consumed */
-		} else
-			goto again;	/* continue with packet */
-        }
-
+	switch (ipfw) {
+	case IP_FW_PASS:
+                if (args.next_hop == NULL)
+                        goto pass;
 #ifdef IPFIREWALL_FORWARD
-	if (ipfw == 0 && args.next_hop != NULL) {
 		/* Overwrite existing tag. */
 		fwd_tag = m_tag_find(*m0, PACKET_TAG_IPFORWARD, NULL);
 		if (fwd_tag == NULL) {
@@ -237,8 +230,37 @@ again:
 		if (in_localip(args.next_hop->sin_addr))
 			(*m0)->m_flags |= M_FASTFWD_OURS;
 		goto pass;
-	}
 #endif
+		break;			/* not reached */
+
+	case IP_FW_DENY:
+		goto drop;
+		break;  		/* not reached */
+
+	case IP_FW_DUMMYNET:
+		if (!DUMMYNET_LOADED)
+			break;
+		ip_dn_io_ptr(*m0, args.cookie, DN_TO_IP_OUT, &args);
+		*m0 = NULL;
+		return 0;		/* packet consumed */
+
+		break;
+
+	case IP_FW_TEE:
+		tee = 1;
+		/* fall through */
+
+	case IP_FW_DIVERT:
+		divert = ipfw_divert(m0, DIV_DIR_OUT, tee);
+		if (divert) {
+			*m0 = NULL;
+			return 0;	/* packet consumed */
+		} else
+			goto again;	/* continue with packet */
+
+	default:
+		KASSERT(0, ("%s: unknown retval", __func__));
+	}
 
 drop:
 	if (*m0)
