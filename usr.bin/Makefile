@@ -175,7 +175,6 @@ SUBDIR=	apply \
 	users \
 	uudecode \
 	uuencode \
-	vacation \
 	vgrind \
 	vi \
 	vis \
@@ -212,6 +211,10 @@ SUBDIR+=dig \
 	dnskeygen \
 	dnsquery \
 	host
+.endif
+
+.if !defined(NO_SENDMAIL)
+SUBDIR+=vacation 
 .endif
 
 .if ${MACHINE_ARCH} == "i386"
