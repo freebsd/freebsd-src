@@ -52,8 +52,21 @@
 
 #include "inetd.h"
 
-extern int	 debug;
-extern struct servtab *servtab;
+void		chargen_dg __P((int, struct servtab *));
+void		chargen_stream __P((int, struct servtab *));
+void		daytime_dg __P((int, struct servtab *));
+void		daytime_stream __P((int, struct servtab *));
+void		discard_dg __P((int, struct servtab *));
+void		discard_stream __P((int, struct servtab *));
+void		echo_dg __P((int, struct servtab *));
+void		echo_stream __P((int, struct servtab *));
+static int	getline __P((int, char *, int));
+void		iderror __P((int, int, int, const char *));
+void		ident_stream __P((int, struct servtab *));
+void		initring __P((void));
+unsigned long	machtime __P((void));
+void		machtime_dg __P((int, struct servtab *));
+void		machtime_stream __P((int, struct servtab *));
 
 char ring[128];
 char *endring;
@@ -68,7 +81,7 @@ struct biltin biltins[] = {
 	{ "discard",	SOCK_STREAM,	1, -1,	discard_stream },
 	{ "discard",	SOCK_DGRAM,	0, 1,	discard_dg },
 
-	/* Return 32 bit time since 1970 */
+	/* Return 32 bit time since 1900 */
 	{ "time",	SOCK_STREAM,	0, -1,	machtime_stream },
 	{ "time",	SOCK_DGRAM,	0, 1,	machtime_dg },
 
@@ -80,11 +93,11 @@ struct biltin biltins[] = {
 	{ "chargen",	SOCK_STREAM,	1, -1,	chargen_stream },
 	{ "chargen",	SOCK_DGRAM,	0, 1,	chargen_dg },
 
-	{ "tcpmux",	SOCK_STREAM,	1, -1,	(void (*)())tcpmux },
+	{ "tcpmux",	SOCK_STREAM,	1, -1,	(bi_fn_t *)tcpmux },
 
 	{ "auth",	SOCK_STREAM,	1, -1,	ident_stream },
 
-	{ NULL }
+	{ NULL,		0,		0, 0,	NULL }
 };
 
 /*
@@ -187,11 +200,11 @@ daytime_dg(s, sep)		/* Return human-readable time of day */
 	struct servtab *sep;
 {
 	char buffer[256];
-	time_t clock;
+	time_t now;
 	struct sockaddr_storage ss;
 	socklen_t size;
 
-	clock = time((time_t *) 0);
+	now = time((time_t *) 0);
 
 	size = sizeof(ss);
 	if (recvfrom(s, buffer, sizeof(buffer), 0,
@@ -201,7 +214,7 @@ daytime_dg(s, sep)		/* Return human-readable time of day */
 	if (check_loop((struct sockaddr *)&ss, sep))
 		return;
 
-	(void) sprintf(buffer, "%.24s\r\n", ctime(&clock));
+	(void) sprintf(buffer, "%.24s\r\n", ctime(&now));
 	(void) sendto(s, buffer, strlen(buffer), 0,
 		      (struct sockaddr *)&ss, size);
 }
@@ -210,14 +223,14 @@ daytime_dg(s, sep)		/* Return human-readable time of day */
 void
 daytime_stream(s, sep)		/* Return human-readable time of day */
 	int s;
-	struct servtab *sep;
+	struct servtab *sep __unused;
 {
 	char buffer[256];
-	time_t clock;
+	time_t now;
 
-	clock = time((time_t *) 0);
+	now = time((time_t *) 0);
 
-	(void) sprintf(buffer, "%.24s\r\n", ctime(&clock));
+	(void) sprintf(buffer, "%.24s\r\n", ctime(&now));
 	(void) send(s, buffer, strlen(buffer), MSG_EOF);
 }
 
@@ -230,7 +243,7 @@ daytime_stream(s, sep)		/* Return human-readable time of day */
 void
 discard_dg(s, sep)		/* Discard service -- ignore data */
 	int s;
-	struct servtab *sep;
+	struct servtab *sep __unused;
 {
 	char buffer[BUFSIZE];
 
@@ -267,7 +280,7 @@ echo_dg(s, sep)			/* Echo service -- echo data back */
 	int s;
 	struct servtab *sep;
 {
-	char buffer[BUFSIZE];
+	char buffer[65536]; /* Should be sizeof(max datagram). */
 	int i;
 	socklen_t size;
 	struct sockaddr_storage ss;
@@ -306,15 +319,21 @@ echo_stream(s, sep)		/* Echo service -- echo data back */
  * support.
  */
 
+/* RFC 1413 says the following are the only errors you can return. */
+#define ID_INVALID	"INVALID-PORT"	/* Port number improperly specified. */
+#define ID_NOUSER	"NO-USER"	/* Port not in use/not identifable. */
+#define ID_HIDDEN	"HIDDEN-USER"	/* Hiden at user's request. */
+#define ID_UNKNOWN	"UNKNOWN-ERROR"	/* Everything else. */
+
 /* ARGSUSED */
 void
 iderror(lport, fport, s, er)	/* Generic ident_stream error-sending func */
-	int lport, fport, s, er;
+	int lport, fport, s;
+	const char *er;
 {
 	char *p;
 
-	asprintf(&p, "%d , %d : ERROR : %s\r\n", lport, fport, 
-	    er == -1 ? "HIDDEN-USER" : er ? strerror(er) : "UNKNOWN-ERROR");
+	asprintf(&p, "%d , %d : ERROR : %s\r\n", lport, fport, er);
 	if (p == NULL) {
 		syslog(LOG_ERR, "asprintf: %m");
 		exit(EX_OSERR);
@@ -333,7 +352,7 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 {
 	struct utsname un;
 	struct stat sb;
-	struct sockaddr_in sin[2];
+	struct sockaddr_in sin4[2];
 #ifdef INET6
 	struct sockaddr_in6 sin6[2];
 #endif
@@ -345,13 +364,13 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 	}, to;
 	struct passwd *pw = NULL;
 	fd_set fdset;
-	char buf[BUFSIZE], *cp = NULL, *p, **av, *osname = NULL, garbage[7], e;
-	char *fallback = NULL;
+	char buf[BUFSIZE], *p, **av, *osname = NULL, e;
+	char idbuf[MAXLOGNAME] = ""; /* Big enough to hold uid in decimal. */
 	socklen_t socklen;
 	ssize_t ssize;
 	size_t size, bufsiz;
-	int c, fflag = 0, nflag = 0, rflag = 0, argc = 0, usedfallback = 0;
-	int gflag = 0, Fflag = 0, getcredfail = 0, onreadlen;
+	int c, fflag = 0, nflag = 0, rflag = 0, argc = 0;
+	int gflag = 0, iflag = 0, Fflag = 0, getcredfail = 0, onreadlen;
 	u_short lport, fport;
 
 	inetd_setproctitle(sep->se_service, s);
@@ -371,12 +390,13 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 	if (argc) {
 		int sec, usec;
 		size_t i;
-		u_int32_t random;
+		u_int32_t rnd32;
 
-		while ((c = getopt(argc, sep->se_argv, "d:fFgno:rt:")) != -1)
+		while ((c = getopt(argc, sep->se_argv, "d:fFgino:rt:")) != -1)
 			switch (c) {
 			case 'd':
-				fallback = optarg;
+				if (!gflag)
+					strlcpy(idbuf, optarg, sizeof(idbuf));
 				break;
 			case 'f':
 				fflag = 1;
@@ -387,28 +407,29 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 				break;
 			case 'g':
 				gflag = 1;
-				random = 0;	/* Shush, compiler. */
+				rnd32 = 0;	/* Shush, compiler. */
 				/*
-				 * The number of bits in "random" divided
+				 * The number of bits in "rnd32" divided
 				 * by the number of bits needed per iteration
 				 * gives a more optimal way to reload the
 				 * random number only when necessary.
 				 *
-				 * I'm using base-36, so I need at least 6
-				 * bits; round it up to 8 bits to make it
-				 * easier.
+				 * 32 bits from arc4random corrisponds to
+				 * about 6 base-36 digits, so we reseed evey 6.
 				 */
-				for (i = 0; i < sizeof(garbage) - 1; i++) {
-					const char *const base36 =
+				for (i = 0; i < sizeof(idbuf) - 1; i++) {
+					static const char *const base36 =
 					    "0123456789"
 					    "abcdefghijklmnopqrstuvwxyz";
-					if (i % (sizeof(random) * 8 / 8) == 0)
-						random = arc4random();
-					garbage[i] =
-					    base36[(random & 0xff) % 36];
-					random >>= 8;
+					if (i % 6 == 0)
+						rnd32 = arc4random();
+					idbuf[i] = base36[rnd32 % 36];
+					rnd32 /= 36;
 				}
-				garbage[i] = '\0';
+				idbuf[i] = '\0';
+				break;
+			case 'i':
+				iflag = 1;
 				break;
 			case 'n':
 				nflag = 1;
@@ -423,6 +444,7 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 				switch (sscanf(optarg, "%d.%d", &sec, &usec)) {
 				case 2:
 					tv.tv_usec = usec;
+					/* FALLTHROUGH */
 				case 1:
 					tv.tv_sec = sec;
 					break;
@@ -438,15 +460,10 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 	}
 	if (osname == NULL) {
 		if (uname(&un) == -1)
-			iderror(0, 0, s, errno);
+			iderror(0, 0, s, ID_UNKNOWN);
 		osname = un.sysname;
 	}
-	socklen = sizeof(ss[0]);
-	if (getsockname(s, (struct sockaddr *)&ss[0], &socklen) == -1)
-		iderror(0, 0, s, errno);
-	socklen = sizeof(ss[1]);
-	if (getpeername(s, (struct sockaddr *)&ss[1], &socklen) == -1)
-		iderror(0, 0, s, errno);
+
 	/*
 	 * We're going to prepare for and execute reception of a
 	 * packet of data from the user. The data is in the format
@@ -476,14 +493,14 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 			break;
 		FD_SET(s, &fdset);
 		if (select(s + 1, &fdset, NULL, NULL, &tv) == -1)
-			iderror(0, 0, s, errno);
+			iderror(0, 0, s, ID_UNKNOWN);
 		if (ioctl(s, FIONREAD, &onreadlen) == -1)
-			iderror(0, 0, s, errno);
-		if (onreadlen > bufsiz)
+			iderror(0, 0, s, ID_UNKNOWN);
+		if ((size_t)onreadlen > bufsiz)
 			onreadlen = bufsiz;
 		ssize = read(s, &buf[size], (size_t)onreadlen);
 		if (ssize == -1)
-			iderror(0, 0, s, errno);
+			iderror(0, 0, s, ID_UNKNOWN);
 		else if (ssize == 0)
 			break;
 		bufsiz -= ssize;
@@ -494,46 +511,47 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 	buf[size] = '\0';
 	/* Read two characters, and check for a delimiting character */
 	if (sscanf(buf, "%hu , %hu%c", &lport, &fport, &e) != 3 || isdigit(e))
-		iderror(0, 0, s, 0);
-	if (gflag) {
-		cp = garbage;
+		iderror(0, 0, s, ID_INVALID);
+
+	/* Send garbage? */
+	if (gflag)
 		goto printit;
-	}
-		
+
 	/*
 	 * If not "real" (-r), send a HIDDEN-USER error for everything.
 	 * If -d is used to set a fallback username, this is used to
 	 * override it, and the fallback is returned instead.
 	 */
 	if (!rflag) {
-		if (fallback == NULL)
-			iderror(lport, fport, s, -1);
-		else {
-			cp = fallback;
-			goto printit;
-		}
+		if (*idbuf == '\0')
+			iderror(lport, fport, s, ID_HIDDEN);
+		goto printit;
 	}
-		
+
 	/*
 	 * We take the input and construct an array of two sockaddr_ins
 	 * which contain the local address information and foreign
 	 * address information, respectively, used to look up the
 	 * credentials for the socket (which are returned by the
-	 * sysctl "net.inet.tcp.getcred" when we call it.) The
-	 * arrays have been filled in above via get{peer,sock}name(),
-	 * so right here we are only setting the ports.
+	 * sysctl "net.inet.tcp.getcred" when we call it.)
 	 */
+	socklen = sizeof(ss[0]);
+	if (getsockname(s, (struct sockaddr *)&ss[0], &socklen) == -1)
+		iderror(lport, fport, s, ID_UNKNOWN);
+	socklen = sizeof(ss[1]);
+	if (getpeername(s, (struct sockaddr *)&ss[1], &socklen) == -1)
+		iderror(lport, fport, s, ID_UNKNOWN);
 	if (ss[0].ss_family != ss[1].ss_family)
-		iderror(lport, fport, s, EINVAL);
+		iderror(lport, fport, s, ID_UNKNOWN);
 	size = sizeof(uc);
 	switch (ss[0].ss_family) {
 	case AF_INET:
-		sin[0] = *(struct sockaddr_in *)&ss[0];
-		sin[0].sin_port = htons(lport);
-		sin[1] = *(struct sockaddr_in *)&ss[1];
-		sin[1].sin_port = htons(fport);
-		if (sysctlbyname("net.inet.tcp.getcred", &uc, &size, sin,
-				 sizeof(sin)) == -1)
+		sin4[0] = *(struct sockaddr_in *)&ss[0];
+		sin4[0].sin_port = htons(lport);
+		sin4[1] = *(struct sockaddr_in *)&ss[1];
+		sin4[1].sin_port = htons(fport);
+		if (sysctlbyname("net.inet.tcp.getcred", &uc, &size, sin4,
+				 sizeof(sin4)) == -1)
 			getcredfail = errno;
 		break;
 #ifdef INET6
@@ -552,48 +570,54 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 		break;
 	}
 	if (getcredfail != 0) {
-		if (fallback == NULL)		/* Use a default, if asked to */
-			iderror(lport, fport, s, getcredfail);
-		usedfallback = 1;
-	} else {
-		/* Look up the pw to get the username */
-		errno = 0;
-		pw = getpwuid(uc.cr_uid);
+		if (*idbuf == '\0')
+			iderror(lport, fport, s,
+			    getcredfail == ENOENT ? ID_NOUSER : ID_UNKNOWN);
+		goto printit;
 	}
-	if (pw == NULL && !usedfallback)		/* No such user... */
-		iderror(lport, fport, s, errno != 0 ? errno : ENOENT);
+
+	/* Look up the pw to get the username and home directory*/
+	errno = 0;
+	pw = getpwuid(uc.cr_uid);
+	if (pw == NULL)
+		iderror(lport, fport, s, errno == 0 ? ID_NOUSER : ID_UNKNOWN);
+
+	if (iflag)
+		snprintf(idbuf, sizeof(idbuf), "%u", (unsigned)pw->pw_uid);
+	else
+		strlcpy(idbuf, pw->pw_name, sizeof(idbuf));
+
 	/*
 	 * If enabled, we check for a file named ".noident" in the user's
 	 * home directory. If found, we return HIDDEN-USER.
 	 */
-	if (nflag && !usedfallback) {
+	if (nflag) {
 		if (asprintf(&p, "%s/.noident", pw->pw_dir) == -1)
-			iderror(lport, fport, s, errno);
+			iderror(lport, fport, s, ID_UNKNOWN);
 		if (lstat(p, &sb) == 0) {
 			free(p);
-			iderror(lport, fport, s, -1);
+			iderror(lport, fport, s, ID_HIDDEN);
 		}
 		free(p);
 	}
+
 	/*
 	 * Here, if enabled, we read a user's ".fakeid" file in their
 	 * home directory. It consists of a line containing the name
 	 * they want.
 	 */
-	if (fflag && !usedfallback) {
-		FILE *fakeid = NULL;
+	if (fflag) {
 		int fakeid_fd;
 
-		if (asprintf(&p, "%s/.fakeid", pw->pw_dir) == -1)
-			iderror(lport, fport, s, errno);
 		/*
 		 * Here we set ourself to effectively be the user, so we don't
 		 * open any files we have no permission to open, especially
 		 * symbolic links to sensitive root-owned files or devices.
 		 */
 		if (initgroups(pw->pw_name, pw->pw_gid) == -1)
-			iderror(lport, fport, s, errno);
-		seteuid(pw->pw_uid);
+			iderror(lport, fport, s, ID_UNKNOWN);
+		if (seteuid(pw->pw_uid) == -1)
+			iderror(lport, fport, s, ID_UNKNOWN);
 		/*
 		 * We can't stat() here since that would be a race
 		 * condition.
@@ -601,60 +625,58 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 		 * and if it's not a regular file, we close it and end up
 		 * returning the user's real username.
 		 */
+		if (asprintf(&p, "%s/.fakeid", pw->pw_dir) == -1)
+			iderror(lport, fport, s, ID_UNKNOWN);
 		fakeid_fd = open(p, O_RDONLY | O_NONBLOCK);
 		free(p);
-		if (fakeid_fd != -1 && fstat(fakeid_fd, &sb) != -1 &&
-		    S_ISREG(sb.st_mode) &&
-		    (fakeid = fdopen(fakeid_fd, "r")) != NULL) {
-			buf[sizeof(buf) - 1] = '\0';
-			if (fgets(buf, sizeof(buf), fakeid) == NULL) {
-				cp = pw->pw_name;
-				fclose(fakeid);
-				goto printit;
+		if (fakeid_fd == -1 || fstat(fakeid_fd, &sb) == -1 ||
+		    !S_ISREG(sb.st_mode))
+			goto fakeid_fail;
+
+		if ((ssize = read(fakeid_fd, buf, sizeof(buf) - 1)) < 0)
+			goto fakeid_fail;
+		buf[ssize] = '\0';
+
+		/*
+		 * Usually, the file will have the desired identity
+		 * in the form "identity\n". Allow for leading white
+		 * space and trailing white space/end of line.
+		 */
+		p = buf;
+		p += strspn(p, " \t");
+		p[strcspn(p, " \t\r\n")] = '\0';
+		if (strlen(p) > MAXLOGNAME - 1) /* Too long (including nul)? */
+			p[MAXLOGNAME - 1] = '\0';
+
+		/*
+		 * If the name is a zero-length string or matches it
+		 * the id or name of another user (unless permitted by -F)
+		 * then it is invalid.
+		 */
+		if (*p == '\0')
+			goto fakeid_fail;
+		if (!Fflag) {
+			if (iflag) {
+				if (p[strspn(p, "0123456789")] == '\0' &&
+				    getpwuid(atoi(p)) != NULL)
+					goto fakeid_fail;
+			} else {
+				if (getpwnam(p) != NULL)
+					goto fakeid_fail;
 			}
-			/*
-			 * Usually, the file will have the desired identity
-			 * in the form "identity\n", so we use strcspn() to
-			 * end the string (which fgets() doesn't do.)
-			 */
-			buf[strcspn(buf, "\r\n")] = '\0';
-			cp = buf;
-			/* Allow for beginning white space... */
-			while (isspace(*cp))
-				cp++;
-			/* ...and ending white space. */
-			cp[strcspn(cp, " \t")] = '\0';
-			/* User names of >16 characters are invalid */
-			if (strlen(cp) > 16)
-				cp[16] = '\0';
-			/*
-			 * If the name is a zero-length string or matches
-			 * the name of another user, it's invalid, so
-			 * we will return their real identity instead.
-			 */
-			
-			if (!*cp || (!Fflag && getpwnam(cp))) {
-				errno = 0;
-				pw = getpwuid(uc.cr_uid);
-				if (pw == NULL)
-					iderror(lport, fport, s,
-					    errno != 0 ? errno : ENOENT);
-				cp = pw->pw_name;
-			}
-		} else
-			cp = pw->pw_name;
-		if (fakeid != NULL)
-			fclose(fakeid);
-		else if (fakeid_fd != -1)
+		}
+
+		strlcpy(idbuf, p, sizeof(idbuf));
+
+fakeid_fail:
+		if (fakeid_fd != -1)
 			close(fakeid_fd);
-	} else if (!usedfallback)
-		cp = pw->pw_name;
-	else
-		cp = fallback;
+	}
+
 printit:
 	/* Finally, we make and send the reply. */
 	if (asprintf(&p, "%d , %d : USERID : %s : %s\r\n", lport, fport, osname,
-	    cp) == -1) {
+	    idbuf) == -1) {
 		syslog(LOG_ERR, "asprintf: %m");
 		exit(EX_OSERR);
 	}
@@ -715,7 +737,7 @@ machtime_dg(s, sep)
 void
 machtime_stream(s, sep)
 	int s;
-	struct servtab *sep;
+	struct servtab *sep __unused;
 {
 	unsigned long result;
 
