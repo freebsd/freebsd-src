@@ -124,12 +124,6 @@ astattach(struct atapi_softc *atp)
 	bzero(&transfer, sizeof(struct ast_transferpage));
 	ast_mode_sense(stp, ATAPI_TAPE_TRANSFER_PAGE,
 		       &transfer, sizeof(transfer));
-#ifdef AST_DEBUG
-	printf("ast: rd32k=%d rd32k5=%d wr32k=%d wr32k5=%d stream=%d\n",
-	transfer.read32k, transfer.read32k5, 
-	transfer.write32k, transfer.write32k5, transfer.streaming);
-#endif
-
 	bzero(&identify, sizeof(struct ast_identifypage));
 	ast_mode_sense(stp, ATAPI_TAPE_IDENTIFY_PAGE,
 		       &identify, sizeof(identify));
@@ -558,11 +552,6 @@ ast_read_position(struct ast_softc *stp, int32_t hard,
 			    NULL, NULL, NULL);
     position->tape = ntohl(position->tape);
     position->host = ntohl(position->host);
-#ifdef AST_DEBUG
-    printf("ast%d: BOP=%d EOP=%d host=%ld tape=%ld in buf=%d error=%02x\n",
-	   stp->lun, position->bop, position->eop, ntohl(position->host), 
-	   ntohl(position->tape), position->blks_in_buf, error);
-#endif
     return error;
 }
 

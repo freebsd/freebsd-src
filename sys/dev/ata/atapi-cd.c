@@ -155,10 +155,6 @@ acdattach(struct atapi_softc *atp)
 	bzero(chp, sizeof(struct changer));
 	error = atapi_queue_cmd(cdp->atp, ccb, chp, sizeof(struct changer),
 				A_READ, 60, NULL, NULL, NULL);
-#ifdef ACD_DEBUG
-	printf("error=%02x curr=%02x slots=%d len=%d\n",
-	       error, chp->current_slot, chp->slots, htons(chp->table_length));
-#endif
 
 	if (!error) {
 	    struct acd_softc *tmpcdp = cdp;
@@ -1114,9 +1110,6 @@ acd_start(struct acd_softc *cdp)
     }
     count = (bp->b_bcount + (cdp->block_size - 1)) / cdp->block_size;
 
-#ifdef ACD_DEBUG
-    printf("acd%d: lba=%d, count=%d\n", cdp->lun, lba, count);
-#endif
     ccb[1] = 0;
     ccb[2] = lba>>24;
     ccb[3] = lba>>16;

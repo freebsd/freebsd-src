@@ -192,6 +192,7 @@ ata_pcimatch(device_t dev)
     case 0x70108086:
 	return "Intel PIIX3 ATA controller";
     case 0x71118086:
+    case 0x71998086:
 	return "Intel PIIX4 ATA controller";
     case 0x522910b9:
 	return "AcerLabs Aladdin ATA controller";
@@ -203,6 +204,8 @@ ata_pcimatch(device_t dev)
 	return "VIA Apollo ATA controller";
     case 0x55131039:
 	return "SiS 5591 ATA controller";
+    case 0x74091022:
+	return "AMD 756 ATA controller";
     case 0x4d33105a:
 	return "Promise Ultra/33 ATA controller";
     case 0x4d38105a:
@@ -331,7 +334,8 @@ ata_pciattach(device_t dev)
 	break;
 
     case 0x05711106:
-	/* the VIA Apollo needs some sensible defaults */
+    case 0x74091022:
+	/* the VIA 82C586, VIA 82C686 & AMD 756 needs some sensible defaults */
 	/* set prefetch, postwrite */
 	pci_write_config(dev, 0x41, pci_read_config(dev, 0x41, 1) | 0xf0, 1);
 
@@ -478,14 +482,14 @@ ata_probe(int32_t ioaddr, int32_t altioaddr, int32_t bmaddr,
 
     scp->ioaddr = ioaddr; 
     scp->altioaddr = altioaddr;
+    scp->bmaddr = bmaddr;
     scp->lun = lun;
     scp->unit = *unit;
     scp->active = ATA_IDLE;
 
     if (bootverbose)
-	printf("ata%d: iobase=0x%04x altiobase=0x%04x\n", 
-	       scp->lun, scp->ioaddr, scp->altioaddr);
-
+	printf("ata%d: iobase=0x%04x altiobase=0x%04x bmaddr=0x%04x\n", 
+	       scp->lun, scp->ioaddr, scp->altioaddr, scp->bmaddr);
 
     /* do we have any signs of ATA/ATAPI HW being present ? */
     outb(scp->ioaddr + ATA_DRIVE, ATA_D_IBM | ATA_MASTER);
@@ -557,8 +561,6 @@ ata_probe(int32_t ioaddr, int32_t altioaddr, int32_t bmaddr,
     TAILQ_INIT(&scp->atapi_queue);
     *unit = scp->lun;
     scp->dev = dev;
-    if (bmaddr)
-	scp->bmaddr = bmaddr;
     atadevices[scp->lun] = scp;
 #if NAPM > 0
     scp->resume_hook.ah_fun = (void *)ata_reinit;
@@ -634,9 +636,6 @@ ata_start(struct ata_softc *scp)
     struct ad_request *ad_request; 
     struct atapi_request *atapi_request;
 
-#ifdef ATA_DEBUG
-    printf("ata_start: entered\n");
-#endif
     if (scp->active != ATA_IDLE)
 	return;
 
@@ -647,9 +646,6 @@ ata_start(struct ata_softc *scp)
 	scp->active = ATA_ACTIVE_ATA;
 	scp->running = ad_request;
 	ad_transfer(ad_request);
-#ifdef ATA_DEBUG
-	printf("ata_start: started ata, leaving\n");
-#endif
 	return;
     }
 #endif
@@ -693,9 +689,6 @@ ata_start(struct ata_softc *scp)
 	scp->active = ATA_ACTIVE_ATAPI;
 	scp->running = atapi_request;
 	atapi_transfer(atapi_request);
-#ifdef ATA_DEBUG
-	printf("ata_start: started atapi, leaving\n");
-#endif
 	return;
     }
 #endif
@@ -883,9 +876,6 @@ ata_command(struct ata_softc *scp, int32_t device, u_int32_t command,
     default:
 	printf("DANGER: illegal interrupt flag=%s\n", active2str(flags));
     }
-#ifdef ATA_DEBUG
-    printf("ata_command: leaving\n");
-#endif
     return 0;
 }
 

@@ -96,7 +96,7 @@ MALLOC_DEFINE(M_AD, "AD driver", "ATA disk driver");
 static __inline int
 apiomode(struct ata_params *ap)
 {
-    if (ap->atavalid & 2) {
+    if (ap->atavalid & ATA_FLAG_64_70) {
 	if (ap->apiomodes & 2) return 4;
 	if (ap->apiomodes & 1) return 3;
     }	
@@ -106,7 +106,7 @@ apiomode(struct ata_params *ap)
 static __inline int
 wdmamode(struct ata_params *ap)
 {
-    if (ap->atavalid & 2) {
+    if (ap->atavalid & ATA_FLAG_64_70) {
 	if (ap->wdmamodes & 4) return 2;
 	if (ap->wdmamodes & 2) return 1;
 	if (ap->wdmamodes & 1) return 0;
@@ -117,7 +117,7 @@ wdmamode(struct ata_params *ap)
 static __inline int
 udmamode(struct ata_params *ap)
 {
-    if ((ap->atavalid & 4) && ad_version(ap->versmajor) >= 3) {
+    if (ap->atavalid & ATA_FLAG_88) {
 	if (ap->udmamodes & 0x10) return (ap->cblid ? 4 : 2);
 	if (ap->udmamodes & 0x08) return (ap->cblid ? 3 : 2);
 	if (ap->udmamodes & 0x04) return 2;
@@ -301,16 +301,10 @@ adstrategy(struct buf *bp)
     struct ad_softc *adp = bp->b_dev->si_drv1;
     int32_t s;
 
-#ifdef AD_DEBUG
-    printf("adstrategy: entered count=%d\n", bp->b_bcount);
-#endif
     s = splbio();
     bufqdisksort(&adp->queue, bp);
     ad_start(adp);
     splx(s);
-#ifdef AD_DEBUG
-    printf("adstrategy: leaving\n");
-#endif
 }
 
 int
@@ -381,9 +375,6 @@ ad_start(struct ad_softc *adp)
     struct buf *bp = bufq_first(&adp->queue);
     struct ad_request *request;
 
-#ifdef AD_DEBUG
-    printf("ad_start:\n");
-#endif
     if (!bp)
 	return;
 
@@ -425,9 +416,6 @@ ad_transfer(struct ad_request *request)
     /* calculate transfer details */
     blkno = request->blockaddr + (request->donecount / DEV_BSIZE);
    
-#ifdef AD_DEBUG
-    printf("ad_transfer: blkno=%d\n", blkno);
-#endif
     if (request->donecount == 0) {
 
 	/* start timeout for this transfer */
@@ -485,9 +473,6 @@ ad_transfer(struct ad_request *request)
     /* if this is a DMA transaction start it, return and wait for interrupt */
     if (request->flags & AR_F_DMA_USED) {
 	ata_dmastart(adp->controller);
-#ifdef AD_DEBUG
-	printf("ad_transfer: return waiting for DMA interrupt\n");
-#endif
 	return;
     }
 
@@ -496,9 +481,6 @@ ad_transfer(struct ad_request *request)
 
     /* if this is a PIO read operation, return and wait for interrupt */
     if (request->flags & AR_F_READ) {
-#ifdef AD_DEBUG
-	printf("ad_transfer: return waiting for PIO read interrupt\n");
-#endif
 	return;
     }
 
@@ -518,9 +500,6 @@ ad_transfer(struct ad_request *request)
 	  request->currentsize / sizeof(int32_t));
 #endif
     request->bytecount -= request->currentsize;
-#ifdef AD_DEBUG
-    printf("ad_transfer: return wrote data\n");
-#endif
 }
 
 int32_t
@@ -612,9 +591,6 @@ oops:
 	     request->currentsize / sizeof(int32_t));
 #endif
 	request->bytecount -= request->currentsize;
-#ifdef AD_DEBUG
-    printf("ad_interrupt: read in data\n");
-#endif
     }
 
     /* if this was a DMA operation finish up */
@@ -629,10 +605,6 @@ oops:
 	} 
 	else {
 	    request->donecount += request->currentsize;
-#ifdef AD_DEBUG
-	    printf("ad_interrupt: %s cmd OK\n", 
-		   (request->flags & AR_F_READ) ? "read" : "write");
-#endif
 	    if (request->bytecount > 0) {
 		ad_transfer(request);
 		return ATA_OP_CONTINUES;
@@ -648,9 +620,6 @@ oops:
 
     free(request, M_AD);
     ad_start(adp);
-#ifdef AD_DEBUG
-    printf("ad_interrupt: completed\n");
-#endif
     return ATA_OP_FINISHED;
 }
 

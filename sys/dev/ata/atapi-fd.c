@@ -139,9 +139,6 @@ afd_sense(struct afd_softc *fdp)
 				      A_READ, 30, NULL, NULL, NULL)))
 	    break;
     }
-#ifdef AFD_DEBUG
-    atapi_dump("afd: sense", buffer, sizeof(buffer));
-#endif
     if (error)
 	return error;
     bcopy(buffer, &fdp->header, sizeof(struct afd_header));
