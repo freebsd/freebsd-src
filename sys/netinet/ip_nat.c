@@ -9,7 +9,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_nat.c	1.11 6/5/96 (C) 1995 Darren Reed";
-/*static const char rcsid[] = "@(#)$Id: ip_nat.c,v 2.2.2.12 2000/01/24 12:43:40 darrenr Exp $";*/
+/*static const char rcsid[] = "@(#)$Id: ip_nat.c,v 2.37.2.16 2000/07/18 13:57:40 darrenr Exp $";*/
 static const char rcsid[] = "@(#)$FreeBSD$";
 #endif
 
@@ -365,32 +365,12 @@ int mode;
 		*np = n;
 
 		if (n->in_redir & NAT_REDIRECT) {
-			u_int hv;
-
-			k = countbits(n->in_outmsk);
-			if ((k >= 0) && (k != 32))
-				rdr_masks |= 1 << k;
-			j = (n->in_outip & n->in_outmsk);
-			hv = NAT_HASH_FN(j, ipf_rdrrules_sz);
-			np = rdr_rules + hv;
-			while (*np != NULL)
-				np = &(*np)->in_rnext;
-			n->in_rnext = NULL;
-			*np = n;
+			n->in_flags &= ~IPN_NOTDST;
+			nat_addrdr(n);
 		}
 		if (n->in_redir & (NAT_MAP|NAT_MAPBLK)) {
-			u_int hv;
-
-			k = countbits(n->in_inmsk);
-			if ((k >= 0) && (k != 32))
-				nat_masks |= 1 << k;
-			j = (n->in_inip & n->in_inmsk);
-			hv = NAT_HASH_FN(j, ipf_natrules_sz);
-			np = nat_rules + hv;
-			while (*np != NULL)
-				np = &(*np)->in_mnext;
-			n->in_mnext = NULL;
-			*np = n;
+			n->in_flags &= ~IPN_NOTSRC;
+			nat_addnat(n);
 		}
 
 		n->in_use = 0;
@@ -1060,7 +1040,9 @@ u_int *nflags;
 	ip_t *oip;
 	int flags = 0;
 
-	if (!(nat = nat_icmpinlookup(ip, fin)))
+	if ((fin->fin_fi.fi_fl & FI_SHORT) || (ip->ip_off & IP_OFFMASK))
+		return NULL;
+	if ((ip->ip_v != 4) || !(nat = nat_icmplookup(ip, fin, dir)))
 		return NULL;
 	*nflags = IPN_ICMPERR;
 	icmp = (icmphdr_t *)fin->fin_dp;
@@ -1101,13 +1083,13 @@ u_int *nflags;
 		fix_outcksum(&icmp->icmp_cksum, sumd, 0);
 	} else {
 		fix_outcksum(&oip->ip_sum, sumd, 0);
-
+#if !SOLARIS && !defined(__sgi)
 		sumd += (sumd & 0xffff);
 		while (sumd > 0xffff)
 			sumd = (sumd & 0xffff) + (sumd >> 16);
 		fix_incksum(&icmp->icmp_cksum, sumd, 0);
+#endif
 	}
-
 
 	if ((flags & IPN_TCPUDP) != 0) {
 		tcphdr_t *tcp;
@@ -1272,6 +1254,50 @@ register natlookup_t *np;
 }
 
 
+static int nat_match(fin, np, ip)
+fr_info_t *fin;
+ipnat_t *np;
+ip_t *ip;
+{
+	frtuc_t *ft;
+
+	if (ip->ip_v != 4)
+		return 0;
+
+	if (np->in_p && ip->ip_p != np->in_p)
+		return 0;
+	if (fin->fin_out) {
+		if (!(np->in_redir & (NAT_MAP|NAT_MAPBLK)))
+			return 0;
+		if (((fin->fin_fi.fi_saddr & np->in_inmsk) != np->in_inip)
+		    ^ ((np->in_flags & IPN_NOTSRC) != 0))
+			return 0;
+		if (((fin->fin_fi.fi_daddr & np->in_srcmsk) != np->in_srcip)
+		    ^ ((np->in_flags & IPN_NOTDST) != 0))
+			return 0;
+	} else {
+		if (!(np->in_redir & NAT_REDIRECT))
+			return 0;
+		if (((fin->fin_fi.fi_saddr & np->in_srcmsk) != np->in_srcip)
+		    ^ ((np->in_flags & IPN_NOTSRC) != 0))
+			return 0;
+		if (((fin->fin_fi.fi_daddr & np->in_outmsk) != np->in_outip)
+		    ^ ((np->in_flags & IPN_NOTDST) != 0))
+			return 0;
+	}
+
+	ft = &np->in_tuc;
+	if (!(fin->fin_fi.fi_fl & FI_TCPUDP) ||
+	    (fin->fin_fi.fi_fl & FI_SHORT) || (ip->ip_off & IP_OFFMASK)) {
+		if (ft->ftu_scmp || ft->ftu_dcmp)
+			return 0;
+		return 1;
+	}
+
+	return fr_tcpudpchk(ft, fin);
+}
+
+
 /*
  * Packets going out on the external interface go through this.
  * Here, the source address requires alteration, if anything.
@@ -1389,8 +1415,7 @@ maskloop:
 		np = nat->nat_ptr;
 		if (natadd && fin->fin_fi.fi_fl & FI_FRAG)
 			ipfr_nat_newfrag(ip, fin, 0, nat);
-		ip->ip_src = nat->nat_outip;
-		MUTEX_ENTER(&ipf_rw);
+		MUTEX_ENTER(&nat->nat_lock);
 		nat->nat_age = fr_defnatage;
 		nat->nat_bytes += ip->ip_len;
 		nat->nat_pkts++;
@@ -1400,12 +1425,27 @@ maskloop:
 		 * Fix up checksums, not by recalculating them, but
 		 * simply computing adjustments.
 		 */
+		if (nflags == IPN_ICMPERR) {
+			u_32_t s1, s2, sumd;
+
+			s1 = LONG_SUM(ntohl(ip->ip_src.s_addr));
+			s2 = LONG_SUM(ntohl(nat->nat_outip.s_addr));
+			CALC_SUMD(s1, s2, sumd);
+
+			if (nat->nat_dir == NAT_OUTBOUND)
+				fix_incksum(&ip->ip_sum, sumd, 0);
+			else
+				fix_outcksum(&ip->ip_sum, sumd, 0);
+		}
 #if SOLARIS || defined(__sgi)
-		if (nat->nat_dir == NAT_OUTBOUND)
-			fix_outcksum(&ip->ip_sum, nat->nat_ipsumd, 0);
-		else
-			fix_incksum(&ip->ip_sum, nat->nat_ipsumd, 0);
+		else {
+			if (nat->nat_dir == NAT_OUTBOUND)
+				fix_outcksum(&ip->ip_sum, nat->nat_ipsumd, 0);
+			else
+				fix_incksum(&ip->ip_sum, nat->nat_ipsumd, 0);
+		}
 #endif
+		ip->ip_src = nat->nat_outip;
 
 		if (!(ip->ip_off & IP_OFFMASK) &&
 		    !(fin->fin_fi.fi_fl & FI_SHORT)) {
@@ -1441,6 +1481,7 @@ maskloop:
 				if (udp->uh_sum)
 					csump = &udp->uh_sum;
 			}
+
 			if (csump) {
 				if (nat->nat_dir == NAT_OUTBOUND)
 					fix_outcksum(csump, nat->nat_sumd[1],
@@ -1504,7 +1545,7 @@ fr_info_t *fin;
 
 	if ((ip->ip_p == IPPROTO_ICMP) && (nat = nat_icmpin(ip, fin, &nflags)))
 		;
-	else if ((ip->ip_off & IP_OFFMASK) &&
+	else if ((ip->ip_off & (IP_OFFMASK|IP_MF)) &&
 		 (nat = ipfr_nat_knownfrag(ip, fin)))
 		natadd = 0;
 	else if ((nat = nat_inlookup(fin->fin_ifp, nflags, (u_int)ip->ip_p,
@@ -1530,15 +1571,21 @@ fr_info_t *fin;
 		i = 32;
 maskloop:
 		iph = in.s_addr & htonl(msk);
-		hv = NAT_HASH_FN(iph, ipf_rdrrules_sz);
-		for (np = rdr_rules[hv]; np; np = np->in_rnext)
-			if ((np->in_ifp == ifp) &&
-			    (!np->in_flags || (nflags & np->in_flags)) &&
-			    ((in.s_addr & np->in_outmsk) == np->in_outip) &&
-			    ((src.s_addr & np->in_srcmsk) == np->in_srcip) &&
-			    (np->in_redir & NAT_REDIRECT) &&
-			    (!np->in_pmin || np->in_pmin == dport) &&
-			    (!np->in_p || np->in_p == ip->ip_p)) {
+		hv = NAT_HASH_FN(iph, 0, ipf_rdrrules_sz);
+		for (np = rdr_rules[hv]; np; np = np->in_rnext) {
+			if ((np->in_ifp && (np->in_ifp != ifp)) ||
+			    (np->in_p && (np->in_p != ip->ip_p)) ||
+			    (np->in_flags && !(nflags & np->in_flags)))
+				continue;
+			if (np->in_flags & IPN_FILTER) {
+				if (!nat_match(fin, np, ip))
+					continue;
+			} else if ((in.s_addr & np->in_outmsk) != np->in_outip)
+				continue;
+			if ((np->in_redir & NAT_REDIRECT) &&
+			    (!np->in_pmin || (np->in_flags & IPN_FILTER) ||
+			     ((ntohs(np->in_pmax) >= ntohs(dport)) &&
+			      (ntohs(dport) >= ntohs(np->in_pmin)))))
 				if ((nat = nat_new(np, ip, fin, nflags,
 						    NAT_INBOUND))) {
 					np->in_hits++;

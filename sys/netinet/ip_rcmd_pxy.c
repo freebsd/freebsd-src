@@ -1,4 +1,7 @@
 /*
+ * $Id: ip_rcmd_pxy.c,v 1.4.2.2 2000/07/15 12:38:30 darrenr Exp $
+ */
+/*
  * Simple RCMD transparent proxy for in-kernel use.  For use with the NAT
  * code.
  * $FreeBSD$
@@ -91,8 +94,17 @@ nat_t *nat;
 #endif
 
 	tcp = (tcphdr_t *)fin->fin_dp;
+
+	if (tcp->th_flags & TH_SYN) {
+		*(u_32_t *)aps->aps_data = htonl(ntohl(tcp->th_seq) + 1);
+		return 0;
+	}
+
+	if ((*(u_32_t *)aps->aps_data != 0) &&
+	    (tcp->th_seq != *(u_32_t *)aps->aps_data))
+		return 0;
+
 	off = (ip->ip_hl << 2) + (tcp->th_off << 2);
-	m = *(mb_t **)fin->fin_mp;
 
 #if	SOLARIS
 	m = fin->fin_qfm;
@@ -101,13 +113,11 @@ nat_t *nat;
 	bzero(portbuf, sizeof(portbuf));
 	copyout_mblk(m, off, MIN(sizeof(portbuf), dlen), portbuf);
 #else
+	m = *(mb_t **)fin->fin_mp;
 	dlen = mbufchainlen(m) - off;
 	bzero(portbuf, sizeof(portbuf));
 	m_copydata(m, off, MIN(sizeof(portbuf), dlen), portbuf);
 #endif
-	if ((*(u_32_t *)aps->aps_data != 0) &&
-	    (tcp->th_seq != *(u_32_t *)aps->aps_data))
-		return 0;
 
 	portbuf[sizeof(portbuf) - 1] = '\0';
 	s = portbuf;

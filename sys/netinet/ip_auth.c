@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  */
 #if !defined(lint)
-/*static const char rcsid[] = "@(#)$Id: ip_auth.c,v 2.1.2.2 2000/01/16 10:12:14 darrenr Exp $";*/
+/*static const char rcsid[] = "@(#)$Id: ip_auth.c,v 2.11.2.3 2000/06/17 06:24:31 darrenr Exp $";*/
 static const char rcsid[] = "@(#)$FreeBSD$";
 #endif
 
@@ -47,7 +47,7 @@ static const char rcsid[] = "@(#)$FreeBSD$";
 # include <sys/stream.h>
 # include <sys/kmem.h>
 #endif
-#if _BSDI_VERSION >= 199802
+#if (_BSDI_VERSION >= 199802) || (__FreeBSD_Version >= 400000)
 # include <sys/queue.h>
 #endif
 #if defined(__NetBSD__) || defined(__OpenBSD__) || defined(bsdi)
