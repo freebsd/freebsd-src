@@ -1,4 +1,4 @@
-#     $Id: BSD.local.dist,v 1.30 1997/08/01 13:16:39 phk Exp $
+#     $Id: BSD.local.dist,v 1.31 1997/08/30 09:26:53 phk Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -14,8 +14,6 @@
     info
     ..
     lib
-    ..
-    libdata
     ..
     libexec
     ..
