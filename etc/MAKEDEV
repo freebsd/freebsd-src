@@ -244,6 +244,7 @@ all)
 	sh MAKEDEV fd0 fd1				# bdev, floppy disk
 	sh MAKEDEV da0 da1 da2 da3 			# bdev, SCSI disk
 	sh MAKEDEV ad0 ad1 ad2 ad3 			# bdev, ATA disk
+	sh MAKEDEV ar0 ar1 				# bdev, ATA RAID disk
 	sh MAKEDEV acd0 acd0t afd0 ast0			# bdev, ATAPI devices
 	sh MAKEDEV wd0 wd1 wd2 wd3			# bdev, OLD disk
 	sh MAKEDEV wcd0 wfd0 wst0			# bdev, OLD ATAPI devs
