@@ -2192,6 +2192,7 @@ static driver_t pnpmss_driver = {
 };
 
 DRIVER_MODULE(snd_pnpmss, isa, pnpmss_driver, pcm_devclass, 0, 0);
+DRIVER_MODULE(snd_pnpmss, acpi, pnpmss_driver, pcm_devclass, 0, 0);
 MODULE_DEPEND(snd_pnpmss, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
 MODULE_VERSION(snd_pnpmss, 1);
 
