@@ -287,7 +287,7 @@ vm_map_entry_dispose(map, entry)
  *	vm_map_entry_create:	[ internal use only ]
  *
  *	Allocates a VM map entry for insertion.
- *	No entry fields are filled in.  This routine is
+ *	No entry fields are filled in.
  */
 static vm_map_entry_t
 vm_map_entry_create(map)
