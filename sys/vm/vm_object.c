@@ -261,7 +261,7 @@ void
 vm_object_clear_flag(vm_object_t object, u_short bits)
 {
 
-	mtx_assert(object == kmem_object ? &object->mtx : &Giant, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	object->flags &= ~bits;
 }
 
@@ -269,14 +269,14 @@ void
 vm_object_pip_add(vm_object_t object, short i)
 {
 
-	mtx_assert(object == kmem_object ? &object->mtx : &Giant, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	object->paging_in_progress += i;
 }
 
 void
 vm_object_pip_subtract(vm_object_t object, short i)
 {
-	GIANT_REQUIRED;
+
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	object->paging_in_progress -= i;
 }
@@ -285,7 +285,7 @@ void
 vm_object_pip_wakeup(vm_object_t object)
 {
 
-	mtx_assert(object == kmem_object ? &object->mtx : &Giant, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	object->paging_in_progress--;
 	if ((object->flags & OBJ_PIPWNT) && object->paging_in_progress == 0) {
 		vm_object_clear_flag(object, OBJ_PIPWNT);
@@ -296,7 +296,7 @@ vm_object_pip_wakeup(vm_object_t object)
 void
 vm_object_pip_wakeupn(vm_object_t object, short i)
 {
-	GIANT_REQUIRED;
+
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	if (i)
 		object->paging_in_progress -= i;
@@ -1797,9 +1797,11 @@ vm_object_coalesce(vm_object_t prev_object, vm_pindex_t prev_pindex,
 	 * deallocation.
 	 */
 	if (next_pindex < prev_object->size) {
+		VM_OBJECT_LOCK(prev_object);
 		vm_object_page_remove(prev_object,
 				      next_pindex,
 				      next_pindex + next_size, FALSE);
+		VM_OBJECT_UNLOCK(prev_object);
 		if (prev_object->type == OBJT_SWAP)
 			swap_pager_freespace(prev_object,
 					     next_pindex, next_size);
