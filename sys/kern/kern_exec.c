@@ -400,7 +400,7 @@ exec_map_first_page(imgp)
 		exec_unmap_first_page(imgp);
 	}
 
-	object = imgp->vp->v_object;
+	VOP_GETVOBJECT(imgp->vp, &object);
 	s = splvm();
 
 	ma[0] = vm_page_grab(object, 0, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);

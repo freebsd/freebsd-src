@@ -497,8 +497,8 @@ getnewvnode(tag, mp, vops, vpp)
 			if (vp->v_usecount)
 				panic("free vnode isn't");
 
-			object = vp->v_object;
-			if (object && (object->resident_page_count || object->ref_count)) {
+			if (VOP_GETVOBJECT(vp, &object) == 0 &&
+			    (object->resident_page_count || object->ref_count)) {
 				printf("object inconsistant state: RPC: %d, RC: %d\n",
 					object->resident_page_count, object->ref_count);
 				/* Don't recycle if it's caching some pages */
@@ -731,8 +731,7 @@ vinvalbuf(vp, flags, cred, p, slpflag, slptimeo)
 	 * Destroy the copy in the VM cache, too.
 	 */
 	simple_lock(&vp->v_interlock);
-	object = vp->v_object;
-	if (object != NULL) {
+	if (VOP_GETVOBJECT(vp, &object) == 0) {
 		vm_object_page_remove(object, 0, 0,
 			(flags & V_SAVE) ? TRUE : FALSE);
 	}
@@ -1634,7 +1633,6 @@ vclean(vp, flags, p)
 	struct proc *p;
 {
 	int active;
-	vm_object_t obj;
 
 	/*
 	 * Check to see if the vnode is in use. If so we have to reference it
@@ -1665,21 +1663,8 @@ vclean(vp, flags, p)
 	 * Clean out any buffers associated with the vnode.
 	 */
 	vinvalbuf(vp, V_SAVE, NOCRED, p, 0, 0);
-	if ((obj = vp->v_object) != NULL) {
-		if (obj->ref_count == 0) {
-			/*
-			 * vclean() may be called twice.  The first time removes the
-			 * primary reference to the object, the second time goes
-			 * one further and is a special-case to terminate the object.
-			 */
-			vm_object_terminate(obj);
-		} else {
-			/*
-			 * Woe to the process that tries to page now :-).
-			 */
-			vm_pager_deallocate(obj);
-		}
-	}
+
+	VOP_DESTROYVOBJECT(vp);
 
 	/*
 	 * If purging an active vnode, it must be closed and
@@ -2506,20 +2491,19 @@ loop:
 			continue;
 
 		if (flags != MNT_WAIT) {
-			obj = vp->v_object;
-			if (obj == NULL || (obj->flags & OBJ_MIGHTBEDIRTY) == 0)
-				continue;
+			if (VOP_GETVOBJECT(vp, &obj) != 0 ||
+			    (obj->flags & OBJ_MIGHTBEDIRTY) == 0)
 			if (VOP_ISLOCKED(vp, NULL))
 				continue;
 		}
 
 		simple_lock(&vp->v_interlock);
-		if (vp->v_object &&
-		   (vp->v_object->flags & OBJ_MIGHTBEDIRTY)) {
+		if (VOP_GETVOBJECT(vp, &obj) == 0 &&
+		    (obj->flags & OBJ_MIGHTBEDIRTY)) {
 			if (!vget(vp,
 				LK_INTERLOCK | LK_EXCLUSIVE | LK_RETRY | LK_NOOBJ, curproc)) {
-				if (vp->v_object) {
-					vm_object_page_clean(vp->v_object, 0, 0, flags == MNT_WAIT ? OBJPC_SYNC : OBJPC_NOSYNC);
+				if (VOP_GETVOBJECT(vp, &obj) == 0) {
+					vm_object_page_clean(obj, 0, 0, flags == MNT_WAIT ? OBJPC_SYNC : OBJPC_NOSYNC);
 					anyio = 1;
 				}
 				vput(vp);
@@ -2546,49 +2530,7 @@ vfs_object_create(vp, p, cred)
 	struct proc *p;
 	struct ucred *cred;
 {
-	struct vattr vat;
-	vm_object_t object;
-	int error = 0;
-
-	if (!vn_isdisk(vp, NULL) && vn_canvmio(vp) == FALSE)
-		return 0;
-
-retry:
-	if ((object = vp->v_object) == NULL) {
-		if (vp->v_type == VREG || vp->v_type == VDIR) {
-			if ((error = VOP_GETATTR(vp, &vat, cred, p)) != 0)
-				goto retn;
-			object = vnode_pager_alloc(vp, vat.va_size, 0, 0);
-		} else if (devsw(vp->v_rdev) != NULL) {
-			/*
-			 * This simply allocates the biggest object possible
-			 * for a disk vnode.  This should be fixed, but doesn't
-			 * cause any problems (yet).
-			 */
-			object = vnode_pager_alloc(vp, IDX_TO_OFF(INT_MAX), 0, 0);
-		} else {
-			goto retn;
-		}
-		/*
-		 * Dereference the reference we just created.  This assumes
-		 * that the object is associated with the vp.
-		 */
-		object->ref_count--;
-		vp->v_usecount--;
-	} else {
-		if (object->flags & OBJ_DEAD) {
-			VOP_UNLOCK(vp, 0, p);
-			tsleep(object, PVM, "vodead", 0);
-			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
-			goto retry;
-		}
-	}
-
-	KASSERT(vp->v_object != NULL, ("vfs_object_create: NULL object"));
-	vp->v_flag |= VOBJBUF;
-
-retn:
-	return error;
+	return (VOP_CREATEVOBJECT(vp, cred, p));
 }
 
 static void

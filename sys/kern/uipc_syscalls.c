@@ -1546,8 +1546,7 @@ sendfile(struct proc *p, struct sendfile_args *uap)
 	}
 	vp = (struct vnode *)fp->f_data;
 	vref(vp);
-	obj = vp->v_object;
-	if (vp->v_type != VREG || obj == NULL) {
+	if (vp->v_type != VREG || VOP_GETVOBJECT(vp, &obj) != 0) {
 		error = EINVAL;
 		goto done;
 	}

@@ -182,7 +182,7 @@ exec_aout_imgact(imgp)
 	vp = imgp->vp;
 	map = &vmspace->vm_map;
 	vm_map_lock(map);
-	object = vp->v_object;
+	VOP_GETVOBJECT(vp, &object);
 	vm_object_reference(object);
 
 	text_end = virtual_offset + a_out->a_text;
