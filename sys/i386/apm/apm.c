@@ -306,7 +306,7 @@ apm_suspend_system(int state)
  * If your laptop can control the display via APM, please inform me.
  *                            HOSOKAWA, Tatsumi <hosokawa@jp.FreeBSD.org>
  */
-static int
+int
 apm_display(int newstate)
 {
 	u_long eax, ebx, ecx, edx;
@@ -1392,7 +1392,7 @@ apmpoll(dev_t dev, int events, struct proc *p)
 }
 
 
-static apm_devsw_installed = 0;
+static int apm_devsw_installed = 0;
 
 static void
 apm_drvinit(void *unused)
