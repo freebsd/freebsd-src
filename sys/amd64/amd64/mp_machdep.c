@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.81 1998/10/08 16:15:22 kato Exp $
+ *	$Id: mp_machdep.c,v 1.82 1998/10/10 09:38:02 kato Exp $
  */
 
 #include "opt_smp.h"
@@ -1765,9 +1765,9 @@ start_all_aps(u_int boot_addr)
 	install_ap_tramp(boot_addr);
 
 
-#ifndef PC98
 	/* save the current value of the warm-start vector */
 	mpbioswarmvec = *((u_long *) WARMBOOT_OFF);
+#ifndef PC98
 	outb(CMOS_REG, BIOS_RESET);
 	mpbiosreason = inb(CMOS_DATA);
 #endif
@@ -1840,10 +1840,10 @@ start_all_aps(u_int boot_addr)
 		gd->prv_CMAP3 = &newpt[5 + UPAGES];
 		gd->prv_PMAP1 = &newpt[6 + UPAGES];
 
-#ifndef PC98
 		/* setup a vector to our boot code */
 		*((volatile u_short *) WARMBOOT_OFF) = WARMBOOT_TARGET;
 		*((volatile u_short *) WARMBOOT_SEG) = (boot_addr >> 4);
+#ifndef PC98
 		outb(CMOS_REG, BIOS_RESET);
 		outb(CMOS_DATA, BIOS_WARM);	/* 'warm-start' */
 #endif
@@ -1873,9 +1873,9 @@ start_all_aps(u_int boot_addr)
 	/* fill in our (BSP) APIC version */
 	cpu_apic_versions[0] = lapic.version;
 
-#ifndef PC98
 	/* restore the warmstart vector */
 	*(u_long *) WARMBOOT_OFF = mpbioswarmvec;
+#ifndef PC98
 	outb(CMOS_REG, BIOS_RESET);
 	outb(CMOS_DATA, mpbiosreason);
 #endif
