@@ -4,7 +4,6 @@ autoconf checks:
 	  is not available?
 	- IF_NAMESIZE not available on darwin
 	- inet_net_pton() ipv6 support
-	- FNM_CASEFOLD for fnmatch(3)
 
 support lfcompile(5) (large files) on solaris
 
