@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id: kern_time.c,v 1.49 1998/04/05 11:17:19 peter Exp $
+ * $Id: kern_time.c,v 1.50 1998/04/05 11:49:36 phk Exp $
  */
 
 #include <sys/param.h>
@@ -194,7 +194,7 @@ nanosleep1(p, rqt, rmt)
 	struct proc *p;
 	struct timespec *rqt, *rmt;
 {
-	struct timespec ts, ts2;
+	struct timespec ts, ts2, ts3;
 	struct timeval tv;
 	int error;
 
@@ -222,9 +222,9 @@ nanosleep1(p, rqt, rmt)
 		}
 		if (timespeccmp(&ts2, &ts, >=))
 			return (0);
-		getnanoruntime(&ts2);
-		timespecsub(&ts2, &ts);
-		TIMESPEC_TO_TIMEVAL(&tv, &ts2);
+		ts3 = ts;
+		timespecsub(&ts3, &ts2);
+		TIMESPEC_TO_TIMEVAL(&tv, &ts3);
 	}
 }
 
