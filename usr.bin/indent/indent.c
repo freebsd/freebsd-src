@@ -909,33 +909,49 @@ check_type:
 	     * dec_ind = e_code - s_code + (ps.decl_indent>i ? ps.decl_indent
 	     * : i);
 	     */
-	    dec_ind = ps.decl_indent > 0 ? ps.decl_indent : i;
+	    dec_ind = ps.decl_indent > 0 &&
+		(ps.ind_level == 0 || ps.dec_nest > 0) ? ps.decl_indent : i;
 	    goto copy_id;
 
 	case ident:		/* got an identifier or constant */
 	    if (ps.in_decl) {	/* if we are in a declaration, we must indent
 				 * identifier */
-		if (ps.want_blank)
-		    *e_code++ = ' ';
-		ps.want_blank = false;
 		if (is_procname == 0 || !procnames_start_line) {
 		    if (!ps.block_init) {
 			if (troff && !ps.dumped_decl_indent) {
+			    if (ps.want_blank)
+				*e_code++ = ' ';
+			    ps.want_blank = false;
 			    sprintf(e_code, "\n.De %dp+\200p\n", dec_ind * 7);
 			    ps.dumped_decl_indent = 1;
 			    e_code += strlen(e_code);
 			} else {
-			    while ((e_code - s_code) < dec_ind) {
+			    int pos, startpos;
+
+			    startpos = e_code - s_code;
+			    pos = startpos;
+			    while ((pos & ~7) + 8 <= dec_ind) {
+				CHECK_SIZE_CODE;
+				*e_code++ = '\t';
+				pos = (pos & ~7) + 8;
+			    }
+			    while (pos < dec_ind) {
 				CHECK_SIZE_CODE;
 				*e_code++ = ' ';
+				pos++;
 			    }
+			    if (ps.want_blank && e_code - s_code == startpos)
+				*e_code++ = ' ';
+			    ps.want_blank = false;
 			}
 		    }
 		} else {
+		    if (ps.want_blank)
+			*e_code++ = ' ';
+		    ps.want_blank = false;
 		    if (dec_ind && s_code != e_code)
 			dump_line();
 		    dec_ind = 0;
-		    ps.want_blank = false;
 		}
 	    }
 	    else if (sp_sw && ps.p_l_follow == 0) {
