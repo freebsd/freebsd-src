@@ -155,7 +155,7 @@ The PVC can be deleted with:
 
 The list of PVC that are currently active is retrieved with:
 
-  atmconfig [common-options] natm list
+  atmconfig [common-options] natm show
 
 ^1 add
 usage: atmconfig [common-options] natm add [-printonly] <dest> <device>
