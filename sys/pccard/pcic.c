@@ -129,6 +129,13 @@ pcic_putw(struct pcic_slot *sp, int reg, unsigned short word)
 	sp->putb(sp, reg + 1, (word >> 8) & 0xff);
 }
 
+/*
+ * pc98 cbus cards introduce a slight wrinkle here.  They route the irq7 pin
+ * from the pcic chip to INT 2 on the cbus.  INT 2 is normally mapped to
+ * irq 6 on the pc98 architecture, so if we get a request for irq 6
+ * lie to the hardware and say it is 7.  All the other usual mappings for
+ * cbus INT into irq space are the same as the rest of the system.
+ */
 static __inline int
 host_irq_to_pcic(int irq)
 {
