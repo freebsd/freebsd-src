@@ -19,14 +19,13 @@ __FBSDID("$FreeBSD$");
 #include "libdisk.h"
 
 static struct chunk *
-new_chunk(void)
+New_Chunk(void)
 {
 	struct chunk *c;
 
 	c = malloc(sizeof *c);
-	if (c == NULL)
-		err(1, "malloc");
-	memset(c, 0, sizeof *c);
+	if (c != NULL)
+		memset(c, 0, sizeof *c);
 	return (c);
 }
 
@@ -87,17 +86,18 @@ Find_Mother_Chunk(struct chunk *chunks, u_long offset, u_long end, chunk_e type)
 void
 Free_Chunk(struct chunk *c1)
 {
-	if(!c1) return;
+	if(c1 == NULL)
+		return;
 	if(c1->private_data && c1->private_free)
 		(*c1->private_free)(c1->private_data);
-	if(c1->part)
+	if(c1->part != NULL)
 		Free_Chunk(c1->part);
-	if(c1->next)
+	if(c1->next != NULL)
 		Free_Chunk(c1->next);
-	free(c1->name);
-#ifdef PC98
-	free(c1->sname);
-#endif
+	if (c1->name != NULL)
+		free(c1->name);
+	if (c1->sname != NULL)
+		free(c1->sname);
 	free(c1);
 }
 
@@ -107,16 +107,16 @@ Clone_Chunk(const struct chunk *c1)
 	struct chunk *c2;
 
 	if(!c1)
-		return 0;
-	c2 = new_chunk();
-	if (!c2) return NULL;
+		return NULL;
+	c2 = New_Chunk();
+	if (c2 == NULL)
+		return NULL;
 	*c2 = *c1;
 	if (c1->private_data && c1->private_clone)
 		c2->private_data = c2->private_clone(c2->private_data);
 	c2->name = strdup(c2->name);
-#ifdef PC98
-	c2->sname = strdup(c2->sname);
-#endif
+	if (c2->sname != NULL)
+		c2->sname = strdup(c2->sname);
 	c2->next = Clone_Chunk(c2->next);
 	c2->part = Clone_Chunk(c2->part);
 	return c2;
@@ -124,7 +124,7 @@ Clone_Chunk(const struct chunk *c1)
 
 static int
 Insert_Chunk(struct chunk *c2, u_long offset, u_long size, const char *name,
-	chunk_e type, int subtype, u_long flags, const char *sname __unused)
+	chunk_e type, int subtype, u_long flags, const char *sname)
 {
 	struct chunk *ct,*cs;
 
@@ -132,17 +132,16 @@ Insert_Chunk(struct chunk *c2, u_long offset, u_long size, const char *name,
 	if (c2->type != unused)
 		return __LINE__;
 
-	ct = new_chunk();
-	if (!ct) return __LINE__;
-	memset(ct, 0, sizeof *ct);
+	ct = New_Chunk();
+	if (ct == NULL)
+		return __LINE__;
 	ct->disk = c2->disk;
 	ct->offset = offset;
 	ct->size = size;
 	ct->end = offset + size - 1;
 	ct->type = type;
-#ifdef PC98
-	ct->sname = strdup(sname);
-#endif
+	if (sname != NULL)
+		ct->sname = strdup(sname);
 	ct->name = strdup(name);
 	ct->subtype = subtype;
 	ct->flags = flags;
@@ -153,33 +152,31 @@ Insert_Chunk(struct chunk *c2, u_long offset, u_long size, const char *name,
 	}
 
 	if(type==freebsd || type==extended) {
-		cs = new_chunk();
-		if (!cs) return __LINE__;
-		memset(cs, 0, sizeof *cs);
+		cs = New_Chunk();
+		if (cs == NULL)
+			return __LINE__;
 		cs->disk = c2->disk;
 		cs->offset = offset;
 		cs->size = size;
 		cs->end = offset + size - 1;
 		cs->type = unused;
-#ifdef PC98
-		cs->sname = strdup(sname);
-#endif
+		if (sname != NULL)
+			cs->sname = strdup(sname);
 		cs->name = strdup("-");
 		ct->part = cs;
 	}
 
 	/* Make a new chunk for any trailing unused space */
 	if (c2->end > ct->end) {
-		cs = new_chunk();
-		if (!cs) return __LINE__;
+		cs = New_Chunk();
+		if (cs == NULL)
+			 return __LINE__;
 		*cs = *c2;
 		cs->disk = c2->disk;
 		cs->offset = ct->end + 1;
 		cs->size = c2->end - ct->end;
-#ifdef PC98
-		if(c2->sname)
+		if(c2->sname != NULL)
 			cs->sname = strdup(c2->sname);
-#endif
 		if(c2->name)
 			cs->name = strdup(c2->name);
 		c2->next = cs;
@@ -188,18 +185,14 @@ Insert_Chunk(struct chunk *c2, u_long offset, u_long size, const char *name,
 	}
 	/* If no leading unused space just occupy the old chunk */
 	if (c2->offset == ct->offset) {
-#ifdef PC98
 		c2->sname = ct->sname;
-#endif
 		c2->name = ct->name;
 		c2->type = ct->type;
 		c2->part = ct->part;
 		c2->subtype = ct->subtype;
 		c2->flags = ct->flags;
-#ifdef PC98
-		ct->sname = 0;
-#endif
-		ct->name = 0;
+		ct->sname = NULL;
+		ct->name = NULL;
 		ct->part = 0;
 		Free_Chunk(ct);
 		return 0;
@@ -223,12 +216,12 @@ Add_Chunk(struct disk *d, long offset, u_long size, const char *name,
 	ct.size = size;
 
 	if (type == whole) {
-		d->chunks = c1 = new_chunk();
-		if (!c1) return __LINE__;
-		memset(c1, 0, sizeof *c1);
-		c2 = c1->part = new_chunk();
-		if (!c2) return __LINE__;
-		memset(c2,0,sizeof *c2);
+		d->chunks = c1 = New_Chunk();
+		if (c1 == NULL)
+			return __LINE__;
+		c2 = c1->part = New_Chunk();
+		if (c2 == NULL)
+			 return __LINE__;
 		c2->disk = c1->disk = d;
 		c2->offset = c1->offset = offset;
 		c2->size = c1->size = size;
@@ -331,13 +324,8 @@ Print_Chunk(struct chunk *c1,int offset)
 	for(; i < offset; i++) putchar('-');
 	putchar('>');
 	for(; i < 10; i++) putchar(' ');
-#ifdef PC98
 	printf("%p %8ld %8lu %8lu %-8s %-16s %-8s 0x%02x %s",
 		c1, c1->offset, c1->size, c1->end, c1->name, c1->sname,
-#else
-	printf("%p %8ld %8lu %8lu %-8s %-8s 0x%02x %s",
-		c1, c1->offset, c1->size, c1->end, c1->name,
-#endif
 		chunk_n[c1->type], c1->subtype,
 		ShowChunkFlags(c1));
 	putchar('\n');
@@ -385,10 +373,9 @@ Delete_Chunk2(struct disk *d, struct chunk *c, int rflags)
 			c2->type = unused;
 			c2->subtype = 0;
 			c2->flags = 0;
-#ifdef PC98
-			free(c2->sname);
+			if (c2->sname != NULL)
+				free(c2->sname);
 			c2->sname = strdup("-");
-#endif
 			free(c2->name);
 			c2->name = strdup("-");
 			Free_Chunk(c2->part);
@@ -463,14 +450,13 @@ Collapse_Chunk(struct disk *d, struct chunk *c1)
 		return 1;
 	}
 	if(c3->type == unused) {
-		c2 = new_chunk();
-		if (!c2) barfout(1, "malloc failed");
+		c2 = New_Chunk();
+		if (c2 == NULL)
+			barfout(1, "malloc failed");
 		*c2 = *c1;
 		c1->next = c2;
 		c1->disk = d;
-#ifdef PC98
 		c1->sname = strdup("-");
-#endif
 		c1->name = strdup("-");
 		c1->part = 0;
 		c1->type = unused;
