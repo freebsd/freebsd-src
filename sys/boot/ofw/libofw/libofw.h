@@ -71,7 +71,7 @@ extern int	ofw_setcurrdev(struct env_var *ev, int flags, void *value);
 extern struct devsw		ofwdisk;
 extern struct netif_driver	ofwnet;
 
-int	ofwd_getunit(const char *);
+void	ofwd_enter_dev(const char *);
 int	ofwn_getunit(const char *);
 
 ssize_t	ofw_copyin(const void *src, vm_offset_t dest, const size_t len);
