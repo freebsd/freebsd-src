@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.135 1998/06/16 19:40:39 brian Exp $
+ * $Id: main.c,v 1.136 1998/06/24 19:33:32 brian Exp $
  *
  *	TODO:
  */
@@ -28,7 +28,6 @@
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <sys/un.h>
-#include <net/if_tun.h>
 
 #include <errno.h>
 #include <fcntl.h>

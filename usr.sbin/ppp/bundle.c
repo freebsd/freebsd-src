@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.22 1998/06/20 01:36:38 brian Exp $
+ *	$Id: bundle.c,v 1.23 1998/06/24 19:33:30 brian Exp $
  */
 
 #include <sys/param.h>
@@ -35,7 +35,6 @@
 #include <net/if_dl.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
-#include <net/if_tun.h>
 #include <sys/un.h>
 
 #include <errno.h>
