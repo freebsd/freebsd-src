@@ -33,7 +33,7 @@
  *	@(#)cribbage.h	8.1 (Berkeley) 5/31/93
  */
 
-#include <sys/defs.h>
+#include <sys/cdefs.h>
 
 __FBSDID("$FreeBSD$");
 
