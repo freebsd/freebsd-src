@@ -1,11 +1,11 @@
 .PATH:	/usr/src/sbin/disklabel
 OBJS=	tst01.o blocks.o disklabel.o dkcksum.o chunk.o disk.o change.o \
-	create_chunk.o rules.o
+	create_chunk.o rules.o write_disk.o
 CFLAGS+= -Wall -g
 
 test:	tst01
 	cp tst01 /0
-	./tst01 sd0 
+	./tst01 wd1
 
 tst01:	${OBJS}
 	cc ${CFLAGS} -static -o tst01 ${OBJS} -lreadline -ltermcap 

@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: disk.c,v 1.3 1995/04/29 04:00:55 phk Exp $
+ * $Id: disk.c,v 1.4 1995/04/29 04:50:37 phk Exp $
  *
  */
 
@@ -37,6 +37,7 @@ Int_Open_Disk(char *name, u_long size)
 {
 	int i,fd;
 	struct diskslices ds;
+	struct disklabel dl;
 	char device[64];
 	struct disk *d;
 
@@ -48,9 +49,15 @@ Int_Open_Disk(char *name, u_long size)
 		warn("open(%s) failed",device);
 		return 0;
 	}
+	i = ioctl(fd,DIOCGDINFO,&dl);
+	if (i < 0) {
+		warn("DIOCGDINFO(%s) failed",device);
+		close(fd);
+		return 0;
+	}
 	i = ioctl(fd,DIOCGSLICEINFO,&ds);
 	if (i < 0) {
-		warn("DIOCSLICEINFO(%s) failed",device);
+		warn("DIOCGSLICEINFO(%s) failed",device);
 		close(fd);
 		return 0;
 	}
@@ -60,13 +67,20 @@ Int_Open_Disk(char *name, u_long size)
 
 	memset(d,0,sizeof *d);
 
+	d->bios_sect = dl.d_nsectors;
+	d->bios_hd = dl.d_ntracks;
+
 	d->name = strdup(name);
 
 	if (!size)
 		size = ds.dss_slices[WHOLE_DISK_SLICE].ds_size;
 
+	if (dl.d_ntracks && dl.d_nsectors)
+		d->bios_cyl = size/(dl.d_ntracks*dl.d_nsectors);
+
 	if (Add_Chunk(d, 0, size, name,whole,0,0))
 		warn("Failed to add 'whole' chunk");
+
 	if (ds.dss_slices[COMPATIBILITY_SLICE].ds_offset)
 		if (Add_Chunk(d, 0, 1, "-",reserved,0,0))
 			warn("Failed to add MBR chunk");
