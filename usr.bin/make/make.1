@@ -753,10 +753,10 @@ makefile's directory and any directories specified using the
 .Fl I
 option are searched before the system
 makefile directory.
-.It Ic \&.undef Ar variable
+.It Ic .undef Ar variable
 Un-define the specified global variable.
 Only global variables may be un-defined.
-.It Ic \&.error Ar message
+.It Ic .error Ar message
 Terminate processing of the makefile immediately.
 The filename of the
 makefile, the line on which the error was encountered and the specified
@@ -764,7 +764,7 @@ message are printed to the standard error output and
 .Nm
 terminates with exit code 1.
 Variables in the message are expanded.
-.It Ic \&.warning Ar message
+.It Ic .warning Ar message
 Emit a warning message.
 The filename of the makefile,
 the line on which the warning was encountered,
@@ -779,7 +779,7 @@ by the C pre-processor.
 The following conditionals are supported:
 .Bl -tag -width Ds
 .It Xo
-.Ic \&.if
+.Ic .if
 .Oo \&! Oc Ns Ar expression
 .Op Ar operator expression ...
 .Xc
@@ -863,7 +863,7 @@ The
 .Ar operator
 may be any one of the following:
 .Bl -tag -width "Cm XX"
-.It Cm \&|\&|
+.It Cm ||
 logical
 .Tn OR
 .It Cm &&
@@ -972,7 +972,7 @@ The syntax of a for loop is:
 .Bl -tag -width indent -compact
 .It Ic .for Ar variable Ic in Ar expression
 .It <make-rules>
-.It Ic \&.endfor
+.It Ic .endfor
 .El
 .Pp
 After the for
@@ -986,7 +986,7 @@ is successively set to each word, and substituted in the
 inside the body of the for loop.
 .Sh COMMENTS
 Comments begin with a hash
-.Pq Ql \&#
+.Pq Ql #
 character, anywhere but in a shell
 command line, and continue to the end of the line.
 .Sh SPECIAL SOURCES
