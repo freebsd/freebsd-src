@@ -38,7 +38,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
-#include <sys/kernel.h>
 #include <sys/resource.h>
 #include <machine/cpu.h>	/* For need_resched */
 #include <machine/ipl.h>	/* For need_resched */

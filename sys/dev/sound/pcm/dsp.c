@@ -28,7 +28,6 @@
 
 #include <sys/param.h>
 #include <sys/queue.h>
-#include <sys/kernel.h>
 
 #include <dev/sound/pcm/sound.h>
 

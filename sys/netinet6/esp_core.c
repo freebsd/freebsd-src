@@ -40,7 +40,6 @@
 #include <sys/socket.h>
 #include <sys/errno.h>
 #include <sys/time.h>
-#include <sys/kernel.h>
 
 #include <net/if.h>
 #include <net/route.h>

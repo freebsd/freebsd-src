@@ -36,7 +36,6 @@
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/time.h>
-#include <sys/kernel.h>
 #include <sys/errno.h>
 #include <sys/syslog.h>
 

@@ -39,7 +39,6 @@
 #endif
 
 #ifdef	_KERNEL
-#include <sys/kernel.h>
 #endif
 
 #include "opt_vpo.h"

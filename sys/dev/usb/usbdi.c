@@ -41,7 +41,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #if defined(__NetBSD__) || defined(__OpenBSD__)
-#include <sys/kernel.h>
 #include <sys/device.h>
 #elif defined(__FreeBSD__)
 #include <sys/module.h>

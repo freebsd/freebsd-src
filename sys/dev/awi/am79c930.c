@@ -63,7 +63,6 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #ifndef __FreeBSD__
 #include <sys/device.h>
 #endif
