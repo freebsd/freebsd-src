@@ -187,7 +187,7 @@ Automatically install any files that do not exist in the
 destination directory.
 .It Fl p
 Pre-buildworld mode.
-Compares only files known to be essential to the sucess of
+Compares only files known to be essential to the success of
 {build|install}world,
 including
 .Pa /etc/make.conf .
@@ -305,6 +305,9 @@ with all values commented out:
 #
 # Automatically install files that do not exist on the system already
 #AUTO_INSTALL=
+#
+# Compare /etc/rc.conf[.local] to /etc/defaults/rc.conf
+#COMP_CONFS=yes
 #
 # Sourcedir is the directory to do the 'make' in (where the new files are)
 #SOURCEDIR='/usr/src/etc'
