@@ -24,7 +24,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/libpcap/pcap-pf.c,v 1.62 2000/10/28 00:01:30 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/libpcap/pcap-pf.c,v 1.65 2001/12/10 07:14:19 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -195,6 +195,42 @@ int
 pcap_stats(pcap_t *p, struct pcap_stat *ps)
 {
 
+	/*
+	 * If packet filtering is being done in the kernel:
+	 *
+	 *	"ps_recv" counts only packets that passed the filter.
+	 *	This does not include packets dropped because we
+	 *	ran out of buffer space.  (XXX - perhaps it should,
+	 *	by adding "ps_drop" to "ps_recv", for compatibility
+	 *	with some other platforms.  On the other hand, on
+	 *	some platforms "ps_recv" counts only packets that
+	 *	passed the filter, and on others it counts packets
+	 *	that didn't pass the filter....)
+	 *
+	 *	"ps_drop" counts packets that passed the kernel filter
+	 *	(if any) but were dropped because the input queue was
+	 *	full.
+	 *
+	 *	"ps_ifdrop" counts packets dropped by the network
+	 *	inteface (regardless of whether they would have passed
+	 *	the input filter, of course).
+	 *
+	 * If packet filtering is not being done in the kernel:
+	 *
+	 *	"ps_recv" counts only packets that passed the filter.
+	 *
+	 *	"ps_drop" counts packets that were dropped because the
+	 *	input queue was full, regardless of whether they passed
+	 *	the userland filter.
+	 *
+	 *	"ps_ifdrop" counts packets dropped by the network
+	 *	inteface (regardless of whether they would have passed
+	 *	the input filter, of course).
+	 *
+	 * These statistics don't include packets not yet read from
+	 * the kernel by libpcap, but they may include packets not
+	 * yet read from libpcap by the application.
+	 */
 	ps->ps_recv = p->md.TotAccepted;
 	ps->ps_drop = p->md.TotDrops;
 	ps->ps_ifdrop = p->md.TotMissed - p->md.OrigMissed;
@@ -265,21 +301,53 @@ your system may not be properly configured; see \"man packetfilter(4)\"\n",
 		p->linktype = DLT_FDDI;
 		break;
 
-	default:
-		/*
-		 * XXX
-		 * Currently, the Ultrix packet filter supports only
-		 * Ethernet and FDDI.  Eventually, support for SLIP and PPP
-		 * (and possibly others: T1?) should be added.
-		 */
-#ifdef notdef
-		warning(
-		   "Packet filter data-link type %d unknown, assuming Ethernet",
-		    devparams.end_dev_type);
+#ifdef ENDT_SLIP
+	case ENDT_SLIP:
+		p->linktype = DLT_SLIP;
+		break;
 #endif
+
+#ifdef ENDT_PPP
+	case ENDT_PPP:
+		p->linktype = DLT_PPP;
+		break;
+#endif
+
+#ifdef ENDT_LOOPBACK
+	case ENDT_LOOPBACK:
+		/*
+		 * It appears to use Ethernet framing, at least on
+		 * Digital UNIX 4.0.
+		 */
 		p->linktype = DLT_EN10MB;
 		p->offset = 2;
 		break;
+#endif
+
+#ifdef ENDT_TRN
+	case ENDT_TRN:
+		p->linktype = DLT_IEEE802;
+		break;
+#endif
+
+	default:
+		/*
+		 * XXX - what about ENDT_IEEE802?  The pfilt.h header
+		 * file calls this "IEEE 802 networks (non-Ethernet)",
+		 * but that doesn't specify a specific link layer type;
+		 * it could be 802.4, or 802.5 (except that 802.5 is
+		 * ENDT_TRN), or 802.6, or 802.11, or....  That's why
+		 * DLT_IEEE802 was hijacked to mean Token Ring in various
+		 * BSDs, and why we went along with that hijacking.
+		 *
+		 * XXX - what about ENDT_HDLC and ENDT_NULL?
+		 * Presumably, as ENDT_OTHER is just "Miscellaneous
+		 * framing", there's not much we can do, as that
+		 * doesn't specify a particular type of header.
+		 */
+		snprintf(ebuf, PCAP_ERRBUF_SIZE, "unknown data-link type %lu",
+		    devparams.end_dev_type);
+		goto bad;
 	}
 	/* set truncation */
 #ifdef PCAP_FDDIPAD
@@ -318,6 +386,8 @@ your system may not be properly configured; see \"man packetfilter(4)\"\n",
 
 	return (p);
  bad:
+ 	if (p->fd >= 0)
+ 		close(p->fd);
 	free(p);
 	return (NULL);
 }
