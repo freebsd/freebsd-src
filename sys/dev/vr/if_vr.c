@@ -798,7 +798,9 @@ vr_detach(device_t dev)
 	/* These should only be active if attach succeeded */
 	if (device_is_attached(dev)) {
 		vr_stop(sc);
+		VR_UNLOCK(sc);		/* XXX: Avoid recursive acquire. */
 		ether_ifdetach(ifp);
+		VR_LOCK(sc);
 	}
 	if (sc->vr_miibus)
 		device_delete_child(dev, sc->vr_miibus);
