@@ -70,7 +70,6 @@ ENTRY(setjmp)
 	restore
 	stx	%sp, [%o0 + _JB_SP]
 	stx	%o7, [%o0 + _JB_PC]
-	stx	%fp, [%o0 + _JB_FP]
 	retl
 	 clr	%o0
 END(setjmp)
@@ -79,34 +78,15 @@ END(setjmp)
 	.set	CNAME(longjmp),CNAME(__longjmp)
 ENTRY(__longjmp)
 	save	%sp, -CCFSZ, %sp
+	flushw
 	mov	SIG_SETMASK, %o0
 	add	%i0, _JB_SIGMASK, %o1
 	call	CNAME(sigprocmask)
 	 clr	%o2
-	restore
-	mov	1, %g1
-	movrnz	%o1, %o1, %g1
-	mov	%o0, %g2
-	ldx	[%g2 + _JB_FP], %g3
-1:	cmp	%fp, %g3
-	bl,a	1b
+	ldx	[%i0 + _JB_SP], %fp
+	ldx	[%i0 + _JB_PC], %i7
+	mov	1, %i0
+	movrnz	%i1, %i1, %i0
+	ret
 	 restore
-	be,a	2f
-	 ldx	[%g2 + _JB_SP], %o0
-
-.Lbotch:
-	call	CNAME(longjmperror)
-	 nop
-	call	CNAME(abort)
-	 nop
-	illtrap
-
-2:	cmp	%o0, %sp
-	bge,a	3f
-	 mov	%o0, %sp
-	b,a	.Lbotch
-	 nop
-3:	ldx	[%g2 + _JB_PC], %o7
-	retl
-	 mov	%g1, %o0
 END(__longjmp)
