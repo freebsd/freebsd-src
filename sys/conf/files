@@ -380,6 +380,7 @@ dev/ed/if_ed_pci.c	optional ed pci
 dev/em/if_em.c		optional em
 dev/em/if_em_hw.c	optional em
 dev/en/midway.c		optional en
+dev/en/if_en_pci.c	optional en pci
 dev/ep/if_ep.c		optional ep
 dev/ep/if_ep_eisa.c	optional ep eisa
 dev/ep/if_ep_isa.c	optional ep isa
@@ -1506,7 +1507,6 @@ pci/amdpm.c		optional amdpm pci
 pci/amdpm.c		optional nfpm pci
 pci/if_dc.c		optional dc pci
 pci/if_de.c		optional de pci
-pci/if_en_pci.c		optional en pci
 pci/if_mn.c		optional mn pci
 pci/if_pcn.c		optional pcn pci
 pci/if_rl.c		optional rl pci
