@@ -1,4 +1,4 @@
-/* $Id: info.h,v 1.6 1994/12/06 00:51:42 jkh Exp $ */
+/* $Id: info.h,v 1.7 1995/01/05 01:10:10 swallace Exp $ */
 
 /*
  * FreeBSD install - a package for the installation and maintainance
@@ -48,7 +48,7 @@ extern int Flags;
 extern Boolean AllInstalled;
 extern Boolean Quiet;
 extern char *InfoPrefix;
-extern char *PlayPen;
+extern char PlayPen[];
 extern char *CheckPkg;
 
 extern void	show_file(char *, char *);
