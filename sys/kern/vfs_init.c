@@ -68,6 +68,13 @@ SYSCTL_INT(_vfs, OID_AUTO, mod1, CTLFLAG_RD, &mod_xx, 0, "");
 struct vm_zone *namei_zone;
 
 /*
+ * vfs_init() will set maxvfsconf
+ * to the highest defined type number.
+ */
+int maxvfsconf;
+struct vfsconf *vfsconf;
+
+/*
  * vfs_init.c
  *
  * Allocate and fill in operations vectors.
