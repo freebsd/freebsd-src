@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.301 1999/04/27 11:14:04 phk Exp $
+ *	$Id: syscons.c,v 1.302 1999/05/10 14:01:32 dfr Exp $
  */
 
 #include "sc.h"
@@ -214,7 +214,7 @@ static	int		extra_history_size =
 
 static void    		none_saver(int blank) { }
 static void    		(*current_saver)(int blank) = none_saver;
-       d_ioctl_t  	*sc_user_ioctl;
+	d_ioctl_t	*sc_user_ioctl;
 
 static int		sticky_splash = FALSE;
 static struct 		{
@@ -237,10 +237,9 @@ static struct tty     	sccons[MAXCONS+2];
 #endif
 #define SC_MOUSE 	128
 #define SC_CONSOLE	255
-vm_offset_t         	Crtat;
 static const int	nsccons = MAXCONS+2;
 
-#define WRAPHIST(scp, pointer, offset)\
+#define WRAPHIST(scp, pointer, offset) \
     ((scp)->history + ((((pointer) - (scp)->history) + (scp)->history_size \
     + (offset)) % (scp)->history_size))
 #define ISSIGVALID(sig)	((sig) > 0 && (sig) < NSIG)
@@ -521,7 +520,6 @@ scvidprobe(int unit, int flags, int cons)
     }
     adp = vid_get_adapter(adapter);	/* shouldn't fail */
 
-    Crtat = adp->va_window;
     initial_video_mode = adp->va_initial_mode;
 
     return TRUE;
@@ -3863,7 +3861,6 @@ set_mode(scr_stat *scp)
 
     /* setup video hardware for the given mode */
     (*vidsw[scp->ad]->set_mode)(scp->adp, scp->mode);
-    Crtat = scp->adp->va_window;
 
     if (!(scp->status & GRAPHICS_MODE)) {
 	/* load appropriate font */
