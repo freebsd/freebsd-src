@@ -99,17 +99,18 @@ device		bt
 device		aha	1
 device		aic
 
+# RAID controllers
+device		ida		# Compaq Smart RAID
+device		amr		# AMI MegaRAID
+device		mlx		# Mylex DAC960 family
+
+
 # SCSI peripherals
 device		scbus		# SCSI bus (required)
 device		da		# Direct Access (disks)
 device		sa		# Sequential Access (tape etc)
 device		cd		# CD
 device		pass		# Passthrough device (direct SCSI access)
-
-# RAID controllers
-device		ida		# Compaq Smart RAID
-device		amr		# AMI MegaRAID
-device		mlx		# Mylex DAC960 family
 
 # atkbdc0 controls both the keyboard and the PS/2 mouse
 device		atkbdc	1
