@@ -108,7 +108,7 @@
   102   fkey60 fkey60 fkey60 fkey60 fkey60 fkey60 fkey60 fkey60  O
   103   fkey54 fkey54 fkey54 fkey54 fkey54 fkey54 boot   fkey54  O
   104   slock  slock  slock  slock  slock  slock  slock  slock   O
-  115   '\'    '_'    fs     ns     '\'    '_'    fs     ns      O
+  115   '\'    '_'    fs     us     '\'    '_'    fs     us      O
   121   ' '    ' '    ' '    ' '    ' '    ' '    ' '    ' '     O
   123   ' '    ' '    ' '    ' '    ' '    ' '    ' '    ' '     O
   125   '\'    '|'    fs     fs     '\'    '|'    fs     fs      O
