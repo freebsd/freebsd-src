@@ -68,14 +68,14 @@ __FBSDID("$FreeBSD$");
 #define	STATUS_BADUSAGE	2
 #define	STATUS_ERROR	3
 
-#if defined(__FreeBSD__)
-# if __FreeBSD_version > 502000
-#  define	IS_KERNPROC(xPtr)	(xPtr->ki_flag & P_KTHREAD)
-# endif
+#ifdef __FreeBSD__
+#if __FreeBSD_version > 502000
+#define	IS_KERNPROC(kp)	((kp)->ki_flag & P_KTHREAD)
+#endif
 #endif
 
-#if !defined(IS_KERNPROC)
-#define	IS_KERNPROC(xPtr)	(xPtr->ki_flag & P_SYSTEM)
+#ifndef IS_KERNPROC
+#define	IS_KERNPROC(kp)	((kp)->ki_flag & P_SYSTEM)
 #endif
 
 enum listtype {
