@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003 Daniel M. Eischen <deischen@FreeBSD.org>
+ * Copyright (c) 2003 Daniel M. Eischen <deischen@freebsd.org>
  * Copyright (c) 1995-1998 John Birrell <jb@cimlogic.com.au>
  * All rights reserved.
  *
@@ -280,7 +280,7 @@ _libpthread_init(struct pthread *curthread)
 		 */
 		_thr_initial = curthread;
 	}
-	_kse_initial->k_kseg->kg_threadcount = 1;
+	_kse_initial->k_kseg->kg_threadcount = 0;
 	_thr_initial->kse = _kse_initial;
 	_thr_initial->kseg = _kse_initial->k_kseg;
 	_thr_initial->active = 1;
@@ -290,7 +290,7 @@ _libpthread_init(struct pthread *curthread)
          * queue.
 	 */
 	THR_LIST_ADD(_thr_initial);
-	TAILQ_INSERT_TAIL(&_kse_initial->k_kseg->kg_threadq, _thr_initial, kle);
+	KSEG_THRQ_ADD(_kse_initial->k_kseg, _thr_initial);
 
 	/* Setup the KSE/thread specific data for the current KSE/thread. */
 	if (_ksd_setprivate(&_thr_initial->kse->k_ksd) != 0)

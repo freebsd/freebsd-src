@@ -64,6 +64,13 @@ _pthread_setschedparam(pthread_t pthread, int policy,
 		 * its priority:
 		 */
 		THR_SCHED_LOCK(curthread, pthread);
+		if ((pthread->state == PS_DEAD) ||
+		    (pthread->state == PS_DEADLOCK) ||
+		    ((pthread->flags & THR_FLAGS_EXITING) != 0)) {
+			THR_SCHED_UNLOCK(curthread, pthread);
+			_thr_ref_delete(curthread, pthread);
+			return (ESRCH);
+		}
 		in_syncq = pthread->flags & THR_FLAGS_IN_SYNCQ;
 
 		/* Set the scheduling policy: */

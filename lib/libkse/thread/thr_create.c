@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2003 Daniel M. Eischen <deischen@gdeb.com>
  * Copyright (c) 1995-1998 John Birrell <jb@cimlogic.com.au>
  * All rights reserved.
  *
@@ -107,7 +108,7 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	curkse = curthread->kse;
 
 	/* Allocate memory for the thread structure: */
-	if ((new_thread = _thr_alloc(curkse)) == NULL) {
+	if ((new_thread = _thr_alloc(curthread)) == NULL) {
 		/* Insufficient memory to create a thread: */
 		ret = EAGAIN;
 	} else {
@@ -124,21 +125,21 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 		if (create_stack(&new_thread->attr) != 0) {
 			/* Insufficient memory to create a stack: */
 			ret = EAGAIN;
-			_thr_free(curkse, new_thread);
+			_thr_free(curthread, new_thread);
 		}
 		else if (((new_thread->attr.flags & PTHREAD_SCOPE_SYSTEM) != 0) &&
-		    (((kse = _kse_alloc(curkse)) == NULL)
-		    || ((kseg = _kseg_alloc(curkse)) == NULL))) {
+		    (((kse = _kse_alloc(curthread)) == NULL)
+		    || ((kseg = _kseg_alloc(curthread)) == NULL))) {
 			/* Insufficient memory to create a new KSE/KSEG: */
 			ret = EAGAIN;
 			if (kse != NULL)
-				_kse_free(curkse, kse);
+				_kse_free(curthread, kse);
 			if ((new_thread->attr.flags & THR_STACK_USER) == 0) {
 				KSE_LOCK_ACQUIRE(curkse, &_thread_list_lock);
 				_thr_stack_free(&new_thread->attr);
 				KSE_LOCK_RELEASE(curkse, &_thread_list_lock);
 			}
-			_thr_free(curkse, new_thread);
+			_thr_free(curthread, new_thread);
 		}
 		else {
 			if (kseg != NULL) {
