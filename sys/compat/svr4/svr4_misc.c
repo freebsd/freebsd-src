@@ -24,6 +24,8 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * 
+ * $Id$
  */
 
 /*
@@ -297,7 +299,7 @@ again:
 		goto out;
 
 	inp = buf;
-	outp = SCARG(uap, dp);
+	outp = (caddr_t)SCARG(uap, dp);
 	resid = SCARG(uap, nbytes);
 	if ((len = buflen - auio.uio_resid) == 0)
 		goto eof;
@@ -357,7 +359,7 @@ again:
 	DPRINTF(("block finished\n"));
 	/* if we squished out the whole block, try again */
 	fp->f_offset = off;	/* update the vnode offset */
-	if (outp == SCARG(uap, dp))
+	if (outp == (caddr_t)SCARG(uap, dp))
 		goto again;
 
 eof:
@@ -616,7 +618,7 @@ svr4_sys_mknod(p, uap)
         int *retval = p->p_retval;
 	return svr4_mknod(p, retval,
 			  SCARG(uap, path), SCARG(uap, mode),
-			  svr4_to_bsd_odev_t(SCARG(uap, dev)));
+			  (svr4_dev_t)svr4_to_bsd_odev_t(SCARG(uap, dev)));
 }
 
 
@@ -628,7 +630,7 @@ svr4_sys_xmknod(p, uap)
         int *retval = p->p_retval;
 	return svr4_mknod(p, retval,
 			  SCARG(uap, path), SCARG(uap, mode),
-			  svr4_to_bsd_dev_t(SCARG(uap, dev)));
+			  (svr4_dev_t)svr4_to_bsd_dev_t(SCARG(uap, dev)));
 }
 
 

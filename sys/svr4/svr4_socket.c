@@ -27,6 +27,8 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * 
+ * $Id$
  */
 
 /*
@@ -66,7 +68,7 @@ struct svr4_sockcache_entry {
 	struct proc *p;		/* Process for the socket		*/
 	void *cookie;		/* Internal cookie used for matching	*/
 	struct sockaddr_un sock;/* Pathname for the socket		*/
-	dev_t dev;		/* Device where the socket lives on	*/
+	udev_t dev;		/* Device where the socket lives on	*/
 	ino_t ino;		/* Inode where the socket lives on	*/
 	TAILQ_ENTRY(svr4_sockcache_entry) entries;
 };
@@ -78,7 +80,7 @@ struct sockaddr_un *
 svr4_find_socket(p, fp, dev, ino)
 	struct proc *p;
 	struct file *fp;
-	dev_t dev;
+	udev_t dev;
 	ino_t ino;
 {
 	struct svr4_sockcache_entry *e;

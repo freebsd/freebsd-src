@@ -26,6 +26,8 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * 
+ * $Id$
  */
 
 /*
@@ -335,8 +337,8 @@ svr4_recvit(p, s, mp, namelenp)
 				tocopy = len;
 			}
 		
-			if (error = copyout((caddr_t)mtod(m, caddr_t),
-					ctlbuf, tocopy))
+			if ((error = copyout((caddr_t)mtod(m, caddr_t),
+					ctlbuf, tocopy)) != 0)
 				goto out;
 
 			ctlbuf += tocopy;
@@ -1807,7 +1809,7 @@ svr4_sys_putmsg(p, uap)
 		}
 		else {
 			/* Maybe we've been given a device/inode pair */
-			dev_t *dev = SVR4_ADDROF(&sc);
+			udev_t *dev = SVR4_ADDROF(&sc);
 			ino_t *ino = (ino_t *) &dev[1];
 			skp = svr4_find_socket(p, fp, *dev, *ino);
 			if (skp == NULL) {

@@ -372,10 +372,10 @@ struct	svr4_sys_send_args {
 };
 struct	svr4_sys_sendto_args {
 	int	s;	char s_[PAD_(int)];
-	const void *	buf;	char buf_[PAD_(const void *)];
+	void *	buf;	char buf_[PAD_(void *)];
 	size_t	len;	char len_[PAD_(size_t)];
 	int	flags;	char flags_[PAD_(int)];
-	const struct sockaddr *	to;	char to_[PAD_(const struct sockaddr *)];
+	struct sockaddr *	to;	char to_[PAD_(struct sockaddr *)];
 	int	tolen;	char tolen_[PAD_(int)];
 };
 int	svr4_sys_open __P((struct proc *, struct svr4_sys_open_args *));
