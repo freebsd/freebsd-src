@@ -338,6 +338,14 @@
       support for this, and for some FTP proxies which always
       report incorrect or bogus sizes.</para>
 
+    <para>Two new files have been added to the ports tree to track
+      note-worthy changes:  <filename>ports/CHANGES</filename> lists
+      major changes to the Ports Collection and its infrastructure.
+      <filename>ports/UPDATING</filename> describes some potential
+      pitfalls that can be encountered when updating certain ports,
+      analogous to <filename>src/UPDATING</filename> for the base
+      system.</para>
+
   </sect2>
 
   <sect2 id="releng">
@@ -348,7 +356,7 @@
 
       <note>
 	<para>If you are using the older <application>GNOME</application>
-	  desktop itself (<filename role="package">x11/gnome</filename>), simply upgrading it from the &os; Ports Collection
+	  desktop itself (<filename role="package">x11/gnome2</filename>), simply upgrading it from the &os; Ports Collection
 	  with
 	  &man.portupgrade.1;
 	  (<filename role="package">sysutils/portupgrade</filename>)
