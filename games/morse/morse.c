@@ -132,7 +132,7 @@ static const struct morsetab mtab[] = {
 	{')', "-.--.-"},
 	{'$', "...-..-"},
 	{'+', ".-.-."},		/* AR */
-	{'@', ".--.-."}
+	{'@', ".--.-."},	/* AC */
 
 	/* prosigns without already assigned values */
 
