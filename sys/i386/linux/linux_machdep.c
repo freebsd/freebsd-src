@@ -581,18 +581,16 @@ linux_pipe(struct thread *td, struct linux_pipe_args *args)
 int
 linux_ioperm(struct thread *td, struct linux_ioperm_args *args)
 {
-	struct sysarch_args sa;
-	struct i386_ioperm_args *iia;
-	caddr_t sg;
+	int error;
+	struct i386_ioperm_args iia;
 
-	sg = stackgap_init();
-	iia = stackgap_alloc(&sg, sizeof(struct i386_ioperm_args));
-	iia->start = args->start;
-	iia->length = args->length;
-	iia->enable = args->enable;
-	sa.op = I386_SET_IOPERM;
-	sa.parms = (char *)iia;
-	return (sysarch(td, &sa));
+	iia.start = args->start;
+	iia.length = args->length;
+	iia.enable = args->enable;
+	mtx_lock(&Giant);
+	error = i386_set_ioperm(td, &iia);
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 int
@@ -615,27 +613,22 @@ int
 linux_modify_ldt(struct thread *td, struct linux_modify_ldt_args *uap)
 {
 	int error;
-	caddr_t sg;
-	struct sysarch_args args;
-	struct i386_ldt_args *ldt;
+	struct i386_ldt_args ldt;
 	struct l_descriptor ld;
-	union descriptor *desc;
-
-	sg = stackgap_init();
+	union descriptor desc;
 
 	if (uap->ptr == NULL)
 		return (EINVAL);
 
 	switch (uap->func) {
 	case 0x00: /* read_ldt */
-		ldt = stackgap_alloc(&sg, sizeof(*ldt));
-		ldt->start = 0;
-		ldt->descs = uap->ptr;
-		ldt->num = uap->bytecount / sizeof(union descriptor);
-		args.op = I386_GET_LDT;
-		args.parms = (char*)ldt;
-		error = sysarch(td, &args);
+		ldt.start = 0;
+		ldt.descs = uap->ptr;
+		ldt.num = uap->bytecount / sizeof(union descriptor);
+		mtx_lock(&Giant);
+		error = i386_get_ldt(td, &ldt);
 		td->td_retval[0] *= sizeof(union descriptor);
+		mtx_unlock(&Giant);
 		break;
 	case 0x01: /* write_ldt */
 	case 0x11: /* write_ldt */
@@ -646,25 +639,23 @@ linux_modify_ldt(struct thread *td, struct linux_modify_ldt_args *uap)
 		if (error)
 			return (error);
 
-		ldt = stackgap_alloc(&sg, sizeof(*ldt));
-		desc = stackgap_alloc(&sg, sizeof(*desc));
-		ldt->start = ld.entry_number;
-		ldt->descs = desc;
-		ldt->num = 1;
-		desc->sd.sd_lolimit = (ld.limit & 0x0000ffff);
-		desc->sd.sd_hilimit = (ld.limit & 0x000f0000) >> 16;
-		desc->sd.sd_lobase = (ld.base_addr & 0x00ffffff);
-		desc->sd.sd_hibase = (ld.base_addr & 0xff000000) >> 24;
-		desc->sd.sd_type = SDT_MEMRO | ((ld.read_exec_only ^ 1) << 1) |
+		ldt.start = ld.entry_number;
+		ldt.descs = &desc;
+		ldt.num = 1;
+		desc.sd.sd_lolimit = (ld.limit & 0x0000ffff);
+		desc.sd.sd_hilimit = (ld.limit & 0x000f0000) >> 16;
+		desc.sd.sd_lobase = (ld.base_addr & 0x00ffffff);
+		desc.sd.sd_hibase = (ld.base_addr & 0xff000000) >> 24;
+		desc.sd.sd_type = SDT_MEMRO | ((ld.read_exec_only ^ 1) << 1) |
 			(ld.contents << 2);
-		desc->sd.sd_dpl = 3;
-		desc->sd.sd_p = (ld.seg_not_present ^ 1);
-		desc->sd.sd_xx = 0;
-		desc->sd.sd_def32 = ld.seg_32bit;
-		desc->sd.sd_gran = ld.limit_in_pages;
-		args.op = I386_SET_LDT;
-		args.parms = (char*)ldt;
-		error = sysarch(td, &args);
+		desc.sd.sd_dpl = 3;
+		desc.sd.sd_p = (ld.seg_not_present ^ 1);
+		desc.sd.sd_xx = 0;
+		desc.sd.sd_def32 = ld.seg_32bit;
+		desc.sd.sd_gran = ld.limit_in_pages;
+		mtx_lock(&Giant);
+		error = i386_set_ldt(td, &ldt, &desc);
+		mtx_unlock(&Giant);
 		break;
 	default:
 		error = EINVAL;

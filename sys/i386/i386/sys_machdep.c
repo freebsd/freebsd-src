@@ -65,13 +65,9 @@ __FBSDID("$FreeBSD$");
 
 
 
-static int i386_get_ldt(struct thread *, char *);
-static int i386_set_ldt(struct thread *, char *);
 static int i386_set_ldt_data(struct thread *, int start, int num,
 	union descriptor *descs);
 static int i386_ldt_grow(struct thread *td, int len);
-static int i386_get_ioperm(struct thread *, char *);
-static int i386_set_ioperm(struct thread *, char *);
 #ifdef SMP
 static void set_user_ldt_rv(struct thread *);
 #endif
@@ -89,21 +85,60 @@ sysarch(td, uap)
 	register struct sysarch_args *uap;
 {
 	int error;
+	union descriptor *lp;
+	union {
+		struct i386_ldt_args largs;
+		struct i386_ioperm_args iargs;
+	} kargs;
+
+	switch (uap->op) {
+	case I386_GET_IOPERM:
+	case I386_SET_IOPERM:
+		if ((error = copyin(uap->parms, &kargs.iargs,
+		    sizeof(struct i386_ioperm_args))) != 0)
+			return (error);
+		break;
+	case I386_GET_LDT:
+	case I386_SET_LDT:
+		if ((error = copyin(uap->parms, &kargs.largs,
+		    sizeof(struct i386_ldt_args))) != 0)
+			return (error);
+		break;
+	default:
+		break;
+	}
 
 	mtx_lock(&Giant);
 	switch(uap->op) {
 	case I386_GET_LDT:
-		error = i386_get_ldt(td, uap->parms);
+		error = i386_get_ldt(td, &kargs.largs);
 		break;
-
 	case I386_SET_LDT:
-		error = i386_set_ldt(td, uap->parms);
+		if (kargs.largs.descs != NULL) {
+			lp = (union descriptor *)kmem_alloc(kernel_map,
+			    kargs.largs.num * sizeof(union descriptor));
+			if (lp == NULL) {
+				error = ENOMEM;
+				break;
+			}
+			error = copyin(kargs.largs.descs, lp,
+			    kargs.largs.num * sizeof(union descriptor));
+			if (error == 0)
+				error = i386_set_ldt(td, &kargs.largs, lp);
+			kmem_free(kernel_map, (vm_offset_t)lp,
+			    kargs.largs.num * sizeof(union descriptor));
+		} else {
+			error = i386_set_ldt(td, &kargs.largs, NULL);
+		}
 		break;
 	case I386_GET_IOPERM:
-		error = i386_get_ioperm(td, uap->parms);
+		error = i386_get_ioperm(td, &kargs.iargs);
+		if (error == 0)
+			error = copyout(&kargs.iargs, uap->parms,
+			    sizeof(struct i386_ioperm_args));
 		break;
 	case I386_SET_IOPERM:
-		error = i386_set_ioperm(td, uap->parms);
+		error = i386_set_ioperm(td, &kargs.iargs);
 		break;
 	case I386_VM86:
 		error = vm86_sysarch(td, uap->parms);
@@ -175,17 +210,13 @@ i386_extend_pcb(struct thread *td)
 	return 0;
 }
 
-static int
-i386_set_ioperm(td, args)
+int
+i386_set_ioperm(td, uap)
 	struct thread *td;
-	char *args;
+	struct i386_ioperm_args *uap;
 {
 	int i, error;
-	struct i386_ioperm_args ua;
 	char *iomap;
-
-	if ((error = copyin(args, &ua, sizeof(struct i386_ioperm_args))) != 0)
-		return (error);
 
 #ifdef MAC
 	if ((error = mac_check_sysarch_ioperm(td->td_ucred)) != 0)
@@ -207,11 +238,11 @@ i386_set_ioperm(td, args)
 			return (error);
 	iomap = (char *)td->td_pcb->pcb_ext->ext_iomap;
 
-	if (ua.start + ua.length > IOPAGES * PAGE_SIZE * NBBY)
+	if (uap->start + uap->length > IOPAGES * PAGE_SIZE * NBBY)
 		return (EINVAL);
 
-	for (i = ua.start; i < ua.start + ua.length; i++) {
-		if (ua.enable) 
+	for (i = uap->start; i < uap->start + uap->length; i++) {
+		if (uap->enable)
 			iomap[i >> 3] &= ~(1 << (i & 7));
 		else
 			iomap[i >> 3] |= (1 << (i & 7));
@@ -219,41 +250,37 @@ i386_set_ioperm(td, args)
 	return (error);
 }
 
-static int
-i386_get_ioperm(td, args)
+int
+i386_get_ioperm(td, uap)
 	struct thread *td;
-	char *args;
+	struct i386_ioperm_args *uap;
 {
-	int i, state, error;
-	struct i386_ioperm_args ua;
+	int i, state;
 	char *iomap;
 
-	if ((error = copyin(args, &ua, sizeof(struct i386_ioperm_args))) != 0)
-		return (error);
-	if (ua.start >= IOPAGES * PAGE_SIZE * NBBY)
+	if (uap->start >= IOPAGES * PAGE_SIZE * NBBY)
 		return (EINVAL);
 
 	if (td->td_pcb->pcb_ext == 0) {
-		ua.length = 0;
+		uap->length = 0;
 		goto done;
 	}
 
 	iomap = (char *)td->td_pcb->pcb_ext->ext_iomap;
 
-	i = ua.start;
+	i = uap->start;
 	state = (iomap[i >> 3] >> (i & 7)) & 1;
-	ua.enable = !state;
-	ua.length = 1;
+	uap->enable = !state;
+	uap->length = 1;
 
-	for (i = ua.start + 1; i < IOPAGES * PAGE_SIZE * NBBY; i++) {
+	for (i = uap->start + 1; i < IOPAGES * PAGE_SIZE * NBBY; i++) {
 		if (state != ((iomap[i >> 3] >> (i & 7)) & 1))
 			break;
-		ua.length++;
+		uap->length++;
 	}
-			
+
 done:
-	error = copyout(&ua, args, sizeof(struct i386_ioperm_args));
-	return (error);
+	return (0);
 }
 
 /*
@@ -363,19 +390,21 @@ user_ldt_free(struct thread *td)
 		mtx_unlock_spin(&sched_lock);
 }
 
-static int
-i386_get_ldt(td, args)
+/*
+ * Note for the authors of compat layers (linux, etc): copyout() in
+ * the function below is not a problem since it presents data in
+ * arch-specific format (i.e. i386-specific in this case), not in
+ * the OS-specific one.
+ */
+int
+i386_get_ldt(td, uap)
 	struct thread *td;
-	char *args;
+	struct i386_ldt_args *uap;
 {
 	int error = 0;
 	struct proc_ldt *pldt = td->td_proc->p_md.md_ldt;
 	int nldt, num;
 	union descriptor *lp;
-	struct i386_ldt_args ua, *uap = &ua;
-
-	if ((error = copyin(args, uap, sizeof(struct i386_ldt_args))) < 0)
-		return(error);
 
 #ifdef	DEBUG
 	printf("i386_get_ldt: start=%d num=%d descs=%p\n",
@@ -408,28 +437,24 @@ i386_get_ldt(td, args)
 static int ldt_warnings;
 #define NUM_LDT_WARNINGS 10
 
-static int
-i386_set_ldt(td, args)
+int
+i386_set_ldt(td, uap, descs)
 	struct thread *td;
-	char *args;
+	struct i386_ldt_args *uap;
+	union descriptor *descs;
 {
 	int error = 0, i;
 	int largest_ld;
 	struct mdproc *mdp = &td->td_proc->p_md;
 	struct proc_ldt *pldt = NULL;
-	struct i386_ldt_args ua, *uap = &ua;
-	union descriptor *descs, *dp;
-	int descs_size;
-
-	if ((error = copyin(args, uap, sizeof(struct i386_ldt_args))) < 0)
-		return(error);
+	union descriptor *dp;
 
 #ifdef	DEBUG
 	printf("i386_set_ldt: start=%d num=%d descs=%p\n",
 	    uap->start, uap->num, (void *)uap->descs);
 #endif
 
-	if (uap->descs == NULL) {
+	if (descs == NULL) {
 		/* Free descriptors */
 		if (uap->start == 0 && uap->num == 0) {
 			/*
@@ -472,16 +497,6 @@ i386_set_ldt(td, args)
 		}
 	}
 
-	descs_size = uap->num * sizeof(union descriptor);
-	descs = (union descriptor *)kmem_alloc(kernel_map, descs_size);
-	if (descs == NULL)
-		return (ENOMEM);
-	error = copyin(uap->descs, descs, descs_size);
-	if (error) {
-		kmem_free(kernel_map, (vm_offset_t)descs, descs_size);
-		return (error);
-	}
-
 	/* Check descriptors for access violations */
 	for (i = 0; i < uap->num; i++) {
 		dp = &descs[i];
@@ -509,7 +524,6 @@ i386_set_ldt(td, args)
 			 * to create a segment of these types.  They are
 			 * for OS use only.
 			 */
-			kmem_free(kernel_map, (vm_offset_t)descs, descs_size);
 			return (EACCES);
 			/*NOTREACHED*/
 
@@ -519,11 +533,8 @@ i386_set_ldt(td, args)
 		case SDT_MEMERC:  /* memory execute read conforming */
 		case SDT_MEMERAC: /* memory execute read accessed conforming */
 			 /* Must be "present" if executable and conforming. */
-			if (dp->sd.sd_p == 0) {
-				kmem_free(kernel_map, (vm_offset_t)descs,
-				    descs_size);
+			if (dp->sd.sd_p == 0)
 				return (EACCES);
-			}
 			break;
 		case SDT_MEMRO:   /* memory read only */
 		case SDT_MEMROA:  /* memory read only accessed */
@@ -539,16 +550,13 @@ i386_set_ldt(td, args)
 		case SDT_MEMERA:  /* memory execute read accessed */
 			break;
 		default:
-			kmem_free(kernel_map, (vm_offset_t)descs, descs_size);
 			return(EINVAL);
 			/*NOTREACHED*/
 		}
 
 		/* Only user (ring-3) descriptors may be present. */
-		if ((dp->sd.sd_p != 0) && (dp->sd.sd_dpl != SEL_UPL)) {
-			kmem_free(kernel_map, (vm_offset_t)descs, descs_size);
+		if ((dp->sd.sd_p != 0) && (dp->sd.sd_dpl != SEL_UPL))
 			return (EACCES);
-		}
 	}
 
 	if (uap->start == LDT_AUTO_ALLOC && uap->num == 1) {
@@ -556,11 +564,8 @@ i386_set_ldt(td, args)
 		pldt = mdp->md_ldt;
 		if (pldt == NULL) {
 			error = i386_ldt_grow(td, NLDT + 1);
-			if (error) {
-				kmem_free(kernel_map, (vm_offset_t)descs,
-				    descs_size);
+			if (error)
 				return (error);
-			}
 			pldt = mdp->md_ldt;
 		}
 again:
@@ -578,11 +583,8 @@ again:
 		if (i >= pldt->ldt_len) {
 			mtx_unlock_spin(&sched_lock);
 			error = i386_ldt_grow(td, pldt->ldt_len+1);
-			if (error) {
-				kmem_free(kernel_map, (vm_offset_t)descs,
-				    descs_size);
+			if (error)
 				return (error);
-			}
 			goto again;
 		}
 		uap->start = i;
@@ -598,7 +600,6 @@ again:
 			mtx_unlock_spin(&sched_lock);
 		}
 	}
-	kmem_free(kernel_map, (vm_offset_t)descs, descs_size);
 	if (error == 0)
 		td->td_retval[0] = uap->start;
 	return (error);

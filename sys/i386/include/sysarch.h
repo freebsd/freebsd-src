@@ -88,6 +88,14 @@ int i386_set_watch(int, unsigned int, int, int, struct dbreg *);
 int i386_clr_watch(int, struct dbreg *);
 int sysarch(int, void *);
 __END_DECLS
+#else
+struct thread;
+union descriptor;
+
+int i386_get_ldt(struct thread *, struct i386_ldt_args *);
+int i386_set_ldt(struct thread *, struct i386_ldt_args *, union descriptor *);
+int i386_get_ioperm(struct thread *, struct i386_ioperm_args *);
+int i386_set_ioperm(struct thread *, struct i386_ioperm_args *);
 #endif
 
 #endif /* !_MACHINE_SYSARCH_H_ */
