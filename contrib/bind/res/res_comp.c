@@ -55,7 +55,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_comp.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: res_comp.c,v 8.8 1996/08/05 08:31:35 vixie Exp $";
+static char rcsid[] = "$Id: res_comp.c,v 8.11 1996/12/02 09:17:22 vixie Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -98,6 +98,8 @@ dn_expand(msg, eomorig, comp_dn, exp_dn, length)
 
 	dn = exp_dn;
 	cp = comp_dn;
+	if (length > MAXHOSTNAMELEN-1)
+		length = MAXHOSTNAMELEN-1;
 	eom = exp_dn + length;
 	/*
 	 * fetch next label in domain name
@@ -394,8 +396,12 @@ int
 res_ownok(dn)
 	const char *dn;
 {
-	if (asterchar(dn[0]) && periodchar(dn[1]))
-		dn += 2;
+	if (asterchar(dn[0])) {
+		if (periodchar(dn[1]))
+			return (res_hnok(dn+2));
+		if (dn[1] == '\0')
+			return (1);
+	}
 	return (res_hnok(dn));
 }
 
@@ -500,36 +506,3 @@ __putlong(l, msgp)
 {
 	PUTLONG(l, msgp);
 }
-
-#ifdef ultrix
-/* ultrix 4.0 had some icky packaging in its libc.a.  alias for it here.
- * there is more gunk of this kind over in res_debug.c.
- */
-#undef putshort
-void
-#if defined(__STDC__) || defined(__cplusplus)
-putshort(register u_short s, register u_char *msgp)
-#else
-putshort(s, msgp)
-	register u_short s;
-	register u_char *msgp;
-#endif
-{
-	__putshort(s, msgp);
-}
-#undef putlong
-void
-putlong(l, msgp)
-	register u_int32_t l;
-	register u_char *msgp;
-{
-	__putlong(l, msgp);
-}
- 
-#undef dn_skipname
-dn_skipname(comp_dn, eom)
-	const u_char *comp_dn, *eom;
-{
-	return (__dn_skipname(comp_dn, eom));
-}
-#endif /* Ultrix 4.0 hackery */
