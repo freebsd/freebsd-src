@@ -75,16 +75,16 @@ int DRM(sg_alloc)( struct inode *inode, struct file *filp,
 	DRM_DEBUG( "%s\n", __FUNCTION__ );
 
 	if ( dev->sg )
-		return -EINVAL;
+		return DRM_OS_ERR(EINVAL);
 
 	if ( copy_from_user( &request,
 			     (drm_scatter_gather_t *)arg,
 			     sizeof(request) ) )
-		return -EFAULT;
+		return DRM_OS_ERR(EFAULT);
 
 	entry = DRM(alloc)( sizeof(*entry), DRM_MEM_SGLISTS );
 	if ( !entry )
-		return -ENOMEM;
+		return DRM_OS_ERR(ENOMEM);
 
    	memset( entry, 0, sizeof(*entry) );
 
@@ -96,7 +96,7 @@ int DRM(sg_alloc)( struct inode *inode, struct file *filp,
 				     DRM_MEM_PAGES );
 	if ( !entry->pagelist ) {
 		DRM(free)( entry, sizeof(*entry), DRM_MEM_SGLISTS );
-		return -ENOMEM;
+		return DRM_OS_ERR(ENOMEM);
 	}
 
 	entry->busaddr = DRM(alloc)( pages * sizeof(*entry->busaddr),
@@ -108,7 +108,7 @@ int DRM(sg_alloc)( struct inode *inode, struct file *filp,
 		DRM(free)( entry,
 			   sizeof(*entry),
 			   DRM_MEM_SGLISTS );
-		return -ENOMEM;
+		return DRM_OS_ERR(ENOMEM);
 	}
 	memset( (void *)entry->busaddr, 0, pages * sizeof(*entry->busaddr) );
 
@@ -123,7 +123,7 @@ int DRM(sg_alloc)( struct inode *inode, struct file *filp,
 		DRM(free)( entry,
 			   sizeof(*entry),
 			   DRM_MEM_SGLISTS );
-		return -ENOMEM;
+		return DRM_OS_ERR(ENOMEM);
 	}
 
 	/* This also forces the mapping of COW pages, so our page list
@@ -160,7 +160,7 @@ int DRM(sg_alloc)( struct inode *inode, struct file *filp,
 			   &request,
 			   sizeof(request) ) ) {
 		DRM(sg_cleanup)( entry );
-		return -EFAULT;
+		return DRM_OS_ERR(EFAULT);
 	}
 
 	dev->sg = entry;
@@ -209,7 +209,7 @@ int DRM(sg_alloc)( struct inode *inode, struct file *filp,
 
  failed:
 	DRM(sg_cleanup)( entry );
-	return -ENOMEM;
+	return DRM_OS_ERR(ENOMEM);
 }
 
 int DRM(sg_free)( struct inode *inode, struct file *filp,
@@ -223,13 +223,13 @@ int DRM(sg_free)( struct inode *inode, struct file *filp,
 	if ( copy_from_user( &request,
 			     (drm_scatter_gather_t *)arg,
 			     sizeof(request) ) )
-		return -EFAULT;
+		return DRM_OS_ERR(EFAULT);
 
 	entry = dev->sg;
 	dev->sg = NULL;
 
 	if ( !entry || entry->handle != request.handle )
-		return -EINVAL;
+		return DRM_OS_ERR(EINVAL);
 
 	DRM_DEBUG( "sg free virtual  = %p\n", entry->virtual );
 

@@ -65,7 +65,7 @@ int DRM(add_magic)(drm_device_t *dev, drm_file_t *priv, drm_magic_t magic)
 
 	hash	     = DRM(hash_magic)(magic);
 	entry	     = (drm_magic_entry_t*) DRM(alloc)(sizeof(*entry), DRM_MEM_MAGIC);
-	if (!entry) DRM_OS_RETURN(ENOMEM);
+	if (!entry) return DRM_OS_ERR(ENOMEM);
 	entry->magic = magic;
 	entry->priv  = priv;
 	entry->next  = NULL;
@@ -114,7 +114,7 @@ int DRM(remove_magic)(drm_device_t *dev, drm_magic_t magic)
 	DRM_OS_UNLOCK;
 
 	DRM(free)(pt, sizeof(*pt), DRM_MEM_MAGIC);
-	DRM_OS_RETURN(EINVAL);
+	return DRM_OS_ERR(EINVAL);
 }
 
 int DRM(getmagic)(DRM_OS_IOCTL)
@@ -173,5 +173,5 @@ int DRM(authmagic)(DRM_OS_IOCTL)
 		DRM(remove_magic)(dev, auth.magic);
 		return 0;
 	}
-	DRM_OS_RETURN(EINVAL);
+	return DRM_OS_ERR(EINVAL);
 }

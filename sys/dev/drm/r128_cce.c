@@ -139,7 +139,7 @@ static int r128_do_pixcache_flush( drm_r128_private_t *dev_priv )
 #if R128_FIFO_DEBUG
 	DRM_ERROR( "%s failed!\n", __FUNCTION__ );
 #endif
-	DRM_OS_RETURN( EBUSY );
+	return DRM_OS_ERR(EBUSY);
 }
 
 static int r128_do_wait_for_fifo( drm_r128_private_t *dev_priv, int entries )
@@ -155,7 +155,7 @@ static int r128_do_wait_for_fifo( drm_r128_private_t *dev_priv, int entries )
 #if R128_FIFO_DEBUG
 	DRM_ERROR( "%s failed!\n", __FUNCTION__ );
 #endif
-	DRM_OS_RETURN( EBUSY );
+	return DRM_OS_ERR(EBUSY);
 }
 
 int r128_do_wait_for_idle( drm_r128_private_t *dev_priv )
@@ -181,7 +181,7 @@ int r128_do_wait_for_idle( drm_r128_private_t *dev_priv )
 #if R128_FIFO_DEBUG
 	DRM_ERROR( "%s failed!\n", __FUNCTION__ );
 #endif
-	DRM_OS_RETURN( EBUSY );
+	return DRM_OS_ERR(EBUSY);
 }
 
 
@@ -242,7 +242,7 @@ int r128_do_cce_idle( drm_r128_private_t *dev_priv )
 	DRM_ERROR( "failed!\n" );
 	r128_status( dev_priv );
 #endif
-	DRM_OS_RETURN( EBUSY );
+	return DRM_OS_ERR(EBUSY);
 }
 
 /* Start the Concurrent Command Engine.
@@ -400,7 +400,7 @@ static int r128_do_init_cce( drm_device_t *dev, drm_r128_init_t *init )
 
 	dev_priv = DRM(alloc)( sizeof(drm_r128_private_t), DRM_MEM_DRIVER );
 	if ( dev_priv == NULL )
-		DRM_OS_RETURN( ENOMEM );
+		return DRM_OS_ERR(ENOMEM);
 
 	memset( dev_priv, 0, sizeof(drm_r128_private_t) );
 
@@ -410,7 +410,7 @@ static int r128_do_init_cce( drm_device_t *dev, drm_r128_init_t *init )
 		DRM_ERROR( "PCI GART memory not allocated!\n" );
 		dev->dev_private = (void *)dev_priv;
 		r128_do_cleanup_cce( dev );
-		DRM_OS_RETURN( EINVAL );
+		return DRM_OS_ERR(EINVAL);
 	}
 
 	dev_priv->usec_timeout = init->usec_timeout;
@@ -419,7 +419,7 @@ static int r128_do_init_cce( drm_device_t *dev, drm_r128_init_t *init )
 		DRM_DEBUG( "TIMEOUT problem!\n" );
 		dev->dev_private = (void *)dev_priv;
 		r128_do_cleanup_cce( dev );
-		DRM_OS_RETURN( EINVAL );
+		return DRM_OS_ERR(EINVAL);
 	}
 
 	dev_priv->cce_mode = init->cce_mode;
@@ -439,7 +439,7 @@ static int r128_do_init_cce( drm_device_t *dev, drm_r128_init_t *init )
 		DRM_DEBUG( "Bad cce_mode!\n" );
 		dev->dev_private = (void *)dev_priv;
 		r128_do_cleanup_cce( dev );
-		DRM_OS_RETURN( EINVAL );
+		return DRM_OS_ERR(EINVAL);
 	}
 
 	switch ( init->cce_mode ) {
@@ -527,7 +527,7 @@ static int r128_do_init_cce( drm_device_t *dev, drm_r128_init_t *init )
 		DRM_ERROR("could not find sarea!\n");
 		dev->dev_private = (void *)dev_priv;
 		r128_do_cleanup_cce( dev );
-		DRM_OS_RETURN(EINVAL);
+		return DRM_OS_ERR(EINVAL);
 	}
 
 	DRM_FIND_MAP( dev_priv->fb, init->fb_offset );
@@ -535,35 +535,35 @@ static int r128_do_init_cce( drm_device_t *dev, drm_r128_init_t *init )
 		DRM_ERROR("could not find framebuffer!\n");
 		dev->dev_private = (void *)dev_priv;
 		r128_do_cleanup_cce( dev );
-		DRM_OS_RETURN(EINVAL);
+		return DRM_OS_ERR(EINVAL);
 	}
 	DRM_FIND_MAP( dev_priv->mmio, init->mmio_offset );
 	if(!dev_priv->mmio) {
 		DRM_ERROR("could not find mmio region!\n");
 		dev->dev_private = (void *)dev_priv;
 		r128_do_cleanup_cce( dev );
-		DRM_OS_RETURN(EINVAL);
+		return DRM_OS_ERR(EINVAL);
 	}
 	DRM_FIND_MAP( dev_priv->cce_ring, init->ring_offset );
 	if(!dev_priv->cce_ring) {
 		DRM_ERROR("could not find cce ring region!\n");
 		dev->dev_private = (void *)dev_priv;
 		r128_do_cleanup_cce( dev );
-		DRM_OS_RETURN(EINVAL);
+		return DRM_OS_ERR(EINVAL);
 	}
 	DRM_FIND_MAP( dev_priv->ring_rptr, init->ring_rptr_offset );
 	if(!dev_priv->ring_rptr) {
 		DRM_ERROR("could not find ring read pointer!\n");
 		dev->dev_private = (void *)dev_priv;
 		r128_do_cleanup_cce( dev );
-		DRM_OS_RETURN(EINVAL);
+		return DRM_OS_ERR(EINVAL);
 	}
 	DRM_FIND_MAP( dev_priv->buffers, init->buffers_offset );
 	if(!dev_priv->buffers) {
 		DRM_ERROR("could not find dma buffer region!\n");
 		dev->dev_private = (void *)dev_priv;
 		r128_do_cleanup_cce( dev );
-		DRM_OS_RETURN(EINVAL);
+		return DRM_OS_ERR(EINVAL);
 	}
 
 	if ( !dev_priv->is_pci ) {
@@ -573,7 +573,7 @@ static int r128_do_init_cce( drm_device_t *dev, drm_r128_init_t *init )
 			DRM_ERROR("could not find agp texture region!\n");
 			dev->dev_private = (void *)dev_priv;
 			r128_do_cleanup_cce( dev );
-			DRM_OS_RETURN(EINVAL);
+			return DRM_OS_ERR(EINVAL);
 		}
 	}
 
@@ -591,7 +591,7 @@ static int r128_do_init_cce( drm_device_t *dev, drm_r128_init_t *init )
 			DRM_ERROR("Could not ioremap agp regions!\n");
 			dev->dev_private = (void *)dev_priv;
 			r128_do_cleanup_cce( dev );
-			DRM_OS_RETURN(ENOMEM);
+			return DRM_OS_ERR(ENOMEM);
 		}
 	} else {
 		dev_priv->cce_ring->handle =
@@ -636,7 +636,7 @@ static int r128_do_init_cce( drm_device_t *dev, drm_r128_init_t *init )
 			DRM_ERROR( "failed to init PCI GART!\n" );
 			dev->dev_private = (void *)dev_priv;
 			r128_do_cleanup_cce( dev );
-			DRM_OS_RETURN(ENOMEM);
+			return DRM_OS_ERR(ENOMEM);
 		}
 		R128_WRITE( R128_PCI_GART_PAGE, dev_priv->bus_pci_gart );
 	}
@@ -696,7 +696,7 @@ int r128_cce_init( DRM_OS_IOCTL )
 		return r128_do_cleanup_cce( dev );
 	}
 
-	DRM_OS_RETURN( EINVAL );
+	return DRM_OS_ERR(EINVAL);
 }
 
 int r128_cce_start( DRM_OS_IOCTL )
@@ -776,7 +776,7 @@ int r128_cce_reset( DRM_OS_IOCTL )
 
 	if ( !dev_priv ) {
 		DRM_DEBUG( "%s called before init done\n", __FUNCTION__ );
-		DRM_OS_RETURN( EINVAL );
+		return DRM_OS_ERR(EINVAL);
 	}
 
 	r128_do_cce_reset( dev_priv );
@@ -865,7 +865,7 @@ int r128_fullscreen( DRM_OS_IOCTL )
 		return r128_do_cleanup_pageflip( dev );
 	}
 
-	DRM_OS_RETURN( EINVAL );
+	return DRM_OS_ERR(EINVAL);
 }
 
 
@@ -888,7 +888,7 @@ static int r128_freelist_init( drm_device_t *dev )
 	dev_priv->head = DRM(alloc)( sizeof(drm_r128_freelist_t),
 				     DRM_MEM_DRIVER );
 	if ( dev_priv->head == NULL )
-		DRM_OS_RETURN( ENOMEM );
+		return DRM_OS_ERR(ENOMEM);
 
 	memset( dev_priv->head, 0, sizeof(drm_r128_freelist_t) );
 	dev_priv->head->age = R128_BUFFER_USED;
@@ -899,7 +899,7 @@ static int r128_freelist_init( drm_device_t *dev )
 
 		entry = DRM(alloc)( sizeof(drm_r128_freelist_t),
 				    DRM_MEM_DRIVER );
-		if ( !entry ) DRM_OS_RETURN( ENOMEM );
+		if ( !entry ) return DRM_OS_ERR(ENOMEM);
 
 		entry->age = R128_BUFFER_FREE;
 		entry->buf = buf;
@@ -992,7 +992,7 @@ int r128_wait_ring( drm_r128_private_t *dev_priv, int n )
 
 	/* FIXME: This is being ignored... */
 	DRM_ERROR( "failed!\n" );
-	DRM_OS_RETURN( EBUSY );
+	return DRM_OS_ERR(EBUSY);
 }
 
 static int r128_cce_get_buffers( drm_device_t *dev, drm_dma_t *d)
@@ -1002,16 +1002,16 @@ static int r128_cce_get_buffers( drm_device_t *dev, drm_dma_t *d)
 
 	for ( i = d->granted_count ; i < d->request_count ; i++ ) {
 		buf = r128_freelist_get( dev );
-		if ( !buf ) DRM_OS_RETURN( EAGAIN );
+		if ( !buf ) return DRM_OS_ERR(EAGAIN);
 
 		buf->pid = DRM_OS_CURRENTPID;
 
 		 if ( DRM_OS_COPYTOUSR( &d->request_indices[i], &buf->idx,
 				   sizeof(buf->idx) ) )
-			DRM_OS_RETURN( EFAULT );
+			return DRM_OS_ERR(EFAULT);
 		 if ( DRM_OS_COPYTOUSR( &d->request_sizes[i], &buf->total,
 				   sizeof(buf->total) ) )
-			DRM_OS_RETURN( EFAULT );
+			return DRM_OS_ERR(EFAULT);
 		d->granted_count++;
 	}
 	return 0;
@@ -1033,7 +1033,7 @@ int r128_cce_buffers( DRM_OS_IOCTL )
 	if ( d.send_count != 0 ) {
 		DRM_ERROR( "Process %d trying to send %d buffers via drmDMA\n",
 			   DRM_OS_CURRENTPID, d.send_count );
-		DRM_OS_RETURN( EINVAL );
+		return DRM_OS_ERR(EINVAL);
 	}
 
 	/* We'll send you buffers.
@@ -1041,7 +1041,7 @@ int r128_cce_buffers( DRM_OS_IOCTL )
 	if ( d.request_count < 0 || d.request_count > dma->buf_count ) {
 		DRM_ERROR( "Process %d trying to get %d buffers (of %d max)\n",
 			  DRM_OS_CURRENTPID, d.request_count, dma->buf_count );
-		DRM_OS_RETURN( EINVAL );
+		return DRM_OS_ERR(EINVAL);
 	}
 
 	d.granted_count = 0;

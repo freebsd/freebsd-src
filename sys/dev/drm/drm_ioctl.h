@@ -101,7 +101,7 @@ int DRM(getunique)( DRM_OS_IOCTL )
 
 	if (u.unique_len >= dev->unique_len) {
 		if (DRM_OS_COPYTOUSR(u.unique, dev->unique, dev->unique_len))
-			DRM_OS_RETURN(EFAULT);
+			return DRM_OS_ERR(EFAULT);
 	}
 	u.unique_len = dev->unique_len;
 
@@ -116,20 +116,20 @@ int DRM(setunique)( DRM_OS_IOCTL )
 	drm_unique_t	 u;
 
 	if (dev->unique_len || dev->unique)
-		DRM_OS_RETURN(EBUSY);
+		return DRM_OS_ERR(EBUSY);
 
 	DRM_OS_KRNFROMUSR( u, (drm_unique_t *)data, sizeof(u) );
 
 	if (!u.unique_len || u.unique_len > 1024)
-		DRM_OS_RETURN(EINVAL);
+		return DRM_OS_ERR(EINVAL);
 
 	dev->unique_len = u.unique_len;
 	dev->unique	= DRM(alloc)(u.unique_len + 1, DRM_MEM_DRIVER);
 
-	if(!dev->unique) DRM_OS_RETURN(ENOMEM);
+	if(!dev->unique) return DRM_OS_ERR(ENOMEM);
 
 	if (DRM_OS_COPYFROMUSR(dev->unique, u.unique, dev->unique_len))
-		DRM_OS_RETURN(EFAULT);
+		return DRM_OS_ERR(EFAULT);
 
 	dev->unique[dev->unique_len] = '\0';
 
@@ -137,7 +137,7 @@ int DRM(setunique)( DRM_OS_IOCTL )
 				  DRM_MEM_DRIVER);
 	if(!dev->devname) {
 		DRM(free)(dev->devname, sizeof(*dev->devname), DRM_MEM_DRIVER);
-		DRM_OS_RETURN(ENOMEM);
+		return DRM_OS_ERR(ENOMEM);
 	}
 	sprintf(dev->devname, "%s@%s", dev->name, dev->unique);
 
@@ -192,7 +192,7 @@ int DRM(getmap)( DRM_OS_IOCTL )
 	DRM_OS_LOCK;
 	if (idx < 0 || idx >= dev->map_count) {
 		DRM_OS_UNLOCK;
-		DRM_OS_RETURN(EINVAL);
+		return DRM_OS_ERR(EINVAL);
 	}
 
 #ifdef __linux__
@@ -205,7 +205,7 @@ int DRM(getmap)( DRM_OS_IOCTL )
 	}
 	if(!r_list || !r_list->map) {
 		DRM_OS_UNLOCK;
-		DRM_OS_RETURN(EINVAL);
+		return DRM_OS_ERR(EINVAL);
 	}
 
 	map.offset = r_list->map->offset;
@@ -261,7 +261,7 @@ int DRM(getclient)( DRM_OS_IOCTL )
 
 	if (!pt) {
 		DRM_OS_UNLOCK;
-		DRM_OS_RETURN(EINVAL);
+		return DRM_OS_ERR(EINVAL);
 	}
 	client.auth  = pt->authenticated;
 	client.pid   = pt->pid;
