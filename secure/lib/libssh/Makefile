@@ -1,5 +1,4 @@
 # $FreeBSD$
-#
 
 LIB=	ssh
 SRCS=	authfd.c authfile.c bufaux.c buffer.c canohost.c channels.c \
@@ -13,25 +12,24 @@ SRCS=	authfd.c authfile.c bufaux.c buffer.c canohost.c channels.c \
 SRCS+=	bsd-misc.c entropy.c
 # FreeBSD additions
 SRCS+=	version.c
-CFLAGS+=-I${SSHDIR}
-
-NOLINT=	true
-
-.if defined(MAKE_KERBEROS4)
-CFLAGS+= -DKRB4
-.endif
-
-.if defined(MAKE_KERBEROS5)
-CFLAGS+= -DKRB5 -DHEIMDAL
-.endif
 
 .if defined(COMPAT_GETADDRINFO)
 SRCS+=	getaddrinfo.c getnameinfo.c name6.c rcmd.c bindresvport.c
 .endif
+
+CFLAGS+= -I${SSHDIR}
+.if defined(MAKE_KERBEROS4)
+CFLAGS+= -DKRB4
+.endif
+.if defined(MAKE_KERBEROS5)
+CFLAGS+= -DKRB5 -DHEIMDAL
+.endif
+
+NOLINT=	true
 
 DPADD=	${LIBCRYPTO} ${LIBZ}
 LDADD=	-lcrypto -lz
 
 .include <bsd.lib.mk>
 
-.PATH:	${SSHDIR} ${SSHDIR}/openbsd-compat
+.PATH: ${SSHDIR} ${SSHDIR}/openbsd-compat
