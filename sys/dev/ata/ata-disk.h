@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ata-disk.h,v 1.4 1999/03/07 21:49:14 sos Exp $
+ *	$Id: ata-disk.h,v 1.5 1999/03/28 18:57:18 sos Exp $
  */
 
 /* ATA device parameter information */
@@ -131,7 +131,6 @@ struct ad_softc {
     u_int32_t			total_secs;	/* total # of sectors (LBA) */
     u_int32_t			transfersize;	/* size of each transfer */
     u_int32_t			currentsize;	/* size of current transfer */
-    struct buf_queue_head 	queue;		/* head of request queue */
     u_int32_t			bytecount;	/* bytes to transfer */
     u_int32_t			donecount;	/* bytes transferred */
     u_int32_t			active;		/* active processing request */
@@ -142,6 +141,7 @@ struct ad_softc {
 #define		AD_F_DMA_ENABLED	0x0008
 #define		AD_F_DMA_USED		0x0010
 
+    struct buf_queue_head 	queue;		/* head of request queue */
     struct devstat 		stats;		/* devstat entry */
 #ifdef DEVFS
     void			*cdevs_token;

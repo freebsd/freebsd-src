@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: atapi-fd.h,v 1.1 1999/03/03 21:10:29 sos Exp $
  */
 
 /* MODE SENSE parameter header */ 
@@ -34,11 +34,11 @@ struct afd_header {
     u_int8_t	medium_type;
 #define MFD_2DD_UN		0x10
 #define MFD_2DD			0x11
-#define MFD_2HD_UN		0x20
-#define MFD_2HD_12_98		0x22
-#define MFD_2HD_12		0x23
-#define MFD_2HD_144		0x24
-#define MFD_LS120		0x31
+#define MFD_HD_UN		0x20
+#define MFD_HD_12_98		0x22
+#define MFD_HD_12		0x23
+#define MFD_HD_144		0x24
+#define MFD_UHD			0x31
 
 #define MFD_UNKNOWN    		0x00
 #define MFD_NO_DISC    	 	0x70
@@ -76,7 +76,7 @@ struct afd_softc {
 	int32_t			lun;		/* logical device unit */
 	int32_t			flags;		/* device state flags */
 	int32_t			refcnt;		/* the number of raw opens */
-	int32_t			maxblks;	/* transfer size limit */
+	int32_t			transfersize;	/* max size of each transfer */
 	struct buf_queue_head 	buf_queue;	/* queue of i/o requests */
 	struct afd_header 	header;		/* capabilities page info */
 	struct afd_cappage 	cap;		/* capabilities page info */
