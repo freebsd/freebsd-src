@@ -90,10 +90,12 @@ struct module_format *module_formats[] = {
  */
 extern struct console vidconsole;
 extern struct console comconsole;
+extern struct console nullconsole;
 
 struct console *consoles[] = {
     &vidconsole,
     &comconsole,
+    &nullconsole,
     NULL
 };
 
