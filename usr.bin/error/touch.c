@@ -37,6 +37,7 @@ static char sccsid[] = "@(#)touch.c	8.1 (Berkeley) 6/6/93";
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/param.h>
 #include <signal.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -514,7 +515,7 @@ execvarg(n_pissed_on, r_argc, r_argv)
 FILE	*o_touchedfile;	/* the old file */
 FILE	*n_touchedfile;	/* the new file */
 char	*o_name;
-char	n_name[64];
+char	n_name[MAXPATHLEN];
 char	*canon_name = _PATH_TMP;
 int	o_lineno;
 int	n_lineno;
@@ -526,6 +527,8 @@ boolean	tempfileopen = FALSE;
 boolean edit(name)
 	char	*name;
 {
+	int fd;
+	
 	o_name = name;
 	if ( (o_touchedfile = fopen(name, "r")) == NULL){
 		fprintf(stderr, "%s: Can't open file \"%s\" to touch (read).\n",
@@ -533,8 +536,11 @@ boolean edit(name)
 		return(TRUE);
 	}
 	(void)strcpy(n_name, canon_name);
-	(void)mktemp(n_name);
-	if ( (n_touchedfile = fopen(n_name, "w")) == NULL){
+	(void)strcat(n_name,"error.XXXXXX");
+	fd = mkstemp(n_name);
+	if ( fd < 0 || (n_touchedfile = fdopen(fd, "w")) == NULL) {
+		if (fd >= 0)
+			close(fd);
 		fprintf(stderr,"%s: Can't open file \"%s\" to touch (write).\n",
 			processname, name);
 		return(TRUE);
