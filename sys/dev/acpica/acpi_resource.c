@@ -570,7 +570,7 @@ acpi_sysresource_attach(device_t dev)
 	rid = i;
 	res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, 0, ~0, 1, 0);
 	rid = i;
-	res = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1, 0);
+	res = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1, RF_SHAREABLE);
     }
     return(0);
 }
