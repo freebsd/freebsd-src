@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /*
- * Copyright (C) 1984-2000  Mark Nudelman
+ * Copyright (C) 1984-2002  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -114,31 +114,35 @@ ap_char(c)
 ap_pos(pos)
 	POSITION pos;
 {
-	char buf[INT_STRLEN_BOUND(pos) + 1]; 
-	char *p = buf + sizeof(buf) - 1;
-	int neg = (pos < 0);
- 
-	if (neg)
-		pos = -pos;
-	*p = '\0';
-	do
-		*--p = '0' + (pos % 10);
-	while ((pos /= 10) != 0);
-	if (neg)
-		*--p = '-';
-	ap_str(p);
+	char buf[INT_STRLEN_BOUND(pos) + 2];
+
+	postoa(pos, buf);
+	ap_str(buf);
+}
+
+/*
+ * Append a line number to the end of the message.
+ */
+ 	static void
+ap_linenum(linenum)
+	LINENUM linenum;
+{
+	char buf[INT_STRLEN_BOUND(linenum) + 2];
+
+	linenumtoa(linenum, buf);
+	ap_str(buf);
 }
 
 /*
  * Append an integer to the end of the message.
  */
 	static void
-ap_int(n)
-	int n;
+ap_int(num)
+	int num;
 {
-	char buf[INT_STRLEN_BOUND(n) + 1];
+	char buf[INT_STRLEN_BOUND(num) + 2];
 
-	sprintf(buf, "%d", n);
+	inttoa(num, buf);
 	ap_str(buf);
 }
 
@@ -200,9 +204,17 @@ cond(c, where)
 	case 'D':	/* Same as L */
 		return (linenums && ch_length() != NULL_POSITION);
 	case 'm':	/* More than one file? */
+#if TAGS
 		return (ntags() ? (ntags() > 1) : (nifile() > 1));
+#else
+		return (nifile() > 1);
+#endif
 	case 'n':	/* First prompt in a new file? */
+#if TAGS
 		return (ntags() ? 1 : new_file);
+#else
+		return (new_file);
+#endif
 	case 'p':	/* Percent into file (bytes) known? */
 		return (curr_byte(where) != NULL_POSITION && 
 				ch_length() > 0);
@@ -214,8 +226,10 @@ cond(c, where)
 	case 'B':
 		return (ch_length() != NULL_POSITION);
 	case 'x':	/* Is there a "next" file? */
+#if TAGS
 		if (ntags())
 			return (0);
+#endif
 		return (next_ifile(curr_ifile) != NULL_IFILE);
 	}
 	return (0);
@@ -237,9 +251,9 @@ protochar(c, where, iseditproto)
 	POSITION pos;
 	POSITION len;
 	int n;
+	LINENUM linenum;
+	LINENUM last_linenum;
 	IFILE h;
-	char *s;
-	char *escs;
 
 	switch (c)
 	{
@@ -254,19 +268,19 @@ protochar(c, where, iseditproto)
 		ap_int(hshift);
 		break;
 	case 'd':	/* Current page number */
-		n = currline(where);
-		if (n > 0 && sc_height > 1)
-			ap_int(((n - 1) / (sc_height - 1)) + 1);
+		linenum = currline(where);
+		if (linenum > 0 && sc_height > 1)
+			ap_linenum(((linenum - 1) / (sc_height - 1)) + 1);
 		else
 			ap_quest();
 		break;
 	case 'D':	/* Last page number */
 		len = ch_length();
 		if (len == NULL_POSITION || len == ch_zero() ||
-		    (n = find_linenum(len)) <= 0)
+		    (linenum = find_linenum(len)) <= 0)
 			ap_quest();
 		else
-			ap_int(((n - 1) / (sc_height - 1)) + 1);
+			ap_linenum(((linenum - 1) / (sc_height - 1)) + 1);
 		break;
 #if EDITOR
 	case 'E':	/* Editor name */
@@ -274,45 +288,38 @@ protochar(c, where, iseditproto)
 		break;
 #endif
 	case 'f':	/* File name */
-		s = unquote_file(get_filename(curr_ifile));
-		/*
-		 * If we are expanding editproto then we escape metachars.
-		 * This allows us to run the editor on files with funny names.
-		 */
-		if (iseditproto && (escs = esc_metachars(s)) != NULL)
-		{
-			free(s);
-			s = escs;
-		}
-		ap_str(s);
-		free(s);
+		ap_str(get_filename(curr_ifile));
 		break;
 	case 'i':	/* Index into list of files */
+#if TAGS
 		if (ntags())
 			ap_int(curr_tag());
 		else
+#endif
 			ap_int(get_index(curr_ifile));
 		break;
 	case 'l':	/* Current line number */
-		n = currline(where);
-		if (n != 0)
-			ap_int(n);
+		linenum = currline(where);
+		if (linenum != 0)
+			ap_linenum(linenum);
 		else
 			ap_quest();
 		break;
 	case 'L':	/* Final line number */
 		len = ch_length();
 		if (len == NULL_POSITION || len == ch_zero() ||
-		    (n = find_linenum(len)) <= 0)
+		    (linenum = find_linenum(len)) <= 0)
 			ap_quest();
 		else
-			ap_int(n-1);
+			ap_linenum(linenum-1);
 		break;
 	case 'm':	/* Number of files */
+#if TAGS
 		n = ntags();
 		if (n)
 			ap_int(n);
 		else
+#endif
 			ap_int(nifile());
 		break;
 	case 'p':	/* Percent into file (bytes) */
@@ -324,13 +331,13 @@ protochar(c, where, iseditproto)
 			ap_quest();
 		break;
 	case 'P':	/* Percent into file (lines) */
-		pos = (POSITION) currline(where);
-		if (pos == 0 ||
+		linenum = currline(where);
+		if (linenum == 0 ||
 		    (len = ch_length()) == NULL_POSITION || len == ch_zero() ||
-		    (n = find_linenum(len)) <= 0)
+		    (last_linenum = find_linenum(len)) <= 0)
 			ap_quest();
 		else
-			ap_int(percentage(pos, (POSITION)n));
+			ap_int(percentage(linenum, last_linenum));
 		break;
 	case 's':	/* Size of file */
 	case 'B':
@@ -345,19 +352,18 @@ protochar(c, where, iseditproto)
 			mp--;
 		break;
 	case 'T':	/* Type of list */
+#if TAGS
 		if (ntags())
 			ap_str("tag");
 		else
+#endif
 			ap_str("file");
 		break;
 	case 'x':	/* Name of next file */
 		h = next_ifile(curr_ifile);
 		if (h != NULL_IFILE)
-		{
-			s = unquote_file(get_filename(h));
-			ap_str(s);
-			free(s);
-		} else
+			ap_str(get_filename(h));
+		else
 			ap_quest();
 		break;
 	}

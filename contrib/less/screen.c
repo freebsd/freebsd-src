@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /*
- * Copyright (C) 1984-2000  Mark Nudelman
+ * Copyright (C) 1984-2002  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -232,6 +232,7 @@ extern int no_keypad;
 extern int sigs;
 extern int wscroll;
 extern int screen_trashed;
+extern int tty;
 #if HILITE_SEARCH
 extern int hilite_search;
 #endif
@@ -270,7 +271,7 @@ raw_mode(on)
 		/*
 		 * Get terminal modes.
 		 */
-		tcgetattr(2, &s);
+		tcgetattr(tty, &s);
 
 		/*
 		 * Save modes and set certain variables dependent on modes.
@@ -426,9 +427,9 @@ raw_mode(on)
 		s = save_term;
 	}
 #if HAVE_FSYNC
-	fsync(2);
+	fsync(tty);
 #endif
-	tcsetattr(2, TCSADRAIN, &s);
+	tcsetattr(tty, TCSADRAIN, &s);
 #if MUST_SET_LINE_DISCIPLINE
 	if (!on)
 	{
@@ -438,7 +439,7 @@ raw_mode(on)
 		 * is therefore not restored, yet.  Restore the old
 		 * line discipline by hand.
 		 */
-		ioctl(2, TIOCSETD, &save_term.c_line);
+		ioctl(tty, TIOCSETD, &save_term.c_line);
 	}
 #endif
     }
@@ -454,7 +455,7 @@ raw_mode(on)
 		/*
 		 * Get terminal modes.
 		 */
-		ioctl(2, TCGETA, &s);
+		ioctl(tty, TCGETA, &s);
 
 		/*
 		 * Save modes and set certain variables dependent on modes.
@@ -490,7 +491,7 @@ raw_mode(on)
 		 */
 		s = save_term;
 	}
-	ioctl(2, TCSETAW, &s);
+	ioctl(tty, TCSETAW, &s);
     }
 #else
 #ifdef TIOCGETP
@@ -504,7 +505,7 @@ raw_mode(on)
 		/*
 		 * Get terminal modes.
 		 */
-		ioctl(2, TIOCGETP, &s);
+		ioctl(tty, TIOCGETP, &s);
 
 		/*
 		 * Save modes and set certain variables dependent on modes.
@@ -533,7 +534,7 @@ raw_mode(on)
 		 */
 		s = save_term;
 	}
-	ioctl(2, TIOCSETN, &s);
+	ioctl(tty, TIOCSETN, &s);
     }
 #else
 #ifdef _OSK
@@ -547,7 +548,7 @@ raw_mode(on)
 		/*
 		 * Get terminal modes.
 		 */
-		_gs_opt(2, &s);
+		_gs_opt(tty, &s);
 
 		/*
 		 * Save modes and set certain variables dependent on modes.
@@ -575,7 +576,7 @@ raw_mode(on)
 		 */
 		s = save_term;
 	}
-	_ss_opt(2, &s);
+	_ss_opt(tty, &s);
     }
 #else
 	/* MS-DOS, Windows, or OS2 */
