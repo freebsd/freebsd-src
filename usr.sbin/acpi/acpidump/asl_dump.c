@@ -34,8 +34,6 @@
 #include <err.h>
 #include <stdio.h>
 
-#include <dev/acpi/acpireg.h>
-
 #include "acpidump.h"
 
 static u_int32_t
