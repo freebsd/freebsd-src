@@ -2617,13 +2617,13 @@ static char *fireWallField;     /* bool array for entries */
 
 #define fw_setfield(field, num)                         \
 do {                                                    \
-    (field)[num] = 1;                                   \
+    (field)[(num) - fireWallBaseNum] = 1;               \
 } /*lint -save -e717 */ while(0) /*lint -restore */
 #define fw_clrfield(field, num)                         \
 do {                                                    \
-    (field)[num] = 0;                                   \
+    (field)[(num) - fireWallBaseNum] = 0;               \
 } /*lint -save -e717 */ while(0) /*lint -restore */
-#define fw_tstfield(field, num) ((field)[num])
+#define fw_tstfield(field, num) ((field)[(num) - fireWallBaseNum])
 
 void
 PacketAliasSetFWBase(unsigned int base, unsigned int num) {
@@ -2680,8 +2680,7 @@ PunchFWHole(struct alias_link *link) {
              fw_tstfield(fireWallField, fwhole);
          fwhole++)
         ;
-    if (fwhole >= fireWallBaseNum + fireWallNumNums ||
-        fw_tstfield(fireWallField, fwhole)) {
+    if (fwhole == fireWallBaseNum + fireWallNumNums) {
         for (fwhole = fireWallBaseNum;
              fwhole < fireWallActiveNum &&
                  fw_tstfield(fireWallField, fwhole);
