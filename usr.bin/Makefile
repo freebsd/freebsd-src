@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.3 (Berkeley) 1/7/94
-#	$Id: Makefile,v 1.90 1997/09/28 09:14:41 markm Exp $
+#	$Id: Makefile,v 1.91 1997/12/06 05:23:59 sef Exp $
 
 # XXX MISSING:		deroff diction graph learn plot
 #			spell spline struct units xsend
@@ -26,7 +26,7 @@ SUBDIR=	apply ar at banner basename biff brandelf c89 cal calendar \
 	unexpand unifdef uniq units unvis users uudecode uuencode vacation \
 	vgrind vi vis w wall wc what whereis which who whois window \
 	write xargs xinstall xlint xstr yacc yes ypcat ypmatch ypwhich
-SUBDIR+=gprof4
+SUBDIR+=gprof4 minigzip
 
 .if !defined(NOTCL) && exists (${.CURDIR}/../contrib/tcl) && \
 	exists(${.CURDIR}/tclsh) && exists (${.CURDIR}/../lib/libtcl)
