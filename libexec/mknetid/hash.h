@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995
+ * Copyright (c) 1995, 1996
  *	Bill Paul <wpaul@ctr.columbia.edu>.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,10 +29,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: hash.h,v 1.3 1996/06/24 22:48:32 wpaul Exp $
+ *	$Id: hash.h,v 1.1.1.1 1996/06/25 20:26:38 wpaul Exp $
  */
 
-/* Groupit entry hung off a member_entry node. */
+/* Groupid entry hung off a member_entry node. */
 struct grouplist {
 	gid_t groupid;
 	struct grouplist *next;
@@ -46,8 +46,8 @@ struct member_entry {
 };
 
 /* Table size (chosen arbitrarily). Not too big, not too small. */
-#define TABLESIZE 256
-#define HASH_MASK 0x000000FF
+#define TABLESIZE 1024
+#define HASH_MASK 0x000003FF
 
 extern void mstore __P(( struct member_entry ** , char *, int, int ));
 extern struct grouplist *lookup __P(( struct member_entry **, char * ));
