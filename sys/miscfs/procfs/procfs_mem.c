@@ -37,7 +37,7 @@
  *
  *	@(#)procfs_mem.c	8.5 (Berkeley) 6/15/94
  *
- *	$Id: procfs_mem.c,v 1.30 1998/02/06 12:13:41 eivind Exp $
+ *	$Id: procfs_mem.c,v 1.31 1998/04/17 22:36:55 des Exp $
  */
 
 /*
@@ -61,11 +61,14 @@
 #include <vm/vm_page.h>
 #include <vm/vm_extern.h>
 #include <sys/user.h>
+#include <sys/ptrace.h>
 
-static int	procfs_rwmem __P((struct proc *p, struct uio *uio));
+static int	procfs_rwmem __P((struct proc *curp,
+				  struct proc *p, struct uio *uio));
 
 static int
-procfs_rwmem(p, uio)
+procfs_rwmem(curp, p, uio)
+	struct proc *curp;
 	struct proc *p;
 	struct uio *uio;
 {
@@ -130,7 +133,12 @@ procfs_rwmem(p, uio)
 		if (uva >= VM_MAXUSER_ADDRESS) {
 			vm_offset_t tkva;
 
-			if (writing || (uva >= (VM_MAXUSER_ADDRESS + UPAGES * PAGE_SIZE))) {
+			if (writing || 
+			    uva >= VM_MAXUSER_ADDRESS + UPAGES * PAGE_SIZE ||
+			    (ptrace_read_u_check(p,
+						 uva - (vm_offset_t) VM_MAXUSER_ADDRESS,
+						 (size_t) len) &&
+			     !procfs_kmemaccess(curp))) {
 				error = 0;
 				break;
 			}
@@ -290,11 +298,11 @@ procfs_domem(curp, p, pfs, uio)
  	 */
  
  	if (!CHECKIO(curp, p) &&
-	    !(curp->p_cred->pc_ucred->cr_gid == KMEM_GROUP &&
-	      uio->uio_rw == UIO_READ))
+	    !(uio->uio_rw == UIO_READ &&
+	      procfs_kmemaccess(curp)))
  		return EPERM;
 
-	return (procfs_rwmem(p, uio));
+	return (procfs_rwmem(curp, p, uio));
 }
 
 /*
@@ -314,4 +322,21 @@ procfs_findtextvp(p)
 {
 
 	return (p->p_textvp);
+}
+
+int procfs_kmemaccess(curp)
+	struct proc *curp;
+{
+	int i;
+	struct ucred *cred;
+
+	cred = curp->p_cred->pc_ucred;
+	if (suser(cred, &curp->p_acflag))
+		return 1;
+	
+	for (i = 0; i < cred->cr_ngroups; i++)
+		if (cred->cr_groups[i] == KMEM_GROUP)
+			return 1;
+	
+	return 0;
 }
