@@ -59,6 +59,7 @@ static char sccsid[] = "@(#)main.c	8.4 (Berkeley) 3/1/94";
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <err.h>
 #include "netstat.h"
 
 struct nlist nl[] = {
@@ -195,6 +196,7 @@ main(argc, argv)
 	int ch;
 	char *nlistf = NULL, *memf = NULL;
 	char buf[_POSIX2_LINE_MAX];
+	char buf2[_POSIX2_LINE_MAX];
 
 	if (cp = rindex(argv[0], '/'))
 		prog = cp + 1;
@@ -226,10 +228,7 @@ main(argc, argv)
 			else if (strcmp(optarg, "iso") == 0)
 				af = AF_ISO;
 			else {
-				(void)fprintf(stderr,
-				    "%s: %s: unknown address family\n",
-				    prog, optarg);
-				exit(1);
+				errx(1, "%s: unknown address family", optarg);
 			}
 			break;
 		case 'g':
@@ -262,10 +261,9 @@ main(argc, argv)
 			break;
 		case 'p':
 			if ((tp = name2protox(optarg)) == NULL) {
-				(void)fprintf(stderr,
-				    "%s: %s: unknown or uninstrumented protocol\n",
-				    prog, optarg);
-				exit(1);
+				errx(1, 
+				     "%s: unknown or uninstrumented protocol",
+				     optarg);
 			}
 			pflag = 1;
 			break;
@@ -317,16 +315,22 @@ main(argc, argv)
 	if (nlistf != NULL || memf != NULL)
 		setgid(getgid());
 
-	if ((kvmd = kvm_open(nlistf, memf, NULL, O_RDONLY, prog)) == NULL) {
-		fprintf(stderr, "%s: kvm_open: %s\n", prog, buf);
-		exit(1);
+	kvmd = kvm_openfiles(nlistf, memf, NULL, O_RDONLY, buf);
+	if (kvmd == NULL) {
+		errx(1, "kvm_open: %s", buf);
 	}
-	if (kvm_nlist(kvmd, nl) < 0 || nl[0].n_type == 0) {
-		if (nlistf)
-			fprintf(stderr, "%s: %s: no namelist\n", prog, nlistf);
+	if (kvm_nlist(kvmd, nl) < 0) {
+		if(nlistf)
+			errx(1, "%s: kvm_nlist: %s", nlistf, kvm_geterr(kvmd));
 		else
-			fprintf(stderr, "%s: no namelist\n", prog);
-		exit(1);
+			errx(1, "kvm_nlist: %s", kvm_geterr(kvmd));
+	}
+
+	if (nl[0].n_type == 0) {
+		if(nlistf)
+			errx(1, "%s: no namelist", nlistf);
+		else
+			errx(1, "no namelist");
 	}
 	if (mflag) {
 		mbpr(nl[N_MBSTAT].n_value);
@@ -427,9 +431,7 @@ kread(addr, buf, size)
 {
 
 	if (kvm_read(kvmd, addr, buf, size) != size) {
-		/* XXX this duplicates kvm_read's error printout */
-		(void)fprintf(stderr, "%s: kvm_read %s\n", prog,
-		    kvm_geterr(kvmd));
+		warnx("kvm_read: %s", kvm_geterr(kvmd));
 		return (-1);
 	}
 	return (0);
