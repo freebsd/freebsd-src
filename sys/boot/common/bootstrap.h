@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootstrap.h,v 1.4 1998/09/04 02:43:26 msmith Exp $
+ *	$Id: bootstrap.h,v 1.5 1998/09/14 18:27:04 msmith Exp $
  */
 
 #include <sys/types.h>
@@ -65,6 +65,7 @@ extern int	autoboot(int delay, char *prompt);
 
 /* misc.c */
 extern char	*unargv(int argc, char *argv[]);
+extern void	hexdump(caddr_t region, size_t len);
 extern size_t	strlenout(vm_offset_t str);
 extern char	*strdupout(vm_offset_t str);
 

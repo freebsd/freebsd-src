@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: misc.c,v 1.1.1.1 1998/08/21 03:17:41 msmith Exp $
+ *	$Id: misc.c,v 1.2 1998/09/03 02:10:07 msmith Exp $
  */
 
 #include <string.h>
@@ -86,4 +86,44 @@ strdupout(vm_offset_t str)
 	    break;
     }
     return(result);
+}
+
+/*
+ * Display a region in traditional hexdump format.
+ */
+void
+hexdump(caddr_t region, size_t len)
+{
+    caddr_t	line;
+    int		x, c;
+    char	lbuf[80];
+#define emit(fmt, args...)	{sprintf(lbuf, fmt , ## args); pager_output(lbuf);}
+
+    pager_open();
+    for (line = region; line < (region + len); line += 16) {
+	emit("%08x  ", line);
+	
+	for (x = 0; x < 16; x++) {
+	    if ((line + x) < (region + len)) {
+		emit("%02x ", *(u_int8_t *)(line + x));
+	    } else {
+		emit("-- ");
+	    }
+	    if (x == 7)
+		emit(" ");
+	}
+	emit(" |");
+	for (x = 0; x < 16; x++) {
+	    if ((line + x) < (region + len)) {
+		c = *(u_int8_t *)(line + x);
+		if ((c < ' ') || (c > '~'))	/* !isprint(c) */
+		    c = '.';
+		emit("%c", c);
+	    } else {
+		emit(" ");
+	    }
+	}
+	emit("|\n");
+    }
+    pager_close();
 }
