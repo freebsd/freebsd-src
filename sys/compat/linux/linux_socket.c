@@ -402,35 +402,14 @@ bad:
 
 /* Return 0 if IP_HDRINCL is set for the given socket. */
 static int
-linux_check_hdrincl(struct thread *td, caddr_t *sg, int s)
+linux_check_hdrincl(struct thread *td, int s)
 {
-	struct getsockopt_args /* {
-		int	s;
-		int	level;
-		int	name;
-		void * __restrict val;
-		socklen_t * __restrict avalsize;
-	} */ bsd_args;
-	void * __restrict val;
-	socklen_t * __restrict valsize;
 	int error, optval, size_val;
 
-	val = stackgap_alloc(sg, sizeof(size_val));
-	valsize = stackgap_alloc(sg, sizeof(socklen_t));
-
-	size_val = sizeof(val);
-	if ((error = copyout(&size_val, valsize, sizeof(size_val))))
-		return (error);
-
-	bsd_args.s = s;
-	bsd_args.level = IPPROTO_IP;
-	bsd_args.name = IP_HDRINCL;
-	bsd_args.val = val;
-	bsd_args.avalsize = valsize;
-	if ((error = getsockopt(td, &bsd_args)))
-		return (error);
-
-	if ((error = copyin(val, &optval, sizeof(optval))))
+	size_val = sizeof(optval);
+	error = kern_getsockopt(td, s, IPPROTO_IP, IP_HDRINCL,
+	    &optval, UIO_SYSSPACE, &size_val);
+	if (error)
 		return (error);
 
 	return (optval == 0);
@@ -461,6 +440,7 @@ linux_sendto_hdrincl(struct thread *td, caddr_t *sg, struct linux_sendto_args *l
 #define linux_ip_copysize	8
 
 	struct ip *packet;
+	caddr_t sg = stackgap_init();
 	struct msghdr msg;
 	struct iovec aiov[2];
 	int error;
@@ -515,13 +495,6 @@ linux_socket(struct thread *td, struct linux_socket_args *args)
 		int type;
 		int protocol;
 	} */ bsd_args;
-	struct setsockopt_args /* {
-		int s;
-		int level;
-		int name;
-		caddr_t val;
-		int valsize;
-	} */ bsd_setsockopt_args;
 	int error;
 	int retval_socket;
 
@@ -540,21 +513,12 @@ linux_socket(struct thread *td, struct linux_socket_args *args)
 	    && bsd_args.domain == AF_INET
 	    && retval_socket >= 0) {
 		/* It's a raw IP socket: set the IP_HDRINCL option. */
-		caddr_t sg;
-		int *hdrincl;
+		int hdrincl;
 
-		sg = stackgap_init();
-		hdrincl = (int *)stackgap_alloc(&sg, sizeof(*hdrincl));
-		*hdrincl = 1;
-		bsd_setsockopt_args.s = td->td_retval[0];
-		bsd_setsockopt_args.level = IPPROTO_IP;
-		bsd_setsockopt_args.name = IP_HDRINCL;
-		bsd_setsockopt_args.val = (caddr_t)hdrincl;
-		bsd_setsockopt_args.valsize = sizeof(*hdrincl);
-		/* We ignore any error returned by setsockopt() */
-		setsockopt(td, &bsd_setsockopt_args);
-		/* Copy back the return value from socket() */
-		td->td_retval[0] = bsd_setsockopt_args.s;
+		hdrincl = 1;
+		/* We ignore any error returned by kern_setsockopt() */
+		kern_setsockopt(td, td->td_retval[0], IPPROTO_IP, IP_HDRINCL,
+		    &hdrincl, UIO_SYSSPACE, sizeof(hdrincl));
 	}
 #ifdef INET6
 	/*
@@ -571,21 +535,12 @@ linux_socket(struct thread *td, struct linux_socket_args *args)
 	    && ip6_v6only
 #endif
 	    ) {
-		caddr_t sg;
-		int *v6only;
+		int v6only;
 
-		sg = stackgap_init();
-		v6only = (int *)stackgap_alloc(&sg, sizeof(*v6only));
-		*v6only = 0;
-		bsd_setsockopt_args.s = td->td_retval[0];
-		bsd_setsockopt_args.level = IPPROTO_IPV6;
-		bsd_setsockopt_args.name = IPV6_V6ONLY;
-		bsd_setsockopt_args.val = (caddr_t)v6only;
-		bsd_setsockopt_args.valsize = sizeof(*v6only);
+		v6only = 0;
 		/* We ignore any error returned by setsockopt() */
-		setsockopt(td, &bsd_setsockopt_args);
-		/* Copy back the return value from socket() */
-		td->td_retval[0] = bsd_setsockopt_args.s;
+		kern_setsockopt(td, td->td_retval[0], IPPROTO_IPV6, IPV6_V6ONLY,
+		    &v6only, UIO_SYSSPACE, sizeof(v6only));
 	}
 #endif
 
@@ -916,15 +871,14 @@ linux_sendto(struct thread *td, struct linux_sendto_args *args)
 	struct linux_sendto_args linux_args;
 	struct msghdr msg;
 	struct iovec aiov;
-	caddr_t sg = stackgap_init();
 	int error;
 
 	if ((error = copyin(args, &linux_args, sizeof(linux_args))))
 		return (error);
 
-	if (linux_check_hdrincl(td, &sg, linux_args.s) == 0)
+	if (linux_check_hdrincl(td, linux_args.s) == 0)
 		/* IP_HDRINCL set, tweak the packet before sending */
-		return (linux_sendto_hdrincl(td, &sg, &linux_args));
+		return (linux_sendto_hdrincl(td, &linux_args));
 
 	msg.msg_name = linux_args.to;
 	msg.msg_namelen = linux_args.tolen;

@@ -1242,23 +1242,48 @@ setsockopt(td, uap)
 		int	valsize;
 	} */ *uap;
 {
+
+	return (kern_setsockopt(td, uap->s, uap->level, uap->name,
+	    uap->val, UIO_USERSPACE, uap->valsize));
+}
+
+int
+kern_setsockopt(td, s, level, name, val, valseg, valsize)
+	struct thread *td;
+	int s;
+	int level;
+	int name;
+	void *val;
+	enum uio_seg valseg;
+	socklen_t valsize;
+{
+	int error;
 	struct socket *so;
 	struct sockopt sopt;
-	int error;
 
-	if (uap->val == 0 && uap->valsize != 0)
+	if (val == NULL && valsize != 0)
 		return (EFAULT);
-	if (uap->valsize < 0)
+	if (valsize < 0)
 		return (EINVAL);
 
-	NET_LOCK_GIANT();
-	if ((error = fgetsock(td, uap->s, &so, NULL)) == 0) {
-		sopt.sopt_dir = SOPT_SET;
-		sopt.sopt_level = uap->level;
-		sopt.sopt_name = uap->name;
-		sopt.sopt_val = uap->val;
-		sopt.sopt_valsize = uap->valsize;
+	sopt.sopt_dir = SOPT_SET;
+	sopt.sopt_level = level;
+	sopt.sopt_name = name;
+	sopt.sopt_val = val;
+	sopt.sopt_valsize = valsize;
+	switch (valseg) {
+	case UIO_USERSPACE:
 		sopt.sopt_td = td;
+		break;
+	case UIO_SYSSPACE:
+		sopt.sopt_td = NULL;
+		break;
+	default:
+		panic("kern_setsockopt called with bad valseg");
+	}
+
+	NET_LOCK_GIANT();
+	if ((error = fgetsock(td, s, &so, NULL)) == 0) {
 		error = sosetopt(so, &sopt);
 		fputsock(so);
 	}
@@ -1283,39 +1308,66 @@ getsockopt(td, uap)
 {
 	socklen_t valsize;
 	int	error;
-	struct  socket *so;
-	struct	sockopt sopt;
 
-	NET_LOCK_GIANT();
-	if ((error = fgetsock(td, uap->s, &so, NULL)) != 0)
-		goto done2;
 	if (uap->val) {
 		error = copyin(uap->avalsize, &valsize, sizeof (valsize));
 		if (error)
-			goto done1;
-		if (valsize < 0) {
-			error = EINVAL;
-			goto done1;
-		}
-	} else {
-		valsize = 0;
+			return (error);
 	}
+
+	error = kern_getsockopt(td, uap->s, uap->level, uap->name,
+	    uap->val, UIO_USERSPACE, &valsize);
+
+	if (error == 0)
+		error = copyout(&valsize, uap->avalsize, sizeof (valsize));
+	return (error);
+}
+
+/*
+ * Kernel version of getsockopt.
+ * optval can be a userland or userspace. optlen is always a kernel pointer.
+ */
+int
+kern_getsockopt(td, s, level, name, val, valseg, valsize)
+	struct thread *td;
+	int s;
+	int level;
+	int name;
+	void *val;
+	enum uio_seg valseg;
+	socklen_t *valsize;
+{
+	int error;
+	struct  socket *so;
+	struct	sockopt sopt;
+
+	if (val == NULL)
+		*valsize = 0;
+	if (*valsize < 0)
+		return (EINVAL);
 
 	sopt.sopt_dir = SOPT_GET;
-	sopt.sopt_level = uap->level;
-	sopt.sopt_name = uap->name;
-	sopt.sopt_val = uap->val;
-	sopt.sopt_valsize = (size_t)valsize; /* checked non-negative above */
-	sopt.sopt_td = td;
-
-	error = sogetopt(so, &sopt);
-	if (error == 0) {
-		valsize = sopt.sopt_valsize;
-		error = copyout(&valsize, uap->avalsize, sizeof (valsize));
+	sopt.sopt_level = level;
+	sopt.sopt_name = name;
+	sopt.sopt_val = val;
+	sopt.sopt_valsize = (size_t)*valsize; /* checked non-negative above */
+	switch (valseg) {
+	case UIO_USERSPACE:
+		sopt.sopt_td = td;
+		break;
+	case UIO_SYSSPACE:
+		sopt.sopt_td = NULL;
+		break;
+	default:
+		panic("kern_getsockopt called with bad valseg");
 	}
-done1:
-	fputsock(so);
-done2:
+
+	NET_LOCK_GIANT();
+	if ((error = fgetsock(td, s, &so, NULL)) == 0) {
+		error = sogetopt(so, &sopt);
+		*valsize = sopt.sopt_valsize;
+		fputsock(so);
+	}
 	NET_UNLOCK_GIANT();
 	return (error);
 }
