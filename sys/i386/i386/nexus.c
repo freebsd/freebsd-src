@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: nexus.c,v 1.10 1999/05/18 20:48:41 peter Exp $
+ *	$Id: nexus.c,v 1.11 1999/05/30 10:50:57 dfr Exp $
  */
 
 /*
@@ -75,6 +75,8 @@ static struct rman irq_rman, drq_rman, port_rman, mem_rman;
 
 static	int nexus_probe(device_t);
 static	void nexus_print_child(device_t, device_t);
+static device_t nexus_add_child(device_t bus, int order, const char *name,
+				int unit);
 static	struct resource *nexus_alloc_resource(device_t, device_t, int, int *,
 					      u_long, u_long, u_long, u_int);
 static	int nexus_activate_resource(device_t, device_t, int, int,
@@ -99,6 +101,7 @@ static device_method_t nexus_methods[] = {
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	nexus_print_child),
+	DEVMETHOD(bus_add_child,	nexus_add_child),
 	DEVMETHOD(bus_read_ivar,	bus_generic_read_ivar),
 	DEVMETHOD(bus_write_ivar,	bus_generic_write_ivar),
 	DEVMETHOD(bus_alloc_resource,	nexus_alloc_resource),
@@ -192,9 +195,12 @@ nexus_probe(device_t dev)
 	if (child == 0)
 		panic("nexus_probe apm");
 
+	bus_generic_probe(dev);
+#if 0
 	child = device_add_child(dev, "pcib", 0, 0);
 	if (child == 0)
 		panic("nexus_probe pcib");
+#endif
 
 	child = device_add_child(dev, "eisa", 0, 0);
 	if (child == 0)
@@ -211,6 +217,12 @@ static void
 nexus_print_child(device_t bus, device_t child)
 {
 	printf(" on motherboard");
+}
+
+static device_t
+nexus_add_child(device_t bus, int order, const char *name, int unit)
+{
+	return device_add_child_ordered(bus, order, name, unit, 0);
 }
 
 /*
