@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)hier.7	8.1 (Berkeley) 6/5/93
-.\"	$Id: hier.7,v 1.15 1997/09/13 17:52:36 wosch Exp $
+.\"	$Id: hier.7,v 1.16 1998/12/21 05:57:57 jkoshy Exp $
 .\"
 .Dd June 5, 1993
 .Dt HIER 7
@@ -99,10 +99,10 @@ see
 .It Li /kernel
 pure kernel executable (the operating system loaded into memory
 at boot time).  
-.It Li /lkm/
+.It Li /modules/
 loadable kernel modules;
 see 
-.Xr lkm 4 
+.Xr kldstat 8 
 .It Li /mnt/
 empty directory commonly used by
 system administrators as a temporary mount point
@@ -452,8 +452,6 @@ src for files in /usr/lib
 src for files in /usr/libexec
 .It Li local/
 src for files in /usr/local
-.It Li lkm
-src for files in /lkm
 .It Li release
 Files required to produce a
 .Tn FreeBSD 
